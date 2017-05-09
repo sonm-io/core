@@ -2,14 +2,14 @@ package main
 
 import (
 	"fmt"
-	"log"
+	//"log"
 	"os"
 
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/whisper/whisperv5"
 	//"github.com/ethereum/go-ethereum/crypto/secp256k1"
 	//"github.com/ethereum/go-ethereum/crypto/secp256k1_test.go"
-	"github.com/ethereum/go-ethereum/crypto"
+	//"github.com/ethereum/go-ethereum/crypto"
 
 	//"crypto/ecdsa"
 	//"crypto/elliptic"
@@ -26,7 +26,7 @@ func main() {
 
 	//pub, _ :=crypto.ToECDSAPub(key)
 
-	prv, _ :=crypto.GenerateKey()
+//	prv, _ :=crypto.GenerateKey()
 
 /**	func generateKeyPair() (pubkey, privkey []byte) {
 		key, err := ecdsa.GenerateKey(S256(), rand.Reader)
@@ -45,7 +45,7 @@ func main() {
 	cfg := p2p.Config{
 		MaxPeers:   10,
 	//	Identity:   p2p.NewSimpleClientIdentity("my-whisper-app", "1.0", "", string(pub)),
-		PrivateKey: prv,
+	//	PrivateKey: prv,
 		ListenAddr: ":8000",
 	//	Protocols: []p2p.Protocol{whisper.protocol()},
 		//	Protocols: []p2p.Protocol{shh.protocol()},
@@ -53,12 +53,18 @@ func main() {
 	Protocols: []p2p.Protocol{shh.Protocol},
 	}
 
+ //ihatecompilers  := prv;
+
 	srv:= p2p.Server{
 		Config: cfg,
 	}
 
+	
+  //srv.Start();
+
 	if err := srv.Start(); err != nil {
 		fmt.Println("could not start server:", err)
+	//	srv.Stop()
 		os.Exit(1)
 	}
 
