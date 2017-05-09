@@ -50,7 +50,7 @@ func main() {
 	//	Protocols: []p2p.Protocol{whisper.protocol()},
 		//	Protocols: []p2p.Protocol{shh.protocol()},
 	//	Protocols:  []p2p.Protocol{MyProtocol()},
-	Protocols: shh.Protocol,
+	Protocols: []p2p.Protocol{shh.Protocol},
 	}
 
 	srv:= p2p.Server{
