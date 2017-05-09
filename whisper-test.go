@@ -53,11 +53,13 @@ func main() {
 
 
 	topics := whisperv2.NewTopicsFromStrings("my", "message")
+	fmt.Println(topics)
 	fmt.Println("test2")
+	//topics := whisperv2.TopicsFromString("my", "message")
 	//msg := shh.NewMessage([]byte("hello world"))  // 1
 	msg := whisperv2.NewMessage([]byte("hello world"))
 
-	envelope := msg.Seal(shh.Opts{                // 2
+	envelope := msg.Wrap(1,whisperv2.Options{                // 2
 	        From:   prv, // Sign it
 	        Topics: topics,
 	})
