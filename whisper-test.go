@@ -37,21 +37,71 @@ func main() {
 		return pubkey, math.PaddedBigBytes(key.D, 32)
 	}
 **/
+const messageId = 0
+
+type Message string
+
+function MyProtocol() p2p.Protocol {
+	return p2p.Protocol{
+		Name:    "MyProtocol",
+		Version: 1,
+		Length:  1,
+		Run:     msgHandler,
+	}
+}
+
+
+func msgHandler(peer *p2p.Peer, ws p2p.MsgReadWriter) error {
+	for {
+		msg, err := ws.ReadMsg()
+		if err != nil {
+			return err
+		}
+
+		var myMessage Message
+		err = msg.Decode(&myMessage)
+		if err != nil {
+			// handle decode error
+			continue
+		}
+
+		switch myMessage {
+		case "foo":
+			err := p2p.SendItems(ws, messageId, "bar"))
+			if err != nil {
+				return err
+			}
+		default:
+			fmt.Println("recv:", myMessage)
+		}
+	}
+	return nil
+}
 
 	shh := whisperv2.New()
 
-	srv := p2p.Config{
+	cfg := p2p.Config{
 		MaxPeers:   10,
 	//	Identity:   p2p.NewSimpleClientIdentity("my-whisper-app", "1.0", "", string(pub)),
 		PrivateKey: prv,
 		ListenAddr: ":8000",
 	//	Protocols: []p2p.Protocol{whisper.protocol()},
-			Protocols: shh.protocol,
+		//	Protocols: []p2p.Protocol{shh.protocol()},
+		Protocols:  []p2p.Protocol{MyProtocol()},
 	}
+
+	srv:= p2p.Server{
+		Config: cfg,
+	}
+
 	if err := srv.Start(); err != nil {
 		fmt.Println("could not start server:", err)
 		os.Exit(1)
 	}
+
+
+
+
 
 	select {}
 }
