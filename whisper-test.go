@@ -92,7 +92,15 @@ fmt.Println(envelope)
 
 shh.Send(envelope)
 
+filterTopics := whisperv2.NewFilterTopicsFromStringsFlat("my","message")
 
+shh.Watch(whisperv2.Filter{
+        Topics: filterTopics,
+        Fn:     func(msg *whisperv2.Message) {
+								fmt.Println("recived message")
+                fmt.Println(msg)
+        },
+})
 
 	select {}
 }
