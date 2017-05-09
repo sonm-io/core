@@ -52,18 +52,7 @@ func main() {
 
 
 
-	topics := whisperv2.NewTopicsFromStrings("my", "message")
-	fmt.Println(topics)
-	fmt.Println("test2")
-	//topics := whisperv2.TopicsFromString("my", "message")
-	//msg := shh.NewMessage([]byte("hello world"))  // 1
-	msg := whisperv2.NewMessage([]byte("hello world"))
 
-	envelope := msg.Wrap(1,whisperv2.Options{                // 2
-	        From:   prv, // Sign it
-	        Topics: topics,
-	})
-	shh.Send(envelope)
 
 
 	if err := srv.Start(); err != nil {
@@ -72,14 +61,36 @@ func main() {
 		os.Exit(1)
 	}
 
+/**
 	if err:=	shh.Start(srv); err != nil {
 		fmt.Println("could not start whisper:", err)
 	//	srv.Stop()
 		os.Exit(1)
 	}
+**/
 
+topics := whisperv2.NewTopicsFromStrings("my", "message")
+fmt.Println("topics")
+fmt.Println(topics)
+fmt.Println("test2")
+//topics := whisperv2.TopicsFromString("my", "message")
+//msg := shh.NewMessage([]byte("hello world"))  // 1
+msg := whisperv2.NewMessage([]byte("hello world"))
+fmt.Println("msg:")
+fmt.Println(msg)
 
+envelope, err := msg.Wrap(1,whisperv2.Options{                // 2
+				From:   prv, // Sign it
+				Topics: topics,
+})
+if err != nil {
+	fmt.Println("could not create whisper envelope:", err)
+}
 
+fmt.Println("envelope:")
+fmt.Println(envelope)
+
+shh.Send(envelope)
 
 
 
