@@ -56,16 +56,19 @@ func main() {
 		Config: cfg,
 	}
 
+//log.SetOutput(os.Stdout)
 
   //srv.Start();
+
 
 	if err := srv.Start(); err != nil {
 		fmt.Println("could not start server:", err)
 	//	srv.Stop()
 		os.Exit(1)
 	}
-
-
+//log.SetOutput(os.Stdout)
+	//	fmt.Println(Info);
+	//log.Info.Println;
 
 
 	select {}
