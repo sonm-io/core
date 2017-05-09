@@ -61,13 +61,13 @@ func main() {
 		os.Exit(1)
 	}
 
-/**
+
 	if err:=	shh.Start(srv); err != nil {
 		fmt.Println("could not start whisper:", err)
 	//	srv.Stop()
 		os.Exit(1)
 	}
-**/
+
 
 topics := whisperv2.NewTopicsFromStrings("my", "message")
 fmt.Println("topics")
