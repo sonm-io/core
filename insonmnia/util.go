@@ -1,6 +1,9 @@
 package insonmnia
 
-import "time"
+import (
+	"sync"
+	"time"
+)
 
 // BackoffTimer implementation
 type BackoffTimer struct {
@@ -36,4 +39,10 @@ func (b *BackoffTimer) C() <-chan time.Time {
 // Stop frees the Timer
 func (b *BackoffTimer) Stop() bool {
 	return b.t.Stop()
+}
+
+var stringArrayPool = sync.Pool{
+	New: func() interface{} {
+		return make([]string, 10)
+	},
 }
