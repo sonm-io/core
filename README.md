@@ -1,18 +1,25 @@
-# whisper-test
+
+# Shadow Word
+
+SONM messages system. Based on Ethereum Whisper.
+
+## Fusrodah
+
+Fusrodah is universal clinet which can both broadcast and listen messages with specified topics.
+Can be used as prototype.
+
+Programm is creates itsown p2p server (simple node) and launch sub-protocol whisper(v2)
 
 
 
-Программа создает собственный p2p сервер(ноду) и запускает под-протокол whisper(v2).
-+Умеет отправлять и получать сообщения с фильтрами по топикам
+## Hacked library
 
+NOTE - you should understand that program used **not original** go-ethereum library but this hacked version.
+You can get more in modified_library README.md
 
-В репозитории используються собственные модифицированные библиотеки geth, т.к. в оригинальных библиотеках найдены
-баги не позволяющие использовать whisper как подключаемый модуль.
-Внесены некоторые изменения в файл библиотеки whisper.go (пакет whisperv2) что бы исправить это
+### How install hacked library for working with project?
 
-Так-же добавлен вывод логов на экран (очень коряво, надо это пофиксить) и некоторые другие небольшие изменения.
-
-Для корректной работы программы можно скачать официальный go ethereum коммандой ```go get github.com/ethereum/go-ethereum ``` и затем
-заменить папку go-ethereum папкой модифицированной библиотеки (из соответствующей директории этого репозитория)
-
-Не забывайте добавлять модифицированный go-ethereum из папки src в папку этого проекта, если вносите изменения в библиотеку
+1. Install standart go ethereum by ```go get github.com/ethereum/go-ethereum ```
+2. Replace go-ethereum from directory modified_library from this repo to GOPATH/src/github.com/ethereum/
+3. ???
+4. PROFIT!!!
