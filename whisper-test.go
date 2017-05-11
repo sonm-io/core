@@ -183,11 +183,26 @@ shh.Send(envelope)
 
 
 //--------------Listen Message--------------------------------------------------
+/*
+	This part is listen to incoming messages with specified topic
+
+
+*/
+
+
+// Creating new filters for a few topics.
+// NOTE more info about filters in /whisperv2/filters.go
 filterTopics := whisperv2.NewFilterTopicsFromStringsFlat("my","message")
 
+//Watch for changing specified filter.
+//
 shh.Watch(whisperv2.Filter{
+				//setting up filter
         Topics: filterTopics,
+				//setting up handler
+				//	 NOTE parser and sotrting info in message should be inside this func
         Fn:     func(msg *whisperv2.Message) {
+					//print reviced message
 								fmt.Println("recived message")
                 fmt.Println(msg)
         },
