@@ -1,5 +1,5 @@
 
-# Shadow Word
+# Fusrodah
 
 SONM messages system. Based on Ethereum Whisper.
 
