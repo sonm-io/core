@@ -2,6 +2,7 @@ package insonmnia
 
 import (
 	"context"
+	"encoding/json"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -51,6 +52,9 @@ func NewOverseer(ctx context.Context) (Overseer, error) {
 		ctx:    ctx,
 		cancel: cancel,
 	}
+
+	go ovr.collectStats()
+	go ovr.watchEvents()
 
 	return ovr, nil
 }
@@ -132,6 +136,36 @@ func (o *overseer) watchEvents() {
 				log.G(o.ctx).Info("event listenening has been cancelled during sleep")
 				return
 			}
+		}
+	}
+}
+
+func (o *overseer) collectStats() {
+	t := time.NewTicker(30 * time.Second)
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			ids := stringArrayPool.Get().([]string)
+			o.mu.Lock()
+			for id := range o.containers {
+				ids = append(ids, id)
+			}
+			o.mu.Unlock()
+			for _, id := range ids {
+				resp, err := o.client.ContainerStats(o.ctx, id, false)
+				if err != nil {
+					log.G(o.ctx).Warn("failed to get Stats", zap.String("id", id), zap.Error(err))
+				}
+				var stats types.Stats
+				if err = json.NewDecoder(resp.Body).Decode(&stats); err != nil {
+					log.G(o.ctx).Warn("failed to decode container Stats", zap.Error(err))
+				}
+				resp.Body.Close()
+			}
+			stringArrayPool.Put(ids[:0])
+		case <-o.ctx.Done():
+			return
 		}
 	}
 }
