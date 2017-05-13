@@ -15,11 +15,11 @@ import (
 	//"log"
 	"os"
 
-	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/whisper/whisperv2"
-	//"github.com/ethereum/go-ethereum/crypto/secp256k1"
+	"github.com/sonm-io/go-ethereum/p2p"
+	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
+	//"github.com/sonm-io/go-ethereum/crypto/secp256k1"
 
-	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/sonm-io/go-ethereum/crypto"
 
 
 )

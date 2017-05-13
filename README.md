@@ -23,11 +23,10 @@ Programm is creates itsown p2p server (simple node) and launch sub-protocol whis
 ## Hacked library
 
 NOTE - you should understand that program used **not original** go-ethereum library but this hacked version.
-You can get more in modified_library README.md
+https://github.com/sonm-io/go-ethereum
 
 ### How install hacked library for working with project?
 
-1. Install standart go ethereum by ```go get github.com/ethereum/go-ethereum ```
-2. Replace go-ethereum from directory modified_library from this repo to GOPATH/src/github.com/ethereum/
+1. Install 'hacked' go-ethereum by ```go get github.com/sonm-io/go-ethereum ```
 3. ???
 4. PROFIT!!!
