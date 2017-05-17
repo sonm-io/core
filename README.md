@@ -14,10 +14,10 @@ Programm is creates itsown p2p server (simple node) and launch sub-protocol whis
 
 ### Fusrodah build from source
 
-1. Install hacked library first
-2. Clone this repo
-3. inside clonned directory run ```go run fusrodah.go```
-4.``` golang 1.7 required ```
+1. ``` golang 1.7 required ```
+2. Install hacked library first
+3. Clone this repo
+4. inside clonned directory run ```go run fusrodah.go```
 
 
 
