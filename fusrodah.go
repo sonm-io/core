@@ -187,7 +187,6 @@ func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message)) {
 
 }
 
-
 type HubsType struct {
 	Id                  int
 	Name                string
@@ -197,37 +196,110 @@ type HubsType struct {
 	MiddleSizeOfPayment float64
 }
 
-/**
- /--------TEST--------/
- THIS FUNCTION ALREADY FOR TEST
- */
 
-type jsonobjectTestFile struct {
-	Hubs   []HubsType
+/**
+ /--------HUB--------/
+ HUB FUNCTION SECTION
+ /--------------------/
+*/
+
+func hubMainFunction() {
+
 }
 
-func __getHubList() []HubsType{
+
+/**
+ /--------MAINER--------/
+ MAINER FUNCTION SECTION
+ /--------------------/
+*/
+type Mainer struct {
+	//PrivateKey 	ecdsa.PrivateKey
+	Hubs		[]HubsType
+	confFile	string
+}
+
+func mainerMainFunction()  {
+
+}
+
+func (mainer *Mainer) loadConf() bool{
+	file, err := ioutil.ReadFile(mainer.confFile)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	var m Mainer
+	err = json.Unmarshal(file, &m)
+	if err != nil{
+		fmt.Println(err)
+		return false
+	}
+	*mainer = m
+	return true
+}
+
+func (mainer Mainer) saveConf() bool{
+	hubListString, err := json.Marshal(mainer)
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+
+	// NOTE: this for test
+	fmt.Println("list:", string(hubListString))
+
+	err = ioutil.WriteFile(mainer.confFile, hubListString, 0644)
+	if err != nil{
+		fmt.Println(err)
+		return false
+	}
+	return true
+}
+
+/**
+ /--------TEST--------/
+ THIS FUNCTION FOR TEST
+ /--------------------/
+*/
+
+type jsonobjectTestFile struct {
+	Hubs []HubsType
+}
+
+func __getHubList() []HubsType {
 	file, err := ioutil.ReadFile("./ListHubs.json")
 	if err != nil {
 		fmt.Printf("File error: %v\n", err)
 		os.Exit(1)
 	}
 
-	//m := new(Dispatch)
-	//var m interface{}
 	var jsontype jsonobjectTestFile
-	json.Unmarshal(file, &jsontype)
-	//fmt.Printf("Results: %v\n", jsontype)
+	err = json.Unmarshal(file, &jsontype)
 	return jsontype.Hubs
 }
-
 
 func main() {
 	//This is generate standart private key..(just private ket, NOT ethereum key struct.)
 	//For generating ethereum key struct (with ethereum address etc) - use keystore.newKey
 	// Private key is secp256k1
-	fmt.Println(__getHubList())
 	prv, _ := crypto.GenerateKey()
+
+	// test save configuration
+	hubList := __getHubList()
+	mainer := Mainer{confFile:"mainerConf.json"}
+	//mainer.PrivateKey = *prv
+	mainer.Hubs = hubList
+	mainer.saveConf()
+
+	// test loading configuration
+	mainer2 := Mainer{confFile:"mainerConf.json"}
+	mainer2.loadConf()
+	mainer2.confFile = "mainerConf2.json"
+	mainer2.saveConf()
+	fmt.Println(mainer2)
+
 
 	// initialize Fusrodah with private key
 	frd := Fusrodah{prv: prv}
@@ -235,30 +307,28 @@ func main() {
 	// you may start server manually
 	frd.start()
 
-
-
 	// NOTE: you previously need to setup filter
 	//Watch for changing specified filter.
-	//frd.addHandling(func(msg *whisperv2.Message) {
-	//	fmt.Println("Recived message: ", string(msg.Payload))
-	//})
-	//
-	//// any message test
-	//frd.Send("test1")
-	//frd.Send("test2")
-	//frd.Send("test3")
-	//frd.Send("test4")
-	//frd.Send("test5")
-	//frd.Send("test6")
-	//frd.Send("test7")
-	//frd.Send("test8")
-	//frd.Send("test9")
-	//frd.Send("test10")
-	//frd.Send("test11")
-	//frd.Send("test12")
-	//frd.Send("test13")
-	//frd.Send("test14")
-	//frd.Send("test15")
+	frd.addHandling(func(msg *whisperv2.Message) {
+		fmt.Println("Recived message: ", string(msg.Payload))
+	})
+
+	// any message test
+	frd.Send("test1")
+	frd.Send("test2")
+	frd.Send("test3")
+	frd.Send("test4")
+	frd.Send("test5")
+	frd.Send("test6")
+	frd.Send("test7")
+	frd.Send("test8")
+	frd.Send("test9")
+	frd.Send("test10")
+	frd.Send("test11")
+	frd.Send("test12")
+	frd.Send("test13")
+	frd.Send("test14")
+	frd.Send("test15")
 
 	select {}
 }
