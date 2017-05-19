@@ -167,7 +167,7 @@ func (fusrodah *Fusrodah) Send(message string) {
 	}
 }
 
-func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message)) {
+func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message)) int{
 	// TODO: add topics
 	// TODO: add return id
 
@@ -177,14 +177,14 @@ func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message)) {
 	}
 
 	// add watcher with any topics
-	fusrodah.whisperServer.Watch(whisperv2.Filter{
+	id := fusrodah.whisperServer.Watch(whisperv2.Filter{
 		//	setting up filter
 		//Topics: fusrodah.getFilterTopics(),
 		//	setting up handler
 		//	NOTE: parser and sotrting info in message should be inside this func
 		Fn: cb,
 	})
-
+	return id
 }
 
 type HubsType struct {
@@ -309,9 +309,11 @@ func main() {
 
 	// NOTE: you previously need to setup filter
 	//Watch for changing specified filter.
-	frd.addHandling(func(msg *whisperv2.Message) {
+	handleId := frd.addHandling(func(msg *whisperv2.Message) {
 		fmt.Println("Recived message: ", string(msg.Payload))
 	})
+
+	fmt.Println("HandleID:", handleId)
 
 	// any message test
 	frd.Send("test1")
