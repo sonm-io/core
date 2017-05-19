@@ -13,6 +13,8 @@ import (
 	"github.com/sonm-io/go-ethereum/p2p"
 	"github.com/sonm-io/go-ethereum/crypto"
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
+	"io/ioutil"
+	"encoding/json"
 )
 
 type Fusrodah struct {
@@ -167,6 +169,7 @@ func (fusrodah *Fusrodah) Send(message string) {
 
 func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message)) {
 	// TODO: add topics
+	// TODO: add return id
 
 	// start whisper server, if it not running yet
 	if fusrodah.whisperServerStatus != "running" {
@@ -181,42 +184,81 @@ func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message)) {
 		//	NOTE: parser and sotrting info in message should be inside this func
 		Fn: cb,
 	})
+
 }
+
+
+type HubsType struct {
+	Id                  int
+	Name                string
+	TimeOfStart         int // TODO: cast to time.* Object
+	AccountingPeriod    int
+	Balance             float64
+	MiddleSizeOfPayment float64
+}
+
+/**
+ /--------TEST--------/
+ THIS FUNCTION ALREADY FOR TEST
+ */
+
+type jsonobjectTestFile struct {
+	Hubs   []HubsType
+}
+
+func __getHubList() []HubsType{
+	file, err := ioutil.ReadFile("./ListHubs.json")
+	if err != nil {
+		fmt.Printf("File error: %v\n", err)
+		os.Exit(1)
+	}
+
+	//m := new(Dispatch)
+	//var m interface{}
+	var jsontype jsonobjectTestFile
+	json.Unmarshal(file, &jsontype)
+	//fmt.Printf("Results: %v\n", jsontype)
+	return jsontype.Hubs
+}
+
 
 func main() {
 	//This is generate standart private key..(just private ket, NOT ethereum key struct.)
 	//For generating ethereum key struct (with ethereum address etc) - use keystore.newKey
 	// Private key is secp256k1
+	fmt.Println(__getHubList())
 	prv, _ := crypto.GenerateKey()
 
 	// initialize Fusrodah with private key
 	frd := Fusrodah{prv: prv}
 
 	// you may start server manually
-	//frd.start()
+	frd.start()
+
+
 
 	// NOTE: you previously need to setup filter
 	//Watch for changing specified filter.
-	frd.addHandling(func(msg *whisperv2.Message) {
-		fmt.Println("Recived message: ", string(msg.Payload))
-	})
-
-	// any message test
-	frd.Send("test1")
-	frd.Send("test2")
-	frd.Send("test3")
-	frd.Send("test4")
-	frd.Send("test5")
-	frd.Send("test6")
-	frd.Send("test7")
-	frd.Send("test8")
-	frd.Send("test9")
-	frd.Send("test10")
-	frd.Send("test11")
-	frd.Send("test12")
-	frd.Send("test13")
-	frd.Send("test14")
-	frd.Send("test15")
+	//frd.addHandling(func(msg *whisperv2.Message) {
+	//	fmt.Println("Recived message: ", string(msg.Payload))
+	//})
+	//
+	//// any message test
+	//frd.Send("test1")
+	//frd.Send("test2")
+	//frd.Send("test3")
+	//frd.Send("test4")
+	//frd.Send("test5")
+	//frd.Send("test6")
+	//frd.Send("test7")
+	//frd.Send("test8")
+	//frd.Send("test9")
+	//frd.Send("test10")
+	//frd.Send("test11")
+	//frd.Send("test12")
+	//frd.Send("test13")
+	//frd.Send("test14")
+	//frd.Send("test15")
 
 	select {}
 }
