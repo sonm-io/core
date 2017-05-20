@@ -165,7 +165,7 @@ func (fusrodah *Fusrodah) Send(message string, topics ...string) {
 	}
 }
 
-func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message), topics ...string) int{
+func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message), topics ...string) int {
 	// start whisper server, if it not running yet
 	if fusrodah.whisperServerStatus != "running" {
 		fusrodah.start()
@@ -191,14 +191,40 @@ type HubsType struct {
 	MiddleSizeOfPayment float64
 }
 
-
 /**
  /--------HUB--------/
  HUB FUNCTION SECTION
  /--------------------/
 */
 
+type Hub struct {
+	//PrivateKey 	ecdsa.PrivateKey
+	KnowingHubs []HubsType
+	confFile    string
+}
+
 func hubMainFunction() {
+
+}
+
+func (hub *Hub) loadKnowingHubs() {
+	// NOTE: this for test case any
+	hub.KnowingHubs = __getHubList()
+}
+
+func (hub *Hub) discoveryHandling(frd Fusrodah) {
+	frd.addHandling(func(msg *whisperv2.Message) {
+		hub.loadKnowingHubs()
+		fmt.Println("Hub: discovery response")
+		hubListString, err := json.Marshal(hub.KnowingHubs)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		//fmt.Println("TESTTTTTTTTTT:", string(hubListString))
+		frd.Send(string(hubListString), "hub", "discovery", "Response")
+	}, "hub", "discovery")
+	fmt.Println("Hub: discovery handling started")
 
 }
 
@@ -210,15 +236,15 @@ func hubMainFunction() {
 */
 type Mainer struct {
 	//PrivateKey 	ecdsa.PrivateKey
-	Hubs		[]HubsType
-	confFile	string
+	Hubs     []HubsType
+	confFile string
 }
 
-func mainerMainFunction()  {
+func mainerMainFunction() {
 
 }
 
-func (mainer *Mainer) loadConf() bool{
+func (mainer *Mainer) loadConf() bool {
 	file, err := ioutil.ReadFile(mainer.confFile)
 	if err != nil {
 		fmt.Println(err)
@@ -227,7 +253,7 @@ func (mainer *Mainer) loadConf() bool{
 
 	var m Mainer
 	err = json.Unmarshal(file, &m)
-	if err != nil{
+	if err != nil {
 		fmt.Println(err)
 		return false
 	}
@@ -235,7 +261,7 @@ func (mainer *Mainer) loadConf() bool{
 	return true
 }
 
-func (mainer Mainer) saveConf() bool{
+func (mainer Mainer) saveConf() bool {
 	hubListString, err := json.Marshal(mainer)
 	if err != nil {
 		fmt.Println(err)
@@ -246,11 +272,31 @@ func (mainer Mainer) saveConf() bool{
 	fmt.Println("list:", string(hubListString))
 
 	err = ioutil.WriteFile(mainer.confFile, hubListString, 0644)
-	if err != nil{
+	if err != nil {
 		fmt.Println(err)
 		return false
 	}
 	return true
+}
+
+func (mainer Mainer) startDiscovery(frd Fusrodah){
+
+	defer frd.Send("", "hub", "discovery")
+
+	frd.addHandling(func(msg *whisperv2.Message) {
+		m := Mainer{}
+		//fmt.Println(string(msg.Payload))
+		err := json.Unmarshal(msg.Payload, &m.Hubs)
+		fmt.Println("Mainer: discoveryHand: ", m.Hubs)
+		mainer.Hubs = m.Hubs
+		if err != nil{
+			fmt.Println(err)
+			return
+		}
+		fmt.Println("MAIN MAINER 2", mainer.Hubs)
+
+
+	}, "hub", "discovery", "Response")
 }
 
 /**
@@ -275,33 +321,17 @@ func __getHubList() []HubsType {
 	return jsontype.Hubs
 }
 
-func main() {
-
-	hubPrb, _ := crypto.GenerateKey()
-	hubFrd := Fusrodah{prv: hubPrb}
-	hubFrd.start()
-
-
-	mainerPrv, _ := crypto.GenerateKey()
-	mainerFrd := Fusrodah{prv: mainerPrv}
-	mainerFrd.start()
-
-
-	select {}
-}
-
-
-func testsFn(){
+func testsFn() {
 
 	// test save configuration
 	hubList := __getHubList()
-	mainer := Mainer{confFile:"mainerConf.json"}
+	mainer := Mainer{confFile: "mainerConf.json"}
 	//mainer.PrivateKey = *prv
 	mainer.Hubs = hubList
 	mainer.saveConf()
 
 	// test loading configuration
-	mainer2 := Mainer{confFile:"mainerConf.json"}
+	mainer2 := Mainer{confFile: "mainerConf.json"}
 	mainer2.loadConf()
 	mainer2.confFile = "mainerConf2.json"
 	mainer2.saveConf()
@@ -342,3 +372,40 @@ func testsFn(){
 	frd.Send("test14")
 	frd.Send("test15")
 }
+
+func main() {
+
+	/**
+	HUB example
+	 */
+	hubPrv, _ := crypto.GenerateKey()
+	hubFrd := Fusrodah{prv: hubPrv}
+	hubFrd.start()
+	hub := Hub{}
+	hub.discoveryHandling(hubFrd)
+
+	/**
+	Mainer example
+	 */
+	//mainer_1Prv, _ := crypto.GenerateKey()
+	//mainer_1Frd := Fusrodah{prv: mainer_1Prv}
+	//mainer_1Frd.start()
+	mainer_1 := Mainer{}
+	mainer_1.startDiscovery(hubFrd)
+
+	fmt.Println("MAIN MAINER 1", mainer_1.Hubs)
+
+	/**
+	any Mainer example
+	 */
+	//mainer_2Prv, _ := crypto.GenerateKey()
+	//mainer_2Frd := Fusrodah{prv: mainer_2Prv}
+	mainer_2 := Mainer{}
+	mainer_2.startDiscovery(hubFrd)
+
+
+
+	select {}
+}
+
+
