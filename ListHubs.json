@@ -21,7 +21,7 @@
       "name": "hub3",
       "timeOfStart": 100,
       "accountingPeriod": 3,
-      "balance": 2,
+      "balance": 3,
       "middleSizeOfPayment": 1
     },
     {
@@ -29,7 +29,7 @@
       "name": "hub4",
       "timeOfStart": 10,
       "accountingPeriod": 3,
-      "balance": 2,
+      "balance": 3,
       "middleSizeOfPayment": 1
     },
     {
@@ -37,7 +37,7 @@
       "name": "hub5",
       "timeOfStart": 100,
       "accountingPeriod": 5,
-      "balance": 2,
+      "balance": 3,
       "middleSizeOfPayment": 1
     },
     {
