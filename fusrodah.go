@@ -276,10 +276,22 @@ func __getHubList() []HubsType {
 }
 
 func main() {
-	//This is generate standart private key..(just private ket, NOT ethereum key struct.)
-	//For generating ethereum key struct (with ethereum address etc) - use keystore.newKey
-	// Private key is secp256k1
-	prv, _ := crypto.GenerateKey()
+
+	hubPrb, _ := crypto.GenerateKey()
+	hubFrd := Fusrodah{prv: hubPrb}
+	hubFrd.start()
+
+
+	mainerPrv, _ := crypto.GenerateKey()
+	mainerFrd := Fusrodah{prv: mainerPrv}
+	mainerFrd.start()
+
+
+	select {}
+}
+
+
+func testsFn(){
 
 	// test save configuration
 	hubList := __getHubList()
@@ -295,7 +307,10 @@ func main() {
 	mainer2.saveConf()
 	fmt.Println(mainer2)
 
-
+	//This is generate standart private key..(just private ket, NOT ethereum key struct.)
+	//For generating ethereum key struct (with ethereum address etc) - use keystore.newKey
+	// Private key is secp256k1
+	prv, _ := crypto.GenerateKey()
 	// initialize Fusrodah with private key
 	frd := Fusrodah{prv: prv}
 
@@ -326,6 +341,4 @@ func main() {
 	frd.Send("test13")
 	frd.Send("test14")
 	frd.Send("test15")
-
-	select {}
 }
