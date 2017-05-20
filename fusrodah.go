@@ -71,23 +71,21 @@ func (fusrodah *Fusrodah) start() {
 	fusrodah.whisperServerStatus = "running"
 }
 
-func (fusrodah *Fusrodah) getTopics() []whisperv2.Topic {
+func (fusrodah *Fusrodah) getTopics(data ...string) []whisperv2.Topic {
 	// NOTE for single topic use NewTopicFromString
 	// NOTE whisperv2 is a package, shh - running whisper entity. Do not mess with that.
 	// NOTE topics logic can be finded in whisperv2/topic.go
 	// Topic represents a cryptographically secure, probabilistic partial
 	// classifications of a message, determined as the first (left) 4 bytes of the
 	// SHA3 hash of some arbitrary data given by the original author of the message.
-	// TODO: get tuple of topic there
-	topics := whisperv2.NewTopicsFromStrings("my", "message")
+	topics := whisperv2.NewTopicsFromStrings(data...)
 	return topics
 }
 
-func (fusrodah *Fusrodah) getFilterTopics() [][]whisperv2.Topic {
+func (fusrodah *Fusrodah) getFilterTopics(data ...string) [][]whisperv2.Topic {
 	// Creating new filters for a few topics.
 	// NOTE more info about filters in /whisperv2/filters.go
-	// TODO: get tuple of topic there
-	topics := whisperv2.NewFilterTopicsFromStringsFlat("my", "message")
+	topics := whisperv2.NewFilterTopicsFromStringsFlat(data...)
 	return topics
 }
 
@@ -142,7 +140,7 @@ func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, topics []whi
 	return envelope
 }
 
-func (fusrodah *Fusrodah) Send(message string) {
+func (fusrodah *Fusrodah) Send(message string, topics ...string) {
 
 	// start whisper server, if it not running yet
 	if fusrodah.whisperServerStatus != "running" {
@@ -153,10 +151,10 @@ func (fusrodah *Fusrodah) Send(message string) {
 	whMessage := fusrodah.createMessage(message)
 
 	// get possibly topics
-	topics := fusrodah.getTopics()
+	tops := fusrodah.getTopics(topics...)
 
 	// wrap message to envelope, it needed to sending
-	envelop := fusrodah.createEnvelop(whMessage, topics)
+	envelop := fusrodah.createEnvelop(whMessage, tops)
 
 	if err := fusrodah.whisperServer.Send(envelop); err != nil {
 		fmt.Println(err)
@@ -167,10 +165,7 @@ func (fusrodah *Fusrodah) Send(message string) {
 	}
 }
 
-func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message)) int{
-	// TODO: add topics
-	// TODO: add return id
-
+func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message), topics ...string) int{
 	// start whisper server, if it not running yet
 	if fusrodah.whisperServerStatus != "running" {
 		fusrodah.start()
@@ -179,7 +174,7 @@ func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message)) int{
 	// add watcher with any topics
 	id := fusrodah.whisperServer.Watch(whisperv2.Filter{
 		//	setting up filter
-		//Topics: fusrodah.getFilterTopics(),
+		Topics: fusrodah.getFilterTopics(topics...),
 		//	setting up handler
 		//	NOTE: parser and sotrting info in message should be inside this func
 		Fn: cb,
@@ -311,12 +306,12 @@ func main() {
 	//Watch for changing specified filter.
 	handleId := frd.addHandling(func(msg *whisperv2.Message) {
 		fmt.Println("Recived message: ", string(msg.Payload))
-	})
+	}, "test")
 
 	fmt.Println("HandleID:", handleId)
 
 	// any message test
-	frd.Send("test1")
+	frd.Send("test1", "test")
 	frd.Send("test2")
 	frd.Send("test3")
 	frd.Send("test4")
