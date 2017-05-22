@@ -295,6 +295,8 @@ func (mainer Mainer) startDiscovery(frd Fusrodah){
 		}
 		fmt.Println("MAIN MAINER 2", mainer.Hubs)
 		defer mainer.firstFilter(2.4)
+		defer mainer.secondFilter(10)
+		defer  mainer.AccountingPeriodFilter(3)
 
 	}, "hub", "discovery", "Response")
 }
@@ -310,6 +312,28 @@ func (mainer Mainer) firstFilter(neededBalance float64) []HubsType{
 	mainer.Hubs = someList
 	fmt.Println("WHITELIST", mainer.Hubs)
 	return someList
+}
+func (mainer Mainer) secondFilter(neededBalance float64) []HubsType{
+	var someList []HubsType
+	for _, hub := range mainer.Hubs{
+		if hub.Balance <= neededBalance{
+			someList = append(someList, hub)
+		}
+	}
+	mainer.Hubs = someList
+	fmt.Println("WhiteList2", mainer.Hubs)
+	return  someList
+}
+func (mainer Mainer) AccountingPeriodFilter (neededPeriod int) []HubsType  {
+	var someList []HubsType
+	for _, hub := range mainer.Hubs{
+		if hub.AccountingPeriod > neededPeriod{
+			someList = append(someList, hub)
+		}
+	}
+	mainer.Hubs = someList
+	fmt.Println("FilterPeriodList",mainer.Hubs)
+	return  someList
 }
 
 /**
