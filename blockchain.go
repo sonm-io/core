@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-  "github.com/sonm-io/blockchain-api/"
+  "github.com/sonm-io/blockchain-api/go-build/"
 )
 
 func main() {
