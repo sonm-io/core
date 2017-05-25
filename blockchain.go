@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-  "local.me/SDT.go"
+  "github.com/sonm-io/blockchain-api/go-build/SDT.go"
 )
 
 func main() {
