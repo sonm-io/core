@@ -55,7 +55,8 @@ func main() {
 	}
 
 	//Creates HUB
-	tx, err := factory.CreateHub(auth, common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1"), big.NewInt(1))
+
+	tx, err = factory.CreateHub(auth)
 	if err != nil {
 		log.Fatalf("Failed to request token transfer: %v", err)
 	}
