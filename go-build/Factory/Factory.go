@@ -1,7 +1,8 @@
 // This file is an automatically generated Go binding. Do not modify as any
 // change will likely be lost upon the next re-generation!
 
-package factory
+// NOTE IMPORTANT!! - need to update package name on the main Factory repo!!!
+package Factory
 
 import (
 	"math/big"

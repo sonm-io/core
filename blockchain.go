@@ -10,6 +10,7 @@ import (
 	"github.com/sonm-io/go-ethereum/common"
 	"github.com/sonm-io/go-ethereum/ethclient"
   "github.com/sonm-io/blockchain-api/go-build/SDT"
+	"github.com/sonm-io/blockchain-api/go-build/Factory"
 
 	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
 )
@@ -48,13 +49,23 @@ func main() {
 	// Need to do something about checking pending tx
 	fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
 
+	factory, err := Factory.NewFactory(common.HexToAddress("0x1d978c1a1f7f15b624f13b4f8400ed28ed48c54f"), conn)
+	if err != nil {
+		log.Fatalf("Failed to instantiate a Factory contract: %v", err)
+	}
 
+	//Creates HUB
+	tx, err := factory.CreateHub(auth, common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1"), big.NewInt(1))
+	if err != nil {
+		log.Fatalf("Failed to request token transfer: %v", err)
+	}
+	fmt.Println("CreateHub pending: 0x%x\n", tx.Hash())
 
 
 //Something wrong with sessions bindings, it is a go-ethereum bug again. Probably need to fix in the future
 /*
 	// Wrap the Token contract instance into a session
-t_session := &TokenSession{
+t_session := &token.SDTSession{
 	Contract: token,
 	CallOpts: bind.CallOpts{
 		Pending: true,

@@ -1,7 +1,7 @@
 // This file is an automatically generated Go binding. Do not modify as any
 // change will likely be lost upon the next re-generation!
 
-package hubwallet
+package Hubwallet
 
 import (
 	"math/big"
