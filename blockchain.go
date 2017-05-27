@@ -40,11 +40,43 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
+
 	tx, err := token.Transfer(auth, common.HexToAddress("0x0000000000000000000000000000000000000000"), big.NewInt(1))
 	if err != nil {
 		log.Fatalf("Failed to request token transfer: %v", err)
 	}
+	// Need to do something about checking pending tx
 	fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
+
+
+
+
+//Something wrong with sessions bindings, it is a go-ethereum bug again. Probably need to fix in the future
+/*
+	// Wrap the Token contract instance into a session
+t_session := &TokenSession{
+	Contract: token,
+	CallOpts: bind.CallOpts{
+		Pending: true,
+	},
+	TransactOpts: bind.TransactOpts{
+		From:     auth.From,
+		Signer:   auth.Signer,
+		GasLimit: big.NewInt(3141592),
+	},
+}
+// Call the previous methods without the option parameters
+
+
+		name = t_session.Name()
+		fmt.Println("Token name:", name)
+		/*
+		tx = t_session.Transfer("0x0000000000000000000000000000000000000000"), big.NewInt(1))
+		fmt.Println("Transaction pending:", tx)
+		*/
+
+
+
 
 
 }
