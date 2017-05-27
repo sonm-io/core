@@ -3,14 +3,15 @@ package main
 import (
 	"fmt"
 	"log"
-	"math/big"
-	"strings"
+	//"math/big"
+	//"strings"
+	//"bufio"
 
 	"github.com/sonm-io/go-ethereum/common"
 	"github.com/sonm-io/go-ethereum/ethclient"
   "github.com/sonm-io/blockchain-api/go-build/SDT"
 
-	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
+	//"github.com/sonm-io/go-ethereum/accounts/abi/bind"
 )
 
 	const key = `paste the contents of your *testnet* key json here`
@@ -32,6 +33,7 @@ func main() {
 	}
 	fmt.Println("Token name:", name)
 
+/*
 	// Create an authorized transactor and spend 1 unicorn
 	auth, err := bind.NewTransactor(strings.NewReader(key), "my awesome super secret password")
 	if err != nil {
@@ -42,6 +44,6 @@ func main() {
 		log.Fatalf("Failed to request token transfer: %v", err)
 	}
 	fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
-
+*/
 
 }
