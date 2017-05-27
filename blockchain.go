@@ -63,12 +63,12 @@ func main() {
 	fmt.Println("CreateHub pending: 0x%x\n", tx.Hash())
 
 	//Request info about hubs
-	howner, err := factory.Hubs(&bind.CallOpts{Pending: true}, common.HexToAddress("0x1d978c1a1f7f15b624f13b4f8400ed28ed48c54f"))
+	howner, err := factory.HownerOf(&bind.CallOpts{Pending: true}, common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1"))
 	if err != nil {
 		log.Fatalf("Failed to retrieve hubs owner: %v", err)
 	}
-	//howner = common.UnmarshalText(howner)
-	fmt.Println("Hub owner:", howner)
+	 h:=howner.String()
+	fmt.Println("Hub owner:", h)
 
 
 //Something wrong with sessions bindings, it is a go-ethereum bug again. Probably need to fix in the future
