@@ -58,9 +58,17 @@ func main() {
 
 	tx, err = factory.CreateHub(auth)
 	if err != nil {
-		log.Fatalf("Failed to request token transfer: %v", err)
+		log.Fatalf("Failed to request hub creation: %v", err)
 	}
 	fmt.Println("CreateHub pending: 0x%x\n", tx.Hash())
+
+	//Request info about hubs
+	howner, err := factory.Hubs(&bind.CallOpts{Pending: true}, common.HexToAddress("0x1d978c1a1f7f15b624f13b4f8400ed28ed48c54f"))
+	if err != nil {
+		log.Fatalf("Failed to retrieve hubs owner: %v", err)
+	}
+	//howner = common.UnmarshalText(howner)
+	fmt.Println("Hub owner:", howner)
 
 
 //Something wrong with sessions bindings, it is a go-ethereum bug again. Probably need to fix in the future
