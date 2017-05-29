@@ -13,7 +13,7 @@ import (
   "github.com/sonm-io/blockchain-api/go-build/SDT"
 	"github.com/sonm-io/blockchain-api/go-build/Factory"
 	"github.com/sonm-io/blockchain-api/go-build/HubWallet"
-
+	"github.com/sonm-io/blockchain-api/go-build/MinWallet"
 	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
 )
 
@@ -167,8 +167,8 @@ if err != nil {
 	log.Fatalf("Failed to instantiate a MinWallet contract: %v", err)
 }
 
-//Register HubWallet
-tx, err = mw.Registration(auth)
+//Register MinerWallet
+tx, err = mw.Registration(auth,big.NewInt(1))
 if err != nil {
 	log.Fatalf("Failed to request miner registration: %v", err)
 }
@@ -188,8 +188,85 @@ if err != nil {
 
 fmt.Println("Wallet address is:", mf)
 
+//------Transfers---------------------------------------------------------------
+
+//Hub is registred, we should transfer him money
+
+//First of all - we will try to get balance of Hub
+
+tx, err := token.balanceOf(&bind.CallOpts{Pending: true},wb)
+if err != nil {
+	log.Fatalf("Failed to request token balance: %v", err)
+}
+// Need to do something about checking pending tx
+bal:=tx
+
+fmt.Printf("Balance of Hub", bal)
+
+//Balance of Miner
+
+tx, err := token.balanceOf(&bind.CallOpts{Pending: true},mb)
+if err != nil {
+	log.Fatalf("Failed to request token balance: %v", err)
+}
+// Need to do something about checking pending tx
+bal=tx
+
+fmt.Printf("Balance of Miner", bal)
+
+//Make some initial supplyment to hubwallet
+
+tx, err := token.Transfer(auth, wb, big.NewInt(10))
+if err != nil {
+	log.Fatalf("Failed to request token transfer: %v", err)
+}
+// Need to do something about checking pending tx
+fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
+
+//Transfer some as a payout
+
+//Register HubWallet
+tx, err = hw.transfer(auth,mb,big.NewInt(2))
+if err != nil {
+	log.Fatalf("Failed to request hub transfer: %v", err)
+}
+fmt.Println(" pending: 0x%x\n", tx.Hash())
+
+// Don't even wait, check its presence in the local pending state
+time.Sleep(250 * time.Millisecond)
+
+//Pull payment from MinerSide
+
+tx, err = mw.PullMoney(auth,wb)
+if err != nil {
+	log.Fatalf("Failed to request : %v", err)
+}
+fmt.Println(" pending: 0x%x\n", tx.Hash())
+
+// Don't even wait, check its presence in the local pending state
+time.Sleep(250 * time.Millisecond)
+
+tx, err := token.balanceOf(&bind.CallOpts{Pending: true},mb)
+if err != nil {
+	log.Fatalf("Failed to request token balance: %v", err)
+}
+// Need to do something about checking pending tx
+bal=tx
+
+fmt.Printf("Balance of Miner", bal)
 
 
+/*
+// Withdraw to main
+tx, err = mw.Withdraw(auth)
+if err != nil {
+	log.Fatalf("Failed to request : %v", err)
+}
+fmt.Println(" pending: 0x%x\n", tx.Hash())
+
+// Don't even wait, check its presence in the local pending state
+time.Sleep(250 * time.Millisecond)
+*/
 
 
 //Something wrong with sessions bindings, it is a go-ethereum bug again. Probably need to fix in the future
