@@ -24,7 +24,7 @@ func main() {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
 	// Instantiate the contract and display its name
-	token, err := Token.NewSDT(common.HexToAddress("0x31ac2908b1f981519b7ab992b46eaa41566b3c0a"), conn)
+	token, err := Token.NewSDT(common.HexToAddress("0x4b15b70e9e1ac7e7f7edd3f7c81cf8ec4e784cc0"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Token contract: %v", err)
 	}
@@ -49,7 +49,7 @@ func main() {
 	// Need to do something about checking pending tx
 	fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
 
-	factory, err := Factory.NewFactory(common.HexToAddress("0x1d978c1a1f7f15b624f13b4f8400ed28ed48c54f"), conn)
+	factory, err := Factory.NewFactory(common.HexToAddress("0xdc0b27895ba9316571799c4044109c452eb1bc14"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Factory contract: %v", err)
 	}
@@ -62,13 +62,16 @@ func main() {
 	}
 	fmt.Println("CreateHub pending: 0x%x\n", tx.Hash())
 
+	// Don't even wait, check its presence in the local pending state
+	time.Sleep(250 * time.Millisecond) // Allow it to be processed by the local node :P
+
 	//Request info about hubs
-	howner, err := factory.HownerOf(&bind.CallOpts{Pending: true}, common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1"))
+	hubof, err := factory.HubOf(&bind.CallOpts{Pending: true}, common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1"))
 	if err != nil {
-		log.Fatalf("Failed to retrieve hubs owner: %v", err)
+		log.Fatalf("Failed to retrieve hubs wallet: %v", err)
 	}
-	 h:=howner.String()
-	fmt.Println("Hub owner:", h)
+	 w:=hubof.String()
+	fmt.Println("Wallet address is:", h)
 
 
 //Something wrong with sessions bindings, it is a go-ethereum bug again. Probably need to fix in the future
