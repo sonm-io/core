@@ -12,6 +12,7 @@ import (
 	"github.com/sonm-io/go-ethereum/ethclient"
   "github.com/sonm-io/blockchain-api/go-build/SDT"
 	"github.com/sonm-io/blockchain-api/go-build/Factory"
+	"github.com/sonm-io/blockchain-api/go-build/Whitelist"
 	"github.com/sonm-io/blockchain-api/go-build/HubWallet"
 	"github.com/sonm-io/blockchain-api/go-build/MinWallet"
 	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
@@ -55,14 +56,14 @@ func main() {
 	fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
 
 	//Define factory
-	factory, err := Factory.NewFactory(common.HexToAddress("0xdc0b27895ba9316571799c4044109c452eb1bc14"), conn)
+	factory, err := Factory.NewFactory(common.HexToAddress("0xDC0B27895bA9316571799C4044109c452Eb1bC14"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Factory contract: %v", err)
 	}
 
 	//Put correct addresses into Factory
 	// auth, dao-address, Whitelist address as @params
-	tx, err = factory.changeAdresses(auth,common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1"),common.HexToAddress("0x4d98d99e9b74d66fc2b4ac49070422b0f514339b"))
+	tx, err = factory.ChangeAdresses(auth,common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1"),common.HexToAddress("0x4d98d99e9b74d66fc2b4ac49070422b0f514339b"))
 	if err != nil {
 		log.Fatalf("Failed to request change address: %v", err)
 	}
@@ -105,7 +106,7 @@ func main() {
 	}
 
 	//Define HubWallet
-	hw, err := HubWallet.NewHubWallet(wb, conn)
+	hw, err := Hubwallet.NewHubWallet(wb, conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a HubWallet contract: %v", err)
 	}
@@ -136,7 +137,7 @@ func main() {
 
 //Creates MINER
 
-tx, err = factory.createMiner(auth)
+tx, err = factory.CreateMiner(auth)
 if err != nil {
 	log.Fatalf("Failed to request Miner creation: %v", err)
 }
@@ -162,7 +163,7 @@ fmt.Println("Miner Wallet address is:", m)
 
 
 //Define MinerWallet
-mw, err := MinerWallet.NewMinerWallet(mb, conn)
+mw, err := MinWallet.NewMinerWallet(mb, conn)
 if err != nil {
 	log.Fatalf("Failed to instantiate a MinWallet contract: %v", err)
 }
@@ -194,7 +195,7 @@ fmt.Println("Wallet address is:", mf)
 
 //First of all - we will try to get balance of Hub
 
-tx, err := token.balanceOf(&bind.CallOpts{Pending: true},wb)
+tx, err = token.BalanceOf(&bind.CallOpts{Pending: true},wb)
 if err != nil {
 	log.Fatalf("Failed to request token balance: %v", err)
 }
@@ -205,7 +206,7 @@ fmt.Printf("Balance of Hub", bal)
 
 //Balance of Miner
 
-tx, err := token.balanceOf(&bind.CallOpts{Pending: true},mb)
+tx, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
 if err != nil {
 	log.Fatalf("Failed to request token balance: %v", err)
 }
@@ -216,7 +217,7 @@ fmt.Printf("Balance of Miner", bal)
 
 //Make some initial supplyment to hubwallet
 
-tx, err := token.Transfer(auth, wb, big.NewInt(10))
+tx, err = token.Transfer(auth, wb, big.NewInt(10))
 if err != nil {
 	log.Fatalf("Failed to request token transfer: %v", err)
 }
@@ -226,7 +227,7 @@ fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
 //Transfer some as a payout
 
 //Register HubWallet
-tx, err = hw.transfer(auth,mb,big.NewInt(2))
+tx, err = hw.Transfer(auth,mb,big.NewInt(2))
 if err != nil {
 	log.Fatalf("Failed to request hub transfer: %v", err)
 }
@@ -246,7 +247,7 @@ fmt.Println(" pending: 0x%x\n", tx.Hash())
 // Don't even wait, check its presence in the local pending state
 time.Sleep(250 * time.Millisecond)
 
-tx, err := token.balanceOf(&bind.CallOpts{Pending: true},mb)
+tx, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
 if err != nil {
 	log.Fatalf("Failed to request token balance: %v", err)
 }
