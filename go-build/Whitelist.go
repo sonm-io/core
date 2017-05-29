@@ -14,10 +14,10 @@ import (
 )
 
 // WhitelistABI is the input ABI used to generate the binding from.
-const WhitelistABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"wallet\",\"type\":\"address\"}],\"name\":\"UnRegisterHub\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"wallet\",\"type\":\"address\"},{\"name\":\"time\",\"type\":\"uint64\"},{\"name\":\"stakeShare\",\"type\":\"uint256\"}],\"name\":\"RegisterMin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"RegistredHubs\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"RegistredMiners\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"wallet\",\"type\":\"address\"}],\"name\":\"UnRegisterMiner\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"wallet\",\"type\":\"address\"},{\"name\":\"time\",\"type\":\"uint64\"}],\"name\":\"RegisterHub\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"inputs\":[{\"name\":\"Factory\",\"type\":\"address\"}],\"payable\":false,\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"_owner\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"wallet\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"time\",\"type\":\"uint64\"}],\"name\":\"RegistredHub\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"_owner\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"wallet\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"time\",\"type\":\"uint64\"},{\"indexed\":true,\"name\":\"stake\",\"type\":\"uint256\"}],\"name\":\"RegistredMiner\",\"type\":\"event\"}]"
+const WhitelistABI = "[{\"constant\":false,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_wallet\",\"type\":\"address\"}],\"name\":\"UnRegisterHub\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_wallet\",\"type\":\"address\"},{\"name\":\"time\",\"type\":\"uint64\"},{\"name\":\"stakeShare\",\"type\":\"uint256\"}],\"name\":\"RegisterMin\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"RegistredHubs\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"RegistredMiners\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_wallet\",\"type\":\"address\"}],\"name\":\"UnRegisterMiner\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_wallet\",\"type\":\"address\"},{\"name\":\"time\",\"type\":\"uint64\"}],\"name\":\"RegisterHub\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"inputs\":[{\"name\":\"Factory\",\"type\":\"address\"}],\"payable\":false,\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"_owner\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"wallet\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"time\",\"type\":\"uint64\"}],\"name\":\"RegistredHub\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"_owner\",\"type\":\"address\"},{\"indexed\":false,\"name\":\"wallet\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"time\",\"type\":\"uint64\"},{\"indexed\":true,\"name\":\"stake\",\"type\":\"uint256\"}],\"name\":\"RegistredMiner\",\"type\":\"event\"}]"
 
 // WhitelistBin is the compiled bytecode used for deploying new contracts.
-const WhitelistBin = `0x6060604052341561000c57fe5b60405160208061062283398101604052515b60008054600160a060020a031916600160a060020a0383161790555b505b6105d78061004b6000396000f300606060405236156100755763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416630bdf096281146100775780632edbb4fa146100ad5780634f89b674146100f35780636e61cce3146101235780637efad0521461015357806394baf30114610189575bfe5b341561007f57fe5b610099600160a060020a03600435811690602435166101cc565b604080519115158252519081900360200190f35b34156100b557fe5b610099600160a060020a036004358116906024351667ffffffffffffffff60443516606435610292565b604080519115158252519081900360200190f35b34156100fb57fe5b610099600160a060020a03600435166103a8565b604080519115158252519081900360200190f35b341561012b57fe5b610099600160a060020a03600435166103bd565b604080519115158252519081900360200190f35b341561015b57fe5b610099600160a060020a03600435811690602435166103d2565b604080519115158252519081900360200190f35b341561019157fe5b610099600160a060020a036004358116906024351667ffffffffffffffff60443516610498565b604080519115158252519081900360200190f35b6000805460408051602090810184905281517f0cae8775000000000000000000000000000000000000000000000000000000008152600160a060020a033381166004830152925185949390931692630cae87759260248084019391929182900301818787803b151561023a57fe5b6102c65a03f1151561024857fe5b505060405151915050600160a060020a038082169085161461026a5760006000fd5b600160a060020a0383166000908152600160205260409020805460ff191690555b5092915050565b6000805460408051602090810184905281517f96bb4ef5000000000000000000000000000000000000000000000000000000008152600160a060020a0333811660048301529251859493909316926396bb4ef59260248084019391929182900301818787803b151561030057fe5b6102c65a03f1151561030e57fe5b505060405151915050600160a060020a03808216908716146103305760006000fd5b600160a060020a03808616600081815260026020908152604091829020805460ff1916600117905581519283529051869367ffffffffffffffff891693908b16927f01efd282f1b6e0b9bf41a06d831c8b246f0a6a650a848076129723831b2aa00d92918290030190a4600191505b50949350505050565b60016020526000908152604090205460ff1681565b60026020526000908152604090205460ff1681565b6000805460408051602090810184905281517f0cae8775000000000000000000000000000000000000000000000000000000008152600160a060020a033381166004830152925185949390931692630cae87759260248084019391929182900301818787803b151561044057fe5b6102c65a03f1151561044e57fe5b505060405151915050600160a060020a03808216908516146104705760006000fd5b600160a060020a0383166000908152600260205260409020805460ff191690555b5092915050565b6000805460408051602090810184905281517f0cae8775000000000000000000000000000000000000000000000000000000008152600160a060020a033381166004830152925185949390931692630cae87759260248084019391929182900301818787803b151561050657fe5b6102c65a03f1151561051457fe5b505060405151915050600160a060020a03808216908616146105365760006000fd5b600160a060020a03808516600081815260016020818152604092839020805460ff19169092179091558151928352905167ffffffffffffffff8716938916927f4b639bce86a9292c37187d0b099958f116ccc27417075d090b204104fa18b70192908290030190a3600191505b5093925050505600a165627a7a72305820b02ceceb213ff85b52ab36a87925f6ba30b5eda4fcb36a42ce7ca4b6a820d4b30029`
+const WhitelistBin = `0x6060604052341561000c57fe5b60405160208061062683398101604052515b60008054600160a060020a031916600160a060020a0383161790555b505b6105db8061004b6000396000f300606060405236156100755763ffffffff7c01000000000000000000000000000000000000000000000000000000006000350416630bdf096281146100775780632edbb4fa146100ad5780634f89b674146100f35780636e61cce3146101235780637efad0521461015357806394baf30114610189575bfe5b341561007f57fe5b610099600160a060020a03600435811690602435166101cc565b604080519115158252519081900360200190f35b34156100b557fe5b610099600160a060020a036004358116906024351667ffffffffffffffff60443516606435610293565b604080519115158252519081900360200190f35b34156100fb57fe5b610099600160a060020a03600435166103aa565b604080519115158252519081900360200190f35b341561012b57fe5b610099600160a060020a03600435166103bf565b604080519115158252519081900360200190f35b341561015b57fe5b610099600160a060020a03600435811690602435166103d4565b604080519115158252519081900360200190f35b341561019157fe5b610099600160a060020a036004358116906024351667ffffffffffffffff6044351661049b565b604080519115158252519081900360200190f35b6000805460408051602090810184905281517f4b72831c000000000000000000000000000000000000000000000000000000008152600160a060020a038781166004830152925185949390931692634b72831c9260248084019391929182900301818787803b151561023a57fe5b6102c65a03f1151561024857fe5b50506040515191505033600160a060020a039081169082161461026b5760006000fd5b600160a060020a0381166000908152600160205260409020805460ff191690555b5092915050565b6000805460408051602090810184905281517feca939d6000000000000000000000000000000000000000000000000000000008152600160a060020a03898116600483015292518594939093169263eca939d69260248084019391929182900301818787803b151561030157fe5b6102c65a03f1151561030f57fe5b50506040515191505033600160a060020a03908116908216146103325760006000fd5b600160a060020a03808216600081815260026020908152604091829020805460ff1916600117905581519283529051869367ffffffffffffffff891693908b16927f01efd282f1b6e0b9bf41a06d831c8b246f0a6a650a848076129723831b2aa00d92918290030190a4600191505b50949350505050565b60016020526000908152604090205460ff1681565b60026020526000908152604090205460ff1681565b6000805460408051602090810184905281517feca939d6000000000000000000000000000000000000000000000000000000008152600160a060020a03878116600483015292518594939093169263eca939d69260248084019391929182900301818787803b151561044257fe5b6102c65a03f1151561045057fe5b50506040515191505033600160a060020a03908116908216146104735760006000fd5b600160a060020a0381166000908152600260205260409020805460ff191690555b5092915050565b6000805460408051602090810184905281517f4b72831c000000000000000000000000000000000000000000000000000000008152600160a060020a038881166004830152925185949390931692634b72831c9260248084019391929182900301818787803b151561050957fe5b6102c65a03f1151561051757fe5b50506040515191505033600160a060020a039081169082161461053a5760006000fd5b600160a060020a03808216600081815260016020818152604092839020805460ff19169092179091558151928352905167ffffffffffffffff8716938916927f4b639bce86a9292c37187d0b099958f116ccc27417075d090b204104fa18b70192908290030190a3600191505b5093925050505600a165627a7a7230582014b1134525b821d61b8e06f8ff543ec560795880fd5e50f74bd689718af9fefe0029`
 
 // DeployWhitelist deploys a new Ethereum contract, binding an instance of Whitelist to it.
 func DeployWhitelist(auth *bind.TransactOpts, backend bind.ContractBackend, Factory common.Address) (common.Address, *types.Transaction, *Whitelist, error) {
@@ -213,90 +213,90 @@ func (_Whitelist *WhitelistCallerSession) RegistredMiners(arg0 common.Address) (
 
 // RegisterHub is a paid mutator transaction binding the contract method 0x94baf301.
 //
-// Solidity: function RegisterHub(_owner address, wallet address, time uint64) returns(bool)
-func (_Whitelist *WhitelistTransactor) RegisterHub(opts *bind.TransactOpts, _owner common.Address, wallet common.Address, time uint64) (*types.Transaction, error) {
-	return _Whitelist.contract.Transact(opts, "RegisterHub", _owner, wallet, time)
+// Solidity: function RegisterHub(_owner address, _wallet address, time uint64) returns(bool)
+func (_Whitelist *WhitelistTransactor) RegisterHub(opts *bind.TransactOpts, _owner common.Address, _wallet common.Address, time uint64) (*types.Transaction, error) {
+	return _Whitelist.contract.Transact(opts, "RegisterHub", _owner, _wallet, time)
 }
 
 // RegisterHub is a paid mutator transaction binding the contract method 0x94baf301.
 //
-// Solidity: function RegisterHub(_owner address, wallet address, time uint64) returns(bool)
-func (_Whitelist *WhitelistSession) RegisterHub(_owner common.Address, wallet common.Address, time uint64) (*types.Transaction, error) {
-	return _Whitelist.Contract.RegisterHub(&_Whitelist.TransactOpts, _owner, wallet, time)
+// Solidity: function RegisterHub(_owner address, _wallet address, time uint64) returns(bool)
+func (_Whitelist *WhitelistSession) RegisterHub(_owner common.Address, _wallet common.Address, time uint64) (*types.Transaction, error) {
+	return _Whitelist.Contract.RegisterHub(&_Whitelist.TransactOpts, _owner, _wallet, time)
 }
 
 // RegisterHub is a paid mutator transaction binding the contract method 0x94baf301.
 //
-// Solidity: function RegisterHub(_owner address, wallet address, time uint64) returns(bool)
-func (_Whitelist *WhitelistTransactorSession) RegisterHub(_owner common.Address, wallet common.Address, time uint64) (*types.Transaction, error) {
-	return _Whitelist.Contract.RegisterHub(&_Whitelist.TransactOpts, _owner, wallet, time)
+// Solidity: function RegisterHub(_owner address, _wallet address, time uint64) returns(bool)
+func (_Whitelist *WhitelistTransactorSession) RegisterHub(_owner common.Address, _wallet common.Address, time uint64) (*types.Transaction, error) {
+	return _Whitelist.Contract.RegisterHub(&_Whitelist.TransactOpts, _owner, _wallet, time)
 }
 
 // RegisterMin is a paid mutator transaction binding the contract method 0x2edbb4fa.
 //
-// Solidity: function RegisterMin(_owner address, wallet address, time uint64, stakeShare uint256) returns(bool)
-func (_Whitelist *WhitelistTransactor) RegisterMin(opts *bind.TransactOpts, _owner common.Address, wallet common.Address, time uint64, stakeShare *big.Int) (*types.Transaction, error) {
-	return _Whitelist.contract.Transact(opts, "RegisterMin", _owner, wallet, time, stakeShare)
+// Solidity: function RegisterMin(_owner address, _wallet address, time uint64, stakeShare uint256) returns(bool)
+func (_Whitelist *WhitelistTransactor) RegisterMin(opts *bind.TransactOpts, _owner common.Address, _wallet common.Address, time uint64, stakeShare *big.Int) (*types.Transaction, error) {
+	return _Whitelist.contract.Transact(opts, "RegisterMin", _owner, _wallet, time, stakeShare)
 }
 
 // RegisterMin is a paid mutator transaction binding the contract method 0x2edbb4fa.
 //
-// Solidity: function RegisterMin(_owner address, wallet address, time uint64, stakeShare uint256) returns(bool)
-func (_Whitelist *WhitelistSession) RegisterMin(_owner common.Address, wallet common.Address, time uint64, stakeShare *big.Int) (*types.Transaction, error) {
-	return _Whitelist.Contract.RegisterMin(&_Whitelist.TransactOpts, _owner, wallet, time, stakeShare)
+// Solidity: function RegisterMin(_owner address, _wallet address, time uint64, stakeShare uint256) returns(bool)
+func (_Whitelist *WhitelistSession) RegisterMin(_owner common.Address, _wallet common.Address, time uint64, stakeShare *big.Int) (*types.Transaction, error) {
+	return _Whitelist.Contract.RegisterMin(&_Whitelist.TransactOpts, _owner, _wallet, time, stakeShare)
 }
 
 // RegisterMin is a paid mutator transaction binding the contract method 0x2edbb4fa.
 //
-// Solidity: function RegisterMin(_owner address, wallet address, time uint64, stakeShare uint256) returns(bool)
-func (_Whitelist *WhitelistTransactorSession) RegisterMin(_owner common.Address, wallet common.Address, time uint64, stakeShare *big.Int) (*types.Transaction, error) {
-	return _Whitelist.Contract.RegisterMin(&_Whitelist.TransactOpts, _owner, wallet, time, stakeShare)
+// Solidity: function RegisterMin(_owner address, _wallet address, time uint64, stakeShare uint256) returns(bool)
+func (_Whitelist *WhitelistTransactorSession) RegisterMin(_owner common.Address, _wallet common.Address, time uint64, stakeShare *big.Int) (*types.Transaction, error) {
+	return _Whitelist.Contract.RegisterMin(&_Whitelist.TransactOpts, _owner, _wallet, time, stakeShare)
 }
 
 // UnRegisterHub is a paid mutator transaction binding the contract method 0x0bdf0962.
 //
-// Solidity: function UnRegisterHub(_owner address, wallet address) returns(bool)
-func (_Whitelist *WhitelistTransactor) UnRegisterHub(opts *bind.TransactOpts, _owner common.Address, wallet common.Address) (*types.Transaction, error) {
-	return _Whitelist.contract.Transact(opts, "UnRegisterHub", _owner, wallet)
+// Solidity: function UnRegisterHub(_owner address, _wallet address) returns(bool)
+func (_Whitelist *WhitelistTransactor) UnRegisterHub(opts *bind.TransactOpts, _owner common.Address, _wallet common.Address) (*types.Transaction, error) {
+	return _Whitelist.contract.Transact(opts, "UnRegisterHub", _owner, _wallet)
 }
 
 // UnRegisterHub is a paid mutator transaction binding the contract method 0x0bdf0962.
 //
-// Solidity: function UnRegisterHub(_owner address, wallet address) returns(bool)
-func (_Whitelist *WhitelistSession) UnRegisterHub(_owner common.Address, wallet common.Address) (*types.Transaction, error) {
-	return _Whitelist.Contract.UnRegisterHub(&_Whitelist.TransactOpts, _owner, wallet)
+// Solidity: function UnRegisterHub(_owner address, _wallet address) returns(bool)
+func (_Whitelist *WhitelistSession) UnRegisterHub(_owner common.Address, _wallet common.Address) (*types.Transaction, error) {
+	return _Whitelist.Contract.UnRegisterHub(&_Whitelist.TransactOpts, _owner, _wallet)
 }
 
 // UnRegisterHub is a paid mutator transaction binding the contract method 0x0bdf0962.
 //
-// Solidity: function UnRegisterHub(_owner address, wallet address) returns(bool)
-func (_Whitelist *WhitelistTransactorSession) UnRegisterHub(_owner common.Address, wallet common.Address) (*types.Transaction, error) {
-	return _Whitelist.Contract.UnRegisterHub(&_Whitelist.TransactOpts, _owner, wallet)
+// Solidity: function UnRegisterHub(_owner address, _wallet address) returns(bool)
+func (_Whitelist *WhitelistTransactorSession) UnRegisterHub(_owner common.Address, _wallet common.Address) (*types.Transaction, error) {
+	return _Whitelist.Contract.UnRegisterHub(&_Whitelist.TransactOpts, _owner, _wallet)
 }
 
 // UnRegisterMiner is a paid mutator transaction binding the contract method 0x7efad052.
 //
-// Solidity: function UnRegisterMiner(_owner address, wallet address) returns(bool)
-func (_Whitelist *WhitelistTransactor) UnRegisterMiner(opts *bind.TransactOpts, _owner common.Address, wallet common.Address) (*types.Transaction, error) {
-	return _Whitelist.contract.Transact(opts, "UnRegisterMiner", _owner, wallet)
+// Solidity: function UnRegisterMiner(_owner address, _wallet address) returns(bool)
+func (_Whitelist *WhitelistTransactor) UnRegisterMiner(opts *bind.TransactOpts, _owner common.Address, _wallet common.Address) (*types.Transaction, error) {
+	return _Whitelist.contract.Transact(opts, "UnRegisterMiner", _owner, _wallet)
 }
 
 // UnRegisterMiner is a paid mutator transaction binding the contract method 0x7efad052.
 //
-// Solidity: function UnRegisterMiner(_owner address, wallet address) returns(bool)
-func (_Whitelist *WhitelistSession) UnRegisterMiner(_owner common.Address, wallet common.Address) (*types.Transaction, error) {
-	return _Whitelist.Contract.UnRegisterMiner(&_Whitelist.TransactOpts, _owner, wallet)
+// Solidity: function UnRegisterMiner(_owner address, _wallet address) returns(bool)
+func (_Whitelist *WhitelistSession) UnRegisterMiner(_owner common.Address, _wallet common.Address) (*types.Transaction, error) {
+	return _Whitelist.Contract.UnRegisterMiner(&_Whitelist.TransactOpts, _owner, _wallet)
 }
 
 // UnRegisterMiner is a paid mutator transaction binding the contract method 0x7efad052.
 //
-// Solidity: function UnRegisterMiner(_owner address, wallet address) returns(bool)
-func (_Whitelist *WhitelistTransactorSession) UnRegisterMiner(_owner common.Address, wallet common.Address) (*types.Transaction, error) {
-	return _Whitelist.Contract.UnRegisterMiner(&_Whitelist.TransactOpts, _owner, wallet)
+// Solidity: function UnRegisterMiner(_owner address, _wallet address) returns(bool)
+func (_Whitelist *WhitelistTransactorSession) UnRegisterMiner(_owner common.Address, _wallet common.Address) (*types.Transaction, error) {
+	return _Whitelist.Contract.UnRegisterMiner(&_Whitelist.TransactOpts, _owner, _wallet)
 }
 
 // FactoryABI is the input ABI used to generate the binding from.
-const FactoryABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_wallet\",\"type\":\"address\"}],\"name\":\"HownerOf\",\"outputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"miners\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_wallet\",\"type\":\"address\"}],\"name\":\"MownerOf\",\"outputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"hubs\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"type\":\"function\"}]"
+const FactoryABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"HubOf\",\"outputs\":[{\"name\":\"_wallet\",\"type\":\"address\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"miners\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"hubs\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"MinerOf\",\"outputs\":[{\"name\":\"_wallet\",\"type\":\"address\"}],\"payable\":false,\"type\":\"function\"}]"
 
 // FactoryBin is the compiled bytecode used for deploying new contracts.
 const FactoryBin = `0x`
@@ -441,64 +441,64 @@ func (_Factory *FactoryTransactorRaw) Transact(opts *bind.TransactOpts, method s
 	return _Factory.Contract.contract.Transact(opts, method, params...)
 }
 
-// HownerOf is a free data retrieval call binding the contract method 0x0cae8775.
+// HubOf is a free data retrieval call binding the contract method 0x4b72831c.
 //
-// Solidity: function HownerOf(_wallet address) constant returns(_owner address)
-func (_Factory *FactoryCaller) HownerOf(opts *bind.CallOpts, _wallet common.Address) (common.Address, error) {
+// Solidity: function HubOf(_owner address) constant returns(_wallet address)
+func (_Factory *FactoryCaller) HubOf(opts *bind.CallOpts, _owner common.Address) (common.Address, error) {
 	var (
 		ret0 = new(common.Address)
 	)
 	out := ret0
-	err := _Factory.contract.Call(opts, out, "HownerOf", _wallet)
+	err := _Factory.contract.Call(opts, out, "HubOf", _owner)
 	return *ret0, err
 }
 
-// HownerOf is a free data retrieval call binding the contract method 0x0cae8775.
+// HubOf is a free data retrieval call binding the contract method 0x4b72831c.
 //
-// Solidity: function HownerOf(_wallet address) constant returns(_owner address)
-func (_Factory *FactorySession) HownerOf(_wallet common.Address) (common.Address, error) {
-	return _Factory.Contract.HownerOf(&_Factory.CallOpts, _wallet)
+// Solidity: function HubOf(_owner address) constant returns(_wallet address)
+func (_Factory *FactorySession) HubOf(_owner common.Address) (common.Address, error) {
+	return _Factory.Contract.HubOf(&_Factory.CallOpts, _owner)
 }
 
-// HownerOf is a free data retrieval call binding the contract method 0x0cae8775.
+// HubOf is a free data retrieval call binding the contract method 0x4b72831c.
 //
-// Solidity: function HownerOf(_wallet address) constant returns(_owner address)
-func (_Factory *FactoryCallerSession) HownerOf(_wallet common.Address) (common.Address, error) {
-	return _Factory.Contract.HownerOf(&_Factory.CallOpts, _wallet)
+// Solidity: function HubOf(_owner address) constant returns(_wallet address)
+func (_Factory *FactoryCallerSession) HubOf(_owner common.Address) (common.Address, error) {
+	return _Factory.Contract.HubOf(&_Factory.CallOpts, _owner)
 }
 
-// MownerOf is a free data retrieval call binding the contract method 0x96bb4ef5.
+// MinerOf is a free data retrieval call binding the contract method 0xeca939d6.
 //
-// Solidity: function MownerOf(_wallet address) constant returns(_owner address)
-func (_Factory *FactoryCaller) MownerOf(opts *bind.CallOpts, _wallet common.Address) (common.Address, error) {
+// Solidity: function MinerOf(_owner address) constant returns(_wallet address)
+func (_Factory *FactoryCaller) MinerOf(opts *bind.CallOpts, _owner common.Address) (common.Address, error) {
 	var (
 		ret0 = new(common.Address)
 	)
 	out := ret0
-	err := _Factory.contract.Call(opts, out, "MownerOf", _wallet)
+	err := _Factory.contract.Call(opts, out, "MinerOf", _owner)
 	return *ret0, err
 }
 
-// MownerOf is a free data retrieval call binding the contract method 0x96bb4ef5.
+// MinerOf is a free data retrieval call binding the contract method 0xeca939d6.
 //
-// Solidity: function MownerOf(_wallet address) constant returns(_owner address)
-func (_Factory *FactorySession) MownerOf(_wallet common.Address) (common.Address, error) {
-	return _Factory.Contract.MownerOf(&_Factory.CallOpts, _wallet)
+// Solidity: function MinerOf(_owner address) constant returns(_wallet address)
+func (_Factory *FactorySession) MinerOf(_owner common.Address) (common.Address, error) {
+	return _Factory.Contract.MinerOf(&_Factory.CallOpts, _owner)
 }
 
-// MownerOf is a free data retrieval call binding the contract method 0x96bb4ef5.
+// MinerOf is a free data retrieval call binding the contract method 0xeca939d6.
 //
-// Solidity: function MownerOf(_wallet address) constant returns(_owner address)
-func (_Factory *FactoryCallerSession) MownerOf(_wallet common.Address) (common.Address, error) {
-	return _Factory.Contract.MownerOf(&_Factory.CallOpts, _wallet)
+// Solidity: function MinerOf(_owner address) constant returns(_wallet address)
+func (_Factory *FactoryCallerSession) MinerOf(_owner common.Address) (common.Address, error) {
+	return _Factory.Contract.MinerOf(&_Factory.CallOpts, _owner)
 }
 
 // Hubs is a free data retrieval call binding the contract method 0xca3106ae.
 //
-// Solidity: function hubs( address) constant returns(bool)
-func (_Factory *FactoryCaller) Hubs(opts *bind.CallOpts, arg0 common.Address) (bool, error) {
+// Solidity: function hubs( address) constant returns(address)
+func (_Factory *FactoryCaller) Hubs(opts *bind.CallOpts, arg0 common.Address) (common.Address, error) {
 	var (
-		ret0 = new(bool)
+		ret0 = new(common.Address)
 	)
 	out := ret0
 	err := _Factory.contract.Call(opts, out, "hubs", arg0)
@@ -507,24 +507,24 @@ func (_Factory *FactoryCaller) Hubs(opts *bind.CallOpts, arg0 common.Address) (b
 
 // Hubs is a free data retrieval call binding the contract method 0xca3106ae.
 //
-// Solidity: function hubs( address) constant returns(bool)
-func (_Factory *FactorySession) Hubs(arg0 common.Address) (bool, error) {
+// Solidity: function hubs( address) constant returns(address)
+func (_Factory *FactorySession) Hubs(arg0 common.Address) (common.Address, error) {
 	return _Factory.Contract.Hubs(&_Factory.CallOpts, arg0)
 }
 
 // Hubs is a free data retrieval call binding the contract method 0xca3106ae.
 //
-// Solidity: function hubs( address) constant returns(bool)
-func (_Factory *FactoryCallerSession) Hubs(arg0 common.Address) (bool, error) {
+// Solidity: function hubs( address) constant returns(address)
+func (_Factory *FactoryCallerSession) Hubs(arg0 common.Address) (common.Address, error) {
 	return _Factory.Contract.Hubs(&_Factory.CallOpts, arg0)
 }
 
 // Miners is a free data retrieval call binding the contract method 0x648ec7b9.
 //
-// Solidity: function miners( address) constant returns(bool)
-func (_Factory *FactoryCaller) Miners(opts *bind.CallOpts, arg0 common.Address) (bool, error) {
+// Solidity: function miners( address) constant returns(address)
+func (_Factory *FactoryCaller) Miners(opts *bind.CallOpts, arg0 common.Address) (common.Address, error) {
 	var (
-		ret0 = new(bool)
+		ret0 = new(common.Address)
 	)
 	out := ret0
 	err := _Factory.contract.Call(opts, out, "miners", arg0)
@@ -533,14 +533,14 @@ func (_Factory *FactoryCaller) Miners(opts *bind.CallOpts, arg0 common.Address) 
 
 // Miners is a free data retrieval call binding the contract method 0x648ec7b9.
 //
-// Solidity: function miners( address) constant returns(bool)
-func (_Factory *FactorySession) Miners(arg0 common.Address) (bool, error) {
+// Solidity: function miners( address) constant returns(address)
+func (_Factory *FactorySession) Miners(arg0 common.Address) (common.Address, error) {
 	return _Factory.Contract.Miners(&_Factory.CallOpts, arg0)
 }
 
 // Miners is a free data retrieval call binding the contract method 0x648ec7b9.
 //
-// Solidity: function miners( address) constant returns(bool)
-func (_Factory *FactoryCallerSession) Miners(arg0 common.Address) (bool, error) {
+// Solidity: function miners( address) constant returns(address)
+func (_Factory *FactoryCallerSession) Miners(arg0 common.Address) (common.Address, error) {
 	return _Factory.Contract.Miners(&_Factory.CallOpts, arg0)
 }
