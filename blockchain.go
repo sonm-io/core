@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strings"
 	//"bufio"
+	"time"
 
 	"github.com/sonm-io/go-ethereum/common"
 	"github.com/sonm-io/go-ethereum/ethclient"
@@ -71,7 +72,7 @@ func main() {
 		log.Fatalf("Failed to retrieve hubs wallet: %v", err)
 	}
 	 w:=hubof.String()
-	fmt.Println("Wallet address is:", h)
+	fmt.Println("Wallet address is:", w)
 
 
 //Something wrong with sessions bindings, it is a go-ethereum bug again. Probably need to fix in the future
