@@ -38,6 +38,12 @@ func (hub *Hub) DiscoveryHandling(frd Fusrodah.Fusrodah) {
 	//this function load knowing hubs and at the same time
 	//and print hubs with topics
 	frd.AddHandling(func(msg *whisperv2.Message) {
+		msgStr := string(msg.Payload)
+		if msgStr != "verifyHub" {
+			return
+		}
+
+
 		hub.loadKnowingHubs()
 		fmt.Println("Hub: discovery response")
 		hubListString, err := json.Marshal(hub.KnowingHubs)

@@ -63,7 +63,12 @@ func (mainer Mainer) SaveConf() bool {
 
 func (mainer Mainer) StartDiscovery(frd Fusrodah.Fusrodah) {
 	//now we send a message with topics
-	defer frd.Send("", "hub", "discovery")
+	verifyMsg := "{\"message\":\"verify\"}";
+	//verifyMsg := "{"+'"'+"message"+'"'+":"+'"'+"verify"+'"'+"}"
+	//json view {"message":"verify"}
+
+
+	defer frd.Send(verifyMsg, "hub", "discovery")
 	//Expect a response from the hub
 	//which sends information about itself
 	//with the topics "hub", "discovery", "Response"
