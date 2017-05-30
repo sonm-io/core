@@ -19,29 +19,14 @@ import (
 	"encoding/json"
 )
 
-
-// Time To Live - relation to message in Whisper protocol
-const TTL = 3600 * 2
-
-
-/**
-  	SONM wrapper to whisper protocol
-  	@param Prv - private key to identify sender/
-  	@param cfg - instance of p2p.Config object
-  	@param p2pServer - instance of p2p.Server
-  	@param whisperServer - instance of whisperv2.Whisper - main relation instance
-
-  	@param StatusP2pServer - string param that semaphore status of p2pServer
-  	@param StatusWhisperServer - string param that semaphore status of whisper Server, correctly state is "running"
- */
 type Fusrodah struct {
-	Prv           *ecdsa.PrivateKey
+	prv           *ecdsa.PrivateKey
 	cfg           p2p.Config
 	p2pServer     p2p.Server
 	whisperServer *whisperv2.Whisper
 
-	StatusP2pServer     string
-	StatusWhisperServer string
+	p2pServerStatus     string
+	whisperServerStatus string
 }
 
 func (fusrodah *Fusrodah) start() {
@@ -56,7 +41,7 @@ func (fusrodah *Fusrodah) start() {
 	fusrodah.cfg = p2p.Config{
 		MaxPeers: 10,
 		//	Identity:   p2p.NewSimpleClientIdentity("my-whisper-app", "1.0", "", string(pub)),
-		PrivateKey: fusrodah.Prv,
+		PrivateKey: fusrodah.prv,
 		ListenAddr: ":8000",
 
 		//here we can define what additional protocols will be used *above* p2p server.
@@ -85,7 +70,7 @@ func (fusrodah *Fusrodah) start() {
 		os.Exit(1)
 	}
 
-	fusrodah.StatusWhisperServer = "running"
+	fusrodah.whisperServerStatus = "running"
 }
 
 func (fusrodah *Fusrodah) getTopics(data ...string) []whisperv2.Topic {
@@ -128,7 +113,7 @@ func (fusrodah *Fusrodah) createMessage(message string) *whisperv2.Message {
 	// NOTE more info in whisperv2/message.go
 	// NOTE  first we create message, then we create envelope.
 	msg := whisperv2.NewMessage([]byte(message))
-	msg.TTL = TTL
+	msg.TTL = 3600000
 	return msg
 }
 
@@ -147,20 +132,20 @@ func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, topics []whi
 	//   - options.From == nil && options.To != nil: encrypted anonymous message
 	//   - options.From != nil && options.To != nil: encrypted signed message
 	envelope, err := message.Wrap(1, whisperv2.Options{
-		From:   fusrodah.Prv, // Sign it
+		From:   fusrodah.prv, // Sign it
 		Topics: topics,
 	})
 	if err != nil {
 		fmt.Println("could not create whisper envelope:", err)
 	}
-	envelope.TTL = TTL
+	envelope.TTL = 4800000
 	return envelope
 }
 
 func (fusrodah *Fusrodah) Send(message string, topics ...string) {
 
 	// start whisper server, if it not running yet
-	if fusrodah.StatusWhisperServer != "running" {
+	if fusrodah.whisperServerStatus != "running" {
 		fusrodah.start()
 	}
 
@@ -184,7 +169,7 @@ func (fusrodah *Fusrodah) Send(message string, topics ...string) {
 
 func (fusrodah *Fusrodah) AddHandling(cb func(msg *whisperv2.Message), topics ...string) int {
 	// start whisper server, if it not running yet
-	if fusrodah.StatusWhisperServer != "running" {
+	if fusrodah.whisperServerStatus != "running" {
 		fusrodah.start()
 	}
 
@@ -246,7 +231,7 @@ func testsFn() {
 	// Private key is secp256k1
 	prv, _ := crypto.GenerateKey()
 	// initialize Fusrodah with private key
-	frd := Fusrodah{Prv: prv}
+	frd := Fusrodah{prv: prv}
 
 	// you may start server manually
 	frd.start()
@@ -283,7 +268,7 @@ func main() {
 	HUB example
 	 */
 	hubPrv, _ := crypto.GenerateKey()
-	hubFrd := Fusrodah{Prv: hubPrv}
+	hubFrd := Fusrodah{prv: hubPrv}
 	hubFrd.start()
 	hub1 := hub.Hub{}
 	hub1.DiscoveryHandling(hubFrd)
