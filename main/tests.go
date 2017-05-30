@@ -194,7 +194,6 @@ func (fusrodah *Fusrodah) getFilterTopics(data ...string) [][]whisperv2.Topic {
 	return topics
 }
 
-
 func testsFn() {
 
 	// test save configuration

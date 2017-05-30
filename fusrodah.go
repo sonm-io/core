@@ -11,12 +11,7 @@ import (
 	"os"
 	"crypto/ecdsa"
 	"github.com/sonm-io/go-ethereum/p2p"
-	"github.com/sonm-io/go-ethereum/crypto"
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
-	"github.com/sonm-io/Fusrodah/hub"
-	"github.com/sonm-io/Fusrodah/mainer"
-	"io/ioutil"
-	"encoding/json"
 )
 
 type Fusrodah struct {
@@ -184,112 +179,4 @@ func (fusrodah *Fusrodah) AddHandling(cb func(msg *whisperv2.Message), topics ..
 	})
 	return id
 }
-
-
-
-/**
- /--------TEST--------/
- THIS FUNCTION FOR TEST
- /--------------------/
-*/
-
-type jsonobjectTestFile struct {
-	Hubs []hub.HubsType
-}
-func __getHubList() []hub.HubsType {
-	//read json file and function return hubs list
-	file, err := ioutil.ReadFile("./ListHubs.json")
-	if err != nil {
-		fmt.Printf("File error: %v\n", err)
-		os.Exit(1)
-	}
-
-	var jsontype jsonobjectTestFile
-	err = json.Unmarshal(file, &jsontype)
-	return jsontype.Hubs
-}
-func testsFn() {
-
-	// test save configuration
-	hubList := __getHubList()
-	mainer1 := mainer.Mainer{ConfFile: "mainerConf.json"}
-	//mainer.PrivateKey = *prv
-	mainer1.Hubs = hubList
-	mainer1.SaveConf()
-
-	// test loading configuration
-	mainer2 := mainer.Mainer{ConfFile: "mainerConf.json"}
-	mainer2.LoadConf()
-	mainer2.ConfFile = "mainerConf2.json"
-	mainer2.SaveConf()
-	fmt.Println(mainer2)
-
-	//This is generate standart private key..(just private ket, NOT ethereum key struct.)
-	//For generating ethereum key struct (with ethereum address etc) - use keystore.newKey
-	// Private key is secp256k1
-	prv, _ := crypto.GenerateKey()
-	// initialize Fusrodah with private key
-	frd := Fusrodah{prv: prv}
-
-	// you may start server manually
-	frd.start()
-
-	// NOTE: you previously need to setup filter
-	//Watch for changing specified filter.
-	handleId := frd.AddHandling(func(msg *whisperv2.Message) {
-		fmt.Println("Recived message: ", string(msg.Payload))
-	}, "test")
-
-	fmt.Println("HandleID:", handleId)
-
-	// any message test
-	frd.Send("test1", "test")
-	frd.Send("test2")
-	frd.Send("test3")
-	frd.Send("test4")
-	frd.Send("test5")
-	frd.Send("test6")
-	frd.Send("test7")
-	frd.Send("test8")
-	frd.Send("test9")
-	frd.Send("test10")
-	frd.Send("test11")
-	frd.Send("test12")
-	frd.Send("test13")
-	frd.Send("test14")
-	frd.Send("test15")
-}
-
-func main() {
-
-	/**
-	HUB example
-	 */
-	hubPrv, _ := crypto.GenerateKey()
-	hubFrd := Fusrodah{prv: hubPrv}
-	hubFrd.start()
-	hub1 := hub.Hub{}
-	hub1.DiscoveryHandling(hubFrd)
-
-	/**
-	Mainer example
-	 */
-	//mainer_1Prv, _ := crypto.GenerateKey()
-	//mainer_1Frd := Fusrodah{prv: mainer_1Prv}
-	//mainer_1Frd.start()
-	mainer_1 := mainer.Mainer{}
-	mainer_1.StartDiscovery(hubFrd)
-
-	fmt.Println("MAIN MAINER 1", mainer_1.Hubs)
-
-	/**
-	any Mainer example
-	 */
-	//mainer_2Prv, _ := crypto.GenerateKey()
-	//mainer_2Frd := Fusrodah{prv: mainer_2Prv}
-	mainer_2 := mainer.Mainer{}
-	mainer_2.StartDiscovery(hubFrd)
-	select {}
-}
-
 
