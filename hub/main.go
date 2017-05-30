@@ -35,6 +35,8 @@ func (hub *Hub) loadKnowingHubs() {
 }
 
 func (hub *Hub) DiscoveryHandling(frd Fusrodah.Fusrodah) {
+	//this function load knowing hubs and at the same time
+	//and print hubs with topics
 	frd.AddHandling(func(msg *whisperv2.Message) {
 		hub.loadKnowingHubs()
 		fmt.Println("Hub: discovery response")
@@ -57,6 +59,7 @@ type jsonobjectTestFile struct {
 
 
 func __getHubList() []HubsType {
+	//this function read json file
 	file, err := ioutil.ReadFile("./ListHubs.json")
 	if err != nil {
 		fmt.Printf("File error: %v\n", err)

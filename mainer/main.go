@@ -26,6 +26,7 @@ func mainerMainFunction() {
 }
 
 func (mainer *Mainer) LoadConf() bool {
+	//this function load miners configuration
 	file, err := ioutil.ReadFile(mainer.ConfFile)
 	if err != nil {
 		fmt.Println(err)
@@ -42,6 +43,7 @@ func (mainer *Mainer) LoadConf() bool {
 	return true
 }
 func (mainer Mainer) SaveConf() bool {
+	//this function save miners configuration
 	hubListString, err := json.Marshal(mainer)
 	if err != nil {
 		fmt.Println(err)

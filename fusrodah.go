@@ -113,6 +113,7 @@ func (fusrodah *Fusrodah) createMessage(message string) *whisperv2.Message {
 	// NOTE more info in whisperv2/message.go
 	// NOTE  first we create message, then we create envelope.
 	msg := whisperv2.NewMessage([]byte(message))
+	//TTL-hop limit is a mechanism that limits the lifespan or lifetime of message in a network
 	msg.TTL = 3600000
 	return msg
 }
@@ -195,9 +196,8 @@ func (fusrodah *Fusrodah) AddHandling(cb func(msg *whisperv2.Message), topics ..
 type jsonobjectTestFile struct {
 	Hubs []hub.HubsType
 }
-
-
 func __getHubList() []hub.HubsType {
+	//read json file and function return hubs list
 	file, err := ioutil.ReadFile("./ListHubs.json")
 	if err != nil {
 		fmt.Printf("File error: %v\n", err)
@@ -208,8 +208,6 @@ func __getHubList() []hub.HubsType {
 	err = json.Unmarshal(file, &jsontype)
 	return jsontype.Hubs
 }
-
-
 func testsFn() {
 
 	// test save configuration
