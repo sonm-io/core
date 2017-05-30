@@ -1,4 +1,4 @@
-package main
+package Fusrodah
 
 /*
 	This program use modified go-ethereum library (https://github.com/sonm-io/go-ethereum)
@@ -15,6 +15,8 @@ import (
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
 	"io/ioutil"
 	"encoding/json"
+	"github.com/sonm-io/Fusrodah/hub"
+	"github.com/sonm-io/Fusrodah/mainer"
 )
 
 type Fusrodah struct {
@@ -165,7 +167,7 @@ func (fusrodah *Fusrodah) Send(message string, topics ...string) {
 	}
 }
 
-func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message), topics ...string) int {
+func (fusrodah *Fusrodah) AddHandling(cb func(msg *whisperv2.Message), topics ...string) int {
 	// start whisper server, if it not running yet
 	if fusrodah.whisperServerStatus != "running" {
 		fusrodah.start()
@@ -182,163 +184,7 @@ func (fusrodah Fusrodah) addHandling(cb func(msg *whisperv2.Message), topics ...
 	return id
 }
 
-type HubsType struct {
-	Id                  int
-	Name                string
-	TimeOfStart         int // TODO: cast to time.* Object
-	AccountingPeriod    int
-	Balance             float64
-	MiddleSizeOfPayment float64
-}
 
-/**
- /--------HUB--------/
- HUB FUNCTION SECTION
- /--------------------/
-*/
-
-type Hub struct {
-	//PrivateKey 	ecdsa.PrivateKey
-	KnowingHubs []HubsType
-	confFile    string
-}
-
-func hubMainFunction() {
-
-}
-
-func (hub *Hub) loadKnowingHubs() {
-	// NOTE: this for test case any
-	hub.KnowingHubs = __getHubList()
-}
-
-func (hub *Hub) discoveryHandling(frd Fusrodah) {
-	frd.addHandling(func(msg *whisperv2.Message) {
-		hub.loadKnowingHubs()
-		fmt.Println("Hub: discovery response")
-		hubListString, err := json.Marshal(hub.KnowingHubs)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		//fmt.Println("TESTTTTTTTTTT:", string(hubListString))
-		frd.Send(string(hubListString), "hub", "discovery", "Response")
-	}, "hub", "discovery")
-	fmt.Println("Hub: discovery handling started")
-
-}
-
-
-/**
- /--------MAINER--------/
- MAINER FUNCTION SECTION
- /--------------------/
-*/
-type Mainer struct {
-	//PrivateKey 	ecdsa.PrivateKey
-	Hubs     []HubsType
-	confFile string
-}
-
-func mainerMainFunction() {
-
-}
-
-func (mainer *Mainer) loadConf() bool {
-	file, err := ioutil.ReadFile(mainer.confFile)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-
-	var m Mainer
-	err = json.Unmarshal(file, &m)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	*mainer = m
-	return true
-}
-func (mainer Mainer) saveConf() bool {
-	hubListString, err := json.Marshal(mainer)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-
-	// NOTE: this for test
-	fmt.Println("list:", string(hubListString))
-
-	err = ioutil.WriteFile(mainer.confFile, hubListString, 0644)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	return true
-}
-
-func (mainer Mainer) startDiscovery(frd Fusrodah){
-	//now we send a message with topics
-	defer frd.Send("", "hub", "discovery")
-	//Expect a response from the hub
-	//which sends information about itself
-	//with the topics "hub", "discovery", "Response"
-	frd.addHandling(func(msg *whisperv2.Message) {
-		m := Mainer{}
-		//fmt.Println(string(msg.Payload))
-		err := json.Unmarshal(msg.Payload, &m.Hubs)
-		fmt.Println("Mainer: discoveryHand: ", m.Hubs)
-		mainer.Hubs = m.Hubs
-		if err != nil{
-			fmt.Println(err)
-			return
-		}
-		fmt.Println("MAIN MAINER 2", mainer.Hubs)
-		defer mainer.firstFilter(2.4)
-		defer mainer.secondFilter(10)
-		defer mainer.AccountingPeriodFilter(3)
-
-	}, "hub", "discovery", "Response")
-}
-func (mainer Mainer) firstFilter(neededBalance float64) []HubsType{
-
-	//use filter: balance more then neededBalance
-	var someList []HubsType
-	for _, hub := range mainer.Hubs{
-		if hub.Balance >= neededBalance{
-			someList = append(someList, hub)
-		}
-	}
-
-	mainer.Hubs = someList
-	fmt.Println("WHITELIST", mainer.Hubs)
-	return someList
-}
-func (mainer Mainer) secondFilter(neededBalance float64) []HubsType{
-	//use filter: balance less then neededBalance
-	var someList []HubsType
-	for _, hub := range mainer.Hubs{
-		if hub.Balance <= neededBalance{
-			someList = append(someList, hub)
-		}
-	}
-	mainer.Hubs = someList
-	fmt.Println("WhiteList2", mainer.Hubs)
-	return  someList
-}
-func (mainer Mainer) AccountingPeriodFilter (neededPeriod int) []HubsType  {
-	//use filter: accountingPeriod > neededPeriod
-	var someList []HubsType
-	for _, hub :=range mainer.Hubs{
-		if hub.AccountingPeriod > neededPeriod{
-			someList = append(someList, hub)
-		}
-	}
-	mainer.Hubs = someList
-	fmt.Println("FilterPeriodList",mainer.Hubs)
-	return  someList
-}
 
 /**
  /--------TEST--------/
@@ -347,10 +193,10 @@ func (mainer Mainer) AccountingPeriodFilter (neededPeriod int) []HubsType  {
 */
 
 type jsonobjectTestFile struct {
-	Hubs []HubsType
+	Hubs []hub.HubsType
 }
 
-func __getHubList() []HubsType {
+func __getHubList() []hub.HubsType {
 	file, err := ioutil.ReadFile("./ListHubs.json")
 	if err != nil {
 		fmt.Printf("File error: %v\n", err)
@@ -366,16 +212,16 @@ func testsFn() {
 
 	// test save configuration
 	hubList := __getHubList()
-	mainer := Mainer{confFile: "mainerConf.json"}
+	mainer1 := mainer.Mainer{ConfFile: "mainerConf.json"}
 	//mainer.PrivateKey = *prv
-	mainer.Hubs = hubList
-	mainer.saveConf()
+	mainer1.Hubs = hubList
+	mainer1.SaveConf()
 
 	// test loading configuration
-	mainer2 := Mainer{confFile: "mainerConf.json"}
-	mainer2.loadConf()
-	mainer2.confFile = "mainerConf2.json"
-	mainer2.saveConf()
+	mainer2 := mainer.Mainer{ConfFile: "mainerConf.json"}
+	mainer2.LoadConf()
+	mainer2.ConfFile = "mainerConf2.json"
+	mainer2.SaveConf()
 	fmt.Println(mainer2)
 
 	//This is generate standart private key..(just private ket, NOT ethereum key struct.)
@@ -390,7 +236,7 @@ func testsFn() {
 
 	// NOTE: you previously need to setup filter
 	//Watch for changing specified filter.
-	handleId := frd.addHandling(func(msg *whisperv2.Message) {
+	handleId := frd.AddHandling(func(msg *whisperv2.Message) {
 		fmt.Println("Recived message: ", string(msg.Payload))
 	}, "test")
 
@@ -422,8 +268,8 @@ func main() {
 	hubPrv, _ := crypto.GenerateKey()
 	hubFrd := Fusrodah{prv: hubPrv}
 	hubFrd.start()
-	hub := Hub{}
-	hub.discoveryHandling(hubFrd)
+	hub1 := hub.Hub{}
+	hub1.DiscoveryHandling(hubFrd)
 
 	/**
 	Mainer example
@@ -431,8 +277,8 @@ func main() {
 	//mainer_1Prv, _ := crypto.GenerateKey()
 	//mainer_1Frd := Fusrodah{prv: mainer_1Prv}
 	//mainer_1Frd.start()
-	mainer_1 := Mainer{}
-	mainer_1.startDiscovery(hubFrd)
+	mainer_1 := mainer.Mainer{}
+	mainer_1.StartDiscovery(hubFrd)
 
 	fmt.Println("MAIN MAINER 1", mainer_1.Hubs)
 
@@ -441,8 +287,8 @@ func main() {
 	 */
 	//mainer_2Prv, _ := crypto.GenerateKey()
 	//mainer_2Frd := Fusrodah{prv: mainer_2Prv}
-	mainer_2 := Mainer{}
-	mainer_2.startDiscovery(hubFrd)
+	mainer_2 := mainer.Mainer{}
+	mainer_2.StartDiscovery(hubFrd)
 	select {}
 }
 
