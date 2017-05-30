@@ -13,10 +13,10 @@ import (
 	"github.com/sonm-io/go-ethereum/p2p"
 	"github.com/sonm-io/go-ethereum/crypto"
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
-	"io/ioutil"
-	"encoding/json"
 	"github.com/sonm-io/Fusrodah/hub"
 	"github.com/sonm-io/Fusrodah/mainer"
+	"io/ioutil"
+	"encoding/json"
 )
 
 type Fusrodah struct {
@@ -196,6 +196,7 @@ type jsonobjectTestFile struct {
 	Hubs []hub.HubsType
 }
 
+
 func __getHubList() []hub.HubsType {
 	file, err := ioutil.ReadFile("./ListHubs.json")
 	if err != nil {
@@ -207,6 +208,7 @@ func __getHubList() []hub.HubsType {
 	err = json.Unmarshal(file, &jsontype)
 	return jsontype.Hubs
 }
+
 
 func testsFn() {
 

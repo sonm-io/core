@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"encoding/json"
 	"github.com/sonm-io/Fusrodah"
+	"io/ioutil"
+	"os"
 )
 
 /**
@@ -46,4 +48,22 @@ func (hub *Hub) DiscoveryHandling(frd Fusrodah.Fusrodah) {
 	}, "hub", "discovery")
 	fmt.Println("Hub: discovery handling started")
 
+}
+
+
+type jsonobjectTestFile struct {
+	Hubs []HubsType
+}
+
+
+func __getHubList() []HubsType {
+	file, err := ioutil.ReadFile("./ListHubs.json")
+	if err != nil {
+		fmt.Printf("File error: %v\n", err)
+		os.Exit(1)
+	}
+
+	var jsontype jsonobjectTestFile
+	err = json.Unmarshal(file, &jsontype)
+	return jsontype.Hubs
 }

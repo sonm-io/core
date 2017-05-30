@@ -26,7 +26,7 @@ func mainerMainFunction() {
 }
 
 func (mainer *Mainer) LoadConf() bool {
-	file, err := ioutil.ReadFile(mainer.confFile)
+	file, err := ioutil.ReadFile(mainer.ConfFile)
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -51,7 +51,7 @@ func (mainer Mainer) SaveConf() bool {
 	// NOTE: this for test
 	fmt.Println("list:", string(hubListString))
 
-	err = ioutil.WriteFile(mainer.confFile, hubListString, 0644)
+	err = ioutil.WriteFile(mainer.ConfFile, hubListString, 0644)
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -85,7 +85,7 @@ func (mainer Mainer) StartDiscovery(frd Fusrodah.Fusrodah) {
 func (mainer Mainer) firstFilter(neededBalance float64) []hub.HubsType {
 
 	//use filter: balance more then neededBalance
-	var someList []HubsType
+	var someList []hub.HubsType
 	for _, hub := range mainer.Hubs {
 		if hub.Balance >= neededBalance {
 			someList = append(someList, hub)
@@ -98,7 +98,7 @@ func (mainer Mainer) firstFilter(neededBalance float64) []hub.HubsType {
 }
 func (mainer Mainer) secondFilter(neededBalance float64) []hub.HubsType {
 	//use filter: balance less then neededBalance
-	var someList []HubsType
+	var someList []hub.HubsType
 	for _, hub := range mainer.Hubs {
 		if hub.Balance <= neededBalance {
 			someList = append(someList, hub)
