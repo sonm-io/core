@@ -260,7 +260,6 @@ func (mainer *Mainer) loadConf() bool {
 	*mainer = m
 	return true
 }
-
 func (mainer Mainer) saveConf() bool {
 	hubListString, err := json.Marshal(mainer)
 	if err != nil {
@@ -280,9 +279,11 @@ func (mainer Mainer) saveConf() bool {
 }
 
 func (mainer Mainer) startDiscovery(frd Fusrodah){
-
+	//now we send a message with topics
 	defer frd.Send("", "hub", "discovery")
-
+	//Expect a response from the hub
+	//which sends information about itself
+	//with the topics "hub", "discovery", "Response"
 	frd.addHandling(func(msg *whisperv2.Message) {
 		m := Mainer{}
 		//fmt.Println(string(msg.Payload))
@@ -296,12 +297,13 @@ func (mainer Mainer) startDiscovery(frd Fusrodah){
 		fmt.Println("MAIN MAINER 2", mainer.Hubs)
 		defer mainer.firstFilter(2.4)
 		defer mainer.secondFilter(10)
-		defer  mainer.AccountingPeriodFilter(3)
+		defer mainer.AccountingPeriodFilter(3)
 
 	}, "hub", "discovery", "Response")
 }
-
 func (mainer Mainer) firstFilter(neededBalance float64) []HubsType{
+
+	//use filter: balance more then neededBalance
 	var someList []HubsType
 	for _, hub := range mainer.Hubs{
 		if hub.Balance >= neededBalance{
@@ -314,6 +316,7 @@ func (mainer Mainer) firstFilter(neededBalance float64) []HubsType{
 	return someList
 }
 func (mainer Mainer) secondFilter(neededBalance float64) []HubsType{
+	//use filter: balance less then neededBalance
 	var someList []HubsType
 	for _, hub := range mainer.Hubs{
 		if hub.Balance <= neededBalance{
@@ -325,8 +328,9 @@ func (mainer Mainer) secondFilter(neededBalance float64) []HubsType{
 	return  someList
 }
 func (mainer Mainer) AccountingPeriodFilter (neededPeriod int) []HubsType  {
+	//use filter: accountingPeriod > neededPeriod
 	var someList []HubsType
-	for _, hub := range mainer.Hubs{
+	for _, hub :=range mainer.Hubs{
 		if hub.AccountingPeriod > neededPeriod{
 			someList = append(someList, hub)
 		}
@@ -439,9 +443,6 @@ func main() {
 	//mainer_2Frd := Fusrodah{prv: mainer_2Prv}
 	mainer_2 := Mainer{}
 	mainer_2.startDiscovery(hubFrd)
-
-
-
 	select {}
 }
 

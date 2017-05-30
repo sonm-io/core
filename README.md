@@ -32,3 +32,6 @@ https://github.com/sonm-io/go-ethereum
 1. Install 'hacked' go-ethereum by ```go get github.com/sonm-io/go-ethereum ```
 3. ???
 4. PROFIT!!!
+
+### Description of the system cycle
+1.
