@@ -110,7 +110,7 @@ func (mainer Mainer) secondFilter(neededBalance float64) []hub.HubsType {
 }
 func (mainer Mainer) AccountingPeriodFilter(neededPeriod int) []hub.HubsType {
 	//use filter: accountingPeriod > neededPeriod
-	var someList []HubsType
+	var someList []hub.HubsType
 	for _, hub := range mainer.Hubs {
 		if hub.AccountingPeriod > neededPeriod {
 			someList = append(someList, hub)
