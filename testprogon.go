@@ -30,7 +30,7 @@ func main() {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
 	// Instantiate the contract and display its name
-	token, err := Token.NewSDT(common.HexToAddress("0x4b15b70e9e1ac7e7f7edd3f7c81cf8ec4e784cc0"), conn)
+	token, err := Token.NewSDT(common.HexToAddress("0xa733e5f29016e9947b988d923a4769b0b6db4bea"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Token contract: %v", err)
 	}
@@ -56,14 +56,14 @@ func main() {
 	fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
 
 	//Define factory
-	factory, err := Factory.NewFactory(common.HexToAddress("0xDC0B27895bA9316571799C4044109c452Eb1bC14"), conn)
+	factory, err := Factory.NewFactory(common.HexToAddress("0x5fa99dab41de9d45b276907982080488326bd303"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Factory contract: %v", err)
 	}
 
 	//Put correct addresses into Factory
 	// auth, dao-address, Whitelist address as @params
-	tx, err = factory.ChangeAdresses(auth,common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1"),common.HexToAddress("0x4d98d99e9b74d66fc2b4ac49070422b0f514339b"))
+	tx, err = factory.ChangeAdresses(auth,common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1"),common.HexToAddress("0x0b4d4a9cd704bf05da93d0f50be641d6db758459"))
 	if err != nil {
 		log.Fatalf("Failed to request change address: %v", err)
 	}
@@ -110,7 +110,7 @@ func main() {
 	time.Sleep(250 * time.Millisecond)
 
 	//Define whitelist
-	whitelist, err := Whitelist.NewWhitelist(common.HexToAddress("0x4d98d99e9b74d66fc2b4ac49070422b0f514339b"), conn)
+	whitelist, err := Whitelist.NewWhitelist(common.HexToAddress("0x0b4d4a9cd704bf05da93d0f50be641d6db758459"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Whitelist contract: %v", err)
 	}
