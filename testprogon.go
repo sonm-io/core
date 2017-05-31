@@ -99,6 +99,16 @@ func main() {
 
 	//Registry Hub in Whitelist
 
+	//Add some tokens
+	tx, err = token.Transfer(auth, wb, big.NewInt(15))
+	if err != nil {
+		log.Fatalf("Failed to request token transfer: %v", err)
+	}
+	// Need to do something about checking pending tx
+	fmt.Printf("Transfer to hub wallet pending: 0x%x\n", tx.Hash())
+
+	time.Sleep(250 * time.Millisecond)
+
 	//Define whitelist
 	whitelist, err := Whitelist.NewWhitelist(common.HexToAddress("0x4d98d99e9b74d66fc2b4ac49070422b0f514339b"), conn)
 	if err != nil {
@@ -156,11 +166,22 @@ if err != nil {
  m:=minerof.String()
 
 fmt.Println("Miner Wallet address is:", m)
-
+time.Sleep(250 * time.Millisecond)
 
 //Registry Miner in Whitelist
 
+//Adding some funds to quote
+//Add some tokens
+tx, err = token.Transfer(auth, mb, big.NewInt(15))
+if err != nil {
+	log.Fatalf("Failed to request token transfer: %v", err)
+}
+// Need to do something about checking pending tx
+fmt.Printf("Transfer to MinerWallet wallet pending: 0x%x\n", tx.Hash())
 
+time.Sleep(250 * time.Millisecond)
+time.Sleep(250 * time.Millisecond)
+time.Sleep(250 * time.Millisecond)
 
 //Define MinerWallet
 mw, err := MinWallet.NewMinerWallet(mb, conn)
@@ -169,7 +190,7 @@ if err != nil {
 }
 
 //Register MinerWallet
-tx, err = mw.Registration(auth,big.NewInt(1))
+tx, err = mw.Registration(auth,big.NewInt(2))
 if err != nil {
 	log.Fatalf("Failed to request miner registration: %v", err)
 }
@@ -195,26 +216,27 @@ fmt.Println("Wallet address is:", mf)
 
 //First of all - we will try to get balance of Hub
 
-tx, err = token.BalanceOf(&bind.CallOpts{Pending: true},wb)
+bal, err := token.BalanceOf(&bind.CallOpts{Pending: true},wb)
 if err != nil {
 	log.Fatalf("Failed to request token balance: %v", err)
 }
 // Need to do something about checking pending tx
-bal:=tx
+//bal:=tx
 
 fmt.Printf("Balance of Hub", bal)
 
 //Balance of Miner
 
-tx, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
+bal, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
 if err != nil {
 	log.Fatalf("Failed to request token balance: %v", err)
 }
 // Need to do something about checking pending tx
-bal=tx
+//bal=tx
 
 fmt.Printf("Balance of Miner", bal)
 
+/*
 //Make some initial supplyment to hubwallet
 
 tx, err = token.Transfer(auth, wb, big.NewInt(10))
@@ -223,10 +245,11 @@ if err != nil {
 }
 // Need to do something about checking pending tx
 fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
+*/
 
 //Transfer some as a payout
 
-//Register HubWallet
+//Transfer funds from hub side
 tx, err = hw.Transfer(auth,mb,big.NewInt(2))
 if err != nil {
 	log.Fatalf("Failed to request hub transfer: %v", err)
@@ -247,12 +270,12 @@ fmt.Println(" pending: 0x%x\n", tx.Hash())
 // Don't even wait, check its presence in the local pending state
 time.Sleep(250 * time.Millisecond)
 
-tx, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
+bal, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
 if err != nil {
 	log.Fatalf("Failed to request token balance: %v", err)
 }
 // Need to do something about checking pending tx
-bal=tx
+//bal=tx
 
 fmt.Printf("Balance of Miner", bal)
 
