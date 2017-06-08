@@ -20,12 +20,12 @@ import (
 
 //-------INIT ZONE--------------------------------------------------------------
 
-	// THIS IS HACK AND SHOULD BE REWRITTEN
-	const key = `{"address":"fe36b232d4839fae8751fa10768126ee17a156c1","crypto":{"cipher":"aes-128-ctr","ciphertext":"b2f1390ba44929e2144a44b5f0bdcecb06060b5ef1e9b0d222ed0cd5340e2876","cipherparams":{"iv":"a33a90fc4d7a052db58be24bbfdc21a3"},"kdf":"scrypt","kdfparams":{"dklen":32,"n":262144,"p":1,"r":8,"salt":"422328336107aeb54b4a152f4fae0d5f2fbca052fc7688d9516cd998cf790021"},"mac":"08f3fa22882b932ae2926f6bf5b1df2c0795720bd993b50d652cee189c00315c"},"id":"b36be1bf-6eb4-402e-8e26-86da65ae3156","version":3}`
+// THIS IS HACK AND SHOULD BE REWRITTEN
+const key = `{"address":"fe36b232d4839fae8751fa10768126ee17a156c1","crypto":{"cipher":"aes-128-ctr","ciphertext":"b2f1390ba44929e2144a44b5f0bdcecb06060b5ef1e9b0d222ed0cd5340e2876","cipherparams":{"iv":"a33a90fc4d7a052db58be24bbfdc21a3"},"kdf":"scrypt","kdfparams":{"dklen":32,"n":262144,"p":1,"r":8,"salt":"422328336107aeb54b4a152f4fae0d5f2fbca052fc7688d9516cd998cf790021"},"mac":"08f3fa22882b932ae2926f6bf5b1df2c0795720bd993b50d652cee189c00315c"},"id":"b36be1bf-6eb4-402e-8e26-86da65ae3156","version":3}`
 
 func main() {
 	// Create an IPC based RPC connection to a remote node
-	conn, err := ethclient.Dial("/home/jack/.rinkeby/geth.ipc")
+	conn, err := ethclient.Dial("/home/cotic/.rinkeby/geth.ipc")
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
@@ -48,7 +48,8 @@ func main() {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
 
-	tx, err := token.Transfer(auth, common.HexToAddress("0x0000000000000000000000000000000000000000"), big.NewInt(1))
+	tx, err := token.Transfer(auth, common.HexToAddress("0x0000000000000000000000000000000000000000"), big.NewInt(1 * 10^17))
+	//tx, err := token.Transfer(auth, common.HexToAddress("0x0000000000000000000000000000000000000000"), big.NewInt(1))
 	if err != nil {
 		log.Fatalf("Failed to request token transfer: %v", err)
 	}
@@ -100,7 +101,7 @@ func main() {
 	//Registry Hub in Whitelist
 
 	//Add some tokens
-	tx, err = token.Transfer(auth, wb, big.NewInt(15))
+	tx, err = token.Transfer(auth, wb, big.NewInt(15 * 10^17))
 	if err != nil {
 		log.Fatalf("Failed to request token transfer: %v", err)
 	}
@@ -172,7 +173,7 @@ time.Sleep(250 * time.Millisecond)
 
 //Adding some funds to quote
 //Add some tokens
-tx, err = token.Transfer(auth, mb, big.NewInt(15))
+tx, err = token.Transfer(auth, mb, big.NewInt(15 * 10^17))
 if err != nil {
 	log.Fatalf("Failed to request token transfer: %v", err)
 }
@@ -206,7 +207,6 @@ if err != nil {
 }
 
  mf:=wRegistredMiners
-
 
 fmt.Println("Wallet address is:", mf)
 
@@ -250,7 +250,7 @@ fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
 //Transfer some as a payout
 
 //Transfer funds from hub side
-tx, err = hw.Transfer(auth,mb,big.NewInt(2))
+tx, err = hw.Transfer(auth,mb,big.NewInt(2 * 10^17))
 if err != nil {
 	log.Fatalf("Failed to request hub transfer: %v", err)
 }
@@ -316,9 +316,4 @@ t_session := &token.SDTSession{
 		tx = t_session.Transfer("0x0000000000000000000000000000000000000000"), big.NewInt(1))
 		fmt.Println("Transaction pending:", tx)
 		*/
-
-
-
-
-
 }
