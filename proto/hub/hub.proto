@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package hub;
+
+service Hub {
+    rpc Ping(PingRequest) returns (PingReply) {}
+    rpc List(ListRequest) returns (ListReply) {}
+}
+
+message PingRequest {
+}
+
+message PingReply {
+    string status = 1;
+}
+
+message ListRequest {
+}
+
+message ListReply {
+    repeated string name = 1;
+}

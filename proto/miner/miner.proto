@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package miner;
+
+service Miner{
+    rpc Ping(PingRequest) returns (PingReply) {}
+    rpc Handshake(HandshakeRequest) returns (HandshakeReply) {}
+
+    rpc Start(StartRequest) returns (StartReply) {}
+    rpc Stop(StopRequest) returns (StopReply) {}
+}
+
+message PingRequest {}
+
+message PingReply {
+    string status = 1;
+}
+
+message HandshakeRequest {
+    string hub = 1;
+}
+
+message HandshakeReply {
+    string miner = 1;
+}
+
+message StartRequest{
+    string id = 1;
+    string registry = 2;
+    string image = 3;
+}
+
+message StartReply {
+    string container = 1;
+}
+
+message StopRequest {
+    string id = 1;
+}
+
+message StopReply {}

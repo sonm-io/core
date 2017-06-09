@@ -24,3 +24,7 @@ _testmain.go
 *.prof
 
 coverage*
+
+sonmhub
+sonmcli
+sonmminer

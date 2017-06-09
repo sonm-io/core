@@ -1,36 +1,23 @@
 #!/usr/bin/env make
 
-REPO=github.com/sonm-io/insonmnia
-NAME=sonmd
 
-BUILDDT=$(shell date -u +%F@%H:%M:%S)
-VERSION=$(shell git show-ref --head --hash head)
-TAG=$(shell git describe --tags --always)
-DEBVER=$(shell dpkg-parsechangelog | sed -n -e 's/^Version: //p')
-VERSIONPKG=${REPO}/version
-DEPSPKG=${REPO}/deps
-
-# encode godeps into base64 to pass to a linker
-ifeq ($(shell uname),Linux)
-	BASE64FLAGS=-w0
-endif
-GODEPS=$(shell base64 ${BASE64FLAGS} ./Godeps/Godeps.json)
-
-GOMAIN=${REPO}/cmd
+GOCMD=./cmd
 GO=go
-PKGS := $(shell ${GO} list ./... | grep -v ^${REPO}/vendor/ | grep -v ^${REPO}/version)
-
-LDFLAGS=-ldflags "-X ${VERSIONPKG}.GitTag=${TAG} -X ${VERSIONPKG}.Version=${DEBVER} -X ${VERSIONPKG}.Build=${BUILDDT} -X ${VERSIONPKG}.GitHash=${VERSION} -X ${DEPSPKG}.godeps=${GODEPS}"
-
 
 .PHONY: fmt vet test
 
 
-binaries:
-	@echo "+ $@"
-	${GO} build ${LDFLAGS} -o ${NAME} ${GOMAIN}
+MINER=sonmminer
+HUB=sonmhub
+CLI=sonmcli
 
-all: vet fmt test buildbinary
+all: vet fmt test build
+
+build: grpc
+	@echo "+ $@"
+	${GO} build -o ${MINER} ${GOCMD}/miner
+	${GO} build -o ${HUB} ${GOCMD}/hub
+	${GO} build -o ${CLI} ${GOCMD}/cli
 
 vet:
 	@echo "+ $@"
@@ -50,13 +37,17 @@ test:
 	fi done;
 	@sed -ie '2!s/mode: set//;/^$$/d' coverage.txt
 
+grpc:
+	protoc -I proto/hub/ proto/hub/hub.proto --go_out=plugins=grpc:proto/hub/
+	protoc -I proto/miner/ proto/miner/miner.proto --go_out=plugins=grpc:proto/miner/
+
 coverage:
 	${GO} tool cover -func=coverage.txt
 	${GO} tool cover -func=coverage.txt -o funccoverage.txt
 	${GO} tool cover -html=coverage.txt -o coverage.html
 
 clean:
-	rm sonmd || true
 	rm coverage.txt || true
 	rm coverage.html || true
 	rm funccoverage.txt || true
+	rm ${MINER} ${HUB} ${CLI}
