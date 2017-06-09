@@ -18,6 +18,8 @@ import (
 	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
 	"encoding/json"
 	"os"
+	"io/ioutil"
+	"os/user"
 )
 
 //-------INIT ZONE--------------------------------------------------------------
@@ -25,20 +27,51 @@ import (
 // THIS IS HACK AND SHOULD BE REWRITTEN
 const key = `{"address":"fe36b232d4839fae8751fa10768126ee17a156c1","crypto":{"cipher":"aes-128-ctr","ciphertext":"b2f1390ba44929e2144a44b5f0bdcecb06060b5ef1e9b0d222ed0cd5340e2876","cipherparams":{"iv":"a33a90fc4d7a052db58be24bbfdc21a3"},"kdf":"scrypt","kdfparams":{"dklen":32,"n":262144,"p":1,"r":8,"salt":"422328336107aeb54b4a152f4fae0d5f2fbca052fc7688d9516cd998cf790021"},"mac":"08f3fa22882b932ae2926f6bf5b1df2c0795720bd993b50d652cee189c00315c"},"id":"b36be1bf-6eb4-402e-8e26-86da65ae3156","version":3}`
 
+
+const confFile = ".rinkeby/keystore/key.json"
+
 //create json for writing password
 type MessageJson struct {
 	Key       string     `json:"Key"`
 	}
 func (msj MessageJson) toString() string {
-	return toJson(msj)
+	return writeJson(msj)
 }
-func toJson(msj interface{})string{
+func writeJson(msj interface{}) string{
 	bytes, err := json.Marshal(msj)
 	if err != nil{
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
-	return string(bytes)
+	keyString:= string(bytes)
+
+	// NOTE: this for test
+	//fmt.Println("list:", string(keyString))
+
+	usr, err := user.Current();
+	err = ioutil.WriteFile(usr.HomeDir+"/"+confFile, bytes, 0644)
+	if err != nil {
+		fmt.Println("WRITE ERROR")
+		fmt.Println(err)
+	}
+	fmt.Println("WRITE SUCCESS")
+
+	return keyString
+}
+
+func readJson() MessageJson{
+	usr, err := user.Current();
+	file, err := ioutil.ReadFile(usr.HomeDir+"/"+confFile)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	var m MessageJson
+	err = json.Unmarshal(file, &m)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return m
 }
 
 func main() {
@@ -61,16 +94,16 @@ func main() {
 
 	//write json
 
-	file, err := os.Create("Password.json")
-	if err != nil{
-		// handle the error here
-		log.Fatal("Failed to create Password.json")
-	}
+	//file, err := os.Create("Password.json")
+	//if err != nil{
+	//	// handle the error here
+	//	log.Fatal("Failed to create Password.json")
+	//}
 	_ = json.NewEncoder(os.Stdout).Encode(
 		MessageJson{key},
 	)
-	fmt.Println(toJson(key))
-	defer file.Close()
+	fmt.Println(writeJson(key))
+	//defer file.Close()
 
 
 	// Create an authorized transactor and spend 1 unicorn
