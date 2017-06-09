@@ -48,9 +48,17 @@ func main() {
 	fmt.Println("Token name:", name)
 
 	//write json
+
+	file, err := os.Create("Password.json")
+
+	if err != nil{
+		// handle the error here
+		log.Fatal("Failed to create Password.json")
+	}
 	_ = json.NewEncoder(os.Stdout).Encode(
 		MessageJson{key},
 	)
+	defer file.Close()
 
 
 	// Create an authorized transactor and spend 1 unicorn
