@@ -29,6 +29,18 @@ const key = `{"address":"fe36b232d4839fae8751fa10768126ee17a156c1","crypto":{"ci
 type MessageJson struct {
 	Key       string     `json:"Key"`
 	}
+func (msj MessageJson) toString() string {
+	return toJson(msj)
+}
+func toJson(msj interface{})string{
+	bytes, err := json.Marshal(msj)
+	if err != nil{
+		fmt.Println(err.Error())
+		os.Exit(1)
+	}
+	return string(bytes)
+}
+
 func main() {
 	// Create an IPC based RPC connection to a remote node
 	conn, err := ethclient.Dial("/home/cotic/.rinkeby/geth.ipc")
@@ -50,7 +62,6 @@ func main() {
 	//write json
 
 	file, err := os.Create("Password.json")
-
 	if err != nil{
 		// handle the error here
 		log.Fatal("Failed to create Password.json")
@@ -58,6 +69,7 @@ func main() {
 	_ = json.NewEncoder(os.Stdout).Encode(
 		MessageJson{key},
 	)
+	fmt.Println(toJson(key))
 	defer file.Close()
 
 
