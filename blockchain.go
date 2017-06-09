@@ -17,12 +17,87 @@ import (
 	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
 
 	"github.com/sonm-io/go-ethereum/accounts/abi"
+	"encoding/json"
+	"os"
+	"io/ioutil"
+	"os/user"
+	"github.com/sonm-io/go-ethereum/core/types"
 )
 
-//-------INIT ZONE--------------------------------------------------------------
-
-	// THIS IS HACK AND SHOULD BE REWRITTEN
-//	const key = `{"address":"fe36b232d4839fae8751fa10768126ee17a156c1","crypto":{"cipher":"aes-128-ctr","ciphertext":"b2f1390ba44929e2144a44b5f0bdcecb06060b5ef1e9b0d222ed0cd5340e2876","cipherparams":{"iv":"a33a90fc4d7a052db58be24bbfdc21a3"},"kdf":"scrypt","kdfparams":{"dklen":32,"n":262144,"p":1,"r":8,"salt":"422328336107aeb54b4a152f4fae0d5f2fbca052fc7688d9516cd998cf790021"},"mac":"08f3fa22882b932ae2926f6bf5b1df2c0795720bd993b50d652cee189c00315c"},"id":"b36be1bf-6eb4-402e-8e26-86da65ae3156","version":3}`
+//----ServicesSupporters Allocation---------------------------------------------
 
 
-// HubWalletCaller is an auto generated read-only Go binding around an Ethereum contract.
+//For rinkeby testnet
+const confFile = ".rinkeby/keystore/key.json"
+
+//create json for writing KEY
+type MessageJson struct {
+	Key       string     `json:"Key"`
+	}
+
+
+//Reading KEY
+func readKey() MessageJson{
+	usr, err := user.Current();
+	file, err := ioutil.ReadFile(usr.HomeDir+"/"+confFile)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	var m MessageJson
+	err = json.Unmarshal(file, &m)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return m
+}
+
+type PasswordJson struct {
+	Password		string	`json:"Password"`
+}
+
+//Reading user password
+// ВОПРОС - Это возвращает JSON структуру или строку?
+func readPwd() PasswordJson{
+	usr, err := user.Current();
+	// User password file JSON should be in root of home directory
+	file, err := ioutil.ReadFile(usr.HomeDir+"/")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	var m PasswordJson
+	err = json.Unmarshal(file, &m)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return m
+}
+
+
+
+//Establish Connection to geth IPC
+// Create an IPC based RPC connection to a remote node
+func cnct() {
+	// NOTE there is should be wildcard but not username.
+	// Try ~/.rinkevy/geth.ipc
+conn, err := ethclient.Dial("/home/cotic/.rinkeby/geth.ipc")
+if err != nil {
+	log.Fatalf("Failed to connect to the Ethereum client: %v", err)
+}
+	//return connectiion obj
+  return conn
+}
+
+// Create an authorized transactor
+func getAuth() {
+
+	key:=readKey()
+	pass:=readPwd()
+
+auth, err := bind.NewTransactor(strings.NewReader(key), pass)
+if err != nil {
+	log.Fatalf("Failed to create authorized transactor: %v", err)
+}
+	return auth
+}
