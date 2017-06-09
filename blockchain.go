@@ -75,6 +75,12 @@ func readPwd() PasswordJson{
 }
 
 
+//--Services Getters-----------------------------
+/*
+	Those functions allows someone behind library gets
+	conn and auth for further interaction
+
+*/
 
 //Establish Connection to geth IPC
 // Create an IPC based RPC connection to a remote node
@@ -100,4 +106,74 @@ if err != nil {
 	log.Fatalf("Failed to create authorized transactor: %v", err)
 }
 	return auth
+}
+
+//-----------------------------------------------------------
+
+
+//---Defines Binds-----------------------------------------
+
+/*
+	Those should be internal functions for internal usage (but not for sure)
+
+*/
+
+
+//Token Defines
+func GlueToken(conn *ethclient.Client)  {
+	// Instantiate the contract
+	token, err := Token.NewSDT(common.HexToAddress("0x09e4a2de83220c6f92dcfdbaa8d22fe2a4a45943"), conn)
+	if err != nil {
+		log.Fatalf("Failed to instantiate a Token contract: %v", err)
+	}
+
+}
+
+func GlueFactory(conn *ethclient.Client)  {
+	//Define factory
+	factory, err := Factory.NewFactory(common.HexToAddress("0xfadcd0e54a6bb4c8e1130b4da6022bb29540c1a1"), conn)
+	if err != nil {
+		log.Fatalf("Failed to instantiate a Factory contract: %v", err)
+	}
+}
+
+func GlueWhitelist(conn *ethclient.Client)  {
+	//Define whitelist
+	whitelist, err := Whitelist.NewWhitelist(common.HexToAddress("0x833865a1379b9750c8a00b407bd6e2f08e465153"), conn)
+	if err != nil {
+		log.Fatalf("Failed to instantiate a Whitelist contract: %v", err)
+	}
+}
+
+func GlueHubWallet(conn *ethclient.Client, wb common.Address)  {
+	//Define HubWallet
+	hw, err := Hubwallet.NewHubWallet(wb, conn)
+	if err != nil {
+		log.Fatalf("Failed to instantiate a HubWallet contract: %v", err)
+	}
+}
+
+func GlueMinWallet(conn *ethclient.Client, wb common.Address)  {
+	//Define MinerWallet
+	mw, err := MinWallet.NewMinerWallet(mb, conn)
+	if err != nil {
+		log.Fatalf("Failed to instantiate a MinWallet contract: %v", err)
+	}
+	}
+//-------------------------------------------------------------------------
+
+//--MAIN LIBRARY-----------------------------------------------------------
+
+/*
+Example
+*/
+
+
+
+
+
+
+
+
+
 }
