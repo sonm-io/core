@@ -8,11 +8,14 @@ import (
 	"go.uber.org/zap"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pborman/uuid"
 	pb "github.com/sonm-io/insonmnia/proto/hub"
 	pbminer "github.com/sonm-io/insonmnia/proto/miner"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -29,6 +32,11 @@ type Hub struct {
 
 	mu     sync.Mutex
 	miners map[string]pbminer.MinerClient
+
+	// TODO: rediscover jobs if Miner disconnected
+	// TODO: store this data in some Storage interface
+	tasksmu sync.Mutex
+	tasks   map[string]string
 
 	wg sync.WaitGroup
 }
@@ -50,6 +58,65 @@ func (h *Hub) List(context.Context, *pb.ListRequest) (*pb.ListReply, error) {
 	return &lr, nil
 }
 
+// StartTask schedulles the Task on some miner
+func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
+	miner := request.Miner
+	h.mu.Lock()
+	mincli, ok := h.miners[miner]
+	h.mu.Unlock()
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "no such miner %s", miner)
+	}
+
+	uid := uuid.New()
+	var startrequest = &pbminer.StartRequest{
+		Id: uid,
+	}
+
+	_, err := mincli.Start(ctx, startrequest)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
+	}
+
+	h.tasksmu.Lock()
+	h.tasks[uid] = miner
+	h.tasksmu.Unlock()
+
+	return &pb.StartTaskReply{Id: uid}, nil
+}
+
+// StopTask sends termination request to a miner handling the task
+func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
+	taskid := request.Id
+	h.tasksmu.Lock()
+	miner, ok := h.tasks[taskid]
+	h.tasksmu.Unlock()
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "no such task %s", taskid)
+	}
+
+	h.mu.Lock()
+	mincli, ok := h.miners[miner]
+	h.mu.Unlock()
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "no miner with task %s", miner)
+	}
+
+	var stoprequest = &pbminer.StopRequest{
+		Id: taskid,
+	}
+	_, err := mincli.Stop(ctx, stoprequest)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "failed to stop the task %s", taskid)
+	}
+
+	h.tasksmu.Lock()
+	delete(h.tasks, taskid)
+	h.tasksmu.Unlock()
+
+	return &pb.StopTaskReply{}, nil
+}
+
 // New returns new Hub
 func New(ctx context.Context) (*Hub, error) {
 	// TODO: add secure mechanism
@@ -58,6 +125,7 @@ func New(ctx context.Context) (*Hub, error) {
 		ctx:          ctx,
 		externalGrpc: grpcServer,
 
+		tasks:  make(map[string]string),
 		miners: make(map[string]pbminer.MinerClient),
 	}
 	pb.RegisterHubServer(grpcServer, h)
@@ -83,7 +151,7 @@ func (h *Hub) Serve() error {
 		return err
 	}
 	log.G(h.ctx).Info("listening for gRPC API conenctions", zap.Stringer("address", grpcL.Addr()))
-	// TODO: fix this possible race
+	// TODO: fix this possible race: Close before Serve
 	h.minerListener = il
 
 	h.wg.Add(1)
@@ -135,6 +203,7 @@ func (h *Hub) handlerInterconnect(ctx context.Context, conn net.Conn) {
 		delete(h.miners, conn.RemoteAddr().String())
 		h.mu.Unlock()
 	}()
+	// TODO: rediscover jobs assigned to that Miner
 
 	t := time.NewTicker(time.Second * 10)
 	defer t.Stop()

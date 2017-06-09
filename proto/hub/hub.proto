@@ -5,6 +5,9 @@ package hub;
 service Hub {
     rpc Ping(PingRequest) returns (PingReply) {}
     rpc List(ListRequest) returns (ListReply) {}
+
+    rpc StartTask(StartTaskRequest) returns (StartTaskReply) {}
+    rpc StopTask(StopTaskRequest) returns (StopTaskReply) {}
 }
 
 message PingRequest {
@@ -19,4 +22,22 @@ message ListRequest {
 
 message ListReply {
     repeated string name = 1;
+}
+
+message StartTaskRequest {
+    string miner = 1;
+    string registry = 2;
+    string image = 3;
+}
+
+message StartTaskReply {
+    string id = 1;
+    string endpoint = 2;
+}
+
+message StopTaskRequest {
+    string id = 1;
+}
+
+message StopTaskReply {
 }

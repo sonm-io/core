@@ -12,6 +12,10 @@ It has these top-level messages:
 	PingReply
 	ListRequest
 	ListReply
+	StartTaskRequest
+	StartTaskReply
+	StopTaskRequest
+	StopTaskReply
 */
 package hub
 
@@ -83,11 +87,95 @@ func (m *ListReply) GetName() []string {
 	return nil
 }
 
+type StartTaskRequest struct {
+	Miner    string `protobuf:"bytes,1,opt,name=miner" json:"miner,omitempty"`
+	Registry string `protobuf:"bytes,2,opt,name=registry" json:"registry,omitempty"`
+	Image    string `protobuf:"bytes,3,opt,name=image" json:"image,omitempty"`
+}
+
+func (m *StartTaskRequest) Reset()                    { *m = StartTaskRequest{} }
+func (m *StartTaskRequest) String() string            { return proto.CompactTextString(m) }
+func (*StartTaskRequest) ProtoMessage()               {}
+func (*StartTaskRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
+
+func (m *StartTaskRequest) GetMiner() string {
+	if m != nil {
+		return m.Miner
+	}
+	return ""
+}
+
+func (m *StartTaskRequest) GetRegistry() string {
+	if m != nil {
+		return m.Registry
+	}
+	return ""
+}
+
+func (m *StartTaskRequest) GetImage() string {
+	if m != nil {
+		return m.Image
+	}
+	return ""
+}
+
+type StartTaskReply struct {
+	Id       string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+	Endpoint string `protobuf:"bytes,2,opt,name=endpoint" json:"endpoint,omitempty"`
+}
+
+func (m *StartTaskReply) Reset()                    { *m = StartTaskReply{} }
+func (m *StartTaskReply) String() string            { return proto.CompactTextString(m) }
+func (*StartTaskReply) ProtoMessage()               {}
+func (*StartTaskReply) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
+
+func (m *StartTaskReply) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+func (m *StartTaskReply) GetEndpoint() string {
+	if m != nil {
+		return m.Endpoint
+	}
+	return ""
+}
+
+type StopTaskRequest struct {
+	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
+}
+
+func (m *StopTaskRequest) Reset()                    { *m = StopTaskRequest{} }
+func (m *StopTaskRequest) String() string            { return proto.CompactTextString(m) }
+func (*StopTaskRequest) ProtoMessage()               {}
+func (*StopTaskRequest) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
+
+func (m *StopTaskRequest) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+type StopTaskReply struct {
+}
+
+func (m *StopTaskReply) Reset()                    { *m = StopTaskReply{} }
+func (m *StopTaskReply) String() string            { return proto.CompactTextString(m) }
+func (*StopTaskReply) ProtoMessage()               {}
+func (*StopTaskReply) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
+
 func init() {
 	proto.RegisterType((*PingRequest)(nil), "hub.PingRequest")
 	proto.RegisterType((*PingReply)(nil), "hub.PingReply")
 	proto.RegisterType((*ListRequest)(nil), "hub.ListRequest")
 	proto.RegisterType((*ListReply)(nil), "hub.ListReply")
+	proto.RegisterType((*StartTaskRequest)(nil), "hub.StartTaskRequest")
+	proto.RegisterType((*StartTaskReply)(nil), "hub.StartTaskReply")
+	proto.RegisterType((*StopTaskRequest)(nil), "hub.StopTaskRequest")
+	proto.RegisterType((*StopTaskReply)(nil), "hub.StopTaskReply")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -103,6 +191,8 @@ const _ = grpc.SupportPackageIsVersion4
 type HubClient interface {
 	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingReply, error)
 	List(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListReply, error)
+	StartTask(ctx context.Context, in *StartTaskRequest, opts ...grpc.CallOption) (*StartTaskReply, error)
+	StopTask(ctx context.Context, in *StopTaskRequest, opts ...grpc.CallOption) (*StopTaskReply, error)
 }
 
 type hubClient struct {
@@ -131,11 +221,31 @@ func (c *hubClient) List(ctx context.Context, in *ListRequest, opts ...grpc.Call
 	return out, nil
 }
 
+func (c *hubClient) StartTask(ctx context.Context, in *StartTaskRequest, opts ...grpc.CallOption) (*StartTaskReply, error) {
+	out := new(StartTaskReply)
+	err := grpc.Invoke(ctx, "/hub.Hub/StartTask", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hubClient) StopTask(ctx context.Context, in *StopTaskRequest, opts ...grpc.CallOption) (*StopTaskReply, error) {
+	out := new(StopTaskReply)
+	err := grpc.Invoke(ctx, "/hub.Hub/StopTask", in, out, c.cc, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Server API for Hub service
 
 type HubServer interface {
 	Ping(context.Context, *PingRequest) (*PingReply, error)
 	List(context.Context, *ListRequest) (*ListReply, error)
+	StartTask(context.Context, *StartTaskRequest) (*StartTaskReply, error)
+	StopTask(context.Context, *StopTaskRequest) (*StopTaskReply, error)
 }
 
 func RegisterHubServer(s *grpc.Server, srv HubServer) {
@@ -178,6 +288,42 @@ func _Hub_List_Handler(srv interface{}, ctx context.Context, dec func(interface{
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Hub_StartTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartTaskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HubServer).StartTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/hub.Hub/StartTask",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HubServer).StartTask(ctx, req.(*StartTaskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Hub_StopTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StopTaskRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HubServer).StopTask(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/hub.Hub/StopTask",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HubServer).StopTask(ctx, req.(*StopTaskRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Hub_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "hub.Hub",
 	HandlerType: (*HubServer)(nil),
@@ -190,6 +336,14 @@ var _Hub_serviceDesc = grpc.ServiceDesc{
 			MethodName: "List",
 			Handler:    _Hub_List_Handler,
 		},
+		{
+			MethodName: "StartTask",
+			Handler:    _Hub_StartTask_Handler,
+		},
+		{
+			MethodName: "StopTask",
+			Handler:    _Hub_StopTask_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "hub.proto",
@@ -198,16 +352,24 @@ var _Hub_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("hub.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 162 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0xcc, 0x28, 0x4d, 0xd2,
-	0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0xce, 0x28, 0x4d, 0x52, 0xe2, 0xe5, 0xe2, 0x0e, 0xc8,
-	0xcc, 0x4b, 0x0f, 0x4a, 0x2d, 0x2c, 0x4d, 0x2d, 0x2e, 0x51, 0x52, 0xe6, 0xe2, 0x84, 0x70, 0x0b,
-	0x72, 0x2a, 0x85, 0xc4, 0xb8, 0xd8, 0x8a, 0x4b, 0x12, 0x4b, 0x4a, 0x8b, 0x25, 0x18, 0x15, 0x18,
-	0x35, 0x38, 0x83, 0xa0, 0x3c, 0x90, 0x1e, 0x9f, 0xcc, 0xe2, 0x12, 0x98, 0x1e, 0x79, 0x2e, 0x4e,
-	0x08, 0x17, 0xa4, 0x47, 0x88, 0x8b, 0x25, 0x2f, 0x31, 0x37, 0x55, 0x82, 0x51, 0x81, 0x59, 0x83,
-	0x33, 0x08, 0xcc, 0x36, 0x8a, 0xe5, 0x62, 0xf6, 0x28, 0x4d, 0x12, 0xd2, 0xe2, 0x62, 0x01, 0x99,
-	0x2d, 0x24, 0xa0, 0x07, 0x72, 0x03, 0x92, 0xad, 0x52, 0x7c, 0x48, 0x22, 0x05, 0x39, 0x95, 0x4a,
-	0x0c, 0x20, 0xb5, 0x20, 0x33, 0xa1, 0x6a, 0x91, 0x6c, 0x83, 0xaa, 0x85, 0x5b, 0xa8, 0xc4, 0x90,
-	0xc4, 0x06, 0xf6, 0x8e, 0x31, 0x20, 0x00, 0x00, 0xff, 0xff, 0x6d, 0x31, 0x71, 0x1b, 0xdb, 0x00,
-	0x00, 0x00,
+	// 300 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x5c, 0x92, 0x4f, 0x4f, 0x83, 0x40,
+	0x10, 0xc5, 0x0b, 0xd4, 0xa6, 0x3b, 0xa6, 0xb4, 0x19, 0xab, 0x21, 0x5c, 0xac, 0xeb, 0xa5, 0xf1,
+	0xd0, 0x83, 0x26, 0x26, 0x26, 0x7e, 0x00, 0x0f, 0x1e, 0x0c, 0xf5, 0xe4, 0x0d, 0xc2, 0x86, 0x6e,
+	0xe4, 0xcf, 0xca, 0x2e, 0x07, 0xbe, 0xa5, 0x1f, 0xc9, 0xec, 0xb2, 0x20, 0xe5, 0xc6, 0x9b, 0x7d,
+	0xbf, 0x97, 0x99, 0x17, 0x80, 0x9c, 0x9a, 0xe4, 0x20, 0xea, 0x4a, 0x55, 0xe8, 0x9d, 0x9a, 0x84,
+	0xae, 0xe0, 0xf2, 0x83, 0x97, 0x59, 0xc4, 0x7e, 0x1a, 0x26, 0x15, 0xbd, 0x07, 0xd2, 0x49, 0x91,
+	0xb7, 0x78, 0x03, 0x0b, 0xa9, 0x62, 0xd5, 0xc8, 0xc0, 0xd9, 0x39, 0x7b, 0x12, 0x59, 0xa5, 0x99,
+	0x77, 0x2e, 0x55, 0xcf, 0xdc, 0x02, 0xe9, 0xa4, 0x66, 0x10, 0xe6, 0x65, 0x5c, 0xb0, 0xc0, 0xd9,
+	0x79, 0x7b, 0x12, 0x99, 0x6f, 0xfa, 0x05, 0x9b, 0xa3, 0x8a, 0x6b, 0xf5, 0x19, 0xcb, 0x6f, 0x0b,
+	0xe1, 0x16, 0x2e, 0x0a, 0x5e, 0xb2, 0xda, 0x46, 0x77, 0x02, 0x43, 0x58, 0xd6, 0x2c, 0xe3, 0x52,
+	0xd5, 0x6d, 0xe0, 0x9a, 0x87, 0x41, 0x6b, 0x82, 0x17, 0x71, 0xc6, 0x02, 0xaf, 0x23, 0x8c, 0xa0,
+	0xaf, 0xe0, 0x8f, 0xb2, 0xf5, 0x06, 0x3e, 0xb8, 0x3c, 0xb5, 0xb1, 0x2e, 0x4f, 0x75, 0x26, 0x2b,
+	0x53, 0x51, 0xf1, 0x52, 0xf5, 0x99, 0xbd, 0xa6, 0x77, 0xb0, 0x3e, 0xaa, 0x4a, 0x8c, 0x17, 0x9b,
+	0xe0, 0x74, 0x0d, 0xab, 0x7f, 0x8b, 0xc8, 0xdb, 0xc7, 0x5f, 0x07, 0xbc, 0xb7, 0x26, 0xc1, 0x07,
+	0x98, 0xeb, 0xaa, 0x70, 0x73, 0xd0, 0x95, 0x8e, 0x4a, 0x0c, 0xfd, 0xd1, 0x44, 0xe4, 0x2d, 0x9d,
+	0x69, 0xaf, 0xae, 0xc8, 0x7a, 0x47, 0xe5, 0x59, 0xef, 0xd0, 0x1f, 0x9d, 0xe1, 0x0b, 0x90, 0xe1,
+	0x22, 0xbc, 0x36, 0xcf, 0xd3, 0xf6, 0xc2, 0xab, 0xe9, 0xb8, 0x43, 0x9f, 0x61, 0xd9, 0xef, 0x8a,
+	0x5b, 0x6b, 0x39, 0xbb, 0x2e, 0xc4, 0xc9, 0xd4, 0x70, 0xc9, 0xc2, 0xfc, 0x10, 0x4f, 0x7f, 0x01,
+	0x00, 0x00, 0xff, 0xff, 0xfa, 0xb8, 0x09, 0x81, 0x1d, 0x02, 0x00, 0x00,
 }
