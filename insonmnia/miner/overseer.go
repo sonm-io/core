@@ -50,10 +50,17 @@ type overseer struct {
 
 // NewOverseer creates new overseer
 func NewOverseer(ctx context.Context) (Overseer, error) {
+	dockclient, err := client.NewEnvClient()
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	ovr := &overseer{
 		ctx:    ctx,
 		cancel: cancel,
+
+		client: dockclient,
 	}
 
 	go ovr.collectStats()
