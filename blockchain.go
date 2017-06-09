@@ -24,6 +24,27 @@ import (
 	"github.com/sonm-io/go-ethereum/core/types"
 )
 
+/*
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+*/
+
+
 //----ServicesSupporters Allocation---------------------------------------------
 
 
@@ -86,7 +107,7 @@ func readPwd() PasswordJson{
 // Create an IPC based RPC connection to a remote node
 func cnct() {
 	// NOTE there is should be wildcard but not username.
-	// Try ~/.rinkevy/geth.ipc
+	// Try ~/.rinkeby/geth.ipc
 conn, err := ethclient.Dial("/home/cotic/.rinkeby/geth.ipc")
 if err != nil {
 	log.Fatalf("Failed to connect to the Ethereum client: %v", err)
@@ -120,55 +141,100 @@ if err != nil {
 
 
 //Token Defines
-func GlueToken(conn *ethclient.Client)  {
+func GlueToken(conn ethclient.Client) (*Token.SDT) {
 	// Instantiate the contract
 	token, err := Token.NewSDT(common.HexToAddress("0x09e4a2de83220c6f92dcfdbaa8d22fe2a4a45943"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Token contract: %v", err)
 	}
-
+		return token
 }
 
-func GlueFactory(conn *ethclient.Client)  {
+func GlueFactory(conn ethclient.Client) (*Factory.Factory) {
 	//Define factory
 	factory, err := Factory.NewFactory(common.HexToAddress("0xfadcd0e54a6bb4c8e1130b4da6022bb29540c1a1"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Factory contract: %v", err)
 	}
+		return factory
 }
 
-func GlueWhitelist(conn *ethclient.Client)  {
+func GlueWhitelist(conn ethclient.Client) (*Whitelist.Whitelist)  {
 	//Define whitelist
 	whitelist, err := Whitelist.NewWhitelist(common.HexToAddress("0x833865a1379b9750c8a00b407bd6e2f08e465153"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Whitelist contract: %v", err)
 	}
+		return whitelist
 }
 
-func GlueHubWallet(conn *ethclient.Client, wb common.Address)  {
+func GlueHubWallet(conn ethclient.Client, wb common.Address) (*Hubwallet.HubWallet)  {
 	//Define HubWallet
 	hw, err := Hubwallet.NewHubWallet(wb, conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a HubWallet contract: %v", err)
 	}
+		return hw
 }
 
-func GlueMinWallet(conn *ethclient.Client, wb common.Address)  {
+func GlueMinWallet(conn ethclient.Client, wb common.Address) (*MinWallet.MinerWallet) {
 	//Define MinerWallet
 	mw, err := MinWallet.NewMinerWallet(mb, conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a MinWallet contract: %v", err)
 	}
+			return mw
 	}
 //-------------------------------------------------------------------------
 
 //--MAIN LIBRARY-----------------------------------------------------------
 
 /*
-Example
+		HOW THIS SHOULD WORK?
+
+		MainProgram				ThisLibrary
+		A<---------------->B
+
+	  First A program wants to get Auth and Connection,
+		So it will ask for getAuth and cnct functions from b
+		and should store those objects inside.
+
+		Therefore A want to interact with smart contracts functions from Blockchain,
+		so it is call such functions from B with conn and auth in parameters.
+
+
+
 */
 
 
+
+
+/*
+Example
+*/
+func getBalance(conn ethclient.Client) (*types.Transaction) {
+	token:=GlueToken(conn)
+	bal, err := token.BalanceOf(&bind.CallOpts{Pending: true},mb)
+	if err != nil {
+		log.Fatalf("Failed to request token balance: %v", err)
+	}
+	return bal
+}
+
+
+func HubTransfer(conn ethclient.Client, auth *bind.TransactOpts, wb common.Address, to common.Address, amount.Int) (*types.Transaction)  {
+	hw:=GlueHubWallet(conn,wb)
+	am=big.NewInt(amount*10^17)
+
+	tx, err := hw.Transfer(auth,to,am)
+	if err != nil {
+		log.Fatalf("Failed to request hub transfer: %v", err)
+	}
+	fmt.Println(" pending: 0x%x\n", tx.Hash())
+
+	return tx
+
+}
 
 
 
