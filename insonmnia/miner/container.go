@@ -2,6 +2,7 @@ package miner
 
 import (
 	"context"
+	"path/filepath"
 
 	"go.uber.org/zap"
 
@@ -39,7 +40,7 @@ func newContainer(ctx context.Context, dclient *client.Client, d Description) (*
 
 		// Env:        Env,
 		// Cmd:        Cmd,
-		// Image:      image,
+		Image: filepath.Join(d.Registry, d.Image),
 		// TODO: set actual name
 		Labels: map[string]string{overseerTag: ""},
 	}

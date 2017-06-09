@@ -61,6 +61,8 @@ func NewOverseer(ctx context.Context) (Overseer, error) {
 		cancel: cancel,
 
 		client: dockclient,
+
+		containers: make(map[string]*dcontainer),
 	}
 
 	go ovr.collectStats()
@@ -137,6 +139,7 @@ func (o *overseer) watchEvents() {
 		// 	// pass
 		case context.Canceled, context.DeadlineExceeded:
 			log.G(o.ctx).Info("event listenening has been cancelled")
+			return
 		default:
 			log.G(o.ctx).Warn("failed to attach to a Docker events stream. Retry later")
 			select {
