@@ -5,12 +5,11 @@ import (
 	"log"
 	"math/big"
 	"strings"
-	//"bufio"
 	"time"
 
 	"github.com/sonm-io/go-ethereum/common"
 	"github.com/sonm-io/go-ethereum/ethclient"
-  "github.com/sonm-io/blockchain-api/go-build/SDT"
+ 	"github.com/sonm-io/blockchain-api/go-build/SDT"
 	"github.com/sonm-io/blockchain-api/go-build/Factory"
 	"github.com/sonm-io/blockchain-api/go-build/Whitelist"
 	"github.com/sonm-io/blockchain-api/go-build/HubWallet"
@@ -20,6 +19,7 @@ import (
 	"os"
 	"io/ioutil"
 	"os/user"
+	"github.com/sonm-io/go-ethereum/core/types"
 )
 
 //-------INIT ZONE--------------------------------------------------------------
@@ -209,177 +209,187 @@ func main() {
 	fmt.Println("Wallet address is:", wf)
 
 
-//----------MINER INIT----------------------------------------------------------
+	//----------MINER INIT----------------------------------------------------------
 
-//Creates MINER
+	//Creates MINER
 
-tx, err = factory.CreateMiner(auth)
-if err != nil {
-	log.Fatalf("Failed to request Miner creation: %v", err)
+	tx, err = factory.CreateMiner(auth)
+	if err != nil {
+		log.Fatalf("Failed to request Miner creation: %v", err)
+	}
+	fmt.Println("createMiner pending: 0x%x\n", tx.Hash())
+
+	// Don't even wait, check its presence in the local pending state
+	time.Sleep(250 * time.Millisecond) // Allow it to be processed by the local node :P
+
+	//Request info about miners from factory
+	minerof, err := factory.MinerOf(&bind.CallOpts{Pending: true}, common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1"))
+	if err != nil {
+		log.Fatalf("Failed to retrieve miner wallet: %v", err)
+	}
+
+	 mb:=minerof
+	 m:=minerof.String()
+
+	fmt.Println("Miner Wallet address is:", m)
+	time.Sleep(250 * time.Millisecond)
+
+	//Registry Miner in Whitelist
+
+	//Adding some funds to quote
+	//Add some tokens
+	tx, err = token.Transfer(auth, mb, big.NewInt(15 * 10^17))
+	if err != nil {
+		log.Fatalf("Failed to request token transfer: %v", err)
+	}
+	// Need to do something about checking pending tx
+	fmt.Printf("Transfer to MinerWallet wallet pending: 0x%x\n", tx.Hash())
+
+	time.Sleep(250 * time.Millisecond)
+	time.Sleep(250 * time.Millisecond)
+	time.Sleep(250 * time.Millisecond)
+
+	//Define MinerWallet
+	mw, err := MinWallet.NewMinerWallet(mb, conn)
+	if err != nil {
+		log.Fatalf("Failed to instantiate a MinWallet contract: %v", err)
+	}
+
+	//Register MinerWallet
+	tx, err = mw.Registration(auth,big.NewInt(2))
+	if err != nil {
+		log.Fatalf("Failed to request miner registration: %v", err)
+	}
+	fmt.Println("Registration pending: 0x%x\n", tx.Hash())
+
+	// Don't even wait, check its presence in the local pending state
+	time.Sleep(250 * time.Millisecond)
+
+	//Check info about miners
+	wRegistredMiners, err := whitelist.RegistredMiners(&bind.CallOpts{Pending: true},mb)
+	if err != nil {
+		log.Fatalf("Failed to retrieve miner wallet: %v", err)
+	}
+
+	 mf:=wRegistredMiners
+
+	fmt.Println("Wallet address is:", mf)
+
+	//------Transfers---------------------------------------------------------------
+
+	//Hub is registred, we should transfer him money
+
+	//First of all - we will try to get balance of Hub
+
+	bal, err := token.BalanceOf(&bind.CallOpts{Pending: true},wb)
+	if err != nil {
+		log.Fatalf("Failed to request token balance: %v", err)
+	}
+	// Need to do something about checking pending tx
+	//bal:=tx
+
+	fmt.Printf("Balance of Hub", bal)
+
+	//Balance of Miner
+
+	bal, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
+	if err != nil {
+		log.Fatalf("Failed to request token balance: %v", err)
+	}
+	// Need to do something about checking pending tx
+	//bal=tx
+
+	fmt.Printf("Balance of Miner", bal)
+
+	/*
+	//Make some initial supplyment to hubwallet
+
+	tx, err = token.Transfer(auth, wb, big.NewInt(10))
+	if err != nil {
+		log.Fatalf("Failed to request token transfer: %v", err)
+	}
+	// Need to do something about checking pending tx
+	fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
+	*/
+
+	//Transfer some as a payout
+
+	//Transfer funds from hub side
+	//tx, err = hw.Transfer(auth,mb,big.NewInt(2 * 10^17))
+	//if err != nil {
+	//	log.Fatalf("Failed to request hub transfer: %v", err)
+	//}
+	//fmt.Println(" pending: 0x%x\n", tx.Hash())
+	TransferFunds(hw, auth, mb)
+
+	// Don't even wait, check its presence in the local pending state
+	time.Sleep(250 * time.Millisecond)
+
+	//Pull payment from MinerSide
+
+	tx, err = mw.PullMoney(auth,wb)
+	if err != nil {
+		log.Fatalf("Failed to request : %v", err)
+	}
+	fmt.Println(" pending: 0x%x\n", tx.Hash())
+
+	// Don't even wait, check its presence in the local pending state
+	time.Sleep(250 * time.Millisecond)
+
+	bal, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
+	if err != nil {
+		log.Fatalf("Failed to request token balance: %v", err)
+	}
+	// Need to do something about checking pending tx
+	//bal=tx
+
+	fmt.Printf("Balance of Miner", bal)
+
+
+	/*
+	// Withdraw to main
+	tx, err = mw.Withdraw(auth)
+	if err != nil {
+		log.Fatalf("Failed to request : %v", err)
+	}
+	fmt.Println(" pending: 0x%x\n", tx.Hash())
+
+	// Don't even wait, check its presence in the local pending state
+	time.Sleep(250 * time.Millisecond)
+	*/
+
+
+	//Something wrong with sessions bindings, it is a go-ethereum bug again. Probably need to fix in the future
+	/*
+		// Wrap the Token contract instance into a session
+	t_session := &token.SDTSession{
+		Contract: token,
+		CallOpts: bind.CallOpts{
+			Pending: true,
+		},
+		TransactOpts: bind.TransactOpts{
+			From:     auth.From,
+			Signer:   auth.Signer,
+			GasLimit: big.NewInt(3141592),
+		},
+	}
+	// Call the previous methods without the option parameters
+
+
+			name = t_session.Name()
+			fmt.Println("Token name:", name)
+			/*
+			tx = t_session.Transfer("0x0000000000000000000000000000000000000000"), big.NewInt(1))
+			fmt.Println("Transaction pending:", tx)
+			*/
 }
-fmt.Println("createMiner pending: 0x%x\n", tx.Hash())
 
-// Don't even wait, check its presence in the local pending state
-time.Sleep(250 * time.Millisecond) // Allow it to be processed by the local node :P
+func TransferFunds(hw Hubwallet.HubWallet, auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
+	tx, err := hw.Transfer(auth,mb,big.NewInt(2 * 10^17))
+	if err != nil {
+		log.Fatalf("Failed to request hub transfer: %v", err)
+	}
+	fmt.Println(" pending: 0x%x\n", tx.Hash())
 
-//Request info about miners from factory
-minerof, err := factory.MinerOf(&bind.CallOpts{Pending: true}, common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1"))
-if err != nil {
-	log.Fatalf("Failed to retrieve miner wallet: %v", err)
+	return tx
 }
-
- mb:=minerof
- m:=minerof.String()
-
-fmt.Println("Miner Wallet address is:", m)
-time.Sleep(250 * time.Millisecond)
-
-//Registry Miner in Whitelist
-
-//Adding some funds to quote
-//Add some tokens
-tx, err = token.Transfer(auth, mb, big.NewInt(15 * 10^17))
-if err != nil {
-	log.Fatalf("Failed to request token transfer: %v", err)
-}
-// Need to do something about checking pending tx
-fmt.Printf("Transfer to MinerWallet wallet pending: 0x%x\n", tx.Hash())
-
-time.Sleep(250 * time.Millisecond)
-time.Sleep(250 * time.Millisecond)
-time.Sleep(250 * time.Millisecond)
-
-//Define MinerWallet
-mw, err := MinWallet.NewMinerWallet(mb, conn)
-if err != nil {
-	log.Fatalf("Failed to instantiate a MinWallet contract: %v", err)
-}
-
-//Register MinerWallet
-tx, err = mw.Registration(auth,big.NewInt(2))
-if err != nil {
-	log.Fatalf("Failed to request miner registration: %v", err)
-}
-fmt.Println("Registration pending: 0x%x\n", tx.Hash())
-
-// Don't even wait, check its presence in the local pending state
-time.Sleep(250 * time.Millisecond)
-
-//Check info about miners
-wRegistredMiners, err := whitelist.RegistredMiners(&bind.CallOpts{Pending: true},mb)
-if err != nil {
-	log.Fatalf("Failed to retrieve miner wallet: %v", err)
-}
-
- mf:=wRegistredMiners
-
-fmt.Println("Wallet address is:", mf)
-
-//------Transfers---------------------------------------------------------------
-
-//Hub is registred, we should transfer him money
-
-//First of all - we will try to get balance of Hub
-
-bal, err := token.BalanceOf(&bind.CallOpts{Pending: true},wb)
-if err != nil {
-	log.Fatalf("Failed to request token balance: %v", err)
-}
-// Need to do something about checking pending tx
-//bal:=tx
-
-fmt.Printf("Balance of Hub", bal)
-
-//Balance of Miner
-
-bal, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
-if err != nil {
-	log.Fatalf("Failed to request token balance: %v", err)
-}
-// Need to do something about checking pending tx
-//bal=tx
-
-fmt.Printf("Balance of Miner", bal)
-
-/*
-//Make some initial supplyment to hubwallet
-
-tx, err = token.Transfer(auth, wb, big.NewInt(10))
-if err != nil {
-	log.Fatalf("Failed to request token transfer: %v", err)
-}
-// Need to do something about checking pending tx
-fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
-*/
-
-//Transfer some as a payout
-
-//Transfer funds from hub side
-tx, err = hw.Transfer(auth,mb,big.NewInt(2 * 10^17))
-if err != nil {
-	log.Fatalf("Failed to request hub transfer: %v", err)
-}
-fmt.Println(" pending: 0x%x\n", tx.Hash())
-
-// Don't even wait, check its presence in the local pending state
-time.Sleep(250 * time.Millisecond)
-
-//Pull payment from MinerSide
-
-tx, err = mw.PullMoney(auth,wb)
-if err != nil {
-	log.Fatalf("Failed to request : %v", err)
-}
-fmt.Println(" pending: 0x%x\n", tx.Hash())
-
-// Don't even wait, check its presence in the local pending state
-time.Sleep(250 * time.Millisecond)
-
-bal, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
-if err != nil {
-	log.Fatalf("Failed to request token balance: %v", err)
-}
-// Need to do something about checking pending tx
-//bal=tx
-
-fmt.Printf("Balance of Miner", bal)
-
-
-/*
-// Withdraw to main
-tx, err = mw.Withdraw(auth)
-if err != nil {
-	log.Fatalf("Failed to request : %v", err)
-}
-fmt.Println(" pending: 0x%x\n", tx.Hash())
-
-// Don't even wait, check its presence in the local pending state
-time.Sleep(250 * time.Millisecond)
-*/
-
-
-//Something wrong with sessions bindings, it is a go-ethereum bug again. Probably need to fix in the future
-/*
-	// Wrap the Token contract instance into a session
-t_session := &token.SDTSession{
-	Contract: token,
-	CallOpts: bind.CallOpts{
-		Pending: true,
-	},
-	TransactOpts: bind.TransactOpts{
-		From:     auth.From,
-		Signer:   auth.Signer,
-		GasLimit: big.NewInt(3141592),
-	},
-}
-// Call the previous methods without the option parameters
-
-
-		name = t_session.Name()
-		fmt.Println("Token name:", name)
-		/*
-		tx = t_session.Transfer("0x0000000000000000000000000000000000000000"), big.NewInt(1))
-		fmt.Println("Transaction pending:", tx)
-		*/
-}
-
