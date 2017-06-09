@@ -112,14 +112,18 @@ func (h *Hub) handlerInterconnect(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	log.G(ctx).Info("miner connected", zap.Stringer("remote", conn.RemoteAddr()))
 
-	cc, err := grpc.Dial("miner", grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
+	// TODO: secure connection
+	dctx, cancel := context.WithTimeout(ctx, time.Second*5)
+	cc, err := grpc.DialContext(dctx, "miner", grpc.WithInsecure(), grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
 		return conn, nil
 	}))
+	cancel()
 	if err != nil {
 		log.G(ctx).Error("failed to connect to Miner's grpc server", zap.Error(err))
 		return
 	}
 	defer cc.Close()
+	log.G(ctx).Info("grpc.Dial successfully finished")
 	minerClient := pbminer.NewMinerClient(cc)
 
 	h.mu.Lock()
@@ -135,7 +139,7 @@ func (h *Hub) handlerInterconnect(ctx context.Context, conn net.Conn) {
 	t := time.NewTicker(time.Second * 10)
 	defer t.Stop()
 	for range t.C {
-		log.G(ctx).Debug("ping the Miner", zap.Stringer("remote", conn.RemoteAddr()))
+		log.G(ctx).Info("ping the Miner", zap.Stringer("remote", conn.RemoteAddr()))
 		// TODO: identify miner via Authorization mechanism
 		// TODO: implement retries
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)

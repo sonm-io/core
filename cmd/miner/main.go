@@ -14,7 +14,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	m, err := miner.New()
+	m, err := miner.New(ctx)
 	if err != nil {
 		ctxlog.GetLogger(ctx).Fatal("failed to create a new Miner", zap.Error(err))
 	}
