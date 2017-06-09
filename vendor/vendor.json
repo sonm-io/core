@@ -258,6 +258,12 @@
 			"revisionTime": "2017-01-19T01:57:21Z"
 		},
 		{
+			"checksumSHA1": "79A2m2Zs96hg/3xtcsOBzkpPAKM=",
+			"path": "github.com/urfave/cli",
+			"revision": "d70f47eeca3afd795160003bc6e28b001d60c67c",
+			"revisionTime": "2017-05-06T04:25:29Z"
+		},
+		{
 			"checksumSHA1": "rEgwRH5aExv834E2w/7oC7NI3rc=",
 			"path": "go.uber.org/atomic",
 			"revision": "908889c45e73bedd558e99819aea3be3503fc581",

@@ -7,8 +7,9 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/insonmnia/insonmnia/hub"
 	"go.uber.org/zap"
+
+	"github.com/sonm-io/insonmnia/insonmnia/hub"
 )
 
 func main() {

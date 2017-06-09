@@ -50,11 +50,23 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 		Image:    request.Image,
 		Registry: request.Registry,
 	}
-	containerid, err := m.ovs.Spawn(ctx, d)
+	log.G(ctx).Info("handle Start request", zap.Any("req", request))
+
+	log.G(ctx).Info("spooling an image")
+	err := m.ovs.Spool(ctx, d)
 	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
+		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
+		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
+	log.G(ctx).Info("spawning an image")
+	containerid, err := m.ovs.Spawn(ctx, d)
+	if err != nil {
+		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
+		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
+	}
+
+	// TODO: clean it
 	m.mu.Lock()
 	m.containers[request.Id] = containerid
 	m.mu.Unlock()
@@ -63,6 +75,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 
 // Stop request forces to kill container
 func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopReply, error) {
+	log.G(ctx).Info("handle Stop request", zap.Any("req", request))
 	m.mu.Lock()
 	containerid, ok := m.containers[request.Id]
 	m.mu.Unlock()
@@ -71,6 +84,7 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopRepl
 	}
 
 	if err := m.ovs.Stop(ctx, containerid); err != nil {
+		log.G(ctx).Error("failed to Stop container", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
 	return &pb.StopReply{}, nil

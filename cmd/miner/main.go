@@ -24,6 +24,7 @@ func main() {
 		<-c
 		m.Close()
 	}()
+
 	// TODO: check error type
 	if err = m.Serve(); err != nil {
 		ctxlog.GetLogger(ctx).Error("Server stop", zap.Error(err))
