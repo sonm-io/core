@@ -16,3 +16,5 @@ Miner is expected to discover a Hub using Whisper. Later the miner connects to t
 
 # Roadmap
 
+Look at milestone https://github.com/sonm-io/insonmnia/milestones
+
