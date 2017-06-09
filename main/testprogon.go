@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os/user"
 	"github.com/sonm-io/go-ethereum/core/types"
+
 )
 
 //-------INIT ZONE--------------------------------------------------------------
@@ -326,24 +327,24 @@ func main() {
 	time.Sleep(250 * time.Millisecond)
 
 	//Pull payment from MinerSide
-
-	tx, err = mw.PullMoney(auth,wb)
-	if err != nil {
-		log.Fatalf("Failed to request : %v", err)
-	}
-	fmt.Println(" pending: 0x%x\n", tx.Hash())
-
-	// Don't even wait, check its presence in the local pending state
-	time.Sleep(250 * time.Millisecond)
-
-	bal, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
-	if err != nil {
-		log.Fatalf("Failed to request token balance: %v", err)
-	}
-	// Need to do something about checking pending tx
-	//bal=tx
-
-	fmt.Printf("Balance of Miner", bal)
+	PullingMoney(mw, auth, wb)
+	//tx, err = mw.PullMoney(auth,wb)
+	//if err != nil {
+	//	log.Fatalf("Failed to request : %v", err)
+	//}
+	//fmt.Println(" pending: 0x%x\n", tx.Hash())
+	//
+	//// Don't even wait, check its presence in the local pending state
+	//time.Sleep(250 * time.Millisecond)
+	BalancingOf(token, mb)
+	//bal, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
+	//if err != nil {
+	//	log.Fatalf("Failed to request token balance: %v", err)
+	//}
+	//// Need to do something about checking pending tx
+	////bal=tx
+	//
+	//fmt.Printf("Balance of Miner", bal)
 
 
 	/*
@@ -392,4 +393,19 @@ func TransferFunds(hw Hubwallet.HubWallet, auth *bind.TransactOpts , mb common.A
 	fmt.Println(" pending: 0x%x\n", tx.Hash())
 
 	return tx
+}
+func PullingMoney (mw MinWallet.MinerWallet, auth *bind.TransactOpts, wb common.Address) (*types.Transaction) {
+	tx, err := mw.PullMoney(auth,wb)
+	if err != nil {
+		log.Fatalf("Failed to request : %v", err)
+	}
+	fmt.Println(" pending: 0x%x\n", tx.Hash())
+	return tx
+}
+func BalancingOf(token Token.SDT, mb common.Address)(*types.Transaction){
+	bal, err := token.BalanceOf(&bind.CallOpts{Pending: true},mb)
+	if err != nil {
+		log.Fatalf("Failed to request token balance: %v", err)
+	}
+	return bal
 }
