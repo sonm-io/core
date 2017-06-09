@@ -13,11 +13,17 @@ CLI=sonmcli
 
 all: vet fmt test build
 
-build: grpc
+build:
 	@echo "+ $@"
 	${GO} build -o ${MINER} ${GOCMD}/miner
 	${GO} build -o ${HUB} ${GOCMD}/hub
 	${GO} build -o ${CLI} ${GOCMD}/cli
+
+install: build
+	cp ${MINER} /usr/bin/
+	cp ${HUB} /usr/bin/
+	cp ${CLI} /usr/bin/
+
 
 vet:
 	@echo "+ $@"
