@@ -150,7 +150,7 @@ func GlueMinWallet(conn ethclient.Client, mb common.Address) (*MinWallet.MinerWa
 	}
 	return mw
 }
-func Glue
+
 
 func main(){}
 // sdt was here???
@@ -195,6 +195,7 @@ func HubTransfer(conn ethclient.Client, auth *bind.TransactOpts, wb common.Addre
 	fmt.Println(" pending: 0x%x\n", tx.Hash())
 	return tx
 }
+
 func WhiteListCall (conn ethclient.Client,)(){
 	wl:= GlueWhitelist(conn)
 	dp, err := wl.WhitelistCaller()
@@ -211,20 +212,55 @@ func WhiteListTransactor (conn ethclient.Client,)(){
 	}
 	return dp
 }
-
 func CreateMiner (conn ethclient.Client)(){
-	cm := GlueFactory(conn)
-	rc, err := cm.FactoryCaller()
+	factory := GlueFactory(conn)
+	rc, err := factory.FactoryTransactor.CreateMiner()
 	if err!= nil{ log.Fatal("Failed to create miner")}
 	return  rc
 
 }
-func CreateHub (conn ethclient.Client)(){
-	ch:= GlueFactory(conn)
-	rc, err := ch.FactoryCaller()
-	if err!= nil{log.Fatal("Failed to create hub")}
-	return rc
+func RegisterMiner (conn ethclient.Client)(){
+	rm := GlueWhitelist(conn)
+	dp, err := rm.WhitelistTransactor.RegisterMin()
+	if err!= nil {
+		log.Fatal("Failed register miner")
+	}
+	return dp
 }
+func UnRegisterMiner (conn ethclient.Client)(){
+	unreg := GlueWhitelist(conn)
+	ur, err := unreg.WhitelistTransactor.UnRegisterMiner()
+	if err!= nil{
+		log.Fatal("Failed unregistered miner")
+	}
+	return ur
+}
+func CreateHub (conn ethclient.Client)(){
+	factory := GlueFactory(conn)
+	chub, err := factory.FactoryTransactor.CreateHub()
+	if err!= nil{ log.Fatal("Failed to create hub")}
+	return  chub
+
+}
+
+func RegisterHub (conn ethclient.Client)(){
+	rm := GlueWhitelist(conn)
+	rhub, err := rm.WhitelistTransactor.RegisterHub()
+	if err!= nil {
+		log.Fatal("Failed redister hub")
+	}
+	return rhub
+}
+func UnRegisterHub (conn ethclient.Client)(){
+	unreg := GlueWhitelist(conn)
+	ur, err := unreg.WhitelistTransactor.UnRegisterHub()
+	if err!= nil{
+		log.Fatal("Failed unregistered hub")
+	}
+	return ur
+}
+
+
 
 
 
