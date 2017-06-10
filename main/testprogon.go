@@ -321,13 +321,13 @@ func main() {
 	//	log.Fatalf("Failed to request hub transfer: %v", err)
 	//}
 	//fmt.Println(" pending: 0x%x\n", tx.Hash())
-	TransferFunds(hw, auth, mb)
+//	TransferFunds(hw, auth, mb)
 
 	// Don't even wait, check its presence in the local pending state
 	time.Sleep(250 * time.Millisecond)
 
 	//Pull payment from MinerSide
-	PullingMoney(mw, auth, wb)
+//	PullingMoney(mw, auth, wb)
 	//tx, err = mw.PullMoney(auth,wb)
 	//if err != nil {
 	//	log.Fatalf("Failed to request : %v", err)
@@ -336,7 +336,7 @@ func main() {
 	//
 	//// Don't even wait, check its presence in the local pending state
 	//time.Sleep(250 * time.Millisecond)
-	BalancingOf(token, mb)
+//	BalancingOf(token, mb)
 	//bal, err = token.BalanceOf(&bind.CallOpts{Pending: true},mb)
 	//if err != nil {
 	//	log.Fatalf("Failed to request token balance: %v", err)
@@ -402,10 +402,10 @@ func PullingMoney (mw MinWallet.MinerWallet, auth *bind.TransactOpts, wb common.
 	fmt.Println(" pending: 0x%x\n", tx.Hash())
 	return tx
 }
-func BalancingOf(token Token.SDT, mb common.Address)(*types.Transaction){
-	bal, err := token.BalanceOf(&bind.CallOpts{Pending: true},mb)
-	if err != nil {
-		log.Fatalf("Failed to request token balance: %v", err)
-	}
-	return bal
-}
+//func BalancingOf(token Token.SDT, mb common.Address)(*types.Transaction){
+//	bal, err := token.BalanceOf(&bind.CallOpts{Pending: true},mb)
+//	if err != nil {
+//		log.Fatalf("Failed to request token balance: %v", err)
+//	}
+//	return bal
+//}

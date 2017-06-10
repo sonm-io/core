@@ -2,7 +2,7 @@ package blockchainApi
 import (
 	"fmt"
 	"log"
-	"math/big"
+	//"math/big"
 	"strings"
 	"github.com/sonm-io/go-ethereum/common"
 	"github.com/sonm-io/go-ethereum/ethclient"
@@ -16,12 +16,12 @@ import (
 	"io/ioutil"
 	"os/user"
 	"github.com/sonm-io/go-ethereum/core/types"
-	"github.com/ipfs/go-ipfs/repo/config"
+	//"github.com/ipfs/go-ipfs/repo/config"
 )
 //----ServicesSupporters Allocation---------------------------------------------
 
 //For rinkeby testnet
-const confFile = ".rinkeby/keystore/key.json"
+const confFile = ".rinkeby/keystore/"
 
 //create json for writing KEY
 type MessageJson struct {
@@ -39,7 +39,17 @@ func readKey() MessageJson{
 	if err != nil {
 		fmt.Println(err)
 	}
-	return m
+	//for directory list
+	files, err := ioutil.ReadDir(".")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	for _, file := range files {
+		fmt.Println(file.Name(), file.IsDir())
+	}
+	first := files[0]
+	return first
 }
 
 type PasswordJson struct {
@@ -183,18 +193,18 @@ func getBalance(conn ethclient.Client, mb common.Address) (*types.Transaction) {
 	return bal
 }
 
-
-func HubTransfer(conn ethclient.Client, auth *bind.TransactOpts, wb common.Address, to common.Address,amount big.Int) (*types.Transaction)  {
-	hw:=GlueHubWallet(conn,wb)
-	am = big.NewInt(amount *10^17)
-
-	tx, err := hw.Transfer(auth,to,am)
-	if err != nil {
-		log.Fatalf("Failed to request hub transfer: %v", err)
-	}
-	fmt.Println(" pending: 0x%x\n", tx.Hash())
-	return tx
-}
+//
+//func HubTransfer(conn ethclient.Client, auth *bind.TransactOpts, wb common.Address, to common.Address,amount big.Int) (*types.Transaction)  {
+//	hw:=GlueHubWallet(conn,wb)
+//	am = big.NewInt(amount *10^17)
+//
+//	tx, err := hw.Transfer(auth,to,am)
+//	if err != nil {
+//		log.Fatalf("Failed to request hub transfer: %v", err)
+//	}
+//	fmt.Println(" pending: 0x%x\n", tx.Hash())
+//	return tx
+//}
 
 func WhiteListCall (conn ethclient.Client,)(){
 	wl:= GlueWhitelist(conn)
