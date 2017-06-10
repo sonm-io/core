@@ -108,7 +108,7 @@ func getAuth() {
 //Token Defines
 func GlueToken(conn ethclient.Client) (*Token.SDT) {
 	// Instantiate the contract
-	token, err := Token.NewSDT(common.HexToAddress("0x09e4a2de83220c6f92dcfdbaa8d22fe2a4a45943"), conn)
+	token, err := Token.NewSDT(common.HexToAddress("0x8016a9f651a4393a608d57d096c464f9115763ea"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Token contract: %v", err)
 	}
@@ -117,7 +117,7 @@ func GlueToken(conn ethclient.Client) (*Token.SDT) {
 
 func GlueFactory(conn ethclient.Client) (*Factory.Factory) {
 	//Define factory
-	factory, err := Factory.NewFactory(common.HexToAddress("0xfadcd0e54a6bb4c8e1130b4da6022bb29540c1a1"), conn)
+	factory, err := Factory.NewFactory(common.HexToAddress("0x389166c28d119d85f3cd9711e250d856075bd774"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Factory contract: %v", err)
 	}
@@ -126,7 +126,7 @@ func GlueFactory(conn ethclient.Client) (*Factory.Factory) {
 
 func GlueWhitelist(conn ethclient.Client) (*Whitelist.Whitelist)  {
 	//Define whitelist
-	whitelist, err := Whitelist.NewWhitelist(common.HexToAddress("0x833865a1379b9750c8a00b407bd6e2f08e465153"), conn)
+	whitelist, err := Whitelist.NewWhitelist(common.HexToAddress("0xad30096e883f7cc6c1653043751d9ddfe2914a87"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Whitelist contract: %v", err)
 	}
@@ -259,9 +259,3 @@ func UnRegisterHub (conn ethclient.Client)(){
 	}
 	return ur
 }
-
-
-
-
-
-
