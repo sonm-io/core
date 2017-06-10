@@ -1,12 +1,9 @@
 package blockchainApi
-
 import (
 	"fmt"
 	"log"
 	"math/big"
 	"strings"
-	"time"
-
 	"github.com/sonm-io/go-ethereum/common"
 	"github.com/sonm-io/go-ethereum/ethclient"
   	"github.com/sonm-io/blockchain-api/go-build/SDT"
@@ -15,38 +12,13 @@ import (
 	"github.com/sonm-io/blockchain-api/go-build/HubWallet"
 	"github.com/sonm-io/blockchain-api/go-build/MinWallet"
 	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
-
-	"github.com/sonm-io/go-ethereum/accounts/abi"
 	"encoding/json"
-	"os"
 	"io/ioutil"
 	"os/user"
 	"github.com/sonm-io/go-ethereum/core/types"
+	"github.com/ipfs/go-ipfs/repo/config"
 )
-
-/*
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-*/
-
-
 //----ServicesSupporters Allocation---------------------------------------------
-
 
 //For rinkeby testnet
 const confFile = ".rinkeby/keystore/key.json"
@@ -55,8 +27,6 @@ const confFile = ".rinkeby/keystore/key.json"
 type MessageJson struct {
 	Key       string     `json:"Key"`
 	}
-
-
 //Reading KEY
 func readKey() MessageJson{
 	usr, err := user.Current();
@@ -64,7 +34,6 @@ func readKey() MessageJson{
 	if err != nil {
 		fmt.Println(err)
 	}
-
 	var m MessageJson
 	err = json.Unmarshal(file, &m)
 	if err != nil {
@@ -95,7 +64,6 @@ func readPwd() PasswordJson{
 	return m
 }
 
-
 //--Services Getters-----------------------------
 /*
 	Those functions allows someone behind library gets
@@ -108,12 +76,12 @@ func readPwd() PasswordJson{
 func cnct() {
 	// NOTE there is should be wildcard but not username.
 	// Try ~/.rinkeby/geth.ipc
-conn, err := ethclient.Dial("/home/cotic/.rinkeby/geth.ipc")
-if err != nil {
-	log.Fatalf("Failed to connect to the Ethereum client: %v", err)
-}
-	//return connectiion obj
-  return conn
+	conn, err := ethclient.Dial("/home/cotic/.rinkeby/geth.ipc")
+	if err != nil {
+		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
+	}
+	//return connection obj
+  	return conn
 }
 
 // Create an authorized transactor
@@ -122,15 +90,12 @@ func getAuth() {
 	key:=readKey()
 	pass:=readPwd()
 
-auth, err := bind.NewTransactor(strings.NewReader(key), pass)
-if err != nil {
-	log.Fatalf("Failed to create authorized transactor: %v", err)
-}
+	auth, err := bind.NewTransactor(strings.NewReader(key), pass)
+	if err != nil {
+		log.Fatalf("Failed to create authorized transactor: %v", err)
+	}
 	return auth
 }
-
-//-----------------------------------------------------------
-
 
 //---Defines Binds-----------------------------------------
 
@@ -147,7 +112,7 @@ func GlueToken(conn ethclient.Client) (*Token.SDT) {
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Token contract: %v", err)
 	}
-		return token
+	return token
 }
 
 func GlueFactory(conn ethclient.Client) (*Factory.Factory) {
@@ -156,7 +121,7 @@ func GlueFactory(conn ethclient.Client) (*Factory.Factory) {
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Factory contract: %v", err)
 	}
-		return factory
+	return factory
 }
 
 func GlueWhitelist(conn ethclient.Client) (*Whitelist.Whitelist)  {
@@ -165,7 +130,7 @@ func GlueWhitelist(conn ethclient.Client) (*Whitelist.Whitelist)  {
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Whitelist contract: %v", err)
 	}
-		return whitelist
+	return whitelist
 }
 
 func GlueHubWallet(conn ethclient.Client, wb common.Address) (*Hubwallet.HubWallet)  {
@@ -174,17 +139,21 @@ func GlueHubWallet(conn ethclient.Client, wb common.Address) (*Hubwallet.HubWall
 	if err != nil {
 		log.Fatalf("Failed to instantiate a HubWallet contract: %v", err)
 	}
-		return hw
+	return hw
 }
 
-func GlueMinWallet(conn ethclient.Client, wb common.Address) (*MinWallet.MinerWallet) {
+func GlueMinWallet(conn ethclient.Client, mb common.Address) (*MinWallet.MinerWallet) {
 	//Define MinerWallet
 	mw, err := MinWallet.NewMinerWallet(mb, conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a MinWallet contract: %v", err)
 	}
-			return mw
-	}
+	return mw
+}
+func Glue
+
+func main(){}
+// sdt was here???
 //-------------------------------------------------------------------------
 
 //--MAIN LIBRARY-----------------------------------------------------------
@@ -195,24 +164,17 @@ func GlueMinWallet(conn ethclient.Client, wb common.Address) (*MinWallet.MinerWa
 		MainProgram				ThisLibrary
 		A<---------------->B
 
-	  First A program wants to get Auth and Connection,
-		So it will ask for getAuth and cnct functions from b
-		and should store those objects inside.
+	First A program wants to get Auth and Connection,
+	So it will ask for getAuth and cnct functions from b
+	and should store those objects inside.
 
-		Therefore A want to interact with smart contracts functions from Blockchain,
-		so it is call such functions from B with conn and auth in parameters.
-
-
-
+	Therefore A want to interact with smart contracts functions from Blockchain,
+	so it is call such functions from B with conn and auth in parameters.
 */
-
-
-
-
 /*
 Example
 */
-func getBalance(conn ethclient.Client) (*types.Transaction) {
+func getBalance(conn ethclient.Client, mb common.Address) (*types.Transaction) {
 	token:=GlueToken(conn)
 	bal, err := token.BalanceOf(&bind.CallOpts{Pending: true},mb)
 	if err != nil {
@@ -222,24 +184,48 @@ func getBalance(conn ethclient.Client) (*types.Transaction) {
 }
 
 
-func HubTransfer(conn ethclient.Client, auth *bind.TransactOpts, wb common.Address, to common.Address, amount.Int) (*types.Transaction)  {
+func HubTransfer(conn ethclient.Client, auth *bind.TransactOpts, wb common.Address, to common.Address,amount big.Int) (*types.Transaction)  {
 	hw:=GlueHubWallet(conn,wb)
-	am=big.NewInt(amount*10^17)
+	am = big.NewInt(amount *10^17)
 
 	tx, err := hw.Transfer(auth,to,am)
 	if err != nil {
 		log.Fatalf("Failed to request hub transfer: %v", err)
 	}
 	fmt.Println(" pending: 0x%x\n", tx.Hash())
-
 	return tx
+}
+func WhiteListCall (conn ethclient.Client,)(){
+	wl:= GlueWhitelist(conn)
+	dp, err := wl.WhitelistCaller()
+	if err != nil{
+		log.Fatalf("Failed whiteList: %v", err)
+	}
+	return dp
+}
+func WhiteListTransactor (conn ethclient.Client,)(){
+	wl:= GlueWhitelist(conn)
+	dp, err := wl.WhitelistTransactor()
+	if err != nil{
+		log.Fatalf("Failed whiteList: %v", err)
+	}
+	return dp
+}
 
+func CreateMiner (conn ethclient.Client)(){
+	cm := GlueFactory(conn)
+	rc, err := cm.FactoryCaller()
+	if err!= nil{ log.Fatal("Failed to create miner")}
+	return  rc
+
+}
+func CreateHub (conn ethclient.Client)(){
+	ch:= GlueFactory(conn)
+	rc, err := ch.FactoryCaller()
+	if err!= nil{log.Fatal("Failed to create hub")}
+	return rc
 }
 
 
 
 
-
-
-
-}
