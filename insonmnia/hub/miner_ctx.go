@@ -5,6 +5,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/hashicorp/yamux"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 
@@ -27,22 +28,34 @@ type MinerCtx struct {
 	conn net.Conn
 
 	// TODO: forwarding
+	session *yamux.Session
 }
 
 func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	var (
-		m   MinerCtx
+		m = MinerCtx{
+			conn: conn,
+		}
 		err error
 	)
-	m.conn = conn
 	m.ctx, m.cancel = context.WithCancel(ctx)
+	m.session, err = yamux.Client(conn, nil)
+	if err != nil {
+		m.Close()
+		return nil, err
+	}
+	yaConn, err := m.session.Open()
+	if err != nil {
+		m.Close()
+		return nil, err
+	}
 	// TODO: secure connection
 	// TODO: identify miner via Authorization mechanism
 	// TODO: rediscover jobs assigned to that Miner
 	dctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
 	m.grpcConn, err = grpc.DialContext(dctx, "miner", grpc.WithInsecure(), grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
-		return conn, nil
+		return yaConn, nil
 	}))
 
 	if err != nil {
@@ -87,5 +100,8 @@ func (m *MinerCtx) Close() {
 	}
 	if m.conn != nil {
 		m.conn.Close()
+	}
+	if m.session != nil {
+		m.session.Close()
 	}
 }
