@@ -17,6 +17,7 @@ import (
 	"os/user"
 	"github.com/sonm-io/go-ethereum/core/types"
 	//"github.com/ipfs/go-ipfs/repo/config"
+	"math/big"
 )
 //----ServicesSupporters Allocation---------------------------------------------
 
@@ -25,26 +26,25 @@ const confFile = ".rinkeby/keystore/"
 
 //create json for writing KEY
 type MessageJson struct {
-	Key       string     `json:"Key"`
+	//Key       string     `json:"Key"`
 	}
 //Reading KEY
 func readKey() MessageJson{
-	usr, err := user.Current();
-	file, err := ioutil.ReadFile(usr.HomeDir+"/"+confFile)
-	if err != nil {
-		fmt.Println(err)
-	}
-	var m MessageJson
-	err = json.Unmarshal(file, &m)
-	if err != nil {
-		fmt.Println(err)
-	}
+	//usr, err := user.Current();
+	//file, err := ioutil.ReadFile(usr.HomeDir+"/"+confFile)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	//var m MessageJson
+	//err = json.Unmarshal(file, &m)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
 	//for directory list
 	files, err := ioutil.ReadDir(".")
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	for _, file := range files {
 		fmt.Println(file.Name(), file.IsDir())
 	}
@@ -97,7 +97,7 @@ func cnct() {
 // Create an authorized transactor
 func getAuth() {
 
-	key:=readKey()
+	key:= readKey()
 	pass:=readPwd()
 
 	auth, err := bind.NewTransactor(strings.NewReader(key), pass)
@@ -193,18 +193,18 @@ func getBalance(conn ethclient.Client, mb common.Address) (*types.Transaction) {
 	return bal
 }
 
-//
-//func HubTransfer(conn ethclient.Client, auth *bind.TransactOpts, wb common.Address, to common.Address,amount big.Int) (*types.Transaction)  {
-//	hw:=GlueHubWallet(conn,wb)
-//	am = big.NewInt(amount *10^17)
-//
-//	tx, err := hw.Transfer(auth,to,am)
-//	if err != nil {
-//		log.Fatalf("Failed to request hub transfer: %v", err)
-//	}
-//	fmt.Println(" pending: 0x%x\n", tx.Hash())
-//	return tx
-//}
+
+func HubTransfer(conn ethclient.Client, auth *bind.TransactOpts, wb common.Address, to common.Address,amount big.Int) (*types.Transaction)  {
+	hw:=GlueHubWallet(conn,wb)
+	am = big.NewInt(amount *10^17)
+
+	tx, err := hw.Transfer(auth,to,am)
+	if err != nil {
+		log.Fatalf("Failed to request hub transfer: %v", err)
+	}
+	fmt.Println(" pending: 0x%x\n", tx.Hash())
+	return tx
+}
 
 func WhiteListCall (conn ethclient.Client,)(){
 	wl:= GlueWhitelist(conn)
@@ -229,22 +229,39 @@ func CreateMiner (conn ethclient.Client)(){
 	return  rc
 
 }
-func RegisterMiner (conn ethclient.Client)(){
-	rm := GlueWhitelist(conn)
-	dp, err := rm.WhitelistTransactor.RegisterMin()
-	if err!= nil {
-		log.Fatal("Failed register miner")
-	}
-	return dp
-}
-func UnRegisterMiner (conn ethclient.Client)(){
-	unreg := GlueWhitelist(conn)
-	ur, err := unreg.WhitelistTransactor.UnRegisterMiner()
-	if err!= nil{
-		log.Fatal("Failed unregistered miner")
-	}
-	return ur
-}
+//func RegisterMiner (conn ethclient.Client)(){
+//	rm := GlueWhitelist(conn)
+//	dp, err := rm.WhitelistTransactor.RegisterMin()
+//	if err!= nil {
+//		log.Fatal("Failed register miner")
+//	}
+//	return dp
+//}
+//func UnRegisterMiner (conn ethclient.Client)(){
+//	unreg := GlueWhitelist(conn)
+//	ur, err := unreg.WhitelistTransactor.UnRegisterMiner()
+//	if err!= nil{
+//		log.Fatal("Failed unregistered miner")
+//	}
+//	return ur
+//}
+//func RegisterHub (conn ethclient.Client)(){
+//	rm := GlueWhitelist(conn)
+//	rhub, err := rm.WhitelistTransactor.RegisterHub()
+//	if err!= nil {
+//		log.Fatal("Failed redister hub")
+//	}
+//	return rhub
+//}
+//func UnRegisterHub (conn ethclient.Client)(){
+//	unreg := GlueWhitelist(conn)
+//	ur, err := unreg.WhitelistTransactor.UnRegisterHub()
+//	if err!= nil{
+//		log.Fatal("Failed unregistered hub")
+//	}
+//	return ur
+//}
+
 func CreateHub (conn ethclient.Client)(){
 	factory := GlueFactory(conn)
 	chub, err := factory.FactoryTransactor.CreateHub()
@@ -252,20 +269,21 @@ func CreateHub (conn ethclient.Client)(){
 	return  chub
 
 }
+func RegisterMiner (conn ethclient.Client,auth *bind.TransactOpts, adr common.Address, stake big.Int)(){
+	rm := GlueMinWallet(conn, adr)
+	stk := big.NewInt(stake * 10^17)
+	dp, err := rm.Registration(auth,stk)
+	if err != nil {
+		log.Fatal("Failed register miner")
+	}
+	return dp
+}
+func RegisterHub (conn ethclient.Client,auth *bind.TransactOpts, adr common.Address, stake big.Int)(){
+	rh := GlueHubWallet(conn, adr)
+	dp, err := rh.Registration(auth)
+	if err != nil {
+		log.Fatal("Failed register miner")
+	}
+	return dp
+}
 
-func RegisterHub (conn ethclient.Client)(){
-	rm := GlueWhitelist(conn)
-	rhub, err := rm.WhitelistTransactor.RegisterHub()
-	if err!= nil {
-		log.Fatal("Failed redister hub")
-	}
-	return rhub
-}
-func UnRegisterHub (conn ethclient.Client)(){
-	unreg := GlueWhitelist(conn)
-	ur, err := unreg.WhitelistTransactor.UnRegisterHub()
-	if err!= nil{
-		log.Fatal("Failed unregistered hub")
-	}
-	return ur
-}
