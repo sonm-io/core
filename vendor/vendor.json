@@ -17,6 +17,13 @@
 			"revisionTime": "2017-06-08T04:50:38Z"
 		},
 		{
+			"checksumSHA1": "pQVGObmmsfuob9pzGYCSy3ZxM88=",
+			"origin": "github.com/sonm-io/go-ethereum/vendor/github.com/btcsuite/btcd/btcec",
+			"path": "github.com/btcsuite/btcd/btcec",
+			"revision": "c9c2367dbbf77b5b07cd3fe81822b4c802577e0f",
+			"revisionTime": "2017-05-13T01:51:31Z"
+		},
+		{
 			"checksumSHA1": "OFu4xJEIjiI8Suu+j/gabfp+y6Q=",
 			"origin": "github.com/stretchr/testify/vendor/github.com/davecgh/go-spew/spew",
 			"path": "github.com/davecgh/go-spew/spew",
@@ -211,10 +218,22 @@
 			"revisionTime": "2017-06-01T23:02:30Z"
 		},
 		{
+			"checksumSHA1": "ZhK6IO2XN81Y+3RAjTcVm1Ic7oU=",
+			"path": "github.com/hashicorp/yamux",
+			"revision": "d1caa6c97c9fc1cc9e83bbe34d0603f9ff0ce8bd",
+			"revisionTime": "2016-07-20T23:31:40Z"
+		},
+		{
 			"checksumSHA1": "FrYbQUcjOMUZQwdG8OXxTaVYl8Q=",
 			"path": "github.com/noxiouz/zapctx/ctxlog",
 			"revision": "b19b4472cfa58cb48603a8361b5e650f0199ba1a",
 			"revisionTime": "2017-05-11T10:08:14Z"
+		},
+		{
+			"checksumSHA1": "jxORqtJ6VSFi4F45Wg1wxc2aUsc=",
+			"path": "github.com/ogier/pflag",
+			"revision": "45c278ab3607870051a2ea9040bb85fcb8557481",
+			"revisionTime": "2016-01-29T22:01:14Z"
 		},
 		{
 			"checksumSHA1": "OUupkCHnh8e3RHRNcMFqQJqhaQI=",
@@ -244,6 +263,12 @@
 			"revisionTime": "2017-01-12T15:04:04Z"
 		},
 		{
+			"checksumSHA1": "mbhJnsNwGAwkTQH5c2hVRO9YmxA=",
+			"path": "github.com/philhofer/fwd",
+			"revision": "98c11a7a6ec829d672b03833c3d69a7fae1ca972",
+			"revisionTime": "2016-01-29T03:59:39Z"
+		},
+		{
 			"checksumSHA1": "PdQm3s8DoVJ17Vk8n7o5iPa7PK0=",
 			"origin": "github.com/docker/docker/vendor/github.com/pkg/errors",
 			"path": "github.com/pkg/errors",
@@ -258,6 +283,48 @@
 			"revisionTime": "2017-01-19T01:57:21Z"
 		},
 		{
+			"checksumSHA1": "8XcOk1LWY3wsXY7tXRPDH0bmmVc=",
+			"path": "github.com/sonm-io/go-ethereum/common",
+			"revision": "c9c2367dbbf77b5b07cd3fe81822b4c802577e0f",
+			"revisionTime": "2017-05-13T01:51:31Z"
+		},
+		{
+			"checksumSHA1": "Aatv+/UHzhoJAo69jVP7PkF20pw=",
+			"path": "github.com/sonm-io/go-ethereum/common/hexutil",
+			"revision": "c9c2367dbbf77b5b07cd3fe81822b4c802577e0f",
+			"revisionTime": "2017-05-13T01:51:31Z"
+		},
+		{
+			"checksumSHA1": "P3VIOHdG4Cu5yKRMn+lYF2EoWbU=",
+			"path": "github.com/sonm-io/go-ethereum/common/math",
+			"revision": "c9c2367dbbf77b5b07cd3fe81822b4c802577e0f",
+			"revisionTime": "2017-05-13T01:51:31Z"
+		},
+		{
+			"checksumSHA1": "fICjfHNVMaC2itGQhXxJTsuWt98=",
+			"path": "github.com/sonm-io/go-ethereum/crypto",
+			"revision": "c9c2367dbbf77b5b07cd3fe81822b4c802577e0f",
+			"revisionTime": "2017-05-13T01:51:31Z"
+		},
+		{
+			"checksumSHA1": "4qyYJSrqUWT7qXWbVQsMUrjoJHc=",
+			"path": "github.com/sonm-io/go-ethereum/crypto/secp256k1",
+			"revision": "c9c2367dbbf77b5b07cd3fe81822b4c802577e0f",
+			"revisionTime": "2017-05-13T01:51:31Z"
+		},
+		{
+			"checksumSHA1": "ceVa8rirtSwaMBphTACJQ1M+1+w=",
+			"path": "github.com/sonm-io/go-ethereum/crypto/sha3",
+			"revision": "c9c2367dbbf77b5b07cd3fe81822b4c802577e0f",
+			"revisionTime": "2017-05-13T01:51:31Z"
+		},
+		{
+			"checksumSHA1": "T5HgqUmihZIVaYl+ZUWn2tDMFvo=",
+			"path": "github.com/sonm-io/go-ethereum/rlp",
+			"revision": "c9c2367dbbf77b5b07cd3fe81822b4c802577e0f",
+			"revisionTime": "2017-05-13T01:51:31Z"
+		},
+		{
 			"checksumSHA1": "90Am6VJJxRudklNGXyamS1Xdjyw=",
 			"path": "github.com/stretchr/testify/assert",
 			"revision": "3104bf5483d3fba84f24933949f0533f4467880b",
@@ -268,6 +335,12 @@
 			"path": "github.com/stretchr/testify/require",
 			"revision": "3104bf5483d3fba84f24933949f0533f4467880b",
 			"revisionTime": "2017-01-19T01:57:21Z"
+		},
+		{
+			"checksumSHA1": "HN3pLd5cC+QXkX8j8FsCCB3FzSI=",
+			"path": "github.com/tinylib/msgp/msgp",
+			"revision": "02d047e07459c5a7b02b1244161d0f2f6d8f660d",
+			"revisionTime": "2017-06-01T17:24:47Z"
 		},
 		{
 			"checksumSHA1": "79A2m2Zs96hg/3xtcsOBzkpPAKM=",
