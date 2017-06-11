@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 
+	flag "github.com/ogier/pflag"
 	"golang.org/x/net/context"
 
 	"github.com/noxiouz/zapctx/ctxlog"
@@ -12,9 +13,15 @@ import (
 	"github.com/sonm-io/insonmnia/insonmnia/miner"
 )
 
+var hubaddress = flag.StringP("hubaddress", "h", "", "specify Hub address to connect to")
+
 func main() {
+	flag.Parse()
 	ctx := context.Background()
-	m, err := miner.New(ctx)
+	if *hubaddress == "" {
+		ctxlog.GetLogger(ctx).Fatal("hub address must be set via --hubaddress")
+	}
+	m, err := miner.New(ctx, *hubaddress)
 	if err != nil {
 		ctxlog.GetLogger(ctx).Fatal("failed to create a new Miner", zap.Error(err))
 	}

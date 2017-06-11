@@ -22,6 +22,8 @@ type Miner struct {
 	cancel     context.CancelFunc
 	grpcServer *grpc.Server
 
+	hubaddress string
+
 	rl *reverseListener
 
 	ovs Overseer
@@ -121,7 +123,7 @@ func (m *Miner) Serve() error {
 	go func() {
 		defer wg.Done()
 		// TODO: inject real discovery here
-		var address = "localhost:10002"
+		var address = m.hubaddress
 		var probe = []byte{}
 	LOOP:
 		for {
@@ -163,7 +165,7 @@ func (m *Miner) Close() {
 }
 
 // New returns new Miner
-func New(ctx context.Context) (*Miner, error) {
+func New(ctx context.Context, hubaddress string) (*Miner, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	grpcServer := grpc.NewServer()
 	ovs, err := NewOverseer(ctx)
@@ -176,6 +178,8 @@ func New(ctx context.Context) (*Miner, error) {
 		cancel:     cancel,
 		grpcServer: grpcServer,
 		ovs:        ovs,
+
+		hubaddress: hubaddress,
 
 		rl: NewReverseListener(1),
 	}
