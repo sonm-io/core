@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/hashicorp/yamux"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/insonmnia/proto/miner"
 )
@@ -92,20 +93,64 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopRepl
 	return &pb.StopReply{}, nil
 }
 
-func (m *Miner) connectToHub(address string) (net.Conn, error) {
+func (m *Miner) connectToHub(address string) {
 	// Connect to the Hub
 	var d = net.Dialer{
 		DualStack: true,
 	}
 	conn, err := d.DialContext(m.ctx, "tcp", address)
 	if err != nil {
-		return nil, err
+		log.G(m.ctx).Error("failed to dial to the Hub", zap.String("addr", address), zap.Error(err))
+		return
 	}
+	defer conn.Close()
+
+	// HOLD reference
+	session, err := yamux.Server(conn, nil)
+	if err != nil {
+		log.G(m.ctx).Error("failed to create yamux.Server", zap.Error(err))
+		return
+	}
+	defer session.Close()
+
+	yaConn, err := session.Accept()
+	if err != nil {
+		log.G(m.ctx).Error("failed to Accept yamux.Stream", zap.Error(err))
+		return
+	}
+	defer yaConn.Close()
+
 	// Push the connection to a pool for grcpServer
-	if err = m.rl.enqueue(conn); err != nil {
-		return nil, err
+	if err = m.rl.enqueue(yaConn); err != nil {
+		log.G(m.ctx).Error("failed to enqueue yaConn for gRPC server", zap.Error(err))
+		return
 	}
-	return conn, nil
+
+	go func() {
+		for {
+			conn, err := session.Accept()
+			if err != nil {
+				return
+			}
+			conn.Close()
+		}
+	}()
+
+	t := time.NewTicker(time.Second * 5)
+	defer t.Stop()
+	for {
+		select {
+		case <-t.C:
+			rtt, err := session.Ping()
+			if err != nil {
+				log.G(m.ctx).Error("failed to Ping yamux.Session", zap.Error(err))
+				return
+			}
+			log.G(m.ctx).Info("yamux.Ping OK", zap.Duration("rtt", rtt))
+		case <-m.ctx.Done():
+			return
+		}
+	}
 }
 
 // Serve starts discovery of Hubs,
@@ -124,31 +169,14 @@ func (m *Miner) Serve() error {
 		defer wg.Done()
 		// TODO: inject real discovery here
 		var address = m.hubaddress
-		var probe = []byte{}
-	LOOP:
 		for {
-			conn, err := m.connectToHub(address)
-			switch err {
-			case nil:
-				tc := time.NewTicker(time.Second * 1)
-				for range tc.C {
-					_, err = conn.Read(probe)
-					if err != nil {
-						log.G(m.ctx).Error("detect connection failure",
-							zap.Stringer("address", conn.RemoteAddr()), zap.Error(err))
-						tc.Stop()
-						conn.Close()
-						continue LOOP
-					}
-				}
+			m.connectToHub(address)
+			select {
+			case <-m.ctx.Done():
+				return
 			default:
-				log.G(m.ctx).Error("Dial error", zap.Error(err))
-				select {
-				case <-m.ctx.Done():
-					return
-				default:
-					continue LOOP
-				}
+				// TODO: backoff
+				time.Sleep(5 * time.Second)
 			}
 		}
 	}()

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -60,10 +62,12 @@ func main() {
 					return err
 				}
 				fmt.Println("Connected Miners")
-				for _, name := range lr.Name {
-					fmt.Println(name)
-				}
-				return nil
+				buff := new(bytes.Buffer)
+				enc := json.NewEncoder(buff)
+				enc.SetIndent("", "\t")
+				enc.Encode(lr.Info)
+				fmt.Printf("%s\n", buff.Bytes())
+				return err
 			},
 		},
 		{

@@ -3,7 +3,6 @@ package hub
 import (
 	"net"
 	"sync"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -31,7 +30,7 @@ type Hub struct {
 	minerListener net.Listener
 
 	mu     sync.Mutex
-	miners map[string]pbminer.MinerClient
+	miners map[string]*MinerCtx
 
 	// TODO: rediscover jobs if Miner disconnected
 	// TODO: store this data in some Storage interface
@@ -49,13 +48,23 @@ func (h *Hub) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, error
 
 // List returns attached miners
 func (h *Hub) List(context.Context, *pb.ListRequest) (*pb.ListReply, error) {
-	var lr pb.ListReply
+	var info = make(map[string]*pb.ListReply_ListValue)
 	h.mu.Lock()
 	for k := range h.miners {
-		lr.Name = append(lr.Name, k)
+		info[k] = new(pb.ListReply_ListValue)
 	}
 	h.mu.Unlock()
-	return &lr, nil
+
+	h.tasksmu.Lock()
+	for k, v := range h.tasks {
+		lr, ok := info[v]
+		if ok {
+			lr.Values = append(lr.Values, k)
+			info[v] = lr
+		}
+	}
+	h.tasksmu.Unlock()
+	return &pb.ListReply{Info: info}, nil
 }
 
 // StartTask schedulles the Task on some miner
@@ -76,7 +85,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.
 		Image:    request.Image,
 	}
 
-	_, err := mincli.Start(ctx, startrequest)
+	_, err := mincli.Client.Start(ctx, startrequest)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
 	}
@@ -108,7 +117,7 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 	var stoprequest = &pbminer.StopRequest{
 		Id: taskid,
 	}
-	_, err := mincli.Stop(ctx, stoprequest)
+	_, err := mincli.Client.Stop(ctx, stoprequest)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "failed to stop the task %s", taskid)
 	}
@@ -129,7 +138,7 @@ func New(ctx context.Context) (*Hub, error) {
 		externalGrpc: grpcServer,
 
 		tasks:  make(map[string]string),
-		miners: make(map[string]pbminer.MinerClient),
+		miners: make(map[string]*MinerCtx),
 	}
 	pb.RegisterHubServer(grpcServer, h)
 
@@ -171,7 +180,7 @@ func (h *Hub) Serve() error {
 			if err != nil {
 				return
 			}
-			go h.handlerInterconnect(h.ctx, conn)
+			go h.handleInterconnect(h.ctx, conn)
 		}
 	}()
 	h.wg.Wait()
@@ -179,49 +188,25 @@ func (h *Hub) Serve() error {
 	return nil
 }
 
-func (h *Hub) handlerInterconnect(ctx context.Context, conn net.Conn) {
+func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	log.G(ctx).Info("miner connected", zap.Stringer("remote", conn.RemoteAddr()))
 
-	// TODO: secure connection
-	dctx, cancel := context.WithTimeout(ctx, time.Second*5)
-	cc, err := grpc.DialContext(dctx, "miner", grpc.WithInsecure(), grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
-		return conn, nil
-	}))
-	cancel()
+	miner, err := createMinerCtx(ctx, conn)
 	if err != nil {
-		log.G(ctx).Error("failed to connect to Miner's grpc server", zap.Error(err))
 		return
 	}
-	defer cc.Close()
-	log.G(ctx).Info("grpc.Dial successfully finished")
-	minerClient := pbminer.NewMinerClient(cc)
 
 	h.mu.Lock()
-	h.miners[conn.RemoteAddr().String()] = minerClient
+	h.miners[conn.RemoteAddr().String()] = miner
 	h.mu.Unlock()
 
-	defer func() {
-		h.mu.Lock()
-		delete(h.miners, conn.RemoteAddr().String())
-		h.mu.Unlock()
-	}()
-	// TODO: rediscover jobs assigned to that Miner
+	miner.ping()
+	miner.Close()
 
-	t := time.NewTicker(time.Second * 10)
-	defer t.Stop()
-	for range t.C {
-		log.G(ctx).Info("ping the Miner", zap.Stringer("remote", conn.RemoteAddr()))
-		// TODO: identify miner via Authorization mechanism
-		// TODO: implement retries
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-		_, err = minerClient.Ping(ctx, &pbminer.PingRequest{})
-		cancel()
-		if err != nil {
-			log.G(ctx).Error("failed to ping miner", zap.Error(err))
-			return
-		}
-	}
+	h.mu.Lock()
+	delete(h.miners, conn.RemoteAddr().String())
+	h.mu.Unlock()
 }
 
 // Close disposes all resources attached to the Hub
