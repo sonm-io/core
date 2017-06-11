@@ -287,7 +287,7 @@ func RegisterHub (conn ethclient.Client,auth *bind.TransactOpts, adr common.Addr
 	return dp
 }
 
-}
+
 
 func TransferFunds(hw Hubwallet.HubWallet, auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
 	tx, err := hw.Transfer(auth,mb,big.NewInt(2 * 10^17))
