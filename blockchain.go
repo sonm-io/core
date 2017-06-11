@@ -307,7 +307,7 @@ func PullingMoney (mw MinWallet.MinerWallet, auth *bind.TransactOpts, wb common.
 	return tx
 }
 
-func hPayDay( auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
+func hPayDay ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
     ghw, err := GlueHubWallet(conn, mb)
     if err != nil {
            log.Fatalf("Failed to add hub wallet: %v", err)
@@ -320,7 +320,7 @@ return tx
 }
 
 
-func mPayDay( auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
+func mPayDay ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
     gmw, err := GlueMinerWallet(conn, mb)
     if err != nil {
            log.Fatalf("Failed to add miner wallet: %v", err)
@@ -330,4 +330,86 @@ if err != nil {
          log.Fatalf("Failed to pay you your money: %v", err)
 }
 return tx
+}
+
+func hWithdraw ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
+		tx, err := hw.Witdraw(auth)
+	if err != nil {
+		log.Fatalf("Failed to withdraw from hub: %v", err)
+	}
+	return tx
+}
+
+func hSuspect ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
+		 ghs, err := GlueHubWallet(conn, mb)
+    if err != nil {
+           log.Fatalf("Failed to add suspected hub: %v", err)
+    }
+     tx, err := ghs.Suspect(auth)
+if err != nil {
+		log.Fatalf("Failed to all your funds are belong to us: %v", err)
+	}
+	return tx
+}
+
+
+func mSuspect ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
+		 gms, err := GlueMinWallet(conn, mb)
+    if err != nil {
+           log.Fatalf("Failed to add suspected miner: %v", err)
+    }
+     tx, err := gms.Suspect(auth)
+if err != nil {
+		log.Fatalf("Failed to all your funds are belong to us: %v", err)
+	}
+	return tx
+}
+
+
+func hGulag ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
+		 ggh, err := GlueHubWallet(conn, mb)
+    if err != nil {
+           log.Fatalf("Failed to add punished hub: %v", err)
+    }
+     tx, err := ggh.Gulag(auth)
+if err != nil {
+		log.Fatalf("Failed to anathemize hub: %v", err)
+	}
+	return tx
+}
+
+func mGulag ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
+		 gmh, err := GlueMinWallet(conn, mb)
+    if err != nil {
+           log.Fatalf("Failed to add punished miner: %v", err)
+    }
+     tx, err := gmh.Gulag(auth)
+if err != nil {
+		log.Fatalf("Failed to anathemize miner: %v", err)
+	}
+	return tx
+}
+
+func hRehub ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
+		 grh, err := GlueHubWallet(conn, mb)
+    if err != nil {
+           log.Fatalf("Failed to add this hub to saints list: %v", err)
+    }
+     tx, err := grh.Rehub(auth)
+if err != nil {
+		log.Fatalf("Failed to forgive this hub: %v", err)
+	}
+	return tx
+}
+
+func mRehub ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
+		 grm, err := GlueMinWallet(conn, mb)
+    if err != nil {
+           log.Fatalf("Failed to add this miner to saints list: %v", err)
+    }
+     tx, err := grm.Rehub(auth)
+if err != nil {
+		log.Fatalf("Failed to forgive this miner: %v", err)
+	}
+	return tx
 }
