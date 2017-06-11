@@ -15,8 +15,8 @@ all: vet fmt test build
 
 build:
 	@echo "+ $@"
-	${GO} build -o ${MINER} ${GOCMD}/miner
-	${GO} build -o ${HUB} ${GOCMD}/hub
+	${GO} build -tags nocgo -o ${MINER} ${GOCMD}/miner
+	${GO} build -tags nocgo -o ${HUB} ${GOCMD}/hub
 	${GO} build -o ${CLI} ${GOCMD}/cli
 
 install: build
