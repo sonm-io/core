@@ -306,3 +306,28 @@ func PullingMoney (mw MinWallet.MinerWallet, auth *bind.TransactOpts, wb common.
 	fmt.Println(" pending: 0x%x\n", tx.Hash())
 	return tx
 }
+
+func hPayDay( auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
+    ghw, err := GlueHubWallet(conn, mb)
+    if err != nil {
+           log.Fatalf("Failed to add hub wallet: %v", err)
+  }
+   tx, err:= ghw.PayDay(auth)
+if err != nil {
+         log.Fatalf("Failed to pay you your money: %v", err)
+}
+return tx
+}
+
+
+func mPayDay( auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
+    gmw, err := GlueMinerWallet(conn, mb)
+    if err != nil {
+           log.Fatalf("Failed to add miner wallet: %v", err)
+  }
+   tx, err:= gmw.PayDay(auth)
+if err != nil {
+         log.Fatalf("Failed to pay you your money: %v", err)
+}
+return tx
+}
