@@ -287,3 +287,22 @@ func RegisterHub (conn ethclient.Client,auth *bind.TransactOpts, adr common.Addr
 	return dp
 }
 
+}
+
+func TransferFunds(hw Hubwallet.HubWallet, auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
+	tx, err := hw.Transfer(auth,mb,big.NewInt(2 * 10^17))
+	if err != nil {
+		log.Fatalf("Failed to request hub transfer: %v", err)
+	}
+	fmt.Println(" pending: 0x%x\n", tx.Hash())
+
+	return tx
+}
+func PullingMoney (mw MinWallet.MinerWallet, auth *bind.TransactOpts, wb common.Address) (*types.Transaction) {
+	tx, err := mw.PullMoney(auth,wb)
+	if err != nil {
+		log.Fatalf("Failed to request : %v", err)
+	}
+	fmt.Println(" pending: 0x%x\n", tx.Hash())
+	return tx
+}
