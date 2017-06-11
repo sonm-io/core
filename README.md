@@ -4,7 +4,7 @@ It's an alpha platform for SONM.io project.
 
 # What is it here?
 
-This repository contains code for Hub, Miner and CLI. 
+This repository contains code for Hub, Miner and CLI.
 
 # Hub
 
@@ -18,3 +18,12 @@ Miner is expected to discover a Hub using Whisper. Later the miner connects to t
 
 Look at milestone https://github.com/sonm-io/insonmnia/milestones
 
+# How to run
+
+## Hub
+
+```bash
+docker run --rm -p 10002:10002 -p 10001:10001  sonm/insonmnia sonmhub
+```
+
+## CLI
