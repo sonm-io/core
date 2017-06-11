@@ -198,7 +198,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 
 	body, err := o.client.ImagePull(ctx, refStr, options)
 	if err != nil {
-		log.G(ctx).Error("ImagePull failed", zap.Error(err))
+		log.G(ctx).Error("ImagePull failed", zap.String("ref", refStr), zap.Error(err))
 		return err
 	}
 

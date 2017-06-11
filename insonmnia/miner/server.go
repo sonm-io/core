@@ -166,10 +166,16 @@ func (m *Miner) Close() {
 func New(ctx context.Context) (*Miner, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	grpcServer := grpc.NewServer()
+	ovs, err := NewOverseer(ctx)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
 	m := &Miner{
 		ctx:        ctx,
 		cancel:     cancel,
 		grpcServer: grpcServer,
+		ovs:        ovs,
 
 		rl: NewReverseListener(1),
 	}

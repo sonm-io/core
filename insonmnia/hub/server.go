@@ -60,6 +60,7 @@ func (h *Hub) List(context.Context, *pb.ListRequest) (*pb.ListReply, error) {
 
 // StartTask schedulles the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
+	log.G(ctx).Info("handling StartTask request", zap.Any("req", request))
 	miner := request.Miner
 	h.mu.Lock()
 	mincli, ok := h.miners[miner]
@@ -70,7 +71,9 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.
 
 	uid := uuid.New()
 	var startrequest = &pbminer.StartRequest{
-		Id: uid,
+		Id:       uid,
+		Registry: request.Registry,
+		Image:    request.Image,
 	}
 
 	_, err := mincli.Start(ctx, startrequest)
