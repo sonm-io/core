@@ -26,4 +26,12 @@ Look at milestone https://github.com/sonm-io/insonmnia/milestones
 docker run --rm -p 10002:10002 -p 10001:10001  sonm/insonmnia sonmhub
 ```
 
+## Miner
+
+To run Miner from the container you need to pass docker socket inside and specify IP of the HUB
+
+```bash
+docker run --rm -v /var/run/:/var/run/  sonm/insonmnia sonmminer --hubaddress=<yourip>:10002
+```
+
 ## CLI
