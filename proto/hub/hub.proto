@@ -21,7 +21,10 @@ message ListRequest {
 }
 
 message ListReply {
-    repeated string name = 1;
+    message ListValue {
+        repeated string values = 1;
+    }
+    map<string, ListValue> info = 1;
 }
 
 message StartTaskRequest {

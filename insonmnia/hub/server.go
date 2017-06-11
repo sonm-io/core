@@ -48,13 +48,23 @@ func (h *Hub) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, error
 
 // List returns attached miners
 func (h *Hub) List(context.Context, *pb.ListRequest) (*pb.ListReply, error) {
-	var lr pb.ListReply
+	var info = make(map[string]*pb.ListReply_ListValue)
 	h.mu.Lock()
 	for k := range h.miners {
-		lr.Name = append(lr.Name, k)
+		info[k] = new(pb.ListReply_ListValue)
 	}
 	h.mu.Unlock()
-	return &lr, nil
+
+	h.tasksmu.Lock()
+	for k, v := range h.tasks {
+		lr, ok := info[v]
+		if ok {
+			lr.Values = append(lr.Values, k)
+			info[v] = lr
+		}
+	}
+	h.tasksmu.Unlock()
+	return &pb.ListReply{Info: info}, nil
 }
 
 // StartTask schedulles the Task on some miner

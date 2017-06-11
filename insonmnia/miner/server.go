@@ -126,6 +126,16 @@ func (m *Miner) connectToHub(address string) {
 		return
 	}
 
+	go func() {
+		for {
+			conn, err := session.Accept()
+			if err != nil {
+				return
+			}
+			conn.Close()
+		}
+	}()
+
 	t := time.NewTicker(time.Second * 5)
 	defer t.Stop()
 	for {

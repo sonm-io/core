@@ -1,7 +1,6 @@
 package hub
 
 import (
-	"fmt"
 	"net"
 	"time"
 
@@ -86,7 +85,6 @@ func (m *MinerCtx) ping() error {
 				return err
 			}
 		case <-m.ctx.Done():
-			fmt.Println("CANCELED")
 			return m.ctx.Err()
 		}
 	}
