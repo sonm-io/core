@@ -413,3 +413,21 @@ if err != nil {
 	}
 	return tx
 }
+
+func CheckMiners (auth  auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
+	wRegistredMiners, err := whitelist.RegistredMiners(&bind.CallOpts{Pending: true},mb)
+	if err != nil {
+		log.Fatalf("Failed to retrieve miner wallet: %v", err)
+	}
+		return tx
+}
+
+
+func CheckHubs (auth  auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
+wRegistredHubs, err := whitelist.RegistredHubs(&bind.CallOpts{Pending: true},wb)
+	if err != nil {
+		log.Fatalf("Failed to retrieve hubs wallet: %v", err)
+	}
+		return tx
+}
+
