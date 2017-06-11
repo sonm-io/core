@@ -383,8 +383,8 @@ func mRehub ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, 
 	return tx
 }
 
-func CheckMiners (auth *bind.TransactOpts, mb common.Address) (*types.Transaction, error){
-	cm := GlueWhitelist(auth)
+func CheckMiners (conn ethclient.Client, mb common.Address) (*types.Transaction, error){
+	cm := GlueWhitelist(conn)
 	tx, err := cm.RegistredMiners(&bind.CallOpts{Pending: true}, mb)
 
 	if err != nil {
@@ -393,8 +393,8 @@ func CheckMiners (auth *bind.TransactOpts, mb common.Address) (*types.Transactio
 	return tx
 }
 
-func CheckHubs (auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
-	ch := GlueWhitelist(auth)
+func CheckHubs (conn ethclient.Client , mb common.Address) (*types.Transaction, error){
+	ch := GlueWhitelist(conn)
 	tx, err := ch.RegistredHubs(&bind.CallOpts{Pending: true}, mb)
 	if err != nil {
 		log.Fatalf("Failed to retrieve hubs wallet: %v", err)
