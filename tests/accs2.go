@@ -12,13 +12,13 @@ import (
 	//"time"
 	"math/big"
 	"fmt"
-	"os"
+	//"os"
 	"os/user"
 	//"github.com/sonm-io/blockchain-api/go-build/MinWallet"
 	"github.com/sonm-io/blockchain-api/go-build/SDT"
 	//"github.com/sonm-io/go-ethereum/core/types"
 	//"bytes"
-	"bufio"
+	//"bufio"
 	//"io/ioutil"
 	//"testing"
   //"github.com/stretchr/testify/assert"
@@ -70,35 +70,7 @@ usr, err := user.Current()
 	//return first
 
 
-/*
-	type PasswordJson struct {
-		Password		string	`json:"Password"`
-	}
 
-	npass:="/pass.json"
-
-	//Reading user password
-	// ВОПРОС - Это возвращает JSON структуру или строку?
-	func readPwd() PasswordJson{
-		usr, err := user.Current();
-		// User password file JSON should be in root of home directory
-		file, err := ioutil.ReadFile(usr.HomeDir+npass)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		var m PasswordJson
-		err = json.Unmarshal(file, &m)
-		if err != nil {
-			fmt.Println(err)
-		}
-		return m
-	}
-
-	pass:=readPwd()
-*/
-
-/*
 	npass:="/pass.txt"
 
 	hnpass:=hd+npass
@@ -110,25 +82,22 @@ usr, err := user.Current()
 
 
 		pass:=string(passf)
+		pass=strings.TrimRight(pass,"\n")
 
 		fmt.Println("password:")
 		fmt.Println(pass)
 
-*/
 
+/*
 	reader := bufio.NewReader(os.Stdin)
 	fmt.Print("Enter text: ")
 	pass, _ := reader.ReadString('\n')
 	pass=strings.TrimRight(pass,"\n")
 	fmt.Println(pass)
-
-	pass=string(pass)
-
-		//pass = strings.NewReader(pass)
+*/
 
 
-
-
+	//pass=string(pass)
 
 
 		keyin :=strings.NewReader(key)
@@ -158,32 +127,10 @@ usr, err := user.Current()
 
 		auth:=oauth
 
-/*
-	reader := bufio.NewReader(os.Stdin)
-fmt.Print("Enter text: ")
-text, _ := reader.ReadString('\n')
-fmt.Println(text)
 
-	text=string(text)
-*/
-
-
-
-
-
-
-	//qwe=pass
-	
-
-/*
-	auth, err := bind.NewTransactor(strings.NewReader(key), qwe)
-		if err != nil {
-			log.Fatalf("Failed to create authorized transactor: %v", err)
-		}
-		*/
 
 	//Create connection
-	conn, err := ethclient.Dial("/home/jack/.rinkeby/geth.ipc")
+	conn, err := ethclient.Dial(hd+"/.rinkeby/geth.ipc")
 		if err != nil {
 			log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 		}
