@@ -5,6 +5,7 @@ import (
 	//"math/big"
 	"strings"
 	"github.com/sonm-io/go-ethereum/common"
+	"github.com/sonm-io/go-ethereum/crypto"
 	"github.com/sonm-io/go-ethereum/ethclient"
   	"github.com/sonm-io/blockchain-api/go-build/SDT"
 	"github.com/sonm-io/blockchain-api/go-build/Factory"
@@ -230,11 +231,10 @@ func CreateMiner (conn ethclient.Client)(){
 	return  rc
 
 }
-func CreateHub (conn ethclient.Client)(){
+func CreateHub (conn ethclient.Client)(Hubwallet.HubWallet, error){
 	factory := GlueFactory(conn)
 	chub, err := factory.FactoryTransactor.CreateHub()
-	if err!= nil{ log.Fatal("Failed to create hub")}
-	return  chub
+	return  chub, err
 
 }
 func RegisterMiner (auth *bind.TransactOpts, adr common.Address, stake big.Int)(){
@@ -400,5 +400,9 @@ func CheckHubs (conn ethclient.Client , mb common.Address) (*types.Transaction, 
 		log.Fatalf("Failed to retrieve hubs wallet: %v", err)
 	}
 	return tx
+}
+
+func jsonread()  {
+	
 }
 
