@@ -107,7 +107,7 @@ func main() {
 
 	// Create an authorized transactor and spend 1 unicorn
 	// yes, this is hack too, need to rewrite it.
-	auth, err := bind.NewTransactor(strings.NewReader(key), "Metamorph9")
+	auth, err := bind.NewTransactor(strings.NewReader(key), "password")
 	if err != nil {
 		log.Fatalf("Failed to create authorized transactor: %v", err)
 	}
