@@ -187,8 +187,8 @@ func main(){}
 Example
 */
 func GetBalance(conn ethclient.Client, mb common.Address) (*types.Transaction, error) {
-	token:=GlueToken(conn)
-	bal, err := token.BalanceOf(&bind.CallOpts{Pending: true},mb)
+	token, err :=GlueToken(conn)
+	bal, err := token.BalanceOf(&bind.CallOpts{Pending: true}, mb)
 	if err != nil {
 		log.Fatalf("Failed to request token balance: %v", err)
 	}
@@ -237,7 +237,7 @@ func CreateHub (conn ethclient.Client)(Hubwallet.HubWallet, error){
 	return  chub, err
 
 }
-func RegisterMiner (auth *bind.TransactOpts, adr common.Address, stake big.Int)(){
+func RegisterMiner (auth *bind.TransactOpts, adr common.Address, stake big.Int)(error){
 	rm, err := GlueMinWallet(auth, adr)
 	stk := big.NewInt(stake * 10^17)
 	dp, err := rm.Registration(auth,stk)
@@ -263,7 +263,7 @@ func TransferFunds(hw Hubwallet.HubWallet, auth *bind.TransactOpts , mb common.A
 
 	return tx
 }
-func PullingMoney (mw MinWallet.MinerWallet, auth *bind.TransactOpts, wb common.Address) (*types.Transaction) {
+func PullingMoney (mw MinWallet.MinerWallet, auth *bind.TransactOpts, wb common.Address) (*types.Transaction, error) {
 	tx, err := mw.PullMoney(auth,wb)
 	if err != nil {
 		log.Fatalf("Failed to request : %v", err)

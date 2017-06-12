@@ -11,6 +11,7 @@ import (
 	"time"
 	"math/big"
 	"fmt"
+	"github.com/sonm-io/blockchain-api/go-build/MinWallet"
 )
 func main (){
 	//-------------------- 1 ------------------------------
@@ -120,10 +121,6 @@ func main (){
 		}
 	fmt.Println("Token name:", ct)
 
-	wb:= common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1")
-	mb := common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1")
-	//to :=
-	//am :=
 	//sent tokens
 	st, err := blockchainApi.HubTransfer(conn, auth, wb, to, am)
 		if err != nil {
@@ -151,6 +148,19 @@ func main (){
 		wf:=checkMinWl
 	fmt.Println("Wallet address is:", wf)
 	//-------------------- 3 ------------------------------
+	st, err := blockchainApi.HubTransfer(conn, auth, wb, to, am)
+		if err != nil {
+			log.Fatalf("Failed to sent tokens to hub wallet: %v", err)
+		}
+	wm:= MinWallet.MinerWallet{}
+	pm, err := blockchainApi.PullingMoney(wm, auth, wb)
+		if err != nil {
+			log.Fatalf("Failed to miner`a pulling money: %v", err)
+		}
+	fmt.Println("Pulling money is:", pm)
+	time.Sleep(250 * time.Millisecond)
 
+	balMin := blockchainApi.GetBalance(conn, mb)
+	balHub := blockchainApi.GetBalance(conn, wb)
 }
 
