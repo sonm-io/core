@@ -2,9 +2,9 @@ package main
 import (
 	"log"
 	//"github.com/sonm-io/blockchain-api"
-	//"github.com/sonm-io/go-ethereum/ethclient"
-	//"github.com/sonm-io/go-ethereum/accounts/abi/bind"
-	//"strings"
+	"github.com/sonm-io/go-ethereum/ethclient"
+	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
+	"strings"
 	"io/ioutil"
 	//"github.com/sonm-io/go-ethereum/accounts/keystore"
 	//"github.com/sonm-io/go-ethereum/accounts"
@@ -48,35 +48,23 @@ usr, err := user.Current()
 		fmt.Println(file.Name(), file.IsDir())
 	}
 	first := files[0]
+	fName:= first.Name()
+
+	keyf, err:=ioutil.ReadFile(confPath+fName)
+	if err != nil {
+        log.Fatalf("can't read the file", err)
+    }
+
+
+		key:=string(keyf)
+
 	fmt.Println("key")
-	fmt.Println(first)
+	fmt.Println(key)
 	//return first
 
 
 
 
-/*
-	dir, err := os.Open(confPath)
-	 if err != nil {
-		 		log.Fatalf("can't open path", err)
-			 return
-
-	 }
-	 defer dir.Close()
-
-	 fileInfos, err := dir.Readdir(-1)
-	 if err != nil {
-		 	log.Fatalf("can't read dir", err)
-			 return
-	 }
-	 for _, fi := range fileInfos {
-			 fmt.Println(fi.Name())
-			 first:=fi[0]
-	 }
-
-	 first:=fi[0]
-	 fmt.Println(first)
-*/
 
 /*
 	keyin := strings.NewReader(key)
@@ -94,7 +82,9 @@ usr, err := user.Current()
 		}
 */
 
-/*
+	//key=string(key)
+
+
 	auth, err := bind.NewTransactor(strings.NewReader(key), "Metamorph9")
 		if err != nil {
 			log.Fatalf("Failed to create authorized transactor: %v", err)
@@ -105,6 +95,6 @@ usr, err := user.Current()
 		if err != nil {
 			log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 		}
-*/
+
 
 }
