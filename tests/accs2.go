@@ -1,17 +1,17 @@
 package main
 import (
 	"log"
-	"github.com/sonm-io/blockchain-api"
+	//"github.com/sonm-io/blockchain-api"
 	"github.com/sonm-io/go-ethereum/ethclient"
 	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
 	"strings"
 	"io/ioutil"
 	"github.com/sonm-io/go-ethereum/accounts/keystore"
-	"github.com/sonm-io/go-ethereum/common"
-	"time"
-	"math/big"
+	//"github.com/sonm-io/go-ethereum/common"
+	//"time"
+	//"math/big"
 	"fmt"
-	"github.com/sonm-io/blockchain-api/go-build/MinWallet"
+	//"github.com/sonm-io/blockchain-api/go-build/MinWallet"
 )
 func main (){
 	//-------------------- 1 ------------------------------
@@ -20,11 +20,13 @@ func main (){
 
 	json, err := ioutil.ReadAll(keyin)
 		if err != nil {
-			return nil, err
+			//return nil, err
+			log.Fatalf("failed json", err)
 		}
 	key, err := keystore.DecryptKey(json, passphrase)
 		if err != nil {
-			return nil, err
+			//return nil, err
+			log.Fatalf("failed key", err)
 		}
 
 	auth, err := bind.NewTransactor(strings.NewReader(key), "Metamorph9")
@@ -38,5 +40,5 @@ func main (){
 			log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 		}
 
-	
+
 }
