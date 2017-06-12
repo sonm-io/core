@@ -117,7 +117,7 @@ func getAuth() {
 
 
 //Token Defines
-func GlueToken(conn ethclient.Client) (*Token.SDT) {
+func GlueToken(conn ethclient.Client) (*Token.SDT, error) {
 	// Instantiate the contract
 	token, err := Token.NewSDT(common.HexToAddress("0x8016a9f651a4393a608d57d096c464f9115763ea"), conn)
 	if err != nil {
@@ -186,7 +186,7 @@ func main(){}
 /*
 Example
 */
-func getBalance(conn ethclient.Client, mb common.Address) (*types.Transaction) {
+func GetBalance(conn ethclient.Client, mb common.Address) (*types.Transaction, error) {
 	token:=GlueToken(conn)
 	bal, err := token.BalanceOf(&bind.CallOpts{Pending: true},mb)
 	if err != nil {
@@ -196,7 +196,7 @@ func getBalance(conn ethclient.Client, mb common.Address) (*types.Transaction) {
 }
 
 
-func HubTransfer(conn ethclient.Client, auth *bind.TransactOpts, wb common.Address, to common.Address,amount big.Int) (*types.Transaction)  {
+func HubTransfer(conn ethclient.Client, auth *bind.TransactOpts, wb common.Address, to common.Address,amount big.Int) (*types.Transaction, error)  {
 	hw:=GlueHubWallet(conn,wb)
 	am = big.NewInt(amount *10^17)
 
@@ -224,7 +224,7 @@ func WhiteListTransactor (conn ethclient.Client,)(){
 	}
 	return dp
 }
-func CreateMiner (conn ethclient.Client)(){
+func CreateMiner (conn ethclient.Client)(MinWallet.MinerWallet, error){
 	factory := GlueFactory(conn)
 	rc, err := factory.FactoryTransactor.CreateMiner()
 	if err!= nil{ log.Fatal("Failed to create miner")}
@@ -246,7 +246,7 @@ func RegisterMiner (auth *bind.TransactOpts, adr common.Address, stake big.Int)(
 	}
 	return dp
 }
-func RegisterHub (auth *bind.TransactOpts, adr common.Address, stake big.Int)(){
+func RegisterHub (auth *bind.TransactOpts, adr common.Address, stake big.Int)(error){
 	rh, err := GlueHubWallet(auth, adr)
 	dp, err := rh.Registration(auth)
 	if err != nil {
@@ -271,6 +271,13 @@ func PullingMoney (mw MinWallet.MinerWallet, auth *bind.TransactOpts, wb common.
 	fmt.Println(" pending: 0x%x\n", tx.Hash())
 	return tx
 }
+//func balanceMiner (mw MinWallet.MinerWallet, wb common.Address, backend *bind.ContractBackend) () {
+//	token,err := Token.NewSDT(wb,backend)
+//		if err != nil {
+//			log.Fatalf("Failed to instantiate a Token contract: %v", err)
+//		}
+//	bal, err := token.BalanceOf(&bind.CallOpts{Pending: true},wb)
+//}
 
 func hPayDay ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
 	ghw, err := GlueHubWallet(auth, mb)
@@ -394,15 +401,12 @@ func CheckMiners (conn ethclient.Client, mb common.Address) (*types.Transaction,
 }
 
 func CheckHubs (conn ethclient.Client , mb common.Address) (*types.Transaction, error){
+	//wRegisteredHubs
 	ch := GlueWhitelist(conn)
 	tx, err := ch.RegistredHubs(&bind.CallOpts{Pending: true}, mb)
 	if err != nil {
 		log.Fatalf("Failed to retrieve hubs wallet: %v", err)
 	}
 	return tx
-}
-
-func jsonread()  {
-	
 }
 
