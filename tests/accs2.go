@@ -6,7 +6,7 @@ import (
 	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
 	"strings"
 	"io/ioutil"
-	//"github.com/sonm-io/go-ethereum/accounts/keystore"
+	"github.com/sonm-io/go-ethereum/accounts/keystore"
 	//"github.com/sonm-io/go-ethereum/accounts"
 	"github.com/sonm-io/go-ethereum/common"
 	//"time"
@@ -19,6 +19,7 @@ import (
 	//"github.com/sonm-io/go-ethereum/core/types"
 	//"bytes"
 	//"bufio"
+	//"io/ioutil"
 )
 func main (){
 	//-------------------- 1 ------------------------------
@@ -113,7 +114,31 @@ usr, err := user.Current()
 
 		//pass = strings.NewReader(pass)
 
+		keyin :=strings.NewReader(key)
 
+		qwe:="Metamorph9"
+
+		json, err := ioutil.ReadAll(keyin)
+		if err != nil {
+		//	return  err
+			log.Fatalf("can't read keyin", err)
+		}
+		okey, err := keystore.DecryptKey(json, qwe)
+		if err != nil {
+			//return  err
+			log.Fatalf("can't decrypt key", qwe)
+		}
+
+		fmt.Println("private key:")
+
+		fmt.Println(okey.PrivateKey)
+
+
+
+
+		oauth:=bind.NewKeyedTransactor(okey.PrivateKey)
+
+		fmt.Println(oauth)
 
 /*
 	reader := bufio.NewReader(os.Stdin)
@@ -125,8 +150,11 @@ fmt.Println(text)
 */
 
 
-	qwe:="Metamorph9"
-	qwe=pass
+
+
+
+
+	//qwe=pass
 	fmt.Println(qwe)
 
 	auth, err := bind.NewTransactor(strings.NewReader(key), qwe)
