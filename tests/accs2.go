@@ -8,13 +8,15 @@ import (
 	"io/ioutil"
 	//"github.com/sonm-io/go-ethereum/accounts/keystore"
 	//"github.com/sonm-io/go-ethereum/accounts"
-	//"github.com/sonm-io/go-ethereum/common"
+	"github.com/sonm-io/go-ethereum/common"
 	//"time"
-	//"math/big"
+	"math/big"
 	"fmt"
 	//"os"
 	"os/user"
 	//"github.com/sonm-io/blockchain-api/go-build/MinWallet"
+	"github.com/sonm-io/blockchain-api/go-build/SDT"
+	//"github.com/sonm-io/go-ethereum/core/types"
 )
 func main (){
 	//-------------------- 1 ------------------------------
@@ -96,5 +98,23 @@ usr, err := user.Current()
 			log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 		}
 
+		token, err := Token.NewSDT(common.HexToAddress("0x09e4a2de83220c6f92dcfdbaa8d22fe2a4a45943"), conn)
+		if err != nil {
+			log.Fatalf("Failed to instantiate a Token contract: %v", err)
+		}
+		name, err := token.Name(nil)
+		if err != nil {
+			log.Fatalf("Failed to retrieve token name: %v", err)
+		}
+		fmt.Println("Token name:", name)
+
+
+		tx, err := token.Transfer(auth, common.HexToAddress("0x0000000000000000000000000000000000000000"), big.NewInt(1))
+
+		if err != nil {
+			log.Fatalf("Failed to request token transfer: %v", err)
+		}
+		// Need to do something about checking pending tx
+		fmt.Printf("Transfer pending: 0x%x\n", tx.Hash())
 
 }
