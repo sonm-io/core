@@ -12,14 +12,16 @@ import (
 	//"time"
 	"math/big"
 	"fmt"
-	//"os"
+	"os"
 	"os/user"
 	//"github.com/sonm-io/blockchain-api/go-build/MinWallet"
 	"github.com/sonm-io/blockchain-api/go-build/SDT"
 	//"github.com/sonm-io/go-ethereum/core/types"
 	//"bytes"
-	//"bufio"
+	"bufio"
 	//"io/ioutil"
+	//"testing"
+  //"github.com/stretchr/testify/assert"
 )
 func main (){
 	//-------------------- 1 ------------------------------
@@ -96,6 +98,7 @@ usr, err := user.Current()
 	pass:=readPwd()
 */
 
+/*
 	npass:="/pass.txt"
 
 	hnpass:=hd+npass
@@ -111,22 +114,35 @@ usr, err := user.Current()
 		fmt.Println("password:")
 		fmt.Println(pass)
 
+*/
+
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Print("Enter text: ")
+	pass, _ := reader.ReadString('\n')
+	pass=strings.TrimRight(pass,"\n")
+	fmt.Println(pass)
+
+	pass=string(pass)
 
 		//pass = strings.NewReader(pass)
 
+
+
+
+
+
 		keyin :=strings.NewReader(key)
 
-		qwe:="Metamorph9"
 
 		json, err := ioutil.ReadAll(keyin)
 		if err != nil {
 		//	return  err
 			log.Fatalf("can't read keyin", err)
 		}
-		okey, err := keystore.DecryptKey(json, qwe)
+		okey, err := keystore.DecryptKey(json, pass)
 		if err != nil {
 			//return  err
-			log.Fatalf("can't decrypt key", qwe)
+			log.Fatalf("can't decrypt key", err)
 		}
 
 		fmt.Println("private key:")
@@ -139,6 +155,8 @@ usr, err := user.Current()
 		oauth:=bind.NewKeyedTransactor(okey.PrivateKey)
 
 		fmt.Println(oauth)
+
+		auth:=oauth
 
 /*
 	reader := bufio.NewReader(os.Stdin)
@@ -155,12 +173,14 @@ fmt.Println(text)
 
 
 	//qwe=pass
-	fmt.Println(qwe)
+	
 
+/*
 	auth, err := bind.NewTransactor(strings.NewReader(key), qwe)
 		if err != nil {
 			log.Fatalf("Failed to create authorized transactor: %v", err)
 		}
+		*/
 
 	//Create connection
 	conn, err := ethclient.Dial("/home/jack/.rinkeby/geth.ipc")
