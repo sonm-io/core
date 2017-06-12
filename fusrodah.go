@@ -15,7 +15,7 @@ import (
 )
 
 type Fusrodah struct {
-	prv           *ecdsa.PrivateKey
+	Prv           *ecdsa.PrivateKey
 	cfg           p2p.Config
 	p2pServer     p2p.Server
 	whisperServer *whisperv2.Whisper
@@ -24,7 +24,7 @@ type Fusrodah struct {
 	whisperServerStatus string
 }
 
-func (fusrodah *Fusrodah) start() {
+func (fusrodah *Fusrodah) Start() {
 	// function that start whisper server
 	// private key is needed
 
@@ -36,7 +36,7 @@ func (fusrodah *Fusrodah) start() {
 	fusrodah.cfg = p2p.Config{
 		MaxPeers: 10,
 		//	Identity:   p2p.NewSimpleClientIdentity("my-whisper-app", "1.0", "", string(pub)),
-		PrivateKey: fusrodah.prv,
+		PrivateKey: fusrodah.Prv,
 		ListenAddr: ":8000",
 
 		//here we can define what additional protocols will be used *above* p2p server.
@@ -86,7 +86,7 @@ func (fusrodah *Fusrodah) getFilterTopics(data ...string) [][]whisperv2.Topic {
 	return topics
 }
 
-func (fusrodah *Fusrodah) createMessage(message string) *whisperv2.Message {
+func (fusrodah *Fusrodah) createMessage(message string, to *ecdsa.PublicKey) *whisperv2.Message {
 	// Creates entity of message itself.
 	// Message represents an end-user data packet to transmit through the Whisper
 	// protocol. These are wrapped into Envelopes that need not be understood by
@@ -109,6 +109,7 @@ func (fusrodah *Fusrodah) createMessage(message string) *whisperv2.Message {
 	// NOTE  first we create message, then we create envelope.
 	msg := whisperv2.NewMessage([]byte(message))
 	//TTL-hop limit is a mechanism that limits the lifespan or lifetime of message in a network
+	msg.To = to
 	msg.TTL = 3600000
 	return msg
 }
@@ -128,7 +129,7 @@ func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, topics []whi
 	//   - options.From == nil && options.To != nil: encrypted anonymous message
 	//   - options.From != nil && options.To != nil: encrypted signed message
 	envelope, err := message.Wrap(1, whisperv2.Options{
-		From:   fusrodah.prv, // Sign it
+		From:   fusrodah.Prv, // Sign it
 		Topics: topics,
 	})
 	if err != nil {
@@ -138,15 +139,15 @@ func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, topics []whi
 	return envelope
 }
 
-func (fusrodah *Fusrodah) Send(message string, topics ...string) {
+func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey,  topics ...string) {
 
 	// start whisper server, if it not running yet
 	if fusrodah.whisperServerStatus != "running" {
-		fusrodah.start()
+		fusrodah.Start()
 	}
 
 	// wrap source message to *whisper2.Message Entity
-	whMessage := fusrodah.createMessage(message)
+	whMessage := fusrodah.createMessage(message, nil)
 
 	// get possibly topics
 	tops := fusrodah.getTopics(topics...)
@@ -163,10 +164,11 @@ func (fusrodah *Fusrodah) Send(message string, topics ...string) {
 	}
 }
 
-func (fusrodah *Fusrodah) AddHandling(cb func(msg *whisperv2.Message), topics ...string) int {
+
+func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, cb func(msg *whisperv2.Message), topics ...string) int {
 	// start whisper server, if it not running yet
 	if fusrodah.whisperServerStatus != "running" {
-		fusrodah.start()
+		fusrodah.Start()
 	}
 
 	// add watcher with any topics
@@ -176,6 +178,7 @@ func (fusrodah *Fusrodah) AddHandling(cb func(msg *whisperv2.Message), topics ..
 		//	setting up handler
 		//	NOTE: parser and sotrting info in message should be inside this func
 		Fn: cb,
+		To: to,
 	})
 	return id
 }
