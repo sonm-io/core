@@ -16,7 +16,7 @@ import (
 func main (){
 	//-------------------- 1 ------------------------------
 	keyin := strings.NewReader(key)
-	passphrase := "cotic"
+	passphrase := "Metamorph9"
 
 	json, err := ioutil.ReadAll(keyin)
 		if err != nil {
@@ -33,7 +33,7 @@ func main (){
 		}
 
 	//Create connection
-	conn, err := ethclient.Dial("/home/cotic/.rinkeby/geth.ipc")
+	conn, err := ethclient.Dial("/home/jack/.rinkeby/geth.ipc")
 		if err != nil {
 			log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 		}
@@ -163,4 +163,3 @@ func main (){
 	balMin := blockchainApi.GetBalance(conn, mb)
 	balHub := blockchainApi.GetBalance(conn, wb)
 }
-

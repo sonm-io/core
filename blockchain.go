@@ -87,7 +87,7 @@ func readPwd() PasswordJson{
 func cnct() {
 	// NOTE there is should be wildcard but not username.
 	// Try ~/.rinkeby/geth.ipc
-	conn, err := ethclient.Dial("/home/cotic/.rinkeby/geth.ipc")
+	conn, err := ethclient.Dial("/home/jack/.rinkeby/geth.ipc")
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
@@ -164,7 +164,7 @@ func GlueMinWallet(conn ethclient.Client, mb common.Address) (*MinWallet.MinerWa
 }
 
 
-func main(){}
+
 // sdt was here???
 //-------------------------------------------------------------------------
 
@@ -409,4 +409,3 @@ func CheckHubs (conn ethclient.Client , mb common.Address) (*types.Transaction, 
 	}
 	return tx
 }
-
