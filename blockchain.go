@@ -13,7 +13,7 @@ import (
 	"github.com/sonm-io/blockchain-api/go-build/HubWallet"
 	"github.com/sonm-io/blockchain-api/go-build/MinWallet"
 	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
-	"encoding/json"
+	//"encoding/json"
 	"io/ioutil"
 	"os/user"
 	"github.com/sonm-io/go-ethereum/core/types"
@@ -22,58 +22,90 @@ import (
 )
 //----ServicesSupporters Allocation---------------------------------------------
 
-//For rinkeby testnet
-const confFile = ".rinkeby/keystore/"
-
-//create json for writing KEY
-type MessageJson struct {
-	//Key       string     `json:"Key"`
-	}
-//Reading KEY
-func readKey() MessageJson{
-	//usr, err := user.Current();
-	//file, err := ioutil.ReadFile(usr.HomeDir+"/"+confFile)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-	//var m MessageJson
-	//err = json.Unmarshal(file, &m)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-	//for directory list
-	files, err := ioutil.ReadDir(".")
+func getPath() string {
+usr, err := user.Current()
 	if err != nil {
-		log.Fatal(err)
+			log.Fatal("cant get user", err )
+	}
+//	fmt.Println( usr.HomeDir )
+
+	// home directory
+	hd:=usr.HomeDir
+
+	//conf for keystore
+	const confFile = "/.rinkeby/keystore/"
+
+	confPath:= hd+confFile
+	return confPath
+}
+
+	func gHome() string {
+		usr, err := user.Current()
+			if err != nil {
+					log.Fatal("cant get user", err )
+			}
+		//	fmt.Println( usr.HomeDir )
+
+			// home directory
+			hd:=usr.HomeDir
+
+			return hd
+	}
+
+	func readKey() string {
+
+		confPath:=getPath()
+
+	files, err := ioutil.ReadDir(confPath)
+	if err != nil {
+		log.Fatal("can't read dir", err)
 	}
 	for _, file := range files {
 		fmt.Println(file.Name(), file.IsDir())
 	}
 	first := files[0]
-	return first
-}
+	fName:= first.Name()
 
-type PasswordJson struct {
-	Password		string	`json:"Password"`
-}
-
-//Reading user password
-// ВОПРОС - Это возвращает JSON структуру или строку?
-func readPwd() PasswordJson{
-	usr, err := user.Current();
-	// User password file JSON should be in root of home directory
-	file, err := ioutil.ReadFile(usr.HomeDir+"/")
+	keyf, err:=ioutil.ReadFile(confPath+fName)
 	if err != nil {
-		fmt.Println(err)
+        log.Fatalf("can't read the file", err)
+    }
+
+
+		key:=string(keyf)
+
+	fmt.Println("key")
+	fmt.Println(key)
+
+	return key
+}
+
+
+	func readPwd() string {
+
+		hd:=gHome()
+
+		npass:="/pass.txt"
+
+		hnpass:=hd+npass
+
+		passf, err:=ioutil.ReadFile(hnpass)
+		if err != nil {
+	        log.Fatalf("can't read the file", err)
+	    }
+
+
+			pass:=string(passf)
+			pass=strings.TrimRight(pass,"\n")
+
+		//	fmt.Println("password:")
+		//	fmt.Println(pass)
+
+			return pass
+
 	}
 
-	var m PasswordJson
-	err = json.Unmarshal(file, &m)
-	if err != nil {
-		fmt.Println(err)
-	}
-	return m
-}
+
 
 //--Services Getters-----------------------------
 /*
@@ -82,21 +114,30 @@ func readPwd() PasswordJson{
 
 */
 
+
+
+
+
+
+/*
 //Establish Connection to geth IPC
 // Create an IPC based RPC connection to a remote node
-func cnct() {
-	// NOTE there is should be wildcard but not username.
-	// Try ~/.rinkeby/geth.ipc
-	conn, err := ethclient.Dial("/home/jack/.rinkeby/geth.ipc")
+func cnct()  *ethclient.Client{
+	hd:=gHome()
+	conn, err := ethclient.Dial(hd+"/.rinkeby/geth.ipc")
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
 	//return connection obj
   	return conn
 }
+*/
 
+
+
+/*
 // Create an authorized transactor
-func getAuth() {
+func getAuth() *bind.TransactOpts {
 
 	key:= readKey()
 	pass:=readPwd()
@@ -107,6 +148,7 @@ func getAuth() {
 	}
 	return auth
 }
+*/
 
 //---Defines Binds-----------------------------------------
 
@@ -117,16 +159,16 @@ func getAuth() {
 
 
 //Token Defines
-func GlueToken(conn ethclient.Client) (*Token.SDT, error) {
+func GlueToken(conn bind.ContractBackend) (*Token.SDT, error) {
 	// Instantiate the contract
 	token, err := Token.NewSDT(common.HexToAddress("0x8016a9f651a4393a608d57d096c464f9115763ea"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Token contract: %v", err)
 	}
-	return token
+	return token, nil
 }
 
-func GlueFactory(conn ethclient.Client) (*Factory.Factory) {
+func GlueFactory(conn bind.ContractBackend) (*Factory.Factory) {
 	//Define factory
 	factory, err := Factory.NewFactory(common.HexToAddress("0x389166c28d119d85f3cd9711e250d856075bd774"), conn)
 	if err != nil {
@@ -135,7 +177,7 @@ func GlueFactory(conn ethclient.Client) (*Factory.Factory) {
 	return factory
 }
 
-func GlueWhitelist(conn ethclient.Client) (*Whitelist.Whitelist)  {
+func GlueWhitelist(conn bind.ContractBackend) (*Whitelist.Whitelist)  {
 	//Define whitelist
 	whitelist, err := Whitelist.NewWhitelist(common.HexToAddress("0xad30096e883f7cc6c1653043751d9ddfe2914a87"), conn)
 	if err != nil {
@@ -144,7 +186,7 @@ func GlueWhitelist(conn ethclient.Client) (*Whitelist.Whitelist)  {
 	return whitelist
 }
 
-func GlueHubWallet(conn ethclient.Client, wb common.Address) (*Hubwallet.HubWallet, error)  {
+func GlueHubWallet(conn bind.ContractBackend, wb common.Address) (*Hubwallet.HubWallet, error)  {
 	//Define HubWallet
 
 	hw, err := Hubwallet.NewHubWallet(wb, conn)
@@ -154,7 +196,7 @@ func GlueHubWallet(conn ethclient.Client, wb common.Address) (*Hubwallet.HubWall
 	return hw
 }
 
-func GlueMinWallet(conn ethclient.Client, mb common.Address) (*MinWallet.MinerWallet, error) {
+func GlueMinWallet(conn bind.ContractBackend, mb common.Address) (*MinWallet.MinerWallet, error) {
 	//Define MinerWallet
 	mw, err := MinWallet.NewMinerWallet(mb, conn)
 	if err != nil {
