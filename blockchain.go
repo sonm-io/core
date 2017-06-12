@@ -5,7 +5,7 @@ import (
 	//"math/big"
 	"strings"
 	"github.com/sonm-io/go-ethereum/common"
-	"github.com/sonm-io/go-ethereum/crypto"
+ //"github.com/sonm-io/go-ethereum/crypto"
 	"github.com/sonm-io/go-ethereum/ethclient"
   	"github.com/sonm-io/blockchain-api/go-build/SDT"
 	"github.com/sonm-io/blockchain-api/go-build/Factory"
