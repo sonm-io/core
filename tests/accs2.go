@@ -17,6 +17,8 @@ import (
 	//"github.com/sonm-io/blockchain-api/go-build/MinWallet"
 	"github.com/sonm-io/blockchain-api/go-build/SDT"
 	//"github.com/sonm-io/go-ethereum/core/types"
+	//"bytes"
+	//"bufio"
 )
 func main (){
 	//-------------------- 1 ------------------------------
@@ -65,29 +67,69 @@ usr, err := user.Current()
 	//return first
 
 
+/*
+	type PasswordJson struct {
+		Password		string	`json:"Password"`
+	}
+
+	npass:="/pass.json"
+
+	//Reading user password
+	// ВОПРОС - Это возвращает JSON структуру или строку?
+	func readPwd() PasswordJson{
+		usr, err := user.Current();
+		// User password file JSON should be in root of home directory
+		file, err := ioutil.ReadFile(usr.HomeDir+npass)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		var m PasswordJson
+		err = json.Unmarshal(file, &m)
+		if err != nil {
+			fmt.Println(err)
+		}
+		return m
+	}
+
+	pass:=readPwd()
+*/
+
+	npass:="/pass.txt"
+
+	hnpass:=hd+npass
+
+	passf, err:=ioutil.ReadFile(hnpass)
+	if err != nil {
+        log.Fatalf("can't read the file", err)
+    }
+
+
+		pass:=string(passf)
+
+		fmt.Println("password:")
+		fmt.Println(pass)
+
+
+		//pass = strings.NewReader(pass)
 
 
 
 /*
-	keyin := strings.NewReader(key)
-	passphrase := "Metamorph9"
+	reader := bufio.NewReader(os.Stdin)
+fmt.Print("Enter text: ")
+text, _ := reader.ReadString('\n')
+fmt.Println(text)
 
-	json, err := ioutil.ReadAll(keyin)
-		if err != nil {
-			//return nil, err
-			log.Fatalf("failed json", err)
-		}
-	key, err := keystore.DecryptKey(json, passphrase)
-		if err != nil {
-			//return nil, err
-			log.Fatalf("failed key", err)
-		}
+	text=string(text)
 */
 
-	//key=string(key)
 
+	qwe:="Metamorph9"
+	qwe=pass
+	fmt.Println(qwe)
 
-	auth, err := bind.NewTransactor(strings.NewReader(key), "Metamorph9")
+	auth, err := bind.NewTransactor(strings.NewReader(key), qwe)
 		if err != nil {
 			log.Fatalf("Failed to create authorized transactor: %v", err)
 		}
