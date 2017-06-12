@@ -15,7 +15,7 @@ import (
  MAINER FUNCTION SECTION
  /--------------------/
 */
-type Mainer struct {
+type Server struct {
 	//PrivateKey 	ecdsa.PrivateKey
 	Hubs     []hub.HubsType
 	ConfFile string
@@ -25,7 +25,7 @@ func mainerMainFunction() {
 
 }
 
-func (mainer *Mainer) LoadConf() bool {
+func (mainer *Server) LoadConf() bool {
 	//this function load miners configuration
 	file, err := ioutil.ReadFile(mainer.ConfFile)
 	if err != nil {
@@ -33,7 +33,7 @@ func (mainer *Mainer) LoadConf() bool {
 		return false
 	}
 
-	var m Mainer
+	var m Server
 	err = json.Unmarshal(file, &m)
 	if err != nil {
 		fmt.Println(err)
@@ -42,7 +42,7 @@ func (mainer *Mainer) LoadConf() bool {
 	*mainer = m
 	return true
 }
-func (mainer Mainer) SaveConf() bool {
+func (mainer Server) SaveConf() bool {
 	//this function save miners configuration
 	hubListString, err := json.Marshal(mainer)
 	if err != nil {
@@ -61,32 +61,42 @@ func (mainer Mainer) SaveConf() bool {
 	return true
 }
 
-func (mainer Mainer) StartDiscovery(frd Fusrodah.Fusrodah) {
+func (mainer Server) StartDiscovery(frd Fusrodah.Fusrodah) bool{
 	//now we send a message with topics
 	verifyMsg := "{\"message\":\"verify\"}";
 	//verifyMsg := "{"+'"'+"message"+'"'+":"+'"'+"verify"+'"'+"}"
 	//json view {"message":"verify"}
 
-
-	defer frd.Send(verifyMsg, "hub", "discovery")
+	defer frd.Send(verifyMsg, nil,  "hub", "discovery")
 	//Expect a response from the hub
 	//which sends information about itself
 	//with the topics "hub", "discovery", "Response"
-	frd.AddHandling(func(msg *whisperv2.Message) {
-		m := Mainer{}
-		//fmt.Println(string(msg.Payload))
-		err := json.Unmarshal(msg.Payload, &m.Hubs)
-		fmt.Println("Mainer: discoveryHand: ", m.Hubs)
-		mainer.Hubs = m.Hubs
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-		fmt.Println("MAIN MAINER 2", mainer.Hubs)
-		defer mainer.firstFilter(2.4)
-		defer mainer.secondFilter(10)
-		defer mainer.AccountingPeriodFilter(3)
 
-	}, "hub", "discovery", "Response")
+	c := make(chan bool)
+
+	go func() {
+		frd.AddHandling(nil, func(msg *whisperv2.Message) {
+
+			m := Server{}
+			err := json.Unmarshal(msg.Payload, &m.Hubs)
+			fmt.Println("Server: discoveryHand: ", m.Hubs)
+			mainer.Hubs = m.Hubs
+			if err != nil {
+				fmt.Println(err)
+				c <- false
+			}
+			fmt.Println("MAIN MAINER 2", mainer.Hubs)
+			c <- true
+
+		}, "hub", "discovery", "Response")
+	}()
+
+	<-c
+	return true
+
 }
 
+func (mainer Server)GetAddress() string{
+
+	return "success"
+}

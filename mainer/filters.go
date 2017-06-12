@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func (mainer Mainer) firstFilter(neededBalance float64) []hub.HubsType {
+func (mainer Server) firstFilter(neededBalance float64) []hub.HubsType {
 
 	//use filter: balance more then neededBalance
 	var someList []hub.HubsType
@@ -19,7 +19,7 @@ func (mainer Mainer) firstFilter(neededBalance float64) []hub.HubsType {
 	fmt.Println("WHITELIST", mainer.Hubs)
 	return someList
 }
-func (mainer Mainer) secondFilter(neededBalance float64) []hub.HubsType {
+func (mainer Server) secondFilter(neededBalance float64) []hub.HubsType {
 	//use filter: balance less then neededBalance
 	var someList []hub.HubsType
 	for _, hub := range mainer.Hubs {
@@ -31,7 +31,7 @@ func (mainer Mainer) secondFilter(neededBalance float64) []hub.HubsType {
 	fmt.Println("WhiteList2", mainer.Hubs)
 	return someList
 }
-func (mainer Mainer) AccountingPeriodFilter(neededPeriod int) []hub.HubsType {
+func (mainer Server) AccountingPeriodFilter(neededPeriod int) []hub.HubsType {
 	//use filter: accountingPeriod > neededPeriod
 	var someList []hub.HubsType
 	for _, hub := range mainer.Hubs {

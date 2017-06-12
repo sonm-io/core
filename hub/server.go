@@ -1,6 +1,5 @@
 package hub
 
-import ()
 import (
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
 	"fmt"
@@ -8,6 +7,7 @@ import (
 	"github.com/sonm-io/Fusrodah"
 	"io/ioutil"
 	"os"
+	"net"
 )
 
 /**
@@ -18,7 +18,7 @@ import (
 
 
 
-type Hub struct {
+type Server struct {
 	//PrivateKey 	ecdsa.PrivateKey
 	frd	Fusrodah.Fusrodah
 	KnowingHubs []HubsType
@@ -29,12 +29,12 @@ func hubMainFunction() {
 	//TODO: need to feel main flow of the mainer in this function
 }
 
-func (hub *Hub) loadKnowingHubs() {
+func (hub *Server) loadKnowingHubs() {
 	// NOTE: this for test case any
 	hub.KnowingHubs = __getHubList()
 }
 
-func (hub *Hub) DiscoveryHandling(frd Fusrodah.Fusrodah) {
+func (hub *Server) DiscoveryHandling(frd Fusrodah.Fusrodah) {
 	//this function load knowing hubs and at the same time
 	//and print hubs with topics
 	frd.AddHandling(func(msg *whisperv2.Message) {
@@ -45,18 +45,20 @@ func (hub *Hub) DiscoveryHandling(frd Fusrodah.Fusrodah) {
 
 
 		hub.loadKnowingHubs()
-		fmt.Println("Hub: discovery response")
+		fmt.Println("Server: discovery response")
 		hubListString, err := json.Marshal(hub.KnowingHubs)
 		if err != nil {
 			fmt.Println(err)
 			return
 		}
 		//fmt.Println("TESTTTTTTTTTT:", string(hubListString))
-		frd.Send(string(hubListString), "hub", "discovery", "Response")
+		frd.Send(string(hubListString), nil,  "hub", "discovery", "Response")
 	}, "hub", "discovery")
-	fmt.Println("Hub: discovery handling started")
+	fmt.Println("Server: discovery handling started")
 
 }
+
+
 
 
 type jsonobjectTestFile struct {
