@@ -196,7 +196,7 @@ func TransferToken(conn bind.ContractBackend, auth *bind.TransactOpts,to common.
 		log.Fatalf("Failed to glue to HubWallet: %v", err)
 	}
 	//dec:=big.NewInt(10^17)
-	dec:=math.Pow(10,17)
+	dec:=math.Pow(10,18)
 	di:= int64(dec)
 	am:= int64(amount)
 	am= am*di
@@ -220,7 +220,7 @@ func HubTransfer(conn bind.ContractBackend, auth *bind.TransactOpts, wb common.A
 		log.Fatalf("Failed to glue to HubWallet: %v", err)
 	}
 	//dec:=big.NewInt(10^17)
-	dec:=math.Pow(10,17)
+	dec:=math.Pow(10,18)
 	di:= int64(dec)
 	am:= int64(amount)
 	am= am*di
@@ -278,7 +278,7 @@ func HubTransfer(conn bind.ContractBackend, auth *bind.TransactOpts, wb common.A
 
 
 
-	dec:=math.Pow(10,17)
+	dec:=math.Pow(10,18)
 	di:= int64(dec)
 	stk:= int64(stake)
 	stk= stk*di
