@@ -35,3 +35,27 @@ docker run --rm -v /var/run/:/var/run/  sonm/insonmnia sonmminer --hubaddress=<y
 ```
 
 ## CLI
+
+### ping
+
+```bash
+sonmcli --hub <hubaddress> ping
+```
+
+### list
+
+```bash
+sonmcli --hub <hubaddress> list
+```
+
+### start a container
+
+```bash
+sonmcli --hub <hubaddress> start --miner <miner> --registry <registry> --image <image>
+```
+
+### stop a container
+
+```bash
+sonmcli --hub <hubaddress> stop <jobid>
+```

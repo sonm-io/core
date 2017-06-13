@@ -35,7 +35,7 @@ message StartTaskRequest {
 
 message StartTaskReply {
     string id = 1;
-    string endpoint = 2;
+    repeated string endpoint = 2;
 }
 
 message StopTaskRequest {

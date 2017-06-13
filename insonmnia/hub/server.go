@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"fmt"
 	"net"
 	"sync"
 
@@ -85,7 +86,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.
 		Image:    request.Image,
 	}
 
-	_, err := mincli.Client.Start(ctx, startrequest)
+	resp, err := mincli.Client.Start(ctx, startrequest)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
 	}
@@ -94,7 +95,15 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.
 	h.tasks[uid] = miner
 	h.tasksmu.Unlock()
 
-	return &pb.StartTaskReply{Id: uid}, nil
+	var reply = pb.StartTaskReply{
+		Id: uid,
+	}
+
+	for k, v := range resp.Ports {
+		reply.Endpoint = append(reply.Endpoint, fmt.Sprintf("%s->%s:%s", k, v.IP, v.Port))
+	}
+
+	return &reply, nil
 }
 
 // StopTask sends termination request to a miner handling the task
