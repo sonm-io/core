@@ -1,4 +1,4 @@
-package blockchainApi
+package blockchain
 import (
 	"fmt"
 	"log"
@@ -160,7 +160,7 @@ func GlueMinWallet(conn bind.ContractBackend, mb common.Address) (*MinWallet.Min
 
 
 
-// sdt was here???
+
 //-------------------------------------------------------------------------
 
 //--MAIN LIBRARY-----------------------------------------------------------
@@ -190,7 +190,7 @@ func GetBalance(conn bind.ContractBackend, mb common.Address) (*big.Int, error) 
 	return bal, err
 }
 
-func Transfer(conn bind.ContractBackend, auth *bind.TransactOpts,to common.Address,amount float64) (*types.Transaction, error) {
+func TransferToken(conn bind.ContractBackend, auth *bind.TransactOpts,to common.Address,amount float64) (*types.Transaction, error) {
 	token,err:=GlueToken(conn)
 	if err != nil {
 		log.Fatalf("Failed to glue to HubWallet: %v", err)
@@ -464,4 +464,22 @@ func CheckHubs (conn bind.ContractBackend , mb common.Address) (bool, error){
 		log.Fatalf("Failed to retrieve hubs wallet: %v", err)
 	}
 	return state, err
+}
+
+func GetHubAddr(conn bind.ContractBackend, owner common.Address) (common.Address, error){
+	f, err:= GlueFactory(conn)
+	addr,err:=f.Hubs(&bind.CallOpts{Pending: true}, owner)
+	if err != nil {
+		log.Fatalf("Failed to retrieve hubs wallet: %v", err)
+	}
+	return addr, err
+}
+
+func GetMinAddr(conn bind.ContractBackend, owner common.Address) (common.Address, error){
+	f, err:= GlueFactory(conn)
+	addr,err:=f.Miners(&bind.CallOpts{Pending: true}, owner)
+	if err != nil {
+		log.Fatalf("Failed to retrieve miner wallet: %v", err)
+	}
+	return addr, err
 }

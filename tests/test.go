@@ -9,21 +9,23 @@ import (
 	//"github.com/sonm-io/go-ethereum/accounts/keystore"
 	"github.com/sonm-io/go-ethereum/common"
 	"time"
-	"math/big"
+	//"math/big"
 	"fmt"
-	"github.com/sonm-io/blockchain-api/go-build/MinWallet"
+	//"github.com/sonm-io/blockchain-api/go-build/MinWallet"
 )
 func main (){
 
 
 
-	pass:=blockchainApi.ReadPwd()
+	pass:=blockchain.ReadPwd()
 
 
-	key:=blockchainApi.ReadKey()
+	key:=blockchain.ReadKey()
+
+  owner:=common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1")
 
 
-	hd:=blockchainApi.GHome()
+	hd:=blockchain.GHome()
 
 	conn, err := ethclient.Dial(hd+"/.rinkeby/geth.ipc")
 	if err != nil {
@@ -41,22 +43,62 @@ func main (){
 	//-------------------- 2 ------------------------------
 	//--HUB INIT--//
 	//Create Hub wallet
-	h, err := blockchainApi.CreateHub(conn,auth)
+	h, err := blockchain.CreateHub(conn,auth)
 		if err != nil {
 			log.Fatalf("Failed to create hub : %v", err)
 		}
+    fmt.Println("tx:")
+    fmt.Println(h)
+
+    fmt.Println("Wait!")
+    time.Sleep(15* time.Second)
+
+    hAddr,err:=blockchain.GetHubAddr(conn,owner)
+    if err != nil {
+			log.Fatalf("Failed to create hub : %v", err)
+		}
+    fmt.Println("hub address:")
+    hAdr:=hAddr.String()
+    fmt.Println(hAdr)
+
 
 
 	// Instantiate the contract and display its name
 	//create tokens
-	ct, err := blockchainApi.GlueToken(conn)
+	token, err := blockchain.GlueToken(conn)
 	if err != nil {
 		log.Fatalf("Failed to : %v", err)
 	}
 
-	fmt.Println("Token name:", ct.Name(nil))
+  name, err := token.Name(nil)
+	if err != nil {
+		log.Fatalf("Failed to retrieve token name: %v", err)
+	}
+	fmt.Println("Token name:", name)
+
+
+
+
 	//to :=
 	//am :=
 	//sent tokens
-	
+  tx, err:= blockchain.TransferToken(conn,auth,hAddr,1)
+  if err != nil {
+		log.Fatalf("Failed to do something: %v", err)
+	}
+  fmt.Println("tx:",tx)
+
+
+
+
+// Check for registration
+/*
+  check,err:= blockchain.CheckHubs(conn,hAddr)
+  if err != nil {
+    log.Fatalf("Failed to do something: %v", err)
+  }
+  fmt.Println("check:",check)
+*/
+
+
 }
