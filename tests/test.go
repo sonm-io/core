@@ -44,8 +44,8 @@ func main (){
 	fmt.Println("tx:")
 	fmt.Println(h)
 
-	fmt.Println("Wait!")
-	time.Sleep(15* time.Second)
+	fmt.Println("Wait 10 sec!")
+	time.Sleep(10* time.Second)
 
 	hAddr,err:=blockchain.GetHubAddr(conn,owner)
 	if err != nil {
@@ -74,7 +74,8 @@ func main (){
 	}
 	fmt.Println("tx:",tx)
 
-	time.Sleep(15* time.Second)
+	fmt.Println("Wait 10 sec!")
+	time.Sleep(10* time.Second)
 
 	bal, err := blockchain.GetBalance(conn, hAddr)
 	if err != nil {
@@ -88,7 +89,8 @@ func main (){
 	}
 	fmt.Println("regHubwl:",regHubwl)
 
-	time.Sleep(15* time.Second)
+	fmt.Println("Wait 10 sec!")
+	time.Sleep(10* time.Second)
 
 	checklistHubWl, err := blockchain.CheckHubs(conn, hAddr)
 	if err != nil {
@@ -118,8 +120,8 @@ func main (){
 	fmt.Println(mAdr)
 
 
-	fmt.Println("Wait!")
-	time.Sleep(15* time.Second)
+	fmt.Println("Wait 10 sec!")
+	time.Sleep(10* time.Second)
 
 	tx, err = blockchain.TransferToken(conn, auth, mAddr, 5)
 	if err != nil {
@@ -127,7 +129,8 @@ func main (){
 	}
 	fmt.Println("tx:",tx)
 
-	time.Sleep(15* time.Second)
+	fmt.Println("Wait 10 sec!")
+	time.Sleep(10* time.Second)
 
 	regMinwl, err := blockchain.RegisterMiner(conn, auth, mAddr, 5) // registration in whitelist
 	if err != nil {
@@ -135,7 +138,8 @@ func main (){
 	}
 	fmt.Println("regMinwl:",regMinwl)
 
-	time.Sleep(15* time.Second)
+	fmt.Println("Wait 10 sec!")
+	time.Sleep(10* time.Second)
 
 	checkregistrMinerWl, err := blockchain.CheckMiners(conn, mAddr)
 	if err != nil {
@@ -161,7 +165,8 @@ func main (){
 	}
 	fmt.Println("minerPullMoney:",minerPullMoney)
 
-	time.Sleep(15* time.Second)
+	fmt.Println("Wait 10 sec!")
+	time.Sleep(10* time.Second)
 
 
 	getBalanceHub, err := blockchain.GetBalance(conn, hAddr)
@@ -177,6 +182,6 @@ func main (){
 	fmt.Println("getBalanceMiner:",getBalanceMiner)
 
 
-	
+
 
 }
