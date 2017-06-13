@@ -109,55 +109,6 @@ usr, err := user.Current()
 
 
 
-//--Services Getters-----------------------------
-/*
-	Those functions allows someone behind library gets
-	conn and auth for further interaction
-
-*/
-
-
-
-
-
-
-/*
-//Establish Connection to geth IPC
-// Create an IPC based RPC connection to a remote node
-func cnct()  *ethclient.Client{
-	hd:=gHome()
-	conn, err := ethclient.Dial(hd+"/.rinkeby/geth.ipc")
-	if err != nil {
-		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
-	}
-	//return connection obj
-  	return conn
-}
-*/
-
-
-
-/*
-// Create an authorized transactor
-func getAuth() *bind.TransactOpts {
-
-	key:= readKey()
-	pass:=readPwd()
-
-	auth, err := bind.NewTransactor(strings.NewReader(key), pass)
-	if err != nil {
-		log.Fatalf("Failed to create authorized transactor: %v", err)
-	}
-	return auth
-}
-*/
-
-//---Defines Binds-----------------------------------------
-
-/*
-	Those should be internal functions for internal usage (but not for sure)
-
-*/
 
 
 //Token Defines

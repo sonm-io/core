@@ -16,9 +16,12 @@ import (
 func main (){
 	//-------------------- 1 ------------------------------
 
-	//auth:=blockchainApi.getAuth()
 
-	//conn:=blockchainApi.cnct()
+	pass:=blockchainApi.readPwd()
+
+
+	key:=blockchainApi.readKey()
+
 
 	hd:=blockchainApi.gHome()
 
@@ -27,9 +30,7 @@ func main (){
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
 
-	key:=blockchainApi.readKey()
 
-	pass:=blockchainApi.readPwd()
 
 	auth, err := bind.NewTransactor(strings.NewReader(key), pass)
 	if err != nil {
