@@ -41,7 +41,7 @@ usr, err := user.Current()
 	return confPath
 }
 
-	func gHome() string {
+	func GHome() string {
 		usr, err := user.Current()
 			if err != nil {
 					log.Fatal("cant get user", err )
@@ -54,7 +54,7 @@ usr, err := user.Current()
 			return hd
 	}
 
-	func readKey() string {
+	func ReadKey() string {
 
 		confPath:=getPath()
 
@@ -83,9 +83,9 @@ usr, err := user.Current()
 }
 
 
-	func readPwd() string {
+	func ReadPwd() string {
 
-		hd:=gHome()
+		hd:=GHome()
 
 		npass:="/pass.txt"
 
@@ -188,6 +188,29 @@ func GetBalance(conn bind.ContractBackend, mb common.Address) (*big.Int, error) 
 		log.Fatalf("Failed to request token balance: %v", err)
 	}
 	return bal, err
+}
+
+func Transfer(conn bind.ContractBackend, auth *bind.TransactOpts,to common.Address,amount float64) (*types.Transaction, error) {
+	token,err:=GlueToken(conn)
+	if err != nil {
+		log.Fatalf("Failed to glue to HubWallet: %v", err)
+	}
+	//dec:=big.NewInt(10^17)
+	dec:=math.Pow(10,17)
+	di:= int64(dec)
+	am:= int64(amount)
+	am= am*di
+
+	amb:=big.NewInt(am)
+
+
+
+	tx, err := token.Transfer(auth,to,amb)
+	if err != nil {
+		log.Fatalf("Failed to request token transfer: %v", err)
+	}
+	fmt.Println(" pending: 0x%x\n", tx.Hash())
+	return tx, err
 }
 
 
