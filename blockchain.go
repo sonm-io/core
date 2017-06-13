@@ -6,7 +6,7 @@ import (
 	"strings"
 	"github.com/sonm-io/go-ethereum/common"
  //"github.com/sonm-io/go-ethereum/crypto"
-	"github.com/sonm-io/go-ethereum/ethclient"
+	//"github.com/sonm-io/go-ethereum/ethclient"
   	"github.com/sonm-io/blockchain-api/go-build/SDT"
 	"github.com/sonm-io/blockchain-api/go-build/Factory"
 	"github.com/sonm-io/blockchain-api/go-build/Whitelist"
@@ -19,6 +19,7 @@ import (
 	"github.com/sonm-io/go-ethereum/core/types"
 	//"github.com/ipfs/go-ipfs/repo/config"
 	"math/big"
+	"math"
 )
 //----ServicesSupporters Allocation---------------------------------------------
 
@@ -165,25 +166,25 @@ func GlueToken(conn bind.ContractBackend) (*Token.SDT, error) {
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Token contract: %v", err)
 	}
-	return token, nil
+	return token, err
 }
 
-func GlueFactory(conn bind.ContractBackend) (*Factory.Factory) {
+func GlueFactory(conn bind.ContractBackend) (*Factory.Factory, error) {
 	//Define factory
 	factory, err := Factory.NewFactory(common.HexToAddress("0x389166c28d119d85f3cd9711e250d856075bd774"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Factory contract: %v", err)
 	}
-	return factory
+	return factory, err
 }
 
-func GlueWhitelist(conn bind.ContractBackend) (*Whitelist.Whitelist)  {
+func GlueWhitelist(conn bind.ContractBackend) (*Whitelist.Whitelist, error)  {
 	//Define whitelist
 	whitelist, err := Whitelist.NewWhitelist(common.HexToAddress("0xad30096e883f7cc6c1653043751d9ddfe2914a87"), conn)
 	if err != nil {
 		log.Fatalf("Failed to instantiate a Whitelist contract: %v", err)
 	}
-	return whitelist
+	return whitelist, err
 }
 
 func GlueHubWallet(conn bind.ContractBackend, wb common.Address) (*Hubwallet.HubWallet, error)  {
@@ -193,7 +194,7 @@ func GlueHubWallet(conn bind.ContractBackend, wb common.Address) (*Hubwallet.Hub
 	if err != nil {
 		log.Fatalf("Failed to instantiate a HubWallet contract: %v", err)
 	}
-	return hw
+	return hw, err
 }
 
 func GlueMinWallet(conn bind.ContractBackend, mb common.Address) (*MinWallet.MinerWallet, error) {
@@ -202,7 +203,7 @@ func GlueMinWallet(conn bind.ContractBackend, mb common.Address) (*MinWallet.Min
 	if err != nil {
 		log.Fatalf("Failed to instantiate a MinWallet contract: %v", err)
 	}
-	return mw
+	return mw, err
 }
 
 
@@ -228,29 +229,40 @@ func GlueMinWallet(conn bind.ContractBackend, mb common.Address) (*MinWallet.Min
 /*
 Example
 */
-func GetBalance(conn ethclient.Client, mb common.Address) (*types.Transaction, error) {
+func GetBalance(conn bind.ContractBackend, mb common.Address) (*big.Int, error) {
 	token, err :=GlueToken(conn)
 	bal, err := token.BalanceOf(&bind.CallOpts{Pending: true}, mb)
 	if err != nil {
 		log.Fatalf("Failed to request token balance: %v", err)
 	}
-	return bal
+	return bal, err
 }
 
 
-func HubTransfer(conn ethclient.Client, auth *bind.TransactOpts, wb common.Address, to common.Address,amount big.Int) (*types.Transaction, error)  {
-	hw:=GlueHubWallet(conn,wb)
-	am = big.NewInt(amount *10^17)
+func HubTransfer(conn bind.ContractBackend, auth *bind.TransactOpts, wb common.Address, to common.Address,amount *big.Int) (*types.Transaction, error)  {
+	hw,err:=GlueHubWallet(conn,wb)
+	if err != nil {
+		log.Fatalf("Failed to glue to HubWallet: %v", err)
+	}
+	//dec:=big.NewInt(10^17)
+	dec:=math.Pow(10,17)
+	di:= int64(dec)
+
+	db:=big.NewInt(di)
+
+	am := amount * db
+
 
 	tx, err := hw.Transfer(auth,to,am)
 	if err != nil {
 		log.Fatalf("Failed to request hub transfer: %v", err)
 	}
 	fmt.Println(" pending: 0x%x\n", tx.Hash())
-	return tx
+	return tx, err
 }
 
-func WhiteListCall (conn ethclient.Client,)(){
+//I don't even know what is it and who did that
+/*func WhiteListCall (conn ethclient.Client,)(){
 	wl:= GlueWhitelist(conn)
 	dp, err := wl.WhitelistCaller()
 	if err != nil{
@@ -266,14 +278,17 @@ func WhiteListTransactor (conn ethclient.Client,)(){
 	}
 	return dp
 }
-func CreateMiner (conn ethclient.Client)(MinWallet.MinerWallet, error){
+*/
+
+
+func CreateMiner (conn bind.ContractBackend)(MinWallet.MinerWallet, error){
 	factory := GlueFactory(conn)
 	rc, err := factory.FactoryTransactor.CreateMiner()
 	if err!= nil{ log.Fatal("Failed to create miner")}
 	return  rc
 
 }
-func CreateHub (conn ethclient.Client)(Hubwallet.HubWallet, error){
+func CreateHub (conn bind.ContractBackend)(Hubwallet.HubWallet, error){
 	factory := GlueFactory(conn)
 	chub, err := factory.FactoryTransactor.CreateHub()
 	return  chub, err
@@ -281,7 +296,7 @@ func CreateHub (conn ethclient.Client)(Hubwallet.HubWallet, error){
 }
 func RegisterMiner (auth *bind.TransactOpts, adr common.Address, stake big.Int)(error){
 	rm, err := GlueMinWallet(auth, adr)
-	stk := big.NewInt(stake * 10^17)
+	stk := big.NewInt(stake * (10^17))
 	dp, err := rm.Registration(auth,stk)
 	if err != nil {
 		log.Fatal("Failed register miner")
@@ -432,7 +447,7 @@ func mRehub ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, 
 	return tx
 }
 
-func CheckMiners (conn ethclient.Client, mb common.Address) (*types.Transaction, error){
+func CheckMiners (conn bind.ContractBackend, mb common.Address) (*types.Transaction, error){
 	cm := GlueWhitelist(conn)
 	tx, err := cm.RegistredMiners(&bind.CallOpts{Pending: true}, mb)
 
@@ -442,7 +457,7 @@ func CheckMiners (conn ethclient.Client, mb common.Address) (*types.Transaction,
 	return tx
 }
 
-func CheckHubs (conn ethclient.Client , mb common.Address) (*types.Transaction, error){
+func CheckHubs (conn bind.ContractBackend , mb common.Address) (*types.Transaction, error){
 	//wRegisteredHubs
 	ch := GlueWhitelist(conn)
 	tx, err := ch.RegistredHubs(&bind.CallOpts{Pending: true}, mb)
