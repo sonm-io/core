@@ -27,7 +27,7 @@ func TestOvsSpool(t *testing.T) {
 
 const scriptWorkerSh = `#!/bin/sh
 # we need this to give an isolation system the gap to attach
-sleep 5
+sleep 300
 echo $@
 printenv
 `
@@ -37,6 +37,9 @@ func buildTestImage(t *testing.T) {
 	const dockerFile = `
 FROM ubuntu:trusty
 COPY worker.sh /usr/bin/worker.sh
+EXPOSE 20000
+EXPOSE 20001/udp
+ENTRYPOINT /usr/bin/worker.sh
 	`
 	cl, err := client.NewEnvClient()
 	assert.NoError(err)

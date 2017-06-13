@@ -32,20 +32,23 @@ func newContainer(ctx context.Context, dclient *client.Client, d Description) (*
 		client: dclient,
 	}
 
-	// TODO: set proper env, cmd, cwd, ports etc.
+	// NOTE: command to launch must be specified via ENTRYPOINT and CMD in Dockerfile
 	var config = container.Config{
 		AttachStdin:  false,
 		AttachStdout: false,
 		AttachStderr: false,
 
-		// Env:        Env,
-		// Cmd:        Cmd,
 		Image: filepath.Join(d.Registry, d.Image),
 		// TODO: set actual name
 		Labels: map[string]string{overseerTag: ""},
 	}
-	// TODO: detect external network interface + ports
-	var hostConfig container.HostConfig
+	// NOTE: all ports are EXPOSE as PublishAll
+	// TODO: detect network network mode and interface
+	var hostConfig = container.HostConfig{
+		PublishAllPorts: true,
+		// NOTE; we don't want to leave garbage
+		AutoRemove: true,
+	}
 	var networkingConfig network.NetworkingConfig
 
 	// create new container
