@@ -239,7 +239,7 @@ func GetBalance(conn bind.ContractBackend, mb common.Address) (*big.Int, error) 
 }
 
 
-func HubTransfer(conn bind.ContractBackend, auth *bind.TransactOpts, wb common.Address, to common.Address,amount *big.Int) (*types.Transaction, error)  {
+func HubTransfer(conn bind.ContractBackend, auth *bind.TransactOpts, wb common.Address, to common.Address,amount float64) (*types.Transaction, error)  {
 	hw,err:=GlueHubWallet(conn,wb)
 	if err != nil {
 		log.Fatalf("Failed to glue to HubWallet: %v", err)
@@ -247,13 +247,16 @@ func HubTransfer(conn bind.ContractBackend, auth *bind.TransactOpts, wb common.A
 	//dec:=big.NewInt(10^17)
 	dec:=math.Pow(10,17)
 	di:= int64(dec)
+	am:= int64(amount)
+	am= am*di
 
-	db:=big.NewInt(di)
+	amb:=big.NewInt(am)
 
-	am := amount * db
+	//ae:= 2*2
+	//am := amount * db
 
 
-	tx, err := hw.Transfer(auth,to,am)
+	tx, err := hw.Transfer(auth,to,amb)
 	if err != nil {
 		log.Fatalf("Failed to request hub transfer: %v", err)
 	}
