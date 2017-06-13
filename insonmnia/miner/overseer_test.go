@@ -43,6 +43,7 @@ ENTRYPOINT /usr/bin/worker.sh
 	`
 	cl, err := client.NewEnvClient()
 	assert.NoError(err)
+	defer cl.Close()
 
 	buf := new(bytes.Buffer)
 	tw := tar.NewWriter(buf)
@@ -91,13 +92,25 @@ ENTRYPOINT /usr/bin/worker.sh
 }
 
 func TestOvsSpawn(t *testing.T) {
+	assrt := assert.New(t)
 	buildTestImage(t)
+	cl, err := client.NewEnvClient()
+	assrt.NoError(err)
+	defer cl.Close()
 	ctx := context.Background()
 	ovs, err := NewOverseer(ctx)
 	require.NoError(t, err)
-	id, err := ovs.Spawn(ctx, Description{Registry: "", Image: "worker"})
+	info, err := ovs.Spawn(ctx, Description{Registry: "", Image: "worker"})
 	require.NoError(t, err)
-	t.Logf("spawned %s", id)
-	err = ovs.Stop(ctx, id)
+	cjson, err := cl.ContainerInspect(ctx, info.ID)
+	require.NoError(t, err)
+	assrt.True(cjson.HostConfig.AutoRemove)
+	assrt.True(cjson.HostConfig.PublishAllPorts)
+	t.Logf("spawned %s %v", info.ID, info.Ports)
+	_, ok := cjson.NetworkSettings.Ports["20000/tcp"]
+	assrt.True(ok)
+	_, ok = cjson.NetworkSettings.Ports["20001/udp"]
+	assrt.True(ok)
+	err = ovs.Stop(ctx, info.ID)
 	require.NoError(t, err)
 }

@@ -32,6 +32,11 @@ message StartRequest{
 
 message StartReply {
     string container = 1;
+    message port {
+        string IP = 1;
+        string port = 2;
+    }
+    map<string, port> Ports = 2; 
 }
 
 message StopRequest {

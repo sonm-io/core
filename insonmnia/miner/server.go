@@ -1,7 +1,10 @@
 package miner
 
 import (
+	"fmt"
+	"io/ioutil"
 	"net"
+	"net/http"
 	"sync"
 	"time"
 
@@ -24,6 +27,8 @@ type Miner struct {
 	grpcServer *grpc.Server
 
 	hubaddress string
+	// NOTE: do not use static detetion
+	pubaddress string
 
 	rl *reverseListener
 
@@ -31,7 +36,7 @@ type Miner struct {
 
 	mu sync.Mutex
 	// maps StartRequest's IDs to containers' IDs
-	containers map[string]string
+	containers map[string]ContainterInfo
 }
 
 var _ pb.MinerServer = &Miner{}
@@ -63,7 +68,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 	}
 
 	log.G(ctx).Info("spawning an image")
-	containerid, err := m.ovs.Spawn(ctx, d)
+	cinfo, err := m.ovs.Spawn(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
@@ -71,22 +76,37 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 
 	// TODO: clean it
 	m.mu.Lock()
-	m.containers[request.Id] = containerid
+	m.containers[request.Id] = cinfo
 	m.mu.Unlock()
-	return &pb.StartReply{Container: containerid}, nil
+
+	var rpl = pb.StartReply{
+		Ports: make(map[string]*pb.StartReplyPort),
+	}
+
+	rpl.Container = cinfo.ID
+	for port, v := range cinfo.Ports {
+		if len(v) > 0 {
+			replyport := &pb.StartReplyPort{
+				IP:   m.pubaddress,
+				Port: v[0].HostPort,
+			}
+			rpl.Ports[string(port)] = replyport
+		}
+	}
+	return &pb.StartReply{Container: cinfo.ID}, nil
 }
 
 // Stop request forces to kill container
 func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopReply, error) {
 	log.G(ctx).Info("handle Stop request", zap.Any("req", request))
 	m.mu.Lock()
-	containerid, ok := m.containers[request.Id]
+	cinfo, ok := m.containers[request.Id]
 	m.mu.Unlock()
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no job with id %s", request.Id)
 	}
 
-	if err := m.ovs.Stop(ctx, containerid); err != nil {
+	if err := m.ovs.Stop(ctx, cinfo.ID); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
@@ -194,6 +214,20 @@ func (m *Miner) Close() {
 
 // New returns new Miner
 func New(ctx context.Context, hubaddress string) (*Miner, error) {
+	resp, err := http.Get("http://checkip.amazonaws.com/")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("checkip.amazonaws.com does not return 200: %s", resp.Status)
+	}
+	addr, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	pubaddress := string(addr)
+
 	ctx, cancel := context.WithCancel(ctx)
 	grpcServer := grpc.NewServer()
 	ovs, err := NewOverseer(ctx)
@@ -208,8 +242,10 @@ func New(ctx context.Context, hubaddress string) (*Miner, error) {
 		ovs:        ovs,
 
 		hubaddress: hubaddress,
+		pubaddress: pubaddress,
 
-		rl: NewReverseListener(1),
+		rl:         NewReverseListener(1),
+		containers: make(map[string]ContainterInfo),
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)

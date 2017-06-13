@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 	log "github.com/noxiouz/zapctx/ctxlog"
 )
 
@@ -27,10 +28,15 @@ type Description struct {
 	Image    string
 }
 
+type ContainterInfo struct {
+	ID    string
+	Ports nat.PortMap
+}
+
 // Overseer watches all miners' applications
 type Overseer interface {
 	Spool(ctx context.Context, d Description) error
-	Spawn(ctx context.Context, d Description) (string, error)
+	Spawn(ctx context.Context, d Description) (ContainterInfo, error)
 	Stop(ctx context.Context, containerID string) error
 	Close() error
 }
@@ -210,10 +216,10 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	return nil
 }
 
-func (o *overseer) Spawn(ctx context.Context, d Description) (string, error) {
+func (o *overseer) Spawn(ctx context.Context, d Description) (cinfo ContainterInfo, err error) {
 	pr, err := newContainer(ctx, o.client, d)
 	if err != nil {
-		return "", err
+		return
 	}
 
 	o.mu.Lock()
@@ -221,9 +227,19 @@ func (o *overseer) Spawn(ctx context.Context, d Description) (string, error) {
 	o.mu.Unlock()
 
 	if err = pr.startContainer(); err != nil {
-		return "", err
+		return
 	}
-	return pr.ID, nil
+
+	cjson, err := o.client.ContainerInspect(ctx, pr.ID)
+	if err != nil {
+		// NOTE: I don't think it can fail
+		return
+	}
+	cinfo = ContainterInfo{
+		ID:    cjson.ID,
+		Ports: cjson.NetworkSettings.Ports,
+	}
+	return cinfo, nil
 }
 
 func (o *overseer) Stop(ctx context.Context, containerid string) error {
