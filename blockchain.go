@@ -263,27 +263,9 @@ func HubTransfer(conn bind.ContractBackend, auth *bind.TransactOpts, wb common.A
 	return tx, err
 }
 
-//I don't even know what is it and who did that
-/*func WhiteListCall (conn ethclient.Client,)(){
-	wl:= GlueWhitelist(conn)
-	dp, err := wl.WhitelistCaller()
-	if err != nil{
-		log.Fatalf("Failed whiteList: %v", err)
-	}
-	return dp
-}
-func WhiteListTransactor (conn ethclient.Client,)(){
-	wl:= GlueWhitelist(conn)
-	dp, err := wl.WhitelistTransactor()
-	if err != nil{
-		log.Fatalf("Failed whiteList: %v", err)
-	}
-	return dp
-}
-*/
 
 
-func CreateMiner (conn bind.ContractBackend, auth *bind.TransactOpts)(*types.Transaction, error){
+	func CreateMiner (conn bind.ContractBackend, auth *bind.TransactOpts)(*types.Transaction, error){
 	factory, err := GlueFactory(conn)
 
 
@@ -300,7 +282,7 @@ func CreateMiner (conn bind.ContractBackend, auth *bind.TransactOpts)(*types.Tra
 }
 
 
-func CreateHub (conn bind.ContractBackend, auth *bind.TransactOpts)(*types.Transaction, error){
+	func CreateHub (conn bind.ContractBackend, auth *bind.TransactOpts)(*types.Transaction, error){
 	factory, err := GlueFactory(conn)
 
 
@@ -317,41 +299,45 @@ func CreateHub (conn bind.ContractBackend, auth *bind.TransactOpts)(*types.Trans
 }
 
 
-func RegisterMiner (auth *bind.TransactOpts, adr common.Address, stake big.Int)(error){
-	rm, err := GlueMinWallet(auth, adr)
-	stk := big.NewInt(stake * (10^17))
-	dp, err := rm.Registration(auth,stk)
+	func RegisterMiner (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address, stake float64)(*types.Transaction, error){
+	rm, err := GlueMinWallet(conn, adr)
+
+
+
+	dec:=math.Pow(10,17)
+	di:= int64(dec)
+	stk:= int64(stake)
+	stk= stk*di
+
+	stb:=big.NewInt(stk)
+
+	tx, err := rm.Registration(auth,stb)
 	if err != nil {
 		log.Fatal("Failed register miner")
 	}
-	return dp
+	return tx,err
 }
 
-func RegisterHub (auth *bind.TransactOpts, adr common.Address, stake big.Int)(error){
-	rh, err := GlueHubWallet(auth, adr)
-	dp, err := rh.Registration(auth)
+	func RegisterHub (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address)(*types.Transaction, error){
+	rm, err := GlueHubWallet(conn, adr)
+
+
+	tx, err := rm.Registration(auth)
 	if err != nil {
-		log.Fatal("Failed register miner")
+		log.Fatal("Failed register hub")
 	}
-	return dp
+	return tx, err
 }
 
-func TransferFunds(hw Hubwallet.HubWallet, auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
-	tx, err := hw.Transfer(auth,mb,big.NewInt(2 * 10^17))
-	if err != nil {
-		log.Fatalf("Failed to request hub transfer: %v", err)
-	}
-	fmt.Println(" pending: 0x%x\n", tx.Hash())
 
-	return tx
-}
-func PullingMoney (mw MinWallet.MinerWallet, auth *bind.TransactOpts, wb common.Address) (*types.Transaction, error) {
-	tx, err := mw.PullMoney(auth,wb)
+	func PullingMoney (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address, from common.Address) (*types.Transaction, error) {
+	mw, err := GlueMinWallet(conn,adr)
+	tx, err := mw.PullMoney(auth,from)
 	if err != nil {
 		log.Fatalf("Failed to request : %v", err)
 	}
 	fmt.Println(" pending: 0x%x\n", tx.Hash())
-	return tx
+	return tx, err
 }
 //func balanceMiner (mw MinWallet.MinerWallet, wb common.Address, backend *bind.ContractBackend) () {
 //	token,err := Token.NewSDT(wb,backend)
@@ -361,8 +347,8 @@ func PullingMoney (mw MinWallet.MinerWallet, auth *bind.TransactOpts, wb common.
 //	bal, err := token.BalanceOf(&bind.CallOpts{Pending: true},wb)
 //}
 
-func hPayDay ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
-	ghw, err := GlueHubWallet(auth, mb)
+	func hPayDay (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address) (*types.Transaction, error) {
+	ghw, err := GlueHubWallet(conn, adr)
 	if err != nil {
 		log.Fatalf("Failed to add hub wallet: %v", err)
 	}
@@ -370,124 +356,138 @@ func hPayDay ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction)
 	if err != nil {
 		log.Fatalf("Failed to pay you your money: %v", err)
 	}
-	return tx
+	return tx, err
 }
 
 
-func mPayDay ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
-	gmw,err := GlueMinWallet(auth, mb)
+	func mPayDay (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address) (*types.Transaction, error) {
+	gmw, err := GlueMinWallet(conn, adr)
 	if err != nil {
-		log.Fatalf("Failed to add miner wallet: %v", err)
+		log.Fatalf("Failed to add hub wallet: %v", err)
 	}
-	tx, err := gmw.PayDay(auth)
+	tx, err := gmw.PayDay(auth) //auth
 	if err != nil {
 		log.Fatalf("Failed to pay you your money: %v", err)
 	}
-	return tx
-}
-
-func hWithdraw ( auth *bind.TransactOpts, mb common.Address) (*types.Transaction){
-	hw,err := GlueMinWallet(auth,mb)
-	if err != nil {
-		log.Fatalf("Failed to add miner wallet: %v", err)
-	}
-	tx,err := hw.Withdraw(auth)
-	if err != nil {
-		log.Fatalf("Failed to withdraw from hub: %v", err)
-	}
-	return tx
-}
-
-func hSuspect ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
-	ghs,err := GlueHubWallet(auth, mb)
-	if err != nil {
-		log.Fatalf("Failed to add suspected hub: %v", err)
-	}
-	tx, err := ghs.Suspect(auth)
-	if err != nil {
-		log.Fatalf("Failed to all your funds are belong to us: %v", err)
-	}
-	return tx
+	return tx, err
 }
 
 
-func mSuspect ( auth bind.TransactOpts, mb common.Address) (*types.Transaction, error){
-	gms,err := GlueMinWallet(auth, mb)
+	func hWithdraw (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address) (*types.Transaction, error) {
+	hw, err := GlueHubWallet(conn, adr)
 	if err != nil {
-		log.Fatalf("Failed to add suspected miner: %v", err)
+		log.Fatalf("Failed to add hub wallet: %v", err)
 	}
-	tx, err := gms.Suspect(auth)
+	tx, err := hw.Withdraw(auth) //auth
 	if err != nil {
-		log.Fatalf("Failed to all your funds are belong to us: %v", err)
+		log.Fatalf("Failed to pay you your money: %v", err)
 	}
-	return tx
+	return tx, err
+}
+
+	func mWithdraw (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address) (*types.Transaction, error) {
+	mw, err := GlueMinWallet(conn, adr)
+	if err != nil {
+		log.Fatalf("Failed to add hub wallet: %v", err)
+	}
+	tx, err := mw.Withdraw(auth) //auth
+	if err != nil {
+		log.Fatalf("Failed to pay you your money: %v", err)
+	}
+	return tx, err
+}
+
+	func hSuspect (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address) (*types.Transaction, error) {
+	hw, err := GlueHubWallet(conn, adr)
+	if err != nil {
+		log.Fatalf("Failed to add hub wallet: %v", err)
+	}
+	tx, err := hw.Suspect(auth)
+	if err != nil {
+		log.Fatalf("Failed to suspect: %v", err)
+	}
+	return tx, err
+}
+
+	func mSuspect (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address) (*types.Transaction, error) {
+	mw, err := GlueMinWallet(conn, adr)
+	if err != nil {
+		log.Fatalf("Failed to add hub wallet: %v", err)
+	}
+	tx, err := mw.Suspect(auth)
+	if err != nil {
+		log.Fatalf("Failed to suspect: %v", err)
+	}
+	return tx, err
+}
+
+func hGulag (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address) (*types.Transaction, error) {
+	hw, err := GlueHubWallet(conn, adr)
+	if err != nil {
+		log.Fatalf("Failed to add hub wallet: %v", err)
+	}
+	tx, err := hw.Gulag(auth)
+	if err != nil {
+		log.Fatalf("Failed to gulag: %v", err)
+	}
+	return tx, err
+}
+
+func mGulag (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address) (*types.Transaction, error) {
+mw, err := GlueMinWallet(conn, adr)
+if err != nil {
+	log.Fatalf("Failed to add hub wallet: %v", err)
+}
+tx, err := mw.Gulag(auth)
+if err != nil {
+	log.Fatalf("Failed to gulag: %v", err)
+}
+return tx, err
+}
+
+func hRehub (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address) (*types.Transaction, error) {
+	hw, err := GlueHubWallet(conn, adr)
+	if err != nil {
+		log.Fatalf("Failed to add hub wallet: %v", err)
+	}
+	tx, err := hw.Rehub(auth)
+	if err != nil {
+		log.Fatalf("Failed to rehub: %v", err)
+	}
+	return tx, err
+}
+
+func mRehub (conn bind.ContractBackend, auth *bind.TransactOpts, adr common.Address) (*types.Transaction, error) {
+mw, err := GlueMinWallet(conn, adr)
+if err != nil {
+	log.Fatalf("Failed to add hub wallet: %v", err)
+}
+tx, err := mw.Rehub(auth)
+if err != nil {
+	log.Fatalf("Failed to rehub: %v", err)
+}
+return tx, err
 }
 
 
-func hGulag ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
-	ggh, err := GlueHubWallet(auth, mb)
-	if err != nil {
-		log.Fatalf("Failed to add punished hub: %v", err)
-	}
-	tx, err := ggh.Gulag(auth)
-	if err != nil {
-		log.Fatalf("Failed to anathemize hub: %v", err)
-	}
-	return tx
-}
 
-func mGulag ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
-	gmh, err := GlueMinWallet(auth, mb)
-	if err != nil {
-		log.Fatalf("Failed to add punished miner: %v", err)
-	}
-	tx, err := gmh.Gulag(auth)
-	if err != nil {
-		log.Fatalf("Failed to anathemize miner: %v", err)
-	}
-	return tx
-}
 
-func hRehub ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
-	grh, err := GlueHubWallet(auth, mb)
-	if err != nil {
-		log.Fatalf("Failed to add this hub to saints list: %v", err)
-	}
-	tx, err := grh.Rehub(auth)
-	if err != nil {
-		log.Fatalf("Failed to forgive this hub: %v", err)
-	}
-	return tx
-}
-
-func mRehub ( auth *bind.TransactOpts , mb common.Address) (*types.Transaction, error){
-	grm, err := GlueMinWallet(auth, mb)
-	if err != nil {
-		log.Fatalf("Failed to add this miner to saints list: %v", err)
-	}
-	tx, err := grm.Rehub(auth)
-	if err != nil {
-		log.Fatalf("Failed to forgive this miner: %v", err)
-	}
-	return tx
-}
-
-func CheckMiners (conn bind.ContractBackend, mb common.Address) (*types.Transaction, error){
-	cm := GlueWhitelist(conn)
-	tx, err := cm.RegistredMiners(&bind.CallOpts{Pending: true}, mb)
+func CheckMiners (conn bind.ContractBackend, mb common.Address) (bool, error){
+	w, err := GlueWhitelist(conn)
+	state, err := w.RegistredMiners(&bind.CallOpts{Pending: true}, mb)
 
 	if err != nil {
 		log.Fatalf("Failed to retrieve miner wallet: %v", err)
 	}
-	return tx
+	return state, err
 }
 
-func CheckHubs (conn bind.ContractBackend , mb common.Address) (*types.Transaction, error){
+func CheckHubs (conn bind.ContractBackend , mb common.Address) (bool, error){
 	//wRegisteredHubs
-	ch := GlueWhitelist(conn)
-	tx, err := ch.RegistredHubs(&bind.CallOpts{Pending: true}, mb)
+	w, err := GlueWhitelist(conn)
+	state, err := w.RegistredHubs(&bind.CallOpts{Pending: true}, mb)
 	if err != nil {
 		log.Fatalf("Failed to retrieve hubs wallet: %v", err)
 	}
-	return tx
+	return state, err
 }
