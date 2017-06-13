@@ -12,13 +12,13 @@ import (
 	//"math/big"
 	"fmt"
 	//"github.com/sonm-io/blockchain-api/go-build/MinWallet"
-	"go/token"
+	//"go/token"
 )
 func main (){
 
-
-
 	pass:=blockchain.ReadPwd()
+	fmt.Println("pass:",pass)
+
 	key:=blockchain.ReadKey()
 	owner:=common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1")
 	hd:=blockchain.GHome()
@@ -68,7 +68,7 @@ func main (){
 	}
 	fmt.Println("Token name:", name)
 
-	tx, err:= blockchain.TransferToken(conn,auth,hAddr,1)
+	tx, err:= blockchain.TransferToken(conn,auth,hAddr,5)
 	if err != nil {
 		log.Fatalf("Failed to transfer token: %v", err)
 	}
@@ -90,11 +90,11 @@ func main (){
 
 	time.Sleep(15* time.Second)
 
-	checkregistrWl, err := blockchain.CheckHubs(conn, hAddr)
+	checklistHubWl, err := blockchain.CheckHubs(conn, hAddr)
 	if err != nil {
 		log.Fatalf("Failed to check hubs: %v", err)
 	}
-	fmt.Println("checkregistrWl:",checkregistrWl)
+	fmt.Println("checklistHubWl:", checklistHubWl)
 
 
 
@@ -121,7 +121,7 @@ func main (){
 	fmt.Println("Wait!")
 	time.Sleep(15* time.Second)
 
-	tx, err = blockchain.TransferToken(conn, auth, mAddr, 2)
+	tx, err = blockchain.TransferToken(conn, auth, mAddr, 5)
 	if err != nil {
 		log.Fatalf("Failed to transfer token miner: %v", err)
 	}
@@ -129,7 +129,7 @@ func main (){
 
 	time.Sleep(15* time.Second)
 
-	regMinwl, err := blockchain.RegisterMiner(conn, auth, mAddr, 2) // registration in whitelist
+	regMinwl, err := blockchain.RegisterMiner(conn, auth, mAddr, 5) // registration in whitelist
 	if err != nil {
 		log.Fatalf("Failed to register miner in whitelist: %v", err)
 	}
@@ -149,7 +149,7 @@ func main (){
 	//--END--//
 	//Hub sent money to miner
 
-	hubToMin, err := blockchain.HubTransfer(conn, auth, hAddr, mAddr, 1)
+	hubToMin, err := blockchain.HubTransfer(conn, auth, hAddr, mAddr, 5)
 	if err != nil {
 		log.Fatalf("Failed to hub transfer to miner wallet: %v", err)
 	}
