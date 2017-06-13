@@ -20,6 +20,7 @@ func main (){
 	fmt.Println("pass:",pass)
 
 	key:=blockchain.ReadKey()
+	// Need to fix it to wildcard
 	owner:=common.HexToAddress("0xFE36B232D4839FAe8751fa10768126ee17A156c1")
 	hd:=blockchain.GHome()
 
@@ -132,7 +133,7 @@ func main (){
 	fmt.Println("Wait 10 sec!")
 	time.Sleep(10* time.Second)
 
-	regMinwl, err := blockchain.RegisterMiner(conn, auth, mAddr, 5) // registration in whitelist
+	regMinwl, err := blockchain.RegisterMiner(conn, auth, mAddr, 1) // registration in whitelist
 	if err != nil {
 		log.Fatalf("Failed to register miner in whitelist: %v", err)
 	}
@@ -153,11 +154,15 @@ func main (){
 	//--END--//
 	//Hub sent money to miner
 
-	hubToMin, err := blockchain.HubTransfer(conn, auth, hAddr, mAddr, 5)
+	hubToMin, err := blockchain.HubTransfer(conn, auth, hAddr, mAddr, 2)
 	if err != nil {
 		log.Fatalf("Failed to hub transfer to miner wallet: %v", err)
 	}
 	fmt.Println("hubToMin:",hubToMin)
+
+	fmt.Println("Wait 10 sec!")
+	time.Sleep(10* time.Second)
+
 
 	minerPullMoney, err := blockchain.PullingMoney(conn, auth, mAddr, hAddr)
 	if err != nil {
@@ -168,11 +173,14 @@ func main (){
 	fmt.Println("Wait 10 sec!")
 	time.Sleep(10* time.Second)
 
+	fmt.Println("Wait 10 sec!")
+	time.Sleep(10* time.Second)
 
 	getBalanceHub, err := blockchain.GetBalance(conn, hAddr)
 	if err != nil {
 		log.Fatalf("Failed to get balance for hub: %v", err)
 	}
+	balHub:=getBalanceHub/1000000000000000000
 	fmt.Println("getBalanceHub:",getBalanceHub)
 
 	getBalanceMiner, err := blockchain.GetBalance(conn, mAddr)
