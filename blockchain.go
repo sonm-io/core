@@ -20,6 +20,7 @@ import (
 	//"github.com/ipfs/go-ipfs/repo/config"
 	"math/big"
 	"math"
+	"time"
 )
 //----ServicesSupporters Allocation---------------------------------------------
 
@@ -252,8 +253,6 @@ func HubTransfer(conn bind.ContractBackend, auth *bind.TransactOpts, wb common.A
 
 	amb:=big.NewInt(am)
 
-	//ae:= 2*2
-	//am := amount * db
 
 
 	tx, err := hw.Transfer(auth,to,amb)
@@ -284,19 +283,40 @@ func WhiteListTransactor (conn ethclient.Client,)(){
 */
 
 
-func CreateMiner (conn bind.ContractBackend)(MinWallet.MinerWallet, error){
-	factory := GlueFactory(conn)
-	rc, err := factory.FactoryTransactor.CreateMiner()
-	if err!= nil{ log.Fatal("Failed to create miner")}
-	return  rc
+func CreateMiner (conn bind.ContractBackend, auth *bind.TransactOpts)(*types.Transaction, error){
+	factory, err := GlueFactory(conn)
 
-}
-func CreateHub (conn bind.ContractBackend)(Hubwallet.HubWallet, error){
-	factory := GlueFactory(conn)
-	chub, err := factory.FactoryTransactor.CreateHub()
-	return  chub, err
 
+	tx, err := factory.CreateMiner(auth)
+	if err != nil {
+		log.Fatalf("Failed to request hub creation: %v", err)
+	}
+	fmt.Println("CreateMiner pending: 0x%x\n", tx.Hash())
+
+	// Don't even wait, check its presence in the local pending state
+	time.Sleep(250 * time.Millisecond) // Allow it to be processed by the local node :P
+
+	return tx, err
 }
+
+
+func CreateHub (conn bind.ContractBackend, auth *bind.TransactOpts)(*types.Transaction, error){
+	factory, err := GlueFactory(conn)
+
+
+	tx, err := factory.CreateHub(auth)
+	if err != nil {
+		log.Fatalf("Failed to request hub creation: %v", err)
+	}
+	fmt.Println("CreateHub pending: 0x%x\n", tx.Hash())
+
+	// Don't even wait, check its presence in the local pending state
+	time.Sleep(250 * time.Millisecond) // Allow it to be processed by the local node :P
+
+	return tx, err
+}
+
+
 func RegisterMiner (auth *bind.TransactOpts, adr common.Address, stake big.Int)(error){
 	rm, err := GlueMinWallet(auth, adr)
 	stk := big.NewInt(stake * (10^17))
@@ -306,6 +326,7 @@ func RegisterMiner (auth *bind.TransactOpts, adr common.Address, stake big.Int)(
 	}
 	return dp
 }
+
 func RegisterHub (auth *bind.TransactOpts, adr common.Address, stake big.Int)(error){
 	rh, err := GlueHubWallet(auth, adr)
 	dp, err := rh.Registration(auth)
@@ -314,6 +335,7 @@ func RegisterHub (auth *bind.TransactOpts, adr common.Address, stake big.Int)(er
 	}
 	return dp
 }
+
 func TransferFunds(hw Hubwallet.HubWallet, auth *bind.TransactOpts , mb common.Address) (*types.Transaction){
 	tx, err := hw.Transfer(auth,mb,big.NewInt(2 * 10^17))
 	if err != nil {
