@@ -80,10 +80,9 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 	m.mu.Unlock()
 
 	var rpl = pb.StartReply{
-		Ports: make(map[string]*pb.StartReplyPort),
+		Container: cinfo.ID,
+		Ports:     make(map[string]*pb.StartReplyPort),
 	}
-
-	rpl.Container = cinfo.ID
 	for port, v := range cinfo.Ports {
 		if len(v) > 0 {
 			replyport := &pb.StartReplyPort{
@@ -93,7 +92,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 			rpl.Ports[string(port)] = replyport
 		}
 	}
-	return &pb.StartReply{Container: cinfo.ID}, nil
+	return &rpl, nil
 }
 
 // Stop request forces to kill container
