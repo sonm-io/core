@@ -195,10 +195,10 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 		All: false,
 	}
 
-	if d.Registry == "" {
-		log.G(ctx).Info("local registry will be used")
-		return nil
-	}
+	// if d.Registry == "" {
+	// 	log.G(ctx).Info("local registry will be used")
+	// 	return nil
+	// }
 
 	if registryAuth, ok := o.registryAuth[d.Registry]; ok {
 		log.G(ctx).Info("use credentials for the registry", zap.String("registry", d.Registry))

@@ -2,9 +2,13 @@ package miner
 
 import (
 	"bytes"
+	"context"
 	"fmt"
+	"log"
 	"testing"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,5 +33,24 @@ func TestImagePullFromMock(t *testing.T) {
 	for _, fixt := range fixtures {
 		err := decodeImagePull(bytes.NewReader(fixt.body))
 		assert.Equal(fixt.err, err, "invalid error for %v", fixt.name)
+	}
+}
+
+func TestImagePll(t *testing.T) {
+	dockclient, err := client.NewEnvClient()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var opt = types.ImagePullOptions{}
+	rd, err := dockclient.ImagePull(context.Background(), "schturmfogel/sonm-q3:alpha", opt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer rd.Close()
+
+	err = decodeImagePull(rd)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
