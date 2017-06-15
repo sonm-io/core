@@ -16,6 +16,18 @@ A docker container contained every CLI, Miner, Hub can be found on public Docker
 docker pull sonm/insonmnia
 ```
 
+If you want it's easy to build all the components. You need *golang > 1.8*:
+
+```bash
+make build
+```
+
+Also there is a Dockerfile to build a container:
+
+```bash
+docker build .
+```
+
 # Hub
 
 Hub provides public gRPC-based API. proto files can be found in proto dir.
@@ -104,3 +116,13 @@ To stop the task just provide the *jobid*
 ```bash
 sonmcli --hub <hubip:port> stop <jobid>
 ```
+
+# Technical overview
+
+Technologies we use right now:
+
+  + *golang* is the main language. Athough golang has disadvantages, we believe that its model is good for fast start and the code is easy to understand. The simplicity leads to less errors. Also it makes easy to contribute to a project as a review process is very clean. 
+  + *Docker* is a heart of an isolation in our platform. We rely on security features, metrics, ecosystem it provides. The cool thing Docker is supported by many platforms. Also Docker works a lot on a unikernel approach for container based applications, which opens a huge field for security and portability improvements.
+  + *whisper* as a discovery protocol
+  + Until the epoch of IPv6 begins we should bring a way to get through NAT. The solution depends on a concrete transport layer. For example, different approaches should be used for UDP (e.g. STUN) and TCP (naive userspace proxy). Each approach has its own overhead and the best fit solution depends on a task.
+  + *gRPC* is an API protocol between components. It's very easy to extend, supports traffic compression, flexible auth model, supported by many language. It's becoming more and more popular as a technology for RPC.
