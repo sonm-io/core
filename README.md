@@ -95,7 +95,7 @@ ID <jobid>, Endpoint [27960/tcp-><ip:port> 27960/udp-><ip:port>]
  + **jobid** is an unique name for the task. Later it can be used to specify a task for various operations.
  + **Endpoint** describes mapping of exposed ports (google for Docker EXPOSE) to the real ports of a miner
 
-**NOTE**: later STUN will be used for UDP packets and LVS (ipvs) or userspace proxy (like SSH tunnel) for TCP. Miners who has public IPv4 or can be reached via IPv6 would not need this proxy. The proxy is intended to get through NAT.
+**NOTE**: later STUN will be used for UDP packets and LVS (ipvs) or userspace proxy (like SSH tunnel) for TCP. Miners who have a public IPv4 or can be reached via IPv6 would not need this proxy. The proxy is intended to get through NAT.
 
 ### stop a container
 
