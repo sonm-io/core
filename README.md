@@ -30,14 +30,6 @@ Also there is a Dockerfile to build a container:
 docker build .
 ```
 
-# Hub
-
-Hub provides public gRPC-based API. proto files can be found in proto dir.
-
-# Miner
-
-Miner is expected to discover a Hub using Whisper. Later the miner connects to the hub via TCP. Right now a Miner must have a *public IP address*. Hub sends orders to the miner via gRPC on top of the connection. Hub pings the miner from time to time.
-
 # Roadmap
 
 Look at milestone https://github.com/sonm-io/insonmnia/milestones
@@ -134,3 +126,12 @@ Technologies we use right now:
   + *whisper* as a discovery protocol
   + Until the epoch of IPv6 begins we should bring a way to get through NAT. The solution depends on a concrete transport layer. For example, different approaches should be used for UDP (e.g. STUN) and TCP (naive userspace proxy). Each approach has its own overhead and the best fit solution depends on a task.
   + *gRPC* is an API protocol between components. It's very easy to extend, supports traffic compression, flexible auth model, supported by many language. It's becoming more and more popular as a technology for RPC.
+
+## Hub
+
+Hub provides public gRPC-based API. proto files can be found in proto dir.
+
+## Miner
+
+Miner is expected to discover a Hub using Whisper. Later the miner connects to the hub via TCP. Right now a Miner must have a *public IP address*. Hub sends orders to the miner via gRPC on top of the connection. Hub pings the miner from time to time.
+
