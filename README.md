@@ -1,8 +1,10 @@
 # inSONMnia
 
-It's an early **alpha** version of the platform for [SONM.io](https://sonm.io) project. 
+[![Build Status](https://travis-ci.org/sonm-io/insonmnia.svg?branch=master)](https://travis-ci.org/sonm-io/insonmnia)
 
-For now it has lots of unfinished task. The main idea is to show that such platform can be implemented and to chose a techstack for future implementation. 
+It's an early **alpha** version of the platform for [SONM.io](https://sonm.io) project.
+
+For now it has lots of unfinished task. The main idea is to show that such platform can be implemented and to chose a techstack for future implementation.
 
 # What is it here?
 
@@ -95,7 +97,7 @@ Connected Miners
 ### start a container
 
 To start a container you have to pick a hub and miner connected to that hub.
-You can pick a miner from output of List command. See above. 
+You can pick a miner from output of List command. See above.
 
 ```bash
 ./sonmcli —hub <hubip:port> —timeout=3000s  start —image schturmfogel/sonm-q3:alpha  —miner=<minerhost:port>
@@ -121,7 +123,7 @@ sonmcli --hub <hubip:port> stop <jobid>
 
 Technologies we use right now:
 
-  + *golang* is the main language. Athough golang has disadvantages, we believe that its model is good for fast start and the code is easy to understand. The simplicity leads to less errors. Also it makes easy to contribute to a project as a review process is very clean. 
+  + *golang* is the main language. Athough golang has disadvantages, we believe that its model is good for fast start and the code is easy to understand. The simplicity leads to less errors. Also it makes easy to contribute to a project as a review process is very clean.
   + *Docker* is a heart of an isolation in our platform. We rely on security features, metrics, ecosystem it provides. The cool thing Docker is supported by many platforms. Also Docker works a lot on a unikernel approach for container based applications, which opens a huge field for security and portability improvements.
   + *whisper* as a discovery protocol
   + Until the epoch of IPv6 begins we should bring a way to get through NAT. The solution depends on a concrete transport layer. For example, different approaches should be used for UDP (e.g. STUN) and TCP (naive userspace proxy). Each approach has its own overhead and the best fit solution depends on a task.
