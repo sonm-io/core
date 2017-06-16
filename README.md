@@ -122,7 +122,7 @@ Dockerfile for the image should follow several requirements:
 Technologies we use right now:
 
   + *golang* is the main language. Athough golang has disadvantages, we believe that its model is good for fast start and the code is easy to understand. The simplicity leads to less errors. Also it makes easy to contribute to a project as a review process is very clean.
-  + *Docker* is a heart of an isolation in our platform. We rely on security features **(It's 100% safe!)**, metrics, ecosystem it provides. The cool thing Docker is supported by many platforms. Also Docker works a lot on a unikernel approach for container based applications, which opens a huge field for security and portability improvements.
+  + *Docker* is a heart of an isolation in our platform. We rely on security features **(It's not 100% safe!)**, metrics, ecosystem it provides. The cool thing Docker is supported by many platforms. Also Docker works a lot on a unikernel approach for container based applications, which opens a huge field for security and portability improvements.
   + *whisper* as a discovery protocol
   + Until the epoch of IPv6 begins we should bring a way to get through NAT. The solution depends on a concrete transport layer. For example, different approaches should be used for UDP (e.g. STUN) and TCP (naive userspace proxy). Each approach has its own overhead and the best fit solution depends on a task.
   + *gRPC* is an API protocol between components. It's very easy to extend, supports traffic compression, flexible auth model, supported by many language. It's becoming more and more popular as a technology for RPC.
