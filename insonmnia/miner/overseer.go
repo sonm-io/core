@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"path/filepath"
 	"strconv"
 	"sync"
@@ -177,8 +178,14 @@ func (o *overseer) collectStats() {
 					log.G(o.ctx).Warn("failed to get Stats", zap.String("id", id), zap.Error(err))
 				}
 				var stats types.Stats
-				if err = json.NewDecoder(resp.Body).Decode(&stats); err != nil {
-					log.G(o.ctx).Warn("failed to decode container Stats", zap.Error(err))
+				err = json.NewDecoder(resp.Body).Decode(&stats)
+				switch err {
+				case nil:
+					// pass
+				case io.EOF:
+					// pass
+				default:
+					log.G(o.ctx).Warn("failed to decode container Stats", zap.String("id", id), zap.Error(err))
 				}
 				resp.Body.Close()
 			}
