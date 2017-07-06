@@ -9,7 +9,8 @@ import (
 	//"github.com/sonm-io/go-ethereum/accounts/keystore"
 	"github.com/sonm-io/go-ethereum/common"
 	"time"
-	//"math/big"
+	"math/big"
+//"math"
 	"fmt"
 	//"github.com/sonm-io/blockchain-api/go-build/MinWallet"
 	//"go/token"
@@ -180,14 +181,23 @@ func main (){
 	if err != nil {
 		log.Fatalf("Failed to get balance for hub: %v", err)
 	}
-	balHub:=getBalanceHub/1000000000000000000
-	fmt.Println("getBalanceHub:",getBalanceHub)
+
+	b_dec:=big.NewInt(1000000000000000000)
+	//b_dec=1000000000000000000
+	balHub:=new(big.Int)
+	balHub.Div(getBalanceHub,b_dec)
+	fmt.Println("getBalanceHub:",balHub)
 
 	getBalanceMiner, err := blockchain.GetBalance(conn, mAddr)
 	if err != nil {
 		log.Fatalf("Failed to get balance for miner: %v", err)
 	}
-	fmt.Println("getBalanceMiner:",getBalanceMiner)
+
+
+	balMin:=new(big.Int)
+	balMin.Div(getBalanceMiner,b_dec)
+
+	fmt.Println("getBalanceMiner:",balMin)
 
 
 
