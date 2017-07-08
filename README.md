@@ -51,7 +51,7 @@ docker run --rm -p 10002:10002 -p 10001:10001  sonm/insonmnia sonmhub
 To run Miner from the container you need to pass docker socket inside and specify IP of the HUB
 
 ```bash
-  docker run --net host -e DOCKER_API_VERSION=1.24DOCKER_API_VERSION=1.24 -v /run:/var/run sonm/insonmnia:alpha3 sonmminer -h <hubip:10002>
+  docker run --net host -e DOCKER_API_VERSION=1.24 -v /run:/var/run sonm/insonmnia:alpha3 sonmminer -h <hubip:10002>
 ```
 
 ## CLI commands
@@ -92,7 +92,7 @@ To start a container you have to pick a hub and miner connected to that hub.
 You can pick a miner from output of List command. See above.
 
 ```bash
-./sonmcli —hub <hubip:port> —timeout=3000s  start —image schturmfogel/sonm-q3:alpha  —miner=<minerhost:port>
+./sonmcli --hub <hubip:port> --timeout=3000s  start --image schturmfogel/sonm-q3:alpha  --miner=<minerhost:port>
 ```
 The result would look like:
 ```
