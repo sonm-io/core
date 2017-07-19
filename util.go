@@ -1,7 +1,7 @@
 package Fusrodah
 
 import(
-	"github.com/sonm-io/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto"
 	"crypto/ecdsa"
 	"net"
 )
