@@ -83,7 +83,7 @@ var (
 	generateKey    = flag.Bool("generatekey", false, "generate and show the private key")
 	fileExMode     = flag.Bool("fileexchange", false, "file exchange mode")
 	testMode       = flag.Bool("test", false, "use of predefined parameters for diagnostics")
-	echoMode       = flag.Bool("echo", false, "echo mode: prints some arguments for diagnostics")
+	echoMode       = flag.Bool("echo", true, "echo mode: prints some arguments for diagnostics")
 
 	argVerbosity = flag.Int("verbosity", int(log.LvlError), "log verbosity level")
 	argTTL       = flag.Uint("ttl", 30, "time-to-live for messages in seconds")
@@ -102,8 +102,8 @@ var (
 )
 
 func main() {
-	//processArgs()
 	initialize()
+	echo()
 	run()
 }
 
