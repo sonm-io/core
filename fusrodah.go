@@ -15,12 +15,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv5"
-	"github.com/ethereum/go-ethereum/crypto"
 )
 
 const quitCommand = "~Q"
@@ -43,21 +43,20 @@ type FusrodahConfig struct {
 }
 
 var DefaultConfig = FusrodahConfig{
-	Verbosity: 10,
+	Verbosity: 0,
 
 	Enode: "enode://34adf2cbb2331336163c4e53ae666886fc40e072521d1ccbfe0041aacfa314d6c892f9ca295345e6f5fee1ebbe22b8b8173ca7c521c373eb19ede168c8af6452@172.16.1.10:30348",
 
 	P2pAccept: true,
-
 }
 
 type Fusrodah struct {
-	config 				*FusrodahConfig
-	server 				*p2p.Server
-	shh    				*whisper.Whisper
-	done   				chan struct{}
+	config *FusrodahConfig
+	server *p2p.Server
+	shh    *whisper.Whisper
+	done   chan struct{}
 
-	input 				*bufio.Reader
+	input *bufio.Reader
 
 	whisperServerStatus bool
 }
@@ -67,7 +66,7 @@ func NewFusrodah(config *FusrodahConfig) Fusrodah {
 		config = &DefaultConfig
 	}
 	frd := Fusrodah{
-		config: config,
+		config:              config,
 		whisperServerStatus: false,
 	}
 	return frd
@@ -91,7 +90,6 @@ func (fusrodah *Fusrodah) Init() error {
 
 	fusrodah.shh = whisper.New(cfg)
 
-
 	maxPeers := 80
 
 	fusrodah.config.AsymKeyID, err = fusrodah.shh.NewKeyPair()
@@ -103,7 +101,6 @@ func (fusrodah *Fusrodah) Init() error {
 	if err != nil {
 		utils.Fatalf("Failed to retrieve a new key pair: %s", err)
 	}
-
 
 	symPass := "SOMN PASS"
 
@@ -155,64 +152,75 @@ func (fusrodah *Fusrodah) Start() error {
 		utils.Fatalf("Failed to start Whisper peer: %s.", err)
 	}
 
+	connect := fusrodah.waitConnection()
+	if connect {
+		fmt.Println("Connected to peer.")
+
+	} else {
+		fmt.Println("Connection failed.")
+	}
+
+	return nil
+}
+
+// Timeout function for request connnection to bootnode & p2p-network in time
+func (fusrodah *Fusrodah) waitConnection() bool {
 	var cnt int
 	var connected bool
 	for !connected {
-		//time.Sleep(time.Millisecond * 50)
+		time.Sleep(time.Millisecond * 50)
 		connected = fusrodah.server.PeerCount() > 0
 		cnt++
 		if cnt > 1000 {
 			utils.Fatalf("Timeout expired, failed to connect")
+			return false
 		}
 	}
-
-
-	fmt.Println("Connected to peer.")
-
-
-	//fusrodah.configureNode()
-
-	return nil
+	return true
 }
 
 func (fusrodah *Fusrodah) Send(message string, topic string) error {
 	var err error
 
-	//whTopic := whisper.BytesToTopic([]byte(topic))
+	whTopic := whisper.BytesToTopic([]byte(topic))
 
 	params := whisper.MessageParams{
 		Src:     fusrodah.config.AsymKey,
 		Dst:     fusrodah.config.Pub,
 		KeySym:  fusrodah.config.SymKey,
 		Payload: []byte(message),
-		//Topic:   whTopic,
-		TTL: 2000,
-		PoW: 100000,
+		Topic:   whTopic,
+		TTL:     2000,
+		PoW:     100000,
 	}
 
 	fmt.Println(fusrodah.config.SymKey)
 
 	msg, err := whisper.NewSentMessage(&params)
 	if err != nil {
-		utils.Fatalf("failed to create new message: %s", err)
+		return fmt.Errorf("failed to create new message: %s", err)
 	}
 	envelope, err := msg.Wrap(&params)
 	if err != nil {
-		fmt.Printf("failed to seal message: %v \n", err)
+		return fmt.Errorf("failed to seal message: %v \n", err)
 	}
 
 	err = fusrodah.shh.Send(envelope)
 	if err != nil {
-		fmt.Printf("failed to send message: %v \n", err)
+		return fmt.Errorf("failed to send message: %v \n", err)
 	} else {
-		fmt.Println("message sended")
+		return fmt.Errorf("message sended")
 	}
-
-	return err
 }
 
 func (fusrodah *Fusrodah) Stop() error {
 	var err error
+	if err = fusrodah.shh.Stop(); err != nil {
+		return err
+	}
+
+	fusrodah.server.Stop()
+
 	return err
 }
 

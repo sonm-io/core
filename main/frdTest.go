@@ -8,12 +8,17 @@ import (
 
 func main(){
 	done := make(chan struct{})
-	frd := Fusrodah.NewFusrodah(nil)
 
-	//frd.Init()
+	cfg := &Fusrodah.DefaultConfig
+	cfg.Verbosity = 2
+
+	frd := Fusrodah.NewFusrodah(cfg)
+
 	frd.Start()
 
-	frd.Send("Hello world", "Main")
+	if err:=frd.Send("Hello world", "Main"); err!=nil{
+		fmt.Println(err)
+	}
 
 	fmt.Println(frd)
 
