@@ -23,6 +23,12 @@ import (
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv5"
 )
 
+const(
+	statusReady = "READY"
+	statusStarted = "STARTED"
+	statusStoped = "STARTED"
+)
+
 const quitCommand = "~Q"
 
 type FusrodahConfig struct {
@@ -58,7 +64,7 @@ type Fusrodah struct {
 
 	input *bufio.Reader
 
-	whisperServerStatus bool
+	whisperServerStatus string
 }
 
 func NewFusrodah(config *FusrodahConfig) Fusrodah {
@@ -67,7 +73,7 @@ func NewFusrodah(config *FusrodahConfig) Fusrodah {
 	}
 	frd := Fusrodah{
 		config:              config,
-		whisperServerStatus: false,
+		whisperServerStatus: "",
 	}
 	return frd
 }
@@ -139,13 +145,14 @@ func (fusrodah *Fusrodah) Init() error {
 		},
 	}
 
-	//fmt.Println("Started")
-
+	fusrodah.whisperServerStatus = statusReady
 	return err
 }
 
 func (fusrodah *Fusrodah) Start() error {
-	fusrodah.Init()
+	if fusrodah.whisperServerStatus != statusReady {
+		fusrodah.Init()
+	}
 
 	err := fusrodah.server.Start()
 	if err != nil {
@@ -155,7 +162,6 @@ func (fusrodah *Fusrodah) Start() error {
 	connect := fusrodah.waitConnection()
 	if connect {
 		fmt.Println("Connected to peer.")
-
 	} else {
 		fmt.Println("Connection failed.")
 	}
@@ -176,6 +182,7 @@ func (fusrodah *Fusrodah) waitConnection() bool {
 			return false
 		}
 	}
+	fmt.Printf("Peer count: %d \r\n", fusrodah.server.PeerCount())
 	return true
 }
 
@@ -190,11 +197,11 @@ func (fusrodah *Fusrodah) Send(message string, topic string) error {
 		KeySym:  fusrodah.config.SymKey,
 		Payload: []byte(message),
 		Topic:   whTopic,
-		TTL:     2000,
-		PoW:     100000,
+		TTL:     whisper.DefaultTTL,
+		PoW:     whisper.DefaultMinimumPoW,
+		WorkTime: 30,
 	}
 
-	fmt.Println(fusrodah.config.SymKey)
 
 	msg, err := whisper.NewSentMessage(&params)
 	if err != nil {
@@ -209,7 +216,7 @@ func (fusrodah *Fusrodah) Send(message string, topic string) error {
 	if err != nil {
 		return fmt.Errorf("failed to send message: %v \n", err)
 	} else {
-		return fmt.Errorf("message sended")
+		return nil
 	}
 }
 
@@ -325,7 +332,7 @@ func (fusrodah *Fusrodah) setFilter() error {
 //	// TODO: experience with this
 //	// may trouble with starting p2p not needed exactly
 //
-//	if err := fusrodah.p2pServer.Start(); err != nil {
+//	if err := fusrodah.p2px(); err != nil {
 //		fmt.Println("could not start server:", err)
 //		//	srv.Stop()
 //		os.Exit(1)

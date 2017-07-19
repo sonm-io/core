@@ -18,10 +18,9 @@ func main(){
 
 	if err:=frd.Send("Hello world", "Main"); err!=nil{
 		fmt.Println(err)
+	}else{
+		fmt.Println("Message sended.")
 	}
-
-	fmt.Println(frd)
-
 
 	close(done)
 	select {
