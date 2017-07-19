@@ -1,10 +1,7 @@
 package miner
 
 import (
-	"fmt"
-	"io/ioutil"
 	"net"
-	"net/http"
 	"sync"
 	"time"
 
@@ -17,7 +14,9 @@ import (
 
 	"github.com/hashicorp/yamux"
 	log "github.com/noxiouz/zapctx/ctxlog"
+
 	pb "github.com/sonm-io/insonmnia/proto/miner"
+	"github.com/sonm-io/insonmnia/util/pubdetector"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -213,19 +212,12 @@ func (m *Miner) Close() {
 
 // New returns new Miner
 func New(ctx context.Context, hubaddress string) (*Miner, error) {
-	resp, err := http.Get("http://checkip.amazonaws.com/")
+	addr, err := pubdetector.PublicIP()
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("checkip.amazonaws.com does not return 200: %s", resp.Status)
-	}
-	addr, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	pubaddress := string(addr)
+
+	pubaddress := addr.String()
 
 	ctx, cancel := context.WithCancel(ctx)
 	grpcServer := grpc.NewServer()
