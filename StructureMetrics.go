@@ -37,11 +37,3 @@ func (metricsHub *MetricsHub) StructureMetrics  () {
 	//v.HubAddress = "CurrentlyHub address"
 	//fmt.Print(v.HubAddress)
 }
-
-
-//func bestHub (){
-//
-//}
-//func bestMiner (){
-//
-//}
