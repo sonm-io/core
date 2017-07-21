@@ -1,18 +1,16 @@
 package Fusrodah
 
-import(
-	"github.com/sonm-io/go-ethereum/crypto"
+import (
 	"crypto/ecdsa"
+	"github.com/sonm-io/go-ethereum/crypto"
 	"net"
 )
 
-func ToPubKey(prv *ecdsa.PrivateKey) *ecdsa.PublicKey{
+func ToPubKey(prv *ecdsa.PrivateKey) *ecdsa.PublicKey {
 	pkBytes := crypto.FromECDSA(prv)
 	pk := crypto.ToECDSAPub(pkBytes)
 	return pk
 }
-
-
 
 func GetLocalIP() string {
 	addrs, err := net.InterfaceAddrs()

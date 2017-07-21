@@ -7,14 +7,14 @@ package Fusrodah
 */
 
 import (
-	"fmt"
-	"os"
 	"crypto/ecdsa"
-	"github.com/sonm-io/go-ethereum/p2p"
-	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
+	"fmt"
 	"github.com/sonm-io/go-ethereum/common"
-	"github.com/sonm-io/go-ethereum/p2p/nat"
+	"github.com/sonm-io/go-ethereum/p2p"
 	"github.com/sonm-io/go-ethereum/p2p/discover"
+	"github.com/sonm-io/go-ethereum/p2p/nat"
+	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
+	"os"
 )
 
 type Fusrodah struct {
@@ -26,8 +26,8 @@ type Fusrodah struct {
 	p2pServerStatus     string
 	whisperServerStatus string
 
-	Enode	string
-	Port	string
+	Enode string
+	Port  string
 }
 
 func (fusrodah *Fusrodah) Start() {
@@ -57,8 +57,6 @@ func (fusrodah *Fusrodah) Start() {
 
 	tmpID := fusrodah.whisperServer.NewIdentity()
 
-
-
 	//Definition of p2p server and binds to configuration. Configuration also could be stored in file.
 	fusrodah.p2pServer = p2p.Server{
 		Config: p2p.Config{
@@ -79,7 +77,6 @@ func (fusrodah *Fusrodah) Start() {
 	// may trouble with starting p2p not needed exactly
 	if err := fusrodah.p2pServer.Start(); err != nil {
 		fmt.Println("could not start server:", err)
-		//	srv.Stop()
 		os.Exit(1)
 	}
 
@@ -87,11 +84,15 @@ func (fusrodah *Fusrodah) Start() {
 	// NOTE whisper *should* be started automatically but it is not happening... possible BUG in go-ethereum.
 	if err := fusrodah.whisperServer.Start(fusrodah.p2pServer); err != nil {
 		fmt.Println("could not start server:", err)
-		//	srv.Stop()
 		os.Exit(1)
 	}
 
 	fusrodah.whisperServerStatus = "running"
+}
+
+func (fusrodah *Fusrodah) Stop(){
+	fusrodah.whisperServer.Stop()
+	fusrodah.p2pServer.Stop()
 }
 
 func (fusrodah *Fusrodah) getTopics(data ...string) []whisperv2.Topic {
@@ -118,17 +119,17 @@ func (fusrodah *Fusrodah) createMessage(message string, to *ecdsa.PublicKey) *wh
 	// protocol. These are wrapped into Envelopes that need not be understood by
 	// intermediate nodes, just forwarded.
 	/*
-	type Message struct {
-		Flags     byte // First bit is signature presence, rest reserved and should be random
-		Signature []byte
-		Payload   []byte
+		type Message struct {
+			Flags     byte // First bit is signature presence, rest reserved and should be random
+			Signature []byte
+			Payload   []byte
 
-		Sent time.Time     // Time when the message was posted into the network
-		TTL  time.Duration // Maximum time to live allowed for the message
+			Sent time.Time     // Time when the message was posted into the network
+			TTL  time.Duration // Maximum time to live allowed for the message
 
-		To   *ecdsa.PublicKey // Message recipient (identity used to decode the message)
-		Hash common.Hash      // Message envelope hash to act as a unique id
-	}
+			To   *ecdsa.PublicKey // Message recipient (identity used to decode the message)
+			Hash common.Hash      // Message envelope hash to act as a unique id
+		}
 	*/
 	// NewMessage creates and initializes a non-signed, non-encrypted Whisper message.
 	// NOTE more info in whisperv2/message.go
@@ -165,7 +166,7 @@ func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, topics []whi
 	return envelope
 }
 
-func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey,  topics ...string) {
+func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey, topics ...string) {
 
 	// start whisper server, if it not running yet
 	if fusrodah.whisperServerStatus != "running" {
@@ -190,7 +191,6 @@ func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey,  topics ...s
 	}
 }
 
-
 func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, cb func(msg *whisperv2.Message), topics ...string) int {
 	// start whisper server, if it not running yet
 	if fusrodah.whisperServerStatus != "running" {
@@ -208,4 +208,3 @@ func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, cb func(msg *whisperv
 	})
 	return id
 }
-
