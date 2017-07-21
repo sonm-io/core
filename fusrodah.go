@@ -12,6 +12,9 @@ import (
 	"crypto/ecdsa"
 	"github.com/sonm-io/go-ethereum/p2p"
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
+	"github.com/sonm-io/go-ethereum/common"
+	"github.com/sonm-io/go-ethereum/p2p/nat"
+	"github.com/sonm-io/go-ethereum/p2p/discover"
 )
 
 type Fusrodah struct {
@@ -22,6 +25,9 @@ type Fusrodah struct {
 
 	p2pServerStatus     string
 	whisperServerStatus string
+
+	Enode	string
+	Port	string
 }
 
 func (fusrodah *Fusrodah) Start() {
@@ -33,29 +39,49 @@ func (fusrodah *Fusrodah) Start() {
 
 	//Configuration to running p2p server. Configuration values can't be modified after launch.
 	//See p2p package in go-ethereum (server.go) for more info.
-	fusrodah.cfg = p2p.Config{
-		MaxPeers: 10,
-		//	Identity:   p2p.NewSimpleClientIdentity("my-whisper-app", "1.0", "", string(pub)),
-		PrivateKey: fusrodah.Prv,
-		ListenAddr: ":8000",
+	//fusrodah.cfg = p2p.Config{
+	//	MaxPeers: 10,
+	//	//	Identity:   p2p.NewSimpleClientIdentity("my-whisper-app", "1.0", "", string(pub)),
+	//	PrivateKey: fusrodah.Prv,
+	//	ListenAddr: ":8000",
+	//
+	//	//here we can define what additional protocols will be used *above* p2p server.
+	//	Protocols: []p2p.Protocol{whisperv2.Whisper{}.Protocol},
+	//}
 
-		//here we can define what additional protocols will be used *above* p2p server.
-		Protocols: []p2p.Protocol{whisperv2.Whisper{}.Protocol},
-	}
+	var peers []*discover.Node
+	peer := discover.MustParseNode(fusrodah.Enode)
+	peers = append(peers, peer)
+
+	maxPeers := 80
+
+	tmpID := fusrodah.whisperServer.NewIdentity()
+
+
 
 	//Definition of p2p server and binds to configuration. Configuration also could be stored in file.
 	fusrodah.p2pServer = p2p.Server{
-		Config: fusrodah.cfg,
+		Config: p2p.Config{
+			PrivateKey:     tmpID,
+			MaxPeers:       maxPeers,
+			Name:           common.MakeName("wnode", "2.0"),
+			Protocols:      fusrodah.whisperServer.Protocols(),
+			ListenAddr:     GetLocalIP() + fusrodah.Port,
+			NAT:            nat.Any(),
+			BootstrapNodes: peers,
+			StaticNodes:    peers,
+			TrustedNodes:   peers,
+		},
 	}
 
 	//Starting server and listen to errors.
 	// TODO: experience with this
 	// may trouble with starting p2p not needed exactly
-	//if err := fusrodah.p2pServer.Start(); err != nil {
-	//	fmt.Println("could not start server:", err)
-	//	//	srv.Stop()
-	//	os.Exit(1)
-	//}
+	if err := fusrodah.p2pServer.Start(); err != nil {
+		fmt.Println("could not start server:", err)
+		//	srv.Stop()
+		os.Exit(1)
+	}
 
 	//Starting whisper protocol on running server.
 	// NOTE whisper *should* be started automatically but it is not happening... possible BUG in go-ethereum.
