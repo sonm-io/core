@@ -338,12 +338,7 @@ func configureNode() {
 	}
 
 	if !*asymmetricMode && !*forwarderMode {
-		if len(symPass) == 0 {
-			symPass, err = console.Stdin.PromptPassword("Please enter the password for symmetric encryption: ")
-			if err != nil {
-				utils.Fatalf("Failed to read passphrase: %v", err)
-			}
-		}
+		symPass = "SONM PASS"
 
 		symKeyID, err := shh.AddSymKeyFromPassword(symPass)
 		if err != nil {
