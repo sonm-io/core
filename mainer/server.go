@@ -8,7 +8,13 @@ import (
 
 	"github.com/sonm-io/Fusrodah"
 	"github.com/sonm-io/Fusrodah/hub"
+	"crypto/ecdsa"
+	"github.com/sonm-io/go-ethereum/crypto"
+	"time"
 )
+
+const Enode = "enode://81b8db7b071b46bfc8619268606df7edf48cc55f804f52ce6176bbb369cab22af752ce15c622c958f29dd7617c3d1d647f544f93ce5a11f4319334c418340e3c@172.16.1.111:30348"
+const DEFAULT_MINER_PORT = ":30347"
 
 /**
  /--------MAINER--------/
@@ -16,18 +22,49 @@ import (
  /--------------------/
 */
 type Server struct {
-	//PrivateKey 	ecdsa.PrivateKey
-	Hubs     []hub.HubsType
-	ConfFile string
+	PrivateKey ecdsa.PrivateKey
+	Hubs       []hub.HubsType
+	Frd        *Fusrodah.Fusrodah
+	ConfFile   string
+	ip         *string
 }
 
-func mainerMainFunction() {
+func NewServer(prv *ecdsa.PrivateKey) *Server {
+	if prv == nil {
+		//TODO: cover error
+		prv, _ = crypto.GenerateKey()
+	}
 
+	frd := Fusrodah.Fusrodah{
+		Prv: prv,
+		Enode: Enode,
+		Port: DEFAULT_MINER_PORT,
+	}
+
+	srv := Server{
+		PrivateKey: *prv,
+		Frd:        &frd,
+	}
+
+	return &srv
 }
 
-func (mainer *Server) LoadConf() bool {
+func (srv *Server) Start() {
+	srv.Frd.Start()
+}
+
+func (srv *Server) Stop() {
+	srv.Frd.Stop()
+}
+
+func (srv *Server) Serve() {
+	srv.discovery()
+}
+
+//Deprecated
+func (srv *Server) LoadConf() bool {
 	//this function load miners configuration
-	file, err := ioutil.ReadFile(mainer.ConfFile)
+	file, err := ioutil.ReadFile(srv.ConfFile)
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -39,12 +76,14 @@ func (mainer *Server) LoadConf() bool {
 		fmt.Println(err)
 		return false
 	}
-	*mainer = m
+	*srv = m
 	return true
 }
-func (mainer Server) SaveConf() bool {
+
+//Deprecated
+func (srv *Server) SaveConf() bool {
 	//this function save miners configuration
-	hubListString, err := json.Marshal(mainer)
+	hubListString, err := json.Marshal(srv)
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -53,7 +92,7 @@ func (mainer Server) SaveConf() bool {
 	// NOTE: this for test
 	fmt.Println("list:", string(hubListString))
 
-	err = ioutil.WriteFile(mainer.ConfFile, hubListString, 0644)
+	err = ioutil.WriteFile(srv.ConfFile, hubListString, 0644)
 	if err != nil {
 		fmt.Println(err)
 		return false
@@ -61,13 +100,61 @@ func (mainer Server) SaveConf() bool {
 	return true
 }
 
-func (mainer Server) StartDiscovery(frd Fusrodah.Fusrodah) bool{
+func (srv *Server) discovery() {
+	var hubPubKeyString *ecdsa.PublicKey
+	c := make(chan bool, 1)
+
+	go func() {
+
+		srv.Frd.AddHandling(nil, func(msg *whisperv2.Message) {
+			hubPubKeyString = crypto.ToECDSAPub(msg.Payload)
+			c <- true
+		}, "miner", "discover")
+
+		for{
+			srv.Frd.Send(srv.GetPubKeyString(), nil, "hubDiscover")
+			fmt.Println("DISC #1 SENDED")
+			time.Sleep(time.Millisecond * 1000)
+		}
+	}()
+
+	<-c
+
+	go func() {
+
+		defer srv.Frd.Send(srv.GetPubKeyString(), hubPubKeyString, "hub", "addr")
+		srv.Frd.AddHandling(&srv.PrivateKey.PublicKey, func(msg *whisperv2.Message) {
+			*srv.ip = string(msg.Payload)
+		}, "miner", "addr")
+		c <- true
+	}()
+
+	<-c
+
+}
+
+func (srv *Server) GeHubIp() string {
+	c := make(chan bool)
+	if srv.ip == nil {
+		go func(){
+			srv.discovery()
+			c <- true
+		}()
+	}
+
+	//Filters here
+
+	<-c
+	return *srv.ip
+}
+
+func (srv *Server) StartDiscovery(frd Fusrodah.Fusrodah) bool {
 	//now we send a message with topics
 	verifyMsg := "{\"message\":\"verify\"}";
 	//verifyMsg := "{"+'"'+"message"+'"'+":"+'"'+"verify"+'"'+"}"
 	//json view {"message":"verify"}
 
-	defer frd.Send(verifyMsg, nil,  "hub", "discovery")
+	defer frd.Send(verifyMsg, nil, "hub", "discovery")
 	//Expect a response from the hub
 	//which sends information about itself
 	//with the topics "hub", "discovery", "Response"
@@ -80,12 +167,12 @@ func (mainer Server) StartDiscovery(frd Fusrodah.Fusrodah) bool{
 			m := Server{}
 			err := json.Unmarshal(msg.Payload, &m.Hubs)
 			fmt.Println("Server: discoveryHand: ", m.Hubs)
-			mainer.Hubs = m.Hubs
+			srv.Hubs = m.Hubs
 			if err != nil {
 				fmt.Println(err)
 				c <- false
 			}
-			fmt.Println("MAIN MAINER 2", mainer.Hubs)
+			fmt.Println("MAIN MAINER 2", srv.Hubs)
 			c <- true
 
 		}, "hub", "discovery", "Response")
@@ -96,7 +183,7 @@ func (mainer Server) StartDiscovery(frd Fusrodah.Fusrodah) bool{
 
 }
 
-func (mainer Server)GetAddress() string{
-
-	return "success"
+func (srv *Server) GetPubKeyString() string {
+	pkString := string(crypto.FromECDSAPub(&srv.PrivateKey.PublicKey))
+	return pkString
 }

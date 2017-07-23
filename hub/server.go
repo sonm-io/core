@@ -7,7 +7,8 @@ import (
 	"github.com/sonm-io/Fusrodah"
 	"io/ioutil"
 	"os"
-	"net"
+	"crypto/ecdsa"
+	"github.com/sonm-io/go-ethereum/crypto"
 )
 
 /**
@@ -16,33 +17,83 @@ import (
  /--------------------/
 */
 
-
+const Enode  = "enode://81b8db7b071b46bfc8619268606df7edf48cc55f804f52ce6176bbb369cab22af752ce15c622c958f29dd7617c3d1d647f544f93ce5a11f4319334c418340e3c@172.16.1.111:30348"
+const DEFAULT_HUB_PORT  = ":30344"
 
 type Server struct {
-	//PrivateKey 	ecdsa.PrivateKey
-	frd	Fusrodah.Fusrodah
+	PrivateKey  *ecdsa.PrivateKey
+	Frd         Fusrodah.Fusrodah
 	KnowingHubs []HubsType
 	confFile    string
+
+	HubIp		string
 }
 
-func hubMainFunction() {
-	//TODO: need to feel main flow of the mainer in this function
+func NewServer(prv *ecdsa.PrivateKey, hubIp string) *Server{
+	if prv == nil {
+		//TODO: cover error
+		prv, _ = crypto.GenerateKey()
+	}
+
+	frd := Fusrodah.Fusrodah{
+		Prv: prv,
+		Enode: Enode,
+		Port: DEFAULT_HUB_PORT,
+	}
+
+	srv := Server{
+		PrivateKey: prv,
+		HubIp: hubIp,
+		Frd: frd,
+	}
+
+	return &srv
 }
 
+func (srv *Server) Start(){
+	srv.Frd.Start()
+}
+
+func (srv *Server) Stop(){
+	srv.Frd.Stop()
+}
+
+func (srv *Server) discoveryHandling(){
+
+	srv.Frd.AddHandling(nil, func(msg *whisperv2.Message) {
+		receivedPubKey := crypto.ToECDSAPub(msg.Payload)
+		fmt.Println("DISCOVERY RESPONSE #1")
+		srv.Frd.Send(srv.GetPubKeyString(), receivedPubKey, "miner", "discover")
+	}, "hubDiscover")
+
+	srv.Frd.AddHandling(&srv.PrivateKey.PublicKey, func(msg *whisperv2.Message) {
+		receivedPubKey := crypto.ToECDSAPub(msg.Payload)
+		fmt.Println("DISCOVERY RESPONSE #2")
+		srv.Frd.Send(Fusrodah.GetLocalIP(), receivedPubKey, "miner", "addr")
+	}, "hub", "addr")
+}
+
+func (srv *Server) Serve(){
+	srv.discoveryHandling()
+}
+
+//Deprecated
 func (hub *Server) loadKnowingHubs() {
 	// NOTE: this for test case any
 	hub.KnowingHubs = __getHubList()
 }
 
+
+
+//Deprecated
 func (hub *Server) DiscoveryHandling(frd Fusrodah.Fusrodah) {
 	//this function load knowing hubs and at the same time
 	//and print hubs with topics
-	frd.AddHandling(func(msg *whisperv2.Message) {
+	frd.AddHandling(nil, func(msg *whisperv2.Message) {
 		msgStr := string(msg.Payload)
 		if msgStr != "verifyHub" {
 			return
 		}
-
 
 		hub.loadKnowingHubs()
 		fmt.Println("Server: discovery response")
@@ -51,21 +102,18 @@ func (hub *Server) DiscoveryHandling(frd Fusrodah.Fusrodah) {
 			fmt.Println(err)
 			return
 		}
-		//fmt.Println("TESTTTTTTTTTT:", string(hubListString))
-		frd.Send(string(hubListString), nil,  "hub", "discovery", "Response")
+		frd.Send(string(hubListString), nil, "hub", "discovery", "Response")
 	}, "hub", "discovery")
 	fmt.Println("Server: discovery handling started")
-
 }
 
 
-
-
+//Deprecated
 type jsonobjectTestFile struct {
 	Hubs []HubsType
 }
 
-
+//Deprecated
 func __getHubList() []HubsType {
 	//this function read json file
 	file, err := ioutil.ReadFile("./ListHubs.json")
@@ -78,3 +126,9 @@ func __getHubList() []HubsType {
 	err = json.Unmarshal(file, &jsontype)
 	return jsontype.Hubs
 }
+
+func (srv *Server) GetPubKeyString() string{
+	pkString := string(crypto.FromECDSAPub(&srv.PrivateKey.PublicKey))
+	return pkString
+}
+
