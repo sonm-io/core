@@ -46,10 +46,14 @@ type FusrodahConfig struct {
 	FilterID   string
 	SymPass    string
 	MsPassword string
+
+	P2pPort		string
+
 }
 
 var DefaultConfig = FusrodahConfig{
 	Verbosity: 0,
+	P2pPort: ":30348",
 
 	Enode: "enode://34adf2cbb2331336163c4e53ae666886fc40e072521d1ccbfe0041aacfa314d6c892f9ca295345e6f5fee1ebbe22b8b8173ca7c521c373eb19ede168c8af6452@172.16.1.10:30348",
 
@@ -62,6 +66,8 @@ type Fusrodah struct {
 	shh    *whisper.Whisper
 	done   chan struct{}
 
+	Conf   *FusrodahConfig
+	WH     *whisper.Whisper
 	input *bufio.Reader
 
 	whisperServerStatus string
@@ -89,10 +95,7 @@ func (fusrodah *Fusrodah) Init() error {
 	peer := discover.MustParseNode(fusrodah.config.Enode)
 	peers = append(peers, peer)
 
-	cfg := &whisper.Config{
-		MaxMessageSize:     whisper.DefaultMaxMessageSize,
-		MinimumAcceptedPOW: whisper.DefaultMinimumPoW,
-	}
+	cfg := &whisper.DefaultConfig
 
 	fusrodah.shh = whisper.New(cfg)
 
@@ -137,13 +140,18 @@ func (fusrodah *Fusrodah) Init() error {
 			MaxPeers:       maxPeers,
 			Name:           common.MakeName("wnode", "5.0"),
 			Protocols:      fusrodah.shh.Protocols(),
-			ListenAddr:     GetLocalIP() + ":30349",
+			ListenAddr:     GetLocalIP() + fusrodah.config.P2pPort,
 			NAT:            nat.Any(),
 			BootstrapNodes: peers,
 			StaticNodes:    peers,
 			TrustedNodes:   peers,
 		},
 	}
+
+
+	//TODO remove this
+	fusrodah.WH = fusrodah.shh
+	fusrodah.Conf = fusrodah.config
 
 	fusrodah.whisperServerStatus = statusReady
 	return err
@@ -191,15 +199,36 @@ func (fusrodah *Fusrodah) Send(message string, topic string) error {
 
 	whTopic := whisper.BytesToTopic([]byte(topic))
 
+	//x := pbkdf2.Key([]byte(topic), []byte(topic), 4096, 128, sha512.New)
+	//for i := 0; i < len(x); i++ {
+	//	whTopic[i%whisper.TopicLength] ^= x[i]
+	//}
+
+	//fmt.Println("INFUN ")
+	//fmt.Println(whTopic)
+
+	//fmt.Printf("Filter is configured for the topic: %x \n", whTopic)
+
+	//params := whisper.MessageParams{
+	//	Src:     nil,
+	//	Dst:     nil,
+	//	KeySym:  fusrodah.config.SymKey,
+	//	Payload: []byte(message),
+	//	Topic:   whTopic,
+	//	TTL:     whisper.DefaultTTL,
+	//	PoW:     whisper.DefaultMinimumPoW,
+	//	WorkTime: 30000,
+	//}
+
 	params := whisper.MessageParams{
-		Src:     fusrodah.config.AsymKey,
-		Dst:     fusrodah.config.Pub,
-		KeySym:  fusrodah.config.SymKey,
-		Payload: []byte(message),
-		Topic:   whTopic,
-		TTL:     whisper.DefaultTTL,
-		PoW:     whisper.DefaultMinimumPoW,
-		WorkTime: 30,
+		Src:      fusrodah.config.AsymKey,
+		Dst:      fusrodah.config.Pub,
+		KeySym:   fusrodah.config.SymKey,
+		Payload:  []byte(message),
+		Topic:    whTopic,
+		TTL:      30,
+		PoW:      whisper.DefaultMinimumPoW,
+		WorkTime: 5,
 	}
 
 
@@ -216,8 +245,10 @@ func (fusrodah *Fusrodah) Send(message string, topic string) error {
 	if err != nil {
 		return fmt.Errorf("failed to send message: %v \n", err)
 	} else {
+		//fmt.Println(envelope.Hash())
 		return nil
 	}
+
 }
 
 func (fusrodah *Fusrodah) Stop() error {
@@ -231,10 +262,60 @@ func (fusrodah *Fusrodah) Stop() error {
 	return err
 }
 
-func (fusrodah *Fusrodah) AddHandler() error {
+func (fusrodah *Fusrodah) AddHandler(topic string) (whisper.Filter, error) {
 	var err error
 
-	return err
+	whTopic := whisper.BytesToTopic([]byte(topic))
+
+	//fmt.Println(whTopic)
+
+	//x := pbkdf2.Key([]byte(topic), []byte(topic), 4096, 128, sha512.New)
+	//for i := 0; i < len(x); i++ {
+	//	whTopic[i%whisper.TopicLength] ^= x[i]
+	//}
+
+
+
+	filter := whisper.Filter{
+		KeySym:   fusrodah.config.SymKey,
+		KeyAsym:  nil,
+		PoW: whisper.DefaultMinimumPoW,
+		//Topics:   [][]byte{whTopic[:]},
+		AllowP2P: true,
+	}
+
+	filterID, err := fusrodah.shh.Subscribe(&filter)
+
+	f := fusrodah.shh.GetFilter(filterID)
+	if f == nil {
+		return filter, fmt.Errorf("filter is not installed")
+	}
+
+	fmt.Printf("Filter is configured for the topic: %x \n", whTopic)
+
+	fmt.Println("inFun")
+	fmt.Println(f.Retrieve())
+
+
+	return *f, err
+	//f := fusrodah.shh.GetFilter(whTopic.String())
+	//if f == nil {
+	//	utils.Fatalf("filter is not installed")
+	//}
+	//
+	//ticker := time.NewTicker(time.Millisecond * 50)
+	//
+	//for {
+	//	select {
+	//	case <-ticker.C:
+	//		//fmt.Println("Tik")
+	//		messages := filter.Retrieve()
+	//		messages = fusrodah.shh.Messages("Main")
+	//		fn(messages)
+	//	}
+	//
+	//}
+	//return err
 }
 
 func (fusrodah *Fusrodah) setFilter() error {
@@ -279,6 +360,15 @@ func (fusrodah *Fusrodah) setFilter() error {
 	return err
 
 }
+
+
+//func (fusrodah *Fusrodah) generateTopic(password []byte) {
+//	var topic string
+//	x := pbkdf2.Key(password, password, 4096, 128, sha512.New)
+//	for i := 0; i < len(x); i++ {
+//		topic[i%whisper.TopicLength] ^= x[i]
+//	}
+//}
 
 //
 //import (
@@ -474,4 +564,12 @@ func (fusrodah *Fusrodah) setFilter() error {
 //		To: to,
 //	})
 //	return id
+//}
+
+
+//func generateTopic(password []byte) {
+//	x := pbkdf2.Key(password, password, 4096, 128, sha512.New)
+//	for i := 0; i < len(x); i++ {
+//		topic[i%whisper.TopicLength] ^= x[i]
+//	}
 //}
