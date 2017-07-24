@@ -1,8 +1,8 @@
 package miner
 
 import (
-	"github.com/sonm-io/Fusrodah/hub"
 	"fmt"
+	"github.com/sonm-io/fusrodah/hub"
 )
 
 func (mainer Server) firstFilter(neededBalance float64) []hub.HubsType {

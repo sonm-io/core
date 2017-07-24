@@ -9,13 +9,13 @@ package fusrodah
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"github.com/sonm-io/fusrodah/util"
 	"github.com/sonm-io/go-ethereum/common"
 	"github.com/sonm-io/go-ethereum/p2p"
 	"github.com/sonm-io/go-ethereum/p2p/discover"
 	"github.com/sonm-io/go-ethereum/p2p/nat"
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
 	"os"
-	"github.com/sonm-io/Fusrodah/util"
 )
 
 type Fusrodah struct {

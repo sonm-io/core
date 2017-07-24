@@ -38,7 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv2"
-	"github.com/sonm-io/Fusrodah/util"
+	"github.com/sonm-io/fusrodah/util"
 )
 
 const (

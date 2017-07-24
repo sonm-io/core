@@ -1,14 +1,14 @@
 package miner
 
 import (
-	"io/ioutil"
-	"fmt"
 	"encoding/json"
+	"fmt"
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
+	"io/ioutil"
 
-	"github.com/sonm-io/Fusrodah/fusrodah"
-	"github.com/sonm-io/Fusrodah/hub"
 	"crypto/ecdsa"
+	"github.com/sonm-io/fusrodah/fusrodah"
+	"github.com/sonm-io/fusrodah/hub"
 	"github.com/sonm-io/go-ethereum/crypto"
 	"time"
 )
@@ -17,9 +17,9 @@ const Enode = "enode://81b8db7b071b46bfc8619268606df7edf48cc55f804f52ce6176bbb36
 const DEFAULT_MINER_PORT = ":30347"
 
 /**
- /--------MAINER--------/
- MAINER FUNCTION SECTION
- /--------------------/
+/--------MAINER--------/
+MAINER FUNCTION SECTION
+/--------------------/
 */
 type Server struct {
 	PrivateKey ecdsa.PrivateKey
@@ -36,9 +36,9 @@ func NewServer(prv *ecdsa.PrivateKey) *Server {
 	}
 
 	frd := fusrodah.Fusrodah{
-		Prv: prv,
+		Prv:   prv,
 		Enode: Enode,
-		Port: DEFAULT_MINER_PORT,
+		Port:  DEFAULT_MINER_PORT,
 	}
 
 	srv := Server{
@@ -111,7 +111,7 @@ func (srv *Server) discovery() {
 			c <- true
 		}, "miner", "discover")
 
-		for{
+		for {
 			srv.Frd.Send(srv.GetPubKeyString(), nil, "hubDiscover")
 			fmt.Println("DISC #1 SENDED")
 			time.Sleep(time.Millisecond * 1000)
@@ -136,7 +136,7 @@ func (srv *Server) discovery() {
 func (srv *Server) GeHubIp() string {
 	c := make(chan bool)
 	if srv.ip == nil {
-		go func(){
+		go func() {
 			srv.discovery()
 			c <- true
 		}()
@@ -150,7 +150,7 @@ func (srv *Server) GeHubIp() string {
 
 func (srv *Server) StartDiscovery(frd fusrodah.Fusrodah) bool {
 	//now we send a message with topics
-	verifyMsg := "{\"message\":\"verify\"}";
+	verifyMsg := "{\"message\":\"verify\"}"
 	//verifyMsg := "{"+'"'+"message"+'"'+":"+'"'+"verify"+'"'+"}"
 	//json view {"message":"verify"}
 

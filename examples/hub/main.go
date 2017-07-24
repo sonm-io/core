@@ -1,14 +1,14 @@
 package main
 
 import (
-	"github.com/sonm-io/Fusrodah/hub"
-	"github.com/sonm-io/go-ethereum/crypto"
 	"fmt"
+	"github.com/sonm-io/fusrodah/hub"
+	"github.com/sonm-io/fusrodah/util"
+	"github.com/sonm-io/go-ethereum/crypto"
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
-	"github.com/sonm-io/Fusrodah/util"
 )
 
-func main(){
+func main() {
 	done := make(chan struct{})
 
 	//prv, _ := crypto.GenerateKey()
@@ -29,7 +29,6 @@ func main(){
 		fmt.Println("DISCOVERY RESPONSE #2")
 		srv.Frd.Send(util.GetLocalIP(), receivedPubKey, "miner", "addr")
 	}, "hub", "addr")
-
 
 	select {
 	case <-done:

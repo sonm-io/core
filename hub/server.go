@@ -1,21 +1,21 @@
 package hub
 
 import (
-	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
-	"fmt"
+	"crypto/ecdsa"
 	"encoding/json"
-	"github.com/sonm-io/Fusrodah/fusrodah"
+	"fmt"
+	"github.com/sonm-io/fusrodah/fusrodah"
+	"github.com/sonm-io/fusrodah/util"
+	"github.com/sonm-io/go-ethereum/crypto"
+	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
 	"io/ioutil"
 	"os"
-	"crypto/ecdsa"
-	"github.com/sonm-io/go-ethereum/crypto"
-	"github.com/sonm-io/Fusrodah"
 )
 
 /**
- /--------HUB--------/
- HUB FUNCTION SECTION
- /--------------------/
+/--------HUB--------/
+HUB FUNCTION SECTION
+/--------------------/
 */
 
 const Enode = "enode://81b8db7b071b46bfc8619268606df7edf48cc55f804f52ce6176bbb369cab22af752ce15c622c958f29dd7617c3d1d647f544f93ce5a11f4319334c418340e3c@172.16.1.111:30348"
@@ -70,7 +70,7 @@ func (srv *Server) discoveryHandling() {
 	srv.Frd.AddHandling(&srv.PrivateKey.PublicKey, func(msg *whisperv2.Message) {
 		receivedPubKey := crypto.ToECDSAPub(msg.Payload)
 		fmt.Println("DISCOVERY RESPONSE #2")
-		srv.Frd.Send(Fusrodah.GetLocalIP(), receivedPubKey, "miner", "addr")
+		srv.Frd.Send(util.GetLocalIP(), receivedPubKey, "miner", "addr")
 	}, "hub", "addr")
 }
 
