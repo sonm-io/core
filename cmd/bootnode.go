@@ -43,48 +43,32 @@ const quitCommand = "~Q"
 
 // singletons
 var (
-	server     *p2p.Server
-	shh        *whisper.Whisper
-	done       chan struct{}
+	server *p2p.Server
+	shh    *whisper.Whisper
+	done   chan struct{}
 
 	input = bufio.NewReader(os.Stdin)
 )
 
 // encryption
 var (
-	symKey     []byte
-	pub        *ecdsa.PublicKey
-	asymKey    *ecdsa.PrivateKey
-	nodeid     *ecdsa.PrivateKey
-	asymKeyID  string
-	filterID   string
-	symPass    string
-	msPassword string
+	pub    *ecdsa.PublicKey
+	nodeid *ecdsa.PrivateKey
 )
 
 // cmd arguments
 var (
-	bootstrapMode  = flag.Bool("standalone", true, "boostrap node: don't actively connect to peers, wait for incoming connections")
-	forwarderMode  = flag.Bool("forwarder", true, "forwarder mode: only forward messages, neither send nor decrypt messages")
-	mailServerMode = flag.Bool("mailserver", false, "mail server mode: delivers expired messages on demand")
-	requestMail    = flag.Bool("mailclient", false, "request expired messages from the bootstrap server")
-	asymmetricMode = flag.Bool("asym", false, "use asymmetric encryption")
-	generateKey    = flag.Bool("generatekey", false, "generate and show the private key")
-	fileExMode     = flag.Bool("fileexchange", false, "file exchange mode")
-	testMode       = flag.Bool("test", false, "use of predefined parameters for diagnostics")
-	echoMode       = flag.Bool("echo", true, "echo mode: prints some arguments for diagnostics")
+	bootstrapMode = flag.Bool("standalone", true, "boostrap node: don't actively connect to peers, wait for incoming connections")
+	generateKey   = flag.Bool("generatekey", false, "generate and show the private key")
 
 	argVerbosity = flag.Int("verbosity", int(log.LvlError), "log verbosity level")
 	argTTL       = flag.Uint("ttl", 30, "time-to-live for messages in seconds")
 	argWorkTime  = flag.Uint("work", 5, "work time in seconds")
 
-	argIP      = flag.String("ip", "", "IP address and port of this node (e.g. 127.0.0.1:30303)")
-	argPub     = flag.String("pub", "", "public key for asymmetric encryption")
-	argDBPath  = flag.String("dbpath", "", "path to the server's DB directory")
-	argIDFile  = flag.String("idfile", "", "file name with node id (private key)")
-	argEnode   = flag.String("boot", "", "bootstrap node you want to connect to (e.g. enode://e454......08d50@52.176.211.200:16428)")
-	argTopic   = flag.String("topic", "", "topic in hexadecimal format (e.g. 70a4beef)")
-	argSaveDir = flag.String("savedir", "", "directory where incoming messages will be saved as files")
+	argIP     = flag.String("ip", "", "IP address and port of this node (e.g. 127.0.0.1:30303)")
+	argDBPath = flag.String("dbpath", "", "path to the server's DB directory")
+	argIDFile = flag.String("idfile", "", "file name with node id (private key)")
+	argEnode  = flag.String("boot", "", "bootstrap node you want to connect to (e.g. enode://e454......08d50@52.176.211.200:16428)")
 )
 
 func main() {
@@ -119,19 +103,12 @@ func initialize() {
 		os.Exit(0)
 	}
 
-	if *testMode {
-		symPass = "wwww" // ascii code: 0x77777777
-		msPassword = "wwww"
-	}
-
 	if *bootstrapMode {
 		if len(*argIP) == 0 {
-			//argIP = scanLineA("Please enter your IP and port (e.g. 127.0.0.1:30348): ")
-			localAddr := getLocalIP()+":30348"
+			localAddr := getLocalIP() + ":30348"
 			argIP = &localAddr
 		}
 	}
-
 
 	shh = whisper.New()
 
@@ -168,7 +145,6 @@ func startServer() {
 	fmt.Println(server.NodeInfo().Enode)
 
 	fmt.Println("Bootstrap Whisper node started")
-
 }
 
 func run() {
@@ -191,8 +167,6 @@ func sendLoop() {
 	}
 }
 
-
-
 func scanLine(prompt string) string {
 	if len(prompt) > 0 {
 		fmt.Print(prompt)
@@ -204,12 +178,6 @@ func scanLine(prompt string) string {
 	txt = strings.TrimRight(txt, "\n\r")
 	return txt
 }
-
-func scanLineA(prompt string) *string {
-	s := scanLine(prompt)
-	return &s
-}
-
 
 func getLocalIP() string {
 	addrs, err := net.InterfaceAddrs()
