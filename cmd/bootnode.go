@@ -34,6 +34,9 @@ import (
 	"strings"
 	"time"
 
+	"net"
+	"net/http"
+
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/console"
@@ -45,10 +48,13 @@ import (
 	"github.com/ethereum/go-ethereum/whisper/mailserver"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv5"
 	"golang.org/x/crypto/pbkdf2"
-	"net"
 )
 
-const quitCommand = "~Q"
+const (
+	quitCommand  = "~Q"
+	httpInfoPort = 8092
+	httpInfoPath = "/info"
+)
 
 // singletons
 var (
@@ -104,6 +110,7 @@ var (
 func main() {
 	initialize()
 	echo()
+	startHttpServer()
 	run()
 }
 
@@ -163,6 +170,8 @@ func echo() {
 	fmt.Printf("idfile = %s \n", *argIDFile)
 	fmt.Printf("dbpath = %s \n", *argDBPath)
 	fmt.Printf("boot = %s \n", *argEnode)
+	fmt.Printf("enode = %s \n", server.NodeInfo().Enode)
+	fmt.Printf("http info = http://%s%s \n", getHttpInfoListenAddr(), httpInfoPath)
 }
 
 func initialize() {
@@ -190,7 +199,7 @@ func initialize() {
 	if *bootstrapMode {
 		if len(*argIP) == 0 {
 			//argIP = scanLineA("Please enter your IP and port (e.g. 127.0.0.1:30348): ")
-			localAddr := getLocalIP()+":30348"
+			localAddr := getLocalIP() + ":30348"
 			argIP = &localAddr
 		}
 	} else {
@@ -663,8 +672,6 @@ func extractIdFromEnode(s string) []byte {
 	return n.ID[:]
 }
 
-
-
 func getLocalIP() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
@@ -679,4 +686,31 @@ func getLocalIP() string {
 		}
 	}
 	return ""
+}
+
+func getHttpInfoListenAddr() string {
+	return fmt.Sprintf("%s:%d", getLocalIP(), httpInfoPort)
+}
+
+func startHttpServer() {
+	http.HandleFunc(httpInfoPath, func(w http.ResponseWriter, r *http.Request) {
+		body := fmt.Sprintf(`<h1>Node info</h1>
+		<ul>
+		<li>ttl = %d</li>
+		<li>workTime = %d</li>
+		<li>pow = %f</li>
+		<li>mspow = %f</li>
+		<li>ip = %s</li>
+		<li>pub = %s</li>
+		<li>idfile = %s</li>
+		<li>dbpath = %s</li>
+		<li>boot = %s</li>
+		<li>enode = %s</li>
+		</ul>`, *argTTL, *argWorkTime, *argPoW, *argServerPoW, *argIP, common.ToHex(crypto.FromECDSAPub(pub)),
+			*argIDFile, *argDBPath, *argEnode, server.NodeInfo().Enode)
+
+		w.Write([]byte(body))
+	})
+
+	http.ListenAndServe(getHttpInfoListenAddr(), nil)
 }
