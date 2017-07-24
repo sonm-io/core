@@ -3,14 +3,14 @@ package miner
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/ethereum/go-ethereum/whisper/whisperv2"
+	//"github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"io/ioutil"
 
 	"crypto/ecdsa"
 	"github.com/sonm-io/fusrodah/fusrodah"
 	"github.com/sonm-io/fusrodah/hub"
 	"github.com/ethereum/go-ethereum/crypto"
-	"time"
+	//"time"
 )
 
 const Enode = "enode://b0605764bd7c6a816c51325a9cb9d414277d639f420f9dc48b20d12c04c33391b0a99cc8c045d7ba4657de0c04e8bb3b0d4b072ca9779167a75761d7c3c18eb0@10.196.131.151:30348"
@@ -102,35 +102,6 @@ func (srv *Server) SaveConf() bool {
 }
 
 func (srv *Server) discovery() {
-	var hubPubKeyString *ecdsa.PublicKey
-	c := make(chan bool, 1)
-
-	go func() {
-
-		srv.Frd.AddHandling(&srv.PrivateKey.PublicKey, nil, func(msg *whisperv2.Message) {
-			hubPubKeyString = crypto.ToECDSAPub(msg.Payload)
-			c <- true
-		}, "minerDiscover")
-
-		for {
-			srv.Frd.Send(srv.GetPubKeyString(), nil, "hubDiscover")
-			fmt.Println("DISC #1 SENDED")
-			time.Sleep(time.Millisecond * 1000)
-		}
-	}()
-	<-c
-
-	go func() {
-
-		srv.Frd.AddHandling(&srv.PrivateKey.PublicKey, nil, func(msg *whisperv2.Message) {
-			*srv.ip = string(msg.Payload)
-			c <- true
-		}, "miner", "addr")
-
-		srv.Frd.Send(srv.GetPubKeyString(), hubPubKeyString, "hub", "addr")
-	}()
-
-	<-c
 
 }
 

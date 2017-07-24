@@ -2,11 +2,11 @@ package hub
 
 import (
 	"crypto/ecdsa"
-	"fmt"
+	//"fmt"
 	"github.com/sonm-io/fusrodah/fusrodah"
-	"github.com/sonm-io/fusrodah/util"
+	//"github.com/sonm-io/fusrodah/util"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/whisper/whisperv2"
+	//"github.com/ethereum/go-ethereum/whisper/whisperv2"
 )
 
 /**
@@ -49,7 +49,6 @@ func NewServer(prv *ecdsa.PrivateKey, hubIp string) *Server {
 }
 
 func (srv *Server) Start() {
-	fmt.Println("Server start")
 	srv.Frd.Start()
 }
 
@@ -58,23 +57,23 @@ func (srv *Server) Stop() {
 }
 
 func (srv *Server) Serve() {
-	srv.discoveryHandling()
+	//srv.discoveryHandling()
 }
 
-func (srv *Server) discoveryHandling() {
-
-	srv.Frd.AddHandling(nil, func(msg *whisperv2.Message) {
-		receivedPubKey := crypto.ToECDSAPub(msg.Payload)
-		fmt.Println("DISCOVERY RESPONSE #1")
-		srv.Frd.Send(srv.GetPubKeyString(), receivedPubKey, "miner", "discover")
-	}, "hubDiscover")
-
-	srv.Frd.AddHandling(&srv.PrivateKey.PublicKey, func(msg *whisperv2.Message) {
-		receivedPubKey := crypto.ToECDSAPub(msg.Payload)
-		fmt.Println("DISCOVERY RESPONSE #2")
-		srv.Frd.Send(util.GetLocalIP(), receivedPubKey, "miner", "addr")
-	}, "srv", "addr")
-}
+//func (srv *Server) discoveryHandling() {
+//
+//	srv.Frd.AddHandling(nil, func(msg *whisperv2.Message) {
+//		receivedPubKey := crypto.ToECDSAPub(msg.Payload)
+//		fmt.Println("DISCOVERY RESPONSE #1")
+//		srv.Frd.Send(srv.GetPubKeyString(), receivedPubKey, "miner", "discover")
+//	}, "hubDiscover")
+//
+//	srv.Frd.AddHandling(&srv.PrivateKey.PublicKey, func(msg *whisperv2.Message) {
+//		receivedPubKey := crypto.ToECDSAPub(msg.Payload)
+//		fmt.Println("DISCOVERY RESPONSE #2")
+//		srv.Frd.Send(util.GetLocalIP(), receivedPubKey, "miner", "addr")
+//	}, "srv", "addr")
+//}
 
 func (srv *Server) GetPubKeyString() string {
 	pkString := string(crypto.FromECDSAPub(&srv.PrivateKey.PublicKey))
