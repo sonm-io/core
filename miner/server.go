@@ -13,8 +13,8 @@ import (
 	"time"
 )
 
-const Enode = "enode://81b8db7b071b46bfc8619268606df7edf48cc55f804f52ce6176bbb369cab22af752ce15c622c958f29dd7617c3d1d647f544f93ce5a11f4319334c418340e3c@172.16.1.111:30348"
-const DEFAULT_MINER_PORT = ":30347"
+const Enode = "enode://b0605764bd7c6a816c51325a9cb9d414277d639f420f9dc48b20d12c04c33391b0a99cc8c045d7ba4657de0c04e8bb3b0d4b072ca9779167a75761d7c3c18eb0@10.196.131.151:30348"
+const DEFAULT_MINER_PORT = ":30343"
 
 /**
 /--------MAINER--------/
@@ -30,6 +30,7 @@ type Server struct {
 }
 
 func NewServer(prv *ecdsa.PrivateKey) *Server {
+
 	if prv == nil {
 		//TODO: cover error
 		prv, _ = crypto.GenerateKey()
@@ -106,10 +107,10 @@ func (srv *Server) discovery() {
 
 	go func() {
 
-		srv.Frd.AddHandling(nil, func(msg *whisperv2.Message) {
+		srv.Frd.AddHandling(&srv.PrivateKey.PublicKey, nil, func(msg *whisperv2.Message) {
 			hubPubKeyString = crypto.ToECDSAPub(msg.Payload)
 			c <- true
-		}, "miner", "discover")
+		}, "minerDiscover")
 
 		for {
 			srv.Frd.Send(srv.GetPubKeyString(), nil, "hubDiscover")
@@ -117,16 +118,16 @@ func (srv *Server) discovery() {
 			time.Sleep(time.Millisecond * 1000)
 		}
 	}()
-
 	<-c
 
 	go func() {
 
-		defer srv.Frd.Send(srv.GetPubKeyString(), hubPubKeyString, "hub", "addr")
-		srv.Frd.AddHandling(&srv.PrivateKey.PublicKey, func(msg *whisperv2.Message) {
+		srv.Frd.AddHandling(&srv.PrivateKey.PublicKey, nil, func(msg *whisperv2.Message) {
 			*srv.ip = string(msg.Payload)
+			c <- true
 		}, "miner", "addr")
-		c <- true
+
+		srv.Frd.Send(srv.GetPubKeyString(), hubPubKeyString, "hub", "addr")
 	}()
 
 	<-c
@@ -148,40 +149,6 @@ func (srv *Server) GeHubIp() string {
 	return *srv.ip
 }
 
-func (srv *Server) StartDiscovery(frd fusrodah.Fusrodah) bool {
-	//now we send a message with topics
-	verifyMsg := "{\"message\":\"verify\"}"
-	//verifyMsg := "{"+'"'+"message"+'"'+":"+'"'+"verify"+'"'+"}"
-	//json view {"message":"verify"}
-
-	defer frd.Send(verifyMsg, nil, "hub", "discovery")
-	//Expect a response from the hub
-	//which sends information about itself
-	//with the topics "hub", "discovery", "Response"
-
-	c := make(chan bool)
-
-	go func() {
-		frd.AddHandling(nil, func(msg *whisperv2.Message) {
-
-			m := Server{}
-			err := json.Unmarshal(msg.Payload, &m.Hubs)
-			fmt.Println("Server: discoveryHand: ", m.Hubs)
-			srv.Hubs = m.Hubs
-			if err != nil {
-				fmt.Println(err)
-				c <- false
-			}
-			fmt.Println("MAIN MAINER 2", srv.Hubs)
-			c <- true
-
-		}, "hub", "discovery", "Response")
-	}()
-
-	<-c
-	return true
-
-}
 
 func (srv *Server) GetPubKeyString() string {
 	pkString := string(crypto.FromECDSAPub(&srv.PrivateKey.PublicKey))

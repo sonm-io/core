@@ -17,6 +17,7 @@ import (
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"os"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/Sokel/fusrodah/fusrodah"
 )
 
 type Fusrodah struct {
@@ -34,13 +35,17 @@ type Fusrodah struct {
 
 func (fusrodah *Fusrodah) Start() {
 
-	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(10), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
+	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(3), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// function that start whisper server
 	// private key is needed
 
 	//Creates new instance of whisper protocol entity. NOTE - using whisper v.2 (not v5)
 	fusrodah.whisperServer = whisperv2.New()
+
+	if fusrodah.Prv == nil{
+		fusrodah.Prv = fusrodah.whisperServer.NewIdentity()
+	}
 
 	//Configuration to running p2p server. Configuration values can't be modified after launch.
 	//See p2p package in go-ethereum (server.go) for more info.
@@ -49,7 +54,7 @@ func (fusrodah *Fusrodah) Start() {
 	//	//	Identity:   p2p.NewSimpleClientIdentity("my-whisper-app", "1.0", "", string(pub)),
 	//	PrivateKey: fusrodah.Prv,
 	//	ListenAddr: ":8000",
-	//
+	//xxxx
 	//	//here we can define what additional protocols will be used *above* p2p server.
 	//	Protocols: []p2p.Protocol{whisperv2.Whisper{}.Protocol},
 	//}
@@ -60,12 +65,11 @@ func (fusrodah *Fusrodah) Start() {
 
 	maxPeers := 80
 
-	tmpID := fusrodah.whisperServer.NewIdentity()
 
 	//Definition of p2p server and binds to configuration. Configuration also could be stored in file.
 	fusrodah.p2pServer = p2p.Server{
 		Config: p2p.Config{
-			PrivateKey:     tmpID,
+			PrivateKey:     fusrodah.Prv,
 			MaxPeers:       maxPeers,
 			Name:           common.MakeName("wnode", "2.0"),
 			Protocols:      fusrodah.whisperServer.Protocols(),
@@ -146,7 +150,7 @@ func (fusrodah *Fusrodah) createMessage(message string, to *ecdsa.PublicKey) *wh
 	return msg
 }
 
-func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, topics []whisperv2.Topic) *whisperv2.Envelope {
+func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, to *ecdsa.PublicKey, topics []whisperv2.Topic) *whisperv2.Envelope {
 	//Now we wrap message into envelope
 	// Wrap bundles the message into an Envelope to transmit over the network.
 	//
@@ -160,14 +164,15 @@ func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, topics []whi
 	//   - options.From != nil && options.To == nil: signed broadcast (known sender)
 	//   - options.From == nil && options.To != nil: encrypted anonymous message
 	//   - options.From != nil && options.To != nil: encrypted signed message
-	envelope, err := message.Wrap(1, whisperv2.Options{
+	envelope, err := message.Wrap(whisperv2.DefaultPoW, whisperv2.Options{
+		To: to,
 		From:   fusrodah.Prv, // Sign it
 		Topics: topics,
+		TTL: whisperv2.DefaultTTL,
 	})
 	if err != nil {
 		fmt.Println("could not create whisper envelope:", err)
 	}
-	envelope.TTL = 4800000
 	return envelope
 }
 
@@ -179,13 +184,13 @@ func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey, topics ...st
 	}
 
 	// wrap source message to *whisper2.Message Entity
-	whMessage := fusrodah.createMessage(message, nil)
+	whMessage := fusrodah.createMessage(message, to)
 
 	// get possibly topics
 	tops := fusrodah.getTopics(topics...)
 
 	// wrap message to envelope, it needed to sending
-	envelop := fusrodah.createEnvelop(whMessage, tops)
+	envelop := fusrodah.createEnvelop(whMessage, to, tops)
 
 	if err := fusrodah.whisperServer.Send(envelop); err != nil {
 		fmt.Println(err)
@@ -196,7 +201,7 @@ func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey, topics ...st
 	}
 }
 
-func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, cb func(msg *whisperv2.Message), topics ...string) int {
+func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, from *ecdsa.PublicKey,  cb func(msg *whisperv2.Message), topics ...string) int {
 	// start whisper server, if it not running yet
 	if fusrodah.whisperServerStatus != "running" {
 		fusrodah.Start()
@@ -209,6 +214,7 @@ func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, cb func(msg *whisperv
 		//	setting up handler
 		//	NOTE: parser and sotrting info in message should be inside this func
 		Fn: cb,
+		From: nil,
 		To: to,
 	})
 	return id

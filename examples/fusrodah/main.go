@@ -5,16 +5,17 @@ import (
 	"github.com/sonm-io/fusrodah/fusrodah"
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"time"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func main() {
 	done := make(chan struct{})
-	//prv, _ := crypto.GenerateKey()
+	prv, _ := crypto.GenerateKey()
 
 	frd := fusrodah.Fusrodah{
-		Prv:   nil,
-		Port:  ":30346",
-		Enode: "enode://bda98fd8e7b8a377f8964d98ac71f5b2f8df0c8401dc62437905deca1b71a582aa6a3c57e3d3b4092e3d444f9b751bd54abaa536dfdf057ed8f31684bdac19b2@10.196.131.151:30348",
+		Prv:   prv,
+		Port:  ":30345",
+		Enode: "enode://b0605764bd7c6a816c51325a9cb9d414277d639f420f9dc48b20d12c04c33391b0a99cc8c045d7ba4657de0c04e8bb3b0d4b072ca9779167a75761d7c3c18eb0@10.196.131.151:30348",
 	}
 
 	frd.Start()
@@ -22,13 +23,13 @@ func main() {
 	frd.AddHandling(nil, func(msg *whisperv2.Message) {
 		fmt.Println(string(msg.Payload))
 		if string(msg.Payload) == "Quit" {
-			close(done)
+			//close(done)
 		}
 	}, "test")
 
 	for{
 		time.Sleep(3*time.Second)
-		//frd.Send("Quit", nil, "test")
+		frd.Send("Quit", nil, "test")
 	}
 
 	select {

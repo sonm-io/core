@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/sonm-io/fusrodah/miner"
-	//"github.com/sonm-io/go-ethereum/crypto"
+	//"github.com/ethereum/go-ethereum/crypto"
 	"fmt"
 )
 
