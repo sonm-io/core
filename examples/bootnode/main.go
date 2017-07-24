@@ -11,6 +11,8 @@ import (
 
 	"net/http"
 
+	"time"
+
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -20,7 +22,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"github.com/sonm-io/fusrodah/util"
-	"time"
 )
 
 const (
@@ -28,7 +29,6 @@ const (
 	httpInfoPort        = 8092
 	httpInfoPath        = "/info"
 	defaultBootnodePort = ":30349"
-
 )
 
 // singletons
@@ -36,7 +36,6 @@ var (
 	server *p2p.Server
 	shh    *whisper.Whisper
 	done   chan struct{}
-
 
 	input = bufio.NewReader(os.Stdin)
 )
@@ -53,13 +52,7 @@ var (
 	generateKey   = flag.Bool("generatekey", false, "generate and show the private key")
 
 	argVerbosity = flag.Int("verbosity", int(log.LvlError), "log verbosity level")
-	argTTL       = flag.Uint("ttl", 30, "time-to-live for messages in seconds")
-	argWorkTime  = flag.Uint("work", 5, "work time in seconds")
-
-	argIP     = flag.String("ip", "", "IP address and port of this node (e.g. 127.0.0.1:30303)")
-	argDBPath = flag.String("dbpath", "", "path to the server's DB directory")
-	argIDFile = flag.String("idfile", "", "file name with node id (private key)")
-	argEnode  = flag.String("boot", "", "bootstrap node you want to connect to (e.g. enode://e454......08d50@52.176.211.200:16428)")
+	argBootNode  = flag.String("boot", "", "bootstrap node you want to connect to (e.g. enode://e454......08d50@52.176.211.200:16428)")
 )
 
 func main() {
@@ -70,13 +63,8 @@ func main() {
 }
 
 func echo() {
-	fmt.Printf("ttl = %d \n", *argTTL)
-	fmt.Printf("workTime = %d \n", *argWorkTime)
-	fmt.Printf("ip = %s \n", *argIP)
 	fmt.Printf("pub = %s \n", common.ToHex(crypto.FromECDSAPub(pub)))
-	fmt.Printf("idfile = %s \n", *argIDFile)
-	fmt.Printf("dbpath = %s \n", *argDBPath)
-	fmt.Printf("boot = %s \n", *argEnode)
+	fmt.Printf("boot = %s \n", *argBootNode)
 	fmt.Printf("enode = %s \n", server.NodeInfo().Enode)
 	fmt.Printf("http info = http://%s%s \n", getHttpInfoListenAddr(), httpInfoPath)
 }
@@ -87,10 +75,9 @@ func initialize() {
 	done = make(chan struct{})
 	var peers []*discover.Node
 
-	fmt.Println(*argEnode)
-	peer := discover.MustParseNode(*argEnode)
+	fmt.Println(*argBootNode)
+	peer := discover.MustParseNode(*argBootNode)
 	peers = append(peers, peer)
-
 
 	if *generateKey {
 		key, err := crypto.GenerateKey()
@@ -139,35 +126,33 @@ func startServer() {
 func run() {
 	startServer()
 	defer server.Stop()
+
 	shh.Start(server)
 	defer shh.Stop()
-	startHttpServer()
 
+	startHttpServer()
 	sendLoop()
 }
 
 func sendLoop() {
 	for {
-
-		s := scanLine("")
-
+		s := scanLine(">>>")
 		if s == quitCommand {
 			fmt.Println("Quit command received")
 			close(done)
 			break
 		}
 
-		msg := whisper.NewMessage([]byte(s))
-
-		env := whisper.NewEnvelope(3 * time.Second, nil, msg)
-		shh.Send(env)
-
-		if server.PeerCount() >0{
+		if server.PeerCount() == 0 {
 			fmt.Println("No peers detected")
 			close(done)
 			break
 		} else {
-			fmt.Printf("Find %d peers\r\n", server.PeerCount())
+			fmt.Printf("Find %d peers, try to send payload=%s\r\n", server.PeerCount(), s)
+
+			msg := whisper.NewMessage([]byte(s))
+			env := whisper.NewEnvelope(3*time.Second, nil, msg)
+			shh.Send(env)
 		}
 	}
 }
@@ -192,16 +177,11 @@ func startHttpServer() {
 	http.HandleFunc(httpInfoPath, func(w http.ResponseWriter, r *http.Request) {
 		body := fmt.Sprintf(`<h1>Node info</h1>
 		<ul>
-		<li>ttl = %d</li>
-		<li>workTime = %d</li>
 		<li>ip = %s</li>
 		<li>pub = %s</li>
-		<li>idfile = %s</li>
-		<li>dbpath = %s</li>
 		<li>boot = %s</li>
 		<li>enode = %s</li>
-		</ul>`, *argTTL, *argWorkTime, *argIP, common.ToHex(crypto.FromECDSAPub(pub)),
-			*argIDFile, *argDBPath, *argEnode, server.NodeInfo().Enode)
+		</ul>`, util.GetLocalIP(), common.ToHex(crypto.FromECDSAPub(pub)), *argBootNode, server.NodeInfo().Enode)
 
 		w.Write([]byte(body))
 	})
