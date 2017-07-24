@@ -20,16 +20,16 @@ func main() {
 
 	frd.Start()
 
-	frd.AddHandling(nil, func(msg *whisperv2.Message) {
+	frd.AddHandling(nil, nil, func(msg *whisperv2.Message) {
 		fmt.Println(string(msg.Payload))
 		if string(msg.Payload) == "Quit" {
-			//close(done)
+			close(done)
 		}
 	}, "test")
 
 	for{
 		time.Sleep(3*time.Second)
-		frd.Send("Quit", nil, "test")
+		frd.Send("Quit", nil, true, "test")
 	}
 
 	select {

@@ -17,7 +17,6 @@ import (
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"os"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/Sokel/fusrodah/fusrodah"
 )
 
 type Fusrodah struct {
@@ -150,7 +149,7 @@ func (fusrodah *Fusrodah) createMessage(message string, to *ecdsa.PublicKey) *wh
 	return msg
 }
 
-func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, to *ecdsa.PublicKey, topics []whisperv2.Topic) *whisperv2.Envelope {
+func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, to *ecdsa.PublicKey, from *ecdsa.PrivateKey, topics []whisperv2.Topic) *whisperv2.Envelope {
 	//Now we wrap message into envelope
 	// Wrap bundles the message into an Envelope to transmit over the network.
 	//
@@ -166,7 +165,7 @@ func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, to *ecdsa.Pu
 	//   - options.From != nil && options.To != nil: encrypted signed message
 	envelope, err := message.Wrap(whisperv2.DefaultPoW, whisperv2.Options{
 		To: to,
-		From:   fusrodah.Prv, // Sign it
+		From:   from, // Sign it
 		Topics: topics,
 		TTL: whisperv2.DefaultTTL,
 	})
@@ -176,11 +175,18 @@ func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, to *ecdsa.Pu
 	return envelope
 }
 
-func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey, topics ...string) {
+func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey, anonymous bool, topics ...string) {
 
 	// start whisper server, if it not running yet
 	if fusrodah.whisperServerStatus != "running" {
 		fusrodah.Start()
+	}
+
+	var from *ecdsa.PrivateKey
+	if anonymous{
+		from = nil
+	}else{
+		from = fusrodah.Prv
 	}
 
 	// wrap source message to *whisper2.Message Entity
@@ -190,7 +196,7 @@ func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey, topics ...st
 	tops := fusrodah.getTopics(topics...)
 
 	// wrap message to envelope, it needed to sending
-	envelop := fusrodah.createEnvelop(whMessage, to, tops)
+	envelop := fusrodah.createEnvelop(whMessage, to, from, tops)
 
 	if err := fusrodah.whisperServer.Send(envelop); err != nil {
 		fmt.Println(err)
