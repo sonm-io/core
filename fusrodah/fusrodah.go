@@ -16,6 +16,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"os"
+	"github.com/ethereum/go-ethereum/log"
 )
 
 type Fusrodah struct {
@@ -32,6 +33,9 @@ type Fusrodah struct {
 }
 
 func (fusrodah *Fusrodah) Start() {
+
+	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(10), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
+
 	// function that start whisper server
 	// private key is needed
 
@@ -83,7 +87,7 @@ func (fusrodah *Fusrodah) Start() {
 
 	//Starting whisper protocol on running server.
 	// NOTE whisper *should* be started automatically but it is not happening... possible BUG in go-ethereum.
-	if err := fusrodah.whisperServer.Start(fusrodah.p2pServer); err != nil {
+	if err := fusrodah.whisperServer.Start(&fusrodah.p2pServer); err != nil {
 		fmt.Println("could not start server:", err)
 		os.Exit(1)
 	}
