@@ -50,9 +50,10 @@ const (
 
 // singletons
 var (
-	server *p2p.Server
-	shh    *whisper.Whisper
-	done   chan struct{}
+	server  *p2p.Server
+	shh     *whisper.Whisper
+	done    chan struct{}
+	version string
 
 	input = bufio.NewReader(os.Stdin)
 )
@@ -85,6 +86,7 @@ func main() {
 }
 
 func echo() {
+	fmt.Printf("version = %s \n", version)
 	fmt.Printf("ttl = %d \n", *argTTL)
 	fmt.Printf("workTime = %d \n", *argWorkTime)
 	fmt.Printf("ip = %s \n", *argIP)
