@@ -2,7 +2,7 @@ package util
 
 import (
 	"crypto/ecdsa"
-	"github.com/sonm-io/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto"
 	"net"
 )
 

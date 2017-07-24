@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/sonm-io/fusrodah/fusrodah"
-	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
+	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 )
 
 func main() {

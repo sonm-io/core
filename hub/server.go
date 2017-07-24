@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"github.com/sonm-io/fusrodah/fusrodah"
 	"github.com/sonm-io/fusrodah/util"
-	"github.com/sonm-io/go-ethereum/crypto"
-	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"io/ioutil"
 	"os"
 )

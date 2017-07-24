@@ -3,13 +3,13 @@ package miner
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
+	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"io/ioutil"
 
 	"crypto/ecdsa"
 	"github.com/sonm-io/fusrodah/fusrodah"
 	"github.com/sonm-io/fusrodah/hub"
-	"github.com/sonm-io/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto"
 	"time"
 )
 
