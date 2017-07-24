@@ -42,9 +42,10 @@ import (
 )
 
 const (
-	quitCommand  = "~Q"
-	httpInfoPort = 8092
-	httpInfoPath = "/info"
+	quitCommand         = "~Q"
+	httpInfoPort        = 8092
+	httpInfoPath        = "/info"
+	defaultBootnodePort = ":30348"
 )
 
 // singletons
@@ -80,7 +81,6 @@ var (
 func main() {
 	initialize()
 	echo()
-	startHttpServer()
 	run()
 }
 
@@ -112,18 +112,9 @@ func initialize() {
 		os.Exit(0)
 	}
 
-	if *bootstrapMode {
-		if len(*argIP) == 0 {
-			localAddr := getLocalIP() + ":30348"
-			argIP = &localAddr
-		}
-	}
-
+	localAddr := getLocalIP() + defaultBootnodePort
 	shh = whisper.New()
-
-	if nodeid == nil {
-		nodeid = shh.NewIdentity()
-	}
+	nodeid = shh.NewIdentity()
 
 	maxPeers := 80
 	if *bootstrapMode {
@@ -136,7 +127,7 @@ func initialize() {
 			MaxPeers:       maxPeers,
 			Name:           common.MakeName("wnode-bootnode", "2.0"),
 			Protocols:      shh.Protocols(),
-			ListenAddr:     *argIP,
+			ListenAddr:     localAddr,
 			NAT:            nat.Any(),
 			BootstrapNodes: peers,
 			StaticNodes:    peers,
@@ -152,15 +143,15 @@ func startServer() {
 	}
 
 	fmt.Println(server.NodeInfo().Enode)
-
 	fmt.Println("Bootstrap Whisper node started")
 }
 
 func run() {
 	startServer()
 	defer server.Stop()
-	shh.Start(nil)
+	shh.Start(server)
 	defer shh.Stop()
+	startHttpServer()
 
 	sendLoop()
 }
@@ -226,5 +217,6 @@ func startHttpServer() {
 		w.Write([]byte(body))
 	})
 
+	log.Info("Starting HTTP server", "addr", getHttpInfoListenAddr())
 	http.ListenAndServe(getHttpInfoListenAddr(), nil)
 }
