@@ -28,6 +28,9 @@ import (
 	"os"
 	"strings"
 
+	"net"
+	"net/http"
+
 	"github.com/ethereum/go-ethereum/cmd/utils"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -36,10 +39,13 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv2"
-	"net"
 )
 
-const quitCommand = "~Q"
+const (
+	quitCommand  = "~Q"
+	httpInfoPort = 8092
+	httpInfoPath = "/info"
+)
 
 // singletons
 var (
@@ -74,6 +80,7 @@ var (
 func main() {
 	initialize()
 	echo()
+	startHttpServer()
 	run()
 }
 
@@ -85,6 +92,8 @@ func echo() {
 	fmt.Printf("idfile = %s \n", *argIDFile)
 	fmt.Printf("dbpath = %s \n", *argDBPath)
 	fmt.Printf("boot = %s \n", *argEnode)
+	fmt.Printf("enode = %s \n", server.NodeInfo().Enode)
+	fmt.Printf("http info = http://%s%s \n", getHttpInfoListenAddr(), httpInfoPath)
 }
 
 func initialize() {
@@ -193,4 +202,29 @@ func getLocalIP() string {
 		}
 	}
 	return ""
+}
+
+func getHttpInfoListenAddr() string {
+	return fmt.Sprintf("%s:%d", getLocalIP(), httpInfoPort)
+}
+
+func startHttpServer() {
+	http.HandleFunc(httpInfoPath, func(w http.ResponseWriter, r *http.Request) {
+		body := fmt.Sprintf(`<h1>Node info</h1>
+		<ul>
+		<li>ttl = %d</li>
+		<li>workTime = %d</li>
+		<li>ip = %s</li>
+		<li>pub = %s</li>
+		<li>idfile = %s</li>
+		<li>dbpath = %s</li>
+		<li>boot = %s</li>
+		<li>enode = %s</li>
+		</ul>`, *argTTL, *argWorkTime, *argIP, common.ToHex(crypto.FromECDSAPub(pub)),
+			*argIDFile, *argDBPath, *argEnode, server.NodeInfo().Enode)
+
+		w.Write([]byte(body))
+	})
+
+	http.ListenAndServe(getHttpInfoListenAddr(), nil)
 }
