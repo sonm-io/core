@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/sonm-io/Fusrodah/mainer"
+	"github.com/sonm-io/Fusrodah/miner"
 	//"github.com/sonm-io/go-ethereum/crypto"
 	"fmt"
 )
@@ -9,7 +9,7 @@ import (
 func main(){
 	//prv, _ := crypto.GenerateKey()
 
-	srv := mainer.NewServer(nil)
+	srv := miner.NewServer(nil)
 
 	srv.Start()
 	srv.Serve()

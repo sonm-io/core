@@ -1,4 +1,4 @@
-package mainer
+package miner
 
 import (
 	"io/ioutil"
@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
 
-	"github.com/sonm-io/Fusrodah"
+	"github.com/sonm-io/Fusrodah/fusrodah"
 	"github.com/sonm-io/Fusrodah/hub"
 	"crypto/ecdsa"
 	"github.com/sonm-io/go-ethereum/crypto"
@@ -24,7 +24,7 @@ const DEFAULT_MINER_PORT = ":30347"
 type Server struct {
 	PrivateKey ecdsa.PrivateKey
 	Hubs       []hub.HubsType
-	Frd        *Fusrodah.Fusrodah
+	Frd        *fusrodah.Fusrodah
 	ConfFile   string
 	ip         *string
 }
@@ -35,7 +35,7 @@ func NewServer(prv *ecdsa.PrivateKey) *Server {
 		prv, _ = crypto.GenerateKey()
 	}
 
-	frd := Fusrodah.Fusrodah{
+	frd := fusrodah.Fusrodah{
 		Prv: prv,
 		Enode: Enode,
 		Port: DEFAULT_MINER_PORT,
@@ -148,7 +148,7 @@ func (srv *Server) GeHubIp() string {
 	return *srv.ip
 }
 
-func (srv *Server) StartDiscovery(frd Fusrodah.Fusrodah) bool {
+func (srv *Server) StartDiscovery(frd fusrodah.Fusrodah) bool {
 	//now we send a message with topics
 	verifyMsg := "{\"message\":\"verify\"}";
 	//verifyMsg := "{"+'"'+"message"+'"'+":"+'"'+"verify"+'"'+"}"

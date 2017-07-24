@@ -1,4 +1,4 @@
-package mainer
+package miner
 
 import (
 	"github.com/sonm-io/Fusrodah/hub"

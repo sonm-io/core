@@ -4,11 +4,12 @@ import (
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
 	"fmt"
 	"encoding/json"
-	"github.com/sonm-io/Fusrodah"
+	"github.com/sonm-io/Fusrodah/fusrodah"
 	"io/ioutil"
 	"os"
 	"crypto/ecdsa"
 	"github.com/sonm-io/go-ethereum/crypto"
+	"github.com/sonm-io/Fusrodah"
 )
 
 /**
@@ -17,48 +18,48 @@ import (
  /--------------------/
 */
 
-const Enode  = "enode://81b8db7b071b46bfc8619268606df7edf48cc55f804f52ce6176bbb369cab22af752ce15c622c958f29dd7617c3d1d647f544f93ce5a11f4319334c418340e3c@172.16.1.111:30348"
-const DEFAULT_HUB_PORT  = ":30344"
+const Enode = "enode://81b8db7b071b46bfc8619268606df7edf48cc55f804f52ce6176bbb369cab22af752ce15c622c958f29dd7617c3d1d647f544f93ce5a11f4319334c418340e3c@172.16.1.111:30348"
+const DEFAULT_HUB_PORT = ":30344"
 
 type Server struct {
 	PrivateKey  *ecdsa.PrivateKey
-	Frd         Fusrodah.Fusrodah
+	Frd         fusrodah.Fusrodah
 	KnowingHubs []HubsType
 	confFile    string
 
-	HubIp		string
+	HubIp string
 }
 
-func NewServer(prv *ecdsa.PrivateKey, hubIp string) *Server{
+func NewServer(prv *ecdsa.PrivateKey, hubIp string) *Server {
 	if prv == nil {
 		//TODO: cover error
 		prv, _ = crypto.GenerateKey()
 	}
 
-	frd := Fusrodah.Fusrodah{
-		Prv: prv,
+	frd := fusrodah.Fusrodah{
+		Prv:   prv,
 		Enode: Enode,
-		Port: DEFAULT_HUB_PORT,
+		Port:  DEFAULT_HUB_PORT,
 	}
 
 	srv := Server{
 		PrivateKey: prv,
-		HubIp: hubIp,
-		Frd: frd,
+		HubIp:      hubIp,
+		Frd:        frd,
 	}
 
 	return &srv
 }
 
-func (srv *Server) Start(){
+func (srv *Server) Start() {
 	srv.Frd.Start()
 }
 
-func (srv *Server) Stop(){
+func (srv *Server) Stop() {
 	srv.Frd.Stop()
 }
 
-func (srv *Server) discoveryHandling(){
+func (srv *Server) discoveryHandling() {
 
 	srv.Frd.AddHandling(nil, func(msg *whisperv2.Message) {
 		receivedPubKey := crypto.ToECDSAPub(msg.Payload)
@@ -73,7 +74,7 @@ func (srv *Server) discoveryHandling(){
 	}, "hub", "addr")
 }
 
-func (srv *Server) Serve(){
+func (srv *Server) Serve() {
 	srv.discoveryHandling()
 }
 
@@ -83,10 +84,8 @@ func (hub *Server) loadKnowingHubs() {
 	hub.KnowingHubs = __getHubList()
 }
 
-
-
 //Deprecated
-func (hub *Server) DiscoveryHandling(frd Fusrodah.Fusrodah) {
+func (hub *Server) DiscoveryHandling(frd fusrodah.Fusrodah) {
 	//this function load knowing hubs and at the same time
 	//and print hubs with topics
 	frd.AddHandling(nil, func(msg *whisperv2.Message) {
@@ -107,7 +106,6 @@ func (hub *Server) DiscoveryHandling(frd Fusrodah.Fusrodah) {
 	fmt.Println("Server: discovery handling started")
 }
 
-
 //Deprecated
 type jsonobjectTestFile struct {
 	Hubs []HubsType
@@ -127,8 +125,7 @@ func __getHubList() []HubsType {
 	return jsontype.Hubs
 }
 
-func (srv *Server) GetPubKeyString() string{
+func (srv *Server) GetPubKeyString() string {
 	pkString := string(crypto.FromECDSAPub(&srv.PrivateKey.PublicKey))
 	return pkString
 }
-

@@ -1,4 +1,4 @@
-package Fusrodah
+package fusrodah
 
 /*
 	This program use modified go-ethereum library (https://github.com/sonm-io/go-ethereum)
@@ -15,6 +15,7 @@ import (
 	"github.com/sonm-io/go-ethereum/p2p/nat"
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
 	"os"
+	"github.com/sonm-io/Fusrodah/util"
 )
 
 type Fusrodah struct {
@@ -64,7 +65,7 @@ func (fusrodah *Fusrodah) Start() {
 			MaxPeers:       maxPeers,
 			Name:           common.MakeName("wnode", "2.0"),
 			Protocols:      fusrodah.whisperServer.Protocols(),
-			ListenAddr:     GetLocalIP() + fusrodah.Port,
+			ListenAddr:     util.GetLocalIP() + fusrodah.Port,
 			NAT:            nat.Any(),
 			BootstrapNodes: peers,
 			StaticNodes:    peers,
@@ -90,7 +91,7 @@ func (fusrodah *Fusrodah) Start() {
 	fusrodah.whisperServerStatus = "running"
 }
 
-func (fusrodah *Fusrodah) Stop(){
+func (fusrodah *Fusrodah) Stop() {
 	fusrodah.whisperServer.Stop()
 	fusrodah.p2pServer.Stop()
 }

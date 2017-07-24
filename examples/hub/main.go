@@ -4,8 +4,8 @@ import (
 	"github.com/sonm-io/Fusrodah/hub"
 	"github.com/sonm-io/go-ethereum/crypto"
 	"fmt"
-	"github.com/sonm-io/Fusrodah"
 	"github.com/sonm-io/go-ethereum/whisper/whisperv2"
+	"github.com/sonm-io/Fusrodah/util"
 )
 
 func main(){
@@ -27,7 +27,7 @@ func main(){
 	srv.Frd.AddHandling(&srv.PrivateKey.PublicKey, func(msg *whisperv2.Message) {
 		receivedPubKey := crypto.ToECDSAPub(msg.Payload)
 		fmt.Println("DISCOVERY RESPONSE #2")
-		srv.Frd.Send(Fusrodah.GetLocalIP(), receivedPubKey, "miner", "addr")
+		srv.Frd.Send(util.GetLocalIP(), receivedPubKey, "miner", "addr")
 	}, "hub", "addr")
 
 

@@ -28,7 +28,6 @@ import (
 	"os"
 	"strings"
 
-	"net"
 	"net/http"
 
 	"github.com/ethereum/go-ethereum/cmd/utils"
@@ -39,6 +38,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	whisper "github.com/ethereum/go-ethereum/whisper/whisperv2"
+	"github.com/sonm-io/Fusrodah/util"
 )
 
 const (
@@ -112,7 +112,7 @@ func initialize() {
 		os.Exit(0)
 	}
 
-	localAddr := getLocalIP() + defaultBootnodePort
+	localAddr := util.GetLocalIP() + defaultBootnodePort
 	shh = whisper.New()
 	nodeid = shh.NewIdentity()
 
@@ -179,24 +179,8 @@ func scanLine(prompt string) string {
 	return txt
 }
 
-func getLocalIP() string {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return ""
-	}
-	for _, address := range addrs {
-		// check the address type and if it is not a loopback the display it
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String()
-			}
-		}
-	}
-	return ""
-}
-
 func getHttpInfoListenAddr() string {
-	return fmt.Sprintf("%s:%d", getLocalIP(), httpInfoPort)
+	return fmt.Sprintf("%s:%d", util.GetLocalIP(), httpInfoPort)
 }
 
 func startHttpServer() {
