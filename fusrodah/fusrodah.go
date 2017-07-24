@@ -220,8 +220,12 @@ func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, from *ecdsa.PublicKey
 		//	setting up handler
 		//	NOTE: parser and sotrting info in message should be inside this func
 		Fn: cb,
-		From: nil,
+		From: from,
 		To: to,
 	})
 	return id
+}
+
+func (fusrodah *Fusrodah) RemoveHandling(id int){
+	fusrodah.whisperServer.Unwatch(id)
 }
