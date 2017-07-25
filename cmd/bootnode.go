@@ -20,13 +20,11 @@
 package main
 
 import (
-	"bufio"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 
 	"net/http"
 
@@ -42,7 +40,6 @@ import (
 )
 
 const (
-	quitCommand         = "~Q"
 	httpInfoPort        = 8092
 	httpInfoPath        = "/info"
 	defaultBootnodePort = ":30348"
@@ -51,18 +48,15 @@ const (
 
 // singletons
 var (
-	server  *p2p.Server
-	shh     *whisper.Whisper
-	done    chan struct{}
-	version string
-
-	input = bufio.NewReader(os.Stdin)
+	server            *p2p.Server
+	shh               *whisper.Whisper
+	version           string
+	obtainedEnodeAddr string
 )
 
 // encryption
 var (
-	pub    *ecdsa.PublicKey
-	nodeid *ecdsa.PrivateKey
+	pub *ecdsa.PublicKey
 )
 
 // cmd arguments
@@ -70,41 +64,28 @@ var (
 	bootstrapMode = flag.Bool("standalone", true, "boostrap node: don't actively connect to peers, wait for incoming connections")
 	generateKey   = flag.Bool("generatekey", false, "generate and show the private key")
 
-	argVerbosity = flag.Int("verbosity", int(log.LvlError), "log verbosity level")
-	argTTL       = flag.Uint("ttl", 30, "time-to-live for messages in seconds")
-	argWorkTime  = flag.Uint("work", 5, "work time in seconds")
-
-	argIP     = flag.String("ip", "", "IP address and port of this node (e.g. 127.0.0.1:30303)")
-	argDBPath = flag.String("dbpath", "", "path to the server's DB directory")
-	argIDFile = flag.String("idfile", "", "file name with node id (private key)")
-	argEnode  = flag.String("boot", "", "bootstrap node you want to connect to (e.g. enode://e454......08d50@52.176.211.200:16428)")
+	argVerbosity = flag.Int("verbosity", int(log.LvlInfo), "log verbosity level")
 )
 
 func main() {
 	initialize()
-	echo()
 	run()
+	showServerInfo()
+
+	select {}
 }
 
-func echo() {
-	fmt.Printf("version = %s \n", version)
-	fmt.Printf("ttl = %d \n", *argTTL)
-	fmt.Printf("workTime = %d \n", *argWorkTime)
-	fmt.Printf("ip = %s \n", *argIP)
-	fmt.Printf("pub = %s \n", common.ToHex(crypto.FromECDSAPub(pub)))
-	fmt.Printf("idfile = %s \n", *argIDFile)
-	fmt.Printf("dbpath = %s \n", *argDBPath)
-	fmt.Printf("boot = %s \n", *argEnode)
-	fmt.Printf("enode = %s \n", server.NodeInfo().Enode)
+func showServerInfo() {
+	fmt.Printf("version   = %s \n", version)
+	fmt.Printf("pub key   = %s \n", common.ToHex(crypto.FromECDSAPub(pub)))
+	fmt.Printf("enode     = %s \n", obtainedEnodeAddr)
 	fmt.Printf("http info = http://%s%s \n", getHttpInfoListenAddr(), httpInfoPath)
 }
 
 func initialize() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(*argVerbosity), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
-	done = make(chan struct{})
 	var peers []*discover.Node
-
 	if *generateKey {
 		key, err := crypto.GenerateKey()
 		if err != nil {
@@ -117,7 +98,6 @@ func initialize() {
 
 	localAddr := util.GetLocalIP() + defaultBootnodePort
 	shh = whisper.New()
-	nodeid = shh.NewIdentity()
 
 	maxPeers := 80
 	if *bootstrapMode {
@@ -126,7 +106,7 @@ func initialize() {
 
 	server = &p2p.Server{
 		Config: p2p.Config{
-			PrivateKey:     nodeid,
+			PrivateKey:     shh.NewIdentity(),
 			MaxPeers:       maxPeers,
 			Name:           common.MakeName(applicationName, version),
 			Protocols:      shh.Protocols(),
@@ -142,44 +122,25 @@ func initialize() {
 func startServer() {
 	err := server.Start()
 	if err != nil {
+		// todo(sshaman1101): handle error, break bootstrapping process if any
 		utils.Fatalf("Failed to start Whisper peer: %s.", err)
 	}
 
-	fmt.Println(server.NodeInfo().Enode)
-	fmt.Println("Bootstrap Whisper node started")
+	obtainedEnodeAddr = server.NodeInfo().Enode
+	log.Info("Bootstrap Node node started")
 }
 
 func run() {
 	startServer()
 	defer server.Stop()
+	log.Info("Server started")
+
 	shh.Start(server)
 	defer shh.Stop()
+	log.Info("Whisper started")
+
 	startHttpServer()
-
-	sendLoop()
-}
-
-func sendLoop() {
-	for {
-		s := scanLine("")
-		if s == quitCommand {
-			fmt.Println("Quit command received")
-			close(done)
-			break
-		}
-	}
-}
-
-func scanLine(prompt string) string {
-	if len(prompt) > 0 {
-		fmt.Print(prompt)
-	}
-	txt, err := input.ReadString('\n')
-	if err != nil {
-		utils.Fatalf("input error: %s", err)
-	}
-	txt = strings.TrimRight(txt, "\n\r")
-	return txt
+	log.Info("HTTP server started")
 }
 
 func getHttpInfoListenAddr() string {
@@ -190,20 +151,18 @@ func startHttpServer() {
 	http.HandleFunc(httpInfoPath, func(w http.ResponseWriter, r *http.Request) {
 		body := fmt.Sprintf(`<h1>Node info</h1>
 		<ul>
-		<li>ttl = %d</li>
-		<li>workTime = %d</li>
-		<li>ip = %s</li>
-		<li>pub = %s</li>
-		<li>idfile = %s</li>
-		<li>dbpath = %s</li>
+		<li>version = %s</li>
+		<li>ip addr = %s</li>
+		<li>pub key = %s</li>
 		<li>boot = %s</li>
-		<li>enode = %s</li>
-		</ul>`, *argTTL, *argWorkTime, *argIP, common.ToHex(crypto.FromECDSAPub(pub)),
-			*argIDFile, *argDBPath, *argEnode, server.NodeInfo().Enode)
+		</ul>`, version, util.GetLocalIP(), common.ToHex(crypto.FromECDSAPub(pub)), obtainedEnodeAddr)
 
 		w.Write([]byte(body))
 	})
 
 	log.Info("Starting HTTP server", "addr", getHttpInfoListenAddr())
-	http.ListenAndServe(getHttpInfoListenAddr(), nil)
+
+	go func() {
+		http.ListenAndServe(getHttpInfoListenAddr(), nil)
+	}()
 }

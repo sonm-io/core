@@ -2,6 +2,9 @@ VER = v0.1
 BUILD = $(shell git rev-parse --short HEAD)
 FULL_VER = $(VER).$(BUILD)
 
+default:
+	go run bootnode.go
+
 build:
 	go build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" -a -o bootnode_osx bootnode.go
 
