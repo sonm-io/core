@@ -10,5 +10,4 @@ run: build
 
 linux:
 	@echo "Building bootnode $(FULL_VER)"
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-		go build -tags nocgo  -ldflags "-s -X main.version=$(FULL_VER)" -a -o bootnode_linux64 bootnode.go
+	GOOS=linux GOARCH=amd64 go build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" -o bootnode_linux64 bootnode.go
