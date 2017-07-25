@@ -1,3 +1,8 @@
 .idea
 cmd/bootnode_osx
 cmd/bootnode_linux64
+
+examples/bootnode/main
+examples/fusrodah/main
+examples/hub/main
+examples/miner/main

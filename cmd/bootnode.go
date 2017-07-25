@@ -46,6 +46,7 @@ const (
 	httpInfoPort        = 8092
 	httpInfoPath        = "/info"
 	defaultBootnodePort = ":30348"
+	applicationName     = "sonm-bootnode"
 )
 
 // singletons
@@ -127,7 +128,7 @@ func initialize() {
 		Config: p2p.Config{
 			PrivateKey:     nodeid,
 			MaxPeers:       maxPeers,
-			Name:           common.MakeName("wnode-bootnode", "2.0"),
+			Name:           common.MakeName(applicationName, version),
 			Protocols:      shh.Protocols(),
 			ListenAddr:     localAddr,
 			NAT:            nat.Any(),

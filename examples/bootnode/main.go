@@ -102,7 +102,7 @@ func initialize() {
 		Config: p2p.Config{
 			PrivateKey:     nodeid,
 			MaxPeers:       maxPeers,
-			Name:           common.MakeName("wnode-bootnode", "2.0"),
+			Name:           common.MakeName("sonm-bootnode", "0.1"),
 			Protocols:      shh.Protocols(),
 			ListenAddr:     localAddr,
 			NAT:            nat.Any(),
