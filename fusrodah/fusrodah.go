@@ -34,7 +34,7 @@ type Fusrodah struct {
 
 func (fusrodah *Fusrodah) Start() {
 
-	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(3), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
+	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(5), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// function that start whisper server
 	// private key is needed
