@@ -9,6 +9,8 @@ import (
 	"github.com/sonm-io/fusrodah/fusrodah"
 )
 
+const testTopic = "testme"
+
 func main() {
 	done := make(chan struct{})
 	prv, _ := crypto.GenerateKey()
@@ -27,7 +29,7 @@ func main() {
 		if string(msg.Payload) == "Quit" {
 			close(done)
 		}
-	})
+	}, testTopic)
 
 	for {
 		select {
@@ -36,7 +38,7 @@ func main() {
 			return
 		default:
 			time.Sleep(3 * time.Second)
-			frd.Send("healthz", nil, true)
+			frd.Send("healthz", nil, true, testTopic)
 		}
 	}
 }
