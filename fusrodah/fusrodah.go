@@ -20,6 +20,15 @@ import (
 	"github.com/sonm-io/fusrodah/util"
 )
 
+type serverState int
+
+const (
+	serverStateStopped = 0
+	serverStateRunning = 1
+	//defaultTTL limits the lifetime of message in a network
+	defaultTTL = 3600000
+)
+
 type Fusrodah struct {
 	Prv           *ecdsa.PrivateKey
 	cfg           p2p.Config
@@ -27,37 +36,22 @@ type Fusrodah struct {
 	whisperServer *whisperv2.Whisper
 
 	p2pServerStatus     string
-	whisperServerStatus string
+	whisperServerStatus serverState
 
 	Enode string
 	Port  string
 }
 
+// Start start whisper server
+// private key is needed
 func (fusrodah *Fusrodah) Start() {
-
 	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(5), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
-
-	// function that start whisper server
-	// private key is needed
-
-	//Creates new instance of whisper protocol entity. NOTE - using whisper v.2 (not v5)
+	// Creates new instance of whisper protocol entity. NOTE - using whisper v.2 (not v5)
 	fusrodah.whisperServer = whisperv2.New()
 
 	if fusrodah.Prv == nil {
 		fusrodah.Prv = fusrodah.whisperServer.NewIdentity()
 	}
-
-	//Configuration to running p2p server. Configuration values can't be modified after launch.
-	//See p2p package in go-ethereum (server.go) for more info.
-	//fusrodah.cfg = p2p.Config{
-	//	MaxPeers: 10,
-	//	//	Identity:   p2p.NewSimpleClientIdentity("my-whisper-app", "1.0", "", string(pub)),
-	//	PrivateKey: fusrodah.Prv,
-	//	ListenAddr: ":8000",
-	//xxxx
-	//	//here we can define what additional protocols will be used *above* p2p server.
-	//	Protocols: []p2p.Protocol{whisperv2.Whisper{}.Protocol},
-	//}
 
 	var peers []*discover.Node
 	peer := discover.MustParseNode(fusrodah.Enode)
@@ -65,12 +59,13 @@ func (fusrodah *Fusrodah) Start() {
 
 	maxPeers := 80
 
-	//Definition of p2p server and binds to configuration. Configuration also could be stored in file.
+	// Configuration to running p2p server. Configuration values can't be modified after launch.
 	fusrodah.p2pServer = p2p.Server{
 		Config: p2p.Config{
-			PrivateKey:     fusrodah.Prv,
-			MaxPeers:       maxPeers,
-			Name:           common.MakeName("wnode", "2.0"),
+			PrivateKey: fusrodah.Prv,
+			MaxPeers:   maxPeers,
+			Name:       common.MakeName("wnode", "2.0"),
+			// here we can define what additional protocols will be used *above* p2p server.
 			Protocols:      fusrodah.whisperServer.Protocols(),
 			ListenAddr:     util.GetLocalIP() + fusrodah.Port,
 			NAT:            nat.Any(),
@@ -80,89 +75,74 @@ func (fusrodah *Fusrodah) Start() {
 		},
 	}
 
-	//Starting server and listen to errors.
-	// TODO: experience with this
-	// may trouble with starting p2p not needed exactly
+	// Starting p2p server
 	if err := fusrodah.p2pServer.Start(); err != nil {
 		fmt.Println("could not start server:", err)
 		os.Exit(1)
 	}
 
-	//Starting whisper protocol on running server.
+	// Starting whisper protocol on running p2p server.
 	// NOTE whisper *should* be started automatically but it is not happening... possible BUG in go-ethereum.
 	if err := fusrodah.whisperServer.Start(&fusrodah.p2pServer); err != nil {
 		fmt.Println("could not start server:", err)
 		os.Exit(1)
 	}
 
-	fusrodah.whisperServerStatus = "running"
+	fusrodah.whisperServerStatus = serverStateRunning
 }
 
+// Stop stops whisper and p2p servers
 func (fusrodah *Fusrodah) Stop() {
 	fusrodah.whisperServer.Stop()
 	fusrodah.p2pServer.Stop()
 }
 
+// getTopics creates topics structures from string representations
+// Topic represents a cryptographically secure, probabilistic partial
+// classifications of a message, determined as the first (left) 4 bytes of the
+// SHA3 hash of some arbitrary data given by the original author of the message.
+// NOTE for single topic use NewTopicFromString
+// NOTE whisperv2 is a package, shh - running whisper entity. Do not mess with that.
+// NOTE topics logic can be finded in whisperv2/topic.go
 func (fusrodah *Fusrodah) getTopics(data ...string) []whisperv2.Topic {
-	// NOTE for single topic use NewTopicFromString
-	// NOTE whisperv2 is a package, shh - running whisper entity. Do not mess with that.
-	// NOTE topics logic can be finded in whisperv2/topic.go
-	// Topic represents a cryptographically secure, probabilistic partial
-	// classifications of a message, determined as the first (left) 4 bytes of the
-	// SHA3 hash of some arbitrary data given by the original author of the message.
 	topics := whisperv2.NewTopicsFromStrings(data...)
 	return topics
 }
 
+// getFilterTopics Creating new filters for a few topics.
+// NOTE more info about filters in /whisperv2/filters.go
 func (fusrodah *Fusrodah) getFilterTopics(data ...string) [][]whisperv2.Topic {
-	// Creating new filters for a few topics.
-	// NOTE more info about filters in /whisperv2/filters.go
 	topics := whisperv2.NewFilterTopicsFromStringsFlat(data...)
 	return topics
 }
 
+// createMessage Creates entity of message itself.
+// Message represents an end-user data packet to transmit through the Whisper
+// protocol. These are wrapped into Envelopes that need not be understood by
+// intermediate nodes, just forwarded.
+// NewMessage creates and initializes a non-signed, non-encrypted Whisper message.
+// NOTE more info in whisperv2/message.go
+// NOTE  first we create message, then we create envelope.
 func (fusrodah *Fusrodah) createMessage(message string, to *ecdsa.PublicKey) *whisperv2.Message {
-	// Creates entity of message itself.
-	// Message represents an end-user data packet to transmit through the Whisper
-	// protocol. These are wrapped into Envelopes that need not be understood by
-	// intermediate nodes, just forwarded.
-	/*
-		type Message struct {
-			Flags     byte // First bit is signature presence, rest reserved and should be random
-			Signature []byte
-			Payload   []byte
-
-			Sent time.Time     // Time when the message was posted into the network
-			TTL  time.Duration // Maximum time to live allowed for the message
-
-			To   *ecdsa.PublicKey // Message recipient (identity used to decode the message)
-			Hash common.Hash      // Message envelope hash to act as a unique id
-		}
-	*/
-	// NewMessage creates and initializes a non-signed, non-encrypted Whisper message.
-	// NOTE more info in whisperv2/message.go
-	// NOTE  first we create message, then we create envelope.
 	msg := whisperv2.NewMessage([]byte(message))
-	//TTL-hop limit is a mechanism that limits the lifespan or lifetime of message in a network
 	msg.To = to
-	msg.TTL = 3600000
+	msg.TTL = defaultTTL
 	return msg
 }
 
+// createEnvelop wraps message into envelope to transmit over the network.
+//
+// pow (Proof Of Work) controls how much time to spend on hashing the message,
+// inherently controlling its priority through the network (smaller hash, bigger
+// priority).
+//
+// The user can control the amount of identity, privacy and encryption through
+// the options parameter as follows:
+//   - options.From == nil && options.To == nil: anonymous broadcast
+//   - options.From != nil && options.To == nil: signed broadcast (known sender)
+//   - options.From == nil && options.To != nil: encrypted anonymous message
+//   - options.From != nil && options.To != nil: encrypted signed message
 func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, to *ecdsa.PublicKey, from *ecdsa.PrivateKey, topics []whisperv2.Topic) (*whisperv2.Envelope, error) {
-	//Now we wrap message into envelope
-	// Wrap bundles the message into an Envelope to transmit over the network.
-	//
-	// pow (Proof Of Work) controls how much time to spend on hashing the message,
-	// inherently controlling its priority through the network (smaller hash, bigger
-	// priority).
-	//
-	// The user can control the amount of identity, privacy and encryption through
-	// the options parameter as follows:
-	//   - options.From == nil && options.To == nil: anonymous broadcast
-	//   - options.From != nil && options.To == nil: signed broadcast (known sender)
-	//   - options.From == nil && options.To != nil: encrypted anonymous message
-	//   - options.From != nil && options.To != nil: encrypted signed message
 	envelope, err := message.Wrap(whisperv2.DefaultPoW, whisperv2.Options{
 		To:     to,
 		From:   from, // Sign it
@@ -176,9 +156,14 @@ func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, to *ecdsa.Pu
 	return envelope, nil
 }
 
+// isRunning check if Fusrodah server is running
+func (fusrodah *Fusrodah) isRunning() bool {
+	return fusrodah.whisperServerStatus == serverStateRunning
+}
+
 func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey, anonymous bool, topics ...string) error {
 	// start whisper server, if it not running yet
-	if fusrodah.whisperServerStatus != "running" {
+	if !fusrodah.isRunning() {
 		fusrodah.Start()
 	}
 
@@ -210,19 +195,19 @@ func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey, anonymous bo
 	return nil
 }
 
+// AddHandling adds register handler for messages with given keys and on given topics
 func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, from *ecdsa.PublicKey, cb func(msg *whisperv2.Message), topics ...string) int {
-	// start whisper server, if it not running yet
-	if fusrodah.whisperServerStatus != "running" {
+	if !fusrodah.isRunning() {
 		fusrodah.Start()
 	}
 
 	// add watcher with any topics
 	id := fusrodah.whisperServer.Watch(whisperv2.Filter{
-		//	setting up filter
+		// setting up filter by topic
 		Topics: fusrodah.getFilterTopics(topics...),
-		//	setting up handler
-		//	NOTE: parser and sotrting info in message should be inside this func
-		Fn:   cb,
+		// setting up message handler
+		Fn: cb,
+		// settings up sender and recipient
 		From: from,
 		To:   to,
 	})
@@ -231,6 +216,7 @@ func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, from *ecdsa.PublicKey
 	return id
 }
 
+// RemoveHandling removes message handler by their id
 func (fusrodah *Fusrodah) RemoveHandling(id int) {
 	fusrodah.whisperServer.Unwatch(id)
 	fmt.Printf("Filter uninstalled: %d \r\n", id)
