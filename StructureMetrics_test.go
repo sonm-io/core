@@ -17,7 +17,7 @@ func TestMetricsHubFileOperations(t *testing.T) {
 		HubAddress:"123",
 		HubPing: "q23",
 		HubService: "service",
-		HubStack: "sdcsjdnc",
+		HubStack: "hub stack",
 		CreationDate: "12.12.12",
 		PayDay: "12.14.2012",
 		TransferLimit: "1234.42",
