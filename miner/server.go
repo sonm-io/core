@@ -1,19 +1,16 @@
 package miner
 
 import (
-	"encoding/json"
-	"fmt"
-	//"github.com/ethereum/go-ethereum/whisper/whisperv2"
-	"io/ioutil"
-
 	"crypto/ecdsa"
 	"github.com/sonm-io/fusrodah/fusrodah"
 	"github.com/sonm-io/fusrodah/hub"
 	"github.com/ethereum/go-ethereum/crypto"
 	//"time"
+	"github.com/ethereum/go-ethereum/whisper/whisperv2"
+	"time"
 )
 
-const Enode = "enode://e97d851aa39884a54320539f5dcab2ec6688e66116459e42b6d57c1d0db68107475875ad0d42230d97ee19a96440f7eba3f7273b8072d10afd4032e321a1f456@172.16.1.128:30348"
+const Enode = "enode://83985f67557c65877db4098e8640bc8c2c3e903c22c0943c2a895f587ecb5dfc455b2b6855d3ce9466538b8e60be478a15e1ef0f364ddadfcd1ef6754678b292@172.16.1.128:30348"
 const DEFAULT_MINER_PORT = ":30343"
 
 /**
@@ -26,7 +23,7 @@ type Server struct {
 	Hubs       []hub.HubsType
 	Frd        *fusrodah.Fusrodah
 	ConfFile   string
-	ip         *string
+	ip         string
 }
 
 func NewServer(prv *ecdsa.PrivateKey) *Server {
@@ -62,64 +59,32 @@ func (srv *Server) Serve() {
 	srv.discovery()
 }
 
-//Deprecated
-func (srv *Server) LoadConf() bool {
-	//this function load miners configuration
-	file, err := ioutil.ReadFile(srv.ConfFile)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-
-	var m Server
-	err = json.Unmarshal(file, &m)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	*srv = m
-	return true
-}
-
-//Deprecated
-func (srv *Server) SaveConf() bool {
-	//this function save miners configuration
-	hubListString, err := json.Marshal(srv)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-
-	// NOTE: this for test
-	fmt.Println("list:", string(hubListString))
-
-	err = ioutil.WriteFile(srv.ConfFile, hubListString, 0644)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	return true
-}
-
 func (srv *Server) discovery() {
+	var filterId int
 
-}
+	done := make(chan struct{})
 
-func (srv *Server) GeHubIp() string {
-	c := make(chan bool)
-	if srv.ip == nil {
-		go func() {
-			srv.discovery()
-			c <- true
-		}()
+	filterId = srv.Frd.AddHandling(nil, nil, func(msg *whisperv2.Message) {
+		srv.ip = string(msg.Payload)
+		srv.Frd.RemoveHandling(filterId)
+		close(done)
+	}, "minerDiscover")
+
+	select {
+	case <-done:
+		return
+	default:
+		srv.Frd.Send(srv.GetPubKeyString(), nil, true, "hubDiscover")
+		time.Sleep(time.Millisecond * 1000)
 	}
-
-	//Filters here
-
-	<-c
-	return *srv.ip
 }
 
+func (srv *Server) GetHubIp() string {
+	if srv.ip == "0.0.0.0" {
+		srv.discovery()
+	}
+	return srv.ip
+}
 
 func (srv *Server) GetPubKeyString() string {
 	pkString := string(crypto.FromECDSAPub(&srv.PrivateKey.PublicKey))

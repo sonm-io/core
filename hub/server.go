@@ -7,6 +7,7 @@ import (
 	//"github.com/sonm-io/fusrodah/util"
 	"github.com/ethereum/go-ethereum/crypto"
 	//"github.com/ethereum/go-ethereum/whisper/whisperv2"
+	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 )
 
 /**
@@ -15,7 +16,7 @@ HUB FUNCTION SECTION
 /--------------------/
 */
 
-const Enode = "enode://e97d851aa39884a54320539f5dcab2ec6688e66116459e42b6d57c1d0db68107475875ad0d42230d97ee19a96440f7eba3f7273b8072d10afd4032e321a1f456@172.16.1.128:30348"
+const Enode = "enode://83985f67557c65877db4098e8640bc8c2c3e903c22c0943c2a895f587ecb5dfc455b2b6855d3ce9466538b8e60be478a15e1ef0f364ddadfcd1ef6754678b292@172.16.1.128:30348"
 const DEFAULT_HUB_PORT = ":30322"
 
 type Server struct {
@@ -57,23 +58,11 @@ func (srv *Server) Stop() {
 }
 
 func (srv *Server) Serve() {
-	//srv.discoveryHandling()
+	srv.Frd.AddHandling(nil, nil, func(msg *whisperv2.Message) {
+		srv.Frd.Send(srv.HubIp, nil, true,  "minerDiscover")
+	}, "hubDiscover")
 }
 
-//func (srv *Server) discoveryHandling() {
-//
-//	srv.Frd.AddHandling(nil, func(msg *whisperv2.Message) {
-//		receivedPubKey := crypto.ToECDSAPub(msg.Payload)
-//		fmt.Println("DISCOVERY RESPONSE #1")
-//		srv.Frd.Send(srv.GetPubKeyString(), receivedPubKey, "miner", "discover")
-//	}, "hubDiscover")
-//
-//	srv.Frd.AddHandling(&srv.PrivateKey.PublicKey, func(msg *whisperv2.Message) {
-//		receivedPubKey := crypto.ToECDSAPub(msg.Payload)
-//		fmt.Println("DISCOVERY RESPONSE #2")
-//		srv.Frd.Send(util.GetLocalIP(), receivedPubKey, "miner", "addr")
-//	}, "srv", "addr")
-//}
 
 func (srv *Server) GetPubKeyString() string {
 	pkString := string(crypto.FromECDSAPub(&srv.PrivateKey.PublicKey))

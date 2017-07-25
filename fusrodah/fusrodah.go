@@ -34,7 +34,7 @@ type Fusrodah struct {
 
 func (fusrodah *Fusrodah) Start() {
 
-	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(5), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
+	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(0), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 
 	// function that start whisper server
 	// private key is needed
@@ -203,7 +203,7 @@ func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey, anonymous bo
 	} else {
 		// this block actually for testing
 		// NOTE: delete this block or wrap more
-		fmt.Println("message sended")
+		//fmt.Println("message sended")
 	}
 }
 
@@ -223,9 +223,12 @@ func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, from *ecdsa.PublicKey
 		From: from,
 		To: to,
 	})
+
+	fmt.Printf("Filter installed: %d \r\n", id)
 	return id
 }
 
 func (fusrodah *Fusrodah) RemoveHandling(id int){
 	fusrodah.whisperServer.Unwatch(id)
+	fmt.Printf("Filter uninstalled: %d \r\n", id)
 }
