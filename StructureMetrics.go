@@ -3,6 +3,7 @@ package metricsStructs
 import (
 	"time"
 	"encoding/json"
+	"io/ioutil"
 )
 
 // MetricsHub describe some
@@ -12,15 +13,15 @@ type MetricsHub struct {
 	HubService          string        `json:"hubService"`
 	HubStack            string        `json:"hubStack"`
 	CreationDate        string        `json:"creationDate"`
-	HubLifetime         time.Time     `json:"hubLifeTime"`
 	PayDay              string        `json:"payDay"`
+	TransferLimit       string        `json:"transferLimit"`
+	HubLifetime         time.Time     `json:"hubLifeTime"`
+	SpeedConfirm        time.Time     `json:"speedConfirm"`
 	FreezeTime          time.Time     `json:"freezeTime"`
-	AmountFreezeTime    int 		  `json:"amountFreezeTime"`
-	TransferLimit       string 		  `json:"transferLimit"`
-	SuspectStatus       bool 		  `json:"suspectStatus"`
-	DayLimit            time.Time 	  `json:"dayLimit"`
-	AvailabilityPresale bool 		  `json:"availabilityPresale"`
-	SpeedConfirm        time.Time 	  `json:"speedConfirm"`
+	DayLimit            time.Time     `json:"dayLimit"`
+	AmountFreezeTime    int           `json:"amountFreezeTime"`
+	SuspectStatus       bool          `json:"suspectStatus"`
+	AvailabilityPresale bool          `json:"availabilityPresale"`
 }
 type MetricsMiner struct {
 	MinAddress   string
@@ -42,6 +43,23 @@ func (m *MetricsHub) FromJSON(b []byte) error {
 	return err
 }
 
-//func (m *MetricsHub) MarshalJson() ([]byte, error) {
-//	return []byte (`{"hubAddress": "` + m.HubAddress + `"}`), nil
-//}
+func (m *MetricsHub) LoadFromFile(path string) error {
+	file, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	err = m.FromJSON(file)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *MetricsHub) SaveToFile(path string) error {
+	data := m.ToJSON()
+	return ioutil.WriteFile(path, data, 0600)
+}
+
+//тест для формирования структуры: пишу файл- проверяю,чтобы не было ош,
+// сравнивать структуру по полям
