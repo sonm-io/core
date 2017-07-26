@@ -15,7 +15,6 @@ type Server struct {
 	PrivateKey  *ecdsa.PrivateKey
 	Frd         *fusrodah.Fusrodah
 	KnowingHubs []HubsType
-	confFile    string
 
 	HubIp string
 }
