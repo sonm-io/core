@@ -6,3 +6,4 @@ examples/bootnode/main
 examples/fusrodah/main
 examples/hub/main
 examples/miner/main
+examples/fusrodah_direct/main

@@ -14,7 +14,7 @@ import (
 const defaultMinerPort = ":30343"
 
 type Server struct {
-	PrivateKey ecdsa.PrivateKey
+	PrivateKey *ecdsa.PrivateKey
 	Hubs       []hub.HubsType
 	Frd        *fusrodah.Fusrodah
 	ConfFile   string
@@ -22,21 +22,19 @@ type Server struct {
 }
 
 func NewServer(prv *ecdsa.PrivateKey) *Server {
-
 	if prv == nil {
-		//TODO: cover error
-		prv, _ = crypto.GenerateKey()
+		var err error
+		prv, err = crypto.GenerateKey()
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	frd := fusrodah.Fusrodah{
-		Prv:   prv,
-		Enode: common.BootNodeAddr,
-		Port:  defaultMinerPort,
-	}
+	frd := fusrodah.NewServer(prv, defaultMinerPort, common.BootNodeAddr)
 
 	srv := Server{
-		PrivateKey: *prv,
-		Frd:        &frd,
+		PrivateKey: prv,
+		Frd:        frd,
 	}
 
 	return &srv
@@ -69,7 +67,7 @@ func (srv *Server) discovery() {
 	case <-done:
 		return
 	default:
-		srv.Frd.Send(srv.GetPubKeyString(), nil, true, common.TopicHubDiscover)
+		srv.Frd.Send(srv.GetPubKeyString(), true, common.TopicHubDiscover)
 		time.Sleep(time.Millisecond * 1000)
 	}
 }

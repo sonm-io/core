@@ -9,11 +9,11 @@ import (
 	"github.com/sonm-io/fusrodah/fusrodah"
 )
 
-const DEFAULT_HUB_PORT = ":30322"
+const defaultHubPort = ":30322"
 
 type Server struct {
 	PrivateKey  *ecdsa.PrivateKey
-	Frd         fusrodah.Fusrodah
+	Frd         *fusrodah.Fusrodah
 	KnowingHubs []HubsType
 	confFile    string
 
@@ -22,15 +22,14 @@ type Server struct {
 
 func NewServer(prv *ecdsa.PrivateKey, hubIp string) *Server {
 	if prv == nil {
-		//TODO: cover error
-		prv, _ = crypto.GenerateKey()
+		var err error
+		prv, err = crypto.GenerateKey()
+		if err != nil {
+			panic(err)
+		}
 	}
 
-	frd := fusrodah.Fusrodah{
-		Prv:   prv,
-		Enode: common.BootNodeAddr,
-		Port:  DEFAULT_HUB_PORT,
-	}
+	frd := fusrodah.NewServer(prv, defaultHubPort, common.BootNodeAddr)
 
 	srv := Server{
 		PrivateKey: prv,
@@ -51,7 +50,7 @@ func (srv *Server) Stop() {
 
 func (srv *Server) Serve() {
 	srv.Frd.AddHandling(nil, nil, func(msg *whisperv2.Message) {
-		srv.Frd.Send(srv.HubIp, nil, true, common.TopicMinerDiscover)
+		srv.Frd.Send(srv.HubIp, true, common.TopicMinerDiscover)
 	}, common.TopicHubDiscover)
 }
 
