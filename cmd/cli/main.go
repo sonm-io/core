@@ -10,7 +10,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	pb "github.com/sonm-io/insonmnia/proto/hub"
+	pb "github.com/sonm-io/core/proto/hub"
 	"github.com/urfave/cli"
 )
 

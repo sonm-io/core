@@ -15,8 +15,8 @@ import (
 	"github.com/hashicorp/yamux"
 	log "github.com/noxiouz/zapctx/ctxlog"
 
-	pb "github.com/sonm-io/insonmnia/proto/miner"
-	"github.com/sonm-io/insonmnia/util/pubdetector"
+	pb "github.com/sonm-io/core/proto/miner"
+	"github.com/sonm-io/core/util"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -212,7 +212,7 @@ func (m *Miner) Close() {
 
 // New returns new Miner
 func New(ctx context.Context, hubaddress string) (*Miner, error) {
-	addr, err := pubdetector.PublicIP()
+	addr, err := util.GetPublicIP()
 	if err != nil {
 		return nil, err
 	}

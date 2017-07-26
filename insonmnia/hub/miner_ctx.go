@@ -11,7 +11,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	pbminer "github.com/sonm-io/insonmnia/proto/miner"
+	pbminer "github.com/sonm-io/core/proto/miner"
 )
 
 // MinerCtx holds all the data related to a connected Miner

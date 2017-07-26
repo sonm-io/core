@@ -10,7 +10,7 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 
-	"github.com/sonm-io/insonmnia/insonmnia/miner"
+	"github.com/sonm-io/core/insonmnia/miner"
 )
 
 var hubaddress = flag.StringP("hubaddress", "h", "", "specify Hub address to connect to")

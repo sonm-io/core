@@ -9,7 +9,7 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 
-	"github.com/sonm-io/insonmnia/insonmnia/hub"
+	"github.com/sonm-io/core/insonmnia/hub"
 )
 
 func main() {

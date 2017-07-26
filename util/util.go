@@ -2,8 +2,14 @@ package util
 
 import (
 	"crypto/ecdsa"
-	"github.com/ethereum/go-ethereum/crypto"
+	"fmt"
 	"net"
+
+	"github.com/ethereum/go-ethereum/crypto"
+
+	"bytes"
+	"io/ioutil"
+	"net/http"
 )
 
 func ToPubKey(prv *ecdsa.PrivateKey) *ecdsa.PublicKey {
@@ -12,6 +18,7 @@ func ToPubKey(prv *ecdsa.PrivateKey) *ecdsa.PublicKey {
 	return pk
 }
 
+// GetLocalIP find local non-loopback ip addr
 func GetLocalIP() string {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
@@ -26,4 +33,36 @@ func GetLocalIP() string {
 		}
 	}
 	return ""
+}
+
+// GetPublicIP detects public IP
+func GetPublicIP() (net.IP, error) {
+	req, err := http.NewRequest("GET", "http://checkip.amazonaws.com/", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("non-OK response from checkip.amamazonaws.com: %v", resp.Status)
+	}
+
+	n := bytes.IndexByte(body, '\n')
+	s := string(body[:n])
+
+	pubipadr := net.ParseIP(s)
+	if pubipadr == nil {
+		return nil, fmt.Errorf("failed to ParseIP from: %s", s)
+	}
+	return pubipadr, nil
 }

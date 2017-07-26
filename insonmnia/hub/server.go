@@ -9,8 +9,8 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
-	pb "github.com/sonm-io/insonmnia/proto/hub"
-	pbminer "github.com/sonm-io/insonmnia/proto/miner"
+	pb "github.com/sonm-io/core/proto/hub"
+	pbminer "github.com/sonm-io/core/proto/miner"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"

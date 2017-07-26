@@ -20,7 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
-	"github.com/sonm-io/fusrodah/util"
+	"github.com/sonm-io/core/util"
 )
 
 type serverState int
