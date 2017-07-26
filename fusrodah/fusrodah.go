@@ -39,17 +39,15 @@ type Fusrodah struct {
 	Prv     *ecdsa.PrivateKey
 	asymKey *ecdsa.PrivateKey
 
-	cfg           p2p.Config
-	p2pServer     p2p.Server
-	whisperServer *whisperv2.Whisper
-
-	p2pServerStatus     string
+	p2pServer           p2p.Server
+	whisperServer       *whisperv2.Whisper
 	whisperServerStatus serverState
 
 	Enode string
 	Port  string
 }
 
+// NewServer builds new Fusrodah server instance
 func NewServer(prv *ecdsa.PrivateKey, port string, enode string) *Fusrodah {
 	if prv == nil {
 		prv, _ = crypto.GenerateKey()
@@ -67,16 +65,17 @@ func NewServer(prv *ecdsa.PrivateKey, port string, enode string) *Fusrodah {
 	}
 }
 
+// GetMsgPrivateKey returns Fusrodah server private key
 func (fusrodah *Fusrodah) GetMsgPrivateKey() *ecdsa.PrivateKey {
 	return fusrodah.asymKey
 }
 
+// GetMsgPublicKey returns Fusrodah server public key (which identify sender)
 func (fusrodah *Fusrodah) GetMsgPublicKey() *ecdsa.PublicKey {
 	return &fusrodah.asymKey.PublicKey
 }
 
 // Start start whisper server
-// private key is needed
 func (fusrodah *Fusrodah) Start() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(5), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 	// Creates new instance of whisper protocol entity. NOTE - using whisper v.2 (not v5)
@@ -131,37 +130,12 @@ func (fusrodah *Fusrodah) getFilterTopics(data ...string) [][]whisperv2.Topic {
 	return topics
 }
 
-// createEnvelop wraps message into envelope to transmit over the network.
-//
-// pow (Proof Of Work) controls how much time to spend on hashing the message,
-// inherently controlling its priority through the network (smaller hash, bigger
-// priority).
-//
-// The user can control the amount of identity, privacy and encryption through
-// the options parameter as follows:
-//   - options.From == nil && options.To == nil: anonymous broadcast
-//   - options.From != nil && options.To == nil: signed broadcast (known sender)
-//   - options.From == nil && options.To != nil: encrypted anonymous message
-//   - options.From != nil && options.To != nil: encrypted signed message
-func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, to *ecdsa.PublicKey, from *ecdsa.PrivateKey, topics []whisperv2.Topic) (*whisperv2.Envelope, error) {
-	envelope, err := message.Wrap(whisperv2.DefaultPoW, whisperv2.Options{
-		To:     to,
-		From:   from, // Sign it
-		Topics: topics,
-		TTL:    whisperv2.DefaultTTL,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return envelope, nil
-}
-
 // isRunning check if Fusrodah server is running
 func (fusrodah *Fusrodah) isRunning() bool {
 	return fusrodah.whisperServerStatus == serverStateRunning
 }
 
+// Send sends broadcast send non-encrypted message
 func (fusrodah *Fusrodah) Send(payload string, anonymous bool, topics ...string) error {
 	if !fusrodah.isRunning() {
 		return errServerNotRunning
@@ -199,6 +173,7 @@ func (fusrodah *Fusrodah) Send(payload string, anonymous bool, topics ...string)
 	return nil
 }
 
+// SendPrivateMsg sends direct encrypted message
 func (fusrodah *Fusrodah) SendPrivateMsg(payload string, to *ecdsa.PublicKey, topics ...string) error {
 	if !fusrodah.isRunning() {
 		return errServerNotRunning
