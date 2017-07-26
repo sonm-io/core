@@ -1,0 +1,108 @@
+{
+  "hubs": [
+    {
+      "id": 1,
+      "name": "hub1",
+      "timeOfStart": 100,
+      "accountingPeriod": 3,
+      "balance": 1,
+      "middleSizeOfPayment": 1
+    },
+    {
+      "id": 2,
+      "name": "hub2",
+      "timeOfStart": 10,
+      "accountingPeriod": 5,
+      "balance": 2,
+      "middleSizeOfPayment": 1
+    },
+    {
+      "id": 3,
+      "name": "hub3",
+      "timeOfStart": 100,
+      "accountingPeriod": 3,
+      "balance": 3,
+      "middleSizeOfPayment": 1
+    },
+    {
+      "id": 4,
+      "name": "hub4",
+      "timeOfStart": 10,
+      "accountingPeriod": 3,
+      "balance": 3,
+      "middleSizeOfPayment": 1
+    },
+    {
+      "id": 5,
+      "name": "hub5",
+      "timeOfStart": 100,
+      "accountingPeriod": 5,
+      "balance": 3,
+      "middleSizeOfPayment": 1
+    },
+    {
+      "id": 6,
+      "name": "hub6",
+      "timeOfStart": 10,
+      "accountingPeriod": 3,
+      "balance": 2,
+      "middleSizeOfPayment": 1
+    },
+    {
+      "id": 7,
+      "name": "hub7",
+      "timeOfStart": 100,
+      "accountingPeriod": 5,
+      "balance": 2,
+      "middleSizeOfPayment": 1
+    },
+    {
+      "id": 8,
+      "name": "hub8",
+      "timeOfStart": 10,
+      "accountingPeriod": 53,
+      "balance": 2,
+      "middleSizeOfPayment": 1
+    },
+    {
+      "id": 9,
+      "name": "hub9",
+      "timeOfStart": 10,
+      "accountingPeriod": 30,
+      "balance": 2,
+      "middleSizeOfPayment": 1
+    },
+    {
+      "id": 10,
+      "name": "hub10",
+      "timeOfStart": 10,
+      "accountingPeriod": 3,
+      "balance": 2,
+      "middleSizeOfPayment": 1
+    },
+    {
+      "id": 11,
+      "name": "hub11",
+      "timeOfStart": 10,
+      "accountingPeriod": 3,
+      "balance": 2,
+      "middleSizeOfPayment": 1
+    },
+    {
+      "id": 12,
+      "name": "hub12",
+      "timeOfStart": 10,
+      "accountingPeriod": 3,
+      "balance": 2,
+      "middleSizeOfPayment": 1
+    },
+    {
+      "id": 13,
+      "name": "hub13",
+      "timeOfStart": 10,
+      "accountingPeriod": 3,
+      "balance": 2,
+      "middleSizeOfPayment": 1
+    }
+  ]
+}
