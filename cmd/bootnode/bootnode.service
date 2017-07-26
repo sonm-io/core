@@ -2,7 +2,6 @@
 Description=Bootnode
 
 [Service]
-Type=forking
 PIDFile=/var/run/bootnode.pid
 WorkingDirectory=/home/app/bootnode
 
