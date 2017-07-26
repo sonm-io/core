@@ -11,7 +11,10 @@ import (
 	"fmt"
 	"os"
 
+	"errors"
+
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
@@ -25,39 +28,61 @@ type serverState int
 const (
 	serverStateStopped = 0
 	serverStateRunning = 1
-	//defaultTTL limits the lifetime of message in a network
-	defaultTTL = 3600000
+	maxPeers           = 80
+)
+
+var (
+	errServerNotRunning = errors.New("Server is not running")
 )
 
 type Fusrodah struct {
-	Prv           *ecdsa.PrivateKey
-	cfg           p2p.Config
-	p2pServer     p2p.Server
-	whisperServer *whisperv2.Whisper
+	Prv     *ecdsa.PrivateKey
+	asymKey *ecdsa.PrivateKey
 
-	p2pServerStatus     string
+	p2pServer           p2p.Server
+	whisperServer       *whisperv2.Whisper
 	whisperServerStatus serverState
 
 	Enode string
 	Port  string
 }
 
+// NewServer builds new Fusrodah server instance
+func NewServer(prv *ecdsa.PrivateKey, port string, enode string) *Fusrodah {
+	if prv == nil {
+		prv, _ = crypto.GenerateKey()
+	}
+
+	shh := whisperv2.New()
+
+	return &Fusrodah{
+		Prv:                 prv,
+		Port:                port,
+		Enode:               enode,
+		whisperServer:       shh,
+		asymKey:             shh.NewIdentity(),
+		whisperServerStatus: serverStateStopped,
+	}
+}
+
+// GetMsgPrivateKey returns Fusrodah server private key
+func (fusrodah *Fusrodah) GetMsgPrivateKey() *ecdsa.PrivateKey {
+	return fusrodah.asymKey
+}
+
+// GetMsgPublicKey returns Fusrodah server public key (which identify sender)
+func (fusrodah *Fusrodah) GetMsgPublicKey() *ecdsa.PublicKey {
+	return &fusrodah.asymKey.PublicKey
+}
+
 // Start start whisper server
-// private key is needed
 func (fusrodah *Fusrodah) Start() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(5), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 	// Creates new instance of whisper protocol entity. NOTE - using whisper v.2 (not v5)
-	fusrodah.whisperServer = whisperv2.New()
-
-	if fusrodah.Prv == nil {
-		fusrodah.Prv = fusrodah.whisperServer.NewIdentity()
-	}
 
 	var peers []*discover.Node
 	peer := discover.MustParseNode(fusrodah.Enode)
 	peers = append(peers, peer)
-
-	maxPeers := 80
 
 	// Configuration to running p2p server. Configuration values can't be modified after launch.
 	fusrodah.p2pServer = p2p.Server{
@@ -88,6 +113,7 @@ func (fusrodah *Fusrodah) Start() {
 		os.Exit(1)
 	}
 
+	log.Info("my public key", "key", common.ToHex(crypto.FromECDSAPub(&fusrodah.asymKey.PublicKey)))
 	fusrodah.whisperServerStatus = serverStateRunning
 }
 
@@ -97,18 +123,6 @@ func (fusrodah *Fusrodah) Stop() {
 	fusrodah.p2pServer.Stop()
 }
 
-// getTopics creates topics structures from string representations
-// Topic represents a cryptographically secure, probabilistic partial
-// classifications of a message, determined as the first (left) 4 bytes of the
-// SHA3 hash of some arbitrary data given by the original author of the message.
-// NOTE for single topic use NewTopicFromString
-// NOTE whisperv2 is a package, shh - running whisper entity. Do not mess with that.
-// NOTE topics logic can be finded in whisperv2/topic.go
-func (fusrodah *Fusrodah) getTopics(data ...string) []whisperv2.Topic {
-	topics := whisperv2.NewTopicsFromStrings(data...)
-	return topics
-}
-
 // getFilterTopics Creating new filters for a few topics.
 // NOTE more info about filters in /whisperv2/filters.go
 func (fusrodah *Fusrodah) getFilterTopics(data ...string) [][]whisperv2.Topic {
@@ -116,82 +130,77 @@ func (fusrodah *Fusrodah) getFilterTopics(data ...string) [][]whisperv2.Topic {
 	return topics
 }
 
-// createMessage Creates entity of message itself.
-// Message represents an end-user data packet to transmit through the Whisper
-// protocol. These are wrapped into Envelopes that need not be understood by
-// intermediate nodes, just forwarded.
-// NewMessage creates and initializes a non-signed, non-encrypted Whisper message.
-// NOTE more info in whisperv2/message.go
-// NOTE  first we create message, then we create envelope.
-func (fusrodah *Fusrodah) createMessage(message string, to *ecdsa.PublicKey) *whisperv2.Message {
-	msg := whisperv2.NewMessage([]byte(message))
-	msg.To = to
-	msg.TTL = defaultTTL
-	return msg
-}
-
-// createEnvelop wraps message into envelope to transmit over the network.
-//
-// pow (Proof Of Work) controls how much time to spend on hashing the message,
-// inherently controlling its priority through the network (smaller hash, bigger
-// priority).
-//
-// The user can control the amount of identity, privacy and encryption through
-// the options parameter as follows:
-//   - options.From == nil && options.To == nil: anonymous broadcast
-//   - options.From != nil && options.To == nil: signed broadcast (known sender)
-//   - options.From == nil && options.To != nil: encrypted anonymous message
-//   - options.From != nil && options.To != nil: encrypted signed message
-func (fusrodah *Fusrodah) createEnvelop(message *whisperv2.Message, to *ecdsa.PublicKey, from *ecdsa.PrivateKey, topics []whisperv2.Topic) (*whisperv2.Envelope, error) {
-	envelope, err := message.Wrap(whisperv2.DefaultPoW, whisperv2.Options{
-		To:     to,
-		From:   from, // Sign it
-		Topics: topics,
-		TTL:    whisperv2.DefaultTTL,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return envelope, nil
-}
-
 // isRunning check if Fusrodah server is running
 func (fusrodah *Fusrodah) isRunning() bool {
 	return fusrodah.whisperServerStatus == serverStateRunning
 }
 
-func (fusrodah *Fusrodah) Send(message string, to *ecdsa.PublicKey, anonymous bool, topics ...string) error {
-	// start whisper server, if it not running yet
+// Send sends broadcast send non-encrypted message
+func (fusrodah *Fusrodah) Send(payload string, anonymous bool, topics ...string) error {
 	if !fusrodah.isRunning() {
-		fusrodah.Start()
+		return errServerNotRunning
 	}
 
 	var from *ecdsa.PrivateKey
 	if anonymous {
 		from = nil
 	} else {
-		from = fusrodah.Prv
+		from = fusrodah.asymKey
 	}
 
-	// wrap source message to *whisper2.Message Entity
-	whMessage := fusrodah.createMessage(message, to)
+	opts := whisperv2.Options{
+		From:   from,
+		To:     nil,
+		Topics: whisperv2.NewTopicsFromStrings(topics...),
+		TTL:    whisperv2.DefaultTTL,
+	}
 
-	// get possibly topics
-	tops := fusrodah.getTopics(topics...)
-
-	// wrap message to envelope, it needed to sending
-	envelop, err := fusrodah.createEnvelop(whMessage, to, from, tops)
+	msg := whisperv2.NewMessage([]byte(payload))
+	env, err := msg.Wrap(whisperv2.DefaultPoW, opts)
 	if err != nil {
+		log.Error("failed to wrap new message", "err", err)
 		return err
+
 	}
 
-	err = fusrodah.whisperServer.Send(envelop)
+	err = fusrodah.whisperServer.Send(env)
 	if err != nil {
+		fmt.Printf("failed to send message: %v \n", err)
 		return err
 	}
 
 	fmt.Println("message sent")
+	return nil
+}
+
+// SendPrivateMsg sends direct encrypted message
+func (fusrodah *Fusrodah) SendPrivateMsg(payload string, to *ecdsa.PublicKey, topics ...string) error {
+	if !fusrodah.isRunning() {
+		return errServerNotRunning
+	}
+
+	opts := whisperv2.Options{
+		From:   fusrodah.asymKey,
+		To:     to,
+		Topics: whisperv2.NewTopicsFromStrings(topics...),
+		TTL:    whisperv2.DefaultTTL,
+	}
+
+	msg := whisperv2.NewMessage([]byte(payload))
+
+	env, err := msg.Wrap(0, opts)
+	if err != nil {
+		log.Error("failed to wrap new message", "err", err)
+		return err
+
+	}
+
+	err = fusrodah.whisperServer.Send(env)
+	if err != nil {
+		fmt.Printf("failed to send message: %v \n", err)
+		return err
+	}
+
 	return nil
 }
 

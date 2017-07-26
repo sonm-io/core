@@ -12,7 +12,6 @@ func main() {
 	srv.Start()
 	srv.Serve()
 
-	var ip string
-	ip = srv.GetHubIp()
+	ip := srv.GetHubIp()
 	fmt.Println(ip)
 }
