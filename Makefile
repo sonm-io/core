@@ -35,7 +35,8 @@ fmt:
 		(echo >&2 "+ please format Go code with 'gofmt -s'" && false)
 
 test:
-	go test -tags nocgo $(shell go list ./... | grep -v vendor)
+	@echo "+ $@"
+	@go test -tags nocgo $(shell go list ./... | grep -v vendor)
 
 grpc:
 	protoc -I proto/hub/ proto/hub/hub.proto --go_out=plugins=grpc:proto/hub/
