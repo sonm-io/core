@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/sonm-io/core/blockchain-api"
+	blockchain "github.com/sonm-io/core/blockchain-api"
 	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
 	"github.com/sonm-io/go-ethereum/common"
 	"github.com/sonm-io/go-ethereum/ethclient"

@@ -38,3 +38,5 @@ fusrodah/examples/fusrodah/main
 fusrodah/examples/hub/main
 fusrodah/examples/miner/main
 fusrodah/examples/fusrodah_direct/main
+
+blockchain-api/go-build/*
