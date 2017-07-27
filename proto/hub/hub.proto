@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "miner/miner.proto";
+
 package hub;
 
 service Hub {
@@ -9,6 +11,9 @@ service Hub {
 
     rpc StartTask(StartTaskRequest) returns (StartTaskReply) {}
     rpc StopTask(StopTaskRequest) returns (StopTaskReply) {}
+
+    rpc TaskStatus(TaskStatusRequest) returns (TaskStatusReply) {}
+    rpc MinerStatus(MinerStatusRequest) returns (miner.TasksStatusReply) {}
 }
 
 message PingRequest {
@@ -66,3 +71,16 @@ message StopTaskRequest {
 
 message StopTaskReply {
 }
+
+message MinerStatusRequest {
+    string miner = 1;
+}
+
+message TaskStatusRequest {
+    string id = 1;
+}
+
+message TaskStatusReply {
+    miner.TaskStatus status = 1;
+}
+

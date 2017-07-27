@@ -9,6 +9,8 @@ service Miner{
 
     rpc Start(StartRequest) returns (StartReply) {}
     rpc Stop(StopRequest) returns (StopReply) {}
+
+    rpc TasksStatus(stream TasksStatusRequest) returns (stream TasksStatusReply) {}
 }
 
 message PingRequest {}
@@ -65,3 +67,22 @@ message StopRequest {
 }
 
 message StopReply {}
+
+message TasksStatusRequest {
+}
+
+message TaskStatus {
+    enum Status {
+        UNKNOWN = 0;
+        SPOOLING = 1;
+        SPAWNING = 2;
+        RUNNING = 3;
+        FINISHED = 4;
+        BROKEN = 5;
+    }
+    Status status = 1;
+}
+
+message TasksStatusReply {
+    map<string, TaskStatus> statuses = 1;
+}

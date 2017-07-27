@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	pb "github.com/sonm-io/core/proto/miner"
 )
 
 const overseerTag = "sonm.overseer"
@@ -30,8 +31,9 @@ type Description struct {
 }
 
 type ContainerInfo struct {
-	ID    string
-	Ports nat.PortMap
+	status *pb.TaskStatus
+	ID     string
+	Ports  nat.PortMap
 }
 
 type ContainerMetrics struct {

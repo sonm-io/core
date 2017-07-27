@@ -22,7 +22,8 @@ type MinerCtx struct {
 	// gRPC connection
 	grpcConn *grpc.ClientConn
 	// gRPC Client
-	Client pbminer.MinerClient
+	Client     pbminer.MinerClient
+	status_map map[string]*pbminer.TaskStatus
 	// Incoming TCP-connection
 	conn net.Conn
 
@@ -66,6 +67,22 @@ func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	log.G(ctx).Info("grpc.Dial successfully finished")
 	m.Client = pbminer.NewMinerClient(m.grpcConn)
 	return &m, nil
+}
+
+func (m *MinerCtx) status() error {
+	statusClient, err := m.Client.TasksStatus(m.ctx)
+	if err != nil {
+		return err
+	}
+	statusClient.Send(&pbminer.TasksStatusRequest{})
+	for {
+		statusReply, err := statusClient.Recv()
+		if err != nil {
+			return err
+		}
+		m.status_map = statusReply.Statuses
+	}
+	return nil
 }
 
 func (m *MinerCtx) ping() error {
