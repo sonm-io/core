@@ -480,13 +480,13 @@
 			"revisionTime": "2017-06-08T18:05:33Z"
 		},
 		{
-			"checksumSHA1": "KG+XZAbxdkpBm3Fa3bJ3Ylq8CKI=",
+			"checksumSHA1": "MRLtTu/vpd18le8/HPLxOdjO5RE=",
 			"path": "golang.org/x/text/unicode/bidi",
 			"revision": "710f25ef9a4427df1224af647eb15b936a8e577a",
 			"revisionTime": "2017-06-08T18:05:33Z"
 		},
 		{
-			"checksumSHA1": "Anof4bt0AU+Sa3R8Rq0KBnlpbaQ=",
+			"checksumSHA1": "kKylzIrLEnH8NKyeVAL0dq5gjVQ=",
 			"path": "golang.org/x/text/unicode/norm",
 			"revision": "710f25ef9a4427df1224af647eb15b936a8e577a",
 			"revisionTime": "2017-06-08T18:05:33Z"
@@ -582,5 +582,5 @@
 			"revisionTime": "2017-06-08T19:54:42Z"
 		}
 	],
-	"rootPath": "github.com/sonm-io/insonmnia"
+	"rootPath": "github.com/sonm-io/core"
 }

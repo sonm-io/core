@@ -35,13 +35,7 @@ fmt:
 		(echo >&2 "+ please format Go code with 'gofmt -s'" && false)
 
 test:
-	@echo "+ $@"
-	@echo > coverage.txt
-	@set -e; for pkg in $(PKGS); do ${GO} test -coverprofile=profile.out $$pkg; \
-	if [ -f profile.out ]; then \
-		cat profile.out >> coverage.txt; rm  profile.out; \
-	fi done;
-	@sed -ie '2!s/mode: set//;/^$$/d' coverage.txt
+	go test -tags nocgo $(shell go list ./... | grep -v vendor)
 
 grpc:
 	protoc -I proto/hub/ proto/hub/hub.proto --go_out=plugins=grpc:proto/hub/
