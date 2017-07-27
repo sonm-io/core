@@ -80,6 +80,12 @@ func (m *Miner) Handshake(context.Context, *pb.HandshakeRequest) (*pb.HandshakeR
 	return nil, status.Errorf(codes.Aborted, "not implemented")
 }
 
+func (m *Miner) setInfo(info ContainterInfo, id string) {
+	m.mu.Lock()
+	m.containers[id] = ContainterInfo{status: &pb.TaskStatus{pb.TaskStatus_SPOOLING}}
+	m.mu.Unlock()
+}
+
 // Start request from Hub makes Miner start a container
 func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartReply, error) {
 	var d = Description{
@@ -88,17 +94,22 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 	}
 	log.G(ctx).Info("handle Start request", zap.Any("req", request))
 
+	m.setInfo(ContainterInfo{status: &pb.TaskStatus{pb.TaskStatus_SPOOLING}}, request.Id)
+
 	log.G(ctx).Info("spooling an image")
 	err := m.ovs.Spool(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
+		m.setInfo(ContainterInfo{status: &pb.TaskStatus{pb.TaskStatus_BROKEN}}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
+	m.setInfo(ContainterInfo{status: &pb.TaskStatus{pb.TaskStatus_SPAWNING}}, request.Id)
 	log.G(ctx).Info("spawning an image")
 	cinfo, err := m.ovs.Spawn(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
+		m.setInfo(ContainterInfo{status: &pb.TaskStatus{pb.TaskStatus_BROKEN}}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 
@@ -138,6 +149,19 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopRepl
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
 	return &pb.StopReply{}, nil
+}
+
+func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
+	for {
+		server.Recv()
+		result := &pb.TasksStatusReply{}
+		m.mu.Lock()
+		for id, info := range m.containers {
+			result.Statuses[id] = info.status
+		}
+		m.mu.Unlock()
+	}
+	return nil
 }
 
 func (m *Miner) connectToHub(address string) {
