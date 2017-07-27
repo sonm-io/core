@@ -39,7 +39,7 @@ fusrodah/examples/hub/main
 fusrodah/examples/miner/main
 fusrodah/examples/fusrodah_direct/main
 
-blockchain-api/go-build/*
+blockchain-api/*
 
 # test artifacts
 metrics/config_test.json
