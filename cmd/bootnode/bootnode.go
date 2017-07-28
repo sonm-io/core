@@ -136,7 +136,6 @@ func run() {
 	log.Info("Server started")
 
 	shh.Start(server)
-	defer shh.Stop()
 	log.Info("Whisper started")
 
 	startHttpServer()
