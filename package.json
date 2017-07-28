@@ -1,0 +1,10 @@
+{
+  "name": "sonm-core",
+  "version": "0.0.0",
+  "repository": "https://github.com/sonm-io/core",
+  "author": "SONM team",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "zeppelin-solidity": "^1.2.0"
+  }
+}

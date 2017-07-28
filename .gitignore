@@ -42,3 +42,12 @@ blockchain-api/*
 
 # test artifacts
 metrics/config_test.json
+
+# truffle installs OpenZeppelin contracts here
+node_modules
+
+# truffle stores build artifacts here
+build
+
+# go generate stores contract wrappers here
+contracts/api
