@@ -16,7 +16,6 @@ CLI=sonmcli
 
 all: vet fmt test build
 
-
 build_bootnode:
 	@echo "+ $@"
 	${GO} build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" -o ${BOOTNODE} ${GOCMD}/bootnode
@@ -34,8 +33,12 @@ build_cli:
 	@echo "+ $@"
 	${GO} build -o ${CLI} ${GOCMD}/cli
 
+build_contracts:
+	@echo "+ $@"
+	truffle compile
+	${GO} generate ./contracts
 
-build: build_bootnode build_hub build_miner build_cli
+build: build_bootnode build_hub build_miner build_cli build_contracts
 
 
 install:
@@ -72,3 +75,4 @@ clean:
 	rm -f coverage.html
 	rm -f funccoverage.txt
 	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE}
+	rm -rf contracts/api
