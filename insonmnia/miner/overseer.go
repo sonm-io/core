@@ -176,6 +176,7 @@ func (o *overseer) collectStats() {
 				resp, err := o.client.ContainerStats(o.ctx, id, false)
 				if err != nil {
 					log.G(o.ctx).Warn("failed to get Stats", zap.String("id", id), zap.Error(err))
+					continue
 				}
 				var stats types.Stats
 				err = json.NewDecoder(resp.Body).Decode(&stats)
