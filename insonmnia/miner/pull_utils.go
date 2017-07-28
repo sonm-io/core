@@ -13,7 +13,7 @@ type spoolResponseProtocol struct {
 	Status string `json:"status"`
 }
 
-// decodeImagePull detects Error of an image pulling proces
+// decodeImagePull detects Error of an image pulling process
 // by decoding reply from Docker
 // Although Docker should reply with JSON Encoded items
 // one per line, in different versions it could vary.
