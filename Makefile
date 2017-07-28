@@ -6,6 +6,8 @@ FULL_VER = $(VER).$(BUILD)
 GOCMD=./cmd
 GO=go
 INSTALLDIR=${GOPATH}/bin
+TRUFFLE=./node_modules/truffle/build/cli.bundled.js
+
 
 BOOTNODE=sonmbootnode
 MINER=sonmminer
@@ -19,8 +21,7 @@ DOCKER_IMAGE_BOOTNODE="sonm/bootnode:latest"
 
 .PHONY: fmt vet test
 
-all: mock vet fmt test build install
-
+all: mock vet fmt build test install
 
 build_bootnode:
 	@echo "+ $@"
@@ -39,8 +40,13 @@ build_cli:
 	@echo "+ $@"
 	${GO} build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
 
+build_contracts:
+	@echo "+ $@"
+	${TRUFFLE} compile
+	${GO} generate ./contracts
+	${GO} build ./contracts/api.go
 
-build: build_bootnode build_hub build_miner build_cli
+build: build_contracts build_bootnode build_hub build_miner build_cli
 
 install_bootnode: build_bootnode
 	@echo "+ $@"
@@ -71,7 +77,7 @@ fmt:
 
 test:
 	@echo "+ $@"
-	@go test -tags nocgo $(shell go list ./... | grep -v vendor)
+	@go test -tags nocgo $(shell go list ./... | grep -vE 'vendor|contracts')
 
 grpc:
 	@echo "+ $@"
@@ -99,7 +105,8 @@ clean:
 	rm -f coverage.html
 	rm -f funccoverage.txt
 	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE}
-
+	rm -rf contracts/api
+	rm -rf build/contracts
 
 docker_hub:
 	docker build -t ${DOCKER_IMAGE_HUB} -f ./hub.Dockerfile .

@@ -46,3 +46,12 @@ metrics/config_test.json
 # Mock files are not the subject of the repository, because we generate them
 # on the fly.
 *_mock.go
+
+# truffle installs OpenZeppelin contracts here
+node_modules
+
+# truffle stores build artifacts here
+build
+
+# go generate stores contract wrappers here
+contracts/api
