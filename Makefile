@@ -1,29 +1,49 @@
 #!/usr/bin/env make
-
+VER = v0.1
+BUILD = $(shell git rev-parse --short HEAD)
+FULL_VER = $(VER).$(BUILD)
 
 GOCMD=./cmd
 GO=go
+INSTALLDIR=/usr/bin/
 
-.PHONY: fmt vet test
-
-
+BOOTNODE=sonmbootnode
 MINER=sonmminer
 HUB=sonmhub
 CLI=sonmcli
 
+.PHONY: fmt vet test
+
 all: vet fmt test build
 
-build:
+
+build_bootnode:
+	@echo "+ $@"
+	${GO} build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" -o ${BOOTNODE} ${GOCMD}/bootnode
+
+build_miner:
 	@echo "+ $@"
 	${GO} build -tags nocgo -o ${MINER} ${GOCMD}/miner
+
+
+build_hub:
+	@echo "+ $@"
 	${GO} build -tags nocgo -o ${HUB} ${GOCMD}/hub
+
+build_cli:
+	@echo "+ $@"
 	${GO} build -o ${CLI} ${GOCMD}/cli
 
-install: build
-	cp ${MINER} /usr/bin/
-	cp ${HUB} /usr/bin/
-	cp ${CLI} /usr/bin/
 
+build: build_bootnode build_hub build_miner build_cli
+
+
+install: build
+	@echo "+ $@"
+	cp ${BOOTNODE} ${INSTALLDIR}
+	cp ${MINER} ${INSTALLDIR}
+	cp ${HUB} ${INSTALLDIR}
+	cp ${CLI} ${INSTALLDIR}
 
 vet:
 	@echo "+ $@"
@@ -48,7 +68,7 @@ coverage:
 	${GO} tool cover -html=coverage.txt -o coverage.html
 
 clean:
-	rm coverage.txt || true
-	rm coverage.html || true
-	rm funccoverage.txt || true
-	rm ${MINER} ${HUB} ${CLI}
+	rm -f coverage.txt
+	rm -f coverage.html
+	rm -f funccoverage.txt
+	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE}

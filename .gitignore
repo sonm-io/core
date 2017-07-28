@@ -28,10 +28,9 @@ coverage*
 sonmhub
 sonmcli
 sonmminer
+sonmbootnode
 .idea/
 
-cmd/bootnode/bootnode_osx
-cmd/bootnode/bootnode_linux64
 
 fusrodah/examples/bootnode/main
 fusrodah/examples/fusrodah/main
