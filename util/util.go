@@ -1,22 +1,13 @@
 package util
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"net"
-
-	"github.com/ethereum/go-ethereum/crypto"
 
 	"bytes"
 	"io/ioutil"
 	"net/http"
 )
-
-func ToPubKey(prv *ecdsa.PrivateKey) *ecdsa.PublicKey {
-	pkBytes := crypto.FromECDSA(prv)
-	pk := crypto.ToECDSAPub(pkBytes)
-	return pk
-}
 
 // GetLocalIP find local non-loopback ip addr
 func GetLocalIP() string {
