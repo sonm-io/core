@@ -5,7 +5,7 @@ FULL_VER = $(VER).$(BUILD)
 
 GOCMD=./cmd
 GO=go
-INSTALLDIR=/usr/local/bin/
+INSTALLDIR=${GOPATH}/bin
 
 BOOTNODE=sonmbootnode
 MINER=sonmminer
