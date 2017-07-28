@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 )
 
 // CheckpointCreateOptions holds parameters to create a checkpoint from a container
@@ -178,11 +178,6 @@ type ImageBuildOptions struct {
 	SecurityOpt []string
 	ExtraHosts  []string // List of extra hosts
 	Target      string
-	SessionID   string
-
-	// TODO @jhowardmsft LCOW Support: This will require extending to include
-	// `Platform string`, but is ommited for now as it's hard-coded temporarily
-	// to avoid API changes.
 }
 
 // ImageBuildResponse holds information
