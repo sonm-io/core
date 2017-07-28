@@ -68,7 +68,7 @@ func (h *Hub) List(context.Context, *pb.ListRequest) (*pb.ListReply, error) {
 	return &pb.ListReply{Info: info}, nil
 }
 
-// StartTask schedulles the Task on some miner
+// StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(ctx).Info("handling StartTask request", zap.Any("req", request))
 	miner := request.Miner
@@ -154,7 +154,7 @@ func New(ctx context.Context) (*Hub, error) {
 	return h, nil
 }
 
-// Serve starts handling incoming API gRCP request and communicates
+// Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
 	il, err := net.Listen("tcp", minerHubInterconnectEndpoint)
@@ -171,7 +171,7 @@ func (h *Hub) Serve() error {
 		il.Close()
 		return err
 	}
-	log.G(h.ctx).Info("listening for gRPC API conenctions", zap.Stringer("address", grpcL.Addr()))
+	log.G(h.ctx).Info("listening for gRPC API connections", zap.Stringer("address", grpcL.Addr()))
 	// TODO: fix this possible race: Close before Serve
 	h.minerListener = il
 

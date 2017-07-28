@@ -26,7 +26,7 @@ type Miner struct {
 	grpcServer *grpc.Server
 
 	hubaddress string
-	// NOTE: do not use static detetion
+	// NOTE: do not use static detection
 	pubaddress string
 
 	rl *reverseListener
@@ -138,7 +138,7 @@ func (m *Miner) connectToHub(address string) {
 	}
 	defer yaConn.Close()
 
-	// Push the connection to a pool for grcpServer
+	// Push the connection to a pool for grpcServer
 	if err = m.rl.enqueue(yaConn); err != nil {
 		log.G(m.ctx).Error("failed to enqueue yaConn for gRPC server", zap.Error(err))
 		return
@@ -174,12 +174,12 @@ func (m *Miner) connectToHub(address string) {
 // Serve starts discovery of Hubs,
 // accepts incoming connections from a Hub
 func (m *Miner) Serve() error {
-	var grcpError error
+	var grpcError error
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		grcpError = m.grpcServer.Serve(m.rl)
+		grpcError = m.grpcServer.Serve(m.rl)
 	}()
 
 	wg.Add(1)
@@ -200,7 +200,7 @@ func (m *Miner) Serve() error {
 	}()
 	wg.Wait()
 
-	return grcpError
+	return grpcError
 }
 
 // Close disposes all resources related to the Miner

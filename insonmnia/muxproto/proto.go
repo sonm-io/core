@@ -14,7 +14,7 @@ const (
 	UDP
 )
 
-// Control describes a channel in a multiplexed conenction
+// Control describes a channel in a multiplexed connection
 type Control struct {
 	Protocol ProtoType
 	Endpoint string
@@ -35,7 +35,7 @@ func (c Control) EncodeMsg(w *msgp.Writer) error {
 	return nil
 }
 
-// DecodeMsg satisfes msgp.Decodable
+// DecodeMsg satisfies msgp.Decodable
 func (c *Control) DecodeMsg(r *msgp.Reader) error {
 	proto, err := r.ReadInt()
 	if err != nil {
