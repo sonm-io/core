@@ -4,6 +4,7 @@ package miner;
 
 service Miner{
     rpc Ping(PingRequest) returns (PingReply) {}
+    rpc Info(InfoRequest) returns (InfoReply) {}
     rpc Handshake(HandshakeRequest) returns (HandshakeReply) {}
 
     rpc Start(StartRequest) returns (StartReply) {}
@@ -14,6 +15,12 @@ message PingRequest {}
 
 message PingReply {
     string status = 1;
+}
+
+message InfoRequest {
+}
+
+message InfoReply {
 }
 
 message HandshakeRequest {
@@ -36,7 +43,7 @@ message StartReply {
         string IP = 1;
         string port = 2;
     }
-    map<string, port> Ports = 2; 
+    map<string, port> Ports = 2;
 }
 
 message StopRequest {

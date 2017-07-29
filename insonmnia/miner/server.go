@@ -46,6 +46,15 @@ func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, err
 	return &pb.PingReply{}, nil
 }
 
+// Info returns runtime statistics collected from all containers working on this miner.
+//
+// This works the following way: a miner periodically collects various runtime statistics from all
+// spawned containers that it knows about. For running containers metrics map the immediate
+// state, for dead containers - their last memento.
+func (m *Miner) Info(context.Context, *pb.InfoRequest) (*pb.InfoReply, error) {
+	panic("implement me")
+}
+
 // Handshake reserves for the future usage
 func (m *Miner) Handshake(context.Context, *pb.HandshakeRequest) (*pb.HandshakeReply, error) {
 	return nil, status.Errorf(codes.Aborted, "not implemented")
