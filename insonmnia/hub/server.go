@@ -68,6 +68,11 @@ func (h *Hub) List(context.Context, *pb.ListRequest) (*pb.ListReply, error) {
 	return &pb.ListReply{Info: info}, nil
 }
 
+// Info returns aggregated runtime statistics for all connected miners.
+func (h *Hub) Info(context.Context, *pb.InfoRequest) (*pb.InfoReply, error) {
+	panic("implement me")
+}
+
 // StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(ctx).Info("handling StartTask request", zap.Any("req", request))

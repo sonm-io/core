@@ -5,6 +5,7 @@ package hub;
 service Hub {
     rpc Ping(PingRequest) returns (PingReply) {}
     rpc List(ListRequest) returns (ListReply) {}
+    rpc Info(InfoRequest) returns (InfoReply) {}
 
     rpc StartTask(StartTaskRequest) returns (StartTaskReply) {}
     rpc StopTask(StopTaskRequest) returns (StopTaskReply) {}
@@ -25,6 +26,12 @@ message ListReply {
         repeated string values = 1;
     }
     map<string, ListValue> info = 1;
+}
+
+message InfoRequest {
+}
+
+message InfoReply {
 }
 
 message StartTaskRequest {
