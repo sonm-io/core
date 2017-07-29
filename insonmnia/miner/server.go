@@ -35,7 +35,7 @@ type Miner struct {
 
 	mu sync.Mutex
 	// maps StartRequest's IDs to containers' IDs
-	containers map[string]ContainterInfo
+	containers map[string]ContainerInfo
 }
 
 var _ pb.MinerServer = &Miner{}
@@ -236,7 +236,7 @@ func New(ctx context.Context, hubaddress string) (*Miner, error) {
 		pubaddress: pubaddress,
 
 		rl:         NewReverseListener(1),
-		containers: make(map[string]ContainterInfo),
+		containers: make(map[string]ContainerInfo),
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)
