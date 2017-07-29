@@ -69,8 +69,37 @@ func (h *Hub) List(context.Context, *pb.ListRequest) (*pb.ListReply, error) {
 }
 
 // Info returns aggregated runtime statistics for all connected miners.
-func (h *Hub) Info(context.Context, *pb.InfoRequest) (*pb.InfoReply, error) {
-	panic("implement me")
+func (h *Hub) Info(ctx context.Context, req *pb.InfoRequest) (*pb.InfoReply, error) {
+	h.mu.Lock()
+	client, ok := h.miners[req.Miner]
+	h.mu.Unlock()
+
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "no such miner")
+	}
+
+	resp, err := client.Client.Info(ctx, &pbminer.InfoRequest{})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to fetch info: %v", err)
+	}
+
+	// TODO: Reuse proto files with imports. Currently it's problematic, because of some reasons.
+	var result = pb.InfoReply{
+		Stats: make(map[string]*pb.InfoReplyStats),
+	}
+
+	for id, stats := range resp.Stats {
+		result.Stats[id] = &pb.InfoReplyStats{
+			CPU: &pb.InfoReplyStatsCpu{
+				TotalUsage: stats.CPU.TotalUsage,
+			},
+			Memory: &pb.InfoReplyStatsMemory{
+				MaxUsage: stats.Memory.MaxUsage,
+			},
+		}
+	}
+
+	return &result, nil
 }
 
 // StartTask schedules the Task on some miner
