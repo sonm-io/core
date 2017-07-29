@@ -34,11 +34,21 @@ type ContainerInfo struct {
 	Ports nat.PortMap
 }
 
-// Overseer watches all miners' applications
+type ContainerMetrics struct {
+	cpu types.CPUStats
+	mem types.MemoryStats
+}
+
+// Overseer watches all miner's applications.
 type Overseer interface {
 	Spool(ctx context.Context, d Description) error
 	Spawn(ctx context.Context, d Description) (ContainerInfo, error)
 	Stop(ctx context.Context, containerID string) error
+
+	// Returns runtime statistics collected from all running containers.
+	//
+	// Depending on the implementation this can be cached.
+	Info(ctx context.Context) (map[string]ContainerMetrics, error)
 	Close() error
 }
 
@@ -78,6 +88,23 @@ func NewOverseer(ctx context.Context) (Overseer, error) {
 	return ovr, nil
 }
 
+func (o *overseer) Info(ctx context.Context) (map[string]ContainerMetrics, error) {
+	info := make(map[string]ContainerMetrics)
+
+	o.mu.Lock()
+	for _, container := range o.containers {
+		metrics := ContainerMetrics{
+			cpu: container.stats.CPUStats,
+			mem: container.stats.MemoryStats,
+		}
+
+		info[container.ID] = metrics
+	}
+	o.mu.Unlock()
+
+	return info, nil
+}
+
 func (o *overseer) Close() error {
 	o.cancel()
 	return nil
@@ -111,6 +138,7 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 				var c *dcontainer
 				o.mu.Lock()
 				c, ok := o.containers[id]
+				// TODO: Move metrics from the container to purgatory.
 				delete(o.containers, id)
 				o.mu.Unlock()
 				if ok {
@@ -161,7 +189,7 @@ func (o *overseer) watchEvents() {
 }
 
 func (o *overseer) collectStats() {
-	t := time.NewTicker(30 * time.Second)
+	t := time.NewTicker(5 * time.Second)
 	defer t.Stop()
 	for {
 		select {
@@ -193,6 +221,13 @@ func (o *overseer) collectStats() {
 					log.G(o.ctx).Warn("failed to decode container Stats", zap.String("id", id), zap.Error(err))
 				}
 				resp.Body.Close()
+
+				log.G(o.ctx).Debug("received container stats", zap.String("id", id), zap.Any("stats", stats))
+				o.mu.Lock()
+				if container, ok := o.containers[id]; ok {
+					container.stats = stats
+				}
+				o.mu.Unlock()
 			}
 			stringArrayPool.Put(ids[:0])
 		case <-o.ctx.Done():

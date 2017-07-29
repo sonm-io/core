@@ -19,7 +19,8 @@ type dcontainer struct {
 
 	client *client.Client
 
-	ID string
+	ID    string
+	stats types.Stats
 }
 
 func newContainer(ctx context.Context, dclient *client.Client, d Description) (*dcontainer, error) {
