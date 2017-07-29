@@ -71,6 +71,43 @@ func main() {
 			},
 		},
 		{
+			Name:    "info",
+			Aliases: []string{"i"},
+			Usage:   "get runtime metrics from the specified Hub",
+			Action: func(c *cli.Context) error {
+				conn, err := grpc.Dial(hubendpoint, grpc.WithInsecure())
+				if err != nil {
+					return err
+				}
+				defer conn.Close()
+
+				ctx, cancel := context.WithTimeout(gctx, timeout)
+				defer cancel()
+				var req = pb.InfoRequest{
+					Miner: c.String("miner"),
+				}
+				metrics, err := pb.NewHubClient(conn).Info(ctx, &req)
+				if err != nil {
+					return err
+				}
+
+				js, err := json.Marshal(metrics)
+				if err != nil {
+					return err
+				}
+
+				fmt.Printf("%s", js)
+				return nil
+			},
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "miner",
+					Value: "",
+					Usage: "miner endpoint",
+				},
+			},
+		},
+		{
 			Name:    "ping",
 			Aliases: []string{"p"},
 			Usage:   "ping the Hub",
