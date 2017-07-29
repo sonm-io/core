@@ -173,6 +173,10 @@ func (o *overseer) collectStats() {
 			}
 			o.mu.Unlock()
 			for _, id := range ids {
+				if len(id) == 0 {
+					continue
+				}
+
 				resp, err := o.client.ContainerStats(o.ctx, id, false)
 				if err != nil {
 					log.G(o.ctx).Warn("failed to get Stats", zap.String("id", id), zap.Error(err))
