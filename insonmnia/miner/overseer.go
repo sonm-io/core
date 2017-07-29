@@ -29,7 +29,7 @@ type Description struct {
 	Image    string
 }
 
-type ContainterInfo struct {
+type ContainerInfo struct {
 	ID    string
 	Ports nat.PortMap
 }
@@ -37,7 +37,7 @@ type ContainterInfo struct {
 // Overseer watches all miners' applications
 type Overseer interface {
 	Spool(ctx context.Context, d Description) error
-	Spawn(ctx context.Context, d Description) (ContainterInfo, error)
+	Spawn(ctx context.Context, d Description) (ContainerInfo, error)
 	Stop(ctx context.Context, containerID string) error
 	Close() error
 }
@@ -145,7 +145,7 @@ func (o *overseer) watchEvents() {
 		// case nil:
 		// 	// pass
 		case context.Canceled, context.DeadlineExceeded:
-			log.G(o.ctx).Info("event listenening has been cancelled")
+			log.G(o.ctx).Info("event listening has been cancelled")
 			return
 		default:
 			log.G(o.ctx).Warn("failed to attach to a Docker events stream. Retry later")
@@ -153,7 +153,7 @@ func (o *overseer) watchEvents() {
 			case <-backoff.C():
 				//pass
 			case <-o.ctx.Done():
-				log.G(o.ctx).Info("event listenening has been cancelled during sleep")
+				log.G(o.ctx).Info("event listening has been cancelled during sleep")
 				return
 			}
 		}
@@ -229,7 +229,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	return nil
 }
 
-func (o *overseer) Spawn(ctx context.Context, d Description) (cinfo ContainterInfo, err error) {
+func (o *overseer) Spawn(ctx context.Context, d Description) (cinfo ContainerInfo, err error) {
 	pr, err := newContainer(ctx, o.client, d)
 	if err != nil {
 		return
@@ -248,7 +248,7 @@ func (o *overseer) Spawn(ctx context.Context, d Description) (cinfo ContainterIn
 		// NOTE: I don't think it can fail
 		return
 	}
-	cinfo = ContainterInfo{
+	cinfo = ContainerInfo{
 		ID:    cjson.ID,
 		Ports: cjson.NetworkSettings.Ports,
 	}
