@@ -6,6 +6,8 @@ FULL_VER = $(VER).$(BUILD)
 GOCMD=./cmd
 GO=go
 INSTALLDIR=${GOPATH}/bin
+TRUFFLE=./node_modules/truffle/build/cli.bundled.js
+
 
 BOOTNODE=sonmbootnode
 MINER=sonmminer
@@ -35,8 +37,9 @@ build_cli:
 
 build_contracts:
 	@echo "+ $@"
-	truffle compile
+	${TRUFFLE} compile
 	${GO} generate ./contracts
+	${GO} build ./contracts/api.go
 
 build: build_bootnode build_hub build_miner build_cli build_contracts
 
