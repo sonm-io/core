@@ -29,9 +29,24 @@ message ListReply {
 }
 
 message InfoRequest {
+    string miner = 1;
 }
 
 message InfoReply {
+    message stats {
+        message cpu {
+            uint64 totalUsage = 1;
+        }
+
+        message memory {
+            uint64 maxUsage = 1;
+        }
+
+        cpu CPU = 1;
+        memory Memory = 2;
+    }
+
+    map<string, stats> Stats = 1;
 }
 
 message StartTaskRequest {
