@@ -21,7 +21,6 @@
 package zapcore
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 )
@@ -117,32 +116,25 @@ func (l *Level) UnmarshalText(text []byte) error {
 	if l == nil {
 		return errUnmarshalNilLevel
 	}
-	if !l.unmarshalText(text) && !l.unmarshalText(bytes.ToLower(text)) {
-		return fmt.Errorf("unrecognized level: %q", text)
-	}
-	return nil
-}
-
-func (l *Level) unmarshalText(text []byte) bool {
 	switch string(text) {
-	case "debug", "DEBUG":
+	case "debug":
 		*l = DebugLevel
-	case "info", "INFO", "": // make the zero value useful
+	case "info", "": // make the zero value useful
 		*l = InfoLevel
-	case "warn", "WARN":
+	case "warn":
 		*l = WarnLevel
-	case "error", "ERROR":
+	case "error":
 		*l = ErrorLevel
-	case "dpanic", "DPANIC":
+	case "dpanic":
 		*l = DPanicLevel
-	case "panic", "PANIC":
+	case "panic":
 		*l = PanicLevel
-	case "fatal", "FATAL":
+	case "fatal":
 		*l = FatalLevel
 	default:
-		return false
+		return fmt.Errorf("unrecognized level: %v", string(text))
 	}
-	return true
+	return nil
 }
 
 // Set sets the level for the flag.Value interface.

@@ -5,7 +5,7 @@ FULL_VER = $(VER).$(BUILD)
 
 GOCMD=./cmd
 GO=go
-INSTALLDIR=/usr/bin/
+INSTALLDIR=${GOPATH}/bin
 
 BOOTNODE=sonmbootnode
 MINER=sonmminer
@@ -38,7 +38,7 @@ build_cli:
 build: build_bootnode build_hub build_miner build_cli
 
 
-install: build
+install:
 	@echo "+ $@"
 	cp ${BOOTNODE} ${INSTALLDIR}
 	cp ${MINER} ${INSTALLDIR}
