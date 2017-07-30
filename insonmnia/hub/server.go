@@ -18,16 +18,14 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const (
-	// TODO: make it configurable
-	externalGRPCEndpoint         = ":10001"
-	minerHubInterconnectEndpoint = ":10002"
-)
+
 
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	ctx           context.Context
+	grpcEndpoint  string
 	externalGrpc  *grpc.Server
+	minerEndpoint string
 	minerListener net.Listener
 
 	mu     sync.Mutex
@@ -217,7 +215,7 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 }
 
 // New returns new Hub
-func New(ctx context.Context) (*Hub, error) {
+func New(ctx context.Context, conf *HubConfig) (*Hub, error) {
 	// TODO: add secure mechanism
 	grpcServer := grpc.NewServer()
 	h := &Hub{
@@ -226,6 +224,9 @@ func New(ctx context.Context) (*Hub, error) {
 
 		tasks:  make(map[string]string),
 		miners: make(map[string]*MinerCtx),
+
+		grpcEndpoint:  conf.GRPCEndpoint,
+		minerEndpoint: conf.MinerEndpoint,
 	}
 	pb.RegisterHubServer(grpcServer, h)
 
@@ -235,17 +236,17 @@ func New(ctx context.Context) (*Hub, error) {
 // Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
-	il, err := net.Listen("tcp", minerHubInterconnectEndpoint)
+	il, err := net.Listen("tcp", h.minerEndpoint)
 	if err != nil {
-		log.G(h.ctx).Error("failed to listen", zap.String("address", minerHubInterconnectEndpoint), zap.Error(err))
+		log.G(h.ctx).Error("failed to listen", zap.String("address", h.minerEndpoint), zap.Error(err))
 		return err
 	}
 	log.G(h.ctx).Info("listening for connections from Miners", zap.Stringer("address", il.Addr()))
 
-	grpcL, err := net.Listen("tcp", externalGRPCEndpoint)
+	grpcL, err := net.Listen("tcp", h.grpcEndpoint)
 	if err != nil {
 		log.G(h.ctx).Error("failed to listen",
-			zap.String("address", externalGRPCEndpoint), zap.Error(err))
+			zap.String("address", h.grpcEndpoint), zap.Error(err))
 		il.Close()
 		return err
 	}

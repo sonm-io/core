@@ -10,7 +10,7 @@ import (
 
 type HubConfig struct {
 	GRPCEndpoint  string   `yaml:"grpc_endpoint"`
-	MinerEndpoint string   `yaml:"grpc_endpoint"`
+	MinerEndpoint string   `yaml:"miner_endpoint"`
 	Bootnodes     []string `yaml:"bootnodes"`
 }
 
@@ -24,7 +24,7 @@ func (conf *HubConfig) validate() error {
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("Config validation error: %s", strings.Join(errs, ";"))
+		return fmt.Errorf("validation error: %s", strings.Join(errs, "; "))
 	}
 
 	return nil
