@@ -12,9 +12,13 @@ MINER=sonmminer
 HUB=sonmhub
 CLI=sonmcli
 
+DOCKER_IMAGE_CORE="sonm/core:latest"
+DOCKER_IMAGE_BOOTNODE="sonm/bootnode:latest"
+
+
 .PHONY: fmt vet test
 
-all: vet fmt test build
+all: vet fmt test build install
 
 
 build_bootnode:
@@ -37,13 +41,23 @@ build_cli:
 
 build: build_bootnode build_hub build_miner build_cli
 
-
-install:
+install_bootnode:
 	@echo "+ $@"
 	cp ${BOOTNODE} ${INSTALLDIR}
+
+install_miner:
+	@echo "+ $@"
 	cp ${MINER} ${INSTALLDIR}
+
+install_hub:
+	@echo "+ $@"
 	cp ${HUB} ${INSTALLDIR}
+
+install_cli:
+	@echo "+ $@"
 	cp ${CLI} ${INSTALLDIR}
+
+install: install_bootnode install_miner install_hub install_cli
 
 vet:
 	@echo "+ $@"
@@ -72,3 +86,10 @@ clean:
 	rm -f coverage.html
 	rm -f funccoverage.txt
 	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE}
+
+
+docker_core:
+	docker build -t ${DOCKER_IMAGE_CORE} -f ./core.Dockerfile .
+
+docker_bootnode:
+	docker build -t ${DOCKER_IMAGE_BOOTNODE} -f ./bootnode.Dockerfile .
