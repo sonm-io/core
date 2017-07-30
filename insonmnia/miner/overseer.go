@@ -44,7 +44,7 @@ type ContainerMetrics struct {
 // Overseer watches all miner's applications.
 type Overseer interface {
 	Spool(ctx context.Context, d Description) error
-	Spawn(ctx context.Context, d Description) (ContainerInfo, error)
+	Spawn(ctx context.Context, d Description) (chan pb.TaskStatus_Status, ContainerInfo, error)
 	Stop(ctx context.Context, containerID string) error
 
 	// Returns runtime statistics collected from all running containers.
@@ -65,6 +65,7 @@ type overseer struct {
 	// protects containers map
 	mu         sync.Mutex
 	containers map[string]*dcontainer
+	statuses   map[string]chan pb.TaskStatus_Status
 }
 
 // NewOverseer creates new overseer
@@ -82,6 +83,7 @@ func NewOverseer(ctx context.Context) (Overseer, error) {
 		client: dockclient,
 
 		containers: make(map[string]*dcontainer),
+		statuses:   make(map[string]chan pb.TaskStatus_Status),
 	}
 
 	go ovr.collectStats()
@@ -139,11 +141,15 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 
 				var c *dcontainer
 				o.mu.Lock()
-				c, ok := o.containers[id]
-				// TODO: Move metrics from the container to purgatory.
+				c, cok := o.containers[id]
+				s, sok := o.statuses[id]
 				delete(o.containers, id)
+				delete(o.statuses, id)
 				o.mu.Unlock()
-				if ok {
+				if sok {
+					s <- pb.TaskStatus_BROKEN
+				}
+				if cok {
 					c.remove()
 				} else {
 					// NOTE: it could be orphaned container from our previous launch
@@ -270,7 +276,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	return nil
 }
 
-func (o *overseer) Spawn(ctx context.Context, d Description) (cinfo ContainerInfo, err error) {
+func (o *overseer) Spawn(ctx context.Context, d Description) (status chan pb.TaskStatus_Status, cinfo ContainerInfo, err error) {
 	pr, err := newContainer(ctx, o.client, d)
 	if err != nil {
 		return
@@ -278,6 +284,8 @@ func (o *overseer) Spawn(ctx context.Context, d Description) (cinfo ContainerInf
 
 	o.mu.Lock()
 	o.containers[pr.ID] = pr
+	o.statuses[pr.ID] = make(chan pb.TaskStatus_Status)
+	status = o.statuses[pr.ID]
 	o.mu.Unlock()
 
 	if err = pr.startContainer(); err != nil {
@@ -290,10 +298,11 @@ func (o *overseer) Spawn(ctx context.Context, d Description) (cinfo ContainerInf
 		return
 	}
 	cinfo = ContainerInfo{
-		ID:    cjson.ID,
-		Ports: cjson.NetworkSettings.Ports,
+		status: &pb.TaskStatus{pb.TaskStatus_RUNNING},
+		ID:     cjson.ID,
+		Ports:  cjson.NetworkSettings.Ports,
 	}
-	return cinfo, nil
+	return status, cinfo, nil
 }
 
 func (o *overseer) Stop(ctx context.Context, containerid string) error {

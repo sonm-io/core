@@ -225,6 +225,7 @@ func main() {
 				buff := new(bytes.Buffer)
 				enc := json.NewEncoder(buff)
 				enc.SetIndent("", "\t")
+				//TODO: human readable statuses
 				enc.Encode(minerStatus.Statuses)
 				fmt.Printf("%s\n", buff.Bytes())
 				return nil
