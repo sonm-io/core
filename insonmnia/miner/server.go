@@ -36,6 +36,8 @@ type Miner struct {
 	mu sync.Mutex
 	// maps StartRequest's IDs to containers' IDs
 	containers map[string]ContainerInfo
+
+	statusChannels []chan bool
 }
 
 var _ pb.MinerServer = &Miner{}
@@ -80,9 +82,16 @@ func (m *Miner) Handshake(context.Context, *pb.HandshakeRequest) (*pb.HandshakeR
 	return nil, status.Errorf(codes.Aborted, "not implemented")
 }
 
-func (m *Miner) setInfo(info ContainterInfo, id string) {
+func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
 	m.mu.Lock()
-	m.containers[id] = ContainterInfo{status: &pb.TaskStatus{pb.TaskStatus_SPOOLING}}
+	_, ok := m.containers[id]
+	if !ok {
+		m.containers[id] = &ContainterInfo{}
+	}
+	m.containers[id].status = status
+	for _, ch := range m.statusChannels {
+		ch <- true
+	}
 	m.mu.Unlock()
 }
 
@@ -94,28 +103,28 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 	}
 	log.G(ctx).Info("handle Start request", zap.Any("req", request))
 
-	m.setInfo(ContainterInfo{status: &pb.TaskStatus{pb.TaskStatus_SPOOLING}}, request.Id)
+	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPOOLING}, request.Id)
 
 	log.G(ctx).Info("spooling an image")
 	err := m.ovs.Spool(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
-		m.setInfo(ContainterInfo{status: &pb.TaskStatus{pb.TaskStatus_BROKEN}}, request.Id)
+		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
-	m.setInfo(ContainterInfo{status: &pb.TaskStatus{pb.TaskStatus_SPAWNING}}, request.Id)
+	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPAWNING}, request.Id)
 	log.G(ctx).Info("spawning an image")
 	cinfo, err := m.ovs.Spawn(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
-		m.setInfo(ContainterInfo{status: &pb.TaskStatus{pb.TaskStatus_BROKEN}}, request.Id)
+		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 
 	// TODO: clean it
 	m.mu.Lock()
-	m.containers[request.Id] = cinfo
+	m.containers[request.Id] = &cinfo
 	m.mu.Unlock()
 
 	var rpl = pb.StartReply{
@@ -140,19 +149,53 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopRepl
 	m.mu.Lock()
 	cinfo, ok := m.containers[request.Id]
 	m.mu.Unlock()
+	m.setStatus(&pb.TaskStatus{pb.TaskStatus_RUNNING}, request.Id)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no job with id %s", request.Id)
 	}
 
 	if err := m.ovs.Stop(ctx, cinfo.ID); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
+		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
+	m.setStatus(&pb.TaskStatus{pb.TaskStatus_FINISHED}, request.Id)
 	return &pb.StopReply{}, nil
 }
 
 func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
 	log.G(m.ctx).Info("starting tasks status server")
+	m.mu.Lock()
+	ch := make(chan bool)
+	m.statusChannels = append(m.statusChannels, ch)
+	idx := len(m.statusChannels)
+	m.mu.Unlock()
+	defer func() {
+		m.mu.Lock()
+		m.statusChannels = append(m.statusChannels[:idx], m.statusChannels[idx+1:]...)
+		m.mu.Unlock()
+	}()
+	send := func() error {
+		result := &pb.TasksStatusReply{Statuses: make(map[string]*pb.TaskStatus)}
+		m.mu.Lock()
+		for id, info := range m.containers {
+			result.Statuses[id] = info.status
+		}
+		m.mu.Unlock()
+		log.G(m.ctx).Debug("sending result", zap.Any("info", m.containers), zap.Any("statuses", result.Statuses))
+		return server.Send(result)
+	}
+
+	go func() error {
+		for {
+			select {
+			case <-ch:
+				send()
+			case <-m.ctx.Done():
+				return m.ctx.Err()
+			}
+		}
+	}()
 	for {
 		_, err := server.Recv()
 		if err != nil {
@@ -160,14 +203,11 @@ func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
 			return err
 		}
 		log.G(m.ctx).Debug("handling tasks status request")
-		result := &pb.TasksStatusReply{}
-		m.mu.Lock()
-		for id, info := range m.containers {
-			result.Statuses[id] = info.status
+		err = send()
+		if err != nil {
+			log.G(m.ctx).Info("failed to send status update", zap.Error(err))
+			return err
 		}
-		m.mu.Unlock()
-		log.G(m.ctx).Debug("sending result")
-		server.Send(result)
 	}
 	return nil
 }
@@ -298,6 +338,7 @@ func New(ctx context.Context, hubaddress string) (*Miner, error) {
 
 		rl:         NewReverseListener(1),
 		containers: make(map[string]ContainerInfo),
+		statusChannels: make([]chan bool, 1),
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)
