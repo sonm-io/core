@@ -190,6 +190,7 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.MinerStatusRequest) (
 func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*pb.TaskStatusReply, error) {
 	taskid := request.Id
 	h.tasksmu.Lock()
+	defer h.mu.Unlock()
 	miner, ok := h.tasks[taskid]
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no such task %s", taskid)
@@ -203,7 +204,6 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskid)
 	}
-	h.mu.Unlock()
 
 	reply := pb.TaskStatusReply{taskStatus}
 	return &reply, nil
