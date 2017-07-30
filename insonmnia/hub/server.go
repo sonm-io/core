@@ -173,7 +173,7 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 }
 
 func (h *Hub) MinerStatus(ctx context.Context, request *pb.MinerStatusRequest) (*pbminer.TasksStatusReply, error) {
-	log.G(ctx).Info("handling MinerStatur request", zap.Any("req", request))
+	log.G(ctx).Info("handling MinerStatus request", zap.Any("req", request))
 	miner := request.Miner
 	h.mu.Lock()
 	mincli, ok := h.miners[miner]
@@ -281,7 +281,7 @@ func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
 	h.miners[conn.RemoteAddr().String()] = miner
 	h.mu.Unlock()
 
-	//go miner.
+	go miner.status()
 	miner.ping()
 	miner.Close()
 
