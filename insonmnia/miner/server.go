@@ -51,9 +51,9 @@ type Miner struct {
 
 	statusChannels map[int]chan bool
 	channelCounter int
+	controlGroup   cGroupDeleter
 }
 
-var _ pb.MinerServer = &Miner{}
 
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
 	m.mu.Lock()
@@ -416,6 +416,11 @@ func (m *Miner) Close() {
 	m.cancel()
 	m.grpcServer.Stop()
 	m.rl.Close()
+	// NOTE: not all platforms support cgroups
+	// On unsupported ones controlGroup is nil
+	if m.controlGroup != nil {
+		m.controlGroup.Delete()
+	}
 }
 
 // New returns new Miner
@@ -432,6 +437,15 @@ func New(ctx context.Context, cfg *MinerConfig) (*Miner, error) {
 		cancel()
 		return nil, err
 	}
+
+	var deleter cGroupDeleter
+	if platformSupportCGroups {
+		deleter, err = initializeControlGroup()
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	m := &Miner{
 		ctx:        ctx,
 		cancel:     cancel,
@@ -445,6 +459,8 @@ func New(ctx context.Context, cfg *MinerConfig) (*Miner, error) {
 		containers:     make(map[string]*ContainerInfo),
 		statusChannels: make(map[int]chan bool),
 		nameMapping:    make(map[string]string),
+
+		controlGroup: deleter,
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)
