@@ -202,6 +202,41 @@ func main() {
 				},
 			},
 		},
+		{
+			Name:  "miner-status",
+			Usage: "status of tasks on a specific miner",
+			Action: func(c *cli.Context) error {
+				cc, err := grpc.Dial(hubendpoint, grpc.WithInsecure())
+				if err != nil {
+					return err
+				}
+				defer cc.Close()
+
+				ctx, cancel := context.WithTimeout(gctx, timeout)
+				defer cancel()
+				var req = pb.MinerStatusRequest{
+					Miner: c.String("miner"),
+				}
+				minerStatus, err := pb.NewHubClient(cc).MinerStatus(ctx, &req)
+				if err != nil {
+					fmt.Println(err)
+					return err
+				}
+				buff := new(bytes.Buffer)
+				enc := json.NewEncoder(buff)
+				enc.SetIndent("", "\t")
+				enc.Encode(minerStatus.Statuses)
+				fmt.Printf("%s\n", buff.Bytes())
+				return nil
+			},
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "miner",
+					Value: "",
+					Usage: "miner to request statuses from",
+				},
+			},
+		},
 	}
 
 	app.Run(os.Args)
