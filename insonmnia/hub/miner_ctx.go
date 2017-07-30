@@ -83,7 +83,7 @@ func (m *MinerCtx) status() error {
 		return err
 	}
 
-	go func() error {
+	go func() {
 		//TODO: configurable
 		t := time.NewTicker(time.Second * 10)
 		defer t.Stop()
@@ -92,11 +92,11 @@ func (m *MinerCtx) status() error {
 			case <-t.C:
 				err = statusClient.Send(&pbminer.TasksStatusRequest{})
 				if err != nil {
-					log.G(m.ctx).Error("failed to ping miner", zap.Error(err))
-					return err
+					log.G(m.ctx).Error("failed to send task status request to miner", zap.Error(err))
+					return
 				}
 			case <-m.ctx.Done():
-				return m.ctx.Err()
+				return
 			}
 		}
 	}()
