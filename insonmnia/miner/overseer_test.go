@@ -100,7 +100,7 @@ func TestOvsSpawn(t *testing.T) {
 	ctx := context.Background()
 	ovs, err := NewOverseer(ctx)
 	require.NoError(t, err)
-	info, err := ovs.Spawn(ctx, Description{Registry: "", Image: "worker"})
+	_, info, err := ovs.Spawn(ctx, Description{Registry: "", Image: "worker"})
 	require.NoError(t, err)
 	cjson, err := cl.ContainerInspect(ctx, info.ID)
 	require.NoError(t, err)

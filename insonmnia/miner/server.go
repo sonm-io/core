@@ -35,7 +35,7 @@ type Miner struct {
 
 	mu sync.Mutex
 	// maps StartRequest's IDs to containers' IDs
-	containers map[string]ContainerInfo
+	containers map[string]*ContainerInfo
 
 	statusChannels []chan bool
 }
@@ -86,7 +86,7 @@ func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
 	m.mu.Lock()
 	_, ok := m.containers[id]
 	if !ok {
-		m.containers[id] = &ContainterInfo{}
+		m.containers[id] = &ContainerInfo{}
 	}
 	m.containers[id].status = status
 	for _, ch := range m.statusChannels {
