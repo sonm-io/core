@@ -152,14 +152,22 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopRepl
 }
 
 func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
+	log.G(m.ctx).Info("starting tasks status server")
 	for {
-		server.Recv()
+		_, err := server.Recv()
+		if err != nil {
+			log.G(m.ctx).Info("tasks status server errored", zap.Error(err))
+			return err
+		}
+		log.G(m.ctx).Debug("handling tasks status request")
 		result := &pb.TasksStatusReply{}
 		m.mu.Lock()
 		for id, info := range m.containers {
 			result.Statuses[id] = info.status
 		}
 		m.mu.Unlock()
+		log.G(m.ctx).Debug("sending result")
+		server.Send(result)
 	}
 	return nil
 }
