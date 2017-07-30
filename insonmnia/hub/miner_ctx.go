@@ -76,19 +76,37 @@ func (m *MinerCtx) status() error {
 		log.G(m.ctx).Error("failed to get status client", zap.Error(err))
 		return err
 	}
+
 	err = statusClient.Send(&pbminer.TasksStatusRequest{})
 	if err != nil {
-		log.G(m.ctx).Error("failed to send request", zap.Error(err))
+		log.G(m.ctx).Error("failed to send tasks status request", zap.Error(err))
 		return err
 	}
+
+	go func() error {
+		//TODO: configurable
+		t := time.NewTicker(time.Second * 10)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				err = statusClient.Send(&pbminer.TasksStatusRequest{})
+				if err != nil {
+					log.G(m.ctx).Error("failed to ping miner", zap.Error(err))
+					return err
+				}
+			case <-m.ctx.Done():
+				return m.ctx.Err()
+			}
+		}
+	}()
+
 	for {
-		log.G(m.ctx).Info("waiting for status reply")
 		statusReply, err := statusClient.Recv()
 		if err != nil {
 			log.G(m.ctx).Info("failed to receive miner status", zap.Error(err))
 			return err
 		}
-		log.G(m.ctx).Info("received miner status", zap.Any("statuses", statusReply.Statuses))
 		m.status_map = statusReply.Statuses
 	}
 	return nil
