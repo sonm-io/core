@@ -115,13 +115,21 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 
 	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPAWNING}, request.Id)
 	log.G(ctx).Info("spawning an image")
-	cinfo, err := m.ovs.Spawn(ctx, d)
+	statusListener, cinfo, err := m.ovs.Spawn(ctx, d)
+	go func() error {
+		select {
+		case newStatus := <-statusListener:
+			m.setStatus(&pb.TaskStatus{newStatus}, request.Id)
+		case <-m.ctx.Done():
+			return m.ctx.Err()
+		}
+		return nil
+	}()
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
-
 	// TODO: clean it
 	m.mu.Lock()
 	m.containers[request.Id] = &cinfo
@@ -172,7 +180,11 @@ func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
 	m.mu.Unlock()
 	defer func() {
 		m.mu.Lock()
-		m.statusChannels = append(m.statusChannels[:idx], m.statusChannels[idx+1:]...)
+		if idx == len(m.statusChannels) {
+			m.statusChannels = m.statusChannels[:idx]
+		} else {
+			m.statusChannels = append(m.statusChannels[:idx], m.statusChannels[idx+1:]...)
+		}
 		m.mu.Unlock()
 	}()
 	send := func() error {
@@ -182,7 +194,7 @@ func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
 			result.Statuses[id] = info.status
 		}
 		m.mu.Unlock()
-		log.G(m.ctx).Debug("sending result", zap.Any("info", m.containers), zap.Any("statuses", result.Statuses))
+		log.G(m.ctx).Info("sending result", zap.Any("info", m.containers), zap.Any("statuses", result.Statuses))
 		return server.Send(result)
 	}
 
@@ -336,9 +348,9 @@ func New(ctx context.Context, hubaddress string) (*Miner, error) {
 		hubaddress: hubaddress,
 		pubaddress: pubaddress,
 
-		rl:         NewReverseListener(1),
-		containers: make(map[string]ContainerInfo),
-		statusChannels: make([]chan bool, 1),
+		rl:             NewReverseListener(1),
+		containers:     make(map[string]*ContainerInfo),
+		statusChannels: make([]chan bool, 0),
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)
