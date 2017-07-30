@@ -85,6 +85,18 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "prgcV+rQm4iAO3PNHWhrEFz9Zbw=",
+			"path": "github.com/containerd/cgroups",
+			"revision": "6d5c608c203dab9f154fdb40c22c043cebd4d699",
+			"revisionTime": "2017-07-14T21:03:33Z"
+		},
+		{
+			"checksumSHA1": "/zxxFPYjUB7Wowz33r5AhTDvoz0=",
+			"path": "github.com/coreos/go-systemd/dbus",
+			"revision": "24036eb3df68550d24a2736c5d013f4e83366866",
+			"revisionTime": "2017-06-09T14:46:27Z"
+		},
+		{
 			"checksumSHA1": "OFu4xJEIjiI8Suu+j/gabfp+y6Q=",
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d",
@@ -629,6 +641,12 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "LIpi0bDVAl3e0Xza8gohpKkH0+I=",
+			"path": "github.com/godbus/dbus",
+			"revision": "bd29ed602e2cf4207ebcabcd530259169e4289ba",
+			"revisionTime": "2017-07-07T17:46:28Z"
+		},
+		{
 			"checksumSHA1": "qlPUeFabwF4RKAOF1H+yBFU1Veg=",
 			"path": "github.com/golang/protobuf/proto",
 			"revision": "748d386b5c1ea99658fd69fe9f03991ce86a90c1",
@@ -776,6 +794,12 @@
 			"revisionTime": "2015-03-14T17:03:34Z"
 		},
 		{
+			"checksumSHA1": "EHjhpHipgm+XGccrRAms9AW3Ewk=",
+			"path": "github.com/mitchellh/mapstructure",
+			"revision": "d0303fe809921458f417bcf828397a65db30a7e4",
+			"revisionTime": "2017-05-23T03:00:23Z"
+		},
+		{
 			"checksumSHA1": "A6nZdZ1/lTOVINhIndyw2ZWN9JU=",
 			"path": "github.com/naoina/go-stringutil",
 			"revision": "6b638e95a32d0c1131db0e7fe83775cbea4a0d0b",
@@ -837,6 +861,12 @@
 			"path": "github.com/opencontainers/image-spec/specs-go/v1",
 			"revision": "cd35e4beee13a7c193e2a89008cd87d38fcd0161",
 			"revisionTime": "2017-06-08T04:50:38Z"
+		},
+		{
+			"checksumSHA1": "UiIGaZotHsKis3mb0Nv7U1N63fE=",
+			"path": "github.com/opencontainers/runtime-spec/specs-go",
+			"revision": "6d696f524b25a2839e79885cf3fe542dd0c896e8",
+			"revisionTime": "2017-07-28T17:22:16Z"
 		},
 		{
 			"checksumSHA1": "ELPTXxA5/bRO8Zu8o/telKHfsVg=",
