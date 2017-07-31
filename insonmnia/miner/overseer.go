@@ -307,10 +307,17 @@ func (o *overseer) Spawn(ctx context.Context, d Description) (status chan pb.Tas
 
 func (o *overseer) Stop(ctx context.Context, containerid string) error {
 	o.mu.Lock()
-	pr, ok := o.containers[containerid]
+
+	pr, cok := o.containers[containerid]
+	s, sok := o.statuses[containerid]
 	delete(o.containers, containerid)
+	delete(o.statuses, containerid)
 	o.mu.Unlock()
-	if !ok {
+	if sok {
+		s <- pb.TaskStatus_FINISHED
+	}
+
+	if !cok {
 		return fmt.Errorf("no such container %s", containerid)
 	}
 	return pr.Kill()
