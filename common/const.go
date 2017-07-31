@@ -6,4 +6,6 @@ const (
 
 	TopicHubDiscover   = "hubDiscover"
 	TopicMinerDiscover = "minerDiscover"
+
+	DefaultLogLevelGoEthereum = 3
 )
