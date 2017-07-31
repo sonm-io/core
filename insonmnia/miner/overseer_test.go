@@ -119,12 +119,11 @@ func TestOvsSpawn(t *testing.T) {
 	go func() {
 		tk := time.NewTicker(time.Second * 10)
 		defer tk.Stop()
+		defer wg.Done()
 		select {
 		case <-ch:
-			wg.Done()
 		case <-tk.C:
 			t.Error("waiting for stop status timed out")
-			wg.Done()
 		}
 	}()
 

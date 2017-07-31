@@ -86,17 +86,14 @@ func (m *Miner) Handshake(context.Context, *pb.HandshakeRequest) (*pb.HandshakeR
 func (m *Miner) scheduleStatusPurge(id string) {
 	t := time.NewTicker(time.Second * 30)
 	defer t.Stop()
-	for {
-		select {
-		case <-t.C:
-			m.mu.Lock()
-			delete(m.containers, id)
-			m.mu.Unlock()
-		case <-m.ctx.Done():
-			return
-		}
+	select {
+	case <-t.C:
+		m.mu.Lock()
+		delete(m.containers, id)
+		m.mu.Unlock()
+	case <-m.ctx.Done():
+		return
 	}
-
 }
 
 func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
@@ -110,7 +107,10 @@ func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
 		go m.scheduleStatusPurge(id)
 	}
 	for _, ch := range m.statusChannels {
-		ch <- true
+		select {
+		case ch <- true:
+		case <-m.ctx.Done():
+		}
 	}
 	m.mu.Unlock()
 }
@@ -122,8 +122,6 @@ func (m *Miner) listenForStatus(statusListener chan pb.TaskStatus_Status, id str
 	case <-m.ctx.Done():
 		return
 	}
-	return
-
 }
 
 // Start request from Hub makes Miner start a container
@@ -203,10 +201,10 @@ func (m *Miner) removeStatusChannel(idx int) {
 func (m *Miner) sendTasksStatus(server pb.Miner_TasksStatusServer) error {
 	result := &pb.TasksStatusReply{Statuses: make(map[string]*pb.TaskStatus)}
 	m.mu.Lock()
+	defer m.mu.Unlock()
 	for id, info := range m.containers {
 		result.Statuses[id] = info.status
 	}
-	m.mu.Unlock()
 	log.G(m.ctx).Info("sending result", zap.Any("info", m.containers), zap.Any("statuses", result.Statuses))
 	return server.Send(result)
 }
@@ -251,7 +249,7 @@ func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
 	m.mu.Unlock()
 
 	go m.sendUpdatesOnNotify(server, ch)
-	go m.sendUpdatesOnRequest(server)
+	m.sendUpdatesOnRequest(server)
 
 	return nil
 }
