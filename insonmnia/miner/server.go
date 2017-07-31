@@ -201,7 +201,8 @@ func (m *Miner) Serve() error {
 
 		var address = srv.GetHubIp()
 
-		t := time.NewTicker(time.Second * 1)
+		t := time.NewTicker(time.Second * 5)
+		defer t.Stop()
 		select {
 		case <-m.ctx.Done():
 			return
