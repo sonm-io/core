@@ -10,6 +10,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
+	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto/hub"
 	"github.com/urfave/cli"
 )
@@ -212,10 +213,14 @@ func main() {
 				}
 				defer cc.Close()
 
+				miner := c.String("miner")
+				if len(miner) == 0 {
+					return errors.New("required parameter\"miner\"")
+				}
 				ctx, cancel := context.WithTimeout(gctx, timeout)
 				defer cancel()
 				var req = pb.MinerStatusRequest{
-					Miner: c.String("miner"),
+					Miner: miner,
 				}
 				minerStatus, err := pb.NewHubClient(cc).MinerStatus(ctx, &req)
 				if err != nil {
@@ -235,6 +240,41 @@ func main() {
 					Name:  "miner",
 					Value: "",
 					Usage: "miner to request statuses from",
+				},
+			},
+		},
+		{
+			Name:  "task-status",
+			Usage: "status of specific task",
+			Action: func(c *cli.Context) error {
+				cc, err := grpc.Dial(hubendpoint, grpc.WithInsecure())
+				if err != nil {
+					return err
+				}
+				defer cc.Close()
+
+				task := c.String("task")
+				if len(task) == 0 {
+					return errors.New("required parameter\"miner\"")
+				}
+				ctx, cancel := context.WithTimeout(gctx, timeout)
+				defer cancel()
+				var req = pb.TaskStatusRequest{
+					Id: task,
+				}
+				taskStatus, err := pb.NewHubClient(cc).TaskStatus(ctx, &req)
+				if err != nil {
+					fmt.Println(err)
+					return err
+				}
+				fmt.Printf("Task %s status is %s\n", req.Id, taskStatus.Status.Status.String())
+				return nil
+			},
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "task",
+					Value: "",
+					Usage: "task to fetch status from",
 				},
 			},
 		},
