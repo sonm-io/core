@@ -16,6 +16,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	frd "github.com/sonm-io/core/fusrodah/hub"
+
+	"github.com/sonm-io/core/util"
 )
 
 const (
@@ -157,6 +161,21 @@ func New(ctx context.Context) (*Hub, error) {
 // Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
+
+	ip, err := util.GetPublicIP()
+	if err != nil {
+		return err
+	}
+	srv, err := frd.NewServer(nil, ip.String())
+	if err != nil {
+		return err
+	}
+	err = srv.Start()
+	if err != nil {
+		return err
+	}
+	srv.Serve()
+
 	il, err := net.Listen("tcp", minerHubInterconnectEndpoint)
 	if err != nil {
 		log.G(h.ctx).Error("failed to listen", zap.String("address", minerHubInterconnectEndpoint), zap.Error(err))
