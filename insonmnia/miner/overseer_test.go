@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"golang.org/x/net/context"
+	"sync"
+	"time"
 )
 
 func TestOvsSpool(t *testing.T) {
@@ -100,7 +102,7 @@ func TestOvsSpawn(t *testing.T) {
 	ctx := context.Background()
 	ovs, err := NewOverseer(ctx)
 	require.NoError(t, err)
-	_, info, err := ovs.Spawn(ctx, Description{Registry: "", Image: "worker"})
+	ch, info, err := ovs.Spawn(ctx, Description{Registry: "", Image: "worker"})
 	require.NoError(t, err)
 	cjson, err := cl.ContainerInspect(ctx, info.ID)
 	require.NoError(t, err)
@@ -111,6 +113,22 @@ func TestOvsSpawn(t *testing.T) {
 	assrt.True(ok)
 	_, ok = cjson.NetworkSettings.Ports["20001/udp"]
 	assrt.True(ok)
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		tk := time.NewTicker(time.Second * 10)
+		defer tk.Stop()
+		select {
+		case <-ch:
+			wg.Done()
+		case <-tk.C:
+			t.Error("waiting for stop status timed out")
+			wg.Done()
+		}
+	}()
+
 	err = ovs.Stop(ctx, info.ID)
 	require.NoError(t, err)
+	wg.Wait()
 }
