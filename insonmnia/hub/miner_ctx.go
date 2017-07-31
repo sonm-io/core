@@ -86,24 +86,6 @@ func (m *MinerCtx) status() error {
 		return err
 	}
 
-	go func() {
-		//TODO: configurable
-		t := time.NewTicker(time.Second * 10)
-		defer t.Stop()
-		for {
-			select {
-			case <-t.C:
-				err = statusClient.Send(&pbminer.TasksStatusRequest{})
-				if err != nil {
-					log.G(m.ctx).Error("failed to send task status request to miner", zap.Error(err))
-					return
-				}
-			case <-m.ctx.Done():
-				return
-			}
-		}
-	}()
-
 	for {
 		statusReply, err := statusClient.Recv()
 		if err != nil {
