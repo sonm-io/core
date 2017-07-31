@@ -287,7 +287,6 @@ func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
 	h.miners[conn.RemoteAddr().String()] = miner
 	h.mu.Unlock()
 
-	go miner.status()
 	miner.ping()
 	miner.Close()
 

@@ -284,8 +284,8 @@ func (o *overseer) Spawn(ctx context.Context, d Description) (status chan pb.Tas
 
 	o.mu.Lock()
 	o.containers[pr.ID] = pr
-	o.statuses[pr.ID] = make(chan pb.TaskStatus_Status)
-	status = o.statuses[pr.ID]
+	status = make(chan pb.TaskStatus_Status)
+	o.statuses[pr.ID] = status
 	o.mu.Unlock()
 
 	if err = pr.startContainer(); err != nil {
