@@ -72,20 +72,26 @@ func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	return &m, nil
 }
 
-func (m *MinerCtx) status() error {
-	log.G(m.ctx).Info("starting status goroutine")
-	statusClient, err := m.Client.TasksStatus(m.ctx)
+func (m *MinerCtx) initStatusClient() (statusClient pbminer.Miner_TasksStatusClient, err error) {
+	statusClient, err = m.Client.TasksStatus(m.ctx)
 	if err != nil {
 		log.G(m.ctx).Error("failed to get status client", zap.Error(err))
-		return err
+		return
 	}
 
 	err = statusClient.Send(&pbminer.TasksStatusRequest{})
 	if err != nil {
 		log.G(m.ctx).Error("failed to send tasks status request", zap.Error(err))
+		return
+	}
+	return
+}
+
+func (m *MinerCtx) status() error {
+	statusClient, err := m.initStatusClient()
+	if err != nil {
 		return err
 	}
-
 	for {
 		statusReply, err := statusClient.Recv()
 		if err != nil {
