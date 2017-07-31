@@ -84,7 +84,7 @@ func (m *Miner) Handshake(context.Context, *pb.HandshakeRequest) (*pb.HandshakeR
 }
 
 func (m *Miner) scheduleStatusPurge(id string) {
-	t := time.NewTicker(time.Second * 30)
+	t := time.NewTimer(time.Second * 30)
 	defer t.Stop()
 	select {
 	case <-t.C:
