@@ -19,13 +19,14 @@ var (
 
 func main() {
 	flag.Parse()
+	ctx := context.Background()
 
 	conf, err := hub.NewConfig(*configPath)
 	if err != nil {
-		panic("Cannot load config file: " + err.Error())
+		ctxlog.GetLogger(ctx).Fatal("Cannot load config", zap.Error(err))
+		os.Exit(1)
 	}
 
-	ctx := context.Background()
 	h, err := hub.New(ctx, conf)
 	if err != nil {
 		ctxlog.GetLogger(ctx).Fatal("failed to create a new Hub", zap.Error(err))
