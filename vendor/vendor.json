@@ -712,6 +712,12 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "NrY6tAvq3l68HNfSwsJ98O5KXCs=",
+			"path": "github.com/jinzhu/configor",
+			"revision": "ff2ac2b1ce3d687c3a1da0d2847fbce42524a7f3",
+			"revisionTime": "2017-05-22T02:16:20Z"
+		},
+		{
 			"checksumSHA1": "sGdhjz2N/DpfiZrMnHSzl2H/YX8=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/karalabe/hid",
 			"path": "github.com/karalabe/hid",

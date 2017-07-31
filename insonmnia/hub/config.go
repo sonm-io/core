@@ -1,57 +1,20 @@
 package hub
 
-import (
-	"fmt"
-	"io/ioutil"
-	"strings"
-
-	"gopkg.in/yaml.v2"
-)
+import "github.com/jinzhu/configor"
 
 type HubConfig struct {
-	GRPCEndpoint  string   `yaml:"grpc_endpoint"`
-	MinerEndpoint string   `yaml:"miner_endpoint"`
-	Bootnodes     []string `yaml:"bootnodes"`
-}
-
-func (conf *HubConfig) validate() error {
-	var errs []string
-	if len(conf.GRPCEndpoint) == 0 {
-		errs = append(errs, "GRPC Endpoint is required")
-	}
-	if len(conf.MinerEndpoint) == 0 {
-		errs = append(errs, "Miner Endpoint is required")
-	}
-
-	if len(errs) > 0 {
-		return fmt.Errorf("validation error: %s", strings.Join(errs, "; "))
-	}
-
-	return nil
+	Hub struct {
+		GRPCEndpoint  string   `required:"true" yaml:"grpc_endpoint"`
+		MinerEndpoint string   `required:"true" yaml:"miner_endpoint"`
+		Bootnodes     []string `required:"false" yaml:"bootnodes"`
+	} `yaml:"hub"`
 }
 
 func NewConfig(path string) (*HubConfig, error) {
-	conf, err := loadConfigFromFile(path)
-	// able to add some default values here
-	return conf, err
-}
-
-func loadConfigFromFile(path string) (*HubConfig, error) {
-	file, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
 	conf := &HubConfig{}
-	err = yaml.Unmarshal(file, &conf)
+	err := configor.Load(conf, path)
 	if err != nil {
 		return nil, err
 	}
-
-	err = conf.validate()
-	if err != nil {
-		return nil, err
-	}
-
 	return conf, nil
 }

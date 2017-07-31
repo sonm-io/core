@@ -147,8 +147,8 @@ func New(ctx context.Context, conf *HubConfig) (*Hub, error) {
 		tasks:  make(map[string]string),
 		miners: make(map[string]*MinerCtx),
 
-		grpcEndpoint:  conf.GRPCEndpoint,
-		minerEndpoint: conf.MinerEndpoint,
+		grpcEndpoint:  conf.Hub.GRPCEndpoint,
+		minerEndpoint: conf.Hub.MinerEndpoint,
 	}
 	pb.RegisterHubServer(grpcServer, h)
 
