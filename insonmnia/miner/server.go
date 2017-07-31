@@ -201,15 +201,12 @@ func (m *Miner) Serve() error {
 
 		var address = srv.GetHubIp()
 
-		for {
+		t := time.NewTicker(time.Second * 1)
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-t.C:
 			m.connectToHub(address)
-			select {
-			case <-m.ctx.Done():
-				return
-			default:
-				// TODO: backoff
-				time.Sleep(5 * time.Second)
-			}
 		}
 	}()
 	wg.Wait()
