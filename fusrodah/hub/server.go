@@ -28,7 +28,7 @@ func NewServer(prv *ecdsa.PrivateKey, hubIp string) *Server {
 		}
 	}
 
-	frd := fusrodah.NewServer(prv, defaultHubPort, common.BootNodeAddr)
+	frd := fusrodah.NewServer(prv, defaultHubPort, []string{ common.BootNodeAddr, common.SecondBootNodeAddr})
 
 	srv := Server{
 		PrivateKey: prv,

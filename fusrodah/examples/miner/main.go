@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sonm-io/core/fusrodah/miner"
+	"time"
 )
 
 func main() {
@@ -12,6 +13,11 @@ func main() {
 	srv.Start()
 	srv.Serve()
 
-	ip := srv.GetHubIp()
-	fmt.Println(ip)
+	for{
+		select {
+		default:
+			time.Sleep(1*time.Second)
+			fmt.Println(srv.GetHubIp())
+		}
+	}
 }

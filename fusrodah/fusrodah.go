@@ -37,18 +37,17 @@ var (
 
 type Fusrodah struct {
 	Prv     *ecdsa.PrivateKey
-	asymKey *ecdsa.PrivateKey
 
 	p2pServer           p2p.Server
 	whisperServer       *whisperv2.Whisper
 	whisperServerStatus serverState
 
-	Enode string
+	Enodes []string
 	Port  string
 }
 
 // NewServer builds new Fusrodah server instance
-func NewServer(prv *ecdsa.PrivateKey, port string, enode string) *Fusrodah {
+func NewServer(prv *ecdsa.PrivateKey, port string, enodes []string) *Fusrodah {
 	if prv == nil {
 		prv, _ = crypto.GenerateKey()
 	}
@@ -58,39 +57,29 @@ func NewServer(prv *ecdsa.PrivateKey, port string, enode string) *Fusrodah {
 	return &Fusrodah{
 		Prv:                 prv,
 		Port:                port,
-		Enode:               enode,
+		Enodes:              enodes,
 		whisperServer:       shh,
-		asymKey:             shh.NewIdentity(),
 		whisperServerStatus: serverStateStopped,
 	}
-}
-
-// GetMsgPrivateKey returns Fusrodah server private key
-func (fusrodah *Fusrodah) GetMsgPrivateKey() *ecdsa.PrivateKey {
-	return fusrodah.asymKey
-}
-
-// GetMsgPublicKey returns Fusrodah server public key (which identify sender)
-func (fusrodah *Fusrodah) GetMsgPublicKey() *ecdsa.PublicKey {
-	return &fusrodah.asymKey.PublicKey
 }
 
 // Start start whisper server
 func (fusrodah *Fusrodah) Start() {
 	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(5), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 	// Creates new instance of whisper protocol entity. NOTE - using whisper v.2 (not v5)
-
 	var peers []*discover.Node
-	peer := discover.MustParseNode(fusrodah.Enode)
-	peers = append(peers, peer)
+
+	for _, enode := range fusrodah.Enodes{
+		peer := discover.MustParseNode(enode)
+		peers = append(peers, peer)
+	}
 
 	// Configuration to running p2p server. Configuration values can't be modified after launch.
 	fusrodah.p2pServer = p2p.Server{
 		Config: p2p.Config{
 			PrivateKey: fusrodah.Prv,
 			MaxPeers:   maxPeers,
-			Name:       common.MakeName("wnode", "2.0"),
-			// here we can define what additional protocols will be used *above* p2p server.
+			Name:       common.MakeName("wpeer", "2.0"),
 			Protocols:      fusrodah.whisperServer.Protocols(),
 			ListenAddr:     util.GetLocalIP() + fusrodah.Port,
 			NAT:            nat.Any(),
@@ -113,7 +102,7 @@ func (fusrodah *Fusrodah) Start() {
 		os.Exit(1)
 	}
 
-	log.Info("my public key", "key", common.ToHex(crypto.FromECDSAPub(&fusrodah.asymKey.PublicKey)))
+	//log.Info("my public key", "key", common.ToHex(crypto.FromECDSAPub(&fusrodah.asymKey.PublicKey)))
 	fusrodah.whisperServerStatus = serverStateRunning
 }
 
@@ -145,7 +134,7 @@ func (fusrodah *Fusrodah) Send(payload string, anonymous bool, topics ...string)
 	if anonymous {
 		from = nil
 	} else {
-		from = fusrodah.asymKey
+		from = fusrodah.Prv
 	}
 
 	opts := whisperv2.Options{
@@ -170,37 +159,6 @@ func (fusrodah *Fusrodah) Send(payload string, anonymous bool, topics ...string)
 	}
 
 	fmt.Println("message sent")
-	return nil
-}
-
-// SendPrivateMsg sends direct encrypted message
-func (fusrodah *Fusrodah) SendPrivateMsg(payload string, to *ecdsa.PublicKey, topics ...string) error {
-	if !fusrodah.isRunning() {
-		return errServerNotRunning
-	}
-
-	opts := whisperv2.Options{
-		From:   fusrodah.asymKey,
-		To:     to,
-		Topics: whisperv2.NewTopicsFromStrings(topics...),
-		TTL:    whisperv2.DefaultTTL,
-	}
-
-	msg := whisperv2.NewMessage([]byte(payload))
-
-	env, err := msg.Wrap(0, opts)
-	if err != nil {
-		log.Error("failed to wrap new message", "err", err)
-		return err
-
-	}
-
-	err = fusrodah.whisperServer.Send(env)
-	if err != nil {
-		fmt.Printf("failed to send message: %v \n", err)
-		return err
-	}
-
 	return nil
 }
 

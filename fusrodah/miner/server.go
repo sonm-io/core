@@ -11,7 +11,7 @@ import (
 	"github.com/sonm-io/core/fusrodah/hub"
 )
 
-const defaultMinerPort = ":30343"
+const defaultMinerPort = ":30342"
 
 type Server struct {
 	PrivateKey *ecdsa.PrivateKey
@@ -30,7 +30,7 @@ func NewServer(prv *ecdsa.PrivateKey) *Server {
 		}
 	}
 
-	frd := fusrodah.NewServer(prv, defaultMinerPort, common.BootNodeAddr)
+	frd := fusrodah.NewServer(prv, defaultMinerPort, []string{ common.BootNodeAddr, common.SecondBootNodeAddr})
 
 	srv := Server{
 		PrivateKey: prv,
@@ -63,12 +63,14 @@ func (srv *Server) discovery() {
 		close(done)
 	}, common.TopicMinerDiscover)
 
-	select {
-	case <-done:
-		return
-	default:
-		srv.Frd.Send(srv.GetPubKeyString(), true, common.TopicHubDiscover)
-		time.Sleep(time.Millisecond * 1000)
+	for {
+		select {
+		case <-done:
+			return
+		default:
+			srv.Frd.Send(srv.GetPubKeyString(), true, common.TopicHubDiscover)
+			time.Sleep(time.Millisecond * 1000)
+		}
 	}
 }
 
