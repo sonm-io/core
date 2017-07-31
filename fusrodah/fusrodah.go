@@ -7,11 +7,9 @@ package fusrodah
 */
 
 import (
-	"crypto/ecdsa"
-	"fmt"
 	"os"
-
 	"errors"
+	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -36,40 +34,45 @@ var (
 )
 
 type Fusrodah struct {
-	Prv     *ecdsa.PrivateKey
+	Prv *ecdsa.PrivateKey
 
 	p2pServer           p2p.Server
 	whisperServer       *whisperv2.Whisper
 	whisperServerStatus serverState
 
 	Enodes []string
-	Port  string
+	Port   string
 }
 
 // NewServer builds new Fusrodah server instance
-func NewServer(prv *ecdsa.PrivateKey, port string, enodes []string) *Fusrodah {
+func NewServer(prv *ecdsa.PrivateKey, port string, enodes []string) (frd *Fusrodah, err error) {
+
 	if prv == nil {
-		prv, _ = crypto.GenerateKey()
+		prv, err = crypto.GenerateKey()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	shh := whisperv2.New()
 
-	return &Fusrodah{
+	frd = &Fusrodah{
 		Prv:                 prv,
 		Port:                port,
 		Enodes:              enodes,
 		whisperServer:       shh,
 		whisperServerStatus: serverStateStopped,
 	}
+	return frd, nil
 }
 
 // Start start whisper server
-func (fusrodah *Fusrodah) Start() {
-	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(5), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
+func (fusrodah *Fusrodah) Start() (err error) {
+	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(3), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 	// Creates new instance of whisper protocol entity. NOTE - using whisper v.2 (not v5)
 	var peers []*discover.Node
 
-	for _, enode := range fusrodah.Enodes{
+	for _, enode := range fusrodah.Enodes {
 		peer := discover.MustParseNode(enode)
 		peers = append(peers, peer)
 	}
@@ -77,9 +80,9 @@ func (fusrodah *Fusrodah) Start() {
 	// Configuration to running p2p server. Configuration values can't be modified after launch.
 	fusrodah.p2pServer = p2p.Server{
 		Config: p2p.Config{
-			PrivateKey: fusrodah.Prv,
-			MaxPeers:   maxPeers,
-			Name:       common.MakeName("wpeer", "2.0"),
+			PrivateKey:     fusrodah.Prv,
+			MaxPeers:       maxPeers,
+			Name:           common.MakeName("wpeer", "2.0"),
 			Protocols:      fusrodah.whisperServer.Protocols(),
 			ListenAddr:     util.GetLocalIP() + fusrodah.Port,
 			NAT:            nat.Any(),
@@ -90,26 +93,31 @@ func (fusrodah *Fusrodah) Start() {
 	}
 
 	// Starting p2p server
-	if err := fusrodah.p2pServer.Start(); err != nil {
-		fmt.Println("could not start server:", err)
-		os.Exit(1)
+	err = fusrodah.p2pServer.Start()
+	if err != nil {
+		return err
 	}
 
 	// Starting whisper protocol on running p2p server.
 	// NOTE whisper *should* be started automatically but it is not happening... possible BUG in go-ethereum.
-	if err := fusrodah.whisperServer.Start(&fusrodah.p2pServer); err != nil {
-		fmt.Println("could not start server:", err)
-		os.Exit(1)
+	err = fusrodah.whisperServer.Start(&fusrodah.p2pServer)
+	if err != nil {
+		return err
 	}
 
 	//log.Info("my public key", "key", common.ToHex(crypto.FromECDSAPub(&fusrodah.asymKey.PublicKey)))
 	fusrodah.whisperServerStatus = serverStateRunning
+	return nil
 }
 
 // Stop stops whisper and p2p servers
-func (fusrodah *Fusrodah) Stop() {
-	fusrodah.whisperServer.Stop()
+func (fusrodah *Fusrodah) Stop() (err error) {
+	err = fusrodah.whisperServer.Stop()
+	if err != nil {
+		return err
+	}
 	fusrodah.p2pServer.Stop()
+	return nil
 }
 
 // getFilterTopics Creating new filters for a few topics.
@@ -147,23 +155,19 @@ func (fusrodah *Fusrodah) Send(payload string, anonymous bool, topics ...string)
 	msg := whisperv2.NewMessage([]byte(payload))
 	env, err := msg.Wrap(whisperv2.DefaultPoW, opts)
 	if err != nil {
-		log.Error("failed to wrap new message", "err", err)
 		return err
-
 	}
 
 	err = fusrodah.whisperServer.Send(env)
 	if err != nil {
-		fmt.Printf("failed to send message: %v \n", err)
 		return err
 	}
 
-	fmt.Println("message sent")
 	return nil
 }
 
 // AddHandling adds register handler for messages with given keys and on given topics
-func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, from *ecdsa.PublicKey, cb func(msg *whisperv2.Message), topics ...string) int {
+func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, from *ecdsa.PublicKey, handler func(msg *whisperv2.Message), topics ...string) int {
 	if !fusrodah.isRunning() {
 		fusrodah.Start()
 	}
@@ -173,18 +177,16 @@ func (fusrodah *Fusrodah) AddHandling(to *ecdsa.PublicKey, from *ecdsa.PublicKey
 		// setting up filter by topic
 		Topics: fusrodah.getFilterTopics(topics...),
 		// setting up message handler
-		Fn: cb,
+		Fn: handler,
 		// settings up sender and recipient
 		From: from,
 		To:   to,
 	})
 
-	fmt.Printf("Filter installed: %d \r\n", id)
 	return id
 }
 
 // RemoveHandling removes message handler by their id
 func (fusrodah *Fusrodah) RemoveHandling(id int) {
 	fusrodah.whisperServer.Unwatch(id)
-	fmt.Printf("Filter uninstalled: %d \r\n", id)
 }

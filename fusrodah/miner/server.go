@@ -8,44 +8,55 @@ import (
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/fusrodah"
-	"github.com/sonm-io/core/fusrodah/hub"
 )
 
 const defaultMinerPort = ":30342"
 
 type Server struct {
 	PrivateKey *ecdsa.PrivateKey
-	Hubs       []hub.HubsType
 	Frd        *fusrodah.Fusrodah
-	ConfFile   string
-	ip         string
+
+	hubIp string
 }
 
-func NewServer(prv *ecdsa.PrivateKey) *Server {
+func NewServer(prv *ecdsa.PrivateKey) (srv *Server, err error) {
 	if prv == nil {
-		var err error
 		prv, err = crypto.GenerateKey()
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
-	frd := fusrodah.NewServer(prv, defaultMinerPort, []string{ common.BootNodeAddr, common.SecondBootNodeAddr})
+	bootnodes := []string{common.BootNodeAddr, common.SecondBootNodeAddr}
 
-	srv := Server{
-		PrivateKey: prv,
-		Frd:        frd,
+	frd, err := fusrodah.NewServer(prv, defaultMinerPort, bootnodes)
+	if err != nil {
+		return nil, err
 	}
 
-	return &srv
+	srv = &Server{
+		PrivateKey: prv,
+		Frd:        frd,
+		hubIp: "0.0.0.0",
+	}
+
+	return srv, nil
 }
 
-func (srv *Server) Start() {
-	srv.Frd.Start()
+func (srv *Server) Start() (err error) {
+	err = srv.Frd.Start()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (srv *Server) Stop() {
-	srv.Frd.Stop()
+func (srv *Server) Stop() (err error){
+	err = srv.Frd.Stop()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (srv *Server) Serve() {
@@ -58,7 +69,7 @@ func (srv *Server) discovery() {
 	done := make(chan struct{})
 
 	filterID = srv.Frd.AddHandling(nil, nil, func(msg *whisperv2.Message) {
-		srv.ip = string(msg.Payload)
+		srv.hubIp = string(msg.Payload)
 		srv.Frd.RemoveHandling(filterID)
 		close(done)
 	}, common.TopicMinerDiscover)
@@ -75,10 +86,10 @@ func (srv *Server) discovery() {
 }
 
 func (srv *Server) GetHubIp() string {
-	if srv.ip == "0.0.0.0" {
+	if srv.hubIp == "0.0.0.0" {
 		srv.discovery()
 	}
-	return srv.ip
+	return srv.hubIp
 }
 
 func (srv *Server) GetPubKeyString() string {
