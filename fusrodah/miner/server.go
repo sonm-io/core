@@ -74,14 +74,13 @@ func (srv *Server) discovery() {
 		close(done)
 	}, common.TopicMinerDiscover)
 
-	for {
-		select {
-		case <-done:
-			return
-		default:
-			srv.Frd.Send(srv.GetPubKeyString(), true, common.TopicHubDiscover)
-			time.Sleep(time.Millisecond * 1000)
-		}
+	t := time.NewTicker(time.Second * 1)
+	defer t.Stop()
+	select {
+	case <-done:
+		return
+	case <-t.C:
+		srv.Frd.Send(srv.GetPubKeyString(), true, common.TopicHubDiscover)
 	}
 }
 
