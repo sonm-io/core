@@ -19,7 +19,6 @@ import (
 	"github.com/sonm-io/core/util"
 
 	frd "github.com/sonm-io/core/fusrodah/miner"
-	"fmt"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
