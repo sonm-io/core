@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 
 	pbminer "github.com/sonm-io/core/proto/miner"
+	"sync"
 )
 
 // MinerCtx holds all the data related to a connected Miner
@@ -24,6 +25,7 @@ type MinerCtx struct {
 	// gRPC Client
 	Client     pbminer.MinerClient
 	status_map map[string]*pbminer.TaskStatus
+	status_mu  sync.Mutex
 	// Incoming TCP-connection
 	conn net.Conn
 
@@ -34,7 +36,8 @@ type MinerCtx struct {
 func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	var (
 		m = MinerCtx{
-			conn: conn,
+			conn:       conn,
+			status_map: make(map[string]*pbminer.TaskStatus),
 		}
 		err error
 	)
@@ -107,7 +110,9 @@ func (m *MinerCtx) status() error {
 			log.G(m.ctx).Info("failed to receive miner status", zap.Error(err))
 			return err
 		}
+		m.status_mu.Lock()
 		m.status_map = statusReply.Statuses
+		m.status_mu.Unlock()
 	}
 	return nil
 }
