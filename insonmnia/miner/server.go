@@ -15,6 +15,8 @@ import (
 	"github.com/hashicorp/yamux"
 	log "github.com/noxiouz/zapctx/ctxlog"
 
+	"github.com/sonm-io/core/common"
+	"github.com/sonm-io/core/insonmnia/logger"
 	pb "github.com/sonm-io/core/proto/miner"
 	"github.com/sonm-io/core/util"
 )
@@ -25,9 +27,9 @@ type Miner struct {
 	cancel     context.CancelFunc
 	grpcServer *grpc.Server
 
-	hubaddress string
+	hubAddress string
 	// NOTE: do not use static detection
-	pubaddress string
+	pubAddress string
 
 	rl *reverseListener
 
@@ -85,7 +87,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 	for port, v := range cinfo.Ports {
 		if len(v) > 0 {
 			replyport := &pb.StartReplyPort{
-				IP:   m.pubaddress,
+				IP:   m.pubAddress,
 				Port: v[0].HostPort,
 			}
 			rpl.Ports[string(port)] = replyport
@@ -186,7 +188,7 @@ func (m *Miner) Serve() error {
 	go func() {
 		defer wg.Done()
 		// TODO: inject real discovery here
-		var address = m.hubaddress
+		var address = m.hubAddress
 		for {
 			m.connectToHub(address)
 			select {
@@ -211,13 +213,14 @@ func (m *Miner) Close() {
 }
 
 // New returns new Miner
-func New(ctx context.Context, hubaddress string) (*Miner, error) {
+func New(ctx context.Context, config *MinerConfig) (*Miner, error) {
+	loggr := logger.BuildLogger(config.Logger.Level, common.DevelopmentMode)
+	ctx = log.WithLogger(ctx, loggr)
+
 	addr, err := util.GetPublicIP()
 	if err != nil {
 		return nil, err
 	}
-
-	pubaddress := addr.String()
 
 	ctx, cancel := context.WithCancel(ctx)
 	grpcServer := grpc.NewServer()
@@ -232,8 +235,8 @@ func New(ctx context.Context, hubaddress string) (*Miner, error) {
 		grpcServer: grpcServer,
 		ovs:        ovs,
 
-		hubaddress: hubaddress,
-		pubaddress: pubaddress,
+		pubAddress: addr.String(),
+		hubAddress: config.Miner.HubAddress,
 
 		rl:         NewReverseListener(1),
 		containers: make(map[string]ContainterInfo),

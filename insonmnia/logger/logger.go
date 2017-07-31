@@ -1,4 +1,4 @@
-package hub
+package logger
 
 import (
 	"go.uber.org/zap"
@@ -9,7 +9,8 @@ var (
 	atom = zap.NewAtomicLevel()
 )
 
-func buildLogger(level int, development bool) *zap.Logger {
+// BuildLogger return new zap.Logger instance with given severity and debug settings
+func BuildLogger(level int, development bool) *zap.Logger {
 	var encoding string
 	var encodingConfig zapcore.EncoderConfig
 	if development {

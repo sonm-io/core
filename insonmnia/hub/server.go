@@ -9,6 +9,8 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
+	"github.com/sonm-io/core/common"
+	"github.com/sonm-io/core/insonmnia/logger"
 	pb "github.com/sonm-io/core/proto/hub"
 	pbminer "github.com/sonm-io/core/proto/miner"
 
@@ -16,10 +18,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-)
-
-const (
-	developmentMode = false
 )
 
 // Hub collects miners, send them orders to spawn containers, etc.
@@ -139,9 +137,10 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 }
 
 // New returns new Hub
-func New(ctx context.Context, conf *HubConfig) (*Hub, error) {
+func New(ctx context.Context, config *HubConfig) (*Hub, error) {
 	// TODO: add secure mechanism
-	loggr := buildLogger(conf.Logger.Level, developmentMode)
+
+	loggr := logger.BuildLogger(config.Logger.Level, common.DevelopmentMode)
 	ctx = log.WithLogger(ctx, loggr)
 
 	grpcServer := grpc.NewServer()
@@ -152,8 +151,8 @@ func New(ctx context.Context, conf *HubConfig) (*Hub, error) {
 		tasks:  make(map[string]string),
 		miners: make(map[string]*MinerCtx),
 
-		grpcEndpoint:  conf.Hub.GRPCEndpoint,
-		minerEndpoint: conf.Hub.MinerEndpoint,
+		grpcEndpoint:  config.Hub.GRPCEndpoint,
+		minerEndpoint: config.Hub.MinerEndpoint,
 	}
 	pb.RegisterHubServer(grpcServer, h)
 	return h, nil

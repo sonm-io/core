@@ -5,4 +5,6 @@ const (
 
 	TopicHubDiscover   = "hubDiscover"
 	TopicMinerDiscover = "minerDiscover"
+
+	DevelopmentMode = true
 )
