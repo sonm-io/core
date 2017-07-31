@@ -1,10 +1,11 @@
 package hub
 
 import (
-	"testing"
 	"io/ioutil"
-	"github.com/stretchr/testify/assert"
 	"os"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -59,7 +60,7 @@ func TestLoadInvalidConfig(t *testing.T) {
   miner_endpoint: ":10002"`
 
 	err := createTestConfigFile(raw)
-	assert.Nil(t,err)
+	assert.Nil(t, err)
 
 	conf, err := NewConfig(testHubConfigPath)
 	assert.Nil(t, conf)
