@@ -89,6 +89,23 @@ func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
 		m.containers[id] = &ContainerInfo{}
 	}
 	m.containers[id].status = status
+	if status.Status == pb.TaskStatus_BROKEN || status.Status == pb.TaskStatus_FINISHED {
+		go func() {
+			//t := time.NewTicker(time.Second * 3600 * 24)
+			t := time.NewTicker(time.Second * 30)
+			defer t.Stop()
+			for {
+				select {
+				case <-t.C:
+					m.mu.Lock()
+					delete(m.containers, id)
+					m.mu.Unlock()
+				case <-m.ctx.Done():
+					return
+				}
+			}
+		}()
+	}
 	for _, ch := range m.statusChannels {
 		ch <- true
 	}
