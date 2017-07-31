@@ -193,23 +193,24 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 	taskid := request.Id
 	h.tasksmu.Lock()
 	miner, ok := h.tasks[taskid]
+	h.tasksmu.Unlock()
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no such task %s", taskid)
 	}
-	h.tasksmu.Unlock()
 
 	h.mu.Lock()
 	mincli, ok := h.miners[miner]
+	h.mu.Unlock()
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no miner %s for task %s", miner, taskid)
 	}
-	h.mu.Unlock()
+
 	mincli.status_mu.Lock()
 	taskStatus, ok := mincli.status_map[taskid]
+	mincli.status_mu.Unlock()
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskid)
 	}
-	mincli.status_mu.Unlock()
 
 	reply := pb.TaskStatusReply{taskStatus}
 	return &reply, nil
