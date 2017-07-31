@@ -1,8 +1,13 @@
 package hub
 
-import "github.com/jinzhu/configor"
+import (
+	"github.com/jinzhu/configor"
+)
 
 type HubConfig struct {
+	Logger struct {
+		Level int `required:"true" default:"1"`
+	} `yaml:"logger"`
 	Hub struct {
 		GRPCEndpoint  string   `required:"true" yaml:"grpc_endpoint"`
 		MinerEndpoint string   `required:"true" yaml:"miner_endpoint"`

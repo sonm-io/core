@@ -1,3 +1,6 @@
+logger:
+  level: 1
+
 hub:
   grpc_endpoint: ":10001"
   miner_endpoint: ":10002"

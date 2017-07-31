@@ -18,7 +18,9 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-
+const (
+	developmentMode = false
+)
 
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
@@ -139,6 +141,9 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 // New returns new Hub
 func New(ctx context.Context, conf *HubConfig) (*Hub, error) {
 	// TODO: add secure mechanism
+	loggr := buildLogger(conf.Logger.Level, developmentMode)
+	ctx = log.WithLogger(ctx, loggr)
+
 	grpcServer := grpc.NewServer()
 	h := &Hub{
 		ctx:          ctx,
@@ -151,7 +156,6 @@ func New(ctx context.Context, conf *HubConfig) (*Hub, error) {
 		minerEndpoint: conf.Hub.MinerEndpoint,
 	}
 	pb.RegisterHubServer(grpcServer, h)
-
 	return h, nil
 }
 
