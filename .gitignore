@@ -45,10 +45,10 @@ metrics/config_test.json
 
 # truffle installs OpenZeppelin contracts here
 node_modules
-package-lock.json
+contracts/package-lock.json
 
 # truffle stores build artifacts here
 build
 
 # go generate stores contract wrappers here
-contracts/api
+blockchain/api

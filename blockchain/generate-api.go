@@ -17,7 +17,7 @@ import (
 
 const (
 	// `truffle compile` stores build artifacts here
-	solidityArtifactsPath = "../build/contracts/*.json"
+	solidityArtifactsPath = "./build/contracts/*.json"
 	// store generated contract wrappers here
 	goWrappersPath = "api"
 )
