@@ -32,3 +32,18 @@ Check all components using cli:
 ```
 ./sonmcli --hub 127.0.0.1:10001 ping
 ```
+
+
+### How to build
+
+If you want to build all the components by yourself:
+
+```
+make build
+```
+
+build docker containers locally:
+
+```
+make docker_all
+```
