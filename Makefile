@@ -12,7 +12,8 @@ MINER=sonmminer
 HUB=sonmhub
 CLI=sonmcli
 
-DOCKER_IMAGE_CORE="sonm/core:latest"
+DOCKER_IMAGE_HUB="sonm/hub:latest"
+DOCKER_IMAGE_MINER="sonm/miner:latest"
 DOCKER_IMAGE_BOOTNODE="sonm/bootnode:latest"
 
 
@@ -88,8 +89,13 @@ clean:
 	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE}
 
 
-docker_core:
-	docker build -t ${DOCKER_IMAGE_CORE} -f ./core.Dockerfile .
+docker_hub:
+	docker build -t ${DOCKER_IMAGE_HUB} -f ./hub.Dockerfile .
+
+docker_miner:
+	docker build -t ${DOCKER_IMAGE_MINER} -f ./miner.Dockerfile .
 
 docker_bootnode:
 	docker build -t ${DOCKER_IMAGE_BOOTNODE} -f ./bootnode.Dockerfile .
+
+docker_all: docker_hub docker_miner docker_bootnode
