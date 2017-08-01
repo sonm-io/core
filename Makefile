@@ -37,12 +37,11 @@ build_cli:
 
 build_contracts:
 	@echo "+ $@"
-	cd ./blockchain && ${TRUFFLE} compile
+	cd ./blockchain && npm install && ${TRUFFLE} compile
 	${GO} generate ./blockchain/
 	${GO} build ./blockchain/api.go
 
-build: build_contracts build_bootnode build_hub build_miner build_cli
-
+build: build_bootnode build_hub build_miner build_cli
 
 install:
 	@echo "+ $@"
