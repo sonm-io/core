@@ -13,15 +13,21 @@ import (
 	"github.com/sonm-io/core/insonmnia/miner"
 )
 
-var hubaddress = flag.StringP("hubaddress", "h", "", "specify Hub address to connect to")
+var (
+	configPath = flag.String("config", "miner.yaml", "Path to miner config file")
+)
 
 func main() {
 	flag.Parse()
 	ctx := context.Background()
-	if *hubaddress == "" {
-		ctxlog.GetLogger(ctx).Fatal("hub address must be set via --hubaddress")
+
+	conf, err := miner.NewConfig(*configPath)
+	if err != nil {
+		ctxlog.GetLogger(ctx).Error("Cannot load config", zap.Error(err))
+		os.Exit(1)
 	}
-	m, err := miner.New(ctx, *hubaddress)
+
+	m, err := miner.New(ctx, conf)
 	if err != nil {
 		ctxlog.GetLogger(ctx).Fatal("failed to create a new Miner", zap.Error(err))
 	}

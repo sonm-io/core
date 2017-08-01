@@ -1,13 +1,19 @@
 syntax = "proto3";
 
+import "miner/miner.proto";
+
 package hub;
 
 service Hub {
     rpc Ping(PingRequest) returns (PingReply) {}
     rpc List(ListRequest) returns (ListReply) {}
+    rpc Info(InfoRequest) returns (InfoReply) {}
 
     rpc StartTask(StartTaskRequest) returns (StartTaskReply) {}
     rpc StopTask(StopTaskRequest) returns (StopTaskReply) {}
+
+    rpc TaskStatus(TaskStatusRequest) returns (TaskStatusReply) {}
+    rpc MinerStatus(MinerStatusRequest) returns (miner.TasksStatusReply) {}
 }
 
 message PingRequest {
@@ -27,6 +33,27 @@ message ListReply {
     map<string, ListValue> info = 1;
 }
 
+message InfoRequest {
+    string miner = 1;
+}
+
+message InfoReply {
+    message stats {
+        message cpu {
+            uint64 totalUsage = 1;
+        }
+
+        message memory {
+            uint64 maxUsage = 1;
+        }
+
+        cpu CPU = 1;
+        memory Memory = 2;
+    }
+
+    map<string, stats> Stats = 1;
+}
+
 message StartTaskRequest {
     string miner = 1;
     string registry = 2;
@@ -44,3 +71,16 @@ message StopTaskRequest {
 
 message StopTaskReply {
 }
+
+message MinerStatusRequest {
+    string miner = 1;
+}
+
+message TaskStatusRequest {
+    string id = 1;
+}
+
+message TaskStatusReply {
+    miner.TaskStatus status = 1;
+}
+

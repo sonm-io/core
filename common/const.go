@@ -8,4 +8,5 @@ const (
 	TopicMinerDiscover = "minerDiscover"
 
 	DefaultLogLevelGoEthereum = 3
+	DevelopmentMode = true
 )

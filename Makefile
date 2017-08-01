@@ -59,8 +59,8 @@ test:
 	@go test -tags nocgo $(shell go list ./... | grep -v vendor)
 
 grpc:
-	protoc -I proto/hub/ proto/hub/hub.proto --go_out=plugins=grpc:proto/hub/
-	protoc -I proto/miner/ proto/miner/miner.proto --go_out=plugins=grpc:proto/miner/
+	protoc -I proto proto/hub/hub.proto --go_out=plugins=grpc,Mminer/miner.proto=github.com/sonm-io/core/proto/miner:proto/
+	protoc -I proto proto/miner/miner.proto --go_out=plugins=grpc:proto/
 
 coverage:
 	${GO} tool cover -func=coverage.txt
