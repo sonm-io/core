@@ -8,6 +8,6 @@ EXPOSE 10001
 WORKDIR /go/src/github.com/sonm-io/core
 COPY . .
 
-RUN make build_hub && make build_miner && \
-    cp ./sonmhub /sonmhub && \
-    cp ./sonmminer /sonmminer
+RUN make build_hub && cp ./sonmhub /sonmhub
+
+ENTRYPOINT ["/sonmhub"]
