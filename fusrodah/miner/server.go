@@ -37,7 +37,7 @@ func NewServer(prv *ecdsa.PrivateKey) (srv *Server, err error) {
 	srv = &Server{
 		PrivateKey: prv,
 		Frd:        frd,
-		hubIp: "0.0.0.0",
+		hubIp:      "0.0.0.0",
 	}
 
 	return srv, nil
@@ -51,7 +51,7 @@ func (srv *Server) Start() (err error) {
 	return nil
 }
 
-func (srv *Server) Stop() (err error){
+func (srv *Server) Stop() (err error) {
 	err = srv.Frd.Stop()
 	if err != nil {
 		return err

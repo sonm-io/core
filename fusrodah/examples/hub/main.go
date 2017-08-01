@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/sonm-io/core/fusrodah/hub"
 	"fmt"
+	"github.com/sonm-io/core/fusrodah/hub"
 )
 
 func main() {
