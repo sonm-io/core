@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	pb "github.com/sonm-io/core/proto/miner"
 )
 
 const overseerTag = "sonm.overseer"
@@ -29,16 +30,27 @@ type Description struct {
 	Image    string
 }
 
-type ContainterInfo struct {
-	ID    string
-	Ports nat.PortMap
+type ContainerInfo struct {
+	status *pb.TaskStatus
+	ID     string
+	Ports  nat.PortMap
 }
 
-// Overseer watches all miners' applications
+type ContainerMetrics struct {
+	cpu types.CPUStats
+	mem types.MemoryStats
+}
+
+// Overseer watches all miner's applications.
 type Overseer interface {
 	Spool(ctx context.Context, d Description) error
-	Spawn(ctx context.Context, d Description) (ContainterInfo, error)
+	Spawn(ctx context.Context, d Description) (chan pb.TaskStatus_Status, ContainerInfo, error)
 	Stop(ctx context.Context, containerID string) error
+
+	// Returns runtime statistics collected from all running containers.
+	//
+	// Depending on the implementation this can be cached.
+	Info(ctx context.Context) (map[string]ContainerMetrics, error)
 	Close() error
 }
 
@@ -53,6 +65,7 @@ type overseer struct {
 	// protects containers map
 	mu         sync.Mutex
 	containers map[string]*dcontainer
+	statuses   map[string]chan pb.TaskStatus_Status
 }
 
 // NewOverseer creates new overseer
@@ -70,12 +83,30 @@ func NewOverseer(ctx context.Context) (Overseer, error) {
 		client: dockclient,
 
 		containers: make(map[string]*dcontainer),
+		statuses:   make(map[string]chan pb.TaskStatus_Status),
 	}
 
 	go ovr.collectStats()
 	go ovr.watchEvents()
 
 	return ovr, nil
+}
+
+func (o *overseer) Info(ctx context.Context) (map[string]ContainerMetrics, error) {
+	info := make(map[string]ContainerMetrics)
+
+	o.mu.Lock()
+	for _, container := range o.containers {
+		metrics := ContainerMetrics{
+			cpu: container.stats.CPUStats,
+			mem: container.stats.MemoryStats,
+		}
+
+		info[container.ID] = metrics
+	}
+	o.mu.Unlock()
+
+	return info, nil
 }
 
 func (o *overseer) Close() error {
@@ -110,10 +141,15 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 
 				var c *dcontainer
 				o.mu.Lock()
-				c, ok := o.containers[id]
+				c, cok := o.containers[id]
+				s, sok := o.statuses[id]
 				delete(o.containers, id)
+				delete(o.statuses, id)
 				o.mu.Unlock()
-				if ok {
+				if sok {
+					s <- pb.TaskStatus_BROKEN
+				}
+				if cok {
 					c.remove()
 				} else {
 					// NOTE: it could be orphaned container from our previous launch
@@ -145,7 +181,7 @@ func (o *overseer) watchEvents() {
 		// case nil:
 		// 	// pass
 		case context.Canceled, context.DeadlineExceeded:
-			log.G(o.ctx).Info("event listenening has been cancelled")
+			log.G(o.ctx).Info("event listening has been cancelled")
 			return
 		default:
 			log.G(o.ctx).Warn("failed to attach to a Docker events stream. Retry later")
@@ -153,7 +189,7 @@ func (o *overseer) watchEvents() {
 			case <-backoff.C():
 				//pass
 			case <-o.ctx.Done():
-				log.G(o.ctx).Info("event listenening has been cancelled during sleep")
+				log.G(o.ctx).Info("event listening has been cancelled during sleep")
 				return
 			}
 		}
@@ -161,7 +197,7 @@ func (o *overseer) watchEvents() {
 }
 
 func (o *overseer) collectStats() {
-	t := time.NewTicker(30 * time.Second)
+	t := time.NewTicker(5 * time.Second)
 	defer t.Stop()
 	for {
 		select {
@@ -173,6 +209,10 @@ func (o *overseer) collectStats() {
 			}
 			o.mu.Unlock()
 			for _, id := range ids {
+				if len(id) == 0 {
+					continue
+				}
+
 				resp, err := o.client.ContainerStats(o.ctx, id, false)
 				if err != nil {
 					log.G(o.ctx).Warn("failed to get Stats", zap.String("id", id), zap.Error(err))
@@ -189,6 +229,13 @@ func (o *overseer) collectStats() {
 					log.G(o.ctx).Warn("failed to decode container Stats", zap.String("id", id), zap.Error(err))
 				}
 				resp.Body.Close()
+
+				log.G(o.ctx).Debug("received container stats", zap.String("id", id), zap.Any("stats", stats))
+				o.mu.Lock()
+				if container, ok := o.containers[id]; ok {
+					container.stats = stats
+				}
+				o.mu.Unlock()
 			}
 			stringArrayPool.Put(ids[:0])
 		case <-o.ctx.Done():
@@ -229,7 +276,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	return nil
 }
 
-func (o *overseer) Spawn(ctx context.Context, d Description) (cinfo ContainterInfo, err error) {
+func (o *overseer) Spawn(ctx context.Context, d Description) (status chan pb.TaskStatus_Status, cinfo ContainerInfo, err error) {
 	pr, err := newContainer(ctx, o.client, d)
 	if err != nil {
 		return
@@ -237,6 +284,8 @@ func (o *overseer) Spawn(ctx context.Context, d Description) (cinfo ContainterIn
 
 	o.mu.Lock()
 	o.containers[pr.ID] = pr
+	status = make(chan pb.TaskStatus_Status)
+	o.statuses[pr.ID] = status
 	o.mu.Unlock()
 
 	if err = pr.startContainer(); err != nil {
@@ -248,19 +297,27 @@ func (o *overseer) Spawn(ctx context.Context, d Description) (cinfo ContainterIn
 		// NOTE: I don't think it can fail
 		return
 	}
-	cinfo = ContainterInfo{
-		ID:    cjson.ID,
-		Ports: cjson.NetworkSettings.Ports,
+	cinfo = ContainerInfo{
+		status: &pb.TaskStatus{pb.TaskStatus_RUNNING},
+		ID:     cjson.ID,
+		Ports:  cjson.NetworkSettings.Ports,
 	}
-	return cinfo, nil
+	return status, cinfo, nil
 }
 
 func (o *overseer) Stop(ctx context.Context, containerid string) error {
 	o.mu.Lock()
-	pr, ok := o.containers[containerid]
+
+	pr, cok := o.containers[containerid]
+	s, sok := o.statuses[containerid]
 	delete(o.containers, containerid)
+	delete(o.statuses, containerid)
 	o.mu.Unlock()
-	if !ok {
+	if sok {
+		s <- pb.TaskStatus_FINISHED
+	}
+
+	if !cok {
 		return fmt.Errorf("no such container %s", containerid)
 	}
 	return pr.Kill()
