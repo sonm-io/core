@@ -11,19 +11,19 @@ Official core client
 
 Start boootnode
 ```
-d run -it --rm --name bootnode -p 8092:8092  sonm/bootnode
+docker run -it --rm --name bootnode -p 8092:8092  sonm/bootnode
 ```
 
 
 Start hub, open port 10001 to connect with cli
 ```
-d run -it --rm --name hub --link  bootnode -p 10001:10001 sonm/hub
+docker run -it --rm --name hub --link  bootnode -p 10001:10001 sonm/hub
 ```
 
 
 Start miner, link it to hub, mount `/var/run` to access docker.sock
 ```
-d run -it --rm --link bootnode --link hub -v /var/run:/var/run sonm/miner:latest /sonmminer
+docker run -it --rm --link bootnode --link hub -v /var/run:/var/run sonm/miner:latest /sonmminer
 ```
 
 
