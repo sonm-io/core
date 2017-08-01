@@ -50,5 +50,3 @@ contracts/package-lock.json
 # truffle stores build artifacts here
 build
 
-# go generate stores contract wrappers here
-blockchain/api
