@@ -7,9 +7,9 @@ package fusrodah
 */
 
 import (
-	"os"
-	"errors"
 	"crypto/ecdsa"
+	"errors"
+	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"

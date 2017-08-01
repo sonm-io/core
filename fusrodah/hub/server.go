@@ -12,8 +12,8 @@ import (
 const defaultHubPort = ":30343"
 
 type Server struct {
-	PrivateKey  *ecdsa.PrivateKey
-	Frd         *fusrodah.Fusrodah
+	PrivateKey *ecdsa.PrivateKey
+	Frd        *fusrodah.Fusrodah
 
 	HubIp string
 }
@@ -27,7 +27,7 @@ func NewServer(prv *ecdsa.PrivateKey, hubIp string) (srv *Server, err error) {
 		}
 	}
 
-	bootnodes := []string{ common.BootNodeAddr, common.SecondBootNodeAddr}
+	bootnodes := []string{common.BootNodeAddr, common.SecondBootNodeAddr}
 
 	frd, err := fusrodah.NewServer(prv, defaultHubPort, bootnodes)
 	if err != nil {
@@ -43,7 +43,7 @@ func NewServer(prv *ecdsa.PrivateKey, hubIp string) (srv *Server, err error) {
 	return srv, nil
 }
 
-func (srv *Server) Start() (err error){
+func (srv *Server) Start() (err error) {
 	err = srv.Frd.Start()
 	if err != nil {
 		return err
@@ -51,7 +51,7 @@ func (srv *Server) Start() (err error){
 	return nil
 }
 
-func (srv *Server) Stop() (err error){
+func (srv *Server) Stop() (err error) {
 	err = srv.Frd.Stop()
 	if err != nil {
 		return err
@@ -63,9 +63,8 @@ func (srv *Server) Serve() {
 	srv.discovery()
 }
 
-func (srv *Server) discovery(){
+func (srv *Server) discovery() {
 	srv.Frd.AddHandling(nil, nil, func(msg *whisperv2.Message) {
 		srv.Frd.Send(srv.HubIp, true, common.TopicMinerDiscover)
 	}, common.TopicHubDiscover)
 }
-
