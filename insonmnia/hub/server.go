@@ -258,7 +258,7 @@ func (h *Hub) Serve() error {
 	}
 	srv.Serve()
 
-	il, err := net.Listen("tcp", minerHubInterconnectEndpoint)
+	il, err := net.Listen("tcp", h.minerEndpoint)
 
 	if err != nil {
 		log.G(h.ctx).Error("failed to listen", zap.String("address", h.minerEndpoint), zap.Error(err))
