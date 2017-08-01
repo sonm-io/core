@@ -45,6 +45,7 @@ metrics/config_test.json
 
 # truffle installs OpenZeppelin contracts here
 node_modules
+package-lock.json
 
 # truffle stores build artifacts here
 build
