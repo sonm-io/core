@@ -41,7 +41,7 @@ build_contracts:
 	${GO} generate ./contracts
 	${GO} build ./contracts/api.go
 
-build: build_bootnode build_hub build_miner build_cli build_contracts
+build: build_contracts build_bootnode build_hub build_miner build_cli
 
 
 install:
