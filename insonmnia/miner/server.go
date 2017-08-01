@@ -19,6 +19,8 @@ import (
 	"github.com/sonm-io/core/insonmnia/logger"
 	pb "github.com/sonm-io/core/proto/miner"
 	"github.com/sonm-io/core/util"
+
+	frd "github.com/sonm-io/core/fusrodah/miner"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -330,17 +332,27 @@ func (m *Miner) Serve() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		// TODO: inject real discovery here
-		var address = m.hubAddress
-		for {
+
+		srv, err := frd.NewServer(nil)
+		if err != nil {
+			return
+		}
+		err = srv.Start()
+		if err != nil {
+			return
+		}
+
+		srv.Serve()
+
+		var address = srv.GetHubIp()
+
+		t := time.NewTicker(time.Second * 5)
+		defer t.Stop()
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-t.C:
 			m.connectToHub(address)
-			select {
-			case <-m.ctx.Done():
-				return
-			default:
-				// TODO: backoff
-				time.Sleep(5 * time.Second)
-			}
 		}
 	}()
 	wg.Wait()
