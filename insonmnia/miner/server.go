@@ -47,8 +47,7 @@ var _ pb.MinerServer = &Miner{}
 
 // Ping works as Healthcheck for the Hub
 func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, error) {
-	// fixme: next line ignore logger settings
-	log.G(ctx).Info("got ping request from Hub")
+	log.G(m.ctx).Info("got ping request from Hub")
 	return &pb.PingReply{}, nil
 }
 
