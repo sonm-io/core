@@ -2,4 +2,4 @@ logger:
   level: -1
 
 miner:
-  hub_address: 127.0.0.51
+  hub_address: hub:10002

@@ -6,6 +6,7 @@ Official core client
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/sonm-io_core/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sonm-io/core)](https://goreportcard.com/report/github.com/sonm-io/core)
 
+
 ### Running in docker:
 
 Start boootnode
@@ -20,9 +21,9 @@ d run -it --rm --name hub --link  bootnode -p 10001:10001 sonm/hub
 ```
 
 
-Start miner, link it to hub
+Start miner, link it to hub, mount `/var/run` to access docker.sock
 ```
-d run -it --rm --link bootnode --link hub sonm/miner:latest /sonmminer -h hub:10002
+d run -it --rm --link bootnode --link hub -v /var/run:/var/run sonm/miner:latest /sonmminer
 ```
 
 
