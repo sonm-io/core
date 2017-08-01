@@ -248,7 +248,7 @@ func (h *Hub) Serve() error {
 	if err != nil {
 		return err
 	}
-	srv, err := frd.NewServer(nil, ip.String())
+	srv, err := frd.NewServer(nil, ip.String()+h.minerEndpoint)
 	if err != nil {
 		return err
 	}
