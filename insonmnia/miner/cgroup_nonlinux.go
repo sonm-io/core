@@ -2,16 +2,18 @@
 
 package miner
 
-import (
-	"fmt"
-	"runtime"
-)
+// Resources is a placeholder for resources
+type Resources interface{}
 
 const (
 	platformSupportCGroups = false
 	parentCgroup           = ""
 )
 
-func initializeControlGroup() (cGroupDeleter, error) {
-	return nil, fmt.Errorf("%s does not support Control Groups", runtime.GOOS)
+type nilDeleter struct{}
+
+func (*nilDeleter) Delete() error { return nil }
+
+func initializeControlGroup(*Resources) (cGroupDeleter, error) {
+	return &nilDeleter{}, nil
 }
