@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/cgroups"
+	"github.com/mitchellh/mapstructure"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -14,7 +15,37 @@ const (
 	parentCgroup           = "insonmnia"
 )
 
-func initializeControlGroup() (cGroupDeleter, error) {
+// Resources is a type alias for OCI Resources spec
+type Resources specs.LinuxResources
+
+// SetYAML implements goyaml.Setter
+func (r *Resources) SetYAML(tag string, value interface{}) bool {
+	// specs-go provides structures with 'json' tagged fields
+	// but Yaml requires 'yaml' tag
+	// value is expected to be map[interface{}]interface{}
+	if tag != "!!map" {
+		return false
+	}
+
+	cfg := mapstructure.DecoderConfig{
+		Result:           r,
+		TagName:          "json",
+		WeaklyTypedInput: true,
+	}
+
+	decoder, err := mapstructure.NewDecoder(&cfg)
+	if err != nil {
+		return false
+	}
+
+	if decoder.Decode(value) != nil {
+		return false
+	}
+
+	return true
+}
+
+func initializeControlGroup(res *Resources) (cGroupDeleter, error) {
 	// Cook or update parent cgroup for all containers
 	cgroupPath := cgroups.StaticPath("/" + parentCgroup)
 	control, err := cgroups.Load(cgroups.V1, cgroupPath)
@@ -32,14 +63,11 @@ func initializeControlGroup() (cGroupDeleter, error) {
 		return nil, fmt.Errorf("failed to load parent cgroup %s: %v", parentCgroup, err)
 	}
 
-	// TODO: read resources from configuration
-	var memLimit int64 = 100000000 // bytes
-	err = control.Update(&specs.LinuxResources{
-		Memory: &specs.LinuxMemory{
-			Limit: &memLimit, // 1 GB
-		},
-	})
-	if err != nil {
+	if res == nil {
+		return control, nil
+	}
+
+	if err = control.Update((*specs.LinuxResources)(res)); err != nil {
 		return nil, fmt.Errorf("failed to set resource limit on parent cgroup %s: %v", parentCgroup, err)
 	}
 

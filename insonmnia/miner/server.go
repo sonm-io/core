@@ -54,7 +54,6 @@ type Miner struct {
 	controlGroup   cGroupDeleter
 }
 
-
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -160,7 +159,7 @@ func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
 func (m *Miner) listenForStatus(statusListener chan pb.TaskStatus_Status, id string) {
 	select {
 	case newStatus := <-statusListener:
-		m.setStatus(&pb.TaskStatus{newStatus}, id)
+		m.setStatus(&pb.TaskStatus{Status: newStatus}, id)
 	case <-m.ctx.Done():
 		return
 	}
@@ -175,23 +174,23 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 	}
 	log.G(ctx).Info("handling Start request", zap.Any("req", request))
 
-	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPOOLING}, request.Id)
+	m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_SPOOLING}, request.Id)
 
 	log.G(ctx).Info("spooling an image")
 	err := m.ovs.Spool(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
-	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPAWNING}, request.Id)
+	m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_SPAWNING}, request.Id)
 	log.G(ctx).Info("spawning an image")
 	statusListener, containerInfo, err := m.ovs.Start(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
-		return nil, status.Errorf(codes.Internal, "failed to Start %v", err)
+		m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_BROKEN}, request.Id)
+		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 
 	m.saveContainerInfo(request.Id, containerInfo)
@@ -226,18 +225,17 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopRepl
 	m.deleteTaskMapping(request.Id)
 
 	// TODO (@antmat): really running during stop? Add some description.
-	m.setStatus(&pb.TaskStatus{pb.TaskStatus_RUNNING}, request.Id)
+	m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_RUNNING}, request.Id)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no job with id %s", request.Id)
 	}
 
 	if err := m.ovs.Stop(ctx, containerInfo.ID); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
-		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
-
-	m.setStatus(&pb.TaskStatus{pb.TaskStatus_FINISHED}, request.Id)
+	m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_FINISHED}, request.Id)
 	return &pb.StopReply{}, nil
 }
 
@@ -289,6 +287,7 @@ func (m *Miner) sendUpdatesOnRequest(server pb.Miner_TasksStatusServer) {
 	}
 }
 
+// TasksStatus returns the status of a task
 func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
 	log.G(m.ctx).Info("starting tasks status server")
 	m.mu.Lock()
@@ -416,15 +415,11 @@ func (m *Miner) Close() {
 	m.cancel()
 	m.grpcServer.Stop()
 	m.rl.Close()
-	// NOTE: not all platforms support cgroups
-	// On unsupported ones controlGroup is nil
-	if m.controlGroup != nil {
-		m.controlGroup.Delete()
-	}
+	m.controlGroup.Delete()
 }
 
 // New returns new Miner
-func New(ctx context.Context, cfg *MinerConfig) (*Miner, error) {
+func New(ctx context.Context, config *Config) (*Miner, error) {
 	addr, err := util.GetPublicIP()
 	if err != nil {
 		return nil, err
@@ -438,12 +433,13 @@ func New(ctx context.Context, cfg *MinerConfig) (*Miner, error) {
 		return nil, err
 	}
 
-	var deleter cGroupDeleter
-	if platformSupportCGroups {
-		deleter, err = initializeControlGroup()
-		if err != nil {
-			return nil, err
-		}
+	deleter, err := initializeControlGroup(config.Miner.Resources)
+	if err != nil {
+		return nil, err
+	}
+
+	if !platformSupportCGroups && config.Miner.Resources != nil {
+		log.G(ctx).Warn("your platform does not support CGroup, but the config has resources section")
 	}
 
 	m := &Miner{
@@ -453,9 +449,9 @@ func New(ctx context.Context, cfg *MinerConfig) (*Miner, error) {
 		ovs:        ovs,
 
 		pubAddress: addr.String(),
-		hubAddress: cfg.Miner.HubAddress,
+		hubAddress: config.Miner.HubAddress,
 
-		rl:             NewReverseListener(1),
+		rl:             newReverseListener(1),
 		containers:     make(map[string]*ContainerInfo),
 		statusChannels: make(map[int]chan bool),
 		nameMapping:    make(map[string]string),

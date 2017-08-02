@@ -30,12 +30,14 @@ type Description struct {
 	Auth     string
 }
 
+// ContainerInfo is a brief information about containers
 type ContainerInfo struct {
 	status *pb.TaskStatus
 	ID     string
 	Ports  nat.PortMap
 }
 
+// ContainerMetrics are metrics collected from Docker about running containers
 type ContainerMetrics struct {
 	cpu types.CPUStats
 	mem types.MemoryStats

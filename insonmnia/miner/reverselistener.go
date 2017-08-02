@@ -20,8 +20,8 @@ type reverseListener struct {
 
 var _ net.Listener = &reverseListener{}
 
-// New returns inmemory Listener
-func NewReverseListener(backlog int) *reverseListener {
+// NewReverseListener returns inmemory Listener
+func newReverseListener(backlog int) *reverseListener {
 	return &reverseListener{
 		queue:   make(chan net.Conn, backlog),
 		onClose: make(chan struct{}),
