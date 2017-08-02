@@ -11,14 +11,16 @@ contract('Factory', function (accounts) {
 
     beforeEach(async function() {
         token = SonmDummyToken.new(accounts[0]);
+        factory = await Factory.new(accounts[0], token);
     });
 
     it('should return be correctly deployed', async function () {
         try {
-            factory = await Factory.new(accounts[0], token);
+            await Factory.new(accounts[0], token);
         } catch (error){
             assert.fail("")
         }
     });
+
 
 });

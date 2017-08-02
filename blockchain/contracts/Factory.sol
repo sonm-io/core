@@ -12,5 +12,6 @@ contract Factory {
         tokenAddress = TokenAddress;
     }
 
+    // TODO: must be finalize function
 
 }
