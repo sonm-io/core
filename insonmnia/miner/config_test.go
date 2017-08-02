@@ -33,7 +33,7 @@ func TestLoadConfig(t *testing.T) {
 	assert.Equal(t, "127.0.0.1", conf.Miner.HubAddress)
 }
 
-func TestLoadInvalidConfig(t *testing.T) {
+func TestLoadEmptyConfig(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `miner:
   hub_address: ""`
@@ -42,6 +42,6 @@ func TestLoadInvalidConfig(t *testing.T) {
 	assert.Nil(t, err)
 
 	conf, err := NewConfig(testMinerConfigPath)
-	assert.Nil(t, conf)
-	assert.Contains(t, err.Error(), "HubAddress is required")
+	assert.Nil(t, err)
+	assert.Equal(t, conf.Miner.HubAddress, "")
 }

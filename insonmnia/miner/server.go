@@ -344,7 +344,13 @@ func (m *Miner) Serve() error {
 
 		srv.Serve()
 
-		var address = srv.GetHubIp()
+		// if hub addr do not explicitly set via config we'll try to find it via discovery
+		if m.hubAddress == "" {
+			log.G(m.ctx).Debug("No hub IP, starting discovery")
+			m.hubAddress = srv.GetHubIp()
+		} else {
+			log.G(m.ctx).Debug("Using hub IP from config", zap.String("IP", m.hubAddress))
+		}
 
 		t := time.NewTicker(time.Second * 5)
 		defer t.Stop()
@@ -352,7 +358,7 @@ func (m *Miner) Serve() error {
 		case <-m.ctx.Done():
 			return
 		case <-t.C:
-			m.connectToHub(address)
+			m.connectToHub(m.hubAddress)
 		}
 	}()
 	wg.Wait()
