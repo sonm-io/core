@@ -5,7 +5,7 @@
   "author": "SONM team",
   "license": "Apache-2.0",
   "dependencies": {
-    "zeppelin-solidity": "^1.2.0"
+    "zeppelin-solidity": "1.2.0"
   },
   "devDependencies": {
     "truffle": "^3.4.6"
