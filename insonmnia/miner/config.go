@@ -9,7 +9,7 @@ type MinerConfig struct {
 		Level int `required:"true" default:"1"`
 	} `yaml:"logger"`
 	Miner struct {
-		HubAddress string `required:"true" yaml:"hub_address"`
+		HubAddress string `required:"false" yaml:"hub_address"`
 	} `yaml:"miner"`
 }
 
