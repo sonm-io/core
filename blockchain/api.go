@@ -12,11 +12,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/sonm-io/core/contracts/api/Factory"
-	"github.com/sonm-io/core/contracts/api/HubWallet"
-	"github.com/sonm-io/core/contracts/api/MinerWallet"
-	"github.com/sonm-io/core/contracts/api/SonmDummyToken"
-	"github.com/sonm-io/core/contracts/api/Whitelist"
+	"github.com/sonm-io/core/blockchain/api/Factory"
+	"github.com/sonm-io/core/blockchain/api/HubWallet"
+	"github.com/sonm-io/core/blockchain/api/MinerWallet"
+	"github.com/sonm-io/core/blockchain/api/SonmDummyToken"
+	"github.com/sonm-io/core/blockchain/api/Whitelist"
 
 	"math"
 	"math/big"
