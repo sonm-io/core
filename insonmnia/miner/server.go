@@ -15,8 +15,12 @@ import (
 	"github.com/hashicorp/yamux"
 	log "github.com/noxiouz/zapctx/ctxlog"
 
+	"github.com/sonm-io/core/common"
+	"github.com/sonm-io/core/insonmnia/logger"
 	pb "github.com/sonm-io/core/proto/miner"
 	"github.com/sonm-io/core/util"
+
+	frd "github.com/sonm-io/core/fusrodah/miner"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -25,9 +29,9 @@ type Miner struct {
 	cancel     context.CancelFunc
 	grpcServer *grpc.Server
 
-	hubaddress string
+	hubAddress string
 	// NOTE: do not use static detection
-	pubaddress string
+	pubAddress string
 
 	rl *reverseListener
 
@@ -35,14 +39,17 @@ type Miner struct {
 
 	mu sync.Mutex
 	// maps StartRequest's IDs to containers' IDs
-	containers map[string]ContainerInfo
+	containers map[string]*ContainerInfo
+
+	statusChannels map[int]chan bool
+	channelCounter int
 }
 
 var _ pb.MinerServer = &Miner{}
 
 // Ping works as Healthcheck for the Hub
 func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, error) {
-	log.GetLogger(ctx).Info("got ping request from Hub")
+	log.G(m.ctx).Info("got ping request from Hub")
 	return &pb.PingReply{}, nil
 }
 
@@ -80,6 +87,47 @@ func (m *Miner) Handshake(context.Context, *pb.HandshakeRequest) (*pb.HandshakeR
 	return nil, status.Errorf(codes.Aborted, "not implemented")
 }
 
+func (m *Miner) scheduleStatusPurge(id string) {
+	t := time.NewTimer(time.Second * 30)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		m.mu.Lock()
+		delete(m.containers, id)
+		m.mu.Unlock()
+	case <-m.ctx.Done():
+		return
+	}
+}
+
+func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
+	m.mu.Lock()
+	_, ok := m.containers[id]
+	if !ok {
+		m.containers[id] = &ContainerInfo{}
+	}
+	m.containers[id].status = status
+	if status.Status == pb.TaskStatus_BROKEN || status.Status == pb.TaskStatus_FINISHED {
+		go m.scheduleStatusPurge(id)
+	}
+	for _, ch := range m.statusChannels {
+		select {
+		case ch <- true:
+		case <-m.ctx.Done():
+		}
+	}
+	m.mu.Unlock()
+}
+
+func (m *Miner) listenForStatus(statusListener chan pb.TaskStatus_Status, id string) {
+	select {
+	case newStatus := <-statusListener:
+		m.setStatus(&pb.TaskStatus{newStatus}, id)
+	case <-m.ctx.Done():
+		return
+	}
+}
+
 // Start request from Hub makes Miner start a container
 func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartReply, error) {
 	var d = Description{
@@ -88,24 +136,29 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 	}
 	log.G(ctx).Info("handle Start request", zap.Any("req", request))
 
+	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPOOLING}, request.Id)
+
 	log.G(ctx).Info("spooling an image")
 	err := m.ovs.Spool(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
+		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
+	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPAWNING}, request.Id)
 	log.G(ctx).Info("spawning an image")
-	cinfo, err := m.ovs.Spawn(ctx, d)
+	statusListener, cinfo, err := m.ovs.Spawn(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
+		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
-
 	// TODO: clean it
 	m.mu.Lock()
-	m.containers[request.Id] = cinfo
+	m.containers[request.Id] = &cinfo
 	m.mu.Unlock()
+	go m.listenForStatus(statusListener, request.Id)
 
 	var rpl = pb.StartReply{
 		Container: cinfo.ID,
@@ -114,7 +167,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 	for port, v := range cinfo.Ports {
 		if len(v) > 0 {
 			replyport := &pb.StartReplyPort{
-				IP:   m.pubaddress,
+				IP:   m.pubAddress,
 				Port: v[0].HostPort,
 			}
 			rpl.Ports[string(port)] = replyport
@@ -129,15 +182,80 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopRepl
 	m.mu.Lock()
 	cinfo, ok := m.containers[request.Id]
 	m.mu.Unlock()
+	m.setStatus(&pb.TaskStatus{pb.TaskStatus_RUNNING}, request.Id)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no job with id %s", request.Id)
 	}
 
 	if err := m.ovs.Stop(ctx, cinfo.ID); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
+		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
+	m.setStatus(&pb.TaskStatus{pb.TaskStatus_FINISHED}, request.Id)
 	return &pb.StopReply{}, nil
+}
+
+func (m *Miner) removeStatusChannel(idx int) {
+	m.mu.Lock()
+	delete(m.statusChannels, idx)
+	m.mu.Unlock()
+}
+
+func (m *Miner) sendTasksStatus(server pb.Miner_TasksStatusServer) error {
+	result := &pb.TasksStatusReply{Statuses: make(map[string]*pb.TaskStatus)}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for id, info := range m.containers {
+		result.Statuses[id] = info.status
+	}
+	log.G(m.ctx).Info("sending result", zap.Any("info", m.containers), zap.Any("statuses", result.Statuses))
+	return server.Send(result)
+}
+
+func (m *Miner) sendUpdatesOnNotify(server pb.Miner_TasksStatusServer, ch chan bool) {
+	for {
+		select {
+		case <-ch:
+			err := m.sendTasksStatus(server)
+			if err != nil {
+				return
+			}
+		case <-m.ctx.Done():
+			return
+		}
+	}
+}
+
+func (m *Miner) sendUpdatesOnRequest(server pb.Miner_TasksStatusServer) {
+	for {
+		_, err := server.Recv()
+		if err != nil {
+			log.G(m.ctx).Info("tasks status server errored", zap.Error(err))
+			return
+		}
+		log.G(m.ctx).Debug("handling tasks status request")
+		err = m.sendTasksStatus(server)
+		if err != nil {
+			log.G(m.ctx).Info("failed to send status update", zap.Error(err))
+			return
+		}
+	}
+}
+
+func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
+	log.G(m.ctx).Info("starting tasks status server")
+	m.mu.Lock()
+	ch := make(chan bool)
+	m.channelCounter++
+	m.statusChannels[m.channelCounter] = ch
+	defer m.removeStatusChannel(m.channelCounter)
+	m.mu.Unlock()
+
+	go m.sendUpdatesOnNotify(server, ch)
+	m.sendUpdatesOnRequest(server)
+
+	return nil
 }
 
 func (m *Miner) connectToHub(address string) {
@@ -214,17 +332,27 @@ func (m *Miner) Serve() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		// TODO: inject real discovery here
-		var address = m.hubaddress
-		for {
+
+		srv, err := frd.NewServer(nil)
+		if err != nil {
+			return
+		}
+		err = srv.Start()
+		if err != nil {
+			return
+		}
+
+		srv.Serve()
+
+		var address = srv.GetHubIp()
+
+		t := time.NewTicker(time.Second * 5)
+		defer t.Stop()
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-t.C:
 			m.connectToHub(address)
-			select {
-			case <-m.ctx.Done():
-				return
-			default:
-				// TODO: backoff
-				time.Sleep(5 * time.Second)
-			}
 		}
 	}()
 	wg.Wait()
@@ -240,13 +368,14 @@ func (m *Miner) Close() {
 }
 
 // New returns new Miner
-func New(ctx context.Context, hubaddress string) (*Miner, error) {
+func New(ctx context.Context, config *MinerConfig) (*Miner, error) {
+	loggr := logger.BuildLogger(config.Logger.Level, common.DevelopmentMode)
+	ctx = log.WithLogger(ctx, loggr)
+
 	addr, err := util.GetPublicIP()
 	if err != nil {
 		return nil, err
 	}
-
-	pubaddress := addr.String()
 
 	ctx, cancel := context.WithCancel(ctx)
 	grpcServer := grpc.NewServer()
@@ -261,11 +390,12 @@ func New(ctx context.Context, hubaddress string) (*Miner, error) {
 		grpcServer: grpcServer,
 		ovs:        ovs,
 
-		hubaddress: hubaddress,
-		pubaddress: pubaddress,
+		pubAddress: addr.String(),
+		hubAddress: config.Miner.HubAddress,
 
-		rl:         NewReverseListener(1),
-		containers: make(map[string]ContainerInfo),
+		rl:             NewReverseListener(1),
+		containers:     make(map[string]*ContainerInfo),
+		statusChannels: make(map[int]chan bool),
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)

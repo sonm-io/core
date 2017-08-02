@@ -12,9 +12,14 @@ MINER=sonmminer
 HUB=sonmhub
 CLI=sonmcli
 
+DOCKER_IMAGE_HUB="sonm/hub:latest"
+DOCKER_IMAGE_MINER="sonm/miner:latest"
+DOCKER_IMAGE_BOOTNODE="sonm/bootnode:latest"
+
+
 .PHONY: fmt vet test
 
-all: vet fmt test build
+all: vet fmt test build install
 
 
 build_bootnode:
@@ -37,13 +42,23 @@ build_cli:
 
 build: build_bootnode build_hub build_miner build_cli
 
-
-install:
+install_bootnode:
 	@echo "+ $@"
 	cp ${BOOTNODE} ${INSTALLDIR}
+
+install_miner:
+	@echo "+ $@"
 	cp ${MINER} ${INSTALLDIR}
+
+install_hub:
+	@echo "+ $@"
 	cp ${HUB} ${INSTALLDIR}
+
+install_cli:
+	@echo "+ $@"
 	cp ${CLI} ${INSTALLDIR}
+
+install: install_bootnode install_miner install_hub install_cli
 
 vet:
 	@echo "+ $@"
@@ -59,8 +74,8 @@ test:
 	@go test -tags nocgo $(shell go list ./... | grep -v vendor)
 
 grpc:
-	protoc -I proto/hub/ proto/hub/hub.proto --go_out=plugins=grpc:proto/hub/
-	protoc -I proto/miner/ proto/miner/miner.proto --go_out=plugins=grpc:proto/miner/
+	protoc -I proto proto/hub/hub.proto --go_out=plugins=grpc,Mminer/miner.proto=github.com/sonm-io/core/proto/miner:proto/
+	protoc -I proto proto/miner/miner.proto --go_out=plugins=grpc:proto/
 
 coverage:
 	${GO} tool cover -func=coverage.txt
@@ -72,3 +87,15 @@ clean:
 	rm -f coverage.html
 	rm -f funccoverage.txt
 	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE}
+
+
+docker_hub:
+	docker build -t ${DOCKER_IMAGE_HUB} -f ./hub.Dockerfile .
+
+docker_miner:
+	docker build -t ${DOCKER_IMAGE_MINER} -f ./miner.Dockerfile .
+
+docker_bootnode:
+	docker build -t ${DOCKER_IMAGE_BOOTNODE} -f ./bootnode.Dockerfile .
+
+docker_all: docker_hub docker_miner docker_bootnode

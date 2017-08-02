@@ -13,6 +13,9 @@ const testFile = "config_test.json"
 func TestMetricsHubFileOperations(t *testing.T) {
 	os.Remove(testFile)
 
+	loc, _ := time.LoadLocation("UTC")
+	now := time.Now().In(loc)
+
 	m := &HubMetrics{
 		HubAddress:          "123",
 		HubPing:             "q23",

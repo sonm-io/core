@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 
 	pbminer "github.com/sonm-io/core/proto/miner"
+	"sync"
 )
 
 // MinerCtx holds all the data related to a connected Miner
@@ -22,7 +23,9 @@ type MinerCtx struct {
 	// gRPC connection
 	grpcConn *grpc.ClientConn
 	// gRPC Client
-	Client pbminer.MinerClient
+	Client     pbminer.MinerClient
+	status_map map[string]*pbminer.TaskStatus
+	status_mu  sync.Mutex
 	// Incoming TCP-connection
 	conn net.Conn
 
@@ -33,7 +36,8 @@ type MinerCtx struct {
 func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	var (
 		m = MinerCtx{
-			conn: conn,
+			conn:       conn,
+			status_map: make(map[string]*pbminer.TaskStatus),
 		}
 		err error
 	)
@@ -66,6 +70,39 @@ func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	log.G(ctx).Info("grpc.Dial successfully finished")
 	m.Client = pbminer.NewMinerClient(m.grpcConn)
 	return &m, nil
+}
+
+func (m *MinerCtx) initStatusClient() (statusClient pbminer.Miner_TasksStatusClient, err error) {
+	statusClient, err = m.Client.TasksStatus(m.ctx)
+	if err != nil {
+		log.G(m.ctx).Error("failed to get status client", zap.Error(err))
+		return
+	}
+
+	err = statusClient.Send(&pbminer.TasksStatusRequest{})
+	if err != nil {
+		log.G(m.ctx).Error("failed to send tasks status request", zap.Error(err))
+		return
+	}
+	return
+}
+
+func (m *MinerCtx) status() error {
+	statusClient, err := m.initStatusClient()
+	if err != nil {
+		return err
+	}
+	for {
+		statusReply, err := statusClient.Recv()
+		if err != nil {
+			log.G(m.ctx).Info("failed to receive miner status", zap.Error(err))
+			return err
+		}
+		m.status_mu.Lock()
+		m.status_map = statusReply.Statuses
+		m.status_mu.Unlock()
+	}
+	return nil
 }
 
 func (m *MinerCtx) ping() error {

@@ -9,6 +9,8 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
+	"github.com/sonm-io/core/common"
+	"github.com/sonm-io/core/insonmnia/logger"
 	pb "github.com/sonm-io/core/proto/hub"
 	pbminer "github.com/sonm-io/core/proto/miner"
 
@@ -16,18 +18,18 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-)
 
-const (
-	// TODO: make it configurable
-	externalGRPCEndpoint         = ":10001"
-	minerHubInterconnectEndpoint = ":10002"
+	frd "github.com/sonm-io/core/fusrodah/hub"
+
+	"github.com/sonm-io/core/util"
 )
 
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	ctx           context.Context
+	grpcEndpoint  string
 	externalGrpc  *grpc.Server
+	minerEndpoint string
 	minerListener net.Listener
 
 	mu     sync.Mutex
@@ -172,9 +174,57 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 	return &pb.StopTaskReply{}, nil
 }
 
+func (h *Hub) MinerStatus(ctx context.Context, request *pb.MinerStatusRequest) (*pbminer.TasksStatusReply, error) {
+	log.G(ctx).Info("handling MinerStatus request", zap.Any("req", request))
+	miner := request.Miner
+	h.mu.Lock()
+	mincli, ok := h.miners[miner]
+	h.mu.Unlock()
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "no such miner %s", miner)
+	}
+
+	mincli.status_mu.Lock()
+	reply := pbminer.TasksStatusReply{mincli.status_map}
+	mincli.status_mu.Unlock()
+	return &reply, nil
+
+}
+
+func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*pb.TaskStatusReply, error) {
+	taskid := request.Id
+	h.tasksmu.Lock()
+	miner, ok := h.tasks[taskid]
+	h.tasksmu.Unlock()
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "no such task %s", taskid)
+	}
+
+	h.mu.Lock()
+	mincli, ok := h.miners[miner]
+	h.mu.Unlock()
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "no miner %s for task %s", miner, taskid)
+	}
+
+	mincli.status_mu.Lock()
+	taskStatus, ok := mincli.status_map[taskid]
+	mincli.status_mu.Unlock()
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskid)
+	}
+
+	reply := pb.TaskStatusReply{taskStatus}
+	return &reply, nil
+}
+
 // New returns new Hub
-func New(ctx context.Context) (*Hub, error) {
+func New(ctx context.Context, config *HubConfig) (*Hub, error) {
 	// TODO: add secure mechanism
+
+	loggr := logger.BuildLogger(config.Logger.Level, common.DevelopmentMode)
+	ctx = log.WithLogger(ctx, loggr)
+
 	grpcServer := grpc.NewServer()
 	h := &Hub{
 		ctx:          ctx,
@@ -182,26 +232,44 @@ func New(ctx context.Context) (*Hub, error) {
 
 		tasks:  make(map[string]string),
 		miners: make(map[string]*MinerCtx),
+
+		grpcEndpoint:  config.Hub.GRPCEndpoint,
+		minerEndpoint: config.Hub.MinerEndpoint,
 	}
 	pb.RegisterHubServer(grpcServer, h)
-
 	return h, nil
 }
 
 // Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
-	il, err := net.Listen("tcp", minerHubInterconnectEndpoint)
+
+	ip, err := util.GetPublicIP()
 	if err != nil {
-		log.G(h.ctx).Error("failed to listen", zap.String("address", minerHubInterconnectEndpoint), zap.Error(err))
+		return err
+	}
+	srv, err := frd.NewServer(nil, ip.String()+h.minerEndpoint)
+	if err != nil {
+		return err
+	}
+	err = srv.Start()
+	if err != nil {
+		return err
+	}
+	srv.Serve()
+
+	il, err := net.Listen("tcp", h.minerEndpoint)
+
+	if err != nil {
+		log.G(h.ctx).Error("failed to listen", zap.String("address", h.minerEndpoint), zap.Error(err))
 		return err
 	}
 	log.G(h.ctx).Info("listening for connections from Miners", zap.Stringer("address", il.Addr()))
 
-	grpcL, err := net.Listen("tcp", externalGRPCEndpoint)
+	grpcL, err := net.Listen("tcp", h.grpcEndpoint)
 	if err != nil {
 		log.G(h.ctx).Error("failed to listen",
-			zap.String("address", externalGRPCEndpoint), zap.Error(err))
+			zap.String("address", h.grpcEndpoint), zap.Error(err))
 		il.Close()
 		return err
 	}

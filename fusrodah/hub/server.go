@@ -9,51 +9,62 @@ import (
 	"github.com/sonm-io/core/fusrodah"
 )
 
-const defaultHubPort = ":30322"
+const defaultHubPort = ":30343"
 
 type Server struct {
-	PrivateKey  *ecdsa.PrivateKey
-	Frd         *fusrodah.Fusrodah
-	KnowingHubs []HubsType
+	PrivateKey *ecdsa.PrivateKey
+	Frd        *fusrodah.Fusrodah
 
 	HubIp string
 }
 
-func NewServer(prv *ecdsa.PrivateKey, hubIp string) *Server {
+func NewServer(prv *ecdsa.PrivateKey, hubIp string) (srv *Server, err error) {
+
 	if prv == nil {
-		var err error
 		prv, err = crypto.GenerateKey()
 		if err != nil {
-			panic(err)
+			return nil, err
 		}
 	}
 
-	frd := fusrodah.NewServer(prv, defaultHubPort, common.BootNodeAddr)
+	bootnodes := []string{common.BootNodeAddr, common.SecondBootNodeAddr}
 
-	srv := Server{
+	frd, err := fusrodah.NewServer(prv, defaultHubPort, bootnodes)
+	if err != nil {
+		return nil, err
+	}
+
+	srv = &Server{
 		PrivateKey: prv,
 		HubIp:      hubIp,
 		Frd:        frd,
 	}
 
-	return &srv
+	return srv, nil
 }
 
-func (srv *Server) Start() {
-	srv.Frd.Start()
+func (srv *Server) Start() (err error) {
+	err = srv.Frd.Start()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (srv *Server) Stop() {
-	srv.Frd.Stop()
+func (srv *Server) Stop() (err error) {
+	err = srv.Frd.Stop()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (srv *Server) Serve() {
+	srv.discovery()
+}
+
+func (srv *Server) discovery() {
 	srv.Frd.AddHandling(nil, nil, func(msg *whisperv2.Message) {
 		srv.Frd.Send(srv.HubIp, true, common.TopicMinerDiscover)
 	}, common.TopicHubDiscover)
-}
-
-func (srv *Server) GetPubKeyString() string {
-	pkString := string(crypto.FromECDSAPub(&srv.PrivateKey.PublicKey))
-	return pkString
 }

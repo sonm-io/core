@@ -13,7 +13,7 @@ const testTopic = "testme"
 const quitCommand = "Quit"
 
 func main() {
-	frd := fusrodah.NewServer(nil, ":30345", common.BootNodeAddr)
+	frd, _ := fusrodah.NewServer(nil, ":30345", []string{common.BootNodeAddr, common.SecondBootNodeAddr})
 	frd.Start()
 
 	done := make(chan struct{})

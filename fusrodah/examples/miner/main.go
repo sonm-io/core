@@ -8,10 +8,18 @@ import (
 
 func main() {
 
-	srv := miner.NewServer(nil)
-	srv.Start()
+	srv, err := miner.NewServer(nil)
+	if err != nil {
+		fmt.Printf("Error while initialize instanse: %s \r\n", err)
+		return
+	}
+	err = srv.Start()
+	if err != nil {
+		fmt.Printf("Error while start instanse: %s \r\n", err)
+		return
+	}
+
 	srv.Serve()
 
-	ip := srv.GetHubIp()
-	fmt.Println(ip)
+	fmt.Println(srv.GetHubIp())
 }

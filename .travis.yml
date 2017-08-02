@@ -10,4 +10,4 @@ services:
     - "docker"
 
 script:
-    - make build
+    - make all
