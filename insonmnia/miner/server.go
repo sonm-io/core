@@ -342,11 +342,10 @@ func (m *Miner) Serve() error {
 			return
 		}
 
-		srv.Serve()
-
 		// if hub addr do not explicitly set via config we'll try to find it via discovery
 		if m.hubAddress == "" {
 			log.G(m.ctx).Debug("No hub IP, starting discovery")
+			srv.Serve()
 			m.hubAddress = srv.GetHubIp()
 		} else {
 			log.G(m.ctx).Debug("Using hub IP from config", zap.String("IP", m.hubAddress))
