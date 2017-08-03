@@ -133,6 +133,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 	var d = Description{
 		Image:    request.Image,
 		Registry: request.Registry,
+		Auth:     request.Auth,
 	}
 	log.G(ctx).Info("handle Start request", zap.Any("req", request))
 

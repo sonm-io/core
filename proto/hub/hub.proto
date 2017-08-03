@@ -58,6 +58,7 @@ message StartTaskRequest {
     string miner = 1;
     string registry = 2;
     string image = 3;
+    string auth = 4;
 }
 
 message StartTaskReply {
