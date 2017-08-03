@@ -28,6 +28,7 @@ const dieEvent = "die"
 type Description struct {
 	Registry string
 	Image    string
+	Auth     string
 }
 
 type ContainerInfo struct {
@@ -247,17 +248,8 @@ func (o *overseer) collectStats() {
 func (o *overseer) Spool(ctx context.Context, d Description) error {
 	log.G(ctx).Info("pull the application image")
 	options := types.ImagePullOptions{
-		All: false,
-	}
-
-	// if d.Registry == "" {
-	// 	log.G(ctx).Info("local registry will be used")
-	// 	return nil
-	// }
-
-	if registryAuth, ok := o.registryAuth[d.Registry]; ok {
-		log.G(ctx).Info("use credentials for the registry", zap.String("registry", d.Registry))
-		options.RegistryAuth = registryAuth
+		All:          false,
+		RegistryAuth: d.Auth,
 	}
 
 	refStr := filepath.Join(d.Registry, d.Image)

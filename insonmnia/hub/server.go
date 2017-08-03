@@ -120,6 +120,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.
 		Id:       uid,
 		Registry: request.Registry,
 		Image:    request.Image,
+		Auth:     request.Auth,
 	}
 
 	resp, err := mincli.Client.Start(ctx, startrequest)

@@ -51,6 +51,7 @@ message StartRequest{
     string id = 1;
     string registry = 2;
     string image = 3;
+    string auth = 4;
 }
 
 message StartReply {
