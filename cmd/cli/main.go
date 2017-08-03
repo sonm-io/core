@@ -2,9 +2,9 @@ package main
 
 import (
 	"bytes"
+	b64 "encoding/base64"
 	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	"golang.org/x/net/context"
@@ -12,273 +12,345 @@ import (
 
 	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto/hub"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
+const (
+	appName        = "cli"
+	hubAddressFlag = "addr"
+	hubTimeoutFlag = "timeout"
+
+	registryNameFlag     = "registry"
+	registryUserFlag     = "user"
+	registryPasswordFlag = "password"
+)
+
+var (
+	gctx = context.Background()
+
+	hubAddress       string
+	timeout          = 60 * time.Second
+	registryName     string
+	registryUser     string
+	registryPassword string
+
+	errMinerIDRequired       = errors.New("Miner identifier is required")
+	errTaskIDRequired        = errors.New("Task ID is required")
+	errContainerNameRequired = errors.New("Container name is required")
+)
+
+func checkFlagRequired(cmd *cobra.Command, name string) error {
+	if cmd.Flag(name).Value.String() == "" {
+		return fmt.Errorf("--%s flag is required", name)
+	}
+	return nil
+}
+
 func main() {
-	var (
-		hubendpoint string
-		timeout     time.Duration
-
-		gctx = context.Background()
-	)
-
-	app := cli.NewApp()
-	app.Name = "command line application for SONM"
-	app.Usage = ""
-	app.Description = "CLI for SONM"
-	app.Author = "noxiouz"
-	app.HideVersion = true
-	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:        "hub",
-			Value:       "",
-			Usage:       "Hub to communicate",
-			Destination: &hubendpoint,
-		},
-		cli.DurationFlag{
-			Name:        "timeout",
-			Value:       time.Second * 60,
-			Usage:       "timeout for communication with the Hub",
-			Destination: &timeout,
+	// --- hub commands
+	hubRootCmd := &cobra.Command{
+		Use:   "hub",
+		Short: "Operations with hub",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return checkFlagRequired(cmd, hubAddressFlag)
 		},
 	}
 
-	app.Commands = []cli.Command{
-		{
-			Name:    "list",
-			Aliases: []string{"l"},
-			Usage:   "get listing of connected miners to the Hub",
-			Action: func(c *cli.Context) error {
-				cc, err := grpc.Dial(hubendpoint, grpc.WithInsecure())
-				if err != nil {
-					return err
-				}
-				defer cc.Close()
-
-				ctx, cancel := context.WithTimeout(gctx, timeout)
-				defer cancel()
-				lr, err := pb.NewHubClient(cc).List(ctx, &pb.ListRequest{})
-				if err != nil {
-					return err
-				}
-				fmt.Println("Connected Miners")
-				buff := new(bytes.Buffer)
-				enc := json.NewEncoder(buff)
-				enc.SetIndent("", "\t")
-				enc.Encode(lr.Info)
-				fmt.Printf("%s\n", buff.Bytes())
+	hubPingCmd := &cobra.Command{
+		Use:     "ping",
+		Short:   "Ping the hub",
+		PreRunE: hubRootCmd.PostRunE,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+			if err != nil {
 				return err
-			},
-		},
-		{
-			Name:    "info",
-			Aliases: []string{"i"},
-			Usage:   "get runtime metrics from the specified Hub",
-			Action: func(c *cli.Context) error {
-				conn, err := grpc.Dial(hubendpoint, grpc.WithInsecure())
-				if err != nil {
-					return err
-				}
-				defer conn.Close()
+			}
+			defer cc.Close()
 
-				ctx, cancel := context.WithTimeout(gctx, timeout)
-				defer cancel()
-				var req = pb.InfoRequest{
-					Miner: c.String("miner"),
-				}
-				metrics, err := pb.NewHubClient(conn).Info(ctx, &req)
-				if err != nil {
-					return err
-				}
+			ctx, cancel := context.WithTimeout(gctx, timeout)
+			defer cancel()
+			_, err = pb.NewHubClient(cc).Ping(ctx, &pb.PingRequest{})
+			if err != nil {
+				return err
+			}
 
-				js, err := json.Marshal(metrics)
-				if err != nil {
-					return err
-				}
-
-				fmt.Printf("%s", js)
-				return nil
-			},
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "miner",
-					Value: "",
-					Usage: "miner endpoint",
-				},
-			},
-		},
-		{
-			Name:    "ping",
-			Aliases: []string{"p"},
-			Usage:   "ping the Hub",
-			Action: func(c *cli.Context) error {
-				cc, err := grpc.Dial(hubendpoint, grpc.WithInsecure())
-				if err != nil {
-					return err
-				}
-				defer cc.Close()
-
-				ctx, cancel := context.WithTimeout(gctx, timeout)
-				defer cancel()
-				_, err = pb.NewHubClient(cc).Ping(ctx, &pb.PingRequest{})
-				if err != nil {
-					return err
-				}
-				fmt.Println("OK")
-				return nil
-			},
-		},
-		{
-			Name:  "start",
-			Usage: "start a container using Hub",
-			Action: func(c *cli.Context) error {
-				fmt.Println(hubendpoint)
-				cc, err := grpc.Dial(hubendpoint, grpc.WithInsecure())
-				if err != nil {
-					return err
-				}
-				defer cc.Close()
-
-				ctx, cancel := context.WithTimeout(gctx, timeout)
-				defer cancel()
-				var req = pb.StartTaskRequest{
-					Miner:    c.String("miner"),
-					Image:    c.String("image"),
-					Registry: c.String("registry"),
-				}
-				rep, err := pb.NewHubClient(cc).StartTask(ctx, &req)
-				if err != nil {
-					return err
-				}
-				fmt.Printf("ID %s, Endpoint %s", rep.Id, rep.Endpoint)
-				return nil
-			},
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "miner",
-					Value: "",
-					Usage: "miner to launch the task",
-				},
-				cli.StringFlag{
-					Name:  "registry",
-					Value: "",
-					Usage: "registry for image",
-				},
-				cli.StringFlag{
-					Name:  "image",
-					Value: "",
-					Usage: "image name in registry",
-				},
-			},
-		},
-		{
-			Name:  "stop",
-			Usage: "stop a container using Hub",
-			Action: func(c *cli.Context) error {
-				cc, err := grpc.Dial(hubendpoint, grpc.WithInsecure())
-				if err != nil {
-					return err
-				}
-				defer cc.Close()
-
-				ctx, cancel := context.WithTimeout(gctx, timeout)
-				defer cancel()
-				var req = pb.StopTaskRequest{
-					Id: c.String("id"),
-				}
-				_, err = pb.NewHubClient(cc).StopTask(ctx, &req)
-				if err != nil {
-					fmt.Println(err)
-					return err
-				}
-				fmt.Println("OK")
-				return nil
-			},
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "id",
-					Value: "",
-					Usage: "job id to stop",
-				},
-			},
-		},
-		{
-			Name:  "miner-status",
-			Usage: "status of tasks on a specific miner",
-			Action: func(c *cli.Context) error {
-				cc, err := grpc.Dial(hubendpoint, grpc.WithInsecure())
-				if err != nil {
-					return err
-				}
-				defer cc.Close()
-
-				miner := c.String("miner")
-				if len(miner) == 0 {
-					return errors.New("required parameter\"miner\"")
-				}
-				ctx, cancel := context.WithTimeout(gctx, timeout)
-				defer cancel()
-				var req = pb.MinerStatusRequest{
-					Miner: miner,
-				}
-				minerStatus, err := pb.NewHubClient(cc).MinerStatus(ctx, &req)
-				if err != nil {
-					fmt.Println(err)
-					return err
-				}
-				buff := new(bytes.Buffer)
-				enc := json.NewEncoder(buff)
-				enc.SetIndent("", "\t")
-				//TODO: human readable statuses
-				enc.Encode(minerStatus.Statuses)
-				fmt.Printf("%s\n", buff.Bytes())
-				return nil
-			},
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "miner",
-					Value: "",
-					Usage: "miner to request statuses from",
-				},
-			},
-		},
-		{
-			Name:  "task-status",
-			Usage: "status of specific task",
-			Action: func(c *cli.Context) error {
-				cc, err := grpc.Dial(hubendpoint, grpc.WithInsecure())
-				if err != nil {
-					return err
-				}
-				defer cc.Close()
-
-				task := c.String("task")
-				if len(task) == 0 {
-					return errors.New("required parameter\"miner\"")
-				}
-				ctx, cancel := context.WithTimeout(gctx, timeout)
-				defer cancel()
-				var req = pb.TaskStatusRequest{
-					Id: task,
-				}
-				taskStatus, err := pb.NewHubClient(cc).TaskStatus(ctx, &req)
-				if err != nil {
-					fmt.Println(err)
-					return err
-				}
-				fmt.Printf("Task %s status is %s\n", req.Id, taskStatus.Status.Status.String())
-				return nil
-			},
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "task",
-					Value: "",
-					Usage: "task to fetch status from",
-				},
-			},
+			fmt.Printf("Ping hub %s... OK\r\n", hubAddress)
+			return nil
 		},
 	}
 
-	app.Run(os.Args)
+	hubStatusCmd := &cobra.Command{
+		Use:     "status",
+		Short:   "Show hub status",
+		PreRunE: hubRootCmd.PreRunE,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// todo: implement this on hub
+			fmt.Printf("Hub %s status: OK\r\n", hubAddress)
+			return nil
+		},
+	}
+
+	hubRootCmd.AddCommand(hubPingCmd, hubStatusCmd)
+
+	// --- miner commands
+	minerRootCmd := &cobra.Command{
+		Use:   "miner",
+		Short: "Operations with miners",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return checkFlagRequired(cmd, hubAddressFlag)
+		},
+	}
+
+	minersListCmd := &cobra.Command{
+		Use:     "list",
+		Short:   "Show connected miners",
+		PreRunE: minerRootCmd.PreRunE,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+			if err != nil {
+				return err
+			}
+			defer cc.Close()
+
+			ctx, cancel := context.WithTimeout(gctx, timeout)
+			defer cancel()
+			lr, err := pb.NewHubClient(cc).List(ctx, &pb.ListRequest{})
+			if err != nil {
+				return err
+			}
+
+			// todo(sshaman1101): pretty printing
+			fmt.Println("Connected Miners")
+			buff := new(bytes.Buffer)
+			enc := json.NewEncoder(buff)
+			enc.SetIndent("", "\t")
+			enc.Encode(lr.Info)
+			fmt.Printf("%s\n", buff.Bytes())
+			return err
+		},
+	}
+
+	minerStatusCmd := &cobra.Command{
+		Use:     "status <miner_addr>",
+		Short:   "Miner status",
+		PreRunE: minerRootCmd.PreRunE,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// NOTE: always empty response
+			if len(args) < 1 {
+				return errMinerIDRequired
+			}
+			minerID := args[0]
+
+			conn, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+			if err != nil {
+				return err
+			}
+			defer conn.Close()
+
+			ctx, cancel := context.WithTimeout(gctx, timeout)
+			defer cancel()
+
+			var req = pb.InfoRequest{Miner: minerID}
+			metrics, err := pb.NewHubClient(conn).Info(ctx, &req)
+			if err != nil {
+				return err
+			}
+
+			js, err := json.Marshal(metrics)
+			if err != nil {
+				return err
+			}
+
+			// TODO(sshaman1101): pretty printing
+			fmt.Printf("%s", js)
+			return nil
+		},
+	}
+
+	minerRootCmd.AddCommand(minersListCmd, minerStatusCmd)
+
+	// -- tasks commands
+	tasksRootCmd := &cobra.Command{
+		Use:   "tasks",
+		Short: "Manage tasks",
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return checkFlagRequired(cmd, hubAddressFlag)
+		},
+	}
+
+	taskListCmd := &cobra.Command{
+		Use:     "list <miner_addr>",
+		Short:   "Show tasks on given miner",
+		PreRunE: tasksRootCmd.PreRunE,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// NOTE: always return "null"
+			if len(args) < 1 {
+				return errMinerIDRequired
+			}
+			miner := args[0]
+
+			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+			if err != nil {
+				return err
+			}
+			defer cc.Close()
+
+			ctx, cancel := context.WithTimeout(gctx, timeout)
+			defer cancel()
+
+			var req = pb.MinerStatusRequest{Miner: miner}
+			minerStatus, err := pb.NewHubClient(cc).MinerStatus(ctx, &req)
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+
+			buff := new(bytes.Buffer)
+			enc := json.NewEncoder(buff)
+			enc.SetIndent("", "\t")
+			//TODO(sshaman1101): pretty printing
+			enc.Encode(minerStatus.Statuses)
+			fmt.Printf("%s\n", buff.Bytes())
+			return nil
+		},
+	}
+
+	taskStartCmd := &cobra.Command{
+		Use:     "start <miner_addr> <image>",
+		Short:   "Start task on given miner",
+		PreRunE: tasksRootCmd.PreRunE,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) < 1 {
+				return errMinerIDRequired
+			}
+			if len(args) < 2 {
+				return errContainerNameRequired
+			}
+
+			miner := args[0]
+			image := args[1]
+
+			var registryAuth string
+			if registryUser != "" || registryPassword != "" {
+				registryAuth = encodeRegistryAuth(registryUser, registryPassword)
+			}
+
+			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+			if err != nil {
+				return err
+			}
+			defer cc.Close()
+
+			ctx, cancel := context.WithTimeout(gctx, timeout)
+			defer cancel()
+			var req = pb.StartTaskRequest{
+				Miner:    miner,
+				Image:    image,
+				Registry: registryName,
+				Auth:     registryAuth,
+			}
+
+			fmt.Printf("Starting %s at %s...\r\n", image, miner)
+			rep, err := pb.NewHubClient(cc).StartTask(ctx, &req)
+			if err != nil {
+				return err
+			}
+
+			fmt.Printf("ID %s, Endpoint %s\r\n", rep.Id, rep.Endpoint)
+			return nil
+		},
+	}
+	taskStartCmd.Flags().StringVar(&registryName, registryNameFlag, "", "Registry to pull image")
+	taskStartCmd.Flags().StringVar(&registryUser, registryUserFlag, "", "Registry username")
+	taskStartCmd.Flags().StringVar(&registryPassword, registryPasswordFlag, "", "Registry password")
+
+	taskStatusCmd := &cobra.Command{
+		Use:     "status <miner_addr> <task_id>",
+		Short:   "Show task status",
+		PreRunE: tasksRootCmd.PreRunE,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// NOTE: always crash with
+			// NotFound desc = no status report for task 302e96de-5327-4bc2-97c0-2d56ce4d29c2
+			if len(args) < 1 {
+				return errMinerIDRequired
+			}
+			if len(args) < 2 {
+				return errTaskIDRequired
+			}
+			miner := args[0]
+			taskID := args[1]
+
+			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+			if err != nil {
+				return err
+			}
+			defer cc.Close()
+
+			ctx, cancel := context.WithTimeout(gctx, timeout)
+			defer cancel()
+
+			var req = pb.TaskStatusRequest{Id: taskID}
+			taskStatus, err := pb.NewHubClient(cc).TaskStatus(ctx, &req)
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+
+			fmt.Printf("Task %s (on %s) status is %s\n", req.Id, miner, taskStatus.Status.Status.String())
+			return nil
+		},
+	}
+
+	taskStopCmd := &cobra.Command{
+		Use:     "stop <miner_addr> <task_id>",
+		Short:   "Stop task",
+		PreRunE: tasksRootCmd.PreRunE,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// NOTE: always crash with
+			// failed to stop the task 302e96de-5327-4bc2-97c0-2d56ce4d29c2
+			if len(args) < 1 {
+				return errMinerIDRequired
+			}
+			if len(args) < 2 {
+				return errTaskIDRequired
+			}
+			miner := args[0]
+			taskID := args[1]
+
+			fmt.Sprintf("Stopping task %s at %s...OK\r\n", taskID, miner)
+			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+			if err != nil {
+				return err
+			}
+			defer cc.Close()
+
+			ctx, cancel := context.WithTimeout(gctx, timeout)
+			defer cancel()
+			var req = pb.StopTaskRequest{
+				Id: taskID,
+			}
+
+			_, err = pb.NewHubClient(cc).StopTask(ctx, &req)
+			if err != nil {
+				fmt.Println(err)
+				return err
+			}
+
+			fmt.Println("OK")
+			return nil
+		},
+	}
+
+	tasksRootCmd.AddCommand(taskListCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
+
+	var rootCmd = &cobra.Command{Use: appName}
+	rootCmd.PersistentFlags().StringVar(&hubAddress, hubAddressFlag, "", "hub addr")
+	rootCmd.PersistentFlags().DurationVar(&timeout, hubTimeoutFlag, 60*time.Second, "Connection timeout")
+	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd)
+	rootCmd.Execute()
+}
+
+func encodeRegistryAuth(login, password string) string {
+	data := fmt.Sprintf("%s:%s", login, password)
+	return b64.StdEncoding.EncodeToString([]byte(data))
 }
