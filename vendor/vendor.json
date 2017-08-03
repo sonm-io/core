@@ -711,6 +711,12 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "40vJyUB4ezQSn/NSadsKEOrudMc=",
+			"path": "github.com/inconshreveable/mousetrap",
+			"revision": "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75",
+			"revisionTime": "2014-10-17T20:07:13Z"
+		},
+		{
 			"checksumSHA1": "vTGKMIfiMwz43y5bsgx9PrL+AVw=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/jackpal/go-nat-pmp",
 			"path": "github.com/jackpal/go-nat-pmp",
@@ -944,6 +950,18 @@
 			"path": "github.com/satori/uuid",
 			"revision": "5bf94b69c6b68ee1b541973bb8e1144db23a194b",
 			"revisionTime": "2017-03-21T23:07:31Z"
+		},
+		{
+			"checksumSHA1": "233z49QwgSzdLglskKTSdI/CPQ8=",
+			"path": "github.com/spf13/cobra",
+			"revision": "b26b538f693051ac6518e65672de3144ce3fbedc",
+			"revisionTime": "2017-07-31T17:04:27Z"
+		},
+		{
+			"checksumSHA1": "STxYqRb4gnlSr3mRpT+Igfdz/kM=",
+			"path": "github.com/spf13/pflag",
+			"revision": "e57e3eeb33f795204c1ca35f56c44f83227c6e66",
+			"revisionTime": "2017-05-08T18:43:26Z"
 		},
 		{
 			"checksumSHA1": "90Am6VJJxRudklNGXyamS1Xdjyw=",
