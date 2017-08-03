@@ -34,14 +34,14 @@ var (
 	registryUser     string
 	registryPassword string
 
-	errMinerIDRequired       = errors.New("Miner identifier is required")
-	errTaskIDRequired        = errors.New("Task ID is required")
-	errContainerNameRequired = errors.New("Container name is required")
+	errMinerAddressRequired = errors.New("Miner address is required")
+	errTaskIDRequired       = errors.New("Task ID is required")
+	errImageNameRequired    = errors.New("Image name is required")
 )
 
-func checkFlagRequired(cmd *cobra.Command, name string) error {
-	if cmd.Flag(name).Value.String() == "" {
-		return fmt.Errorf("--%s flag is required", name)
+func checkHubAddressIsSet(cmd *cobra.Command, args []string) error {
+	if cmd.Flag(hubAddressFlag).Value.String() == "" {
+		return fmt.Errorf("--%s flag is required", hubAddressFlag)
 	}
 	return nil
 }
@@ -49,17 +49,15 @@ func checkFlagRequired(cmd *cobra.Command, name string) error {
 func main() {
 	// --- hub commands
 	hubRootCmd := &cobra.Command{
-		Use:   "hub",
-		Short: "Operations with hub",
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return checkFlagRequired(cmd, hubAddressFlag)
-		},
+		Use:     "hub",
+		Short:   "Operations with hub",
+		PreRunE: checkHubAddressIsSet,
 	}
 
 	hubPingCmd := &cobra.Command{
 		Use:     "ping",
 		Short:   "Ping the hub",
-		PreRunE: hubRootCmd.PostRunE,
+		PreRunE: checkHubAddressIsSet,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 			if err != nil {
@@ -82,7 +80,7 @@ func main() {
 	hubStatusCmd := &cobra.Command{
 		Use:     "status",
 		Short:   "Show hub status",
-		PreRunE: hubRootCmd.PreRunE,
+		PreRunE: checkHubAddressIsSet,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// todo: implement this on hub
 			fmt.Printf("Hub %s status: OK\r\n", hubAddress)
@@ -94,11 +92,9 @@ func main() {
 
 	// --- miner commands
 	minerRootCmd := &cobra.Command{
-		Use:   "miner",
-		Short: "Operations with miners",
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return checkFlagRequired(cmd, hubAddressFlag)
-		},
+		Use:     "miner",
+		Short:   "Operations with miners",
+		PreRunE: checkHubAddressIsSet,
 	}
 
 	minersListCmd := &cobra.Command{
@@ -119,25 +115,25 @@ func main() {
 				return err
 			}
 
-			// todo(sshaman1101): pretty printing
-			fmt.Println("Connected Miners")
-			buff := new(bytes.Buffer)
-			enc := json.NewEncoder(buff)
-			enc.SetIndent("", "\t")
-			enc.Encode(lr.Info)
-			fmt.Printf("%s\n", buff.Bytes())
-			return err
+			for addr, meta := range lr.Info {
+				fmt.Printf("Miner: %s\r\n", addr)
+				fmt.Println("tasks:")
+				for i, task := range meta.Values {
+					fmt.Printf("  %d) %s\r\n", i+1, task)
+				}
+			}
+
+			return nil
 		},
 	}
 
 	minerStatusCmd := &cobra.Command{
 		Use:     "status <miner_addr>",
 		Short:   "Miner status",
-		PreRunE: minerRootCmd.PreRunE,
+		PreRunE: checkHubAddressIsSet,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// NOTE: always empty response
 			if len(args) < 1 {
-				return errMinerIDRequired
+				return errMinerAddressRequired
 			}
 			minerID := args[0]
 
@@ -156,13 +152,14 @@ func main() {
 				return err
 			}
 
-			js, err := json.Marshal(metrics)
-			if err != nil {
-				return err
+			fmt.Println("Miner tasks:")
+			for task, stat := range metrics.Stats {
+				// fixme: what the hell with this ID?
+				fmt.Printf("  ID: %s\r\n", task)
+				fmt.Printf("      CPU: %d\r\n", stat.CPU.TotalUsage)
+				fmt.Printf("      RAM: %dMB\r\n", stat.Memory.MaxUsage/1024/1024)
 			}
 
-			// TODO(sshaman1101): pretty printing
-			fmt.Printf("%s", js)
 			return nil
 		},
 	}
@@ -171,11 +168,9 @@ func main() {
 
 	// -- tasks commands
 	tasksRootCmd := &cobra.Command{
-		Use:   "tasks",
-		Short: "Manage tasks",
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			return checkFlagRequired(cmd, hubAddressFlag)
-		},
+		Use:     "tasks",
+		Short:   "Manage tasks",
+		PreRunE: checkHubAddressIsSet,
 	}
 
 	taskListCmd := &cobra.Command{
@@ -185,7 +180,7 @@ func main() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// NOTE: always return "null"
 			if len(args) < 1 {
-				return errMinerIDRequired
+				return errMinerAddressRequired
 			}
 			miner := args[0]
 
@@ -218,13 +213,13 @@ func main() {
 	taskStartCmd := &cobra.Command{
 		Use:     "start <miner_addr> <image>",
 		Short:   "Start task on given miner",
-		PreRunE: tasksRootCmd.PreRunE,
+		PreRunE: checkHubAddressIsSet,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) < 1 {
-				return errMinerIDRequired
+				return errMinerAddressRequired
 			}
 			if len(args) < 2 {
-				return errContainerNameRequired
+				return errImageNameRequired
 			}
 
 			miner := args[0]
@@ -250,7 +245,7 @@ func main() {
 				Auth:     registryAuth,
 			}
 
-			fmt.Printf("Starting %s at %s...\r\n", image, miner)
+			fmt.Printf(`Starting "%s" on miner %s...\r\n`, image, miner)
 			rep, err := pb.NewHubClient(cc).StartTask(ctx, &req)
 			if err != nil {
 				return err
@@ -267,12 +262,12 @@ func main() {
 	taskStatusCmd := &cobra.Command{
 		Use:     "status <miner_addr> <task_id>",
 		Short:   "Show task status",
-		PreRunE: tasksRootCmd.PreRunE,
+		PreRunE: checkHubAddressIsSet,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// NOTE: always crash with
 			// NotFound desc = no status report for task 302e96de-5327-4bc2-97c0-2d56ce4d29c2
 			if len(args) < 1 {
-				return errMinerIDRequired
+				return errMinerAddressRequired
 			}
 			if len(args) < 2 {
 				return errTaskIDRequired
@@ -304,12 +299,12 @@ func main() {
 	taskStopCmd := &cobra.Command{
 		Use:     "stop <miner_addr> <task_id>",
 		Short:   "Stop task",
-		PreRunE: tasksRootCmd.PreRunE,
+		PreRunE: checkHubAddressIsSet,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// NOTE: always crash with
 			// failed to stop the task 302e96de-5327-4bc2-97c0-2d56ce4d29c2
 			if len(args) < 1 {
-				return errMinerIDRequired
+				return errMinerAddressRequired
 			}
 			if len(args) < 2 {
 				return errTaskIDRequired
