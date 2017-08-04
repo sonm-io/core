@@ -13,7 +13,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 )
 
-type dcontainer struct {
+type containerDescriptor struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
@@ -23,11 +23,11 @@ type dcontainer struct {
 	stats types.Stats
 }
 
-func newContainer(ctx context.Context, dclient *client.Client, d Description) (*dcontainer, error) {
+func newContainer(ctx context.Context, dclient *client.Client, d Description) (*containerDescriptor, error) {
 	log.G(ctx).Info("start container with application")
 
 	ctx, cancel := context.WithCancel(ctx)
-	cont := dcontainer{
+	cont := containerDescriptor{
 		ctx:    ctx,
 		cancel: cancel,
 		client: dclient,
@@ -68,7 +68,7 @@ func newContainer(ctx context.Context, dclient *client.Client, d Description) (*
 	return &cont, nil
 }
 
-func (c *dcontainer) startContainer() error {
+func (c *containerDescriptor) startContainer() error {
 	var options types.ContainerStartOptions
 	if err := c.client.ContainerStart(c.ctx, c.ID, options); err != nil {
 		c.cancel()
@@ -77,23 +77,22 @@ func (c *dcontainer) startContainer() error {
 	return nil
 }
 
-func (c *dcontainer) Kill() (err error) {
+func (c *containerDescriptor) Kill() (err error) {
 	// TODO: add atomic flag to prevent duplicated remove
 	defer func() {
-		c.remove()
 		// release HTTP connections
 		c.cancel()
 	}()
-	log.G(c.ctx).Info("kill the container")
 
-	if err = c.client.ContainerKill(c.ctx, c.ID, "SIGKILL"); err != nil {
+	log.G(c.ctx).Info("kill the container")
+	if err = c.client.ContainerKill(context.Background(), c.ID, "SIGKILL"); err != nil {
 		log.G(c.ctx).Error("failed to send SIGKILL to the container", zap.Error(err))
 		return err
 	}
 	return nil
 }
 
-func (c *dcontainer) remove() {
+func (c *containerDescriptor) remove() {
 	containerRemove(c.ctx, c.client, c.ID)
 }
 
