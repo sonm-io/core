@@ -45,12 +45,13 @@ type Hub struct {
 
 // Ping should be used as Healthcheck for Hub
 func (h *Hub) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, error) {
-	log.G(ctx).Info("reply to Ping")
+	log.G(ctx).Info("handling Ping request")
 	return &pb.PingReply{}, nil
 }
 
 // List returns attached miners
-func (h *Hub) List(context.Context, *pb.ListRequest) (*pb.ListReply, error) {
+func (h *Hub) List(ctx context.Context, request *pb.ListRequest) (*pb.ListReply, error) {
+	log.G(ctx).Info("handling List request")
 	var info = make(map[string]*pb.ListReply_ListValue)
 	h.mu.Lock()
 	for k := range h.miners {
@@ -71,8 +72,9 @@ func (h *Hub) List(context.Context, *pb.ListRequest) (*pb.ListReply, error) {
 }
 
 // Info returns aggregated runtime statistics for all connected miners.
-func (h *Hub) Info(ctx context.Context, req *pb.InfoRequest) (*pb.InfoReply, error) {
-	client, ok := h.getMinerByID(req.Miner)
+func (h *Hub) Info(ctx context.Context, request *pb.InfoRequest) (*pb.InfoReply, error) {
+	log.G(ctx).Info("handling Info request", zap.Any("req", request))
+	client, ok := h.getMinerByID(request.Miner)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no such miner")
 	}
@@ -138,6 +140,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.
 
 // StopTask sends termination request to a miner handling the task
 func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
+	log.G(ctx).Info("handling StopTask request", zap.Any("req", request))
 	taskID := request.Id
 	minerID, ok := h.getMinerByTaskID(taskID)
 	if !ok {
@@ -166,17 +169,26 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.MinerStatusRequest) (
 	miner := request.Miner
 	mincli, ok := h.getMinerByID(miner)
 	if !ok {
+		log.G(ctx).Error("Miner not fount", zap.String("miner", miner))
 		return nil, status.Errorf(codes.NotFound, "no such miner %s", miner)
 	}
 
+	var reply pbminer.TasksStatusReply
+	err := mincli.fetchStatuses()
+
+	if err != nil {
+		log.G(ctx).Error("Cannot get status", zap.Error(err))
+		return nil, status.Errorf(codes.DataLoss, "Cannot get status")
+	}
+
 	mincli.status_mu.Lock()
-	reply := pbminer.TasksStatusReply{mincli.status_map}
+	reply = pbminer.TasksStatusReply{mincli.status_map}
 	mincli.status_mu.Unlock()
 	return &reply, nil
-
 }
 
 func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*pb.TaskStatusReply, error) {
+	log.G(ctx).Info("handling TaskStatus request", zap.Any("req", request))
 	taskID := request.Id
 	minerID, ok := h.getMinerByTaskID(taskID)
 	if !ok {
@@ -195,7 +207,7 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskID)
 	}
 
-	reply := pb.TaskStatusReply{taskStatus}
+	reply := pb.TaskStatusReply{Status: taskStatus}
 	return &reply, nil
 }
 

@@ -11,8 +11,9 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	pbminer "github.com/sonm-io/core/proto/miner"
 	"sync"
+
+	pbminer "github.com/sonm-io/core/proto/miner"
 )
 
 // MinerCtx holds all the data related to a connected Miner
@@ -87,21 +88,22 @@ func (m *MinerCtx) initStatusClient() (statusClient pbminer.Miner_TasksStatusCli
 	return
 }
 
-func (m *MinerCtx) status() error {
+// NOTE: maybe rewrite this method as poller (like ping() func)
+func (m *MinerCtx) fetchStatuses() error {
 	statusClient, err := m.initStatusClient()
 	if err != nil {
 		return err
 	}
-	for {
-		statusReply, err := statusClient.Recv()
-		if err != nil {
-			log.G(m.ctx).Info("failed to receive miner status", zap.Error(err))
-			return err
-		}
-		m.status_mu.Lock()
-		m.status_map = statusReply.Statuses
-		m.status_mu.Unlock()
+
+	statusReply, err := statusClient.Recv()
+	if err != nil {
+		log.G(m.ctx).Info("failed to receive miner status", zap.Error(err))
+		return err
 	}
+
+	m.status_mu.Lock()
+	m.status_map = statusReply.Statuses
+	m.status_mu.Unlock()
 	return nil
 }
 
