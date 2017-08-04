@@ -1,5 +1,5 @@
 #!/usr/bin/env make
-VER = v0.1
+VER = v0.1.0
 BUILD = $(shell git rev-parse --short HEAD)
 FULL_VER = $(VER).$(BUILD)
 
@@ -37,7 +37,7 @@ build_hub:
 
 build_cli:
 	@echo "+ $@"
-	${GO} build -o ${CLI} ${GOCMD}/cli
+	${GO} build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
 
 
 build: build_bootnode build_hub build_miner build_cli
