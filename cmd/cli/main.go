@@ -172,7 +172,7 @@ func main() {
 
 	// -- tasks commands
 	tasksRootCmd := &cobra.Command{
-		Use:     "tasks",
+		Use:     "task",
 		Short:   "Manage tasks",
 		PreRunE: checkHubAddressIsSet,
 	}
@@ -251,7 +251,7 @@ func main() {
 				Auth:     registryAuth,
 			}
 
-			fmt.Printf(`Starting "%s" on miner %s...\r\n`, image, miner)
+			fmt.Printf("Starting \"%s\" on miner %s...\r\n", image, miner)
 			rep, err := pb.NewHubClient(cc).StartTask(ctx, &req)
 			if err != nil {
 				showError("Cannot start task", err)
