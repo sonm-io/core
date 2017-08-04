@@ -65,7 +65,7 @@ type overseer struct {
 
 	// protects containers map
 	mu         sync.Mutex
-	containers map[string]*dcontainer
+	containers map[string]*containerDescriptor
 	statuses   map[string]chan pb.TaskStatus_Status
 }
 
@@ -83,7 +83,7 @@ func NewOverseer(ctx context.Context) (Overseer, error) {
 
 		client: dockclient,
 
-		containers: make(map[string]*dcontainer),
+		containers: make(map[string]*containerDescriptor),
 		statuses:   make(map[string]chan pb.TaskStatus_Status),
 	}
 
@@ -140,7 +140,7 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 				id := message.Actor.ID
 				log.G(ctx).Info("container has died", zap.String("id", id))
 
-				var c *dcontainer
+				var c *containerDescriptor
 				o.mu.Lock()
 				c, cok := o.containers[id]
 				s, sok := o.statuses[id]
@@ -150,6 +150,7 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 				if sok {
 					s <- pb.TaskStatus_BROKEN
 				}
+				// warn(all): is this logic still actual?
 				if cok {
 					c.remove()
 				} else {
@@ -300,17 +301,20 @@ func (o *overseer) Spawn(ctx context.Context, d Description) (status chan pb.Tas
 func (o *overseer) Stop(ctx context.Context, containerid string) error {
 	o.mu.Lock()
 
-	pr, cok := o.containers[containerid]
-	s, sok := o.statuses[containerid]
+	descriptor, dok := o.containers[containerid]
+	status, sok := o.statuses[containerid]
+	// todo: maybe we check sok && sok before calling delete() ?
 	delete(o.containers, containerid)
 	delete(o.statuses, containerid)
 	o.mu.Unlock()
+
 	if sok {
-		s <- pb.TaskStatus_FINISHED
+		status <- pb.TaskStatus_FINISHED
 	}
 
-	if !cok {
-		return fmt.Errorf("no such container %s", containerid)
+	if !dok {
+		return fmt.Errorf("no such container %status", containerid)
 	}
-	return pr.Kill()
+
+	return descriptor.Kill()
 }
