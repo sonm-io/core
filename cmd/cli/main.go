@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	appName        = "cli"
+	appName        = "sonm"
 	hubAddressFlag = "addr"
 	hubTimeoutFlag = "timeout"
 
@@ -28,6 +28,7 @@ const (
 var (
 	gctx = context.Background()
 
+	version          string
 	hubAddress       string
 	timeout          = 60 * time.Second
 	registryName     string
@@ -58,10 +59,11 @@ func main() {
 		Use:     "ping",
 		Short:   "Ping the hub",
 		PreRunE: checkHubAddressIsSet,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 			if err != nil {
-				return err
+				showError("Cannot create connection", err)
+				return
 			}
 			defer cc.Close()
 
@@ -69,11 +71,11 @@ func main() {
 			defer cancel()
 			_, err = pb.NewHubClient(cc).Ping(ctx, &pb.PingRequest{})
 			if err != nil {
-				return err
+				showError("Ping failed", err)
+				return
 			}
 
 			fmt.Printf("Ping hub %s... OK\r\n", hubAddress)
-			return nil
 		},
 	}
 
@@ -81,10 +83,9 @@ func main() {
 		Use:     "status",
 		Short:   "Show hub status",
 		PreRunE: checkHubAddressIsSet,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			// todo: implement this on hub
 			fmt.Printf("Hub %s status: OK\r\n", hubAddress)
-			return nil
 		},
 	}
 
@@ -101,10 +102,12 @@ func main() {
 		Use:     "list",
 		Short:   "Show connected miners",
 		PreRunE: minerRootCmd.PreRunE,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 			if err != nil {
-				return err
+				// fmt.Printf("Cannot create connection: %s\r\n", err)
+				showError("Cannot create connection", err)
+				return
 			}
 			defer cc.Close()
 
@@ -112,7 +115,8 @@ func main() {
 			defer cancel()
 			lr, err := pb.NewHubClient(cc).List(ctx, &pb.ListRequest{})
 			if err != nil {
-				return err
+				showError("Cannot get miners list", err)
+				return
 			}
 
 			for addr, meta := range lr.Info {
@@ -122,8 +126,6 @@ func main() {
 					fmt.Printf("  %d) %s\r\n", i+1, task)
 				}
 			}
-
-			return nil
 		},
 	}
 
@@ -139,7 +141,8 @@ func main() {
 
 			conn, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 			if err != nil {
-				return err
+				showError("Cannot create connection", err)
+				return nil
 			}
 			defer conn.Close()
 
@@ -149,7 +152,8 @@ func main() {
 			var req = pb.InfoRequest{Miner: minerID}
 			metrics, err := pb.NewHubClient(conn).Info(ctx, &req)
 			if err != nil {
-				return err
+				showError("Cannot get miner status", err)
+				return nil
 			}
 
 			fmt.Println("Miner tasks:")
@@ -186,7 +190,8 @@ func main() {
 
 			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 			if err != nil {
-				return err
+				showError("Cannot create connection", err)
+				return nil
 			}
 			defer cc.Close()
 
@@ -196,8 +201,8 @@ func main() {
 			var req = pb.MinerStatusRequest{Miner: miner}
 			minerStatus, err := pb.NewHubClient(cc).MinerStatus(ctx, &req)
 			if err != nil {
-				fmt.Println(err)
-				return err
+				showError("Cannot get tasks", err)
+				return nil
 			}
 
 			buff := new(bytes.Buffer)
@@ -232,7 +237,8 @@ func main() {
 
 			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 			if err != nil {
-				return err
+				showError("Cannot create connection", err)
+				return nil
 			}
 			defer cc.Close()
 
@@ -248,7 +254,8 @@ func main() {
 			fmt.Printf(`Starting "%s" on miner %s...\r\n`, image, miner)
 			rep, err := pb.NewHubClient(cc).StartTask(ctx, &req)
 			if err != nil {
-				return err
+				showError("Cannot start task", err)
+				return nil
 			}
 
 			fmt.Printf("ID %s, Endpoint %s\r\n", rep.Id, rep.Endpoint)
@@ -277,7 +284,8 @@ func main() {
 
 			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 			if err != nil {
-				return err
+				showError("Cannot create connection", err)
+				return nil
 			}
 			defer cc.Close()
 
@@ -287,8 +295,8 @@ func main() {
 			var req = pb.TaskStatusRequest{Id: taskID}
 			taskStatus, err := pb.NewHubClient(cc).TaskStatus(ctx, &req)
 			if err != nil {
-				fmt.Println(err)
-				return err
+				showError("Cannot get task status", err)
+				return nil
 			}
 
 			fmt.Printf("Task %s (on %s) status is %s\n", req.Id, miner, taskStatus.Status.Status.String())
@@ -315,7 +323,8 @@ func main() {
 			fmt.Sprintf("Stopping task %s at %s...OK\r\n", taskID, miner)
 			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 			if err != nil {
-				return err
+				showError("Cannot create connection", err)
+				return nil
 			}
 			defer cc.Close()
 
@@ -327,8 +336,8 @@ func main() {
 
 			_, err = pb.NewHubClient(cc).StopTask(ctx, &req)
 			if err != nil {
-				fmt.Println(err)
-				return err
+				showError("Cannot stop task", err)
+				return nil
 			}
 
 			fmt.Println("OK")
@@ -338,14 +347,30 @@ func main() {
 
 	tasksRootCmd.AddCommand(taskListCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
 
+	versionCmd := &cobra.Command{
+		Use:   "version",
+		Short: "Show version",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("Version: %s\r\n", version)
+		},
+	}
+
 	var rootCmd = &cobra.Command{Use: appName}
 	rootCmd.PersistentFlags().StringVar(&hubAddress, hubAddressFlag, "", "hub addr")
 	rootCmd.PersistentFlags().DurationVar(&timeout, hubTimeoutFlag, 60*time.Second, "Connection timeout")
-	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd)
+	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd)
 	rootCmd.Execute()
 }
 
 func encodeRegistryAuth(login, password string) string {
 	data := fmt.Sprintf("%s:%s", login, password)
 	return b64.StdEncoding.EncodeToString([]byte(data))
+}
+
+func showError(message string, err error) {
+	if err != nil {
+		fmt.Printf("[ERR] %s: %s\r\n", message, err.Error())
+	} else {
+		fmt.Printf("[ERR] %s\r\n", message)
+	}
 }
