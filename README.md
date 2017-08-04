@@ -1,12 +1,14 @@
-## SONM Core
+<p align="center">
+  <img alt="SONM-IO CORE Logo" src="https://wiki.sonm.io/lib/exe/fetch.php?w=300&tok=2448ef&media=sonm-logo_no-text.png" height="140" />
+  <h3 align="center">SONM Core</h3>
+  <p align="center">Official core client</p>
+</p>
 
-Official core client
+---
 
 [![Build Status](https://travis-ci.org/sonm-io/core.svg?branch=master)](https://travis-ci.org/sonm-io/core)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/sonm-io_core/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sonm-io/core)](https://goreportcard.com/report/github.com/sonm-io/core)
-
-
 ### Running in docker:
 
 Start boootnode
