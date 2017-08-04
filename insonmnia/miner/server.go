@@ -102,10 +102,13 @@ func (m *Miner) scheduleStatusPurge(id string) {
 
 func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
 	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	_, ok := m.containers[id]
 	if !ok {
 		m.containers[id] = &ContainerInfo{}
 	}
+
 	m.containers[id].status = status
 	if status.Status == pb.TaskStatus_BROKEN || status.Status == pb.TaskStatus_FINISHED {
 		go m.scheduleStatusPurge(id)
@@ -116,7 +119,6 @@ func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
 		case <-m.ctx.Done():
 		}
 	}
-	m.mu.Unlock()
 }
 
 func (m *Miner) listenForStatus(statusListener chan pb.TaskStatus_Status, id string) {
@@ -183,6 +185,7 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopRepl
 	m.mu.Lock()
 	cinfo, ok := m.containers[request.Id]
 	m.mu.Unlock()
+
 	m.setStatus(&pb.TaskStatus{pb.TaskStatus_RUNNING}, request.Id)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no job with id %s", request.Id)
@@ -193,6 +196,7 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopRepl
 		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
+
 	m.setStatus(&pb.TaskStatus{pb.TaskStatus_FINISHED}, request.Id)
 	return &pb.StopReply{}, nil
 }

@@ -72,10 +72,7 @@ func (h *Hub) List(context.Context, *pb.ListRequest) (*pb.ListReply, error) {
 
 // Info returns aggregated runtime statistics for all connected miners.
 func (h *Hub) Info(ctx context.Context, req *pb.InfoRequest) (*pb.InfoReply, error) {
-	h.mu.Lock()
-	client, ok := h.miners[req.Miner]
-	h.mu.Unlock()
-
+	client, ok := h.getMinerByID(req.Miner)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no such miner")
 	}
@@ -108,16 +105,14 @@ func (h *Hub) Info(ctx context.Context, req *pb.InfoRequest) (*pb.InfoReply, err
 func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(ctx).Info("handling StartTask request", zap.Any("req", request))
 	miner := request.Miner
-	h.mu.Lock()
-	mincli, ok := h.miners[miner]
-	h.mu.Unlock()
+	mincli, ok := h.getMinerByID(miner)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no such miner %s", miner)
 	}
 
-	uid := uuid.New()
+	taskID := uuid.New()
 	var startrequest = &pbminer.StartRequest{
-		Id:       uid,
+		Id:       taskID,
 		Registry: request.Registry,
 		Image:    request.Image,
 		Auth:     request.Auth,
@@ -128,12 +123,10 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.
 		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
 	}
 
-	h.tasksmu.Lock()
-	h.tasks[uid] = miner
-	h.tasksmu.Unlock()
+	h.setMinerTaskID(miner, taskID)
 
 	var reply = pb.StartTaskReply{
-		Id: uid,
+		Id: taskID,
 	}
 
 	for k, v := range resp.Ports {
@@ -145,42 +138,33 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.
 
 // StopTask sends termination request to a miner handling the task
 func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
-	taskid := request.Id
-	h.tasksmu.Lock()
-	miner, ok := h.tasks[taskid]
-	h.tasksmu.Unlock()
+	taskID := request.Id
+	minerID, ok := h.getMinerByTaskID(taskID)
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, "no such task %s", taskid)
+		return nil, status.Errorf(codes.NotFound, "no such task %s", taskID)
 	}
 
-	h.mu.Lock()
-	mincli, ok := h.miners[miner]
-	h.mu.Unlock()
+	mincli, ok := h.getMinerByID(minerID)
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, "no miner with task %s", miner)
+		return nil, status.Errorf(codes.NotFound, "no miner with task %s", minerID)
 	}
 
-	var stoprequest = &pbminer.StopRequest{
-		Id: taskid,
-	}
+	stoprequest := &pbminer.StopRequest{Id: taskID}
 	_, err := mincli.Client.Stop(ctx, stoprequest)
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "failed to stop the task %s", taskid)
+		return nil, status.Errorf(codes.NotFound, "failed to stop the task %s", taskID)
 	}
 
-	h.tasksmu.Lock()
-	delete(h.tasks, taskid)
-	h.tasksmu.Unlock()
+	h.deleteTaskByID(taskID)
 
 	return &pb.StopTaskReply{}, nil
 }
 
 func (h *Hub) MinerStatus(ctx context.Context, request *pb.MinerStatusRequest) (*pbminer.TasksStatusReply, error) {
 	log.G(ctx).Info("handling MinerStatus request", zap.Any("req", request))
+
 	miner := request.Miner
-	h.mu.Lock()
-	mincli, ok := h.miners[miner]
-	h.mu.Unlock()
+	mincli, ok := h.getMinerByID(miner)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no such miner %s", miner)
 	}
@@ -193,26 +177,22 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.MinerStatusRequest) (
 }
 
 func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*pb.TaskStatusReply, error) {
-	taskid := request.Id
-	h.tasksmu.Lock()
-	miner, ok := h.tasks[taskid]
-	h.tasksmu.Unlock()
+	taskID := request.Id
+	minerID, ok := h.getMinerByTaskID(taskID)
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, "no such task %s", taskid)
+		return nil, status.Errorf(codes.NotFound, "no such task %s", taskID)
 	}
 
-	h.mu.Lock()
-	mincli, ok := h.miners[miner]
-	h.mu.Unlock()
+	mincli, ok := h.getMinerByID(minerID)
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, "no miner %s for task %s", miner, taskid)
+		return nil, status.Errorf(codes.NotFound, "no miner %s for task %s", minerID, taskID)
 	}
 
 	mincli.status_mu.Lock()
-	taskStatus, ok := mincli.status_map[taskid]
+	taskStatus, ok := mincli.status_map[taskID]
 	mincli.status_mu.Unlock()
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskid)
+		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskID)
 	}
 
 	reply := pb.TaskStatusReply{taskStatus}
@@ -300,6 +280,13 @@ func (h *Hub) Serve() error {
 	return nil
 }
 
+// Close disposes all resources attached to the Hub
+func (h *Hub) Close() {
+	h.externalGrpc.Stop()
+	h.minerListener.Close()
+	h.wg.Wait()
+}
+
 func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	log.G(ctx).Info("miner connected", zap.Stringer("remote", conn.RemoteAddr()))
@@ -321,9 +308,28 @@ func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
 	h.mu.Unlock()
 }
 
-// Close disposes all resources attached to the Hub
-func (h *Hub) Close() {
-	h.externalGrpc.Stop()
-	h.minerListener.Close()
-	h.wg.Wait()
+func (h *Hub) getMinerByID(minerID string) (*MinerCtx, bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	m, ok := h.miners[minerID]
+	return m, ok
+}
+
+func (h *Hub) getMinerByTaskID(taskID string) (string, bool) {
+	h.tasksmu.Lock()
+	defer h.tasksmu.Unlock()
+	miner, ok := h.tasks[taskID]
+	return miner, ok
+}
+
+func (h *Hub) setMinerTaskID(minerID, taskID string) {
+	h.tasksmu.Lock()
+	defer h.tasksmu.Unlock()
+	h.tasks[taskID] = minerID
+}
+
+func (h *Hub) deleteTaskByID(taskID string) {
+	h.tasksmu.Lock()
+	defer h.tasksmu.Unlock()
+	delete(h.tasks, taskID)
 }
