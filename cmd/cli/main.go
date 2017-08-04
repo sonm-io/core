@@ -1,9 +1,7 @@
 package main
 
 import (
-	"bytes"
 	b64 "encoding/base64"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -12,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto/hub"
+	pbminer "github.com/sonm-io/core/proto/miner"
 	"github.com/spf13/cobra"
 )
 
@@ -182,7 +181,6 @@ func main() {
 		Short:   "Show tasks on given miner",
 		PreRunE: tasksRootCmd.PreRunE,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// NOTE: always return "null"
 			if len(args) < 1 {
 				return errMinerAddressRequired
 			}
@@ -205,12 +203,15 @@ func main() {
 				return nil
 			}
 
-			buff := new(bytes.Buffer)
-			enc := json.NewEncoder(buff)
-			enc.SetIndent("", "\t")
-			//TODO(sshaman1101): pretty printing
-			enc.Encode(minerStatus.Statuses)
-			fmt.Printf("%s\n", buff.Bytes())
+			if len(minerStatus.Statuses) == 0 {
+				fmt.Printf("There is no tasks on miner \"%s\"\r\n", miner)
+				return nil
+			}
+
+			fmt.Printf("There is %d tasks on miner \"%s\":\r\n", len(minerStatus.Statuses), miner)
+			for taskID, status := range minerStatus.Statuses {
+				fmt.Printf("  %s: %s\r\n", taskID, getMinerStatusByID(status))
+			}
 			return nil
 		},
 	}
@@ -373,4 +374,13 @@ func showError(message string, err error) {
 	} else {
 		fmt.Printf("[ERR] %s\r\n", message)
 	}
+}
+
+func getMinerStatusByID(status *pbminer.TaskStatus) string {
+	statusName, ok := pbminer.TaskStatus_Status_name[int32(status.Status)]
+	if !ok {
+		statusName = "UNKNOWN"
+	}
+
+	return statusName
 }
