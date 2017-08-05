@@ -71,7 +71,7 @@ type overseer struct {
 
 // NewOverseer creates new overseer
 func NewOverseer(ctx context.Context) (Overseer, error) {
-	dockclient, err := client.NewEnvClient()
+	dockerClient, err := client.NewEnvClient()
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +81,7 @@ func NewOverseer(ctx context.Context) (Overseer, error) {
 		ctx:    ctx,
 		cancel: cancel,
 
-		client: dockclient,
+		client: dockerClient,
 
 		containers: make(map[string]*containerDescriptor),
 		statuses:   make(map[string]chan pb.TaskStatus_Status),
