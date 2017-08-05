@@ -15,8 +15,6 @@ import (
 	"github.com/hashicorp/yamux"
 	log "github.com/noxiouz/zapctx/ctxlog"
 
-	"github.com/sonm-io/core/common"
-	"github.com/sonm-io/core/insonmnia/logging"
 	pb "github.com/sonm-io/core/proto/miner"
 	"github.com/sonm-io/core/util"
 
@@ -38,7 +36,17 @@ type Miner struct {
 	ovs Overseer
 
 	mu sync.Mutex
-	// maps StartRequest's IDs to containers' IDs
+	// One-to-one mapping between container IDs and userland task names.
+	//
+	// The overseer operates with containers in terms of their ID, which does not change even during auto-restart.
+	// However some requests pass an application (or task) name, which is more meaningful for user. To be able to
+	// transform between these two identifiers this map exists.
+	//
+	// WARNING: This must be protected using `mu`.
+	nameMapping map[string]string
+
+	// Maps StartRequest's IDs to containers' IDs
+	// TODO: It's doubtful that we should keep this map here instead in the Overseer.
 	containers map[string]*ContainerInfo
 
 	statusChannels map[int]chan bool
@@ -46,6 +54,29 @@ type Miner struct {
 }
 
 var _ pb.MinerServer = &Miner{}
+
+func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.nameMapping[info.ID] = id
+	m.containers[id] = &info
+}
+
+func (m *Miner) getTaskIdByContainerId(id string) (string, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	name, ok := m.nameMapping[id]
+	return name, ok
+}
+
+func (m *Miner) deleteTaskMapping(id string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	delete(m.nameMapping, id)
+}
 
 // Ping works as Healthcheck for the Hub
 func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, error) {
@@ -58,24 +89,31 @@ func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, err
 // This works the following way: a miner periodically collects various runtime statistics from all
 // spawned containers that it knows about. For running containers metrics map the immediate
 // state, for dead containers - their last memento.
-func (m *Miner) Info(ctx context.Context, _ *pb.InfoRequest) (*pb.InfoReply, error) {
+func (m *Miner) Info(ctx context.Context, request *pb.InfoRequest) (*pb.InfoReply, error) {
+	log.G(ctx).Info("handle Info request", zap.Any("req", request))
+
 	info, err := m.ovs.Info(ctx)
 	if err != nil {
 		return nil, err
 	}
 
+	log.G(ctx).Info("number of info", zap.Any("len", len(info)))
+
 	var result = pb.InfoReply{
 		Stats: make(map[string]*pb.InfoReplyStats),
 	}
 
-	for id, stats := range info {
-		result.Stats[id] = &pb.InfoReplyStats{
-			CPU: &pb.InfoReplyStatsCpu{
-				TotalUsage: stats.cpu.CPUUsage.TotalUsage,
-			},
-			Memory: &pb.InfoReplyStatsMemory{
-				MaxUsage: stats.mem.MaxUsage,
-			},
+	for containerId, stats := range info {
+		if id, ok := m.getTaskIdByContainerId(containerId); ok {
+			// TODO: This transformation will be eliminated when protobuf unifying comes.
+			result.Stats[id] = &pb.InfoReplyStats{
+				CPU: &pb.InfoReplyStatsCpu{
+					TotalUsage: stats.cpu.CPUUsage.TotalUsage,
+				},
+				Memory: &pb.InfoReplyStatsMemory{
+					MaxUsage: stats.mem.MaxUsage,
+				},
+			}
 		}
 	}
 
@@ -158,10 +196,8 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 		return nil, status.Errorf(codes.Internal, "failed to Start %v", err)
 	}
 
-	// TODO: clean it
-	m.mu.Lock()
-	m.containers[request.Id] = &containerInfo
-	m.mu.Unlock()
+	m.saveContainerInfo(request.Id, containerInfo)
+
 	go m.listenForStatus(statusListener, request.Id)
 
 	var rpl = pb.StartReply{
@@ -184,16 +220,20 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 // Stop request forces to kill container
 func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopReply, error) {
 	log.G(ctx).Info("handle Stop request", zap.Any("req", request))
+
 	m.mu.Lock()
-	cinfo, ok := m.containers[request.Id]
+	containerInfo, ok := m.containers[request.Id]
 	m.mu.Unlock()
 
+	m.deleteTaskMapping(request.Id)
+
+	// TODO (@antmat): really running during stop? Add some description.
 	m.setStatus(&pb.TaskStatus{pb.TaskStatus_RUNNING}, request.Id)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no job with id %s", request.Id)
 	}
 
-	if err := m.ovs.Stop(ctx, cinfo.ID); err != nil {
+	if err := m.ovs.Stop(ctx, containerInfo.ID); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
 		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
@@ -205,8 +245,9 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopRepl
 
 func (m *Miner) removeStatusChannel(idx int) {
 	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	delete(m.statusChannels, idx)
-	m.mu.Unlock()
 }
 
 func (m *Miner) sendTasksStatus(server pb.Miner_TasksStatusServer) error {
@@ -380,10 +421,7 @@ func (m *Miner) Close() {
 }
 
 // New returns new Miner
-func New(ctx context.Context, config *MinerConfig) (*Miner, error) {
-	loggr := logging.BuildLogger(config.Logger.Level, common.DevelopmentMode)
-	ctx = log.WithLogger(ctx, loggr)
-
+func New(ctx context.Context, cfg *MinerConfig) (*Miner, error) {
 	addr, err := util.GetPublicIP()
 	if err != nil {
 		return nil, err
@@ -403,11 +441,12 @@ func New(ctx context.Context, config *MinerConfig) (*Miner, error) {
 		ovs:        ovs,
 
 		pubAddress: addr.String(),
-		hubAddress: config.Miner.HubAddress,
+		hubAddress: cfg.Miner.HubAddress,
 
 		rl:             NewReverseListener(1),
 		containers:     make(map[string]*ContainerInfo),
 		statusChannels: make(map[int]chan bool),
+		nameMapping:    make(map[string]string),
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)
