@@ -8,6 +8,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
+	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto/hub"
 	pbminer "github.com/sonm-io/core/proto/miner"
@@ -120,9 +121,14 @@ func main() {
 
 			for addr, meta := range lr.Info {
 				fmt.Printf("Miner: %s\r\n", addr)
-				fmt.Println("tasks:")
-				for i, task := range meta.Values {
-					fmt.Printf("  %d) %s\r\n", i+1, task)
+
+				if len(meta.Values) == 0 {
+					fmt.Println("Miner is idle")
+				} else {
+					fmt.Println("Tasks:")
+					for i, task := range meta.Values {
+						fmt.Printf("  %d) %s\r\n", i+1, task)
+					}
 				}
 			}
 		},
@@ -155,12 +161,16 @@ func main() {
 				return nil
 			}
 
-			fmt.Println("Miner tasks:")
-			for task, stat := range metrics.Stats {
-				// fixme: what the hell with this ID?
-				fmt.Printf("  ID: %s\r\n", task)
-				fmt.Printf("      CPU: %d\r\n", stat.CPU.TotalUsage)
-				fmt.Printf("      RAM: %dMB\r\n", stat.Memory.MaxUsage/1024/1024)
+			if len(metrics.Stats) == 0 {
+				fmt.Println("Miner is idle")
+			} else {
+				fmt.Println("Miner tasks:")
+				for task, stat := range metrics.Stats {
+					// fixme: what the hell with this ID?
+					fmt.Printf("  ID: %s\r\n", task)
+					fmt.Printf("      CPU: %d\r\n", stat.CPU.TotalUsage)
+					fmt.Printf("      RAM: %s\r\n", humanize.Bytes(stat.Memory.MaxUsage))
+				}
 			}
 
 			return nil
