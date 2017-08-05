@@ -151,31 +151,33 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 
 	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPAWNING}, request.Id)
 	log.G(ctx).Info("spawning an image")
-	statusListener, cinfo, err := m.ovs.Spawn(ctx, d)
+	statusListener, containerInfo, err := m.ovs.Start(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
-		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
+		return nil, status.Errorf(codes.Internal, "failed to Start %v", err)
 	}
+
 	// TODO: clean it
 	m.mu.Lock()
-	m.containers[request.Id] = &cinfo
+	m.containers[request.Id] = &containerInfo
 	m.mu.Unlock()
 	go m.listenForStatus(statusListener, request.Id)
 
 	var rpl = pb.StartReply{
-		Container: cinfo.ID,
+		Container: containerInfo.ID,
 		Ports:     make(map[string]*pb.StartReplyPort),
 	}
-	for port, v := range cinfo.Ports {
+	for port, v := range containerInfo.Ports {
 		if len(v) > 0 {
-			replyport := &pb.StartReplyPort{
+			replyPort := &pb.StartReplyPort{
 				IP:   m.pubAddress,
 				Port: v[0].HostPort,
 			}
-			rpl.Ports[string(port)] = replyport
+			rpl.Ports[string(port)] = replyPort
 		}
 	}
+
 	return &rpl, nil
 }
 
