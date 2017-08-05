@@ -169,7 +169,7 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.MinerStatusRequest) (
 	miner := request.Miner
 	mincli, ok := h.getMinerByID(miner)
 	if !ok {
-		log.G(ctx).Error("Miner not fount", zap.String("miner", miner))
+		log.G(ctx).Error("miner not found", zap.String("miner", miner))
 		return nil, status.Errorf(codes.NotFound, "no such miner %s", miner)
 	}
 
@@ -177,12 +177,12 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.MinerStatusRequest) (
 	err := mincli.fetchStatuses()
 
 	if err != nil {
-		log.G(ctx).Error("Cannot get status", zap.Error(err))
-		return nil, status.Errorf(codes.DataLoss, "Cannot get status")
+		log.G(ctx).Error("cannot get status", zap.Error(err))
+		return nil, status.Errorf(codes.DataLoss, "cannot get status")
 	}
 
 	mincli.status_mu.Lock()
-	reply = pbminer.TasksStatusReply{mincli.status_map}
+	reply = pbminer.TasksStatusReply{Statuses: mincli.status_map}
 	mincli.status_mu.Unlock()
 	return &reply, nil
 }

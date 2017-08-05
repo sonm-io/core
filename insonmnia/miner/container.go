@@ -84,9 +84,9 @@ func (c *containerDescriptor) Kill() (err error) {
 		c.cancel()
 	}()
 
-	log.G(c.ctx).Info("kill the container")
+	log.G(c.ctx).Info("kill the container", zap.String("id", c.ID))
 	if err = c.client.ContainerKill(context.Background(), c.ID, "SIGKILL"); err != nil {
-		log.G(c.ctx).Error("failed to send SIGKILL to the container", zap.Error(err))
+		log.G(c.ctx).Error("failed to send SIGKILL to the container", zap.String("id", c.ID), zap.Error(err))
 		return err
 	}
 	return nil
@@ -99,6 +99,6 @@ func (c *containerDescriptor) remove() {
 func containerRemove(ctx context.Context, client client.APIClient, id string) {
 	removeOpts := types.ContainerRemoveOptions{}
 	if err := client.ContainerRemove(ctx, id, removeOpts); err != nil {
-		log.G(ctx).Error("failed to remove the container", zap.Error(err))
+		log.G(ctx).Error("failed to remove the container", zap.String("id", id), zap.Error(err))
 	}
 }
