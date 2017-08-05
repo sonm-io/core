@@ -23,8 +23,7 @@ import (
 const overseerTag = "sonm.overseer"
 const dieEvent = "die"
 
-// Description for a target application
-// name, version, hash etc.
+// Description for a target application.
 type Description struct {
 	Registry string
 	Image    string
@@ -44,14 +43,26 @@ type ContainerMetrics struct {
 
 // Overseer watches all miner's applications.
 type Overseer interface {
+	// Spool prepares an application for its further start.
+	//
+	// For Docker containers this is an equivalent of pulling from the registry.
 	Spool(ctx context.Context, d Description) error
-	Spawn(ctx context.Context, d Description) (chan pb.TaskStatus_Status, ContainerInfo, error)
+
+	// Start attempts to start an application using the specified description.
+	//
+	// After successful starting an application becomes a target for accepting request, but not guarantees
+	// to complete them.
+	Start(ctx context.Context, description Description) (chan pb.TaskStatus_Status, ContainerInfo, error)
+
+	// Stop terminates the container.
 	Stop(ctx context.Context, containerID string) error
 
 	// Returns runtime statistics collected from all running containers.
 	//
 	// Depending on the implementation this can be cached.
 	Info(ctx context.Context) (map[string]ContainerMetrics, error)
+
+	// Close terminates all associated asynchronous operations and prepares the Overseer for shutting down.
 	Close() error
 }
 
@@ -269,8 +280,8 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	return nil
 }
 
-func (o *overseer) Spawn(ctx context.Context, d Description) (status chan pb.TaskStatus_Status, cinfo ContainerInfo, err error) {
-	pr, err := newContainer(ctx, o.client, d)
+func (o *overseer) Start(ctx context.Context, description Description) (status chan pb.TaskStatus_Status, cinfo ContainerInfo, err error) {
+	pr, err := newContainer(ctx, o.client, description)
 	if err != nil {
 		return
 	}
