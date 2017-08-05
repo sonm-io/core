@@ -90,14 +90,12 @@ func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, err
 // spawned containers that it knows about. For running containers metrics map the immediate
 // state, for dead containers - their last memento.
 func (m *Miner) Info(ctx context.Context, request *pb.InfoRequest) (*pb.InfoReply, error) {
-	log.G(ctx).Info("handle Info request", zap.Any("req", request))
+	log.G(ctx).Info("handling Info request", zap.Any("req", request))
 
 	info, err := m.ovs.Info(ctx)
 	if err != nil {
 		return nil, err
 	}
-
-	log.G(ctx).Info("number of info", zap.Any("len", len(info)))
 
 	var result = pb.InfoReply{
 		Stats: make(map[string]*pb.InfoReplyStats),
@@ -175,7 +173,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 		Registry: request.Registry,
 		Auth:     request.Auth,
 	}
-	log.G(ctx).Info("handle Start request", zap.Any("req", request))
+	log.G(ctx).Info("handling Start request", zap.Any("req", request))
 
 	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPOOLING}, request.Id)
 
@@ -219,7 +217,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 
 // Stop request forces to kill container
 func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopReply, error) {
-	log.G(ctx).Info("handle Stop request", zap.Any("req", request))
+	log.G(ctx).Info("handling Stop request", zap.Any("req", request))
 
 	m.mu.Lock()
 	containerInfo, ok := m.containers[request.Id]
