@@ -291,7 +291,7 @@ func (o *overseer) Spawn(ctx context.Context, d Description) (status chan pb.Tas
 		return
 	}
 	cinfo = ContainerInfo{
-		status: &pb.TaskStatus{pb.TaskStatus_RUNNING},
+		status: &pb.TaskStatus{Status: pb.TaskStatus_RUNNING},
 		ID:     cjson.ID,
 		Ports:  cjson.NetworkSettings.Ports,
 	}
@@ -303,7 +303,6 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 
 	descriptor, dok := o.containers[containerid]
 	status, sok := o.statuses[containerid]
-	// todo: maybe we check sok && sok before calling delete() ?
 	delete(o.containers, containerid)
 	delete(o.statuses, containerid)
 	o.mu.Unlock()
@@ -313,7 +312,7 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 	}
 
 	if !dok {
-		return fmt.Errorf("no such container %status", containerid)
+		return fmt.Errorf("no such container %s", containerid)
 	}
 
 	return descriptor.Kill()
