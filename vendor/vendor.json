@@ -97,6 +97,12 @@
 			"revisionTime": "2017-06-09T14:46:27Z"
 		},
 		{
+			"checksumSHA1": "CT4X4v8IlU6HBx32wucNC1R3VJE=",
+			"path": "github.com/cloudfoundry/gosigar",
+			"revision": "d9ee2f6269aeeed93de1cb3ed3ea03b80e82221e",
+			"revisionTime": "2017-06-26T17:58:20Z"
+		},
+		{
 			"checksumSHA1": "OFu4xJEIjiI8Suu+j/gabfp+y6Q=",
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "5215b55f46b2b919f50a1df0eaa5886afe4e3b3d",
