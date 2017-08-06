@@ -13,6 +13,8 @@ import (
 	pb "github.com/sonm-io/core/proto/hub"
 	pbminer "github.com/sonm-io/core/proto/miner"
 	"github.com/spf13/cobra"
+
+	"github.com/sonm-io/core/cmd/cli/config"
 )
 
 const (
@@ -370,6 +372,14 @@ func main() {
 	rootCmd.PersistentFlags().StringVar(&hubAddress, hubAddressFlag, "", "hub addr")
 	rootCmd.PersistentFlags().DurationVar(&timeout, hubTimeoutFlag, 60*time.Second, "Connection timeout")
 	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd)
+
+	cfg, err := config.NewConfig()
+	if err != nil {
+		showError("Cannot load config", err)
+		return
+	}
+
+	hubAddress = cfg.HubAddress()
 	rootCmd.Execute()
 }
 
