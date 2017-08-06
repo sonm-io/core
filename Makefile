@@ -74,6 +74,8 @@ test:
 	@go test -tags nocgo $(shell go list ./... | grep -v vendor)
 
 grpc:
+	@if ! which protoc > /dev/null; then echo "protoc protobuf compiler required for build"; exit 1; fi;
+	@if ! which protoc-gen-go > /dev/null; then echo "protoc-gen-go protobuf  plugin required for build.\nRun \`go get -u github.com/golang/protobuf/protoc-gen-go\`"; exit 1; fi;
 	@echo "+ $@"
 	@protoc -I proto proto/*.proto --go_out=plugins=grpc:proto/
 
