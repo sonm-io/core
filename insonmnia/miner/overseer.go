@@ -17,7 +17,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	pb "github.com/sonm-io/core/proto/miner"
+	pb "github.com/sonm-io/core/proto"
 )
 
 const overseerTag = "sonm.overseer"
@@ -32,7 +32,7 @@ type Description struct {
 
 // ContainerInfo is a brief information about containers
 type ContainerInfo struct {
-	status *pb.TaskStatus
+	status *pb.TaskStatusReply
 	ID     string
 	Ports  nat.PortMap
 }
@@ -54,7 +54,7 @@ type Overseer interface {
 	//
 	// After successful starting an application becomes a target for accepting request, but not guarantees
 	// to complete them.
-	Start(ctx context.Context, description Description) (chan pb.TaskStatus_Status, ContainerInfo, error)
+	Start(ctx context.Context, description Description) (chan pb.TaskStatusReply_Status, ContainerInfo, error)
 
 	// Stop terminates the container.
 	Stop(ctx context.Context, containerID string) error
@@ -79,7 +79,7 @@ type overseer struct {
 	// protects containers map
 	mu         sync.Mutex
 	containers map[string]*containerDescriptor
-	statuses   map[string]chan pb.TaskStatus_Status
+	statuses   map[string]chan pb.TaskStatusReply_Status
 }
 
 // NewOverseer creates new overseer
@@ -97,7 +97,7 @@ func NewOverseer(ctx context.Context) (Overseer, error) {
 		client: dockerClient,
 
 		containers: make(map[string]*containerDescriptor),
-		statuses:   make(map[string]chan pb.TaskStatus_Status),
+		statuses:   make(map[string]chan pb.TaskStatusReply_Status),
 	}
 
 	go ovr.collectStats()
@@ -161,7 +161,7 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 				delete(o.statuses, id)
 				o.mu.Unlock()
 				if sok {
-					s <- pb.TaskStatus_BROKEN
+					s <- pb.TaskStatusReply_BROKEN
 				}
 				// warn(all): is this logic still actual?
 				if cok {
@@ -282,7 +282,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	return nil
 }
 
-func (o *overseer) Start(ctx context.Context, description Description) (status chan pb.TaskStatus_Status, cinfo ContainerInfo, err error) {
+func (o *overseer) Start(ctx context.Context, description Description) (status chan pb.TaskStatusReply_Status, cinfo ContainerInfo, err error) {
 	pr, err := newContainer(ctx, o.client, description)
 	if err != nil {
 		return
@@ -290,7 +290,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 
 	o.mu.Lock()
 	o.containers[pr.ID] = pr
-	status = make(chan pb.TaskStatus_Status)
+	status = make(chan pb.TaskStatusReply_Status)
 	o.statuses[pr.ID] = status
 	o.mu.Unlock()
 
@@ -304,7 +304,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		return
 	}
 	cinfo = ContainerInfo{
-		status: &pb.TaskStatus{Status: pb.TaskStatus_RUNNING},
+		status: &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
 		ID:     cjson.ID,
 		Ports:  cjson.NetworkSettings.Ports,
 	}
@@ -321,7 +321,7 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 	o.mu.Unlock()
 
 	if sok {
-		status <- pb.TaskStatus_FINISHED
+		status <- pb.TaskStatusReply_FINISHED
 	}
 
 	if !dok {

@@ -9,8 +9,7 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
-	pb "github.com/sonm-io/core/proto/hub"
-	pbminer "github.com/sonm-io/core/proto/miner"
+	pb "github.com/sonm-io/core/proto"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -70,39 +69,23 @@ func (h *Hub) List(ctx context.Context, request *pb.ListRequest) (*pb.ListReply,
 }
 
 // Info returns aggregated runtime statistics for all connected miners.
-func (h *Hub) Info(ctx context.Context, request *pb.InfoRequest) (*pb.InfoReply, error) {
+func (h *Hub) Info(ctx context.Context, request *pb.HubInfoRequest) (*pb.InfoReply, error) {
 	log.G(ctx).Info("handling Info request", zap.Any("req", request))
 	client, ok := h.getMinerByID(request.Miner)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no such miner")
 	}
 
-	resp, err := client.Client.Info(ctx, &pbminer.InfoRequest{})
+	resp, err := client.Client.Info(ctx, &pb.MinerInfoRequest{})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to fetch info: %v", err)
 	}
 
-	// TODO: Reuse proto files with imports. Currently it's problematic, because of some reasons.
-	var result = pb.InfoReply{
-		Stats: make(map[string]*pb.InfoReplyStats),
-	}
-
-	for id, stats := range resp.Stats {
-		result.Stats[id] = &pb.InfoReplyStats{
-			CPU: &pb.InfoReplyStatsCpu{
-				TotalUsage: stats.CPU.TotalUsage,
-			},
-			Memory: &pb.InfoReplyStatsMemory{
-				MaxUsage: stats.Memory.MaxUsage,
-			},
-		}
-	}
-
-	return &result, nil
+	return resp, nil
 }
 
 // StartTask schedules the Task on some miner
-func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
+func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
 	log.G(ctx).Info("handling StartTask request", zap.Any("req", request))
 	miner := request.Miner
 	mincli, ok := h.getMinerByID(miner)
@@ -111,7 +94,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.
 	}
 
 	taskID := uuid.New()
-	var startrequest = &pbminer.StartRequest{
+	var startrequest = &pb.MinerStartRequest{
 		Id:       taskID,
 		Registry: request.Registry,
 		Image:    request.Image,
@@ -125,7 +108,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.
 
 	h.setMinerTaskID(miner, taskID)
 
-	var reply = pb.StartTaskReply{
+	var reply = pb.HubStartTaskReply{
 		Id: taskID,
 	}
 
@@ -150,7 +133,7 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 		return nil, status.Errorf(codes.NotFound, "no miner with task %s", minerID)
 	}
 
-	stoprequest := &pbminer.StopRequest{Id: taskID}
+	stoprequest := &pb.StopTaskRequest{Id: taskID}
 	_, err := mincli.Client.Stop(ctx, stoprequest)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "failed to stop the task %s", taskID)
@@ -161,7 +144,7 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 	return &pb.StopTaskReply{}, nil
 }
 
-func (h *Hub) MinerStatus(ctx context.Context, request *pb.MinerStatusRequest) (*pbminer.TasksStatusReply, error) {
+func (h *Hub) MinerStatus(ctx context.Context, request *pb.HubStatusMapRequest) (*pb.StatusMapReply, error) {
 	log.G(ctx).Info("handling MinerStatus request", zap.Any("req", request))
 
 	miner := request.Miner
@@ -172,7 +155,7 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.MinerStatusRequest) (
 	}
 
 	mincli.status_mu.Lock()
-	reply := pbminer.TasksStatusReply{Statuses: mincli.status_map}
+	reply := pb.StatusMapReply{Statuses: mincli.status_map}
 	mincli.status_mu.Unlock()
 	return &reply, nil
 }
@@ -197,8 +180,7 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskID)
 	}
 
-	reply := pb.TaskStatusReply{Status: taskStatus}
-	return &reply, nil
+	return taskStatus, nil
 }
 
 // New returns new Hub

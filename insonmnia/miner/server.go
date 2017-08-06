@@ -15,7 +15,7 @@ import (
 	"github.com/hashicorp/yamux"
 	log "github.com/noxiouz/zapctx/ctxlog"
 
-	pb "github.com/sonm-io/core/proto/miner"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 
 	frd "github.com/sonm-io/core/fusrodah/miner"
@@ -91,7 +91,7 @@ func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, err
 // This works the following way: a miner periodically collects various runtime statistics from all
 // spawned containers that it knows about. For running containers metrics map the immediate
 // state, for dead containers - their last memento.
-func (m *Miner) Info(ctx context.Context, request *pb.InfoRequest) (*pb.InfoReply, error) {
+func (m *Miner) Info(ctx context.Context, request *pb.MinerInfoRequest) (*pb.InfoReply, error) {
 	log.G(ctx).Info("handling Info request", zap.Any("req", request))
 
 	info, err := m.ovs.Info(ctx)
@@ -121,7 +121,7 @@ func (m *Miner) Info(ctx context.Context, request *pb.InfoRequest) (*pb.InfoRepl
 }
 
 // Handshake reserves for the future usage
-func (m *Miner) Handshake(context.Context, *pb.HandshakeRequest) (*pb.HandshakeReply, error) {
+func (m *Miner) Handshake(context.Context, *pb.MinerHandshakeRequest) (*pb.MinerHandshakeReply, error) {
 	return nil, status.Errorf(codes.Aborted, "not implemented")
 }
 
@@ -138,7 +138,7 @@ func (m *Miner) scheduleStatusPurge(id string) {
 	}
 }
 
-func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
+func (m *Miner) setStatus(status *pb.TaskStatusReply, id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -148,7 +148,7 @@ func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
 	}
 
 	m.containers[id].status = status
-	if status.Status == pb.TaskStatus_BROKEN || status.Status == pb.TaskStatus_FINISHED {
+	if status.Status == pb.TaskStatusReply_BROKEN || status.Status == pb.TaskStatusReply_FINISHED {
 		go m.scheduleStatusPurge(id)
 	}
 	for _, ch := range m.statusChannels {
@@ -159,17 +159,17 @@ func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
 	}
 }
 
-func (m *Miner) listenForStatus(statusListener chan pb.TaskStatus_Status, id string) {
+func (m *Miner) listenForStatus(statusListener chan pb.TaskStatusReply_Status, id string) {
 	select {
 	case newStatus := <-statusListener:
-		m.setStatus(&pb.TaskStatus{newStatus}, id)
+		m.setStatus(&pb.TaskStatusReply{newStatus}, id)
 	case <-m.ctx.Done():
 		return
 	}
 }
 
 // Start request from Hub makes Miner start a container
-func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartReply, error) {
+func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
 	var d = Description{
 		Image:    request.Image,
 		Registry: request.Registry,
@@ -177,22 +177,22 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 	}
 	log.G(ctx).Info("handling Start request", zap.Any("req", request))
 
-	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPOOLING}, request.Id)
+	m.setStatus(&pb.TaskStatusReply{pb.TaskStatusReply_SPOOLING}, request.Id)
 
 	log.G(ctx).Info("spooling an image")
 	err := m.ovs.Spool(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatusReply{pb.TaskStatusReply_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
-	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPAWNING}, request.Id)
+	m.setStatus(&pb.TaskStatusReply{pb.TaskStatusReply_SPAWNING}, request.Id)
 	log.G(ctx).Info("spawning an image")
 	statusListener, containerInfo, err := m.ovs.Start(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatusReply{pb.TaskStatusReply_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 
@@ -200,13 +200,13 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 
 	go m.listenForStatus(statusListener, request.Id)
 
-	var rpl = pb.StartReply{
+	var rpl = pb.MinerStartReply{
 		Container: containerInfo.ID,
-		Ports:     make(map[string]*pb.StartReplyPort),
+		Ports:     make(map[string]*pb.MinerStartReplyPort),
 	}
 	for port, v := range containerInfo.Ports {
 		if len(v) > 0 {
-			replyPort := &pb.StartReplyPort{
+			replyPort := &pb.MinerStartReplyPort{
 				IP:   m.pubAddress,
 				Port: v[0].HostPort,
 			}
@@ -218,7 +218,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 }
 
 // Stop request forces to kill container
-func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopReply, error) {
+func (m *Miner) Stop(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
 	log.G(ctx).Info("handling Stop request", zap.Any("req", request))
 
 	m.mu.Lock()
@@ -227,19 +227,17 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopRepl
 
 	m.deleteTaskMapping(request.Id)
 
-	// TODO (@antmat): really running during stop? Add some description.
-	m.setStatus(&pb.TaskStatus{pb.TaskStatus_RUNNING}, request.Id)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no job with id %s", request.Id)
 	}
 
 	if err := m.ovs.Stop(ctx, containerInfo.ID); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
-		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatusReply{pb.TaskStatusReply_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
-	m.setStatus(&pb.TaskStatus{pb.TaskStatus_FINISHED}, request.Id)
-	return &pb.StopReply{}, nil
+	m.setStatus(&pb.TaskStatusReply{pb.TaskStatusReply_FINISHED}, request.Id)
+	return &pb.StopTaskReply{}, nil
 }
 
 func (m *Miner) removeStatusChannel(idx int) {
@@ -250,7 +248,7 @@ func (m *Miner) removeStatusChannel(idx int) {
 }
 
 func (m *Miner) sendTasksStatus(server pb.Miner_TasksStatusServer) error {
-	result := &pb.TasksStatusReply{Statuses: make(map[string]*pb.TaskStatus)}
+	result := &pb.StatusMapReply{Statuses: make(map[string]*pb.TaskStatusReply)}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for id, info := range m.containers {
