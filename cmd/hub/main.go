@@ -10,7 +10,11 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 
+	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/insonmnia/hub"
+	"github.com/sonm-io/core/insonmnia/logging"
+
+	log "github.com/noxiouz/zapctx/ctxlog"
 )
 
 var (
@@ -21,13 +25,16 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	conf, err := hub.NewConfig(*configPath)
+	cfg, err := hub.NewConfig(*configPath)
 	if err != nil {
-		ctxlog.GetLogger(ctx).Error("Cannot load config", zap.Error(err))
+		ctxlog.GetLogger(ctx).Error("failed to load config", zap.Error(err))
 		os.Exit(1)
 	}
 
-	h, err := hub.New(ctx, conf)
+	logger := logging.BuildLogger(cfg.Logging.Level, common.DevelopmentMode)
+	ctx = log.WithLogger(ctx, logger)
+
+	h, err := hub.New(ctx, cfg)
 	if err != nil {
 		ctxlog.GetLogger(ctx).Error("failed to create a new Hub", zap.Error(err))
 		os.Exit(1)

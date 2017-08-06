@@ -4,17 +4,22 @@ import (
 	"github.com/jinzhu/configor"
 )
 
-type HubConfig struct {
-	Logger struct {
-		Level int `required:"true" default:"1"`
-	} `yaml:"logger"`
-	Hub struct {
-		GRPCEndpoint  string   `required:"true" yaml:"grpc_endpoint"`
-		MinerEndpoint string   `required:"true" yaml:"miner_endpoint"`
-		Bootnodes     []string `required:"false" yaml:"bootnodes"`
-	} `yaml:"hub"`
+type LoggingConfig struct {
+	Level int `required:"true" default:"1"`
 }
 
+type MonitoringConfig struct {
+	Endpoint string `required:"true" yaml:"endpoint"`
+}
+
+type HubConfig struct {
+	Endpoint   string           `required:"true" yaml:"endpoint"`
+	Bootnodes  []string         `required:"false" yaml:"bootnodes"`
+	Monitoring MonitoringConfig `required:"true" yaml:"monitoring"`
+	Logging    LoggingConfig    `yaml:"logging"`
+}
+
+// NewConfig loads a hub config from the specified YAML file.
 func NewConfig(path string) (*HubConfig, error) {
 	conf := &HubConfig{}
 	err := configor.Load(conf, path)
@@ -22,4 +27,11 @@ func NewConfig(path string) (*HubConfig, error) {
 		return nil, err
 	}
 	return conf, nil
+}
+
+// TODO: Currently stubbed for simplifying testing.
+type Config interface {
+	Endpoint() string
+	MonitoringEndpoint() string
+	Logging() LoggingConfig
 }

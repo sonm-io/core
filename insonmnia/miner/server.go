@@ -16,7 +16,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 
 	"github.com/sonm-io/core/common"
-	"github.com/sonm-io/core/insonmnia/logger"
+	"github.com/sonm-io/core/insonmnia/logging"
 	pb "github.com/sonm-io/core/proto/miner"
 	"github.com/sonm-io/core/util"
 
@@ -379,7 +379,7 @@ func (m *Miner) Close() {
 
 // New returns new Miner
 func New(ctx context.Context, config *MinerConfig) (*Miner, error) {
-	loggr := logger.BuildLogger(config.Logger.Level, common.DevelopmentMode)
+	loggr := logging.BuildLogger(config.Logger.Level, common.DevelopmentMode)
 	ctx = log.WithLogger(ctx, loggr)
 
 	addr, err := util.GetPublicIP()

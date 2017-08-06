@@ -1,4 +1,4 @@
-package logger
+package logging
 
 import (
 	"go.uber.org/zap"
@@ -22,7 +22,7 @@ func BuildLogger(level int, development bool) *zap.Logger {
 	}
 
 	atom.SetLevel(zapcore.Level(level))
-	loggrConfig := zap.Config{
+	loggerConfig := zap.Config{
 		Development:      development,
 		Level:            atom,
 		OutputPaths:      []string{"stdout"},
@@ -31,6 +31,6 @@ func BuildLogger(level int, development bool) *zap.Logger {
 		EncoderConfig:    encodingConfig,
 	}
 
-	loggr, _ := loggrConfig.Build()
-	return loggr
+	log, _ := loggerConfig.Build()
+	return log
 }

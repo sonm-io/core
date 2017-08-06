@@ -9,8 +9,6 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
-	"github.com/sonm-io/core/common"
-	"github.com/sonm-io/core/insonmnia/logger"
 	pb "github.com/sonm-io/core/proto/hub"
 	pbminer "github.com/sonm-io/core/proto/miner"
 
@@ -29,7 +27,7 @@ type Hub struct {
 	ctx           context.Context
 	grpcEndpoint  string
 	externalGrpc  *grpc.Server
-	minerEndpoint string
+	endpoint      string
 	minerListener net.Listener
 
 	mu     sync.Mutex
@@ -212,12 +210,9 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 }
 
 // New returns new Hub
-func New(ctx context.Context, config *HubConfig) (*Hub, error) {
+// TODO: Create logger outside and attach to the context.
+func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 	// TODO: add secure mechanism
-
-	loggr := logger.BuildLogger(config.Logger.Level, common.DevelopmentMode)
-	ctx = log.WithLogger(ctx, loggr)
-
 	grpcServer := grpc.NewServer()
 	h := &Hub{
 		ctx:          ctx,
@@ -226,8 +221,8 @@ func New(ctx context.Context, config *HubConfig) (*Hub, error) {
 		tasks:  make(map[string]string),
 		miners: make(map[string]*MinerCtx),
 
-		grpcEndpoint:  config.Hub.GRPCEndpoint,
-		minerEndpoint: config.Hub.MinerEndpoint,
+		grpcEndpoint: cfg.Monitoring.Endpoint,
+		endpoint:     cfg.Endpoint,
 	}
 	pb.RegisterHubServer(grpcServer, h)
 	return h, nil
@@ -241,7 +236,7 @@ func (h *Hub) Serve() error {
 	if err != nil {
 		return err
 	}
-	srv, err := frd.NewServer(nil, ip.String()+h.minerEndpoint)
+	srv, err := frd.NewServer(nil, ip.String()+h.endpoint)
 	if err != nil {
 		return err
 	}
@@ -251,24 +246,24 @@ func (h *Hub) Serve() error {
 	}
 	srv.Serve()
 
-	il, err := net.Listen("tcp", h.minerEndpoint)
+	listener, err := net.Listen("tcp", h.endpoint)
 
 	if err != nil {
-		log.G(h.ctx).Error("failed to listen", zap.String("address", h.minerEndpoint), zap.Error(err))
+		log.G(h.ctx).Error("failed to listen", zap.String("address", h.endpoint), zap.Error(err))
 		return err
 	}
-	log.G(h.ctx).Info("listening for connections from Miners", zap.Stringer("address", il.Addr()))
+	log.G(h.ctx).Info("listening for connections from Miners", zap.Stringer("address", listener.Addr()))
 
 	grpcL, err := net.Listen("tcp", h.grpcEndpoint)
 	if err != nil {
 		log.G(h.ctx).Error("failed to listen",
 			zap.String("address", h.grpcEndpoint), zap.Error(err))
-		il.Close()
+		listener.Close()
 		return err
 	}
 	log.G(h.ctx).Info("listening for gRPC API connections", zap.Stringer("address", grpcL.Addr()))
 	// TODO: fix this possible race: Close before Serve
-	h.minerListener = il
+	h.minerListener = listener
 
 	h.wg.Add(1)
 	go func() {
