@@ -2,6 +2,7 @@ package main
 
 import (
 	b64 "encoding/base64"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -36,6 +37,7 @@ var (
 	registryName     string
 	registryUser     string
 	registryPassword string
+	cfg              config.Config
 
 	errMinerAddressRequired = errors.New("Miner address is required")
 	errTaskIDRequired       = errors.New("Task ID is required")
@@ -49,7 +51,30 @@ func checkHubAddressIsSet(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// commandError allow to present any internal error as JSON
+type commandError struct {
+	Err     error  `json:"error"`
+	Message string `json:"message"`
+}
+
+func (ce *commandError) ToJSONString() string {
+	j, _ := json.Marshal(ce)
+	return string(j)
+}
+
+func newCommandError(message string, err error) *commandError {
+	return &commandError{Err: err, Message: message}
+}
+
 func main() {
+	// load config first
+	var cfgErr error
+	cfg, cfgErr = config.NewConfig()
+	if cfgErr != nil {
+		showError("Cannot load config", cfgErr)
+		return
+	}
+
 	// --- hub commands
 	hubRootCmd := &cobra.Command{
 		Use:     "hub",
@@ -373,12 +398,6 @@ func main() {
 	rootCmd.PersistentFlags().DurationVar(&timeout, hubTimeoutFlag, 60*time.Second, "Connection timeout")
 	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd)
 
-	cfg, err := config.NewConfig()
-	if err != nil {
-		showError("Cannot load config", err)
-		return
-	}
-
 	hubAddress = cfg.HubAddress()
 	rootCmd.Execute()
 }
@@ -389,11 +408,25 @@ func encodeRegistryAuth(login, password string) string {
 }
 
 func showError(message string, err error) {
+	if cfg.OutputFormat() == config.OutputModeSimple {
+		showErrorInSimple(message, err)
+	} else {
+		showErrorInJSON(message, err)
+
+	}
+}
+
+func showErrorInSimple(message string, err error) {
 	if err != nil {
 		fmt.Printf("[ERR] %s: %s\r\n", message, err.Error())
 	} else {
 		fmt.Printf("[ERR] %s\r\n", message)
 	}
+}
+
+func showErrorInJSON(message string, err error) {
+	jerr := newCommandError(message, err)
+	fmt.Println(jerr.ToJSONString())
 }
 
 func getMinerStatusByID(status *pbminer.TaskStatus) string {
