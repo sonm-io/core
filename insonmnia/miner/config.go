@@ -4,8 +4,8 @@ import (
 	"github.com/jinzhu/configor"
 )
 
-// Config describes configuration of Miner
-type Config struct {
+// MinerConfig describes configuration of Miner
+type MinerConfig struct {
 	// TODO: move Logger section into common package
 	Logger struct {
 		Level int `required:"true" default:"1"`
@@ -17,8 +17,8 @@ type Config struct {
 }
 
 // NewConfig parses a configuration file pointed by path
-func NewConfig(path string) (*Config, error) {
-	conf := &Config{}
+func NewConfig(path string) (*MinerConfig, error) {
+	conf := &MinerConfig{}
 	err := configor.Load(conf, path)
 	if err != nil {
 		return nil, err

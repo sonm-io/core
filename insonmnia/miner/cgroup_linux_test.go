@@ -13,7 +13,6 @@ func TestParseResources(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
 miner:
-  hub_address: 127.0.0.1
   resources: {
         Memory: {Limit: 1000, Swap: 1024 },
         CPU: {Quota: 1024, Cpus: "ddd"}
