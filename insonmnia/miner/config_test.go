@@ -22,26 +22,28 @@ func deleteTestConfigFile() {
 
 func TestLoadConfig(t *testing.T) {
 	defer deleteTestConfigFile()
-	raw := `miner:
-  hub_address: 127.0.0.1`
+	raw := `
+hub:
+  endpoint: 127.0.0.1`
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
 
 	conf, err := NewConfig(testMinerConfigPath)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "127.0.0.1", conf.Miner.HubAddress)
+	assert.Equal(t, "127.0.0.1", conf.HubEndpoint())
 }
 
 func TestLoadEmptyConfig(t *testing.T) {
 	defer deleteTestConfigFile()
-	raw := `miner:
-  hub_address: ""`
+	raw := `
+hub:
+  endpoint: ""`
 
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
 
 	conf, err := NewConfig(testMinerConfigPath)
 	assert.Nil(t, err)
-	assert.Equal(t, conf.Miner.HubAddress, "")
+	assert.Equal(t, conf.HubEndpoint(), "")
 }

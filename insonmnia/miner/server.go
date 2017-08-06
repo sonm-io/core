@@ -419,7 +419,7 @@ func (m *Miner) Close() {
 }
 
 // New returns new Miner
-func New(ctx context.Context, config *MinerConfig) (*Miner, error) {
+func New(ctx context.Context, cfg Config) (*Miner, error) {
 	addr, err := util.GetPublicIP()
 	if err != nil {
 		return nil, err
@@ -433,12 +433,12 @@ func New(ctx context.Context, config *MinerConfig) (*Miner, error) {
 		return nil, err
 	}
 
-	deleter, err := initializeControlGroup(config.Miner.Resources)
+	deleter, err := initializeControlGroup(cfg.HubResources())
 	if err != nil {
 		return nil, err
 	}
 
-	if !platformSupportCGroups && config.Miner.Resources != nil {
+	if !platformSupportCGroups && cfg.HubResources() != nil {
 		log.G(ctx).Warn("your platform does not support CGroup, but the config has resources section")
 	}
 
@@ -449,7 +449,7 @@ func New(ctx context.Context, config *MinerConfig) (*Miner, error) {
 		ovs:        ovs,
 
 		pubAddress: addr.String(),
-		hubAddress: config.Miner.HubAddress,
+		hubAddress: cfg.HubEndpoint(),
 
 		rl:             newReverseListener(1),
 		containers:     make(map[string]*ContainerInfo),
