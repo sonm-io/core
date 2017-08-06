@@ -19,7 +19,7 @@ DOCKER_IMAGE_BOOTNODE="sonm/bootnode:latest"
 
 .PHONY: fmt vet test
 
-all: vet fmt test build install
+all: mock vet fmt test build install
 
 
 build_bootnode:
@@ -78,6 +78,16 @@ grpc:
 	@if ! which protoc > /dev/null; then echo "protoc protobuf compiler required for build"; exit 1; fi;
 	@if ! which protoc-gen-go > /dev/null; then echo "protoc-gen-go protobuf  plugin required for build.\nRun \`go get -u github.com/golang/protobuf/protoc-gen-go\`"; exit 1; fi;
 	@protoc -I proto proto/*.proto --go_out=plugins=grpc:proto/
+
+mock:
+	@echo "+ $@"
+	@if ! which mockgen > /dev/null; then \
+	echo "mockgen is required."; \
+	echo "Run \`go get github.com/golang/mock/gomock\`"; \
+	echo "\`go get github.com/golang/mock/mockgen\`"; \
+	echo "and add your go bin directory to PATH"; exit 1; fi;
+	mockgen -package miner -destination insonmnia/miner/overseer_mock.go -source insonmnia/miner/overseer.go
+	mockgen -package miner -destination insonmnia/miner/config_mock.go -source insonmnia/miner/config.go
 
 coverage:
 	${GO} tool cover -func=coverage.txt

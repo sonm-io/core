@@ -34,7 +34,8 @@ func main() {
 	logger := logging.BuildLogger(cfg.Logging().Level, common.DevelopmentMode)
 	ctx = log.WithLogger(ctx, logger)
 
-	m, err := miner.New(ctx, cfg)
+	builder := miner.MinerBuilder{}
+	m, err := builder.Build()
 	if err != nil {
 		ctxlog.GetLogger(ctx).Fatal("failed to create a new Miner", zap.Error(err))
 	}
