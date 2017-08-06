@@ -171,16 +171,8 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.MinerStatusRequest) (
 		return nil, status.Errorf(codes.NotFound, "no such miner %s", miner)
 	}
 
-	var reply pbminer.TasksStatusReply
-	err := mincli.fetchStatuses()
-
-	if err != nil {
-		log.G(ctx).Error("cannot get status", zap.Error(err))
-		return nil, status.Errorf(codes.DataLoss, "cannot get status")
-	}
-
 	mincli.status_mu.Lock()
-	reply = pbminer.TasksStatusReply{Statuses: mincli.status_map}
+	reply := pbminer.TasksStatusReply{Statuses: mincli.status_map}
 	mincli.status_mu.Unlock()
 	return &reply, nil
 }
@@ -307,6 +299,10 @@ func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
 	h.miners[conn.RemoteAddr().String()] = miner
 	h.mu.Unlock()
 
+	go func() {
+		miner.pollStatuses()
+		miner.Close()
+	}()
 	miner.ping()
 	miner.Close()
 
