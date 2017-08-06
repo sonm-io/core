@@ -159,7 +159,7 @@ func (m *Miner) setStatus(status *pb.TaskStatus, id string) {
 func (m *Miner) listenForStatus(statusListener chan pb.TaskStatus_Status, id string) {
 	select {
 	case newStatus := <-statusListener:
-		m.setStatus(&pb.TaskStatus{Status: newStatus}, id)
+		m.setStatus(&pb.TaskStatus{newStatus}, id)
 	case <-m.ctx.Done():
 		return
 	}
@@ -174,22 +174,22 @@ func (m *Miner) Start(ctx context.Context, request *pb.StartRequest) (*pb.StartR
 	}
 	log.G(ctx).Info("handling Start request", zap.Any("req", request))
 
-	m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_SPOOLING}, request.Id)
+	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPOOLING}, request.Id)
 
 	log.G(ctx).Info("spooling an image")
 	err := m.ovs.Spool(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
-	m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_SPAWNING}, request.Id)
+	m.setStatus(&pb.TaskStatus{pb.TaskStatus_SPAWNING}, request.Id)
 	log.G(ctx).Info("spawning an image")
 	statusListener, containerInfo, err := m.ovs.Start(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 
@@ -225,17 +225,17 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopRequest) (*pb.StopRepl
 	m.deleteTaskMapping(request.Id)
 
 	// TODO (@antmat): really running during stop? Add some description.
-	m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_RUNNING}, request.Id)
+	m.setStatus(&pb.TaskStatus{pb.TaskStatus_RUNNING}, request.Id)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no job with id %s", request.Id)
 	}
 
 	if err := m.ovs.Stop(ctx, containerInfo.ID); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
-		m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatus{pb.TaskStatus_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
-	m.setStatus(&pb.TaskStatus{Status: pb.TaskStatus_FINISHED}, request.Id)
+	m.setStatus(&pb.TaskStatus{pb.TaskStatus_FINISHED}, request.Id)
 	return &pb.StopReply{}, nil
 }
 
@@ -419,7 +419,7 @@ func (m *Miner) Close() {
 }
 
 // New returns new Miner
-func New(ctx context.Context, config *Config) (*Miner, error) {
+func New(ctx context.Context, config *MinerConfig) (*Miner, error) {
 	addr, err := util.GetPublicIP()
 	if err != nil {
 		return nil, err
