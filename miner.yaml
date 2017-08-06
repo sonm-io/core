@@ -8,3 +8,4 @@ hub:
 logging:
   # The desired logging level.
   level: -1
+
