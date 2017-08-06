@@ -19,6 +19,7 @@ import (
 	"github.com/sonm-io/core/util"
 
 	frd "github.com/sonm-io/core/fusrodah/miner"
+	"github.com/sonm-io/core/insonmnia/resource"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -26,6 +27,8 @@ type Miner struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	grpcServer *grpc.Server
+
+	resources *resource.OS
 
 	hubAddress string
 	// NOTE: do not use static detection
@@ -420,7 +423,16 @@ func (m *Miner) Close() {
 
 // New returns new Miner
 func New(ctx context.Context, cfg Config) (*Miner, error) {
+	return newMiner(ctx, cfg, resource.New())
+}
+
+func newMiner(ctx context.Context, cfg Config, collector resource.Collector) (*Miner, error) {
 	addr, err := util.GetPublicIP()
+	if err != nil {
+		return nil, err
+	}
+
+	resources, err := collector.OS()
 	if err != nil {
 		return nil, err
 	}
@@ -447,6 +459,8 @@ func New(ctx context.Context, cfg Config) (*Miner, error) {
 		cancel:     cancel,
 		grpcServer: grpcServer,
 		ovs:        ovs,
+
+		resources: resources,
 
 		pubAddress: addr.String(),
 		hubAddress: cfg.HubEndpoint(),
