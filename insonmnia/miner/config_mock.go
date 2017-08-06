@@ -43,6 +43,18 @@ func (_mr *MockConfigMockRecorder) HubEndpoint() *gomock.Call {
 	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "HubEndpoint", reflect.TypeOf((*MockConfig)(nil).HubEndpoint))
 }
 
+// HubResources mocks base method
+func (_m *MockConfig) HubResources() *Resources {
+	ret := _m.ctrl.Call(_m, "HubResources")
+	ret0, _ := ret[0].(*Resources)
+	return ret0
+}
+
+// HubResources indicates an expected call of HubResources
+func (_mr *MockConfigMockRecorder) HubResources() *gomock.Call {
+	return _mr.mock.ctrl.RecordCallWithMethodType(_mr.mock, "HubResources", reflect.TypeOf((*MockConfig)(nil).HubResources))
+}
+
 // Logging mocks base method
 func (_m *MockConfig) Logging() LoggingConfig {
 	ret := _m.ctrl.Call(_m, "Logging")

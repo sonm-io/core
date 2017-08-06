@@ -12,7 +12,7 @@ func TestParseResources(t *testing.T) {
 	assert := assert.New(t)
 	defer deleteTestConfigFile()
 	raw := `
-miner:
+hub:
   resources: {
         Memory: {Limit: 1000, Swap: 1024 },
         CPU: {Quota: 1024, Cpus: "ddd"}
@@ -23,7 +23,7 @@ miner:
 	conf, err := NewConfig(testMinerConfigPath)
 	assert.NoError(err)
 
-	res := conf.Miner.Resources
+	res := conf.HubResources()
 	assert.NotNil(res)
 	assert.NotNil(res.Memory)
 	assert.Equal(int64(1000), *res.Memory.Limit)

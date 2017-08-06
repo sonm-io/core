@@ -14,6 +14,7 @@ func TestServerNewExtractsHubEndpoint(t *testing.T) {
 	ctx := context.Background()
 	cfg := NewMockConfig(mock)
 	cfg.EXPECT().HubEndpoint().Times(1).Return("::1")
+	cfg.EXPECT().HubResources().AnyTimes()
 	m, err := New(ctx, cfg)
 
 	assert.Nil(t, err)
