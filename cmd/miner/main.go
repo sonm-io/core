@@ -31,7 +31,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := logging.BuildLogger(cfg.Logger.Level, common.DevelopmentMode)
+	logger := logging.BuildLogger(cfg.Logging().Level, common.DevelopmentMode)
 	ctx = log.WithLogger(ctx, logger)
 
 	m, err := miner.New(ctx, cfg)
