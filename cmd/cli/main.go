@@ -10,8 +10,7 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/pkg/errors"
-	pb "github.com/sonm-io/core/proto/hub"
-	pbminer "github.com/sonm-io/core/proto/miner"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -154,7 +153,7 @@ func main() {
 			ctx, cancel := context.WithTimeout(gctx, timeout)
 			defer cancel()
 
-			var req = pb.InfoRequest{Miner: minerID}
+			var req = pb.HubInfoRequest{Miner: minerID}
 			metrics, err := pb.NewHubClient(conn).Info(ctx, &req)
 			if err != nil {
 				showError("Cannot get miner status", err)
@@ -206,7 +205,7 @@ func main() {
 			ctx, cancel := context.WithTimeout(gctx, timeout)
 			defer cancel()
 
-			var req = pb.MinerStatusRequest{Miner: miner}
+			var req = pb.HubStatusMapRequest{Miner: miner}
 			minerStatus, err := pb.NewHubClient(cc).MinerStatus(ctx, &req)
 			if err != nil {
 				showError("Cannot get tasks", err)
@@ -220,7 +219,7 @@ func main() {
 
 			fmt.Printf("There is %d tasks on miner \"%s\":\r\n", len(minerStatus.Statuses), miner)
 			for taskID, status := range minerStatus.Statuses {
-				fmt.Printf("  %s: %s\r\n", taskID, getMinerStatusByID(status))
+				fmt.Printf("  %s: %s\r\n", taskID, status.Status.String())
 			}
 			return nil
 		},
@@ -255,7 +254,7 @@ func main() {
 
 			ctx, cancel := context.WithTimeout(gctx, timeout)
 			defer cancel()
-			var req = pb.StartTaskRequest{
+			var req = pb.HubStartTaskRequest{
 				Miner:    miner,
 				Image:    image,
 				Registry: registryName,
@@ -310,7 +309,7 @@ func main() {
 				return nil
 			}
 
-			fmt.Printf("Task %s (on %s) status is %s\n", req.Id, miner, taskStatus.Status.Status.String())
+			fmt.Printf("Task %s (on %s) status is %s\n", req.Id, miner, taskStatus.Status.String())
 			return nil
 		},
 	}
@@ -384,13 +383,4 @@ func showError(message string, err error) {
 	} else {
 		fmt.Printf("[ERR] %s\r\n", message)
 	}
-}
-
-func getMinerStatusByID(status *pbminer.TaskStatus) string {
-	statusName, ok := pbminer.TaskStatus_Status_name[int32(status.Status)]
-	if !ok {
-		statusName = "UNKNOWN"
-	}
-
-	return statusName
 }

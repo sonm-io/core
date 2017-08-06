@@ -13,7 +13,7 @@ import (
 
 	"sync"
 
-	pbminer "github.com/sonm-io/core/proto/miner"
+	pb "github.com/sonm-io/core/proto"
 )
 
 // MinerCtx holds all the data related to a connected Miner
@@ -24,8 +24,8 @@ type MinerCtx struct {
 	// gRPC connection
 	grpcConn *grpc.ClientConn
 	// gRPC Client
-	Client     pbminer.MinerClient
-	status_map map[string]*pbminer.TaskStatus
+	Client     pb.MinerClient
+	status_map map[string]*pb.TaskStatusReply
 	status_mu  sync.Mutex
 	// Incoming TCP-connection
 	conn net.Conn
@@ -38,7 +38,7 @@ func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	var (
 		m = MinerCtx{
 			conn:       conn,
-			status_map: make(map[string]*pbminer.TaskStatus),
+			status_map: make(map[string]*pb.TaskStatusReply),
 		}
 		err error
 	)
@@ -69,18 +69,18 @@ func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	}
 
 	log.G(ctx).Info("grpc.Dial successfully finished")
-	m.Client = pbminer.NewMinerClient(m.grpcConn)
+	m.Client = pb.NewMinerClient(m.grpcConn)
 	return &m, nil
 }
 
-func (m *MinerCtx) initStatusClient() (statusClient pbminer.Miner_TasksStatusClient, err error) {
+func (m *MinerCtx) initStatusClient() (statusClient pb.Miner_TasksStatusClient, err error) {
 	statusClient, err = m.Client.TasksStatus(m.ctx)
 	if err != nil {
 		log.G(m.ctx).Error("failed to get status client", zap.Error(err))
 		return
 	}
 
-	err = statusClient.Send(&pbminer.TasksStatusRequest{})
+	err = statusClient.Send(&pb.MinerStatusMapRequest{})
 	if err != nil {
 		log.G(m.ctx).Error("failed to send tasks status request", zap.Error(err))
 		return
@@ -117,7 +117,7 @@ func (m *MinerCtx) ping() error {
 			log.G(m.ctx).Info("ping the Miner", zap.Stringer("remote", m.conn.RemoteAddr()))
 			// TODO: implement retries
 			ctx, cancel := context.WithTimeout(m.ctx, time.Second*5)
-			_, err := m.Client.Ping(ctx, &pbminer.PingRequest{})
+			_, err := m.Client.Ping(ctx, &pb.PingRequest{})
 			cancel()
 			if err != nil {
 				log.G(ctx).Error("failed to ping miner", zap.Error(err))
