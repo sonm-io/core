@@ -23,14 +23,14 @@ type containerDescriptor struct {
 	stats types.Stats
 }
 
-func newContainer(ctx context.Context, dclient *client.Client, d Description) (*containerDescriptor, error) {
+func newContainer(ctx context.Context, dockerClient *client.Client, d Description) (*containerDescriptor, error) {
 	log.G(ctx).Info("start container with application")
 
 	ctx, cancel := context.WithCancel(ctx)
 	cont := containerDescriptor{
 		ctx:    ctx,
 		cancel: cancel,
-		client: dclient,
+		client: dockerClient,
 	}
 
 	// NOTE: command to launch must be specified via ENTRYPOINT and CMD in Dockerfile
@@ -47,12 +47,15 @@ func newContainer(ctx context.Context, dclient *client.Client, d Description) (*
 	// TODO: detect network network mode and interface
 	var hostConfig = container.HostConfig{
 		PublishAllPorts: true,
+		RestartPolicy:   d.RestartPolicy,
 		// NOTE; we don't want to leave garbage
 		AutoRemove: true,
 		Resources: container.Resources{
 			// TODO: accept a name of a cgroup cooked by user
 			// NOTE: on non-Linux platform it's empty
 			CgroupParent: parentCgroup,
+			Memory:       d.Resources.Memory,
+			NanoCPUs:     d.Resources.NanoCPUs,
 		},
 	}
 
