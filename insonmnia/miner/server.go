@@ -381,17 +381,17 @@ func (m *Miner) Serve() error {
 	go func() {
 		defer wg.Done()
 
-		srv, err := frd.NewServer(nil)
-		if err != nil {
-			return
-		}
-		err = srv.Start()
-		if err != nil {
-			return
-		}
-
 		// if hub addr do not explicitly set via config we'll try to find it via discovery
 		if m.hubAddress == "" {
+			srv, err := frd.NewServer(nil)
+			if err != nil {
+				return
+			}
+			err = srv.Start()
+			if err != nil {
+				return
+			}
+
 			log.G(m.ctx).Debug("No hub IP, starting discovery")
 			srv.Serve()
 			m.hubAddress = srv.GetHubIp()
