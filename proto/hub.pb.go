@@ -26,6 +26,7 @@ It has these top-level messages:
 	StatusMapReply
 	MinerInfoRequest
 	MinerHandshakeRequest
+	Limits
 	MinerHandshakeReply
 	MinerStartRequest
 	MinerStartReply
