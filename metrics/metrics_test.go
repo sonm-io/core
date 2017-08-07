@@ -13,22 +13,19 @@ const testFile = "config_test.json"
 func TestMetricsHubFileOperations(t *testing.T) {
 	os.Remove(testFile)
 
-	loc, _ := time.LoadLocation("UTC")
-	now := time.Now().In(loc)
-
 	m := &HubMetrics{
 		HubAddress:          "123",
 		HubPing:             "q23",
 		HubService:          "service",
 		HubStack:            "hub stack",
-		CreationDate:        "12.12.12",
-		PayDay:              "12.14.2012",
-		TransferLimit:       "1234.42",
-		HubLifetime:         now,
-		SpeedConfirm:        now,
-		FreezeTime:          now,
-		DayLimit:            now,
+		CreationDate:        time.Now(),
+		HubLifetime:         100 * time.Millisecond,
+		SpeedConfirm:        time.Now(),
+		FreezeTime:          time.Now(),
+		DayLimit:            time.Now(),
 		AmountFreezeTime:    3,
+		PayDay:              12.213,
+		TransferLimit:       13.1,
 		SuspectStatus:       true,
 		AvailabilityPresale: true,
 	}
