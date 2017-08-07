@@ -57,7 +57,6 @@ type Overseer interface {
 	//
 	// After successful starting an application becomes a target for accepting request, but not guarantees
 	// to complete them.
-	// TODO: add param `settings`.
 	Start(ctx context.Context, description Description) (chan pb.TaskStatusReply_Status, ContainerInfo, error)
 
 	// Stop terminates the container.
