@@ -10,4 +10,6 @@ services:
     - "docker"
 
 script:
+    - sudo apt-get install protobuf-compiler
+    - go get -u github.com/golang/protobuf/protoc-gen-go
     - make all
