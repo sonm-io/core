@@ -53,17 +53,19 @@ func checkHubAddressIsSet(cmd *cobra.Command, args []string) error {
 
 // commandError allow to present any internal error as JSON
 type commandError struct {
-	Err     error  `json:"error"`
+	rawErr  error
+	Error   string `json:"error"`
 	Message string `json:"message"`
 }
 
 func (ce *commandError) ToJSONString() string {
+	ce.Error = ce.rawErr.Error()
 	j, _ := json.Marshal(ce)
 	return string(j)
 }
 
 func newCommandError(message string, err error) *commandError {
-	return &commandError{Err: err, Message: message}
+	return &commandError{rawErr: err, Message: message}
 }
 
 func main() {
@@ -347,8 +349,6 @@ func main() {
 		Short:   "Stop task",
 		PreRunE: checkHubAddressIsSet,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// NOTE: always crash with
-			// failed to stop the task 302e96de-5327-4bc2-97c0-2d56ce4d29c2
 			if len(args) < 1 {
 				return errMinerAddressRequired
 			}
