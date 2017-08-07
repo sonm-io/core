@@ -94,14 +94,15 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	}
 
 	taskID := uuid.New()
-	var startrequest = &pb.MinerStartRequest{
+	var startRequest = &pb.MinerStartRequest{
 		Id:       taskID,
 		Registry: request.Registry,
 		Image:    request.Image,
 		Auth:     request.Auth,
+		// TODO: Fill restart policy and resources fields.
 	}
 
-	resp, err := mincli.Client.Start(ctx, startrequest)
+	resp, err := mincli.Client.Start(ctx, startRequest)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
 	}

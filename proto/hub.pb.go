@@ -24,6 +24,8 @@ It has these top-level messages:
 	TaskStatusRequest
 	TaskStatusReply
 	StatusMapReply
+	ContainerResources
+	ContainerRestartPolicy
 	MinerInfoRequest
 	MinerHandshakeRequest
 	Limits
