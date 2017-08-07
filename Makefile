@@ -37,7 +37,7 @@ build_hub:
 
 build_cli:
 	@echo "+ $@"
-	${GO} build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
+	${GO} build -tags nocgo -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
 
 
 build: build_bootnode build_hub build_miner build_cli
