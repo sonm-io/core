@@ -7,6 +7,7 @@ GOCMD=./cmd
 GO=go
 INSTALLDIR=${GOPATH}/bin
 TRUFFLE=./node_modules/truffle/build/cli.bundled.js
+TESTRPC=./node_modules/ethereumjs-testrpc/build/cli.node.js
 
 
 BOOTNODE=sonmbootnode
@@ -78,6 +79,10 @@ fmt:
 test:
 	@echo "+ $@"
 	@go test -tags nocgo $(shell go list ./... | grep -vE 'vendor|contracts')
+
+test_contracts:
+	@echo "+ $@"
+	TESTRPC="$(shell pwd)/${TESTRPC}" ${GO} test ./contracts
 
 grpc:
 	@echo "+ $@"
