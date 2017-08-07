@@ -7,7 +7,10 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
+	"encoding/json"
+
 	pb "github.com/sonm-io/core/proto/hub"
+	pbminer "github.com/sonm-io/core/proto/miner"
 )
 
 func init() {
@@ -16,6 +19,46 @@ func init() {
 	taskStartCmd.Flags().StringVar(&registryPassword, registryPasswordFlag, "", "Registry password")
 
 	tasksRootCmd.AddCommand(taskListCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
+}
+
+func printTaskList(minerStatus *pbminer.TasksStatusReply, miner string) {
+	if isSimpleFormat() {
+		if len(minerStatus.Statuses) == 0 {
+			fmt.Printf("There is no tasks on miner \"%s\"\r\n", miner)
+			return
+		}
+
+		fmt.Printf("There is %d tasks on miner \"%s\":\r\n", len(minerStatus.Statuses), miner)
+		for taskID, status := range minerStatus.Statuses {
+			fmt.Printf("  %s: %s\r\n", taskID, getMinerStatusByID(status))
+		}
+	} else {
+		b, _ := json.Marshal(minerStatus)
+		fmt.Println(string(b))
+	}
+}
+
+func printTaskStart(rep *pb.StartTaskReply) {
+	if isSimpleFormat() {
+		fmt.Printf("ID %s, Endpoint %s\r\n", rep.Id, rep.Endpoint)
+	} else {
+		b, _ := json.Marshal(rep)
+		fmt.Sprintln(string(b))
+	}
+}
+
+func printTaskStatus(miner, id string, taskStatus *pb.TaskStatusReply) {
+	if isSimpleFormat() {
+		fmt.Printf("Task %s (on %s) status is %s\n", id, miner, taskStatus.Status.Status.String())
+	} else {
+		v := map[string]string{
+			"id":     id,
+			"miner":  miner,
+			"status": taskStatus.Status.Status.String(),
+		}
+		b, _ := json.Marshal(v)
+		fmt.Println(string(b))
+	}
 }
 
 var tasksRootCmd = &cobra.Command{
@@ -51,15 +94,7 @@ var taskListCmd = &cobra.Command{
 			return nil
 		}
 
-		if len(minerStatus.Statuses) == 0 {
-			fmt.Printf("There is no tasks on miner \"%s\"\r\n", miner)
-			return nil
-		}
-
-		fmt.Printf("There is %d tasks on miner \"%s\":\r\n", len(minerStatus.Statuses), miner)
-		for taskID, status := range minerStatus.Statuses {
-			fmt.Printf("  %s: %s\r\n", taskID, getMinerStatusByID(status))
-		}
+		printTaskList(minerStatus, miner)
 		return nil
 	},
 }
@@ -100,14 +135,17 @@ var taskStartCmd = &cobra.Command{
 			Auth:     registryAuth,
 		}
 
-		fmt.Printf("Starting \"%s\" on miner %s...\r\n", image, miner)
+		if isSimpleFormat() {
+			fmt.Printf("Starting \"%s\" on miner %s...\r\n", image, miner)
+		}
+
 		rep, err := pb.NewHubClient(cc).StartTask(ctx, &req)
 		if err != nil {
 			showError("Cannot start task", err)
 			return nil
 		}
 
-		fmt.Printf("ID %s, Endpoint %s\r\n", rep.Id, rep.Endpoint)
+		printTaskStart(rep)
 		return nil
 	},
 }
@@ -117,8 +155,6 @@ var taskStatusCmd = &cobra.Command{
 	Short:   "Show task status",
 	PreRunE: checkHubAddressIsSet,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// NOTE: always crash with
-		// NotFound desc = no status report for task 302e96de-5327-4bc2-97c0-2d56ce4d29c2
 		if len(args) < 1 {
 			return errMinerAddressRequired
 		}
@@ -145,7 +181,7 @@ var taskStatusCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Printf("Task %s (on %s) status is %s\n", req.Id, miner, taskStatus.Status.Status.String())
+		printTaskStatus(miner, taskID, taskStatus)
 		return nil
 	},
 }

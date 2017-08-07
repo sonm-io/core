@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/dustin/go-humanize"
@@ -13,6 +14,44 @@ import (
 
 func init() {
 	minerRootCmd.AddCommand(minersListCmd, minerStatusCmd)
+}
+
+func printMinerList(lr *pb.ListReply) {
+	if isSimpleFormat() {
+		for addr, meta := range lr.Info {
+			fmt.Printf("Miner: %s\r\n", addr)
+
+			if len(meta.Values) == 0 {
+				fmt.Println("Miner is idle")
+			} else {
+				fmt.Println("Tasks:")
+				for i, task := range meta.Values {
+					fmt.Printf("  %d) %s\r\n", i+1, task)
+				}
+			}
+		}
+	} else {
+		b, _ := json.Marshal(lr)
+		fmt.Println(string(b))
+	}
+}
+
+func printMinerStatus(metrics *pb.InfoReply) {
+	if isSimpleFormat() {
+		if len(metrics.Stats) == 0 {
+			fmt.Println("Miner is idle")
+		} else {
+			fmt.Println("Miner tasks:")
+			for task, stat := range metrics.Stats {
+				fmt.Printf("  ID: %s\r\n", task)
+				fmt.Printf("      CPU: %d\r\n", stat.CPU.TotalUsage)
+				fmt.Printf("      RAM: %s\r\n", humanize.Bytes(stat.Memory.MaxUsage))
+			}
+		}
+	} else {
+		b, _ := json.Marshal(metrics)
+		fmt.Println(string(b))
+	}
 }
 
 var minerRootCmd = &cobra.Command{
@@ -41,18 +80,7 @@ var minersListCmd = &cobra.Command{
 			return
 		}
 
-		for addr, meta := range lr.Info {
-			fmt.Printf("Miner: %s\r\n", addr)
-
-			if len(meta.Values) == 0 {
-				fmt.Println("Miner is idle")
-			} else {
-				fmt.Println("Tasks:")
-				for i, task := range meta.Values {
-					fmt.Printf("  %d) %s\r\n", i+1, task)
-				}
-			}
-		}
+		printMinerList(lr)
 	},
 }
 
@@ -83,18 +111,7 @@ var minerStatusCmd = &cobra.Command{
 			return nil
 		}
 
-		if len(metrics.Stats) == 0 {
-			fmt.Println("Miner is idle")
-		} else {
-			fmt.Println("Miner tasks:")
-			for task, stat := range metrics.Stats {
-				// fixme: what the hell with this ID?
-				fmt.Printf("  ID: %s\r\n", task)
-				fmt.Printf("      CPU: %d\r\n", stat.CPU.TotalUsage)
-				fmt.Printf("      RAM: %s\r\n", humanize.Bytes(stat.Memory.MaxUsage))
-			}
-		}
-
+		printMinerStatus(metrics)
 		return nil
 	},
 }

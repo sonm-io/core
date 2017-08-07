@@ -40,7 +40,6 @@ var hubPingCmd = &cobra.Command{
 		}
 
 		showOk()
-		// fmt.Printf("Ping hub %s... OK\r\n", hubAddress)
 	},
 }
 
@@ -51,6 +50,5 @@ var hubStatusCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// todo: implement this on hub
 		showOk()
-		// fmt.Printf("Hub %s status: OK\r\n", hubAddress)
 	},
 }

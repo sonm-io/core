@@ -132,3 +132,7 @@ func showOkJson() {
 	j, _ := json.Marshal(r)
 	fmt.Println(string(j))
 }
+
+func isSimpleFormat() bool {
+	return cfg.OutputFormat() == config.OutputModeSimple
+}
