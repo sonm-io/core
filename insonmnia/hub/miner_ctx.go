@@ -16,6 +16,14 @@ import (
 	pb "github.com/sonm-io/core/proto"
 )
 
+type resources struct {
+	// Number of CPUs on a Miner.
+	// TODO: It is unclear how we will utilize the processor (benchmarks?). For now treat this as placeholders.
+	CPU uint64
+	// Total number of bytes available on a Miner.
+	Memory uint64
+}
+
 // MinerCtx holds all the data related to a connected Miner
 type MinerCtx struct {
 	ctx    context.Context
@@ -32,6 +40,10 @@ type MinerCtx struct {
 
 	// TODO: forwarding
 	session *yamux.Session
+
+	// Miner name received after handshaking.
+	uuid      string
+	resources resources
 }
 
 func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
@@ -70,7 +82,33 @@ func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 
 	log.G(ctx).Info("grpc.Dial successfully finished")
 	m.Client = pb.NewMinerClient(m.grpcConn)
+
+	if err := m.handshake(); err != nil {
+		m.Close()
+		return nil, err
+	}
+
 	return &m, nil
+}
+
+func (m *MinerCtx) handshake() error {
+	log.G(m.ctx).Info("sending handshake to a Miner", zap.Any("addr", m.conn.RemoteAddr()))
+	resp, err := m.Client.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
+	if err != nil {
+		log.G(m.ctx).Error("failed to receive handshake from a Miner",
+			zap.Any("addr", m.conn.RemoteAddr()),
+			zap.Error(err),
+		)
+		return err
+	}
+
+	log.G(m.ctx).Info("received handshake from a Miner", zap.Any("resp", resp))
+
+	m.uuid = resp.Miner
+	m.resources.CPU = resp.Limits.Cores
+	m.resources.Memory = resp.Limits.Memory
+
+	return nil
 }
 
 func (m *MinerCtx) initStatusClient() (statusClient pb.Miner_TasksStatusClient, err error) {

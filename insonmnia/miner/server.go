@@ -18,6 +18,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 
+	"github.com/pborman/uuid"
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/resource"
 )
@@ -28,6 +29,8 @@ type Miner struct {
 	cancel     context.CancelFunc
 	grpcServer *grpc.Server
 
+	// Miner name for nice self-representation.
+	name      string
 	resources *resource.OS
 
 	hubAddress string
@@ -120,9 +123,22 @@ func (m *Miner) Info(ctx context.Context, request *pb.MinerInfoRequest) (*pb.Inf
 	return &result, nil
 }
 
-// Handshake reserves for the future usage
-func (m *Miner) Handshake(context.Context, *pb.MinerHandshakeRequest) (*pb.MinerHandshakeReply, error) {
-	return nil, status.Errorf(codes.Aborted, "not implemented")
+// Handshake is the first frame received from a Hub.
+//
+// This is a self representation about initial resources this Miner provides.
+// TODO: May be useful to register a channel to cover runtime resource changes.
+func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest) (*pb.MinerHandshakeReply, error) {
+	log.G(m.ctx).Info("handling Handshake request", zap.Any("req", request))
+
+	resp := &pb.MinerHandshakeReply{
+		Miner: m.name,
+		Limits: &pb.Limits{
+			Cores:  uint64(len(m.resources.CPU.List)),
+			Memory: m.resources.Mem.Total,
+		},
+	}
+
+	return resp, nil
 }
 
 func (m *Miner) scheduleStatusPurge(id string) {
@@ -458,6 +474,7 @@ func newMiner(ctx context.Context, cfg Config, collector resource.Collector) (*M
 		grpcServer: grpcServer,
 		ovs:        ovs,
 
+		name:      uuid.New(),
 		resources: resources,
 
 		pubAddress: addr.String(),
