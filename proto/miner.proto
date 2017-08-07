@@ -22,8 +22,14 @@ message MinerHandshakeRequest {
     string hub = 1;
 }
 
+message Limits {
+    uint64 cores = 1;
+    uint64 memory = 2;
+}
+
 message MinerHandshakeReply {
     string miner = 1;
+    Limits limits = 2;
 }
 
 message MinerStartRequest{
