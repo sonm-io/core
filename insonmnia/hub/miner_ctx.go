@@ -92,7 +92,7 @@ func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 }
 
 func (m *MinerCtx) handshake() error {
-	log.G(m.ctx).Info("sending handshake to a Miner", zap.Any("addr", m.conn.RemoteAddr()))
+	log.G(m.ctx).Info("sending handshake to a Miner", zap.Stringer("addr", m.conn.RemoteAddr()))
 	resp, err := m.Client.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
 	if err != nil {
 		log.G(m.ctx).Error("failed to receive handshake from a Miner",
