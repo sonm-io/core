@@ -12,12 +12,9 @@ import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 contract SonmDummyToken is MintableToken {
 
     string public name = "Sonm Dummy Token";
-
     string public symbol = "SDT";
-
-    uint public decimals = 18;
-
-    uint public INITIAL_SUPPLY = 1000000;
+    uint   public decimals = 18;
+    uint   public INITIAL_SUPPLY = 1000000;
 
     /*
      * Constructor
@@ -29,5 +26,4 @@ contract SonmDummyToken is MintableToken {
         totalSupply = INITIAL_SUPPLY;
         balances[initialAccount] = INITIAL_SUPPLY;
     }
-
 }
