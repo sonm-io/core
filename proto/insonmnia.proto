@@ -51,3 +51,12 @@ message StatusMapReply {
     map<string, TaskStatusReply> statuses = 1;
 }
 
+message ContainerResources {
+    int64 memory = 1;
+    int64 nanoCPUs = 2;
+}
+
+message ContainerRestartPolicy {
+    string name = 1;
+    uint32 maximumRetryCount = 2;
+}

@@ -37,6 +37,8 @@ message MinerStartRequest{
     string registry = 2;
     string image = 3;
     string auth = 4;
+    ContainerRestartPolicy restartPolicy = 5;
+    ContainerResources resources = 6;
 }
 
 message MinerStartReply {
