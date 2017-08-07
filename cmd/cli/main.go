@@ -330,7 +330,7 @@ func main() {
 			miner := args[0]
 			taskID := args[1]
 
-			fmt.Sprintf("Stopping task %s at %s...OK\r\n", taskID, miner)
+			fmt.Printf("Stopping task %s at %s...OK\r\n", taskID, miner)
 			cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 			if err != nil {
 				showError("Cannot create connection", err)
