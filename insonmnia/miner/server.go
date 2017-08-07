@@ -17,6 +17,7 @@ import (
 
 	pb "github.com/sonm-io/core/proto"
 
+	"github.com/docker/docker/api/types/container"
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/resource"
 )
@@ -182,12 +183,34 @@ func (m *Miner) listenForStatus(statusListener chan pb.TaskStatusReply_Status, i
 	}
 }
 
+func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolicy {
+	var restartPolicy = container.RestartPolicy{}
+	if p != nil {
+		restartPolicy.Name = p.Name
+		restartPolicy.MaximumRetryCount = int(p.MaximumRetryCount)
+	}
+
+	return restartPolicy
+}
+
+func transformResources(p *pb.ContainerResources) container.Resources {
+	var resources = container.Resources{}
+	if p != nil {
+		resources.NanoCPUs = p.NanoCPUs
+		resources.Memory = p.Memory
+	}
+
+	return resources
+}
+
 // Start request from Hub makes Miner start a container
 func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
 	var d = Description{
-		Image:    request.Image,
-		Registry: request.Registry,
-		Auth:     request.Auth,
+		Image:         request.Image,
+		Registry:      request.Registry,
+		Auth:          request.Auth,
+		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
+		Resources:     transformResources(request.Resources),
 	}
 	log.G(ctx).Info("handling Start request", zap.Any("req", request))
 

@@ -13,6 +13,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -25,9 +26,11 @@ const dieEvent = "die"
 
 // Description for a target application.
 type Description struct {
-	Registry string
-	Image    string
-	Auth     string
+	Registry      string
+	Image         string
+	Auth          string
+	RestartPolicy container.RestartPolicy
+	Resources     container.Resources
 }
 
 // ContainerInfo is a brief information about containers
@@ -54,6 +57,7 @@ type Overseer interface {
 	//
 	// After successful starting an application becomes a target for accepting request, but not guarantees
 	// to complete them.
+	// TODO: add param `settings`.
 	Start(ctx context.Context, description Description) (chan pb.TaskStatusReply_Status, ContainerInfo, error)
 
 	// Stop terminates the container.
