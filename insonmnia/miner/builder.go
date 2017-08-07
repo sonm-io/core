@@ -3,13 +3,14 @@ package miner
 import (
 	"golang.org/x/net/context"
 
+	"net"
+
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"google.golang.org/grpc"
-	"net"
 )
 
 type MinerBuilder struct {
@@ -59,7 +60,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	ctx, cancel := context.WithCancel(b.ctx)
 
 	if b.ovs == nil {
-		b.ovs, err = NewOverseer(ctx)
+		b.ovs, err = NewOverseer(ctx, b.cfg.GPU())
 		if err != nil {
 			cancel()
 			return nil, err

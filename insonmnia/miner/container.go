@@ -23,7 +23,7 @@ type containerDescriptor struct {
 	stats types.Stats
 }
 
-func newContainer(ctx context.Context, dockerClient *client.Client, d Description) (*containerDescriptor, error) {
+func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuner nvidiaGPUTuner) (*containerDescriptor, error) {
 	log.G(ctx).Info("start container with application")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -61,6 +61,9 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 
 	var networkingConfig network.NetworkingConfig
 
+	if err := tuner.Tune(&config, &hostConfig); err != nil {
+		return nil, err
+	}
 	// create new container
 	// assign resulted containerid
 	// log all warnings
