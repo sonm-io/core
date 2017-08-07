@@ -42,19 +42,19 @@ build_cli:
 
 build: build_bootnode build_hub build_miner build_cli
 
-install_bootnode:
+install_bootnode: build_bootnode
 	@echo "+ $@"
 	cp ${BOOTNODE} ${INSTALLDIR}
 
-install_miner:
+install_miner: build_miner
 	@echo "+ $@"
 	cp ${MINER} ${INSTALLDIR}
 
-install_hub:
+install_hub: build_hub
 	@echo "+ $@"
 	cp ${HUB} ${INSTALLDIR}
 
-install_cli:
+install_cli: build_cli
 	@echo "+ $@"
 	cp ${CLI} ${INSTALLDIR}
 
