@@ -162,7 +162,7 @@ func (m *Miner) setStatus(status *pb.TaskStatusReply, id string) {
 func (m *Miner) listenForStatus(statusListener chan pb.TaskStatusReply_Status, id string) {
 	select {
 	case newStatus := <-statusListener:
-		m.setStatus(&pb.TaskStatusReply{newStatus}, id)
+		m.setStatus(&pb.TaskStatusReply{Status: newStatus}, id)
 	case <-m.ctx.Done():
 		return
 	}
@@ -177,22 +177,22 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	}
 	log.G(ctx).Info("handling Start request", zap.Any("req", request))
 
-	m.setStatus(&pb.TaskStatusReply{pb.TaskStatusReply_SPOOLING}, request.Id)
+	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, request.Id)
 
 	log.G(ctx).Info("spooling an image")
 	err := m.ovs.Spool(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{pb.TaskStatusReply_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
-	m.setStatus(&pb.TaskStatusReply{pb.TaskStatusReply_SPAWNING}, request.Id)
+	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPAWNING}, request.Id)
 	log.G(ctx).Info("spawning an image")
 	statusListener, containerInfo, err := m.ovs.Start(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{pb.TaskStatusReply_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 
@@ -233,10 +233,10 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopTaskRequest) (*pb.Stop
 
 	if err := m.ovs.Stop(ctx, containerInfo.ID); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{pb.TaskStatusReply_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
-	m.setStatus(&pb.TaskStatusReply{pb.TaskStatusReply_FINISHED}, request.Id)
+	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
 	return &pb.StopTaskReply{}, nil
 }
 
