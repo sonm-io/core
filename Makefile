@@ -62,7 +62,7 @@ install: install_bootnode install_miner install_hub install_cli
 
 vet:
 	@echo "+ $@"
-	@go vet $(PKGS)
+	@go tool vet $(shell ls -1 -d */ | grep -v -e vendor -e contracts)
 
 fmt:
 	@echo "+ $@"
