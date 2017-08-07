@@ -1,18 +1,20 @@
 pragma solidity ^0.4.8;
 
 
+import "zeppelin-solidity/contracts/token/ERC20.sol";
 import './HubWallet.sol';
 import './MinerWallet.sol';
+import './Whitelist.sol';
 
 
 //Raw prototype of wallet factory
 contract Factory {
 
-    token sharesTokenAddress;
+    ERC20 sharesTokenAddress;
 
     address dao;
 
-    whitelist Whitelist;
+    Whitelist whitelist;
 
     // owner => wallet
     mapping (address => address) public hubs;
@@ -23,19 +25,16 @@ contract Factory {
 
     event LogCr(address owner);
 
-    function Factory(token TokenAddress, address _dao){
+    function Factory(ERC20 TokenAddress, address _dao){
         sharesTokenAddress = TokenAddress;
         dao = _dao;
     }
 
-    modifier onlyDao(){
-        if (msg.sender != dao) throw;
-        _;
-    }
+    modifier onlyDao() { require(msg.sender == dao); _; }
 
-    function changeAdresses(address _dao, whitelist _whitelist) public onlyDao {
+    function changeAdresses(address _dao, Whitelist _whitelist) public onlyDao {
         dao = _dao;
-        Whitelist = whitelist(_whitelist);
+        whitelist = _whitelist;
     }
 
     function createHub() public returns (address) {
@@ -53,12 +52,12 @@ contract Factory {
     }
 
     function create(address _hubowner) private returns (address) {
-        return address(new HubWallet(_hubowner, dao, Whitelist, sharesTokenAddress));
+        return address(new HubWallet(_hubowner, dao, whitelist, sharesTokenAddress));
         LogCr(_hubowner);
     }
 
     function createM(address _minowner) private returns (address) {
-        return address(new MinerWallet(_minowner, dao, Whitelist, sharesTokenAddress));
+        return address(new MinerWallet(_minowner, dao, whitelist, sharesTokenAddress));
         LogCr(_minowner);
     }
 
@@ -69,5 +68,4 @@ contract Factory {
     function MinerOf(address _owner) constant returns (address _wallet) {
         return miners[_owner];
     }
-
 }
