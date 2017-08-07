@@ -42,13 +42,13 @@ type Hub struct {
 
 // Ping should be used as Healthcheck for Hub
 func (h *Hub) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, error) {
-	log.G(ctx).Info("handling Ping request")
+	log.G(h.ctx).Info("handling Ping request")
 	return &pb.PingReply{}, nil
 }
 
 // List returns attached miners
 func (h *Hub) List(ctx context.Context, request *pb.ListRequest) (*pb.ListReply, error) {
-	log.G(ctx).Info("handling List request")
+	log.G(h.ctx).Info("handling List request")
 	var info = make(map[string]*pb.ListReply_ListValue)
 	h.mu.Lock()
 	for k := range h.miners {
@@ -70,7 +70,7 @@ func (h *Hub) List(ctx context.Context, request *pb.ListRequest) (*pb.ListReply,
 
 // Info returns aggregated runtime statistics for all connected miners.
 func (h *Hub) Info(ctx context.Context, request *pb.HubInfoRequest) (*pb.InfoReply, error) {
-	log.G(ctx).Info("handling Info request", zap.Any("req", request))
+	log.G(h.ctx).Info("handling Info request", zap.Any("req", request))
 	client, ok := h.getMinerByID(request.Miner)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no such miner")
@@ -86,7 +86,7 @@ func (h *Hub) Info(ctx context.Context, request *pb.HubInfoRequest) (*pb.InfoRep
 
 // StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
-	log.G(ctx).Info("handling StartTask request", zap.Any("req", request))
+	log.G(h.ctx).Info("handling StartTask request", zap.Any("req", request))
 	miner := request.Miner
 	mincli, ok := h.getMinerByID(miner)
 	if !ok {
@@ -121,7 +121,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 
 // StopTask sends termination request to a miner handling the task
 func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
-	log.G(ctx).Info("handling StopTask request", zap.Any("req", request))
+	log.G(h.ctx).Info("handling StopTask request", zap.Any("req", request))
 	taskID := request.Id
 	minerID, ok := h.getMinerByTaskID(taskID)
 	if !ok {
@@ -145,7 +145,7 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 }
 
 func (h *Hub) MinerStatus(ctx context.Context, request *pb.HubStatusMapRequest) (*pb.StatusMapReply, error) {
-	log.G(ctx).Info("handling MinerStatus request", zap.Any("req", request))
+	log.G(h.ctx).Info("handling MinerStatus request", zap.Any("req", request))
 
 	miner := request.Miner
 	mincli, ok := h.getMinerByID(miner)
@@ -161,7 +161,7 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.HubStatusMapRequest) 
 }
 
 func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*pb.TaskStatusReply, error) {
-	log.G(ctx).Info("handling TaskStatus request", zap.Any("req", request))
+	log.G(h.ctx).Info("handling TaskStatus request", zap.Any("req", request))
 	taskID := request.Id
 	minerID, ok := h.getMinerByTaskID(taskID)
 	if !ok {

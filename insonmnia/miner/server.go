@@ -93,7 +93,7 @@ func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, err
 // spawned containers that it knows about. For running containers metrics map the immediate
 // state, for dead containers - their last memento.
 func (m *Miner) Info(ctx context.Context, request *pb.MinerInfoRequest) (*pb.InfoReply, error) {
-	log.G(ctx).Info("handling Info request", zap.Any("req", request))
+	log.G(m.ctx).Info("handling Info request", zap.Any("req", request))
 
 	info, err := m.ovs.Info(ctx)
 	if err != nil {
@@ -189,11 +189,11 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Registry: request.Registry,
 		Auth:     request.Auth,
 	}
-	log.G(ctx).Info("handling Start request", zap.Any("req", request))
+	log.G(m.ctx).Info("handling Start request", zap.Any("req", request))
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, request.Id)
 
-	log.G(ctx).Info("spooling an image")
+	log.G(m.ctx).Info("spooling an image")
 	err := m.ovs.Spool(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
