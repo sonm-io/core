@@ -19,7 +19,7 @@ DOCKER_IMAGE_BOOTNODE="sonm/bootnode:latest"
 
 .PHONY: fmt vet test
 
-all: grpc vet fmt test build install
+all: vet fmt test build install
 
 
 build_bootnode:
