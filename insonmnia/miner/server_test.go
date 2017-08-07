@@ -3,13 +3,14 @@ package miner
 import (
 	"context"
 	"errors"
+	"testing"
+
 	"github.com/cloudfoundry/gosigar"
 	"github.com/docker/docker/api/types"
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestServerNewExtractsHubEndpoint(t *testing.T) {
@@ -19,10 +20,12 @@ func TestServerNewExtractsHubEndpoint(t *testing.T) {
 	cfg := NewMockConfig(mock)
 	cfg.EXPECT().HubEndpoint().Times(1).Return("::1")
 	cfg.EXPECT().HubResources().AnyTimes()
+	cfg.EXPECT().GPU().AnyTimes()
 	builder := MinerBuilder{}
 	builder.Config(cfg)
 
 	m, err := builder.Build()
+	cfg.EXPECT().GPU().AnyTimes()
 
 	assert.NotNil(t, m)
 	assert.Nil(t, err)
@@ -36,6 +39,8 @@ func TestServerNewFailsWhenFailedCollectResources(t *testing.T) {
 	cfg := NewMockConfig(mock)
 	collector := resource.NewMockCollector(mock)
 	collector.EXPECT().OS().Times(1).Return(nil, errors.New(""))
+
+	cfg.EXPECT().GPU().AnyTimes()
 
 	builder := MinerBuilder{}
 	builder.Collector(collector)
@@ -53,6 +58,7 @@ func TestServerNewSavesResources(t *testing.T) {
 	cfg := NewMockConfig(mock)
 	cfg.EXPECT().HubEndpoint().AnyTimes()
 	cfg.EXPECT().HubResources().AnyTimes()
+	cfg.EXPECT().GPU().AnyTimes()
 	collector := resource.NewMockCollector(mock)
 	collector.EXPECT().OS().Times(1).Return(&resource.OS{CPU: sigar.CpuList{}, Mem: sigar.Mem{Total: 42}}, nil)
 
