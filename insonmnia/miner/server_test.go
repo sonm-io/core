@@ -11,6 +11,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestServerNewExtractsHubEndpoint(t *testing.T) {
@@ -90,10 +91,45 @@ func TestMinerInfo(t *testing.T) {
 	builder.Overseer(ovs)
 
 	m, err := builder.Build()
+	t.Log(err)
+	require.NotNil(t, m)
+	require.Nil(t, err)
+
 	m.nameMapping["id1"] = "id1"
 	ret, err := m.Info(builder.ctx, &pb.MinerInfoRequest{})
 
 	assert.NotNil(t, ret)
 	assert.Nil(t, err)
 	assert.Equal(t, uint64(43), ret.Stats["id1"].Memory.MaxUsage)
+}
+
+func TestMinerHandshake(t *testing.T) {
+	mock := gomock.NewController(t)
+	defer mock.Finish()
+
+	cfg := NewMockConfig(mock)
+	cfg.EXPECT().HubEndpoint().AnyTimes()
+	cfg.EXPECT().HubResources().AnyTimes()
+
+	ovs := NewMockOverseer(mock)
+	info := make(map[string]ContainerMetrics)
+	info["id1"] = ContainerMetrics{mem: types.MemoryStats{Usage: 42, MaxUsage: 43}}
+	ovs.EXPECT().Info(context.Background()).AnyTimes().Return(info, nil)
+
+	collector := resource.NewMockCollector(mock)
+	collector.EXPECT().OS().AnyTimes().Return(&resource.OS{CPU: sigar.CpuList{List: make([]sigar.Cpu, 2)}, Mem: sigar.Mem{Total: 2048}}, nil)
+
+	builder := MinerBuilder{}
+	builder.Config(cfg)
+	builder.Overseer(ovs)
+	builder.Collector(collector)
+	builder.UUID("deadbeef-cafe-dead-beef-cafedeadbeef")
+
+	m, err := builder.Build()
+	require.NotNil(t, m)
+	require.Nil(t, err)
+	reply, err := m.Handshake(context.Background(), &pb.MinerHandshakeRequest{Hub: "testHub"})
+	assert.NotNil(t, reply)
+	assert.Nil(t, err)
+	assert.Equal(t, reply, &pb.MinerHandshakeReply{Miner: "deadbeef-cafe-dead-beef-cafedeadbeef", Limits: &pb.Limits{Cores: 2, Memory: 2048}})
 }
