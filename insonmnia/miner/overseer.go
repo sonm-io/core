@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -37,9 +38,10 @@ type Description struct {
 
 // ContainerInfo is a brief information about containers
 type ContainerInfo struct {
-	status *pb.TaskStatusReply
-	ID     string
-	Ports  nat.PortMap
+	status    *pb.TaskStatusReply
+	ID        string
+	Ports     nat.PortMap
+	Resources resource.Resources
 }
 
 // ContainerMetrics are metrics collected from Docker about running containers
@@ -337,9 +339,10 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		return
 	}
 	cinfo = ContainerInfo{
-		status: &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
-		ID:     cjson.ID,
-		Ports:  cjson.NetworkSettings.Ports,
+		status:    &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
+		ID:        cjson.ID,
+		Ports:     cjson.NetworkSettings.Ports,
+		Resources: resource.NewResources(1, description.Resources.Memory),
 	}
 	return status, cinfo, nil
 }
