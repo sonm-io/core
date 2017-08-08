@@ -11,8 +11,6 @@ import (
 
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/spf13/cobra"
-
-	pb "github.com/sonm-io/core/proto"
 )
 
 const (
@@ -58,15 +56,6 @@ func Root(c config.Config) *cobra.Command {
 func encodeRegistryAuth(login, password string) string {
 	data := fmt.Sprintf("%s:%s", login, password)
 	return b64.StdEncoding.EncodeToString([]byte(data))
-}
-
-func getMinerStatusByID(status *pb.TaskStatusReply) string {
-	statusName, ok := pb.TaskStatusReply_Status_name[int32(status.Status)]
-	if !ok {
-		statusName = "UNKNOWN"
-	}
-
-	return statusName
 }
 
 func checkHubAddressIsSet(cmd *cobra.Command, args []string) error {

@@ -29,7 +29,7 @@ func printTaskList(minerStatus *pb.StatusMapReply, miner string) {
 
 		fmt.Printf("There is %d tasks on miner \"%s\":\r\n", len(minerStatus.Statuses), miner)
 		for taskID, status := range minerStatus.Statuses {
-			fmt.Printf("  %s: %s\r\n", taskID, getMinerStatusByID(status))
+			fmt.Printf("  %s: %s\r\n", taskID, status.GetStatus())
 		}
 	} else {
 		b, _ := json.Marshal(minerStatus)
