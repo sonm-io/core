@@ -14,14 +14,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func defaultMockCfg(mock *gomock.Controller) *MockConfig {
+	cfg := NewMockConfig(mock)
+	cfg.EXPECT().HubEndpoint().AnyTimes().Return("::1")
+	cfg.EXPECT().HubResources().AnyTimes()
+	cfg.EXPECT().GPU().AnyTimes()
+	return cfg
+}
+
 func TestServerNewExtractsHubEndpoint(t *testing.T) {
 	mock := gomock.NewController(t)
 	defer mock.Finish()
 
-	cfg := NewMockConfig(mock)
-	cfg.EXPECT().HubEndpoint().Times(1).Return("::1")
-	cfg.EXPECT().HubResources().AnyTimes()
-	cfg.EXPECT().GPU().AnyTimes()
+	cfg := defaultMockCfg(mock)
+
 	builder := MinerBuilder{}
 	builder.Config(cfg)
 
@@ -37,11 +43,9 @@ func TestServerNewFailsWhenFailedCollectResources(t *testing.T) {
 	mock := gomock.NewController(t)
 	defer mock.Finish()
 
-	cfg := NewMockConfig(mock)
+	cfg := defaultMockCfg(mock)
 	collector := resource.NewMockCollector(mock)
 	collector.EXPECT().OS().Times(1).Return(nil, errors.New(""))
-
-	cfg.EXPECT().GPU().AnyTimes()
 
 	builder := MinerBuilder{}
 	builder.Collector(collector)
@@ -56,10 +60,7 @@ func TestServerNewSavesResources(t *testing.T) {
 	mock := gomock.NewController(t)
 	defer mock.Finish()
 
-	cfg := NewMockConfig(mock)
-	cfg.EXPECT().HubEndpoint().AnyTimes()
-	cfg.EXPECT().HubResources().AnyTimes()
-	cfg.EXPECT().GPU().AnyTimes()
+	cfg := defaultMockCfg(mock)
 	collector := resource.NewMockCollector(mock)
 	collector.EXPECT().OS().Times(1).Return(&resource.OS{CPU: sigar.CpuList{}, Mem: sigar.Mem{Total: 42}}, nil)
 
@@ -77,9 +78,7 @@ func TestMinerInfo(t *testing.T) {
 	mock := gomock.NewController(t)
 	defer mock.Finish()
 
-	cfg := NewMockConfig(mock)
-	cfg.EXPECT().HubEndpoint().AnyTimes()
-	cfg.EXPECT().HubResources().AnyTimes()
+	cfg := defaultMockCfg(mock)
 
 	ovs := NewMockOverseer(mock)
 	info := make(map[string]ContainerMetrics)
@@ -107,9 +106,7 @@ func TestMinerHandshake(t *testing.T) {
 	mock := gomock.NewController(t)
 	defer mock.Finish()
 
-	cfg := NewMockConfig(mock)
-	cfg.EXPECT().HubEndpoint().AnyTimes()
-	cfg.EXPECT().HubResources().AnyTimes()
+	cfg := defaultMockCfg(mock)
 
 	ovs := NewMockOverseer(mock)
 	info := make(map[string]ContainerMetrics)
@@ -132,4 +129,32 @@ func TestMinerHandshake(t *testing.T) {
 	assert.NotNil(t, reply)
 	assert.Nil(t, err)
 	assert.Equal(t, reply, &pb.MinerHandshakeReply{Miner: "deadbeef-cafe-dead-beef-cafedeadbeef", Limits: &pb.Limits{Cores: 2, Memory: 2048}})
+}
+
+func TestMinerStart(t *testing.T) {
+	mock := gomock.NewController(t)
+	defer mock.Finish()
+
+	cfg := defaultMockCfg(mock)
+
+	ovs := NewMockOverseer(mock)
+	ovs.EXPECT().Spool(context.Background(), Description{}).AnyTimes().Return(nil)
+	status_chan := make(chan pb.TaskStatusReply_Status)
+	info := ContainerInfo{
+		status: &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
+		ID:     "deadbeef-cafe-dead-beef-cafedeadbeef",
+	}
+	ovs.EXPECT().Start(context.Background(), Description{}).Times(1).Return(status_chan, info, nil)
+
+	builder := MinerBuilder{}
+	m, err := builder.Config(cfg).Overseer(ovs).Build()
+	require.NotNil(t, m)
+	require.Nil(t, err)
+	reply, err := m.Start(context.Background(), &pb.MinerStartRequest{Id: "test"})
+	assert.NotNil(t, reply)
+	assert.Nil(t, err)
+
+	id, ok := m.getTaskIdByContainerId("deadbeef-cafe-dead-beef-cafedeadbeef")
+	assert.True(t, ok)
+	assert.Equal(t, id, "test")
 }
