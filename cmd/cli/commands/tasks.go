@@ -114,8 +114,8 @@ var taskStartCmd = &cobra.Command{
 		image := args[1]
 
 		var registryAuth string
-		if registryUser != "" || registryPassword != "" {
-			registryAuth = encodeRegistryAuth(registryUser, registryPassword)
+		if registryUser != "" || registryPassword != "" || registryName != "" {
+			registryAuth = encodeRegistryAuth(registryUser, registryPassword, registryName)
 		}
 
 		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())

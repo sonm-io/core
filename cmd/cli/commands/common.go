@@ -9,6 +9,7 @@ import (
 
 	"fmt"
 
+	"github.com/docker/docker/api/types"
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/spf13/cobra"
 )
@@ -53,9 +54,14 @@ func Root(c config.Config) *cobra.Command {
 	return rootCmd
 }
 
-func encodeRegistryAuth(login, password string) string {
-	data := fmt.Sprintf("%s:%s", login, password)
-	return b64.StdEncoding.EncodeToString([]byte(data))
+func encodeRegistryAuth(login, password, registry string) string {
+	auth := types.AuthConfig{
+		Username:      login,
+		Password:      password,
+		ServerAddress: registry,
+	}
+	jsonAuth, _ := json.Marshal(auth)
+	return b64.StdEncoding.EncodeToString(jsonAuth)
 }
 
 func checkHubAddressIsSet(cmd *cobra.Command, args []string) error {
