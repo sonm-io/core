@@ -5,7 +5,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	pb "github.com/sonm-io/core/proto/hub"
+	pb "github.com/sonm-io/core/proto"
 )
 
 func init() {

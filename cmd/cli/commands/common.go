@@ -12,7 +12,7 @@ import (
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/spf13/cobra"
 
-	pbminer "github.com/sonm-io/core/proto/miner"
+	pb "github.com/sonm-io/core/proto"
 )
 
 const (
@@ -60,8 +60,8 @@ func encodeRegistryAuth(login, password string) string {
 	return b64.StdEncoding.EncodeToString([]byte(data))
 }
 
-func getMinerStatusByID(status *pbminer.TaskStatus) string {
-	statusName, ok := pbminer.TaskStatus_Status_name[int32(status.Status)]
+func getMinerStatusByID(status *pb.TaskStatusReply) string {
+	statusName, ok := pb.TaskStatusReply_Status_name[int32(status.Status)]
 	if !ok {
 		statusName = "UNKNOWN"
 	}

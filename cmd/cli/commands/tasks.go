@@ -9,8 +9,7 @@ import (
 
 	"encoding/json"
 
-	pb "github.com/sonm-io/core/proto/hub"
-	pbminer "github.com/sonm-io/core/proto/miner"
+	pb "github.com/sonm-io/core/proto"
 )
 
 func init() {
@@ -21,7 +20,7 @@ func init() {
 	tasksRootCmd.AddCommand(taskListCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
 }
 
-func printTaskList(minerStatus *pbminer.TasksStatusReply, miner string) {
+func printTaskList(minerStatus *pb.StatusMapReply, miner string) {
 	if isSimpleFormat() {
 		if len(minerStatus.Statuses) == 0 {
 			fmt.Printf("There is no tasks on miner \"%s\"\r\n", miner)
@@ -38,7 +37,7 @@ func printTaskList(minerStatus *pbminer.TasksStatusReply, miner string) {
 	}
 }
 
-func printTaskStart(rep *pb.StartTaskReply) {
+func printTaskStart(rep *pb.HubStartTaskReply) {
 	if isSimpleFormat() {
 		fmt.Printf("ID %s, Endpoint %s\r\n", rep.Id, rep.Endpoint)
 	} else {
@@ -49,12 +48,12 @@ func printTaskStart(rep *pb.StartTaskReply) {
 
 func printTaskStatus(miner, id string, taskStatus *pb.TaskStatusReply) {
 	if isSimpleFormat() {
-		fmt.Printf("Task %s (on %s) status is %s\n", id, miner, taskStatus.Status.Status.String())
+		fmt.Printf("Task %s (on %s) status is %s\n", id, miner, taskStatus.Status.String())
 	} else {
 		v := map[string]string{
 			"id":     id,
 			"miner":  miner,
-			"status": taskStatus.Status.Status.String(),
+			"status": taskStatus.Status.String(),
 		}
 		b, _ := json.Marshal(v)
 		fmt.Println(string(b))
@@ -87,7 +86,7 @@ var taskListCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(gctx, timeout)
 		defer cancel()
 
-		var req = pb.MinerStatusRequest{Miner: miner}
+		var req = pb.HubStatusMapRequest{Miner: miner}
 		minerStatus, err := pb.NewHubClient(cc).MinerStatus(ctx, &req)
 		if err != nil {
 			showError("Cannot get tasks", err)
@@ -128,7 +127,7 @@ var taskStartCmd = &cobra.Command{
 
 		ctx, cancel := context.WithTimeout(gctx, timeout)
 		defer cancel()
-		var req = pb.StartTaskRequest{
+		var req = pb.HubStartTaskRequest{
 			Miner:    miner,
 			Image:    image,
 			Registry: registryName,

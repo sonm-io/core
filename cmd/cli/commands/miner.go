@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	pb "github.com/sonm-io/core/proto/hub"
+	pb "github.com/sonm-io/core/proto"
 )
 
 func init() {
@@ -104,7 +104,7 @@ var minerStatusCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(gctx, timeout)
 		defer cancel()
 
-		var req = pb.InfoRequest{Miner: minerID}
+		var req = pb.HubInfoRequest{Miner: minerID}
 		metrics, err := pb.NewHubClient(conn).Info(ctx, &req)
 		if err != nil {
 			showError("Cannot get miner status", err)
