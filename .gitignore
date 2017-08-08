@@ -42,3 +42,7 @@ blockchain-api/*
 
 # test artifacts
 metrics/config_test.json
+
+# Mock files are not the subject of the repository, because we generate them
+# on the fly.
+*_mock.go
