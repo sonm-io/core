@@ -69,7 +69,7 @@ func TestServerNewSavesResources(t *testing.T) {
 
 	assert.NotNil(t, m)
 	assert.Nil(t, err)
-	assert.Equal(t, uint64(42), m.resources.Mem.Total)
+	assert.Equal(t, uint64(42), m.resources.OS.Mem.Total)
 }
 
 func TestMinerInfo(t *testing.T) {

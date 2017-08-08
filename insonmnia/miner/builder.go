@@ -90,7 +90,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		ovs:        b.ovs,
 
 		name:      uuid.New(),
-		resources: resources,
+		resources: resource.NewPool(resources),
 
 		pubAddress: b.ip.String(),
 		hubAddress: b.cfg.HubEndpoint(),
