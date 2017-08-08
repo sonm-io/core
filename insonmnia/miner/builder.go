@@ -4,6 +4,7 @@ import (
 	"golang.org/x/net/context"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -87,6 +88,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		grpcServer: grpcServer,
 		ovs:        b.ovs,
 
+		name:      uuid.New(),
 		resources: resources,
 
 		pubAddress: b.ip.String(),
