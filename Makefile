@@ -69,7 +69,7 @@ fmt:
 	@test -z "$$(gofmt -s -l . 2>&1 | grep -v ^vendor/ | tee /dev/stderr)" || \
 		(echo >&2 "+ please format Go code with 'gofmt -s'" && false)
 
-test:
+test: mock
 	@echo "+ $@"
 	@go test -tags nocgo $(shell go list ./... | grep -v vendor)
 
@@ -88,6 +88,7 @@ mock:
 	echo "and add your go bin directory to PATH"; exit 1; fi;
 	mockgen -package miner -destination insonmnia/miner/overseer_mock.go -source insonmnia/miner/overseer.go
 	mockgen -package miner -destination insonmnia/miner/config_mock.go -source insonmnia/miner/config.go
+	mockgen -package resource -destination insonmnia/resource/resource_mock.go -source insonmnia/resource/resource.go
 
 coverage:
 	${GO} tool cover -func=coverage.txt
