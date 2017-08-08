@@ -111,3 +111,9 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	pb.RegisterMinerServer(grpcServer, m)
 	return m, nil
 }
+
+func NewMinerBuilder(cfg Config) MinerBuilder {
+	b := MinerBuilder{}
+	b.Config(cfg)
+	return b
+}
