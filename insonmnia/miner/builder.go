@@ -22,28 +22,34 @@ type MinerBuilder struct {
 	uuid      string
 }
 
-func (b *MinerBuilder) Context(ctx context.Context) {
+func (b *MinerBuilder) Context(ctx context.Context) *MinerBuilder {
 	b.ctx = ctx
+	return b
 }
 
-func (b *MinerBuilder) Config(config Config) {
+func (b *MinerBuilder) Config(config Config) *MinerBuilder {
 	b.cfg = config
+	return b
 }
 
-func (b *MinerBuilder) Collector(collector resource.Collector) {
+func (b *MinerBuilder) Collector(collector resource.Collector) *MinerBuilder {
 	b.collector = collector
+	return b
 }
 
-func (b *MinerBuilder) Address(ip net.IP) {
+func (b *MinerBuilder) Address(ip net.IP) *MinerBuilder {
 	b.ip = ip
+	return b
 }
 
-func (b *MinerBuilder) Overseer(ovs Overseer) {
+func (b *MinerBuilder) Overseer(ovs Overseer) *MinerBuilder {
 	b.ovs = ovs
+	return b
 }
 
-func (b *MinerBuilder) UUID(uuid string) {
+func (b *MinerBuilder) UUID(uuid string) *MinerBuilder {
 	b.uuid = uuid
+	return b
 }
 
 func (b *MinerBuilder) Build() (miner *Miner, err error) {
