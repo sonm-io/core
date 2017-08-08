@@ -7,6 +7,7 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -42,6 +43,19 @@ func (b *MinerBuilder) Overseer(ovs Overseer) {
 }
 
 func (b *MinerBuilder) Build() (miner *Miner, err error) {
+	if b.ctx == nil {
+		b.ctx = context.Background()
+	}
+	ctx, cancel := context.WithCancel(b.ctx)
+
+	if b.cfg == nil {
+		return nil, errors.New("config is mandatory for MinerBuilder")
+	}
+
+	if b.collector == nil {
+		b.collector = resource.New()
+	}
+
 	if b.ip == nil {
 		addr, err := util.GetPublicIP()
 		if err != nil {
@@ -49,15 +63,6 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		}
 		b.ip = addr
 	}
-
-	if b.collector == nil {
-		b.collector = resource.New()
-	}
-
-	if b.ctx == nil {
-		b.ctx = context.Background()
-	}
-	ctx, cancel := context.WithCancel(b.ctx)
 
 	if b.ovs == nil {
 		b.ovs, err = NewOverseer(ctx, b.cfg.GPU())
