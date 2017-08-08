@@ -17,7 +17,6 @@ import (
 
 	pb "github.com/sonm-io/core/proto"
 
-	"github.com/pborman/uuid"
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/resource"
 )
