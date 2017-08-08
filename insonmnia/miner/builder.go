@@ -19,6 +19,7 @@ type MinerBuilder struct {
 	collector resource.Collector
 	ip        net.IP
 	ovs       Overseer
+	uuid      string
 }
 
 func (b *MinerBuilder) Context(ctx context.Context) {
@@ -39,6 +40,10 @@ func (b *MinerBuilder) Address(ip net.IP) {
 
 func (b *MinerBuilder) Overseer(ovs Overseer) {
 	b.ovs = ovs
+}
+
+func (b *MinerBuilder) UUID(uuid string) {
+	b.uuid = uuid
 }
 
 func (b *MinerBuilder) Build() (miner *Miner, err error) {
@@ -67,6 +72,10 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		}
 	}
 
+	if len(b.uuid) == 0 {
+		b.uuid = uuid.New()
+	}
+
 	resources, err := b.collector.OS()
 	if err != nil {
 		return nil, err
@@ -89,7 +98,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		grpcServer: grpcServer,
 		ovs:        b.ovs,
 
-		name:      uuid.New(),
+		name:      b.uuid,
 		resources: resource.NewPool(resources),
 
 		pubAddress: b.ip.String(),
