@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package sonm;
+
+message PingRequest {}
+
+message PingReply {
+    string status = 1;
+}
+
+message InfoReply {
+    message stats {
+        message cpu {
+            uint64 totalUsage = 1;
+        }
+
+        message memory {
+            uint64 maxUsage = 1;
+        }
+
+        cpu CPU = 1;
+        memory Memory = 2;
+    }
+
+    map<string, stats> Stats = 1;
+}
+
+message StopTaskRequest {
+    string id = 1;
+}
+
+message StopTaskReply {}
+
+message TaskStatusRequest {
+    string id = 1;
+}
+
+message TaskStatusReply {
+    enum Status {
+        UNKNOWN = 0;
+        SPOOLING = 1;
+        SPAWNING = 2;
+        RUNNING = 3;
+        FINISHED = 4;
+        BROKEN = 5;
+    }
+    Status status = 1;
+}
+
+message StatusMapReply {
+    map<string, TaskStatusReply> statuses = 1;
+}
+

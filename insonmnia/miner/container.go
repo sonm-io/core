@@ -49,7 +49,13 @@ func newContainer(ctx context.Context, dclient *client.Client, d Description) (*
 		PublishAllPorts: true,
 		// NOTE; we don't want to leave garbage
 		AutoRemove: true,
+		Resources: container.Resources{
+			// TODO: accept a name of a cgroup cooked by user
+			// NOTE: on non-Linux platform it's empty
+			CgroupParent: parentCgroup,
+		},
 	}
+
 	var networkingConfig network.NetworkingConfig
 
 	// create new container

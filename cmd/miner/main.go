@@ -10,7 +10,11 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 
+	"github.com/sonm-io/core/common"
+	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner"
+
+	log "github.com/noxiouz/zapctx/ctxlog"
 )
 
 var (
@@ -21,13 +25,16 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	conf, err := miner.NewConfig(*configPath)
+	cfg, err := miner.NewConfig(*configPath)
 	if err != nil {
 		ctxlog.GetLogger(ctx).Error("Cannot load config", zap.Error(err))
 		os.Exit(1)
 	}
 
-	m, err := miner.New(ctx, conf)
+	logger := logging.BuildLogger(cfg.Logging().Level, common.DevelopmentMode)
+	ctx = log.WithLogger(ctx, logger)
+
+	m, err := miner.New(ctx, cfg)
 	if err != nil {
 		ctxlog.GetLogger(ctx).Fatal("failed to create a new Miner", zap.Error(err))
 	}

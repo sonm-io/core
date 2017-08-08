@@ -13,20 +13,20 @@ type HubMetrics struct {
 	// HubPing uses pings to diagnose the system and figure out the uplink speed
 	// between the hub and the source. Determines whether there are any packets lost between the source and the hub.
 	HubPing string `json:"hubPing"`
-	// HubService the amount of services, available to the hub (not yet implemented).
+	// HubService: the amount of services, available to the hub (not yet implemented).
 	HubService string `json:"hubService"`
-	// HubStack the attribute determines how much are the participants holding in their wallets.
+	// HubStack: how much are the participants holding in their wallets.
 	HubStack string `json:"hubStack"`
-	// CreationDate date, on which the hub was activated (registered).
+	// CreationDate: date, on which the hub was activated (registered).
 	// Determines for how long the hub was been registered (in order to assess the activity levels for that period).
-	CreationDate string `json:"creationDate"`
-	// PayDay this attribute sets the amount of money that the hub can pay out
-	PayDay string `json:"payDay"`
-	// TransferLimit this function sets the transfer limit for the hub.
-	TransferLimit string `json:"transferLimit"`
+	CreationDate time.Time `json:"creationDate"`
+	// PayDay sets the amount of money that the hub can pay out
+	PayDay float64 `json:"payDay"`
+	// TransferLimit sets the transfer limit for the hub.
+	TransferLimit float64 `json:"transferLimit"`
 	// HubLifetime determines the lifetime of the hub.
-	HubLifetime time.Time `json:"hubLifeTime"`
-	// SpeedConfirm this attribute determines the response time for the hub, which in turn influences the activity probability for the hub.
+	HubLifetime time.Duration `json:"hubLifeTime"`
+	// SpeedConfirm attribute determines the response time for the hub, which in turn influences the activity probability for the hub.
 	SpeedConfirm time.Time `json:"speedConfirm"`
 	// FreezeTime the overall amount of time the hub spent being frozen.
 	FreezeTime time.Time `json:"freezeTime"`

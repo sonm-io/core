@@ -13,8 +13,16 @@ import (
 
 	"sync"
 
-	pbminer "github.com/sonm-io/core/proto/miner"
+	pb "github.com/sonm-io/core/proto"
 )
+
+type resources struct {
+	// Number of CPUs on a Miner.
+	// TODO: It is unclear how we will utilize the processor (benchmarks?). For now treat this as placeholders.
+	CPU uint64
+	// Total number of bytes available on a Miner.
+	Memory uint64
+}
 
 // MinerCtx holds all the data related to a connected Miner
 type MinerCtx struct {
@@ -24,21 +32,25 @@ type MinerCtx struct {
 	// gRPC connection
 	grpcConn *grpc.ClientConn
 	// gRPC Client
-	Client     pbminer.MinerClient
-	status_map map[string]*pbminer.TaskStatus
+	Client     pb.MinerClient
+	status_map map[string]*pb.TaskStatusReply
 	status_mu  sync.Mutex
 	// Incoming TCP-connection
 	conn net.Conn
 
 	// TODO: forwarding
 	session *yamux.Session
+
+	// Miner name received after handshaking.
+	uuid      string
+	resources resources
 }
 
 func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	var (
 		m = MinerCtx{
 			conn:       conn,
-			status_map: make(map[string]*pbminer.TaskStatus),
+			status_map: make(map[string]*pb.TaskStatusReply),
 		}
 		err error
 	)
@@ -69,18 +81,44 @@ func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	}
 
 	log.G(ctx).Info("grpc.Dial successfully finished")
-	m.Client = pbminer.NewMinerClient(m.grpcConn)
+	m.Client = pb.NewMinerClient(m.grpcConn)
+
+	if err := m.handshake(); err != nil {
+		m.Close()
+		return nil, err
+	}
+
 	return &m, nil
 }
 
-func (m *MinerCtx) initStatusClient() (statusClient pbminer.Miner_TasksStatusClient, err error) {
+func (m *MinerCtx) handshake() error {
+	log.G(m.ctx).Info("sending handshake to a Miner", zap.Stringer("addr", m.conn.RemoteAddr()))
+	resp, err := m.Client.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
+	if err != nil {
+		log.G(m.ctx).Error("failed to receive handshake from a Miner",
+			zap.Any("addr", m.conn.RemoteAddr()),
+			zap.Error(err),
+		)
+		return err
+	}
+
+	log.G(m.ctx).Info("received handshake from a Miner", zap.Any("resp", resp))
+
+	m.uuid = resp.Miner
+	m.resources.CPU = resp.Limits.Cores
+	m.resources.Memory = resp.Limits.Memory
+
+	return nil
+}
+
+func (m *MinerCtx) initStatusClient() (statusClient pb.Miner_TasksStatusClient, err error) {
 	statusClient, err = m.Client.TasksStatus(m.ctx)
 	if err != nil {
 		log.G(m.ctx).Error("failed to get status client", zap.Error(err))
 		return
 	}
 
-	err = statusClient.Send(&pbminer.TasksStatusRequest{})
+	err = statusClient.Send(&pb.MinerStatusMapRequest{})
 	if err != nil {
 		log.G(m.ctx).Error("failed to send tasks status request", zap.Error(err))
 		return
@@ -88,23 +126,23 @@ func (m *MinerCtx) initStatusClient() (statusClient pbminer.Miner_TasksStatusCli
 	return
 }
 
-// NOTE: maybe rewrite this method as poller (like ping() func)
-func (m *MinerCtx) fetchStatuses() error {
+func (m *MinerCtx) pollStatuses() error {
 	statusClient, err := m.initStatusClient()
 	if err != nil {
 		return err
 	}
 
-	statusReply, err := statusClient.Recv()
-	if err != nil {
-		log.G(m.ctx).Info("failed to receive miner status", zap.Error(err))
-		return err
-	}
+	for {
+		statusReply, err := statusClient.Recv()
+		if err != nil {
+			log.G(m.ctx).Error("failed to receive miner status", zap.Error(err))
+			return err
+		}
 
-	m.status_mu.Lock()
-	m.status_map = statusReply.Statuses
-	m.status_mu.Unlock()
-	return nil
+		m.status_mu.Lock()
+		m.status_map = statusReply.Statuses
+		m.status_mu.Unlock()
+	}
 }
 
 func (m *MinerCtx) ping() error {
@@ -117,7 +155,7 @@ func (m *MinerCtx) ping() error {
 			log.G(m.ctx).Info("ping the Miner", zap.Stringer("remote", m.conn.RemoteAddr()))
 			// TODO: implement retries
 			ctx, cancel := context.WithTimeout(m.ctx, time.Second*5)
-			_, err := m.Client.Ping(ctx, &pbminer.PingRequest{})
+			_, err := m.Client.Ping(ctx, &pb.PingRequest{})
 			cancel()
 			if err != nil {
 				log.G(ctx).Error("failed to ping miner", zap.Error(err))

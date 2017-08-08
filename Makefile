@@ -62,7 +62,7 @@ install: install_bootnode install_miner install_hub install_cli
 
 vet:
 	@echo "+ $@"
-	@go vet $(PKGS)
+	@go tool vet $(shell ls -1 -d */ | grep -v -e vendor -e contracts)
 
 fmt:
 	@echo "+ $@"
@@ -74,8 +74,10 @@ test:
 	@go test -tags nocgo $(shell go list ./... | grep -v vendor)
 
 grpc:
-	protoc -I proto proto/hub/hub.proto --go_out=plugins=grpc,Mminer/miner.proto=github.com/sonm-io/core/proto/miner:proto/
-	protoc -I proto proto/miner/miner.proto --go_out=plugins=grpc:proto/
+	@echo "+ $@"
+	@if ! which protoc > /dev/null; then echo "protoc protobuf compiler required for build"; exit 1; fi;
+	@if ! which protoc-gen-go > /dev/null; then echo "protoc-gen-go protobuf  plugin required for build.\nRun \`go get -u github.com/golang/protobuf/protoc-gen-go\`"; exit 1; fi;
+	@protoc -I proto proto/*.proto --go_out=plugins=grpc:proto/
 
 coverage:
 	${GO} tool cover -func=coverage.txt

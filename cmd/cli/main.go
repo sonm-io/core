@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/sonm-io/core/cmd/cli/commands"
 	"github.com/sonm-io/core/cmd/cli/config"
 )

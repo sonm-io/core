@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+import "insonmnia.proto";
+
+package sonm;
+
+service Miner{
+    rpc Ping(PingRequest) returns (PingReply) {}
+    rpc Info(MinerInfoRequest) returns (InfoReply) {}
+    rpc Handshake(MinerHandshakeRequest) returns (MinerHandshakeReply) {}
+
+    rpc Start(MinerStartRequest) returns (MinerStartReply) {}
+    rpc Stop(StopTaskRequest) returns (StopTaskReply) {}
+
+    rpc TasksStatus(stream MinerStatusMapRequest) returns (stream StatusMapReply) {}
+}
+
+message MinerInfoRequest {
+}
+
+message MinerHandshakeRequest {
+    string hub = 1;
+}
+
+message Limits {
+    uint64 cores = 1;
+    uint64 memory = 2;
+}
+
+message MinerHandshakeReply {
+    string miner = 1;
+    Limits limits = 2;
+}
+
+message MinerStartRequest{
+    string id = 1;
+    string registry = 2;
+    string image = 3;
+    string auth = 4;
+}
+
+message MinerStartReply {
+    string container = 1;
+    message port {
+        string IP = 1;
+        string port = 2;
+    }
+    map<string, port> Ports = 2;
+}
+
+message MinerStatusMapRequest {
+}
