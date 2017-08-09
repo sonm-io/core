@@ -46,7 +46,6 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	if b.ctx == nil {
 		b.ctx = context.Background()
 	}
-	ctx, cancel := context.WithCancel(b.ctx)
 
 	if b.cfg == nil {
 		return nil, errors.New("config is mandatory for MinerBuilder")
@@ -64,6 +63,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		b.ip = addr
 	}
 
+	ctx, cancel := context.WithCancel(b.ctx)
 	if b.ovs == nil {
 		b.ovs, err = NewOverseer(ctx, b.cfg.GPU())
 		if err != nil {
@@ -74,6 +74,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	resources, err := b.collector.OS()
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
@@ -81,6 +82,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	deleter, err := initializeControlGroup(b.cfg.HubResources())
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
