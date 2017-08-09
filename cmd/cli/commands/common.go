@@ -5,9 +5,8 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
-	"time"
-
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/sonm-io/core/cmd/cli/config"
@@ -64,7 +63,7 @@ func encodeRegistryAuth(login, password, registry string) string {
 	return b64.StdEncoding.EncodeToString(jsonAuth)
 }
 
-func checkHubAddressIsSet(cmd *cobra.Command, args []string) error {
+func checkHubAddressIsSet(cmd *cobra.Command, _ []string) error {
 	if cmd.Flag(hubAddressFlag).Value.String() == "" {
 		return fmt.Errorf("--%s flag is required", hubAddressFlag)
 	}
@@ -93,7 +92,6 @@ func showError(message string, err error) {
 		showErrorInSimple(message, err)
 	} else {
 		showErrorInJSON(message, err)
-
 	}
 }
 
