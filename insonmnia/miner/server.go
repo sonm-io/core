@@ -59,6 +59,7 @@ type Miner struct {
 	statusChannels map[int]chan bool
 	channelCounter int
 	controlGroup   cGroupDeleter
+	ssh            SSH
 }
 
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
@@ -75,6 +76,17 @@ func (m *Miner) getTaskIdByContainerId(id string) (string, bool) {
 
 	name, ok := m.nameMapping[id]
 	return name, ok
+}
+
+func (m *Miner) getContainerIdByTaskId(id string) (string, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	info, ok := m.containers[id]
+	if ok {
+		return info.ID, ok
+	}
+	return "", ok
 }
 
 func (m *Miner) deleteTaskMapping(id string) {
@@ -236,7 +248,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPAWNING}, request.Id)
 	log.G(ctx).Info("spawning an image")
-	statusListener, containerInfo, err := m.ovs.Start(ctx, d)
+	statusListener, containerInfo, err := m.ovs.Start(m.ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
@@ -418,10 +430,20 @@ func (m *Miner) connectToHub(address string) {
 func (m *Miner) Serve() error {
 	var grpcError error
 	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		m.ssh.Run(m)
+		log.G(m.ctx).Info("closed ssh server")
+		m.Close()
+	}()
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		grpcError = m.grpcServer.Serve(m.rl)
+		m.Close()
 	}()
 
 	wg.Add(1)
@@ -464,8 +486,10 @@ func (m *Miner) Serve() error {
 
 // Close disposes all resources related to the Miner
 func (m *Miner) Close() {
+	log.G(m.ctx).Info("closing miner")
 	m.cancel()
 	m.grpcServer.Stop()
+	m.ssh.Close()
 	m.rl.Close()
 	m.controlGroup.Delete()
 }
