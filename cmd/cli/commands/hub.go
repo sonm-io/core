@@ -26,7 +26,7 @@ var hubPingCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 		if err != nil {
-			showError("Cannot create connection", err)
+			showError(cmd, "Cannot create connection", err)
 			return
 		}
 		defer cc.Close()
@@ -35,11 +35,11 @@ var hubPingCmd = &cobra.Command{
 		defer cancel()
 		_, err = pb.NewHubClient(cc).Ping(ctx, &pb.PingRequest{})
 		if err != nil {
-			showError("Ping failed", err)
+			showError(cmd, "Ping failed", err)
 			return
 		}
 
-		showOk()
+		showOk(cmd)
 	},
 }
 
@@ -49,6 +49,6 @@ var hubStatusCmd = &cobra.Command{
 	PreRunE: checkHubAddressIsSet,
 	Run: func(cmd *cobra.Command, args []string) {
 		// todo: implement this on hub
-		showOk()
+		showOk(cmd)
 	},
 }

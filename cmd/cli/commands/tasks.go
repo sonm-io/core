@@ -1,8 +1,6 @@
 package commands
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -20,35 +18,35 @@ func init() {
 	tasksRootCmd.AddCommand(taskListCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
 }
 
-func printTaskList(minerStatus *pb.StatusMapReply, miner string) {
+func printTaskList(cmd *cobra.Command, minerStatus *pb.StatusMapReply, miner string) {
 	if isSimpleFormat() {
 		if len(minerStatus.Statuses) == 0 {
-			fmt.Printf("There is no tasks on miner \"%s\"\r\n", miner)
+			cmd.Printf("There is no tasks on miner \"%s\"\r\n", miner)
 			return
 		}
 
-		fmt.Printf("There is %d tasks on miner \"%s\":\r\n", len(minerStatus.Statuses), miner)
+		cmd.Printf("There is %d tasks on miner \"%s\":\r\n", len(minerStatus.Statuses), miner)
 		for taskID, status := range minerStatus.Statuses {
-			fmt.Printf("  %s: %s\r\n", taskID, status.GetStatus())
+			cmd.Printf("  %s: %s\r\n", taskID, status.GetStatus())
 		}
 	} else {
 		b, _ := json.Marshal(minerStatus)
-		fmt.Println(string(b))
+		cmd.Println(string(b))
 	}
 }
 
-func printTaskStart(rep *pb.HubStartTaskReply) {
+func printTaskStart(cmd *cobra.Command, rep *pb.HubStartTaskReply) {
 	if isSimpleFormat() {
-		fmt.Printf("ID %s, Endpoint %s\r\n", rep.Id, rep.Endpoint)
+		cmd.Printf("ID %s, Endpoint %s\r\n", rep.Id, rep.Endpoint)
 	} else {
 		b, _ := json.Marshal(rep)
-		fmt.Sprintln(string(b))
+		cmd.Println(string(b))
 	}
 }
 
-func printTaskStatus(miner, id string, taskStatus *pb.TaskStatusReply) {
+func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskStatusReply) {
 	if isSimpleFormat() {
-		fmt.Printf("Task %s (on %s) status is %s\n", id, miner, taskStatus.Status.String())
+		cmd.Printf("Task %s (on %s) status is %s\n", id, miner, taskStatus.Status.String())
 	} else {
 		v := map[string]string{
 			"id":     id,
@@ -56,7 +54,7 @@ func printTaskStatus(miner, id string, taskStatus *pb.TaskStatusReply) {
 			"status": taskStatus.Status.String(),
 		}
 		b, _ := json.Marshal(v)
-		fmt.Println(string(b))
+		cmd.Println(string(b))
 	}
 }
 
@@ -78,7 +76,7 @@ var taskListCmd = &cobra.Command{
 
 		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 		if err != nil {
-			showError("Cannot create connection", err)
+			showError(cmd, "Cannot create connection", err)
 			return nil
 		}
 		defer cc.Close()
@@ -89,11 +87,11 @@ var taskListCmd = &cobra.Command{
 		var req = pb.HubStatusMapRequest{Miner: miner}
 		minerStatus, err := pb.NewHubClient(cc).MinerStatus(ctx, &req)
 		if err != nil {
-			showError("Cannot get tasks", err)
+			showError(cmd, "Cannot get tasks", err)
 			return nil
 		}
 
-		printTaskList(minerStatus, miner)
+		printTaskList(cmd, minerStatus, miner)
 		return nil
 	},
 }
@@ -120,7 +118,7 @@ var taskStartCmd = &cobra.Command{
 
 		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 		if err != nil {
-			showError("Cannot create connection", err)
+			showError(cmd, "Cannot create connection", err)
 			return nil
 		}
 		defer cc.Close()
@@ -135,16 +133,16 @@ var taskStartCmd = &cobra.Command{
 		}
 
 		if isSimpleFormat() {
-			fmt.Printf("Starting \"%s\" on miner %s...\r\n", image, miner)
+			cmd.Printf("Starting \"%s\" on miner %s...\r\n", image, miner)
 		}
 
 		rep, err := pb.NewHubClient(cc).StartTask(ctx, &req)
 		if err != nil {
-			showError("Cannot start task", err)
+			showError(cmd, "Cannot start task", err)
 			return nil
 		}
 
-		printTaskStart(rep)
+		printTaskStart(cmd, rep)
 		return nil
 	},
 }
@@ -165,7 +163,7 @@ var taskStatusCmd = &cobra.Command{
 
 		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 		if err != nil {
-			showError("Cannot create connection", err)
+			showError(cmd, "Cannot create connection", err)
 			return nil
 		}
 		defer cc.Close()
@@ -176,11 +174,11 @@ var taskStatusCmd = &cobra.Command{
 		var req = pb.TaskStatusRequest{Id: taskID}
 		taskStatus, err := pb.NewHubClient(cc).TaskStatus(ctx, &req)
 		if err != nil {
-			showError("Cannot get task status", err)
+			showError(cmd, "Cannot get task status", err)
 			return nil
 		}
 
-		printTaskStatus(miner, taskID, taskStatus)
+		printTaskStatus(cmd, miner, taskID, taskStatus)
 		return nil
 	},
 }
@@ -201,7 +199,7 @@ var taskStopCmd = &cobra.Command{
 
 		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 		if err != nil {
-			showError("Cannot create connection", err)
+			showError(cmd, "Cannot create connection", err)
 			return nil
 		}
 		defer cc.Close()
@@ -214,11 +212,11 @@ var taskStopCmd = &cobra.Command{
 
 		_, err = pb.NewHubClient(cc).StopTask(ctx, &req)
 		if err != nil {
-			showError("Cannot stop task", err)
+			showError(cmd, "Cannot stop task", err)
 			return nil
 		}
 
-		showOk()
+		showOk(cmd)
 		return nil
 	},
 }

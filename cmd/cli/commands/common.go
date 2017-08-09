@@ -5,7 +5,6 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -35,6 +34,7 @@ var (
 	registryPassword string
 	cfg              config.Config
 
+	errHubAddressRequired   = errors.New("--addr flag is required")
 	errMinerAddressRequired = errors.New("Miner address is required")
 	errTaskIDRequired       = errors.New("Task ID is required")
 	errImageNameRequired    = errors.New("Image name is required")
@@ -65,7 +65,7 @@ func encodeRegistryAuth(login, password, registry string) string {
 
 func checkHubAddressIsSet(cmd *cobra.Command, _ []string) error {
 	if cmd.Flag(hubAddressFlag).Value.String() == "" {
-		return fmt.Errorf("--%s flag is required", hubAddressFlag)
+		return errHubAddressRequired
 	}
 	return nil
 }
@@ -87,43 +87,43 @@ func newCommandError(message string, err error) *commandError {
 	return &commandError{rawErr: err, Message: message}
 }
 
-func showError(message string, err error) {
+func showError(cmd *cobra.Command, message string, err error) {
 	if cfg.OutputFormat() == config.OutputModeSimple {
-		showErrorInSimple(message, err)
+		showErrorInSimple(cmd, message, err)
 	} else {
-		showErrorInJSON(message, err)
+		showErrorInJSON(cmd, message, err)
 	}
 }
 
-func showErrorInSimple(message string, err error) {
+func showErrorInSimple(cmd *cobra.Command, message string, err error) {
 	if err != nil {
-		fmt.Printf("[ERR] %s: %s\r\n", message, err.Error())
+		cmd.Printf("[ERR] %s: %s\r\n", message, err.Error())
 	} else {
-		fmt.Printf("[ERR] %s\r\n", message)
+		cmd.Printf("[ERR] %s\r\n", message)
 	}
 }
 
-func showErrorInJSON(message string, err error) {
+func showErrorInJSON(cmd *cobra.Command, message string, err error) {
 	jerr := newCommandError(message, err)
-	fmt.Println(jerr.ToJSONString())
+	cmd.Println(jerr.ToJSONString())
 }
 
-func showOk() {
+func showOk(cmd *cobra.Command) {
 	if cfg.OutputFormat() == config.OutputModeSimple {
-		showOkSimple()
+		showOkSimple(cmd)
 	} else {
-		showOkJson()
+		showOkJson(cmd)
 	}
 }
 
-func showOkSimple() {
-	fmt.Println("OK")
+func showOkSimple(cmd *cobra.Command) {
+	cmd.Println("OK")
 }
 
-func showOkJson() {
+func showOkJson(cmd *cobra.Command) {
 	r := map[string]string{"status": "OK"}
 	j, _ := json.Marshal(r)
-	fmt.Println(string(j))
+	cmd.Println(string(j))
 }
 
 func isSimpleFormat() bool {

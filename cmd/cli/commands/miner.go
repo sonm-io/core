@@ -2,55 +2,53 @@ package commands
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/dustin/go-humanize"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-
-	pb "github.com/sonm-io/core/proto"
 )
 
 func init() {
 	minerRootCmd.AddCommand(minersListCmd, minerStatusCmd)
 }
 
-func printMinerList(lr *pb.ListReply) {
+func printMinerList(cmd *cobra.Command, lr *pb.ListReply) {
 	if isSimpleFormat() {
 		for addr, meta := range lr.Info {
-			fmt.Printf("Miner: %s\r\n", addr)
+			cmd.Printf("Miner: %s\r\n", addr)
 
 			if len(meta.Values) == 0 {
-				fmt.Println("Miner is idle")
+				cmd.Println("Miner is idle")
 			} else {
-				fmt.Println("Tasks:")
+				cmd.Println("Tasks:")
 				for i, task := range meta.Values {
-					fmt.Printf("  %d) %s\r\n", i+1, task)
+					cmd.Printf("  %d) %s\r\n", i+1, task)
 				}
 			}
 		}
 	} else {
 		b, _ := json.Marshal(lr)
-		fmt.Println(string(b))
+		cmd.Println(string(b))
 	}
 }
 
-func printMinerStatus(metrics *pb.InfoReply) {
+func printMinerStatus(cmd *cobra.Command, metrics *pb.InfoReply) {
 	if isSimpleFormat() {
 		if len(metrics.Stats) == 0 {
-			fmt.Println("Miner is idle")
+			cmd.Println("Miner is idle")
 		} else {
-			fmt.Println("Miner tasks:")
+			cmd.Println("Miner tasks:")
 			for task, stat := range metrics.Stats {
-				fmt.Printf("  ID: %s\r\n", task)
-				fmt.Printf("      CPU: %d\r\n", stat.CPU.TotalUsage)
-				fmt.Printf("      RAM: %s\r\n", humanize.Bytes(stat.Memory.MaxUsage))
+				cmd.Printf("  ID: %s\r\n", task)
+				cmd.Printf("      CPU: %d\r\n", stat.CPU.TotalUsage)
+				cmd.Printf("      RAM: %s\r\n", humanize.Bytes(stat.Memory.MaxUsage))
 			}
 		}
 	} else {
 		b, _ := json.Marshal(metrics)
-		fmt.Println(string(b))
+		cmd.Println(string(b))
 	}
 }
 
@@ -67,7 +65,7 @@ var minersListCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 		if err != nil {
-			showError("Cannot create connection", err)
+			showError(cmd, "Cannot create connection", err)
 			return
 		}
 		defer cc.Close()
@@ -76,11 +74,11 @@ var minersListCmd = &cobra.Command{
 		defer cancel()
 		lr, err := pb.NewHubClient(cc).List(ctx, &pb.ListRequest{})
 		if err != nil {
-			showError("Cannot get miners list", err)
+			showError(cmd, "Cannot get miners list", err)
 			return
 		}
 
-		printMinerList(lr)
+		printMinerList(cmd, lr)
 	},
 }
 
@@ -96,7 +94,7 @@ var minerStatusCmd = &cobra.Command{
 
 		conn, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 		if err != nil {
-			showError("Cannot create connection", err)
+			showError(cmd, "Cannot create connection", err)
 			return nil
 		}
 		defer conn.Close()
@@ -107,11 +105,11 @@ var minerStatusCmd = &cobra.Command{
 		var req = pb.HubInfoRequest{Miner: minerID}
 		metrics, err := pb.NewHubClient(conn).Info(ctx, &req)
 		if err != nil {
-			showError("Cannot get miner status", err)
+			showError(cmd, "Cannot get miner status", err)
 			return nil
 		}
 
-		printMinerStatus(metrics)
+		printMinerStatus(cmd, metrics)
 		return nil
 	},
 }
