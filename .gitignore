@@ -50,6 +50,3 @@ blockchain/node_modules
 
 # truffle stores build artifacts here
 blockchain/build
-
-# `go generate` stores contract wrappers here
-blockchain/api
