@@ -447,13 +447,15 @@ func (m *Miner) Serve() error {
 			log.G(m.ctx).Debug("Using hub IP from config", zap.String("IP", m.hubAddress))
 		}
 
-		t := time.NewTicker(time.Second * 5)
-		defer t.Stop()
-		select {
-		case <-m.ctx.Done():
-			return
-		case <-t.C:
-			m.connectToHub(m.hubAddress)
+		for {
+			t := time.NewTicker(time.Second * 5)
+			defer t.Stop()
+			select {
+			case <-m.ctx.Done():
+				return
+			case <-t.C:
+				m.connectToHub(m.hubAddress)
+			}
 		}
 	}()
 	wg.Wait()
