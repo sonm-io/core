@@ -1,4 +1,4 @@
-package contracts
+package tests
 
 import (
 	"bytes"
