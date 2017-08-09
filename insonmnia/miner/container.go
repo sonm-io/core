@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
 )
 
@@ -83,10 +84,63 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 func (c *containerDescriptor) startContainer() error {
 	var options types.ContainerStartOptions
 	if err := c.client.ContainerStart(c.ctx, c.ID, options); err != nil {
+		log.G(c.ctx).Warn("ContainerStart finished with error", zap.Error(err))
 		c.cancel()
 		return err
 	}
 	return nil
+}
+
+func (c *containerDescriptor) execCommand(cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (conn types.HijackedResponse, err error) {
+	cfg := types.ExecConfig{
+		User:         "root",
+		Tty:          isTty,
+		AttachStderr: true,
+		AttachStdout: true,
+		AttachStdin:  true,
+		Detach:       false,
+		Cmd:          cmd,
+		Env:          env,
+	}
+
+	log.G(c.ctx).Info("attaching command", zap.Any("config", cfg))
+
+	execId, err := c.client.ContainerExecCreate(c.ctx, c.ID, cfg)
+	if err != nil {
+		log.G(c.ctx).Warn("ContainerExecCreate finished with error", zap.Error(err))
+		return
+	}
+
+	conn, err = c.client.ContainerExecAttach(c.ctx, execId.ID, cfg)
+	if err != nil {
+		log.G(c.ctx).Warn("ContainerExecAttach finished with error", zap.Error(err))
+	}
+
+	err = c.client.ContainerExecStart(c.ctx, execId.ID, types.ExecStartCheck{Detach: false, Tty: true})
+	if err != nil {
+		log.G(c.ctx).Warn("ContainerExecStart finished with error", zap.Error(err))
+		return
+	}
+	go func() {
+		for {
+			select {
+			case w, ok := <-wCh:
+				if !ok {
+					return
+				}
+				log.G(c.ctx).Info("resising tty", zap.Int("height", w.Height), zap.Int("width", w.Width))
+				err = c.client.ContainerExecResize(c.ctx, execId.ID, types.ResizeOptions{Height: uint(w.Height), Width: uint(w.Width)})
+				if err != nil {
+					log.G(c.ctx).Warn("ContainerExecResize finished with error", zap.Error(err))
+				}
+			case <-c.ctx.Done():
+				return
+			}
+		}
+	}()
+
+	log.G(c.ctx).Info("attached command to container")
+	return
 }
 
 func (c *containerDescriptor) Kill() (err error) {

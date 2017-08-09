@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
@@ -32,6 +33,8 @@ type Description struct {
 	Auth          string
 	RestartPolicy container.RestartPolicy
 	Resources     container.Resources
+	Cmd           []string
+	Env           []string
 
 	GPURequired bool
 }
@@ -50,6 +53,8 @@ type ContainerMetrics struct {
 	mem types.MemoryStats
 }
 
+type ExecConnection types.HijackedResponse
+
 // Overseer watches all miner's applications.
 type Overseer interface {
 	// Spool prepares an application for its further start.
@@ -62,6 +67,9 @@ type Overseer interface {
 	// After successful starting an application becomes a target for accepting request, but not guarantees
 	// to complete them.
 	Start(ctx context.Context, description Description) (chan pb.TaskStatusReply_Status, ContainerInfo, error)
+
+	// Exec a given command in running container
+	Exec(ctx context.Context, Id string, cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (types.HijackedResponse, error)
 
 	// Stop terminates the container.
 	Stop(ctx context.Context, containerID string) error
@@ -345,6 +353,18 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		Resources: resource.NewResources(1, description.Resources.Memory),
 	}
 	return status, cinfo, nil
+}
+
+func (o *overseer) Exec(ctx context.Context, id string, cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (ret types.HijackedResponse, err error) {
+	o.mu.Lock()
+	descriptor, dok := o.containers[id]
+	o.mu.Unlock()
+	if !dok {
+		err = fmt.Errorf("no such container %s", id)
+		return
+	}
+	ret, err = descriptor.execCommand(cmd, env, isTty, wCh)
+	return
 }
 
 func (o *overseer) Stop(ctx context.Context, containerid string) error {
