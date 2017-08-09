@@ -6,7 +6,7 @@
   "license": "Apache-2.0",
   "devDependencies": {
     "zeppelin-solidity": "1.2.0",
-    "ethereumjs-testrpc": "^4.0.1",
-    "truffle": "^3.4.6"
+    "ethereumjs-testrpc": "4.0.1",
+    "truffle": "3.4.6"
   }
 }

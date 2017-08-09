@@ -1,9 +1,9 @@
-package contracts
+package tests
 
 import (
 	"context"
 	"fmt"
-	"github.com/sonm-io/core/contracts/api"
+	"github.com/sonm-io/core/blockchain/api"
 	"github.com/stretchr/testify/assert"
 	"math/big"
 	"os"

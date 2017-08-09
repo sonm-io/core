@@ -38,8 +38,6 @@ fusrodah/examples/hub/main
 fusrodah/examples/miner/main
 fusrodah/examples/fusrodah_direct/main
 
-blockchain-api/*
-
 # test artifacts
 metrics/config_test.json
 
@@ -48,10 +46,10 @@ metrics/config_test.json
 *_mock.go
 
 # truffle installs OpenZeppelin contracts here
-node_modules
+blockchain/node_modules
 
 # truffle stores build artifacts here
-build
+blockchain/build
 
-# go generate stores contract wrappers here
-contracts/api
+# `go generate` stores contract wrappers here
+blockchain/api
