@@ -1,6 +1,8 @@
 package resource
 
-import "github.com/cloudfoundry/gosigar"
+import (
+	"github.com/cloudfoundry/gosigar"
+)
 
 // OS represents available resources on the OS, where a Miner is running.
 type OS struct {

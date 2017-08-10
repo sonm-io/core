@@ -7,6 +7,7 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -19,29 +20,52 @@ type MinerBuilder struct {
 	collector resource.Collector
 	ip        net.IP
 	ovs       Overseer
+	uuid      string
 }
 
-func (b *MinerBuilder) Context(ctx context.Context) {
+func (b *MinerBuilder) Context(ctx context.Context) *MinerBuilder {
 	b.ctx = ctx
+	return b
 }
 
-func (b *MinerBuilder) Config(config Config) {
+func (b *MinerBuilder) Config(config Config) *MinerBuilder {
 	b.cfg = config
+	return b
 }
 
-func (b *MinerBuilder) Collector(collector resource.Collector) {
+func (b *MinerBuilder) Collector(collector resource.Collector) *MinerBuilder {
 	b.collector = collector
+	return b
 }
 
-func (b *MinerBuilder) Address(ip net.IP) {
+func (b *MinerBuilder) Address(ip net.IP) *MinerBuilder {
 	b.ip = ip
+	return b
 }
 
-func (b *MinerBuilder) Overseer(ovs Overseer) {
+func (b *MinerBuilder) Overseer(ovs Overseer) *MinerBuilder {
 	b.ovs = ovs
+	return b
+}
+
+func (b *MinerBuilder) UUID(uuid string) *MinerBuilder {
+	b.uuid = uuid
+	return b
 }
 
 func (b *MinerBuilder) Build() (miner *Miner, err error) {
+	if b.ctx == nil {
+		b.ctx = context.Background()
+	}
+
+	if b.cfg == nil {
+		return nil, errors.New("config is mandatory for MinerBuilder")
+	}
+
+	if b.collector == nil {
+		b.collector = resource.New()
+	}
+
 	if b.ip == nil {
 		addr, err := util.GetPublicIP()
 		if err != nil {
@@ -50,15 +74,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		b.ip = addr
 	}
 
-	if b.collector == nil {
-		b.collector = resource.New()
-	}
-
-	if b.ctx == nil {
-		b.ctx = context.Background()
-	}
 	ctx, cancel := context.WithCancel(b.ctx)
-
 	if b.ovs == nil {
 		b.ovs, err = NewOverseer(ctx, b.cfg.GPU())
 		if err != nil {
@@ -67,8 +83,13 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		}
 	}
 
+	if len(b.uuid) == 0 {
+		b.uuid = uuid.New()
+	}
+
 	resources, err := b.collector.OS()
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
@@ -76,6 +97,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	deleter, err := initializeControlGroup(b.cfg.HubResources())
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
@@ -89,8 +111,8 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		grpcServer: grpcServer,
 		ovs:        b.ovs,
 
-		name:      uuid.New(),
-		resources: resources,
+		name:      b.uuid,
+		resources: resource.NewPool(resources),
 
 		pubAddress: b.ip.String(),
 		hubAddress: b.cfg.HubEndpoint(),
@@ -105,4 +127,10 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	pb.RegisterMinerServer(grpcServer, m)
 	return m, nil
+}
+
+func NewMinerBuilder(cfg Config) MinerBuilder {
+	b := MinerBuilder{}
+	b.Config(cfg)
+	return b
 }

@@ -30,7 +30,7 @@ type Miner struct {
 
 	// Miner name for nice self-representation.
 	name      string
-	resources *resource.OS
+	resources *resource.Pool
 
 	hubAddress string
 	// NOTE: do not use static detection
@@ -132,8 +132,8 @@ func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest
 	resp := &pb.MinerHandshakeReply{
 		Miner: m.name,
 		Limits: &pb.Limits{
-			Cores:  uint64(len(m.resources.CPU.List)),
-			Memory: m.resources.Mem.Total,
+			Cores:  uint64(len(m.resources.OS.CPU.List)),
+			Memory: m.resources.OS.Mem.Total,
 		},
 	}
 
@@ -214,6 +214,16 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	}
 	log.G(m.ctx).Info("handling Start request", zap.Any("req", request))
 
+	var mem = int64(0)
+	if request.Resources != nil {
+		mem = request.Resources.Memory
+	}
+	var usage = resource.NewResources(1, mem)
+
+	if err := m.resources.Consume(&usage); err != nil {
+		return nil, status.Errorf(codes.ResourceExhausted, "failed to Start %v", err)
+	}
+
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, request.Id)
 
 	log.G(m.ctx).Info("spooling an image")
@@ -221,6 +231,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.resources.Retain(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
@@ -230,6 +241,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.resources.Retain(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 
@@ -274,6 +286,7 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopTaskRequest) (*pb.Stop
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
+	m.resources.Retain(&containerInfo.Resources)
 	return &pb.StopTaskReply{}, nil
 }
 
@@ -434,13 +447,15 @@ func (m *Miner) Serve() error {
 			log.G(m.ctx).Debug("Using hub IP from config", zap.String("IP", m.hubAddress))
 		}
 
-		t := time.NewTicker(time.Second * 5)
-		defer t.Stop()
-		select {
-		case <-m.ctx.Done():
-			return
-		case <-t.C:
-			m.connectToHub(m.hubAddress)
+		for {
+			t := time.NewTicker(time.Second * 5)
+			defer t.Stop()
+			select {
+			case <-m.ctx.Done():
+				return
+			case <-t.C:
+				m.connectToHub(m.hubAddress)
+			}
 		}
 	}()
 	wg.Wait()

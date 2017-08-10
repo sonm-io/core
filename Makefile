@@ -19,8 +19,7 @@ DOCKER_IMAGE_BOOTNODE="sonm/bootnode:latest"
 
 .PHONY: fmt vet test
 
-all: mock vet fmt test build install
-
+all: mock vet fmt build test install
 
 build_bootnode:
 	@echo "+ $@"
@@ -30,17 +29,19 @@ build_miner:
 	@echo "+ $@"
 	${GO} build -tags nocgo -o ${MINER} ${GOCMD}/miner
 
-
 build_hub:
 	@echo "+ $@"
 	${GO} build -tags nocgo -o ${HUB} ${GOCMD}/hub
 
 build_cli:
 	@echo "+ $@"
-	${GO} build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
+	${GO} build -tags nocgo -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
 
+build_blockchain:
+	@echo "+ $@"
+	$(MAKE) -C blockchain build
 
-build: build_bootnode build_hub build_miner build_cli
+build: build_blockchain build_bootnode build_hub build_miner build_cli
 
 install_bootnode: build_bootnode
 	@echo "+ $@"
@@ -69,9 +70,11 @@ fmt:
 	@test -z "$$(gofmt -s -l . 2>&1 | grep -v ^vendor/ | tee /dev/stderr)" || \
 		(echo >&2 "+ please format Go code with 'gofmt -s'" && false)
 
-test:
+test: mock
 	@echo "+ $@"
-	@go test -tags nocgo $(shell go list ./... | grep -v vendor)
+	@go test -tags nocgo $(shell go list ./... | grep -vE 'vendor|blockchain')
+	$(MAKE) -C blockchain test
+
 
 grpc:
 	@echo "+ $@"
@@ -88,6 +91,7 @@ mock:
 	echo "and add your go bin directory to PATH"; exit 1; fi;
 	mockgen -package miner -destination insonmnia/miner/overseer_mock.go -source insonmnia/miner/overseer.go
 	mockgen -package miner -destination insonmnia/miner/config_mock.go -source insonmnia/miner/config.go
+	mockgen -package resource -destination insonmnia/resource/resource_mock.go -source insonmnia/resource/resource.go
 
 coverage:
 	${GO} tool cover -func=coverage.txt
@@ -99,6 +103,7 @@ clean:
 	rm -f coverage.html
 	rm -f funccoverage.txt
 	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE}
+	$(MAKE) -C blockchain clean
 
 
 docker_hub:

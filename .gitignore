@@ -38,11 +38,16 @@ fusrodah/examples/hub/main
 fusrodah/examples/miner/main
 fusrodah/examples/fusrodah_direct/main
 
-blockchain-api/*
-
 # test artifacts
 metrics/config_test.json
 
 # Mock files are not the subject of the repository, because we generate them
 # on the fly.
 *_mock.go
+
+# truffle installs OpenZeppelin contracts here
+blockchain/node_modules
+blockchain/package-lock.json
+
+# truffle stores build artifacts here
+blockchain/build
