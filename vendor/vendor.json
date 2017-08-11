@@ -77,6 +77,12 @@
 			"revisionTime": "2017-04-10T19:29:09Z"
 		},
 		{
+			"checksumSHA1": "HuynI+iQ+RiV7jgtPXA2gTVLcQw=",
+			"path": "github.com/anmitsu/go-shlex",
+			"revision": "648efa622239a2f6ff949fed78ee37b48d499ba4",
+			"revisionTime": "2016-10-02T11:37:05Z"
+		},
+		{
 			"checksumSHA1": "USkefO0g1U9mr+8hagv3fpSkrxg=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/aristanetworks/goarista/monotime",
 			"path": "github.com/aristanetworks/goarista/monotime",
@@ -89,6 +95,12 @@
 			"path": "github.com/btcsuite/btcd/btcec",
 			"revision": "a602ee90f2c28eadbca8cdc2e143825a4c24ab23",
 			"revisionTime": "2017-07-26T07:40:41Z"
+		},
+		{
+			"checksumSHA1": "CT4X4v8IlU6HBx32wucNC1R3VJE=",
+			"path": "github.com/cloudfoundry/gosigar",
+			"revision": "d9ee2f6269aeeed93de1cb3ed3ea03b80e82221e",
+			"revisionTime": "2017-06-26T17:58:20Z"
 		},
 		{
 			"checksumSHA1": "prgcV+rQm4iAO3PNHWhrEFz9Zbw=",
@@ -247,6 +259,12 @@
 			"path": "github.com/docker/docker/pkg/reexec",
 			"revision": "e9cd2fef805c8182b719d489967fb4d1aa34eecd",
 			"revisionTime": "2017-07-27T23:15:11Z"
+		},
+		{
+			"checksumSHA1": "H1rrbVmeE1z2TnkF7tSrfh+qUOY=",
+			"path": "github.com/docker/docker/pkg/stdcopy",
+			"revision": "c7911389e646104180063f069280a8b6cbc47211",
+			"revisionTime": "2017-08-09T00:54:17Z"
 		},
 		{
 			"checksumSHA1": "nhKmQDaWa+qKP2VWEy05CrTyids=",
@@ -650,6 +668,12 @@
 			"path": "github.com/go-ole/go-ole/oleutil",
 			"revision": "085abb85892dc1949567b726dff00fa226c60c45",
 			"revisionTime": "2017-07-12T17:44:59Z"
+		},
+		{
+			"checksumSHA1": "yYdny97tDb/SoRB44BJiRTpQNeM=",
+			"path": "github.com/gliderlabs/ssh",
+			"revision": "9ccc7bbb64816592236f628dc4d70fd1a8fe0e5f",
+			"revisionTime": "2017-07-31T18:53:11Z"
 		},
 		{
 			"checksumSHA1": "KZ3QD2QgUS4RcoKiA3mn5pSlJxQ=",
