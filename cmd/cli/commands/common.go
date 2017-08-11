@@ -14,23 +14,16 @@ const (
 	appName        = "sonm"
 	hubAddressFlag = "addr"
 	hubTimeoutFlag = "timeout"
-
-	registryNameFlag     = "registry"
-	registryUserFlag     = "user"
-	registryPasswordFlag = "password"
 )
 
 var (
 	rootCmd = &cobra.Command{Use: appName}
 	gctx    = context.Background()
 
-	version          string
-	hubAddress       string
-	timeout          = 60 * time.Second
-	registryName     string
-	registryUser     string
-	registryPassword string
-	cfg              config.Config
+	version    string
+	hubAddress string
+	timeout    = 60 * time.Second
+	cfg        config.Config
 
 	errHubAddressRequired   = errors.New("--addr flag is required")
 	errMinerAddressRequired = errors.New("Miner address is required")

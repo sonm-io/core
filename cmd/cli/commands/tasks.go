@@ -12,10 +12,6 @@ import (
 )
 
 func init() {
-	taskStartCmd.Flags().StringVar(&registryName, registryNameFlag, "", "Registry to pull image")
-	taskStartCmd.Flags().StringVar(&registryUser, registryUserFlag, "", "Registry username")
-	taskStartCmd.Flags().StringVar(&registryPassword, registryPasswordFlag, "", "Registry password")
-
 	tasksRootCmd.AddCommand(taskListCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
 }
 
