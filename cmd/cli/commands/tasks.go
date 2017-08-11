@@ -7,6 +7,7 @@ import (
 
 	"encoding/json"
 
+	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -105,15 +106,16 @@ var taskStartCmd = &cobra.Command{
 			return errMinerAddressRequired
 		}
 		if len(args) < 2 {
-			return errImageNameRequired
+			return errTaskFileRequired
 		}
 
 		miner := args[0]
-		image := args[1]
+		taskFile := args[1]
 
-		var registryAuth string
-		if registryUser != "" || registryPassword != "" || registryName != "" {
-			registryAuth = encodeRegistryAuth(registryUser, registryPassword, registryName)
+		taskDef, err := task_config.LoadConfig(taskFile)
+		if err != nil {
+			showError(cmd, "Cannot load task definition", err)
+			return nil
 		}
 
 		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
@@ -127,13 +129,13 @@ var taskStartCmd = &cobra.Command{
 		defer cancel()
 		var req = pb.HubStartTaskRequest{
 			Miner:    miner,
-			Image:    image,
-			Registry: registryName,
-			Auth:     registryAuth,
+			Image:    taskDef.GetImageName(),
+			Registry: taskDef.GetRegistryName(),
+			Auth:     taskDef.GetRegistryAuth(),
 		}
 
 		if isSimpleFormat() {
-			cmd.Printf("Starting \"%s\" on miner %s...\r\n", image, miner)
+			cmd.Printf("Starting \"%s\" on miner %s...\r\n", taskDef.GetImageName(), miner)
 		}
 
 		rep, err := pb.NewHubClient(cc).StartTask(ctx, &req)

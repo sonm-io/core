@@ -85,6 +85,18 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "jQ7JB1XsEO3528jVoX9wKM/9wWU=",
+			"path": "github.com/c2h5oh/datasize",
+			"revision": "54516c931ae99c3c74637b9ea2390cf9a6327f26",
+			"revisionTime": "2017-05-19T14:33:21Z"
+		},
+		{
+			"checksumSHA1": "CT4X4v8IlU6HBx32wucNC1R3VJE=",
+			"path": "github.com/cloudfoundry/gosigar",
+			"revision": "d9ee2f6269aeeed93de1cb3ed3ea03b80e82221e",
+			"revisionTime": "2017-06-26T17:58:20Z"
+		},
+		{
 			"checksumSHA1": "prgcV+rQm4iAO3PNHWhrEFz9Zbw=",
 			"path": "github.com/containerd/cgroups",
 			"revision": "6d5c608c203dab9f154fdb40c22c043cebd4d699",
@@ -95,12 +107,6 @@
 			"path": "github.com/coreos/go-systemd/dbus",
 			"revision": "24036eb3df68550d24a2736c5d013f4e83366866",
 			"revisionTime": "2017-06-09T14:46:27Z"
-		},
-		{
-			"checksumSHA1": "CT4X4v8IlU6HBx32wucNC1R3VJE=",
-			"path": "github.com/cloudfoundry/gosigar",
-			"revision": "d9ee2f6269aeeed93de1cb3ed3ea03b80e82221e",
-			"revisionTime": "2017-06-26T17:58:20Z"
 		},
 		{
 			"checksumSHA1": "OFu4xJEIjiI8Suu+j/gabfp+y6Q=",
@@ -294,12 +300,6 @@
 			"path": "github.com/docker/libtrust",
 			"revision": "cd35e4beee13a7c193e2a89008cd87d38fcd0161",
 			"revisionTime": "2017-06-08T04:50:38Z"
-		},
-		{
-			"checksumSHA1": "rhLUtXvcmouYuBwOq9X/nYKzvNg=",
-			"path": "github.com/dustin/go-humanize",
-			"revision": "259d2a102b871d17f30e3cd9881a642961a1e486",
-			"revisionTime": "2017-02-28T07:34:54Z"
 		},
 		{
 			"checksumSHA1": "zYnPsNAVm1/ViwCkN++dX2JQhBo=",
