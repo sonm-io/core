@@ -12,6 +12,12 @@ type Hardware struct {
 	Memory *mem.VirtualMemoryStat
 }
 
+// LogicalCPUCount returns the number of logical CPUs in the system.
+func (h *Hardware) LogicalCPUCount() int {
+	res, _ := cpu.Counts(true)
+	return res
+}
+
 type HardwareInfo interface {
 	// CPU returns statistics about system CPU.
 	//

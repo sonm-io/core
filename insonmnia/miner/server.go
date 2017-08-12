@@ -134,8 +134,8 @@ func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest
 	resp := &pb.MinerHandshakeReply{
 		Miner: m.name,
 		Limits: &pb.Limits{
-			Cores:  uint64(len(m.resources.OS.CPU.List)),
-			Memory: m.resources.OS.Mem.Total,
+			Cores:  uint64(m.resources.OS.LogicalCPUCount()),
+			Memory: m.resources.OS.Memory.Total,
 		},
 	}
 
