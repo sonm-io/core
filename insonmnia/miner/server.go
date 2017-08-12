@@ -19,6 +19,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	frd "github.com/sonm-io/core/fusrodah/miner"
+	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 )
 
@@ -30,6 +31,7 @@ type Miner struct {
 
 	// Miner name for nice self-representation.
 	name      string
+	hardware  *hardware.Hardware
 	resources *resource.Pool
 
 	hubAddress string
