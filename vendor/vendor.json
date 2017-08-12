@@ -85,6 +85,12 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "CT4X4v8IlU6HBx32wucNC1R3VJE=",
+			"path": "github.com/cloudfoundry/gosigar",
+			"revision": "d9ee2f6269aeeed93de1cb3ed3ea03b80e82221e",
+			"revisionTime": "2017-06-26T17:58:20Z"
+		},
+		{
 			"checksumSHA1": "prgcV+rQm4iAO3PNHWhrEFz9Zbw=",
 			"path": "github.com/containerd/cgroups",
 			"revision": "6d5c608c203dab9f154fdb40c22c043cebd4d699",
@@ -95,12 +101,6 @@
 			"path": "github.com/coreos/go-systemd/dbus",
 			"revision": "24036eb3df68550d24a2736c5d013f4e83366866",
 			"revisionTime": "2017-06-09T14:46:27Z"
-		},
-		{
-			"checksumSHA1": "CT4X4v8IlU6HBx32wucNC1R3VJE=",
-			"path": "github.com/cloudfoundry/gosigar",
-			"revision": "d9ee2f6269aeeed93de1cb3ed3ea03b80e82221e",
-			"revisionTime": "2017-06-26T17:58:20Z"
 		},
 		{
 			"checksumSHA1": "OFu4xJEIjiI8Suu+j/gabfp+y6Q=",
@@ -998,6 +998,12 @@
 			"path": "github.com/satori/uuid",
 			"revision": "5bf94b69c6b68ee1b541973bb8e1144db23a194b",
 			"revisionTime": "2017-03-21T23:07:31Z"
+		},
+		{
+			"checksumSHA1": "Hb1sfQh9zulWvKHq1eJB/Egteuc=",
+			"path": "github.com/shirou/gopsutil",
+			"revision": "3aa2ffab12a1852644f6d33cd782f877272bf305",
+			"revisionTime": "2017-08-04T03:09:34Z"
 		},
 		{
 			"checksumSHA1": "233z49QwgSzdLglskKTSdI/CPQ8=",
