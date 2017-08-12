@@ -25,20 +25,20 @@ func (h *Hardware) LogicalCPUCount() int {
 }
 
 type HardwareInfo interface {
-	// CPU returns statistics about system CPU.
+	// CPU returns information about system CPU.
 	//
 	// This includes vendor name, model name, number of cores, cache info,
 	// instruction flags and many others to be able to identify and to properly
 	// account the CPU.
 	CPU() ([]cpu.InfoStat, error)
 
-	// Memory returns statistics about system memory.
+	// Memory returns information about system memory.
 	//
 	// This includes total physical  memory, available memory and many others,
 	// expressed in bytes.
 	Memory() (*mem.VirtualMemoryStat, error)
 
-	// GPU returns statistics about system GPU devices.
+	// GPU returns information about GPU devices on the machine.
 	GPU() ([]*gpu.Device, error)
 
 	// Info returns all described above hardware statistics.
