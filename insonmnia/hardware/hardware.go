@@ -3,6 +3,7 @@ package hardware
 import (
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
+	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 )
 
 // Hardware accumulates the finest hardware information about system the miner
@@ -10,6 +11,7 @@ import (
 type Hardware struct {
 	CPU    []cpu.InfoStat
 	Memory *mem.VirtualMemoryStat
+	GPU    []*gpu.Device
 }
 
 // LogicalCPUCount returns the number of logical CPUs in the system.
@@ -36,7 +38,8 @@ type HardwareInfo interface {
 	// expressed in bytes.
 	Memory() (*mem.VirtualMemoryStat, error)
 
-	//GPU()
+	// GPU returns statistics about system GPU devices.
+	GPU() ([]*gpu.Device, error)
 
 	// Info returns all described above hardware statistics.
 	Info() (*Hardware, error)
@@ -53,6 +56,10 @@ func (h *hardwareInfo) Memory() (*mem.VirtualMemoryStat, error) {
 	return mem.VirtualMemory()
 }
 
+func (*hardwareInfo) GPU() ([]*gpu.Device, error) {
+	return gpu.GetGPUDevices()
+}
+
 func (h *hardwareInfo) Info() (*Hardware, error) {
 	cpuInfo, err := h.CPU()
 	if err != nil {
@@ -64,9 +71,15 @@ func (h *hardwareInfo) Info() (*Hardware, error) {
 		return nil, err
 	}
 
+	gpuInfo, err := h.GPU()
+	if err != nil {
+		gpuInfo = make([]*gpu.Device, 0)
+	}
+
 	hardware := &Hardware{
 		CPU:    cpuInfo,
 		Memory: memory,
+		GPU:    gpuInfo,
 	}
 
 	return hardware, nil
