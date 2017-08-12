@@ -71,6 +71,12 @@
 			"revisionTime": "2017-06-08T04:50:38Z"
 		},
 		{
+			"checksumSHA1": "qtjd74+bErubh+qyv3s+lWmn9wc=",
+			"path": "github.com/StackExchange/wmi",
+			"revision": "ea383cf3ba6ec950874b8486cd72356d007c768f",
+			"revisionTime": "2017-04-10T19:29:09Z"
+		},
+		{
 			"checksumSHA1": "USkefO0g1U9mr+8hagv3fpSkrxg=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/aristanetworks/goarista/monotime",
 			"path": "github.com/aristanetworks/goarista/monotime",
@@ -640,6 +646,18 @@
 			"revisionTime": "2017-05-02T14:12:00Z"
 		},
 		{
+			"checksumSHA1": "IvHj/4iR2nYa/S3cB2GXoyDG/xQ=",
+			"path": "github.com/go-ole/go-ole",
+			"revision": "085abb85892dc1949567b726dff00fa226c60c45",
+			"revisionTime": "2017-07-12T17:44:59Z"
+		},
+		{
+			"checksumSHA1": "Q0ZOcJW0fqOefDzEdn+PJHOeSgI=",
+			"path": "github.com/go-ole/go-ole/oleutil",
+			"revision": "085abb85892dc1949567b726dff00fa226c60c45",
+			"revisionTime": "2017-07-12T17:44:59Z"
+		},
+		{
 			"checksumSHA1": "KZ3QD2QgUS4RcoKiA3mn5pSlJxQ=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/go-stack/stack",
 			"path": "github.com/go-stack/stack",
@@ -1002,6 +1020,18 @@
 		{
 			"checksumSHA1": "Hb1sfQh9zulWvKHq1eJB/Egteuc=",
 			"path": "github.com/shirou/gopsutil",
+			"revision": "3aa2ffab12a1852644f6d33cd782f877272bf305",
+			"revisionTime": "2017-08-04T03:09:34Z"
+		},
+		{
+			"checksumSHA1": "T2ThCk35wXAZGh37nrgA07199dA=",
+			"path": "github.com/shirou/gopsutil/cpu",
+			"revision": "3aa2ffab12a1852644f6d33cd782f877272bf305",
+			"revisionTime": "2017-08-04T03:09:34Z"
+		},
+		{
+			"checksumSHA1": "YfGdUgCoLdHBhfG+kXczYXu/rKk=",
+			"path": "github.com/shirou/gopsutil/internal/common",
 			"revision": "3aa2ffab12a1852644f6d33cd782f877272bf305",
 			"revisionTime": "2017-08-04T03:09:34Z"
 		},
