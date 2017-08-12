@@ -91,7 +91,7 @@ mock:
 	echo "and add your go bin directory to PATH"; exit 1; fi;
 	mockgen -package miner -destination insonmnia/miner/overseer_mock.go -source insonmnia/miner/overseer.go
 	mockgen -package miner -destination insonmnia/miner/config_mock.go -source insonmnia/miner/config.go
-	mockgen -package resource -destination insonmnia/resource/resource_mock.go -source insonmnia/resource/resource.go
+	mockgen -package hardware -destination insonmnia/hardware/hardware_mock.go -source insonmnia/hardware/hardware.go
 
 coverage:
 	${GO} tool cover -func=coverage.txt
