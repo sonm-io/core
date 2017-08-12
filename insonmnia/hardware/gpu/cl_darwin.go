@@ -18,6 +18,7 @@ const (
 	maxDeviceCount = 64
 )
 
+// GetGPUDevicesUsingOpenCL returns a list of available GPU devices on the machine using OpenCL API.
 func GetGPUDevicesUsingOpenCL() ([]*Device, error) {
 	platforms, err := getPlatforms()
 	if err != nil {

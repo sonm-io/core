@@ -1,5 +1,6 @@
 package gpu
 
+// Device describes a GPU device.
 type Device struct {
 	// Model name.
 	Name string
@@ -15,6 +16,7 @@ type Device struct {
 	CacheLineSize int
 }
 
+// GetGPUDevices returns a list of available GPU devices on the machine.
 func GetGPUDevices() ([]*Device, error) {
 	devices, err := GetGPUDevicesUsingOpenCL()
 	if err != nil {
