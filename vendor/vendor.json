@@ -91,12 +91,6 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
-			"checksumSHA1": "CT4X4v8IlU6HBx32wucNC1R3VJE=",
-			"path": "github.com/cloudfoundry/gosigar",
-			"revision": "d9ee2f6269aeeed93de1cb3ed3ea03b80e82221e",
-			"revisionTime": "2017-06-26T17:58:20Z"
-		},
-		{
 			"checksumSHA1": "prgcV+rQm4iAO3PNHWhrEFz9Zbw=",
 			"path": "github.com/containerd/cgroups",
 			"revision": "6d5c608c203dab9f154fdb40c22c043cebd4d699",
