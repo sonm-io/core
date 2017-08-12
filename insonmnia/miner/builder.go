@@ -17,13 +17,12 @@ import (
 )
 
 type MinerBuilder struct {
-	ctx       context.Context
-	cfg       Config
-	hardware  hardware.HardwareInfo
-	collector resource.Collector
-	ip        net.IP
-	ovs       Overseer
-	uuid      string
+	ctx      context.Context
+	cfg      Config
+	hardware hardware.HardwareInfo
+	ip       net.IP
+	ovs      Overseer
+	uuid     string
 }
 
 func (b *MinerBuilder) Context(ctx context.Context) *MinerBuilder {
@@ -36,8 +35,8 @@ func (b *MinerBuilder) Config(config Config) *MinerBuilder {
 	return b
 }
 
-func (b *MinerBuilder) Collector(collector resource.Collector) *MinerBuilder {
-	b.collector = collector
+func (b *MinerBuilder) Collector(hardware hardware.HardwareInfo) *MinerBuilder {
+	b.hardware = hardware
 	return b
 }
 
@@ -69,10 +68,6 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		b.hardware = hardware.New()
 	}
 
-	if b.collector == nil {
-		b.collector = resource.New()
-	}
-
 	if b.ip == nil {
 		addr, err := util.GetPublicIP()
 		if err != nil {
@@ -102,13 +97,6 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	log.G(ctx).Info("collected Hardware info", zap.Any("hardware", hardwareInfo))
 
-	// TODO: Remove this in favor of hardware info.
-	resources, err := b.collector.OS()
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-
 	grpcServer := grpc.NewServer()
 
 	deleter, err := initializeControlGroup(b.cfg.HubResources())
@@ -129,7 +117,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 		name:      b.uuid,
 		hardware:  hardwareInfo,
-		resources: resource.NewPool(resources),
+		resources: resource.NewPool(hardwareInfo),
 
 		pubAddress: b.ip.String(),
 		hubAddress: b.cfg.HubEndpoint(),
