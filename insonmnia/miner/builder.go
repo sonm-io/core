@@ -100,7 +100,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		return nil, err
 	}
 
-	log.G(ctx).Info("collected Hardware info", zap.Any("CPU", hardwareInfo.CPU))
+	log.G(ctx).Info("collected Hardware info", zap.Any("hardware", hardwareInfo))
 
 	// TODO: Remove this in favor of hardware info.
 	resources, err := b.collector.OS()
