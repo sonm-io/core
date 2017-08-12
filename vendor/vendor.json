@@ -1036,6 +1036,12 @@
 			"revisionTime": "2017-08-04T03:09:34Z"
 		},
 		{
+			"checksumSHA1": "/VB3F8T81eg3lj/UG1bFlfkTQIc=",
+			"path": "github.com/shirou/gopsutil/mem",
+			"revision": "3aa2ffab12a1852644f6d33cd782f877272bf305",
+			"revisionTime": "2017-08-04T03:09:34Z"
+		},
+		{
 			"checksumSHA1": "233z49QwgSzdLglskKTSdI/CPQ8=",
 			"path": "github.com/spf13/cobra",
 			"revision": "b26b538f693051ac6518e65672de3144ce3fbedc",
