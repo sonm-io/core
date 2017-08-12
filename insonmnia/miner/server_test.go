@@ -5,10 +5,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/cloudfoundry/gosigar"
 	"github.com/docker/docker/api/types"
 	"github.com/golang/mock/gomock"
-	"github.com/sonm-io/core/insonmnia/resource"
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
+	"github.com/sonm-io/core/insonmnia/hardware"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -44,11 +45,11 @@ func TestServerNewFailsWhenFailedCollectResources(t *testing.T) {
 	defer mock.Finish()
 
 	cfg := defaultMockCfg(mock)
-	collector := resource.NewMockCollector(mock)
-	collector.EXPECT().OS().Times(1).Return(nil, errors.New(""))
+	collector := hardware.NewMockHardwareInfo(mock)
+	collector.EXPECT().Info().Times(1).Return(nil, errors.New(""))
 
 	builder := MinerBuilder{}
-	builder.Collector(collector)
+	builder.Hardware(collector)
 	builder.Config(cfg)
 	m, err := builder.Build()
 
@@ -61,17 +62,20 @@ func TestServerNewSavesResources(t *testing.T) {
 	defer mock.Finish()
 
 	cfg := defaultMockCfg(mock)
-	collector := resource.NewMockCollector(mock)
-	collector.EXPECT().OS().Times(1).Return(&resource.OS{CPU: sigar.CpuList{}, Mem: sigar.Mem{Total: 42}}, nil)
+	collector := hardware.NewMockHardwareInfo(mock)
+	collector.EXPECT().Info().Times(1).Return(&hardware.Hardware{
+		CPU:    []cpu.InfoStat{},
+		Memory: &mem.VirtualMemoryStat{Total: 42},
+	}, nil)
 
 	builder := MinerBuilder{}
-	builder.Collector(collector)
+	builder.Hardware(collector)
 	builder.Config(cfg)
 	m, err := builder.Build()
 
 	assert.NotNil(t, m)
 	assert.Nil(t, err)
-	assert.Equal(t, uint64(42), m.resources.OS.Mem.Total)
+	assert.Equal(t, uint64(42), m.resources.OS.Memory.Total)
 }
 
 func TestMinerInfo(t *testing.T) {
@@ -113,13 +117,16 @@ func TestMinerHandshake(t *testing.T) {
 	info["id1"] = ContainerMetrics{mem: types.MemoryStats{Usage: 42, MaxUsage: 43}}
 	ovs.EXPECT().Info(context.Background()).AnyTimes().Return(info, nil)
 
-	collector := resource.NewMockCollector(mock)
-	collector.EXPECT().OS().AnyTimes().Return(&resource.OS{CPU: sigar.CpuList{List: make([]sigar.Cpu, 2)}, Mem: sigar.Mem{Total: 2048}}, nil)
+	collector := hardware.NewMockHardwareInfo(mock)
+	collector.EXPECT().Info().AnyTimes().Return(&hardware.Hardware{
+		CPU:    []cpu.InfoStat{{Cores: 2}},
+		Memory: &mem.VirtualMemoryStat{Total: 2048},
+	}, nil)
 
 	builder := MinerBuilder{}
 	builder.Config(cfg)
 	builder.Overseer(ovs)
-	builder.Collector(collector)
+	builder.Hardware(collector)
 	builder.UUID("deadbeef-cafe-dead-beef-cafedeadbeef")
 
 	m, err := builder.Build()

@@ -14,7 +14,11 @@ type Hardware struct {
 
 // LogicalCPUCount returns the number of logical CPUs in the system.
 func (h *Hardware) LogicalCPUCount() int {
-	res, _ := cpu.Counts(true)
+	res := 0
+	for _, c := range h.CPU {
+		res += int(c.Cores)
+	}
+
 	return res
 }
 

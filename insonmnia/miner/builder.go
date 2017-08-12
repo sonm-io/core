@@ -35,7 +35,7 @@ func (b *MinerBuilder) Config(config Config) *MinerBuilder {
 	return b
 }
 
-func (b *MinerBuilder) Collector(hardware hardware.HardwareInfo) *MinerBuilder {
+func (b *MinerBuilder) Hardware(hardware hardware.HardwareInfo) *MinerBuilder {
 	b.hardware = hardware
 	return b
 }
