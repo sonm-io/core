@@ -5,6 +5,8 @@ import (
 	"github.com/shirou/gopsutil/mem"
 )
 
+// Hardware accumulates the finest hardware information about system the miner
+// is running on.
 type Hardware struct {
 	CPU    []cpu.InfoStat
 	Memory *mem.VirtualMemoryStat
@@ -26,6 +28,7 @@ type HardwareInfo interface {
 
 	//GPU()
 
+	// Info returns all described above hardware statistics.
 	Info() (*Hardware, error)
 }
 
@@ -59,6 +62,7 @@ func (h *hardwareInfo) Info() (*Hardware, error) {
 	return hardware, nil
 }
 
+// New constructs a new hardware info collector.
 func New() HardwareInfo {
 	return &hardwareInfo{}
 }
