@@ -8,15 +8,18 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 type MinerBuilder struct {
 	ctx       context.Context
 	cfg       Config
+	hardware  hardware.HardwareInfo
 	collector resource.Collector
 	ip        net.IP
 	ovs       Overseer
@@ -62,6 +65,10 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		return nil, errors.New("config is mandatory for MinerBuilder")
 	}
 
+	if b.hardware == nil {
+		b.hardware = hardware.New()
+	}
+
 	if b.collector == nil {
 		b.collector = resource.New()
 	}
@@ -87,6 +94,15 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		b.uuid = uuid.New()
 	}
 
+	hardwareInfo, err := b.hardware.Info()
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	log.G(ctx).Info("collected Hardware info", zap.Any("CPU", hardwareInfo.CPU))
+
+	// TODO: Remove this in favor of hardware info.
 	resources, err := b.collector.OS()
 	if err != nil {
 		cancel()
@@ -112,6 +128,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		ovs:        b.ovs,
 
 		name:      b.uuid,
+		hardware:  hardwareInfo,
 		resources: resource.NewPool(resources),
 
 		pubAddress: b.ip.String(),
