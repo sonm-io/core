@@ -62,7 +62,7 @@ func GetPublicIP() (net.IP, error) {
 func GetUserHomeDir() (homeDir string, err error) {
 	usr, err := user.Current()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	return usr.HomeDir, nil
 }

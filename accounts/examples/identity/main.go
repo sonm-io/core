@@ -5,13 +5,27 @@ import (
 	"fmt"
 )
 
-func main(){
-	idt, err := accounts.NewIdentity("/absolute/path/to/Ethereum", "")
+func main() {
+	idt := accounts.NewIdentity()
+
+	keydir := "/abs/path/to/eth/keystore"
+	err := idt.Load(&keydir)
 	if err != nil {
-		fmt.Printf("Error during initialization: %s", err)
+		fmt.Printf("Error during loading: %s", err)
 		return
 	}
 
-	fmt.Printf("PrivateKey: %s \r\n", idt.PrivateKey)
-	fmt.Printf("TransactionOpts: %s \r\n", idt.TransactionOpts)
+	err = idt.Open("")
+	if err != nil {
+		fmt.Printf("Error during opening: %s", err)
+		return
+	}
+
+	prv, err := idt.GetPrivateKey()
+	if err != nil {
+		fmt.Printf("Error during getting key: %s", err)
+		return
+	}
+	fmt.Printf("PrivateKey: %s \r\n", prv)
+
 }

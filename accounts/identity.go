@@ -3,94 +3,104 @@ package accounts
 import (
 	"crypto/ecdsa"
 	"strings"
-	"github.com/pkg/errors"
 	"io/ioutil"
+	"github.com/pkg/errors"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/sonm-io/core/util"
+	"fmt"
 )
 
-type Identity struct {
-	accman *accounts.Manager
+// Identity interface uses for auth and detect all objects in network
+// source implementation going to go-ethereum accounting
+// its need to be storing wallets in one dir and opened it by passphrase
+type Identity interface {
+	// return *ecdsa.PrivateKey, it include PublicKey and ethereum Address shortly
+	GetPrivateKey() (*ecdsa.PrivateKey, error)
+
+	// open any keystore and seek account in this keystore
+	// DANG: this not getting ready account for using, use Open() for setup account and GetPrivateKey() for getting this
+	Load(keydir *string) (error)
+
+	// open loading account
+	// use this after Load()
+	Open(passphrase *string) (error)
+}
+
+// Implementation of Identity interface
+// working trough KeystorePassphrase from go-ethereum
+type identityPassphrase struct {
+	Identity
+
+	keystore *keystore.KeyStore
 
 	defaultWallet  accounts.Wallet
 	defaultAccount accounts.Account
 
-	passphrase		string
+	passphrase string
 
-	TransactionOpts *bind.TransactOpts
-	PrivateKey      *ecdsa.PrivateKey
+	privateKey *ecdsa.PrivateKey
+	key        *keystore.Key
 }
 
-func NewIdentity(datadir string, passphrase string) (idt *Identity, err error) {
-	identity := Identity{}
-
-	err = identity.initAccountManager(datadir)
-	if err != nil {
-		return nil, err
-	}
-
-	err = identity.setDefaultWallet(nil)
-	if err != nil {
-		return nil, err
-	}
-	identity.setDefaultAccount()
-
-	err = identity.readPrivateKey(passphrase)
-	if err != nil {
-		return nil, err
-	}
-
-	identity.setTransactOpts()
-
-	return &identity, nil
+func NewIdentity() (idt *identityPassphrase) {
+	return &identityPassphrase{}
 }
 
-func (idt *Identity) initAccountManager(datadir string) (err error) {
-	am, err := NewManager(&AccountManagerConfig{
-		DataDir:           datadir,
-		NoUSB:             true,
-		UseLightweightKDF: false,
-		KeyStoreDir:       datadir + "/keystore",
-	})
-	if err != nil {
-		return err
-	}
-	idt.accman = am
-	return err
-}
+func (idt *identityPassphrase) Load(keystoreDir *string) (err error) {
 
-func (idt *Identity) setDefaultWallet(walletString *string) (err error) {
-	if walletString == nil {
-		wallets := idt.accman.Wallets()
-		if len(wallets) > 0{
-			idt.defaultWallet = wallets[0]
-		}
-		return errors.New("Doesn't have any wallets in the store")
-	} else {
-		idt.defaultWallet, err = idt.accman.Wallet(*walletString)
+	if keystoreDir == nil {
+		*keystoreDir, err = util.GetUserHomeDir()
 		if err != nil {
 			return err
 		}
+	}
+	err = idt.initKeystore(keystoreDir)
+	if err != nil {
 		return err
 	}
+	return nil
 }
 
-func (idt *Identity) setDefaultAccount() {
-	idt.defaultAccount = idt.defaultWallet.Accounts()[0]
+func (idt *identityPassphrase) Open(pass string) (err error) {
+	return idt.readPrivateKey(pass)
 }
 
-func parseUrl(url string) ([]string, error) {
-	parts := strings.Split(url, "://")
-	if len(parts) != 2 || parts[0] == "" {
-		err := errors.New("Error while parsing url keystore string")
-		return nil, err
+func (idt *identityPassphrase) GetPrivateKey() (*ecdsa.PrivateKey, error) {
+	if idt.privateKey == nil {
+		return nil, errors.New("Wallet doesn't opened now")
 	}
-	return parts, nil
+	return idt.privateKey, nil
 }
 
-func (idt *Identity) readPrivateKey(pass string) (err error) {
-	parts, err := parseUrl(idt.defaultAccount.URL.String())
+// Keystore initialization
+// init keystore at homedir while keydir params is nil
+func (idt *identityPassphrase) initKeystore(keydir *string) (err error) {
+	if keydir == nil {
+		return errors.New("Keystore ")
+	}
+
+	fmt.Println(*keydir)
+
+	idt.keystore = keystore.NewKeyStore(*keydir, keystore.LightScryptN, keystore.LightScryptP)
+
+	wallets := idt.keystore.Wallets()
+
+	if len(wallets) == 0 {
+		return errors.New("Doesn't have any wallets in the store")
+	}
+	idt.defaultWallet = wallets[0]
+
+	accs := idt.defaultWallet.Accounts()
+	if len(accs) == 0 {
+		return errors.New("Doesn't have any accounts in the wallet")
+	}
+	idt.defaultAccount = accs[0]
+	return nil
+}
+
+func (idt *identityPassphrase) readPrivateKey(pass string) (err error) {
+	parts, err := parseKeystoreUrl(idt.defaultAccount.URL.String())
 	if err != nil {
 		return err
 	}
@@ -102,11 +112,16 @@ func (idt *Identity) readPrivateKey(pass string) (err error) {
 	if err != nil {
 		return err
 	}
-	idt.PrivateKey = key.PrivateKey
+	idt.key = key
+	idt.privateKey = key.PrivateKey
 	return nil
 }
 
-func (idt *Identity) setTransactOpts(){
-	idt.TransactionOpts = bind.NewKeyedTransactor(idt.PrivateKey)
+func parseKeystoreUrl(url string) ([]string, error) {
+	parts := strings.Split(url, "://")
+	if len(parts) != 2 || parts[0] == "" {
+		err := errors.New("Error while parsing url keystore string")
+		return nil, err
+	}
+	return parts, nil
 }
-
