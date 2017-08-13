@@ -1,10 +1,18 @@
-// +build darwin
+// +build cl
 
 package gpu
 
 // #cgo darwin LDFLAGS: -framework OpenCL
-// #cgo darwin CFLAGS: -I /System/Library/Frameworks/OpenCL.framework/Headers
-// #include "cl.h"
+// #ifdef __APPLE__
+//     #include "TargetConditionals.h"
+//     #if TARGET_OS_MAC
+//         #include <OpenCL/cl.h>
+//     #else
+//         #error "Non OS X targets are not supported, sorry"
+//     #endif
+// #else
+//     #include "cl.h"
+// #endif
 import "C"
 
 import (
