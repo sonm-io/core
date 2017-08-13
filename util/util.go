@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
-	"path/filepath"
 	"os/user"
 )
 
@@ -60,7 +59,7 @@ func GetPublicIP() (net.IP, error) {
 	return pubipadr, nil
 }
 
-func GetUserHomeDir() (homeDir string, err error){
+func GetUserHomeDir() (homeDir string, err error) {
 	usr, err := user.Current()
 	if err != nil {
 		return nil, err
