@@ -132,11 +132,8 @@ func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest
 	log.G(m.ctx).Info("handling Handshake request", zap.Any("req", request))
 
 	resp := &pb.MinerHandshakeReply{
-		Miner: m.name,
-		Limits: &pb.Limits{
-			Cores:  uint64(m.resources.OS.LogicalCPUCount()),
-			Memory: m.resources.OS.Memory.Total,
-		},
+		Miner:        m.name,
+		Capabilities: m.hardware.IntoProto(),
 	}
 
 	return resp, nil
