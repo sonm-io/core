@@ -2,7 +2,7 @@
 hub:
   # Optional endpoint for hub communication.
   # Can be omitted, in this case a discovery mechanism is activated.
-  endpoint: ":10002"
+  # endpoint: ":10002"
 
 # Logging settings.
 logging:
