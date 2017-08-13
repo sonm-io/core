@@ -24,6 +24,11 @@ func (h *Hardware) LogicalCPUCount() int {
 	return res
 }
 
+// HasGPU returns true if a system has GPU on the board.
+func (h *Hardware) HasGPU() bool {
+	return len(h.GPU) > 0
+}
+
 type HardwareInfo interface {
 	// CPU returns information about system CPU.
 	//

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package sonm;
 
-message Hardware {
+message Capabilities {
     repeated CPUDevice cpu = 1;
     RAMDevice mem = 2;
     repeated GPUDevice gpu = 3;
@@ -13,6 +13,7 @@ message CPUDevice {
     string vendor = 2;
     int32 cores = 3;
     double mhz = 4;
+    map<string, string> ext = 5;
 }
 
 message RAMDevice {
@@ -22,4 +23,5 @@ message RAMDevice {
 message GPUDevice {
     string name = 1;
     string vendor = 2;
+    map<string, string> ext = 3;
 }
