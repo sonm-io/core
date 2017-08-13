@@ -8,7 +8,7 @@ package gpu
 //     #if TARGET_OS_MAC
 //         #include <OpenCL/cl.h>
 //     #else
-//         #error "Non OS X targets are not supported, sorry"
+//         #error "Non OS X Apple targets are not supported, sorry"
 //     #endif
 // #else
 //     #include "cl.h"
