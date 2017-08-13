@@ -135,7 +135,9 @@ func TestMinerHandshake(t *testing.T) {
 	reply, err := m.Handshake(context.Background(), &pb.MinerHandshakeRequest{Hub: "testHub"})
 	assert.NotNil(t, reply)
 	assert.Nil(t, err)
-	assert.Equal(t, reply, &pb.MinerHandshakeReply{Miner: "deadbeef-cafe-dead-beef-cafedeadbeef", Limits: &pb.Limits{Cores: 2, Memory: 2048}})
+	assert.Equal(t, reply.Miner, "deadbeef-cafe-dead-beef-cafedeadbeef")
+	assert.Equal(t, int32(2), reply.Capabilities.Cpu[0].Cores)
+	assert.Equal(t, uint64(2048), reply.Capabilities.Mem.Total)
 }
 
 func TestMinerStart(t *testing.T) {
