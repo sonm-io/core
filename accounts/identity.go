@@ -2,13 +2,13 @@ package accounts
 
 import (
 	"crypto/ecdsa"
-	"strings"
-	"io/ioutil"
-	"github.com/pkg/errors"
+	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/util"
-	"fmt"
+	"io/ioutil"
+	"strings"
 )
 
 // Identity interface uses for auth and detect all objects in network
@@ -20,11 +20,11 @@ type Identity interface {
 
 	// open any keystore and seek account in this keystore
 	// DANG: this not getting ready account for using, use Open() for setup account and GetPrivateKey() for getting this
-	Load(keydir *string) (error)
+	Load(keydir *string) error
 
 	// open loading account
 	// use this after Load()
-	Open(passphrase *string) (error)
+	Open(passphrase *string) error
 }
 
 // Implementation of Identity interface

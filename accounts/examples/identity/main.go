@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/sonm-io/core/accounts"
 	"fmt"
+	"github.com/sonm-io/core/accounts"
 )
 
 func main() {
