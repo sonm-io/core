@@ -43,7 +43,7 @@ var TaskStatusReply_Status_value = map[string]int32{
 func (x TaskStatusReply_Status) String() string {
 	return proto.EnumName(TaskStatusReply_Status_name, int32(x))
 }
-func (TaskStatusReply_Status) EnumDescriptor() ([]byte, []int) { return fileDescriptor1, []int{6, 0} }
+func (TaskStatusReply_Status) EnumDescriptor() ([]byte, []int) { return fileDescriptor2, []int{6, 0} }
 
 type PingRequest struct {
 }
@@ -51,7 +51,7 @@ type PingRequest struct {
 func (m *PingRequest) Reset()                    { *m = PingRequest{} }
 func (m *PingRequest) String() string            { return proto.CompactTextString(m) }
 func (*PingRequest) ProtoMessage()               {}
-func (*PingRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
+func (*PingRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
 
 type PingReply struct {
 	Status string `protobuf:"bytes,1,opt,name=status" json:"status,omitempty"`
@@ -60,7 +60,7 @@ type PingReply struct {
 func (m *PingReply) Reset()                    { *m = PingReply{} }
 func (m *PingReply) String() string            { return proto.CompactTextString(m) }
 func (*PingReply) ProtoMessage()               {}
-func (*PingReply) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
+func (*PingReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
 
 func (m *PingReply) GetStatus() string {
 	if m != nil {
@@ -76,7 +76,7 @@ type InfoReply struct {
 func (m *InfoReply) Reset()                    { *m = InfoReply{} }
 func (m *InfoReply) String() string            { return proto.CompactTextString(m) }
 func (*InfoReply) ProtoMessage()               {}
-func (*InfoReply) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
+func (*InfoReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2} }
 
 func (m *InfoReply) GetStats() map[string]*InfoReplyStats {
 	if m != nil {
@@ -93,7 +93,7 @@ type InfoReplyStats struct {
 func (m *InfoReplyStats) Reset()                    { *m = InfoReplyStats{} }
 func (m *InfoReplyStats) String() string            { return proto.CompactTextString(m) }
 func (*InfoReplyStats) ProtoMessage()               {}
-func (*InfoReplyStats) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2, 0} }
+func (*InfoReplyStats) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2, 0} }
 
 func (m *InfoReplyStats) GetCPU() *InfoReplyStatsCpu {
 	if m != nil {
@@ -116,7 +116,7 @@ type InfoReplyStatsCpu struct {
 func (m *InfoReplyStatsCpu) Reset()                    { *m = InfoReplyStatsCpu{} }
 func (m *InfoReplyStatsCpu) String() string            { return proto.CompactTextString(m) }
 func (*InfoReplyStatsCpu) ProtoMessage()               {}
-func (*InfoReplyStatsCpu) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2, 0, 0} }
+func (*InfoReplyStatsCpu) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2, 0, 0} }
 
 func (m *InfoReplyStatsCpu) GetTotalUsage() uint64 {
 	if m != nil {
@@ -132,7 +132,7 @@ type InfoReplyStatsMemory struct {
 func (m *InfoReplyStatsMemory) Reset()                    { *m = InfoReplyStatsMemory{} }
 func (m *InfoReplyStatsMemory) String() string            { return proto.CompactTextString(m) }
 func (*InfoReplyStatsMemory) ProtoMessage()               {}
-func (*InfoReplyStatsMemory) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2, 0, 1} }
+func (*InfoReplyStatsMemory) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2, 0, 1} }
 
 func (m *InfoReplyStatsMemory) GetMaxUsage() uint64 {
 	if m != nil {
@@ -148,7 +148,7 @@ type StopTaskRequest struct {
 func (m *StopTaskRequest) Reset()                    { *m = StopTaskRequest{} }
 func (m *StopTaskRequest) String() string            { return proto.CompactTextString(m) }
 func (*StopTaskRequest) ProtoMessage()               {}
-func (*StopTaskRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3} }
+func (*StopTaskRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{3} }
 
 func (m *StopTaskRequest) GetId() string {
 	if m != nil {
@@ -163,7 +163,7 @@ type StopTaskReply struct {
 func (m *StopTaskReply) Reset()                    { *m = StopTaskReply{} }
 func (m *StopTaskReply) String() string            { return proto.CompactTextString(m) }
 func (*StopTaskReply) ProtoMessage()               {}
-func (*StopTaskReply) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{4} }
+func (*StopTaskReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{4} }
 
 type TaskStatusRequest struct {
 	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
@@ -172,7 +172,7 @@ type TaskStatusRequest struct {
 func (m *TaskStatusRequest) Reset()                    { *m = TaskStatusRequest{} }
 func (m *TaskStatusRequest) String() string            { return proto.CompactTextString(m) }
 func (*TaskStatusRequest) ProtoMessage()               {}
-func (*TaskStatusRequest) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{5} }
+func (*TaskStatusRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{5} }
 
 func (m *TaskStatusRequest) GetId() string {
 	if m != nil {
@@ -188,7 +188,7 @@ type TaskStatusReply struct {
 func (m *TaskStatusReply) Reset()                    { *m = TaskStatusReply{} }
 func (m *TaskStatusReply) String() string            { return proto.CompactTextString(m) }
 func (*TaskStatusReply) ProtoMessage()               {}
-func (*TaskStatusReply) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{6} }
+func (*TaskStatusReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{6} }
 
 func (m *TaskStatusReply) GetStatus() TaskStatusReply_Status {
 	if m != nil {
@@ -204,7 +204,7 @@ type StatusMapReply struct {
 func (m *StatusMapReply) Reset()                    { *m = StatusMapReply{} }
 func (m *StatusMapReply) String() string            { return proto.CompactTextString(m) }
 func (*StatusMapReply) ProtoMessage()               {}
-func (*StatusMapReply) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{7} }
+func (*StatusMapReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{7} }
 
 func (m *StatusMapReply) GetStatuses() map[string]*TaskStatusReply {
 	if m != nil {
@@ -221,7 +221,7 @@ type ContainerResources struct {
 func (m *ContainerResources) Reset()                    { *m = ContainerResources{} }
 func (m *ContainerResources) String() string            { return proto.CompactTextString(m) }
 func (*ContainerResources) ProtoMessage()               {}
-func (*ContainerResources) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{8} }
+func (*ContainerResources) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{8} }
 
 func (m *ContainerResources) GetMemory() int64 {
 	if m != nil {
@@ -245,7 +245,7 @@ type ContainerRestartPolicy struct {
 func (m *ContainerRestartPolicy) Reset()                    { *m = ContainerRestartPolicy{} }
 func (m *ContainerRestartPolicy) String() string            { return proto.CompactTextString(m) }
 func (*ContainerRestartPolicy) ProtoMessage()               {}
-func (*ContainerRestartPolicy) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{9} }
+func (*ContainerRestartPolicy) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{9} }
 
 func (m *ContainerRestartPolicy) GetName() string {
 	if m != nil {
@@ -278,9 +278,9 @@ func init() {
 	proto.RegisterEnum("sonm.TaskStatusReply_Status", TaskStatusReply_Status_name, TaskStatusReply_Status_value)
 }
 
-func init() { proto.RegisterFile("insonmnia.proto", fileDescriptor1) }
+func init() { proto.RegisterFile("insonmnia.proto", fileDescriptor2) }
 
-var fileDescriptor1 = []byte{
+var fileDescriptor2 = []byte{
 	// 520 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x93, 0xdd, 0x6a, 0xd4, 0x40,
 	0x14, 0xc7, 0x4d, 0xb2, 0x1b, 0x77, 0xcf, 0xba, 0x1f, 0x1d, 0xb0, 0xd4, 0x20, 0xa2, 0xa9, 0x42,
