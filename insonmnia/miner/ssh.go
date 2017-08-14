@@ -60,10 +60,7 @@ func (s *sshServer) verify(ctx ssh.Context, key ssh.PublicKey) bool {
 		return false
 	}
 	log.G(s.miner.ctx).Info("verifying public key")
-	if ssh.KeysEqual(cinfo.PublicKey, key) {
-		return true
-	}
-	return false
+	return ssh.KeysEqual(cinfo.PublicKey, key)
 }
 
 func (s *sshServer) onSession(session ssh.Session) {

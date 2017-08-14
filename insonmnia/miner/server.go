@@ -231,7 +231,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Resources:     transformResources(request.Resources),
 	}
 	log.G(m.ctx).Info("handling Start request", zap.Any("req", request))
-	var publicKey ssh.PublicKey = nil
+	var publicKey ssh.PublicKey
 	if len(request.PublicKeyData) != 0 {
 		var err error
 		k, _, _, _, err := ssh.ParseAuthorizedKey([]byte(request.PublicKeyData))
