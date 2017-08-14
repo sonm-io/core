@@ -35,7 +35,9 @@ func TestTasksListSimpleWithTasks(t *testing.T) {
 	taskListCmdRunner(rootCmd, "test", itr)
 	out := buf.String()
 
-	assert.Equal(t, "There is 2 tasks on miner \"test\":\r\n  task-1: RUNNING\r\n  task-2: FINISHED\r\n", out)
+	assert.Contains(t, out, "There is 2 tasks on miner \"test\":")
+	assert.Contains(t, out, "task-1: RUNNING\r\n")
+	assert.Contains(t, out, "task-2: FINISHED\r\n")
 }
 
 func TestTaskListJsonEmpty(t *testing.T) {
