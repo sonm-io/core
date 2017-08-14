@@ -19,14 +19,14 @@ type GPUConfig struct {
 }
 
 type SSHConfig struct {
-	BindEndpoint string `required:"true" yaml:"bind" default:":2222"`
+	BindEndpoint string `required:"true" yaml:"bind"`
 }
 
 type config struct {
 	HubConfig     HubConfig     `required:"false" yaml:"hub"`
 	LoggingConfig LoggingConfig `yaml:"logging"`
 	GPUConfig     *GPUConfig    `required:"false"`
-	SSHConfig     SSHConfig     `yaml:"ssh"`
+	SSHConfig     *SSHConfig    `required:"false" yaml:"ssh"`
 }
 
 func (c *config) HubEndpoint() string {
@@ -45,7 +45,7 @@ func (c *config) GPU() *GPUConfig {
 	return c.GPUConfig
 }
 
-func (c *config) SSH() SSHConfig {
+func (c *config) SSH() *SSHConfig {
 	return c.SSHConfig
 }
 
@@ -71,5 +71,5 @@ type Config interface {
 	// Logging returns logging settings.
 	Logging() LoggingConfig
 	// SSH returns settings for built-in ssh server
-	SSH() SSHConfig
+	SSH() *SSHConfig
 }

@@ -9,3 +9,5 @@ logging:
   # The desired logging level.
   level: -1
 
+ssh:
+  bind: ":2222"
