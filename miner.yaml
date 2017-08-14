@@ -11,3 +11,4 @@ logging:
 
 ssh:
   bind: ":2222"
+  private_key_path: "/home/user/.sonm/ssh_server_id_rsa"
