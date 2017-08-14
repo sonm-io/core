@@ -30,7 +30,7 @@ func TestGetVersionCmdSimple(t *testing.T) {
 	buf := initRootCmd(t, config.OutputModeSimple)
 
 	version = "1.2.3"
-	getVersionCmd(rootCmd)
+	versionCmdRunner(rootCmd)
 	out := buf.String()
 	assert.Equal(t, "Version: 1.2.3\r\n", out)
 }
@@ -39,7 +39,7 @@ func TestGetVersionCmdJson(t *testing.T) {
 	buf := initRootCmd(t, config.OutputModeJSON)
 
 	version = "1.2.3"
-	getVersionCmd(rootCmd)
+	versionCmdRunner(rootCmd)
 	out := buf.String()
 	assert.Equal(t, `{"version":"1.2.3"}`, out)
 }

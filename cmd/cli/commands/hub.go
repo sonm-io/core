@@ -1,12 +1,6 @@
 package commands
 
-import (
-	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
-
-	pb "github.com/sonm-io/core/proto"
-)
+import "github.com/spf13/cobra"
 
 func init() {
 	hubRootCmd.AddCommand(hubPingCmd, hubStatusCmd)
@@ -24,22 +18,12 @@ var hubPingCmd = &cobra.Command{
 	Short:   "Ping the hub",
 	PreRunE: checkHubAddressIsSet,
 	Run: func(cmd *cobra.Command, args []string) {
-		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+		itr, err := NewGrpcInteractor(hubAddress, timeout)
 		if err != nil {
-			showError(cmd, "Cannot create connection", err)
+			showError(cmd, "Cannot connect to hub", err)
 			return
 		}
-		defer cc.Close()
-
-		ctx, cancel := context.WithTimeout(gctx, timeout)
-		defer cancel()
-		_, err = pb.NewHubClient(cc).Ping(ctx, &pb.PingRequest{})
-		if err != nil {
-			showError(cmd, "Ping failed", err)
-			return
-		}
-
-		showOk(cmd)
+		hubPingCmdRunner(cmd, itr)
 	},
 }
 
@@ -48,7 +32,33 @@ var hubStatusCmd = &cobra.Command{
 	Short:   "Show hub status",
 	PreRunE: checkHubAddressIsSet,
 	Run: func(cmd *cobra.Command, args []string) {
-		// todo: implement this on hub
-		showOk(cmd)
+		itr, err := NewGrpcInteractor(hubAddress, timeout)
+		if err != nil {
+			showError(cmd, "Cannot connect to hub", err)
+			return
+		}
+
+		hubStatusCmdRunner(cmd, itr)
 	},
+}
+
+func hubPingCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
+	_, err := interactor.HubPing()
+	if err != nil {
+		showError(cmd, "Ping failed", err)
+		return
+	}
+
+	showOk(cmd)
+}
+
+func hubStatusCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
+	// todo: implement this on hub
+	err := interactor.HubStatus()
+	if err != nil {
+		showError(cmd, "Ping failed", err)
+		return
+	}
+
+	showOk(cmd)
 }
