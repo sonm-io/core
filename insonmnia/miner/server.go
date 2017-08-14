@@ -431,13 +431,16 @@ func (m *Miner) Serve() error {
 	var grpcError error
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		m.ssh.Run(m)
-		log.G(m.ctx).Info("closed ssh server")
-		m.Close()
-	}()
+	if m.ssh != nil {
+		wg.Add(1)
+		go func() {
+			log.G(m.ctx).Info("starting ssh server")
+			defer wg.Done()
+			m.ssh.Run(m)
+			log.G(m.ctx).Info("closed ssh server")
+			m.Close()
+		}()
+	}
 
 	wg.Add(1)
 	go func() {
@@ -489,7 +492,9 @@ func (m *Miner) Close() {
 	log.G(m.ctx).Info("closing miner")
 	m.cancel()
 	m.grpcServer.Stop()
-	m.ssh.Close()
+	if m.ssh != nil {
+		m.ssh.Close()
+	}
 	m.rl.Close()
 	m.controlGroup.Delete()
 }

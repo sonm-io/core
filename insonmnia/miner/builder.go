@@ -56,8 +56,9 @@ func (b *MinerBuilder) UUID(uuid string) *MinerBuilder {
 	return b
 }
 
-func (b *MinerBuilder) SSH(ssh SSH) {
+func (b *MinerBuilder) SSH(ssh SSH) *MinerBuilder {
 	b.ssh = ssh
+	return b
 }
 
 func (b *MinerBuilder) Build() (miner *Miner, err error) {
@@ -96,7 +97,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	hardwareInfo, err := b.hardware.Info()
 
-	if b.ssh == nil {
+	if b.ssh == nil && b.cfg.SSH() != nil {
 		b.ssh, err = NewSSH(b.cfg.SSH().BindEndpoint)
 		if err != nil {
 			cancel()

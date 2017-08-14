@@ -41,6 +41,7 @@ func (s *sshServer) Run(miner *Miner) error {
 }
 
 func (s *sshServer) verify(ctx ssh.Context, key ssh.PublicKey) bool {
+	log.G(s.miner.ctx).Info("verifying public key")
 	return true
 }
 
