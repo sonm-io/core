@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
@@ -23,9 +22,7 @@ const (
 )
 
 var (
-	rootCmd = &cobra.Command{Use: appName}
-	gctx    = context.Background()
-
+	rootCmd          = &cobra.Command{Use: appName}
 	version          string
 	hubAddress       string
 	timeout          = 60 * time.Second
@@ -78,7 +75,10 @@ type commandError struct {
 }
 
 func (ce *commandError) ToJSONString() string {
-	ce.Error = ce.rawErr.Error()
+	if ce.rawErr != nil {
+		ce.Error = ce.rawErr.Error()
+	}
+
 	j, _ := json.Marshal(ce)
 	return string(j)
 }

@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/cmd/cli/config"
+	"github.com/stretchr/testify/assert"
 )
 
 func initRootCmd(t *testing.T, outFormat string) *bytes.Buffer {

@@ -7,7 +7,6 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 func init() {
@@ -16,6 +15,11 @@ func init() {
 
 func printMinerList(cmd *cobra.Command, lr *pb.ListReply) {
 	if isSimpleFormat() {
+		if len(lr.Info) == 0 {
+			cmd.Printf("No miners connected\r\n")
+			return
+		}
+
 		for addr, meta := range lr.Info {
 			cmd.Printf("Miner: %s\r\n", addr)
 
@@ -63,22 +67,12 @@ var minersListCmd = &cobra.Command{
 	Short:   "Show connected miners",
 	PreRunE: minerRootCmd.PreRunE,
 	Run: func(cmd *cobra.Command, args []string) {
-		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+		itr, err := NewGrpcInteractor(hubAddress, timeout)
 		if err != nil {
-			showError(cmd, "Cannot create connection", err)
-			return
-		}
-		defer cc.Close()
-
-		ctx, cancel := context.WithTimeout(gctx, timeout)
-		defer cancel()
-		lr, err := pb.NewHubClient(cc).List(ctx, &pb.ListRequest{})
-		if err != nil {
-			showError(cmd, "Cannot get miners list", err)
-			return
+			showError(cmd, "Cannot connect to hub", err)
 		}
 
-		printMinerList(cmd, lr)
+		minerListCmdRunner(cmd, itr)
 	},
 }
 
@@ -92,24 +86,33 @@ var minerStatusCmd = &cobra.Command{
 		}
 		minerID := args[0]
 
-		conn, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+		itr, err := NewGrpcInteractor(hubAddress, timeout)
 		if err != nil {
-			showError(cmd, "Cannot create connection", err)
-			return nil
-		}
-		defer conn.Close()
-
-		ctx, cancel := context.WithTimeout(gctx, timeout)
-		defer cancel()
-
-		var req = pb.HubInfoRequest{Miner: minerID}
-		metrics, err := pb.NewHubClient(conn).Info(ctx, &req)
-		if err != nil {
-			showError(cmd, "Cannot get miner status", err)
+			showError(cmd, "Cannot connect to hub", err)
 			return nil
 		}
 
-		printMinerStatus(cmd, metrics)
+		minerStatusCmdRunner(cmd, minerID, itr)
 		return nil
 	},
+}
+
+func minerListCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
+	list, err := interactor.MinerList(context.Background())
+	if err != nil {
+		showError(cmd, "Cannot get miners list", err)
+		return
+	}
+
+	printMinerList(cmd, list)
+}
+
+func minerStatusCmdRunner(cmd *cobra.Command, minerID string, interactor CliInteractor) {
+	metrics, err := interactor.MinerStatus(minerID, context.Background())
+	if err != nil {
+		showError(cmd, "Cannot get miner status", err)
+		return
+	}
+
+	printMinerStatus(cmd, metrics)
 }

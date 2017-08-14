@@ -1,6 +1,9 @@
 package commands
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
+)
 
 func init() {
 	hubRootCmd.AddCommand(hubPingCmd, hubStatusCmd)
@@ -43,7 +46,7 @@ var hubStatusCmd = &cobra.Command{
 }
 
 func hubPingCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
-	_, err := interactor.HubPing()
+	_, err := interactor.HubPing(context.Background())
 	if err != nil {
 		showError(cmd, "Ping failed", err)
 		return
@@ -56,7 +59,7 @@ func hubStatusCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
 	// todo: implement this on hub
 	err := interactor.HubStatus()
 	if err != nil {
-		showError(cmd, "Ping failed", err)
+		showError(cmd, "Cannot get status", err)
 		return
 	}
 

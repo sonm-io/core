@@ -1,11 +1,8 @@
 package commands
 
 import (
-	"testing"
-
 	"errors"
-
-	"encoding/json"
+	"testing"
 
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/cmd/cli/config"
@@ -15,7 +12,7 @@ import (
 
 func TestHubPingSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubPing().AnyTimes().Return(&pb.PingReply{}, nil)
+	itr.EXPECT().HubPing(gomock.Any()).AnyTimes().Return(&pb.PingReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	hubPingCmdRunner(rootCmd, itr)
@@ -26,7 +23,7 @@ func TestHubPingSimple(t *testing.T) {
 
 func TestHubPingJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubPing().AnyTimes().Return(&pb.PingReply{}, nil)
+	itr.EXPECT().HubPing(gomock.Any()).AnyTimes().Return(&pb.PingReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	hubPingCmdRunner(rootCmd, itr)
@@ -37,15 +34,62 @@ func TestHubPingJson(t *testing.T) {
 
 func TestHubPingFailed(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubPing().AnyTimes().Return(nil, errors.New("error"))
+	itr.EXPECT().HubPing(gomock.Any()).AnyTimes().Return(nil, errors.New("error"))
 
-	buf := initRootCmd(t, "1")
+	buf := initRootCmd(t, config.OutputModeJSON)
 	hubPingCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	cmdErr := &commandError{}
-	err := json.Unmarshal([]byte(out), &cmdErr)
+	cmdErr, err := stringToCommandError(out)
 	assert.NoError(t, err)
 	assert.Equal(t, "error", cmdErr.Error)
 	assert.Equal(t, "Ping failed", cmdErr.Message)
+}
+
+func TestHubStatus(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().HubStatus().AnyTimes().Return(nil)
+
+	buf := initRootCmd(t, config.OutputModeSimple)
+	hubStatusCmdRunner(rootCmd, itr)
+	out := buf.String()
+
+	assert.Equal(t, "OK\n", out)
+}
+
+func TestHubStatusJson(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().HubStatus().AnyTimes().Return(nil)
+
+	buf := initRootCmd(t, config.OutputModeJSON)
+	hubStatusCmdRunner(rootCmd, itr)
+	out := buf.String()
+
+	assert.Equal(t, "{\"status\":\"OK\"}\n", out)
+}
+
+func TestHubStatusError(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().HubStatus().AnyTimes().Return(errors.New("error"))
+
+	buf := initRootCmd(t, config.OutputModeSimple)
+	hubStatusCmdRunner(rootCmd, itr)
+	out := buf.String()
+
+	assert.Equal(t, "[ERR] Cannot get status: error\r\n", out)
+}
+
+func TestHubStatusJsonError(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().HubStatus().AnyTimes().Return(errors.New("error"))
+
+	buf := initRootCmd(t, config.OutputModeJSON)
+	hubStatusCmdRunner(rootCmd, itr)
+	out := buf.String()
+
+	cmdErr, err := stringToCommandError(out)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "Cannot get status", cmdErr.Message)
+	assert.Equal(t, "error", cmdErr.Error)
 }
