@@ -8,12 +8,14 @@ import (
 	"encoding/json"
 
 	pb "github.com/sonm-io/core/proto"
+	"io/ioutil"
 )
 
 func init() {
 	taskStartCmd.Flags().StringVar(&registryName, registryNameFlag, "", "Registry to pull image")
 	taskStartCmd.Flags().StringVar(&registryUser, registryUserFlag, "", "Registry username")
 	taskStartCmd.Flags().StringVar(&registryPassword, registryPasswordFlag, "", "Registry password")
+	taskStartCmd.Flags().StringVar(&keyPath, keyPathFlag, "", "Path to public key")
 
 	tasksRootCmd.AddCommand(taskListCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
 }
@@ -116,6 +118,16 @@ var taskStartCmd = &cobra.Command{
 			registryAuth = encodeRegistryAuth(registryUser, registryPassword, registryName)
 		}
 
+		var keyData string
+		if keyPath != "" {
+			keyBin, err := ioutil.ReadFile(keyPath)
+			if err != nil {
+				showError(cmd, "Can not read key from "+keyPath, err)
+				return nil
+			}
+			keyData = string(keyBin)
+		}
+
 		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
 		if err != nil {
 			showError(cmd, "Cannot create connection", err)
@@ -126,10 +138,11 @@ var taskStartCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(gctx, timeout)
 		defer cancel()
 		var req = pb.HubStartTaskRequest{
-			Miner:    miner,
-			Image:    image,
-			Registry: registryName,
-			Auth:     registryAuth,
+			Miner:         miner,
+			Image:         image,
+			Registry:      registryName,
+			Auth:          registryAuth,
+			PublicKeyData: keyData,
 		}
 
 		if isSimpleFormat() {

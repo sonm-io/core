@@ -21,6 +21,7 @@ import (
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
+	"golang.org/x/crypto/ssh"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -70,10 +71,16 @@ func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
 	m.containers[id] = &info
 }
 
+func (m *Miner) GetContainerInfo(id string) (*ContainerInfo, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	info, ok := m.containers[id]
+	return info, ok
+}
+
 func (m *Miner) getTaskIdByContainerId(id string) (string, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
 	name, ok := m.nameMapping[id]
 	return name, ok
 }
@@ -224,6 +231,15 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Resources:     transformResources(request.Resources),
 	}
 	log.G(m.ctx).Info("handling Start request", zap.Any("req", request))
+	var publicKey ssh.PublicKey = nil
+	if len(request.PublicKeyData) != 0 {
+		var err error
+		k, _, _, _, err := ssh.ParseAuthorizedKey([]byte(request.PublicKeyData))
+		if err != nil {
+			return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
+		}
+		publicKey = k
+	}
 
 	var mem = int64(0)
 	if request.Resources != nil {
@@ -255,6 +271,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		m.resources.Retain(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
+	containerInfo.PublicKey = publicKey
 
 	m.saveContainerInfo(request.Id, containerInfo)
 
