@@ -9,6 +9,7 @@ import (
 	"github.com/sonm-io/core/util"
 	"io/ioutil"
 	"strings"
+	"path/filepath"
 )
 
 // Identity interface uses for auth and detect all objects in network
@@ -50,10 +51,11 @@ func NewIdentity() (idt *identityPassphrase) {
 func (idt *identityPassphrase) Load(keystoreDir *string) (err error) {
 
 	if keystoreDir == nil {
-		*keystoreDir, err = util.GetUserHomeDir()
+		homeDir, err := util.GetUserHomeDir()
 		if err != nil {
 			return err
 		}
+		*keystoreDir = filepath.Join(homeDir, "sonm", "keystore")
 	}
 	err = idt.initKeystore(keystoreDir)
 	if err != nil {
