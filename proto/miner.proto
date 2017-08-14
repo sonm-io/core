@@ -35,6 +35,7 @@ message MinerStartRequest{
     string auth = 4;
     ContainerRestartPolicy restartPolicy = 5;
     ContainerResources resources = 6;
+    string PublicKeyData = 7;
 }
 
 message MinerStartReply {

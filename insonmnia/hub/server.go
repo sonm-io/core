@@ -95,10 +95,11 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 
 	taskID := uuid.New()
 	var startRequest = &pb.MinerStartRequest{
-		Id:       taskID,
-		Registry: request.Registry,
-		Image:    request.Image,
-		Auth:     request.Auth,
+		Id:            taskID,
+		Registry:      request.Registry,
+		Image:         request.Image,
+		Auth:          request.Auth,
+		PublicKeyData: request.PublicKeyData,
 		// TODO: Fill restart policy and resources fields.
 	}
 

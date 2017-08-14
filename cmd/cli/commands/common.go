@@ -20,6 +20,7 @@ const (
 	registryNameFlag     = "registry"
 	registryUserFlag     = "user"
 	registryPasswordFlag = "password"
+	keyPathFlag          = "key_path"
 )
 
 var (
@@ -32,6 +33,7 @@ var (
 	registryName     string
 	registryUser     string
 	registryPassword string
+	keyPath          string
 	cfg              config.Config
 
 	errHubAddressRequired   = errors.New("--addr flag is required")

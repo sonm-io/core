@@ -45,6 +45,7 @@ type ContainerInfo struct {
 	ID        string
 	Ports     nat.PortMap
 	Resources resource.Resources
+	PublicKey ssh.PublicKey
 }
 
 // ContainerMetrics are metrics collected from Docker about running containers
