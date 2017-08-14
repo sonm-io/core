@@ -98,7 +98,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	hardwareInfo, err := b.hardware.Info()
 
 	if b.ssh == nil && b.cfg.SSH() != nil {
-		b.ssh, err = NewSSH(b.cfg.SSH().BindEndpoint)
+		b.ssh, err = NewSSH(b.cfg.SSH())
 		if err != nil {
 			cancel()
 			return nil, err

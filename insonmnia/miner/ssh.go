@@ -8,6 +8,8 @@ import (
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
+	gossh "golang.org/x/crypto/ssh"
+	"io/ioutil"
 )
 
 type SSH interface {
@@ -16,14 +18,15 @@ type SSH interface {
 }
 
 type sshServer struct {
-	miner    *Miner
-	laddr    string
-	listener net.Listener
-	server   *ssh.Server
+	miner          *Miner
+	laddr          string
+	privateKeyPath string
+	listener       net.Listener
+	server         *ssh.Server
 }
 
-func NewSSH(laddr string) (SSH, error) {
-	ret := sshServer{laddr: laddr}
+func NewSSH(config *SSHConfig) (SSH, error) {
+	ret := sshServer{laddr: config.BindEndpoint, privateKeyPath: config.PrivateKeyPath}
 	return &ret, nil
 }
 
@@ -35,6 +38,17 @@ func (s *sshServer) Run(miner *Miner) error {
 	}
 	s.listener = l
 	s.server = &ssh.Server{}
+	if len(s.privateKeyPath) != 0 {
+		pkeyData, err := ioutil.ReadFile(s.privateKeyPath)
+		if err != nil {
+			return err
+		}
+		pkey, err := gossh.ParsePrivateKey(pkeyData)
+		if err != nil {
+			return err
+		}
+		s.server.HostSigners = append(s.server.HostSigners, pkey)
+	}
 	s.server.Handle(s.onSession)
 	s.server.PublicKeyHandler = s.verify
 	return s.server.Serve(s.listener)
@@ -86,8 +100,7 @@ func (s *sshServer) process(session ssh.Session) (status int) {
 
 	go func() {
 		defer stream.CloseWrite()
-		_, err := io.Copy(stream.Conn, session)
-		outputErr <- err
+		io.Copy(stream.Conn, session)
 	}()
 
 	err = <-outputErr
