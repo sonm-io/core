@@ -1,8 +1,8 @@
 package miner
 
 import (
-	"context"
 	"errors"
+	"golang.org/x/net/context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -154,7 +154,7 @@ func TestMinerStart(t *testing.T) {
 		status: &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
 		ID:     "deadbeef-cafe-dead-beef-cafedeadbeef",
 	}
-	ovs.EXPECT().Start(context.Background(), Description{}).Times(1).Return(status_chan, info, nil)
+	ovs.EXPECT().Start(gomock.Any(), gomock.Any()).Times(1).Return(status_chan, info, nil)
 
 	builder := MinerBuilder{}
 	m, err := builder.Config(cfg).Overseer(ovs).Build()

@@ -19,7 +19,8 @@ type GPUConfig struct {
 }
 
 type SSHConfig struct {
-	BindEndpoint string `required:"true" yaml:"bind"`
+	BindEndpoint   string `required:"true" yaml:"bind"`
+	PrivateKeyPath string `required:"true" yaml:"private_key_path"`
 }
 
 type config struct {
