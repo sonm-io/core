@@ -92,6 +92,7 @@ mock:
 	mockgen -package miner -destination insonmnia/miner/overseer_mock.go -source insonmnia/miner/overseer.go
 	mockgen -package miner -destination insonmnia/miner/config_mock.go -source insonmnia/miner/config.go
 	mockgen -package hardware -destination insonmnia/hardware/hardware_mock.go -source insonmnia/hardware/hardware.go
+	mockgen -package config -destination cmd/cli/config/config_mock.go  -source cmd/cli/config/config.go
 
 coverage:
 	${GO} tool cover -func=coverage.txt
