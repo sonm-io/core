@@ -25,8 +25,9 @@ type Identity interface {
 
 	// open loading account
 	// use this after Load()
-	Open(passphrase *string) error
+	Open(passphrase string) error
 }
+
 
 // Implementation of Identity interface
 // working trough KeystorePassphrase from go-ethereum
@@ -46,8 +47,13 @@ type identityPassphrase struct {
 
 // Create new instance of identity
 // this implementation works though passphrase
-func NewIdentity() (idt *identityPassphrase) {
-	return &identityPassphrase{}
+func NewIdentity(keydir *string) (idt *identityPassphrase, err error) {
+	idt = &identityPassphrase{}
+	err = idt.Load(keydir)
+	if err != nil {
+		return nil, err
+	}
+	return idt, nil
 }
 
 // Load keystore
@@ -58,7 +64,7 @@ func (idt *identityPassphrase) Load(keystoreDir *string) (err error) {
 		if err != nil {
 			return err
 		}
-		*keystoreDir = filepath.Join(homeDir, "sonm", "keystore")
+		*keystoreDir = filepath.Join(homeDir, ".sonm", "keystore")
 	}
 	err = idt.initKeystore(keystoreDir)
 	if err != nil {
@@ -73,7 +79,7 @@ func (idt *identityPassphrase) Open(pass string) (err error) {
 
 func (idt *identityPassphrase) GetPrivateKey() (*ecdsa.PrivateKey, error) {
 	if idt.privateKey == nil {
-		return nil, errors.New("Wallet doesn't opened now")
+		return nil, errors.New("Wallet is not open now")
 	}
 	return idt.privateKey, nil
 }
@@ -90,6 +96,8 @@ func (idt *identityPassphrase) initKeystore(keydir *string) (err error) {
 	idt.keystore = keystore.NewKeyStore(*keydir, keystore.LightScryptN, keystore.LightScryptP)
 
 	wallets := idt.keystore.Wallets()
+
+	fmt.Println(keydir)
 
 	if len(wallets) == 0 {
 		return errors.New("Doesn't have any wallets in the store")
