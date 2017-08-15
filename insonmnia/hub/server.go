@@ -22,6 +22,7 @@ import (
 	frd "github.com/sonm-io/core/fusrodah/hub"
 
 	"github.com/sonm-io/core/util"
+	"io"
 )
 
 // Hub collects miners, send them orders to spawn containers, etc.
@@ -187,6 +188,33 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 	}
 
 	return taskStatus, nil
+}
+
+func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer) error {
+	minerID, ok := h.getMinerByTaskID(request.Id)
+	if !ok {
+		return status.Errorf(codes.NotFound, "no such task %s", request.Id)
+	}
+
+	mincli, ok := h.getMinerByID(minerID)
+	if !ok {
+		return status.Errorf(codes.NotFound, "no miner %s for task %s", minerID, request.Id)
+	}
+
+	client, err := mincli.Client.TaskLogs(server.Context(), request)
+	if err != nil {
+		return err
+	}
+	for {
+		chunk, err := client.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		server.Send(chunk)
+	}
 }
 
 // New returns new Hub

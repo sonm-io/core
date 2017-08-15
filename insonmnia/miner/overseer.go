@@ -105,6 +105,9 @@ type Overseer interface {
 	// Depending on the implementation this can be cached.
 	Info(ctx context.Context) (map[string]ContainerMetrics, error)
 
+	// Fetch logs of the container
+	Logs(ctx context.Context, id string, opts types.ContainerLogsOptions) (io.ReadCloser, error)
+
 	// Close terminates all associated asynchronous operations and prepares the Overseer for shutting down.
 	Close() error
 }
@@ -412,4 +415,8 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 	}
 
 	return descriptor.Kill()
+}
+
+func (o *overseer) Logs(ctx context.Context, id string, opts types.ContainerLogsOptions) (io.ReadCloser, error) {
+	return o.client.ContainerLogs(ctx, id, opts)
 }
