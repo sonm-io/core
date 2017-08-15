@@ -8,19 +8,22 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 type MinerBuilder struct {
-	ctx       context.Context
-	cfg       Config
-	collector resource.Collector
-	ip        net.IP
-	ovs       Overseer
-	uuid      string
+	ctx      context.Context
+	cfg      Config
+	hardware hardware.HardwareInfo
+	ip       net.IP
+	ovs      Overseer
+	uuid     string
+	ssh      SSH
 }
 
 func (b *MinerBuilder) Context(ctx context.Context) *MinerBuilder {
@@ -33,8 +36,8 @@ func (b *MinerBuilder) Config(config Config) *MinerBuilder {
 	return b
 }
 
-func (b *MinerBuilder) Collector(collector resource.Collector) *MinerBuilder {
-	b.collector = collector
+func (b *MinerBuilder) Hardware(hardware hardware.HardwareInfo) *MinerBuilder {
+	b.hardware = hardware
 	return b
 }
 
@@ -53,6 +56,11 @@ func (b *MinerBuilder) UUID(uuid string) *MinerBuilder {
 	return b
 }
 
+func (b *MinerBuilder) SSH(ssh SSH) *MinerBuilder {
+	b.ssh = ssh
+	return b
+}
+
 func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	if b.ctx == nil {
 		b.ctx = context.Background()
@@ -62,8 +70,8 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		return nil, errors.New("config is mandatory for MinerBuilder")
 	}
 
-	if b.collector == nil {
-		b.collector = resource.New()
+	if b.hardware == nil {
+		b.hardware = hardware.New()
 	}
 
 	if b.ip == nil {
@@ -87,11 +95,22 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		b.uuid = uuid.New()
 	}
 
-	resources, err := b.collector.OS()
+	hardwareInfo, err := b.hardware.Info()
+
+	if b.ssh == nil && b.cfg.SSH() != nil {
+		b.ssh, err = NewSSH(b.cfg.SSH())
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+	}
+
 	if err != nil {
 		cancel()
 		return nil, err
 	}
+
+	log.G(ctx).Info("collected Hardware info", zap.Any("hardware", hardwareInfo))
 
 	grpcServer := grpc.NewServer()
 
@@ -112,7 +131,8 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		ovs:        b.ovs,
 
 		name:      b.uuid,
-		resources: resource.NewPool(resources),
+		hardware:  hardwareInfo,
+		resources: resource.NewPool(hardwareInfo),
 
 		pubAddress: b.ip.String(),
 		hubAddress: b.cfg.HubEndpoint(),
@@ -123,6 +143,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		nameMapping:    make(map[string]string),
 
 		controlGroup: deleter,
+		ssh:          b.ssh,
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)

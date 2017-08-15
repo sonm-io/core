@@ -2,6 +2,7 @@ package resource
 
 import (
 	"errors"
+	"github.com/sonm-io/core/insonmnia/hardware"
 	"sync"
 )
 
@@ -19,14 +20,14 @@ func NewResources(numCPUs int, memory int64) Resources {
 }
 
 type Pool struct {
-	OS    *OS
+	OS    *hardware.Hardware
 	mu    sync.Mutex
 	usage Resources
 }
 
-func NewPool(os *OS) *Pool {
+func NewPool(hardware *hardware.Hardware) *Pool {
 	return &Pool{
-		OS:    os,
+		OS:    hardware,
 		usage: Resources{},
 	}
 }
@@ -36,7 +37,7 @@ func (p *Pool) Consume(usage *Resources) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	free := NewResources(len(p.OS.CPU.List)-p.usage.numCPUs, int64(p.OS.Mem.Total)-p.usage.memory)
+	free := NewResources(p.OS.LogicalCPUCount()-p.usage.numCPUs, int64(p.OS.Memory.Total)-p.usage.memory)
 
 	if usage.numCPUs > free.numCPUs {
 		return errors.New("not enough CPU available")

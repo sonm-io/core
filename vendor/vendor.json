@@ -71,6 +71,18 @@
 			"revisionTime": "2017-06-08T04:50:38Z"
 		},
 		{
+			"checksumSHA1": "qtjd74+bErubh+qyv3s+lWmn9wc=",
+			"path": "github.com/StackExchange/wmi",
+			"revision": "ea383cf3ba6ec950874b8486cd72356d007c768f",
+			"revisionTime": "2017-04-10T19:29:09Z"
+		},
+		{
+			"checksumSHA1": "HuynI+iQ+RiV7jgtPXA2gTVLcQw=",
+			"path": "github.com/anmitsu/go-shlex",
+			"revision": "648efa622239a2f6ff949fed78ee37b48d499ba4",
+			"revisionTime": "2016-10-02T11:37:05Z"
+		},
+		{
 			"checksumSHA1": "USkefO0g1U9mr+8hagv3fpSkrxg=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/aristanetworks/goarista/monotime",
 			"path": "github.com/aristanetworks/goarista/monotime",
@@ -253,6 +265,12 @@
 			"path": "github.com/docker/docker/pkg/reexec",
 			"revision": "e9cd2fef805c8182b719d489967fb4d1aa34eecd",
 			"revisionTime": "2017-07-27T23:15:11Z"
+		},
+		{
+			"checksumSHA1": "H1rrbVmeE1z2TnkF7tSrfh+qUOY=",
+			"path": "github.com/docker/docker/pkg/stdcopy",
+			"revision": "c7911389e646104180063f069280a8b6cbc47211",
+			"revisionTime": "2017-08-09T00:54:17Z"
 		},
 		{
 			"checksumSHA1": "nhKmQDaWa+qKP2VWEy05CrTyids=",
@@ -640,6 +658,24 @@
 			"revisionTime": "2017-05-02T14:12:00Z"
 		},
 		{
+			"checksumSHA1": "IvHj/4iR2nYa/S3cB2GXoyDG/xQ=",
+			"path": "github.com/go-ole/go-ole",
+			"revision": "085abb85892dc1949567b726dff00fa226c60c45",
+			"revisionTime": "2017-07-12T17:44:59Z"
+		},
+		{
+			"checksumSHA1": "Q0ZOcJW0fqOefDzEdn+PJHOeSgI=",
+			"path": "github.com/go-ole/go-ole/oleutil",
+			"revision": "085abb85892dc1949567b726dff00fa226c60c45",
+			"revisionTime": "2017-07-12T17:44:59Z"
+		},
+		{
+			"checksumSHA1": "yYdny97tDb/SoRB44BJiRTpQNeM=",
+			"path": "github.com/gliderlabs/ssh",
+			"revision": "9ccc7bbb64816592236f628dc4d70fd1a8fe0e5f",
+			"revisionTime": "2017-07-31T18:53:11Z"
+		},
+		{
 			"checksumSHA1": "KZ3QD2QgUS4RcoKiA3mn5pSlJxQ=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/go-stack/stack",
 			"path": "github.com/go-stack/stack",
@@ -998,6 +1034,30 @@
 			"path": "github.com/satori/uuid",
 			"revision": "5bf94b69c6b68ee1b541973bb8e1144db23a194b",
 			"revisionTime": "2017-03-21T23:07:31Z"
+		},
+		{
+			"checksumSHA1": "Hb1sfQh9zulWvKHq1eJB/Egteuc=",
+			"path": "github.com/shirou/gopsutil",
+			"revision": "3aa2ffab12a1852644f6d33cd782f877272bf305",
+			"revisionTime": "2017-08-04T03:09:34Z"
+		},
+		{
+			"checksumSHA1": "T2ThCk35wXAZGh37nrgA07199dA=",
+			"path": "github.com/shirou/gopsutil/cpu",
+			"revision": "3aa2ffab12a1852644f6d33cd782f877272bf305",
+			"revisionTime": "2017-08-04T03:09:34Z"
+		},
+		{
+			"checksumSHA1": "YfGdUgCoLdHBhfG+kXczYXu/rKk=",
+			"path": "github.com/shirou/gopsutil/internal/common",
+			"revision": "3aa2ffab12a1852644f6d33cd782f877272bf305",
+			"revisionTime": "2017-08-04T03:09:34Z"
+		},
+		{
+			"checksumSHA1": "/VB3F8T81eg3lj/UG1bFlfkTQIc=",
+			"path": "github.com/shirou/gopsutil/mem",
+			"revision": "3aa2ffab12a1852644f6d33cd782f877272bf305",
+			"revisionTime": "2017-08-04T03:09:34Z"
 		},
 		{
 			"checksumSHA1": "233z49QwgSzdLglskKTSdI/CPQ8=",

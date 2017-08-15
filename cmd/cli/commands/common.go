@@ -17,9 +17,8 @@ const (
 )
 
 var (
-	rootCmd = &cobra.Command{Use: appName}
-	gctx    = context.Background()
-
+	rootCmd    = &cobra.Command{Use: appName}
+	gctx       = context.Background()
 	version    string
 	hubAddress string
 	timeout    = 60 * time.Second

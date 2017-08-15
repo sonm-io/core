@@ -124,10 +124,11 @@ var taskStartCmd = &cobra.Command{
 		ctx, cancel := context.WithTimeout(gctx, timeout)
 		defer cancel()
 		var req = pb.HubStartTaskRequest{
-			Miner:    miner,
-			Image:    taskDef.GetImageName(),
-			Registry: taskDef.GetRegistryName(),
-			Auth:     taskDef.GetRegistryAuth(),
+			Miner:         miner,
+			Image:         taskDef.GetImageName(),
+			Registry:      taskDef.GetRegistryName(),
+			Auth:          taskDef.GetRegistryAuth(),
+			PublicKeyData: taskDef.GetSSHKey(),
 		}
 
 		if isSimpleFormat() {

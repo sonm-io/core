@@ -13,16 +13,9 @@ import (
 
 	"sync"
 
+	"github.com/sonm-io/core/insonmnia/hardware"
 	pb "github.com/sonm-io/core/proto"
 )
-
-type resources struct {
-	// Number of CPUs on a Miner.
-	// TODO: It is unclear how we will utilize the processor (benchmarks?). For now treat this as placeholders.
-	CPU uint64
-	// Total number of bytes available on a Miner.
-	Memory uint64
-}
 
 // MinerCtx holds all the data related to a connected Miner
 type MinerCtx struct {
@@ -42,8 +35,8 @@ type MinerCtx struct {
 	session *yamux.Session
 
 	// Miner name received after handshaking.
-	uuid      string
-	resources resources
+	uuid         string
+	capabilities *hardware.Hardware
 }
 
 func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
@@ -104,9 +97,16 @@ func (m *MinerCtx) handshake() error {
 
 	log.G(m.ctx).Info("received handshake from a Miner", zap.Any("resp", resp))
 
+	capabilities, err := hardware.HardwareFromProto(resp.Capabilities)
+	if err != nil {
+		log.G(m.ctx).Warn("failed to decode capabilities from a Miner", zap.Error(err))
+		return err
+	}
+
 	m.uuid = resp.Miner
-	m.resources.CPU = resp.Limits.Cores
-	m.resources.Memory = resp.Limits.Memory
+	m.capabilities = capabilities
+
+	log.G(m.ctx).Info("CAP", zap.Any("CAP", m.capabilities))
 
 	return nil
 }

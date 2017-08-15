@@ -35,6 +35,7 @@ message HubStartTaskRequest {
     string registry = 2;
     string image = 3;
     string auth = 4;
+    string PublicKeyData = 5;
 }
 
 message HubStartTaskReply {

@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"crypto/ecdsa"
 	"net"
 	"sync"
 	"time"
@@ -18,7 +19,10 @@ import (
 	pb "github.com/sonm-io/core/proto"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/gliderlabs/ssh"
 	frd "github.com/sonm-io/core/fusrodah/miner"
+	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 )
 
@@ -30,9 +34,12 @@ type Miner struct {
 
 	// Miner name for nice self-representation.
 	name      string
+	hardware  *hardware.Hardware
 	resources *resource.Pool
 
 	hubAddress string
+	hubKey     *ecdsa.PublicKey
+
 	// NOTE: do not use static detection
 	pubAddress string
 
@@ -57,6 +64,7 @@ type Miner struct {
 	statusChannels map[int]chan bool
 	channelCounter int
 	controlGroup   cGroupDeleter
+	ssh            SSH
 }
 
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
@@ -67,12 +75,29 @@ func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
 	m.containers[id] = &info
 }
 
+func (m *Miner) GetContainerInfo(id string) (*ContainerInfo, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	info, ok := m.containers[id]
+	return info, ok
+}
+
 func (m *Miner) getTaskIdByContainerId(id string) (string, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
 	name, ok := m.nameMapping[id]
 	return name, ok
+}
+
+func (m *Miner) getContainerIdByTaskId(id string) (string, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	info, ok := m.containers[id]
+	if ok {
+		return info.ID, ok
+	}
+	return "", ok
 }
 
 func (m *Miner) deleteTaskMapping(id string) {
@@ -130,11 +155,8 @@ func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest
 	log.G(m.ctx).Info("handling Handshake request", zap.Any("req", request))
 
 	resp := &pb.MinerHandshakeReply{
-		Miner: m.name,
-		Limits: &pb.Limits{
-			Cores:  uint64(len(m.resources.OS.CPU.List)),
-			Memory: m.resources.OS.Mem.Total,
-		},
+		Miner:        m.name,
+		Capabilities: m.hardware.IntoProto(),
 	}
 
 	return resp, nil
@@ -213,6 +235,15 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Resources:     transformResources(request.Resources),
 	}
 	log.G(m.ctx).Info("handling Start request", zap.Any("req", request))
+	var publicKey ssh.PublicKey
+	if len(request.PublicKeyData) != 0 {
+		var err error
+		k, _, _, _, err := ssh.ParseAuthorizedKey([]byte(request.PublicKeyData))
+		if err != nil {
+			return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
+		}
+		publicKey = k
+	}
 
 	var mem = int64(0)
 	if request.Resources != nil {
@@ -237,13 +268,14 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPAWNING}, request.Id)
 	log.G(ctx).Info("spawning an image")
-	statusListener, containerInfo, err := m.ovs.Start(ctx, d)
+	statusListener, containerInfo, err := m.ovs.Start(m.ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
 		m.resources.Retain(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
+	containerInfo.PublicKey = publicKey
 
 	m.saveContainerInfo(request.Id, containerInfo)
 
@@ -419,10 +451,27 @@ func (m *Miner) connectToHub(address string) {
 func (m *Miner) Serve() error {
 	var grpcError error
 	var wg sync.WaitGroup
+
+	if m.ssh != nil {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			log.G(m.ctx).Info("starting ssh server")
+			switch sshErr := m.ssh.Run(m); sshErr {
+			case nil, ssh.ErrServerClosed:
+				log.G(m.ctx).Info("closed ssh server")
+			default:
+				log.G(m.ctx).Error("failed to run SSH server", zap.Error(sshErr))
+			}
+			m.Close()
+		}()
+	}
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		grpcError = m.grpcServer.Serve(m.rl)
+		m.Close()
 	}()
 
 	wg.Add(1)
@@ -440,16 +489,22 @@ func (m *Miner) Serve() error {
 				return
 			}
 
-			log.G(m.ctx).Debug("No hub IP, starting discovery")
+			log.G(m.ctx).Info("No hub IP, starting discovery")
 			srv.Serve()
-			m.hubAddress = srv.GetHubIp()
+			hub := srv.GetHub()
+			m.hubAddress = hub.Address
+			m.hubKey = hub.PublicKey
+			log.G(m.ctx).Info("Discovered new hub",
+				zap.String("net_addr", hub.Address),
+				zap.String("eth_addr", crypto.PubkeyToAddress(*hub.PublicKey).String()))
 		} else {
 			log.G(m.ctx).Debug("Using hub IP from config", zap.String("IP", m.hubAddress))
 		}
 
+		t := time.NewTicker(time.Second * 5)
+		defer t.Stop()
+		m.connectToHub(m.hubAddress)
 		for {
-			t := time.NewTicker(time.Second * 5)
-			defer t.Stop()
 			select {
 			case <-m.ctx.Done():
 				return
@@ -465,8 +520,12 @@ func (m *Miner) Serve() error {
 
 // Close disposes all resources related to the Miner
 func (m *Miner) Close() {
+	log.G(m.ctx).Info("closing miner")
 	m.cancel()
 	m.grpcServer.Stop()
+	if m.ssh != nil {
+		m.ssh.Close()
+	}
 	m.rl.Close()
 	m.controlGroup.Delete()
 }

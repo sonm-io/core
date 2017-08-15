@@ -23,6 +23,8 @@ func deleteTestConfigFile() {
 func TestLoadConfig(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
+ethereum:
+  private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
 monitoring:
   endpoint: ":10001"`
@@ -39,6 +41,8 @@ monitoring:
 func TestLoadConfigWithBootnodes(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
+ethereum:
+  private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
 bootnodes:
   - "enode://node1"
@@ -58,6 +62,8 @@ monitoring:
 func TestLoadInvalidConfig(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
+ethereum:
+  private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ""
 monitoring:
   endpoint: ":10002"`
@@ -73,6 +79,8 @@ monitoring:
 func TestLoadConfigLogger(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
+ethereum:
+  private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
 monitoring:
   endpoint: ":10001"
@@ -91,6 +99,8 @@ logging:
 func TestLoadConfigLoggerDefault(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
+ethereum:
+  private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
 monitoring:
   endpoint: ":10001"`

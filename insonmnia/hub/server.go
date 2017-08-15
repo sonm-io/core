@@ -1,10 +1,12 @@
 package hub
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"net"
 	"sync"
 
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -16,6 +18,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 
 	"github.com/sonm-io/core/util"
@@ -28,6 +31,7 @@ type Hub struct {
 	externalGrpc  *grpc.Server
 	endpoint      string
 	minerListener net.Listener
+	ethKey        *ecdsa.PrivateKey
 
 	mu     sync.Mutex
 	miners map[string]*MinerCtx
@@ -95,10 +99,11 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 
 	taskID := uuid.New()
 	var startRequest = &pb.MinerStartRequest{
-		Id:       taskID,
-		Registry: request.Registry,
-		Image:    request.Image,
-		Auth:     request.Auth,
+		Id:            taskID,
+		Registry:      request.Registry,
+		Image:         request.Image,
+		Auth:          request.Auth,
+		PublicKeyData: request.PublicKeyData,
 		// TODO: Fill restart policy and resources fields.
 	}
 
@@ -187,6 +192,11 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 // New returns new Hub
 // TODO: Create logger outside and attach to the context.
 func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
+	ethKey, err := crypto.HexToECDSA(cfg.Eth.PrivateKey)
+	if err != nil {
+		return nil, errors.Wrap(err, "malformed ethereum private key")
+	}
+
 	// TODO: add secure mechanism
 	grpcServer := grpc.NewServer()
 	h := &Hub{
@@ -198,6 +208,7 @@ func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 
 		grpcEndpoint: cfg.Monitoring.Endpoint,
 		endpoint:     cfg.Endpoint,
+		ethKey:       ethKey,
 	}
 	pb.RegisterHubServer(grpcServer, h)
 	return h, nil
@@ -211,7 +222,7 @@ func (h *Hub) Serve() error {
 	if err != nil {
 		return err
 	}
-	srv, err := frd.NewServer(nil, ip.String()+h.endpoint)
+	srv, err := frd.NewServer(h.ethKey, ip.String()+h.endpoint)
 	if err != nil {
 		return err
 	}

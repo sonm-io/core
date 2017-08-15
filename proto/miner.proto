@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "insonmnia.proto";
+import "capabilities.proto";
 
 package sonm;
 
@@ -22,14 +23,9 @@ message MinerHandshakeRequest {
     string hub = 1;
 }
 
-message Limits {
-    uint64 cores = 1;
-    uint64 memory = 2;
-}
-
 message MinerHandshakeReply {
     string miner = 1;
-    Limits limits = 2;
+    Capabilities capabilities = 2;
 }
 
 message MinerStartRequest{
@@ -39,6 +35,7 @@ message MinerStartRequest{
     string auth = 4;
     ContainerRestartPolicy restartPolicy = 5;
     ContainerResources resources = 6;
+    string PublicKeyData = 7;
 }
 
 message MinerStartReply {

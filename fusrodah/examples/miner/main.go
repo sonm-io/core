@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/fusrodah/miner"
 )
 
 func main() {
+	prv, _ := crypto.GenerateKey()
 
-	srv, err := miner.NewServer(nil)
+	srv, err := miner.NewServer(prv)
 	if err != nil {
 		fmt.Printf("Error while initialize instanse: %s \r\n", err)
 		return
@@ -21,5 +23,5 @@ func main() {
 
 	srv.Serve()
 
-	fmt.Println(srv.GetHubIp())
+	fmt.Println(srv.GetHub())
 }
