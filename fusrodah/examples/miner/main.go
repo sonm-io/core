@@ -21,5 +21,5 @@ func main() {
 
 	srv.Serve()
 
-	fmt.Println(srv.GetHubIp())
+	fmt.Println(srv.GetHub())
 }
