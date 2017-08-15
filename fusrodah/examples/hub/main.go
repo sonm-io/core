@@ -3,10 +3,13 @@ package main
 import (
 	"fmt"
 	"github.com/sonm-io/core/fusrodah/hub"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 func main() {
-	srv, err := hub.NewServer(nil, "123.123.123.123")
+	prv, _ := crypto.GenerateKey()
+
+	srv, err := hub.NewServer(prv, "123.123.123.123")
 	if err != nil {
 		fmt.Printf("Could not initialize server: %s\r\n", err)
 		return
