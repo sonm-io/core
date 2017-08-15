@@ -8,8 +8,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/util"
 	"io/ioutil"
-	"strings"
 	"path/filepath"
+	"strings"
 )
 
 // Identity interface uses for auth and detect all objects in network
@@ -43,7 +43,6 @@ type identityPassphrase struct {
 	privateKey *ecdsa.PrivateKey
 	key        *keystore.Key
 }
-
 
 // Create new instance of identity
 // this implementation works though passphrase
