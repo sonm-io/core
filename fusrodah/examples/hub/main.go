@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/sonm-io/core/fusrodah/hub"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/sonm-io/core/fusrodah/hub"
 )
 
 func main() {

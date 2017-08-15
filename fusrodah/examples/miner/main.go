@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/sonm-io/core/fusrodah/miner"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/sonm-io/core/fusrodah/miner"
 )
 
 func main() {
