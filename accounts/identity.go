@@ -44,12 +44,16 @@ type identityPassphrase struct {
 	key        *keystore.Key
 }
 
+
+// Create new instance of identity
+// this implementation works though passphrase
 func NewIdentity() (idt *identityPassphrase) {
 	return &identityPassphrase{}
 }
 
+// Load keystore
+// this implementation
 func (idt *identityPassphrase) Load(keystoreDir *string) (err error) {
-
 	if keystoreDir == nil {
 		homeDir, err := util.GetUserHomeDir()
 		if err != nil {
@@ -101,6 +105,7 @@ func (idt *identityPassphrase) initKeystore(keydir *string) (err error) {
 	return nil
 }
 
+// Read and decrypt Privatekey with getting passphrase
 func (idt *identityPassphrase) readPrivateKey(pass string) (err error) {
 	parts, err := parseKeystoreUrl(idt.defaultAccount.URL.String())
 	if err != nil {
