@@ -15,6 +15,14 @@ const (
 	appName        = "sonm"
 	hubAddressFlag = "addr"
 	hubTimeoutFlag = "timeout"
+
+	// log flag names
+	logTypeFlag       = "type"
+	sinceFlag         = "since"
+	addTimestampsFlag = "ts"
+	followFlag        = "follow"
+	tailFlag          = "tail"
+	detailsFlag       = "detailed"
 )
 
 var (
@@ -24,6 +32,15 @@ var (
 	timeout    = 60 * time.Second
 	cfg        config.Config
 
+	// logging flag vars
+	logType       string
+	since         string
+	addTimestamps bool
+	follow        bool
+	tail          string
+	details       bool
+
+	// errors
 	errHubAddressRequired   = errors.New("--addr flag is required")
 	errMinerAddressRequired = errors.New("Miner address is required")
 	errTaskIDRequired       = errors.New("Task ID is required")

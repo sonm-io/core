@@ -35,6 +35,8 @@ It has these top-level messages:
 	StatusMapReply
 	ContainerResources
 	ContainerRestartPolicy
+	TaskLogsRequest
+	TaskLogsChunk
 	MinerInfoRequest
 	MinerHandshakeRequest
 	MinerHandshakeReply

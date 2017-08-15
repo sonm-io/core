@@ -18,12 +18,14 @@ import (
 
 	pb "github.com/sonm-io/core/proto"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gliderlabs/ssh"
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
+	"io"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -358,6 +360,40 @@ func (m *Miner) sendUpdatesOnRequest(server pb.Miner_TasksStatusServer) {
 		if err != nil {
 			log.G(m.ctx).Info("failed to send status update", zap.Error(err))
 			return
+		}
+	}
+}
+
+// TasksStatus returns the status of a task
+func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Miner_TaskLogsServer) error {
+	log.G(m.ctx).Info("handling TaskLogs request", zap.Any("request", request))
+	cid, ok := m.getContainerIdByTaskId(request.Id)
+	if !ok {
+		return status.Errorf(codes.NotFound, "no job with id %s", request.Id)
+	}
+	opts := types.ContainerLogsOptions{
+		ShowStdout: request.Type == pb.TaskLogsRequest_STDOUT || request.Type == pb.TaskLogsRequest_BOTH,
+		ShowStderr: request.Type == pb.TaskLogsRequest_STDERR || request.Type == pb.TaskLogsRequest_BOTH,
+		Since:      request.Since,
+		Timestamps: request.AddTimestamps,
+		Follow:     request.Follow,
+		Tail:       request.Tail,
+		Details:    request.Details,
+	}
+	reader, err := m.ovs.Logs(server.Context(), cid, opts)
+	if err != nil {
+		return err
+	}
+	buffer := make([]byte, 100*1024)
+	for {
+		readCnt, err := reader.Read(buffer)
+		if readCnt != 0 {
+			server.Send(&pb.TaskLogsChunk{string(buffer[:readCnt])})
+		}
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
 		}
 	}
 }
