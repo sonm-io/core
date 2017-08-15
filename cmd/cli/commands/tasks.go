@@ -190,6 +190,7 @@ func taskStartCmdRunner(cmd *cobra.Command, miner, image string, interactor CliI
 	rep, err := interactor.TaskStart(context.Background(), req)
 	if err != nil {
 		showError(cmd, "Cannot start task", err)
+		return
 	}
 
 	printTaskStart(cmd, rep)
