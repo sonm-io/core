@@ -8,6 +8,7 @@ import (
 
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
+	"io"
 )
 
 func init() {
@@ -117,29 +118,13 @@ var taskLogsCmd = &cobra.Command{
 		req.Tail = tail
 		req.Details = details
 
-		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+		itr, err := NewGrpcInteractor(hubAddress, timeout)
+
 		if err != nil {
-			showError(cmd, "Cannot create connection", err)
+			showError(cmd, "Cannot connect ot hub", err)
 			return nil
 		}
-		defer cc.Close()
-
-		ctx, cancel := context.WithTimeout(gctx, timeout)
-		defer cancel()
-
-		client, err := pb.NewHubClient(cc).TaskLogs(ctx, &req)
-		if err != nil {
-			showError(cmd, "Cannot get task status", err)
-			return nil
-		}
-		for {
-			buffer, err := client.Recv()
-			if err != nil {
-				return nil
-			}
-			cmd.Print(buffer.Data)
-		}
-		return nil
+		return taskLogCmdRunner(cmd, &req, itr)
 	},
 }
 
@@ -233,6 +218,26 @@ func taskListCmdRunner(cmd *cobra.Command, minerID string, interactor CliInterac
 	}
 
 	printTaskList(cmd, minerStatus, minerID)
+}
+
+func taskLogCmdRunner(cmd *cobra.Command, request *pb.TaskLogsRequest, interactor CliInteractor) error {
+	client, err := interactor.TaskLogs(context.Background(), request)
+	if err != nil {
+		showError(cmd, "Cannot get task logs", err)
+		return err
+	}
+
+	for {
+		buffer, err := client.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			showError(cmd, "IO failure during log fetching", err)
+			return err
+		}
+		cmd.Print(buffer.Data)
+	}
 }
 
 func taskStartCmdRunner(cmd *cobra.Command, miner string, taskConfig task_config.TaskConfig, interactor CliInteractor) {
