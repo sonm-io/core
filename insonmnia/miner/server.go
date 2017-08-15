@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"crypto/ecdsa"
 	"net"
 	"sync"
 	"time"
@@ -18,6 +19,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/ethereum/go-ethereum/crypto"
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
@@ -36,6 +38,8 @@ type Miner struct {
 	resources *resource.Pool
 
 	hubAddress string
+	hubKey     *ecdsa.PublicKey
+
 	// NOTE: do not use static detection
 	pubAddress string
 
@@ -481,9 +485,14 @@ func (m *Miner) Serve() error {
 				return
 			}
 
-			log.G(m.ctx).Debug("No hub IP, starting discovery")
+			log.G(m.ctx).Info("No hub IP, starting discovery")
 			srv.Serve()
-			m.hubAddress = srv.GetHubIp()
+			hub := srv.GetHub()
+			m.hubAddress = hub.Address
+			m.hubKey = hub.PublicKey
+			log.G(m.ctx).Info("Discovered new hub",
+				zap.String("net_addr", hub.Address),
+				zap.String("eth_addr", crypto.PubkeyToAddress(*hub.PublicKey).String()))
 		} else {
 			log.G(m.ctx).Debug("Using hub IP from config", zap.String("IP", m.hubAddress))
 		}
