@@ -7,12 +7,14 @@ import (
 	"golang.org/x/net/context"
 
 	pb "github.com/sonm-io/core/proto"
+	"io/ioutil"
 )
 
 func init() {
 	taskStartCmd.Flags().StringVar(&registryName, registryNameFlag, "", "Registry to pull image")
 	taskStartCmd.Flags().StringVar(&registryUser, registryUserFlag, "", "Registry username")
 	taskStartCmd.Flags().StringVar(&registryPassword, registryPasswordFlag, "", "Registry password")
+	taskStartCmd.Flags().StringVar(&keyPath, keyPathFlag, "", "Path to public key")
 
 	tasksRootCmd.AddCommand(taskListCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
 }

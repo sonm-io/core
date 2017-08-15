@@ -23,6 +23,7 @@ type MinerBuilder struct {
 	ip       net.IP
 	ovs      Overseer
 	uuid     string
+	ssh      SSH
 }
 
 func (b *MinerBuilder) Context(ctx context.Context) *MinerBuilder {
@@ -52,6 +53,11 @@ func (b *MinerBuilder) Overseer(ovs Overseer) *MinerBuilder {
 
 func (b *MinerBuilder) UUID(uuid string) *MinerBuilder {
 	b.uuid = uuid
+	return b
+}
+
+func (b *MinerBuilder) SSH(ssh SSH) *MinerBuilder {
+	b.ssh = ssh
 	return b
 }
 
@@ -90,6 +96,15 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	}
 
 	hardwareInfo, err := b.hardware.Info()
+
+	if b.ssh == nil && b.cfg.SSH() != nil {
+		b.ssh, err = NewSSH(b.cfg.SSH())
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+	}
+
 	if err != nil {
 		cancel()
 		return nil, err
@@ -128,6 +143,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		nameMapping:    make(map[string]string),
 
 		controlGroup: deleter,
+		ssh:          b.ssh,
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)
