@@ -7,7 +7,6 @@ import (
 	"golang.org/x/net/context"
 
 	pb "github.com/sonm-io/core/proto"
-	"io/ioutil"
 )
 
 func init() {
