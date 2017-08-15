@@ -20,10 +20,10 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/gliderlabs/ssh"
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
-	"golang.org/x/crypto/ssh"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -455,10 +455,14 @@ func (m *Miner) Serve() error {
 	if m.ssh != nil {
 		wg.Add(1)
 		go func() {
-			log.G(m.ctx).Info("starting ssh server")
 			defer wg.Done()
-			m.ssh.Run(m)
-			log.G(m.ctx).Info("closed ssh server")
+			log.G(m.ctx).Info("starting ssh server")
+			switch sshErr := m.ssh.Run(m); sshErr {
+			case nil, ssh.ErrServerClosed:
+				log.G(m.ctx).Info("closed ssh server")
+			default:
+				log.G(m.ctx).Error("failed to run SSH server", zap.Error(sshErr))
+			}
 			m.Close()
 		}()
 	}
