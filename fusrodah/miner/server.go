@@ -76,7 +76,7 @@ func (srv *Server) discovery() {
 		if hubKey := msg.Recover(); hubKey != nil { // skip unauthenticated messages
 			srv.Hub = &HubInfo{
 				PublicKey: hubKey,
-				Address:   string(msg.Payload), // FIXME: check if valid
+				Address:   string(msg.Payload),
 			}
 			srv.Frd.RemoveHandling(filterID)
 			close(done)
