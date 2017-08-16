@@ -12,8 +12,9 @@ import (
 )
 
 var (
-	identityDoesntHaveAccountError = errors.New("Doesn't have any accounts in the wallet")
-	identityWalletNotOperError     = errors.New("Doesn't have any accounts in the wallet")
+	errWalletNoAccount = errors.New("Wallet does not have any account")
+	errWalletNotOpen   = errors.New("Wallet is not open")
+	errWalletIsEmpty   = errors.New("Keystore does not have any wallets")
 )
 
 // Identity interface uses for auth and detect all objects in network
@@ -57,18 +58,17 @@ func NewIdentity(keydir string) (idt *identityPassphrase) {
 	return idt
 }
 
-func (idt *identityPassphrase) Open(passphrase string) (err error) {
-
+func (idt *identityPassphrase) Open(passphrase string) error {
 	wallets := idt.keystore.Wallets()
 
 	if len(wallets) == 0 {
-		return errors.New("Doesn't have any wallets in the store")
+		return errWalletIsEmpty
 	}
 	idt.defaultWallet = wallets[0]
 
 	accs := idt.defaultWallet.Accounts()
 	if len(accs) == 0 {
-		return identityDoesntHaveAccountError
+		return errWalletNoAccount
 	}
 	idt.defaultAccount = accs[0]
 
@@ -77,7 +77,7 @@ func (idt *identityPassphrase) Open(passphrase string) (err error) {
 
 func (idt *identityPassphrase) GetPrivateKey() (*ecdsa.PrivateKey, error) {
 	if idt.privateKey == nil {
-		return nil, identityWalletNotOperError
+		return nil, errWalletNotOpen
 	}
 	return idt.privateKey, nil
 }
@@ -103,7 +103,7 @@ func (idt *identityPassphrase) initKeystore(keydir string) {
 }
 
 // Read and decrypt Privatekey with getting passphrase
-func (idt *identityPassphrase) readPrivateKey(pass string) (err error) {
+func (idt *identityPassphrase) readPrivateKey(pass string) error {
 	path, err := parseKeystoreUrl(idt.defaultAccount.URL.String())
 	if err != nil {
 		return err
