@@ -104,7 +104,7 @@ func TestMinerInfo(t *testing.T) {
 
 	assert.NotNil(t, ret)
 	assert.Nil(t, err)
-	assert.Equal(t, uint64(43), ret.Stats["id1"].Memory.MaxUsage)
+	assert.Equal(t, uint64(43), ret.Usage["id1"].Memory.MaxUsage)
 }
 
 func TestMinerHandshake(t *testing.T) {
