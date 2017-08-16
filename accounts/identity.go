@@ -2,7 +2,6 @@ package accounts
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/pkg/errors"
@@ -11,6 +10,12 @@ import (
 	url2 "net/url"
 	"path/filepath"
 )
+
+var(
+	identityDoesntHaveAccountError = errors.New("Doesn't have any accounts in the wallet")
+	identityWalletNotOperError = errors.New("Doesn't have any accounts in the wallet")
+)
+
 
 // Identity interface uses for auth and detect all objects in network
 // source implementation going to go-ethereum accounting
@@ -58,8 +63,6 @@ func (idt *identityPassphrase) Open(passphrase string) (err error) {
 
 	wallets := idt.keystore.Wallets()
 
-	fmt.Println(wallets)
-
 	if len(wallets) == 0 {
 		return errors.New("Doesn't have any wallets in the store")
 	}
@@ -67,7 +70,7 @@ func (idt *identityPassphrase) Open(passphrase string) (err error) {
 
 	accs := idt.defaultWallet.Accounts()
 	if len(accs) == 0 {
-		return errors.New("Doesn't have any accounts in the wallet")
+		return identityDoesntHaveAccountError
 	}
 	idt.defaultAccount = accs[0]
 
@@ -76,7 +79,7 @@ func (idt *identityPassphrase) Open(passphrase string) (err error) {
 
 func (idt *identityPassphrase) GetPrivateKey() (*ecdsa.PrivateKey, error) {
 	if idt.privateKey == nil {
-		return nil, errors.New("Wallet is not open now")
+		return nil, identityWalletNotOperError
 	}
 	return idt.privateKey, nil
 }
@@ -125,7 +128,6 @@ func (idt *identityPassphrase) readPrivateKey(pass string) (err error) {
 // keystore:///users/user/home/.sonm/keystore/keyfile
 // its return path - /users/user/home/.sonm/keystore/keyfile
 func parseKeystoreUrl(url string) (string, error) {
-	fmt.Println(url)
 	u, err := url2.Parse(url)
 	if err != nil {
 		return "", err
