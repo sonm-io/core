@@ -12,16 +12,14 @@ environment:
   GOPATH: c:\gopath
 
 install:
-  - echo %PATH%
-  - echo %GOPATH%
   - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
+  - set GOOS=windows
+  - set GOARCH=386
   - go version
   - go env
-  - dir c:\MinGW\bin
 
 build_script:
-  - GOOS=windows GOARCH=386 go build -tags nocgo -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=0.2.2.{build}.win32" -o conmcli_win32.exe ./cmd/cli
-  # - make build_cli_win32
+  - c:\MinGW\bin\mingw32-make.exe build_cli_win32
 
 artifacts:
   - path: sonmcli_win32.exe
