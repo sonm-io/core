@@ -126,25 +126,17 @@ func (m *Miner) Info(ctx context.Context, request *pb.MinerInfoRequest) (*pb.Inf
 		return nil, err
 	}
 
-	var result = pb.InfoReply{
-		Stats: make(map[string]*pb.InfoReplyStats),
+	var result = &pb.InfoReply{
+		Usage: make(map[string]*pb.ResourceUsage),
 	}
 
-	for containerId, stats := range info {
-		if id, ok := m.getTaskIdByContainerId(containerId); ok {
-			// TODO: This transformation will be eliminated when protobuf unifying comes.
-			result.Stats[id] = &pb.InfoReplyStats{
-				CPU: &pb.InfoReplyStatsCpu{
-					TotalUsage: stats.cpu.CPUUsage.TotalUsage,
-				},
-				Memory: &pb.InfoReplyStatsMemory{
-					MaxUsage: stats.mem.MaxUsage,
-				},
-			}
+	for containerID, stat := range info {
+		if id, ok := m.getTaskIdByContainerId(containerID); ok {
+			result.Usage[id] = stat.Marshal()
 		}
 	}
 
-	return &result, nil
+	return result, nil
 }
 
 // Handshake is the first frame received from a Hub.

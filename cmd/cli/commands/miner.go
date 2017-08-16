@@ -40,14 +40,25 @@ func printMinerList(cmd *cobra.Command, lr *pb.ListReply) {
 
 func printMinerStatus(cmd *cobra.Command, metrics *pb.InfoReply) {
 	if isSimpleFormat() {
-		if len(metrics.Stats) == 0 {
+		if len(metrics.GetUsage()) == 0 {
 			cmd.Println("Miner is idle")
 		} else {
 			cmd.Println("Miner tasks:")
-			for task, stat := range metrics.Stats {
+			for task, usage := range metrics.Usage {
 				cmd.Printf("  ID: %s\r\n", task)
-				cmd.Printf("      CPU: %d\r\n", stat.CPU.TotalUsage)
-				cmd.Printf("      RAM: %s\r\n", ds.ByteSize(stat.Memory.MaxUsage).String())
+				cmd.Printf("      CPU: %d\r\n", usage.Cpu.Total)
+				cmd.Printf("      RAM: %s\r\n")
+				cmd.Printf("      CPU: %d\r\n", usage.Cpu.Total)
+				cmd.Printf("      RAM: %s\r\n", ds.ByteSize(usage.Memory.MaxUsage).String())
+				cmd.Printf("      NET:\r\n")
+
+				for i, net := range usage.Network {
+					cmd.Printf("          %s:\r\n", i)
+					cmd.Printf("            Tx/Rx bytes: %d/%d\r\n", net.TxBytes, net.RxBytes)
+					cmd.Printf("            Tx/Rx packets: %d/%d\r\n", net.TxPackets, net.RxPackets)
+					cmd.Printf("            Tx/Rx errors: %d/%d\r\n", net.TxErrors, net.RxErrors)
+					cmd.Printf("            Tx/Rx dropped: %d/%d\r\n", net.TxDropped, net.RxDropped)
+				}
 			}
 		}
 	} else {

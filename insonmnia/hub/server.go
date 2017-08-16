@@ -217,7 +217,6 @@ func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 // Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
-
 	ip, err := util.GetPublicIP()
 	if err != nil {
 		return err
