@@ -19,12 +19,13 @@ type Identity interface {
 	// return *ecdsa.PrivateKey, it include PublicKey and ethereum Address shortly
 	GetPrivateKey() (*ecdsa.PrivateKey, error)
 
-	// open any keystore and seek account in this keystore
-	// DANG: this not getting ready account for using, use Open() for setup account and GetPrivateKey() for getting this
-	Load(keydir string) error
+
+	// created new account in keystore
+	// WARN: not open created account
+	New(passphrase string) error
 
 	// open loading account
-	// use this after Load()
+	// use this after load()
 	// passphrase may be blank - eg. passphrase=""
 	Open(passphrase string) error
 }
@@ -49,17 +50,11 @@ type identityPassphrase struct {
 // this implementation works though passphrase
 func NewIdentity(keydir string) (idt *identityPassphrase) {
 	idt = &identityPassphrase{}
-	idt.Load(keydir)
+	idt.load(keydir)
 	return idt
 }
 
-// Load keystore
-// this implementation
-func (idt *identityPassphrase) Load(keystoreDir string) {
-	idt.initKeystore(keystoreDir)
-}
-
-func (idt *identityPassphrase) Open(pass string) (err error) {
+func (idt *identityPassphrase) Open(passphrase string) (err error) {
 
 	wallets := idt.keystore.Wallets()
 
@@ -76,7 +71,7 @@ func (idt *identityPassphrase) Open(pass string) (err error) {
 	}
 	idt.defaultAccount = accs[0]
 
-	return idt.readPrivateKey(pass)
+	return idt.readPrivateKey(passphrase)
 }
 
 func (idt *identityPassphrase) GetPrivateKey() (*ecdsa.PrivateKey, error) {
@@ -86,13 +81,18 @@ func (idt *identityPassphrase) GetPrivateKey() (*ecdsa.PrivateKey, error) {
 	return idt.privateKey, nil
 }
 
-func (idt *identityPassphrase) New(passphrase string) (err error) {
+func (idt *identityPassphrase) New(passphrase string) error {
 	acc, err := idt.keystore.NewAccount(passphrase)
 	if err != nil {
 		return err
 	}
 	idt.defaultAccount = acc
 	return err
+}
+
+// load keystore
+func (idt *identityPassphrase) load(keystoreDir string) {
+	idt.initKeystore(keystoreDir)
 }
 
 // Keystore initialization
