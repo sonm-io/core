@@ -16,54 +16,58 @@ DOCKER_IMAGE_HUB="sonm/hub:latest"
 DOCKER_IMAGE_MINER="sonm/miner:latest"
 DOCKER_IMAGE_BOOTNODE="sonm/bootnode:latest"
 
+GPU_SUPPORT?=false
+ifeq ($(GPU_SUPPORT),true)
+    GPU_FLAGS=-tags cl
+endif
 
 .PHONY: fmt vet test
 
 all: mock vet fmt build test install
 
-build_bootnode:
+build/bootnode:
 	@echo "+ $@"
 	${GO} build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" -o ${BOOTNODE} ${GOCMD}/bootnode
 
-build_miner:
+build/miner:
 	@echo "+ $@"
-	${GO} build -tags nocgo -o ${MINER} ${GOCMD}/miner
+	${GO} build -tags nocgo ${GPU_FLAGS} -o ${MINER} ${GOCMD}/miner
 
-build_hub:
+build/hub:
 	@echo "+ $@"
 	${GO} build -tags nocgo -o ${HUB} ${GOCMD}/hub
 
-build_cli:
+build/cli:
 	@echo "+ $@"
 	${GO} build -tags nocgo -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
 
-build_cli_win32:
+build/cli_win32:
 	@echo "+ $@"
 	GOOS=windows GOARCH=386 go build -tags nocgo -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER).win32" -o ${CLI}_win32.exe ${GOCMD}/cli
 
-build_blockchain:
+build/blockchain:
 	@echo "+ $@"
 	$(MAKE) -C blockchain build_contract_wrappers
 
-build: build_blockchain build_bootnode build_hub build_miner build_cli
+build: build/blockchain build/bootnode build/hub build/miner build/cli
 
-install_bootnode: build_bootnode
+install/bootnode: build/bootnode
 	@echo "+ $@"
 	cp ${BOOTNODE} ${INSTALLDIR}
 
-install_miner: build_miner
+install/miner: build/miner
 	@echo "+ $@"
 	cp ${MINER} ${INSTALLDIR}
 
-install_hub: build_hub
+install/hub: build/hub
 	@echo "+ $@"
 	cp ${HUB} ${INSTALLDIR}
 
-install_cli: build_cli
+install/cli: build/cli
 	@echo "+ $@"
 	cp ${CLI} ${INSTALLDIR}
 
-install: install_bootnode install_miner install_hub install_cli
+install: install/bootnode install/miner install/hub install/cli
 
 vet:
 	@echo "+ $@"
@@ -112,13 +116,13 @@ clean:
 	$(MAKE) -C blockchain clean
 
 
-docker_hub:
+docker/hub:
 	docker build -t ${DOCKER_IMAGE_HUB} -f ./hub.Dockerfile .
 
-docker_miner:
+docker/miner:
 	docker build -t ${DOCKER_IMAGE_MINER} -f ./miner.Dockerfile .
 
-docker_bootnode:
+docker/bootnode:
 	docker build -t ${DOCKER_IMAGE_BOOTNODE} -f ./bootnode.Dockerfile .
 
-docker_all: docker_hub docker_miner docker_bootnode
+docker/all: docker/hub docker/miner docker/bootnode
