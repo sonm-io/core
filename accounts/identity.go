@@ -11,11 +11,10 @@ import (
 	"path/filepath"
 )
 
-var(
+var (
 	identityDoesntHaveAccountError = errors.New("Doesn't have any accounts in the wallet")
-	identityWalletNotOperError = errors.New("Doesn't have any accounts in the wallet")
+	identityWalletNotOperError     = errors.New("Doesn't have any accounts in the wallet")
 )
-
 
 // Identity interface uses for auth and detect all objects in network
 // source implementation going to go-ethereum accounting
@@ -23,7 +22,6 @@ var(
 type Identity interface {
 	// return *ecdsa.PrivateKey, it include PublicKey and ethereum Address shortly
 	GetPrivateKey() (*ecdsa.PrivateKey, error)
-
 
 	// created new account in keystore
 	// WARN: not open created account
