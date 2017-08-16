@@ -21,10 +21,11 @@ type Identity interface {
 
 	// open any keystore and seek account in this keystore
 	// DANG: this not getting ready account for using, use Open() for setup account and GetPrivateKey() for getting this
-	Load(keydir *string) error
+	Load(keydir string) error
 
 	// open loading account
 	// use this after Load()
+	// passphrase may be blank - eg. passphrase=""
 	Open(passphrase string) error
 }
 
@@ -47,7 +48,7 @@ type identityPassphrase struct {
 
 // Create new instance of identity
 // this implementation works though passphrase
-func NewIdentity(keydir *string) (idt *identityPassphrase, err error) {
+func NewIdentity(keydir string) (idt *identityPassphrase, err error) {
 	idt = &identityPassphrase{}
 	err = idt.Load(keydir)
 	if err != nil {
@@ -58,14 +59,7 @@ func NewIdentity(keydir *string) (idt *identityPassphrase, err error) {
 
 // Load keystore
 // this implementation
-func (idt *identityPassphrase) Load(keystoreDir *string) (err error) {
-	if keystoreDir == nil {
-		homeDir, err := util.GetUserHomeDir()
-		if err != nil {
-			return err
-		}
-		*keystoreDir = filepath.Join(homeDir, ".sonm", "keystore")
-	}
+func (idt *identityPassphrase) Load(keystoreDir string) (err error) {
 	err = idt.initKeystore(keystoreDir)
 	if err != nil {
 		return err
@@ -86,18 +80,15 @@ func (idt *identityPassphrase) GetPrivateKey() (*ecdsa.PrivateKey, error) {
 
 // Keystore initialization
 // init keystore at homedir while keydir params is nil
-func (idt *identityPassphrase) initKeystore(keydir *string) (err error) {
-	if keydir == nil {
-		return errors.New("Keystore ")
-	}
+func (idt *identityPassphrase) initKeystore(keydir string) (err error) {
 
-	fmt.Println(*keydir)
+	fmt.Println(keydir)
 
-	idt.keystore = keystore.NewKeyStore(*keydir, keystore.LightScryptN, keystore.LightScryptP)
+	idt.keystore = keystore.NewKeyStore(keydir, keystore.LightScryptN, keystore.LightScryptP)
 
 	wallets := idt.keystore.Wallets()
 
-	fmt.Println(keydir)
+	fmt.Println(wallets)
 
 	if len(wallets) == 0 {
 		return errors.New("Doesn't have any wallets in the store")
@@ -138,4 +129,14 @@ func parseKeystoreUrl(url string) ([]string, error) {
 		return nil, err
 	}
 	return parts, nil
+}
+
+// return default keystore directory stored in in `.sonm` directory
+// if any error occurred .sonm directory will be in working dir
+func GetDefaultKeystoreDir() string{
+	rootDir, err := util.GetUserHomeDir()
+	if err != nil {
+		rootDir = ""
+	}
+	return filepath.Join(rootDir, ".sonm", "keystore")
 }

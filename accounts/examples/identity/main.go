@@ -6,10 +6,10 @@ import (
 )
 
 func main() {
-	idt := accounts.NewIdentity()
+	keydir := accounts.GetDefaultKeystoreDir()
 
-	keydir := "/abs/path/to/eth/keystore"
-	err := idt.Load(&keydir)
+	idt, err := accounts.NewIdentity(keydir)
+
 	if err != nil {
 		fmt.Printf("Error during loading: %s", err)
 		return
