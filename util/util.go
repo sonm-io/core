@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"io/ioutil"
 	"net/http"
+	"os/user"
 )
 
 // GetLocalIP find local non-loopback ip addr
@@ -56,4 +57,12 @@ func GetPublicIP() (net.IP, error) {
 		return nil, fmt.Errorf("failed to ParseIP from: %s", s)
 	}
 	return pubipadr, nil
+}
+
+func GetUserHomeDir() (homeDir string, err error) {
+	usr, err := user.Current()
+	if err != nil {
+		return "", err
+	}
+	return usr.HomeDir, nil
 }
