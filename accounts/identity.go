@@ -2,7 +2,6 @@ package accounts
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/pkg/errors"
@@ -12,13 +11,18 @@ import (
 	"path/filepath"
 )
 
+var (
+	errWalletNoAccount = errors.New("Wallet does not have any account")
+	errWalletNotOpen   = errors.New("Wallet is not open")
+	errWalletIsEmpty   = errors.New("Keystore does not have any wallets")
+)
+
 // Identity interface uses for auth and detect all objects in network
 // source implementation going to go-ethereum accounting
 // its need to be storing wallets in one dir and opened it by passphrase
 type Identity interface {
 	// return *ecdsa.PrivateKey, it include PublicKey and ethereum Address shortly
 	GetPrivateKey() (*ecdsa.PrivateKey, error)
-
 
 	// created new account in keystore
 	// WARN: not open created account
@@ -54,20 +58,17 @@ func NewIdentity(keydir string) (idt *identityPassphrase) {
 	return idt
 }
 
-func (idt *identityPassphrase) Open(passphrase string) (err error) {
-
+func (idt *identityPassphrase) Open(passphrase string) error {
 	wallets := idt.keystore.Wallets()
 
-	fmt.Println(wallets)
-
 	if len(wallets) == 0 {
-		return errors.New("Doesn't have any wallets in the store")
+		return errWalletIsEmpty
 	}
 	idt.defaultWallet = wallets[0]
 
 	accs := idt.defaultWallet.Accounts()
 	if len(accs) == 0 {
-		return errors.New("Doesn't have any accounts in the wallet")
+		return errWalletNoAccount
 	}
 	idt.defaultAccount = accs[0]
 
@@ -76,7 +77,7 @@ func (idt *identityPassphrase) Open(passphrase string) (err error) {
 
 func (idt *identityPassphrase) GetPrivateKey() (*ecdsa.PrivateKey, error) {
 	if idt.privateKey == nil {
-		return nil, errors.New("Wallet is not open now")
+		return nil, errWalletNotOpen
 	}
 	return idt.privateKey, nil
 }
@@ -102,7 +103,7 @@ func (idt *identityPassphrase) initKeystore(keydir string) {
 }
 
 // Read and decrypt Privatekey with getting passphrase
-func (idt *identityPassphrase) readPrivateKey(pass string) (err error) {
+func (idt *identityPassphrase) readPrivateKey(pass string) error {
 	path, err := parseKeystoreUrl(idt.defaultAccount.URL.String())
 	if err != nil {
 		return err
@@ -125,7 +126,6 @@ func (idt *identityPassphrase) readPrivateKey(pass string) (err error) {
 // keystore:///users/user/home/.sonm/keystore/keyfile
 // its return path - /users/user/home/.sonm/keystore/keyfile
 func parseKeystoreUrl(url string) (string, error) {
-	fmt.Println(url)
 	u, err := url2.Parse(url)
 	if err != nil {
 		return "", err
