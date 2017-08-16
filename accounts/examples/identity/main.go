@@ -6,14 +6,11 @@ import (
 )
 
 func main() {
+	var err error
+
 	keydir := accounts.GetDefaultKeystoreDir()
 
-	idt, err := accounts.NewIdentity(keydir)
-
-	if err != nil {
-		fmt.Printf("Error during loading: %s", err)
-		return
-	}
+	idt := accounts.NewIdentity(keydir)
 
 	err = idt.Open("")
 	if err != nil {

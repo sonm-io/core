@@ -47,43 +47,19 @@ type identityPassphrase struct {
 
 // Create new instance of identity
 // this implementation works though passphrase
-func NewIdentity(keydir string) (idt *identityPassphrase, err error) {
+func NewIdentity(keydir string) (idt *identityPassphrase) {
 	idt = &identityPassphrase{}
-	err = idt.Load(keydir)
-	if err != nil {
-		return nil, err
-	}
-	return idt, nil
+	idt.Load(keydir)
+	return idt
 }
 
 // Load keystore
 // this implementation
-func (idt *identityPassphrase) Load(keystoreDir string) (err error) {
-	err = idt.initKeystore(keystoreDir)
-	if err != nil {
-		return err
-	}
-	return nil
+func (idt *identityPassphrase) Load(keystoreDir string) {
+	idt.initKeystore(keystoreDir)
 }
 
 func (idt *identityPassphrase) Open(pass string) (err error) {
-	return idt.readPrivateKey(pass)
-}
-
-func (idt *identityPassphrase) GetPrivateKey() (*ecdsa.PrivateKey, error) {
-	if idt.privateKey == nil {
-		return nil, errors.New("Wallet is not open now")
-	}
-	return idt.privateKey, nil
-}
-
-// Keystore initialization
-// init keystore at homedir while keydir params is nil
-func (idt *identityPassphrase) initKeystore(keydir string) (err error) {
-
-	fmt.Println(keydir)
-
-	idt.keystore = keystore.NewKeyStore(keydir, keystore.LightScryptN, keystore.LightScryptP)
 
 	wallets := idt.keystore.Wallets()
 
@@ -99,7 +75,30 @@ func (idt *identityPassphrase) initKeystore(keydir string) (err error) {
 		return errors.New("Doesn't have any accounts in the wallet")
 	}
 	idt.defaultAccount = accs[0]
-	return nil
+
+	return idt.readPrivateKey(pass)
+}
+
+func (idt *identityPassphrase) GetPrivateKey() (*ecdsa.PrivateKey, error) {
+	if idt.privateKey == nil {
+		return nil, errors.New("Wallet is not open now")
+	}
+	return idt.privateKey, nil
+}
+
+func (idt *identityPassphrase) New(passphrase string) (err error) {
+	acc, err := idt.keystore.NewAccount(passphrase)
+	if err != nil {
+		return err
+	}
+	idt.defaultAccount = acc
+	return err
+}
+
+// Keystore initialization
+// init keystore at homedir while keydir params is nil
+func (idt *identityPassphrase) initKeystore(keydir string) {
+	idt.keystore = keystore.NewKeyStore(keydir, keystore.LightScryptN, keystore.LightScryptP)
 }
 
 // Read and decrypt Privatekey with getting passphrase

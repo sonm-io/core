@@ -6,19 +6,22 @@ import (
 )
 
 func main() {
+	var err error
+
 	keydir := accounts.GetDefaultKeystoreDir()
+	pass := ""
 
-	idt, err := accounts.NewIdentity(keydir)
+	idt := accounts.NewIdentity(keydir)
 
+	err = idt.New(pass)
 	if err != nil {
-		fmt.Printf("Error during loading: %s", err)
+		fmt.Printf("Error during creating new account: %s", err)
 		return
 	}
 
-	err = idt.Open("")
+	err = idt.Open(pass)
 	if err != nil {
-		fmt.Printf("Error during opening: %s", err)
-		return
+		fmt.Printf("Error during open: %s", err)
 	}
 
 	prv, err := idt.GetPrivateKey()
@@ -27,5 +30,4 @@ func main() {
 		return
 	}
 	fmt.Printf("PrivateKey: %s \r\n", prv)
-
 }
