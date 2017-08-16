@@ -37,8 +37,6 @@ type Identity interface {
 // Implementation of Identity interface
 // working trough KeystorePassphrase from go-ethereum
 type identityPassphrase struct {
-	Identity
-
 	keystore *keystore.KeyStore
 
 	defaultWallet  accounts.Wallet
@@ -52,8 +50,8 @@ type identityPassphrase struct {
 
 // Create new instance of identity
 // this implementation works though passphrase
-func NewIdentity(keydir string) (idt *identityPassphrase) {
-	idt = &identityPassphrase{}
+func NewIdentity(keydir string) Identity {
+	idt := &identityPassphrase{}
 	idt.load(keydir)
 	return idt
 }
