@@ -1,5 +1,5 @@
 #!/usr/bin/env make
-VER = v0.1.0
+VER = v0.2.2
 BUILD = $(shell git rev-parse --short HEAD)
 FULL_VER = $(VER).$(BUILD)
 
@@ -36,6 +36,10 @@ build_hub:
 build_cli:
 	@echo "+ $@"
 	${GO} build -tags nocgo -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
+
+build_cli_win32:
+	@echo "+ $@"
+	GOOS=windows GOARCH=386 go build -tags nocgo -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER).win32" -o ${CLI}_win32.exe ${GOCMD}/cli
 
 build_blockchain:
 	@echo "+ $@"
