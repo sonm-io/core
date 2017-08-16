@@ -43,7 +43,7 @@ build_cli_win32:
 
 build_blockchain:
 	@echo "+ $@"
-	$(MAKE) -C blockchain build
+	$(MAKE) -C blockchain build_contract_wrappers
 
 build: build_blockchain build_bootnode build_hub build_miner build_cli
 
