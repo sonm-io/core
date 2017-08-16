@@ -52,6 +52,31 @@ type ContainerInfo struct {
 type ContainerMetrics struct {
 	cpu types.CPUStats
 	mem types.MemoryStats
+	net map[string]types.NetworkStats
+}
+
+func (m *ContainerMetrics) Marshal() *pb.ResourceUsage {
+	network := make(map[string]*pb.NetworkUsage)
+	for i, n := range m.net {
+		network[i] = &pb.NetworkUsage{
+			TxBytes:   n.TxBytes,
+			RxBytes:   n.RxBytes,
+			TxPackets: n.TxPackets,
+			RxPackets: n.RxPackets,
+			TxErrors:  n.TxErrors,
+			RxErrors:  n.RxErrors,
+		}
+	}
+
+	return &pb.ResourceUsage{
+		Cpu: &pb.CPUUsage{
+			Total: m.cpu.CPUUsage.TotalUsage,
+		},
+		Memory: &pb.MemoryUsage{
+			MaxUsage: m.mem.MaxUsage,
+		},
+		Network: network,
+	}
 }
 
 type ExecConnection types.HijackedResponse
@@ -149,6 +174,7 @@ func (o *overseer) Info(ctx context.Context) (map[string]ContainerMetrics, error
 		metrics := ContainerMetrics{
 			cpu: container.stats.CPUStats,
 			mem: container.stats.MemoryStats,
+			net: container.stats.Networks,
 		}
 
 		info[container.ID] = metrics
@@ -268,7 +294,7 @@ func (o *overseer) collectStats() {
 					log.G(o.ctx).Warn("failed to get Stats", zap.String("id", id), zap.Error(err))
 					continue
 				}
-				var stats types.Stats
+				var stats types.StatsJSON
 				err = json.NewDecoder(resp.Body).Decode(&stats)
 				switch err {
 				case nil:

@@ -23,6 +23,10 @@ It has these top-level messages:
 	HubStatusMapRequest
 	PingRequest
 	PingReply
+	CPUUsage
+	MemoryUsage
+	NetworkUsage
+	ResourceUsage
 	InfoReply
 	StopTaskRequest
 	StopTaskReply

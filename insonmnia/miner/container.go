@@ -21,7 +21,7 @@ type containerDescriptor struct {
 	client *client.Client
 
 	ID    string
-	stats types.Stats
+	stats types.StatsJSON
 }
 
 func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuner nvidiaGPUTuner) (*containerDescriptor, error) {
