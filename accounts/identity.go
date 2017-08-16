@@ -8,8 +8,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/util"
 	"io/ioutil"
+	url2 "net/url"
 	"path/filepath"
-	"strings"
 )
 
 // Identity interface uses for auth and detect all objects in network
@@ -28,7 +28,6 @@ type Identity interface {
 	// passphrase may be blank - eg. passphrase=""
 	Open(passphrase string) error
 }
-
 
 // Implementation of Identity interface
 // working trough KeystorePassphrase from go-ethereum
@@ -105,11 +104,11 @@ func (idt *identityPassphrase) initKeystore(keydir string) (err error) {
 
 // Read and decrypt Privatekey with getting passphrase
 func (idt *identityPassphrase) readPrivateKey(pass string) (err error) {
-	parts, err := parseKeystoreUrl(idt.defaultAccount.URL.String())
+	path, err := parseKeystoreUrl(idt.defaultAccount.URL.String())
 	if err != nil {
 		return err
 	}
-	file, err := ioutil.ReadFile(parts[1])
+	file, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
@@ -122,18 +121,22 @@ func (idt *identityPassphrase) readPrivateKey(pass string) (err error) {
 	return nil
 }
 
-func parseKeystoreUrl(url string) ([]string, error) {
-	parts := strings.Split(url, "://")
-	if len(parts) != 2 || parts[0] == "" {
-		err := errors.New("Error while parsing url keystore string")
-		return nil, err
+// parsing key identity file and return path
+// inbound param url looks like
+// keystore:///users/user/home/.sonm/keystore/keyfile
+// its return path - /users/user/home/.sonm/keystore/keyfile
+func parseKeystoreUrl(url string) (string, error) {
+	fmt.Println(url)
+	u, err := url2.Parse(url)
+	if err != nil {
+		return "", err
 	}
-	return parts, nil
+	return u.Path, nil
 }
 
 // return default keystore directory stored in in `.sonm` directory
 // if any error occurred .sonm directory will be in working dir
-func GetDefaultKeystoreDir() string{
+func GetDefaultKeystoreDir() string {
 	rootDir, err := util.GetUserHomeDir()
 	if err != nil {
 		rootDir = ""
