@@ -69,6 +69,7 @@ func (idt *identityPassphrase) Open(passphrase string) error {
 	accs := idt.defaultWallet.Accounts()
 	if len(accs) == 0 {
 		return errWalletNoAccount
+
 	}
 	idt.defaultAccount = accs[0]
 
