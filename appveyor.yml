@@ -1,0 +1,38 @@
+version: 1.0.0.{build}
+
+platform: x86
+
+# branches:
+#   only:
+#     - master
+
+clone_folder: c:\gopath\src\github.com\sonm-io\core
+
+environment:
+  GOPATH: c:\gopath
+
+install:
+  - echo %PATH%
+  - echo %GOPATH%
+  - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
+  - go version
+  - go env
+
+build_script:
+  - make build_cli_win32
+
+artifacts:
+  - path: sonmcli_win32.exe
+    name: binary
+
+# deploy:
+#   release: myapp-$(appveyor_build_version)
+#   description: 'This is a release of my awesome application.'
+#   provider: GitHub
+#   auth_token:
+#     secure: FW3tJ3fMncxvs58/ifSP7w+kBl9BlxvRMr9liHmnBs14ALRG8Vfyol+sNhj9u2JA
+#   artifact: binary # This is the name we specified in the artifacts section.
+#   draft: false
+#   prerelease: false
+#   on:
+#     branch: master
