@@ -5,8 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"fmt"
-
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/cmd/cli/config"
 	pb "github.com/sonm-io/core/proto"
@@ -30,10 +28,10 @@ func TestMinerStatusData(t *testing.T) {
 		MinerStatus(gomock.Any(), gomock.Any()).
 		AnyTimes().
 		Return(&pb.InfoReply{
-			Stats: map[string]*pb.InfoReplyStats{
+			Usage: map[string]*pb.ResourceUsage{
 				"test": {
-					CPU:    &pb.InfoReplyStatsCpu{TotalUsage: uint64(500)},
-					Memory: &pb.InfoReplyStatsMemory{MaxUsage: uint64(2048)},
+					Cpu:    &pb.CPUUsage{Total: uint64(500)},
+					Memory: &pb.MemoryUsage{MaxUsage: uint64(2048)},
 				},
 			},
 		}, nil)
@@ -42,7 +40,7 @@ func TestMinerStatusData(t *testing.T) {
 	minerStatusCmdRunner(rootCmd, "test", itr)
 	out := buf.String()
 
-	assert.Equal(t, "Miner tasks:\n  ID: test\r\n      CPU: 500\r\n      RAM: 2KB\r\n", out)
+	assert.Equal(t, "Miner tasks:\n  ID: test\r\n      CPU: 500\r\n      RAM: 2KB\r\n      NET:\r\n", out)
 }
 
 func TestMinerStatusJsonIdle(t *testing.T) {
@@ -62,10 +60,10 @@ func TestMinerStatusJsonData(t *testing.T) {
 		MinerStatus(gomock.Any(), gomock.Any()).
 		AnyTimes().
 		Return(&pb.InfoReply{
-			Stats: map[string]*pb.InfoReplyStats{
+			Usage: map[string]*pb.ResourceUsage{
 				"test": {
-					CPU:    &pb.InfoReplyStatsCpu{TotalUsage: uint64(500)},
-					Memory: &pb.InfoReplyStatsMemory{MaxUsage: uint64(2048)},
+					Cpu:    &pb.CPUUsage{Total: uint64(500)},
+					Memory: &pb.MemoryUsage{MaxUsage: uint64(2048)},
 				},
 			},
 		}, nil)
@@ -78,13 +76,13 @@ func TestMinerStatusJsonData(t *testing.T) {
 	err := json.Unmarshal([]byte(out), &info)
 	assert.NoError(t, err)
 
-	assert.Equal(t, 1, len(info.Stats))
+	assert.Equal(t, 1, len(info.Usage))
 
-	testStat, ok := info.Stats["test"]
+	testStat, ok := info.Usage["test"]
 	assert.True(t, ok)
 
 	assert.Equal(t, uint64(2048), testStat.Memory.MaxUsage)
-	assert.Equal(t, uint64(500), testStat.CPU.TotalUsage)
+	assert.Equal(t, uint64(500), testStat.Cpu.Total)
 }
 
 func TestMinerStatusFailed(t *testing.T) {
