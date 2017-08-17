@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 
+	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -93,7 +94,13 @@ var taskStartCmd = &cobra.Command{
 		}
 
 		miner := args[0]
-		image := args[1]
+		taskFile := args[1]
+
+		taskDef, err := task_config.LoadConfig(taskFile)
+		if err != nil {
+			showError(cmd, "Cannot load task definition", err)
+			return nil
+		}
 
 		itr, err := NewGrpcInteractor(hubAddress, timeout)
 		if err != nil {
@@ -101,7 +108,7 @@ var taskStartCmd = &cobra.Command{
 			return nil
 		}
 
-		taskStartCmdRunner(cmd, miner, image, itr)
+		taskStartCmdRunner(cmd, miner, taskDef, itr)
 		return nil
 	},
 }
@@ -166,21 +173,17 @@ func taskListCmdRunner(cmd *cobra.Command, minerID string, interactor CliInterac
 	printTaskList(cmd, minerStatus, minerID)
 }
 
-func taskStartCmdRunner(cmd *cobra.Command, miner, image string, interactor CliInteractor) {
-	// var registryAuth string
-	// if registryUser != "" || registryPassword != "" || registryName != "" {
-	// 	registryAuth = encodeRegistryAuth(registryUser, registryPassword, registryName)
-	// }
-
+func taskStartCmdRunner(cmd *cobra.Command, miner string, taskConfig task_config.TaskConfig, interactor CliInteractor) {
 	if isSimpleFormat() {
-		cmd.Printf("Starting \"%s\" on miner %s...\r\n", image, miner)
+		cmd.Printf("Starting \"%s\" on miner %s...\r\n", taskConfig.GetImageName(), miner)
 	}
 
 	var req = &pb.HubStartTaskRequest{
-		Miner:    miner,
-		Image:    image,
-		Registry: registryName,
-		Auth:     "",
+		Miner:         miner,
+		Image:         taskConfig.GetImageName(),
+		Registry:      taskConfig.GetRegistryName(),
+		Auth:          taskConfig.GetRegistryAuth(),
+		PublicKeyData: taskConfig.GetSSHKey(),
 	}
 
 	rep, err := interactor.TaskStart(context.Background(), req)

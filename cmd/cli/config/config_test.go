@@ -65,3 +65,18 @@ func TestConfigNoFile(t *testing.T) {
 	assert.Equal(t, "simple", cfg.OutputFormat())
 	assert.Equal(t, "", cfg.HubAddress())
 }
+
+func TestConfigCannotRead(t *testing.T) {
+	defer deleteTestConfigFile()
+	dir := path.Join(getHomeDir(), configDir)
+	os.Mkdir(dir, 0700)
+	cfgPath := path.Join(dir, configName)
+	// remove read permissions
+	err := ioutil.WriteFile(cfgPath, []byte{}, 0200)
+	assert.NoError(t, err)
+
+	cfg, err := NewConfig()
+	assert.Nil(t, cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "permission denied")
+}
