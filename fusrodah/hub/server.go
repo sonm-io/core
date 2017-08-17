@@ -3,7 +3,6 @@ package hub
 import (
 	"crypto/ecdsa"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/fusrodah"
@@ -19,14 +18,6 @@ type Server struct {
 }
 
 func NewServer(prv *ecdsa.PrivateKey, hubIp string) (srv *Server, err error) {
-
-	if prv == nil {
-		prv, err = crypto.GenerateKey()
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	bootnodes := []string{common.BootNodeAddr, common.SecondBootNodeAddr}
 
 	frd, err := fusrodah.NewServer(prv, defaultHubPort, bootnodes)
@@ -65,6 +56,6 @@ func (srv *Server) Serve() {
 
 func (srv *Server) discovery() {
 	srv.Frd.AddHandling(nil, nil, func(msg *whisperv2.Message) {
-		srv.Frd.Send(srv.HubIp, true, common.TopicMinerDiscover)
+		srv.Frd.Send(srv.HubIp, false, common.TopicMinerDiscover)
 	}, common.TopicHubDiscover)
 }

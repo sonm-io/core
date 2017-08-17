@@ -15,3 +15,9 @@ monitoring:
 logging:
   # The desired logging level.
   level: -1
+
+# blockchain-specific settings.
+ethereum:
+  # Private key for Hub Wallet ethereum account.
+  # (32 bytes in hex format without '0x' prefix.)
+  private_key: "d07fff36ef2c3d15144974c25d3f5c061ae830a81eefd44292588b3cea2c701c"

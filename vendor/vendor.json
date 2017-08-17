@@ -97,6 +97,12 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "jQ7JB1XsEO3528jVoX9wKM/9wWU=",
+			"path": "github.com/c2h5oh/datasize",
+			"revision": "54516c931ae99c3c74637b9ea2390cf9a6327f26",
+			"revisionTime": "2017-05-19T14:33:21Z"
+		},
+		{
 			"checksumSHA1": "CT4X4v8IlU6HBx32wucNC1R3VJE=",
 			"path": "github.com/cloudfoundry/gosigar",
 			"revision": "d9ee2f6269aeeed93de1cb3ed3ea03b80e82221e",
@@ -312,12 +318,6 @@
 			"path": "github.com/docker/libtrust",
 			"revision": "cd35e4beee13a7c193e2a89008cd87d38fcd0161",
 			"revisionTime": "2017-06-08T04:50:38Z"
-		},
-		{
-			"checksumSHA1": "rhLUtXvcmouYuBwOq9X/nYKzvNg=",
-			"path": "github.com/dustin/go-humanize",
-			"revision": "259d2a102b871d17f30e3cd9881a642961a1e486",
-			"revisionTime": "2017-02-28T07:34:54Z"
 		},
 		{
 			"checksumSHA1": "zYnPsNAVm1/ViwCkN++dX2JQhBo=",

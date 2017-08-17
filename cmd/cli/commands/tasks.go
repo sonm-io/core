@@ -6,15 +6,11 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 
+	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 )
 
 func init() {
-	taskStartCmd.Flags().StringVar(&registryName, registryNameFlag, "", "Registry to pull image")
-	taskStartCmd.Flags().StringVar(&registryUser, registryUserFlag, "", "Registry username")
-	taskStartCmd.Flags().StringVar(&registryPassword, registryPasswordFlag, "", "Registry password")
-	taskStartCmd.Flags().StringVar(&keyPath, keyPathFlag, "", "Path to public key")
-
 	tasksRootCmd.AddCommand(taskListCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
 }
 
@@ -94,7 +90,7 @@ var taskStartCmd = &cobra.Command{
 			return errMinerAddressRequired
 		}
 		if len(args) < 2 {
-			return errImageNameRequired
+			return errTaskFileRequired
 		}
 
 		miner := args[0]

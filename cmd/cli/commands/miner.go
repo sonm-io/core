@@ -3,7 +3,7 @@ package commands
 import (
 	"encoding/json"
 
-	"github.com/dustin/go-humanize"
+	ds "github.com/c2h5oh/datasize"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
@@ -47,7 +47,7 @@ func printMinerStatus(cmd *cobra.Command, metrics *pb.InfoReply) {
 			for task, stat := range metrics.Stats {
 				cmd.Printf("  ID: %s\r\n", task)
 				cmd.Printf("      CPU: %d\r\n", stat.CPU.TotalUsage)
-				cmd.Printf("      RAM: %s\r\n", humanize.Bytes(stat.Memory.MaxUsage))
+				cmd.Printf("      RAM: %s\r\n", ds.ByteSize(stat.Memory.MaxUsage).String())
 			}
 		}
 	} else {

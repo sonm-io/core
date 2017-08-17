@@ -1,0 +1,24 @@
+version: 0.2.2.{build}
+
+platform: x86
+
+branches:
+  only:
+    - master
+
+clone_folder: c:\gopath\src\github.com\sonm-io\core
+
+environment:
+  GOPATH: c:\gopath
+
+install:
+  - set PATH=%GOPATH%\bin;c:\go\bin;%PATH%
+  - set GOOS=windows
+  - set GOARCH=386
+
+build_script:
+  - c:\MinGW\bin\mingw32-make.exe build_cli_win32
+
+artifacts:
+  - path: sonmcli_win32.exe
+    name: binary

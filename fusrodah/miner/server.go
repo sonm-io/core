@@ -12,14 +12,19 @@ import (
 
 const defaultMinerPort = ":30342"
 
+type HubInfo struct {
+	Address   string
+	PublicKey *ecdsa.PublicKey
+}
+
 type Server struct {
 	PrivateKey *ecdsa.PrivateKey
 	Frd        *fusrodah.Fusrodah
-
-	hubIp string
+	Hub        *HubInfo
 }
 
 func NewServer(prv *ecdsa.PrivateKey) (srv *Server, err error) {
+
 	if prv == nil {
 		prv, err = crypto.GenerateKey()
 		if err != nil {
@@ -37,7 +42,6 @@ func NewServer(prv *ecdsa.PrivateKey) (srv *Server, err error) {
 	srv = &Server{
 		PrivateKey: prv,
 		Frd:        frd,
-		hubIp:      "0.0.0.0",
 	}
 
 	return srv, nil
@@ -69,9 +73,14 @@ func (srv *Server) discovery() {
 	done := make(chan struct{})
 
 	filterID = srv.Frd.AddHandling(nil, nil, func(msg *whisperv2.Message) {
-		srv.hubIp = string(msg.Payload)
-		srv.Frd.RemoveHandling(filterID)
-		close(done)
+		if hubKey := msg.Recover(); hubKey != nil { // skip unauthenticated messages
+			srv.Hub = &HubInfo{
+				PublicKey: hubKey,
+				Address:   string(msg.Payload),
+			}
+			srv.Frd.RemoveHandling(filterID)
+			close(done)
+		}
 	}, common.TopicMinerDiscover)
 
 	t := time.NewTicker(time.Second * 1)
@@ -84,11 +93,11 @@ func (srv *Server) discovery() {
 	}
 }
 
-func (srv *Server) GetHubIp() string {
-	if srv.hubIp == "0.0.0.0" {
+func (srv *Server) GetHub() *HubInfo {
+	if srv.Hub == nil {
 		srv.discovery()
 	}
-	return srv.hubIp
+	return srv.Hub
 }
 
 func (srv *Server) GetPubKeyString() string {

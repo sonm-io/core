@@ -12,11 +12,16 @@ type MonitoringConfig struct {
 	Endpoint string `required:"true" yaml:"endpoint"`
 }
 
+type EthConfig struct {
+	PrivateKey string `required:"true" yaml:"private_key"`
+}
+
 type HubConfig struct {
 	Endpoint   string           `required:"true" yaml:"endpoint"`
 	Bootnodes  []string         `required:"false" yaml:"bootnodes"`
 	Monitoring MonitoringConfig `required:"true" yaml:"monitoring"`
 	Logging    LoggingConfig    `yaml:"logging"`
+	Eth        EthConfig        `yaml:"ethereum"`
 }
 
 // NewConfig loads a hub config from the specified YAML file.
@@ -34,4 +39,5 @@ type Config interface {
 	Endpoint() string
 	MonitoringEndpoint() string
 	Logging() LoggingConfig
+	Eth() EthConfig
 }

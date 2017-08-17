@@ -27,6 +27,7 @@ coverage*
 
 sonmhub
 sonmcli
+sonmcli_win32.exe
 sonmminer
 sonmbootnode
 .idea/
