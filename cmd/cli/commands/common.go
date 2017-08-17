@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"time"
@@ -17,12 +16,15 @@ const (
 )
 
 var (
-	rootCmd    = &cobra.Command{Use: appName}
-	gctx       = context.Background()
-	version    string
-	hubAddress string
-	timeout    = 60 * time.Second
-	cfg        config.Config
+	rootCmd          = &cobra.Command{Use: appName}
+	version          string
+	hubAddress       string
+	timeout          = 60 * time.Second
+	registryName     string
+	registryUser     string
+	registryPassword string
+	keyPath          string
+	cfg              config.Config
 
 	errHubAddressRequired   = errors.New("--addr flag is required")
 	errMinerAddressRequired = errors.New("Miner address is required")
@@ -58,7 +60,10 @@ type commandError struct {
 }
 
 func (ce *commandError) ToJSONString() string {
-	ce.Error = ce.rawErr.Error()
+	if ce.rawErr != nil {
+		ce.Error = ce.rawErr.Error()
+	}
+
 	j, _ := json.Marshal(ce)
 	return string(j)
 }

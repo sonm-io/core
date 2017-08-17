@@ -1,13 +1,11 @@
 package commands
 
 import (
-	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
-
 	"encoding/json"
 
-	"github.com/sonm-io/core/cmd/cli/task_config"
+	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
+
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -69,26 +67,15 @@ var taskListCmd = &cobra.Command{
 		if len(args) < 1 {
 			return errMinerAddressRequired
 		}
-		miner := args[0]
+		minerID := args[0]
 
-		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+		itr, err := NewGrpcInteractor(hubAddress, timeout)
 		if err != nil {
-			showError(cmd, "Cannot create connection", err)
-			return nil
-		}
-		defer cc.Close()
-
-		ctx, cancel := context.WithTimeout(gctx, timeout)
-		defer cancel()
-
-		var req = pb.HubStatusMapRequest{Miner: miner}
-		minerStatus, err := pb.NewHubClient(cc).MinerStatus(ctx, &req)
-		if err != nil {
-			showError(cmd, "Cannot get tasks", err)
+			showError(cmd, "Cannot connect to hub", err)
 			return nil
 		}
 
-		printTaskList(cmd, minerStatus, miner)
+		taskListCmdRunner(cmd, minerID, itr)
 		return nil
 	},
 }
@@ -106,42 +93,15 @@ var taskStartCmd = &cobra.Command{
 		}
 
 		miner := args[0]
-		taskFile := args[1]
+		image := args[1]
 
-		taskDef, err := task_config.LoadConfig(taskFile)
+		itr, err := NewGrpcInteractor(hubAddress, timeout)
 		if err != nil {
-			showError(cmd, "Cannot load task definition", err)
+			showError(cmd, "Cannot connect to hub", err)
 			return nil
 		}
 
-		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
-		if err != nil {
-			showError(cmd, "Cannot create connection", err)
-			return nil
-		}
-		defer cc.Close()
-
-		ctx, cancel := context.WithTimeout(gctx, timeout)
-		defer cancel()
-		var req = pb.HubStartTaskRequest{
-			Miner:         miner,
-			Image:         taskDef.GetImageName(),
-			Registry:      taskDef.GetRegistryName(),
-			Auth:          taskDef.GetRegistryAuth(),
-			PublicKeyData: taskDef.GetSSHKey(),
-		}
-
-		if isSimpleFormat() {
-			cmd.Printf("Starting \"%s\" on miner %s...\r\n", taskDef.GetImageName(), miner)
-		}
-
-		rep, err := pb.NewHubClient(cc).StartTask(ctx, &req)
-		if err != nil {
-			showError(cmd, "Cannot start task", err)
-			return nil
-		}
-
-		printTaskStart(cmd, rep)
+		taskStartCmdRunner(cmd, miner, image, itr)
 		return nil
 	},
 }
@@ -157,27 +117,16 @@ var taskStatusCmd = &cobra.Command{
 		if len(args) < 2 {
 			return errTaskIDRequired
 		}
-		miner := args[0]
+		minerID := args[0]
 		taskID := args[1]
 
-		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+		itr, err := NewGrpcInteractor(hubAddress, timeout)
 		if err != nil {
-			showError(cmd, "Cannot create connection", err)
-			return nil
-		}
-		defer cc.Close()
-
-		ctx, cancel := context.WithTimeout(gctx, timeout)
-		defer cancel()
-
-		var req = pb.TaskStatusRequest{Id: taskID}
-		taskStatus, err := pb.NewHubClient(cc).TaskStatus(ctx, &req)
-		if err != nil {
-			showError(cmd, "Cannot get task status", err)
+			showError(cmd, "Cannot connect to hub", err)
 			return nil
 		}
 
-		printTaskStatus(cmd, miner, taskID, taskStatus)
+		taskStatusCmdRunner(cmd, minerID, taskID, itr)
 		return nil
 	},
 }
@@ -193,29 +142,73 @@ var taskStopCmd = &cobra.Command{
 		if len(args) < 2 {
 			return errTaskIDRequired
 		}
-		// miner := args[0]
+
 		taskID := args[1]
 
-		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
+		itr, err := NewGrpcInteractor(hubAddress, timeout)
 		if err != nil {
-			showError(cmd, "Cannot create connection", err)
-			return nil
-		}
-		defer cc.Close()
-
-		ctx, cancel := context.WithTimeout(gctx, timeout)
-		defer cancel()
-		var req = pb.StopTaskRequest{
-			Id: taskID,
-		}
-
-		_, err = pb.NewHubClient(cc).StopTask(ctx, &req)
-		if err != nil {
-			showError(cmd, "Cannot stop task", err)
+			showError(cmd, "Cannot connect to hub", err)
 			return nil
 		}
 
-		showOk(cmd)
+		taskStopCmdRunner(cmd, taskID, itr)
 		return nil
 	},
+}
+
+func taskListCmdRunner(cmd *cobra.Command, minerID string, interactor CliInteractor) {
+	minerStatus, err := interactor.TaskList(context.Background(), minerID)
+	if err != nil {
+		showError(cmd, "Cannot get tasks", err)
+		return
+	}
+
+	printTaskList(cmd, minerStatus, minerID)
+}
+
+func taskStartCmdRunner(cmd *cobra.Command, miner, image string, interactor CliInteractor) {
+	// var registryAuth string
+	// if registryUser != "" || registryPassword != "" || registryName != "" {
+	// 	registryAuth = encodeRegistryAuth(registryUser, registryPassword, registryName)
+	// }
+
+	if isSimpleFormat() {
+		cmd.Printf("Starting \"%s\" on miner %s...\r\n", image, miner)
+	}
+
+	var req = &pb.HubStartTaskRequest{
+		Miner:    miner,
+		Image:    image,
+		Registry: registryName,
+		Auth:     "",
+	}
+
+	rep, err := interactor.TaskStart(context.Background(), req)
+	if err != nil {
+		showError(cmd, "Cannot start task", err)
+		return
+	}
+
+	printTaskStart(cmd, rep)
+}
+
+func taskStatusCmdRunner(cmd *cobra.Command, minerID, taskID string, interactor CliInteractor) {
+	taskStatus, err := interactor.TaskStatus(context.Background(), taskID)
+	if err != nil {
+		showError(cmd, "Cannot get task status", err)
+		return
+	}
+
+	printTaskStatus(cmd, minerID, taskID, taskStatus)
+	return
+}
+
+func taskStopCmdRunner(cmd *cobra.Command, taskID string, interactor CliInteractor) {
+	_, err := interactor.TaskStop(context.Background(), taskID)
+	if err != nil {
+		showError(cmd, "Cannot stop task", err)
+		return
+	}
+
+	showOk(cmd)
 }
