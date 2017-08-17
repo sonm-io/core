@@ -7,9 +7,20 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/cmd/cli/config"
+	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 )
+
+func getSimpleTaskConfig(t *testing.T, imageName string) task_config.TaskConfig {
+	task := task_config.NewMockTaskConfig(gomock.NewController(t))
+	task.EXPECT().GetImageName().AnyTimes().Return(imageName)
+	task.EXPECT().GetSSHKey().AnyTimes().Return("")
+	task.EXPECT().GetRegistryName().AnyTimes().Return("")
+	task.EXPECT().GetRegistryAuth().AnyTimes().Return("")
+
+	return task
+}
 
 func TestTasksListSimpleEmpty(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
@@ -106,8 +117,10 @@ func TestTaskStartSimple(t *testing.T) {
 		Endpoint: []string{"80/tcp->10.0.0.123:12345"},
 	}, nil)
 
+	task := getSimpleTaskConfig(t, "httpd:latest")
+
 	buf := initRootCmd(t, config.OutputModeSimple)
-	taskStartCmdRunner(rootCmd, "test", "httpd:latest", itr)
+	taskStartCmdRunner(rootCmd, "test", task, itr)
 	out := buf.String()
 
 	assert.Contains(t, out, "Starting \"httpd:latest\" on miner test...")
@@ -121,8 +134,10 @@ func TestTaskStartJson(t *testing.T) {
 		Endpoint: []string{"80/tcp->10.0.0.123:12345"},
 	}, nil)
 
+	task := getSimpleTaskConfig(t, "httpd:latest")
+
 	buf := initRootCmd(t, config.OutputModeJSON)
-	taskStartCmdRunner(rootCmd, "test", "httpd:latest", itr)
+	taskStartCmdRunner(rootCmd, "test", task, itr)
 	out := buf.Bytes()
 
 	reply := &pb.HubStartTaskReply{}
@@ -138,8 +153,10 @@ func TestTaskStartSimpleError(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
 	itr.EXPECT().TaskStart(gomock.Any(), gomock.Any()).Return(nil, errors.New("error"))
 
+	task := getSimpleTaskConfig(t, "httpd:latest")
+
 	buf := initRootCmd(t, config.OutputModeSimple)
-	taskStartCmdRunner(rootCmd, "test", "httpd:latest", itr)
+	taskStartCmdRunner(rootCmd, "test", task, itr)
 	out := buf.String()
 
 	assert.Contains(t, out, "Starting \"httpd:latest\" on miner test...")
@@ -150,8 +167,10 @@ func TestTaskStartJsonError(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
 	itr.EXPECT().TaskStart(gomock.Any(), gomock.Any()).Return(nil, errors.New("error"))
 
+	task := getSimpleTaskConfig(t, "httpd:latest")
+
 	buf := initRootCmd(t, config.OutputModeJSON)
-	taskStartCmdRunner(rootCmd, "test", "httpd:latest", itr)
+	taskStartCmdRunner(rootCmd, "test", task, itr)
 	out := buf.String()
 
 	cmdErr, err := stringToCommandError(out)

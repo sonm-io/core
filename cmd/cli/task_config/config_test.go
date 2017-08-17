@@ -192,3 +192,31 @@ func TestTaskRegistryAuth(t *testing.T) {
 	assert.Equal(t, "secret", authConfig.Password)
 	assert.Equal(t, "registry.user.dev", authConfig.ServerAddress)
 }
+
+func TestTaskConfigNotExists(t *testing.T) {
+	deleteTestConfigFile()
+
+	cfg, err := LoadConfig(testCfgPath)
+	assert.Nil(t, cfg)
+
+	assert.Error(t, err)
+}
+
+func TestTaskConfigReadError(t *testing.T) {
+	body := `task:
+  container:
+    name: user/image:v1
+  resources:
+    RAM: 100MB
+`
+	defer deleteTestConfigFile()
+
+	// write only permissions
+	err := ioutil.WriteFile(testCfgPath, []byte(body), 0200)
+	assert.NoError(t, err)
+
+	cfg, err := LoadConfig(testCfgPath)
+	assert.Nil(t, cfg)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "permission denied")
+}

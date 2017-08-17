@@ -70,6 +70,7 @@ var minersListCmd = &cobra.Command{
 		itr, err := NewGrpcInteractor(hubAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to hub", err)
+			return
 		}
 
 		minerListCmdRunner(cmd, itr)

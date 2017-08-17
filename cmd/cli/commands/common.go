@@ -5,6 +5,8 @@ import (
 	"errors"
 	"time"
 
+	"os"
+
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/spf13/cobra"
 )
@@ -16,15 +18,11 @@ const (
 )
 
 var (
-	rootCmd          = &cobra.Command{Use: appName}
-	version          string
-	hubAddress       string
-	timeout          = 60 * time.Second
-	registryName     string
-	registryUser     string
-	registryPassword string
-	keyPath          string
-	cfg              config.Config
+	rootCmd    = &cobra.Command{Use: appName}
+	version    string
+	hubAddress string
+	timeout    = 60 * time.Second
+	cfg        config.Config
 
 	errHubAddressRequired   = errors.New("--addr flag is required")
 	errMinerAddressRequired = errors.New("Miner address is required")
@@ -42,6 +40,7 @@ func init() {
 func Root(c config.Config) *cobra.Command {
 	cfg = c
 	hubAddress = cfg.HubAddress()
+	rootCmd.SetOutput(os.Stdout)
 	return rootCmd
 }
 
