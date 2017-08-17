@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 
-	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -168,10 +167,10 @@ func taskListCmdRunner(cmd *cobra.Command, minerID string, interactor CliInterac
 }
 
 func taskStartCmdRunner(cmd *cobra.Command, miner, image string, interactor CliInteractor) {
-	var registryAuth string
-	if registryUser != "" || registryPassword != "" || registryName != "" {
-		registryAuth = encodeRegistryAuth(registryUser, registryPassword, registryName)
-	}
+	// var registryAuth string
+	// if registryUser != "" || registryPassword != "" || registryName != "" {
+	// 	registryAuth = encodeRegistryAuth(registryUser, registryPassword, registryName)
+	// }
 
 	if isSimpleFormat() {
 		cmd.Printf("Starting \"%s\" on miner %s...\r\n", image, miner)
@@ -181,7 +180,7 @@ func taskStartCmdRunner(cmd *cobra.Command, miner, image string, interactor CliI
 		Miner:    miner,
 		Image:    image,
 		Registry: registryName,
-		Auth:     registryAuth,
+		Auth:     "",
 	}
 
 	rep, err := interactor.TaskStart(context.Background(), req)

@@ -1,7 +1,6 @@
 package commands
 
 import (
-	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
 	"time"

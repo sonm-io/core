@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 
+	"fmt"
+
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/cmd/cli/config"
 	pb "github.com/sonm-io/core/proto"
@@ -40,7 +42,7 @@ func TestMinerStatusData(t *testing.T) {
 	minerStatusCmdRunner(rootCmd, "test", itr)
 	out := buf.String()
 
-	assert.Equal(t, "Miner tasks:\n  ID: test\r\n      CPU: 500\r\n      RAM: 2.0 kB\r\n", out)
+	assert.Equal(t, "Miner tasks:\n  ID: test\r\n      CPU: 500\r\n      RAM: 2KB\r\n", out)
 }
 
 func TestMinerStatusJsonIdle(t *testing.T) {
