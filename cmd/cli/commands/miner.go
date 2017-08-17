@@ -47,8 +47,6 @@ func printMinerStatus(cmd *cobra.Command, metrics *pb.InfoReply) {
 			for task, usage := range metrics.Usage {
 				cmd.Printf("  ID: %s\r\n", task)
 				cmd.Printf("      CPU: %d\r\n", usage.Cpu.Total)
-				cmd.Printf("      RAM: %s\r\n")
-				cmd.Printf("      CPU: %d\r\n", usage.Cpu.Total)
 				cmd.Printf("      RAM: %s\r\n", ds.ByteSize(usage.Memory.MaxUsage).String())
 				cmd.Printf("      NET:\r\n")
 
