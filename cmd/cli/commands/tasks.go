@@ -7,16 +7,11 @@ import (
 
 	"encoding/json"
 
+	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
-	"io/ioutil"
 )
 
 func init() {
-	taskStartCmd.Flags().StringVar(&registryName, registryNameFlag, "", "Registry to pull image")
-	taskStartCmd.Flags().StringVar(&registryUser, registryUserFlag, "", "Registry username")
-	taskStartCmd.Flags().StringVar(&registryPassword, registryPasswordFlag, "", "Registry password")
-	taskStartCmd.Flags().StringVar(&keyPath, keyPathFlag, "", "Path to public key")
-
 	tasksRootCmd.AddCommand(taskListCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
 }
 
@@ -107,25 +102,16 @@ var taskStartCmd = &cobra.Command{
 			return errMinerAddressRequired
 		}
 		if len(args) < 2 {
-			return errImageNameRequired
+			return errTaskFileRequired
 		}
 
 		miner := args[0]
-		image := args[1]
+		taskFile := args[1]
 
-		var registryAuth string
-		if registryUser != "" || registryPassword != "" || registryName != "" {
-			registryAuth = encodeRegistryAuth(registryUser, registryPassword, registryName)
-		}
-
-		var keyData string
-		if keyPath != "" {
-			keyBin, err := ioutil.ReadFile(keyPath)
-			if err != nil {
-				showError(cmd, "Can not read key from "+keyPath, err)
-				return nil
-			}
-			keyData = string(keyBin)
+		taskDef, err := task_config.LoadConfig(taskFile)
+		if err != nil {
+			showError(cmd, "Cannot load task definition", err)
+			return nil
 		}
 
 		cc, err := grpc.Dial(hubAddress, grpc.WithInsecure())
@@ -139,14 +125,14 @@ var taskStartCmd = &cobra.Command{
 		defer cancel()
 		var req = pb.HubStartTaskRequest{
 			Miner:         miner,
-			Image:         image,
-			Registry:      registryName,
-			Auth:          registryAuth,
-			PublicKeyData: keyData,
+			Image:         taskDef.GetImageName(),
+			Registry:      taskDef.GetRegistryName(),
+			Auth:          taskDef.GetRegistryAuth(),
+			PublicKeyData: taskDef.GetSSHKey(),
 		}
 
 		if isSimpleFormat() {
-			cmd.Printf("Starting \"%s\" on miner %s...\r\n", image, miner)
+			cmd.Printf("Starting \"%s\" on miner %s...\r\n", taskDef.GetImageName(), miner)
 		}
 
 		rep, err := pb.NewHubClient(cc).StartTask(ctx, &req)

@@ -1,0 +1,13 @@
+task:
+  container:
+    name: user/image:v1
+    command: /myapp -param=1
+    ssh_key: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD...
+  registry:
+    name: registry.user.io
+    user: name
+    password: secret
+  resources:
+    CPU: 1
+    GPU: true
+    RAM: 10240kb

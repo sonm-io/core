@@ -2,12 +2,10 @@ package commands
 
 import (
 	"context"
-	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/spf13/cobra"
 )
@@ -16,30 +14,20 @@ const (
 	appName        = "sonm"
 	hubAddressFlag = "addr"
 	hubTimeoutFlag = "timeout"
-
-	registryNameFlag     = "registry"
-	registryUserFlag     = "user"
-	registryPasswordFlag = "password"
-	keyPathFlag          = "key_path"
 )
 
 var (
-	rootCmd = &cobra.Command{Use: appName}
-	gctx    = context.Background()
-
-	version          string
-	hubAddress       string
-	timeout          = 60 * time.Second
-	registryName     string
-	registryUser     string
-	registryPassword string
-	keyPath          string
-	cfg              config.Config
+	rootCmd    = &cobra.Command{Use: appName}
+	gctx       = context.Background()
+	version    string
+	hubAddress string
+	timeout    = 60 * time.Second
+	cfg        config.Config
 
 	errHubAddressRequired   = errors.New("--addr flag is required")
 	errMinerAddressRequired = errors.New("Miner address is required")
 	errTaskIDRequired       = errors.New("Task ID is required")
-	errImageNameRequired    = errors.New("Image name is required")
+	errTaskFileRequired     = errors.New("Task definition file is required")
 )
 
 func init() {
@@ -53,16 +41,6 @@ func Root(c config.Config) *cobra.Command {
 	cfg = c
 	hubAddress = cfg.HubAddress()
 	return rootCmd
-}
-
-func encodeRegistryAuth(login, password, registry string) string {
-	auth := types.AuthConfig{
-		Username:      login,
-		Password:      password,
-		ServerAddress: registry,
-	}
-	jsonAuth, _ := json.Marshal(auth)
-	return b64.StdEncoding.EncodeToString(jsonAuth)
 }
 
 func checkHubAddressIsSet(cmd *cobra.Command, _ []string) error {
