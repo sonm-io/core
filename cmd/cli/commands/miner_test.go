@@ -28,13 +28,13 @@ func TestMinerStatusData(t *testing.T) {
 		MinerStatus(gomock.Any(), gomock.Any()).
 		AnyTimes().
 		Return(&pb.InfoReply{
-		Stats: map[string]*pb.InfoReplyStats{
-			"test": {
-				CPU:    &pb.InfoReplyStatsCpu{TotalUsage: uint64(500)},
-				Memory: &pb.InfoReplyStatsMemory{MaxUsage: uint64(2048)},
+			Stats: map[string]*pb.InfoReplyStats{
+				"test": {
+					CPU:    &pb.InfoReplyStatsCpu{TotalUsage: uint64(500)},
+					Memory: &pb.InfoReplyStatsMemory{MaxUsage: uint64(2048)},
+				},
 			},
-		},
-	}, nil)
+		}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	minerStatusCmdRunner(rootCmd, "test", itr)
@@ -60,13 +60,13 @@ func TestMinerStatusJsonData(t *testing.T) {
 		MinerStatus(gomock.Any(), gomock.Any()).
 		AnyTimes().
 		Return(&pb.InfoReply{
-		Stats: map[string]*pb.InfoReplyStats{
-			"test": {
-				CPU:    &pb.InfoReplyStatsCpu{TotalUsage: uint64(500)},
-				Memory: &pb.InfoReplyStatsMemory{MaxUsage: uint64(2048)},
+			Stats: map[string]*pb.InfoReplyStats{
+				"test": {
+					CPU:    &pb.InfoReplyStatsCpu{TotalUsage: uint64(500)},
+					Memory: &pb.InfoReplyStatsMemory{MaxUsage: uint64(2048)},
+				},
 			},
-		},
-	}, nil)
+		}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	minerStatusCmdRunner(rootCmd, "test", itr)
@@ -128,12 +128,12 @@ func TestMinerListData(t *testing.T) {
 		MinerList(gomock.Any()).
 		AnyTimes().
 		Return(&pb.ListReply{
-		Info: map[string]*pb.ListReply_ListValue{
-			"test": {
-				Values: []string{"task-1", "task-2"},
+			Info: map[string]*pb.ListReply_ListValue{
+				"test": {
+					Values: []string{"task-1", "task-2"},
+				},
 			},
-		},
-	}, nil)
+		}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	minerListCmdRunner(rootCmd, itr)
@@ -148,10 +148,10 @@ func TestMinerListDataNoTasks(t *testing.T) {
 		MinerList(gomock.Any()).
 		AnyTimes().
 		Return(&pb.ListReply{
-		Info: map[string]*pb.ListReply_ListValue{
-			"test": {},
-		},
-	}, nil)
+			Info: map[string]*pb.ListReply_ListValue{
+				"test": {},
+			},
+		}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	minerListCmdRunner(rootCmd, itr)
@@ -177,12 +177,12 @@ func TestMinerListJsonData(t *testing.T) {
 		MinerList(gomock.Any()).
 		AnyTimes().
 		Return(&pb.ListReply{
-		Info: map[string]*pb.ListReply_ListValue{
-			"test": {
-				Values: []string{"task-1", "task-2"},
+			Info: map[string]*pb.ListReply_ListValue{
+				"test": {
+					Values: []string{"task-1", "task-2"},
+				},
 			},
-		},
-	}, nil)
+		}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	minerListCmdRunner(rootCmd, itr)
