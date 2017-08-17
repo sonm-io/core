@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "capabilities.proto";
+
 package sonm;
 
 message PingRequest {}
@@ -23,6 +25,7 @@ message InfoReply {
     }
 
     map<string, stats> Stats = 1;
+    Capabilities capabilities = 2;
 }
 
 message StopTaskRequest {

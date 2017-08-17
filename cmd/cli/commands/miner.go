@@ -38,16 +38,42 @@ func printMinerList(cmd *cobra.Command, lr *pb.ListReply) {
 	}
 }
 
-func printMinerStatus(cmd *cobra.Command, metrics *pb.InfoReply) {
+func printCpuInfo(cmd *cobra.Command, cap *pb.Capabilities) {
+	for i, cpu := range cap.Cpu {
+		cmd.Printf("    CPU%d: %d x %s\r\n", i, cpu.GetCores(), cpu.GetName())
+	}
+}
+
+func printGpuInfo(cmd *cobra.Command, cap *pb.Capabilities) {
+	for i, gpu := range cap.Gpu {
+		cmd.Printf("    GPU%d: %s %s", i, gpu.Vendor, gpu.Name)
+	}
+}
+
+func printMemInfo(cmd *cobra.Command, cap *pb.Capabilities) {
+	cmd.Println("    RAM:")
+	cmd.Printf("      Total: %s\r\n", ds.ByteSize(cap.Mem.GetTotal()).HR())
+	cmd.Printf("      Used:  %s\r\n", ds.ByteSize(cap.Mem.GetUsed()).HR())
+}
+
+func printMinerStatus(cmd *cobra.Command, minerID string, metrics *pb.InfoReply) {
 	if isSimpleFormat() {
+		cmd.Printf("Miner: \"%s\":\r\n", minerID)
+		if metrics.Capabilities != nil {
+			cmd.Println("  Hardware:")
+			printCpuInfo(cmd, metrics.Capabilities)
+			printGpuInfo(cmd, metrics.Capabilities)
+			printMemInfo(cmd, metrics.Capabilities)
+		}
+
+		cmd.Println("Miner tasks:")
 		if len(metrics.Stats) == 0 {
-			cmd.Println("Miner is idle")
+			cmd.Println("  No active tasks")
 		} else {
-			cmd.Println("Miner tasks:")
 			for task, stat := range metrics.Stats {
 				cmd.Printf("  ID: %s\r\n", task)
 				cmd.Printf("      CPU: %d\r\n", stat.CPU.TotalUsage)
-				cmd.Printf("      RAM: %s\r\n", ds.ByteSize(stat.Memory.MaxUsage).String())
+				cmd.Printf("      RAM: %s\r\n", ds.ByteSize(stat.Memory.MaxUsage).HR())
 			}
 		}
 	} else {
@@ -115,5 +141,5 @@ func minerStatusCmdRunner(cmd *cobra.Command, minerID string, interactor CliInte
 		return
 	}
 
-	printMinerStatus(cmd, metrics)
+	printMinerStatus(cmd, minerID, metrics)
 }

@@ -144,6 +144,7 @@ func (m *Miner) Info(ctx context.Context, request *pb.MinerInfoRequest) (*pb.Inf
 		}
 	}
 
+	result.Capabilities = m.hardware.IntoProto()
 	return &result, nil
 }
 
