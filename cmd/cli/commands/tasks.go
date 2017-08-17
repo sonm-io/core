@@ -82,7 +82,7 @@ var taskListCmd = &cobra.Command{
 }
 
 var taskStartCmd = &cobra.Command{
-	Use:     "start <miner_addr> <image>",
+	Use:     "start <miner_addr> <task.yaml>",
 	Short:   "Start task on given miner",
 	PreRunE: checkHubAddressIsSet,
 	RunE: func(cmd *cobra.Command, args []string) error {
