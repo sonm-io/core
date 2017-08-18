@@ -5,13 +5,13 @@ import (
 
 	"net"
 
+	"github.com/ccding/go-stun/stun"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -21,6 +21,7 @@ type MinerBuilder struct {
 	cfg      Config
 	hardware hardware.HardwareInfo
 	ip       net.IP
+	nat      stun.NATType
 	ovs      Overseer
 	uuid     string
 	ssh      SSH
@@ -75,11 +76,20 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	}
 
 	if b.ip == nil {
-		addr, err := util.GetPublicIP()
+		log.G(b.ctx).Debug("discovering public IP address with NAT type, this may take a long ...")
+
+		client := stun.NewClient()
+		nat, addr, err := client.Discover()
 		if err != nil {
 			return nil, err
 		}
-		b.ip = addr
+		b.ip = net.ParseIP(addr.IP())
+		b.nat = nat
+
+		log.G(b.ctx).Info("discovered public IP address",
+			zap.String("addr", addr.IP()),
+			zap.Any("nat", nat),
+		)
 	}
 
 	ctx, cancel := context.WithCancel(b.ctx)
@@ -135,6 +145,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		resources: resource.NewPool(hardwareInfo),
 
 		pubAddress: b.ip.String(),
+		natType:    b.nat,
 		hubAddress: b.cfg.HubEndpoint(),
 
 		rl:             newReverseListener(1),
