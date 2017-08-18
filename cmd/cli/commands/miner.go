@@ -62,7 +62,12 @@ func printMemInfo(cmd *cobra.Command, cap *pb.Capabilities) {
 
 func printMinerStatus(cmd *cobra.Command, minerID string, metrics *pb.InfoReply) {
 	if isSimpleFormat() {
-		cmd.Printf("Miner: \"%s\":\r\n", minerID)
+		if metrics.Name == "" {
+			cmd.Printf("Miner: \"%s\":\r\n", minerID)
+		} else {
+			cmd.Printf("Miner: \"%s\" (%s):\r\n", minerID, metrics.Name)
+		}
+
 		if metrics.Capabilities != nil {
 			cmd.Println("  Hardware:")
 			printCpuInfo(cmd, metrics.Capabilities)

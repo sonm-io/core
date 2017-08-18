@@ -290,3 +290,25 @@ func TestMinerStatusNoGPU(t *testing.T) {
 
 	assert.Equal(t, "Miner: \"test\":\r\n  Hardware:\n    CPU0: 14 x Xeon E7-4850\r\n    CPU1: 24 x Xeon E7-8890\r\n    GPU: None\n    RAM:\n      Total: 976.6 KB\r\n      Used:  488.3 KB\r\nMiner tasks:\n  ID: test\r\n      CPU: 500\r\n      RAM: 2.0 KB\r\n", out)
 }
+
+func TestMinerStatusWithName(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().
+		MinerStatus(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(&pb.InfoReply{
+			Stats: map[string]*pb.InfoReplyStats{
+				"test": {
+					CPU:    &pb.InfoReplyStatsCpu{TotalUsage: uint64(500)},
+					Memory: &pb.InfoReplyStatsMemory{MaxUsage: uint64(2048)},
+				},
+			},
+			Name: "fb402dcf-ff56-465e-8aad-bcef7ca1ef9a",
+		}, nil)
+
+	buf := initRootCmd(t, config.OutputModeSimple)
+	minerStatusCmdRunner(rootCmd, "test", itr)
+	out := buf.String()
+
+	assert.Equal(t, "Miner: \"test\" (fb402dcf-ff56-465e-8aad-bcef7ca1ef9a):\r\nMiner tasks:\n  ID: test\r\n      CPU: 500\r\n      RAM: 2.0 KB\r\n", out)
+}

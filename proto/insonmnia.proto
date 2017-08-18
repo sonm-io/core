@@ -26,6 +26,7 @@ message InfoReply {
 
     map<string, stats> Stats = 1;
     Capabilities capabilities = 2;
+    string name = 3;
 }
 
 message StopTaskRequest {
