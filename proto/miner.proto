@@ -14,6 +14,7 @@ service Miner{
     rpc Stop(StopTaskRequest) returns (StopTaskReply) {}
 
     rpc TasksStatus(stream MinerStatusMapRequest) returns (stream StatusMapReply) {}
+    rpc TaskDetails(TaskStatusRequest) returns (TaskStatusReply) {}
 }
 
 message MinerInfoRequest {
@@ -47,5 +48,4 @@ message MinerStartReply {
     map<string, port> Ports = 2;
 }
 
-message MinerStatusMapRequest {
-}
+message MinerStatusMapRequest {}

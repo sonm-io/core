@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 
+	"time"
+
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 )
@@ -42,7 +44,11 @@ func printTaskStart(cmd *cobra.Command, rep *pb.HubStartTaskReply) {
 
 func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskStatusReply) {
 	if isSimpleFormat() {
-		cmd.Printf("Task %s (on %s) status is %s\n", id, miner, taskStatus.Status.String())
+		cmd.Printf("Task %s (on %s):\r\n", id, miner)
+		cmd.Printf("  Image:  %s\r\n", taskStatus.ImageName)
+		cmd.Printf("  Status: %s\r\n", taskStatus.Status.String())
+		cmd.Printf("  Ports:  %s\r\n", taskStatus.Ports)
+		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.Uptime).String())
 	} else {
 		v := map[string]string{
 			"id":     id,

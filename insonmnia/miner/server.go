@@ -18,6 +18,8 @@ import (
 
 	pb "github.com/sonm-io/core/proto"
 
+	"encoding/json"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gliderlabs/ssh"
@@ -387,6 +389,26 @@ func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
 	m.sendUpdatesOnRequest(server)
 
 	return nil
+}
+
+func (m *Miner) TaskDetails(ctx context.Context, req *pb.TaskStatusRequest) (*pb.TaskStatusReply, error) {
+	log.G(m.ctx).Info("starting TaskDetails status server")
+
+	info, ok := m.GetContainerInfo(req.GetId())
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "no task with id %s", req.GetId())
+	}
+
+	portsStr, _ := json.Marshal(info.Ports)
+
+	reply := &pb.TaskStatusReply{
+		Status:    info.status.Status,
+		ImageName: info.ImageName,
+		Ports:     string(portsStr),
+		Uptime:    uint64(time.Now().UnixNano() - info.StartAt.UnixNano()),
+	}
+
+	return reply, nil
 }
 
 func (m *Miner) connectToHub(address string) {

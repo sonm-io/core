@@ -179,14 +179,13 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 		return nil, status.Errorf(codes.NotFound, "no miner %s for task %s", minerID, taskID)
 	}
 
-	mincli.status_mu.Lock()
-	taskStatus, ok := mincli.status_map[taskID]
-	mincli.status_mu.Unlock()
-	if !ok {
+	req := &pb.TaskStatusRequest{Id: taskID}
+	reply, err := mincli.Client.TaskDetails(ctx, req)
+	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskID)
 	}
 
-	return taskStatus, nil
+	return reply, nil
 }
 
 // New returns new Hub

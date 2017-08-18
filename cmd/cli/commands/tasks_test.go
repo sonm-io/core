@@ -183,13 +183,15 @@ func TestTaskStatusSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
 	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
 		Status: pb.TaskStatusReply_RUNNING,
+		ImageName: "httpd:latest",
+		Uptime: 60,
 	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
 	out := buf.String()
 
-	assert.Equal(t, "Task adac72b1-7fcf-47e1-8d74-a53563823185 (on test) status is RUNNING\n", out)
+	assert.Equal(t, "Task adac72b1-7fcf-47e1-8d74-a53563823185 (on test):\r\n  Image:  httpd:latest\r\n  Status: RUNNING\r\n  Ports:  \r\n  Uptime: 60ns\r\n", out)
 }
 
 func TestTaskStatusJson(t *testing.T) {
