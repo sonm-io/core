@@ -18,8 +18,8 @@ import (
 
 	pb "github.com/sonm-io/core/proto"
 
-	"github.com/docker/docker/api/types"
 	"github.com/ccding/go-stun/stun"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gliderlabs/ssh"
