@@ -13,6 +13,7 @@ import (
 
 	"sync"
 
+	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	pb "github.com/sonm-io/core/proto"
 )
@@ -37,9 +38,10 @@ type MinerCtx struct {
 	// Miner name received after handshaking.
 	uuid         string
 	capabilities *hardware.Hardware
+	router       router
 }
 
-func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
+func createMinerCtx(ctx context.Context, conn net.Conn, gateway *gateway.Gateway) (*MinerCtx, error) {
 	var (
 		m = MinerCtx{
 			conn:       conn,
@@ -76,7 +78,7 @@ func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	log.G(ctx).Info("grpc.Dial successfully finished")
 	m.Client = pb.NewMinerClient(m.grpcConn)
 
-	if err := m.handshake(); err != nil {
+	if err := m.handshake(gateway); err != nil {
 		m.Close()
 		return nil, err
 	}
@@ -84,7 +86,7 @@ func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	return &m, nil
 }
 
-func (m *MinerCtx) handshake() error {
+func (m *MinerCtx) handshake(gate *gateway.Gateway) error {
 	log.G(m.ctx).Info("sending handshake to a Miner", zap.Stringer("addr", m.conn.RemoteAddr()))
 	resp, err := m.Client.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
 	if err != nil {
@@ -106,7 +108,19 @@ func (m *MinerCtx) handshake() error {
 	m.uuid = resp.Miner
 	m.capabilities = capabilities
 
-	log.G(m.ctx).Info("CAP", zap.Any("CAP", m.capabilities))
+	if resp.NatType == pb.NATType_NONE {
+		m.router = newDirectRouter()
+	} else {
+		if gateway.PlatformSupportIPVS {
+			m.router = newIPVSRouter(m.ctx, gate)
+		} else {
+			log.G(m.ctx).Warn("miner has firewall configured, but Hub's host OS has no IPVS support",
+				zap.String("UUID", m.uuid),
+			)
+			// TODO (3Hren): Possible we should disconnect the miner instead. Need investigation.
+			m.router = newDirectRouter()
+		}
+	}
 
 	return nil
 }
