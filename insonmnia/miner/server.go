@@ -384,15 +384,17 @@ func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Miner_TaskLogsSe
 	if err != nil {
 		return err
 	}
+	defer reader.Close()
 	buffer := make([]byte, 100*1024)
 	for {
 		readCnt, err := reader.Read(buffer)
 		if readCnt != 0 {
-			server.Send(&pb.TaskLogsChunk{string(buffer[:readCnt])})
+			server.Send(&pb.TaskLogsChunk{buffer[:readCnt]})
 		}
 		if err == io.EOF {
 			return nil
-		} else if err != nil {
+		}
+		if err != nil {
 			return err
 		}
 	}
