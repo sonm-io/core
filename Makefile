@@ -49,7 +49,9 @@ build/blockchain:
 	@echo "+ $@"
 	$(MAKE) -C blockchain build_contract_wrappers
 
-build: build/blockchain build/bootnode build/hub build/miner build/cli
+build/insomnia: build/hub build/miner build/cli
+
+build: build/blockchain build/bootnode build/insomnia
 
 install/bootnode: build/bootnode
 	@echo "+ $@"
