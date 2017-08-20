@@ -9,6 +9,7 @@ import (
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 	"io"
+	"strings"
 )
 
 func init() {
@@ -100,23 +101,21 @@ var taskLogsCmd = &cobra.Command{
 			return errTaskIDRequired
 		}
 		taskID := args[0]
-		req := pb.TaskLogsRequest{}
-		if logType == "stderr" {
-			req.Type = pb.TaskLogsRequest_STDERR
-		} else if logType == "stdout" {
-			req.Type = pb.TaskLogsRequest_STDOUT
-		} else if logType == "both" {
-			req.Type = pb.TaskLogsRequest_BOTH
-		} else {
+		req := pb.TaskLogsRequest{
+
+			Id:            taskID,
+			Since:         since,
+			AddTimestamps: addTimestamps,
+			Follow:        follow,
+			Tail:          tail,
+			Details:       details,
+		}
+		t, ok := pb.TaskLogsRequest_Type_value[strings.ToUpper(logType)]
+		if !ok {
 			showError(cmd, "Invalid log type", nil)
 			return nil
 		}
-		req.Id = taskID
-		req.Since = since
-		req.AddTimestamps = addTimestamps
-		req.Follow = follow
-		req.Tail = tail
-		req.Details = details
+		req.Type = pb.TaskLogsRequest_Type(t)
 
 		itr, err := NewGrpcInteractor(hubAddress, timeout)
 
@@ -236,7 +235,7 @@ func taskLogCmdRunner(cmd *cobra.Command, request *pb.TaskLogsRequest, interacto
 			showError(cmd, "IO failure during log fetching", err)
 			return err
 		}
-		cmd.Print(buffer.Data)
+		cmd.Print(string(buffer.Data))
 	}
 }
 

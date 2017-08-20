@@ -89,5 +89,5 @@ message TaskLogsRequest {
 }
 
 message TaskLogsChunk {
-    string data = 2;
+    bytes data = 1;
 }
