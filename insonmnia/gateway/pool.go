@@ -16,6 +16,7 @@ type PortPool struct {
 func NewPortPool(init, size uint16) *PortPool {
 	p := &PortPool{
 		queue: lane.NewQueue(),
+		used:  make(map[string]uint16, size),
 	}
 
 	for _, v := range rand.Perm(int(size)) {
