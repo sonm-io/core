@@ -153,7 +153,7 @@ func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest
 	resp := &pb.MinerHandshakeReply{
 		Miner:        m.name,
 		Capabilities: m.hardware.IntoProto(),
-		NatType:      MarshalNATType(m.natType),
+		NatType:      marshalNATType(m.natType),
 	}
 
 	return resp, nil

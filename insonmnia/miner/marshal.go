@@ -6,7 +6,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 )
 
-func MarshalNATType(nat stun.NATType) pb.NATType {
+func marshalNATType(nat stun.NATType) pb.NATType {
 	switch nat {
 	case stun.NATNone:
 		return pb.NATType_NONE
