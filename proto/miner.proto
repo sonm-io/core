@@ -24,9 +24,21 @@ message MinerHandshakeRequest {
     string hub = 1;
 }
 
+enum NATType {
+    NONE = 0;
+    BLOCKED = 1;
+    FULL = 2;
+    SYMMETRIC = 3;
+    RESTRICTED = 4;
+    PORT_RESTRICTED = 5;
+    SYMMETRIC_UDP_FIREWALL = 6;
+    UNKNOWN = 7;
+}
+
 message MinerHandshakeReply {
     string miner = 1;
     Capabilities capabilities = 2;
+    NATType natType = 3;
 }
 
 message MinerStartRequest{
