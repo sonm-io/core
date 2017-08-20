@@ -19,6 +19,7 @@ func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg := NewMockConfig(mock)
 	cfg.EXPECT().HubEndpoint().AnyTimes().Return("::1")
 	cfg.EXPECT().HubResources().AnyTimes()
+	cfg.EXPECT().Firewall().AnyTimes()
 	cfg.EXPECT().GPU().AnyTimes()
 	cfg.EXPECT().SSH().AnyTimes()
 	return cfg
