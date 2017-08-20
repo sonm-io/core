@@ -1178,6 +1178,12 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "m5CTPOjbcBz/xOSyUSa1HCa6idc=",
+			"path": "github.com/tehnerd/gnl2go",
+			"revision": "101b5c6e2d44eb00fbfe85917ffc0bf95249977b",
+			"revisionTime": "2016-12-18T22:37:53Z"
+		},
+		{
 			"checksumSHA1": "HN3pLd5cC+QXkX8j8FsCCB3FzSI=",
 			"path": "github.com/tinylib/msgp/msgp",
 			"revision": ""
