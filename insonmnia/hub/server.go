@@ -23,12 +23,14 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 
+	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/util"
 )
 
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	ctx           context.Context
+	gateway       *gateway.Gateway
 	grpcEndpoint  string
 	externalGrpc  *grpc.Server
 	endpoint      string
@@ -110,10 +112,10 @@ func (h *Hub) Info(ctx context.Context, request *pb.HubInfoRequest) (*pb.InfoRep
 // StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
 	log.G(h.ctx).Info("handling StartTask request", zap.Any("req", request))
-	miner := request.Miner
-	mincli, ok := h.getMinerByID(miner)
+	minerID := request.Miner
+	miner, ok := h.getMinerByID(minerID)
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, "no such miner %s", miner)
+		return nil, status.Errorf(codes.NotFound, "no such miner %s", minerID)
 	}
 
 	taskID := uuid.New()
@@ -126,12 +128,19 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 		// TODO: Fill restart policy and resources fields.
 	}
 
-	resp, err := mincli.Client.Start(ctx, startRequest)
+	resp, err := miner.Client.Start(ctx, startRequest)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
 	}
 
-	h.setMinerTaskID(miner, taskID)
+	for k, v := range resp.Ports {
+		println(k, v)
+		//miner.router.RegisterRoute(taskID, )
+	}
+
+	// TODO: Reply with remapped ip:port.
+
+	h.setMinerTaskID(minerID, taskID)
 
 	var reply = pb.HubStartTaskReply{
 		Id: taskID,
@@ -153,13 +162,12 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 		return nil, status.Errorf(codes.NotFound, "no such task %s", taskID)
 	}
 
-	mincli, ok := h.getMinerByID(minerID)
+	miner, ok := h.getMinerByID(minerID)
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no miner with task %s", minerID)
 	}
 
-	stoprequest := &pb.StopTaskRequest{Id: taskID}
-	_, err := mincli.Client.Stop(ctx, stoprequest)
+	_, err := miner.Client.Stop(ctx, &pb.StopTaskRequest{Id: taskID})
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "failed to stop the task %s", taskID)
 	}
@@ -235,17 +243,22 @@ func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer
 }
 
 // New returns new Hub
-// TODO: Create logger outside and attach to the context.
 func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 	ethKey, err := crypto.HexToECDSA(cfg.Eth.PrivateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "malformed ethereum private key")
 	}
 
+	gate, err := gateway.NewGateway(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	// TODO: add secure mechanism
 	grpcServer := grpc.NewServer()
 	h := &Hub{
 		ctx:          ctx,
+		gateway:      gate,
 		externalGrpc: grpcServer,
 
 		tasks:  make(map[string]string),
@@ -324,6 +337,7 @@ func (h *Hub) Serve() error {
 func (h *Hub) Close() {
 	h.externalGrpc.Stop()
 	h.minerListener.Close()
+	h.gateway.Close()
 	h.wg.Wait()
 }
 
@@ -331,7 +345,7 @@ func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	log.G(ctx).Info("miner connected", zap.Stringer("remote", conn.RemoteAddr()))
 
-	miner, err := createMinerCtx(ctx, conn)
+	miner, err := createMinerCtx(ctx, conn, h.gateway)
 	if err != nil {
 		return
 	}
