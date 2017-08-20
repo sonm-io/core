@@ -1671,6 +1671,12 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "7YPmpDeCouwlD2QYzDCE83USHTg=",
+			"path": "gopkg.in/oleiade/lane.v1",
+			"revision": "28f7c3f09254f12b51e620fa4db136ba58804762",
+			"revisionTime": "2016-08-17T06:23:29Z"
+		},
+		{
 			"checksumSHA1": "4BwmmgQUhWtizsR2soXND0nqZ1I=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/gopkg.in/sourcemap.v1",
 			"path": "gopkg.in/sourcemap.v1",
