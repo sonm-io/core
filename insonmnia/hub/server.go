@@ -25,6 +25,8 @@ import (
 
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/util"
+	"strconv"
+	"strings"
 )
 
 // Hub collects miners, send them orders to spawn containers, etc.
@@ -134,8 +136,14 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	}
 
 	for k, v := range resp.Ports {
-		println(k, v)
-		//miner.router.RegisterRoute(taskID, )
+		mapping := strings.Split(k, "/")
+		protocol := mapping[1]
+		realPort, err := strconv.ParseUint(v.Port, 10, 16)
+		if err != nil {
+			log.G(h.ctx).Warn("failed to convert real port to uint16", zap.String("port", v.Port))
+			continue
+		}
+		miner.router.RegisterRoute(taskID, protocol, v.IP, uint16(realPort))
 	}
 
 	// TODO: Reply with remapped ip:port.
