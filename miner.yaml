@@ -4,6 +4,14 @@ hub:
   # Can be omitted, in this case a discovery mechanism is activated.
   endpoint: ":10002"
 
+# Firewall discovery settings.
+# If enabled the miner tries to discover its own public IP address and the
+# firewall configuration. STUN server can be configured.
+# If disabled it is treated as having public IP address that is determined
+# automatically.
+firewall:
+  server: "stun.ekiga.net:3478"
+
 # Logging settings.
 logging:
   # The desired logging level.

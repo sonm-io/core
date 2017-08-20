@@ -12,6 +12,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
@@ -76,19 +77,33 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	}
 
 	if b.ip == nil {
-		log.G(b.ctx).Debug("discovering public IP address with NAT type, this may take a long ...")
+		if b.cfg.Firewall() == nil {
+			log.G(b.ctx).Debug("discovering public IP address ...")
+			addr, err := util.GetPublicIP()
+			if err != nil {
+				return nil, err
+			}
 
-		client := stun.NewClient()
-		nat, addr, err := client.Discover()
-		if err != nil {
-			return nil, err
+			b.ip = addr
+			b.nat = stun.NATNone
+		} else {
+			log.G(b.ctx).Debug("discovering public IP address with NAT type, this may take a long ...")
+
+			client := stun.NewClient()
+			if b.cfg.Firewall().Server != "" {
+				client.SetServerAddr(b.cfg.Firewall().Server)
+			}
+			nat, addr, err := client.Discover()
+			if err != nil {
+				return nil, err
+			}
+			b.ip = net.ParseIP(addr.IP())
+			b.nat = nat
 		}
-		b.ip = net.ParseIP(addr.IP())
-		b.nat = nat
 
 		log.G(b.ctx).Info("discovered public IP address",
-			zap.String("addr", addr.IP()),
-			zap.Any("nat", nat),
+			zap.Any("addr", b.ip),
+			zap.Any("nat", b.nat),
 		)
 	}
 
