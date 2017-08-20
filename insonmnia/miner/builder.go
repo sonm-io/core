@@ -72,6 +72,8 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		return nil, errors.New("config is mandatory for MinerBuilder")
 	}
 
+	log.G(b.ctx).Debug("building a miner", zap.Any("config", b.cfg))
+
 	if b.hardware == nil {
 		b.hardware = hardware.New()
 	}
