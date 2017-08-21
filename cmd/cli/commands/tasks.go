@@ -8,6 +8,7 @@ import (
 
 	"time"
 
+	"github.com/docker/go-connections/nat"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 )
@@ -35,7 +36,7 @@ func printTaskList(cmd *cobra.Command, minerStatus *pb.StatusMapReply, miner str
 
 func printTaskStart(cmd *cobra.Command, rep *pb.HubStartTaskReply) {
 	if isSimpleFormat() {
-		cmd.Printf("ID %s, Endpoint %s\r\n", rep.Id, rep.Endpoint)
+		cmd.Printf("ID %s\r\nEndpoint %s\r\n", rep.Id, rep.Endpoint)
 	} else {
 		b, _ := json.Marshal(rep)
 		cmd.Println(string(b))
@@ -44,16 +45,37 @@ func printTaskStart(cmd *cobra.Command, rep *pb.HubStartTaskReply) {
 
 func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskStatusReply) {
 	if isSimpleFormat() {
+		portsParsedOK := false
+		ports := nat.PortMap{}
+		if len(taskStatus.GetPorts()) > 0 {
+			err := json.Unmarshal([]byte(taskStatus.GetPorts()), &ports)
+			portsParsedOK = err == nil
+		}
+
 		cmd.Printf("Task %s (on %s):\r\n", id, miner)
-		cmd.Printf("  Image:  %s\r\n", taskStatus.ImageName)
-		cmd.Printf("  Status: %s\r\n", taskStatus.Status.String())
-		cmd.Printf("  Ports:  %s\r\n", taskStatus.Ports)
-		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.Uptime).String())
+		cmd.Printf("  Image:  %s\r\n", taskStatus.GetImageName())
+		cmd.Printf("  Status: %s\r\n", taskStatus.GetStatus().String())
+		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.GetUptime()).String())
+
+		if portsParsedOK && len(ports) > 0 {
+			cmd.Printf("  Ports:\r\n")
+			for containerPort, host := range ports {
+				if len(host) > 0 {
+					cmd.Printf("    %s: %s:%s\r\n", containerPort, host[0].HostIP, host[0].HostPort)
+				} else {
+					cmd.Printf("    %s\r\n", containerPort)
+				}
+			}
+		}
+
 	} else {
 		v := map[string]string{
 			"id":     id,
 			"miner":  miner,
 			"status": taskStatus.Status.String(),
+			"image":  taskStatus.GetImageName(),
+			"ports":  taskStatus.GetPorts(),
+			"uptime": time.Duration(taskStatus.GetUptime()).String(),
 		}
 		b, _ := json.Marshal(v)
 		cmd.Println(string(b))

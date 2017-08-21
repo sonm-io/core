@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/docker/go-connections/nat"
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/sonm-io/core/cmd/cli/task_config"
@@ -124,7 +125,8 @@ func TestTaskStartSimple(t *testing.T) {
 	out := buf.String()
 
 	assert.Contains(t, out, "Starting \"httpd:latest\" on miner test...")
-	assert.Contains(t, out, "ID 7a94eab1-5f57-485a-8602-124783c588ea, Endpoint [80/tcp->10.0.0.123:12345]")
+	assert.Contains(t, out, "ID 7a94eab1-5f57-485a-8602-124783c588ea")
+	assert.Contains(t, out, "Endpoint [80/tcp->10.0.0.123:12345]")
 }
 
 func TestTaskStartJson(t *testing.T) {
@@ -182,16 +184,16 @@ func TestTaskStartJsonError(t *testing.T) {
 func TestTaskStatusSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
 	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
-		Status: pb.TaskStatusReply_RUNNING,
+		Status:    pb.TaskStatusReply_RUNNING,
 		ImageName: "httpd:latest",
-		Uptime: 60,
+		Uptime:    60,
 	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
 	out := buf.String()
 
-	assert.Equal(t, "Task adac72b1-7fcf-47e1-8d74-a53563823185 (on test):\r\n  Image:  httpd:latest\r\n  Status: RUNNING\r\n  Ports:  \r\n  Uptime: 60ns\r\n", out)
+	assert.Equal(t, "Task adac72b1-7fcf-47e1-8d74-a53563823185 (on test):\r\n  Image:  httpd:latest\r\n  Status: RUNNING\r\n  Uptime: 60ns\r\n", out)
 }
 
 func TestTaskStatusJson(t *testing.T) {
@@ -287,4 +289,91 @@ func TestTaskStopJsonError(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "error", cmdErr.Error)
 	assert.Equal(t, "Cannot stop task", cmdErr.Message)
+}
+
+func TestTaskStatusWithPortsSimple(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
+		Status:    pb.TaskStatusReply_RUNNING,
+		ImageName: "httpd:latest",
+		Ports:     `{"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"32775"}],"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"32777"}]}`,
+		Uptime:    60,
+	}, nil)
+
+	buf := initRootCmd(t, config.OutputModeSimple)
+	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+	out := buf.String()
+
+	assert.Contains(t, out, "  Ports:\r\n")
+	assert.Contains(t, out, "    80/tcp: 0.0.0.0:32775\r\n")
+	assert.Contains(t, out, "    8080/tcp: 0.0.0.0:32777\r\n")
+}
+
+func TestTaskStatusWithInvalidPortsSimple(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
+		Status:    pb.TaskStatusReply_RUNNING,
+		ImageName: "httpd:latest",
+		Ports:     `{"invalid": "input"}`,
+		Uptime:    60,
+	}, nil)
+
+	buf := initRootCmd(t, config.OutputModeSimple)
+	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+	out := buf.String()
+
+	assert.NotContains(t, out, "  Ports:\r\n")
+}
+
+func TestTaskStatusWithPortsJson(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
+		Status:    pb.TaskStatusReply_RUNNING,
+		ImageName: "httpd:latest",
+		Ports:     `{"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"32775"}],"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"32777"}]}`,
+		Uptime:    60,
+	}, nil)
+
+	buf := initRootCmd(t, config.OutputModeJSON)
+	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+
+	outJson := map[string]string{}
+	err := json.Unmarshal(buf.Bytes(), &outJson)
+	assert.NoError(t, err)
+
+	assert.Len(t, outJson, 6, "Must have 6 fields")
+
+	assert.Contains(t, outJson, "id")
+	assert.Equal(t, "adac72b1-7fcf-47e1-8d74-a53563823185", outJson["id"])
+
+	assert.Contains(t, outJson, "miner")
+	assert.Equal(t, "test", outJson["miner"])
+
+	assert.Contains(t, outJson, "status")
+	assert.Equal(t, "RUNNING", outJson["status"])
+
+	assert.Contains(t, outJson, "image")
+	assert.Equal(t, "httpd:latest", outJson["image"])
+
+	assert.Contains(t, outJson, "uptime")
+	assert.Equal(t, "60ns", outJson["uptime"])
+
+	// extra checks for ports
+	assert.Contains(t, outJson, "ports")
+	ports := nat.PortMap{}
+	err = json.Unmarshal([]byte(outJson["ports"]), &ports)
+	assert.NoError(t, err)
+	assert.Len(t, ports, 2)
+
+	binding1, ok := ports["80/tcp"]
+	assert.True(t, ok)
+	assert.Len(t, binding1, 1)
+	assert.Equal(t, "0.0.0.0", binding1[0].HostIP)
+	assert.Equal(t, "32775", binding1[0].HostPort)
+
+	binding2, ok := ports["8080/tcp"]
+	assert.True(t, ok)
+	assert.Len(t, binding2, 1)
+	assert.Equal(t, "0.0.0.0", binding2[0].HostIP)
+	assert.Equal(t, "32777", binding2[0].HostPort)
 }

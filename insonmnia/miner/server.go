@@ -281,6 +281,8 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 	containerInfo.PublicKey = publicKey
+	containerInfo.StartAt = time.Now()
+	containerInfo.ImageName = d.Image
 
 	m.saveContainerInfo(request.Id, containerInfo)
 
