@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,8 +27,6 @@ import (
 
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/util"
-	"strconv"
-	"strings"
 )
 
 // Hub collects miners, send them orders to spawn containers, etc.
@@ -120,6 +120,11 @@ func decodePortBinding(v string) (string, string, error) {
 	return mapping[0], mapping[1], nil
 }
 
+type extRoute struct {
+	containerPort string
+	route         *route
+}
+
 // StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
 	log.G(h.ctx).Info("handling StartTask request", zap.Any("req", request))
@@ -144,6 +149,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
 	}
 
+	routes := []extRoute{}
 	for k, v := range resp.Ports {
 		_, protocol, err := decodePortBinding(k)
 		if err != nil {
@@ -156,14 +162,23 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 
 		realPort, err := strconv.ParseUint(v.Port, 10, 16)
 		if err != nil {
-			log.G(h.ctx).Warn("failed to convert real port to uint16", zap.String("port", v.Port))
+			log.G(h.ctx).Warn("failed to convert real port to uint16",
+				zap.Error(err),
+				zap.String("port", v.Port),
+			)
 			continue
 		}
-		miner.router.RegisterRoute(taskID, protocol, v.IP, uint16(realPort))
-	}
 
-	// TODO: Reply with remapped ip:port.
-	// TODO: Retain real on stop.
+		route, err := miner.router.RegisterRoute(taskID, protocol, v.IP, uint16(realPort))
+		if err != nil {
+			log.G(h.ctx).Warn("failed to register route", zap.Error(err))
+			continue
+		}
+		routes = append(routes, extRoute{
+			containerPort: k,
+			route:         route,
+		})
+	}
 
 	h.setMinerTaskID(minerID, taskID)
 
@@ -171,8 +186,11 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 		Id: taskID,
 	}
 
-	for k, v := range resp.Ports {
-		reply.Endpoint = append(reply.Endpoint, fmt.Sprintf("%s->%s:%s", k, v.IP, v.Port))
+	for _, route := range routes {
+		reply.Endpoint = append(
+			reply.Endpoint,
+			fmt.Sprintf("%s->%s:%d", route.containerPort, route.route.Host, route.route.Port),
+		)
 	}
 
 	return &reply, nil
@@ -180,6 +198,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 
 // StopTask sends termination request to a miner handling the task
 func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
+	// TODO: Retain real on stop.
 	log.G(h.ctx).Info("handling StopTask request", zap.Any("req", request))
 	taskID := request.Id
 	minerID, ok := h.getMinerByTaskID(taskID)
