@@ -377,3 +377,51 @@ func TestTaskStatusWithPortsJson(t *testing.T) {
 	assert.Equal(t, "0.0.0.0", binding2[0].HostIP)
 	assert.Equal(t, "32777", binding2[0].HostPort)
 }
+
+func TestTaskStatusWithResourcesSimple(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
+		Status:    pb.TaskStatusReply_RUNNING,
+		ImageName: "httpd:latest",
+		Resources: &pb.ContainerResources{
+			Memory:   104857600, // 100 mb
+			NanoCPUs: 10000,
+		},
+	}, nil)
+
+	buf := initRootCmd(t, config.OutputModeSimple)
+	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+	out := buf.String()
+
+	assert.Contains(t, out, "  Resources:\n")
+	assert.Contains(t, out, "    CPU: 10000\r\n")
+	assert.Contains(t, out, "    MEM: 100.0 MB\r\n")
+}
+
+func TestTaskStatusWithResourcesJson(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
+		Status:    pb.TaskStatusReply_RUNNING,
+		ImageName: "httpd:latest",
+		Ports:     `{"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"32775"}],"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"32777"}]}`,
+		Uptime:    60,
+		Resources: &pb.ContainerResources{
+			Memory:   104857600, // 100 mb
+			NanoCPUs: 10000,
+		},
+	}, nil)
+
+	buf := initRootCmd(t, config.OutputModeJSON)
+	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+
+	outJson := map[string]string{}
+	err := json.Unmarshal(buf.Bytes(), &outJson)
+	assert.NoError(t, err)
+
+	assert.Len(t, outJson, 8, "Must have 6 fields")
+
+	assert.Contains(t, outJson, "cpu")
+	assert.Equal(t, "10000", outJson["cpu"])
+	assert.Contains(t, outJson, "mem")
+	assert.Equal(t, "104857600", outJson["mem"])
+}

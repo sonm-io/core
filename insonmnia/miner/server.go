@@ -401,13 +401,26 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.TaskStatusRequest) (*pb
 		return nil, status.Errorf(codes.NotFound, "no task with id %s", req.GetId())
 	}
 
-	portsStr, _ := json.Marshal(info.Ports)
+	metrics, err := m.ovs.Info(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "cannot get container metrics: %s", err.Error())
+	}
 
+	metric, ok := metrics[info.ID]
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "Cannot get metrics for container %s", req.GetId())
+	}
+
+	portsStr, _ := json.Marshal(info.Ports)
 	reply := &pb.TaskStatusReply{
 		Status:    info.status.Status,
 		ImageName: info.ImageName,
 		Ports:     string(portsStr),
 		Uptime:    uint64(time.Now().UnixNano() - info.StartAt.UnixNano()),
+		Resources: &pb.ContainerResources{
+			NanoCPUs: int64(metric.cpu.CPUUsage.TotalUsage),
+			Memory:   int64(metric.mem.Usage),
+		},
 	}
 
 	return reply, nil

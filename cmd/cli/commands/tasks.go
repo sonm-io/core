@@ -8,6 +8,9 @@ import (
 
 	"time"
 
+	"fmt"
+
+	ds "github.com/c2h5oh/datasize"
 	"github.com/docker/go-connections/nat"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
@@ -57,6 +60,12 @@ func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskSt
 		cmd.Printf("  Status: %s\r\n", taskStatus.GetStatus().String())
 		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.GetUptime()).String())
 
+		if taskStatus.Resources != nil {
+			cmd.Println("  Resources:")
+			cmd.Printf("    CPU: %d\r\n", taskStatus.Resources.GetNanoCPUs())
+			cmd.Printf("    MEM: %s\r\n", ds.ByteSize(taskStatus.Resources.GetMemory()).HR())
+		}
+
 		if portsParsedOK && len(ports) > 0 {
 			cmd.Printf("  Ports:\r\n")
 			for containerPort, host := range ports {
@@ -67,7 +76,6 @@ func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskSt
 				}
 			}
 		}
-
 	} else {
 		v := map[string]string{
 			"id":     id,
@@ -77,6 +85,11 @@ func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskSt
 			"ports":  taskStatus.GetPorts(),
 			"uptime": time.Duration(taskStatus.GetUptime()).String(),
 		}
+		if taskStatus.Resources != nil {
+			v["cpu"] = fmt.Sprintf("%d", taskStatus.Resources.GetNanoCPUs())
+			v["mem"] = fmt.Sprintf("%d", taskStatus.Resources.GetMemory())
+		}
+
 		b, _ := json.Marshal(v)
 		cmd.Println(string(b))
 	}

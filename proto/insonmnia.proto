@@ -52,6 +52,7 @@ message TaskStatusReply {
     string imageName = 2;
     string ports = 3;
     uint64 uptime = 4;
+    ContainerResources resources = 5;
 }
 
 message StatusMapReply {
