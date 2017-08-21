@@ -59,7 +59,7 @@ func (r *ipvsRouter) RegisterRoute(ID string, protocol string, realIP string, re
 }
 
 func (r *ipvsRouter) DeregisterRoute(ID string) error {
-	if err := r.gateway.RemoveService(ID); err != nil {
+	if _, err := r.gateway.RemoveService(ID); err != nil {
 		return err
 	}
 
