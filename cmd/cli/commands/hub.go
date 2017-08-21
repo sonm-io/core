@@ -72,8 +72,6 @@ func hubStatusCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
 
 func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
 	if isSimpleFormat() {
-		cmd.Printf("Public Addr:      %s\r\n", stat.PublicIP)
-		cmd.Printf("Local Addr:       %s\r\n", stat.LocalIP)
 		cmd.Printf("Connected miners: %d\r\n", stat.MinerCount)
 		cmd.Printf("Uptime:           %s\r\n", (time.Second * time.Duration(stat.Uptime)).String())
 	} else {

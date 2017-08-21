@@ -45,8 +45,6 @@ type Hub struct {
 
 	wg        sync.WaitGroup
 	startTime time.Time
-	publicIP  string
-	localIP   string
 }
 
 // Ping should be used as Healthcheck for Hub
@@ -65,8 +63,6 @@ func (h *Hub) Status(ctx context.Context, _ *pb.HubStatusRequest) (*pb.HubStatus
 
 	reply := &pb.HubStatusReply{
 		MinerCount: uint64(minersCount),
-		PublicIP:   h.publicIP + h.endpoint,
-		LocalIP:    h.localIP + h.endpoint,
 		Uptime:     uint64(uptime),
 	}
 
@@ -268,14 +264,12 @@ func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 func (h *Hub) Serve() error {
 	h.startTime = time.Now()
 
-	h.localIP = util.GetLocalIP()
 	ip, err := util.GetPublicIP()
 	if err != nil {
 		return err
 	}
 
-	h.publicIP = ip.String()
-	srv, err := frd.NewServer(h.ethKey, h.publicIP+h.endpoint)
+	srv, err := frd.NewServer(h.ethKey, ip.String()+h.endpoint)
 	if err != nil {
 		return err
 	}

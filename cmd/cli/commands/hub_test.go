@@ -49,8 +49,6 @@ func TestHubPingFailed(t *testing.T) {
 func TestHubStatus(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
 	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(&pb.HubStatusReply{
-		PublicIP:   "1.2.3.4:10002",
-		LocalIP:    "10.0.0.1:10002",
 		MinerCount: 2,
 		Uptime:     1,
 	}, nil)
@@ -59,14 +57,12 @@ func TestHubStatus(t *testing.T) {
 	hubStatusCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	assert.Equal(t, "Public Addr:      1.2.3.4:10002\r\nLocal Addr:       10.0.0.1:10002\r\nConnected miners: 2\r\nUptime:           1s\r\n", out)
+	assert.Equal(t, "Connected miners: 2\r\nUptime:           1s\r\n", out)
 }
 
 func TestHubStatusJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
 	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(&pb.HubStatusReply{
-		PublicIP:   "1.2.3.4:10002",
-		LocalIP:    "10.0.0.1:10002",
 		MinerCount: 2,
 		Uptime:     1,
 	}, nil)
@@ -75,8 +71,6 @@ func TestHubStatusJson(t *testing.T) {
 	hubStatusCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	assert.Contains(t, out, `"publicIP":"1.2.3.4:10002"`)
-	assert.Contains(t, out, `"localIP":"10.0.0.1:10002"`)
 	assert.Contains(t, out, `"minerCount":2`)
 	assert.Contains(t, out, `"uptime":1`)
 }
