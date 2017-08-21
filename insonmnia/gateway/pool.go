@@ -1,7 +1,8 @@
 package gateway
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+
 	"gopkg.in/oleiade/lane.v1"
 	"math/rand"
 	"sync"
@@ -50,11 +51,10 @@ func (p *PortPool) Retain(ID string) error {
 
 	if port, exists := p.used[ID]; exists {
 		p.queue.Enqueue(port)
+		delete(p.used, ID)
 	} else {
 		return errors.New("named port was never assigned")
 	}
-
-	delete(p.used, ID)
 
 	return nil
 }
