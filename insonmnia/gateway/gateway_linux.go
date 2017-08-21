@@ -81,6 +81,14 @@ func (g *Gateway) CreateBackend(vsID, rsID string, options *RealOptions) error {
 }
 
 func (g *Gateway) createService(vsID string, options *ServiceOptions) error {
+	log.G(g.ctx).Info("creating virtual service",
+		zap.String("ID", vsID),
+		zap.String("host", options.host.String()),
+		zap.Uint16("port", options.Port),
+		zap.String("protocol", options.Protocol),
+		zap.String("method", options.Method),
+	)
+
 	if err := g.ipvs.AddService(options.host.String(), options.Port, options.protocol, options.Method); err != nil {
 		log.G(g.ctx).Error("failed to create creating virtual service", zap.Error(err))
 		return err
