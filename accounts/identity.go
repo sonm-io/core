@@ -17,6 +17,10 @@ var (
 	errWalletIsEmpty   = errors.New("Keystore does not have any wallets")
 )
 
+func init() {
+	var _ Identity = &identityPassphrase{}
+}
+
 // Identity interface uses for auth and detect all objects in network
 // source implementation going to go-ethereum accounting
 // its need to be storing wallets in one dir and opened it by passphrase
@@ -32,6 +36,10 @@ type Identity interface {
 	// use this after load()
 	// passphrase may be blank - eg. passphrase=""
 	Open(passphrase string) error
+
+	Import(json []byte, passphrase string) error
+
+	ImportECDSA(key *ecdsa.PrivateKey, passphrase string) error
 }
 
 // Implementation of Identity interface
@@ -87,6 +95,22 @@ func (idt *identityPassphrase) New(passphrase string) error {
 	}
 	idt.defaultAccount = acc
 	return err
+}
+
+func (idt *identityPassphrase) Import(json []byte, passphrase string) error {
+	_, err := idt.keystore.Import(json, passphrase, passphrase)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (idt *identityPassphrase) ImportECDSA(key *ecdsa.PrivateKey, passphrase string) error {
+	_, err := idt.keystore.ImportECDSA(key, passphrase)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // load keystore
