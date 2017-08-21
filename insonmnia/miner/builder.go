@@ -6,15 +6,51 @@ import (
 	"net"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
+
+type BuildOption func(m *Miner)
+
+func WithHardwareInfo(h *hardware.Hardware) BuildOption {
+	return func(m *Miner) {
+		m.hardware = h
+		m.resources = resource.NewPool(h)
+	}
+}
+
+func WithAddress(ip net.IP) BuildOption {
+	return func(m *Miner) {
+		m.pubAddress = ip.String()
+	}
+}
+
+func WithOverseer(ovs Overseer) BuildOption {
+	return func(m *Miner) {
+		m.ovs = ovs
+	}
+}
+
+func WithName(name string) BuildOption {
+	return func(m *Miner) {
+		m.name = name
+	}
+}
+
+func WithSSH(ssh SSH) BuildOption {
+	return func(m *Miner) {
+		m.ssh = ssh
+	}
+}
+
+func WithHubAddress(hubaddress string) BuildOption {
+	return func(m *Miner) {
+		m.hubAddress = hubaddress
+	}
+}
 
 type MinerBuilder struct {
 	ctx      context.Context
@@ -62,53 +98,53 @@ func (b *MinerBuilder) SSH(ssh SSH) *MinerBuilder {
 }
 
 func (b *MinerBuilder) Build() (miner *Miner, err error) {
-	if b.ctx == nil {
-		b.ctx = context.Background()
-	}
+	// if b.ctx == nil {
+	// 	b.ctx = context.Background()
+	// }
 
-	if b.cfg == nil {
-		return nil, errors.New("config is mandatory for MinerBuilder")
-	}
+	// if b.cfg == nil {
+	// 	return nil, errors.New("config is mandatory for MinerBuilder")
+	// }
+	//
+	// if b.hardware == nil {
+	// 	b.hardware = hardware.New()
+	// }
 
-	if b.hardware == nil {
-		b.hardware = hardware.New()
-	}
+	// if b.ip == nil {
+	// 	addr, err := util.GetPublicIP()
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	b.ip = addr
+	// }
 
-	if b.ip == nil {
-		addr, err := util.GetPublicIP()
-		if err != nil {
-			return nil, err
-		}
-		b.ip = addr
-	}
+	// ctx, cancel := context.WithCancel(b.ctx)
+	// if b.ovs == nil {
+	// 	b.ovs, err = NewOverseer(ctx, b.cfg.GPU())
+	// 	if err != nil {
+	// 		cancel()
+	// 		return nil, err
+	// 	}
+	// }
 
-	ctx, cancel := context.WithCancel(b.ctx)
-	if b.ovs == nil {
-		b.ovs, err = NewOverseer(ctx, b.cfg.GPU())
-		if err != nil {
-			cancel()
-			return nil, err
-		}
-	}
+	// if len(b.uuid) == 0 {
+	// 	b.uuid = uuid.New()
+	// }
 
-	if len(b.uuid) == 0 {
-		b.uuid = uuid.New()
-	}
+	// hardwareInfo, err := b.hardware.Info()
 
-	hardwareInfo, err := b.hardware.Info()
+	// if b.ssh == nil && b.cfg.SSH() != nil {
+	// 	b.ssh, err = NewSSH(b.cfg.SSH())
+	// 	if err != nil {
+	// 		cancel()
+	// 		return nil, err
+	// 	}
+	// }
 
-	if b.ssh == nil && b.cfg.SSH() != nil {
-		b.ssh, err = NewSSH(b.cfg.SSH())
-		if err != nil {
-			cancel()
-			return nil, err
-		}
-	}
-
-	if err != nil {
-		cancel()
-		return nil, err
-	}
+	// if err != nil {
+	// 	cancel()
+	// 	return nil, err
+	// }
 
 	log.G(ctx).Info("collected Hardware info", zap.Any("hardware", hardwareInfo))
 

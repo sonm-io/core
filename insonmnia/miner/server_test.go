@@ -2,8 +2,9 @@ package miner
 
 import (
 	"errors"
-	"golang.org/x/net/context"
 	"testing"
+
+	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/golang/mock/gomock"

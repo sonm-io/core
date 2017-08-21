@@ -2,6 +2,8 @@ package miner
 
 import (
 	"crypto/ecdsa"
+	"errors"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -15,8 +17,10 @@ import (
 
 	"github.com/hashicorp/yamux"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pborman/uuid"
 
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -25,7 +29,6 @@ import (
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
-	"io"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -67,6 +70,51 @@ type Miner struct {
 	channelCounter int
 	controlGroup   cGroupDeleter
 	ssh            SSH
+}
+
+func New(ctx context.Context, opts ...BuildOption) (*Miner, error) {
+	m := &Miner{
+		grpcServer: grpc.NewServer(),
+
+		rl:             newReverseListener(1),
+		containers:     make(map[string]*ContainerInfo),
+		statusChannels: make(map[int]chan bool),
+		nameMapping:    make(map[string]string),
+
+		// controlGroup: deleter,
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	if m.name == "" {
+		m.name = uuid.New()
+	}
+
+	if m.ovs == nil {
+		return nil, errors.New("Overseer must be configured via WithOverseer")
+	}
+
+	var err error
+	if m.hardware == nil {
+		m.hardware, err = hardware.New().Info()
+		if err != nil {
+			return nil, err
+		}
+		m.resources = resource.NewPool(m.hardware)
+	}
+
+	if m.pubAddress == "" {
+		addr, err := util.GetPublicIP()
+		if err != nil {
+			return nil, err
+		}
+		m.pubAddress = addr.String()
+	}
+
+	m.ctx, m.cancel = context.WithCancel(ctx)
+	pb.RegisterMinerServer(m.grpcServer, m)
+	return m, nil
 }
 
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
