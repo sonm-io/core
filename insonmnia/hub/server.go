@@ -111,6 +111,15 @@ func (h *Hub) Info(ctx context.Context, request *pb.HubInfoRequest) (*pb.InfoRep
 	return resp, nil
 }
 
+func decodePortBinding(v string) (string, string, error) {
+	mapping := strings.Split(v, "/")
+	if len(mapping) != 2 {
+		return "", "", errors.New("failed to decode Docker port mapping")
+	}
+
+	return mapping[0], mapping[1], nil
+}
+
 // StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
 	log.G(h.ctx).Info("handling StartTask request", zap.Any("req", request))
@@ -136,8 +145,15 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	}
 
 	for k, v := range resp.Ports {
-		mapping := strings.Split(k, "/")
-		protocol := mapping[1]
+		_, protocol, err := decodePortBinding(k)
+		if err != nil {
+			log.G(h.ctx).Warn("failed to decode miner's port mapping",
+				zap.String("mapping", k),
+				zap.Error(err),
+			)
+			continue
+		}
+
 		realPort, err := strconv.ParseUint(v.Port, 10, 16)
 		if err != nil {
 			log.G(h.ctx).Warn("failed to convert real port to uint16", zap.String("port", v.Port))
