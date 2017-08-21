@@ -20,6 +20,7 @@ var (
 	ErrIPVSFailed      = errors.New("error while calling into IPVS")
 	ErrBackendExists   = errors.New("backend already exists")
 	ErrServiceNotFound = errors.New("virtual service not found")
+	ErrBackendNotFound = errors.New("backend not found")
 )
 
 type service struct {
@@ -65,6 +66,10 @@ func NewGateway(ctx context.Context) (*Gateway, error) {
 	return gateway, nil
 }
 
+// TODO (3Hren): func (g *Gateway) GetServices() ([]string, error).
+// TODO (3Hren): func (g *Gateway) GetBackends(vsID string) ([]string, error).
+// TODO (3Hren): func (g *Gateway) GetBackend(vsID, rsID string) (*RealOptions, error).
+
 // CreateService registers a new virtual service with IPVS.
 func (g *Gateway) CreateService(vsID string, options *ServiceOptions) error {
 	g.mu.Lock()
@@ -73,6 +78,7 @@ func (g *Gateway) CreateService(vsID string, options *ServiceOptions) error {
 	return g.createService(vsID, options)
 }
 
+// CreateBackend registers a new backend with the virtual service.
 func (g *Gateway) CreateBackend(vsID, rsID string, options *RealOptions) error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -80,9 +86,25 @@ func (g *Gateway) CreateBackend(vsID, rsID string, options *RealOptions) error {
 	return g.createBackend(vsID, rsID, options)
 }
 
+// RemoveService deregisters a virtual service.
+func (g *Gateway) RemoveService(vsID string) (*ServiceOptions, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	return g.removeService(vsID)
+}
+
+// RemoveBackend deregisters a backend from the virtual service.
+func (g *Gateway) RemoveBackend(vsID, rsID string) (*RealOptions, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	return g.removeBackend(vsID, rsID)
+}
+
 func (g *Gateway) createService(vsID string, options *ServiceOptions) error {
 	log.G(g.ctx).Info("creating virtual service",
-		zap.String("ID", vsID),
+		zap.String("service", vsID),
 		zap.String("host", options.host.String()),
 		zap.Uint16("port", options.Port),
 		zap.String("protocol", options.Protocol),
@@ -130,12 +152,80 @@ func (g *Gateway) createBackend(vsID, rsID string, options *RealOptions) error {
 	return nil
 }
 
+func (g *Gateway) removeService(vsID string) (*ServiceOptions, error) {
+	vs, exists := g.services[vsID]
+	if !exists {
+		return nil, ErrServiceNotFound
+	}
+
+	delete(g.services, vsID)
+
+	log.G(g.ctx).Info("removing virtual service",
+		zap.String("service", vsID),
+		zap.String("host", vs.options.Host),
+		zap.Uint16("port", vs.options.Port),
+	)
+
+	if err := g.ipvs.DelService(vs.options.host.String(), vs.options.Port, vs.options.protocol); err != nil {
+		log.G(g.ctx).Error("failed to remove virtual service [%s]", zap.String("ID", vsID))
+		return nil, ErrIPVSFailed
+	}
+
+	for rsID, backend := range g.backends {
+		// Filter out non-ours backends.
+		if backend.service != vs {
+			continue
+		}
+
+		log.G(g.ctx).Info("cleaning up now orphaned backend",
+			zap.String("service", vsID),
+			zap.String("backend", rsID),
+		)
+
+		delete(g.backends, rsID)
+	}
+
+	return vs.options, nil
+}
+
+func (g *Gateway) removeBackend(vsID, rsID string) (*RealOptions, error) {
+	rs, exists := g.backends[rsID]
+	if !exists {
+		return nil, ErrBackendNotFound
+	}
+
+	host := rs.service.options.host.String()
+	port := rs.service.options.Port
+	backendHost := rs.options.host.String()
+	backendPort := rs.options.Port
+	protocol := rs.service.options.protocol
+
+	log.G(g.ctx).Info("removing backend",
+		zap.String("service", vsID),
+		zap.String("backend", rsID),
+		zap.String("host", host),
+		zap.Uint16("port", port),
+	)
+
+	if err := g.ipvs.DelDestPort(host, port, backendHost, backendPort, protocol); err != nil {
+		log.G(g.ctx).Error("failed to remove backend",
+			zap.String("service", vsID),
+			zap.String("backend", rsID),
+		)
+		return nil, ErrIPVSFailed
+	}
+
+	delete(g.backends, rsID)
+
+	return rs.options, nil
+}
+
 func (g *Gateway) Close() {
 	log.G(g.ctx).Info("shutting down IPVS context")
 
-	//for vsID := range ctx.services {
-	//	ctx.RemoveService(vsID)
-	//}
+	for vsID := range g.services {
+		g.RemoveService(vsID)
+	}
 
 	g.ipvs.Exit()
 }
