@@ -21,6 +21,8 @@ It has these top-level messages:
 	HubStartTaskRequest
 	HubStartTaskReply
 	HubStatusMapRequest
+	HubStatusRequest
+	HubStatusReply
 	PingRequest
 	PingReply
 	InfoReply

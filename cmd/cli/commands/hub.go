@@ -1,6 +1,10 @@
 package commands
 
 import (
+	"time"
+
+	"encoding/json"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 )
@@ -57,11 +61,23 @@ func hubPingCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
 
 func hubStatusCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
 	// todo: implement this on hub
-	err := interactor.HubStatus()
+	stat, err := interactor.HubStatus(context.Background())
 	if err != nil {
 		showError(cmd, "Cannot get status", err)
 		return
 	}
 
-	showOk(cmd)
+	printHubStatus(cmd, stat)
+}
+
+func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
+	if isSimpleFormat() {
+		cmd.Printf("Public Addr:      %s\r\n", stat.PublicIP)
+		cmd.Printf("Local Addr:       %s\r\n", stat.LocalIP)
+		cmd.Printf("Connected miners: %d\r\n", stat.MinerCount)
+		cmd.Printf("Uptime:           %s\r\n", (time.Second * time.Duration(stat.Uptime)).String())
+	} else {
+		b, _ := json.Marshal(stat)
+		cmd.Println(string(b))
+	}
 }

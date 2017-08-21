@@ -48,29 +48,42 @@ func TestHubPingFailed(t *testing.T) {
 
 func TestHubStatus(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubStatus().AnyTimes().Return(nil)
+	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(&pb.HubStatusReply{
+		PublicIP:   "1.2.3.4:10002",
+		LocalIP:    "10.0.0.1:10002",
+		MinerCount: 2,
+		Uptime:     1,
+	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	hubStatusCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	assert.Equal(t, "OK\n", out)
+	assert.Equal(t, "Public Addr:      1.2.3.4:10002\r\nLocal Addr:       10.0.0.1:10002\r\nConnected miners: 2\r\nUptime:           1s\r\n", out)
 }
 
 func TestHubStatusJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubStatus().AnyTimes().Return(nil)
+	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(&pb.HubStatusReply{
+		PublicIP:   "1.2.3.4:10002",
+		LocalIP:    "10.0.0.1:10002",
+		MinerCount: 2,
+		Uptime:     1,
+	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	hubStatusCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	assert.Equal(t, "{\"status\":\"OK\"}\n", out)
+	assert.Contains(t, out, `"publicIP":"1.2.3.4:10002"`)
+	assert.Contains(t, out, `"localIP":"10.0.0.1:10002"`)
+	assert.Contains(t, out, `"minerCount":2`)
+	assert.Contains(t, out, `"uptime":1`)
 }
 
 func TestHubStatusError(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubStatus().AnyTimes().Return(errors.New("error"))
+	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(nil, errors.New("error"))
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	hubStatusCmdRunner(rootCmd, itr)
@@ -81,7 +94,7 @@ func TestHubStatusError(t *testing.T) {
 
 func TestHubStatusJsonError(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubStatus().AnyTimes().Return(errors.New("error"))
+	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(nil, errors.New("error"))
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	hubStatusCmdRunner(rootCmd, itr)

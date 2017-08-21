@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -41,13 +42,34 @@ type Hub struct {
 	tasksmu sync.Mutex
 	tasks   map[string]string
 
-	wg sync.WaitGroup
+	wg        sync.WaitGroup
+	startTime time.Time
+	publicIP  string
+	localIP   string
 }
 
 // Ping should be used as Healthcheck for Hub
 func (h *Hub) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, error) {
 	log.G(h.ctx).Info("handling Ping request")
 	return &pb.PingReply{}, nil
+}
+
+// Status returns internal hub statistic
+func (h *Hub) Status(ctx context.Context, _ *pb.HubStatusRequest) (*pb.HubStatusReply, error) {
+	h.mu.Lock()
+	minersCount := len(h.miners)
+	h.mu.Unlock()
+
+	uptime := time.Now().Unix() - h.startTime.Unix()
+
+	reply := &pb.HubStatusReply{
+		MinerCount: uint64(minersCount),
+		PublicIP:   h.publicIP + h.endpoint,
+		LocalIP:    h.localIP + h.endpoint,
+		Uptime:     uint64(uptime),
+	}
+
+	return reply, nil
 }
 
 // List returns attached miners
@@ -216,12 +238,16 @@ func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 // Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
+	h.startTime = time.Now()
 
+	h.localIP = util.GetLocalIP()
 	ip, err := util.GetPublicIP()
 	if err != nil {
 		return err
 	}
-	srv, err := frd.NewServer(h.ethKey, ip.String()+h.endpoint)
+
+	h.publicIP = ip.String()
+	srv, err := frd.NewServer(h.ethKey, h.publicIP+h.endpoint)
 	if err != nil {
 		return err
 	}
