@@ -7,6 +7,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/gateway"
 )
 
-func newIPVSRouter(context.Context, *gateway.Gateway) router {
+func newIPVSRouter(context.Context, *gateway.Gateway, *gateway.PortPool) router {
 	return newDirectRouter()
 }

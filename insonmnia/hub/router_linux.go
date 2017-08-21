@@ -10,11 +10,10 @@ type ipvsRouter struct {
 	pool    *gateway.PortPool
 }
 
-func newIPVSRouter(ctx context.Context, gate *gateway.Gateway) router {
-	// TODO (3Hren): Make configurable.
+func newIPVSRouter(ctx context.Context, gate *gateway.Gateway, pool *gateway.PortPool) router {
 	return &ipvsRouter{
 		gateway: gate,
-		pool:    gateway.NewPortPool(32768, 1024),
+		pool:    pool,
 	}
 }
 
@@ -57,4 +56,20 @@ func (r *ipvsRouter) RegisterRoute(ID string, protocol string, realIP string, re
 	}
 
 	return route, nil
+}
+
+func (r *ipvsRouter) DeregisterRoute(ID string) error {
+	if err := r.gateway.RemoveService(ID); err != nil {
+		return err
+	}
+
+	if err := r.pool.Retain(ID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *ipvsRouter) Close() error {
+	return nil
 }
