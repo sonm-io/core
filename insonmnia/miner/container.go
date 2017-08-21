@@ -224,5 +224,4 @@ func (c *containerDescriptor) upload() error {
 			return err
 		}
 	}
-	return nil
 }
