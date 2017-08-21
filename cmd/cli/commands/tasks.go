@@ -14,10 +14,21 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
+	"io"
+	"strings"
 )
 
 func init() {
 	tasksRootCmd.AddCommand(taskListCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
+
+	taskLogsCmd.Flags().StringVar(&logType, logTypeFlag, "both", "\"stdout\" or \"stderr\" or \"both\"")
+	taskLogsCmd.Flags().StringVar(&since, sinceFlag, "", "Show logs since timestamp (e.g. 2013-01-02T13:23:37) or relative (e.g. 42m for 42 minutes)")
+	taskLogsCmd.Flags().BoolVar(&addTimestamps, addTimestampsFlag, true, "Show timestamp for each log line")
+	taskLogsCmd.Flags().BoolVar(&follow, followFlag, false, "Stream logs continuously")
+	taskLogsCmd.Flags().StringVar(&tail, tailFlag, "50", "Number of lines to show from the end of the logs")
+	taskLogsCmd.Flags().BoolVar(&details, detailsFlag, false, "Show extra details provided to logs")
+
+	tasksRootCmd.AddCommand(taskListCmd, taskLogsCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
 }
 
 func printTaskList(cmd *cobra.Command, minerStatus *pb.StatusMapReply, miner string) {
@@ -122,6 +133,27 @@ var taskListCmd = &cobra.Command{
 	},
 }
 
+var taskLogsCmd = &cobra.Command{
+	Use:     "logs <task_id>",
+	Short:   "Show task status",
+	PreRunE: checkHubAddressIsSet,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) < 1 {
+			return errTaskIDRequired
+		}
+		taskID := args[0]
+
+		itr, err := NewGrpcInteractor(hubAddress, timeout)
+		if err != nil {
+			showError(cmd, "Cannot connect ot hub", err)
+			return nil
+		}
+
+		taskLogCmdRunner(cmd, taskID, itr)
+		return nil
+	},
+}
+
 var taskStartCmd = &cobra.Command{
 	Use:     "start <miner_addr> <task.yaml>",
 	Short:   "Start task on given miner",
@@ -212,6 +244,43 @@ func taskListCmdRunner(cmd *cobra.Command, minerID string, interactor CliInterac
 	}
 
 	printTaskList(cmd, minerStatus, minerID)
+}
+
+func taskLogCmdRunner(cmd *cobra.Command, taskID string, interactor CliInteractor) {
+	req := &pb.TaskLogsRequest{
+
+		Id:            taskID,
+		Since:         since,
+		AddTimestamps: addTimestamps,
+		Follow:        follow,
+		Tail:          tail,
+		Details:       details,
+	}
+
+	logType, ok := pb.TaskLogsRequest_Type_value[strings.ToUpper(logType)]
+	if !ok {
+		showError(cmd, "Invalid log type", nil)
+		return
+	}
+	req.Type = pb.TaskLogsRequest_Type(logType)
+
+	client, err := interactor.TaskLogs(context.Background(), req)
+	if err != nil {
+		showError(cmd, "Cannot get task logs", err)
+		return
+	}
+
+	for {
+		buffer, err := client.Recv()
+		if err == io.EOF {
+			return
+		}
+		if err != nil {
+			showError(cmd, "IO failure during log fetching", err)
+			return
+		}
+		cmd.Print(string(buffer.Data))
+	}
 }
 
 func taskStartCmdRunner(cmd *cobra.Command, miner string, taskConfig task_config.TaskConfig, interactor CliInteractor) {

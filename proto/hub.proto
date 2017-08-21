@@ -15,6 +15,7 @@ service Hub {
 
     rpc TaskStatus(TaskStatusRequest) returns (TaskStatusReply) {}
     rpc MinerStatus(HubStatusMapRequest) returns (StatusMapReply) {}
+    rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
 }
 
 message ListRequest {

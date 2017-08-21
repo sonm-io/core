@@ -19,6 +19,7 @@ func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg := NewMockConfig(mock)
 	cfg.EXPECT().HubEndpoint().AnyTimes().Return("::1")
 	cfg.EXPECT().HubResources().AnyTimes()
+	cfg.EXPECT().Firewall().AnyTimes()
 	cfg.EXPECT().GPU().AnyTimes()
 	cfg.EXPECT().SSH().AnyTimes()
 	return cfg
@@ -104,7 +105,7 @@ func TestMinerInfo(t *testing.T) {
 
 	assert.NotNil(t, ret)
 	assert.Nil(t, err)
-	assert.Equal(t, uint64(43), ret.Stats["id1"].Memory.MaxUsage)
+	assert.Equal(t, uint64(43), ret.Usage["id1"].Memory.MaxUsage)
 }
 
 func TestMinerHandshake(t *testing.T) {

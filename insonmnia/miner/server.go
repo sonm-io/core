@@ -20,12 +20,16 @@ import (
 
 	"encoding/json"
 
+	"github.com/ccding/go-stun/stun"
+	"github.com/docker/docker/api/types"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gliderlabs/ssh"
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
+	"io"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -44,6 +48,7 @@ type Miner struct {
 
 	// NOTE: do not use static detection
 	pubAddress string
+	natType    stun.NATType
 
 	rl *reverseListener
 
@@ -128,28 +133,19 @@ func (m *Miner) Info(ctx context.Context, request *pb.MinerInfoRequest) (*pb.Inf
 		return nil, err
 	}
 
-	var result = pb.InfoReply{
-		Stats: make(map[string]*pb.InfoReplyStats),
+	var result = &pb.InfoReply{
+		Usage:        make(map[string]*pb.ResourceUsage),
+		Name:         m.name,
+		Capabilities: m.hardware.IntoProto(),
 	}
 
-	for containerId, stats := range info {
-		if id, ok := m.getTaskIdByContainerId(containerId); ok {
-			// TODO: This transformation will be eliminated when protobuf unifying comes.
-			result.Stats[id] = &pb.InfoReplyStats{
-				CPU: &pb.InfoReplyStatsCpu{
-					TotalUsage: stats.cpu.CPUUsage.TotalUsage,
-				},
-				Memory: &pb.InfoReplyStatsMemory{
-					MaxUsage: stats.mem.MaxUsage,
-				},
-			}
+	for containerID, stat := range info {
+		if id, ok := m.getTaskIdByContainerId(containerID); ok {
+			result.Usage[id] = stat.Marshal()
 		}
 	}
 
-	result.Capabilities = m.hardware.IntoProto()
-	result.Name = m.name
-
-	return &result, nil
+	return result, nil
 }
 
 // Handshake is the first frame received from a Hub.
@@ -162,6 +158,7 @@ func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest
 	resp := &pb.MinerHandshakeReply{
 		Miner:        m.name,
 		Capabilities: m.hardware.IntoProto(),
+		NatType:      marshalNATType(m.natType),
 	}
 
 	return resp, nil
@@ -373,6 +370,42 @@ func (m *Miner) sendUpdatesOnRequest(server pb.Miner_TasksStatusServer) {
 		if err != nil {
 			log.G(m.ctx).Info("failed to send status update", zap.Error(err))
 			return
+		}
+	}
+}
+
+// TasksStatus returns the status of a task
+func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Miner_TaskLogsServer) error {
+	log.G(m.ctx).Info("handling TaskLogs request", zap.Any("request", request))
+	cid, ok := m.getContainerIdByTaskId(request.Id)
+	if !ok {
+		return status.Errorf(codes.NotFound, "no job with id %s", request.Id)
+	}
+	opts := types.ContainerLogsOptions{
+		ShowStdout: request.Type == pb.TaskLogsRequest_STDOUT || request.Type == pb.TaskLogsRequest_BOTH,
+		ShowStderr: request.Type == pb.TaskLogsRequest_STDERR || request.Type == pb.TaskLogsRequest_BOTH,
+		Since:      request.Since,
+		Timestamps: request.AddTimestamps,
+		Follow:     request.Follow,
+		Tail:       request.Tail,
+		Details:    request.Details,
+	}
+	reader, err := m.ovs.Logs(server.Context(), cid, opts)
+	if err != nil {
+		return err
+	}
+	defer reader.Close()
+	buffer := make([]byte, 100*1024)
+	for {
+		readCnt, err := reader.Read(buffer)
+		if readCnt != 0 {
+			server.Send(&pb.TaskLogsChunk{Data: buffer[:readCnt]})
+		}
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
 		}
 	}
 }

@@ -10,23 +10,35 @@ message PingReply {
     string status = 1;
 }
 
+message CPUUsage {
+    uint64 total = 1;
+}
+
+message MemoryUsage {
+    uint64 maxUsage = 1;
+}
+
+message NetworkUsage {
+    uint64 txBytes = 1;
+    uint64 rxBytes = 2;
+    uint64 txPackets = 3;
+    uint64 rxPackets = 4;
+    uint64 txErrors = 5;
+    uint64 rxErrors = 6;
+    uint64 txDropped = 7;
+    uint64 rxDropped = 8;
+}
+
+message ResourceUsage {
+    CPUUsage cpu = 1;
+    MemoryUsage memory = 2;
+    map<string, NetworkUsage> network = 3;
+}
+
 message InfoReply {
-    message stats {
-        message cpu {
-            uint64 totalUsage = 1;
-        }
-
-        message memory {
-            uint64 maxUsage = 1;
-        }
-
-        cpu CPU = 1;
-        memory Memory = 2;
-    }
-
-    map<string, stats> Stats = 1;
-    Capabilities capabilities = 2;
-    string name = 3;
+    map<string, ResourceUsage> usage = 1;
+    string name = 2;
+    Capabilities capabilities = 3;
 }
 
 message StopTaskRequest {
@@ -67,4 +79,23 @@ message ContainerResources {
 message ContainerRestartPolicy {
     string name = 1;
     uint32 maximumRetryCount = 2;
+}
+
+message TaskLogsRequest {
+    enum Type {
+        STDOUT = 0;
+        STDERR = 1;
+        BOTH = 2;
+    }
+    Type type = 1;
+    string id = 2;
+    string since = 3;
+    bool addTimestamps = 4;
+    bool Follow = 5;
+    string Tail = 6;
+    bool Details = 7;
+}
+
+message TaskLogsChunk {
+    bytes data = 1;
 }

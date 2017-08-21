@@ -10,6 +10,8 @@ package gpu
 //     #else
 //         #error "Non OS X Apple targets are not supported, sorry"
 //     #endif
+// #elif __linux__
+//     #include "CL/cl.h"
 // #else
 //     #include "cl.h"
 // #endif

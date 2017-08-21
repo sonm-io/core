@@ -76,13 +76,25 @@ func printMinerStatus(cmd *cobra.Command, minerID string, metrics *pb.InfoReply)
 		}
 
 		cmd.Println("Miner tasks:")
-		if len(metrics.Stats) == 0 {
+		if len(metrics.GetUsage()) == 0 {
 			cmd.Println("  No active tasks")
 		} else {
-			for task, stat := range metrics.Stats {
-				cmd.Printf("  ID: %s\r\n", task)
-				cmd.Printf("      CPU: %d\r\n", stat.CPU.TotalUsage)
-				cmd.Printf("      RAM: %s\r\n", ds.ByteSize(stat.Memory.MaxUsage).HR())
+			cmd.Println("  Miner tasks:")
+			for task, usage := range metrics.Usage {
+				cmd.Printf("    ID: %s\r\n", task)
+				cmd.Printf("        CPU: %d\r\n", usage.Cpu.Total)
+				cmd.Printf("        RAM: %s\r\n", ds.ByteSize(usage.Memory.MaxUsage).HR())
+
+				if len(usage.Network) > 0 {
+					cmd.Printf("        NET:\r\n")
+					for i, net := range usage.Network {
+						cmd.Printf("          %s:\r\n", i)
+						cmd.Printf("            Tx/Rx bytes: %d/%d\r\n", net.TxBytes, net.RxBytes)
+						cmd.Printf("            Tx/Rx packets: %d/%d\r\n", net.TxPackets, net.RxPackets)
+						cmd.Printf("            Tx/Rx errors: %d/%d\r\n", net.TxErrors, net.RxErrors)
+						cmd.Printf("            Tx/Rx dropped: %d/%d\r\n", net.TxDropped, net.RxDropped)
+					}
+				}
 			}
 		}
 	} else {

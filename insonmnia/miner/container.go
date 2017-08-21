@@ -21,7 +21,7 @@ type containerDescriptor struct {
 	client *client.Client
 
 	ID    string
-	stats types.Stats
+	stats types.StatsJSON
 }
 
 func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuner nvidiaGPUTuner) (*containerDescriptor, error) {
@@ -46,7 +46,11 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	}
 	// NOTE: all ports are EXPOSE as PublishAll
 	// TODO: detect network network mode and interface
+	logOpts := make(map[string]string)
+	// TODO: Move to StartTask?
+	logOpts["max-size"] = "100m"
 	var hostConfig = container.HostConfig{
+		LogConfig:       container.LogConfig{Type: "json-file", Config: logOpts},
 		PublishAllPorts: true,
 		RestartPolicy:   d.RestartPolicy,
 		// NOTE; we don't want to leave garbage

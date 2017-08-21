@@ -25,6 +25,10 @@ It has these top-level messages:
 	HubStatusReply
 	PingRequest
 	PingReply
+	CPUUsage
+	MemoryUsage
+	NetworkUsage
+	ResourceUsage
 	InfoReply
 	StopTaskRequest
 	StopTaskReply
@@ -33,6 +37,8 @@ It has these top-level messages:
 	StatusMapReply
 	ContainerResources
 	ContainerRestartPolicy
+	TaskLogsRequest
+	TaskLogsChunk
 	MinerInfoRequest
 	MinerHandshakeRequest
 	MinerHandshakeReply

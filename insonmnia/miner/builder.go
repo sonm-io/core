@@ -5,6 +5,7 @@ import (
 
 	"net"
 
+	"github.com/ccding/go-stun/stun"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
@@ -21,6 +22,7 @@ type MinerBuilder struct {
 	cfg      Config
 	hardware hardware.HardwareInfo
 	ip       net.IP
+	nat      stun.NATType
 	ovs      Overseer
 	uuid     string
 	ssh      SSH
@@ -70,16 +72,41 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		return nil, errors.New("config is mandatory for MinerBuilder")
 	}
 
+	log.G(b.ctx).Debug("building a miner", zap.Any("config", b.cfg))
+
 	if b.hardware == nil {
 		b.hardware = hardware.New()
 	}
 
 	if b.ip == nil {
-		addr, err := util.GetPublicIP()
-		if err != nil {
-			return nil, err
+		if b.cfg.Firewall() == nil {
+			log.G(b.ctx).Debug("discovering public IP address ...")
+			addr, err := util.GetPublicIP()
+			if err != nil {
+				return nil, err
+			}
+
+			b.ip = addr
+			b.nat = stun.NATNone
+		} else {
+			log.G(b.ctx).Debug("discovering public IP address with NAT type, this may take a long ...")
+
+			client := stun.NewClient()
+			if b.cfg.Firewall().Server != "" {
+				client.SetServerAddr(b.cfg.Firewall().Server)
+			}
+			nat, addr, err := client.Discover()
+			if err != nil {
+				return nil, err
+			}
+			b.ip = net.ParseIP(addr.IP())
+			b.nat = nat
 		}
-		b.ip = addr
+
+		log.G(b.ctx).Info("discovered public IP address",
+			zap.Any("addr", b.ip),
+			zap.Any("nat", b.nat),
+		)
 	}
 
 	ctx, cancel := context.WithCancel(b.ctx)
@@ -135,6 +162,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		resources: resource.NewPool(hardwareInfo),
 
 		pubAddress: b.ip.String(),
+		natType:    b.nat,
 		hubAddress: b.cfg.HubEndpoint(),
 
 		rl:             newReverseListener(1),

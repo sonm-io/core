@@ -103,6 +103,18 @@
 			"revisionTime": "2017-05-19T14:33:21Z"
 		},
 		{
+			"checksumSHA1": "jib7EIZj7b3EmH8P/W31BRb84mA=",
+			"path": "github.com/ccding/go-stun",
+			"revision": "04a4eed61c57ecc9903f8983d1d2c17b88d2e9e1",
+			"revisionTime": "2017-03-23T22:30:13Z"
+		},
+		{
+			"checksumSHA1": "WGCsraUEu+BA03jEC0Y6Iy6uDmE=",
+			"path": "github.com/ccding/go-stun/stun",
+			"revision": "04a4eed61c57ecc9903f8983d1d2c17b88d2e9e1",
+			"revisionTime": "2017-03-23T22:30:13Z"
+		},
+		{
 			"checksumSHA1": "CT4X4v8IlU6HBx32wucNC1R3VJE=",
 			"path": "github.com/cloudfoundry/gosigar",
 			"revision": "d9ee2f6269aeeed93de1cb3ed3ea03b80e82221e",
@@ -658,6 +670,12 @@
 			"revisionTime": "2017-05-02T14:12:00Z"
 		},
 		{
+			"checksumSHA1": "yYdny97tDb/SoRB44BJiRTpQNeM=",
+			"path": "github.com/gliderlabs/ssh",
+			"revision": "9ccc7bbb64816592236f628dc4d70fd1a8fe0e5f",
+			"revisionTime": "2017-07-31T18:53:11Z"
+		},
+		{
 			"checksumSHA1": "IvHj/4iR2nYa/S3cB2GXoyDG/xQ=",
 			"path": "github.com/go-ole/go-ole",
 			"revision": "085abb85892dc1949567b726dff00fa226c60c45",
@@ -668,12 +686,6 @@
 			"path": "github.com/go-ole/go-ole/oleutil",
 			"revision": "085abb85892dc1949567b726dff00fa226c60c45",
 			"revisionTime": "2017-07-12T17:44:59Z"
-		},
-		{
-			"checksumSHA1": "yYdny97tDb/SoRB44BJiRTpQNeM=",
-			"path": "github.com/gliderlabs/ssh",
-			"revision": "9ccc7bbb64816592236f628dc4d70fd1a8fe0e5f",
-			"revisionTime": "2017-07-31T18:53:11Z"
 		},
 		{
 			"checksumSHA1": "KZ3QD2QgUS4RcoKiA3mn5pSlJxQ=",
