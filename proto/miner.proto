@@ -51,6 +51,7 @@ message MinerStartRequest{
     ContainerRestartPolicy restartPolicy = 5;
     ContainerResources resources = 6;
     string PublicKeyData = 7;
+    bool commitOnStop = 8;
 }
 
 message MinerStartReply {

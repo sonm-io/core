@@ -55,6 +55,7 @@ message HubStartTaskRequest {
     string image = 3;
     string auth = 4;
     string PublicKeyData = 5;
+    bool commitOnStop = 6;
 }
 
 message HubStartTaskReply {

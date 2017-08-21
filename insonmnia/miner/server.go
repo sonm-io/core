@@ -239,6 +239,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
 		Resources:     transformResources(request.Resources),
 		TaskId:        request.Id,
+		CommitOnStop:  request.CommitOnStop,
 	}
 	log.G(m.ctx).Info("handling Start request", zap.Any("req", request))
 	var publicKey ssh.PublicKey

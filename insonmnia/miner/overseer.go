@@ -36,6 +36,7 @@ type Description struct {
 	Cmd           []string
 	Env           []string
 	TaskId        string
+	CommitOnStop  bool
 
 	GPURequired bool
 }
@@ -237,16 +238,17 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 					s <- pb.TaskStatusReply_BROKEN
 					close(s)
 				}
-
-				go func() {
-					log.G(ctx).Info("trying to upload container")
-					err := c.upload()
-					if err != nil {
-						log.G(ctx).Error("failed to commit container", zap.String("id", id), zap.Error(err))
-					}
-					c.remove()
-					c.cancel()
-				}()
+				if c.description.CommitOnStop {
+					go func() {
+						log.G(ctx).Info("trying to upload container")
+						err := c.upload()
+						if err != nil {
+							log.G(ctx).Error("failed to commit container", zap.String("id", id), zap.Error(err))
+						}
+						c.remove()
+						c.cancel()
+					}()
+				}
 			default:
 				log.G(ctx).Warn("received unknown event", zap.String("status", message.Status))
 			}
