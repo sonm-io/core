@@ -149,7 +149,7 @@ func TestMinerStart(t *testing.T) {
 	cfg := defaultMockCfg(mock)
 
 	ovs := NewMockOverseer(mock)
-	ovs.EXPECT().Spool(context.Background(), Description{}).AnyTimes().Return(nil)
+	ovs.EXPECT().Spool(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
 	status_chan := make(chan pb.TaskStatusReply_Status)
 	info := ContainerInfo{
 		status: &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
@@ -162,8 +162,8 @@ func TestMinerStart(t *testing.T) {
 	require.NotNil(t, m)
 	require.Nil(t, err)
 	reply, err := m.Start(context.Background(), &pb.MinerStartRequest{Id: "test"})
-	assert.NotNil(t, reply)
-	assert.Nil(t, err)
+	require.NotNil(t, reply)
+	require.Nil(t, err)
 
 	id, ok := m.getTaskIdByContainerId("deadbeef-cafe-dead-beef-cafedeadbeef")
 	assert.True(t, ok)

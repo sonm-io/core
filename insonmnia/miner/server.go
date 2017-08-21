@@ -200,7 +200,10 @@ func (m *Miner) setStatus(status *pb.TaskStatusReply, id string) {
 
 func (m *Miner) listenForStatus(statusListener chan pb.TaskStatusReply_Status, id string) {
 	select {
-	case newStatus := <-statusListener:
+	case newStatus, ok := <-statusListener:
+		if !ok {
+			return
+		}
 		m.setStatus(&pb.TaskStatusReply{Status: newStatus}, id)
 	case <-m.ctx.Done():
 		return
@@ -235,6 +238,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Auth:          request.Auth,
 		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
 		Resources:     transformResources(request.Resources),
+		TaskId:        request.Id,
 	}
 	log.G(m.ctx).Info("handling Start request", zap.Any("req", request))
 	var publicKey ssh.PublicKey

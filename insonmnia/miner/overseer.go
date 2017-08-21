@@ -35,6 +35,7 @@ type Description struct {
 	Resources     container.Resources
 	Cmd           []string
 	Env           []string
+	TaskId        string
 
 	GPURequired bool
 }
@@ -226,17 +227,26 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 				delete(o.containers, id)
 				delete(o.statuses, id)
 				o.mu.Unlock()
-				if sok {
-					s <- pb.TaskStatusReply_BROKEN
-				}
-				// warn(all): is this logic still actual?
-				if cok {
-					c.remove()
-				} else {
+				if !cok {
 					// NOTE: it could be orphaned container from our previous launch
 					log.G(ctx).Warn("unknown container with sonm tag will be removed", zap.String("id", id))
 					containerRemove(o.ctx, o.client, id)
+					continue
 				}
+				if sok {
+					s <- pb.TaskStatusReply_BROKEN
+					close(s)
+				}
+
+				go func() {
+					log.G(ctx).Info("trying to upload container")
+					err := c.upload()
+					if err != nil {
+						log.G(ctx).Error("failed to commit container", zap.String("id", id), zap.Error(err))
+					}
+					c.remove()
+					c.cancel()
+				}()
 			default:
 				log.G(ctx).Warn("received unknown event", zap.String("status", message.Status))
 			}
@@ -404,12 +414,12 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 
 	descriptor, dok := o.containers[containerid]
 	status, sok := o.statuses[containerid]
-	delete(o.containers, containerid)
 	delete(o.statuses, containerid)
 	o.mu.Unlock()
 
 	if sok {
 		status <- pb.TaskStatusReply_FINISHED
+		close(status)
 	}
 
 	if !dok {

@@ -6,12 +6,14 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"io"
 )
 
 type containerDescriptor struct {
@@ -20,8 +22,9 @@ type containerDescriptor struct {
 
 	client *client.Client
 
-	ID    string
-	stats types.StatsJSON
+	ID          string
+	description Description
+	stats       types.StatsJSON
 }
 
 func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuner nvidiaGPUTuner) (*containerDescriptor, error) {
@@ -29,9 +32,10 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 
 	ctx, cancel := context.WithCancel(ctx)
 	cont := containerDescriptor{
-		ctx:    ctx,
-		cancel: cancel,
-		client: dockerClient,
+		ctx:         ctx,
+		cancel:      cancel,
+		client:      dockerClient,
+		description: d,
 	}
 
 	// NOTE: command to launch must be specified via ENTRYPOINT and CMD in Dockerfile
@@ -53,8 +57,8 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		LogConfig:       container.LogConfig{Type: "json-file", Config: logOpts},
 		PublishAllPorts: true,
 		RestartPolicy:   d.RestartPolicy,
-		// NOTE; we don't want to leave garbage
-		AutoRemove: true,
+		// NOTE: we perform cleanup after commit manually
+		AutoRemove: false,
 		Resources: container.Resources{
 			// TODO: accept a name of a cgroup cooked by user
 			// NOTE: on non-Linux platform it's empty
@@ -148,12 +152,6 @@ func (c *containerDescriptor) execCommand(cmd []string, env []string, isTty bool
 }
 
 func (c *containerDescriptor) Kill() (err error) {
-	// TODO: add atomic flag to prevent duplicated remove
-	defer func() {
-		// release HTTP connections
-		c.cancel()
-	}()
-
 	log.G(c.ctx).Info("kill the container", zap.String("id", c.ID))
 	if err = c.client.ContainerKill(context.Background(), c.ID, "SIGKILL"); err != nil {
 		log.G(c.ctx).Error("failed to send SIGKILL to the container", zap.String("id", c.ID), zap.Error(err))
@@ -171,4 +169,60 @@ func containerRemove(ctx context.Context, client client.APIClient, id string) {
 	if err := client.ContainerRemove(ctx, id, removeOpts); err != nil {
 		log.G(ctx).Error("failed to remove the container", zap.String("id", id), zap.Error(err))
 	}
+}
+
+func (c *containerDescriptor) upload() error {
+	opts := types.ContainerCommitOptions{}
+	resp, err := c.client.ContainerCommit(c.ctx, c.ID, opts)
+	log.G(c.ctx).Info("commit")
+	if err != nil {
+		return err
+	}
+	log.G(c.ctx).Info("commited container", zap.String("id", c.ID), zap.String("newId", resp.ID))
+
+	image := filepath.Join(c.description.Registry, c.description.Image)
+	named, err := reference.ParseNormalizedNamed(image)
+	if err != nil {
+		log.G(c.ctx).Error("failed to parse", zap.String("image", image), zap.Error(err))
+		return err
+	}
+
+	newImg, err := reference.WithTag(named, c.description.TaskId)
+	if err != nil {
+		log.G(c.ctx).Error("failed to add tag", zap.String("id", resp.ID), zap.Error(err))
+		return err
+	}
+
+	log.G(c.ctx).Info("tagging image", zap.String("from", resp.ID), zap.Any("to", newImg))
+	err = c.client.ImageTag(c.ctx, resp.ID, newImg.String())
+	if err != nil {
+		log.G(c.ctx).Error("failed to tag image", zap.String("id", resp.ID), zap.Any("name", newImg), zap.Error(err))
+		return err
+	}
+
+	options := types.ImagePushOptions{
+		RegistryAuth: c.description.Auth,
+	}
+
+	log.G(c.ctx).Info("pushing image", zap.Any("name", newImg))
+	reader, err := c.client.ImagePush(c.ctx, newImg.String(), options)
+	if err != nil {
+		log.G(c.ctx).Error("failed to push image", zap.Any("name", newImg), zap.Error(err))
+		return err
+	}
+	defer reader.Close()
+	buffer := make([]byte, 100*1024)
+	for {
+		readCnt, err := reader.Read(buffer)
+		if readCnt != 0 {
+			log.G(c.ctx).Info(string(buffer[:readCnt]))
+		}
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
