@@ -75,7 +75,7 @@ func NewServiceOptions(host string, port uint16, protocol string) (*ServiceOptio
 	return options, nil
 }
 
-// BackendOptions describe a virtual service real.
+// RealOptions describe a virtual service real.
 type RealOptions struct {
 	Host   string
 	Port   uint16
