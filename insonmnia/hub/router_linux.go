@@ -50,7 +50,7 @@ func (r *ipvsRouter) RegisterRoute(ID string, protocol string, realIP string, re
 	route := &route{
 		ID:          ID,
 		Protocol:    protocol,
-		Host:        host,
+		Host:        host.String(),
 		Port:        port,
 		BackendHost: realIP,
 		BackendPort: realPort,
