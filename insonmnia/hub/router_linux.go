@@ -3,17 +3,21 @@ package hub
 import (
 	"context"
 	"github.com/sonm-io/core/insonmnia/gateway"
+	"sync"
 )
 
 type ipvsRouter struct {
 	gateway *gateway.Gateway
 	pool    *gateway.PortPool
+	ids     map[string]bool
+	mu      sync.Mutex
 }
 
 func newIPVSRouter(ctx context.Context, gate *gateway.Gateway, pool *gateway.PortPool) router {
 	return &ipvsRouter{
 		gateway: gate,
 		pool:    pool,
+		ids:     make(map[string]bool, 0),
 	}
 }
 
@@ -46,6 +50,10 @@ func (r *ipvsRouter) RegisterRoute(ID string, protocol string, realIP string, re
 		return nil, err
 	}
 
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.ids[ID] = true
+
 	route := &route{
 		ID:          ID,
 		Protocol:    protocol,
@@ -59,6 +67,13 @@ func (r *ipvsRouter) RegisterRoute(ID string, protocol string, realIP string, re
 }
 
 func (r *ipvsRouter) DeregisterRoute(ID string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.deregisterRoute(ID)
+}
+
+func (r *ipvsRouter) deregisterRoute(ID string) error {
 	if _, err := r.gateway.RemoveService(ID); err != nil {
 		return err
 	}
@@ -67,9 +82,18 @@ func (r *ipvsRouter) DeregisterRoute(ID string) error {
 		return err
 	}
 
+	delete(r.ids, ID)
+
 	return nil
 }
 
+// Close deregisters all routes.
 func (r *ipvsRouter) Close() error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for ID := range r.ids {
+		r.deregisterRoute(ID)
+	}
+
 	return nil
 }
