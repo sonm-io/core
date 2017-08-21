@@ -147,6 +147,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	}
 
 	// TODO: Reply with remapped ip:port.
+	// TODO: Retain real on stop.
 
 	h.setMinerTaskID(minerID, taskID)
 
