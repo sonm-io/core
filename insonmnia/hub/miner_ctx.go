@@ -41,7 +41,7 @@ type MinerCtx struct {
 	router       router
 }
 
-func createMinerCtx(ctx context.Context, conn net.Conn, gateway *gateway.Gateway) (*MinerCtx, error) {
+func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	var (
 		m = MinerCtx{
 			conn:       conn,
@@ -78,7 +78,7 @@ func createMinerCtx(ctx context.Context, conn net.Conn, gateway *gateway.Gateway
 	log.G(ctx).Info("grpc.Dial successfully finished")
 	m.Client = pb.NewMinerClient(m.grpcConn)
 
-	if err := m.handshake(gateway); err != nil {
+	if err := m.handshake(h); err != nil {
 		m.Close()
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func createMinerCtx(ctx context.Context, conn net.Conn, gateway *gateway.Gateway
 	return &m, nil
 }
 
-func (m *MinerCtx) handshake(gate *gateway.Gateway) error {
+func (m *MinerCtx) handshake(h *Hub) error {
 	log.G(m.ctx).Info("sending handshake to a Miner", zap.Stringer("addr", m.conn.RemoteAddr()))
 	resp, err := m.Client.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
 	if err != nil {
@@ -112,10 +112,10 @@ func (m *MinerCtx) handshake(gate *gateway.Gateway) error {
 		m.router = newDirectRouter()
 	} else {
 		if gateway.PlatformSupportIPVS {
-			m.router = newIPVSRouter(m.ctx, gate)
+			m.router = newIPVSRouter(m.ctx, h.gateway, h.portPool)
 		} else {
 			log.G(m.ctx).Warn("miner has firewall configured, but Hub's host OS has no IPVS support",
-				zap.String("UUID", m.uuid),
+				zap.String("uuid", m.uuid),
 			)
 			// TODO (3Hren): Possible we should disconnect the miner instead. Need investigation.
 			m.router = newDirectRouter()
@@ -123,6 +123,10 @@ func (m *MinerCtx) handshake(gate *gateway.Gateway) error {
 	}
 
 	return nil
+}
+
+func (m *MinerCtx) deregisterRoute(ID string) error {
+	return m.router.DeregisterRoute(ID)
 }
 
 func (m *MinerCtx) initStatusClient() (statusClient pb.Miner_TasksStatusClient, err error) {
@@ -193,4 +197,5 @@ func (m *MinerCtx) Close() {
 	if m.session != nil {
 		m.session.Close()
 	}
+	m.router.Close()
 }

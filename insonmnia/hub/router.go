@@ -11,6 +11,8 @@ type route struct {
 
 type router interface {
 	RegisterRoute(ID string, protocol string, realIP string, realPort uint16) (*route, error)
+	DeregisterRoute(ID string) error
+	Close() error
 }
 
 type directRouter struct {
@@ -31,4 +33,12 @@ func (r *directRouter) RegisterRoute(ID string, protocol string, realIP string, 
 	}
 
 	return route, nil
+}
+
+func (r *directRouter) DeregisterRoute(ID string) error {
+	return nil
+}
+
+func (r *directRouter) Close() error {
+	return nil
 }

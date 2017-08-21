@@ -31,8 +31,10 @@ import (
 
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
+	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
 	ctx           context.Context
 	gateway       *gateway.Gateway
+	portPool      *gateway.PortPool
 	grpcEndpoint  string
 	externalGrpc  *grpc.Server
 	endpoint      string
@@ -198,7 +200,6 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 
 // StopTask sends termination request to a miner handling the task
 func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
-	// TODO: Retain real on stop.
 	log.G(h.ctx).Info("handling StopTask request", zap.Any("req", request))
 	taskID := request.Id
 	minerID, ok := h.getMinerByTaskID(taskID)
@@ -215,6 +216,8 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "failed to stop the task %s", taskID)
 	}
+
+	miner.deregisterRoute(taskID)
 
 	h.deleteTaskByID(taskID)
 
@@ -303,6 +306,7 @@ func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 	h := &Hub{
 		ctx:          ctx,
 		gateway:      gate,
+		portPool:     gateway.NewPortPool(32768, 1024),
 		externalGrpc: grpcServer,
 
 		tasks:  make(map[string]string),
@@ -389,7 +393,7 @@ func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
 	defer conn.Close()
 	log.G(ctx).Info("miner connected", zap.Stringer("remote", conn.RemoteAddr()))
 
-	miner, err := createMinerCtx(ctx, conn, h.gateway)
+	miner, err := h.createMinerCtx(ctx, conn)
 	if err != nil {
 		return
 	}
