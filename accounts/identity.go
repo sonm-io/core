@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/util"
 	"io/ioutil"
-	url2 "net/url"
+	"net/url"
 	"path/filepath"
 )
 
@@ -25,20 +25,22 @@ func init() {
 // source implementation going to go-ethereum accounting
 // its need to be storing wallets in one dir and opened it by passphrase
 type Identity interface {
-	// return *ecdsa.PrivateKey, it include PublicKey and ethereum Address shortly
+	// GetPrivateKey return *ecdsa.PrivateKey, it include PublicKey and ethereum Address shortly
 	GetPrivateKey() (*ecdsa.PrivateKey, error)
 
-	// created new account in keystore
+	// New created new account in keystore
 	// WARN: not open created account
 	New(passphrase string) error
 
-	// open loading account
+	// Open open loading account
 	// use this after load()
 	// passphrase may be blank - eg. passphrase=""
 	Open(passphrase string) error
 
+	// Import existing account from given json and password
 	Import(json []byte, passphrase string) error
 
+	// Import existing account from given *ecdsa.Private key object
 	ImportECDSA(key *ecdsa.PrivateKey, passphrase string) error
 }
 
@@ -97,8 +99,8 @@ func (idt *identityPassphrase) New(passphrase string) error {
 	return err
 }
 
-func (idt *identityPassphrase) Import(json []byte, passphrase string) error {
-	_, err := idt.keystore.Import(json, passphrase, passphrase)
+func (idt *identityPassphrase) Import(keyJson []byte, passphrase string) error {
+	_, err := idt.keystore.Import(keyJson, passphrase, passphrase)
 	if err != nil {
 		return err
 	}
@@ -147,8 +149,8 @@ func (idt *identityPassphrase) readPrivateKey(pass string) error {
 // inbound param url looks like
 // keystore:///users/user/home/.sonm/keystore/keyfile
 // its return path - /users/user/home/.sonm/keystore/keyfile
-func parseKeystoreUrl(url string) (string, error) {
-	u, err := url2.Parse(url)
+func parseKeystoreUrl(path string) (string, error) {
+	u, err := url.Parse(path)
 	if err != nil {
 		return "", err
 	}
