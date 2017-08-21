@@ -278,7 +278,7 @@ func (o *overseer) watchEvents() {
 }
 
 func (o *overseer) collectStats() {
-	t := time.NewTicker(5 * time.Second)
+	t := time.NewTicker(30 * time.Second)
 	defer t.Stop()
 	for {
 		select {
