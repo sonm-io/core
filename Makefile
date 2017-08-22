@@ -79,6 +79,8 @@ fmt:
 	@echo "+ $@"
 	@test -z "$$(gofmt -s -l . 2>&1 | grep -v ^vendor/ | tee /dev/stderr)" || \
 		(echo >&2 "+ please format Go code with 'gofmt -s'" && false)
+	@test -z "$$(goimports -d insonmnia 2>&1 | tee /dev/stderr)" || \
+    	(echo >&2 "+ please format Go imports with 'goimports -d'" && false)
 
 test: mock
 	@echo "+ $@"
