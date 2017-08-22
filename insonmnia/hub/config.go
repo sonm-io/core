@@ -8,6 +8,10 @@ type LoggingConfig struct {
 	Level int `required:"true" default:"1"`
 }
 
+type GatewayConfig struct {
+	Ports []uint16 `required:"true" yaml:"ports"`
+}
+
 type MonitoringConfig struct {
 	Endpoint string `required:"true" yaml:"endpoint"`
 }
@@ -17,11 +21,12 @@ type EthConfig struct {
 }
 
 type HubConfig struct {
-	Endpoint   string           `required:"true" yaml:"endpoint"`
-	Bootnodes  []string         `required:"false" yaml:"bootnodes"`
-	Monitoring MonitoringConfig `required:"true" yaml:"monitoring"`
-	Logging    LoggingConfig    `yaml:"logging"`
-	Eth        EthConfig        `yaml:"ethereum"`
+	Endpoint      string           `required:"true" yaml:"endpoint"`
+	GatewayConfig *GatewayConfig   `yaml:"gateway"`
+	Bootnodes     []string         `required:"false" yaml:"bootnodes"`
+	Monitoring    MonitoringConfig `required:"true" yaml:"monitoring"`
+	Logging       LoggingConfig    `yaml:"logging"`
+	Eth           EthConfig        `yaml:"ethereum"`
 }
 
 // NewConfig loads a hub config from the specified YAML file.
@@ -37,6 +42,8 @@ func NewConfig(path string) (*HubConfig, error) {
 // TODO: Currently stubbed for simplifying testing.
 type Config interface {
 	Endpoint() string
+	// Gateway returns optional gateway config.
+	Gateway() *GatewayConfig
 	MonitoringEndpoint() string
 	Logging() LoggingConfig
 	Eth() EthConfig

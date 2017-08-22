@@ -296,9 +296,21 @@ func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 		return nil, errors.Wrap(err, "malformed ethereum private key")
 	}
 
-	gate, err := gateway.NewGateway(ctx)
-	if err != nil {
-		return nil, err
+	var gate *gateway.Gateway
+	var portPool *gateway.PortPool
+	if cfg.GatewayConfig != nil {
+		gate, err = gateway.NewGateway(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(cfg.GatewayConfig.Ports) != 2 {
+			return nil, errors.New("gateway ports must be a range of two values")
+		}
+
+		portRangeFrom := cfg.GatewayConfig.Ports[0]
+		portRangeSize := cfg.GatewayConfig.Ports[1] - portRangeFrom
+		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
 	}
 
 	// TODO: add secure mechanism
@@ -306,7 +318,7 @@ func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 	h := &Hub{
 		ctx:          ctx,
 		gateway:      gate,
-		portPool:     gateway.NewPortPool(32768, 1024),
+		portPool:     portPool,
 		externalGrpc: grpcServer,
 
 		tasks:  make(map[string]string),
@@ -385,7 +397,9 @@ func (h *Hub) Serve() error {
 func (h *Hub) Close() {
 	h.externalGrpc.Stop()
 	h.minerListener.Close()
-	h.gateway.Close()
+	if h.gateway != nil {
+		h.gateway.Close()
+	}
 	h.wg.Wait()
 }
 
