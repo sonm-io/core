@@ -1,12 +1,12 @@
 package commands
 
 import (
+	"context"
 	"time"
 
 	"encoding/json"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 func init() {

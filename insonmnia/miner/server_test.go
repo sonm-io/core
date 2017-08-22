@@ -1,8 +1,8 @@
 package miner
 
 import (
+	"context"
 	"errors"
-	"golang.org/x/net/context"
 	"testing"
 
 	"github.com/docker/docker/api/types"

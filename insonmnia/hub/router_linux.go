@@ -2,8 +2,9 @@ package hub
 
 import (
 	"context"
-	"github.com/sonm-io/core/insonmnia/gateway"
 	"sync"
+
+	"github.com/sonm-io/core/insonmnia/gateway"
 )
 
 type ipvsRouter struct {

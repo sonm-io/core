@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"net"
+	"sync"
 
 	"github.com/tehnerd/gnl2go"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
-	"sync"
 )
 
 const (
