@@ -896,6 +896,12 @@
 			"revisionTime": "2016-01-29T22:01:14Z"
 		},
 		{
+			"checksumSHA1": "GNxRPEHfnfvmhuLZM5KDOTvlLAc=",
+			"path": "github.com/oleiade/lane",
+			"revision": "3053869314bb02cb983dc2205da8ea2abe46fa96",
+			"revisionTime": "2016-08-17T06:58:15Z"
+		},
+		{
 			"checksumSHA1": "3DXd47ue3PGGyFBGXqXSOI/iIeI=",
 			"path": "github.com/olekukonko/tablewriter",
 			"revision": "be5337e7b39e64e5f91445ce7e721888dbab7387",
@@ -1669,12 +1675,6 @@
 			"path": "gopkg.in/natefinch/npipe.v2",
 			"revision": "a602ee90f2c28eadbca8cdc2e143825a4c24ab23",
 			"revisionTime": "2017-07-26T07:40:41Z"
-		},
-		{
-			"checksumSHA1": "7YPmpDeCouwlD2QYzDCE83USHTg=",
-			"path": "gopkg.in/oleiade/lane.v1",
-			"revision": "28f7c3f09254f12b51e620fa4db136ba58804762",
-			"revisionTime": "2016-08-17T06:23:29Z"
 		},
 		{
 			"checksumSHA1": "4BwmmgQUhWtizsR2soXND0nqZ1I=",
