@@ -18,8 +18,11 @@ import (
 
 	pb "github.com/sonm-io/core/proto"
 
+	"encoding/json"
+
 	"github.com/ccding/go-stun/stun"
 	"github.com/docker/docker/api/types"
+
 	"github.com/docker/docker/api/types/container"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gliderlabs/ssh"
@@ -131,7 +134,9 @@ func (m *Miner) Info(ctx context.Context, request *pb.MinerInfoRequest) (*pb.Inf
 	}
 
 	var result = &pb.InfoReply{
-		Usage: make(map[string]*pb.ResourceUsage),
+		Usage:        make(map[string]*pb.ResourceUsage),
+		Name:         m.name,
+		Capabilities: m.hardware.IntoProto(),
 	}
 
 	for containerID, stat := range info {
@@ -273,6 +278,8 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 	containerInfo.PublicKey = publicKey
+	containerInfo.StartAt = time.Now()
+	containerInfo.ImageName = d.Image
 
 	m.saveContainerInfo(request.Id, containerInfo)
 
@@ -367,7 +374,7 @@ func (m *Miner) sendUpdatesOnRequest(server pb.Miner_TasksStatusServer) {
 	}
 }
 
-// TasksStatus returns the status of a task
+// TaskLogs returns logs from container
 func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Miner_TaskLogsServer) error {
 	log.G(m.ctx).Info("handling TaskLogs request", zap.Any("request", request))
 	cid, ok := m.getContainerIdByTaskId(request.Id)
@@ -392,7 +399,7 @@ func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Miner_TaskLogsSe
 	for {
 		readCnt, err := reader.Read(buffer)
 		if readCnt != 0 {
-			server.Send(&pb.TaskLogsChunk{buffer[:readCnt]})
+			server.Send(&pb.TaskLogsChunk{Data: buffer[:readCnt]})
 		}
 		if err == io.EOF {
 			return nil
@@ -417,6 +424,36 @@ func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
 	m.sendUpdatesOnRequest(server)
 
 	return nil
+}
+
+func (m *Miner) TaskDetails(ctx context.Context, req *pb.TaskStatusRequest) (*pb.TaskStatusReply, error) {
+	log.G(m.ctx).Info("starting TaskDetails status server")
+
+	info, ok := m.GetContainerInfo(req.GetId())
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "no task with id %s", req.GetId())
+	}
+
+	metrics, err := m.ovs.Info(ctx)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "cannot get container metrics: %s", err.Error())
+	}
+
+	metric, ok := metrics[info.ID]
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "Cannot get metrics for container %s", req.GetId())
+	}
+
+	portsStr, _ := json.Marshal(info.Ports)
+	reply := &pb.TaskStatusReply{
+		Status:    info.status.Status,
+		ImageName: info.ImageName,
+		Ports:     string(portsStr),
+		Uptime:    uint64(time.Now().UnixNano() - info.StartAt.UnixNano()),
+		Usage:     metric.Marshal(),
+	}
+
+	return reply, nil
 }
 
 func (m *Miner) connectToHub(address string) {

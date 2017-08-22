@@ -3,8 +3,10 @@ package hub
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"io"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -22,7 +24,6 @@ import (
 	frd "github.com/sonm-io/core/fusrodah/hub"
 
 	"github.com/sonm-io/core/util"
-	"io"
 )
 
 // Hub collects miners, send them orders to spawn containers, etc.
@@ -42,13 +43,30 @@ type Hub struct {
 	tasksmu sync.Mutex
 	tasks   map[string]string
 
-	wg sync.WaitGroup
+	wg        sync.WaitGroup
+	startTime time.Time
 }
 
 // Ping should be used as Healthcheck for Hub
 func (h *Hub) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, error) {
 	log.G(h.ctx).Info("handling Ping request")
 	return &pb.PingReply{}, nil
+}
+
+// Status returns internal hub statistic
+func (h *Hub) Status(ctx context.Context, _ *pb.HubStatusRequest) (*pb.HubStatusReply, error) {
+	h.mu.Lock()
+	minersCount := len(h.miners)
+	h.mu.Unlock()
+
+	uptime := time.Now().Unix() - h.startTime.Unix()
+
+	reply := &pb.HubStatusReply{
+		MinerCount: uint64(minersCount),
+		Uptime:     uint64(uptime),
+	}
+
+	return reply, nil
 }
 
 // List returns attached miners
@@ -180,14 +198,13 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 		return nil, status.Errorf(codes.NotFound, "no miner %s for task %s", minerID, taskID)
 	}
 
-	mincli.status_mu.Lock()
-	taskStatus, ok := mincli.status_map[taskID]
-	mincli.status_mu.Unlock()
-	if !ok {
+	req := &pb.TaskStatusRequest{Id: taskID}
+	reply, err := mincli.Client.TaskDetails(ctx, req)
+	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskID)
 	}
 
-	return taskStatus, nil
+	return reply, nil
 }
 
 func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer) error {
@@ -245,10 +262,13 @@ func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 // Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
+	h.startTime = time.Now()
+
 	ip, err := util.GetPublicIP()
 	if err != nil {
 		return err
 	}
+
 	srv, err := frd.NewServer(h.ethKey, ip.String()+h.endpoint)
 	if err != nil {
 		return err

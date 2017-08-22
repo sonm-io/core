@@ -1,14 +1,13 @@
 package hardware
 
 import (
-	"github.com/shirou/gopsutil/cpu"
-	"github.com/shirou/gopsutil/mem"
-
-	"github.com/sonm-io/core/insonmnia/hardware/gpu"
-
-	pb "github.com/sonm-io/core/proto"
 	"strconv"
 	"strings"
+
+	"github.com/shirou/gopsutil/cpu"
+	"github.com/shirou/gopsutil/mem"
+	"github.com/sonm-io/core/insonmnia/hardware/gpu"
+	pb "github.com/sonm-io/core/proto"
 )
 
 func (h *Hardware) IntoProto() *pb.Capabilities {
@@ -29,7 +28,7 @@ func CPUIntoProto(c []cpu.InfoStat) []*pb.CPUDevice {
 		ext["flags"] = strings.Join(i.Flags, " ")
 
 		device := &pb.CPUDevice{
-			Name:   i.Model,
+			Name:   i.ModelName,
 			Vendor: i.VendorID,
 			Cores:  i.Cores,
 			Mhz:    i.Mhz,
@@ -70,6 +69,7 @@ func CPUFromProto(c []*pb.CPUDevice) ([]cpu.InfoStat, error) {
 func MemoryIntoProto(m *mem.VirtualMemoryStat) *pb.RAMDevice {
 	return &pb.RAMDevice{
 		Total: m.Total,
+		Used:  m.Used,
 	}
 }
 

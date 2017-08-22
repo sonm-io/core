@@ -21,15 +21,13 @@ func printMinerList(cmd *cobra.Command, lr *pb.ListReply) {
 		}
 
 		for addr, meta := range lr.Info {
-			cmd.Printf("Miner: %s\r\n", addr)
+			cmd.Printf("Miner: %s", addr)
 
-			if len(meta.Values) == 0 {
-				cmd.Println("Miner is idle")
+			taskCount := len(meta.Values)
+			if taskCount == 0 {
+				cmd.Printf("\t\tIdle\r\n")
 			} else {
-				cmd.Println("Tasks:")
-				for i, task := range meta.Values {
-					cmd.Printf("  %d) %s\r\n", i+1, task)
-				}
+				cmd.Printf("\t\t%d active task(s)\r\n", taskCount)
 			}
 		}
 	} else {
@@ -38,25 +36,51 @@ func printMinerList(cmd *cobra.Command, lr *pb.ListReply) {
 	}
 }
 
-func printMinerStatus(cmd *cobra.Command, metrics *pb.InfoReply) {
-	if isSimpleFormat() {
-		if len(metrics.GetUsage()) == 0 {
-			cmd.Println("Miner is idle")
-		} else {
-			cmd.Println("Miner tasks:")
-			for task, usage := range metrics.Usage {
-				cmd.Printf("  ID: %s\r\n", task)
-				cmd.Printf("      CPU: %d\r\n", usage.Cpu.Total)
-				cmd.Printf("      RAM: %s\r\n", ds.ByteSize(usage.Memory.MaxUsage).String())
-				cmd.Printf("      NET:\r\n")
+func printCpuInfo(cmd *cobra.Command, cap *pb.Capabilities) {
+	for i, cpu := range cap.Cpu {
+		cmd.Printf("    CPU%d: %d x %s\r\n", i, cpu.GetCores(), cpu.GetName())
+	}
+}
 
-				for i, net := range usage.Network {
-					cmd.Printf("          %s:\r\n", i)
-					cmd.Printf("            Tx/Rx bytes: %d/%d\r\n", net.TxBytes, net.RxBytes)
-					cmd.Printf("            Tx/Rx packets: %d/%d\r\n", net.TxPackets, net.RxPackets)
-					cmd.Printf("            Tx/Rx errors: %d/%d\r\n", net.TxErrors, net.RxErrors)
-					cmd.Printf("            Tx/Rx dropped: %d/%d\r\n", net.TxDropped, net.RxDropped)
-				}
+func printGpuInfo(cmd *cobra.Command, cap *pb.Capabilities) {
+	if len(cap.Gpu) > 0 {
+		for i, gpu := range cap.Gpu {
+			cmd.Printf("    GPU%d: %s %s\r\n", i, gpu.Vendor, gpu.Name)
+		}
+	} else {
+		cmd.Println("    GPU: None")
+	}
+}
+
+func printMemInfo(cmd *cobra.Command, cap *pb.Capabilities) {
+	cmd.Println("    RAM:")
+	cmd.Printf("      Total: %s\r\n", ds.ByteSize(cap.Mem.GetTotal()).HR())
+	cmd.Printf("      Used:  %s\r\n", ds.ByteSize(cap.Mem.GetUsed()).HR())
+}
+
+func printMinerStatus(cmd *cobra.Command, minerID string, metrics *pb.InfoReply) {
+	if isSimpleFormat() {
+		if metrics.Name == "" {
+			cmd.Printf("Miner: \"%s\":\r\n", minerID)
+		} else {
+			cmd.Printf("Miner: \"%s\" (%s):\r\n", minerID, metrics.Name)
+		}
+
+		if metrics.Capabilities != nil {
+			cmd.Println("  Hardware:")
+			printCpuInfo(cmd, metrics.Capabilities)
+			printGpuInfo(cmd, metrics.Capabilities)
+			printMemInfo(cmd, metrics.Capabilities)
+		}
+
+		if len(metrics.GetUsage()) == 0 {
+			cmd.Println("  No active tasks")
+		} else {
+			cmd.Println("  Tasks:")
+			i := 1
+			for task := range metrics.Usage {
+				cmd.Printf("    %d) %s\r\n", i, task)
+				i++
 			}
 		}
 	} else {
@@ -124,5 +148,5 @@ func minerStatusCmdRunner(cmd *cobra.Command, minerID string, interactor CliInte
 		return
 	}
 
-	printMinerStatus(cmd, metrics)
+	printMinerStatus(cmd, minerID, metrics)
 }

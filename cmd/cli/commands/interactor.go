@@ -10,7 +10,7 @@ import (
 
 type CliInteractor interface {
 	HubPing(context.Context) (*pb.PingReply, error)
-	HubStatus() error
+	HubStatus(context.Context) (*pb.HubStatusReply, error)
 
 	MinerList(context.Context) (*pb.ListReply, error)
 	MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error)
@@ -48,8 +48,10 @@ func (it *grpcInteractor) HubPing(appCtx context.Context) (*pb.PingReply, error)
 	return pb.NewHubClient(it.cc).Ping(ctx, &pb.PingRequest{})
 }
 
-func (it *grpcInteractor) HubStatus() error {
-	return nil
+func (it *grpcInteractor) HubStatus(appCtx context.Context) (*pb.HubStatusReply, error) {
+	ctx, cancel := it.ctx(appCtx)
+	defer cancel()
+	return pb.NewHubClient(it.cc).Status(ctx, &pb.HubStatusRequest{})
 }
 
 func (it *grpcInteractor) MinerList(appCtx context.Context) (*pb.ListReply, error) {

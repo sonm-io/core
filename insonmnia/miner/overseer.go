@@ -43,6 +43,8 @@ type Description struct {
 type ContainerInfo struct {
 	status    *pb.TaskStatusReply
 	ID        string
+	ImageName string
+	StartAt   time.Time
 	Ports     nat.PortMap
 	Resources resource.Resources
 	PublicKey ssh.PublicKey

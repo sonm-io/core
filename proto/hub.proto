@@ -6,6 +6,7 @@ package sonm;
 
 service Hub {
     rpc Ping(PingRequest) returns (PingReply) {}
+    rpc Status(HubStatusRequest) returns (HubStatusReply) {}
     rpc List(ListRequest) returns (ListReply) {}
     rpc Info(HubInfoRequest) returns (InfoReply) {}
 
@@ -48,4 +49,9 @@ message HubStatusMapRequest {
     string miner = 1;
 }
 
+message HubStatusRequest {}
 
+message HubStatusReply {
+    uint64 minerCount = 1;
+    uint64 uptime = 2;
+}

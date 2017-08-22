@@ -48,29 +48,36 @@ func TestHubPingFailed(t *testing.T) {
 
 func TestHubStatus(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubStatus().AnyTimes().Return(nil)
+	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(&pb.HubStatusReply{
+		MinerCount: 2,
+		Uptime:     1,
+	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	hubStatusCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	assert.Equal(t, "OK\n", out)
+	assert.Equal(t, "Connected miners: 2\r\nUptime:           1s\r\n", out)
 }
 
 func TestHubStatusJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubStatus().AnyTimes().Return(nil)
+	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(&pb.HubStatusReply{
+		MinerCount: 2,
+		Uptime:     1,
+	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	hubStatusCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	assert.Equal(t, "{\"status\":\"OK\"}\n", out)
+	assert.Contains(t, out, `"minerCount":2`)
+	assert.Contains(t, out, `"uptime":1`)
 }
 
 func TestHubStatusError(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubStatus().AnyTimes().Return(errors.New("error"))
+	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(nil, errors.New("error"))
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	hubStatusCmdRunner(rootCmd, itr)
@@ -81,7 +88,7 @@ func TestHubStatusError(t *testing.T) {
 
 func TestHubStatusJsonError(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubStatus().AnyTimes().Return(errors.New("error"))
+	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(nil, errors.New("error"))
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	hubStatusCmdRunner(rootCmd, itr)

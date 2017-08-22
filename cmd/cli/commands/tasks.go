@@ -6,6 +6,12 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 
+	"time"
+
+	"fmt"
+
+	ds "github.com/c2h5oh/datasize"
+	"github.com/docker/go-connections/nat"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 	"io"
@@ -13,8 +19,6 @@ import (
 )
 
 func init() {
-	tasksRootCmd.AddCommand(taskListCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
-
 	taskLogsCmd.Flags().StringVar(&logType, logTypeFlag, "both", "\"stdout\" or \"stderr\" or \"both\"")
 	taskLogsCmd.Flags().StringVar(&since, sinceFlag, "", "Show logs since timestamp (e.g. 2013-01-02T13:23:37) or relative (e.g. 42m for 42 minutes)")
 	taskLogsCmd.Flags().BoolVar(&addTimestamps, addTimestampsFlag, true, "Show timestamp for each log line")
@@ -44,7 +48,7 @@ func printTaskList(cmd *cobra.Command, minerStatus *pb.StatusMapReply, miner str
 
 func printTaskStart(cmd *cobra.Command, rep *pb.HubStartTaskReply) {
 	if isSimpleFormat() {
-		cmd.Printf("ID %s, Endpoint %s\r\n", rep.Id, rep.Endpoint)
+		cmd.Printf("ID %s\r\nEndpoint %s\r\n", rep.Id, rep.Endpoint)
 	} else {
 		b, _ := json.Marshal(rep)
 		cmd.Println(string(b))
@@ -53,13 +57,59 @@ func printTaskStart(cmd *cobra.Command, rep *pb.HubStartTaskReply) {
 
 func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskStatusReply) {
 	if isSimpleFormat() {
-		cmd.Printf("Task %s (on %s) status is %s\n", id, miner, taskStatus.Status.String())
+		portsParsedOK := false
+		ports := nat.PortMap{}
+		if len(taskStatus.GetPorts()) > 0 {
+			err := json.Unmarshal([]byte(taskStatus.GetPorts()), &ports)
+			portsParsedOK = err == nil
+		}
+
+		cmd.Printf("Task %s (on %s):\r\n", id, miner)
+		cmd.Printf("  Image:  %s\r\n", taskStatus.GetImageName())
+		cmd.Printf("  Status: %s\r\n", taskStatus.GetStatus().String())
+		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.GetUptime()).String())
+
+		if taskStatus.GetUsage() != nil {
+			cmd.Println("  Resources:")
+			cmd.Printf("    CPU: %d\r\n", taskStatus.Usage.GetCpu().GetTotal())
+			cmd.Printf("    MEM: %s\r\n", ds.ByteSize(taskStatus.Usage.GetMemory().GetMaxUsage()).HR())
+			if taskStatus.GetUsage().GetNetwork() != nil {
+				cmd.Printf("    NET:\r\n")
+				for i, net := range taskStatus.GetUsage().GetNetwork() {
+					cmd.Printf("      %s:\r\n", i)
+					cmd.Printf("        Tx/Rx bytes: %d/%d\r\n", net.TxBytes, net.RxBytes)
+					cmd.Printf("        Tx/Rx packets: %d/%d\r\n", net.TxPackets, net.RxPackets)
+					cmd.Printf("        Tx/Rx errors: %d/%d\r\n", net.TxErrors, net.RxErrors)
+					cmd.Printf("        Tx/Rx dropped: %d/%d\r\n", net.TxDropped, net.RxDropped)
+				}
+			}
+		}
+
+		if portsParsedOK && len(ports) > 0 {
+			cmd.Printf("  Ports:\r\n")
+			for containerPort, host := range ports {
+				if len(host) > 0 {
+					cmd.Printf("    %s: %s:%s\r\n", containerPort, host[0].HostIP, host[0].HostPort)
+				} else {
+					cmd.Printf("    %s\r\n", containerPort)
+				}
+			}
+		}
 	} else {
-		v := map[string]string{
+		v := map[string]interface{}{
 			"id":     id,
 			"miner":  miner,
 			"status": taskStatus.Status.String(),
+			"image":  taskStatus.GetImageName(),
+			"ports":  taskStatus.GetPorts(),
+			"uptime": time.Duration(taskStatus.GetUptime()).String(),
 		}
+		if taskStatus.GetUsage() != nil {
+			v["cpu"] = fmt.Sprintf("%d", taskStatus.GetUsage().GetCpu().GetTotal())
+			v["mem"] = fmt.Sprintf("%d", taskStatus.GetUsage().GetMemory().GetMaxUsage())
+			v["net"] = taskStatus.GetUsage().GetNetwork()
+		}
+
 		b, _ := json.Marshal(v)
 		cmd.Println(string(b))
 	}
@@ -101,34 +151,20 @@ var taskLogsCmd = &cobra.Command{
 			return errTaskIDRequired
 		}
 		taskID := args[0]
-		req := pb.TaskLogsRequest{
-
-			Id:            taskID,
-			Since:         since,
-			AddTimestamps: addTimestamps,
-			Follow:        follow,
-			Tail:          tail,
-			Details:       details,
-		}
-		t, ok := pb.TaskLogsRequest_Type_value[strings.ToUpper(logType)]
-		if !ok {
-			showError(cmd, "Invalid log type", nil)
-			return nil
-		}
-		req.Type = pb.TaskLogsRequest_Type(t)
 
 		itr, err := NewGrpcInteractor(hubAddress, timeout)
-
 		if err != nil {
 			showError(cmd, "Cannot connect ot hub", err)
 			return nil
 		}
-		return taskLogCmdRunner(cmd, &req, itr)
+
+		taskLogCmdRunner(cmd, taskID, itr)
+		return nil
 	},
 }
 
 var taskStartCmd = &cobra.Command{
-	Use:     "start <miner_addr> <image>",
+	Use:     "start <miner_addr> <task.yaml>",
 	Short:   "Start task on given miner",
 	PreRunE: checkHubAddressIsSet,
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -219,21 +255,38 @@ func taskListCmdRunner(cmd *cobra.Command, minerID string, interactor CliInterac
 	printTaskList(cmd, minerStatus, minerID)
 }
 
-func taskLogCmdRunner(cmd *cobra.Command, request *pb.TaskLogsRequest, interactor CliInteractor) error {
-	client, err := interactor.TaskLogs(context.Background(), request)
+func taskLogCmdRunner(cmd *cobra.Command, taskID string, interactor CliInteractor) {
+	req := &pb.TaskLogsRequest{
+
+		Id:            taskID,
+		Since:         since,
+		AddTimestamps: addTimestamps,
+		Follow:        follow,
+		Tail:          tail,
+		Details:       details,
+	}
+
+	logType, ok := pb.TaskLogsRequest_Type_value[strings.ToUpper(logType)]
+	if !ok {
+		showError(cmd, "Invalid log type", nil)
+		return
+	}
+	req.Type = pb.TaskLogsRequest_Type(logType)
+
+	client, err := interactor.TaskLogs(context.Background(), req)
 	if err != nil {
 		showError(cmd, "Cannot get task logs", err)
-		return err
+		return
 	}
 
 	for {
 		buffer, err := client.Recv()
 		if err == io.EOF {
-			return nil
+			return
 		}
 		if err != nil {
 			showError(cmd, "IO failure during log fetching", err)
-			return err
+			return
 		}
 		cmd.Print(string(buffer.Data))
 	}

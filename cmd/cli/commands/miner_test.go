@@ -19,7 +19,7 @@ func TestMinerStatusIdle(t *testing.T) {
 	minerStatusCmdRunner(rootCmd, "test", itr)
 	out := buf.String()
 
-	assert.Equal(t, "Miner is idle\n", out)
+	assert.Contains(t, out, "  No active tasks\n")
 }
 
 func TestMinerStatusData(t *testing.T) {
@@ -34,13 +34,26 @@ func TestMinerStatusData(t *testing.T) {
 					Memory: &pb.MemoryUsage{MaxUsage: uint64(2048)},
 				},
 			},
+			Capabilities: &pb.Capabilities{
+				Cpu: []*pb.CPUDevice{{Name: "i7", Vendor: "Intel", Mhz: 3000.0, Cores: 4}},
+				Gpu: []*pb.GPUDevice{{Name: "GTX 1080Ti", Vendor: "NVidia"}},
+				Mem: &pb.RAMDevice{Total: 1000000, Used: 500000},
+			},
 		}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	minerStatusCmdRunner(rootCmd, "test", itr)
 	out := buf.String()
 
-	assert.Equal(t, "Miner tasks:\n  ID: test\r\n      CPU: 500\r\n      RAM: 2KB\r\n      NET:\r\n", out)
+	assert.Contains(t, out, "    CPU0: 4 x i7")
+	assert.Contains(t, out, "    GPU0: NVidia GTX 1080Ti")
+	assert.Contains(t, out, "      Total: 976.6 KB")
+	assert.Contains(t, out, "      Used:  488.3 KB")
+
+	assert.Contains(t, out, "  Tasks")
+	assert.Contains(t, out, "    1) test")
+
+	assert.NotContains(t, out, "NET:")
 }
 
 func TestMinerStatusJsonIdle(t *testing.T) {
@@ -60,11 +73,10 @@ func TestMinerStatusJsonData(t *testing.T) {
 		MinerStatus(gomock.Any(), gomock.Any()).
 		AnyTimes().
 		Return(&pb.InfoReply{
-			Usage: map[string]*pb.ResourceUsage{
-				"test": {
-					Cpu:    &pb.CPUUsage{Total: uint64(500)},
-					Memory: &pb.MemoryUsage{MaxUsage: uint64(2048)},
-				},
+			Capabilities: &pb.Capabilities{
+				Cpu: []*pb.CPUDevice{{Name: "i7", Vendor: "Intel", Mhz: 3000.0, Cores: 4}},
+				Gpu: []*pb.GPUDevice{{Name: "GTX 1080Ti", Vendor: "NVidia"}},
+				Mem: &pb.RAMDevice{Total: 1000000, Used: 500000},
 			},
 		}, nil)
 
@@ -75,14 +87,18 @@ func TestMinerStatusJsonData(t *testing.T) {
 	info := &pb.InfoReply{}
 	err := json.Unmarshal([]byte(out), &info)
 	assert.NoError(t, err)
+	assert.NotNil(t, info.Capabilities)
 
-	assert.Equal(t, 1, len(info.Usage))
+	assert.Equal(t, "Intel", info.Capabilities.Cpu[0].Vendor)
+	assert.Equal(t, "i7", info.Capabilities.Cpu[0].Name)
+	assert.Equal(t, int32(4), info.Capabilities.Cpu[0].Cores)
+	assert.Equal(t, float64(3000), info.Capabilities.Cpu[0].Mhz)
 
-	testStat, ok := info.Usage["test"]
-	assert.True(t, ok)
+	assert.Equal(t, "NVidia", info.Capabilities.Gpu[0].Vendor)
+	assert.Equal(t, "GTX 1080Ti", info.Capabilities.Gpu[0].Name)
 
-	assert.Equal(t, uint64(2048), testStat.Memory.MaxUsage)
-	assert.Equal(t, uint64(500), testStat.Cpu.Total)
+	assert.Equal(t, uint64(500000), info.Capabilities.Mem.Used)
+	assert.Equal(t, uint64(1000000), info.Capabilities.Mem.Total)
 }
 
 func TestMinerStatusFailed(t *testing.T) {
@@ -139,7 +155,7 @@ func TestMinerListData(t *testing.T) {
 	minerListCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	assert.Equal(t, "Miner: test\r\nTasks:\n  1) task-1\r\n  2) task-2\r\n", out)
+	assert.Equal(t, "Miner: test\t\t2 active task(s)\r\n", out)
 }
 
 func TestMinerListDataNoTasks(t *testing.T) {
@@ -157,7 +173,7 @@ func TestMinerListDataNoTasks(t *testing.T) {
 	minerListCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	assert.Equal(t, "Miner: test\r\nMiner is idle\n", out)
+	assert.Equal(t, "Miner: test\t\tIdle\r\n", out)
 }
 
 func TestMinerListJsonEmpty(t *testing.T) {
@@ -223,4 +239,73 @@ func TestMinerListJsonFailed(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "some_error", cmdErr.Error)
 	assert.Equal(t, "Cannot get miners list", cmdErr.Message)
+}
+
+func TestMinerStatusMultiCPUAndGPU(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().
+		MinerStatus(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(&pb.InfoReply{
+			Capabilities: &pb.Capabilities{
+				Cpu: []*pb.CPUDevice{
+					{Name: "Xeon E7-4850", Vendor: "Intel", Mhz: 2800.0, Cores: 14},
+					{Name: "Xeon E7-8890", Vendor: "Intel", Mhz: 3400.0, Cores: 24},
+				},
+				Gpu: []*pb.GPUDevice{
+					{Name: "GTX 1080Ti", Vendor: "NVidia"},
+					{Name: "GTX 1080", Vendor: "NVidia"},
+				},
+				Mem: &pb.RAMDevice{Total: 1000000, Used: 500000},
+			},
+		}, nil)
+
+	buf := initRootCmd(t, config.OutputModeSimple)
+	minerStatusCmdRunner(rootCmd, "test", itr)
+	out := buf.String()
+
+	assert.Contains(t, out, "CPU0: 14 x Xeon E7-4850")
+	assert.Contains(t, out, "CPU1: 24 x Xeon E7-8890")
+
+	assert.Contains(t, out, "GPU0: NVidia GTX 1080Ti")
+	assert.Contains(t, out, "GPU1: NVidia GTX 1080")
+}
+
+func TestMinerStatusNoGPU(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().
+		MinerStatus(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(&pb.InfoReply{
+			Capabilities: &pb.Capabilities{
+				Cpu: []*pb.CPUDevice{
+					{Name: "Xeon E7-4850", Vendor: "Intel", Mhz: 2800.0, Cores: 14},
+					{Name: "Xeon E7-8890", Vendor: "Intel", Mhz: 3400.0, Cores: 24},
+				},
+				Gpu: []*pb.GPUDevice{},
+				Mem: &pb.RAMDevice{Total: 1000000, Used: 500000},
+			},
+		}, nil)
+
+	buf := initRootCmd(t, config.OutputModeSimple)
+	minerStatusCmdRunner(rootCmd, "test", itr)
+	out := buf.String()
+
+	assert.Contains(t, out, "GPU: None")
+}
+
+func TestMinerStatusWithName(t *testing.T) {
+	itr := NewMockCliInteractor(gomock.NewController(t))
+	itr.EXPECT().
+		MinerStatus(gomock.Any(), gomock.Any()).
+		AnyTimes().
+		Return(&pb.InfoReply{
+			Name: "fb402dcf-ff56-465e-8aad-bcef7ca1ef9a",
+		}, nil)
+
+	buf := initRootCmd(t, config.OutputModeSimple)
+	minerStatusCmdRunner(rootCmd, "test", itr)
+	out := buf.String()
+
+	assert.Contains(t, out, `Miner: "test" (fb402dcf-ff56-465e-8aad-bcef7ca1ef9a):`)
 }

@@ -18,6 +18,7 @@ message CPUDevice {
 
 message RAMDevice {
     uint64 total = 1;
+    uint64 used = 2;
 }
 
 message GPUDevice {

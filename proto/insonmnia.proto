@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "capabilities.proto";
+
 package sonm;
 
 message PingRequest {}
@@ -35,6 +37,8 @@ message ResourceUsage {
 
 message InfoReply {
     map<string, ResourceUsage> usage = 1;
+    string name = 2;
+    Capabilities capabilities = 3;
 }
 
 message StopTaskRequest {
@@ -57,6 +61,11 @@ message TaskStatusReply {
         BROKEN = 5;
     }
     Status status = 1;
+    string imageName = 2;
+    string ports = 3;
+    uint64 uptime = 4;
+    ResourceUsage usage = 5;
+    //ContainerResources resources = 5;
 }
 
 message StatusMapReply {
