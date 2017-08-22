@@ -2,6 +2,7 @@ package miner
 
 import (
 	"io"
+	"io/ioutil"
 	"net"
 
 	"github.com/docker/docker/pkg/stdcopy"
@@ -9,7 +10,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 	gossh "golang.org/x/crypto/ssh"
-	"io/ioutil"
 )
 
 type SSH interface {

@@ -18,7 +18,7 @@ package gpu
 import "C"
 
 import (
-	"github.com/pkg/errors"
+	"errors"
 	"strings"
 	"unsafe"
 )

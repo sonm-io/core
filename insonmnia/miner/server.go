@@ -2,6 +2,7 @@ package miner
 
 import (
 	"crypto/ecdsa"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -29,7 +30,6 @@ import (
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
-	"io"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
