@@ -21,15 +21,13 @@ func printMinerList(cmd *cobra.Command, lr *pb.ListReply) {
 		}
 
 		for addr, meta := range lr.Info {
-			cmd.Printf("Miner: %s\r\n", addr)
+			cmd.Printf("Miner: %s", addr)
 
-			if len(meta.Values) == 0 {
-				cmd.Println("Miner is idle")
+			taskCount := len(meta.Values)
+			if taskCount == 0 {
+				cmd.Printf("\t\tIdle\r\n")
 			} else {
-				cmd.Println("Tasks:")
-				for i, task := range meta.Values {
-					cmd.Printf("  %d) %s\r\n", i+1, task)
-				}
+				cmd.Printf("\t\t%d active task(s)\r\n", taskCount)
 			}
 		}
 	} else {
@@ -75,26 +73,14 @@ func printMinerStatus(cmd *cobra.Command, minerID string, metrics *pb.InfoReply)
 			printMemInfo(cmd, metrics.Capabilities)
 		}
 
-		cmd.Println("Miner tasks:")
 		if len(metrics.GetUsage()) == 0 {
 			cmd.Println("  No active tasks")
 		} else {
-			cmd.Println("  Miner tasks:")
-			for task, usage := range metrics.Usage {
-				cmd.Printf("    ID: %s\r\n", task)
-				cmd.Printf("        CPU: %d\r\n", usage.Cpu.Total)
-				cmd.Printf("        RAM: %s\r\n", ds.ByteSize(usage.Memory.MaxUsage).HR())
-
-				if len(usage.Network) > 0 {
-					cmd.Printf("        NET:\r\n")
-					for i, net := range usage.Network {
-						cmd.Printf("          %s:\r\n", i)
-						cmd.Printf("            Tx/Rx bytes: %d/%d\r\n", net.TxBytes, net.RxBytes)
-						cmd.Printf("            Tx/Rx packets: %d/%d\r\n", net.TxPackets, net.RxPackets)
-						cmd.Printf("            Tx/Rx errors: %d/%d\r\n", net.TxErrors, net.RxErrors)
-						cmd.Printf("            Tx/Rx dropped: %d/%d\r\n", net.TxDropped, net.RxDropped)
-					}
-				}
+			cmd.Println("  Tasks:")
+			i := 1
+			for task := range metrics.Usage {
+				cmd.Printf("    %d) %s\r\n", i, task)
+				i++
 			}
 		}
 	} else {

@@ -69,10 +69,20 @@ func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskSt
 		cmd.Printf("  Status: %s\r\n", taskStatus.GetStatus().String())
 		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.GetUptime()).String())
 
-		if taskStatus.Resources != nil {
+		if taskStatus.GetUsage() != nil {
 			cmd.Println("  Resources:")
-			cmd.Printf("    CPU: %d\r\n", taskStatus.Resources.GetNanoCPUs())
-			cmd.Printf("    MEM: %s\r\n", ds.ByteSize(taskStatus.Resources.GetMemory()).HR())
+			cmd.Printf("    CPU: %d\r\n", taskStatus.Usage.GetCpu().GetTotal())
+			cmd.Printf("    MEM: %s\r\n", ds.ByteSize(taskStatus.Usage.GetMemory().GetMaxUsage()).HR())
+			if taskStatus.GetUsage().GetNetwork() != nil {
+				cmd.Printf("    NET:\r\n")
+				for i, net := range taskStatus.GetUsage().GetNetwork() {
+					cmd.Printf("      %s:\r\n", i)
+					cmd.Printf("        Tx/Rx bytes: %d/%d\r\n", net.TxBytes, net.RxBytes)
+					cmd.Printf("        Tx/Rx packets: %d/%d\r\n", net.TxPackets, net.RxPackets)
+					cmd.Printf("        Tx/Rx errors: %d/%d\r\n", net.TxErrors, net.RxErrors)
+					cmd.Printf("        Tx/Rx dropped: %d/%d\r\n", net.TxDropped, net.RxDropped)
+				}
+			}
 		}
 
 		if portsParsedOK && len(ports) > 0 {
@@ -86,7 +96,7 @@ func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskSt
 			}
 		}
 	} else {
-		v := map[string]string{
+		v := map[string]interface{}{
 			"id":     id,
 			"miner":  miner,
 			"status": taskStatus.Status.String(),
@@ -94,9 +104,10 @@ func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskSt
 			"ports":  taskStatus.GetPorts(),
 			"uptime": time.Duration(taskStatus.GetUptime()).String(),
 		}
-		if taskStatus.Resources != nil {
-			v["cpu"] = fmt.Sprintf("%d", taskStatus.Resources.GetNanoCPUs())
-			v["mem"] = fmt.Sprintf("%d", taskStatus.Resources.GetMemory())
+		if taskStatus.GetUsage() != nil {
+			v["cpu"] = fmt.Sprintf("%d", taskStatus.GetUsage().GetCpu().GetTotal())
+			v["mem"] = fmt.Sprintf("%d", taskStatus.GetUsage().GetMemory().GetMaxUsage())
+			v["net"] = taskStatus.GetUsage().GetNetwork()
 		}
 
 		b, _ := json.Marshal(v)

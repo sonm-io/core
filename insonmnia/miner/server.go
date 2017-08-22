@@ -374,7 +374,7 @@ func (m *Miner) sendUpdatesOnRequest(server pb.Miner_TasksStatusServer) {
 	}
 }
 
-// TasksStatus returns the status of a task
+// TaskLogs returns logs from container
 func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Miner_TaskLogsServer) error {
 	log.G(m.ctx).Info("handling TaskLogs request", zap.Any("request", request))
 	cid, ok := m.getContainerIdByTaskId(request.Id)
@@ -450,10 +450,7 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.TaskStatusRequest) (*pb
 		ImageName: info.ImageName,
 		Ports:     string(portsStr),
 		Uptime:    uint64(time.Now().UnixNano() - info.StartAt.UnixNano()),
-		Resources: &pb.ContainerResources{
-			NanoCPUs: int64(metric.cpu.CPUUsage.TotalUsage),
-			Memory:   int64(metric.mem.Usage),
-		},
+		Usage:     metric.Marshal(),
 	}
 
 	return reply, nil

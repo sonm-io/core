@@ -383,9 +383,21 @@ func TestTaskStatusWithResourcesSimple(t *testing.T) {
 	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
 		Status:    pb.TaskStatusReply_RUNNING,
 		ImageName: "httpd:latest",
-		Resources: &pb.ContainerResources{
-			Memory:   104857600, // 100 mb
-			NanoCPUs: 10000,
+		Usage: &pb.ResourceUsage{
+			Cpu:    &pb.CPUUsage{Total: 10000},
+			Memory: &pb.MemoryUsage{MaxUsage: 104857600}, // 100 mb
+			Network: map[string]*pb.NetworkUsage{
+				"eth0": {
+					TxBytes:   1,
+					RxBytes:   2,
+					TxPackets: 3,
+					RxPackets: 4,
+					TxErrors:  5,
+					RxErrors:  6,
+					TxDropped: 7,
+					RxDropped: 8,
+				},
+			},
 		},
 	}, nil)
 
@@ -396,6 +408,13 @@ func TestTaskStatusWithResourcesSimple(t *testing.T) {
 	assert.Contains(t, out, "  Resources:\n")
 	assert.Contains(t, out, "    CPU: 10000\r\n")
 	assert.Contains(t, out, "    MEM: 100.0 MB\r\n")
+
+	assert.Contains(t, out, "    NET:")
+	assert.Contains(t, out, "      eth0:")
+	assert.Contains(t, out, "        Tx/Rx bytes: 1/2")
+	assert.Contains(t, out, "        Tx/Rx packets: 3/4")
+	assert.Contains(t, out, "        Tx/Rx errors: 5/6")
+	assert.Contains(t, out, "        Tx/Rx dropped: 7/8")
 }
 
 func TestTaskStatusWithResourcesJson(t *testing.T) {
@@ -405,23 +424,64 @@ func TestTaskStatusWithResourcesJson(t *testing.T) {
 		ImageName: "httpd:latest",
 		Ports:     `{"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"32775"}],"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"32777"}]}`,
 		Uptime:    60,
-		Resources: &pb.ContainerResources{
-			Memory:   104857600, // 100 mb
-			NanoCPUs: 10000,
+		Usage: &pb.ResourceUsage{
+			Cpu:    &pb.CPUUsage{Total: 10000},
+			Memory: &pb.MemoryUsage{MaxUsage: 104857600}, // 100 mb
+			Network: map[string]*pb.NetworkUsage{
+				"eth0": {
+					TxBytes:   1,
+					RxBytes:   2,
+					TxPackets: 3,
+					RxPackets: 4,
+					TxErrors:  5,
+					RxErrors:  6,
+					TxDropped: 7,
+					RxDropped: 8,
+				},
+			},
 		},
 	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
 
-	outJson := map[string]string{}
+	outJson := map[string]interface{}{}
 	err := json.Unmarshal(buf.Bytes(), &outJson)
 	assert.NoError(t, err)
 
-	assert.Len(t, outJson, 8, "Must have 6 fields")
+	assert.Len(t, outJson, 9, "Must have 8 fields")
 
 	assert.Contains(t, outJson, "cpu")
 	assert.Equal(t, "10000", outJson["cpu"])
 	assert.Contains(t, outJson, "mem")
 	assert.Equal(t, "104857600", outJson["mem"])
+	assert.Contains(t, outJson, "net")
+
+	net := outJson["net"].(map[string]interface{})
+	assert.Contains(t, net, "eth0")
+
+	eth0 := net["eth0"].(map[string]interface{})
+	assert.Contains(t, eth0, "txBytes")
+	assert.Equal(t, float64(1), eth0["txBytes"].(float64))
+
+	assert.Contains(t, eth0, "rxBytes")
+	assert.Equal(t, float64(2), eth0["rxBytes"].(float64))
+
+	assert.Contains(t, eth0, "txPackets")
+	assert.Equal(t, float64(3), eth0["txPackets"].(float64))
+
+	assert.Contains(t, eth0, "rxPackets")
+	assert.Equal(t, float64(4), eth0["rxPackets"].(float64))
+
+	assert.Contains(t, eth0, "txErrors")
+	assert.Equal(t, float64(5), eth0["txErrors"].(float64))
+
+	assert.Contains(t, eth0, "rxErrors")
+	assert.Equal(t, float64(6), eth0["rxErrors"].(float64))
+
+	assert.Contains(t, eth0, "txDropped")
+	assert.Equal(t, float64(7), eth0["txDropped"].(float64))
+
+	assert.Contains(t, eth0, "rxDropped")
+	assert.Equal(t, float64(8), eth0["rxDropped"].(float64))
 }
