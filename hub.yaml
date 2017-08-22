@@ -1,6 +1,13 @@
 # The main endpoint for miner connections.
 endpoint: ":10002"
 
+# Hub as a gateway settings. Can be omitted indicating that the Hub should not
+# be a gateway.
+gateway:
+  # Port range allocated for virtual services if any.
+  ports: [32768, 33768]
+
+
 # Ethereum boot nodes.
 bootnodes:
   - "enode://aaff8b588b3c2bde265504c78cb33449d8b5659bc172278e50abc73a2521fbd938aefd097c077efae316754b115f4e27b5126c6785cd51932331ba224c8734c1@127.0.0.1:30348"

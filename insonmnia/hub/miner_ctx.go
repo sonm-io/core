@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"errors"
 	"net"
 	"time"
 
@@ -108,21 +109,29 @@ func (m *MinerCtx) handshake(h *Hub) error {
 	m.uuid = resp.Miner
 	m.capabilities = capabilities
 
-	if resp.NatType == pb.NATType_NONE {
+	if m.router, err = h.newRouter(resp.NatType); err != nil {
+		log.G(m.ctx).Warn("failed to create router for a miner",
+			zap.String("uuid", m.uuid),
+			zap.Error(err),
+		)
+		// TODO (3Hren): Possible we should disconnect the miner instead. Need investigation.
 		m.router = newDirectRouter()
-	} else {
-		if gateway.PlatformSupportIPVS {
-			m.router = newIPVSRouter(m.ctx, h.gateway, h.portPool)
-		} else {
-			log.G(m.ctx).Warn("miner has firewall configured, but Hub's host OS has no IPVS support",
-				zap.String("uuid", m.uuid),
-			)
-			// TODO (3Hren): Possible we should disconnect the miner instead. Need investigation.
-			m.router = newDirectRouter()
-		}
 	}
 
 	return nil
+}
+
+// NewRouter constructs a new router that will route requests to bypass miner's firewall.
+func (h *Hub) newRouter(natType pb.NATType) (router, error) {
+	if h.gateway == nil || natType == pb.NATType_NONE {
+		return newDirectRouter(), nil
+	}
+
+	if gateway.PlatformSupportIPVS {
+		return newIPVSRouter(h.ctx, h.gateway, h.portPool), nil
+	}
+
+	return nil, errors.New("miner has firewall configured, but Hub's host OS has no IPVS support")
 }
 
 func (m *MinerCtx) deregisterRoute(ID string) error {
