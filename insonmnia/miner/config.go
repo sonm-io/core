@@ -39,11 +39,17 @@ type config struct {
 }
 
 func (c *config) HubEndpoint() string {
-	return c.HubConfig.Endpoint
+	if c.HubConfig != nil {
+		return c.HubConfig.Endpoint
+	}
+	return ""
 }
 
 func (c *config) HubResources() *Resources {
-	return c.HubConfig.Resources
+	if c.HubConfig != nil {
+		return c.HubConfig.Resources
+	}
+	return nil
 }
 
 func (c *config) Firewall() *FirewallConfig {

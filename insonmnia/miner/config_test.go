@@ -47,3 +47,14 @@ hub:
 	assert.Nil(t, err)
 	assert.Equal(t, conf.HubEndpoint(), "")
 }
+
+func TestLoadConfigWithoutEndpoint(t *testing.T) {
+	defer deleteTestConfigFile()
+	err := createTestConfigFile("")
+	assert.Nil(t, err)
+
+	conf, err := NewConfig(testMinerConfigPath)
+	assert.NoError(t, err)
+	assert.Nil(t, conf.HubResources())
+	assert.Empty(t, conf.HubEndpoint())
+}

@@ -1,13 +1,22 @@
 task:
+  # docker image settings, required section
   container:
-    name: user/image:v1
-    command: /myapp -param=1
-    ssh_key: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD...
-  registry:
-    name: registry.user.io
-    user: name
-    password: secret
+    # image name to start on miner, required param
+    name: image:v1
+  # container resources definition, required section
   resources:
-    CPU: 1
-    GPU: true
-    RAM: 10240kb
+      # number of CPU cores required by task, required param
+      CPU: 1
+      # amount of memory required by task, required param
+      # You may use Kb, Mb and Gb suffixes
+      RAM: 10240kb
+      # is GPU device is required by task, optional param, set to false by default
+      # GPU: true
+  # custom registry settings, optional section
+  # registry:
+    # if not empty, Miner will use given registry to pull an image from, optional param
+    # name: registry.user.io
+    # registry username, optional param
+    # user: name
+    # registry password, optional param
+    # password: secret

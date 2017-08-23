@@ -1,5 +1,5 @@
 #!/usr/bin/env make
-VER = v0.2.2
+VER = v0.2.1.1
 BUILD = $(shell git rev-parse --short HEAD)
 FULL_VER = $(VER).$(BUILD)
 
@@ -117,15 +117,3 @@ clean:
 	rm -f funccoverage.txt
 	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE}
 	$(MAKE) -C blockchain clean
-
-
-docker/hub:
-	docker build -t ${DOCKER_IMAGE_HUB} -f ./hub.Dockerfile .
-
-docker/miner:
-	docker build -t ${DOCKER_IMAGE_MINER} -f ./miner.Dockerfile .
-
-docker/bootnode:
-	docker build -t ${DOCKER_IMAGE_BOOTNODE} -f ./bootnode.Dockerfile .
-
-docker/all: docker/hub docker/miner docker/bootnode
