@@ -1178,6 +1178,12 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "m5CTPOjbcBz/xOSyUSa1HCa6idc=",
+			"path": "github.com/tehnerd/gnl2go",
+			"revision": "101b5c6e2d44eb00fbfe85917ffc0bf95249977b",
+			"revisionTime": "2016-12-18T22:37:53Z"
+		},
+		{
 			"checksumSHA1": "HN3pLd5cC+QXkX8j8FsCCB3FzSI=",
 			"path": "github.com/tinylib/msgp/msgp",
 			"revision": ""
@@ -1663,6 +1669,12 @@
 			"path": "gopkg.in/natefinch/npipe.v2",
 			"revision": "a602ee90f2c28eadbca8cdc2e143825a4c24ab23",
 			"revisionTime": "2017-07-26T07:40:41Z"
+		},
+		{
+			"checksumSHA1": "7YPmpDeCouwlD2QYzDCE83USHTg=",
+			"path": "gopkg.in/oleiade/lane.v1",
+			"revision": "28f7c3f09254f12b51e620fa4db136ba58804762",
+			"revisionTime": "2016-08-17T06:23:29Z"
 		},
 		{
 			"checksumSHA1": "4BwmmgQUhWtizsR2soXND0nqZ1I=",

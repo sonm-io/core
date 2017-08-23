@@ -10,8 +10,7 @@ func marshalNATType(nat stun.NATType) pb.NATType {
 	switch nat {
 	case stun.NATNone:
 		return pb.NATType_NONE
-	case stun.NATError:
-	case stun.NATUnknown:
+	case stun.NATError, stun.NATUnknown:
 		return pb.NATType_UNKNOWN
 	case stun.NATBlocked:
 		return pb.NATType_BLOCKED

@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"errors"
 	"net"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 
 	"sync"
 
+	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	pb "github.com/sonm-io/core/proto"
 )
@@ -37,9 +39,10 @@ type MinerCtx struct {
 	// Miner name received after handshaking.
 	uuid         string
 	capabilities *hardware.Hardware
+	router       router
 }
 
-func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
+func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	var (
 		m = MinerCtx{
 			conn:       conn,
@@ -76,7 +79,7 @@ func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	log.G(ctx).Info("grpc.Dial successfully finished")
 	m.Client = pb.NewMinerClient(m.grpcConn)
 
-	if err := m.handshake(); err != nil {
+	if err := m.handshake(h); err != nil {
 		m.Close()
 		return nil, err
 	}
@@ -84,7 +87,7 @@ func createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	return &m, nil
 }
 
-func (m *MinerCtx) handshake() error {
+func (m *MinerCtx) handshake(h *Hub) error {
 	log.G(m.ctx).Info("sending handshake to a Miner", zap.Stringer("addr", m.conn.RemoteAddr()))
 	resp, err := m.Client.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
 	if err != nil {
@@ -106,9 +109,33 @@ func (m *MinerCtx) handshake() error {
 	m.uuid = resp.Miner
 	m.capabilities = capabilities
 
-	log.G(m.ctx).Info("CAP", zap.Any("CAP", m.capabilities))
+	if m.router, err = h.newRouter(resp.NatType); err != nil {
+		log.G(m.ctx).Warn("failed to create router for a miner",
+			zap.String("uuid", m.uuid),
+			zap.Error(err),
+		)
+		// TODO (3Hren): Possible we should disconnect the miner instead. Need investigation.
+		m.router = newDirectRouter()
+	}
 
 	return nil
+}
+
+// NewRouter constructs a new router that will route requests to bypass miner's firewall.
+func (h *Hub) newRouter(natType pb.NATType) (router, error) {
+	if h.gateway == nil || natType == pb.NATType_NONE {
+		return newDirectRouter(), nil
+	}
+
+	if gateway.PlatformSupportIPVS {
+		return newIPVSRouter(h.ctx, h.gateway, h.portPool), nil
+	}
+
+	return nil, errors.New("miner has firewall configured, but Hub's host OS has no IPVS support")
+}
+
+func (m *MinerCtx) deregisterRoute(ID string) error {
+	return m.router.DeregisterRoute(ID)
 }
 
 func (m *MinerCtx) initStatusClient() (statusClient pb.Miner_TasksStatusClient, err error) {
@@ -179,4 +206,5 @@ func (m *MinerCtx) Close() {
 	if m.session != nil {
 		m.session.Close()
 	}
+	m.router.Close()
 }
