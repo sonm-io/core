@@ -49,7 +49,9 @@ build/blockchain:
 	@echo "+ $@"
 	$(MAKE) -C blockchain build_contract_wrappers
 
-build: build/blockchain build/bootnode build/hub build/miner build/cli
+build: build/blockchain build/hub build/miner build/cli
+
+build_all: build/blockchain build/bootnode build/hub build/miner build/cli build/cli_win32
 
 install/bootnode: build/bootnode
 	@echo "+ $@"
@@ -115,15 +117,3 @@ clean:
 	rm -f funccoverage.txt
 	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE}
 	$(MAKE) -C blockchain clean
-
-
-docker/hub:
-	docker build -t ${DOCKER_IMAGE_HUB} -f ./hub.Dockerfile .
-
-docker/miner:
-	docker build -t ${DOCKER_IMAGE_MINER} -f ./miner.Dockerfile .
-
-docker/bootnode:
-	docker build -t ${DOCKER_IMAGE_BOOTNODE} -f ./bootnode.Dockerfile .
-
-docker/all: docker/hub docker/miner docker/bootnode
