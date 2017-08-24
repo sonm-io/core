@@ -303,7 +303,7 @@ func (m *Miner) TaskStart(ctx context.Context, request *pb.TaskStartRequest) (*p
 }
 
 // Stop request forces to kill container
-func (m *Miner) Stop(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
+func (m *Miner) TaskStop(ctx context.Context, request *pb.TaskStopRequest) (*pb.TaskStopReply, error) {
 	log.G(ctx).Info("handling Stop request", zap.Any("req", request))
 
 	m.mu.Lock()
@@ -323,7 +323,7 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopTaskRequest) (*pb.Stop
 	}
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
 	m.resources.Retain(&containerInfo.Resources)
-	return &pb.StopTaskReply{}, nil
+	return &pb.TaskStopReply{}, nil
 }
 
 func (m *Miner) removeStatusChannel(idx int) {

@@ -11,7 +11,7 @@ service Miner {
     rpc Handshake (MinerHandshakeRequest) returns (MinerHandshakeReply) {}
 
     rpc TaskStart (TaskStartRequest) returns (TaskStartReply) {}
-    rpc Stop (StopTaskRequest) returns (StopTaskReply) {}
+    rpc TaskStop (TaskStopRequest) returns (TaskStopReply) {}
 
     rpc TasksStatus (stream MinerStatusMapRequest) returns (stream StatusMapReply) {}
     rpc TaskDetails (TaskStatusRequest) returns (TaskStatusReply) {}

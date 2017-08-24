@@ -41,11 +41,11 @@ message MinerStatusReply {
     Capabilities capabilities = 3;
 }
 
-message StopTaskRequest {
+message TaskStopRequest {
     string id = 1;
 }
 
-message StopTaskReply {}
+message TaskStopReply {}
 
 message TaskStatusRequest {
     string id = 1;

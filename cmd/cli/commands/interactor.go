@@ -19,7 +19,7 @@ type CliInteractor interface {
 	TaskLogs(appCtx context.Context, req *pb.TaskLogsRequest) (pb.Hub_TaskLogsClient, error)
 	TaskStart(appCtx context.Context, req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error)
 	TaskStatus(appCtx context.Context, taskID string) (*pb.TaskStatusReply, error)
-	TaskStop(appCtx context.Context, taskID string) (*pb.StopTaskReply, error)
+	TaskStop(appCtx context.Context, taskID string) (*pb.TaskStopReply, error)
 }
 
 type grpcInteractor struct {
@@ -94,11 +94,11 @@ func (it *grpcInteractor) TaskStatus(appCtx context.Context, taskID string) (*pb
 	return pb.NewHubClient(it.cc).TaskStatus(ctx, req)
 }
 
-func (it *grpcInteractor) TaskStop(appCtx context.Context, taskID string) (*pb.StopTaskReply, error) {
+func (it *grpcInteractor) TaskStop(appCtx context.Context, taskID string) (*pb.TaskStopReply, error) {
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
 
-	var req = &pb.StopTaskRequest{Id: taskID}
+	var req = &pb.TaskStopRequest{Id: taskID}
 	return pb.NewHubClient(it.cc).StopTask(ctx, req)
 }
 

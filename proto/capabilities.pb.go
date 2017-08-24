@@ -30,8 +30,8 @@ It has these top-level messages:
 	NetworkUsage
 	ResourceUsage
 	MinerStatusReply
-	StopTaskRequest
-	StopTaskReply
+	TaskStopRequest
+	TaskStopReply
 	TaskStatusRequest
 	TaskStatusReply
 	StatusMapReply

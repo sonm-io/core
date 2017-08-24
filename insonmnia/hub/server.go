@@ -199,7 +199,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 }
 
 // StopTask sends termination request to a miner handling the task
-func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
+func (h *Hub) StopTask(ctx context.Context, request *pb.TaskStopRequest) (*pb.TaskStopReply, error) {
 	log.G(h.ctx).Info("handling StopTask request", zap.Any("req", request))
 	taskID := request.Id
 	minerID, ok := h.getMinerByTaskID(taskID)
@@ -212,7 +212,7 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 		return nil, status.Errorf(codes.NotFound, "no miner with task %s", minerID)
 	}
 
-	_, err := miner.Client.Stop(ctx, &pb.StopTaskRequest{Id: taskID})
+	_, err := miner.Client.TaskStop(ctx, &pb.TaskStopRequest{Id: taskID})
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "failed to stop the task %s", taskID)
 	}
@@ -221,7 +221,7 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 
 	h.deleteTaskByID(taskID)
 
-	return &pb.StopTaskReply{}, nil
+	return &pb.TaskStopReply{}, nil
 }
 
 func (h *Hub) MinerStatus(ctx context.Context, request *pb.HubStatusMapRequest) (*pb.StatusMapReply, error) {
