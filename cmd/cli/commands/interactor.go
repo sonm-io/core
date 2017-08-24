@@ -64,16 +64,16 @@ func (it *grpcInteractor) MinerStatus(minerID string, appCtx context.Context) (*
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
 
-	var req = pb.HubInfoRequest{Miner: minerID}
-	return pb.NewHubClient(it.cc).Info(ctx, &req)
+	var req = pb.MinerInfoRequest{Miner: minerID}
+	return pb.NewHubClient(it.cc).MinerInfo(ctx, &req)
 }
 
 func (it *grpcInteractor) TaskList(appCtx context.Context, minerID string) (*pb.TaskDetailsMapReply, error) {
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
 
-	req := &pb.HubStatusMapRequest{Miner: minerID}
-	return pb.NewHubClient(it.cc).MinerStatus(ctx, req)
+	req := &pb.HubTaskListMapRequest{Miner: minerID}
+	return pb.NewHubClient(it.cc).TaskList(ctx, req)
 }
 
 func (it *grpcInteractor) TaskLogs(appCtx context.Context, req *pb.TaskLogsRequest) (pb.Hub_TaskLogsClient, error) {
@@ -83,7 +83,7 @@ func (it *grpcInteractor) TaskLogs(appCtx context.Context, req *pb.TaskLogsReque
 func (it *grpcInteractor) TaskStart(appCtx context.Context, req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
-	return pb.NewHubClient(it.cc).StartTask(ctx, req)
+	return pb.NewHubClient(it.cc).TaskStart(ctx, req)
 }
 
 func (it *grpcInteractor) TaskStatus(appCtx context.Context, taskID string) (*pb.TaskDetailsReply, error) {
@@ -99,7 +99,7 @@ func (it *grpcInteractor) TaskStop(appCtx context.Context, taskID string) (*pb.T
 	defer cancel()
 
 	var req = &pb.TaskStopRequest{Id: taskID}
-	return pb.NewHubClient(it.cc).StopTask(ctx, req)
+	return pb.NewHubClient(it.cc).TaskStop(ctx, req)
 }
 
 func NewGrpcInteractor(addr string, to time.Duration) (CliInteractor, error) {

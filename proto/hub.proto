@@ -5,15 +5,21 @@ import "proto/insonmnia.proto";
 package sonm;
 
 service Hub {
+    // Ping checks Hub network availability
     rpc Ping (PingRequest) returns (PingReply) {}
+    // Status shows Hub status
     rpc Status (HubStatusRequest) returns (HubStatusReply) {}
-    rpc MinerList (MinerListRequest) returns (MinerListReply) {}
-    rpc Info (HubInfoRequest) returns (MinerStatusReply) {}
 
-    rpc StartTask (HubStartTaskRequest) returns (HubStartTaskReply) {}
-    rpc StopTask (TaskStopRequest) returns (TaskStopReply) {}
+    // MinerList returns Miners connected to Hub
+    rpc MinerList (MinerListRequest) returns (MinerListReply) {}
+    // MinerInfo returns detailed info about conected Miner
+    rpc MinerInfo (MinerInfoRequest) returns (MinerStatusReply) {}
+
+    // TaskXXX forward task operations to given Miner
+    rpc TaskStart (HubStartTaskRequest) returns (HubStartTaskReply) {}
+    rpc TaskStop (TaskStopRequest) returns (TaskStopReply) {}
     rpc TaskStatus (TaskDetailsRequest) returns (TaskDetailsReply) {}
-    rpc MinerStatus (HubStatusMapRequest) returns (TaskDetailsMapReply) {}
+    rpc TaskList (HubTaskListMapRequest) returns (TaskDetailsMapReply) {}
     rpc TaskLogs (TaskLogsRequest) returns (stream TaskLogsChunk) {}
 }
 
@@ -27,7 +33,7 @@ message MinerListReply {
     map<string, ListValue> info = 1;
 }
 
-message HubInfoRequest {
+message MinerInfoRequest {
     string miner = 1;
 }
 
@@ -44,7 +50,7 @@ message HubStartTaskReply {
     repeated string endpoint = 2;
 }
 
-message HubStatusMapRequest {
+message HubTaskListMapRequest {
     string miner = 1;
 }
 

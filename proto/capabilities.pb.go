@@ -17,10 +17,10 @@ It has these top-level messages:
 	GPUDevice
 	MinerListRequest
 	MinerListReply
-	HubInfoRequest
+	MinerInfoRequest
 	HubStartTaskRequest
 	HubStartTaskReply
-	HubStatusMapRequest
+	HubTaskListMapRequest
 	HubStatusRequest
 	HubStatusReply
 	PingRequest

@@ -2,6 +2,8 @@ package miner
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
+	"io"
 	"net"
 	"sync"
 	"time"
@@ -18,8 +20,6 @@ import (
 
 	pb "github.com/sonm-io/core/proto"
 
-	"encoding/json"
-
 	"github.com/ccding/go-stun/stun"
 	"github.com/docker/docker/api/types"
 
@@ -29,7 +29,6 @@ import (
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
-	"io"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -120,7 +119,7 @@ func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, err
 	return &pb.PingReply{}, nil
 }
 
-// Info returns runtime statistics collected from all containers working on this miner.
+// Status returns runtime statistics collected from all containers working on this miner.
 //
 // This works the following way: a miner periodically collects various runtime statistics from all
 // spawned containers that it knows about. For running containers metrics map the immediate
@@ -227,7 +226,7 @@ func transformResources(p *pb.ContainerResources) container.Resources {
 	return resources
 }
 
-// Start request from Hub makes Miner start a container
+// TaskStart request from Hub makes Miner start a container
 func (m *Miner) TaskStart(ctx context.Context, request *pb.TaskStartRequest) (*pb.TaskStartReply, error) {
 	var d = Description{
 		Image:         request.Image,
@@ -302,7 +301,7 @@ func (m *Miner) TaskStart(ctx context.Context, request *pb.TaskStartRequest) (*p
 	return &rpl, nil
 }
 
-// Stop request forces to kill container
+// TaskStop request forces to kill container
 func (m *Miner) TaskStop(ctx context.Context, request *pb.TaskStopRequest) (*pb.TaskStopReply, error) {
 	log.G(ctx).Info("handling Stop request", zap.Any("req", request))
 
