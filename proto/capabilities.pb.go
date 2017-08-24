@@ -32,8 +32,8 @@ It has these top-level messages:
 	MinerStatusReply
 	TaskStopRequest
 	TaskStopReply
-	TaskStatusRequest
-	TaskStatusReply
+	TaskDetailsRequest
+	TaskDetailsReply
 	StatusMapReply
 	ContainerResources
 	ContainerRestartPolicy

@@ -41,7 +41,7 @@ type Description struct {
 
 // ContainerInfo is a brief information about containers
 type ContainerInfo struct {
-	status    *pb.TaskStatusReply
+	status    *pb.TaskDetailsReply
 	ID        string
 	ImageName string
 	StartAt   time.Time
@@ -94,7 +94,7 @@ type Overseer interface {
 	//
 	// After successful starting an application becomes a target for accepting request, but not guarantees
 	// to complete them.
-	Start(ctx context.Context, description Description) (chan pb.TaskStatusReply_Status, ContainerInfo, error)
+	Start(ctx context.Context, description Description) (chan pb.TaskDetailsReply_Status, ContainerInfo, error)
 
 	// Exec a given command in running container
 	Exec(ctx context.Context, Id string, cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (types.HijackedResponse, error)
@@ -129,7 +129,7 @@ type overseer struct {
 	// protects containers map
 	mu         sync.Mutex
 	containers map[string]*containerDescriptor
-	statuses   map[string]chan pb.TaskStatusReply_Status
+	statuses   map[string]chan pb.TaskDetailsReply_Status
 }
 
 func (o *overseer) supportGPU() bool {
@@ -162,7 +162,7 @@ func NewOverseer(ctx context.Context, gpu *GPUConfig) (Overseer, error) {
 		gpuTuner: tuner,
 
 		containers: make(map[string]*containerDescriptor),
-		statuses:   make(map[string]chan pb.TaskStatusReply_Status),
+		statuses:   make(map[string]chan pb.TaskDetailsReply_Status),
 	}
 
 	go ovr.collectStats()
@@ -227,7 +227,7 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 				delete(o.statuses, id)
 				o.mu.Unlock()
 				if sok {
-					s <- pb.TaskStatusReply_BROKEN
+					s <- pb.TaskDetailsReply_BROKEN
 				}
 				// warn(all): is this logic still actual?
 				if cok {
@@ -348,7 +348,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	return nil
 }
 
-func (o *overseer) Start(ctx context.Context, description Description) (status chan pb.TaskStatusReply_Status, cinfo ContainerInfo, err error) {
+func (o *overseer) Start(ctx context.Context, description Description) (status chan pb.TaskDetailsReply_Status, cinfo ContainerInfo, err error) {
 	var tuner nvidiaGPUTuner = nilGPUTuner{}
 	if description.GPURequired {
 		if !o.supportGPU() {
@@ -365,7 +365,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 
 	o.mu.Lock()
 	o.containers[pr.ID] = pr
-	status = make(chan pb.TaskStatusReply_Status)
+	status = make(chan pb.TaskDetailsReply_Status)
 	o.statuses[pr.ID] = status
 	o.mu.Unlock()
 
@@ -379,7 +379,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		return
 	}
 	cinfo = ContainerInfo{
-		status:    &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
+		status:    &pb.TaskDetailsReply{Status: pb.TaskDetailsReply_RUNNING},
 		ID:        cjson.ID,
 		Ports:     cjson.NetworkSettings.Ports,
 		Resources: resource.NewResources(1, description.Resources.Memory),
@@ -409,7 +409,7 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 	o.mu.Unlock()
 
 	if sok {
-		status <- pb.TaskStatusReply_FINISHED
+		status <- pb.TaskDetailsReply_FINISHED
 	}
 
 	if !dok {

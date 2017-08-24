@@ -13,7 +13,7 @@ service Hub {
     rpc StartTask (HubStartTaskRequest) returns (HubStartTaskReply) {}
     rpc StopTask (TaskStopRequest) returns (TaskStopReply) {}
 
-    rpc TaskStatus (TaskStatusRequest) returns (TaskStatusReply) {}
+    rpc TaskStatus (TaskDetailsRequest) returns (TaskDetailsReply) {}
     rpc MinerStatus (HubStatusMapRequest) returns (StatusMapReply) {}
     rpc TaskLogs (TaskLogsRequest) returns (stream TaskLogsChunk) {}
 }

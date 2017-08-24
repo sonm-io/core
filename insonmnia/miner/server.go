@@ -177,7 +177,7 @@ func (m *Miner) scheduleStatusPurge(id string) {
 	}
 }
 
-func (m *Miner) setStatus(status *pb.TaskStatusReply, id string) {
+func (m *Miner) setStatus(status *pb.TaskDetailsReply, id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -187,7 +187,7 @@ func (m *Miner) setStatus(status *pb.TaskStatusReply, id string) {
 	}
 
 	m.containers[id].status = status
-	if status.Status == pb.TaskStatusReply_BROKEN || status.Status == pb.TaskStatusReply_FINISHED {
+	if status.Status == pb.TaskDetailsReply_BROKEN || status.Status == pb.TaskDetailsReply_FINISHED {
 		go m.scheduleStatusPurge(id)
 	}
 	for _, ch := range m.statusChannels {
@@ -198,10 +198,10 @@ func (m *Miner) setStatus(status *pb.TaskStatusReply, id string) {
 	}
 }
 
-func (m *Miner) listenForStatus(statusListener chan pb.TaskStatusReply_Status, id string) {
+func (m *Miner) listenForStatus(statusListener chan pb.TaskDetailsReply_Status, id string) {
 	select {
 	case newStatus := <-statusListener:
-		m.setStatus(&pb.TaskStatusReply{Status: newStatus}, id)
+		m.setStatus(&pb.TaskDetailsReply{Status: newStatus}, id)
 	case <-m.ctx.Done():
 		return
 	}
@@ -257,23 +257,23 @@ func (m *Miner) TaskStart(ctx context.Context, request *pb.TaskStartRequest) (*p
 		return nil, status.Errorf(codes.ResourceExhausted, "failed to Start %v", err)
 	}
 
-	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, request.Id)
+	m.setStatus(&pb.TaskDetailsReply{Status: pb.TaskDetailsReply_SPOOLING}, request.Id)
 
 	log.G(m.ctx).Info("spooling an image")
 	err := m.ovs.Spool(ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskDetailsReply{Status: pb.TaskDetailsReply_BROKEN}, request.Id)
 		m.resources.Retain(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
-	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPAWNING}, request.Id)
+	m.setStatus(&pb.TaskDetailsReply{Status: pb.TaskDetailsReply_SPAWNING}, request.Id)
 	log.G(ctx).Info("spawning an image")
 	statusListener, containerInfo, err := m.ovs.Start(m.ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskDetailsReply{Status: pb.TaskDetailsReply_BROKEN}, request.Id)
 		m.resources.Retain(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
@@ -318,10 +318,10 @@ func (m *Miner) TaskStop(ctx context.Context, request *pb.TaskStopRequest) (*pb.
 
 	if err := m.ovs.Stop(ctx, containerInfo.ID); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskDetailsReply{Status: pb.TaskDetailsReply_BROKEN}, request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
-	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
+	m.setStatus(&pb.TaskDetailsReply{Status: pb.TaskDetailsReply_FINISHED}, request.Id)
 	m.resources.Retain(&containerInfo.Resources)
 	return &pb.TaskStopReply{}, nil
 }
@@ -334,7 +334,7 @@ func (m *Miner) removeStatusChannel(idx int) {
 }
 
 func (m *Miner) sendTasksStatus(server pb.Miner_TasksStatusServer) error {
-	result := &pb.StatusMapReply{Statuses: make(map[string]*pb.TaskStatusReply)}
+	result := &pb.StatusMapReply{Statuses: make(map[string]*pb.TaskDetailsReply)}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for id, info := range m.containers {
@@ -426,7 +426,7 @@ func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
 	return nil
 }
 
-func (m *Miner) TaskDetails(ctx context.Context, req *pb.TaskStatusRequest) (*pb.TaskStatusReply, error) {
+func (m *Miner) TaskDetails(ctx context.Context, req *pb.TaskDetailsRequest) (*pb.TaskDetailsReply, error) {
 	log.G(m.ctx).Info("starting TaskDetails status server")
 
 	info, ok := m.GetContainerInfo(req.GetId())
@@ -445,7 +445,7 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.TaskStatusRequest) (*pb
 	}
 
 	portsStr, _ := json.Marshal(info.Ports)
-	reply := &pb.TaskStatusReply{
+	reply := &pb.TaskDetailsReply{
 		Status:    info.status.Status,
 		ImageName: info.ImageName,
 		Ports:     string(portsStr),

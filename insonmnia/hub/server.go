@@ -240,7 +240,7 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.HubStatusMapRequest) 
 	return &reply, nil
 }
 
-func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*pb.TaskStatusReply, error) {
+func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskDetailsRequest) (*pb.TaskDetailsReply, error) {
 	log.G(h.ctx).Info("handling TaskStatus request", zap.Any("req", request))
 	taskID := request.Id
 	minerID, ok := h.getMinerByTaskID(taskID)
@@ -253,7 +253,7 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 		return nil, status.Errorf(codes.NotFound, "no miner %s for task %s", minerID, taskID)
 	}
 
-	req := &pb.TaskStatusRequest{Id: taskID}
+	req := &pb.TaskDetailsRequest{Id: taskID}
 	reply, err := mincli.Client.TaskDetails(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskID)

@@ -150,9 +150,9 @@ func TestMinerStart(t *testing.T) {
 
 	ovs := NewMockOverseer(mock)
 	ovs.EXPECT().Spool(context.Background(), Description{}).AnyTimes().Return(nil)
-	status_chan := make(chan pb.TaskStatusReply_Status)
+	status_chan := make(chan pb.TaskDetailsReply_Status)
 	info := ContainerInfo{
-		status: &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
+		status: &pb.TaskDetailsReply{Status: pb.TaskDetailsReply_RUNNING},
 		ID:     "deadbeef-cafe-dead-beef-cafedeadbeef",
 	}
 	ovs.EXPECT().Start(gomock.Any(), gomock.Any()).Times(1).Return(status_chan, info, nil)

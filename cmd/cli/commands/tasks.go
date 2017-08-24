@@ -55,7 +55,7 @@ func printTaskStart(cmd *cobra.Command, rep *pb.HubStartTaskReply) {
 	}
 }
 
-func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskStatusReply) {
+func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskDetailsReply) {
 	if isSimpleFormat() {
 		portsParsedOK := false
 		ports := nat.PortMap{}

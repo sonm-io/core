@@ -47,11 +47,11 @@ message TaskStopRequest {
 
 message TaskStopReply {}
 
-message TaskStatusRequest {
+message TaskDetailsRequest {
     string id = 1;
 }
 
-message TaskStatusReply {
+message TaskDetailsReply {
     enum Status {
         UNKNOWN = 0;
         SPOOLING = 1;
@@ -69,7 +69,7 @@ message TaskStatusReply {
 }
 
 message StatusMapReply {
-    map<string, TaskStatusReply> statuses = 1;
+    map<string, TaskDetailsReply> statuses = 1;
 }
 
 message ContainerResources {
