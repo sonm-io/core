@@ -3,13 +3,14 @@ package gateway
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
+	"sync"
 
 	"github.com/tehnerd/gnl2go"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
-	"sync"
 )
 
 const (
@@ -100,6 +101,14 @@ func (g *Gateway) RemoveBackend(vsID, rsID string) (*RealOptions, error) {
 	defer g.mu.Unlock()
 
 	return g.removeBackend(vsID, rsID)
+}
+
+// Metrics returns some metrics for a given virtual service.
+func (g *Gateway) GetMetrics(vsID string) (*Metrics, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
+	return g.getMetrics(vsID)
 }
 
 func (g *Gateway) createService(vsID string, options *ServiceOptions) error {
@@ -218,6 +227,34 @@ func (g *Gateway) removeBackend(vsID, rsID string) (*RealOptions, error) {
 	delete(g.backends, rsID)
 
 	return rs.options, nil
+}
+
+func (g *Gateway) getMetrics(vsID string) (*Metrics, error) {
+	vs, exists := g.services[vsID]
+
+	if !exists {
+		return nil, ErrServiceNotFound
+	}
+
+	stats, err := g.ipvs.GetAllStatsBrief()
+	if err != nil {
+		return nil, err
+	}
+
+	key := fmt.Sprintf("%s:%s:%d", vs.options.Host, vs.options.Protocol, vs.options.Port)
+
+	for id, stat := range stats {
+		if id == key {
+			s := stat.GetStats()
+			return &Metrics{
+				Connections: s["CONNS"],
+				InBytes:     s["INBYTES"],
+				OutBytes:    s["OUTBYTES"],
+			}, nil
+		}
+	}
+
+	return nil, ErrServiceNotFound
 }
 
 func (g *Gateway) Close() {

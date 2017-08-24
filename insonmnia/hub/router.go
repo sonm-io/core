@@ -1,5 +1,7 @@
 package hub
 
+import "github.com/sonm-io/core/insonmnia/gateway"
+
 type route struct {
 	ID          string
 	Protocol    string
@@ -12,6 +14,7 @@ type route struct {
 type router interface {
 	RegisterRoute(ID string, protocol string, realIP string, realPort uint16) (*route, error)
 	DeregisterRoute(ID string) error
+	GetMetrics() (*gateway.Metrics, error)
 	Close() error
 }
 
@@ -37,6 +40,10 @@ func (r *directRouter) RegisterRoute(ID string, protocol string, realIP string, 
 
 func (r *directRouter) DeregisterRoute(ID string) error {
 	return nil
+}
+
+func (r *directRouter) GetMetrics() (*gateway.Metrics, error) {
+	return &gateway.Metrics{}, nil
 }
 
 func (r *directRouter) Close() error {
