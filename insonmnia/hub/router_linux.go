@@ -2,22 +2,27 @@ package hub
 
 import (
 	"context"
-	"github.com/sonm-io/core/insonmnia/gateway"
 	"sync"
+
+	"github.com/sonm-io/core/insonmnia/gateway"
 )
 
 type ipvsRouter struct {
-	gateway *gateway.Gateway
-	pool    *gateway.PortPool
-	ids     map[string]bool
-	mu      sync.Mutex
+	gateway  *gateway.Gateway
+	pool     *gateway.PortPool
+	minerID  string
+	metrics  map[string]*gateway.Metrics
+	services map[string]bool
+	mu       sync.Mutex
 }
 
-func newIPVSRouter(ctx context.Context, gate *gateway.Gateway, pool *gateway.PortPool) router {
+func newIPVSRouter(ctx context.Context, minerID string, gate *gateway.Gateway, pool *gateway.PortPool) router {
 	return &ipvsRouter{
-		gateway: gate,
-		pool:    pool,
-		ids:     make(map[string]bool, 0),
+		gateway:  gate,
+		pool:     pool,
+		minerID:  minerID,
+		metrics:  make(map[string]*gateway.Metrics, 0),
+		services: make(map[string]bool, 0),
 	}
 }
 
@@ -52,7 +57,8 @@ func (r *ipvsRouter) RegisterRoute(ID string, protocol string, realIP string, re
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.ids[ID] = true
+	r.metrics[ID] = &gateway.Metrics{}
+	r.services[ID] = true
 
 	route := &route{
 		ID:          ID,
@@ -82,8 +88,41 @@ func (r *ipvsRouter) deregisterRoute(ID string) error {
 		return err
 	}
 
-	delete(r.ids, ID)
+	delete(r.services, ID)
 
+	return nil
+}
+
+// GetMetrics collects network specific metrics that are associated with this router.
+func (r *ipvsRouter) GetMetrics() (*gateway.Metrics, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.getMetrics()
+}
+
+func (r *ipvsRouter) getMetrics() (*gateway.Metrics, error) {
+	for id := range r.services {
+		if err := r.updateServiceMetrics(id); err != nil {
+			return nil, err
+		}
+	}
+
+	metrics := &gateway.Metrics{}
+	for _, current := range r.metrics {
+		metrics.Add(current)
+	}
+
+	return metrics, nil
+}
+
+func (r *ipvsRouter) updateServiceMetrics(ID string) error {
+	metrics, err := r.gateway.GetMetrics(ID)
+	if err != nil {
+		return err
+	}
+
+	r.metrics[ID] = metrics
 	return nil
 }
 
@@ -91,7 +130,7 @@ func (r *ipvsRouter) deregisterRoute(ID string) error {
 func (r *ipvsRouter) Close() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	for ID := range r.ids {
+	for ID := range r.services {
 		r.deregisterRoute(ID)
 	}
 
