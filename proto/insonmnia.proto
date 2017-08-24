@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "capabilities.proto";
+import "proto/capabilities.proto";
 
 package sonm;
 

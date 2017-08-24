@@ -137,7 +137,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	}
 
 	taskID := uuid.New()
-	var startRequest = &pb.MinerStartRequest{
+	var startRequest = &pb.TaskStartRequest{
 		Id:            taskID,
 		Registry:      request.Registry,
 		Image:         request.Image,

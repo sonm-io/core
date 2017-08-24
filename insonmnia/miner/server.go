@@ -228,7 +228,7 @@ func transformResources(p *pb.ContainerResources) container.Resources {
 }
 
 // Start request from Hub makes Miner start a container
-func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
+func (m *Miner) Start(ctx context.Context, request *pb.TaskStartRequest) (*pb.MinerStartReply, error) {
 	var d = Description{
 		Image:         request.Image,
 		Registry:      request.Registry,

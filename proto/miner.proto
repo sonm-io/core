@@ -1,26 +1,25 @@
 syntax = "proto3";
 
-import "insonmnia.proto";
-import "capabilities.proto";
+import "proto/insonmnia.proto";
+import "proto/capabilities.proto";
 
 package sonm;
 
-service Miner{
-    rpc Ping(PingRequest) returns (PingReply) {}
-    rpc Info(MinerInfoRequest) returns (InfoReply) {}
-    rpc Handshake(MinerHandshakeRequest) returns (MinerHandshakeReply) {}
+service Miner {
+    rpc Ping (PingRequest) returns (PingReply) {}
+    rpc Info (MinerInfoRequest) returns (InfoReply) {}
+    rpc Handshake (MinerHandshakeRequest) returns (MinerHandshakeReply) {}
 
-    rpc Start(MinerStartRequest) returns (MinerStartReply) {}
-    rpc Stop(StopTaskRequest) returns (StopTaskReply) {}
+    rpc Start (TaskStartRequest) returns (MinerStartReply) {}
+    rpc Stop (StopTaskRequest) returns (StopTaskReply) {}
 
-    rpc TasksStatus(stream MinerStatusMapRequest) returns (stream StatusMapReply) {}
-    rpc TaskDetails(TaskStatusRequest) returns (TaskStatusReply) {}
+    rpc TasksStatus (stream MinerStatusMapRequest) returns (stream StatusMapReply) {}
+    rpc TaskDetails (TaskStatusRequest) returns (TaskStatusReply) {}
 
-    rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
+    rpc TaskLogs (TaskLogsRequest) returns (stream TaskLogsChunk) {}
 }
 
-message MinerInfoRequest {
-}
+message MinerInfoRequest {}
 
 message MinerHandshakeRequest {
     string hub = 1;
@@ -43,7 +42,7 @@ message MinerHandshakeReply {
     NATType natType = 3;
 }
 
-message MinerStartRequest{
+message TaskStartRequest {
     string id = 1;
     string registry = 2;
     string image = 3;

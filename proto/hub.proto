@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "insonmnia.proto";
+import "proto/insonmnia.proto";
 
 package sonm;
 
