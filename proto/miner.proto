@@ -6,10 +6,14 @@ import "proto/capabilities.proto";
 package sonm;
 
 service Miner {
+    // Ping checks Miner availability for Rub
     rpc Ping (PingRequest) returns (PingReply) {}
-    rpc Status (MinerStatusRequest) returns (MinerStatusReply) {}
+    // Handshake returns miner's hardware and network capabilities
     rpc Handshake (MinerHandshakeRequest) returns (MinerHandshakeReply) {}
+    // Status returns Miner status
+    rpc Status (MinerStatusRequest) returns (MinerStatusReply) {}
 
+    // TaskXXX operates with task on some miner
     rpc TaskStart (TaskStartRequest) returns (TaskStartReply) {}
     rpc TaskStop (TaskStopRequest) returns (TaskStopReply) {}
     rpc TasksStatus (stream TaskDetailsMapRequest) returns (stream TaskDetailsMapReply) {}

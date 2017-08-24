@@ -5,9 +5,9 @@ import "proto/insonmnia.proto";
 package sonm;
 
 service Hub {
-    // Ping checks Hub network availability
+    // Ping checks Hub availability for user
     rpc Ping (PingRequest) returns (PingReply) {}
-    // Status shows Hub status
+    // Status return Hub status
     rpc Status (HubStatusRequest) returns (HubStatusReply) {}
 
     // MinerList returns Miners connected to Hub
