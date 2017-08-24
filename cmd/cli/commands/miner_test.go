@@ -129,7 +129,7 @@ func TestMinerStatusJsonFailed(t *testing.T) {
 
 func TestMinerListEmpty(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().MinerList(gomock.Any()).AnyTimes().Return(&pb.ListReply{}, nil)
+	itr.EXPECT().MinerList(gomock.Any()).AnyTimes().Return(&pb.MinerListReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	minerListCmdRunner(rootCmd, itr)
@@ -143,8 +143,8 @@ func TestMinerListData(t *testing.T) {
 	itr.EXPECT().
 		MinerList(gomock.Any()).
 		AnyTimes().
-		Return(&pb.ListReply{
-			Info: map[string]*pb.ListReply_ListValue{
+		Return(&pb.MinerListReply{
+			Info: map[string]*pb.MinerListReply_ListValue{
 				"test": {
 					Values: []string{"task-1", "task-2"},
 				},
@@ -163,8 +163,8 @@ func TestMinerListDataNoTasks(t *testing.T) {
 	itr.EXPECT().
 		MinerList(gomock.Any()).
 		AnyTimes().
-		Return(&pb.ListReply{
-			Info: map[string]*pb.ListReply_ListValue{
+		Return(&pb.MinerListReply{
+			Info: map[string]*pb.MinerListReply_ListValue{
 				"test": {},
 			},
 		}, nil)
@@ -178,7 +178,7 @@ func TestMinerListDataNoTasks(t *testing.T) {
 
 func TestMinerListJsonEmpty(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().MinerList(gomock.Any()).AnyTimes().Return(&pb.ListReply{}, nil)
+	itr.EXPECT().MinerList(gomock.Any()).AnyTimes().Return(&pb.MinerListReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	minerListCmdRunner(rootCmd, itr)
@@ -192,8 +192,8 @@ func TestMinerListJsonData(t *testing.T) {
 	itr.EXPECT().
 		MinerList(gomock.Any()).
 		AnyTimes().
-		Return(&pb.ListReply{
-			Info: map[string]*pb.ListReply_ListValue{
+		Return(&pb.MinerListReply{
+			Info: map[string]*pb.MinerListReply_ListValue{
 				"test": {
 					Values: []string{"task-1", "task-2"},
 				},
@@ -204,7 +204,7 @@ func TestMinerListJsonData(t *testing.T) {
 	minerListCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	reply := &pb.ListReply{}
+	reply := &pb.MinerListReply{}
 	err := json.Unmarshal([]byte(out), &reply)
 	assert.NoError(t, err)
 

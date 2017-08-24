@@ -7,21 +7,20 @@ package sonm;
 service Hub {
     rpc Ping (PingRequest) returns (PingReply) {}
     rpc Status (HubStatusRequest) returns (HubStatusReply) {}
-    rpc List (ListRequest) returns (ListReply) {}
+    rpc MinerList (MinerListRequest) returns (MinerListReply) {}
     rpc Info (HubInfoRequest) returns (MinerStatusReply) {}
 
     rpc StartTask (HubStartTaskRequest) returns (HubStartTaskReply) {}
     rpc StopTask (TaskStopRequest) returns (TaskStopReply) {}
-
     rpc TaskStatus (TaskDetailsRequest) returns (TaskDetailsReply) {}
     rpc MinerStatus (HubStatusMapRequest) returns (TaskDetailsMapReply) {}
     rpc TaskLogs (TaskLogsRequest) returns (stream TaskLogsChunk) {}
 }
 
-message ListRequest {
+message MinerListRequest {
 }
 
-message ListReply {
+message MinerListReply {
     message ListValue {
         repeated string values = 1;
     }

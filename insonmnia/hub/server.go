@@ -76,12 +76,12 @@ func (h *Hub) Status(ctx context.Context, _ *pb.HubStatusRequest) (*pb.HubStatus
 }
 
 // List returns attached miners
-func (h *Hub) List(ctx context.Context, request *pb.ListRequest) (*pb.ListReply, error) {
+func (h *Hub) MinerList(ctx context.Context, request *pb.MinerListRequest) (*pb.MinerListReply, error) {
 	log.G(h.ctx).Info("handling List request")
-	var info = make(map[string]*pb.ListReply_ListValue)
+	var info = make(map[string]*pb.MinerListReply_ListValue)
 	h.mu.Lock()
 	for k := range h.miners {
-		info[k] = new(pb.ListReply_ListValue)
+		info[k] = new(pb.MinerListReply_ListValue)
 	}
 	h.mu.Unlock()
 
@@ -94,7 +94,7 @@ func (h *Hub) List(ctx context.Context, request *pb.ListRequest) (*pb.ListReply,
 		}
 	}
 	h.tasksmu.Unlock()
-	return &pb.ListReply{Info: info}, nil
+	return &pb.MinerListReply{Info: info}, nil
 }
 
 // Info returns aggregated runtime statistics for all connected miners.

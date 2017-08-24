@@ -15,8 +15,8 @@ It has these top-level messages:
 	CPUDevice
 	RAMDevice
 	GPUDevice
-	ListRequest
-	ListReply
+	MinerListRequest
+	MinerListReply
 	HubInfoRequest
 	HubStartTaskRequest
 	HubStartTaskReply
