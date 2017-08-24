@@ -145,7 +145,7 @@ func (m *MinerCtx) initStatusClient() (statusClient pb.Miner_TasksStatusClient, 
 		return
 	}
 
-	err = statusClient.Send(&pb.MinerStatusMapRequest{})
+	err = statusClient.Send(&pb.TaskDetailsMapRequest{})
 	if err != nil {
 		log.G(m.ctx).Error("failed to send tasks status request", zap.Error(err))
 		return

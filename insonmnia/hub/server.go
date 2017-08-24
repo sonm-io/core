@@ -224,7 +224,7 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.TaskStopRequest) (*pb.Ta
 	return &pb.TaskStopReply{}, nil
 }
 
-func (h *Hub) MinerStatus(ctx context.Context, request *pb.HubStatusMapRequest) (*pb.StatusMapReply, error) {
+func (h *Hub) MinerStatus(ctx context.Context, request *pb.HubStatusMapRequest) (*pb.TaskDetailsMapReply, error) {
 	log.G(h.ctx).Info("handling MinerStatus request", zap.Any("req", request))
 
 	miner := request.Miner
@@ -235,9 +235,9 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.HubStatusMapRequest) 
 	}
 
 	mincli.status_mu.Lock()
-	reply := pb.StatusMapReply{Statuses: mincli.status_map}
+	reply := &pb.TaskDetailsMapReply{Statuses: mincli.status_map}
 	mincli.status_mu.Unlock()
-	return &reply, nil
+	return reply, nil
 }
 
 func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskDetailsRequest) (*pb.TaskDetailsReply, error) {

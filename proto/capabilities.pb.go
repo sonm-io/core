@@ -34,7 +34,7 @@ It has these top-level messages:
 	TaskStopReply
 	TaskDetailsRequest
 	TaskDetailsReply
-	StatusMapReply
+	TaskDetailsMapReply
 	ContainerResources
 	ContainerRestartPolicy
 	TaskLogsRequest
@@ -44,7 +44,7 @@ It has these top-level messages:
 	MinerHandshakeReply
 	TaskStartRequest
 	TaskStartReply
-	MinerStatusMapRequest
+	TaskDetailsMapRequest
 */
 package sonm
 

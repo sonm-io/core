@@ -29,7 +29,7 @@ func init() {
 	tasksRootCmd.AddCommand(taskListCmd, taskLogsCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
 }
 
-func printTaskList(cmd *cobra.Command, minerStatus *pb.StatusMapReply, miner string) {
+func printTaskList(cmd *cobra.Command, minerStatus *pb.TaskDetailsMapReply, miner string) {
 	if isSimpleFormat() {
 		if len(minerStatus.Statuses) == 0 {
 			cmd.Printf("There is no tasks on miner \"%s\"\r\n", miner)

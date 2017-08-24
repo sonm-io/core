@@ -12,7 +12,7 @@ service Miner {
 
     rpc TaskStart (TaskStartRequest) returns (TaskStartReply) {}
     rpc TaskStop (TaskStopRequest) returns (TaskStopReply) {}
-    rpc TasksStatus (stream MinerStatusMapRequest) returns (stream StatusMapReply) {}
+    rpc TasksStatus (stream TaskDetailsMapRequest) returns (stream TaskDetailsMapReply) {}
     rpc TaskDetails (TaskDetailsRequest) returns (TaskDetailsReply) {}
     rpc TaskLogs (TaskLogsRequest) returns (stream TaskLogsChunk) {}
 }
@@ -59,4 +59,4 @@ message TaskStartReply {
     map<string, port> Ports = 2;
 }
 
-message MinerStatusMapRequest {}
+message TaskDetailsMapRequest {}

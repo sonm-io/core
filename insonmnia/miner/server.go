@@ -334,7 +334,7 @@ func (m *Miner) removeStatusChannel(idx int) {
 }
 
 func (m *Miner) sendTasksStatus(server pb.Miner_TasksStatusServer) error {
-	result := &pb.StatusMapReply{Statuses: make(map[string]*pb.TaskDetailsReply)}
+	result := &pb.TaskDetailsMapReply{Statuses: make(map[string]*pb.TaskDetailsReply)}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for id, info := range m.containers {

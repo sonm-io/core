@@ -25,7 +25,7 @@ func getSimpleTaskConfig(t *testing.T, imageName string) task_config.TaskConfig 
 
 func TestTasksListSimpleEmpty(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.StatusMapReply{}, nil)
+	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsMapReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	taskListCmdRunner(rootCmd, "test", itr)
@@ -36,7 +36,7 @@ func TestTasksListSimpleEmpty(t *testing.T) {
 
 func TestTasksListSimpleWithTasks(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.StatusMapReply{
+	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsMapReply{
 		Statuses: map[string]*pb.TaskDetailsReply{
 			"task-1": {Status: pb.TaskDetailsReply_RUNNING},
 			"task-2": {Status: pb.TaskDetailsReply_FINISHED},
@@ -54,7 +54,7 @@ func TestTasksListSimpleWithTasks(t *testing.T) {
 
 func TestTaskListJsonEmpty(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.StatusMapReply{}, nil)
+	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsMapReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	taskListCmdRunner(rootCmd, "test", itr)
@@ -65,7 +65,7 @@ func TestTaskListJsonEmpty(t *testing.T) {
 
 func TestTaskListJsonWithTasks(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.StatusMapReply{
+	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsMapReply{
 		Statuses: map[string]*pb.TaskDetailsReply{
 			"task-1": {Status: pb.TaskDetailsReply_RUNNING},
 			"task-2": {Status: pb.TaskDetailsReply_FINISHED},
@@ -76,7 +76,7 @@ func TestTaskListJsonWithTasks(t *testing.T) {
 	taskListCmdRunner(rootCmd, "test", itr)
 	out := buf.String()
 
-	reply := &pb.StatusMapReply{}
+	reply := &pb.TaskDetailsMapReply{}
 	err := json.Unmarshal([]byte(out), &reply)
 	assert.NoError(t, err)
 	assert.Len(t, reply.Statuses, 2)

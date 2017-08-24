@@ -65,10 +65,9 @@ message TaskDetailsReply {
     string ports = 3;
     uint64 uptime = 4;
     ResourceUsage usage = 5;
-    //ContainerResources resources = 5;
 }
 
-message StatusMapReply {
+message TaskDetailsMapReply {
     map<string, TaskDetailsReply> statuses = 1;
 }
 

@@ -14,7 +14,7 @@ service Hub {
     rpc StopTask (TaskStopRequest) returns (TaskStopReply) {}
 
     rpc TaskStatus (TaskDetailsRequest) returns (TaskDetailsReply) {}
-    rpc MinerStatus (HubStatusMapRequest) returns (StatusMapReply) {}
+    rpc MinerStatus (HubStatusMapRequest) returns (TaskDetailsMapReply) {}
     rpc TaskLogs (TaskLogsRequest) returns (stream TaskLogsChunk) {}
 }
 
