@@ -161,7 +161,7 @@ func TestMinerStart(t *testing.T) {
 	m, err := builder.Config(cfg).Overseer(ovs).Build()
 	require.NotNil(t, m)
 	require.Nil(t, err)
-	reply, err := m.Start(context.Background(), &pb.TaskStartRequest{Id: "test"})
+	reply, err := m.TaskStart(context.Background(), &pb.TaskStartRequest{Id: "test"})
 	assert.NotNil(t, reply)
 	assert.Nil(t, err)
 

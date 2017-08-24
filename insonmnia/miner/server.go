@@ -228,7 +228,7 @@ func transformResources(p *pb.ContainerResources) container.Resources {
 }
 
 // Start request from Hub makes Miner start a container
-func (m *Miner) Start(ctx context.Context, request *pb.TaskStartRequest) (*pb.MinerStartReply, error) {
+func (m *Miner) TaskStart(ctx context.Context, request *pb.TaskStartRequest) (*pb.TaskStartReply, error) {
 	var d = Description{
 		Image:         request.Image,
 		Registry:      request.Registry,
@@ -285,13 +285,13 @@ func (m *Miner) Start(ctx context.Context, request *pb.TaskStartRequest) (*pb.Mi
 
 	go m.listenForStatus(statusListener, request.Id)
 
-	var rpl = pb.MinerStartReply{
+	var rpl = pb.TaskStartReply{
 		Container: containerInfo.ID,
-		Ports:     make(map[string]*pb.MinerStartReplyPort),
+		Ports:     make(map[string]*pb.TaskStartReplyPort),
 	}
 	for port, v := range containerInfo.Ports {
 		if len(v) > 0 {
-			replyPort := &pb.MinerStartReplyPort{
+			replyPort := &pb.TaskStartReplyPort{
 				IP:   m.pubAddress,
 				Port: v[0].HostPort,
 			}

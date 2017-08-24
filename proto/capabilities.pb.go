@@ -43,7 +43,7 @@ It has these top-level messages:
 	MinerHandshakeRequest
 	MinerHandshakeReply
 	TaskStartRequest
-	MinerStartReply
+	TaskStartReply
 	MinerStatusMapRequest
 */
 package sonm

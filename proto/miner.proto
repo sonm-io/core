@@ -10,7 +10,7 @@ service Miner {
     rpc Status (MinerStatusRequest) returns (MinerStatusReply) {}
     rpc Handshake (MinerHandshakeRequest) returns (MinerHandshakeReply) {}
 
-    rpc Start (TaskStartRequest) returns (MinerStartReply) {}
+    rpc TaskStart (TaskStartRequest) returns (TaskStartReply) {}
     rpc Stop (StopTaskRequest) returns (StopTaskReply) {}
 
     rpc TasksStatus (stream MinerStatusMapRequest) returns (stream StatusMapReply) {}
@@ -52,7 +52,7 @@ message TaskStartRequest {
     string PublicKeyData = 7;
 }
 
-message MinerStartReply {
+message TaskStartReply {
     string container = 1;
     message port {
         string IP = 1;

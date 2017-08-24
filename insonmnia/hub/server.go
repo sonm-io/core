@@ -146,7 +146,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 		// TODO: Fill restart policy and resources fields.
 	}
 
-	resp, err := miner.Client.Start(ctx, startRequest)
+	resp, err := miner.Client.TaskStart(ctx, startRequest)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
 	}
