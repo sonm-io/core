@@ -5,17 +5,17 @@ import "proto/insonmnia.proto";
 package sonm;
 
 service Hub {
-    rpc Ping(PingRequest) returns (PingReply) {}
-    rpc Status(HubStatusRequest) returns (HubStatusReply) {}
-    rpc List(ListRequest) returns (ListReply) {}
-    rpc Info(HubInfoRequest) returns (InfoReply) {}
+    rpc Ping (PingRequest) returns (PingReply) {}
+    rpc Status (HubStatusRequest) returns (HubStatusReply) {}
+    rpc List (ListRequest) returns (ListReply) {}
+    rpc Info (HubInfoRequest) returns (MinerStatusReply) {}
 
-    rpc StartTask(HubStartTaskRequest) returns (HubStartTaskReply) {}
-    rpc StopTask(StopTaskRequest) returns (StopTaskReply) {}
+    rpc StartTask (HubStartTaskRequest) returns (HubStartTaskReply) {}
+    rpc StopTask (StopTaskRequest) returns (StopTaskReply) {}
 
-    rpc TaskStatus(TaskStatusRequest) returns (TaskStatusReply) {}
-    rpc MinerStatus(HubStatusMapRequest) returns (StatusMapReply) {}
-    rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
+    rpc TaskStatus (TaskStatusRequest) returns (TaskStatusReply) {}
+    rpc MinerStatus (HubStatusMapRequest) returns (StatusMapReply) {}
+    rpc TaskLogs (TaskLogsRequest) returns (stream TaskLogsChunk) {}
 }
 
 message ListRequest {

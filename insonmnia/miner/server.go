@@ -125,7 +125,7 @@ func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, err
 // This works the following way: a miner periodically collects various runtime statistics from all
 // spawned containers that it knows about. For running containers metrics map the immediate
 // state, for dead containers - their last memento.
-func (m *Miner) Info(ctx context.Context, request *pb.MinerInfoRequest) (*pb.InfoReply, error) {
+func (m *Miner) Status(ctx context.Context, request *pb.MinerStatusRequest) (*pb.MinerStatusReply, error) {
 	log.G(m.ctx).Info("handling Info request", zap.Any("req", request))
 
 	info, err := m.ovs.Info(ctx)
@@ -133,7 +133,7 @@ func (m *Miner) Info(ctx context.Context, request *pb.MinerInfoRequest) (*pb.Inf
 		return nil, err
 	}
 
-	var result = &pb.InfoReply{
+	var result = &pb.MinerStatusReply{
 		Usage:        make(map[string]*pb.ResourceUsage),
 		Name:         m.name,
 		Capabilities: m.hardware.IntoProto(),

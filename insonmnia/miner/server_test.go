@@ -101,7 +101,7 @@ func TestMinerInfo(t *testing.T) {
 	require.Nil(t, err)
 
 	m.nameMapping["id1"] = "id1"
-	ret, err := m.Info(builder.ctx, &pb.MinerInfoRequest{})
+	ret, err := m.Status(builder.ctx, &pb.MinerStatusRequest{})
 
 	assert.NotNil(t, ret)
 	assert.Nil(t, err)

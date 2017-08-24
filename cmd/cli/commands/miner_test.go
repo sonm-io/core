@@ -13,7 +13,7 @@ import (
 
 func TestMinerStatusIdle(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().MinerStatus(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.InfoReply{}, nil)
+	itr.EXPECT().MinerStatus(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.MinerStatusReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	minerStatusCmdRunner(rootCmd, "test", itr)
@@ -27,7 +27,7 @@ func TestMinerStatusData(t *testing.T) {
 	itr.EXPECT().
 		MinerStatus(gomock.Any(), gomock.Any()).
 		AnyTimes().
-		Return(&pb.InfoReply{
+		Return(&pb.MinerStatusReply{
 			Usage: map[string]*pb.ResourceUsage{
 				"test": {
 					Cpu:    &pb.CPUUsage{Total: uint64(500)},
@@ -58,7 +58,7 @@ func TestMinerStatusData(t *testing.T) {
 
 func TestMinerStatusJsonIdle(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().MinerStatus(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.InfoReply{}, nil)
+	itr.EXPECT().MinerStatus(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.MinerStatusReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	minerStatusCmdRunner(rootCmd, "test", itr)
@@ -72,7 +72,7 @@ func TestMinerStatusJsonData(t *testing.T) {
 	itr.EXPECT().
 		MinerStatus(gomock.Any(), gomock.Any()).
 		AnyTimes().
-		Return(&pb.InfoReply{
+		Return(&pb.MinerStatusReply{
 			Capabilities: &pb.Capabilities{
 				Cpu: []*pb.CPUDevice{{Name: "i7", Vendor: "Intel", Mhz: 3000.0, Cores: 4}},
 				Gpu: []*pb.GPUDevice{{Name: "GTX 1080Ti", Vendor: "NVidia"}},
@@ -84,7 +84,7 @@ func TestMinerStatusJsonData(t *testing.T) {
 	minerStatusCmdRunner(rootCmd, "test", itr)
 	out := buf.String()
 
-	info := &pb.InfoReply{}
+	info := &pb.MinerStatusReply{}
 	err := json.Unmarshal([]byte(out), &info)
 	assert.NoError(t, err)
 	assert.NotNil(t, info.Capabilities)
@@ -246,7 +246,7 @@ func TestMinerStatusMultiCPUAndGPU(t *testing.T) {
 	itr.EXPECT().
 		MinerStatus(gomock.Any(), gomock.Any()).
 		AnyTimes().
-		Return(&pb.InfoReply{
+		Return(&pb.MinerStatusReply{
 			Capabilities: &pb.Capabilities{
 				Cpu: []*pb.CPUDevice{
 					{Name: "Xeon E7-4850", Vendor: "Intel", Mhz: 2800.0, Cores: 14},
@@ -276,7 +276,7 @@ func TestMinerStatusNoGPU(t *testing.T) {
 	itr.EXPECT().
 		MinerStatus(gomock.Any(), gomock.Any()).
 		AnyTimes().
-		Return(&pb.InfoReply{
+		Return(&pb.MinerStatusReply{
 			Capabilities: &pb.Capabilities{
 				Cpu: []*pb.CPUDevice{
 					{Name: "Xeon E7-4850", Vendor: "Intel", Mhz: 2800.0, Cores: 14},
@@ -299,7 +299,7 @@ func TestMinerStatusWithName(t *testing.T) {
 	itr.EXPECT().
 		MinerStatus(gomock.Any(), gomock.Any()).
 		AnyTimes().
-		Return(&pb.InfoReply{
+		Return(&pb.MinerStatusReply{
 			Name: "fb402dcf-ff56-465e-8aad-bcef7ca1ef9a",
 		}, nil)
 

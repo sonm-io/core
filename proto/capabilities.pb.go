@@ -29,7 +29,7 @@ It has these top-level messages:
 	MemoryUsage
 	NetworkUsage
 	ResourceUsage
-	InfoReply
+	MinerStatusReply
 	StopTaskRequest
 	StopTaskReply
 	TaskStatusRequest
@@ -39,7 +39,7 @@ It has these top-level messages:
 	ContainerRestartPolicy
 	TaskLogsRequest
 	TaskLogsChunk
-	MinerInfoRequest
+	MinerStatusRequest
 	MinerHandshakeRequest
 	MinerHandshakeReply
 	TaskStartRequest

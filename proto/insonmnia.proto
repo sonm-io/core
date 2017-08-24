@@ -35,7 +35,7 @@ message ResourceUsage {
     map<string, NetworkUsage> network = 3;
 }
 
-message InfoReply {
+message MinerStatusReply {
     map<string, ResourceUsage> usage = 1;
     string name = 2;
     Capabilities capabilities = 3;

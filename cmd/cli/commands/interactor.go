@@ -13,7 +13,7 @@ type CliInteractor interface {
 	HubStatus(context.Context) (*pb.HubStatusReply, error)
 
 	MinerList(context.Context) (*pb.ListReply, error)
-	MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error)
+	MinerStatus(minerID string, appCtx context.Context) (*pb.MinerStatusReply, error)
 
 	TaskList(appCtx context.Context, minerID string) (*pb.StatusMapReply, error)
 	TaskLogs(appCtx context.Context, req *pb.TaskLogsRequest) (pb.Hub_TaskLogsClient, error)
@@ -60,7 +60,7 @@ func (it *grpcInteractor) MinerList(appCtx context.Context) (*pb.ListReply, erro
 	return pb.NewHubClient(it.cc).List(ctx, &pb.ListRequest{})
 }
 
-func (it *grpcInteractor) MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error) {
+func (it *grpcInteractor) MinerStatus(minerID string, appCtx context.Context) (*pb.MinerStatusReply, error) {
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
 

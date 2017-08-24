@@ -7,7 +7,7 @@ package sonm;
 
 service Miner {
     rpc Ping (PingRequest) returns (PingReply) {}
-    rpc Info (MinerInfoRequest) returns (InfoReply) {}
+    rpc Status (MinerStatusRequest) returns (MinerStatusReply) {}
     rpc Handshake (MinerHandshakeRequest) returns (MinerHandshakeReply) {}
 
     rpc Start (TaskStartRequest) returns (MinerStartReply) {}
@@ -19,7 +19,7 @@ service Miner {
     rpc TaskLogs (TaskLogsRequest) returns (stream TaskLogsChunk) {}
 }
 
-message MinerInfoRequest {}
+message MinerStatusRequest {}
 
 message MinerHandshakeRequest {
     string hub = 1;

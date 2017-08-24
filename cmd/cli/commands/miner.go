@@ -58,7 +58,7 @@ func printMemInfo(cmd *cobra.Command, cap *pb.Capabilities) {
 	cmd.Printf("      Used:  %s\r\n", ds.ByteSize(cap.Mem.GetUsed()).HR())
 }
 
-func printMinerStatus(cmd *cobra.Command, minerID string, metrics *pb.InfoReply) {
+func printMinerStatus(cmd *cobra.Command, minerID string, metrics *pb.MinerStatusReply) {
 	if isSimpleFormat() {
 		if metrics.Name == "" {
 			cmd.Printf("Miner: \"%s\":\r\n", minerID)
