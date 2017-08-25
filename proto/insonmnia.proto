@@ -1,10 +1,12 @@
 syntax = "proto3";
 
-import "proto/capabilities.proto";
+import "capabilities.proto";
 
 package sonm;
 
-message PingRequest {}
+message EmptyRequest {}
+
+message EmptyReply {}
 
 message PingReply {
     string status = 1;
@@ -45,8 +47,6 @@ message TaskStopRequest {
     string id = 1;
 }
 
-message TaskStopReply {}
-
 message TaskDetailsRequest {
     string id = 1;
 }
@@ -71,7 +71,7 @@ message TaskDetailsMapReply {
     map<string, TaskDetailsReply> statuses = 1;
 }
 
-message ContainerResources {
+message TaskResourcesRestrictions {
     int64 memory = 1;
     int64 nanoCPUs = 2;
 }

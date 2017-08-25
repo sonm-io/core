@@ -89,7 +89,7 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 
 func (m *MinerCtx) handshake(h *Hub) error {
 	log.G(m.ctx).Info("sending handshake to a Miner", zap.Stringer("addr", m.conn.RemoteAddr()))
-	resp, err := m.Client.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
+	resp, err := m.Client.Handshake(m.ctx, &pb.M_HandshakeRequest{})
 	if err != nil {
 		log.G(m.ctx).Error("failed to receive handshake from a Miner",
 			zap.Any("addr", m.conn.RemoteAddr()),
@@ -145,7 +145,7 @@ func (m *MinerCtx) initStatusClient() (statusClient pb.Miner_TasksStatusClient, 
 		return
 	}
 
-	err = statusClient.Send(&pb.TaskDetailsMapRequest{})
+	err = statusClient.Send(&pb.EmptyRequest{})
 	if err != nil {
 		log.G(m.ctx).Error("failed to send tasks status request", zap.Error(err))
 		return
@@ -182,7 +182,7 @@ func (m *MinerCtx) ping() error {
 			log.G(m.ctx).Info("ping the Miner", zap.Stringer("remote", m.conn.RemoteAddr()))
 			// TODO: implement retries
 			ctx, cancel := context.WithTimeout(m.ctx, time.Second*5)
-			_, err := m.Client.Ping(ctx, &pb.PingRequest{})
+			_, err := m.Client.Ping(ctx, &pb.EmptyRequest{})
 			cancel()
 			if err != nil {
 				log.G(ctx).Error("failed to ping miner", zap.Error(err))

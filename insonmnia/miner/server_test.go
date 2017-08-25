@@ -101,7 +101,7 @@ func TestMinerInfo(t *testing.T) {
 	require.Nil(t, err)
 
 	m.nameMapping["id1"] = "id1"
-	ret, err := m.Status(builder.ctx, &pb.MinerStatusRequest{})
+	ret, err := m.Status(builder.ctx, &pb.EmptyRequest{})
 
 	assert.NotNil(t, ret)
 	assert.Nil(t, err)
@@ -134,7 +134,7 @@ func TestMinerHandshake(t *testing.T) {
 	m, err := builder.Build()
 	require.NotNil(t, m)
 	require.Nil(t, err)
-	reply, err := m.Handshake(context.Background(), &pb.MinerHandshakeRequest{Hub: "testHub"})
+	reply, err := m.Handshake(context.Background(), &pb.M_HandshakeRequest{Hub: "testHub"})
 	assert.NotNil(t, reply)
 	assert.Nil(t, err)
 	assert.Equal(t, reply.Miner, "deadbeef-cafe-dead-beef-cafedeadbeef")
@@ -161,7 +161,7 @@ func TestMinerStart(t *testing.T) {
 	m, err := builder.Config(cfg).Overseer(ovs).Build()
 	require.NotNil(t, m)
 	require.Nil(t, err)
-	reply, err := m.TaskStart(context.Background(), &pb.TaskStartRequest{Id: "test"})
+	reply, err := m.TaskStart(context.Background(), &pb.M_TaskStartRequest{Id: "test"})
 	assert.NotNil(t, reply)
 	assert.Nil(t, err)
 

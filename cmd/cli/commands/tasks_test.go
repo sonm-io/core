@@ -113,7 +113,7 @@ func TestTaskListJsonError(t *testing.T) {
 
 func TestTaskStartSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStart(gomock.Any(), gomock.Any()).Return(&pb.HubStartTaskReply{
+	itr.EXPECT().TaskStart(gomock.Any(), gomock.Any()).Return(&pb.H_StartTaskReply{
 		Id:       "7a94eab1-5f57-485a-8602-124783c588ea",
 		Endpoint: []string{"80/tcp->10.0.0.123:12345"},
 	}, nil)
@@ -131,7 +131,7 @@ func TestTaskStartSimple(t *testing.T) {
 
 func TestTaskStartJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStart(gomock.Any(), gomock.Any()).Return(&pb.HubStartTaskReply{
+	itr.EXPECT().TaskStart(gomock.Any(), gomock.Any()).Return(&pb.H_StartTaskReply{
 		Id:       "7a94eab1-5f57-485a-8602-124783c588ea",
 		Endpoint: []string{"80/tcp->10.0.0.123:12345"},
 	}, nil)
@@ -142,7 +142,7 @@ func TestTaskStartJson(t *testing.T) {
 	taskStartCmdRunner(rootCmd, "test", task, itr)
 	out := buf.Bytes()
 
-	reply := &pb.HubStartTaskReply{}
+	reply := &pb.H_StartTaskReply{}
 	err := json.Unmarshal(out, &reply)
 	assert.NoError(t, err)
 
@@ -246,7 +246,7 @@ func TestTaskStatusJsonError(t *testing.T) {
 
 func TestTaskStopSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStop(gomock.Any(), gomock.Any()).Return(&pb.TaskStopReply{}, nil)
+	itr.EXPECT().TaskStop(gomock.Any(), gomock.Any()).Return(&pb.EmptyReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	taskStopCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
@@ -257,7 +257,7 @@ func TestTaskStopSimple(t *testing.T) {
 
 func TestTaskStopJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStop(gomock.Any(), gomock.Any()).Return(&pb.TaskStopReply{}, nil)
+	itr.EXPECT().TaskStop(gomock.Any(), gomock.Any()).Return(&pb.EmptyReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	taskStopCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)

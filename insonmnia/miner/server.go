@@ -114,7 +114,7 @@ func (m *Miner) deleteTaskMapping(id string) {
 }
 
 // Ping works as Healthcheck for the Hub
-func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, error) {
+func (m *Miner) Ping(ctx context.Context, _ *pb.EmptyRequest) (*pb.PingReply, error) {
 	log.G(m.ctx).Info("got ping request from Hub")
 	return &pb.PingReply{}, nil
 }
@@ -124,8 +124,8 @@ func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, err
 // This works the following way: a miner periodically collects various runtime statistics from all
 // spawned containers that it knows about. For running containers metrics map the immediate
 // state, for dead containers - their last memento.
-func (m *Miner) Status(ctx context.Context, request *pb.MinerStatusRequest) (*pb.MinerStatusReply, error) {
-	log.G(m.ctx).Info("handling Info request", zap.Any("req", request))
+func (m *Miner) Status(ctx context.Context, _ *pb.EmptyRequest) (*pb.MinerStatusReply, error) {
+	log.G(m.ctx).Info("handling Info request")
 
 	info, err := m.ovs.Info(ctx)
 	if err != nil {
@@ -151,10 +151,10 @@ func (m *Miner) Status(ctx context.Context, request *pb.MinerStatusRequest) (*pb
 //
 // This is a self representation about initial resources this Miner provides.
 // TODO: May be useful to register a channel to cover runtime resource changes.
-func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest) (*pb.MinerHandshakeReply, error) {
+func (m *Miner) Handshake(ctx context.Context, request *pb.M_HandshakeRequest) (*pb.M_HandshakeReply, error) {
 	log.G(m.ctx).Info("handling Handshake request", zap.Any("req", request))
 
-	resp := &pb.MinerHandshakeReply{
+	resp := &pb.M_HandshakeReply{
 		Miner:        m.name,
 		Capabilities: m.hardware.IntoProto(),
 		NatType:      marshalNATType(m.natType),
@@ -216,7 +216,7 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 	return restartPolicy
 }
 
-func transformResources(p *pb.ContainerResources) container.Resources {
+func transformResources(p *pb.TaskResourcesRestrictions) container.Resources {
 	var resources = container.Resources{}
 	if p != nil {
 		resources.NanoCPUs = p.NanoCPUs
@@ -227,7 +227,7 @@ func transformResources(p *pb.ContainerResources) container.Resources {
 }
 
 // TaskStart request from Hub makes Miner start a container
-func (m *Miner) TaskStart(ctx context.Context, request *pb.TaskStartRequest) (*pb.TaskStartReply, error) {
+func (m *Miner) TaskStart(ctx context.Context, request *pb.M_TaskStartRequest) (*pb.M_TaskStartReply, error) {
 	var d = Description{
 		Image:         request.Image,
 		Registry:      request.Registry,
@@ -284,13 +284,13 @@ func (m *Miner) TaskStart(ctx context.Context, request *pb.TaskStartRequest) (*p
 
 	go m.listenForStatus(statusListener, request.Id)
 
-	var rpl = pb.TaskStartReply{
+	var rpl = pb.M_TaskStartReply{
 		Container: containerInfo.ID,
-		Ports:     make(map[string]*pb.TaskStartReplyPort),
+		Ports:     make(map[string]*pb.M_TaskStartReplyPort),
 	}
 	for port, v := range containerInfo.Ports {
 		if len(v) > 0 {
-			replyPort := &pb.TaskStartReplyPort{
+			replyPort := &pb.M_TaskStartReplyPort{
 				IP:   m.pubAddress,
 				Port: v[0].HostPort,
 			}
@@ -302,7 +302,7 @@ func (m *Miner) TaskStart(ctx context.Context, request *pb.TaskStartRequest) (*p
 }
 
 // TaskStop request forces to kill container
-func (m *Miner) TaskStop(ctx context.Context, request *pb.TaskStopRequest) (*pb.TaskStopReply, error) {
+func (m *Miner) TaskStop(ctx context.Context, request *pb.TaskStopRequest) (*pb.EmptyReply, error) {
 	log.G(ctx).Info("handling Stop request", zap.Any("req", request))
 
 	m.mu.Lock()
@@ -322,7 +322,7 @@ func (m *Miner) TaskStop(ctx context.Context, request *pb.TaskStopRequest) (*pb.
 	}
 	m.setStatus(&pb.TaskDetailsReply{Status: pb.TaskDetailsReply_FINISHED}, request.Id)
 	m.resources.Retain(&containerInfo.Resources)
-	return &pb.TaskStopReply{}, nil
+	return &pb.EmptyReply{}, nil
 }
 
 func (m *Miner) removeStatusChannel(idx int) {

@@ -13,7 +13,7 @@ func init() {
 	minerRootCmd.AddCommand(minersListCmd, minerStatusCmd)
 }
 
-func printMinerList(cmd *cobra.Command, lr *pb.MinerListReply) {
+func printMinerList(cmd *cobra.Command, lr *pb.H_MinerListReply) {
 	if isSimpleFormat() {
 		if len(lr.Info) == 0 {
 			cmd.Printf("No miners connected\r\n")

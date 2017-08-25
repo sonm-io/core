@@ -1,30 +1,55 @@
 syntax = "proto3";
 
-import "proto/insonmnia.proto";
-import "proto/capabilities.proto";
+import "insonmnia.proto";
+import "capabilities.proto";
 
 package sonm;
 
 service Miner {
     // Ping checks Miner availability for Rub
-    rpc Ping (PingRequest) returns (PingReply) {}
+    rpc Ping (EmptyRequest) returns (PingReply) {}
     // Handshake returns miner's hardware and network capabilities
-    rpc Handshake (MinerHandshakeRequest) returns (MinerHandshakeReply) {}
+    rpc Handshake (M.HandshakeRequest) returns (M.HandshakeReply) {}
     // Status returns Miner status
-    rpc Status (MinerStatusRequest) returns (MinerStatusReply) {}
+    rpc Status (EmptyRequest) returns (MinerStatusReply) {}
 
     // TaskXXX operates with task on some miner
-    rpc TaskStart (TaskStartRequest) returns (TaskStartReply) {}
-    rpc TaskStop (TaskStopRequest) returns (TaskStopReply) {}
-    rpc TasksStatus (stream TaskDetailsMapRequest) returns (stream TaskDetailsMapReply) {}
+    rpc TaskStart (M.TaskStartRequest) returns (M.TaskStartReply) {}
+    rpc TaskStop (TaskStopRequest) returns (EmptyReply) {}
+    rpc TasksStatus (stream EmptyRequest) returns (stream TaskDetailsMapReply) {}
     rpc TaskDetails (TaskDetailsRequest) returns (TaskDetailsReply) {}
     rpc TaskLogs (TaskLogsRequest) returns (stream TaskLogsChunk) {}
 }
 
-message MinerStatusRequest {}
+message M {
+    message HandshakeRequest {
+        string hub = 1;
+    }
 
-message MinerHandshakeRequest {
-    string hub = 1;
+    message HandshakeReply {
+        string miner = 1;
+        Capabilities capabilities = 2;
+        NATType natType = 3;
+    }
+
+    message TaskStartRequest {
+        string id = 1;
+        string registry = 2;
+        string image = 3;
+        string auth = 4;
+        ContainerRestartPolicy restartPolicy = 5;
+        TaskResourcesRestrictions resources = 6;
+        string PublicKeyData = 7;
+    }
+
+    message TaskStartReply {
+        string container = 1;
+        message port {
+            string IP = 1;
+            string port = 2;
+        }
+        map<string, port> Ports = 2;
+    }
 }
 
 enum NATType {
@@ -37,30 +62,3 @@ enum NATType {
     SYMMETRIC_UDP_FIREWALL = 6;
     UNKNOWN = 7;
 }
-
-message MinerHandshakeReply {
-    string miner = 1;
-    Capabilities capabilities = 2;
-    NATType natType = 3;
-}
-
-message TaskStartRequest {
-    string id = 1;
-    string registry = 2;
-    string image = 3;
-    string auth = 4;
-    ContainerRestartPolicy restartPolicy = 5;
-    ContainerResources resources = 6;
-    string PublicKeyData = 7;
-}
-
-message TaskStartReply {
-    string container = 1;
-    message port {
-        string IP = 1;
-        string port = 2;
-    }
-    map<string, port> Ports = 2;
-}
-
-message TaskDetailsMapRequest {}

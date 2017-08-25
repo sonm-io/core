@@ -46,7 +46,7 @@ func printTaskList(cmd *cobra.Command, minerStatus *pb.TaskDetailsMapReply, mine
 	}
 }
 
-func printTaskStart(cmd *cobra.Command, rep *pb.HubStartTaskReply) {
+func printTaskStart(cmd *cobra.Command, rep *pb.H_StartTaskReply) {
 	if isSimpleFormat() {
 		cmd.Printf("ID %s\r\nEndpoint %s\r\n", rep.Id, rep.Endpoint)
 	} else {
@@ -297,7 +297,7 @@ func taskStartCmdRunner(cmd *cobra.Command, miner string, taskConfig task_config
 		cmd.Printf("Starting \"%s\" on miner %s...\r\n", taskConfig.GetImageName(), miner)
 	}
 
-	var req = &pb.HubStartTaskRequest{
+	var req = &pb.H_StartTaskRequest{
 		Miner:         miner,
 		Image:         taskConfig.GetImageName(),
 		Registry:      taskConfig.GetRegistryName(),
