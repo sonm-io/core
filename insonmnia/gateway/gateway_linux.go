@@ -248,8 +248,16 @@ func (g *Gateway) getMetrics(vsID string) (*Metrics, error) {
 			s := stat.GetStats()
 			return &Metrics{
 				Connections: s["CONNS"],
+				InPackets:   s["INPKTS"],
+				OutPackets:  s["OUTPKTS"],
 				InBytes:     s["INBYTES"],
 				OutBytes:    s["OUTBYTES"],
+
+				ConnectionsPerSecond: s["CPS"],
+				InPacketsPerSecond:   s["INPPS"],
+				OutPacketsPerSecond:  s["OUTPPS"],
+				InBytesPerSecond:     s["INBPS"],
+				OutBytesPerSecond:    s["OUTBPS"],
 			}, nil
 		}
 	}
