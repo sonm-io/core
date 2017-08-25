@@ -12,7 +12,7 @@ type ipvsRouter struct {
 	pool     *gateway.PortPool
 	minerID  string
 	metrics  map[string]*gateway.Metrics
-	services map[string]bool
+	services map[string]struct{}
 	mu       sync.Mutex
 }
 
@@ -22,7 +22,7 @@ func newIPVSRouter(ctx context.Context, minerID string, gate *gateway.Gateway, p
 		pool:     pool,
 		minerID:  minerID,
 		metrics:  make(map[string]*gateway.Metrics, 0),
-		services: make(map[string]bool, 0),
+		services: make(map[string]struct{}, 0),
 	}
 }
 
@@ -58,7 +58,7 @@ func (r *ipvsRouter) RegisterRoute(ID string, protocol string, realIP string, re
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.metrics[ID] = &gateway.Metrics{}
-	r.services[ID] = true
+	r.services[ID] = struct{}{}
 
 	route := &route{
 		ID:          ID,
