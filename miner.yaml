@@ -5,6 +5,18 @@ hub:
   # format is "ip:port"
   # endpoint: "127.0.0.1:10002"
 
+  # Resources section is available only on Linux
+  # If configured, all tasks will share this pool of resources.
+  # This pool is a parent control group.
+  # Format is Open Container Initiative Runtime Specification:
+  # resources:
+  # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#memory
+  #     memory: { limit: 1000 }
+  # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#cpu
+  #     cpu: {quota: 1024 cpus: "2-3" }
+  # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#network
+  #     network: { classID: 1048577 }
+
 # Logging settings.
 logging:
   # The desired logging level.
