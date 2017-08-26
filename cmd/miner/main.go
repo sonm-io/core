@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"net"
+	"net/http"
 	"os"
 	"os/signal"
 
@@ -16,6 +18,8 @@ import (
 	"github.com/sonm-io/core/insonmnia/miner"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
+
+	_ "expvar"
 )
 
 var (
@@ -49,10 +53,39 @@ func main() {
 	if err != nil {
 		ctxlog.GetLogger(ctx).Fatal("failed to create a new Miner", zap.Error(err))
 	}
+
+	var onSigInt = make(chan struct{})
+
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
+		defer signal.Stop(c)
 		<-c
+		close(onSigInt)
+	}()
+
+	if debugSrvCfg := cfg.DebugServer(); debugSrvCfg != nil && debugSrvCfg.Endpoint != "" {
+		go func() {
+			addr := debugSrvCfg.Endpoint
+			ctxlog.GetLogger(ctx).Info("start HTTP debug server", zap.String("addr", addr))
+			ln, lerr := net.Listen("tcp", addr)
+			if lerr != nil {
+				ctxlog.GetLogger(ctx).Fatal("failed to create TCP listener", zap.String("addr", addr), zap.Error(lerr))
+			}
+			defer ln.Close()
+
+			go func() {
+				<-onSigInt
+				ln.Close()
+			}()
+
+			// expvar registers handler in http.DefaultServeMux
+			http.Serve(ln, http.DefaultServeMux)
+		}()
+	}
+
+	go func() {
+		<-onSigInt
 		m.Close()
 	}()
 

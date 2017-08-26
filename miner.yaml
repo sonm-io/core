@@ -18,3 +18,7 @@ logging:
 # automatically.
 # firewall:
 #   server: "stun.ekiga.net:3478"
+
+debugserver:
+  # Endpoint for HTTP debug server
+  endpoint: "127.0.0.1:9000"
