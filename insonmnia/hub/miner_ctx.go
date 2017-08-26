@@ -56,6 +56,8 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 		m.Close()
 		return nil, err
 	}
+
+	// TODO: Drop YAMUX
 	yaConn, err := m.session.Open()
 	if err != nil {
 		m.Close()
@@ -66,9 +68,11 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 	// TODO: rediscover jobs assigned to that Miner
 	dctx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
-	m.grpcConn, err = grpc.DialContext(dctx, "miner", grpc.WithInsecure(), grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
-		return yaConn, nil
-	}))
+	m.grpcConn, err = grpc.DialContext(dctx, "miner", grpc.WithInsecure(),
+		grpc.WithDecompressor(grpc.NewGZIPDecompressor()), grpc.WithCompressor(grpc.NewGZIPCompressor()),
+		grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
+			return yaConn, nil
+		}))
 
 	if err != nil {
 		log.G(ctx).Error("failed to connect to Miner's grpc server", zap.Error(err))

@@ -314,7 +314,7 @@ func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 	}
 
 	// TODO: add secure mechanism
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()))
 	h := &Hub{
 		ctx:          ctx,
 		gateway:      gate,

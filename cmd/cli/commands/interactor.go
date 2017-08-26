@@ -29,7 +29,9 @@ type grpcInteractor struct {
 }
 
 func (it *grpcInteractor) call(addr string) error {
-	cc, err := grpc.Dial(addr, grpc.WithInsecure())
+	cc, err := grpc.Dial(addr, grpc.WithInsecure(),
+		grpc.WithCompressor(grpc.NewGZIPCompressor()),
+		grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
 	if err != nil {
 		return err
 	}
