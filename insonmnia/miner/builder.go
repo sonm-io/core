@@ -139,7 +139,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	log.G(ctx).Info("collected Hardware info", zap.Any("hardware", hardwareInfo))
 
-	grpcServer := grpc.NewServer()
+	grpcServer := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()))
 
 	deleter, err := initializeControlGroup(b.cfg.HubResources())
 	if err != nil {
