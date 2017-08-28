@@ -3,9 +3,8 @@ package commands
 import (
 	"encoding/json"
 	"errors"
-	"time"
-
 	"os"
+	"time"
 
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/spf13/cobra"
@@ -15,6 +14,7 @@ const (
 	appName        = "sonm"
 	hubAddressFlag = "addr"
 	hubTimeoutFlag = "timeout"
+	outputModeFlag = "out"
 
 	// log flag names
 	logTypeFlag       = "type"
@@ -29,6 +29,7 @@ var (
 	rootCmd    = &cobra.Command{Use: appName}
 	version    string
 	hubAddress string
+	outputMode string
 	timeout    = 60 * time.Second
 	cfg        config.Config
 
@@ -50,6 +51,7 @@ var (
 func init() {
 	rootCmd.PersistentFlags().StringVar(&hubAddress, hubAddressFlag, "", "hub addr")
 	rootCmd.PersistentFlags().DurationVar(&timeout, hubTimeoutFlag, 60*time.Second, "Connection timeout")
+	rootCmd.PersistentFlags().StringVar(&outputMode, outputModeFlag, "", "Output mode: simple or json")
 	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd)
 }
 
@@ -89,7 +91,7 @@ func newCommandError(message string, err error) *commandError {
 }
 
 func showError(cmd *cobra.Command, message string, err error) {
-	if cfg.OutputFormat() == config.OutputModeSimple {
+	if isSimpleFormat() {
 		showErrorInSimple(cmd, message, err)
 	} else {
 		showErrorInJSON(cmd, message, err)
@@ -110,7 +112,7 @@ func showErrorInJSON(cmd *cobra.Command, message string, err error) {
 }
 
 func showOk(cmd *cobra.Command) {
-	if cfg.OutputFormat() == config.OutputModeSimple {
+	if isSimpleFormat() {
 		showOkSimple(cmd)
 	} else {
 		showOkJson(cmd)
@@ -128,5 +130,13 @@ func showOkJson(cmd *cobra.Command) {
 }
 
 func isSimpleFormat() bool {
-	return cfg.OutputFormat() == config.OutputModeSimple
+	if outputMode == "" && cfg.OutputFormat() == "" {
+		return true
+	}
+
+	if outputMode == config.OutputModeJSON || cfg.OutputFormat() == config.OutputModeJSON {
+		return false
+	}
+
+	return true
 }
