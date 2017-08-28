@@ -61,8 +61,6 @@ func TestShowErrorJsonNilErr(t *testing.T) {
 	showError(rootCmd, "test error", nil)
 	out := buf.String()
 
-	fmt.Printf("OUT :: %s\r\n ", out)
-
 	cmdErr, err := stringToCommandError(out)
 	assert.NoError(t, err)
 	assert.Equal(t, "", cmdErr.Error)

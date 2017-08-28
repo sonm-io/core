@@ -102,7 +102,7 @@ func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskSt
 			"status": taskStatus.Status.String(),
 			"image":  taskStatus.GetImageName(),
 			"ports":  taskStatus.GetPorts(),
-			"uptime": time.Duration(taskStatus.GetUptime()).String(),
+			"uptime": fmt.Sprintf("%d", time.Duration(taskStatus.GetUptime())),
 		}
 		if taskStatus.GetUsage() != nil {
 			v["cpu"] = fmt.Sprintf("%d", taskStatus.GetUsage().GetCpu().GetTotal())
