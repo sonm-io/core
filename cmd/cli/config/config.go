@@ -22,7 +22,7 @@ type Config interface {
 // cliConfig implements Config interface
 type cliConfig struct {
 	HubAddr   string `required:"false" default:"" yaml:"hub_address"`
-	OutFormat string `required:"false" default:"simple" yaml:"output_format"`
+	OutFormat string `required:"false" default:"" yaml:"output_format"`
 }
 
 func (cc *cliConfig) OutputFormat() string {

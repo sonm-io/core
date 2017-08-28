@@ -52,7 +52,7 @@ func TestConfigDefaults(t *testing.T) {
 
 	cfg, err := NewConfig()
 	assert.NoError(t, err)
-	assert.Equal(t, "simple", cfg.OutputFormat())
+	assert.Equal(t, "", cfg.OutputFormat())
 	assert.Equal(t, "", cfg.HubAddress())
 }
 
