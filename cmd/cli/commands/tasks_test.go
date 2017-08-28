@@ -356,7 +356,7 @@ func TestTaskStatusWithPortsJson(t *testing.T) {
 	assert.Equal(t, "httpd:latest", outJson["image"])
 
 	assert.Contains(t, outJson, "uptime")
-	assert.Equal(t, "60ns", outJson["uptime"])
+	assert.Equal(t, "60", outJson["uptime"])
 
 	// extra checks for ports
 	assert.Contains(t, outJson, "ports")
