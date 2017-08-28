@@ -223,18 +223,18 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 
 				var c *containerDescriptor
 				o.mu.Lock()
-				c, cok := o.containers[id]
-				s, sok := o.statuses[id]
+				c, container_found := o.containers[id]
+				s, status_found := o.statuses[id]
 				delete(o.containers, id)
 				delete(o.statuses, id)
 				o.mu.Unlock()
-				if !cok {
+				if !container_found {
 					// NOTE: it could be orphaned container from our previous launch
 					log.G(ctx).Warn("unknown container with sonm tag will be removed", zap.String("id", id))
 					containerRemove(o.ctx, o.client, id)
 					continue
 				}
-				if sok {
+				if status_found {
 					s <- pb.TaskStatusReply_BROKEN
 					close(s)
 				}

@@ -2,6 +2,7 @@ package miner
 
 import (
 	"context"
+	"io"
 	"path/filepath"
 
 	"go.uber.org/zap"
@@ -13,7 +14,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"io"
 )
 
 type containerDescriptor struct {
@@ -174,7 +174,6 @@ func containerRemove(ctx context.Context, client client.APIClient, id string) {
 func (c *containerDescriptor) upload() error {
 	opts := types.ContainerCommitOptions{}
 	resp, err := c.client.ContainerCommit(c.ctx, c.ID, opts)
-	log.G(c.ctx).Info("commit")
 	if err != nil {
 		return err
 	}
@@ -193,7 +192,7 @@ func (c *containerDescriptor) upload() error {
 		return err
 	}
 
-	log.G(c.ctx).Info("tagging image", zap.String("from", resp.ID), zap.Any("to", newImg))
+	log.G(c.ctx).Info("tagging image", zap.String("from", resp.ID), zap.Stringer("to", newImg))
 	err = c.client.ImageTag(c.ctx, resp.ID, newImg.String())
 	if err != nil {
 		log.G(c.ctx).Error("failed to tag image", zap.String("id", resp.ID), zap.Any("name", newImg), zap.Error(err))
