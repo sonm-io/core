@@ -210,5 +210,7 @@ func (m *MinerCtx) Close() {
 	if m.session != nil {
 		m.session.Close()
 	}
-	m.router.Close()
+	if m.router != nil {
+		m.router.Close()
+	}
 }
