@@ -15,14 +15,23 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"fmt"
 )
 
 var (
-	configPath = flag.String("config", "hub.yaml", "Path to hub config file")
+	configPath  = flag.String("config", "hub.yaml", "Path to hub config file")
+	showVersion = flag.BoolP("version", "v", false, "Show Hub version and exit")
+	version     string
 )
 
 func main() {
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("SONM Hub %s\r\n", version)
+		return
+	}
+
 	ctx := context.Background()
 
 	cfg, err := hub.NewConfig(*configPath)

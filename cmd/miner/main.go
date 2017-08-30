@@ -15,14 +15,23 @@ import (
 	"github.com/sonm-io/core/insonmnia/miner"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"fmt"
 )
 
 var (
-	configPath = flag.String("config", "miner.yaml", "Path to miner config file")
+	configPath  = flag.String("config", "miner.yaml", "Path to miner config file")
+	showVersion = flag.BoolP("version", "v", false, "Show Hub version and exit")
+	version     string
 )
 
 func main() {
 	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("SONM Miner %s\r\n", version)
+		return
+	}
+
 	ctx := context.Background()
 
 	cfg, err := miner.NewConfig(*configPath)
