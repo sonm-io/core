@@ -1,7 +1,7 @@
 #!/usr/bin/env make
 VER = v0.2.1.1
 BUILD = $(shell git rev-parse --short HEAD)
-FULL_VER = $(VER).$(BUILD)
+FULL_VER = $(VER)-$(BUILD)
 
 GOCMD=./cmd
 ifeq ($(GO), )
@@ -33,11 +33,11 @@ build/bootnode:
 
 build/miner:
 	@echo "+ $@"
-	${GO} build -tags nocgo ${GPU_FLAGS} -o ${MINER} ${GOCMD}/miner
+	${GO} build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" ${GPU_FLAGS} -o ${MINER} ${GOCMD}/miner
 
 build/hub:
 	@echo "+ $@"
-	${GO} build -tags nocgo -o ${HUB} ${GOCMD}/hub
+	${GO} build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" -o ${HUB} ${GOCMD}/hub
 
 build/cli:
 	@echo "+ $@"
