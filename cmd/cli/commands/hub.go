@@ -70,7 +70,7 @@ func hubStatusCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
 	printHubStatus(cmd, stat)
 }
 
-func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
+func printHubStatus(cmd *cobra.Command, stat *pb.H_StatusReply) {
 	if isSimpleFormat() {
 		cmd.Printf("Connected miners: %d\r\n", stat.MinerCount)
 		cmd.Printf("Uptime:           %s\r\n", (time.Second * time.Duration(stat.Uptime)).String())

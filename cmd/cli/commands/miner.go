@@ -13,7 +13,7 @@ func init() {
 	minerRootCmd.AddCommand(minersListCmd, minerStatusCmd)
 }
 
-func printMinerList(cmd *cobra.Command, lr *pb.ListReply) {
+func printMinerList(cmd *cobra.Command, lr *pb.H_MinerListReply) {
 	if isSimpleFormat() {
 		if len(lr.Info) == 0 {
 			cmd.Printf("No miners connected\r\n")
@@ -58,7 +58,7 @@ func printMemInfo(cmd *cobra.Command, cap *pb.Capabilities) {
 	cmd.Printf("      Used:  %s\r\n", ds.ByteSize(cap.Mem.GetUsed()).HR())
 }
 
-func printMinerStatus(cmd *cobra.Command, minerID string, metrics *pb.InfoReply) {
+func printMinerStatus(cmd *cobra.Command, minerID string, metrics *pb.MinerStatusReply) {
 	if isSimpleFormat() {
 		if metrics.Name == "" {
 			cmd.Printf("Miner: \"%s\":\r\n", minerID)

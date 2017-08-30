@@ -10,16 +10,16 @@ import (
 
 type CliInteractor interface {
 	HubPing(context.Context) (*pb.PingReply, error)
-	HubStatus(context.Context) (*pb.HubStatusReply, error)
+	HubStatus(context.Context) (*pb.H_StatusReply, error)
 
-	MinerList(context.Context) (*pb.ListReply, error)
-	MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error)
+	MinerList(context.Context) (*pb.H_MinerListReply, error)
+	MinerStatus(minerID string, appCtx context.Context) (*pb.MinerStatusReply, error)
 
-	TaskList(appCtx context.Context, minerID string) (*pb.StatusMapReply, error)
+	TaskList(appCtx context.Context, minerID string) (*pb.TaskDetailsMapReply, error)
 	TaskLogs(appCtx context.Context, req *pb.TaskLogsRequest) (pb.Hub_TaskLogsClient, error)
-	TaskStart(appCtx context.Context, req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error)
-	TaskStatus(appCtx context.Context, taskID string) (*pb.TaskStatusReply, error)
-	TaskStop(appCtx context.Context, taskID string) (*pb.StopTaskReply, error)
+	TaskStart(appCtx context.Context, req *pb.H_StartTaskRequest) (*pb.H_StartTaskReply, error)
+	TaskStatus(appCtx context.Context, taskID string) (*pb.TaskDetailsReply, error)
+	TaskStop(appCtx context.Context, taskID string) (*pb.EmptyReply, error)
 }
 
 type grpcInteractor struct {
@@ -47,61 +47,61 @@ func (it *grpcInteractor) ctx(appCtx context.Context) (context.Context, context.
 func (it *grpcInteractor) HubPing(appCtx context.Context) (*pb.PingReply, error) {
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
-	return pb.NewHubClient(it.cc).Ping(ctx, &pb.PingRequest{})
+	return pb.NewHubClient(it.cc).Ping(ctx, &pb.EmptyRequest{})
 }
 
-func (it *grpcInteractor) HubStatus(appCtx context.Context) (*pb.HubStatusReply, error) {
+func (it *grpcInteractor) HubStatus(appCtx context.Context) (*pb.H_StatusReply, error) {
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
-	return pb.NewHubClient(it.cc).Status(ctx, &pb.HubStatusRequest{})
+	return pb.NewHubClient(it.cc).Status(ctx, &pb.EmptyRequest{})
 }
 
-func (it *grpcInteractor) MinerList(appCtx context.Context) (*pb.ListReply, error) {
+func (it *grpcInteractor) MinerList(appCtx context.Context) (*pb.H_MinerListReply, error) {
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
-	return pb.NewHubClient(it.cc).List(ctx, &pb.ListRequest{})
+	return pb.NewHubClient(it.cc).MinerList(ctx, &pb.EmptyRequest{})
 }
 
-func (it *grpcInteractor) MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error) {
-	ctx, cancel := it.ctx(appCtx)
-	defer cancel()
-
-	var req = pb.HubInfoRequest{Miner: minerID}
-	return pb.NewHubClient(it.cc).Info(ctx, &req)
-}
-
-func (it *grpcInteractor) TaskList(appCtx context.Context, minerID string) (*pb.StatusMapReply, error) {
+func (it *grpcInteractor) MinerStatus(minerID string, appCtx context.Context) (*pb.MinerStatusReply, error) {
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
 
-	req := &pb.HubStatusMapRequest{Miner: minerID}
-	return pb.NewHubClient(it.cc).MinerStatus(ctx, req)
+	var req = pb.H_MinerStatusRequest{Miner: minerID}
+	return pb.NewHubClient(it.cc).MinerStatus(ctx, &req)
+}
+
+func (it *grpcInteractor) TaskList(appCtx context.Context, minerID string) (*pb.TaskDetailsMapReply, error) {
+	ctx, cancel := it.ctx(appCtx)
+	defer cancel()
+
+	req := &pb.H_TaskMapRequest{Miner: minerID}
+	return pb.NewHubClient(it.cc).TaskList(ctx, req)
 }
 
 func (it *grpcInteractor) TaskLogs(appCtx context.Context, req *pb.TaskLogsRequest) (pb.Hub_TaskLogsClient, error) {
 	return pb.NewHubClient(it.cc).TaskLogs(appCtx, req)
 }
 
-func (it *grpcInteractor) TaskStart(appCtx context.Context, req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
+func (it *grpcInteractor) TaskStart(appCtx context.Context, req *pb.H_StartTaskRequest) (*pb.H_StartTaskReply, error) {
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
-	return pb.NewHubClient(it.cc).StartTask(ctx, req)
+	return pb.NewHubClient(it.cc).TaskStart(ctx, req)
 }
 
-func (it *grpcInteractor) TaskStatus(appCtx context.Context, taskID string) (*pb.TaskStatusReply, error) {
+func (it *grpcInteractor) TaskStatus(appCtx context.Context, taskID string) (*pb.TaskDetailsReply, error) {
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
 
-	var req = &pb.TaskStatusRequest{Id: taskID}
+	var req = &pb.TaskDetailsRequest{Id: taskID}
 	return pb.NewHubClient(it.cc).TaskStatus(ctx, req)
 }
 
-func (it *grpcInteractor) TaskStop(appCtx context.Context, taskID string) (*pb.StopTaskReply, error) {
+func (it *grpcInteractor) TaskStop(appCtx context.Context, taskID string) (*pb.EmptyReply, error) {
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
 
-	var req = &pb.StopTaskRequest{Id: taskID}
-	return pb.NewHubClient(it.cc).StopTask(ctx, req)
+	var req = &pb.TaskStopRequest{Id: taskID}
+	return pb.NewHubClient(it.cc).TaskStop(ctx, req)
 }
 
 func NewGrpcInteractor(addr string, to time.Duration) (CliInteractor, error) {

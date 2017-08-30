@@ -15,36 +15,24 @@ It has these top-level messages:
 	CPUDevice
 	RAMDevice
 	GPUDevice
-	ListRequest
-	ListReply
-	HubInfoRequest
-	HubStartTaskRequest
-	HubStartTaskReply
-	HubStatusMapRequest
-	HubStatusRequest
-	HubStatusReply
-	PingRequest
+	H
+	EmptyRequest
+	EmptyReply
 	PingReply
 	CPUUsage
 	MemoryUsage
 	NetworkUsage
 	ResourceUsage
-	InfoReply
-	StopTaskRequest
-	StopTaskReply
-	TaskStatusRequest
-	TaskStatusReply
-	StatusMapReply
-	ContainerResources
+	MinerStatusReply
+	TaskStopRequest
+	TaskDetailsRequest
+	TaskDetailsReply
+	TaskDetailsMapReply
+	TaskResourcesRestrictions
 	ContainerRestartPolicy
 	TaskLogsRequest
 	TaskLogsChunk
-	MinerInfoRequest
-	MinerHandshakeRequest
-	MinerHandshakeReply
-	MinerStartRequest
-	MinerStartReply
-	MinerStatusMapRequest
+	M
 */
 package sonm
 

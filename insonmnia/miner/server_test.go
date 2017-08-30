@@ -101,7 +101,7 @@ func TestMinerInfo(t *testing.T) {
 	require.Nil(t, err)
 
 	m.nameMapping["id1"] = "id1"
-	ret, err := m.Info(builder.ctx, &pb.MinerInfoRequest{})
+	ret, err := m.Status(builder.ctx, &pb.EmptyRequest{})
 
 	assert.NotNil(t, ret)
 	assert.Nil(t, err)
@@ -134,7 +134,7 @@ func TestMinerHandshake(t *testing.T) {
 	m, err := builder.Build()
 	require.NotNil(t, m)
 	require.Nil(t, err)
-	reply, err := m.Handshake(context.Background(), &pb.MinerHandshakeRequest{Hub: "testHub"})
+	reply, err := m.Handshake(context.Background(), &pb.M_HandshakeRequest{Hub: "testHub"})
 	assert.NotNil(t, reply)
 	assert.Nil(t, err)
 	assert.Equal(t, reply.Miner, "deadbeef-cafe-dead-beef-cafedeadbeef")
@@ -150,9 +150,9 @@ func TestMinerStart(t *testing.T) {
 
 	ovs := NewMockOverseer(mock)
 	ovs.EXPECT().Spool(context.Background(), Description{}).AnyTimes().Return(nil)
-	status_chan := make(chan pb.TaskStatusReply_Status)
+	status_chan := make(chan pb.TaskDetailsReply_Status)
 	info := ContainerInfo{
-		status: &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
+		status: &pb.TaskDetailsReply{Status: pb.TaskDetailsReply_RUNNING},
 		ID:     "deadbeef-cafe-dead-beef-cafedeadbeef",
 	}
 	ovs.EXPECT().Start(gomock.Any(), gomock.Any()).Times(1).Return(status_chan, info, nil)
@@ -161,7 +161,7 @@ func TestMinerStart(t *testing.T) {
 	m, err := builder.Config(cfg).Overseer(ovs).Build()
 	require.NotNil(t, m)
 	require.Nil(t, err)
-	reply, err := m.Start(context.Background(), &pb.MinerStartRequest{Id: "test"})
+	reply, err := m.TaskStart(context.Background(), &pb.M_TaskStartRequest{Id: "test"})
 	assert.NotNil(t, reply)
 	assert.Nil(t, err)
 

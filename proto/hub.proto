@@ -5,53 +5,60 @@ import "insonmnia.proto";
 package sonm;
 
 service Hub {
-    rpc Ping(PingRequest) returns (PingReply) {}
-    rpc Status(HubStatusRequest) returns (HubStatusReply) {}
-    rpc List(ListRequest) returns (ListReply) {}
-    rpc Info(HubInfoRequest) returns (InfoReply) {}
+    // Ping checks Hub availability for user
+    rpc Ping (EmptyRequest) returns (PingReply) {}
+    // Status return Hub status
+    rpc Status (EmptyRequest) returns (H.StatusReply) {}
 
-    rpc StartTask(HubStartTaskRequest) returns (HubStartTaskReply) {}
-    rpc StopTask(StopTaskRequest) returns (StopTaskReply) {}
+    // MinerList returns Miners connected to Hub
+    rpc MinerList (EmptyRequest) returns (H.MinerListReply) {}
+    // MinerStatus returns detailed info about conected Miner
+    rpc MinerStatus (H.MinerStatusRequest) returns (MinerStatusReply) {}
 
-    rpc TaskStatus(TaskStatusRequest) returns (TaskStatusReply) {}
-    rpc MinerStatus(HubStatusMapRequest) returns (StatusMapReply) {}
-    rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
+    // TaskXXX forward task operations to given Miner
+    rpc TaskStart (H.StartTaskRequest) returns (H.StartTaskReply) {}
+    rpc TaskList (H.TaskMapRequest) returns (TaskDetailsMapReply) {}
+    rpc TaskStop (TaskStopRequest) returns (EmptyReply) {}
+    rpc TaskStatus (TaskDetailsRequest) returns (TaskDetailsReply) {}
+    rpc TaskLogs (TaskLogsRequest) returns (stream TaskLogsChunk) {}
 }
 
-message ListRequest {
-}
-
-message ListReply {
-    message ListValue {
-        repeated string values = 1;
+// messages related to Hub
+message H {
+    // StatusReply is hub status
+    message StatusReply {
+        uint64 minerCount = 1;
+        uint64 uptime = 2;
     }
-    map<string, ListValue> info = 1;
-}
 
-message HubInfoRequest {
-    string miner = 1;
-}
+    message StartTaskRequest {
+        string miner = 1;
+        string registry = 2;
+        string image = 3;
+        string auth = 4;
+        string PublicKeyData = 5;
+    }
 
-message HubStartTaskRequest {
-    string miner = 1;
-    string registry = 2;
-    string image = 3;
-    string auth = 4;
-    string PublicKeyData = 5;
-}
+    message StartTaskReply {
+        string id = 1;
+        repeated string endpoint = 2;
+    }
 
-message HubStartTaskReply {
-    string id = 1;
-    repeated string endpoint = 2;
-}
+    // TaskMap is request for tasks statuses from given miner
+    message TaskMapRequest {
+        string miner = 1;
+    }
 
-message HubStatusMapRequest {
-    string miner = 1;
-}
+    // MinerList is reply with list of connected miners
+    message MinerListReply {
+        message ListValue {
+            repeated string values = 1;
+        }
+        map<string, ListValue> info = 1;
+    }
 
-message HubStatusRequest {}
-
-message HubStatusReply {
-    uint64 minerCount = 1;
-    uint64 uptime = 2;
+    // MinerStatus is request for given miner status
+    message MinerStatusRequest {
+        string miner = 1;
+    }
 }

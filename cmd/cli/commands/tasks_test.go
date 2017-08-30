@@ -25,7 +25,7 @@ func getSimpleTaskConfig(t *testing.T, imageName string) task_config.TaskConfig 
 
 func TestTasksListSimpleEmpty(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.StatusMapReply{}, nil)
+	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsMapReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	taskListCmdRunner(rootCmd, "test", itr)
@@ -36,10 +36,10 @@ func TestTasksListSimpleEmpty(t *testing.T) {
 
 func TestTasksListSimpleWithTasks(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.StatusMapReply{
-		Statuses: map[string]*pb.TaskStatusReply{
-			"task-1": {Status: pb.TaskStatusReply_RUNNING},
-			"task-2": {Status: pb.TaskStatusReply_FINISHED},
+	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsMapReply{
+		Statuses: map[string]*pb.TaskDetailsReply{
+			"task-1": {Status: pb.TaskDetailsReply_RUNNING},
+			"task-2": {Status: pb.TaskDetailsReply_FINISHED},
 		},
 	}, nil)
 
@@ -54,7 +54,7 @@ func TestTasksListSimpleWithTasks(t *testing.T) {
 
 func TestTaskListJsonEmpty(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.StatusMapReply{}, nil)
+	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsMapReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	taskListCmdRunner(rootCmd, "test", itr)
@@ -65,10 +65,10 @@ func TestTaskListJsonEmpty(t *testing.T) {
 
 func TestTaskListJsonWithTasks(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.StatusMapReply{
-		Statuses: map[string]*pb.TaskStatusReply{
-			"task-1": {Status: pb.TaskStatusReply_RUNNING},
-			"task-2": {Status: pb.TaskStatusReply_FINISHED},
+	itr.EXPECT().TaskList(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsMapReply{
+		Statuses: map[string]*pb.TaskDetailsReply{
+			"task-1": {Status: pb.TaskDetailsReply_RUNNING},
+			"task-2": {Status: pb.TaskDetailsReply_FINISHED},
 		},
 	}, nil)
 
@@ -76,14 +76,14 @@ func TestTaskListJsonWithTasks(t *testing.T) {
 	taskListCmdRunner(rootCmd, "test", itr)
 	out := buf.String()
 
-	reply := &pb.StatusMapReply{}
+	reply := &pb.TaskDetailsMapReply{}
 	err := json.Unmarshal([]byte(out), &reply)
 	assert.NoError(t, err)
 	assert.Len(t, reply.Statuses, 2)
 
 	status, ok := reply.Statuses["task-1"]
 	assert.True(t, ok)
-	assert.Equal(t, pb.TaskStatusReply_RUNNING, status.GetStatus())
+	assert.Equal(t, pb.TaskDetailsReply_RUNNING, status.GetStatus())
 }
 
 func TestTaskListSimpleError(t *testing.T) {
@@ -113,7 +113,7 @@ func TestTaskListJsonError(t *testing.T) {
 
 func TestTaskStartSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStart(gomock.Any(), gomock.Any()).Return(&pb.HubStartTaskReply{
+	itr.EXPECT().TaskStart(gomock.Any(), gomock.Any()).Return(&pb.H_StartTaskReply{
 		Id:       "7a94eab1-5f57-485a-8602-124783c588ea",
 		Endpoint: []string{"80/tcp->10.0.0.123:12345"},
 	}, nil)
@@ -131,7 +131,7 @@ func TestTaskStartSimple(t *testing.T) {
 
 func TestTaskStartJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStart(gomock.Any(), gomock.Any()).Return(&pb.HubStartTaskReply{
+	itr.EXPECT().TaskStart(gomock.Any(), gomock.Any()).Return(&pb.H_StartTaskReply{
 		Id:       "7a94eab1-5f57-485a-8602-124783c588ea",
 		Endpoint: []string{"80/tcp->10.0.0.123:12345"},
 	}, nil)
@@ -142,7 +142,7 @@ func TestTaskStartJson(t *testing.T) {
 	taskStartCmdRunner(rootCmd, "test", task, itr)
 	out := buf.Bytes()
 
-	reply := &pb.HubStartTaskReply{}
+	reply := &pb.H_StartTaskReply{}
 	err := json.Unmarshal(out, &reply)
 	assert.NoError(t, err)
 
@@ -183,8 +183,8 @@ func TestTaskStartJsonError(t *testing.T) {
 
 func TestTaskStatusSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
-		Status:    pb.TaskStatusReply_RUNNING,
+	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsReply{
+		Status:    pb.TaskDetailsReply_RUNNING,
 		ImageName: "httpd:latest",
 		Uptime:    60,
 	}, nil)
@@ -198,8 +198,8 @@ func TestTaskStatusSimple(t *testing.T) {
 
 func TestTaskStatusJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
-		Status: pb.TaskStatusReply_RUNNING,
+	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsReply{
+		Status: pb.TaskDetailsReply_RUNNING,
 	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
@@ -216,7 +216,7 @@ func TestTaskStatusJson(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "adac72b1-7fcf-47e1-8d74-a53563823185", reply.ID)
 	assert.Equal(t, "test", reply.Miner)
-	assert.Equal(t, pb.TaskStatusReply_RUNNING.String(), reply.Status)
+	assert.Equal(t, pb.TaskDetailsReply_RUNNING.String(), reply.Status)
 }
 
 func TestTaskStatusSimpleError(t *testing.T) {
@@ -246,7 +246,7 @@ func TestTaskStatusJsonError(t *testing.T) {
 
 func TestTaskStopSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStop(gomock.Any(), gomock.Any()).Return(&pb.StopTaskReply{}, nil)
+	itr.EXPECT().TaskStop(gomock.Any(), gomock.Any()).Return(&pb.EmptyReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	taskStopCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
@@ -257,7 +257,7 @@ func TestTaskStopSimple(t *testing.T) {
 
 func TestTaskStopJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStop(gomock.Any(), gomock.Any()).Return(&pb.StopTaskReply{}, nil)
+	itr.EXPECT().TaskStop(gomock.Any(), gomock.Any()).Return(&pb.EmptyReply{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	taskStopCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
@@ -293,8 +293,8 @@ func TestTaskStopJsonError(t *testing.T) {
 
 func TestTaskStatusWithPortsSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
-		Status:    pb.TaskStatusReply_RUNNING,
+	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsReply{
+		Status:    pb.TaskDetailsReply_RUNNING,
 		ImageName: "httpd:latest",
 		Ports:     `{"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"32775"}],"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"32777"}]}`,
 		Uptime:    60,
@@ -311,8 +311,8 @@ func TestTaskStatusWithPortsSimple(t *testing.T) {
 
 func TestTaskStatusWithInvalidPortsSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
-		Status:    pb.TaskStatusReply_RUNNING,
+	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsReply{
+		Status:    pb.TaskDetailsReply_RUNNING,
 		ImageName: "httpd:latest",
 		Ports:     `{"invalid": "input"}`,
 		Uptime:    60,
@@ -327,8 +327,8 @@ func TestTaskStatusWithInvalidPortsSimple(t *testing.T) {
 
 func TestTaskStatusWithPortsJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
-		Status:    pb.TaskStatusReply_RUNNING,
+	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsReply{
+		Status:    pb.TaskDetailsReply_RUNNING,
 		ImageName: "httpd:latest",
 		Ports:     `{"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"32775"}],"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"32777"}]}`,
 		Uptime:    60,
@@ -380,8 +380,8 @@ func TestTaskStatusWithPortsJson(t *testing.T) {
 
 func TestTaskStatusWithResourcesSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
-		Status:    pb.TaskStatusReply_RUNNING,
+	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsReply{
+		Status:    pb.TaskDetailsReply_RUNNING,
 		ImageName: "httpd:latest",
 		Usage: &pb.ResourceUsage{
 			Cpu:    &pb.CPUUsage{Total: 10000},
@@ -419,8 +419,8 @@ func TestTaskStatusWithResourcesSimple(t *testing.T) {
 
 func TestTaskStatusWithResourcesJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
-		Status:    pb.TaskStatusReply_RUNNING,
+	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskDetailsReply{
+		Status:    pb.TaskDetailsReply_RUNNING,
 		ImageName: "httpd:latest",
 		Ports:     `{"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"32775"}],"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"32777"}]}`,
 		Uptime:    60,

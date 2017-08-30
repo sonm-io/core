@@ -4,7 +4,9 @@ import "capabilities.proto";
 
 package sonm;
 
-message PingRequest {}
+message EmptyRequest {}
+
+message EmptyReply {}
 
 message PingReply {
     string status = 1;
@@ -35,23 +37,21 @@ message ResourceUsage {
     map<string, NetworkUsage> network = 3;
 }
 
-message InfoReply {
+message MinerStatusReply {
     map<string, ResourceUsage> usage = 1;
     string name = 2;
     Capabilities capabilities = 3;
 }
 
-message StopTaskRequest {
+message TaskStopRequest {
     string id = 1;
 }
 
-message StopTaskReply {}
-
-message TaskStatusRequest {
+message TaskDetailsRequest {
     string id = 1;
 }
 
-message TaskStatusReply {
+message TaskDetailsReply {
     enum Status {
         UNKNOWN = 0;
         SPOOLING = 1;
@@ -65,14 +65,13 @@ message TaskStatusReply {
     string ports = 3;
     uint64 uptime = 4;
     ResourceUsage usage = 5;
-    //ContainerResources resources = 5;
 }
 
-message StatusMapReply {
-    map<string, TaskStatusReply> statuses = 1;
+message TaskDetailsMapReply {
+    map<string, TaskDetailsReply> statuses = 1;
 }
 
-message ContainerResources {
+message TaskResourcesRestrictions {
     int64 memory = 1;
     int64 nanoCPUs = 2;
 }

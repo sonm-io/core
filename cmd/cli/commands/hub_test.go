@@ -48,7 +48,7 @@ func TestHubPingFailed(t *testing.T) {
 
 func TestHubStatus(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(&pb.HubStatusReply{
+	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(&pb.H_StatusReply{
 		MinerCount: 2,
 		Uptime:     1,
 	}, nil)
@@ -62,7 +62,7 @@ func TestHubStatus(t *testing.T) {
 
 func TestHubStatusJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(&pb.HubStatusReply{
+	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(&pb.H_StatusReply{
 		MinerCount: 2,
 		Uptime:     1,
 	}, nil)

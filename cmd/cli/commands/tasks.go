@@ -29,7 +29,7 @@ func init() {
 	tasksRootCmd.AddCommand(taskListCmd, taskLogsCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
 }
 
-func printTaskList(cmd *cobra.Command, minerStatus *pb.StatusMapReply, miner string) {
+func printTaskList(cmd *cobra.Command, minerStatus *pb.TaskDetailsMapReply, miner string) {
 	if isSimpleFormat() {
 		if len(minerStatus.Statuses) == 0 {
 			cmd.Printf("There is no tasks on miner \"%s\"\r\n", miner)
@@ -46,7 +46,7 @@ func printTaskList(cmd *cobra.Command, minerStatus *pb.StatusMapReply, miner str
 	}
 }
 
-func printTaskStart(cmd *cobra.Command, rep *pb.HubStartTaskReply) {
+func printTaskStart(cmd *cobra.Command, rep *pb.H_StartTaskReply) {
 	if isSimpleFormat() {
 		cmd.Printf("ID %s\r\nEndpoint %s\r\n", rep.Id, rep.Endpoint)
 	} else {
@@ -55,7 +55,7 @@ func printTaskStart(cmd *cobra.Command, rep *pb.HubStartTaskReply) {
 	}
 }
 
-func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskStatusReply) {
+func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskDetailsReply) {
 	if isSimpleFormat() {
 		portsParsedOK := false
 		ports := nat.PortMap{}
@@ -297,7 +297,7 @@ func taskStartCmdRunner(cmd *cobra.Command, miner string, taskConfig task_config
 		cmd.Printf("Starting \"%s\" on miner %s...\r\n", taskConfig.GetImageName(), miner)
 	}
 
-	var req = &pb.HubStartTaskRequest{
+	var req = &pb.H_StartTaskRequest{
 		Miner:         miner,
 		Image:         taskConfig.GetImageName(),
 		Registry:      taskConfig.GetRegistryName(),
