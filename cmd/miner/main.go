@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/miner"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"fmt"
 )
 
 var (
