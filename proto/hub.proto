@@ -42,19 +42,19 @@ message TaskResourceRequirements {
 }
 
 message TaskRequirements {
-    // Miner ID (currently IP:port), that is used to start a task. Optional.
-    string miner = 1;
     // How much resources consumes a task. This is used both for scheduling and for cgroups configuration.
-    TaskResourceRequirements resources = 2;
+    TaskResourceRequirements resources = 1;
+
+    // Optional miner ID restrictions (currently IP:port), that are allowed to start a task.
+    repeated string miners = 2;
 }
 
 message HubStartTaskRequest {
-    string miner = 1;
+    TaskRequirements requirements = 1;
     string registry = 2;
     string image = 3;
     string auth = 4;
     string PublicKeyData = 5;
-    TaskResourceRequirements resources = 6;
 }
 
 message HubStartTaskReply {
