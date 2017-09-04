@@ -164,19 +164,15 @@ var taskLogsCmd = &cobra.Command{
 }
 
 var taskStartCmd = &cobra.Command{
-	Use:     "start <miner_addr> <task.yaml>",
+	Use:     "start <task.yaml>",
 	Short:   "Start task on given miner",
 	PreRunE: checkHubAddressIsSet,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errMinerAddressRequired
-		}
-		if len(args) < 2 {
 			return errTaskFileRequired
 		}
 
-		miner := args[0]
-		taskFile := args[1]
+		taskFile := args[0]
 
 		taskDef, err := task_config.LoadConfig(taskFile)
 		if err != nil {
@@ -190,7 +186,7 @@ var taskStartCmd = &cobra.Command{
 			return nil
 		}
 
-		taskStartCmdRunner(cmd, miner, taskDef, itr)
+		taskStartCmdRunner(cmd, taskDef, itr)
 		return nil
 	},
 }
@@ -292,15 +288,13 @@ func taskLogCmdRunner(cmd *cobra.Command, taskID string, interactor CliInteracto
 	}
 }
 
-func taskStartCmdRunner(cmd *cobra.Command, miner string, taskConfig task_config.TaskConfig, interactor CliInteractor) {
+func taskStartCmdRunner(cmd *cobra.Command, taskConfig task_config.TaskConfig, interactor CliInteractor) {
 	if isSimpleFormat() {
-		cmd.Printf("Starting \"%s\" on miner %s...\r\n", taskConfig.GetImageName(), miner)
+		cmd.Printf("Starting \"%s\" ...\r\n", taskConfig.GetImageName())
 	}
 
 	requirements := &pb.TaskRequirements{
-		Miners: []string{
-			miner,
-		},
+		Miners: []string{},
 		Resources: &pb.TaskResourceRequirements{
 			CPUCores:   taskConfig.GetCPUCount(),
 			MaxMemory:  taskConfig.GetRAMCount(),

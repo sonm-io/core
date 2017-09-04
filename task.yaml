@@ -1,4 +1,6 @@
 task:
+  # Preferred miners.
+  miners: []
   # docker image settings, required section
   container:
     # image name to start on miner, required param
