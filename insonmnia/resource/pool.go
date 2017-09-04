@@ -32,11 +32,18 @@ func NewPool(hardware *hardware.Hardware) *Pool {
 	}
 }
 
+// Consume tries to consume the specified resource usage from the pool.
+//
+// Does nothing on error.
 // TODO: May be return some kind of Retainer to be able to auto-retain?
 func (p *Pool) Consume(usage *Resources) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	return p.consume(usage)
+}
+
+func (p *Pool) consume(usage *Resources) error {
 	free := NewResources(p.OS.LogicalCPUCount()-p.usage.numCPUs, int64(p.OS.Memory.Total)-p.usage.memory)
 
 	if usage.numCPUs > free.numCPUs {

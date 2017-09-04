@@ -3,6 +3,7 @@ package hub
 import (
 	"errors"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/yamux"
@@ -12,10 +13,9 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
-	"sync"
-
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware"
+	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -37,9 +37,13 @@ type MinerCtx struct {
 	session *yamux.Session
 
 	// Miner name received after handshaking.
-	uuid         string
-	capabilities *hardware.Hardware
-	router       router
+	uuid                string
+	capabilities        *hardware.Hardware
+	capabilitiesCurrent *resource.Pool
+	router              router
+
+	mu    sync.Mutex
+	usage map[string]*resource.Resources
 }
 
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
@@ -47,6 +51,7 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 		m = MinerCtx{
 			conn:       conn,
 			status_map: make(map[string]*pb.TaskStatusReply),
+			usage:      make(map[string]*resource.Resources),
 		}
 		err error
 	)
@@ -117,6 +122,7 @@ func (m *MinerCtx) handshake(h *Hub) error {
 
 	m.uuid = resp.Miner
 	m.capabilities = capabilities
+	m.capabilitiesCurrent = resource.NewPool(capabilities)
 
 	if m.router, err = h.newRouter(m.uuid, resp.NatType); err != nil {
 		log.G(m.ctx).Warn("failed to create router for a miner",
@@ -201,6 +207,44 @@ func (m *MinerCtx) ping() error {
 			return m.ctx.Err()
 		}
 	}
+}
+
+// Consume consumes the specified resources from the miner.
+func (m *MinerCtx) Consume(taskID string, usage *resource.Resources) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.consume(taskID, usage)
+}
+
+func (m *MinerCtx) consume(taskID string, usage *resource.Resources) error {
+	if err := m.capabilitiesCurrent.Consume(usage); err != nil {
+		return err
+	}
+
+	m.usage[taskID] = usage
+
+	return nil
+}
+
+// Retain retains back resources for the miner.
+//
+// Should be called when a task has finished no matter for what reason.
+func (m *MinerCtx) Retain(taskID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.retain(taskID)
+}
+
+func (m *MinerCtx) retain(taskID string) {
+	usage, exists := m.usage[taskID]
+	if !exists {
+		return
+	}
+
+	delete(m.usage, taskID)
+	m.capabilitiesCurrent.Retain(usage)
 }
 
 // Close frees all connections related to a Miner
