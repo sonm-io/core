@@ -7,15 +7,15 @@ import (
 )
 
 type Resources struct {
-	numCPUs int
-	memory  int64
+	NumCPUs int
+	Memory  int64
 	// TODO: It's unclear how to calculate GPU usage.
 }
 
 func NewResources(numCPUs int, memory int64) Resources {
 	return Resources{
-		numCPUs: numCPUs,
-		memory:  memory,
+		NumCPUs: numCPUs,
+		Memory:  memory,
 	}
 }
 
@@ -30,6 +30,13 @@ func NewPool(hardware *hardware.Hardware) *Pool {
 		OS:    hardware,
 		usage: Resources{},
 	}
+}
+
+func (p *Pool) GetUsage() Resources {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.usage
 }
 
 // Consume tries to consume the specified resource usage from the pool.
@@ -48,8 +55,8 @@ func (p *Pool) consume(usage *Resources) error {
 		return err
 	}
 
-	p.usage.numCPUs += usage.numCPUs
-	p.usage.memory += usage.memory
+	p.usage.NumCPUs += usage.NumCPUs
+	p.usage.Memory += usage.Memory
 
 	return nil
 }
@@ -62,13 +69,13 @@ func (p *Pool) PollConsume(usage *Resources) error {
 }
 
 func (p *Pool) pollConsume(usage *Resources) error {
-	free := NewResources(p.OS.LogicalCPUCount()-p.usage.numCPUs, int64(p.OS.Memory.Total)-p.usage.memory)
+	free := NewResources(p.OS.LogicalCPUCount()-p.usage.NumCPUs, int64(p.OS.Memory.Total)-p.usage.Memory)
 
-	if usage.numCPUs > free.numCPUs {
+	if usage.NumCPUs > free.NumCPUs {
 		return errors.New("not enough CPU available")
 	}
 
-	if usage.memory > free.memory {
+	if usage.Memory > free.Memory {
 		return errors.New("not enough memory available")
 	}
 
@@ -79,6 +86,6 @@ func (p *Pool) Retain(usage *Resources) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.usage.numCPUs -= usage.numCPUs
-	p.usage.memory -= usage.memory
+	p.usage.NumCPUs -= usage.NumCPUs
+	p.usage.Memory -= usage.Memory
 }
