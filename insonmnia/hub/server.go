@@ -171,7 +171,7 @@ func resourcesFilter(miner *MinerCtx, requirements *pb.TaskRequirements) (bool, 
 	return true, nil
 }
 
-func (h *Hub) selectMiner(request *pb.HubStartTaskRequest, taskID string) (*MinerCtx, error) {
+func (h *Hub) selectMiner(request *pb.HubStartTaskRequest) (*MinerCtx, error) {
 	requirements := request.GetRequirements()
 	if requirements == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing requirements")
