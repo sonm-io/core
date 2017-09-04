@@ -91,6 +91,11 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 	return &m, nil
 }
 
+// ID returns the miner id.
+func (m *MinerCtx) ID() string {
+	return m.conn.RemoteAddr().String()
+}
+
 func (m *MinerCtx) handshake(h *Hub) error {
 	log.G(m.ctx).Info("sending handshake to a Miner", zap.Stringer("addr", m.conn.RemoteAddr()))
 	resp, err := m.Client.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
