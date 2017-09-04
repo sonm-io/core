@@ -222,6 +222,13 @@ func (m *MinerCtx) consume(taskID string, usage *resource.Resources) error {
 		return err
 	}
 
+	log.G(m.ctx).Debug("consumed resources for a task",
+		zap.String("taskID", taskID),
+		zap.Any("usage", usage),
+		zap.Any("capabilities", m.capabilities),
+		zap.Any("capabilitiesCurrent", m.capabilitiesCurrent),
+	)
+
 	m.usage[taskID] = usage
 
 	return nil
@@ -249,6 +256,13 @@ func (m *MinerCtx) retain(taskID string) {
 	if !exists {
 		return
 	}
+
+	log.G(m.ctx).Debug("retained resources for a task",
+		zap.String("taskID", taskID),
+		zap.Any("usage", usage),
+		zap.Any("capabilities", m.capabilities),
+		zap.Any("capabilitiesCurrent", m.capabilitiesCurrent),
+	)
 
 	delete(m.usage, taskID)
 	m.capabilitiesCurrent.Retain(usage)
