@@ -227,6 +227,13 @@ func (m *MinerCtx) consume(taskID string, usage *resource.Resources) error {
 	return nil
 }
 
+func (m *MinerCtx) PollConsume(usage *resource.Resources) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.capabilitiesCurrent.PollConsume(usage)
+}
+
 // Retain retains back resources for the miner.
 //
 // Should be called when a task has finished no matter for what reason.

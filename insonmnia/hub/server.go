@@ -132,7 +132,7 @@ type extRoute struct {
 	route         *route
 }
 
-type minerFilter func(miner *MinerCtx, requirements *pb.TaskRequirements, taskID string) (bool, error)
+type minerFilter func(miner *MinerCtx, requirements *pb.TaskRequirements) (bool, error)
 
 // ExactMatchFilter checks for exact match.
 //
@@ -140,7 +140,7 @@ type minerFilter func(miner *MinerCtx, requirements *pb.TaskRequirements, taskID
 // case we must apply hardware filtering for discovering miners that can start
 // the task.
 // Otherwise only specified miners become targets to start the task.
-func exactMatchFilter(miner *MinerCtx, requirements *pb.TaskRequirements, _ string) (bool, error) {
+func exactMatchFilter(miner *MinerCtx, requirements *pb.TaskRequirements) (bool, error) {
 	if len(requirements.GetMiners()) == 0 {
 		return true, nil
 	}
@@ -154,7 +154,7 @@ func exactMatchFilter(miner *MinerCtx, requirements *pb.TaskRequirements, _ stri
 	return false, nil
 }
 
-func resourcesFilter(miner *MinerCtx, requirements *pb.TaskRequirements, taskID string) (bool, error) {
+func resourcesFilter(miner *MinerCtx, requirements *pb.TaskRequirements) (bool, error) {
 	resources := requirements.GetResources()
 	if resources == nil {
 		return false, status.Errorf(codes.InvalidArgument, "resources section is required")
@@ -164,7 +164,7 @@ func resourcesFilter(miner *MinerCtx, requirements *pb.TaskRequirements, taskID 
 	memoryCount := resources.GetMaxMemory()
 
 	var usage = resource.NewResources(int(cpuCount), int64(memoryCount))
-	if err := miner.Consume(taskID, &usage); err != nil {
+	if err := miner.PollConsume(&usage); err != nil {
 		return false, err
 	}
 
@@ -182,7 +182,7 @@ func (h *Hub) selectMiner(request *pb.HubStartTaskRequest, taskID string) (*Mine
 	defer h.mu.Unlock()
 	miners := []*MinerCtx{}
 	for _, miner := range h.miners {
-		ok, err := h.applyFilters(miner, requirements, taskID)
+		ok, err := h.applyFilters(miner, requirements)
 		if err != nil {
 			return nil, err
 		}
@@ -200,9 +200,9 @@ func (h *Hub) selectMiner(request *pb.HubStartTaskRequest, taskID string) (*Mine
 	return miners[rand.Int()%len(miners)], nil
 }
 
-func (h *Hub) applyFilters(miner *MinerCtx, req *pb.TaskRequirements, taskID string) (bool, error) {
+func (h *Hub) applyFilters(miner *MinerCtx, req *pb.TaskRequirements) (bool, error) {
 	for _, filter := range h.filters {
-		ok, err := filter(miner, req, taskID)
+		ok, err := filter(miner, req)
 		if err != nil {
 			return false, err
 		}
@@ -220,7 +220,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	log.G(h.ctx).Info("handling StartTask request", zap.Any("req", request))
 
 	taskID := uuid.New()
-	miner, err := h.selectMiner(request, taskID)
+	miner, err := h.selectMiner(request)
 	if err != nil {
 		return nil, err
 	}
@@ -271,6 +271,15 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	}
 
 	h.setMinerTaskID(miner.ID(), taskID)
+
+	resources := request.GetRequirements().GetResources()
+	cpuCount := resources.GetCPUCores()
+	memoryCount := resources.GetMaxMemory()
+
+	var usage = resource.NewResources(int(cpuCount), int64(memoryCount))
+	if err := miner.Consume(taskID, &usage); err != nil {
+		return nil, err
+	}
 
 	var reply = pb.HubStartTaskReply{
 		Id: taskID,
