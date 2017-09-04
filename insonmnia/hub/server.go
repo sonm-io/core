@@ -27,6 +27,7 @@ import (
 
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/util"
+	"math/rand"
 )
 
 // Hub collects miners, send them orders to spawn containers, etc.
@@ -51,6 +52,9 @@ type Hub struct {
 
 	wg        sync.WaitGroup
 	startTime time.Time
+
+	// Scheduling.
+	filters []minerFilter
 }
 
 // Ping should be used as Healthcheck for Hub
@@ -127,19 +131,58 @@ type extRoute struct {
 	route         *route
 }
 
-func (h *Hub) selectMiner(request *pb.HubStartTaskRequest) (ctx *MinerCtx, err error) {
-	ID := request.GetMiner()
+type minerFilter func(*MinerCtx, *pb.TaskRequirements) bool
 
-	// Check for exact match.
-	if ID != "" {
-		if miner, ok := h.getMinerByID(ID); ok {
-			return miner, nil
-		} else {
-			return nil, status.Errorf(codes.NotFound, "no such miner %s", ID)
+// ExactMatchFilter checks for exact match.
+//
+// Returns true if there are no miners specified in the requirements. In that
+// case we must apply hardware filtering for discovering miners that can start
+// the task.
+// Otherwise only specified miners become targets to start the task.
+func exactMatchFilter(miner *MinerCtx, req *pb.TaskRequirements) bool {
+	if len(req.GetMiners()) == 0 {
+		return true
+	}
+
+	for _, minerID := range req.GetMiners() {
+		if minerID == miner.ID() {
+			return true
 		}
 	}
 
-	return nil, status.Errorf(codes.NotFound, "failed to find miner to match specified capabilities")
+	return false
+}
+
+func (h *Hub) selectMiner(request *pb.HubStartTaskRequest) (ctx *MinerCtx, err error) {
+	requirements := request.GetRequirements()
+	if requirements == nil {
+		return nil, status.Errorf(codes.NotFound, "missing requirements")
+	}
+
+	// Filter out miners that aren't met the requirements.
+	miners := []*MinerCtx{}
+	for _, miner := range h.miners {
+		if h.applyFilters(miner, requirements) {
+			miners = append(miners, miner)
+		}
+	}
+
+	// Select random miner from the list.
+	if len(miners) == 0 {
+		return nil, status.Errorf(codes.NotFound, "failed to find miner to match specified requirements")
+	}
+
+	return miners[rand.Int()%len(miners)], nil
+}
+
+func (h *Hub) applyFilters(miner *MinerCtx, req *pb.TaskRequirements) bool {
+	for _, filter := range h.filters {
+		if !filter(miner, req) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // StartTask schedules the Task on some miner
@@ -342,6 +385,10 @@ func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 		grpcEndpoint: cfg.Monitoring.Endpoint,
 		endpoint:     cfg.Endpoint,
 		ethKey:       ethKey,
+
+		filters: []minerFilter{
+			exactMatchFilter,
+		},
 	}
 	pb.RegisterHubServer(grpcServer, h)
 	return h, nil
