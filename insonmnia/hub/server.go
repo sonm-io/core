@@ -127,13 +127,28 @@ type extRoute struct {
 	route         *route
 }
 
+func (h *Hub) selectMiner(request *pb.HubStartTaskRequest) (ctx *MinerCtx, err error) {
+	ID := request.GetMiner()
+
+	// Check for exact match.
+	if ID != "" {
+		if miner, ok := h.getMinerByID(ID); ok {
+			return miner, nil
+		} else {
+			return nil, status.Errorf(codes.NotFound, "no such miner %s", ID)
+		}
+	}
+
+	return nil, status.Errorf(codes.NotFound, "failed to find miner to match specified capabilities")
+}
+
 // StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
 	log.G(h.ctx).Info("handling StartTask request", zap.Any("req", request))
-	minerID := request.Miner
-	miner, ok := h.getMinerByID(minerID)
-	if !ok {
-		return nil, status.Errorf(codes.NotFound, "no such miner %s", minerID)
+
+	miner, err := h.selectMiner(request)
+	if err != nil {
+		return nil, err
 	}
 
 	taskID := uuid.New()
@@ -182,7 +197,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 		})
 	}
 
-	h.setMinerTaskID(minerID, taskID)
+	h.setMinerTaskID(miner.ID(), taskID)
 
 	var reply = pb.HubStartTaskReply{
 		Id: taskID,
