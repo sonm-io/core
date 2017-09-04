@@ -19,6 +19,9 @@ func getSimpleTaskConfig(t *testing.T, imageName string) task_config.TaskConfig 
 	task.EXPECT().GetSSHKey().AnyTimes().Return("")
 	task.EXPECT().GetRegistryName().AnyTimes().Return("")
 	task.EXPECT().GetRegistryAuth().AnyTimes().Return("")
+	task.EXPECT().GetCPUCount().AnyTimes().Return(uint64(1))
+	task.EXPECT().GetRAMCount().AnyTimes().Return(uint64(1024))
+	task.EXPECT().GetGPURequirement().AnyTimes().Return(false)
 
 	return task
 }
@@ -121,10 +124,10 @@ func TestTaskStartSimple(t *testing.T) {
 	task := getSimpleTaskConfig(t, "httpd:latest")
 
 	buf := initRootCmd(t, config.OutputModeSimple)
-	taskStartCmdRunner(rootCmd, "test", task, itr)
+	taskStartCmdRunner(rootCmd, task, itr)
 	out := buf.String()
 
-	assert.Contains(t, out, "Starting \"httpd:latest\" on miner test...")
+	assert.Contains(t, out, "Starting \"httpd:latest\" ...")
 	assert.Contains(t, out, "ID 7a94eab1-5f57-485a-8602-124783c588ea")
 	assert.Contains(t, out, "Endpoint [80/tcp->10.0.0.123:12345]")
 }
@@ -139,7 +142,7 @@ func TestTaskStartJson(t *testing.T) {
 	task := getSimpleTaskConfig(t, "httpd:latest")
 
 	buf := initRootCmd(t, config.OutputModeJSON)
-	taskStartCmdRunner(rootCmd, "test", task, itr)
+	taskStartCmdRunner(rootCmd, task, itr)
 	out := buf.Bytes()
 
 	reply := &pb.HubStartTaskReply{}
@@ -158,10 +161,10 @@ func TestTaskStartSimpleError(t *testing.T) {
 	task := getSimpleTaskConfig(t, "httpd:latest")
 
 	buf := initRootCmd(t, config.OutputModeSimple)
-	taskStartCmdRunner(rootCmd, "test", task, itr)
+	taskStartCmdRunner(rootCmd, task, itr)
 	out := buf.String()
 
-	assert.Contains(t, out, "Starting \"httpd:latest\" on miner test...")
+	assert.Contains(t, out, "Starting \"httpd:latest\" ...")
 	assert.Contains(t, out, "[ERR] Cannot start task: error")
 }
 
@@ -172,7 +175,7 @@ func TestTaskStartJsonError(t *testing.T) {
 	task := getSimpleTaskConfig(t, "httpd:latest")
 
 	buf := initRootCmd(t, config.OutputModeJSON)
-	taskStartCmdRunner(rootCmd, "test", task, itr)
+	taskStartCmdRunner(rootCmd, task, itr)
 	out := buf.String()
 
 	cmdErr, err := stringToCommandError(out)
