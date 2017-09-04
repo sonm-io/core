@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"strconv"
 	"strings"
@@ -15,7 +16,6 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
-	pb "github.com/sonm-io/core/proto"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -26,8 +26,9 @@ import (
 	frd "github.com/sonm-io/core/fusrodah/hub"
 
 	"github.com/sonm-io/core/insonmnia/gateway"
+	"github.com/sonm-io/core/insonmnia/resource"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
-	"math/rand"
 )
 
 // Hub collects miners, send them orders to spawn containers, etc.
@@ -131,7 +132,7 @@ type extRoute struct {
 	route         *route
 }
 
-type minerFilter func(*MinerCtx, *pb.TaskRequirements) bool
+type minerFilter func(miner *MinerCtx, requirements *pb.TaskRequirements, taskID string) (bool, error)
 
 // ExactMatchFilter checks for exact match.
 //
@@ -139,30 +140,54 @@ type minerFilter func(*MinerCtx, *pb.TaskRequirements) bool
 // case we must apply hardware filtering for discovering miners that can start
 // the task.
 // Otherwise only specified miners become targets to start the task.
-func exactMatchFilter(miner *MinerCtx, req *pb.TaskRequirements) bool {
-	if len(req.GetMiners()) == 0 {
-		return true
+func exactMatchFilter(miner *MinerCtx, requirements *pb.TaskRequirements, _ string) (bool, error) {
+	if len(requirements.GetMiners()) == 0 {
+		return true, nil
 	}
 
-	for _, minerID := range req.GetMiners() {
+	for _, minerID := range requirements.GetMiners() {
 		if minerID == miner.ID() {
-			return true
+			return true, nil
 		}
 	}
 
-	return false
+	return false, nil
 }
 
-func (h *Hub) selectMiner(request *pb.HubStartTaskRequest) (ctx *MinerCtx, err error) {
+func resourcesFilter(miner *MinerCtx, requirements *pb.TaskRequirements, taskID string) (bool, error) {
+	resources := requirements.GetResources()
+	if resources == nil {
+		return false, status.Errorf(codes.InvalidArgument, "resources section is required")
+	}
+
+	cpuCount := resources.GetCPUCores()
+	memoryCount := resources.GetMaxMemory()
+
+	var usage = resource.NewResources(int(cpuCount), int64(memoryCount))
+	if err := miner.Consume(taskID, &usage); err != nil {
+		return false, err
+	}
+
+	return true, nil
+}
+
+func (h *Hub) selectMiner(request *pb.HubStartTaskRequest, taskID string) (*MinerCtx, error) {
 	requirements := request.GetRequirements()
 	if requirements == nil {
-		return nil, status.Errorf(codes.NotFound, "missing requirements")
+		return nil, status.Errorf(codes.InvalidArgument, "missing requirements")
 	}
 
 	// Filter out miners that aren't met the requirements.
+	h.mu.Lock()
+	defer h.mu.Unlock()
 	miners := []*MinerCtx{}
 	for _, miner := range h.miners {
-		if h.applyFilters(miner, requirements) {
+		ok, err := h.applyFilters(miner, requirements, taskID)
+		if err != nil {
+			return nil, err
+		}
+
+		if ok {
 			miners = append(miners, miner)
 		}
 	}
@@ -175,33 +200,38 @@ func (h *Hub) selectMiner(request *pb.HubStartTaskRequest) (ctx *MinerCtx, err e
 	return miners[rand.Int()%len(miners)], nil
 }
 
-func (h *Hub) applyFilters(miner *MinerCtx, req *pb.TaskRequirements) bool {
+func (h *Hub) applyFilters(miner *MinerCtx, req *pb.TaskRequirements, taskID string) (bool, error) {
 	for _, filter := range h.filters {
-		if !filter(miner, req) {
-			return false
+		ok, err := filter(miner, req, taskID)
+		if err != nil {
+			return false, err
+		}
+
+		if !ok {
+			return false, nil
 		}
 	}
 
-	return true
+	return true, nil
 }
 
 // StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
 	log.G(h.ctx).Info("handling StartTask request", zap.Any("req", request))
 
-	miner, err := h.selectMiner(request)
+	taskID := uuid.New()
+	miner, err := h.selectMiner(request, taskID)
 	if err != nil {
 		return nil, err
 	}
 
-	taskID := uuid.New()
 	var startRequest = &pb.MinerStartRequest{
 		Id:            taskID,
 		Registry:      request.Registry,
 		Image:         request.Image,
 		Auth:          request.Auth,
 		PublicKeyData: request.PublicKeyData,
-		// TODO: Fill restart policy and resources fields.
+		// TODO: Fill restart policy and capabilitiesCurrent fields.
 	}
 
 	resp, err := miner.Client.Start(ctx, startRequest)
@@ -276,6 +306,7 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 	}
 
 	miner.deregisterRoute(taskID)
+	miner.Retain(taskID)
 
 	h.deleteTaskByID(taskID)
 
@@ -388,6 +419,7 @@ func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 
 		filters: []minerFilter{
 			exactMatchFilter,
+			resourcesFilter,
 		},
 	}
 	pb.RegisterHubServer(grpcServer, h)
@@ -455,7 +487,7 @@ func (h *Hub) Serve() error {
 	return nil
 }
 
-// Close disposes all resources attached to the Hub
+// Close disposes all capabilitiesCurrent attached to the Hub
 func (h *Hub) Close() {
 	h.externalGrpc.Stop()
 	h.minerListener.Close()
