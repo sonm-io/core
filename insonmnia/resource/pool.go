@@ -44,6 +44,24 @@ func (p *Pool) Consume(usage *Resources) error {
 }
 
 func (p *Pool) consume(usage *Resources) error {
+	if err := p.pollConsume(usage); err != nil {
+		return err
+	}
+
+	p.usage.numCPUs += usage.numCPUs
+	p.usage.memory += usage.memory
+
+	return nil
+}
+
+func (p *Pool) PollConsume(usage *Resources) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.pollConsume(usage)
+}
+
+func (p *Pool) pollConsume(usage *Resources) error {
 	free := NewResources(p.OS.LogicalCPUCount()-p.usage.numCPUs, int64(p.OS.Memory.Total)-p.usage.memory)
 
 	if usage.numCPUs > free.numCPUs {
@@ -53,9 +71,6 @@ func (p *Pool) consume(usage *Resources) error {
 	if usage.memory > free.memory {
 		return errors.New("not enough memory available")
 	}
-
-	p.usage.numCPUs += usage.numCPUs
-	p.usage.memory += usage.memory
 
 	return nil
 }
