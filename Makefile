@@ -4,7 +4,9 @@ BUILD = $(shell git rev-parse --short HEAD)
 FULL_VER = $(VER).$(BUILD)
 
 GOCMD=./cmd
-GO=go
+ifeq ($(GO), )
+    GO=go
+endif
 INSTALLDIR=${GOPATH}/bin
 
 BOOTNODE=sonmbootnode
@@ -82,7 +84,7 @@ fmt:
 
 test: mock
 	@echo "+ $@"
-	@go test -tags nocgo $(shell go list ./... | grep -vE 'vendor|blockchain')
+	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor|blockchain')
 	$(MAKE) -C blockchain test
 
 

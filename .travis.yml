@@ -9,12 +9,16 @@ go:
 services:
     - "docker"
 
-script:
-    - go get github.com/golang/mock/gomock
-    - go get github.com/golang/mock/mockgen
-    - make all
+before_install:
+  - sudo apt-get install debhelper devscripts -y
 
 install:
   - . $HOME/.nvm/nvm.sh
   - nvm install stable
   - nvm use stable
+
+script:
+    - go get github.com/golang/mock/gomock
+    - go get github.com/golang/mock/mockgen
+    - make all
+    - GO=$(which go) debuild --preserve-env -uc -us
