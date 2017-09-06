@@ -116,4 +116,4 @@ clean:
 	rm -f coverage.html
 	rm -f funccoverage.txt
 	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE}
-	$(MAKE) -C blockchain clean
+	#$(MAKE) -C blockchain clean

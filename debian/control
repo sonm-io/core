@@ -1,0 +1,28 @@
+Source: sonm-core
+Section: misc
+Priority: optional
+Maintainer: Anton Tyurin <noxiouz@yandex.ru>
+Build-Depends: debhelper (>= 9)
+#golang (>= 2:1.7~1ubuntu1)
+Standards-Version: 3.9.8
+Homepage: https://github.com/sonm-io/core
+Vcs-Git: https://github.com/sonm-io/core.git
+Vcs-Browser: https://github.com/sonm-io/core
+
+Package: sonm-hub
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Hub daemon for SONM network
+ Controls jobs distribution
+
+Package: sonm-miner
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Miner daemon for SONM network
+ This daemon starts actual jobs
+
+Package: sonm-cli
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: CLI for SONM network
+ Gonna deprecate this one
