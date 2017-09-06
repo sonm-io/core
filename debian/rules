@@ -1,0 +1,15 @@
+#!/usr/bin/make -f
+#export DH_VERBOSE = 1
+
+
+%:
+	dh $@
+
+override_dh_auto_build:
+	make -j build/insomnia
+
+override_dh_auto_test:
+	# pass
+
+override_dh_auto_install:
+	# pass
