@@ -3,13 +3,22 @@
 
 
 %:
-	dh $@
+	dh $@ --with systemd
 
 override_dh_auto_build:
 	make -j build/insomnia
 
 override_dh_auto_test:
-	# pass
+	echo "skip tests"
 
 override_dh_auto_install:
-	# pass
+	install -d $(DEB_DESTDIR)etc/sonm/
+	install -m644 miner.yaml $(DEB_DESTDIR)etc/sonm/miner-default.yaml
+	install -m644 hub.yaml $(DEB_DESTDIR)etc/sonm/hub-default.yaml
+
+override_dh_systemd_start:
+	echo "Not running dh_systemd_start"
+
+override_dh_auto_clean:
+	rm -rf etc/
+	dh_auto_clean

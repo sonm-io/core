@@ -10,7 +10,7 @@ services:
     - "docker"
 
 before_install:
-  - sudo apt-get install debhelper devscripts -y
+  - sudo apt-get install debhelper devscripts dh-systemd -y
 
 install:
   - . $HOME/.nvm/nvm.sh
