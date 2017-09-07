@@ -1,0 +1,12 @@
+[Unit]
+Description=SONM Miner
+
+
+[Service]
+EnvironmentFile=/etc/default/sonm-miner
+Type=simple
+ExecStart=/usr/bin/sonmminer --config=${CONFIG_PATH}
+
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,12 @@
+[Unit]
+Description=SONM Hub
+
+
+[Service]
+EnvironmentFile=/etc/default/sonm-hub
+Type=simple
+ExecStart=/usr/bin/sonmhub --config=${CONFIG_PATH}
+
+
+[Install]
+WantedBy=multi-user.target
