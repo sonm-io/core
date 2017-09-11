@@ -72,11 +72,6 @@ message StatusMapReply {
     map<string, TaskStatusReply> statuses = 1;
 }
 
-message ContainerResources {
-    int64 memory = 1;
-    int64 nanoCPUs = 2;
-}
-
 message ContainerRestartPolicy {
     string name = 1;
     uint32 maximumRetryCount = 2;
@@ -99,4 +94,15 @@ message TaskLogsRequest {
 
 message TaskLogsChunk {
     bytes data = 1;
+}
+
+message TaskResourceRequirements {
+    // Number of CPU cores.
+    uint64 CPUCores = 1;
+    // Memory in bytes required.
+    int64 maxMemory = 2;
+    // Describes whether a task requires GPU supoort.
+    bool GPUSupport = 3;
+
+    int64 nanoCPUs = 4;
 }

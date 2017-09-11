@@ -297,7 +297,7 @@ func taskStartCmdRunner(cmd *cobra.Command, taskConfig task_config.TaskConfig, i
 		Miners: []string{},
 		Resources: &pb.TaskResourceRequirements{
 			CPUCores:   taskConfig.GetCPUCount(),
-			MaxMemory:  taskConfig.GetRAMCount(),
+			MaxMemory:  int64(taskConfig.GetRAMCount()),
 			GPUSupport: taskConfig.GetGPURequirement(),
 		},
 	}

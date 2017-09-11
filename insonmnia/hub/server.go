@@ -233,7 +233,11 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 		PublicKeyData: request.PublicKeyData,
 		CommitOnStop:  request.CommitOnStop,
 		Env:           request.Env,
-		// TODO: Fill restart policy and resources fields.
+		Usage:         request.Requirements.GetResources(),
+		RestartPolicy: &pb.ContainerRestartPolicy{
+			Name:              "",
+			MaximumRetryCount: 0,
+		},
 	}
 
 	resp, err := miner.Client.Start(ctx, startRequest)

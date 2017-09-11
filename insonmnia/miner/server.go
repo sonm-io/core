@@ -222,11 +222,11 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 	return restartPolicy
 }
 
-func transformResources(p *pb.ContainerResources) container.Resources {
+func transformResources(p *pb.TaskResourceRequirements) container.Resources {
 	var resources = container.Resources{}
 	if p != nil {
 		resources.NanoCPUs = p.NanoCPUs
-		resources.Memory = p.Memory
+		resources.Memory = p.MaxMemory
 	}
 
 	return resources
@@ -243,17 +243,19 @@ func transformEnvVariables(m map[string]string) []string {
 
 // Start request from Hub makes Miner start a container
 func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
+	log.G(m.ctx).Info("handling Start request", zap.Any("req", request))
+
 	var d = Description{
 		Image:         request.Image,
 		Registry:      request.Registry,
 		Auth:          request.Auth,
 		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
-		Resources:     transformResources(request.Resources),
+		Resources:     transformResources(request.Usage),
 		TaskId:        request.Id,
 		CommitOnStop:  request.CommitOnStop,
 		Env:           transformEnvVariables(request.Env),
 	}
-	log.G(m.ctx).Info("handling Start request", zap.Any("req", request))
+
 	var publicKey ssh.PublicKey
 	if len(request.PublicKeyData) != 0 {
 		var err error
@@ -264,11 +266,13 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		publicKey = k
 	}
 
-	var mem = int64(0)
-	if request.Resources != nil {
-		mem = request.Resources.Memory
+	var numCPUs = 1
+	var memory = int64(0)
+	if request.Usage != nil {
+		numCPUs = int(request.Usage.CPUCores)
+		memory = request.Usage.MaxMemory
 	}
-	var usage = resource.NewResources(1, mem)
+	var usage = resource.NewResources(numCPUs, memory)
 
 	if err := m.resources.Consume(&usage); err != nil {
 		return nil, status.Errorf(codes.ResourceExhausted, "failed to Start %v", err)
