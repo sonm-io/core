@@ -19,6 +19,7 @@ type TaskConfig interface {
 	GetImageName() string
 	GetEntrypoint() string
 	GetSSHKey() string
+	GetEnvVars() map[string]string
 
 	GetRegistryName() string
 	GetRegistryAuth() string
@@ -32,9 +33,10 @@ type TaskConfig interface {
 }
 
 type container struct {
-	Name       string `yaml:"name" required:"true"`
-	Entrypoint string `yaml:"command" required:"false"`
-	SSHKey     string `yaml:"ssh_key" required:"false"`
+	Name       string            `yaml:"name" required:"true"`
+	Entrypoint string            `yaml:"command" required:"false"`
+	SSHKey     string            `yaml:"ssh_key" required:"false"`
+	Env        map[string]string `yaml:"env" required:"false"`
 }
 
 type registry struct {
@@ -87,6 +89,10 @@ func (yc *YamlConfig) GetEntrypoint() string {
 
 func (yc *YamlConfig) GetSSHKey() string {
 	return yc.Task.Container.SSHKey
+}
+
+func (yc *YamlConfig) GetEnvVars() map[string]string {
+	return yc.Task.Container.Env
 }
 
 func (yc *YamlConfig) GetRegistryName() string {

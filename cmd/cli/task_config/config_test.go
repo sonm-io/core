@@ -220,3 +220,28 @@ func TestTaskConfigReadError(t *testing.T) {
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "permission denied")
 }
+
+func TestTaskConfigEnv(t *testing.T) {
+	createTestConfigFile(`task:
+  container:
+    name: user/image:v1
+    env:
+      key1: value1
+      key2: value2
+  resources:
+    RAM: 100MB
+`)
+	defer deleteTestConfigFile()
+
+	cfg, err := LoadConfig(testCfgPath)
+	assert.NoError(t, err)
+
+	assert.Len(t, cfg.GetEnvVars(), 2)
+
+	env := cfg.GetEnvVars()
+	assert.Contains(t, env, "key1")
+	assert.Contains(t, env, "key2")
+
+	assert.Equal(t, "value1", env["key1"])
+	assert.Equal(t, "value2", env["key2"])
+}
