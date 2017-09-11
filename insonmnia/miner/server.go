@@ -2,7 +2,10 @@ package miner
 
 import (
 	"crypto/ecdsa"
+	"fmt"
+	"io"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,15 +26,12 @@ import (
 	"github.com/ccding/go-stun/stun"
 	"github.com/docker/docker/api/types"
 
-	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gliderlabs/ssh"
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
-	"io"
-	"strings"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
