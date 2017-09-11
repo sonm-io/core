@@ -47,7 +47,9 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		Image: filepath.Join(d.Registry, d.Image),
 		// TODO: set actual name
 		Labels: map[string]string{overseerTag: ""},
+		Env:    d.Env,
 	}
+
 	// NOTE: all ports are EXPOSE as PublishAll
 	// TODO: detect network network mode and interface
 	logOpts := make(map[string]string)
