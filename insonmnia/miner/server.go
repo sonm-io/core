@@ -23,6 +23,7 @@ import (
 	"github.com/ccding/go-stun/stun"
 	"github.com/docker/docker/api/types"
 
+	"fmt"
 	"github.com/docker/docker/api/types/container"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gliderlabs/ssh"
@@ -30,6 +31,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"io"
+	"strings"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -230,6 +232,15 @@ func transformResources(p *pb.ContainerResources) container.Resources {
 	return resources
 }
 
+func transformEnvVariables(m map[string]string) []string {
+	vars := make([]string, 0, len(m))
+	for k, v := range m {
+		vars = append(vars, fmt.Sprintf("%s=%s", strings.ToUpper(k), v))
+	}
+
+	return vars
+}
+
 // Start request from Hub makes Miner start a container
 func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
 	var d = Description{
@@ -240,6 +251,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Resources:     transformResources(request.Resources),
 		TaskId:        request.Id,
 		CommitOnStop:  request.CommitOnStop,
+		Env:           transformEnvVariables(request.Env),
 	}
 	log.G(m.ctx).Info("handling Start request", zap.Any("req", request))
 	var publicKey ssh.PublicKey

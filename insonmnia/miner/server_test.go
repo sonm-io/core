@@ -169,3 +169,19 @@ func TestMinerStart(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, id, "test")
 }
+
+func TestTransformEnvVars(t *testing.T) {
+	vars := map[string]string{
+		"key1": "value1",
+		"KEY2": "VALUE2",
+		"key3": "12345",
+		"key4": "",
+	}
+
+	transformed := transformEnvVariables(vars)
+
+	assert.Contains(t, transformed, "KEY1=value1")
+	assert.Contains(t, transformed, "KEY2=VALUE2")
+	assert.Contains(t, transformed, "KEY3=12345")
+	assert.Contains(t, transformed, "KEY4=")
+}

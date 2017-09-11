@@ -52,6 +52,7 @@ message MinerStartRequest{
     ContainerResources resources = 6;
     string PublicKeyData = 7;
     bool commitOnStop = 8;
+    map<string, string> env = 9;
 }
 
 message MinerStartReply {

@@ -232,6 +232,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 		Auth:          request.Auth,
 		PublicKeyData: request.PublicKeyData,
 		CommitOnStop:  request.CommitOnStop,
+		Env:           request.Env,
 		// TODO: Fill restart policy and resources fields.
 	}
 

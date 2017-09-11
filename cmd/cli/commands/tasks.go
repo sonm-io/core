@@ -308,6 +308,7 @@ func taskStartCmdRunner(cmd *cobra.Command, taskConfig task_config.TaskConfig, i
 		Registry:      taskConfig.GetRegistryName(),
 		Auth:          taskConfig.GetRegistryAuth(),
 		PublicKeyData: taskConfig.GetSSHKey(),
+		Env:           taskConfig.GetEnvVars(),
 	}
 
 	rep, err := interactor.TaskStart(context.Background(), req)
