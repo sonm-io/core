@@ -32,15 +32,6 @@ message HubInfoRequest {
     string miner = 1;
 }
 
-message TaskResourceRequirements {
-    // Number of CPU cores.
-    uint64 CPUCores = 1;
-    // Memory in bytes required.
-    uint64 maxMemory = 2;
-    // Describes whether a task requires GPU supoort.
-    bool GPUSupport = 3;
-}
-
 message TaskRequirements {
     // How much resources consumes a task. This is used both for scheduling and for cgroups configuration.
     TaskResourceRequirements resources = 1;
