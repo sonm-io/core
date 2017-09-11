@@ -5,6 +5,11 @@ task:
   container:
     # image name to start on miner, required param
     name: image:v1
+    # env variables that will be passed to container on start
+    env:
+      param1: value1
+      param2: value2
+      param3: value3
   # container resources definition, required section
   resources:
       # number of CPU cores required by task, required param
