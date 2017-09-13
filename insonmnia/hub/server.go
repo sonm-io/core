@@ -447,7 +447,12 @@ func (h *Hub) Serve() error {
 		return err
 	}
 
-	srv, err := frd.NewServer(h.ethKey, ip.String()+h.endpoint)
+	port, err := util.ParseEndpointPort(h.endpoint)
+	if err != nil {
+		return err
+	}
+
+	srv, err := frd.NewServer(h.ethKey, ip.String()+port)
 	if err != nil {
 		return err
 	}
