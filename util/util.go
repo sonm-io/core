@@ -5,9 +5,11 @@ import (
 	"net"
 
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"os/user"
+	"strconv"
 )
 
 // GetLocalIP find local non-loopback ip addr
@@ -65,4 +67,22 @@ func GetUserHomeDir() (homeDir string, err error) {
 		return "", err
 	}
 	return usr.HomeDir, nil
+}
+
+func ParseEndpointPort(s string) (string, error) {
+	_, port, err := net.SplitHostPort(s)
+	if err != nil {
+		return "", err
+	}
+
+	intPort, err := strconv.Atoi(port)
+	if err != nil {
+		return "", err
+	}
+
+	if intPort < 1 || intPort > 65535 {
+		return "", errors.New("Invalid port value")
+	}
+
+	return port, nil
 }
