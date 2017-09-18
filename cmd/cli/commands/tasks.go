@@ -55,7 +55,7 @@ func printTaskStart(cmd *cobra.Command, rep *pb.HubStartTaskReply) {
 	}
 }
 
-func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskStatusReply) {
+func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusReply) {
 	if isSimpleFormat() {
 		portsParsedOK := false
 		ports := nat.PortMap{}
@@ -64,7 +64,7 @@ func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskSt
 			portsParsedOK = err == nil
 		}
 
-		cmd.Printf("Task %s (on %s):\r\n", id, miner)
+		cmd.Printf("Task %s (on %s):\r\n", id, taskStatus.MinerID)
 		cmd.Printf("  Image:  %s\r\n", taskStatus.GetImageName())
 		cmd.Printf("  Status: %s\r\n", taskStatus.GetStatus().String())
 		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.GetUptime()).String())
@@ -98,7 +98,7 @@ func printTaskStatus(cmd *cobra.Command, miner, id string, taskStatus *pb.TaskSt
 	} else {
 		v := map[string]interface{}{
 			"id":     id,
-			"miner":  miner,
+			"miner":  taskStatus.MinerID,
 			"status": taskStatus.Status.String(),
 			"image":  taskStatus.GetImageName(),
 			"ports":  taskStatus.GetPorts(),
@@ -192,18 +192,14 @@ var taskStartCmd = &cobra.Command{
 }
 
 var taskStatusCmd = &cobra.Command{
-	Use:     "status <miner_addr> <task_id>",
+	Use:     "status <task_id>",
 	Short:   "Show task status",
 	PreRunE: checkHubAddressIsSet,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errMinerAddressRequired
-		}
-		if len(args) < 2 {
 			return errTaskIDRequired
 		}
-		minerID := args[0]
-		taskID := args[1]
+		taskID := args[0]
 
 		itr, err := NewGrpcInteractor(hubAddress, timeout)
 		if err != nil {
@@ -211,11 +207,12 @@ var taskStatusCmd = &cobra.Command{
 			return nil
 		}
 
-		taskStatusCmdRunner(cmd, minerID, taskID, itr)
+		taskStatusCmdRunner(cmd, taskID, itr)
 		return nil
 	},
 }
 
+// TODO(sshaman1101): remove miner addr
 var taskStopCmd = &cobra.Command{
 	Use:     "stop <miner_addr> <task_id>",
 	Short:   "Stop task",
@@ -320,14 +317,14 @@ func taskStartCmdRunner(cmd *cobra.Command, taskConfig task_config.TaskConfig, i
 	printTaskStart(cmd, rep)
 }
 
-func taskStatusCmdRunner(cmd *cobra.Command, minerID, taskID string, interactor CliInteractor) {
+func taskStatusCmdRunner(cmd *cobra.Command, taskID string, interactor CliInteractor) {
 	taskStatus, err := interactor.TaskStatus(context.Background(), taskID)
 	if err != nil {
 		showError(cmd, "Cannot get task status", err)
 		return
 	}
 
-	printTaskStatus(cmd, minerID, taskID, taskStatus)
+	printTaskStatus(cmd, taskID, taskStatus)
 	return
 }
 
