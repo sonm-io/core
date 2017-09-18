@@ -212,20 +212,15 @@ var taskStatusCmd = &cobra.Command{
 	},
 }
 
-// TODO(sshaman1101): remove miner addr
 var taskStopCmd = &cobra.Command{
-	Use:     "stop <miner_addr> <task_id>",
+	Use:     "stop <task_id>",
 	Short:   "Stop task",
 	PreRunE: checkHubAddressIsSet,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errMinerAddressRequired
-		}
-		if len(args) < 2 {
 			return errTaskIDRequired
 		}
-
-		taskID := args[1]
+		taskID := args[0]
 
 		itr, err := NewGrpcInteractor(hubAddress, timeout)
 		if err != nil {
