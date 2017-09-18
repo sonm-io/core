@@ -451,12 +451,20 @@ func (h *Hub) Serve() error {
 		return err
 	}
 
-	port, err := util.ParseEndpointPort(h.endpoint)
+	workersPort, err := util.ParseEndpointPort(h.endpoint)
 	if err != nil {
 		return err
 	}
 
-	srv, err := frd.NewServer(h.ethKey, ip.String()+":"+port)
+	clientPort, err := util.ParseEndpointPort(h.grpcEndpoint)
+	if err != nil {
+		return err
+	}
+
+	workersEndpt := ip.String() + ":" + workersPort
+	clientEndpt := ip.String() + ":" + clientPort
+
+	srv, err := frd.NewServer(h.ethKey, workersEndpt, clientEndpt)
 	if err != nil {
 		return err
 	}

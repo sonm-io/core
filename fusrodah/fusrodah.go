@@ -31,6 +31,11 @@ const (
 	maxPeers           = 80
 )
 
+type DiscoveryMessage struct {
+	WorkerEndpoint string `json:"worker_endpoint"`
+	ClientEndpoint string `json:"client_endpoint"`
+}
+
 var (
 	errServerNotRunning = errors.New("Server is not running")
 )
