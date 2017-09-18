@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"time"
 
+	"encoding/json"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"github.com/sonm-io/core/common"
@@ -69,14 +70,14 @@ func (srv *Server) Serve() {
 
 func (srv *Server) discovery() {
 	var filterID int
-
 	done := make(chan struct{})
 
 	filterID = srv.Frd.AddHandling(nil, nil, func(msg *whisperv2.Message) {
 		if hubKey := msg.Recover(); hubKey != nil { // skip unauthenticated messages
+			disco := srv.unmarshalDiscoveryMessage(msg.Payload)
 			srv.Hub = &HubInfo{
 				PublicKey: hubKey,
-				Address:   string(msg.Payload),
+				Address:   disco.WorkerEndpoint,
 			}
 			srv.Frd.RemoveHandling(filterID)
 			close(done)
@@ -91,6 +92,17 @@ func (srv *Server) discovery() {
 	case <-t.C:
 		srv.Frd.Send(srv.GetPubKeyString(), true, common.TopicHubDiscover)
 	}
+}
+
+func (*Server) unmarshalDiscoveryMessage(body []byte) fusrodah.DiscoveryMessage {
+	msg := fusrodah.DiscoveryMessage{}
+	err := json.Unmarshal(body, &msg)
+	if err != nil {
+		// cannot unmarshal, fallback to previous protocol impl - message body = hubIP
+		msg.WorkerEndpoint = string(body)
+	}
+
+	return msg
 }
 
 func (srv *Server) GetHub() *HubInfo {

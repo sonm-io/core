@@ -3,6 +3,7 @@ package hub
 import (
 	"crypto/ecdsa"
 
+	"encoding/json"
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/fusrodah"
@@ -14,10 +15,11 @@ type Server struct {
 	PrivateKey *ecdsa.PrivateKey
 	Frd        *fusrodah.Fusrodah
 
-	HubIp string
+	workerEndpoint string
+	clientEndpoint string
 }
 
-func NewServer(prv *ecdsa.PrivateKey, hubIp string) (srv *Server, err error) {
+func NewServer(prv *ecdsa.PrivateKey, workerEndpt, clientEndpt string) (srv *Server, err error) {
 	bootnodes := []string{common.BootNodeAddr, common.SecondBootNodeAddr}
 
 	frd, err := fusrodah.NewServer(prv, defaultHubPort, bootnodes)
@@ -26,9 +28,10 @@ func NewServer(prv *ecdsa.PrivateKey, hubIp string) (srv *Server, err error) {
 	}
 
 	srv = &Server{
-		PrivateKey: prv,
-		HubIp:      hubIp,
-		Frd:        frd,
+		PrivateKey:     prv,
+		workerEndpoint: workerEndpt,
+		clientEndpoint: clientEndpt,
+		Frd:            frd,
 	}
 
 	return srv, nil
@@ -56,6 +59,16 @@ func (srv *Server) Serve() {
 
 func (srv *Server) discovery() {
 	srv.Frd.AddHandling(nil, nil, func(msg *whisperv2.Message) {
-		srv.Frd.Send(srv.HubIp, false, common.TopicMinerDiscover)
+		body := srv.marshalDiscoveryMessage()
+		srv.Frd.Send(body, false, common.TopicMinerDiscover)
 	}, common.TopicHubDiscover)
+}
+
+func (srv *Server) marshalDiscoveryMessage() string {
+	s := fusrodah.DiscoveryMessage{
+		WorkerEndpoint: srv.workerEndpoint,
+		ClientEndpoint: srv.clientEndpoint,
+	}
+	b, _ := json.Marshal(&s)
+	return string(b)
 }
