@@ -74,6 +74,8 @@ func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
 	if isSimpleFormat() {
 		cmd.Printf("Connected miners: %d\r\n", stat.MinerCount)
 		cmd.Printf("Uptime:           %s\r\n", (time.Second * time.Duration(stat.Uptime)).String())
+		cmd.Printf("Version:          %s %s\r\n", stat.Version, stat.Platform)
+		cmd.Printf("Eth address:      %s\r\n", stat.EthAddr)
 	} else {
 		b, _ := json.Marshal(stat)
 		cmd.Println(string(b))

@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os/user"
+	"runtime"
 	"strconv"
 )
 
@@ -85,4 +86,8 @@ func ParseEndpointPort(s string) (string, error) {
 	}
 
 	return port, nil
+}
+
+func GetPlatformName() string {
+	return fmt.Sprintf("%s/%s/%s", runtime.GOOS, runtime.GOARCH, runtime.Version())
 }
