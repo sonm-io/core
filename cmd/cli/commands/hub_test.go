@@ -51,13 +51,18 @@ func TestHubStatus(t *testing.T) {
 	itr.EXPECT().HubStatus(gomock.Any()).AnyTimes().Return(&pb.HubStatusReply{
 		MinerCount: 2,
 		Uptime:     1,
+		EthAddr:    "d07fff36ef2c3d15144974c25d3f5c061ae830a81eefd44292588b3cea2c701c",
+		Version:    "darwin amd64 (go1.8.3) v0.2.1.1-481d4d0",
 	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	hubStatusCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	assert.Equal(t, "Connected miners: 2\r\nUptime:           1s\r\n", out)
+	assert.Contains(t, out, "Connected miners: 2")
+	assert.Contains(t, out, "Uptime:           1s")
+	assert.Contains(t, out, "Version:          darwin amd64 (go1.8.3) v0.2.1.1-481d4d0")
+	assert.Contains(t, out, "Eth address:      d07fff36ef2c3d15144974c25d3f5c061ae830a81eefd44292588b3cea2c701c")
 }
 
 func TestHubStatusJson(t *testing.T) {
