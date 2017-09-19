@@ -221,6 +221,14 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 	return restartPolicy
 }
 
+func transformGPUSupport(p *pb.TaskResourceRequirements) bool {
+	if p == nil {
+		return false
+	} else {
+		return p.GetGPUSupport()
+	}
+}
+
 func transformResources(p *pb.TaskResourceRequirements) container.Resources {
 	var resources = container.Resources{}
 	if p != nil {
@@ -253,6 +261,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		TaskId:        request.Id,
 		CommitOnStop:  request.CommitOnStop,
 		Env:           transformEnvVariables(request.Env),
+		GPURequired:   transformGPUSupport(request.Usage),
 	}
 
 	var publicKey ssh.PublicKey
