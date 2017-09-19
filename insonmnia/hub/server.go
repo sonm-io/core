@@ -520,9 +520,12 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
 	}
 
-	consul, err := consul.NewClient(consul.DefaultConfig())
-	if err != nil {
-		return nil, err
+	var consulCli *consul.Client = nil
+	if cfg.ConsulEnabled {
+		consulCli, err = consul.NewClient(consul.DefaultConfig())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// TODO: add secure mechanism
@@ -545,7 +548,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 			exactMatchFilter,
 			resourcesFilter,
 		},
-		consul: consul,
+		consul: consulCli,
 	}
 	pb.RegisterHubServer(grpcServer, h)
 	return h, nil
@@ -607,7 +610,11 @@ func (h *Hub) election() error {
 // Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
-	go h.election()
+	if h.consul != nil {
+		go h.election()
+	} else {
+		h.isLeader = true
+	}
 
 	h.startTime = time.Now()
 

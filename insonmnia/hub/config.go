@@ -27,6 +27,7 @@ type HubConfig struct {
 	Monitoring    MonitoringConfig `required:"true" yaml:"monitoring"`
 	Logging       LoggingConfig    `yaml:"logging"`
 	Eth           EthConfig        `yaml:"ethereum"`
+	ConsulEnabled bool             `yaml:"consul_enabled" default:"false"`
 }
 
 // NewConfig loads a hub config from the specified YAML file.
