@@ -580,6 +580,7 @@ func (h *Hub) leaderWatch() {
 }
 
 func (h *Hub) election() error {
+	log.G(h.ctx).Info("starting leader election goroutine")
 	var err error
 	for {
 		lock, err := h.consul.LockOpts(&consul.LockOptions{
@@ -590,19 +591,23 @@ func (h *Hub) election() error {
 			break
 		}
 
+		log.G(h.ctx).Info("trying to aquire leader lock")
 		followerCh, err := lock.Lock(h.stopCh)
 		if err != nil {
 			break
 		}
+		log.G(h.ctx).Info("leader lock aquired")
 		h.isLeader = true
 		for {
 			_, ok := <-followerCh
 			if !ok {
+				log.G(h.ctx).Info("leader lock released")
 				break
 			}
 		}
 		h.isLeader = false
 	}
+	log.G(h.ctx).Warn("election failed - closing hub")
 	h.Close()
 	return err
 }
