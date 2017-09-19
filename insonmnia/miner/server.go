@@ -224,9 +224,9 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 func transformGPUSupport(p *pb.TaskResourceRequirements) bool {
 	if p == nil {
 		return false
-	} else {
-		return p.GetGPUSupport()
 	}
+
+	return p.GetGPUSupport()
 }
 
 func transformResources(p *pb.TaskResourceRequirements) container.Resources {
