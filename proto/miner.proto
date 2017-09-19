@@ -17,6 +17,13 @@ service Miner{
     rpc TaskDetails(TaskStatusRequest) returns (TaskStatusReply) {}
 
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
+
+    rpc ChangeHub(ChangeHubRequest) returns (EmptyResponse) {}
+}
+
+message ChangeHubRequest {
+    string ip = 1;
+    string port = 2;
 }
 
 message MinerInfoRequest {

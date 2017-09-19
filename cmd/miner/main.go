@@ -16,6 +16,8 @@ import (
 	"github.com/sonm-io/core/insonmnia/miner"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pborman/uuid"
+	"io/ioutil"
 )
 
 var (
@@ -40,11 +42,22 @@ func main() {
 		os.Exit(1)
 	}
 
+	if _, err := os.Stat(cfg.UUIDPath()); os.IsNotExist(err) {
+		ioutil.WriteFile(cfg.UUIDPath(), []byte(uuid.New()), 0777)
+	}
+	uuidData, err := ioutil.ReadFile(cfg.UUIDPath())
+	if err != nil {
+		ctxlog.GetLogger(ctx).Error("Cannot load uuid", zap.Error(err))
+		os.Exit(1)
+	}
+	uuid := string(uuidData)
+
 	logger := logging.BuildLogger(cfg.Logging().Level, common.DevelopmentMode)
 	ctx = log.WithLogger(ctx, logger)
 
 	builder := miner.NewMinerBuilder(cfg)
 	builder.Context(ctx)
+	builder.UUID(uuid)
 	m, err := builder.Build()
 	if err != nil {
 		ctxlog.GetLogger(ctx).Fatal("failed to create a new Miner", zap.Error(err))
