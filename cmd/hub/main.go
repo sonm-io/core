@@ -43,7 +43,7 @@ func main() {
 	logger := logging.BuildLogger(cfg.Logging.Level, common.DevelopmentMode)
 	ctx = log.WithLogger(ctx, logger)
 
-	h, err := hub.New(ctx, cfg)
+	h, err := hub.New(ctx, cfg, version)
 	if err != nil {
 		ctxlog.GetLogger(ctx).Error("failed to create a new Hub", zap.Error(err))
 		os.Exit(1)

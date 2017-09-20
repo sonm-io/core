@@ -64,4 +64,7 @@ message HubStatusRequest {}
 message HubStatusReply {
     uint64 minerCount = 1;
     uint64 uptime = 2;
+    string version = 3;
+    string platform = 4;
+    string ethAddr = 5;
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 
+	"encoding/hex"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
@@ -53,6 +54,7 @@ type Hub struct {
 
 	wg        sync.WaitGroup
 	startTime time.Time
+	version   string
 
 	// Scheduling.
 	filters []minerFilter
@@ -75,6 +77,9 @@ func (h *Hub) Status(ctx context.Context, _ *pb.HubStatusRequest) (*pb.HubStatus
 	reply := &pb.HubStatusReply{
 		MinerCount: uint64(minersCount),
 		Uptime:     uint64(uptime),
+		Platform:   util.GetPlatformName(),
+		Version:    h.version,
+		EthAddr:    hex.EncodeToString(crypto.FromECDSA(h.ethKey)),
 	}
 
 	return reply, nil
@@ -396,7 +401,7 @@ func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer
 }
 
 // New returns new Hub
-func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
+func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	ethKey, err := crypto.HexToECDSA(cfg.Eth.PrivateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "malformed ethereum private key")
@@ -433,6 +438,7 @@ func New(ctx context.Context, cfg *HubConfig) (*Hub, error) {
 		grpcEndpoint: cfg.Monitoring.Endpoint,
 		endpoint:     cfg.Endpoint,
 		ethKey:       ethKey,
+		version:      version,
 
 		filters: []minerFilter{
 			exactMatchFilter,
@@ -453,12 +459,20 @@ func (h *Hub) Serve() error {
 		return err
 	}
 
-	port, err := util.ParseEndpointPort(h.endpoint)
+	workersPort, err := util.ParseEndpointPort(h.endpoint)
 	if err != nil {
 		return err
 	}
 
-	srv, err := frd.NewServer(h.ethKey, ip.String()+":"+port)
+	clientPort, err := util.ParseEndpointPort(h.grpcEndpoint)
+	if err != nil {
+		return err
+	}
+
+	workersEndpt := ip.String() + ":" + workersPort
+	clientEndpt := ip.String() + ":" + clientPort
+
+	srv, err := frd.NewServer(h.ethKey, workersEndpt, clientEndpt)
 	if err != nil {
 		return err
 	}

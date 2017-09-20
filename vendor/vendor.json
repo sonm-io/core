@@ -733,19 +733,6 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
-			"checksumSHA1": "9hffs0bAIU6CquiRhKQdzjHnKt0=",
-			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/hashicorp/golang-lru/simplelru",
-			"path": "github.com/hashicorp/golang-lru/simplelru",
-			"revision": "a602ee90f2c28eadbca8cdc2e143825a4c24ab23",
-			"revisionTime": "2017-07-26T07:40:41Z"
-		},
-		{
-			"checksumSHA1": "ZhK6IO2XN81Y+3RAjTcVm1Ic7oU=",
-			"path": "github.com/hashicorp/yamux",
-			"revision": "d1caa6c97c9fc1cc9e83bbe34d0603f9ff0ce8bd",
-			"revisionTime": "2016-07-20T23:31:40Z"
-		},
-		{
 			"checksumSHA1": "f55gR+6YClh0i/FOhdy66SOUiwY=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/huin/goupnp",
 			"path": "github.com/huin/goupnp",

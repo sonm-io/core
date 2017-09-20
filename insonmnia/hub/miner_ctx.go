@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/yamux"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 
@@ -33,9 +32,6 @@ type MinerCtx struct {
 	// Incoming TCP-connection
 	conn net.Conn
 
-	// TODO: forwarding
-	session *yamux.Session
-
 	// Miner name received after handshaking.
 	uuid                string
 	capabilities        *hardware.Hardware
@@ -56,18 +52,6 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 		err error
 	)
 	m.ctx, m.cancel = context.WithCancel(ctx)
-	m.session, err = yamux.Client(conn, nil)
-	if err != nil {
-		m.Close()
-		return nil, err
-	}
-
-	// TODO: Drop YAMUX
-	yaConn, err := m.session.Open()
-	if err != nil {
-		m.Close()
-		return nil, err
-	}
 	// TODO: secure connection
 	// TODO: identify miner via Authorization mechanism
 	// TODO: rediscover jobs assigned to that Miner
@@ -76,9 +60,8 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 	m.grpcConn, err = grpc.DialContext(dctx, "miner", grpc.WithInsecure(),
 		grpc.WithDecompressor(grpc.NewGZIPDecompressor()), grpc.WithCompressor(grpc.NewGZIPCompressor()),
 		grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
-			return yaConn, nil
+			return conn, nil
 		}))
-
 	if err != nil {
 		log.G(ctx).Error("failed to connect to Miner's grpc server", zap.Error(err))
 		m.Close()
@@ -276,9 +259,6 @@ func (m *MinerCtx) Close() {
 	}
 	if m.conn != nil {
 		m.conn.Close()
-	}
-	if m.session != nil {
-		m.session.Close()
 	}
 	if m.router != nil {
 		m.router.Close()
