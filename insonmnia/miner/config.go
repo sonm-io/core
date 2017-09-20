@@ -30,12 +30,17 @@ type LoggingConfig struct {
 	Level int `required:"true" default:"1"`
 }
 
+type DebugServerConfig struct {
+	Endpoint string `required:"false" yaml:"endpoint"`
+}
+
 type config struct {
-	HubConfig      *HubConfig      `required:"false" yaml:"hub"`
-	FirewallConfig *FirewallConfig `required:"false" yaml:"firewall"`
-	GPUConfig      *GPUConfig      `required:"false"`
-	SSHConfig      *SSHConfig      `required:"false" yaml:"ssh"`
-	LoggingConfig  LoggingConfig   `yaml:"logging"`
+	HubConfig         *HubConfig         `required:"false" yaml:"hub"`
+	FirewallConfig    *FirewallConfig    `required:"false" yaml:"firewall"`
+	GPUConfig         *GPUConfig         `required:"false"`
+	SSHConfig         *SSHConfig         `required:"false" yaml:"ssh"`
+	LoggingConfig     LoggingConfig      `yaml:"logging"`
+	DebugServerConfig *DebugServerConfig `required:"false" yaml:"debugserver"`
 }
 
 func (c *config) HubEndpoint() string {
@@ -68,6 +73,10 @@ func (c *config) Logging() LoggingConfig {
 	return c.LoggingConfig
 }
 
+func (c *config) DebugServer() *DebugServerConfig {
+	return c.DebugServerConfig
+}
+
 // NewConfig creates a new Miner config from the specified YAML file.
 func NewConfig(path string) (Config, error) {
 	cfg := &config{}
@@ -93,4 +102,6 @@ type Config interface {
 	SSH() *SSHConfig
 	// Logging returns logging settings.
 	Logging() LoggingConfig
+	// DebugServer returns a configuration for HTTP debug server
+	DebugServer() *DebugServerConfig
 }
