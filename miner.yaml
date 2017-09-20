@@ -30,3 +30,7 @@ logging:
 # automatically.
 # firewall:
 #   server: "stun.ekiga.net:3478"
+
+# GPUConfig:
+  # by default nvidia-docker-plugin works on that endpoint
+  # nvidiadockerdriver: "localhost:3476"
