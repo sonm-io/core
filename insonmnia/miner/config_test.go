@@ -48,6 +48,23 @@ hub:
 	assert.Equal(t, conf.HubEndpoint(), "")
 }
 
+func TestGPUConfig(t *testing.T) {
+	err := createTestConfigFile(`
+hub:
+  endpoint: "127.0.0.1:10002"
+logging:
+  level: -1
+GPUConfig:
+  nvidiadockerdriver: "localhost:3476"
+`)
+	assert.NoError(t, err)
+	defer deleteTestConfigFile()
+
+	conf, err := NewConfig(testMinerConfigPath)
+	assert.Nil(t, err)
+	assert.Equal(t, "localhost:3476", conf.GPU().NvidiaDockerDriver)
+}
+
 func TestLoadConfigWithoutEndpoint(t *testing.T) {
 	defer deleteTestConfigFile()
 	err := createTestConfigFile("")

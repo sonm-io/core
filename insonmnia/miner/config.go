@@ -33,7 +33,7 @@ type LoggingConfig struct {
 type config struct {
 	HubConfig      *HubConfig      `required:"false" yaml:"hub"`
 	FirewallConfig *FirewallConfig `required:"false" yaml:"firewall"`
-	GPUConfig      *GPUConfig      `required:"false"`
+	GPUConfig      *GPUConfig      `required:"false" yaml:"GPUConfig"`
 	SSHConfig      *SSHConfig      `required:"false" yaml:"ssh"`
 	LoggingConfig  LoggingConfig   `yaml:"logging"`
 }
