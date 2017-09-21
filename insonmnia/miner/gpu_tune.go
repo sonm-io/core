@@ -18,12 +18,12 @@ type nvidiaPluginArgs struct {
 }
 
 type nvidiaGPUTuner interface {
-	Tune(containerconfig *container.Config, hostconfig *container.HostConfig) error
+	Tune(hostconfig *container.HostConfig) error
 }
 
 type nilGPUTuner struct{}
 
-func (nilGPUTuner) Tune(containerconfig *container.Config, hostconfig *container.HostConfig) error {
+func (nilGPUTuner) Tune(hostconfig *container.HostConfig) error {
 	return nil
 }
 
@@ -53,7 +53,7 @@ func newGPUTuner(config *GPUConfig) (nvidiaGPUTuner, error) {
 	return &gpuTuner{args: args}, nil
 }
 
-func (g *gpuTuner) Tune(containerconfig *container.Config, hostconfig *container.HostConfig) error {
+func (g *gpuTuner) Tune(hostconfig *container.HostConfig) error {
 	// This tunes configs to get the same result as docker run with:
 	// --volume-driver=nvidia-docker --volume=nvidia_driver_375.66:/usr/local/nvidia:ro --device=/dev/nvidiactl --device=/dev/nvidia-uvm --device=/dev/nvidia-uvm-tools --device=/dev/nvidia
 

@@ -73,7 +73,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 
 	var networkingConfig network.NetworkingConfig
 
-	if err := tuner.Tune(&config, &hostConfig); err != nil {
+	if err := tuner.Tune(&hostConfig); err != nil {
 		return nil, err
 	}
 	// create new container
