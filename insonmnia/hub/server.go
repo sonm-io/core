@@ -368,6 +368,8 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskID)
 	}
 
+	// todo: fill this field into miner method, use Miner.name (uuid) instead of addr
+	reply.MinerID = minerID
 	return reply, nil
 }
 

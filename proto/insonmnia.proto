@@ -65,7 +65,7 @@ message TaskStatusReply {
     string ports = 3;
     uint64 uptime = 4;
     ResourceUsage usage = 5;
-    //ContainerResources resources = 5;
+    string minerID = 6;
 }
 
 message StatusMapReply {

@@ -188,13 +188,14 @@ func TestTaskStartJsonError(t *testing.T) {
 func TestTaskStatusSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
 	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
+		MinerID:   "test",
 		Status:    pb.TaskStatusReply_RUNNING,
 		ImageName: "httpd:latest",
 		Uptime:    60,
 	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
-	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+	taskStatusCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
 	out := buf.String()
 
 	assert.Equal(t, "Task adac72b1-7fcf-47e1-8d74-a53563823185 (on test):\r\n  Image:  httpd:latest\r\n  Status: RUNNING\r\n  Uptime: 60ns\r\n", out)
@@ -203,11 +204,12 @@ func TestTaskStatusSimple(t *testing.T) {
 func TestTaskStatusJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
 	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
-		Status: pb.TaskStatusReply_RUNNING,
+		MinerID: "test",
+		Status:  pb.TaskStatusReply_RUNNING,
 	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
-	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+	taskStatusCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
 	out := buf.Bytes()
 
 	reply := struct {
@@ -228,7 +230,7 @@ func TestTaskStatusSimpleError(t *testing.T) {
 	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(nil, errors.New("error"))
 
 	buf := initRootCmd(t, config.OutputModeSimple)
-	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+	taskStatusCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
 	out := buf.String()
 
 	assert.Equal(t, "[ERR] Cannot get task status: error\r\n", out)
@@ -239,7 +241,7 @@ func TestTaskStatusJsonError(t *testing.T) {
 	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(nil, errors.New("error"))
 
 	buf := initRootCmd(t, config.OutputModeJSON)
-	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+	taskStatusCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
 	out := buf.String()
 
 	cmdErr, err := stringToCommandError(out)
@@ -305,7 +307,7 @@ func TestTaskStatusWithPortsSimple(t *testing.T) {
 	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
-	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+	taskStatusCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
 	out := buf.String()
 
 	assert.Contains(t, out, "  Ports:\r\n")
@@ -323,7 +325,7 @@ func TestTaskStatusWithInvalidPortsSimple(t *testing.T) {
 	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
-	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+	taskStatusCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
 	out := buf.String()
 
 	assert.NotContains(t, out, "  Ports:\r\n")
@@ -332,6 +334,7 @@ func TestTaskStatusWithInvalidPortsSimple(t *testing.T) {
 func TestTaskStatusWithPortsJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
 	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
+		MinerID:   "test",
 		Status:    pb.TaskStatusReply_RUNNING,
 		ImageName: "httpd:latest",
 		Ports:     `{"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"32775"}],"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"32777"}]}`,
@@ -339,7 +342,7 @@ func TestTaskStatusWithPortsJson(t *testing.T) {
 	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
-	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+	taskStatusCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
 
 	outJson := map[string]string{}
 	err := json.Unmarshal(buf.Bytes(), &outJson)
@@ -406,7 +409,7 @@ func TestTaskStatusWithResourcesSimple(t *testing.T) {
 	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
-	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+	taskStatusCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
 	out := buf.String()
 
 	assert.Contains(t, out, "  Resources:\n")
@@ -424,6 +427,7 @@ func TestTaskStatusWithResourcesSimple(t *testing.T) {
 func TestTaskStatusWithResourcesJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
 	itr.EXPECT().TaskStatus(gomock.Any(), gomock.Any()).Return(&pb.TaskStatusReply{
+		MinerID:   "test",
 		Status:    pb.TaskStatusReply_RUNNING,
 		ImageName: "httpd:latest",
 		Ports:     `{"80/tcp":[{"HostIp":"0.0.0.0","HostPort":"32775"}],"8080/tcp":[{"HostIp":"0.0.0.0","HostPort":"32777"}]}`,
@@ -447,7 +451,7 @@ func TestTaskStatusWithResourcesJson(t *testing.T) {
 	}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
-	taskStatusCmdRunner(rootCmd, "test", "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
+	taskStatusCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
 
 	outJson := map[string]interface{}{}
 	err := json.Unmarshal(buf.Bytes(), &outJson)
