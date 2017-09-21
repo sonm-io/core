@@ -3,6 +3,7 @@
 package gpu
 
 // #cgo darwin LDFLAGS: -framework OpenCL
+// #cgo linux LDFLAGS:-lOpenCL
 // #ifdef __APPLE__
 //     #include "TargetConditionals.h"
 //     #if TARGET_OS_MAC
