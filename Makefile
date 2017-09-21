@@ -18,9 +18,11 @@ DOCKER_IMAGE_HUB="sonm/hub:latest"
 DOCKER_IMAGE_MINER="sonm/miner:latest"
 DOCKER_IMAGE_BOOTNODE="sonm/bootnode:latest"
 
+TAGS=nocgo
+
 GPU_SUPPORT?=false
 ifeq ($(GPU_SUPPORT),true)
-    GPU_FLAGS=-tags cl
+    TAGS+=cl
 endif
 
 .PHONY: fmt vet test
@@ -29,19 +31,19 @@ all: mock vet fmt build test install
 
 build/bootnode:
 	@echo "+ $@"
-	${GO} build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" -o ${BOOTNODE} ${GOCMD}/bootnode
+	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${BOOTNODE} ${GOCMD}/bootnode
 
 build/miner:
 	@echo "+ $@"
-	${GO} build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" ${GPU_FLAGS} -o ${MINER} ${GOCMD}/miner
+	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${MINER} ${GOCMD}/miner
 
 build/hub:
 	@echo "+ $@"
-	${GO} build -tags nocgo -ldflags "-s -X main.version=$(FULL_VER)" -o ${HUB} ${GOCMD}/hub
+	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${HUB} ${GOCMD}/hub
 
 build/cli:
 	@echo "+ $@"
-	${GO} build -tags nocgo -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
+	${GO} build -tags "$(TAGS)" -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
 
 build/cli_win32:
 	@echo "+ $@"
