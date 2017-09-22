@@ -13,6 +13,7 @@ BOOTNODE=sonmbootnode
 MINER=sonmminer
 HUB=sonmhub
 CLI=sonmcli
+LOCATOR=sonmlocator
 
 DOCKER_IMAGE_HUB="sonm/hub:latest"
 DOCKER_IMAGE_MINER="sonm/miner:latest"
@@ -28,6 +29,10 @@ endif
 .PHONY: fmt vet test
 
 all: mock vet fmt build test install
+
+build/locator:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${LOCATOR} ${GOCMD}/locator
 
 build/bootnode:
 	@echo "+ $@"
@@ -55,7 +60,7 @@ build/blockchain:
 
 build/insomnia: build/hub build/miner build/cli
 
-build: build/blockchain build/bootnode build/insomnia
+build: build/blockchain build/bootnode build/insomnia build/locator
 
 install/bootnode: build/bootnode
 	@echo "+ $@"
