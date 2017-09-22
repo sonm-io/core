@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+import "insonmnia.proto";
+
+package sonm;
+
+service Locator {
+    rpc Announce(AnnounceRequest) returns (Empty) {}
+    rpc Resolve(ResolveRequest) returns(ResolveReply){}
+}
+
+message AnnounceRequest {
+    string ethAddr = 1;
+    repeated string ipAddr = 2;
+}
+
+message ResolveRequest{
+    string ethAddr = 1;
+}
+
+message ResolveReply {
+    repeated string ipAddr = 1;
+}

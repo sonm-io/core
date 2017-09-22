@@ -106,3 +106,5 @@ message TaskResourceRequirements {
 
     int64 nanoCPUs = 4;
 }
+
+message Empty {}

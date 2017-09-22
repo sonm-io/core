@@ -8,6 +8,7 @@ It is generated from these files:
 	capabilities.proto
 	hub.proto
 	insonmnia.proto
+	locator.proto
 	miner.proto
 
 It has these top-level messages:
@@ -40,6 +41,10 @@ It has these top-level messages:
 	TaskLogsRequest
 	TaskLogsChunk
 	TaskResourceRequirements
+	Empty
+	AnnounceRequest
+	ResolveRequest
+	ResolveReply
 	MinerInfoRequest
 	MinerHandshakeRequest
 	MinerHandshakeReply
