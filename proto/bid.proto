@@ -69,24 +69,40 @@ message GPURequirements {
     int64 ropsMin = 6;
 }
 
-message BidItem {
+message Container {
+    // Docker registry URI.
+    string registry = 1;
+    // Container image name.
+    string image = 2;
+    // Auth info to a registry.
+    string auth = 3;
+}
+
+message ContainerRequirements {
+    // Container specific information.
+    Container container = 1;
     // When a container should be run (hour-grained).
-    Timestamp startTime = 1;
+    Timestamp startTime = 2;
     // When a container should to be stopped (hour-grained).
-    Timestamp endTime = 2;
+    Timestamp endTime = 3;
     // Minimal scale factor for a container.
-    int32 countMin = 3;
+    int32 countMin = 4;
     // Maximum scale factor for a container.
-    int32 countMax = 4;
+    int32 countMax = 5;
     // Probability of node failure maximum.
-    float failureMax = 5;
+    float failureMax = 6;
     // Node availability minimum.
-    float availabilityMin = 6;
+    float availabilityMin = 7;
     // Node rating minimum.
-    float ratingMin = 7;
+    float ratingMin = 8;
     // Price per hour maximum.
     // If omitted, the minimum price for matched node is used (market price),
     // or if node also asks for market price, the price is evaluated
     // automatically (TBD).
-    float priceMax = 8;
+    float priceMax = 9;
+}
+
+message BidItem {
+    // List of records, each describing requirements to run one container.
+    repeated ContainerRequirements containers = 1;
 }
