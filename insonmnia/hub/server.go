@@ -404,7 +404,7 @@ func (h *Hub) SignContract(ctx context.Context, request *pb.SignContractRequest)
 	return nil, status.Errorf(codes.Unimplemented, "not implemented yet")
 }
 
-func (h *Hub) ExecContract(ctx context.Context, request *pb.SignContractRequest) (*pb.SignContractReply, error) {
+func (h *Hub) ExecContract(ctx context.Context, request *pb.ExecContractRequest) (*pb.ExecContractReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "not implemented yet")
 }
 
