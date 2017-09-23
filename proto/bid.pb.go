@@ -33,6 +33,8 @@ It has these top-level messages:
 	HubStatusMapRequest
 	HubStatusRequest
 	HubStatusReply
+	SignContractRequest
+	SignContractReply
 	PingRequest
 	PingReply
 	CPUUsage

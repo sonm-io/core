@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "bid.proto";
 import "insonmnia.proto";
 
 package sonm;
@@ -16,6 +17,8 @@ service Hub {
     rpc TaskStatus(TaskStatusRequest) returns (TaskStatusReply) {}
     rpc MinerStatus(HubStatusMapRequest) returns (StatusMapReply) {}
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
+
+    rpc SignContract(SignContractRequest) returns (SignContractReply) {}
 }
 
 message ListRequest {
@@ -67,4 +70,13 @@ message HubStatusReply {
     string version = 3;
     string platform = 4;
     string ethAddr = 5;
+}
+
+message SignContractRequest {
+    BidItem bid = 1;
+}
+
+message SignContractReply {
+    // An unique contract ID, which is used to be able to run it in the future.
+    string id = 1;
 }
