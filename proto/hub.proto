@@ -19,6 +19,7 @@ service Hub {
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
 
     rpc SignContract(SignContractRequest) returns (SignContractReply) {}
+    rpc ExecContract(ExecContractRequest) returns (ExecContractReply) {}
 }
 
 message ListRequest {
@@ -79,4 +80,11 @@ message SignContractRequest {
 message SignContractReply {
     // An unique contract ID, which is used to be able to run it in the future.
     string id = 1;
+}
+
+message ExecContractRequest {
+    string id = 1;
+}
+
+message ExecContractReply {
 }

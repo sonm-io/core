@@ -35,6 +35,8 @@ It has these top-level messages:
 	HubStatusReply
 	SignContractRequest
 	SignContractReply
+	ExecContractRequest
+	ExecContractReply
 	PingRequest
 	PingReply
 	CPUUsage
