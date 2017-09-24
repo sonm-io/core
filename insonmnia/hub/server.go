@@ -400,11 +400,7 @@ func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer
 	}
 }
 
-func (h *Hub) SignContract(ctx context.Context, request *pb.SignContractRequest) (*pb.SignContractReply, error) {
-	return nil, status.Errorf(codes.Unimplemented, "not implemented yet")
-}
-
-func (h *Hub) ExecContract(ctx context.Context, request *pb.ExecContractRequest) (*pb.ExecContractReply, error) {
+func (h *Hub) ProposeDeal(ctx context.Context, request *pb.DealRequest) (*pb.DealReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "not implemented yet")
 }
 
