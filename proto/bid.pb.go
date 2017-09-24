@@ -12,14 +12,7 @@ It is generated from these files:
 	miner.proto
 
 It has these top-level messages:
-	CPURequirements
-	RAMRequirements
-	DiskRequirements
-	NetworkRequirements
-	GPURequirements
-	Container
-	ContainerRequirements
-	BidItem
+	Bid
 	Capabilities
 	CPUDevice
 	RAMDevice
@@ -33,10 +26,8 @@ It has these top-level messages:
 	HubStatusMapRequest
 	HubStatusRequest
 	HubStatusReply
-	SignContractRequest
-	SignContractReply
-	ExecContractRequest
-	ExecContractReply
+	DealRequest
+	DealReply
 	PingRequest
 	PingReply
 	CPUUsage
@@ -78,442 +69,218 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-// CPU requirements.
-type CPURequirements struct {
-	// CPU types acceptable. Empty list means any.
-	Type []string `protobuf:"bytes,1,rep,name=type" json:"type,omitempty"`
-	// CPU frequency minimum, measured in MHz.
-	FreqMin int64 `protobuf:"varint,2,opt,name=freqMin" json:"freqMin,omitempty"`
-	// CPU speed minimum, measured in some benchmark.
-	SpeedMin int64 `protobuf:"varint,3,opt,name=speedMin" json:"speedMin,omitempty"`
-	// CPU core count minimum.
-	CoresMin int32 `protobuf:"varint,4,opt,name=coresMin" json:"coresMin,omitempty"`
+type OrderType int32
+
+const (
+	OrderType_BID OrderType = 0
+	OrderType_ASK OrderType = 1
+)
+
+var OrderType_name = map[int32]string{
+	0: "BID",
+	1: "ASK",
+}
+var OrderType_value = map[string]int32{
+	"BID": 0,
+	"ASK": 1,
 }
 
-func (m *CPURequirements) Reset()                    { *m = CPURequirements{} }
-func (m *CPURequirements) String() string            { return proto.CompactTextString(m) }
-func (*CPURequirements) ProtoMessage()               {}
-func (*CPURequirements) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
+func (x OrderType) String() string {
+	return proto.EnumName(OrderType_name, int32(x))
+}
+func (OrderType) EnumDescriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
-func (m *CPURequirements) GetType() []string {
-	if m != nil {
-		return m.Type
-	}
-	return nil
+type Bid struct {
+	// Virtual computer start of life (hour grained).
+	StartTime *Timestamp `protobuf:"bytes,1,opt,name=startTime" json:"startTime,omitempty"`
+	// Virtual computer end of life (hour grained).
+	EndTime *Timestamp `protobuf:"bytes,2,opt,name=endTime" json:"endTime,omitempty"`
+	// Buyer’s rating. Got from Buyer’s profile for BID orders rating_supplier.
+	RatingBuyer float32 `protobuf:"fixed32,3,opt,name=ratingBuyer" json:"ratingBuyer,omitempty"`
+	// Supplier’s rating. Got from Supplier’s profile for ASK orders.
+	RatingSupplier float32 `protobuf:"fixed32,4,opt,name=ratingSupplier" json:"ratingSupplier,omitempty"`
+	// CPU core count.
+	CpuQtty int64 `protobuf:"varint,5,opt,name=cpuQtty" json:"cpuQtty,omitempty"`
+	// CPU type.
+	CpuType int64 `protobuf:"varint,6,opt,name=cpuType" json:"cpuType,omitempty"`
+	// Virtual computer RAM, in GB
+	RamQtty int64 `protobuf:"varint,7,opt,name=ramQtty" json:"ramQtty,omitempty"`
+	// Storage size, in GB.
+	StorageQtty int64 `protobuf:"varint,8,opt,name=storageQtty" json:"storageQtty,omitempty"`
+	// Storage type.
+	StorageType int64 `protobuf:"varint,9,opt,name=storageType" json:"storageType,omitempty"`
+	// Inbound or outbound traffic (the higher value), in GB.
+	NetworkQtty int64 `protobuf:"varint,10,opt,name=networkQtty" json:"networkQtty,omitempty"`
+	// Network latency in ms, the lower is better.
+	NetworkLat int64 `protobuf:"varint,11,opt,name=networkLat" json:"networkLat,omitempty"`
+	// GPU count.
+	GpuQtty int64 `protobuf:"varint,12,opt,name=gpu_qtty,json=gpuQtty" json:"gpu_qtty,omitempty"`
+	// GPU manufacturer.
+	GpuManufact string `protobuf:"bytes,13,opt,name=gpuManufact" json:"gpuManufact,omitempty"`
+	// GPU type.
+	GpuType int64 `protobuf:"varint,14,opt,name=gpuType" json:"gpuType,omitempty"`
+	// GPU RAM, in GB.
+	GpuRam int64 `protobuf:"varint,15,opt,name=gpuRam" json:"gpuRam,omitempty"`
+	// Order price.
+	Price int64 `protobuf:"varint,16,opt,name=price" json:"price,omitempty"`
+	// Order type.
+	OrderType OrderType `protobuf:"varint,17,opt,name=orderType,enum=sonm.OrderType" json:"orderType,omitempty"`
 }
 
-func (m *CPURequirements) GetFreqMin() int64 {
-	if m != nil {
-		return m.FreqMin
-	}
-	return 0
-}
+func (m *Bid) Reset()                    { *m = Bid{} }
+func (m *Bid) String() string            { return proto.CompactTextString(m) }
+func (*Bid) ProtoMessage()               {}
+func (*Bid) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{0} }
 
-func (m *CPURequirements) GetSpeedMin() int64 {
-	if m != nil {
-		return m.SpeedMin
-	}
-	return 0
-}
-
-func (m *CPURequirements) GetCoresMin() int32 {
-	if m != nil {
-		return m.CoresMin
-	}
-	return 0
-}
-
-// RAM requirements.
-type RAMRequirements struct {
-	// RAM types acceptable. Empty list means any.
-	Type []string `protobuf:"bytes,1,rep,name=type" json:"type,omitempty"`
-	// Number of RAM bytes minimum required.
-	AmountMin int64 `protobuf:"varint,2,opt,name=amountMin" json:"amountMin,omitempty"`
-}
-
-func (m *RAMRequirements) Reset()                    { *m = RAMRequirements{} }
-func (m *RAMRequirements) String() string            { return proto.CompactTextString(m) }
-func (*RAMRequirements) ProtoMessage()               {}
-func (*RAMRequirements) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{1} }
-
-func (m *RAMRequirements) GetType() []string {
-	if m != nil {
-		return m.Type
-	}
-	return nil
-}
-
-func (m *RAMRequirements) GetAmountMin() int64 {
-	if m != nil {
-		return m.AmountMin
-	}
-	return 0
-}
-
-// Disk requirements.
-type DiskRequirements struct {
-	// Disk types acceptable. Empty list means any.
-	Type []string `protobuf:"bytes,1,rep,name=type" json:"type,omitempty"`
-	// Number of bytes minimum required.
-	AmountMin int64 `protobuf:"varint,2,opt,name=amountMin" json:"amountMin,omitempty"`
-	// Random read throughput minimum, measured in Kbytes/sec.
-	ReadRandSpeedMin int64 `protobuf:"varint,3,opt,name=readRandSpeedMin" json:"readRandSpeedMin,omitempty"`
-	// Random read throughput minimum, measured in IOPS.
-	ReadRandIopsMin int64 `protobuf:"varint,4,opt,name=readRandIopsMin" json:"readRandIopsMin,omitempty"`
-	// Random write throughput minimum, measured in Kbytes/sec.
-	WriteRandSpeedMin int64 `protobuf:"varint,5,opt,name=writeRandSpeedMin" json:"writeRandSpeedMin,omitempty"`
-	// Random write throughput minimum, measured in IOPS.
-	WriteRandIopsMin int64 `protobuf:"varint,6,opt,name=writeRandIopsMin" json:"writeRandIopsMin,omitempty"`
-	// I/O latency maximum, measured in microseconds.
-	LatencyMax int64 `protobuf:"varint,7,opt,name=latencyMax" json:"latencyMax,omitempty"`
-}
-
-func (m *DiskRequirements) Reset()                    { *m = DiskRequirements{} }
-func (m *DiskRequirements) String() string            { return proto.CompactTextString(m) }
-func (*DiskRequirements) ProtoMessage()               {}
-func (*DiskRequirements) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{2} }
-
-func (m *DiskRequirements) GetType() []string {
-	if m != nil {
-		return m.Type
-	}
-	return nil
-}
-
-func (m *DiskRequirements) GetAmountMin() int64 {
-	if m != nil {
-		return m.AmountMin
-	}
-	return 0
-}
-
-func (m *DiskRequirements) GetReadRandSpeedMin() int64 {
-	if m != nil {
-		return m.ReadRandSpeedMin
-	}
-	return 0
-}
-
-func (m *DiskRequirements) GetReadRandIopsMin() int64 {
-	if m != nil {
-		return m.ReadRandIopsMin
-	}
-	return 0
-}
-
-func (m *DiskRequirements) GetWriteRandSpeedMin() int64 {
-	if m != nil {
-		return m.WriteRandSpeedMin
-	}
-	return 0
-}
-
-func (m *DiskRequirements) GetWriteRandIopsMin() int64 {
-	if m != nil {
-		return m.WriteRandIopsMin
-	}
-	return 0
-}
-
-func (m *DiskRequirements) GetLatencyMax() int64 {
-	if m != nil {
-		return m.LatencyMax
-	}
-	return 0
-}
-
-// Internet connection requirements.
-type NetworkRequirements struct {
-	// Outbound throughput of Internet connection minimum, measured in Kbytes/sec.
-	OutSpeedMin int64 `protobuf:"varint,1,opt,name=outSpeedMin" json:"outSpeedMin,omitempty"`
-	// Inbound throughput of Internet connection minimum, measured in Kbytes/sec.
-	InSpeedMin int64 `protobuf:"varint,2,opt,name=inSpeedMin" json:"inSpeedMin,omitempty"`
-	// Round-trip latency to some public resource maximum, measured in ms. TODO: DOUBTFUL.
-	// float networkLatencyMax = 3;
-	// Flag to use "white IP" for incoming connections.
-	WhiteIp bool `protobuf:"varint,4,opt,name=whiteIp" json:"whiteIp,omitempty"`
-}
-
-func (m *NetworkRequirements) Reset()                    { *m = NetworkRequirements{} }
-func (m *NetworkRequirements) String() string            { return proto.CompactTextString(m) }
-func (*NetworkRequirements) ProtoMessage()               {}
-func (*NetworkRequirements) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
-
-func (m *NetworkRequirements) GetOutSpeedMin() int64 {
-	if m != nil {
-		return m.OutSpeedMin
-	}
-	return 0
-}
-
-func (m *NetworkRequirements) GetInSpeedMin() int64 {
-	if m != nil {
-		return m.InSpeedMin
-	}
-	return 0
-}
-
-func (m *NetworkRequirements) GetWhiteIp() bool {
-	if m != nil {
-		return m.WhiteIp
-	}
-	return false
-}
-
-type GPURequirements struct {
-	// GPU types acceptable. Empty list means any.
-	Type []string `protobuf:"bytes,1,rep,name=type" json:"type,omitempty"`
-	// RAM minimum, measured in Gbytes. TODO: WAT?
-	RamMin int64 `protobuf:"varint,2,opt,name=ramMin" json:"ramMin,omitempty"`
-	// Frequency minimum, measured in MHz
-	FreqMin int64 `protobuf:"varint,3,opt,name=freqMin" json:"freqMin,omitempty"`
-	// Shaders count minimum.
-	ShadersMin int64 `protobuf:"varint,4,opt,name=shadersMin" json:"shadersMin,omitempty"`
-	// Texture mapping unit count minimum.
-	TmusMin int64 `protobuf:"varint,5,opt,name=tmusMin" json:"tmusMin,omitempty"`
-	// Render output unit count minimum.
-	RopsMin int64 `protobuf:"varint,6,opt,name=ropsMin" json:"ropsMin,omitempty"`
-}
-
-func (m *GPURequirements) Reset()                    { *m = GPURequirements{} }
-func (m *GPURequirements) String() string            { return proto.CompactTextString(m) }
-func (*GPURequirements) ProtoMessage()               {}
-func (*GPURequirements) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{4} }
-
-func (m *GPURequirements) GetType() []string {
-	if m != nil {
-		return m.Type
-	}
-	return nil
-}
-
-func (m *GPURequirements) GetRamMin() int64 {
-	if m != nil {
-		return m.RamMin
-	}
-	return 0
-}
-
-func (m *GPURequirements) GetFreqMin() int64 {
-	if m != nil {
-		return m.FreqMin
-	}
-	return 0
-}
-
-func (m *GPURequirements) GetShadersMin() int64 {
-	if m != nil {
-		return m.ShadersMin
-	}
-	return 0
-}
-
-func (m *GPURequirements) GetTmusMin() int64 {
-	if m != nil {
-		return m.TmusMin
-	}
-	return 0
-}
-
-func (m *GPURequirements) GetRopsMin() int64 {
-	if m != nil {
-		return m.RopsMin
-	}
-	return 0
-}
-
-type Container struct {
-	// Docker registry URI.
-	Registry string `protobuf:"bytes,1,opt,name=registry" json:"registry,omitempty"`
-	// Container image name.
-	Image string `protobuf:"bytes,2,opt,name=image" json:"image,omitempty"`
-	// Auth info to a registry.
-	Auth string `protobuf:"bytes,3,opt,name=auth" json:"auth,omitempty"`
-}
-
-func (m *Container) Reset()                    { *m = Container{} }
-func (m *Container) String() string            { return proto.CompactTextString(m) }
-func (*Container) ProtoMessage()               {}
-func (*Container) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{5} }
-
-func (m *Container) GetRegistry() string {
-	if m != nil {
-		return m.Registry
-	}
-	return ""
-}
-
-func (m *Container) GetImage() string {
-	if m != nil {
-		return m.Image
-	}
-	return ""
-}
-
-func (m *Container) GetAuth() string {
-	if m != nil {
-		return m.Auth
-	}
-	return ""
-}
-
-type ContainerRequirements struct {
-	// Container specific information.
-	Container *Container `protobuf:"bytes,1,opt,name=container" json:"container,omitempty"`
-	// When a container should be run (hour-grained).
-	StartTime *Timestamp `protobuf:"bytes,2,opt,name=startTime" json:"startTime,omitempty"`
-	// When a container should to be stopped (hour-grained).
-	EndTime *Timestamp `protobuf:"bytes,3,opt,name=endTime" json:"endTime,omitempty"`
-	// Minimal scale factor for a container.
-	CountMin int32 `protobuf:"varint,4,opt,name=countMin" json:"countMin,omitempty"`
-	// Maximum scale factor for a container.
-	CountMax int32 `protobuf:"varint,5,opt,name=countMax" json:"countMax,omitempty"`
-	// Probability of node failure maximum.
-	FailureMax float32 `protobuf:"fixed32,6,opt,name=failureMax" json:"failureMax,omitempty"`
-	// Node availability minimum.
-	AvailabilityMin float32 `protobuf:"fixed32,7,opt,name=availabilityMin" json:"availabilityMin,omitempty"`
-	// Node rating minimum.
-	RatingMin float32 `protobuf:"fixed32,8,opt,name=ratingMin" json:"ratingMin,omitempty"`
-	// Price per hour maximum.
-	// If omitted, the minimum price for matched node is used (market price),
-	// or if node also asks for market price, the price is evaluated
-	// automatically (TBD).
-	PriceMax float32 `protobuf:"fixed32,9,opt,name=priceMax" json:"priceMax,omitempty"`
-}
-
-func (m *ContainerRequirements) Reset()                    { *m = ContainerRequirements{} }
-func (m *ContainerRequirements) String() string            { return proto.CompactTextString(m) }
-func (*ContainerRequirements) ProtoMessage()               {}
-func (*ContainerRequirements) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{6} }
-
-func (m *ContainerRequirements) GetContainer() *Container {
-	if m != nil {
-		return m.Container
-	}
-	return nil
-}
-
-func (m *ContainerRequirements) GetStartTime() *Timestamp {
+func (m *Bid) GetStartTime() *Timestamp {
 	if m != nil {
 		return m.StartTime
 	}
 	return nil
 }
 
-func (m *ContainerRequirements) GetEndTime() *Timestamp {
+func (m *Bid) GetEndTime() *Timestamp {
 	if m != nil {
 		return m.EndTime
 	}
 	return nil
 }
 
-func (m *ContainerRequirements) GetCountMin() int32 {
+func (m *Bid) GetRatingBuyer() float32 {
 	if m != nil {
-		return m.CountMin
+		return m.RatingBuyer
 	}
 	return 0
 }
 
-func (m *ContainerRequirements) GetCountMax() int32 {
+func (m *Bid) GetRatingSupplier() float32 {
 	if m != nil {
-		return m.CountMax
+		return m.RatingSupplier
 	}
 	return 0
 }
 
-func (m *ContainerRequirements) GetFailureMax() float32 {
+func (m *Bid) GetCpuQtty() int64 {
 	if m != nil {
-		return m.FailureMax
+		return m.CpuQtty
 	}
 	return 0
 }
 
-func (m *ContainerRequirements) GetAvailabilityMin() float32 {
+func (m *Bid) GetCpuType() int64 {
 	if m != nil {
-		return m.AvailabilityMin
+		return m.CpuType
 	}
 	return 0
 }
 
-func (m *ContainerRequirements) GetRatingMin() float32 {
+func (m *Bid) GetRamQtty() int64 {
 	if m != nil {
-		return m.RatingMin
+		return m.RamQtty
 	}
 	return 0
 }
 
-func (m *ContainerRequirements) GetPriceMax() float32 {
+func (m *Bid) GetStorageQtty() int64 {
 	if m != nil {
-		return m.PriceMax
+		return m.StorageQtty
 	}
 	return 0
 }
 
-type BidItem struct {
-	// List of records, each describing requirements to run one container.
-	Containers []*ContainerRequirements `protobuf:"bytes,1,rep,name=containers" json:"containers,omitempty"`
+func (m *Bid) GetStorageType() int64 {
+	if m != nil {
+		return m.StorageType
+	}
+	return 0
 }
 
-func (m *BidItem) Reset()                    { *m = BidItem{} }
-func (m *BidItem) String() string            { return proto.CompactTextString(m) }
-func (*BidItem) ProtoMessage()               {}
-func (*BidItem) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{7} }
-
-func (m *BidItem) GetContainers() []*ContainerRequirements {
+func (m *Bid) GetNetworkQtty() int64 {
 	if m != nil {
-		return m.Containers
+		return m.NetworkQtty
 	}
-	return nil
+	return 0
+}
+
+func (m *Bid) GetNetworkLat() int64 {
+	if m != nil {
+		return m.NetworkLat
+	}
+	return 0
+}
+
+func (m *Bid) GetGpuQtty() int64 {
+	if m != nil {
+		return m.GpuQtty
+	}
+	return 0
+}
+
+func (m *Bid) GetGpuManufact() string {
+	if m != nil {
+		return m.GpuManufact
+	}
+	return ""
+}
+
+func (m *Bid) GetGpuType() int64 {
+	if m != nil {
+		return m.GpuType
+	}
+	return 0
+}
+
+func (m *Bid) GetGpuRam() int64 {
+	if m != nil {
+		return m.GpuRam
+	}
+	return 0
+}
+
+func (m *Bid) GetPrice() int64 {
+	if m != nil {
+		return m.Price
+	}
+	return 0
+}
+
+func (m *Bid) GetOrderType() OrderType {
+	if m != nil {
+		return m.OrderType
+	}
+	return OrderType_BID
 }
 
 func init() {
-	proto.RegisterType((*CPURequirements)(nil), "sonm.CPURequirements")
-	proto.RegisterType((*RAMRequirements)(nil), "sonm.RAMRequirements")
-	proto.RegisterType((*DiskRequirements)(nil), "sonm.DiskRequirements")
-	proto.RegisterType((*NetworkRequirements)(nil), "sonm.NetworkRequirements")
-	proto.RegisterType((*GPURequirements)(nil), "sonm.GPURequirements")
-	proto.RegisterType((*Container)(nil), "sonm.Container")
-	proto.RegisterType((*ContainerRequirements)(nil), "sonm.ContainerRequirements")
-	proto.RegisterType((*BidItem)(nil), "sonm.BidItem")
+	proto.RegisterType((*Bid)(nil), "sonm.Bid")
+	proto.RegisterEnum("sonm.OrderType", OrderType_name, OrderType_value)
 }
 
 func init() { proto.RegisterFile("bid.proto", fileDescriptor0) }
 
 var fileDescriptor0 = []byte{
-	// 545 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x54, 0xcd, 0xae, 0xd2, 0x40,
-	0x14, 0x4e, 0x29, 0x50, 0x7a, 0x58, 0xf4, 0x3a, 0xfe, 0x84, 0x5c, 0xcd, 0x0d, 0xe9, 0x0a, 0x8d,
-	0xb2, 0xb8, 0x2e, 0x5d, 0x29, 0x46, 0xc3, 0x02, 0xa3, 0xa3, 0x3e, 0xc0, 0x40, 0xe7, 0xc2, 0x44,
-	0x3a, 0x2d, 0x33, 0x53, 0x81, 0xf7, 0xf0, 0x2d, 0x7c, 0x25, 0x1f, 0xc6, 0x9c, 0x29, 0x9d, 0xb6,
-	0x60, 0xa2, 0x89, 0x2b, 0xfa, 0xfd, 0xf4, 0xcc, 0x99, 0xaf, 0xe7, 0x00, 0xe1, 0x52, 0x24, 0xd3,
-	0x5c, 0x65, 0x26, 0x23, 0x5d, 0x9d, 0xc9, 0xf4, 0x3a, 0x12, 0x12, 0x7f, 0xa5, 0x60, 0x25, 0x1d,
-	0xef, 0x21, 0x9a, 0x7d, 0xfc, 0x4a, 0xf9, 0xae, 0x10, 0x8a, 0xa7, 0x5c, 0x1a, 0x4d, 0x08, 0x74,
-	0xcd, 0x31, 0xe7, 0x23, 0x6f, 0xec, 0x4f, 0x42, 0x6a, 0x9f, 0xc9, 0x08, 0x82, 0x3b, 0xc5, 0x77,
-	0x0b, 0x21, 0x47, 0x9d, 0xb1, 0x37, 0xf1, 0x69, 0x05, 0xc9, 0x35, 0x0c, 0x74, 0xce, 0x79, 0x82,
-	0x92, 0x6f, 0x25, 0x87, 0x51, 0x5b, 0x65, 0x8a, 0x6b, 0xd4, 0xba, 0x63, 0x6f, 0xd2, 0xa3, 0x0e,
-	0xc7, 0x33, 0x88, 0xe8, 0xeb, 0xc5, 0x5f, 0x0f, 0x7e, 0x02, 0x21, 0x4b, 0xb3, 0x42, 0x9a, 0xfa,
-	0xe8, 0x9a, 0x88, 0x7f, 0x74, 0xe0, 0xea, 0xad, 0xd0, 0xdf, 0xfe, 0xaf, 0x0c, 0x79, 0x06, 0x57,
-	0x8a, 0xb3, 0x84, 0x32, 0x99, 0x7c, 0x6e, 0xdf, 0xe5, 0x82, 0x27, 0x13, 0x88, 0x2a, 0x6e, 0x9e,
-	0xe5, 0xee, 0x6a, 0x3e, 0x3d, 0xa7, 0xc9, 0x73, 0xb8, 0xb7, 0x57, 0xc2, 0xf0, 0x56, 0xd9, 0x9e,
-	0xf5, 0x5e, 0x0a, 0xd8, 0x83, 0x23, 0xab, 0xc2, 0xfd, 0xb2, 0x87, 0x73, 0x9e, 0xdc, 0x00, 0x6c,
-	0x99, 0xe1, 0x72, 0x75, 0x5c, 0xb0, 0xc3, 0x28, 0xb0, 0xae, 0x06, 0x13, 0xef, 0xe0, 0xfe, 0x07,
-	0x6e, 0xf6, 0x99, 0x6a, 0x07, 0x33, 0x86, 0x61, 0x56, 0x18, 0xd7, 0x8a, 0x67, 0xdf, 0x6b, 0x52,
-	0x58, 0x58, 0x48, 0x67, 0x28, 0x73, 0x6a, 0x30, 0x38, 0x06, 0xfb, 0x8d, 0x30, 0x7c, 0x9e, 0xdb,
-	0x4b, 0x0f, 0x68, 0x05, 0xe3, 0x9f, 0x1e, 0x44, 0xef, 0xff, 0x61, 0x90, 0x1e, 0x41, 0x5f, 0xb1,
-	0xb4, 0xae, 0x7e, 0x42, 0xcd, 0x01, 0xf3, 0xdb, 0x03, 0x76, 0x03, 0xa0, 0x37, 0x2c, 0xe1, 0xaa,
-	0x91, 0x75, 0x83, 0xc1, 0x37, 0x4d, 0x5a, 0xe8, 0x3a, 0xdc, 0x0a, 0xa2, 0xa2, 0x5a, 0x49, 0x56,
-	0x30, 0xfe, 0x04, 0xe1, 0x2c, 0x93, 0x86, 0x09, 0xc9, 0x15, 0x4e, 0xa9, 0xe2, 0x6b, 0xa1, 0x8d,
-	0x3a, 0xda, 0x4c, 0x42, 0xea, 0x30, 0x79, 0x00, 0x3d, 0x91, 0xb2, 0x35, 0xb7, 0xdd, 0x86, 0xb4,
-	0x04, 0x78, 0x31, 0x56, 0x98, 0x8d, 0xed, 0x34, 0xa4, 0xf6, 0x39, 0xfe, 0xd5, 0x81, 0x87, 0xae,
-	0x66, 0x2b, 0x86, 0x17, 0x10, 0xae, 0x2a, 0xc1, 0x1e, 0x30, 0xbc, 0x8d, 0xa6, 0xb8, 0x85, 0xd3,
-	0xda, 0x5f, 0x3b, 0xd0, 0xae, 0x0d, 0x53, 0xe6, 0x8b, 0x48, 0xcb, 0x63, 0x9d, 0x1d, 0x19, 0x6d,
-	0x58, 0x9a, 0xd3, 0xda, 0x41, 0x9e, 0x42, 0xc0, 0x65, 0x62, 0xcd, 0xfe, 0x9f, 0xcd, 0x95, 0x5e,
-	0xae, 0xe3, 0x69, 0x07, 0xdc, 0x3a, 0x9e, 0x56, 0xc0, 0x69, 0xec, 0x60, 0x63, 0x74, 0x1a, 0x3b,
-	0xe0, 0x17, 0xb8, 0x63, 0x62, 0x5b, 0x28, 0x8e, 0x2a, 0x46, 0xd9, 0xa1, 0x0d, 0x06, 0x57, 0x82,
-	0x7d, 0x67, 0x62, 0xcb, 0x96, 0x62, 0x2b, 0xcc, 0x11, 0xcb, 0x07, 0xd6, 0x74, 0x4e, 0xe3, 0x1a,
-	0x2a, 0x66, 0x84, 0x5c, 0xa3, 0x67, 0x60, 0x3d, 0x35, 0x81, 0x3d, 0xe4, 0x4a, 0xac, 0xec, 0x29,
-	0xa1, 0x15, 0x1d, 0x8e, 0xdf, 0x41, 0xf0, 0x46, 0x24, 0x73, 0xc3, 0x53, 0xf2, 0x0a, 0xc0, 0xa5,
-	0xa5, 0xed, 0x70, 0x0d, 0x6f, 0x1f, 0x9f, 0x07, 0xda, 0xf8, 0x00, 0xb4, 0x61, 0x5f, 0xf6, 0xed,
-	0xdf, 0xde, 0xcb, 0xdf, 0x01, 0x00, 0x00, 0xff, 0xff, 0xc6, 0xe4, 0xf4, 0x38, 0x1a, 0x05, 0x00,
-	0x00,
+	// 355 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x92, 0xd1, 0x4a, 0xeb, 0x40,
+	0x10, 0x86, 0x4f, 0x9a, 0xb6, 0x69, 0x26, 0xe7, 0xb4, 0x3d, 0x8b, 0xc8, 0x2a, 0x28, 0x8b, 0x17,
+	0x12, 0x05, 0x7b, 0xa1, 0x4f, 0x60, 0xf1, 0x46, 0x54, 0xc4, 0xb4, 0xf7, 0xb2, 0x6d, 0xd6, 0xb0,
+	0x68, 0x92, 0x75, 0xb3, 0x8b, 0xf4, 0xb1, 0x7c, 0x43, 0xd9, 0x49, 0xd2, 0x46, 0xf1, 0x2a, 0xf9,
+	0xbf, 0xff, 0x9f, 0x61, 0x86, 0x59, 0x08, 0x57, 0x32, 0x9d, 0x29, 0x5d, 0x9a, 0x92, 0xf4, 0xab,
+	0xb2, 0xc8, 0x0f, 0x27, 0xb2, 0x70, 0xdf, 0x42, 0xf2, 0x1a, 0x9f, 0x7c, 0xf6, 0xc1, 0x9f, 0xcb,
+	0x94, 0x5c, 0x40, 0x58, 0x19, 0xae, 0xcd, 0x52, 0xe6, 0x82, 0x7a, 0xcc, 0x8b, 0xa3, 0xcb, 0xc9,
+	0xcc, 0x45, 0x67, 0x8e, 0x54, 0x86, 0xe7, 0x2a, 0xd9, 0x25, 0xc8, 0x19, 0x04, 0xa2, 0x48, 0x31,
+	0xdc, 0xfb, 0x3d, 0xdc, 0xfa, 0x84, 0x41, 0xa4, 0xb9, 0x91, 0x45, 0x36, 0xb7, 0x1b, 0xa1, 0xa9,
+	0xcf, 0xbc, 0xb8, 0x97, 0x74, 0x11, 0x39, 0x85, 0x71, 0x2d, 0x17, 0x56, 0xa9, 0x37, 0x29, 0x34,
+	0xed, 0x63, 0xe8, 0x07, 0x25, 0x14, 0x82, 0xb5, 0xb2, 0x4f, 0xc6, 0x6c, 0xe8, 0x80, 0x79, 0xb1,
+	0x9f, 0xb4, 0xb2, 0x71, 0x96, 0x1b, 0x25, 0xe8, 0x70, 0xeb, 0x38, 0xe9, 0x1c, 0xcd, 0x73, 0xac,
+	0x09, 0x6a, 0xa7, 0x91, 0x6e, 0xae, 0xca, 0x94, 0x9a, 0x67, 0x02, 0xdd, 0x11, 0xba, 0x5d, 0xd4,
+	0x49, 0x60, 0xe7, 0xf0, 0x5b, 0x02, 0xbb, 0x33, 0x88, 0x0a, 0x61, 0x3e, 0x4a, 0xfd, 0x8a, 0x3d,
+	0xa0, 0x4e, 0x74, 0x10, 0x39, 0x06, 0x68, 0xe4, 0x3d, 0x37, 0x34, 0xc2, 0x40, 0x87, 0x90, 0x03,
+	0x18, 0x65, 0xca, 0x3e, 0xbf, 0xbb, 0xf2, 0xbf, 0xf5, 0x80, 0x59, 0xb3, 0x14, 0x83, 0x28, 0x53,
+	0xf6, 0x81, 0x17, 0xf6, 0x85, 0xaf, 0x0d, 0xfd, 0xc7, 0xbc, 0x38, 0x4c, 0xba, 0xc8, 0x2d, 0x97,
+	0x35, 0x6b, 0x8f, 0xb7, 0xb5, 0x38, 0xd8, 0x3e, 0x0c, 0x33, 0x65, 0x13, 0x9e, 0xd3, 0x09, 0x1a,
+	0x8d, 0x22, 0x7b, 0x30, 0x50, 0x5a, 0xae, 0x05, 0x9d, 0x22, 0xae, 0x85, 0x3b, 0x7e, 0xa9, 0x53,
+	0xa1, 0xb1, 0xd3, 0x7f, 0xe6, 0xc5, 0xe3, 0xf6, 0x9e, 0x8f, 0x2d, 0x4e, 0x76, 0x89, 0xf3, 0x23,
+	0x08, 0xb7, 0x9c, 0x04, 0xe0, 0xcf, 0x6f, 0x6f, 0xa6, 0x7f, 0xdc, 0xcf, 0xf5, 0xe2, 0x6e, 0xea,
+	0xad, 0x86, 0xf8, 0xb2, 0xae, 0xbe, 0x02, 0x00, 0x00, 0xff, 0xff, 0x4f, 0xcf, 0x3c, 0xad, 0x7d,
+	0x02, 0x00, 0x00,
 }

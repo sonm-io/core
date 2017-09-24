@@ -4,105 +4,44 @@ import "insonmnia.proto";
 
 package sonm;
 
-// CPU requirements.
-message CPURequirements {
-    // CPU types acceptable. Empty list means any.
-    repeated string type = 1;
-    // CPU frequency minimum, measured in MHz.
-    int64 freqMin = 2;
-    // CPU speed minimum, measured in some benchmark.
-    int64 speedMin = 3;
-    // CPU core count minimum.
-    int32 coresMin = 4;
+enum OrderType {
+    BID = 0;
+    ASK = 1;
 }
 
-// RAM requirements.
-message RAMRequirements {
-    // RAM types acceptable. Empty list means any.
-    repeated string type = 1;
-    // Number of RAM bytes minimum required.
-    int64 amountMin = 2;
-}
-
-// Disk requirements.
-message DiskRequirements {
-    // Disk types acceptable. Empty list means any.
-    repeated string type = 1;
-    // Number of bytes minimum required.
-    int64 amountMin = 2;
-    // Random read throughput minimum, measured in Kbytes/sec.
-    int64 readRandSpeedMin = 3;
-    // Random read throughput minimum, measured in IOPS.
-    int64 readRandIopsMin = 4;
-    // Random write throughput minimum, measured in Kbytes/sec.
-    int64 writeRandSpeedMin = 5;
-    // Random write throughput minimum, measured in IOPS.
-    int64 writeRandIopsMin = 6;
-    // I/O latency maximum, measured in microseconds.
-    int64 latencyMax = 7;
-}
-
-// Internet connection requirements.
-message NetworkRequirements {
-    // Outbound throughput of Internet connection minimum, measured in Kbytes/sec.
-    int64 outSpeedMin = 1;
-    // Inbound throughput of Internet connection minimum, measured in Kbytes/sec.
-    int64 inSpeedMin = 2;
-    // Round-trip latency to some public resource maximum, measured in ms. TODO: DOUBTFUL.
-    // float networkLatencyMax = 3;
-    // Flag to use "white IP" for incoming connections.
-    bool whiteIp = 4;
-}
-
-message GPURequirements {
-    // GPU types acceptable. Empty list means any.
-    repeated string type = 1;
-    // RAM minimum, measured in Gbytes. TODO: WAT?
-    int64 ramMin = 2;
-    // Frequency minimum, measured in MHz
-    int64 freqMin = 3;
-    // Shaders count minimum.
-    int64 shadersMin = 4;
-    // Texture mapping unit count minimum.
-    int64 tmusMin = 5;
-    // Render output unit count minimum.
-    int64 ropsMin = 6;
-}
-
-message Container {
-    // Docker registry URI.
-    string registry = 1;
-    // Container image name.
-    string image = 2;
-    // Auth info to a registry.
-    string auth = 3;
-}
-
-message ContainerRequirements {
-    // Container specific information.
-    Container container = 1;
-    // When a container should be run (hour-grained).
-    Timestamp startTime = 2;
-    // When a container should to be stopped (hour-grained).
-    Timestamp endTime = 3;
-    // Minimal scale factor for a container.
-    int32 countMin = 4;
-    // Maximum scale factor for a container.
-    int32 countMax = 5;
-    // Probability of node failure maximum.
-    float failureMax = 6;
-    // Node availability minimum.
-    float availabilityMin = 7;
-    // Node rating minimum.
-    float ratingMin = 8;
-    // Price per hour maximum.
-    // If omitted, the minimum price for matched node is used (market price),
-    // or if node also asks for market price, the price is evaluated
-    // automatically (TBD).
-    float priceMax = 9;
-}
-
-message BidItem {
-    // List of records, each describing requirements to run one container.
-    repeated ContainerRequirements containers = 1;
+message Bid {
+    // Virtual computer start of life (hour grained).
+    Timestamp startTime = 1;
+    // Virtual computer end of life (hour grained).
+    Timestamp endTime = 2;
+    // Buyer’s rating. Got from Buyer’s profile for BID orders rating_supplier.
+    float ratingBuyer = 3;
+    // Supplier’s rating. Got from Supplier’s profile for ASK orders.
+    float ratingSupplier = 4;
+    // CPU core count.
+    int64 cpuQtty = 5;
+    // CPU type.
+    int64 cpuType = 6;
+    // Virtual computer RAM, in GB
+    int64 ramQtty = 7;
+    // Storage size, in GB.
+    int64 storageQtty = 8;
+    // Storage type.
+    int64 storageType = 9;
+    // Inbound or outbound traffic (the higher value), in GB.
+    int64 networkQtty = 10;
+    // Network latency in ms, the lower is better.
+    int64 networkLat = 11;
+    // GPU count.
+    int64 gpu_qtty = 12;
+    // GPU manufacturer.
+    string gpuManufact = 13;
+    // GPU type.
+    int64 gpuType = 14;
+    // GPU RAM, in GB.
+    int64 gpuRam = 15;
+    // Order price.
+    int64 price = 16;
+    // Order type.
+    OrderType orderType = 17;
 }

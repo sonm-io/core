@@ -18,8 +18,7 @@ service Hub {
     rpc MinerStatus(HubStatusMapRequest) returns (StatusMapReply) {}
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
 
-    rpc SignContract(SignContractRequest) returns (SignContractReply) {}
-    rpc ExecContract(ExecContractRequest) returns (ExecContractReply) {}
+    rpc ProposeDeal(DealRequest) returns (DealReply) {}
 }
 
 message ListRequest {
@@ -73,18 +72,9 @@ message HubStatusReply {
     string ethAddr = 5;
 }
 
-message SignContractRequest {
-    BidItem bid = 1;
+message DealRequest {
+    Bid bid = 1;
 }
 
-message SignContractReply {
-    // An unique contract ID, which is used to be able to run it in the future.
-    string id = 1;
-}
-
-message ExecContractRequest {
-    string id = 1;
-}
-
-message ExecContractReply {
+message DealReply {
 }
