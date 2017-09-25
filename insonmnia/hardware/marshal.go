@@ -123,7 +123,7 @@ func GPUFromProto(g []*pb.GPUDevice) ([]*gpu.Device, error) {
 
 		maxMemorySize, err := strconv.ParseUint(i.Ext["max_memory_size"], 10, 0)
 		if err != nil {
-			cacheSize = 0
+			maxMemorySize = 0
 		}
 
 		device := &gpu.Device{
