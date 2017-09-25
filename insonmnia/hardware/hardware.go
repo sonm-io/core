@@ -11,7 +11,7 @@ import (
 type Hardware struct {
 	CPU    []cpu.InfoStat
 	Memory *mem.VirtualMemoryStat
-	GPU    []*gpu.Device
+	GPU    []gpu.Device
 }
 
 // LogicalCPUCount returns the number of logical CPUs in the system.
@@ -44,7 +44,7 @@ type HardwareInfo interface {
 	Memory() (*mem.VirtualMemoryStat, error)
 
 	// GPU returns information about GPU devices on the machine.
-	GPU() ([]*gpu.Device, error)
+	GPU() ([]gpu.Device, error)
 
 	// Info returns all described above hardware statistics.
 	Info() (*Hardware, error)
@@ -61,7 +61,7 @@ func (h *hardwareInfo) Memory() (*mem.VirtualMemoryStat, error) {
 	return mem.VirtualMemory()
 }
 
-func (*hardwareInfo) GPU() ([]*gpu.Device, error) {
+func (*hardwareInfo) GPU() ([]gpu.Device, error) {
 	return gpu.GetGPUDevices()
 }
 
@@ -78,7 +78,7 @@ func (h *hardwareInfo) Info() (*Hardware, error) {
 
 	gpuInfo, err := h.GPU()
 	if err != nil {
-		gpuInfo = make([]*gpu.Device, 0)
+		gpuInfo = make([]gpu.Device, 0)
 	}
 
 	hardware := &Hardware{
