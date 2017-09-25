@@ -36,7 +36,7 @@ func TestMinerStatusData(t *testing.T) {
 			},
 			Capabilities: &pb.Capabilities{
 				Cpu: []*pb.CPUDevice{{Name: "i7", Vendor: "Intel", Mhz: 3000.0, Cores: 4}},
-				Gpu: []*pb.GPUDevice{{Name: "GTX 1080Ti", Vendor: "NVidia"}},
+				Gpu: []*pb.GPUDevice{{Name: "GTX 1080Ti", VendorName: "NVIDIA"}},
 				Mem: &pb.RAMDevice{Total: 1000000, Used: 500000},
 			},
 		}, nil)
@@ -46,7 +46,7 @@ func TestMinerStatusData(t *testing.T) {
 	out := buf.String()
 
 	assert.Contains(t, out, "    CPU0: 4 x i7")
-	assert.Contains(t, out, "    GPU0: NVidia GTX 1080Ti")
+	assert.Contains(t, out, "    GPU0: NVIDIA GTX 1080Ti")
 	assert.Contains(t, out, "      Total: 976.6 KB")
 	assert.Contains(t, out, "      Used:  488.3 KB")
 
@@ -75,7 +75,7 @@ func TestMinerStatusJsonData(t *testing.T) {
 		Return(&pb.InfoReply{
 			Capabilities: &pb.Capabilities{
 				Cpu: []*pb.CPUDevice{{Name: "i7", Vendor: "Intel", Mhz: 3000.0, Cores: 4}},
-				Gpu: []*pb.GPUDevice{{Name: "GTX 1080Ti", Vendor: "NVidia"}},
+				Gpu: []*pb.GPUDevice{{Name: "GTX 1080Ti", VendorName: "NVIDIA"}},
 				Mem: &pb.RAMDevice{Total: 1000000, Used: 500000},
 			},
 		}, nil)
@@ -94,7 +94,7 @@ func TestMinerStatusJsonData(t *testing.T) {
 	assert.Equal(t, int32(4), info.Capabilities.Cpu[0].Cores)
 	assert.Equal(t, float64(3000), info.Capabilities.Cpu[0].Mhz)
 
-	assert.Equal(t, "NVidia", info.Capabilities.Gpu[0].Vendor)
+	assert.Equal(t, "NVIDIA", info.Capabilities.Gpu[0].VendorName)
 	assert.Equal(t, "GTX 1080Ti", info.Capabilities.Gpu[0].Name)
 
 	assert.Equal(t, uint64(500000), info.Capabilities.Mem.Used)
@@ -253,8 +253,8 @@ func TestMinerStatusMultiCPUAndGPU(t *testing.T) {
 					{Name: "Xeon E7-8890", Vendor: "Intel", Mhz: 3400.0, Cores: 24},
 				},
 				Gpu: []*pb.GPUDevice{
-					{Name: "GTX 1080Ti", Vendor: "NVidia"},
-					{Name: "GTX 1080", Vendor: "NVidia"},
+					{Name: "GTX 1080Ti", VendorName: "NVIDIA"},
+					{Name: "GTX 1080", VendorName: "NVIDIA"},
 				},
 				Mem: &pb.RAMDevice{Total: 1000000, Used: 500000},
 			},
@@ -267,8 +267,8 @@ func TestMinerStatusMultiCPUAndGPU(t *testing.T) {
 	assert.Contains(t, out, "CPU0: 14 x Xeon E7-4850")
 	assert.Contains(t, out, "CPU1: 24 x Xeon E7-8890")
 
-	assert.Contains(t, out, "GPU0: NVidia GTX 1080Ti")
-	assert.Contains(t, out, "GPU1: NVidia GTX 1080")
+	assert.Contains(t, out, "GPU0: NVIDIA GTX 1080Ti")
+	assert.Contains(t, out, "GPU1: NVIDIA GTX 1080")
 }
 
 func TestMinerStatusNoGPU(t *testing.T) {
