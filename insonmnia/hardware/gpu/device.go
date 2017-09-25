@@ -14,6 +14,8 @@ type Device struct {
 	AddressBits int
 	// Size of global memory cache line in bytes.
 	CacheLineSize int
+	// Total maximum memory size the device can hold.
+	MemorySize uint64
 }
 
 // GetGPUDevices returns a list of available GPU devices on the machine.

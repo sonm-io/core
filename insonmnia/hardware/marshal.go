@@ -85,9 +85,10 @@ func GPUIntoProto(g []*gpu.Device) []*pb.GPUDevice {
 	for _, i := range g {
 		ext := make(map[string]string)
 		ext["flags"] = strings.Join(i.Flags, ",")
-		ext["max_clock_frequency"] = strconv.Itoa(int(i.MaxClockFrequency))
-		ext["address_bits"] = strconv.Itoa(int(i.AddressBits))
-		ext["cache_line_size"] = strconv.Itoa(int(i.CacheLineSize))
+		ext["max_clock_frequency"] = strconv.Itoa(i.MaxClockFrequency)
+		ext["address_bits"] = strconv.Itoa(i.AddressBits)
+		ext["cache_line_size"] = strconv.Itoa(i.CacheLineSize)
+		ext["max_memory_size"] = strconv.FormatUint(i.MemorySize, 10)
 
 		device := &pb.GPUDevice{
 			Name:   i.Name,
@@ -120,6 +121,11 @@ func GPUFromProto(g []*pb.GPUDevice) ([]*gpu.Device, error) {
 			cacheSize = 0
 		}
 
+		maxMemorySize, err := strconv.ParseUint(i.Ext["max_memory_size"], 10, 0)
+		if err != nil {
+			cacheSize = 0
+		}
+
 		device := &gpu.Device{
 			Name:              i.GetName(),
 			Vendor:            i.GetVendor(),
@@ -127,6 +133,7 @@ func GPUFromProto(g []*pb.GPUDevice) ([]*gpu.Device, error) {
 			MaxClockFrequency: mhz,
 			AddressBits:       addressBits,
 			CacheLineSize:     cacheSize,
+			MemorySize:        maxMemorySize,
 		}
 
 		result = append(result, device)

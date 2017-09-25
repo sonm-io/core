@@ -52,6 +52,7 @@ func GetGPUDevicesUsingOpenCL() ([]*Device, error) {
 				MaxClockFrequency: d.maxClockFrequency(),
 				AddressBits:       d.addressBits(),
 				CacheLineSize:     d.globalMemCacheLineSize(),
+				MemorySize:        d.globalMemSize(),
 			}
 
 			result = append(result, device)
@@ -126,6 +127,16 @@ func (d *device) getInfoUint(param C.cl_device_info) (uint, error) {
 	return uint(val), nil
 }
 
+func (d *device) getInfoUint64(param C.cl_device_info) (uint64, error) {
+	var val C.cl_ulong
+
+	if err := C.clGetDeviceInfo(d.id, param, C.size_t(unsafe.Sizeof(val)), unsafe.Pointer(&val), nil); err != C.CL_SUCCESS {
+		return 0, errors.Errorf("failed to convert device info into an integer: %s", err)
+	}
+
+	return uint64(val), nil
+}
+
 func (d *device) name() string {
 	result, _ := d.getInfoString(C.CL_DEVICE_NAME)
 	return result
@@ -164,4 +175,9 @@ func (d *device) globalMemCacheLineSize() int {
 func (d *device) maxClockFrequency() int {
 	val, _ := d.getInfoUint(C.CL_DEVICE_MAX_CLOCK_FREQUENCY)
 	return int(val)
+}
+
+func (d *device) globalMemSize() uint64 {
+	val, _ := d.getInfoUint64(C.CL_DEVICE_GLOBAL_MEM_SIZE)
+	return uint64(val)
 }
