@@ -99,7 +99,7 @@ func (m *MinerCtx) handshake(h *Hub) error {
 
 	capabilities, err := hardware.HardwareFromProto(resp.Capabilities)
 	if err != nil {
-		log.G(m.ctx).Warn("failed to decode capabilities from a Miner", zap.Error(err))
+		log.G(m.ctx).Error("failed to decode capabilities from a Miner", zap.Error(err))
 		return err
 	}
 
