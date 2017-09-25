@@ -98,6 +98,7 @@ message TaskLogsChunk {
 
 message EmptyResponse {
 }
+
 message TaskResourceRequirements {
     // Number of CPU cores.
     uint64 CPUCores = 1;
