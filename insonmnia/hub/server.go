@@ -35,14 +35,16 @@ import (
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
-	ctx           context.Context
-	gateway       *gateway.Gateway
-	portPool      *gateway.PortPool
-	grpcEndpoint  string
-	externalGrpc  *grpc.Server
-	endpoint      string
-	minerListener net.Listener
-	ethKey        *ecdsa.PrivateKey
+	ctx              context.Context
+	gateway          *gateway.Gateway
+	portPool         *gateway.PortPool
+	grpcEndpoint     string
+	grpcEndpointAddr string
+	externalGrpc     *grpc.Server
+	endpoint         string
+	minerListener    net.Listener
+	ethKey           *ecdsa.PrivateKey
+	locatorEndpoint  string
 
 	mu     sync.Mutex
 	miners map[string]*MinerCtx
@@ -435,10 +437,11 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		tasks:  make(map[string]string),
 		miners: make(map[string]*MinerCtx),
 
-		grpcEndpoint: cfg.Monitoring.Endpoint,
-		endpoint:     cfg.Endpoint,
-		ethKey:       ethKey,
-		version:      version,
+		grpcEndpoint:    cfg.Monitoring.Endpoint,
+		endpoint:        cfg.Endpoint,
+		ethKey:          ethKey,
+		version:         version,
+		locatorEndpoint: cfg.Locator.Address,
 
 		filters: []minerFilter{
 			exactMatchFilter,
@@ -472,6 +475,8 @@ func (h *Hub) Serve() error {
 	workersEndpt := ip.String() + ":" + workersPort
 	clientEndpt := ip.String() + ":" + clientPort
 
+	// cache client endpoint for locator
+	h.grpcEndpointAddr = clientEndpt
 	srv, err := frd.NewServer(h.ethKey, workersEndpt, clientEndpt)
 	if err != nil {
 		return err
@@ -483,7 +488,6 @@ func (h *Hub) Serve() error {
 	srv.Serve()
 
 	listener, err := net.Listen("tcp", h.endpoint)
-
 	if err != nil {
 		log.G(h.ctx).Error("failed to listen", zap.String("address", h.endpoint), zap.Error(err))
 		return err
@@ -518,8 +522,14 @@ func (h *Hub) Serve() error {
 			go h.handleInterconnect(h.ctx, conn)
 		}
 	}()
-	h.wg.Wait()
 
+	h.wg.Add(1)
+	go func() {
+		defer h.wg.Done()
+		h.startLocatorAnnouncer()
+	}()
+
+	h.wg.Wait()
 	return nil
 }
 
@@ -582,4 +592,45 @@ func (h *Hub) deleteTaskByID(taskID string) {
 	h.tasksmu.Lock()
 	defer h.tasksmu.Unlock()
 	delete(h.tasks, taskID)
+}
+
+func (h *Hub) startLocatorAnnouncer() {
+	tk := time.NewTicker(300 * time.Second)
+	defer tk.Stop()
+
+	h.announceAddress(h.ctx)
+
+	for {
+		select {
+		case <-tk.C:
+			h.announceAddress(h.ctx)
+		}
+	}
+}
+
+func (h *Hub) announceAddress(ctx context.Context) {
+	conn, err := grpc.Dial(h.locatorEndpoint,
+		grpc.WithInsecure(),
+		grpc.WithTimeout(5*time.Second),
+		grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
+		grpc.WithCompressor(grpc.NewGZIPCompressor()))
+	if err != nil {
+		log.G(ctx).Warn("cannot build gRPC connection to Locator")
+		return
+	}
+
+	cl := pb.NewLocatorClient(conn)
+	req := &pb.AnnounceRequest{
+		EthAddr: util.PubKeyToAddr(h.ethKey.PublicKey),
+		IpAddr:  []string{h.grpcEndpointAddr},
+	}
+
+	log.G(ctx).Info("announcing Hub address",
+		zap.String("eth", req.EthAddr),
+		zap.String("addr", req.IpAddr[0]))
+
+	_, err = cl.Announce(ctx, req)
+	if err != nil {
+		log.G(ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
+	}
 }
