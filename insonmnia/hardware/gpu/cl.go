@@ -20,7 +20,6 @@ import "C"
 
 import (
 	"github.com/pkg/errors"
-	"strings"
 	"unsafe"
 )
 
@@ -30,13 +29,13 @@ const (
 )
 
 // GetGPUDevicesUsingOpenCL returns a list of available GPU devices on the machine using OpenCL API.
-func GetGPUDevicesUsingOpenCL() ([]*Device, error) {
+func GetGPUDevicesUsingOpenCL() ([]Device, error) {
 	platforms, err := getPlatforms()
 	if err != nil {
 		return nil, err
 	}
 
-	var result []*Device
+	var result []Device
 
 	for _, platform := range platforms {
 		devices, err := platform.getGPUDevices()
@@ -45,16 +44,7 @@ func GetGPUDevicesUsingOpenCL() ([]*Device, error) {
 		}
 
 		for _, d := range devices {
-			device := &Device{
-				Name:              d.name(),
-				Vendor:            d.vendor(),
-				Flags:             d.extensions(),
-				MaxClockFrequency: d.maxClockFrequency(),
-				AddressBits:       d.addressBits(),
-				CacheLineSize:     d.globalMemCacheLineSize(),
-				MemorySize:        d.globalMemSize(),
-			}
-
+			device := NewDevice(d.name(), d.vendor(), d.globalMemSize())
 			result = append(result, device)
 		}
 	}
@@ -82,7 +72,7 @@ func getPlatforms() ([]*platform, error) {
 	return platforms, nil
 }
 
-func (p *platform) getGPUDevices() ([]*device, error) {
+func (p *platform) getGPUDevices() ([]*clDevice, error) {
 	var ids [maxDeviceCount]C.cl_device_id
 	var num C.cl_uint
 
@@ -94,19 +84,19 @@ func (p *platform) getGPUDevices() ([]*device, error) {
 		return nil, errors.Errorf("failed to obtain GPU devices for a platform: %s", err)
 	}
 
-	devices := make([]*device, num)
+	devices := make([]*clDevice, num)
 	for i := 0; i < int(num); i++ {
-		devices[i] = &device{id: ids[i]}
+		devices[i] = &clDevice{id: ids[i]}
 	}
 
 	return devices, nil
 }
 
-type device struct {
+type clDevice struct {
 	id C.cl_device_id
 }
 
-func (d *device) getInfoString(param C.cl_device_info) (string, error) {
+func (d *clDevice) getInfoString(param C.cl_device_info) (string, error) {
 	var data [1024]C.char
 	var size C.size_t
 
@@ -117,17 +107,7 @@ func (d *device) getInfoString(param C.cl_device_info) (string, error) {
 	return C.GoStringN((*C.char)(unsafe.Pointer(&data)), C.int(size)-1), nil
 }
 
-func (d *device) getInfoUint(param C.cl_device_info) (uint, error) {
-	var val C.cl_uint
-
-	if err := C.clGetDeviceInfo(d.id, param, C.size_t(unsafe.Sizeof(val)), unsafe.Pointer(&val), nil); err != C.CL_SUCCESS {
-		return 0, errors.Errorf("failed to convert device info into an integer: %s", err)
-	}
-
-	return uint(val), nil
-}
-
-func (d *device) getInfoUint64(param C.cl_device_info) (uint64, error) {
+func (d *clDevice) getInfoUint64(param C.cl_device_info) (uint64, error) {
 	var val C.cl_ulong
 
 	if err := C.clGetDeviceInfo(d.id, param, C.size_t(unsafe.Sizeof(val)), unsafe.Pointer(&val), nil); err != C.CL_SUCCESS {
@@ -137,47 +117,17 @@ func (d *device) getInfoUint64(param C.cl_device_info) (uint64, error) {
 	return uint64(val), nil
 }
 
-func (d *device) name() string {
+func (d *clDevice) name() string {
 	result, _ := d.getInfoString(C.CL_DEVICE_NAME)
 	return result
 }
 
-func (d *device) vendor() string {
+func (d *clDevice) vendor() string {
 	result, _ := d.getInfoString(C.CL_DEVICE_VENDOR)
 	return result
 }
 
-func (d *device) extensions() []string {
-	result, _ := d.getInfoString(C.CL_DEVICE_EXTENSIONS)
-	return strings.Split(result, " ")
-}
-
-func (d *device) version() string {
-	result, _ := d.getInfoString(C.CL_DEVICE_VERSION)
-	return result
-}
-
-func (d *device) driverVersion() string {
-	result, _ := d.getInfoString(C.CL_DRIVER_VERSION)
-	return result
-}
-
-func (d *device) addressBits() int {
-	val, _ := d.getInfoUint(C.CL_DEVICE_ADDRESS_BITS)
-	return int(val)
-}
-
-func (d *device) globalMemCacheLineSize() int {
-	val, _ := d.getInfoUint(C.CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE)
-	return int(val)
-}
-
-func (d *device) maxClockFrequency() int {
-	val, _ := d.getInfoUint(C.CL_DEVICE_MAX_CLOCK_FREQUENCY)
-	return int(val)
-}
-
-func (d *device) globalMemSize() uint64 {
+func (d *clDevice) globalMemSize() uint64 {
 	val, _ := d.getInfoUint64(C.CL_DEVICE_GLOBAL_MEM_SIZE)
 	return uint64(val)
 }

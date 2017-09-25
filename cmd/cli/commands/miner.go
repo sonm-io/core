@@ -45,7 +45,7 @@ func printCpuInfo(cmd *cobra.Command, cap *pb.Capabilities) {
 func printGpuInfo(cmd *cobra.Command, cap *pb.Capabilities) {
 	if len(cap.Gpu) > 0 {
 		for i, gpu := range cap.Gpu {
-			cmd.Printf("    GPU%d: %s %s\r\n", i, gpu.Vendor, gpu.Name)
+			cmd.Printf("    GPU%d: %s %s\r\n", i, gpu.VendorName, gpu.Name)
 		}
 	} else {
 		cmd.Println("    GPU: None")
