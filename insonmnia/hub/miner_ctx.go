@@ -95,13 +95,18 @@ func (m *MinerCtx) handshake(h *Hub) error {
 		return err
 	}
 
-	log.G(m.ctx).Info("received handshake from a Miner", zap.Any("resp", resp))
+	log.G(m.ctx).Info("received handshake from a Miner")
 
 	capabilities, err := hardware.HardwareFromProto(resp.Capabilities)
 	if err != nil {
 		log.G(m.ctx).Error("failed to decode capabilities from a Miner", zap.Error(err))
 		return err
 	}
+
+	log.G(m.ctx).Debug("received Miner's capabilities",
+		zap.String("id", resp.Miner),
+		zap.Any("capabilities", capabilities),
+	)
 
 	m.uuid = resp.Miner
 	m.capabilities = capabilities
