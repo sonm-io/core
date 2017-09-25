@@ -17,20 +17,15 @@ service Miner{
     rpc TaskDetails(TaskStatusRequest) returns (TaskStatusReply) {}
 
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
-
-    rpc ChangeHub(ChangeHubRequest) returns (EmptyResponse) {}
-}
-
-message ChangeHubRequest {
-    string ip = 1;
-    string port = 2;
 }
 
 message MinerInfoRequest {
 }
 
+
 message MinerHandshakeRequest {
     string hub = 1;
+    repeated TaskInfo tasks = 2;
 }
 
 enum NATType {
@@ -69,6 +64,11 @@ message MinerStartReply {
         string port = 2;
     }
     map<string, port> Ports = 2;
+}
+
+message TaskInfo {
+    MinerStartRequest request = 1;
+    MinerStartReply reply = 2;
 }
 
 message MinerStatusMapRequest {}
