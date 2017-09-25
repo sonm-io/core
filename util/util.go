@@ -5,7 +5,9 @@ import (
 	"net"
 
 	"bytes"
+	"crypto/ecdsa"
 	"errors"
+	"github.com/ethereum/go-ethereum/crypto"
 	"io/ioutil"
 	"net/http"
 	"os/user"
@@ -90,4 +92,12 @@ func ParseEndpointPort(s string) (string, error) {
 
 func GetPlatformName() string {
 	return fmt.Sprintf("%s/%s/%s", runtime.GOOS, runtime.GOARCH, runtime.Version())
+}
+
+func PubKeyToString(key ecdsa.PublicKey) string {
+	return fmt.Sprintf("%x", crypto.FromECDSAPub(&key))
+}
+
+func PubKeyToAddr(key ecdsa.PublicKey) string {
+	return crypto.PubkeyToAddress(key).String()
 }
