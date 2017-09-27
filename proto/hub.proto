@@ -19,6 +19,7 @@ service Hub {
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
 
     rpc ProposeDeal(DealRequest) returns (DealReply) {}
+    rpc DiscoverHub(DiscoverHubRequest) returns (EmptyReply) {}
 }
 
 message ListRequest {

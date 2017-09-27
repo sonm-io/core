@@ -17,6 +17,7 @@ service Miner{
     rpc TaskDetails(TaskStatusRequest) returns (TaskStatusReply) {}
 
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
+    rpc DiscoverHub(DiscoverHubRequest) returns (EmptyReply) {}
 }
 
 message MinerInfoRequest {

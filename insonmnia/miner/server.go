@@ -73,6 +73,9 @@ type Miner struct {
 	channelCounter int
 	controlGroup   cGroupDeleter
 	ssh            SSH
+
+	connectedHubs     map[string]struct{}
+	connectedHubsLock sync.Mutex
 }
 
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
@@ -439,6 +442,12 @@ func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Miner_TaskLogsSe
 	}
 }
 
+func (m *Miner) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.EmptyReply, error) {
+	log.G(m.ctx).Info("discovered new hub", zap.String("address", request.Endpoint))
+	go m.connectToHub(request.Endpoint)
+	return &pb.EmptyReply{}, nil
+}
+
 // TasksStatus returns the status of a task
 func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
 	log.G(m.ctx).Info("starting tasks status server")
@@ -486,6 +495,21 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.TaskStatusRequest) (*pb
 }
 
 func (m *Miner) connectToHub(address string) {
+	log.G(m.ctx).Info("connecting to hub", zap.String("address", address))
+	m.connectedHubsLock.Lock()
+	_, ok := m.connectedHubs[address]
+	if ok {
+		m.connectedHubsLock.Unlock()
+		log.G(m.ctx).Info("already connected to hub", zap.String("endpoint", address))
+		return
+	}
+	m.connectedHubs[address] = struct{}{}
+	m.connectedHubsLock.Unlock()
+	defer func() {
+		m.connectedHubsLock.Lock()
+		delete(m.connectedHubs, address)
+		m.connectedHubsLock.Unlock()
+	}()
 	// Connect to the Hub
 	var d = net.Dialer{
 		DualStack: true,
