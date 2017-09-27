@@ -53,6 +53,7 @@ type Hub struct {
 	grpcEndpoint  string
 	externalGrpc  *grpc.Server
 	endpoint      string
+	localEndpoint string
 	minerListener net.Listener
 	ethKey        *ecdsa.PrivateKey
 
@@ -71,6 +72,9 @@ type Hub struct {
 	// Scheduling.
 	filters []minerFilter
 	consul  *consul.Client
+
+	associatedHubs     map[string]struct{}
+	associatedHubsLock sync.Mutex
 
 	isLeader bool
 
@@ -138,6 +142,9 @@ func (h *Hub) List(ctx context.Context, request *pb.ListRequest) (*pb.ListReply,
 
 	reply := &pb.ListReply{
 		Info: make(map[string]*pb.ListReply_ListValue),
+	}
+	for k := range h.miners {
+		reply.Info[k] = new(pb.ListReply_ListValue)
 	}
 	for _, taskInfo := range tasks {
 		list, ok := reply.Info[taskInfo.MinerId]
@@ -452,7 +459,7 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 	}
 
 	// todo: fill this field into miner method, use Miner.name (uuid) instead of addr
-	reply.MinerID = minerID
+	reply.MinerID = task.MinerId
 	return reply, nil
 }
 
@@ -494,6 +501,20 @@ func (h *Hub) ProposeDeal(ctx context.Context, request *pb.DealRequest) (*pb.Dea
 		return nil, ErrInvalidOrderType
 	}
 	return nil, status.Errorf(codes.Unimplemented, "not implemented yet")
+}
+
+func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.EmptyReply, error) {
+	log.G(h.ctx).Info("handling discover hub", zap.String("endpoint", request.Endpoint))
+	h.associatedHubsLock.Lock()
+	_, ok := h.associatedHubs[request.Endpoint]
+	if !ok {
+		h.associatedHubs[request.Endpoint] = struct{}{}
+		h.associatedHubsLock.Unlock()
+		for _, v := range h.miners {
+			v.Client.DiscoverHub(ctx, &pb.DiscoverHubRequest{request.Endpoint})
+		}
+	}
+	return &pb.EmptyReply{}, nil
 }
 
 // New returns new Hub
@@ -548,55 +569,109 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 			exactMatchFilter,
 			resourcesFilter,
 		},
-		consul: consulCli,
+		consul:         consulCli,
+		associatedHubs: make(map[string]struct{}),
+	}
+	h.localEndpoint, err = h.determineLocalEndpoint()
+	if err != nil {
+		return nil, err
 	}
 	pb.RegisterHubServer(grpcServer, h)
 	return h, nil
 }
 
 func (h *Hub) leaderWatch() {
+	log.G(h.ctx).Info("starting leader watch goroutine")
 	var waitIdx uint64 = 0
 	kv := h.consul.KV()
 	var err error = nil
 	for {
-		h.leaderClientLock.Lock()
-		h.leaderClient = nil
-		h.leaderClientLock.Unlock()
 		kv_pair, _, err := kv.Get(leaderKey, &consul.QueryOptions{WaitIndex: waitIdx})
 		if err != nil {
 			break
 		}
-		waitIdx = kv_pair.ModifyIndex
-		conn, err := grpc.Dial(string(kv_pair.Value))
+		log.G(h.ctx).Info("leader watch: fetched leader", zap.String("leader", string(kv_pair.Value)))
+		h.leaderClientLock.Lock()
+		h.leaderClient = nil
+		h.leaderClientLock.Unlock()
+
+		ep := string(kv_pair.Value)
+		conn, err := grpc.Dial(ep, grpc.WithInsecure(),
+			grpc.WithCompressor(grpc.NewGZIPCompressor()),
+			grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
 		if err != nil {
-			break
+			log.G(h.ctx).Warn("could not connect to hub", zap.String("endpoint", ep), zap.Error(err))
+			time.Sleep(time.Duration(100 * 1000000))
+			continue
 		}
 		h.leaderClientLock.Lock()
 		h.leaderClient = pb.NewHubClient(conn)
+		cli := h.leaderClient
 		h.leaderClientLock.Unlock()
+		cli.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{ep})
+		waitIdx = kv_pair.ModifyIndex
 	}
 	log.G(h.ctx).Error("leader watch failed", zap.Error(err))
 	h.Close()
 }
 
+func (h *Hub) onNewHub(endpoint string) {
+
+}
+
+func (h *Hub) determineLocalEndpoint() (string, error) {
+	if h.endpoint[0] == ':' {
+		ifaces, err := net.Interfaces()
+		if err != nil {
+			return "", err
+		}
+		for _, i := range ifaces {
+			addrs, err := i.Addrs()
+			if err != nil {
+				return "", err
+			}
+			for _, addr := range addrs {
+				var ip net.IP
+				switch v := addr.(type) {
+				case *net.IPNet:
+					ip = v.IP
+				case *net.IPAddr:
+					ip = v.IP
+				}
+				if ip != nil && ip.IsGlobalUnicast() {
+					ep := ip.String() + h.endpoint
+					return ep, nil
+				}
+			}
+		}
+	} else {
+		return h.endpoint, nil
+	}
+	return "", errors.New("unicast ip not found")
+}
+
 func (h *Hub) election() error {
 	log.G(h.ctx).Info("starting leader election goroutine")
+	go h.leaderWatch()
 	var err error
+
 	for {
 		lock, err := h.consul.LockOpts(&consul.LockOptions{
 			Key:   leaderKey,
-			Value: []byte(h.endpoint),
+			Value: []byte(h.localEndpoint),
 		})
 		if err != nil {
+			log.G(h.ctx).Warn("could not create lock opts", zap.Error(err))
 			break
 		}
 
 		log.G(h.ctx).Info("trying to aquire leader lock")
 		followerCh, err := lock.Lock(h.stopCh)
 		if err != nil {
+			log.G(h.ctx).Info("could not acquire leader lock", zap.Error(err))
 			break
 		}
-		log.G(h.ctx).Info("leader lock aquired")
+		log.G(h.ctx).Info("leader lock acquired")
 		h.isLeader = true
 		for {
 			_, ok := <-followerCh
@@ -607,7 +682,7 @@ func (h *Hub) election() error {
 		}
 		h.isLeader = false
 	}
-	log.G(h.ctx).Warn("election failed - closing hub")
+	log.G(h.ctx).Warn("election failed - closing hub", zap.Error(err))
 	h.Close()
 	return err
 }
@@ -707,6 +782,10 @@ func (h *Hub) registerMiner(miner *MinerCtx) {
 	h.mu.Lock()
 	h.miners[miner.uuid] = miner
 	h.mu.Unlock()
+	for address := range h.associatedHubs {
+		log.G(h.ctx).Info("sending hub adderess", zap.String("hub_address", address))
+		miner.Client.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{address})
+	}
 }
 
 func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {

@@ -96,7 +96,11 @@ message TaskLogsChunk {
     bytes data = 1;
 }
 
-message EmptyResponse {
+message EmptyReply {
+}
+
+message DiscoverHubRequest {
+    string endpoint = 1;
 }
 
 message TaskResourceRequirements {
