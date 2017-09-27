@@ -504,16 +504,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, request *pb.DealRequest) (*pb.Dea
 }
 
 func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.EmptyReply, error) {
-	log.G(h.ctx).Info("handling discover hub", zap.String("endpoint", request.Endpoint))
-	h.associatedHubsLock.Lock()
-	_, ok := h.associatedHubs[request.Endpoint]
-	if !ok {
-		h.associatedHubs[request.Endpoint] = struct{}{}
-		h.associatedHubsLock.Unlock()
-		for _, v := range h.miners {
-			v.Client.DiscoverHub(ctx, &pb.DiscoverHubRequest{request.Endpoint})
-		}
-	}
+	h.onNewHub(request.Endpoint)
 	return &pb.EmptyReply{}, nil
 }
 
@@ -596,6 +587,7 @@ func (h *Hub) leaderWatch() {
 		h.leaderClientLock.Unlock()
 
 		ep := string(kv_pair.Value)
+		h.onNewHub(ep)
 		conn, err := grpc.Dial(ep, grpc.WithInsecure(),
 			grpc.WithCompressor(grpc.NewGZIPCompressor()),
 			grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
@@ -608,7 +600,8 @@ func (h *Hub) leaderWatch() {
 		h.leaderClient = pb.NewHubClient(conn)
 		cli := h.leaderClient
 		h.leaderClientLock.Unlock()
-		cli.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{ep})
+		cli.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{h.localEndpoint})
+
 		waitIdx = kv_pair.ModifyIndex
 	}
 	log.G(h.ctx).Error("leader watch failed", zap.Error(err))
@@ -616,7 +609,18 @@ func (h *Hub) leaderWatch() {
 }
 
 func (h *Hub) onNewHub(endpoint string) {
+	h.associatedHubsLock.Lock()
+	log.G(h.ctx).Info("new hub discovered", zap.String("endpoint", endpoint), zap.Any("known_hubs", h.associatedHubs))
+	h.associatedHubs[endpoint] = struct{}{}
 
+	h.associatedHubsLock.Unlock()
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for _, miner := range h.miners {
+		miner.Client.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{endpoint})
+	}
 }
 
 func (h *Hub) determineLocalEndpoint() (string, error) {
