@@ -39,29 +39,31 @@ message Resources {
     map<string, string> props = 8;
 }
 
-message Bid {
+message Slot {
+    // Virtual computer start of life (hour grained).
+    Timestamp startTime = 1;
+    // Virtual computer end of life (hour grained).
+    Timestamp endTime = 2;
+    // Buyer’s rating. Got from Buyer’s profile for BID orders rating_supplier.
+    float buyerRating = 3;
+    // Supplier’s rating. Got from Supplier’s profile for ASK orders.
+    float supplierRating = 4;
+    // Geo represent Worker's position
+    Geo geo = 5;
+    // Hardware resources requirements
+    Resources resources = 6;
+}
+
+message Order {
     // Order ID, UUIDv4
     string id = 1;
-    // Virtual computer start of life (hour grained).
-    Timestamp startTime = 2;
-    // Virtual computer end of life (hour grained).
-    Timestamp endTime = 3;
-    // Buyer’s rating. Got from Buyer’s profile for BID orders rating_supplier.
-    float buyerRating = 4;
-    // Supplier’s rating. Got from Supplier’s profile for ASK orders.
-    float supplierRating = 5;
     // Buyer's EtherumID
-    string byuerID = 6;
+    string byuerID = 2;
     // Supplier's is EtherumID
-    string supplierID = 7;
-
-    // Geo represent Worker's position
-    Geo geo = 8;
+    string supplierID = 3;
 
     // todo: duscuss
-    int64 price = 9;
-    OrderType orderType = 10;
-
-    // Hardware resources requirements
-    Resources resources = 11;
+    int64 price = 4;
+    OrderType orderType = 5;
+    Slot slot = 6;
 }
