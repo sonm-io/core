@@ -73,7 +73,7 @@ message HubStatusReply {
 }
 
 message DealRequest {
-    Bid bid = 1;
+    Order order = 1;
 }
 
 message DealReply {
