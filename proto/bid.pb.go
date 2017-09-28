@@ -9,6 +9,7 @@ It is generated from these files:
 	capabilities.proto
 	hub.proto
 	insonmnia.proto
+	marketplace.proto
 	miner.proto
 
 It has these top-level messages:
@@ -48,6 +49,9 @@ It has these top-level messages:
 	TaskLogsChunk
 	TaskResourceRequirements
 	Timestamp
+	GetOrdersReply
+	GetOrderRequest
+	Empty
 	MinerInfoRequest
 	MinerHandshakeRequest
 	MinerHandshakeReply
