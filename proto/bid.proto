@@ -9,39 +9,59 @@ enum OrderType {
     ASK = 1;
 }
 
+enum NetworkType {
+    NO_NETWORK = 0;
+    OUTBOUND = 1;
+    INCOMING = 2;
+}
+
+// Geo represent GeoIP results for node
+message Geo {
+    string country = 1;
+    string city = 2;
+    float lat = 3;
+    float lon = 4;
+}
+
+message Resources {
+    uint64 cpuCores = 1;
+    uint64 ramBytes = 2;
+    uint64 gpuCount = 3;
+
+    // todo: discuss
+    // storage volume, in Megabytes
+    uint64 storage = 4;
+
+    uint64 netTrafficIn = 5;
+    uint64 netTrafficOut = 6;
+    NetworkType networkType = 7;
+
+    map<string, string> props = 8;
+}
+
 message Bid {
+    // Order ID, UUIDv4
+    string id = 1;
     // Virtual computer start of life (hour grained).
-    Timestamp startTime = 1;
+    Timestamp startTime = 2;
     // Virtual computer end of life (hour grained).
-    Timestamp endTime = 2;
+    Timestamp endTime = 3;
     // Buyer’s rating. Got from Buyer’s profile for BID orders rating_supplier.
-    float ratingBuyer = 3;
+    float buyerRating = 4;
     // Supplier’s rating. Got from Supplier’s profile for ASK orders.
-    float ratingSupplier = 4;
-    // CPU core count.
-    int64 cpuQtty = 5;
-    // CPU type.
-    int64 cpuType = 6;
-    // Virtual computer RAM, in GB
-    int64 ramQtty = 7;
-    // Storage size, in GB.
-    int64 storageQtty = 8;
-    // Storage type.
-    int64 storageType = 9;
-    // Inbound or outbound traffic (the higher value), in GB.
-    int64 networkQtty = 10;
-    // Network latency in ms, the lower is better.
-    int64 networkLat = 11;
-    // GPU count.
-    int64 gpu_qtty = 12;
-    // GPU manufacturer.
-    string gpuManufact = 13;
-    // GPU type.
-    int64 gpuType = 14;
-    // GPU RAM, in GB.
-    int64 gpuRam = 15;
-    // Order price.
-    int64 price = 16;
-    // Order type.
-    OrderType orderType = 17;
+    float supplierRating = 5;
+    // Buyer's EtherumID
+    string byuerID = 6;
+    // Supplier's is EtherumID
+    string supplierID = 7;
+
+    // Geo represent Worker's position
+    Geo geo = 8;
+
+    // todo: duscuss
+    int64 price = 9;
+    OrderType orderType = 10;
+
+    // Hardware resources requirements
+    Resources resources = 11;
 }
