@@ -20,6 +20,8 @@ service Hub {
 
     rpc ProposeDeal(DealRequest) returns (DealReply) {}
     rpc DiscoverHub(DiscoverHubRequest) returns (EmptyReply) {}
+
+    rpc SetMinerProperties(SetMinerPropertiesRequest) returns (SetMinerPropertiesReply) {}
 }
 
 message ListRequest {
@@ -79,3 +81,10 @@ message DealRequest {
 
 message DealReply {
 }
+
+message SetMinerPropertiesRequest {
+    string ID = 1;
+    map<string, string> properties = 2;
+}
+
+message SetMinerPropertiesReply {}
