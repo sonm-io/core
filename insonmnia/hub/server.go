@@ -520,6 +520,12 @@ func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (
 	return &pb.EmptyReply{}, nil
 }
 
+func (h *Hub) SetMinerProperties(ctx context.Context, request *pb.SetMinerPropertiesRequest) (*pb.SetMinerPropertiesReply, error) {
+	log.G(h.ctx).Info("handling SetMinerProperties request", zap.Any("req", request))
+
+	return nil, status.Errorf(codes.Unimplemented, "not implemented yet")
+}
+
 // New returns new Hub
 func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	ethKey, err := crypto.HexToECDSA(cfg.Eth.PrivateKey)
