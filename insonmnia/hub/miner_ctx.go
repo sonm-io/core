@@ -18,6 +18,8 @@ import (
 	pb "github.com/sonm-io/core/proto"
 )
 
+type MinerProperties map[string]string
+
 // MinerCtx holds all the data related to a connected Miner
 type MinerCtx struct {
 	ctx    context.Context
@@ -40,6 +42,8 @@ type MinerCtx struct {
 
 	mu    sync.Mutex
 	usage map[string]*resource.Resources
+
+	minerProperties MinerProperties
 }
 
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
@@ -82,6 +86,12 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 // ID returns the miner id.
 func (m *MinerCtx) ID() string {
 	return m.uuid
+}
+
+func (m *MinerCtx) SetMinerProperties(properties MinerProperties) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.minerProperties = properties
 }
 
 func (m *MinerCtx) handshake(h *Hub) error {

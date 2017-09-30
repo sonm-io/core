@@ -25,6 +25,7 @@ service Hub {
     // properties for a miner specified by its ID.
     // This may include GPU's capability to execute a well-known work such as
     // Ethereum mining etc.
+    // Note, that this method overrides all previously specified properties.
     rpc SetMinerProperties(SetMinerPropertiesRequest) returns (SetMinerPropertiesReply) {}
 }
 

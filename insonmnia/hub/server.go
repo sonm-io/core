@@ -39,6 +39,7 @@ var (
 	ErrBidRequired      = status.Errorf(codes.InvalidArgument, "bid field is required")
 	ErrInvalidOrderType = status.Errorf(codes.InvalidArgument, "invalid order type")
 	ErrLeaderStepDown   = status.Errorf(codes.Unavailable, "leader stepped down")
+	ErrMinerNotFound    = status.Errorf(codes.NotFound, "miner not found")
 )
 
 const tasksPrefix = "sonm/hub/tasks"
@@ -522,6 +523,13 @@ func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (
 
 func (h *Hub) SetMinerProperties(ctx context.Context, request *pb.SetMinerPropertiesRequest) (*pb.SetMinerPropertiesReply, error) {
 	log.G(h.ctx).Info("handling SetMinerProperties request", zap.Any("req", request))
+
+	miner, exists := h.getMinerByID(request.ID)
+	if !exists {
+		return nil, ErrMinerNotFound
+	}
+
+	miner.SetMinerProperties(MinerProperties(request.Properties))
 
 	return nil, status.Errorf(codes.Unimplemented, "not implemented yet")
 }

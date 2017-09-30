@@ -358,6 +358,7 @@ type HubClient interface {
 	// properties for a miner specified by its ID.
 	// This may include GPU's capability to execute a well-known work such as
 	// Ethereum mining etc.
+	// Note, that this method overrides all previously specified properties.
 	SetMinerProperties(ctx context.Context, in *SetMinerPropertiesRequest, opts ...grpc.CallOption) (*SetMinerPropertiesReply, error)
 }
 
@@ -518,6 +519,7 @@ type HubServer interface {
 	// properties for a miner specified by its ID.
 	// This may include GPU's capability to execute a well-known work such as
 	// Ethereum mining etc.
+	// Note, that this method overrides all previously specified properties.
 	SetMinerProperties(context.Context, *SetMinerPropertiesRequest) (*SetMinerPropertiesReply, error)
 }
 
