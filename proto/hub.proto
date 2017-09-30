@@ -21,6 +21,10 @@ service Hub {
     rpc ProposeDeal(DealRequest) returns (DealReply) {}
     rpc DiscoverHub(DiscoverHubRequest) returns (EmptyReply) {}
 
+    // SetMinerProperties method allows to specify additional resource
+    // properties for a miner specified by its ID.
+    // This may include GPU's capability to execute a well-known work such as
+    // Ethereum mining etc.
     rpc SetMinerProperties(SetMinerPropertiesRequest) returns (SetMinerPropertiesReply) {}
 }
 

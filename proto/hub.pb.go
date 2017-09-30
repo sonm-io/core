@@ -354,6 +354,10 @@ type HubClient interface {
 	TaskLogs(ctx context.Context, in *TaskLogsRequest, opts ...grpc.CallOption) (Hub_TaskLogsClient, error)
 	ProposeDeal(ctx context.Context, in *DealRequest, opts ...grpc.CallOption) (*DealReply, error)
 	DiscoverHub(ctx context.Context, in *DiscoverHubRequest, opts ...grpc.CallOption) (*EmptyReply, error)
+	// SetMinerProperties method allows to specify additional resource
+	// properties for a miner specified by its ID.
+	// This may include GPU's capability to execute a well-known work such as
+	// Ethereum mining etc.
 	SetMinerProperties(ctx context.Context, in *SetMinerPropertiesRequest, opts ...grpc.CallOption) (*SetMinerPropertiesReply, error)
 }
 
@@ -510,6 +514,10 @@ type HubServer interface {
 	TaskLogs(*TaskLogsRequest, Hub_TaskLogsServer) error
 	ProposeDeal(context.Context, *DealRequest) (*DealReply, error)
 	DiscoverHub(context.Context, *DiscoverHubRequest) (*EmptyReply, error)
+	// SetMinerProperties method allows to specify additional resource
+	// properties for a miner specified by its ID.
+	// This may include GPU's capability to execute a well-known work such as
+	// Ethereum mining etc.
 	SetMinerProperties(context.Context, *SetMinerPropertiesRequest) (*SetMinerPropertiesReply, error)
 }
 
