@@ -50,9 +50,10 @@ type MinerCtx struct {
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	var (
 		m = MinerCtx{
-			conn:       conn,
-			status_map: make(map[string]*pb.TaskStatusReply),
-			usage:      make(map[string]*resource.Resources),
+			conn:            conn,
+			status_map:      make(map[string]*pb.TaskStatusReply),
+			usage:           make(map[string]*resource.Resources),
+			minerProperties: MinerProperties(make(map[string]string)),
 		}
 		err error
 	)
