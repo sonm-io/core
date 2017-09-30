@@ -521,6 +521,17 @@ func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (
 	return &pb.EmptyReply{}, nil
 }
 
+func (h *Hub) GetMinerProperties(ctx context.Context, request *pb.GetMinerPropertiesRequest) (*pb.GetMinerPropertiesReply, error) {
+	log.G(h.ctx).Info("handling GetMinerProperties request", zap.Any("req", request))
+
+	miner, exists := h.getMinerByID(request.ID)
+	if !exists {
+		return nil, ErrMinerNotFound
+	}
+
+	return &pb.GetMinerPropertiesReply{Properties: miner.MinerProperties()}, nil
+}
+
 func (h *Hub) SetMinerProperties(ctx context.Context, request *pb.SetMinerPropertiesRequest) (*pb.SetMinerPropertiesReply, error) {
 	log.G(h.ctx).Info("handling SetMinerProperties request", zap.Any("req", request))
 
@@ -531,7 +542,7 @@ func (h *Hub) SetMinerProperties(ctx context.Context, request *pb.SetMinerProper
 
 	miner.SetMinerProperties(MinerProperties(request.Properties))
 
-	return nil, status.Errorf(codes.Unimplemented, "not implemented yet")
+	return &pb.SetMinerPropertiesReply{}, nil
 }
 
 // New returns new Hub

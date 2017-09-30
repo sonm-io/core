@@ -88,6 +88,12 @@ func (m *MinerCtx) ID() string {
 	return m.uuid
 }
 
+func (m *MinerCtx) MinerProperties() MinerProperties {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.minerProperties
+}
+
 func (m *MinerCtx) SetMinerProperties(properties MinerProperties) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

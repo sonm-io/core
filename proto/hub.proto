@@ -21,6 +21,10 @@ service Hub {
     rpc ProposeDeal(DealRequest) returns (DealReply) {}
     rpc DiscoverHub(DiscoverHubRequest) returns (EmptyReply) {}
 
+    // GetMinerProperties allows to obtain previously assigned resource
+    // properties for a given miner.
+    rpc GetMinerProperties(GetMinerPropertiesRequest) returns (GetMinerPropertiesReply) {}
+
     // SetMinerProperties method allows to specify additional resource
     // properties for a miner specified by its ID.
     // This may include GPU's capability to execute a well-known work such as
@@ -85,6 +89,14 @@ message DealRequest {
 }
 
 message DealReply {
+}
+
+message GetMinerPropertiesRequest {
+    string ID = 1;
+}
+
+message GetMinerPropertiesReply {
+    map<string, string> properties = 1;
 }
 
 message SetMinerPropertiesRequest {

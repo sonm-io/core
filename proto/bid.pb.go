@@ -32,6 +32,8 @@ It has these top-level messages:
 	HubStatusReply
 	DealRequest
 	DealReply
+	GetMinerPropertiesRequest
+	GetMinerPropertiesReply
 	SetMinerPropertiesRequest
 	SetMinerPropertiesReply
 	PingRequest
