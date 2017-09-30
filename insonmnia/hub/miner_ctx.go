@@ -43,6 +43,7 @@ type MinerCtx struct {
 	mu    sync.Mutex
 	usage map[string]*resource.Resources
 
+	// TODO (3Hren): This is placed here temporarily, because of further scheduling, which currently does not exist.
 	minerProperties MinerProperties
 }
 
