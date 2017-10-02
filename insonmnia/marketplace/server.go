@@ -4,12 +4,12 @@ import (
 	"errors"
 	"sync"
 
-	"fmt"
+	"net"
+
 	"github.com/pborman/uuid"
 	pb "github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"net"
 )
 
 var (
