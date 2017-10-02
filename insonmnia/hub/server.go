@@ -37,9 +37,11 @@ import (
 
 var (
 	ErrBidRequired      = status.Errorf(codes.InvalidArgument, "bid field is required")
+	ErrSlotRequired     = status.Errorf(codes.InvalidArgument, "slot field is required")
 	ErrInvalidOrderType = status.Errorf(codes.InvalidArgument, "invalid order type")
 	ErrLeaderStepDown   = status.Errorf(codes.Unavailable, "leader stepped down")
 	ErrMinerNotFound    = status.Errorf(codes.NotFound, "miner not found")
+	ErrUnimplemented    = status.Errorf(codes.Unimplemented, "not implemented yet")
 )
 
 const tasksPrefix = "sonm/hub/tasks"
@@ -513,7 +515,51 @@ func (h *Hub) ProposeDeal(ctx context.Context, request *pb.DealRequest) (*pb.Dea
 	if order.OrderType != pb.OrderType_BID {
 		return nil, ErrInvalidOrderType
 	}
-	return nil, status.Errorf(codes.Unimplemented, "not implemented yet")
+
+	slot := order.GetSlot()
+	if slot == nil {
+		return nil, ErrSlotRequired
+	}
+
+	miner, err := h.findRandomMinerBySlot(Slot(*slot))
+	if err != nil {
+		return nil, err
+	}
+
+	// Find a miner by its ask id == slot.
+	// Reserve its time. 5 cases:
+	//  - Not fit - err
+	//  - Fit completely - consume.
+	//  - Fit partially from begin - split, take first, republish second.
+	//  - Fit partially from end - split, take second, republish first.
+	//	- Fit partially in the middle - split, take mid, republish other.
+	// Split
+	return nil, ErrUnimplemented
+}
+
+func (h *Hub) findRandomMinerBySlot(slot Slot) (*MinerCtx, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if len(h.miners) == 0 {
+		return nil, ErrMinerNotFound
+	}
+
+	rg := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+	id := 0
+	var result *MinerCtx = nil
+	for _, miner := range h.miners {
+		if miner.HasSlot(slot) {
+			id++
+			threshold := 1.0 / float64(id)
+			if rg.Float64() < threshold {
+				result = miner
+			}
+		}
+	}
+
+	return result, nil
 }
 
 func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.EmptyReply, error) {
@@ -543,6 +589,32 @@ func (h *Hub) SetMinerProperties(ctx context.Context, request *pb.SetMinerProper
 	miner.SetMinerProperties(MinerProperties(request.Properties))
 
 	return &pb.SetMinerPropertiesReply{}, nil
+}
+
+func (h *Hub) GetSlots(ctx context.Context, request *pb.GetSlotsRequest) (*pb.GetSlotsReply, error) {
+	return nil, ErrUnimplemented
+}
+
+func (h *Hub) AddSlot(ctx context.Context, request *pb.AddSlotRequest) (*pb.AddSlotReply, error) {
+	log.G(h.ctx).Info("handling AddSlot request", zap.Any("req", request))
+
+	slot := request.GetSlot()
+	if slot == nil {
+		return nil, ErrSlotRequired
+	}
+
+	miner, exists := h.getMinerByID(request.ID)
+	if !exists {
+		return nil, ErrMinerNotFound
+	}
+
+	miner.AddSlot(Slot(*request.GetSlot()))
+
+	return &pb.AddSlotReply{}, nil
+}
+
+func (h *Hub) RemoveSlot(ctx context.Context, request *pb.RemoveSlotRequest) (*pb.RemoveSlotReply, error) {
+	return nil, ErrUnimplemented
 }
 
 // New returns new Hub

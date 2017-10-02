@@ -36,6 +36,12 @@ It has these top-level messages:
 	GetMinerPropertiesReply
 	SetMinerPropertiesRequest
 	SetMinerPropertiesReply
+	GetSlotsRequest
+	GetSlotsReply
+	AddSlotRequest
+	AddSlotReply
+	RemoveSlotRequest
+	RemoveSlotReply
 	PingRequest
 	PingReply
 	CPUUsage

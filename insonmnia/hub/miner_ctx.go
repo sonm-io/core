@@ -19,6 +19,11 @@ import (
 )
 
 type MinerProperties map[string]string
+type Slot pb.Slot
+
+func (s *Slot) eq(o *Slot) bool {
+	return false
+}
 
 // MinerCtx holds all the data related to a connected Miner
 type MinerCtx struct {
@@ -45,6 +50,7 @@ type MinerCtx struct {
 
 	// TODO (3Hren): This is placed here temporarily, because of further scheduling, which currently does not exist.
 	minerProperties MinerProperties
+	slots           []*Slot
 }
 
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
@@ -100,6 +106,28 @@ func (m *MinerCtx) SetMinerProperties(properties MinerProperties) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.minerProperties = properties
+}
+
+func (m *MinerCtx) AddSlot(slot Slot) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	// TODO (3Hren): check dates are valid, check resources fit.
+
+	m.slots = append(m.slots, &slot)
+	return nil
+}
+
+func (m *MinerCtx) HasSlot(slot Slot) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, s := range m.slots {
+		if slot.eq(s) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (m *MinerCtx) handshake(h *Hub) error {

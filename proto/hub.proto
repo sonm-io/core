@@ -31,6 +31,18 @@ service Hub {
     // Ethereum mining etc.
     // Note, that this method overrides all previously specified properties.
     rpc SetMinerProperties(SetMinerPropertiesRequest) returns (SetMinerPropertiesReply) {}
+
+    // GetSlots allows to obtain previously assigned slots from for a given
+    // miner.
+    rpc GetSlots(GetSlotsRequest) returns (GetSlotsReply) {}
+
+    // AddSlot allows to assign a new slot for a given miner.
+    // This method can fail if either there are no resources left on a miner
+    // or it has been previourly assigned for specified time duration.
+    rpc AddSlot(AddSlotRequest) returns (AddSlotReply) {}
+
+    // RemoveSlot removes the speified slot if fully matches.
+    rpc RemoveSlot(RemoveSlotRequest) returns (RemoveSlotReply) {}
 }
 
 message ListRequest {
@@ -105,3 +117,26 @@ message SetMinerPropertiesRequest {
 }
 
 message SetMinerPropertiesReply {}
+
+message GetSlotsRequest {
+    // Miner ID.
+    string ID = 1;
+}
+
+message GetSlotsReply {
+    repeated Slot slot = 1;
+}
+
+message AddSlotRequest {
+    string ID = 1;
+    Slot slot = 2;
+}
+
+message AddSlotReply {}
+
+message RemoveSlotRequest {
+    string ID = 1;
+    Slot slot = 2;
+}
+
+message RemoveSlotReply {}
