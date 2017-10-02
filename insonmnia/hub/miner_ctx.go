@@ -22,6 +22,7 @@ type MinerProperties map[string]string
 type Slot pb.Slot
 
 func (s *Slot) eq(o *Slot) bool {
+	// TODO (3Hren): just a stub. Waiting for @sshaman1101, cause he's doing the same.
 	return false
 }
 
@@ -106,6 +107,13 @@ func (m *MinerCtx) SetMinerProperties(properties MinerProperties) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.minerProperties = properties
+}
+
+func (m *MinerCtx) GetSlots() []*Slot {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.slots
 }
 
 func (m *MinerCtx) AddSlot(slot Slot) error {

@@ -592,7 +592,20 @@ func (h *Hub) SetMinerProperties(ctx context.Context, request *pb.SetMinerProper
 }
 
 func (h *Hub) GetSlots(ctx context.Context, request *pb.GetSlotsRequest) (*pb.GetSlotsReply, error) {
-	return nil, ErrUnimplemented
+	log.G(h.ctx).Info("handling GetSlots request", zap.Any("req", request))
+
+	miner, exists := h.getMinerByID(request.ID)
+	if !exists {
+		return nil, ErrMinerNotFound
+	}
+
+	result := []*pb.Slot{}
+	for _, slot := range miner.GetSlots() {
+		s := pb.Slot(*slot)
+		result = append(result, &s)
+	}
+
+	return &pb.GetSlotsReply{Slot: result}, nil
 }
 
 func (h *Hub) AddSlot(ctx context.Context, request *pb.AddSlotRequest) (*pb.AddSlotReply, error) {
