@@ -521,23 +521,21 @@ func (h *Hub) ProposeDeal(ctx context.Context, request *pb.DealRequest) (*pb.Dea
 		return nil, ErrSlotRequired
 	}
 
-	miner, err := h.findRandomMinerBySlot(Slot(*slot))
+	s := Slot(*slot)
+
+	miner, err := h.findRandomMinerBySlot(&s)
 	if err != nil {
 		return nil, err
 	}
 
-	// Find a miner by its ask id == slot.
-	// Reserve its time. 5 cases:
-	//  - Not fit - err
-	//  - Fit completely - consume.
-	//  - Fit partially from begin - split, take first, republish second.
-	//  - Fit partially from end - split, take second, republish first.
-	//	- Fit partially in the middle - split, take mid, republish other.
-	// Split
-	return nil, ErrUnimplemented
+	if err := miner.ReserveSlot(&s); err != nil {
+		return nil, err
+	}
+
+	return &pb.DealReply{}, nil
 }
 
-func (h *Hub) findRandomMinerBySlot(slot Slot) (*MinerCtx, error) {
+func (h *Hub) findRandomMinerBySlot(slot *Slot) (*MinerCtx, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -621,7 +619,8 @@ func (h *Hub) AddSlot(ctx context.Context, request *pb.AddSlotRequest) (*pb.AddS
 		return nil, ErrMinerNotFound
 	}
 
-	miner.AddSlot(Slot(*request.GetSlot()))
+	s := Slot(*slot)
+	miner.AddSlot(&s)
 
 	return &pb.AddSlotReply{}, nil
 }

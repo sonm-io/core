@@ -116,16 +116,27 @@ func (m *MinerCtx) GetSlots() []*Slot {
 	return m.slots
 }
 
-func (m *MinerCtx) AddSlot(slot Slot) error {
+func (m *MinerCtx) AddSlot(slot *Slot) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	// TODO (3Hren): check dates are valid, check resources fit.
 
-	m.slots = append(m.slots, &slot)
+	m.slots = append(m.slots, slot)
 	return nil
 }
 
-func (m *MinerCtx) HasSlot(slot Slot) bool {
+func (m *MinerCtx) ReserveSlot(slot *Slot) error {
+	// Reserve its time. 5 cases:
+	//  - Not fit - err
+	//  - Fit completely - consume.
+	//  - Fit partially from begin - split, take first, republish second.
+	//  - Fit partially from end - split, take second, republish first.
+	//	- Fit partially in the middle - split, take mid, republish other.
+	// Split
+	return nil
+}
+
+func (m *MinerCtx) HasSlot(slot *Slot) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
