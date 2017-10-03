@@ -13,10 +13,7 @@ BOOTNODE=sonmbootnode
 MINER=sonmminer
 HUB=sonmhub
 CLI=sonmcli
-
-DOCKER_IMAGE_HUB="sonm/hub:latest"
-DOCKER_IMAGE_MINER="sonm/miner:latest"
-DOCKER_IMAGE_BOOTNODE="sonm/bootnode:latest"
+MARKET=sonmmarketplace
 
 TAGS=nocgo
 
@@ -41,6 +38,10 @@ build/hub:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${HUB} ${GOCMD}/hub
 
+build/marketplace:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${MARKET} ${GOCMD}/marketplace
+
 build/cli:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
@@ -55,7 +56,7 @@ build/blockchain:
 
 build/insomnia: build/hub build/miner build/cli
 
-build: build/blockchain build/bootnode build/insomnia
+build: build/blockchain build/bootnode build/insomnia build/marketplace
 
 install/bootnode: build/bootnode
 	@echo "+ $@"
