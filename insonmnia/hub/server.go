@@ -32,17 +32,17 @@ import (
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"reflect"
 )
 
 var (
 	ErrBidRequired      = status.Errorf(codes.InvalidArgument, "bid field is required")
 	ErrInvalidOrderType = status.Errorf(codes.InvalidArgument, "invalid order type")
+	ErrLeaderStepDown   = status.Errorf(codes.Unavailable, "leader stepped down")
 )
 
 const tasksPrefix = "sonm/hub/tasks"
 const leaderKey = "sonm/hub/leader"
-
-var LeaderStepDown = errors.New("leader stepped down")
 
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
@@ -273,17 +273,37 @@ func (h *Hub) applyFilters(miner *MinerCtx, req *pb.TaskRequirements) (bool, err
 	return true, nil
 }
 
+func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}) (bool, interface{}, error) {
+	if h.isLeader {
+		log.G(h.ctx).Info("isLeader is true")
+		return false, nil, nil
+	}
+	log.G(h.ctx).Info("forwarding to leader")
+	h.leaderClientLock.Lock()
+	cli := h.leaderClient
+	h.leaderClientLock.Unlock()
+	if cli != nil {
+		t := reflect.ValueOf(h.leaderClient)
+		for i := 0; i < t.NumMethod(); i++ {
+			if t.Method(i).Type().In(1) == reflect.TypeOf(request) {
+				inValues := make([]reflect.Value, 0, 2)
+				inValues = append(inValues, reflect.ValueOf(ctx), reflect.ValueOf(request))
+				values := t.Method(i).Call(inValues)
+				log.G(h.ctx).Info("forwarded request to leader", zap.String("method", reflect.TypeOf(h.leaderClient).Method(i).Name))
+				return true, values[0].Interface(), values[1].Interface().(error)
+			}
+		}
+		panic("delegate method not found")
+	} else {
+		return true, nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
+	}
+}
+
 // StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
-	if !h.isLeader {
-		h.leaderClientLock.Lock()
-		cli := h.leaderClient
-		h.leaderClientLock.Unlock()
-		if cli != nil {
-			return h.leaderClient.StartTask(ctx, request)
-		} else {
-			return nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
-		}
+	forwarded, r, err := h.tryForwardToLeader(ctx, request)
+	if forwarded {
+		return r.(*pb.HubStartTaskReply), err
 	}
 
 	log.G(h.ctx).Info("handling StartTask request", zap.Any("req", request))
@@ -388,15 +408,9 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 // StopTask sends termination request to a miner handling the task
 func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
 	log.G(h.ctx).Info("handling StopTask request", zap.Any("req", request))
-	if !h.isLeader {
-		h.leaderClientLock.Lock()
-		cli := h.leaderClient
-		h.leaderClientLock.Unlock()
-		if cli != nil {
-			return h.leaderClient.StopTask(ctx, request)
-		} else {
-			return nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
-		}
+	forwarded, r, err := h.tryForwardToLeader(ctx, request)
+	if forwarded {
+		return r.(*pb.StopTaskReply), err
 	}
 
 	taskID := request.Id
@@ -643,7 +657,7 @@ func (h *Hub) determineLocalEndpoint() (string, error) {
 					ip = v.IP
 				}
 				if ip != nil && ip.IsGlobalUnicast() {
-					ep := ip.String() + h.endpoint
+					ep := ip.String() + h.grpcEndpoint
 					return ep, nil
 				}
 			}

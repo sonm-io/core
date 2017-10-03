@@ -8,7 +8,6 @@ import (
 	flag "github.com/ogier/pflag"
 	"golang.org/x/net/context"
 
-	"github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 
 	"github.com/sonm-io/core/common"
@@ -38,16 +37,16 @@ func main() {
 
 	cfg, err := miner.NewConfig(*configPath)
 	if err != nil {
-		ctxlog.GetLogger(ctx).Error("Cannot load config", zap.Error(err))
+		log.G(ctx).Error("Cannot load config", zap.Error(err))
 		os.Exit(1)
 	}
 
 	if _, err := os.Stat(cfg.UUIDPath()); os.IsNotExist(err) {
-		ioutil.WriteFile(cfg.UUIDPath(), []byte(uuid.New()), 0777)
+		ioutil.WriteFile(cfg.UUIDPath(), []byte(uuid.New()), 0660)
 	}
 	uuidData, err := ioutil.ReadFile(cfg.UUIDPath())
 	if err != nil {
-		ctxlog.GetLogger(ctx).Error("Cannot load uuid", zap.Error(err))
+		log.G(ctx).Error("Cannot load uuid", zap.Error(err))
 		os.Exit(1)
 	}
 	uuid := string(uuidData)
@@ -60,7 +59,7 @@ func main() {
 	builder.UUID(uuid)
 	m, err := builder.Build()
 	if err != nil {
-		ctxlog.GetLogger(ctx).Fatal("failed to create a new Miner", zap.Error(err))
+		log.G(ctx).Fatal("failed to create a new Miner", zap.Error(err))
 	}
 	go func() {
 		c := make(chan os.Signal, 1)
@@ -71,6 +70,6 @@ func main() {
 
 	// TODO: check error type
 	if err = m.Serve(); err != nil {
-		ctxlog.GetLogger(ctx).Error("Server stop", zap.Error(err))
+		log.G(ctx).Error("Server stop", zap.Error(err))
 	}
 }
