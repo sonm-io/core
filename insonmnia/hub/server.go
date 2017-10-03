@@ -32,6 +32,11 @@ import (
 	"github.com/sonm-io/core/util"
 )
 
+var (
+	ErrBidRequired      = status.Errorf(codes.InvalidArgument, "bid field is required")
+	ErrInvalidOrderType = status.Errorf(codes.InvalidArgument, "invalid order type")
+)
+
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
@@ -400,6 +405,19 @@ func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer
 		}
 		server.Send(chunk)
 	}
+}
+
+func (h *Hub) ProposeDeal(ctx context.Context, request *pb.DealRequest) (*pb.DealReply, error) {
+	log.G(h.ctx).Info("handling ProposeDeal request", zap.Any("req", request))
+
+	order := request.GetOrder()
+	if order == nil {
+		return nil, ErrBidRequired
+	}
+	if order.OrderType != pb.OrderType_BID {
+		return nil, ErrInvalidOrderType
+	}
+	return nil, status.Errorf(codes.Unimplemented, "not implemented yet")
 }
 
 // New returns new Hub

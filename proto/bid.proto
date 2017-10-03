@@ -1,0 +1,74 @@
+syntax = "proto3";
+
+import "insonmnia.proto";
+
+package sonm;
+
+enum OrderType {
+    BID = 0;
+    ASK = 1;
+}
+
+enum NetworkType {
+    NO_NETWORK = 0;
+    OUTBOUND = 1;
+    INCOMING = 2;
+}
+
+// Geo represent GeoIP results for node
+message Geo {
+    string country = 1;
+    string city = 2;
+    float lat = 3;
+    float lon = 4;
+}
+
+message Resources {
+    // CPU core count
+    uint64 cpuCores = 1;
+    // RAM, in bytes
+    uint64 ramBytes = 2;
+    // GPU devices count
+    uint64 gpuCount = 3;
+    // todo: discuss
+    // storage volume, in Megabytes
+    uint64 storage = 4;
+    // Inbound network traffic (the higher value), in bytes
+    uint64 netTrafficIn = 5;
+    // Outbound network traffic (the higher value), in bytes
+    uint64 netTrafficOut = 6;
+    // Allowed network connections
+    NetworkType networkType = 7;
+    // Other properties/benchmarks. The higher means better
+    map<string, string> props = 8;
+}
+
+message Slot {
+    // Virtual computer start of life (hour grained).
+    Timestamp startTime = 1;
+    // Virtual computer end of life (hour grained).
+    Timestamp endTime = 2;
+    // Buyer’s rating. Got from Buyer’s profile for BID orders rating_supplier.
+    int64 buyerRating = 3;
+    // Supplier’s rating. Got from Supplier’s profile for ASK orders.
+    int64 supplierRating = 4;
+    // Geo represent Worker's position
+    Geo geo = 5;
+    // Hardware resources requirements
+    Resources resources = 6;
+}
+
+message Order {
+    // Order ID, UUIDv4
+    string id = 1;
+    // Buyer's EtherumID
+    string byuerID = 2;
+    // Supplier's is EtherumID
+    string supplierID = 3;
+    // Order price
+    int64 price = 4;
+    // Order type (Bid or Ask)
+    OrderType orderType = 5;
+    // Slot describe resource requiements
+    Slot slot = 6;
+}

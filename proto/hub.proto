@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "bid.proto";
 import "insonmnia.proto";
 
 package sonm;
@@ -16,6 +17,8 @@ service Hub {
     rpc TaskStatus(TaskStatusRequest) returns (TaskStatusReply) {}
     rpc MinerStatus(HubStatusMapRequest) returns (StatusMapReply) {}
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
+
+    rpc ProposeDeal(DealRequest) returns (DealReply) {}
 }
 
 message ListRequest {
@@ -67,4 +70,11 @@ message HubStatusReply {
     string version = 3;
     string platform = 4;
     string ethAddr = 5;
+}
+
+message DealRequest {
+    Order order = 1;
+}
+
+message DealReply {
 }

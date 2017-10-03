@@ -2,8 +2,10 @@
 
 package gpu
 
-import "github.com/pkg/errors"
+import "errors"
 
-func GetGPUDevicesUsingOpenCL() ([]*Device, error) {
-	return nil, errors.Errorf("the platform is not currently supported to expose GPU devices")
+var ErrUnsupportedPlatform = errors.New("the platform is not currently supported to expose GPU devices")
+
+func GetGPUDevicesUsingOpenCL() ([]Device, error) {
+	return nil, ErrUnsupportedPlatform
 }

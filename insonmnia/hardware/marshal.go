@@ -79,20 +79,14 @@ func MemoryFromProto(m *pb.RAMDevice) (*mem.VirtualMemoryStat, error) {
 	}, nil
 }
 
-func GPUIntoProto(g []*gpu.Device) []*pb.GPUDevice {
+func GPUIntoProto(g []gpu.Device) []*pb.GPUDevice {
 	result := make([]*pb.GPUDevice, 0)
 
 	for _, i := range g {
-		ext := make(map[string]string)
-		ext["flags"] = strings.Join(i.Flags, ",")
-		ext["max_clock_frequency"] = strconv.Itoa(int(i.MaxClockFrequency))
-		ext["address_bits"] = strconv.Itoa(int(i.AddressBits))
-		ext["cache_line_size"] = strconv.Itoa(int(i.CacheLineSize))
-
 		device := &pb.GPUDevice{
-			Name:   i.Name,
-			Vendor: i.Vendor,
-			Ext:    ext,
+			Name:          i.Name(),
+			VendorName:    i.VendorName(),
+			MaxMemorySize: i.MaxMemorySize(),
 		}
 
 		result = append(result, device)
@@ -101,34 +95,11 @@ func GPUIntoProto(g []*gpu.Device) []*pb.GPUDevice {
 	return result
 }
 
-func GPUFromProto(g []*pb.GPUDevice) ([]*gpu.Device, error) {
-	result := make([]*gpu.Device, 0)
+func GPUFromProto(g []*pb.GPUDevice) ([]gpu.Device, error) {
+	result := []gpu.Device{}
 
 	for _, i := range g {
-		mhz, err := strconv.Atoi(i.Ext["max_clock_frequency"])
-		if err != nil {
-			mhz = 0
-		}
-
-		addressBits, err := strconv.Atoi(i.Ext["address_bits"])
-		if err != nil {
-			addressBits = 0.0
-		}
-
-		cacheSize, err := strconv.Atoi(i.Ext["cache_line_size"])
-		if err != nil {
-			cacheSize = 0
-		}
-
-		device := &gpu.Device{
-			Name:              i.GetName(),
-			Vendor:            i.GetVendor(),
-			Flags:             strings.Split(i.Ext["flags"], " "),
-			MaxClockFrequency: mhz,
-			AddressBits:       addressBits,
-			CacheLineSize:     cacheSize,
-		}
-
+		device := gpu.NewDevice(i.GetName(), i.GetVendorName(), i.GetMaxMemorySize())
 		result = append(result, device)
 	}
 
