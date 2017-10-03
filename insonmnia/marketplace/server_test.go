@@ -4,48 +4,104 @@ import (
 	"testing"
 	"time"
 
+	"fmt"
+
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 )
 
+func makeOrder() *pb.Order {
+	return &pb.Order{
+		Price: 1,
+		Slot: &pb.Slot{
+			StartTime: &pb.Timestamp{Seconds: 1},
+			EndTime:   &pb.Timestamp{Seconds: 2},
+			Resources: &pb.Resources{},
+		},
+	}
+}
+
 func TestInMemOrderStorage_CreateOrder(t *testing.T) {
 	s := NewInMemoryStorage()
-	order := &pb.Order{Price: 1, Slot: &pb.Slot{Resources: &pb.Resources{}}}
+	order := makeOrder()
 	order, err := s.CreateOrder(order)
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, order.Id, "order must have id after creation")
 }
 
-func TestInMemOrderStorage_CreateOrder_NoPrice(t *testing.T) {
-	s := NewInMemoryStorage()
-	order := &pb.Order{Slot: &pb.Slot{Resources: &pb.Resources{}}}
-	order, err := s.CreateOrder(order)
+func TestNewInMemoryStorage_CreateOrder_Errors(t *testing.T) {
+	cases := []struct {
+		fn  func() *pb.Order
+		err error
+	}{
+		{
+			fn: func() *pb.Order {
+				order := makeOrder()
+				order.Price = 0
+				return order
+			},
+			err: errPriceIsZero,
+		},
+		{
+			fn: func() *pb.Order {
+				order := makeOrder()
+				order.Slot.StartTime = nil
+				return order
+			},
+			err: errStartTimeRequired,
+		},
+		{
+			fn: func() *pb.Order {
+				order := makeOrder()
+				order.Slot.EndTime = nil
+				return order
+			},
+			err: errEndTimeRequired,
+		},
+		{
+			fn: func() *pb.Order {
+				order := makeOrder()
+				order.Slot.EndTime = &pb.Timestamp{Seconds: 1}
+				order.Slot.StartTime = &pb.Timestamp{Seconds: 2}
+				return order
+			},
+			err: errStartTimeAfterEnd,
+		},
+		{
+			fn: func() *pb.Order {
+				order := makeOrder()
+				order.Slot = nil
+				return order
+			},
+			err: errSlotIsNil,
+		},
+		{
+			fn: func() *pb.Order {
+				order := makeOrder()
+				order.Slot.Resources = nil
+				return order
+			},
+			err: errResourcesIsNil,
+		},
+		{
+			fn: func() *pb.Order {
+				return nil
+			},
+			err: errOrderIsNil,
+		},
+	}
 
-	assert.EqualError(t, err, errPriceIsZero.Error())
-}
-
-func TestInMemOrderStorage_CreateOrder_Nil(t *testing.T) {
 	s := NewInMemoryStorage()
-	_, err := s.CreateOrder(nil)
-	assert.EqualError(t, err, errOrderIsNil.Error())
-}
-
-func TestInMemOrderStorage_CreateOrder_NilSlot(t *testing.T) {
-	s := NewInMemoryStorage()
-	_, err := s.CreateOrder(&pb.Order{Price: 1})
-	assert.EqualError(t, err, errSlotIsNil.Error())
-}
-
-func TestInMemOrderStorage_CreateOrder_NilResources(t *testing.T) {
-	s := NewInMemoryStorage()
-	_, err := s.CreateOrder(&pb.Order{Slot: &pb.Slot{}})
-	assert.EqualError(t, err, errResourcesIsNil.Error())
+	for i, cc := range cases {
+		_, err := s.CreateOrder(cc.fn())
+		assert.EqualError(t, err, cc.err.Error(), fmt.Sprintf("%d", i))
+	}
 }
 
 func TestInMemOrderStorage_DeleteOrder(t *testing.T) {
 	s := NewInMemoryStorage()
-	order := &pb.Order{Price: 1, Slot: &pb.Slot{Resources: &pb.Resources{}}}
+	order := makeOrder()
 	order, err := s.CreateOrder(order)
 	assert.NoError(t, err)
 
@@ -61,7 +117,7 @@ func TestInMemOrderStorage_DeleteOrder_NotExists(t *testing.T) {
 
 func TestInMemOrderStorage_GetOrderByID(t *testing.T) {
 	s := NewInMemoryStorage()
-	order, err := s.CreateOrder(&pb.Order{Price: 1, Slot: &pb.Slot{Resources: &pb.Resources{}}})
+	order, err := s.CreateOrder(makeOrder())
 	assert.NoError(t, err)
 	assert.NotEmpty(t, order.Id)
 
@@ -94,541 +150,415 @@ func TestNewInMemoryStorage_GetOrders_compareTime(t *testing.T) {
 	start := time.Now()
 	end := start.Add(time.Hour)
 
-	slot := &pb.Slot{
-		StartTime: &pb.Timestamp{Seconds: start.Unix()},
-		EndTime:   &pb.Timestamp{Seconds: end.Unix()},
-	}
+	cases := []struct {
+		slotStartTime int64
+		slotEndTime   int64
+		ordStartTime  int64
+		ordEndTime    int64
+		isMatch       bool
+		message       string
+	}{
+		{
+			slotStartTime: start.Unix(),
+			slotEndTime:   end.Unix(),
 
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			StartTime: &pb.Timestamp{Seconds: start.Add(-1 * time.Hour).Unix()},
-			EndTime:   &pb.Timestamp{Seconds: end.Add(time.Hour).Unix()},
+			ordStartTime: start.Add(-1 * time.Hour).Unix(),
+			ordEndTime:   end.Add(time.Hour).Unix(),
+
+			isMatch: true,
+			message: "Both time is match",
+		},
+		{
+			slotStartTime: start.Unix(),
+			slotEndTime:   end.Unix(),
+
+			ordStartTime: start.Add(10 * time.Minute).Unix(),
+			ordEndTime:   end.Add(-10 * time.Minute).Unix(),
+
+			isMatch: false,
+			message: "Both StartTime and EndTime is not match",
+		},
+		{
+			slotStartTime: start.Unix(),
+			slotEndTime:   end.Unix(),
+
+			ordStartTime: start.Add(-10 * time.Minute).Unix(),
+			ordEndTime:   end.Add(-10 * time.Minute).Unix(),
+
+			isMatch: false,
+			message: "StartTime is not match",
+		},
+		{
+			slotStartTime: start.Unix(),
+			slotEndTime:   end.Unix(),
+
+			ordStartTime: start.Add(10 * time.Minute).Unix(),
+			ordEndTime:   end.Add(10 * time.Minute).Unix(),
+
+			isMatch: false,
+			message: "End time is not match",
 		},
 	}
 
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareTime(slot, order)
-	assert.True(t, ok, "Both tome is match")
-}
+	for i, cc := range cases {
+		s1 := &Slot{
+			StartTime: &pb.Timestamp{Seconds: cc.slotStartTime},
+			EndTime:   &pb.Timestamp{Seconds: cc.slotEndTime},
+		}
+		s2 := &Slot{
+			StartTime: &pb.Timestamp{Seconds: cc.ordStartTime},
+			EndTime:   &pb.Timestamp{Seconds: cc.ordEndTime},
+		}
 
-func TestNewInMemoryStorage_GetOrders_compareTime2(t *testing.T) {
-	start := time.Now()
-	end := start.Add(time.Hour)
-
-	slot := &pb.Slot{
-		StartTime: &pb.Timestamp{Seconds: start.Unix()},
-		EndTime:   &pb.Timestamp{Seconds: end.Unix()},
+		ok := s1.compareTime(s2)
+		assert.Equal(t, cc.isMatch, ok, fmt.Sprintf("%d :: %s", i, cc.message))
 	}
-
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			StartTime: &pb.Timestamp{Seconds: start.Add(10 * time.Minute).Unix()},
-			EndTime:   &pb.Timestamp{Seconds: end.Add(-10 * time.Minute).Unix()},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareTime(slot, order)
-	assert.False(t, ok, "Both StartTime and EndTime is not match")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareTime3(t *testing.T) {
-	start := time.Now()
-	end := start.Add(time.Hour)
-
-	slot := &pb.Slot{
-		StartTime: &pb.Timestamp{Seconds: start.Unix()},
-		EndTime:   &pb.Timestamp{Seconds: end.Unix()},
-	}
-
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			StartTime: &pb.Timestamp{Seconds: start.Add(-10 * time.Minute).Unix()},
-			EndTime:   &pb.Timestamp{Seconds: end.Add(-10 * time.Minute).Unix()},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareTime(slot, order)
-	assert.False(t, ok, "StartTime is not match")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareTime4(t *testing.T) {
-
-	start := time.Now()
-	end := start.Add(time.Hour)
-
-	slot := &pb.Slot{
-		StartTime: &pb.Timestamp{Seconds: start.Unix()},
-		EndTime:   &pb.Timestamp{Seconds: end.Unix()},
-	}
-
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			StartTime: &pb.Timestamp{Seconds: start.Add(10 * time.Minute).Unix()},
-			EndTime:   &pb.Timestamp{Seconds: end.Add(10 * time.Minute).Unix()},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareTime(slot, order)
-	assert.False(t, ok, "EndTime is not match")
 }
 
 func TestNewInMemoryStorage_GetOrders_compareSupRating(t *testing.T) {
-	slot := &pb.Slot{
-		SupplierRating: 1,
-	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			SupplierRating: 1,
+	cases := []struct {
+		r1        int64
+		r2        int64
+		mustMatch bool
+		message   string
+	}{
+		{
+			r1:        1,
+			r2:        1,
+			mustMatch: true,
+		},
+		{
+			r1:        1,
+			r2:        2,
+			mustMatch: true,
+		},
+		{
+			r1:        2,
+			r2:        1,
+			mustMatch: false,
 		},
 	}
 
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareSupplierRating(slot, order)
-	assert.True(t, ok, "Required rating is match order rating (eq)")
+	for i, cc := range cases {
+		s1 := &Slot{
+			SupplierRating: cc.r1,
+		}
+		s2 := &Slot{
+			SupplierRating: cc.r2,
+		}
+
+		isMatch := s1.compareSupplierRating(s2)
+		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
+	}
 }
 
-func TestNewInMemoryStorage_GetOrders_compareSupRating2(t *testing.T) {
-	slot := &pb.Slot{
-		SupplierRating: 1,
-	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			SupplierRating: 2,
+func TestNewInMemoryStorage_GetOrders_compareCpuCores(t *testing.T) {
+	cases := []struct {
+		c1        uint64
+		c2        uint64
+		mustMatch bool
+	}{
+		{
+			c1:        1,
+			c2:        1,
+			mustMatch: true,
+		},
+		{
+			c1:        1,
+			c2:        2,
+			mustMatch: true,
+		},
+		{
+			c1:        2,
+			c2:        1,
+			mustMatch: false,
 		},
 	}
 
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareSupplierRating(slot, order)
-	assert.True(t, ok, "Required rating is match order rating (gt)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareSupRating3(t *testing.T) {
-	slot := &pb.Slot{
-		SupplierRating: 2,
-	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			SupplierRating: 1,
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareSupplierRating(slot, order)
-	assert.False(t, ok, "Required rating is NOT match order rating (less)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareCpuCoures(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			CpuCores: 1,
-		},
-	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
+	for i, cc := range cases {
+		s1 := &Slot{
 			Resources: &pb.Resources{
-				CpuCores: 1,
+				CpuCores: cc.c1,
 			},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareCpuCores(slot, order)
-	assert.True(t, ok, "Required cpuCores is match order cpuCores (eq)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareCpuCoures2(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			CpuCores: 1,
-		},
-	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
+		}
+		s2 := &Slot{
 			Resources: &pb.Resources{
-				CpuCores: 2,
+				CpuCores: cc.c2,
 			},
-		},
-	}
+		}
 
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareCpuCores(slot, order)
-	assert.True(t, ok, "Required cpuCores is match order cpuCores (gt)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareCpuCoures3(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			CpuCores: 4,
-		},
+		isMatch := s1.compareCpuCores(s2)
+		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{
-				CpuCores: 2,
-			},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareCpuCores(slot, order)
-	assert.False(t, ok, "Required cpuCores is NOT match order cpuCores (less)")
 }
 
 func TestNewInMemoryStorage_GetOrders_compareRamBytes(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			RamBytes: 1,
+	cases := []struct {
+		ram1      uint64
+		ram2      uint64
+		mustMatch bool
+	}{
+		{
+			ram1:      1,
+			ram2:      1,
+			mustMatch: true,
+		},
+		{
+			ram1:      1,
+			ram2:      2,
+			mustMatch: true,
+		},
+		{
+			ram1:      2,
+			ram2:      1,
+			mustMatch: false,
 		},
 	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
+
+	for i, cc := range cases {
+		s1 := &Slot{
 			Resources: &pb.Resources{
-				RamBytes: 2,
+				RamBytes: cc.ram1,
 			},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareRamBytes(slot, order)
-	assert.True(t, ok, "Required ramBytes is match order ramBytes (gt)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareRamBytes2(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			RamBytes: 1,
-		},
-	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
+		}
+		s2 := &Slot{
 			Resources: &pb.Resources{
-				RamBytes: 1,
+				RamBytes: cc.ram2,
 			},
-		},
-	}
+		}
 
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareRamBytes(slot, order)
-	assert.True(t, ok, "Required ramBytes is match order ramBytes (eq)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareRamBytes3(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			RamBytes: 2,
-		},
+		isMatch := s1.compareRamBytes(s2)
+		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{
-				RamBytes: 1,
-			},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareRamBytes(slot, order)
-	assert.False(t, ok, "Required ramBytes is NOT match order ramBytes (less)")
 }
 
 func TestNewInMemoryStorage_GetOrders_compareGpuCount(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			GpuCount: 1,
+	cases := []struct {
+		gpu1      uint64
+		gpu2      uint64
+		mustMatch bool
+	}{
+		{
+			gpu1:      1,
+			gpu2:      1,
+			mustMatch: true,
+		},
+		{
+			gpu1:      1,
+			gpu2:      2,
+			mustMatch: true,
+		},
+		{
+			gpu1:      2,
+			gpu2:      1,
+			mustMatch: false,
 		},
 	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
+
+	for i, cc := range cases {
+		s1 := &Slot{
 			Resources: &pb.Resources{
-				GpuCount: 1,
+				GpuCount: cc.gpu1,
 			},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareGpuCount(slot, order)
-	assert.True(t, ok, "Required gpuCount is match order gpuCount (eq)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareGpuCount2(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			GpuCount: 1,
-		},
-	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
+		}
+		s2 := &Slot{
 			Resources: &pb.Resources{
-				GpuCount: 2,
+				GpuCount: cc.gpu2,
 			},
-		},
-	}
+		}
 
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareGpuCount(slot, order)
-	assert.True(t, ok, "Required gpuCount is match order gpuCount (gt)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareGpuCount3(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			GpuCount: 2,
-		},
+		isMatch := s1.compareGpuCount(s2)
+		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{
-				GpuCount: 1,
-			},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareGpuCount(slot, order)
-	assert.False(t, ok, "Required gpuCount is NOT match order gpuCount (less)")
 }
 
 func TestNewInMemoryStorage_GetOrders_compareStorage(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			Storage: 1,
+	cases := []struct {
+		stor1     uint64
+		stor2     uint64
+		mustMatch bool
+	}{
+		{
+			stor1:     1,
+			stor2:     1,
+			mustMatch: true,
+		},
+		{
+			stor1:     1,
+			stor2:     2,
+			mustMatch: true,
+		},
+		{
+			stor1:     2,
+			stor2:     1,
+			mustMatch: false,
 		},
 	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
+
+	for i, cc := range cases {
+		s1 := &Slot{
 			Resources: &pb.Resources{
-				Storage: 1,
+				Storage: cc.stor1,
 			},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareStorage(slot, order)
-	assert.True(t, ok, "Required storage is match order storage (eq)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareStorage2(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			Storage: 1,
-		},
-	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
+		}
+		s2 := &Slot{
 			Resources: &pb.Resources{
-				Storage: 2,
+				Storage: cc.stor2,
 			},
-		},
-	}
+		}
 
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareStorage(slot, order)
-	assert.True(t, ok, "Required storage is match order storage (gt)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareStorage3(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			Storage: 2,
-		},
+		isMatch := s1.compareStorage(s2)
+		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{
-				Storage: 1,
-			},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareStorage(slot, order)
-	assert.False(t, ok, "Required storage is NOT match order storage (less)")
 }
 
 func TestNewInMemoryStorage_GetOrders_compareNetTrafficIn(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			NetTrafficIn: 1,
+	cases := []struct {
+		t1        uint64
+		t2        uint64
+		mustMatch bool
+	}{
+		{
+			t1:        1,
+			t2:        1,
+			mustMatch: true,
+		},
+		{
+			t1:        1,
+			t2:        2,
+			mustMatch: true,
+		},
+		{
+			t1:        2,
+			t2:        1,
+			mustMatch: false,
 		},
 	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
+
+	for i, cc := range cases {
+		s1 := &Slot{
 			Resources: &pb.Resources{
-				NetTrafficIn: 1,
+				NetTrafficIn: cc.t1,
 			},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareNetTrafficIn(slot, order)
-	assert.True(t, ok, "Required NetTrafficIn is match order NetTrafficIn (eq)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareNetTrafficIn2(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			NetTrafficIn: 1,
-		},
-	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
+		}
+		s2 := &Slot{
 			Resources: &pb.Resources{
-				NetTrafficIn: 2,
+				NetTrafficIn: cc.t2,
 			},
-		},
-	}
+		}
 
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareNetTrafficIn(slot, order)
-	assert.True(t, ok, "Required NetTrafficIn is match order NetTrafficIn (gt)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareNetTrafficIn3(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			NetTrafficIn: 2,
-		},
+		isMatch := s1.compareNetTrafficIn(s2)
+		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{
-				NetTrafficIn: 1,
-			},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareNetTrafficIn(slot, order)
-	assert.False(t, ok, "Required NetTrafficIn is NOT match order NetTrafficIn (less)")
 }
 
 func TestNewInMemoryStorage_GetOrders_compareNetTrafficOut(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			NetTrafficOut: 1,
+	cases := []struct {
+		t1        uint64
+		t2        uint64
+		mustMatch bool
+	}{
+		{
+			t1:        1,
+			t2:        1,
+			mustMatch: true,
+		},
+		{
+			t1:        1,
+			t2:        2,
+			mustMatch: true,
+		},
+		{
+			t1:        2,
+			t2:        1,
+			mustMatch: false,
 		},
 	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
+
+	for i, cc := range cases {
+		s1 := &Slot{
 			Resources: &pb.Resources{
-				NetTrafficOut: 1,
+				NetTrafficOut: cc.t1,
 			},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareNetTrafficOut(slot, order)
-	assert.True(t, ok, "Required NetTrafficOut is match order NetTrafficOut (eq)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareNetTrafficOut2(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			NetTrafficOut: 1,
-		},
-	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
+		}
+		s2 := &Slot{
 			Resources: &pb.Resources{
-				NetTrafficOut: 2,
+				NetTrafficOut: cc.t2,
 			},
-		},
-	}
+		}
 
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareNetTrafficOut(slot, order)
-	assert.True(t, ok, "Required NetTrafficOut is match order NetTrafficOut (gt)")
-}
-
-func TestNewInMemoryStorage_GetOrders_compareNetTrafficOut3(t *testing.T) {
-	slot := &pb.Slot{
-		Resources: &pb.Resources{
-			NetTrafficOut: 2,
-		},
+		isMatch := s1.compareNetTrafficOut(s2)
+		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
-	order := &pb.Order{
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{
-				NetTrafficOut: 1,
-			},
-		},
-	}
-
-	s := NewInMemoryStorage().(*inMemOrderStorage)
-	ok := s.compareNetTrafficOut(slot, order)
-	assert.False(t, ok, "Required NetTrafficOut is NOT match order NetTrafficOut (less)")
 }
 
 func TestNewInMemoryStorage_GetOrders_compareNetTrafficType(t *testing.T) {
 	cases := []struct {
-		slot    pb.NetworkType
-		order   pb.NetworkType
-		isMatch bool
+		n1        pb.NetworkType
+		n2        pb.NetworkType
+		mustMatch bool
 	}{
 		{
-			slot:    pb.NetworkType_NO_NETWORK,
-			order:   pb.NetworkType_NO_NETWORK,
-			isMatch: true,
+			n1:        pb.NetworkType_NO_NETWORK,
+			n2:        pb.NetworkType_NO_NETWORK,
+			mustMatch: true,
 		},
 
 		{
-			slot:    pb.NetworkType_NO_NETWORK,
-			order:   pb.NetworkType_OUTBOUND,
-			isMatch: true,
+			n1:        pb.NetworkType_NO_NETWORK,
+			n2:        pb.NetworkType_OUTBOUND,
+			mustMatch: true,
 		},
 		{
-			slot:    pb.NetworkType_NO_NETWORK,
-			order:   pb.NetworkType_INCOMING,
-			isMatch: true,
+			n1:        pb.NetworkType_NO_NETWORK,
+			n2:        pb.NetworkType_INCOMING,
+			mustMatch: true,
 		},
 		{
-			slot:    pb.NetworkType_OUTBOUND,
-			order:   pb.NetworkType_NO_NETWORK,
-			isMatch: false,
+			n1:        pb.NetworkType_OUTBOUND,
+			n2:        pb.NetworkType_NO_NETWORK,
+			mustMatch: false,
 		},
 		{
-			slot:    pb.NetworkType_OUTBOUND,
-			order:   pb.NetworkType_OUTBOUND,
-			isMatch: true,
+			n1:        pb.NetworkType_OUTBOUND,
+			n2:        pb.NetworkType_OUTBOUND,
+			mustMatch: true,
 		},
 		{
-			slot:    pb.NetworkType_OUTBOUND,
-			order:   pb.NetworkType_INCOMING,
-			isMatch: true,
+			n1:        pb.NetworkType_OUTBOUND,
+			n2:        pb.NetworkType_INCOMING,
+			mustMatch: true,
 		},
 		{
-			slot:    pb.NetworkType_INCOMING,
-			order:   pb.NetworkType_NO_NETWORK,
-			isMatch: false,
+			n1:        pb.NetworkType_INCOMING,
+			n2:        pb.NetworkType_NO_NETWORK,
+			mustMatch: false,
 		},
 		{
-			slot:    pb.NetworkType_INCOMING,
-			order:   pb.NetworkType_OUTBOUND,
-			isMatch: false,
+			n1:        pb.NetworkType_INCOMING,
+			n2:        pb.NetworkType_OUTBOUND,
+			mustMatch: false,
 		},
 		{
-			slot:    pb.NetworkType_INCOMING,
-			order:   pb.NetworkType_INCOMING,
-			isMatch: true,
+			n1:        pb.NetworkType_INCOMING,
+			n2:        pb.NetworkType_INCOMING,
+			mustMatch: true,
 		},
 	}
-	s := NewInMemoryStorage().(*inMemOrderStorage)
 
-	for _, cc := range cases {
-		ok := s.compareNetType(&pb.Slot{
+	for i, cc := range cases {
+		s1 := &Slot{
 			Resources: &pb.Resources{
-				NetworkType: cc.slot,
+				NetworkType: cc.n1,
 			},
-		}, &pb.Order{
-			Slot: &pb.Slot{
-				Resources: &pb.Resources{
-					NetworkType: cc.order,
-				},
+		}
+		s2 := &Slot{
+			Resources: &pb.Resources{
+				NetworkType: cc.n2,
 			},
-		})
-		assert.Equal(t, cc.isMatch, ok)
+		}
+
+		isMatch := s1.compareNetworkType(s2)
+		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
 }

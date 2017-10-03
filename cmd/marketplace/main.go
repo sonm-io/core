@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	flag "github.com/ogier/pflag"
 	"github.com/sonm-io/core/insonmnia/marketplace"
 )
@@ -9,7 +10,7 @@ import (
 var (
 	listenAddr  = flag.String("addr", ":9095", "Marketplace service listen address")
 	showVersion = flag.BoolP("version", "v", false, "Show Hub version and exit")
-	version string
+	version     string
 )
 
 func main() {
