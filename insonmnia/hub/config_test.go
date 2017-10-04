@@ -142,3 +142,26 @@ locator:
 	assert.Error(t, err)
 	assert.Nil(t, conf)
 }
+
+func TestLoadConfigLocatorPeriod(t *testing.T) {
+	err := createTestConfigFile(`
+ethereum:
+  private_key: "1000000000000000000000000000000000000000000000000000000000000000"
+endpoint: ":10002"
+bootnodes:
+  - "enode://node1"
+  - "enode://node2"
+monitoring:
+  endpoint: ":10001"
+locator:
+  address: "127.0.0.1:9090"
+  period: 500
+  `)
+	assert.Nil(t, err)
+
+	defer deleteTestConfigFile()
+
+	conf, err := NewConfig(testHubConfigPath)
+	assert.NoError(t, err)
+	assert.Equal(t, conf.Locator.Period, 500)
+}

@@ -26,6 +26,7 @@ import (
 	frd "github.com/sonm-io/core/fusrodah/hub"
 
 	"encoding/hex"
+
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
@@ -49,7 +50,9 @@ type Hub struct {
 	endpoint         string
 	minerListener    net.Listener
 	ethKey           *ecdsa.PrivateKey
-	locatorEndpoint  string
+
+	locatorEndpoint string
+	locatorPeriod   time.Duration
 
 	mu     sync.Mutex
 	miners map[string]*MinerCtx
@@ -455,11 +458,13 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		tasks:  make(map[string]string),
 		miners: make(map[string]*MinerCtx),
 
-		grpcEndpoint:    cfg.Monitoring.Endpoint,
-		endpoint:        cfg.Endpoint,
-		ethKey:          ethKey,
-		version:         version,
+		grpcEndpoint: cfg.Monitoring.Endpoint,
+		endpoint:     cfg.Endpoint,
+		ethKey:       ethKey,
+		version:      version,
+
 		locatorEndpoint: cfg.Locator.Address,
+		locatorPeriod:   time.Second * time.Duration(cfg.Locator.Period),
 
 		filters: []minerFilter{
 			exactMatchFilter,
@@ -613,7 +618,7 @@ func (h *Hub) deleteTaskByID(taskID string) {
 }
 
 func (h *Hub) startLocatorAnnouncer() {
-	tk := time.NewTicker(300 * time.Second)
+	tk := time.NewTicker(h.locatorPeriod)
 	defer tk.Stop()
 
 	h.announceAddress(h.ctx)

@@ -22,6 +22,7 @@ type EthConfig struct {
 
 type LocatorConfig struct {
 	Address string `required:"true" yaml:"address"`
+	Period  int    `required:"true" default:"300" yaml:"period"`
 }
 
 type HubConfig struct {
