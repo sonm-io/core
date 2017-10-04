@@ -24,10 +24,12 @@ func makeOrder() *pb.Order {
 func TestInMemOrderStorage_CreateOrder(t *testing.T) {
 	s := NewInMemoryStorage()
 	order := makeOrder()
-	order, err := s.CreateOrder(order)
+	o, _ := NewOrder(order)
+
+	created, err := s.CreateOrder(o)
 
 	assert.NoError(t, err)
-	assert.NotEmpty(t, order.Id, "order must have id after creation")
+	assert.NotEmpty(t, created.inner.Id, "order must have id after creation")
 }
 
 func TestNewInMemoryStorage_CreateOrder_Errors(t *testing.T) {
@@ -92,20 +94,21 @@ func TestNewInMemoryStorage_CreateOrder_Errors(t *testing.T) {
 		},
 	}
 
-	s := NewInMemoryStorage()
 	for i, cc := range cases {
-		_, err := s.CreateOrder(cc.fn())
+		_, err := NewOrder(cc.fn())
 		assert.EqualError(t, err, cc.err.Error(), fmt.Sprintf("%d", i))
 	}
 }
 
 func TestInMemOrderStorage_DeleteOrder(t *testing.T) {
 	s := NewInMemoryStorage()
-	order := makeOrder()
-	order, err := s.CreateOrder(order)
+	o, err := NewOrder(makeOrder())
 	assert.NoError(t, err)
 
-	err = s.DeleteOrder(order.Id)
+	order, err := s.CreateOrder(o)
+	assert.NoError(t, err)
+
+	err = s.DeleteOrder(order.inner.Id)
 	assert.NoError(t, err)
 }
 
@@ -117,14 +120,17 @@ func TestInMemOrderStorage_DeleteOrder_NotExists(t *testing.T) {
 
 func TestInMemOrderStorage_GetOrderByID(t *testing.T) {
 	s := NewInMemoryStorage()
-	order, err := s.CreateOrder(makeOrder())
+	order, err := NewOrder(makeOrder())
 	assert.NoError(t, err)
-	assert.NotEmpty(t, order.Id)
 
-	found, err := s.GetOrderByID(order.Id)
+	created, err := s.CreateOrder(order)
 	assert.NoError(t, err)
-	assert.Equal(t, order.Id, found.Id)
-	assert.Equal(t, order.Price, found.Price)
+	assert.NotEmpty(t, created.inner.Id)
+
+	found, err := s.GetOrderByID(created.inner.Id)
+	assert.NoError(t, err)
+	assert.Equal(t, created.inner.Id, found.inner.Id)
+	assert.Equal(t, created.inner.Price, found.inner.Price)
 }
 
 func TestInMemOrderStorage_GetOrderByID_NotExists(t *testing.T) {
@@ -138,12 +144,6 @@ func TestInMemOrderStorage_GetOrders_NilSlot(t *testing.T) {
 	s := NewInMemoryStorage()
 	_, err := s.GetOrders(nil)
 	assert.EqualError(t, err, errSlotIsNil.Error())
-}
-
-func TestInMemOrderStorage_GetOrders_NilResources(t *testing.T) {
-	s := NewInMemoryStorage()
-	_, err := s.GetOrders(&pb.Slot{})
-	assert.EqualError(t, err, errResourcesIsNil.Error())
 }
 
 func TestNewInMemoryStorage_GetOrders_compareTime(t *testing.T) {
@@ -202,12 +202,16 @@ func TestNewInMemoryStorage_GetOrders_compareTime(t *testing.T) {
 
 	for i, cc := range cases {
 		s1 := &Slot{
-			StartTime: &pb.Timestamp{Seconds: cc.slotStartTime},
-			EndTime:   &pb.Timestamp{Seconds: cc.slotEndTime},
+			inner: &pb.Slot{
+				StartTime: &pb.Timestamp{Seconds: cc.slotStartTime},
+				EndTime:   &pb.Timestamp{Seconds: cc.slotEndTime},
+			},
 		}
 		s2 := &Slot{
-			StartTime: &pb.Timestamp{Seconds: cc.ordStartTime},
-			EndTime:   &pb.Timestamp{Seconds: cc.ordEndTime},
+			inner: &pb.Slot{
+				StartTime: &pb.Timestamp{Seconds: cc.ordStartTime},
+				EndTime:   &pb.Timestamp{Seconds: cc.ordEndTime},
+			},
 		}
 
 		ok := s1.compareTime(s2)
@@ -241,10 +245,14 @@ func TestNewInMemoryStorage_GetOrders_compareSupRating(t *testing.T) {
 
 	for i, cc := range cases {
 		s1 := &Slot{
-			SupplierRating: cc.r1,
+			inner: &pb.Slot{
+				SupplierRating: cc.r1,
+			},
 		}
 		s2 := &Slot{
-			SupplierRating: cc.r2,
+			inner: &pb.Slot{
+				SupplierRating: cc.r2,
+			},
 		}
 
 		isMatch := s1.compareSupplierRating(s2)
@@ -277,13 +285,17 @@ func TestNewInMemoryStorage_GetOrders_compareCpuCores(t *testing.T) {
 
 	for i, cc := range cases {
 		s1 := &Slot{
-			Resources: &pb.Resources{
-				CpuCores: cc.c1,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					CpuCores: cc.c1,
+				},
 			},
 		}
 		s2 := &Slot{
-			Resources: &pb.Resources{
-				CpuCores: cc.c2,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					CpuCores: cc.c2,
+				},
 			},
 		}
 
@@ -317,13 +329,17 @@ func TestNewInMemoryStorage_GetOrders_compareRamBytes(t *testing.T) {
 
 	for i, cc := range cases {
 		s1 := &Slot{
-			Resources: &pb.Resources{
-				RamBytes: cc.ram1,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					RamBytes: cc.ram1,
+				},
 			},
 		}
 		s2 := &Slot{
-			Resources: &pb.Resources{
-				RamBytes: cc.ram2,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					RamBytes: cc.ram2,
+				},
 			},
 		}
 
@@ -357,13 +373,17 @@ func TestNewInMemoryStorage_GetOrders_compareGpuCount(t *testing.T) {
 
 	for i, cc := range cases {
 		s1 := &Slot{
-			Resources: &pb.Resources{
-				GpuCount: cc.gpu1,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					GpuCount: cc.gpu1,
+				},
 			},
 		}
 		s2 := &Slot{
-			Resources: &pb.Resources{
-				GpuCount: cc.gpu2,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					GpuCount: cc.gpu2,
+				},
 			},
 		}
 
@@ -397,13 +417,17 @@ func TestNewInMemoryStorage_GetOrders_compareStorage(t *testing.T) {
 
 	for i, cc := range cases {
 		s1 := &Slot{
-			Resources: &pb.Resources{
-				Storage: cc.stor1,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					Storage: cc.stor1,
+				},
 			},
 		}
 		s2 := &Slot{
-			Resources: &pb.Resources{
-				Storage: cc.stor2,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					Storage: cc.stor2,
+				},
 			},
 		}
 
@@ -437,13 +461,17 @@ func TestNewInMemoryStorage_GetOrders_compareNetTrafficIn(t *testing.T) {
 
 	for i, cc := range cases {
 		s1 := &Slot{
-			Resources: &pb.Resources{
-				NetTrafficIn: cc.t1,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					NetTrafficIn: cc.t1,
+				},
 			},
 		}
 		s2 := &Slot{
-			Resources: &pb.Resources{
-				NetTrafficIn: cc.t2,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					NetTrafficIn: cc.t2,
+				},
 			},
 		}
 
@@ -477,13 +505,17 @@ func TestNewInMemoryStorage_GetOrders_compareNetTrafficOut(t *testing.T) {
 
 	for i, cc := range cases {
 		s1 := &Slot{
-			Resources: &pb.Resources{
-				NetTrafficOut: cc.t1,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					NetTrafficOut: cc.t1,
+				},
 			},
 		}
 		s2 := &Slot{
-			Resources: &pb.Resources{
-				NetTrafficOut: cc.t2,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					NetTrafficOut: cc.t2,
+				},
 			},
 		}
 
@@ -548,17 +580,102 @@ func TestNewInMemoryStorage_GetOrders_compareNetTrafficType(t *testing.T) {
 
 	for i, cc := range cases {
 		s1 := &Slot{
-			Resources: &pb.Resources{
-				NetworkType: cc.n1,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					NetworkType: cc.n1,
+				},
 			},
 		}
 		s2 := &Slot{
-			Resources: &pb.Resources{
-				NetworkType: cc.n2,
+			inner: &pb.Slot{
+				Resources: &pb.Resources{
+					NetworkType: cc.n2,
+				},
 			},
 		}
 
 		isMatch := s1.compareNetworkType(s2)
 		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
+}
+
+func TestNewOrder(t *testing.T) {
+	cases := []struct {
+		ord *pb.Order
+		err error
+	}{
+		{
+			ord: nil,
+			err: errOrderIsNil,
+		},
+		{
+			ord: &pb.Order{
+				Price: 0,
+				Slot:  &pb.Slot{},
+			},
+			err: errPriceIsZero,
+		},
+		{
+			ord: &pb.Order{
+				Price: 1,
+			},
+			err: errSlotIsNil,
+		},
+		{
+			ord: &pb.Order{
+				Price: 1,
+				Slot:  &pb.Slot{},
+			},
+			err: errResourcesIsNil,
+		},
+	}
+
+	for i, cc := range cases {
+		_, err := NewOrder(cc.ord)
+		assert.EqualError(t, err, cc.err.Error(), fmt.Sprintf("%d", i))
+	}
+}
+
+func TestNewSlot(t *testing.T) {
+	cases := []struct {
+		slot *pb.Slot
+		err  error
+	}{
+		{
+			slot: nil,
+			err:  errSlotIsNil,
+		},
+		{
+			slot: &pb.Slot{},
+			err:  errResourcesIsNil,
+		},
+		{
+			slot: &pb.Slot{
+				StartTime: &pb.Timestamp{Seconds: 1},
+				Resources: &pb.Resources{},
+			},
+			err: errEndTimeRequired,
+		},
+		{
+			slot: &pb.Slot{
+				EndTime:   &pb.Timestamp{Seconds: 1},
+				Resources: &pb.Resources{},
+			},
+			err: errStartTimeRequired,
+		},
+		{
+			slot: &pb.Slot{
+				StartTime: &pb.Timestamp{Seconds: 2},
+				EndTime:   &pb.Timestamp{Seconds: 1},
+				Resources: &pb.Resources{},
+			},
+			err: errStartTimeAfterEnd,
+		},
+	}
+
+	for i, cc := range cases {
+		_, err := NewSlot(cc.slot)
+		assert.EqualError(t, err, cc.err.Error(), fmt.Sprintf("%d", i))
+	}
+
 }
