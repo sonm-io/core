@@ -53,6 +53,7 @@ type Hub struct {
 
 	locatorEndpoint string
 	locatorPeriod   time.Duration
+	locatorClient   pb.LocatorClient
 
 	mu     sync.Mutex
 	miners map[string]*MinerCtx
@@ -528,6 +529,11 @@ func (h *Hub) Serve() error {
 	// TODO: fix this possible race: Close before Serve
 	h.minerListener = listener
 
+	err = h.initLocatorClient()
+	if err != nil {
+		return err
+	}
+
 	h.wg.Add(1)
 	go func() {
 		defer h.wg.Done()
@@ -617,6 +623,21 @@ func (h *Hub) deleteTaskByID(taskID string) {
 	delete(h.tasks, taskID)
 }
 
+func (h *Hub) initLocatorClient() error {
+	conn, err := grpc.Dial(
+		h.locatorEndpoint,
+		grpc.WithInsecure(),
+		grpc.WithTimeout(5*time.Second),
+		grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
+		grpc.WithCompressor(grpc.NewGZIPCompressor()))
+	if err != nil {
+		return err
+	}
+
+	h.locatorClient = pb.NewLocatorClient(conn)
+	return nil
+}
+
 func (h *Hub) startLocatorAnnouncer() {
 	tk := time.NewTicker(h.locatorPeriod)
 	defer tk.Stop()
@@ -632,17 +653,6 @@ func (h *Hub) startLocatorAnnouncer() {
 }
 
 func (h *Hub) announceAddress(ctx context.Context) {
-	conn, err := grpc.Dial(h.locatorEndpoint,
-		grpc.WithInsecure(),
-		grpc.WithTimeout(5*time.Second),
-		grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
-		grpc.WithCompressor(grpc.NewGZIPCompressor()))
-	if err != nil {
-		log.G(ctx).Warn("cannot build gRPC connection to Locator")
-		return
-	}
-
-	cl := pb.NewLocatorClient(conn)
 	req := &pb.AnnounceRequest{
 		EthAddr: util.PubKeyToAddr(h.ethKey.PublicKey),
 		IpAddr:  []string{h.grpcEndpointAddr},
@@ -652,7 +662,7 @@ func (h *Hub) announceAddress(ctx context.Context) {
 		zap.String("eth", req.EthAddr),
 		zap.String("addr", req.IpAddr[0]))
 
-	_, err = cl.Announce(ctx, req)
+	_, err := h.locatorClient.Announce(ctx, req)
 	if err != nil {
 		log.G(ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
 	}
