@@ -273,27 +273,33 @@ func (h *Hub) applyFilters(miner *MinerCtx, req *pb.TaskRequirements) (bool, err
 	return true, nil
 }
 
-func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}) (bool, interface{}, error) {
+func (h *Hub) onRequest(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	log.G(h.ctx).Debug("intercepting request")
+	forwarded, r, err := h.tryForwardToLeader(ctx, req, info)
+	if forwarded {
+		return r, err
+	}
+	return handler(ctx, req)
+}
+
+func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo) (bool, interface{}, error) {
 	if h.isLeader {
 		log.G(h.ctx).Info("isLeader is true")
 		return false, nil, nil
 	}
-	log.G(h.ctx).Info("forwarding to leader")
+	log.G(h.ctx).Info("forwarding to leader", zap.String("method", info.FullMethod))
 	h.leaderClientLock.Lock()
 	cli := h.leaderClient
 	h.leaderClientLock.Unlock()
 	if cli != nil {
 		t := reflect.ValueOf(h.leaderClient)
-		for i := 0; i < t.NumMethod(); i++ {
-			if t.Method(i).Type().In(1) == reflect.TypeOf(request) {
-				inValues := make([]reflect.Value, 0, 2)
-				inValues = append(inValues, reflect.ValueOf(ctx), reflect.ValueOf(request))
-				values := t.Method(i).Call(inValues)
-				log.G(h.ctx).Info("forwarded request to leader", zap.String("method", reflect.TypeOf(h.leaderClient).Method(i).Name))
-				return true, values[0].Interface(), values[1].Interface().(error)
-			}
-		}
-		panic("delegate method not found")
+		parts := strings.Split(info.FullMethod, "/")
+		methodName := parts[len(parts)-1]
+		m := t.MethodByName(methodName)
+		inValues := make([]reflect.Value, 0, 2)
+		inValues = append(inValues, reflect.ValueOf(ctx), reflect.ValueOf(request))
+		values := m.Call(inValues)
+		return true, values[0].Interface(), values[1].Interface().(error)
 	} else {
 		return true, nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
 	}
@@ -301,11 +307,6 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}) (bool
 
 // StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
-	forwarded, r, err := h.tryForwardToLeader(ctx, request)
-	if forwarded {
-		return r.(*pb.HubStartTaskReply), err
-	}
-
 	log.G(h.ctx).Info("handling StartTask request", zap.Any("req", request))
 
 	taskID := uuid.New()
@@ -340,6 +341,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 		miner.Client.Stop(ctx, &pb.StopTaskRequest{Id: taskID})
 		return nil, status.Errorf(codes.Internal, "could not marshal task info %v", err)
 	}
+
 	kv := h.consul.KV()
 	kvPair := consul.KVPair{Key: tasksPrefix + "/" + taskID, Value: json}
 	_, err = kv.Put(&kvPair, &consul.WriteOptions{})
@@ -408,10 +410,6 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 // StopTask sends termination request to a miner handling the task
 func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
 	log.G(h.ctx).Info("handling StopTask request", zap.Any("req", request))
-	forwarded, r, err := h.tryForwardToLeader(ctx, request)
-	if forwarded {
-		return r.(*pb.StopTaskReply), err
-	}
 
 	taskID := request.Id
 	task, err := h.getTask(taskID)
@@ -554,13 +552,11 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		}
 	}
 
-	// TODO: add secure mechanism
-	grpcServer := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()))
 	h := &Hub{
 		ctx:          ctx,
 		gateway:      gate,
 		portPool:     portPool,
-		externalGrpc: grpcServer,
+		externalGrpc: nil,
 
 		//tasks:  make(map[string]string),
 		miners: make(map[string]*MinerCtx),
@@ -577,6 +573,11 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		consul:         consulCli,
 		associatedHubs: make(map[string]struct{}),
 	}
+
+	interceptor := h.onRequest
+	grpcServer := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()), grpc.UnaryInterceptor(interceptor))
+	h.externalGrpc = grpcServer
+
 	h.localEndpoint, err = h.determineLocalEndpoint()
 	if err != nil {
 		return nil, err
