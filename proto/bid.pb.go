@@ -10,6 +10,7 @@ It is generated from these files:
 	hub.proto
 	insonmnia.proto
 	locator.proto
+	marketplace.proto
 	miner.proto
 
 It has these top-level messages:
@@ -53,6 +54,8 @@ It has these top-level messages:
 	AnnounceRequest
 	ResolveRequest
 	ResolveReply
+	GetOrdersReply
+	GetOrderRequest
 	MinerInfoRequest
 	MinerHandshakeRequest
 	MinerHandshakeReply
