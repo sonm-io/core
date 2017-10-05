@@ -75,8 +75,8 @@ func (one *Slot) compareSupplierRating(two *Slot) bool {
 }
 
 func (one *Slot) compareTime(two *Slot) bool {
-	startOK := one.inner.GetStartTime().GetSeconds() > two.inner.GetStartTime().GetSeconds()
-	endOK := one.inner.GetEndTime().GetSeconds() < two.inner.GetEndTime().GetSeconds()
+	startOK := one.inner.GetStartTime().GetSeconds() >= two.inner.GetStartTime().GetSeconds()
+	endOK := one.inner.GetEndTime().GetSeconds() <= two.inner.GetEndTime().GetSeconds()
 
 	return startOK && endOK
 }
