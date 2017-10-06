@@ -508,15 +508,7 @@ func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer
 func (h *Hub) ProposeDeal(ctx context.Context, request *pb.DealRequest) (*pb.DealReply, error) {
 	log.G(h.ctx).Info("handling ProposeDeal request", zap.Any("req", request))
 
-	order := request.GetOrder()
-	if order == nil {
-		return nil, ErrBidRequired
-	}
-	if order.OrderType != pb.OrderType_BID {
-		return nil, ErrInvalidOrderType
-	}
-
-	slot, err := structs.NewSlot(order.GetSlot())
+	order, err := structs.NewOrder(request.GetOrder())
 	if err != nil {
 		return nil, err
 	}
