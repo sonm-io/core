@@ -30,6 +30,7 @@ import (
 	consul "github.com/hashicorp/consul/api"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/resource"
+	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"reflect"
@@ -37,7 +38,6 @@ import (
 
 var (
 	ErrBidRequired      = status.Errorf(codes.InvalidArgument, "bid field is required")
-	ErrSlotRequired     = status.Errorf(codes.InvalidArgument, "slot field is required")
 	ErrInvalidOrderType = status.Errorf(codes.InvalidArgument, "invalid order type")
 	ErrLeaderStepDown   = status.Errorf(codes.Unavailable, "leader stepped down")
 	ErrMinerNotFound    = status.Errorf(codes.NotFound, "miner not found")
@@ -516,26 +516,24 @@ func (h *Hub) ProposeDeal(ctx context.Context, request *pb.DealRequest) (*pb.Dea
 		return nil, ErrInvalidOrderType
 	}
 
-	slot := order.GetSlot()
-	if slot == nil {
-		return nil, ErrSlotRequired
-	}
-
-	s := Slot(*slot)
-
-	miner, err := h.findRandomMinerBySlot(&s)
+	slot, err := structs.NewSlot(order.GetSlot())
 	if err != nil {
 		return nil, err
 	}
 
-	if err := miner.ReserveSlot(&s); err != nil {
+	miner, err := h.findRandomMinerBySlot(slot)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := miner.ReserveSlot(slot); err != nil {
 		return nil, err
 	}
 
 	return &pb.DealReply{}, nil
 }
 
-func (h *Hub) findRandomMinerBySlot(slot *Slot) (*MinerCtx, error) {
+func (h *Hub) findRandomMinerBySlot(slot *structs.Slot) (*MinerCtx, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -599,8 +597,7 @@ func (h *Hub) GetSlots(ctx context.Context, request *pb.GetSlotsRequest) (*pb.Ge
 
 	result := []*pb.Slot{}
 	for _, slot := range miner.GetSlots() {
-		s := pb.Slot(*slot)
-		result = append(result, &s)
+		result = append(result, slot.Unwrap())
 	}
 
 	return &pb.GetSlotsReply{Slot: result}, nil
@@ -609,9 +606,9 @@ func (h *Hub) GetSlots(ctx context.Context, request *pb.GetSlotsRequest) (*pb.Ge
 func (h *Hub) AddSlot(ctx context.Context, request *pb.AddSlotRequest) (*pb.AddSlotReply, error) {
 	log.G(h.ctx).Info("handling AddSlot request", zap.Any("req", request))
 
-	slot := request.GetSlot()
-	if slot == nil {
-		return nil, ErrSlotRequired
+	slot, err := structs.NewSlot(request.GetSlot())
+	if err != nil {
+		return nil, err
 	}
 
 	miner, exists := h.getMinerByID(request.ID)
@@ -619,8 +616,7 @@ func (h *Hub) AddSlot(ctx context.Context, request *pb.AddSlotRequest) (*pb.AddS
 		return nil, ErrMinerNotFound
 	}
 
-	s := Slot(*slot)
-	miner.AddSlot(&s)
+	miner.AddSlot(slot)
 
 	return &pb.AddSlotReply{}, nil
 }

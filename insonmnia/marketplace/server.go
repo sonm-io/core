@@ -9,6 +9,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"github.com/sonm-io/core/insonmnia/structs"
 )
 
 var (
@@ -23,102 +24,10 @@ var (
 )
 
 type OrderStorage interface {
-	GetOrders(slot *Slot) ([]*Order, error)
+	GetOrders(slot *structs.Slot) ([]*Order, error)
 	GetOrderByID(id string) (*Order, error)
 	CreateOrder(order *Order) (*Order, error)
 	DeleteOrder(id string) error
-}
-
-type Slot struct {
-	inner *pb.Slot
-}
-
-func (one *Slot) Unwrap() *pb.Slot {
-	return one.inner
-}
-
-func NewSlot(s *pb.Slot) (*Slot, error) {
-	if err := validateSlot(s); err != nil {
-		return nil, err
-	} else {
-		return &Slot{inner: s}, nil
-	}
-
-}
-
-func validateSlot(s *pb.Slot) error {
-	if s == nil {
-		return errSlotIsNil
-	}
-
-	if s.GetResources() == nil {
-		return errResourcesIsNil
-	}
-
-	if s.GetStartTime() == nil {
-		return errStartTimeRequired
-	}
-
-	if s.GetEndTime() == nil {
-		return errEndTimeRequired
-	}
-
-	if s.GetStartTime().GetSeconds() >= s.GetEndTime().GetSeconds() {
-		return errStartTimeAfterEnd
-	}
-
-	return nil
-}
-
-func (one *Slot) compareSupplierRating(two *Slot) bool {
-	return two.inner.GetSupplierRating() >= one.inner.GetSupplierRating()
-}
-
-func (one *Slot) compareTime(two *Slot) bool {
-	startOK := one.inner.GetStartTime().GetSeconds() >= two.inner.GetStartTime().GetSeconds()
-	endOK := one.inner.GetEndTime().GetSeconds() <= two.inner.GetEndTime().GetSeconds()
-
-	return startOK && endOK
-}
-
-func (one *Slot) compareCpuCores(two *Slot) bool {
-	return two.inner.GetResources().GetCpuCores() >= one.inner.GetResources().GetCpuCores()
-}
-
-func (one *Slot) compareRamBytes(two *Slot) bool {
-	return two.inner.GetResources().GetRamBytes() >= one.inner.GetResources().GetRamBytes()
-}
-
-func (one *Slot) compareGpuCount(two *Slot) bool {
-	return two.inner.GetResources().GetGpuCount() >= one.inner.GetResources().GetGpuCount()
-}
-
-func (one *Slot) compareStorage(two *Slot) bool {
-	return two.inner.GetResources().GetStorage() >= one.inner.GetResources().GetStorage()
-}
-
-func (one *Slot) compareNetTrafficIn(two *Slot) bool {
-	return two.inner.GetResources().GetNetTrafficIn() >= one.inner.GetResources().GetNetTrafficIn()
-}
-
-func (one *Slot) compareNetTrafficOut(two *Slot) bool {
-	return two.inner.GetResources().GetNetTrafficOut() >= one.inner.GetResources().GetNetTrafficOut()
-}
-
-func (one *Slot) compareNetworkType(two *Slot) bool {
-	return two.inner.GetResources().GetNetworkType() >= one.inner.GetResources().GetNetworkType()
-}
-
-func (one *Slot) Compare(two *Slot) bool {
-	return one.compareSupplierRating(two) &&
-		one.compareTime(two) &&
-		one.compareCpuCores(two) &&
-		one.compareRamBytes(two) &&
-		one.compareGpuCount(two) &&
-		one.compareStorage(two) &&
-		one.compareNetTrafficIn(two) &&
-		one.compareNetTrafficOut(two) &&
-		one.compareNetworkType(two)
 }
 
 type Order struct {
@@ -146,7 +55,7 @@ func validateOrder(o *pb.Order) error {
 		return errPriceIsZero
 	}
 
-	_, err := NewSlot(o.Slot)
+	_, err := structs.NewSlot(o.Slot)
 	if err != nil {
 		return err
 	}
@@ -163,7 +72,7 @@ func (in *inMemOrderStorage) generateID() string {
 	return uuid.New()
 }
 
-func (in *inMemOrderStorage) GetOrders(s *Slot) ([]*Order, error) {
+func (in *inMemOrderStorage) GetOrders(s *structs.Slot) ([]*Order, error) {
 	if s == nil {
 		return nil, errSlotIsNil
 	}
@@ -173,7 +82,7 @@ func (in *inMemOrderStorage) GetOrders(s *Slot) ([]*Order, error) {
 
 	orders := []*Order{}
 	for _, order := range in.db {
-		os, _ := NewSlot(order.inner.Slot)
+		os, _ := structs.NewSlot(order.inner.Slot)
 		if !s.Compare(os) {
 			continue
 		}
@@ -232,7 +141,7 @@ type Marketplace struct {
 }
 
 func (m *Marketplace) GetOrders(_ context.Context, req *pb.Slot) (*pb.GetOrdersReply, error) {
-	slot, err := NewSlot(req)
+	slot, err := structs.NewSlot(req)
 	if err != nil {
 		return nil, err
 	}

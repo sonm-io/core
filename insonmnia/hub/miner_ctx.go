@@ -15,27 +15,11 @@ import (
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
+	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 )
 
 type MinerProperties map[string]string
-type Slot pb.Slot
-
-func (s *Slot) eq(o *Slot) bool {
-	// TODO (3Hren): just a stub. Waiting for @sshaman1101, cause he's doing the same.
-	return false
-}
-
-func (s *Slot) sanitize() error {
-	// TODO (3Hren): Stub.
-	return nil
-}
-
-type Resources pb.Resources
-
-func (r *Resources) eq(o *Resources) bool {
-	return false
-}
 
 var (
 	ErrSlotNotFound = errors.New("failed to find a slot that matches resources requirements")
@@ -66,7 +50,7 @@ type MinerCtx struct {
 
 	// TODO (3Hren): This is placed here temporarily, because of further scheduling, which currently does not exist.
 	minerProperties MinerProperties
-	slots           []*Slot
+	slots           []*structs.Slot
 }
 
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
@@ -124,14 +108,14 @@ func (m *MinerCtx) SetMinerProperties(properties MinerProperties) {
 	m.minerProperties = properties
 }
 
-func (m *MinerCtx) GetSlots() []*Slot {
+func (m *MinerCtx) GetSlots() []*structs.Slot {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	return m.slots
 }
 
-func (m *MinerCtx) AddSlot(slot *Slot) error {
+func (m *MinerCtx) AddSlot(slot *structs.Slot) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	// TODO (3Hren): check dates are valid, check resources fit.
@@ -141,31 +125,27 @@ func (m *MinerCtx) AddSlot(slot *Slot) error {
 }
 
 // ReserveSlot reserves a slot during bid/ask protocol.
-func (m *MinerCtx) ReserveSlot(slot *Slot) error {
-	if err := slot.sanitize(); err != nil {
-		return err
-	}
-
+func (m *MinerCtx) ReserveSlot(slot *structs.Slot) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	return m.reserveSlot(slot)
 }
 
-func (m *MinerCtx) reserveSlot(slot *Slot) error {
-	resources := Resources(*slot.Resources)
-	slots := m.findSlots(&resources)
+func (m *MinerCtx) reserveSlot(slot *structs.Slot) error {
+	resources := slot.GetResources()
+	slots := m.findSlots(resources)
 	if len(slots) == 0 {
 		return ErrSlotNotFound
 	}
 
 	// Find slots that matches its resources exactly.
 	// Chose the minimum one.
-	candidate := slots[0]
+	//candidate := slots[0]
 
-	if candidate.StartTime == slot.StartTime && candidate.EndTime == slot.EndTime {
-
-	}
+	//if candidate.StartTime == slot.StartTime && candidate.EndTime == slot.EndTime {
+	//
+	//}
 	// Reserve its time. 5 cases:
 	//  - Not fit - err
 	//  - Fit completely - consume.
@@ -176,24 +156,23 @@ func (m *MinerCtx) reserveSlot(slot *Slot) error {
 	return nil
 }
 
-func (m *MinerCtx) findSlots(resources *Resources) []*Slot {
-	slots := []*Slot{}
-	for _, s := range m.slots {
-		r := Resources(*s.Resources)
-		if resources.eq(&r) {
-			slots = append(slots, s)
+func (m *MinerCtx) findSlots(resources *structs.Resources) []*structs.Slot {
+	slots := []*structs.Slot{}
+	for _, slot := range m.slots {
+		if resources.Eq(slot.GetResources()) {
+			slots = append(slots, slot)
 		}
 	}
 
 	return slots
 }
 
-func (m *MinerCtx) HasSlot(slot *Slot) bool {
+func (m *MinerCtx) HasSlot(slot *structs.Slot) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	for _, s := range m.slots {
-		if slot.eq(s) {
+		if slot.Compare(s) {
 			return true
 		}
 	}
