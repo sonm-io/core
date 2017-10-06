@@ -14,9 +14,9 @@ import (
 
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
-	pb "github.com/sonm-io/core/proto"
 )
 
 type MinerProperties map[string]string
