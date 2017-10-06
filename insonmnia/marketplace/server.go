@@ -24,55 +24,22 @@ var (
 )
 
 type OrderStorage interface {
-	GetOrders(slot *structs.Slot) ([]*Order, error)
-	GetOrderByID(id string) (*Order, error)
-	CreateOrder(order *Order) (*Order, error)
+	GetOrders(slot *structs.Slot) ([]*structs.Order, error)
+	GetOrderByID(id string) (*structs.Order, error)
+	CreateOrder(order *structs.Order) (*structs.Order, error)
 	DeleteOrder(id string) error
-}
-
-type Order struct {
-	inner *pb.Order
-}
-
-func (o *Order) Unwrap() *pb.Order {
-	return o.inner
-}
-
-func NewOrder(o *pb.Order) (*Order, error) {
-	if err := validateOrder(o); err != nil {
-		return nil, err
-	} else {
-		return &Order{inner: o}, nil
-	}
-}
-
-func validateOrder(o *pb.Order) error {
-	if o == nil {
-		return errOrderIsNil
-	}
-
-	if o.Price <= 0 {
-		return errPriceIsZero
-	}
-
-	_, err := structs.NewSlot(o.Slot)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 type inMemOrderStorage struct {
 	sync.RWMutex
-	db map[string]*Order
+	db map[string]*structs.Order
 }
 
 func (in *inMemOrderStorage) generateID() string {
 	return uuid.New()
 }
 
-func (in *inMemOrderStorage) GetOrders(s *structs.Slot) ([]*Order, error) {
+func (in *inMemOrderStorage) GetOrders(s *structs.Slot) ([]*structs.Order, error) {
 	if s == nil {
 		return nil, errSlotIsNil
 	}
@@ -80,9 +47,9 @@ func (in *inMemOrderStorage) GetOrders(s *structs.Slot) ([]*Order, error) {
 	in.RLock()
 	defer in.RUnlock()
 
-	orders := []*Order{}
+	orders := []*structs.Order{}
 	for _, order := range in.db {
-		os, _ := structs.NewSlot(order.inner.Slot)
+		os, _ := structs.NewSlot(order.Unwrap().Slot)
 		if !s.Compare(os) {
 			continue
 		}
@@ -93,7 +60,7 @@ func (in *inMemOrderStorage) GetOrders(s *structs.Slot) ([]*Order, error) {
 	return orders, nil
 }
 
-func (in *inMemOrderStorage) GetOrderByID(id string) (*Order, error) {
+func (in *inMemOrderStorage) GetOrderByID(id string) (*structs.Order, error) {
 	in.RLock()
 	defer in.RUnlock()
 
@@ -105,9 +72,9 @@ func (in *inMemOrderStorage) GetOrderByID(id string) (*Order, error) {
 	return ord, nil
 }
 
-func (in *inMemOrderStorage) CreateOrder(o *Order) (*Order, error) {
+func (in *inMemOrderStorage) CreateOrder(o *structs.Order) (*structs.Order, error) {
 	id := in.generateID()
-	o.inner.Id = id
+	o.GetID() = id
 
 	in.Lock()
 	defer in.Unlock()
@@ -131,7 +98,7 @@ func (in *inMemOrderStorage) DeleteOrder(id string) error {
 
 func NewInMemoryStorage() OrderStorage {
 	return &inMemOrderStorage{
-		db: make(map[string]*Order),
+		db: make(map[string]*structs.Order),
 	}
 }
 
@@ -153,7 +120,7 @@ func (m *Marketplace) GetOrders(_ context.Context, req *pb.Slot) (*pb.GetOrdersR
 
 	innerOrders := []*pb.Order{}
 	for _, o := range orders {
-		innerOrders = append(innerOrders, o.inner)
+		innerOrders = append(innerOrders, o.Unwrap())
 	}
 
 	return &pb.GetOrdersReply{
@@ -166,11 +133,11 @@ func (m *Marketplace) GetOrderByID(_ context.Context, req *pb.GetOrderRequest) (
 	if err != nil {
 		return nil, err
 	}
-	return order.inner, nil
+	return order.Unwrap(), nil
 }
 
 func (m *Marketplace) CreateOrder(_ context.Context, req *pb.Order) (*pb.Order, error) {
-	order, err := NewOrder(req)
+	order, err := structs.NewOrder(req)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +147,7 @@ func (m *Marketplace) CreateOrder(_ context.Context, req *pb.Order) (*pb.Order, 
 		return nil, err
 	}
 
-	return order.inner, nil
+	return order.Unwrap(), nil
 }
 
 func (m *Marketplace) CancelOrder(_ context.Context, req *pb.Order) (*pb.Empty, error) {

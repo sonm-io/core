@@ -1,8 +1,9 @@
 package structs
 
 import (
-	pb "github.com/sonm-io/core/proto"
 	"reflect"
+
+	pb "github.com/sonm-io/core/proto"
 )
 
 // Resources wraps the underlying protobuf object with full validation, such

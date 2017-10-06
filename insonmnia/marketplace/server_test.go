@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/insonmnia/structs"
 )
 
 func makeOrder() *pb.Order {
@@ -23,12 +24,12 @@ func makeOrder() *pb.Order {
 func TestInMemOrderStorage_CreateOrder(t *testing.T) {
 	s := NewInMemoryStorage()
 	order := makeOrder()
-	o, _ := NewOrder(order)
+	o, _ := structs.NewOrder(order)
 
 	created, err := s.CreateOrder(o)
 
 	assert.NoError(t, err)
-	assert.NotEmpty(t, created.inner.Id, "order must have id after creation")
+	assert.NotEmpty(t, created.GetID(), "order must have id after creation")
 }
 
 func TestNewInMemoryStorage_CreateOrder_Errors(t *testing.T) {
@@ -94,20 +95,20 @@ func TestNewInMemoryStorage_CreateOrder_Errors(t *testing.T) {
 	}
 
 	for i, cc := range cases {
-		_, err := NewOrder(cc.fn())
+		_, err := structs.NewOrder(cc.fn())
 		assert.EqualError(t, err, cc.err.Error(), fmt.Sprintf("%d", i))
 	}
 }
 
 func TestInMemOrderStorage_DeleteOrder(t *testing.T) {
 	s := NewInMemoryStorage()
-	o, err := NewOrder(makeOrder())
+	o, err := structs.NewOrder(makeOrder())
 	assert.NoError(t, err)
 
 	order, err := s.CreateOrder(o)
 	assert.NoError(t, err)
 
-	err = s.DeleteOrder(order.inner.Id)
+	err = s.DeleteOrder(order.GetID())
 	assert.NoError(t, err)
 }
 
@@ -119,17 +120,17 @@ func TestInMemOrderStorage_DeleteOrder_NotExists(t *testing.T) {
 
 func TestInMemOrderStorage_GetOrderByID(t *testing.T) {
 	s := NewInMemoryStorage()
-	order, err := NewOrder(makeOrder())
+	order, err := structs.NewOrder(makeOrder())
 	assert.NoError(t, err)
 
 	created, err := s.CreateOrder(order)
 	assert.NoError(t, err)
-	assert.NotEmpty(t, created.inner.Id)
+	assert.NotEmpty(t, created.GetID())
 
-	found, err := s.GetOrderByID(created.inner.Id)
+	found, err := s.GetOrderByID(created.GetID())
 	assert.NoError(t, err)
-	assert.Equal(t, created.inner.Id, found.inner.Id)
-	assert.Equal(t, created.inner.Price, found.inner.Price)
+	assert.Equal(t, created.GetID(), found.GetID())
+	assert.Equal(t, created.GetPrice(), found.GetPrice())
 }
 
 func TestInMemOrderStorage_GetOrderByID_NotExists(t *testing.T) {
@@ -177,7 +178,7 @@ func TestNewOrder(t *testing.T) {
 	}
 
 	for i, cc := range cases {
-		_, err := NewOrder(cc.ord)
+		_, err := structs.NewOrder(cc.ord)
 		assert.EqualError(t, err, cc.err.Error(), fmt.Sprintf("%d", i))
 	}
 }
