@@ -21,4 +21,4 @@ script:
     - go get github.com/golang/mock/gomock
     - go get github.com/golang/mock/mockgen
     - make all
-    - GO=$(which go) debuild --preserve-env -uc -us
+    - GO=$(which go) make deb

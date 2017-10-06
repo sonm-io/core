@@ -1,0 +1,12 @@
+[Unit]
+Description=SONM Marketplace
+
+
+[Service]
+EnvironmentFile=/etc/default/sonm-marketplace
+Type=simple
+ExecStart=/usr/bin/sonmmarketplace --addr=${LISTEN_ADDR}
+
+
+[Install]
+WantedBy=multi-user.target
