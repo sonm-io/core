@@ -26,6 +26,21 @@ func (s *Slot) eq(o *Slot) bool {
 	return false
 }
 
+func (s *Slot) sanitize() error {
+	// TODO (3Hren): Stub.
+	return nil
+}
+
+type Resources pb.Resources
+
+func (r *Resources) eq(o *Resources) bool {
+	return false
+}
+
+var (
+	ErrSlotNotFound = errors.New("failed to find a slot that matches resources requirements")
+)
+
 // MinerCtx holds all the data related to a connected Miner
 type MinerCtx struct {
 	ctx    context.Context
@@ -125,7 +140,32 @@ func (m *MinerCtx) AddSlot(slot *Slot) error {
 	return nil
 }
 
+// ReserveSlot reserves a slot during bid/ask protocol.
 func (m *MinerCtx) ReserveSlot(slot *Slot) error {
+	if err := slot.sanitize(); err != nil {
+		return err
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.reserveSlot(slot)
+}
+
+func (m *MinerCtx) reserveSlot(slot *Slot) error {
+	resources := Resources(*slot.Resources)
+	slots := m.findSlots(&resources)
+	if len(slots) == 0 {
+		return ErrSlotNotFound
+	}
+
+	// Find slots that matches its resources exactly.
+	// Chose the minimum one.
+	candidate := slots[0]
+
+	if candidate.StartTime == slot.StartTime && candidate.EndTime == slot.EndTime {
+
+	}
 	// Reserve its time. 5 cases:
 	//  - Not fit - err
 	//  - Fit completely - consume.
@@ -134,6 +174,18 @@ func (m *MinerCtx) ReserveSlot(slot *Slot) error {
 	//	- Fit partially in the middle - split, take mid, republish other.
 	// Split
 	return nil
+}
+
+func (m *MinerCtx) findSlots(resources *Resources) []*Slot {
+	slots := []*Slot{}
+	for _, s := range m.slots {
+		r := Resources(*s.Resources)
+		if resources.eq(&r) {
+			slots = append(slots, s)
+		}
+	}
+
+	return slots
 }
 
 func (m *MinerCtx) HasSlot(slot *Slot) bool {
