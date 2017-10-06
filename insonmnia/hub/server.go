@@ -811,17 +811,8 @@ func (h *Hub) election() error {
 	return err
 }
 
-// Serve starts handling incoming API gRPC request and communicates
-// with miners
-func (h *Hub) Serve() error {
-	if h.consul != nil {
-		go h.election()
-	} else {
-		h.isLeader = true
-	}
-
-	h.startTime = time.Now()
-
+// TODO: Decomposed here to be able to easily comment when UDP capturing occurs :)
+func (h *Hub) startDiscovery() error {
 	ip, err := util.GetPublicIP()
 	if err != nil {
 		return err
@@ -837,10 +828,10 @@ func (h *Hub) Serve() error {
 		return err
 	}
 
-	workersEndpt := ip.String() + ":" + workersPort
-	clientEndpt := ip.String() + ":" + clientPort
+	workersEndpoint := ip.String() + ":" + workersPort
+	clientEndpoint := ip.String() + ":" + clientPort
 
-	srv, err := frd.NewServer(h.ethKey, workersEndpt, clientEndpt)
+	srv, err := frd.NewServer(h.ethKey, workersEndpoint, clientEndpoint)
 	if err != nil {
 		return err
 	}
@@ -849,6 +840,24 @@ func (h *Hub) Serve() error {
 		return err
 	}
 	srv.Serve()
+
+	return nil
+}
+
+// Serve starts handling incoming API gRPC request and communicates
+// with miners
+func (h *Hub) Serve() error {
+	if h.consul != nil {
+		go h.election()
+	} else {
+		h.isLeader = true
+	}
+
+	h.startTime = time.Now()
+
+	if err := h.startDiscovery(); err != nil {
+		return err
+	}
 
 	listener, err := net.Listen("tcp", h.endpoint)
 
