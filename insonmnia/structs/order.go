@@ -43,10 +43,14 @@ func validateOrder(o *pb.Order) error {
 	return nil
 }
 
-func (o*Order) GetID() string {
+func (o *Order) GetID() string {
 	return o.inner.GetId()
 }
 
-func (o*Order) GetPrice() int64 {
+func (o *Order) GetPrice() int64 {
 	return o.inner.GetPrice()
+}
+
+func (o *Order) IsBid() bool {
+	return o.inner.GetOrderType() == pb.OrderType_BID
 }
