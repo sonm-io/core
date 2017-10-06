@@ -14,15 +14,17 @@ import (
 
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware"
-	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
+	pb "github.com/sonm-io/core/proto"
 )
 
 type MinerProperties map[string]string
 
 var (
-	ErrSlotNotFound = errors.New("failed to find a slot that matches resources requirements")
+	ErrSlotNotFound    = errors.New("failed to find a slot that matches resources requirements")
+	errCPUNotEnough    = errors.New("number of CPU cores requested is unable to fit system's capabilities")
+	errMemoryNotEnough = errors.New("number of memory requested is unable to fit system's capabilities")
 )
 
 // MinerCtx holds all the data related to a connected Miner
@@ -118,7 +120,15 @@ func (m *MinerCtx) GetSlots() []*structs.Slot {
 func (m *MinerCtx) AddSlot(slot *structs.Slot) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	// TODO (3Hren): check dates are valid, check resources fit.
+
+	resources := slot.GetResources()
+	if resources.GetCpuCores() > uint64(m.capabilities.LogicalCPUCount()) {
+		return errCPUNotEnough
+	}
+
+	if resources.GetMemoryInBytes() > m.capabilities.TotalMemory() {
+		return errMemoryNotEnough
+	}
 
 	m.slots = append(m.slots, slot)
 	return nil

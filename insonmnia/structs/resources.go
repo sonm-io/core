@@ -26,6 +26,16 @@ func (r *Resources) Unwrap() *pb.Resources {
 	return r.inner
 }
 
+// GetCpuCores returns the total number of logical CPU cores.
+func (r *Resources) GetCpuCores() uint64 {
+	return r.inner.GetCpuCores()
+}
+
+// GetMemoryInBytes returns the total number of memory bytes requested.
+func (r *Resources) GetMemoryInBytes() uint64 {
+	return r.inner.GetRamBytes()
+}
+
 // ValidateResources validates the specified protobuf object to be wrapped.
 func ValidateResources(resources *pb.Resources) error {
 	if resources == nil {
