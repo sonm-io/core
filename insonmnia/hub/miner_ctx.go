@@ -22,7 +22,7 @@ import (
 type MinerProperties map[string]string
 
 var (
-	ErrSlotNotFound    = errors.New("failed to find a slot that matches resources requirements")
+	errSlotNotFound    = errors.New("failed to find a slot that matches resources requirements")
 	errCPUNotEnough    = errors.New("number of CPU cores requested is unable to fit system's capabilities")
 	errMemoryNotEnough = errors.New("number of memory requested is unable to fit system's capabilities")
 )
@@ -146,7 +146,7 @@ func (m *MinerCtx) reserveSlot(slot *structs.Slot) error {
 	resources := slot.GetResources()
 	slots := m.findSlots(resources)
 	if len(slots) == 0 {
-		return ErrSlotNotFound
+		return errSlotNotFound
 	}
 
 	// Find slots that matches its resources exactly.
