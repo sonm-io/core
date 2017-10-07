@@ -172,6 +172,8 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 		controlGroup: deleter,
 		ssh:          b.ssh,
+
+		connectedHubs: make(map[string]struct{}),
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)

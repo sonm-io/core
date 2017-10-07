@@ -33,6 +33,7 @@ type HubConfig struct {
 	Logging       LoggingConfig    `yaml:"logging"`
 	Eth           EthConfig        `yaml:"ethereum"`
 	Locator       LocatorConfig    `yaml:"locator"`
+	ConsulEnabled bool             `yaml:"consul_enabled" default:"false"`
 }
 
 // NewConfig loads a hub config from the specified YAML file.
