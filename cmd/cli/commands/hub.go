@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	hubRootCmd.AddCommand(hubPingCmd, hubStatusCmd, hubShowSlotsCmd)
+	hubRootCmd.AddCommand(hubPingCmd, hubStatusCmd)
 }
 
 // --- hub commands
@@ -49,20 +49,6 @@ var hubStatusCmd = &cobra.Command{
 	},
 }
 
-var hubShowSlotsCmd = &cobra.Command{
-	Use:     "slots",
-	Short:   "Show hub's virtual slots",
-	PreRunE: checkHubAddressIsSet,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		itr, err := NewGrpcInteractor(hubAddress, timeout)
-		if err != nil {
-			return err
-		}
-
-		return hubShowSlotsCmdRunner(cmd, itr, args)
-	},
-}
-
 func hubPingCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
 	_, err := interactor.HubPing(context.Background())
 	if err != nil {
@@ -82,33 +68,6 @@ func hubStatusCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
 	}
 
 	printHubStatus(cmd, stat)
-}
-
-func hubShowSlotsCmdRunner(cmd *cobra.Command, interactor CliInteractor, IDs []string) error {
-	ctx := context.Background()
-	if len(IDs) == 0 {
-		miners, err := interactor.MinerList(ctx)
-		if err != nil {
-			return err
-		}
-		for id := range miners.Info {
-			IDs = append(IDs, id)
-		}
-	}
-
-	result := map[string][]*pb.Slot{}
-	for _, id := range IDs {
-		slots, err := interactor.HubSlotsShow(context.Background(), id)
-		if err != nil {
-			return err
-		}
-
-		result[id] = slots.Slot
-	}
-
-	b, _ := json.Marshal(result)
-	cmd.Println(string(b))
-	return nil
 }
 
 func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {

@@ -1,0 +1,22 @@
+duration:
+  since: 2017-12-01T00:00:00Z
+  until: 2017-12-02T00:00:00Z
+
+rating:
+  buyer: 100
+  supplier: 42
+
+resources:
+  cpu_cores: 1
+  ram_bytes: 100000000
+  gpu_count: 0
+  storage: 1000000000
+
+  network:
+    in: 0
+    out: 0
+    type: NO_NETWORK
+
+  properties:
+    foo: bar
+    cycles: 42

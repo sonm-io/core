@@ -624,7 +624,7 @@ func (h *Hub) GetSlots(ctx context.Context, request *pb.GetSlotsRequest) (*pb.Ge
 		return nil, ErrMinerNotFound
 	}
 
-	result := []*pb.Slot{}
+	result := make([]*pb.Slot, 0)
 	for _, slot := range miner.GetSlots() {
 		result = append(result, slot.Unwrap())
 	}

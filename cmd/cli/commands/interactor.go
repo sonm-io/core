@@ -3,6 +3,7 @@ package commands
 import (
 	"time"
 
+	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -12,12 +13,12 @@ type CliInteractor interface {
 	HubPing(context.Context) (*pb.PingReply, error)
 	HubStatus(context.Context) (*pb.HubStatusReply, error)
 
-	HubSlotsShow(ctx context.Context, ID string) (*pb.GetSlotsReply, error)
-
 	MinerList(context.Context) (*pb.ListReply, error)
 	MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error)
 	MinerGetProperties(ctx context.Context, ID string) (*pb.GetMinerPropertiesReply, error)
 	MinerSetProperties(ctx context.Context, ID string, properties map[string]string) (*pb.Empty, error)
+	MinerShowSlots(ctx context.Context, ID string) (*pb.GetSlotsReply, error)
+	MinerAddSlot(ctx context.Context, ID string, slot *structs.Slot) (*pb.Empty, error)
 
 	TaskList(appCtx context.Context, minerID string) (*pb.StatusMapReply, error)
 	TaskLogs(appCtx context.Context, req *pb.TaskLogsRequest) (pb.Hub_TaskLogsClient, error)
@@ -60,12 +61,6 @@ func (it *grpcInteractor) HubStatus(appCtx context.Context) (*pb.HubStatusReply,
 	return pb.NewHubClient(it.cc).Status(ctx, &pb.HubStatusRequest{})
 }
 
-func (it *grpcInteractor) HubSlotsShow(ctx context.Context, ID string) (*pb.GetSlotsReply, error) {
-	c, cancel := it.ctx(ctx)
-	defer cancel()
-	return pb.NewHubClient(it.cc).GetSlots(c, &pb.GetSlotsRequest{ID: ID})
-}
-
 func (it *grpcInteractor) MinerList(appCtx context.Context) (*pb.ListReply, error) {
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
@@ -99,6 +94,18 @@ func (it *grpcInteractor) MinerSetProperties(ctx context.Context, ID string, pro
 		Properties: properties,
 	}
 	return pb.NewHubClient(it.cc).SetMinerProperties(c, &req)
+}
+
+func (it *grpcInteractor) MinerShowSlots(ctx context.Context, ID string) (*pb.GetSlotsReply, error) {
+	c, cancel := it.ctx(ctx)
+	defer cancel()
+	return pb.NewHubClient(it.cc).GetSlots(c, &pb.GetSlotsRequest{ID: ID})
+}
+
+func (it *grpcInteractor) MinerAddSlot(ctx context.Context, ID string, slot *structs.Slot) (*pb.Empty, error) {
+	c, cancel := it.ctx(ctx)
+	defer cancel()
+	return pb.NewHubClient(it.cc).AddSlot(c, &pb.AddSlotRequest{ID: ID, Slot: slot.Unwrap()})
 }
 
 func (it *grpcInteractor) TaskList(appCtx context.Context, minerID string) (*pb.StatusMapReply, error) {
