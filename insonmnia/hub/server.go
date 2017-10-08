@@ -37,9 +37,8 @@ import (
 )
 
 var (
-	ErrBidRequired      = status.Errorf(codes.InvalidArgument, "bid field is required")
 	ErrInvalidOrderType = status.Errorf(codes.InvalidArgument, "invalid order type")
-	ErrLeaderStepDown   = status.Errorf(codes.Unavailable, "leader stepped down")
+	ErrAskNotFound      = status.Errorf(codes.NotFound, "ask not found")
 	ErrMinerNotFound    = status.Errorf(codes.NotFound, "miner not found")
 	ErrUnimplemented    = status.Errorf(codes.Unimplemented, "not implemented yet")
 )
@@ -85,6 +84,9 @@ type Hub struct {
 	leaderClientLock sync.Mutex
 
 	stopCh chan struct{}
+
+	eth    ETH
+	market Market
 }
 
 // Ping should be used as Healthcheck for Hub
@@ -505,24 +507,59 @@ func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer
 	}
 }
 
-func (h *Hub) ProposeDeal(ctx context.Context, request *pb.DealRequest) (*pb.DealReply, error) {
+func (h *Hub) ProposeDeal(ctx context.Context, request *pb.DealRequest) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling ProposeDeal request", zap.Any("req", request))
 
 	order, err := structs.NewOrder(request.GetOrder())
 	if err != nil {
 		return nil, err
 	}
-
-	miner, err := h.findRandomMinerBySlot(slot)
+	if !order.IsBid() {
+		return nil, ErrInvalidOrderType
+	}
+	exists, err := h.market.OrderExists(order.GetID())
 	if err != nil {
 		return nil, err
 	}
-
-	if err := miner.ReserveSlot(slot); err != nil {
+	if !exists {
+		return nil, ErrAskNotFound
+	}
+	miner, err := h.getMinerByOrder(order)
+	if err != nil {
+		return nil, err
+	}
+	if err := h.eth.CreatePendingDeal(order); err != nil {
 		return nil, err
 	}
 
-	return &pb.DealReply{}, nil
+	if err := miner.ReserveSlot(order.GetSlot()); err != nil {
+		h.eth.RevokePendingDeal(order)
+		return nil, err
+	}
+
+	return &pb.Empty{}, nil
+}
+
+func (h *Hub) ApproveDeal(ctx context.Context, request *pb.DealRequest) (*pb.Empty, error) {
+	// ApproveDeal.
+	// 1. Move from pending to reserved.
+	// 2. Notify man who put this ask.
+	return &pb.Empty{}, nil
+}
+
+func (h *Hub) getMinerByOrder(order *structs.Order) (*MinerCtx, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for id, miner := range h.miners {
+		log.G(h.ctx).Debug("checking a miner for order", zap.String("miner", id))
+		// TODO (3Hren): What if more than one miner has the same slot? Are they equal?
+		if miner.HasSlot(order.GetSlot()) {
+			return miner, nil
+		}
+	}
+
+	return nil, ErrMinerNotFound
 }
 
 func (h *Hub) findRandomMinerBySlot(slot *structs.Slot) (*MinerCtx, error) {
@@ -566,7 +603,7 @@ func (h *Hub) GetMinerProperties(ctx context.Context, request *pb.GetMinerProper
 	return &pb.GetMinerPropertiesReply{Properties: miner.MinerProperties()}, nil
 }
 
-func (h *Hub) SetMinerProperties(ctx context.Context, request *pb.SetMinerPropertiesRequest) (*pb.SetMinerPropertiesReply, error) {
+func (h *Hub) SetMinerProperties(ctx context.Context, request *pb.SetMinerPropertiesRequest) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling SetMinerProperties request", zap.Any("req", request))
 
 	miner, exists := h.getMinerByID(request.ID)
@@ -576,7 +613,7 @@ func (h *Hub) SetMinerProperties(ctx context.Context, request *pb.SetMinerProper
 
 	miner.SetMinerProperties(MinerProperties(request.Properties))
 
-	return &pb.SetMinerPropertiesReply{}, nil
+	return &pb.Empty{}, nil
 }
 
 func (h *Hub) GetSlots(ctx context.Context, request *pb.GetSlotsRequest) (*pb.GetSlotsReply, error) {
@@ -595,7 +632,7 @@ func (h *Hub) GetSlots(ctx context.Context, request *pb.GetSlotsRequest) (*pb.Ge
 	return &pb.GetSlotsReply{Slot: result}, nil
 }
 
-func (h *Hub) AddSlot(ctx context.Context, request *pb.AddSlotRequest) (*pb.AddSlotReply, error) {
+func (h *Hub) AddSlot(ctx context.Context, request *pb.AddSlotRequest) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling AddSlot request", zap.Any("req", request))
 
 	slot, err := structs.NewSlot(request.GetSlot())
@@ -610,10 +647,10 @@ func (h *Hub) AddSlot(ctx context.Context, request *pb.AddSlotRequest) (*pb.AddS
 
 	miner.AddSlot(slot)
 
-	return &pb.AddSlotReply{}, nil
+	return &pb.Empty{}, nil
 }
 
-func (h *Hub) RemoveSlot(ctx context.Context, request *pb.RemoveSlotRequest) (*pb.RemoveSlotReply, error) {
+func (h *Hub) RemoveSlot(ctx context.Context, request *pb.RemoveSlotRequest) (*pb.Empty, error) {
 	return nil, ErrUnimplemented
 }
 
@@ -649,6 +686,16 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		}
 	}
 
+	eth, err := NewETH()
+	if err != nil {
+		return nil, err
+	}
+
+	market, err := NewMarket()
+	if err != nil {
+		return nil, err
+	}
+
 	h := &Hub{
 		ctx:          ctx,
 		gateway:      gate,
@@ -669,6 +716,9 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		},
 		consul:         consulCli,
 		associatedHubs: make(map[string]struct{}),
+
+		eth:    eth,
+		market: market,
 	}
 
 	interceptor := h.onRequest

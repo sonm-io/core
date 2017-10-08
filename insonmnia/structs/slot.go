@@ -29,7 +29,7 @@ func NewSlot(s *pb.Slot) (*Slot, error) {
 func (s *Slot) GetResources() *Resources {
 	resources, err := NewResources(s.inner.GetResources())
 	if err != nil {
-		panic("resources are malformed")
+		panic("validation has failed")
 	}
 
 	return resources
