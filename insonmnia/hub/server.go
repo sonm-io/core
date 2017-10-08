@@ -645,7 +645,9 @@ func (h *Hub) AddSlot(ctx context.Context, request *pb.AddSlotRequest) (*pb.Empt
 		return nil, ErrMinerNotFound
 	}
 
-	miner.AddSlot(slot)
+	if err := miner.AddSlot(slot); err != nil {
+		return nil, err
+	}
 
 	return &pb.Empty{}, nil
 }
