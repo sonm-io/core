@@ -2,14 +2,15 @@ package commands
 
 import (
 	"encoding/json"
+	"io/ioutil"
 
-	ds "github.com/c2h5oh/datasize"
-	"github.com/go-yaml/yaml"
-	"github.com/sonm-io/core/cmd/cli/config"
-	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
-	"io/ioutil"
+	"gopkg.in/yaml.v2"
+
+	ds "github.com/c2h5oh/datasize"
+	"github.com/sonm-io/core/cmd/cli/config"
+	pb "github.com/sonm-io/core/proto"
 )
 
 func init() {
