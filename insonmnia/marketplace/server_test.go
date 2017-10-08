@@ -6,8 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/insonmnia/structs"
+	pb "github.com/sonm-io/core/proto"
 )
 
 func makeOrder() *pb.Order {

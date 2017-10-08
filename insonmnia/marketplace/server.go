@@ -6,10 +6,10 @@ import (
 	"sync"
 
 	"github.com/pborman/uuid"
+	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"github.com/sonm-io/core/insonmnia/structs"
 )
 
 var (
