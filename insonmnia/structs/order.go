@@ -51,6 +51,10 @@ func (o *Order) GetID() string {
 	return o.inner.GetId()
 }
 
+func (o *Order) SetID(ID string) {
+	o.inner.Id = ID
+}
+
 func (o *Order) GetPrice() int64 {
 	return o.inner.GetPrice()
 }

@@ -74,7 +74,7 @@ func (in *inMemOrderStorage) GetOrderByID(id string) (*structs.Order, error) {
 
 func (in *inMemOrderStorage) CreateOrder(o *structs.Order) (*structs.Order, error) {
 	id := in.generateID()
-	o.GetID() = id
+	o.SetID(id)
 
 	in.Lock()
 	defer in.Unlock()
