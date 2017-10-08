@@ -16,6 +16,8 @@ type CliInteractor interface {
 
 	MinerList(context.Context) (*pb.ListReply, error)
 	MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error)
+	MinerGetProperties(ctx context.Context, ID string) (*pb.GetMinerPropertiesReply, error)
+	MinerSetProperties(ctx context.Context, ID string, properties map[string]string) (*pb.Empty, error)
 
 	TaskList(appCtx context.Context, minerID string) (*pb.StatusMapReply, error)
 	TaskLogs(appCtx context.Context, req *pb.TaskLogsRequest) (pb.Hub_TaskLogsClient, error)
@@ -76,6 +78,27 @@ func (it *grpcInteractor) MinerStatus(minerID string, appCtx context.Context) (*
 
 	var req = pb.HubInfoRequest{Miner: minerID}
 	return pb.NewHubClient(it.cc).Info(ctx, &req)
+}
+
+func (it *grpcInteractor) MinerGetProperties(ctx context.Context, ID string) (*pb.GetMinerPropertiesReply, error) {
+	c, cancel := it.ctx(ctx)
+	defer cancel()
+
+	req := pb.GetMinerPropertiesRequest{
+		ID: ID,
+	}
+	return pb.NewHubClient(it.cc).GetMinerProperties(c, &req)
+}
+
+func (it *grpcInteractor) MinerSetProperties(ctx context.Context, ID string, properties map[string]string) (*pb.Empty, error) {
+	c, cancel := it.ctx(ctx)
+	defer cancel()
+
+	req := pb.SetMinerPropertiesRequest{
+		ID:         ID,
+		Properties: properties,
+	}
+	return pb.NewHubClient(it.cc).SetMinerProperties(c, &req)
 }
 
 func (it *grpcInteractor) TaskList(appCtx context.Context, minerID string) (*pb.StatusMapReply, error) {

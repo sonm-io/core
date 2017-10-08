@@ -4,13 +4,16 @@ import (
 	"encoding/json"
 
 	ds "github.com/c2h5oh/datasize"
+	"github.com/go-yaml/yaml"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
+	"io/ioutil"
 )
 
 func init() {
-	minerRootCmd.AddCommand(minersListCmd, minerStatusCmd)
+	minerRootCmd.AddCommand(minersListCmd, minerStatusCmd, minerPropertiesCmd)
+	minerPropertiesCmd.AddCommand(minerSetPropertiesCmd, minerGetPropertiesCmd)
 }
 
 func printMinerList(cmd *cobra.Command, lr *pb.ListReply) {
@@ -127,6 +130,84 @@ var minerStatusCmd = &cobra.Command{
 		}
 
 		minerStatusCmdRunner(cmd, minerID, itr)
+		return nil
+	},
+}
+
+var minerPropertiesCmd = &cobra.Command{
+	Use:     "properties",
+	Short:   "Miner properties",
+	PreRunE: checkHubAddressIsSet,
+}
+
+var minerGetPropertiesCmd = &cobra.Command{
+	Use:     "get MINER_ID...",
+	Short:   "Get miner(s) properties",
+	PreRunE: checkHubAddressIsSet,
+	RunE: func(cmd *cobra.Command, IDs []string) error {
+		ctx := context.Background()
+		grpc, err := NewGrpcInteractor(hubAddress, timeout)
+		if err != nil {
+			return nil
+		}
+		if len(IDs) == 0 {
+			miners, err := grpc.MinerList(ctx)
+			if err != nil {
+				return err
+			}
+			for id := range miners.Info {
+				IDs = append(IDs, id)
+			}
+		}
+
+		properties := map[string]map[string]string{}
+		for _, id := range IDs {
+			property, err := grpc.MinerGetProperties(ctx, id)
+			if err != nil {
+				return err
+			}
+			properties[id] = property.Properties
+		}
+
+		dump, err := json.Marshal(properties)
+		if err != nil {
+			return err
+		}
+		cmd.Println(string(dump))
+		return nil
+	},
+}
+
+var minerSetPropertiesCmd = &cobra.Command{
+	Use:     "set MINER_ID PATH",
+	Short:   "Set miner properties",
+	PreRunE: checkHubAddressIsSet,
+	Args:    cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ID := args[0]
+		path := args[1]
+
+		buf, err := ioutil.ReadFile(path)
+		if err != nil {
+			return err
+		}
+
+		cfg := map[string]string{}
+		err = yaml.Unmarshal(buf, &cfg)
+		if err != nil {
+			return err
+		}
+
+		grpc, err := NewGrpcInteractor(hubAddress, timeout)
+		if err != nil {
+			return nil
+		}
+		_, err = grpc.MinerSetProperties(context.Background(), ID, cfg)
+		if err != nil {
+			return err
+		}
+
+		cmd.Println("OK")
 		return nil
 	},
 }
