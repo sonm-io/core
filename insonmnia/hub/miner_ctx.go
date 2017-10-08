@@ -22,9 +22,9 @@ import (
 type MinerProperties map[string]string
 
 var (
-	errSlotNotFound    = errors.New("failed to find a slot that matches resources requirements")
-	errCPUNotEnough    = errors.New("number of CPU cores requested is unable to fit system's capabilities")
-	errMemoryNotEnough = errors.New("number of memory requested is unable to fit system's capabilities")
+	errSlotAlreadyExists = errors.New("specified slot already exists")
+	errCPUNotEnough      = errors.New("number of CPU cores requested is unable to fit system's capabilities")
+	errMemoryNotEnough   = errors.New("number of memory requested is unable to fit system's capabilities")
 )
 
 // MinerCtx holds all the data related to a connected Miner
@@ -52,7 +52,7 @@ type MinerCtx struct {
 
 	// TODO (3Hren): This is placed here temporarily, because of further scheduling, which currently does not exist.
 	minerProperties MinerProperties
-	slots           []*structs.Slot
+	scheduler       Scheduler
 }
 
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
@@ -111,27 +111,18 @@ func (m *MinerCtx) SetMinerProperties(properties MinerProperties) {
 }
 
 func (m *MinerCtx) GetSlots() []*structs.Slot {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	return m.slots
+	return m.scheduler.All()
 }
 
 func (m *MinerCtx) AddSlot(slot *structs.Slot) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	resources := slot.GetResources()
 	if resources.GetCpuCores() > uint64(m.capabilities.LogicalCPUCount()) {
 		return errCPUNotEnough
 	}
-
 	if resources.GetMemoryInBytes() > m.capabilities.TotalMemory() {
 		return errMemoryNotEnough
 	}
-
-	m.slots = append(m.slots, slot)
-	return nil
+	return m.scheduler.Add(slot)
 }
 
 // ReserveSlot reserves a slot during bid/ask protocol.
@@ -143,51 +134,11 @@ func (m *MinerCtx) ReserveSlot(slot *structs.Slot) error {
 }
 
 func (m *MinerCtx) reserveSlot(slot *structs.Slot) error {
-	resources := slot.GetResources()
-	slots := m.findSlots(resources)
-	if len(slots) == 0 {
-		return errSlotNotFound
-	}
-
-	// Find slots that matches its resources exactly.
-	// Chose the minimum one.
-	//candidate := slots[0]
-
-	//if candidate.StartTime == slot.StartTime && candidate.EndTime == slot.EndTime {
-	//
-	//}
-	// Reserve its time. 5 cases:
-	//  - Not fit - err
-	//  - Fit completely - consume.
-	//  - Fit partially from begin - split, take first, republish second.
-	//  - Fit partially from end - split, take second, republish first.
-	//	- Fit partially in the middle - split, take mid, republish other.
-	// Split
-	return nil
-}
-
-func (m *MinerCtx) findSlots(resources *structs.Resources) []*structs.Slot {
-	slots := []*structs.Slot{}
-	for _, slot := range m.slots {
-		if resources.Eq(slot.GetResources()) {
-			slots = append(slots, slot)
-		}
-	}
-
-	return slots
+	return m.scheduler.Reserve(slot)
 }
 
 func (m *MinerCtx) HasSlot(slot *structs.Slot) bool {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	for _, s := range m.slots {
-		if slot.Compare(s) {
-			return true
-		}
-	}
-
-	return false
+	return m.scheduler.Exists(slot)
 }
 
 func (m *MinerCtx) handshake(h *Hub) error {

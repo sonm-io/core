@@ -2,9 +2,9 @@ package structs
 
 import (
 	"fmt"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
-	"github.com/stretchr/testify/assert"
 
 	pb "github.com/sonm-io/core/proto"
 )
@@ -461,7 +461,6 @@ func TestNewInMemoryStorage_GetOrders_compareNetTrafficType(t *testing.T) {
 		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
 }
-
 
 func TestNewSlot(t *testing.T) {
 	cases := []struct {

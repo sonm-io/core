@@ -544,7 +544,7 @@ func (h *Hub) ApproveDeal(ctx context.Context, request *pb.DealRequest) (*pb.Emp
 	// ApproveDeal.
 	// 1. Move from pending to reserved.
 	// 2. Notify man who put this ask.
-	return &pb.Empty{}, nil
+	return &pb.Empty{}, ErrUnimplemented
 }
 
 func (h *Hub) getMinerByOrder(order *structs.Order) (*MinerCtx, error) {

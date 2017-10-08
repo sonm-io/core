@@ -123,7 +123,9 @@ message GetSlotsReply {
 }
 
 message AddSlotRequest {
+    // Miner ID.
     string ID = 1;
+    // Slot destription.
     Slot slot = 2;
 }
 

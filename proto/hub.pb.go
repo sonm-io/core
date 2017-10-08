@@ -365,8 +365,10 @@ func (m *GetSlotsReply) GetSlot() []*Slot {
 }
 
 type AddSlotRequest struct {
-	ID   string `protobuf:"bytes,1,opt,name=ID" json:"ID,omitempty"`
-	Slot *Slot  `protobuf:"bytes,2,opt,name=slot" json:"slot,omitempty"`
+	// Miner ID.
+	ID string `protobuf:"bytes,1,opt,name=ID" json:"ID,omitempty"`
+	// Slot destription.
+	Slot *Slot `protobuf:"bytes,2,opt,name=slot" json:"slot,omitempty"`
 }
 
 func (m *AddSlotRequest) Reset()                    { *m = AddSlotRequest{} }
