@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+import "bid.proto";
+
+package sonm;
+
+service Market {
+    rpc GetOrders(Slot) returns (GetOrdersReply) {}
+    rpc GetOrderByID(GetOrderRequest) returns (Order) {}
+    rpc CreateOrder(Order) returns (Order) {}
+    rpc CancelOrder(Order) returns (Empty) {}
+}
+
+message GetOrdersReply {
+    repeated Order orders = 1;
+}
+
+message GetOrderRequest {
+    string id = 1;
+}
+
+message Empty {}

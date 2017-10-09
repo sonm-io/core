@@ -36,6 +36,7 @@ type config struct {
 	GPUConfig      *GPUConfig      `required:"false" yaml:"GPUConfig"`
 	SSHConfig      *SSHConfig      `required:"false" yaml:"ssh"`
 	LoggingConfig  LoggingConfig   `yaml:"logging"`
+	UUIDPathConfig string          `required:"false" yaml:"uuid_path"`
 }
 
 func (c *config) HubEndpoint() string {
@@ -68,10 +69,17 @@ func (c *config) Logging() LoggingConfig {
 	return c.LoggingConfig
 }
 
+func (c *config) UUIDPath() string {
+	return c.UUIDPathConfig
+}
+
 // NewConfig creates a new Miner config from the specified YAML file.
 func NewConfig(path string) (Config, error) {
 	cfg := &config{}
 	err := configor.Load(cfg, path)
+	if cfg.UUIDPath() == "" {
+		cfg.UUIDPathConfig = path + ".uuid"
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -93,4 +101,6 @@ type Config interface {
 	SSH() *SSHConfig
 	// Logging returns logging settings.
 	Logging() LoggingConfig
+	// Path to store Miner uuid
+	UUIDPath() string
 }

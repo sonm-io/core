@@ -96,6 +96,13 @@ message TaskLogsChunk {
     bytes data = 1;
 }
 
+message EmptyReply {
+}
+
+message DiscoverHubRequest {
+    string endpoint = 1;
+}
+
 message TaskResourceRequirements {
     // Number of CPU cores.
     uint64 CPUCores = 1;

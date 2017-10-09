@@ -81,7 +81,7 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 
 // ID returns the miner id.
 func (m *MinerCtx) ID() string {
-	return m.conn.RemoteAddr().String()
+	return m.uuid
 }
 
 func (m *MinerCtx) handshake(h *Hub) error {
