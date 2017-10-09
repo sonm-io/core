@@ -8,7 +8,7 @@ import (
 	"log"
 	"github.com/sonm-io/core/blockchain/utils"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/sokel/tsc/api"
+	"github.com/sonm-io/core/blockchain/tsc/api"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -44,9 +44,14 @@ func main() {
 	}
 	fmt.Print(client)
 
-	token, err := api.NewTSCToken(common.StringToAddress("0xfaf800cad91426f026db07d254461cc707d10aa0"), client)
+	token, err := api.NewTSCToken(common.HexToAddress("0xfaf800cad91426f026db07d254461cc707d10aa0"), client)
 
 	fmt.Println(token)
-	//token.TotalSupply(client.)
+	totalSupply, err := token.TotalSupply(&bind.CallOpts{Pending: true})
+	if err != nil {
+		log.Fatal("error via getting totalSupply(): ", err)
+		return
+	}
+	fmt.Println(totalSupply)
 
 }
