@@ -14,12 +14,27 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-// Package usbwallet implements support for USB hardware wallets.
-package usbwallet
+package storage
 
-// deviceID is a combined vendor/product identifier to uniquely identify a USB
-// hardware device.
-type deviceID struct {
-	Vendor  uint16 // The Vendor identifer
-	Product uint16 // The Product identifier
+import (
+	"hash"
+)
+
+const (
+	BMTHash  = "BMT"
+	SHA3Hash = "SHA3" // http://golang.org/pkg/hash/#Hash
+)
+
+type SwarmHash interface {
+	hash.Hash
+	ResetWithLength([]byte)
+}
+
+type HashWithLength struct {
+	hash.Hash
+}
+
+func (self *HashWithLength) ResetWithLength(length []byte) {
+	self.Reset()
+	self.Write(length)
 }
