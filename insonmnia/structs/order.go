@@ -19,6 +19,14 @@ type Order struct {
 	inner *pb.Order
 }
 
+// ByPrice implements sort.Interface
+// allows to sort Orders by Price filed
+type ByPrice []*Order
+
+func (a ByPrice) Len() int           { return len(a) }
+func (a ByPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByPrice) Less(i, j int) bool { return a[i].GetPrice() > a[j].GetPrice() }
+
 func (o *Order) Unwrap() *pb.Order {
 	return o.inner
 }
@@ -69,4 +77,8 @@ func (o *Order) GetSlot() *Slot {
 
 func (o *Order) IsBid() bool {
 	return o.inner.GetOrderType() == pb.OrderType_BID
+}
+
+func (o *Order) GetType() pb.OrderType {
+	return o.inner.GetOrderType()
 }

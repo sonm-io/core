@@ -10,6 +10,11 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"sort"
+)
+
+const (
+	defaultResultsCount = 100
 )
 
 var (
@@ -21,10 +26,20 @@ var (
 	errStartTimeAfterEnd = errors.New("Start time is after end time")
 	errStartTimeRequired = errors.New("Start time is required")
 	errEndTimeRequired   = errors.New("End time is required")
+	errSearchParamsIsNil = errors.New("Search params cannot be nil")
 )
 
+// searchParams holds all fields that using to search on the market
+// Preferring to extend this structure instead of increasing amount
+// of params that accepting by OrderStorage.GetOrders() function
+type searchParams struct {
+	slot      *structs.Slot
+	orderType pb.OrderType
+	count     uint64
+}
+
 type OrderStorage interface {
-	GetOrders(slot *structs.Slot) ([]*structs.Order, error)
+	GetOrders(c *searchParams) ([]*structs.Order, error)
 	GetOrderByID(id string) (*structs.Order, error)
 	CreateOrder(order *structs.Order) (*structs.Order, error)
 	DeleteOrder(id string) error
@@ -39,8 +54,12 @@ func (in *inMemOrderStorage) generateID() string {
 	return uuid.New()
 }
 
-func (in *inMemOrderStorage) GetOrders(s *structs.Slot) ([]*structs.Order, error) {
-	if s == nil {
+func (in *inMemOrderStorage) GetOrders(c *searchParams) ([]*structs.Order, error) {
+	if c == nil {
+		return nil, errSearchParamsIsNil
+	}
+
+	if c.slot == nil {
 		return nil, errSlotIsNil
 	}
 
@@ -49,15 +68,26 @@ func (in *inMemOrderStorage) GetOrders(s *structs.Slot) ([]*structs.Order, error
 
 	orders := []*structs.Order{}
 	for _, order := range in.db {
-		os, _ := structs.NewSlot(order.Unwrap().Slot)
-		if !s.Compare(os) {
-			continue
+		if uint64(len(orders)) >= c.count {
+			break
 		}
 
-		orders = append(orders, order)
+		if compareOrderAndSlot(c.slot, order, c.orderType) {
+			orders = append(orders, order)
+		}
 	}
 
+	sort.Sort(structs.ByPrice(orders))
 	return orders, nil
+}
+
+func compareOrderAndSlot(slot *structs.Slot, order *structs.Order, typ pb.OrderType) bool {
+	if typ != pb.OrderType_ANY && typ != order.GetType() {
+		return false
+	}
+
+	os, _ := structs.NewSlot(order.Unwrap().Slot)
+	return slot.Compare(os, order.GetType())
 }
 
 func (in *inMemOrderStorage) GetOrderByID(id string) (*structs.Order, error) {
@@ -107,13 +137,24 @@ type Marketplace struct {
 	addr string
 }
 
-func (m *Marketplace) GetOrders(_ context.Context, req *pb.Slot) (*pb.GetOrdersReply, error) {
-	slot, err := structs.NewSlot(req)
+func (m *Marketplace) GetOrders(_ context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
+	slot, err := structs.NewSlot(req.Slot)
 	if err != nil {
 		return nil, err
 	}
 
-	orders, err := m.db.GetOrders(slot)
+	resultCount := req.GetCount()
+	if resultCount == 0 {
+		resultCount = defaultResultsCount
+	}
+
+	searchParams := &searchParams{
+		slot:      slot,
+		orderType: req.GetOrderType(),
+		count:     resultCount,
+	}
+
+	orders, err := m.db.GetOrders(searchParams)
 	if err != nil {
 		return nil, err
 	}

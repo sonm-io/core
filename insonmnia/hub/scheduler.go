@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/sonm-io/core/insonmnia/structs"
+	pb "github.com/sonm-io/core/proto"
 )
 
 type AllocationStatus int
@@ -61,7 +62,7 @@ func (s *Scheduler) Get(slot *structs.Slot) *structs.Slot {
 
 func (s *Scheduler) get(slot *structs.Slot) *slotItem {
 	for _, item := range s.slots {
-		if slot.Compare(item.slot) {
+		if slot.Compare(item.slot, pb.OrderType_BID) {
 			return item
 		}
 	}

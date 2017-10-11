@@ -5,8 +5,9 @@ import "insonmnia.proto";
 package sonm;
 
 enum OrderType {
-    BID = 0;
-    ASK = 1;
+    ANY = 0;
+    BID = 1;
+    ASK = 2;
 }
 
 enum NetworkType {
