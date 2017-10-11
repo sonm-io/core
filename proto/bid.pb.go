@@ -57,7 +57,6 @@ It has these top-level messages:
 	DiscoverHubRequest
 	TaskResourceRequirements
 	Empty
-	UniqueID
 	Timestamp
 	GetOrdersReply
 	GetOrderRequest
