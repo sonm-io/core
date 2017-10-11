@@ -74,42 +74,86 @@ func (s *Slot) compareTime(two *Slot) bool {
 	return startOK && endOK
 }
 
-func (s *Slot) compareCpuCores(two *Slot) bool {
+func (s *Slot) compareCpuCoresBid(two *Slot) bool {
 	return two.inner.GetResources().GetCpuCores() >= s.inner.GetResources().GetCpuCores()
 }
 
-func (s *Slot) compareRamBytes(two *Slot) bool {
+func (s *Slot) compareRamBytesBid(two *Slot) bool {
 	return two.inner.GetResources().GetRamBytes() >= s.inner.GetResources().GetRamBytes()
 }
 
-func (s *Slot) compareGpuCount(two *Slot) bool {
+func (s *Slot) compareGpuCountBid(two *Slot) bool {
 	return two.inner.GetResources().GetGpuCount() >= s.inner.GetResources().GetGpuCount()
 }
 
-func (s *Slot) compareStorage(two *Slot) bool {
+func (s *Slot) compareStorageBid(two *Slot) bool {
 	return two.inner.GetResources().GetStorage() >= s.inner.GetResources().GetStorage()
 }
 
-func (s *Slot) compareNetTrafficIn(two *Slot) bool {
+func (s *Slot) compareNetTrafficInBid(two *Slot) bool {
 	return two.inner.GetResources().GetNetTrafficIn() >= s.inner.GetResources().GetNetTrafficIn()
 }
 
-func (s *Slot) compareNetTrafficOut(two *Slot) bool {
+func (s *Slot) compareNetTrafficOutBid(two *Slot) bool {
 	return two.inner.GetResources().GetNetTrafficOut() >= s.inner.GetResources().GetNetTrafficOut()
 }
 
-func (s *Slot) compareNetworkType(two *Slot) bool {
+func (s *Slot) compareNetworkTypeBid(two *Slot) bool {
 	return two.inner.GetResources().GetNetworkType() >= s.inner.GetResources().GetNetworkType()
 }
 
-func (s *Slot) Compare(two *Slot) bool {
-	return s.compareSupplierRating(two) &&
-		s.compareTime(two) &&
-		s.compareCpuCores(two) &&
-		s.compareRamBytes(two) &&
-		s.compareGpuCount(two) &&
-		s.compareStorage(two) &&
-		s.compareNetTrafficIn(two) &&
-		s.compareNetTrafficOut(two) &&
-		s.compareNetworkType(two)
+func (s *Slot) compareCpuCoresAsk(two *Slot) bool {
+	return two.inner.GetResources().GetCpuCores() <= s.inner.GetResources().GetCpuCores()
+}
+
+func (s *Slot) compareRamBytesAsk(two *Slot) bool {
+	return two.inner.GetResources().GetRamBytes() <= s.inner.GetResources().GetRamBytes()
+}
+
+func (s *Slot) compareGpuCountAsk(two *Slot) bool {
+	return two.inner.GetResources().GetGpuCount() <= s.inner.GetResources().GetGpuCount()
+}
+
+func (s *Slot) compareStorageAsk(two *Slot) bool {
+	return two.inner.GetResources().GetStorage() <= s.inner.GetResources().GetStorage()
+}
+
+func (s *Slot) compareNetTrafficInAsk(two *Slot) bool {
+	return two.inner.GetResources().GetNetTrafficIn() <= s.inner.GetResources().GetNetTrafficIn()
+}
+
+func (s *Slot) compareNetTrafficOutAsk(two *Slot) bool {
+	return two.inner.GetResources().GetNetTrafficOut() <= s.inner.GetResources().GetNetTrafficOut()
+}
+
+func (s *Slot) compareNetworkTypeAsk(two *Slot) bool {
+	return two.inner.GetResources().GetNetworkType() <= s.inner.GetResources().GetNetworkType()
+}
+
+func (s *Slot) Compare(two *Slot, orderType pb.OrderType) bool {
+	// comparison of rating and time are performing
+	// at the same way for different types of orders
+	rt := s.compareSupplierRating(two) && s.compareTime(two)
+
+	if orderType == pb.OrderType_BID {
+		return rt &&
+			s.compareCpuCoresBid(two) &&
+			s.compareRamBytesBid(two) &&
+			s.compareGpuCountBid(two) &&
+			s.compareStorageBid(two) &&
+			s.compareNetTrafficInBid(two) &&
+			s.compareNetTrafficOutBid(two) &&
+			s.compareNetworkTypeBid(two)
+	} else if orderType == pb.OrderType_ASK {
+		return rt &&
+			s.compareCpuCoresAsk(two) &&
+			s.compareRamBytesAsk(two) &&
+			s.compareGpuCountAsk(two) &&
+			s.compareStorageAsk(two) &&
+			s.compareNetTrafficInAsk(two) &&
+			s.compareNetTrafficOutAsk(two) &&
+			s.compareNetworkTypeAsk(two)
+	}
+
+	return false
 }

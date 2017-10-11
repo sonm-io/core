@@ -140,9 +140,15 @@ func TestInMemOrderStorage_GetOrderByID_NotExists(t *testing.T) {
 	assert.EqualError(t, err, errOrderNotFound.Error())
 }
 
-func TestInMemOrderStorage_GetOrders_NilSlot(t *testing.T) {
+func TestInMemOrderStorage_GetOrders_NilParams(t *testing.T) {
 	s := NewInMemoryStorage()
 	_, err := s.GetOrders(nil)
+	assert.EqualError(t, err, errSearchParamsIsNil.Error())
+}
+
+func TestInMemOrderStorage_GetOrders_NilSlot(t *testing.T) {
+	s := NewInMemoryStorage()
+	_, err := s.GetOrders(&searchParams{})
 	assert.EqualError(t, err, errSlotIsNil.Error())
 }
 
@@ -180,5 +186,310 @@ func TestNewOrder(t *testing.T) {
 	for i, cc := range cases {
 		_, err := structs.NewOrder(cc.ord)
 		assert.EqualError(t, err, cc.err.Error(), fmt.Sprintf("%d", i))
+	}
+}
+
+func TestCompareWithType(t *testing.T) {
+	cases := []struct {
+		slotT     pb.OrderType
+		slot      *pb.Slot
+		order     *pb.Order
+		mustMatch bool
+	}{
+		{
+			slotT: pb.OrderType_ANY,
+			slot: &pb.Slot{
+				StartTime: &pb.Timestamp{Seconds: 100},
+				EndTime:   &pb.Timestamp{Seconds: 200},
+				Resources: &pb.Resources{},
+			},
+
+			order: &pb.Order{
+				OrderType: pb.OrderType_BID,
+				Price:     1,
+				Slot: &pb.Slot{
+					StartTime: &pb.Timestamp{Seconds: 100},
+					EndTime:   &pb.Timestamp{Seconds: 200},
+					Resources: &pb.Resources{},
+				},
+			},
+			mustMatch: true,
+		},
+		{
+			slotT: pb.OrderType_ANY,
+			slot: &pb.Slot{
+				StartTime: &pb.Timestamp{Seconds: 100},
+				EndTime:   &pb.Timestamp{Seconds: 200},
+				Resources: &pb.Resources{},
+			},
+
+			order: &pb.Order{
+				OrderType: pb.OrderType_ASK,
+				Price:     1,
+				Slot: &pb.Slot{
+					StartTime: &pb.Timestamp{Seconds: 100},
+					EndTime:   &pb.Timestamp{Seconds: 200},
+					Resources: &pb.Resources{},
+				},
+			},
+			mustMatch: true,
+		},
+
+		{
+			slotT: pb.OrderType_ASK,
+			slot: &pb.Slot{
+				StartTime: &pb.Timestamp{Seconds: 100},
+				EndTime:   &pb.Timestamp{Seconds: 200},
+				Resources: &pb.Resources{},
+			},
+
+			order: &pb.Order{
+				OrderType: pb.OrderType_ASK,
+				Price:     1,
+				Slot: &pb.Slot{
+					StartTime: &pb.Timestamp{Seconds: 100},
+					EndTime:   &pb.Timestamp{Seconds: 200},
+					Resources: &pb.Resources{},
+				},
+			},
+			mustMatch: true,
+		},
+		{
+			slotT: pb.OrderType_ASK,
+			slot: &pb.Slot{
+				StartTime: &pb.Timestamp{Seconds: 100},
+				EndTime:   &pb.Timestamp{Seconds: 200},
+				Resources: &pb.Resources{},
+			},
+
+			order: &pb.Order{
+				OrderType: pb.OrderType_BID,
+				Price:     1,
+				Slot: &pb.Slot{
+					StartTime: &pb.Timestamp{Seconds: 100},
+					EndTime:   &pb.Timestamp{Seconds: 200},
+					Resources: &pb.Resources{},
+				},
+			},
+			mustMatch: false,
+		},
+	}
+
+	for i, cc := range cases {
+		ord, err := structs.NewOrder(cc.order)
+		assert.NoError(t, err)
+		sl, err := structs.NewSlot(cc.slot)
+		assert.NoError(t, err)
+
+		isMatch := compareOrderAndSlot(sl, ord, cc.slotT)
+		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
+	}
+}
+
+func TestInMemOrderStorage_GetOrders_Count(t *testing.T) {
+	stor := NewInMemoryStorage()
+	for i := 0; i < 100; i++ {
+		ord, err := structs.NewOrder(&pb.Order{
+			Price:     1,
+			OrderType: pb.OrderType_BID,
+			Slot: &pb.Slot{
+				StartTime: &pb.Timestamp{Seconds: 100},
+				EndTime:   &pb.Timestamp{Seconds: 200},
+				Resources: &pb.Resources{},
+			},
+		})
+
+		assert.NoError(t, err)
+
+		_, err = stor.CreateOrder(ord)
+		assert.NoError(t, err)
+	}
+
+	sl, err := structs.NewSlot(&pb.Slot{
+		StartTime: &pb.Timestamp{Seconds: 100},
+		EndTime:   &pb.Timestamp{Seconds: 200},
+		Resources: &pb.Resources{},
+	})
+	assert.NoError(t, err)
+
+	search := &searchParams{
+		slot:      sl,
+		count:     3,
+		orderType: pb.OrderType_BID,
+	}
+
+	found, err := stor.GetOrders(search)
+	assert.NoError(t, err)
+
+	assert.Equal(t, int(search.count), len(found))
+}
+
+func TestInMemOrderStorage_GetOrders_Count2(t *testing.T) {
+	stor := NewInMemoryStorage()
+	for i := 0; i < 100; i++ {
+		bid, err := structs.NewOrder(&pb.Order{
+			Price:     1,
+			OrderType: pb.OrderType_BID,
+			Slot: &pb.Slot{
+				StartTime: &pb.Timestamp{Seconds: 100},
+				EndTime:   &pb.Timestamp{Seconds: 200},
+				Resources: &pb.Resources{},
+			},
+		})
+
+		assert.NoError(t, err)
+
+		_, err = stor.CreateOrder(bid)
+		assert.NoError(t, err)
+	}
+
+	ask, err := structs.NewOrder(&pb.Order{
+		Price:     1,
+		OrderType: pb.OrderType_ASK,
+		Slot: &pb.Slot{
+			StartTime: &pb.Timestamp{Seconds: 100},
+			EndTime:   &pb.Timestamp{Seconds: 200},
+			Resources: &pb.Resources{},
+		},
+	})
+	assert.NoError(t, err)
+
+	_, err = stor.CreateOrder(ask)
+	assert.NoError(t, err)
+
+	sl, err := structs.NewSlot(&pb.Slot{
+		StartTime: &pb.Timestamp{Seconds: 100},
+		EndTime:   &pb.Timestamp{Seconds: 200},
+		Resources: &pb.Resources{},
+	})
+	assert.NoError(t, err)
+
+	search := &searchParams{
+		slot:      sl,
+		count:     10,
+		orderType: pb.OrderType_ASK,
+	}
+
+	found, err := stor.GetOrders(search)
+	assert.NoError(t, err)
+
+	assert.Equal(t, 1, len(found))
+}
+
+func TestInMemOrderStorage_GetOrders_Count3(t *testing.T) {
+	stor := NewInMemoryStorage()
+	for i := 0; i < 100; i++ {
+		var ot pb.OrderType
+		if i%2 == 0 {
+			ot = pb.OrderType_ASK
+		} else {
+			ot = pb.OrderType_BID
+		}
+
+		bid, err := structs.NewOrder(&pb.Order{
+			Price:     1,
+			OrderType: ot,
+			Slot: &pb.Slot{
+				StartTime: &pb.Timestamp{Seconds: 100},
+				EndTime:   &pb.Timestamp{Seconds: 200},
+				Resources: &pb.Resources{},
+			},
+		})
+
+		assert.NoError(t, err)
+
+		_, err = stor.CreateOrder(bid)
+		assert.NoError(t, err)
+	}
+
+	sl, err := structs.NewSlot(&pb.Slot{
+		StartTime: &pb.Timestamp{Seconds: 100},
+		EndTime:   &pb.Timestamp{Seconds: 200},
+		Resources: &pb.Resources{},
+	})
+	assert.NoError(t, err)
+
+	search := []*searchParams{
+		{
+			slot:      sl,
+			count:     5,
+			orderType: pb.OrderType_ANY,
+		},
+		{
+			slot:      sl,
+			count:     10,
+			orderType: pb.OrderType_ASK,
+		},
+		{
+			slot:      sl,
+			count:     50,
+			orderType: pb.OrderType_BID,
+		},
+	}
+
+	for _, ss := range search {
+		found, err := stor.GetOrders(ss)
+		assert.NoError(t, err)
+
+		assert.Equal(t, int(ss.count), len(found))
+	}
+}
+
+func TestMarketplace_GetOrders(t *testing.T) {
+	mp := NewMarketplace("")
+
+	req := &pb.GetOrdersRequest{
+		Slot:      nil,
+		Count:     0,
+		OrderType: pb.OrderType_ANY,
+	}
+	_, err := mp.GetOrders(nil, req)
+	assert.EqualError(t, err, errSlotIsNil.Error())
+}
+
+func TestInMemOrderStorage_GetOrders_Ordering(t *testing.T) {
+	// check if order is sorted
+	stor := NewInMemoryStorage()
+
+	for i := 100; i > 0; i-- {
+		bid, err := structs.NewOrder(&pb.Order{
+			Price:     int64(i + 1),
+			OrderType: pb.OrderType_BID,
+			Slot: &pb.Slot{
+				StartTime: &pb.Timestamp{Seconds: 100},
+				EndTime:   &pb.Timestamp{Seconds: 200},
+				Resources: &pb.Resources{},
+			},
+		})
+		assert.NoError(t, err)
+
+		_, err = stor.CreateOrder(bid)
+		assert.NoError(t, err)
+	}
+
+	sl, err := structs.NewSlot(&pb.Slot{
+		StartTime: &pb.Timestamp{Seconds: 100},
+		EndTime:   &pb.Timestamp{Seconds: 200},
+		Resources: &pb.Resources{},
+	})
+	assert.NoError(t, err)
+
+	search := &searchParams{
+		slot:      sl,
+		count:     10,
+		orderType: pb.OrderType_BID,
+	}
+
+	found, err := stor.GetOrders(search)
+	assert.NoError(t, err)
+
+	assert.Equal(t, int(search.count), len(found))
+
+	for i := 1; i < len(found); i++ {
+		p1 := found[i-1].GetPrice()
+		p2 := found[i].GetPrice()
+		ok := p1 > p2
+
+		assert.True(t, ok, fmt.Sprintf("iter %d :: %d should be gt %d", i, p1, p2))
 	}
 }
