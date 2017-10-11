@@ -9,7 +9,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	ds "github.com/c2h5oh/datasize"
-	"github.com/sonm-io/core/cmd/cli/config"
+	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -292,7 +292,7 @@ var minerAddSlotCmd = &cobra.Command{
 			return err
 		}
 
-		cfg := config.SlotConfig{}
+		cfg := task_config.SlotConfig{}
 		err = yaml.Unmarshal(buf, &cfg)
 		if err != nil {
 			return err

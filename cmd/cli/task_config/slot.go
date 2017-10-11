@@ -1,4 +1,4 @@
-package config
+package task_config
 
 import (
 	"time"
