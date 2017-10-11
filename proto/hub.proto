@@ -18,8 +18,31 @@ service Hub {
     rpc MinerStatus(HubStatusMapRequest) returns (StatusMapReply) {}
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
 
-    rpc ProposeDeal(DealRequest) returns (DealReply) {}
+    rpc ProposeDeal(DealRequest) returns (Empty) {}
     rpc DiscoverHub(DiscoverHubRequest) returns (EmptyReply) {}
+
+    // GetMinerProperties allows to obtain previously assigned resource
+    // properties for a given miner.
+    rpc GetMinerProperties(GetMinerPropertiesRequest) returns (GetMinerPropertiesReply) {}
+
+    // SetMinerProperties method allows to specify additional resource
+    // properties for a miner specified by its ID.
+    // This may include GPU's capability to execute a well-known work such as
+    // Ethereum mining etc.
+    // Note, that this method overrides all previously specified properties.
+    rpc SetMinerProperties(SetMinerPropertiesRequest) returns (Empty) {}
+
+    // GetSlots allows to obtain previously assigned slots from for a given
+    // miner.
+    rpc GetSlots(GetSlotsRequest) returns (GetSlotsReply) {}
+
+    // AddSlot allows to assign a new slot for a given miner.
+    // This method can fail if either there are no resources left on a miner
+    // or it has been previourly assigned for specified time duration.
+    rpc AddSlot(AddSlotRequest) returns (Empty) {}
+
+    // RemoveSlot removes the speified slot if fully matches.
+    rpc RemoveSlot(RemoveSlotRequest) returns (Empty) {}
 }
 
 message ListRequest {
@@ -77,5 +100,36 @@ message DealRequest {
     Order order = 1;
 }
 
-message DealReply {
+message GetMinerPropertiesRequest {
+    string ID = 1;
+}
+
+message GetMinerPropertiesReply {
+    map<string, string> properties = 1;
+}
+
+message SetMinerPropertiesRequest {
+    string ID = 1;
+    map<string, string> properties = 2;
+}
+
+message GetSlotsRequest {
+    // Miner ID.
+    string ID = 1;
+}
+
+message GetSlotsReply {
+    repeated Slot slot = 1;
+}
+
+message AddSlotRequest {
+    // Miner ID.
+    string ID = 1;
+    // Slot destription.
+    Slot slot = 2;
+}
+
+message RemoveSlotRequest {
+    string ID = 1;
+    Slot slot = 2;
 }

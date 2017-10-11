@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "bid.proto";
+import "insonmnia.proto";
 
 package sonm;
 
@@ -18,5 +19,3 @@ message GetOrdersReply {
 message GetOrderRequest {
     string id = 1;
 }
-
-message Empty {}

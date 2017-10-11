@@ -872,6 +872,12 @@
 			"revisionTime": "2017-05-10T07:48:58Z"
 		},
 		{
+			"checksumSHA1": "V/quM7+em2ByJbWBLOsEwnY3j/Q=",
+			"path": "github.com/mitchellh/go-homedir",
+			"revision": "b8bc1bf767474819792c23f32d8286a45736f1c6",
+			"revisionTime": "2016-12-03T19:45:07Z"
+		},
+		{
 			"checksumSHA1": "L3leymg2RT8hFl5uL+5KP/LpBkg=",
 			"path": "github.com/mitchellh/go-wordwrap",
 			"revision": "ad45545899c7b13c020ea92b2072220eefad42b8",
@@ -1728,10 +1734,10 @@
 			"revisionTime": "2014-09-24T16:16:07Z"
 		},
 		{
-			"checksumSHA1": "o20lmjzBQyKD5LfLZ3OhUoMkLds=",
+			"checksumSHA1": "RDJpJQwkF012L6m/2BJizyOksNw=",
 			"path": "gopkg.in/yaml.v2",
-			"revision": "25c4ec802a7d637f88d584ab26798e94ad14c13b",
-			"revisionTime": "2017-07-21T12:20:51Z"
+			"revision": "eb3733d160e74a9c7e442f435eb3bea458e1d19f",
+			"revisionTime": "2017-08-12T16:00:11Z"
 		}
 	],
 	"rootPath": "github.com/sonm-io/core"

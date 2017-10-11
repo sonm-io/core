@@ -31,7 +31,13 @@ It has these top-level messages:
 	HubStatusRequest
 	HubStatusReply
 	DealRequest
-	DealReply
+	GetMinerPropertiesRequest
+	GetMinerPropertiesReply
+	SetMinerPropertiesRequest
+	GetSlotsRequest
+	GetSlotsReply
+	AddSlotRequest
+	RemoveSlotRequest
 	PingRequest
 	PingReply
 	CPUUsage
@@ -50,10 +56,10 @@ It has these top-level messages:
 	EmptyReply
 	DiscoverHubRequest
 	TaskResourceRequirements
+	Empty
 	Timestamp
 	GetOrdersReply
 	GetOrderRequest
-	Empty
 	MinerInfoRequest
 	MinerHandshakeRequest
 	MinerHandshakeReply

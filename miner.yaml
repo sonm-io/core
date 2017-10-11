@@ -3,7 +3,7 @@ hub:
   # Endpoint for hub communication, optional param
   # Can be omitted, in this case a discovery mechanism is activated.
   # format is "ip:port"
-  # endpoint: "127.0.0.1:10002"
+   endpoint: "127.0.0.1:10002"
 
   # Resources section is available only on Linux
   # If configured, all tasks will share this pool of resources.
