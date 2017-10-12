@@ -756,6 +756,12 @@
 			"revisionTime": "2016-05-03T14:34:40Z"
 		},
 		{
+			"checksumSHA1": "mAkPa/RLuIwN53GbwIEMATexams=",
+			"path": "github.com/hashicorp/go-uuid",
+			"revision": "64130c7a86d732268a38cb04cfbaf0cc987fda98",
+			"revisionTime": "2016-07-17T02:21:40Z"
+		},
+		{
 			"checksumSHA1": "d9PxF1XQGLMJZRct2R8qVM/eYlE=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/hashicorp/golang-lru",
 			"path": "github.com/hashicorp/golang-lru",

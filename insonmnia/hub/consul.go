@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"bytes"
 	"context"
 	consul "github.com/hashicorp/consul/api"
 	consultestutil "github.com/hashicorp/consul/testutil"
@@ -20,32 +21,34 @@ type devConsul struct {
 
 type consulLogWriter struct {
 	ctx    context.Context
-	buffer string
+	buffer bytes.Buffer
 }
 
 func (c *consulLogWriter) Write(p []byte) (n int, err error) {
-	c.buffer += string(p)
-	parts := strings.Split(c.buffer, "\n")
-	counter := 0
-	for i := 0; i < len(parts)-1; i++ {
-		counter += len(parts[i]) + 1
-		part := strings.Trim(parts[i], " ")
+	c.buffer.Write(p)
+	for {
+		line, err := c.buffer.ReadBytes('\n')
+		if err != nil {
+			for i := 0; i < len(line); i++ {
+				c.buffer.UnreadByte()
+			}
+			break
+		}
+		part := strings.Trim(string(line), " \n")
 		subparts := strings.SplitN(part, " ", 4)
 		if len(subparts) != 4 || len(subparts[2]) == 0 || subparts[2][0] != '[' {
-			log.G(c.ctx).Debug("consul: " + strings.Trim(parts[i], " "))
+			log.G(c.ctx).Debug("consul: " + strings.Trim(string(line), " "))
 		} else {
 			log.G(c.ctx).Debug("consul: " + strings.Trim(subparts[3], " "))
 		}
-
 	}
-	c.buffer = c.buffer[counter:]
 	return len(p), nil
 }
 
 func newDevConsul(ctx context.Context) (*devConsul, error) {
 	server, err := consultestutil.NewTestServerConfig(func(c *consultestutil.TestServerConfig) {
-		c.Stderr = &consulLogWriter{ctx, ""}
-		c.Stdout = &consulLogWriter{ctx, ""}
+		c.Stderr = &consulLogWriter{ctx, bytes.Buffer{}}
+		c.Stdout = &consulLogWriter{ctx, bytes.Buffer{}}
 	})
 	if err != nil {
 		return nil, err
