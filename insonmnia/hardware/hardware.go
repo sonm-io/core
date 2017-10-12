@@ -24,6 +24,11 @@ func (h *Hardware) LogicalCPUCount() int {
 	return res
 }
 
+// TotalMemory returns the total number of bytes.
+func (h *Hardware) TotalMemory() uint64 {
+	return h.Memory.Total
+}
+
 // HasGPU returns true if a system has GPU on the board.
 func (h *Hardware) HasGPU() bool {
 	return len(h.GPU) > 0

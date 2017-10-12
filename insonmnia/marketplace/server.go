@@ -6,9 +6,15 @@ import (
 	"sync"
 
 	"github.com/pborman/uuid"
+	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"sort"
+)
+
+const (
+	defaultResultsCount = 100
 )
 
 var (
@@ -20,171 +26,71 @@ var (
 	errStartTimeAfterEnd = errors.New("Start time is after end time")
 	errStartTimeRequired = errors.New("Start time is required")
 	errEndTimeRequired   = errors.New("End time is required")
+	errSearchParamsIsNil = errors.New("Search params cannot be nil")
 )
 
+// searchParams holds all fields that using to search on the market
+// Preferring to extend this structure instead of increasing amount
+// of params that accepting by OrderStorage.GetOrders() function
+type searchParams struct {
+	slot      *structs.Slot
+	orderType pb.OrderType
+	count     uint64
+}
+
 type OrderStorage interface {
-	GetOrders(slot *Slot) ([]*Order, error)
-	GetOrderByID(id string) (*Order, error)
-	CreateOrder(order *Order) (*Order, error)
+	GetOrders(c *searchParams) ([]*structs.Order, error)
+	GetOrderByID(id string) (*structs.Order, error)
+	CreateOrder(order *structs.Order) (*structs.Order, error)
 	DeleteOrder(id string) error
-}
-
-type Slot struct {
-	inner *pb.Slot
-}
-
-func (one *Slot) Unwrap() *pb.Slot {
-	return one.inner
-}
-
-func NewSlot(s *pb.Slot) (*Slot, error) {
-	if err := validateSlot(s); err != nil {
-		return nil, err
-	} else {
-		return &Slot{inner: s}, nil
-	}
-
-}
-
-func validateSlot(s *pb.Slot) error {
-	if s == nil {
-		return errSlotIsNil
-	}
-
-	if s.GetResources() == nil {
-		return errResourcesIsNil
-	}
-
-	if s.GetStartTime() == nil {
-		return errStartTimeRequired
-	}
-
-	if s.GetEndTime() == nil {
-		return errEndTimeRequired
-	}
-
-	if s.GetStartTime().GetSeconds() >= s.GetEndTime().GetSeconds() {
-		return errStartTimeAfterEnd
-	}
-
-	return nil
-}
-
-func (one *Slot) compareSupplierRating(two *Slot) bool {
-	return two.inner.GetSupplierRating() >= one.inner.GetSupplierRating()
-}
-
-func (one *Slot) compareTime(two *Slot) bool {
-	startOK := one.inner.GetStartTime().GetSeconds() >= two.inner.GetStartTime().GetSeconds()
-	endOK := one.inner.GetEndTime().GetSeconds() <= two.inner.GetEndTime().GetSeconds()
-
-	return startOK && endOK
-}
-
-func (one *Slot) compareCpuCores(two *Slot) bool {
-	return two.inner.GetResources().GetCpuCores() >= one.inner.GetResources().GetCpuCores()
-}
-
-func (one *Slot) compareRamBytes(two *Slot) bool {
-	return two.inner.GetResources().GetRamBytes() >= one.inner.GetResources().GetRamBytes()
-}
-
-func (one *Slot) compareGpuCount(two *Slot) bool {
-	return two.inner.GetResources().GetGpuCount() >= one.inner.GetResources().GetGpuCount()
-}
-
-func (one *Slot) compareStorage(two *Slot) bool {
-	return two.inner.GetResources().GetStorage() >= one.inner.GetResources().GetStorage()
-}
-
-func (one *Slot) compareNetTrafficIn(two *Slot) bool {
-	return two.inner.GetResources().GetNetTrafficIn() >= one.inner.GetResources().GetNetTrafficIn()
-}
-
-func (one *Slot) compareNetTrafficOut(two *Slot) bool {
-	return two.inner.GetResources().GetNetTrafficOut() >= one.inner.GetResources().GetNetTrafficOut()
-}
-
-func (one *Slot) compareNetworkType(two *Slot) bool {
-	return two.inner.GetResources().GetNetworkType() >= one.inner.GetResources().GetNetworkType()
-}
-
-func (one *Slot) Compare(two *Slot) bool {
-	return one.compareSupplierRating(two) &&
-		one.compareTime(two) &&
-		one.compareCpuCores(two) &&
-		one.compareRamBytes(two) &&
-		one.compareGpuCount(two) &&
-		one.compareStorage(two) &&
-		one.compareNetTrafficIn(two) &&
-		one.compareNetTrafficOut(two) &&
-		one.compareNetworkType(two)
-}
-
-type Order struct {
-	inner *pb.Order
-}
-
-func (o *Order) Unwrap() *pb.Order {
-	return o.inner
-}
-
-func NewOrder(o *pb.Order) (*Order, error) {
-	if err := validateOrder(o); err != nil {
-		return nil, err
-	} else {
-		return &Order{inner: o}, nil
-	}
-}
-
-func validateOrder(o *pb.Order) error {
-	if o == nil {
-		return errOrderIsNil
-	}
-
-	if o.Price <= 0 {
-		return errPriceIsZero
-	}
-
-	_, err := NewSlot(o.Slot)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 type inMemOrderStorage struct {
 	sync.RWMutex
-	db map[string]*Order
+	db map[string]*structs.Order
 }
 
 func (in *inMemOrderStorage) generateID() string {
 	return uuid.New()
 }
 
-func (in *inMemOrderStorage) GetOrders(s *Slot) ([]*Order, error) {
-	if s == nil {
+func (in *inMemOrderStorage) GetOrders(c *searchParams) ([]*structs.Order, error) {
+	if c == nil {
+		return nil, errSearchParamsIsNil
+	}
+
+	if c.slot == nil {
 		return nil, errSlotIsNil
 	}
 
 	in.RLock()
 	defer in.RUnlock()
 
-	orders := []*Order{}
+	orders := []*structs.Order{}
 	for _, order := range in.db {
-		os, _ := NewSlot(order.inner.Slot)
-		if !s.Compare(os) {
-			continue
+		if uint64(len(orders)) >= c.count {
+			break
 		}
 
-		orders = append(orders, order)
+		if compareOrderAndSlot(c.slot, order, c.orderType) {
+			orders = append(orders, order)
+		}
 	}
 
+	sort.Sort(structs.ByPrice(orders))
 	return orders, nil
 }
 
-func (in *inMemOrderStorage) GetOrderByID(id string) (*Order, error) {
+func compareOrderAndSlot(slot *structs.Slot, order *structs.Order, typ pb.OrderType) bool {
+	if typ != pb.OrderType_ANY && typ != order.GetType() {
+		return false
+	}
+
+	os, _ := structs.NewSlot(order.Unwrap().Slot)
+	return slot.Compare(os, order.GetType())
+}
+
+func (in *inMemOrderStorage) GetOrderByID(id string) (*structs.Order, error) {
 	in.RLock()
 	defer in.RUnlock()
 
@@ -196,9 +102,9 @@ func (in *inMemOrderStorage) GetOrderByID(id string) (*Order, error) {
 	return ord, nil
 }
 
-func (in *inMemOrderStorage) CreateOrder(o *Order) (*Order, error) {
+func (in *inMemOrderStorage) CreateOrder(o *structs.Order) (*structs.Order, error) {
 	id := in.generateID()
-	o.inner.Id = id
+	o.SetID(id)
 
 	in.Lock()
 	defer in.Unlock()
@@ -222,7 +128,7 @@ func (in *inMemOrderStorage) DeleteOrder(id string) error {
 
 func NewInMemoryStorage() OrderStorage {
 	return &inMemOrderStorage{
-		db: make(map[string]*Order),
+		db: make(map[string]*structs.Order),
 	}
 }
 
@@ -231,20 +137,31 @@ type Marketplace struct {
 	addr string
 }
 
-func (m *Marketplace) GetOrders(_ context.Context, req *pb.Slot) (*pb.GetOrdersReply, error) {
-	slot, err := NewSlot(req)
+func (m *Marketplace) GetOrders(_ context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
+	slot, err := structs.NewSlot(req.Slot)
 	if err != nil {
 		return nil, err
 	}
 
-	orders, err := m.db.GetOrders(slot)
+	resultCount := req.GetCount()
+	if resultCount == 0 {
+		resultCount = defaultResultsCount
+	}
+
+	searchParams := &searchParams{
+		slot:      slot,
+		orderType: req.GetOrderType(),
+		count:     resultCount,
+	}
+
+	orders, err := m.db.GetOrders(searchParams)
 	if err != nil {
 		return nil, err
 	}
 
 	innerOrders := []*pb.Order{}
 	for _, o := range orders {
-		innerOrders = append(innerOrders, o.inner)
+		innerOrders = append(innerOrders, o.Unwrap())
 	}
 
 	return &pb.GetOrdersReply{
@@ -257,11 +174,11 @@ func (m *Marketplace) GetOrderByID(_ context.Context, req *pb.GetOrderRequest) (
 	if err != nil {
 		return nil, err
 	}
-	return order.inner, nil
+	return order.Unwrap(), nil
 }
 
 func (m *Marketplace) CreateOrder(_ context.Context, req *pb.Order) (*pb.Order, error) {
-	order, err := NewOrder(req)
+	order, err := structs.NewOrder(req)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +188,7 @@ func (m *Marketplace) CreateOrder(_ context.Context, req *pb.Order) (*pb.Order, 
 		return nil, err
 	}
 
-	return order.inner, nil
+	return order.Unwrap(), nil
 }
 
 func (m *Marketplace) CancelOrder(_ context.Context, req *pb.Order) (*pb.Empty, error) {
