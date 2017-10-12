@@ -44,12 +44,15 @@ func GetGPUDevicesUsingOpenCL() ([]Device, error) {
 		}
 
 		for _, d := range devices {
-			deviceVersion, err := d.deviceVersion()
+			options := []Option{}
+			if deviceVersion, err := d.deviceVersion(); err == nil {
+				options = append(options, WithOpenClDeviceVersion(deviceVersion))
+			}
+
+			device, err := NewDevice(d.name(), d.vendor(), d.globalMemSize(), options...)
 			if err != nil {
 				return nil, err
 			}
-
-			device := NewDevice(d.name(), d.vendor(), d.globalMemSize(), WithOpenClDeviceVersion(deviceVersion))
 			result = append(result, device)
 		}
 	}
