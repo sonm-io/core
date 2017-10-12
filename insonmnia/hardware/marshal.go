@@ -99,7 +99,12 @@ func GPUFromProto(g []*pb.GPUDevice) ([]gpu.Device, error) {
 	result := []gpu.Device{}
 
 	for _, i := range g {
-		device := gpu.NewDevice(i.GetName(), i.GetVendorName(), i.GetMaxMemorySize())
+		device := gpu.NewDevice(
+			i.GetName(),
+			i.GetVendorName(),
+			i.GetMaxMemorySize(),
+			i.GetOpenCLVersion(),
+		)
 		result = append(result, device)
 	}
 

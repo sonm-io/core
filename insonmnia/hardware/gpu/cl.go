@@ -44,7 +44,12 @@ func GetGPUDevicesUsingOpenCL() ([]Device, error) {
 		}
 
 		for _, d := range devices {
-			device := NewDevice(d.name(), d.vendor(), d.globalMemSize())
+			deviceVersion, err := d.deviceVersion()
+			if err != nil {
+				return nil, err
+			}
+
+			device := NewDevice(d.name(), d.vendor(), d.globalMemSize(), deviceVersion)
 			result = append(result, device)
 		}
 	}
@@ -130,4 +135,12 @@ func (d *clDevice) vendor() string {
 func (d *clDevice) globalMemSize() uint64 {
 	val, _ := d.getInfoUint64(C.CL_DEVICE_GLOBAL_MEM_SIZE)
 	return uint64(val)
+}
+
+func (d *clDevice) driverVersion() (string, error) {
+	return d.getInfoString(C.CL_DRIVER_VERSION)
+}
+
+func (d *clDevice) deviceVersion() (string, error) {
+	return d.getInfoString(C.CL_DEVICE_VERSION)
 }

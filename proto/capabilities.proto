@@ -28,4 +28,6 @@ message GPUDevice {
     string vendorName = 2;
     // Total maximum memory size the device can hold.
     uint64 maxMemorySize = 3;
+    // OpenCL version string.
+    string openCLVersion = 4;
 }
