@@ -23,15 +23,16 @@ type device struct {
 	d pb.GPUDevice
 }
 
-type Option func(*pb.GPUDevice)
+type Option func(*pb.GPUDevice) error
 
-func WithOpenClDeviceVersion(version string) func(*pb.GPUDevice) {
-	return func(d *pb.GPUDevice) {
+func WithOpenClDeviceVersion(version string) func(*pb.GPUDevice) error {
+	return func(d *pb.GPUDevice) error {
 		d.OpenCLVersion = version
+		return nil
 	}
 }
 
-func NewDevice(name, vendorName string, maxMemorySize uint64, options... Option) Device {
+func NewDevice(name, vendorName string, maxMemorySize uint64, options ...Option) (Device, error) {
 	d := pb.GPUDevice{
 		Name:          name,
 		VendorName:    vendorName,
@@ -39,10 +40,12 @@ func NewDevice(name, vendorName string, maxMemorySize uint64, options... Option)
 	}
 
 	for _, option := range options {
-		option(&d)
+		if err := option(&d); err != nil {
+			return nil, err
+		}
 	}
 
-	return &device{d: d}
+	return &device{d: d}, nil
 }
 
 func (d *device) Name() string {
