@@ -49,7 +49,7 @@ func GetGPUDevicesUsingOpenCL() ([]Device, error) {
 				return nil, err
 			}
 
-			device := NewDevice(d.name(), d.vendor(), d.globalMemSize(), deviceVersion)
+			device := NewDevice(d.name(), d.vendor(), d.globalMemSize(), WithOpenClDeviceVersion(deviceVersion))
 			result = append(result, device)
 		}
 	}
