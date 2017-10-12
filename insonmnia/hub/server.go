@@ -682,7 +682,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
 	}
 
-	var consulCli Consul = nil
+	var consulCli Consul
 	if cfg.ConsulEnabled {
 		consulCli, err = consul.NewClient(consul.DefaultConfig())
 	} else {
