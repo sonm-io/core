@@ -929,11 +929,6 @@ func (h *Hub) Serve() error {
 	// TODO: fix this possible race: Close before Serve
 	h.minerListener = listener
 
-	err = h.initLocatorClient()
-	if err != nil {
-		return err
-	}
-
 	h.wg.Add(1)
 	go func() {
 		defer h.wg.Done()
@@ -952,11 +947,20 @@ func (h *Hub) Serve() error {
 		}
 	}()
 
-	h.wg.Add(1)
-	go func() {
-		defer h.wg.Done()
-		h.startLocatorAnnouncer()
-	}()
+	// init locator connection and announce
+	// address only on Leader
+	if h.isLeader {
+		err = h.initLocatorClient()
+		if err != nil {
+			return err
+		}
+
+		h.wg.Add(1)
+		go func() {
+			defer h.wg.Done()
+			h.startLocatorAnnouncer()
+		}()
+	}
 
 	h.wg.Wait()
 	return nil
@@ -1063,6 +1067,8 @@ func (h *Hub) startLocatorAnnouncer() {
 		select {
 		case <-tk.C:
 			h.announceAddress(h.ctx)
+		case <-h.ctx.Done():
+			return
 		}
 	}
 }

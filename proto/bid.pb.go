@@ -59,13 +59,10 @@ It has these top-level messages:
 	TaskResourceRequirements
 	Empty
 	Timestamp
-<<<<<<< HEAD
 	AnnounceRequest
 	ResolveRequest
 	ResolveReply
-=======
 	GetOrdersRequest
->>>>>>> master
 	GetOrdersReply
 	GetOrderRequest
 	MinerInfoRequest
