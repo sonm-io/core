@@ -738,6 +738,12 @@
 			"revisionTime": "2017-09-02T05:25:28Z"
 		},
 		{
+			"checksumSHA1": "J8TTDc84MvAyXE/FrfgS+xc/b6s=",
+			"path": "github.com/hashicorp/consul/testutil/retry",
+			"revision": "575d70aaa73d6ee2a4e5b8ca8e969ccf5e88a871",
+			"revisionTime": "2017-10-11T22:52:20Z"
+		},
+		{
 			"checksumSHA1": "b8F628srIitj5p7Y130xc9k0QWs=",
 			"path": "github.com/hashicorp/go-cleanhttp",
 			"revision": "3573b8b52aa7b37b9358d966a898feb387f62437",
