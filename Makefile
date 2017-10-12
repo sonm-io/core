@@ -56,7 +56,7 @@ build/blockchain:
 
 build/insomnia: build/hub build/miner build/cli
 
-build: build/blockchain build/bootnode build/insomnia build/marketplace
+build: build/bootnode build/insomnia build/marketplace
 
 install/bootnode: build/bootnode
 	@echo "+ $@"

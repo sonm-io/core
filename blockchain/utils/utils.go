@@ -5,8 +5,8 @@ import (
 	"log"
 )
 
-func InitEthClient() (*ethclient.Client, error){
-	ethClient, err := ethclient.Dial("https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb")
+func InitEthClient(ethEndpoint string) (*ethclient.Client, error){
+	ethClient, err := ethclient.Dial(ethEndpoint)
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
