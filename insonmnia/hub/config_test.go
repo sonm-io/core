@@ -27,7 +27,9 @@ ethereum:
   private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
 monitoring:
-  endpoint: ":10001"`
+  endpoint: ":10001"
+locator:
+  address: "127.0.0.1:9090"`
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
 
@@ -48,7 +50,9 @@ bootnodes:
   - "enode://node1"
   - "enode://node2"
 monitoring:
-  endpoint: ":10001"`
+  endpoint: ":10001"
+locator:
+  address: "127.0.0.1:9090"`
 
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
@@ -85,7 +89,9 @@ endpoint: ":10002"
 monitoring:
   endpoint: ":10001"
 logging:
-  level: -1`
+  level: -1
+locator:
+  address: "127.0.0.1:9090"`
 
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
@@ -103,7 +109,10 @@ ethereum:
   private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
 monitoring:
-  endpoint: ":10001"`
+  endpoint: ":10001"
+locator:
+  address: "127.0.0.1:9090"`
+
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
 
@@ -111,4 +120,48 @@ monitoring:
 	assert.Nil(t, err)
 
 	assert.Equal(t, 1, conf.Logging.Level)
+}
+
+func TestLoadConfigWithoutLocator(t *testing.T) {
+	err := createTestConfigFile(`
+ethereum:
+  private_key: "1000000000000000000000000000000000000000000000000000000000000000"
+endpoint: ":10002"
+bootnodes:
+  - "enode://node1"
+  - "enode://node2"
+monitoring:
+  endpoint: ":10001"
+locator:
+  address: ""`)
+	assert.Nil(t, err)
+
+	defer deleteTestConfigFile()
+
+	conf, err := NewConfig(testHubConfigPath)
+	assert.Error(t, err)
+	assert.Nil(t, conf)
+}
+
+func TestLoadConfigLocatorPeriod(t *testing.T) {
+	err := createTestConfigFile(`
+ethereum:
+  private_key: "1000000000000000000000000000000000000000000000000000000000000000"
+endpoint: ":10002"
+bootnodes:
+  - "enode://node1"
+  - "enode://node2"
+monitoring:
+  endpoint: ":10001"
+locator:
+  address: "127.0.0.1:9090"
+  period: 500
+  `)
+	assert.Nil(t, err)
+
+	defer deleteTestConfigFile()
+
+	conf, err := NewConfig(testHubConfigPath)
+	assert.NoError(t, err)
+	assert.Equal(t, conf.Locator.Period, 500)
 }

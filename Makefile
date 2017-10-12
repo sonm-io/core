@@ -13,7 +13,9 @@ BOOTNODE=sonmbootnode
 MINER=sonmminer
 HUB=sonmhub
 CLI=sonmcli
+LOCATOR=sonmlocator
 MARKET=sonmmarketplace
+
 
 TAGS=nocgo
 
@@ -25,6 +27,10 @@ endif
 .PHONY: fmt vet test
 
 all: mock vet fmt build test install
+
+build/locator:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${LOCATOR} ${GOCMD}/locator
 
 build/bootnode:
 	@echo "+ $@"
@@ -56,7 +62,9 @@ build/blockchain:
 
 build/insomnia: build/hub build/miner build/cli
 
-build: build/blockchain build/bootnode build/insomnia build/marketplace
+build/aux: build/locator build/marketplace
+
+build: build/blockchain build/bootnode build/insomnia build/aux
 
 install/bootnode: build/bootnode
 	@echo "+ $@"

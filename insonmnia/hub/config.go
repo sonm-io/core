@@ -20,6 +20,11 @@ type EthConfig struct {
 	PrivateKey string `required:"true" yaml:"private_key"`
 }
 
+type LocatorConfig struct {
+	Address string `required:"true" yaml:"address"`
+	Period  int    `required:"true" default:"300" yaml:"period"`
+}
+
 type HubConfig struct {
 	Endpoint      string           `required:"true" yaml:"endpoint"`
 	GatewayConfig *GatewayConfig   `yaml:"gateway"`
@@ -27,6 +32,7 @@ type HubConfig struct {
 	Monitoring    MonitoringConfig `required:"true" yaml:"monitoring"`
 	Logging       LoggingConfig    `yaml:"logging"`
 	Eth           EthConfig        `yaml:"ethereum"`
+	Locator       LocatorConfig    `yaml:"locator"`
 	ConsulEnabled bool             `yaml:"consul_enabled" default:"false"`
 }
 
@@ -48,4 +54,5 @@ type Config interface {
 	MonitoringEndpoint() string
 	Logging() LoggingConfig
 	Eth() EthConfig
+	Locator() LocatorConfig
 }

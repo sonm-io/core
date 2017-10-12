@@ -9,6 +9,7 @@ It is generated from these files:
 	capabilities.proto
 	hub.proto
 	insonmnia.proto
+	locator.proto
 	marketplace.proto
 	miner.proto
 
@@ -58,6 +59,9 @@ It has these top-level messages:
 	TaskResourceRequirements
 	Empty
 	Timestamp
+	AnnounceRequest
+	ResolveRequest
+	ResolveReply
 	GetOrdersRequest
 	GetOrdersReply
 	GetOrderRequest

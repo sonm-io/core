@@ -29,7 +29,7 @@ type GetOrdersRequest struct {
 func (m *GetOrdersRequest) Reset()                    { *m = GetOrdersRequest{} }
 func (m *GetOrdersRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetOrdersRequest) ProtoMessage()               {}
-func (*GetOrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
+func (*GetOrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{0} }
 
 func (m *GetOrdersRequest) GetSlot() *Slot {
 	if m != nil {
@@ -59,7 +59,7 @@ type GetOrdersReply struct {
 func (m *GetOrdersReply) Reset()                    { *m = GetOrdersReply{} }
 func (m *GetOrdersReply) String() string            { return proto.CompactTextString(m) }
 func (*GetOrdersReply) ProtoMessage()               {}
-func (*GetOrdersReply) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{1} }
+func (*GetOrdersReply) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{1} }
 
 func (m *GetOrdersReply) GetOrders() []*Order {
 	if m != nil {
@@ -75,7 +75,7 @@ type GetOrderRequest struct {
 func (m *GetOrderRequest) Reset()                    { *m = GetOrderRequest{} }
 func (m *GetOrderRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetOrderRequest) ProtoMessage()               {}
-func (*GetOrderRequest) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{2} }
+func (*GetOrderRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{2} }
 
 func (m *GetOrderRequest) GetId() string {
 	if m != nil {
@@ -261,9 +261,9 @@ var _Market_serviceDesc = grpc.ServiceDesc{
 	Metadata: "marketplace.proto",
 }
 
-func init() { proto.RegisterFile("marketplace.proto", fileDescriptor4) }
+func init() { proto.RegisterFile("marketplace.proto", fileDescriptor5) }
 
-var fileDescriptor4 = []byte{
+var fileDescriptor5 = []byte{
 	// 286 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x91, 0x4d, 0x4f, 0xb4, 0x30,
 	0x10, 0xc7, 0xb7, 0x2c, 0x0f, 0x09, 0xc3, 0x13, 0xd0, 0xc9, 0x6a, 0x08, 0x07, 0x83, 0xf5, 0x82,

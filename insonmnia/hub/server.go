@@ -2,10 +2,13 @@ package hub
 
 import (
 	"crypto/ecdsa"
+	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
 	"net"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,17 +26,13 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	frd "github.com/sonm-io/core/fusrodah/hub"
-
-	"encoding/hex"
-	"encoding/json"
 	consul "github.com/hashicorp/consul/api"
+	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
-	"reflect"
 )
 
 var (
@@ -49,15 +48,21 @@ const leaderKey = "sonm/hub/leader"
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
-	ctx           context.Context
-	gateway       *gateway.Gateway
-	portPool      *gateway.PortPool
-	grpcEndpoint  string
-	externalGrpc  *grpc.Server
-	endpoint      string
+	ctx              context.Context
+	gateway          *gateway.Gateway
+	portPool         *gateway.PortPool
+	grpcEndpoint     string
+	grpcEndpointAddr string
+	externalGrpc     *grpc.Server
+	endpoint         string
+	minerListener    net.Listener
+	ethKey           *ecdsa.PrivateKey
+
+	locatorEndpoint string
+	locatorPeriod   time.Duration
+	locatorClient   pb.LocatorClient
+
 	localEndpoint string
-	minerListener net.Listener
-	ethKey        *ecdsa.PrivateKey
 
 	mu     sync.Mutex
 	miners map[string]*MinerCtx
@@ -341,14 +346,14 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	}
 
 	info := TaskInfo{*request, *resp, taskID, miner.uuid}
-	json, err := json.Marshal(info)
+	b, err := json.Marshal(info)
 	if err != nil {
 		miner.Client.Stop(ctx, &pb.StopTaskRequest{Id: taskID})
 		return nil, status.Errorf(codes.Internal, "could not marshal task info %v", err)
 	}
 
 	kv := h.consul.KV()
-	kvPair := consul.KVPair{Key: tasksPrefix + "/" + taskID, Value: json}
+	kvPair := consul.KVPair{Key: tasksPrefix + "/" + taskID, Value: b}
 	_, err = kv.Put(&kvPair, &consul.WriteOptions{})
 	if err != nil {
 		miner.Client.Stop(ctx, &pb.StopTaskRequest{Id: taskID})
@@ -475,8 +480,7 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskID)
 	}
 
-	// todo: fill this field into miner method, use Miner.name (uuid) instead of addr
-	reply.MinerID = task.MinerId
+	reply.MinerID = mincli.ID()
 	return reply, nil
 }
 
@@ -712,6 +716,9 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		ethKey:       ethKey,
 		version:      version,
 
+		locatorEndpoint: cfg.Locator.Address,
+		locatorPeriod:   time.Second * time.Duration(cfg.Locator.Period),
+
 		filters: []minerFilter{
 			exactMatchFilter,
 			resourcesFilter,
@@ -874,6 +881,7 @@ func (h *Hub) startDiscovery() error {
 
 	workersEndpoint := ip.String() + ":" + workersPort
 	clientEndpoint := ip.String() + ":" + clientPort
+	h.grpcEndpointAddr = clientEndpoint
 
 	srv, err := frd.NewServer(h.ethKey, workersEndpoint, clientEndpoint)
 	if err != nil {
@@ -904,7 +912,6 @@ func (h *Hub) Serve() error {
 	}
 
 	listener, err := net.Listen("tcp", h.endpoint)
-
 	if err != nil {
 		log.G(h.ctx).Error("failed to listen", zap.String("address", h.endpoint), zap.Error(err))
 		return err
@@ -939,8 +946,23 @@ func (h *Hub) Serve() error {
 			go h.handleInterconnect(h.ctx, conn)
 		}
 	}()
-	h.wg.Wait()
 
+	// init locator connection and announce
+	// address only on Leader
+	if h.isLeader {
+		err = h.initLocatorClient()
+		if err != nil {
+			return err
+		}
+
+		h.wg.Add(1)
+		go func() {
+			defer h.wg.Done()
+			h.startLocatorAnnouncer()
+		}()
+	}
+
+	h.wg.Wait()
 	return nil
 }
 
@@ -1018,4 +1040,51 @@ func (h *Hub) deleteTask(taskID string) error {
 	}
 
 	return nil
+}
+
+func (h *Hub) initLocatorClient() error {
+	conn, err := grpc.Dial(
+		h.locatorEndpoint,
+		grpc.WithInsecure(),
+		grpc.WithTimeout(5*time.Second),
+		grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
+		grpc.WithCompressor(grpc.NewGZIPCompressor()))
+	if err != nil {
+		return err
+	}
+
+	h.locatorClient = pb.NewLocatorClient(conn)
+	return nil
+}
+
+func (h *Hub) startLocatorAnnouncer() {
+	tk := time.NewTicker(h.locatorPeriod)
+	defer tk.Stop()
+
+	h.announceAddress(h.ctx)
+
+	for {
+		select {
+		case <-tk.C:
+			h.announceAddress(h.ctx)
+		case <-h.ctx.Done():
+			return
+		}
+	}
+}
+
+func (h *Hub) announceAddress(ctx context.Context) {
+	req := &pb.AnnounceRequest{
+		EthAddr: util.PubKeyToAddr(h.ethKey.PublicKey),
+		IpAddr:  []string{h.grpcEndpointAddr},
+	}
+
+	log.G(ctx).Info("announcing Hub address",
+		zap.String("eth", req.EthAddr),
+		zap.String("addr", req.IpAddr[0]))
+
+	_, err := h.locatorClient.Announce(ctx, req)
+	if err != nil {
+		log.G(ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
+	}
 }
