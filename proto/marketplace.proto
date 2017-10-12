@@ -6,10 +6,19 @@ import "insonmnia.proto";
 package sonm;
 
 service Market {
-    rpc GetOrders(Slot) returns (GetOrdersReply) {}
+    rpc GetOrders(GetOrdersRequest) returns (GetOrdersReply) {}
     rpc GetOrderByID(GetOrderRequest) returns (Order) {}
     rpc CreateOrder(Order) returns (Order) {}
     rpc CancelOrder(Order) returns (Empty) {}
+}
+
+message GetOrdersRequest {
+    // Slot describe resuorces to search for
+    Slot slot = 1;
+    // OrderType describe a type of orders to search
+    OrderType orderType = 2;
+    // Count describe how namy results must be returned (order by price)
+    uint64 count = 3;
 }
 
 message GetOrdersReply {
@@ -19,4 +28,3 @@ message GetOrdersReply {
 message GetOrderRequest {
     string id = 1;
 }
-
