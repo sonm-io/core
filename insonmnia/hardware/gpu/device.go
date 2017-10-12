@@ -23,15 +23,26 @@ type device struct {
 	d pb.GPUDevice
 }
 
-func NewDevice(name, vendorName string, maxMemorySize uint64, openCLDeviceVersion string) Device {
-	return &device{
-		d: pb.GPUDevice{
-			Name:          name,
-			VendorName:    vendorName,
-			MaxMemorySize: maxMemorySize,
-			OpenCLVersion: openCLDeviceVersion,
-		},
+type Option func(*pb.GPUDevice)
+
+func WithOpenClDeviceVersion(version string) func(*pb.GPUDevice) {
+	return func(d *pb.GPUDevice) {
+		d.OpenCLVersion = version
 	}
+}
+
+func NewDevice(name, vendorName string, maxMemorySize uint64, options... Option) Device {
+	d := pb.GPUDevice{
+		Name:          name,
+		VendorName:    vendorName,
+		MaxMemorySize: maxMemorySize,
+	}
+
+	for _, option := range options {
+		option(&d)
+	}
+
+	return &device{d: d}
 }
 
 func (d *device) Name() string {

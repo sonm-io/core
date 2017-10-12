@@ -103,7 +103,7 @@ func GPUFromProto(g []*pb.GPUDevice) ([]gpu.Device, error) {
 			i.GetName(),
 			i.GetVendorName(),
 			i.GetMaxMemorySize(),
-			i.GetOpenCLVersion(),
+			gpu.WithOpenClDeviceVersion(i.GetOpenCLVersion()),
 		)
 		result = append(result, device)
 	}
