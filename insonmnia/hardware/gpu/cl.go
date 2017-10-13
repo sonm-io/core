@@ -45,6 +45,9 @@ func GetGPUDevicesUsingOpenCL() ([]Device, error) {
 
 		for _, d := range devices {
 			options := []Option{}
+			if vendorId, err := d.vendorId(); err == nil {
+				options = append(options, WithVendorId(vendorId))
+			}
 			if deviceVersion, err := d.deviceVersion(); err == nil {
 				options = append(options, WithOpenClDeviceVersion(deviceVersion))
 			}
@@ -115,6 +118,16 @@ func (d *clDevice) getInfoString(param C.cl_device_info) (string, error) {
 	return C.GoStringN((*C.char)(unsafe.Pointer(&data)), C.int(size)-1), nil
 }
 
+func (d *clDevice) getInfoUint(param C.cl_device_info) (uint, error) {
+	var val C.cl_uint
+
+	if err := C.clGetDeviceInfo(d.id, param, C.size_t(unsafe.Sizeof(val)), unsafe.Pointer(&val), nil); err != C.CL_SUCCESS {
+		return 0, errors.Errorf("failed to convert device info into an integer: %s", err)
+	}
+
+	return uint(val), nil
+}
+
 func (d *clDevice) getInfoUint64(param C.cl_device_info) (uint64, error) {
 	var val C.cl_ulong
 
@@ -133,6 +146,10 @@ func (d *clDevice) name() string {
 func (d *clDevice) vendor() string {
 	result, _ := d.getInfoString(C.CL_DEVICE_VENDOR)
 	return result
+}
+
+func (d *clDevice) vendorId() (uint, error) {
+	return d.getInfoUint(C.CL_DEVICE_VENDOR_ID)
 }
 
 func (d *clDevice) globalMemSize() uint64 {
