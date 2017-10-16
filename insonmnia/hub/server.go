@@ -93,13 +93,13 @@ type Hub struct {
 }
 
 // Ping should be used as Healthcheck for Hub
-func (h *Hub) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, error) {
+func (h *Hub) Ping(ctx context.Context, _ *pb.Empty) (*pb.PingReply, error) {
 	log.G(h.ctx).Info("handling Ping request")
 	return &pb.PingReply{}, nil
 }
 
 // Status returns internal hub statistic
-func (h *Hub) Status(ctx context.Context, _ *pb.HubStatusRequest) (*pb.HubStatusReply, error) {
+func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, error) {
 	h.mu.Lock()
 	minersCount := len(h.miners)
 	h.mu.Unlock()
@@ -140,7 +140,7 @@ func (h *Hub) loadTaskInfo() ([]*TaskInfo, error) {
 }
 
 // List returns attached miners
-func (h *Hub) List(ctx context.Context, request *pb.ListRequest) (*pb.ListReply, error) {
+func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error) {
 	log.G(h.ctx).Info("handling List request")
 
 	tasks, err := h.loadTaskInfo()
@@ -176,7 +176,7 @@ func (h *Hub) Info(ctx context.Context, request *pb.HubInfoRequest) (*pb.InfoRep
 		return nil, status.Errorf(codes.NotFound, "no such miner")
 	}
 
-	resp, err := client.Client.Info(ctx, &pb.MinerInfoRequest{})
+	resp, err := client.Client.Info(ctx, &pb.Empty{})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to fetch info: %v", err)
 	}
@@ -346,7 +346,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	info := TaskInfo{*request, *resp, taskID, miner.uuid}
 	b, err := json.Marshal(info)
 	if err != nil {
-		miner.Client.Stop(ctx, &pb.StopTaskRequest{Id: taskID})
+		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
 		return nil, status.Errorf(codes.Internal, "could not marshal task info %v", err)
 	}
 
@@ -354,7 +354,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	kvPair := consul.KVPair{Key: tasksPrefix + "/" + taskID, Value: b}
 	_, err = kv.Put(&kvPair, &consul.WriteOptions{})
 	if err != nil {
-		miner.Client.Stop(ctx, &pb.StopTaskRequest{Id: taskID})
+		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
 		return nil, status.Errorf(codes.Internal, "could not store task info %v", err)
 	}
 
@@ -416,7 +416,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 }
 
 // StopTask sends termination request to a miner handling the task
-func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
+func (h *Hub) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling StopTask request", zap.Any("req", request))
 
 	taskID := request.Id
@@ -430,7 +430,7 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 		return nil, status.Errorf(codes.NotFound, "no miner with id %s", task.MinerId)
 	}
 
-	_, err = miner.Client.Stop(ctx, &pb.StopTaskRequest{Id: taskID})
+	_, err = miner.Client.Stop(ctx, &pb.ID{Id: taskID})
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "failed to stop the task %s", taskID)
 	}
@@ -440,13 +440,13 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.StopTaskRequest) (*pb.St
 
 	h.deleteTask(taskID)
 
-	return &pb.StopTaskReply{}, nil
+	return &pb.Empty{}, nil
 }
 
-func (h *Hub) MinerStatus(ctx context.Context, request *pb.HubStatusMapRequest) (*pb.StatusMapReply, error) {
+func (h *Hub) MinerStatus(ctx context.Context, request *pb.ID) (*pb.StatusMapReply, error) {
 	log.G(h.ctx).Info("handling MinerStatus request", zap.Any("req", request))
 
-	miner := request.Miner
+	miner := request.Id
 	mincli, ok := h.getMinerByID(miner)
 	if !ok {
 		log.G(ctx).Error("miner not found", zap.String("miner", miner))
@@ -459,7 +459,7 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.HubStatusMapRequest) 
 	return &reply, nil
 }
 
-func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*pb.TaskStatusReply, error) {
+func (h *Hub) TaskStatus(ctx context.Context, request *pb.ID) (*pb.TaskStatusReply, error) {
 	log.G(h.ctx).Info("handling TaskStatus request", zap.Any("req", request))
 	taskID := request.Id
 	task, err := h.getTask(taskID)
@@ -472,7 +472,7 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.TaskStatusRequest) (*p
 		return nil, status.Errorf(codes.NotFound, "no miner %s for task %s", task.MinerId, taskID)
 	}
 
-	req := &pb.TaskStatusRequest{Id: taskID}
+	req := &pb.ID{Id: taskID}
 	reply, err := mincli.Client.TaskDetails(ctx, req)
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskID)
@@ -589,15 +589,15 @@ func (h *Hub) findRandomMinerBySlot(slot *structs.Slot) (*MinerCtx, error) {
 	return result, nil
 }
 
-func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.EmptyReply, error) {
+func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.Empty, error) {
 	h.onNewHub(request.Endpoint)
-	return &pb.EmptyReply{}, nil
+	return &pb.Empty{}, nil
 }
 
-func (h *Hub) GetMinerProperties(ctx context.Context, request *pb.GetMinerPropertiesRequest) (*pb.GetMinerPropertiesReply, error) {
+func (h *Hub) GetMinerProperties(ctx context.Context, request *pb.ID) (*pb.GetMinerPropertiesReply, error) {
 	log.G(h.ctx).Info("handling GetMinerProperties request", zap.Any("req", request))
 
-	miner, exists := h.getMinerByID(request.ID)
+	miner, exists := h.getMinerByID(request.Id)
 	if !exists {
 		return nil, ErrMinerNotFound
 	}
@@ -618,10 +618,10 @@ func (h *Hub) SetMinerProperties(ctx context.Context, request *pb.SetMinerProper
 	return &pb.Empty{}, nil
 }
 
-func (h *Hub) GetSlots(ctx context.Context, request *pb.GetSlotsRequest) (*pb.GetSlotsReply, error) {
+func (h *Hub) GetSlots(ctx context.Context, request *pb.ID) (*pb.GetSlotsReply, error) {
 	log.G(h.ctx).Info("handling GetSlots request", zap.Any("req", request))
 
-	miner, exists := h.getMinerByID(request.ID)
+	miner, exists := h.getMinerByID(request.Id)
 	if !exists {
 		return nil, ErrMinerNotFound
 	}
