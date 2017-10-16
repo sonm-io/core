@@ -1,6 +1,8 @@
 syntax = "proto3";
 
 import "insonmnia.proto";
+import "miner.proto";
+import "hub.proto";
 
 package sonm;
 
@@ -8,30 +10,61 @@ package sonm;
 // the Marketplace API, but it already has been described
 // into a "proto / marketplace.proto" file.
 
+enum DealStatus {
+    PENDING = 0;
+    APPROVED = 1;
+    FINISHED = 2;
+}
+
 // TaskManagement describe a bunch of methods
 // to manage tasks running into the SONM network
 service TaskManagement {
     // List produces a list of all tasks running on different SONM nodes
-    rpc List(Empty) returns (Empty) {}
+    rpc List(TaskListRequest) returns (TaskListReply) {}
     // Start starts a task on given resource
-    rpc Start(Empty) returns (Empty) {}
+    rpc Start(HubStartTaskRequest) returns (TaskInfo) {}
     // Status produces a task status by their ID
-    rpc Status(Empty) returns (Empty) {}
+    rpc Status(ID) returns (TaskInfo) {}
     // Logs retrieves a task log (stdin/stderr) from given task
-    rpc Logs(Empty) returns (Empty) {}
+    rpc Logs(ID) returns (stream TaskLogsChunk) {}
     // Stop stops a task by their IDd
-    rpc Stop(Empty) returns (Empty) {}
+    rpc Stop(ID) returns (Empty) {}
+}
+
+message TaskListRequest {
+    // HubID is hub eth id;
+    // If empty - collect task info from all hubs
+    string hubID = 1;
+}
+
+message TaskListReply {
+    repeated TaskInfo task = 1;
 }
 
 // DealManagement describe a bunch of methods
 // to manage deals made into the SONM network
 service DealManagement {
     // List produces a list of all deals made by client with given ID
-    rpc List(Empty) returns (Empty) {}
+    rpc List(DealListRequest) returns (DealListReply) {}
     // Status produces a detailed info about deal with given ID
-    rpc Status(Empty) returns (Empty) {}
+    rpc Status(ID) returns (Deal) {}
     // Finish finishes a deal with given ID
-    rpc Finish(Empty) returns (Empty) {}
+    rpc Finish(ID) returns (Empty) {}
+}
+
+message Deal {
+    string BidID = 1;
+    string AskID = 2;
+    DealStatus status = 3;
+}
+
+message DealListRequest {
+    string owner = 1;
+    DealStatus status = 2;
+}
+
+message DealListReply {
+    repeated Deal deal = 1;
 }
 
 // HubManagement describe a bunch of methods

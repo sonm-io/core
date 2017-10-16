@@ -60,6 +60,7 @@ It has these top-level messages:
 	TaskResourceRequirements
 	Empty
 	Timestamp
+	ID
 	AnnounceRequest
 	ResolveRequest
 	ResolveReply
@@ -73,6 +74,11 @@ It has these top-level messages:
 	MinerStartReply
 	TaskInfo
 	MinerStatusMapRequest
+	TaskListRequest
+	TaskListReply
+	Deal
+	DealListRequest
+	DealListReply
 */
 package sonm
 

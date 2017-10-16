@@ -96,6 +96,7 @@ message TaskLogsChunk {
     bytes data = 1;
 }
 
+// todo(sshaman1101): remove this and use Empty instead
 message EmptyReply {
 }
 
@@ -126,4 +127,8 @@ message Timestamp {
     // that count forward in time. Must be from 0 to 999'999'999
     // inclusive.
     int32 nanos = 2;
+}
+
+message ID {
+    string id = 1;
 }

@@ -17,6 +17,145 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+type DealStatus int32
+
+const (
+	DealStatus_PENDING  DealStatus = 0
+	DealStatus_APPROVED DealStatus = 1
+	DealStatus_FINISHED DealStatus = 2
+)
+
+var DealStatus_name = map[int32]string{
+	0: "PENDING",
+	1: "APPROVED",
+	2: "FINISHED",
+}
+var DealStatus_value = map[string]int32{
+	"PENDING":  0,
+	"APPROVED": 1,
+	"FINISHED": 2,
+}
+
+func (x DealStatus) String() string {
+	return proto.EnumName(DealStatus_name, int32(x))
+}
+func (DealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor7, []int{0} }
+
+type TaskListRequest struct {
+	// HubID is hub eth id;
+	// If empty - collect task info from all hubs
+	HubID string `protobuf:"bytes,1,opt,name=hubID" json:"hubID,omitempty"`
+}
+
+func (m *TaskListRequest) Reset()                    { *m = TaskListRequest{} }
+func (m *TaskListRequest) String() string            { return proto.CompactTextString(m) }
+func (*TaskListRequest) ProtoMessage()               {}
+func (*TaskListRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{0} }
+
+func (m *TaskListRequest) GetHubID() string {
+	if m != nil {
+		return m.HubID
+	}
+	return ""
+}
+
+type TaskListReply struct {
+	Task []*TaskInfo `protobuf:"bytes,1,rep,name=task" json:"task,omitempty"`
+}
+
+func (m *TaskListReply) Reset()                    { *m = TaskListReply{} }
+func (m *TaskListReply) String() string            { return proto.CompactTextString(m) }
+func (*TaskListReply) ProtoMessage()               {}
+func (*TaskListReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{1} }
+
+func (m *TaskListReply) GetTask() []*TaskInfo {
+	if m != nil {
+		return m.Task
+	}
+	return nil
+}
+
+type Deal struct {
+	BidID  string     `protobuf:"bytes,1,opt,name=BidID" json:"BidID,omitempty"`
+	AskID  string     `protobuf:"bytes,2,opt,name=AskID" json:"AskID,omitempty"`
+	Status DealStatus `protobuf:"varint,3,opt,name=status,enum=sonm.DealStatus" json:"status,omitempty"`
+}
+
+func (m *Deal) Reset()                    { *m = Deal{} }
+func (m *Deal) String() string            { return proto.CompactTextString(m) }
+func (*Deal) ProtoMessage()               {}
+func (*Deal) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{2} }
+
+func (m *Deal) GetBidID() string {
+	if m != nil {
+		return m.BidID
+	}
+	return ""
+}
+
+func (m *Deal) GetAskID() string {
+	if m != nil {
+		return m.AskID
+	}
+	return ""
+}
+
+func (m *Deal) GetStatus() DealStatus {
+	if m != nil {
+		return m.Status
+	}
+	return DealStatus_PENDING
+}
+
+type DealListRequest struct {
+	Owner  string     `protobuf:"bytes,1,opt,name=owner" json:"owner,omitempty"`
+	Status DealStatus `protobuf:"varint,2,opt,name=status,enum=sonm.DealStatus" json:"status,omitempty"`
+}
+
+func (m *DealListRequest) Reset()                    { *m = DealListRequest{} }
+func (m *DealListRequest) String() string            { return proto.CompactTextString(m) }
+func (*DealListRequest) ProtoMessage()               {}
+func (*DealListRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{3} }
+
+func (m *DealListRequest) GetOwner() string {
+	if m != nil {
+		return m.Owner
+	}
+	return ""
+}
+
+func (m *DealListRequest) GetStatus() DealStatus {
+	if m != nil {
+		return m.Status
+	}
+	return DealStatus_PENDING
+}
+
+type DealListReply struct {
+	Deal []*Deal `protobuf:"bytes,1,rep,name=deal" json:"deal,omitempty"`
+}
+
+func (m *DealListReply) Reset()                    { *m = DealListReply{} }
+func (m *DealListReply) String() string            { return proto.CompactTextString(m) }
+func (*DealListReply) ProtoMessage()               {}
+func (*DealListReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{4} }
+
+func (m *DealListReply) GetDeal() []*Deal {
+	if m != nil {
+		return m.Deal
+	}
+	return nil
+}
+
+func init() {
+	proto.RegisterType((*TaskListRequest)(nil), "sonm.TaskListRequest")
+	proto.RegisterType((*TaskListReply)(nil), "sonm.TaskListReply")
+	proto.RegisterType((*Deal)(nil), "sonm.Deal")
+	proto.RegisterType((*DealListRequest)(nil), "sonm.DealListRequest")
+	proto.RegisterType((*DealListReply)(nil), "sonm.DealListReply")
+	proto.RegisterEnum("sonm.DealStatus", DealStatus_name, DealStatus_value)
+}
+
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
 var _ grpc.ClientConn
@@ -29,15 +168,15 @@ const _ = grpc.SupportPackageIsVersion4
 
 type TaskManagementClient interface {
 	// List produces a list of all tasks running on different SONM nodes
-	List(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	List(ctx context.Context, in *TaskListRequest, opts ...grpc.CallOption) (*TaskListReply, error)
 	// Start starts a task on given resource
-	Start(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	Start(ctx context.Context, in *HubStartTaskRequest, opts ...grpc.CallOption) (*TaskInfo, error)
 	// Status produces a task status by their ID
-	Status(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	Status(ctx context.Context, in *ID, opts ...grpc.CallOption) (*TaskInfo, error)
 	// Logs retrieves a task log (stdin/stderr) from given task
-	Logs(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	Logs(ctx context.Context, in *ID, opts ...grpc.CallOption) (TaskManagement_LogsClient, error)
 	// Stop stops a task by their IDd
-	Stop(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	Stop(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type taskManagementClient struct {
@@ -48,8 +187,8 @@ func NewTaskManagementClient(cc *grpc.ClientConn) TaskManagementClient {
 	return &taskManagementClient{cc}
 }
 
-func (c *taskManagementClient) List(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
+func (c *taskManagementClient) List(ctx context.Context, in *TaskListRequest, opts ...grpc.CallOption) (*TaskListReply, error) {
+	out := new(TaskListReply)
 	err := grpc.Invoke(ctx, "/sonm.TaskManagement/List", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -57,8 +196,8 @@ func (c *taskManagementClient) List(ctx context.Context, in *Empty, opts ...grpc
 	return out, nil
 }
 
-func (c *taskManagementClient) Start(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
+func (c *taskManagementClient) Start(ctx context.Context, in *HubStartTaskRequest, opts ...grpc.CallOption) (*TaskInfo, error) {
+	out := new(TaskInfo)
 	err := grpc.Invoke(ctx, "/sonm.TaskManagement/Start", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -66,8 +205,8 @@ func (c *taskManagementClient) Start(ctx context.Context, in *Empty, opts ...grp
 	return out, nil
 }
 
-func (c *taskManagementClient) Status(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
+func (c *taskManagementClient) Status(ctx context.Context, in *ID, opts ...grpc.CallOption) (*TaskInfo, error) {
+	out := new(TaskInfo)
 	err := grpc.Invoke(ctx, "/sonm.TaskManagement/Status", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -75,16 +214,39 @@ func (c *taskManagementClient) Status(ctx context.Context, in *Empty, opts ...gr
 	return out, nil
 }
 
-func (c *taskManagementClient) Logs(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
-	err := grpc.Invoke(ctx, "/sonm.TaskManagement/Logs", in, out, c.cc, opts...)
+func (c *taskManagementClient) Logs(ctx context.Context, in *ID, opts ...grpc.CallOption) (TaskManagement_LogsClient, error) {
+	stream, err := grpc.NewClientStream(ctx, &_TaskManagement_serviceDesc.Streams[0], c.cc, "/sonm.TaskManagement/Logs", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &taskManagementLogsClient{stream}
+	if err := x.ClientStream.SendMsg(in); err != nil {
+		return nil, err
+	}
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	return x, nil
 }
 
-func (c *taskManagementClient) Stop(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+type TaskManagement_LogsClient interface {
+	Recv() (*TaskLogsChunk, error)
+	grpc.ClientStream
+}
+
+type taskManagementLogsClient struct {
+	grpc.ClientStream
+}
+
+func (x *taskManagementLogsClient) Recv() (*TaskLogsChunk, error) {
+	m := new(TaskLogsChunk)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (c *taskManagementClient) Stop(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
 	err := grpc.Invoke(ctx, "/sonm.TaskManagement/Stop", in, out, c.cc, opts...)
 	if err != nil {
@@ -97,15 +259,15 @@ func (c *taskManagementClient) Stop(ctx context.Context, in *Empty, opts ...grpc
 
 type TaskManagementServer interface {
 	// List produces a list of all tasks running on different SONM nodes
-	List(context.Context, *Empty) (*Empty, error)
+	List(context.Context, *TaskListRequest) (*TaskListReply, error)
 	// Start starts a task on given resource
-	Start(context.Context, *Empty) (*Empty, error)
+	Start(context.Context, *HubStartTaskRequest) (*TaskInfo, error)
 	// Status produces a task status by their ID
-	Status(context.Context, *Empty) (*Empty, error)
+	Status(context.Context, *ID) (*TaskInfo, error)
 	// Logs retrieves a task log (stdin/stderr) from given task
-	Logs(context.Context, *Empty) (*Empty, error)
+	Logs(*ID, TaskManagement_LogsServer) error
 	// Stop stops a task by their IDd
-	Stop(context.Context, *Empty) (*Empty, error)
+	Stop(context.Context, *ID) (*Empty, error)
 }
 
 func RegisterTaskManagementServer(s *grpc.Server, srv TaskManagementServer) {
@@ -113,7 +275,7 @@ func RegisterTaskManagementServer(s *grpc.Server, srv TaskManagementServer) {
 }
 
 func _TaskManagement_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
+	in := new(TaskListRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -125,13 +287,13 @@ func _TaskManagement_List_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: "/sonm.TaskManagement/List",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TaskManagementServer).List(ctx, req.(*Empty))
+		return srv.(TaskManagementServer).List(ctx, req.(*TaskListRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _TaskManagement_Start_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
+	in := new(HubStartTaskRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -143,13 +305,13 @@ func _TaskManagement_Start_Handler(srv interface{}, ctx context.Context, dec fun
 		FullMethod: "/sonm.TaskManagement/Start",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TaskManagementServer).Start(ctx, req.(*Empty))
+		return srv.(TaskManagementServer).Start(ctx, req.(*HubStartTaskRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _TaskManagement_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
+	in := new(ID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -161,31 +323,34 @@ func _TaskManagement_Status_Handler(srv interface{}, ctx context.Context, dec fu
 		FullMethod: "/sonm.TaskManagement/Status",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TaskManagementServer).Status(ctx, req.(*Empty))
+		return srv.(TaskManagementServer).Status(ctx, req.(*ID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _TaskManagement_Logs_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
-	if err := dec(in); err != nil {
-		return nil, err
+func _TaskManagement_Logs_Handler(srv interface{}, stream grpc.ServerStream) error {
+	m := new(ID)
+	if err := stream.RecvMsg(m); err != nil {
+		return err
 	}
-	if interceptor == nil {
-		return srv.(TaskManagementServer).Logs(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/sonm.TaskManagement/Logs",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TaskManagementServer).Logs(ctx, req.(*Empty))
-	}
-	return interceptor(ctx, in, info, handler)
+	return srv.(TaskManagementServer).Logs(m, &taskManagementLogsServer{stream})
+}
+
+type TaskManagement_LogsServer interface {
+	Send(*TaskLogsChunk) error
+	grpc.ServerStream
+}
+
+type taskManagementLogsServer struct {
+	grpc.ServerStream
+}
+
+func (x *taskManagementLogsServer) Send(m *TaskLogsChunk) error {
+	return x.ServerStream.SendMsg(m)
 }
 
 func _TaskManagement_Stop_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
+	in := new(ID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -197,7 +362,7 @@ func _TaskManagement_Stop_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: "/sonm.TaskManagement/Stop",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TaskManagementServer).Stop(ctx, req.(*Empty))
+		return srv.(TaskManagementServer).Stop(ctx, req.(*ID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -219,15 +384,17 @@ var _TaskManagement_serviceDesc = grpc.ServiceDesc{
 			Handler:    _TaskManagement_Status_Handler,
 		},
 		{
-			MethodName: "Logs",
-			Handler:    _TaskManagement_Logs_Handler,
-		},
-		{
 			MethodName: "Stop",
 			Handler:    _TaskManagement_Stop_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "Logs",
+			Handler:       _TaskManagement_Logs_Handler,
+			ServerStreams: true,
+		},
+	},
 	Metadata: "node.proto",
 }
 
@@ -235,11 +402,11 @@ var _TaskManagement_serviceDesc = grpc.ServiceDesc{
 
 type DealManagementClient interface {
 	// List produces a list of all deals made by client with given ID
-	List(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	List(ctx context.Context, in *DealListRequest, opts ...grpc.CallOption) (*DealListReply, error)
 	// Status produces a detailed info about deal with given ID
-	Status(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	Status(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Deal, error)
 	// Finish finishes a deal with given ID
-	Finish(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	Finish(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type dealManagementClient struct {
@@ -250,8 +417,8 @@ func NewDealManagementClient(cc *grpc.ClientConn) DealManagementClient {
 	return &dealManagementClient{cc}
 }
 
-func (c *dealManagementClient) List(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
+func (c *dealManagementClient) List(ctx context.Context, in *DealListRequest, opts ...grpc.CallOption) (*DealListReply, error) {
+	out := new(DealListReply)
 	err := grpc.Invoke(ctx, "/sonm.DealManagement/List", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -259,8 +426,8 @@ func (c *dealManagementClient) List(ctx context.Context, in *Empty, opts ...grpc
 	return out, nil
 }
 
-func (c *dealManagementClient) Status(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
-	out := new(Empty)
+func (c *dealManagementClient) Status(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Deal, error) {
+	out := new(Deal)
 	err := grpc.Invoke(ctx, "/sonm.DealManagement/Status", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -268,7 +435,7 @@ func (c *dealManagementClient) Status(ctx context.Context, in *Empty, opts ...gr
 	return out, nil
 }
 
-func (c *dealManagementClient) Finish(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+func (c *dealManagementClient) Finish(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Empty, error) {
 	out := new(Empty)
 	err := grpc.Invoke(ctx, "/sonm.DealManagement/Finish", in, out, c.cc, opts...)
 	if err != nil {
@@ -281,11 +448,11 @@ func (c *dealManagementClient) Finish(ctx context.Context, in *Empty, opts ...gr
 
 type DealManagementServer interface {
 	// List produces a list of all deals made by client with given ID
-	List(context.Context, *Empty) (*Empty, error)
+	List(context.Context, *DealListRequest) (*DealListReply, error)
 	// Status produces a detailed info about deal with given ID
-	Status(context.Context, *Empty) (*Empty, error)
+	Status(context.Context, *ID) (*Deal, error)
 	// Finish finishes a deal with given ID
-	Finish(context.Context, *Empty) (*Empty, error)
+	Finish(context.Context, *ID) (*Empty, error)
 }
 
 func RegisterDealManagementServer(s *grpc.Server, srv DealManagementServer) {
@@ -293,7 +460,7 @@ func RegisterDealManagementServer(s *grpc.Server, srv DealManagementServer) {
 }
 
 func _DealManagement_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
+	in := new(DealListRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -305,13 +472,13 @@ func _DealManagement_List_Handler(srv interface{}, ctx context.Context, dec func
 		FullMethod: "/sonm.DealManagement/List",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DealManagementServer).List(ctx, req.(*Empty))
+		return srv.(DealManagementServer).List(ctx, req.(*DealListRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _DealManagement_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
+	in := new(ID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -323,13 +490,13 @@ func _DealManagement_Status_Handler(srv interface{}, ctx context.Context, dec fu
 		FullMethod: "/sonm.DealManagement/Status",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DealManagementServer).Status(ctx, req.(*Empty))
+		return srv.(DealManagementServer).Status(ctx, req.(*ID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _DealManagement_Finish_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
+	in := new(ID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -341,7 +508,7 @@ func _DealManagement_Finish_Handler(srv interface{}, ctx context.Context, dec fu
 		FullMethod: "/sonm.DealManagement/Finish",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(DealManagementServer).Finish(ctx, req.(*Empty))
+		return srv.(DealManagementServer).Finish(ctx, req.(*ID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -687,21 +854,38 @@ var _HubManagement_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("node.proto", fileDescriptor7) }
 
 var fileDescriptor7 = []byte{
-	// 252 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0xd2, 0xcf, 0x4a, 0xc3, 0x40,
-	0x10, 0x06, 0x70, 0x2b, 0x35, 0xc8, 0x94, 0x56, 0xc8, 0x45, 0xe8, 0xb1, 0x16, 0x51, 0x84, 0x1c,
-	0x2a, 0x3e, 0x80, 0xf8, 0x07, 0x0f, 0x0a, 0xc5, 0x28, 0x9e, 0xa7, 0x74, 0xa8, 0x4b, 0x9a, 0x99,
-	0x65, 0x67, 0x2a, 0x78, 0xf3, 0xed, 0x7c, 0x1d, 0x1f, 0x41, 0x62, 0x7b, 0xc8, 0x29, 0xbb, 0x9e,
-	0x42, 0x96, 0x1f, 0x33, 0xdf, 0x07, 0x03, 0xc0, 0xb2, 0xa4, 0xc2, 0x07, 0x31, 0xc9, 0xfb, 0x2a,
-	0x5c, 0x8f, 0x8f, 0x1c, 0x37, 0x5f, 0x76, 0xb8, 0x7d, 0x9e, 0x7d, 0xf7, 0x60, 0xf4, 0x82, 0x5a,
-	0x3d, 0x21, 0xe3, 0x8a, 0x6a, 0x62, 0xcb, 0x27, 0xd0, 0x7f, 0x74, 0x6a, 0xf9, 0xa0, 0x68, 0x68,
-	0x71, 0x57, 0x7b, 0xfb, 0x1c, 0xb7, 0x7f, 0x26, 0x7b, 0xf9, 0x09, 0x1c, 0x94, 0x86, 0xa1, 0x1b,
-	0x4d, 0x21, 0x2b, 0x0d, 0x6d, 0xa3, 0x9d, 0xaa, 0x59, 0x27, 0xab, 0xa8, 0x29, 0x4d, 0x7c, 0x97,
-	0x99, 0x7d, 0xf5, 0x60, 0x74, 0x4b, 0xb8, 0xfe, 0x67, 0x93, 0xb4, 0x90, 0x53, 0xc8, 0xee, 0x1d,
-	0x3b, 0x7d, 0xef, 0x8c, 0xf0, 0xb3, 0x0f, 0xc3, 0x87, 0xcd, 0xa2, 0x95, 0x20, 0x6d, 0xfa, 0x39,
-	0x0c, 0xde, 0x24, 0x54, 0x14, 0x34, 0x1a, 0xf7, 0x02, 0x86, 0x3b, 0x9a, 0x30, 0xf7, 0x0a, 0x8e,
-	0x77, 0xf8, 0xd5, 0x2f, 0xd1, 0x68, 0x1e, 0xc4, 0x53, 0x30, 0x47, 0x1a, 0xdb, 0x71, 0x13, 0x08,
-	0x8d, 0xae, 0xb5, 0x9a, 0xaf, 0x91, 0x63, 0xf8, 0x99, 0x6a, 0xf9, 0x48, 0xc2, 0xa7, 0x70, 0xd8,
-	0x1c, 0x5b, 0xb4, 0xe5, 0x19, 0xc0, 0xb6, 0x5e, 0x4c, 0x2e, 0xb2, 0xbf, 0x33, 0xbe, 0xfc, 0x0d,
-	0x00, 0x00, 0xff, 0xff, 0xbc, 0xe9, 0x33, 0x57, 0xeb, 0x02, 0x00, 0x00,
+	// 519 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x94, 0xdd, 0x6e, 0xd3, 0x30,
+	0x14, 0xc7, 0x93, 0x2e, 0x2b, 0xdd, 0x29, 0xfd, 0x90, 0x01, 0x51, 0x7a, 0x01, 0xc5, 0x42, 0x90,
+	0x81, 0x54, 0x50, 0xb7, 0x3d, 0x40, 0x59, 0x3a, 0x1a, 0x69, 0x94, 0x90, 0xf2, 0x71, 0xc3, 0x8d,
+	0xa3, 0x9a, 0x36, 0x4a, 0x62, 0x87, 0xd8, 0x01, 0xf5, 0x19, 0x78, 0x57, 0xc4, 0x23, 0x20, 0x27,
+	0xa9, 0x12, 0xa2, 0x6d, 0xdd, 0x55, 0x7d, 0x8e, 0x7f, 0xfe, 0x9f, 0xff, 0x39, 0xa7, 0x0a, 0x00,
+	0xe3, 0x2b, 0x3a, 0x8e, 0x13, 0x2e, 0x39, 0x32, 0x04, 0x67, 0xd1, 0xb0, 0xe7, 0x33, 0xf5, 0xcb,
+	0x7c, 0x92, 0xa7, 0x87, 0xed, 0xc8, 0x67, 0x34, 0x29, 0x82, 0xa3, 0x4d, 0xea, 0xe5, 0x47, 0xfc,
+	0x02, 0x7a, 0x9f, 0x88, 0x08, 0x2e, 0x7d, 0x21, 0x5d, 0xfa, 0x23, 0xa5, 0x42, 0xa2, 0xfb, 0x70,
+	0xb8, 0x49, 0x3d, 0xdb, 0x1a, 0xe8, 0x23, 0xdd, 0x3c, 0x72, 0xf3, 0x00, 0x9f, 0x40, 0xa7, 0x04,
+	0xe3, 0x70, 0x8b, 0x30, 0x18, 0x92, 0x88, 0x60, 0xa0, 0x8f, 0x0e, 0xcc, 0xf6, 0xa4, 0x3b, 0x56,
+	0xf5, 0xc6, 0x0a, 0xb1, 0xd9, 0x77, 0xee, 0x66, 0x77, 0xf8, 0x1b, 0x18, 0x16, 0x25, 0xa1, 0x92,
+	0x7c, 0xeb, 0xaf, 0x4a, 0xc9, 0x2c, 0x50, 0xd9, 0xa9, 0x08, 0x6c, 0x6b, 0xd0, 0xc8, 0xb3, 0x59,
+	0x80, 0x4c, 0x68, 0x0a, 0x49, 0x64, 0x2a, 0x06, 0x07, 0x23, 0xdd, 0xec, 0x4e, 0xfa, 0xb9, 0xb2,
+	0xd2, 0x59, 0x66, 0x79, 0xb7, 0xb8, 0xc7, 0x1f, 0xa1, 0xa7, 0xb2, 0x35, 0xef, 0xfc, 0x17, 0xa3,
+	0xc9, 0xae, 0x50, 0x16, 0x54, 0x24, 0x1b, 0x7b, 0x24, 0x5f, 0x43, 0xa7, 0x94, 0x54, 0x5d, 0x3e,
+	0x06, 0x63, 0x45, 0x49, 0x58, 0x74, 0x09, 0xe5, 0x43, 0x37, 0xcb, 0xbf, 0x3c, 0x03, 0x28, 0x65,
+	0x50, 0x1b, 0xee, 0x38, 0xb3, 0x85, 0x65, 0x2f, 0xde, 0xf5, 0x35, 0x74, 0x17, 0x5a, 0x53, 0xc7,
+	0x71, 0x3f, 0x7c, 0x99, 0x59, 0x7d, 0x5d, 0x45, 0x17, 0xf6, 0xc2, 0x5e, 0xce, 0x67, 0x56, 0xbf,
+	0x31, 0xf9, 0xa3, 0x43, 0x57, 0xcd, 0xea, 0x3d, 0x61, 0x64, 0x4d, 0x23, 0xca, 0x24, 0x3a, 0x05,
+	0x43, 0x95, 0x45, 0x0f, 0xca, 0x49, 0x56, 0x3a, 0x1b, 0xde, 0xab, 0xa7, 0xe3, 0x70, 0x8b, 0x35,
+	0x74, 0x0a, 0x87, 0x4b, 0x49, 0x12, 0x89, 0x1e, 0xe5, 0xf7, 0xf3, 0xd4, 0xcb, 0x62, 0xc5, 0xed,
+	0x9e, 0xd6, 0x76, 0x83, 0x35, 0xf4, 0x0c, 0x9a, 0x85, 0xe3, 0x56, 0x7e, 0x67, 0x5b, 0x57, 0x50,
+	0xc7, 0x60, 0x5c, 0xf2, 0x75, 0x95, 0xa9, 0x9a, 0xe0, 0x6b, 0x71, 0xbe, 0x49, 0x59, 0x80, 0xb5,
+	0x37, 0x3a, 0x7a, 0x02, 0xc6, 0x52, 0xf2, 0xb8, 0x82, 0xb6, 0xf3, 0xd3, 0x2c, 0x8a, 0xe5, 0x16,
+	0x6b, 0x93, 0xdf, 0x3a, 0x74, 0xd5, 0xa0, 0xae, 0x6f, 0xb8, 0xb6, 0xca, 0x5d, 0xad, 0xff, 0xd6,
+	0x81, 0x35, 0x34, 0xba, 0xc2, 0x7a, 0x65, 0x2d, 0x58, 0x43, 0x4f, 0xa1, 0x79, 0xe1, 0x33, 0x5f,
+	0x6c, 0xae, 0x77, 0xf3, 0xb7, 0x01, 0x9d, 0x79, 0xea, 0x55, 0xcc, 0x94, 0x13, 0xa9, 0xa2, 0xb5,
+	0x77, 0xe8, 0x18, 0xda, 0x5f, 0x79, 0x12, 0xd0, 0x44, 0x64, 0xce, 0x6f, 0x42, 0x5f, 0x41, 0xa7,
+	0x40, 0x6f, 0xa1, 0x7b, 0x06, 0x0f, 0x0b, 0xf8, 0x73, 0xbc, 0x22, 0x92, 0x3a, 0x09, 0x8f, 0x69,
+	0x22, 0x7d, 0x2a, 0xf6, 0xd5, 0x38, 0x4f, 0x28, 0x91, 0x74, 0x2a, 0x02, 0x27, 0x24, 0x6c, 0x1f,
+	0xec, 0xd2, 0x88, 0xff, 0xbc, 0x15, 0xfc, 0x1c, 0x5a, 0xbb, 0x7f, 0xda, 0x8d, 0x9c, 0x09, 0x90,
+	0xb7, 0xb7, 0x8f, 0xf4, 0x9a, 0xd9, 0xf7, 0xe6, 0xe4, 0x5f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x70,
+	0xd3, 0x6e, 0xdc, 0xac, 0x04, 0x00, 0x00,
 }
