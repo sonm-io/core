@@ -72,16 +72,16 @@ message DealListReply {
 // Must be called by Hub's owner.
 service HubManagement {
     // Status produse a detailed info about Hub
-    rpc Status (HubStatusRequest) returns (HubStatusReply) {}
+    rpc Status (Empty) returns (HubStatusReply) {}
 
     // WorkersList prouces a list of connected Workers
-    rpc WorkersList (ListRequest) returns (ListReply) {}
+    rpc WorkersList (Empty) returns (ListReply) {}
     // WorkersStatus produces a detailed info about a Worker by their ID
     rpc WorkersStatus (HubInfoRequest) returns (InfoReply) {}
 
     // GetMinerProperties allows to obtain previously assigned resource
     // properties for a given miner
-    rpc GetWorkerProperties(GetMinerPropertiesRequest) returns (GetMinerPropertiesReply) {}
+    rpc GetWorkerProperties(ID) returns (GetMinerPropertiesReply) {}
 
     // SetMinerProperties method allows to specify additional resource
     // properties for a miner specified by its ID
@@ -89,7 +89,7 @@ service HubManagement {
     rpc SetWorkerProperties(SetMinerPropertiesRequest) returns (Empty) {}
 
     // GetAskPlans allows to obtain previously assigned Ask Plans from for a given worker.
-    rpc GetAskPlan(GetSlotsRequest) returns (GetSlotsReply) {}
+    rpc GetAskPlan(ID) returns (GetSlotsReply) {}
     // CreateAskPlan allows to create rules
     // for creating Ask orders on Marketplace
     rpc CreateAskPlan(AddSlotRequest) returns (Empty) {}

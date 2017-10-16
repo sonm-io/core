@@ -23,51 +23,39 @@ It has these top-level messages:
 	CPUDevice
 	RAMDevice
 	GPUDevice
-	ListRequest
 	ListReply
 	HubInfoRequest
 	TaskRequirements
 	HubStartTaskRequest
 	HubStartTaskReply
-	HubStatusMapRequest
-	HubStatusRequest
 	HubStatusReply
 	DealRequest
-	GetMinerPropertiesRequest
 	GetMinerPropertiesReply
 	SetMinerPropertiesRequest
-	GetSlotsRequest
 	GetSlotsReply
 	AddSlotRequest
 	RemoveSlotRequest
-	PingRequest
+	Empty
+	ID
 	PingReply
 	CPUUsage
 	MemoryUsage
 	NetworkUsage
 	ResourceUsage
 	InfoReply
-	StopTaskRequest
-	StopTaskReply
-	TaskStatusRequest
 	TaskStatusReply
 	StatusMapReply
 	ContainerRestartPolicy
 	TaskLogsRequest
 	TaskLogsChunk
-	EmptyReply
 	DiscoverHubRequest
 	TaskResourceRequirements
-	Empty
 	Timestamp
-	ID
 	AnnounceRequest
 	ResolveRequest
 	ResolveReply
 	GetOrdersRequest
 	GetOrdersReply
-	GetOrderRequest
-	MinerInfoRequest
 	MinerHandshakeRequest
 	MinerHandshakeReply
 	MinerStartRequest
