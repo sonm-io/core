@@ -777,7 +777,7 @@ func (h *Hub) leaderWatch() {
 		h.leaderClient = pb.NewHubClient(conn)
 		cli := h.leaderClient
 		h.leaderClientLock.Unlock()
-		cli.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{h.localEndpoint})
+		cli.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{Endpoint: h.localEndpoint})
 
 		waitIdx = kv_pair.ModifyIndex
 	}
@@ -796,7 +796,7 @@ func (h *Hub) onNewHub(endpoint string) {
 	defer h.mu.Unlock()
 
 	for _, miner := range h.miners {
-		miner.Client.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{endpoint})
+		miner.Client.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{Endpoint: endpoint})
 	}
 }
 
@@ -984,7 +984,7 @@ func (h *Hub) registerMiner(miner *MinerCtx) {
 	h.mu.Unlock()
 	for address := range h.associatedHubs {
 		log.G(h.ctx).Info("sending hub adderess", zap.String("hub_address", address))
-		miner.Client.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{address})
+		miner.Client.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{Endpoint: address})
 	}
 }
 
