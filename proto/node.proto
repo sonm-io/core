@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+import "insonmnia.proto";
+
+package sonm;
+
+// The SONM Local node API must also include
+// the Marketplace API, but it already has been described
+// into a "proto / marketplace.proto" file.
+
+// TaskManagement describe a bunch of methods
+// to manage tasks running into the SONM network
+service TaskManagement {
+    // List produces a list of all tasks running on different SONM nodes
+    rpc List(Empty) returns (Empty) {}
+    // Start starts a task on given resource
+    rpc Start(Empty) returns (Empty) {}
+    // Status produces a task status by their ID
+    rpc Status(Empty) returns (Empty) {}
+    // Logs retrieves a task log (stdin/stderr) from given task
+    rpc Logs(Empty) returns (Empty) {}
+    // Stop stops a task by their IDd
+    rpc Stop(Empty) returns (Empty) {}
+}
+
+// DealManagement describe a bunch of methods
+// to manage deals made into the SONM network
+service DealManagement {
+    // List produces a list of all deals made by client with given ID
+    rpc List(Empty) returns (Empty) {}
+    // Status produces a detailed info about deal with given ID
+    rpc Status(Empty) returns (Empty) {}
+    // Finish finishes a deal with given ID
+    rpc Finish(Empty) returns (Empty) {}
+}
+
+// HubManagement describe a bunch of methods
+// to manage Hub node and their Worker nodes.
+// Must be called by Hub's owner.
+service HubManagement {
+    // Status produse a detailed info about Hub
+    rpc Status (Empty) returns (Empty) {}
+
+    // WorkersList prouces a list of connected Workers
+    rpc WorkersList (Empty) returns (Empty) {}
+    // WorkersStatus produces a detailed info about a Worker by their ID
+    rpc WorkersStatus (Empty) returns (Empty) {}
+    // WorkersUpdateProperties updates resource properties on Worker
+    // with given ID
+    rpc WorkersUpdateProperties (Empty) returns (Empty) {}
+
+    // CreateAskPlan allows to create rules
+    // for creating Ask orders on Marketplace
+    rpc CreateAskPlan(Empty) returns (Empty) {}
+    // RemoveAskPlan allows to remove rules
+    // for creating Ask orders on Marketplace
+    rpc RemoveAskPlan(Empty) returns (Empty) {}
+
+    // List produces a list of all running tasks on the Hub
+    rpc TaskList(Empty) returns (Empty) {}
+    // Status produces a detailed info about task on the Hub
+    rpc StatusList(Empty) returns (Empty) {}
+}

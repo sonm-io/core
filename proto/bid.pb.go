@@ -12,6 +12,7 @@ It is generated from these files:
 	locator.proto
 	marketplace.proto
 	miner.proto
+	node.proto
 
 It has these top-level messages:
 	Geo
