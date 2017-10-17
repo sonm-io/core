@@ -169,9 +169,9 @@ func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error
 }
 
 // Info returns aggregated runtime statistics for specified miners.
-func (h *Hub) Info(ctx context.Context, request *pb.HubInfoRequest) (*pb.InfoReply, error) {
+func (h *Hub) Info(ctx context.Context, request *pb.ID) (*pb.InfoReply, error) {
 	log.G(h.ctx).Info("handling Info request", zap.Any("req", request))
-	client, ok := h.getMinerByID(request.Miner)
+	client, ok := h.getMinerByID(request.GetId())
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no such miner")
 	}

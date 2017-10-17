@@ -38,7 +38,7 @@ message TaskListRequest {
 }
 
 message TaskListReply {
-    repeated TaskInfo task = 1;
+    repeated InfoReply tasks = 1;
 }
 
 // DealManagement describe a bunch of methods
@@ -77,7 +77,7 @@ service HubManagement {
     // WorkersList prouces a list of connected Workers
     rpc WorkersList (Empty) returns (ListReply) {}
     // WorkersStatus produces a detailed info about a Worker by their ID
-    rpc WorkersStatus (HubInfoRequest) returns (InfoReply) {}
+    rpc WorkersStatus (ID) returns (InfoReply) {}
 
     // GetMinerProperties allows to obtain previously assigned resource
     // properties for a given miner
