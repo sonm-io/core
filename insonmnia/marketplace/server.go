@@ -5,12 +5,13 @@ import (
 	"net"
 	"sync"
 
+	"sort"
+
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"sort"
 )
 
 const (
@@ -169,7 +170,7 @@ func (m *Marketplace) GetOrders(_ context.Context, req *pb.GetOrdersRequest) (*p
 	}, nil
 }
 
-func (m *Marketplace) GetOrderByID(_ context.Context, req *pb.GetOrderRequest) (*pb.Order, error) {
+func (m *Marketplace) GetOrderByID(_ context.Context, req *pb.ID) (*pb.Order, error) {
 	order, err := m.db.GetOrderByID(req.Id)
 	if err != nil {
 		return nil, err

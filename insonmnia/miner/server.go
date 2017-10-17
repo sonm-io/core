@@ -119,7 +119,7 @@ func (m *Miner) deleteTaskMapping(id string) {
 }
 
 // Ping works as Healthcheck for the Hub
-func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, error) {
+func (m *Miner) Ping(ctx context.Context, _ *pb.Empty) (*pb.PingReply, error) {
 	log.G(m.ctx).Info("got ping request from Hub")
 	return &pb.PingReply{}, nil
 }
@@ -129,7 +129,7 @@ func (m *Miner) Ping(ctx context.Context, _ *pb.PingRequest) (*pb.PingReply, err
 // This works the following way: a miner periodically collects various runtime statistics from all
 // spawned containers that it knows about. For running containers metrics map the immediate
 // state, for dead containers - their last memento.
-func (m *Miner) Info(ctx context.Context, request *pb.MinerInfoRequest) (*pb.InfoReply, error) {
+func (m *Miner) Info(ctx context.Context, request *pb.Empty) (*pb.InfoReply, error) {
 	log.G(m.ctx).Info("handling Info request", zap.Any("req", request))
 
 	info, err := m.ovs.Info(ctx)
@@ -335,7 +335,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 }
 
 // Stop request forces to kill container
-func (m *Miner) Stop(ctx context.Context, request *pb.StopTaskRequest) (*pb.StopTaskReply, error) {
+func (m *Miner) Stop(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(ctx).Info("handling Stop request", zap.Any("req", request))
 
 	m.mu.Lock()
@@ -355,7 +355,7 @@ func (m *Miner) Stop(ctx context.Context, request *pb.StopTaskRequest) (*pb.Stop
 	}
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
 	m.resources.Retain(&containerInfo.Resources)
-	return &pb.StopTaskReply{}, nil
+	return &pb.Empty{}, nil
 }
 
 func (m *Miner) removeStatusChannel(idx int) {
@@ -442,10 +442,10 @@ func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Miner_TaskLogsSe
 	}
 }
 
-func (m *Miner) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.EmptyReply, error) {
+func (m *Miner) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.Empty, error) {
 	log.G(m.ctx).Info("discovered new hub", zap.String("address", request.Endpoint))
 	go m.connectToHub(request.Endpoint)
-	return &pb.EmptyReply{}, nil
+	return &pb.Empty{}, nil
 }
 
 // TasksStatus returns the status of a task
@@ -464,7 +464,7 @@ func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
 	return nil
 }
 
-func (m *Miner) TaskDetails(ctx context.Context, req *pb.TaskStatusRequest) (*pb.TaskStatusReply, error) {
+func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusReply, error) {
 	log.G(m.ctx).Info("starting TaskDetails status server")
 
 	info, ok := m.GetContainerInfo(req.GetId())

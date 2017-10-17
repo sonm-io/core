@@ -17,14 +17,6 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
-type ListRequest struct {
-}
-
-func (m *ListRequest) Reset()                    { *m = ListRequest{} }
-func (m *ListRequest) String() string            { return proto.CompactTextString(m) }
-func (*ListRequest) ProtoMessage()               {}
-func (*ListRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
-
 type ListReply struct {
 	Info map[string]*ListReply_ListValue `protobuf:"bytes,1,rep,name=info" json:"info,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 }
@@ -32,7 +24,7 @@ type ListReply struct {
 func (m *ListReply) Reset()                    { *m = ListReply{} }
 func (m *ListReply) String() string            { return proto.CompactTextString(m) }
 func (*ListReply) ProtoMessage()               {}
-func (*ListReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
+func (*ListReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
 
 func (m *ListReply) GetInfo() map[string]*ListReply_ListValue {
 	if m != nil {
@@ -48,7 +40,7 @@ type ListReply_ListValue struct {
 func (m *ListReply_ListValue) Reset()                    { *m = ListReply_ListValue{} }
 func (m *ListReply_ListValue) String() string            { return proto.CompactTextString(m) }
 func (*ListReply_ListValue) ProtoMessage()               {}
-func (*ListReply_ListValue) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1, 0} }
+func (*ListReply_ListValue) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0, 0} }
 
 func (m *ListReply_ListValue) GetValues() []string {
 	if m != nil {
@@ -64,7 +56,7 @@ type HubInfoRequest struct {
 func (m *HubInfoRequest) Reset()                    { *m = HubInfoRequest{} }
 func (m *HubInfoRequest) String() string            { return proto.CompactTextString(m) }
 func (*HubInfoRequest) ProtoMessage()               {}
-func (*HubInfoRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2} }
+func (*HubInfoRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
 
 func (m *HubInfoRequest) GetMiner() string {
 	if m != nil {
@@ -83,7 +75,7 @@ type TaskRequirements struct {
 func (m *TaskRequirements) Reset()                    { *m = TaskRequirements{} }
 func (m *TaskRequirements) String() string            { return proto.CompactTextString(m) }
 func (*TaskRequirements) ProtoMessage()               {}
-func (*TaskRequirements) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{3} }
+func (*TaskRequirements) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2} }
 
 func (m *TaskRequirements) GetResources() *TaskResourceRequirements {
 	if m != nil {
@@ -112,7 +104,7 @@ type HubStartTaskRequest struct {
 func (m *HubStartTaskRequest) Reset()                    { *m = HubStartTaskRequest{} }
 func (m *HubStartTaskRequest) String() string            { return proto.CompactTextString(m) }
 func (*HubStartTaskRequest) ProtoMessage()               {}
-func (*HubStartTaskRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{4} }
+func (*HubStartTaskRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{3} }
 
 func (m *HubStartTaskRequest) GetRequirements() *TaskRequirements {
 	if m != nil {
@@ -171,7 +163,7 @@ type HubStartTaskReply struct {
 func (m *HubStartTaskReply) Reset()                    { *m = HubStartTaskReply{} }
 func (m *HubStartTaskReply) String() string            { return proto.CompactTextString(m) }
 func (*HubStartTaskReply) ProtoMessage()               {}
-func (*HubStartTaskReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{5} }
+func (*HubStartTaskReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{4} }
 
 func (m *HubStartTaskReply) GetId() string {
 	if m != nil {
@@ -187,30 +179,6 @@ func (m *HubStartTaskReply) GetEndpoint() []string {
 	return nil
 }
 
-type HubStatusMapRequest struct {
-	Miner string `protobuf:"bytes,1,opt,name=miner" json:"miner,omitempty"`
-}
-
-func (m *HubStatusMapRequest) Reset()                    { *m = HubStatusMapRequest{} }
-func (m *HubStatusMapRequest) String() string            { return proto.CompactTextString(m) }
-func (*HubStatusMapRequest) ProtoMessage()               {}
-func (*HubStatusMapRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{6} }
-
-func (m *HubStatusMapRequest) GetMiner() string {
-	if m != nil {
-		return m.Miner
-	}
-	return ""
-}
-
-type HubStatusRequest struct {
-}
-
-func (m *HubStatusRequest) Reset()                    { *m = HubStatusRequest{} }
-func (m *HubStatusRequest) String() string            { return proto.CompactTextString(m) }
-func (*HubStatusRequest) ProtoMessage()               {}
-func (*HubStatusRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{7} }
-
 type HubStatusReply struct {
 	MinerCount uint64 `protobuf:"varint,1,opt,name=minerCount" json:"minerCount,omitempty"`
 	Uptime     uint64 `protobuf:"varint,2,opt,name=uptime" json:"uptime,omitempty"`
@@ -222,7 +190,7 @@ type HubStatusReply struct {
 func (m *HubStatusReply) Reset()                    { *m = HubStatusReply{} }
 func (m *HubStatusReply) String() string            { return proto.CompactTextString(m) }
 func (*HubStatusReply) ProtoMessage()               {}
-func (*HubStatusReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{8} }
+func (*HubStatusReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{5} }
 
 func (m *HubStatusReply) GetMinerCount() uint64 {
 	if m != nil {
@@ -266,29 +234,13 @@ type DealRequest struct {
 func (m *DealRequest) Reset()                    { *m = DealRequest{} }
 func (m *DealRequest) String() string            { return proto.CompactTextString(m) }
 func (*DealRequest) ProtoMessage()               {}
-func (*DealRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{9} }
+func (*DealRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{6} }
 
 func (m *DealRequest) GetOrder() *Order {
 	if m != nil {
 		return m.Order
 	}
 	return nil
-}
-
-type GetMinerPropertiesRequest struct {
-	ID string `protobuf:"bytes,1,opt,name=ID" json:"ID,omitempty"`
-}
-
-func (m *GetMinerPropertiesRequest) Reset()                    { *m = GetMinerPropertiesRequest{} }
-func (m *GetMinerPropertiesRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetMinerPropertiesRequest) ProtoMessage()               {}
-func (*GetMinerPropertiesRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{10} }
-
-func (m *GetMinerPropertiesRequest) GetID() string {
-	if m != nil {
-		return m.ID
-	}
-	return ""
 }
 
 type GetMinerPropertiesReply struct {
@@ -298,7 +250,7 @@ type GetMinerPropertiesReply struct {
 func (m *GetMinerPropertiesReply) Reset()                    { *m = GetMinerPropertiesReply{} }
 func (m *GetMinerPropertiesReply) String() string            { return proto.CompactTextString(m) }
 func (*GetMinerPropertiesReply) ProtoMessage()               {}
-func (*GetMinerPropertiesReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{11} }
+func (*GetMinerPropertiesReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{7} }
 
 func (m *GetMinerPropertiesReply) GetProperties() map[string]string {
 	if m != nil {
@@ -315,7 +267,7 @@ type SetMinerPropertiesRequest struct {
 func (m *SetMinerPropertiesRequest) Reset()                    { *m = SetMinerPropertiesRequest{} }
 func (m *SetMinerPropertiesRequest) String() string            { return proto.CompactTextString(m) }
 func (*SetMinerPropertiesRequest) ProtoMessage()               {}
-func (*SetMinerPropertiesRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{12} }
+func (*SetMinerPropertiesRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{8} }
 
 func (m *SetMinerPropertiesRequest) GetID() string {
 	if m != nil {
@@ -331,23 +283,6 @@ func (m *SetMinerPropertiesRequest) GetProperties() map[string]string {
 	return nil
 }
 
-type GetSlotsRequest struct {
-	// Miner ID.
-	ID string `protobuf:"bytes,1,opt,name=ID" json:"ID,omitempty"`
-}
-
-func (m *GetSlotsRequest) Reset()                    { *m = GetSlotsRequest{} }
-func (m *GetSlotsRequest) String() string            { return proto.CompactTextString(m) }
-func (*GetSlotsRequest) ProtoMessage()               {}
-func (*GetSlotsRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{13} }
-
-func (m *GetSlotsRequest) GetID() string {
-	if m != nil {
-		return m.ID
-	}
-	return ""
-}
-
 type GetSlotsReply struct {
 	Slot []*Slot `protobuf:"bytes,1,rep,name=slot" json:"slot,omitempty"`
 }
@@ -355,7 +290,7 @@ type GetSlotsReply struct {
 func (m *GetSlotsReply) Reset()                    { *m = GetSlotsReply{} }
 func (m *GetSlotsReply) String() string            { return proto.CompactTextString(m) }
 func (*GetSlotsReply) ProtoMessage()               {}
-func (*GetSlotsReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{14} }
+func (*GetSlotsReply) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{9} }
 
 func (m *GetSlotsReply) GetSlot() []*Slot {
 	if m != nil {
@@ -374,7 +309,7 @@ type AddSlotRequest struct {
 func (m *AddSlotRequest) Reset()                    { *m = AddSlotRequest{} }
 func (m *AddSlotRequest) String() string            { return proto.CompactTextString(m) }
 func (*AddSlotRequest) ProtoMessage()               {}
-func (*AddSlotRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{15} }
+func (*AddSlotRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{10} }
 
 func (m *AddSlotRequest) GetID() string {
 	if m != nil {
@@ -398,7 +333,7 @@ type RemoveSlotRequest struct {
 func (m *RemoveSlotRequest) Reset()                    { *m = RemoveSlotRequest{} }
 func (m *RemoveSlotRequest) String() string            { return proto.CompactTextString(m) }
 func (*RemoveSlotRequest) ProtoMessage()               {}
-func (*RemoveSlotRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{16} }
+func (*RemoveSlotRequest) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{11} }
 
 func (m *RemoveSlotRequest) GetID() string {
 	if m != nil {
@@ -415,21 +350,16 @@ func (m *RemoveSlotRequest) GetSlot() *Slot {
 }
 
 func init() {
-	proto.RegisterType((*ListRequest)(nil), "sonm.ListRequest")
 	proto.RegisterType((*ListReply)(nil), "sonm.ListReply")
 	proto.RegisterType((*ListReply_ListValue)(nil), "sonm.ListReply.ListValue")
 	proto.RegisterType((*HubInfoRequest)(nil), "sonm.HubInfoRequest")
 	proto.RegisterType((*TaskRequirements)(nil), "sonm.TaskRequirements")
 	proto.RegisterType((*HubStartTaskRequest)(nil), "sonm.HubStartTaskRequest")
 	proto.RegisterType((*HubStartTaskReply)(nil), "sonm.HubStartTaskReply")
-	proto.RegisterType((*HubStatusMapRequest)(nil), "sonm.HubStatusMapRequest")
-	proto.RegisterType((*HubStatusRequest)(nil), "sonm.HubStatusRequest")
 	proto.RegisterType((*HubStatusReply)(nil), "sonm.HubStatusReply")
 	proto.RegisterType((*DealRequest)(nil), "sonm.DealRequest")
-	proto.RegisterType((*GetMinerPropertiesRequest)(nil), "sonm.GetMinerPropertiesRequest")
 	proto.RegisterType((*GetMinerPropertiesReply)(nil), "sonm.GetMinerPropertiesReply")
 	proto.RegisterType((*SetMinerPropertiesRequest)(nil), "sonm.SetMinerPropertiesRequest")
-	proto.RegisterType((*GetSlotsRequest)(nil), "sonm.GetSlotsRequest")
 	proto.RegisterType((*GetSlotsReply)(nil), "sonm.GetSlotsReply")
 	proto.RegisterType((*AddSlotRequest)(nil), "sonm.AddSlotRequest")
 	proto.RegisterType((*RemoveSlotRequest)(nil), "sonm.RemoveSlotRequest")
@@ -446,20 +376,20 @@ const _ = grpc.SupportPackageIsVersion4
 // Client API for Hub service
 
 type HubClient interface {
-	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingReply, error)
-	Status(ctx context.Context, in *HubStatusRequest, opts ...grpc.CallOption) (*HubStatusReply, error)
-	List(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListReply, error)
+	Ping(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*PingReply, error)
+	Status(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HubStatusReply, error)
+	List(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListReply, error)
 	Info(ctx context.Context, in *HubInfoRequest, opts ...grpc.CallOption) (*InfoReply, error)
 	StartTask(ctx context.Context, in *HubStartTaskRequest, opts ...grpc.CallOption) (*HubStartTaskReply, error)
-	StopTask(ctx context.Context, in *StopTaskRequest, opts ...grpc.CallOption) (*StopTaskReply, error)
-	TaskStatus(ctx context.Context, in *TaskStatusRequest, opts ...grpc.CallOption) (*TaskStatusReply, error)
-	MinerStatus(ctx context.Context, in *HubStatusMapRequest, opts ...grpc.CallOption) (*StatusMapReply, error)
+	StopTask(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Empty, error)
+	TaskStatus(ctx context.Context, in *ID, opts ...grpc.CallOption) (*TaskStatusReply, error)
+	MinerStatus(ctx context.Context, in *ID, opts ...grpc.CallOption) (*StatusMapReply, error)
 	TaskLogs(ctx context.Context, in *TaskLogsRequest, opts ...grpc.CallOption) (Hub_TaskLogsClient, error)
 	ProposeDeal(ctx context.Context, in *DealRequest, opts ...grpc.CallOption) (*Empty, error)
-	DiscoverHub(ctx context.Context, in *DiscoverHubRequest, opts ...grpc.CallOption) (*EmptyReply, error)
+	DiscoverHub(ctx context.Context, in *DiscoverHubRequest, opts ...grpc.CallOption) (*Empty, error)
 	// GetMinerProperties allows to obtain previously assigned resource
 	// properties for a given miner.
-	GetMinerProperties(ctx context.Context, in *GetMinerPropertiesRequest, opts ...grpc.CallOption) (*GetMinerPropertiesReply, error)
+	GetMinerProperties(ctx context.Context, in *ID, opts ...grpc.CallOption) (*GetMinerPropertiesReply, error)
 	// SetMinerProperties method allows to specify additional resource
 	// properties for a miner specified by its ID.
 	// This may include GPU's capability to execute a well-known work such as
@@ -468,7 +398,7 @@ type HubClient interface {
 	SetMinerProperties(ctx context.Context, in *SetMinerPropertiesRequest, opts ...grpc.CallOption) (*Empty, error)
 	// GetSlots allows to obtain previously assigned slots from for a given
 	// miner.
-	GetSlots(ctx context.Context, in *GetSlotsRequest, opts ...grpc.CallOption) (*GetSlotsReply, error)
+	GetSlots(ctx context.Context, in *ID, opts ...grpc.CallOption) (*GetSlotsReply, error)
 	// AddSlot allows to assign a new slot for a given miner.
 	// This method can fail if either there are no resources left on a miner
 	// or it has been previourly assigned for specified time duration.
@@ -485,7 +415,7 @@ func NewHubClient(cc *grpc.ClientConn) HubClient {
 	return &hubClient{cc}
 }
 
-func (c *hubClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingReply, error) {
+func (c *hubClient) Ping(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*PingReply, error) {
 	out := new(PingReply)
 	err := grpc.Invoke(ctx, "/sonm.Hub/Ping", in, out, c.cc, opts...)
 	if err != nil {
@@ -494,7 +424,7 @@ func (c *hubClient) Ping(ctx context.Context, in *PingRequest, opts ...grpc.Call
 	return out, nil
 }
 
-func (c *hubClient) Status(ctx context.Context, in *HubStatusRequest, opts ...grpc.CallOption) (*HubStatusReply, error) {
+func (c *hubClient) Status(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*HubStatusReply, error) {
 	out := new(HubStatusReply)
 	err := grpc.Invoke(ctx, "/sonm.Hub/Status", in, out, c.cc, opts...)
 	if err != nil {
@@ -503,7 +433,7 @@ func (c *hubClient) Status(ctx context.Context, in *HubStatusRequest, opts ...gr
 	return out, nil
 }
 
-func (c *hubClient) List(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListReply, error) {
+func (c *hubClient) List(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*ListReply, error) {
 	out := new(ListReply)
 	err := grpc.Invoke(ctx, "/sonm.Hub/List", in, out, c.cc, opts...)
 	if err != nil {
@@ -530,8 +460,8 @@ func (c *hubClient) StartTask(ctx context.Context, in *HubStartTaskRequest, opts
 	return out, nil
 }
 
-func (c *hubClient) StopTask(ctx context.Context, in *StopTaskRequest, opts ...grpc.CallOption) (*StopTaskReply, error) {
-	out := new(StopTaskReply)
+func (c *hubClient) StopTask(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
 	err := grpc.Invoke(ctx, "/sonm.Hub/StopTask", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -539,7 +469,7 @@ func (c *hubClient) StopTask(ctx context.Context, in *StopTaskRequest, opts ...g
 	return out, nil
 }
 
-func (c *hubClient) TaskStatus(ctx context.Context, in *TaskStatusRequest, opts ...grpc.CallOption) (*TaskStatusReply, error) {
+func (c *hubClient) TaskStatus(ctx context.Context, in *ID, opts ...grpc.CallOption) (*TaskStatusReply, error) {
 	out := new(TaskStatusReply)
 	err := grpc.Invoke(ctx, "/sonm.Hub/TaskStatus", in, out, c.cc, opts...)
 	if err != nil {
@@ -548,7 +478,7 @@ func (c *hubClient) TaskStatus(ctx context.Context, in *TaskStatusRequest, opts 
 	return out, nil
 }
 
-func (c *hubClient) MinerStatus(ctx context.Context, in *HubStatusMapRequest, opts ...grpc.CallOption) (*StatusMapReply, error) {
+func (c *hubClient) MinerStatus(ctx context.Context, in *ID, opts ...grpc.CallOption) (*StatusMapReply, error) {
 	out := new(StatusMapReply)
 	err := grpc.Invoke(ctx, "/sonm.Hub/MinerStatus", in, out, c.cc, opts...)
 	if err != nil {
@@ -598,8 +528,8 @@ func (c *hubClient) ProposeDeal(ctx context.Context, in *DealRequest, opts ...gr
 	return out, nil
 }
 
-func (c *hubClient) DiscoverHub(ctx context.Context, in *DiscoverHubRequest, opts ...grpc.CallOption) (*EmptyReply, error) {
-	out := new(EmptyReply)
+func (c *hubClient) DiscoverHub(ctx context.Context, in *DiscoverHubRequest, opts ...grpc.CallOption) (*Empty, error) {
+	out := new(Empty)
 	err := grpc.Invoke(ctx, "/sonm.Hub/DiscoverHub", in, out, c.cc, opts...)
 	if err != nil {
 		return nil, err
@@ -607,7 +537,7 @@ func (c *hubClient) DiscoverHub(ctx context.Context, in *DiscoverHubRequest, opt
 	return out, nil
 }
 
-func (c *hubClient) GetMinerProperties(ctx context.Context, in *GetMinerPropertiesRequest, opts ...grpc.CallOption) (*GetMinerPropertiesReply, error) {
+func (c *hubClient) GetMinerProperties(ctx context.Context, in *ID, opts ...grpc.CallOption) (*GetMinerPropertiesReply, error) {
 	out := new(GetMinerPropertiesReply)
 	err := grpc.Invoke(ctx, "/sonm.Hub/GetMinerProperties", in, out, c.cc, opts...)
 	if err != nil {
@@ -625,7 +555,7 @@ func (c *hubClient) SetMinerProperties(ctx context.Context, in *SetMinerProperti
 	return out, nil
 }
 
-func (c *hubClient) GetSlots(ctx context.Context, in *GetSlotsRequest, opts ...grpc.CallOption) (*GetSlotsReply, error) {
+func (c *hubClient) GetSlots(ctx context.Context, in *ID, opts ...grpc.CallOption) (*GetSlotsReply, error) {
 	out := new(GetSlotsReply)
 	err := grpc.Invoke(ctx, "/sonm.Hub/GetSlots", in, out, c.cc, opts...)
 	if err != nil {
@@ -655,20 +585,20 @@ func (c *hubClient) RemoveSlot(ctx context.Context, in *RemoveSlotRequest, opts 
 // Server API for Hub service
 
 type HubServer interface {
-	Ping(context.Context, *PingRequest) (*PingReply, error)
-	Status(context.Context, *HubStatusRequest) (*HubStatusReply, error)
-	List(context.Context, *ListRequest) (*ListReply, error)
+	Ping(context.Context, *Empty) (*PingReply, error)
+	Status(context.Context, *Empty) (*HubStatusReply, error)
+	List(context.Context, *Empty) (*ListReply, error)
 	Info(context.Context, *HubInfoRequest) (*InfoReply, error)
 	StartTask(context.Context, *HubStartTaskRequest) (*HubStartTaskReply, error)
-	StopTask(context.Context, *StopTaskRequest) (*StopTaskReply, error)
-	TaskStatus(context.Context, *TaskStatusRequest) (*TaskStatusReply, error)
-	MinerStatus(context.Context, *HubStatusMapRequest) (*StatusMapReply, error)
+	StopTask(context.Context, *ID) (*Empty, error)
+	TaskStatus(context.Context, *ID) (*TaskStatusReply, error)
+	MinerStatus(context.Context, *ID) (*StatusMapReply, error)
 	TaskLogs(*TaskLogsRequest, Hub_TaskLogsServer) error
 	ProposeDeal(context.Context, *DealRequest) (*Empty, error)
-	DiscoverHub(context.Context, *DiscoverHubRequest) (*EmptyReply, error)
+	DiscoverHub(context.Context, *DiscoverHubRequest) (*Empty, error)
 	// GetMinerProperties allows to obtain previously assigned resource
 	// properties for a given miner.
-	GetMinerProperties(context.Context, *GetMinerPropertiesRequest) (*GetMinerPropertiesReply, error)
+	GetMinerProperties(context.Context, *ID) (*GetMinerPropertiesReply, error)
 	// SetMinerProperties method allows to specify additional resource
 	// properties for a miner specified by its ID.
 	// This may include GPU's capability to execute a well-known work such as
@@ -677,7 +607,7 @@ type HubServer interface {
 	SetMinerProperties(context.Context, *SetMinerPropertiesRequest) (*Empty, error)
 	// GetSlots allows to obtain previously assigned slots from for a given
 	// miner.
-	GetSlots(context.Context, *GetSlotsRequest) (*GetSlotsReply, error)
+	GetSlots(context.Context, *ID) (*GetSlotsReply, error)
 	// AddSlot allows to assign a new slot for a given miner.
 	// This method can fail if either there are no resources left on a miner
 	// or it has been previourly assigned for specified time duration.
@@ -691,7 +621,7 @@ func RegisterHubServer(s *grpc.Server, srv HubServer) {
 }
 
 func _Hub_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PingRequest)
+	in := new(Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -703,13 +633,13 @@ func _Hub_Ping_Handler(srv interface{}, ctx context.Context, dec func(interface{
 		FullMethod: "/sonm.Hub/Ping",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HubServer).Ping(ctx, req.(*PingRequest))
+		return srv.(HubServer).Ping(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Hub_Status_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HubStatusRequest)
+	in := new(Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -721,13 +651,13 @@ func _Hub_Status_Handler(srv interface{}, ctx context.Context, dec func(interfac
 		FullMethod: "/sonm.Hub/Status",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HubServer).Status(ctx, req.(*HubStatusRequest))
+		return srv.(HubServer).Status(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Hub_List_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListRequest)
+	in := new(Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -739,7 +669,7 @@ func _Hub_List_Handler(srv interface{}, ctx context.Context, dec func(interface{
 		FullMethod: "/sonm.Hub/List",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HubServer).List(ctx, req.(*ListRequest))
+		return srv.(HubServer).List(ctx, req.(*Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -781,7 +711,7 @@ func _Hub_StartTask_Handler(srv interface{}, ctx context.Context, dec func(inter
 }
 
 func _Hub_StopTask_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StopTaskRequest)
+	in := new(ID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -793,13 +723,13 @@ func _Hub_StopTask_Handler(srv interface{}, ctx context.Context, dec func(interf
 		FullMethod: "/sonm.Hub/StopTask",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HubServer).StopTask(ctx, req.(*StopTaskRequest))
+		return srv.(HubServer).StopTask(ctx, req.(*ID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Hub_TaskStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(TaskStatusRequest)
+	in := new(ID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -811,13 +741,13 @@ func _Hub_TaskStatus_Handler(srv interface{}, ctx context.Context, dec func(inte
 		FullMethod: "/sonm.Hub/TaskStatus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HubServer).TaskStatus(ctx, req.(*TaskStatusRequest))
+		return srv.(HubServer).TaskStatus(ctx, req.(*ID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
 func _Hub_MinerStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(HubStatusMapRequest)
+	in := new(ID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -829,7 +759,7 @@ func _Hub_MinerStatus_Handler(srv interface{}, ctx context.Context, dec func(int
 		FullMethod: "/sonm.Hub/MinerStatus",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HubServer).MinerStatus(ctx, req.(*HubStatusMapRequest))
+		return srv.(HubServer).MinerStatus(ctx, req.(*ID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -892,7 +822,7 @@ func _Hub_DiscoverHub_Handler(srv interface{}, ctx context.Context, dec func(int
 }
 
 func _Hub_GetMinerProperties_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetMinerPropertiesRequest)
+	in := new(ID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -904,7 +834,7 @@ func _Hub_GetMinerProperties_Handler(srv interface{}, ctx context.Context, dec f
 		FullMethod: "/sonm.Hub/GetMinerProperties",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HubServer).GetMinerProperties(ctx, req.(*GetMinerPropertiesRequest))
+		return srv.(HubServer).GetMinerProperties(ctx, req.(*ID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -928,7 +858,7 @@ func _Hub_SetMinerProperties_Handler(srv interface{}, ctx context.Context, dec f
 }
 
 func _Hub_GetSlots_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetSlotsRequest)
+	in := new(ID)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -940,7 +870,7 @@ func _Hub_GetSlots_Handler(srv interface{}, ctx context.Context, dec func(interf
 		FullMethod: "/sonm.Hub/GetSlots",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HubServer).GetSlots(ctx, req.(*GetSlotsRequest))
+		return srv.(HubServer).GetSlots(ctx, req.(*ID))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -1059,66 +989,62 @@ var _Hub_serviceDesc = grpc.ServiceDesc{
 func init() { proto.RegisterFile("hub.proto", fileDescriptor2) }
 
 var fileDescriptor2 = []byte{
-	// 967 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x56, 0x6b, 0x6e, 0xdb, 0x46,
-	0x10, 0x16, 0x25, 0xda, 0x16, 0x47, 0xf1, 0x6b, 0xe3, 0xd8, 0x14, 0x81, 0xa6, 0x0e, 0x5b, 0x14,
-	0x06, 0x92, 0x48, 0x81, 0x1b, 0x14, 0x86, 0xfb, 0x8a, 0x61, 0x19, 0xb1, 0xd1, 0x18, 0x36, 0xa8,
-	0x22, 0xff, 0x29, 0x73, 0x6d, 0x2d, 0x4c, 0x72, 0xd9, 0xe5, 0x52, 0x80, 0x6e, 0xd2, 0x1b, 0xf4,
-	0x00, 0xf9, 0xd9, 0x43, 0xf4, 0x4a, 0xc5, 0xbe, 0x48, 0xea, 0x15, 0xb4, 0x28, 0xfa, 0x8f, 0xf3,
-	0xed, 0xcc, 0x37, 0x3b, 0xcf, 0x25, 0x38, 0xe3, 0x62, 0xd4, 0xcb, 0x18, 0xe5, 0x14, 0xd9, 0x39,
-	0x4d, 0x13, 0xcf, 0x19, 0x91, 0x48, 0x01, 0xde, 0x36, 0x49, 0x05, 0x94, 0x92, 0x50, 0x01, 0xfe,
-	0x26, 0x74, 0x3e, 0x90, 0x9c, 0x07, 0xf8, 0xb7, 0x02, 0xe7, 0xdc, 0xff, 0x64, 0x81, 0xa3, 0xe4,
-	0x2c, 0x9e, 0xa2, 0xd7, 0x60, 0x93, 0xf4, 0x9e, 0xba, 0xd6, 0x61, 0xeb, 0xa8, 0x73, 0xdc, 0xed,
-	0x09, 0xd3, 0x5e, 0x79, 0xdc, 0xbb, 0x4a, 0xef, 0xe9, 0x45, 0xca, 0xd9, 0x34, 0x90, 0x6a, 0xde,
-	0x57, 0xca, 0xf6, 0x63, 0x18, 0x17, 0x18, 0xed, 0xc3, 0xfa, 0x44, 0x7c, 0xe4, 0xd2, 0xda, 0x09,
-	0xb4, 0xe4, 0x05, 0xe0, 0x94, 0x76, 0x68, 0x07, 0x5a, 0x8f, 0x78, 0xea, 0x5a, 0x87, 0xd6, 0x91,
-	0x13, 0x88, 0x4f, 0xd4, 0x87, 0x35, 0xa9, 0xe8, 0x36, 0x0f, 0xad, 0x65, 0x3e, 0x4b, 0x07, 0x81,
-	0xd2, 0x3b, 0x6d, 0x9e, 0x58, 0xfe, 0x37, 0xb0, 0x75, 0x59, 0x8c, 0x04, 0xad, 0x8e, 0x03, 0xed,
-	0xc1, 0x5a, 0x42, 0x52, 0xcc, 0x34, 0xb5, 0x12, 0xfc, 0x31, 0xec, 0xfc, 0x1a, 0xe6, 0x8f, 0x42,
-	0x89, 0x30, 0x9c, 0xe0, 0x94, 0xe7, 0xe8, 0x07, 0x70, 0x18, 0xce, 0x69, 0xc1, 0xee, 0xe4, 0x55,
-	0x85, 0xd3, 0xe7, 0xca, 0xa9, 0x52, 0x55, 0x47, 0x75, 0x93, 0xa0, 0x32, 0x10, 0x51, 0x4a, 0xea,
-	0xdc, 0x6d, 0xaa, 0x28, 0x95, 0xe4, 0xff, 0xd5, 0x84, 0xa7, 0x97, 0xc5, 0x68, 0xc8, 0x43, 0xc6,
-	0x8d, 0x4b, 0x71, 0xaf, 0x53, 0x78, 0xc2, 0x6a, 0x54, 0xda, 0xe1, 0x7e, 0xdd, 0x61, 0xcd, 0xd1,
-	0x8c, 0x2e, 0xf2, 0xa0, 0xcd, 0xf0, 0x03, 0xc9, 0x39, 0x9b, 0xca, 0xec, 0x38, 0x41, 0x29, 0x8b,
-	0x78, 0x49, 0x12, 0x3e, 0x60, 0xb7, 0xa5, 0xe2, 0x95, 0x02, 0x42, 0x60, 0x87, 0x05, 0x1f, 0xbb,
-	0xb6, 0x04, 0xe5, 0x37, 0xfa, 0x1a, 0x36, 0x6f, 0x8b, 0x51, 0x4c, 0xee, 0x7e, 0xc1, 0xd3, 0x41,
-	0xc8, 0x43, 0x77, 0x4d, 0x1e, 0xce, 0x82, 0xc8, 0x87, 0x27, 0x77, 0x34, 0x49, 0x08, 0xbf, 0x49,
-	0x87, 0x9c, 0x66, 0xee, 0xfa, 0xa1, 0x75, 0xd4, 0x0e, 0x66, 0x30, 0xf4, 0x16, 0x5a, 0x38, 0x9d,
-	0xb8, 0x1b, 0xb2, 0x39, 0x7c, 0x15, 0xc2, 0x92, 0x98, 0x7b, 0x17, 0xe9, 0x44, 0x75, 0x89, 0x50,
-	0xf7, 0xbe, 0x83, 0xb6, 0x01, 0x96, 0x94, 0x7f, 0xaf, 0x5e, 0x7e, 0xa7, 0x5e, 0xe3, 0x9f, 0x61,
-	0x77, 0x96, 0x5c, 0x34, 0xe8, 0x16, 0x34, 0x49, 0xa4, 0xed, 0x9b, 0x24, 0x12, 0x29, 0xc2, 0x69,
-	0x94, 0x51, 0x92, 0x72, 0x5d, 0x90, 0x52, 0xf6, 0x5f, 0x9a, 0x8a, 0xf0, 0x22, 0xbf, 0x0e, 0xb3,
-	0xcf, 0x77, 0x0a, 0x82, 0x9d, 0x52, 0xd9, 0xcc, 0xc6, 0xef, 0x96, 0x6c, 0x33, 0x03, 0x0a, 0xff,
-	0xcf, 0x01, 0xa4, 0xfe, 0x39, 0x2d, 0x52, 0x2e, 0x19, 0xec, 0xa0, 0x86, 0x88, 0xf6, 0x28, 0x32,
-	0x4e, 0x12, 0x15, 0x8f, 0x1d, 0x68, 0x09, 0xb9, 0xb0, 0x31, 0xc1, 0x2c, 0x27, 0x34, 0xd5, 0x05,
-	0x33, 0xa2, 0x88, 0x20, 0x8b, 0x43, 0x7e, 0x4f, 0x59, 0xa2, 0xcb, 0x56, 0xca, 0xc2, 0x0a, 0xf3,
-	0xf1, 0x59, 0x14, 0x31, 0x5d, 0x34, 0x23, 0xfa, 0x6f, 0xa0, 0x33, 0xc0, 0x61, 0x6c, 0x62, 0x7a,
-	0x01, 0x6b, 0x94, 0x45, 0x3a, 0xa6, 0xce, 0x71, 0x47, 0xd5, 0xe6, 0x46, 0x40, 0x81, 0x3a, 0xf1,
-	0x5f, 0x42, 0xf7, 0x3d, 0xe6, 0xd7, 0xe2, 0xaa, 0xb7, 0x8c, 0x66, 0x98, 0x71, 0x82, 0x4d, 0xa4,
-	0x22, 0xad, 0x57, 0x03, 0x93, 0xd6, 0xab, 0x81, 0xff, 0x87, 0x05, 0x07, 0xcb, 0xb4, 0x45, 0x0a,
-	0xae, 0x01, 0xb2, 0x12, 0xd2, 0x9b, 0xe2, 0xb5, 0x72, 0xb8, 0xc2, 0xa4, 0x57, 0xc9, 0xaa, 0x2f,
-	0x6a, 0x04, 0xde, 0x8f, 0xb0, 0x3d, 0x77, 0xfc, 0xaf, 0xba, 0xe4, 0x4f, 0x0b, 0xba, 0xc3, 0x7f,
-	0x1a, 0x17, 0xba, 0x99, 0xb9, 0x7b, 0x53, 0xde, 0xbd, 0xaf, 0xee, 0xbe, 0x92, 0xe4, 0xff, 0xbc,
-	0xfd, 0x0b, 0xd8, 0x7e, 0x8f, 0xf9, 0x30, 0xa6, 0x7c, 0x65, 0x29, 0xfa, 0xb0, 0x59, 0xa9, 0xa8,
-	0x16, 0xb4, 0xf3, 0x98, 0x72, 0x9d, 0x79, 0xd0, 0xb7, 0x8f, 0x29, 0x0f, 0x24, 0xee, 0xbf, 0x83,
-	0xad, 0xb3, 0x28, 0x92, 0xc0, 0x8a, 0x2c, 0x18, 0x06, 0xb5, 0x71, 0x17, 0x19, 0xce, 0x61, 0x37,
-	0xc0, 0x09, 0x9d, 0xe0, 0xff, 0x40, 0x72, 0xfc, 0x69, 0x03, 0x5a, 0x97, 0xc5, 0x08, 0xbd, 0x02,
-	0xfb, 0x96, 0xa4, 0x0f, 0x68, 0x57, 0x69, 0x88, 0x6f, 0x4d, 0xe9, 0x6d, 0xd7, 0xa1, 0x2c, 0x9e,
-	0xfa, 0x0d, 0x74, 0x02, 0xeb, 0x6a, 0xdc, 0xd0, 0x7e, 0x7d, 0xbf, 0x54, 0x43, 0xe9, 0xed, 0x2d,
-	0xe0, 0xca, 0xf2, 0x15, 0xd8, 0xe2, 0xa9, 0x30, 0x7e, 0x6a, 0x6f, 0x9c, 0xf1, 0x53, 0xbe, 0x29,
-	0x7e, 0x03, 0xf5, 0xc1, 0x16, 0xaf, 0x07, 0xaa, 0xd8, 0x6a, 0x8f, 0x89, 0x31, 0x50, 0x90, 0x32,
-	0x38, 0x03, 0xa7, 0x5c, 0x45, 0xa8, 0xbb, 0x72, 0xf7, 0x79, 0x07, 0xcb, 0x8e, 0x4c, 0x6c, 0x6d,
-	0xb1, 0x46, 0x25, 0xc3, 0x33, 0x9d, 0x2f, 0x2d, 0x1b, 0xeb, 0xa7, 0xf3, 0xb0, 0xb2, 0xfc, 0x09,
-	0x40, 0x88, 0x3a, 0x33, 0x07, 0xd5, 0xe3, 0x31, 0x9b, 0x9a, 0x67, 0x8b, 0x07, 0xca, 0xfe, 0x1d,
-	0x74, 0x64, 0x6f, 0x6b, 0x82, 0xee, 0x5c, 0x0a, 0xab, 0xe5, 0x68, 0xb2, 0x5b, 0xc3, 0x15, 0xc3,
-	0x29, 0xb4, 0x05, 0xed, 0x07, 0xfa, 0x90, 0xa3, 0x9a, 0x1b, 0x21, 0xcf, 0xdd, 0xdd, 0xc0, 0xe7,
-	0xe3, 0x22, 0x7d, 0xf4, 0x1b, 0x6f, 0x2c, 0xd4, 0x87, 0x8e, 0x98, 0x11, 0x9a, 0x63, 0xb1, 0xb2,
-	0x4c, 0x81, 0x6a, 0xeb, 0xcb, 0xd3, 0xfb, 0xea, 0x22, 0xc9, 0xb8, 0x70, 0xf6, 0x3d, 0x74, 0x06,
-	0x24, 0xbf, 0xa3, 0x13, 0xcc, 0x44, 0x07, 0xb9, 0xda, 0xa0, 0x82, 0x8c, 0xdd, 0x4e, 0xcd, 0xce,
-	0xdc, 0xf4, 0x23, 0xa0, 0xc5, 0x35, 0x84, 0xbe, 0x5c, 0xbd, 0xa0, 0x14, 0xd5, 0x17, 0x9f, 0xdd,
-	0x60, 0x7e, 0x03, 0x0d, 0x00, 0x0d, 0x57, 0xf2, 0xae, 0x5c, 0x1e, 0xf3, 0xa1, 0x9d, 0x40, 0xdb,
-	0x4c, 0xb3, 0xc9, 0xe3, 0xdc, 0x02, 0x30, 0x79, 0x9c, 0x19, 0x7a, 0xbf, 0x81, 0x7a, 0xb0, 0xa1,
-	0xc7, 0xda, 0x34, 0xed, 0xec, 0x94, 0xcf, 0x7b, 0x7a, 0x0b, 0x50, 0x0d, 0xb1, 0xe9, 0x99, 0x85,
-	0xb1, 0x9e, 0xb3, 0x1a, 0xad, 0xcb, 0x9f, 0xc4, 0x6f, 0xff, 0x0e, 0x00, 0x00, 0xff, 0xff, 0xe5,
-	0x5c, 0x8f, 0xf1, 0x53, 0x0a, 0x00, 0x00,
+	// 909 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x56, 0xef, 0x6a, 0xe3, 0x46,
+	0x10, 0xb7, 0x6c, 0xc5, 0xb1, 0xc6, 0x77, 0xc9, 0x65, 0x93, 0xde, 0x29, 0x82, 0x5e, 0xd3, 0xbd,
+	0x72, 0x04, 0x4a, 0xec, 0x23, 0x3d, 0x8e, 0x12, 0x5a, 0xae, 0x21, 0x0e, 0x97, 0xd0, 0x0b, 0x09,
+	0x72, 0xe9, 0x77, 0x39, 0xda, 0xd8, 0x4b, 0xac, 0x5d, 0x75, 0xb5, 0x32, 0xf8, 0x4d, 0xfa, 0x06,
+	0x7d, 0x80, 0x7e, 0x2c, 0xf4, 0x15, 0xfa, 0x4a, 0x65, 0xff, 0x48, 0x96, 0xfc, 0xa7, 0xa5, 0x94,
+	0xfb, 0xa6, 0x99, 0x9d, 0xf9, 0xcd, 0xfc, 0xe6, 0x1f, 0x02, 0x6f, 0x92, 0x8f, 0x7a, 0xa9, 0xe0,
+	0x92, 0x23, 0x37, 0xe3, 0x2c, 0x09, 0xbc, 0x11, 0x8d, 0x8d, 0x22, 0xd8, 0xa5, 0x4c, 0xa9, 0x18,
+	0x8d, 0x8c, 0x02, 0xff, 0xee, 0x80, 0xf7, 0x91, 0x66, 0x32, 0x24, 0xe9, 0x74, 0x8e, 0x4e, 0xc0,
+	0xa5, 0xec, 0x81, 0xfb, 0xce, 0x51, 0xeb, 0xb8, 0x7b, 0x7a, 0xd8, 0x53, 0xb6, 0xbd, 0xf2, 0xb9,
+	0x77, 0xcd, 0x1e, 0xf8, 0x25, 0x93, 0x62, 0x1e, 0x6a, 0xb3, 0xe0, 0x95, 0xf1, 0xfd, 0x39, 0x9a,
+	0xe6, 0x04, 0x3d, 0x87, 0xf6, 0x4c, 0x7d, 0x64, 0xda, 0xdb, 0x0b, 0xad, 0x14, 0x84, 0xe0, 0x95,
+	0x7e, 0xe8, 0x19, 0xb4, 0x1e, 0xc9, 0xdc, 0x77, 0x8e, 0x9c, 0x63, 0x2f, 0x54, 0x9f, 0xa8, 0x0f,
+	0x5b, 0xda, 0xd0, 0x6f, 0x1e, 0x39, 0xeb, 0x62, 0x96, 0x01, 0x42, 0x63, 0x77, 0xd6, 0xfc, 0xd6,
+	0xc1, 0xaf, 0x61, 0xe7, 0x2a, 0x1f, 0x29, 0xd8, 0x90, 0xfc, 0x92, 0x93, 0x4c, 0xa2, 0x03, 0xd8,
+	0x4a, 0x28, 0x23, 0xc2, 0x42, 0x1b, 0x01, 0x4f, 0xe0, 0xd9, 0x4f, 0x51, 0xf6, 0xa8, 0x8c, 0xa8,
+	0x20, 0x09, 0x61, 0x32, 0x43, 0xdf, 0x81, 0x27, 0x48, 0xc6, 0x73, 0x71, 0xaf, 0x53, 0x55, 0x41,
+	0x5f, 0x9a, 0xa0, 0xc6, 0xd4, 0x3c, 0x55, 0x5d, 0xc2, 0x85, 0x83, 0x62, 0xa9, 0xa1, 0x33, 0xbf,
+	0x69, 0x58, 0x1a, 0x09, 0xff, 0xd5, 0x84, 0xfd, 0xab, 0x7c, 0x34, 0x94, 0x91, 0x90, 0x45, 0x48,
+	0x95, 0xd7, 0x19, 0x3c, 0x11, 0x15, 0x28, 0x1b, 0xf0, 0x79, 0x35, 0x60, 0x25, 0x50, 0xcd, 0x16,
+	0x05, 0xd0, 0x11, 0x64, 0x4c, 0x33, 0x29, 0xe6, 0xba, 0x3a, 0x5e, 0x58, 0xca, 0x8a, 0x2f, 0x4d,
+	0xa2, 0x31, 0xf1, 0x5b, 0x86, 0xaf, 0x16, 0x10, 0x02, 0x37, 0xca, 0xe5, 0xc4, 0x77, 0xb5, 0x52,
+	0x7f, 0xa3, 0xaf, 0xe0, 0xe9, 0x5d, 0x3e, 0x9a, 0xd2, 0xfb, 0x1f, 0xc9, 0x7c, 0x10, 0xc9, 0xc8,
+	0xdf, 0xd2, 0x8f, 0x75, 0x25, 0xc2, 0xf0, 0xe4, 0x9e, 0x27, 0x09, 0x95, 0xb7, 0x6c, 0x28, 0x79,
+	0xea, 0xb7, 0x8f, 0x9c, 0xe3, 0x4e, 0x58, 0xd3, 0xa1, 0xb7, 0xd0, 0x22, 0x6c, 0xe6, 0x6f, 0xeb,
+	0xe1, 0xc0, 0x86, 0xc2, 0x1a, 0xce, 0xbd, 0x4b, 0x36, 0x33, 0x53, 0xa2, 0xcc, 0x83, 0x77, 0xd0,
+	0x29, 0x14, 0x6b, 0xda, 0x7f, 0x50, 0x6d, 0xbf, 0x57, 0xed, 0xf1, 0x7b, 0xd8, 0xab, 0x83, 0xab,
+	0x01, 0xdd, 0x81, 0x26, 0x8d, 0xad, 0x7f, 0x93, 0xc6, 0xaa, 0x44, 0x84, 0xc5, 0x29, 0xa7, 0x4c,
+	0xda, 0x86, 0x94, 0x32, 0xfe, 0xd5, 0xd1, 0x53, 0x32, 0x94, 0x91, 0xcc, 0x33, 0xe3, 0xfe, 0x12,
+	0x40, 0xf7, 0xeb, 0x82, 0xe7, 0x4c, 0x6a, 0x18, 0x37, 0xac, 0x68, 0x54, 0x77, 0xf3, 0x54, 0xd2,
+	0xc4, 0xa4, 0xe3, 0x86, 0x56, 0x42, 0x3e, 0x6c, 0xcf, 0x88, 0xc8, 0x28, 0x67, 0xb6, 0xde, 0x85,
+	0xa8, 0x12, 0x48, 0xa7, 0x91, 0x7c, 0xe0, 0x22, 0xb1, 0x55, 0x2f, 0x65, 0xe5, 0x45, 0xe4, 0xe4,
+	0x3c, 0x8e, 0x85, 0xad, 0x79, 0x21, 0xe2, 0x37, 0xd0, 0x1d, 0x90, 0x68, 0x5a, 0x0c, 0xc9, 0x97,
+	0xb0, 0xc5, 0x45, 0x6c, 0x87, 0xb7, 0x7b, 0xda, 0x35, 0xa5, 0xbd, 0x55, 0xaa, 0xd0, 0xbc, 0xe0,
+	0xdf, 0x1c, 0x78, 0xf1, 0x81, 0xc8, 0x1b, 0x95, 0xeb, 0x9d, 0xe0, 0x29, 0x11, 0x92, 0x12, 0xcb,
+	0xea, 0x06, 0x20, 0x2d, 0x55, 0x76, 0x77, 0x4f, 0x0c, 0xc6, 0x06, 0x97, 0xde, 0x42, 0x36, 0x9d,
+	0xaa, 0x00, 0x04, 0xdf, 0xc3, 0xee, 0xd2, 0xf3, 0x7f, 0xea, 0xdb, 0x1f, 0x0e, 0x1c, 0x0e, 0xd7,
+	0x84, 0x35, 0x54, 0x77, 0xa0, 0x79, 0x3d, 0x28, 0x1a, 0x78, 0x3d, 0x40, 0xb7, 0xb5, 0xdc, 0x9b,
+	0x3a, 0xf7, 0xbe, 0xc9, 0x7d, 0x23, 0xc8, 0xa7, 0xcc, 0xbe, 0x0f, 0x4f, 0x3f, 0x10, 0x39, 0x9c,
+	0x72, 0x59, 0x8e, 0x8c, 0x9b, 0x4d, 0xb9, 0xb4, 0x65, 0x05, 0x9b, 0xda, 0x94, 0xcb, 0x50, 0xeb,
+	0xf1, 0x0f, 0xb0, 0x73, 0x1e, 0xc7, 0x5a, 0xb1, 0x81, 0x62, 0x81, 0x60, 0x0e, 0xdc, 0x2a, 0xc2,
+	0x05, 0xec, 0x85, 0x24, 0xe1, 0x33, 0xf2, 0x3f, 0x40, 0x4e, 0xff, 0x6c, 0x43, 0xeb, 0x2a, 0x1f,
+	0xa1, 0xd7, 0xe0, 0xde, 0x51, 0x36, 0x46, 0x76, 0x86, 0x2e, 0x93, 0x54, 0xce, 0x83, 0x5d, 0x23,
+	0xa8, 0x07, 0x4d, 0x0a, 0x37, 0xd0, 0x09, 0xb4, 0xcd, 0x62, 0xd4, 0x2d, 0x0f, 0xaa, 0x5b, 0x5d,
+	0xac, 0x0d, 0x6e, 0x28, 0x58, 0x75, 0x88, 0xd7, 0xc2, 0x96, 0xb7, 0x1a, 0x37, 0x50, 0x1f, 0x5c,
+	0x75, 0x95, 0xd1, 0x02, 0xa7, 0x72, 0xa4, 0x0b, 0x07, 0xa3, 0x32, 0x0e, 0xe7, 0xe0, 0x95, 0x2b,
+	0x8e, 0x0e, 0x37, 0xde, 0x94, 0xe0, 0xc5, 0xba, 0x27, 0x03, 0xf1, 0x0a, 0x3a, 0xea, 0x3c, 0x69,
+	0x84, 0x8e, 0x8d, 0x30, 0x08, 0xaa, 0x99, 0xea, 0xc4, 0x40, 0x19, 0x58, 0xce, 0x0b, 0xb3, 0xcf,
+	0x16, 0x97, 0xb8, 0xce, 0xb8, 0x0f, 0x5d, 0x3d, 0x7d, 0x2b, 0x1e, 0x96, 0x9a, 0xd1, 0xdf, 0x44,
+	0x69, 0xe1, 0x70, 0x06, 0x1d, 0x85, 0xf2, 0x91, 0x8f, 0x33, 0x54, 0x41, 0x55, 0x72, 0x41, 0x62,
+	0xbf, 0xae, 0xbe, 0x98, 0xe4, 0xec, 0x11, 0x37, 0xde, 0x38, 0x2a, 0x98, 0x1a, 0x5a, 0x9e, 0x11,
+	0x75, 0x16, 0xd0, 0x9e, 0xb1, 0xab, 0x9c, 0x88, 0x65, 0x3a, 0xef, 0xa0, 0x3b, 0xa0, 0xd9, 0x3d,
+	0x9f, 0x11, 0xa1, 0xba, 0xee, 0x5b, 0x87, 0x85, 0x6a, 0x83, 0xdf, 0x7b, 0x40, 0xab, 0x27, 0xa1,
+	0x42, 0xee, 0xf3, 0x7f, 0x3c, 0x1b, 0xb8, 0x81, 0x06, 0x80, 0x56, 0xf7, 0x12, 0x7d, 0xf1, 0x2f,
+	0x1b, 0xbb, 0x9c, 0xc6, 0xd7, 0xd0, 0x29, 0xb6, 0xac, 0x12, 0x7c, 0xbf, 0x0c, 0xbe, 0xd8, 0x3f,
+	0xdc, 0x40, 0x3d, 0xd8, 0xb6, 0x1b, 0x56, 0x8c, 0x55, 0x7d, 0xe1, 0x96, 0xc1, 0xdf, 0x02, 0x2c,
+	0xf6, 0x09, 0xd9, 0xc1, 0x59, 0xd9, 0xb0, 0x25, 0xaf, 0x51, 0x5b, 0xff, 0x0f, 0x7d, 0xf3, 0x77,
+	0x00, 0x00, 0x00, 0xff, 0xff, 0x17, 0x7c, 0xf5, 0xa0, 0x3e, 0x09, 0x00, 0x00,
 }

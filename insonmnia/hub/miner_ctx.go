@@ -242,7 +242,7 @@ func (m *MinerCtx) ping() error {
 			log.G(m.ctx).Info("ping the Miner", zap.Stringer("remote", m.conn.RemoteAddr()))
 			// TODO: implement retries
 			ctx, cancel := context.WithTimeout(m.ctx, time.Second*5)
-			_, err := m.Client.Ping(ctx, &pb.PingRequest{})
+			_, err := m.Client.Ping(ctx, &pb.Empty{})
 			cancel()
 			if err != nil {
 				log.G(ctx).Error("failed to ping miner", zap.Error(err))

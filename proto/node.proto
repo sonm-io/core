@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+import "insonmnia.proto";
+import "miner.proto";
+import "hub.proto";
+
+package sonm;
+
+// The SONM Local node API must also include
+// the Marketplace API, but it already has been described
+// into a "proto / marketplace.proto" file.
+
+enum DealStatus {
+    PENDING = 0;
+    APPROVED = 1;
+    FINISHED = 2;
+}
+
+// TaskManagement describe a bunch of methods
+// to manage tasks running into the SONM network
+service TaskManagement {
+    // List produces a list of all tasks running on different SONM nodes
+    rpc List(TaskListRequest) returns (TaskListReply) {}
+    // Start starts a task on given resource
+    rpc Start(HubStartTaskRequest) returns (TaskInfo) {}
+    // Status produces a task status by their ID
+    rpc Status(ID) returns (TaskInfo) {}
+    // Logs retrieves a task log (stdin/stderr) from given task
+    rpc Logs(ID) returns (stream TaskLogsChunk) {}
+    // Stop stops a task by their IDd
+    rpc Stop(ID) returns (Empty) {}
+}
+
+message TaskListRequest {
+    // HubID is hub eth id;
+    // If empty - collect task info from all hubs
+    string hubID = 1;
+}
+
+message TaskListReply {
+    repeated TaskInfo task = 1;
+}
+
+// DealManagement describe a bunch of methods
+// to manage deals made into the SONM network
+service DealManagement {
+    // List produces a list of all deals made by client with given ID
+    rpc List(DealListRequest) returns (DealListReply) {}
+    // Status produces a detailed info about deal with given ID
+    rpc Status(ID) returns (Deal) {}
+    // Finish finishes a deal with given ID
+    rpc Finish(ID) returns (Empty) {}
+}
+
+message Deal {
+    string BidID = 1;
+    string AskID = 2;
+    DealStatus status = 3;
+}
+
+message DealListRequest {
+    string owner = 1;
+    DealStatus status = 2;
+}
+
+message DealListReply {
+    repeated Deal deal = 1;
+}
+
+// HubManagement describe a bunch of methods
+// to manage Hub node and their Worker nodes.
+// Must be called by Hub's owner.
+service HubManagement {
+    // Status produse a detailed info about Hub
+    rpc Status (Empty) returns (HubStatusReply) {}
+
+    // WorkersList prouces a list of connected Workers
+    rpc WorkersList (Empty) returns (ListReply) {}
+    // WorkersStatus produces a detailed info about a Worker by their ID
+    rpc WorkersStatus (HubInfoRequest) returns (InfoReply) {}
+
+    // GetMinerProperties allows to obtain previously assigned resource
+    // properties for a given miner
+    rpc GetWorkerProperties(ID) returns (GetMinerPropertiesReply) {}
+
+    // SetMinerProperties method allows to specify additional resource
+    // properties for a miner specified by its ID
+    // Note, that this method overrides all previously specified properties.
+    rpc SetWorkerProperties(SetMinerPropertiesRequest) returns (Empty) {}
+
+    // GetAskPlans allows to obtain previously assigned Ask Plans from for a given worker.
+    rpc GetAskPlan(ID) returns (GetSlotsReply) {}
+    // CreateAskPlan allows to create rules
+    // for creating Ask orders on Marketplace
+    rpc CreateAskPlan(AddSlotRequest) returns (Empty) {}
+    // RemoveAskPlan allows to remove rules
+    // for creating Ask orders on Marketplace
+    rpc RemoveAskPlan(ID) returns (Empty) {}
+
+    // List produces a list of all running tasks on the Hub
+    rpc TaskList(Empty) returns (TaskListReply) {}
+    // Status produces a detailed info about task on the Hub
+    rpc TaskStatus(ID) returns (TaskStatusReply) {}
+}
