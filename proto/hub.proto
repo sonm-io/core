@@ -6,10 +6,14 @@ import "insonmnia.proto";
 package sonm;
 
 service Hub {
+    // Ping should be used as Healthcheck for Hub
     rpc Ping(Empty) returns (PingReply) {}
+    // Status returns internal hub statistic
     rpc Status(Empty) returns (HubStatusReply) {}
+    // List returns a list for connected Workers
     rpc List(Empty) returns (ListReply) {}
-    rpc Info(HubInfoRequest) returns (InfoReply) {}
+    // Info returns info about given Worker
+    rpc Info(ID) returns (InfoReply) {}
 
     rpc StartTask(HubStartTaskRequest) returns (HubStartTaskReply) {}
     rpc StopTask(ID) returns (Empty) {}
@@ -50,10 +54,6 @@ message ListReply {
         repeated string values = 1;
     }
     map<string, ListValue> info = 1;
-}
-
-message HubInfoRequest {
-    string miner = 1;
 }
 
 message TaskRequirements {

@@ -24,7 +24,6 @@ It has these top-level messages:
 	RAMDevice
 	GPUDevice
 	ListReply
-	HubInfoRequest
 	TaskRequirements
 	HubStartTaskRequest
 	HubStartTaskReply

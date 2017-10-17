@@ -71,7 +71,7 @@ func (it *grpcInteractor) MinerStatus(minerID string, appCtx context.Context) (*
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
 
-	var req = pb.HubInfoRequest{Miner: minerID}
+	var req = pb.ID{Id: minerID}
 	return pb.NewHubClient(it.cc).Info(ctx, &req)
 }
 
