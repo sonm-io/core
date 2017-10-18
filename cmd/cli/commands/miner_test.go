@@ -135,7 +135,7 @@ func TestMinerListEmpty(t *testing.T) {
 	minerListCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	assert.Equal(t, "No miners connected\r\n", out)
+	assert.Equal(t, "No workers connected\r\n", out)
 }
 
 func TestMinerListData(t *testing.T) {
@@ -155,7 +155,7 @@ func TestMinerListData(t *testing.T) {
 	minerListCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	assert.Equal(t, "Miner: test\t\t2 active task(s)\r\n", out)
+	assert.Equal(t, "Worker: test\t\t2 active task(s)\r\n", out)
 }
 
 func TestMinerListDataNoTasks(t *testing.T) {
@@ -173,7 +173,7 @@ func TestMinerListDataNoTasks(t *testing.T) {
 	minerListCmdRunner(rootCmd, itr)
 	out := buf.String()
 
-	assert.Equal(t, "Miner: test\t\tIdle\r\n", out)
+	assert.Equal(t, "Worker: test\t\tIdle\r\n", out)
 }
 
 func TestMinerListJsonEmpty(t *testing.T) {
@@ -292,20 +292,4 @@ func TestMinerStatusNoGPU(t *testing.T) {
 	out := buf.String()
 
 	assert.Contains(t, out, "GPU: None")
-}
-
-func TestMinerStatusWithName(t *testing.T) {
-	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().
-		MinerStatus(gomock.Any(), gomock.Any()).
-		AnyTimes().
-		Return(&pb.InfoReply{
-			Name: "fb402dcf-ff56-465e-8aad-bcef7ca1ef9a",
-		}, nil)
-
-	buf := initRootCmd(t, config.OutputModeSimple)
-	minerStatusCmdRunner(rootCmd, "test", itr)
-	out := buf.String()
-
-	assert.Contains(t, out, `Miner: "test" (fb402dcf-ff56-465e-8aad-bcef7ca1ef9a):`)
 }

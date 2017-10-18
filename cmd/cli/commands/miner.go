@@ -19,15 +19,15 @@ func init() {
 	minerSlotCmd.AddCommand(minerShowSlotsCmd, minerAddSlotCmd)
 }
 
-func printMinerList(cmd *cobra.Command, lr *pb.ListReply) {
+func printWorkerList(cmd *cobra.Command, lr *pb.ListReply) {
 	if isSimpleFormat() {
 		if len(lr.Info) == 0 {
-			cmd.Printf("No miners connected\r\n")
+			cmd.Printf("No workers connected\r\n")
 			return
 		}
 
 		for addr, meta := range lr.Info {
-			cmd.Printf("Miner: %s", addr)
+			cmd.Printf("Worker: %s", addr)
 
 			taskCount := len(meta.Values)
 			if taskCount == 0 {
@@ -64,13 +64,9 @@ func printMemInfo(cmd *cobra.Command, cap *pb.Capabilities) {
 	cmd.Printf("      Used:  %s\r\n", ds.ByteSize(cap.Mem.GetUsed()).HR())
 }
 
-func printMinerStatus(cmd *cobra.Command, minerID string, metrics *pb.InfoReply) {
+func printWorkerStatus(cmd *cobra.Command, workerID string, metrics *pb.InfoReply) {
 	if isSimpleFormat() {
-		if metrics.Name == "" {
-			cmd.Printf("Miner: \"%s\":\r\n", minerID)
-		} else {
-			cmd.Printf("Miner: \"%s\" (%s):\r\n", minerID, metrics.Name)
-		}
+		cmd.Printf("Worker \"%s\":\r\n", workerID)
 
 		if metrics.Capabilities != nil {
 			cmd.Println("  Hardware:")
@@ -122,7 +118,7 @@ var minerStatusCmd = &cobra.Command{
 	PreRunE: checkHubAddressIsSet,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errMinerAddressRequired
+			return errWorkerAddressRequired
 		}
 		minerID := args[0]
 
@@ -190,13 +186,7 @@ var minerSetPropertiesCmd = &cobra.Command{
 		ID := args[0]
 		path := args[1]
 
-		buf, err := ioutil.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		cfg := map[string]string{}
-		err = yaml.Unmarshal(buf, &cfg)
+		cfg, err := parsePropsFile(path)
 		if err != nil {
 			return err
 		}
@@ -222,7 +212,7 @@ func minerListCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
 		return
 	}
 
-	printMinerList(cmd, list)
+	printWorkerList(cmd, list)
 }
 
 func minerStatusCmdRunner(cmd *cobra.Command, minerID string, interactor CliInteractor) {
@@ -232,7 +222,7 @@ func minerStatusCmdRunner(cmd *cobra.Command, minerID string, interactor CliInte
 		return
 	}
 
-	printMinerStatus(cmd, minerID, metrics)
+	printWorkerStatus(cmd, minerID, metrics)
 }
 
 var minerSlotCmd = &cobra.Command{
