@@ -78,6 +78,10 @@ service HubManagement {
     rpc WorkersList (Empty) returns (ListReply) {}
     // WorkersStatus produces a detailed info about a Worker by their ID
     rpc WorkerStatus (ID) returns (InfoReply) {}
+
+    // GetRegistredWorkers produce a list of Workers IDs allowed
+    // to connect to this hub
+    rpc GetRegistredWorkers(Empty) returns (GetRegistredWorkersReply) {}
     // RegisterWorkers allows Worker with given ID connect to Hub
     rpc RegisterWorker (ID) returns (Empty) {}
     // RegisterWorkers deny Worker with given ID connect to Hub
@@ -86,7 +90,6 @@ service HubManagement {
     // GetMinerProperties allows to obtain previously assigned resource
     // properties for a given miner
     rpc GetWorkerProperties(ID) returns (GetMinerPropertiesReply) {}
-
     // SetMinerProperties method allows to specify additional resource
     // properties for a miner specified by its ID
     // Note, that this method overrides all previously specified properties.
@@ -105,4 +108,8 @@ service HubManagement {
     rpc TaskList(Empty) returns (TaskListReply) {}
     // Status produces a detailed info about task on the Hub
     rpc TaskStatus(ID) returns (TaskStatusReply) {}
+}
+
+message GetRegistredWorkersReply {
+    repeated ID ids = 1;
 }
