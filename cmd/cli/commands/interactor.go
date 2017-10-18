@@ -30,7 +30,6 @@ type CliInteractor interface {
 type grpcInteractor struct {
 	cc      *grpc.ClientConn
 	timeout time.Duration
-	hub     pb.HubClient
 }
 
 func (it *grpcInteractor) call(addr string) error {
@@ -148,4 +147,149 @@ func NewGrpcInteractor(addr string, to time.Duration) (CliInteractor, error) {
 	}
 
 	return i, nil
+}
+
+type NodeHubInteractor interface {
+	Status(ctx context.Context) (*pb.HubStatusReply, error)
+
+	WorkersList(ctx context.Context) (*pb.ListReply, error)
+	WorkerStatus(ctx context.Context, id string) (*pb.InfoReply, error)
+
+	GetRegistredWorkers(ctx context.Context) (*pb.GetRegistredWorkersReply, error)
+	RegisterWorker(ctx context.Context, id string) (*pb.Empty, error)
+	UnregisterWorker(ctx context.Context, id string) (*pb.Empty, error)
+
+	GetWorkerProperties(ctx context.Context, id string) (*pb.GetMinerPropertiesReply, error)
+	SetWorkerProperties(ctx context.Context, req *pb.SetMinerPropertiesRequest) (*pb.Empty, error)
+
+	GetAskPlan(ctx context.Context, id string) (*pb.GetSlotsReply, error)
+	CreateAskPlan(ctx context.Context, req *pb.AddSlotRequest) (*pb.Empty, error)
+	RemoveAskPlan(ctx context.Context, id string) (*pb.Empty, error)
+
+	TaskList(ctx context.Context) (*pb.TaskListReply, error)
+	TaskStatus(ctx context.Context, id string) (*pb.TaskStatusReply, error)
+}
+
+type hubInteractor struct {
+	timeout time.Duration
+	hub     pb.HubManagementClient
+}
+
+func (it *hubInteractor) ctx(appCtx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(appCtx, it.timeout)
+}
+
+func (it *hubInteractor) Status(ctx context.Context) (*pb.HubStatusReply, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	return it.hub.Status(ctx, &pb.Empty{})
+}
+
+func (it *hubInteractor) WorkersList(ctx context.Context) (*pb.ListReply, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	return it.hub.WorkersList(ctx, &pb.Empty{})
+}
+
+func (it *hubInteractor) WorkerStatus(ctx context.Context, id string) (*pb.InfoReply, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	req := &pb.ID{Id: id}
+	return it.hub.WorkerStatus(ctx, req)
+}
+
+func (it *hubInteractor) GetRegistredWorkers(ctx context.Context) (*pb.GetRegistredWorkersReply, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	return it.hub.GetRegistredWorkers(ctx, &pb.Empty{})
+}
+
+func (it *hubInteractor) RegisterWorker(ctx context.Context, id string) (*pb.Empty, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	req := &pb.ID{Id: id}
+	return it.hub.RegisterWorker(ctx, req)
+}
+
+func (it *hubInteractor) UnregisterWorker(ctx context.Context, id string) (*pb.Empty, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	req := &pb.ID{Id: id}
+	return it.hub.UnregisterWorker(ctx, req)
+}
+
+func (it *hubInteractor) GetWorkerProperties(ctx context.Context, id string) (*pb.GetMinerPropertiesReply, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	req := &pb.ID{Id: id}
+	return it.hub.GetWorkerProperties(ctx, req)
+}
+
+func (it *hubInteractor) SetWorkerProperties(ctx context.Context, req *pb.SetMinerPropertiesRequest) (*pb.Empty, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	return it.hub.SetWorkerProperties(ctx, req)
+}
+
+func (it *hubInteractor) GetAskPlan(ctx context.Context, id string) (*pb.GetSlotsReply, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	req := &pb.ID{Id: id}
+	return it.hub.GetAskPlan(ctx, req)
+}
+
+func (it *hubInteractor) CreateAskPlan(ctx context.Context, req *pb.AddSlotRequest) (*pb.Empty, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	return it.hub.CreateAskPlan(ctx, req)
+}
+
+func (it *hubInteractor) RemoveAskPlan(ctx context.Context, id string) (*pb.Empty, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	req := &pb.ID{Id: id}
+	return it.hub.RemoveAskPlan(ctx, req)
+}
+
+func (it *hubInteractor) TaskList(ctx context.Context) (*pb.TaskListReply, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	return it.hub.TaskList(ctx, &pb.Empty{})
+}
+
+func (it *hubInteractor) TaskStatus(ctx context.Context, id string) (*pb.TaskStatusReply, error) {
+	ctx, cancel := it.ctx(ctx)
+	defer cancel()
+
+	req := &pb.ID{Id: id}
+	return it.hub.TaskStatus(ctx, req)
+}
+
+func NewHubInteractor(addr string) (NodeHubInteractor, error) {
+	cc, err := grpc.Dial(addr, grpc.WithInsecure(),
+		grpc.WithCompressor(grpc.NewGZIPCompressor()),
+		grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
+	if err != nil {
+		return nil, err
+	}
+
+	hub := pb.NewHubManagementClient(cc)
+
+	return &hubInteractor{
+		// TODO(sshaman1101): get timeout as builder param
+		timeout: 10 * time.Second,
+		hub:     hub,
+	}, nil
 }
