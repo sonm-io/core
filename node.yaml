@@ -13,3 +13,9 @@ hub:
   # endpoint is Hub's gRPC endpoint
   # for client connections
   endpoint: 172.16.1.118:10001
+
+# Logging settings.
+log:
+  # The desired logging level.
+  # Allowed values in range of -1 (high verbosity) to 3 (most quiet)
+  level: -1
