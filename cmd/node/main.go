@@ -4,8 +4,12 @@ import (
 	"fmt"
 	"os"
 
+	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
+	"github.com/sonm-io/core/common"
+	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/node"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -28,7 +32,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	n, err := node.New(cfg)
+	logger := logging.BuildLogger(cfg.LogLevel(), common.DevelopmentMode)
+	ctx := log.WithLogger(context.Background(), logger)
+
+	n, err := node.New(ctx, cfg)
 	if err != nil {
 		fmt.Printf("Err: cannot build Node instance: %s\r\n", err)
 		os.Exit(1)
