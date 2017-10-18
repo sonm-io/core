@@ -1,0 +1,15 @@
+# Local Node settings
+node:
+  # address to bind Node's gRPC endpoint
+  listen_addr: 127.0.0.1:9999
+
+# Marketplace service settings
+market:
+  # marketplace gRPC endpoint
+  endpoint: 127.0.0.1:9095
+
+# Hub management settings
+hub:
+  # endpoint is Hub's gRPC endpoint
+  # for client connections
+  endpoint: 172.16.1.118:10001

@@ -96,8 +96,6 @@ func (n *Node) Serve() error {
 			return err
 		}
 		pb.RegisterHubManagementServer(srv, hub)
-	} else {
-		fmt.Printf("hub addr is empty, management interface disabled")
 	}
 
 	deals := newDealsAPI()
