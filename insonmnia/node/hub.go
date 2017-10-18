@@ -1,52 +1,99 @@
 package node
 
 import (
+	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 )
 
-type hubAPI struct{}
-
-func (h *hubAPI) Status(context.Context, *pb.Empty) (*pb.HubStatusReply, error) {
-	return &pb.HubStatusReply{}, nil
+type hubAPI struct {
+	// endpoint is cached mostly for debug purposes
+	endpoint string
+	cc       pb.HubClient
+	ctx      context.Context
 }
 
-func (h *hubAPI) WorkersList(context.Context, *pb.Empty) (*pb.ListReply, error) {
-	return &pb.ListReply{}, nil
+func (h *hubAPI) Status(ctx context.Context, req *pb.Empty) (*pb.HubStatusReply, error) {
+	log.G(ctx).Debug("handling Status request")
+	return h.cc.Status(ctx, req)
 }
 
-func (h *hubAPI) WorkersStatus(context.Context, *pb.HubInfoRequest) (*pb.InfoReply, error) {
-	return &pb.InfoReply{}, nil
+func (h *hubAPI) WorkersList(ctx context.Context, req *pb.Empty) (*pb.ListReply, error) {
+	log.G(ctx).Debug("handling WorkersList request")
+	return h.cc.List(ctx, req)
 }
 
-func (h *hubAPI) GetWorkerProperties(context.Context, *pb.ID) (*pb.GetMinerPropertiesReply, error) {
-	return &pb.GetMinerPropertiesReply{}, nil
+func (h *hubAPI) WorkerStatus(ctx context.Context, req *pb.ID) (*pb.InfoReply, error) {
+	log.G(ctx).Debug("handling WorkersStatus request")
+	return h.cc.Info(ctx, req)
 }
 
-func (h *hubAPI) SetWorkerProperties(context.Context, *pb.SetMinerPropertiesRequest) (*pb.Empty, error) {
-	return &pb.Empty{}, nil
+func (h *hubAPI) RegisterWorker(context.Context, *pb.ID) (*pb.Empty, error) { return nil, nil }
+
+func (h *hubAPI) UnregisterWorker(context.Context, *pb.ID) (*pb.Empty, error) { return nil, nil }
+
+func (h *hubAPI) GetWorkerProperties(ctx context.Context, req *pb.ID) (*pb.GetMinerPropertiesReply, error) {
+	log.G(ctx).Debug("handling GetWorkerProperties request")
+	return h.cc.GetMinerProperties(ctx, req)
 }
 
-func (h *hubAPI) GetAskPlan(context.Context, *pb.ID) (*pb.GetSlotsReply, error) {
-	return &pb.GetSlotsReply{}, nil
+func (h *hubAPI) SetWorkerProperties(ctx context.Context, req *pb.SetMinerPropertiesRequest) (*pb.Empty, error) {
+	log.G(ctx).Debug("handling SetWorkerProperties request")
+	return h.cc.SetMinerProperties(ctx, req)
 }
 
-func (h *hubAPI) CreateAskPlan(context.Context, *pb.AddSlotRequest) (*pb.Empty, error) {
-	return &pb.Empty{}, nil
+func (h *hubAPI) GetAskPlan(ctx context.Context, req *pb.ID) (*pb.GetSlotsReply, error) {
+	log.G(ctx).Debug("GetAskPlan")
+	return h.cc.GetSlots(ctx, req)
 }
 
-func (h *hubAPI) RemoveAskPlan(context.Context, *pb.ID) (*pb.Empty, error) {
-	return &pb.Empty{}, nil
+func (h *hubAPI) CreateAskPlan(ctx context.Context, req *pb.AddSlotRequest) (*pb.Empty, error) {
+	log.G(ctx).Debug("CreateAskPlan")
+	return h.cc.AddSlot(ctx, req)
 }
 
-func (h *hubAPI) TaskList(context.Context, *pb.Empty) (*pb.TaskListReply, error) {
-	return &pb.TaskListReply{}, nil
+func (h *hubAPI) RemoveAskPlan(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
+	log.G(ctx).Debug("RemoveAskPlan")
+	// TODO(sshaman1101): wait for 3Hren changes and fix this
+	request := &pb.RemoveSlotRequest{ID: req.GetId()}
+	return h.cc.RemoveSlot(ctx, request)
 }
 
-func (h *hubAPI) TaskStatus(context.Context, *pb.ID) (*pb.TaskStatusReply, error) {
-	return &pb.TaskStatusReply{}, nil
+func (h *hubAPI) TaskList(ctx context.Context, req *pb.Empty) (*pb.TaskListReply, error) {
+	log.G(ctx).Debug("TaskList")
+	workers, err := h.cc.List(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+
+	reply := &pb.TaskListReply{
+		Tasks: []*pb.InfoReply{},
+	}
+
+	for id := range workers.GetInfo() {
+		info, err := h.cc.Info(ctx, &pb.ID{Id: id})
+		if err != nil {
+			return nil, err
+		}
+		reply.Tasks = append(reply.Tasks, info)
+	}
+
+	return reply, nil
 }
 
-func newHubAPI() pb.HubManagementServer {
-	return &hubAPI{}
+func (h *hubAPI) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusReply, error) {
+	log.G(ctx).Debug("TaskStatus")
+	return h.cc.TaskStatus(ctx, req)
+}
+
+func newHubAPI(endpoint string) (pb.HubManagementServer, error) {
+	cc, err := initGrpcClient(endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &hubAPI{
+		endpoint: endpoint,
+		cc:       pb.NewHubClient(cc),
+	}, nil
 }
