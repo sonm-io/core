@@ -77,7 +77,11 @@ service HubManagement {
     // WorkersList prouces a list of connected Workers
     rpc WorkersList (Empty) returns (ListReply) {}
     // WorkersStatus produces a detailed info about a Worker by their ID
-    rpc WorkersStatus (ID) returns (InfoReply) {}
+    rpc WorkerStatus (ID) returns (InfoReply) {}
+    // RegisterWorkers allows Worker with given ID connect to Hub
+    rpc RegisterWorker (ID) returns (Empty) {}
+    // RegisterWorkers deny Worker with given ID connect to Hub
+    rpc UnregisterWorker (ID) returns (Empty) {}
 
     // GetMinerProperties allows to obtain previously assigned resource
     // properties for a given miner
