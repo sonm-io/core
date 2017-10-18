@@ -66,6 +66,7 @@ It has these top-level messages:
 	Deal
 	DealListRequest
 	DealListReply
+	GetRegistredWorkersReply
 */
 package sonm
 

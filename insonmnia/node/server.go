@@ -1,7 +1,6 @@
 package node
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/jinzhu/configor"

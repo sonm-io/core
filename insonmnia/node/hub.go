@@ -28,9 +28,20 @@ func (h *hubAPI) WorkerStatus(ctx context.Context, req *pb.ID) (*pb.InfoReply, e
 	return h.cc.Info(ctx, req)
 }
 
-func (h *hubAPI) RegisterWorker(context.Context, *pb.ID) (*pb.Empty, error) { return nil, nil }
+func (h *hubAPI) GetRegistredWorkers(ctx context.Context, req *pb.Empty) (*pb.GetRegistredWorkersReply, error) {
+	// TODO(sshaman1101): implement gags on Hub
+	return nil, nil
+}
 
-func (h *hubAPI) UnregisterWorker(context.Context, *pb.ID) (*pb.Empty, error) { return nil, nil }
+func (h *hubAPI) RegisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
+	// TODO(sshaman1101): implement gags on Hub
+	return nil, nil
+}
+
+func (h *hubAPI) UnregisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
+	// TODO(sshaman1101): implement gags on Hub
+	return nil, nil
+}
 
 func (h *hubAPI) GetWorkerProperties(ctx context.Context, req *pb.ID) (*pb.GetMinerPropertiesReply, error) {
 	log.G(ctx).Debug("handling GetWorkerProperties request")
