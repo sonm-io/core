@@ -8,7 +8,13 @@ import (
 )
 
 func init() {
-	nodeHubRootCmd.AddCommand(nodeHubStatusCmd)
+	nodeHubRootCmd.AddCommand(
+		nodeHubStatusCmd,
+		nodeWorkerRootCmd,
+		nodeACLRootCmd,
+		nodeOrderRootCmd,
+		nodeTaskRootCmd,
+	)
 }
 
 var nodeHubRootCmd = &cobra.Command{
