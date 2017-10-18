@@ -11,10 +11,11 @@ import (
 )
 
 const (
-	appName        = "sonm"
-	hubAddressFlag = "addr"
-	hubTimeoutFlag = "timeout"
-	outputModeFlag = "out"
+	appName         = "sonm"
+	hubAddressFlag  = "addr"
+	nodeAddressFlag = "node"
+	hubTimeoutFlag  = "timeout"
+	outputModeFlag  = "out"
 
 	// log flag names
 	logTypeFlag       = "type"
@@ -26,12 +27,13 @@ const (
 )
 
 var (
-	rootCmd    = &cobra.Command{Use: appName}
-	version    string
-	hubAddress string
-	outputMode string
-	timeout    = 60 * time.Second
-	cfg        config.Config
+	rootCmd     = &cobra.Command{Use: appName}
+	version     string
+	hubAddress  string
+	nodeAddress string
+	outputMode  string
+	timeout     = 60 * time.Second
+	cfg         config.Config
 
 	// logging flag vars
 	logType       string
@@ -43,6 +45,7 @@ var (
 
 	// errors
 	errHubAddressRequired   = errors.New("--addr flag is required")
+	errNodeAddressRequired  = errors.New("--node flag is required")
 	errMinerAddressRequired = errors.New("Miner address is required")
 	errTaskIDRequired       = errors.New("Task ID is required")
 	errTaskFileRequired     = errors.New("Task definition file is required")
@@ -50,9 +53,18 @@ var (
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&hubAddress, hubAddressFlag, "", "hub addr")
+	rootCmd.PersistentFlags().StringVar(&nodeAddress, nodeAddressFlag, "127.0.0.1:9999", "node addr")
 	rootCmd.PersistentFlags().DurationVar(&timeout, hubTimeoutFlag, 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputMode, outputModeFlag, "", "Output mode: simple or json")
-	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd)
+
+	nodeRootCmd.AddCommand(nodeHubRootCmd)
+	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd, nodeRootCmd)
+}
+
+var nodeRootCmd = &cobra.Command{
+	Use:     "node",
+	Short:   "Operations with local node",
+	PreRunE: checkNodeAddressIsSet,
 }
 
 // Root configure and return root command
@@ -66,6 +78,13 @@ func Root(c config.Config) *cobra.Command {
 func checkHubAddressIsSet(cmd *cobra.Command, _ []string) error {
 	if cmd.Flag(hubAddressFlag).Value.String() == "" {
 		return errHubAddressRequired
+	}
+	return nil
+}
+
+func checkNodeAddressIsSet(cmd *cobra.Command, _ []string) error {
+	if cmd.Flag(nodeAddressFlag).Value.String() == "" {
+		return errNodeAddressRequired
 	}
 	return nil
 }
