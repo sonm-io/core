@@ -44,11 +44,13 @@ var (
 	details       bool
 
 	// errors
-	errHubAddressRequired   = errors.New("--addr flag is required")
-	errNodeAddressRequired  = errors.New("--node flag is required")
-	errMinerAddressRequired = errors.New("Miner address is required")
-	errTaskIDRequired       = errors.New("Task ID is required")
-	errTaskFileRequired     = errors.New("Task definition file is required")
+	errHubAddressRequired    = errors.New("--addr flag is required")
+	errNodeAddressRequired   = errors.New("--node flag is required")
+	errWorkerAddressRequired = errors.New("Worker address is required")
+	errTaskIDRequired        = errors.New("Task ID is required")
+	errTaskFileRequired      = errors.New("Task definition file is required")
+	errPropsFileRequired     = errors.New("Props file required")
+	errCannotParsePropsFile  = errors.New("Cannot parse props file")
 )
 
 func init() {

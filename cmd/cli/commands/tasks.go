@@ -127,7 +127,7 @@ var taskListCmd = &cobra.Command{
 	PreRunE: tasksRootCmd.PreRunE,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) < 1 {
-			return errMinerAddressRequired
+			return errWorkerAddressRequired
 		}
 		minerID := args[0]
 
