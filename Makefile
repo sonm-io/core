@@ -15,7 +15,7 @@ HUB=sonmhub
 CLI=sonmcli
 LOCATOR=sonmlocator
 MARKET=sonmmarketplace
-
+LOCAL_NODE=sonmnode
 
 TAGS=nocgo
 
@@ -52,6 +52,10 @@ build/cli:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
 
+build/node:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${LOCAL_NODE} ${GOCMD}/node
+
 build/cli_win32:
 	@echo "+ $@"
 	GOOS=windows GOARCH=386 go build -tags nocgo -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER).win32" -o ${CLI}_win32.exe ${GOCMD}/cli
@@ -60,7 +64,7 @@ build/blockchain:
 	@echo "+ $@"
 	$(MAKE) -C blockchain build_contract_wrappers
 
-build/insomnia: build/hub build/miner build/cli
+build/insomnia: build/hub build/miner build/cli build/node
 
 build/aux: build/locator build/marketplace
 
@@ -81,6 +85,10 @@ install/hub: build/hub
 install/cli: build/cli
 	@echo "+ $@"
 	cp ${CLI} ${INSTALLDIR}
+
+install/node: build/node
+	@echo "+ $@"
+	cp ${CLI} ${LOCAL_NODE}
 
 install: install/bootnode install/miner install/hub install/cli
 
