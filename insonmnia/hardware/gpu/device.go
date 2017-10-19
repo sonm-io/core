@@ -56,13 +56,6 @@ func WithVendorId(id uint) func(*sonm.GPUDevice) error {
 	}
 }
 
-func WithMaxClockFrequency(mhz uint) func(*sonm.GPUDevice) error {
-	return func(d *sonm.GPUDevice) error {
-		d.MaxClockFrequency = uint64(mhz)
-		return nil
-	}
-}
-
 // WithOpenClDeviceVersion option sets OpenCL version.
 //
 // The format must be: `OpenCL <major.minor> <vendor-specific information>`.
@@ -90,11 +83,12 @@ func WithOpenClDeviceVersionSpec(major, minor int32) func(*sonm.GPUDevice) error
 	}
 }
 
-func NewDevice(name, vendorName string, maxMemorySize uint64, options ...Option) (Device, error) {
+func NewDevice(name, vendorName string, maxClockFrequency, maxMemorySize uint64, options ...Option) (Device, error) {
 	d := sonm.GPUDevice{
-		Name:          name,
-		VendorName:    vendorName,
-		MaxMemorySize: maxMemorySize,
+		Name:              name,
+		VendorName:        vendorName,
+		MaxClockFrequency: maxClockFrequency,
+		MaxMemorySize:     maxMemorySize,
 	}
 
 	for _, option := range options {
