@@ -121,6 +121,12 @@
 			"revisionTime": "2017-06-26T17:58:20Z"
 		},
 		{
+			"checksumSHA1": "P5K4CjghK/BoaRKoZ8bUMbRC5N4=",
+			"path": "github.com/cnf/structhash",
+			"revision": "7710f1f78fb9c581deeeab57ecfb7978901b36bc",
+			"revisionTime": "2017-07-02T19:45:20Z"
+		},
+		{
 			"checksumSHA1": "prgcV+rQm4iAO3PNHWhrEFz9Zbw=",
 			"path": "github.com/containerd/cgroups",
 			"revision": "6d5c608c203dab9f154fdb40c22c043cebd4d699",
