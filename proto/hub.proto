@@ -159,6 +159,6 @@ message GPUDeviceInfo {
 }
 
 message DevicesInfoReply {
-    // Device unique ID -> Info.
+    // GPU unique ID -> Info.
     map<string, GPUDeviceInfo> GPUs = 1;
 }
