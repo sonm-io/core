@@ -26,3 +26,16 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: CLI for SONM network
  Gonna deprecate this one
+
+Package: sonm-marketplace
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Marketplace for SONM network
+ Browser for the orders
+
+Package: sonm-locator
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Locator allows to resolve addresses
+ This service allows SONM nodes to discover
+ each other by their Etherum addr.

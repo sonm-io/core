@@ -119,14 +119,8 @@ mock:
 	mockgen -package commands -destination cmd/cli/commands/interactor_mock.go  -source cmd/cli/commands/interactor.go
 	mockgen -package task_config -destination cmd/cli/task_config/config_mock.go  -source cmd/cli/task_config/config.go
 
-coverage:
-	${GO} tool cover -func=coverage.txt
-	${GO} tool cover -func=coverage.txt -o funccoverage.txt
-	${GO} tool cover -html=coverage.txt -o coverage.html
-
 clean:
-	rm -f coverage.txt
-	rm -f coverage.html
-	rm -f funccoverage.txt
-	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE}
-	#$(MAKE) -C blockchain clean
+	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE} ${MARKET}
+
+deb:
+	debuild --no-lintian --preserve-env -uc -us -i -I
