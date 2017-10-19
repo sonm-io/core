@@ -150,6 +150,8 @@ func NewGrpcInteractor(addr string, to time.Duration) (CliInteractor, error) {
 }
 
 type NodeHubInteractor interface {
+	// TODO(sshaman1101): do not accept context
+	// TODO(sshaman1101): create them inside wrapper
 	Status(ctx context.Context) (*pb.HubStatusReply, error)
 
 	WorkersList(ctx context.Context) (*pb.ListReply, error)
