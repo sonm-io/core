@@ -34,6 +34,7 @@ It has these top-level messages:
 	GetSlotsReply
 	AddSlotRequest
 	RemoveSlotRequest
+	GetRegistredWorkersReply
 	Empty
 	ID
 	PingReply
@@ -66,7 +67,6 @@ It has these top-level messages:
 	Deal
 	DealListRequest
 	DealListReply
-	GetRegistredWorkersReply
 */
 package sonm
 

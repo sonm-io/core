@@ -112,7 +112,3 @@ service HubManagement {
     // Status produces a detailed info about task on the Hub
     rpc TaskStatus(ID) returns (TaskStatusReply) {}
 }
-
-message GetRegistredWorkersReply {
-    repeated ID ids = 1;
-}

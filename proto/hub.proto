@@ -39,14 +39,22 @@ service Hub {
     // GetSlots allows to obtain previously assigned slots from for a given
     // miner.
     rpc GetSlots(ID) returns (GetSlotsReply) {}
-
     // AddSlot allows to assign a new slot for a given miner.
     // This method can fail if either there are no resources left on a miner
     // or it has been previourly assigned for specified time duration.
     rpc AddSlot(AddSlotRequest) returns (Empty) {}
-
     // RemoveSlot removes the speified slot if fully matches.
     rpc RemoveSlot(RemoveSlotRequest) returns (Empty) {}
+
+    // GetRegistredWorkers returns a list of Worker IDs that
+    // allowed to connet to the Hub
+    rpc GetRegistredWorkers(Empty) returns (GetRegistredWorkersReply) {}
+    // RegisterWorker allows Worker with given ID
+    // to connect to the Hub
+    rpc RegisterWorker(ID) returns (Empty) {}
+    // RegisterWorkers deny Worker with given ID
+    // to connect to the Hub
+    rpc UnregisterWorker(ID) returns (Empty) {}
 }
 
 message ListReply {
@@ -114,4 +122,8 @@ message AddSlotRequest {
 message RemoveSlotRequest {
     string ID = 1;
     Slot slot = 2;
+}
+
+message GetRegistredWorkersReply {
+    repeated ID ids = 1;
 }
