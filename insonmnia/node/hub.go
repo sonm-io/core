@@ -30,20 +30,17 @@ func (h *hubAPI) WorkerStatus(ctx context.Context, req *pb.ID) (*pb.InfoReply, e
 
 func (h *hubAPI) GetRegistredWorkers(ctx context.Context, req *pb.Empty) (*pb.GetRegistredWorkersReply, error) {
 	log.G(h.ctx).Debug("handling GetRegistredWorkers request")
-	// TODO(sshaman1101): implement stub on Hub
-	return nil, nil
+	return h.cc.GetRegistredWorkers(ctx, req)
 }
 
 func (h *hubAPI) RegisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Debug("handling RegisterWorkers request")
-	// TODO(sshaman1101): implement stub on Hub
-	return nil, nil
+	return h.cc.RegisterWorker(ctx, req)
 }
 
 func (h *hubAPI) UnregisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Debug("handling UnregisterWorkers request")
-	// TODO(sshaman1101): implement stub on Hub
-	return nil, nil
+	return h.cc.UnregisterWorker(ctx, req)
 }
 
 func (h *hubAPI) GetWorkerProperties(ctx context.Context, req *pb.ID) (*pb.GetMinerPropertiesReply, error) {
