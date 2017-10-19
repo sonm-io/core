@@ -110,6 +110,7 @@ func GPUFromProto(g []*sonm.GPUDevice) ([]gpu.Device, error) {
 			i.GetVendorName(),
 			i.GetMaxMemorySize(),
 			gpu.WithVendorId(uint(i.GetVendorId())),
+			gpu.WithMaxClockFrequency(uint(i.GetMaxClockFrequency())),
 			gpu.WithOpenClDeviceVersionSpec(i.GetOpenCLDeviceVersionMajor(), i.GetOpenCLDeviceVersionMinor()),
 		)
 		if err != nil {
