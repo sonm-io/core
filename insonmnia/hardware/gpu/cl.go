@@ -19,7 +19,7 @@ package gpu
 import "C"
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 	"unsafe"
 )
 
@@ -72,7 +72,7 @@ func getPlatforms() ([]*platform, error) {
 	var num C.cl_uint
 
 	if err := C.clGetPlatformIDs(C.cl_uint(maxPlatforms), &ids[0], &num); err != C.CL_SUCCESS {
-		return nil, errors.Errorf("failed to obtain OpenCL platforms: %s", err)
+		return nil, fmt.Errorf("failed to obtain OpenCL platforms: %s", err)
 	}
 
 	platforms := make([]*platform, num)
@@ -92,7 +92,7 @@ func (p *platform) getGPUDevices() ([]*clDevice, error) {
 	}
 
 	if err := C.clGetDeviceIDs(p.id, C.cl_device_type(C.CL_DEVICE_TYPE_GPU), C.cl_uint(maxDeviceCount), &ids[0], &num); err != C.CL_SUCCESS {
-		return nil, errors.Errorf("failed to obtain GPU devices for a platform: %s", err)
+		return nil, fmt.Errorf("failed to obtain GPU devices for a platform: %s", err)
 	}
 
 	devices := make([]*clDevice, num)
@@ -112,7 +112,7 @@ func (d *clDevice) getInfoString(param C.cl_device_info) (string, error) {
 	var size C.size_t
 
 	if err := C.clGetDeviceInfo(d.id, param, 1024, unsafe.Pointer(&data), &size); err != C.CL_SUCCESS {
-		return "", errors.Errorf("failed to convert device info into a string: %s", err)
+		return "", fmt.Errorf("failed to convert device info into a string: %s", err)
 	}
 
 	return C.GoStringN((*C.char)(unsafe.Pointer(&data)), C.int(size)-1), nil
@@ -122,7 +122,7 @@ func (d *clDevice) getInfoUint(param C.cl_device_info) (uint, error) {
 	var val C.cl_uint
 
 	if err := C.clGetDeviceInfo(d.id, param, C.size_t(unsafe.Sizeof(val)), unsafe.Pointer(&val), nil); err != C.CL_SUCCESS {
-		return 0, errors.Errorf("failed to convert device info into an integer: %s", err)
+		return 0, fmt.Errorf("failed to convert device info into an integer: %s", err)
 	}
 
 	return uint(val), nil
@@ -132,7 +132,7 @@ func (d *clDevice) getInfoUint64(param C.cl_device_info) (uint64, error) {
 	var val C.cl_ulong
 
 	if err := C.clGetDeviceInfo(d.id, param, C.size_t(unsafe.Sizeof(val)), unsafe.Pointer(&val), nil); err != C.CL_SUCCESS {
-		return 0, errors.Errorf("failed to convert device info into an integer: %s", err)
+		return 0, fmt.Errorf("failed to convert device info into an integer: %s", err)
 	}
 
 	return uint64(val), nil

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/cnf/structhash"
 	"github.com/sonm-io/core/proto"
 )
 
@@ -24,10 +25,14 @@ type Device interface {
 	// MaxMemorySize returns the total maximum memory size the device can hold
 	// in bytes.
 	MaxMemorySize() uint64
-	// OpenCLDeviceVersion returns the OpenCL major version supported by the device.
+	// OpenCLDeviceVersion returns the OpenCL major version supported by the
+	// device.
 	OpenCLDeviceVersionMajor() int
-	// OpenCLDeviceVersion returns the OpenCL minor version supported by the device.
+	// OpenCLDeviceVersion returns the OpenCL minor version supported by the
+	// device.
 	OpenCLDeviceVersionMinor() int
+
+	Hash() []byte
 }
 
 type device struct {
@@ -54,7 +59,7 @@ func WithVendorId(id uint) func(*sonm.GPUDevice) error {
 func WithOpenClDeviceVersion(version string) func(*sonm.GPUDevice) error {
 	return func(d *sonm.GPUDevice) error {
 		var vendor string
-		n, err := fmt.Sscanf(version, "OpenCL %d.%d %s", &d.OpenCLVersionMajor, &d.OpenCLVersionMinor, &vendor)
+		n, err := fmt.Sscanf(version, "OpenCL %d.%d %s", &d.OpenCLDeviceVersionMajor, &d.OpenCLDeviceVersionMinor, &vendor)
 		if n < 2 {
 			return errMalformedOpenCLVersion
 		}
@@ -69,8 +74,8 @@ func WithOpenClDeviceVersion(version string) func(*sonm.GPUDevice) error {
 
 func WithOpenClDeviceVersionSpec(major, minor int32) func(*sonm.GPUDevice) error {
 	return func(d *sonm.GPUDevice) error {
-		d.OpenCLVersionMajor = major
-		d.OpenCLVersionMinor = minor
+		d.OpenCLDeviceVersionMajor = major
+		d.OpenCLDeviceVersionMinor = minor
 		return nil
 	}
 }
@@ -108,11 +113,15 @@ func (d *device) MaxMemorySize() uint64 {
 }
 
 func (d *device) OpenCLDeviceVersionMajor() int {
-	return int(d.d.GetOpenCLVersionMajor())
+	return int(d.d.GetOpenCLDeviceVersionMajor())
 }
 
 func (d *device) OpenCLDeviceVersionMinor() int {
-	return int(d.d.GetOpenCLVersionMinor())
+	return int(d.d.GetOpenCLDeviceVersionMinor())
+}
+
+func (d *device) Hash() []byte {
+	return structhash.Md5(d.d, 1)
 }
 
 func (d *device) MarshalJSON() ([]byte, error) {
