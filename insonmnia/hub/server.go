@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
