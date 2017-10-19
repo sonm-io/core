@@ -53,9 +53,26 @@ func (h *hubAPI) SetWorkerProperties(ctx context.Context, req *pb.SetMinerProper
 	return h.cc.SetMinerProperties(ctx, req)
 }
 
-func (h *hubAPI) GetAskPlans(ctx context.Context, req *pb.ID) (*pb.GetSlotsReply, error) {
+func (h *hubAPI) GetAskPlans(ctx context.Context, req *pb.Empty) (*pb.GetSlotsReply, error) {
 	log.G(h.ctx).Debug("GetAskPlan")
-	return h.cc.GetSlots(ctx, req)
+
+	workers, err := h.getWorkersIDs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	slots := []*pb.Slot{}
+	for _, wrkID := range workers {
+		req := &pb.ID{Id: wrkID}
+		workerSlots, err := h.cc.GetSlots(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+
+		slots = append(slots, workerSlots.Slot...)
+	}
+
+	return &pb.GetSlotsReply{Slot: slots}, nil
 }
 
 func (h *hubAPI) CreateAskPlan(ctx context.Context, req *pb.AddSlotRequest) (*pb.Empty, error) {
@@ -72,7 +89,8 @@ func (h *hubAPI) RemoveAskPlan(ctx context.Context, req *pb.ID) (*pb.Empty, erro
 
 func (h *hubAPI) TaskList(ctx context.Context, req *pb.Empty) (*pb.TaskListReply, error) {
 	log.G(h.ctx).Debug("handling TaskList request")
-	workers, err := h.cc.List(ctx, &pb.Empty{})
+
+	workers, err := h.getWorkersIDs(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +99,7 @@ func (h *hubAPI) TaskList(ctx context.Context, req *pb.Empty) (*pb.TaskListReply
 		Info: map[string]*pb.TaskListReply_TaskInfo{},
 	}
 
-	for wrkID := range workers.GetInfo() {
+	for _, wrkID := range workers {
 		taskStatuses, err := h.cc.MinerStatus(ctx, &pb.ID{Id: wrkID})
 		if err != nil {
 			return nil, err
@@ -110,6 +128,20 @@ func (h *hubAPI) TaskList(ctx context.Context, req *pb.Empty) (*pb.TaskListReply
 func (h *hubAPI) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusReply, error) {
 	log.G(h.ctx).Debug("handling TaskStatus request")
 	return h.cc.TaskStatus(ctx, req)
+}
+
+func (h *hubAPI) getWorkersIDs(ctx context.Context) ([]string, error) {
+	workers, err := h.cc.List(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, err
+	}
+
+	ids := []string{}
+	for id := range workers.GetInfo() {
+		ids = append(ids, id)
+	}
+
+	return ids, nil
 }
 
 func newHubAPI(ctx context.Context, endpoint string) (pb.HubManagementServer, error) {

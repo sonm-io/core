@@ -99,7 +99,7 @@ service HubManagement {
     rpc SetWorkerProperties(SetMinerPropertiesRequest) returns (Empty) {}
 
     // GetAskPlans allows to obtain previously assigned Ask Plans from for a given worker.
-    rpc GetAskPlans(ID) returns (GetSlotsReply) {}
+    rpc GetAskPlans(Empty) returns (GetSlotsReply) {}
     // CreateAskPlan allows to create rules
     // for creating Ask orders on Marketplace
     rpc CreateAskPlan(AddSlotRequest) returns (Empty) {}
