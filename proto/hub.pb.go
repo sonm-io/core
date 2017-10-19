@@ -440,7 +440,7 @@ func (m *GPUDeviceInfo) GetDevice() *GPUDevice {
 }
 
 type DevicesInfoReply struct {
-	// Device unique ID -> Info.
+	// GPU unique ID -> Info.
 	GPUs map[string]*GPUDeviceInfo `protobuf:"bytes,1,rep,name=GPUs" json:"GPUs,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 }
 
