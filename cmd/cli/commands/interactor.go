@@ -13,6 +13,8 @@ type CliInteractor interface {
 	HubPing(context.Context) (*pb.PingReply, error)
 	HubStatus(context.Context) (*pb.HubStatusReply, error)
 
+	Devices(ctx context.Context) (*pb.DevicesInfoReply, error)
+
 	MinerList(context.Context) (*pb.ListReply, error)
 	MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error)
 	MinerGetProperties(ctx context.Context, ID string) (*pb.GetMinerPropertiesReply, error)
@@ -51,6 +53,12 @@ func (it *grpcInteractor) HubStatus(appCtx context.Context) (*pb.HubStatusReply,
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
 	return it.hub.Status(ctx, &pb.Empty{})
+}
+
+func (it *grpcInteractor) Devices(c context.Context) (*pb.DevicesInfoReply, error) {
+	ctx, cancel := it.ctx(c)
+	defer cancel()
+	return pb.NewHubClient(it.cc).Devices(ctx, &pb.Empty{})
 }
 
 func (it *grpcInteractor) MinerList(appCtx context.Context) (*pb.ListReply, error) {

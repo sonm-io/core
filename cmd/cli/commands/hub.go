@@ -10,7 +10,7 @@ import (
 )
 
 func init() {
-	hubRootCmd.AddCommand(hubPingCmd, hubStatusCmd)
+	hubRootCmd.AddCommand(hubPingCmd, hubStatusCmd, hubDevicesCmd)
 }
 
 // --- hub commands
@@ -68,6 +68,31 @@ func hubStatusCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
 	}
 
 	printHubStatus(cmd, stat)
+}
+
+var hubDevicesCmd = &cobra.Command{
+	Use:     "devices",
+	Short:   "Show Hub's aggregated hardware",
+	PreRunE: checkHubAddressIsSet,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		it, err := NewGrpcInteractor(hubAddress, timeout)
+		if err != nil {
+			showError(cmd, "Cannot connect ot hub", err)
+			return nil
+		}
+
+		reply, err := it.Devices(context.Background())
+		if err != nil {
+			return err
+		}
+		dump, err := json.Marshal(reply)
+		if err != nil {
+			return err
+		}
+		cmd.Println(string(dump))
+
+		return nil
+	},
 }
 
 func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
