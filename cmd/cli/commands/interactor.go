@@ -162,9 +162,8 @@ type NodeHubInteractor interface {
 	GetWorkerProperties(id string) (*pb.GetMinerPropertiesReply, error)
 	SetWorkerProperties(req *pb.SetMinerPropertiesRequest) (*pb.Empty, error)
 
-	// TODO(sshaman1101): add ask list
-	GetAskPlan(id string) (*pb.GetSlotsReply, error)
-	CreateAskPlan(req *pb.AddSlotRequest) (*pb.Empty, error)
+	GetAskPlans() (*pb.GetSlotsReply, error)
+	CreateAskPlan(id string, slot *structs.Slot) (*pb.Empty, error)
 	RemoveAskPlan(id string) (*pb.Empty, error)
 
 	TaskList() (*pb.TaskListReply, error)
@@ -240,17 +239,21 @@ func (it *hubInteractor) SetWorkerProperties(req *pb.SetMinerPropertiesRequest) 
 	return it.hub.SetWorkerProperties(ctx, req)
 }
 
-func (it *hubInteractor) GetAskPlan(id string) (*pb.GetSlotsReply, error) {
+func (it *hubInteractor) GetAskPlans() (*pb.GetSlotsReply, error) {
 	ctx, cancel := it.ctx()
 	defer cancel()
 
-	req := &pb.ID{Id: id}
-	return it.hub.GetAskPlan(ctx, req)
+	return it.hub.GetAskPlans(ctx, &pb.Empty{})
 }
 
-func (it *hubInteractor) CreateAskPlan(req *pb.AddSlotRequest) (*pb.Empty, error) {
+func (it *hubInteractor) CreateAskPlan(id string, slot *structs.Slot) (*pb.Empty, error) {
 	ctx, cancel := it.ctx()
 	defer cancel()
+
+	req := &pb.AddSlotRequest{
+		ID:   id,
+		Slot: slot.Unwrap(),
+	}
 
 	return it.hub.CreateAskPlan(ctx, req)
 }

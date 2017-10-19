@@ -2,14 +2,11 @@ package commands
 
 import (
 	"encoding/json"
-	"io/ioutil"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
-	"gopkg.in/yaml.v2"
 
 	ds "github.com/c2h5oh/datasize"
-	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -277,22 +274,12 @@ var minerAddSlotCmd = &cobra.Command{
 		ID := args[0]
 		path := args[1]
 
-		buf, err := ioutil.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		cfg := task_config.SlotConfig{}
-		err = yaml.Unmarshal(buf, &cfg)
+		slot, err := loadSlotFile(path)
 		if err != nil {
 			return err
 		}
 
 		grpc, err := NewGrpcInteractor(hubAddress, timeout)
-		if err != nil {
-			return err
-		}
-		slot, err := cfg.IntoSlot()
 		if err != nil {
 			return err
 		}
