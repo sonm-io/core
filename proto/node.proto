@@ -79,7 +79,7 @@ service HubManagement {
 
     // WorkersList prouces a list of connected Workers
     rpc WorkersList (Empty) returns (ListReply) {}
-    // WorkersStatus produces a detailed info about a Worker by their ID
+    // WorkersStatus produces a detailed info about a Worker with given ID
     rpc WorkerStatus (ID) returns (InfoReply) {}
 
     // GetRegistredWorkers produce a list of Workers IDs allowed
@@ -99,7 +99,7 @@ service HubManagement {
     rpc SetWorkerProperties(SetMinerPropertiesRequest) returns (Empty) {}
 
     // GetAskPlans allows to obtain previously assigned Ask Plans from for a given worker.
-    rpc GetAskPlan(ID) returns (GetSlotsReply) {}
+    rpc GetAskPlans(ID) returns (GetSlotsReply) {}
     // CreateAskPlan allows to create rules
     // for creating Ask orders on Marketplace
     rpc CreateAskPlan(AddSlotRequest) returns (Empty) {}

@@ -53,7 +53,7 @@ func (h *hubAPI) SetWorkerProperties(ctx context.Context, req *pb.SetMinerProper
 	return h.cc.SetMinerProperties(ctx, req)
 }
 
-func (h *hubAPI) GetAskPlan(ctx context.Context, req *pb.ID) (*pb.GetSlotsReply, error) {
+func (h *hubAPI) GetAskPlans(ctx context.Context, req *pb.ID) (*pb.GetSlotsReply, error) {
 	log.G(h.ctx).Debug("GetAskPlan")
 	return h.cc.GetSlots(ctx, req)
 }
