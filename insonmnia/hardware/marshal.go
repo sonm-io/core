@@ -1,25 +1,28 @@
 package hardware
 
 import (
+	"bytes"
+	"encoding/json"
 	"strconv"
 	"strings"
 
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 )
 
-func (h *Hardware) IntoProto() *pb.Capabilities {
-	return &pb.Capabilities{
+func (h *Hardware) IntoProto() *sonm.Capabilities {
+	return &sonm.Capabilities{
 		Cpu: CPUIntoProto(h.CPU),
 		Mem: MemoryIntoProto(h.Memory),
 		Gpu: GPUIntoProto(h.GPU),
 	}
 }
 
-func CPUIntoProto(c []cpu.InfoStat) []*pb.CPUDevice {
-	result := make([]*pb.CPUDevice, 0)
+func CPUIntoProto(c []cpu.InfoStat) []*sonm.CPUDevice {
+	result := make([]*sonm.CPUDevice, 0)
 
 	for _, i := range c {
 		ext := make(map[string]string)
@@ -27,7 +30,7 @@ func CPUIntoProto(c []cpu.InfoStat) []*pb.CPUDevice {
 		ext["cache_size"] = strconv.Itoa(int(i.CacheSize))
 		ext["flags"] = strings.Join(i.Flags, " ")
 
-		device := &pb.CPUDevice{
+		device := &sonm.CPUDevice{
 			Name:   i.ModelName,
 			Vendor: i.VendorID,
 			Cores:  i.Cores,
@@ -41,7 +44,7 @@ func CPUIntoProto(c []cpu.InfoStat) []*pb.CPUDevice {
 	return result
 }
 
-func CPUFromProto(c []*pb.CPUDevice) ([]cpu.InfoStat, error) {
+func CPUFromProto(c []*sonm.CPUDevice) ([]cpu.InfoStat, error) {
 	result := make([]cpu.InfoStat, 0)
 
 	for _, i := range c {
@@ -66,36 +69,39 @@ func CPUFromProto(c []*pb.CPUDevice) ([]cpu.InfoStat, error) {
 	return result, nil
 }
 
-func MemoryIntoProto(m *mem.VirtualMemoryStat) *pb.RAMDevice {
-	return &pb.RAMDevice{
+func MemoryIntoProto(m *mem.VirtualMemoryStat) *sonm.RAMDevice {
+	return &sonm.RAMDevice{
 		Total: m.Total,
 		Used:  m.Used,
 	}
 }
 
-func MemoryFromProto(m *pb.RAMDevice) (*mem.VirtualMemoryStat, error) {
+func MemoryFromProto(m *sonm.RAMDevice) (*mem.VirtualMemoryStat, error) {
 	return &mem.VirtualMemoryStat{
 		Total: m.Total,
 	}, nil
 }
 
-func GPUIntoProto(g []gpu.Device) []*pb.GPUDevice {
-	result := make([]*pb.GPUDevice, 0)
+func GPUIntoProto(devices []gpu.Device) []*sonm.GPUDevice {
+	result := make([]*sonm.GPUDevice, 0)
 
-	for _, i := range g {
-		device := &pb.GPUDevice{
-			Name:          i.Name(),
-			VendorName:    i.VendorName(),
-			MaxMemorySize: i.MaxMemorySize(),
+	for _, device := range devices {
+		dump, err := json.Marshal(device)
+		if err != nil {
+			continue
+		}
+		proto := &sonm.GPUDevice{}
+		if err := jsonpb.Unmarshal(bytes.NewReader(dump), proto); err != nil {
+			continue
 		}
 
-		result = append(result, device)
+		result = append(result, proto)
 	}
 
 	return result
 }
 
-func GPUFromProto(g []*pb.GPUDevice) ([]gpu.Device, error) {
+func GPUFromProto(g []*sonm.GPUDevice) ([]gpu.Device, error) {
 	result := []gpu.Device{}
 
 	for _, i := range g {
@@ -104,7 +110,7 @@ func GPUFromProto(g []*pb.GPUDevice) ([]gpu.Device, error) {
 			i.GetVendorName(),
 			i.GetMaxMemorySize(),
 			gpu.WithVendorId(uint(i.GetVendorId())),
-			gpu.WithOpenClDeviceVersionSpec(i.GetOpenCLVersionMajor(), i.GetOpenCLVersionMinor()),
+			gpu.WithOpenClDeviceVersionSpec(i.GetOpenCLDeviceVersionMajor(), i.GetOpenCLDeviceVersionMinor()),
 		)
 		if err != nil {
 			return nil, err
@@ -115,7 +121,7 @@ func GPUFromProto(g []*pb.GPUDevice) ([]gpu.Device, error) {
 	return result, nil
 }
 
-func HardwareFromProto(cap *pb.Capabilities) (*Hardware, error) {
+func HardwareFromProto(cap *sonm.Capabilities) (*Hardware, error) {
 	c, err := CPUFromProto(cap.Cpu)
 	if err != nil {
 		return nil, err

@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "bid.proto";
+import "capabilities.proto";
 import "insonmnia.proto";
 
 package sonm;
@@ -26,6 +27,10 @@ service Hub {
 
     rpc ProposeDeal(DealRequest) returns (Empty) {}
     rpc DiscoverHub(DiscoverHubRequest) returns (Empty) {}
+
+    // Devices returns list of all available devices that this Hub awares of
+    // with tieir full description.
+    rpc Devices(Empty) returns (DevicesInfoReply) {}
 
     // GetMinerProperties allows to obtain previously assigned resource
     // properties for a given miner.
@@ -141,7 +146,19 @@ message GetRegistredWorkersReply {
 
 message TaskListReply {
     message TaskInfo {
-        map <string, TaskStatusReply> tasks = 1;
+        map<string, TaskStatusReply> tasks = 1;
     }
     map<string, TaskInfo> info = 1;
+}
+
+message GPUDeviceInfo {
+    // Miners where such device exists.
+    repeated string miners = 1;
+    // Its properties.
+    GPUDevice device = 2;
+}
+
+message DevicesInfoReply {
+    // Device unique ID -> Info.
+    map<string, GPUDeviceInfo> GPUs = 1;
 }

@@ -37,6 +37,8 @@ It has these top-level messages:
 	RemoveSlotRequest
 	GetRegistredWorkersReply
 	TaskListReply
+	GPUDeviceInfo
+	DevicesInfoReply
 	Empty
 	ID
 	PingReply

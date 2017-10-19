@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"bytes"
 	"github.com/ethereum/go-ethereum/crypto"
 	consul "github.com/hashicorp/consul/api"
 	frd "github.com/sonm-io/core/fusrodah/hub"
@@ -625,6 +626,39 @@ func (h *Hub) findRandomMinerBySlot(slot *structs.Slot) (*MinerCtx, error) {
 func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.Empty, error) {
 	h.onNewHub(request.Endpoint)
 	return &pb.Empty{}, nil
+}
+
+func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesInfoReply, error) {
+	GPUs := map[string]*pb.GPUDeviceInfo{}
+
+	for id, miner := range h.miners {
+		for _, gpu := range miner.capabilities.GPU {
+			hash := hex.EncodeToString(gpu.Hash())
+			info, exists := GPUs[hash]
+			if exists {
+				info.Miners = append(info.Miners, id)
+			} else {
+				info := &pb.GPUDeviceInfo{
+					Miners: []string{id},
+					Device: &pb.GPUDevice{},
+				}
+				dump, err := json.Marshal(gpu)
+				if err != nil {
+					return nil, err
+				}
+				if err := jsonpb.Unmarshal(bytes.NewReader(dump), info.Device); err != nil {
+					return nil, err
+				}
+				GPUs[hash] = info
+			}
+		}
+	}
+
+	reply := &pb.DevicesInfoReply{
+		GPUs: GPUs,
+	}
+
+	return reply, nil
 }
 
 func (h *Hub) GetMinerProperties(ctx context.Context, request *pb.ID) (*pb.GetMinerPropertiesReply, error) {
