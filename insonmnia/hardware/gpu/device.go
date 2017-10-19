@@ -25,6 +25,9 @@ type Device interface {
 	// MaxMemorySize returns the total maximum memory size the device can hold
 	// in bytes.
 	MaxMemorySize() uint64
+	// MaxClockFrequency returns maximum configured clock frequency of the
+	// device in MHz.
+	MaxClockFrequency() uint
 	// OpenCLDeviceVersion returns the OpenCL major version supported by the
 	// device.
 	OpenCLDeviceVersionMajor() int
@@ -49,6 +52,13 @@ type Option func(*sonm.GPUDevice) error
 func WithVendorId(id uint) func(*sonm.GPUDevice) error {
 	return func(d *sonm.GPUDevice) error {
 		d.VendorId = uint64(id)
+		return nil
+	}
+}
+
+func WithMaxClockFrequency(mhz uint) func(*sonm.GPUDevice) error {
+	return func(d *sonm.GPUDevice) error {
+		d.MaxClockFrequency = uint64(mhz)
 		return nil
 	}
 }
@@ -112,6 +122,10 @@ func (d *device) MaxMemorySize() uint64 {
 	return d.d.GetMaxMemorySize()
 }
 
+func (d *device) MaxClockFrequency() uint {
+	return uint(d.d.GetMaxClockFrequency())
+}
+
 func (d *device) OpenCLDeviceVersionMajor() int {
 	return int(d.d.GetOpenCLDeviceVersionMajor())
 }
@@ -130,6 +144,7 @@ func (d *device) MarshalJSON() ([]byte, error) {
 		"vendorId":                 d.VendorId(),
 		"vendorName":               d.VendorName(),
 		"maxMemorySize":            d.MaxMemorySize(),
+		"maxClockFrequency":        d.MaxClockFrequency(),
 		"openCLDeviceVersionMajor": d.OpenCLDeviceVersionMajor(),
 		"openCLDeviceVersionMinor": d.OpenCLDeviceVersionMinor(),
 	})

@@ -40,19 +40,34 @@ func GetGPUDevicesUsingOpenCL() ([]Device, error) {
 	for _, platform := range platforms {
 		devices, err := platform.getGPUDevices()
 		if err != nil {
-			continue
+			return nil, err
 		}
 
 		for _, d := range devices {
 			options := []Option{}
+			name, err := d.name()
+			if err != nil {
+				return nil, err
+			}
+			vendor, err := d.vendor()
+			if err != nil {
+				return nil, err
+			}
+			globalMemSize, err := d.globalMemSize()
+			if err != nil {
+				return nil, err
+			}
 			if vendorId, err := d.vendorId(); err == nil {
 				options = append(options, WithVendorId(vendorId))
+			}
+			if deviceMaxClockFrequency, err := d.deviceMaxClockFrequency(); err == nil {
+				options = append(options, WithMaxClockFrequency(deviceMaxClockFrequency))
 			}
 			if deviceVersion, err := d.deviceVersion(); err == nil {
 				options = append(options, WithOpenClDeviceVersion(deviceVersion))
 			}
 
-			device, err := NewDevice(d.name(), d.vendor(), d.globalMemSize(), options...)
+			device, err := NewDevice(name, vendor, globalMemSize, options...)
 			if err != nil {
 				return nil, err
 			}
@@ -138,23 +153,20 @@ func (d *clDevice) getInfoUint64(param C.cl_device_info) (uint64, error) {
 	return uint64(val), nil
 }
 
-func (d *clDevice) name() string {
-	result, _ := d.getInfoString(C.CL_DEVICE_NAME)
-	return result
+func (d *clDevice) name() (string, error) {
+	return d.getInfoString(C.CL_DEVICE_NAME)
 }
 
-func (d *clDevice) vendor() string {
-	result, _ := d.getInfoString(C.CL_DEVICE_VENDOR)
-	return result
+func (d *clDevice) vendor() (string, error) {
+	return d.getInfoString(C.CL_DEVICE_VENDOR)
 }
 
 func (d *clDevice) vendorId() (uint, error) {
 	return d.getInfoUint(C.CL_DEVICE_VENDOR_ID)
 }
 
-func (d *clDevice) globalMemSize() uint64 {
-	val, _ := d.getInfoUint64(C.CL_DEVICE_GLOBAL_MEM_SIZE)
-	return uint64(val)
+func (d *clDevice) globalMemSize() (uint64, error) {
+	return d.getInfoUint64(C.CL_DEVICE_GLOBAL_MEM_SIZE)
 }
 
 func (d *clDevice) driverVersion() (string, error) {
@@ -163,4 +175,8 @@ func (d *clDevice) driverVersion() (string, error) {
 
 func (d *clDevice) deviceVersion() (string, error) {
 	return d.getInfoString(C.CL_DEVICE_VERSION)
+}
+
+func (d *clDevice) deviceMaxClockFrequency() (uint, error) {
+	return d.getInfoUint(C.CL_DEVICE_MAX_CLOCK_FREQUENCY)
 }
