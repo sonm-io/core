@@ -4,7 +4,6 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 )
 
 func init() {
@@ -34,7 +33,7 @@ var nodeHubStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		status, err := hub.Status(context.Background())
+		status, err := hub.Status()
 		if err != nil {
 			showError(cmd, "Cannot get hub status", err)
 			os.Exit(1)

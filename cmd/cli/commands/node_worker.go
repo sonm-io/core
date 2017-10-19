@@ -1,14 +1,13 @@
 package commands
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"os"
 
-	"encoding/json"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
 )
 
 func init() {
@@ -48,7 +47,7 @@ var nodeWorkerListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		list, err := hub.WorkersList(context.Background())
+		list, err := hub.WorkersList()
 		if err != nil {
 			showError(cmd, "Cannot get workers list", err)
 			os.Exit(1)
@@ -71,7 +70,7 @@ var nodeWorkerStatusCmd = &cobra.Command{
 		}
 
 		workerID := args[0]
-		status, err := hub.WorkerStatus(context.Background(), workerID)
+		status, err := hub.WorkerStatus(workerID)
 		if err != nil {
 			showError(cmd, "Cannot get workers status", err)
 			os.Exit(1)
@@ -94,7 +93,7 @@ var nodeWorkerGetPropsCmd = &cobra.Command{
 		}
 
 		workerID := args[0]
-		props, err := hub.GetWorkerProperties(context.Background(), workerID)
+		props, err := hub.GetWorkerProperties(workerID)
 		if err != nil {
 			showError(cmd, "Cannot get workers status", err)
 			os.Exit(1)
@@ -129,7 +128,7 @@ var nodeWorkerSetPropsCmd = &cobra.Command{
 			Properties: props,
 		}
 
-		_, err = hub.SetWorkerProperties(context.Background(), req)
+		_, err = hub.SetWorkerProperties(req)
 		if err != nil {
 			showError(cmd, "Cannot get workers status", err)
 			os.Exit(1)

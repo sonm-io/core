@@ -150,26 +150,25 @@ func NewGrpcInteractor(addr string, to time.Duration) (CliInteractor, error) {
 }
 
 type NodeHubInteractor interface {
-	// TODO(sshaman1101): do not accept context
-	// TODO(sshaman1101): create them inside wrapper
-	Status(ctx context.Context) (*pb.HubStatusReply, error)
+	Status() (*pb.HubStatusReply, error)
 
-	WorkersList(ctx context.Context) (*pb.ListReply, error)
-	WorkerStatus(ctx context.Context, id string) (*pb.InfoReply, error)
+	WorkersList() (*pb.ListReply, error)
+	WorkerStatus(id string) (*pb.InfoReply, error)
 
-	GetRegistredWorkers(ctx context.Context) (*pb.GetRegistredWorkersReply, error)
-	RegisterWorker(ctx context.Context, id string) (*pb.Empty, error)
-	UnregisterWorker(ctx context.Context, id string) (*pb.Empty, error)
+	GetRegistredWorkers() (*pb.GetRegistredWorkersReply, error)
+	RegisterWorker(id string) (*pb.Empty, error)
+	UnregisterWorker(id string) (*pb.Empty, error)
 
-	GetWorkerProperties(ctx context.Context, id string) (*pb.GetMinerPropertiesReply, error)
-	SetWorkerProperties(ctx context.Context, req *pb.SetMinerPropertiesRequest) (*pb.Empty, error)
+	GetWorkerProperties(id string) (*pb.GetMinerPropertiesReply, error)
+	SetWorkerProperties(req *pb.SetMinerPropertiesRequest) (*pb.Empty, error)
 
-	GetAskPlan(ctx context.Context, id string) (*pb.GetSlotsReply, error)
-	CreateAskPlan(ctx context.Context, req *pb.AddSlotRequest) (*pb.Empty, error)
-	RemoveAskPlan(ctx context.Context, id string) (*pb.Empty, error)
+	// TODO(sshaman1101): add ask list
+	GetAskPlan(id string) (*pb.GetSlotsReply, error)
+	CreateAskPlan(req *pb.AddSlotRequest) (*pb.Empty, error)
+	RemoveAskPlan(id string) (*pb.Empty, error)
 
-	TaskList(ctx context.Context) (*pb.TaskListReply, error)
-	TaskStatus(ctx context.Context, id string) (*pb.TaskStatusReply, error)
+	TaskList() (*pb.TaskListReply, error)
+	TaskStatus(id string) (*pb.TaskStatusReply, error)
 }
 
 type hubInteractor struct {
@@ -177,102 +176,102 @@ type hubInteractor struct {
 	hub     pb.HubManagementClient
 }
 
-func (it *hubInteractor) ctx(appCtx context.Context) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(appCtx, it.timeout)
+func (it *hubInteractor) ctx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), it.timeout)
 }
 
-func (it *hubInteractor) Status(ctx context.Context) (*pb.HubStatusReply, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) Status() (*pb.HubStatusReply, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	return it.hub.Status(ctx, &pb.Empty{})
 }
 
-func (it *hubInteractor) WorkersList(ctx context.Context) (*pb.ListReply, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) WorkersList() (*pb.ListReply, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	return it.hub.WorkersList(ctx, &pb.Empty{})
 }
 
-func (it *hubInteractor) WorkerStatus(ctx context.Context, id string) (*pb.InfoReply, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) WorkerStatus(id string) (*pb.InfoReply, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	req := &pb.ID{Id: id}
 	return it.hub.WorkerStatus(ctx, req)
 }
 
-func (it *hubInteractor) GetRegistredWorkers(ctx context.Context) (*pb.GetRegistredWorkersReply, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) GetRegistredWorkers() (*pb.GetRegistredWorkersReply, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	return it.hub.GetRegistredWorkers(ctx, &pb.Empty{})
 }
 
-func (it *hubInteractor) RegisterWorker(ctx context.Context, id string) (*pb.Empty, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) RegisterWorker(id string) (*pb.Empty, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	req := &pb.ID{Id: id}
 	return it.hub.RegisterWorker(ctx, req)
 }
 
-func (it *hubInteractor) UnregisterWorker(ctx context.Context, id string) (*pb.Empty, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) UnregisterWorker(id string) (*pb.Empty, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	req := &pb.ID{Id: id}
 	return it.hub.UnregisterWorker(ctx, req)
 }
 
-func (it *hubInteractor) GetWorkerProperties(ctx context.Context, id string) (*pb.GetMinerPropertiesReply, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) GetWorkerProperties(id string) (*pb.GetMinerPropertiesReply, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	req := &pb.ID{Id: id}
 	return it.hub.GetWorkerProperties(ctx, req)
 }
 
-func (it *hubInteractor) SetWorkerProperties(ctx context.Context, req *pb.SetMinerPropertiesRequest) (*pb.Empty, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) SetWorkerProperties(req *pb.SetMinerPropertiesRequest) (*pb.Empty, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	return it.hub.SetWorkerProperties(ctx, req)
 }
 
-func (it *hubInteractor) GetAskPlan(ctx context.Context, id string) (*pb.GetSlotsReply, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) GetAskPlan(id string) (*pb.GetSlotsReply, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	req := &pb.ID{Id: id}
 	return it.hub.GetAskPlan(ctx, req)
 }
 
-func (it *hubInteractor) CreateAskPlan(ctx context.Context, req *pb.AddSlotRequest) (*pb.Empty, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) CreateAskPlan(req *pb.AddSlotRequest) (*pb.Empty, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	return it.hub.CreateAskPlan(ctx, req)
 }
 
-func (it *hubInteractor) RemoveAskPlan(ctx context.Context, id string) (*pb.Empty, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) RemoveAskPlan(id string) (*pb.Empty, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	req := &pb.ID{Id: id}
 	return it.hub.RemoveAskPlan(ctx, req)
 }
 
-func (it *hubInteractor) TaskList(ctx context.Context) (*pb.TaskListReply, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) TaskList() (*pb.TaskListReply, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	return it.hub.TaskList(ctx, &pb.Empty{})
 }
 
-func (it *hubInteractor) TaskStatus(ctx context.Context, id string) (*pb.TaskStatusReply, error) {
-	ctx, cancel := it.ctx(ctx)
+func (it *hubInteractor) TaskStatus(id string) (*pb.TaskStatusReply, error) {
+	ctx, cancel := it.ctx()
 	defer cancel()
 
 	req := &pb.ID{Id: id}

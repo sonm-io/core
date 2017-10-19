@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -55,7 +54,7 @@ var nodeTaskListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		list, err := hub.TaskList(context.Background())
+		list, err := hub.TaskList()
 		if err != nil {
 			showError(cmd, "Cannot get task list", err)
 			os.Exit(1)
@@ -78,7 +77,7 @@ var nodeTaskStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		status, err := hub.TaskStatus(context.Background(), taskID)
+		status, err := hub.TaskStatus(taskID)
 		if err != nil {
 			showError(cmd, "Cannot get task status", err)
 			os.Exit(1)
