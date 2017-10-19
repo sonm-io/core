@@ -81,15 +81,30 @@ func (h *hubAPI) TaskList(ctx context.Context, req *pb.Empty) (*pb.TaskListReply
 	}
 
 	reply := &pb.TaskListReply{
-		Tasks: []*pb.InfoReply{},
+		Info: map[string]*pb.TaskListReply_TaskInfo{},
 	}
 
-	for id := range workers.GetInfo() {
-		info, err := h.cc.Info(ctx, &pb.ID{Id: id})
+	for wrkID := range workers.GetInfo() {
+		taskStatuses, err := h.cc.MinerStatus(ctx, &pb.ID{Id: wrkID})
 		if err != nil {
 			return nil, err
 		}
-		reply.Tasks = append(reply.Tasks, info)
+
+		info := &pb.TaskListReply_TaskInfo{
+			Tasks: map[string]*pb.TaskStatusReply{},
+		}
+
+		for taskID := range taskStatuses.GetStatuses() {
+			taskInfo, err := h.cc.TaskStatus(ctx, &pb.ID{Id: taskID})
+			if err != nil {
+				return nil, err
+			}
+
+			info.Tasks[taskID] = taskInfo
+		}
+
+		reply.Info[wrkID] = info
+
 	}
 
 	return reply, nil

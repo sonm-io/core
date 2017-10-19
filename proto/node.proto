@@ -38,7 +38,10 @@ message TaskListRequest {
 }
 
 message TaskListReply {
-    repeated InfoReply tasks = 1;
+    message TaskInfo {
+        map <string, TaskStatusReply> tasks = 1;
+    }
+    map<string, TaskInfo> info = 1;
 }
 
 // DealManagement describe a bunch of methods
