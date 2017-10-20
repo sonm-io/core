@@ -21,6 +21,8 @@ type Config interface {
 	HubEndpoint() string
 	// LogLevel return log verbosity
 	LogLevel() int
+	// ClientID returns EtherumID of Node Owner
+	ClientID() string
 }
 
 type nodeConfig struct {
@@ -59,6 +61,13 @@ func (y *yamlConfig) HubEndpoint() string {
 		return y.Hub.Endpoint
 	}
 	return ""
+}
+
+func (y *yamlConfig) ClientID() string {
+	// NOTE: just for testing on current iteration
+	// key exchange will be implemented soon
+
+	return "my-uniq-id"
 }
 
 func (y *yamlConfig) LogLevel() int {
@@ -108,7 +117,7 @@ func (n *Node) Serve() error {
 
 	// register hub connection if hub addr is set
 	if n.conf.HubEndpoint() != "" {
-		hub, err := newHubAPI(n.ctx, n.conf.HubEndpoint())
+		hub, err := newHubAPI(n.ctx, n.conf)
 		if err != nil {
 			return err
 		}
@@ -116,7 +125,7 @@ func (n *Node) Serve() error {
 		log.G(n.ctx).Info("hub service registered", zap.String("endpt", n.conf.HubEndpoint()))
 	}
 
-	market, err := newMarketAPI(n.ctx, n.conf.MarketEndpoint())
+	market, err := newMarketAPI(n.ctx, n.conf)
 	if err != nil {
 		return err
 	}

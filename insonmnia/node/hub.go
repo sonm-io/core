@@ -7,10 +7,9 @@ import (
 )
 
 type hubAPI struct {
-	// endpoint is cached mostly for debug purposes
-	endpoint string
-	cc       pb.HubClient
-	ctx      context.Context
+	conf Config
+	cc   pb.HubClient
+	ctx  context.Context
 }
 
 func (h *hubAPI) Status(ctx context.Context, req *pb.Empty) (*pb.HubStatusReply, error) {
@@ -82,7 +81,6 @@ func (h *hubAPI) CreateAskPlan(ctx context.Context, req *pb.AddSlotRequest) (*pb
 
 func (h *hubAPI) RemoveAskPlan(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Debug("RemoveAskPlan")
-	// TODO(sshaman1101): wait for 3Hren changes and fix this
 	request := &pb.RemoveSlotRequest{ID: req.GetId()}
 	return h.cc.RemoveSlot(ctx, request)
 }
@@ -144,15 +142,15 @@ func (h *hubAPI) getWorkersIDs(ctx context.Context) ([]string, error) {
 	return ids, nil
 }
 
-func newHubAPI(ctx context.Context, endpoint string) (pb.HubManagementServer, error) {
-	cc, err := initGrpcClient(endpoint, nil)
+func newHubAPI(ctx context.Context, conf Config) (pb.HubManagementServer, error) {
+	cc, err := initGrpcClient(conf.HubEndpoint(), nil)
 	if err != nil {
 		return nil, err
 	}
 
 	return &hubAPI{
-		endpoint: endpoint,
-		cc:       pb.NewHubClient(cc),
-		ctx:      ctx,
+		conf: conf,
+		ctx:  ctx,
+		cc:   pb.NewHubClient(cc),
 	}, nil
 }
