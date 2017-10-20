@@ -59,7 +59,7 @@ func init() {
 	rootCmd.PersistentFlags().DurationVar(&timeout, hubTimeoutFlag, 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputMode, outputModeFlag, "", "Output mode: simple or json")
 
-	nodeRootCmd.AddCommand(nodeHubRootCmd)
+	nodeRootCmd.AddCommand(nodeHubRootCmd, nodeMarketRootCmd)
 	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd, nodeRootCmd)
 }
 

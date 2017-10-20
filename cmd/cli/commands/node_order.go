@@ -60,7 +60,7 @@ var nodeOrderListCmd = &cobra.Command{
 	Short:   "Show current ask plans",
 	PreRunE: checkNodeAddressIsSet,
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddress)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -82,7 +82,7 @@ var nodeOrderCreateCmd = &cobra.Command{
 	Args:    cobra.MinimumNArgs(2),
 	PreRunE: checkNodeAddressIsSet,
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddress)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -113,7 +113,7 @@ var nodeOrderRemoveCmd = &cobra.Command{
 	Args:    cobra.MinimumNArgs(1),
 	PreRunE: checkNodeAddressIsSet,
 	Run: func(cmd *cobra.Command, args []string) {
-		_, err := NewHubInteractor(nodeAddress)
+		_, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)

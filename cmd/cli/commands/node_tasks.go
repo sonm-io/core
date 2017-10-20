@@ -48,7 +48,7 @@ var nodeTaskListCmd = &cobra.Command{
 	Short:   "Show task list",
 	PreRunE: checkNodeAddressIsSet,
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddress)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -71,7 +71,7 @@ var nodeTaskStatusCmd = &cobra.Command{
 	Args:    cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		taskID := args[0]
-		hub, err := NewHubInteractor(nodeAddress)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)

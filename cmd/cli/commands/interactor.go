@@ -28,6 +28,7 @@ type CliInteractor interface {
 }
 
 type grpcInteractor struct {
+	// TODO(sshaman1101): remove CC, use pb.Client
 	cc      *grpc.ClientConn
 	timeout time.Duration
 }
@@ -281,7 +282,7 @@ func (it *hubInteractor) TaskStatus(id string) (*pb.TaskStatusReply, error) {
 	return it.hub.TaskStatus(ctx, req)
 }
 
-func NewHubInteractor(addr string) (NodeHubInteractor, error) {
+func NewHubInteractor(addr string, timeout time.Duration) (NodeHubInteractor, error) {
 	cc, err := grpc.Dial(addr, grpc.WithInsecure(),
 		grpc.WithCompressor(grpc.NewGZIPCompressor()),
 		grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
@@ -292,8 +293,80 @@ func NewHubInteractor(addr string) (NodeHubInteractor, error) {
 	hub := pb.NewHubManagementClient(cc)
 
 	return &hubInteractor{
-		// TODO(sshaman1101): get timeout as builder param
-		timeout: 10 * time.Second,
+		timeout: timeout,
 		hub:     hub,
 	}, nil
+}
+
+type NodeMarketInteractor interface {
+	GetOrders(slot *structs.Slot, orderType pb.OrderType, count uint64) ([]*pb.Order, error)
+	GetOrderByID(id string) (*pb.Order, error)
+	CreateOrder(order *pb.Order) (*pb.Order, error)
+	CancelOrder(id string) error
+}
+
+type marketInteractor struct {
+	timeout time.Duration
+	market  pb.MarketClient
+}
+
+func (it *marketInteractor) GetOrders(slot *structs.Slot, orderType pb.OrderType, count uint64) ([]*pb.Order, error) {
+	ctx, cancel := it.ctx()
+	defer cancel()
+
+	req := &pb.GetOrdersRequest{
+		Slot:      slot.Unwrap(),
+		OrderType: orderType,
+		Count:     count,
+	}
+
+	reply, err := it.market.GetOrders(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return reply.GetOrders(), nil
+}
+
+func (it *marketInteractor) GetOrderByID(id string) (*pb.Order, error) {
+	ctx, cancel := it.ctx()
+	defer cancel()
+
+	return it.market.GetOrderByID(ctx, &pb.ID{Id: id})
+}
+
+func (it *marketInteractor) CreateOrder(order *pb.Order) (*pb.Order, error) {
+	ctx, cancel := it.ctx()
+	defer cancel()
+
+	return it.market.CreateOrder(ctx, order)
+}
+
+func (it *marketInteractor) CancelOrder(id string) error {
+	ctx, cancel := it.ctx()
+	defer cancel()
+
+	_, err := it.market.CancelOrder(ctx, &pb.Order{Id: id})
+	return err
+}
+
+func (it *marketInteractor) ctx() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), it.timeout)
+}
+
+func NewMarketInteractor(addr string, timeout time.Duration) (NodeMarketInteractor, error) {
+	cc, err := grpc.Dial(addr, grpc.WithInsecure(),
+		grpc.WithCompressor(grpc.NewGZIPCompressor()),
+		grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
+	if err != nil {
+		return nil, err
+	}
+
+	market := pb.NewMarketClient(cc)
+
+	return &marketInteractor{
+		timeout: timeout,
+		market:  market,
+	}, nil
+
 }

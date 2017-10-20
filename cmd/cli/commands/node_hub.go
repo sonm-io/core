@@ -27,7 +27,7 @@ var nodeHubStatusCmd = &cobra.Command{
 	Short:   "Show hub status",
 	PreRunE: checkNodeAddressIsSet,
 	Run: func(cmd *cobra.Command, _ []string) {
-		hub, err := NewHubInteractor(nodeAddress)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
