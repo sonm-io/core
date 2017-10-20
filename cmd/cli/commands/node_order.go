@@ -150,3 +150,23 @@ func loadSlotFile(path string) (*structs.Slot, error) {
 
 	return slot, nil
 }
+
+func loadOrderFile(path string) (*structs.Order, error) {
+	buf, err := ioutil.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := task_config.OrderConfig{}
+	err = yaml.Unmarshal(buf, &cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	order, err := cfg.IntoOrder()
+	if err != nil {
+		return nil, err
+	}
+
+	return order, nil
+}
