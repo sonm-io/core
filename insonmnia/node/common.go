@@ -8,7 +8,6 @@ type credentials interface{}
 
 // initGrpcClient creates new client connection on addr and wraps it with credentials
 func initGrpcClient(addr string, _ credentials) (*grpc.ClientConn, error) {
-	// TODO(sshaman1101): crash if cannot connect to addr
 	cc, err := grpc.Dial(addr, grpc.WithInsecure(),
 		grpc.WithCompressor(grpc.NewGZIPCompressor()),
 		grpc.WithDecompressor(grpc.NewGZIPDecompressor()))

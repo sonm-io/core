@@ -4,7 +4,9 @@ import (
 	"net"
 
 	"github.com/jinzhu/configor"
+	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -111,16 +113,22 @@ func (n *Node) Serve() error {
 			return err
 		}
 		pb.RegisterHubManagementServer(srv, hub)
+		log.G(n.ctx).Info("hub service registered", zap.String("endpt", n.conf.HubEndpoint()))
 	}
+
+	market, err := newMarketAPI(n.ctx, n.conf.MarketEndpoint())
+	if err != nil {
+		return err
+	}
+
+	pb.RegisterMarketServer(srv, market)
+	log.G(n.ctx).Info("market service registered", zap.String("endpt", n.conf.MarketEndpoint()))
 
 	deals := newDealsAPI()
 	pb.RegisterDealManagementServer(srv, deals)
 
 	tasks := newTasksAPI()
 	pb.RegisterTaskManagementServer(srv, tasks)
-
-	market := newMarketAPI()
-	pb.RegisterMarketServer(srv, market)
 
 	return srv.Serve(n.lis)
 }
