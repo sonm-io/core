@@ -41,7 +41,7 @@ var nodeWorkerListCmd = &cobra.Command{
 	Short:   "Show connected workers list",
 	PreRunE: checkNodeAddressIsSet,
 	Run: func(cmd *cobra.Command, _ []string) {
-		hub, err := NewHubInteractor(nodeAddress)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -63,7 +63,7 @@ var nodeWorkerStatusCmd = &cobra.Command{
 	PreRunE: checkNodeAddressIsSet,
 	Args:    cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddress)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -86,7 +86,7 @@ var nodeWorkerGetPropsCmd = &cobra.Command{
 	PreRunE: checkNodeAddressIsSet,
 	Args:    cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddress)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -109,7 +109,7 @@ var nodeWorkerSetPropsCmd = &cobra.Command{
 	PreRunE: checkNodeAddressIsSet,
 	Args:    cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddress)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)

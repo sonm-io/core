@@ -39,7 +39,7 @@ var nodeACLListCmd = &cobra.Command{
 	Short:   "Show current ACLs",
 	PreRunE: checkNodeAddressIsSet,
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddress)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -61,7 +61,7 @@ var nodeACLRegisterCmd = &cobra.Command{
 	Args:    cobra.MinimumNArgs(1),
 	PreRunE: checkNodeAddressIsSet,
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddress)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -83,7 +83,7 @@ var nodeACLUnregisterCmd = &cobra.Command{
 	Args:    cobra.MinimumNArgs(1),
 	PreRunE: checkNodeAddressIsSet,
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddress)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
