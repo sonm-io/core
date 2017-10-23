@@ -9,11 +9,25 @@ message Capabilities {
 }
 
 message CPUDevice {
-    string name = 1;
-    string vendor = 2;
-    int32 cores = 3;
-    double mhz = 4;
-    map<string, string> ext = 5;
+    // Num describes the CPU number on a board.
+    int32 num = 1;
+    // VendorId describes vendor id as a string, for example "GenuineIntel".
+    string vendorId = 2;
+    // Model describes model.
+    string model = 3;
+    // ModelName describes full model name.
+    // For example "Intel(R) Core(TM) i5-5257U CPU @ 2.70GHz".
+    string modelName = 4;
+    // Cores describes number of cores on a CPU device.
+    int32 cores = 5;
+    // Maximum configured clock frequency of the device in MHz.
+    double clockFrequency = 6;
+    // CacheSize shows CPU cache size.
+    int32 cacheSize = 7;
+    // Stepping describes CPU stepping level.
+    int32 stepping = 8;
+    // Flags describes supported extensions on a CPU.
+    repeated string flags = 9;
 }
 
 message RAMDevice {
