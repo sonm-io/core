@@ -151,6 +151,13 @@ message TaskListReply {
     map<string, TaskInfo> info = 1;
 }
 
+message CPUDeviceInfo {
+    // Miners where such device exists.
+    repeated string miners = 1;
+    // Its properties.
+    CPUDevice device = 2;
+}
+
 message GPUDeviceInfo {
     // Miners where such device exists.
     repeated string miners = 1;
@@ -159,6 +166,8 @@ message GPUDeviceInfo {
 }
 
 message DevicesInfoReply {
+    // CPU unique ID -> Info.
+    map<string, CPUDeviceInfo> CPUs = 1;
     // GPU unique ID -> Info.
-    map<string, GPUDeviceInfo> GPUs = 1;
+    map<string, GPUDeviceInfo> GPUs = 2;
 }

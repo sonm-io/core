@@ -28,6 +28,7 @@ import (
 
 	"bytes"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/golang/protobuf/jsonpb"
 	consul "github.com/hashicorp/consul/api"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
@@ -630,6 +631,22 @@ func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (
 }
 
 func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesInfoReply, error) {
+	CPUs := map[string]*pb.CPUDeviceInfo{}
+	for id, miner := range h.miners {
+		for _, cpu := range miner.capabilities.CPU {
+			hash := hex.EncodeToString(cpu.Hash())
+			info, exists := CPUs[hash]
+			if exists {
+				info.Miners = append(info.Miners, id)
+			} else {
+				CPUs[hash] = &pb.CPUDeviceInfo{
+					Miners: []string{id},
+					Device: cpu.Marshal(),
+				}
+			}
+		}
+	}
+
 	GPUs := map[string]*pb.GPUDeviceInfo{}
 
 	for id, miner := range h.miners {

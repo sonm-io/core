@@ -37,6 +37,7 @@ It has these top-level messages:
 	RemoveSlotRequest
 	GetRegistredWorkersReply
 	TaskListReply
+	CPUDeviceInfo
 	GPUDeviceInfo
 	DevicesInfoReply
 	Empty
