@@ -64,7 +64,7 @@ build/insomnia: build/hub build/miner build/cli
 
 build/aux: build/locator build/marketplace
 
-build: build/blockchain build/bootnode build/insomnia build/aux
+build: build/bootnode build/insomnia build/aux
 
 install/bootnode: build/bootnode
 	@echo "+ $@"
@@ -96,8 +96,6 @@ fmt:
 test: mock
 	@echo "+ $@"
 	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor|blockchain')
-	$(MAKE) -C blockchain test
-
 
 grpc:
 	@echo "+ $@"
