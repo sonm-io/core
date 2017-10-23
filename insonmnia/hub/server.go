@@ -30,6 +30,7 @@ import (
 	consul "github.com/hashicorp/consul/api"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
+	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
