@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	errWalletNoAccount = errors.New("Wallet does not have any account")
-	errWalletNotOpen   = errors.New("Wallet is not open")
-	errWalletIsEmpty   = errors.New("Keystore does not have any wallets")
+	ErrWalletNoAccount = errors.New("Wallet does not have any account")
+	ErrWalletNotOpen   = errors.New("Wallet is not open")
+	ErrWalletIsEmpty   = errors.New("Keystore does not have any wallets")
 )
 
 func init() {
@@ -69,13 +69,13 @@ func (idt *identityPassphrase) Open(passphrase string) error {
 	wallets := idt.keystore.Wallets()
 
 	if len(wallets) == 0 {
-		return errWalletIsEmpty
+		return ErrWalletIsEmpty
 	}
 	idt.defaultWallet = wallets[0]
 
 	accs := idt.defaultWallet.Accounts()
 	if len(accs) == 0 {
-		return errWalletNoAccount
+		return ErrWalletNoAccount
 	}
 	idt.defaultAccount = accs[0]
 
@@ -84,7 +84,7 @@ func (idt *identityPassphrase) Open(passphrase string) error {
 
 func (idt *identityPassphrase) GetPrivateKey() (*ecdsa.PrivateKey, error) {
 	if idt.privateKey == nil {
-		return nil, errWalletNotOpen
+		return nil, ErrWalletNotOpen
 	}
 	return idt.privateKey, nil
 }
