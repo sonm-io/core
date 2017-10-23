@@ -1,7 +1,6 @@
 package hub
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
@@ -28,7 +27,6 @@ import (
 
 	"bytes"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/golang/protobuf/jsonpb"
 	consul "github.com/hashicorp/consul/api"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
@@ -648,31 +646,23 @@ func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesInfoRe
 	}
 
 	GPUs := map[string]*pb.GPUDeviceInfo{}
-
 	for id, miner := range h.miners {
-		for _, gpu := range miner.capabilities.GPU {
-			hash := hex.EncodeToString(gpu.Hash())
+		for _, dev := range miner.capabilities.GPU {
+			hash := hex.EncodeToString(dev.Hash())
 			info, exists := GPUs[hash]
 			if exists {
 				info.Miners = append(info.Miners, id)
 			} else {
-				info := &pb.GPUDeviceInfo{
+				GPUs[hash] = &pb.GPUDeviceInfo{
 					Miners: []string{id},
-					Device: &pb.GPUDevice{},
+					Device: gpu.Marshal(dev),
 				}
-				dump, err := json.Marshal(gpu)
-				if err != nil {
-					return nil, err
-				}
-				if err := jsonpb.Unmarshal(bytes.NewReader(dump), info.Device); err != nil {
-					return nil, err
-				}
-				GPUs[hash] = info
 			}
 		}
 	}
 
 	reply := &pb.DevicesInfoReply{
+		CPUs: CPUs,
 		GPUs: GPUs,
 	}
 
