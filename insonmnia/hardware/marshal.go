@@ -73,7 +73,7 @@ func GPUFromProto(g []*sonm.GPUDevice) ([]gpu.Device, error) {
 }
 
 func HardwareFromProto(cap *sonm.Capabilities) (*Hardware, error) {
-	c, err := cpu.UnmarshalProto(cap.Cpu)
+	c, err := cpu.UnmarshalDevices(cap.Cpu)
 	if err != nil {
 		return nil, err
 	}
