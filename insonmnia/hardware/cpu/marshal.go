@@ -16,15 +16,15 @@ func Marshal(d []Device) []*sonm.CPUDevice {
 
 func (d *Device) Marshal() *sonm.CPUDevice {
 	return &sonm.CPUDevice{
-		Num: d.CPU,
-		VendorId: d.VendorID,
-		Model: d.Model,
-		ModelName: d.ModelName,
-		Cores: d.Cores,
+		Num:            d.CPU,
+		VendorId:       d.VendorID,
+		Model:          d.Model,
+		ModelName:      d.ModelName,
+		Cores:          d.Cores,
 		ClockFrequency: d.Mhz,
-		CacheSize: d.CacheSize,
-		Stepping: d.Stepping,
-		Flags: d.Flags,
+		CacheSize:      d.CacheSize,
+		Stepping:       d.Stepping,
+		Flags:          d.Flags,
 	}
 }
 
@@ -45,13 +45,13 @@ func Unmarshal(proto *sonm.CPUDevice) (Device, error) {
 	info := cpu.InfoStat{
 		CPU:       proto.GetNum(),
 		VendorID:  proto.GetVendorId(),
-		Model: 	   proto.GetModel(),
+		Model:     proto.GetModel(),
 		ModelName: proto.GetModelName(),
 		Cores:     proto.GetCores(),
-		Mhz: proto.GetClockFrequency(),
+		Mhz:       proto.GetClockFrequency(),
 		CacheSize: proto.GetCacheSize(),
-		Stepping: proto.GetStepping(),
-		Flags: proto.GetFlags(),
+		Stepping:  proto.GetStepping(),
+		Flags:     proto.GetFlags(),
 	}
 
 	return Device(info), nil

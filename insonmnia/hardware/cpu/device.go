@@ -5,7 +5,6 @@ import (
 	"github.com/shirou/gopsutil/cpu"
 )
 
-
 // Device describes a CPU device.
 type Device cpu.InfoStat
 
