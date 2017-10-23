@@ -41,7 +41,7 @@ func printWorkerList(cmd *cobra.Command, lr *pb.ListReply) {
 
 func printCpuInfo(cmd *cobra.Command, cap *pb.Capabilities) {
 	for i, cpu := range cap.Cpu {
-		cmd.Printf("    CPU%d: %d x %s\r\n", i, cpu.GetCores(), cpu.GetName())
+		cmd.Printf("    CPU%d: %d x %s\r\n", i, cpu.GetCores(), cpu.GetModelName())
 	}
 }
 

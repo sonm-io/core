@@ -1,27 +1,27 @@
 package hardware
 
 import (
-	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
+	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 )
 
 // Hardware accumulates the finest hardware information about system the miner
 // is running on.
 type Hardware struct {
-	CPU    []cpu.InfoStat
+	CPU    []cpu.Device
 	Memory *mem.VirtualMemoryStat
 	GPU    []gpu.Device
 }
 
 // LogicalCPUCount returns the number of logical CPUs in the system.
 func (h *Hardware) LogicalCPUCount() int {
-	res := 0
+	count := 0
 	for _, c := range h.CPU {
-		res += int(c.Cores)
+		count += int(c.Cores)
 	}
 
-	return res
+	return count
 }
 
 // TotalMemory returns the total number of bytes.
@@ -40,7 +40,7 @@ type HardwareInfo interface {
 	// This includes vendor name, model name, number of cores, cache info,
 	// instruction flags and many others to be able to identify and to properly
 	// account the CPU.
-	CPU() ([]cpu.InfoStat, error)
+	CPU() ([]cpu.Device, error)
 
 	// Memory returns information about system memory.
 	//
@@ -58,8 +58,8 @@ type HardwareInfo interface {
 type hardwareInfo struct {
 }
 
-func (*hardwareInfo) CPU() ([]cpu.InfoStat, error) {
-	return cpu.Info()
+func (*hardwareInfo) CPU() ([]cpu.Device, error) {
+	return cpu.GetCPUDevices()
 }
 
 func (h *hardwareInfo) Memory() (*mem.VirtualMemoryStat, error) {
