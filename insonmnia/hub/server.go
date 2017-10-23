@@ -1007,7 +1007,7 @@ func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
 	miner.Close()
 
 	h.mu.Lock()
-	delete(h.miners, conn.RemoteAddr().String())
+	delete(h.miners, miner.ID())
 	h.mu.Unlock()
 }
 
