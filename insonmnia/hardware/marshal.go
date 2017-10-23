@@ -1,10 +1,6 @@
 package hardware
 
 import (
-	"bytes"
-	"encoding/json"
-
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
@@ -13,9 +9,9 @@ import (
 
 func (h *Hardware) IntoProto() *sonm.Capabilities {
 	return &sonm.Capabilities{
-		Cpu: cpu.Marshal(h.CPU),
+		Cpu: cpu.MarshalDevices(h.CPU),
 		Mem: MemoryIntoProto(h.Memory),
-		Gpu: GPUIntoProto(h.GPU),
+		Gpu: gpu.MarshalDevices(h.GPU),
 	}
 }
 
@@ -32,46 +28,6 @@ func MemoryFromProto(m *sonm.RAMDevice) (*mem.VirtualMemoryStat, error) {
 	}, nil
 }
 
-func GPUIntoProto(devices []gpu.Device) []*sonm.GPUDevice {
-	result := make([]*sonm.GPUDevice, 0)
-
-	for _, device := range devices {
-		dump, err := json.Marshal(device)
-		if err != nil {
-			continue
-		}
-		proto := &sonm.GPUDevice{}
-		if err := jsonpb.Unmarshal(bytes.NewReader(dump), proto); err != nil {
-			continue
-		}
-
-		result = append(result, proto)
-	}
-
-	return result
-}
-
-func GPUFromProto(g []*sonm.GPUDevice) ([]gpu.Device, error) {
-	result := []gpu.Device{}
-
-	for _, i := range g {
-		device, err := gpu.NewDevice(
-			i.GetName(),
-			i.GetVendorName(),
-			i.GetMaxClockFrequency(),
-			i.GetMaxMemorySize(),
-			gpu.WithVendorId(uint(i.GetVendorId())),
-			gpu.WithOpenClDeviceVersionSpec(i.GetOpenCLDeviceVersionMajor(), i.GetOpenCLDeviceVersionMinor()),
-		)
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, device)
-	}
-
-	return result, nil
-}
-
 func HardwareFromProto(cap *sonm.Capabilities) (*Hardware, error) {
 	c, err := cpu.UnmarshalDevices(cap.Cpu)
 	if err != nil {
@@ -83,7 +39,7 @@ func HardwareFromProto(cap *sonm.Capabilities) (*Hardware, error) {
 		return nil, err
 	}
 
-	g, err := GPUFromProto(cap.Gpu)
+	g, err := gpu.UnmarshalDevices(cap.Gpu)
 	if err != nil {
 		return nil, err
 	}

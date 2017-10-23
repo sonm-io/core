@@ -5,7 +5,7 @@ import (
 	"github.com/sonm-io/core/proto"
 )
 
-func Marshal(d []Device) []*sonm.CPUDevice {
+func MarshalDevices(d []Device) []*sonm.CPUDevice {
 	devices := make([]*sonm.CPUDevice, 0, len(d))
 	for _, device := range d {
 		devices = append(devices, device.Marshal())

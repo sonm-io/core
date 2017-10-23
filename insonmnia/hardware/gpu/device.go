@@ -1,7 +1,6 @@
 package gpu
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -130,18 +129,6 @@ func (d *device) OpenCLDeviceVersionMinor() int {
 
 func (d *device) Hash() []byte {
 	return structhash.Md5(d.d, 1)
-}
-
-func (d *device) MarshalJSON() ([]byte, error) {
-	return json.Marshal(map[string]interface{}{
-		"name":                     d.Name(),
-		"vendorId":                 d.VendorId(),
-		"vendorName":               d.VendorName(),
-		"maxMemorySize":            d.MaxMemorySize(),
-		"maxClockFrequency":        d.MaxClockFrequency(),
-		"openCLDeviceVersionMajor": d.OpenCLDeviceVersionMajor(),
-		"openCLDeviceVersionMinor": d.OpenCLDeviceVersionMinor(),
-	})
 }
 
 // GetGPUDevices returns a list of available GPU devices on the machine.
