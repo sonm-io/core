@@ -6,7 +6,7 @@ import (
 )
 
 func Marshal(d []Device) []*sonm.CPUDevice {
-	devices := make([]*sonm.CPUDevice, len(d))
+	devices := make([]*sonm.CPUDevice, 0, len(d))
 	for _, device := range d {
 		devices = append(devices, device.Marshal())
 	}
@@ -28,8 +28,8 @@ func (d *Device) Marshal() *sonm.CPUDevice {
 	}
 }
 
-func UnmarshalProto(d []*sonm.CPUDevice) ([]Device, error) {
-	devices := make([]Device, len(d))
+func UnmarshalDevices(d []*sonm.CPUDevice) ([]Device, error) {
+	devices := make([]Device, 0, len(d))
 	for _, device := range d {
 		dev, err := Unmarshal(device)
 		if err != nil {
