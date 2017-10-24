@@ -1,8 +1,6 @@
 package task_config
 
 import (
-	"time"
-
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 )
@@ -39,16 +37,6 @@ type SlotConfig struct {
 }
 
 func (c *SlotConfig) IntoSlot() (*structs.Slot, error) {
-	since, err := time.Parse(time.RFC3339, c.Duration.Since)
-	if err != nil {
-		return nil, err
-	}
-
-	until, err := time.Parse(time.RFC3339, c.Duration.Until)
-	if err != nil {
-		return nil, err
-	}
-
 	networkType, err := structs.ParseNetworkType(c.Resources.Network.Type)
 	if err != nil {
 		return nil, err
@@ -60,12 +48,6 @@ func (c *SlotConfig) IntoSlot() (*structs.Slot, error) {
 	}
 
 	return structs.NewSlot(&sonm.Slot{
-		StartTime: &sonm.Timestamp{
-			Seconds: int64(since.Unix()),
-		},
-		EndTime: &sonm.Timestamp{
-			Seconds: int64(until.Unix()),
-		},
 		BuyerRating:    c.Rating.Buyer,
 		SupplierRating: c.Rating.Supplier,
 		Resources: &sonm.Resources{

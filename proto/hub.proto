@@ -28,32 +28,21 @@ service Hub {
     rpc ProposeDeal(DealRequest) returns (Empty) {}
     rpc DiscoverHub(DiscoverHubRequest) returns (Empty) {}
 
+    // Device configuration API.
+
     // Devices returns list of all available devices that this Hub awares of
     // with tieir full description.
-    rpc Devices(Empty) returns (DevicesInfoReply) {}
-
+    rpc Devices(Empty) returns (DevicesReply) {}
     // GetDeviceProperties allows to obtain previously assigned resource
     // properties for a given device.
+    // TODO: Just string?
     rpc GetDeviceProperties(ID) returns (GetDevicePropertiesReply) {}
-
     // SetDeviceProperties method allows to specify additional resource
     // properties for a device specified by its ID.
     // This may include GPU's capability to execute a well-known work such as
     // Ethereum mining etc.
     // Note, that this method overrides all previously specified properties.
     rpc SetDeviceProperties(SetDevicePropertiesRequest) returns (Empty) {}
-
-    // GetSlots allows to obtain previously assigned slots from for a given
-    // miner.
-    rpc GetSlots(ID) returns (GetSlotsReply) {}
-    // GetAllSlots returns slots assigned on all Workers on the Hub
-    rpc GetAllSlots(Empty) returns (GetAllSlotsReply) {}
-    // AddSlot allows to assign a new slot for a given miner.
-    // This method can fail if either there are no resources left on a miner
-    // or it has been previourly assigned for specified time duration.
-    rpc AddSlot(AddSlotRequest) returns (Empty) {}
-    // RemoveSlot removes the speified slot if fully matches.
-    rpc RemoveSlot(RemoveSlotRequest) returns (Empty) {}
 
     // GetRegistredWorkers returns a list of Worker IDs that
     // allowed to connet to the Hub
@@ -64,6 +53,17 @@ service Hub {
     // RegisterWorkers deny Worker with given ID
     // to connect to the Hub
     rpc UnregisterWorker(ID) returns (Empty) {}
+
+    // Slot management.
+
+    // GetSlots allows to obtain previously assigned slots for the Hub.
+    rpc Slots(Empty) returns (SlotsReply) {}
+    // AddSlot allows to assign a new slot.
+    // This method can fail if either there are no such resources found or it
+    // has been previourly assigned.
+    rpc InsertSlot(Slot) returns (Empty) {}
+    // RemoveSlot removes the speified slot if fully matches.
+    rpc RemoveSlot(Slot) returns (Empty) {}
 }
 
 message ListReply {
@@ -119,7 +119,7 @@ message SetDevicePropertiesRequest {
     map<string, double> properties = 2;
 }
 
-message GetSlotsReply {
+message SlotsReply {
     repeated Slot slot = 1;
 }
 
@@ -167,7 +167,7 @@ message GPUDeviceInfo {
     GPUDevice device = 2;
 }
 
-message DevicesInfoReply {
+message DevicesReply {
     // CPU unique ID -> Info.
     map<string, CPUDeviceInfo> CPUs = 1;
     // GPU unique ID -> Info.
