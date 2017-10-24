@@ -192,7 +192,7 @@ func NewTestServer() (*TestServer, error) {
 }
 
 func NewTestServerConfig(cb ServerConfigCallback) (*TestServer, error) {
-	return NewTestServerConfigT(nil, cb)
+	return newTestServerConfigT(nil, cb)
 }
 
 // NewTestServerConfig creates a new TestServer, and makes a call to an optional
