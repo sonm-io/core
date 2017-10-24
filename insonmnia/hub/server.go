@@ -40,6 +40,7 @@ import (
 var (
 	ErrInvalidOrderType = status.Errorf(codes.InvalidArgument, "invalid order type")
 	ErrAskNotFound      = status.Errorf(codes.NotFound, "ask not found")
+	ErrDeviceNotFound   = status.Errorf(codes.NotFound, "device not found")
 	ErrMinerNotFound    = status.Errorf(codes.NotFound, "miner not found")
 	ErrUnimplemented    = status.Errorf(codes.Unimplemented, "not implemented yet")
 )
@@ -93,7 +94,11 @@ type Hub struct {
 
 	eth    ETH
 	market Market
+
+	deviceProperties map[string]DeviceProperties
 }
+
+type DeviceProperties map[string]float64
 
 // Ping should be used as Healthcheck for Hub
 func (h *Hub) Ping(ctx context.Context, _ *pb.Empty) (*pb.PingReply, error) {
@@ -630,6 +635,9 @@ func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (
 }
 
 func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesInfoReply, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
 	CPUs := map[string]*pb.CPUDeviceInfo{}
 	for id, miner := range h.miners {
 		for _, cpu := range miner.capabilities.CPU {
@@ -670,26 +678,26 @@ func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesInfoRe
 	return reply, nil
 }
 
-func (h *Hub) GetMinerProperties(ctx context.Context, request *pb.ID) (*pb.GetMinerPropertiesReply, error) {
+func (h *Hub) GetDeviceProperties(ctx context.Context, request *pb.ID) (*pb.GetDevicePropertiesReply, error) {
 	log.G(h.ctx).Info("handling GetMinerProperties request", zap.Any("req", request))
 
-	miner, exists := h.getMinerByID(request.Id)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	properties, exists := h.deviceProperties[request.Id]
 	if !exists {
-		return nil, ErrMinerNotFound
+		return nil, ErrDeviceNotFound
 	}
 
-	return &pb.GetMinerPropertiesReply{Properties: miner.MinerProperties()}, nil
+	return &pb.GetDevicePropertiesReply{Properties: properties}, nil
 }
 
-func (h *Hub) SetMinerProperties(ctx context.Context, request *pb.SetMinerPropertiesRequest) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling SetMinerProperties request", zap.Any("req", request))
+func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDevicePropertiesRequest) (*pb.Empty, error) {
+	log.G(h.ctx).Info("handling SetDeviceProperties request", zap.Any("req", request))
 
-	miner, exists := h.getMinerByID(request.ID)
-	if !exists {
-		return nil, ErrMinerNotFound
-	}
-
-	miner.SetMinerProperties(MinerProperties(request.Properties))
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.deviceProperties[request.ID] = DeviceProperties(request.Properties)
 
 	return &pb.Empty{}, nil
 }
@@ -868,6 +876,8 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 
 		eth:    eth,
 		market: market,
+
+		deviceProperties: make(map[string]DeviceProperties),
 	}
 
 	interceptor := h.onRequest
