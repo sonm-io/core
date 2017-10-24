@@ -85,11 +85,12 @@ service HubManagement {
 
     // GetMinerProperties allows to obtain previously assigned resource
     // properties for a given miner
-    rpc GetWorkerProperties(ID) returns (GetMinerPropertiesReply) {}
+    rpc GetWorkerProperties(ID) returns (GetDevicePropertiesReply) {}
+
     // SetMinerProperties method allows to specify additional resource
     // properties for a miner specified by its ID
     // Note, that this method overrides all previously specified properties.
-    rpc SetWorkerProperties(SetMinerPropertiesRequest) returns (Empty) {}
+    rpc SetWorkerProperties(SetDevicePropertiesRequest) returns (Empty) {}
 
     // GetAskPlans allows to obtain previously assigned Ask Plans from for a given worker.
     rpc GetAskPlans(Empty) returns (GetAllSlotsReply) {}

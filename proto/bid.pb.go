@@ -29,8 +29,8 @@ It has these top-level messages:
 	HubStartTaskReply
 	HubStatusReply
 	DealRequest
-	GetMinerPropertiesReply
-	SetMinerPropertiesRequest
+	GetDevicePropertiesReply
+	SetDevicePropertiesRequest
 	GetSlotsReply
 	GetAllSlotsReply
 	AddSlotRequest

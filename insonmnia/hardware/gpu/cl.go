@@ -181,3 +181,7 @@ func (d *clDevice) deviceVersion() (string, error) {
 func (d *clDevice) deviceMaxClockFrequency() (uint, error) {
 	return d.getInfoUint(C.CL_DEVICE_MAX_CLOCK_FREQUENCY)
 }
+
+func (d *clDevice) deviceMaxComputeUnits() (uint, error) {
+	return d.getInfoUint(C.CL_DEVICE_MAX_COMPUTE_UNITS)
+}
