@@ -6,6 +6,7 @@ import (
 	"github.com/jinzhu/configor"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -17,7 +18,7 @@ type Config interface {
 	ListenAddress() string
 	// MarketEndpoint is Marketplace gRPC endpoint
 	MarketEndpoint() string
-	// HubEndpoint is Hub's gRPC endpoint (maybe empty)
+	// HubEndpoint is Hub's gRPC endpoint (not required)
 	HubEndpoint() string
 	// LogLevel return log verbosity
 	LogLevel() int
@@ -91,47 +92,36 @@ type Node struct {
 	ctx  context.Context
 	conf Config
 	lis  net.Listener
+	srv  *grpc.Server
 }
 
 // New creates new Local Node instance
+// also method starts internal gRPC client connections
+// to the external services like Market and Hub
 func New(ctx context.Context, c Config) (*Node, error) {
 	lis, err := net.Listen("tcp", c.ListenAddress())
 	if err != nil {
 		return nil, err
 	}
 
-	return &Node{
-		lis:  lis,
-		conf: c,
-		ctx:  ctx,
-	}, nil
-}
-
-// Serve binds gRPC services and start it
-// also method starts internal gRPC client connections
-// to the external services like Market and Hub
-func (n *Node) Serve() error {
-	srv := grpc.NewServer(
-		grpc.RPCCompressor(grpc.NewGZIPCompressor()),
-		grpc.RPCDecompressor(grpc.NewGZIPDecompressor()))
-
+	srv := util.MakeGrpcServer()
 	// register hub connection if hub addr is set
-	if n.conf.HubEndpoint() != "" {
-		hub, err := newHubAPI(n.ctx, n.conf)
+	if c.HubEndpoint() != "" {
+		hub, err := newHubAPI(ctx, c)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		pb.RegisterHubManagementServer(srv, hub)
-		log.G(n.ctx).Info("hub service registered", zap.String("endpt", n.conf.HubEndpoint()))
+		log.G(ctx).Info("hub service registered", zap.String("endpt", c.HubEndpoint()))
 	}
 
-	market, err := newMarketAPI(n.ctx, n.conf)
+	market, err := newMarketAPI(ctx, c)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	pb.RegisterMarketServer(srv, market)
-	log.G(n.ctx).Info("market service registered", zap.String("endpt", n.conf.MarketEndpoint()))
+	log.G(ctx).Info("market service registered", zap.String("endpt", c.MarketEndpoint()))
 
 	deals := newDealsAPI()
 	pb.RegisterDealManagementServer(srv, deals)
@@ -139,5 +129,15 @@ func (n *Node) Serve() error {
 	tasks := newTasksAPI()
 	pb.RegisterTaskManagementServer(srv, tasks)
 
-	return srv.Serve(n.lis)
+	return &Node{
+		lis:  lis,
+		conf: c,
+		ctx:  ctx,
+		srv:  srv,
+	}, nil
+}
+
+// Serve binds gRPC services and start it
+func (n *Node) Serve() error {
+	return n.srv.Serve(n.lis)
 }

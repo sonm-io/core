@@ -444,6 +444,38 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
+func (h *Hub) TaskList(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
+	log.G(h.ctx).Info("handling TaskList request")
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// map workerID to []Task
+	reply := &pb.TaskListReply{Info: map[string]*pb.TaskListReply_TaskInfo{}}
+
+	for workerID, worker := range h.miners {
+		worker.status_mu.Lock()
+		taskStatuses := pb.StatusMapReply{Statuses: worker.status_map}
+		worker.status_mu.Unlock()
+
+		// maps TaskID to TaskStatus
+		info := &pb.TaskListReply_TaskInfo{Tasks: map[string]*pb.TaskStatusReply{}}
+
+		for taskID := range taskStatuses.GetStatuses() {
+			taskInfo, err := worker.Client.TaskDetails(ctx, &pb.ID{Id: taskID})
+			if err != nil {
+				return nil, err
+			}
+
+			info.Tasks[taskID] = taskInfo
+		}
+
+		reply.Info[workerID] = info
+
+	}
+
+	return reply, nil
+}
+
 func (h *Hub) MinerStatus(ctx context.Context, request *pb.ID) (*pb.StatusMapReply, error) {
 	log.G(h.ctx).Info("handling MinerStatus request", zap.Any("req", request))
 
@@ -617,6 +649,28 @@ func (h *Hub) SetMinerProperties(ctx context.Context, request *pb.SetMinerProper
 	miner.SetMinerProperties(MinerProperties(request.Properties))
 
 	return &pb.Empty{}, nil
+}
+
+func (h *Hub) GetAllSlots(ctx context.Context, _ *pb.Empty) (*pb.GetAllSlotsReply, error) {
+	log.G(h.ctx).Info("handling GetAllSlots request")
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	reply := &pb.GetAllSlotsReply{
+		Slots: map[string]*pb.GetAllSlotsReply_SlotList{},
+	}
+
+	for workerID, worker := range h.miners {
+		slots := []*pb.Slot{}
+		workerSlots := worker.GetSlots()
+		for _, s := range workerSlots {
+			slots = append(slots, s.Unwrap())
+		}
+		reply.Slots[workerID] = &pb.GetAllSlotsReply_SlotList{Slot: slots}
+
+	}
+	return reply, nil
 }
 
 func (h *Hub) GetSlots(ctx context.Context, request *pb.ID) (*pb.GetSlotsReply, error) {

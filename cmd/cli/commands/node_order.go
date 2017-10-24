@@ -2,15 +2,14 @@ package commands
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 
 	ds "github.com/c2h5oh/datasize"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 )
 
 func init() {
@@ -22,32 +21,39 @@ func init() {
 }
 
 var nodeOrderRootCmd = &cobra.Command{
-	Use:     "ask-plan",
-	Short:   "Operations with ask order plan",
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "ask-plan",
+	Short: "Operations with ask order plan",
 }
 
-func printAskList(cmd *cobra.Command, slots *pb.GetSlotsReply) {
+func printAskList(cmd *cobra.Command, slots *pb.GetAllSlotsReply) {
 	if isSimpleFormat() {
-		if len(slots.GetSlot()) == 0 {
+		slots := slots.GetSlots()
+		if len(slots) == 0 {
 			cmd.Printf("No Ask Order configured\r\n")
 			return
 		}
 
-		for _, slot := range slots.GetSlot() {
-			cmd.Printf("CPU: %d Cores\r\n", slot.Resources.CpuCores)
-			cmd.Printf("GPU: %d Devices\r\n", slot.Resources.GpuCount)
-			cmd.Printf("RAM: %s\r\n", ds.ByteSize(slot.Resources.RamBytes).HR())
-
-			cmd.Printf("Net: %s\r\n", slot.Resources.NetworkType.String())
-
-			cmd.Printf("    %s IN\r\n", ds.ByteSize(slot.Resources.NetTrafficIn).HR())
-			cmd.Printf("    %s OUT\r\n", ds.ByteSize(slot.Resources.NetTrafficOut).HR())
-
-			if slot.Geo != nil && slot.Geo.City != "" && slot.Geo.Country != "" {
-				cmd.Printf("Geo: %s, %s\r\n", slot.Geo.City, slot.Geo.Country)
+		for workerID, workerSlots := range slots {
+			if len(workerSlots.Slot) == 0 {
+				//
+				cmd.Printf("Worker \"%s\" has no slots\r\n", workerID)
+				continue
 			}
-			cmd.Println("")
+
+			cmd.Printf("Slots on Worker \"%s\":\r\n", workerID)
+			for _, slot := range workerSlots.Slot {
+				cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
+				cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
+				cmd.Printf(" RAM: %s\r\n", ds.ByteSize(slot.Resources.RamBytes).HR())
+				cmd.Printf(" Net: %s\r\n", slot.Resources.NetworkType.String())
+				cmd.Printf("     %s IN\r\n", ds.ByteSize(slot.Resources.NetTrafficIn).HR())
+				cmd.Printf("     %s OUT\r\n", ds.ByteSize(slot.Resources.NetTrafficOut).HR())
+
+				if slot.Geo != nil && slot.Geo.City != "" && slot.Geo.Country != "" {
+					cmd.Printf(" Geo: %s, %s\r\n", slot.Geo.City, slot.Geo.Country)
+				}
+				cmd.Println("")
+			}
 		}
 	} else {
 		b, _ := json.Marshal(slots)
@@ -56,9 +62,8 @@ func printAskList(cmd *cobra.Command, slots *pb.GetSlotsReply) {
 }
 
 var nodeOrderListCmd = &cobra.Command{
-	Use:     "list",
-	Short:   "Show current ask plans",
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "list",
+	Short: "Show current ask plans",
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -77,10 +82,9 @@ var nodeOrderListCmd = &cobra.Command{
 }
 
 var nodeOrderCreateCmd = &cobra.Command{
-	Use:     "create <worker_id> <plan.yaml>",
-	Short:   "Create new plan",
-	Args:    cobra.MinimumNArgs(2),
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "create <worker_id> <plan.yaml>",
+	Short: "Create new plan",
+	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -108,10 +112,9 @@ var nodeOrderCreateCmd = &cobra.Command{
 }
 
 var nodeOrderRemoveCmd = &cobra.Command{
-	Use:     "remove <plan_id>",
-	Short:   "Remove plan",
-	Args:    cobra.MinimumNArgs(1),
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "remove <plan_id>",
+	Short: "Remove plan",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		_, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -131,34 +134,9 @@ var nodeOrderRemoveCmd = &cobra.Command{
 	},
 }
 
-func loadSlotFile(path string) (*structs.Slot, error) {
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg := task_config.SlotConfig{}
-	err = yaml.Unmarshal(buf, &cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	slot, err := cfg.IntoSlot()
-	if err != nil {
-		return nil, err
-	}
-
-	return slot, nil
-}
-
 func loadOrderFile(path string) (*structs.Order, error) {
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
 	cfg := task_config.OrderConfig{}
-	err = yaml.Unmarshal(buf, &cfg)
+	err := util.LoadYamlFile(path, &cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -169,4 +147,19 @@ func loadOrderFile(path string) (*structs.Order, error) {
 	}
 
 	return order, nil
+}
+
+func loadSlotFile(path string) (*structs.Slot, error) {
+	cfg := task_config.SlotConfig{}
+	err := util.LoadYamlFile(path, &cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	slot, err := cfg.IntoSlot()
+	if err != nil {
+		return nil, err
+	}
+
+	return slot, nil
 }

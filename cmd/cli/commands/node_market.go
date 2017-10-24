@@ -29,9 +29,8 @@ func init() {
 }
 
 var nodeMarketRootCmd = &cobra.Command{
-	Use:     "market",
-	Short:   "Interact with Marketplace",
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "market",
+	Short: "Interact with Marketplace",
 }
 
 func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
@@ -71,10 +70,9 @@ func printOrderCreated(cmd *cobra.Command, order *pb.Order) {
 }
 
 var nodeMarketSearchCmd = &cobra.Command{
-	Use:     "search <slot.yaml>",
-	Short:   "Place new Bid order on Marketplace",
-	Args:    cobra.MinimumNArgs(1),
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "search <slot.yaml>",
+	Short: "Place new Bid order on Marketplace",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		market, err := NewMarketInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -107,10 +105,9 @@ var nodeMarketSearchCmd = &cobra.Command{
 }
 
 var nodeMarketShowCmd = &cobra.Command{
-	Use:     "show <order_id>",
-	Short:   "Show order details",
-	Args:    cobra.MinimumNArgs(1),
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "show <order_id>",
+	Short: "Show order details",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		market, err := NewMarketInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -130,10 +127,9 @@ var nodeMarketShowCmd = &cobra.Command{
 }
 
 var nodeMarketCreteCmd = &cobra.Command{
-	Use:     "create <order.yaml>",
-	Short:   "Place new Bid order on Marketplace",
-	Args:    cobra.MinimumNArgs(1),
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "create <order.yaml>",
+	Short: "Place new Bid order on Marketplace",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		market, err := NewMarketInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -159,10 +155,9 @@ var nodeMarketCreteCmd = &cobra.Command{
 }
 
 var nodeMarketCancelCmd = &cobra.Command{
-	Use:     "cancel <order_id>",
-	Short:   "Cancel order on Marketplace",
-	Args:    cobra.MinimumNArgs(1),
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "cancel <order_id>",
+	Short: "Cancel order on Marketplace",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		market, err := NewMarketInteractor(nodeAddress, timeout)
 		if err != nil {

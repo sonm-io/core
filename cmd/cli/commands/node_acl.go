@@ -17,9 +17,8 @@ func init() {
 }
 
 var nodeACLRootCmd = &cobra.Command{
-	Use:     "acl",
-	Short:   "Operations with Access Control Lists",
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "acl",
+	Short: "Operations with Access Control Lists",
 }
 
 func printWorkerAclList(cmd *cobra.Command, list *pb.GetRegistredWorkersReply) {
@@ -35,9 +34,8 @@ func printWorkerAclList(cmd *cobra.Command, list *pb.GetRegistredWorkersReply) {
 }
 
 var nodeACLListCmd = &cobra.Command{
-	Use:     "list",
-	Short:   "Show current ACLs",
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "list",
+	Short: "Show current ACLs",
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -56,10 +54,9 @@ var nodeACLListCmd = &cobra.Command{
 }
 
 var nodeACLRegisterCmd = &cobra.Command{
-	Use:     "register <worker_id>",
-	Short:   "Register new Worker",
-	Args:    cobra.MinimumNArgs(1),
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "register <worker_id>",
+	Short: "Register new Worker",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -78,10 +75,9 @@ var nodeACLRegisterCmd = &cobra.Command{
 }
 
 var nodeACLUnregisterCmd = &cobra.Command{
-	Use:     "unregister <worker_id>",
-	Short:   "Unregister known worker",
-	Args:    cobra.MinimumNArgs(1),
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "unregister <worker_id>",
+	Short: "Unregister known worker",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {

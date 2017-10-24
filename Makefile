@@ -88,7 +88,7 @@ install/cli: build/cli
 
 install/node: build/node
 	@echo "+ $@"
-	cp ${CLI} ${LOCAL_NODE}
+	cp ${LOCAL_NODE} ${INSTALLDIR}
 
 install: install/bootnode install/miner install/hub install/cli
 

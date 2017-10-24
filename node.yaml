@@ -1,21 +1,24 @@
 # Local Node settings
 node:
   # address to bind Node's gRPC endpoint
+  # required
   listen_addr: 127.0.0.1:9999
 
 # Marketplace service settings
 market:
   # marketplace gRPC endpoint
+  # required
   endpoint: 127.0.0.1:9095
-
-# Hub management settings
-hub:
-  # endpoint is Hub's gRPC endpoint
-  # for client connections
-  endpoint: 172.16.1.118:10001
 
 # Logging settings.
 log:
   # The desired logging level.
   # Allowed values in range of -1 (high verbosity) to 3 (most quiet)
   level: -1
+
+# Hub management settings
+# set this if you have your own hub and want to manage it
+# hub:
+  # endpoint is Hub's monitoring gRPC endpoint
+  # for client connections
+  # endpoint: 127.0.0.1:10001
