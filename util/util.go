@@ -1,18 +1,19 @@
 package util
 
 import (
-	"fmt"
-	"net"
-
 	"bytes"
 	"crypto/ecdsa"
 	"errors"
-	"github.com/ethereum/go-ethereum/crypto"
+	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os/user"
 	"runtime"
 	"strconv"
+
+	"github.com/ethereum/go-ethereum/crypto"
+	"gopkg.in/yaml.v2"
 )
 
 // GetLocalIP find local non-loopback ip addr
@@ -100,4 +101,18 @@ func PubKeyToString(key ecdsa.PublicKey) string {
 
 func PubKeyToAddr(key ecdsa.PublicKey) string {
 	return crypto.PubkeyToAddress(key).String()
+}
+
+func LoadYamlFile(from string, to interface{}) error {
+	buf, err := ioutil.ReadFile(from)
+	if err != nil {
+		return err
+	}
+
+	err = yaml.Unmarshal(buf, to)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

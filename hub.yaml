@@ -1,13 +1,13 @@
 # An endpoint for miner connections.
 # allowed format is "ip:port" to bind Hub to given IP address
 # or ":port" to bind Hub to all available IPs
-endpoint: "172.16.1.118:10002"
+endpoint: ":10002"
 
 # Hub as a gateway settings. Can be omitted indicating that the Hub should not
 # be a gateway.
-# gateway:
+gateway:
   # Port range allocated for virtual services if any.
-  # ports: [32768, 33768]
+  ports: [32768, 33768]
 
 
 # Ethereum boot nodes.
@@ -20,7 +20,7 @@ monitoring:
   # An endpoint for client connections using cli
   # allowed format is "ip:port" to bind Hub to given IP address
   # or ":port" to bind Hub to all available IPs
-  endpoint: "172.16.1.118:10001"
+  endpoint: ":10001"
 
 # Logging settings.
 logging:
@@ -38,4 +38,5 @@ ethereum:
 locator:
   address: "127.0.0.1:9090"
 
-consul_enabled: true
+# enable consul for hub state sharing and fail-over
+consul_enabled: false

@@ -31,15 +31,13 @@ func printWorkerProps(cmd *cobra.Command, props map[string]string) {
 }
 
 var nodeWorkerRootCmd = &cobra.Command{
-	Use:     "worker",
-	Short:   "Operations with connected Workers",
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "worker",
+	Short: "Operations with connected Workers",
 }
 
 var nodeWorkerListCmd = &cobra.Command{
-	Use:     "list",
-	Short:   "Show connected workers list",
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "list",
+	Short: "Show connected workers list",
 	Run: func(cmd *cobra.Command, _ []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -58,10 +56,9 @@ var nodeWorkerListCmd = &cobra.Command{
 }
 
 var nodeWorkerStatusCmd = &cobra.Command{
-	Use:     "status <worker_id>",
-	Short:   "Show worker status",
-	PreRunE: checkNodeAddressIsSet,
-	Args:    cobra.MinimumNArgs(1),
+	Use:   "status <worker_id>",
+	Short: "Show worker status",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -81,10 +78,9 @@ var nodeWorkerStatusCmd = &cobra.Command{
 }
 
 var nodeWorkerGetPropsCmd = &cobra.Command{
-	Use:     "get-props <worker_id>",
-	Short:   "Get resource properties from Worker",
-	PreRunE: checkNodeAddressIsSet,
-	Args:    cobra.MinimumNArgs(1),
+	Use:   "get-props <worker_id>",
+	Short: "Get resource properties from Worker",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -104,10 +100,9 @@ var nodeWorkerGetPropsCmd = &cobra.Command{
 }
 
 var nodeWorkerSetPropsCmd = &cobra.Command{
-	Use:     "set-props <worker_id> <props.yaml>",
-	Short:   "Set resource properties for Worker",
-	PreRunE: checkNodeAddressIsSet,
-	Args:    cobra.MinimumNArgs(2),
+	Use:   "set-props <worker_id> <props.yaml>",
+	Short: "Set resource properties for Worker",
+	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {

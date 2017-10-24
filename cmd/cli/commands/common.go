@@ -44,12 +44,11 @@ var (
 	details       bool
 
 	// errors
-	errHubAddressRequired    = errors.New("--addr flag is required")
-	errNodeAddressRequired   = errors.New("--node flag is required")
-	errWorkerAddressRequired = errors.New("Worker address is required")
-	errTaskIDRequired        = errors.New("Task ID is required")
-	errTaskFileRequired      = errors.New("Task definition file is required")
-	errCannotParsePropsFile  = errors.New("Cannot parse props file")
+	errHubAddressRequired   = errors.New("--addr flag is required")
+	errWorkerIDRequired     = errors.New("worker ID is required")
+	errTaskIDRequired       = errors.New("task ID is required")
+	errTaskFileRequired     = errors.New("task definition file is required")
+	errCannotParsePropsFile = errors.New("cannot parse props file")
 )
 
 func init() {
@@ -63,9 +62,8 @@ func init() {
 }
 
 var nodeRootCmd = &cobra.Command{
-	Use:     "node",
-	Short:   "Operations with local node",
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "node",
+	Short: "Operations with local node",
 }
 
 // Root configure and return root command
@@ -79,13 +77,6 @@ func Root(c config.Config) *cobra.Command {
 func checkHubAddressIsSet(cmd *cobra.Command, _ []string) error {
 	if cmd.Flag(hubAddressFlag).Value.String() == "" {
 		return errHubAddressRequired
-	}
-	return nil
-}
-
-func checkNodeAddressIsSet(cmd *cobra.Command, _ []string) error {
-	if cmd.Flag(nodeAddressFlag).Value.String() == "" {
-		return errNodeAddressRequired
 	}
 	return nil
 }

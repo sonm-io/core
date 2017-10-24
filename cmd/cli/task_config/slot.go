@@ -3,7 +3,6 @@ package task_config
 import (
 	"time"
 
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 )
@@ -39,19 +38,6 @@ type SlotConfig struct {
 	Resources ResourcesConfig `yaml:"resources" required:"true"`
 }
 
-func ParseNetworkType(ty string) (sonm.NetworkType, error) {
-	switch ty {
-	case "NO_NETWORK":
-		return sonm.NetworkType_NO_NETWORK, nil
-	case "INCOMING":
-		return sonm.NetworkType_INCOMING, nil
-	case "OUTBOUND":
-		return sonm.NetworkType_OUTBOUND, nil
-	default:
-		return sonm.NetworkType_NO_NETWORK, errors.New("unknown network type")
-	}
-}
-
 func (c *SlotConfig) IntoSlot() (*structs.Slot, error) {
 	since, err := time.Parse(time.RFC3339, c.Duration.Since)
 	if err != nil {
@@ -63,7 +49,7 @@ func (c *SlotConfig) IntoSlot() (*structs.Slot, error) {
 		return nil, err
 	}
 
-	networkType, err := ParseNetworkType(c.Resources.Network.Type)
+	networkType, err := structs.ParseNetworkType(c.Resources.Network.Type)
 	if err != nil {
 		return nil, err
 	}

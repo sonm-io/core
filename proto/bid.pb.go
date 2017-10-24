@@ -32,9 +32,11 @@ It has these top-level messages:
 	GetMinerPropertiesReply
 	SetMinerPropertiesRequest
 	GetSlotsReply
+	GetAllSlotsReply
 	AddSlotRequest
 	RemoveSlotRequest
 	GetRegistredWorkersReply
+	TaskListReply
 	Empty
 	ID
 	PingReply
@@ -63,7 +65,6 @@ It has these top-level messages:
 	TaskInfo
 	MinerStatusMapRequest
 	TaskListRequest
-	TaskListReply
 	Deal
 	DealListRequest
 	DealListReply

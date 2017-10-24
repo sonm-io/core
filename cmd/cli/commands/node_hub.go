@@ -17,15 +17,13 @@ func init() {
 }
 
 var nodeHubRootCmd = &cobra.Command{
-	Use:     "hub",
-	Short:   "Hub management",
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "hub",
+	Short: "Hub management",
 }
 
 var nodeHubStatusCmd = &cobra.Command{
-	Use:     "status",
-	Short:   "Show hub status",
-	PreRunE: checkNodeAddressIsSet,
+	Use:   "status",
+	Short: "Show hub status",
 	Run: func(cmd *cobra.Command, _ []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {

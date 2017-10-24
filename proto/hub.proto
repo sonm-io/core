@@ -14,6 +14,8 @@ service Hub {
     rpc List(Empty) returns (ListReply) {}
     // Info returns info about given Worker
     rpc Info(ID) returns (InfoReply) {}
+    // TaskList returns info about all Tasks on all Workers on the Hub
+    rpc TaskList(Empty) returns (TaskListReply) {}
 
     rpc StartTask(HubStartTaskRequest) returns (HubStartTaskReply) {}
     rpc StopTask(ID) returns (Empty) {}
@@ -39,6 +41,8 @@ service Hub {
     // GetSlots allows to obtain previously assigned slots from for a given
     // miner.
     rpc GetSlots(ID) returns (GetSlotsReply) {}
+    // GetAllSlots returns slots assigned on all Workers on the Hub
+    rpc GetAllSlots(Empty) returns (GetAllSlotsReply) {}
     // AddSlot allows to assign a new slot for a given miner.
     // This method can fail if either there are no resources left on a miner
     // or it has been previourly assigned for specified time duration.
@@ -112,6 +116,13 @@ message GetSlotsReply {
     repeated Slot slot = 1;
 }
 
+message GetAllSlotsReply {
+    message SlotList {
+        repeated Slot slot = 1;
+    }
+    map<string, SlotList> slots = 1;
+}
+
 message AddSlotRequest {
     // Miner ID.
     string ID = 1;
@@ -126,4 +137,11 @@ message RemoveSlotRequest {
 
 message GetRegistredWorkersReply {
     repeated ID ids = 1;
+}
+
+message TaskListReply {
+    message TaskInfo {
+        map <string, TaskStatusReply> tasks = 1;
+    }
+    map<string, TaskInfo> info = 1;
 }
