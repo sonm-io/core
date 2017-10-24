@@ -661,7 +661,13 @@ func (h *Hub) RemoveSlot(ctx context.Context, request *pb.RemoveSlotRequest) (*p
 
 // New returns new Hub
 func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
+	var err error
 	ctx, cancel := context.WithCancel(ctx)
+	defer func() {
+		if err != nil {
+			cancel()
+		}
+	}()
 	ethKey, err := crypto.HexToECDSA(cfg.Eth.PrivateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "malformed ethereum private key")
