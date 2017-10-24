@@ -8,6 +8,7 @@ import (
 
 	ds "github.com/c2h5oh/datasize"
 	pb "github.com/sonm-io/core/proto"
+	"io/ioutil"
 )
 
 func init() {
@@ -156,7 +157,7 @@ var minerGetPropertiesCmd = &cobra.Command{
 			}
 		}
 
-		properties := map[string]map[string]string{}
+		properties := map[string]map[string]float64{}
 		for _, id := range IDs {
 			property, err := grpc.MinerGetProperties(ctx, id)
 			if err != nil {

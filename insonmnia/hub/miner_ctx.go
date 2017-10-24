@@ -19,8 +19,6 @@ import (
 	pb "github.com/sonm-io/core/proto"
 )
 
-type MinerProperties map[string]string
-
 var (
 	errSlotAlreadyExists = errors.New("specified slot already exists")
 	errCPUNotEnough      = errors.New("number of CPU cores requested is unable to fit system's capabilities")
@@ -50,18 +48,15 @@ type MinerCtx struct {
 	mu    sync.Mutex
 	usage map[string]*resource.Resources
 
-	// TODO (3Hren): This is placed here temporarily, because of further scheduling, which currently does not exist.
-	minerProperties MinerProperties
-	scheduler       Scheduler
+	scheduler Scheduler
 }
 
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	var (
 		m = MinerCtx{
-			conn:            conn,
-			status_map:      make(map[string]*pb.TaskStatusReply),
-			usage:           make(map[string]*resource.Resources),
-			minerProperties: MinerProperties(make(map[string]string)),
+			conn:       conn,
+			status_map: make(map[string]*pb.TaskStatusReply),
+			usage:      make(map[string]*resource.Resources),
 		}
 		err error
 	)
@@ -96,18 +91,6 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 // ID returns the miner id.
 func (m *MinerCtx) ID() string {
 	return m.uuid
-}
-
-func (m *MinerCtx) MinerProperties() MinerProperties {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.minerProperties
-}
-
-func (m *MinerCtx) SetMinerProperties(properties MinerProperties) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.minerProperties = properties
 }
 
 func (m *MinerCtx) GetSlots() []*structs.Slot {

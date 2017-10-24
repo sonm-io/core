@@ -17,8 +17,8 @@ type CliInteractor interface {
 
 	MinerList(context.Context) (*pb.ListReply, error)
 	MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error)
-	MinerGetProperties(ctx context.Context, ID string) (*pb.GetMinerPropertiesReply, error)
-	MinerSetProperties(ctx context.Context, ID string, properties map[string]string) (*pb.Empty, error)
+	MinerGetProperties(ctx context.Context, ID string) (*pb.GetDevicePropertiesReply, error)
+	MinerSetProperties(ctx context.Context, ID string, properties map[string]float64) (*pb.Empty, error)
 	MinerShowSlots(ctx context.Context, ID string) (*pb.GetSlotsReply, error)
 	MinerAddSlot(ctx context.Context, ID string, slot *structs.Slot) (*pb.Empty, error)
 
@@ -58,7 +58,7 @@ func (it *grpcInteractor) HubStatus(appCtx context.Context) (*pb.HubStatusReply,
 func (it *grpcInteractor) Devices(c context.Context) (*pb.DevicesInfoReply, error) {
 	ctx, cancel := it.ctx(c)
 	defer cancel()
-	return pb.NewHubClient(it.cc).Devices(ctx, &pb.Empty{})
+	return it.hub.Devices(ctx, &pb.Empty{})
 }
 
 func (it *grpcInteractor) MinerList(appCtx context.Context) (*pb.ListReply, error) {
@@ -75,23 +75,23 @@ func (it *grpcInteractor) MinerStatus(minerID string, appCtx context.Context) (*
 	return it.hub.Info(ctx, &req)
 }
 
-func (it *grpcInteractor) MinerGetProperties(ctx context.Context, ID string) (*pb.GetMinerPropertiesReply, error) {
+func (it *grpcInteractor) MinerGetProperties(ctx context.Context, ID string) (*pb.GetDevicePropertiesReply, error) {
 	c, cancel := it.ctx(ctx)
 	defer cancel()
 
 	req := pb.ID{Id: ID}
-	return it.hub.GetMinerProperties(c, &req)
+	return it.hub.GetDeviceProperties(c, &req)
 }
 
-func (it *grpcInteractor) MinerSetProperties(ctx context.Context, ID string, properties map[string]string) (*pb.Empty, error) {
+func (it *grpcInteractor) MinerSetProperties(ctx context.Context, ID string, properties map[string]float64) (*pb.Empty, error) {
 	c, cancel := it.ctx(ctx)
 	defer cancel()
 
-	req := pb.SetMinerPropertiesRequest{
+	req := pb.SetDevicePropertiesRequest{
 		ID:         ID,
 		Properties: properties,
 	}
-	return it.hub.SetMinerProperties(c, &req)
+	return it.hub.SetDeviceProperties(c, &req)
 }
 
 func (it *grpcInteractor) MinerShowSlots(ctx context.Context, ID string) (*pb.GetSlotsReply, error) {
@@ -162,8 +162,8 @@ type NodeHubInteractor interface {
 	RegisterWorker(id string) (*pb.Empty, error)
 	UnregisterWorker(id string) (*pb.Empty, error)
 
-	GetWorkerProperties(id string) (*pb.GetMinerPropertiesReply, error)
-	SetWorkerProperties(req *pb.SetMinerPropertiesRequest) (*pb.Empty, error)
+	GetWorkerProperties(id string) (*pb.GetDevicePropertiesReply, error)
+	SetWorkerProperties(req *pb.SetDevicePropertiesRequest) (*pb.Empty, error)
 
 	GetAskPlans() (*pb.GetAllSlotsReply, error)
 	CreateAskPlan(id string, slot *structs.Slot) (*pb.Empty, error)
@@ -223,7 +223,7 @@ func (it *hubInteractor) UnregisterWorker(id string) (*pb.Empty, error) {
 	return it.hub.UnregisterWorker(ctx, req)
 }
 
-func (it *hubInteractor) GetWorkerProperties(id string) (*pb.GetMinerPropertiesReply, error) {
+func (it *hubInteractor) GetWorkerProperties(id string) (*pb.GetDevicePropertiesReply, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
@@ -231,7 +231,7 @@ func (it *hubInteractor) GetWorkerProperties(id string) (*pb.GetMinerPropertiesR
 	return it.hub.GetWorkerProperties(ctx, req)
 }
 
-func (it *hubInteractor) SetWorkerProperties(req *pb.SetMinerPropertiesRequest) (*pb.Empty, error) {
+func (it *hubInteractor) SetWorkerProperties(req *pb.SetDevicePropertiesRequest) (*pb.Empty, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
