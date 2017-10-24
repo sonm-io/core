@@ -49,6 +49,7 @@ const leaderKey = "sonm/hub/leader"
 type Hub struct {
 	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
 	ctx              context.Context
+	cancel           context.CancelFunc
 	gateway          *gateway.Gateway
 	portPool         *gateway.PortPool
 	grpcEndpoint     string
@@ -660,6 +661,7 @@ func (h *Hub) RemoveSlot(ctx context.Context, request *pb.RemoveSlotRequest) (*p
 
 // New returns new Hub
 func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	ethKey, err := crypto.HexToECDSA(cfg.Eth.PrivateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "malformed ethereum private key")
@@ -704,6 +706,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 
 	h := &Hub{
 		ctx:          ctx,
+		cancel:       cancel,
 		gateway:      gate,
 		portPool:     portPool,
 		externalGrpc: nil,
@@ -970,6 +973,7 @@ func (h *Hub) Serve() error {
 
 // Close disposes all capabilitiesCurrent attached to the Hub
 func (h *Hub) Close() {
+	h.cancel()
 	h.externalGrpc.Stop()
 	h.minerListener.Close()
 	if h.gateway != nil {
