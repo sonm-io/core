@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-import "insonmnia.proto";
-
 package sonm;
 
 enum OrderType {
@@ -54,18 +52,14 @@ message Resources {
 // todo(all): extra discuss required
 
 message Slot {
-    // Virtual computer start of life (hour grained).
-    Timestamp startTime = 1;
-    // Virtual computer end of life (hour grained).
-    Timestamp endTime = 2;
     // Buyer’s rating. Got from Buyer’s profile for BID orders rating_supplier.
-    int64 buyerRating = 3;
+    int64 buyerRating = 1;
     // Supplier’s rating. Got from Supplier’s profile for ASK orders.
-    int64 supplierRating = 4;
+    int64 supplierRating = 2;
     // Geo represent Worker's position
-    Geo geo = 5;
+    Geo geo = 3;
     // Hardware resources requirements
-    Resources resources = 6;
+    Resources resources = 4;
 }
 
 message Order {

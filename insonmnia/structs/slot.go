@@ -48,30 +48,11 @@ func validateSlot(s *pb.Slot) error {
 		return err
 	}
 
-	if s.GetStartTime() == nil {
-		return errStartTimeRequired
-	}
-
-	if s.GetEndTime() == nil {
-		return errEndTimeRequired
-	}
-
-	if s.GetStartTime().GetSeconds() >= s.GetEndTime().GetSeconds() {
-		return errStartTimeAfterEnd
-	}
-
 	return nil
 }
 
 func (s *Slot) compareSupplierRating(two *Slot) bool {
 	return two.inner.GetSupplierRating() >= s.inner.GetSupplierRating()
-}
-
-func (s *Slot) compareTime(two *Slot) bool {
-	startOK := s.inner.GetStartTime().GetSeconds() >= two.inner.GetStartTime().GetSeconds()
-	endOK := s.inner.GetEndTime().GetSeconds() <= two.inner.GetEndTime().GetSeconds()
-
-	return startOK && endOK
 }
 
 func (s *Slot) compareCpuCoresBid(two *Slot) bool {

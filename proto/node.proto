@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "bid.proto";
 import "insonmnia.proto";
 import "miner.proto";
 import "hub.proto";
@@ -94,9 +95,10 @@ service HubManagement {
 
     // GetAskPlans allows to obtain previously assigned Ask Plans from for a given worker.
     rpc GetAskPlans(Empty) returns (GetAllSlotsReply) {}
+    rpc GetAskPlan(ID) returns (SlotsReply) {}
     // CreateAskPlan allows to create rules
     // for creating Ask orders on Marketplace
-    rpc CreateAskPlan(AddSlotRequest) returns (Empty) {}
+    rpc CreateAskPlan(Slot) returns (Empty) {}
     // RemoveAskPlan allows to remove rules
     // for creating Ask orders on Marketplace
     rpc RemoveAskPlan(ID) returns (Empty) {}

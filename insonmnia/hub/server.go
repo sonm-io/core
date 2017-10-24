@@ -95,6 +95,7 @@ type Hub struct {
 	eth    ETH
 	market Market
 
+	scheduler        Scheduler
 	deviceProperties map[string]DeviceProperties
 }
 
@@ -551,33 +552,33 @@ func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer
 
 func (h *Hub) ProposeDeal(ctx context.Context, request *pb.DealRequest) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling ProposeDeal request", zap.Any("req", request))
-
-	order, err := structs.NewOrder(request.GetOrder())
-	if err != nil {
-		return nil, err
-	}
-	if !order.IsBid() {
-		return nil, ErrInvalidOrderType
-	}
-	exists, err := h.market.OrderExists(order.GetID())
-	if err != nil {
-		return nil, err
-	}
-	if !exists {
-		return nil, ErrAskNotFound
-	}
-	miner, err := h.getMinerByOrder(order)
-	if err != nil {
-		return nil, err
-	}
-	if err := h.eth.CreatePendingDeal(order); err != nil {
-		return nil, err
-	}
-
-	if err := miner.ReserveSlot(order.GetSlot()); err != nil {
-		h.eth.RevokePendingDeal(order)
-		return nil, err
-	}
+	//
+	//order, err := structs.NewOrder(request.GetOrder())
+	//if err != nil {
+	//	return nil, err
+	//}
+	//if !order.IsBid() {
+	//	return nil, ErrInvalidOrderType
+	//}
+	//exists, err := h.market.OrderExists(order.GetID())
+	//if err != nil {
+	//	return nil, err
+	//}
+	//if !exists {
+	//	return nil, ErrAskNotFound
+	//}
+	//miner, err := h.getMinerByOrder(order)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//if err := h.eth.CreatePendingDeal(order); err != nil {
+	//	return nil, err
+	//}
+	//
+	//if err := miner.ReserveSlot(order.GetSlot()); err != nil {
+	//	h.eth.RevokePendingDeal(order)
+	//	return nil, err
+	//}
 
 	return &pb.Empty{}, nil
 }
@@ -589,52 +590,12 @@ func (h *Hub) ApproveDeal(ctx context.Context, request *pb.DealRequest) (*pb.Emp
 	return &pb.Empty{}, ErrUnimplemented
 }
 
-func (h *Hub) getMinerByOrder(order *structs.Order) (*MinerCtx, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	for id, miner := range h.miners {
-		log.G(h.ctx).Debug("checking a miner for order", zap.String("miner", id))
-		// TODO (3Hren): What if more than one miner has the same slot? Are they equal?
-		if miner.HasSlot(order.GetSlot()) {
-			return miner, nil
-		}
-	}
-
-	return nil, ErrMinerNotFound
-}
-
-func (h *Hub) findRandomMinerBySlot(slot *structs.Slot) (*MinerCtx, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	if len(h.miners) == 0 {
-		return nil, ErrMinerNotFound
-	}
-
-	rg := rand.New(rand.NewSource(time.Now().UnixNano()))
-
-	id := 0
-	var result *MinerCtx = nil
-	for _, miner := range h.miners {
-		if miner.HasSlot(slot) {
-			id++
-			threshold := 1.0 / float64(id)
-			if rg.Float64() < threshold {
-				result = miner
-			}
-		}
-	}
-
-	return result, nil
-}
-
 func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.Empty, error) {
 	h.onNewHub(request.Endpoint)
 	return &pb.Empty{}, nil
 }
 
-func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesInfoReply, error) {
+func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -670,7 +631,7 @@ func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesInfoRe
 		}
 	}
 
-	reply := &pb.DevicesInfoReply{
+	reply := &pb.DevicesReply{
 		CPUs: CPUs,
 		GPUs: GPUs,
 	}
@@ -702,65 +663,35 @@ func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDeviceProp
 	return &pb.Empty{}, nil
 }
 
-func (h *Hub) GetAllSlots(ctx context.Context, _ *pb.Empty) (*pb.GetAllSlotsReply, error) {
-	log.G(h.ctx).Info("handling GetAllSlots request")
-
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	reply := &pb.GetAllSlotsReply{
-		Slots: map[string]*pb.GetAllSlotsReply_SlotList{},
-	}
-
-	for workerID, worker := range h.miners {
-		slots := []*pb.Slot{}
-		workerSlots := worker.GetSlots()
-		for _, s := range workerSlots {
-			slots = append(slots, s.Unwrap())
-		}
-		reply.Slots[workerID] = &pb.GetAllSlotsReply_SlotList{Slot: slots}
-
-	}
-	return reply, nil
-}
-
-func (h *Hub) GetSlots(ctx context.Context, request *pb.ID) (*pb.GetSlotsReply, error) {
+func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, error) {
 	log.G(h.ctx).Info("handling GetSlots request", zap.Any("req", request))
 
-	miner, exists := h.getMinerByID(request.Id)
-	if !exists {
-		return nil, ErrMinerNotFound
-	}
-
 	result := make([]*pb.Slot, 0)
-	for _, slot := range miner.GetSlots() {
+	for _, slot := range h.scheduler.All() {
 		result = append(result, slot.Unwrap())
 	}
 
-	return &pb.GetSlotsReply{Slot: result}, nil
+	return &pb.SlotsReply{Slot: result}, nil
 }
 
-func (h *Hub) AddSlot(ctx context.Context, request *pb.AddSlotRequest) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling AddSlot request", zap.Any("req", request))
+func (h *Hub) InsertSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, error) {
+	log.G(h.ctx).Info("handling AddSlot request", zap.Any("request", request))
 
-	slot, err := structs.NewSlot(request.GetSlot())
+	// We do not perform any resource existence check here, because miners
+	// can be added dynamically.
+	slot, err := structs.NewSlot(request)
 	if err != nil {
 		return nil, err
 	}
 
-	miner, exists := h.getMinerByID(request.ID)
-	if !exists {
-		return nil, ErrMinerNotFound
-	}
-
-	if err := miner.AddSlot(slot); err != nil {
+	if err := h.scheduler.Add(slot); err != nil {
 		return nil, err
 	}
 
 	return &pb.Empty{}, nil
 }
 
-func (h *Hub) RemoveSlot(ctx context.Context, request *pb.RemoveSlotRequest) (*pb.Empty, error) {
+func (h *Hub) RemoveSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling RemoveSlot request", zap.Any("req", request))
 	return nil, ErrUnimplemented
 }

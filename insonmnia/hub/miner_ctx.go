@@ -15,7 +15,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
-	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -47,8 +46,6 @@ type MinerCtx struct {
 
 	mu    sync.Mutex
 	usage map[string]*resource.Resources
-
-	scheduler Scheduler
 }
 
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
@@ -93,36 +90,21 @@ func (m *MinerCtx) ID() string {
 	return m.uuid
 }
 
-func (m *MinerCtx) GetSlots() []*structs.Slot {
-	return m.scheduler.All()
-}
-
-func (m *MinerCtx) AddSlot(slot *structs.Slot) error {
-	resources := slot.GetResources()
-	if resources.GetCpuCores() > uint64(m.capabilities.LogicalCPUCount()) {
-		return errCPUNotEnough
-	}
-	if resources.GetMemoryInBytes() > m.capabilities.TotalMemory() {
-		return errMemoryNotEnough
-	}
-	return m.scheduler.Add(slot)
-}
-
-// ReserveSlot reserves a slot during bid/ask protocol.
-func (m *MinerCtx) ReserveSlot(slot *structs.Slot) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	return m.reserveSlot(slot)
-}
-
-func (m *MinerCtx) reserveSlot(slot *structs.Slot) error {
-	return m.scheduler.Reserve(slot)
-}
-
-func (m *MinerCtx) HasSlot(slot *structs.Slot) bool {
-	return m.scheduler.Exists(slot)
-}
+//// ReserveSlot reserves a slot during bid/ask protocol.
+//func (m *MinerCtx) ReserveSlot(slot *structs.Slot) error {
+//	m.mu.Lock()
+//	defer m.mu.Unlock()
+//
+//	return m.reserveSlot(slot)
+//}
+//
+//func (m *MinerCtx) reserveSlot(slot *structs.Slot) error {
+//	return m.scheduler.Reserve(slot)
+//}
+//
+//func (m *MinerCtx) HasSlot(slot *structs.Slot) bool {
+//	return m.scheduler.Exists(slot)
+//}
 
 func (m *MinerCtx) handshake(h *Hub) error {
 	log.G(m.ctx).Info("sending handshake to a Miner", zap.Stringer("addr", m.conn.RemoteAddr()))
