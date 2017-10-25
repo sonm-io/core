@@ -163,3 +163,13 @@ func loadSlotFile(path string) (*structs.Slot, error) {
 
 	return slot, nil
 }
+
+func loadPropsFile(path string) (map[string]string, error) {
+	props := map[string]string{}
+	err := util.LoadYamlFile(path, &props)
+	if err != nil {
+		return nil, err
+	}
+
+	return props, nil
+}

@@ -183,7 +183,7 @@ var minerSetPropertiesCmd = &cobra.Command{
 		ID := args[0]
 		path := args[1]
 
-		cfg, err := parsePropsFile(path)
+		cfg, err := loadPropsFile(path)
 		if err != nil {
 			return err
 		}

@@ -2,12 +2,10 @@ package commands
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 )
 
 func init() {
@@ -112,7 +110,7 @@ var nodeWorkerSetPropsCmd = &cobra.Command{
 		workerID := args[0]
 		propsFile := args[1]
 
-		props, err := parsePropsFile(propsFile)
+		props, err := loadPropsFile(propsFile)
 		if err != nil {
 			showError(cmd, errCannotParsePropsFile.Error(), nil)
 			os.Exit(1)
@@ -129,18 +127,4 @@ var nodeWorkerSetPropsCmd = &cobra.Command{
 			os.Exit(1)
 		}
 	},
-}
-
-func parsePropsFile(path string) (map[string]string, error) {
-	buf, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	props := map[string]string{}
-	err = yaml.Unmarshal(buf, &props)
-	if err != nil {
-		return nil, err
-	}
-	return props, nil
 }
