@@ -13,3 +13,12 @@ func ParseNetworkType(ty string) (pb.NetworkType, error) {
 
 	return pb.NetworkType(typeID), nil
 }
+
+func ParseOrderType(ty string) (pb.OrderType, error) {
+	typeID, ok := pb.OrderType_value[ty]
+	if !ok {
+		return pb.OrderType_ANY, errors.New("unknown order type")
+	}
+
+	return pb.OrderType(typeID), nil
+}

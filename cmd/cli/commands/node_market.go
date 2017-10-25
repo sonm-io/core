@@ -4,7 +4,7 @@ import (
 	"os"
 
 	ds "github.com/c2h5oh/datasize"
-	"github.com/sonm-io/core/cmd/cli/task_config"
+	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
@@ -80,7 +80,7 @@ var nodeMarketSearchCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		ordType, err := task_config.ParseOrderType(orderSearchType)
+		ordType, err := structs.ParseOrderType(orderSearchType)
 		slotPath := args[0]
 		if err != nil {
 			showError(cmd, "Cannot parse order type", err)
