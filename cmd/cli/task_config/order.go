@@ -1,7 +1,6 @@
 package task_config
 
 import (
-	"errors"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 )
@@ -16,7 +15,7 @@ type OrderConfig struct {
 }
 
 func (c *OrderConfig) IntoOrder() (*structs.Order, error) {
-	orderType, err := ParseOrderType(c.OrderType)
+	orderType, err := structs.ParseOrderType(c.OrderType)
 	if err != nil {
 		return nil, err
 	}
@@ -34,17 +33,4 @@ func (c *OrderConfig) IntoOrder() (*structs.Order, error) {
 		OrderType:  orderType,
 		Slot:       slot.Unwrap(),
 	})
-}
-
-func ParseOrderType(ty string) (sonm.OrderType, error) {
-	switch ty {
-	case "ANY":
-		return sonm.OrderType_ANY, nil
-	case "BID":
-		return sonm.OrderType_BID, nil
-	case "ASK":
-		return sonm.OrderType_ASK, nil
-	default:
-		return sonm.OrderType_ANY, errors.New("unknown order type")
-	}
 }
