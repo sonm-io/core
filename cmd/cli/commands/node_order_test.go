@@ -108,3 +108,19 @@ slot:
 	assert.Equal(t, int64(145), ord.Price)
 	assert.Equal(t, pb.OrderType_BID, ord.OrderType)
 }
+
+func TestLoadPropsYaml(t *testing.T) {
+	p, err := createTestYamlFile(`
+foo: bar
+cycles: 42`)
+	assert.NoError(t, err)
+	defer deleteTestYamlFile(p)
+
+	props, err := loadPropsFile(p)
+	assert.NoError(t, err)
+
+	assert.Contains(t, props, "foo")
+	assert.Contains(t, props, "cycles")
+	assert.Equal(t, "bar", props["foo"])
+	assert.Equal(t, "42", props["cycles"])
+}
