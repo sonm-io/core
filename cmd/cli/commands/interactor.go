@@ -12,15 +12,14 @@ import (
 type CliInteractor interface {
 	HubPing(context.Context) (*pb.PingReply, error)
 	HubStatus(context.Context) (*pb.HubStatusReply, error)
-
-	Devices(ctx context.Context) (*pb.DevicesInfoReply, error)
+	HubDevices(ctx context.Context) (*pb.DevicesReply, error)
+	HubGetProperties(ctx context.Context, ID string) (*pb.GetDevicePropertiesReply, error)
+	HubSetProperties(ctx context.Context, ID string, properties map[string]float64) (*pb.Empty, error)
+	HubShowSlots(ctx context.Context) (*pb.SlotsReply, error)
+	HubInsertSlot(ctx context.Context, slot *structs.Slot) (*pb.Empty, error)
 
 	MinerList(context.Context) (*pb.ListReply, error)
 	MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error)
-	MinerGetProperties(ctx context.Context, ID string) (*pb.GetDevicePropertiesReply, error)
-	MinerSetProperties(ctx context.Context, ID string, properties map[string]float64) (*pb.Empty, error)
-	MinerShowSlots(ctx context.Context, ID string) (*pb.GetSlotsReply, error)
-	MinerAddSlot(ctx context.Context, ID string, slot *structs.Slot) (*pb.Empty, error)
 
 	TaskList(appCtx context.Context, minerID string) (*pb.StatusMapReply, error)
 	TaskLogs(appCtx context.Context, req *pb.TaskLogsRequest) (pb.Hub_TaskLogsClient, error)
@@ -55,10 +54,42 @@ func (it *grpcInteractor) HubStatus(appCtx context.Context) (*pb.HubStatusReply,
 	return it.hub.Status(ctx, &pb.Empty{})
 }
 
-func (it *grpcInteractor) Devices(c context.Context) (*pb.DevicesInfoReply, error) {
+func (it *grpcInteractor) HubDevices(c context.Context) (*pb.DevicesReply, error) {
 	ctx, cancel := it.ctx(c)
 	defer cancel()
 	return it.hub.Devices(ctx, &pb.Empty{})
+}
+
+func (it *grpcInteractor) HubGetProperties(ctx context.Context, ID string) (*pb.GetDevicePropertiesReply, error) {
+	c, cancel := it.ctx(ctx)
+	defer cancel()
+
+	req := pb.ID{Id: ID}
+	return it.hub.GetDeviceProperties(c, &req)
+}
+
+func (it *grpcInteractor) HubSetProperties(ctx context.Context, ID string, properties map[string]float64) (*pb.Empty, error) {
+	c, cancel := it.ctx(ctx)
+	defer cancel()
+
+	req := pb.SetDevicePropertiesRequest{
+		ID:         ID,
+		Properties: properties,
+	}
+	return it.hub.SetDeviceProperties(c, &req)
+}
+
+func (it *grpcInteractor) HubShowSlots(ctx context.Context) (*pb.SlotsReply, error) {
+	c, cancel := it.ctx(ctx)
+	defer cancel()
+
+	return it.hub.Slots(c, &pb.Empty{})
+}
+
+func (it *grpcInteractor) HubInsertSlot(ctx context.Context, slot *structs.Slot) (*pb.Empty, error) {
+	c, cancel := it.ctx(ctx)
+	defer cancel()
+	return it.hub.InsertSlot(c, slot.Unwrap())
 }
 
 func (it *grpcInteractor) MinerList(appCtx context.Context) (*pb.ListReply, error) {
@@ -71,39 +102,7 @@ func (it *grpcInteractor) MinerStatus(minerID string, appCtx context.Context) (*
 	ctx, cancel := it.ctx(appCtx)
 	defer cancel()
 
-	var req = pb.ID{Id: minerID}
-	return it.hub.Info(ctx, &req)
-}
-
-func (it *grpcInteractor) MinerGetProperties(ctx context.Context, ID string) (*pb.GetDevicePropertiesReply, error) {
-	c, cancel := it.ctx(ctx)
-	defer cancel()
-
-	req := pb.ID{Id: ID}
-	return it.hub.GetDeviceProperties(c, &req)
-}
-
-func (it *grpcInteractor) MinerSetProperties(ctx context.Context, ID string, properties map[string]float64) (*pb.Empty, error) {
-	c, cancel := it.ctx(ctx)
-	defer cancel()
-
-	req := pb.SetDevicePropertiesRequest{
-		ID:         ID,
-		Properties: properties,
-	}
-	return it.hub.SetDeviceProperties(c, &req)
-}
-
-func (it *grpcInteractor) MinerShowSlots(ctx context.Context, ID string) (*pb.GetSlotsReply, error) {
-	c, cancel := it.ctx(ctx)
-	defer cancel()
-	return it.hub.GetSlots(c, &pb.ID{Id: ID})
-}
-
-func (it *grpcInteractor) MinerAddSlot(ctx context.Context, ID string, slot *structs.Slot) (*pb.Empty, error) {
-	c, cancel := it.ctx(ctx)
-	defer cancel()
-	return it.hub.AddSlot(c, &pb.AddSlotRequest{ID: ID, Slot: slot.Unwrap()})
+	return it.hub.Info(ctx, &pb.ID{Id: minerID})
 }
 
 func (it *grpcInteractor) TaskList(appCtx context.Context, minerID string) (*pb.StatusMapReply, error) {
@@ -249,12 +248,7 @@ func (it *hubInteractor) CreateAskPlan(id string, slot *structs.Slot) (*pb.Empty
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	req := &pb.AddSlotRequest{
-		ID:   id,
-		Slot: slot.Unwrap(),
-	}
-
-	return it.hub.CreateAskPlan(ctx, req)
+	return it.hub.CreateAskPlan(ctx, slot.Unwrap())
 }
 
 func (it *hubInteractor) RemoveAskPlan(id string) (*pb.Empty, error) {

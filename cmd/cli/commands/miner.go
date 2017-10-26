@@ -2,19 +2,15 @@ package commands
 
 import (
 	"encoding/json"
-
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 
 	ds "github.com/c2h5oh/datasize"
 	pb "github.com/sonm-io/core/proto"
-	"io/ioutil"
 )
 
 func init() {
-	minerRootCmd.AddCommand(minersListCmd, minerStatusCmd, minerPropertiesCmd, minerSlotCmd)
-	minerPropertiesCmd.AddCommand(minerSetPropertiesCmd, minerGetPropertiesCmd)
-	minerSlotCmd.AddCommand(minerShowSlotsCmd, minerAddSlotCmd)
+	minerRootCmd.AddCommand(minersListCmd, minerStatusCmd)
 }
 
 func printWorkerList(cmd *cobra.Command, lr *pb.ListReply) {
@@ -131,78 +127,6 @@ var minerStatusCmd = &cobra.Command{
 	},
 }
 
-var minerPropertiesCmd = &cobra.Command{
-	Use:     "properties",
-	Short:   "Miner properties",
-	PreRunE: checkHubAddressIsSet,
-}
-
-var minerGetPropertiesCmd = &cobra.Command{
-	Use:     "get MINER_ID...",
-	Short:   "Get miner(s) properties",
-	PreRunE: checkHubAddressIsSet,
-	RunE: func(cmd *cobra.Command, IDs []string) error {
-		ctx := context.Background()
-		grpc, err := NewGrpcInteractor(hubAddress, timeout)
-		if err != nil {
-			return nil
-		}
-		if len(IDs) == 0 {
-			miners, err := grpc.MinerList(ctx)
-			if err != nil {
-				return err
-			}
-			for id := range miners.Info {
-				IDs = append(IDs, id)
-			}
-		}
-
-		properties := map[string]map[string]float64{}
-		for _, id := range IDs {
-			property, err := grpc.MinerGetProperties(ctx, id)
-			if err != nil {
-				return err
-			}
-			properties[id] = property.Properties
-		}
-
-		dump, err := json.Marshal(properties)
-		if err != nil {
-			return err
-		}
-		cmd.Println(string(dump))
-		return nil
-	},
-}
-
-var minerSetPropertiesCmd = &cobra.Command{
-	Use:     "set MINER_ID PATH",
-	Short:   "Set miner properties",
-	PreRunE: checkHubAddressIsSet,
-	Args:    cobra.MinimumNArgs(2),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ID := args[0]
-		path := args[1]
-
-		cfg, err := loadPropsFile(path)
-		if err != nil {
-			return err
-		}
-
-		grpc, err := NewGrpcInteractor(hubAddress, timeout)
-		if err != nil {
-			return nil
-		}
-		_, err = grpc.MinerSetProperties(context.Background(), ID, cfg)
-		if err != nil {
-			return err
-		}
-
-		cmd.Println("OK")
-		return nil
-	},
-}
-
 func minerListCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
 	list, err := interactor.MinerList(context.Background())
 	if err != nil {
@@ -221,76 +145,4 @@ func minerStatusCmdRunner(cmd *cobra.Command, minerID string, interactor CliInte
 	}
 
 	printWorkerStatus(cmd, minerID, metrics)
-}
-
-var minerSlotCmd = &cobra.Command{
-	Use:     "slot",
-	Short:   "Show hub's virtual slots",
-	PreRunE: checkHubAddressIsSet,
-}
-
-var minerShowSlotsCmd = &cobra.Command{
-	Use:     "show",
-	Short:   "Show hub's virtual slots",
-	PreRunE: checkHubAddressIsSet,
-	RunE: func(cmd *cobra.Command, IDs []string) error {
-		grpc, err := NewGrpcInteractor(hubAddress, timeout)
-		if err != nil {
-			return err
-		}
-
-		ctx := context.Background()
-		if len(IDs) == 0 {
-			miners, err := grpc.MinerList(ctx)
-			if err != nil {
-				return err
-			}
-			for id := range miners.Info {
-				IDs = append(IDs, id)
-			}
-		}
-
-		result := map[string][]*pb.Slot{}
-		for _, id := range IDs {
-			slots, err := grpc.MinerShowSlots(context.Background(), id)
-			if err != nil {
-				return err
-			}
-
-			result[id] = slots.Slot
-		}
-
-		b, _ := json.Marshal(result)
-		cmd.Println(string(b))
-		return nil
-	},
-}
-
-var minerAddSlotCmd = &cobra.Command{
-	Use:     "add ID PATH",
-	Short:   "Add a virtual slot",
-	PreRunE: checkHubAddressIsSet,
-	Args:    cobra.MinimumNArgs(2),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		ID := args[0]
-		path := args[1]
-
-		slot, err := loadSlotFile(path)
-		if err != nil {
-			return err
-		}
-
-		grpc, err := NewGrpcInteractor(hubAddress, timeout)
-		if err != nil {
-			return err
-		}
-
-		_, err = grpc.MinerAddSlot(context.Background(), ID, slot)
-		if err != nil {
-			return err
-		}
-
-		cmd.Println("OK")
-		return nil
-	},
 }
