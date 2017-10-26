@@ -1116,7 +1116,7 @@ func (h *Hub) Serve() error {
 	return nil
 }
 
-// Close disposes all capabilitiesCurrent attached to the Hub
+// Close disposes all resources attached to the Hub
 func (h *Hub) Close() {
 	h.cancel()
 	h.externalGrpc.Stop()
