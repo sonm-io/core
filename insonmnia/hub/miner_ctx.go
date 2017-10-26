@@ -24,6 +24,8 @@ var (
 	errMemoryNotEnough   = errors.New("number of memory requested is unable to fit system's capabilities")
 )
 
+type OrderId string
+
 // MinerCtx holds all the data related to a connected Miner
 type MinerCtx struct {
 	ctx    context.Context
@@ -39,21 +41,26 @@ type MinerCtx struct {
 	conn net.Conn
 
 	// Miner name received after handshaking.
-	uuid                string
-	capabilities        *hardware.Hardware
-	capabilitiesCurrent *resource.Pool
-	router              router
+	uuid string
 
-	mu    sync.Mutex
-	usage map[string]*resource.Resources
+	// Traffic routing.
+
+	router router
+
+	// Scheduling.
+
+	mu           sync.Mutex
+	capabilities *hardware.Hardware
+	usage        *resource.Pool
+	usageMapping map[OrderId]*resource.Resources
 }
 
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
 	var (
 		m = MinerCtx{
-			conn:       conn,
-			status_map: make(map[string]*pb.TaskStatusReply),
-			usage:      make(map[string]*resource.Resources),
+			conn:         conn,
+			status_map:   make(map[string]*pb.TaskStatusReply),
+			usageMapping: make(map[OrderId]*resource.Resources),
 		}
 		err error
 	)
@@ -90,22 +97,6 @@ func (m *MinerCtx) ID() string {
 	return m.uuid
 }
 
-//// ReserveSlot reserves a slot during bid/ask protocol.
-//func (m *MinerCtx) ReserveSlot(slot *structs.Slot) error {
-//	m.mu.Lock()
-//	defer m.mu.Unlock()
-//
-//	return m.reserveSlot(slot)
-//}
-//
-//func (m *MinerCtx) reserveSlot(slot *structs.Slot) error {
-//	return m.scheduler.Reserve(slot)
-//}
-//
-//func (m *MinerCtx) HasSlot(slot *structs.Slot) bool {
-//	return m.scheduler.Exists(slot)
-//}
-
 func (m *MinerCtx) handshake(h *Hub) error {
 	log.G(m.ctx).Info("sending handshake to a Miner", zap.Stringer("addr", m.conn.RemoteAddr()))
 	resp, err := m.Client.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
@@ -132,7 +123,7 @@ func (m *MinerCtx) handshake(h *Hub) error {
 
 	m.uuid = resp.Miner
 	m.capabilities = capabilities
-	m.capabilitiesCurrent = resource.NewPool(capabilities)
+	m.usage = resource.NewPool(capabilities)
 
 	if m.router, err = h.newRouter(m.uuid, resp.NatType); err != nil {
 		log.G(m.ctx).Warn("failed to create router for a miner",
@@ -220,26 +211,26 @@ func (m *MinerCtx) ping() error {
 }
 
 // Consume consumes the specified resources from the miner.
-func (m *MinerCtx) Consume(taskID string, usage *resource.Resources) error {
+func (m *MinerCtx) Consume(Id OrderId, usage *resource.Resources) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return m.consume(taskID, usage)
+	return m.consume(Id, usage)
 }
 
-func (m *MinerCtx) consume(taskID string, usage *resource.Resources) error {
-	if err := m.capabilitiesCurrent.Consume(usage); err != nil {
+func (m *MinerCtx) consume(id OrderId, usage *resource.Resources) error {
+	if err := m.usage.Consume(usage); err != nil {
 		return err
 	}
 
 	log.G(m.ctx).Debug("consumed resources for a task",
-		zap.String("taskID", taskID),
+		zap.String("id", string(id)),
 		zap.Any("usage", usage),
-		zap.Any("usageTotal", m.capabilitiesCurrent.GetUsage()),
+		zap.Any("usageTotal", m.usage.GetUsage()),
 		zap.Any("capabilities", m.capabilities),
 	)
 
-	m.usage[taskID] = usage
+	m.usageMapping[OrderId(id)] = usage
 
 	return nil
 }
@@ -248,34 +239,46 @@ func (m *MinerCtx) PollConsume(usage *resource.Resources) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	return m.capabilitiesCurrent.PollConsume(usage)
+	return m.usage.PollConsume(usage)
 }
 
-// Retain retains back resources for the miner.
+// Release returns back resources for the miner.
 //
-// Should be called when a task has finished no matter for what reason.
-func (m *MinerCtx) Retain(taskID string) {
+// Should be called when a deal has finished no matter for what reason.
+func (m *MinerCtx) Release(id OrderId) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.retain(taskID)
+	m.releaseDeal(id)
 }
 
-func (m *MinerCtx) retain(taskID string) {
-	usage, exists := m.usage[taskID]
+func (m *MinerCtx) releaseDeal(id OrderId) {
+	usage, exists := m.usageMapping[id]
 	if !exists {
 		return
 	}
 
 	log.G(m.ctx).Debug("retained resources for a task",
-		zap.String("taskID", taskID),
+		zap.String("id", string(id)),
 		zap.Any("usage", usage),
-		zap.Any("usageTotal", m.capabilitiesCurrent.GetUsage()),
+		zap.Any("usageTotal", m.usage.GetUsage()),
 		zap.Any("capabilities", m.capabilities),
 	)
 
-	delete(m.usage, taskID)
-	m.capabilitiesCurrent.Retain(usage)
+	delete(m.usageMapping, id)
+	m.usage.Release(usage)
+}
+
+// Orders returns a list of allocated orders.
+// Useful for looking for a proper miner for starting tasks.
+func (m *MinerCtx) Orders() []OrderId {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	orders := []OrderId{}
+	for id := range m.usageMapping {
+		orders = append(orders, id)
+	}
+	return orders
 }
 
 // Close frees all connections related to a Miner

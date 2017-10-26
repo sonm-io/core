@@ -42,7 +42,6 @@ func (p *Pool) GetUsage() Resources {
 // Consume tries to consume the specified resource usage from the pool.
 //
 // Does nothing on error.
-// TODO: May be return some kind of Retainer to be able to auto-retain?
 func (p *Pool) Consume(usage *Resources) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -82,7 +81,7 @@ func (p *Pool) pollConsume(usage *Resources) error {
 	return nil
 }
 
-func (p *Pool) Retain(usage *Resources) {
+func (p *Pool) Release(usage *Resources) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 

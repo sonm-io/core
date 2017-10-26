@@ -95,8 +95,11 @@ type Hub struct {
 	eth    ETH
 	market Market
 
-	scheduler        Scheduler
 	deviceProperties map[string]DeviceProperties
+
+	// Scheduling.
+
+	slots []*structs.Slot
 }
 
 type DeviceProperties map[string]float64
@@ -401,14 +404,15 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 
 	//h.setMinerTaskID(miner.ID(), taskID)
 
-	resources := request.GetRequirements().GetResources()
-	cpuCount := resources.GetCPUCores()
-	memoryCount := resources.GetMaxMemory()
+	// TODO: We no longer consume resources here. Instead allocation/usage checking required.
+	//resources := request.GetRequirements().GetResources()
+	//cpuCount := resources.GetCPUCores()
+	//memoryCount := resources.GetMaxMemory()
 
-	var usage = resource.NewResources(int(cpuCount), int64(memoryCount))
-	if err := miner.Consume(taskID, &usage); err != nil {
-		return nil, err
-	}
+	//var usage = resource.NewResources(int(cpuCount), int64(memoryCount))
+	//if err := miner.Consume(taskID, &usage); err != nil {
+	//	return nil, err
+	//}
 
 	var reply = pb.HubStartTaskReply{
 		Id: taskID,
@@ -445,7 +449,6 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	}
 
 	miner.deregisterRoute(taskID)
-	miner.Retain(taskID)
 
 	h.deleteTask(taskID)
 
@@ -550,37 +553,79 @@ func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer
 	}
 }
 
-func (h *Hub) ProposeDeal(ctx context.Context, request *pb.DealRequest) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling ProposeDeal request", zap.Any("req", request))
-	//
-	//order, err := structs.NewOrder(request.GetOrder())
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if !order.IsBid() {
-	//	return nil, ErrInvalidOrderType
-	//}
-	//exists, err := h.market.OrderExists(order.GetID())
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if !exists {
-	//	return nil, ErrAskNotFound
-	//}
-	//miner, err := h.getMinerByOrder(order)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//if err := h.eth.CreatePendingDeal(order); err != nil {
-	//	return nil, err
-	//}
-	//
-	//if err := miner.ReserveSlot(order.GetSlot()); err != nil {
-	//	h.eth.RevokePendingDeal(order)
-	//	return nil, err
-	//}
+func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, error) {
+	log.G(h.ctx).Info("handling ProposeDeal request", zap.Any("request", r))
+
+	request, err := structs.NewDealRequest(r)
+	if err != nil {
+		return nil, err
+	}
+
+	order, err := structs.NewOrder(request.GetOrder())
+	if err != nil {
+		return nil, err
+	}
+	if !order.IsBid() {
+		return nil, ErrInvalidOrderType
+	}
+	exists, err := h.market.OrderExists(order.GetID())
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, ErrAskNotFound
+	}
+	resources, err := structs.NewResources(request.GetOrder().GetSlot().GetResources())
+	if err != nil {
+		return nil, err
+	}
+	usage := resource.NewResources(int(resources.GetCpuCores()), int64(resources.GetMemoryInBytes()))
+	miner, err := h.findRandomMinerByUsage(&usage)
+	if err != nil {
+		return nil, err
+	}
+	if err := miner.Consume(OrderId(request.GetBidId()), &usage); err != nil {
+		return nil, err
+	}
+
+	// TODO: Listen for ETH.
+	// TODO: Start timeout for ETH approve deal.
 
 	return &pb.Empty{}, nil
+}
+
+func (h *Hub) findRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if len(h.miners) == 0 {
+		return nil, ErrMinerNotFound
+	}
+
+	rg := rand.New(rand.NewSource(time.Now().UnixNano()))
+	id := 0
+	var result *MinerCtx = nil
+	for _, miner := range h.miners {
+		if err := miner.PollConsume(usage); err != nil {
+			id++
+			threshold := 1.0 / float64(id)
+			if rg.Float64() < threshold {
+				result = miner
+			}
+		}
+	}
+
+	return result, nil
+}
+
+func (h *Hub) hasSlot(slot *structs.Slot) bool {
+	// TODO: Not implemented yet.
+	return false
+}
+
+func (h *Hub) getSlot(slot *structs.Slot) *structs.Slot {
+	// TODO: Not implemented yet.
+	return nil
 }
 
 func (h *Hub) ApproveDeal(ctx context.Context, request *pb.DealRequest) (*pb.Empty, error) {
@@ -598,6 +643,8 @@ func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (
 func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
+
+	// Templates in go? Nevermind, just copy/paste.
 
 	CPUs := map[string]*pb.CPUDeviceInfo{}
 	for id, miner := range h.miners {
@@ -664,18 +711,20 @@ func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDeviceProp
 }
 
 func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, error) {
-	log.G(h.ctx).Info("handling GetSlots request", zap.Any("req", request))
+	log.G(h.ctx).Info("handling Slots request", zap.Any("request", request))
 
-	result := make([]*pb.Slot, 0)
-	for _, slot := range h.scheduler.All() {
-		result = append(result, slot.Unwrap())
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	slots := make([]*pb.Slot, 0, len(h.slots))
+	for _, slot := range h.slots {
+		slots = append(slots, slot.Unwrap())
 	}
 
-	return &pb.SlotsReply{Slot: result}, nil
+	return &pb.SlotsReply{Slot: slots}, nil
 }
 
 func (h *Hub) InsertSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling AddSlot request", zap.Any("request", request))
+	log.G(h.ctx).Info("handling InsertSlot request", zap.Any("request", request))
 
 	// We do not perform any resource existence check here, because miners
 	// can be added dynamically.
@@ -684,16 +733,35 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, erro
 		return nil, err
 	}
 
-	if err := h.scheduler.Add(slot); err != nil {
-		return nil, err
-	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// TODO: Check that such slot already exists.
+	h.slots = append(h.slots, slot)
 
 	return &pb.Empty{}, nil
 }
 
 func (h *Hub) RemoveSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling RemoveSlot request", zap.Any("req", request))
-	return nil, ErrUnimplemented
+	log.G(h.ctx).Info("RemoveSlot InsertSlot request", zap.Any("request", request))
+
+	slot, err := structs.NewSlot(request)
+	if err != nil {
+		return nil, err
+	}
+
+	filtered := []*structs.Slot{}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for _, s := range h.slots {
+		if !s.Eq(slot) {
+			filtered = append(filtered, s)
+		}
+	}
+
+	return &pb.Empty{}, nil
 }
 
 // GetRegistredWorkers returns a list of Worker IDs that  allowed to connet to the Hub
@@ -787,7 +855,6 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		portPool:     portPool,
 		externalGrpc: nil,
 
-		//tasks:  make(map[string]string),
 		miners: make(map[string]*MinerCtx),
 
 		grpcEndpoint: cfg.Monitoring.Endpoint,
