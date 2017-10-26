@@ -14,8 +14,6 @@ func makeOrder() *pb.Order {
 	return &pb.Order{
 		Price: 1,
 		Slot: &pb.Slot{
-			StartTime: &pb.Timestamp{Seconds: 1},
-			EndTime:   &pb.Timestamp{Seconds: 2},
 			Resources: &pb.Resources{},
 		},
 	}
@@ -44,31 +42,6 @@ func TestNewInMemoryStorage_CreateOrder_Errors(t *testing.T) {
 				return order
 			},
 			err: errPriceIsZero,
-		},
-		{
-			fn: func() *pb.Order {
-				order := makeOrder()
-				order.Slot.StartTime = nil
-				return order
-			},
-			err: errStartTimeRequired,
-		},
-		{
-			fn: func() *pb.Order {
-				order := makeOrder()
-				order.Slot.EndTime = nil
-				return order
-			},
-			err: errEndTimeRequired,
-		},
-		{
-			fn: func() *pb.Order {
-				order := makeOrder()
-				order.Slot.EndTime = &pb.Timestamp{Seconds: 1}
-				order.Slot.StartTime = &pb.Timestamp{Seconds: 2}
-				return order
-			},
-			err: errStartTimeAfterEnd,
 		},
 		{
 			fn: func() *pb.Order {
@@ -199,8 +172,6 @@ func TestCompareWithType(t *testing.T) {
 		{
 			slotT: pb.OrderType_ANY,
 			slot: &pb.Slot{
-				StartTime: &pb.Timestamp{Seconds: 100},
-				EndTime:   &pb.Timestamp{Seconds: 200},
 				Resources: &pb.Resources{},
 			},
 
@@ -208,8 +179,6 @@ func TestCompareWithType(t *testing.T) {
 				OrderType: pb.OrderType_BID,
 				Price:     1,
 				Slot: &pb.Slot{
-					StartTime: &pb.Timestamp{Seconds: 100},
-					EndTime:   &pb.Timestamp{Seconds: 200},
 					Resources: &pb.Resources{},
 				},
 			},
@@ -218,8 +187,6 @@ func TestCompareWithType(t *testing.T) {
 		{
 			slotT: pb.OrderType_ANY,
 			slot: &pb.Slot{
-				StartTime: &pb.Timestamp{Seconds: 100},
-				EndTime:   &pb.Timestamp{Seconds: 200},
 				Resources: &pb.Resources{},
 			},
 
@@ -227,8 +194,6 @@ func TestCompareWithType(t *testing.T) {
 				OrderType: pb.OrderType_ASK,
 				Price:     1,
 				Slot: &pb.Slot{
-					StartTime: &pb.Timestamp{Seconds: 100},
-					EndTime:   &pb.Timestamp{Seconds: 200},
 					Resources: &pb.Resources{},
 				},
 			},
@@ -238,8 +203,6 @@ func TestCompareWithType(t *testing.T) {
 		{
 			slotT: pb.OrderType_ASK,
 			slot: &pb.Slot{
-				StartTime: &pb.Timestamp{Seconds: 100},
-				EndTime:   &pb.Timestamp{Seconds: 200},
 				Resources: &pb.Resources{},
 			},
 
@@ -247,8 +210,6 @@ func TestCompareWithType(t *testing.T) {
 				OrderType: pb.OrderType_ASK,
 				Price:     1,
 				Slot: &pb.Slot{
-					StartTime: &pb.Timestamp{Seconds: 100},
-					EndTime:   &pb.Timestamp{Seconds: 200},
 					Resources: &pb.Resources{},
 				},
 			},
@@ -257,8 +218,6 @@ func TestCompareWithType(t *testing.T) {
 		{
 			slotT: pb.OrderType_ASK,
 			slot: &pb.Slot{
-				StartTime: &pb.Timestamp{Seconds: 100},
-				EndTime:   &pb.Timestamp{Seconds: 200},
 				Resources: &pb.Resources{},
 			},
 
@@ -266,8 +225,6 @@ func TestCompareWithType(t *testing.T) {
 				OrderType: pb.OrderType_BID,
 				Price:     1,
 				Slot: &pb.Slot{
-					StartTime: &pb.Timestamp{Seconds: 100},
-					EndTime:   &pb.Timestamp{Seconds: 200},
 					Resources: &pb.Resources{},
 				},
 			},
@@ -293,8 +250,6 @@ func TestInMemOrderStorage_GetOrders_Count(t *testing.T) {
 			Price:     1,
 			OrderType: pb.OrderType_BID,
 			Slot: &pb.Slot{
-				StartTime: &pb.Timestamp{Seconds: 100},
-				EndTime:   &pb.Timestamp{Seconds: 200},
 				Resources: &pb.Resources{},
 			},
 		})
@@ -306,8 +261,6 @@ func TestInMemOrderStorage_GetOrders_Count(t *testing.T) {
 	}
 
 	sl, err := structs.NewSlot(&pb.Slot{
-		StartTime: &pb.Timestamp{Seconds: 100},
-		EndTime:   &pb.Timestamp{Seconds: 200},
 		Resources: &pb.Resources{},
 	})
 	assert.NoError(t, err)
@@ -331,8 +284,6 @@ func TestInMemOrderStorage_GetOrders_Count2(t *testing.T) {
 			Price:     1,
 			OrderType: pb.OrderType_BID,
 			Slot: &pb.Slot{
-				StartTime: &pb.Timestamp{Seconds: 100},
-				EndTime:   &pb.Timestamp{Seconds: 200},
 				Resources: &pb.Resources{},
 			},
 		})
@@ -347,8 +298,6 @@ func TestInMemOrderStorage_GetOrders_Count2(t *testing.T) {
 		Price:     1,
 		OrderType: pb.OrderType_ASK,
 		Slot: &pb.Slot{
-			StartTime: &pb.Timestamp{Seconds: 100},
-			EndTime:   &pb.Timestamp{Seconds: 200},
 			Resources: &pb.Resources{},
 		},
 	})
@@ -358,8 +307,6 @@ func TestInMemOrderStorage_GetOrders_Count2(t *testing.T) {
 	assert.NoError(t, err)
 
 	sl, err := structs.NewSlot(&pb.Slot{
-		StartTime: &pb.Timestamp{Seconds: 100},
-		EndTime:   &pb.Timestamp{Seconds: 200},
 		Resources: &pb.Resources{},
 	})
 	assert.NoError(t, err)
@@ -390,8 +337,6 @@ func TestInMemOrderStorage_GetOrders_Count3(t *testing.T) {
 			Price:     1,
 			OrderType: ot,
 			Slot: &pb.Slot{
-				StartTime: &pb.Timestamp{Seconds: 100},
-				EndTime:   &pb.Timestamp{Seconds: 200},
 				Resources: &pb.Resources{},
 			},
 		})
@@ -403,8 +348,6 @@ func TestInMemOrderStorage_GetOrders_Count3(t *testing.T) {
 	}
 
 	sl, err := structs.NewSlot(&pb.Slot{
-		StartTime: &pb.Timestamp{Seconds: 100},
-		EndTime:   &pb.Timestamp{Seconds: 200},
 		Resources: &pb.Resources{},
 	})
 	assert.NoError(t, err)
@@ -456,8 +399,6 @@ func TestInMemOrderStorage_GetOrders_Ordering(t *testing.T) {
 			Price:     int64(i + 1),
 			OrderType: pb.OrderType_BID,
 			Slot: &pb.Slot{
-				StartTime: &pb.Timestamp{Seconds: 100},
-				EndTime:   &pb.Timestamp{Seconds: 200},
 				Resources: &pb.Resources{},
 			},
 		})
@@ -468,8 +409,6 @@ func TestInMemOrderStorage_GetOrders_Ordering(t *testing.T) {
 	}
 
 	sl, err := structs.NewSlot(&pb.Slot{
-		StartTime: &pb.Timestamp{Seconds: 100},
-		EndTime:   &pb.Timestamp{Seconds: 200},
 		Resources: &pb.Resources{},
 	})
 	assert.NoError(t, err)

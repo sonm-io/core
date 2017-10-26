@@ -17,7 +17,7 @@ func init() {
 	)
 }
 
-func printWorkerProps(cmd *cobra.Command, props map[string]string) {
+func printWorkerProps(cmd *cobra.Command, props map[string]float64) {
 	if isSimpleFormat() {
 		for k, v := range props {
 			cmd.Printf("%s = %s\r\n", k, v)
@@ -116,7 +116,7 @@ var nodeWorkerSetPropsCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		req := &pb.SetMinerPropertiesRequest{
+		req := &pb.SetDevicePropertiesRequest{
 			ID:         workerID,
 			Properties: props,
 		}

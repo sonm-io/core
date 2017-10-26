@@ -35,7 +35,7 @@ func TestMinerStatusData(t *testing.T) {
 				},
 			},
 			Capabilities: &pb.Capabilities{
-				Cpu: []*pb.CPUDevice{{Name: "i7", Vendor: "Intel", Mhz: 3000.0, Cores: 4}},
+				Cpu: []*pb.CPUDevice{{ModelName: "i7", VendorId: "Intel", ClockFrequency: 3000.0, Cores: 4}},
 				Gpu: []*pb.GPUDevice{{Name: "GTX 1080Ti", VendorName: "NVIDIA"}},
 				Mem: &pb.RAMDevice{Total: 1000000, Used: 500000},
 			},
@@ -74,7 +74,7 @@ func TestMinerStatusJsonData(t *testing.T) {
 		AnyTimes().
 		Return(&pb.InfoReply{
 			Capabilities: &pb.Capabilities{
-				Cpu: []*pb.CPUDevice{{Name: "i7", Vendor: "Intel", Mhz: 3000.0, Cores: 4}},
+				Cpu: []*pb.CPUDevice{{ModelName: "i7", VendorId: "Intel", ClockFrequency: 3000.0, Cores: 4}},
 				Gpu: []*pb.GPUDevice{{Name: "GTX 1080Ti", VendorName: "NVIDIA"}},
 				Mem: &pb.RAMDevice{Total: 1000000, Used: 500000},
 			},
@@ -89,10 +89,10 @@ func TestMinerStatusJsonData(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, info.Capabilities)
 
-	assert.Equal(t, "Intel", info.Capabilities.Cpu[0].Vendor)
-	assert.Equal(t, "i7", info.Capabilities.Cpu[0].Name)
+	assert.Equal(t, "Intel", info.Capabilities.Cpu[0].VendorId)
+	assert.Equal(t, "i7", info.Capabilities.Cpu[0].ModelName)
 	assert.Equal(t, int32(4), info.Capabilities.Cpu[0].Cores)
-	assert.Equal(t, float64(3000), info.Capabilities.Cpu[0].Mhz)
+	assert.Equal(t, float64(3000), info.Capabilities.Cpu[0].ClockFrequency)
 
 	assert.Equal(t, "NVIDIA", info.Capabilities.Gpu[0].VendorName)
 	assert.Equal(t, "GTX 1080Ti", info.Capabilities.Gpu[0].Name)
@@ -249,8 +249,8 @@ func TestMinerStatusMultiCPUAndGPU(t *testing.T) {
 		Return(&pb.InfoReply{
 			Capabilities: &pb.Capabilities{
 				Cpu: []*pb.CPUDevice{
-					{Name: "Xeon E7-4850", Vendor: "Intel", Mhz: 2800.0, Cores: 14},
-					{Name: "Xeon E7-8890", Vendor: "Intel", Mhz: 3400.0, Cores: 24},
+					{ModelName: "Xeon E7-4850", VendorId: "Intel", ClockFrequency: 2800.0, Cores: 14},
+					{ModelName: "Xeon E7-8890", VendorId: "Intel", ClockFrequency: 3400.0, Cores: 24},
 				},
 				Gpu: []*pb.GPUDevice{
 					{Name: "GTX 1080Ti", VendorName: "NVIDIA"},
@@ -279,8 +279,8 @@ func TestMinerStatusNoGPU(t *testing.T) {
 		Return(&pb.InfoReply{
 			Capabilities: &pb.Capabilities{
 				Cpu: []*pb.CPUDevice{
-					{Name: "Xeon E7-4850", Vendor: "Intel", Mhz: 2800.0, Cores: 14},
-					{Name: "Xeon E7-8890", Vendor: "Intel", Mhz: 3400.0, Cores: 24},
+					{ModelName: "Xeon E7-4850", VendorId: "Intel", ClockFrequency: 2800.0, Cores: 14},
+					{ModelName: "Xeon E7-8890", VendorId: "Intel", ClockFrequency: 3400.0, Cores: 24},
 				},
 				Gpu: []*pb.GPUDevice{},
 				Mem: &pb.RAMDevice{Total: 1000000, Used: 500000},

@@ -25,7 +25,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"bytes"
 	"github.com/ethereum/go-ethereum/crypto"
 	consul "github.com/hashicorp/consul/api"
 	frd "github.com/sonm-io/core/fusrodah/hub"

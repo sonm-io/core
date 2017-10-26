@@ -43,19 +43,23 @@ func (h *hubAPI) UnregisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, e
 	return h.hub.UnregisterWorker(ctx, req)
 }
 
-func (h *hubAPI) GetWorkerProperties(ctx context.Context, req *pb.ID) (*pb.GetMinerPropertiesReply, error) {
+func (h *hubAPI) GetWorkerProperties(ctx context.Context, req *pb.ID) (*pb.GetDevicePropertiesReply, error) {
 	log.G(h.ctx).Info("handling GetWorkerProperties request")
-	return h.hub.GetMinerProperties(ctx, req)
+	return h.hub.GetDeviceProperties(ctx, req)
 }
 
-func (h *hubAPI) SetWorkerProperties(ctx context.Context, req *pb.SetMinerPropertiesRequest) (*pb.Empty, error) {
+func (h *hubAPI) SetWorkerProperties(ctx context.Context, req *pb.SetDevicePropertiesRequest) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling SetWorkerProperties request")
-	return h.hub.SetMinerProperties(ctx, req)
+	return h.hub.SetDeviceProperties(ctx, req)
 }
 
-func (h *hubAPI) GetAskPlans(ctx context.Context, req *pb.Empty) (*pb.GetAllSlotsReply, error) {
+func (h *hubAPI) GetAskPlan(context.Context, *pb.ID) (*pb.SlotsReply, error) {
+	return &pb.SlotsReply{}, nil
+}
+
+func (h *hubAPI) GetAskPlans(ctx context.Context, req *pb.Empty) (*pb.SlotsReply, error) {
 	log.G(h.ctx).Info("GetAskPlan")
-	reply, err := h.hub.GetAllSlots(ctx, &pb.Empty{})
+	reply, err := h.hub.Slots(ctx, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
@@ -63,15 +67,14 @@ func (h *hubAPI) GetAskPlans(ctx context.Context, req *pb.Empty) (*pb.GetAllSlot
 	return reply, nil
 }
 
-func (h *hubAPI) CreateAskPlan(ctx context.Context, req *pb.AddSlotRequest) (*pb.Empty, error) {
+func (h *hubAPI) CreateAskPlan(ctx context.Context, req *pb.Slot) (*pb.Empty, error) {
 	log.G(h.ctx).Info("CreateAskPlan")
-	return h.hub.AddSlot(ctx, req)
+	return h.hub.InsertSlot(ctx, req)
 }
 
 func (h *hubAPI) RemoveAskPlan(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
-	log.G(h.ctx).Info("RemoveAskPlan")
-	request := &pb.RemoveSlotRequest{ID: req.GetId()}
-	return h.hub.RemoveSlot(ctx, request)
+	// TODO: Unimplemented.
+	return nil, nil
 }
 
 func (h *hubAPI) TaskList(ctx context.Context, req *pb.Empty) (*pb.TaskListReply, error) {

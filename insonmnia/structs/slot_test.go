@@ -3,85 +3,11 @@ package structs
 import (
 	"fmt"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	pb "github.com/sonm-io/core/proto"
 )
-
-func TestNewInMemoryStorage_GetOrders_compareTime(t *testing.T) {
-	start := time.Now()
-	end := start.Add(time.Hour)
-
-	cases := []struct {
-		slotStartTime int64
-		slotEndTime   int64
-		ordStartTime  int64
-		ordEndTime    int64
-		isMatch       bool
-		message       string
-	}{
-		{
-			slotStartTime: start.Unix(),
-			slotEndTime:   end.Unix(),
-
-			ordStartTime: start.Add(-1 * time.Hour).Unix(),
-			ordEndTime:   end.Add(time.Hour).Unix(),
-
-			isMatch: true,
-			message: "Both time is match",
-		},
-		{
-			slotStartTime: start.Unix(),
-			slotEndTime:   end.Unix(),
-
-			ordStartTime: start.Add(10 * time.Minute).Unix(),
-			ordEndTime:   end.Add(-10 * time.Minute).Unix(),
-
-			isMatch: false,
-			message: "Both StartTime and EndTime is not match",
-		},
-		{
-			slotStartTime: start.Unix(),
-			slotEndTime:   end.Unix(),
-
-			ordStartTime: start.Add(-10 * time.Minute).Unix(),
-			ordEndTime:   end.Add(-10 * time.Minute).Unix(),
-
-			isMatch: false,
-			message: "StartTime is not match",
-		},
-		{
-			slotStartTime: start.Unix(),
-			slotEndTime:   end.Unix(),
-
-			ordStartTime: start.Add(10 * time.Minute).Unix(),
-			ordEndTime:   end.Add(10 * time.Minute).Unix(),
-
-			isMatch: false,
-			message: "End time is not match",
-		},
-	}
-
-	for i, cc := range cases {
-		s1 := &Slot{
-			inner: &pb.Slot{
-				StartTime: &pb.Timestamp{Seconds: cc.slotStartTime},
-				EndTime:   &pb.Timestamp{Seconds: cc.slotEndTime},
-			},
-		}
-		s2 := &Slot{
-			inner: &pb.Slot{
-				StartTime: &pb.Timestamp{Seconds: cc.ordStartTime},
-				EndTime:   &pb.Timestamp{Seconds: cc.ordEndTime},
-			},
-		}
-
-		ok := s1.compareTime(s2)
-		assert.Equal(t, cc.isMatch, ok, fmt.Sprintf("%d :: %s", i, cc.message))
-	}
-}
 
 func TestNewInMemoryStorage_GetOrders_compareSupRating(t *testing.T) {
 	cases := []struct {
@@ -483,28 +409,6 @@ func TestNewSlot(t *testing.T) {
 			slot: &pb.Slot{},
 			err:  errResourcesIsNil,
 		},
-		{
-			slot: &pb.Slot{
-				StartTime: &pb.Timestamp{Seconds: 1},
-				Resources: &pb.Resources{},
-			},
-			err: errEndTimeRequired,
-		},
-		{
-			slot: &pb.Slot{
-				EndTime:   &pb.Timestamp{Seconds: 1},
-				Resources: &pb.Resources{},
-			},
-			err: errStartTimeRequired,
-		},
-		{
-			slot: &pb.Slot{
-				StartTime: &pb.Timestamp{Seconds: 2},
-				EndTime:   &pb.Timestamp{Seconds: 1},
-				Resources: &pb.Resources{},
-			},
-			err: errStartTimeAfterEnd,
-		},
 	}
 
 	for i, cc := range cases {
@@ -556,31 +460,6 @@ func TestSlot_Compare(t *testing.T) {
 			orderType: pb.OrderType_ASK,
 			two:       &Slot{inner: &pb.Slot{SupplierRating: 2}},
 			one:       &Slot{inner: &pb.Slot{SupplierRating: 1}},
-			mustMatch: true,
-		},
-		// compare time
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{StartTime: &pb.Timestamp{Seconds: 100}}},
-			one:       &Slot{inner: &pb.Slot{StartTime: &pb.Timestamp{Seconds: 200}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{StartTime: &pb.Timestamp{Seconds: 100}}},
-			one:       &Slot{inner: &pb.Slot{StartTime: &pb.Timestamp{Seconds: 200}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{StartTime: &pb.Timestamp{Seconds: 300}}},
-			one:       &Slot{inner: &pb.Slot{StartTime: &pb.Timestamp{Seconds: 200}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{StartTime: &pb.Timestamp{Seconds: 300}}},
-			one:       &Slot{inner: &pb.Slot{StartTime: &pb.Timestamp{Seconds: 200}}},
 			mustMatch: true,
 		},
 		// compareCpuCores

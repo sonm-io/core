@@ -2,14 +2,15 @@ package miner
 
 import (
 	"errors"
-	"golang.org/x/net/context"
 	"testing"
+
+	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/golang/mock/gomock"
-	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/sonm-io/core/insonmnia/hardware"
+	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -66,7 +67,7 @@ func TestServerNewSavesResources(t *testing.T) {
 	cfg := defaultMockCfg(mock)
 	collector := hardware.NewMockHardwareInfo(mock)
 	collector.EXPECT().Info().Times(1).Return(&hardware.Hardware{
-		CPU:    []cpu.InfoStat{},
+		CPU:    []cpu.Device{},
 		Memory: &mem.VirtualMemoryStat{Total: 42},
 	}, nil)
 
@@ -121,7 +122,7 @@ func TestMinerHandshake(t *testing.T) {
 
 	collector := hardware.NewMockHardwareInfo(mock)
 	collector.EXPECT().Info().AnyTimes().Return(&hardware.Hardware{
-		CPU:    []cpu.InfoStat{{Cores: 2}},
+		CPU:    []cpu.Device{{Cores: 2}},
 		Memory: &mem.VirtualMemoryStat{Total: 2048},
 	}, nil)
 
