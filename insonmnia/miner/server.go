@@ -296,7 +296,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		m.resources.Retain(&usage)
+		m.resources.Release(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
@@ -306,7 +306,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		m.resources.Retain(&usage)
+		m.resources.Release(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 	containerInfo.PublicKey = publicKey
@@ -354,7 +354,7 @@ func (m *Miner) Stop(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
-	m.resources.Retain(&containerInfo.Resources)
+	m.resources.Release(&containerInfo.Resources)
 	return &pb.Empty{}, nil
 }
 

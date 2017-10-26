@@ -105,7 +105,9 @@ message HubStatusReply {
 }
 
 message DealRequest {
-    Order order = 1;
+    string bidId = 1;
+    string askId = 2;
+    Order order = 3;
 }
 
 message GetDevicePropertiesReply {

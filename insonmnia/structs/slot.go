@@ -116,6 +116,7 @@ func (s *Slot) Compare(two *Slot, orderType pb.OrderType) bool {
 	// at the same way for different types of orders
 	rt := s.compareSupplierRating(two)
 
+	// TODO: Seems equal.
 	if orderType == pb.OrderType_BID {
 		return rt &&
 			s.compareCpuCoresBid(two) &&
@@ -137,4 +138,14 @@ func (s *Slot) Compare(two *Slot, orderType pb.OrderType) bool {
 	}
 
 	return false
+}
+
+func (s *Slot) Eq(other *Slot) bool {
+	return s.compareCpuCoresBid(other) &&
+		s.compareRamBytesBid(other) &&
+		s.compareGpuCountBid(other) &&
+		s.compareStorageBid(other) &&
+		s.compareNetTrafficInBid(other) &&
+		s.compareNetTrafficOutBid(other) &&
+		s.compareNetworkTypeBid(other)
 }
