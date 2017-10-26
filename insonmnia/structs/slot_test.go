@@ -214,24 +214,28 @@ func TestNewInMemoryStorage_GetOrders_compareRamBytes(t *testing.T) {
 
 func TestNewInMemoryStorage_GetOrders_compareGpuCount(t *testing.T) {
 	cases := []struct {
-		gpu1      uint64
-		gpu2      uint64
-		mustMatch bool
+		gpu1     pb.GPUCount
+		gpu2     pb.GPUCount
+		matchBid bool
+		matchAsk bool
 	}{
 		{
-			gpu1:      1,
-			gpu2:      1,
-			mustMatch: true,
+			gpu1:     pb.GPUCount_NO_GPU,
+			gpu2:     pb.GPUCount_NO_GPU,
+			matchBid: true,
+			matchAsk: true,
 		},
 		{
-			gpu1:      1,
-			gpu2:      2,
-			mustMatch: true,
+			gpu1:     pb.GPUCount_NO_GPU,
+			gpu2:     pb.GPUCount_SINGLE_GPU,
+			matchBid: true,
+			matchAsk: false,
 		},
 		{
-			gpu1:      2,
-			gpu2:      1,
-			mustMatch: false,
+			gpu1:     pb.GPUCount_NO_GPU,
+			gpu2:     pb.GPUCount_MULTIPLE_GPU,
+			matchBid: true,
+			matchAsk: false,
 		},
 	}
 
@@ -251,8 +255,11 @@ func TestNewInMemoryStorage_GetOrders_compareGpuCount(t *testing.T) {
 			},
 		}
 
-		isMatch := s1.compareGpuCountBid(s2)
-		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
+		matchBid := s1.compareGpuCountBid(s2)
+		assert.Equal(t, cc.matchBid, matchBid, fmt.Sprintf("%d bid", i))
+
+		matchAsk := s1.compareGpuCountAsk(s2)
+		assert.Equal(t, cc.matchAsk, matchAsk, fmt.Sprintf("%d ask", i))
 	}
 }
 
@@ -568,13 +575,13 @@ func TestSlot_Compare(t *testing.T) {
 			orderType: pb.OrderType_BID,
 			two:       &Slot{inner: &pb.Slot{StartTime: &pb.Timestamp{Seconds: 300}}},
 			one:       &Slot{inner: &pb.Slot{StartTime: &pb.Timestamp{Seconds: 200}}},
-			mustMatch: false,
+			mustMatch: true,
 		},
 		{
 			orderType: pb.OrderType_ASK,
 			two:       &Slot{inner: &pb.Slot{StartTime: &pb.Timestamp{Seconds: 300}}},
 			one:       &Slot{inner: &pb.Slot{StartTime: &pb.Timestamp{Seconds: 200}}},
-			mustMatch: false,
+			mustMatch: true,
 		},
 		// compareCpuCores
 		{
@@ -649,7 +656,7 @@ func TestSlot_Compare(t *testing.T) {
 			orderType: pb.OrderType_ASK,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: 1}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: 2}}},
-			mustMatch: true,
+			mustMatch: false,
 		},
 		// compareStorage
 		{

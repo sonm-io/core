@@ -22,3 +22,12 @@ func ParseOrderType(ty string) (pb.OrderType, error) {
 
 	return pb.OrderType(typeID), nil
 }
+
+func ParseGPUCount(ty string) (pb.GPUCount, error) {
+	typeID, ok := pb.GPUCount_value[ty]
+	if !ok {
+		return pb.GPUCount_NO_GPU, errors.New("unknown gpu count")
+	}
+
+	return pb.GPUCount(typeID), nil
+}

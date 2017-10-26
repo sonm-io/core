@@ -9,7 +9,7 @@ rating:
 resources:
   cpu_cores: 1
   ram_bytes: 100000000
-  gpu_count: 0
+  gpu_count: NO
   storage: 1000000000
 
   network:
