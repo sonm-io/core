@@ -111,7 +111,7 @@ slot:
 
 func TestLoadPropsYaml(t *testing.T) {
 	p, err := createTestYamlFile(`
-foo: bar
+foo: 3.14
 cycles: 42`)
 	assert.NoError(t, err)
 	defer deleteTestYamlFile(p)
@@ -121,6 +121,6 @@ cycles: 42`)
 
 	assert.Contains(t, props, "foo")
 	assert.Contains(t, props, "cycles")
-	assert.Equal(t, "bar", props["foo"])
-	assert.Equal(t, "42", props["cycles"])
+	assert.Equal(t, 3.14, props["foo"])
+	assert.Equal(t, 42.0, props["cycles"])
 }

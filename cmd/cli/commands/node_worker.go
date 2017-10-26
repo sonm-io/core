@@ -20,7 +20,7 @@ func init() {
 func printWorkerProps(cmd *cobra.Command, props map[string]float64) {
 	if isSimpleFormat() {
 		for k, v := range props {
-			cmd.Printf("%s = %s\r\n", k, v)
+			cmd.Printf("%s = %f\r\n", k, v)
 		}
 	} else {
 		b, _ := json.Marshal(props)

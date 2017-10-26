@@ -164,7 +164,7 @@ type NodeHubInteractor interface {
 	GetWorkerProperties(id string) (*pb.GetDevicePropertiesReply, error)
 	SetWorkerProperties(req *pb.SetDevicePropertiesRequest) (*pb.Empty, error)
 
-	GetAskPlans() (*pb.GetAllSlotsReply, error)
+	GetAskPlans() (*pb.SlotsReply, error)
 	CreateAskPlan(id string, slot *structs.Slot) (*pb.Empty, error)
 	RemoveAskPlan(id string) (*pb.Empty, error)
 
@@ -237,7 +237,7 @@ func (it *hubInteractor) SetWorkerProperties(req *pb.SetDevicePropertiesRequest)
 	return it.hub.SetWorkerProperties(ctx, req)
 }
 
-func (it *hubInteractor) GetAskPlans() (*pb.GetAllSlotsReply, error) {
+func (it *hubInteractor) GetAskPlans() (*pb.SlotsReply, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
