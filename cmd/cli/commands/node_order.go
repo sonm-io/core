@@ -25,35 +25,26 @@ var nodeOrderRootCmd = &cobra.Command{
 	Short: "Operations with ask order plan",
 }
 
-func printAskList(cmd *cobra.Command, slots *pb.GetAllSlotsReply) {
+func printAskList(cmd *cobra.Command, slots *pb.SlotsReply) {
 	if isSimpleFormat() {
-		slots := slots.GetSlots()
+		slots := slots.GetSlot()
 		if len(slots) == 0 {
 			cmd.Printf("No Ask Order configured\r\n")
 			return
 		}
 
-		for workerID, workerSlots := range slots {
-			if len(workerSlots.Slot) == 0 {
-				//
-				cmd.Printf("Worker \"%s\" has no slots\r\n", workerID)
-				continue
-			}
+		for _, slot := range slots {
+			cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
+			cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
+			cmd.Printf(" RAM: %s\r\n", ds.ByteSize(slot.Resources.RamBytes).HR())
+			cmd.Printf(" Net: %s\r\n", slot.Resources.NetworkType.String())
+			cmd.Printf("     %s IN\r\n", ds.ByteSize(slot.Resources.NetTrafficIn).HR())
+			cmd.Printf("     %s OUT\r\n", ds.ByteSize(slot.Resources.NetTrafficOut).HR())
 
-			cmd.Printf("Slots on Worker \"%s\":\r\n", workerID)
-			for _, slot := range workerSlots.Slot {
-				cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
-				cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
-				cmd.Printf(" RAM: %s\r\n", ds.ByteSize(slot.Resources.RamBytes).HR())
-				cmd.Printf(" Net: %s\r\n", slot.Resources.NetworkType.String())
-				cmd.Printf("     %s IN\r\n", ds.ByteSize(slot.Resources.NetTrafficIn).HR())
-				cmd.Printf("     %s OUT\r\n", ds.ByteSize(slot.Resources.NetTrafficOut).HR())
-
-				if slot.Geo != nil && slot.Geo.City != "" && slot.Geo.Country != "" {
-					cmd.Printf(" Geo: %s, %s\r\n", slot.Geo.City, slot.Geo.Country)
-				}
-				cmd.Println("")
+			if slot.Geo != nil && slot.Geo.City != "" && slot.Geo.Country != "" {
+				cmd.Printf(" Geo: %s, %s\r\n", slot.Geo.City, slot.Geo.Country)
 			}
+			cmd.Println("")
 		}
 	} else {
 		b, _ := json.Marshal(slots)
