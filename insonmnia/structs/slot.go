@@ -111,7 +111,7 @@ func (s *Slot) compareRamBytesAsk(two *Slot) bool {
 }
 
 func (s *Slot) compareGpuCountAsk(two *Slot) bool {
-	return two.inner.GetResources().GetGpuCount() <= s.inner.GetResources().GetGpuCount()
+	return two.inner.GetResources().GetGpuCount() == s.inner.GetResources().GetGpuCount()
 }
 
 func (s *Slot) compareStorageAsk(two *Slot) bool {
@@ -131,9 +131,9 @@ func (s *Slot) compareNetworkTypeAsk(two *Slot) bool {
 }
 
 func (s *Slot) Compare(two *Slot, orderType pb.OrderType) bool {
-	// comparison of rating and time are performing
+	// comparison of rating is performing
 	// at the same way for different types of orders
-	rt := s.compareSupplierRating(two) && s.compareTime(two)
+	rt := s.compareSupplierRating(two)
 
 	if orderType == pb.OrderType_BID {
 		return rt &&

@@ -3,15 +3,14 @@ package marketplace
 import (
 	"errors"
 	"net"
-	"sync"
-
 	"sort"
+	"sync"
 
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 const (
@@ -206,9 +205,9 @@ func (m *Marketplace) Serve() error {
 		return err
 	}
 
-	grpcServer := grpc.NewServer()
-	pb.RegisterMarketServer(grpcServer, m)
-	grpcServer.Serve(lis)
+	srv := util.MakeGrpcServer()
+	pb.RegisterMarketServer(srv, m)
+	srv.Serve(lis)
 	return nil
 }
 

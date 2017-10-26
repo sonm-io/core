@@ -16,6 +16,12 @@ enum NetworkType {
     INCOMING = 2;
 }
 
+enum GPUCount {
+    NO_GPU = 0;
+    SINGLE_GPU = 1;
+    MULTIPLE_GPU = 2;
+}
+
 // Geo represent GeoIP results for node
 message Geo {
     string country = 1;
@@ -30,7 +36,7 @@ message Resources {
     // RAM, in bytes
     uint64 ramBytes = 2;
     // GPU devices count
-    uint64 gpuCount = 3;
+    GPUCount gpuCount = 3;
     // todo: discuss
     // storage volume, in Megabytes
     uint64 storage = 4;

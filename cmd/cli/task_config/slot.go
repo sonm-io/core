@@ -20,7 +20,7 @@ type RatingConfig struct {
 type ResourcesConfig struct {
 	Cpu        uint64            `yaml:"cpu_cores" required:"true"`
 	Ram        uint64            `yaml:"ram_bytes" required:"true"`
-	Gpu        uint64            `yaml:"gpu_count" required:"true"`
+	Gpu        string            `yaml:"gpu_count" required:"true"`
 	Storage    uint64            `yaml:"storage" required:"true"`
 	Network    NetworkConfig     `yaml:"network" required:"true"`
 	Properties map[string]string `yaml:"properties" required:"true"`
@@ -54,6 +54,11 @@ func (c *SlotConfig) IntoSlot() (*structs.Slot, error) {
 		return nil, err
 	}
 
+	gpuCount, err := structs.ParseGPUCount(c.Resources.Gpu)
+	if err != nil {
+		return nil, err
+	}
+
 	return structs.NewSlot(&sonm.Slot{
 		StartTime: &sonm.Timestamp{
 			Seconds: int64(since.Unix()),
@@ -66,7 +71,7 @@ func (c *SlotConfig) IntoSlot() (*structs.Slot, error) {
 		Resources: &sonm.Resources{
 			CpuCores:      c.Resources.Cpu,
 			RamBytes:      c.Resources.Ram,
-			GpuCount:      c.Resources.Gpu,
+			GpuCount:      gpuCount,
 			Storage:       c.Resources.Storage,
 			NetTrafficIn:  c.Resources.Network.In,
 			NetTrafficOut: c.Resources.Network.Out,
