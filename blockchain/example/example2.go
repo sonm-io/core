@@ -1,17 +1,17 @@
 package main
 
 import (
-	"github.com/sonm-io/core/blockchain"
-	"log"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/sonm-io/core/blockchain/tsc/api"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/blockchain/tsc"
+	"github.com/sonm-io/core/blockchain/tsc/api"
 	"github.com/sonm-io/core/blockchain/utils"
+	"log"
 )
 
-func main(){
+func main() {
 
 	const ethEndpoint string = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
 
@@ -22,7 +22,6 @@ func main(){
 
 	token, err := api.NewTSCToken(common.HexToAddress(tsc.TSCAddress), client)
 
-
 	//fmt.Println(token)
 	totalSupply, err := token.TotalSupply(&bind.CallOpts{Pending: true})
 	if err != nil {
@@ -31,7 +30,7 @@ func main(){
 	}
 	fmt.Println("token Supply: ", totalSupply)
 
-	balance, err := token.BalanceOf(&bind.CallOpts{Pending:true}, common.HexToAddress("0x41BA7e0e1e661f7114f2F05AFd2536210c2ED351"))
+	balance, err := token.BalanceOf(&bind.CallOpts{Pending: true}, common.HexToAddress("0x41BA7e0e1e661f7114f2F05AFd2536210c2ED351"))
 
 	fmt.Println("BALANCE:", balance)
 
