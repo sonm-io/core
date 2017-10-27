@@ -50,10 +50,6 @@ build/cli_win32:
 	@echo "+ $@"
 	GOOS=windows GOARCH=386 go build -tags nocgo -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER).win32" -o ${CLI}_win32.exe ${GOCMD}/cli
 
-build/blockchain:
-	@echo "+ $@"
-	$(MAKE) -C blockchain build_contract_wrappers
-
 build/insomnia: build/hub build/miner build/cli
 
 build: build/bootnode build/insomnia build/marketplace
@@ -87,9 +83,7 @@ fmt:
 
 test: mock
 	@echo "+ $@"
-	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor|blockchain')
-	$(MAKE) -C blockchain test
-
+	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor')
 
 grpc:
 	@echo "+ $@"
@@ -121,4 +115,3 @@ clean:
 	rm -f coverage.html
 	rm -f funccoverage.txt
 	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE}
-	#$(MAKE) -C blockchain clean
