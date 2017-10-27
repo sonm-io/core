@@ -742,7 +742,7 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, erro
 }
 
 func (h *Hub) RemoveSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, error) {
-	log.G(h.ctx).Info("RemoveSlot InsertSlot request", zap.Any("request", request))
+	log.G(h.ctx).Info("RemoveSlot request", zap.Any("request", request))
 
 	slot, err := structs.NewSlot(request)
 	if err != nil {

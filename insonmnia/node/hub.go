@@ -58,13 +58,8 @@ func (h *hubAPI) GetAskPlan(context.Context, *pb.ID) (*pb.SlotsReply, error) {
 }
 
 func (h *hubAPI) GetAskPlans(ctx context.Context, req *pb.Empty) (*pb.SlotsReply, error) {
-	log.G(h.ctx).Info("GetAskPlan")
-	reply, err := h.hub.Slots(ctx, &pb.Empty{})
-	if err != nil {
-		return nil, err
-	}
-
-	return reply, nil
+	log.G(h.ctx).Info("GetAskPlans")
+	return h.hub.Slots(ctx, &pb.Empty{})
 }
 
 func (h *hubAPI) CreateAskPlan(ctx context.Context, req *pb.Slot) (*pb.Empty, error) {
