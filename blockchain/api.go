@@ -37,7 +37,6 @@ type Deal struct {
 type BlockchainAPI struct {
 	prv    *ecdsa.PrivateKey
 	txOpts *bind.TransactOpts
-	client *ethclient.Client
 }
 
 func NewBlockchainAPI(key *ecdsa.PrivateKey, gasPrice *big.Int) (bch *BlockchainAPI, err error) {
@@ -58,7 +57,6 @@ func NewBlockchainAPI(key *ecdsa.PrivateKey, gasPrice *big.Int) (bch *Blockchain
 	bch = &BlockchainAPI{
 		prv:    key,
 		txOpts: txOpts,
-		client: ethClient,
 	}
 	return bch, nil
 }
@@ -67,11 +65,20 @@ func NewBlockchainAPI(key *ecdsa.PrivateKey, gasPrice *big.Int) (bch *Blockchain
 // Deals appearance
 // ----------------
 
-func (bch *BlockchainAPI) OpenDeal(hub string, client string, specificationHash *big.Int, price *big.Int, workTime *big.Int) (*types.Transaction, error) {
-	deals, err := api.NewDeals(common.HexToAddress(tsc.DealsAddress), bch.client)
+func connectDeals() (*api.Deals, error){
+	err := initEthClient()
 	if err != nil {
 		return nil, err
 	}
+	return api.NewDeals(common.HexToAddress(tsc.DealsAddress), ethClient)
+}
+
+func (bch *BlockchainAPI) OpenDeal(hub string, client string, specificationHash *big.Int, price *big.Int, workTime *big.Int) (*types.Transaction, error) {
+	deals, err := connectDeals()
+	if err != nil {
+		return nil, err
+	}
+
 	opts := bch.txOpts
 	opts.GasLimit = big.NewInt(305000)
 
@@ -83,10 +90,11 @@ func (bch *BlockchainAPI) OpenDeal(hub string, client string, specificationHash 
 }
 
 func (bch *BlockchainAPI) AcceptDeal(id big.Int) (*types.Transaction, error) {
-	deals, err := api.NewDeals(common.HexToAddress(tsc.DealsAddress), bch.client)
+	deals, err := connectDeals()
 	if err != nil {
 		return nil, err
 	}
+
 	opts := bch.txOpts
 	opts.GasLimit = big.NewInt(90000)
 
@@ -98,10 +106,11 @@ func (bch *BlockchainAPI) AcceptDeal(id big.Int) (*types.Transaction, error) {
 }
 
 func (bch *BlockchainAPI) CloseDeal(id *big.Int) (*types.Transaction, error) {
-	deals, err := api.NewDeals(common.HexToAddress(tsc.DealsAddress), bch.client)
+	deals, err := connectDeals()
 	if err != nil {
 		return nil, err
 	}
+
 	opts := bch.txOpts
 	opts.GasLimit = big.NewInt(90000)
 
@@ -112,48 +121,40 @@ func (bch *BlockchainAPI) CloseDeal(id *big.Int) (*types.Transaction, error) {
 	return tx, err
 }
 
-func GetHubDeals(address string) (deals []*big.Int, err error) {
-	initEthClient()
+func GetHubDeals(address string) (hubDeals []*big.Int, err error) {
+	deals, err := connectDeals()
+	if err != nil {
+		return nil, err
+	}
 
-	dealsContract, err := api.NewDeals(common.HexToAddress(tsc.DealsAddress), ethClient)
+	hubDeals, err = deals.GetDealsByHubAddress(&bind.CallOpts{Pending: true}, common.HexToAddress(address))
 	if err != nil {
 		return nil, err
 	}
-	deals, err = dealsContract.GetDealsByHubAddress(&bind.CallOpts{Pending: true}, common.HexToAddress(address))
-	if err != nil {
-		return nil, err
-	}
-	return deals, nil
+	return hubDeals, nil
+
 }
 
-func GetClientDeals(address string) (deals []*big.Int, err error) {
-	err = initEthClient()
+func GetClientDeals(address string) (clientDeals []*big.Int, err error) {
+	deals, err := connectDeals()
 	if err != nil {
 		return nil, err
 	}
 
-	dealsContract, err := api.NewDeals(common.HexToAddress(tsc.DealsAddress), ethClient)
+	clientDeals, err = deals.GetDealsByClient(&bind.CallOpts{Pending: true}, common.HexToAddress(address))
 	if err != nil {
 		return nil, err
 	}
-	deals, err = dealsContract.GetDealsByClient(&bind.CallOpts{Pending: true}, common.HexToAddress(address))
-	if err != nil {
-		return nil, err
-	}
-	return deals, nil
+	return clientDeals, nil
 }
 
 func GetDealAmount() (amount *big.Int, err error) {
-	err = initEthClient()
+	deals, err := connectDeals()
 	if err != nil {
 		return nil, err
 	}
 
-	dealsContract, err := api.NewDeals(common.HexToAddress(tsc.DealsAddress), ethClient)
-	if err != nil {
-		return nil, err
-	}
-	res, err := dealsContract.GetDealsAmount(&bind.CallOpts{Pending: true})
+	res, err := deals.GetDealsAmount(&bind.CallOpts{Pending: true})
 	if err != nil {
 		return nil, err
 	}
@@ -164,16 +165,20 @@ func GetDealAmount() (amount *big.Int, err error) {
 // Token appearance
 // ----------------
 
+func connectToken() (*api.TSCToken, error){
+	err := initEthClient()
+	if err != nil {
+		return nil, err
+	}
+	return api.NewTSCToken(common.HexToAddress(tsc.DealsAddress), ethClient)
+}
+
 func BalanceOf(address string) (balance *big.Int, err error) {
-	err = initEthClient()
+	token, err := connectToken()
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := api.NewTSCToken(common.HexToAddress(tsc.DealsAddress), ethClient)
-	if err != nil {
-		return nil, err
-	}
 	balance, err = token.BalanceOf(&bind.CallOpts{Pending: true}, common.HexToAddress(address))
 	if err != nil {
 		return nil, err
@@ -182,15 +187,11 @@ func BalanceOf(address string) (balance *big.Int, err error) {
 }
 
 func AllowanceOf(from string, to string) (allowance *big.Int, err error) {
-	err = initEthClient()
+	token, err := connectToken()
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := api.NewTSCToken(common.HexToAddress(tsc.DealsAddress), ethClient)
-	if err != nil {
-		return nil, err
-	}
 	allowance, err = token.Allowance(&bind.CallOpts{Pending: true}, common.HexToAddress(from), common.HexToAddress(to))
 	if err != nil {
 		return nil, err
@@ -199,10 +200,11 @@ func AllowanceOf(from string, to string) (allowance *big.Int, err error) {
 }
 
 func (bch *BlockchainAPI) Approve(to string, amount *big.Int) (*types.Transaction, error) {
-	token, err := api.NewTSCToken(common.HexToAddress(tsc.DealsAddress), bch.client)
+	token, err := connectToken()
 	if err != nil {
 		return nil, err
 	}
+
 	opts := bch.txOpts
 	opts.GasLimit = big.NewInt(50000)
 
@@ -214,10 +216,11 @@ func (bch *BlockchainAPI) Approve(to string, amount *big.Int) (*types.Transactio
 }
 
 func (bch *BlockchainAPI) Transfer(to string, amount *big.Int) (*types.Transaction, error) {
-	token, err := api.NewTSCToken(common.HexToAddress(tsc.DealsAddress), bch.client)
+	token, err := connectToken()
 	if err != nil {
 		return nil, err
 	}
+
 	opts := bch.txOpts
 	opts.GasLimit = big.NewInt(50000)
 
@@ -229,10 +232,11 @@ func (bch *BlockchainAPI) Transfer(to string, amount *big.Int) (*types.Transacti
 }
 
 func (bch *BlockchainAPI) TransferFrom(from string, to string, amount *big.Int) (*types.Transaction, error) {
-	token, err := api.NewTSCToken(common.HexToAddress(tsc.DealsAddress), bch.client)
+	token, err := connectToken()
 	if err != nil {
 		return nil, err
 	}
+
 	opts := bch.txOpts
 	opts.GasLimit = big.NewInt(50000)
 

@@ -83,7 +83,7 @@ fmt:
 
 test: mock
 	@echo "+ $@"
-	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor')
+	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor|blockchain')
 
 grpc:
 	@echo "+ $@"
