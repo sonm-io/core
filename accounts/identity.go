@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/util"
 	"io/ioutil"
 	"net/url"
 	"path/filepath"
@@ -159,5 +160,9 @@ func parseKeystoreUrl(path string) (string, error) {
 // return default keystore directory stored in in `.sonm` directory
 // if any error occurred .sonm directory will be in working dir
 func GetDefaultKeystoreDir() string {
-	return filepath.Join("etc", "sonm", "keystore")
+	rootDir, err := util.GetUserHomeDir()
+	if err != nil {
+		rootDir = ""
+	}
+	return filepath.Join(rootDir, ".sonm", "keystore")
 }
