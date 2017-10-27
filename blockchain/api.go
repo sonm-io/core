@@ -92,6 +92,22 @@ func (bch *BlockchainAPI) OpenDeal(hub string, client string, specificationHash 
 	return tx, err
 }
 
+func (bch *BlockchainAPI) CancelDeal(id big.Int) (*types.Transaction, error) {
+	deals, err := connectDeals()
+	if err != nil {
+		return nil, err
+	}
+
+	opts := bch.txOpts
+	opts.GasLimit = big.NewInt(80000)
+
+	tx, err := deals.CancelDeal(opts, &id)
+	if err != nil {
+		return nil, err
+	}
+	return tx, err
+}
+
 func (bch *BlockchainAPI) AcceptDeal(id big.Int) (*types.Transaction, error) {
 	deals, err := connectDeals()
 	if err != nil {
