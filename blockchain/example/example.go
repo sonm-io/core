@@ -9,8 +9,6 @@ import (
 
 const testPass = ""
 
-const ethEndpoint string = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
-
 func main() {
 	var err error
 

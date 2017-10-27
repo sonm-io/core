@@ -1,59 +1,90 @@
 package main
 
 import (
-	"fmt"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/blockchain/tsc"
-	"github.com/sonm-io/core/blockchain/tsc/api"
-	"github.com/sonm-io/core/blockchain/utils"
 	"log"
+	"math/big"
 )
 
+const testPass = ""
+
 func main() {
+	var err error
 
-	const ethEndpoint string = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
+	ks := accounts.NewIdentity(accounts.GetDefaultKeystoreDir())
 
-	client, err := utils.InitEthClient(ethEndpoint)
+	err = ks.Open(testPass)
 	if err != nil {
+		if err == accounts.ErrWalletIsEmpty {
+			err = ks.New(testPass)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+		log.Fatal(err)
+	}
+
+	prv, err := ks.GetPrivateKey()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	bch, err := blockchain.NewBlockchainAPI(prv, nil)
+	if err != nil {
+		log.Fatal(bch)
 		return
 	}
 
-	token, err := api.NewTSCToken(common.HexToAddress(tsc.TSCAddress), client)
-
-	//fmt.Println(token)
-	totalSupply, err := token.TotalSupply(&bind.CallOpts{Pending: true})
-	if err != nil {
-		log.Fatal("error via getting totalSupply(): ", err)
-		return
-	}
-	fmt.Println("token Supply: ", totalSupply)
-
-	balance, err := token.BalanceOf(&bind.CallOpts{Pending: true}, common.HexToAddress("0x41BA7e0e1e661f7114f2F05AFd2536210c2ED351"))
-
-	fmt.Println("BALANCE:", balance)
-
-	// DEALS EX
-
-	hubDeals, err := blockchain.GetHubDeals("0x41BA7e0e1e661f7114f2F05AFd2536210c2ED351")
-	if err != nil {
-		log.Fatalln(err)
-		return
-	}
-	fmt.Println("HubDeals:", hubDeals)
-
-	clientDeals, err := blockchain.GetClientDeals("0x41BA7e0e1e661f7114f2F05AFd2536210c2ED351")
+	result, err := blockchain.GetHubDeals("0x41ba7e0e1e661f7114f2f05afd2536210c2ed351")
 	if err != nil {
 		log.Fatalln(err)
 		return
 	}
-	fmt.Println("ClientDeals:", clientDeals)
+	log.Println("HubDeals: ", result)
 
-	amount, err := blockchain.GetDealAmount()
+	result, err = blockchain.GetClientDeals("0x41ba7e0e1e661f7114f2f05afd2536210c2ed351")
 	if err != nil {
 		log.Fatalln(err)
 		return
 	}
-	fmt.Println("DealAmount:", amount)
+	log.Println("ClientDeals: ", result)
+
+	dealAmount, err := blockchain.GetDealAmount()
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+	log.Println("dealAmount: ", dealAmount)
+
+	dealInfo, err := blockchain.GetDealInfo(big.NewInt(4))
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+	log.Println("dealInfo: ", dealInfo)
+	log.Println("dealInfo-SpecHash: ", dealInfo.SpecificationHash)
+	log.Println("dealInfo-Client: ", dealInfo.Client)
+	log.Println("dealInfo-Hub: ", dealInfo.Hub)
+	log.Println("dealInfo-Price: ", dealInfo.Price.String())
+	log.Println("dealInfo-Status: ", dealInfo.Status.String())
+	log.Println("dealInfo-StartTime: ", dealInfo.StartTime.String())
+	log.Println("dealInfo-WorkTime: ", dealInfo.WorkTime.String())
+	log.Println("dealInfo-EndTime: ", dealInfo.EndTime.String())
+
+	balance, err := blockchain.BalanceOf("0x41ba7e0e1e661f7114f2f05afd2536210c2ed351")
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+	log.Println("Balance: ", balance)
+
+	allowance, err := blockchain.AllowanceOf("0x41ba7e0e1e661f7114f2f05afd2536210c2ed351", tsc.DealsAddress)
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+	log.Println("Allowance: ", allowance)
+
 }

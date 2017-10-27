@@ -26,12 +26,15 @@ func initEthClient() (err error) {
 	return nil
 }
 
-type Deal struct {
-	SpecHach *big.Int
-	Client   common.Address
-	Hub      common.Address
-	Price    *big.Int
-	Status   *big.Int
+type DealInfo struct {
+	SpecificationHash *big.Int
+	Client            string
+	Hub               string
+	Price             *big.Int
+	Status            *big.Int
+	StartTime         *big.Int
+	WorkTime          *big.Int
+	EndTime           *big.Int
 }
 
 type BlockchainAPI struct {
@@ -65,7 +68,7 @@ func NewBlockchainAPI(key *ecdsa.PrivateKey, gasPrice *big.Int) (bch *Blockchain
 // Deals appearance
 // ----------------
 
-func connectDeals() (*api.Deals, error){
+func connectDeals() (*api.Deals, error) {
 	err := initEthClient()
 	if err != nil {
 		return nil, err
@@ -121,13 +124,13 @@ func (bch *BlockchainAPI) CloseDeal(id *big.Int) (*types.Transaction, error) {
 	return tx, err
 }
 
-func GetHubDeals(address string) (hubDeals []*big.Int, err error) {
+func GetHubDeals(address string) ([]*big.Int, error) {
 	deals, err := connectDeals()
 	if err != nil {
 		return nil, err
 	}
 
-	hubDeals, err = deals.GetDealsByHubAddress(&bind.CallOpts{Pending: true}, common.HexToAddress(address))
+	hubDeals, err := deals.GetDealsByHubAddress(&bind.CallOpts{Pending: true}, common.HexToAddress(address))
 	if err != nil {
 		return nil, err
 	}
@@ -135,17 +138,40 @@ func GetHubDeals(address string) (hubDeals []*big.Int, err error) {
 
 }
 
-func GetClientDeals(address string) (clientDeals []*big.Int, err error) {
+func GetClientDeals(address string) ([]*big.Int, error) {
 	deals, err := connectDeals()
 	if err != nil {
 		return nil, err
 	}
 
-	clientDeals, err = deals.GetDealsByClient(&bind.CallOpts{Pending: true}, common.HexToAddress(address))
+	clientDeals, err := deals.GetDealsByClient(&bind.CallOpts{Pending: true}, common.HexToAddress(address))
 	if err != nil {
 		return nil, err
 	}
 	return clientDeals, nil
+}
+
+func GetDealInfo(id *big.Int) (*DealInfo, error) {
+	deals, err := connectDeals()
+	if err != nil {
+		return nil, err
+	}
+
+	deal, err := deals.GetDealInfo(&bind.CallOpts{Pending: true}, id)
+	if err != nil {
+		return nil, err
+	}
+	dealInfo := DealInfo{
+		SpecificationHash: deal.SpecHach,
+		Client:            deal.Client.String(),
+		Hub:               deal.Hub.String(),
+		Price:             deal.Price,
+		Status:            deal.Status,
+		StartTime:         deal.StartTime,
+		WorkTime:          deal.WorkTime,
+		EndTime:           deal.EndTIme,
+	}
+	return &dealInfo, nil
 }
 
 func GetDealAmount() (amount *big.Int, err error) {
@@ -165,12 +191,12 @@ func GetDealAmount() (amount *big.Int, err error) {
 // Token appearance
 // ----------------
 
-func connectToken() (*api.TSCToken, error){
+func connectToken() (*api.TSCToken, error) {
 	err := initEthClient()
 	if err != nil {
 		return nil, err
 	}
-	return api.NewTSCToken(common.HexToAddress(tsc.DealsAddress), ethClient)
+	return api.NewTSCToken(common.HexToAddress(tsc.TSCAddress), ethClient)
 }
 
 func BalanceOf(address string) (balance *big.Int, err error) {
