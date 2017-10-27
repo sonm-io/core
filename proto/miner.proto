@@ -6,23 +6,19 @@ import "capabilities.proto";
 package sonm;
 
 service Miner{
-    rpc Ping(PingRequest) returns (PingReply) {}
-    rpc Info(MinerInfoRequest) returns (InfoReply) {}
+    rpc Ping(Empty) returns (PingReply) {}
+    rpc Info(Empty) returns (InfoReply) {}
     rpc Handshake(MinerHandshakeRequest) returns (MinerHandshakeReply) {}
 
     rpc Start(MinerStartRequest) returns (MinerStartReply) {}
-    rpc Stop(StopTaskRequest) returns (StopTaskReply) {}
+    rpc Stop(ID) returns (Empty) {}
 
     rpc TasksStatus(stream MinerStatusMapRequest) returns (stream StatusMapReply) {}
-    rpc TaskDetails(TaskStatusRequest) returns (TaskStatusReply) {}
+    rpc TaskDetails(ID) returns (TaskStatusReply) {}
 
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
-    rpc DiscoverHub(DiscoverHubRequest) returns (EmptyReply) {}
+    rpc DiscoverHub(DiscoverHubRequest) returns (Empty) {}
 }
-
-message MinerInfoRequest {
-}
-
 
 message MinerHandshakeRequest {
     string hub = 1;

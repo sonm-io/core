@@ -11,10 +11,11 @@ import (
 )
 
 const (
-	appName        = "sonm"
-	hubAddressFlag = "addr"
-	hubTimeoutFlag = "timeout"
-	outputModeFlag = "out"
+	appName         = "sonm"
+	hubAddressFlag  = "addr"
+	nodeAddressFlag = "node"
+	hubTimeoutFlag  = "timeout"
+	outputModeFlag  = "out"
 
 	// log flag names
 	logTypeFlag       = "type"
@@ -26,12 +27,13 @@ const (
 )
 
 var (
-	rootCmd    = &cobra.Command{Use: appName}
-	version    string
-	hubAddress string
-	outputMode string
-	timeout    = 60 * time.Second
-	cfg        config.Config
+	rootCmd     = &cobra.Command{Use: appName}
+	version     string
+	hubAddress  string
+	nodeAddress string
+	outputMode  string
+	timeout     = 60 * time.Second
+	cfg         config.Config
 
 	// logging flag vars
 	logType       string
@@ -43,16 +45,25 @@ var (
 
 	// errors
 	errHubAddressRequired   = errors.New("--addr flag is required")
-	errMinerAddressRequired = errors.New("Miner address is required")
-	errTaskIDRequired       = errors.New("Task ID is required")
-	errTaskFileRequired     = errors.New("Task definition file is required")
+	errWorkerIDRequired     = errors.New("worker ID is required")
+	errTaskIDRequired       = errors.New("task ID is required")
+	errTaskFileRequired     = errors.New("task definition file is required")
+	errCannotParsePropsFile = errors.New("cannot parse props file")
 )
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&hubAddress, hubAddressFlag, "", "hub addr")
+	rootCmd.PersistentFlags().StringVar(&nodeAddress, nodeAddressFlag, "127.0.0.1:9999", "node addr")
 	rootCmd.PersistentFlags().DurationVar(&timeout, hubTimeoutFlag, 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputMode, outputModeFlag, "", "Output mode: simple or json")
-	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd)
+
+	nodeRootCmd.AddCommand(nodeHubRootCmd, nodeMarketRootCmd)
+	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd, nodeRootCmd)
+}
+
+var nodeRootCmd = &cobra.Command{
+	Use:   "node",
+	Short: "Operations with local node",
 }
 
 // Root configure and return root command

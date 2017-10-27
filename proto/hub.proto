@@ -6,24 +6,30 @@ import "insonmnia.proto";
 package sonm;
 
 service Hub {
-    rpc Ping(PingRequest) returns (PingReply) {}
-    rpc Status(HubStatusRequest) returns (HubStatusReply) {}
-    rpc List(ListRequest) returns (ListReply) {}
-    rpc Info(HubInfoRequest) returns (InfoReply) {}
+    // Ping should be used as Healthcheck for Hub
+    rpc Ping(Empty) returns (PingReply) {}
+    // Status returns internal hub statistic
+    rpc Status(Empty) returns (HubStatusReply) {}
+    // List returns a list for connected Workers
+    rpc List(Empty) returns (ListReply) {}
+    // Info returns info about given Worker
+    rpc Info(ID) returns (InfoReply) {}
+    // TaskList returns info about all Tasks on all Workers on the Hub
+    rpc TaskList(Empty) returns (TaskListReply) {}
 
     rpc StartTask(HubStartTaskRequest) returns (HubStartTaskReply) {}
-    rpc StopTask(StopTaskRequest) returns (StopTaskReply) {}
+    rpc StopTask(ID) returns (Empty) {}
 
-    rpc TaskStatus(TaskStatusRequest) returns (TaskStatusReply) {}
-    rpc MinerStatus(HubStatusMapRequest) returns (StatusMapReply) {}
+    rpc TaskStatus(ID) returns (TaskStatusReply) {}
+    rpc MinerStatus(ID) returns (StatusMapReply) {}
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
 
     rpc ProposeDeal(DealRequest) returns (Empty) {}
-    rpc DiscoverHub(DiscoverHubRequest) returns (EmptyReply) {}
+    rpc DiscoverHub(DiscoverHubRequest) returns (Empty) {}
 
     // GetMinerProperties allows to obtain previously assigned resource
     // properties for a given miner.
-    rpc GetMinerProperties(GetMinerPropertiesRequest) returns (GetMinerPropertiesReply) {}
+    rpc GetMinerProperties(ID) returns (GetMinerPropertiesReply) {}
 
     // SetMinerProperties method allows to specify additional resource
     // properties for a miner specified by its ID.
@@ -34,18 +40,25 @@ service Hub {
 
     // GetSlots allows to obtain previously assigned slots from for a given
     // miner.
-    rpc GetSlots(GetSlotsRequest) returns (GetSlotsReply) {}
-
+    rpc GetSlots(ID) returns (GetSlotsReply) {}
+    // GetAllSlots returns slots assigned on all Workers on the Hub
+    rpc GetAllSlots(Empty) returns (GetAllSlotsReply) {}
     // AddSlot allows to assign a new slot for a given miner.
     // This method can fail if either there are no resources left on a miner
     // or it has been previourly assigned for specified time duration.
     rpc AddSlot(AddSlotRequest) returns (Empty) {}
-
     // RemoveSlot removes the speified slot if fully matches.
     rpc RemoveSlot(RemoveSlotRequest) returns (Empty) {}
-}
 
-message ListRequest {
+    // GetRegistredWorkers returns a list of Worker IDs that
+    // allowed to connet to the Hub
+    rpc GetRegistredWorkers(Empty) returns (GetRegistredWorkersReply) {}
+    // RegisterWorker allows Worker with given ID
+    // to connect to the Hub
+    rpc RegisterWorker(ID) returns (Empty) {}
+    // RegisterWorkers deny Worker with given ID
+    // to connect to the Hub
+    rpc UnregisterWorker(ID) returns (Empty) {}
 }
 
 message ListReply {
@@ -53,10 +66,6 @@ message ListReply {
         repeated string values = 1;
     }
     map<string, ListValue> info = 1;
-}
-
-message HubInfoRequest {
-    string miner = 1;
 }
 
 message TaskRequirements {
@@ -82,12 +91,6 @@ message HubStartTaskReply {
     repeated string endpoint = 2;
 }
 
-message HubStatusMapRequest {
-    string miner = 1;
-}
-
-message HubStatusRequest {}
-
 message HubStatusReply {
     uint64 minerCount = 1;
     uint64 uptime = 2;
@@ -100,10 +103,6 @@ message DealRequest {
     Order order = 1;
 }
 
-message GetMinerPropertiesRequest {
-    string ID = 1;
-}
-
 message GetMinerPropertiesReply {
     map<string, string> properties = 1;
 }
@@ -113,13 +112,15 @@ message SetMinerPropertiesRequest {
     map<string, string> properties = 2;
 }
 
-message GetSlotsRequest {
-    // Miner ID.
-    string ID = 1;
-}
-
 message GetSlotsReply {
     repeated Slot slot = 1;
+}
+
+message GetAllSlotsReply {
+    message SlotList {
+        repeated Slot slot = 1;
+    }
+    map<string, SlotList> slots = 1;
 }
 
 message AddSlotRequest {
@@ -132,4 +133,15 @@ message AddSlotRequest {
 message RemoveSlotRequest {
     string ID = 1;
     Slot slot = 2;
+}
+
+message GetRegistredWorkersReply {
+    repeated ID ids = 1;
+}
+
+message TaskListReply {
+    message TaskInfo {
+        map <string, TaskStatusReply> tasks = 1;
+    }
+    map<string, TaskInfo> info = 1;
 }

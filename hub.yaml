@@ -33,3 +33,10 @@ ethereum:
   # Private key for Hub Wallet ethereum account.
   # (32 bytes in hex format without '0x' prefix.)
   private_key: "d07fff36ef2c3d15144974c25d3f5c061ae830a81eefd44292588b3cea2c701c"
+
+# locator service allows nodes to discover each other
+locator:
+  address: "127.0.0.1:9090"
+
+# enable consul for hub state sharing and fail-over
+consul_enabled: false

@@ -252,7 +252,7 @@ func TestTaskStatusJsonError(t *testing.T) {
 
 func TestTaskStopSimple(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStop(gomock.Any(), gomock.Any()).Return(&pb.StopTaskReply{}, nil)
+	itr.EXPECT().TaskStop(gomock.Any(), gomock.Any()).Return(&pb.Empty{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeSimple)
 	taskStopCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)
@@ -263,7 +263,7 @@ func TestTaskStopSimple(t *testing.T) {
 
 func TestTaskStopJson(t *testing.T) {
 	itr := NewMockCliInteractor(gomock.NewController(t))
-	itr.EXPECT().TaskStop(gomock.Any(), gomock.Any()).Return(&pb.StopTaskReply{}, nil)
+	itr.EXPECT().TaskStop(gomock.Any(), gomock.Any()).Return(&pb.Empty{}, nil)
 
 	buf := initRootCmd(t, config.OutputModeJSON)
 	taskStopCmdRunner(rootCmd, "adac72b1-7fcf-47e1-8d74-a53563823185", itr)

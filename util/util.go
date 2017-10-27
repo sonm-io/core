@@ -1,16 +1,19 @@
 package util
 
 import (
-	"fmt"
-	"net"
-
 	"bytes"
+	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os/user"
 	"runtime"
 	"strconv"
+
+	"github.com/ethereum/go-ethereum/crypto"
+	"gopkg.in/yaml.v2"
 )
 
 // GetLocalIP find local non-loopback ip addr
@@ -90,4 +93,26 @@ func ParseEndpointPort(s string) (string, error) {
 
 func GetPlatformName() string {
 	return fmt.Sprintf("%s/%s/%s", runtime.GOOS, runtime.GOARCH, runtime.Version())
+}
+
+func PubKeyToString(key ecdsa.PublicKey) string {
+	return fmt.Sprintf("%x", crypto.FromECDSAPub(&key))
+}
+
+func PubKeyToAddr(key ecdsa.PublicKey) string {
+	return crypto.PubkeyToAddress(key).String()
+}
+
+func LoadYamlFile(from string, to interface{}) error {
+	buf, err := ioutil.ReadFile(from)
+	if err != nil {
+		return err
+	}
+
+	err = yaml.Unmarshal(buf, to)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

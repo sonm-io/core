@@ -24,8 +24,13 @@ message RAMDevice {
 message GPUDevice {
     // Name describes full GPU device name.
     string name = 1;
+    uint64 vendorId = 2;
     // Vendor describes vendor name, for example "NVIDIA" or "AMD".
-    string vendorName = 2;
+    string vendorName = 3;
     // Total maximum memory size the device can hold.
-    uint64 maxMemorySize = 3;
+    uint64 maxMemorySize = 4;
+    // OpenCL major version.
+    int32 openCLVersionMajor = 5;
+    // OpenCL minor version.
+    int32 openCLVersionMinor = 6;
 }

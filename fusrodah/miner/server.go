@@ -5,10 +5,12 @@ import (
 	"time"
 
 	"encoding/json"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
 	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/fusrodah"
+	"github.com/sonm-io/core/util"
 )
 
 const defaultMinerPort = ":30342"
@@ -90,7 +92,7 @@ func (srv *Server) discovery() {
 	case <-done:
 		return
 	case <-t.C:
-		srv.Frd.Send(srv.GetPubKeyString(), true, common.TopicHubDiscover)
+		srv.Frd.Send(util.PubKeyToString(srv.PrivateKey.PublicKey), true, common.TopicHubDiscover)
 	}
 }
 
@@ -110,9 +112,4 @@ func (srv *Server) GetHub() *HubInfo {
 		srv.discovery()
 	}
 	return srv.Hub
-}
-
-func (srv *Server) GetPubKeyString() string {
-	pkString := string(crypto.FromECDSAPub(&srv.PrivateKey.PublicKey))
-	return pkString
 }

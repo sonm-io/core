@@ -44,6 +44,9 @@ message Resources {
     map<string, string> props = 8;
 }
 
+// todo(all): slot needs an ID
+// todo(all): extra discuss required
+
 message Slot {
     // Virtual computer start of life (hour grained).
     Timestamp startTime = 1;

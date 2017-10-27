@@ -9,8 +9,10 @@ It is generated from these files:
 	capabilities.proto
 	hub.proto
 	insonmnia.proto
+	locator.proto
 	marketplace.proto
 	miner.proto
+	node.proto
 
 It has these top-level messages:
 	Geo
@@ -21,53 +23,51 @@ It has these top-level messages:
 	CPUDevice
 	RAMDevice
 	GPUDevice
-	ListRequest
 	ListReply
-	HubInfoRequest
 	TaskRequirements
 	HubStartTaskRequest
 	HubStartTaskReply
-	HubStatusMapRequest
-	HubStatusRequest
 	HubStatusReply
 	DealRequest
-	GetMinerPropertiesRequest
 	GetMinerPropertiesReply
 	SetMinerPropertiesRequest
-	GetSlotsRequest
 	GetSlotsReply
+	GetAllSlotsReply
 	AddSlotRequest
 	RemoveSlotRequest
-	PingRequest
+	GetRegistredWorkersReply
+	TaskListReply
+	Empty
+	ID
 	PingReply
 	CPUUsage
 	MemoryUsage
 	NetworkUsage
 	ResourceUsage
 	InfoReply
-	StopTaskRequest
-	StopTaskReply
-	TaskStatusRequest
 	TaskStatusReply
 	StatusMapReply
 	ContainerRestartPolicy
 	TaskLogsRequest
 	TaskLogsChunk
-	EmptyReply
 	DiscoverHubRequest
 	TaskResourceRequirements
-	Empty
 	Timestamp
+	AnnounceRequest
+	ResolveRequest
+	ResolveReply
 	GetOrdersRequest
 	GetOrdersReply
-	GetOrderRequest
-	MinerInfoRequest
 	MinerHandshakeRequest
 	MinerHandshakeReply
 	MinerStartRequest
 	MinerStartReply
 	TaskInfo
 	MinerStatusMapRequest
+	TaskListRequest
+	Deal
+	DealListRequest
+	DealListReply
 */
 package sonm
 

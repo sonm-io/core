@@ -2,6 +2,7 @@
 *.o
 *.a
 *.so
+*.uuid
 
 # Folders
 _obj
@@ -31,6 +32,8 @@ sonmcli_win32.exe
 sonmminer
 sonmbootnode
 sonmmarketplace
+sonmlocator
+sonmnode
 .idea/
 
 

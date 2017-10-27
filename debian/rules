@@ -6,7 +6,7 @@
 	dh $@ --with systemd
 
 override_dh_auto_build:
-	make -j build/insomnia
+	make -j build/insomnia build/aux
 
 override_dh_auto_test:
 	echo "skip tests"

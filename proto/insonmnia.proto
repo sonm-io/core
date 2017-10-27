@@ -4,7 +4,11 @@ import "capabilities.proto";
 
 package sonm;
 
-message PingRequest {}
+message Empty {}
+
+message ID {
+    string id = 1;
+}
 
 message PingReply {
     string status = 1;
@@ -39,16 +43,6 @@ message InfoReply {
     map<string, ResourceUsage> usage = 1;
     string name = 2;
     Capabilities capabilities = 3;
-}
-
-message StopTaskRequest {
-    string id = 1;
-}
-
-message StopTaskReply {}
-
-message TaskStatusRequest {
-    string id = 1;
 }
 
 message TaskStatusReply {
@@ -96,9 +90,6 @@ message TaskLogsChunk {
     bytes data = 1;
 }
 
-message EmptyReply {
-}
-
 message DiscoverHubRequest {
     string endpoint = 1;
 }
@@ -113,8 +104,6 @@ message TaskResourceRequirements {
 
     int64 nanoCPUs = 4;
 }
-
-message Empty {}
 
 message Timestamp {
     // Represents seconds of UTC time since Unix epoch 1970-01-01T00:00:00Z.

@@ -1,0 +1,12 @@
+[Unit]
+Description=SONM Locator
+
+
+[Service]
+EnvironmentFile=/etc/default/sonm-locator
+Type=simple
+ExecStart=/usr/bin/sonmlocator --addr=${LISTEN_ADDR}
+
+
+[Install]
+WantedBy=multi-user.target
