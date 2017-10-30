@@ -25,14 +25,14 @@ type Dealer interface {
 	// other params caused by SONM office's agreement
 	// It could be called by client
 	// return transaction, not deal id
-	OpenDeal(key *ecdsa.PrivateKey, hub string, client string, specificationHash *big.Int, price *big.Int, workTime *big.Int) (*types.Transaction, error)
+	OpenDeal(key *ecdsa.PrivateKey, hub string, client string, specificationHash, price, workTime *big.Int) (*types.Transaction, error)
 
 	// CancelDeal canceled deal and refund client price, while deal not accepted
 	// It could be called by client
-	CancelDeal(key *ecdsa.PrivateKey, id big.Int) (*types.Transaction, error)
+	CancelDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
 	// AcceptDeal accepting deal by hub, causes that hub accept to sell its resources
 	// It could be called by hub
-	AcceptDeal(key *ecdsa.PrivateKey, id big.Int) (*types.Transaction, error)
+	AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
 	// CloseDeal closing deal by given id
 	// It could be called by client
 	CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
@@ -136,7 +136,7 @@ func NewBlockchainAPI(ethEndpoint *string, gasPrice *int64) (*API, error) {
 // Deals appearance
 // ----------------
 
-func (bch *API) OpenDeal(key *ecdsa.PrivateKey, hub string, client string, specificationHash *big.Int, price *big.Int, workTime *big.Int) (*types.Transaction, error) {
+func (bch *API) OpenDeal(key *ecdsa.PrivateKey, hub string, client string, specificationHash, price, workTime *big.Int) (*types.Transaction, error) {
 	opts := bch.getTxOpts(key, 305000)
 
 	tx, err := bch.dealsContract.OpenDeal(opts, common.HexToAddress(hub), common.HexToAddress(client), specificationHash, price, workTime)
@@ -146,20 +146,20 @@ func (bch *API) OpenDeal(key *ecdsa.PrivateKey, hub string, client string, speci
 	return tx, err
 }
 
-func (bch *API) CancelDeal(key *ecdsa.PrivateKey, id big.Int) (*types.Transaction, error) {
+func (bch *API) CancelDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
 	opts := bch.getTxOpts(key, 80000)
 
-	tx, err := bch.dealsContract.CancelDeal(opts, &id)
+	tx, err := bch.dealsContract.CancelDeal(opts, id)
 	if err != nil {
 		return nil, err
 	}
 	return tx, err
 }
 
-func (bch *API) AcceptDeal(key *ecdsa.PrivateKey, id big.Int) (*types.Transaction, error) {
+func (bch *API) AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
 	opts := bch.getTxOpts(key, 90000)
 
-	tx, err := bch.dealsContract.AcceptDeal(opts, &id)
+	tx, err := bch.dealsContract.AcceptDeal(opts, id)
 	if err != nil {
 		return nil, err
 	}
