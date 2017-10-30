@@ -60,10 +60,6 @@ build/cli_win32:
 	@echo "+ $@"
 	GOOS=windows GOARCH=386 go build -tags nocgo -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER).win32" -o ${CLI}_win32.exe ${GOCMD}/cli
 
-build/blockchain:
-	@echo "+ $@"
-	$(MAKE) -C blockchain build_contract_wrappers
-
 build/insomnia: build/hub build/miner build/cli build/node
 
 build/aux: build/locator build/marketplace

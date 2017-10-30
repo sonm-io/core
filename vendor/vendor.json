@@ -345,11 +345,13 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
-			"checksumSHA1": "9O41g186FuPTT3Did5dYxhU7ziU=",
+			"checksumSHA1": "D8hr2nIw1YD0qGXAJ+aewXhZyJ0=",
 			"path": "github.com/ethereum/go-ethereum",
-			"revision": "3d32690b54539d13ec8e7884bf3416ada6046354",
-			"revisionTime": "2017-07-28T13:09:39Z",
-			"tree": true
+			"revision": "05101641455a754936acc5ddff92f35f5e33181c",
+			"revisionTime": "2017-10-03T17:18:39Z",
+			"tree": true,
+			"version": "v1.7.1",
+			"versionExact": "v1.7.1"
 		},
 		{
 			"checksumSHA1": "l357/XwKHU9+GQuf7mg+pJe2HkQ=",
@@ -719,6 +721,12 @@
 			"revisionTime": "2017-07-26T21:28:29Z"
 		},
 		{
+			"checksumSHA1": "XNHQiRltA7NQJV0RvUroY+cf+zg=",
+			"path": "github.com/golang/protobuf/protoc-gen-go/descriptor",
+			"revision": "130e6b02ab059e7b717a096f397c5b60111cae74",
+			"revisionTime": "2017-09-20T22:06:47Z"
+		},
+		{
 			"checksumSHA1": "Z4RIWIXH05QItZqVbmbONO9mWig=",
 			"path": "github.com/golang/protobuf/ptypes/any",
 			"revision": "748d386b5c1ea99658fd69fe9f03991ce86a90c1",
@@ -860,6 +868,12 @@
 			"path": "github.com/jinzhu/configor",
 			"revision": "ff2ac2b1ce3d687c3a1da0d2847fbce42524a7f3",
 			"revisionTime": "2017-05-22T02:16:20Z"
+		},
+		{
+			"checksumSHA1": "gKyBj05YkfuLFruAyPZ4KV9nFp8=",
+			"path": "github.com/julienschmidt/httprouter",
+			"revision": "975b5c4c7c21c0e3d2764200bf2aa8e34657ae6e",
+			"revisionTime": "2017-04-30T22:20:11Z"
 		},
 		{
 			"checksumSHA1": "sGdhjz2N/DpfiZrMnHSzl2H/YX8=",
@@ -1010,6 +1024,12 @@
 			"checksumSHA1": "zKKp5SZ3d3ycKe4EKMNT0BqAWBw=",
 			"path": "github.com/pmezard/go-difflib/difflib",
 			"revision": ""
+		},
+		{
+			"checksumSHA1": "WbbxCn2jUYIL5viqLo0BKXEdPrQ=",
+			"path": "github.com/prometheus/prometheus/util/flock",
+			"revision": "abf7c975c9ac1606bf22da14097ece00bd08f577",
+			"revisionTime": "2017-10-07T11:37:21Z"
 		},
 		{
 			"checksumSHA1": "KAzbLjI9MzW2tjfcAsK75lVRp6I=",
