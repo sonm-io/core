@@ -43,13 +43,18 @@ func (h *hubAPI) UnregisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, e
 	return h.hub.UnregisterWorker(ctx, req)
 }
 
-func (h *hubAPI) GetWorkerProperties(ctx context.Context, req *pb.ID) (*pb.GetDevicePropertiesReply, error) {
-	log.G(h.ctx).Info("handling GetWorkerProperties request")
+func (h *hubAPI) DeviceList(ctx context.Context, req *pb.Empty) (*pb.DevicesReply, error) {
+	log.G(h.ctx).Info("handling DeviceList request")
+	return h.hub.Devices(ctx, req)
+}
+
+func (h *hubAPI) GetDeviceProperties(ctx context.Context, req *pb.ID) (*pb.GetDevicePropertiesReply, error) {
+	log.G(h.ctx).Info("handling GetDeviceProperties request")
 	return h.hub.GetDeviceProperties(ctx, req)
 }
 
-func (h *hubAPI) SetWorkerProperties(ctx context.Context, req *pb.SetDevicePropertiesRequest) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling SetWorkerProperties request")
+func (h *hubAPI) SetDeviceProperties(ctx context.Context, req *pb.SetDevicePropertiesRequest) (*pb.Empty, error) {
+	log.G(h.ctx).Info("handling SetDeviceProperties request")
 	return h.hub.SetDeviceProperties(ctx, req)
 }
 
@@ -67,9 +72,9 @@ func (h *hubAPI) CreateAskPlan(ctx context.Context, req *pb.Slot) (*pb.Empty, er
 	return h.hub.InsertSlot(ctx, req)
 }
 
-func (h *hubAPI) RemoveAskPlan(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
-	// TODO: Unimplemented.
-	return nil, nil
+func (h *hubAPI) RemoveAskPlan(ctx context.Context, req *pb.Slot) (*pb.Empty, error) {
+	log.G(h.ctx).Info("handling RemoveAskPlan request")
+	return h.hub.RemoveSlot(ctx, req)
 }
 
 func (h *hubAPI) TaskList(ctx context.Context, req *pb.Empty) (*pb.TaskListReply, error) {
@@ -80,20 +85,6 @@ func (h *hubAPI) TaskList(ctx context.Context, req *pb.Empty) (*pb.TaskListReply
 func (h *hubAPI) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusReply, error) {
 	log.G(h.ctx).Info("handling TaskStatus request")
 	return h.hub.TaskStatus(ctx, req)
-}
-
-func (h *hubAPI) getWorkersIDs(ctx context.Context) ([]string, error) {
-	workers, err := h.hub.List(ctx, &pb.Empty{})
-	if err != nil {
-		return nil, err
-	}
-
-	ids := []string{}
-	for id := range workers.GetInfo() {
-		ids = append(ids, id)
-	}
-
-	return ids, nil
 }
 
 func newHubAPI(ctx context.Context, conf Config) (pb.HubManagementServer, error) {

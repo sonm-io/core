@@ -13,6 +13,7 @@ func init() {
 		nodeACLRootCmd,
 		nodeOrderRootCmd,
 		nodeTaskRootCmd,
+		nodeDeviceRootCmd,
 	)
 }
 
