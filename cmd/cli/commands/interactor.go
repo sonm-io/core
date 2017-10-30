@@ -12,9 +12,6 @@ import (
 type CliInteractor interface {
 	HubPing(context.Context) (*pb.PingReply, error)
 	HubStatus(context.Context) (*pb.HubStatusReply, error)
-	HubDevices(ctx context.Context) (*pb.DevicesReply, error)
-	HubGetProperties(ctx context.Context, ID string) (*pb.GetDevicePropertiesReply, error)
-	HubSetProperties(ctx context.Context, ID string, properties map[string]float64) (*pb.Empty, error)
 	HubShowSlots(ctx context.Context) (*pb.SlotsReply, error)
 	HubInsertSlot(ctx context.Context, slot *structs.Slot) (*pb.Empty, error)
 
@@ -161,12 +158,13 @@ type NodeHubInteractor interface {
 	RegisterWorker(id string) (*pb.Empty, error)
 	UnregisterWorker(id string) (*pb.Empty, error)
 
-	GetWorkerProperties(id string) (*pb.GetDevicePropertiesReply, error)
-	SetWorkerProperties(req *pb.SetDevicePropertiesRequest) (*pb.Empty, error)
+	DevicesList() (*pb.DevicesReply, error)
+	GetDeviceProperties(id string) (*pb.GetDevicePropertiesReply, error)
+	SetDeviceProperties(ID string, properties map[string]float64) (*pb.Empty, error)
 
 	GetAskPlans() (*pb.SlotsReply, error)
-	CreateAskPlan(id string, slot *structs.Slot) (*pb.Empty, error)
-	RemoveAskPlan(id string) (*pb.Empty, error)
+	CreateAskPlan(slot *structs.Slot) (*pb.Empty, error)
+	RemoveAskPlan(slot *structs.Slot) (*pb.Empty, error)
 
 	TaskList() (*pb.TaskListReply, error)
 	TaskStatus(id string) (*pb.TaskStatusReply, error)
@@ -222,19 +220,31 @@ func (it *hubInteractor) UnregisterWorker(id string) (*pb.Empty, error) {
 	return it.hub.UnregisterWorker(ctx, req)
 }
 
-func (it *hubInteractor) GetWorkerProperties(id string) (*pb.GetDevicePropertiesReply, error) {
+func (it *hubInteractor) DevicesList() (*pb.DevicesReply, error) {
+	ctx, cancel := ctx(it.timeout)
+	defer cancel()
+
+	return it.hub.DeviceList(ctx, &pb.Empty{})
+}
+
+func (it *hubInteractor) GetDeviceProperties(id string) (*pb.GetDevicePropertiesReply, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
 	req := &pb.ID{Id: id}
-	return it.hub.GetWorkerProperties(ctx, req)
+	return it.hub.GetDeviceProperties(ctx, req)
 }
 
-func (it *hubInteractor) SetWorkerProperties(req *pb.SetDevicePropertiesRequest) (*pb.Empty, error) {
+func (it *hubInteractor) SetDeviceProperties(ID string, properties map[string]float64) (*pb.Empty, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.hub.SetWorkerProperties(ctx, req)
+	req := &pb.SetDevicePropertiesRequest{
+		ID:         ID,
+		Properties: properties,
+	}
+
+	return it.hub.SetDeviceProperties(ctx, req)
 }
 
 func (it *hubInteractor) GetAskPlans() (*pb.SlotsReply, error) {
@@ -244,19 +254,18 @@ func (it *hubInteractor) GetAskPlans() (*pb.SlotsReply, error) {
 	return it.hub.GetAskPlans(ctx, &pb.Empty{})
 }
 
-func (it *hubInteractor) CreateAskPlan(id string, slot *structs.Slot) (*pb.Empty, error) {
+func (it *hubInteractor) CreateAskPlan(slot *structs.Slot) (*pb.Empty, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
 	return it.hub.CreateAskPlan(ctx, slot.Unwrap())
 }
 
-func (it *hubInteractor) RemoveAskPlan(id string) (*pb.Empty, error) {
+func (it *hubInteractor) RemoveAskPlan(slot *structs.Slot) (*pb.Empty, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	req := &pb.ID{Id: id}
-	return it.hub.RemoveAskPlan(ctx, req)
+	return it.hub.RemoveAskPlan(ctx, slot.Unwrap())
 }
 
 func (it *hubInteractor) TaskList() (*pb.TaskListReply, error) {

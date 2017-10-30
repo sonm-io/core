@@ -73,9 +73,9 @@ var nodeOrderListCmd = &cobra.Command{
 }
 
 var nodeOrderCreateCmd = &cobra.Command{
-	Use:   "create <worker_id> <plan.yaml>",
+	Use:   "create <plan.yaml>",
 	Short: "Create new plan",
-	Args:  cobra.MinimumNArgs(2),
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -83,7 +83,6 @@ var nodeOrderCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		workerID := args[0]
 		planPath := args[1]
 
 		slot, err := loadSlotFile(planPath)
@@ -92,7 +91,7 @@ var nodeOrderCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		_, err = hub.CreateAskPlan(workerID, slot)
+		_, err = hub.CreateAskPlan(slot)
 		if err != nil {
 			showError(cmd, "Cannot create new AskOrder", err)
 			os.Exit(1)
@@ -112,6 +111,8 @@ var nodeOrderRemoveCmd = &cobra.Command{
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
 		}
+
+		// TODO(sshaman1101): implement this
 
 		// NOTE: method is not implemented in Hub yet
 		//planID := args[0]

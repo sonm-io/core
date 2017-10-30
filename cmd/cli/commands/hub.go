@@ -14,8 +14,7 @@ import (
 )
 
 func init() {
-	hubRootCmd.AddCommand(hubPingCmd, hubStatusCmd, hubDevicesCmd, hubDevicePropertiesCmd, hubSlotCmd)
-	hubDevicePropertiesCmd.AddCommand(hubSetPropertiesCmd, hubGetDevicePropertiesCmd)
+	hubRootCmd.AddCommand(hubPingCmd, hubStatusCmd, hubSlotCmd)
 	hubSlotCmd.AddCommand(minerShowSlotsCmd, hubAddSlotCmd)
 }
 
@@ -66,7 +65,6 @@ func hubPingCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
 }
 
 func hubStatusCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
-	// todo: implement this on hub
 	stat, err := interactor.HubStatus(context.Background())
 	if err != nil {
 		showError(cmd, "Cannot get status", err)
@@ -74,109 +72,6 @@ func hubStatusCmdRunner(cmd *cobra.Command, interactor CliInteractor) {
 	}
 
 	printHubStatus(cmd, stat)
-}
-
-var hubDevicesCmd = &cobra.Command{
-	Use:     "devices",
-	Short:   "Show Hub's aggregated hardware",
-	PreRunE: checkHubAddressIsSet,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		it, err := NewGrpcInteractor(hubAddress, timeout)
-		if err != nil {
-			showError(cmd, "Cannot connect ot hub", err)
-			return nil
-		}
-
-		reply, err := it.HubDevices(context.Background())
-		if err != nil {
-			return err
-		}
-		dump, err := json.Marshal(reply)
-		if err != nil {
-			return err
-		}
-		cmd.Println(string(dump))
-
-		return nil
-	},
-}
-
-var hubDevicePropertiesCmd = &cobra.Command{
-	Use:     "properties",
-	Short:   "Device properties",
-	PreRunE: checkHubAddressIsSet,
-}
-
-var hubGetDevicePropertiesCmd = &cobra.Command{
-	Use:     "get DEVICE...",
-	Short:   "Get hub device(s) properties",
-	PreRunE: checkHubAddressIsSet,
-	RunE: func(cmd *cobra.Command, IDs []string) error {
-		ctx := context.Background()
-		grpc, err := NewGrpcInteractor(hubAddress, timeout)
-		if err != nil {
-			return nil
-		}
-		if len(IDs) == 0 {
-			miners, err := grpc.MinerList(ctx)
-			if err != nil {
-				return err
-			}
-			for id := range miners.Info {
-				IDs = append(IDs, id)
-			}
-		}
-
-		properties := map[string]map[string]float64{}
-		for _, id := range IDs {
-			property, err := grpc.HubGetProperties(ctx, id)
-			if err != nil {
-				return err
-			}
-			properties[id] = property.Properties
-		}
-
-		dump, err := json.Marshal(properties)
-		if err != nil {
-			return err
-		}
-		cmd.Println(string(dump))
-		return nil
-	},
-}
-
-var hubSetPropertiesCmd = &cobra.Command{
-	Use:     "set ID PATH",
-	Short:   "Set device properties",
-	PreRunE: checkHubAddressIsSet,
-	Args:    cobra.MinimumNArgs(2),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		id := args[0]
-		path := args[1]
-
-		buf, err := ioutil.ReadFile(path)
-		if err != nil {
-			return err
-		}
-
-		cfg := map[string]float64{}
-		err = yaml.Unmarshal(buf, &cfg)
-		if err != nil {
-			return err
-		}
-
-		grpc, err := NewGrpcInteractor(hubAddress, timeout)
-		if err != nil {
-			return nil
-		}
-		_, err = grpc.HubSetProperties(context.Background(), id, cfg)
-		if err != nil {
-			return err
-		}
-
-		cmd.Println("OK")
-		return nil
-	},
 }
 
 var hubSlotCmd = &cobra.Command{
