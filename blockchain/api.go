@@ -15,23 +15,54 @@ const defaultEthEndpoint string = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsr
 
 const defaultGasPrice = 20 * 1000000000
 
+// Dealer - interface above SONM deals
+// client - who wanna buy
+// hub - who wanna selling its resources
+// WARN: this may change at future, by any proposal
 type Dealer interface {
+	// OpenDeal is function to open new deal in blockchain from given address,
+	// it have effect to change blockchain state, key is mandatory param
+	// other params caused by SONM office's agreement
+	// It could be called by client
+	// return transaction, not deal id
 	OpenDeal(key *ecdsa.PrivateKey, hub string, client string, specificationHash *big.Int, price *big.Int, workTime *big.Int) (*types.Transaction, error)
+
+	// CancelDeal canceled deal and refund client price, while deal not accepted
+	// It could be called by client
 	CancelDeal(key *ecdsa.PrivateKey, id big.Int) (*types.Transaction, error)
+	// AcceptDeal accepting deal by hub, causes that hub accept to sell its resources
+	// It could be called by hub
 	AcceptDeal(key *ecdsa.PrivateKey, id big.Int) (*types.Transaction, error)
+	// CloseDeal closing deal by given id
+	// It could be called by client
 	CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
+
+	// GetHubDeals is returns ids by given hub address
 	GetHubDeals(address string) ([]*big.Int, error)
+	// GetHubDeals is returns ids by given client address
 	GetClientDeals(address string) ([]*big.Int, error)
+	// GetDealInfo is returns deal info by given id
 	GetDealInfo(id *big.Int) (*DealInfo, error)
+	// GetDealAmount return global deal counter
 	GetDealAmount() (*big.Int, error)
 }
 
+// Token is go implementation of ERC20-compatibility token with full functionality high-level interface
+// standart description with placed: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
 type Token interface {
+	// Approve - add allowance from caller to other contract to spend tokens
 	Approve(key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error)
+	// Transfer token from caller
 	Transfer(key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error)
+	// TransferFrom fallback function for contracts to transfer you allowance
 	TransferFrom(key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (*types.Transaction, error)
+
+	// BalanceOf returns balance of given address
 	BalanceOf(address string) (*big.Int, error)
+	// AllowanceOf returns allowance of given address to spender account
 	AllowanceOf(from string, to string) (*big.Int, error)
+	// TotalSupply - all amount of emited token
+	TotalSupply() (*big.Int, error)
 }
 
 func initEthClient(ethEndpoint *string) (client *ethclient.Client, err error) {
@@ -71,6 +102,7 @@ type API struct {
 	tokenContract *api.TSCToken
 }
 
+// NewBlockchainAPI - is
 func NewBlockchainAPI(ethEndpoint *string, gasPrice *int64) (*API, error) {
 	client, err := initEthClient(ethEndpoint)
 	if err != nil {
@@ -235,4 +267,12 @@ func (bch *API) TransferFrom(key *ecdsa.PrivateKey, from string, to string, amou
 		return nil, err
 	}
 	return tx, err
+}
+
+func (bch *API) TotalSupply() (*big.Int, error) {
+	supply, err := bch.tokenContract.TotalSupply(&bind.CallOpts{Pending: true})
+	if err != nil {
+		return nil, err
+	}
+	return supply, nil
 }
