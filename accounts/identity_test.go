@@ -4,6 +4,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"os"
+	"os/user"
 	"path/filepath"
 	"testing"
 )
@@ -172,12 +173,15 @@ func TestIdentityPassphrase_ImportECDSA(t *testing.T) {
 }
 
 func TestGetDefaultKeystoreDir(t *testing.T) {
+	usr, err := user.Current()
+	assert.NoError(t, err)
+
 	/* Wrong case - setting SONM root directory path */
-	expectedPath := filepath.Join("etc", ".sonm")
+	expectedPath := filepath.Join(usr.HomeDir, ".sonm")
 	givenPath := GetDefaultKeystoreDir()
 	assert.NotEqual(t, expectedPath, givenPath)
 
 	/* Success case - setting correct SONM root directory path */
-	expectedPath = filepath.Join("etc", "sonm", "keystore")
+	expectedPath = filepath.Join(usr.HomeDir, ".sonm", "keystore")
 	assert.Equal(t, expectedPath, givenPath)
 }
