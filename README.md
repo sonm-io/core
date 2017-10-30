@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="SONM-IO CORE Logo" src="https://wiki.sonm.io/lib/exe/fetch.php?w=300&tok=2448ef&media=sonm-logo_no-text.png" height="140" />
+  <img alt="SONM preview" src="https://sonm.io/img/btt/btt_top_sonm_logo_block_1280-420.png" height="140" />
   <h3 align="center">SONM Core</h3>
   <p align="center">Official core client</p>
 </p>
