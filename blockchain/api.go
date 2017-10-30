@@ -1,13 +1,13 @@
 package blockchain
 
 import (
+	"crypto/ecdsa"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/sonm-io/core/blockchain/tsc"
 	"github.com/sonm-io/core/blockchain/tsc/api"
-	"crypto/ecdsa"
 	"math/big"
 )
 
@@ -76,7 +76,7 @@ func initEthClient(ethEndpoint *string) (client *ethclient.Client, err error) {
 	return ethClient, nil
 }
 
-func (bch *API) getTxOpts(key *ecdsa.PrivateKey, gasLimit int64) (*bind.TransactOpts) {
+func (bch *API) getTxOpts(key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts {
 	opts := bind.NewKeyedTransactor(key)
 	opts.GasLimit = big.NewInt(gasLimit)
 	opts.GasPrice = big.NewInt(bch.gasPrice)
