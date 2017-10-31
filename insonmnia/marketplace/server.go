@@ -209,7 +209,7 @@ func (m *Marketplace) Serve() error {
 		return err
 	}
 
-	srv := util.MakeGrpcServer()
+	srv := util.MakeGrpcServer(nil)
 	pb.RegisterMarketServer(srv, m)
 	srv.Serve(lis)
 	return nil
