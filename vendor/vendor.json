@@ -104,6 +104,12 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "GmSJfFUhbXmiqjiEMbjKs4knqzA=",
+			"path": "github.com/btcsuite/btcd/chaincfg/chainhash",
+			"revision": "c7588cbf7690cd9f047a28efa2dcd8f2435a4e5e",
+			"revisionTime": "2017-10-13T21:36:40Z"
+		},
+		{
 			"checksumSHA1": "jQ7JB1XsEO3528jVoX9wKM/9wWU=",
 			"path": "github.com/c2h5oh/datasize",
 			"revision": "54516c931ae99c3c74637b9ea2390cf9a6327f26",
