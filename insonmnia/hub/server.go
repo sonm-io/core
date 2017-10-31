@@ -617,23 +617,6 @@ func (h *Hub) findRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, erro
 	return result, nil
 }
 
-func (h *Hub) hasSlot(slot *structs.Slot) bool {
-	// TODO: Not implemented yet.
-	return false
-}
-
-func (h *Hub) getSlot(slot *structs.Slot) *structs.Slot {
-	// TODO: Not implemented yet.
-	return nil
-}
-
-func (h *Hub) ApproveDeal(ctx context.Context, request *pb.DealRequest) (*pb.Empty, error) {
-	// ApproveDeal.
-	// 1. Move from pending to reserved.
-	// 2. Notify man who put this ask.
-	return &pb.Empty{}, ErrUnimplemented
-}
-
 func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.Empty, error) {
 	h.onNewHub(request.Endpoint)
 	return &pb.Empty{}, nil
