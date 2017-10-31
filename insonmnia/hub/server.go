@@ -2,11 +2,14 @@ package hub
 
 import (
 	"crypto/ecdsa"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"io"
 	"math/rand"
 	"net"
+	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -23,6 +26,8 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	"reflect"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
@@ -31,7 +36,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
-	"reflect"
 )
 
 var (
@@ -842,7 +846,24 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	}
 
 	interceptor := h.onRequest
-	grpcServer := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()), grpc.UnaryInterceptor(interceptor))
+	var servOpts = []grpc.ServerOption{
+		grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()), grpc.UnaryInterceptor(interceptor),
+	}
+
+	if os.Getenv("GRPC_INSECURE") == "" {
+		// Generate Certificate with signed publick key
+		certX509, priv, err := util.GenerateCert(h.ethKey)
+		if err != nil {
+			return nil, err
+		}
+		var cert = tls.Certificate{
+			Certificate: [][]byte{certX509.Raw},
+			PrivateKey:  priv,
+		}
+		servOpts = append(servOpts, grpc.Creds(util.NewTLS(&tls.Config{Certificates: []tls.Certificate{cert}})))
+	}
+
+	grpcServer := grpc.NewServer(servOpts...)
 	h.externalGrpc = grpcServer
 
 	pb.RegisterHubServer(grpcServer, h)

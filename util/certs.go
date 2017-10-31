@@ -17,13 +17,13 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
-func generateCert(ethpriv *ecdsa.PrivateKey) (*x509.Certificate, error) {
+func GenerateCert(ethpriv *ecdsa.PrivateKey) (*x509.Certificate, *ecdsa.PrivateKey, error) {
 	var issuerCommonName = new(bytes.Buffer)
 	// x509 Certificate signed with an randomly generated ecdsa key
 	// Certificate contains signature of ecdsa publick with ethprivate key
 	priv, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var ethPubKey = btcec.PublicKey(ethpriv.PublicKey)
@@ -32,13 +32,13 @@ func generateCert(ethpriv *ecdsa.PrivateKey) (*x509.Certificate, error) {
 
 	serializedPubKey, err := x509.MarshalPKIXPublicKey(priv.Public())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// Issuer must be signed with ethkey
 	var prv = btcec.PrivateKey(*ethpriv)
 	signature, err := prv.Sign(chainhash.DoubleHashB(serializedPubKey))
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign public key: %v", err)
+		return nil, nil, fmt.Errorf("failed to sign public key: %v", err)
 	}
 	issuerCommonName.Write(signature.Serialize())
 
@@ -53,10 +53,10 @@ func generateCert(ethpriv *ecdsa.PrivateKey) (*x509.Certificate, error) {
 	certDER, err := x509.CreateCertificate(rand.Reader, template, template,
 		priv.Public(), priv)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	cert, err := x509.ParseCertificate(certDER)
-	return cert, err
+	return cert, priv, err
 }
 
 func checkCert(cert *x509.Certificate) (string, error) {

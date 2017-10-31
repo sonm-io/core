@@ -18,7 +18,7 @@ func TestTLSGenCerts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	cert, err := generateCert(priv)
+	cert, _, err := GenerateCert(priv)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
