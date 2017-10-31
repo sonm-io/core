@@ -26,7 +26,9 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	consul "github.com/hashicorp/consul/api"
+	//consul "github.com/hashicorp/consul/api"
+	"github.com/docker/leadership"
+	"github.com/docker/libkv/store"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
@@ -50,6 +52,7 @@ const leaderKey = "sonm/hub/leader"
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
+	cfg              *HubConfig
 	ctx              context.Context
 	cancel           context.CancelFunc
 	gateway          *gateway.Gateway
@@ -81,7 +84,7 @@ type Hub struct {
 
 	// Scheduling (obsolete).
 	filters []minerFilter
-	consul  Consul
+	store   store.Store
 
 	associatedHubs     map[string]struct{}
 	associatedHubsLock sync.Mutex
@@ -135,8 +138,7 @@ func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, erro
 }
 
 func (h *Hub) loadTaskInfo() ([]*TaskInfo, error) {
-	kv := h.consul.KV()
-	tasks, _, err := kv.List(tasksPrefix, &consul.QueryOptions{})
+	tasks, err := h.store.List(tasksPrefix)
 	reply := make([]*TaskInfo, 0, len(tasks))
 	if err != nil {
 		return nil, err
@@ -146,7 +148,7 @@ func (h *Hub) loadTaskInfo() ([]*TaskInfo, error) {
 		taskInfo := TaskInfo{}
 		err = json.Unmarshal(kvpair.Value, &taskInfo)
 		if err != nil {
-			kv.Delete(kvpair.Key, &consul.WriteOptions{})
+			h.store.Delete(kvpair.Key)
 			log.G(h.ctx).Warn("inconsistent key found", zap.Error(err))
 			continue
 		} else {
@@ -371,9 +373,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 		return nil, status.Errorf(codes.Internal, "could not marshal task info %v", err)
 	}
 
-	kv := h.consul.KV()
-	kvPair := consul.KVPair{Key: tasksPrefix + "/" + taskID, Value: b}
-	_, err = kv.Put(&kvPair, &consul.WriteOptions{})
+	err = h.store.Put(tasksPrefix+"/"+taskID, b, &store.WriteOptions{})
 	if err != nil {
 		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
 		return nil, status.Errorf(codes.Internal, "could not store task info %v", err)
@@ -829,12 +829,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
 	}
 
-	var consulCli Consul
-	if cfg.ConsulEnabled {
-		consulCli, err = consul.NewClient(consul.DefaultConfig())
-	} else {
-		consulCli, err = newDevConsul(ctx)
-	}
+	store, err := makeStore(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -853,6 +848,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	acl.Insert(cfg.Eth.PrivateKey)
 
 	h := &Hub{
+		cfg:          cfg,
 		ctx:          ctx,
 		cancel:       cancel,
 		gateway:      gate,
@@ -873,7 +869,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 			exactMatchFilter,
 			resourcesFilter,
 		},
-		consul:         consulCli,
+		store:          store,
 		associatedHubs: make(map[string]struct{}),
 
 		eth:    eth,
@@ -896,47 +892,39 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	return h, nil
 }
 
-func (h *Hub) leaderWatch() {
-	log.G(h.ctx).Info("starting leader watch goroutine")
-	var waitIdx uint64 = 0
-	kv := h.consul.KV()
-	var err error = nil
+func (h *Hub) leaderWatch() error {
+	follower := leadership.NewFollower(h.store, leaderKey)
+	leaderCh, errCh := follower.FollowElection()
 	for {
-		kv_pair, _, err := kv.Get(leaderKey, &consul.QueryOptions{WaitIndex: waitIdx})
-		if err != nil {
-			break
-		}
-		if kv_pair == nil {
-			time.Sleep(time.Second * 1)
-			log.G(h.ctx).Info("leader key is empty. sleeping for 1 sec")
-			continue
-		}
-		log.G(h.ctx).Info("leader watch: fetched leader", zap.Any("kvpair", kv_pair))
-		log.G(h.ctx).Info("leader watch: fetched leader", zap.String("leader", string(kv_pair.Value)))
-		h.leaderClientLock.Lock()
-		h.leaderClient = nil
-		h.leaderClientLock.Unlock()
+		select {
+		case <-h.ctx.Done():
+			return nil
+		case err := <-errCh:
+			log.G(h.ctx).Error("leader watch failed", zap.Error(err))
+			h.Close()
+			return err
+		case leader := <-leaderCh:
+			log.G(h.ctx).Info("leader watch: fetched leader", zap.Any("leader", leader))
+			h.leaderClientLock.Lock()
+			h.leaderClient = nil
+			h.leaderClientLock.Unlock()
 
-		ep := string(kv_pair.Value)
-		h.onNewHub(ep)
-		conn, err := grpc.Dial(ep, grpc.WithInsecure(),
-			grpc.WithCompressor(grpc.NewGZIPCompressor()),
-			grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
-		if err != nil {
-			log.G(h.ctx).Warn("could not connect to hub", zap.String("endpoint", ep), zap.Error(err))
-			time.Sleep(time.Duration(100 * 1000000))
-			continue
+			h.onNewHub(leader)
+			conn, err := grpc.Dial(leader, grpc.WithInsecure(),
+				grpc.WithCompressor(grpc.NewGZIPCompressor()),
+				grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
+			if err != nil {
+				log.G(h.ctx).Warn("could not connect to hub", zap.String("endpoint", leader), zap.Error(err))
+				time.Sleep(time.Duration(100 * 1000000))
+				continue
+			}
+			h.leaderClientLock.Lock()
+			h.leaderClient = pb.NewHubClient(conn)
+			cli := h.leaderClient
+			h.leaderClientLock.Unlock()
+			cli.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{Endpoint: h.localEndpoint})
 		}
-		h.leaderClientLock.Lock()
-		h.leaderClient = pb.NewHubClient(conn)
-		cli := h.leaderClient
-		h.leaderClientLock.Unlock()
-		cli.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{Endpoint: h.localEndpoint})
-
-		waitIdx = kv_pair.ModifyIndex
 	}
-	log.G(h.ctx).Error("leader watch failed", zap.Error(err))
-	h.Close()
 }
 
 func (h *Hub) onNewHub(endpoint string) {
@@ -986,40 +974,20 @@ func (h *Hub) determineLocalEndpoint() (string, error) {
 }
 
 func (h *Hub) election() error {
-	log.G(h.ctx).Info("starting leader election goroutine")
 	go h.leaderWatch()
-	var err error
+	candidate := leadership.NewCandidate(h.store, leaderKey, h.localEndpoint, 5*time.Second)
+	electedCh, errCh := candidate.RunForElection()
+	log.G(h.ctx).Info("starting leader election goroutine")
 
 	for {
-		lock, err := h.consul.LockOpts(&consul.LockOptions{
-			Key:   leaderKey,
-			Value: []byte(h.localEndpoint),
-		})
-		if err != nil {
-			log.G(h.ctx).Warn("could not create lock opts", zap.Error(err))
-			break
+		select {
+		case h.isLeader = <-electedCh:
+		case err := <-errCh:
+			log.G(h.ctx).Error("election failed - closing hub", zap.Error(err))
+			h.Close()
+			return err
 		}
-
-		log.G(h.ctx).Info("trying to acquire leader lock")
-		followerCh, err := lock.Lock(nil)
-		if err != nil {
-			log.G(h.ctx).Info("could not acquire leader lock", zap.Error(err))
-			break
-		}
-		log.G(h.ctx).Info("leader lock acquired")
-		h.isLeader = true
-		for {
-			_, ok := <-followerCh
-			if !ok {
-				log.G(h.ctx).Info("leader lock released")
-				break
-			}
-		}
-		h.isLeader = false
 	}
-	log.G(h.ctx).Warn("election failed - closing hub", zap.Error(err))
-	h.Close()
-	return err
 }
 
 // TODO: Decomposed here to be able to easily comment when UDP capturing occurs :)
@@ -1059,8 +1027,9 @@ func (h *Hub) startDiscovery() error {
 // Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
-	go h.election()
-
+	if h.cfg.Store.Failover {
+		go h.election()
+	}
 	h.startTime = time.Now()
 
 	if err := h.startDiscovery(); err != nil {
@@ -1174,8 +1143,7 @@ func (h *Hub) getMinerByID(minerID string) (*MinerCtx, bool) {
 }
 
 func (h *Hub) getTask(taskID string) (*TaskInfo, error) {
-	kv := h.consul.KV()
-	taskData, _, err := kv.Get(tasksPrefix+"/"+taskID, &consul.QueryOptions{})
+	taskData, err := h.store.Get(tasksPrefix + "/" + taskID)
 	if err != nil {
 		return nil, err
 	}
@@ -1189,8 +1157,7 @@ func (h *Hub) getTask(taskID string) (*TaskInfo, error) {
 }
 
 func (h *Hub) deleteTask(taskID string) error {
-	kv := h.consul.KV()
-	_, err := kv.Delete(tasksPrefix+"/"+taskID, &consul.WriteOptions{})
+	err := h.store.Delete(tasksPrefix + "/" + taskID)
 	if err != nil {
 		return err
 	}
