@@ -1,6 +1,9 @@
 package miner
 
 import (
+	"crypto/tls"
+	"os"
+
 	"golang.org/x/net/context"
 
 	"net"
@@ -15,6 +18,8 @@ import (
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 type MinerBuilder struct {
@@ -139,7 +144,26 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	log.G(ctx).Info("collected Hardware info", zap.Any("hardware", hardwareInfo))
 
-	grpcServer := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()))
+	var servOpts = []grpc.ServerOption{grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor())}
+	if os.Getenv("GRPC_INSECURE") == "" {
+		// TODO: read from config
+		ethKey, err := ethcrypto.GenerateKey()
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		// Generate Certificate with signed publick key
+		certX509, priv, err := util.GenerateCert(ethKey)
+		if err != nil {
+			return nil, err
+		}
+		var cert = tls.Certificate{
+			Certificate: [][]byte{certX509.Raw},
+			PrivateKey:  priv,
+		}
+		servOpts = append(servOpts, grpc.Creds(util.NewTLS(&tls.Config{Certificates: []tls.Certificate{cert}})))
+	}
+	grpcServer := grpc.NewServer(servOpts...)
 
 	deleter, err := initializeControlGroup(b.cfg.HubResources())
 	if err != nil {
