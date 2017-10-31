@@ -597,10 +597,6 @@ func (h *Hub) findRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, erro
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if len(h.miners) == 0 {
-		return nil, ErrMinerNotFound
-	}
-
 	rg := rand.New(rand.NewSource(time.Now().UnixNano()))
 	id := 0
 	var result *MinerCtx = nil
@@ -612,6 +608,10 @@ func (h *Hub) findRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, erro
 				result = miner
 			}
 		}
+	}
+
+	if result == nil {
+		return nil, ErrMinerNotFound
 	}
 
 	return result, nil
