@@ -197,6 +197,9 @@ func (m *Marketplace) CancelOrder(_ context.Context, req *pb.Order) (*pb.Empty, 
 }
 
 func (m *Marketplace) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetProcessingReply, error) {
+	// It exists just for matching the Marketplace interface.
+	// The Market service itself unable to know anything about processing orders.
+	// this method is implemented for Node in `insonmnia/node/market.go:348`
 	return nil, nil
 }
 
