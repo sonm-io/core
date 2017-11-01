@@ -44,15 +44,15 @@ service Hub {
     // Note, that this method overrides all previously specified properties.
     rpc SetDeviceProperties(SetDevicePropertiesRequest) returns (Empty) {}
 
-    // GetRegistredWorkers returns a list of Worker IDs that
+    // GetRegisteredWorkers returns a list of Worker IDs that
     // allowed to connet to the Hub
-    rpc GetRegistredWorkers(Empty) returns (GetRegistredWorkersReply) {}
-    // RegisterWorker allows Worker with given ID
-    // to connect to the Hub
+    rpc GetRegisteredWorkers(Empty) returns (GetRegisteredWorkersReply) {}
+    // RegisterWorker adds Worker credentials to be able for them to connect
+    // to a Hub.
     rpc RegisterWorker(ID) returns (Empty) {}
-    // RegisterWorkers deny Worker with given ID
-    // to connect to the Hub
-    rpc UnregisterWorker(ID) returns (Empty) {}
+    // DeregisterWorkers removed Worker credentials denying them to connect to
+    // a Hub.
+    rpc DeregisterWorker(ID) returns (Empty) {}
 
     // Slot management.
 
@@ -144,7 +144,7 @@ message RemoveSlotRequest {
     Slot slot = 2;
 }
 
-message GetRegistredWorkersReply {
+message GetRegisteredWorkersReply {
     repeated ID ids = 1;
 }
 

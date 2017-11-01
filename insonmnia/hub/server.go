@@ -746,13 +746,14 @@ func (h *Hub) RemoveSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, erro
 	return &pb.Empty{}, nil
 }
 
-// GetRegistredWorkers returns a list of Worker IDs that  allowed to connet to the Hub
-func (h *Hub) GetRegistredWorkers(ctx context.Context, empty *pb.Empty) (*pb.GetRegistredWorkersReply, error) {
-	log.G(h.ctx).Info("handling GetRegistredWorkers request")
+// GetRegisteredWorkers returns a list of Worker IDs that  allowed to connect
+// to the Hub.
+func (h *Hub) GetRegisteredWorkers(ctx context.Context, empty *pb.Empty) (*pb.GetRegisteredWorkersReply, error) {
+	log.G(h.ctx).Info("handling GetRegisteredWorkers request")
 
 	// NOTE: it's a Stub implementation,  always return a list of the connected Workers
 	// todo: implement me
-	reply := &pb.GetRegistredWorkersReply{
+	reply := &pb.GetRegisteredWorkersReply{
 		Ids: []*pb.ID{},
 	}
 
@@ -766,16 +767,16 @@ func (h *Hub) GetRegistredWorkers(ctx context.Context, empty *pb.Empty) (*pb.Get
 }
 
 // RegisterWorker allows Worker with given ID to connect to the Hub
-func (h *Hub) RegisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
+func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	// todo: implement me
-	log.G(h.ctx).Info("handling RegisterWorker request", zap.String("id", req.GetId()))
+	log.G(h.ctx).Info("handling RegisterWorker request", zap.String("id", request.GetId()))
 	return nil, ErrUnimplemented
 }
 
-// UnregisterWorkers deny Worker with given ID to connect to the Hub
-func (h *Hub) UnregisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
+// DeregisterWorkers deny Worker with given ID to connect to the Hub
+func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	// todo: implement me
-	log.G(h.ctx).Info("handling UnregisterWorker request", zap.String("id", req.GetId()))
+	log.G(h.ctx).Info("handling DeregisterWorker request", zap.String("id", request.GetId()))
 	return nil, ErrUnimplemented
 }
 

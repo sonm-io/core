@@ -28,9 +28,9 @@ func (h *hubAPI) WorkerStatus(ctx context.Context, req *pb.ID) (*pb.InfoReply, e
 	return h.hub.Info(ctx, req)
 }
 
-func (h *hubAPI) GetRegistredWorkers(ctx context.Context, req *pb.Empty) (*pb.GetRegistredWorkersReply, error) {
-	log.G(h.ctx).Info("handling GetRegistredWorkers request")
-	return h.hub.GetRegistredWorkers(ctx, req)
+func (h *hubAPI) GetRegisteredWorkers(ctx context.Context, req *pb.Empty) (*pb.GetRegisteredWorkersReply, error) {
+	log.G(h.ctx).Info("handling GetRegisteredWorkers request")
+	return h.hub.GetRegisteredWorkers(ctx, req)
 }
 
 func (h *hubAPI) RegisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
@@ -38,9 +38,9 @@ func (h *hubAPI) RegisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, err
 	return h.hub.RegisterWorker(ctx, req)
 }
 
-func (h *hubAPI) UnregisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling UnregisterWorkers request")
-	return h.hub.UnregisterWorker(ctx, req)
+func (h *hubAPI) DeregisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
+	log.G(h.ctx).Info("handling DeregisterWorkers request")
+	return h.hub.DeregisterWorker(ctx, req)
 }
 
 func (h *hubAPI) DeviceList(ctx context.Context, req *pb.Empty) (*pb.DevicesReply, error) {

@@ -76,13 +76,13 @@ service HubManagement {
     // WorkersStatus produces a detailed info about a Worker with given ID
     rpc WorkerStatus (ID) returns (InfoReply) {}
 
-    // GetRegistredWorkers produce a list of Workers IDs allowed
+    // GetRegisteredWorkers produce a list of Workers IDs allowed
     // to connect to this hub
-    rpc GetRegistredWorkers(Empty) returns (GetRegistredWorkersReply) {}
+    rpc GetRegisteredWorkers(Empty) returns (GetRegisteredWorkersReply) {}
     // RegisterWorkers allows Worker with given ID connect to Hub
     rpc RegisterWorker (ID) returns (Empty) {}
-    // RegisterWorkers deny Worker with given ID connect to Hub
-    rpc UnregisterWorker (ID) returns (Empty) {}
+    // DeregisterWorkers deny Worker with given ID connect to Hub
+    rpc DeregisterWorker (ID) returns (Empty) {}
 
     // Devices returns list of all available devices that this Hub awares of
     // with tieir full description.
