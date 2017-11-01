@@ -9,7 +9,7 @@ rating:
 resources:
   cpu_cores: 1
   ram_bytes: 100000000
-  gpu_count: NO
+  gpu_count: NO_GPU
   storage: 1000000000
 
   network:
@@ -18,5 +18,5 @@ resources:
     type: NO_NETWORK
 
   properties:
-    foo: bar
+    foo: 1101
     cycles: 42

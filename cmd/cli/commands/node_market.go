@@ -1,9 +1,12 @@
 package commands
 
 import (
+	"encoding/json"
 	"os"
+	"time"
 
 	ds "github.com/c2h5oh/datasize"
+	"github.com/sonm-io/core/insonmnia/node"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
@@ -25,6 +28,7 @@ func init() {
 		nodeMarketShowCmd,
 		nodeMarketCreteCmd,
 		nodeMarketCancelCmd,
+		nodeMarketProcessingCmd,
 	)
 }
 
@@ -67,6 +71,25 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 func printOrderCreated(cmd *cobra.Command, order *pb.Order) {
 	cmd.Println("Order created!")
 	cmd.Printf("ID = %s\r\n", order.Id)
+}
+
+func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
+	if isSimpleFormat() {
+		if len(tasks.GetOrders()) == 0 {
+			cmd.Printf("No processing orders\r\n")
+			return
+		}
+
+		for id, order := range tasks.GetOrders() {
+			t := time.Unix(order.Timestamp.Seconds, 0)
+			s := node.HandlerStatusString(uint8(order.Status))
+			cmd.Printf("%s %s %s %s\r\n", t, id, s, order.Extra)
+		}
+
+	} else {
+		b, _ := json.Marshal(tasks)
+		cmd.Printf("%s\r\n", string(b))
+	}
 }
 
 var nodeMarketSearchCmd = &cobra.Command{
@@ -123,6 +146,25 @@ var nodeMarketShowCmd = &cobra.Command{
 		}
 
 		printOrderDetails(cmd, order)
+	},
+}
+
+var nodeMarketProcessingCmd = &cobra.Command{
+	Use:   "processing",
+	Short: "Show processing orders",
+	Run: func(cmd *cobra.Command, args []string) {
+		market, err := NewMarketInteractor(nodeAddress, timeout)
+		if err != nil {
+			showError(cmd, "Cannot connect to Node", err)
+			os.Exit(1)
+		}
+
+		reply, err := market.GetProcessing()
+		if err != nil {
+			showError(cmd, "Cannot get processing orders", err)
+			os.Exit(1)
+		}
+		printProcessingOrders(cmd, reply)
 	},
 }
 

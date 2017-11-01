@@ -10,6 +10,10 @@ service Market {
     rpc GetOrderByID(ID) returns (Order) {}
     rpc CreateOrder(Order) returns (Order) {}
     rpc CancelOrder(Order) returns (Empty) {}
+    // GetProcessing returns currently processing orders
+    // not required in Marketplace service
+    // must be implemented on Node
+    rpc GetProcessing(Empty) returns (GetProcessingReply) {}
 }
 
 message GetOrdersRequest {
@@ -23,4 +27,17 @@ message GetOrdersRequest {
 
 message GetOrdersReply {
     repeated Order orders = 1;
+}
+
+// GetProcessingReply represent Node's local
+// orders processing status
+message GetProcessingReply {
+    message ProcessedOrder {
+        string id = 1;
+        uint32 status = 2;
+        Timestamp timestamp = 3;
+        string extra = 4;
+    }
+
+    map <string, ProcessedOrder> orders = 2;
 }

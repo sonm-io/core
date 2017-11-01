@@ -16,6 +16,11 @@ log:
   # Allowed values in range of -1 (high verbosity) to 3 (most quiet)
   level: -1
 
+# locator settings
+locator:
+  # Locator's gRPC endpoint for Eth to IP addr resolution
+  endpoint: 127.0.0.1:9090
+
 # Hub management settings
 # set this if you have your own hub and want to manage it
 # hub:

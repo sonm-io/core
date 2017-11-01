@@ -12,7 +12,7 @@ slot:
   resources:
     cpu_cores: 1
     ram_bytes: 100000000
-    gpu_count: 0
+    gpu_count: NO_GPU
     storage: 1000000000
 
     network:
@@ -21,5 +21,5 @@ slot:
       type: INCOMING
 
     properties:
-      foo: bar
+      foo: 1101
       cycles: 42

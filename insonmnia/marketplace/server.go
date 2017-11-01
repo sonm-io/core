@@ -23,9 +23,6 @@ var (
 	errOrderIsNil        = errors.New("Order cannot be nil")
 	errSlotIsNil         = errors.New("Order slot cannot be nil")
 	errResourcesIsNil    = errors.New("Slot resources cannot be nil")
-	errStartTimeAfterEnd = errors.New("Start time is after end time")
-	errStartTimeRequired = errors.New("Start time is required")
-	errEndTimeRequired   = errors.New("End time is required")
 	errSearchParamsIsNil = errors.New("Search params cannot be nil")
 )
 
@@ -197,6 +194,10 @@ func (m *Marketplace) CancelOrder(_ context.Context, req *pb.Order) (*pb.Empty, 
 		return nil, err
 	}
 	return &pb.Empty{}, nil
+}
+
+func (m *Marketplace) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetProcessingReply, error) {
+	return nil, nil
 }
 
 func (m *Marketplace) Serve() error {

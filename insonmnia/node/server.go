@@ -20,6 +20,8 @@ type Config interface {
 	MarketEndpoint() string
 	// HubEndpoint is Hub's gRPC endpoint (not required)
 	HubEndpoint() string
+	// LocatorEndpoint is Locator service gRPC endpoint
+	LocatorEndpoint() string
 	// LogLevel return log verbosity
 	LogLevel() int
 	// ClientID returns EtherumID of Node Owner
@@ -42,11 +44,16 @@ type logConfig struct {
 	Level int `required:"true" default:"-1" yaml:"level"`
 }
 
+type locatorConfig struct {
+	Endpoint string `required:"true" default:"" yaml:"endpoint"`
+}
+
 type yamlConfig struct {
-	Node   nodeConfig   `required:"true" yaml:"node"`
-	Market marketConfig `required:"true" yaml:"market"`
-	Log    logConfig    `required:"true" yaml:"log"`
-	Hub    *hubConfig   `required:"false" yaml:"hub"`
+	Node    nodeConfig    `required:"true" yaml:"node"`
+	Market  marketConfig  `required:"true" yaml:"market"`
+	Log     logConfig     `required:"true" yaml:"log"`
+	Locator locatorConfig `required:"true" yaml:"locator"`
+	Hub     *hubConfig    `required:"false" yaml:"hub"`
 }
 
 func (y *yamlConfig) ListenAddress() string {
@@ -55,6 +62,10 @@ func (y *yamlConfig) ListenAddress() string {
 
 func (y *yamlConfig) MarketEndpoint() string {
 	return y.Market.Endpoint
+}
+
+func (y *yamlConfig) LocatorEndpoint() string {
+	return y.Locator.Endpoint
 }
 
 func (y *yamlConfig) HubEndpoint() string {

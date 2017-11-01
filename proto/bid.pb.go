@@ -61,6 +61,7 @@ It has these top-level messages:
 	ResolveReply
 	GetOrdersRequest
 	GetOrdersReply
+	GetProcessingReply
 	MinerHandshakeRequest
 	MinerHandshakeReply
 	MinerStartRequest

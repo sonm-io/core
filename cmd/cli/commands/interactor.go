@@ -297,6 +297,7 @@ func NewHubInteractor(addr string, timeout time.Duration) (NodeHubInteractor, er
 
 type NodeMarketInteractor interface {
 	GetOrders(slot *structs.Slot, orderType pb.OrderType, count uint64) ([]*pb.Order, error)
+	GetProcessing() (*pb.GetProcessingReply, error)
 	GetOrderByID(id string) (*pb.Order, error)
 	CreateOrder(order *pb.Order) (*pb.Order, error)
 	CancelOrder(id string) error
@@ -323,6 +324,13 @@ func (it *marketInteractor) GetOrders(slot *structs.Slot, orderType pb.OrderType
 	}
 
 	return reply.GetOrders(), nil
+}
+
+func (it *marketInteractor) GetProcessing() (*pb.GetProcessingReply, error) {
+	ctx, cancel := ctx(it.timeout)
+	defer cancel()
+
+	return it.market.GetProcessing(ctx, &pb.Empty{})
 }
 
 func (it *marketInteractor) GetOrderByID(id string) (*pb.Order, error) {
