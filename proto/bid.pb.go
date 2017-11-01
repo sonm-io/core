@@ -35,7 +35,7 @@ It has these top-level messages:
 	GetAllSlotsReply
 	AddSlotRequest
 	RemoveSlotRequest
-	GetRegistredWorkersReply
+	GetRegisteredWorkersReply
 	TaskListReply
 	CPUDeviceInfo
 	GPUDeviceInfo

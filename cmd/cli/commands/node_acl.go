@@ -12,7 +12,7 @@ func init() {
 	nodeACLRootCmd.AddCommand(
 		nodeACLListCmd,
 		nodeACLRegisterCmd,
-		nodeACLUnregisterCmd,
+		nodeACLDeregisterCmd,
 	)
 }
 
@@ -21,7 +21,7 @@ var nodeACLRootCmd = &cobra.Command{
 	Short: "Operations with Access Control Lists",
 }
 
-func printWorkerAclList(cmd *cobra.Command, list *pb.GetRegistredWorkersReply) {
+func printWorkerAclList(cmd *cobra.Command, list *pb.GetRegisteredWorkersReply) {
 	if isSimpleFormat() {
 		for i, id := range list.GetIds() {
 			cmd.Printf("%d) %s\r\n", i+1, id.GetId())
@@ -43,7 +43,7 @@ var nodeACLListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		list, err := hub.GetRegistredWorkers()
+		list, err := hub.GetRegisteredWorkers()
 		if err != nil {
 			showError(cmd, "Cannot get Workers ACLs: %s", err)
 			os.Exit(1)
@@ -74,9 +74,9 @@ var nodeACLRegisterCmd = &cobra.Command{
 	},
 }
 
-var nodeACLUnregisterCmd = &cobra.Command{
-	Use:   "unregister <worker_id>",
-	Short: "Unregister known worker",
+var nodeACLDeregisterCmd = &cobra.Command{
+	Use:   "deregister <worker_id>",
+	Short: "Deregister known worker",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
@@ -86,9 +86,9 @@ var nodeACLUnregisterCmd = &cobra.Command{
 		}
 		id := args[0]
 
-		_, err = hub.UnregisterWorker(id)
+		_, err = hub.DeregisterWorker(id)
 		if err != nil {
-			showError(cmd, "Cannot unregister Worker", err)
+			showError(cmd, "Cannot deregister Worker", err)
 			os.Exit(1)
 		}
 		showOk(cmd)

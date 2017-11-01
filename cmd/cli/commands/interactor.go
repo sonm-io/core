@@ -154,9 +154,9 @@ type NodeHubInteractor interface {
 	WorkersList() (*pb.ListReply, error)
 	WorkerStatus(id string) (*pb.InfoReply, error)
 
-	GetRegistredWorkers() (*pb.GetRegistredWorkersReply, error)
+	GetRegisteredWorkers() (*pb.GetRegisteredWorkersReply, error)
 	RegisterWorker(id string) (*pb.Empty, error)
-	UnregisterWorker(id string) (*pb.Empty, error)
+	DeregisterWorker(id string) (*pb.Empty, error)
 
 	DevicesList() (*pb.DevicesReply, error)
 	GetDeviceProperties(id string) (*pb.GetDevicePropertiesReply, error)
@@ -197,11 +197,11 @@ func (it *hubInteractor) WorkerStatus(id string) (*pb.InfoReply, error) {
 	return it.hub.WorkerStatus(ctx, req)
 }
 
-func (it *hubInteractor) GetRegistredWorkers() (*pb.GetRegistredWorkersReply, error) {
+func (it *hubInteractor) GetRegisteredWorkers() (*pb.GetRegisteredWorkersReply, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.hub.GetRegistredWorkers(ctx, &pb.Empty{})
+	return it.hub.GetRegisteredWorkers(ctx, &pb.Empty{})
 }
 
 func (it *hubInteractor) RegisterWorker(id string) (*pb.Empty, error) {
@@ -212,12 +212,12 @@ func (it *hubInteractor) RegisterWorker(id string) (*pb.Empty, error) {
 	return it.hub.RegisterWorker(ctx, req)
 }
 
-func (it *hubInteractor) UnregisterWorker(id string) (*pb.Empty, error) {
+func (it *hubInteractor) DeregisterWorker(id string) (*pb.Empty, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
 	req := &pb.ID{Id: id}
-	return it.hub.UnregisterWorker(ctx, req)
+	return it.hub.DeregisterWorker(ctx, req)
 }
 
 func (it *hubInteractor) DevicesList() (*pb.DevicesReply, error) {
