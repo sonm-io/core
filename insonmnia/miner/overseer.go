@@ -20,6 +20,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/miner/gpu"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 )
@@ -135,8 +136,8 @@ type overseer struct {
 	registryAuth map[string]string
 
 	// GPU tuner
-	gpu      *GPUConfig
-	gpuTuner nvidiaGPUTuner
+	gpuCfg   *gpu.Config
+	gpuTuner gpu.Tuner
 
 	// protects containers map
 	mu         sync.Mutex
@@ -145,19 +146,19 @@ type overseer struct {
 }
 
 func (o *overseer) supportGPU() bool {
-	return o.gpu != nil
+	return o.gpuCfg != nil
 }
 
 // NewOverseer creates new overseer
-func NewOverseer(ctx context.Context, gpu *GPUConfig) (Overseer, error) {
+func NewOverseer(ctx context.Context, gpuCfg *gpu.Config) (Overseer, error) {
 	dockerClient, err := client.NewEnvClient()
 	if err != nil {
 		return nil, err
 	}
 
-	var tuner nvidiaGPUTuner = nilGPUTuner{}
-	if gpu != nil {
-		tuner, err = newGPUTuner(gpu)
+	var tuner gpu.Tuner = gpu.NilTuner{}
+	if gpuCfg != nil {
+		tuner, err = gpu.New(ctx, gpuCfg)
 		if err != nil {
 			return nil, err
 		}
@@ -170,7 +171,7 @@ func NewOverseer(ctx context.Context, gpu *GPUConfig) (Overseer, error) {
 
 		client: dockerClient,
 
-		gpu:      gpu,
+		gpuCfg:   gpuCfg,
 		gpuTuner: tuner,
 
 		containers: make(map[string]*containerDescriptor),
@@ -203,6 +204,7 @@ func (o *overseer) Info(ctx context.Context) (map[string]ContainerMetrics, error
 
 func (o *overseer) Close() error {
 	o.cancel()
+	o.gpuTuner.Close()
 	return nil
 }
 
@@ -371,7 +373,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 }
 
 func (o *overseer) Start(ctx context.Context, description Description) (status chan pb.TaskStatusReply_Status, cinfo ContainerInfo, err error) {
-	var tuner nvidiaGPUTuner = nilGPUTuner{}
+	var tuner gpu.Tuner = gpu.NilTuner{}
 	if description.GPURequired {
 		if !o.supportGPU() {
 			err = fmt.Errorf("GPU required but not supported or disabled")

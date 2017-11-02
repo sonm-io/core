@@ -14,9 +14,10 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner"
 
+	"io/ioutil"
+
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
-	"io/ioutil"
 )
 
 var (
