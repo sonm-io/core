@@ -28,7 +28,7 @@ const (
 	statusDone
 	statusFailed
 
-	orderPoolPeriod = 5 * time.Second
+	orderPollPeriod = 5 * time.Second
 )
 
 var statusMap = map[uint8]string{
@@ -270,7 +270,7 @@ func (m *marketAPI) startExecOrderHandler(ctx context.Context, ord *pb.Order) {
 		}
 	}()
 
-	tk := time.NewTicker(orderPoolPeriod)
+	tk := time.NewTicker(orderPollPeriod)
 
 	for {
 		select {
@@ -278,7 +278,7 @@ func (m *marketAPI) startExecOrderHandler(ctx context.Context, ord *pb.Order) {
 		case <-handler.ctx.Done():
 			log.G(handler.ctx).Debug("handler is cancelled")
 			return
-		// retrier for order pooling
+		// retrier for order polling
 		case <-tk.C:
 			err := m.orderLoop(handler)
 			if err == nil {
