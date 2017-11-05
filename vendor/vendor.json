@@ -1727,8 +1727,8 @@
 			"checksumSHA1": "NGg7/qIJVUfXi7xnEyyDLocdi6Y=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/gopkg.in/fatih/set.v0",
 			"path": "gopkg.in/fatih/set.v0",
-			"revision": "a602ee90f2c28eadbca8cdc2e143825a4c24ab23",
-			"revisionTime": "2017-07-26T07:40:41Z"
+			"revision": "9f7cd7568275e2db45a3d90429f7c92bf7dfbf19",
+			"revisionTime": "2017-11-03T20:29:49Z"
 		},
 		{
 			"checksumSHA1": "DQXNV0EivoHm4q+bkdahYXrjjfE=",
