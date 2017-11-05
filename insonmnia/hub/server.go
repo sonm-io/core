@@ -79,7 +79,7 @@ type Hub struct {
 	startTime time.Time
 	version   string
 
-	// Scheduling.
+	// Scheduling (obsolete).
 	filters []minerFilter
 	consul  Consul
 
@@ -94,11 +94,17 @@ type Hub struct {
 	eth    ETH
 	market Market
 
+	// Device properties.
+	// Must be synchronized with out Hub cluster.
 	deviceProperties map[string]DeviceProperties
 
 	// Scheduling.
-
+	// Must be synchronized with out Hub cluster.
 	slots []*structs.Slot
+
+	// Worker ACL.
+	// Must be synchronized with out Hub cluster.
+	acl ACLStorage
 }
 
 type DeviceProperties map[string]float64
@@ -776,16 +782,18 @@ func (h *Hub) GetRegisteredWorkers(ctx context.Context, empty *pb.Empty) (*pb.Ge
 
 // RegisterWorker allows Worker with given ID to connect to the Hub
 func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
-	// todo: implement me
 	log.G(h.ctx).Info("handling RegisterWorker request", zap.String("id", request.GetId()))
-	return nil, ErrUnimplemented
+
+	h.acl.Insert(request.Id)
+	return &pb.Empty{}, nil
 }
 
 // DeregisterWorkers deny Worker with given ID to connect to the Hub
 func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
-	// todo: implement me
 	log.G(h.ctx).Info("handling DeregisterWorker request", zap.String("id", request.GetId()))
-	return nil, ErrUnimplemented
+
+	h.acl.Remove(request.Id)
+	return &pb.Empty{}, nil
 }
 
 // New returns new Hub
@@ -867,6 +875,8 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		market: market,
 
 		deviceProperties: make(map[string]DeviceProperties),
+		slots:            make([]*structs.Slot, 0),
+		acl:              NewACLStorage(),
 	}
 
 	interceptor := h.onRequest
