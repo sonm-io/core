@@ -2,6 +2,7 @@ package hub
 
 import (
 	"crypto/ecdsa"
+	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -839,6 +840,13 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		return nil, err
 	}
 
+	acl := NewACLStorage()
+	privateKey, err := x509.MarshalECPrivateKey(ethKey)
+	if err != nil {
+		return nil, err
+	}
+	acl.Insert(hex.EncodeToString(privateKey))
+
 	h := &Hub{
 		ctx:          ctx,
 		cancel:       cancel,
@@ -868,7 +876,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 
 		deviceProperties: make(map[string]DeviceProperties),
 		slots:            make([]*structs.Slot, 0),
-		acl:              NewACLStorage(),
+		acl:              acl,
 	}
 
 	interceptor := h.onRequest
