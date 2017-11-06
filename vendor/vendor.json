@@ -90,6 +90,13 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "Ac0sHflTyYX4PmgBEJ+POSTyd5o=",
+			"origin": "github.com/docker/libkv/vendor/github.com/boltdb/bolt",
+			"path": "github.com/boltdb/bolt",
+			"revision": "93ab0e6c056d325dfbb11e1d58a3b4f5f62e7f3c",
+			"revisionTime": "2017-07-01T23:26:44Z"
+		},
+		{
 			"checksumSHA1": "pQVGObmmsfuob9pzGYCSy3ZxM88=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/btcsuite/btcd/btcec",
 			"path": "github.com/btcsuite/btcd/btcec",
@@ -339,6 +346,24 @@
 		{
 			"checksumSHA1": "nZxHZRxlUe66KtMbAYDamutoo6M=",
 			"path": "github.com/docker/libkv",
+			"revision": "93ab0e6c056d325dfbb11e1d58a3b4f5f62e7f3c",
+			"revisionTime": "2017-07-01T23:26:44Z"
+		},
+		{
+			"checksumSHA1": "f0riXTSoNiWTnXkQCUtXC9TwouM=",
+			"path": "github.com/docker/libkv/store",
+			"revision": "93ab0e6c056d325dfbb11e1d58a3b4f5f62e7f3c",
+			"revisionTime": "2017-07-01T23:26:44Z"
+		},
+		{
+			"checksumSHA1": "9eTlos2QOnGtYOsTkzmbmyTEMy8=",
+			"path": "github.com/docker/libkv/store/boltdb",
+			"revision": "93ab0e6c056d325dfbb11e1d58a3b4f5f62e7f3c",
+			"revisionTime": "2017-07-01T23:26:44Z"
+		},
+		{
+			"checksumSHA1": "v+iCfrCauJEp903y7Mx2F8SbQvk=",
+			"path": "github.com/docker/libkv/store/consul",
 			"revision": "93ab0e6c056d325dfbb11e1d58a3b4f5f62e7f3c",
 			"revisionTime": "2017-07-01T23:26:44Z"
 		},
