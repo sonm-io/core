@@ -1,3 +1,5 @@
+// +build linux,embeddednvidia
+
 package gpu
 
 import (
