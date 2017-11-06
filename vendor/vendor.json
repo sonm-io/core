@@ -331,6 +331,18 @@
 			"revisionTime": "2017-06-08T04:50:38Z"
 		},
 		{
+			"checksumSHA1": "lRcdtA34YL5pR++s6R4gPO3XWgo=",
+			"path": "github.com/docker/leadership",
+			"revision": "0a913e2d71a12fd14a028452435cb71ac8d82cb6",
+			"revisionTime": "2016-08-27T02:48:22Z"
+		},
+		{
+			"checksumSHA1": "nZxHZRxlUe66KtMbAYDamutoo6M=",
+			"path": "github.com/docker/libkv",
+			"revision": "93ab0e6c056d325dfbb11e1d58a3b4f5f62e7f3c",
+			"revisionTime": "2017-07-01T23:26:44Z"
+		},
+		{
 			"checksumSHA1": "r5hHPg1v9SL/gyatPWdaujG9aoE=",
 			"origin": "github.com/docker/docker/vendor/github.com/docker/libtrust",
 			"path": "github.com/docker/libtrust",

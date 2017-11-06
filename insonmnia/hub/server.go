@@ -25,10 +25,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/ethereum/go-ethereum/crypto"
-	//consul "github.com/hashicorp/consul/api"
 	"github.com/docker/leadership"
 	"github.com/docker/libkv/store"
+	"github.com/ethereum/go-ethereum/crypto"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
