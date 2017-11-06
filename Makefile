@@ -26,7 +26,7 @@ endif
 
 .PHONY: fmt vet test
 
-all: mock vet fmt build test install
+all: mock vet fmt build test
 
 build/locator:
 	@echo "+ $@"
