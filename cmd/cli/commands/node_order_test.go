@@ -48,7 +48,7 @@ resources:
     type: INCOMING
 
   properties:
-    foo: bar
+    foo: 3.1415
     cycles: 42
 `)
 	assert.NoError(t, err)
@@ -67,8 +67,8 @@ resources:
 	assert.Equal(t, uint64(100), ss.Resources.NetTrafficIn)
 	assert.Equal(t, uint64(200), ss.Resources.NetTrafficOut)
 	assert.Equal(t, pb.NetworkType_INCOMING, ss.Resources.NetworkType)
-	assert.Contains(t, ss.Resources.Props, "foo")
-	assert.Contains(t, ss.Resources.Props, "cycles")
+	assert.Contains(t, ss.Resources.Properties, "foo")
+	assert.Contains(t, ss.Resources.Properties, "cycles")
 }
 
 func TestLoadOrderYaml(t *testing.T) {
@@ -96,7 +96,7 @@ slot:
       type: INCOMING
 
     properties:
-      foo: bar
+      foo: 3.14
       cycles: 42`)
 	assert.NoError(t, err)
 	defer deleteTestYamlFile(p)

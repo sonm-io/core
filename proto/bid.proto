@@ -44,8 +44,8 @@ message Resources {
     uint64 netTrafficOut = 6;
     // Allowed network connections
     NetworkType networkType = 7;
-    // Other properties/benchmarks. The higher means better
-    map<string, string> props = 8;
+    // Other properties/benchmarks. The higher means better.
+    map<string, double> properties = 8;
 }
 
 // todo(all): slot needs an ID

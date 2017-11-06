@@ -68,7 +68,7 @@ func (r *Resources) Eq(o *Resources) bool {
 	if r.inner.GetNetworkType() != o.inner.GetNetworkType() {
 		return false
 	}
-	if !reflect.DeepEqual(r.inner.GetProps(), o.inner.GetProps()) {
+	if !reflect.DeepEqual(r.inner.GetProperties(), o.inner.GetProperties()) {
 		return false
 	}
 	return true
