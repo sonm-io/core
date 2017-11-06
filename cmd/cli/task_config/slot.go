@@ -16,12 +16,12 @@ type RatingConfig struct {
 }
 
 type ResourcesConfig struct {
-	Cpu        uint64            `yaml:"cpu_cores" required:"true"`
-	Ram        uint64            `yaml:"ram_bytes" required:"true"`
-	Gpu        string            `yaml:"gpu_count" required:"true"`
-	Storage    uint64            `yaml:"storage" required:"true"`
-	Network    NetworkConfig     `yaml:"network" required:"true"`
-	Properties map[string]string `yaml:"properties" required:"true"`
+	Cpu        uint64             `yaml:"cpu_cores" required:"true"`
+	Ram        uint64             `yaml:"ram_bytes" required:"true"`
+	Gpu        string             `yaml:"gpu_count" required:"true"`
+	Storage    uint64             `yaml:"storage" required:"true"`
+	Network    NetworkConfig      `yaml:"network" required:"true"`
+	Properties map[string]float64 `yaml:"properties" required:"true"`
 }
 
 type NetworkConfig struct {
@@ -58,7 +58,7 @@ func (c *SlotConfig) IntoSlot() (*structs.Slot, error) {
 			NetTrafficIn:  c.Resources.Network.In,
 			NetTrafficOut: c.Resources.Network.Out,
 			NetworkType:   networkType,
-			Props:         c.Resources.Properties,
+			Properties:    c.Resources.Properties,
 		},
 	})
 }
