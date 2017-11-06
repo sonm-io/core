@@ -34,5 +34,6 @@ logging:
 #   server: "stun.ekiga.net:3478"
 
 # GPUConfig:
+  # type: "nvidiadocker"
   # by default nvidia-docker-plugin works on that endpoint
-  # nvidiadockerdriver: "localhost:3476"
+  # args: { nvidiadockerdriver: "localhost:3476" }
