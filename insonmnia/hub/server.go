@@ -785,7 +785,9 @@ func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, er
 func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling DeregisterWorker request", zap.String("id", request.GetId()))
 
-	h.acl.Remove(request.Id)
+	if existed := h.acl.Remove(request.Id); !existed {
+		log.G(h.ctx).Warn("attempt to deregister unregistered worker", zap.String("id", request.GetId()))
+	}
 	return &pb.Empty{}, nil
 }
 
