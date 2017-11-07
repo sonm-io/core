@@ -390,11 +390,15 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		// NOTE: I don't think it can fail
 		return
 	}
+	var gpuCount = 0
+	if description.GPURequired {
+		gpuCount = -1
+	}
 	cinfo = ContainerInfo{
 		status:    &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
 		ID:        cjson.ID,
 		Ports:     cjson.NetworkSettings.Ports,
-		Resources: resource.NewResources(1, description.Resources.Memory),
+		Resources: resource.NewResources(1, description.Resources.Memory, gpuCount),
 	}
 	return status, cinfo, nil
 }

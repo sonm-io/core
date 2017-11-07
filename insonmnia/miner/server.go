@@ -279,11 +279,15 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 
 	var numCPUs = 1
 	var memory = int64(0)
+	var numGPUs = 0
 	if request.Usage != nil {
 		numCPUs = int(request.Usage.CPUCores)
 		memory = request.Usage.MaxMemory
+		if request.Usage.GetGPUSupport() {
+			numGPUs = -1
+		}
 	}
-	var usage = resource.NewResources(numCPUs, memory)
+	var usage = resource.NewResources(numCPUs, memory, numGPUs)
 
 	if err := m.resources.Consume(&usage); err != nil {
 		return nil, status.Errorf(codes.ResourceExhausted, "failed to Start %v", err)

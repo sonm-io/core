@@ -6,16 +6,25 @@ import (
 	"sync"
 )
 
+var (
+	ErrNotEnoughCPU    = errors.New("not enough CPU available")
+	ErrNotEnoughMemory = errors.New("not enough memory available")
+	ErrNotEnoughGPU    = errors.New("not enough GPU available")
+)
+
 type Resources struct {
 	NumCPUs int
 	Memory  int64
-	// TODO: It's unclear how to calculate GPU usage.
+	// NumGPUs shows the number of GPUs required for a task.
+	// A value of -1 means that a task consumes all of available GPU devices.
+	NumGPUs int
 }
 
-func NewResources(numCPUs int, memory int64) Resources {
+func NewResources(numCPUs int, memory int64, numGPUs int) Resources {
 	return Resources{
 		NumCPUs: numCPUs,
 		Memory:  memory,
+		NumGPUs: numGPUs,
 	}
 }
 
@@ -56,6 +65,11 @@ func (p *Pool) consume(usage *Resources) error {
 
 	p.usage.NumCPUs += usage.NumCPUs
 	p.usage.Memory += usage.Memory
+	if usage.NumGPUs == -1 {
+		p.usage.NumGPUs = len(p.OS.GPU)
+	} else {
+		p.usage.NumGPUs += usage.NumGPUs
+	}
 
 	return nil
 }
@@ -68,14 +82,24 @@ func (p *Pool) PollConsume(usage *Resources) error {
 }
 
 func (p *Pool) pollConsume(usage *Resources) error {
-	free := NewResources(p.OS.LogicalCPUCount()-p.usage.NumCPUs, int64(p.OS.Memory.Total)-p.usage.Memory)
-
-	if usage.NumCPUs > free.NumCPUs {
-		return errors.New("not enough CPU available")
+	if usage.NumGPUs == -1 {
+		usage.NumGPUs = len(p.OS.GPU)
 	}
 
+	free := NewResources(
+		p.OS.LogicalCPUCount()-p.usage.NumCPUs,
+		int64(p.OS.Memory.Total)-p.usage.Memory,
+		len(p.OS.GPU)-p.usage.NumGPUs,
+	)
+
+	if usage.NumCPUs > free.NumCPUs {
+		return ErrNotEnoughCPU
+	}
 	if usage.Memory > free.Memory {
-		return errors.New("not enough memory available")
+		return ErrNotEnoughMemory
+	}
+	if usage.NumGPUs > free.NumGPUs {
+		return ErrNotEnoughGPU
 	}
 
 	return nil
