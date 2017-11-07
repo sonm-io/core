@@ -12,7 +12,9 @@ import (
 	"encoding/base32"
 	"encoding/pem"
 	"fmt"
+	"io/ioutil"
 	"math/big"
+	"strings"
 	"sync"
 	"time"
 
@@ -111,15 +113,16 @@ func (r *hitlessCertRotator) GetCertificate(*tls.ClientHelloInfo) (*tls.Certific
 // Generated certificate contains signature of a publick key by eth key
 func GenerateCert(ethpriv *ecdsa.PrivateKey) (cert []byte, key []byte, err error) {
 	var issuerCommonName = new(bytes.Buffer)
-	// x509 Certificate signed with an randomly generated ecdsa key
+	// x509 Certificate signed with an randomly generated RSA key
 	// Certificate contains signature of ecdsa publick with ethprivate key
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var ethPubKey = btcec.PublicKey(ethpriv.PublicKey)
-	issuerCommonName.Write(ethPubKey.SerializeCompressed())
+	ethPubKey := btcec.PublicKey(ethpriv.PublicKey)
+	base32SerializedPubETHKey := base32.StdEncoding.EncodeToString(ethPubKey.SerializeCompressed())
+	issuerCommonName.WriteString(base32SerializedPubETHKey)
 	issuerCommonName.WriteByte('@')
 
 	serializedPubKey, err := x509.MarshalPKIXPublicKey(priv.Public())
@@ -132,12 +135,12 @@ func GenerateCert(ethpriv *ecdsa.PrivateKey) (cert []byte, key []byte, err error
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to sign public key: %v", err)
 	}
-	issuerCommonName.Write(signature.Serialize())
+	issuerCommonName.WriteString(base32.StdEncoding.EncodeToString(signature.Serialize()))
 
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(100),
 		Subject: pkix.Name{
-			CommonName: base32.StdEncoding.EncodeToString(issuerCommonName.Bytes()),
+			CommonName: issuerCommonName.String(),
 		},
 		NotBefore: time.Now().Add(-time.Hour * 1),
 		NotAfter:  time.Now().Add(validPeriod),
@@ -153,28 +156,31 @@ func GenerateCert(ethpriv *ecdsa.PrivateKey) (cert []byte, key []byte, err error
 }
 
 func checkCert(cert *x509.Certificate) (string, error) {
-	// FORMAT compressedethpubkey@signature
-	issuer, err := base32.StdEncoding.DecodeString(cert.Issuer.CommonName)
-	if err != nil {
-		return "", err
-	}
-
-	parts := bytes.Split(issuer, []byte("@"))
+	// FORMAT:
+	// base32CompressedPubKey@base32Signature
+	parts := strings.Split(cert.Issuer.CommonName, "@")
 	if len(parts) != 2 {
 		return "", fmt.Errorf("malformed issuer")
 	}
 
-	ethPubKey, err := btcec.ParsePubKey(parts[0], btcec.S256())
+	compressedETHPubKey, err := ioutil.ReadAll(base32.NewDecoder(base32.StdEncoding, strings.NewReader(parts[0])))
 	if err != nil {
 		return "", err
 	}
-
+	ethPubKey, err := btcec.ParsePubKey(compressedETHPubKey, btcec.S256())
+	if err != nil {
+		return "", err
+	}
 	serializedPubKey, err := x509.MarshalPKIXPublicKey(cert.PublicKey)
 	if err != nil {
 		return "", err
 	}
 
-	signature, err := btcec.ParseSignature(parts[1], btcec.S256())
+	signatureBytes, err := ioutil.ReadAll(base32.NewDecoder(base32.StdEncoding, strings.NewReader(parts[1])))
+	if err != nil {
+		return "", err
+	}
+	signature, err := btcec.ParseSignature(signatureBytes, btcec.S256())
 	if err != nil {
 		return "", err
 	}

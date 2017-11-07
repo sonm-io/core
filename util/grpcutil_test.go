@@ -1,6 +1,8 @@
 package util
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"testing"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -11,11 +13,19 @@ func TestTLSGenCerts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	cert, _, err := GenerateCert(priv)
+	certPEM, keyPEM, err := GenerateCert(priv)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	_, err = checkCert(cert)
+	cert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	x509Cert, err := x509.ParseCertificate(cert.Certificate[0])
+	if err != nil {
+		t.Fatalf("%v", err)
+	}
+	_, err = checkCert(x509Cert)
 	if err != nil {
 		t.Fatal(err)
 	}

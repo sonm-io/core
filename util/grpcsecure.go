@@ -9,11 +9,14 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+// EthAuthInfo implements credentials.AuthInfo
+// It provides access to a wallet of a connected user
 type EthAuthInfo struct {
 	TLS    credentials.TLSInfo
 	Wallet string
 }
 
+// AuthType implements credentials.AuthInfo interface
 func (e EthAuthInfo) AuthType() string {
 	return "ETH+" + e.TLS.AuthType()
 }
@@ -70,7 +73,7 @@ func verifyCertificate(authInfo credentials.AuthInfo) (credentials.AuthInfo, err
 	}
 }
 
-// NewTLS ...
+// NewTLS wraps TLS TransportCredentials from grpc to add custom logic
 func NewTLS(c *tls.Config) credentials.TransportCredentials {
 	tc := credentials.NewTLS(c)
 	return tlsVerifier{TransportCredentials: tc}
