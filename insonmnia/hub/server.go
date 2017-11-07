@@ -24,6 +24,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
 	"reflect"
@@ -845,25 +846,16 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		tasks: make(map[string]*TaskInfo),
 	}
 
-	interceptor := h.onRequest
-	var servOpts = []grpc.ServerOption{
-		grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()), grpc.UnaryInterceptor(interceptor),
-	}
-
+	var creds credentials.TransportCredentials
 	if os.Getenv("GRPC_INSECURE") == "" {
-		// Generate Certificate with signed publick key
-		certX509, priv, err := util.GenerateCert(h.ethKey)
+		var TLSConfig *tls.Config
+		_, TLSConfig, err = util.NewHitlessCertRotator(ctx, h.ethKey)
 		if err != nil {
 			return nil, err
 		}
-		var cert = tls.Certificate{
-			Certificate: [][]byte{certX509.Raw},
-			PrivateKey:  priv,
-		}
-		servOpts = append(servOpts, grpc.Creds(util.NewTLS(&tls.Config{Certificates: []tls.Certificate{cert}})))
+		creds = util.NewTLS(TLSConfig)
 	}
-
-	grpcServer := grpc.NewServer(servOpts...)
+	grpcServer := util.MakeGrpcServer(creds, grpc.UnaryInterceptor(h.onRequest))
 	h.externalGrpc = grpcServer
 
 	pb.RegisterHubServer(grpcServer, h)

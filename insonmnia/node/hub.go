@@ -88,7 +88,7 @@ func (h *hubAPI) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 }
 
 func newHubAPI(ctx context.Context, conf Config) (pb.HubManagementServer, error) {
-	cc, err := util.MakeGrpcClient(conf.HubEndpoint(), nil)
+	cc, err := util.MakeGrpcClient(ctx, conf.HubEndpoint(), nil)
 	if err != nil {
 		return nil, err
 	}
