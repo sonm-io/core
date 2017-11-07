@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"crypto/ecdsa"
 	"crypto/tls"
 	"os"
 
@@ -17,20 +18,21 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 type MinerBuilder struct {
-	ctx      context.Context
-	cfg      Config
-	hardware hardware.HardwareInfo
-	ip       net.IP
-	nat      stun.NATType
-	ovs      Overseer
-	uuid     string
-	ssh      SSH
+	ctx       context.Context
+	cfg       Config
+	hardware  hardware.HardwareInfo
+	ip        net.IP
+	nat       stun.NATType
+	ovs       Overseer
+	uuid      string
+	ssh       SSH
+	hexEthKey string
 }
 
 func (b *MinerBuilder) Context(ctx context.Context) *MinerBuilder {
@@ -65,6 +67,11 @@ func (b *MinerBuilder) UUID(uuid string) *MinerBuilder {
 
 func (b *MinerBuilder) SSH(ssh SSH) *MinerBuilder {
 	b.ssh = ssh
+	return b
+}
+
+func (b *MinerBuilder) ETH(ethCfg *EthConfig) *MinerBuilder {
+	b.hexEthKey = ethCfg.PrivateKey
 	return b
 }
 
@@ -144,26 +151,26 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	log.G(ctx).Info("collected Hardware info", zap.Any("hardware", hardwareInfo))
 
-	var servOpts = []grpc.ServerOption{grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor())}
+	var creds credentials.TransportCredentials
 	if os.Getenv("GRPC_INSECURE") == "" {
-		// TODO: read from config
-		ethKey, err := ethcrypto.GenerateKey()
+		var (
+			ethKey  *ecdsa.PrivateKey
+			TLSConf *tls.Config
+		)
+
+		ethKey, err = ethcrypto.HexToECDSA(b.hexEthKey)
 		if err != nil {
 			cancel()
 			return nil, err
 		}
-		// Generate Certificate with signed publick key
-		certX509, priv, err := util.GenerateCert(ethKey)
+		// The rotator will be stopped by ctx
+		_, TLSConf, err = util.NewHitlessCertRotator(ctx, ethKey)
 		if err != nil {
 			return nil, err
 		}
-		var cert = tls.Certificate{
-			Certificate: [][]byte{certX509.Raw},
-			PrivateKey:  priv,
-		}
-		servOpts = append(servOpts, grpc.Creds(util.NewTLS(&tls.Config{Certificates: []tls.Certificate{cert}})))
+		creds = util.NewTLS(TLSConf)
 	}
-	grpcServer := grpc.NewServer(servOpts...)
+	grpcServer := util.MakeGrpcServer(creds)
 
 	deleter, err := initializeControlGroup(b.cfg.HubResources())
 	if err != nil {
