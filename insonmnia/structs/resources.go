@@ -37,6 +37,20 @@ func (r *Resources) GetMemoryInBytes() uint64 {
 	return r.inner.GetRamBytes()
 }
 
+// GetGPUCount returns the number of GPU devices required.
+func (r *Resources) GetGPUCount() int {
+	switch r.inner.GetGpuCount() {
+	case pb.GPUCount_NO_GPU:
+		return 0
+	case pb.GPUCount_SINGLE_GPU:
+		return 1
+	case pb.GPUCount_MULTIPLE_GPU:
+		return -1
+	}
+
+	return 0
+}
+
 // ValidateResources validates the specified protobuf object to be wrapped.
 func ValidateResources(resources *pb.Resources) error {
 	if resources == nil {

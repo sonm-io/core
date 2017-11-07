@@ -239,8 +239,12 @@ func resourcesFilter(miner *MinerCtx, requirements *pb.TaskRequirements) (bool, 
 
 	cpuCount := resources.GetCPUCores()
 	memoryCount := resources.GetMaxMemory()
+	var gpuCount = 0
+	if resources.GetGPUSupport() {
+		gpuCount = -1
+	}
 
-	var usage = resource.NewResources(int(cpuCount), int64(memoryCount))
+	var usage = resource.NewResources(int(cpuCount), int64(memoryCount), gpuCount)
 	if err := miner.PollConsume(&usage); err != nil {
 		return false, err
 	}
@@ -578,7 +582,11 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 	if err != nil {
 		return nil, err
 	}
-	usage := resource.NewResources(int(resources.GetCpuCores()), int64(resources.GetMemoryInBytes()))
+	usage := resource.NewResources(
+		int(resources.GetCpuCores()),
+		int64(resources.GetMemoryInBytes()),
+		resources.GetGPUCount(),
+	)
 	miner, err := h.findRandomMinerByUsage(&usage)
 	if err != nil {
 		return nil, err
