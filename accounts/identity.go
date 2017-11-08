@@ -28,24 +28,22 @@ type Identity interface {
 	// GetPrivateKey return *ecdsa.PrivateKey, it include PublicKey and ethereum Address shortly
 	GetPrivateKey() (*ecdsa.PrivateKey, error)
 
-	// New created new account in keystore
-	// WARN: not open created account
+	// New creates new account in keystore.
+	// Do not open created account.
 	New(passphrase string) error
 
-	// Open open loading account
-	// use this after load()
-	// passphrase may be blank - eg. passphrase=""
+	// Open opens loaded account
 	Open(passphrase string) error
 
-	// Import existing account from given json and password
+	// Import imports existing account from given json and pass-phrase
 	Import(json []byte, passphrase string) error
 
-	// Import existing account from given *ecdsa.Private key object
+	// ImportECDSA imports existing account from given private key and pass-phrase
 	ImportECDSA(key *ecdsa.PrivateKey, passphrase string) error
 }
 
-// Implementation of Identity interface
-// working trough KeystorePassphrase from go-ethereum
+// identityPassphrase implements Identity interface
+// and allows to use pass-phrase to decrypt keys
 type identityPassphrase struct {
 	keystore *keystore.KeyStore
 
@@ -58,11 +56,11 @@ type identityPassphrase struct {
 	key        *keystore.Key
 }
 
-// Create new instance of identity
-// this implementation works though passphrase
+// NewIdentity creates new identity instance
+// which operates given key storage dir
 func NewIdentity(keydir string) Identity {
 	idt := &identityPassphrase{}
-	idt.load(keydir)
+	idt.initKeystore(keydir)
 	return idt
 }
 
@@ -115,13 +113,7 @@ func (idt *identityPassphrase) ImportECDSA(key *ecdsa.PrivateKey, passphrase str
 	return nil
 }
 
-// load keystore
-func (idt *identityPassphrase) load(keystoreDir string) {
-	idt.initKeystore(keystoreDir)
-}
-
-// Keystore initialization
-// init keystore at homedir while keydir params is nil
+// initKeystore inits keystore in given directory
 func (idt *identityPassphrase) initKeystore(keydir string) {
 	idt.keystore = keystore.NewKeyStore(keydir, keystore.LightScryptN, keystore.LightScryptP)
 }
@@ -157,12 +149,12 @@ func parseKeystoreUrl(path string) (string, error) {
 	return u.Path, nil
 }
 
-// return default keystore directory stored in in `.sonm` directory
-// if any error occurred .sonm directory will be in working dir
+// GetDefaultKeystoreDir return default keystore directory places in "~/.sonm/keystore".
+// If any error occurred ".sonm" directory will be in current working dir
 func GetDefaultKeystoreDir() string {
-	rootDir, err := util.GetUserHomeDir()
+	homeDir, err := util.GetUserHomeDir()
 	if err != nil {
-		rootDir = ""
+		homeDir = ""
 	}
-	return filepath.Join(rootDir, ".sonm", "keystore")
+	return filepath.Join(homeDir, ".sonm", "keystore")
 }
