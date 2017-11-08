@@ -24,6 +24,6 @@ func main() {
 	mp := marketplace.NewMarketplace(*listenAddr)
 	fmt.Printf("Starting Marketplace service at %s...\r\n", *listenAddr)
 	if err := mp.Serve(); err != nil {
-		fmt.Printf("Cannot start Markerplace service: %s\r\n", err)
+		fmt.Printf("Cannot start Marketplace service: %s\r\n", err)
 	}
 }

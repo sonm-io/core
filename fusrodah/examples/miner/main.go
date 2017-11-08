@@ -12,12 +12,12 @@ func main() {
 
 	srv, err := miner.NewServer(prv)
 	if err != nil {
-		fmt.Printf("Error while initialize instanse: %s \r\n", err)
+		fmt.Printf("Error while initialize instance: %s \r\n", err)
 		return
 	}
 	err = srv.Start()
 	if err != nil {
-		fmt.Printf("Error while start instanse: %s \r\n", err)
+		fmt.Printf("Error while start instance: %s \r\n", err)
 		return
 	}
 

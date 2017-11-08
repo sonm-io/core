@@ -1005,7 +1005,7 @@ func (h *Hub) election() error {
 			break
 		}
 
-		log.G(h.ctx).Info("trying to aquire leader lock")
+		log.G(h.ctx).Info("trying to acquire leader lock")
 		followerCh, err := lock.Lock(nil)
 		if err != nil {
 			log.G(h.ctx).Info("could not acquire leader lock", zap.Error(err))

@@ -62,7 +62,7 @@ type Token interface {
 	BalanceOf(address string) (*big.Int, error)
 	// AllowanceOf returns allowance of given address to spender account
 	AllowanceOf(from string, to string) (*big.Int, error)
-	// TotalSupply - all amount of emited token
+	// TotalSupply - all amount of emitted token
 	TotalSupply() (*big.Int, error)
 }
 
