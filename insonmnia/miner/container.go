@@ -180,7 +180,7 @@ func (c *containerDescriptor) upload() error {
 	if err != nil {
 		return err
 	}
-	log.G(c.ctx).Info("commited container", zap.String("id", c.ID), zap.String("newId", resp.ID))
+	log.G(c.ctx).Info("committed container", zap.String("id", c.ID), zap.String("newId", resp.ID))
 
 	image := filepath.Join(c.description.Registry, c.description.Image)
 	named, err := reference.ParseNormalizedNamed(image)
