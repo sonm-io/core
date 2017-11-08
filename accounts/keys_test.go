@@ -1,9 +1,10 @@
 package accounts
 
 import (
-	"github.com/stretchr/testify/assert"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -27,7 +28,7 @@ func TestNewKeyOpener_Open(t *testing.T) {
 
 	created, err := K.OpenKeystore()
 	assert.NoError(t, err)
-	assert.True(t, created, "Must create new Store in empty dir")
+	assert.True(t, created, "Must create new Store reader empty dir")
 }
 
 func TestNewKeyOpener_NoDir(t *testing.T) {
@@ -52,4 +53,20 @@ func TestNewKeyOpener_GetKey(t *testing.T) {
 	key, err := K.GetKey()
 	assert.NoError(t, err)
 	assert.NotNil(t, key)
+}
+
+func TestNewInteractivePassPhraser(t *testing.T) {
+	r, w, err := os.Pipe()
+	assert.NoError(t, err, "Cannot init os.Pipe")
+
+	pf := interactivePassPhraser{
+		reader: r,
+		writer: w,
+	}
+
+	w.Write([]byte("testme"))
+	pass, err := pf.GetPassPhrase()
+	assert.NoError(t, err, "Cannot read password")
+
+	assert.Equal(t, "testme", pass)
 }
