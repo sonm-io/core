@@ -3,7 +3,10 @@ package accounts
 import (
 	"crypto/ecdsa"
 	"errors"
+	"io"
 	"os"
+
+	"github.com/howeyc/gopass"
 )
 
 var (
@@ -13,9 +16,9 @@ var (
 // PassPhraser is interface for retrieving
 // pass phrase for Eth keys
 //
-// If you want to retrieve pass phrases in different ways
+// If you want to retrieve pass phrases reader different ways
 // (e.g: from file, from env variables, interactively from terminal)
-// you must implement PassPhraser in a different way and pass it to
+// you must implement PassPhraser reader a different way and pass it to
 // KeyOpener instance
 type PassPhraser interface {
 	GetPassPhrase() (string, error)
@@ -137,4 +140,29 @@ func NewKeyOpener(keyDir string, pf PassPhraser) KeyOpener {
 	}
 
 	return ko
+}
+
+// interactivePassPhraser implements the PassPhrase which allows to
+// read passphrase on terminal interactively
+type interactivePassPhraser struct {
+	reader gopass.FdReader
+	writer io.Writer
+}
+
+func (pf *interactivePassPhraser) GetPassPhrase() (string, error) {
+	pw, err := gopass.GetPasswdPrompt("\r\nKey passphrase: ", false, pf.reader, pf.writer)
+	if err != nil {
+		return "", err
+	}
+
+	return string(pw), nil
+}
+
+// NewInteractivePassPhraser implements PassPhraser that prompts user for pass-phrase
+// and read it from terminal's Stdin
+func NewInteractivePassPhraser() PassPhraser {
+	return &interactivePassPhraser{
+		reader: os.Stdin,
+		writer: os.Stdout,
+	}
 }

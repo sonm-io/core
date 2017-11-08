@@ -802,6 +802,12 @@
 			"revisionTime": "2016-07-20T23:31:40Z"
 		},
 		{
+			"checksumSHA1": "K6exl2ouL7d8cR2i378EzZOdRVI=",
+			"path": "github.com/howeyc/gopass",
+			"revision": "bf9dde6d0d2c004a008c27aaee91170c786f6db8",
+			"revisionTime": "2017-01-09T16:22:49Z"
+		},
+		{
 			"checksumSHA1": "f55gR+6YClh0i/FOhdy66SOUiwY=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/huin/goupnp",
 			"path": "github.com/huin/goupnp",
