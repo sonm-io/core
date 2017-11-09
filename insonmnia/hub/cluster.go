@@ -62,7 +62,7 @@ type Cluster interface {
 
 	RegisterEntity(name string, prototype interface{})
 
-	SynchronizeEntity(entity interface{}) error
+	Synchronize(entity interface{}) error
 }
 
 // Returns a cluster writer interface if this node is a master, event channel
@@ -158,7 +158,7 @@ func (c *cluster) RegisterEntity(name string, prototype interface{}) {
 	c.entityNames[t] = name
 }
 
-func (c *cluster) SynchronizeEntity(entity interface{}) error {
+func (c *cluster) Synchronize(entity interface{}) error {
 	if !c.isLeader {
 		return errors.New("not a leader")
 	}
