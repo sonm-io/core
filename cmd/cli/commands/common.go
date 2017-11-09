@@ -59,6 +59,8 @@ func init() {
 
 	nodeRootCmd.AddCommand(nodeHubRootCmd, nodeMarketRootCmd)
 	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd, nodeRootCmd)
+
+	rootCmd.AddCommand(loginCmd)
 }
 
 var nodeRootCmd = &cobra.Command{
