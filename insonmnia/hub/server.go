@@ -42,8 +42,6 @@ var (
 	ErrUnimplemented    = status.Errorf(codes.Unimplemented, "not implemented yet")
 )
 
-const tasksPrefix = "sonm/hub/tasks"
-
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
@@ -70,8 +68,6 @@ type Hub struct {
 
 	// TODO: rediscover jobs if Miner disconnected
 	// TODO: store this data in some Storage interface
-	//tasksmu sync.Mutex
-	//tasks   map[string]string
 
 	wg        sync.WaitGroup
 	startTime time.Time
@@ -341,8 +337,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 
 	info := TaskInfo{*request, *resp, taskID, miner.uuid}
 
-	h.tasks[taskID] = &info
-	err = h.cluster.SynchronizeTasks(h.tasks)
+	err = h.saveTask(&info)
 	if err != nil {
 		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
 		return nil, status.Errorf(codes.Internal, "could not store task info %v", err)
@@ -1016,6 +1011,13 @@ func (h *Hub) getMinerByID(minerID string) (*MinerCtx, bool) {
 	defer h.mu.Unlock()
 	m, ok := h.miners[minerID]
 	return m, ok
+}
+
+func (h *Hub) saveTask(info *TaskInfo) error {
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+	h.tasks[info.ID] = info
+	return h.cluster.SynchronizeTasks(h.tasks)
 }
 
 func (h *Hub) getTask(taskID string) (*TaskInfo, error) {
