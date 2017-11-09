@@ -8,7 +8,6 @@ import (
 	"io"
 	"math/rand"
 	"net"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,8 +24,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	"github.com/docker/leadership"
-	"github.com/docker/libkv/store"
 	"github.com/ethereum/go-ethereum/crypto"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
@@ -46,7 +43,6 @@ var (
 )
 
 const tasksPrefix = "sonm/hub/tasks"
-const leaderKey = "sonm/hub/leader"
 
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
@@ -310,29 +306,6 @@ func (h *Hub) onRequest(ctx context.Context, req interface{}, info *grpc.UnarySe
 		return r, err
 	}
 	return handler(ctx, req)
-}
-
-func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo) (bool, interface{}, error) {
-	if h.isLeader {
-		log.G(h.ctx).Info("isLeader is true")
-		return false, nil, nil
-	}
-	log.G(h.ctx).Info("forwarding to leader", zap.String("method", info.FullMethod))
-	h.leaderClientLock.Lock()
-	cli := h.leaderClient
-	h.leaderClientLock.Unlock()
-	if cli != nil {
-		t := reflect.ValueOf(h.leaderClient)
-		parts := strings.Split(info.FullMethod, "/")
-		methodName := parts[len(parts)-1]
-		m := t.MethodByName(methodName)
-		inValues := make([]reflect.Value, 0, 2)
-		inValues = append(inValues, reflect.ValueOf(ctx), reflect.ValueOf(request))
-		values := m.Call(inValues)
-		return true, values[0].Interface(), values[1].Interface().(error)
-	} else {
-		return true, nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
-	}
 }
 
 // StartTask schedules the Task on some miner
@@ -892,38 +865,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 }
 
 func (h *Hub) leaderWatch() error {
-	follower := leadership.NewFollower(h.store, leaderKey)
-	leaderCh, errCh := follower.FollowElection()
-	for {
-		select {
-		case <-h.ctx.Done():
-			return nil
-		case err := <-errCh:
-			log.G(h.ctx).Error("leader watch failed", zap.Error(err))
-			h.Close()
-			return err
-		case leader := <-leaderCh:
-			log.G(h.ctx).Info("leader watch: fetched leader", zap.Any("leader", leader))
-			h.leaderClientLock.Lock()
-			h.leaderClient = nil
-			h.leaderClientLock.Unlock()
 
-			h.onNewHub(leader)
-			conn, err := grpc.Dial(leader, grpc.WithInsecure(),
-				grpc.WithCompressor(grpc.NewGZIPCompressor()),
-				grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
-			if err != nil {
-				log.G(h.ctx).Warn("could not connect to hub", zap.String("endpoint", leader), zap.Error(err))
-				time.Sleep(time.Duration(100 * 1000000))
-				continue
-			}
-			h.leaderClientLock.Lock()
-			h.leaderClient = pb.NewHubClient(conn)
-			cli := h.leaderClient
-			h.leaderClientLock.Unlock()
-			cli.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{Endpoint: h.localEndpoint})
-		}
-	}
 }
 
 func (h *Hub) onNewHub(endpoint string) {
@@ -973,20 +915,6 @@ func (h *Hub) determineLocalEndpoint() (string, error) {
 }
 
 func (h *Hub) election() error {
-	go h.leaderWatch()
-	candidate := leadership.NewCandidate(h.store, leaderKey, h.localEndpoint, 5*time.Second)
-	electedCh, errCh := candidate.RunForElection()
-	log.G(h.ctx).Info("starting leader election goroutine")
-
-	for {
-		select {
-		case h.isLeader = <-electedCh:
-		case err := <-errCh:
-			log.G(h.ctx).Error("election failed - closing hub", zap.Error(err))
-			h.Close()
-			return err
-		}
-	}
 }
 
 // TODO: Decomposed here to be able to easily comment when UDP capturing occurs :)
