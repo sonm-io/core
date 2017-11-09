@@ -15,6 +15,7 @@ import (
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"net"
+	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -22,42 +23,84 @@ import (
 
 const leaderKey = "sonm/hub/leader"
 const listKey = "sonm/hub/list"
+const synchronizableEntitiesPrefix = "sonm/hub/sync"
 
 // ClusterEvent describes an event that can produce the cluster.
 //
 // Possible types are:
-// - `map[string]DeviceProperties` when received device properties updates.
-// - `T` types for other synchronizable entities.
-// - `struct{}` when switched the state.
-// - `error` when a connection to the Consul is broken.
-// TODO: maybe add some typed errors?
+// - `NewMemberEvent` when new member joins cluster
+// - `LeadershipEvent` when leadership is transferred
+// - `T` types for other registered synchronizable entities.
+// - `error` on any unrecoverable error, after that channel is closed
+//   and the user should call Run once more to enable synchronization
 
 type ClusterEvent interface{}
 
+// Specific type of cluster event emited when new member joins cluster
+type NewMemberEvent struct {
+	Id        string
+	endpoints []string
+}
+
+// Specific type of cluster event emited when leadership is transferred.
+// It is not always loss or aquire of leadership of this specific node
+type LeadershipEvent struct {
+	Held            bool
+	LeaderId        string
+	LeaderEndpoints []string
+}
+
 type Cluster interface {
+	// Starts synchronization process. Can be called multiple times after EventChannel is closed
+	Run() <-chan ClusterEvent
+
 	// IsLeader returns true if this cluster is a leader, i.e. we rule the
 	// synchronization process.
 	IsLeader() bool
 
 	LeaderClient() (pb.HubClient, error)
-	//TryForwardToLeader(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo) (bool, interface{}, error)
 
-	// All these operations should fail if this node is not a leader.
+	RegisterEntity(name string, prototype interface{})
 
-	SynchronizeTasks(map[string]*TaskInfo) error
-	// SynchronizeDevices synchronizes device properties with followers.
-	//SynchronizeDevices(properties map[string]DeviceProperties) error
+	SynchronizeEntity(entity interface{}) error
+}
 
-	// ... and so on for other stuff we need to synchronize.
-	//SynchronizeTasks(...)
-	//SynchronizeSlots(...)
-	//SynchronizeACL(...)
+// Returns a cluster writer interface if this node is a master, event channel
+// otherwise.
+// Should be recalled when a cluster's master/slave state changes.
+// The channel is closed when the specified context is canceled.
+func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, <-chan ClusterEvent, error) {
+	store, err := makeStore(ctx, cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	endpoints, err := parseEndpoints(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	c := cluster{
+		parentCtx:        ctx,
+		cfg:              cfg,
+		store:            store,
+		isLeader:         true,
+		id:               uuid.NewV1().String(),
+		endpoints:        endpoints,
+		clients:          make(map[string]pb.HubClient),
+		clusterEndpoints: make(map[string][]string),
+		eventChannel:     make(chan ClusterEvent, 100),
+	}
+	return &c, c.eventChannel, nil
 }
 
 type cluster struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-	cfg    *ClusterConfig
+	parentCtx context.Context
+	ctx       context.Context
+	cancel    context.CancelFunc
+	cfg       *ClusterConfig
+
+	registeredEntitiesMu sync.RWMutex
+	registeredEntities   map[string]reflect.Type
+	entityNames          map[reflect.Type]string
 
 	store store.Store
 
@@ -73,6 +116,19 @@ type cluster struct {
 	leaderId         string
 
 	eventChannel chan ClusterEvent
+}
+
+func (c *cluster) Run() <-chan ClusterEvent {
+	c.ctx, c.cancel = context.WithCancel(c.parentCtx)
+	if c.cfg.Failover {
+		c.isLeader = false
+		go c.election()
+		go c.leaderWatch()
+		go c.announce()
+		go c.hubWatch()
+	}
+	go c.watchEvents()
+	return c.eventChannel
 }
 
 func (c *cluster) IsLeader() bool {
@@ -94,40 +150,157 @@ func (c *cluster) LeaderClient() (pb.HubClient, error) {
 	return client, nil
 }
 
-func (c *cluster) SynchronizeTasks(map[string]*TaskInfo) error {
+func (c *cluster) RegisterEntity(name string, prototype interface{}) {
+	c.registeredEntitiesMu.Lock()
+	defer c.registeredEntitiesMu.Unlock()
+	t := reflect.TypeOf(prototype)
+	c.registeredEntities[name] = t
+	c.entityNames[t] = name
+}
+
+func (c *cluster) SynchronizeEntity(entity interface{}) error {
+	if !c.isLeader {
+		return errors.New("not a leader")
+	}
+	name, err := c.nameByEntity(entity)
+	if err != nil {
+		return err
+	}
+	data, err := json.Marshal(entity)
+	if err != nil {
+		return err
+	}
+	c.store.Put(synchronizableEntitiesPrefix+"/"+name, data, &store.WriteOptions{})
 	return nil
 }
 
-// Returns a cluster writer interface if this node is a master, event channel
-// otherwise.
-// Should be recalled when a cluster's master/slave state changes.
-// The channel is closed when the specified context is canceled.
-func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, <-chan ClusterEvent, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	store, err := makeStore(ctx, cfg)
+func (c *cluster) election() {
+	candidate := leadership.NewCandidate(c.store, leaderKey, c.id, 5*time.Second)
+	electedCh, errCh := candidate.RunForElection()
+	log.G(c.ctx).Info("starting leader election goroutine")
+
+	for {
+		select {
+		case c.isLeader = <-electedCh:
+			c.emitLeadershipEvent()
+		case err := <-errCh:
+			c.close(err)
+		case <-c.ctx.Done():
+			return
+		}
+	}
+}
+
+// Blocks in endless cycle watching for leadership.
+// When the leadership is changed stores new leader id in cluster
+func (c *cluster) leaderWatch() {
+	follower := leadership.NewFollower(c.store, leaderKey)
+	leaderCh, errCh := follower.FollowElection()
+	for {
+		select {
+		case <-c.ctx.Done():
+			return
+		case err := <-errCh:
+			c.close(err)
+		case c.leaderId = <-leaderCh:
+			c.emitLeadershipEvent()
+		}
+	}
+}
+
+func (c *cluster) announce() {
+	endpointsData, _ := json.Marshal(c.endpoints)
+	ticker := time.NewTicker(time.Second * 1)
+	for {
+		select {
+		case <-ticker.C:
+			err := c.store.Put(listKey+"/"+c.id, endpointsData, &store.WriteOptions{TTL: time.Second * 5})
+			if err != nil {
+				c.close(err)
+				return
+			}
+		case <-c.ctx.Done():
+			return
+		}
+	}
+
+}
+
+func (c *cluster) hubWatch() {
+	stopCh := make(chan struct{})
+	listener, err := c.store.WatchTree(listKey, stopCh)
 	if err != nil {
-		cancel()
-		return nil, nil, err
+		c.close(err)
 	}
-	endpoints, err := parseEndpoints(cfg)
+	for {
+		select {
+		case members, ok := <-listener:
+			if !ok {
+				c.close(errors.New("hub watcher closed"))
+				return
+			} else {
+				for _, member := range members {
+					err := c.registerMember(member)
+					if err != nil {
+						log.G(c.ctx).Warn("trash data in cluster members folder: ", zap.Any("kvPair", member))
+					}
+				}
+			}
+		case <-c.ctx.Done():
+			stopCh <- struct{}{}
+			return
+		}
+	}
+}
+
+func (c *cluster) watchEvents() {
+	watchStopChannel := make(chan struct{})
+	ch, err := c.store.WatchTree(synchronizableEntitiesPrefix, watchStopChannel)
 	if err != nil {
-		cancel()
-		return nil, nil, err
+		c.close(err)
+		return
 	}
-	c := cluster{
-		ctx:       ctx,
-		cfg:       cfg,
-		cancel:    cancel,
-		id:        uuid.NewV1().String(),
-		endpoints: endpoints,
-		store:     store,
-		isLeader:  true,
+	for {
+		select {
+		case <-c.ctx.Done():
+		case kvList, ok := <-ch:
+			if !ok {
+				c.close(errors.New("watch channel is closed"))
+				return
+			}
+			for _, kv := range kvList {
+				name := fetchNameFromPath(kv.Key)
+				t, err := c.typeByName(name)
+				if err != nil {
+					log.G(c.ctx).Warn("unknown synchronizable entity", zap.String("entity", name))
+				}
+				value := reflect.New(t)
+				err = json.Unmarshal(kv.Value, value.Interface())
+				if err != nil {
+					c.eventChannel <- value.Interface()
+				}
+			}
+		}
 	}
-	if cfg.Failover {
-		c.isLeader = false
-		go c.election()
+}
+
+func (c *cluster) nameByEntity(entity interface{}) (string, error) {
+	c.registeredEntitiesMu.RLock()
+	t := reflect.TypeOf(entity)
+	name, ok := c.entityNames[t]
+	if !ok {
+		return "", errors.New("entity " + t.String() + " is not registered")
 	}
-	return &c, c.eventChannel, nil
+	return name, nil
+}
+
+func (c *cluster) typeByName(name string) (reflect.Type, error) {
+	c.registeredEntitiesMu.RLock()
+	t, ok := c.registeredEntities[name]
+	if !ok {
+		return nil, errors.New("entity " + t.String() + " is not registered")
+	}
+	return t, nil
 }
 
 func makeStore(ctx context.Context, cfg *ClusterConfig) (store.Store, error) {
@@ -150,83 +323,19 @@ func (c *cluster) close(err error) {
 	close(c.eventChannel)
 }
 
-func (c *cluster) election() {
-	go c.leaderWatch()
-	go c.hubWatch()
-
-	candidate := leadership.NewCandidate(c.store, leaderKey, c.id, 5*time.Second)
-	electedCh, errCh := candidate.RunForElection()
-	log.G(c.ctx).Info("starting leader election goroutine")
-
-	for {
-		select {
-		case c.isLeader = <-electedCh:
-		case err := <-errCh:
-			c.close(err)
-		}
+func (c *cluster) emitLeadershipEvent() {
+	c.leaderLock.Lock()
+	endpoints, _ := c.clusterEndpoints[c.leaderId]
+	c.eventChannel <- LeadershipEvent{
+		Held:            c.isLeader,
+		LeaderId:        c.leaderId,
+		LeaderEndpoints: endpoints,
 	}
-}
-
-// Blocks in endless cycle watching for leadership.
-// When the leadership is changed stores new leader id in cluster
-func (c *cluster) leaderWatch() {
-	follower := leadership.NewFollower(c.store, leaderKey)
-	leaderCh, errCh := follower.FollowElection()
-	for {
-		select {
-		case <-c.ctx.Done():
-			return
-		case err := <-errCh:
-			c.close(err)
-		case c.leaderId = <-leaderCh:
-		}
-	}
-}
-
-func (c *cluster) hubWatch() error {
-	// TODO: can this ever fail?
-	endpointsData, _ := json.Marshal(c.endpoints)
-
-	go func() {
-		ticker := time.NewTicker(time.Second * 1)
-		select {
-		case <-ticker.C:
-			err := c.store.Put(listKey+"/"+c.id, endpointsData, &store.WriteOptions{TTL: time.Second * 5})
-			if err != nil {
-				c.close(err)
-			}
-		case <-c.ctx.Done():
-			return
-		}
-	}()
-
-	stopCh := make(chan struct{})
-	listener, err := c.store.WatchTree(listKey, stopCh)
-	if err != nil {
-		c.close(err)
-	}
-	for {
-		select {
-		case members, ok := <-listener:
-			if !ok {
-				c.close(errors.New("hub watcher closed"))
-			} else {
-				for _, member := range members {
-					err := c.registerMember(member)
-					if err != nil {
-						log.G(c.ctx).Warn("trash data in cluster members folder: ", zap.Any("kvPair", member))
-					}
-				}
-			}
-
-		case <-c.ctx.Done():
-			stopCh <- struct{}{}
-		}
-	}
+	c.leaderLock.Unlock()
 }
 
 func (c *cluster) registerMember(member *store.KVPair) error {
-	id := fetchIdFromKey(member.Key)
+	id := fetchNameFromPath(member.Key)
 
 	endpoints := make([]string, 0)
 	err := json.Unmarshal(member.Value, endpoints)
@@ -248,7 +357,7 @@ func (c *cluster) registerMember(member *store.KVPair) error {
 	return errors.New("could not connect to any provided member endpoint")
 }
 
-func fetchIdFromKey(key string) string {
+func fetchNameFromPath(key string) string {
 	parts := strings.Split(key, "/")
 	return parts[len(parts)-1]
 }
