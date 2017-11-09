@@ -883,37 +883,6 @@ func (h *Hub) onNewHub(endpoint string) {
 	}
 }
 
-func (h *Hub) determineLocalEndpoint() (string, error) {
-	if h.endpoint[0] == ':' {
-		ifaces, err := net.Interfaces()
-		if err != nil {
-			return "", err
-		}
-		for _, i := range ifaces {
-			addrs, err := i.Addrs()
-			if err != nil {
-				return "", err
-			}
-			for _, addr := range addrs {
-				var ip net.IP
-				switch v := addr.(type) {
-				case *net.IPNet:
-					ip = v.IP
-				case *net.IPAddr:
-					ip = v.IP
-				}
-				if ip != nil && ip.IsGlobalUnicast() {
-					ep := ip.String() + h.grpcEndpoint
-					return ep, nil
-				}
-			}
-		}
-	} else {
-		return h.endpoint, nil
-	}
-	return "", errors.New("unicast ip not found")
-}
-
 func (h *Hub) election() error {
 }
 
