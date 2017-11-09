@@ -2,7 +2,6 @@ package hub
 
 import (
 	"context"
-	"crypto"
 	"encoding/json"
 	"errors"
 	"github.com/docker/leadership"
@@ -15,14 +14,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
-	"golang.org/x/net/html/atom"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/stats"
-	"google.golang.org/grpc/status"
 	"net"
-	"os/signal"
-	"reflect"
 	"strings"
 	"sync"
 	"time"
@@ -45,15 +37,14 @@ type ClusterEvent interface{}
 type Cluster interface {
 	// IsLeader returns true if this cluster is a leader, i.e. we rule the
 	// synchronization process.
-	Start() <-chan ClusterEvent
-
 	IsLeader() bool
 
-	TryForwardToLeader(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo) (bool, interface{}, error)
+	LeaderClient() (pb.HubClient, error)
+	//TryForwardToLeader(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo) (bool, interface{}, error)
 
 	// All these operations should fail if this node is not a leader.
 
-	SynchronizeTasks(id string, info *TaskInfo) error
+	SynchronizeTasks(map[string]*TaskInfo) error
 	// SynchronizeDevices synchronizes device properties with followers.
 	//SynchronizeDevices(properties map[string]DeviceProperties) error
 
@@ -88,32 +79,8 @@ func (c *cluster) IsLeader() bool {
 	return c.isLeader
 }
 
-func (c *cluster) TryForwardToLeader(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo) (bool, interface{}, error) {
-	if c.isLeader {
-		log.G(c.ctx).Info("isLeader is true")
-		return false, nil, nil
-	}
-	log.G(c.ctx).Info("forwarding to leader", zap.String("method", info.FullMethod))
-	cli, err := c.leaderClient()
-	if err != nil {
-		return true, nil, err
-	}
-	if cli != nil {
-		t := reflect.ValueOf(cli)
-		parts := strings.Split(info.FullMethod, "/")
-		methodName := parts[len(parts)-1]
-		m := t.MethodByName(methodName)
-		inValues := make([]reflect.Value, 0, 2)
-		inValues = append(inValues, reflect.ValueOf(ctx), reflect.ValueOf(request))
-		values := m.Call(inValues)
-		return true, values[0].Interface(), values[1].Interface().(error)
-	} else {
-		return true, nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
-	}
-}
-
 // Get GRPC hub client to current leader
-func (c *cluster) leaderClient() (pb.HubClient, error) {
+func (c *cluster) LeaderClient() (pb.HubClient, error) {
 	c.leaderLock.Lock()
 	defer c.leaderLock.Unlock()
 	leaderEndpoints, ok := c.clusterEndpoints[c.leaderId]
@@ -127,21 +94,25 @@ func (c *cluster) leaderClient() (pb.HubClient, error) {
 	return client, nil
 }
 
+func (c *cluster) SynchronizeTasks(map[string]*TaskInfo) error {
+	return nil
+}
+
 // Returns a cluster writer interface if this node is a master, event channel
 // otherwise.
 // Should be recalled when a cluster's master/slave state changes.
 // The channel is closed when the specified context is canceled.
-func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, error) {
+func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, <-chan ClusterEvent, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	store, err := makeStore(ctx, cfg)
 	if err != nil {
 		cancel()
-		return nil, err
+		return nil, nil, err
 	}
 	endpoints, err := parseEndpoints(cfg)
 	if err != nil {
 		cancel()
-		return nil, err
+		return nil, nil, err
 	}
 	c := cluster{
 		ctx:       ctx,
@@ -156,7 +127,7 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, error) {
 		c.isLeader = false
 		go c.election()
 	}
-	return &c, nil
+	return &c, c.eventChannel, nil
 }
 
 func makeStore(ctx context.Context, cfg *ClusterConfig) (store.Store, error) {
