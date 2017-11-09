@@ -30,6 +30,7 @@ type KeyOpener interface {
 	// that provides pass phrase for loaded keys
 	GetPassPhraser() PassPhraser
 	// OpenKeystore opens key storage.
+	// bool param is true if keystore was not existed and was created
 	OpenKeystore() (bool, error)
 	// GetKey returns private key from opened storage
 	GetKey() (*ecdsa.PrivateKey, error)
@@ -73,7 +74,10 @@ func (o *defaultKeyOpener) OpenKeystore() (bool, error) {
 
 	if err == ErrWalletIsEmpty {
 		_, err = o.createNewKey(idt)
-		return err == nil, err
+		if err != nil {
+			return false, err
+		}
+		return true, nil
 	}
 
 	return false, nil
