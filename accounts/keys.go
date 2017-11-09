@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/howeyc/gopass"
+	"github.com/sonm-io/core/util"
 )
 
 var (
@@ -57,7 +58,7 @@ func (o *defaultKeyOpener) OpenKeystore() (bool, error) {
 		}
 	}()
 
-	if !hasDir(o.keyDirPath) {
+	if !util.DirectoryExists(o.keyDirPath) {
 		return false, errNoKeystoreDir
 	}
 
@@ -108,13 +109,6 @@ func (o *defaultKeyOpener) createNewKey(idt Identity) (*ecdsa.PrivateKey, error)
 	}
 
 	return idt.GetPrivateKey()
-}
-
-func hasDir(p string) bool {
-	if _, err := os.Stat(p); err != nil {
-		return !os.IsNotExist(err)
-	}
-	return true
 }
 
 // NewKeyOpener returns KeyOpener that able to open keys
