@@ -22,4 +22,7 @@ build_script:
 
 artifacts:
   - path: sonmcli_win32.exe
-    name: binary
+    name: CLI
+
+  - path: sonmcli_win32.exe
+    name: Node
