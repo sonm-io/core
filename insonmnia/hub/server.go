@@ -1017,7 +1017,7 @@ func (h *Hub) saveTask(info *TaskInfo) error {
 	h.tasksMu.Lock()
 	defer h.tasksMu.Unlock()
 	h.tasks[info.ID] = info
-	return h.cluster.SynchronizeTasks(h.tasks)
+	return h.cluster.Synchronize(h.tasks)
 }
 
 func (h *Hub) getTask(taskID string) (*TaskInfo, error) {
@@ -1036,7 +1036,7 @@ func (h *Hub) deleteTask(taskID string) error {
 	_, ok := h.tasks[taskID]
 	if ok {
 		delete(h.tasks, taskID)
-		return h.cluster.SynchronizeTasks(h.tasks)
+		return h.cluster.Synchronize(h.tasks)
 	}
 	return nil
 }
