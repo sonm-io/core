@@ -18,7 +18,9 @@ import (
 	"golang.org/x/net/html/atom"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
+	"net"
 	"os/signal"
 	"reflect"
 	"strings"
@@ -64,10 +66,9 @@ type Cluster interface {
 type cluster struct {
 	ctx    context.Context
 	cancel context.CancelFunc
+	cfg    *ClusterConfig
 
-	store     store.Store
-	follower  *leadership.Follower
-	candidate *leadership.Candidate
+	store store.Store
 
 	// self info
 	isLeader  bool
@@ -130,44 +131,45 @@ func (c *cluster) leaderClient() (pb.HubClient, error) {
 // otherwise.
 // Should be recalled when a cluster's master/slave state changes.
 // The channel is closed when the specified context is canceled.
-func NewCluster(ctx context.Context, cfg *HubConfig) (Cluster, error) {
+func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	store, err := makeStore(ctx, cfg)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
-	endpoints, err := parseEndpoints(cfg.Endpoint)
+	endpoints, err := parseEndpoints(cfg)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	c := cluster{
 		ctx:       ctx,
+		cfg:       cfg,
 		cancel:    cancel,
 		id:        uuid.NewV1().String(),
 		endpoints: endpoints,
 		store:     store,
 		isLeader:  true,
 	}
-	if cfg.Store.Failover {
+	if cfg.Failover {
 		c.isLeader = false
-		c.follower = leadership.NewFollower(c.store, leaderKey)
-		c.candidate = leadership.NewCandidate(c.store, leaderKey, cfg.Endpoint, time.Second*5)
 		go c.election()
 	}
-	return c, nil
+	return &c, nil
 }
 
-func makeStore(ctx context.Context, cfg *HubConfig) (store.Store, error) {
+func makeStore(ctx context.Context, cfg *ClusterConfig) (store.Store, error) {
 	consul.Register()
 	boltdb.Register()
-	log.G(ctx).Info("creating store", zap.Any("store", cfg.Store))
+	log.G(ctx).Info("creating store", zap.Any("store", cfg))
 
-	endpoints := []string{cfg.Store.Endpoint}
+	endpoints := []string{cfg.StoreEndpoint}
 
-	backend := store.Backend(cfg.Store.Type)
+	backend := store.Backend(cfg.StoreType)
 
 	config := store.Config{}
-	config.Bucket = cfg.Store.Bucket
+	config.Bucket = cfg.StoreBucket
 	return libkv.NewStore(backend, endpoints, &config)
 }
 
@@ -197,7 +199,8 @@ func (c *cluster) election() {
 // Blocks in endless cycle watching for leadership.
 // When the leadership is changed stores new leader id in cluster
 func (c *cluster) leaderWatch() {
-	leaderCh, errCh := c.follower.FollowElection()
+	follower := leadership.NewFollower(c.store, leaderKey)
+	leaderCh, errCh := follower.FollowElection()
 	for {
 		select {
 		case <-c.ctx.Done():
@@ -210,58 +213,104 @@ func (c *cluster) leaderWatch() {
 }
 
 func (c *cluster) hubWatch() error {
-	//endpoints := make([]string, 0)
-	//err := json.Unmarshal([]byte(leader), endpoints)
-	//if err != nil {
-	//	c.close(err)
-	//	return
-	//}
-	//c.leaderLock.Lock()
-	//c.leaderEndpointsStr = leader
-	//c.leaderEndpoints = endpoints
-	//c.leaderLock.Unlock()
-	//log.G(c.ctx).Info("leader watch: fetched leader", zap.Any("leader", leader))
-	//
-	////TODO: emit event here
-	//
-	//for _, ep := range endpoints {
-	//	conn, err := util.MakeGrpcClient(ep, nil)
-	//	if err != nil {
-	//		log.G(c.ctx).Warn("could not connect to hub", zap.String("endpoint", leader), zap.Error(err))
-	//		continue
-	//	} else {
-	//		c.leaderLock.Lock()
-	//		c.clients[leader] = pb.NewHubClient(conn)
-	//		c.leaderLock.Unlock()
-	//	}
-	//}
+	// TODO: can this ever fail?
+	endpointsData, _ := json.Marshal(c.endpoints)
 
-	//// TODO: can this ever fail?
-	//endpointsData, _ := json.Marshal(c.endpoints)
-	//
-	//go func() {
-	//	ticker := time.NewTicker(time.Second * 1)
-	//	select {
-	//	case <-ticker.C:
-	//		c.store.Put(listKey+"/"+c.id, endpointsData, &store.WriteOptions{TTL: time.Second * 5})
-	//	case <-c.ctx.Done():
-	//		return
-	//	}
-	//}()
-	//
-	//stopCh := make(chan struct{})
-	//listener, err := c.store.WatchTree(listKey, stopCh)
-	//for {
-	//	select {
-	//	case kvPair := <-listener:
-	//	case <-c.ctx.Done():
-	//		stopCh <- struct{}{}
-	//	}
-	//}
+	go func() {
+		ticker := time.NewTicker(time.Second * 1)
+		select {
+		case <-ticker.C:
+			err := c.store.Put(listKey+"/"+c.id, endpointsData, &store.WriteOptions{TTL: time.Second * 5})
+			if err != nil {
+				c.close(err)
+			}
+		case <-c.ctx.Done():
+			return
+		}
+	}()
+
+	stopCh := make(chan struct{})
+	listener, err := c.store.WatchTree(listKey, stopCh)
+	if err != nil {
+		c.close(err)
+	}
+	for {
+		select {
+		case members, ok := <-listener:
+			if !ok {
+				c.close(errors.New("hub watcher closed"))
+			} else {
+				for _, member := range members {
+					err := c.registerMember(member)
+					if err != nil {
+						log.G(c.ctx).Warn("trash data in cluster members folder: ", zap.Any("kvPair", member))
+					}
+				}
+			}
+
+		case <-c.ctx.Done():
+			stopCh <- struct{}{}
+		}
+	}
 }
 
-func parseEndpoints(endpoint string) ([]string, error) {
-	//TODO: proper endpoints detection
+func (c *cluster) registerMember(member *store.KVPair) error {
+	id := fetchIdFromKey(member.Key)
+
 	endpoints := make([]string, 0)
-	return append(endpoints, endpoint), nil
+	err := json.Unmarshal(member.Value, endpoints)
+	if err != nil {
+		return err
+	}
+	for _, ep := range endpoints {
+		conn, err := util.MakeGrpcClient(ep, nil)
+		if err != nil {
+			log.G(c.ctx).Warn("could not connect to hub", zap.String("endpoint", ep), zap.Error(err))
+			continue
+		} else {
+			c.leaderLock.Lock()
+			c.clients[id] = pb.NewHubClient(conn)
+			c.leaderLock.Unlock()
+			return nil
+		}
+	}
+	return errors.New("could not connect to any provided member endpoint")
+}
+
+func fetchIdFromKey(key string) string {
+	parts := strings.Split(key, "/")
+	return parts[len(parts)-1]
+}
+
+func parseEndpoints(config *ClusterConfig) ([]string, error) {
+	endpoints := make([]string, 0)
+	if len(config.GrpcIp) != 0 {
+		return append(endpoints, config.GrpcIp+":"+string(config.GrpcPort)), nil
+	}
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+	for _, i := range ifaces {
+		addrs, err := i.Addrs()
+		if err != nil {
+			return nil, err
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip != nil && ip.IsGlobalUnicast() {
+				endpoints = append(endpoints, ip.String())
+			}
+		}
+	}
+	if len(endpoints) == 0 {
+		return nil, errors.New("could not determine a single unicast endpoint, check networking")
+	}
+	return endpoints, nil
 }
