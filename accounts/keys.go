@@ -141,3 +141,16 @@ func NewInteractivePassPhraser() PassPhraser {
 		writer: os.Stdout,
 	}
 }
+
+// staticPassPhraser implements PassPhraser interface
+// by holding already-known pass phrase received from any
+// external source.
+type staticPassPhraser struct {
+	p string
+}
+
+func (pf *staticPassPhraser) GetPassPhrase() (string, error) { return pf.p, nil }
+
+func NewStaticPassPhraser(p string) PassPhraser {
+	return &staticPassPhraser{p: p}
+}
