@@ -71,17 +71,17 @@ func (o *defaultKeyOpener) OpenKeystore() (bool, error) {
 	err = idt.Open(passPhrase)
 	if err == nil {
 		return false, nil
-	}
-
-	if err == ErrWalletIsEmpty {
-		_, err = o.createNewKey(idt)
-		if err != nil {
-			return false, err
+	} else {
+		if err == ErrWalletIsEmpty {
+			// pass passPhrase to createKey method to prevent double pass phrase reading
+			_, err = o.createNewKey(idt, passPhrase)
+			if err == nil {
+				return true, nil
+			}
 		}
-		return true, nil
-	}
 
-	return false, nil
+		return false, err
+	}
 }
 
 func (o *defaultKeyOpener) GetKey() (*ecdsa.PrivateKey, error) {
@@ -92,13 +92,8 @@ func (o *defaultKeyOpener) GetKey() (*ecdsa.PrivateKey, error) {
 	return o.idt.GetPrivateKey()
 }
 
-func (o *defaultKeyOpener) createNewKey(idt Identity) (*ecdsa.PrivateKey, error) {
-	passPhrease, err := o.pf.GetPassPhrase()
-	if err != nil {
-		return nil, err
-	}
-
-	err = idt.New(passPhrease)
+func (o *defaultKeyOpener) createNewKey(idt Identity, passPhrease string) (*ecdsa.PrivateKey, error) {
+	err := idt.New(passPhrease)
 	if err != nil {
 		return nil, err
 	}
