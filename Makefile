@@ -58,7 +58,12 @@ build/node:
 
 build/cli_win32:
 	@echo "+ $@"
-	GOOS=windows GOARCH=386 go build -tags nocgo -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER).win32" -o ${CLI}_win32.exe ${GOCMD}/cli
+	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER).win32" -o ${CLI}_win32.exe ${GOCMD}/cli
+
+build/node_win32:
+	@echo "+ $@"
+	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER).win32" -o ${LOCAL_NODE}_win32.exe ${GOCMD}/node
+
 
 build/insomnia: build/hub build/miner build/cli build/node
 
