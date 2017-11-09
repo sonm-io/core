@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -15,6 +16,13 @@ func initTestKeyStore() error {
 	return os.Mkdir(testKeyStorePath, 0755)
 }
 
+func initPassPhraser(t *testing.T) PassPhraser {
+	passPhraser := NewMockPassPhraser(gomock.NewController(t))
+	passPhraser.EXPECT().GetPassPhrase().AnyTimes().Return("testme", nil)
+
+	return passPhraser
+}
+
 func flushTestKeyStore() {
 	os.RemoveAll(testKeyStorePath)
 }
@@ -24,7 +32,8 @@ func TestNewKeyOpener_Open(t *testing.T) {
 	assert.NoError(t, err)
 	defer flushTestKeyStore()
 
-	K := NewKeyOpener(testKeyStorePath, new(nullPassPhraser))
+	pf := initPassPhraser(t)
+	K := NewKeyOpener(testKeyStorePath, pf)
 
 	created, err := K.OpenKeystore()
 	assert.NoError(t, err)
@@ -33,7 +42,8 @@ func TestNewKeyOpener_Open(t *testing.T) {
 
 func TestNewKeyOpener_NoDir(t *testing.T) {
 	flushTestKeyStore()
-	K := NewKeyOpener(testKeyStorePath, new(nullPassPhraser))
+	pf := initPassPhraser(t)
+	K := NewKeyOpener(testKeyStorePath, pf)
 
 	_, err := K.OpenKeystore()
 	assert.EqualError(t, err, errNoKeystoreDir.Error(), "Must not be opened with non-existent dir")
@@ -44,7 +54,8 @@ func TestNewKeyOpener_GetKey(t *testing.T) {
 	assert.NoError(t, err)
 	defer flushTestKeyStore()
 
-	K := NewKeyOpener(testKeyStorePath, new(nullPassPhraser))
+	pf := initPassPhraser(t)
+	K := NewKeyOpener(testKeyStorePath, pf)
 
 	created, err := K.OpenKeystore()
 	assert.NoError(t, err)

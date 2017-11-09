@@ -1,12 +1,12 @@
 package accounts
 
 import (
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/stretchr/testify/assert"
 	"os"
-	"os/user"
 	"path/filepath"
 	"testing"
+
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -170,18 +170,4 @@ func TestIdentityPassphrase_ImportECDSA(t *testing.T) {
 	/* Wrong case - importing already imported key */
 	err = idt.ImportECDSA(prv, testingKeyPass)
 	assert.Error(t, err)
-}
-
-func TestGetDefaultKeystoreDir(t *testing.T) {
-	usr, err := user.Current()
-	assert.NoError(t, err)
-
-	/* Wrong case - setting SONM root directory path */
-	expectedPath := filepath.Join(usr.HomeDir, ".sonm")
-	givenPath := GetDefaultKeystoreDir()
-	assert.NotEqual(t, expectedPath, givenPath)
-
-	/* Success case - setting correct SONM root directory path */
-	expectedPath = filepath.Join(usr.HomeDir, ".sonm", "keystore")
-	assert.Equal(t, expectedPath, givenPath)
 }

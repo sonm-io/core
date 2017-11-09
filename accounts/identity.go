@@ -2,13 +2,12 @@ package accounts
 
 import (
 	"crypto/ecdsa"
+	"io/ioutil"
+	"net/url"
+
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/pkg/errors"
-	"github.com/sonm-io/core/util"
-	"io/ioutil"
-	"net/url"
-	"path/filepath"
 )
 
 var (
@@ -147,14 +146,4 @@ func parseKeystoreUrl(path string) (string, error) {
 		return "", err
 	}
 	return u.Path, nil
-}
-
-// GetDefaultKeystoreDir return default keystore directory places in "~/.sonm/keystore".
-// If any error occurred ".sonm" directory will be in current working dir
-func GetDefaultKeystoreDir() string {
-	homeDir, err := util.GetUserHomeDir()
-	if err != nil {
-		homeDir = ""
-	}
-	return filepath.Join(homeDir, ".sonm", "keystore")
 }
