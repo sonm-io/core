@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	errNoKeystoreDir = errors.New("Keystore directory does not exists")
+	errNoKeystoreDir = errors.New("keystore directory does not exists")
 )
 
 // PassPhraser is interface for retrieving
@@ -33,14 +33,6 @@ type KeyOpener interface {
 	OpenKeystore() (bool, error)
 	// GetKey returns private key from opened storage
 	GetKey() (*ecdsa.PrivateKey, error)
-}
-
-// nullPassPhraser implements PassPhraser and always return the same pass phrase.
-// NOTE: Use it for testing purposes only!
-type nullPassPhraser struct{}
-
-func (pf *nullPassPhraser) GetPassPhrase() (string, error) {
-	return "testme", nil
 }
 
 // defaultKeyOpener implements KeyOpener interface
@@ -92,12 +84,7 @@ func (o *defaultKeyOpener) GetKey() (*ecdsa.PrivateKey, error) {
 		return nil, ErrWalletNotOpen
 	}
 
-	key, err := o.idt.GetPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-
-	return key, nil
+	return o.idt.GetPrivateKey()
 }
 
 func (o *defaultKeyOpener) createNewKey(idt Identity) (*ecdsa.PrivateKey, error) {
@@ -116,12 +103,7 @@ func (o *defaultKeyOpener) createNewKey(idt Identity) (*ecdsa.PrivateKey, error)
 		return nil, err
 	}
 
-	key, err := idt.GetPrivateKey()
-	if err != nil {
-		return nil, err
-	}
-
-	return key, nil
+	return idt.GetPrivateKey()
 }
 
 func hasDir(p string) bool {

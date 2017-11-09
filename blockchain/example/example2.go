@@ -13,7 +13,7 @@ const testPass = ""
 func main() {
 	var err error
 
-	ks := accounts.NewIdentity(accounts.GetDefaultKeystoreDir())
+	ks := accounts.NewIdentity("/tmp/sonm-test-keystore")
 
 	err = ks.Open(testPass)
 	if err != nil {
