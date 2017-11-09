@@ -16,7 +16,6 @@ import (
 func init() {
 	hubRootCmd.AddCommand(hubPingCmd, hubStatusCmd, hubSlotCmd)
 	hubSlotCmd.AddCommand(minerShowSlotsCmd, hubAddSlotCmd)
-	hubWorkerACLCmd.AddCommand(registerWorkerCmd, deregisterWorkerCmd)
 }
 
 func wrapHubCommand(use, short string, command *cobra.Command) *cobra.Command {
@@ -153,58 +152,6 @@ var hubAddSlotCmd = &cobra.Command{
 		return nil
 	},
 }
-
-var hubWorkerACLCmd = wrapHubCommand("acl", "Worker ACL management", &cobra.Command{})
-
-var registerWorkerCmd = wrapHubCommand("register", "Registers a worker credentials", &cobra.Command{
-	Args: cobra.MinimumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		id := args[0]
-		hub, err := NewHubInteractor(nodeAddress, timeout)
-		if err != nil {
-			return err
-		}
-
-		reply, err := hub.RegisterWorker(id)
-		if err != nil {
-			return err
-		}
-
-		dump, err := json.Marshal(reply)
-		if err != nil {
-			return err
-		}
-
-		cmd.Println(string(dump))
-
-		return nil
-	},
-})
-
-var deregisterWorkerCmd = wrapHubCommand("deregister", "Deregisters a worker credentials", &cobra.Command{
-	Args: cobra.MinimumNArgs(1),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		id := args[0]
-		hub, err := NewHubInteractor(nodeAddress, timeout)
-		if err != nil {
-			return err
-		}
-
-		reply, err := hub.DeregisterWorker(id)
-		if err != nil {
-			return err
-		}
-
-		dump, err := json.Marshal(reply)
-		if err != nil {
-			return err
-		}
-
-		cmd.Println(string(dump))
-
-		return nil
-	},
-})
 
 func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
 	if isSimpleFormat() {

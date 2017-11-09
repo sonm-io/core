@@ -18,7 +18,7 @@ func init() {
 
 var nodeACLRootCmd = &cobra.Command{
 	Use:   "acl",
-	Short: "Operations with Access Control Lists",
+	Short: "Worker ACL management",
 }
 
 func printWorkerAclList(cmd *cobra.Command, list *pb.GetRegisteredWorkersReply) {
@@ -55,7 +55,7 @@ var nodeACLListCmd = &cobra.Command{
 
 var nodeACLRegisterCmd = &cobra.Command{
 	Use:   "register <worker_id>",
-	Short: "Register new Worker",
+	Short: "Deregisters a worker credentials",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
@@ -76,7 +76,7 @@ var nodeACLRegisterCmd = &cobra.Command{
 
 var nodeACLDeregisterCmd = &cobra.Command{
 	Use:   "deregister <worker_id>",
-	Short: "Deregister known worker",
+	Short: "Deregisters a worker credentials",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
