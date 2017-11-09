@@ -3,7 +3,6 @@ package hub
 import (
 	"crypto/ecdsa"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
@@ -32,6 +31,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"reflect"
 )
 
 var (
@@ -63,7 +63,7 @@ type Hub struct {
 	locatorPeriod   time.Duration
 	locatorClient   pb.LocatorClient
 
-	localEndpoint string
+	cluster Cluster
 
 	mu     sync.Mutex
 	miners map[string]*MinerCtx
@@ -79,7 +79,6 @@ type Hub struct {
 
 	// Scheduling (obsolete).
 	filters []minerFilter
-	store   store.Store
 
 	associatedHubs     map[string]struct{}
 	associatedHubsLock sync.Mutex
@@ -103,6 +102,10 @@ type Hub struct {
 	// Worker ACL.
 	// Must be synchronized with out Hub cluster.
 	acl ACLStorage
+
+	// Tasks
+	tasksMu sync.Mutex
+	tasks   map[string]*TaskInfo
 }
 
 type DeviceProperties map[string]float64
@@ -132,35 +135,9 @@ func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, erro
 	return reply, nil
 }
 
-func (h *Hub) loadTaskInfo() ([]*TaskInfo, error) {
-	tasks, err := h.store.List(tasksPrefix)
-	reply := make([]*TaskInfo, 0, len(tasks))
-	if err != nil {
-		return nil, err
-	}
-
-	for _, kvpair := range tasks {
-		taskInfo := TaskInfo{}
-		err = json.Unmarshal(kvpair.Value, &taskInfo)
-		if err != nil {
-			h.store.Delete(kvpair.Key)
-			log.G(h.ctx).Warn("inconsistent key found", zap.Error(err))
-			continue
-		} else {
-			reply = append(reply, &taskInfo)
-		}
-	}
-	return reply, nil
-}
-
 // List returns attached miners
 func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error) {
 	log.G(h.ctx).Info("handling List request")
-
-	tasks, err := h.loadTaskInfo()
-	if err != nil {
-		return nil, err
-	}
 
 	reply := &pb.ListReply{
 		Info: make(map[string]*pb.ListReply_ListValue),
@@ -168,7 +145,7 @@ func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error
 	for k := range h.miners {
 		reply.Info[k] = new(pb.ListReply_ListValue)
 	}
-	for _, taskInfo := range tasks {
+	for _, taskInfo := range h.tasks {
 		list, ok := reply.Info[taskInfo.MinerId]
 		if !ok {
 			reply.Info[taskInfo.MinerId] = &pb.ListReply_ListValue{
@@ -299,6 +276,30 @@ func (h *Hub) applyFilters(miner *MinerCtx, req *pb.TaskRequirements) (bool, err
 	return true, nil
 }
 
+func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo) (bool, interface{}, error) {
+	if h.cluster.IsLeader() {
+		log.G(h.ctx).Info("isLeader is true")
+		return false, nil, nil
+	}
+	log.G(h.ctx).Info("forwarding to leader", zap.String("method", info.FullMethod))
+	cli, err := h.cluster.LeaderClient()
+	if err != nil {
+		return true, nil, err
+	}
+	if cli != nil {
+		t := reflect.ValueOf(cli)
+		parts := strings.Split(info.FullMethod, "/")
+		methodName := parts[len(parts)-1]
+		m := t.MethodByName(methodName)
+		inValues := make([]reflect.Value, 0, 2)
+		inValues = append(inValues, reflect.ValueOf(ctx), reflect.ValueOf(request))
+		values := m.Call(inValues)
+		return true, values[0].Interface(), values[1].Interface().(error)
+	} else {
+		return true, nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
+	}
+}
+
 func (h *Hub) onRequest(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 	log.G(h.ctx).Debug("intercepting request")
 	forwarded, r, err := h.tryForwardToLeader(ctx, req, info)
@@ -339,13 +340,9 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	}
 
 	info := TaskInfo{*request, *resp, taskID, miner.uuid}
-	b, err := json.Marshal(info)
-	if err != nil {
-		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
-		return nil, status.Errorf(codes.Internal, "could not marshal task info %v", err)
-	}
 
-	err = h.store.Put(tasksPrefix+"/"+taskID, b, &store.WriteOptions{})
+	h.tasks[taskID] = &info
+	err = h.cluster.SynchronizeTasks(h.tasks)
 	if err != nil {
 		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
 		return nil, status.Errorf(codes.Internal, "could not store task info %v", err)
@@ -436,6 +433,7 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
+//TODO: refactor - we can use h.tasks here
 func (h *Hub) TaskList(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
 	log.G(h.ctx).Info("handling TaskList request")
 	h.mu.Lock()
@@ -801,11 +799,6 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
 	}
 
-	store, err := makeStore(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-
 	eth, err := NewETH()
 	if err != nil {
 		return nil, err
@@ -841,7 +834,6 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 			exactMatchFilter,
 			resourcesFilter,
 		},
-		store:          store,
 		associatedHubs: make(map[string]struct{}),
 
 		eth:    eth,
@@ -850,22 +842,16 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		deviceProperties: make(map[string]DeviceProperties),
 		slots:            make([]*structs.Slot, 0),
 		acl:              acl,
+
+		tasks: make(map[string]*TaskInfo),
 	}
 
 	interceptor := h.onRequest
 	grpcServer := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()), grpc.UnaryInterceptor(interceptor))
 	h.externalGrpc = grpcServer
 
-	h.localEndpoint, err = h.determineLocalEndpoint()
-	if err != nil {
-		return nil, err
-	}
 	pb.RegisterHubServer(grpcServer, h)
 	return h, nil
-}
-
-func (h *Hub) leaderWatch() error {
-
 }
 
 func (h *Hub) onNewHub(endpoint string) {
@@ -881,9 +867,6 @@ func (h *Hub) onNewHub(endpoint string) {
 	for _, miner := range h.miners {
 		miner.Client.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{Endpoint: endpoint})
 	}
-}
-
-func (h *Hub) election() error {
 }
 
 // TODO: Decomposed here to be able to easily comment when UDP capturing occurs :)
@@ -923,9 +906,6 @@ func (h *Hub) startDiscovery() error {
 // Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
-	if h.cfg.Store.Failover {
-		go h.election()
-	}
 	h.startTime = time.Now()
 
 	if err := h.startDiscovery(); err != nil {
@@ -1039,25 +1019,23 @@ func (h *Hub) getMinerByID(minerID string) (*MinerCtx, bool) {
 }
 
 func (h *Hub) getTask(taskID string) (*TaskInfo, error) {
-	taskData, err := h.store.Get(tasksPrefix + "/" + taskID)
-	if err != nil {
-		return nil, err
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+	info, ok := h.tasks[taskID]
+	if !ok {
+		return nil, errors.New("no such task")
 	}
-
-	taskInfo := TaskInfo{}
-	err = json.Unmarshal(taskData.Value, &taskInfo)
-	if err != nil {
-		return nil, err
-	}
-	return &taskInfo, nil
+	return info, nil
 }
 
 func (h *Hub) deleteTask(taskID string) error {
-	err := h.store.Delete(tasksPrefix + "/" + taskID)
-	if err != nil {
-		return err
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+	_, ok := h.tasks[taskID]
+	if ok {
+		delete(h.tasks, taskID)
+		return h.cluster.SynchronizeTasks(h.tasks)
 	}
-
 	return nil
 }
 
