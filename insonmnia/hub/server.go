@@ -2,7 +2,6 @@ package hub
 
 import (
 	"crypto/ecdsa"
-	"crypto/x509"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -851,11 +850,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	}
 
 	acl := NewACLStorage()
-	privateKey, err := x509.MarshalECPrivateKey(ethKey)
-	if err != nil {
-		return nil, err
-	}
-	acl.Insert(hex.EncodeToString(privateKey))
+	acl.Insert(cfg.Eth.PrivateKey)
 
 	h := &Hub{
 		ctx:          ctx,
