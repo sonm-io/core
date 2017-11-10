@@ -18,16 +18,6 @@ func init() {
 	hubSlotCmd.AddCommand(minerShowSlotsCmd, hubAddSlotCmd)
 }
 
-func wrapHubCommand(use, short string, command *cobra.Command) *cobra.Command {
-	command.Use = use
-	command.Short = short
-
-	if command.PreRunE == nil {
-		command.PreRunE = checkHubAddressIsSet
-	}
-	return command
-}
-
 // --- hub commands
 var hubRootCmd = &cobra.Command{
 	Use:     "hub",

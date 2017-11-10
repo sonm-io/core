@@ -43,8 +43,9 @@ func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskListRep
 }
 
 var nodeTaskListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Show task list",
+	Use:    "list",
+	Short:  "Show task list",
+	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -63,9 +64,10 @@ var nodeTaskListCmd = &cobra.Command{
 }
 
 var nodeTaskStatusCmd = &cobra.Command{
-	Use:   "status <task_id>",
-	Short: "Show task status",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "status <task_id>",
+	Short:  "Show task status",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
 		taskID := args[0]
 		hub, err := NewHubInteractor(nodeAddress, timeout)

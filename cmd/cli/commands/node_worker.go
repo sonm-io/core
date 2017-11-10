@@ -19,8 +19,9 @@ var nodeWorkerRootCmd = &cobra.Command{
 }
 
 var nodeWorkerListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Show connected workers list",
+	Use:    "list",
+	Short:  "Show connected workers list",
+	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, _ []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -39,9 +40,10 @@ var nodeWorkerListCmd = &cobra.Command{
 }
 
 var nodeWorkerStatusCmd = &cobra.Command{
-	Use:   "status <worker_id>",
-	Short: "Show worker status",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "status <worker_id>",
+	Short:  "Show worker status",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {

@@ -23,8 +23,9 @@ var nodeHubRootCmd = &cobra.Command{
 }
 
 var nodeHubStatusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Show hub status",
+	Use:    "status",
+	Short:  "Show hub status",
+	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, _ []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
