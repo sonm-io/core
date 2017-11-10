@@ -169,9 +169,10 @@ var nodeMarketProcessingCmd = &cobra.Command{
 }
 
 var nodeMarketCreteCmd = &cobra.Command{
-	Use:   "create <order.yaml>",
-	Short: "Place new Bid order on Marketplace",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "create <order.yaml>",
+	Short:  "Place new Bid order on Marketplace",
+	PreRun: loadKeyStoreWrapper,
+	Args:   cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		market, err := NewMarketInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -197,9 +198,10 @@ var nodeMarketCreteCmd = &cobra.Command{
 }
 
 var nodeMarketCancelCmd = &cobra.Command{
-	Use:   "cancel <order_id>",
-	Short: "Cancel order on Marketplace",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "cancel <order_id>",
+	Short:  "Cancel order on Marketplace",
+	PreRun: loadKeyStoreWrapper,
+	Args:   cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		market, err := NewMarketInteractor(nodeAddress, timeout)
 		if err != nil {

@@ -66,8 +66,9 @@ var nodeDeviceRootCmd = &cobra.Command{
 }
 
 var nodeDeviceListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Show Hub's aggregated hardware",
+	Use:    "list",
+	Short:  "Show Hub's aggregated hardware",
+	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -86,9 +87,10 @@ var nodeDeviceListCmd = &cobra.Command{
 }
 
 var nodeGetDevPropsCmd = &cobra.Command{
-	Use:   "get <dev_id>",
-	Short: "Get Device properties",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "get <dev_id>",
+	Short:  "Get Device properties",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -108,9 +110,10 @@ var nodeGetDevPropsCmd = &cobra.Command{
 }
 
 var nodeSetDevPropsCmd = &cobra.Command{
-	Use:   "set <dev_id> <props.yaml>",
-	Short: "Set Device properties",
-	Args:  cobra.MinimumNArgs(2),
+	Use:    "set <dev_id> <props.yaml>",
+	Short:  "Set Device properties",
+	Args:   cobra.MinimumNArgs(2),
+	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		hub, err := NewHubInteractor(nodeAddress, timeout)

@@ -53,8 +53,9 @@ func printAskList(cmd *cobra.Command, slots *pb.SlotsReply) {
 }
 
 var nodeOrderListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Show current ask plans",
+	Use:    "list",
+	Short:  "Show current ask plans",
+	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -73,9 +74,10 @@ var nodeOrderListCmd = &cobra.Command{
 }
 
 var nodeOrderCreateCmd = &cobra.Command{
-	Use:   "create <plan.yaml>",
-	Short: "Create new plan",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "create <plan.yaml>",
+	Short:  "Create new plan",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -102,9 +104,10 @@ var nodeOrderCreateCmd = &cobra.Command{
 }
 
 var nodeOrderRemoveCmd = &cobra.Command{
-	Use:   "remove <plan_id>",
-	Short: "Remove plan",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "remove <plan_id>",
+	Short:  "Remove plan",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
 		_, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
@@ -112,7 +115,7 @@ var nodeOrderRemoveCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// TODO(sshaman1101): implement this
+		// TODO(sshaman1101): implement  this
 
 		// NOTE: method is not implemented in Hub yet
 		//planID := args[0]
