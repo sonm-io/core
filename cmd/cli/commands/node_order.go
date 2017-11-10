@@ -85,8 +85,7 @@ var nodeOrderCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		planPath := args[1]
-
+		planPath := args[0]
 		slot, err := loadSlotFile(planPath)
 		if err != nil {
 			showError(cmd, "Cannot load AskOrder definition", err)
@@ -104,26 +103,29 @@ var nodeOrderCreateCmd = &cobra.Command{
 }
 
 var nodeOrderRemoveCmd = &cobra.Command{
-	Use:    "remove <plan_id>",
+	Use:    "remove <plan.yaml>",
 	Short:  "Remove plan",
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
-		_, err := NewHubInteractor(nodeAddress, timeout)
+		hub, err := NewHubInteractor(nodeAddress, timeout)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
 		}
 
-		// TODO(sshaman1101): implement  this
+		planPath := args[0]
+		slot, err := loadSlotFile(planPath)
+		if err != nil {
+			showError(cmd, "Cannot load AskOrder definition", err)
+			os.Exit(1)
+		}
 
-		// NOTE: method is not implemented in Hub yet
-		//planID := args[0]
-		//_, err = hub.RemoveAskPlan(planID)
-		//if err != nil {
-		//	showError(cmd, "Cannot remove AskOrder", err)
-		//	os.Exit(1)
-		//}
+		_, err = hub.RemoveAskPlan(slot)
+		if err != nil {
+			showError(cmd, "Cannot remove AskOrder", err)
+			os.Exit(1)
+		}
 
 		showOk(cmd)
 	},
