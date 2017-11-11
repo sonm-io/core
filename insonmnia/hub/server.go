@@ -80,11 +80,6 @@ type Hub struct {
 	associatedHubs     map[string]struct{}
 	associatedHubsLock sync.Mutex
 
-	isLeader bool
-
-	leaderClient     pb.HubClient
-	leaderClientLock sync.Mutex
-
 	eth    ETH
 	market Market
 
@@ -959,7 +954,7 @@ func (h *Hub) Serve() error {
 
 	// init locator connection and announce
 	// address only on Leader
-	if h.isLeader {
+	if h.cluster.IsLeader() {
 		err = h.initLocatorClient()
 		if err != nil {
 			return err
