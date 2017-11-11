@@ -40,15 +40,15 @@ type ClusterConfig struct {
 
 type HubConfig struct {
 	// TODO: Deprecated - use ClusterConfig's GrpcIp+GrpcPort
-	Endpoint        string           `required:"true" yaml:"endpoint"`
-	GatewayConfig   *GatewayConfig   `yaml:"gateway"`
-	Bootnodes       []string         `required:"false" yaml:"bootnodes"`
-	Monitoring      MonitoringConfig `required:"true" yaml:"monitoring"`
-	Logging         LoggingConfig    `yaml:"logging"`
-	Eth             EthConfig        `yaml:"ethereum"`
-	Locator         LocatorConfig    `yaml:"locator"`
-	Cluster         ClusterConfig    `yaml:"cluster"`
-	GlobalDiscovery bool             `required:"true" default:"true" yaml:"global_discovery"`
+	Endpoint      string           `required:"true" yaml:"endpoint"`
+	GatewayConfig *GatewayConfig   `yaml:"gateway"`
+	Bootnodes     []string         `required:"false" yaml:"bootnodes"`
+	Monitoring    MonitoringConfig `required:"true" yaml:"monitoring"`
+	Logging       LoggingConfig    `yaml:"logging"`
+	Eth           EthConfig        `yaml:"ethereum"`
+	Locator       LocatorConfig    `yaml:"locator"`
+	Cluster       ClusterConfig    `yaml:"cluster"`
+	Fusrodah      bool             `yaml:"fusrodah"`
 }
 
 // NewConfig loads a hub config from the specified YAML file.
