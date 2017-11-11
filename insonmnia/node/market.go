@@ -4,6 +4,8 @@ import (
 	"sync"
 	"time"
 
+	"crypto/ecdsa"
+
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -187,6 +189,7 @@ func (h *orderHandler) createDeal(askOrder *pb.Order) error {
 
 type marketAPI struct {
 	conf   Config
+	key    *ecdsa.PrivateKey
 	market pb.MarketClient
 	ctx    context.Context
 
@@ -233,7 +236,7 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, 
 		return nil, errNotAnBidOrder
 	}
 
-	req.ByuerID = m.conf.ClientID()
+	req.ByuerID = util.PubKeyToAddr(m.key.PublicKey)
 	created, err := m.market.CreateOrder(ctx, req)
 	if err != nil {
 		return nil, err
