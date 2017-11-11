@@ -27,8 +27,6 @@ type Config interface {
 	LocatorEndpoint() string
 	// LogLevel return log verbosity
 	LogLevel() int
-	// ClientID returns EtherumID of Node Owner
-	ClientID() string
 	// KeyStorager included into config because of
 	// Node instance must know how to open the keystore
 	accounts.KeyStorager
@@ -85,14 +83,6 @@ func (y *yamlConfig) HubEndpoint() string {
 		return y.Hub.Endpoint
 	}
 	return ""
-}
-
-func (y *yamlConfig) ClientID() string {
-	// NOTE: just for testing on current iteration
-	// key exchange will be implemented soon
-	// TODO(sshaman1101): extract clientID from etherum key loaded from keystore
-
-	return "my-uniq-id"
 }
 
 func (y *yamlConfig) LogLevel() int {
