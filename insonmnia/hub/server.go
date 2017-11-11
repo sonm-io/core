@@ -914,7 +914,7 @@ func (h *Hub) startDiscovery() error {
 func (h *Hub) Serve() error {
 	h.startTime = time.Now()
 
-	if h.cfg.GlobalDiscovery {
+	if h.cfg.Fusrodah {
 		log.G(h.ctx).Info("starting discovery")
 		if err := h.startDiscovery(); err != nil {
 			return err

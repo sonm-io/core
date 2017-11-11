@@ -3,6 +3,7 @@ package hub
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/docker/leadership"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
@@ -109,7 +110,7 @@ type cluster struct {
 	id        string
 	endpoints []string
 
-	leaderLock sync.Mutex
+	leaderLock sync.RWMutex
 
 	clients          map[string]pb.HubClient
 	clusterEndpoints map[string][]string
@@ -140,8 +141,8 @@ func (c *cluster) IsLeader() bool {
 // Get GRPC hub client to current leader
 func (c *cluster) LeaderClient() (pb.HubClient, error) {
 	log.G(c.ctx).Debug("fetching leader client")
-	c.leaderLock.Lock()
-	defer c.leaderLock.Unlock()
+	c.leaderLock.RLock()
+	defer c.leaderLock.RUnlock()
 	leaderEndpoints, ok := c.clusterEndpoints[c.leaderId]
 	if !ok || len(leaderEndpoints) == 0 {
 		log.G(c.ctx).Warn("can not determine leader")
@@ -190,6 +191,7 @@ func (c *cluster) election() {
 			log.G(c.ctx).Debug("election event", zap.Bool("isLeader", c.isLeader))
 			c.emitLeadershipEvent()
 		case err := <-errCh:
+			log.G(c.ctx).Error("election failure", zap.Error(err))
 			c.close(errors.WithStack(err))
 		case <-c.ctx.Done():
 			candidate.Stop()
@@ -210,15 +212,19 @@ func (c *cluster) leaderWatch() {
 			follower.Stop()
 			return
 		case err := <-errCh:
+			log.G(c.ctx).Error("leader watch failure", zap.Error(err))
 			c.close(errors.WithStack(err))
-		case c.leaderId = <-leaderCh:
+		case leaderId := <-leaderCh:
+			c.leaderLock.Lock()
+			c.leaderId = leaderId
+			c.leaderLock.Unlock()
 			c.emitLeadershipEvent()
 		}
 	}
 }
 
 func (c *cluster) announce() {
-	log.G(c.ctx).Info("starting announce goroutine")
+	log.G(c.ctx).Info("starting announce goroutine", zap.Any("endpoints", c.endpoints))
 	endpointsData, _ := json.Marshal(c.endpoints)
 	ticker := time.NewTicker(time.Second * 10)
 	for {
@@ -226,6 +232,7 @@ func (c *cluster) announce() {
 		case <-ticker.C:
 			err := c.store.Put(listKey+"/"+c.id, endpointsData, &store.WriteOptions{TTL: time.Second * 30})
 			if err != nil {
+				log.G(c.ctx).Error("could not update announce", zap.Error(err))
 				c.close(errors.WithStack(err))
 				return
 			}
@@ -233,7 +240,6 @@ func (c *cluster) announce() {
 			return
 		}
 	}
-
 }
 
 func (c *cluster) hubWatch() {
@@ -352,20 +358,36 @@ func (c *cluster) registerMember(member *store.KVPair) error {
 	if id == c.id {
 		return nil
 	}
+	c.leaderLock.RLock()
+	_, ok := c.clients[id]
+	if ok {
+		c.leaderLock.RUnlock()
+		return nil
+	}
+	c.leaderLock.RUnlock()
+
 	endpoints := make([]string, 0)
 	err := json.Unmarshal(member.Value, &endpoints)
 	if err != nil {
 		return err
 	}
+	log.G(c.ctx).Warn("fetched endpoints of new member", zap.Any("endpoints", endpoints))
 	for _, ep := range endpoints {
 		conn, err := util.MakeGrpcClient(ep, nil)
 		if err != nil {
 			log.G(c.ctx).Warn("could not connect to hub", zap.String("endpoint", ep), zap.Error(err))
 			continue
 		} else {
+			log.G(c.ctx).Info("successfully connected to cluster member")
 			c.leaderLock.Lock()
+			defer c.leaderLock.Unlock()
+			_, ok := c.clients[id]
+			if ok {
+				log.G(c.ctx).Info("duplicated connection - dropping")
+				conn.Close()
+				return nil
+			}
 			c.clients[id] = pb.NewHubClient(conn)
-			c.leaderLock.Unlock()
 			return nil
 		}
 	}
@@ -403,7 +425,7 @@ func parseEndpoints(config *ClusterConfig) ([]string, error) {
 				ip = v.IP
 			}
 			if ip != nil && ip.IsGlobalUnicast() {
-				endpoints = append(endpoints, ip.String()+":"+string(config.GrpcPort))
+				endpoints = append(endpoints, ip.String()+":"+fmt.Sprint(config.GrpcPort))
 			}
 		}
 	}
