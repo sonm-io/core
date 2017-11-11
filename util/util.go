@@ -8,13 +8,13 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
+	"os"
 	"os/user"
 	"runtime"
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"gopkg.in/yaml.v2"
-	"os"
 )
 
 // GetLocalIP find local non-loopback ip addr
@@ -118,7 +118,7 @@ func LoadYamlFile(from string, to interface{}) error {
 	return nil
 }
 
-// DirectoryExists returns true if given directory exists
+// DirectoryExists returns true if the given directory exists
 func DirectoryExists(p string) bool {
 	if _, err := os.Stat(p); err != nil {
 		return !os.IsNotExist(err)
