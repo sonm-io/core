@@ -62,6 +62,7 @@ type Hub struct {
 	locatorClient   pb.LocatorClient
 
 	cluster Cluster
+	eventCh <-chan ClusterEvent
 
 	mu     sync.Mutex
 	miners map[string]*MinerCtx
@@ -280,6 +281,7 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 	log.G(h.ctx).Info("forwarding to leader", zap.String("method", info.FullMethod))
 	cli, err := h.cluster.LeaderClient()
 	if err != nil {
+		log.G(h.ctx).Warn("failed to get leader client")
 		return true, nil, err
 	}
 	if cli != nil {
@@ -807,6 +809,11 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	acl := NewACLStorage()
 	acl.Insert(cfg.Eth.PrivateKey)
 
+	cluster, err := NewCluster(ctx, &cfg.Cluster)
+	if err != nil {
+		return nil, err
+	}
+
 	h := &Hub{
 		cfg:          cfg,
 		ctx:          ctx,
@@ -824,6 +831,9 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 
 		locatorEndpoint: cfg.Locator.Address,
 		locatorPeriod:   time.Second * time.Duration(cfg.Locator.Period),
+
+		cluster: cluster,
+		eventCh: cluster.Run(),
 
 		filters: []minerFilter{
 			exactMatchFilter,
@@ -846,6 +856,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	h.externalGrpc = grpcServer
 
 	pb.RegisterHubServer(grpcServer, h)
+	log.G(h.ctx).Debug("created hub")
 	return h, nil
 }
 
@@ -903,6 +914,7 @@ func (h *Hub) startDiscovery() error {
 func (h *Hub) Serve() error {
 	h.startTime = time.Now()
 
+	log.G(h.ctx).Info("starting discovery")
 	if err := h.startDiscovery(); err != nil {
 		return err
 	}

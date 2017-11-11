@@ -25,13 +25,17 @@ type LocatorConfig struct {
 	Period  int    `required:"true" default:"300" yaml:"period"`
 }
 
+type StoreConfig struct {
+	Type     string `required:"true" default:"boltdb" yaml:"type"`
+	Endpoint string `required:"true" default:"/tmp/sonm/boltdb" yaml:"endpoint"`
+	Bucket   string `required:"true" default:"sonm" yaml:"bucket"`
+}
+
 type ClusterConfig struct {
-	StoreType     string `required:"true" default:"boltdb"`
-	StoreEndpoint string `required:"true" default:"/tmp/sonm/boltdb"`
-	StoreBucket   string `required:"true" default:"sonm"`
-	Failover      bool   `required:"true" default:"false"`
-	GrpcIp        string `required:"false"`
-	GrpcPort      int    `required:"true" default:"10002"`
+	Store    StoreConfig `yaml:"store"`
+	Failover bool        `yaml:"failover" required:"true" default:"false"`
+	GrpcIps  []string    `yaml:"grpc_ip"`
+	GrpcPort int         `yaml:"grpc_port" required:"true" default:"10002"`
 }
 
 type HubConfig struct {
@@ -43,7 +47,7 @@ type HubConfig struct {
 	Logging       LoggingConfig    `yaml:"logging"`
 	Eth           EthConfig        `yaml:"ethereum"`
 	Locator       LocatorConfig    `yaml:"locator"`
-	Cluster       ClusterConfig    `yaml:"store"`
+	Cluster       ClusterConfig    `yaml:"cluster"`
 }
 
 // NewConfig loads a hub config from the specified YAML file.
