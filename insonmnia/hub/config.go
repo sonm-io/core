@@ -35,7 +35,7 @@ type ClusterConfig struct {
 	Store    StoreConfig `yaml:"store"`
 	Failover bool        `yaml:"failover" required:"true" default:"false"`
 	GrpcIps  []string    `yaml:"grpc_ip"`
-	GrpcPort int         `yaml:"grpc_port" required:"true" default:"10002"`
+	GrpcPort int         `yaml:"grpc_port" required:"true" default:"10001"`
 }
 
 type HubConfig struct {
