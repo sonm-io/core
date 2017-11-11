@@ -271,7 +271,7 @@ func (c *cluster) hubWatch() {
 				}
 			}
 		case <-c.ctx.Done():
-			stopCh <- struct{}{}
+			close(stopCh)
 			return
 		}
 	}
@@ -334,6 +334,7 @@ func (c *cluster) watchEvents() {
 	for {
 		select {
 		case <-c.ctx.Done():
+			close(watchStopChannel)
 			return
 		case kvList, ok := <-ch:
 			if !ok {
@@ -358,6 +359,7 @@ func (c *cluster) watchEvents() {
 
 func (c *cluster) nameByEntity(entity interface{}) (string, error) {
 	c.registeredEntitiesMu.RLock()
+	defer c.registeredEntitiesMu.RUnlock()
 	t := reflect.TypeOf(entity)
 	name, ok := c.entityNames[t]
 	if !ok {
@@ -368,6 +370,7 @@ func (c *cluster) nameByEntity(entity interface{}) (string, error) {
 
 func (c *cluster) typeByName(name string) (reflect.Type, error) {
 	c.registeredEntitiesMu.RLock()
+	defer c.registeredEntitiesMu.RUnlock()
 	t, ok := c.registeredEntities[name]
 	if !ok {
 		return nil, errors.New("entity " + t.String() + " is not registered")
@@ -406,18 +409,22 @@ func (c *cluster) emitLeadershipEvent() {
 	}
 }
 
+func (c *cluster) memberExists(id string) bool {
+	c.leaderLock.RLock()
+	defer c.leaderLock.RUnlock()
+	_, ok := c.clients[id]
+	return ok
+}
+
 func (c *cluster) registerMember(member *store.KVPair) error {
 	id := fetchNameFromPath(member.Key)
 	if id == c.id {
 		return nil
 	}
-	c.leaderLock.RLock()
-	_, ok := c.clients[id]
-	if ok {
-		c.leaderLock.RUnlock()
+
+	if c.memberExists(id) {
 		return nil
 	}
-	c.leaderLock.RUnlock()
 
 	endpoints := make([]string, 0)
 	err := json.Unmarshal(member.Value, &endpoints)
