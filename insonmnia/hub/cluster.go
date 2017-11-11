@@ -4,6 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
+	"reflect"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/docker/leadership"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
@@ -16,11 +22,6 @@ import (
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
-	"net"
-	"reflect"
-	"strings"
-	"sync"
-	"time"
 )
 
 const leaderKey = "sonm/hub/leader"
