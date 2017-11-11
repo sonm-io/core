@@ -1,13 +1,13 @@
 package commands
 
 import (
+	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"os"
 	"time"
 
-	"crypto/ecdsa"
-
+	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/spf13/cobra"
 )
@@ -157,23 +157,12 @@ func isSimpleFormat() bool {
 	return true
 }
 
-// printer interface describe anything that can print
-// something somehow on a something.
-type printer interface {
-	Printf(format string, i ...interface{})
-}
-
-// silentPrinter implements printer interface but prints nothing.
-type silentPrinter struct{}
-
-func (sp *silentPrinter) Printf(format string, i ...interface{}) {}
-
 // loadKeyStoreWrapper implemented to match cobra.Command.PreRun signature.
 //
 // Function loads and opens keystore. Also, storing opened key in "sessionKey" var
 // to be able to reuse it into cli during one session.
 func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
-	ko, err := cliKeyOpener(&silentPrinter{}, cfg.KeyStore(), cfg.PassPhrase())
+	ko, err := accounts.DefaultKeyOpener(accounts.NewSilentPrinter(), cfg.KeyStore(), cfg.PassPhrase())
 	if err != nil {
 		showError(cmd, err.Error(), nil)
 		os.Exit(1)

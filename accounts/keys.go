@@ -5,10 +5,13 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path"
 
 	"github.com/howeyc/gopass"
 	"github.com/sonm-io/core/util"
 )
+
+const defaultKeystorePath = ".sonm/keystore/"
 
 var (
 	errNoKeystoreDir = errors.New("keystore directory does not exists")
@@ -162,4 +165,62 @@ type KeyStorager interface {
 	KeyStore() string
 	// PassPhrase returns passphrase for keystore
 	PassPhrase() string
+}
+
+// Printer interface describe anything that can print
+// something somehow on a something.
+type Printer interface {
+	Printf(format string, i ...interface{})
+}
+
+// silentPrinter implements Printer interface but prints nothing.
+type silentPrinter struct{}
+
+func (sp *silentPrinter) Printf(format string, i ...interface{}) {}
+
+// NewSilentPrinter returns new printer which can prints nothing
+func NewSilentPrinter() Printer { return new(silentPrinter) }
+
+// DefaultKeyOpener return KeyOpener configured for using with pre-defined pass-phrase or
+// retrieve pass-phrase interactively
+func DefaultKeyOpener(p Printer, keyDir, passPhrase string) (KeyOpener, error) {
+	var err error
+	// use default key store dir if not specified in config
+	if keyDir == "" {
+		keyDir, err = getDefaultKeyStorePath()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	p.Printf("Using %s as KeyStore directory\r\n", keyDir)
+
+	if !util.DirectoryExists(keyDir) {
+		p.Printf("KeyStore directory does not exists, try to create it...\r\n")
+		err = os.MkdirAll(keyDir, 0700)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// ask for pass-phrase if not specified in config
+	var pf PassPhraser
+	if passPhrase == "" {
+		pf = NewInteractivePassPhraser()
+	} else {
+		pf = NewStaticPassPhraser(passPhrase)
+	}
+
+	ko := NewKeyOpener(keyDir, pf)
+	return ko, nil
+}
+
+func getDefaultKeyStorePath() (string, error) {
+	home, err := util.GetUserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	keyDir := path.Join(home, defaultKeystorePath)
+	return keyDir, nil
 }
