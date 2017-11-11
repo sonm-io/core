@@ -15,6 +15,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
 	"net"
 	"reflect"
 	"strings"
@@ -86,11 +87,16 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, error) {
 		isLeader:         true,
 		id:               uuid.NewV1().String(),
 		endpoints:        endpoints,
-		clients:          make(map[string]pb.HubClient),
+		clients:          make(map[string]*client),
 		clusterEndpoints: make(map[string][]string),
 		eventChannel:     make(chan ClusterEvent, 100),
 	}
 	return &c, nil
+}
+
+type client struct {
+	client pb.HubClient
+	conn   *grpc.ClientConn
 }
 
 type cluster struct {
@@ -112,7 +118,7 @@ type cluster struct {
 
 	leaderLock sync.RWMutex
 
-	clients          map[string]pb.HubClient
+	clients          map[string]*client
 	clusterEndpoints map[string][]string
 	leaderId         string
 
@@ -127,6 +133,7 @@ func (c *cluster) Run() <-chan ClusterEvent {
 		go c.leaderWatch()
 		go c.announce()
 		go c.hubWatch()
+		go c.hubGC()
 	} else {
 		log.G(c.ctx).Info("runnning in dev single-server mode")
 	}
@@ -153,7 +160,7 @@ func (c *cluster) LeaderClient() (pb.HubClient, error) {
 		log.G(c.ctx).Warn("not connected to leader")
 		return nil, errors.New("not connected to leader")
 	}
-	return client, nil
+	return client.client, nil
 }
 
 func (c *cluster) RegisterEntity(name string, prototype interface{}) {
@@ -270,6 +277,52 @@ func (c *cluster) hubWatch() {
 	}
 }
 
+func (c *cluster) checkHub(id string) error {
+	exists, err := c.store.Exists(listKey + "/" + id)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		log.G(c.ctx).Info("hub is offline, removing", zap.String("hubId", id))
+		c.leaderLock.Lock()
+		defer c.leaderLock.Unlock()
+		cli, ok := c.clients[id]
+		if ok {
+			cli.conn.Close()
+			delete(c.clients, id)
+		}
+	}
+	return nil
+}
+
+func (c *cluster) hubGC() {
+	log.G(c.ctx).Info("starting hub GC goroutine")
+	t := time.NewTicker(time.Second * 60)
+	for {
+		select {
+		case <-t.C:
+			c.leaderLock.RLock()
+			idsToCheck := make([]string, 0)
+			for id := range c.clients {
+				idsToCheck = append(idsToCheck, id)
+			}
+			c.leaderLock.RUnlock()
+
+			for _, id := range idsToCheck {
+				err := c.checkHub(id)
+				if err != nil {
+					log.G(c.ctx).Warn("failed to check hub", zap.String("hubId", id), zap.Error(err))
+				} else {
+					log.G(c.ctx).Info("checked hub", zap.String("hubId", id))
+				}
+			}
+
+		case <-c.ctx.Done():
+			return
+		}
+	}
+}
+
 func (c *cluster) watchEvents() {
 	log.G(c.ctx).Info("subscribing on sync folder")
 	watchStopChannel := make(chan struct{})
@@ -371,7 +424,7 @@ func (c *cluster) registerMember(member *store.KVPair) error {
 	if err != nil {
 		return err
 	}
-	log.G(c.ctx).Warn("fetched endpoints of new member", zap.Any("endpoints", endpoints))
+	log.G(c.ctx).Info("fetched endpoints of new member", zap.Any("endpoints", endpoints))
 	for _, ep := range endpoints {
 		conn, err := util.MakeGrpcClient(ep, nil)
 		if err != nil {
@@ -387,7 +440,7 @@ func (c *cluster) registerMember(member *store.KVPair) error {
 				conn.Close()
 				return nil
 			}
-			c.clients[id] = pb.NewHubClient(conn)
+			c.clients[id] = &client{pb.NewHubClient(conn), conn}
 			return nil
 		}
 	}
