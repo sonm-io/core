@@ -3,6 +3,8 @@ package node
 import (
 	"net"
 
+	"crypto/ecdsa"
+
 	"github.com/jinzhu/configor"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/accounts"
@@ -119,16 +121,17 @@ func NewConfig(path string) (Config, error) {
 
 // Node is LocalNode instance
 type Node struct {
-	ctx  context.Context
-	conf Config
-	lis  net.Listener
-	srv  *grpc.Server
+	ctx     context.Context
+	conf    Config
+	lis     net.Listener
+	srv     *grpc.Server
+	privKey *ecdsa.PrivateKey
 }
 
 // New creates new Local Node instance
 // also method starts internal gRPC client connections
 // to the external services like Market and Hub
-func New(ctx context.Context, c Config) (*Node, error) {
+func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	lis, err := net.Listen("tcp", c.ListenAddress())
 	if err != nil {
 		return nil, err
@@ -160,10 +163,11 @@ func New(ctx context.Context, c Config) (*Node, error) {
 	pb.RegisterTaskManagementServer(srv, tasks)
 
 	return &Node{
-		lis:  lis,
-		conf: c,
-		ctx:  ctx,
-		srv:  srv,
+		lis:     lis,
+		conf:    c,
+		ctx:     ctx,
+		srv:     srv,
+		privKey: key,
 	}, nil
 }
 
