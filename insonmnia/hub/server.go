@@ -914,9 +914,11 @@ func (h *Hub) startDiscovery() error {
 func (h *Hub) Serve() error {
 	h.startTime = time.Now()
 
-	log.G(h.ctx).Info("starting discovery")
-	if err := h.startDiscovery(); err != nil {
-		return err
+	if h.cfg.GlobalDiscovery {
+		log.G(h.ctx).Info("starting discovery")
+		if err := h.startDiscovery(); err != nil {
+			return err
+		}
 	}
 
 	listener, err := net.Listen("tcp", h.endpoint)
