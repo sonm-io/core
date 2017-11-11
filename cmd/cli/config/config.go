@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/jinzhu/configor"
+	"github.com/sonm-io/core/accounts"
 )
 
 const (
@@ -17,8 +18,9 @@ const (
 type Config interface {
 	OutputFormat() string
 	HubAddress() string
-	KeyStore() string
-	PassPhrase() string
+	// KeyStorager included into config because of
+	// cli instance must know how to open the keystore
+	accounts.KeyStorager
 }
 
 // cliConfig implements Config interface

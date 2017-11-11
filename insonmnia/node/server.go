@@ -5,6 +5,7 @@ import (
 
 	"github.com/jinzhu/configor"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/accounts"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -26,6 +27,9 @@ type Config interface {
 	LogLevel() int
 	// ClientID returns EtherumID of Node Owner
 	ClientID() string
+	// KeyStorager included into config because of
+	// Node instance must know how to open the keystore
+	accounts.KeyStorager
 }
 
 type nodeConfig struct {
@@ -48,11 +52,17 @@ type locatorConfig struct {
 	Endpoint string `required:"true" default:"" yaml:"endpoint"`
 }
 
+type keysConfig struct {
+	Keystore   string `required:"false" default:"" yaml:"key_store"`
+	Passphrase string `required:"false" default:"" yaml:"pass_phrase"`
+}
+
 type yamlConfig struct {
 	Node    nodeConfig    `required:"true" yaml:"node"`
 	Market  marketConfig  `required:"true" yaml:"market"`
 	Log     logConfig     `required:"true" yaml:"log"`
 	Locator locatorConfig `required:"true" yaml:"locator"`
+	Keys    keysConfig    `required:"false" yaml:"keys"`
 	Hub     *hubConfig    `required:"false" yaml:"hub"`
 }
 
@@ -78,12 +88,21 @@ func (y *yamlConfig) HubEndpoint() string {
 func (y *yamlConfig) ClientID() string {
 	// NOTE: just for testing on current iteration
 	// key exchange will be implemented soon
+	// TODO(sshaman1101): extract clientID from etherum key loaded from keystore
 
 	return "my-uniq-id"
 }
 
 func (y *yamlConfig) LogLevel() int {
 	return y.Log.Level
+}
+
+func (y *yamlConfig) KeyStore() string {
+	return y.Keys.Keystore
+}
+
+func (y *yamlConfig) PassPhrase() string {
+	return y.Keys.Passphrase
 }
 
 // NewConfig loads localNode config from given .yaml file
