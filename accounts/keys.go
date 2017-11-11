@@ -154,3 +154,12 @@ func (pf *staticPassPhraser) GetPassPhrase() (string, error) { return pf.p, nil 
 func NewStaticPassPhraser(p string) PassPhraser {
 	return &staticPassPhraser{p: p}
 }
+
+// KeyStorager interface describe an item that must know something about
+// a path to the keystore and a passphrase
+type KeyStorager interface {
+	// KeyStore returns path to key store
+	KeyStore() string
+	// PassPhrase returns passphrase for keystore
+	PassPhrase() string
+}

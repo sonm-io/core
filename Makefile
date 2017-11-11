@@ -122,10 +122,11 @@ mock:
 	mockgen -package miner -destination insonmnia/miner/overseer_mock.go -source insonmnia/miner/overseer.go
 	mockgen -package miner -destination insonmnia/miner/config_mock.go -source insonmnia/miner/config.go
 	mockgen -package hardware -destination insonmnia/hardware/hardware_mock.go -source insonmnia/hardware/hardware.go
-	mockgen -package config -destination cmd/cli/config/config_mock.go  -source cmd/cli/config/config.go
 	mockgen -package commands -destination cmd/cli/commands/interactor_mock.go  -source cmd/cli/commands/interactor.go
 	mockgen -package task_config -destination cmd/cli/task_config/config_mock.go  -source cmd/cli/task_config/config.go
 	mockgen -package accounts -destination accounts/keys_mock.go  -source accounts/keys.go
+	mockgen -package config -destination cmd/cli/config/config_mock.go  -source cmd/cli/config/config.go \
+		-aux_files accounts=accounts/keys.go
 
 clean:
 	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE} ${MARKET}
