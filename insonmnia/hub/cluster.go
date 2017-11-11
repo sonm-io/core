@@ -3,13 +3,13 @@ package hub
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"github.com/docker/leadership"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
 	"github.com/docker/libkv/store/consul"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pkg/errors"
 	"github.com/satori/uuid"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -69,14 +69,14 @@ type Cluster interface {
 // otherwise.
 // Should be recalled when a cluster's master/slave state changes.
 // The channel is closed when the specified context is canceled.
-func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, <-chan ClusterEvent, error) {
+func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, error) {
 	store, err := makeStore(ctx, cfg)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	endpoints, err := parseEndpoints(cfg)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	c := cluster{
 		parentCtx:        ctx,
@@ -89,7 +89,7 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, <-chan Cluste
 		clusterEndpoints: make(map[string][]string),
 		eventChannel:     make(chan ClusterEvent, 100),
 	}
-	return &c, c.eventChannel, nil
+	return &c, nil
 }
 
 type cluster struct {
@@ -126,6 +126,8 @@ func (c *cluster) Run() <-chan ClusterEvent {
 		go c.leaderWatch()
 		go c.announce()
 		go c.hubWatch()
+	} else {
+		log.G(c.ctx).Info("runnning in dev single-server mode")
 	}
 	go c.watchEvents()
 	return c.eventChannel
@@ -137,14 +139,17 @@ func (c *cluster) IsLeader() bool {
 
 // Get GRPC hub client to current leader
 func (c *cluster) LeaderClient() (pb.HubClient, error) {
+	log.G(c.ctx).Debug("fetching leader client")
 	c.leaderLock.Lock()
 	defer c.leaderLock.Unlock()
 	leaderEndpoints, ok := c.clusterEndpoints[c.leaderId]
 	if !ok || len(leaderEndpoints) == 0 {
+		log.G(c.ctx).Warn("can not determine leader")
 		return nil, errors.New("can not determine leader")
 	}
 	client, ok := c.clients[c.leaderId]
 	if !ok || client == nil {
+		log.G(c.ctx).Warn("not connected to leader")
 		return nil, errors.New("not connected to leader")
 	}
 	return client, nil
@@ -175,17 +180,19 @@ func (c *cluster) Synchronize(entity interface{}) error {
 }
 
 func (c *cluster) election() {
-	candidate := leadership.NewCandidate(c.store, leaderKey, c.id, 5*time.Second)
+	candidate := leadership.NewCandidate(c.store, leaderKey, c.id, 20*time.Second)
 	electedCh, errCh := candidate.RunForElection()
 	log.G(c.ctx).Info("starting leader election goroutine")
 
 	for {
 		select {
 		case c.isLeader = <-electedCh:
+			log.G(c.ctx).Debug("election event", zap.Bool("isLeader", c.isLeader))
 			c.emitLeadershipEvent()
 		case err := <-errCh:
-			c.close(err)
+			c.close(errors.WithStack(err))
 		case <-c.ctx.Done():
+			candidate.Stop()
 			return
 		}
 	}
@@ -194,14 +201,16 @@ func (c *cluster) election() {
 // Blocks in endless cycle watching for leadership.
 // When the leadership is changed stores new leader id in cluster
 func (c *cluster) leaderWatch() {
+	log.G(c.ctx).Info("starting leader watch goroutine")
 	follower := leadership.NewFollower(c.store, leaderKey)
 	leaderCh, errCh := follower.FollowElection()
 	for {
 		select {
 		case <-c.ctx.Done():
+			follower.Stop()
 			return
 		case err := <-errCh:
-			c.close(err)
+			c.close(errors.WithStack(err))
 		case c.leaderId = <-leaderCh:
 			c.emitLeadershipEvent()
 		}
@@ -209,14 +218,15 @@ func (c *cluster) leaderWatch() {
 }
 
 func (c *cluster) announce() {
+	log.G(c.ctx).Info("starting announce goroutine")
 	endpointsData, _ := json.Marshal(c.endpoints)
-	ticker := time.NewTicker(time.Second * 1)
+	ticker := time.NewTicker(time.Second * 10)
 	for {
 		select {
 		case <-ticker.C:
-			err := c.store.Put(listKey+"/"+c.id, endpointsData, &store.WriteOptions{TTL: time.Second * 5})
+			err := c.store.Put(listKey+"/"+c.id, endpointsData, &store.WriteOptions{TTL: time.Second * 30})
 			if err != nil {
-				c.close(err)
+				c.close(errors.WithStack(err))
 				return
 			}
 		case <-c.ctx.Done():
@@ -227,6 +237,7 @@ func (c *cluster) announce() {
 }
 
 func (c *cluster) hubWatch() {
+	log.G(c.ctx).Info("starting member watch goroutine")
 	stopCh := make(chan struct{})
 	listener, err := c.store.WatchTree(listKey, stopCh)
 	if err != nil {
@@ -236,13 +247,13 @@ func (c *cluster) hubWatch() {
 		select {
 		case members, ok := <-listener:
 			if !ok {
-				c.close(errors.New("hub watcher closed"))
+				c.close(errors.WithStack(errors.New("hub watcher closed")))
 				return
 			} else {
 				for _, member := range members {
 					err := c.registerMember(member)
 					if err != nil {
-						log.G(c.ctx).Warn("trash data in cluster members folder: ", zap.Any("kvPair", member))
+						log.G(c.ctx).Warn("trash data in cluster members folder: ", zap.Any("kvPair", member), zap.Error(err))
 					}
 				}
 			}
@@ -254,6 +265,7 @@ func (c *cluster) hubWatch() {
 }
 
 func (c *cluster) watchEvents() {
+	log.G(c.ctx).Info("subscribing on sync folder")
 	watchStopChannel := make(chan struct{})
 	ch, err := c.store.WatchTree(synchronizableEntitiesPrefix, watchStopChannel)
 	if err != nil {
@@ -263,9 +275,10 @@ func (c *cluster) watchEvents() {
 	for {
 		select {
 		case <-c.ctx.Done():
+			return
 		case kvList, ok := <-ch:
 			if !ok {
-				c.close(errors.New("watch channel is closed"))
+				c.close(errors.WithStack(errors.New("watch channel is closed")))
 				return
 			}
 			for _, kv := range kvList {
@@ -308,37 +321,39 @@ func makeStore(ctx context.Context, cfg *ClusterConfig) (store.Store, error) {
 	boltdb.Register()
 	log.G(ctx).Info("creating store", zap.Any("store", cfg))
 
-	endpoints := []string{cfg.StoreEndpoint}
+	endpoints := []string{cfg.Store.Endpoint}
 
-	backend := store.Backend(cfg.StoreType)
+	backend := store.Backend(cfg.Store.Type)
 
 	config := store.Config{}
-	config.Bucket = cfg.StoreBucket
+	config.Bucket = cfg.Store.Bucket
 	return libkv.NewStore(backend, endpoints, &config)
 }
 
 func (c *cluster) close(err error) {
 	log.G(c.ctx).Error("cluster failure", zap.Error(err))
 	c.eventChannel <- err
-	close(c.eventChannel)
+	c.cancel()
 }
 
 func (c *cluster) emitLeadershipEvent() {
 	c.leaderLock.Lock()
+	defer c.leaderLock.Unlock()
 	endpoints, _ := c.clusterEndpoints[c.leaderId]
 	c.eventChannel <- LeadershipEvent{
 		Held:            c.isLeader,
 		LeaderId:        c.leaderId,
 		LeaderEndpoints: endpoints,
 	}
-	c.leaderLock.Unlock()
 }
 
 func (c *cluster) registerMember(member *store.KVPair) error {
 	id := fetchNameFromPath(member.Key)
-
+	if id == c.id {
+		return nil
+	}
 	endpoints := make([]string, 0)
-	err := json.Unmarshal(member.Value, endpoints)
+	err := json.Unmarshal(member.Value, &endpoints)
 	if err != nil {
 		return err
 	}
@@ -364,8 +379,11 @@ func fetchNameFromPath(key string) string {
 
 func parseEndpoints(config *ClusterConfig) ([]string, error) {
 	endpoints := make([]string, 0)
-	if len(config.GrpcIp) != 0 {
-		return append(endpoints, config.GrpcIp+":"+string(config.GrpcPort)), nil
+	if len(config.GrpcIps) != 0 {
+		for _, ip := range config.GrpcIps {
+			endpoints = append(endpoints, ip+":"+string(config.GrpcPort))
+		}
+		return endpoints, nil
 	}
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -385,7 +403,7 @@ func parseEndpoints(config *ClusterConfig) ([]string, error) {
 				ip = v.IP
 			}
 			if ip != nil && ip.IsGlobalUnicast() {
-				endpoints = append(endpoints, ip.String())
+				endpoints = append(endpoints, ip.String()+":"+string(config.GrpcPort))
 			}
 		}
 	}
