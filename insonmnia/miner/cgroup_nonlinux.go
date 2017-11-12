@@ -2,18 +2,14 @@
 
 package miner
 
-// Resources is a placeholder for resources
-type Resources interface{}
+import (
+	"github.com/opencontainers/runtime-spec/specs-go"
+)
 
 const (
 	platformSupportCGroups = false
-	parentCgroup           = ""
 )
 
-type nilDeleter struct{}
-
-func (*nilDeleter) Delete() error { return nil }
-
-func initializeControlGroup(*Resources) (cGroupDeleter, error) {
-	return &nilDeleter{}, nil
+func initializeControlGroup(name string, resources *specs.LinuxResources) (cGroup, error) {
+	return &nilCgroup{}, nil
 }

@@ -1,11 +1,12 @@
 package hub
 
 import (
+	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 )
 
 type TaskInfo struct {
-	pb.HubStartTaskRequest
+	structs.StartTaskRequest
 	pb.MinerStartReply
 	ID      string
 	MinerId string

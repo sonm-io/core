@@ -39,8 +39,8 @@ func TestServerNewExtractsHubEndpoint(t *testing.T) {
 	m, err := builder.Build()
 	cfg.EXPECT().GPU().AnyTimes()
 
+	assert.NoError(t, err)
 	assert.NotNil(t, m)
-	assert.Nil(t, err)
 	assert.Equal(t, "::1", m.hubAddress)
 }
 
@@ -163,9 +163,9 @@ func TestMinerStart(t *testing.T) {
 	m, err := builder.Config(cfg).Overseer(ovs).Build()
 	require.NotNil(t, m)
 	require.Nil(t, err)
-	reply, err := m.Start(context.Background(), &pb.MinerStartRequest{Id: "test"})
+	reply, err := m.Start(context.Background(), &pb.MinerStartRequest{Id: "test", Resources: &pb.TaskResourceRequirements{}})
+	require.NoError(t, err)
 	require.NotNil(t, reply)
-	require.Nil(t, err)
 
 	id, ok := m.getTaskIdByContainerId("deadbeef-cafe-dead-beef-cafedeadbeef")
 	assert.True(t, ok)
@@ -180,10 +180,10 @@ func TestTransformEnvVars(t *testing.T) {
 		"key4": "",
 	}
 
-	transformed := transformEnvVariables(vars)
+	description := Description{Env: vars}
 
-	assert.Contains(t, transformed, "KEY1=value1")
-	assert.Contains(t, transformed, "KEY2=VALUE2")
-	assert.Contains(t, transformed, "KEY3=12345")
-	assert.Contains(t, transformed, "KEY4=")
+	assert.Contains(t, description.FormatEnv(), "KEY1=value1")
+	assert.Contains(t, description.FormatEnv(), "KEY2=VALUE2")
+	assert.Contains(t, description.FormatEnv(), "KEY3=12345")
+	assert.Contains(t, description.FormatEnv(), "KEY4=")
 }

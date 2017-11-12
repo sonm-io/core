@@ -4,6 +4,7 @@ package miner
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/containerd/cgroups"
 	"github.com/mitchellh/mapstructure"
@@ -12,10 +13,27 @@ import (
 
 const (
 	platformSupportCGroups = true
-	parentCgroup           = "insonmnia"
 )
 
-// Resources is a type alias for OCI Resources spec
+type cgroup struct {
+	cgroups.Cgroup
+	suffix string
+}
+
+func (c *cgroup) New(name string, resources *specs.LinuxResources) (cGroup, error) {
+	control, err := c.Cgroup.New(name, resources)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cgroup{control, filepath.Join(c.suffix, name)}, nil
+}
+
+func (c *cgroup) Suffix() string {
+	return c.suffix
+}
+
+// CGroups is a type alias for OCI CGroups spec
 type Resources specs.LinuxResources
 
 // SetYAML implements goyaml.Setter
@@ -45,31 +63,29 @@ func (r *Resources) SetYAML(tag string, value interface{}) bool {
 	return true
 }
 
-func initializeControlGroup(res *Resources) (cGroupDeleter, error) {
-	// Cook or update parent cgroup for all containers
-	cgroupPath := cgroups.StaticPath("/" + parentCgroup)
+func initializeControlGroup(name string, resources *specs.LinuxResources) (cGroup, error) {
+	// Cook or update parent cgroup for all containers we spawn.
+	cgroupPath := cgroups.StaticPath(name)
 	control, err := cgroups.Load(cgroups.V1, cgroupPath)
 	switch err {
 	case nil:
-		// pass
 	case cgroups.ErrCgroupDeleted:
-		// create an empty cgroup
-		// we update it later
+		// Create an empty cgroup, we update it later.
 		control, err = cgroups.New(cgroups.V1, cgroupPath, &specs.LinuxResources{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create parent cgroup %s: %v", parentCgroup, err)
+			return nil, fmt.Errorf("failed to create parent cgroup %s: %v", name, err)
 		}
 	default:
-		return nil, fmt.Errorf("failed to load parent cgroup %s: %v", parentCgroup, err)
+		return nil, fmt.Errorf("failed to load parent cgroup %s: %v", name, err)
 	}
 
-	if res == nil {
-		return control, nil
+	if resources == nil {
+		return &cgroup{control, name}, nil
 	}
 
-	if err = control.Update((*specs.LinuxResources)(res)); err != nil {
-		return nil, fmt.Errorf("failed to set resource limit on parent cgroup %s: %v", parentCgroup, err)
+	if err = control.Update(resources); err != nil {
+		return nil, fmt.Errorf("failed to set resource limit on parent cgroup %s: %v", name, err)
 	}
 
-	return control, nil
+	return &cgroup{control, name}, nil
 }

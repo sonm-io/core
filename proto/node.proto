@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "bid.proto";
+import "deal.proto";
 import "insonmnia.proto";
 import "miner.proto";
 import "hub.proto";
@@ -10,12 +11,6 @@ package sonm;
 // The SONM Local node API must also include
 // the Marketplace API, but it already has been described
 // into a "proto / marketplace.proto" file.
-
-enum DealStatus {
-    PENDING = 0;
-    APPROVED = 1;
-    FINISHED = 2;
-}
 
 // TaskManagement describe a bunch of methods
 // to manage tasks running into the SONM network
@@ -47,12 +42,6 @@ service DealManagement {
     rpc Status(ID) returns (Deal) {}
     // Finish finishes a deal with given ID
     rpc Finish(ID) returns (Empty) {}
-}
-
-message Deal {
-    string BidID = 1;
-    string AskID = 2;
-    DealStatus status = 3;
 }
 
 message DealListRequest {
