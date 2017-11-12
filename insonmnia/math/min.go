@@ -1,4 +1,4 @@
-package somath
+package math
 
 // NOTE: What the hell with this language?
 func Min(x int, other ...int) int {

@@ -29,8 +29,8 @@ import (
 	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
+	"github.com/sonm-io/core/insonmnia/math"
 	"github.com/sonm-io/core/insonmnia/resource"
-	"github.com/sonm-io/core/insonmnia/somath"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -275,7 +275,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		Usage: &pb.TaskResourceRequirements{
 			CPUCores:   uint64(usage.NumCPUs),
 			MaxMemory:  usage.Memory,
-			GPUSupport: pb.GPUCount(somath.Min(usage.NumGPUs, 2)),
+			GPUSupport: pb.GPUCount(math.Min(usage.NumGPUs, 2)),
 		},
 		RestartPolicy: &pb.ContainerRestartPolicy{
 			Name:              "",
