@@ -828,7 +828,6 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		locatorPeriod:   time.Second * time.Duration(cfg.Locator.Period),
 
 		cluster: cluster,
-		eventCh: cluster.Run(),
 
 		filters: []minerFilter{
 			exactMatchFilter,
@@ -952,6 +951,7 @@ func (h *Hub) Serve() error {
 		}
 	}()
 
+	// TODO: This is wrong! It checks only on start and isLeader is probably always false!
 	// init locator connection and announce
 	// address only on Leader
 	if h.cluster.IsLeader() {
@@ -967,8 +967,38 @@ func (h *Hub) Serve() error {
 		}()
 	}
 
+	h.cluster.RegisterEntity("tasks", h.tasks)
+	h.eventCh = h.cluster.Run()
+	go h.listenClusterEvents()
+
 	h.wg.Wait()
 	return nil
+}
+
+func (h *Hub) listenClusterEvents() {
+	for {
+		select {
+		case event := <-h.eventCh:
+			h.processClusterEvent(event)
+		case <-h.ctx.Done():
+			return
+		}
+	}
+}
+
+func (h *Hub) processClusterEvent(value interface{}) {
+	log.G(h.ctx).Info("received cluster event", zap.Any("event", value))
+	switch value.(type) {
+	case NewMemberEvent:
+		//We don't care now
+	case LeadershipEvent:
+		//We don't care now
+	case *map[string]*TaskInfo:
+		log.G(h.ctx).Info("synchronizing tasks from cluster")
+		h.tasksMu.Lock()
+		h.tasks = *value.(*map[string]*TaskInfo)
+		h.tasksMu.Unlock()
+	}
 }
 
 // Close disposes all resources attached to the Hub
