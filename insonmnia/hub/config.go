@@ -28,9 +28,16 @@ type StoreConfig struct {
 }
 
 type ClusterConfig struct {
-	Store        StoreConfig `yaml:"store"`
-	Failover     bool        `yaml:"failover" required:"true" default:"false"`
-	GrpcEndpoint string      `yaml:"grpc_endpoint"`
+	Store                        StoreConfig `yaml:"store"`
+	Failover                     bool        `yaml:"failover" required:"true" default:"false"`
+	GrpcEndpoint                 string      `yaml:"grpc_endpoint"`
+	LeaderKey                    string      `yaml:"leader_key" default:"sonm/hub/leader"`
+	MemberListKey                string      `yaml:"member_list_key" default:"sonm/hub/list"`
+	SynchronizableEntitiesPrefix string      `yaml:"sync_prefix" default:"sonm/hub/sync"`
+	LeaderTTL                    uint64      `yaml:"leader_ttl" default:"20"`
+	AnnouncePeriod               uint64      `yaml:"announce_period" default:"10"`
+	AnnounceTTL                  uint64      `yaml:"announce_ttl" default:"10"`
+	MemberGCPeriod               uint64      `yaml:"member_gc_period" default:"60"`
 }
 
 type HubConfig struct {

@@ -23,10 +23,6 @@ import (
 	"google.golang.org/grpc"
 )
 
-const leaderKey = "sonm/hub/leader"
-const listKey = "sonm/hub/list"
-const synchronizableEntitiesPrefix = "sonm/hub/sync"
-
 // ClusterEvent describes an event that can produce the cluster.
 //
 // Possible types are:
@@ -190,12 +186,12 @@ func (c *cluster) Synchronize(entity interface{}) error {
 	if err != nil {
 		return err
 	}
-	c.store.Put(synchronizableEntitiesPrefix+"/"+name, data, &store.WriteOptions{})
+	c.store.Put(c.cfg.SynchronizableEntitiesPrefix+"/"+name, data, &store.WriteOptions{})
 	return nil
 }
 
 func (c *cluster) election() {
-	candidate := leadership.NewCandidate(c.store, leaderKey, c.id, 20*time.Second)
+	candidate := leadership.NewCandidate(c.store, c.cfg.LeaderKey, c.id, makeDuration(c.cfg.LeaderTTL))
 	electedCh, errCh := candidate.RunForElection()
 	log.G(c.ctx).Info("starting leader election goroutine")
 
@@ -219,7 +215,7 @@ func (c *cluster) election() {
 // When the leadership is changed stores new leader id in cluster
 func (c *cluster) leaderWatch() {
 	log.G(c.ctx).Info("starting leader watch goroutine")
-	follower := leadership.NewFollower(c.store, leaderKey)
+	follower := leadership.NewFollower(c.store, c.cfg.LeaderKey)
 	leaderCh, errCh := follower.FollowElection()
 	for {
 		select {
@@ -241,12 +237,12 @@ func (c *cluster) leaderWatch() {
 func (c *cluster) announce() {
 	log.G(c.ctx).Info("starting announce goroutine", zap.Any("endpoints", c.endpoints), zap.String("ID", c.id))
 	endpointsData, _ := json.Marshal(c.endpoints)
-	ticker := time.NewTicker(time.Second * 10)
+	ticker := time.NewTicker(makeDuration(c.cfg.AnnounceTTL))
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			err := c.store.Put(listKey+"/"+c.id, endpointsData, &store.WriteOptions{TTL: time.Second * 30})
+			err := c.store.Put(c.cfg.MemberListKey+"/"+c.id, endpointsData, &store.WriteOptions{TTL: makeDuration(c.cfg.AnnounceTTL)})
 			if err != nil {
 				log.G(c.ctx).Error("could not update announce", zap.Error(err))
 				c.close(errors.WithStack(err))
@@ -261,7 +257,7 @@ func (c *cluster) announce() {
 func (c *cluster) hubWatch() {
 	log.G(c.ctx).Info("starting member watch goroutine")
 	stopCh := make(chan struct{})
-	listener, err := c.store.WatchTree(listKey, stopCh)
+	listener, err := c.store.WatchTree(c.cfg.MemberListKey, stopCh)
 	if err != nil {
 		c.close(err)
 	}
@@ -287,7 +283,7 @@ func (c *cluster) hubWatch() {
 }
 
 func (c *cluster) checkHub(id string) error {
-	exists, err := c.store.Exists(listKey + "/" + id)
+	exists, err := c.store.Exists(c.cfg.MemberListKey + "/" + id)
 	if err != nil {
 		return err
 	}
@@ -306,7 +302,7 @@ func (c *cluster) checkHub(id string) error {
 
 func (c *cluster) hubGC() {
 	log.G(c.ctx).Info("starting hub GC goroutine")
-	t := time.NewTicker(time.Second * 60)
+	t := time.NewTicker(makeDuration(c.cfg.MemberGCPeriod))
 	defer t.Stop()
 	for {
 		select {
@@ -336,7 +332,7 @@ func (c *cluster) hubGC() {
 func (c *cluster) watchEvents() {
 	log.G(c.ctx).Info("subscribing on sync folder")
 	watchStopChannel := make(chan struct{})
-	ch, err := c.store.WatchTree(synchronizableEntitiesPrefix, watchStopChannel)
+	ch, err := c.store.WatchTree(c.cfg.SynchronizableEntitiesPrefix, watchStopChannel)
 	if err != nil {
 		c.close(err)
 		return
@@ -469,6 +465,10 @@ func (c *cluster) registerMember(member *store.KVPair) error {
 func fetchNameFromPath(key string) string {
 	parts := strings.Split(key, "/")
 	return parts[len(parts)-1]
+}
+
+func makeDuration(numSeconds uint64) time.Duration {
+	return time.Second * time.Duration(numSeconds)
 }
 
 func parseEndpoints(config *ClusterConfig) ([]string, error) {
