@@ -1,23 +1,13 @@
 syntax = "proto3";
 
+import "insonmnia.proto";
+
 package sonm;
 
 enum OrderType {
     ANY = 0;
     BID = 1;
     ASK = 2;
-}
-
-enum NetworkType {
-    NO_NETWORK = 0;
-    OUTBOUND = 1;
-    INCOMING = 2;
-}
-
-enum GPUCount {
-    NO_GPU = 0;
-    SINGLE_GPU = 1;
-    MULTIPLE_GPU = 2;
 }
 
 // Geo represent GeoIP results for node

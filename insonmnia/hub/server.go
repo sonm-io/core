@@ -4,23 +4,20 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"golang.org/x/net/context"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pborman/uuid"
 
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -79,9 +76,7 @@ type Hub struct {
 	startTime time.Time
 	version   string
 
-	// Scheduling (obsolete).
-	filters []minerFilter
-	consul  Consul
+	consul Consul
 
 	associatedHubs     map[string]struct{}
 	associatedHubsLock sync.Mutex
@@ -215,93 +210,6 @@ type extRoute struct {
 	route         *route
 }
 
-type minerFilter func(miner *MinerCtx, requirements *pb.TaskRequirements) (bool, error)
-
-// ExactMatchFilter checks for exact match.
-//
-// Returns true if there are no miners specified in the requirements. In that
-// case we must apply hardware filtering for discovering miners that can start
-// the task.
-// Otherwise only specified miners become targets to start the task.
-func exactMatchFilter(miner *MinerCtx, requirements *pb.TaskRequirements) (bool, error) {
-	if len(requirements.GetMiners()) == 0 {
-		return true, nil
-	}
-
-	for _, minerID := range requirements.GetMiners() {
-		if minerID == miner.ID() {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func resourcesFilter(miner *MinerCtx, requirements *pb.TaskRequirements) (bool, error) {
-	resources := requirements.GetResources()
-	if resources == nil {
-		return false, status.Errorf(codes.InvalidArgument, "resources section is required")
-	}
-
-	cpuCount := resources.GetCPUCores()
-	memoryCount := resources.GetMaxMemory()
-	var gpuCount = 0
-	if resources.GetGPUSupport() {
-		gpuCount = -1
-	}
-
-	var usage = resource.NewResources(int(cpuCount), int64(memoryCount), gpuCount)
-	if err := miner.PollConsume(&usage); err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
-func (h *Hub) selectMiner(request *pb.HubStartTaskRequest) (*MinerCtx, error) {
-	requirements := request.GetRequirements()
-	if requirements == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "missing requirements")
-	}
-
-	// Filter out miners that aren't met the requirements.
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	miners := []*MinerCtx{}
-	for _, miner := range h.miners {
-		ok, err := h.applyFilters(miner, requirements)
-		if err != nil {
-			return nil, err
-		}
-
-		if ok {
-			miners = append(miners, miner)
-		}
-	}
-
-	// Select random miner from the list.
-	if len(miners) == 0 {
-		return nil, status.Errorf(codes.NotFound, "failed to find miner to match specified requirements")
-	}
-
-	return miners[rand.Int()%len(miners)], nil
-}
-
-func (h *Hub) applyFilters(miner *MinerCtx, req *pb.TaskRequirements) (bool, error) {
-	for _, filter := range h.filters {
-		ok, err := filter(miner, req)
-		if err != nil {
-			return false, err
-		}
-
-		if !ok {
-			return false, nil
-		}
-	}
-
-	return true, nil
-}
-
 func (h *Hub) onRequest(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 	log.G(h.ctx).Debug("intercepting request")
 	forwarded, r, err := h.tryForwardToLeader(ctx, req, info)
@@ -336,105 +244,101 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 
 // StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
-	log.G(h.ctx).Info("handling StartTask request", zap.Any("req", request))
+	log.G(h.ctx).Info("handling StartTask request", zap.Any("request", request))
 
-	taskID := uuid.New()
-	miner, err := h.selectMiner(request)
-	if err != nil {
-		return nil, err
-	}
+	// TODO: Generate a task ID.
+	//taskID := uuid.New()
 
-	var startRequest = &pb.MinerStartRequest{
-		Id:            taskID,
-		Registry:      request.Registry,
-		Image:         request.Image,
-		Auth:          request.Auth,
-		PublicKeyData: request.PublicKeyData,
-		CommitOnStop:  request.CommitOnStop,
-		Env:           request.Env,
-		Usage:         request.Requirements.GetResources(),
-		RestartPolicy: &pb.ContainerRestartPolicy{
-			Name:              "",
-			MaximumRetryCount: 0,
-		},
-	}
+	// TODO: Check whether such deal ever exists.
+	// TODO: Extract proper miner associated with a deal.
+	// TODO: Prepare start request.
 
-	resp, err := miner.Client.Start(ctx, startRequest)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
-	}
-
-	info := TaskInfo{*request, *resp, taskID, miner.uuid}
-	b, err := json.Marshal(info)
-	if err != nil {
-		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
-		return nil, status.Errorf(codes.Internal, "could not marshal task info %v", err)
-	}
-
-	kv := h.consul.KV()
-	kvPair := consul.KVPair{Key: tasksPrefix + "/" + taskID, Value: b}
-	_, err = kv.Put(&kvPair, &consul.WriteOptions{})
-	if err != nil {
-		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
-		return nil, status.Errorf(codes.Internal, "could not store task info %v", err)
-	}
-
-	//TODO: save routes in consul
-	routes := []extRoute{}
-	for k, v := range resp.Ports {
-		_, protocol, err := decodePortBinding(k)
-		if err != nil {
-			log.G(h.ctx).Warn("failed to decode miner's port mapping",
-				zap.String("mapping", k),
-				zap.Error(err),
-			)
-			continue
-		}
-
-		realPort, err := strconv.ParseUint(v.Port, 10, 16)
-		if err != nil {
-			log.G(h.ctx).Warn("failed to convert real port to uint16",
-				zap.Error(err),
-				zap.String("port", v.Port),
-			)
-			continue
-		}
-
-		route, err := miner.router.RegisterRoute(taskID, protocol, v.IP, uint16(realPort))
-		if err != nil {
-			log.G(h.ctx).Warn("failed to register route", zap.Error(err))
-			continue
-		}
-		routes = append(routes, extRoute{
-			containerPort: k,
-			route:         route,
-		})
-	}
-
-	//h.setMinerTaskID(miner.ID(), taskID)
-
-	// TODO: We no longer consume resources here. Instead allocation/usage checking required.
-	//resources := request.GetRequirements().GetResources()
-	//cpuCount := resources.GetCPUCores()
-	//memoryCount := resources.GetMaxMemory()
-
-	//var usage = resource.NewResources(int(cpuCount), int64(memoryCount))
-	//if err := miner.Consume(taskID, &usage); err != nil {
-	//	return nil, err
+	//var startRequest = &pb.MinerStartRequest{
+	//	Id:            taskID,
+	//	Registry:      request.Registry,
+	//	Image:         request.Image,
+	//	Auth:          request.Auth,
+	//	PublicKeyData: request.PublicKeyData,
+	//	CommitOnStop:  request.CommitOnStop,
+	//	Env:           request.Env,
+	//	Usage:         request.Requirements.GetResources(),
+	//	RestartPolicy: &pb.ContainerRestartPolicy{
+	//		Name:              "",
+	//		MaximumRetryCount: 0,
+	//	},
 	//}
 
-	var reply = pb.HubStartTaskReply{
-		Id: taskID,
-	}
+	// TODO: Try to start a task.
 
-	for _, route := range routes {
-		reply.Endpoint = append(
-			reply.Endpoint,
-			fmt.Sprintf("%s->%s:%d", route.containerPort, route.route.Host, route.route.Port),
-		)
-	}
+	//resp, err := miner.Client.Start(ctx, startRequest)
+	//if err != nil {
+	//	return nil, status.Errorf(codes.Internal, "failed to start %v", err)
+	//}
 
-	return &reply, nil
+	// TODO: Subscribe for task info.
+	//info := TaskInfo{*request, *resp, taskID, miner.uuid}
+	//b, err := json.Marshal(info)
+	//if err != nil {
+	//	miner.Client.Stop(ctx, &pb.ID{Id: taskID})
+	//	return nil, status.Errorf(codes.Internal, "could not marshal task info %v", err)
+	//}
+
+	// TODO: Synchronize task info with the cluster.
+	//kv := h.consul.KV()
+	//kvPair := consul.KVPair{Key: tasksPrefix + "/" + taskID, Value: b}
+	//_, err = kv.Put(&kvPair, &consul.WriteOptions{})
+	//if err != nil {
+	//	miner.Client.Stop(ctx, &pb.ID{Id: taskID})
+	//	return nil, status.Errorf(codes.Internal, "could not store task info %v", err)
+	//}
+
+	// TODO: Make routes.
+	// TODO: Save routes in consul
+	//routes := []extRoute{}
+	//for k, v := range resp.Ports {
+	//	_, protocol, err := decodePortBinding(k)
+	//	if err != nil {
+	//		log.G(h.ctx).Warn("failed to decode miner's port mapping",
+	//			zap.String("mapping", k),
+	//			zap.Error(err),
+	//		)
+	//		continue
+	//	}
+	//
+	//	realPort, err := strconv.ParseUint(v.Port, 10, 16)
+	//	if err != nil {
+	//		log.G(h.ctx).Warn("failed to convert real port to uint16",
+	//			zap.Error(err),
+	//			zap.String("port", v.Port),
+	//		)
+	//		continue
+	//	}
+	//
+	//	route, err := miner.router.RegisterRoute(taskID, protocol, v.IP, uint16(realPort))
+	//	if err != nil {
+	//		log.G(h.ctx).Warn("failed to register route", zap.Error(err))
+	//		continue
+	//	}
+	//	routes = append(routes, extRoute{
+	//		containerPort: k,
+	//		route:         route,
+	//	})
+	//}
+
+	// TODO: Prepare reply.
+
+	//var reply = pb.HubStartTaskReply{
+	//	Id: taskID,
+	//}
+	//
+	//for _, route := range routes {
+	//	reply.Endpoint = append(
+	//		reply.Endpoint,
+	//		fmt.Sprintf("%s->%s:%d", route.containerPort, route.route.Host, route.route.Port),
+	//	)
+	//}
+
+	return nil, ErrUnimplemented
 }
 
 // StopTask sends termination request to a miner handling the task
@@ -869,10 +773,6 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		locatorEndpoint: cfg.Locator.Address,
 		locatorPeriod:   time.Second * time.Duration(cfg.Locator.Period),
 
-		filters: []minerFilter{
-			exactMatchFilter,
-			resourcesFilter,
-		},
 		consul:         consulCli,
 		associatedHubs: make(map[string]struct{}),
 

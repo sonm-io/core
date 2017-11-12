@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package sonm;
+
+enum DealStatus {
+    PENDING = 0;
+    APPROVED = 1;
+    FINISHED = 2;
+}
+
+message Deal {
+    string bidID = 1;
+    string askID = 2;
+    DealStatus status = 3;
+}
