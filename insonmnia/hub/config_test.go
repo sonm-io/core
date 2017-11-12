@@ -26,8 +26,8 @@ func TestLoadConfig(t *testing.T) {
 ethereum:
   private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
-monitoring:
-  endpoint: ":10001"
+cluster:
+  grpc_endpoint: ":10001"
 locator:
   address: "127.0.0.1:9090"`
 	err := createTestConfigFile(raw)
@@ -37,7 +37,7 @@ locator:
 	assert.Nil(t, err)
 
 	assert.Equal(t, ":10002", conf.Endpoint)
-	assert.Equal(t, ":10001", conf.Monitoring.Endpoint)
+	assert.Equal(t, ":10001", conf.Cluster.GrpcEndpoint)
 }
 
 func TestLoadConfigWithBootnodes(t *testing.T) {
