@@ -173,7 +173,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	}
 	grpcServer := util.MakeGrpcServer(creds)
 
-	deleter, err := initializeControlGroup(b.cfg.HubResources())
+	cgroup, cGroupManager, err := makeCgroupManager(b.cfg.HubResources())
 	if err != nil {
 		cancel()
 		return nil, err
@@ -202,8 +202,9 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		statusChannels: make(map[int]chan bool),
 		nameMapping:    make(map[string]string),
 
-		controlGroup: deleter,
-		ssh:          b.ssh,
+		controlGroup:  cgroup,
+		cGroupManager: cGroupManager,
+		ssh:           b.ssh,
 
 		connectedHubs: make(map[string]struct{}),
 
@@ -213,6 +214,12 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	pb.RegisterMinerServer(grpcServer, m)
 	return m, nil
+}
+func makeCgroupManager(cfg *ResourcesConfig) (cGroup, cGroupManager, error) {
+	if !platformSupportCGroups || cfg == nil {
+		return newNilCgroupManager()
+	}
+	return newCgroupManager(cfg.Cgroup, cfg.Resources)
 }
 
 func NewMinerBuilder(cfg Config) MinerBuilder {

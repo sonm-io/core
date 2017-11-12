@@ -7,6 +7,7 @@ import (
 	"io"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -34,11 +35,20 @@ type Description struct {
 	RestartPolicy container.RestartPolicy
 	Resources     container.Resources
 	Cmd           []string
-	Env           []string
+	Env           map[string]string
 	TaskId        string
 	CommitOnStop  bool
 
 	GPURequired bool
+}
+
+func (d *Description) FormatEnv() []string {
+	vars := make([]string, 0, len(d.Env))
+	for k, v := range d.Env {
+		vars = append(vars, fmt.Sprintf("%s=%s", strings.ToUpper(k), v))
+	}
+
+	return vars
 }
 
 // ContainerInfo is a brief information about containers

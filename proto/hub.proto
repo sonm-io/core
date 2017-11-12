@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "bid.proto";
 import "capabilities.proto";
+import "deal.proto";
 import "insonmnia.proto";
 
 package sonm;
@@ -18,6 +19,7 @@ service Hub {
     // TaskList returns info about all Tasks on all Workers on the Hub
     rpc TaskList(Empty) returns (TaskListReply) {}
 
+    // StartTask schedules the task associcated with a deal on some miner.
     rpc StartTask(HubStartTaskRequest) returns (HubStartTaskReply) {}
     rpc StopTask(ID) returns (Empty) {}
 
@@ -35,7 +37,6 @@ service Hub {
     rpc Devices(Empty) returns (DevicesReply) {}
     // GetDeviceProperties allows to obtain previously assigned resource
     // properties for a given device.
-    // TODO: Just string?
     rpc GetDeviceProperties(ID) returns (GetDevicePropertiesReply) {}
     // SetDeviceProperties method allows to specify additional resource
     // properties for a device specified by its ID.
@@ -73,22 +74,20 @@ message ListReply {
     map<string, ListValue> info = 1;
 }
 
-message TaskRequirements {
-    // How much resources consumes a task. This is used both for scheduling and for cgroups configuration.
-    TaskResourceRequirements resources = 1;
-
-    // Optional miner ID restrictions (currently IP:port), that are allowed to start a task.
-    repeated string miners = 2;
-}
-
 message HubStartTaskRequest {
-    TaskRequirements requirements = 1;
+    // Deal points to the deal associated with workers where the task should be
+    // started.
+    Deal deal = 1;
     string registry = 2;
+    // Image specifies a Docker image name.
     string image = 3;
     string auth = 4;
     string PublicKeyData = 5;
     bool commitOnStop = 6;
     map<string, string> env = 7;
+
+    // TODO: Currently we allocate only a single task per slot, so resource limitation is meaningless.
+    // TaskResourceRequirements requirements = ?;
 }
 
 message HubStartTaskReply {
