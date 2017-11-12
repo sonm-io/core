@@ -2,6 +2,7 @@ package miner
 
 import (
 	"io"
+	"io/ioutil"
 	"net"
 
 	"github.com/docker/docker/pkg/stdcopy"
@@ -9,7 +10,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 	gossh "golang.org/x/crypto/ssh"
-	"io/ioutil"
 )
 
 type SSH interface {
@@ -121,4 +121,18 @@ func (s *sshServer) Close() {
 		log.G(s.miner.ctx).Info("closing ssh server")
 		s.server.Close()
 	}
+}
+
+func parsePublicKey(key string) (ssh.PublicKey, error) {
+	var publicKey ssh.PublicKey
+	if len(key) != 0 {
+		var err error
+		k, _, _, _, err := ssh.ParseAuthorizedKey([]byte(key))
+		if err != nil {
+			return nil, err
+		}
+		publicKey = k
+	}
+
+	return publicKey, nil
 }

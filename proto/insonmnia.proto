@@ -10,6 +10,18 @@ message ID {
     string id = 1;
 }
 
+enum NetworkType {
+    NO_NETWORK = 0;
+    OUTBOUND = 1;
+    INCOMING = 2;
+}
+
+enum GPUCount {
+    NO_GPU = 0;
+    SINGLE_GPU = 1;
+    MULTIPLE_GPU = 2;
+}
+
 message PingReply {
     string status = 1;
 }
@@ -95,14 +107,12 @@ message DiscoverHubRequest {
 }
 
 message TaskResourceRequirements {
-    // Number of CPU cores.
+    // CPUCores specifies the number of CPU cores required.
     uint64 CPUCores = 1;
-    // Memory in bytes required.
+    // MaxMemory specifies the maximum memory in bytes required.
     int64 maxMemory = 2;
-    // Describes whether a task requires GPU supoort.
-    bool GPUSupport = 3;
-
-    int64 nanoCPUs = 4;
+    // GPUCount Describes whether a task requires GPU support.
+    GPUCount GPUSupport = 3;
 }
 
 message Timestamp {

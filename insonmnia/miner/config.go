@@ -2,12 +2,13 @@ package miner
 
 import (
 	"github.com/jinzhu/configor"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // HubConfig describes Hub configuration.
 type HubConfig struct {
-	Endpoint  string     `required:"false" yaml:"endpoint"`
-	Resources *Resources `required:"false" yaml:"resources"`
+	Endpoint string           `required:"false" yaml:"endpoint"`
+	CGroups  *ResourcesConfig `required:"false" yaml:"resources"`
 }
 
 // FirewallConfig describes firewall detection settings.
@@ -34,6 +35,11 @@ type LoggingConfig struct {
 	Level int `required:"true" default:"1"`
 }
 
+type ResourcesConfig struct {
+	Cgroup    string                `required:"true" yaml:"cgroup"`
+	Resources *specs.LinuxResources `required:"false" yaml:"resources"`
+}
+
 type config struct {
 	HubConfig      *HubConfig      `required:"false" yaml:"hub"`
 	FirewallConfig *FirewallConfig `required:"false" yaml:"firewall"`
@@ -51,9 +57,9 @@ func (c *config) HubEndpoint() string {
 	return ""
 }
 
-func (c *config) HubResources() *Resources {
+func (c *config) HubResources() *ResourcesConfig {
 	if c.HubConfig != nil {
-		return c.HubConfig.Resources
+		return c.HubConfig.CGroups
 	}
 	return nil
 }
@@ -101,7 +107,7 @@ type Config interface {
 	// HubEndpoint returns a string representation of a Hub endpoint to communicate with.
 	HubEndpoint() string
 	// HubResources returns resources allocated for a Hub.
-	HubResources() *Resources
+	HubResources() *ResourcesConfig
 	// Firewall returns firewall detection settings.
 	Firewall() *FirewallConfig
 	// GPU returns options about NVIDIA GPU support via nvidia-docker-plugin

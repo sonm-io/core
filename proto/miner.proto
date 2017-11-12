@@ -48,19 +48,25 @@ message MinerStartRequest{
     string image = 3;
     string auth = 4;
     ContainerRestartPolicy restartPolicy = 5;
-    TaskResourceRequirements usage = 6;
+    TaskResourceRequirements resources = 6;
     string PublicKeyData = 7;
     bool commitOnStop = 8;
     map<string, string> env = 9;
+    // OrderId describes an unique order identifier.
+    // It is here for proper resource allocation and limitation.
+    string orderId = 10;
+}
+
+message SocketAddr {
+    string addr = 1;
+    //
+    // Actually an `uint16` here. Protobuf is so clear and handy.
+    uint32 port = 2;
 }
 
 message MinerStartReply {
     string container = 1;
-    message port {
-        string IP = 1;
-        string port = 2;
-    }
-    map<string, port> Ports = 2;
+    map<string, SocketAddr> Ports = 2;
 }
 
 message TaskInfo {
