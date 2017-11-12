@@ -242,9 +242,11 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 //	return resources
 //}
 
-func transformEnvVariables(m map[string]string) []string {
-	vars := make([]string, 0, len(m))
-	for k, v := range m {
+type env map[string]string
+
+func (e *env) format() []string {
+	vars := make([]string, 0, len(map[string]string(*e)))
+	for k, v := range map[string]string(*e) {
 		vars = append(vars, fmt.Sprintf("%s=%s", strings.ToUpper(k), v))
 	}
 
@@ -263,7 +265,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		//Resources:     transformResources(request.Usage),
 		TaskId:       request.Id,
 		CommitOnStop: request.CommitOnStop,
-		Env:          transformEnvVariables(request.Env),
+		Env:          env(request.Env).format(),
 		//GPURequired:   transformGPUSupport(request.Usage),
 	}
 
