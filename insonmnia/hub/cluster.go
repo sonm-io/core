@@ -3,7 +3,6 @@ package hub
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net"
 	"reflect"
 	"strings"
@@ -474,10 +473,9 @@ func fetchNameFromPath(key string) string {
 
 func parseEndpoints(config *ClusterConfig) ([]string, error) {
 	endpoints := make([]string, 0)
-	if len(config.GrpcIps) != 0 {
-		for _, ip := range config.GrpcIps {
-			endpoints = append(endpoints, ip+":"+string(config.GrpcPort))
-		}
+	host, port, err := net.SplitHostPort(config.GrpcEndpoint)
+	if len(host) != 0 {
+		endpoints = append(endpoints, config.GrpcEndpoint)
 		return endpoints, nil
 	}
 	ifaces, err := net.Interfaces()
@@ -498,7 +496,7 @@ func parseEndpoints(config *ClusterConfig) ([]string, error) {
 				ip = v.IP
 			}
 			if ip != nil && ip.IsGlobalUnicast() {
-				endpoints = append(endpoints, ip.String()+":"+fmt.Sprint(config.GrpcPort))
+				endpoints = append(endpoints, ip.String()+":"+port)
 			}
 		}
 	}
