@@ -50,10 +50,8 @@ type Hub struct {
 	cancel           context.CancelFunc
 	gateway          *gateway.Gateway
 	portPool         *gateway.PortPool
-	grpcEndpoint     string
 	grpcEndpointAddr string
 	externalGrpc     *grpc.Server
-	endpoint         string
 	minerListener    net.Listener
 	ethKey           *ecdsa.PrivateKey
 
@@ -819,10 +817,8 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 
 		miners: make(map[string]*MinerCtx),
 
-		grpcEndpoint: cfg.Monitoring.Endpoint,
-		endpoint:     cfg.Endpoint,
-		ethKey:       ethKey,
-		version:      version,
+		ethKey:  ethKey,
+		version: version,
 
 		locatorEndpoint: cfg.Locator.Address,
 		locatorPeriod:   time.Second * time.Duration(cfg.Locator.Period),
@@ -876,18 +872,19 @@ func (h *Hub) startDiscovery() error {
 		return err
 	}
 
-	workersPort, err := util.ParseEndpointPort(h.endpoint)
+	workersPort, err := util.ParseEndpointPort(h.cfg.Endpoint)
 	if err != nil {
 		return err
 	}
 
-	clientPort, err := util.ParseEndpointPort(h.grpcEndpoint)
+	clientPort, err := util.ParseEndpointPort(h.cfg.Cluster.GrpcEndpoint)
 	if err != nil {
 		return err
 	}
 
 	workersEndpoint := ip.String() + ":" + workersPort
 	clientEndpoint := ip.String() + ":" + clientPort
+	//TODO: this detection seems to be strange
 	h.grpcEndpointAddr = clientEndpoint
 
 	srv, err := frd.NewServer(h.ethKey, workersEndpoint, clientEndpoint)
@@ -915,17 +912,17 @@ func (h *Hub) Serve() error {
 		}
 	}
 
-	listener, err := net.Listen("tcp", h.endpoint)
+	listener, err := net.Listen("tcp", h.cfg.Endpoint)
 	if err != nil {
-		log.G(h.ctx).Error("failed to listen", zap.String("address", h.endpoint), zap.Error(err))
+		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Endpoint), zap.Error(err))
 		return err
 	}
 	log.G(h.ctx).Info("listening for connections from Miners", zap.Stringer("address", listener.Addr()))
 
-	grpcL, err := net.Listen("tcp", h.grpcEndpoint)
+	grpcL, err := net.Listen("tcp", h.cfg.Cluster.GrpcEndpoint)
 	if err != nil {
 		log.G(h.ctx).Error("failed to listen",
-			zap.String("address", h.grpcEndpoint), zap.Error(err))
+			zap.String("address", h.cfg.Cluster.GrpcEndpoint), zap.Error(err))
 		listener.Close()
 		return err
 	}
