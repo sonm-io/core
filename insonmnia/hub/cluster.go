@@ -82,15 +82,22 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, error) {
 		return nil, err
 	}
 	c := cluster{
-		parentCtx:        ctx,
-		cfg:              cfg,
-		store:            store,
-		isLeader:         true,
-		id:               uuid.NewV1().String(),
-		endpoints:        endpoints,
+		parentCtx: ctx,
+		cfg:       cfg,
+
+		registeredEntities: make(map[string]reflect.Type),
+		entityNames:        make(map[reflect.Type]string),
+
+		store: store,
+
+		isLeader:  true,
+		id:        uuid.NewV1().String(),
+		endpoints: endpoints,
+
 		clients:          make(map[string]*client),
 		clusterEndpoints: make(map[string][]string),
-		eventChannel:     make(chan ClusterEvent, 100),
+
+		eventChannel: make(chan ClusterEvent, 100),
 	}
 	return &c, nil
 }
@@ -197,7 +204,8 @@ func (c *cluster) election() {
 		select {
 		case c.isLeader = <-electedCh:
 			log.G(c.ctx).Debug("election event", zap.Bool("isLeader", c.isLeader))
-			c.emitLeadershipEvent()
+			// Do not possibly block on event channel to prevent stale leadership data
+			go c.emitLeadershipEvent()
 		case err := <-errCh:
 			log.G(c.ctx).Error("election failure", zap.Error(err))
 			c.close(errors.WithStack(err))
@@ -232,7 +240,7 @@ func (c *cluster) leaderWatch() {
 }
 
 func (c *cluster) announce() {
-	log.G(c.ctx).Info("starting announce goroutine", zap.Any("endpoints", c.endpoints))
+	log.G(c.ctx).Info("starting announce goroutine", zap.Any("endpoints", c.endpoints), zap.String("ID", c.id))
 	endpointsData, _ := json.Marshal(c.endpoints)
 	ticker := time.NewTicker(time.Second * 10)
 	for {
@@ -351,6 +359,8 @@ func (c *cluster) watchEvents() {
 				value := reflect.New(t)
 				err = json.Unmarshal(kv.Value, value.Interface())
 				if err != nil {
+					log.G(c.ctx).Warn("can not unmarshal entity", zap.Error(err))
+				} else {
 					c.eventChannel <- value.Interface()
 				}
 			}
