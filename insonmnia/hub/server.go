@@ -34,11 +34,12 @@ import (
 )
 
 var (
-	ErrInvalidOrderType = status.Errorf(codes.InvalidArgument, "invalid order type")
-	ErrAskNotFound      = status.Errorf(codes.NotFound, "ask not found")
-	ErrDeviceNotFound   = status.Errorf(codes.NotFound, "device not found")
-	ErrMinerNotFound    = status.Errorf(codes.NotFound, "miner not found")
-	ErrUnimplemented    = status.Errorf(codes.Unimplemented, "not implemented yet")
+	ErrInvalidOrderType  = status.Errorf(codes.InvalidArgument, "invalid order type")
+	ErrAskNotFound       = status.Errorf(codes.NotFound, "ask not found")
+	ErrDeviceNotFound    = status.Errorf(codes.NotFound, "device not found")
+	ErrMinerNotFound     = status.Errorf(codes.NotFound, "miner not found")
+	ErrUnimplemented     = status.Errorf(codes.Unimplemented, "not implemented yet")
+	errContractNotExists = status.Errorf(codes.NotFound, "specified contract not exists in the Ethereum")
 )
 
 const tasksPrefix = "sonm/hub/tasks"
@@ -242,15 +243,28 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 	}
 }
 
-// StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
 	log.G(h.ctx).Info("handling StartTask request", zap.Any("request", request))
+
+	taskRequest, err := structs.NewStartTaskRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	return h.startTask(ctx, taskRequest)
+}
+
+func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
+	exists, err := h.eth.CheckContract(request.GetDeal())
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errContractNotExists
+	}
 
 	// TODO: Generate a task ID.
 	//taskID := uuid.New()
 
-	// TODO: Check whether such deal ever exists.
-	// TODO: Extract proper miner associated with a deal.
 	// TODO: Prepare start request.
 
 	//var startRequest = &pb.MinerStartRequest{
@@ -743,7 +757,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		return nil, err
 	}
 
-	eth, err := NewETH()
+	eth, err := NewETH(ctx)
 	if err != nil {
 		return nil, err
 	}

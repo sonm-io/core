@@ -529,6 +529,7 @@ type HubClient interface {
 	Info(ctx context.Context, in *ID, opts ...grpc.CallOption) (*InfoReply, error)
 	// TaskList returns info about all Tasks on all Workers on the Hub
 	TaskList(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TaskListReply, error)
+	// StartTask schedules the task associcated with a deal on some miner.
 	StartTask(ctx context.Context, in *HubStartTaskRequest, opts ...grpc.CallOption) (*HubStartTaskReply, error)
 	StopTask(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Empty, error)
 	TaskStatus(ctx context.Context, in *ID, opts ...grpc.CallOption) (*TaskStatusReply, error)
@@ -800,6 +801,7 @@ type HubServer interface {
 	Info(context.Context, *ID) (*InfoReply, error)
 	// TaskList returns info about all Tasks on all Workers on the Hub
 	TaskList(context.Context, *Empty) (*TaskListReply, error)
+	// StartTask schedules the task associcated with a deal on some miner.
 	StartTask(context.Context, *HubStartTaskRequest) (*HubStartTaskReply, error)
 	StopTask(context.Context, *ID) (*Empty, error)
 	TaskStatus(context.Context, *ID) (*TaskStatusReply, error)

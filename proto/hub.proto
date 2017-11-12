@@ -19,6 +19,7 @@ service Hub {
     // TaskList returns info about all Tasks on all Workers on the Hub
     rpc TaskList(Empty) returns (TaskListReply) {}
 
+    // StartTask schedules the task associcated with a deal on some miner.
     rpc StartTask(HubStartTaskRequest) returns (HubStartTaskReply) {}
     rpc StopTask(ID) returns (Empty) {}
 
