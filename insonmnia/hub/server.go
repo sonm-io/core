@@ -24,10 +24,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	consul "github.com/hashicorp/consul/api"
+	"github.com/pborman/uuid"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/insonmnia/resource"
+	"github.com/sonm-io/core/insonmnia/somath"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -262,49 +264,43 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		return nil, errContractNotExists
 	}
 
-	// TODO: Generate a task ID.
-	//taskID := uuid.New()
+	// Extract proper miner associated with the deal specified.
+	miner, usage, err := h.findMinerByOrder(OrderId(request.GetOrderId()))
+	if err != nil {
+		return nil, err
+	}
 
-	// TODO: Prepare start request.
+	taskID := uuid.New()
 
-	//var startRequest = &pb.MinerStartRequest{
-	//	Id:            taskID,
-	//	Registry:      request.Registry,
-	//	Image:         request.Image,
-	//	Auth:          request.Auth,
-	//	PublicKeyData: request.PublicKeyData,
-	//	CommitOnStop:  request.CommitOnStop,
-	//	Env:           request.Env,
-	//	Usage:         request.Requirements.GetResources(),
-	//	RestartPolicy: &pb.ContainerRestartPolicy{
-	//		Name:              "",
-	//		MaximumRetryCount: 0,
-	//	},
-	//}
+	startRequest := &pb.MinerStartRequest{
+		Id:            taskID,
+		Registry:      request.GetRegistry(),
+		Image:         request.GetImage(),
+		Auth:          request.GetAuth(),
+		PublicKeyData: request.GetPublicKeyData(),
+		CommitOnStop:  request.GetCommitOnStop(),
+		Env:           request.GetEnv(),
+		Usage: &pb.TaskResourceRequirements{
+			CPUCores:   uint64(usage.NumCPUs),
+			MaxMemory:  usage.Memory,
+			GPUSupport: pb.GPUCount(somath.Min(usage.NumGPUs, 2)),
+		},
+		RestartPolicy: &pb.ContainerRestartPolicy{
+			Name:              "",
+			MaximumRetryCount: 0,
+		},
+	}
 
-	// TODO: Try to start a task.
+	response, err := miner.Client.Start(ctx, startRequest)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
+	}
 
-	//resp, err := miner.Client.Start(ctx, startRequest)
-	//if err != nil {
-	//	return nil, status.Errorf(codes.Internal, "failed to start %v", err)
-	//}
-
-	// TODO: Subscribe for task info.
-	//info := TaskInfo{*request, *resp, taskID, miner.uuid}
-	//b, err := json.Marshal(info)
-	//if err != nil {
-	//	miner.Client.Stop(ctx, &pb.ID{Id: taskID})
-	//	return nil, status.Errorf(codes.Internal, "could not marshal task info %v", err)
-	//}
-
-	// TODO: Synchronize task info with the cluster.
-	//kv := h.consul.KV()
-	//kvPair := consul.KVPair{Key: tasksPrefix + "/" + taskID, Value: b}
-	//_, err = kv.Put(&kvPair, &consul.WriteOptions{})
-	//if err != nil {
-	//	miner.Client.Stop(ctx, &pb.ID{Id: taskID})
-	//	return nil, status.Errorf(codes.Internal, "could not store task info %v", err)
-	//}
+	info := TaskInfo{*request, *response, taskID, miner.uuid}
+	if err := h.synchronizeTaskInfo(&info); err != nil {
+		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
+		return nil, err
+	}
 
 	// TODO: Make routes.
 	// TODO: Save routes in consul
@@ -353,6 +349,42 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	//}
 
 	return nil, ErrUnimplemented
+}
+
+func (h *Hub) findMinerByOrder(id OrderId) (*MinerCtx, *resource.Resources, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for _, miner := range h.miners {
+		for _, order := range miner.Orders() {
+			if order == id {
+				usage, err := miner.OrderUsage(id)
+				if err != nil {
+					return nil, nil, err
+				}
+				return miner, usage, nil
+			}
+		}
+	}
+
+	return nil, nil, ErrMinerNotFound
+}
+
+// TODO: Move to cluster.go when in lands.
+func (h *Hub) synchronizeTaskInfo(info *TaskInfo) error {
+	b, err := json.Marshal(info)
+	if err != nil {
+		return status.Errorf(codes.Internal, "could not marshal task info %v", err)
+	}
+
+	kv := h.consul.KV()
+	kvPair := consul.KVPair{Key: tasksPrefix + "/" + info.ID, Value: b}
+	_, err = kv.Put(&kvPair, &consul.WriteOptions{})
+	if err != nil {
+		return status.Errorf(codes.Internal, "could not store task info %v", err)
+	}
+
+	return nil
 }
 
 // StopTask sends termination request to a miner handling the task

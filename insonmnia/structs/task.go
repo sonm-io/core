@@ -12,7 +12,7 @@ var (
 )
 
 type StartTaskRequest struct {
-	inner *sonm.HubStartTaskRequest
+	*sonm.HubStartTaskRequest
 }
 
 func NewStartTaskRequest(request *sonm.HubStartTaskRequest) (*StartTaskRequest, error) {
@@ -25,13 +25,13 @@ func NewStartTaskRequest(request *sonm.HubStartTaskRequest) (*StartTaskRequest, 
 		return nil, errBidIdRequired
 	}
 
-	return &StartTaskRequest{inner: request}, nil
+	return &StartTaskRequest{request}, nil
 }
 
 func (r *StartTaskRequest) GetDeal() *sonm.Deal {
-	return r.inner.GetDeal()
+	return r.Deal
 }
 
 func (r *StartTaskRequest) GetOrderId() string {
-	return r.inner.GetDeal().GetBidID()
+	return r.GetDeal().GetBidID()
 }
