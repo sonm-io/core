@@ -66,6 +66,7 @@ It has these top-level messages:
 	MinerHandshakeRequest
 	MinerHandshakeReply
 	MinerStartRequest
+	SocketAddr
 	MinerStartReply
 	TaskInfo
 	MinerStatusMapRequest

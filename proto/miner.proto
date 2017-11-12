@@ -54,13 +54,16 @@ message MinerStartRequest{
     map<string, string> env = 9;
 }
 
+message SocketAddr {
+    string addr = 1;
+    //
+    // Actually an `uint16` here. Protobuf is so clear and handy.
+    uint32 port = 2;
+}
+
 message MinerStartReply {
     string container = 1;
-    message port {
-        string IP = 1;
-        string port = 2;
-    }
-    map<string, port> Ports = 2;
+    map<string, SocketAddr> Ports = 2;
 }
 
 message TaskInfo {

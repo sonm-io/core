@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -199,16 +200,7 @@ func (h *Hub) Info(ctx context.Context, request *pb.ID) (*pb.InfoReply, error) {
 	return resp, nil
 }
 
-func decodePortBinding(v string) (string, string, error) {
-	mapping := strings.Split(v, "/")
-	if len(mapping) != 2 {
-		return "", "", errors.New("failed to decode Docker port mapping")
-	}
-
-	return mapping[0], mapping[1], nil
-}
-
-type extRoute struct {
+type routeMapping struct {
 	containerPort string
 	route         *route
 }
@@ -302,53 +294,22 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		return nil, err
 	}
 
-	// TODO: Make routes.
-	// TODO: Save routes in consul
-	//routes := []extRoute{}
-	//for k, v := range resp.Ports {
-	//	_, protocol, err := decodePortBinding(k)
-	//	if err != nil {
-	//		log.G(h.ctx).Warn("failed to decode miner's port mapping",
-	//			zap.String("mapping", k),
-	//			zap.Error(err),
-	//		)
-	//		continue
-	//	}
-	//
-	//	realPort, err := strconv.ParseUint(v.Port, 10, 16)
-	//	if err != nil {
-	//		log.G(h.ctx).Warn("failed to convert real port to uint16",
-	//			zap.Error(err),
-	//			zap.String("port", v.Port),
-	//		)
-	//		continue
-	//	}
-	//
-	//	route, err := miner.router.RegisterRoute(taskID, protocol, v.IP, uint16(realPort))
-	//	if err != nil {
-	//		log.G(h.ctx).Warn("failed to register route", zap.Error(err))
-	//		continue
-	//	}
-	//	routes = append(routes, extRoute{
-	//		containerPort: k,
-	//		route:         route,
-	//	})
-	//}
+	routes := miner.registerRoutes(taskID, response.GetPorts())
 
-	// TODO: Prepare reply.
+	// TODO: Synchronize routes with the cluster.
 
-	//var reply = pb.HubStartTaskReply{
-	//	Id: taskID,
-	//}
-	//
-	//for _, route := range routes {
-	//	reply.Endpoint = append(
-	//		reply.Endpoint,
-	//		fmt.Sprintf("%s->%s:%d", route.containerPort, route.route.Host, route.route.Port),
-	//	)
-	//}
+	reply := &pb.HubStartTaskReply{
+		Id: taskID,
+	}
 
-	return nil, ErrUnimplemented
+	for _, route := range routes {
+		reply.Endpoint = append(
+			reply.Endpoint,
+			fmt.Sprintf("%s->%s:%d", route.containerPort, route.route.Host, route.route.Port),
+		)
+	}
+
+	return reply, nil
 }
 
 func (h *Hub) findMinerByOrder(id OrderId) (*MinerCtx, *resource.Resources, error) {

@@ -16,6 +16,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 )
 
 var (
@@ -295,6 +296,33 @@ func (m *MinerCtx) Orders() []OrderId {
 		orders = append(orders, id)
 	}
 	return orders
+}
+
+func (m *MinerCtx) registerRoutes(ID string, ports map[string]*pb.SocketAddr) []routeMapping {
+	routes := []routeMapping{}
+
+	for containerPort, endpoint := range ports {
+		binding, err := util.ParsePortBinding(containerPort)
+		if err != nil {
+			log.G(m.ctx).Warn("failed to decode miner's port mapping",
+				zap.String("mapping", containerPort),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		route, err := m.router.RegisterRoute(ID, binding.Network(), endpoint.Addr, uint16(endpoint.Port))
+		if err != nil {
+			log.G(m.ctx).Warn("failed to register route", zap.Error(err))
+			continue
+		}
+		routes = append(routes, routeMapping{
+			containerPort: containerPort,
+			route:         route,
+		})
+	}
+
+	return routes
 }
 
 // Close frees all connections related to a Miner

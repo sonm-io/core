@@ -2,9 +2,11 @@ package miner
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,8 +21,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 
 	pb "github.com/sonm-io/core/proto"
-
-	"encoding/json"
 
 	"github.com/ccding/go-stun/stun"
 	"github.com/docker/docker/api/types"
@@ -323,13 +323,22 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 
 	var rpl = pb.MinerStartReply{
 		Container: containerInfo.ID,
-		Ports:     make(map[string]*pb.MinerStartReplyPort),
+		Ports:     map[string]*pb.SocketAddr{},
 	}
 	for port, v := range containerInfo.Ports {
 		if len(v) > 0 {
-			replyPort := &pb.MinerStartReplyPort{
-				IP:   m.pubAddress,
-				Port: v[0].HostPort,
+			hostPort, err := strconv.ParseUint(v[0].HostPort, 10, 16)
+			if err != nil {
+				log.G(m.ctx).Warn("failed to convert real port to uint16",
+					zap.Error(err),
+					zap.String("port", v[0].HostPort),
+				)
+				continue
+			}
+
+			replyPort := &pb.SocketAddr{
+				Addr: m.pubAddress,
+				Port: uint32(hostPort),
 			}
 			rpl.Ports[string(port)] = replyPort
 		}
