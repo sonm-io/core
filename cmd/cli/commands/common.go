@@ -60,7 +60,7 @@ func init() {
 	rootCmd.PersistentFlags().DurationVar(&timeout, hubTimeoutFlag, 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputMode, outputModeFlag, "", "Output mode: simple or json")
 
-	nodeRootCmd.AddCommand(nodeHubRootCmd, nodeMarketRootCmd)
+	nodeRootCmd.AddCommand(nodeHubRootCmd, nodeMarketRootCmd, nodeDealsRootCmd)
 	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd, nodeRootCmd)
 
 	rootCmd.AddCommand(loginCmd)
@@ -181,4 +181,9 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 	}
 
 	sessionKey = key
+}
+
+func showJSON(cmd *cobra.Command, s interface{}) {
+	b, _ := json.Marshal(s)
+	cmd.Printf("%s\r\n", b)
 }
