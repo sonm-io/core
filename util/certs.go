@@ -31,6 +31,7 @@ const validPeriod = time.Hour * 4
 // HitlessCertRotator renews TLS cert periodically
 type HitlessCertRotator interface {
 	GetCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error)
+	GetClientCertificate(*tls.CertificateRequestInfo) (*tls.Certificate, error)
 	Close()
 }
 
@@ -55,7 +56,13 @@ func NewHitlessCertRotator(ctx context.Context, ethPriv *ecdsa.PrivateKey) (Hitl
 	}
 
 	TLSConfig := tls.Config{
-		GetCertificate: rotator.GetCertificate,
+		GetCertificate:       rotator.GetCertificate,
+		GetClientCertificate: rotator.GetClientCertificate,
+		// NOTE: if we do not set this, the gRPC client will check the hostname
+		// in provided certificate. Probably we should consider solution with OverrideServerName from TransportCredentials
+		// As we have no CA, we trust only in ethereum key pair, so there should be no MITM-attack (subject to investigate)
+		InsecureSkipVerify: true,
+		ClientAuth:         tls.RequireAnyClientCert,
 	}
 
 	rotator.ctx, rotator.cancel = context.WithCancel(ctx)
@@ -101,12 +108,21 @@ func (r *hitlessCertRotator) Close() {
 	r.cancel()
 }
 
-// GetCertificate works as tls.Config.GetCertificate callback
-func (r *hitlessCertRotator) GetCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+func (r *hitlessCertRotator) getCert() *tls.Certificate {
 	r.mu.Lock()
 	cert := r.cert
 	r.mu.Unlock()
-	return cert, nil
+	return cert
+}
+
+// GetCertificate works as tls.Config.GetCertificate callback
+func (r *hitlessCertRotator) GetCertificate(*tls.ClientHelloInfo) (*tls.Certificate, error) {
+	return r.getCert(), nil
+}
+
+// GetClientCertificate works as tls.Config.GetClientCertificate callback
+func (r *hitlessCertRotator) GetClientCertificate(*tls.CertificateRequestInfo) (*tls.Certificate, error) {
+	return r.getCert(), nil
 }
 
 // GenerateCert generates new PEM encoded x509cert and privatekey key.
@@ -144,6 +160,8 @@ func GenerateCert(ethpriv *ecdsa.PrivateKey) (cert []byte, key []byte, err error
 		},
 		NotBefore: time.Now().Add(-time.Hour * 1),
 		NotAfter:  time.Now().Add(validPeriod),
+
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 	}
 	certDER, err := x509.CreateCertificate(rand.Reader, template, template, priv.Public(), priv)
 	if err != nil {
