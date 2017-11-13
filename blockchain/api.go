@@ -63,12 +63,11 @@ type Token interface {
 	TotalSupply() (*big.Int, error)
 }
 
-func initEthClient(ethEndpoint *string) (client *ethclient.Client, err error) {
-	// todo: rename this
-	var endpoint = ""
+func initEthClient(ethEndpoint *string) (*ethclient.Client, error) {
+	var endpoint string
 	if ethEndpoint == nil {
 		endpoint = defaultEthEndpoint
-	}else{
+	} else {
 		endpoint = *ethEndpoint
 	}
 	ethClient, err := ethclient.Dial(endpoint)
@@ -111,14 +110,12 @@ func NewBlockchainAPI(ethEndpoint *string, gasPrice *int64) (*API, error) {
 		return nil, err
 	}
 
-	var gp int64;
+	var gp int64
 	if gasPrice == nil {
 		gp = defaultGasPrice
-	}else{
+	} else {
 		gp = *gasPrice
 	}
-
-
 
 	dealsContract, err := api.NewDeals(common.HexToAddress(tsc.DealsAddress), client)
 	if err != nil {
