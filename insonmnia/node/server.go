@@ -146,8 +146,12 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	pb.RegisterMarketServer(srv, market)
 	log.G(ctx).Info("market service registered", zap.String("endpt", c.MarketEndpoint()))
 
-	deals := newDealsAPI()
+	deals, err := newDealsAPI(key)
+	if err != nil {
+		return nil, err
+	}
 	pb.RegisterDealManagementServer(srv, deals)
+	log.G(ctx).Info("deals service registered")
 
 	tasks := newTasksAPI()
 	pb.RegisterTaskManagementServer(srv, tasks)
