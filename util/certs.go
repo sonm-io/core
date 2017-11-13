@@ -174,6 +174,12 @@ func GenerateCert(ethpriv *ecdsa.PrivateKey) (cert []byte, key []byte, err error
 }
 
 func checkCert(cert *x509.Certificate) (string, error) {
+	if time.Now().After(cert.NotAfter) {
+		return "", fmt.Errorf("certificate has expired")
+	}
+	if time.Now().Before(cert.NotBefore) {
+		return "", fmt.Errorf("certificate is not active yet")
+	}
 	// FORMAT:
 	// base32CompressedPubKey@base32Signature
 	parts := strings.Split(cert.Issuer.CommonName, "@")
