@@ -45,7 +45,7 @@ type config struct {
 	HubConfig      *HubConfig      `required:"false" yaml:"hub"`
 	FirewallConfig *FirewallConfig `required:"false" yaml:"firewall"`
 	Eth            *EthConfig      `yaml:"ethereum"`
-	GPUConfig      *GPUConfig      `required:"false" yaml:"GPUConfig"`
+	GPUConfig      *gpu.Config     `required:"false" yaml:"GPUConfig"`
 	SSHConfig      *SSHConfig      `required:"false" yaml:"ssh"`
 	LoggingConfig  LoggingConfig   `yaml:"logging"`
 	UUIDPathConfig string          `required:"false" yaml:"uuid_path"`
