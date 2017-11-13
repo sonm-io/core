@@ -243,6 +243,7 @@ func (c *cluster) announce() {
 	log.G(c.ctx).Info("starting announce goroutine", zap.Any("endpoints", c.endpoints), zap.String("ID", c.id))
 	endpointsData, _ := json.Marshal(c.endpoints)
 	ticker := time.NewTicker(time.Second * 10)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
@@ -307,6 +308,7 @@ func (c *cluster) checkHub(id string) error {
 func (c *cluster) hubGC() {
 	log.G(c.ctx).Info("starting hub GC goroutine")
 	t := time.NewTicker(time.Second * 60)
+	defer t.Stop()
 	for {
 		select {
 		case <-t.C:
