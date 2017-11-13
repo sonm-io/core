@@ -14,11 +14,13 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 
 	"encoding/json"
 
@@ -76,6 +78,11 @@ type Miner struct {
 
 	connectedHubs     map[string]struct{}
 	connectedHubsLock sync.Mutex
+
+	// GRPC TransportCredentials for eth based Auth
+	creds credentials.TransportCredentials
+	// Certificate rotator
+	certRotator util.HitlessCertRotator
 }
 
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
@@ -633,6 +640,9 @@ func (m *Miner) Close() {
 	m.grpcServer.Stop()
 	if m.ssh != nil {
 		m.ssh.Close()
+	}
+	if m.certRotator != nil {
+		m.certRotator.Close()
 	}
 	m.rl.Close()
 	m.controlGroup.Delete()

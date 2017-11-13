@@ -101,6 +101,11 @@ type Hub struct {
 	// Tasks
 	tasksMu sync.Mutex
 	tasks   map[string]*TaskInfo
+
+	// TLS certificate rotator
+	certRotator util.HitlessCertRotator
+	// GRPC TransportCredentials supported our Auth
+	creds credentials.TransportCredentials
 }
 
 type DeviceProperties map[string]float64
@@ -844,18 +849,21 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		acl:              acl,
 
 		tasks: make(map[string]*TaskInfo),
+
+		certRotator: nil,
+		creds:       nil,
 	}
 
-	var creds credentials.TransportCredentials
 	if os.Getenv("GRPC_INSECURE") == "" {
 		var TLSConfig *tls.Config
-		_, TLSConfig, err = util.NewHitlessCertRotator(ctx, h.ethKey)
+		h.certRotator, TLSConfig, err = util.NewHitlessCertRotator(ctx, h.ethKey)
 		if err != nil {
 			return nil, err
 		}
-		creds = util.NewTLS(TLSConfig)
+		h.creds = util.NewTLS(TLSConfig)
 	}
-	grpcServer := util.MakeGrpcServer(creds, grpc.UnaryInterceptor(h.onRequest))
+
+	grpcServer := util.MakeGrpcServer(h.creds, grpc.UnaryInterceptor(h.onRequest))
 	h.externalGrpc = grpcServer
 
 	pb.RegisterHubServer(grpcServer, h)
@@ -1025,6 +1033,9 @@ func (h *Hub) Close() {
 	h.minerListener.Close()
 	if h.gateway != nil {
 		h.gateway.Close()
+	}
+	if h.certRotator != nil {
+		h.certRotator.Close()
 	}
 	h.wg.Wait()
 }
