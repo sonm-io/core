@@ -9,27 +9,27 @@ import (
 	"math/rand"
 	"net"
 	"reflect"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"golang.org/x/net/context"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pborman/uuid"
 
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	consul "github.com/hashicorp/consul/api"
+	"github.com/pborman/uuid"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
+	"github.com/sonm-io/core/insonmnia/math"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
@@ -37,11 +37,12 @@ import (
 )
 
 var (
-	ErrInvalidOrderType = status.Errorf(codes.InvalidArgument, "invalid order type")
-	ErrAskNotFound      = status.Errorf(codes.NotFound, "ask not found")
-	ErrDeviceNotFound   = status.Errorf(codes.NotFound, "device not found")
-	ErrMinerNotFound    = status.Errorf(codes.NotFound, "miner not found")
-	ErrUnimplemented    = status.Errorf(codes.Unimplemented, "not implemented yet")
+	ErrInvalidOrderType  = status.Errorf(codes.InvalidArgument, "invalid order type")
+	ErrAskNotFound       = status.Errorf(codes.NotFound, "ask not found")
+	ErrDeviceNotFound    = status.Errorf(codes.NotFound, "device not found")
+	ErrMinerNotFound     = status.Errorf(codes.NotFound, "miner not found")
+	ErrUnimplemented     = status.Errorf(codes.Unimplemented, "not implemented yet")
+	errContractNotExists = status.Errorf(codes.NotFound, "specified contract not exists in the Ethereum")
 )
 
 const tasksPrefix = "sonm/hub/tasks"
@@ -79,9 +80,7 @@ type Hub struct {
 	startTime time.Time
 	version   string
 
-	// Scheduling (obsolete).
-	filters []minerFilter
-	consul  Consul
+	consul Consul
 
 	associatedHubs     map[string]struct{}
 	associatedHubsLock sync.Mutex
@@ -201,105 +200,9 @@ func (h *Hub) Info(ctx context.Context, request *pb.ID) (*pb.InfoReply, error) {
 	return resp, nil
 }
 
-func decodePortBinding(v string) (string, string, error) {
-	mapping := strings.Split(v, "/")
-	if len(mapping) != 2 {
-		return "", "", errors.New("failed to decode Docker port mapping")
-	}
-
-	return mapping[0], mapping[1], nil
-}
-
-type extRoute struct {
+type routeMapping struct {
 	containerPort string
 	route         *route
-}
-
-type minerFilter func(miner *MinerCtx, requirements *pb.TaskRequirements) (bool, error)
-
-// ExactMatchFilter checks for exact match.
-//
-// Returns true if there are no miners specified in the requirements. In that
-// case we must apply hardware filtering for discovering miners that can start
-// the task.
-// Otherwise only specified miners become targets to start the task.
-func exactMatchFilter(miner *MinerCtx, requirements *pb.TaskRequirements) (bool, error) {
-	if len(requirements.GetMiners()) == 0 {
-		return true, nil
-	}
-
-	for _, minerID := range requirements.GetMiners() {
-		if minerID == miner.ID() {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-func resourcesFilter(miner *MinerCtx, requirements *pb.TaskRequirements) (bool, error) {
-	resources := requirements.GetResources()
-	if resources == nil {
-		return false, status.Errorf(codes.InvalidArgument, "resources section is required")
-	}
-
-	cpuCount := resources.GetCPUCores()
-	memoryCount := resources.GetMaxMemory()
-	var gpuCount = 0
-	if resources.GetGPUSupport() {
-		gpuCount = -1
-	}
-
-	var usage = resource.NewResources(int(cpuCount), int64(memoryCount), gpuCount)
-	if err := miner.PollConsume(&usage); err != nil {
-		return false, err
-	}
-
-	return true, nil
-}
-
-func (h *Hub) selectMiner(request *pb.HubStartTaskRequest) (*MinerCtx, error) {
-	requirements := request.GetRequirements()
-	if requirements == nil {
-		return nil, status.Errorf(codes.InvalidArgument, "missing requirements")
-	}
-
-	// Filter out miners that aren't met the requirements.
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	miners := []*MinerCtx{}
-	for _, miner := range h.miners {
-		ok, err := h.applyFilters(miner, requirements)
-		if err != nil {
-			return nil, err
-		}
-
-		if ok {
-			miners = append(miners, miner)
-		}
-	}
-
-	// Select random miner from the list.
-	if len(miners) == 0 {
-		return nil, status.Errorf(codes.NotFound, "failed to find miner to match specified requirements")
-	}
-
-	return miners[rand.Int()%len(miners)], nil
-}
-
-func (h *Hub) applyFilters(miner *MinerCtx, req *pb.TaskRequirements) (bool, error) {
-	for _, filter := range h.filters {
-		ok, err := filter(miner, req)
-		if err != nil {
-			return false, err
-		}
-
-		if !ok {
-			return false, nil
-		}
-	}
-
-	return true, nil
 }
 
 func (h *Hub) onRequest(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
@@ -334,96 +237,68 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 	}
 }
 
-// StartTask schedules the Task on some miner
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
-	log.G(h.ctx).Info("handling StartTask request", zap.Any("req", request))
+	log.G(h.ctx).Info("handling StartTask request", zap.Any("request", request))
 
-	taskID := uuid.New()
-	miner, err := h.selectMiner(request)
+	taskRequest, err := structs.NewStartTaskRequest(request)
+	if err != nil {
+		return nil, err
+	}
+	return h.startTask(ctx, taskRequest)
+}
+
+func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
+	exists, err := h.eth.CheckContract(request.GetDeal())
+	if err != nil {
+		return nil, err
+	}
+	if !exists {
+		return nil, errContractNotExists
+	}
+
+	// Extract proper miner associated with the deal specified.
+	miner, usage, err := h.findMinerByOrder(OrderId(request.GetOrderId()))
 	if err != nil {
 		return nil, err
 	}
 
-	var startRequest = &pb.MinerStartRequest{
+	taskID := uuid.New()
+
+	startRequest := &pb.MinerStartRequest{
 		Id:            taskID,
-		Registry:      request.Registry,
-		Image:         request.Image,
-		Auth:          request.Auth,
-		PublicKeyData: request.PublicKeyData,
-		CommitOnStop:  request.CommitOnStop,
-		Env:           request.Env,
-		Usage:         request.Requirements.GetResources(),
+		Registry:      request.GetRegistry(),
+		Image:         request.GetImage(),
+		Auth:          request.GetAuth(),
+		PublicKeyData: request.GetPublicKeyData(),
+		CommitOnStop:  request.GetCommitOnStop(),
+		Env:           request.GetEnv(),
+		Usage: &pb.TaskResourceRequirements{
+			CPUCores:   uint64(usage.NumCPUs),
+			MaxMemory:  usage.Memory,
+			GPUSupport: pb.GPUCount(math.Min(usage.NumGPUs, 2)),
+		},
 		RestartPolicy: &pb.ContainerRestartPolicy{
 			Name:              "",
 			MaximumRetryCount: 0,
 		},
 	}
 
-	resp, err := miner.Client.Start(ctx, startRequest)
+	response, err := miner.Client.Start(ctx, startRequest)
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
 	}
 
-	info := TaskInfo{*request, *resp, taskID, miner.uuid}
-	b, err := json.Marshal(info)
-	if err != nil {
+	info := TaskInfo{*request, *response, taskID, miner.uuid}
+	if err := h.synchronizeTaskInfo(&info); err != nil {
 		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
-		return nil, status.Errorf(codes.Internal, "could not marshal task info %v", err)
+		return nil, err
 	}
 
-	kv := h.consul.KV()
-	kvPair := consul.KVPair{Key: tasksPrefix + "/" + taskID, Value: b}
-	_, err = kv.Put(&kvPair, &consul.WriteOptions{})
-	if err != nil {
-		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
-		return nil, status.Errorf(codes.Internal, "could not store task info %v", err)
-	}
+	routes := miner.registerRoutes(taskID, response.GetPorts())
 
-	//TODO: save routes in consul
-	routes := []extRoute{}
-	for k, v := range resp.Ports {
-		_, protocol, err := decodePortBinding(k)
-		if err != nil {
-			log.G(h.ctx).Warn("failed to decode miner's port mapping",
-				zap.String("mapping", k),
-				zap.Error(err),
-			)
-			continue
-		}
+	// TODO: Synchronize routes with the cluster.
 
-		realPort, err := strconv.ParseUint(v.Port, 10, 16)
-		if err != nil {
-			log.G(h.ctx).Warn("failed to convert real port to uint16",
-				zap.Error(err),
-				zap.String("port", v.Port),
-			)
-			continue
-		}
-
-		route, err := miner.router.RegisterRoute(taskID, protocol, v.IP, uint16(realPort))
-		if err != nil {
-			log.G(h.ctx).Warn("failed to register route", zap.Error(err))
-			continue
-		}
-		routes = append(routes, extRoute{
-			containerPort: k,
-			route:         route,
-		})
-	}
-
-	//h.setMinerTaskID(miner.ID(), taskID)
-
-	// TODO: We no longer consume resources here. Instead allocation/usage checking required.
-	//resources := request.GetRequirements().GetResources()
-	//cpuCount := resources.GetCPUCores()
-	//memoryCount := resources.GetMaxMemory()
-
-	//var usage = resource.NewResources(int(cpuCount), int64(memoryCount))
-	//if err := miner.Consume(taskID, &usage); err != nil {
-	//	return nil, err
-	//}
-
-	var reply = pb.HubStartTaskReply{
+	reply := &pb.HubStartTaskReply{
 		Id: taskID,
 	}
 
@@ -434,7 +309,43 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 		)
 	}
 
-	return &reply, nil
+	return reply, nil
+}
+
+func (h *Hub) findMinerByOrder(id OrderId) (*MinerCtx, *resource.Resources, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for _, miner := range h.miners {
+		for _, order := range miner.Orders() {
+			if order == id {
+				usage, err := miner.OrderUsage(id)
+				if err != nil {
+					return nil, nil, err
+				}
+				return miner, usage, nil
+			}
+		}
+	}
+
+	return nil, nil, ErrMinerNotFound
+}
+
+// TODO: Move to cluster.go when in lands.
+func (h *Hub) synchronizeTaskInfo(info *TaskInfo) error {
+	b, err := json.Marshal(info)
+	if err != nil {
+		return status.Errorf(codes.Internal, "could not marshal task info %v", err)
+	}
+
+	kv := h.consul.KV()
+	kvPair := consul.KVPair{Key: tasksPrefix + "/" + info.ID, Value: b}
+	_, err = kv.Put(&kvPair, &consul.WriteOptions{})
+	if err != nil {
+		return status.Errorf(codes.Internal, "could not store task info %v", err)
+	}
+
+	return nil
 }
 
 // StopTask sends termination request to a miner handling the task
@@ -839,7 +750,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		return nil, err
 	}
 
-	eth, err := NewETH()
+	eth, err := NewETH(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -869,10 +780,6 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		locatorEndpoint: cfg.Locator.Address,
 		locatorPeriod:   time.Second * time.Duration(cfg.Locator.Period),
 
-		filters: []minerFilter{
-			exactMatchFilter,
-			resourcesFilter,
-		},
 		consul:         consulCli,
 		associatedHubs: make(map[string]struct{}),
 

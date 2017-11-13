@@ -2,9 +2,11 @@ package miner
 
 import (
 	"crypto/ecdsa"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -19,8 +21,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 
 	pb "github.com/sonm-io/core/proto"
-
-	"encoding/json"
 
 	"github.com/ccding/go-stun/stun"
 	"github.com/docker/docker/api/types"
@@ -224,23 +224,23 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 	return restartPolicy
 }
 
-func transformGPUSupport(p *pb.TaskResourceRequirements) bool {
-	if p == nil {
-		return false
-	}
+//func transformGPUSupport(p *pb.TaskResourceRequirements) bool {
+//	if p == nil {
+//		return false
+//	}
+//
+//	return p.GetGPUSupport()
+//}
 
-	return p.GetGPUSupport()
-}
-
-func transformResources(p *pb.TaskResourceRequirements) container.Resources {
-	var resources = container.Resources{}
-	if p != nil {
-		resources.NanoCPUs = p.NanoCPUs
-		resources.Memory = p.MaxMemory
-	}
-
-	return resources
-}
+//func transformResources(p *pb.TaskResourceRequirements) container.Resources {
+//	var resources = container.Resources{}
+//	if p != nil {
+//		resources.NanoCPUs = p.NanoCPUs
+//		resources.Memory = p.MaxMemory
+//	}
+//
+//	return resources
+//}
 
 func transformEnvVariables(m map[string]string) []string {
 	vars := make([]string, 0, len(m))
@@ -260,11 +260,11 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Registry:      request.Registry,
 		Auth:          request.Auth,
 		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
-		Resources:     transformResources(request.Usage),
-		TaskId:        request.Id,
-		CommitOnStop:  request.CommitOnStop,
-		Env:           transformEnvVariables(request.Env),
-		GPURequired:   transformGPUSupport(request.Usage),
+		//Resources:     transformResources(request.Usage),
+		TaskId:       request.Id,
+		CommitOnStop: request.CommitOnStop,
+		Env:          transformEnvVariables(request.Env),
+		//GPURequired:   transformGPUSupport(request.Usage),
 	}
 
 	var publicKey ssh.PublicKey
@@ -277,21 +277,21 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		publicKey = k
 	}
 
-	var numCPUs = 1
-	var memory = int64(0)
-	var numGPUs = 0
-	if request.Usage != nil {
-		numCPUs = int(request.Usage.CPUCores)
-		memory = request.Usage.MaxMemory
-		if request.Usage.GetGPUSupport() {
-			numGPUs = -1
-		}
-	}
-	var usage = resource.NewResources(numCPUs, memory, numGPUs)
-
-	if err := m.resources.Consume(&usage); err != nil {
-		return nil, status.Errorf(codes.ResourceExhausted, "failed to Start %v", err)
-	}
+	//var numCPUs = 1
+	//var memory = int64(0)
+	//var numGPUs = 0
+	//if request.Usage != nil {
+	//	numCPUs = int(request.Usage.CPUCores)
+	//	memory = request.Usage.MaxMemory
+	//	if request.Usage.GetGPUSupport() {
+	//		numGPUs = -1
+	//	}
+	//}
+	//var usage = resource.NewResources(numCPUs, memory, numGPUs)
+	//
+	//if err := m.resources.Consume(&usage); err != nil {
+	//	return nil, status.Errorf(codes.ResourceExhausted, "failed to Start %v", err)
+	//}
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, request.Id)
 
@@ -300,7 +300,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		m.resources.Release(&usage)
+		//m.resources.Release(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
@@ -310,7 +310,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		m.resources.Release(&usage)
+		//m.resources.Release(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 	containerInfo.PublicKey = publicKey
@@ -323,13 +323,22 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 
 	var rpl = pb.MinerStartReply{
 		Container: containerInfo.ID,
-		Ports:     make(map[string]*pb.MinerStartReplyPort),
+		Ports:     map[string]*pb.SocketAddr{},
 	}
 	for port, v := range containerInfo.Ports {
 		if len(v) > 0 {
-			replyPort := &pb.MinerStartReplyPort{
-				IP:   m.pubAddress,
-				Port: v[0].HostPort,
+			hostPort, err := strconv.ParseUint(v[0].HostPort, 10, 16)
+			if err != nil {
+				log.G(m.ctx).Warn("failed to convert real port to uint16",
+					zap.Error(err),
+					zap.String("port", v[0].HostPort),
+				)
+				continue
+			}
+
+			replyPort := &pb.SocketAddr{
+				Addr: m.pubAddress,
+				Port: uint32(hostPort),
 			}
 			rpl.Ports[string(port)] = replyPort
 		}

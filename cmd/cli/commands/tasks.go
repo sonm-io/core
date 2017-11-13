@@ -285,17 +285,7 @@ func taskStartCmdRunner(cmd *cobra.Command, taskConfig task_config.TaskConfig, i
 		cmd.Printf("Starting \"%s\" ...\r\n", taskConfig.GetImageName())
 	}
 
-	requirements := &pb.TaskRequirements{
-		Miners: []string{},
-		Resources: &pb.TaskResourceRequirements{
-			CPUCores:   taskConfig.GetCPUCount(),
-			MaxMemory:  int64(taskConfig.GetRAMCount()),
-			GPUSupport: taskConfig.GetGPURequirement(),
-		},
-	}
-
 	var req = &pb.HubStartTaskRequest{
-		Requirements:  requirements,
 		Image:         taskConfig.GetImageName(),
 		Registry:      taskConfig.GetRegistryName(),
 		Auth:          taskConfig.GetRegistryAuth(),
