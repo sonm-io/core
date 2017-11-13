@@ -3,6 +3,7 @@ package miner
 import (
 	"crypto/ecdsa"
 	"crypto/tls"
+	"fmt"
 	"os"
 
 	"golang.org/x/net/context"
@@ -24,15 +25,14 @@ import (
 )
 
 type MinerBuilder struct {
-	ctx       context.Context
-	cfg       Config
-	hardware  hardware.HardwareInfo
-	ip        net.IP
-	nat       stun.NATType
-	ovs       Overseer
-	uuid      string
-	ssh       SSH
-	hexEthKey string
+	ctx      context.Context
+	cfg      Config
+	hardware hardware.HardwareInfo
+	ip       net.IP
+	nat      stun.NATType
+	ovs      Overseer
+	uuid     string
+	ssh      SSH
 }
 
 func (b *MinerBuilder) Context(ctx context.Context) *MinerBuilder {
@@ -67,11 +67,6 @@ func (b *MinerBuilder) UUID(uuid string) *MinerBuilder {
 
 func (b *MinerBuilder) SSH(ssh SSH) *MinerBuilder {
 	b.ssh = ssh
-	return b
-}
-
-func (b *MinerBuilder) ETH(ethCfg *EthConfig) *MinerBuilder {
-	b.hexEthKey = ethCfg.PrivateKey
 	return b
 }
 
@@ -151,20 +146,26 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	log.G(ctx).Info("collected Hardware info", zap.Any("hardware", hardwareInfo))
 
-	var creds credentials.TransportCredentials
+	var (
+		creds       credentials.TransportCredentials
+		certRotator util.HitlessCertRotator
+	)
 	if os.Getenv("GRPC_INSECURE") == "" {
 		var (
 			ethKey  *ecdsa.PrivateKey
 			TLSConf *tls.Config
 		)
-
-		ethKey, err = ethcrypto.HexToECDSA(b.hexEthKey)
+		if b.cfg.ETH() == nil || b.cfg.ETH().PrivateKey == "" {
+			cancel()
+			return nil, fmt.Errorf("either PrivateKey or GRPC_INSECURE environment variable must be set")
+		}
+		ethKey, err = ethcrypto.HexToECDSA(b.cfg.ETH().PrivateKey)
 		if err != nil {
 			cancel()
 			return nil, err
 		}
 		// The rotator will be stopped by ctx
-		_, TLSConf, err = util.NewHitlessCertRotator(ctx, ethKey)
+		certRotator, TLSConf, err = util.NewHitlessCertRotator(ctx, ethKey)
 		if err != nil {
 			return nil, err
 		}
@@ -172,6 +173,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	}
 	grpcServer := util.MakeGrpcServer(creds)
 
+	fmt.Println("SSSS", b.cfg.HubResources())
 	deleter, err := initializeControlGroup(b.cfg.HubResources())
 	if err != nil {
 		cancel()
@@ -205,6 +207,9 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		ssh:          b.ssh,
 
 		connectedHubs: make(map[string]struct{}),
+
+		certRotator: certRotator,
+		creds:       creds,
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)

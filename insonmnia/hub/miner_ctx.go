@@ -1,10 +1,8 @@
 package hub
 
 import (
-	"crypto/tls"
 	"errors"
 	"net"
-	"os"
 	"sync"
 	"time"
 
@@ -13,7 +11,6 @@ import (
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware"
@@ -69,18 +66,7 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 		err error
 	)
 	m.ctx, m.cancel = context.WithCancel(ctx)
-
-	var creds credentials.TransportCredentials
-	if os.Getenv("GRPC_INSECURE") == "" {
-		var TLSConfig *tls.Config
-		_, TLSConfig, err = util.NewHitlessCertRotator(h.ctx, h.ethKey)
-		if err != nil {
-			m.cancel()
-			return nil, err
-		}
-		creds = credentials.NewTLS(TLSConfig)
-	}
-	m.grpcConn, err = util.MakeGrpcClient(ctx, "miner", creds, grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
+	m.grpcConn, err = util.MakeGrpcClient(ctx, "miner", h.creds, grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
 		return conn, nil
 	}))
 	if err != nil {
