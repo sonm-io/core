@@ -9,12 +9,12 @@ package sonm;
 
 // The SONM Local node API must also include
 // the Marketplace API, but it already has been described
-// into a "proto / marketplace.proto" file.
+// into a "proto/marketplace.proto" file.
 
 enum DealStatus {
     PENDING = 0;
-    APPROVED = 1;
-    FINISHED = 2;
+    ACCEPTED = 1;
+    CLOSED = 2;
 }
 
 // TaskManagement describe a bunch of methods
@@ -44,15 +44,19 @@ service DealManagement {
     // List produces a list of all deals made by client with given ID
     rpc List(DealListRequest) returns (DealListReply) {}
     // Status produces a detailed info about deal with given ID
-    rpc Status(ID) returns (Deal) {}
+    rpc Status(IntID) returns (Deal) {}
     // Finish finishes a deal with given ID
-    rpc Finish(ID) returns (Empty) {}
+    rpc Finish(IntID) returns (Empty) {}
 }
 
 message Deal {
-    string BidID = 1;
-    string AskID = 2;
+    string BuyerID = 1;
+    string SuppclierID = 2;
     DealStatus status = 3;
+
+    int64 price = 4;
+    Timestamp startTime = 5;
+    Timestamp endTime = 6;
 }
 
 message DealListRequest {
