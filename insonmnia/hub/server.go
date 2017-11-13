@@ -988,7 +988,7 @@ func (h *Hub) listenClusterEvents() {
 
 func (h *Hub) processClusterEvent(value interface{}) {
 	log.G(h.ctx).Info("received cluster event", zap.Any("event", value))
-	switch value.(type) {
+	switch value := value.(type) {
 	case NewMemberEvent:
 		//We don't care now
 	case LeadershipEvent:
@@ -996,7 +996,7 @@ func (h *Hub) processClusterEvent(value interface{}) {
 	case *map[string]*TaskInfo:
 		log.G(h.ctx).Info("synchronizing tasks from cluster")
 		h.tasksMu.Lock()
-		h.tasks = *value.(*map[string]*TaskInfo)
+		h.tasks = *value
 		h.tasksMu.Unlock()
 	}
 }
