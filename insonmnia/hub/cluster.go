@@ -407,8 +407,8 @@ func makeStore(ctx context.Context, cfg *ClusterConfig) (store.Store, error) {
 
 func (c *cluster) close(err error) {
 	log.G(c.ctx).Error("cluster failure", zap.Error(err))
-	c.eventChannel <- err
 	c.cancel()
+	c.eventChannel <- err
 }
 
 func (c *cluster) emitLeadershipEvent() {

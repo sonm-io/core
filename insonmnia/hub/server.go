@@ -998,6 +998,13 @@ func (h *Hub) processClusterEvent(value interface{}) {
 		h.tasksMu.Lock()
 		h.tasks = *value
 		h.tasksMu.Unlock()
+	case error:
+		// continue reading from event channel as there could be pending events
+		go func() {
+			log.G(h.ctx).Warn("cluster failure, retrying after 10 seconds", zap.Error(value))
+			time.Sleep(time.Second * 10)
+			h.eventCh = h.cluster.Run()
+		}()
 	}
 }
 
