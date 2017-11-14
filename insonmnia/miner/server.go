@@ -3,11 +3,9 @@ package miner
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -226,17 +224,6 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 	return restartPolicy
 }
 
-type env map[string]string
-
-func (e env) format() []string {
-	vars := make([]string, 0, len(map[string]string(e)))
-	for k, v := range map[string]string(e) {
-		vars = append(vars, fmt.Sprintf("%s=%s", strings.ToUpper(k), v))
-	}
-
-	return vars
-}
-
 // Start request from Hub makes Miner start a container
 func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
@@ -254,7 +241,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Resources:     resources.ToContainerResources(),
 		TaskId:        request.Id,
 		CommitOnStop:  request.CommitOnStop,
-		Env:           env(request.Env).format(),
+		Env:           request.Env,
 		GPURequired:   resources.RequiresGPU(),
 	}
 

@@ -47,7 +47,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		Image: filepath.Join(d.Registry, d.Image),
 		// TODO: set actual name
 		Labels:  map[string]string{overseerTag: ""},
-		Env:     d.Env,
+		Env:     d.FormatEnv(),
 		Volumes: make(map[string]struct{}),
 	}
 
