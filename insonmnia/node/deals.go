@@ -2,7 +2,6 @@ package node
 
 import (
 	"crypto/ecdsa"
-	"math/big"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
@@ -19,20 +18,22 @@ type dealsAPI struct {
 }
 
 func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealListReply, error) {
-	log.G(d.ctx).Info("handling Deals_List request")
-	addr := util.PubKeyToAddr(d.key.PublicKey)
-	IDs, err := d.bc.GetDeals(addr)
+	log.G(d.ctx).Info("handling Deals_List request", zap.Any("req", req))
+	IDs, err := d.bc.GetDeals(req.Owner)
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO(sshaman1101): add filter by status
 
 	deals := make([]*pb.Deal, 0, len(IDs))
 	for _, id := range IDs {
 		info, err := d.bc.GetDealInfo(id)
 		if err != nil {
 			return nil, err
+		}
+
+		// filter by status
+		if req.Status != pb.DealStatus_ANY_STATUS && req.Status != pb.DealStatus(info.Status.Int64()) {
+			continue
 		}
 
 		deals = append(deals, &pb.Deal{
@@ -48,9 +49,12 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealL
 	return &pb.DealListReply{Deal: deals}, nil
 }
 
-func (d *dealsAPI) Status(ctx context.Context, id *pb.IntID) (*pb.Deal, error) {
-	log.G(d.ctx).Info("handling Deals_Status request", zap.Int64("id", id.Id))
-	bigID := big.NewInt(id.Id)
+func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.Deal, error) {
+	log.G(d.ctx).Info("handling Deals_Status request", zap.String("id", id.Id))
+	bigID, err := util.ParseBigInt(id.Id)
+	if err != nil {
+		return nil, err
+	}
 
 	info, err := d.bc.GetDealInfo(bigID)
 	if err != nil {
@@ -69,12 +73,14 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.IntID) (*pb.Deal, error) {
 	return deal, nil
 }
 
-func (d *dealsAPI) Finish(ctx context.Context, id *pb.IntID) (*pb.Empty, error) {
-	log.G(d.ctx).Info("handling Deals_Finish request", zap.Int64("id", id.Id))
+func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
+	log.G(d.ctx).Info("handling Deals_Finish request", zap.String("id", id.Id))
+	bigID, err := util.ParseBigInt(id.Id)
+	if err != nil {
+		return nil, err
+	}
 
-	bigID := big.NewInt(id.Id)
-
-	_, err := d.bc.CloseDeal(d.key, bigID)
+	_, err = d.bc.CloseDeal(d.key, bigID)
 	if err != nil {
 		return nil, err
 	}

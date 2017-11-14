@@ -2,12 +2,25 @@ package commands
 
 import (
 	"os"
-	"strconv"
 
+	"strings"
+
+	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
+var (
+	dealListFlagFrom   string
+	dealListFlagStatus string
+)
+
 func init() {
+	nodeDealsListCmd.PersistentFlags().StringVar(&dealListFlagFrom, "from", "",
+		"Transactions author, using self address if empty")
+	nodeDealsListCmd.PersistentFlags().StringVar(&dealListFlagStatus, "status", "ANY",
+		"Transaction status (ANY, PENDING, ACCEPTED, CLOSED)")
+
 	nodeDealsRootCmd.AddCommand(
 		nodeDealsListCmd,
 		nodeDealsStatusCmd,
@@ -32,7 +45,13 @@ var nodeDealsListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		deals, err := itr.List()
+		status := convertTransactionStatus(dealListFlagStatus)
+		from := dealListFlagFrom
+		if from == "" {
+			from = util.PubKeyToAddr(sessionKey.PublicKey)
+		}
+
+		deals, err := itr.List(from, status)
 		if err != nil {
 			showError(cmd, "Cannot get deals list", err)
 			os.Exit(1)
@@ -54,14 +73,14 @@ var nodeDealsStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		rawID := args[0]
-		id, err := strconv.Atoi(rawID)
+		id := args[0]
+		_, err = util.ParseBigInt(id)
 		if err != nil {
 			showError(cmd, "Cannot convert arg to number", err)
 			os.Exit(1)
 		}
 
-		deal, err := itr.Status(int64(id))
+		deal, err := itr.Status(id)
 		if err != nil {
 			showError(cmd, "Cannot get deal deal", err)
 			os.Exit(1)
@@ -83,14 +102,14 @@ var nodeDealsFinishCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		rawID := args[0]
-		id, err := strconv.Atoi(rawID)
+		id := args[0]
+		_, err = util.ParseBigInt(id)
 		if err != nil {
 			showError(cmd, "Cannot convert arg to number", err)
 			os.Exit(1)
 		}
 
-		err = itr.FinishDeal(int64(id))
+		err = itr.FinishDeal(id)
 		if err != nil {
 			showError(cmd, "Cannot finish deal", err)
 			os.Exit(1)
@@ -99,4 +118,13 @@ var nodeDealsFinishCmd = &cobra.Command{
 	},
 }
 
-// TODO(sshaman1101): string to big.Int?
+func convertTransactionStatus(s string) pb.DealStatus {
+	s = strings.ToUpper(s)
+	// looks stupid, but more convenient to use and easy to type
+	if s == "ANY" {
+		s = "ANY_STATUS"
+	}
+
+	id := pb.DealStatus_value[s]
+	return pb.DealStatus(id)
+}

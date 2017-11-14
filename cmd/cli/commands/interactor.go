@@ -375,9 +375,9 @@ func NewMarketInteractor(addr string, timeout time.Duration) (NodeMarketInteract
 }
 
 type DealsInteractor interface {
-	List() ([]*pb.Deal, error)
-	Status(id int64) (*pb.Deal, error)
-	FinishDeal(id int64) error
+	List(from string, status pb.DealStatus) ([]*pb.Deal, error)
+	Status(id string) (*pb.Deal, error)
+	FinishDeal(id string) error
 }
 
 type dealsInteractor struct {
@@ -385,11 +385,12 @@ type dealsInteractor struct {
 	deals   pb.DealManagementClient
 }
 
-func (it *dealsInteractor) List() ([]*pb.Deal, error) {
+func (it *dealsInteractor) List(from string, status pb.DealStatus) ([]*pb.Deal, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	reply, err := it.deals.List(ctx, &pb.DealListRequest{})
+	req := &pb.DealListRequest{Owner: from, Status: status}
+	reply, err := it.deals.List(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -397,18 +398,18 @@ func (it *dealsInteractor) List() ([]*pb.Deal, error) {
 	return reply.GetDeal(), nil
 }
 
-func (it *dealsInteractor) Status(id int64) (*pb.Deal, error) {
+func (it *dealsInteractor) Status(id string) (*pb.Deal, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.deals.Status(ctx, &pb.IntID{Id: id})
+	return it.deals.Status(ctx, &pb.ID{Id: id})
 }
 
-func (it *dealsInteractor) FinishDeal(id int64) error {
+func (it *dealsInteractor) FinishDeal(id string) error {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	_, err := it.deals.Finish(ctx, &pb.IntID{Id: id})
+	_, err := it.deals.Finish(ctx, &pb.ID{Id: id})
 	return err
 }
 

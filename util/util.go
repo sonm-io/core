@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -124,4 +125,15 @@ func DirectoryExists(p string) bool {
 		return !os.IsNotExist(err)
 	}
 	return true
+}
+
+// ParseBigInt parses the given string and converts it to *big.Int
+func ParseBigInt(s string) (*big.Int, error) {
+	n := new(big.Int)
+	n, ok := n.SetString(s, 10)
+	if !ok {
+		return nil, fmt.Errorf("cannot convert %s to big.Int", s)
+	}
+
+	return n, nil
 }

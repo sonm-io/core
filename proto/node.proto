@@ -12,9 +12,10 @@ package sonm;
 // into a "proto/marketplace.proto" file.
 
 enum DealStatus {
-    PENDING = 0;
-    ACCEPTED = 1;
-    CLOSED = 2;
+    ANY_STATUS = 0;
+    PENDING = 1;
+    ACCEPTED = 2;
+    CLOSED = 3;
 }
 
 // TaskManagement describe a bunch of methods
@@ -44,9 +45,9 @@ service DealManagement {
     // List produces a list of all deals made by client with given ID
     rpc List(DealListRequest) returns (DealListReply) {}
     // Status produces a detailed info about deal with given ID
-    rpc Status(IntID) returns (Deal) {}
+    rpc Status(ID) returns (Deal) {}
     // Finish finishes a deal with given ID
-    rpc Finish(IntID) returns (Empty) {}
+    rpc Finish(ID) returns (Empty) {}
 }
 
 message Deal {
