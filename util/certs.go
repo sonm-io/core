@@ -153,6 +153,7 @@ func GenerateCert(ethpriv *ecdsa.PrivateKey) (cert []byte, key []byte, err error
 	}
 	issuerCommonName.WriteString(base32.StdEncoding.EncodeToString(signature.Serialize()))
 
+	dnsName := PubKeyToAddr(ethpriv.PublicKey)
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(100),
 		Subject: pkix.Name{
@@ -160,6 +161,7 @@ func GenerateCert(ethpriv *ecdsa.PrivateKey) (cert []byte, key []byte, err error
 		},
 		NotBefore: time.Now().Add(-time.Hour * 1),
 		NotAfter:  time.Now().Add(validPeriod),
+		DNSNames:  []string{dnsName},
 
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 	}
