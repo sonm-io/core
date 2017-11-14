@@ -10,10 +10,6 @@ message ID {
     string id = 1;
 }
 
-message IntID {
-    int64 id = 1;
-}
-
 message PingReply {
     string status = 1;
 }
