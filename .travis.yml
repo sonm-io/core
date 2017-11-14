@@ -16,7 +16,6 @@ install:
   - . $HOME/.nvm/nvm.sh
   - nvm install stable
   - nvm use stable
-  - git submodule update
 
 script:
     - go get github.com/golang/mock/gomock
