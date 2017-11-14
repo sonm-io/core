@@ -14,9 +14,8 @@ func MakeGrpcClient(ctx context.Context, addr string, creds credentials.Transpor
 	if creds != nil {
 		secureOpt = grpc.WithTransportCredentials(creds)
 	}
-	cc, err := grpc.DialContext(ctx, addr, secureOpt,
-		grpc.WithCompressor(grpc.NewGZIPCompressor()),
-		grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
+	var extraOpts = append(opts, secureOpt, grpc.WithCompressor(grpc.NewGZIPCompressor()), grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
+	cc, err := grpc.DialContext(ctx, addr, extraOpts...)
 	if err != nil {
 		return nil, err
 	}
