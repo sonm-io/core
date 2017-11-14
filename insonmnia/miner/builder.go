@@ -173,7 +173,6 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	}
 	grpcServer := util.MakeGrpcServer(creds)
 
-	fmt.Println("SSSS", b.cfg.HubResources())
 	deleter, err := initializeControlGroup(b.cfg.HubResources())
 	if err != nil {
 		cancel()
