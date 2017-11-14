@@ -38,8 +38,8 @@ func TestServerNewExtractsHubEndpoint(t *testing.T) {
 	m, err := builder.Build()
 	cfg.EXPECT().GPU().AnyTimes()
 
+	assert.NoError(t, err)
 	assert.NotNil(t, m)
-	assert.Nil(t, err)
 	assert.Equal(t, "::1", m.hubAddress)
 }
 
