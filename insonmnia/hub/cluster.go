@@ -441,7 +441,7 @@ func (c *cluster) registerMember(member *store.KVPair) error {
 	}
 	log.G(c.ctx).Info("fetched endpoints of new member", zap.Any("endpoints", endpoints))
 	for _, ep := range endpoints {
-		conn, err := util.MakeGrpcClient(ep, nil)
+		conn, err := util.MakeGrpcClient(c.ctx, ep, nil)
 		if err != nil {
 			log.G(c.ctx).Warn("could not connect to hub", zap.String("endpoint", ep), zap.Error(err))
 			continue
