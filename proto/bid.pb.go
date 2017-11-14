@@ -42,7 +42,6 @@ It has these top-level messages:
 	DevicesReply
 	Empty
 	ID
-	IntID
 	PingReply
 	CPUUsage
 	MemoryUsage
