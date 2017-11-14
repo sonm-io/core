@@ -15,10 +15,11 @@ import (
 type dealsAPI struct {
 	key *ecdsa.PrivateKey
 	bc  *blockchain.API
+	ctx context.Context
 }
 
 func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealListReply, error) {
-	log.G(ctx).Info("handling Deals_List request")
+	log.G(d.ctx).Info("handling Deals_List request")
 	addr := util.PubKeyToAddr(d.key.PublicKey)
 	IDs, err := d.bc.GetDeals(addr)
 	if err != nil {
@@ -48,7 +49,7 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealL
 }
 
 func (d *dealsAPI) Status(ctx context.Context, id *pb.IntID) (*pb.Deal, error) {
-	log.G(ctx).Info("handling Deals_Status request", zap.Int64("id", id.Id))
+	log.G(d.ctx).Info("handling Deals_Status request", zap.Int64("id", id.Id))
 	bigID := big.NewInt(id.Id)
 
 	info, err := d.bc.GetDealInfo(bigID)
@@ -69,7 +70,7 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.IntID) (*pb.Deal, error) {
 }
 
 func (d *dealsAPI) Finish(ctx context.Context, id *pb.IntID) (*pb.Empty, error) {
-	log.G(ctx).Info("handling Deals_Finish request", zap.Int64("id", id.Id))
+	log.G(d.ctx).Info("handling Deals_Finish request", zap.Int64("id", id.Id))
 
 	bigID := big.NewInt(id.Id)
 
@@ -81,11 +82,11 @@ func (d *dealsAPI) Finish(ctx context.Context, id *pb.IntID) (*pb.Empty, error) 
 	return &pb.Empty{}, nil
 }
 
-func newDealsAPI(key *ecdsa.PrivateKey) (pb.DealManagementServer, error) {
+func newDealsAPI(ctx context.Context, key *ecdsa.PrivateKey) (pb.DealManagementServer, error) {
 	api, err := blockchain.NewBlockchainAPI(nil, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return &dealsAPI{key: key, bc: api}, nil
+	return &dealsAPI{key: key, bc: api, ctx: ctx}, nil
 }

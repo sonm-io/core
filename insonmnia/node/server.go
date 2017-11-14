@@ -146,7 +146,7 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	pb.RegisterMarketServer(srv, market)
 	log.G(ctx).Info("market service registered", zap.String("endpt", c.MarketEndpoint()))
 
-	deals, err := newDealsAPI(key)
+	deals, err := newDealsAPI(ctx, key)
 	if err != nil {
 		return nil, err
 	}
