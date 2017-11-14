@@ -48,7 +48,7 @@ message MinerStartRequest{
     string image = 3;
     string auth = 4;
     ContainerRestartPolicy restartPolicy = 5;
-    TaskResourceRequirements usage = 6;
+    TaskResourceRequirements resources = 6;
     string PublicKeyData = 7;
     bool commitOnStop = 8;
     map<string, string> env = 9;

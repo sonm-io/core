@@ -3,7 +3,14 @@ package structs
 import (
 	"reflect"
 
+	"github.com/docker/docker/api/types/container"
+	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
+)
+
+var (
+	errResourcesRequired = errors.New("`usage` field is required")
 )
 
 // Resources wraps the underlying protobuf object with full validation, such
@@ -86,4 +93,43 @@ func (r *Resources) Eq(o *Resources) bool {
 		return false
 	}
 	return true
+}
+
+type TaskResources struct {
+	inner *pb.TaskResourceRequirements
+}
+
+func NewTaskResources(r *pb.TaskResourceRequirements) (*TaskResources, error) {
+	if r == nil {
+		return nil, errResourcesRequired
+	}
+
+	return &TaskResources{inner: r}, nil
+}
+
+func (r *TaskResources) RequiresGPU() bool {
+	return r.inner.GetGPUSupport() != pb.GPUCount_NO_GPU
+}
+
+func (r *TaskResources) ToUsage() resource.Resources {
+	numGPUs := -1
+	switch r.inner.GetGPUSupport() {
+	case pb.GPUCount_NO_GPU:
+		numGPUs = 0
+	case pb.GPUCount_SINGLE_GPU:
+		numGPUs = 1
+	default:
+	}
+
+	return resource.Resources{
+		NumCPUs: int(r.inner.GetCPUCores()),
+		Memory:  r.inner.GetMaxMemory(),
+		NumGPUs: numGPUs,
+	}
+}
+
+func (r *TaskResources) ToContainerResources() container.Resources {
+	return container.Resources{
+		Memory: r.inner.GetMaxMemory(),
+	}
 }

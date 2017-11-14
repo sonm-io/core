@@ -273,7 +273,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		PublicKeyData: request.GetPublicKeyData(),
 		CommitOnStop:  request.GetCommitOnStop(),
 		Env:           request.GetEnv(),
-		Usage: &pb.TaskResourceRequirements{
+		Resources: &pb.TaskResourceRequirements{
 			CPUCores:   uint64(usage.NumCPUs),
 			MaxMemory:  usage.Memory,
 			GPUSupport: pb.GPUCount(math.Min(usage.NumGPUs, 2)),

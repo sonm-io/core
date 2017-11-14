@@ -31,6 +31,7 @@ import (
 	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
+	"github.com/sonm-io/core/insonmnia/structs"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -225,24 +226,6 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 	return restartPolicy
 }
 
-//func transformGPUSupport(p *pb.TaskResourceRequirements) bool {
-//	if p == nil {
-//		return false
-//	}
-//
-//	return p.GetGPUSupport()
-//}
-
-//func transformResources(p *pb.TaskResourceRequirements) container.Resources {
-//	var resources = container.Resources{}
-//	if p != nil {
-//		resources.NanoCPUs = p.NanoCPUs
-//		resources.Memory = p.MaxMemory
-//	}
-//
-//	return resources
-//}
-
 type env map[string]string
 
 func (e env) format() []string {
@@ -258,16 +241,21 @@ func (e env) format() []string {
 func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
 
+	resources, err := structs.NewTaskResources(request.GetResources())
+	if err != nil {
+		return nil, err
+	}
+
 	var d = Description{
 		Image:         request.Image,
 		Registry:      request.Registry,
 		Auth:          request.Auth,
 		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
-		//Resources:     transformResources(request.Usage),
-		TaskId:       request.Id,
-		CommitOnStop: request.CommitOnStop,
-		Env:          env(request.Env).format(),
-		//GPURequired:   transformGPUSupport(request.Usage),
+		Resources:     resources.ToContainerResources(),
+		TaskId:        request.Id,
+		CommitOnStop:  request.CommitOnStop,
+		Env:           env(request.Env).format(),
+		GPURequired:   resources.RequiresGPU(),
 	}
 
 	var publicKey ssh.PublicKey
@@ -280,23 +268,10 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		publicKey = k
 	}
 
-	//var numCPUs = 1
-	//var memory = int64(0)
-	//var numGPUs = 0
-	//if request.Usage != nil {
-	//	numCPUs = int(request.Usage.CPUCores)
-	//	memory = request.Usage.MaxMemory
-	//	if request.Usage.GetGPUSupport() {
-	//		numGPUs = -1
-	//	}
-	//}
-	//var usage = resource.NewResources(numCPUs, memory, numGPUs)
-	//
-	//if err := m.resources.Consume(&usage); err != nil {
-	//	return nil, status.Errorf(codes.ResourceExhausted, "failed to Start %v", err)
-	//}
-
-	// TODO: Map resources to cgroups.
+	usage := resources.ToUsage()
+	if err := m.resources.Consume(&usage); err != nil {
+		return nil, status.Errorf(codes.ResourceExhausted, "failed to Start %v", err)
+	}
 
 	orderId := request.GetOrderId()
 	if err := m.cGroupManager.Attach(orderId, nil); err != nil && err != errNamedCgroupAlreadyExists {
@@ -306,11 +281,10 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, request.Id)
 
 	log.G(m.ctx).Info("spooling an image")
-	err := m.ovs.Spool(ctx, d)
-	if err != nil {
+	if err := m.ovs.Spool(ctx, d); err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		//m.resources.Release(&usage)
+		m.resources.Release(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
@@ -320,7 +294,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		//m.resources.Release(&usage)
+		m.resources.Release(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 	containerInfo.PublicKey = publicKey
