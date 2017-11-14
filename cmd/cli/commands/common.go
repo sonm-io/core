@@ -1,14 +1,18 @@
 package commands
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
 	"os"
 	"time"
 
+	"google.golang.org/grpc/credentials"
+
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/cmd/cli/config"
+	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -38,6 +42,7 @@ var (
 	cfg         config.Config
 	sessionKey  *ecdsa.PrivateKey = nil
 
+	creds credentials.TransportCredentials
 	// logging flag vars
 	logType       string
 	since         string
@@ -181,4 +186,10 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 	}
 
 	sessionKey = key
+	_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), sessionKey)
+	if err != nil {
+		showError(cmd, err.Error(), nil)
+		os.Exit(1)
+	}
+	creds = util.NewTLS(TLSConfig)
 }
