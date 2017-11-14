@@ -15,6 +15,19 @@ const (
 	parentCgroup           = "insonmnia"
 )
 
+type cgroup struct {
+	cgroups.Cgroup
+}
+
+func (c *cgroup) New(name string, resources *specs.LinuxResources) (cGroup, error) {
+	control, err := c.Cgroup.New(name, resources)
+	if err != nil {
+		return nil, err
+	}
+
+	return &cgroup{control}, nil
+}
+
 // Resources is a type alias for OCI Resources spec
 type Resources specs.LinuxResources
 
@@ -64,12 +77,12 @@ func initializeControlGroup(res *Resources) (cGroup, error) {
 	}
 
 	if res == nil {
-		return control, nil
+		return &cgroup{control}, nil
 	}
 
 	if err = control.Update((*specs.LinuxResources)(res)); err != nil {
 		return nil, fmt.Errorf("failed to set resource limit on parent cgroup %s: %v", parentCgroup, err)
 	}
 
-	return control, nil
+	return &cgroup{control}, nil
 }
