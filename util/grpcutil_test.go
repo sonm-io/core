@@ -76,7 +76,7 @@ func TestSecureGRPCConnect(t *testing.T) {
 	})
 
 	t.Run("ClientWithoutTLS", func(t *testing.T) {
-		conn, err := MakeGrpcClient(ctx, lis.Addr().String(), nil, grpc.WithTimeout(time.Second), grpc.WithBlock())
+		conn, err := MakeGrpcClient(ctx, lis.Addr().String(), nil, grpc.WithBlock(), grpc.WithTimeout(time.Second))
 		require.NoError(err)
 		defer conn.Close()
 		require.NotNil(conn)
