@@ -52,6 +52,9 @@ message MinerStartRequest{
     string PublicKeyData = 7;
     bool commitOnStop = 8;
     map<string, string> env = 9;
+    // OrderId describes an unique order identifier.
+    // It is here for proper resource allocation and limitation.
+    string orderId = 10;
 }
 
 message SocketAddr {

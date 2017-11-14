@@ -45,7 +45,7 @@ func (r *Resources) SetYAML(tag string, value interface{}) bool {
 	return true
 }
 
-func initializeControlGroup(res *Resources) (cGroupDeleter, error) {
+func initializeControlGroup(res *Resources) (cGroup, error) {
 	// Cook or update parent cgroup for all containers
 	cgroupPath := cgroups.StaticPath("/" + parentCgroup)
 	control, err := cgroups.Load(cgroups.V1, cgroupPath)

@@ -265,6 +265,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	taskID := uuid.New()
 
 	startRequest := &pb.MinerStartRequest{
+		OrderId:       request.GetOrderId(),
 		Id:            taskID,
 		Registry:      request.GetRegistry(),
 		Image:         request.GetImage(),

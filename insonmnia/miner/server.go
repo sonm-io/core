@@ -71,7 +71,8 @@ type Miner struct {
 
 	statusChannels map[int]chan bool
 	channelCounter int
-	controlGroup   cGroupDeleter
+	controlGroup   cGroup
+	cGroupManager  cGroupManager
 	ssh            SSH
 
 	connectedHubs     map[string]struct{}
@@ -255,7 +256,7 @@ func (e env) format() []string {
 
 // Start request from Hub makes Miner start a container
 func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
-	log.G(m.ctx).Info("handling Start request", zap.Any("req", request))
+	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
 
 	var d = Description{
 		Image:         request.Image,
@@ -294,6 +295,13 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	//if err := m.resources.Consume(&usage); err != nil {
 	//	return nil, status.Errorf(codes.ResourceExhausted, "failed to Start %v", err)
 	//}
+
+	// TODO: Map resources to cgroups.
+
+	orderId := request.GetOrderId()
+	if err := m.cGroupManager.Attach(orderId, nil); err != nil && err != errNamedCgroupAlreadyExists {
+		return nil, err
+	}
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, request.Id)
 

@@ -141,11 +141,12 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	grpcServer := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()))
 
-	deleter, err := initializeControlGroup(b.cfg.HubResources())
+	cgroup, err := initializeControlGroup(b.cfg.HubResources())
 	if err != nil {
 		cancel()
 		return nil, err
 	}
+	cGroupManager := newCgroupManager(cgroup)
 
 	if !platformSupportCGroups && b.cfg.HubResources() != nil {
 		log.G(ctx).Warn("your platform does not support CGroup, but the config has resources section")
@@ -170,8 +171,9 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		statusChannels: make(map[int]chan bool),
 		nameMapping:    make(map[string]string),
 
-		controlGroup: deleter,
-		ssh:          b.ssh,
+		controlGroup:  cgroup,
+		cGroupManager: cGroupManager,
+		ssh:           b.ssh,
 
 		connectedHubs: make(map[string]struct{}),
 	}

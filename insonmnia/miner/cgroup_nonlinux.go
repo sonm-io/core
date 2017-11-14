@@ -2,6 +2,10 @@
 
 package miner
 
+import (
+	"github.com/opencontainers/runtime-spec/specs-go"
+)
+
 // Resources is a placeholder for resources
 type Resources interface{}
 
@@ -10,10 +14,14 @@ const (
 	parentCgroup           = ""
 )
 
-type nilDeleter struct{}
+type nilCgroup struct{}
 
-func (*nilDeleter) Delete() error { return nil }
+func (c *nilCgroup) New(name string, resources *specs.LinuxResources) (cGroup, error) {
+	return c, nil
+}
 
-func initializeControlGroup(*Resources) (cGroupDeleter, error) {
-	return &nilDeleter{}, nil
+func (*nilCgroup) Delete() error { return nil }
+
+func initializeControlGroup(*Resources) (cGroup, error) {
+	return &nilCgroup{}, nil
 }
