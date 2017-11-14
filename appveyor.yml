@@ -17,7 +17,6 @@ install:
   - set GOARCH=386
 
 build_script:
-  - git submodule update --init --recursive
   - c:\MinGW\bin\mingw32-make.exe build/cli_win32
   - c:\MinGW\bin\mingw32-make.exe build/node_win32
 
