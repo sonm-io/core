@@ -65,7 +65,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		Resources: container.Resources{
 			// TODO: accept a name of a cgroup cooked by user
 			// NOTE: on non-Linux platform it's empty
-			CgroupParent: parentCgroup,
+			CgroupParent: d.Resources.CgroupParent,
 			Memory:       d.Resources.Memory,
 			NanoCPUs:     d.Resources.NanoCPUs,
 		},

@@ -233,18 +233,6 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		return nil, err
 	}
 
-	var d = Description{
-		Image:         request.Image,
-		Registry:      request.Registry,
-		Auth:          request.Auth,
-		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
-		Resources:     resources.ToContainerResources(),
-		TaskId:        request.Id,
-		CommitOnStop:  request.CommitOnStop,
-		Env:           request.Env,
-		GPURequired:   resources.RequiresGPU(),
-	}
-
 	var publicKey ssh.PublicKey
 	if len(request.PublicKeyData) != 0 {
 		var err error
@@ -261,8 +249,26 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	}
 
 	orderId := request.GetOrderId()
-	if err := m.cGroupManager.Attach(orderId, nil); err != nil && err != errNamedCgroupAlreadyExists {
+	if err := m.cGroupManager.Attach(orderId, resources.ToCgroup()); err != nil && err != errNamedCgroupAlreadyExists {
 		return nil, err
+	}
+
+	var d = Description{
+		Image:         request.Image,
+		Registry:      request.Registry,
+		Auth:          request.Auth,
+		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
+		Resources:     resources.ToContainerResources(),
+		TaskId:        request.Id,
+		CommitOnStop:  request.CommitOnStop,
+		Env:           request.Env,
+		GPURequired:   resources.RequiresGPU(),
+	}
+
+	if parentCgroup == "" {
+		d.Resources.CgroupParent = parentCgroup
+	} else {
+		d.Resources.CgroupParent = "/" + parentCgroup + "/" + orderId
 	}
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, request.Id)

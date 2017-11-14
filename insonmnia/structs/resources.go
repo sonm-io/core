@@ -4,6 +4,7 @@ import (
 	"reflect"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
@@ -131,5 +132,15 @@ func (r *TaskResources) ToUsage() resource.Resources {
 func (r *TaskResources) ToContainerResources() container.Resources {
 	return container.Resources{
 		Memory: r.inner.GetMaxMemory(),
+	}
+}
+
+func (r *TaskResources) ToCgroup() *specs.LinuxResources {
+	maxMemory := r.inner.GetMaxMemory()
+
+	return &specs.LinuxResources{
+		Memory: &specs.LinuxMemory{
+			Limit: &maxMemory,
+		},
 	}
 }
