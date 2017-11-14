@@ -21,6 +21,7 @@ import (
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 const leaderKey = "sonm/hub/leader"
@@ -71,7 +72,7 @@ type Cluster interface {
 // otherwise.
 // Should be recalled when a cluster's master/slave state changes.
 // The channel is closed when the specified context is canceled.
-func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, error) {
+func NewCluster(ctx context.Context, cfg *ClusterConfig, creds credentials.TransportCredentials) (Cluster, error) {
 	store, err := makeStore(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -97,6 +98,8 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig) (Cluster, error) {
 		clusterEndpoints: make(map[string][]string),
 
 		eventChannel: make(chan ClusterEvent, 100),
+
+		creds: creds,
 	}
 	return &c, nil
 }
@@ -130,6 +133,8 @@ type cluster struct {
 	leaderId         string
 
 	eventChannel chan ClusterEvent
+
+	creds credentials.TransportCredentials
 }
 
 func (c *cluster) Run() <-chan ClusterEvent {
@@ -445,7 +450,7 @@ func (c *cluster) registerMember(member *store.KVPair) error {
 	}
 	log.G(c.ctx).Info("fetched endpoints of new member", zap.Any("endpoints", endpoints))
 	for _, ep := range endpoints {
-		conn, err := util.MakeGrpcClient(c.ctx, ep, nil)
+		conn, err := util.MakeGrpcClient(c.ctx, ep, c.creds)
 		if err != nil {
 			log.G(c.ctx).Warn("could not connect to hub", zap.String("endpoint", ep), zap.Error(err))
 			continue

@@ -810,11 +810,6 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	acl := NewACLStorage()
 	acl.Insert(cfg.Eth.PrivateKey)
 
-	cluster, err := NewCluster(ctx, &cfg.Cluster)
-	if err != nil {
-		return nil, err
-	}
-
 	h := &Hub{
 		cfg:          cfg,
 		ctx:          ctx,
@@ -830,8 +825,6 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 
 		locatorEndpoint: cfg.Locator.Address,
 		locatorPeriod:   time.Second * time.Duration(cfg.Locator.Period),
-
-		cluster: cluster,
 
 		filters: []minerFilter{
 			exactMatchFilter,
@@ -859,6 +852,11 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 			return nil, err
 		}
 		h.creds = util.NewTLS(TLSConfig)
+	}
+
+	h.cluster, err = NewCluster(ctx, &cfg.Cluster, h.creds)
+	if err != nil {
+		return nil, err
 	}
 
 	grpcServer := util.MakeGrpcServer(h.creds, grpc.UnaryInterceptor(h.onRequest))
