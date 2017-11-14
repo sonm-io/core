@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	errResourcesRequired = errors.New("`usage` field is required")
+	errResourcesRequired = errors.New("resources field is required")
 )
 
 // Resources wraps the underlying protobuf object with full validation, such
