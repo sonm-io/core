@@ -244,9 +244,9 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 
 type env map[string]string
 
-func (e *env) format() []string {
-	vars := make([]string, 0, len(map[string]string(*e)))
-	for k, v := range map[string]string(*e) {
+func (e env) format() []string {
+	vars := make([]string, 0, len(map[string]string(e)))
+	for k, v := range map[string]string(e) {
 		vars = append(vars, fmt.Sprintf("%s=%s", strings.ToUpper(k), v))
 	}
 
