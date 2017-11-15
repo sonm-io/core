@@ -7,20 +7,19 @@ import (
 )
 
 var (
-	errOrderIsNil  = errors.New("Order cannot be nil")
-	errPriceIsZero = errors.New("Order price cannot be less or equal than zero")
+	errOrderIsNil  = errors.New("order cannot be nil")
+	errPriceIsZero = errors.New("order price cannot be less or equal than zero")
 )
 
 // Order represents a safe order wrapper.
 //
-// This is used for decomposition the validation out of the protocol. All
+// This is used to decompose the validation out of the protocol. All
 // methods must return the valid sub-structures.
 type Order struct {
 	inner *pb.Order
 }
 
-// ByPrice implements sort.Interface
-// allows to sort Orders by Price filed
+// ByPrice implements sort.Interface; it allows for sorting Orders by Price field.
 type ByPrice []*Order
 
 func (a ByPrice) Len() int           { return len(a) }
