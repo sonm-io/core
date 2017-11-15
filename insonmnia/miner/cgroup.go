@@ -25,6 +25,7 @@ type cGroupManager interface {
 	Parent() cGroup
 	// Attach attaches a new nested cgroup under the parent cgroup, returning
 	// that new cgroup handle.
+	// Also returns cgroup handle if it is already exists.
 	Attach(name string, resources *specs.LinuxResources) (cGroup, error)
 	// Detach detaches and deletes a nested cgroup.
 	Detach(name string) error
@@ -95,7 +96,7 @@ func (c *controlGroupManager) Attach(name string, resources *specs.LinuxResource
 	defer c.mu.Unlock()
 
 	if cgroup, exists := c.nested[name]; exists {
-		return cgroup, nil
+		return cgroup, errCgroupAlreadyExists
 	}
 
 	cgroup, err := c.parent.New(name, resources)

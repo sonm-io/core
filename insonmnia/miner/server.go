@@ -85,6 +85,43 @@ type Miner struct {
 	certRotator util.HitlessCertRotator
 }
 
+type resourceHandle interface {
+	// Commit marks the handle that the resources consumed should not be
+	// released.
+	commit()
+	// Release releases consumed resources.
+	// Useful in conjunction with defer.
+	release()
+}
+
+// NilResourceHandle is a resource handle that does nothing.
+type nilResourceHandle struct{}
+
+func (h *nilResourceHandle) commit() {
+}
+
+func (h *nilResourceHandle) release() {
+}
+
+type ownedResourceHandle struct {
+	miner     *Miner
+	usage     resource.Resources
+	committed bool
+}
+
+func (h *ownedResourceHandle) commit() {
+	h.committed = true
+}
+
+func (h *ownedResourceHandle) release() {
+	if h.committed {
+		return
+	}
+
+	h.miner.resources.Release(&h.usage)
+	h.committed = true
+}
+
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -240,26 +277,17 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		return nil, err
 	}
 
-	var publicKey ssh.PublicKey
-	if len(request.PublicKeyData) != 0 {
-		var err error
-		k, _, _, _, err := ssh.ParseAuthorizedKey([]byte(request.PublicKeyData))
-		if err != nil {
-			return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
-		}
-		publicKey = k
+	publicKey, err := parsePublicKey(request.PublicKeyData)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
 
-	usage := resources.ToUsage()
-	if err := m.resources.Consume(&usage); err != nil {
-		return nil, status.Errorf(codes.ResourceExhausted, "failed to Start %v", err)
+	cgroup, resourceHandle, err := m.consume(request.GetOrderId(), resources)
+	if err != nil {
+		return nil, status.Errorf(codes.ResourceExhausted, "failed to start %v", err)
 	}
-
-	orderId := request.GetOrderId()
-	cgroup, err := m.cGroupManager.Attach(orderId, resources.ToCgroupResources())
-	if err != nil && err != errCgroupAlreadyExists {
-		return nil, err
-	}
+	// This can be canceled by using "resourceHandle.commit()".
+	defer resourceHandle.release()
 
 	var d = Description{
 		Image:         request.Image,
@@ -273,13 +301,14 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		GPURequired:   resources.RequiresGPU(),
 	}
 
+	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
+
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, request.Id)
 
 	log.G(m.ctx).Info("spooling an image")
 	if err := m.ovs.Spool(ctx, d); err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		m.resources.Release(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
@@ -289,7 +318,6 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		m.resources.Release(&usage)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 	containerInfo.PublicKey = publicKey
@@ -323,7 +351,31 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		}
 	}
 
+	resourceHandle.commit()
 	return &rpl, nil
+}
+
+func (m *Miner) consume(orderId string, resources *structs.TaskResources) (cGroup, resourceHandle, error) {
+	cgroup, err := m.cGroupManager.Attach(orderId, resources.ToCgroupResources())
+	if err != nil && err != errCgroupAlreadyExists {
+		return nil, nil, err
+	}
+	if err != errCgroupAlreadyExists {
+		return cgroup, &nilResourceHandle{}, nil
+	}
+
+	usage := resources.ToUsage()
+	if err := m.resources.Consume(&usage); err != nil {
+		return nil, nil, err
+	}
+
+	handle := &ownedResourceHandle{
+		miner:     m,
+		usage:     usage,
+		committed: false,
+	}
+
+	return cgroup, handle, nil
 }
 
 // Stop request forces to kill container
