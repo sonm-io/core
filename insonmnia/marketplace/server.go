@@ -18,17 +18,17 @@ const (
 )
 
 var (
-	errOrderNotFound     = errors.New("Order cannot be found")
-	errPriceIsZero       = errors.New("Order price cannot be less or equal than zero")
-	errOrderIsNil        = errors.New("Order cannot be nil")
-	errSlotIsNil         = errors.New("Order slot cannot be nil")
-	errResourcesIsNil    = errors.New("Slot resources cannot be nil")
-	errSearchParamsIsNil = errors.New("Search params cannot be nil")
+	errOrderNotFound     = errors.New("order cannot be found")
+	errPriceIsZero       = errors.New("order price cannot be less or equal than zero")
+	errOrderIsNil        = errors.New("order cannot be nil")
+	errSlotIsNil         = errors.New("order slot cannot be nil")
+	errResourcesIsNil    = errors.New("slot resources cannot be nil")
+	errSearchParamsIsNil = errors.New("search params cannot be nil")
 )
 
-// searchParams holds all fields that using to search on the market
-// Preferring to extend this structure instead of increasing amount
-// of params that accepting by OrderStorage.GetOrders() function
+// searchParams holds all fields that are used to search on the market.
+// Extend this structure instead of increasing amount of params accepted
+// by OrderStorage.GetOrders() function.
 type searchParams struct {
 	slot      *structs.Slot
 	orderType pb.OrderType
@@ -197,9 +197,9 @@ func (m *Marketplace) CancelOrder(_ context.Context, req *pb.Order) (*pb.Empty, 
 }
 
 func (m *Marketplace) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetProcessingReply, error) {
-	// It exists just for matching the Marketplace interface.
-	// The Market service itself unable to know anything about processing orders.
-	// this method is implemented for Node in `insonmnia/node/market.go:348`
+	// This method exists just to match the Marketplace interface.
+	// The Market service itself is unable to know anything about processing orders.
+	// This method is implemented for Node in `insonmnia/node/market.go:348`
 	return nil, nil
 }
 
