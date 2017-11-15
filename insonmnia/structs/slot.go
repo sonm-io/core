@@ -7,11 +7,11 @@ import (
 )
 
 var (
-	errSlotIsNil         = errors.New("Order slot cannot be nil")
-	errResourcesIsNil    = errors.New("Slot resources cannot be nil")
-	errStartTimeAfterEnd = errors.New("Start time is after end time")
-	errStartTimeRequired = errors.New("Start time is required")
-	errEndTimeRequired   = errors.New("End time is required")
+	errSlotIsNil         = errors.New("order slot cannot be nil")
+	errResourcesIsNil    = errors.New("slot resources cannot be nil")
+	errStartTimeAfterEnd = errors.New("start time is after end time")
+	errStartTimeRequired = errors.New("start time is required")
+	errEndTimeRequired   = errors.New("end time is required")
 )
 
 type Slot struct {
