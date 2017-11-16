@@ -9,12 +9,13 @@ package sonm;
 
 // The SONM Local node API must also include
 // the Marketplace API, but it already has been described
-// into a "proto / marketplace.proto" file.
+// into a "proto/marketplace.proto" file.
 
 enum DealStatus {
-    PENDING = 0;
-    APPROVED = 1;
-    FINISHED = 2;
+    ANY_STATUS = 0;
+    PENDING = 1;
+    ACCEPTED = 2;
+    CLOSED = 3;
 }
 
 // TaskManagement describe a bunch of methods
@@ -50,9 +51,13 @@ service DealManagement {
 }
 
 message Deal {
-    string BidID = 1;
-    string AskID = 2;
+    string BuyerID = 1;
+    string SuppclierID = 2;
     DealStatus status = 3;
+
+    int64 price = 4;
+    Timestamp startTime = 5;
+    Timestamp endTime = 6;
 }
 
 message DealListRequest {

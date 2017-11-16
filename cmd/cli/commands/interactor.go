@@ -373,3 +373,54 @@ func NewMarketInteractor(addr string, timeout time.Duration) (NodeMarketInteract
 	}, nil
 
 }
+
+type DealsInteractor interface {
+	List(from string, status pb.DealStatus) ([]*pb.Deal, error)
+	Status(id string) (*pb.Deal, error)
+	FinishDeal(id string) error
+}
+
+type dealsInteractor struct {
+	timeout time.Duration
+	deals   pb.DealManagementClient
+}
+
+func (it *dealsInteractor) List(from string, status pb.DealStatus) ([]*pb.Deal, error) {
+	ctx, cancel := ctx(it.timeout)
+	defer cancel()
+
+	req := &pb.DealListRequest{Owner: from, Status: status}
+	reply, err := it.deals.List(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return reply.GetDeal(), nil
+}
+
+func (it *dealsInteractor) Status(id string) (*pb.Deal, error) {
+	ctx, cancel := ctx(it.timeout)
+	defer cancel()
+
+	return it.deals.Status(ctx, &pb.ID{Id: id})
+}
+
+func (it *dealsInteractor) FinishDeal(id string) error {
+	ctx, cancel := ctx(it.timeout)
+	defer cancel()
+
+	_, err := it.deals.Finish(ctx, &pb.ID{Id: id})
+	return err
+}
+
+func NewDealsInteractor(addr string, timeout time.Duration) (DealsInteractor, error) {
+	cc, err := util.MakeGrpcClient(context.Background(), addr, creds)
+	if err != nil {
+		return nil, err
+	}
+
+	return &dealsInteractor{
+		timeout: timeout,
+		deals:   pb.NewDealManagementClient(cc),
+	}, nil
+}
