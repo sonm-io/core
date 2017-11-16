@@ -16,6 +16,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 )
 
 var (
@@ -65,16 +66,9 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 		err error
 	)
 	m.ctx, m.cancel = context.WithCancel(ctx)
-	// TODO: secure connection
-	// TODO: identify miner via Authorization mechanism
-	// TODO: rediscover jobs assigned to that Miner
-	dctx, cancel := context.WithTimeout(ctx, time.Second*5)
-	defer cancel()
-	m.grpcConn, err = grpc.DialContext(dctx, "miner", grpc.WithInsecure(),
-		grpc.WithDecompressor(grpc.NewGZIPDecompressor()), grpc.WithCompressor(grpc.NewGZIPCompressor()),
-		grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
-			return conn, nil
-		}))
+	m.grpcConn, err = util.MakeGrpcClient(ctx, "miner", h.creds, grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
+		return conn, nil
+	}))
 	if err != nil {
 		log.G(ctx).Error("failed to connect to Miner's grpc server", zap.Error(err))
 		m.Close()

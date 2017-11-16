@@ -1,6 +1,11 @@
 package miner
 
 import (
+	"crypto/ecdsa"
+	"crypto/tls"
+	"fmt"
+	"os"
+
 	"golang.org/x/net/context"
 
 	"net"
@@ -14,7 +19,9 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 type MinerBuilder struct {
@@ -139,7 +146,32 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	log.G(ctx).Info("collected Hardware info", zap.Any("hardware", hardwareInfo))
 
-	grpcServer := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()))
+	var (
+		creds       credentials.TransportCredentials
+		certRotator util.HitlessCertRotator
+	)
+	if os.Getenv("GRPC_INSECURE") == "" {
+		var (
+			ethKey  *ecdsa.PrivateKey
+			TLSConf *tls.Config
+		)
+		if b.cfg.ETH() == nil || b.cfg.ETH().PrivateKey == "" {
+			cancel()
+			return nil, fmt.Errorf("either PrivateKey or GRPC_INSECURE environment variable must be set")
+		}
+		ethKey, err = ethcrypto.HexToECDSA(b.cfg.ETH().PrivateKey)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		// The rotator will be stopped by ctx
+		certRotator, TLSConf, err = util.NewHitlessCertRotator(ctx, ethKey)
+		if err != nil {
+			return nil, err
+		}
+		creds = util.NewTLS(TLSConf)
+	}
+	grpcServer := util.MakeGrpcServer(creds)
 
 	deleter, err := initializeControlGroup(b.cfg.HubResources())
 	if err != nil {
@@ -174,6 +206,9 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		ssh:          b.ssh,
 
 		connectedHubs: make(map[string]struct{}),
+
+		certRotator: certRotator,
+		creds:       creds,
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)

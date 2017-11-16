@@ -1,17 +1,21 @@
 package util
 
-import "google.golang.org/grpc"
+import (
+	"context"
 
-// Credentials describe any type of auth data.
-// Empty for now, but must be implemented in nearest future
-type Credentials interface{}
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+)
 
 // MakeGrpcClient creates new gRPC client connection on given addr
 // and wraps it with given credentials
-func MakeGrpcClient(addr string, _ Credentials) (*grpc.ClientConn, error) {
-	cc, err := grpc.Dial(addr, grpc.WithInsecure(),
-		grpc.WithCompressor(grpc.NewGZIPCompressor()),
-		grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
+func MakeGrpcClient(ctx context.Context, addr string, creds credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
+	var secureOpt = grpc.WithInsecure()
+	if creds != nil {
+		secureOpt = grpc.WithTransportCredentials(creds)
+	}
+	var extraOpts = append(opts, secureOpt, grpc.WithCompressor(grpc.NewGZIPCompressor()), grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
+	cc, err := grpc.DialContext(ctx, addr, extraOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -19,10 +23,14 @@ func MakeGrpcClient(addr string, _ Credentials) (*grpc.ClientConn, error) {
 }
 
 // MakeGrpcServer creates new gRPC server
-func MakeGrpcServer() *grpc.Server {
-	srv := grpc.NewServer(
+func MakeGrpcServer(creds credentials.TransportCredentials, extraopts ...grpc.ServerOption) *grpc.Server {
+	var opts = []grpc.ServerOption{
 		grpc.RPCCompressor(grpc.NewGZIPCompressor()),
 		grpc.RPCDecompressor(grpc.NewGZIPDecompressor()),
-	)
+	}
+	if creds != nil {
+		opts = append(opts, grpc.Creds(creds))
+	}
+	srv := grpc.NewServer(append(opts, extraopts...)...)
 	return srv
 }

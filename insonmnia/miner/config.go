@@ -16,6 +16,10 @@ type FirewallConfig struct {
 	Server string `yaml:"server"`
 }
 
+type EthConfig struct {
+	PrivateKey string `required:"true" yaml:"private_key"`
+}
+
 // GPUConfig contains options related to NVIDIA GPU support
 type GPUConfig struct {
 	NvidiaDockerDriver string `yaml:"nvidiadockerdriver"`
@@ -33,6 +37,7 @@ type LoggingConfig struct {
 type config struct {
 	HubConfig      *HubConfig      `required:"false" yaml:"hub"`
 	FirewallConfig *FirewallConfig `required:"false" yaml:"firewall"`
+	Eth            *EthConfig      `yaml:"ethereum"`
 	GPUConfig      *GPUConfig      `required:"false" yaml:"GPUConfig"`
 	SSHConfig      *SSHConfig      `required:"false" yaml:"ssh"`
 	LoggingConfig  LoggingConfig   `yaml:"logging"`
@@ -73,6 +78,10 @@ func (c *config) UUIDPath() string {
 	return c.UUIDPathConfig
 }
 
+func (c *config) ETH() *EthConfig {
+	return c.Eth
+}
+
 // NewConfig creates a new Miner config from the specified YAML file.
 func NewConfig(path string) (Config, error) {
 	cfg := &config{}
@@ -103,4 +112,6 @@ type Config interface {
 	Logging() LoggingConfig
 	// Path to store Miner uuid
 	UUIDPath() string
+	// ETH returns ethereum configuration
+	ETH() *EthConfig
 }

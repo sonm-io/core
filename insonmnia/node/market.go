@@ -82,7 +82,7 @@ type orderHandler struct {
 func newOrderHandler(ctx context.Context, loc string, o *pb.Order) (*orderHandler, error) {
 	ctx, cancel := context.WithCancel(ctx)
 
-	cc, err := util.MakeGrpcClient(loc, nil)
+	cc, err := util.MakeGrpcClient(ctx, loc, nil)
 	if err != nil {
 		log.G(ctx).Debug("cannot create locator client", zap.Error(err))
 		return nil, err
@@ -160,7 +160,7 @@ func (h *orderHandler) propose(askID, supID string) error {
 		return err
 	}
 
-	cc, err := util.MakeGrpcClient(hubIP, nil)
+	cc, err := util.MakeGrpcClient(h.ctx, hubIP, nil)
 	if err != nil {
 		log.G(h.ctx).Debug("cannot create Hub gRPC client", zap.Error(err))
 		h.setError(err)
@@ -388,7 +388,7 @@ func (m *marketAPI) removeOrderHandler(id string) error {
 }
 
 func newMarketAPI(ctx context.Context, conf Config) (pb.MarketServer, error) {
-	cc, err := util.MakeGrpcClient(conf.MarketEndpoint(), nil)
+	cc, err := util.MakeGrpcClient(ctx, conf.MarketEndpoint(), nil)
 	if err != nil {
 		return nil, err
 	}

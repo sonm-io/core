@@ -137,7 +137,7 @@ func (it *grpcInteractor) TaskStop(appCtx context.Context, taskID string) (*pb.E
 }
 
 func NewGrpcInteractor(addr string, to time.Duration) (CliInteractor, error) {
-	cc, err := util.MakeGrpcClient(addr, nil)
+	cc, err := util.MakeGrpcClient(context.Background(), addr, creds)
 	if err != nil {
 		return nil, err
 	}
@@ -284,7 +284,7 @@ func (it *hubInteractor) TaskStatus(id string) (*pb.TaskStatusReply, error) {
 }
 
 func NewHubInteractor(addr string, timeout time.Duration) (NodeHubInteractor, error) {
-	cc, err := util.MakeGrpcClient(addr, nil)
+	cc, err := util.MakeGrpcClient(context.Background(), addr, creds)
 	if err != nil {
 		return nil, err
 	}
@@ -360,7 +360,7 @@ func ctx(timeout time.Duration) (context.Context, context.CancelFunc) {
 }
 
 func NewMarketInteractor(addr string, timeout time.Duration) (NodeMarketInteractor, error) {
-	cc, err := util.MakeGrpcClient(addr, nil)
+	cc, err := util.MakeGrpcClient(context.Background(), addr, creds)
 	if err != nil {
 		return nil, err
 	}
@@ -414,7 +414,7 @@ func (it *dealsInteractor) FinishDeal(id string) error {
 }
 
 func NewDealsInteractor(addr string, timeout time.Duration) (DealsInteractor, error) {
-	cc, err := util.MakeGrpcClient(addr, nil)
+	cc, err := util.MakeGrpcClient(context.Background(), addr, creds)
 	if err != nil {
 		return nil, err
 	}

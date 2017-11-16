@@ -2,12 +2,13 @@ package hub
 
 import (
 	"crypto/ecdsa"
+	"crypto/tls"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
 	"net"
+	"os"
 	"reflect"
 	"strconv"
 	"strings"
@@ -23,10 +24,10 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	consul "github.com/hashicorp/consul/api"
 	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
@@ -44,20 +45,16 @@ var (
 	ErrUnimplemented    = status.Errorf(codes.Unimplemented, "not implemented yet")
 )
 
-const tasksPrefix = "sonm/hub/tasks"
-const leaderKey = "sonm/hub/leader"
-
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
+	cfg              *HubConfig
 	ctx              context.Context
 	cancel           context.CancelFunc
 	gateway          *gateway.Gateway
 	portPool         *gateway.PortPool
-	grpcEndpoint     string
 	grpcEndpointAddr string
 	externalGrpc     *grpc.Server
-	endpoint         string
 	minerListener    net.Listener
 	ethKey           *ecdsa.PrivateKey
 
@@ -65,15 +62,14 @@ type Hub struct {
 	locatorPeriod   time.Duration
 	locatorClient   pb.LocatorClient
 
-	localEndpoint string
+	cluster Cluster
+	eventCh <-chan ClusterEvent
 
 	mu     sync.Mutex
 	miners map[string]*MinerCtx
 
 	// TODO: rediscover jobs if Miner disconnected
 	// TODO: store this data in some Storage interface
-	//tasksmu sync.Mutex
-	//tasks   map[string]string
 
 	wg        sync.WaitGroup
 	startTime time.Time
@@ -81,15 +77,9 @@ type Hub struct {
 
 	// Scheduling (obsolete).
 	filters []minerFilter
-	consul  Consul
 
 	associatedHubs     map[string]struct{}
 	associatedHubsLock sync.Mutex
-
-	isLeader bool
-
-	leaderClient     pb.HubClient
-	leaderClientLock sync.Mutex
 
 	eth    ETH
 	market Market
@@ -105,6 +95,15 @@ type Hub struct {
 	// Worker ACL.
 	// Must be synchronized with out Hub cluster.
 	acl ACLStorage
+
+	// Tasks
+	tasksMu sync.Mutex
+	tasks   map[string]*TaskInfo
+
+	// TLS certificate rotator
+	certRotator util.HitlessCertRotator
+	// GRPC TransportCredentials supported our Auth
+	creds credentials.TransportCredentials
 }
 
 type DeviceProperties map[string]float64
@@ -134,36 +133,9 @@ func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, erro
 	return reply, nil
 }
 
-func (h *Hub) loadTaskInfo() ([]*TaskInfo, error) {
-	kv := h.consul.KV()
-	tasks, _, err := kv.List(tasksPrefix, &consul.QueryOptions{})
-	reply := make([]*TaskInfo, 0, len(tasks))
-	if err != nil {
-		return nil, err
-	}
-
-	for _, kvpair := range tasks {
-		taskInfo := TaskInfo{}
-		err = json.Unmarshal(kvpair.Value, &taskInfo)
-		if err != nil {
-			kv.Delete(kvpair.Key, &consul.WriteOptions{})
-			log.G(h.ctx).Warn("inconsistent key found", zap.Error(err))
-			continue
-		} else {
-			reply = append(reply, &taskInfo)
-		}
-	}
-	return reply, nil
-}
-
 // List returns attached miners
 func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error) {
 	log.G(h.ctx).Info("handling List request")
-
-	tasks, err := h.loadTaskInfo()
-	if err != nil {
-		return nil, err
-	}
 
 	reply := &pb.ListReply{
 		Info: make(map[string]*pb.ListReply_ListValue),
@@ -171,7 +143,7 @@ func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error
 	for k := range h.miners {
 		reply.Info[k] = new(pb.ListReply_ListValue)
 	}
-	for _, taskInfo := range tasks {
+	for _, taskInfo := range h.tasks {
 		list, ok := reply.Info[taskInfo.MinerId]
 		if !ok {
 			reply.Info[taskInfo.MinerId] = &pb.ListReply_ListValue{
@@ -302,26 +274,19 @@ func (h *Hub) applyFilters(miner *MinerCtx, req *pb.TaskRequirements) (bool, err
 	return true, nil
 }
 
-func (h *Hub) onRequest(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
-	log.G(h.ctx).Debug("intercepting request")
-	forwarded, r, err := h.tryForwardToLeader(ctx, req, info)
-	if forwarded {
-		return r, err
-	}
-	return handler(ctx, req)
-}
-
 func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo) (bool, interface{}, error) {
-	if h.isLeader {
+	if h.cluster.IsLeader() {
 		log.G(h.ctx).Info("isLeader is true")
 		return false, nil, nil
 	}
 	log.G(h.ctx).Info("forwarding to leader", zap.String("method", info.FullMethod))
-	h.leaderClientLock.Lock()
-	cli := h.leaderClient
-	h.leaderClientLock.Unlock()
+	cli, err := h.cluster.LeaderClient()
+	if err != nil {
+		log.G(h.ctx).Warn("failed to get leader client")
+		return true, nil, err
+	}
 	if cli != nil {
-		t := reflect.ValueOf(h.leaderClient)
+		t := reflect.ValueOf(cli)
 		parts := strings.Split(info.FullMethod, "/")
 		methodName := parts[len(parts)-1]
 		m := t.MethodByName(methodName)
@@ -332,6 +297,15 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 	} else {
 		return true, nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
 	}
+}
+
+func (h *Hub) onRequest(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+	log.G(h.ctx).Debug("intercepting request")
+	forwarded, r, err := h.tryForwardToLeader(ctx, req, info)
+	if forwarded {
+		return r, err
+	}
+	return handler(ctx, req)
 }
 
 // StartTask schedules the Task on some miner
@@ -365,15 +339,8 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	}
 
 	info := TaskInfo{*request, *resp, taskID, miner.uuid}
-	b, err := json.Marshal(info)
-	if err != nil {
-		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
-		return nil, status.Errorf(codes.Internal, "could not marshal task info %v", err)
-	}
 
-	kv := h.consul.KV()
-	kvPair := consul.KVPair{Key: tasksPrefix + "/" + taskID, Value: b}
-	_, err = kv.Put(&kvPair, &consul.WriteOptions{})
+	err = h.saveTask(&info)
 	if err != nil {
 		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
 		return nil, status.Errorf(codes.Internal, "could not store task info %v", err)
@@ -464,6 +431,7 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
+//TODO: refactor - we can use h.tasks here
 func (h *Hub) TaskList(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
 	log.G(h.ctx).Info("handling TaskList request")
 	h.mu.Lock()
@@ -829,16 +797,6 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
 	}
 
-	var consulCli Consul
-	if cfg.ConsulEnabled {
-		consulCli, err = consul.NewClient(consul.DefaultConfig())
-	} else {
-		consulCli, err = newDevConsul(ctx)
-	}
-	if err != nil {
-		return nil, err
-	}
-
 	eth, err := NewETH()
 	if err != nil {
 		return nil, err
@@ -853,6 +811,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	acl.Insert(cfg.Eth.PrivateKey)
 
 	h := &Hub{
+		cfg:          cfg,
 		ctx:          ctx,
 		cancel:       cancel,
 		gateway:      gate,
@@ -861,10 +820,8 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 
 		miners: make(map[string]*MinerCtx),
 
-		grpcEndpoint: cfg.Monitoring.Endpoint,
-		endpoint:     cfg.Endpoint,
-		ethKey:       ethKey,
-		version:      version,
+		ethKey:  ethKey,
+		version: version,
 
 		locatorEndpoint: cfg.Locator.Address,
 		locatorPeriod:   time.Second * time.Duration(cfg.Locator.Period),
@@ -873,7 +830,6 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 			exactMatchFilter,
 			resourcesFilter,
 		},
-		consul:         consulCli,
 		associatedHubs: make(map[string]struct{}),
 
 		eth:    eth,
@@ -882,61 +838,33 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		deviceProperties: make(map[string]DeviceProperties),
 		slots:            make([]*structs.Slot, 0),
 		acl:              acl,
+
+		tasks: make(map[string]*TaskInfo),
+
+		certRotator: nil,
+		creds:       nil,
 	}
 
-	interceptor := h.onRequest
-	grpcServer := grpc.NewServer(grpc.RPCCompressor(grpc.NewGZIPCompressor()), grpc.RPCDecompressor(grpc.NewGZIPDecompressor()), grpc.UnaryInterceptor(interceptor))
-	h.externalGrpc = grpcServer
+	if os.Getenv("GRPC_INSECURE") == "" {
+		var TLSConfig *tls.Config
+		h.certRotator, TLSConfig, err = util.NewHitlessCertRotator(ctx, h.ethKey)
+		if err != nil {
+			return nil, err
+		}
+		h.creds = util.NewTLS(TLSConfig)
+	}
 
-	h.localEndpoint, err = h.determineLocalEndpoint()
+	h.cluster, err = NewCluster(ctx, &cfg.Cluster, h.creds)
 	if err != nil {
 		return nil, err
 	}
+
+	grpcServer := util.MakeGrpcServer(h.creds, grpc.UnaryInterceptor(h.onRequest))
+	h.externalGrpc = grpcServer
+
 	pb.RegisterHubServer(grpcServer, h)
+	log.G(h.ctx).Debug("created hub")
 	return h, nil
-}
-
-func (h *Hub) leaderWatch() {
-	log.G(h.ctx).Info("starting leader watch goroutine")
-	var waitIdx uint64 = 0
-	kv := h.consul.KV()
-	var err error = nil
-	for {
-		kv_pair, _, err := kv.Get(leaderKey, &consul.QueryOptions{WaitIndex: waitIdx})
-		if err != nil {
-			break
-		}
-		if kv_pair == nil {
-			time.Sleep(time.Second * 1)
-			log.G(h.ctx).Info("leader key is empty. sleeping for 1 sec")
-			continue
-		}
-		log.G(h.ctx).Info("leader watch: fetched leader", zap.Any("kvpair", kv_pair))
-		log.G(h.ctx).Info("leader watch: fetched leader", zap.String("leader", string(kv_pair.Value)))
-		h.leaderClientLock.Lock()
-		h.leaderClient = nil
-		h.leaderClientLock.Unlock()
-
-		ep := string(kv_pair.Value)
-		h.onNewHub(ep)
-		conn, err := grpc.Dial(ep, grpc.WithInsecure(),
-			grpc.WithCompressor(grpc.NewGZIPCompressor()),
-			grpc.WithDecompressor(grpc.NewGZIPDecompressor()))
-		if err != nil {
-			log.G(h.ctx).Warn("could not connect to hub", zap.String("endpoint", ep), zap.Error(err))
-			time.Sleep(time.Duration(100 * 1000000))
-			continue
-		}
-		h.leaderClientLock.Lock()
-		h.leaderClient = pb.NewHubClient(conn)
-		cli := h.leaderClient
-		h.leaderClientLock.Unlock()
-		cli.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{Endpoint: h.localEndpoint})
-
-		waitIdx = kv_pair.ModifyIndex
-	}
-	log.G(h.ctx).Error("leader watch failed", zap.Error(err))
-	h.Close()
 }
 
 func (h *Hub) onNewHub(endpoint string) {
@@ -954,74 +882,6 @@ func (h *Hub) onNewHub(endpoint string) {
 	}
 }
 
-func (h *Hub) determineLocalEndpoint() (string, error) {
-	if h.endpoint[0] == ':' {
-		ifaces, err := net.Interfaces()
-		if err != nil {
-			return "", err
-		}
-		for _, i := range ifaces {
-			addrs, err := i.Addrs()
-			if err != nil {
-				return "", err
-			}
-			for _, addr := range addrs {
-				var ip net.IP
-				switch v := addr.(type) {
-				case *net.IPNet:
-					ip = v.IP
-				case *net.IPAddr:
-					ip = v.IP
-				}
-				if ip != nil && ip.IsGlobalUnicast() {
-					ep := ip.String() + h.grpcEndpoint
-					return ep, nil
-				}
-			}
-		}
-	} else {
-		return h.endpoint, nil
-	}
-	return "", errors.New("unicast ip not found")
-}
-
-func (h *Hub) election() error {
-	log.G(h.ctx).Info("starting leader election goroutine")
-	go h.leaderWatch()
-	var err error
-
-	for {
-		lock, err := h.consul.LockOpts(&consul.LockOptions{
-			Key:   leaderKey,
-			Value: []byte(h.localEndpoint),
-		})
-		if err != nil {
-			log.G(h.ctx).Warn("could not create lock opts", zap.Error(err))
-			break
-		}
-
-		log.G(h.ctx).Info("trying to acquire leader lock")
-		followerCh, err := lock.Lock(nil)
-		if err != nil {
-			log.G(h.ctx).Info("could not acquire leader lock", zap.Error(err))
-			break
-		}
-		log.G(h.ctx).Info("leader lock acquired")
-		h.isLeader = true
-		for {
-			_, ok := <-followerCh
-			if !ok {
-				log.G(h.ctx).Info("leader lock released")
-				break
-			}
-		}
-		h.isLeader = false
-	}
-	log.G(h.ctx).Warn("election failed - closing hub", zap.Error(err))
-	h.Close()
-	return err
-}
-
 // TODO: Decomposed here to be able to easily comment when UDP capturing occurs :)
 func (h *Hub) startDiscovery() error {
 	ip, err := util.GetPublicIP()
@@ -1029,18 +889,19 @@ func (h *Hub) startDiscovery() error {
 		return err
 	}
 
-	workersPort, err := util.ParseEndpointPort(h.endpoint)
+	workersPort, err := util.ParseEndpointPort(h.cfg.Endpoint)
 	if err != nil {
 		return err
 	}
 
-	clientPort, err := util.ParseEndpointPort(h.grpcEndpoint)
+	clientPort, err := util.ParseEndpointPort(h.cfg.Cluster.GrpcEndpoint)
 	if err != nil {
 		return err
 	}
 
 	workersEndpoint := ip.String() + ":" + workersPort
 	clientEndpoint := ip.String() + ":" + clientPort
+	//TODO: this detection seems to be strange
 	h.grpcEndpointAddr = clientEndpoint
 
 	srv, err := frd.NewServer(h.ethKey, workersEndpoint, clientEndpoint)
@@ -1059,25 +920,26 @@ func (h *Hub) startDiscovery() error {
 // Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
-	go h.election()
-
 	h.startTime = time.Now()
 
-	if err := h.startDiscovery(); err != nil {
-		return err
+	if h.cfg.Fusrodah {
+		log.G(h.ctx).Info("starting discovery")
+		if err := h.startDiscovery(); err != nil {
+			return err
+		}
 	}
 
-	listener, err := net.Listen("tcp", h.endpoint)
+	listener, err := net.Listen("tcp", h.cfg.Endpoint)
 	if err != nil {
-		log.G(h.ctx).Error("failed to listen", zap.String("address", h.endpoint), zap.Error(err))
+		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Endpoint), zap.Error(err))
 		return err
 	}
 	log.G(h.ctx).Info("listening for connections from Miners", zap.Stringer("address", listener.Addr()))
 
-	grpcL, err := net.Listen("tcp", h.grpcEndpoint)
+	grpcL, err := net.Listen("tcp", h.cfg.Cluster.GrpcEndpoint)
 	if err != nil {
 		log.G(h.ctx).Error("failed to listen",
-			zap.String("address", h.grpcEndpoint), zap.Error(err))
+			zap.String("address", h.cfg.Cluster.GrpcEndpoint), zap.Error(err))
 		listener.Close()
 		return err
 	}
@@ -1103,9 +965,10 @@ func (h *Hub) Serve() error {
 		}
 	}()
 
+	// TODO: This is wrong! It checks only on start and isLeader is probably always false!
 	// init locator connection and announce
 	// address only on Leader
-	if h.isLeader {
+	if h.cluster.IsLeader() {
 		err = h.initLocatorClient()
 		if err != nil {
 			return err
@@ -1118,8 +981,45 @@ func (h *Hub) Serve() error {
 		}()
 	}
 
+	h.cluster.RegisterEntity("tasks", h.tasks)
+	h.eventCh = h.cluster.Run()
+	go h.listenClusterEvents()
+
 	h.wg.Wait()
 	return nil
+}
+
+func (h *Hub) listenClusterEvents() {
+	for {
+		select {
+		case event := <-h.eventCh:
+			h.processClusterEvent(event)
+		case <-h.ctx.Done():
+			return
+		}
+	}
+}
+
+func (h *Hub) processClusterEvent(value interface{}) {
+	log.G(h.ctx).Info("received cluster event", zap.Any("event", value))
+	switch value := value.(type) {
+	case NewMemberEvent:
+		//We don't care now
+	case LeadershipEvent:
+		//We don't care now
+	case *map[string]*TaskInfo:
+		log.G(h.ctx).Info("synchronizing tasks from cluster")
+		h.tasksMu.Lock()
+		h.tasks = *value
+		h.tasksMu.Unlock()
+	case error:
+		// continue reading from event channel as there could be pending events
+		go func() {
+			log.G(h.ctx).Warn("cluster failure, retrying after 10 seconds", zap.Error(value))
+			time.Sleep(time.Second * 10)
+			h.eventCh = h.cluster.Run()
+		}()
+	}
 }
 
 // Close disposes all resources attached to the Hub
@@ -1129,6 +1029,9 @@ func (h *Hub) Close() {
 	h.minerListener.Close()
 	if h.gateway != nil {
 		h.gateway.Close()
+	}
+	if h.certRotator != nil {
+		h.certRotator.Close()
 	}
 	h.wg.Wait()
 }
@@ -1173,28 +1076,31 @@ func (h *Hub) getMinerByID(minerID string) (*MinerCtx, bool) {
 	return m, ok
 }
 
-func (h *Hub) getTask(taskID string) (*TaskInfo, error) {
-	kv := h.consul.KV()
-	taskData, _, err := kv.Get(tasksPrefix+"/"+taskID, &consul.QueryOptions{})
-	if err != nil {
-		return nil, err
-	}
+func (h *Hub) saveTask(info *TaskInfo) error {
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+	h.tasks[info.ID] = info
+	return h.cluster.Synchronize(h.tasks)
+}
 
-	taskInfo := TaskInfo{}
-	err = json.Unmarshal(taskData.Value, &taskInfo)
-	if err != nil {
-		return nil, err
+func (h *Hub) getTask(taskID string) (*TaskInfo, error) {
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+	info, ok := h.tasks[taskID]
+	if !ok {
+		return nil, errors.New("no such task")
 	}
-	return &taskInfo, nil
+	return info, nil
 }
 
 func (h *Hub) deleteTask(taskID string) error {
-	kv := h.consul.KV()
-	_, err := kv.Delete(tasksPrefix+"/"+taskID, &consul.WriteOptions{})
-	if err != nil {
-		return err
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+	_, ok := h.tasks[taskID]
+	if ok {
+		delete(h.tasks, taskID)
+		return h.cluster.Synchronize(h.tasks)
 	}
-
 	return nil
 }
 

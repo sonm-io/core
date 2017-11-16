@@ -12,10 +12,6 @@ type GatewayConfig struct {
 	Ports []uint16 `required:"true" yaml:"ports"`
 }
 
-type MonitoringConfig struct {
-	Endpoint string `required:"true" yaml:"endpoint"`
-}
-
 type EthConfig struct {
 	PrivateKey string `required:"true" yaml:"private_key"`
 }
@@ -25,15 +21,34 @@ type LocatorConfig struct {
 	Period  int    `required:"true" default:"300" yaml:"period"`
 }
 
+type StoreConfig struct {
+	Type     string `required:"true" default:"boltdb" yaml:"type"`
+	Endpoint string `required:"true" default:"/tmp/sonm/boltdb" yaml:"endpoint"`
+	Bucket   string `required:"true" default:"sonm" yaml:"bucket"`
+}
+
+type ClusterConfig struct {
+	Store                        StoreConfig `yaml:"store"`
+	Failover                     bool        `yaml:"failover" required:"true" default:"false"`
+	GrpcEndpoint                 string      `yaml:"grpc_endpoint"`
+	LeaderKey                    string      `yaml:"leader_key" default:"sonm/hub/leader"`
+	MemberListKey                string      `yaml:"member_list_key" default:"sonm/hub/list"`
+	SynchronizableEntitiesPrefix string      `yaml:"sync_prefix" default:"sonm/hub/sync"`
+	LeaderTTL                    uint64      `yaml:"leader_ttl" default:"20"`
+	AnnouncePeriod               uint64      `yaml:"announce_period" default:"10"`
+	AnnounceTTL                  uint64      `yaml:"announce_ttl" default:"10"`
+	MemberGCPeriod               uint64      `yaml:"member_gc_period" default:"60"`
+}
+
 type HubConfig struct {
-	Endpoint      string           `required:"true" yaml:"endpoint"`
-	GatewayConfig *GatewayConfig   `yaml:"gateway"`
-	Bootnodes     []string         `required:"false" yaml:"bootnodes"`
-	Monitoring    MonitoringConfig `required:"true" yaml:"monitoring"`
-	Logging       LoggingConfig    `yaml:"logging"`
-	Eth           EthConfig        `yaml:"ethereum"`
-	Locator       LocatorConfig    `yaml:"locator"`
-	ConsulEnabled bool             `yaml:"consul_enabled" default:"false"`
+	Endpoint      string         `required:"true" yaml:"endpoint"`
+	GatewayConfig *GatewayConfig `yaml:"gateway"`
+	Bootnodes     []string       `required:"false" yaml:"bootnodes"`
+	Logging       LoggingConfig  `yaml:"logging"`
+	Eth           EthConfig      `yaml:"ethereum"`
+	Locator       LocatorConfig  `yaml:"locator"`
+	Cluster       ClusterConfig  `yaml:"cluster"`
+	Fusrodah      bool           `yaml:"fusrodah"`
 }
 
 // NewConfig loads a hub config from the specified YAML file.

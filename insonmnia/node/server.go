@@ -127,7 +127,7 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		return nil, err
 	}
 
-	srv := util.MakeGrpcServer()
+	srv := util.MakeGrpcServer(nil)
 	// register hub connection if hub addr is set
 	if c.HubEndpoint() != "" {
 		hub, err := newHubAPI(ctx, c)
