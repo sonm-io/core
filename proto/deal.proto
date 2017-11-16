@@ -2,14 +2,22 @@ syntax = "proto3";
 
 package sonm;
 
+import "insonmnia.proto";
+
 enum DealStatus {
-    PENDING = 0;
-    APPROVED = 1;
-    FINISHED = 2;
+    ANY_STATUS = 0;
+    PENDING = 1;
+    ACCEPTED = 2;
+    CLOSED = 3;
 }
 
 message Deal {
-    string bidID = 1;
-    string askID = 2;
-    DealStatus status = 3;
+    string id = 1;
+    string BuyerID = 2;
+    string SuppclierID = 3;
+    DealStatus status = 4;
+
+    int64 price = 5;
+    Timestamp startTime = 6;
+    Timestamp endTime = 7;
 }

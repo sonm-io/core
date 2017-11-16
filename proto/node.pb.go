@@ -56,7 +56,7 @@ func (m *DealListRequest) GetStatus() DealStatus {
 	if m != nil {
 		return m.Status
 	}
-	return DealStatus_PENDING
+	return DealStatus_ANY_STATUS
 }
 
 type DealListReply struct {

@@ -10,7 +10,8 @@ package sonm;
 
 // The SONM Local node API must also include
 // the Marketplace API, but it already has been described
-// into a "proto / marketplace.proto" file.
+// into a "proto/marketplace.proto" file.
+
 
 // TaskManagement describe a bunch of methods
 // to manage tasks running into the SONM network
