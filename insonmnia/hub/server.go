@@ -650,6 +650,51 @@ func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply,
 	return reply, nil
 }
 
+func (h *Hub) MinerDevices(ctx context.Context, request *pb.ID) (*pb.DevicesReply, error) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	miner, ok := h.miners[request.Id]
+	if !ok {
+		return nil, ErrMinerNotFound
+	}
+
+	CPUs := map[string]*pb.CPUDeviceInfo{}
+	for _, cpu := range miner.capabilities.CPU {
+		hash := hex.EncodeToString(cpu.Hash())
+		info, exists := CPUs[hash]
+		if exists {
+			info.Miners = append(info.Miners, request.Id)
+		} else {
+			CPUs[hash] = &pb.CPUDeviceInfo{
+				Miners: []string{request.Id},
+				Device: cpu.Marshal(),
+			}
+		}
+	}
+
+	GPUs := map[string]*pb.GPUDeviceInfo{}
+	for _, dev := range miner.capabilities.GPU {
+		hash := hex.EncodeToString(dev.Hash())
+		info, exists := GPUs[hash]
+		if exists {
+			info.Miners = append(info.Miners, request.Id)
+		} else {
+			GPUs[hash] = &pb.GPUDeviceInfo{
+				Miners: []string{request.Id},
+				Device: gpu.Marshal(dev),
+			}
+		}
+	}
+
+	reply := &pb.DevicesReply{
+		CPUs: CPUs,
+		GPUs: GPUs,
+	}
+
+	return reply, nil
+}
+
 func (h *Hub) GetDeviceProperties(ctx context.Context, request *pb.ID) (*pb.GetDevicePropertiesReply, error) {
 	log.G(h.ctx).Info("handling GetMinerProperties request", zap.Any("req", request))
 

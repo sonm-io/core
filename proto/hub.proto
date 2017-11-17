@@ -33,6 +33,8 @@ service Hub {
     // Devices returns list of all available devices that this Hub awares of
     // with tieir full description.
     rpc Devices(Empty) returns (DevicesReply) {}
+    // MinerDevices returns a list of all available devices for given miner ID.
+    rpc MinerDevices(ID) returns (DevicesReply) {}
     // GetDeviceProperties allows to obtain previously assigned resource
     // properties for a given device.
     // TODO: Just string?
