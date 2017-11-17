@@ -84,15 +84,18 @@ type Hub struct {
 
 	// Device properties.
 	// Must be synchronized with out Hub cluster.
-	deviceProperties map[string]DeviceProperties
+	deviceProperties   map[string]DeviceProperties
+	devicePropertiesMu sync.RWMutex
 
 	// Scheduling.
 	// Must be synchronized with out Hub cluster.
-	slots []*structs.Slot
+	slots   []*structs.Slot
+	slotsMu sync.RWMutex
 
 	// Worker ACL.
 	// Must be synchronized with out Hub cluster.
-	acl ACLStorage
+	acl   ACLStorage
+	aclMu sync.RWMutex
 
 	// Tasks
 	tasksMu sync.Mutex
@@ -554,8 +557,8 @@ func (h *Hub) MinerDevices(ctx context.Context, request *pb.ID) (*pb.DevicesRepl
 func (h *Hub) GetDeviceProperties(ctx context.Context, request *pb.ID) (*pb.GetDevicePropertiesReply, error) {
 	log.G(h.ctx).Info("handling GetMinerProperties request", zap.Any("req", request))
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.devicePropertiesMu.RLock()
+	defer h.devicePropertiesMu.RUnlock()
 
 	properties, exists := h.deviceProperties[request.Id]
 	if !exists {
@@ -568,9 +571,13 @@ func (h *Hub) GetDeviceProperties(ctx context.Context, request *pb.ID) (*pb.GetD
 func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDevicePropertiesRequest) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling SetDeviceProperties request", zap.Any("req", request))
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.devicePropertiesMu.Lock()
+	defer h.devicePropertiesMu.Unlock()
 	h.deviceProperties[request.ID] = DeviceProperties(request.Properties)
+	err := h.cluster.Synchronize(h.deviceProperties)
+	if err != nil {
+		return nil, err
+	}
 
 	return &pb.Empty{}, nil
 }
@@ -578,8 +585,8 @@ func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDeviceProp
 func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, error) {
 	log.G(h.ctx).Info("handling Slots request", zap.Any("request", request))
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.slotsMu.RLock()
+	defer h.slotsMu.RUnlock()
 	slots := make([]*pb.Slot, 0, len(h.slots))
 	for _, slot := range h.slots {
 		slots = append(slots, slot.Unwrap())
@@ -598,11 +605,15 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, erro
 		return nil, err
 	}
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.slotsMu.Lock()
+	defer h.slotsMu.Unlock()
 
 	// TODO: Check that such slot already exists.
 	h.slots = append(h.slots, slot)
+	err = h.cluster.Synchronize(h.slots)
+	if err != nil {
+		return nil, err
+	}
 
 	return &pb.Empty{}, nil
 }
@@ -617,13 +628,17 @@ func (h *Hub) RemoveSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, erro
 
 	filtered := []*structs.Slot{}
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.slotsMu.Lock()
+	defer h.slotsMu.Unlock()
 
 	for _, s := range h.slots {
 		if !s.Eq(slot) {
 			filtered = append(filtered, s)
 		}
+	}
+	err = h.cluster.Synchronize(h.slots)
+	if err != nil {
+		return nil, err
 	}
 
 	return &pb.Empty{}, nil
@@ -654,6 +669,13 @@ func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, er
 	log.G(h.ctx).Info("handling RegisterWorker request", zap.String("id", request.GetId()))
 
 	h.acl.Insert(request.Id)
+	err := h.acl.Apply(func(data interface{}) error {
+		return h.cluster.Synchronize(h.acl)
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	return &pb.Empty{}, nil
 }
 
@@ -663,7 +685,15 @@ func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, 
 
 	if existed := h.acl.Remove(request.Id); !existed {
 		log.G(h.ctx).Warn("attempt to deregister unregistered worker", zap.String("id", request.GetId()))
+	} else {
+		err := h.acl.Apply(func(data interface{}) error {
+			return h.cluster.Synchronize(h.acl)
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return &pb.Empty{}, nil
 }
 
@@ -709,7 +739,10 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	}
 
 	acl := NewACLStorage()
+	//TODO: how do we sync this?
 	acl.Insert(cfg.Eth.PrivateKey)
+	fmt.Println(acl)
+	log.G(ctx).Info("acl", zap.Reflect("acl", acl))
 
 	h := &Hub{
 		cfg:          cfg,
@@ -879,6 +912,9 @@ func (h *Hub) Serve() error {
 	}
 
 	h.cluster.RegisterEntity("tasks", h.tasks)
+	h.cluster.RegisterEntity("device_properties", h.deviceProperties)
+	h.cluster.RegisterEntity("acl", h.acl)
+	h.cluster.RegisterEntity("slots", h.slots)
 	h.eventCh = h.cluster.Run()
 	go h.listenClusterEvents()
 
@@ -904,11 +940,21 @@ func (h *Hub) processClusterEvent(value interface{}) {
 		//We don't care now
 	case LeadershipEvent:
 		//We don't care now
-	case *map[string]*TaskInfo:
+	case map[string]*TaskInfo:
 		log.G(h.ctx).Info("synchronizing tasks from cluster")
 		h.tasksMu.Lock()
-		h.tasks = *value
-		h.tasksMu.Unlock()
+		defer h.tasksMu.Unlock()
+		h.tasks = value
+	case map[string]DeviceProperties:
+		h.devicePropertiesMu.Lock()
+		defer h.devicePropertiesMu.Unlock()
+		h.deviceProperties = value
+	case []*structs.Slot:
+		h.slotsMu.Lock()
+		defer h.slotsMu.Unlock()
+		h.slots = value
+	case ACLStorage:
+		h.acl = value
 	case error:
 		// continue reading from event channel as there could be pending events
 		go func() {
@@ -916,6 +962,10 @@ func (h *Hub) processClusterEvent(value interface{}) {
 			time.Sleep(time.Second * 10)
 			h.eventCh = h.cluster.Run()
 		}()
+	default:
+		log.G(h.ctx).Warn("received unknown cluster event",
+			zap.Any("event", value),
+			zap.String("type", reflect.TypeOf(value).String()))
 	}
 }
 
