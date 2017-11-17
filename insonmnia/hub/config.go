@@ -36,7 +36,7 @@ type ClusterConfig struct {
 	SynchronizableEntitiesPrefix string      `yaml:"sync_prefix" default:"sonm/hub/sync"`
 	LeaderTTL                    uint64      `yaml:"leader_ttl" default:"20"`
 	AnnouncePeriod               uint64      `yaml:"announce_period" default:"10"`
-	AnnounceTTL                  uint64      `yaml:"announce_ttl" default:"10"`
+	AnnounceTTL                  uint64      `yaml:"announce_ttl" default:"20"`
 	MemberGCPeriod               uint64      `yaml:"member_gc_period" default:"60"`
 }
 

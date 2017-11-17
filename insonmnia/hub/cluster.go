@@ -134,6 +134,9 @@ type cluster struct {
 }
 
 func (c *cluster) Run() <-chan ClusterEvent {
+	if c.cancel != nil {
+		c.cancel()
+	}
 	c.ctx, c.cancel = context.WithCancel(c.parentCtx)
 	if c.cfg.Failover {
 		c.isLeader = false
@@ -181,16 +184,20 @@ func (c *cluster) RegisterEntity(name string, prototype interface{}) {
 
 func (c *cluster) Synchronize(entity interface{}) error {
 	if !c.isLeader {
+		log.G(c.ctx).Warn("failed to synchronize entity - not a leader")
 		return errors.New("not a leader")
 	}
 	name, err := c.nameByEntity(entity)
 	if err != nil {
+		log.G(c.ctx).Warn("unknown synchronizable entity", zap.Any("entity", entity))
 		return err
 	}
 	data, err := json.Marshal(entity)
 	if err != nil {
+		log.G(c.ctx).Warn("could not marshal entity", zap.Error(err))
 		return err
 	}
+	log.G(c.ctx).Debug("synchronizing entity", zap.Any("entity", entity), zap.ByteString("marshalled", data))
 	c.store.Put(c.cfg.SynchronizableEntitiesPrefix+"/"+name, data, &store.WriteOptions{})
 	return nil
 }
@@ -357,13 +364,15 @@ func (c *cluster) watchEvents() {
 				t, err := c.typeByName(name)
 				if err != nil {
 					log.G(c.ctx).Warn("unknown synchronizable entity", zap.String("entity", name))
+					continue
 				}
 				value := reflect.New(t)
 				err = json.Unmarshal(kv.Value, value.Interface())
 				if err != nil {
 					log.G(c.ctx).Warn("can not unmarshal entity", zap.Error(err))
 				} else {
-					c.eventChannel <- value.Interface()
+					log.G(c.ctx).Debug("received cluster event", zap.String("name", name), zap.Any("value", value.Interface()))
+					c.eventChannel <- reflect.Indirect(value).Interface()
 				}
 			}
 		}
