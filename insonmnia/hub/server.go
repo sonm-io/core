@@ -611,35 +611,13 @@ func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply,
 	// Templates in go? Nevermind, just copy/paste.
 
 	CPUs := map[string]*pb.CPUDeviceInfo{}
-	for id, miner := range h.miners {
-		for _, cpu := range miner.capabilities.CPU {
-			hash := hex.EncodeToString(cpu.Hash())
-			info, exists := CPUs[hash]
-			if exists {
-				info.Miners = append(info.Miners, id)
-			} else {
-				CPUs[hash] = &pb.CPUDeviceInfo{
-					Miners: []string{id},
-					Device: cpu.Marshal(),
-				}
-			}
-		}
+	for _, miner := range h.miners {
+		h.collectMinerCPUs(miner, CPUs)
 	}
 
 	GPUs := map[string]*pb.GPUDeviceInfo{}
-	for id, miner := range h.miners {
-		for _, dev := range miner.capabilities.GPU {
-			hash := hex.EncodeToString(dev.Hash())
-			info, exists := GPUs[hash]
-			if exists {
-				info.Miners = append(info.Miners, id)
-			} else {
-				GPUs[hash] = &pb.GPUDeviceInfo{
-					Miners: []string{id},
-					Device: gpu.Marshal(dev),
-				}
-			}
-		}
+	for _, miner := range h.miners {
+		h.collectMinerGPUs(miner, GPUs)
 	}
 
 	reply := &pb.DevicesReply{
@@ -660,32 +638,10 @@ func (h *Hub) MinerDevices(ctx context.Context, request *pb.ID) (*pb.DevicesRepl
 	}
 
 	CPUs := map[string]*pb.CPUDeviceInfo{}
-	for _, cpu := range miner.capabilities.CPU {
-		hash := hex.EncodeToString(cpu.Hash())
-		info, exists := CPUs[hash]
-		if exists {
-			info.Miners = append(info.Miners, request.Id)
-		} else {
-			CPUs[hash] = &pb.CPUDeviceInfo{
-				Miners: []string{request.Id},
-				Device: cpu.Marshal(),
-			}
-		}
-	}
+	h.collectMinerCPUs(miner, CPUs)
 
 	GPUs := map[string]*pb.GPUDeviceInfo{}
-	for _, dev := range miner.capabilities.GPU {
-		hash := hex.EncodeToString(dev.Hash())
-		info, exists := GPUs[hash]
-		if exists {
-			info.Miners = append(info.Miners, request.Id)
-		} else {
-			GPUs[hash] = &pb.GPUDeviceInfo{
-				Miners: []string{request.Id},
-				Device: gpu.Marshal(dev),
-			}
-		}
-	}
+	h.collectMinerGPUs(miner, GPUs)
 
 	reply := &pb.DevicesReply{
 		CPUs: CPUs,
@@ -1193,5 +1149,35 @@ func (h *Hub) announceAddress(ctx context.Context) {
 	_, err := h.locatorClient.Announce(ctx, req)
 	if err != nil {
 		log.G(ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
+	}
+}
+
+func (h *Hub) collectMinerCPUs(miner *MinerCtx, dst map[string]*pb.CPUDeviceInfo) {
+	for _, cpu := range miner.capabilities.CPU {
+		hash := hex.EncodeToString(cpu.Hash())
+		info, exists := dst[hash]
+		if exists {
+			info.Miners = append(info.Miners, miner.ID())
+		} else {
+			dst[hash] = &pb.CPUDeviceInfo{
+				Miners: []string{miner.ID()},
+				Device: cpu.Marshal(),
+			}
+		}
+	}
+}
+
+func (h *Hub) collectMinerGPUs(miner *MinerCtx, dst map[string]*pb.GPUDeviceInfo) {
+	for _, dev := range miner.capabilities.GPU {
+		hash := hex.EncodeToString(dev.Hash())
+		info, exists := dst[hash]
+		if exists {
+			info.Miners = append(info.Miners, miner.ID())
+		} else {
+			dst[hash] = &pb.GPUDeviceInfo{
+				Miners: []string{miner.ID()},
+				Device: gpu.Marshal(dev),
+			}
+		}
 	}
 }

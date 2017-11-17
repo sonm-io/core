@@ -19,12 +19,14 @@ func TestDevices(t *testing.T) {
 	hub := Hub{
 		miners: map[string]*MinerCtx{
 			"miner1": {
+				uuid: "miner1",
 				capabilities: &hardware.Hardware{
 					CPU: []cpu.Device{{CPU: 64}},
 					GPU: []gpu.Device{gpuDevice},
 				},
 			},
 			"miner2": {
+				uuid: "miner2",
 				capabilities: &hardware.Hardware{
 					CPU: []cpu.Device{{CPU: 65}},
 					GPU: []gpu.Device{gpuDevice},
@@ -40,14 +42,13 @@ func TestDevices(t *testing.T) {
 }
 
 func TestMinerDevices(t *testing.T) {
-	id := &pb.ID{Id: "miner1"}
-
 	gpuDevice, err := gpu.NewDevice("a", "b", 1488, 660)
 	assert.NoError(t, err)
 
 	hub := Hub{
 		miners: map[string]*MinerCtx{
-			id.Id: {
+			"miner1": {
+				uuid: "miner1",
 				capabilities: &hardware.Hardware{
 					CPU: []cpu.Device{{CPU: 64}},
 					GPU: []gpu.Device{gpuDevice},
@@ -55,6 +56,7 @@ func TestMinerDevices(t *testing.T) {
 			},
 
 			"miner2": {
+				uuid: "miner2",
 				capabilities: &hardware.Hardware{
 					CPU: []cpu.Device{{CPU: 65}},
 					GPU: []gpu.Device{gpuDevice},
@@ -63,7 +65,7 @@ func TestMinerDevices(t *testing.T) {
 		},
 	}
 
-	devices, err := hub.MinerDevices(context.Background(), id)
+	devices, err := hub.MinerDevices(context.Background(), &pb.ID{Id: "miner1"})
 	assert.NoError(t, err)
 	assert.Equal(t, len(devices.CPUs), 1)
 	assert.Equal(t, len(devices.GPUs), 1)
