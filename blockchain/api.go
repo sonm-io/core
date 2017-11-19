@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/sonm-io/core/blockchain/tsc"
 	"github.com/sonm-io/core/blockchain/tsc/api"
+	pb "github.com/sonm-io/core/proto"
 )
 
 const defaultEthEndpoint string = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
@@ -35,12 +36,10 @@ type Dealer interface {
 	// It could be called by client
 	CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
 
-	// GetHubDeals is returns ids by given hub address
-	GetHubDeals(address string) ([]*big.Int, error)
-	// GetHubDeals is returns ids by given client address
-	GetClientDeals(address string) ([]*big.Int, error)
+	// GetDeals is returns ids by given address
+	GetDeals(address string) ([]*big.Int, error)
 	// GetDealInfo is returns deal info by given id
-	GetDealInfo(id *big.Int) (*DealInfo, error)
+	GetDealInfo(id *big.Int) (*pb.Deal, error)
 	// GetDealAmount return global deal counter
 	GetDealAmount() (*big.Int, error)
 }
@@ -82,17 +81,6 @@ func (bch *API) getTxOpts(key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactO
 	opts.GasLimit = big.NewInt(gasLimit)
 	opts.GasPrice = big.NewInt(bch.gasPrice)
 	return opts
-}
-
-type DealInfo struct {
-	SpecificationHash *big.Int
-	Client            string
-	Hub               string
-	Price             *big.Int
-	Status            *big.Int
-	StartTime         *big.Int
-	WorkTime          *big.Int
-	EndTime           *big.Int
 }
 
 type API struct {
@@ -178,20 +166,20 @@ func (bch *API) GetDeals(address string) ([]*big.Int, error) {
 	return clientDeals, nil
 }
 
-func (bch *API) GetDealInfo(id *big.Int) (*DealInfo, error) {
+func (bch *API) GetDealInfo(id *big.Int) (*pb.Deal, error) {
 	deal, err := bch.dealsContract.GetDealInfo(&bind.CallOpts{Pending: true}, id)
 	if err != nil {
 		return nil, err
 	}
-	dealInfo := DealInfo{
-		SpecificationHash: deal.SpecHach,
-		Client:            deal.Client.String(),
-		Hub:               deal.Hub.String(),
-		Price:             deal.Price,
-		Status:            deal.Status,
-		StartTime:         deal.StartTime,
-		WorkTime:          deal.WorkTime,
-		EndTime:           deal.EndTIme,
+	dealInfo := pb.Deal{
+		BuyerID:           deal.Client.String(),
+		SupplierID:        deal.Hub.String(),
+		SpecificationHash: deal.SpecHach.String(),
+		Price:             deal.Price.String(),
+		Status:            pb.DealStatus(deal.Status.Int64()),
+		StartTime:         &pb.Timestamp{Seconds: deal.StartTime.Int64()},
+		WorkTime:          deal.WorkTime.Uint64(),
+		EndTime:           &pb.Timestamp{Seconds: deal.EndTIme.Int64()},
 	}
 	return &dealInfo, nil
 }

@@ -30,7 +30,7 @@ var hubPingCmd = &cobra.Command{
 	Short:   "Ping the hub",
 	PreRunE: checkHubAddressIsSet,
 	Run: func(cmd *cobra.Command, args []string) {
-		itr, err := NewGrpcInteractor(hubAddress, timeout)
+		itr, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to hub", err)
 			return
@@ -44,7 +44,7 @@ var hubStatusCmd = &cobra.Command{
 	Short:   "Show hub status",
 	PreRunE: checkHubAddressIsSet,
 	Run: func(cmd *cobra.Command, args []string) {
-		itr, err := NewGrpcInteractor(hubAddress, timeout)
+		itr, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to hub", err)
 			return
@@ -86,7 +86,7 @@ var minerShowSlotsCmd = &cobra.Command{
 	Args:    cobra.MaximumNArgs(0),
 	PreRunE: checkHubAddressIsSet,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		grpc, err := NewGrpcInteractor(hubAddress, timeout)
+		grpc, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
 		if err != nil {
 			return err
 		}
@@ -124,7 +124,7 @@ var hubAddSlotCmd = &cobra.Command{
 			return err
 		}
 
-		grpc, err := NewGrpcInteractor(hubAddress, timeout)
+		grpc, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
 		if err != nil {
 			return err
 		}

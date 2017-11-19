@@ -96,7 +96,7 @@ var minersListCmd = &cobra.Command{
 	Short:   "Show connected miners",
 	PreRunE: minerRootCmd.PreRunE,
 	Run: func(cmd *cobra.Command, args []string) {
-		itr, err := NewGrpcInteractor(hubAddress, timeout)
+		itr, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to hub", err)
 			return
@@ -116,7 +116,7 @@ var minerStatusCmd = &cobra.Command{
 		}
 		minerID := args[0]
 
-		itr, err := NewGrpcInteractor(hubAddress, timeout)
+		itr, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to hub", err)
 			return nil

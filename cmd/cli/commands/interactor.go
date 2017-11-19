@@ -424,3 +424,64 @@ func NewDealsInteractor(addr string, timeout time.Duration) (DealsInteractor, er
 		deals:   pb.NewDealManagementClient(cc),
 	}, nil
 }
+
+type TasksInteractor interface {
+	List(hubAddr string) (*pb.TaskListReply, error)
+	Start(req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error)
+	Status(id string) (*pb.TaskStatusReply, error)
+	Logs(req *pb.TaskLogsRequest) (pb.TaskManagement_LogsClient, error)
+	Stop(id string) (*pb.Empty, error)
+}
+
+type tasksInteractor struct {
+	timeout time.Duration
+	tasks   pb.TaskManagementClient
+}
+
+func (it *tasksInteractor) List(hubAddr string) (*pb.TaskListReply, error) {
+	ctx, cancel := ctx(it.timeout)
+	defer cancel()
+
+	req := &pb.TaskListRequest{HubID: hubAddr}
+	return it.tasks.List(ctx, req)
+}
+
+func (it *tasksInteractor) Start(req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
+	ctx, cancel := ctx(it.timeout)
+	defer cancel()
+
+	return it.tasks.Start(ctx, req)
+}
+
+func (it *tasksInteractor) Status(id string) (*pb.TaskStatusReply, error) {
+	ctx, cancel := ctx(it.timeout)
+	defer cancel()
+
+	return it.tasks.Status(ctx, &pb.ID{Id: id})
+}
+
+func (it *tasksInteractor) Logs(req *pb.TaskLogsRequest) (pb.TaskManagement_LogsClient, error) {
+	ctx, cancel := ctx(it.timeout)
+	defer cancel()
+
+	return it.tasks.Logs(ctx, req)
+}
+
+func (it *tasksInteractor) Stop(id string) (*pb.Empty, error) {
+	ctx, cancel := ctx(it.timeout)
+	defer cancel()
+
+	return it.tasks.Stop(ctx, &pb.ID{Id: id})
+}
+
+func NewTasksInteractor(addr string, timeout time.Duration) (TasksInteractor, error) {
+	cc, err := util.MakeGrpcClient(context.Background(), addr, creds)
+	if err != nil {
+		return nil, err
+	}
+
+	return &tasksInteractor{
+		timeout: timeout,
+		tasks:   pb.NewTaskManagementClient(cc),
+	}, nil
+}

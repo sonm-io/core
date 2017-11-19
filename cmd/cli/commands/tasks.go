@@ -2,20 +2,17 @@ package commands
 
 import (
 	"encoding/json"
-
-	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
-
-	"time"
-
 	"fmt"
+	"io"
+	"strings"
+	"time"
 
 	ds "github.com/c2h5oh/datasize"
 	"github.com/docker/go-connections/nat"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
-	"io"
-	"strings"
+	"github.com/spf13/cobra"
+	"golang.org/x/net/context"
 )
 
 func init() {
@@ -131,7 +128,7 @@ var taskListCmd = &cobra.Command{
 		}
 		minerID := args[0]
 
-		itr, err := NewGrpcInteractor(hubAddress, timeout)
+		itr, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to hub", err)
 			return nil
@@ -152,7 +149,7 @@ var taskLogsCmd = &cobra.Command{
 		}
 		taskID := args[0]
 
-		itr, err := NewGrpcInteractor(hubAddress, timeout)
+		itr, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect ot hub", err)
 			return nil
@@ -180,7 +177,7 @@ var taskStartCmd = &cobra.Command{
 			return nil
 		}
 
-		itr, err := NewGrpcInteractor(hubAddress, timeout)
+		itr, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to hub", err)
 			return nil
@@ -201,7 +198,7 @@ var taskStatusCmd = &cobra.Command{
 		}
 		taskID := args[0]
 
-		itr, err := NewGrpcInteractor(hubAddress, timeout)
+		itr, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to hub", err)
 			return nil
@@ -222,7 +219,7 @@ var taskStopCmd = &cobra.Command{
 		}
 		taskID := args[0]
 
-		itr, err := NewGrpcInteractor(hubAddress, timeout)
+		itr, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to hub", err)
 			return nil
@@ -245,7 +242,6 @@ func taskListCmdRunner(cmd *cobra.Command, minerID string, interactor CliInterac
 
 func taskLogCmdRunner(cmd *cobra.Command, taskID string, interactor CliInteractor) {
 	req := &pb.TaskLogsRequest{
-
 		Id:            taskID,
 		Since:         since,
 		AddTimestamps: addTimestamps,

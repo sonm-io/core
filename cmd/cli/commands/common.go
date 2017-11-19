@@ -8,20 +8,15 @@ import (
 	"os"
 	"time"
 
-	"google.golang.org/grpc/credentials"
-
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/credentials"
 )
 
 const (
-	appName         = "sonm"
-	hubAddressFlag  = "addr"
-	nodeAddressFlag = "node"
-	hubTimeoutFlag  = "timeout"
-	outputModeFlag  = "out"
+	hubAddressFlagName = "addr"
 
 	// log flag names
 	logTypeFlag       = "type"
@@ -33,16 +28,16 @@ const (
 )
 
 var (
-	rootCmd     = &cobra.Command{Use: appName}
-	version     string
-	hubAddress  string
-	nodeAddress string
-	outputMode  string
-	timeout     = 60 * time.Second
-	cfg         config.Config
-	sessionKey  *ecdsa.PrivateKey = nil
+	rootCmd = &cobra.Command{Use: "sonm"}
+	version string
 
-	creds credentials.TransportCredentials
+	// flags var
+	hubAddressFlag  string
+	nodeAddressFlag string
+	outputModeFlag  string
+	insecureFlag    bool
+	timeoutFlag     = 60 * time.Second
+
 	// logging flag vars
 	logType       string
 	since         string
@@ -50,6 +45,11 @@ var (
 	follow        bool
 	tail          string
 	details       bool
+
+	// session-related vars
+	cfg        config.Config
+	sessionKey *ecdsa.PrivateKey = nil
+	creds      credentials.TransportCredentials
 
 	// errors
 	errHubAddressRequired   = errors.New("--addr flag is required")
@@ -60,12 +60,13 @@ var (
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&hubAddress, hubAddressFlag, "", "hub addr")
-	rootCmd.PersistentFlags().StringVar(&nodeAddress, nodeAddressFlag, "127.0.0.1:9999", "node addr")
-	rootCmd.PersistentFlags().DurationVar(&timeout, hubTimeoutFlag, 60*time.Second, "Connection timeout")
-	rootCmd.PersistentFlags().StringVar(&outputMode, outputModeFlag, "", "Output mode: simple or json")
+	rootCmd.PersistentFlags().StringVar(&hubAddressFlag, hubAddressFlagName, "", "hub addr")
+	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "127.0.0.1:9999", "node addr")
+	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeoutFlag", 60*time.Second, "Connection timeoutFlag")
+	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
+	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "disable TLS via components")
 
-	nodeRootCmd.AddCommand(nodeHubRootCmd, nodeMarketRootCmd, nodeDealsRootCmd)
+	nodeRootCmd.AddCommand(nodeHubRootCmd, nodeMarketRootCmd, nodeDealsRootCmd, nodeTaskRootCmd)
 	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd, nodeRootCmd)
 
 	rootCmd.AddCommand(loginCmd)
@@ -79,13 +80,13 @@ var nodeRootCmd = &cobra.Command{
 // Root configure and return root command
 func Root(c config.Config) *cobra.Command {
 	cfg = c
-	hubAddress = cfg.HubAddress()
+	hubAddressFlag = cfg.HubAddress()
 	rootCmd.SetOutput(os.Stdout)
 	return rootCmd
 }
 
 func checkHubAddressIsSet(cmd *cobra.Command, _ []string) error {
-	if cmd.Flag(hubAddressFlag).Value.String() == "" {
+	if cmd.Flag(hubAddressFlagName).Value.String() == "" {
 		return errHubAddressRequired
 	}
 	return nil
@@ -151,11 +152,11 @@ func showOkJson(cmd *cobra.Command) {
 }
 
 func isSimpleFormat() bool {
-	if outputMode == "" && cfg.OutputFormat() == "" {
+	if outputModeFlag == "" && cfg.OutputFormat() == "" {
 		return true
 	}
 
-	if outputMode == config.OutputModeJSON || cfg.OutputFormat() == config.OutputModeJSON {
+	if outputModeFlag == config.OutputModeJSON || cfg.OutputFormat() == config.OutputModeJSON {
 		return false
 	}
 
@@ -186,12 +187,15 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 	}
 
 	sessionKey = key
-	_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), sessionKey)
-	if err != nil {
-		showError(cmd, err.Error(), nil)
-		os.Exit(1)
+
+	if !insecureFlag {
+		_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), sessionKey)
+		if err != nil {
+			showError(cmd, err.Error(), nil)
+			os.Exit(1)
+		}
+		creds = util.NewTLS(TLSConfig)
 	}
-	creds = util.NewTLS(TLSConfig)
 }
 
 func showJSON(cmd *cobra.Command, s interface{}) {

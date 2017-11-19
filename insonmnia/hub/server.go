@@ -20,6 +20,7 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -71,7 +72,7 @@ type Hub struct {
 	// TODO: rediscover jobs if Miner disconnected
 	// TODO: store this data in some Storage interface
 
-	wg        sync.WaitGroup
+	waiter    errgroup.Group
 	startTime time.Time
 	version   string
 
@@ -83,15 +84,18 @@ type Hub struct {
 
 	// Device properties.
 	// Must be synchronized with out Hub cluster.
-	deviceProperties map[string]DeviceProperties
+	deviceProperties   map[string]DeviceProperties
+	devicePropertiesMu sync.RWMutex
 
 	// Scheduling.
 	// Must be synchronized with out Hub cluster.
-	slots []*structs.Slot
+	slots   []*structs.Slot
+	slotsMu sync.RWMutex
 
 	// Worker ACL.
 	// Must be synchronized with out Hub cluster.
-	acl ACLStorage
+	acl   ACLStorage
+	aclMu sync.RWMutex
 
 	// Tasks
 	tasksMu sync.Mutex
@@ -516,36 +520,34 @@ func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply,
 	// Templates in go? Nevermind, just copy/paste.
 
 	CPUs := map[string]*pb.CPUDeviceInfo{}
-	for id, miner := range h.miners {
-		for _, cpu := range miner.capabilities.CPU {
-			hash := hex.EncodeToString(cpu.Hash())
-			info, exists := CPUs[hash]
-			if exists {
-				info.Miners = append(info.Miners, id)
-			} else {
-				CPUs[hash] = &pb.CPUDeviceInfo{
-					Miners: []string{id},
-					Device: cpu.Marshal(),
-				}
-			}
-		}
+	for _, miner := range h.miners {
+		h.collectMinerCPUs(miner, CPUs)
 	}
 
 	GPUs := map[string]*pb.GPUDeviceInfo{}
-	for id, miner := range h.miners {
-		for _, dev := range miner.capabilities.GPU {
-			hash := hex.EncodeToString(dev.Hash())
-			info, exists := GPUs[hash]
-			if exists {
-				info.Miners = append(info.Miners, id)
-			} else {
-				GPUs[hash] = &pb.GPUDeviceInfo{
-					Miners: []string{id},
-					Device: gpu.Marshal(dev),
-				}
-			}
-		}
+	for _, miner := range h.miners {
+		h.collectMinerGPUs(miner, GPUs)
 	}
+
+	reply := &pb.DevicesReply{
+		CPUs: CPUs,
+		GPUs: GPUs,
+	}
+
+	return reply, nil
+}
+
+func (h *Hub) MinerDevices(ctx context.Context, request *pb.ID) (*pb.DevicesReply, error) {
+	miner, ok := h.getMinerByID(request.Id)
+	if !ok {
+		return nil, ErrMinerNotFound
+	}
+
+	CPUs := map[string]*pb.CPUDeviceInfo{}
+	h.collectMinerCPUs(miner, CPUs)
+
+	GPUs := map[string]*pb.GPUDeviceInfo{}
+	h.collectMinerGPUs(miner, GPUs)
 
 	reply := &pb.DevicesReply{
 		CPUs: CPUs,
@@ -558,8 +560,8 @@ func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply,
 func (h *Hub) GetDeviceProperties(ctx context.Context, request *pb.ID) (*pb.GetDevicePropertiesReply, error) {
 	log.G(h.ctx).Info("handling GetMinerProperties request", zap.Any("req", request))
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.devicePropertiesMu.RLock()
+	defer h.devicePropertiesMu.RUnlock()
 
 	properties, exists := h.deviceProperties[request.Id]
 	if !exists {
@@ -572,9 +574,13 @@ func (h *Hub) GetDeviceProperties(ctx context.Context, request *pb.ID) (*pb.GetD
 func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDevicePropertiesRequest) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling SetDeviceProperties request", zap.Any("req", request))
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.devicePropertiesMu.Lock()
+	defer h.devicePropertiesMu.Unlock()
 	h.deviceProperties[request.ID] = DeviceProperties(request.Properties)
+	err := h.cluster.Synchronize(h.deviceProperties)
+	if err != nil {
+		return nil, err
+	}
 
 	return &pb.Empty{}, nil
 }
@@ -582,8 +588,8 @@ func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDeviceProp
 func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, error) {
 	log.G(h.ctx).Info("handling Slots request", zap.Any("request", request))
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.slotsMu.RLock()
+	defer h.slotsMu.RUnlock()
 	slots := make([]*pb.Slot, 0, len(h.slots))
 	for _, slot := range h.slots {
 		slots = append(slots, slot.Unwrap())
@@ -602,11 +608,15 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, erro
 		return nil, err
 	}
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.slotsMu.Lock()
+	defer h.slotsMu.Unlock()
 
 	// TODO: Check that such slot already exists.
 	h.slots = append(h.slots, slot)
+	err = h.cluster.Synchronize(h.slots)
+	if err != nil {
+		return nil, err
+	}
 
 	return &pb.Empty{}, nil
 }
@@ -621,13 +631,17 @@ func (h *Hub) RemoveSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, erro
 
 	filtered := []*structs.Slot{}
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.slotsMu.Lock()
+	defer h.slotsMu.Unlock()
 
 	for _, s := range h.slots {
 		if !s.Eq(slot) {
 			filtered = append(filtered, s)
 		}
+	}
+	err = h.cluster.Synchronize(h.slots)
+	if err != nil {
+		return nil, err
 	}
 
 	return &pb.Empty{}, nil
@@ -658,6 +672,11 @@ func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, er
 	log.G(h.ctx).Info("handling RegisterWorker request", zap.String("id", request.GetId()))
 
 	h.acl.Insert(request.Id)
+	err := h.cluster.Synchronize(h.acl)
+	if err != nil {
+		return nil, err
+	}
+
 	return &pb.Empty{}, nil
 }
 
@@ -667,7 +686,13 @@ func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, 
 
 	if existed := h.acl.Remove(request.Id); !existed {
 		log.G(h.ctx).Warn("attempt to deregister unregistered worker", zap.String("id", request.GetId()))
+	} else {
+		err := h.cluster.Synchronize(h.acl)
+		if err != nil {
+			return nil, err
+		}
 	}
+
 	return &pb.Empty{}, nil
 }
 
@@ -713,7 +738,9 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	}
 
 	acl := NewACLStorage()
+	//TODO: how do we sync this?
 	acl.Insert(cfg.Eth.PrivateKey)
+	log.G(ctx).Info("acl", zap.Reflect("acl", acl))
 
 	h := &Hub{
 		cfg:          cfg,
@@ -755,7 +782,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		h.creds = util.NewTLS(TLSConfig)
 	}
 
-	h.cluster, err = NewCluster(ctx, &cfg.Cluster, h.creds)
+	h.cluster, h.eventCh, err = NewCluster(ctx, &cfg.Cluster, h.creds)
 	if err != nil {
 		return nil, err
 	}
@@ -848,23 +875,19 @@ func (h *Hub) Serve() error {
 	// TODO: fix this possible race: Close before Serve
 	h.minerListener = listener
 
-	h.wg.Add(1)
-	go func() {
-		defer h.wg.Done()
-		h.externalGrpc.Serve(grpcL)
-	}()
+	h.waiter.Go(func() error {
+		return h.externalGrpc.Serve(grpcL)
+	})
 
-	h.wg.Add(1)
-	go func() {
-		defer h.wg.Done()
+	h.waiter.Go(func() error {
 		for {
 			conn, err := h.minerListener.Accept()
 			if err != nil {
-				return
+				return err
 			}
 			go h.handleInterconnect(h.ctx, conn)
 		}
-	}()
+	})
 
 	// TODO: This is wrong! It checks only on start and isLeader is probably always false!
 	// init locator connection and announce
@@ -874,29 +897,45 @@ func (h *Hub) Serve() error {
 		if err != nil {
 			return err
 		}
-
-		h.wg.Add(1)
-		go func() {
-			defer h.wg.Done()
-			h.startLocatorAnnouncer()
-		}()
+		h.waiter.Go(h.startLocatorAnnouncer)
 	}
 
 	h.cluster.RegisterEntity("tasks", h.tasks)
-	h.eventCh = h.cluster.Run()
-	go h.listenClusterEvents()
+	h.cluster.RegisterEntity("device_properties", h.deviceProperties)
+	h.cluster.RegisterEntity("acl", h.acl)
+	h.cluster.RegisterEntity("slots", h.slots)
 
-	h.wg.Wait()
+	h.waiter.Go(h.runCluster)
+	h.waiter.Go(h.listenClusterEvents)
+
+	h.waiter.Wait()
+
 	return nil
 }
 
-func (h *Hub) listenClusterEvents() {
+func (h *Hub) runCluster() error {
+	for {
+		err := h.cluster.Run()
+		log.G(h.ctx).Warn("cluster failure, retrying after 10 seconds", zap.Error(err))
+
+		t := time.NewTimer(time.Second * 10)
+		select {
+		case <-h.ctx.Done():
+			t.Stop()
+			return nil
+		case <-t.C:
+			t.Stop()
+		}
+	}
+}
+
+func (h *Hub) listenClusterEvents() error {
 	for {
 		select {
 		case event := <-h.eventCh:
 			h.processClusterEvent(event)
 		case <-h.ctx.Done():
-			return
+			return nil
 		}
 	}
 }
@@ -908,18 +947,25 @@ func (h *Hub) processClusterEvent(value interface{}) {
 		//We don't care now
 	case LeadershipEvent:
 		//We don't care now
-	case *map[string]*TaskInfo:
+	case map[string]*TaskInfo:
 		log.G(h.ctx).Info("synchronizing tasks from cluster")
 		h.tasksMu.Lock()
-		h.tasks = *value
-		h.tasksMu.Unlock()
-	case error:
-		// continue reading from event channel as there could be pending events
-		go func() {
-			log.G(h.ctx).Warn("cluster failure, retrying after 10 seconds", zap.Error(value))
-			time.Sleep(time.Second * 10)
-			h.eventCh = h.cluster.Run()
-		}()
+		defer h.tasksMu.Unlock()
+		h.tasks = value
+	case map[string]DeviceProperties:
+		h.devicePropertiesMu.Lock()
+		defer h.devicePropertiesMu.Unlock()
+		h.deviceProperties = value
+	case []*structs.Slot:
+		h.slotsMu.Lock()
+		defer h.slotsMu.Unlock()
+		h.slots = value
+	case ACLStorage:
+		h.acl = value
+	default:
+		log.G(h.ctx).Warn("received unknown cluster event",
+			zap.Any("event", value),
+			zap.String("type", reflect.TypeOf(value).String()))
 	}
 }
 
@@ -934,7 +980,7 @@ func (h *Hub) Close() {
 	if h.certRotator != nil {
 		h.certRotator.Close()
 	}
-	h.wg.Wait()
+	h.waiter.Wait()
 }
 
 func (h *Hub) registerMiner(miner *MinerCtx) {
@@ -1020,7 +1066,7 @@ func (h *Hub) initLocatorClient() error {
 	return nil
 }
 
-func (h *Hub) startLocatorAnnouncer() {
+func (h *Hub) startLocatorAnnouncer() error {
 	tk := time.NewTicker(h.locatorPeriod)
 	defer tk.Stop()
 
@@ -1031,7 +1077,7 @@ func (h *Hub) startLocatorAnnouncer() {
 		case <-tk.C:
 			h.announceAddress(h.ctx)
 		case <-h.ctx.Done():
-			return
+			return nil
 		}
 	}
 }
@@ -1049,5 +1095,35 @@ func (h *Hub) announceAddress(ctx context.Context) {
 	_, err := h.locatorClient.Announce(ctx, req)
 	if err != nil {
 		log.G(ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
+	}
+}
+
+func (h *Hub) collectMinerCPUs(miner *MinerCtx, dst map[string]*pb.CPUDeviceInfo) {
+	for _, cpu := range miner.capabilities.CPU {
+		hash := hex.EncodeToString(cpu.Hash())
+		info, exists := dst[hash]
+		if exists {
+			info.Miners = append(info.Miners, miner.ID())
+		} else {
+			dst[hash] = &pb.CPUDeviceInfo{
+				Miners: []string{miner.ID()},
+				Device: cpu.Marshal(),
+			}
+		}
+	}
+}
+
+func (h *Hub) collectMinerGPUs(miner *MinerCtx, dst map[string]*pb.GPUDeviceInfo) {
+	for _, dev := range miner.capabilities.GPU {
+		hash := hex.EncodeToString(dev.Hash())
+		info, exists := dst[hash]
+		if exists {
+			info.Miners = append(info.Miners, miner.ID())
+		} else {
+			dst[hash] = &pb.GPUDeviceInfo{
+				Miners: []string{miner.ID()},
+				Device: gpu.Marshal(dev),
+			}
+		}
 	}
 }
