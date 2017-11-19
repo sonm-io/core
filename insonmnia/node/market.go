@@ -6,8 +6,11 @@ import (
 
 	"crypto/ecdsa"
 
+	"fmt"
+
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -69,14 +72,16 @@ func HandlerStatusString(status uint8) string {
 // In any internal error -> status = "Failed"
 
 type orderHandler struct {
-	id      string
-	order   *pb.Order
-	status  uint8
-	err     error
-	ts      time.Time
-	ctx     context.Context
-	cancel  context.CancelFunc
+	id     string
+	order  *pb.Order
+	status uint8
+	err    error
+	ts     time.Time
+	ctx    context.Context
+	cancel context.CancelFunc
+
 	locator pb.LocatorClient
+	bc      *blockchain.API
 }
 
 func newOrderHandler(ctx context.Context, loc string, o *pb.Order) (*orderHandler, error) {
@@ -84,7 +89,13 @@ func newOrderHandler(ctx context.Context, loc string, o *pb.Order) (*orderHandle
 
 	cc, err := util.MakeGrpcClient(ctx, loc, nil)
 	if err != nil {
-		log.G(ctx).Debug("cannot create locator client", zap.Error(err))
+		log.G(ctx).Error("cannot create locator client", zap.Error(err))
+		return nil, err
+	}
+
+	bcAPI, err := blockchain.NewBlockchainAPI(nil, nil)
+	if err != nil {
+		log.G(ctx).Error("cannot build blockchain api", zap.Error(err))
 		return nil, err
 	}
 
@@ -93,6 +104,7 @@ func newOrderHandler(ctx context.Context, loc string, o *pb.Order) (*orderHandle
 		cancel:  cancel,
 		ts:      time.Now(),
 		locator: pb.NewLocatorClient(cc),
+		bc:      bcAPI,
 	}
 
 	order, err := structs.NewOrder(o)
@@ -181,9 +193,26 @@ func (h *orderHandler) propose(askID, supID string) error {
 }
 
 // createDeal creates deal on Etherum blockchain
-func (h *orderHandler) createDeal(askOrder *pb.Order) error {
+func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey) error {
 	log.G(h.ctx).Debug("creating deal on Etherum")
 	h.status = statusDealing
+
+	deal := &pb.Deal{
+		SupplierID: order.GetSupplierID(),
+		BuyerID:    order.GetByuerID(),
+		Price:      fmt.Sprintf("%d", order.Price),
+		Status:     pb.DealStatus_PENDING,
+		// TODO(sshaman1101): calculate hash
+		SpecificationHash: "",
+	}
+
+	_, err := h.bc.OpenDeal(key, deal)
+	if err != nil {
+		log.G(h.ctx).Debug("cannot open deal", zap.Error(err))
+		h.setError(err)
+		return err
+	}
+
 	return nil
 }
 
@@ -325,7 +354,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		}
 	}
 
-	err = handler.createDeal(orderToDeal)
+	err = handler.createDeal(orderToDeal, m.key)
 	if err != nil {
 		log.G(handler.ctx).Debug("cannot create deal, failing handler")
 		handler.setError(err)
@@ -387,7 +416,7 @@ func (m *marketAPI) removeOrderHandler(id string) error {
 	return nil
 }
 
-func newMarketAPI(ctx context.Context, conf Config) (pb.MarketServer, error) {
+func newMarketAPI(ctx context.Context, key *ecdsa.PrivateKey, conf Config) (pb.MarketServer, error) {
 	cc, err := util.MakeGrpcClient(ctx, conf.MarketEndpoint(), nil)
 	if err != nil {
 		return nil, err
@@ -398,5 +427,6 @@ func newMarketAPI(ctx context.Context, conf Config) (pb.MarketServer, error) {
 		ctx:    ctx,
 		market: pb.NewMarketClient(cc),
 		tasks:  make(map[string]*orderHandler),
+		key:    key,
 	}, nil
 }

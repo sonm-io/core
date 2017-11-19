@@ -11,6 +11,7 @@ import (
 	"github.com/sonm-io/core/blockchain/tsc"
 	"github.com/sonm-io/core/blockchain/tsc/api"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 )
 
 const defaultEthEndpoint string = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
@@ -128,10 +129,27 @@ func NewBlockchainAPI(ethEndpoint *string, gasPrice *int64) (*API, error) {
 // Deals appearance
 // ----------------
 
-func (bch *API) OpenDeal(key *ecdsa.PrivateKey, hub string, client string, specificationHash, price, workTime *big.Int) (*types.Transaction, error) {
+func (bch *API) OpenDeal(key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error) {
 	opts := bch.getTxOpts(key, 305000)
 
-	tx, err := bch.dealsContract.OpenDeal(opts, common.HexToAddress(hub), common.HexToAddress(client), specificationHash, price, workTime)
+	bigSpec, err := util.ParseBigInt(deal.SpecificationHash)
+	if err != nil {
+		return nil, err
+	}
+
+	bigPrice, err := util.ParseBigInt(deal.Price)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := bch.dealsContract.OpenDeal(
+		opts,
+		common.HexToAddress(deal.GetSupplierID()),
+		common.HexToAddress(deal.GetBuyerID()),
+		bigSpec,
+		bigPrice,
+		big.NewInt(int64(deal.GetWorkTime())),
+	)
 	if err != nil {
 		return nil, err
 	}
