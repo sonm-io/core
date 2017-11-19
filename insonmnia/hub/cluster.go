@@ -50,8 +50,10 @@ type LeadershipEvent struct {
 }
 
 type Cluster interface {
-	// Starts synchronization process. Can be called multiple times after EventChannel is closed
-	Run() <-chan ClusterEvent
+	// Starts synchronization process. Can be called multiple times after error is received in EventChannel
+	Run() error
+
+	Close()
 
 	// IsLeader returns true if this cluster is a leader, i.e. we rule the
 	// synchronization process.
@@ -68,14 +70,14 @@ type Cluster interface {
 // otherwise.
 // Should be recalled when a cluster's master/slave state changes.
 // The channel is closed when the specified context is canceled.
-func NewCluster(ctx context.Context, cfg *ClusterConfig, creds credentials.TransportCredentials) (Cluster, error) {
+func NewCluster(ctx context.Context, cfg *ClusterConfig, creds credentials.TransportCredentials) (Cluster, <-chan ClusterEvent, error) {
 	store, err := makeStore(ctx, cfg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	endpoints, err := parseEndpoints(cfg)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	c := cluster{
 		parentCtx: ctx,
@@ -97,7 +99,7 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, creds credentials.Trans
 
 		creds: creds,
 	}
-	return &c, nil
+	return &c, c.eventChannel, nil
 }
 
 type client struct {
@@ -110,6 +112,7 @@ type cluster struct {
 	ctx       context.Context
 	cancel    context.CancelFunc
 	cfg       *ClusterConfig
+	err       error
 
 	registeredEntitiesMu sync.RWMutex
 	registeredEntities   map[string]reflect.Type
@@ -133,23 +136,33 @@ type cluster struct {
 	creds credentials.TransportCredentials
 }
 
-func (c *cluster) Run() <-chan ClusterEvent {
+func (c *cluster) Close() {
 	if c.cancel != nil {
 		c.cancel()
 	}
+}
+
+func (c *cluster) Run() error {
+	c.Close()
+	c.err = nil
+
+	w := util.Waiter{}
+
 	c.ctx, c.cancel = context.WithCancel(c.parentCtx)
 	if c.cfg.Failover {
 		c.isLeader = false
-		go c.election()
-		go c.leaderWatch()
-		go c.announce()
-		go c.hubWatch()
-		go c.hubGC()
+		w.Run(c.election)
+		w.Run(c.leaderWatch)
+		w.Run(c.announce)
+		w.Run(c.hubWatch)
+		w.Run(c.hubGC)
 	} else {
 		log.G(c.ctx).Info("runnning in dev single-server mode")
 	}
-	go c.watchEvents()
-	return c.eventChannel
+
+	w.Run(c.watchEvents)
+	w.Wait()
+	return c.err
 }
 
 func (c *cluster) IsLeader() bool {
@@ -416,8 +429,12 @@ func makeStore(ctx context.Context, cfg *ClusterConfig) (store.Store, error) {
 
 func (c *cluster) close(err error) {
 	log.G(c.ctx).Error("cluster failure", zap.Error(err))
-	c.cancel()
-	c.eventChannel <- err
+	c.err = err
+	c.leaderLock.Lock()
+	c.leaderId = ""
+	c.isLeader = false
+	c.leaderLock.Unlock()
+	c.Close()
 }
 
 func (c *cluster) emitLeadershipEvent() {
