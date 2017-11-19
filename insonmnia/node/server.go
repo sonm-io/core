@@ -144,7 +144,7 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		log.G(ctx).Info("hub service registered", zap.String("endpt", c.HubEndpoint()))
 	}
 
-	market, err := newMarketAPI(ctx, c)
+	market, err := newMarketAPI(ctx, key, c)
 	if err != nil {
 		return nil, err
 	}

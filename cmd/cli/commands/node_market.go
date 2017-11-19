@@ -93,9 +93,10 @@ func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
 }
 
 var nodeMarketSearchCmd = &cobra.Command{
-	Use:   "search <slot.yaml>",
-	Short: "Place new Bid order on Marketplace",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "search <slot.yaml>",
+	Short:  "Place new Bid order on Marketplace",
+	PreRun: loadKeyStoreWrapper,
+	Args:   cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
@@ -128,9 +129,10 @@ var nodeMarketSearchCmd = &cobra.Command{
 }
 
 var nodeMarketShowCmd = &cobra.Command{
-	Use:   "show <order_id>",
-	Short: "Show order details",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "show <order_id>",
+	Short:  "Show order details",
+	PreRun: loadKeyStoreWrapper,
+	Args:   cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
@@ -150,8 +152,9 @@ var nodeMarketShowCmd = &cobra.Command{
 }
 
 var nodeMarketProcessingCmd = &cobra.Command{
-	Use:   "processing",
-	Short: "Show processing orders",
+	Use:    "processing",
+	Short:  "Show processing orders",
+	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
 		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {

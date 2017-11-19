@@ -81,7 +81,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 func (t *tasksAPI) Start(ctx context.Context, req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
 	log.G(t.ctx).Info("handling Start request", zap.Any("request", req))
 
-	hub, err := t.getHubClientForDeal(ctx, req.Deal.GetSupplierID())
+	hub, err := t.getHubClientForDeal(ctx, req.Deal.GetId())
 	if err != nil {
 		return nil, err
 	}
