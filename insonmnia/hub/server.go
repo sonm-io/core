@@ -72,7 +72,7 @@ type Hub struct {
 	// TODO: rediscover jobs if Miner disconnected
 	// TODO: store this data in some Storage interface
 
-	wg        sync.WaitGroup
+	waiter    util.Waiter
 	startTime time.Time
 	version   string
 
@@ -669,9 +669,7 @@ func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, er
 	log.G(h.ctx).Info("handling RegisterWorker request", zap.String("id", request.GetId()))
 
 	h.acl.Insert(request.Id)
-	err := h.acl.Apply(func(data interface{}) error {
-		return h.cluster.Synchronize(h.acl)
-	})
+	err := h.cluster.Synchronize(h.acl)
 	if err != nil {
 		return nil, err
 	}
@@ -686,9 +684,7 @@ func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, 
 	if existed := h.acl.Remove(request.Id); !existed {
 		log.G(h.ctx).Warn("attempt to deregister unregistered worker", zap.String("id", request.GetId()))
 	} else {
-		err := h.acl.Apply(func(data interface{}) error {
-			return h.cluster.Synchronize(h.acl)
-		})
+		err := h.cluster.Synchronize(h.acl)
 		if err != nil {
 			return nil, err
 		}
@@ -741,7 +737,6 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	acl := NewACLStorage()
 	//TODO: how do we sync this?
 	acl.Insert(cfg.Eth.PrivateKey)
-	fmt.Println(acl)
 	log.G(ctx).Info("acl", zap.Reflect("acl", acl))
 
 	h := &Hub{
@@ -784,7 +779,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		h.creds = util.NewTLS(TLSConfig)
 	}
 
-	h.cluster, err = NewCluster(ctx, &cfg.Cluster, h.creds)
+	h.cluster, h.eventCh, err = NewCluster(ctx, &cfg.Cluster, h.creds)
 	if err != nil {
 		return nil, err
 	}
@@ -877,15 +872,11 @@ func (h *Hub) Serve() error {
 	// TODO: fix this possible race: Close before Serve
 	h.minerListener = listener
 
-	h.wg.Add(1)
-	go func() {
-		defer h.wg.Done()
+	h.waiter.Run(func() {
 		h.externalGrpc.Serve(grpcL)
-	}()
+	})
 
-	h.wg.Add(1)
-	go func() {
-		defer h.wg.Done()
+	h.waiter.Run(func() {
 		for {
 			conn, err := h.minerListener.Accept()
 			if err != nil {
@@ -893,7 +884,7 @@ func (h *Hub) Serve() error {
 			}
 			go h.handleInterconnect(h.ctx, conn)
 		}
-	}()
+	})
 
 	// TODO: This is wrong! It checks only on start and isLeader is probably always false!
 	// init locator connection and announce
@@ -903,23 +894,37 @@ func (h *Hub) Serve() error {
 		if err != nil {
 			return err
 		}
-
-		h.wg.Add(1)
-		go func() {
-			defer h.wg.Done()
-			h.startLocatorAnnouncer()
-		}()
+		h.waiter.Run(h.startLocatorAnnouncer)
 	}
 
 	h.cluster.RegisterEntity("tasks", h.tasks)
 	h.cluster.RegisterEntity("device_properties", h.deviceProperties)
 	h.cluster.RegisterEntity("acl", h.acl)
 	h.cluster.RegisterEntity("slots", h.slots)
-	h.eventCh = h.cluster.Run()
-	go h.listenClusterEvents()
 
-	h.wg.Wait()
+	h.waiter.Run(h.runCluster)
+	h.waiter.Run(h.listenClusterEvents)
+
+	h.waiter.Wait()
+
 	return nil
+}
+
+func (h *Hub) runCluster() {
+	for {
+		err := h.cluster.Run()
+		log.G(h.ctx).Warn("cluster failure, retrying after 10 seconds", zap.Error(err))
+
+		t := time.NewTimer(time.Second * 10)
+		select {
+		case <-h.ctx.Done():
+			t.Stop()
+			return
+		case <-t.C:
+			t.Stop()
+			continue
+		}
+	}
 }
 
 func (h *Hub) listenClusterEvents() {
@@ -955,13 +960,6 @@ func (h *Hub) processClusterEvent(value interface{}) {
 		h.slots = value
 	case ACLStorage:
 		h.acl = value
-	case error:
-		// continue reading from event channel as there could be pending events
-		go func() {
-			log.G(h.ctx).Warn("cluster failure, retrying after 10 seconds", zap.Error(value))
-			time.Sleep(time.Second * 10)
-			h.eventCh = h.cluster.Run()
-		}()
 	default:
 		log.G(h.ctx).Warn("received unknown cluster event",
 			zap.Any("event", value),
@@ -980,7 +978,7 @@ func (h *Hub) Close() {
 	if h.certRotator != nil {
 		h.certRotator.Close()
 	}
-	h.wg.Wait()
+	h.waiter.Wait()
 }
 
 func (h *Hub) registerMiner(miner *MinerCtx) {

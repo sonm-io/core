@@ -1,9 +1,9 @@
 package hub
 
 import (
+	"encoding/json"
 	"sync"
 
-	"encoding/json"
 	"gopkg.in/fatih/set.v0"
 )
 
@@ -20,8 +20,6 @@ type ACLStorage interface {
 	// Has checks whether the given worker credentials contains in the
 	// storage.
 	Has(credentials string) bool
-
-	Apply(func(interface{}) error) error
 }
 
 type workerACLStorage struct {
@@ -50,6 +48,8 @@ func (s *workerACLStorage) MarshalJSON() ([]byte, error) {
 }
 
 func (s *workerACLStorage) UnmarshalJSON(data []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	unmarshalled := make([]string, 0)
 	err := json.Unmarshal(data, &unmarshalled)
 	if err != nil {
@@ -83,10 +83,4 @@ func (s *workerACLStorage) Has(credentials string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.storage.Has(credentials)
-}
-
-func (s *workerACLStorage) Apply(callback func(interface{}) error) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return callback(s.storage)
 }
