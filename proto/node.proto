@@ -11,7 +11,6 @@ package sonm;
 // the Marketplace API, but it already has been described
 // into a "proto/marketplace.proto" file.
 
-
 // TaskManagement describe a bunch of methods
 // to manage tasks running into the SONM network
 service TaskManagement {
