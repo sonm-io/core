@@ -1,27 +1,24 @@
 package hub
 
-import "github.com/sonm-io/core/insonmnia/structs"
+import (
+	"context"
+)
 
 type ETH interface {
-	// CreatePendingDeal creates a new pending deal.
-	CreatePendingDeal(order *structs.Order) error
-	// RevokePendingDeal revokes a pending deal.
-	RevokePendingDeal(order *structs.Order) error
+	// CheckContract checks whether a given contract exists.
+	// TODO: Don't know what exactly to pass for now.
+	CheckContract(interface{}) (bool, error)
 }
 
-// TODO (3Hren): Currently stub. Need integration with ETH.
+// TODO: Currently stub. Need integration with ETH.
 type eth struct {
 }
 
-func (e *eth) CreatePendingDeal(order *structs.Order) error {
-	return nil
-}
-
-func (e *eth) RevokePendingDeal(order *structs.Order) error {
-	return nil
+func (e *eth) CheckContract(interface{}) (bool, error) {
+	return true, nil
 }
 
 // NewETH constructs a new Ethereum client.
-func NewETH() (ETH, error) {
+func NewETH(ctx context.Context) (ETH, error) {
 	return &eth{}, nil
 }

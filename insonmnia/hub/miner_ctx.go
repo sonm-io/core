@@ -21,6 +21,7 @@ import (
 
 var (
 	errSlotAlreadyExists = errors.New("specified slot already exists")
+	errOrderNotExists    = errors.New("specified order not exists")
 	errCPUNotEnough      = errors.New("number of CPU cores requested is unable to fit system's capabilities")
 	errMemoryNotEnough   = errors.New("number of memory requested is unable to fit system's capabilities")
 )
@@ -263,6 +264,21 @@ func (m *MinerCtx) releaseDeal(id OrderId) {
 	m.usage.Release(usage)
 }
 
+func (m *MinerCtx) OrderUsage(id OrderId) (*resource.Resources, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.orderUsage(id)
+}
+
+func (m *MinerCtx) orderUsage(id OrderId) (*resource.Resources, error) {
+	usage, exists := m.usageMapping[id]
+	if !exists {
+		return nil, errOrderNotExists
+	}
+
+	return usage, nil
+}
+
 // Orders returns a list of allocated orders.
 // Useful for looking for a proper miner for starting tasks.
 func (m *MinerCtx) Orders() []OrderId {
@@ -273,6 +289,33 @@ func (m *MinerCtx) Orders() []OrderId {
 		orders = append(orders, id)
 	}
 	return orders
+}
+
+func (m *MinerCtx) registerRoutes(ID string, ports map[string]*pb.SocketAddr) []routeMapping {
+	routes := []routeMapping{}
+
+	for containerPort, endpoint := range ports {
+		binding, err := util.ParsePortBinding(containerPort)
+		if err != nil {
+			log.G(m.ctx).Warn("failed to decode miner's port mapping",
+				zap.String("mapping", containerPort),
+				zap.Error(err),
+			)
+			continue
+		}
+
+		route, err := m.router.RegisterRoute(ID, binding.Network(), endpoint.Addr, uint16(endpoint.Port))
+		if err != nil {
+			log.G(m.ctx).Warn("failed to register route", zap.Error(err))
+			continue
+		}
+		routes = append(routes, routeMapping{
+			containerPort: containerPort,
+			route:         route,
+		})
+	}
+
+	return routes
 }
 
 // Close frees all connections related to a Miner
