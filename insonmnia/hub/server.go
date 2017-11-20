@@ -629,10 +629,7 @@ func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply,
 }
 
 func (h *Hub) MinerDevices(ctx context.Context, request *pb.ID) (*pb.DevicesReply, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	miner, ok := h.miners[request.Id]
+	miner, ok := h.getMinerByID(request.Id)
 	if !ok {
 		return nil, ErrMinerNotFound
 	}
