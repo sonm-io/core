@@ -13,10 +13,13 @@ enum DealStatus {
 
 message Deal {
     string BuyerID = 1;
-    string SuppclierID = 2;
+    string SupplierID = 2;
     DealStatus status = 3;
 
-    int64 price = 4;
+    string price = 4;
     Timestamp startTime = 5;
     Timestamp endTime = 6;
+
+    string SpecificationHash = 7;
+    uint64 workTime = 8;
 }
