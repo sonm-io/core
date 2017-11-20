@@ -20,6 +20,7 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -72,7 +73,7 @@ type Hub struct {
 	// TODO: rediscover jobs if Miner disconnected
 	// TODO: store this data in some Storage interface
 
-	waiter    util.Waiter
+	waiter    errgroup.Group
 	startTime time.Time
 	version   string
 
@@ -872,15 +873,15 @@ func (h *Hub) Serve() error {
 	// TODO: fix this possible race: Close before Serve
 	h.minerListener = listener
 
-	h.waiter.Run(func() {
-		h.externalGrpc.Serve(grpcL)
+	h.waiter.Go(func() error {
+		return h.externalGrpc.Serve(grpcL)
 	})
 
-	h.waiter.Run(func() {
+	h.waiter.Go(func() error {
 		for {
 			conn, err := h.minerListener.Accept()
 			if err != nil {
-				return
+				return err
 			}
 			go h.handleInterconnect(h.ctx, conn)
 		}
@@ -894,7 +895,7 @@ func (h *Hub) Serve() error {
 		if err != nil {
 			return err
 		}
-		h.waiter.Run(h.startLocatorAnnouncer)
+		h.waiter.Go(h.startLocatorAnnouncer)
 	}
 
 	h.cluster.RegisterEntity("tasks", h.tasks)
@@ -902,15 +903,15 @@ func (h *Hub) Serve() error {
 	h.cluster.RegisterEntity("acl", h.acl)
 	h.cluster.RegisterEntity("slots", h.slots)
 
-	h.waiter.Run(h.runCluster)
-	h.waiter.Run(h.listenClusterEvents)
+	h.waiter.Go(h.runCluster)
+	h.waiter.Go(h.listenClusterEvents)
 
 	h.waiter.Wait()
 
 	return nil
 }
 
-func (h *Hub) runCluster() {
+func (h *Hub) runCluster() error {
 	for {
 		err := h.cluster.Run()
 		log.G(h.ctx).Warn("cluster failure, retrying after 10 seconds", zap.Error(err))
@@ -919,20 +920,20 @@ func (h *Hub) runCluster() {
 		select {
 		case <-h.ctx.Done():
 			t.Stop()
-			return
+			return nil
 		case <-t.C:
 			t.Stop()
 		}
 	}
 }
 
-func (h *Hub) listenClusterEvents() {
+func (h *Hub) listenClusterEvents() error {
 	for {
 		select {
 		case event := <-h.eventCh:
 			h.processClusterEvent(event)
 		case <-h.ctx.Done():
-			return
+			return nil
 		}
 	}
 }
@@ -1063,7 +1064,7 @@ func (h *Hub) initLocatorClient() error {
 	return nil
 }
 
-func (h *Hub) startLocatorAnnouncer() {
+func (h *Hub) startLocatorAnnouncer() error {
 	tk := time.NewTicker(h.locatorPeriod)
 	defer tk.Stop()
 
@@ -1074,7 +1075,7 @@ func (h *Hub) startLocatorAnnouncer() {
 		case <-tk.C:
 			h.announceAddress(h.ctx)
 		case <-h.ctx.Done():
-			return
+			return nil
 		}
 	}
 }
