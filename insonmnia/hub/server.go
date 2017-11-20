@@ -922,7 +922,6 @@ func (h *Hub) runCluster() {
 			return
 		case <-t.C:
 			t.Stop()
-			continue
 		}
 	}
 }
