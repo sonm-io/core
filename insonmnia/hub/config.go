@@ -29,7 +29,7 @@ type StoreConfig struct {
 
 type ClusterConfig struct {
 	Store                        StoreConfig `yaml:"store"`
-	Failover                     bool        `yaml:"failover" required:"true" default:"false"`
+	Failover                     bool        `yaml:"failover"`
 	GrpcEndpoint                 string      `yaml:"grpc_endpoint"`
 	LeaderKey                    string      `yaml:"leader_key" default:"sonm/hub/leader"`
 	MemberListKey                string      `yaml:"member_list_key" default:"sonm/hub/list"`

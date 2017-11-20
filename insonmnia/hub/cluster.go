@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"bytes"
 	"github.com/docker/leadership"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
@@ -355,10 +356,70 @@ func (c *cluster) hubGC() error {
 	}
 }
 
+//TODO: extract this to some kind of store wrapper over boltdb
+func (c *cluster) watchEventsTree(stopCh <-chan struct{}) (<-chan []*store.KVPair, error) {
+	if c.cfg.Failover {
+		return c.store.WatchTree(c.cfg.SynchronizableEntitiesPrefix, stopCh)
+	}
+	opts := store.WriteOptions{
+		IsDir: true,
+	}
+	empty := make([]byte, 0)
+	c.store.Put(c.cfg.SynchronizableEntitiesPrefix, empty, &opts)
+	ch := make(chan []*store.KVPair, 1)
+
+	data := make(map[string]*store.KVPair)
+	updater := func() error {
+		changed := false
+		pairs, err := c.store.List(c.cfg.SynchronizableEntitiesPrefix)
+		log.G(c.ctx).Warn("DATA", zap.Any("DATA", pairs), zap.Any("DD", data))
+		if err != nil {
+			return err
+		}
+		filtered_pairs := make([]*store.KVPair, 0)
+		for _, pair := range pairs {
+			if pair.Key == c.cfg.SynchronizableEntitiesPrefix {
+				continue
+			}
+			filtered_pairs = append(filtered_pairs, pair)
+			cur, ok := data[pair.Key]
+			if !ok || !bytes.Equal(cur.Value, pair.Value) {
+				changed = true
+				data[pair.Key] = pair
+			}
+		}
+		if changed {
+			ch <- filtered_pairs
+		}
+		return nil
+	}
+
+	if err := updater(); err != nil {
+		return nil, err
+	}
+	go func() {
+		t := time.NewTicker(time.Second * 1)
+		defer t.Stop()
+
+		for {
+			select {
+			case <-c.ctx.Done():
+				return
+			case <-t.C:
+				err := updater()
+				if err != nil {
+					c.close(err)
+				}
+			}
+		}
+	}()
+	return ch, nil
+}
+
 func (c *cluster) watchEvents() error {
 	log.G(c.ctx).Info("subscribing on sync folder")
 	watchStopChannel := make(chan struct{})
-	ch, err := c.store.WatchTree(c.cfg.SynchronizableEntitiesPrefix, watchStopChannel)
+	ch, err := c.watchEventsTree(watchStopChannel)
 	if err != nil {
 		c.close(err)
 		return err
@@ -410,7 +471,7 @@ func (c *cluster) typeByName(name string) (reflect.Type, error) {
 	defer c.registeredEntitiesMu.RUnlock()
 	t, ok := c.registeredEntities[name]
 	if !ok {
-		return nil, errors.New("entity " + t.String() + " is not registered")
+		return nil, errors.New("entity " + name + " is not registered")
 	}
 	return t, nil
 }
