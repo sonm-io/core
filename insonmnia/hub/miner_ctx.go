@@ -36,9 +36,9 @@ type MinerCtx struct {
 	// gRPC connection
 	grpcConn *grpc.ClientConn
 	// gRPC Client
-	Client     pb.MinerClient
-	status_map map[string]*pb.TaskStatusReply
-	status_mu  sync.Mutex
+	Client    pb.MinerClient
+	statusMap map[string]*pb.TaskStatusReply
+	statusMu  sync.Mutex
 	// Incoming TCP-connection
 	conn net.Conn
 
@@ -61,7 +61,7 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 	var (
 		m = MinerCtx{
 			conn:         conn,
-			status_map:   make(map[string]*pb.TaskStatusReply),
+			statusMap:    make(map[string]*pb.TaskStatusReply),
 			usageMapping: make(map[OrderId]*resource.Resources),
 		}
 		err error
@@ -177,9 +177,9 @@ func (m *MinerCtx) pollStatuses() error {
 			return err
 		}
 
-		m.status_mu.Lock()
-		m.status_map = statusReply.Statuses
-		m.status_mu.Unlock()
+		m.statusMu.Lock()
+		m.statusMap = statusReply.Statuses
+		m.statusMu.Unlock()
 	}
 }
 

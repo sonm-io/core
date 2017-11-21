@@ -11,7 +11,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-var errNodeNotFound = errors.New("Node with given Eth address cannot be found")
+var errNodeNotFound = errors.New("node with given Eth address cannot be found")
 
 type node struct {
 	ethAddr string

@@ -88,7 +88,7 @@ func ParseEndpointPort(s string) (string, error) {
 	}
 
 	if intPort < 1 || intPort > 65535 {
-		return "", errors.New("Invalid port value")
+		return "", errors.New("invalid port value")
 	}
 
 	return port, nil

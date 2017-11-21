@@ -14,7 +14,7 @@ import (
 	"github.com/sonm-io/core/util"
 )
 
-const defaultEthEndpoint string = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
+const defaultEthEndpoint = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
 
 const defaultGasPrice = 20 * 1000000000
 

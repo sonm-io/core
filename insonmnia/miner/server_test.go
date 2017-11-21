@@ -152,12 +152,12 @@ func TestMinerStart(t *testing.T) {
 
 	ovs := NewMockOverseer(mock)
 	ovs.EXPECT().Spool(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-	status_chan := make(chan pb.TaskStatusReply_Status)
+	statusChan := make(chan pb.TaskStatusReply_Status)
 	info := ContainerInfo{
 		status: &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
 		ID:     "deadbeef-cafe-dead-beef-cafedeadbeef",
 	}
-	ovs.EXPECT().Start(gomock.Any(), gomock.Any()).Times(1).Return(status_chan, info, nil)
+	ovs.EXPECT().Start(gomock.Any(), gomock.Any()).Times(1).Return(statusChan, info, nil)
 
 	builder := MinerBuilder{}
 	m, err := builder.Config(cfg).Overseer(ovs).Build()

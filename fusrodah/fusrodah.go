@@ -37,7 +37,7 @@ type DiscoveryMessage struct {
 }
 
 var (
-	errServerNotRunning = errors.New("Server is not running")
+	errServerNotRunning = errors.New("server is not running")
 )
 
 type Fusrodah struct {
