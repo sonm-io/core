@@ -39,6 +39,12 @@ cluster:
     # Storage bucket to store all data in
     bucket: "sonm"
 
+    # TLS key file for stores, supporting it
+    # key_file: "/path/to/key.key
+
+    # Cert file for stores, supporting it
+    # cert_file: "/path/to/cert.crt"
+
   # Fine tuning
   leader_key: "sonm/hub/leader"
   member_list_key: "sonm/hub/list"
