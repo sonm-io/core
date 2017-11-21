@@ -350,9 +350,9 @@ func (h *Hub) TaskList(ctx context.Context, request *pb.Empty) (*pb.TaskListRepl
 	reply := &pb.TaskListReply{Info: map[string]*pb.TaskListReply_TaskInfo{}}
 
 	for workerID, worker := range h.miners {
-		worker.status_mu.Lock()
-		taskStatuses := pb.StatusMapReply{Statuses: worker.status_map}
-		worker.status_mu.Unlock()
+		worker.statusMu.Lock()
+		taskStatuses := pb.StatusMapReply{Statuses: worker.statusMap}
+		worker.statusMu.Unlock()
 
 		// maps TaskID to TaskStatus
 		info := &pb.TaskListReply_TaskInfo{Tasks: map[string]*pb.TaskStatusReply{}}
@@ -383,9 +383,9 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.ID) (*pb.StatusMapRep
 		return nil, status.Errorf(codes.NotFound, "no such miner %s", miner)
 	}
 
-	mincli.status_mu.Lock()
-	reply := pb.StatusMapReply{Statuses: mincli.status_map}
-	mincli.status_mu.Unlock()
+	mincli.statusMu.Lock()
+	reply := pb.StatusMapReply{Statuses: mincli.statusMap}
+	mincli.statusMu.Unlock()
 	return &reply, nil
 }
 

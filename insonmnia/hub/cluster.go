@@ -375,12 +375,12 @@ func (c *cluster) watchEventsTree(stopCh <-chan struct{}) (<-chan []*store.KVPai
 		if err != nil {
 			return err
 		}
-		filtered_pairs := make([]*store.KVPair, 0)
+		filteredPairs := make([]*store.KVPair, 0)
 		for _, pair := range pairs {
 			if pair.Key == c.cfg.SynchronizableEntitiesPrefix {
 				continue
 			}
-			filtered_pairs = append(filtered_pairs, pair)
+			filteredPairs = append(filteredPairs, pair)
 			cur, ok := data[pair.Key]
 			if !ok || !bytes.Equal(cur.Value, pair.Value) {
 				changed = true
@@ -388,7 +388,7 @@ func (c *cluster) watchEventsTree(stopCh <-chan struct{}) (<-chan []*store.KVPai
 			}
 		}
 		if changed {
-			ch <- filtered_pairs
+			ch <- filteredPairs
 		}
 		return nil
 	}

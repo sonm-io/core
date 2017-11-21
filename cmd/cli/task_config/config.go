@@ -73,7 +73,7 @@ func (yc *YamlConfig) parseValues() error {
 	var ram ds.ByteSize
 	err := ram.UnmarshalText([]byte(strings.ToLower(yc.Task.Resources.RAM)))
 	if err != nil {
-		return fmt.Errorf("Cannot parse ram: %s", err)
+		return fmt.Errorf("cannot parse ram: %s", err)
 	}
 	yc.RamCount = ram.Bytes()
 	return nil

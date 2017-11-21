@@ -156,7 +156,7 @@ func TestTaskInvaludRAMValue(t *testing.T) {
 	cfg, err := LoadConfig(testCfgPath)
 	assert.Nil(t, cfg)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "Cannot parse")
+	assert.Contains(t, err.Error(), "cannot parse")
 	assert.Contains(t, err.Error(), "invalid syntax")
 }
 

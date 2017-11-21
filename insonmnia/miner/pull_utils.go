@@ -39,7 +39,7 @@ func decodeImagePull(r io.Reader) error {
 		}
 
 		if len(line) == 0 {
-			return fmt.Errorf("Empty response line")
+			return fmt.Errorf("empty response line")
 		}
 
 		if line[len(line)-1] == '\n' {

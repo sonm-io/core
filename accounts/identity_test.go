@@ -52,8 +52,8 @@ func initTestingKeystore() (Identity, error) {
 func TestNewIdentity(t *testing.T) {
 	/* Success case - check object not null */
 	idt := NewIdentity(testingKeystoreDirectory)
-	idt_pass := idt.(*identityPassphrase)
-	assert.NotNil(t, idt_pass.keystore)
+	idtPass := idt.(*identityPassphrase)
+	assert.NotNil(t, idtPass.keystore)
 }
 
 func TestIdentityPassphrase_GetPrivateKey(t *testing.T) {
