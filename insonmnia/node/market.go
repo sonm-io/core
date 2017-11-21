@@ -1,12 +1,10 @@
 package node
 
 import (
+	"crypto/ecdsa"
+	"fmt"
 	"sync"
 	"time"
-
-	"crypto/ecdsa"
-
-	"fmt"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
@@ -86,6 +84,13 @@ type orderHandler struct {
 
 func newOrderHandler(ctx context.Context, loc string, o *pb.Order) (*orderHandler, error) {
 	ctx, cancel := context.WithCancel(ctx)
+	var err error
+	defer func() {
+		// cancel context in we cannot create handler
+		if err != nil {
+			cancel()
+		}
+	}()
 
 	cc, err := util.MakeGrpcClient(ctx, loc, nil)
 	if err != nil {
@@ -109,7 +114,7 @@ func newOrderHandler(ctx context.Context, loc string, o *pb.Order) (*orderHandle
 
 	order, err := structs.NewOrder(o)
 	if err != nil {
-		log.G(t.ctx).Debug("cannot convert order to inner order", zap.Error(err))
+		log.G(t.ctx).Info("cannot convert order to inner order", zap.Error(err))
 		t.setError(err)
 		return t, err
 	}
@@ -129,7 +134,7 @@ func (h *orderHandler) setError(err error) {
 
 // search searches for matching orders on Marketplace
 func (h *orderHandler) search(m pb.MarketClient) ([]*pb.Order, error) {
-	log.G(h.ctx).Debug("searching for orders")
+	log.G(h.ctx).Info("searching for orders")
 	h.status = statusSearching
 
 	req := &pb.GetOrdersRequest{
@@ -149,7 +154,7 @@ func (h *orderHandler) search(m pb.MarketClient) ([]*pb.Order, error) {
 // resolveHubAddr resolving Hub IP addr from Hub's Eth address
 // via Locator service
 func (h *orderHandler) resolveHubAddr(ethAddr string) (string, error) {
-	log.G(h.ctx).Debug("resolving Hub IP ip", zap.String("eth_addr", ethAddr))
+	log.G(h.ctx).Info("resolving Hub IP ip", zap.String("eth_addr", ethAddr))
 	req := &pb.ResolveRequest{EthAddr: ethAddr}
 	reply, err := h.locator.Resolve(h.ctx, req)
 	if err != nil {
@@ -157,7 +162,7 @@ func (h *orderHandler) resolveHubAddr(ethAddr string) (string, error) {
 	}
 
 	ip := reply.IpAddr[0]
-	log.G(h.ctx).Debug("hub ip resolved successful", zap.String("ip", ip))
+	log.G(h.ctx).Info("hub ip resolved successful", zap.String("ip", ip))
 	return ip, nil
 }
 
@@ -167,14 +172,14 @@ func (h *orderHandler) propose(askID, supID string) error {
 
 	hubIP, err := h.resolveHubAddr(supID)
 	if err != nil {
-		log.G(h.ctx).Debug("cannot resolve Hub IP", zap.Error(err))
+		log.G(h.ctx).Info("cannot resolve Hub IP", zap.Error(err))
 		h.setError(err)
 		return err
 	}
 
 	cc, err := util.MakeGrpcClient(h.ctx, hubIP, nil)
 	if err != nil {
-		log.G(h.ctx).Debug("cannot create Hub gRPC client", zap.Error(err))
+		log.G(h.ctx).Info("cannot create Hub gRPC client", zap.Error(err))
 		h.setError(err)
 		return err
 	}
@@ -184,7 +189,7 @@ func (h *orderHandler) propose(askID, supID string) error {
 	req := &pb.DealRequest{BidId: h.order.Id, AskId: askID, Order: h.order}
 	_, err = hub.ProposeDeal(h.ctx, req)
 	if err != nil {
-		log.G(h.ctx).Debug("cannot propose createDeal to Hub", zap.Error(err))
+		log.G(h.ctx).Info("cannot propose createDeal to Hub", zap.Error(err))
 		// return typed error
 		return errCannotProposeOrder
 	}
@@ -194,7 +199,7 @@ func (h *orderHandler) propose(askID, supID string) error {
 
 // createDeal creates deal on Etherum blockchain
 func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey) error {
-	log.G(h.ctx).Debug("creating deal on Etherum")
+	log.G(h.ctx).Info("creating deal on Etherum")
 	h.status = statusDealing
 
 	deal := &pb.Deal{
@@ -208,7 +213,7 @@ func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey) error 
 
 	_, err := h.bc.OpenDeal(key, deal)
 	if err != nil {
-		log.G(h.ctx).Debug("cannot open deal", zap.Error(err))
+		log.G(h.ctx).Info("cannot open deal", zap.Error(err))
 		h.setError(err)
 		return err
 	}
@@ -277,20 +282,20 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, 
 }
 
 func (m *marketAPI) startExecOrderHandler(ctx context.Context, ord *pb.Order) {
-	log.G(ctx).Debug("starting ExecOrder")
+	log.G(ctx).Info("starting ExecOrder")
 	handler, err := newOrderHandler(ctx, m.conf.LocatorEndpoint(), ord)
 	// push handler to a map after error checking
 	// we need to store a failed tasks too
 	m.createHandler(handler.id, handler)
 	if err != nil {
-		log.G(handler.ctx).Debug("cannot create new bg handler from order", zap.Error(err))
+		log.G(handler.ctx).Info("cannot create new bg handler from order", zap.Error(err))
 		return
 	}
 
 	// process order (search -> propose -> deal)
 	err = m.orderLoop(handler)
 	if err == nil {
-		log.G(handler.ctx).Debug("order loop complete at n=1 iteration, exiting")
+		log.G(handler.ctx).Info("order loop complete at n=1 iteration, exiting")
 		return
 	}
 
@@ -298,7 +303,7 @@ func (m *marketAPI) startExecOrderHandler(ctx context.Context, ord *pb.Order) {
 	defer func() {
 		_, err = m.CancelOrder(ctx, ord)
 		if err != nil {
-			log.G(handler.ctx).Debug("cannot cancel order", zap.String("err", err.Error()))
+			log.G(handler.ctx).Info("cannot cancel order", zap.String("err", err.Error()))
 		}
 	}()
 
@@ -308,13 +313,13 @@ func (m *marketAPI) startExecOrderHandler(ctx context.Context, ord *pb.Order) {
 		select {
 		// cancel context to stop polling for ordrs
 		case <-handler.ctx.Done():
-			log.G(handler.ctx).Debug("handler is cancelled")
+			log.G(handler.ctx).Info("handler is cancelled")
 			return
 		// retrier for order polling
 		case <-tk.C:
 			err := m.orderLoop(handler)
 			if err == nil {
-				log.G(handler.ctx).Debug("order loop complete at n > 1 iteration, exiting")
+				log.G(handler.ctx).Info("order loop complete at n > 1 iteration, exiting")
 				return
 			}
 		}
@@ -327,16 +332,16 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 
 	orders, err := handler.search(m.market)
 	if err != nil {
-		log.G(handler.ctx).Debug("cannot get orders", zap.Error(err))
+		log.G(handler.ctx).Info("cannot get orders", zap.Error(err))
 		handler.setError(err)
 		return err
 	}
 
 	if len(orders) == 0 {
-		log.G(handler.ctx).Debug("no matching ASK orders found")
+		log.G(handler.ctx).Info("no matching ASK orders found")
 		return errNoMatchingOrder
 	} else {
-		log.G(handler.ctx).Debug("found order", zap.Int("count", len(orders)))
+		log.G(handler.ctx).Info("found order", zap.Int("count", len(orders)))
 	}
 
 	orderToDeal := &pb.Order{}
@@ -344,7 +349,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		err = handler.propose(ord.Id, ord.SupplierID)
 		if err != nil {
 			if err == errCannotProposeOrder {
-				log.G(handler.ctx).Debug("cannot propose order, trying next order")
+				log.G(handler.ctx).Info("cannot propose order, trying next order")
 				continue
 			}
 		} else {
@@ -356,7 +361,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 
 	err = handler.createDeal(orderToDeal, m.key)
 	if err != nil {
-		log.G(handler.ctx).Debug("cannot create deal, failing handler")
+		log.G(handler.ctx).Info("cannot create deal, failing handler")
 		handler.setError(err)
 		return err
 	}
