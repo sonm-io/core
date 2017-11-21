@@ -20,6 +20,10 @@ type ACLStorage interface {
 	// Has checks whether the given worker credentials contains in the
 	// storage.
 	Has(credentials string) bool
+	// Each applies the specified function to each credentials in the storage.
+	// Traversal will continue until all items in the Set have been visited,
+	// or if the closure returns false.
+	Each(fn func(string) bool)
 }
 
 type workerACLStorage struct {
@@ -83,4 +87,12 @@ func (s *workerACLStorage) Has(credentials string) bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.storage.Has(credentials)
+}
+
+func (s *workerACLStorage) Each(fn func(string) bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	s.storage.Each(func(credentials interface{}) bool {
+		return fn(credentials.(string))
+	})
 }
