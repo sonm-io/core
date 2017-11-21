@@ -45,7 +45,7 @@ cluster:
   sync_prefix: "sync_prefix"
   leader_ttl: 20
   announce_period: 10
-  member_gc_period: 60å
+  member_gc_period: 60
 
 # Logging settings.
 logging:
