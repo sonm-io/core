@@ -39,7 +39,7 @@ var nodeDealsListCmd = &cobra.Command{
 	Short:  "Show my deals",
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, _ []string) {
-		itr, err := NewDealsInteractor(nodeAddress, timeout)
+		itr, err := NewDealsInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -67,7 +67,7 @@ var nodeDealsStatusCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
-		itr, err := NewDealsInteractor(nodeAddress, timeout)
+		itr, err := NewDealsInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -96,7 +96,7 @@ var nodeDealsFinishCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
-		itr, err := NewDealsInteractor(nodeAddress, timeout)
+		itr, err := NewDealsInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)

@@ -1,8 +1,9 @@
 package util
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParseEndpoint(t *testing.T) {
@@ -46,5 +47,44 @@ func TestParseEndpoint(t *testing.T) {
 		} else {
 			assert.NoError(t, err)
 		}
+	}
+}
+
+func TestParseTaskID(t *testing.T) {
+	tests := []struct {
+		in       string
+		task     string
+		hub      string
+		mustFail bool
+	}{
+		{
+			in:       "aaa@bbb",
+			task:     "aaa",
+			hub:      "bbb",
+			mustFail: false,
+		},
+		{
+			in:       "aaa@",
+			mustFail: true,
+		},
+		{
+			in:       "@bbb",
+			mustFail: true,
+		},
+		{
+			in:       "@",
+			mustFail: true,
+		},
+		{
+			in:       "",
+			mustFail: true,
+		},
+	}
+
+	for _, tt := range tests {
+		task, hub, err := ParseTaskID(tt.in)
+		assert.True(t, (err != nil) == tt.mustFail)
+		assert.Equal(t, tt.task, task)
+		assert.Equal(t, tt.hub, hub)
 	}
 }

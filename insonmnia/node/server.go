@@ -127,10 +127,16 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		return nil, err
 	}
 
-	srv := util.MakeGrpcServer(nil)
+	_, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+	creds := util.NewTLS(TLSConfig)
+
+	srv := util.MakeGrpcServer(creds)
 	// register hub connection if hub addr is set
 	if c.HubEndpoint() != "" {
-		hub, err := newHubAPI(ctx, c)
+		hub, err := newHubAPI(ctx, c, creds)
 		if err != nil {
 			return nil, err
 		}
@@ -142,7 +148,6 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	pb.RegisterMarketServer(srv, market)
 	log.G(ctx).Info("market service registered", zap.String("endpt", c.MarketEndpoint()))
 
@@ -153,8 +158,12 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	pb.RegisterDealManagementServer(srv, deals)
 	log.G(ctx).Info("deals service registered")
 
-	tasks := newTasksAPI()
+	tasks, err := newTasksAPI(ctx, key, c, creds)
+	if err != nil {
+		return nil, err
+	}
 	pb.RegisterTaskManagementServer(srv, tasks)
+	log.G(ctx).Info("tasks service registered")
 
 	return &Node{
 		lis:     lis,

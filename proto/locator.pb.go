@@ -18,8 +18,9 @@ var _ = fmt.Errorf
 var _ = math.Inf
 
 type AnnounceRequest struct {
-	EthAddr string   `protobuf:"bytes,1,opt,name=ethAddr" json:"ethAddr,omitempty"`
-	IpAddr  []string `protobuf:"bytes,2,rep,name=ipAddr" json:"ipAddr,omitempty"`
+	EthAddr string `protobuf:"bytes,1,opt,name=ethAddr" json:"ethAddr,omitempty"`
+	// todo: remove repeated
+	IpAddr []string `protobuf:"bytes,2,rep,name=ipAddr" json:"ipAddr,omitempty"`
 }
 
 func (m *AnnounceRequest) Reset()                    { *m = AnnounceRequest{} }

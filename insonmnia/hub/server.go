@@ -43,7 +43,6 @@ var (
 	ErrAskNotFound       = status.Errorf(codes.NotFound, "ask not found")
 	ErrDeviceNotFound    = status.Errorf(codes.NotFound, "device not found")
 	ErrMinerNotFound     = status.Errorf(codes.NotFound, "miner not found")
-	ErrUnimplemented     = status.Errorf(codes.Unimplemented, "not implemented yet")
 	errContractNotExists = status.Errorf(codes.NotFound, "specified contract not exists in the Ethereum")
 )
 
@@ -224,6 +223,10 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	return h.startTask(ctx, taskRequest)
 }
 
+func (h *Hub) generateTaskID() string {
+	return fmt.Sprintf("%s@%s", uuid.New(), util.PubKeyToAddr(h.ethKey.PublicKey))
+}
+
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
 	exists, err := h.eth.CheckContract(request.GetDeal())
 	if err != nil {
@@ -239,8 +242,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		return nil, err
 	}
 
-	taskID := uuid.New()
-
+	taskID := h.generateTaskID()
 	startRequest := &pb.MinerStartRequest{
 		OrderId:       request.GetOrderId(),
 		Id:            taskID,

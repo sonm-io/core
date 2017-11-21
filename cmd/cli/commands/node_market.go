@@ -97,7 +97,7 @@ var nodeMarketSearchCmd = &cobra.Command{
 	Short: "Place new Bid order on Marketplace",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		market, err := NewMarketInteractor(nodeAddress, timeout)
+		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -132,7 +132,7 @@ var nodeMarketShowCmd = &cobra.Command{
 	Short: "Show order details",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		market, err := NewMarketInteractor(nodeAddress, timeout)
+		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -153,7 +153,7 @@ var nodeMarketProcessingCmd = &cobra.Command{
 	Use:   "processing",
 	Short: "Show processing orders",
 	Run: func(cmd *cobra.Command, args []string) {
-		market, err := NewMarketInteractor(nodeAddress, timeout)
+		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -174,7 +174,7 @@ var nodeMarketCreteCmd = &cobra.Command{
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		market, err := NewMarketInteractor(nodeAddress, timeout)
+		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -203,7 +203,7 @@ var nodeMarketCancelCmd = &cobra.Command{
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		market, err := NewMarketInteractor(nodeAddress, timeout)
+		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)

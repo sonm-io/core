@@ -22,4 +22,5 @@ message Deal {
 
     string SpecificationHash = 7;
     uint64 workTime = 8;
+    string id = 9;
 }

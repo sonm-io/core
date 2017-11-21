@@ -8,7 +8,7 @@ import (
 
 var (
 	errDealRequired  = errors.New("deal is required")
-	errBidIdRequired = errors.New("bid id must be non-empty")
+	errBidIdRequired = errors.New("buyer id must be non-empty")
 )
 
 type StartTaskRequest struct {
@@ -33,5 +33,5 @@ func (r *StartTaskRequest) GetDeal() *sonm.Deal {
 }
 
 func (r *StartTaskRequest) GetOrderId() string {
-	return r.GetDeal().GetBuyerID()
+	return r.GetDeal().GetId()
 }
