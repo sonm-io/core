@@ -1,7 +1,9 @@
 package hub
 
 import (
+	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"net"
 	"reflect"
@@ -9,8 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"bytes"
-	"crypto/tls"
 	"github.com/docker/leadership"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
