@@ -372,7 +372,6 @@ func (c *cluster) watchEventsTree(stopCh <-chan struct{}) (<-chan []*store.KVPai
 	updater := func() error {
 		changed := false
 		pairs, err := c.store.List(c.cfg.SynchronizableEntitiesPrefix)
-		log.G(c.ctx).Warn("DATA", zap.Any("DATA", pairs), zap.Any("DD", data))
 		if err != nil {
 			return err
 		}
