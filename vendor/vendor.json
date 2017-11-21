@@ -64,6 +64,30 @@
 			"revisionTime": "2017-06-08T04:50:38Z"
 		},
 		{
+			"checksumSHA1": "ObIo600Bu1u+28ARcRFZ256s0ZU=",
+			"path": "github.com/NVIDIA/nvidia-docker/src/cuda",
+			"revision": "d8e8727788aaf0012a4bcfab4d55b7bc5eb718b6",
+			"revisionTime": "2017-07-22T19:54:03Z"
+		},
+		{
+			"checksumSHA1": "SAnjtQ1GwCYZN46A+ZN7HUPrahI=",
+			"path": "github.com/NVIDIA/nvidia-docker/src/ldcache",
+			"revision": "d8e8727788aaf0012a4bcfab4d55b7bc5eb718b6",
+			"revisionTime": "2017-07-22T19:54:03Z"
+		},
+		{
+			"checksumSHA1": "vfc+9YhThSZODTrctqBjBdCEHQg=",
+			"path": "github.com/NVIDIA/nvidia-docker/src/nvidia",
+			"revision": "d8e8727788aaf0012a4bcfab4d55b7bc5eb718b6",
+			"revisionTime": "2017-07-22T19:54:03Z"
+		},
+		{
+			"checksumSHA1": "w1z6hmlgJp64kMot66VBsQFeKcY=",
+			"path": "github.com/NVIDIA/nvidia-docker/src/nvml",
+			"revision": "d8e8727788aaf0012a4bcfab4d55b7bc5eb718b6",
+			"revisionTime": "2017-07-22T19:54:03Z"
+		},
+		{
 			"checksumSHA1": "QvibMZwbRw2ltwyNCza/0fXUbF0=",
 			"origin": "github.com/docker/docker/vendor/github.com/Sirupsen/logrus",
 			"path": "github.com/Sirupsen/logrus",
@@ -144,6 +168,12 @@
 			"path": "github.com/containerd/cgroups",
 			"revision": "6d5c608c203dab9f154fdb40c22c043cebd4d699",
 			"revisionTime": "2017-07-14T21:03:33Z"
+		},
+		{
+			"checksumSHA1": "RBwpnMpfQt7Jo7YWrRph0Vwe+f0=",
+			"path": "github.com/coreos/go-systemd/activation",
+			"revision": "24036eb3df68550d24a2736c5d013f4e83366866",
+			"revisionTime": "2017-06-09T14:46:27Z"
 		},
 		{
 			"checksumSHA1": "/zxxFPYjUB7Wowz33r5AhTDvoz0=",
@@ -335,6 +365,18 @@
 			"path": "github.com/docker/go-connections/tlsconfig",
 			"revision": "cd35e4beee13a7c193e2a89008cd87d38fcd0161",
 			"revisionTime": "2017-06-08T04:50:38Z"
+		},
+		{
+			"checksumSHA1": "e/cSY11dRBYpw1MpxpKLDG0NO28=",
+			"path": "github.com/docker/go-plugins-helpers/sdk",
+			"revision": "bd8c600f0cdd76c7a57ff6aa86bd2b423868c688",
+			"revisionTime": "2017-09-19T09:29:28Z"
+		},
+		{
+			"checksumSHA1": "Q7aTLIDZPbH1XrFlbSWvM/aqG5E=",
+			"path": "github.com/docker/go-plugins-helpers/volume",
+			"revision": "bd8c600f0cdd76c7a57ff6aa86bd2b423868c688",
+			"revisionTime": "2017-09-19T09:29:28Z"
 		},
 		{
 			"checksumSHA1": "Pv1NbtDY4wETwwSD2DsI+s8de/I=",

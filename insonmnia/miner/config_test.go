@@ -55,14 +55,17 @@ hub:
 logging:
   level: -1
 GPUConfig:
-  nvidiadockerdriver: "localhost:3476"
+  type: nvidiadocker
+  args: { nvidiadockerdriver: "localhost:3476" }
 `)
 	assert.NoError(t, err)
 	defer deleteTestConfigFile()
 
 	conf, err := NewConfig(testMinerConfigPath)
 	assert.Nil(t, err)
-	assert.Equal(t, "localhost:3476", conf.GPU().NvidiaDockerDriver)
+	assert.Equal(t, "nvidiadocker", conf.GPU().Type)
+	assert.NotEmpty(t, conf.GPU().Args)
+	assert.Equal(t, "localhost:3476", conf.GPU().Args["nvidiadockerdriver"])
 }
 
 func TestLoadConfigWithoutEndpoint(t *testing.T) {

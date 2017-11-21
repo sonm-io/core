@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/miner/gpu"
 )
 
 type containerDescriptor struct {
@@ -27,7 +28,7 @@ type containerDescriptor struct {
 	stats       types.StatsJSON
 }
 
-func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuner nvidiaGPUTuner) (*containerDescriptor, error) {
+func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuner gpu.Tuner) (*containerDescriptor, error) {
 	log.G(ctx).Info("start container with application")
 
 	ctx, cancel := context.WithCancel(ctx)

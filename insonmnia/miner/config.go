@@ -3,6 +3,7 @@ package miner
 import (
 	"github.com/jinzhu/configor"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sonm-io/core/insonmnia/miner/gpu"
 )
 
 // HubConfig describes Hub configuration.
@@ -44,7 +45,7 @@ type config struct {
 	HubConfig      *HubConfig      `required:"false" yaml:"hub"`
 	FirewallConfig *FirewallConfig `required:"false" yaml:"firewall"`
 	Eth            *EthConfig      `yaml:"ethereum"`
-	GPUConfig      *GPUConfig      `required:"false" yaml:"GPUConfig"`
+	GPUConfig      *gpu.Config     `required:"false" yaml:"GPUConfig"`
 	SSHConfig      *SSHConfig      `required:"false" yaml:"ssh"`
 	LoggingConfig  LoggingConfig   `yaml:"logging"`
 	UUIDPathConfig string          `required:"false" yaml:"uuid_path"`
@@ -68,7 +69,7 @@ func (c *config) Firewall() *FirewallConfig {
 	return c.FirewallConfig
 }
 
-func (c *config) GPU() *GPUConfig {
+func (c *config) GPU() *gpu.Config {
 	return c.GPUConfig
 }
 
@@ -111,7 +112,7 @@ type Config interface {
 	// Firewall returns firewall detection settings.
 	Firewall() *FirewallConfig
 	// GPU returns options about NVIDIA GPU support via nvidia-docker-plugin
-	GPU() *GPUConfig
+	GPU() *gpu.Config
 	// SSH returns settings for built-in ssh server
 	SSH() *SSHConfig
 	// Logging returns logging settings.
