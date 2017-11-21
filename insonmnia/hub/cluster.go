@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"bytes"
+	"crypto/tls"
 	"github.com/docker/leadership"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
@@ -484,7 +485,20 @@ func makeStore(ctx context.Context, cfg *ClusterConfig) (store.Store, error) {
 
 	backend := store.Backend(cfg.Store.Type)
 
-	config := store.Config{}
+	var tlsConf *tls.Config
+	if len(cfg.Store.CertFile) != 0 && len(cfg.Store.KeyFile) != 0 {
+		cer, err := tls.LoadX509KeyPair(cfg.Store.CertFile, cfg.Store.KeyFile)
+		if err != nil {
+			return nil, err
+		}
+
+		tlsConf = &tls.Config{
+			Certificates: []tls.Certificate{cer},
+		}
+	}
+	config := store.Config{
+		TLS: tlsConf,
+	}
 	config.Bucket = cfg.Store.Bucket
 	return libkv.NewStore(backend, endpoints, &config)
 }

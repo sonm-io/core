@@ -25,6 +25,8 @@ type StoreConfig struct {
 	Type     string `required:"true" default:"boltdb" yaml:"type"`
 	Endpoint string `required:"true" default:"/tmp/sonm/boltdb" yaml:"endpoint"`
 	Bucket   string `required:"true" default:"sonm" yaml:"bucket"`
+	KeyFile  string `yaml:"key_file"`
+	CertFile string `yaml:"cert_file"`
 }
 
 type ClusterConfig struct {
