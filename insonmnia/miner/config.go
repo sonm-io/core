@@ -8,7 +8,7 @@ import (
 
 // HubConfig describes Hub configuration.
 type HubConfig struct {
-	Endpoint string           `required:"false" yaml:"endpoint"`
+	Endpoint string           `required:"true" yaml:"endpoint"`
 	CGroups  *ResourcesConfig `required:"false" yaml:"resources"`
 }
 
@@ -42,7 +42,7 @@ type ResourcesConfig struct {
 }
 
 type config struct {
-	HubConfig      *HubConfig      `required:"false" yaml:"hub"`
+	HubConfig      *HubConfig      `required:"true" yaml:"hub"`
 	FirewallConfig *FirewallConfig `required:"false" yaml:"firewall"`
 	Eth            *EthConfig      `yaml:"ethereum"`
 	GPUConfig      *gpu.Config     `required:"false" yaml:"GPUConfig"`

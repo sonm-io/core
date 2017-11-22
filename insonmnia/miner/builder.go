@@ -4,11 +4,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"os"
 
 	"golang.org/x/net/context"
-
-	"net"
 
 	"github.com/ccding/go-stun/stun"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -22,6 +21,11 @@ import (
 	"google.golang.org/grpc/credentials"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+)
+
+var (
+	errInvalidEndpointFormat = errors.New("endpoint must be in <key>@<endpoint> format")
+	errInvalidEthAddrFormat  = errors.New("invalid ETH address format")
 )
 
 type MinerBuilder struct {
@@ -150,6 +154,12 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		creds       credentials.TransportCredentials
 		certRotator util.HitlessCertRotator
 	)
+
+	hubAddr, hubEthAddr, err := parseHubEndpoint(b.cfg.HubEndpoint())
+	if err != nil {
+		return nil, err
+	}
+
 	if os.Getenv("GRPC_INSECURE") == "" {
 		var (
 			ethKey  *ecdsa.PrivateKey
@@ -169,7 +179,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		if err != nil {
 			return nil, err
 		}
-		creds = util.NewTLS(TLSConf)
+		creds = newWalletAuthenticator(util.NewTLS(TLSConf), hubEthAddr)
 	}
 	grpcServer := util.MakeGrpcServer(creds)
 
@@ -195,7 +205,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 		pubAddress: b.ip.String(),
 		natType:    b.nat,
-		hubAddress: b.cfg.HubEndpoint(),
+		hubAddress: hubAddr,
 
 		rl:             newReverseListener(1),
 		containers:     make(map[string]*ContainerInfo),

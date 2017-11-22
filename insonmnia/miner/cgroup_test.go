@@ -11,6 +11,7 @@ func TestParseResources(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
 hub:
+  endpoint: 0@0.0.0.0:0
   resources:
     cgroup: insonmnia
     resources:
