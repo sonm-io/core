@@ -30,7 +30,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	bch, err := blockchain.NewBlockchainAPI(nil, nil)
+	bch, err := blockchain.NewAPI(nil, nil)
 	if err != nil {
 		log.Fatal(bch)
 		return

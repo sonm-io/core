@@ -15,7 +15,7 @@ import (
 
 type tasksAPI struct {
 	key     *ecdsa.PrivateKey
-	bc      *blockchain.API
+	bc      blockchain.Blockchainer
 	locator pb.LocatorClient
 	ctx     context.Context
 	creds   credentials.TransportCredentials
@@ -192,7 +192,7 @@ func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.Hu
 }
 
 func newTasksAPI(ctx context.Context, key *ecdsa.PrivateKey, conf Config, creds credentials.TransportCredentials) (pb.TaskManagementServer, error) {
-	bcAPI, err := blockchain.NewBlockchainAPI(nil, nil)
+	bcAPI, err := blockchain.NewAPI(nil, nil)
 	if err != nil {
 		return nil, err
 	}
