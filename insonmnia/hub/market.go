@@ -8,6 +8,7 @@ type Market interface {
 
 // TODO (3Hren): Currently stub. Need integration with market.
 type market struct {
+	// TODO(sshaman1101): implement me
 }
 
 func (m *market) OrderExists(ID string) (bool, error) {
