@@ -2,6 +2,7 @@ package hub
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -24,6 +25,7 @@ var (
 	errOrderNotExists    = errors.New("specified order not exists")
 	errCPUNotEnough      = errors.New("number of CPU cores requested is unable to fit system's capabilities")
 	errMemoryNotEnough   = errors.New("number of memory requested is unable to fit system's capabilities")
+	errForbiddenMiner    = errors.New("miner is forbidden")
 )
 
 type OrderId string
@@ -58,16 +60,24 @@ type MinerCtx struct {
 }
 
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
+	var err error
+
+	if h.creds != nil {
+		conn, err = h.tlsHandshake(ctx, conn)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	var (
 		m = MinerCtx{
 			conn:         conn,
 			statusMap:    make(map[string]*pb.TaskStatusReply),
 			usageMapping: make(map[OrderId]*resource.Resources),
 		}
-		err error
 	)
 	m.ctx, m.cancel = context.WithCancel(ctx)
-	m.grpcConn, err = util.MakeGrpcClient(ctx, "miner", h.creds, grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
+	m.grpcConn, err = util.MakeGrpcClient(ctx, "miner", nil, grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
 		return conn, nil
 	}))
 	if err != nil {
@@ -85,6 +95,24 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 	}
 
 	return &m, nil
+}
+
+func (h *Hub) tlsHandshake(ctx context.Context, conn net.Conn) (net.Conn, error) {
+	conn, authInfo, err := h.creds.ClientHandshake(ctx, "", conn)
+	if err != nil {
+		return nil, err
+	}
+
+	switch authInfo := authInfo.(type) {
+	case util.EthAuthInfo:
+		if !h.acl.Has(authInfo.Wallet) {
+			return nil, errForbiddenMiner
+		}
+	default:
+		return nil, fmt.Errorf("unsupported AuthInfo %s %T", authInfo.AuthType(), authInfo)
+	}
+
+	return conn, nil
 }
 
 // ID returns the miner id.
