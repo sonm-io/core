@@ -1,6 +1,8 @@
 package hub
 
 import (
+	"strings"
+
 	"github.com/jinzhu/configor"
 )
 
@@ -64,4 +66,8 @@ func NewConfig(path string) (*HubConfig, error) {
 		return nil, err
 	}
 	return conf, nil
+}
+
+func (c *HubConfig) EndpointIP() string {
+	return strings.Split(c.Endpoint, ":")[0]
 }

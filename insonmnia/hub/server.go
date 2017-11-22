@@ -273,7 +273,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		return nil, err
 	}
 
-	routes := miner.registerRoutes(taskID, response.GetPorts())
+	routes := miner.registerRoutes(taskID, response.GetRoutes())
 
 	// TODO: Synchronize routes with the cluster.
 
@@ -734,16 +734,12 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		return nil, errors.Wrap(err, "malformed ethereum private key")
 	}
 
-	//TODO: this detection seems to be strange
-	ip, err := util.GetPublicIP()
-	if err != nil {
-		return nil, errors.Wrap(err, "cannot get ip from amazon")
-	}
+	ip := cfg.EndpointIP()
 	clientPort, err := util.ParseEndpointPort(cfg.Cluster.GrpcEndpoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "error during parsing client endpoint")
 	}
-	grpcEndpointAddr := ip.String() + ":" + clientPort
+	grpcEndpointAddr := ip + ":" + clientPort
 
 	var gate *gateway.Gateway
 	var portPool *gateway.PortPool

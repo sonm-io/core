@@ -42,13 +42,14 @@ type ResourcesConfig struct {
 }
 
 type config struct {
-	HubConfig      HubConfig       `required:"true" yaml:"hub"`
-	FirewallConfig *FirewallConfig `required:"false" yaml:"firewall"`
-	Eth            *EthConfig      `yaml:"ethereum"`
-	GPUConfig      *gpu.Config     `required:"false" yaml:"GPUConfig"`
-	SSHConfig      *SSHConfig      `required:"false" yaml:"ssh"`
-	LoggingConfig  LoggingConfig   `yaml:"logging"`
-	UUIDPathConfig string          `required:"false" yaml:"uuid_path"`
+	HubConfig       HubConfig       `required:"true" yaml:"hub"`
+	FirewallConfig  *FirewallConfig `required:"false" yaml:"firewall"`
+	Eth             *EthConfig      `yaml:"ethereum"`
+	GPUConfig       *gpu.Config     `required:"false" yaml:"GPUConfig"`
+	SSHConfig       *SSHConfig      `required:"false" yaml:"ssh"`
+	LoggingConfig   LoggingConfig   `yaml:"logging"`
+	UUIDPathConfig  string          `required:"false" yaml:"uuid_path"`
+	PublicIPsConfig []string        `required:"false" yaml:"public_ip_addrs"`
 }
 
 func (c *config) HubEndpoint() string {
@@ -61,6 +62,10 @@ func (c *config) HubResources() *ResourcesConfig {
 
 func (c *config) Firewall() *FirewallConfig {
 	return c.FirewallConfig
+}
+
+func (c *config) PublicIPs() []string {
+	return c.PublicIPsConfig
 }
 
 func (c *config) GPU() *gpu.Config {
@@ -105,6 +110,8 @@ type Config interface {
 	HubResources() *ResourcesConfig
 	// Firewall returns firewall detection settings.
 	Firewall() *FirewallConfig
+	// PublicIPs returns all IPs that can be used to communicate with the miner.
+	PublicIPs() []string
 	// GPU returns options about NVIDIA GPU support via nvidia-docker-plugin
 	GPU() *gpu.Config
 	// SSH returns settings for built-in ssh server

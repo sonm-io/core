@@ -319,31 +319,34 @@ func (m *MinerCtx) Orders() []OrderId {
 	return orders
 }
 
-func (m *MinerCtx) registerRoutes(ID string, ports map[string]*pb.SocketAddr) []routeMapping {
-	routes := []routeMapping{}
-
-	for containerPort, endpoint := range ports {
-		binding, err := util.ParsePortBinding(containerPort)
+func (m *MinerCtx) registerRoutes(ID string, routes []*pb.Route) []routeMapping {
+	var outRoutes []routeMapping
+	for _, route := range routes {
+		binding, err := util.ParsePortBinding(route.Port)
 		if err != nil {
 			log.G(m.ctx).Warn("failed to decode miner's port mapping",
-				zap.String("mapping", containerPort),
+				zap.String("mapping", route.Port),
 				zap.Error(err),
 			)
 			continue
 		}
 
-		route, err := m.router.RegisterRoute(ID, binding.Network(), endpoint.Addr, uint16(endpoint.Port))
+		outRoute, err := m.router.RegisterRoute(ID,
+			binding.Network(),
+			route.Endpoint.GetAddr(),
+			uint16(route.GetEndpoint().GetPort()))
 		if err != nil {
 			log.G(m.ctx).Warn("failed to register route", zap.Error(err))
 			continue
 		}
-		routes = append(routes, routeMapping{
-			containerPort: containerPort,
-			route:         route,
+
+		outRoutes = append(outRoutes, routeMapping{
+			containerPort: route.Port,
+			route:         outRoute,
 		})
 	}
 
-	return routes
+	return outRoutes
 }
 
 // Close frees all connections related to a Miner

@@ -4,10 +4,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/tls"
 	"fmt"
-	"net"
 	"os"
-
-	"golang.org/x/net/context"
 
 	"github.com/ccding/go-stun/stun"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -18,6 +15,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
+	"golang.org/x/net/context"
 	"google.golang.org/grpc/credentials"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -32,7 +30,6 @@ type MinerBuilder struct {
 	ctx      context.Context
 	cfg      Config
 	hardware hardware.HardwareInfo
-	ip       net.IP
 	nat      stun.NATType
 	ovs      Overseer
 	uuid     string
@@ -51,11 +48,6 @@ func (b *MinerBuilder) Config(config Config) *MinerBuilder {
 
 func (b *MinerBuilder) Hardware(hardware hardware.HardwareInfo) *MinerBuilder {
 	b.hardware = hardware
-	return b
-}
-
-func (b *MinerBuilder) Address(ip net.IP) *MinerBuilder {
-	b.ip = ip
 	return b
 }
 
@@ -89,36 +81,14 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		b.hardware = hardware.New()
 	}
 
-	if b.ip == nil {
-		if b.cfg.Firewall() == nil {
-			log.G(b.ctx).Debug("discovering public IP address ...")
-			addr, err := util.GetPublicIP()
-			if err != nil {
-				return nil, err
-			}
-
-			b.ip = addr
-			b.nat = stun.NATNone
-		} else {
-			log.G(b.ctx).Debug("discovering public IP address with NAT type, this may take a long ...")
-
-			client := stun.NewClient()
-			if b.cfg.Firewall().Server != "" {
-				client.SetServerAddr(b.cfg.Firewall().Server)
-			}
-			nat, addr, err := client.Discover()
-			if err != nil {
-				return nil, err
-			}
-			b.ip = net.ParseIP(addr.IP())
-			b.nat = nat
-		}
-
-		log.G(b.ctx).Info("discovered public IP address",
-			zap.Any("addr", b.ip),
-			zap.Any("nat", b.nat),
-		)
+	publicIPs, err := b.getPublicIPs()
+	if err != nil {
+		return nil, err
 	}
+
+	log.G(b.ctx).Info("discovered public IPs",
+		zap.Any("public IPs", publicIPs),
+		zap.Any("nat", b.nat))
 
 	ctx, cancel := context.WithCancel(b.ctx)
 	if b.ovs == nil {
@@ -203,7 +173,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		hardware:  hardwareInfo,
 		resources: resource.NewPool(hardwareInfo),
 
-		pubAddress: b.ip.String(),
+		publicIPs:  publicIPs,
 		natType:    b.nat,
 		hubAddress: hubAddr,
 
@@ -225,6 +195,52 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	pb.RegisterMinerServer(grpcServer, m)
 	return m, nil
 }
+
+func (b *MinerBuilder) getPublicIPs() (pubIPs []string, err error) {
+	// Discover IP if we're behind a NAT.
+	if b.cfg.Firewall() != nil {
+		log.G(b.ctx).Debug("discovering public IP address with NAT type, this might be slow")
+
+		client := stun.NewClient()
+		if b.cfg.Firewall().Server != "" {
+			client.SetServerAddr(b.cfg.Firewall().Server)
+		}
+
+		nat, addr, err := client.Discover()
+		if err != nil {
+			return nil, err
+		}
+
+		pubIPs = append(pubIPs, addr.IP())
+		b.nat = nat
+
+		return SortedIPs(pubIPs), nil
+	}
+
+	b.nat = stun.NATNone
+
+	// Use public IPs from config (if provided).
+	pubIPs = b.cfg.PublicIPs()
+	if len(pubIPs) > 0 {
+		return SortedIPs(pubIPs), nil
+	}
+
+	// Scan interfaces if there's no config and no NAT.
+	systemIPs, err := util.GetAvailableIPs()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ip := range systemIPs {
+		pubIPs = append(pubIPs, ip.String())
+	}
+	if len(pubIPs) > 0 {
+		return SortedIPs(pubIPs), nil
+	}
+
+	return nil, errors.New("failed to get public IPs")
+}
+
 func makeCgroupManager(cfg *ResourcesConfig) (cGroup, cGroupManager, error) {
 	if !platformSupportCGroups || cfg == nil {
 		return newNilCgroupManager()

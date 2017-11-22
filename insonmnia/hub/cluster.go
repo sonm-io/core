@@ -584,30 +584,15 @@ func parseEndpoints(config *ClusterConfig) ([]string, error) {
 		endpoints = append(endpoints, config.GrpcEndpoint)
 		return endpoints, nil
 	}
-	ifaces, err := net.Interfaces()
+
+	systemIPs, err := util.GetAvailableIPs()
 	if err != nil {
 		return nil, err
 	}
-	for _, i := range ifaces {
-		addrs, err := i.Addrs()
-		if err != nil {
-			return nil, err
-		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			if ip != nil && ip.IsGlobalUnicast() {
-				endpoints = append(endpoints, ip.String()+":"+port)
-			}
-		}
+
+	for _, ip := range systemIPs {
+		endpoints = append(endpoints, ip.String()+":"+port)
 	}
-	if len(endpoints) == 0 {
-		return nil, errors.New("could not determine a single unicast endpoint, check networking")
-	}
+
 	return endpoints, nil
 }

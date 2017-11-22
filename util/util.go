@@ -1,14 +1,12 @@
 package util
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net"
-	"net/http"
 	"os"
 	"os/user"
 	"runtime"
@@ -34,38 +32,6 @@ func GetLocalIP() string {
 		}
 	}
 	return ""
-}
-
-// GetPublicIP detects public IP
-func GetPublicIP() (net.IP, error) {
-	req, err := http.NewRequest("GET", "http://checkip.amazonaws.com/", nil)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("non-OK response from checkip.amamazonaws.com: %v", resp.Status)
-	}
-
-	n := bytes.IndexByte(body, '\n')
-	s := string(body[:n])
-
-	pubipadr := net.ParseIP(s)
-	if pubipadr == nil {
-		return nil, fmt.Errorf("failed to ParseIP from: %s", s)
-	}
-	return pubipadr, nil
 }
 
 func GetUserHomeDir() (homeDir string, err error) {
@@ -156,4 +122,35 @@ func ParseTaskID(s string) (string, string, error) {
 	}
 
 	return id, hub, nil
+}
+
+func GetAvailableIPs() (availableIPs []net.IP, err error) {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, i := range ifaces {
+		addrs, err := i.Addrs()
+		if err != nil {
+			return nil, err
+		}
+		for _, addr := range addrs {
+			var ip net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ip = v.IP
+			case *net.IPAddr:
+				ip = v.IP
+			}
+			if ip != nil && ip.IsGlobalUnicast() {
+				availableIPs = append(availableIPs, ip)
+			}
+		}
+	}
+	if len(availableIPs) == 0 {
+		return nil, errors.New("could not determine a single unicast addr, check networking")
+	}
+
+	return availableIPs, nil
 }
