@@ -79,7 +79,7 @@ type orderHandler struct {
 	cancel context.CancelFunc
 
 	locator pb.LocatorClient
-	bc      *blockchain.API
+	bc      blockchain.Blockchainer
 }
 
 func newOrderHandler(ctx context.Context, loc string, o *pb.Order) (*orderHandler, error) {
@@ -98,7 +98,7 @@ func newOrderHandler(ctx context.Context, loc string, o *pb.Order) (*orderHandle
 		return nil, err
 	}
 
-	bcAPI, err := blockchain.NewBlockchainAPI(nil, nil)
+	bcAPI, err := blockchain.NewAPI(nil, nil)
 	if err != nil {
 		log.G(ctx).Error("cannot build blockchain api", zap.Error(err))
 		return nil, err

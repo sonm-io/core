@@ -109,6 +109,7 @@ message DealRequest {
     string bidId = 1;
     string askId = 2;
     Order order = 3;
+    string specHash = 4;
 }
 
 message GetDevicePropertiesReply {

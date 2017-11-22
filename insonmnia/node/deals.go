@@ -13,7 +13,7 @@ import (
 
 type dealsAPI struct {
 	key *ecdsa.PrivateKey
-	bc  *blockchain.API
+	bc  blockchain.Blockchainer
 	ctx context.Context
 }
 
@@ -68,7 +68,7 @@ func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
 }
 
 func newDealsAPI(ctx context.Context, key *ecdsa.PrivateKey) (pb.DealManagementServer, error) {
-	api, err := blockchain.NewBlockchainAPI(nil, nil)
+	api, err := blockchain.NewAPI(nil, nil)
 	if err != nil {
 		return nil, err
 	}
