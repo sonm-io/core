@@ -104,7 +104,8 @@ type Hub struct {
 	// TLS certificate rotator
 	certRotator util.HitlessCertRotator
 	// GRPC TransportCredentials supported our Auth
-	creds credentials.TransportCredentials
+	creds   credentials.TransportCredentials
+	ethAddr string
 }
 
 type DeviceProperties map[string]float64
@@ -738,9 +739,6 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	}
 
 	acl := NewACLStorage()
-	//TODO: how do we sync this?
-	acl.Insert(cfg.Eth.PrivateKey)
-	log.G(ctx).Info("acl", zap.Reflect("acl", acl))
 
 	h := &Hub{
 		cfg:          cfg,
@@ -771,6 +769,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 
 		certRotator: nil,
 		creds:       nil,
+		ethAddr:     util.PubKeyToAddr(ethKey.PublicKey),
 	}
 
 	if os.Getenv("GRPC_INSECURE") == "" {
@@ -781,6 +780,8 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		}
 		h.creds = util.NewTLS(TLSConfig)
 	}
+
+	h.initWorkerACLs()
 
 	h.cluster, h.eventCh, err = NewCluster(ctx, &cfg.Cluster, h.creds)
 	if err != nil {
@@ -793,6 +794,16 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	pb.RegisterHubServer(grpcServer, h)
 	log.G(h.ctx).Debug("created hub")
 	return h, nil
+}
+
+func (h *Hub) initWorkerACLs() {
+	// Do nothing when we're running with insecure mode.
+	if h.creds == nil {
+		return
+	}
+
+	h.acl.Insert(h.ethAddr)
+	log.G(h.ctx).Info("registered default worker credentials", zap.String("wallet", h.ethAddr))
 }
 
 func (h *Hub) onNewHub(endpoint string) {
@@ -1084,7 +1095,7 @@ func (h *Hub) startLocatorAnnouncer() error {
 
 func (h *Hub) announceAddress(ctx context.Context) {
 	req := &pb.AnnounceRequest{
-		EthAddr: util.PubKeyToAddr(h.ethKey.PublicKey),
+		EthAddr: h.ethAddr,
 		IpAddr:  []string{h.grpcEndpointAddr},
 	}
 
