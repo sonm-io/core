@@ -647,24 +647,19 @@ func (h *Hub) RemoveSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, erro
 	return &pb.Empty{}, nil
 }
 
-// GetRegisteredWorkers returns a list of Worker IDs that  allowed to connect
-// to the Hub.
+// GetRegisteredWorkers returns a list of Worker IDs that are allowed to
+// connect to the Hub.
 func (h *Hub) GetRegisteredWorkers(ctx context.Context, empty *pb.Empty) (*pb.GetRegisteredWorkersReply, error) {
 	log.G(h.ctx).Info("handling GetRegisteredWorkers request")
 
-	// NOTE: it's a Stub implementation,  always return a list of the connected Workers
-	// todo: implement me
-	reply := &pb.GetRegisteredWorkersReply{
-		Ids: []*pb.ID{},
-	}
+	var ids []*pb.ID
 
-	h.mu.Lock()
-	for minerID := range h.miners {
-		reply.Ids = append(reply.Ids, &pb.ID{Id: minerID})
-	}
-	h.mu.Unlock()
+	h.acl.Each(func(cred string) bool {
+		ids = append(ids, &pb.ID{Id: cred})
+		return true
+	})
 
-	return reply, nil
+	return &pb.GetRegisteredWorkersReply{Ids: ids}, nil
 }
 
 // RegisterWorker allows Worker with given ID to connect to the Hub
