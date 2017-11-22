@@ -228,7 +228,7 @@ func (h *Hub) generateTaskID() string {
 }
 
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
-	exists, err := h.eth.CheckContract(request.GetDeal())
+	exists, err := h.eth.CheckDealExists(request.GetDeal())
 	if err != nil {
 		return nil, err
 	}
@@ -477,6 +477,8 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 	if err := miner.Consume(OrderId(request.GetBidId()), &usage); err != nil {
 		return nil, err
 	}
+
+	// h.eth
 
 	// TODO: Listen for ETH.
 	// TODO: Start timeout for ETH approve deal.
@@ -734,7 +736,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
 	}
 
-	eth, err := NewETH(ctx)
+	eth, err := NewETH(ctx, ethKey)
 	if err != nil {
 		return nil, err
 	}
