@@ -54,7 +54,7 @@ func TestEth_CheckDealExists(t *testing.T) {
 func TestEth_WaitForDealCreated(t *testing.T) {
 	addr, key := makeTestKey()
 	bC := blockchain.NewMockBlockchainer(gomock.NewController(t))
-	bC.EXPECT().GetDeals("client-addr").AnyTimes().Return(
+	bC.EXPECT().GetOpenedDeal(addr, "client-addr").AnyTimes().Return(
 		[]*big.Int{
 			big.NewInt(100),
 			big.NewInt(200),
@@ -102,7 +102,7 @@ func TestEth_WaitForDealCreated(t *testing.T) {
 func TestEth_CheckDealExists2(t *testing.T) {
 	addr, key := makeTestKey()
 	bC := blockchain.NewMockBlockchainer(gomock.NewController(t))
-	bC.EXPECT().GetDeals("client-addr").AnyTimes().Return(
+	bC.EXPECT().GetOpenedDeal(addr, "client-addr").AnyTimes().Return(
 		[]*big.Int{
 			big.NewInt(100),
 		},
@@ -112,8 +112,8 @@ func TestEth_CheckDealExists2(t *testing.T) {
 		&pb.Deal{
 			SupplierID:        addr,
 			BuyerID:           "client-addr",
-			Status:            pb.DealStatus_CLOSED,
-			SpecificationHash: "aaa",
+			Status:            pb.DealStatus_PENDING,
+			SpecificationHash: "bbb",
 		},
 		nil)
 
