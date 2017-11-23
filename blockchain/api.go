@@ -46,11 +46,11 @@ type Dealer interface {
 	// GetDealAmount return global deal counter
 	GetDealAmount() (*big.Int, error)
 	// GetOpenedDeal returns only opened deals by given hub/client addresses
-	GetOpenedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, error)
+	GetOpenedDeal(hubAddr string, clientAddr string) ([]*big.Int, error)
 	// GetAcceptedDeal returns only accepted deals by given hub/client addresses
-	GetAcceptedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, error)
+	GetAcceptedDeal(hubAddr string, clientAddr string) ([]*big.Int, error)
 	// GetClosedDeal returns only closed deals by given hub/client addresses
-	GetClosedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, error)
+	GetClosedDeal(hubAddr string, clientAddr string) ([]*big.Int, error)
 }
 
 // Tokener is go implementation of ERC20-compatibility token with full functionality high-level interface
@@ -194,7 +194,7 @@ func (bch *api) CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transactio
 	return tx, err
 }
 
-func (bch *api) GetOpenedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, error) {
+func (bch *api) GetOpenedDeal(hubAddr string, clientAddr string) ([]*big.Int, error) {
 	var topics [][]common.Hash
 
 	// precompile EventName topics
@@ -203,8 +203,8 @@ func (bch *api) GetOpenedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, 
 
 	// add filter topic by hub address
 	// filtering by client address implemented below
-	if hubAddr != nil {
-		var addrTopic = []common.Hash{common.HexToHash(common.HexToAddress(*hubAddr).String())}
+	if hubAddr != "" {
+		var addrTopic = []common.Hash{common.HexToHash(common.HexToAddress(hubAddr).String())}
 		topics = append(topics, addrTopic)
 	}
 
@@ -223,8 +223,8 @@ func (bch *api) GetOpenedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, 
 
 	for _, l := range logs {
 		// filtering by client address
-		if clientAddr != nil {
-			if l.Topics[2] != common.HexToHash(*clientAddr) {
+		if clientAddr != "" {
+			if l.Topics[2] != common.HexToHash(clientAddr) {
 				continue
 			}
 		}
@@ -255,7 +255,7 @@ func (bch *api) GetOpenedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, 
 	return out, nil
 }
 
-func (bch *api) GetAcceptedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, error) {
+func (bch *api) GetAcceptedDeal(hubAddr string, clientAddr string) ([]*big.Int, error) {
 	var topics [][]common.Hash
 
 	// precompile EventName topics
@@ -264,8 +264,8 @@ func (bch *api) GetAcceptedDeal(hubAddr *string, clientAddr *string) ([]*big.Int
 
 	// add filter topic by hub address
 	// filtering by client address implemented below
-	if hubAddr != nil {
-		var addrTopic = []common.Hash{common.HexToHash(common.HexToAddress(*hubAddr).String())}
+	if hubAddr != "" {
+		var addrTopic = []common.Hash{common.HexToHash(common.HexToAddress(hubAddr).String())}
 		topics = append(topics, addrTopic)
 	}
 
@@ -284,8 +284,8 @@ func (bch *api) GetAcceptedDeal(hubAddr *string, clientAddr *string) ([]*big.Int
 
 	for _, l := range logs {
 		// filtering by client address
-		if clientAddr != nil {
-			if l.Topics[2] != common.HexToHash(*clientAddr) {
+		if clientAddr != "" {
+			if l.Topics[2] != common.HexToHash(clientAddr) {
 				continue
 			}
 		}
@@ -316,7 +316,7 @@ func (bch *api) GetAcceptedDeal(hubAddr *string, clientAddr *string) ([]*big.Int
 	return out, nil
 }
 
-func (bch *api) GetClosedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, error) {
+func (bch *api) GetClosedDeal(hubAddr string, clientAddr string) ([]*big.Int, error) {
 	var topics [][]common.Hash
 
 	// precompile EventName topics
@@ -325,8 +325,8 @@ func (bch *api) GetClosedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, 
 
 	// add filter topic by hub address
 	// filtering by client address implemented below
-	if hubAddr != nil {
-		var addrTopic = []common.Hash{common.HexToHash(common.HexToAddress(*hubAddr).String())}
+	if hubAddr != "" {
+		var addrTopic = []common.Hash{common.HexToHash(common.HexToAddress(hubAddr).String())}
 		topics = append(topics, addrTopic)
 	}
 
@@ -342,16 +342,13 @@ func (bch *api) GetClosedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, 
 
 	for _, l := range logs {
 		// filtering by client address
-		if clientAddr != nil {
-			if l.Topics[2] != common.HexToHash(*clientAddr) {
+		if clientAddr != "" {
+			if l.Topics[2] != common.HexToHash(clientAddr) {
 				continue
 			}
 		}
-
 		out = append(out, l.Topics[3].Big())
 	}
-
-	// shift ids of opened deals by accepted and closed deals
 
 	return out, nil
 }

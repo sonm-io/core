@@ -11,19 +11,19 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	dealsIds, err := bch.GetOpenedDeal(nil, nil)
+	dealsIds, err := bch.GetOpenedDeal("", "")
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("OpenedDeals: ", dealsIds)
 
-	dealsIds, err = bch.GetAcceptedDeal(nil, nil)
+	dealsIds, err = bch.GetAcceptedDeal("", "")
 	if err != nil {
 		log.Fatal(err)
 	}
 	log.Println("AcceptedDeals: ", dealsIds)
 
-	dealsIds, err = bch.GetClosedDeal(nil, nil)
+	dealsIds, err = bch.GetClosedDeal("", "")
 	if err != nil {
 		log.Fatal(err)
 	}
