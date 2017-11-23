@@ -6,10 +6,12 @@ import (
 	"sort"
 	"sync"
 
+	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
 
@@ -44,7 +46,8 @@ type OrderStorage interface {
 
 type inMemOrderStorage struct {
 	sync.RWMutex
-	db map[string]*structs.Order
+	ctx context.Context
+	db  map[string]*structs.Order
 }
 
 func (in *inMemOrderStorage) generateID() string {
@@ -63,7 +66,7 @@ func (in *inMemOrderStorage) GetOrders(c *searchParams) ([]*structs.Order, error
 	in.RLock()
 	defer in.RUnlock()
 
-	orders := []*structs.Order{}
+	var orders []*structs.Order
 	for _, order := range in.db {
 		if uint64(len(orders)) >= c.count {
 			break
@@ -130,11 +133,14 @@ func NewInMemoryStorage() OrderStorage {
 }
 
 type Marketplace struct {
+	ctx  context.Context
 	db   OrderStorage
 	addr string
 }
 
 func (m *Marketplace) GetOrders(_ context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
+	log.G(m.ctx).Info("handling GetOrders request", zap.Any("req", req))
+
 	slot, err := structs.NewSlot(req.Slot)
 	if err != nil {
 		return nil, err
@@ -156,7 +162,7 @@ func (m *Marketplace) GetOrders(_ context.Context, req *pb.GetOrdersRequest) (*p
 		return nil, err
 	}
 
-	innerOrders := []*pb.Order{}
+	var innerOrders []*pb.Order
 	for _, o := range orders {
 		innerOrders = append(innerOrders, o.Unwrap())
 	}
@@ -167,6 +173,8 @@ func (m *Marketplace) GetOrders(_ context.Context, req *pb.GetOrdersRequest) (*p
 }
 
 func (m *Marketplace) GetOrderByID(_ context.Context, req *pb.ID) (*pb.Order, error) {
+	log.G(m.ctx).Info("handling GetOrderByID request", zap.Any("req", req))
+
 	order, err := m.db.GetOrderByID(req.Id)
 	if err != nil {
 		return nil, err
@@ -175,6 +183,8 @@ func (m *Marketplace) GetOrderByID(_ context.Context, req *pb.ID) (*pb.Order, er
 }
 
 func (m *Marketplace) CreateOrder(_ context.Context, req *pb.Order) (*pb.Order, error) {
+	log.G(m.ctx).Info("handling CreateOrder request", zap.Any("req", req))
+
 	order, err := structs.NewOrder(req)
 	if err != nil {
 		return nil, err
@@ -189,6 +199,8 @@ func (m *Marketplace) CreateOrder(_ context.Context, req *pb.Order) (*pb.Order, 
 }
 
 func (m *Marketplace) CancelOrder(_ context.Context, req *pb.Order) (*pb.Empty, error) {
+	log.G(m.ctx).Info("handling CancelOrder request", zap.Any("req", req))
+
 	err := m.db.DeleteOrder(req.Id)
 	if err != nil {
 		return nil, err
@@ -215,8 +227,9 @@ func (m *Marketplace) Serve() error {
 	return nil
 }
 
-func NewMarketplace(addr string) *Marketplace {
+func NewMarketplace(ctx context.Context, addr string) *Marketplace {
 	return &Marketplace{
+		ctx:  ctx,
 		addr: addr,
 		db:   NewInMemoryStorage(),
 	}
