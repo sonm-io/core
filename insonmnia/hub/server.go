@@ -700,10 +700,25 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 			cancel()
 		}
 	}()
+
 	ethKey, err := crypto.HexToECDSA(cfg.Eth.PrivateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "malformed ethereum private key")
 	}
+
+	ip, err := util.GetPublicIP()
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get ip from amazon")
+	}
+
+	clientPort, err := util.ParseEndpointPort(cfg.Cluster.GrpcEndpoint)
+	if err != nil {
+		return nil, errors.Wrap(err, "error during parsing client endpoint")
+	}
+
+	clientEndpoint := ip.String() + ":" + clientPort
+	//TODO: this detection seems to be strange
+	grpcEndpointAddr := clientEndpoint
 
 	var gate *gateway.Gateway
 	var portPool *gateway.PortPool
@@ -735,12 +750,13 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	acl := NewACLStorage()
 
 	h := &Hub{
-		cfg:          cfg,
-		ctx:          ctx,
-		cancel:       cancel,
-		gateway:      gate,
-		portPool:     portPool,
-		externalGrpc: nil,
+		cfg:              cfg,
+		ctx:              ctx,
+		cancel:           cancel,
+		gateway:          gate,
+		portPool:         portPool,
+		externalGrpc:     nil,
+		grpcEndpointAddr: grpcEndpointAddr,
 
 		miners: make(map[string]*MinerCtx),
 
