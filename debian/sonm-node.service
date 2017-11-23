@@ -1,0 +1,12 @@
+[Unit]
+Description=SONM Node
+
+
+[Service]
+EnvironmentFile=/etc/default/sonm-node
+Type=simple
+ExecStart=/usr/bin/sonmnode --config=${CONFIG_PATH}
+
+
+[Install]
+WantedBy=multi-user.target
