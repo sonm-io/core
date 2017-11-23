@@ -39,3 +39,9 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Locator allows to resolve addresses
  This service allows SONM nodes to discover
  each other by their Etherum addr.
+
+Package: sonm-node
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Node for SONM network
+ Local proxy that provides SONM Node API for clients
