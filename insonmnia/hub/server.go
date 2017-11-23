@@ -479,16 +479,21 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	// TODO(sshaman1101): sync.WaitGroup?
-	// deal proposed, waiting for deal created
-	go func(ctx context.Context, req *structs.DealRequest) {
+	h.waiter.Go(h.getDealWaiter(ctx, request))
+	h.waiter.Wait()
+
+	return &pb.Empty{}, nil
+}
+
+func (h *Hub) getDealWaiter(ctx context.Context, req *structs.DealRequest) func() error {
+	return func() error {
 		createdDeal, err := h.eth.WaitForDealCreated(req)
 		if err != nil || createdDeal == nil {
 			log.G(h.ctx).Warn(
 				"cannot find created deal for current proposal",
 				zap.String("bid_id", req.BidId),
 				zap.String("ask_id", req.GetAskId()))
-			return
+			return errors.New("cannot find created deal for current proposal")
 		}
 
 		err = h.eth.AcceptDeal(createdDeal.GetId())
@@ -496,18 +501,18 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 			log.G(ctx).Warn("cannot accept deal",
 				zap.String("deal_id", createdDeal.GetId()),
 				zap.Error(err))
-			return
+			return err
 		}
 
-		err = h.market.CancelOrder(r.GetAskId())
+		err = h.market.CancelOrder(req.GetAskId())
 		if err != nil {
 			log.G(ctx).Warn("cannot cancel ask order from marketplace",
-				zap.String("ask_id", r.GetAskId()),
+				zap.String("ask_id", req.GetAskId()),
 				zap.Error(err))
 		}
-	}(ctx, request)
 
-	return &pb.Empty{}, nil
+		return nil
+	}
 }
 
 func (h *Hub) findRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, error) {
