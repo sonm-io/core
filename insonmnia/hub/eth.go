@@ -13,7 +13,7 @@ import (
 
 type ETH interface {
 	// WaitForDealCreated waits for deal created on Buyer-side
-	WaitForDealCreated(request *structs.DealRequest) (bool, error)
+	WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error)
 
 	// AcceptDeal approves deal on Hub-side
 	AcceptDeal(id string) error
@@ -28,12 +28,12 @@ type eth struct {
 	ctx context.Context
 }
 
-func (e *eth) WaitForDealCreated(request *structs.DealRequest) (bool, error) {
+func (e *eth) WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error) {
 	// e.findDeals blocks until order will be found or timeout will reached
 	return e.findDeals(e.ctx, request.BidId, request.SpecHash)
 }
 
-func (e *eth) findDeals(ctx context.Context, addr, hash string) (bool, error) {
+func (e *eth) findDeals(ctx context.Context, addr, hash string) (*pb.Deal, error) {
 	// TODO(sshaman1101): make if configurable?
 	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
 	defer cancel()
@@ -41,27 +41,27 @@ func (e *eth) findDeals(ctx context.Context, addr, hash string) (bool, error) {
 	tk := time.NewTicker(3 * time.Second)
 	defer tk.Stop()
 
-	if found := e.findDealOnce(addr, hash); found {
-		return true, nil
+	if deal := e.findDealOnce(addr, hash); deal != nil {
+		return deal, nil
 	}
 
 	for {
 		select {
 		case <-tk.C:
-			if found := e.findDealOnce(addr, hash); found {
-				return true, nil
+			if deal := e.findDealOnce(addr, hash); deal != nil {
+				return deal, nil
 			}
 		case <-ctx.Done():
-			return false, ctx.Err()
+			return nil, ctx.Err()
 		}
 	}
 }
 
-func (e *eth) findDealOnce(addr, hash string) bool {
+func (e *eth) findDealOnce(addr, hash string) *pb.Deal {
 	// get deals opened by our client
 	IDs, err := e.bc.GetDeals(addr)
 	if err != nil {
-		return false
+		return nil
 	}
 
 	for _, id := range IDs {
@@ -75,12 +75,12 @@ func (e *eth) findDealOnce(addr, hash string) bool {
 		// and check if task hash is equal with request's one
 		if deal.GetStatus() == pb.DealStatus_PENDING {
 			if deal.GetSpecificationHash() == hash {
-				return true
+				return deal
 			}
 		}
 	}
 
-	return false
+	return nil
 }
 
 func (e *eth) AcceptDeal(id string) error {

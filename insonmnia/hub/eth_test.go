@@ -21,7 +21,7 @@ func makeTestKey() (string, *ecdsa.PrivateKey) {
 	return addr, key
 }
 
-func TestETH_CheckDealExists(t *testing.T) {
+func TestEth_CheckDealExists(t *testing.T) {
 	addr, key := makeTestKey()
 	bC := blockchain.NewMockBlockchainer(gomock.NewController(t))
 	bC.EXPECT().GetDeals(addr).AnyTimes().Return([]*big.Int{big.NewInt(1), big.NewInt(2)}, nil)
@@ -51,7 +51,7 @@ func TestETH_CheckDealExists(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestXXX(t *testing.T) {
+func TestEth_WaitForDealCreated(t *testing.T) {
 	addr, key := makeTestKey()
 	bC := blockchain.NewMockBlockchainer(gomock.NewController(t))
 	bC.EXPECT().GetDeals("client-addr").AnyTimes().Return(
@@ -66,7 +66,7 @@ func TestXXX(t *testing.T) {
 			SupplierID:        addr,
 			BuyerID:           "client-addr",
 			Status:            pb.DealStatus_ACCEPTED,
-			SpecificationHash: "qwerty",
+			SpecificationHash: "aaa",
 		},
 		nil)
 	bC.EXPECT().GetDealInfo(big.NewInt(200)).AnyTimes().Return(
@@ -74,7 +74,7 @@ func TestXXX(t *testing.T) {
 			SupplierID:        addr,
 			BuyerID:           "client-addr",
 			Status:            pb.DealStatus_PENDING,
-			SpecificationHash: "qwerty",
+			SpecificationHash: "bbb",
 		},
 		nil)
 
@@ -84,18 +84,55 @@ func TestXXX(t *testing.T) {
 		bc:  bC,
 	}
 
-	//
 	req, err := structs.NewDealRequest(&pb.DealRequest{
 		AskId:    addr,
 		BidId:    "client-addr",
-		SpecHash: "qwerty",
+		SpecHash: "bbb",
 		Order:    &pb.Order{Slot: &pb.Slot{}},
 	})
 	assert.NoError(t, err)
 
-	// call blocked for 30 secs
 	found, err := eeth.WaitForDealCreated(req)
-
 	assert.NoError(t, err)
-	assert.True(t, found)
+	assert.Equal(t, "bbb", found.SpecificationHash)
+	assert.Equal(t, "client-addr", found.BuyerID)
+	assert.Equal(t, addr, found.SupplierID)
+}
+
+func TestEth_CheckDealExists2(t *testing.T) {
+	addr, key := makeTestKey()
+	bC := blockchain.NewMockBlockchainer(gomock.NewController(t))
+	bC.EXPECT().GetDeals("client-addr").AnyTimes().Return(
+		[]*big.Int{
+			big.NewInt(100),
+		},
+		nil)
+
+	bC.EXPECT().GetDealInfo(big.NewInt(100)).AnyTimes().Return(
+		&pb.Deal{
+			SupplierID:        addr,
+			BuyerID:           "client-addr",
+			Status:            pb.DealStatus_CLOSED,
+			SpecificationHash: "aaa",
+		},
+		nil)
+
+	eeth := &eth{
+		ctx: context.Background(),
+		key: key,
+		bc:  bC,
+	}
+
+	req, err := structs.NewDealRequest(&pb.DealRequest{
+		AskId:    addr,
+		BidId:    "client-addr",
+		SpecHash: "aaa",
+		Order:    &pb.Order{Slot: &pb.Slot{}},
+	})
+	assert.NoError(t, err)
+
+	found, err := eeth.WaitForDealCreated(req)
+	assert.Nil(t, found)
+	assert.Error(t, err)
+	assert.EqualError(t, err, "context deadline exceeded")
 }
