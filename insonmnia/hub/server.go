@@ -28,7 +28,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pborman/uuid"
-	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/insonmnia/math"
@@ -816,52 +815,10 @@ func (h *Hub) onNewHub(endpoint string) {
 	}
 }
 
-// TODO: Decomposed here to be able to easily comment when UDP capturing occurs :)
-func (h *Hub) startDiscovery() error {
-	ip, err := util.GetPublicIP()
-	if err != nil {
-		return err
-	}
-
-	workersPort, err := util.ParseEndpointPort(h.cfg.Endpoint)
-	if err != nil {
-		return err
-	}
-
-	clientPort, err := util.ParseEndpointPort(h.cfg.Cluster.GrpcEndpoint)
-	if err != nil {
-		return err
-	}
-
-	workersEndpoint := ip.String() + ":" + workersPort
-	clientEndpoint := ip.String() + ":" + clientPort
-	//TODO: this detection seems to be strange
-	h.grpcEndpointAddr = clientEndpoint
-
-	srv, err := frd.NewServer(h.ethKey, workersEndpoint, clientEndpoint)
-	if err != nil {
-		return err
-	}
-	err = srv.Start()
-	if err != nil {
-		return err
-	}
-	srv.Serve()
-
-	return nil
-}
-
 // Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
 	h.startTime = time.Now()
-
-	if h.cfg.Fusrodah {
-		log.G(h.ctx).Info("starting discovery")
-		if err := h.startDiscovery(); err != nil {
-			return err
-		}
-	}
 
 	listener, err := net.Listen("tcp", h.cfg.Endpoint)
 	if err != nil {

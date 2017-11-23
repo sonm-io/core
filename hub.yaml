@@ -68,6 +68,3 @@ ethereum:
 # locator service allows nodes to discover each other
 locator:
   address: "127.0.0.1:9090"
-
-# enable Hub discovery via whisper protocol
-fusrodah: false

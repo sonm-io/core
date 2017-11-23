@@ -50,7 +50,6 @@ type HubConfig struct {
 	Eth           EthConfig      `yaml:"ethereum"`
 	Locator       LocatorConfig  `yaml:"locator"`
 	Cluster       ClusterConfig  `yaml:"cluster"`
-	Fusrodah      bool           `yaml:"fusrodah"`
 }
 
 // NewConfig loads a hub config from the specified YAML file.
