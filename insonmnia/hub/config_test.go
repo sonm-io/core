@@ -40,29 +40,6 @@ locator:
 	assert.Equal(t, ":10001", conf.Cluster.GrpcEndpoint)
 }
 
-func TestLoadConfigWithBootnodes(t *testing.T) {
-	defer deleteTestConfigFile()
-	raw := `
-ethereum:
-  private_key: "1000000000000000000000000000000000000000000000000000000000000000"
-endpoint: ":10002"
-bootnodes:
-  - "enode://node1"
-  - "enode://node2"
-monitoring:
-  endpoint: ":10001"
-locator:
-  address: "127.0.0.1:9090"`
-
-	err := createTestConfigFile(raw)
-	assert.Nil(t, err)
-
-	conf, err := NewConfig(testHubConfigPath)
-	assert.Nil(t, err)
-
-	assert.Len(t, conf.Bootnodes, 2)
-}
-
 func TestLoadInvalidConfig(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `

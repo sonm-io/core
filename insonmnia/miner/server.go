@@ -26,9 +26,7 @@ import (
 	"github.com/docker/docker/api/types"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gliderlabs/ssh"
-	frd "github.com/sonm-io/core/fusrodah/miner"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -625,29 +623,6 @@ func (m *Miner) Serve() error {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-
-		// if hub addr do not explicitly set via config we'll try to find it via discovery
-		if m.hubAddress == "" {
-			srv, err := frd.NewServer(nil)
-			if err != nil {
-				return
-			}
-			err = srv.Start()
-			if err != nil {
-				return
-			}
-
-			log.G(m.ctx).Info("No hub IP, starting discovery")
-			srv.Serve()
-			hub := srv.GetHub()
-			m.hubAddress = hub.Address
-			m.hubKey = hub.PublicKey
-			log.G(m.ctx).Info("Discovered new hub",
-				zap.String("net_addr", hub.Address),
-				zap.String("eth_addr", crypto.PubkeyToAddress(*hub.PublicKey).String()))
-		} else {
-			log.G(m.ctx).Debug("Using hub IP from config", zap.String("IP", m.hubAddress))
-		}
 
 		t := time.NewTicker(time.Second * 5)
 		defer t.Stop()

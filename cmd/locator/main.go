@@ -7,7 +7,6 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
-	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/insonmnia/locator"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"go.uber.org/zap"
@@ -29,7 +28,7 @@ func main() {
 
 	cfg := locator.DefaultConfig(*listenAddr)
 
-	logger := logging.BuildLogger(-1, common.DevelopmentMode)
+	logger := logging.BuildLogger(-1, true)
 	ctx := log.WithLogger(context.Background(), logger)
 
 	lc := locator.NewLocator(ctx, cfg)

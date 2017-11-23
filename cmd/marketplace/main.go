@@ -6,7 +6,6 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
-	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/marketplace"
 	"go.uber.org/zap"
@@ -27,7 +26,7 @@ func main() {
 		return
 	}
 
-	logger := logging.BuildLogger(-1, common.DevelopmentMode)
+	logger := logging.BuildLogger(-1, true)
 	ctx := log.WithLogger(context.Background(), logger)
 
 	mp := marketplace.NewMarketplace(ctx, *listenAddr)

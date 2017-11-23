@@ -28,7 +28,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pborman/uuid"
-	frd "github.com/sonm-io/core/fusrodah/hub"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/insonmnia/math"
@@ -701,10 +700,22 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 			cancel()
 		}
 	}()
+
 	ethKey, err := crypto.HexToECDSA(cfg.Eth.PrivateKey)
 	if err != nil {
 		return nil, errors.Wrap(err, "malformed ethereum private key")
 	}
+
+	//TODO: this detection seems to be strange
+	ip, err := util.GetPublicIP()
+	if err != nil {
+		return nil, errors.Wrap(err, "cannot get ip from amazon")
+	}
+	clientPort, err := util.ParseEndpointPort(cfg.Cluster.GrpcEndpoint)
+	if err != nil {
+		return nil, errors.Wrap(err, "error during parsing client endpoint")
+	}
+	grpcEndpointAddr := ip.String() + ":" + clientPort
 
 	var gate *gateway.Gateway
 	var portPool *gateway.PortPool
@@ -736,12 +747,13 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 	acl := NewACLStorage()
 
 	h := &Hub{
-		cfg:          cfg,
-		ctx:          ctx,
-		cancel:       cancel,
-		gateway:      gate,
-		portPool:     portPool,
-		externalGrpc: nil,
+		cfg:              cfg,
+		ctx:              ctx,
+		cancel:           cancel,
+		gateway:          gate,
+		portPool:         portPool,
+		externalGrpc:     nil,
+		grpcEndpointAddr: grpcEndpointAddr,
 
 		miners: make(map[string]*MinerCtx),
 
@@ -816,52 +828,10 @@ func (h *Hub) onNewHub(endpoint string) {
 	}
 }
 
-// TODO: Decomposed here to be able to easily comment when UDP capturing occurs :)
-func (h *Hub) startDiscovery() error {
-	ip, err := util.GetPublicIP()
-	if err != nil {
-		return err
-	}
-
-	workersPort, err := util.ParseEndpointPort(h.cfg.Endpoint)
-	if err != nil {
-		return err
-	}
-
-	clientPort, err := util.ParseEndpointPort(h.cfg.Cluster.GrpcEndpoint)
-	if err != nil {
-		return err
-	}
-
-	workersEndpoint := ip.String() + ":" + workersPort
-	clientEndpoint := ip.String() + ":" + clientPort
-	//TODO: this detection seems to be strange
-	h.grpcEndpointAddr = clientEndpoint
-
-	srv, err := frd.NewServer(h.ethKey, workersEndpoint, clientEndpoint)
-	if err != nil {
-		return err
-	}
-	err = srv.Start()
-	if err != nil {
-		return err
-	}
-	srv.Serve()
-
-	return nil
-}
-
 // Serve starts handling incoming API gRPC request and communicates
 // with miners
 func (h *Hub) Serve() error {
 	h.startTime = time.Now()
-
-	if h.cfg.Fusrodah {
-		log.G(h.ctx).Info("starting discovery")
-		if err := h.startDiscovery(); err != nil {
-			return err
-		}
-	}
 
 	listener, err := net.Listen("tcp", h.cfg.Endpoint)
 	if err != nil {

@@ -9,7 +9,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
 	"github.com/sonm-io/core/accounts"
-	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/node"
 	"golang.org/x/net/context"
@@ -35,7 +34,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := logging.BuildLogger(cfg.LogLevel(), common.DevelopmentMode)
+	logger := logging.BuildLogger(cfg.LogLevel(), true)
 	ctx := log.WithLogger(context.Background(), logger)
 
 	key, err := loadKeys(cfg)
