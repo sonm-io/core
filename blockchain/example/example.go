@@ -7,11 +7,9 @@ import (
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/proto"
-
-	//"github.com/sonm-io/core/proto"
 )
 
-const testPass = "QWEpoi123098"
+const testPass = ""
 
 func main() {
 	var err error
