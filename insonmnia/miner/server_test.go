@@ -18,7 +18,7 @@ import (
 
 func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg := NewMockConfig(mock)
-	cfg.EXPECT().HubEndpoint().AnyTimes().Return("::1")
+	cfg.EXPECT().HubEndpoint().AnyTimes().Return("0x0@::1")
 	cfg.EXPECT().HubResources().AnyTimes()
 	cfg.EXPECT().Firewall().AnyTimes()
 	cfg.EXPECT().GPU().AnyTimes()
