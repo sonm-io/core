@@ -62,3 +62,9 @@ ethereum:
 # locator service allows nodes to discover each other
 locator:
   address: "127.0.0.1:9090"
+
+# Marketplace service settings
+market:
+  # marketplace gRPC endpoint
+  # required
+  address: "127.0.0.1:9095"

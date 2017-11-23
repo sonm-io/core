@@ -228,7 +228,7 @@ func (h *Hub) generateTaskID() string {
 }
 
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
-	exists, err := h.eth.CheckContract(request.GetDeal())
+	exists, err := h.eth.CheckDealExists(request.GetDeal().Id)
 	if err != nil {
 		return nil, err
 	}
@@ -454,6 +454,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 	if !order.IsBid() {
 		return nil, ErrInvalidOrderType
 	}
+
 	exists, err := h.market.OrderExists(order.GetID())
 	if err != nil {
 		return nil, err
@@ -478,10 +479,40 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	// TODO: Listen for ETH.
-	// TODO: Start timeout for ETH approve deal.
+	h.waiter.Go(h.getDealWaiter(ctx, request))
+	h.waiter.Wait()
 
 	return &pb.Empty{}, nil
+}
+
+func (h *Hub) getDealWaiter(ctx context.Context, req *structs.DealRequest) func() error {
+	return func() error {
+		createdDeal, err := h.eth.WaitForDealCreated(req)
+		if err != nil || createdDeal == nil {
+			log.G(h.ctx).Warn(
+				"cannot find created deal for current proposal",
+				zap.String("bid_id", req.BidId),
+				zap.String("ask_id", req.GetAskId()))
+			return errors.New("cannot find created deal for current proposal")
+		}
+
+		err = h.eth.AcceptDeal(createdDeal.GetId())
+		if err != nil {
+			log.G(ctx).Warn("cannot accept deal",
+				zap.String("deal_id", createdDeal.GetId()),
+				zap.Error(err))
+			return err
+		}
+
+		err = h.market.CancelOrder(req.GetAskId())
+		if err != nil {
+			log.G(ctx).Warn("cannot cancel ask order from marketplace",
+				zap.String("ask_id", req.GetAskId()),
+				zap.Error(err))
+		}
+
+		return nil
+	}
 }
 
 func (h *Hub) findRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, error) {
@@ -734,12 +765,12 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
 	}
 
-	eth, err := NewETH(ctx)
+	eth, err := NewETH(ctx, ethKey)
 	if err != nil {
 		return nil, err
 	}
 
-	market, err := NewMarket()
+	market, err := NewMarket(ctx, cfg.Market.Address)
 	if err != nil {
 		return nil, err
 	}
