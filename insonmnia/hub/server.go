@@ -455,7 +455,6 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, ErrInvalidOrderType
 	}
 
-	// TODO(sshaman1101): implement this
 	exists, err := h.market.OrderExists(order.GetID())
 	if err != nil {
 		return nil, err
@@ -480,22 +479,33 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	dealCreated, err := h.eth.WaitForDealCreated(request)
-	if err != nil {
-		return nil, err
-	}
+	// TODO(sshaman1101): sync.WaitGroup?
+	// deal proposed, waiting for deal created
+	go func(ctx context.Context, req *structs.DealRequest) {
+		createdDeal, err := h.eth.WaitForDealCreated(req)
+		if err != nil || createdDeal == nil {
+			log.G(h.ctx).Warn(
+				"cannot find created deal for current proposal",
+				zap.String("bid_id", req.BidId),
+				zap.String("ask_id", req.GetAskId()))
+			return
+		}
 
-	if !dealCreated {
-		return nil, errors.New("Deal was not created")
-	}
+		err = h.eth.AcceptDeal(createdDeal.GetId())
+		if err != nil {
+			log.G(ctx).Warn("cannot accept deal",
+				zap.String("deal_id", createdDeal.GetId()),
+				zap.Error(err))
+			return
+		}
 
-	// ?????????
-	// what will indicate that it is OURs deal?
-	// ?????????
-
-	// h.eth
-	// TODO: Listen for ETH.
-	// TODO: Start timeout for ETH approve deal.
+		err = h.market.CancelOrder(r.GetAskId())
+		if err != nil {
+			log.G(ctx).Warn("cannot cancel ask order from marketplace",
+				zap.String("ask_id", r.GetAskId()),
+				zap.Error(err))
+		}
+	}(ctx, request)
 
 	return &pb.Empty{}, nil
 }
@@ -755,7 +765,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		return nil, err
 	}
 
-	market, err := NewMarket()
+	market, err := NewMarket(ctx, cfg.Market.Address)
 	if err != nil {
 		return nil, err
 	}

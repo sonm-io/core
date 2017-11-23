@@ -73,10 +73,8 @@ func (e *eth) findDealOnce(addr, hash string) *pb.Deal {
 
 		// then check for status
 		// and check if task hash is equal with request's one
-		if deal.GetStatus() == pb.DealStatus_PENDING {
-			if deal.GetSpecificationHash() == hash {
-				return deal
-			}
+		if deal.GetStatus() == pb.DealStatus_PENDING && deal.GetSpecificationHash() == hash {
+			return deal
 		}
 	}
 

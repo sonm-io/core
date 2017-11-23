@@ -21,6 +21,10 @@ type LocatorConfig struct {
 	Period  int    `required:"true" default:"300" yaml:"period"`
 }
 
+type MarketConfig struct {
+	Address string `required:"true" yaml:"address"`
+}
+
 type StoreConfig struct {
 	Type     string `required:"true" default:"boltdb" yaml:"type"`
 	Endpoint string `required:"true" default:"/tmp/sonm/boltdb" yaml:"endpoint"`
@@ -48,6 +52,7 @@ type HubConfig struct {
 	Logging       LoggingConfig  `yaml:"logging"`
 	Eth           EthConfig      `yaml:"ethereum"`
 	Locator       LocatorConfig  `yaml:"locator"`
+	Market        MarketConfig   `yaml:"market"`
 	Cluster       ClusterConfig  `yaml:"cluster"`
 }
 
@@ -59,15 +64,4 @@ func NewConfig(path string) (*HubConfig, error) {
 		return nil, err
 	}
 	return conf, nil
-}
-
-// TODO: Currently stubbed for simplifying testing.
-type Config interface {
-	Endpoint() string
-	// Gateway returns optional gateway config.
-	Gateway() *GatewayConfig
-	MonitoringEndpoint() string
-	Logging() LoggingConfig
-	Eth() EthConfig
-	Locator() LocatorConfig
 }
