@@ -42,7 +42,7 @@ type ResourcesConfig struct {
 }
 
 type config struct {
-	HubConfig      *HubConfig      `required:"true" yaml:"hub"`
+	HubConfig      HubConfig       `required:"true" yaml:"hub"`
 	FirewallConfig *FirewallConfig `required:"false" yaml:"firewall"`
 	Eth            *EthConfig      `yaml:"ethereum"`
 	GPUConfig      *gpu.Config     `required:"false" yaml:"GPUConfig"`
@@ -52,17 +52,11 @@ type config struct {
 }
 
 func (c *config) HubEndpoint() string {
-	if c.HubConfig != nil {
-		return c.HubConfig.Endpoint
-	}
-	return ""
+	return c.HubConfig.Endpoint
 }
 
 func (c *config) HubResources() *ResourcesConfig {
-	if c.HubConfig != nil {
-		return c.HubConfig.CGroups
-	}
-	return nil
+	return c.HubConfig.CGroups
 }
 
 func (c *config) Firewall() *FirewallConfig {

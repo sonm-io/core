@@ -7,7 +7,7 @@ import (
 )
 
 func TestParseResources(t *testing.T) {
-	assert := assert.New(t)
+	assertions := assert.New(t)
 	defer deleteTestConfigFile()
 	raw := `
 hub:
@@ -23,17 +23,17 @@ hub:
         cpus: "ddd"
 `
 	err := createTestConfigFile(raw)
-	assert.NoError(err)
+	assertions.NoError(err)
 
 	conf, err := NewConfig(testMinerConfigPath)
-	assert.NoError(err)
+	assertions.NoError(err)
 
 	res := conf.HubResources()
-	assert.NotNil(res)
-	assert.NotNil(res.Resources)
-	assert.NotNil(res.Resources.Memory)
-	assert.Equal(int64(1000), *res.Resources.Memory.Limit)
-	assert.Equal(int64(1024), *res.Resources.Memory.Swap)
-	assert.Equal(int64(1024), *res.Resources.CPU.Quota)
-	assert.Equal("ddd", res.Resources.CPU.Cpus)
+	assertions.NotNil(res)
+	assertions.NotNil(res.Resources)
+	assertions.NotNil(res.Resources.Memory)
+	assertions.Equal(int64(1000), *res.Resources.Memory.Limit)
+	assertions.Equal(int64(1024), *res.Resources.Memory.Swap)
+	assertions.Equal(int64(1024), *res.Resources.CPU.Quota)
+	assertions.Equal("ddd", res.Resources.CPU.Cpus)
 }
