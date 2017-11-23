@@ -11,7 +11,7 @@ const defaultEthEndpoint string = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsr
 //const defaultEthEndpoint string = "/Users/anton/Library/Ethereum/rinkeby/geth.ipc"
 
 func main() {
-	bch, err := blockchain.NewBlockchainAPI(nil, nil)
+	bch, err := blockchain.NewAPI(nil, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
