@@ -45,8 +45,12 @@ type Dealer interface {
 	GetDealInfo(id *big.Int) (*pb.Deal, error)
 	// GetDealAmount return global deal counter
 	GetDealAmount() (*big.Int, error)
-	// GetOpenedDeal returns only opened deal by given hub/client addresses
+	// GetOpenedDeal returns only opened deals by given hub/client addresses
 	GetOpenedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, error)
+	// GetAcceptedDeal returns only accepted deals by given hub/client addresses
+	GetAcceptedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, error)
+	// GetClosedDeal returns only closed deals by given hub/client addresses
+	GetClosedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, error)
 }
 
 // Tokener is go implementation of ERC20-compatibility token with full functionality high-level interface
@@ -143,6 +147,53 @@ var DealOpenedTopic common.Hash = common.HexToHash("0x873cb35202fef184c9f8ee23c0
 var DealAcceptedTopic common.Hash = common.HexToHash("0x3a38edea6028913403c74ce8433c90eca94f4ca074d318d8cb77be5290ba4f15")
 var DealClosedTopic common.Hash = common.HexToHash("0x72615f99a62a6cc2f8452d5c0c9cbc5683995297e1d988f09bb1471d4eefb890")
 
+func (bch *api) OpenDeal(key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error) {
+	opts := bch.getTxOpts(key, 305000)
+
+	bigSpec, err := util.ParseBigInt(deal.SpecificationHash)
+	if err != nil {
+		return nil, err
+	}
+
+	bigPrice, err := util.ParseBigInt(deal.Price)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := bch.dealsContract.OpenDeal(
+		opts,
+		common.HexToAddress(deal.GetSupplierID()),
+		common.HexToAddress(deal.GetBuyerID()),
+		bigSpec,
+		bigPrice,
+		big.NewInt(int64(deal.GetWorkTime())),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return tx, err
+}
+
+func (bch *api) AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
+	opts := bch.getTxOpts(key, 90000)
+
+	tx, err := bch.dealsContract.AcceptDeal(opts, id)
+	if err != nil {
+		return nil, err
+	}
+	return tx, err
+}
+
+func (bch *api) CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
+	opts := bch.getTxOpts(key, 90000)
+
+	tx, err := bch.dealsContract.CloseDeal(opts, id)
+	if err != nil {
+		return nil, err
+	}
+	return tx, err
+}
+
 func (bch *api) GetOpenedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, error) {
 	var topics [][]common.Hash
 
@@ -204,51 +255,105 @@ func (bch *api) GetOpenedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, 
 	return out, nil
 }
 
-func (bch *api) OpenDeal(key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error) {
-	opts := bch.getTxOpts(key, 305000)
+func (bch *api) GetAcceptedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, error) {
+	var topics [][]common.Hash
 
-	bigSpec, err := util.ParseBigInt(deal.SpecificationHash)
+	// precompile EventName topics
+	var eventTopic = []common.Hash{DealAcceptedTopic, DealClosedTopic}
+	topics = append(topics, eventTopic)
+
+	// add filter topic by hub address
+	// filtering by client address implemented below
+	if hubAddr != nil {
+		var addrTopic = []common.Hash{common.HexToHash(common.HexToAddress(*hubAddr).String())}
+		topics = append(topics, addrTopic)
+	}
+
+	logs, err := bch.client.FilterLogs(context.Background(), ethereum.FilterQuery{
+		Addresses: []common.Address{common.HexToAddress(tsc.DealsAddress)},
+		Topics:    topics,
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	bigPrice, err := util.ParseBigInt(deal.Price)
-	if err != nil {
-		return nil, err
+	// shifts ids of `DealAccepted` event to new slice
+	idsOpened := make([]common.Hash, 0)
+	// ids of `DealClosed` to other map
+	mb := make(map[string]bool)
+
+	for _, l := range logs {
+		// filtering by client address
+		if clientAddr != nil {
+			if l.Topics[2] != common.HexToHash(*clientAddr) {
+				continue
+			}
+		}
+
+		idTopic := l.Topics[3]
+
+		switch l.Topics[0] {
+		case DealAcceptedTopic:
+			idsOpened = append(idsOpened, idTopic)
+			break
+		case DealClosedTopic:
+			mb[idTopic.String()] = true
+			break
+		}
 	}
 
-	tx, err := bch.dealsContract.OpenDeal(
-		opts,
-		common.HexToAddress(deal.GetSupplierID()),
-		common.HexToAddress(deal.GetBuyerID()),
-		bigSpec,
-		bigPrice,
-		big.NewInt(int64(deal.GetWorkTime())),
-	)
-	if err != nil {
-		return nil, err
+	// shift ids of opened deals by accepted and closed deals
+	var out []*big.Int
+	for _, item := range idsOpened {
+		if _, ok := mb[item.String()]; !ok {
+			if err != nil {
+				continue
+			}
+			out = append(out, item.Big())
+		}
 	}
-	return tx, err
+
+	return out, nil
 }
 
-func (bch *api) AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
-	opts := bch.getTxOpts(key, 90000)
+func (bch *api) GetClosedDeal(hubAddr *string, clientAddr *string) ([]*big.Int, error) {
+	var topics [][]common.Hash
 
-	tx, err := bch.dealsContract.AcceptDeal(opts, id)
+	// precompile EventName topics
+	var eventTopic = []common.Hash{DealClosedTopic}
+	topics = append(topics, eventTopic)
+
+	// add filter topic by hub address
+	// filtering by client address implemented below
+	if hubAddr != nil {
+		var addrTopic = []common.Hash{common.HexToHash(common.HexToAddress(*hubAddr).String())}
+		topics = append(topics, addrTopic)
+	}
+
+	logs, err := bch.client.FilterLogs(context.Background(), ethereum.FilterQuery{
+		Addresses: []common.Address{common.HexToAddress(tsc.DealsAddress)},
+		Topics:    topics,
+	})
 	if err != nil {
 		return nil, err
 	}
-	return tx, err
-}
 
-func (bch *api) CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
-	opts := bch.getTxOpts(key, 90000)
+	var out []*big.Int
 
-	tx, err := bch.dealsContract.CloseDeal(opts, id)
-	if err != nil {
-		return nil, err
+	for _, l := range logs {
+		// filtering by client address
+		if clientAddr != nil {
+			if l.Topics[2] != common.HexToHash(*clientAddr) {
+				continue
+			}
+		}
+
+		out = append(out, l.Topics[3].Big())
 	}
-	return tx, err
+
+	// shift ids of opened deals by accepted and closed deals
+
+	return out, nil
 }
 
 func (bch *api) GetDeals(address string) ([]*big.Int, error) {

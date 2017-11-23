@@ -15,5 +15,17 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(dealsIds)
+	log.Println("OpenedDeals: ", dealsIds)
+
+	dealsIds, err = bch.GetAcceptedDeal(nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("AcceptedDeals: ", dealsIds)
+
+	dealsIds, err = bch.GetClosedDeal(nil, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Println("ClosedDeals: ", dealsIds)
 }
