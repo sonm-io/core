@@ -6,7 +6,10 @@ import (
 	"sync"
 	"time"
 
+	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -20,11 +23,12 @@ type node struct {
 }
 
 type Locator struct {
-	grpc *grpc.Server
-	conf *LocatorConfig
-
 	mx sync.Mutex
-	db map[string]*node
+
+	grpc *grpc.Server
+	conf *Config
+	db   map[string]*node
+	ctx  context.Context
 }
 
 func (l *Locator) putAnnounce(n *node) {
@@ -65,14 +69,26 @@ func (l *Locator) traverseAndClean() {
 	l.mx.Lock()
 	defer l.mx.Unlock()
 
+	var total = len(l.db)
+	var del uint64
+	var keep uint64
 	for addr, node := range l.db {
 		if node.ts.Before(deadline) {
 			delete(l.db, addr)
+			del++
+		} else {
+			keep++
 		}
 	}
+
+	log.G(l.ctx).Debug("expired nodes cleaned",
+		zap.Int("total", total), zap.Uint64("keep", keep), zap.Uint64("del", del))
 }
 
 func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Empty, error) {
+	log.G(l.ctx).Info("handling Announce request",
+		zap.String("eth", req.EthAddr), zap.Strings("ips", req.IpAddr))
+
 	n := &node{
 		ethAddr: req.EthAddr,
 		ipAddr:  req.IpAddr,
@@ -83,6 +99,8 @@ func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Em
 }
 
 func (l *Locator) Resolve(ctx context.Context, req *pb.ResolveRequest) (*pb.ResolveReply, error) {
+	log.G(l.ctx).Info("handling Resolve request", zap.String("eth", req.EthAddr))
+
 	n, err := l.getResolve(req.EthAddr)
 	if err != nil {
 		return nil, err
@@ -100,31 +118,28 @@ func (l *Locator) Serve() error {
 	return l.grpc.Serve(lis)
 }
 
-type LocatorConfig struct {
+type Config struct {
 	ListenAddr    string
 	NodeTTL       time.Duration
 	CleanupPeriod time.Duration
 }
 
-func DefaultLocatorConfig() *LocatorConfig {
-	return &LocatorConfig{
-		ListenAddr:    ":9090",
+func DefaultConfig(addr string) *Config {
+	return &Config{
+		ListenAddr:    addr,
 		NodeTTL:       time.Hour,
 		CleanupPeriod: time.Minute,
 	}
 }
 
-func NewLocator(conf *LocatorConfig) *Locator {
-	srv := grpc.NewServer(
-		grpc.RPCCompressor(grpc.NewGZIPCompressor()),
-		grpc.RPCDecompressor(grpc.NewGZIPDecompressor()),
-	)
+func NewLocator(ctx context.Context, conf *Config) *Locator {
+	srv := util.MakeGrpcServer(nil)
 
 	l := &Locator{
-		mx:   sync.Mutex{},
 		db:   make(map[string]*node),
 		grpc: srv,
 		conf: conf,
+		ctx:  ctx,
 	}
 
 	go l.cleanExpiredNodes()
