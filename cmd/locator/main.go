@@ -1,10 +1,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"os"
 
+	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
+	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/insonmnia/locator"
+	"github.com/sonm-io/core/insonmnia/logging"
+	"go.uber.org/zap"
 )
 
 var (
@@ -21,12 +27,15 @@ func main() {
 		return
 	}
 
-	cfg := locator.DefaultLocatorConfig()
-	cfg.ListenAddr = *listenAddr
+	cfg := locator.DefaultConfig(*listenAddr)
 
-	lc := locator.NewLocator(cfg)
-	fmt.Printf("Starting locator service at %s...\r\n", cfg.ListenAddr)
+	logger := logging.BuildLogger(-1, common.DevelopmentMode)
+	ctx := log.WithLogger(context.Background(), logger)
+
+	lc := locator.NewLocator(ctx, cfg)
+	log.G(ctx).Info("starting Locator service", zap.String("bind_addr", cfg.ListenAddr))
 	if err := lc.Serve(); err != nil {
-		fmt.Printf("Cannot start Locator service: %s\r\n", err.Error())
+		log.G(ctx).Error("cannot start Locator service", zap.Error(err))
+		os.Exit(1)
 	}
 }

@@ -2,9 +2,15 @@ package main
 
 import (
 	"fmt"
+	"os"
 
+	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
+	"github.com/sonm-io/core/common"
+	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/marketplace"
+	"go.uber.org/zap"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -21,9 +27,13 @@ func main() {
 		return
 	}
 
-	mp := marketplace.NewMarketplace(*listenAddr)
-	fmt.Printf("Starting Marketplace service at %s...\r\n", *listenAddr)
+	logger := logging.BuildLogger(-1, common.DevelopmentMode)
+	ctx := log.WithLogger(context.Background(), logger)
+
+	mp := marketplace.NewMarketplace(ctx, *listenAddr)
+	log.G(ctx).Info("starting Marketplace service", zap.String("bind_addr", *listenAddr))
 	if err := mp.Serve(); err != nil {
-		fmt.Printf("Cannot start Marketplace service: %s\r\n", err)
+		log.G(ctx).Error("cannot start Marketplace service", zap.Error(err))
+		os.Exit(-1)
 	}
 }

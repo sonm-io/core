@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/net/context"
 
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
@@ -379,7 +380,7 @@ func TestInMemOrderStorage_GetOrders_Count3(t *testing.T) {
 }
 
 func TestMarketplace_GetOrders(t *testing.T) {
-	mp := NewMarketplace("")
+	mp := NewMarketplace(context.Background(), "")
 
 	req := &pb.GetOrdersRequest{
 		Slot:      nil,
