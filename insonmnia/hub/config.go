@@ -45,7 +45,6 @@ type ClusterConfig struct {
 type HubConfig struct {
 	Endpoint      string         `required:"true" yaml:"endpoint"`
 	GatewayConfig *GatewayConfig `yaml:"gateway"`
-	Bootnodes     []string       `required:"false" yaml:"bootnodes"`
 	Logging       LoggingConfig  `yaml:"logging"`
 	Eth           EthConfig      `yaml:"ethereum"`
 	Locator       LocatorConfig  `yaml:"locator"`

@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
-	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/fusrodah"
 )
 
@@ -13,7 +12,7 @@ const testTopic = "testme"
 const quitCommand = "Quit"
 
 func main() {
-	frd, _ := fusrodah.NewServer(nil, ":30345", []string{common.BootNodeAddr, common.SecondBootNodeAddr})
+	frd, _ := fusrodah.NewServer(nil, ":30345", []string{})
 	frd.Start()
 
 	done := make(chan struct{})

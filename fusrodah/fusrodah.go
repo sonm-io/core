@@ -18,8 +18,6 @@ import (
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/p2p/nat"
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
-
-	frdConst "github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/util"
 )
 
@@ -75,7 +73,7 @@ func NewServer(prv *ecdsa.PrivateKey, port string, enodes []string) (frd *Fusrod
 
 // Start start whisper server
 func (fusrodah *Fusrodah) Start() (err error) {
-	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(frdConst.DefaultLogLevelGoEthereum), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
+	log.Root().SetHandler(log.LvlFilterHandler(log.Lvl(3), log.StreamHandler(os.Stderr, log.TerminalFormat(false))))
 	// Creates new instance of whisper protocol entity. NOTE - using whisper v.2 (not v5)
 	var peers []*discover.Node
 

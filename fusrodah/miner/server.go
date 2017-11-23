@@ -2,18 +2,21 @@ package miner
 
 import (
 	"crypto/ecdsa"
-	"time"
-
 	"encoding/json"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/whisper/whisperv2"
-	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/fusrodah"
 	"github.com/sonm-io/core/util"
 )
 
-const defaultMinerPort = ":30342"
+const (
+	defaultMinerPort = ":30342"
+
+	TopicHubDiscover   = "hubDiscover"
+	TopicMinerDiscover = "minerDiscover"
+)
 
 type HubInfo struct {
 	Address   string
@@ -35,7 +38,7 @@ func NewServer(prv *ecdsa.PrivateKey) (srv *Server, err error) {
 		}
 	}
 
-	bootnodes := []string{common.BootNodeAddr, common.SecondBootNodeAddr}
+	bootnodes := []string{}
 
 	frd, err := fusrodah.NewServer(prv, defaultMinerPort, bootnodes)
 	if err != nil {
@@ -84,7 +87,7 @@ func (srv *Server) discovery() {
 			srv.Frd.RemoveHandling(filterID)
 			close(done)
 		}
-	}, common.TopicMinerDiscover)
+	}, TopicMinerDiscover)
 
 	t := time.NewTicker(time.Second * 1)
 	defer t.Stop()
@@ -92,7 +95,7 @@ func (srv *Server) discovery() {
 	case <-done:
 		return
 	case <-t.C:
-		srv.Frd.Send(util.PubKeyToString(srv.PrivateKey.PublicKey), true, common.TopicHubDiscover)
+		srv.Frd.Send(util.PubKeyToString(srv.PrivateKey.PublicKey), true, TopicHubDiscover)
 	}
 }
 

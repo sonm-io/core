@@ -706,19 +706,16 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		return nil, errors.Wrap(err, "malformed ethereum private key")
 	}
 
+	//TODO: this detection seems to be strange
 	ip, err := util.GetPublicIP()
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot get ip from amazon")
 	}
-
 	clientPort, err := util.ParseEndpointPort(cfg.Cluster.GrpcEndpoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "error during parsing client endpoint")
 	}
-
-	clientEndpoint := ip.String() + ":" + clientPort
-	//TODO: this detection seems to be strange
-	grpcEndpointAddr := clientEndpoint
+	grpcEndpointAddr := ip.String() + ":" + clientPort
 
 	var gate *gateway.Gateway
 	var portPool *gateway.PortPool
