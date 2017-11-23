@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -12,6 +13,7 @@ import (
 	token_api "github.com/sonm-io/core/blockchain/tsc/api"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"golang.org/x/net/context"
 )
 
 const defaultEthEndpoint = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
@@ -43,6 +45,12 @@ type Dealer interface {
 	GetDealInfo(id *big.Int) (*pb.Deal, error)
 	// GetDealAmount return global deal counter
 	GetDealAmount() (*big.Int, error)
+	// GetOpenedDeal returns only opened deals by given hub/client addresses
+	GetOpenedDeal(hubAddr string, clientAddr string) ([]*big.Int, error)
+	// GetAcceptedDeal returns only accepted deals by given hub/client addresses
+	GetAcceptedDeal(hubAddr string, clientAddr string) ([]*big.Int, error)
+	// GetClosedDeal returns only closed deals by given hub/client addresses
+	GetClosedDeal(hubAddr string, clientAddr string) ([]*big.Int, error)
 }
 
 // Tokener is go implementation of ERC20-compatibility token with full functionality high-level interface
@@ -135,6 +143,10 @@ func NewAPI(ethEndpoint *string, gasPrice *int64) (Blockchainer, error) {
 // Deals appearance
 // ----------------
 
+var DealOpenedTopic common.Hash = common.HexToHash("0x873cb35202fef184c9f8ee23c04e36dc38f3e26fb285224ca574a837be976848")
+var DealAcceptedTopic common.Hash = common.HexToHash("0x3a38edea6028913403c74ce8433c90eca94f4ca074d318d8cb77be5290ba4f15")
+var DealClosedTopic common.Hash = common.HexToHash("0x72615f99a62a6cc2f8452d5c0c9cbc5683995297e1d988f09bb1471d4eefb890")
+
 func (bch *api) OpenDeal(key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error) {
 	opts := bch.getTxOpts(key, 305000)
 
@@ -180,6 +192,165 @@ func (bch *api) CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transactio
 		return nil, err
 	}
 	return tx, err
+}
+
+func (bch *api) GetOpenedDeal(hubAddr string, clientAddr string) ([]*big.Int, error) {
+	var topics [][]common.Hash
+
+	// precompile EventName topics
+	var eventTopic = []common.Hash{DealOpenedTopic, DealAcceptedTopic, DealClosedTopic}
+	topics = append(topics, eventTopic)
+
+	// add filter topic by hub address
+	// filtering by client address implemented below
+	if hubAddr != "" {
+		var addrTopic = []common.Hash{common.HexToHash(common.HexToAddress(hubAddr).String())}
+		topics = append(topics, addrTopic)
+	}
+
+	logs, err := bch.client.FilterLogs(context.Background(), ethereum.FilterQuery{
+		Addresses: []common.Address{common.HexToAddress(tsc.DealsAddress)},
+		Topics:    topics,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// shifts ids of `DealOpened` event to new slice
+	idsOpened := make([]common.Hash, 0)
+	// ids of `DealAccepted` & `DealClosed` to other map
+	mb := make(map[string]bool)
+
+	for _, l := range logs {
+		// filtering by client address
+		if clientAddr != "" {
+			if l.Topics[2] != common.HexToHash(clientAddr) {
+				continue
+			}
+		}
+
+		idTopic := l.Topics[3]
+
+		switch l.Topics[0] {
+		case DealOpenedTopic:
+			idsOpened = append(idsOpened, idTopic)
+			break
+		case DealAcceptedTopic, DealClosedTopic:
+			mb[idTopic.String()] = true
+			break
+		}
+	}
+
+	// shift ids of opened deals by accepted and closed deals
+	var out []*big.Int
+	for _, item := range idsOpened {
+		if _, ok := mb[item.String()]; !ok {
+			if err != nil {
+				continue
+			}
+			out = append(out, item.Big())
+		}
+	}
+
+	return out, nil
+}
+
+func (bch *api) GetAcceptedDeal(hubAddr string, clientAddr string) ([]*big.Int, error) {
+	var topics [][]common.Hash
+
+	// precompile EventName topics
+	var eventTopic = []common.Hash{DealAcceptedTopic, DealClosedTopic}
+	topics = append(topics, eventTopic)
+
+	// add filter topic by hub address
+	// filtering by client address implemented below
+	if hubAddr != "" {
+		var addrTopic = []common.Hash{common.HexToHash(common.HexToAddress(hubAddr).String())}
+		topics = append(topics, addrTopic)
+	}
+
+	logs, err := bch.client.FilterLogs(context.Background(), ethereum.FilterQuery{
+		Addresses: []common.Address{common.HexToAddress(tsc.DealsAddress)},
+		Topics:    topics,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// shifts ids of `DealAccepted` event to new slice
+	idsOpened := make([]common.Hash, 0)
+	// ids of `DealClosed` to other map
+	mb := make(map[string]bool)
+
+	for _, l := range logs {
+		// filtering by client address
+		if clientAddr != "" {
+			if l.Topics[2] != common.HexToHash(clientAddr) {
+				continue
+			}
+		}
+
+		idTopic := l.Topics[3]
+
+		switch l.Topics[0] {
+		case DealAcceptedTopic:
+			idsOpened = append(idsOpened, idTopic)
+			break
+		case DealClosedTopic:
+			mb[idTopic.String()] = true
+			break
+		}
+	}
+
+	// shift ids of opened deals by accepted and closed deals
+	var out []*big.Int
+	for _, item := range idsOpened {
+		if _, ok := mb[item.String()]; !ok {
+			if err != nil {
+				continue
+			}
+			out = append(out, item.Big())
+		}
+	}
+
+	return out, nil
+}
+
+func (bch *api) GetClosedDeal(hubAddr string, clientAddr string) ([]*big.Int, error) {
+	var topics [][]common.Hash
+
+	// precompile EventName topics
+	var eventTopic = []common.Hash{DealClosedTopic}
+	topics = append(topics, eventTopic)
+
+	// add filter topic by hub address
+	// filtering by client address implemented below
+	if hubAddr != "" {
+		var addrTopic = []common.Hash{common.HexToHash(common.HexToAddress(hubAddr).String())}
+		topics = append(topics, addrTopic)
+	}
+
+	logs, err := bch.client.FilterLogs(context.Background(), ethereum.FilterQuery{
+		Addresses: []common.Address{common.HexToAddress(tsc.DealsAddress)},
+		Topics:    topics,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var out []*big.Int
+
+	for _, l := range logs {
+		// filtering by client address
+		if clientAddr != "" {
+			if l.Topics[2] != common.HexToHash(clientAddr) {
+				continue
+			}
+		}
+		out = append(out, l.Topics[3].Big())
+	}
+
+	return out, nil
 }
 
 func (bch *api) GetDeals(address string) ([]*big.Int, error) {
