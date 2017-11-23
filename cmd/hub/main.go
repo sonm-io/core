@@ -11,7 +11,6 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 
-	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/insonmnia/hub"
 	"github.com/sonm-io/core/insonmnia/logging"
 
@@ -40,7 +39,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	logger := logging.BuildLogger(cfg.Logging.Level, common.DevelopmentMode)
+	logger := logging.BuildLogger(cfg.Logging.Level, true)
 	ctx = log.WithLogger(ctx, logger)
 
 	h, err := hub.New(ctx, cfg, version)

@@ -10,7 +10,6 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/sonm-io/core/common"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner"
 
@@ -52,7 +51,7 @@ func main() {
 	}
 	uuid := string(uuidData)
 
-	logger := logging.BuildLogger(cfg.Logging().Level, common.DevelopmentMode)
+	logger := logging.BuildLogger(cfg.Logging().Level, true)
 	ctx = log.WithLogger(ctx, logger)
 
 	builder := miner.NewMinerBuilder(cfg)
