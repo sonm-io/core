@@ -2,7 +2,7 @@
 hub:
   # Endpoint for hub communication
   # Format is "ethAddr@ip:port".
-   endpoint: c54f43a8ec76C15162CC80f31Cf02aE4cd31727@127.0.0.1:10002
+   endpoint: 1c54f43a8ec76C15162CC80f31Cf02aE4cd31727@127.0.0.1:10002
 
   # Resources section is available only on Linux
   # If configured, all tasks will share this pool of resources.
