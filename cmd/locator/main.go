@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	listenAddr  = flag.String("addr", ":9090", "Locator service listen addr")
+	configPath  = flag.String("config", "locator.yaml", "Path to locator config file")
 	showVersion = flag.BoolP("version", "v", false, "Show Hub version and exit")
 	version     string
 )
@@ -26,12 +26,22 @@ func main() {
 		return
 	}
 
-	cfg := locator.DefaultConfig(*listenAddr)
+	ctx := context.Background()
+
+	cfg, err := locator.NewConfig(*configPath)
+	if err != nil {
+		log.GetLogger(ctx).Error("failed to load config", zap.Error(err))
+		os.Exit(1)
+	}
 
 	logger := logging.BuildLogger(-1, true)
-	ctx := log.WithLogger(context.Background(), logger)
+	ctx = log.WithLogger(context.Background(), logger)
 
-	lc := locator.NewLocator(ctx, cfg)
+	lc, err := locator.NewLocator(ctx, cfg)
+	if err != nil {
+		log.G(ctx).Error("cannot start Locator service", zap.Error(err))
+		os.Exit(1)
+	}
 	log.G(ctx).Info("starting Locator service", zap.String("bind_addr", cfg.ListenAddr))
 	if err := lc.Serve(); err != nil {
 		log.G(ctx).Error("cannot start Locator service", zap.Error(err))

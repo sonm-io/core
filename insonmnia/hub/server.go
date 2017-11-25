@@ -14,20 +14,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
-	"golang.org/x/net/context"
-
-	log "github.com/noxiouz/zapctx/ctxlog"
-
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/status"
-
 	"github.com/ethereum/go-ethereum/crypto"
+	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/insonmnia/math"
@@ -35,6 +25,13 @@ import (
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"go.uber.org/zap"
+	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -1059,9 +1056,9 @@ func (h *Hub) deleteTask(taskID string) error {
 }
 
 func (h *Hub) initLocatorClient() error {
-	conn, err := grpc.Dial(
+	conn, err := util.MakeGrpcClient(h.ctx,
 		h.locatorEndpoint,
-		grpc.WithInsecure(),
+		h.creds,
 		grpc.WithTimeout(5*time.Second),
 		grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
 		grpc.WithCompressor(grpc.NewGZIPCompressor()))
@@ -1070,6 +1067,7 @@ func (h *Hub) initLocatorClient() error {
 	}
 
 	h.locatorClient = pb.NewLocatorClient(conn)
+
 	return nil
 }
 
@@ -1091,12 +1089,11 @@ func (h *Hub) startLocatorAnnouncer() error {
 
 func (h *Hub) announceAddress(ctx context.Context) {
 	req := &pb.AnnounceRequest{
-		EthAddr: h.ethAddr,
-		IpAddr:  []string{h.grpcEndpointAddr},
+		IpAddr: []string{h.grpcEndpointAddr},
 	}
 
 	log.G(ctx).Info("announcing Hub address",
-		zap.String("eth", req.EthAddr),
+		zap.String("eth", h.ethAddr),
 		zap.String("addr", req.IpAddr[0]))
 
 	_, err := h.locatorClient.Announce(ctx, req)

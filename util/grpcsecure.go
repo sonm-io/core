@@ -63,7 +63,7 @@ func verifyCertificate(authInfo credentials.AuthInfo) (credentials.AuthInfo, err
 		if len(authInfo.State.PeerCertificates) == 0 {
 			return nil, fmt.Errorf("no peer certificates")
 		}
-		wallet, err := checkCert(authInfo.State.PeerCertificates[0])
+		wallet, err := сheckCert(authInfo.State.PeerCertificates[0])
 		if err != nil {
 			return nil, err
 		}

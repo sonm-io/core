@@ -58,9 +58,10 @@ func NewHitlessCertRotator(ctx context.Context, ethPriv *ecdsa.PrivateKey) (Hitl
 	TLSConfig := tls.Config{
 		GetCertificate:       rotator.GetCertificate,
 		GetClientCertificate: rotator.GetClientCertificate,
-		// NOTE: if we do not set this, the gRPC client will check the hostname
-		// in provided certificate. Probably we should consider solution with OverrideServerName from TransportCredentials
-		// As we have no CA, we trust only in ethereum key pair, so there should be no MITM-attack (subject to investigate)
+		// NOTE: if we do not set this, the gRPC client will check the hostname in provided
+		// certificate. Probably we should consider solution with OverrideServerName from
+		// TransportCredentials as we have no CA, we trust only in ethereum key pair, so
+		// there should be no MITM-attack (subject to investigate).
 		InsecureSkipVerify: true,
 		ClientAuth:         tls.RequireAnyClientCert,
 	}
@@ -175,7 +176,7 @@ func GenerateCert(ethpriv *ecdsa.PrivateKey) (cert []byte, key []byte, err error
 	return cert, key, err
 }
 
-func checkCert(cert *x509.Certificate) (string, error) {
+func сheckCert(cert *x509.Certificate) (string, error) {
 	if time.Now().After(cert.NotAfter) {
 		return "", fmt.Errorf("certificate has expired")
 	}
@@ -215,6 +216,6 @@ func checkCert(cert *x509.Certificate) (string, error) {
 		return "", fmt.Errorf("invalid signature")
 	}
 
-	// Check that a public key of a Certificate is signed with eth publick key
+	// Check that a public key of a Certificate is signed with eth public key.
 	return ethcrypto.PubkeyToAddress(*ethPubKey.ToECDSA()).String(), nil
 }
