@@ -1360,6 +1360,24 @@
 			"revisionTime": "2016-08-01T03:09:57Z"
 		},
 		{
+			"checksumSHA1": "5HAXYgF/Y2KNSjnqW25SZCdcJUg=",
+			"path": "github.com/vbauerster/mpb",
+			"revision": "5fea8ad4b17337dd5eb438d6365ffe497d9814a2",
+			"revisionTime": "2017-11-26T14:15:22Z"
+		},
+		{
+			"checksumSHA1": "brcNgITovsR1PDN6cWxueH87eaY=",
+			"path": "github.com/vbauerster/mpb/cwriter",
+			"revision": "5fea8ad4b17337dd5eb438d6365ffe497d9814a2",
+			"revisionTime": "2017-11-26T14:15:22Z"
+		},
+		{
+			"checksumSHA1": "gIzt8Qkxnb3VLmp1TvkNJ4UPXMs=",
+			"path": "github.com/vbauerster/mpb/decor",
+			"revision": "5fea8ad4b17337dd5eb438d6365ffe497d9814a2",
+			"revisionTime": "2017-11-26T14:15:22Z"
+		},
+		{
 			"checksumSHA1": "3IdEHJfBkeEE8guKA2tcA8Fv6eg=",
 			"path": "go.uber.org/atomic",
 			"revision": "70bd1261d36be490ebd22a62b385a3c5d23b6240",
