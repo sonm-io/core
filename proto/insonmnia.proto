@@ -126,3 +126,12 @@ message Timestamp {
     // inclusive.
     int32 nanos = 2;
 }
+
+
+message Chunk {
+    bytes chunk = 1;
+}
+
+message Progress {
+    int64 size = 1;
+}

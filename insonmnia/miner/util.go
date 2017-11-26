@@ -1,10 +1,13 @@
 package miner
 
 import (
+	"io"
 	"net"
 	"sort"
 	"sync"
 	"time"
+
+	"github.com/sonm-io/core/proto"
 )
 
 // BackoffTimer implementation
@@ -113,4 +116,41 @@ func isPrivateIPv6(ip net.IP) bool {
 
 func isIPv4(ip net.IP) bool {
 	return ip.To4() != nil
+}
+
+type chunkReader struct {
+	stream sonm.Miner_LoadServer
+	buf    []byte
+}
+
+func newChunkReader(stream sonm.Miner_LoadServer) io.Reader {
+	return &chunkReader{stream: stream, buf: nil}
+}
+
+func (r *chunkReader) Read(p []byte) (n int, err error) {
+	// Pull the next chunk when we've completely consumed the current one.
+	if len(r.buf) == 0 {
+		chunk, err := r.stream.Recv()
+		if err != nil {
+			if err != io.EOF {
+				return 0, err
+			}
+		}
+
+		if chunk == nil {
+			return 0, io.EOF
+		}
+
+		r.buf = chunk.Chunk
+	}
+
+	size := copy(p, r.buf)
+
+	r.buf = r.buf[size:]
+
+	if err := r.stream.Send(&sonm.Progress{Size: int64(size)}); err != nil {
+		return 0, err
+	}
+
+	return size, nil
 }

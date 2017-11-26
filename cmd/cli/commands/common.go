@@ -56,6 +56,7 @@ var (
 	errWorkerIDRequired     = errors.New("worker ID is required")
 	errTaskIDRequired       = errors.New("task ID is required")
 	errTaskFileRequired     = errors.New("task definition file is required")
+	errNotEnoughArguments   = errors.New("not enough arguments")
 	errCannotParsePropsFile = errors.New("cannot parse props file")
 )
 

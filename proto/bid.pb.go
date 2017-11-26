@@ -57,6 +57,8 @@ It has these top-level messages:
 	DiscoverHubRequest
 	TaskResourceRequirements
 	Timestamp
+	Chunk
+	Progress
 	AnnounceRequest
 	ResolveRequest
 	ResolveReply

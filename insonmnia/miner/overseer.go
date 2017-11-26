@@ -98,6 +98,9 @@ type ExecConnection types.HijackedResponse
 
 // Overseer watches all miner's applications.
 type Overseer interface {
+	// Load loads an image from the specified reader to the Docker.
+	Load(ctx context.Context, rd io.Reader) (imageLoadStatus, error)
+
 	// Spool prepares an application for its further start.
 	//
 	// For Docker containers this is an equivalent of pulling from the registry.
@@ -347,6 +350,28 @@ func (o *overseer) collectStats() {
 			return
 		}
 	}
+}
+
+func (o *overseer) Load(ctx context.Context, rd io.Reader) (imageLoadStatus, error) {
+	source := types.ImageImportSource{
+		Source:     rd,
+		SourceName: "-",
+	}
+
+	options := types.ImageImportOptions{
+		Tag:     "",
+		Message: "",
+	}
+
+	response, err := o.client.ImageImport(ctx, source, "", options)
+	if err != nil {
+		log.G(o.ctx).Error("failed to load an image", zap.Error(err))
+		return imageLoadStatus{}, err
+	}
+
+	defer response.Close()
+
+	return decodeImageLoad(response)
 }
 
 func (o *overseer) Spool(ctx context.Context, d Description) error {

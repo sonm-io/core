@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"go.uber.org/zap"
+	"google.golang.org/grpc/metadata"
 
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -263,6 +264,15 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 	}
 
 	return restartPolicy
+}
+
+func (m *Miner) Load(stream pb.Miner_LoadServer) error {
+	result, err := m.ovs.Load(stream.Context(), newChunkReader(stream))
+	if err != nil {
+		return err
+	}
+	stream.SetTrailer(metadata.Pairs("status", result.Status))
+	return nil
 }
 
 // Start request from Hub makes Miner start a container
