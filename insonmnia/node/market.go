@@ -14,7 +14,6 @@ import (
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc/credentials"
 )
 
 var (
@@ -85,20 +84,8 @@ type orderHandler struct {
 	bc      blockchain.Blockchainer
 }
 
-func newOrderHandler(ctx context.Context, loc string, o *pb.Order, creds credentials.TransportCredentials) (*orderHandler, error) {
+func newOrderHandler(ctx context.Context, loc pb.LocatorClient, bc blockchain.Blockchainer, o *pb.Order) (*orderHandler, error) {
 	ctx, cancel := context.WithCancel(ctx)
-
-	cc, err := util.MakeGrpcClient(ctx, loc, creds)
-	if err != nil {
-		log.G(ctx).Error("cannot create locator client", zap.Error(err))
-		return nil, err
-	}
-
-	bcAPI, err := blockchain.NewAPI(nil, nil)
-	if err != nil {
-		log.G(ctx).Error("cannot build blockchain api", zap.Error(err))
-		return nil, err
-	}
 
 	order, err := structs.NewOrder(o)
 	if err != nil {
@@ -109,8 +96,8 @@ func newOrderHandler(ctx context.Context, loc string, o *pb.Order, creds credent
 		ctx:     ctx,
 		cancel:  cancel,
 		ts:      time.Now(),
-		locator: pb.NewLocatorClient(cc),
-		bc:      bcAPI,
+		locator: loc,
+		bc:      bc,
 		id:      order.GetID(),
 		order:   o,
 	}
@@ -287,11 +274,8 @@ func (h *orderHandler) findDealOnce(key *ecdsa.PrivateKey, addr, hash string) *p
 }
 
 type marketAPI struct {
-	conf   Config
-	key    *ecdsa.PrivateKey
-	market pb.MarketClient
-	ctx    context.Context
-	creds  credentials.TransportCredentials
+	remotes *remoteOptions
+	ctx     context.Context
 
 	taskMux sync.Mutex
 	tasks   map[string]*orderHandler
@@ -321,12 +305,12 @@ func (m *marketAPI) removeHandler(id string) {
 
 func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
 	log.G(m.ctx).Info("handling GetOrders request")
-	return m.market.GetOrders(ctx, req)
+	return m.remotes.market.GetOrders(ctx, req)
 }
 
 func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, error) {
 	log.G(m.ctx).Info("handling GetOrderByID request", zap.String("id", req.Id))
-	return m.market.GetOrderByID(ctx, req)
+	return m.remotes.market.GetOrderByID(ctx, req)
 }
 
 func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, error) {
@@ -336,26 +320,26 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, 
 		return nil, errNotAnBidOrder
 	}
 
-	req.ByuerID = util.PubKeyToAddr(m.key.PublicKey)
-	created, err := m.market.CreateOrder(ctx, req)
+	req.ByuerID = util.PubKeyToAddr(m.remotes.key.PublicKey)
+	created, err := m.remotes.market.CreateOrder(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	go m.startExecOrderHandler(m.ctx, created)
+	go m.startExecOrderHandler(created)
 
 	return created, nil
 }
 
-func (m *marketAPI) startExecOrderHandler(ctx context.Context, ord *pb.Order) {
-	log.G(ctx).Info("starting ExecOrder")
+func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
+	log.G(m.ctx).Info("starting ExecOrder")
 
-	handler, err := newOrderHandler(ctx, m.conf.LocatorEndpoint(), ord, m.creds)
+	handler, err := newOrderHandler(m.ctx, m.remotes.locator, m.remotes.eth, ord)
 	if err != nil {
 		// push failed handler too, because we need to show error
 		failedHandler := &orderHandler{id: ord.GetId(), err: err, status: statusFailed}
 		m.registerHandler(ord.Id, failedHandler)
-		log.G(ctx).Info("cannot create new bg handler from order", zap.Error(err))
+		log.G(m.ctx).Info("cannot create new bg handler from order", zap.Error(err))
 		return
 	}
 
@@ -371,7 +355,7 @@ func (m *marketAPI) startExecOrderHandler(ctx context.Context, ord *pb.Order) {
 	// remove order from Market if deal was make
 	defer func() {
 		handler.cancel()
-		_, err = m.CancelOrder(ctx, ord)
+		_, err = m.CancelOrder(m.ctx, ord)
 		if err != nil {
 			log.G(handler.ctx).Info("cannot cancel order", zap.String("err", err.Error()))
 		}
@@ -400,7 +384,7 @@ func (m *marketAPI) startExecOrderHandler(ctx context.Context, ord *pb.Order) {
 func (m *marketAPI) orderLoop(handler *orderHandler) error {
 	log.G(handler.ctx).Info("starting orderLoop", zap.String("id", handler.id))
 
-	orders, err := handler.search(m.market)
+	orders, err := handler.search(m.remotes.market)
 	if err != nil {
 		log.G(handler.ctx).Info("cannot get orders", zap.Error(err))
 		handler.setError(err)
@@ -429,14 +413,14 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		}
 	}
 
-	err = handler.createDeal(orderToDeal, m.key)
+	err = handler.createDeal(orderToDeal, m.remotes.key)
 	if err != nil {
 		log.G(handler.ctx).Info("cannot create deal, failing handler")
 		handler.setError(err)
 		return err
 	}
 
-	deal, err := handler.waitForApprove(orderToDeal, m.key)
+	deal, err := handler.waitForApprove(orderToDeal, m.remotes.key)
 	if err != nil {
 		log.G(handler.ctx).Info("wailed waiting for deal", zap.Error(err))
 		handler.setError(err)
@@ -458,7 +442,7 @@ func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.Order) (*pb.Empty, 
 		log.G(m.ctx).Info("cannot remove order handler", zap.String("id", req.Id))
 	}
 
-	return m.market.CancelOrder(ctx, req)
+	return m.remotes.market.CancelOrder(ctx, req)
 }
 
 func (m *marketAPI) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetProcessingReply, error) {
@@ -501,17 +485,9 @@ func (m *marketAPI) removeOrderHandler(id string) error {
 }
 
 func newMarketAPI(opts *remoteOptions) (pb.MarketServer, error) {
-	cc, err := util.MakeGrpcClient(opts.ctx, opts.conf.MarketEndpoint(), nil)
-	if err != nil {
-		return nil, err
-	}
-
 	return &marketAPI{
-		conf:   opts.conf,
-		ctx:    opts.ctx,
-		market: pb.NewMarketClient(cc),
-		tasks:  make(map[string]*orderHandler),
-		key:    opts.key,
-		creds:  opts.creds,
+		remotes: opts,
+		ctx:     opts.ctx,
+		tasks:   make(map[string]*orderHandler),
 	}, nil
 }

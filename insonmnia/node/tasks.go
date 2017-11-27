@@ -1,24 +1,18 @@
 package node
 
 import (
-	"crypto/ecdsa"
 	"io"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc/credentials"
 )
 
 type tasksAPI struct {
-	key     *ecdsa.PrivateKey
-	bc      blockchain.Blockchainer
-	locator pb.LocatorClient
 	ctx     context.Context
-	creds   credentials.TransportCredentials
+	remotes *remoteOptions
 }
 
 func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskListReply, error) {
@@ -35,8 +29,8 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 		return hubClient.TaskList(ctx, &pb.Empty{})
 	}
 
-	myAddr := util.PubKeyToAddr(t.key.PublicKey)
-	dealIDs, err := t.bc.GetDeals(myAddr)
+	myAddr := util.PubKeyToAddr(t.remotes.key.PublicKey)
+	dealIDs, err := t.remotes.eth.GetDeals(myAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -45,7 +39,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 
 	var activeDeals []*pb.Deal
 	for _, id := range dealIDs {
-		dealInfo, err := t.bc.GetDealInfo(id)
+		dealInfo, err := t.remotes.eth.GetDealInfo(id)
 		if err != nil {
 			return nil, err
 		}
@@ -168,7 +162,7 @@ func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (pb.HubCl
 		return nil, err
 	}
 
-	dealInfo, err := t.bc.GetDealInfo(bigID)
+	dealInfo, err := t.remotes.eth.GetDealInfo(bigID)
 	if err != nil {
 		return nil, err
 	}
@@ -178,12 +172,12 @@ func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (pb.HubCl
 
 func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.HubClient, error) {
 	resolve := &pb.ResolveRequest{EthAddr: eth}
-	addrReply, err := t.locator.Resolve(ctx, resolve)
+	addrReply, err := t.remotes.locator.Resolve(ctx, resolve)
 	if err != nil {
 		return nil, err
 	}
 
-	cc, err := util.MakeGrpcClient(ctx, addrReply.IpAddr[0], t.creds)
+	cc, err := util.MakeGrpcClient(ctx, addrReply.IpAddr[0], t.remotes.creds)
 	if err != nil {
 		return nil, err
 	}
@@ -192,21 +186,9 @@ func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.Hu
 }
 
 func newTasksAPI(opts *remoteOptions) (pb.TaskManagementServer, error) {
-	bcAPI, err := blockchain.NewAPI(nil, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	cc, err := util.MakeGrpcClient(opts.ctx, opts.conf.LocatorEndpoint(), opts.creds)
-	if err != nil {
-		return nil, err
-	}
 
 	return &tasksAPI{
 		ctx:     opts.ctx,
-		key:     opts.key,
-		bc:      bcAPI,
-		locator: pb.NewLocatorClient(cc),
-		creds:   opts.creds,
+		remotes: opts,
 	}, nil
 }

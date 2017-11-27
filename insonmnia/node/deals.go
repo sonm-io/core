@@ -1,10 +1,7 @@
 package node
 
 import (
-	"crypto/ecdsa"
-
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -12,21 +9,20 @@ import (
 )
 
 type dealsAPI struct {
-	key *ecdsa.PrivateKey
-	bc  blockchain.Blockchainer
-	ctx context.Context
+	ctx     context.Context
+	remotes *remoteOptions
 }
 
 func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealListReply, error) {
 	log.G(d.ctx).Info("handling Deals_List request", zap.Any("req", req))
-	IDs, err := d.bc.GetDeals(req.Owner)
+	IDs, err := d.remotes.eth.GetDeals(req.Owner)
 	if err != nil {
 		return nil, err
 	}
 
 	deals := make([]*pb.Deal, 0, len(IDs))
 	for _, id := range IDs {
-		deal, err := d.bc.GetDealInfo(id)
+		deal, err := d.remotes.eth.GetDealInfo(id)
 		if err != nil {
 			return nil, err
 		}
@@ -49,7 +45,7 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.Deal, error) {
 		return nil, err
 	}
 
-	return d.bc.GetDealInfo(bigID)
+	return d.remotes.eth.GetDealInfo(bigID)
 }
 
 func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
@@ -59,7 +55,7 @@ func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
 		return nil, err
 	}
 
-	_, err = d.bc.CloseDeal(d.key, bigID)
+	_, err = d.remotes.eth.CloseDeal(d.remotes.key, bigID)
 	if err != nil {
 		return nil, err
 	}
@@ -68,10 +64,8 @@ func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
 }
 
 func newDealsAPI(opts *remoteOptions) (pb.DealManagementServer, error) {
-	api, err := blockchain.NewAPI(nil, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return &dealsAPI{key: opts.key, bc: api, ctx: opts.ctx}, nil
+	return &dealsAPI{
+		remotes: opts,
+		ctx:     opts.ctx,
+	}, nil
 }

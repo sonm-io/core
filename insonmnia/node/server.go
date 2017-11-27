@@ -5,6 +5,7 @@ import (
 	"net"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -15,10 +16,40 @@ import (
 
 // remoteOptions describe options related to remove gRPC service
 type remoteOptions struct {
-	ctx   context.Context
-	key   *ecdsa.PrivateKey
-	conf  Config
-	creds credentials.TransportCredentials
+	ctx     context.Context
+	key     *ecdsa.PrivateKey
+	conf    Config
+	creds   credentials.TransportCredentials
+	locator pb.LocatorClient
+	market  pb.MarketClient
+	eth     blockchain.Blockchainer
+}
+
+func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, creds credentials.TransportCredentials) (*remoteOptions, error) {
+	locatorCC, err := util.MakeGrpcClient(ctx, conf.LocatorEndpoint(), creds)
+	if err != nil {
+		return nil, err
+	}
+
+	marketCC, err := util.MakeGrpcClient(ctx, conf.MarketEndpoint(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	bcAPI, err := blockchain.NewAPI(nil, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return &remoteOptions{
+		key:     key,
+		conf:    conf,
+		ctx:     ctx,
+		creds:   creds,
+		locator: pb.NewLocatorClient(locatorCC),
+		market:  pb.NewMarketClient(marketCC),
+		eth:     bcAPI,
+	}, nil
 }
 
 // Node is LocalNode instance
@@ -47,11 +78,9 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	creds := util.NewTLS(TLSConfig)
 	srv := util.MakeGrpcServer(creds)
 
-	opts := &remoteOptions{
-		key:   key,
-		conf:  c,
-		ctx:   ctx,
-		creds: creds,
+	opts, err := newRemoteOptions(ctx, key, c, creds)
+	if err != nil {
+		return nil, err
 	}
 
 	// register hub connection if hub addr is set
