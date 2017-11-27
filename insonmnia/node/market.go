@@ -280,7 +280,6 @@ func (h *orderHandler) findDealOnce(key *ecdsa.PrivateKey, addr, hash string) *p
 type marketAPI struct {
 	remotes *remoteOptions
 	ctx     context.Context
-
 	taskMux sync.Mutex
 	tasks   map[string]*orderHandler
 }

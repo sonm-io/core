@@ -186,7 +186,6 @@ func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.Hu
 }
 
 func newTasksAPI(opts *remoteOptions) (pb.TaskManagementServer, error) {
-
 	return &tasksAPI{
 		ctx:     opts.ctx,
 		remotes: opts,
