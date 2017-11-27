@@ -197,7 +197,7 @@ func newTasksAPI(ctx context.Context, key *ecdsa.PrivateKey, conf Config, creds 
 		return nil, err
 	}
 
-	cc, err := util.MakeGrpcClient(ctx, conf.LocatorEndpoint(), nil)
+	cc, err := util.MakeGrpcClient(ctx, conf.LocatorEndpoint(), creds)
 	if err != nil {
 		return nil, err
 	}
