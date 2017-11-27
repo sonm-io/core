@@ -191,22 +191,22 @@ func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.Hu
 	return pb.NewHubClient(cc), nil
 }
 
-func newTasksAPI(ctx context.Context, key *ecdsa.PrivateKey, conf Config, creds credentials.TransportCredentials) (pb.TaskManagementServer, error) {
+func newTasksAPI(opts *remoteOptions) (pb.TaskManagementServer, error) {
 	bcAPI, err := blockchain.NewAPI(nil, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	cc, err := util.MakeGrpcClient(ctx, conf.LocatorEndpoint(), creds)
+	cc, err := util.MakeGrpcClient(opts.ctx, opts.conf.LocatorEndpoint(), opts.creds)
 	if err != nil {
 		return nil, err
 	}
 
 	return &tasksAPI{
-		ctx:     ctx,
-		key:     key,
+		ctx:     opts.ctx,
+		key:     opts.key,
 		bc:      bcAPI,
 		locator: pb.NewLocatorClient(cc),
-		creds:   creds,
+		creds:   opts.creds,
 	}, nil
 }

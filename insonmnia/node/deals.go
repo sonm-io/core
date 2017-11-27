@@ -67,11 +67,11 @@ func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
-func newDealsAPI(ctx context.Context, key *ecdsa.PrivateKey) (pb.DealManagementServer, error) {
+func newDealsAPI(opts *remoteOptions) (pb.DealManagementServer, error) {
 	api, err := blockchain.NewAPI(nil, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	return &dealsAPI{key: key, bc: api, ctx: ctx}, nil
+	return &dealsAPI{key: opts.key, bc: api, ctx: opts.ctx}, nil
 }

@@ -500,18 +500,18 @@ func (m *marketAPI) removeOrderHandler(id string) error {
 	return nil
 }
 
-func newMarketAPI(ctx context.Context, key *ecdsa.PrivateKey, conf Config, creds credentials.TransportCredentials) (pb.MarketServer, error) {
-	cc, err := util.MakeGrpcClient(ctx, conf.MarketEndpoint(), nil)
+func newMarketAPI(opts *remoteOptions) (pb.MarketServer, error) {
+	cc, err := util.MakeGrpcClient(opts.ctx, opts.conf.MarketEndpoint(), nil)
 	if err != nil {
 		return nil, err
 	}
 
 	return &marketAPI{
-		conf:   conf,
-		ctx:    ctx,
+		conf:   opts.conf,
+		ctx:    opts.ctx,
 		market: pb.NewMarketClient(cc),
 		tasks:  make(map[string]*orderHandler),
-		key:    key,
-		creds:  creds,
+		key:    opts.key,
+		creds:  opts.creds,
 	}, nil
 }

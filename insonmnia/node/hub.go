@@ -5,13 +5,11 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc/credentials"
 )
 
 type hubAPI struct {
-	conf Config
-	hub  pb.HubClient
-	ctx  context.Context
+	hub pb.HubClient
+	ctx context.Context
 }
 
 func (h *hubAPI) Status(ctx context.Context, req *pb.Empty) (*pb.HubStatusReply, error) {
@@ -88,15 +86,14 @@ func (h *hubAPI) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 	return h.hub.TaskStatus(ctx, req)
 }
 
-func newHubAPI(ctx context.Context, conf Config, creds credentials.TransportCredentials) (pb.HubManagementServer, error) {
-	cc, err := util.MakeGrpcClient(ctx, conf.HubEndpoint(), creds)
+func newHubAPI(opts *remoteOptions) (pb.HubManagementServer, error) {
+	cc, err := util.MakeGrpcClient(opts.ctx, opts.conf.HubEndpoint(), opts.creds)
 	if err != nil {
 		return nil, err
 	}
 
 	return &hubAPI{
-		conf: conf,
-		ctx:  ctx,
-		hub:  pb.NewHubClient(cc),
+		ctx: opts.ctx,
+		hub: pb.NewHubClient(cc),
 	}, nil
 }
