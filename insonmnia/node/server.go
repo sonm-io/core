@@ -17,7 +17,7 @@ import (
 
 type hubClientCreator func(addr string) (pb.HubClient, error)
 
-// remoteOptions describe options related to remove gRPC service
+// remoteOptions describe options related to remove gRPC services
 type remoteOptions struct {
 	ctx            context.Context
 	key            *ecdsa.PrivateKey
