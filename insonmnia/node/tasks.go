@@ -177,6 +177,9 @@ func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.Hu
 		return nil, err
 	}
 
+	// TODO(sshaman1101): голосом стриммерши Карины
+	// TODO(sshaman1101): СВЯЗНОСТЬ, СВЯЗНООООООСТЬ!
+	// TODO(sshaman1101): не вздумай блять это закоммитить, дебил, сука, ебаный
 	cc, err := util.MakeGrpcClient(ctx, addrReply.IpAddr[0], t.remotes.creds)
 	if err != nil {
 		return nil, err

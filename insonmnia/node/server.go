@@ -3,6 +3,7 @@ package node
 import (
 	"crypto/ecdsa"
 	"net"
+	"time"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
@@ -14,15 +15,19 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+type hubClientCreator func(addr string) (pb.HubClient, error)
+
 // remoteOptions describe options related to remove gRPC service
 type remoteOptions struct {
-	ctx     context.Context
-	key     *ecdsa.PrivateKey
-	conf    Config
-	creds   credentials.TransportCredentials
-	locator pb.LocatorClient
-	market  pb.MarketClient
-	eth     blockchain.Blockchainer
+	ctx            context.Context
+	key            *ecdsa.PrivateKey
+	conf           Config
+	creds          credentials.TransportCredentials
+	approveTimeout time.Duration
+	locator        pb.LocatorClient
+	market         pb.MarketClient
+	eth            blockchain.Blockchainer
+	hubCreator     hubClientCreator
 }
 
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, creds credentials.TransportCredentials) (*remoteOptions, error) {
@@ -41,14 +46,25 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, c
 		return nil, err
 	}
 
+	hc := func(addr string) (pb.HubClient, error) {
+		cc, err := util.MakeGrpcClient(ctx, addr, creds)
+		if err != nil {
+			return nil, err
+		}
+
+		return pb.NewHubClient(cc), nil
+	}
+
 	return &remoteOptions{
-		key:     key,
-		conf:    conf,
-		ctx:     ctx,
-		creds:   creds,
-		locator: pb.NewLocatorClient(locatorCC),
-		market:  pb.NewMarketClient(marketCC),
-		eth:     bcAPI,
+		key:            key,
+		conf:           conf,
+		ctx:            ctx,
+		creds:          creds,
+		locator:        pb.NewLocatorClient(locatorCC),
+		market:         pb.NewMarketClient(marketCC),
+		eth:            bcAPI,
+		approveTimeout: 900 * time.Second,
+		hubCreator:     hc,
 	}, nil
 }
 
