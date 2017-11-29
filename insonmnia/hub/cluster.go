@@ -153,6 +153,7 @@ func (c *cluster) Run() error {
 	w := errgroup.Group{}
 
 	c.ctx, c.cancel = context.WithCancel(c.parentCtx)
+	c.registerMember(c.id, c.endpoints)
 	if c.cfg.Failover {
 		c.isLeader = false
 		w.Go(c.election)
@@ -310,7 +311,7 @@ func (c *cluster) hubWatch() error {
 				return err
 			} else {
 				for _, member := range members {
-					err := c.registerMember(member)
+					err := c.registerMemberFromKV(member)
 					if err != nil {
 						log.G(c.ctx).Warn("trash data in cluster members folder: ", zap.Any("kvPair", member), zap.Error(err))
 					}
@@ -543,7 +544,7 @@ func (c *cluster) memberExists(id string) bool {
 	return ok
 }
 
-func (c *cluster) registerMember(member *store.KVPair) error {
+func (c *cluster) registerMemberFromKV(member *store.KVPair) error {
 	id := fetchNameFromPath(member.Key)
 	if id == c.id {
 		return nil
@@ -558,6 +559,10 @@ func (c *cluster) registerMember(member *store.KVPair) error {
 	if err != nil {
 		return err
 	}
+	return c.registerMember(id, endpoints)
+}
+
+func (c *cluster) registerMember(id string, endpoints []string) error {
 	log.G(c.ctx).Info("fetched endpoints of new member", zap.Any("endpoints", endpoints))
 	c.leaderLock.Lock()
 	c.clusterEndpoints[id] = endpoints
