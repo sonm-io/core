@@ -57,7 +57,7 @@ func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
 	ord := &pb.Order{
 		Id:        "my-order-id",
 		OrderType: pb.OrderType_BID,
-		Price:     1000,
+		Price:     "1000",
 		ByuerID:   addr,
 		Slot: &pb.Slot{
 			Resources: &pb.Resources{},
@@ -192,7 +192,7 @@ func TestCreateOrder_CannotFetchOrders(t *testing.T) {
 	ord := &pb.Order{
 		Id:        "my-order-id",
 		OrderType: pb.OrderType_BID,
-		Price:     1000,
+		Price:     "1000",
 		ByuerID:   addr,
 		Slot: &pb.Slot{
 			Resources: &pb.Resources{},
@@ -217,7 +217,7 @@ func TestCreateOrder_CannotFetchOrders(t *testing.T) {
 
 	mustCreate := &pb.Order{
 		OrderType: pb.OrderType_BID,
-		Price:     100,
+		Price:     "1000",
 	}
 
 	created, err := inner.CreateOrder(ctx, mustCreate)
@@ -242,7 +242,7 @@ func TestCreateOrder_CannotNoMatchingOrders(t *testing.T) {
 	ord := &pb.Order{
 		Id:        "my-order-id",
 		OrderType: pb.OrderType_BID,
-		Price:     1000,
+		Price:     "1000",
 		ByuerID:   addr,
 		Slot: &pb.Slot{
 			Resources: &pb.Resources{},
@@ -267,7 +267,7 @@ func TestCreateOrder_CannotNoMatchingOrders(t *testing.T) {
 
 	mustCreate := &pb.Order{
 		OrderType: pb.OrderType_BID,
-		Price:     100,
+		Price:     "100",
 	}
 
 	created, err := inner.CreateOrder(ctx, mustCreate)

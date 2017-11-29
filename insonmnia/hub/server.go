@@ -710,10 +710,11 @@ func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDeviceProp
 }
 
 func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, error) {
-	log.G(h.ctx).Info("handling Slots request", zap.Any("request", request))
+	log.G(h.ctx).Info("handling Slots request")
 
 	h.slotsMu.RLock()
 	defer h.slotsMu.RUnlock()
+
 	slots := make([]*pb.Slot, 0, len(h.slots))
 	for _, slot := range h.slots {
 		slots = append(slots, slot.Unwrap())
@@ -722,12 +723,17 @@ func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, err
 	return &pb.SlotsReply{Slot: slots}, nil
 }
 
-func (h *Hub) InsertSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, error) {
+func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling InsertSlot request", zap.Any("request", request))
 
 	// We do not perform any resource existence check here, because miners
 	// can be added dynamically.
-	slot, err := structs.NewSlot(request)
+	slot, err := structs.NewSlot(request.Slot)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = util.ParseBigInt(request.Price)
 	if err != nil {
 		return nil, err
 	}
@@ -736,7 +742,7 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, erro
 	ord := &pb.Order{
 		OrderType:  pb.OrderType_ASK,
 		Slot:       slot.Unwrap(),
-		Price:      1101, // todo(sshaman1101): wtf where is the price?
+		Price:      request.Price,
 		SupplierID: util.PubKeyToAddr(h.ethKey.PublicKey),
 	}
 

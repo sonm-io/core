@@ -65,7 +65,7 @@ service Hub {
     // AddSlot allows to assign a new slot.
     // This method can fail if either there are no such resources found or it
     // has been previourly assigned.
-    rpc InsertSlot(Slot) returns (Empty) {}
+    rpc InsertSlot(InsertSlotRequest) returns (Empty) {}
     // RemoveSlot removes the speified slot if fully matches.
     rpc RemoveSlot(ID) returns (Empty) {}
 }
@@ -177,4 +177,9 @@ message DevicesReply {
     map<string, CPUDeviceInfo> CPUs = 1;
     // GPU unique ID -> Info.
     map<string, GPUDeviceInfo> GPUs = 2;
+}
+
+message InsertSlotRequest {
+    Slot slot = 1;
+    string price = 2;
 }

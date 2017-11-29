@@ -106,12 +106,13 @@ var minerShowSlotsCmd = &cobra.Command{
 }
 
 var hubAddSlotCmd = &cobra.Command{
-	Use:     "add PATH",
+	Use:     "add PRICE PATH",
 	Short:   "Add a virtual slot",
 	PreRunE: checkHubAddressIsSet,
-	Args:    cobra.MinimumNArgs(1),
+	Args:    cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		path := args[0]
+		price := args[0]
+		path := args[1]
 
 		buf, err := ioutil.ReadFile(path)
 		if err != nil {
@@ -133,7 +134,7 @@ var hubAddSlotCmd = &cobra.Command{
 			return err
 		}
 
-		_, err = grpc.HubInsertSlot(context.Background(), slot)
+		_, err = grpc.HubInsertSlot(context.Background(), slot, price)
 		if err != nil {
 			return err
 		}

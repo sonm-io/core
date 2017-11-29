@@ -188,7 +188,7 @@ func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey) error 
 	deal := &pb.Deal{
 		SupplierID: order.GetSupplierID(),
 		BuyerID:    order.GetByuerID(),
-		Price:      fmt.Sprintf("%d", order.Price),
+		Price:      order.Price,
 		Status:     pb.DealStatus_PENDING,
 		// TODO(sshaman1101): calculate hash
 		SpecificationHash: "0",

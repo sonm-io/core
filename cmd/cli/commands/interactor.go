@@ -13,7 +13,7 @@ type CliInteractor interface {
 	HubPing(context.Context) (*pb.PingReply, error)
 	HubStatus(context.Context) (*pb.HubStatusReply, error)
 	HubShowSlots(ctx context.Context) (*pb.SlotsReply, error)
-	HubInsertSlot(ctx context.Context, slot *structs.Slot) (*pb.Empty, error)
+	HubInsertSlot(ctx context.Context, slot *structs.Slot, price string) (*pb.Empty, error)
 
 	MinerList(context.Context) (*pb.ListReply, error)
 	MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error)
@@ -84,10 +84,15 @@ func (it *grpcInteractor) HubShowSlots(ctx context.Context) (*pb.SlotsReply, err
 	return it.hub.Slots(c, &pb.Empty{})
 }
 
-func (it *grpcInteractor) HubInsertSlot(ctx context.Context, slot *structs.Slot) (*pb.Empty, error) {
+func (it *grpcInteractor) HubInsertSlot(ctx context.Context, slot *structs.Slot, price string) (*pb.Empty, error) {
 	c, cancel := it.ctx(ctx)
 	defer cancel()
-	return it.hub.InsertSlot(c, slot.Unwrap())
+
+	req := &pb.InsertSlotRequest{
+		Price: price,
+		Slot:  slot.Unwrap(),
+	}
+	return it.hub.InsertSlot(c, req)
 }
 
 func (it *grpcInteractor) MinerList(appCtx context.Context) (*pb.ListReply, error) {
@@ -168,7 +173,7 @@ type NodeHubInteractor interface {
 	SetDeviceProperties(ID string, properties map[string]float64) (*pb.Empty, error)
 
 	GetAskPlans() (*pb.SlotsReply, error)
-	CreateAskPlan(slot *structs.Slot) (*pb.Empty, error)
+	CreateAskPlan(slot *structs.Slot, price string) (*pb.Empty, error)
 	RemoveAskPlan(id string) (*pb.Empty, error)
 
 	TaskList() (*pb.TaskListReply, error)
@@ -259,11 +264,15 @@ func (it *hubInteractor) GetAskPlans() (*pb.SlotsReply, error) {
 	return it.hub.GetAskPlans(ctx, &pb.Empty{})
 }
 
-func (it *hubInteractor) CreateAskPlan(slot *structs.Slot) (*pb.Empty, error) {
+func (it *hubInteractor) CreateAskPlan(slot *structs.Slot, price string) (*pb.Empty, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.hub.CreateAskPlan(ctx, slot.Unwrap())
+	req := &pb.InsertSlotRequest{
+		Price: price,
+		Slot:  slot.Unwrap(),
+	}
+	return it.hub.CreateAskPlan(ctx, req)
 }
 
 func (it *hubInteractor) RemoveAskPlan(id string) (*pb.Empty, error) {

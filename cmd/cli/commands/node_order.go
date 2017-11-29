@@ -74,9 +74,9 @@ var nodeOrderListCmd = &cobra.Command{
 }
 
 var nodeOrderCreateCmd = &cobra.Command{
-	Use:    "create <plan.yaml>",
+	Use:    "create <price> <plan.yaml>",
 	Short:  "Create new plan",
-	Args:   cobra.MinimumNArgs(1),
+	Args:   cobra.MinimumNArgs(2),
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
@@ -85,14 +85,22 @@ var nodeOrderCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		planPath := args[0]
+		price := args[0]
+		planPath := args[1]
+
+		_, err = util.ParseBigInt(price)
+		if err != nil {
+			showError(cmd, "Cannot parse price", err)
+			os.Exit(1)
+		}
+
 		slot, err := loadSlotFile(planPath)
 		if err != nil {
 			showError(cmd, "Cannot load AskOrder definition", err)
 			os.Exit(1)
 		}
 
-		_, err = hub.CreateAskPlan(slot)
+		_, err = hub.CreateAskPlan(slot, price)
 		if err != nil {
 			showError(cmd, "Cannot create new AskOrder", err)
 			os.Exit(1)
