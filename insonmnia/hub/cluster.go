@@ -219,11 +219,13 @@ func (c *cluster) Synchronize(entity interface{}) error {
 }
 
 func (c *cluster) Members() ([]NewMemberEvent, error) {
+	result := make([]NewMemberEvent, 0)
 	c.leaderLock.RLock()
 	defer c.leaderLock.RUnlock()
-	for id, endpoints := range(c.)
-	_, ok := c.clients[id]
-	return ok
+	for id, endpoints := range c.clusterEndpoints {
+		result = append(result, NewMemberEvent{id, endpoints})
+	}
+	return result, nil
 }
 
 func (c *cluster) election() error {
