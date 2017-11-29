@@ -1066,35 +1066,49 @@ func (h *Hub) startLocatorAnnouncer() error {
 	tk := time.NewTicker(h.locatorPeriod)
 	defer tk.Stop()
 
-	h.announceAddress(h.ctx)
+	if err := h.announceAddress(h.ctx); err != nil {
+		log.G(h.ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
+	}
 
 	for {
 		select {
 		case <-tk.C:
-			h.announceAddress(h.ctx)
+			if err := h.announceAddress(h.ctx); err != nil {
+				log.G(h.ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
+			}
 		case <-h.ctx.Done():
 			return nil
 		}
 	}
 }
 
-func (h *Hub) announceAddress(ctx context.Context) {
+func (h *Hub) announceAddress(ctx context.Context) error {
 	//TODO: is it really wrong to announce from several nodes simultaniously?
 	if !h.cluster.IsLeader() {
-		return
+		return nil
+	}
+	members, err := h.cluster.Members()
+	if err != nil {
+		return err
+	}
+
+	endpoints := make([]string, 0)
+	for _, member := range members {
+		for _, ep := range member.endpoints {
+			endpoints = append(endpoints, ep)
+		}
+
 	}
 	req := &pb.AnnounceRequest{
-		IpAddr: []string{h.grpcEndpointAddr},
+		IpAddr: endpoints,
 	}
 
 	log.G(ctx).Info("announcing Hub address",
 		zap.String("eth", h.ethAddr),
 		zap.String("addr", req.IpAddr[0]))
 
-	_, err := h.locatorClient.Announce(ctx, req)
-	if err != nil {
-		log.G(ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
-	}
+	_, err = h.locatorClient.Announce(ctx, req)
+	return err
 }
 
 func (h *Hub) collectMinerCPUs(miner *MinerCtx, dst map[string]*pb.CPUDeviceInfo) {
