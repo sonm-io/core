@@ -889,16 +889,11 @@ func (h *Hub) Serve() error {
 		}
 	})
 
-	// TODO: This is wrong! It checks only on start and isLeader is probably always false!
-	// init locator connection and announce
-	// address only on Leader
-	if h.cluster.IsLeader() {
-		err = h.initLocatorClient()
-		if err != nil {
-			return err
-		}
-		h.waiter.Go(h.startLocatorAnnouncer)
+	err = h.initLocatorClient()
+	if err != nil {
+		return err
 	}
+	h.waiter.Go(h.startLocatorAnnouncer)
 
 	h.cluster.RegisterEntity("tasks", h.tasks)
 	h.cluster.RegisterEntity("device_properties", h.deviceProperties)
@@ -1084,6 +1079,10 @@ func (h *Hub) startLocatorAnnouncer() error {
 }
 
 func (h *Hub) announceAddress(ctx context.Context) {
+	//TODO: is it really wrong to announce from several nodes simultaniously?
+	if !h.cluster.IsLeader() {
+		return
+	}
 	req := &pb.AnnounceRequest{
 		IpAddr: []string{h.grpcEndpointAddr},
 	}

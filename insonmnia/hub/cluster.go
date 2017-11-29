@@ -67,6 +67,9 @@ type Cluster interface {
 	RegisterEntity(name string, prototype interface{})
 
 	Synchronize(entity interface{}) error
+
+	// Fetch current cluster members
+	Members() ([]NewMemberEvent, error)
 }
 
 // Returns a cluster writer interface if this node is a master, event channel
@@ -213,6 +216,14 @@ func (c *cluster) Synchronize(entity interface{}) error {
 	log.G(c.ctx).Debug("synchronizing entity", zap.Any("entity", entity), zap.ByteString("marshalled", data))
 	c.store.Put(c.cfg.SynchronizableEntitiesPrefix+"/"+name, data, &store.WriteOptions{})
 	return nil
+}
+
+func (c *cluster) Members() ([]NewMemberEvent, error) {
+	c.leaderLock.RLock()
+	defer c.leaderLock.RUnlock()
+	for id, endpoints := range(c.)
+	_, ok := c.clients[id]
+	return ok
 }
 
 func (c *cluster) election() error {
@@ -546,6 +557,10 @@ func (c *cluster) registerMember(member *store.KVPair) error {
 		return err
 	}
 	log.G(c.ctx).Info("fetched endpoints of new member", zap.Any("endpoints", endpoints))
+	c.leaderLock.Lock()
+	c.clusterEndpoints[id] = endpoints
+	c.leaderLock.Unlock()
+
 	for _, ep := range endpoints {
 		conn, err := util.MakeGrpcClient(c.ctx, ep, c.creds)
 		if err != nil {
