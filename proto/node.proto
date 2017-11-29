@@ -91,7 +91,7 @@ service HubManagement {
     rpc CreateAskPlan(Slot) returns (Empty) {}
     // RemoveAskPlan allows to remove rules
     // for creating Ask orders on Marketplace
-    rpc RemoveAskPlan(Slot) returns (Empty) {}
+    rpc RemoveAskPlan(ID) returns (Empty) {}
 
     // List produces a list of all running tasks on the Hub
     rpc TaskList(Empty) returns (TaskListReply) {}

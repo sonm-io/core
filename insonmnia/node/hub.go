@@ -58,6 +58,8 @@ func (h *hubAPI) SetDeviceProperties(ctx context.Context, req *pb.SetDevicePrope
 }
 
 func (h *hubAPI) GetAskPlan(context.Context, *pb.ID) (*pb.SlotsReply, error) {
+	// TODO(sshaman1101): get info about single slot?
+	// TODO(sshaman1101): Need to implement this method on hub.
 	return &pb.SlotsReply{}, nil
 }
 
@@ -71,7 +73,7 @@ func (h *hubAPI) CreateAskPlan(ctx context.Context, req *pb.Slot) (*pb.Empty, er
 	return h.hub.InsertSlot(ctx, req)
 }
 
-func (h *hubAPI) RemoveAskPlan(ctx context.Context, req *pb.Slot) (*pb.Empty, error) {
+func (h *hubAPI) RemoveAskPlan(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling RemoveAskPlan request")
 	return h.hub.RemoveSlot(ctx, req)
 }

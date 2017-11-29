@@ -169,7 +169,7 @@ type NodeHubInteractor interface {
 
 	GetAskPlans() (*pb.SlotsReply, error)
 	CreateAskPlan(slot *structs.Slot) (*pb.Empty, error)
-	RemoveAskPlan(slot *structs.Slot) (*pb.Empty, error)
+	RemoveAskPlan(id string) (*pb.Empty, error)
 
 	TaskList() (*pb.TaskListReply, error)
 	TaskStatus(id string) (*pb.TaskStatusReply, error)
@@ -266,11 +266,11 @@ func (it *hubInteractor) CreateAskPlan(slot *structs.Slot) (*pb.Empty, error) {
 	return it.hub.CreateAskPlan(ctx, slot.Unwrap())
 }
 
-func (it *hubInteractor) RemoveAskPlan(slot *structs.Slot) (*pb.Empty, error) {
+func (it *hubInteractor) RemoveAskPlan(id string) (*pb.Empty, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.hub.RemoveAskPlan(ctx, slot.Unwrap())
+	return it.hub.RemoveAskPlan(ctx, &pb.ID{Id: id})
 }
 
 func (it *hubInteractor) TaskList() (*pb.TaskListReply, error) {

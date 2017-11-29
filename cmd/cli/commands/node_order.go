@@ -103,8 +103,8 @@ var nodeOrderCreateCmd = &cobra.Command{
 }
 
 var nodeOrderRemoveCmd = &cobra.Command{
-	Use:    "remove <plan.yaml>",
-	Short:  "Remove plan",
+	Use:    "remove <order_id>",
+	Short:  "Remove plan by",
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -114,14 +114,8 @@ var nodeOrderRemoveCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		planPath := args[0]
-		slot, err := loadSlotFile(planPath)
-		if err != nil {
-			showError(cmd, "Cannot load AskOrder definition", err)
-			os.Exit(1)
-		}
-
-		_, err = hub.RemoveAskPlan(slot)
+		ID := args[0]
+		_, err = hub.RemoveAskPlan(ID)
 		if err != nil {
 			showError(cmd, "Cannot remove AskOrder", err)
 			os.Exit(1)

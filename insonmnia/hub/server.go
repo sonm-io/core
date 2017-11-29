@@ -77,7 +77,9 @@ type Hub struct {
 	associatedHubs     map[string]struct{}
 	associatedHubsLock sync.Mutex
 
-	eth    ETH
+	// TODO(sshaman1101): replace with Blockchainer
+	eth ETH
+	// TODO(sshaman1101): replace with pb.MarketClient
 	market Market
 
 	// Device properties.
@@ -87,7 +89,8 @@ type Hub struct {
 
 	// Scheduling.
 	// Must be synchronized with out Hub cluster.
-	slots   []*structs.Slot
+	// slots   []*structs.Slot
+	slots   map[string]*structs.Slot
 	slotsMu sync.RWMutex
 
 	// Worker ACL.
@@ -729,11 +732,23 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, erro
 		return nil, err
 	}
 
+	// send slot to market
+	ord := &pb.Order{
+		OrderType:  pb.OrderType_ASK,
+		Slot:       slot.Unwrap(),
+		Price:      1101, // todo(sshaman1101): wtf where is the price?
+		SupplierID: util.PubKeyToAddr(h.ethKey.PublicKey),
+	}
+
+	created, err := h.market.CreateOrder(ord)
+	if err != nil {
+		return nil, err
+	}
+
 	h.slotsMu.Lock()
 	defer h.slotsMu.Unlock()
 
-	// TODO: Check that such slot already exists.
-	h.slots = append(h.slots, slot)
+	h.slots[created.Id] = slot
 	err = h.cluster.Synchronize(h.slots)
 	if err != nil {
 		return nil, err
@@ -742,24 +757,24 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, erro
 	return &pb.Empty{}, nil
 }
 
-func (h *Hub) RemoveSlot(ctx context.Context, request *pb.Slot) (*pb.Empty, error) {
-	log.G(h.ctx).Info("RemoveSlot request", zap.Any("request", request))
-
-	slot, err := structs.NewSlot(request)
-	if err != nil {
-		return nil, err
-	}
-
-	filtered := []*structs.Slot{}
+func (h *Hub) RemoveSlot(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
+	log.G(h.ctx).Info("RemoveSlot request", zap.Any("id", request.Id))
 
 	h.slotsMu.Lock()
 	defer h.slotsMu.Unlock()
 
-	for _, s := range h.slots {
-		if !s.Eq(slot) {
-			filtered = append(filtered, s)
-		}
+	_, ok := h.slots[request.Id]
+	if !ok {
+		return nil, errSlotNotExists
 	}
+
+	err := h.market.CancelOrder(request.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	delete(h.slots, request.Id)
+
 	err = h.cluster.Synchronize(h.slots)
 	if err != nil {
 		return nil, err
@@ -886,7 +901,7 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		market: market,
 
 		deviceProperties: make(map[string]DeviceProperties),
-		slots:            make([]*structs.Slot, 0),
+		slots:            make(map[string]*structs.Slot),
 		acl:              acl,
 
 		tasks: make(map[string]*TaskInfo),
@@ -1057,7 +1072,7 @@ func (h *Hub) processClusterEvent(value interface{}) {
 		h.devicePropertiesMu.Lock()
 		defer h.devicePropertiesMu.Unlock()
 		h.deviceProperties = value
-	case []*structs.Slot:
+	case map[string]*structs.Slot:
 		h.slotsMu.Lock()
 		defer h.slotsMu.Unlock()
 		h.slots = value

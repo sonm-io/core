@@ -67,7 +67,7 @@ service Hub {
     // has been previourly assigned.
     rpc InsertSlot(Slot) returns (Empty) {}
     // RemoveSlot removes the speified slot if fully matches.
-    rpc RemoveSlot(Slot) returns (Empty) {}
+    rpc RemoveSlot(ID) returns (Empty) {}
 }
 
 message ListReply {
