@@ -900,10 +900,10 @@ func (h *Hub) Serve() error {
 		h.waiter.Go(h.startLocatorAnnouncer)
 	}
 
-	h.cluster.RegisterEntity("tasks", h.tasks)
-	h.cluster.RegisterEntity("device_properties", h.deviceProperties)
-	h.cluster.RegisterEntity("acl", h.acl)
-	h.cluster.RegisterEntity("slots", h.slots)
+	h.cluster.RegisterAndLoadEntity("tasks", h.tasks)
+	h.cluster.RegisterAndLoadEntity("device_properties", h.deviceProperties)
+	h.cluster.RegisterAndLoadEntity("acl", h.acl)
+	h.cluster.RegisterAndLoadEntity("slots", h.slots)
 
 	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.listenClusterEvents)

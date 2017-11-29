@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"fmt"
 	"net"
 	"reflect"
 	"strings"
@@ -64,7 +65,7 @@ type Cluster interface {
 
 	LeaderClient() (pb.HubClient, error)
 
-	RegisterEntity(name string, prototype interface{})
+	RegisterAndLoadEntity(name string, prototype interface{})
 
 	Synchronize(entity interface{}) error
 }
@@ -187,12 +188,29 @@ func (c *cluster) LeaderClient() (pb.HubClient, error) {
 	return client.client, nil
 }
 
-func (c *cluster) RegisterEntity(name string, prototype interface{}) {
+func (c *cluster) RegisterAndLoadEntity(name string, prototype interface{}) error {
 	c.registeredEntitiesMu.Lock()
 	defer c.registeredEntitiesMu.Unlock()
 	t := reflect.TypeOf(prototype)
 	c.registeredEntities[name] = t
 	c.entityNames[t] = name
+	keyName := c.cfg.SynchronizableEntitiesPrefix + "/" + name
+	exists, err := c.store.Exists(keyName)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("could not check entity {} for existance in storage", name))
+	}
+	if !exists {
+		return nil
+	}
+	kvPair, err := c.store.Get(keyName)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("could not fetch entity {} initial value from storage", name))
+	}
+	err = json.Unmarshal(kvPair.Value, prototype)
+	if err != nil {
+		return errors.Wrap(err, fmt.Sprintf("could not unmarshal entity {} from storage data", name))
+	}
+	return nil
 }
 
 func (c *cluster) Synchronize(entity interface{}) error {
