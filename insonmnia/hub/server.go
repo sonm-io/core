@@ -723,7 +723,7 @@ func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, err
 	return &pb.SlotsReply{Slot: slots}, nil
 }
 
-func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*pb.Empty, error) {
+func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*pb.ID, error) {
 	log.G(h.ctx).Info("handling InsertSlot request", zap.Any("request", request))
 
 	// We do not perform any resource existence check here, because miners
@@ -760,7 +760,7 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*p
 		return nil, err
 	}
 
-	return &pb.Empty{}, nil
+	return &pb.ID{Id: created.Id}, nil
 }
 
 func (h *Hub) RemoveSlot(ctx context.Context, request *pb.ID) (*pb.Empty, error) {

@@ -64,8 +64,8 @@ service Hub {
     rpc Slots(Empty) returns (SlotsReply) {}
     // AddSlot allows to assign a new slot.
     // This method can fail if either there are no such resources found or it
-    // has been previourly assigned.
-    rpc InsertSlot(InsertSlotRequest) returns (Empty) {}
+    // has been previourly assigned. 
+    rpc InsertSlot(InsertSlotRequest) returns (ID) {}
     // RemoveSlot removes the speified slot if fully matches.
     rpc RemoveSlot(ID) returns (Empty) {}
 }

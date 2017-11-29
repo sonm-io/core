@@ -68,7 +68,7 @@ func (h *hubAPI) GetAskPlans(ctx context.Context, req *pb.Empty) (*pb.SlotsReply
 	return h.hub.Slots(ctx, &pb.Empty{})
 }
 
-func (h *hubAPI) CreateAskPlan(ctx context.Context, req *pb.InsertSlotRequest) (*pb.Empty, error) {
+func (h *hubAPI) CreateAskPlan(ctx context.Context, req *pb.InsertSlotRequest) (*pb.ID, error) {
 	log.G(h.ctx).Info("CreateAskPlan")
 	return h.hub.InsertSlot(ctx, req)
 }

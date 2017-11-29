@@ -134,12 +134,12 @@ var hubAddSlotCmd = &cobra.Command{
 			return err
 		}
 
-		_, err = grpc.HubInsertSlot(context.Background(), slot, price)
+		id, err := grpc.HubInsertSlot(context.Background(), slot, price)
 		if err != nil {
 			return err
 		}
 
-		cmd.Println("OK")
+		cmd.Printf("id = %s\r\n", id.Id)
 		return nil
 	},
 }

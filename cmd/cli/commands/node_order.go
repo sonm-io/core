@@ -100,13 +100,13 @@ var nodeOrderCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		_, err = hub.CreateAskPlan(slot, price)
+		id, err := hub.CreateAskPlan(slot, price)
 		if err != nil {
 			showError(cmd, "Cannot create new AskOrder", err)
 			os.Exit(1)
 		}
 
-		showOk(cmd)
+		showJSON(cmd, id)
 	},
 }
 

@@ -13,7 +13,7 @@ type CliInteractor interface {
 	HubPing(context.Context) (*pb.PingReply, error)
 	HubStatus(context.Context) (*pb.HubStatusReply, error)
 	HubShowSlots(ctx context.Context) (*pb.SlotsReply, error)
-	HubInsertSlot(ctx context.Context, slot *structs.Slot, price string) (*pb.Empty, error)
+	HubInsertSlot(ctx context.Context, slot *structs.Slot, price string) (*pb.ID, error)
 
 	MinerList(context.Context) (*pb.ListReply, error)
 	MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error)
@@ -84,7 +84,7 @@ func (it *grpcInteractor) HubShowSlots(ctx context.Context) (*pb.SlotsReply, err
 	return it.hub.Slots(c, &pb.Empty{})
 }
 
-func (it *grpcInteractor) HubInsertSlot(ctx context.Context, slot *structs.Slot, price string) (*pb.Empty, error) {
+func (it *grpcInteractor) HubInsertSlot(ctx context.Context, slot *structs.Slot, price string) (*pb.ID, error) {
 	c, cancel := it.ctx(ctx)
 	defer cancel()
 
@@ -173,7 +173,7 @@ type NodeHubInteractor interface {
 	SetDeviceProperties(ID string, properties map[string]float64) (*pb.Empty, error)
 
 	GetAskPlans() (*pb.SlotsReply, error)
-	CreateAskPlan(slot *structs.Slot, price string) (*pb.Empty, error)
+	CreateAskPlan(slot *structs.Slot, price string) (*pb.ID, error)
 	RemoveAskPlan(id string) (*pb.Empty, error)
 
 	TaskList() (*pb.TaskListReply, error)
@@ -264,7 +264,7 @@ func (it *hubInteractor) GetAskPlans() (*pb.SlotsReply, error) {
 	return it.hub.GetAskPlans(ctx, &pb.Empty{})
 }
 
-func (it *hubInteractor) CreateAskPlan(slot *structs.Slot, price string) (*pb.Empty, error) {
+func (it *hubInteractor) CreateAskPlan(slot *structs.Slot, price string) (*pb.ID, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
