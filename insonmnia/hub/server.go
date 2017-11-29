@@ -715,12 +715,12 @@ func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, err
 	h.slotsMu.RLock()
 	defer h.slotsMu.RUnlock()
 
-	slots := make([]*pb.Slot, 0, len(h.slots))
-	for _, slot := range h.slots {
-		slots = append(slots, slot.Unwrap())
+	slots := make(map[string]*pb.Slot)
+	for id, slot := range h.slots {
+		slots[id] = slot.Unwrap()
 	}
 
-	return &pb.SlotsReply{Slot: slots}, nil
+	return &pb.SlotsReply{Slots: slots}, nil
 }
 
 func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*pb.ID, error) {

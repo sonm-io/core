@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"encoding/json"
 	"os"
 
 	ds "github.com/c2h5oh/datasize"
@@ -27,13 +26,14 @@ var nodeOrderRootCmd = &cobra.Command{
 
 func printAskList(cmd *cobra.Command, slots *pb.SlotsReply) {
 	if isSimpleFormat() {
-		slots := slots.GetSlot()
+		slots := slots.GetSlots()
 		if len(slots) == 0 {
 			cmd.Printf("No Ask Order configured\r\n")
 			return
 		}
 
-		for _, slot := range slots {
+		for id, slot := range slots {
+			cmd.Printf(" ID:  %d", id)
 			cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
 			cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
 			cmd.Printf(" RAM: %s\r\n", ds.ByteSize(slot.Resources.RamBytes).HR())
@@ -47,8 +47,7 @@ func printAskList(cmd *cobra.Command, slots *pb.SlotsReply) {
 			cmd.Println("")
 		}
 	} else {
-		b, _ := json.Marshal(slots)
-		cmd.Printf("%s\r\n", string(b))
+		showJSON(cmd, slots)
 	}
 }
 

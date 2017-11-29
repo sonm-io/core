@@ -96,7 +96,7 @@ var minerShowSlotsCmd = &cobra.Command{
 			return err
 		}
 
-		dump, err := json.Marshal(slots.Slot)
+		dump, err := json.Marshal(slots.GetSlots())
 		if err != nil {
 			return err
 		}

@@ -125,7 +125,7 @@ message SetDevicePropertiesRequest {
 }
 
 message SlotsReply {
-    repeated Slot slot = 1;
+    map <string, Slot> slots = 1;
 }
 
 message GetAllSlotsReply {
