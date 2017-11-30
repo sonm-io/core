@@ -825,6 +825,24 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "D8ksSACYQOb+3nx6lHB8kR2VCOo=",
+			"path": "github.com/gosuri/uilive",
+			"revision": "ac356e6e42cd31fcef8e6aec13ae9ed6fe87713e",
+			"revisionTime": "2017-03-23T04:15:06Z"
+		},
+		{
+			"checksumSHA1": "zTVV9gr0Qn6mDWQ5ZTiVdIJV3CE=",
+			"path": "github.com/gosuri/uiprogress",
+			"revision": "d0567a9d84a1c40dd7568115ea66f4887bf57b33",
+			"revisionTime": "2017-02-24T06:39:37Z"
+		},
+		{
+			"checksumSHA1": "1dKG7apJl3CGGIrmXMHZp3emYTQ=",
+			"path": "github.com/gosuri/uiprogress/util/strutil",
+			"revision": "d0567a9d84a1c40dd7568115ea66f4887bf57b33",
+			"revisionTime": "2017-02-24T06:39:37Z"
+		},
+		{
 			"checksumSHA1": "lCMq+IA+prPLb267kRN/4m7sKDU=",
 			"path": "github.com/hashicorp/consul/api",
 			"revision": "15c0a72f742b0536af66e467536c2e66d80dca29",
@@ -1358,24 +1376,6 @@
 			"path": "github.com/urfave/cli",
 			"revision": "168c95418e66e019fe17b8f4f5c45aa62ff80e23",
 			"revisionTime": "2016-08-01T03:09:57Z"
-		},
-		{
-			"checksumSHA1": "5HAXYgF/Y2KNSjnqW25SZCdcJUg=",
-			"path": "github.com/vbauerster/mpb",
-			"revision": "5fea8ad4b17337dd5eb438d6365ffe497d9814a2",
-			"revisionTime": "2017-11-26T14:15:22Z"
-		},
-		{
-			"checksumSHA1": "brcNgITovsR1PDN6cWxueH87eaY=",
-			"path": "github.com/vbauerster/mpb/cwriter",
-			"revision": "5fea8ad4b17337dd5eb438d6365ffe497d9814a2",
-			"revisionTime": "2017-11-26T14:15:22Z"
-		},
-		{
-			"checksumSHA1": "gIzt8Qkxnb3VLmp1TvkNJ4UPXMs=",
-			"path": "github.com/vbauerster/mpb/decor",
-			"revision": "5fea8ad4b17337dd5eb438d6365ffe497d9814a2",
-			"revisionTime": "2017-11-26T14:15:22Z"
 		},
 		{
 			"checksumSHA1": "3IdEHJfBkeEE8guKA2tcA8Fv6eg=",
