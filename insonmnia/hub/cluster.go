@@ -105,6 +105,11 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, creds credentials.Trans
 
 		creds: creds,
 	}
+
+	if cfg.Failover {
+		c.isLeader = false
+	}
+
 	c.ctx, c.cancel = context.WithCancel(c.parentCtx)
 	c.registerMember(c.id, c.endpoints)
 
