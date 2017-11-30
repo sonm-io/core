@@ -983,10 +983,23 @@ func (h *Hub) Serve() error {
 		return err
 	}
 
-	h.cluster.RegisterEntity("tasks", h.tasks)
-	h.cluster.RegisterEntity("device_properties", h.deviceProperties)
-	h.cluster.RegisterEntity("acl", h.acl)
-	h.cluster.RegisterEntity("slots", h.slots)
+	if err := h.cluster.RegisterAndLoadEntity("tasks", &h.tasks); err != nil {
+		return err
+	}
+	if err := h.cluster.RegisterAndLoadEntity("device_properties", &h.deviceProperties); err != nil {
+		return err
+	}
+	if err := h.cluster.RegisterAndLoadEntity("acl", &h.acl); err != nil {
+		return err
+	}
+	if err := h.cluster.RegisterAndLoadEntity("slots", &h.slots); err != nil {
+		return err
+	}
+	log.G(h.ctx).Info("fetched entities",
+		zap.Any("tasks", h.tasks),
+		zap.Any("device_properties", h.deviceProperties),
+		zap.Any("acl", h.acl),
+		zap.Any("slots", h.slots))
 
 	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.listenClusterEvents)
