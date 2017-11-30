@@ -11,12 +11,11 @@ import (
 
 	ds "github.com/c2h5oh/datasize"
 	"github.com/docker/go-connections/nat"
+	"github.com/gosuri/uiprogress"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
-	"github.com/vbauerster/mpb"
-	"github.com/vbauerster/mpb/decor"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
 )
@@ -211,6 +210,8 @@ var taskPushCmd = &cobra.Command{
 			return err
 		}
 
+		defer file.Close()
+
 		fileInfo, err := file.Stat()
 		if err != nil {
 			return err
@@ -221,8 +222,7 @@ var taskPushCmd = &cobra.Command{
 			return err
 		}
 
-		mainContext := context.Background()
-		ctx := metadata.NewOutgoingContext(mainContext, metadata.New(map[string]string{
+		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
 			"deal": dealId,
 			"size": strconv.FormatInt(fileInfo.Size(), 10),
 		}))
@@ -236,14 +236,12 @@ var taskPushCmd = &cobra.Command{
 		bytesRemaining := int64(0)
 		bytesCommitted := int64(0)
 
-		progress := mpb.New(mpb.WithContext(mainContext))
-		bar := progress.AddBar(fileInfo.Size(),
-			mpb.PrependDecorators(
-				decor.StaticName("Pushing ", 0, decor.DwidthSync|decor.DidentRight),
-				decor.Counters("%3s / %3s", decor.Unit_KiB, 18, decor.DwidthSync),
-			),
-			mpb.AppendDecorators(decor.Percentage(5, 0)),
-		)
+		uiprogress.Start()
+		bar := uiprogress.AddBar(int(fileInfo.Size()))
+		bar.PrependFunc(func(b *uiprogress.Bar) string {
+			return fmt.Sprintf("Pushing %d/%d B)", bytesCommitted, fileInfo.Size())
+		})
+		bar.AppendCompleted()
 
 		buf := make([]byte, 1*1024*1024)
 		for {
@@ -263,9 +261,7 @@ var taskPushCmd = &cobra.Command{
 
 				if n > 0 {
 					bytesRemaining = int64(n)
-					if err := client.Send(&pb.Chunk{Chunk: buf[:n]}); err != nil {
-						return err
-					}
+					client.Send(&pb.Chunk{Chunk: buf[:n]})
 				}
 			}
 
@@ -289,7 +285,7 @@ var taskPushCmd = &cobra.Command{
 
 				bytesCommitted += progress.Size
 				bytesRemaining -= progress.Size
-				bar.Incr(int(progress.Size))
+				bar.Set(int(bytesCommitted))
 
 				if bytesRemaining == 0 {
 					break
