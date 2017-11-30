@@ -1193,7 +1193,7 @@ func (h *Hub) announceAddress() error {
 	if err != nil {
 		return err
 	}
-	log.G(h.ctx).Info("fetched members from cluster", zap.Any("members", members))
+	log.G(h.ctx).Info("got cluster members for locator announcement", zap.Any("members", members))
 
 	endpoints := make([]string, 0)
 	for _, member := range members {
