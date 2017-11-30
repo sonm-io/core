@@ -608,7 +608,7 @@ func (c *cluster) registerMember(id string, endpoints []string) error {
 	}
 
 	for _, ep := range endpoints {
-		conn, err := util.MakeGrpcClient(c.ctx, ep, c.creds)
+		conn, err := util.MakeGrpcClient(c.ctx, ep, c.creds, grpc.WithBlock(), grpc.WithTimeout(time.Second*5))
 		if err != nil {
 			log.G(c.ctx).Warn("could not connect to hub", zap.String("endpoint", ep), zap.Error(err))
 			continue
