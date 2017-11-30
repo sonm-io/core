@@ -939,9 +939,9 @@ func (h *Hub) processClusterEvent(value interface{}) {
 	log.G(h.ctx).Info("received cluster event", zap.Any("event", value))
 	switch value := value.(type) {
 	case NewMemberEvent:
-		//We don't care now
+		h.announceAddress()
 	case LeadershipEvent:
-		//We don't care now
+		h.announceAddress()
 	case map[string]*TaskInfo:
 		log.G(h.ctx).Info("synchronizing tasks from cluster")
 		h.tasksMu.Lock()
@@ -1066,14 +1066,14 @@ func (h *Hub) startLocatorAnnouncer() error {
 	tk := time.NewTicker(h.locatorPeriod)
 	defer tk.Stop()
 
-	if err := h.announceAddress(h.ctx); err != nil {
+	if err := h.announceAddress(); err != nil {
 		log.G(h.ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
 	}
 
 	for {
 		select {
 		case <-tk.C:
-			if err := h.announceAddress(h.ctx); err != nil {
+			if err := h.announceAddress(); err != nil {
 				log.G(h.ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
 			}
 		case <-h.ctx.Done():
@@ -1082,7 +1082,7 @@ func (h *Hub) startLocatorAnnouncer() error {
 	}
 }
 
-func (h *Hub) announceAddress(ctx context.Context) error {
+func (h *Hub) announceAddress() error {
 	//TODO: is it really wrong to announce from several nodes simultaniously?
 	if !h.cluster.IsLeader() {
 		return nil
@@ -1091,7 +1091,7 @@ func (h *Hub) announceAddress(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	log.G(ctx).Info("fetched members from cluster", zap.Any("members", members))
+	log.G(h.ctx).Info("fetched members from cluster", zap.Any("members", members))
 
 	endpoints := make([]string, 0)
 	for _, member := range members {
@@ -1104,11 +1104,11 @@ func (h *Hub) announceAddress(ctx context.Context) error {
 		IpAddr: endpoints,
 	}
 
-	log.G(ctx).Info("announcing Hub address",
+	log.G(h.ctx).Info("announcing Hub address",
 		zap.String("eth", h.ethAddr),
 		zap.Strings("addr", req.IpAddr))
 
-	_, err = h.locatorClient.Announce(ctx, req)
+	_, err = h.locatorClient.Announce(h.ctx, req)
 	return err
 }
 

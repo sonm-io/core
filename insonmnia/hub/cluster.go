@@ -576,6 +576,7 @@ func (c *cluster) registerMember(id string, endpoints []string) error {
 	log.G(c.ctx).Info("fetched endpoints of new member", zap.Any("endpoints", endpoints))
 	c.leaderLock.Lock()
 	c.clusterEndpoints[id] = endpoints
+	c.eventChannel <- NewMemberEvent{id, endpoints}
 	c.leaderLock.Unlock()
 
 	if id == c.id {
