@@ -889,15 +889,9 @@ func (h *Hub) Serve() error {
 		}
 	})
 
-	// TODO: This is wrong! It checks only on start and isLeader is probably always false!
-	// init locator connection and announce
-	// address only on Leader
-	if h.cluster.IsLeader() {
-		err = h.initLocatorClient()
-		if err != nil {
-			return err
-		}
-		h.waiter.Go(h.startLocatorAnnouncer)
+	err = h.initLocatorClient()
+	if err != nil {
+		return err
 	}
 
 	h.cluster.RegisterEntity("tasks", h.tasks)
@@ -907,6 +901,7 @@ func (h *Hub) Serve() error {
 
 	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.listenClusterEvents)
+	h.waiter.Go(h.startLocatorAnnouncer)
 
 	h.waiter.Wait()
 
@@ -944,9 +939,9 @@ func (h *Hub) processClusterEvent(value interface{}) {
 	log.G(h.ctx).Info("received cluster event", zap.Any("event", value))
 	switch value := value.(type) {
 	case NewMemberEvent:
-		//We don't care now
+		h.announceAddress()
 	case LeadershipEvent:
-		//We don't care now
+		h.announceAddress()
 	case map[string]*TaskInfo:
 		log.G(h.ctx).Info("synchronizing tasks from cluster")
 		h.tasksMu.Lock()
@@ -1071,31 +1066,50 @@ func (h *Hub) startLocatorAnnouncer() error {
 	tk := time.NewTicker(h.locatorPeriod)
 	defer tk.Stop()
 
-	h.announceAddress(h.ctx)
+	if err := h.announceAddress(); err != nil {
+		log.G(h.ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
+	}
 
 	for {
 		select {
 		case <-tk.C:
-			h.announceAddress(h.ctx)
+			if err := h.announceAddress(); err != nil {
+				log.G(h.ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
+			}
 		case <-h.ctx.Done():
 			return nil
 		}
 	}
 }
 
-func (h *Hub) announceAddress(ctx context.Context) {
-	req := &pb.AnnounceRequest{
-		IpAddr: []string{h.grpcEndpointAddr},
+func (h *Hub) announceAddress() error {
+	//TODO: is it really wrong to announce from several nodes simultaniously?
+	if !h.cluster.IsLeader() {
+		return nil
 	}
-
-	log.G(ctx).Info("announcing Hub address",
-		zap.String("eth", h.ethAddr),
-		zap.String("addr", req.IpAddr[0]))
-
-	_, err := h.locatorClient.Announce(ctx, req)
+	members, err := h.cluster.Members()
 	if err != nil {
-		log.G(ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
+		return err
 	}
+	log.G(h.ctx).Info("fetched members from cluster", zap.Any("members", members))
+
+	endpoints := make([]string, 0)
+	for _, member := range members {
+		for _, ep := range member.endpoints {
+			endpoints = append(endpoints, ep)
+		}
+
+	}
+	req := &pb.AnnounceRequest{
+		IpAddr: endpoints,
+	}
+
+	log.G(h.ctx).Info("announcing Hub address",
+		zap.String("eth", h.ethAddr),
+		zap.Strings("addr", req.IpAddr))
+
+	_, err = h.locatorClient.Announce(h.ctx, req)
+	return err
 }
 
 func (h *Hub) collectMinerCPUs(miner *MinerCtx, dst map[string]*pb.CPUDeviceInfo) {

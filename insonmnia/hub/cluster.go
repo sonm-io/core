@@ -67,6 +67,9 @@ type Cluster interface {
 	RegisterEntity(name string, prototype interface{})
 
 	Synchronize(entity interface{}) error
+
+	// Fetch current cluster members
+	Members() ([]NewMemberEvent, error)
 }
 
 // Returns a cluster writer interface if this node is a master, event channel
@@ -102,6 +105,14 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, creds credentials.Trans
 
 		creds: creds,
 	}
+
+	if cfg.Failover {
+		c.isLeader = false
+	}
+
+	c.ctx, c.cancel = context.WithCancel(c.parentCtx)
+	c.registerMember(c.id, c.endpoints)
+
 	return &c, c.eventChannel, nil
 }
 
@@ -215,6 +226,16 @@ func (c *cluster) Synchronize(entity interface{}) error {
 	return nil
 }
 
+func (c *cluster) Members() ([]NewMemberEvent, error) {
+	result := make([]NewMemberEvent, 0)
+	c.leaderLock.RLock()
+	defer c.leaderLock.RUnlock()
+	for id, endpoints := range c.clusterEndpoints {
+		result = append(result, NewMemberEvent{id, endpoints})
+	}
+	return result, nil
+}
+
 func (c *cluster) election() error {
 	candidate := leadership.NewCandidate(c.store, c.cfg.LeaderKey, c.id, makeDuration(c.cfg.LeaderTTL))
 	electedCh, errCh := candidate.RunForElection()
@@ -297,7 +318,7 @@ func (c *cluster) hubWatch() error {
 				return err
 			} else {
 				for _, member := range members {
-					err := c.registerMember(member)
+					err := c.registerMemberFromKV(member)
 					if err != nil {
 						log.G(c.ctx).Warn("trash data in cluster members folder: ", zap.Any("kvPair", member), zap.Error(err))
 					}
@@ -311,6 +332,9 @@ func (c *cluster) hubWatch() error {
 }
 
 func (c *cluster) checkHub(id string) error {
+	if id == c.id {
+		return nil
+	}
 	exists, err := c.store.Exists(c.cfg.MemberListKey + "/" + id)
 	if err != nil {
 		return err
@@ -530,7 +554,7 @@ func (c *cluster) memberExists(id string) bool {
 	return ok
 }
 
-func (c *cluster) registerMember(member *store.KVPair) error {
+func (c *cluster) registerMemberFromKV(member *store.KVPair) error {
 	id := fetchNameFromPath(member.Key)
 	if id == c.id {
 		return nil
@@ -545,7 +569,20 @@ func (c *cluster) registerMember(member *store.KVPair) error {
 	if err != nil {
 		return err
 	}
+	return c.registerMember(id, endpoints)
+}
+
+func (c *cluster) registerMember(id string, endpoints []string) error {
 	log.G(c.ctx).Info("fetched endpoints of new member", zap.Any("endpoints", endpoints))
+	c.leaderLock.Lock()
+	c.clusterEndpoints[id] = endpoints
+	c.eventChannel <- NewMemberEvent{id, endpoints}
+	c.leaderLock.Unlock()
+
+	if id == c.id {
+		return nil
+	}
+
 	for _, ep := range endpoints {
 		conn, err := util.MakeGrpcClient(c.ctx, ep, c.creds)
 		if err != nil {
