@@ -336,6 +336,12 @@ func (c *cluster) hubWatch() error {
 				return err
 			} else {
 				for _, member := range members {
+					if member.Value == nil {
+						log.G(c.ctx).Debug("received cluster member with nil Value, skipping (this can happen due to consul peculiarities)", zap.Any("member", member))
+						continue
+					} else {
+						log.G(c.ctx).Debug("received cluster member, registering", zap.Any("member", member))
+					}
 					err := c.registerMemberFromKV(member)
 					if err != nil {
 						log.G(c.ctx).Warn("trash data in cluster members folder: ", zap.Any("kvPair", member), zap.Error(err))
