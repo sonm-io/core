@@ -646,7 +646,11 @@ func parseEndpoints(config *ClusterConfig) ([]string, error) {
 	}
 
 	for _, ip := range systemIPs {
-		endpoints = append(endpoints, ip.String()+":"+port)
+		if ip4 := ip.To4(); ip4 != nil {
+			endpoints = append(endpoints, ip4.String()+":"+port)
+		} else {
+			endpoints = append(endpoints, "["+ip.String()+"]:"+port)
+		}
 	}
 
 	return endpoints, nil
