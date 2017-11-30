@@ -7,7 +7,7 @@ GOCMD=./cmd
 ifeq ($(GO), )
     GO=go
 endif
-INSTALLDIR=${GOPATH}/bin
+INSTALLDIR=${GOPATH}/bin/
 
 BOOTNODE=sonmbootnode
 MINER=sonmminer
@@ -73,22 +73,27 @@ build: build/bootnode build/insomnia build/aux
 
 install/bootnode: build/bootnode
 	@echo "+ $@"
+	mkdir -p ${INSTALLDIR}
 	cp ${BOOTNODE} ${INSTALLDIR}
 
 install/miner: build/miner
 	@echo "+ $@"
+	mkdir -p ${INSTALLDIR}
 	cp ${MINER} ${INSTALLDIR}
 
 install/hub: build/hub
 	@echo "+ $@"
+	mkdir -p ${INSTALLDIR}
 	cp ${HUB} ${INSTALLDIR}
 
 install/cli: build/cli
 	@echo "+ $@"
+	mkdir -p ${INSTALLDIR}
 	cp ${CLI} ${INSTALLDIR}
 
 install/node: build/node
 	@echo "+ $@"
+	mkdir -p ${INSTALLDIR}
 	cp ${LOCAL_NODE} ${INSTALLDIR}
 
 install: install/bootnode install/miner install/hub install/cli
