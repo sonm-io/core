@@ -105,6 +105,9 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, creds credentials.Trans
 
 		creds: creds,
 	}
+	c.ctx, c.cancel = context.WithCancel(c.parentCtx)
+	c.registerMember(c.id, c.endpoints)
+
 	return &c, c.eventChannel, nil
 }
 
@@ -153,7 +156,6 @@ func (c *cluster) Run() error {
 	w := errgroup.Group{}
 
 	c.ctx, c.cancel = context.WithCancel(c.parentCtx)
-	c.registerMember(c.id, c.endpoints)
 	if c.cfg.Failover {
 		c.isLeader = false
 		w.Go(c.election)
@@ -325,6 +327,9 @@ func (c *cluster) hubWatch() error {
 }
 
 func (c *cluster) checkHub(id string) error {
+	if id == c.id {
+		return nil
+	}
 	exists, err := c.store.Exists(c.cfg.MemberListKey + "/" + id)
 	if err != nil {
 		return err
@@ -567,6 +572,10 @@ func (c *cluster) registerMember(id string, endpoints []string) error {
 	c.leaderLock.Lock()
 	c.clusterEndpoints[id] = endpoints
 	c.leaderLock.Unlock()
+
+	if id == c.id {
+		return nil
+	}
 
 	for _, ep := range endpoints {
 		conn, err := util.MakeGrpcClient(c.ctx, ep, c.creds)

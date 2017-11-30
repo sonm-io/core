@@ -893,7 +893,6 @@ func (h *Hub) Serve() error {
 	if err != nil {
 		return err
 	}
-	h.waiter.Go(h.startLocatorAnnouncer)
 
 	h.cluster.RegisterEntity("tasks", h.tasks)
 	h.cluster.RegisterEntity("device_properties", h.deviceProperties)
@@ -902,6 +901,7 @@ func (h *Hub) Serve() error {
 
 	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.listenClusterEvents)
+	h.waiter.Go(h.startLocatorAnnouncer)
 
 	h.waiter.Wait()
 
@@ -1091,6 +1091,7 @@ func (h *Hub) announceAddress(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	log.G(ctx).Info("fetched members from cluster", zap.Any("members", members))
 
 	endpoints := make([]string, 0)
 	for _, member := range members {
@@ -1105,7 +1106,7 @@ func (h *Hub) announceAddress(ctx context.Context) error {
 
 	log.G(ctx).Info("announcing Hub address",
 		zap.String("eth", h.ethAddr),
-		zap.String("addr", req.IpAddr[0]))
+		zap.Strings("addr", req.IpAddr))
 
 	_, err = h.locatorClient.Announce(ctx, req)
 	return err
