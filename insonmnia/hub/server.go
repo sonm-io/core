@@ -206,7 +206,11 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 		inValues := make([]reflect.Value, 0, 2)
 		inValues = append(inValues, reflect.ValueOf(ctx), reflect.ValueOf(request))
 		values := m.Call(inValues)
-		return true, values[0].Interface(), values[1].Interface().(error)
+		var err error
+		if !values[1].IsNil() {
+			err = values[1].Interface().(error)
+		}
+		return true, values[0].Interface(), err
 	} else {
 		return true, nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
 	}
