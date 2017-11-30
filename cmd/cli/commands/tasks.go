@@ -4,15 +4,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	ds "github.com/c2h5oh/datasize"
 	"github.com/docker/go-connections/nat"
+	"github.com/gosuri/uiprogress"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/metadata"
 )
 
 func init() {
@@ -23,7 +28,7 @@ func init() {
 	taskLogsCmd.Flags().StringVar(&tail, tailFlag, "50", "Number of lines to show from the end of the logs")
 	taskLogsCmd.Flags().BoolVar(&details, detailsFlag, false, "Show extra details provided to logs")
 
-	tasksRootCmd.AddCommand(taskListCmd, taskLogsCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
+	tasksRootCmd.AddCommand(taskListCmd, taskLogsCmd, taskPushCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
 }
 
 func printTaskList(cmd *cobra.Command, minerStatus *pb.StatusMapReply, miner string) {
@@ -185,6 +190,108 @@ var taskStartCmd = &cobra.Command{
 
 		taskStartCmdRunner(cmd, taskDef, itr)
 		return nil
+	},
+}
+
+var taskPushCmd = &cobra.Command{
+	Use:          "push DEAL_ID ARCHIVE_PATH",
+	Short:        "Push an image from the filesystem",
+	SilenceUsage: true,
+	PreRunE:      checkHubAddressIsSet,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) != 2 {
+			return errNotEnoughArguments
+		}
+
+		dealId := args[0]
+		path := args[1]
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+
+		defer file.Close()
+
+		fileInfo, err := file.Stat()
+		if err != nil {
+			return err
+		}
+
+		it, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
+		if err != nil {
+			return err
+		}
+
+		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
+			"deal": dealId,
+			"size": strconv.FormatInt(fileInfo.Size(), 10),
+		}))
+
+		client, err := it.TaskPush(ctx)
+		if err != nil {
+			return err
+		}
+
+		readCompleted := false
+		bytesRemaining := int64(0)
+		bytesCommitted := int64(0)
+
+		uiprogress.Start()
+		bar := uiprogress.AddBar(int(fileInfo.Size()))
+		bar.PrependFunc(func(b *uiprogress.Bar) string {
+			return fmt.Sprintf("Pushing %d/%d B)", bytesCommitted, fileInfo.Size())
+		})
+		bar.AppendCompleted()
+
+		buf := make([]byte, 1*1024*1024)
+		for {
+			if !readCompleted {
+				n, err := file.Read(buf)
+				if err != nil {
+					if err == io.EOF {
+						readCompleted = true
+
+						if err := client.CloseSend(); err != nil {
+							return err
+						}
+					} else {
+						return err
+					}
+				}
+
+				if n > 0 {
+					bytesRemaining = int64(n)
+					client.Send(&pb.Chunk{Chunk: buf[:n]})
+				}
+			}
+
+			for {
+				progress, err := client.Recv()
+				if err == io.EOF {
+					if bytesCommitted == fileInfo.Size() {
+						status, ok := client.Trailer()["status"]
+						if !ok {
+							return errors.New("no status returned")
+						}
+						fmt.Printf("Status: %s\n", status)
+						return nil
+					} else {
+						return err
+					}
+				}
+				if err != nil {
+					return err
+				}
+
+				bytesCommitted += progress.Size
+				bytesRemaining -= progress.Size
+				bar.Set(int(bytesCommitted))
+
+				if bytesRemaining == 0 {
+					break
+				}
+			}
+		}
 	},
 }
 

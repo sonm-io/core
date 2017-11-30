@@ -14,10 +14,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	"golang.org/x/net/context"
+
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
+
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/insonmnia/math"
@@ -25,13 +34,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
-	"go.uber.org/zap"
-	"golang.org/x/net/context"
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/status"
 )
 
 var (
@@ -207,6 +209,93 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 		return true, values[0].Interface(), values[1].Interface().(error)
 	} else {
 		return true, nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
+	}
+}
+
+func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
+	log.G(h.ctx).Info("handling PushTask request")
+
+	request, err := structs.NewImagePush(stream)
+	if err != nil {
+		return err
+	}
+
+	log.G(h.ctx).Info("pushing image", zap.Int64("size", request.ImageSize()))
+
+	miner, _, err := h.findMinerByOrder(OrderId(request.DealId()))
+	if err != nil {
+		return err
+	}
+
+	// TODO: Check storage size.
+
+	client, err := miner.Client.Load(stream.Context())
+	if err != nil {
+		return err
+	}
+
+	bytesCommitted := int64(0)
+	clientCompleted := false
+	// Intentionally block each time until miner responds to emulate congestion control.
+	for {
+		bytesRemaining := 0
+		if !clientCompleted {
+			chunk, err := stream.Recv()
+			if err != nil {
+				if err == io.EOF {
+					clientCompleted = true
+
+					log.G(h.ctx).Debug("client has closed its stream")
+				} else {
+					log.G(h.ctx).Error("failed to receive chunk from client", zap.Error(err))
+					return err
+				}
+			}
+
+			if chunk == nil {
+				if err := client.CloseSend(); err != nil {
+					log.G(h.ctx).Error("failed to close stream to miner", zap.Error(err))
+					return err
+				}
+			} else {
+				bytesRemaining = len(chunk.Chunk)
+				if err := client.Send(chunk); err != nil {
+					log.G(h.ctx).Error("failed to send chunk to miner", zap.Error(err))
+					return err
+				}
+			}
+		}
+
+		for {
+			progress, err := client.Recv()
+			if err != nil {
+				if err == io.EOF {
+					log.G(h.ctx).Debug("miner has closed its stream")
+					if bytesCommitted == request.ImageSize() {
+						stream.SetTrailer(client.Trailer())
+						return nil
+					} else {
+						return status.Errorf(codes.Aborted, "miner closed its stream without committing all bytes")
+					}
+				} else {
+					log.G(h.ctx).Error("failed to receive chunk from miner", zap.Error(err))
+					return err
+				}
+			}
+
+			bytesCommitted += progress.Size
+			bytesRemaining -= int(progress.Size)
+			log.G(h.ctx).Debug("progress", zap.Any("progress", progress), zap.Int64("bytesCommitted", bytesCommitted))
+
+			if err := stream.Send(progress); err != nil {
+				log.G(h.ctx).Error("failed to send chunk to client", zap.Error(err))
+				return err
+			}
+
+			if bytesRemaining == 0 {
+				break
+			}
+		}
 	}
 }
 
