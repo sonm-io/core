@@ -65,7 +65,7 @@ type Cluster interface {
 
 	LeaderClient() (pb.HubClient, error)
 
-	RegisterAndLoadEntity(name string, prototype interface{})
+	RegisterAndLoadEntity(name string, prototype interface{}) error
 
 	Synchronize(entity interface{}) error
 }
@@ -191,24 +191,24 @@ func (c *cluster) LeaderClient() (pb.HubClient, error) {
 func (c *cluster) RegisterAndLoadEntity(name string, prototype interface{}) error {
 	c.registeredEntitiesMu.Lock()
 	defer c.registeredEntitiesMu.Unlock()
-	t := reflect.TypeOf(prototype)
+	t := reflect.Indirect(reflect.ValueOf(prototype)).Type()
 	c.registeredEntities[name] = t
 	c.entityNames[t] = name
 	keyName := c.cfg.SynchronizableEntitiesPrefix + "/" + name
 	exists, err := c.store.Exists(keyName)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("could not check entity {} for existance in storage", name))
+		return errors.Wrap(err, fmt.Sprintf("could not check entity %s for existance in storage", name))
 	}
 	if !exists {
 		return nil
 	}
 	kvPair, err := c.store.Get(keyName)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("could not fetch entity {} initial value from storage", name))
+		return errors.Wrap(err, fmt.Sprintf("could not fetch entity %s initial value from storage", name))
 	}
 	err = json.Unmarshal(kvPair.Value, prototype)
 	if err != nil {
-		return errors.Wrap(err, fmt.Sprintf("could not unmarshal entity {} from storage data", name))
+		return errors.Wrap(err, fmt.Sprintf("could not unmarshal entity %s from storage data", name))
 	}
 	return nil
 }
