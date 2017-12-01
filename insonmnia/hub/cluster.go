@@ -640,9 +640,9 @@ func makeDuration(numSeconds uint64) time.Duration {
 
 func parseEndpoints(config *ClusterConfig) ([]string, error) {
 	endpoints := make([]string, 0)
-	host, port, err := net.SplitHostPort(config.GrpcEndpoint)
+	host, port, err := net.SplitHostPort(config.Endpoint)
 	if len(host) != 0 {
-		endpoints = append(endpoints, config.GrpcEndpoint)
+		endpoints = append(endpoints, config.Endpoint)
 		return endpoints, nil
 	}
 

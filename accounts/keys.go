@@ -3,6 +3,7 @@ package accounts
 import (
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path"
@@ -177,6 +178,16 @@ type Printer interface {
 type silentPrinter struct{}
 
 func (sp *silentPrinter) Printf(format string, i ...interface{}) {}
+
+type fmtPrinter struct{}
+
+func (fp *fmtPrinter) Printf(format string, i ...interface{}) {
+	fmt.Printf(format, i...)
+}
+
+func NewFmtPrinter() Printer {
+	return new(fmtPrinter)
+}
 
 // NewSilentPrinter returns new printer which can prints nothing
 func NewSilentPrinter() Printer { return new(silentPrinter) }

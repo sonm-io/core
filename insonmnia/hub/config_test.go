@@ -40,7 +40,7 @@ market:
 	assert.Nil(t, err)
 
 	assert.Equal(t, ":10002", conf.Endpoint)
-	assert.Equal(t, ":10001", conf.Cluster.GrpcEndpoint)
+	assert.Equal(t, ":10001", conf.Cluster.Endpoint)
 }
 
 func TestLoadInvalidConfig(t *testing.T) {

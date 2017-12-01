@@ -1,11 +1,14 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"os"
 	"os/signal"
 
 	flag "github.com/ogier/pflag"
+	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
 
 	"github.com/noxiouz/zapctx/ctxlog"
@@ -42,7 +45,29 @@ func main() {
 	logger := logging.BuildLogger(cfg.Logging.Level, true)
 	ctx = log.WithLogger(ctx, logger)
 
-	h, err := hub.New(ctx, cfg, version)
+	key, err := loadKeys(cfg)
+	if err != nil {
+		ctxlog.GetLogger(ctx).Error("failed load private key", zap.Error(err))
+		os.Exit(1)
+	}
+
+	certRotator, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
+	if err != nil {
+		ctxlog.GetLogger(ctx).Error("failed to create cert rotator", zap.Error(err))
+		os.Exit(1)
+	}
+	creds := util.NewTLS(TLSConfig)
+
+	builder := hub.NewBuilder()
+	builder.
+		WithVersion(version).
+		WithContext(ctx).
+		WithPrivateKey(key).
+		WithCreds(creds).
+		WithCertRotator(certRotator)
+
+	// h, err := hub.New(ctx, cfg, version)
+	h, err := builder.Build(cfg)
 	if err != nil {
 		ctxlog.GetLogger(ctx).Error("failed to create a new Hub", zap.Error(err))
 		os.Exit(1)
@@ -58,4 +83,19 @@ func main() {
 	if err = h.Serve(); err != nil {
 		ctxlog.GetLogger(ctx).Error("Server stop", zap.Error(err))
 	}
+}
+
+func loadKeys(c *hub.Config) (*ecdsa.PrivateKey, error) {
+	p := accounts.NewFmtPrinter()
+	ko, err := accounts.DefaultKeyOpener(p, c.Eth.Keystore, c.Eth.Passphrase)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = ko.OpenKeystore()
+	if err != nil {
+		return nil, err
+	}
+
+	return ko.GetKey()
 }
