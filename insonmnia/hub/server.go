@@ -314,7 +314,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 }
 
 func (h *Hub) generateTaskID() string {
-	return fmt.Sprintf("%s@%s", uuid.New(), util.PubKeyToAddr(h.ethKey.PublicKey))
+	return fmt.Sprintf("%s@%s", uuid.New(), h.ethAddr)
 }
 
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
