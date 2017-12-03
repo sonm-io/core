@@ -21,6 +21,7 @@ var (
 	errCannotProposeOrder = errors.New("cannot propose order")
 	errNoMatchingOrder    = errors.New("cannot find matching ASK order")
 	errNotAnBidOrder      = errors.New("can create only Orders with type BID")
+	errProposeNotAccepted = errors.New("no one hub accept proposed deal")
 )
 
 const (
@@ -28,6 +29,7 @@ const (
 	statusSearching
 	statusProposing
 	statusDealing
+	statusWaitForApprove
 	statusDone
 	statusFailed
 
@@ -35,12 +37,13 @@ const (
 )
 
 var statusMap = map[uint8]string{
-	statusNew:       "New",
-	statusSearching: "Searching",
-	statusProposing: "Proposing",
-	statusDealing:   "Dealing",
-	statusDone:      "Done",
-	statusFailed:    "Failed",
+	statusNew:            "New",
+	statusSearching:      "Searching",
+	statusProposing:      "Proposing",
+	statusDealing:        "Dealing",
+	statusWaitForApprove: "Waiting for approve",
+	statusDone:           "Done",
+	statusFailed:         "Failed",
 }
 
 func HandlerStatusString(status uint8) string {
@@ -73,54 +76,36 @@ type orderHandler struct {
 	id     string
 	order  *pb.Order
 	status uint8
-	err    error
 	ts     time.Time
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	locator pb.LocatorClient
-	bc      blockchain.Blockchainer
+	err    error
+	dealID string
+
+	locator    pb.LocatorClient
+	bc         blockchain.Blockchainer
+	hubCreator hubClientCreator
 }
 
-func newOrderHandler(ctx context.Context, loc string, o *pb.Order) (*orderHandler, error) {
+func newOrderHandler(ctx context.Context, loc pb.LocatorClient, bc blockchain.Blockchainer, hu hubClientCreator, o *pb.Order) (*orderHandler, error) {
 	ctx, cancel := context.WithCancel(ctx)
-	var err error
-	defer func() {
-		// cancel context in we cannot create handler
-		if err != nil {
-			cancel()
-		}
-	}()
 
-	cc, err := util.MakeGrpcClient(ctx, loc, nil)
+	order, err := structs.NewOrder(o)
 	if err != nil {
-		log.G(ctx).Error("cannot create locator client", zap.Error(err))
-		return nil, err
-	}
-
-	bcAPI, err := blockchain.NewAPI(nil, nil)
-	if err != nil {
-		log.G(ctx).Error("cannot build blockchain api", zap.Error(err))
 		return nil, err
 	}
 
 	t := &orderHandler{
-		ctx:     ctx,
-		cancel:  cancel,
-		ts:      time.Now(),
-		locator: pb.NewLocatorClient(cc),
-		bc:      bcAPI,
+		ctx:        ctx,
+		cancel:     cancel,
+		ts:         time.Now(),
+		locator:    loc,
+		bc:         bc,
+		id:         order.GetID(),
+		order:      o,
+		hubCreator: hu,
 	}
-
-	order, err := structs.NewOrder(o)
-	if err != nil {
-		log.G(t.ctx).Info("cannot convert order to inner order", zap.Error(err))
-		t.setError(err)
-		return t, err
-	}
-
-	t.id = order.GetID()
-	t.order = o
 
 	return t, nil
 }
@@ -177,14 +162,12 @@ func (h *orderHandler) propose(askID, supID string) error {
 		return err
 	}
 
-	cc, err := util.MakeGrpcClient(h.ctx, hubIP, nil)
+	hub, err := h.hubCreator(hubIP)
 	if err != nil {
 		log.G(h.ctx).Info("cannot create Hub gRPC client", zap.Error(err))
 		h.setError(err)
 		return err
 	}
-
-	hub := pb.NewHubClient(cc)
 
 	req := &pb.DealRequest{BidId: h.order.Id, AskId: askID, Order: h.order}
 	_, err = hub.ProposeDeal(h.ctx, req)
@@ -205,27 +188,98 @@ func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey) error 
 	deal := &pb.Deal{
 		SupplierID: order.GetSupplierID(),
 		BuyerID:    order.GetByuerID(),
-		Price:      fmt.Sprintf("%d", order.Price),
+		Price:      order.Price,
 		Status:     pb.DealStatus_PENDING,
 		// TODO(sshaman1101): calculate hash
-		SpecificationHash: "",
+		SpecificationHash: "0",
 	}
 
-	_, err := h.bc.OpenDeal(key, deal)
+	tx, err := h.bc.OpenDeal(key, deal)
 	if err != nil {
 		log.G(h.ctx).Info("cannot open deal", zap.Error(err))
 		h.setError(err)
 		return err
 	}
 
+	log.G(h.ctx).Info("deal created", zap.String("tx_id", tx.Hash().String()))
+	return nil
+}
+
+func (h *orderHandler) waitForApprove(order *pb.Order, key *ecdsa.PrivateKey, wait time.Duration) (*pb.Deal, error) {
+	log.G(h.ctx).Info("waiting for deal become approved")
+	h.status = statusWaitForApprove
+
+	localCtx := context.Background()
+	// TODO(sshaman1101): calculate hash
+	deal, err := h.findDeals(localCtx, key, order.GetSupplierID(), "0", wait)
+	if err != nil {
+		log.G(h.ctx).Info("cannot find accepted deal", zap.Error(err))
+		h.setError(err)
+		return nil, err
+	}
+
+	if deal == nil {
+		log.G(h.ctx).Info("deal was not accepted, fail by timeout")
+		err = errors.New("deal was not accepted")
+		h.setError(err)
+		return nil, err
+	}
+
+	h.dealID = deal.Id
+	log.G(h.ctx).Info("deal approved, ready to allocate task", zap.String("deal_id", deal.Id))
+	return deal, nil
+}
+
+func (h *orderHandler) findDeals(ctx context.Context, key *ecdsa.PrivateKey, addr, hash string, wait time.Duration) (*pb.Deal, error) {
+	ctx, cancel := context.WithTimeout(h.ctx, wait)
+	defer cancel()
+
+	tk := time.NewTicker(3 * time.Second)
+	defer tk.Stop()
+
+	if deal := h.findDealOnce(key, addr, hash); deal != nil {
+		return deal, nil
+	}
+
+	for {
+		select {
+		case <-tk.C:
+			if deal := h.findDealOnce(key, addr, hash); deal != nil {
+				return deal, nil
+			}
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+}
+
+func (h *orderHandler) findDealOnce(key *ecdsa.PrivateKey, addr, hash string) *pb.Deal {
+	// get deals opened by our client
+	IDs, err := h.bc.GetAcceptedDeal(util.PubKeyToAddr(key.PublicKey), addr)
+	if err != nil {
+		return nil
+	}
+
+	for _, id := range IDs {
+		// then get extended info
+		deal, err := h.bc.GetDealInfo(id)
+		if err != nil {
+			continue
+		}
+
+		// then check for status
+		// and check if task hash is equal with request's one
+		if deal.GetStatus() == pb.DealStatus_ACCEPTED && deal.GetSpecificationHash() == hash {
+			return deal
+		}
+	}
+
 	return nil
 }
 
 type marketAPI struct {
-	conf   Config
-	key    *ecdsa.PrivateKey
-	market pb.MarketClient
-	ctx    context.Context
+	remotes *remoteOptions
+	ctx     context.Context
 
 	taskMux sync.Mutex
 	tasks   map[string]*orderHandler
@@ -239,28 +293,21 @@ func (m *marketAPI) getHandler(id string) (*orderHandler, bool) {
 	return t, ok
 }
 
-func (m *marketAPI) createHandler(id string, t *orderHandler) {
+func (m *marketAPI) registerHandler(id string, t *orderHandler) {
 	m.taskMux.Lock()
 	defer m.taskMux.Unlock()
 
 	m.tasks[id] = t
 }
 
-func (m *marketAPI) removeHandler(id string) {
-	m.taskMux.Lock()
-	defer m.taskMux.Unlock()
-
-	delete(m.tasks, id)
-}
-
 func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
 	log.G(m.ctx).Info("handling GetOrders request")
-	return m.market.GetOrders(ctx, req)
+	return m.remotes.market.GetOrders(ctx, req)
 }
 
 func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, error) {
 	log.G(m.ctx).Info("handling GetOrderByID request", zap.String("id", req.Id))
-	return m.market.GetOrderByID(ctx, req)
+	return m.remotes.market.GetOrderByID(ctx, req)
 }
 
 func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, error) {
@@ -270,27 +317,43 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, 
 		return nil, errNotAnBidOrder
 	}
 
-	req.ByuerID = util.PubKeyToAddr(m.key.PublicKey)
-	created, err := m.market.CreateOrder(ctx, req)
+	req.ByuerID = util.PubKeyToAddr(m.remotes.key.PublicKey)
+	created, err := m.remotes.market.CreateOrder(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	go m.startExecOrderHandler(m.ctx, created)
+	go m.startExecOrderHandler(created)
 
 	return created, nil
 }
 
-func (m *marketAPI) startExecOrderHandler(ctx context.Context, ord *pb.Order) {
-	log.G(ctx).Info("starting ExecOrder")
-	handler, err := newOrderHandler(ctx, m.conf.LocatorEndpoint(), ord)
-	// push handler to a map after error checking
-	// we need to store a failed tasks too
-	m.createHandler(handler.id, handler)
+func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
+	log.G(m.ctx).Info("starting ExecOrder")
+
+	handler, err := newOrderHandler(m.ctx, m.remotes.locator, m.remotes.eth, m.remotes.hubCreator, ord)
 	if err != nil {
-		log.G(handler.ctx).Info("cannot create new bg handler from order", zap.Error(err))
+		// push failed handler too, because we need to show error
+		failedHandler := &orderHandler{id: ord.GetId(), err: err, status: statusFailed}
+		m.registerHandler(ord.Id, failedHandler)
+		log.G(m.ctx).Info("cannot create new bg handler from order", zap.Error(err))
 		return
 	}
+
+	m.registerHandler(handler.id, handler)
+
+	// remove order from Market if deal was make
+	defer func() {
+		err := m.removeOrderHandler(handler.id)
+		if err != nil {
+			log.G(m.ctx).Info("cannot remove order handler", zap.String("handler_id", handler.id))
+		}
+
+		_, err = m.CancelOrder(m.ctx, ord)
+		if err != nil {
+			log.G(handler.ctx).Info("cannot cancel order", zap.String("err", err.Error()))
+		}
+	}()
 
 	// process order (search -> propose -> deal)
 	err = m.orderLoop(handler)
@@ -298,14 +361,6 @@ func (m *marketAPI) startExecOrderHandler(ctx context.Context, ord *pb.Order) {
 		log.G(handler.ctx).Info("order loop complete at n=1 iteration, exiting")
 		return
 	}
-
-	// remove order from Market if deal was make
-	defer func() {
-		_, err = m.CancelOrder(ctx, ord)
-		if err != nil {
-			log.G(handler.ctx).Info("cannot cancel order", zap.String("err", err.Error()))
-		}
-	}()
 
 	tk := time.NewTicker(orderPollPeriod)
 
@@ -330,7 +385,7 @@ func (m *marketAPI) startExecOrderHandler(ctx context.Context, ord *pb.Order) {
 func (m *marketAPI) orderLoop(handler *orderHandler) error {
 	log.G(handler.ctx).Info("starting orderLoop", zap.String("id", handler.id))
 
-	orders, err := handler.search(m.market)
+	orders, err := handler.search(m.remotes.market)
 	if err != nil {
 		log.G(handler.ctx).Info("cannot get orders", zap.Error(err))
 		handler.setError(err)
@@ -344,7 +399,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		log.G(handler.ctx).Info("found order", zap.Int("count", len(orders)))
 	}
 
-	orderToDeal := &pb.Order{}
+	var orderToDeal *pb.Order = nil
 	for _, ord := range orders {
 		err = handler.propose(ord.Id, ord.SupplierID)
 		if err != nil {
@@ -359,27 +414,37 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		}
 	}
 
-	err = handler.createDeal(orderToDeal, m.key)
+	if orderToDeal == nil {
+		// order still nil - proposeDeal failed for each order for each hub
+		log.G(handler.ctx).Info("no one hub accept proposed deal")
+		handler.setError(errProposeNotAccepted)
+		return err
+	}
+
+	err = handler.createDeal(orderToDeal, m.remotes.key)
 	if err != nil {
 		log.G(handler.ctx).Info("cannot create deal, failing handler")
 		handler.setError(err)
 		return err
 	}
 
+	deal, err := handler.waitForApprove(orderToDeal, m.remotes.key, m.remotes.approveTimeout)
+	if err != nil {
+		log.G(handler.ctx).Info("wailed waiting for deal", zap.Error(err))
+		handler.setError(err)
+		return err
+	}
+
 	handler.status = statusDone
-	log.G(handler.ctx).Info("handler done", zap.String("id", handler.id))
+	log.G(handler.ctx).Info("handler done",
+		zap.String("handle_id", handler.id),
+		zap.String("deal_id", deal.GetId()))
 	return nil
 }
 
 func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.Order) (*pb.Empty, error) {
 	log.G(m.ctx).Info("handling CancelOrder request", zap.String("id", req.Id))
-
-	err := m.removeOrderHandler(req.Id)
-	if err != nil {
-		log.G(m.ctx).Info("cannot remove order handler", zap.String("id", req.Id))
-	}
-
-	return m.market.CancelOrder(ctx, req)
+	return m.remotes.market.CancelOrder(ctx, req)
 }
 
 func (m *marketAPI) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetProcessingReply, error) {
@@ -395,7 +460,9 @@ func (m *marketAPI) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetPr
 	for id, task := range m.tasks {
 		var extra string
 		if task.err != nil {
-			extra = task.err.Error()
+			extra = fmt.Sprintf("error: %s", task.err.Error())
+		} else if task.dealID != "" {
+			extra = fmt.Sprintf("deal ID: %s", task.dealID)
 		}
 
 		reply.Orders[id] = &pb.GetProcessingReply_ProcessedOrder{
@@ -409,6 +476,7 @@ func (m *marketAPI) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetPr
 	return reply, nil
 }
 
+// removeOrderHandler must cancel context and DO NOT REMOVE the handler from tasks map
 func (m *marketAPI) removeOrderHandler(id string) error {
 	handlr, ok := m.getHandler(id)
 	if !ok {
@@ -416,22 +484,13 @@ func (m *marketAPI) removeOrderHandler(id string) error {
 	}
 
 	handlr.cancel()
-	m.removeHandler(id)
-
 	return nil
 }
 
-func newMarketAPI(ctx context.Context, key *ecdsa.PrivateKey, conf Config) (pb.MarketServer, error) {
-	cc, err := util.MakeGrpcClient(ctx, conf.MarketEndpoint(), nil)
-	if err != nil {
-		return nil, err
-	}
-
+func newMarketAPI(opts *remoteOptions) (pb.MarketServer, error) {
 	return &marketAPI{
-		conf:   conf,
-		ctx:    ctx,
-		market: pb.NewMarketClient(cc),
-		tasks:  make(map[string]*orderHandler),
-		key:    key,
+		remotes: opts,
+		ctx:     opts.ctx,
+		tasks:   make(map[string]*orderHandler),
 	}, nil
 }

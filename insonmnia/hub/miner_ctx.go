@@ -21,10 +21,9 @@ import (
 )
 
 var (
+	errSlotNotExists     = errors.New("specified slot is not exists")
 	errSlotAlreadyExists = errors.New("specified slot already exists")
 	errOrderNotExists    = errors.New("specified order not exists")
-	errCPUNotEnough      = errors.New("number of CPU cores requested is unable to fit system's capabilities")
-	errMemoryNotEnough   = errors.New("number of memory requested is unable to fit system's capabilities")
 	errForbiddenMiner    = errors.New("miner is forbidden")
 )
 

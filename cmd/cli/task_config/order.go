@@ -9,7 +9,7 @@ type OrderConfig struct {
 	ID         string     `yaml:"id"`
 	BuyerID    string     `yaml:"buyer_id"`
 	SupplierID string     `yaml:"supplier_id"`
-	Price      int64      `yaml:"price" required:"true"`
+	Price      string     `yaml:"price" required:"true"`
 	OrderType  string     `yaml:"order_type" required:"true"`
 	Slot       SlotConfig `yaml:"slot" required:"true"`
 }
