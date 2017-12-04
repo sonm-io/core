@@ -1,12 +1,12 @@
 package miner
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"testing"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types"
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/sonm-io/core/insonmnia/hardware"
@@ -14,7 +14,17 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/net/context"
 )
+
+var (
+	key = getTestKey()
+)
+
+func getTestKey() *ecdsa.PrivateKey {
+	k, _ := ethcrypto.GenerateKey()
+	return k
+}
 
 func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg := NewMockConfig(mock)
@@ -23,7 +33,7 @@ func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg.EXPECT().Firewall().AnyTimes()
 	cfg.EXPECT().GPU().AnyTimes()
 	cfg.EXPECT().SSH().AnyTimes()
-	cfg.EXPECT().ETH().AnyTimes().Return(&EthConfig{PrivateKey: "d07fff36ef2c3d15144974c25d3f5c061ae830a81eefd44292588b3cea2c701c"})
+	cfg.EXPECT().ETH().AnyTimes().Return(&EthConfig{})
 	cfg.EXPECT().PublicIPs().AnyTimes().Return([]string{"192.168.70.17", "46.148.198.133"})
 	return cfg
 }
@@ -34,7 +44,7 @@ func TestServerNewExtractsHubEndpoint(t *testing.T) {
 
 	cfg := defaultMockCfg(mock)
 
-	builder := MinerBuilder{}
+	builder := MinerBuilder{key: key}
 	builder.Config(cfg)
 
 	m, err := builder.Build()
@@ -53,7 +63,7 @@ func TestServerNewFailsWhenFailedCollectResources(t *testing.T) {
 	collector := hardware.NewMockHardwareInfo(mock)
 	collector.EXPECT().Info().Times(1).Return(nil, errors.New(""))
 
-	builder := MinerBuilder{}
+	builder := MinerBuilder{key: key}
 	builder.Hardware(collector)
 	builder.Config(cfg)
 	m, err := builder.Build()
@@ -73,7 +83,7 @@ func TestServerNewSavesResources(t *testing.T) {
 		Memory: &mem.VirtualMemoryStat{Total: 42},
 	}, nil)
 
-	builder := MinerBuilder{}
+	builder := MinerBuilder{key: key}
 	builder.Hardware(collector)
 	builder.Config(cfg)
 	m, err := builder.Build()
@@ -94,7 +104,7 @@ func TestMinerInfo(t *testing.T) {
 	info["id1"] = ContainerMetrics{mem: types.MemoryStats{Usage: 42, MaxUsage: 43}}
 	ovs.EXPECT().Info(context.Background()).AnyTimes().Return(info, nil)
 
-	builder := MinerBuilder{}
+	builder := MinerBuilder{key: key}
 	builder.Config(cfg)
 	builder.Overseer(ovs)
 
@@ -128,7 +138,7 @@ func TestMinerHandshake(t *testing.T) {
 		Memory: &mem.VirtualMemoryStat{Total: 2048},
 	}, nil)
 
-	builder := MinerBuilder{}
+	builder := MinerBuilder{key: key}
 	builder.Config(cfg)
 	builder.Overseer(ovs)
 	builder.Hardware(collector)
@@ -160,7 +170,7 @@ func TestMinerStart(t *testing.T) {
 	}
 	ovs.EXPECT().Start(gomock.Any(), gomock.Any()).Times(1).Return(statusChan, info, nil)
 
-	builder := MinerBuilder{}
+	builder := MinerBuilder{key: key}
 	m, err := builder.Config(cfg).Overseer(ovs).Build()
 	require.NotNil(t, m)
 	require.Nil(t, err)

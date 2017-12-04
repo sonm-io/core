@@ -4,5 +4,9 @@ node_ttl: "1h"
 
 cleanup_period: "1s"
 
+# blockchain-specific settings.
 ethereum:
-  private_key: "d07fff36ef2c3d15144974c25d3f5c061ae830a81eefd44292588b3cea2c701c"
+  # path to keystore
+  key_store: "./keys"
+  # passphrase for keystore
+  pass_phrase: "any"

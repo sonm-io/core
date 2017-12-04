@@ -2,21 +2,18 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/signal"
 
+	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
-	"golang.org/x/net/context"
-
-	"go.uber.org/zap"
-
+	"github.com/pborman/uuid"
+	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner"
-
-	"io/ioutil"
-
-	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pborman/uuid"
+	"go.uber.org/zap"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -41,6 +38,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	key, err := accounts.LoadKeys(cfg.ETH().Keystore, cfg.ETH().Passphrase)
+	if err != nil {
+		log.GetLogger(ctx).Error("failed load private key", zap.Error(err))
+		os.Exit(1)
+	}
+
 	if _, err := os.Stat(cfg.UUIDPath()); os.IsNotExist(err) {
 		ioutil.WriteFile(cfg.UUIDPath(), []byte(uuid.New()), 0660)
 	}
@@ -54,7 +57,7 @@ func main() {
 	logger := logging.BuildLogger(cfg.Logging().Level, true)
 	ctx = log.WithLogger(ctx, logger)
 
-	builder := miner.NewMinerBuilder(cfg)
+	builder := miner.NewMinerBuilder(cfg, key)
 	builder.Context(ctx)
 	builder.UUID(uuid)
 	m, err := builder.Build()

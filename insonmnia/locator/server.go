@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto"
@@ -148,17 +147,16 @@ func (l *Locator) traverseAndClean() {
 		zap.Int("total", total), zap.Uint64("keep", keep), zap.Uint64("del", del))
 }
 
-func NewLocator(ctx context.Context, conf *LocatorConfig) (l *Locator, err error) {
-	ethKey, err := crypto.HexToECDSA(conf.Eth.PrivateKey)
-	if err != nil {
-		return nil, errors.Wrap(err, "malformed ethereum private key")
+func NewLocator(ctx context.Context, conf *LocatorConfig, key *ecdsa.PrivateKey) (l *Locator, err error) {
+	if key == nil {
+		return nil, errors.Wrap(err, "private key should be provided")
 	}
 
 	l = &Locator{
 		db:     make(map[string]*node),
 		conf:   conf,
 		ctx:    ctx,
-		ethKey: ethKey,
+		ethKey: key,
 	}
 
 	var TLSConfig *tls.Config
