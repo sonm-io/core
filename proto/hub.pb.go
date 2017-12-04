@@ -12,6 +12,12 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
+// grpccmd imports
+import (
+	"github.com/nathanielc/grpccmd"
+	"github.com/spf13/cobra"
+)
+
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
@@ -1452,6 +1458,323 @@ var _Hub_serviceDesc = grpc.ServiceDesc{
 	},
 	Metadata: "hub.proto",
 }
+
+// Begin grpccmd
+var _ = grpccmd.RunE
+
+// Hub
+var _HubCmd = &cobra.Command{
+	Use:   "hub [method]",
+	Short: "Subcommand for the Hub service.",
+}
+
+var _Hub_PingCmd = &cobra.Command{
+	Use:   "ping",
+	Short: "Make the Ping method call, input-type: sonm.Empty output-type: sonm.PingReply",
+	RunE: grpccmd.RunE(
+		"Ping",
+		"sonm.Empty",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_StatusCmd = &cobra.Command{
+	Use:   "status",
+	Short: "Make the Status method call, input-type: sonm.Empty output-type: sonm.HubStatusReply",
+	RunE: grpccmd.RunE(
+		"Status",
+		"sonm.Empty",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_ListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "Make the List method call, input-type: sonm.Empty output-type: sonm.ListReply",
+	RunE: grpccmd.RunE(
+		"List",
+		"sonm.Empty",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_InfoCmd = &cobra.Command{
+	Use:   "info",
+	Short: "Make the Info method call, input-type: sonm.ID output-type: sonm.InfoReply",
+	RunE: grpccmd.RunE(
+		"Info",
+		"sonm.ID",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_TaskListCmd = &cobra.Command{
+	Use:   "taskList",
+	Short: "Make the TaskList method call, input-type: sonm.Empty output-type: sonm.TaskListReply",
+	RunE: grpccmd.RunE(
+		"TaskList",
+		"sonm.Empty",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_PushTaskCmd = &cobra.Command{
+	Use:   "pushTask",
+	Short: "Make the PushTask method call, input-type: sonm.Chunk output-type: sonm.Progress",
+	RunE: grpccmd.RunE(
+		"PushTask",
+		"sonm.Chunk",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_StartTaskCmd = &cobra.Command{
+	Use:   "startTask",
+	Short: "Make the StartTask method call, input-type: sonm.HubStartTaskRequest output-type: sonm.HubStartTaskReply",
+	RunE: grpccmd.RunE(
+		"StartTask",
+		"sonm.HubStartTaskRequest",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_StopTaskCmd = &cobra.Command{
+	Use:   "stopTask",
+	Short: "Make the StopTask method call, input-type: sonm.ID output-type: sonm.Empty",
+	RunE: grpccmd.RunE(
+		"StopTask",
+		"sonm.ID",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_TaskStatusCmd = &cobra.Command{
+	Use:   "taskStatus",
+	Short: "Make the TaskStatus method call, input-type: sonm.ID output-type: sonm.TaskStatusReply",
+	RunE: grpccmd.RunE(
+		"TaskStatus",
+		"sonm.ID",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_MinerStatusCmd = &cobra.Command{
+	Use:   "minerStatus",
+	Short: "Make the MinerStatus method call, input-type: sonm.ID output-type: sonm.StatusMapReply",
+	RunE: grpccmd.RunE(
+		"MinerStatus",
+		"sonm.ID",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_TaskLogsCmd = &cobra.Command{
+	Use:   "taskLogs",
+	Short: "Make the TaskLogs method call, input-type: sonm.TaskLogsRequest output-type: sonm.TaskLogsChunk",
+	RunE: grpccmd.RunE(
+		"TaskLogs",
+		"sonm.TaskLogsRequest",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_ProposeDealCmd = &cobra.Command{
+	Use:   "proposeDeal",
+	Short: "Make the ProposeDeal method call, input-type: sonm.DealRequest output-type: sonm.Empty",
+	RunE: grpccmd.RunE(
+		"ProposeDeal",
+		"sonm.DealRequest",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_DiscoverHubCmd = &cobra.Command{
+	Use:   "discoverHub",
+	Short: "Make the DiscoverHub method call, input-type: sonm.DiscoverHubRequest output-type: sonm.Empty",
+	RunE: grpccmd.RunE(
+		"DiscoverHub",
+		"sonm.DiscoverHubRequest",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_DevicesCmd = &cobra.Command{
+	Use:   "devices",
+	Short: "Make the Devices method call, input-type: sonm.Empty output-type: sonm.DevicesReply",
+	RunE: grpccmd.RunE(
+		"Devices",
+		"sonm.Empty",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_MinerDevicesCmd = &cobra.Command{
+	Use:   "minerDevices",
+	Short: "Make the MinerDevices method call, input-type: sonm.ID output-type: sonm.DevicesReply",
+	RunE: grpccmd.RunE(
+		"MinerDevices",
+		"sonm.ID",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_GetDevicePropertiesCmd = &cobra.Command{
+	Use:   "getDeviceProperties",
+	Short: "Make the GetDeviceProperties method call, input-type: sonm.ID output-type: sonm.GetDevicePropertiesReply",
+	RunE: grpccmd.RunE(
+		"GetDeviceProperties",
+		"sonm.ID",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_SetDevicePropertiesCmd = &cobra.Command{
+	Use:   "setDeviceProperties",
+	Short: "Make the SetDeviceProperties method call, input-type: sonm.SetDevicePropertiesRequest output-type: sonm.Empty",
+	RunE: grpccmd.RunE(
+		"SetDeviceProperties",
+		"sonm.SetDevicePropertiesRequest",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_GetRegisteredWorkersCmd = &cobra.Command{
+	Use:   "getRegisteredWorkers",
+	Short: "Make the GetRegisteredWorkers method call, input-type: sonm.Empty output-type: sonm.GetRegisteredWorkersReply",
+	RunE: grpccmd.RunE(
+		"GetRegisteredWorkers",
+		"sonm.Empty",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_RegisterWorkerCmd = &cobra.Command{
+	Use:   "registerWorker",
+	Short: "Make the RegisterWorker method call, input-type: sonm.ID output-type: sonm.Empty",
+	RunE: grpccmd.RunE(
+		"RegisterWorker",
+		"sonm.ID",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_DeregisterWorkerCmd = &cobra.Command{
+	Use:   "deregisterWorker",
+	Short: "Make the DeregisterWorker method call, input-type: sonm.ID output-type: sonm.Empty",
+	RunE: grpccmd.RunE(
+		"DeregisterWorker",
+		"sonm.ID",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_SlotsCmd = &cobra.Command{
+	Use:   "slots",
+	Short: "Make the Slots method call, input-type: sonm.Empty output-type: sonm.SlotsReply",
+	RunE: grpccmd.RunE(
+		"Slots",
+		"sonm.Empty",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_InsertSlotCmd = &cobra.Command{
+	Use:   "insertSlot",
+	Short: "Make the InsertSlot method call, input-type: sonm.InsertSlotRequest output-type: sonm.ID",
+	RunE: grpccmd.RunE(
+		"InsertSlot",
+		"sonm.InsertSlotRequest",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+var _Hub_RemoveSlotCmd = &cobra.Command{
+	Use:   "removeSlot",
+	Short: "Make the RemoveSlot method call, input-type: sonm.ID output-type: sonm.Empty",
+	RunE: grpccmd.RunE(
+		"RemoveSlot",
+		"sonm.ID",
+		func(c *grpc.ClientConn) interface{} {
+			return NewHubClient(c)
+		},
+	),
+}
+
+// Register commands with the root command and service command
+func init() {
+	grpccmd.RegisterServiceCmd(_HubCmd)
+	_HubCmd.AddCommand(
+		_Hub_PingCmd,
+		_Hub_StatusCmd,
+		_Hub_ListCmd,
+		_Hub_InfoCmd,
+		_Hub_TaskListCmd,
+		_Hub_PushTaskCmd,
+		_Hub_StartTaskCmd,
+		_Hub_StopTaskCmd,
+		_Hub_TaskStatusCmd,
+		_Hub_MinerStatusCmd,
+		_Hub_TaskLogsCmd,
+		_Hub_ProposeDealCmd,
+		_Hub_DiscoverHubCmd,
+		_Hub_DevicesCmd,
+		_Hub_MinerDevicesCmd,
+		_Hub_GetDevicePropertiesCmd,
+		_Hub_SetDevicePropertiesCmd,
+		_Hub_GetRegisteredWorkersCmd,
+		_Hub_RegisterWorkerCmd,
+		_Hub_DeregisterWorkerCmd,
+		_Hub_SlotsCmd,
+		_Hub_InsertSlotCmd,
+		_Hub_RemoveSlotCmd,
+	)
+}
+
+// End grpccmd
 
 func init() { proto.RegisterFile("hub.proto", fileDescriptor3) }
 

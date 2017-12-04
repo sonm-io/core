@@ -12,6 +12,12 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
+// grpccmd imports
+import (
+	"github.com/nathanielc/grpccmd"
+	"github.com/spf13/cobra"
+)
+
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
@@ -344,6 +350,89 @@ var _Market_serviceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "marketplace.proto",
 }
+
+// Begin grpccmd
+var _ = grpccmd.RunE
+
+// Market
+var _MarketCmd = &cobra.Command{
+	Use:   "market [method]",
+	Short: "Subcommand for the Market service.",
+}
+
+var _Market_GetOrdersCmd = &cobra.Command{
+	Use:   "getOrders",
+	Short: "Make the GetOrders method call, input-type: sonm.GetOrdersRequest output-type: sonm.GetOrdersReply",
+	RunE: grpccmd.RunE(
+		"GetOrders",
+		"sonm.GetOrdersRequest",
+		func(c *grpc.ClientConn) interface{} {
+			return NewMarketClient(c)
+		},
+	),
+}
+
+var _Market_GetOrderByIDCmd = &cobra.Command{
+	Use:   "getOrderByID",
+	Short: "Make the GetOrderByID method call, input-type: sonm.ID output-type: sonm.Order",
+	RunE: grpccmd.RunE(
+		"GetOrderByID",
+		"sonm.ID",
+		func(c *grpc.ClientConn) interface{} {
+			return NewMarketClient(c)
+		},
+	),
+}
+
+var _Market_CreateOrderCmd = &cobra.Command{
+	Use:   "createOrder",
+	Short: "Make the CreateOrder method call, input-type: sonm.Order output-type: sonm.Order",
+	RunE: grpccmd.RunE(
+		"CreateOrder",
+		"sonm.Order",
+		func(c *grpc.ClientConn) interface{} {
+			return NewMarketClient(c)
+		},
+	),
+}
+
+var _Market_CancelOrderCmd = &cobra.Command{
+	Use:   "cancelOrder",
+	Short: "Make the CancelOrder method call, input-type: sonm.Order output-type: sonm.Empty",
+	RunE: grpccmd.RunE(
+		"CancelOrder",
+		"sonm.Order",
+		func(c *grpc.ClientConn) interface{} {
+			return NewMarketClient(c)
+		},
+	),
+}
+
+var _Market_GetProcessingCmd = &cobra.Command{
+	Use:   "getProcessing",
+	Short: "Make the GetProcessing method call, input-type: sonm.Empty output-type: sonm.GetProcessingReply",
+	RunE: grpccmd.RunE(
+		"GetProcessing",
+		"sonm.Empty",
+		func(c *grpc.ClientConn) interface{} {
+			return NewMarketClient(c)
+		},
+	),
+}
+
+// Register commands with the root command and service command
+func init() {
+	grpccmd.RegisterServiceCmd(_MarketCmd)
+	_MarketCmd.AddCommand(
+		_Market_GetOrdersCmd,
+		_Market_GetOrderByIDCmd,
+		_Market_CreateOrderCmd,
+		_Market_CancelOrderCmd,
+		_Market_GetProcessingCmd,
+	)
+}
+
+// End grpccmd
 
 func init() { proto.RegisterFile("marketplace.proto", fileDescriptor6) }
 

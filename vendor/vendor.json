@@ -1055,6 +1055,12 @@
 			"revisionTime": "2017-04-28T05:41:52Z"
 		},
 		{
+			"checksumSHA1": "jz3RFpgs+OrJgXkvnToEPGcHGSM=",
+			"path": "github.com/nathanielc/grpccmd",
+			"revision": "8358d0c246ad71c03afddbbc44b9b4e3760d6d7b",
+			"revisionTime": "2017-12-04T22:20:06Z"
+		},
+		{
 			"checksumSHA1": "FrYbQUcjOMUZQwdG8OXxTaVYl8Q=",
 			"path": "github.com/noxiouz/zapctx/ctxlog",
 			"revision": "b19b4472cfa58cb48603a8361b5e650f0199ba1a",
