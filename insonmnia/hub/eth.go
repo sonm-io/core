@@ -110,15 +110,18 @@ func (e *eth) CheckDealExists(id string) (bool, error) {
 }
 
 // NewETH constructs a new Ethereum client.
-func NewETH(ctx context.Context, key *ecdsa.PrivateKey) (ETH, error) {
-	bcAPI, err := blockchain.NewAPI(nil, nil)
-	if err != nil {
-		return nil, err
+func NewETH(ctx context.Context, key *ecdsa.PrivateKey, bcr blockchain.Blockchainer) (ETH, error) {
+	var err error
+	if bcr == nil {
+		bcr, err = blockchain.NewAPI(nil, nil)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &eth{
 		ctx: ctx,
 		key: key,
-		bc:  bcAPI,
+		bc:  bcr,
 	}, nil
 }

@@ -57,7 +57,7 @@ func main() {
 }
 
 func loadKeys(c node.Config) (*ecdsa.PrivateKey, error) {
-	p := newFmtPrinter()
+	p := accounts.NewFmtPrinter()
 	ko, err := accounts.DefaultKeyOpener(p, c.KeyStore(), c.PassPhrase())
 	if err != nil {
 		return nil, err
@@ -69,15 +69,4 @@ func loadKeys(c node.Config) (*ecdsa.PrivateKey, error) {
 	}
 
 	return ko.GetKey()
-}
-
-// fmtPrinter implements accounts.Printer interface by using fmt.Printf
-type fmtPrinter struct{}
-
-func (c *fmtPrinter) Printf(format string, i ...interface{}) {
-	fmt.Printf(format, i...)
-}
-
-func newFmtPrinter() accounts.Printer {
-	return new(fmtPrinter)
 }

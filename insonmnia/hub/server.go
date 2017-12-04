@@ -2,7 +2,6 @@ package hub
 
 import (
 	"crypto/ecdsa"
-	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -16,6 +15,7 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/blockchain"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 
@@ -47,7 +47,7 @@ var (
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
-	cfg              *HubConfig
+	cfg              *Config
 	ctx              context.Context
 	cancel           context.CancelFunc
 	gateway          *gateway.Gateway
@@ -55,17 +55,19 @@ type Hub struct {
 	grpcEndpointAddr string
 	externalGrpc     *grpc.Server
 	minerListener    net.Listener
-	ethKey           *ecdsa.PrivateKey
 
-	locatorEndpoint string
-	locatorPeriod   time.Duration
-	locatorClient   pb.LocatorClient
+	ethKey  *ecdsa.PrivateKey
+	ethAddr string
 
-	cluster Cluster
-	eventCh <-chan ClusterEvent
+	// locatorEndpoint string
+	locatorPeriod time.Duration
+	locatorClient pb.LocatorClient
 
-	mu     sync.Mutex
-	miners map[string]*MinerCtx
+	cluster       Cluster
+	clusterEvents <-chan ClusterEvent
+
+	miners   map[string]*MinerCtx
+	minersMu sync.Mutex
 
 	// TODO: rediscover jobs if Miner disconnected
 	// TODO: store this data in some Storage interface
@@ -74,13 +76,11 @@ type Hub struct {
 	startTime time.Time
 	version   string
 
-	associatedHubs     map[string]struct{}
-	associatedHubsLock sync.Mutex
+	associatedHubs   map[string]struct{}
+	associatedHubsMu sync.Mutex
 
-	// TODO(sshaman1101): replace with Blockchainer
-	eth ETH
-	// TODO(sshaman1101): replace with pb.MarketClient
-	market Market
+	eth    ETH
+	market pb.MarketClient
 
 	// Device properties.
 	// Must be synchronized with out Hub cluster.
@@ -99,14 +99,13 @@ type Hub struct {
 	aclMu sync.RWMutex
 
 	// Tasks
-	tasksMu sync.Mutex
 	tasks   map[string]*TaskInfo
+	tasksMu sync.Mutex
 
 	// TLS certificate rotator
 	certRotator util.HitlessCertRotator
 	// GRPC TransportCredentials supported our Auth
-	creds   credentials.TransportCredentials
-	ethAddr string
+	creds credentials.TransportCredentials
 }
 
 type DeviceProperties map[string]float64
@@ -119,9 +118,9 @@ func (h *Hub) Ping(ctx context.Context, _ *pb.Empty) (*pb.PingReply, error) {
 
 // Status returns internal hub statistic
 func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, error) {
-	h.mu.Lock()
+	h.minersMu.Lock()
 	minersCount := len(h.miners)
-	h.mu.Unlock()
+	h.minersMu.Unlock()
 
 	uptime := time.Now().Unix() - h.startTime.Unix()
 
@@ -388,8 +387,8 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 }
 
 func (h *Hub) findMinerByOrder(id OrderId) (*MinerCtx, *resource.Resources, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.minersMu.Lock()
+	defer h.minersMu.Unlock()
 
 	for _, miner := range h.miners {
 		for _, order := range miner.Orders() {
@@ -436,8 +435,8 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 //TODO: refactor - we can use h.tasks here
 func (h *Hub) TaskList(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
 	log.G(h.ctx).Info("handling TaskList request")
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.minersMu.Lock()
+	defer h.minersMu.Unlock()
 
 	// map workerID to []Task
 	reply := &pb.TaskListReply{Info: map[string]*pb.TaskListReply_TaskInfo{}}
@@ -548,13 +547,15 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, ErrInvalidOrderType
 	}
 
-	exists, err := h.market.OrderExists(order.GetID())
+	found, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: order.GetID()})
 	if err != nil {
 		return nil, err
 	}
-	if !exists {
+
+	if found == nil {
 		return nil, ErrAskNotFound
 	}
+
 	resources, err := structs.NewResources(request.GetOrder().GetSlot().GetResources())
 	if err != nil {
 		return nil, err
@@ -597,7 +598,7 @@ func (h *Hub) getDealWaiter(ctx context.Context, req *structs.DealRequest) func(
 			return err
 		}
 
-		err = h.market.CancelOrder(req.GetAskId())
+		_, err = h.market.CancelOrder(h.ctx, &pb.Order{Id: req.GetAskId()})
 		if err != nil {
 			log.G(ctx).Warn("cannot cancel ask order from marketplace",
 				zap.String("ask_id", req.GetAskId()),
@@ -609,8 +610,8 @@ func (h *Hub) getDealWaiter(ctx context.Context, req *structs.DealRequest) func(
 }
 
 func (h *Hub) findRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.minersMu.Lock()
+	defer h.minersMu.Unlock()
 
 	rg := rand.New(rand.NewSource(time.Now().UnixNano()))
 	id := 0
@@ -638,8 +639,8 @@ func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (
 }
 
 func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.minersMu.Lock()
+	defer h.minersMu.Unlock()
 
 	// Templates in go? Nevermind, just copy/paste.
 
@@ -746,7 +747,7 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*p
 		SupplierID: util.PubKeyToAddr(h.ethKey.PublicKey),
 	}
 
-	created, err := h.market.CreateOrder(ord)
+	created, err := h.market.CreateOrder(h.ctx, ord)
 	if err != nil {
 		return nil, err
 	}
@@ -774,7 +775,7 @@ func (h *Hub) RemoveSlot(ctx context.Context, request *pb.ID) (*pb.Empty, error)
 		return nil, errSlotNotExists
 	}
 
-	err := h.market.CancelOrder(request.Id)
+	_, err := h.market.CancelOrder(h.ctx, &pb.Order{Id: request.Id})
 	if err != nil {
 		return nil, err
 	}
@@ -834,22 +835,30 @@ func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, 
 }
 
 // New returns new Hub
-func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
+func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub, error) {
+	defaults := defaultHubOptions()
+	for _, o := range opts {
+		o(defaults)
+	}
+
+	if defaults.ethKey == nil {
+		return nil, errors.New("cannot build Hub instance without private key")
+	}
+
+	if defaults.ctx == nil {
+		defaults.ctx = context.Background()
+	}
+
 	var err error
-	ctx, cancel := context.WithCancel(ctx)
+	ctx, cancel := context.WithCancel(defaults.ctx)
 	defer func() {
 		if err != nil {
 			cancel()
 		}
 	}()
 
-	ethKey, err := crypto.HexToECDSA(cfg.Eth.PrivateKey)
-	if err != nil {
-		return nil, errors.Wrap(err, "malformed ethereum private key")
-	}
-
 	ip := cfg.EndpointIP()
-	clientPort, err := util.ParseEndpointPort(cfg.Cluster.GrpcEndpoint)
+	clientPort, err := util.ParseEndpointPort(cfg.Cluster.Endpoint)
 	if err != nil {
 		return nil, errors.Wrap(err, "error during parsing client endpoint")
 	}
@@ -872,17 +881,43 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
 	}
 
-	eth, err := NewETH(ctx, ethKey)
+	if defaults.bcr == nil {
+		defaults.bcr, err = blockchain.NewAPI(nil, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	ethWrapper, err := NewETH(ctx, defaults.ethKey, defaults.bcr)
 	if err != nil {
 		return nil, err
 	}
 
-	market, err := NewMarket(ctx, cfg.Market.Address)
-	if err != nil {
-		return nil, err
+	if defaults.locator == nil {
+		conn, err := util.MakeGrpcClient(defaults.ctx, cfg.Locator.Address, defaults.creds, grpc.WithTimeout(5*time.Second))
+		if err != nil {
+			return nil, err
+		}
+
+		defaults.locator = pb.NewLocatorClient(conn)
+	}
+
+	if defaults.cluster == nil {
+		defaults.cluster, defaults.clusterEvents, err = NewCluster(ctx, &cfg.Cluster, defaults.creds)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if os.Getenv("GRPC_INSECURE") != "" {
+		defaults.rot = nil
+		defaults.creds = nil
 	}
 
 	acl := NewACLStorage()
+	if defaults.creds != nil {
+		acl.Insert(defaults.ethAddr)
+	}
 
 	h := &Hub{
 		cfg:              cfg,
@@ -893,73 +928,46 @@ func New(ctx context.Context, cfg *HubConfig, version string) (*Hub, error) {
 		externalGrpc:     nil,
 		grpcEndpointAddr: grpcEndpointAddr,
 
-		miners: make(map[string]*MinerCtx),
+		ethKey:  defaults.ethKey,
+		ethAddr: defaults.ethAddr,
+		version: defaults.version,
 
-		ethKey:  ethKey,
-		version: version,
+		locatorPeriod: time.Second * time.Duration(cfg.Locator.Period),
+		locatorClient: defaults.locator,
 
-		locatorEndpoint: cfg.Locator.Address,
-		locatorPeriod:   time.Second * time.Duration(cfg.Locator.Period),
+		eth:    ethWrapper,
+		market: defaults.market,
 
-		associatedHubs: make(map[string]struct{}),
-
-		eth:    eth,
-		market: market,
-
+		tasks:            make(map[string]*TaskInfo),
+		miners:           make(map[string]*MinerCtx),
+		associatedHubs:   make(map[string]struct{}),
 		deviceProperties: make(map[string]DeviceProperties),
 		slots:            make(map[string]*structs.Slot),
 		acl:              acl,
 
-		tasks: make(map[string]*TaskInfo),
+		certRotator: defaults.rot,
+		creds:       defaults.creds,
 
-		certRotator: nil,
-		creds:       nil,
-		ethAddr:     util.PubKeyToAddr(ethKey.PublicKey),
-	}
-
-	if os.Getenv("GRPC_INSECURE") == "" {
-		var TLSConfig *tls.Config
-		h.certRotator, TLSConfig, err = util.NewHitlessCertRotator(ctx, h.ethKey)
-		if err != nil {
-			return nil, err
-		}
-		h.creds = util.NewTLS(TLSConfig)
-	}
-
-	h.initWorkerACLs()
-
-	h.cluster, h.eventCh, err = NewCluster(ctx, &cfg.Cluster, h.creds)
-	if err != nil {
-		return nil, err
+		cluster:       defaults.cluster,
+		clusterEvents: defaults.clusterEvents,
 	}
 
 	grpcServer := util.MakeGrpcServer(h.creds, grpc.UnaryInterceptor(h.onRequest))
 	h.externalGrpc = grpcServer
 
 	pb.RegisterHubServer(grpcServer, h)
-	log.G(h.ctx).Debug("created hub")
 	return h, nil
 }
 
-func (h *Hub) initWorkerACLs() {
-	// Do nothing when we're running with insecure mode.
-	if h.creds == nil {
-		return
-	}
-
-	h.acl.Insert(h.ethAddr)
-	log.G(h.ctx).Info("registered default worker credentials", zap.String("wallet", h.ethAddr))
-}
-
 func (h *Hub) onNewHub(endpoint string) {
-	h.associatedHubsLock.Lock()
+	h.associatedHubsMu.Lock()
 	log.G(h.ctx).Info("new hub discovered", zap.String("endpoint", endpoint), zap.Any("known_hubs", h.associatedHubs))
 	h.associatedHubs[endpoint] = struct{}{}
 
-	h.associatedHubsLock.Unlock()
+	h.associatedHubsMu.Unlock()
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.minersMu.Lock()
+	defer h.minersMu.Unlock()
 
 	for _, miner := range h.miners {
 		miner.Client.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{Endpoint: endpoint})
@@ -978,10 +986,10 @@ func (h *Hub) Serve() error {
 	}
 	log.G(h.ctx).Info("listening for connections from Miners", zap.Stringer("address", listener.Addr()))
 
-	grpcL, err := net.Listen("tcp", h.cfg.Cluster.GrpcEndpoint)
+	grpcL, err := net.Listen("tcp", h.cfg.Cluster.Endpoint)
 	if err != nil {
 		log.G(h.ctx).Error("failed to listen",
-			zap.String("address", h.cfg.Cluster.GrpcEndpoint), zap.Error(err))
+			zap.String("address", h.cfg.Cluster.Endpoint), zap.Error(err))
 		listener.Close()
 		return err
 	}
@@ -1002,11 +1010,6 @@ func (h *Hub) Serve() error {
 			go h.handleInterconnect(h.ctx, conn)
 		}
 	})
-
-	err = h.initLocatorClient()
-	if err != nil {
-		return err
-	}
 
 	if err := h.cluster.RegisterAndLoadEntity("tasks", &h.tasks); err != nil {
 		return err
@@ -1054,7 +1057,7 @@ func (h *Hub) runCluster() error {
 func (h *Hub) listenClusterEvents() error {
 	for {
 		select {
-		case event := <-h.eventCh:
+		case event := <-h.clusterEvents:
 			h.processClusterEvent(event)
 		case <-h.ctx.Done():
 			return nil
@@ -1106,9 +1109,9 @@ func (h *Hub) Close() {
 }
 
 func (h *Hub) registerMiner(miner *MinerCtx) {
-	h.mu.Lock()
+	h.minersMu.Lock()
 	h.miners[miner.uuid] = miner
-	h.mu.Unlock()
+	h.minersMu.Unlock()
 	for address := range h.associatedHubs {
 		log.G(h.ctx).Info("sending hub adderess", zap.String("hub_address", address))
 		miner.Client.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{Endpoint: address})
@@ -1133,14 +1136,14 @@ func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
 	miner.ping()
 	miner.Close()
 
-	h.mu.Lock()
+	h.minersMu.Lock()
 	delete(h.miners, miner.ID())
-	h.mu.Unlock()
+	h.minersMu.Unlock()
 }
 
 func (h *Hub) getMinerByID(minerID string) (*MinerCtx, bool) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
+	h.minersMu.Lock()
+	defer h.minersMu.Unlock()
 	m, ok := h.miners[minerID]
 	return m, ok
 }
@@ -1170,22 +1173,6 @@ func (h *Hub) deleteTask(taskID string) error {
 		delete(h.tasks, taskID)
 		return h.cluster.Synchronize(h.tasks)
 	}
-	return nil
-}
-
-func (h *Hub) initLocatorClient() error {
-	conn, err := util.MakeGrpcClient(h.ctx,
-		h.locatorEndpoint,
-		h.creds,
-		grpc.WithTimeout(5*time.Second),
-		grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
-		grpc.WithCompressor(grpc.NewGZIPCompressor()))
-	if err != nil {
-		return err
-	}
-
-	h.locatorClient = pb.NewLocatorClient(conn)
-
 	return nil
 }
 

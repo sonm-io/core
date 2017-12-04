@@ -15,7 +15,8 @@ type GatewayConfig struct {
 }
 
 type EthConfig struct {
-	PrivateKey string `required:"true" yaml:"private_key"`
+	Passphrase string `required:"false" default:"" yaml:"pass_phrase"`
+	Keystore   string `required:"false" default:"" yaml:"key_store"`
 }
 
 type LocatorConfig struct {
@@ -38,7 +39,7 @@ type StoreConfig struct {
 type ClusterConfig struct {
 	Store                        StoreConfig `yaml:"store"`
 	Failover                     bool        `yaml:"failover"`
-	GrpcEndpoint                 string      `yaml:"grpc_endpoint"`
+	Endpoint                     string      `yaml:"endpoint"`
 	LeaderKey                    string      `yaml:"leader_key" default:"sonm/hub/leader"`
 	MemberListKey                string      `yaml:"member_list_key" default:"sonm/hub/list"`
 	SynchronizableEntitiesPrefix string      `yaml:"sync_prefix" default:"sonm/hub/sync"`
@@ -48,7 +49,7 @@ type ClusterConfig struct {
 	MemberGCPeriod               uint64      `yaml:"member_gc_period" default:"60"`
 }
 
-type HubConfig struct {
+type Config struct {
 	Endpoint      string         `required:"true" yaml:"endpoint"`
 	GatewayConfig *GatewayConfig `yaml:"gateway"`
 	Logging       LoggingConfig  `yaml:"logging"`
@@ -59,8 +60,8 @@ type HubConfig struct {
 }
 
 // NewConfig loads a hub config from the specified YAML file.
-func NewConfig(path string) (*HubConfig, error) {
-	conf := &HubConfig{}
+func NewConfig(path string) (*Config, error) {
+	conf := &Config{}
 	err := configor.Load(conf, path)
 	if err != nil {
 		return nil, err
@@ -68,6 +69,6 @@ func NewConfig(path string) (*HubConfig, error) {
 	return conf, nil
 }
 
-func (c *HubConfig) EndpointIP() string {
+func (c *Config) EndpointIP() string {
 	return strings.Split(c.Endpoint, ":")[0]
 }

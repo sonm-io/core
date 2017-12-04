@@ -27,7 +27,7 @@ ethereum:
   private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
 cluster:
-  grpc_endpoint: ":10001"
+  endpoint: ":10001"
 locator:
   address: "127.0.0.1:9090"
 market:
@@ -40,7 +40,7 @@ market:
 	assert.Nil(t, err)
 
 	assert.Equal(t, ":10002", conf.Endpoint)
-	assert.Equal(t, ":10001", conf.Cluster.GrpcEndpoint)
+	assert.Equal(t, ":10001", conf.Cluster.Endpoint)
 }
 
 func TestLoadInvalidConfig(t *testing.T) {

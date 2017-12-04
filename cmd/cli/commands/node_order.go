@@ -33,7 +33,7 @@ func printAskList(cmd *cobra.Command, slots *pb.SlotsReply) {
 		}
 
 		for id, slot := range slots {
-			cmd.Printf(" ID:  %d", id)
+			cmd.Printf(" ID:  %s", id)
 			cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
 			cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
 			cmd.Printf(" RAM: %s\r\n", ds.ByteSize(slot.Resources.RamBytes).HR())

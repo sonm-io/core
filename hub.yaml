@@ -14,7 +14,7 @@ cluster:
   # An endpoint for client connections using cli
   # allowed format is "ip:port" to bind Hub to given IP address
   # or ":port" to bind Hub to all available IPs
-  grpc_endpoint: ":10001"
+  endpoint: ":10001"
 
   # Use automated failover in case of hub death
   # Requires consul, etcd or zookeeper as a store
@@ -55,9 +55,10 @@ logging:
 
 # blockchain-specific settings.
 ethereum:
-  # Private key for Hub Wallet ethereum account.
-  # (32 bytes in hex format without '0x' prefix.)
-  private_key: "d07fff36ef2c3d15144974c25d3f5c061ae830a81eefd44292588b3cea2c701c"
+  # path to keystore
+  key_store: ""
+  # passphrase for keystore
+  pass_phrase: ""
 
 # locator service allows nodes to discover each other
 locator:
