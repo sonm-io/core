@@ -78,10 +78,16 @@ type Cluster interface {
 // Should be recalled when a cluster's master/slave state changes.
 // The channel is closed when the specified context is canceled.
 func NewCluster(ctx context.Context, cfg *ClusterConfig, creds credentials.TransportCredentials) (Cluster, <-chan ClusterEvent, error) {
-	store, err := makeStore(ctx, cfg)
+	clusterStore, err := makeStore(ctx, cfg)
 	if err != nil {
 		return nil, nil, err
 	}
+
+	err = clusterStore.Put(cfg.SynchronizableEntitiesPrefix, []byte{}, &store.WriteOptions{IsDir: true})
+	if err != nil {
+		return nil, nil, err
+	}
+
 	endpoints, err := parseEndpoints(cfg)
 	if err != nil {
 		return nil, nil, err
@@ -93,7 +99,7 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, creds credentials.Trans
 		registeredEntities: make(map[string]reflect.Type),
 		entityNames:        make(map[reflect.Type]string),
 
-		store: store,
+		store: clusterStore,
 
 		isLeader:  true,
 		id:        uuid.NewV1().String(),
