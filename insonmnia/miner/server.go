@@ -275,6 +275,35 @@ func (m *Miner) Load(stream pb.Miner_LoadServer) error {
 	return nil
 }
 
+func (m *Miner) Save(request *pb.SaveRequest, stream pb.Miner_SaveServer) error {
+	log.G(m.ctx).Info("handling Save request", zap.Any("request", request))
+
+	info, rd, err := m.ovs.Save(stream.Context(), request.ImageID)
+	if err != nil {
+		return err
+	}
+
+	stream.SendHeader(metadata.Pairs("size", strconv.FormatInt(info.Size, 10)))
+
+	streaming := true
+	buf := make([]byte, 1*1024*1024)
+	for streaming {
+		n, err := rd.Read(buf)
+		if err != nil {
+			if err == io.EOF {
+				streaming = false
+			} else {
+				return err
+			}
+		}
+		if err := stream.Send(&pb.Chunk{Chunk: buf[:n]}); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Start request from Hub makes Miner start a container
 func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
@@ -302,6 +331,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Auth:          request.Auth,
 		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
 		Resources:     resources.ToContainerResources(cgroup.Suffix()),
+		DealId:        request.GetOrderId(),
 		TaskId:        request.Id,
 		CommitOnStop:  request.CommitOnStop,
 		Env:           request.Env,

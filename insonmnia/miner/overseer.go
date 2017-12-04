@@ -38,6 +38,7 @@ type Description struct {
 	Cmd           []string
 	Env           map[string]string
 	TaskId        string
+	DealId        string
 	CommitOnStop  bool
 
 	GPURequired bool
@@ -100,6 +101,9 @@ type ExecConnection types.HijackedResponse
 type Overseer interface {
 	// Load loads an image from the specified reader to the Docker.
 	Load(ctx context.Context, rd io.Reader) (imageLoadStatus, error)
+
+	// Save saves an image from the Docker into the returned reader.
+	Save(ctx context.Context, imageID string) (types.ImageInspect, io.ReadCloser, error)
 
 	// Spool prepares an application for its further start.
 	//
@@ -372,6 +376,20 @@ func (o *overseer) Load(ctx context.Context, rd io.Reader) (imageLoadStatus, err
 	defer response.Close()
 
 	return decodeImageLoad(response)
+}
+
+func (o *overseer) Save(ctx context.Context, imageID string) (types.ImageInspect, io.ReadCloser, error) {
+	imageInspect, _, err := o.client.ImageInspectWithRaw(ctx, imageID)
+	if err != nil {
+		return types.ImageInspect{}, nil, err
+	}
+
+	rd, err := o.client.ImageSave(ctx, []string{imageID})
+	if err != nil {
+		return types.ImageInspect{}, nil, err
+	}
+
+	return imageInspect, rd, nil
 }
 
 func (o *overseer) Spool(ctx context.Context, d Description) error {

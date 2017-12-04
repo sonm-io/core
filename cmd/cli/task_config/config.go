@@ -20,6 +20,7 @@ type TaskConfig interface {
 	GetEntrypoint() string
 	GetSSHKey() string
 	GetEnvVars() map[string]string
+	GetCommitOnStop() bool
 
 	GetRegistryName() string
 	GetRegistryAuth() string
@@ -33,10 +34,11 @@ type TaskConfig interface {
 }
 
 type container struct {
-	Name       string            `yaml:"name" required:"true"`
-	Entrypoint string            `yaml:"command" required:"false"`
-	SSHKey     string            `yaml:"ssh_key" required:"false"`
-	Env        map[string]string `yaml:"env" required:"false"`
+	Name         string            `yaml:"name" required:"true"`
+	Entrypoint   string            `yaml:"command" required:"false"`
+	SSHKey       string            `yaml:"ssh_key" required:"false"`
+	Env          map[string]string `yaml:"env" required:"false"`
+	CommitOnStop bool              `yaml:"commit_on_stop" required:"false"`
 }
 
 type registry struct {
@@ -93,6 +95,10 @@ func (yc *YamlConfig) GetSSHKey() string {
 
 func (yc *YamlConfig) GetEnvVars() map[string]string {
 	return yc.Task.Container.Env
+}
+
+func (yc *YamlConfig) GetCommitOnStop() bool {
+	return yc.Task.Container.CommitOnStop
 }
 
 func (yc *YamlConfig) GetRegistryName() string {

@@ -10,6 +10,7 @@ service Miner{
     rpc Info(Empty) returns (InfoReply) {}
     rpc Handshake(MinerHandshakeRequest) returns (MinerHandshakeReply) {}
 
+    rpc Save(SaveRequest) returns (stream Chunk) {}
     rpc Load(stream Chunk) returns (stream Progress) {}
     rpc Start(MinerStartRequest) returns (MinerStartReply) {}
     rpc Stop(ID) returns (Empty) {}
@@ -81,3 +82,7 @@ message Route {
 }
 
 message MinerStatusMapRequest {}
+
+message SaveRequest {
+    string imageID = 1;
+}

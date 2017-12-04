@@ -21,6 +21,7 @@ type CliInteractor interface {
 	TaskList(appCtx context.Context, minerID string) (*pb.StatusMapReply, error)
 	TaskLogs(appCtx context.Context, req *pb.TaskLogsRequest) (pb.Hub_TaskLogsClient, error)
 	TaskPush(ctx context.Context) (pb.Hub_PushTaskClient, error)
+	TaskPull(ctx context.Context, dealID, name, taskID string) (pb.Hub_PullTaskClient, error)
 	TaskStart(appCtx context.Context, req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error)
 	TaskStatus(appCtx context.Context, taskID string) (*pb.TaskStatusReply, error)
 	TaskStop(appCtx context.Context, taskID string) (*pb.Empty, error)
@@ -122,6 +123,14 @@ func (it *grpcInteractor) TaskLogs(appCtx context.Context, req *pb.TaskLogsReque
 
 func (it *grpcInteractor) TaskPush(ctx context.Context) (pb.Hub_PushTaskClient, error) {
 	return it.hub.PushTask(ctx)
+}
+
+func (it *grpcInteractor) TaskPull(ctx context.Context, dealID, name, taskID string) (pb.Hub_PullTaskClient, error) {
+	return it.hub.PullTask(ctx, &pb.PullTaskRequest{
+		DealId: dealID,
+		Name:   name,
+		TaskId: taskID,
+	})
 }
 
 func (it *grpcInteractor) TaskStart(appCtx context.Context, req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
