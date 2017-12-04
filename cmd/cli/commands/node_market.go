@@ -94,7 +94,7 @@ func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
 
 var nodeMarketSearchCmd = &cobra.Command{
 	Use:    "search <slot.yaml>",
-	Short:  "Place new Bid order on Marketplace",
+	Short:  "Search for orders on Marketplace",
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
