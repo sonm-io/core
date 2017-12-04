@@ -98,10 +98,10 @@ var nodeTaskStartCmd = &cobra.Command{
 }
 
 var nodeTaskStatusCmd = &cobra.Command{
-	Use:    "status <task_id>",
+	Use:    "status <hub_addr> <task_id>",
 	Short:  "Show task status",
 	PreRun: loadKeyStoreWrapper,
-	Args:   cobra.MinimumNArgs(1),
+	Args:   cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
@@ -109,8 +109,9 @@ var nodeTaskStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		taskID := args[0]
-		status, err := node.Status(taskID)
+		hubAddr := args[0]
+		taskID := args[1]
+		status, err := node.Status(taskID, hubAddr)
 		if err != nil {
 			showError(cmd, "Cannot get task status", err)
 			os.Exit(1)
@@ -121,10 +122,10 @@ var nodeTaskStatusCmd = &cobra.Command{
 }
 
 var nodeTaskLogsCmd = &cobra.Command{
-	Use:    "logs <task_id>",
+	Use:    "logs <hub_addr> <task_id>",
 	Short:  "Retrieve task logs",
 	PreRun: loadKeyStoreWrapper,
-	Args:   cobra.MinimumNArgs(1),
+	Args:   cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
@@ -132,9 +133,11 @@ var nodeTaskLogsCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		taskID := args[0]
+		hubAddr := args[0]
+		taskID := args[1]
 		req := &pb.TaskLogsRequest{
 			Id:            taskID,
+			HubAddr:       hubAddr,
 			Since:         since,
 			AddTimestamps: addTimestamps,
 			Follow:        follow,
@@ -167,7 +170,7 @@ var nodeTaskLogsCmd = &cobra.Command{
 }
 
 var nodeTaskStopCmd = &cobra.Command{
-	Use:    "stop <task_id>",
+	Use:    "stop <hub_addr> <task_id>",
 	Short:  "Stop task",
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(1),
@@ -178,8 +181,9 @@ var nodeTaskStopCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		taskID := args[0]
-		status, err := node.Stop(taskID)
+		hubAddr := args[0]
+		taskID := args[1]
+		status, err := node.Stop(taskID, hubAddr)
 		if err != nil {
 			showError(cmd, "Cannot stop status", err)
 			os.Exit(1)

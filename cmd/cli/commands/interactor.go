@@ -451,9 +451,9 @@ func NewDealsInteractor(addr string, timeout time.Duration) (DealsInteractor, er
 type TasksInteractor interface {
 	List(hubAddr string) (*pb.TaskListReply, error)
 	Start(req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error)
-	Status(id string) (*pb.TaskStatusReply, error)
+	Status(id, hub string) (*pb.TaskStatusReply, error)
 	Logs(req *pb.TaskLogsRequest) (pb.TaskManagement_LogsClient, error)
-	Stop(id string) (*pb.Empty, error)
+	Stop(id, hub string) (*pb.Empty, error)
 }
 
 type tasksInteractor struct {
@@ -476,11 +476,11 @@ func (it *tasksInteractor) Start(req *pb.HubStartTaskRequest) (*pb.HubStartTaskR
 	return it.tasks.Start(ctx, req)
 }
 
-func (it *tasksInteractor) Status(id string) (*pb.TaskStatusReply, error) {
+func (it *tasksInteractor) Status(id, hub string) (*pb.TaskStatusReply, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.tasks.Status(ctx, &pb.ID{Id: id})
+	return it.tasks.Status(ctx, &pb.TaskID{Id: id, HubAddr: hub})
 }
 
 func (it *tasksInteractor) Logs(req *pb.TaskLogsRequest) (pb.TaskManagement_LogsClient, error) {
@@ -490,11 +490,11 @@ func (it *tasksInteractor) Logs(req *pb.TaskLogsRequest) (pb.TaskManagement_Logs
 	return it.tasks.Logs(ctx, req)
 }
 
-func (it *tasksInteractor) Stop(id string) (*pb.Empty, error) {
+func (it *tasksInteractor) Stop(id, hub string) (*pb.Empty, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.tasks.Stop(ctx, &pb.ID{Id: id})
+	return it.tasks.Stop(ctx, &pb.TaskID{Id: id, HubAddr: hub})
 }
 
 func NewTasksInteractor(addr string, timeout time.Duration) (TasksInteractor, error) {

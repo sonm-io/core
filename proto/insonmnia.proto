@@ -10,6 +10,13 @@ message ID {
     string id = 1;
 }
 
+message TaskID {
+    // Id is task ID itself
+    string id = 1;
+    // HubID is ID of hub on which task if running
+    string hubAddr = 2;
+}
+
 enum NetworkType {
     NO_NETWORK = 0;
     OUTBOUND = 1;
@@ -96,6 +103,7 @@ message TaskLogsRequest {
     bool Follow = 5;
     string Tail = 6;
     bool Details = 7;
+    string hubAddr = 8;
 }
 
 message TaskLogsChunk {

@@ -11,7 +11,6 @@ import (
 	"os/user"
 	"runtime"
 	"strconv"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"gopkg.in/yaml.v2"
@@ -103,25 +102,6 @@ func ParseBigInt(s string) (*big.Int, error) {
 	}
 
 	return n, nil
-}
-
-// ParseTaskID parses string like "qwerty@asdfg" and returns task ID and Hub's Etherum address
-func ParseTaskID(s string) (string, string, error) {
-	parts := strings.Split(s, "@")
-	if len(parts) != 2 {
-		return "", "", fmt.Errorf("task ID is malformed")
-	}
-
-	id, hub := parts[0], parts[1]
-	if id == "" {
-		return "", "", fmt.Errorf("task id is empty")
-	}
-
-	if hub == "" {
-		return "", "", fmt.Errorf("hub address is empty")
-	}
-
-	return id, hub, nil
 }
 
 func GetAvailableIPs() (availableIPs []net.IP, err error) {
