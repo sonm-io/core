@@ -40,6 +40,8 @@ func TestTaskFull(t *testing.T) {
     GPU: true
     GPU_type: nv1080it
     RAM: 10240kb
+  deal:
+    id: 42
 `)
 	defer deleteTestConfigFile()
 
@@ -74,6 +76,8 @@ func TestTaskNoRegistry(t *testing.T) {
     GPU: true
     GPU_type: nv1080it
     RAM: 10240kb
+  deal:
+    id: 42
 `)
 	defer deleteTestConfigFile()
 
@@ -91,6 +95,8 @@ func TestTaskMinimal(t *testing.T) {
     name: user/image:v1
   resources:
     RAM: 100MB
+  deal:
+    id: 42
 `)
 	defer deleteTestConfigFile()
 
@@ -120,6 +126,8 @@ func TestTaskNameRequired(t *testing.T) {
   resources:
     CPU: 2
     RAM: 100MB
+  deal:
+    id: 42
 `)
 	defer deleteTestConfigFile()
 	cfg, err := LoadConfig(testCfgPath)
@@ -134,6 +142,8 @@ func TestTaskRAMRequired(t *testing.T) {
     name: user/image:v1
   resources:
     CPU: 1
+  deal:
+    id: 42
 `)
 	defer deleteTestConfigFile()
 	cfg, err := LoadConfig(testCfgPath)
@@ -150,6 +160,8 @@ func TestTaskInvaludRAMValue(t *testing.T) {
   resources:
     CPU: 1
     RAM: 1488kHz
+  deal:
+    id: 42
 `)
 	defer deleteTestConfigFile()
 
@@ -171,6 +183,8 @@ func TestTaskRegistryAuth(t *testing.T) {
   resources:
     CPU: 1
     RAM: 10MB
+  deal:
+    id: 42
 `)
 	defer deleteTestConfigFile()
 
@@ -208,6 +222,8 @@ func TestTaskConfigReadError(t *testing.T) {
     name: user/image:v1
   resources:
     RAM: 100MB
+  deal:
+    id: 42
 `
 	defer deleteTestConfigFile()
 
@@ -230,6 +246,8 @@ func TestTaskConfigEnv(t *testing.T) {
       key2: value2
   resources:
     RAM: 100MB
+  deal:
+    id: 42
 `)
 	defer deleteTestConfigFile()
 

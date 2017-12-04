@@ -20,6 +20,7 @@ type TaskConfig interface {
 	GetEntrypoint() string
 	GetSSHKey() string
 	GetEnvVars() map[string]string
+	GetCommitOnStop() bool
 
 	GetRegistryName() string
 	GetRegistryAuth() string
@@ -30,13 +31,15 @@ type TaskConfig interface {
 	GetCPUType() string
 	GetGPURequirement() bool
 	GetGPUType() string
+	GetDealId() string
 }
 
 type container struct {
-	Name       string            `yaml:"name" required:"true"`
-	Entrypoint string            `yaml:"command" required:"false"`
-	SSHKey     string            `yaml:"ssh_key" required:"false"`
-	Env        map[string]string `yaml:"env" required:"false"`
+	Name         string            `yaml:"name" required:"true"`
+	Entrypoint   string            `yaml:"command" required:"false"`
+	SSHKey       string            `yaml:"ssh_key" required:"false"`
+	Env          map[string]string `yaml:"env" required:"false"`
+	CommitOnStop bool              `yaml:"commit_on_stop" required:"false"`
 }
 
 type registry struct {
@@ -53,7 +56,12 @@ type resources struct {
 	RAM     string `yaml:"RAM" required:"true"`
 }
 
+type deal struct {
+	Id string `yaml:"id" required:"true"`
+}
+
 type task struct {
+	Deal      deal      `yaml:"deal" required:"true"`
 	Miners    []string  `yaml:"miners" required:"false"`
 	Container container `yaml:"container,flow" required:"true"`
 	Resources resources `yaml:"resources,flow" required:"true"`
@@ -95,6 +103,10 @@ func (yc *YamlConfig) GetEnvVars() map[string]string {
 	return yc.Task.Container.Env
 }
 
+func (yc *YamlConfig) GetCommitOnStop() bool {
+	return yc.Task.Container.CommitOnStop
+}
+
 func (yc *YamlConfig) GetRegistryName() string {
 	if yc.Task.Registry != nil {
 		return yc.Task.Registry.Name
@@ -133,6 +145,10 @@ func (yc *YamlConfig) GetCPUType() string {
 
 func (yc *YamlConfig) GetGPUType() string {
 	return yc.Task.Resources.GPUType
+}
+
+func (yc *YamlConfig) GetDealId() string {
+	return yc.Task.Deal.Id
 }
 
 func (yc *YamlConfig) GetGPURequirement() bool {

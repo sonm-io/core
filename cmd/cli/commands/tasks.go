@@ -389,11 +389,15 @@ func taskStartCmdRunner(cmd *cobra.Command, taskConfig task_config.TaskConfig, i
 	}
 
 	var req = &pb.HubStartTaskRequest{
+		Deal: &pb.Deal{
+			Id: taskConfig.GetDealId(),
+		},
 		Image:         taskConfig.GetImageName(),
 		Registry:      taskConfig.GetRegistryName(),
 		Auth:          taskConfig.GetRegistryAuth(),
 		PublicKeyData: taskConfig.GetSSHKey(),
 		Env:           taskConfig.GetEnvVars(),
+		CommitOnStop:  taskConfig.GetCommitOnStop(),
 	}
 
 	rep, err := interactor.TaskStart(context.Background(), req)
