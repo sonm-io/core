@@ -280,7 +280,6 @@ func (h *orderHandler) findDealOnce(key *ecdsa.PrivateKey, addr, hash string) *p
 type marketAPI struct {
 	remotes *remoteOptions
 	ctx     context.Context
-
 	taskMux sync.Mutex
 	tasks   map[string]*orderHandler
 }
@@ -423,7 +422,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 
 	err = handler.createDeal(orderToDeal, m.remotes.key)
 	if err != nil {
-		log.G(handler.ctx).Info("cannot create deal, failing handler")
+		log.G(handler.ctx).Info("cannot create deal", zap.Error(err))
 		handler.setError(err)
 		return err
 	}

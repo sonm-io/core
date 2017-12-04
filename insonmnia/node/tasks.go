@@ -177,6 +177,7 @@ func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.Hu
 		return nil, err
 	}
 
+	// maybe blocking connection required?
 	cc, err := util.MakeGrpcClient(ctx, addrReply.IpAddr[0], t.remotes.creds)
 	if err != nil {
 		return nil, err
@@ -186,7 +187,6 @@ func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.Hu
 }
 
 func newTasksAPI(opts *remoteOptions) (pb.TaskManagementServer, error) {
-
 	return &tasksAPI{
 		ctx:     opts.ctx,
 		remotes: opts,
