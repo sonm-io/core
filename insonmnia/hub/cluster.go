@@ -83,16 +83,9 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, creds credentials.Trans
 		return nil, nil, err
 	}
 
-	exists, err := store.Exists(cfg.SynchronizableEntitiesPrefix)
+	err = store.Put(cfg.SynchronizableEntitiesPrefix, []byte{}, nil)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to check if SynchronizableEntitiesPrefix exists: %s", err)
-	}
-
-	if !exists {
-		err = store.Put(cfg.SynchronizableEntitiesPrefix, []byte{}, nil)
-		if err != nil {
-			return nil, nil, err
-		}
+		return nil, nil, err
 	}
 
 	endpoints, err := parseEndpoints(cfg)
