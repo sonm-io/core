@@ -330,14 +330,14 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	}
 
 	// Extract proper miner associated with the deal specified.
-	miner, usage, err := h.findMinerByOrder(OrderId(request.GetOrderId()))
+	miner, usage, err := h.findMinerByOrder(OrderId(request.GetDealId()))
 	if err != nil {
 		return nil, err
 	}
 
 	taskID := h.generateTaskID()
 	startRequest := &pb.MinerStartRequest{
-		OrderId:       request.GetOrderId(),
+		OrderId:       request.GetDealId(),
 		Id:            taskID,
 		Registry:      request.GetRegistry(),
 		Image:         request.GetImage(),
