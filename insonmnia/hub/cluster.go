@@ -83,7 +83,7 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, creds credentials.Trans
 		return nil, nil, err
 	}
 
-	err = store.Put(cfg.SynchronizableEntitiesPrefix, []byte{}, nil)
+	err = store.Put(cfg.SynchronizableEntitiesPrefix, []byte{}, &store.WriteOptions{IsDir: true})
 	if err != nil {
 		return nil, nil, err
 	}
