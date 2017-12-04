@@ -7,6 +7,7 @@ import (
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
@@ -131,10 +132,11 @@ func buildTestHub(ctrl *gomock.Controller) (*Hub, error) {
 	clustr := getTestCluster(ctrl)
 	config := getTestHubConfig()
 
-	buildr := NewBuilder()
-	buildr.WithPrivateKey(key).WithMarket(market).WithCluster(clustr, nil)
+	bc := blockchain.NewMockBlockchainer(ctrl)
+	bc.EXPECT().GetDealInfo(gomock.Any()).AnyTimes().Return(&pb.Deal{}, nil)
 
-	return buildr.Build(config)
+	return New(context.Background(), config, "",
+		WithPrivateKey(key), WithMarket(market), WithCluster(clustr, nil), WithBlockchain(bc))
 }
 
 func TestHubCreateRemoveSlot(t *testing.T) {

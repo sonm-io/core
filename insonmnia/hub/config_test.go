@@ -27,7 +27,7 @@ ethereum:
   private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
 cluster:
-  grpc_endpoint: ":10001"
+  endpoint: ":10001"
 locator:
   address: "127.0.0.1:9090"
 market:

@@ -58,16 +58,8 @@ func main() {
 	}
 	creds := util.NewTLS(TLSConfig)
 
-	builder := hub.NewBuilder()
-	builder.
-		WithVersion(version).
-		WithContext(ctx).
-		WithPrivateKey(key).
-		WithCreds(creds).
-		WithCertRotator(certRotator)
-
-	// h, err := hub.New(ctx, cfg, version)
-	h, err := builder.Build(cfg)
+	h, err := hub.New(ctx, cfg, version, hub.WithVersion(version), hub.WithContext(ctx),
+		hub.WithPrivateKey(key), hub.WithCreds(creds), hub.WithCertRotator(certRotator))
 	if err != nil {
 		ctxlog.GetLogger(ctx).Error("failed to create a new Hub", zap.Error(err))
 		os.Exit(1)

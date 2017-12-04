@@ -7,6 +7,7 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -14,6 +15,7 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/blockchain"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 
@@ -833,122 +835,129 @@ func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, 
 }
 
 // New returns new Hub
-//func New(ctx context.Context, cfg *Config, version string) (*Hub, error) {
-//	var err error
-//	ctx, cancel := context.WithCancel(ctx)
-//	defer func() {
-//		if err != nil {
-//			cancel()
-//		}
-//	}()
-//
-//	ethKey, err := crypto.HexToECDSA("0x0")
-//	if err != nil {
-//		return nil, errors.Wrap(err, "malformed ethereum private key")
-//	}
-//
-//	ip := cfg.EndpointIP()
-//	clientPort, err := util.ParseEndpointPort(cfg.Cluster.Endpoint)
-//	if err != nil {
-//		return nil, errors.Wrap(err, "error during parsing client endpoint")
-//	}
-//	grpcEndpointAddr := ip + ":" + clientPort
-//
-//	var gate *gateway.Gateway
-//	var portPool *gateway.PortPool
-//	if cfg.GatewayConfig != nil {
-//		gate, err = gateway.NewGateway(ctx)
-//		if err != nil {
-//			return nil, err
-//		}
-//
-//		if len(cfg.GatewayConfig.Ports) != 2 {
-//			return nil, errors.New("gateway ports must be a range of two values")
-//		}
-//
-//		portRangeFrom := cfg.GatewayConfig.Ports[0]
-//		portRangeSize := cfg.GatewayConfig.Ports[1] - portRangeFrom
-//		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
-//	}
-//
-//	eth, err := NewETH(ctx, ethKey, nil)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	//market, err := NewMarket(ctx, cfg.Market.Address)
-//	//if err != nil {
-//	//	return nil, err
-//	//}
-//
-//	acl := NewACLStorage()
-//
-//	h := &Hub{
-//		cfg:              cfg,
-//		ctx:              ctx,
-//		cancel:           cancel,
-//		gateway:          gate,
-//		portPool:         portPool,
-//		externalGrpc:     nil,
-//		grpcEndpointAddr: grpcEndpointAddr,
-//
-//		miners: make(map[string]*MinerCtx),
-//
-//		ethKey:  ethKey,
-//		version: version,
-//
-//		// locatorEndpoint: cfg.Locator.Address,
-//		locatorPeriod: time.Second * time.Duration(cfg.Locator.Period),
-//
-//		associatedHubs: make(map[string]struct{}),
-//
-//		eth:    eth,
-//		market: nil,
-//
-//		deviceProperties: make(map[string]DeviceProperties),
-//		slots:            make(map[string]*structs.Slot),
-//		acl:              acl,
-//
-//		tasks: make(map[string]*TaskInfo),
-//
-//		certRotator: nil,
-//		creds:       nil,
-//		ethAddr:     util.PubKeyToAddr(ethKey.PublicKey),
-//	}
-//
-//	if os.Getenv("GRPC_INSECURE") == "" {
-//		var TLSConfig *tls.Config
-//		h.certRotator, TLSConfig, err = util.NewHitlessCertRotator(ctx, h.ethKey)
-//		if err != nil {
-//			return nil, err
-//		}
-//		h.creds = util.NewTLS(TLSConfig)
-//	}
-//
-//	h.initWorkerACLs()
-//
-//	h.cluster, h.clusterEvents, err = NewCluster(ctx, &cfg.Cluster, h.creds)
-//	if err != nil {
-//		return nil, err
-//	}
-//
-//	grpcServer := util.MakeGrpcServer(h.creds, grpc.UnaryInterceptor(h.onRequest))
-//	h.externalGrpc = grpcServer
-//
-//	pb.RegisterHubServer(grpcServer, h)
-//	log.G(h.ctx).Debug("created hub")
-//	return h, nil
-//}
+func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub, error) {
+	defaults := defaultHubOptions()
+	for _, o := range opts {
+		o(defaults)
+	}
 
-//func (h *Hub) initWorkerACLs() {
-//	// Do nothing when we're running with insecure mode.
-//	if h.creds == nil {
-//		return
-//	}
-//
-//	h.acl.Insert(h.ethAddr)
-//	log.G(h.ctx).Info("registered default worker credentials", zap.String("wallet", h.ethAddr))
-//}ˆ
+	if defaults.ethKey == nil {
+		return nil, errors.New("cannot build Hub instance without private key")
+	}
+
+	if defaults.ctx == nil {
+		defaults.ctx = context.Background()
+	}
+
+	var err error
+	ctx, cancel := context.WithCancel(defaults.ctx)
+	defer func() {
+		if err != nil {
+			cancel()
+		}
+	}()
+
+	ip := cfg.EndpointIP()
+	clientPort, err := util.ParseEndpointPort(cfg.Cluster.Endpoint)
+	if err != nil {
+		return nil, errors.Wrap(err, "error during parsing client endpoint")
+	}
+	grpcEndpointAddr := ip + ":" + clientPort
+
+	var gate *gateway.Gateway
+	var portPool *gateway.PortPool
+	if cfg.GatewayConfig != nil {
+		gate, err = gateway.NewGateway(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(cfg.GatewayConfig.Ports) != 2 {
+			return nil, errors.New("gateway ports must be a range of two values")
+		}
+
+		portRangeFrom := cfg.GatewayConfig.Ports[0]
+		portRangeSize := cfg.GatewayConfig.Ports[1] - portRangeFrom
+		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
+	}
+
+	if defaults.bcr == nil {
+		defaults.bcr, err = blockchain.NewAPI(nil, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	ethWrapper, err := NewETH(ctx, defaults.ethKey, defaults.bcr)
+	if err != nil {
+		return nil, err
+	}
+
+	if defaults.locator == nil {
+		conn, err := util.MakeGrpcClient(defaults.ctx, cfg.Locator.Address, defaults.creds, grpc.WithTimeout(5*time.Second))
+		if err != nil {
+			return nil, err
+		}
+
+		defaults.locator = pb.NewLocatorClient(conn)
+	}
+
+	if defaults.cluster == nil {
+		defaults.cluster, defaults.clusterEvents, err = NewCluster(ctx, &cfg.Cluster, defaults.creds)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if os.Getenv("GRPC_INSECURE") != "" {
+		defaults.rot = nil
+		defaults.creds = nil
+	}
+
+	acl := NewACLStorage()
+	if defaults.creds != nil {
+		acl.Insert(defaults.ethAddr)
+	}
+
+	h := &Hub{
+		cfg:              cfg,
+		ctx:              ctx,
+		cancel:           cancel,
+		gateway:          gate,
+		portPool:         portPool,
+		externalGrpc:     nil,
+		grpcEndpointAddr: grpcEndpointAddr,
+
+		ethKey:  defaults.ethKey,
+		ethAddr: defaults.ethAddr,
+		version: defaults.version,
+
+		locatorPeriod: time.Second * time.Duration(cfg.Locator.Period),
+		locatorClient: defaults.locator,
+
+		eth:    ethWrapper,
+		market: defaults.market,
+
+		tasks:            make(map[string]*TaskInfo),
+		miners:           make(map[string]*MinerCtx),
+		associatedHubs:   make(map[string]struct{}),
+		deviceProperties: make(map[string]DeviceProperties),
+		slots:            make(map[string]*structs.Slot),
+		acl:              acl,
+
+		certRotator: defaults.rot,
+		creds:       defaults.creds,
+
+		cluster:       defaults.cluster,
+		clusterEvents: defaults.clusterEvents,
+	}
+
+	grpcServer := util.MakeGrpcServer(h.creds, grpc.UnaryInterceptor(h.onRequest))
+	h.externalGrpc = grpcServer
+
+	pb.RegisterHubServer(grpcServer, h)
+	return h, nil
+}
 
 func (h *Hub) onNewHub(endpoint string) {
 	h.associatedHubsMu.Lock()
