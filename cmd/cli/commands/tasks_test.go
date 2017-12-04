@@ -15,6 +15,7 @@ import (
 
 func getSimpleTaskConfig(t *testing.T, imageName string) task_config.TaskConfig {
 	task := task_config.NewMockTaskConfig(gomock.NewController(t))
+	task.EXPECT().GetDealId().AnyTimes().Return("")
 	task.EXPECT().GetImageName().AnyTimes().Return(imageName)
 	task.EXPECT().GetSSHKey().AnyTimes().Return("")
 	task.EXPECT().GetRegistryName().AnyTimes().Return("")
@@ -23,6 +24,7 @@ func getSimpleTaskConfig(t *testing.T, imageName string) task_config.TaskConfig 
 	task.EXPECT().GetRAMCount().AnyTimes().Return(uint64(1024))
 	task.EXPECT().GetGPURequirement().AnyTimes().Return(false)
 	task.EXPECT().GetEnvVars().AnyTimes().Return(map[string]string{})
+	task.EXPECT().GetCommitOnStop().AnyTimes().Return(false)
 
 	return task
 }
