@@ -216,10 +216,12 @@ var taskPullCmd = &cobra.Command{
 		if taskPullOutput == "" {
 			wr = os.Stdout
 		} else {
-			wr, err = os.Create(taskPullOutput)
+			file, err := os.Create(taskPullOutput)
 			if err != nil {
 				return err
 			}
+			defer file.Close()
+			wr = file
 		}
 
 		w := bufio.NewWriter(wr)

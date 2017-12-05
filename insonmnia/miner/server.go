@@ -282,6 +282,7 @@ func (m *Miner) Save(request *pb.SaveRequest, stream pb.Miner_SaveServer) error 
 	if err != nil {
 		return err
 	}
+	defer rd.Close()
 
 	stream.SendHeader(metadata.Pairs("size", strconv.FormatInt(info.Size, 10)))
 
