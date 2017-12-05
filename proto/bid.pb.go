@@ -45,6 +45,7 @@ It has these top-level messages:
 	PullTaskRequest
 	Empty
 	ID
+	TaskID
 	PingReply
 	CPUUsage
 	MemoryUsage

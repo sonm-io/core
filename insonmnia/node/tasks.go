@@ -20,7 +20,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 
 	// has hubID, can perform direct request
 	if req.GetHubID() != "" {
-		log.G(t.ctx).Info("has HubID, performing direct request")
+		log.G(t.ctx).Info("has HubAddr, performing direct request")
 		hubClient, err := t.getHubClientByEthAddr(ctx, req.GetHubID())
 		if err != nil {
 			return nil, err
@@ -88,32 +88,22 @@ func (t *tasksAPI) Start(ctx context.Context, req *pb.HubStartTaskRequest) (*pb.
 	return reply, nil
 }
 
-func (t *tasksAPI) Status(ctx context.Context, id *pb.ID) (*pb.TaskStatusReply, error) {
+func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusReply, error) {
 	log.G(t.ctx).Info("handling Status request", zap.String("id", id.Id))
 
-	taskID, hubEth, err := util.ParseTaskID(id.Id)
+	hubClient, err := t.getHubClientByEthAddr(ctx, id.HubAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	hubClient, err := t.getHubClientByEthAddr(ctx, hubEth)
-	if err != nil {
-		return nil, err
-	}
-
-	return hubClient.TaskStatus(ctx, &pb.ID{Id: taskID})
+	return hubClient.TaskStatus(ctx, &pb.ID{Id: id.Id})
 }
 
 func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServer) error {
 	log.G(t.ctx).Info("handling Logs request", zap.Any("request", req))
 
 	ctx := context.Background()
-	_, hubEth, err := util.ParseTaskID(req.Id)
-	if err != nil {
-		return err
-	}
-
-	hubClient, err := t.getHubClientByEthAddr(ctx, hubEth)
+	hubClient, err := t.getHubClientByEthAddr(ctx, req.HubAddr)
 	if err != nil {
 		return err
 	}
@@ -140,20 +130,15 @@ func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServe
 	}
 }
 
-func (t *tasksAPI) Stop(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
+func (t *tasksAPI) Stop(ctx context.Context, id *pb.TaskID) (*pb.Empty, error) {
 	log.G(t.ctx).Info("handling Stop request", zap.String("id", id.Id))
 
-	taskID, hubEth, err := util.ParseTaskID(id.Id)
+	hubClient, err := t.getHubClientByEthAddr(ctx, id.HubAddr)
 	if err != nil {
 		return nil, err
 	}
 
-	hubClient, err := t.getHubClientByEthAddr(ctx, hubEth)
-	if err != nil {
-		return nil, err
-	}
-
-	return hubClient.StopTask(ctx, &pb.ID{Id: taskID})
+	return hubClient.StopTask(ctx, &pb.ID{Id: id.Id})
 }
 
 func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (pb.HubClient, error) {

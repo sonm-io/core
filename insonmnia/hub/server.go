@@ -362,7 +362,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 }
 
 func (h *Hub) generateTaskID() string {
-	return fmt.Sprintf("%s", uuid.New())
+	return uuid.New()
 }
 
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
@@ -417,9 +417,9 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	routes := miner.registerRoutes(taskID, response.GetRoutes())
 
 	// TODO: Synchronize routes with the cluster.
-
 	reply := &pb.HubStartTaskReply{
-		Id: taskID,
+		Id:      taskID,
+		HubAddr: h.ethAddr,
 	}
 
 	for _, route := range routes {

@@ -97,6 +97,7 @@ message HubStartTaskRequest {
 message HubStartTaskReply {
     string id = 1;
     repeated string endpoint = 2;
+    string hubAddr = 3;
 }
 
 message HubStatusReply {
