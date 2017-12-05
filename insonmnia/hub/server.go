@@ -893,7 +893,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		}
 	}
 
-	ethWrapper, err := NewETH(ctx, defaults.ethKey, defaults.bcr)
+	ethWrapper, err := NewETH(ctx, defaults.ethKey, defaults.bcr, defaultDealWaitTimeout)
 	if err != nil {
 		return nil, err
 	}

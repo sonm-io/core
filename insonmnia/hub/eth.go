@@ -24,10 +24,13 @@ type ETH interface {
 	CheckDealExists(id string) (bool, error)
 }
 
+const defaultDealWaitTimeout = 900 * time.Second
+
 type eth struct {
-	key *ecdsa.PrivateKey
-	bc  blockchain.Blockchainer
-	ctx context.Context
+	key     *ecdsa.PrivateKey
+	bc      blockchain.Blockchainer
+	ctx     context.Context
+	timeout time.Duration
 }
 
 func (e *eth) WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error) {
@@ -37,7 +40,7 @@ func (e *eth) WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error)
 
 func (e *eth) findDeals(ctx context.Context, addr, hash string) (*pb.Deal, error) {
 	// TODO(sshaman1101): make if configurable?
-	ctx, cancel := context.WithTimeout(e.ctx, 900*time.Second)
+	ctx, cancel := context.WithTimeout(e.ctx, e.timeout)
 	defer cancel()
 
 	tk := time.NewTicker(3 * time.Second)
@@ -117,7 +120,7 @@ func (e *eth) CheckDealExists(id string) (bool, error) {
 }
 
 // NewETH constructs a new Ethereum client.
-func NewETH(ctx context.Context, key *ecdsa.PrivateKey, bcr blockchain.Blockchainer) (ETH, error) {
+func NewETH(ctx context.Context, key *ecdsa.PrivateKey, bcr blockchain.Blockchainer, timeout time.Duration) (ETH, error) {
 	var err error
 	if bcr == nil {
 		bcr, err = blockchain.NewAPI(nil, nil)
@@ -127,8 +130,9 @@ func NewETH(ctx context.Context, key *ecdsa.PrivateKey, bcr blockchain.Blockchai
 	}
 
 	return &eth{
-		ctx: ctx,
-		key: key,
-		bc:  bcr,
+		ctx:     ctx,
+		key:     key,
+		bc:      bcr,
+		timeout: timeout,
 	}, nil
 }
