@@ -26,7 +26,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 )
 
-const validPeriod = time.Hour * 4
+var validPeriod = time.Hour * 4
 
 // HitlessCertRotator renews TLS cert periodically
 type HitlessCertRotator interface {
@@ -86,11 +86,14 @@ func (r *hitlessCertRotator) rotateOnce() (*tls.Certificate, error) {
 }
 
 func (r *hitlessCertRotator) rotation() {
-	t := time.NewTicker(validPeriod / 3)
+	rotationPeriod := validPeriod / 3
+	log.G(r.ctx).Info("start certificate rotation loop", zap.Duration("every", rotationPeriod))
+	t := time.NewTicker(rotationPeriod)
 	defer t.Stop()
 	for {
 		select {
 		case <-t.C:
+			log.G(r.ctx).Info("rotate certificate")
 			cert, err := r.rotateOnce()
 			if err == nil {
 				r.mu.Lock()
@@ -176,7 +179,7 @@ func GenerateCert(ethpriv *ecdsa.PrivateKey) (cert []byte, key []byte, err error
 	return cert, key, err
 }
 
-func сheckCert(cert *x509.Certificate) (string, error) {
+func checkCert(cert *x509.Certificate) (string, error) {
 	if time.Now().After(cert.NotAfter) {
 		return "", fmt.Errorf("certificate has expired")
 	}
