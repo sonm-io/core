@@ -9,7 +9,6 @@ ifeq ($(GO), )
 endif
 INSTALLDIR=${GOPATH}/bin/
 
-BOOTNODE=sonmbootnode
 MINER=sonmminer
 HUB=sonmhub
 CLI=sonmcli
@@ -40,10 +39,6 @@ all: mock vet fmt build test
 build/locator:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${LOCATOR} ${GOCMD}/locator
-
-build/bootnode:
-	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${BOOTNODE} ${GOCMD}/bootnode
 
 build/miner:
 	@echo "+ $@"
@@ -78,12 +73,7 @@ build/insomnia: build/hub build/miner build/cli build/node
 
 build/aux: build/locator build/marketplace
 
-build: build/bootnode build/insomnia build/aux
-
-install/bootnode: build/bootnode
-	@echo "+ $@"
-	mkdir -p ${INSTALLDIR}
-	cp ${BOOTNODE} ${INSTALLDIR}
+build: build/insomnia build/aux
 
 install/miner: build/miner
 	@echo "+ $@"
@@ -105,7 +95,7 @@ install/node: build/node
 	mkdir -p ${INSTALLDIR}
 	cp ${LOCAL_NODE} ${INSTALLDIR}
 
-install: install/bootnode install/miner install/hub install/cli
+install: install/miner install/hub install/cli
 
 vet:
 	@echo "+ $@"
@@ -151,7 +141,7 @@ mock:
 		"github.com/sonm-io/core/proto" HubClient && ${SED}
 
 clean:
-	rm -f ${MINER} ${HUB} ${CLI} ${BOOTNODE} ${MARKET}
+	rm -f ${MINER} ${HUB} ${CLI} ${MARKET}
 
 deb:
 	debuild --no-lintian --preserve-env -uc -us -i -I
