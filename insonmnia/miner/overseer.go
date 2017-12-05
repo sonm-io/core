@@ -55,13 +55,15 @@ func (d *Description) FormatEnv() []string {
 
 // ContainerInfo is a brief information about containers
 type ContainerInfo struct {
-	status    *pb.TaskStatusReply
-	ID        string
-	ImageName string
-	StartAt   time.Time
-	Ports     nat.PortMap
-	Resources resource.Resources
-	PublicKey ssh.PublicKey
+	status       *pb.TaskStatusReply
+	ID           string
+	ImageName    string
+	StartAt      time.Time
+	Ports        nat.PortMap
+	Resources    resource.Resources
+	PublicKey    ssh.PublicKey
+	Cgroup       string
+	CgroupParent string
 }
 
 // ContainerMetrics are metrics collected from Docker about running containers
@@ -445,16 +447,30 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		// NOTE: I don't think it can fail
 		return
 	}
+
+	var cpuCount int
+	if description.Resources.CPUQuota > 0 {
+		cpuCount = int(description.Resources.CPUQuota / 100000)
+	} else if description.Resources.CPUCount > 0 {
+		cpuCount = int(description.Resources.CPUCount)
+	} else {
+		cpuCount = 1
+	}
+
 	var gpuCount = 0
 	if description.GPURequired {
 		gpuCount = -1
 	}
+
 	cinfo = ContainerInfo{
-		status:    &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
-		ID:        cjson.ID,
-		Ports:     cjson.NetworkSettings.Ports,
-		Resources: resource.NewResources(1, description.Resources.Memory, gpuCount),
+		status:       &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
+		ID:           cjson.ID,
+		Ports:        cjson.NetworkSettings.Ports,
+		Resources:    resource.NewResources(cpuCount, description.Resources.Memory, gpuCount),
+		Cgroup:       string(cjson.HostConfig.Cgroup),
+		CgroupParent: string(cjson.HostConfig.CgroupParent),
 	}
+
 	return status, cinfo, nil
 }
 
