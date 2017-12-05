@@ -903,6 +903,11 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		}
 	}()
 
+	if os.Getenv("GRPC_INSECURE") != "" {
+		defaults.rot = nil
+		defaults.creds = nil
+	}
+
 	ip := cfg.EndpointIP()
 	clientPort, err := util.ParseEndpointPort(cfg.Cluster.Endpoint)
 	if err != nil {
@@ -940,7 +945,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	if defaults.locator == nil {
-		conn, err := util.MakeGrpcClient(defaults.ctx, cfg.Locator.Address, defaults.creds, grpc.WithTimeout(5*time.Second))
+		conn, err := util.MakeGrpcClient(defaults.ctx, cfg.Locator.Address, defaults.creds)
 		if err != nil {
 			return nil, err
 		}
@@ -948,16 +953,20 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		defaults.locator = pb.NewLocatorClient(conn)
 	}
 
+	if defaults.market == nil {
+		conn, err := util.MakeGrpcClient(defaults.ctx, cfg.Market.Address, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		defaults.market = pb.NewMarketClient(conn)
+	}
+
 	if defaults.cluster == nil {
 		defaults.cluster, defaults.clusterEvents, err = NewCluster(ctx, &cfg.Cluster, defaults.creds)
 		if err != nil {
 			return nil, err
 		}
-	}
-
-	if os.Getenv("GRPC_INSECURE") != "" {
-		defaults.rot = nil
-		defaults.creds = nil
 	}
 
 	acl := NewACLStorage()
