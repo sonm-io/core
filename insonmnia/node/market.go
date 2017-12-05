@@ -169,14 +169,15 @@ func (h *orderHandler) propose(askID, supID string) error {
 		return err
 	}
 
-	req := &pb.DealRequest{BidId: h.order.Id, AskId: askID, Order: h.order}
+	// TODO(sshaman1101): spec hash required here
+	req := &pb.DealRequest{BidId: h.order.Id, AskId: askID, Order: h.order, SpecHash: "0"}
 	_, err = hub.ProposeDeal(h.ctx, req)
 	if err != nil {
 		log.G(h.ctx).Info("cannot propose createDeal to Hub", zap.Error(err))
-		// return typed error
 		return errCannotProposeOrder
 	}
 
+	log.G(h.ctx).Info("order proposed successfully", zap.String("hub_ip", hubIP))
 	return nil
 }
 
@@ -187,7 +188,7 @@ func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey) error 
 
 	deal := &pb.Deal{
 		SupplierID: order.GetSupplierID(),
-		BuyerID:    order.GetByuerID(),
+		BuyerID:    util.PubKeyToAddr(key.PublicKey),
 		Price:      order.Price,
 		Status:     pb.DealStatus_PENDING,
 		// TODO(sshaman1101): calculate hash
@@ -408,6 +409,9 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 			}
 		} else {
 			// stop proposing orders, now need to create Eth deal
+			log.G(handler.ctx).Info("finish proposing deal",
+				zap.String("ord.id", ord.Id),
+				zap.String("sup.id", ord.SupplierID))
 			orderToDeal = ord
 			break
 		}

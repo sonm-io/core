@@ -7,6 +7,7 @@ import (
 
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -72,8 +73,13 @@ var nodeTaskStartCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		deal := &pb.Deal{
+			Id:      dealID,
+			BuyerID: util.PubKeyToAddr(sessionKey.PublicKey),
+		}
+
 		var req = &pb.HubStartTaskRequest{
-			Deal:          &pb.Deal{Id: dealID},
+			Deal:          deal,
 			Image:         taskDef.GetImageName(),
 			Registry:      taskDef.GetRegistryName(),
 			Auth:          taskDef.GetRegistryAuth(),

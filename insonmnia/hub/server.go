@@ -611,6 +611,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		int64(resources.GetMemoryInBytes()),
 		resources.GetGPUCount(),
 	)
+
 	miner, err := h.findRandomMinerByUsage(&usage)
 	if err != nil {
 		return nil, err
@@ -620,7 +621,6 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 	}
 
 	h.waiter.Go(h.getDealWaiter(ctx, request))
-	h.waiter.Wait()
 
 	return &pb.Empty{}, nil
 }
@@ -939,7 +939,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		}
 	}
 
-	ethWrapper, err := NewETH(ctx, defaults.ethKey, defaults.bcr)
+	ethWrapper, err := NewETH(ctx, defaults.ethKey, defaults.bcr, defaultDealWaitTimeout)
 	if err != nil {
 		return nil, err
 	}

@@ -5,6 +5,8 @@ import (
 	"math/big"
 	"testing"
 
+	"time"
+
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/blockchain"
@@ -79,20 +81,22 @@ func TestEth_WaitForDealCreated(t *testing.T) {
 		nil)
 
 	eeth := &eth{
-		ctx: context.Background(),
-		key: key,
-		bc:  bC,
+		ctx:     context.Background(),
+		key:     key,
+		bc:      bC,
+		timeout: time.Second,
 	}
 
 	req, err := structs.NewDealRequest(&pb.DealRequest{
 		AskId:    addr,
 		BidId:    "client-addr",
 		SpecHash: "bbb",
-		Order:    &pb.Order{Slot: &pb.Slot{}},
+		Order:    &pb.Order{Slot: &pb.Slot{}, ByuerID: "client-addr"},
 	})
 	assert.NoError(t, err)
 
 	found, err := eeth.WaitForDealCreated(req)
+
 	assert.NoError(t, err)
 	assert.Equal(t, "bbb", found.SpecificationHash)
 	assert.Equal(t, "client-addr", found.BuyerID)
@@ -118,16 +122,17 @@ func TestEth_CheckDealExists2(t *testing.T) {
 		nil)
 
 	eeth := &eth{
-		ctx: context.Background(),
-		key: key,
-		bc:  bC,
+		ctx:     context.Background(),
+		key:     key,
+		bc:      bC,
+		timeout: time.Second,
 	}
 
 	req, err := structs.NewDealRequest(&pb.DealRequest{
 		AskId:    addr,
 		BidId:    "client-addr",
 		SpecHash: "aaa",
-		Order:    &pb.Order{Slot: &pb.Slot{}},
+		Order:    &pb.Order{Slot: &pb.Slot{}, ByuerID: "client-addr"},
 	})
 	assert.NoError(t, err)
 

@@ -5,10 +5,12 @@ import (
 	"crypto/ecdsa"
 	"time"
 
+	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"go.uber.org/zap"
 )
 
 type ETH interface {
@@ -22,20 +24,23 @@ type ETH interface {
 	CheckDealExists(id string) (bool, error)
 }
 
+const defaultDealWaitTimeout = 900 * time.Second
+
 type eth struct {
-	key *ecdsa.PrivateKey
-	bc  blockchain.Blockchainer
-	ctx context.Context
+	key     *ecdsa.PrivateKey
+	bc      blockchain.Blockchainer
+	ctx     context.Context
+	timeout time.Duration
 }
 
 func (e *eth) WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error) {
 	// e.findDeals blocks until order will be found or timeout will reached
-	return e.findDeals(e.ctx, request.BidId, request.SpecHash)
+	return e.findDeals(e.ctx, request.Order.ByuerID, request.SpecHash)
 }
 
 func (e *eth) findDeals(ctx context.Context, addr, hash string) (*pb.Deal, error) {
 	// TODO(sshaman1101): make if configurable?
-	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(e.ctx, e.timeout)
 	defer cancel()
 
 	tk := time.NewTicker(3 * time.Second)
@@ -63,6 +68,11 @@ func (e *eth) findDealOnce(addr, hash string) *pb.Deal {
 	if err != nil {
 		return nil
 	}
+
+	log.G(e.ctx).Info("found some opened deals",
+		zap.String("addr", addr),
+		zap.String("hash", hash),
+		zap.Int("count", len(IDs)))
 
 	for _, id := range IDs {
 		// then get extended info
@@ -110,7 +120,7 @@ func (e *eth) CheckDealExists(id string) (bool, error) {
 }
 
 // NewETH constructs a new Ethereum client.
-func NewETH(ctx context.Context, key *ecdsa.PrivateKey, bcr blockchain.Blockchainer) (ETH, error) {
+func NewETH(ctx context.Context, key *ecdsa.PrivateKey, bcr blockchain.Blockchainer, timeout time.Duration) (ETH, error) {
 	var err error
 	if bcr == nil {
 		bcr, err = blockchain.NewAPI(nil, nil)
@@ -120,8 +130,9 @@ func NewETH(ctx context.Context, key *ecdsa.PrivateKey, bcr blockchain.Blockchai
 	}
 
 	return &eth{
-		ctx: ctx,
-		key: key,
-		bc:  bcr,
+		ctx:     ctx,
+		key:     key,
+		bc:      bcr,
+		timeout: timeout,
 	}, nil
 }
