@@ -29,12 +29,10 @@ func DefaultConfig(addr string) *LocatorConfig {
 		ListenAddr:    addr,
 		NodeTTL:       time.Hour,
 		CleanupPeriod: time.Minute,
-		Eth: EthConfig{
-			PrivateKey: "d07fff36ef2c3d15144974c25d3f5c061ae830a81eefd44292588b3cea2c701c",
-		},
 	}
 }
 
 type EthConfig struct {
-	PrivateKey string `required:"true" yaml:"private_key"`
+	Passphrase string `required:"false" default:"" yaml:"pass_phrase"`
+	Keystore   string `required:"false" default:"" yaml:"key_store"`
 }

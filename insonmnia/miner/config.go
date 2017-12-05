@@ -19,7 +19,8 @@ type FirewallConfig struct {
 }
 
 type EthConfig struct {
-	PrivateKey string `required:"true" yaml:"private_key"`
+	Passphrase string `required:"false" default:"" yaml:"pass_phrase"`
+	Keystore   string `required:"false" default:"" yaml:"key_store"`
 }
 
 // GPUConfig contains options related to NVIDIA GPU support

@@ -1,20 +1,29 @@
 package locator
 
 import (
+	"crypto/ecdsa"
 	"crypto/tls"
 	"testing"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
+var (
+	key = getTestKey()
+)
+
+func getTestKey() *ecdsa.PrivateKey {
+	k, _ := crypto.GenerateKey()
+	return k
+}
+
 func TestLocator_Announce(t *testing.T) {
-	lc, err := NewLocator(context.Background(), DefaultConfig(":9090"))
+	lc, err := NewLocator(context.Background(), DefaultConfig(":9090"), key)
 	if err != nil {
 		t.Error(err)
 		return
@@ -34,7 +43,7 @@ func TestLocator_Announce(t *testing.T) {
 }
 
 func TestLocator_Resolve(t *testing.T) {
-	lc, err := NewLocator(context.Background(), DefaultConfig(":9090"))
+	lc, err := NewLocator(context.Background(), DefaultConfig(":9090"), key)
 	if err != nil {
 		t.Error(err)
 		return
@@ -49,7 +58,7 @@ func TestLocator_Resolve(t *testing.T) {
 }
 
 func TestLocator_Resolve2(t *testing.T) {
-	lc, err := NewLocator(context.Background(), DefaultConfig(":9090"))
+	lc, err := NewLocator(context.Background(), DefaultConfig(":9090"), key)
 	if err != nil {
 		t.Error(err)
 		return
@@ -68,12 +77,9 @@ func TestLocator_Expire(t *testing.T) {
 		ListenAddr:    ":9090",
 		NodeTTL:       2 * time.Second,
 		CleanupPeriod: time.Second,
-		Eth: EthConfig{
-			PrivateKey: "d07fff36ef2c3d15144974c25d3f5c061ae830a81eefd44292588b3cea2c701c",
-		},
 	}
 
-	lc, err := NewLocator(context.Background(), conf)
+	lc, err := NewLocator(context.Background(), conf, key)
 	if err != nil {
 		t.Error(err)
 		return
@@ -90,7 +96,7 @@ func TestLocator_Expire(t *testing.T) {
 }
 
 func TestLocator_AnnounceExternal(t *testing.T) {
-	lc, err := NewLocator(context.Background(), DefaultConfig("localhost:9090"))
+	lc, err := NewLocator(context.Background(), DefaultConfig("localhost:9090"), key)
 	if err != nil {
 		t.Error(err)
 		return
@@ -102,13 +108,7 @@ func TestLocator_AnnounceExternal(t *testing.T) {
 		}
 	}()
 
-	ethKey, err := crypto.HexToECDSA("44f2d47988142fda13c27d7da0990ba534b50d6bf7e9dbc9d13654c5795881ae")
-	if err != nil {
-		t.Error(errors.Wrap(err, "malformed ethereum private key"))
-		return
-	}
-
-	cert, key, err := util.GenerateCert(ethKey)
+	cert, key, err := util.GenerateCert(key)
 	if err != nil {
 		t.Error(err)
 		return

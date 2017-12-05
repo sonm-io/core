@@ -56,9 +56,9 @@ logging:
 # blockchain-specific settings.
 ethereum:
   # path to keystore
-  key_store: ""
+  key_store: "./keys"
   # passphrase for keystore
-  pass_phrase: ""
+  pass_phrase: "any"
 
 # locator service allows nodes to discover each other
 locator:

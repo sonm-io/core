@@ -235,3 +235,18 @@ func getDefaultKeyStorePath() (string, error) {
 	keyDir := path.Join(home, defaultKeystorePath)
 	return keyDir, nil
 }
+
+func LoadKeys(keystore, passphrase string) (*ecdsa.PrivateKey, error) {
+	p := NewFmtPrinter()
+	ko, err := DefaultKeyOpener(p, keystore, passphrase)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = ko.OpenKeystore()
+	if err != nil {
+		return nil, err
+	}
+
+	return ko.GetKey()
+}

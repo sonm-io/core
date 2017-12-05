@@ -1,10 +1,11 @@
 package miner
 
 import (
-	"crypto/ecdsa"
 	"crypto/tls"
 	"fmt"
 	"os"
+
+	"crypto/ecdsa"
 
 	"github.com/ccding/go-stun/stun"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -17,8 +18,6 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/credentials"
-
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 )
 
 var (
@@ -34,6 +33,7 @@ type MinerBuilder struct {
 	ovs      Overseer
 	uuid     string
 	ssh      SSH
+	key      *ecdsa.PrivateKey
 }
 
 func (b *MinerBuilder) Context(ctx context.Context) *MinerBuilder {
@@ -132,20 +132,15 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	if os.Getenv("GRPC_INSECURE") == "" {
 		var (
-			ethKey  *ecdsa.PrivateKey
 			TLSConf *tls.Config
 		)
-		if b.cfg.ETH() == nil || b.cfg.ETH().PrivateKey == "" {
+		if b.key == nil {
 			cancel()
 			return nil, fmt.Errorf("either PrivateKey or GRPC_INSECURE environment variable must be set")
 		}
-		ethKey, err = ethcrypto.HexToECDSA(b.cfg.ETH().PrivateKey)
-		if err != nil {
-			cancel()
-			return nil, err
-		}
+
 		// The rotator will be stopped by ctx
-		certRotator, TLSConf, err = util.NewHitlessCertRotator(ctx, ethKey)
+		certRotator, TLSConf, err = util.NewHitlessCertRotator(ctx, b.key)
 		if err != nil {
 			return nil, err
 		}
@@ -248,8 +243,8 @@ func makeCgroupManager(cfg *ResourcesConfig) (cGroup, cGroupManager, error) {
 	return newCgroupManager(cfg.Cgroup, cfg.Resources)
 }
 
-func NewMinerBuilder(cfg Config) MinerBuilder {
-	b := MinerBuilder{}
+func NewMinerBuilder(cfg Config, key *ecdsa.PrivateKey) MinerBuilder {
+	b := MinerBuilder{key: key}
 	b.Config(cfg)
 	return b
 }

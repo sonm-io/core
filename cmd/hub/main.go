@@ -1,13 +1,11 @@
 package main
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"os"
 	"os/signal"
 
 	flag "github.com/ogier/pflag"
-	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
 
@@ -18,6 +16,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/accounts"
 )
 
 var (
@@ -45,7 +44,7 @@ func main() {
 	logger := logging.BuildLogger(cfg.Logging.Level, true)
 	ctx = log.WithLogger(ctx, logger)
 
-	key, err := loadKeys(cfg)
+	key, err := accounts.LoadKeys(cfg.Eth.Keystore, cfg.Eth.Passphrase)
 	if err != nil {
 		ctxlog.GetLogger(ctx).Error("failed load private key", zap.Error(err))
 		os.Exit(1)
@@ -75,19 +74,4 @@ func main() {
 	if err = h.Serve(); err != nil {
 		ctxlog.GetLogger(ctx).Error("Server stop", zap.Error(err))
 	}
-}
-
-func loadKeys(c *hub.Config) (*ecdsa.PrivateKey, error) {
-	p := accounts.NewFmtPrinter()
-	ko, err := accounts.DefaultKeyOpener(p, c.Eth.Keystore, c.Eth.Passphrase)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = ko.OpenKeystore()
-	if err != nil {
-		return nil, err
-	}
-
-	return ko.GetKey()
 }
