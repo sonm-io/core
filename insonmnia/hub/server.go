@@ -617,7 +617,7 @@ func (h *Hub) findRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, erro
 	id := 0
 	var result *MinerCtx = nil
 	for _, miner := range h.miners {
-		if err := miner.PollConsume(usage); err != nil {
+		if err := miner.PollConsume(usage); err == nil {
 			id++
 			threshold := 1.0 / float64(id)
 			if rg.Float64() < threshold {
