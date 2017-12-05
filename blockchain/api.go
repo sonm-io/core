@@ -367,6 +367,7 @@ func (bch *api) GetDealInfo(id *big.Int) (*pb.Deal, error) {
 		return nil, err
 	}
 	dealInfo := pb.Deal{
+		Id:                id.String(),
 		BuyerID:           deal.Client.String(),
 		SupplierID:        deal.Hub.String(),
 		SpecificationHash: deal.SpecHach.String(),
