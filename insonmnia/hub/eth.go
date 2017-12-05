@@ -5,10 +5,12 @@ import (
 	"crypto/ecdsa"
 	"time"
 
+	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"go.uber.org/zap"
 )
 
 type ETH interface {
@@ -30,12 +32,12 @@ type eth struct {
 
 func (e *eth) WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error) {
 	// e.findDeals blocks until order will be found or timeout will reached
-	return e.findDeals(e.ctx, request.BidId, request.SpecHash)
+	return e.findDeals(e.ctx, request.Order.ByuerID, request.SpecHash)
 }
 
 func (e *eth) findDeals(ctx context.Context, addr, hash string) (*pb.Deal, error) {
 	// TODO(sshaman1101): make if configurable?
-	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(e.ctx, 900*time.Second)
 	defer cancel()
 
 	tk := time.NewTicker(3 * time.Second)
@@ -63,6 +65,11 @@ func (e *eth) findDealOnce(addr, hash string) *pb.Deal {
 	if err != nil {
 		return nil
 	}
+
+	log.G(e.ctx).Info("found some opened deals",
+		zap.String("addr", addr),
+		zap.String("hash", hash),
+		zap.Int("count", len(IDs)))
 
 	for _, id := range IDs {
 		// then get extended info

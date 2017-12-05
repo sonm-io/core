@@ -565,6 +565,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		int64(resources.GetMemoryInBytes()),
 		resources.GetGPUCount(),
 	)
+
 	miner, err := h.findRandomMinerByUsage(&usage)
 	if err != nil {
 		return nil, err
@@ -574,7 +575,6 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 	}
 
 	h.waiter.Go(h.getDealWaiter(ctx, request))
-	h.waiter.Wait()
 
 	return &pb.Empty{}, nil
 }
@@ -617,7 +617,7 @@ func (h *Hub) findRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, erro
 	id := 0
 	var result *MinerCtx = nil
 	for _, miner := range h.miners {
-		if err := miner.PollConsume(usage); err != nil {
+		if err := miner.PollConsume(usage); err == nil {
 			id++
 			threshold := 1.0 / float64(id)
 			if rg.Float64() < threshold {
