@@ -12,6 +12,12 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
+// grpccmd imports
+import (
+	"github.com/nathanielc/grpccmd"
+	"github.com/spf13/cobra"
+)
+
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
@@ -176,6 +182,50 @@ var _Locator_serviceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "locator.proto",
 }
+
+// Begin grpccmd
+var _ = grpccmd.RunE
+
+// Locator
+var _LocatorCmd = &cobra.Command{
+	Use:   "locator [method]",
+	Short: "Subcommand for the Locator service.",
+}
+
+var _Locator_AnnounceCmd = &cobra.Command{
+	Use:   "announce",
+	Short: "Make the Announce method call, input-type: sonm.AnnounceRequest output-type: sonm.Empty",
+	RunE: grpccmd.RunE(
+		"Announce",
+		"sonm.AnnounceRequest",
+		func(c *grpc.ClientConn) interface{} {
+			return NewLocatorClient(c)
+		},
+	),
+}
+
+var _Locator_ResolveCmd = &cobra.Command{
+	Use:   "resolve",
+	Short: "Make the Resolve method call, input-type: sonm.ResolveRequest output-type: sonm.ResolveReply",
+	RunE: grpccmd.RunE(
+		"Resolve",
+		"sonm.ResolveRequest",
+		func(c *grpc.ClientConn) interface{} {
+			return NewLocatorClient(c)
+		},
+	),
+}
+
+// Register commands with the root command and service command
+func init() {
+	grpccmd.RegisterServiceCmd(_LocatorCmd)
+	_LocatorCmd.AddCommand(
+		_Locator_AnnounceCmd,
+		_Locator_ResolveCmd,
+	)
+}
+
+// End grpccmd
 
 func init() { proto.RegisterFile("locator.proto", fileDescriptor5) }
 
