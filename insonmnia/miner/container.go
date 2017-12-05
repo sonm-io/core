@@ -2,6 +2,7 @@ package miner
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"path/filepath"
 
@@ -190,7 +191,9 @@ func (c *containerDescriptor) upload() error {
 		return err
 	}
 
-	newImg, err := reference.WithTag(named, c.description.TaskId)
+	tag := fmt.Sprintf("%s_%s", c.description.DealId, c.description.TaskId)
+
+	newImg, err := reference.WithTag(named, tag)
 	if err != nil {
 		log.G(c.ctx).Error("failed to add tag", zap.String("id", resp.ID), zap.Error(err))
 		return err

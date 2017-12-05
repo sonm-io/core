@@ -23,6 +23,7 @@ func getSimpleTaskConfig(t *testing.T, imageName string) task_config.TaskConfig 
 	task.EXPECT().GetRAMCount().AnyTimes().Return(uint64(1024))
 	task.EXPECT().GetGPURequirement().AnyTimes().Return(false)
 	task.EXPECT().GetEnvVars().AnyTimes().Return(map[string]string{})
+	task.EXPECT().GetCommitOnStop().AnyTimes().Return(false)
 
 	return task
 }

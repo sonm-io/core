@@ -37,11 +37,12 @@ import (
 )
 
 var (
-	ErrInvalidOrderType  = status.Errorf(codes.InvalidArgument, "invalid order type")
-	ErrAskNotFound       = status.Errorf(codes.NotFound, "ask not found")
-	ErrDeviceNotFound    = status.Errorf(codes.NotFound, "device not found")
-	ErrMinerNotFound     = status.Errorf(codes.NotFound, "miner not found")
-	errContractNotExists = status.Errorf(codes.NotFound, "specified contract not exists in the Ethereum")
+	ErrInvalidOrderType        = status.Errorf(codes.InvalidArgument, "invalid order type")
+	ErrAskNotFound             = status.Errorf(codes.NotFound, "ask not found")
+	ErrDeviceNotFound          = status.Errorf(codes.NotFound, "device not found")
+	ErrMinerNotFound           = status.Errorf(codes.NotFound, "miner not found")
+	errContractNotExists       = status.Errorf(codes.NotFound, "specified contract not exists in the Ethereum")
+	errWorkerProtocolViolation = status.Errorf(codes.Internal, "detected worker protocol violation")
 )
 
 // Hub collects miners, send them orders to spawn containers, etc.
@@ -305,6 +306,51 @@ func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 	}
 }
 
+func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer) error {
+	log.G(h.ctx).Info("handling PullTask request", zap.Any("request", request))
+
+	ctx := log.WithLogger(h.ctx, log.G(h.ctx).With(zap.String("request", "pull task"), zap.String("id", uuid.New())))
+
+	// TODO: Rename OrderId to DealId.
+	miner, _, err := h.findMinerByOrder(OrderId(request.GetDealId()))
+	if err != nil {
+		return err
+	}
+
+	// TODO: I don't like that we need explicit container name. Maybe we can store it here?
+	imageID := fmt.Sprintf("%s:%s_%s", request.GetName(), request.GetDealId(), request.GetTaskId())
+
+	log.G(ctx).Debug("pulling image", zap.String("imageID", imageID))
+
+	client, err := miner.Client.Save(stream.Context(), &pb.SaveRequest{ImageID: imageID})
+	header, err := client.Header()
+	if err != nil {
+		return err
+	}
+	stream.SetHeader(header)
+
+	streaming := true
+	for streaming {
+		chunk, err := client.Recv()
+		if chunk != nil {
+			log.G(ctx).Debug("progress", zap.Int("chunkSize", len(chunk.Chunk)))
+
+			if err := stream.Send(chunk); err != nil {
+				return err
+			}
+		}
+		if err != nil {
+			if err == io.EOF {
+				streaming = false
+			} else {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
 	log.G(h.ctx).Info("handling StartTask request", zap.Any("request", request))
 
@@ -316,7 +362,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 }
 
 func (h *Hub) generateTaskID() string {
-	return fmt.Sprintf("%s@%s", uuid.New(), h.ethAddr)
+	return fmt.Sprintf("%s", uuid.New())
 }
 
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
@@ -329,14 +375,14 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	}
 
 	// Extract proper miner associated with the deal specified.
-	miner, usage, err := h.findMinerByOrder(OrderId(request.GetOrderId()))
+	miner, usage, err := h.findMinerByOrder(OrderId(request.GetDealId()))
 	if err != nil {
 		return nil, err
 	}
 
 	taskID := h.generateTaskID()
 	startRequest := &pb.MinerStartRequest{
-		OrderId:       request.GetOrderId(),
+		OrderId:       request.GetDealId(),
 		Id:            taskID,
 		Registry:      request.GetRegistry(),
 		Image:         request.GetImage(),

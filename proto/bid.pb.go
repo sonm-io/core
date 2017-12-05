@@ -42,6 +42,7 @@ It has these top-level messages:
 	GPUDeviceInfo
 	DevicesReply
 	InsertSlotRequest
+	PullTaskRequest
 	Empty
 	ID
 	PingReply
@@ -74,6 +75,7 @@ It has these top-level messages:
 	TaskInfo
 	Route
 	MinerStatusMapRequest
+	SaveRequest
 	TaskListRequest
 	DealListRequest
 	DealListReply

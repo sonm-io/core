@@ -20,6 +20,7 @@ service Hub {
     rpc TaskList(Empty) returns (TaskListReply) {}
 
     rpc PushTask(stream Chunk) returns (stream Progress) {}
+    rpc PullTask(PullTaskRequest) returns (stream Chunk) {}
     // StartTask schedules the task associcated with a deal on some miner.
     rpc StartTask(HubStartTaskRequest) returns (HubStartTaskReply) {}
     rpc StopTask(ID) returns (Empty) {}
@@ -64,7 +65,7 @@ service Hub {
     rpc Slots(Empty) returns (SlotsReply) {}
     // AddSlot allows to assign a new slot.
     // This method can fail if either there are no such resources found or it
-    // has been previourly assigned. 
+    // has been previourly assigned.
     rpc InsertSlot(InsertSlotRequest) returns (ID) {}
     // RemoveSlot removes the speified slot if fully matches.
     rpc RemoveSlot(ID) returns (Empty) {}
@@ -182,4 +183,10 @@ message DevicesReply {
 message InsertSlotRequest {
     Slot slot = 1;
     string price = 2;
+}
+
+message PullTaskRequest {
+    string dealId = 1;
+    string name = 2;
+    string taskId = 3;
 }

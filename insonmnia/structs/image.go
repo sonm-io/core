@@ -25,7 +25,7 @@ func requireHeader(md metadata.MD, name string) (string, error) {
 	return value[len(value)-1], nil
 }
 
-func requireHeaderInt64(md metadata.MD, name string) (int64, error) {
+func RequireHeaderInt64(md metadata.MD, name string) (int64, error) {
 	value, err := requireHeader(md, name)
 	if err != nil {
 		return 0, err
@@ -50,7 +50,7 @@ func NewImagePush(stream sonm.Hub_PushTaskServer) (*ImagePush, error) {
 		return nil, err
 	}
 
-	imageSize, err := requireHeaderInt64(md, "size")
+	imageSize, err := RequireHeaderInt64(md, "size")
 	if err != nil {
 		return nil, err
 	}

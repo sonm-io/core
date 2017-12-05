@@ -44,13 +44,13 @@ func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
 	}
 
 	for i, order := range orders {
-		cmd.Printf("%d) %s %s | price = %s\r\n", i+1, order.OrderType.String(), order.Id, order.Price)
+		cmd.Printf("%d) %s %s | price = %d\r\n", i+1, order.OrderType.String(), order.Id, order.Price)
 	}
 }
 
 func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 	cmd.Printf("ID:             %s\r\n", order.Id)
-	cmd.Printf("Price:          %s\r\n", order.Price)
+	cmd.Printf("Price:          %d\r\n", order.Price)
 
 	cmd.Printf("SupplierID:     %s\r\n", order.SupplierID)
 	cmd.Printf("SupplierRating: %d\r\n", order.Slot.SupplierRating)

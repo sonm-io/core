@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,11 +16,14 @@ import (
 	"github.com/gosuri/uiprogress"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/cmd/cli/task_config"
+	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
 )
+
+var taskPullOutput string
 
 func init() {
 	taskLogsCmd.Flags().StringVar(&logType, logTypeFlag, "both", "\"stdout\" or \"stderr\" or \"both\"")
@@ -28,7 +33,9 @@ func init() {
 	taskLogsCmd.Flags().StringVar(&tail, tailFlag, "50", "Number of lines to show from the end of the logs")
 	taskLogsCmd.Flags().BoolVar(&details, detailsFlag, false, "Show extra details provided to logs")
 
-	tasksRootCmd.AddCommand(taskListCmd, taskLogsCmd, taskPushCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
+	tasksRootCmd.AddCommand(taskListCmd, taskLogsCmd, taskPushCmd, taskPullCmd, taskStartCmd, taskStatusCmd, taskStopCmd)
+
+	taskPullCmd.Flags().StringVar(&taskPullOutput, "output", "", "file to output")
 }
 
 func printTaskList(cmd *cobra.Command, minerStatus *pb.StatusMapReply, miner string) {
@@ -189,6 +196,96 @@ var taskStartCmd = &cobra.Command{
 		}
 
 		taskStartCmdRunner(cmd, taskDef, itr)
+		return nil
+	},
+}
+
+var taskPullCmd = &cobra.Command{
+	Use:          "pull DEAL_ID NAME TASK_ID",
+	Short:        "Pull committed image from the completed task.",
+	SilenceUsage: true,
+	PreRunE:      checkHubAddressIsSet,
+	Args:         cobra.ExactArgs(3),
+	RunE: func(cmd *cobra.Command, args []string) error {
+		dealId := args[0]
+		name := args[1]
+		taskId := args[2]
+
+		var wr io.Writer
+		var err error
+		if taskPullOutput == "" {
+			wr = os.Stdout
+		} else {
+			file, err := os.Create(taskPullOutput)
+			if err != nil {
+				return err
+			}
+			defer file.Close()
+			wr = file
+		}
+
+		w := bufio.NewWriter(wr)
+
+		it, err := NewGrpcInteractor(hubAddressFlag, timeoutFlag)
+		if err != nil {
+			return err
+		}
+
+		client, err := it.TaskPull(context.Background(), dealId, name, taskId)
+		if err != nil {
+			return err
+		}
+
+		var bar *uiprogress.Bar
+		var bytesRecv int64
+
+		receivedSize := false
+		streaming := true
+		for streaming {
+			chunk, err := client.Recv()
+			if chunk != nil {
+				if !receivedSize {
+					header, err := client.Header()
+					if err != nil {
+						return err
+					}
+					size, err := structs.RequireHeaderInt64(header, "size")
+					if err != nil {
+						return err
+					}
+
+					if taskPullOutput != "" {
+						uiprogress.Start()
+						bar = uiprogress.AddBar(int(size))
+						bar.PrependFunc(func(b *uiprogress.Bar) string {
+							return fmt.Sprintf("Pushing %d/%d B)", bytesRecv, size)
+						})
+						bar.AppendCompleted()
+					}
+					receivedSize = true
+				}
+				n, err := io.Copy(wr, bytes.NewReader(chunk.Chunk))
+				if err != nil {
+					return err
+				}
+
+				bytesRecv += n
+				if bar != nil {
+					bar.Set(int(bytesRecv))
+				}
+			}
+			if err != nil {
+				if err == io.EOF {
+					streaming = false
+				} else {
+					return err
+				}
+			}
+		}
+
+		if err := w.Flush(); err != nil {
+			return err
+		}
 		return nil
 	},
 }
@@ -394,6 +491,7 @@ func taskStartCmdRunner(cmd *cobra.Command, taskConfig task_config.TaskConfig, i
 		Auth:          taskConfig.GetRegistryAuth(),
 		PublicKeyData: taskConfig.GetSSHKey(),
 		Env:           taskConfig.GetEnvVars(),
+		CommitOnStop:  taskConfig.GetCommitOnStop(),
 	}
 
 	rep, err := interactor.TaskStart(context.Background(), req)
