@@ -77,9 +77,14 @@ func TestSecureGRPCConnect(t *testing.T) {
 
 	t.Run("ClientWithoutTLS", func(t *testing.T) {
 		conn, err := MakeGrpcClient(ctx, lis.Addr().String(), nil, grpc.WithBlock(), grpc.WithTimeout(time.Second))
-		require.NoError(err)
-		defer conn.Close()
+		if err != nil {
+			// On Linux we can have an error here due to failed TLS Handshake
+			// It's expected behavior
+			return
+		}
+		// If we passed here, error must occure after the first call
 		require.NotNil(conn)
+		defer conn.Close()
 		err = grpc.Invoke(ctx, "/DummyService/dummyMethod", nil, nil, conn)
 		require.NotNil(err)
 		st, ok := status.FromError(err)
