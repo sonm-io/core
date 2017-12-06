@@ -27,8 +27,8 @@ type Config interface {
 type cliConfig struct {
 	HubAddr    string `required:"false" default:"" yaml:"hub_address"`
 	OutFormat  string `required:"false" default:"" yaml:"output_format"`
-	Passphrase string `required:"false" default:"" yaml:"pass_phrase"`
 	Keystore   string `required:"false" default:"" yaml:"key_store"`
+	Passphrase string `required:"false" default:"" yaml:"pass_phrase"`
 }
 
 func (cc *cliConfig) OutputFormat() string {
