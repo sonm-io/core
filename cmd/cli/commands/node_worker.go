@@ -7,18 +7,18 @@ import (
 )
 
 func init() {
-	nodeWorkerRootCmd.AddCommand(
-		nodeWorkerListCmd,
-		nodeWorkerStatusCmd,
+	hubWorkerRootCmd.AddCommand(
+		workerListCmd,
+		workerStatusCmd,
 	)
 }
 
-var nodeWorkerRootCmd = &cobra.Command{
+var hubWorkerRootCmd = &cobra.Command{
 	Use:   "worker",
 	Short: "Operations with connected Workers",
 }
 
-var nodeWorkerListCmd = &cobra.Command{
+var workerListCmd = &cobra.Command{
 	Use:    "list",
 	Short:  "Show connected workers list",
 	PreRun: loadKeyStoreWrapper,
@@ -39,7 +39,7 @@ var nodeWorkerListCmd = &cobra.Command{
 	},
 }
 
-var nodeWorkerStatusCmd = &cobra.Command{
+var workerStatusCmd = &cobra.Command{
 	Use:    "status <worker_id>",
 	Short:  "Show worker status",
 	Args:   cobra.MinimumNArgs(1),
