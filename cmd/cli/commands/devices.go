@@ -1,71 +1,25 @@
 package commands
 
 import (
-	"encoding/json"
 	"os"
 
-	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	nodeDeviceRootCmd.AddCommand(
-		nodeDeviceListCmd,
-		nodeGetDevPropsCmd,
-		nodeSetDevPropsCmd,
+	hubDeviceRootCmd.AddCommand(
+		deviceListCmd,
+		deviceGetPropsCmd,
+		deviceSetDevPropsCmd,
 	)
 }
 
-func printDeviceList(cmd *cobra.Command, devices *pb.DevicesReply) {
-	if isSimpleFormat() {
-		CPUs := devices.GetCPUs()
-		GPUs := devices.GetGPUs()
-
-		if len(CPUs) == 0 && len(GPUs) == 0 {
-			cmd.Printf("No devices detected.\r\n")
-			return
-		}
-
-		if len(CPUs) > 0 {
-			cmd.Printf("CPUs:\r\n")
-			for id, cpu := range CPUs {
-				cmd.Printf(" %s: %s\r\n", id, cpu.Device.ModelName)
-			}
-		} else {
-			cmd.Printf("No CPUs detected.\r\n")
-		}
-
-		if len(GPUs) > 0 {
-			cmd.Printf("GPUs:\r\n")
-			for id, gpu := range GPUs {
-				cmd.Printf(" %s: %s\r\n", id, gpu.Device.Name)
-			}
-		} else {
-			cmd.Printf("No GPUs detected.\r\n")
-		}
-	} else {
-		b, _ := json.Marshal(devices)
-		cmd.Println(string(b))
-	}
-}
-
-func printDevicesProps(cmd *cobra.Command, props map[string]float64) {
-	if isSimpleFormat() {
-		for k, v := range props {
-			cmd.Printf("%s = %f\r\n", k, v)
-		}
-	} else {
-		b, _ := json.Marshal(props)
-		cmd.Println(string(b))
-	}
-}
-
-var nodeDeviceRootCmd = &cobra.Command{
+var hubDeviceRootCmd = &cobra.Command{
 	Use:   "dev",
 	Short: "Device properties",
 }
 
-var nodeDeviceListCmd = &cobra.Command{
+var deviceListCmd = &cobra.Command{
 	Use:    "list",
 	Short:  "Show Hub's aggregated hardware",
 	PreRun: loadKeyStoreWrapper,
@@ -86,7 +40,7 @@ var nodeDeviceListCmd = &cobra.Command{
 	},
 }
 
-var nodeGetDevPropsCmd = &cobra.Command{
+var deviceGetPropsCmd = &cobra.Command{
 	Use:    "get <dev_id>",
 	Short:  "Get Device properties",
 	Args:   cobra.MinimumNArgs(1),
@@ -109,7 +63,7 @@ var nodeGetDevPropsCmd = &cobra.Command{
 	},
 }
 
-var nodeSetDevPropsCmd = &cobra.Command{
+var deviceSetDevPropsCmd = &cobra.Command{
 	Use:    "set <dev_id> <props.yaml>",
 	Short:  "Set Device properties",
 	Args:   cobra.MinimumNArgs(2),

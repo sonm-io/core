@@ -12,14 +12,14 @@ import (
 )
 
 func init() {
-	nodeOrderRootCmd.AddCommand(
+	hubOrderRootCmd.AddCommand(
 		nodeOrderListCmd,
 		nodeOrderCreateCmd,
 		nodeOrderRemoveCmd,
 	)
 }
 
-var nodeOrderRootCmd = &cobra.Command{
+var hubOrderRootCmd = &cobra.Command{
 	Use:   "ask-plan",
 	Short: "Operations with ask order plan",
 }

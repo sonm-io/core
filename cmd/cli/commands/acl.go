@@ -3,34 +3,20 @@ package commands
 import (
 	"os"
 
-	"encoding/json"
-	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	nodeACLRootCmd.AddCommand(
+	hubACLRootCmd.AddCommand(
 		nodeACLListCmd,
 		nodeACLRegisterCmd,
 		nodeACLDeregisterCmd,
 	)
 }
 
-var nodeACLRootCmd = &cobra.Command{
+var hubACLRootCmd = &cobra.Command{
 	Use:   "acl",
 	Short: "Worker ACL management",
-}
-
-func printWorkerAclList(cmd *cobra.Command, list *pb.GetRegisteredWorkersReply) {
-	if isSimpleFormat() {
-		for i, id := range list.GetIds() {
-			cmd.Printf("%d) %s\r\n", i+1, id.GetId())
-		}
-
-	} else {
-		b, _ := json.Marshal(list)
-		cmd.Printf("%s\r\n", string(b))
-	}
 }
 
 var nodeACLListCmd = &cobra.Command{
