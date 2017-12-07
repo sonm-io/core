@@ -5,6 +5,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/util"
 	"google.golang.org/grpc/credentials"
 )
@@ -22,7 +23,7 @@ func (w *walletAuthenticator) ServerHandshake(conn net.Conn) (net.Conn, credenti
 
 	switch authInfo := authInfo.(type) {
 	case util.EthAuthInfo:
-		if authInfo.Wallet[2:] != w.Wallet {
+		if compareEthAddr(authInfo.Wallet, w.Wallet) {
 			return nil, nil, fmt.Errorf("authorization failed: expected %s, actual %s", w.Wallet, authInfo.Wallet[2:])
 		}
 	default:
@@ -52,4 +53,11 @@ func parseHubEndpoint(endpoint string) (string, string, error) {
 		ethAddr = ethAddr[2:]
 	}
 	return socketAddr, ethAddr, nil
+}
+
+func compareEthAddr(a, b string) bool {
+	s1 := common.HexToAddress(a)
+	s2 := common.HexToAddress(b)
+
+	return s1.String() == s2.String()
 }
