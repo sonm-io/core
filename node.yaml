@@ -22,7 +22,7 @@ locator:
   endpoint: 127.0.0.1:9090
 
 # Settings for Etherum keys
-keys:
+ethereum:
   # path to keystore
   key_store: ""
   # passphrase for keystore

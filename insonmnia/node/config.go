@@ -42,7 +42,7 @@ type locatorConfig struct {
 	Endpoint string `required:"true" default:"" yaml:"endpoint"`
 }
 
-type keysConfig struct {
+type ethConfig struct {
 	Keystore   string `required:"false" default:"" yaml:"key_store"`
 	Passphrase string `required:"false" default:"" yaml:"pass_phrase"`
 }
@@ -52,7 +52,7 @@ type yamlConfig struct {
 	Market  marketConfig  `required:"true" yaml:"market"`
 	Log     logConfig     `required:"true" yaml:"log"`
 	Locator locatorConfig `required:"true" yaml:"locator"`
-	Keys    keysConfig    `required:"false" yaml:"keys"`
+	Eth     ethConfig     `required:"false" yaml:"ethereum"`
 	Hub     *hubConfig    `required:"false" yaml:"hub"`
 }
 
@@ -80,11 +80,11 @@ func (y *yamlConfig) LogLevel() int {
 }
 
 func (y *yamlConfig) KeyStore() string {
-	return y.Keys.Keystore
+	return y.Eth.Keystore
 }
 
 func (y *yamlConfig) PassPhrase() string {
-	return y.Keys.Passphrase
+	return y.Eth.Passphrase
 }
 
 // NewConfig loads localNode config from given .yaml file

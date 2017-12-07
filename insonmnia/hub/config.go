@@ -20,12 +20,12 @@ type EthConfig struct {
 }
 
 type LocatorConfig struct {
-	Address string `required:"true" yaml:"address"`
-	Period  int    `required:"true" default:"300" yaml:"period"`
+	Endpoint string `required:"true" yaml:"endpoint"`
+	Period   int    `required:"true" default:"300" yaml:"period"`
 }
 
 type MarketConfig struct {
-	Address string `required:"true" yaml:"address"`
+	Endpoint string `required:"true" yaml:"endpoint"`
 }
 
 type StoreConfig struct {
