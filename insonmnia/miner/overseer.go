@@ -449,8 +449,10 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 	}
 
 	var cpuCount int
-	if description.Resources.CPUQuota > 0 {
-		cpuCount = int(description.Resources.CPUQuota / 100000)
+	if description.Resources.NanoCPUs > 0 {
+		cpuCount = int(description.Resources.NanoCPUs / 1000000000)
+	} else if description.Resources.CPUQuota > 0 && description.Resources.CPUPeriod > 0 {
+		cpuCount = int(description.Resources.CPUQuota / description.Resources.CPUPeriod)
 	} else if description.Resources.CPUCount > 0 {
 		cpuCount = int(description.Resources.CPUCount)
 	} else {
