@@ -4,7 +4,7 @@ task:
   # docker image settings, required section
   container:
     # image name to start on miner, required param
-    name: httpd:latest
+    name: image:v1
     # env variables that will be passed to container on start
     env:
       param1: value1
