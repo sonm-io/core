@@ -23,7 +23,7 @@ func (w *walletAuthenticator) ServerHandshake(conn net.Conn) (net.Conn, credenti
 
 	switch authInfo := authInfo.(type) {
 	case util.EthAuthInfo:
-		if compareEthAddr(authInfo.Wallet, w.Wallet) {
+		if !compareEthAddr(authInfo.Wallet, w.Wallet) {
 			return nil, nil, fmt.Errorf("authorization failed: expected %s, actual %s", w.Wallet, authInfo.Wallet[2:])
 		}
 	default:
