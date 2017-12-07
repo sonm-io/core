@@ -16,8 +16,6 @@ import (
 )
 
 const (
-	hubAddressFlagName = "addr"
-
 	// log flag names
 	logTypeFlag       = "type"
 	sinceFlag         = "since"
@@ -52,30 +50,18 @@ var (
 	creds      credentials.TransportCredentials
 
 	// errors
-	errHubAddressRequired   = errors.New("--addr flag is required")
-	errWorkerIDRequired     = errors.New("worker ID is required")
-	errTaskIDRequired       = errors.New("task ID is required")
-	errTaskFileRequired     = errors.New("task definition file is required")
 	errNotEnoughArguments   = errors.New("not enough arguments")
 	errCannotParsePropsFile = errors.New("cannot parse props file")
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&hubAddressFlag, hubAddressFlagName, "", "hub addr")
 	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "127.0.0.1:9999", "node addr")
-	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeoutFlag", 60*time.Second, "Connection timeoutFlag")
+	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
 	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "disable TLS via components")
 
-	nodeRootCmd.AddCommand(nodeHubRootCmd, nodeMarketRootCmd, nodeDealsRootCmd, nodeTaskRootCmd)
-	rootCmd.AddCommand(hubRootCmd, minerRootCmd, tasksRootCmd, versionCmd, nodeRootCmd)
-
-	rootCmd.AddCommand(loginCmd)
-}
-
-var nodeRootCmd = &cobra.Command{
-	Use:   "node",
-	Short: "Operations with local node",
+	rootCmd.AddCommand(hubRootCmd, nodeMarketRootCmd, nodeDealsRootCmd, nodeTaskRootCmd)
+	rootCmd.AddCommand(loginCmd, versionCmd)
 }
 
 // Root configure and return root command
@@ -84,13 +70,6 @@ func Root(c config.Config) *cobra.Command {
 	hubAddressFlag = cfg.HubAddress()
 	rootCmd.SetOutput(os.Stdout)
 	return rootCmd
-}
-
-func checkHubAddressIsSet(cmd *cobra.Command, _ []string) error {
-	if cmd.Flag(hubAddressFlagName).Value.String() == "" {
-		return errHubAddressRequired
-	}
-	return nil
 }
 
 // commandError allow to present any internal error as JSON
