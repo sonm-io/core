@@ -471,7 +471,7 @@ func (it *tasksInteractor) List(hubAddr string) (*pb.TaskListReply, error) {
 }
 
 func (it *tasksInteractor) ImagePush(ctx context.Context) (pb.Hub_PushTaskClient, error) {
-	return nil, nil
+	return it.tasks.PushTask(ctx)
 }
 
 func (it *tasksInteractor) Start(req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
@@ -504,9 +504,14 @@ func (it *tasksInteractor) Stop(id, hub string) (*pb.Empty, error) {
 
 func (it *tasksInteractor) ImagePull(dealID, name, taskID string) (pb.Hub_PullTaskClient, error) {
 	ctx := context.Background()
-	_ = ctx
 
-	return nil, nil
+	req := &pb.PullTaskRequest{
+		DealId: dealID,
+		Name:   name,
+		TaskId: taskID,
+	}
+
+	return it.tasks.PullTask(ctx, req)
 }
 
 func NewTasksInteractor(addr string, timeout time.Duration) (TasksInteractor, error) {
