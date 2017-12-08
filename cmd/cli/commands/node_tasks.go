@@ -219,10 +219,9 @@ var taskStopCmd = &cobra.Command{
 var taskPullCmd = &cobra.Command{
 	Use:          "pull <deal_id> <name> <task_id>",
 	Short:        "Pull committed image from the completed task.",
-	SilenceUsage: true,
 	PreRun:       loadKeyStoreWrapper,
-	Args:         cobra.ExactArgs(3),
-	RunE: func(cmd *cobra.Command, args []string) error {
+	Args:         cobra.MinimumNArgs(3),
+	Run: func(cmd *cobra.Command, args []string) {
 		dealId := args[0]
 		name := args[1]
 		taskId := args[2]
@@ -234,8 +233,10 @@ var taskPullCmd = &cobra.Command{
 		} else {
 			file, err := os.Create(taskPullOutput)
 			if err != nil {
-				return err
+				showError(cmd, "Cannot create file", err)
+				os.Exit(1)
 			}
+
 			defer file.Close()
 			wr = file
 		}
@@ -250,7 +251,8 @@ var taskPullCmd = &cobra.Command{
 
 		client, err := node.ImagePull(dealId, name, taskId)
 		if err != nil {
-			return err
+			showError(cmd, "Cannot create image pull client", err)
+			os.Exit(1)
 		}
 
 		var bar *uiprogress.Bar
@@ -262,13 +264,17 @@ var taskPullCmd = &cobra.Command{
 			chunk, err := client.Recv()
 			if chunk != nil {
 				if !receivedSize {
+
 					header, err := client.Header()
 					if err != nil {
-						return err
+						showError(cmd, "Cannot get client header", err)
+						os.Exit(1)
 					}
+
 					size, err := structs.RequireHeaderInt64(header, "size")
 					if err != nil {
-						return err
+						showError(cmd, "Cannot convert header value to int64", err)
+						os.Exit(1)
 					}
 
 					if taskPullOutput != "" {
@@ -281,9 +287,11 @@ var taskPullCmd = &cobra.Command{
 					}
 					receivedSize = true
 				}
+
 				n, err := io.Copy(wr, bytes.NewReader(chunk.Chunk))
 				if err != nil {
-					return err
+					showError(cmd, "Cannot write to file", err)
+					os.Exit(1)
 				}
 
 				bytesRecv += n
@@ -291,27 +299,29 @@ var taskPullCmd = &cobra.Command{
 					bar.Set(int(bytesRecv))
 				}
 			}
+
 			if err != nil {
 				if err == io.EOF {
 					streaming = false
 				} else {
-					return err
+					showError(cmd, "Streaming error", err)
+					os.Exit(1)
 				}
 			}
 		}
 
 		if err := w.Flush(); err != nil {
-			return err
+			showError(cmd, "Cannot flush writer", err)
+			os.Exit(1)
 		}
-		return nil
 	},
 }
 
 var taskPushCmd = &cobra.Command{
 	Use:          "push <deal_id> <archive_path>",
 	Short:        "Push an image from the filesystem",
-	SilenceUsage: true,
 	PreRun:       loadKeyStoreWrapper,
+	Args:         cobra.MinimumNArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) != 2 {
 			return errNotEnoughArguments
@@ -321,6 +331,7 @@ var taskPushCmd = &cobra.Command{
 		path := args[1]
 		file, err := os.Open(path)
 		if err != nil {
+			// TODO(sshaman1101): rewrite error handling using "showError()" and os.Exit(1)
 			return err
 		}
 

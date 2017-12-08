@@ -15,14 +15,18 @@ package sonm;
 service TaskManagement {
     // List produces a list of all tasks running on different SONM nodes
     rpc List(TaskListRequest) returns (TaskListReply) {}
+    // PushTask pushes image to Worker
+    rpc PushTask(stream Chunk) returns (stream Progress) {}
     // Start starts a task on given resource
     rpc Start(HubStartTaskRequest) returns (HubStartTaskReply) {}
     // Status produces a task status by their ID
     rpc Status(TaskID) returns (TaskStatusReply) {}
     // Logs retrieves a task log (stdin/stderr) from given task
     rpc Logs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
-    // Stop stops a task by their IDd
+    // Stop stops a task by their ID
     rpc Stop(TaskID) returns (Empty) {}
+    // PullTask pulls task image back
+    rpc PullTask(PullTaskRequest) returns (stream Chunk) {}
 }
 
 message TaskListRequest {
