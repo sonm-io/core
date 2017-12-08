@@ -7,7 +7,6 @@ import (
 
 	"bufio"
 	"bytes"
-	"errors"
 	"fmt"
 	"strconv"
 
@@ -217,14 +216,14 @@ var taskStopCmd = &cobra.Command{
 }
 
 var taskPullCmd = &cobra.Command{
-	Use:          "pull <deal_id> <name> <task_id>",
-	Short:        "Pull committed image from the completed task.",
-	PreRun:       loadKeyStoreWrapper,
-	Args:         cobra.MinimumNArgs(3),
+	Use:    "pull <deal_id> <name> <task_id>",
+	Short:  "Pull committed image from the completed task.",
+	PreRun: loadKeyStoreWrapper,
+	Args:   cobra.MinimumNArgs(3),
 	Run: func(cmd *cobra.Command, args []string) {
-		dealId := args[0]
+		dealID := args[0]
 		name := args[1]
-		taskId := args[2]
+		taskID := args[2]
 
 		var wr io.Writer
 		var err error
@@ -249,7 +248,7 @@ var taskPullCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		client, err := node.ImagePull(dealId, name, taskId)
+		client, err := node.ImagePull(dealID, name, taskID)
 		if err != nil {
 			showError(cmd, "Cannot create image pull client", err)
 			os.Exit(1)
@@ -318,28 +317,26 @@ var taskPullCmd = &cobra.Command{
 }
 
 var taskPushCmd = &cobra.Command{
-	Use:          "push <deal_id> <archive_path>",
-	Short:        "Push an image from the filesystem",
-	PreRun:       loadKeyStoreWrapper,
-	Args:         cobra.MinimumNArgs(2),
-	RunE: func(cmd *cobra.Command, args []string) error {
-		if len(args) != 2 {
-			return errNotEnoughArguments
-		}
-
-		dealId := args[0]
+	Use:    "push <deal_id> <archive_path>",
+	Short:  "Push an image from the filesystem",
+	PreRun: loadKeyStoreWrapper,
+	Args:   cobra.MinimumNArgs(2),
+	Run: func(cmd *cobra.Command, args []string) {
+		dealID := args[0]
 		path := args[1]
+
 		file, err := os.Open(path)
 		if err != nil {
-			// TODO(sshaman1101): rewrite error handling using "showError()" and os.Exit(1)
-			return err
+			showError(cmd, "Cannot open archive path", err)
+			os.Exit(1)
 		}
 
 		defer file.Close()
 
 		fileInfo, err := file.Stat()
 		if err != nil {
-			return err
+			showError(cmd, "Cannot stat file", err)
+			os.Exit(1)
 		}
 
 		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
@@ -349,13 +346,14 @@ var taskPushCmd = &cobra.Command{
 		}
 
 		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
-			"deal": dealId,
+			"deal": dealID,
 			"size": strconv.FormatInt(fileInfo.Size(), 10),
 		}))
 
 		client, err := node.ImagePush(ctx)
 		if err != nil {
-			return err
+			showError(cmd, "Cannot create push task client", err)
+			os.Exit(1)
 		}
 
 		readCompleted := false
@@ -378,10 +376,12 @@ var taskPushCmd = &cobra.Command{
 						readCompleted = true
 
 						if err := client.CloseSend(); err != nil {
-							return err
+							showError(cmd, "Cannot close client stream", err)
+							os.Exit(1)
 						}
 					} else {
-						return err
+						showError(cmd, "Cannot read file", err)
+						os.Exit(1)
 					}
 				}
 
@@ -397,16 +397,18 @@ var taskPushCmd = &cobra.Command{
 					if bytesCommitted == fileInfo.Size() {
 						status, ok := client.Trailer()["status"]
 						if !ok {
-							return errors.New("no status returned")
+							showError(cmd, "No status returned", nil)
+							os.Exit(1)
 						}
-						fmt.Printf("Status: %s\n", status)
-						return nil
-					} else {
-						return err
+
+						showJSON(cmd, map[string]interface{}{"status": status})
+						return
 					}
 				}
+
 				if err != nil {
-					return err
+					showError(cmd, "Cannot read from stream", nil)
+					os.Exit(1)
 				}
 
 				bytesCommitted += progress.Size
