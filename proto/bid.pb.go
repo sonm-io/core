@@ -53,6 +53,7 @@ It has these top-level messages:
 	ResourceUsage
 	InfoReply
 	TaskStatusReply
+	AvailableResources
 	StatusMapReply
 	ContainerRestartPolicy
 	TaskLogsRequest

@@ -2,21 +2,25 @@
 hub:
   # Endpoint for hub communication
   # Format is "ethAddr@ip:port".
-   endpoint: 8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:10002
+  endpoint: 8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:10002
 
-  # Resources section is available only on Linux
-  # If configured, all tasks will share this pool of resources.
-  # This pool is a parent control group.
-  # Format is Open Container Initiative Runtime Specification:
-  #resources:
-  #  cgroup: insonmnia
-  #  resources:
-  #    # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#memory
-  #    memory: { limit: 1000 }
-  #    # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#cpu
-  #    cpu: {quota: 1024 cpus: "2-3" }
-  #    # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#network
-  #    network: { classID: 1048577 }
+#  Resources section is available only on Linux
+#  If configured, all tasks will share this pool of resources.
+#  This pool is a parent control group.
+#  Format is Open Container Initiative Runtime Specification:
+#  resources:
+#    cgroup: insonmnia
+#    resources:
+#      # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#memory
+#      memory:
+#        limit: 1000
+#      # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#cpu
+#      cpu:
+#        quota: 1024
+#        cpus: "2-3"
+#      # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#network
+#      network:
+#        classID: 1048577
 
 # Logging settings.
 logging:

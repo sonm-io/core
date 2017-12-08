@@ -25,7 +25,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
@@ -130,7 +129,7 @@ func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, erro
 		Uptime:     uint64(uptime),
 		Platform:   util.GetPlatformName(),
 		Version:    h.version,
-		EthAddr:    hex.EncodeToString(crypto.FromECDSA(h.ethKey)),
+		EthAddr:    util.PubKeyToAddr(h.ethKey.PublicKey),
 	}
 
 	return reply, nil

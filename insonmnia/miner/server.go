@@ -576,6 +576,13 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 		Ports:     string(portsStr),
 		Uptime:    uint64(time.Now().UnixNano() - info.StartAt.UnixNano()),
 		Usage:     metric.Marshal(),
+		AvailableResources: &pb.AvailableResources{
+			NumCPUs:      int64(info.Resources.NumCPUs),
+			NumGPUs:      int64(info.Resources.NumGPUs),
+			Memory:       uint64(info.Resources.Memory),
+			Cgroup:       info.ID,
+			CgroupParent: info.CgroupParent,
+		},
 	}
 
 	return reply, nil
