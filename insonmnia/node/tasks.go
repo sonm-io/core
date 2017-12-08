@@ -154,10 +154,7 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 
 	log.G(t.ctx).Info("handling PushTask request", zap.String("deal_id", meta.dealID))
 
-	cc, err := util.MakeGrpcClient(meta.ctx, "[::]:10001", t.remotes.creds)
-	hub := pb.NewHubClient(cc)
-
-	// hub, err := t.getHubClientForDeal(meta.ctx, meta.dealID)
+	hub, err := t.getHubClientForDeal(meta.ctx, meta.dealID)
 	if err != nil {
 		return err
 	}
@@ -221,8 +218,6 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 			}
 		}
 	}
-
-	return nil
 }
 
 func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullTaskServer) error {
@@ -232,12 +227,7 @@ func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullT
 		zap.String("name", req.Name))
 
 	ctx := context.Background()
-
-	cc, err := util.MakeGrpcClient(ctx, "[::]:10001", t.remotes.creds)
-	hub := pb.NewHubClient(cc)
-
-	// TODO(sshaman1101): get it back
-	// hub, err := t.getHubClientForDeal(ctx, req.GetDealId())
+	hub, err := t.getHubClientForDeal(ctx, req.GetDealId())
 	if err != nil {
 		return err
 	}
@@ -245,6 +235,16 @@ func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullT
 	pullClient, err := hub.PullTask(ctx, req)
 	if err != nil {
 		return err
+	}
+
+	header, err := pullClient.Header()
+	if err != nil {
+		return nil
+	}
+
+	err = srv.SetHeader(header)
+	if err != nil {
+		return nil
 	}
 
 	for {
@@ -257,13 +257,13 @@ func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullT
 			return err
 		}
 
-		err = srv.Send(buffer)
-		if err != nil {
-			return err
+		if buffer != nil {
+			err = srv.Send(buffer)
+			if err != nil {
+				return err
+			}
 		}
 	}
-
-	return nil
 }
 
 func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (pb.HubClient, error) {
