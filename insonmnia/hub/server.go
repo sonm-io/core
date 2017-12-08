@@ -944,7 +944,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	if defaults.locator == nil {
-		conn, err := util.MakeGrpcClient(defaults.ctx, cfg.Locator.Address, defaults.creds)
+		conn, err := util.MakeGrpcClient(defaults.ctx, cfg.Locator.Endpoint, defaults.creds)
 		if err != nil {
 			return nil, err
 		}
@@ -953,7 +953,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	if defaults.market == nil {
-		conn, err := util.MakeGrpcClient(defaults.ctx, cfg.Market.Address, nil)
+		conn, err := util.MakeGrpcClient(defaults.ctx, cfg.Market.Endpoint, nil)
 		if err != nil {
 			return nil, err
 		}

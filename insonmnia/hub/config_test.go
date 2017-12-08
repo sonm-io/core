@@ -29,9 +29,9 @@ endpoint: ":10002"
 cluster:
   endpoint: ":10001"
 locator:
-  address: "127.0.0.1:9090"
+  endpoint: "127.0.0.1:9090"
 market:
-  address: "127.0.0.1:9095"`
+  endpoint: "127.0.0.1:9095"`
 
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
@@ -71,9 +71,9 @@ monitoring:
 logging:
   level: -1
 locator:
-  address: "127.0.0.1:9090"
+  endpoint: "127.0.0.1:9090"
 market:
-  address: "127.0.0.1:9095"`
+  endpoint: "127.0.0.1:9095"`
 
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
@@ -93,9 +93,9 @@ endpoint: ":10002"
 monitoring:
   endpoint: ":10001"
 locator:
-  address: "127.0.0.1:9090"
+  endpoint: "127.0.0.1:9090"
 market:
-  address: "127.0.0.1:9095"`
+  endpoint: "127.0.0.1:9095"`
 
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
@@ -111,13 +111,10 @@ func TestLoadConfigWithoutLocator(t *testing.T) {
 ethereum:
   private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
-bootnodes:
-  - "enode://node1"
-  - "enode://node2"
 monitoring:
   endpoint: ":10001"
 locator:
-  address: ""`)
+  endpoint: ""`)
 	assert.Nil(t, err)
 
 	defer deleteTestConfigFile()
@@ -132,15 +129,12 @@ func TestLoadConfigLocatorPeriod(t *testing.T) {
 ethereum:
   private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
-bootnodes:
-  - "enode://node1"
-  - "enode://node2"
 monitoring:
   endpoint: ":10001"
 market:
-  address: "127.0.0.1:9095"
+  endpoint: "127.0.0.1:9095"
 locator:
-  address: "127.0.0.1:9090"
+  endpoint: "127.0.0.1:9090"
   period: 500
   `)
 	assert.Nil(t, err)

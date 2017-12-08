@@ -21,8 +21,9 @@ locator:
   # Locator's gRPC endpoint for Eth to IP addr resolution
   endpoint: 127.0.0.1:9090
 
-# Settings for Ethereum keys
-keys:
+
+# Settings for Etherum keys
+ethereum:
   # path to keystore
   key_store: "./keys"
   # passphrase for keystore
