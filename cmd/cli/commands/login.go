@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -28,5 +29,13 @@ var loginCmd = &cobra.Command{
 		} else {
 			cmd.Printf("Keystore successfully opened\r\n")
 		}
+
+		key, err := ko.GetKey()
+		if err != nil {
+			showError(cmd, "Cannot get key from the keystore", err)
+			os.Exit(1)
+		}
+
+		cmd.Printf("Eth address: %s\r\n", util.PubKeyToAddr(key.PublicKey))
 	},
 }
