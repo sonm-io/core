@@ -1,0 +1,7 @@
+hub_address: "localhost:10001"
+
+output_format: "simple"
+
+key_store: "./keys"
+
+pass_phrase: "any"
