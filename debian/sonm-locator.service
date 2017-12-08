@@ -5,7 +5,7 @@ Description=SONM Locator
 [Service]
 EnvironmentFile=/etc/default/sonm-locator
 Type=simple
-ExecStart=/usr/bin/sonmlocator --addr=${LISTEN_ADDR}
+ExecStart=/usr/bin/sonmlocator --config=${CONFIG_PATH}
 
 
 [Install]
