@@ -267,10 +267,14 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 }
 
 func (m *Miner) Load(stream pb.Miner_LoadServer) error {
+	log.G(m.ctx).Info("handling Load request")
+
 	result, err := m.ovs.Load(stream.Context(), newChunkReader(stream))
 	if err != nil {
 		return err
 	}
+
+	log.G(m.ctx).Info("image loaded, set trailer", zap.String("trailer", result.Status))
 	stream.SetTrailer(metadata.Pairs("status", result.Status))
 	return nil
 }

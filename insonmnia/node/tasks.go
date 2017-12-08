@@ -3,11 +3,16 @@ package node
 import (
 	"io"
 
+	"strconv"
+
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 )
 
 type tasksAPI struct {
@@ -141,6 +146,126 @@ func (t *tasksAPI) Stop(ctx context.Context, id *pb.TaskID) (*pb.Empty, error) {
 	return hubClient.StopTask(ctx, &pb.ID{Id: id.Id})
 }
 
+func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error {
+	meta, err := t.extractStreamMeta(clientStream)
+	if err != nil {
+		return err
+	}
+
+	log.G(t.ctx).Info("handling PushTask request", zap.String("deal_id", meta.dealID))
+
+	cc, err := util.MakeGrpcClient(meta.ctx, "[::]:10001", t.remotes.creds)
+	hub := pb.NewHubClient(cc)
+
+	// hub, err := t.getHubClientForDeal(meta.ctx, meta.dealID)
+	if err != nil {
+		return err
+	}
+
+	hubStream, err := hub.PushTask(meta.ctx)
+	if err != nil {
+		return err
+	}
+
+	bytesCommitted := int64(0)
+	clientCompleted := false
+
+	for {
+		bytesRemaining := 0
+		if !clientCompleted {
+			chunk, err := clientStream.Recv()
+			if err != nil {
+				if err == io.EOF {
+					clientCompleted = true
+				} else {
+					return err
+				}
+			}
+
+			if chunk == nil {
+				if err := hubStream.CloseSend(); err != nil {
+					return err
+				}
+			} else {
+				bytesRemaining = len(chunk.Chunk)
+				if err := hubStream.Send(chunk); err != nil {
+					return err
+				}
+			}
+		}
+
+		for {
+			progress, err := hubStream.Recv()
+			if err != nil {
+				if err == io.EOF {
+					if bytesCommitted == meta.fileSize {
+						clientStream.SetTrailer(hubStream.Trailer())
+						return nil
+					} else {
+						return status.Errorf(codes.Aborted, "miner closed its stream without committing all bytes")
+					}
+				} else {
+					return err
+				}
+			}
+
+			bytesCommitted += progress.Size
+			bytesRemaining -= int(progress.Size)
+
+			if err := clientStream.Send(progress); err != nil {
+				return err
+			}
+
+			if bytesRemaining == 0 {
+				break
+			}
+		}
+	}
+
+	return nil
+}
+
+func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullTaskServer) error {
+	log.G(t.ctx).Info("handling PullTask request",
+		zap.String("deal_id", req.DealId),
+		zap.String("task_id", req.TaskId),
+		zap.String("name", req.Name))
+
+	ctx := context.Background()
+
+	cc, err := util.MakeGrpcClient(ctx, "[::]:10001", t.remotes.creds)
+	hub := pb.NewHubClient(cc)
+
+	// TODO(sshaman1101): get it back
+	// hub, err := t.getHubClientForDeal(ctx, req.GetDealId())
+	if err != nil {
+		return err
+	}
+
+	pullClient, err := hub.PullTask(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	for {
+		buffer, err := pullClient.Recv()
+		if err == io.EOF {
+			return nil
+		}
+
+		if err != nil {
+			return err
+		}
+
+		err = srv.Send(buffer)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (pb.HubClient, error) {
 	bigID, err := util.ParseBigInt(id)
 	if err != nil {
@@ -169,6 +294,42 @@ func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.Hu
 	}
 
 	return pb.NewHubClient(cc), nil
+}
+
+type streamMeta struct {
+	ctx      context.Context
+	dealID   string
+	fileSize int64
+}
+
+func (t *tasksAPI) extractStreamMeta(clientStream pb.TaskManagement_PushTaskServer) (*streamMeta, error) {
+	md, ok := metadata.FromIncomingContext(clientStream.Context())
+	if !ok {
+		return nil, status.Errorf(codes.InvalidArgument, "metadata required")
+	}
+
+	dealIDs, ok := md["deal"]
+	if !ok || len(dealIDs) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "`%s` required", "deal")
+	}
+
+	sizes, ok := md["size"]
+	if !ok || len(sizes) == 0 {
+		return nil, status.Errorf(codes.InvalidArgument, "`%s` required", "size")
+	}
+
+	ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
+		"deal": dealIDs[0],
+		"size": sizes[0],
+	}))
+
+	v, _ := strconv.ParseInt(sizes[0], 10, 64)
+
+	return &streamMeta{
+		ctx:      ctx,
+		dealID:   dealIDs[0],
+		fileSize: v,
+	}, nil
 }
 
 func newTasksAPI(opts *remoteOptions) (pb.TaskManagementServer, error) {
