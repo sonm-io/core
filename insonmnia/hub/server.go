@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
@@ -23,6 +24,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	"github.com/pborman/uuid"
@@ -186,7 +189,41 @@ func (h *Hub) onRequest(ctx context.Context, req interface{}, info *grpc.UnarySe
 	if forwarded {
 		return r, err
 	}
-	return handler(ctx, req)
+
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "no peer info")
+	}
+
+	switch au := p.AuthInfo.(type) {
+	case nil:
+		// GRPC_INSECURE should be set
+		return handler(ctx, req)
+	case util.EthAuthInfo:
+		hexWallet := au.Wallet.Hex()
+		if hexWallet != h.ethAddr {
+			if h.acl.Has(hexWallet) {
+				return handler(ctx, req)
+			}
+			return nil, status.Errorf(codes.Unauthenticated, "the wallet %s has no access", au.Wallet)
+		}
+
+		// either we have a redirected request or a request from someone with our key
+		var wallet string
+		if md, ok := metadata.FromContext(ctx); ok {
+			walletMD := md["Wallet"]
+			if len(walletMD) != 0 {
+				wallet = walletMD[0]
+			}
+		}
+		if len(wallet) == 0 || (common.IsHexAddress(wallet) && h.acl.Has(common.HexToAddress(wallet).Hex())) {
+			return handler(ctx, req)
+		}
+		return nil, status.Errorf(codes.Unauthenticated, "the wallet %s has no access", wallet)
+	default:
+		// we are unlikely to reach the point
+		return nil, status.Error(codes.Unauthenticated, "unknown auth info")
+	}
 }
 
 func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo) (bool, interface{}, error) {
@@ -205,8 +242,12 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 		parts := strings.Split(info.FullMethod, "/")
 		methodName := parts[len(parts)-1]
 		m := t.MethodByName(methodName)
-		inValues := make([]reflect.Value, 0, 2)
-		inValues = append(inValues, reflect.ValueOf(ctx), reflect.ValueOf(request))
+		if prInfo, ok := peer.FromContext(ctx); ok {
+			if au, ok := prInfo.AuthInfo.(util.EthAuthInfo); ok {
+				ctx = metadata.NewContext(ctx, metadata.MD{"Wallet": []string{au.Wallet.Hex()}})
+			}
+		}
+		inValues := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(request)}
 		values := m.Call(inValues)
 		var err error
 		if !values[1].IsNil() {

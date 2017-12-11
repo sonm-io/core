@@ -104,7 +104,7 @@ func (h *Hub) tlsHandshake(ctx context.Context, conn net.Conn) (net.Conn, error)
 
 	switch authInfo := authInfo.(type) {
 	case util.EthAuthInfo:
-		if !h.acl.Has(authInfo.Wallet) {
+		if !h.acl.Has(authInfo.Wallet.Hex()) {
 			return nil, errForbiddenMiner
 		}
 	default:
