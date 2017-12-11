@@ -2,9 +2,10 @@ package hub
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/sonm-io/core/fusrodah"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 // marshalDiscoveryMessage

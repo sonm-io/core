@@ -2,8 +2,9 @@ package resource
 
 import (
 	"errors"
-	"github.com/sonm-io/core/insonmnia/hardware"
 	"sync"
+
+	"github.com/sonm-io/core/insonmnia/hardware"
 )
 
 var (

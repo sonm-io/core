@@ -3,9 +3,10 @@ package gateway
 import (
 	"errors"
 
-	"gopkg.in/oleiade/lane.v1"
 	"math/rand"
 	"sync"
+
+	"gopkg.in/oleiade/lane.v1"
 )
 
 type PortPool struct {

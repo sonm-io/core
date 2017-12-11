@@ -7,6 +7,11 @@ GOCMD=./cmd
 ifeq ($(GO), )
     GO=go
 endif
+
+ifeq ($(GOPATH), )
+    GOPATH=$(shell ls -d ~/go)
+endif
+
 INSTALLDIR=${GOPATH}/bin/
 
 MINER=sonmminer
@@ -75,27 +80,10 @@ build/aux: build/locator build/marketplace
 
 build: build/insomnia build/aux
 
-install/miner: build/miner
+install: all
 	@echo "+ $@"
 	mkdir -p ${INSTALLDIR}
-	cp ${MINER} ${INSTALLDIR}
-
-install/hub: build/hub
-	@echo "+ $@"
-	mkdir -p ${INSTALLDIR}
-	cp ${HUB} ${INSTALLDIR}
-
-install/cli: build/cli
-	@echo "+ $@"
-	mkdir -p ${INSTALLDIR}
-	cp ${CLI} ${INSTALLDIR}
-
-install/node: build/node
-	@echo "+ $@"
-	mkdir -p ${INSTALLDIR}
-	cp ${LOCAL_NODE} ${INSTALLDIR}
-
-install: install/miner install/hub install/cli
+	cp ${MINER} ${HUB} ${CLI} ${LOCATOR} ${MARKET} ${LOCAL_NODE} ${INSTALLDIR}
 
 vet:
 	@echo "+ $@"
