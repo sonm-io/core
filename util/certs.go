@@ -87,13 +87,13 @@ func (r *hitlessCertRotator) rotateOnce() (*tls.Certificate, error) {
 
 func (r *hitlessCertRotator) rotation() {
 	rotationPeriod := validPeriod / 3
-	log.G(r.ctx).Info("start certificate rotation loop", zap.Duration("every", rotationPeriod))
+	log.G(r.ctx).Debug("start certificate rotation loop", zap.Duration("every", rotationPeriod))
 	t := time.NewTicker(rotationPeriod)
 	defer t.Stop()
 	for {
 		select {
 		case <-t.C:
-			log.G(r.ctx).Info("rotate certificate")
+			log.G(r.ctx).Debug("rotate certificate")
 			cert, err := r.rotateOnce()
 			if err == nil {
 				r.mu.Lock()
