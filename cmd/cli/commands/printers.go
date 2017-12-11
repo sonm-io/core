@@ -7,6 +7,7 @@ import (
 
 	ds "github.com/c2h5oh/datasize"
 	"github.com/docker/go-connections/nat"
+	"github.com/ethereum/go-ethereum/core/types"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
@@ -231,5 +232,23 @@ func printWorkerAclList(cmd *cobra.Command, list *pb.GetRegisteredWorkersReply) 
 	} else {
 		b, _ := json.Marshal(list)
 		cmd.Printf("%s\r\n", string(b))
+	}
+}
+
+func convertTransactionInfo(tx *types.Transaction) map[string]interface{} {
+	hash := tx.Hash().String()
+	value := tx.Value().Uint64()
+	to := tx.To().String()
+	cost := tx.Cost().Uint64()
+	gas := tx.Gas().Uint64()
+	gasPrice := tx.GasPrice().Uint64()
+
+	return map[string]interface{}{
+		"hash":      hash,
+		"value":     value,
+		"to":        to,
+		"cost":      cost,
+		"gas":       gas,
+		"gas_price": gasPrice,
 	}
 }
