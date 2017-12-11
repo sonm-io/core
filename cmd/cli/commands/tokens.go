@@ -4,7 +4,6 @@ import (
 	"math/big"
 	"os"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/blockchain/tsc"
