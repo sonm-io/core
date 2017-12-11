@@ -2,6 +2,7 @@ package structs
 
 import (
 	"errors"
+
 	pb "github.com/sonm-io/core/proto"
 )
 

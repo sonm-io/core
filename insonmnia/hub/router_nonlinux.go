@@ -4,6 +4,7 @@ package hub
 
 import (
 	"context"
+
 	"github.com/sonm-io/core/insonmnia/gateway"
 )
 

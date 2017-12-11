@@ -2,9 +2,10 @@ package miner
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/sonm-io/core/fusrodah"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func marshalTestData(wrk, cli string) []byte {
