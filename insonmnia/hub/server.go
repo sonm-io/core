@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
@@ -199,8 +200,9 @@ func (h *Hub) onRequest(ctx context.Context, req interface{}, info *grpc.UnarySe
 		// GRPC_INSECURE should be set
 		return handler(ctx, req)
 	case util.EthAuthInfo:
-		if au.Wallet != h.ethAddr {
-			if h.acl.Has(au.Wallet) {
+		hexWallet := au.Wallet.Hex()
+		if hexWallet != h.ethAddr {
+			if h.acl.Has(hexWallet) {
 				return handler(ctx, req)
 			}
 			return nil, status.Errorf(codes.Unauthenticated, "the wallet %s has no access", au.Wallet)
@@ -214,7 +216,7 @@ func (h *Hub) onRequest(ctx context.Context, req interface{}, info *grpc.UnarySe
 				wallet = walletMD[0]
 			}
 		}
-		if len(wallet) == 0 || h.acl.Has(wallet) {
+		if len(wallet) == 0 || (common.IsHexAddress(wallet) && h.acl.Has(common.HexToAddress(wallet).Hex())) {
 			return handler(ctx, req)
 		}
 		return nil, status.Errorf(codes.Unauthenticated, "the wallet %s has no access", wallet)
@@ -242,7 +244,7 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 		m := t.MethodByName(methodName)
 		if prInfo, ok := peer.FromContext(ctx); ok {
 			if au, ok := prInfo.AuthInfo.(util.EthAuthInfo); ok {
-				ctx = metadata.NewContext(ctx, metadata.MD{"Wallet": []string{au.Wallet}})
+				ctx = metadata.NewContext(ctx, metadata.MD{"Wallet": []string{au.Wallet.Hex()}})
 			}
 		}
 		inValues := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(request)}

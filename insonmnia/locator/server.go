@@ -85,7 +85,7 @@ func (l *Locator) extractEthAddr(ctx context.Context) (string, error) {
 
 	switch info := pr.AuthInfo.(type) {
 	case util.EthAuthInfo:
-		return info.Wallet, nil
+		return info.Wallet.Hex(), nil
 	default:
 		return "", status.Error(codes.Unauthenticated, "wrong AuthInfo type")
 	}
