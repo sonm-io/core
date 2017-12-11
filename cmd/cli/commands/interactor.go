@@ -9,164 +9,6 @@ import (
 	"golang.org/x/net/context"
 )
 
-type CliInteractor interface {
-	HubPing(context.Context) (*pb.PingReply, error)
-	HubStatus(context.Context) (*pb.HubStatusReply, error)
-	HubShowSlots(ctx context.Context) (*pb.SlotsReply, error)
-	HubInsertSlot(ctx context.Context, slot *structs.Slot, price string) (*pb.ID, error)
-
-	MinerList(context.Context) (*pb.ListReply, error)
-	MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error)
-
-	TaskList(appCtx context.Context, minerID string) (*pb.StatusMapReply, error)
-	TaskLogs(appCtx context.Context, req *pb.TaskLogsRequest) (pb.Hub_TaskLogsClient, error)
-	TaskPush(ctx context.Context) (pb.Hub_PushTaskClient, error)
-	TaskPull(ctx context.Context, dealID, name, taskID string) (pb.Hub_PullTaskClient, error)
-	TaskStart(appCtx context.Context, req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error)
-	TaskStatus(appCtx context.Context, taskID string) (*pb.TaskStatusReply, error)
-	TaskStop(appCtx context.Context, taskID string) (*pb.Empty, error)
-}
-
-type grpcInteractor struct {
-	hub     pb.HubClient
-	timeout time.Duration
-}
-
-func (it *grpcInteractor) call(addr string) error {
-
-	return nil
-}
-
-func (it *grpcInteractor) ctx(appCtx context.Context) (context.Context, context.CancelFunc) {
-	return context.WithTimeout(appCtx, it.timeout)
-}
-
-func (it *grpcInteractor) HubPing(appCtx context.Context) (*pb.PingReply, error) {
-	ctx, cancel := it.ctx(appCtx)
-	defer cancel()
-	return it.hub.Ping(ctx, &pb.Empty{})
-}
-
-func (it *grpcInteractor) HubStatus(appCtx context.Context) (*pb.HubStatusReply, error) {
-	ctx, cancel := it.ctx(appCtx)
-	defer cancel()
-	return it.hub.Status(ctx, &pb.Empty{})
-}
-
-func (it *grpcInteractor) HubDevices(c context.Context) (*pb.DevicesReply, error) {
-	ctx, cancel := it.ctx(c)
-	defer cancel()
-	return it.hub.Devices(ctx, &pb.Empty{})
-}
-
-func (it *grpcInteractor) HubGetProperties(ctx context.Context, ID string) (*pb.GetDevicePropertiesReply, error) {
-	c, cancel := it.ctx(ctx)
-	defer cancel()
-
-	req := pb.ID{Id: ID}
-	return it.hub.GetDeviceProperties(c, &req)
-}
-
-func (it *grpcInteractor) HubSetProperties(ctx context.Context, ID string, properties map[string]float64) (*pb.Empty, error) {
-	c, cancel := it.ctx(ctx)
-	defer cancel()
-
-	req := pb.SetDevicePropertiesRequest{
-		ID:         ID,
-		Properties: properties,
-	}
-	return it.hub.SetDeviceProperties(c, &req)
-}
-
-func (it *grpcInteractor) HubShowSlots(ctx context.Context) (*pb.SlotsReply, error) {
-	c, cancel := it.ctx(ctx)
-	defer cancel()
-
-	return it.hub.Slots(c, &pb.Empty{})
-}
-
-func (it *grpcInteractor) HubInsertSlot(ctx context.Context, slot *structs.Slot, price string) (*pb.ID, error) {
-	c, cancel := it.ctx(ctx)
-	defer cancel()
-
-	req := &pb.InsertSlotRequest{
-		Price: price,
-		Slot:  slot.Unwrap(),
-	}
-	return it.hub.InsertSlot(c, req)
-}
-
-func (it *grpcInteractor) MinerList(appCtx context.Context) (*pb.ListReply, error) {
-	ctx, cancel := it.ctx(appCtx)
-	defer cancel()
-	return it.hub.List(ctx, &pb.Empty{})
-}
-
-func (it *grpcInteractor) MinerStatus(minerID string, appCtx context.Context) (*pb.InfoReply, error) {
-	ctx, cancel := it.ctx(appCtx)
-	defer cancel()
-
-	return it.hub.Info(ctx, &pb.ID{Id: minerID})
-}
-
-func (it *grpcInteractor) TaskList(appCtx context.Context, minerID string) (*pb.StatusMapReply, error) {
-	ctx, cancel := it.ctx(appCtx)
-	defer cancel()
-
-	req := &pb.ID{Id: minerID}
-	return it.hub.MinerStatus(ctx, req)
-}
-
-func (it *grpcInteractor) TaskLogs(appCtx context.Context, req *pb.TaskLogsRequest) (pb.Hub_TaskLogsClient, error) {
-	return it.hub.TaskLogs(appCtx, req)
-}
-
-func (it *grpcInteractor) TaskPush(ctx context.Context) (pb.Hub_PushTaskClient, error) {
-	return it.hub.PushTask(ctx)
-}
-
-func (it *grpcInteractor) TaskPull(ctx context.Context, dealID, name, taskID string) (pb.Hub_PullTaskClient, error) {
-	return it.hub.PullTask(ctx, &pb.PullTaskRequest{
-		DealId: dealID,
-		Name:   name,
-		TaskId: taskID,
-	})
-}
-
-func (it *grpcInteractor) TaskStart(appCtx context.Context, req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
-	ctx, cancel := it.ctx(appCtx)
-	defer cancel()
-	return it.hub.StartTask(ctx, req)
-}
-
-func (it *grpcInteractor) TaskStatus(appCtx context.Context, taskID string) (*pb.TaskStatusReply, error) {
-	ctx, cancel := it.ctx(appCtx)
-	defer cancel()
-
-	var req = &pb.ID{Id: taskID}
-	return it.hub.TaskStatus(ctx, req)
-}
-
-func (it *grpcInteractor) TaskStop(appCtx context.Context, taskID string) (*pb.Empty, error) {
-	ctx, cancel := it.ctx(appCtx)
-	defer cancel()
-
-	var req = &pb.ID{Id: taskID}
-	return it.hub.StopTask(ctx, req)
-}
-
-func NewGrpcInteractor(addr string, to time.Duration) (CliInteractor, error) {
-	cc, err := util.MakeGrpcClient(context.Background(), addr, creds)
-	if err != nil {
-		return nil, err
-	}
-
-	return &grpcInteractor{
-		hub:     pb.NewHubClient(cc),
-		timeout: to,
-	}, nil
-}
-
 type NodeHubInteractor interface {
 	Status() (*pb.HubStatusReply, error)
 
@@ -450,10 +292,12 @@ func NewDealsInteractor(addr string, timeout time.Duration) (DealsInteractor, er
 
 type TasksInteractor interface {
 	List(hubAddr string) (*pb.TaskListReply, error)
+	ImagePush(ctx context.Context) (pb.Hub_PushTaskClient, error)
 	Start(req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error)
 	Status(id, hub string) (*pb.TaskStatusReply, error)
 	Logs(req *pb.TaskLogsRequest) (pb.TaskManagement_LogsClient, error)
 	Stop(id, hub string) (*pb.Empty, error)
+	ImagePull(dealID, name, taskID string) (pb.Hub_PullTaskClient, error)
 }
 
 type tasksInteractor struct {
@@ -467,6 +311,10 @@ func (it *tasksInteractor) List(hubAddr string) (*pb.TaskListReply, error) {
 
 	req := &pb.TaskListRequest{HubID: hubAddr}
 	return it.tasks.List(ctx, req)
+}
+
+func (it *tasksInteractor) ImagePush(ctx context.Context) (pb.Hub_PushTaskClient, error) {
+	return it.tasks.PushTask(ctx)
 }
 
 func (it *tasksInteractor) Start(req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
@@ -495,6 +343,18 @@ func (it *tasksInteractor) Stop(id, hub string) (*pb.Empty, error) {
 	defer cancel()
 
 	return it.tasks.Stop(ctx, &pb.TaskID{Id: id, HubAddr: hub})
+}
+
+func (it *tasksInteractor) ImagePull(dealID, name, taskID string) (pb.Hub_PullTaskClient, error) {
+	ctx := context.Background()
+
+	req := &pb.PullTaskRequest{
+		DealId: dealID,
+		Name:   name,
+		TaskId: taskID,
+	}
+
+	return it.tasks.PullTask(ctx, req)
 }
 
 func NewTasksInteractor(addr string, timeout time.Duration) (TasksInteractor, error) {

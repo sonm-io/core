@@ -308,6 +308,8 @@ func (m *MinerCtx) orderUsage(id OrderId) (*resource.Resources, error) {
 
 // Orders returns a list of allocated orders.
 // Useful for looking for a proper miner for starting tasks.
+//
+// TODO: rename to Deals()
 func (m *MinerCtx) Orders() []OrderId {
 	m.mu.Lock()
 	defer m.mu.Unlock()
