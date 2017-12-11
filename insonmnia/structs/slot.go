@@ -1,6 +1,7 @@
 package structs
 
 import (
+	"encoding/json"
 	"errors"
 
 	pb "github.com/sonm-io/core/proto"
@@ -24,6 +25,23 @@ func NewSlot(s *pb.Slot) (*Slot, error) {
 	} else {
 		return &Slot{inner: s}, nil
 	}
+}
+
+func (s *Slot) MarshalJSON() ([]byte, error) {
+	if s == nil {
+		return json.Marshal(nil)
+	}
+	return json.Marshal(s.inner)
+}
+
+func (s *Slot) UnmarshalJSON(data []byte) error {
+	unmarshalled := pb.Slot{}
+	err := json.Unmarshal(data, &unmarshalled)
+	if err != nil {
+		return err
+	}
+	s.inner = &unmarshalled
+	return nil
 }
 
 func (s *Slot) GetResources() *Resources {
