@@ -61,7 +61,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "disable TLS via components")
 
 	rootCmd.AddCommand(hubRootCmd, nodeMarketRootCmd, nodeDealsRootCmd, nodeTaskRootCmd)
-  rootCmd.AddCommand(loginCmd, approveTokenCmd, versionCmd)
+	rootCmd.AddCommand(loginCmd, approveTokenCmd, versionCmd)
 }
 
 // Root configure and return root command
