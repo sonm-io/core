@@ -68,7 +68,7 @@ func verifyCertificate(authInfo credentials.AuthInfo) (credentials.AuthInfo, err
 		if err != nil {
 			return nil, err
 		}
-		if !ethcommon.IsHex(wallet) {
+		if !ethcommon.IsHexAddress(wallet) {
 			return nil, fmt.Errorf("%s is not a valid eth Address", wallet)
 		}
 		return EthAuthInfo{TLS: authInfo, Wallet: ethcommon.HexToAddress(wallet)}, nil
