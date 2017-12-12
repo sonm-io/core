@@ -188,6 +188,5 @@ message InsertSlotRequest {
 
 message PullTaskRequest {
     string dealId = 1;
-    string name = 2;
-    string taskId = 3;
+    string taskId = 2;
 }

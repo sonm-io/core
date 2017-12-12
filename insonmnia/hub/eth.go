@@ -16,6 +16,9 @@ import (
 type ETH interface {
 	// WaitForDealCreated waits for deal created on Buyer-side
 	WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error)
+	// WaitForDealClosed blocks the current execution context until the
+	// specified deal is closed.
+	WaitForDealClosed(ctx context.Context, dealID DealID, buyerID string) error
 
 	// AcceptDeal approves deal on Hub-side
 	AcceptDeal(id string) error
@@ -36,6 +39,40 @@ type eth struct {
 func (e *eth) WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error) {
 	// e.findDeals blocks until order will be found or timeout will reached
 	return e.findDeals(e.ctx, request.Order.ByuerID, request.SpecHash)
+}
+
+func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID string) error {
+	log.G(ctx).Debug("waiting for deal closed", zap.String("dealID", string(dealID)))
+
+	timer := time.NewTicker(5 * time.Second)
+
+	for {
+		select {
+		case <-timer.C:
+			log.G(ctx).Debug("checking whether deal is closed")
+
+			ids, err := e.bc.GetClosedDeal(util.PubKeyToAddr(e.key.PublicKey), buyerID)
+			if err != nil {
+				return err
+			}
+
+			log.S(ctx).Info("found %d closed deals", len(ids))
+
+			for _, id := range ids {
+				dealInfo, err := e.bc.GetDealInfo(id)
+				if err != nil {
+					continue
+				}
+
+				if dealInfo.GetId() == string(dealID) && dealInfo.GetStatus() == pb.DealStatus_CLOSED {
+					return nil
+				}
+			}
+
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 func (e *eth) findDeals(ctx context.Context, addr, hash string) (*pb.Deal, error) {

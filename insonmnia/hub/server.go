@@ -39,13 +39,16 @@ import (
 )
 
 var (
-	ErrInvalidOrderType        = status.Errorf(codes.InvalidArgument, "invalid order type")
-	ErrAskNotFound             = status.Errorf(codes.NotFound, "ask not found")
-	ErrDeviceNotFound          = status.Errorf(codes.NotFound, "device not found")
-	ErrMinerNotFound           = status.Errorf(codes.NotFound, "miner not found")
-	errContractNotExists       = status.Errorf(codes.NotFound, "specified contract not exists in the Ethereum")
-	errWorkerProtocolViolation = status.Errorf(codes.Internal, "detected worker protocol violation")
+	ErrInvalidOrderType  = status.Errorf(codes.InvalidArgument, "invalid order type")
+	ErrAskNotFound       = status.Errorf(codes.NotFound, "ask not found")
+	ErrDeviceNotFound    = status.Errorf(codes.NotFound, "device not found")
+	ErrMinerNotFound     = status.Errorf(codes.NotFound, "miner not found")
+	errContractNotExists = status.Errorf(codes.NotFound, "specified contract not exists in the Ethereum")
+	errDealNotFound      = status.Errorf(codes.NotFound, "deal not found")
+	errTaskNotFound      = status.Errorf(codes.NotFound, "task not found")
 )
+
+type DealID string
 
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
@@ -92,7 +95,6 @@ type Hub struct {
 
 	// Scheduling.
 	// Must be synchronized with out Hub cluster.
-	// slots   []*structs.Slot
 	slots   map[string]*structs.Slot
 	slotsMu sync.RWMutex
 
@@ -100,6 +102,10 @@ type Hub struct {
 	// Must be synchronized with out Hub cluster.
 	acl   ACLStorage
 	aclMu sync.RWMutex
+
+	// Retroactive deals to tasks association. Tasks aren't popped when
+	// completed to be able to save the history for the entire deal.
+	deals map[DealID][]*TaskInfo
 
 	// Tasks
 	tasks   map[string]*TaskInfo
@@ -356,8 +362,12 @@ func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer
 		return err
 	}
 
-	// TODO: I don't like that we need explicit container name. Maybe we can store it here?
-	imageID := fmt.Sprintf("%s:%s_%s", request.GetName(), request.GetDealId(), request.GetTaskId())
+	task, err := h.getTaskHistory(request.GetDealId(), request.GetTaskId())
+	if err != nil {
+		return err
+	}
+
+	imageID := fmt.Sprintf("%s:%s_%s", task.Image, request.GetDealId(), request.GetTaskId())
 
 	log.G(ctx).Debug("pulling image", zap.String("imageID", imageID))
 
@@ -388,6 +398,24 @@ func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer
 	}
 
 	return nil
+}
+
+func (h *Hub) getTaskHistory(dealID, taskID string) (*TaskInfo, error) {
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+
+	tasks, ok := h.deals[DealID(dealID)]
+	if !ok {
+		return nil, errDealNotFound
+	}
+
+	for _, task := range tasks {
+		if task.ID == taskID {
+			return task, nil
+		}
+	}
+
+	return nil, errTaskNotFound
 }
 
 func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
@@ -447,7 +475,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 
 	info := TaskInfo{*request, *response, taskID, miner.uuid}
 
-	err = h.saveTask(&info)
+	err = h.saveTask(DealID(request.GetDealId()), &info)
 	if err != nil {
 		miner.Client.Stop(ctx, &pb.ID{Id: taskID})
 		return nil, err
@@ -500,21 +528,29 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 		return nil, err
 	}
 
-	miner, ok := h.getMinerByID(task.MinerId)
-	if !ok {
-		return nil, status.Errorf(codes.NotFound, "no miner with id %s", task.MinerId)
+	if err := h.stopTask(ctx, task); err != nil {
+		return nil, err
 	}
-
-	_, err = miner.Client.Stop(ctx, &pb.ID{Id: taskID})
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "failed to stop the task %s", taskID)
-	}
-
-	miner.deregisterRoute(taskID)
-
-	h.deleteTask(taskID)
 
 	return &pb.Empty{}, nil
+}
+
+func (h *Hub) stopTask(ctx context.Context, task *TaskInfo) error {
+	miner, ok := h.getMinerByID(task.MinerId)
+	if !ok {
+		return status.Errorf(codes.NotFound, "no miner with id %s", task.MinerId)
+	}
+
+	_, err := miner.Client.Stop(ctx, &pb.ID{Id: task.ID})
+	if err != nil {
+		return status.Errorf(codes.NotFound, "failed to stop the task %s", task.ID)
+	}
+
+	miner.deregisterRoute(task.ID)
+
+	h.deleteTask(task.ID)
+
+	return nil
 }
 
 //TODO: refactor - we can use h.tasks here
@@ -690,8 +726,53 @@ func (h *Hub) getDealWaiter(ctx context.Context, req *structs.DealRequest) func(
 				zap.Error(err))
 		}
 
+		dealID := DealID(createdDeal.GetId())
+		h.tasksMu.Lock()
+		defer h.tasksMu.Unlock()
+		h.deals[dealID] = make([]*TaskInfo, 0)
+		go h.watchForDealClosed(dealID, req.GetOrder().GetByuerID())
+
 		return nil
 	}
+}
+
+func (h *Hub) watchForDealClosed(dealID DealID, buyerId string) {
+	if err := h.eth.WaitForDealClosed(h.ctx, dealID, buyerId); err != nil {
+		log.G(h.ctx).Error("failed to wait for closing deal",
+			zap.String("dealID", string(dealID)),
+			zap.Error(err),
+		)
+	}
+	h.tasksMu.Lock()
+	tasks, ok := h.deals[dealID]
+	if !ok {
+		return
+	}
+	delete(h.deals, dealID)
+	h.tasksMu.Unlock()
+
+	log.S(h.ctx).Info("stopping at max %d tasks due to deal closing", len(tasks))
+	for _, task := range tasks {
+		if h.isTaskFinished(task.ID) {
+			continue
+		}
+
+		if err := h.stopTask(h.ctx, task); err != nil {
+			log.G(h.ctx).Error("failed to stop task",
+				zap.String("dealID", string(dealID)),
+				zap.String("taskID", task.ID),
+				zap.Error(err),
+			)
+		}
+	}
+}
+
+func (h *Hub) isTaskFinished(id string) bool {
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+
+	_, ok := h.tasks[id]
+	return !ok
 }
 
 func (h *Hub) findRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, error) {
@@ -1032,6 +1113,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		eth:    ethWrapper,
 		market: defaults.market,
 
+		deals:            make(map[DealID][]*TaskInfo),
 		tasks:            make(map[string]*TaskInfo),
 		miners:           make(map[string]*MinerCtx),
 		associatedHubs:   make(map[string]struct{}),
@@ -1242,10 +1324,18 @@ func (h *Hub) getMinerByID(minerID string) (*MinerCtx, bool) {
 	return m, ok
 }
 
-func (h *Hub) saveTask(info *TaskInfo) error {
+func (h *Hub) saveTask(dealID DealID, info *TaskInfo) error {
 	h.tasksMu.Lock()
 	defer h.tasksMu.Unlock()
 	h.tasks[info.ID] = info
+
+	taskIDs, ok := h.deals[dealID]
+	if !ok {
+		return errDealNotFound
+	}
+	taskIDs = append(taskIDs, info)
+	h.deals[dealID] = taskIDs
+
 	return h.cluster.Synchronize(h.tasks)
 }
 
