@@ -6,6 +6,7 @@ Description=SONM Miner
 EnvironmentFile=/etc/default/sonm-miner
 Type=simple
 ExecStart=/usr/bin/sonmminer --config=${CONFIG_PATH}
+Restart=on-failure
 
 
 [Install]

@@ -6,6 +6,7 @@ Description=SONM Marketplace
 EnvironmentFile=/etc/default/sonm-marketplace
 Type=simple
 ExecStart=/usr/bin/sonmmarketplace --addr=${LISTEN_ADDR}
+Restart=on-failure
 
 
 [Install]
