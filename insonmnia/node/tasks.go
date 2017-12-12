@@ -223,8 +223,7 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullTaskServer) error {
 	log.G(t.ctx).Info("handling PullTask request",
 		zap.String("deal_id", req.DealId),
-		zap.String("task_id", req.TaskId),
-		zap.String("name", req.Name))
+		zap.String("task_id", req.TaskId))
 
 	ctx := context.Background()
 	hub, err := t.getHubClientForDeal(ctx, req.GetDealId())

@@ -297,7 +297,7 @@ type TasksInteractor interface {
 	Status(id, hub string) (*pb.TaskStatusReply, error)
 	Logs(req *pb.TaskLogsRequest) (pb.TaskManagement_LogsClient, error)
 	Stop(id, hub string) (*pb.Empty, error)
-	ImagePull(dealID, name, taskID string) (pb.Hub_PullTaskClient, error)
+	ImagePull(dealID, taskID string) (pb.Hub_PullTaskClient, error)
 }
 
 type tasksInteractor struct {
@@ -345,12 +345,11 @@ func (it *tasksInteractor) Stop(id, hub string) (*pb.Empty, error) {
 	return it.tasks.Stop(ctx, &pb.TaskID{Id: id, HubAddr: hub})
 }
 
-func (it *tasksInteractor) ImagePull(dealID, name, taskID string) (pb.Hub_PullTaskClient, error) {
+func (it *tasksInteractor) ImagePull(dealID, taskID string) (pb.Hub_PullTaskClient, error) {
 	ctx := context.Background()
 
 	req := &pb.PullTaskRequest{
 		DealId: dealID,
-		Name:   name,
 		TaskId: taskID,
 	}
 

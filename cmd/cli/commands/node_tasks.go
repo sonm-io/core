@@ -216,14 +216,13 @@ var taskStopCmd = &cobra.Command{
 }
 
 var taskPullCmd = &cobra.Command{
-	Use:    "pull <deal_id> <name> <task_id>",
+	Use:    "pull <deal_id> <task_id>",
 	Short:  "Pull committed image from the completed task.",
 	PreRun: loadKeyStoreWrapper,
-	Args:   cobra.MinimumNArgs(3),
+	Args:   cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		dealID := args[0]
-		name := args[1]
-		taskID := args[2]
+		taskID := args[1]
 
 		var wr io.Writer
 		var err error
@@ -248,7 +247,7 @@ var taskPullCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		client, err := node.ImagePull(dealID, name, taskID)
+		client, err := node.ImagePull(dealID, taskID)
 		if err != nil {
 			showError(cmd, "Cannot create image pull client", err)
 			os.Exit(1)
