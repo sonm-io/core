@@ -52,7 +52,7 @@ func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID stri
 		case <-timer.C:
 			log.G(ctx).Debug("checking whether deal is closed")
 
-			ids, err := e.bc.GetClosedDeal(util.PubKeyToAddr(e.key.PublicKey), buyerID)
+			ids, err := e.bc.GetClosedDeal(util.PubKeyToAddr(e.key.PublicKey).Hex(), buyerID)
 			if err != nil {
 				return err
 			}
