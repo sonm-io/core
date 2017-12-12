@@ -64,7 +64,7 @@ func (e *eth) findDeals(ctx context.Context, addr, hash string) (*pb.Deal, error
 
 func (e *eth) findDealOnce(addr, hash string) *pb.Deal {
 	// get deals opened by our client
-	IDs, err := e.bc.GetOpenedDeal(util.PubKeyToAddr(e.key.PublicKey), addr)
+	IDs, err := e.bc.GetOpenedDeal(util.PubKeyToAddr(e.key.PublicKey).Hex(), addr)
 	if err != nil {
 		return nil
 	}
@@ -112,7 +112,8 @@ func (e *eth) CheckDealExists(id string) (bool, error) {
 		return false, err
 	}
 
-	idOK := deal.GetSupplierID() == util.PubKeyToAddr(e.key.PublicKey)
+	// NOTE: May GetSupplierID return common.Address?
+	idOK := deal.GetSupplierID() == util.PubKeyToAddr(e.key.PublicKey).Hex()
 	statusOK := deal.GetStatus() == pb.DealStatus_ACCEPTED
 	dealOK := idOK && statusOK
 

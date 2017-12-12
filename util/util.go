@@ -12,6 +12,7 @@ import (
 	"runtime"
 	"strconv"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"gopkg.in/yaml.v2"
 )
@@ -67,8 +68,8 @@ func PubKeyToString(key ecdsa.PublicKey) string {
 	return fmt.Sprintf("%x", crypto.FromECDSAPub(&key))
 }
 
-func PubKeyToAddr(key ecdsa.PublicKey) string {
-	return crypto.PubkeyToAddress(key).String()
+func PubKeyToAddr(key ecdsa.PublicKey) common.Address {
+	return crypto.PubkeyToAddress(key)
 }
 
 func LoadYamlFile(from string, to interface{}) error {
@@ -133,4 +134,14 @@ func GetAvailableIPs() (availableIPs []net.IP, err error) {
 	}
 
 	return availableIPs, nil
+}
+
+// EqualAddresses checks if provided Addresses are equal
+func EqualAddresses(a, b common.Address) bool {
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
 }

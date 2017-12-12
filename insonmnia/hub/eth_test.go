@@ -19,7 +19,7 @@ import (
 
 func makeTestKey() (string, *ecdsa.PrivateKey) {
 	key, _ := ethcrypto.GenerateKey()
-	addr := util.PubKeyToAddr(key.PublicKey)
+	addr := util.PubKeyToAddr(key.PublicKey).Hex()
 	return addr, key
 }
 

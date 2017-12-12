@@ -430,10 +430,10 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
-			"checksumSHA1": "D8hr2nIw1YD0qGXAJ+aewXhZyJ0=",
+			"checksumSHA1": "nbym4olXild4cvf4GqJdZ4ZFWIU=",
 			"path": "github.com/ethereum/go-ethereum",
-			"revision": "05101641455a754936acc5ddff92f35f5e33181c",
-			"revisionTime": "2017-10-03T17:18:39Z",
+			"revision": "32516c768ec09e2a71cab5983d2c8b8ae5d92fc7",
+			"revisionTime": "2017-12-11T21:56:06Z",
 			"tree": true,
 			"version": "v1.7.1",
 			"versionExact": "v1.7.1"

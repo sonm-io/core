@@ -60,7 +60,7 @@ type Hub struct {
 	minerListener    net.Listener
 
 	ethKey  *ecdsa.PrivateKey
-	ethAddr string
+	ethAddr common.Address
 
 	// locatorEndpoint string
 	locatorPeriod time.Duration
@@ -132,7 +132,7 @@ func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, erro
 		Uptime:     uint64(uptime),
 		Platform:   util.GetPlatformName(),
 		Version:    h.version,
-		EthAddr:    util.PubKeyToAddr(h.ethKey.PublicKey),
+		EthAddr:    util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
 	}
 
 	return reply, nil
@@ -200,9 +200,8 @@ func (h *Hub) onRequest(ctx context.Context, req interface{}, info *grpc.UnarySe
 		// GRPC_INSECURE should be set
 		return handler(ctx, req)
 	case util.EthAuthInfo:
-		hexWallet := au.Wallet.Hex()
-		if hexWallet != h.ethAddr {
-			if h.acl.Has(hexWallet) {
+		if !util.EqualAddresses(au.Wallet, h.ethAddr) {
+			if h.acl.Has(au.Wallet.Hex()) {
 				return handler(ctx, req)
 			}
 			return nil, status.Errorf(codes.Unauthenticated, "the wallet %s has no access", au.Wallet)
@@ -459,7 +458,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	// TODO: Synchronize routes with the cluster.
 	reply := &pb.HubStartTaskReply{
 		Id:      taskID,
-		HubAddr: h.ethAddr,
+		HubAddr: h.ethAddr.Hex(),
 	}
 
 	for _, route := range routes {
@@ -830,7 +829,7 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*p
 		OrderType:  pb.OrderType_ASK,
 		Slot:       slot.Unwrap(),
 		Price:      request.Price,
-		SupplierID: util.PubKeyToAddr(h.ethKey.PublicKey),
+		SupplierID: util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
 	}
 
 	created, err := h.market.CreateOrder(h.ctx, ord)
@@ -1011,7 +1010,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 
 	acl := NewACLStorage()
 	if defaults.creds != nil {
-		acl.Insert(defaults.ethAddr)
+		acl.Insert(defaults.ethAddr.Hex())
 	}
 
 	h := &Hub{
@@ -1314,7 +1313,7 @@ func (h *Hub) announceAddress() error {
 	}
 
 	log.G(h.ctx).Info("announcing Hub address",
-		zap.String("eth", h.ethAddr),
+		zap.Stringer("eth", h.ethAddr),
 		zap.Strings("addr", req.IpAddr))
 
 	_, err = h.locatorClient.Announce(h.ctx, req)

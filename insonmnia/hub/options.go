@@ -3,6 +3,7 @@ package hub
 import (
 	"crypto/ecdsa"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -15,7 +16,7 @@ type options struct {
 	version       string
 	ctx           context.Context
 	ethKey        *ecdsa.PrivateKey
-	ethAddr       string
+	ethAddr       common.Address
 	bcr           blockchain.Blockchainer
 	market        pb.MarketClient
 	locator       pb.LocatorClient
