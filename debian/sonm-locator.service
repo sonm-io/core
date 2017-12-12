@@ -6,6 +6,7 @@ Description=SONM Locator
 EnvironmentFile=/etc/default/sonm-locator
 Type=simple
 ExecStart=/usr/bin/sonmlocator --config=${CONFIG_PATH}
+Restart=on-failure
 
 
 [Install]
