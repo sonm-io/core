@@ -13,7 +13,7 @@ import (
 
 var approveTokenCmd = &cobra.Command{
 	Use:    "approve <amount>",
-	Short:  "Approve tokens",
+	Short:  "Approve tokens (ERC20)",
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
