@@ -51,6 +51,7 @@ var (
 
 	// errors
 	errCannotParsePropsFile = errors.New("cannot parse props file")
+	errNoHubConnection      = errors.New("cannot connect to hub via Node, please check Hub Address settings into Node's config")
 )
 
 func init() {
