@@ -12,6 +12,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -28,7 +29,8 @@ func getTestKey() *ecdsa.PrivateKey {
 
 func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg := NewMockConfig(mock)
-	cfg.EXPECT().HubEndpoint().AnyTimes().Return("0x0@::1")
+	mockedwallet := util.PubKeyToAddr(getTestKey().PublicKey).Hex()
+	cfg.EXPECT().HubEndpoint().AnyTimes().Return(mockedwallet + "@::1")
 	cfg.EXPECT().HubResources().AnyTimes()
 	cfg.EXPECT().Firewall().AnyTimes()
 	cfg.EXPECT().GPU().AnyTimes()
@@ -50,7 +52,7 @@ func TestServerNewExtractsHubEndpoint(t *testing.T) {
 	m, err := builder.Build()
 	cfg.EXPECT().GPU().AnyTimes()
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, m)
 	assert.Equal(t, "::1", m.hubAddress)
 }
@@ -89,7 +91,7 @@ func TestServerNewSavesResources(t *testing.T) {
 	m, err := builder.Build()
 
 	assert.NotNil(t, m)
-	assert.Nil(t, err)
+	require.Nil(t, err)
 	assert.Equal(t, uint64(42), m.resources.OS.Memory.Total)
 }
 
