@@ -35,7 +35,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 	}
 
 	myAddr := util.PubKeyToAddr(t.remotes.key.PublicKey)
-	dealIDs, err := t.remotes.eth.GetDeals(myAddr)
+	dealIDs, err := t.remotes.eth.GetDeals(myAddr.Hex())
 	if err != nil {
 		return nil, err
 	}

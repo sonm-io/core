@@ -165,7 +165,7 @@ func GenerateCert(ethpriv *ecdsa.PrivateKey) (cert []byte, key []byte, err error
 		},
 		NotBefore: time.Now().Add(-time.Hour * 1),
 		NotAfter:  time.Now().Add(validPeriod),
-		DNSNames:  []string{dnsName},
+		DNSNames:  []string{dnsName.Hex()},
 
 		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth},
 	}

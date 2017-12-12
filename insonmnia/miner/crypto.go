@@ -12,7 +12,7 @@ import (
 
 type walletAuthenticator struct {
 	credentials.TransportCredentials
-	Wallet string
+	Wallet common.Address
 }
 
 func (w *walletAuthenticator) ServerHandshake(conn net.Conn) (net.Conn, credentials.AuthInfo, error) {
@@ -23,8 +23,8 @@ func (w *walletAuthenticator) ServerHandshake(conn net.Conn) (net.Conn, credenti
 
 	switch authInfo := authInfo.(type) {
 	case util.EthAuthInfo:
-		if !compareEthAddr(authInfo.Wallet.Hex(), w.Wallet) {
-			return nil, nil, fmt.Errorf("authorization failed: expected %s, actual %s", w.Wallet, authInfo.Wallet[2:])
+		if !util.EqualAddresses(authInfo.Wallet, w.Wallet) {
+			return nil, nil, fmt.Errorf("authorization failed: expected %s, actual %s", w.Wallet, authInfo.Wallet)
 		}
 	default:
 		return nil, nil, fmt.Errorf("unsupported AuthInfo %s %T", authInfo.AuthType(), authInfo)
@@ -33,31 +33,22 @@ func (w *walletAuthenticator) ServerHandshake(conn net.Conn) (net.Conn, credenti
 	return conn, authInfo, nil
 }
 
-func newWalletAuthenticator(c credentials.TransportCredentials, wallet string) credentials.TransportCredentials {
+func newWalletAuthenticator(c credentials.TransportCredentials, wallet common.Address) credentials.TransportCredentials {
 	return &walletAuthenticator{c, wallet}
 }
 
-func parseHubEndpoint(endpoint string) (string, string, error) {
+func parseHubEndpoint(endpoint string) (string, common.Address, error) {
 	parsed := strings.SplitN(endpoint, "@", 2)
 	if len(parsed) != 2 {
-		return "", "", errInvalidEndpointFormat
+		return "", common.Address{}, errInvalidEndpointFormat
 	}
 
 	ethAddr := parsed[0]
 	socketAddr := parsed[1]
 
-	if len(ethAddr) <= 2 {
-		return "", "", errInvalidEthAddrFormat
+	if !common.IsHexAddress(ethAddr) {
+		return "", common.Address{}, errInvalidEthAddrFormat
 	}
-	if ethAddr[:2] == "0x" {
-		ethAddr = ethAddr[2:]
-	}
-	return socketAddr, ethAddr, nil
-}
 
-func compareEthAddr(a, b string) bool {
-	s1 := common.HexToAddress(a)
-	s2 := common.HexToAddress(b)
-
-	return s1.String() == s2.String()
+	return socketAddr, common.HexToAddress(ethAddr), nil
 }

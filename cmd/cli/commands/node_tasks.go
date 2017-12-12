@@ -97,7 +97,7 @@ var taskStartCmd = &cobra.Command{
 
 		deal := &pb.Deal{
 			Id:      dealID,
-			BuyerID: util.PubKeyToAddr(sessionKey.PublicKey),
+			BuyerID: util.PubKeyToAddr(sessionKey.PublicKey).Hex(),
 		}
 
 		var req = &pb.HubStartTaskRequest{

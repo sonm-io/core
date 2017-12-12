@@ -3,10 +3,12 @@ package locator
 import (
 	"crypto/ecdsa"
 	"crypto/tls"
+	"fmt"
 	"net"
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto"
@@ -23,7 +25,7 @@ import (
 var errNodeNotFound = errors.New("node with given Eth address cannot be found")
 
 type node struct {
-	ethAddr string
+	ethAddr common.Address
 	ipAddr  []string
 	ts      time.Time
 }
@@ -33,7 +35,7 @@ type Locator struct {
 
 	grpc        *grpc.Server
 	conf        *LocatorConfig
-	db          map[string]*node
+	db          map[common.Address]*node
 	ctx         context.Context
 	certRotator util.HitlessCertRotator
 	ethKey      *ecdsa.PrivateKey
@@ -47,7 +49,7 @@ func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Em
 	}
 
 	log.G(l.ctx).Info("handling Announce request",
-		zap.String("eth", ethAddr), zap.Strings("ips", req.IpAddr))
+		zap.Stringer("eth", ethAddr), zap.Strings("ips", req.IpAddr))
 
 	l.putAnnounce(&node{
 		ethAddr: ethAddr,
@@ -60,7 +62,11 @@ func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Em
 func (l *Locator) Resolve(ctx context.Context, req *pb.ResolveRequest) (*pb.ResolveReply, error) {
 	log.G(l.ctx).Info("handling Resolve request", zap.String("eth", req.EthAddr))
 
-	n, err := l.getResolve(req.EthAddr)
+	if !common.IsHexAddress(req.EthAddr) {
+		return nil, fmt.Errorf("invalid ethaddress %s", req.EthAddr)
+	}
+
+	n, err := l.getResolve(common.HexToAddress(req.EthAddr))
 	if err != nil {
 		return nil, err
 	}
@@ -77,17 +83,17 @@ func (l *Locator) Serve() error {
 	return l.grpc.Serve(lis)
 }
 
-func (l *Locator) extractEthAddr(ctx context.Context) (string, error) {
+func (l *Locator) extractEthAddr(ctx context.Context) (common.Address, error) {
 	pr, ok := peer.FromContext(ctx)
 	if !ok {
-		return "", status.Error(codes.DataLoss, "failed to get peer from ctx")
+		return common.Address{}, status.Error(codes.DataLoss, "failed to get peer from ctx")
 	}
 
 	switch info := pr.AuthInfo.(type) {
 	case util.EthAuthInfo:
-		return info.Wallet.Hex(), nil
+		return info.Wallet, nil
 	default:
-		return "", status.Error(codes.Unauthenticated, "wrong AuthInfo type")
+		return common.Address{}, status.Error(codes.Unauthenticated, "wrong AuthInfo type")
 	}
 }
 
@@ -99,7 +105,7 @@ func (l *Locator) putAnnounce(n *node) {
 	l.db[n.ethAddr] = n
 }
 
-func (l *Locator) getResolve(ethAddr string) (*node, error) {
+func (l *Locator) getResolve(ethAddr common.Address) (*node, error) {
 	l.mx.Lock()
 	defer l.mx.Unlock()
 
@@ -153,7 +159,7 @@ func NewLocator(ctx context.Context, conf *LocatorConfig, key *ecdsa.PrivateKey)
 	}
 
 	l = &Locator{
-		db:     make(map[string]*node),
+		db:     make(map[common.Address]*node),
 		conf:   conf,
 		ctx:    ctx,
 		ethKey: key,

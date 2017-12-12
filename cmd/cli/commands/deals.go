@@ -48,7 +48,7 @@ var nodeDealsListCmd = &cobra.Command{
 		status := convertTransactionStatus(dealListFlagStatus)
 		from := dealListFlagFrom
 		if from == "" {
-			from = util.PubKeyToAddr(sessionKey.PublicKey)
+			from = util.PubKeyToAddr(sessionKey.PublicKey).Hex()
 		}
 
 		deals, err := itr.List(from, status)

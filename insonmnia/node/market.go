@@ -188,7 +188,7 @@ func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey) error 
 
 	deal := &pb.Deal{
 		SupplierID: order.GetSupplierID(),
-		BuyerID:    util.PubKeyToAddr(key.PublicKey),
+		BuyerID:    util.PubKeyToAddr(key.PublicKey).Hex(),
 		Price:      order.Price,
 		Status:     pb.DealStatus_PENDING,
 		// TODO(sshaman1101): calculate hash
@@ -256,7 +256,7 @@ func (h *orderHandler) findDeals(ctx context.Context, key *ecdsa.PrivateKey, add
 
 func (h *orderHandler) findDealOnce(key *ecdsa.PrivateKey, addr, hash string) *pb.Deal {
 	// get deals opened by our client
-	IDs, err := h.bc.GetAcceptedDeal(util.PubKeyToAddr(key.PublicKey), addr)
+	IDs, err := h.bc.GetAcceptedDeal(util.PubKeyToAddr(key.PublicKey).Hex(), addr)
 	if err != nil {
 		return nil
 	}
@@ -317,7 +317,7 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, 
 		return nil, errNotAnBidOrder
 	}
 
-	req.ByuerID = util.PubKeyToAddr(m.remotes.key.PublicKey)
+	req.ByuerID = util.PubKeyToAddr(m.remotes.key.PublicKey).Hex()
 	created, err := m.remotes.market.CreateOrder(ctx, req)
 	if err != nil {
 		return nil, err
