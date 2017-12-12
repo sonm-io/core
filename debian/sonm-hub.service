@@ -6,6 +6,7 @@ Description=SONM Hub
 EnvironmentFile=/etc/default/sonm-hub
 Type=simple
 ExecStart=/usr/bin/sonmhub --config=${CONFIG_PATH}
+Restart=on-failure
 
 
 [Install]

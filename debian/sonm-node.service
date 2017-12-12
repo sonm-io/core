@@ -6,6 +6,7 @@ Description=SONM Node
 EnvironmentFile=/etc/default/sonm-node
 Type=simple
 ExecStart=/usr/bin/sonmnode --config=${CONFIG_PATH}
+Restart=on-failure
 
 
 [Install]
