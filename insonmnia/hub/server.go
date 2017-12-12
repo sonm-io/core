@@ -743,13 +743,11 @@ func (h *Hub) watchForDealClosed(dealID DealID, buyerId string) {
 			zap.Error(err),
 		)
 	}
-	h.tasksMu.Lock()
-	tasks, ok := h.deals[dealID]
-	if !ok {
+
+	tasks, err := h.popDealHistory(dealID)
+	if err != nil {
 		return
 	}
-	delete(h.deals, dealID)
-	h.tasksMu.Unlock()
 
 	log.S(h.ctx).Info("stopping at max %d tasks due to deal closing", len(tasks))
 	for _, task := range tasks {
@@ -1358,6 +1356,20 @@ func (h *Hub) deleteTask(taskID string) error {
 		return h.cluster.Synchronize(h.tasks)
 	}
 	return nil
+}
+
+func (h *Hub) popDealHistory(dealID DealID) ([]*TaskInfo, error) {
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+
+	tasks, ok := h.deals[dealID]
+	if !ok {
+		h.tasksMu.Unlock()
+		return nil, errDealNotFound
+	}
+	delete(h.deals, dealID)
+
+	return tasks, nil
 }
 
 func (h *Hub) startLocatorAnnouncer() error {
