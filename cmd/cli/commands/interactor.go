@@ -8,6 +8,8 @@ import (
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type NodeHubInteractor interface {
@@ -41,14 +43,24 @@ func (it *hubInteractor) Status() (*pb.HubStatusReply, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.hub.Status(ctx, &pb.Empty{})
+	reply, err := it.hub.Status(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, nil
 }
 
 func (it *hubInteractor) WorkersList() (*pb.ListReply, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.hub.WorkersList(ctx, &pb.Empty{})
+	reply, err := it.hub.WorkersList(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, nil
 }
 
 func (it *hubInteractor) WorkerStatus(id string) (*pb.InfoReply, error) {
@@ -56,14 +68,24 @@ func (it *hubInteractor) WorkerStatus(id string) (*pb.InfoReply, error) {
 	defer cancel()
 
 	req := &pb.ID{Id: id}
-	return it.hub.WorkerStatus(ctx, req)
+	reply, err := it.hub.WorkerStatus(ctx, req)
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, nil
 }
 
 func (it *hubInteractor) GetRegisteredWorkers() (*pb.GetRegisteredWorkersReply, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.hub.GetRegisteredWorkers(ctx, &pb.Empty{})
+	reply, err := it.hub.GetRegisteredWorkers(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, nil
 }
 
 func (it *hubInteractor) RegisterWorker(id string) (*pb.Empty, error) {
@@ -71,7 +93,12 @@ func (it *hubInteractor) RegisterWorker(id string) (*pb.Empty, error) {
 	defer cancel()
 
 	req := &pb.ID{Id: id}
-	return it.hub.RegisterWorker(ctx, req)
+	reply, err := it.hub.RegisterWorker(ctx, req)
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, nil
 }
 
 func (it *hubInteractor) DeregisterWorker(id string) (*pb.Empty, error) {
@@ -79,14 +106,24 @@ func (it *hubInteractor) DeregisterWorker(id string) (*pb.Empty, error) {
 	defer cancel()
 
 	req := &pb.ID{Id: id}
-	return it.hub.DeregisterWorker(ctx, req)
+	reply, err := it.hub.DeregisterWorker(ctx, req)
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, nil
 }
 
 func (it *hubInteractor) DevicesList() (*pb.DevicesReply, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.hub.DeviceList(ctx, &pb.Empty{})
+	reply, err := it.hub.DeviceList(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, err
 }
 
 func (it *hubInteractor) GetDeviceProperties(id string) (*pb.GetDevicePropertiesReply, error) {
@@ -94,7 +131,12 @@ func (it *hubInteractor) GetDeviceProperties(id string) (*pb.GetDeviceProperties
 	defer cancel()
 
 	req := &pb.ID{Id: id}
-	return it.hub.GetDeviceProperties(ctx, req)
+	reply, err := it.hub.GetDeviceProperties(ctx, req)
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, err
 }
 
 func (it *hubInteractor) SetDeviceProperties(ID string, properties map[string]float64) (*pb.Empty, error) {
@@ -106,14 +148,24 @@ func (it *hubInteractor) SetDeviceProperties(ID string, properties map[string]fl
 		Properties: properties,
 	}
 
-	return it.hub.SetDeviceProperties(ctx, req)
+	reply, err := it.hub.SetDeviceProperties(ctx, req)
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, nil
 }
 
 func (it *hubInteractor) GetAskPlans() (*pb.SlotsReply, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.hub.GetAskPlans(ctx, &pb.Empty{})
+	reply, err := it.hub.GetAskPlans(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, nil
 }
 
 func (it *hubInteractor) CreateAskPlan(slot *structs.Slot, price string) (*pb.ID, error) {
@@ -124,21 +176,37 @@ func (it *hubInteractor) CreateAskPlan(slot *structs.Slot, price string) (*pb.ID
 		Price: price,
 		Slot:  slot.Unwrap(),
 	}
-	return it.hub.CreateAskPlan(ctx, req)
+
+	reply, err := it.hub.CreateAskPlan(ctx, req)
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, nil
 }
 
 func (it *hubInteractor) RemoveAskPlan(id string) (*pb.Empty, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.hub.RemoveAskPlan(ctx, &pb.ID{Id: id})
+	reply, err := it.hub.RemoveAskPlan(ctx, &pb.ID{Id: id})
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, nil
 }
 
 func (it *hubInteractor) TaskList() (*pb.TaskListReply, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 
-	return it.hub.TaskList(ctx, &pb.Empty{})
+	reply, err := it.hub.TaskList(ctx, &pb.Empty{})
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, nil
 }
 
 func (it *hubInteractor) TaskStatus(id string) (*pb.TaskStatusReply, error) {
@@ -146,7 +214,20 @@ func (it *hubInteractor) TaskStatus(id string) (*pb.TaskStatusReply, error) {
 	defer cancel()
 
 	req := &pb.ID{Id: id}
-	return it.hub.TaskStatus(ctx, req)
+	reply, err := it.hub.TaskStatus(ctx, req)
+	if err != nil {
+		return nil, it.wrapError(err)
+	}
+
+	return reply, nil
+}
+
+func (it *hubInteractor) wrapError(err error) error {
+	s, ok := status.FromError(err)
+	if ok && s.Code() == codes.Unimplemented {
+		return errNoHubConnection
+	}
+	return err
 }
 
 func NewHubInteractor(addr string, timeout time.Duration) (NodeHubInteractor, error) {
