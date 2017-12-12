@@ -45,6 +45,7 @@ func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID stri
 	log.G(ctx).Debug("waiting for deal closed", zap.String("dealID", string(dealID)))
 
 	timer := time.NewTicker(5 * time.Second)
+	defer timer.Stop()
 
 	for {
 		select {
