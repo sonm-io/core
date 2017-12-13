@@ -34,7 +34,6 @@ func deleteTestConfigFile() {
 
 func TestConfigLoad(t *testing.T) {
 	err := createTestConfigFile(`
-hub_address: 127.0.0.1:10005
 output_format: json
 key_store: "/home/user/.sonm/keys/"
 pass_phrase: "qwerty123"`)
@@ -44,7 +43,6 @@ pass_phrase: "qwerty123"`)
 	cfg, err := NewConfig()
 	assert.NoError(t, err)
 	assert.Equal(t, "json", cfg.OutputFormat())
-	assert.Equal(t, "127.0.0.1:10005", cfg.HubAddress())
 	assert.Equal(t, "/home/user/.sonm/keys/", cfg.KeyStore())
 	assert.Equal(t, "qwerty123", cfg.PassPhrase())
 }
@@ -57,7 +55,6 @@ func TestConfigDefaults(t *testing.T) {
 	cfg, err := NewConfig()
 	assert.NoError(t, err)
 	assert.Equal(t, "", cfg.OutputFormat())
-	assert.Equal(t, "", cfg.HubAddress())
 }
 
 func TestConfigNoFile(t *testing.T) {
@@ -67,7 +64,6 @@ func TestConfigNoFile(t *testing.T) {
 	cfg, err := NewConfig()
 	assert.NoError(t, err)
 	assert.Equal(t, "simple", cfg.OutputFormat())
-	assert.Equal(t, "", cfg.HubAddress())
 }
 
 func TestConfigCannotRead(t *testing.T) {
