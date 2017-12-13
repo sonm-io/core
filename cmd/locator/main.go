@@ -7,7 +7,6 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
-	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/locator"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"go.uber.org/zap"
@@ -35,7 +34,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	key, err := accounts.LoadKeys(cfg.Eth.Keystore, cfg.Eth.Passphrase)
+	key, err := cfg.Eth.LoadKey()
 	if err != nil {
 		log.GetLogger(ctx).Error("failed load private key", zap.Error(err))
 		os.Exit(1)

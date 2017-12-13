@@ -3,6 +3,7 @@ package miner
 import (
 	"github.com/jinzhu/configor"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
 )
 
@@ -16,11 +17,6 @@ type HubConfig struct {
 type FirewallConfig struct {
 	// STUN server endpoint (with port).
 	Server string `yaml:"server"`
-}
-
-type EthConfig struct {
-	Passphrase string `required:"false" default:"" yaml:"pass_phrase"`
-	Keystore   string `required:"false" default:"" yaml:"key_store"`
 }
 
 // GPUConfig contains options related to NVIDIA GPU support
@@ -43,14 +39,14 @@ type ResourcesConfig struct {
 }
 
 type config struct {
-	HubConfig       HubConfig       `required:"true" yaml:"hub"`
-	FirewallConfig  *FirewallConfig `required:"false" yaml:"firewall"`
-	Eth             *EthConfig      `yaml:"ethereum"`
-	GPUConfig       *gpu.Config     `required:"false" yaml:"GPUConfig"`
-	SSHConfig       *SSHConfig      `required:"false" yaml:"ssh"`
-	LoggingConfig   LoggingConfig   `yaml:"logging"`
-	UUIDPathConfig  string          `required:"false" yaml:"uuid_path"`
-	PublicIPsConfig []string        `required:"false" yaml:"public_ip_addrs"`
+	HubConfig       HubConfig           `required:"true" yaml:"hub"`
+	FirewallConfig  *FirewallConfig     `required:"false" yaml:"firewall"`
+	Eth             *accounts.EthConfig `yaml:"ethereum"`
+	GPUConfig       *gpu.Config         `required:"false" yaml:"GPUConfig"`
+	SSHConfig       *SSHConfig          `required:"false" yaml:"ssh"`
+	LoggingConfig   LoggingConfig       `yaml:"logging"`
+	UUIDPathConfig  string              `required:"false" yaml:"uuid_path"`
+	PublicIPsConfig []string            `required:"false" yaml:"public_ip_addrs"`
 }
 
 func (c *config) HubEndpoint() string {
@@ -85,7 +81,7 @@ func (c *config) UUIDPath() string {
 	return c.UUIDPathConfig
 }
 
-func (c *config) ETH() *EthConfig {
+func (c *config) ETH() *accounts.EthConfig {
 	return c.Eth
 }
 
@@ -122,5 +118,5 @@ type Config interface {
 	// Path to store Miner uuid
 	UUIDPath() string
 	// ETH returns ethereum configuration
-	ETH() *EthConfig
+	ETH() *accounts.EthConfig
 }

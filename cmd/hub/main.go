@@ -16,7 +16,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/accounts"
 )
 
 var (
@@ -44,7 +43,7 @@ func main() {
 	logger := logging.BuildLogger(cfg.Logging.Level, true)
 	ctx = log.WithLogger(ctx, logger)
 
-	key, err := accounts.LoadKeys(cfg.Eth.Keystore, cfg.Eth.Passphrase)
+	key, err := cfg.Eth.LoadKey()
 	if err != nil {
 		ctxlog.GetLogger(ctx).Error("failed load private key", zap.Error(err))
 		os.Exit(1)

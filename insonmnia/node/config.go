@@ -42,18 +42,13 @@ type locatorConfig struct {
 	Endpoint string `required:"true" default:"" yaml:"endpoint"`
 }
 
-type ethConfig struct {
-	Keystore   string `required:"false" default:"" yaml:"key_store"`
-	Passphrase string `required:"false" default:"" yaml:"pass_phrase"`
-}
-
 type yamlConfig struct {
-	Node    nodeConfig    `required:"true" yaml:"node"`
-	Market  marketConfig  `required:"true" yaml:"market"`
-	Log     logConfig     `required:"true" yaml:"log"`
-	Locator locatorConfig `required:"true" yaml:"locator"`
-	Eth     ethConfig     `required:"false" yaml:"ethereum"`
-	Hub     *hubConfig    `required:"false" yaml:"hub"`
+	Node    nodeConfig         `required:"true" yaml:"node"`
+	Market  marketConfig       `required:"true" yaml:"market"`
+	Log     logConfig          `required:"true" yaml:"log"`
+	Locator locatorConfig      `required:"true" yaml:"locator"`
+	Eth     accounts.EthConfig `required:"false" yaml:"ethereum"`
+	Hub     *hubConfig         `required:"false" yaml:"hub"`
 }
 
 func (y *yamlConfig) ListenAddress() string {

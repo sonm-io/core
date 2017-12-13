@@ -31,12 +31,12 @@ type remoteOptions struct {
 }
 
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, creds credentials.TransportCredentials) (*remoteOptions, error) {
-	locatorCC, err := util.MakeGrpcClient(ctx, conf.LocatorEndpoint(), creds)
+	locatorCC, err := util.MakeWalletAuthenticatedClient(ctx, creds, conf.LocatorEndpoint())
 	if err != nil {
 		return nil, err
 	}
 
-	marketCC, err := util.MakeGrpcClient(ctx, conf.MarketEndpoint(), nil)
+	marketCC, err := util.MakeWalletAuthenticatedClient(ctx, creds, conf.MarketEndpoint())
 	if err != nil {
 		return nil, err
 	}

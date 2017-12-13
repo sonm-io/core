@@ -7,7 +7,6 @@ import (
 	"io"
 	"math/rand"
 	"net"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -1021,11 +1020,6 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		}
 	}()
 
-	if os.Getenv("GRPC_INSECURE") != "" {
-		defaults.rot = nil
-		defaults.creds = nil
-	}
-
 	ip := cfg.EndpointIP()
 	clientPort, err := util.ParseEndpointPort(cfg.Cluster.Endpoint)
 	if err != nil {
@@ -1063,7 +1057,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	if defaults.locator == nil {
-		conn, err := util.MakeGrpcClient(defaults.ctx, cfg.Locator.Endpoint, defaults.creds)
+		conn, err := util.MakeWalletAuthenticatedClient(ctx, defaults.creds, cfg.Locator.Endpoint)
 		if err != nil {
 			return nil, err
 		}
@@ -1072,7 +1066,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	if defaults.market == nil {
-		conn, err := util.MakeGrpcClient(defaults.ctx, cfg.Market.Endpoint, nil)
+		conn, err := util.MakeWalletAuthenticatedClient(ctx, defaults.creds, cfg.Market.Endpoint)
 		if err != nil {
 			return nil, err
 		}

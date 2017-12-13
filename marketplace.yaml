@@ -1,0 +1,8 @@
+address: "127.0.0.1:9095"
+
+# blockchain-specific settings.
+ethereum:
+  # path to keystore
+  key_store: "./keys"
+  # passphrase for keystore
+  pass_phrase: "any"

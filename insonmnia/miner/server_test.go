@@ -9,6 +9,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
 	"github.com/shirou/gopsutil/mem"
+	accounts "github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	pb "github.com/sonm-io/core/proto"
@@ -35,7 +36,7 @@ func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg.EXPECT().Firewall().AnyTimes()
 	cfg.EXPECT().GPU().AnyTimes()
 	cfg.EXPECT().SSH().AnyTimes()
-	cfg.EXPECT().ETH().AnyTimes().Return(&EthConfig{})
+	cfg.EXPECT().ETH().AnyTimes().Return(&accounts.EthConfig{})
 	cfg.EXPECT().PublicIPs().AnyTimes().Return([]string{"192.168.70.17", "46.148.198.133"})
 	return cfg
 }

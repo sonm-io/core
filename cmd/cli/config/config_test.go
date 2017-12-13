@@ -35,8 +35,9 @@ func deleteTestConfigFile() {
 func TestConfigLoad(t *testing.T) {
 	err := createTestConfigFile(`
 output_format: json
-key_store: "/home/user/.sonm/keys/"
-pass_phrase: "qwerty123"`)
+ethereum:
+  key_store: "/home/user/.sonm/keys/"
+  pass_phrase: "qwerty123"`)
 	defer deleteTestConfigFile()
 	assert.NoError(t, err)
 

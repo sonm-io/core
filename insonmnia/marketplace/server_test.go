@@ -5,11 +5,16 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
+)
+
+var (
+	key, _ = crypto.GenerateKey()
 )
 
 func makeOrder() *pb.Order {
@@ -381,14 +386,18 @@ func TestInMemOrderStorage_GetOrders_Count3(t *testing.T) {
 }
 
 func TestMarketplace_GetOrders(t *testing.T) {
-	mp := NewMarketplace(context.Background(), "")
+	cfg := &MarketplaceConfig{ListenAddr: "127.0.0.1:9095"}
+	mp, err := NewMarketplace(context.Background(), cfg, key)
+
+	assert.NoError(t, err)
 
 	req := &pb.GetOrdersRequest{
 		Slot:      nil,
 		Count:     0,
 		OrderType: pb.OrderType_ANY,
 	}
-	_, err := mp.GetOrders(nil, req)
+	_, err = mp.GetOrders(nil, req)
+
 	assert.EqualError(t, err, errSlotIsNil.Error())
 }
 

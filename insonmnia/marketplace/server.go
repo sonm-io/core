@@ -1,18 +1,22 @@
 package marketplace
 
 import (
-	"errors"
+	"crypto/ecdsa"
+	"crypto/tls"
 	"net"
 	"sort"
 	"sync"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -133,9 +137,12 @@ func NewInMemoryStorage() OrderStorage {
 }
 
 type Marketplace struct {
-	ctx  context.Context
-	db   OrderStorage
-	addr string
+	ctx         context.Context
+	db          OrderStorage
+	addr        string
+	grpc        *grpc.Server
+	certRotator util.HitlessCertRotator
+	creds       credentials.TransportCredentials
 }
 
 func (m *Marketplace) GetOrders(_ context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
@@ -221,16 +228,32 @@ func (m *Marketplace) Serve() error {
 		return err
 	}
 
-	srv := util.MakeGrpcServer(nil)
-	pb.RegisterMarketServer(srv, m)
-	srv.Serve(lis)
+	m.grpc.Serve(lis)
+
 	return nil
 }
 
-func NewMarketplace(ctx context.Context, addr string) *Marketplace {
-	return &Marketplace{
+func NewMarketplace(ctx context.Context, cfg *MarketplaceConfig, key *ecdsa.PrivateKey) (m *Marketplace, err error) {
+	if key == nil {
+		return nil, errors.New("private key should be provided")
+	}
+
+	m = &Marketplace{
 		ctx:  ctx,
-		addr: addr,
+		addr: cfg.ListenAddr,
 		db:   NewInMemoryStorage(),
 	}
+
+	var TLSConfig *tls.Config
+	m.certRotator, TLSConfig, err = util.NewHitlessCertRotator(ctx, key)
+	if err != nil {
+		return nil, err
+	}
+
+	m.creds = util.NewTLS(TLSConfig)
+	srv := util.MakeGrpcServer(m.creds)
+	pb.RegisterMarketServer(srv, m)
+	m.grpc = srv
+
+	return m, nil
 }
