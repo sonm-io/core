@@ -57,7 +57,7 @@ var dealsListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		showJSON(cmd, map[string]interface{}{"deals": deals})
+		printDealsList(cmd, deals)
 	},
 }
 
@@ -86,7 +86,7 @@ var dealsStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		showJSON(cmd, deal)
+		printDealInfo(cmd, deal)
 	},
 }
 

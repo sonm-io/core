@@ -135,7 +135,7 @@ var marketCreteCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		printOrderCreated(cmd, created)
+		printID(cmd, created.Id)
 	},
 }
 

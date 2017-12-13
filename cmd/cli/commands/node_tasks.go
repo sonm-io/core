@@ -70,7 +70,7 @@ var taskListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		showJSON(cmd, list)
+		printNodeTaskStatus(cmd, list.Info)
 	},
 }
 
@@ -115,7 +115,7 @@ var taskStartCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		showJSON(cmd, reply)
+		printTaskStart(cmd, reply)
 	},
 }
 
@@ -139,7 +139,7 @@ var taskStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		showJSON(cmd, status)
+		printTaskStatus(cmd, taskID, status)
 	},
 }
 
@@ -205,13 +205,13 @@ var taskStopCmd = &cobra.Command{
 
 		hubAddr := args[0]
 		taskID := args[1]
-		status, err := node.Stop(taskID, hubAddr)
+		_, err = node.Stop(taskID, hubAddr)
 		if err != nil {
 			showError(cmd, "Cannot stop status", err)
 			os.Exit(1)
 		}
 
-		showJSON(cmd, status)
+		showOk(cmd)
 	},
 }
 

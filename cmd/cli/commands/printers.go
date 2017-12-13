@@ -228,21 +228,27 @@ func printWorkerAclList(cmd *cobra.Command, list *pb.GetRegisteredWorkersReply) 
 	}
 }
 
-func convertTransactionInfo(tx *types.Transaction) map[string]interface{} {
-	hash := tx.Hash().String()
-	value := tx.Value().Uint64()
-	to := tx.To().String()
-	cost := tx.Cost().Uint64()
-	gas := tx.Gas().Uint64()
-	gasPrice := tx.GasPrice().Uint64()
+func printTransactionInfo(cmd *cobra.Command, tx *types.Transaction) {
+	if isSimpleFormat() {
+		cmd.Printf("Hash:      %s\r\n", tx.Hash().String())
+		cmd.Printf("Value:     %d\r\n", tx.Value().Uint64())
+		cmd.Printf("To:        %s\r\n", tx.To().String())
+		cmd.Printf("Cost:      %d\r\n", tx.Cost().Uint64())
+		cmd.Printf("Gas:       %d\r\n", tx.Gas().Uint64())
+		cmd.Printf("Gas price: %d\r\n", tx.GasPrice().Uint64())
+	} else {
+		showJSON(cmd, convertTransactionInfo(tx))
+	}
+}
 
+func convertTransactionInfo(tx *types.Transaction) map[string]interface{} {
 	return map[string]interface{}{
-		"hash":      hash,
-		"value":     value,
-		"to":        to,
-		"cost":      cost,
-		"gas":       gas,
-		"gas_price": gasPrice,
+		"hash":      tx.Hash().String(),
+		"value":     tx.Value().Uint64(),
+		"to":        tx.To().String(),
+		"cost":      tx.Cost().Uint64(),
+		"gas":       tx.Gas().Uint64(),
+		"gas_price": tx.GasPrice().Uint64(),
 	}
 }
 
@@ -285,15 +291,6 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 	}
 }
 
-func printOrderCreated(cmd *cobra.Command, order *pb.Order) {
-	if isSimpleFormat() {
-		cmd.Println("Order created!")
-		cmd.Printf("ID = %s\r\n", order.Id)
-	} else {
-		showJSON(cmd, map[string]string{"id": order.Id})
-	}
-}
-
 func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
 	if isSimpleFormat() {
 		if len(tasks.GetOrders()) == 0 {
@@ -311,6 +308,7 @@ func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
 		showJSON(cmd, tasks)
 	}
 }
+
 func printAskList(cmd *cobra.Command, slots *pb.SlotsReply) {
 	if isSimpleFormat() {
 		slots := slots.GetSlots()
@@ -343,6 +341,62 @@ func printVersion(cmd *cobra.Command, v string) {
 		cmd.Printf("Version: %s\r\n", v)
 	} else {
 		showJSON(cmd, map[string]string{"version": v})
+	}
+
+}
+
+func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
+	if isSimpleFormat() {
+		if len(deals) == 0 {
+			cmd.Println("No deals found")
+			return
+		}
+
+		for _, deal := range deals {
+			printDealInfo(cmd, deal)
+			cmd.Println()
+		}
+	} else {
+		showJSON(cmd, map[string]interface{}{"deals": deals})
+	}
+
+}
+
+func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
+	if isSimpleFormat() {
+		start := time.Unix(deal.GetStartTime().GetSeconds(), int64(deal.GetStartTime().GetNanos()))
+		end := time.Unix(deal.GetEndTime().GetSeconds(), int64(deal.GetEndTime().GetNanos()))
+
+		cmd.Printf("ID:       %s\r\n", deal.GetId())
+		cmd.Printf("Price:    %s\r\n", deal.GetPrice())
+		cmd.Printf("Status:   %s\r\n", deal.GetStatus())
+		cmd.Printf("Buyer:    %s\r\n", deal.GetBuyerID())
+		cmd.Printf("Supplier: %s\r\n", deal.GetSupplierID())
+		cmd.Printf("Start at: %s\r\n", start.Format(time.RFC3339))
+		cmd.Printf("End at:   %s\r\n", end.Format(time.RFC3339))
+	} else {
+		showJSON(cmd, deal)
+	}
+
+}
+
+func printID(cmd *cobra.Command, id string) {
+	if isSimpleFormat() {
+		cmd.Printf("ID = %s\r\n", id)
+	} else {
+		showJSON(cmd, map[string]string{"id": id})
+	}
+}
+
+func printTaskStart(cmd *cobra.Command, start *pb.HubStartTaskReply) {
+	if isSimpleFormat() {
+		cmd.Printf("Task ID:      %s\r\n", start.Id)
+		cmd.Printf("Hub Address:  %s\r\n", start.HubAddr)
+		for _, end := range start.GetEndpoint() {
+			cmd.Printf("  Endpoint:    %s\r\n", end)
+		}
+	} else {
+		showJSON(cmd, start)
 	}
 
 }

@@ -76,7 +76,7 @@ var hubOrderCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		showJSON(cmd, id)
+		printID(cmd, id.GetId())
 	},
 }
 
