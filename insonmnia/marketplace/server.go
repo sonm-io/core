@@ -148,7 +148,7 @@ type Marketplace struct {
 func (m *Marketplace) GetOrders(_ context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
 	log.G(m.ctx).Info("handling GetOrders request", zap.Any("req", req))
 
-	slot, err := structs.NewSlot(req.Slot)
+	slot, err := structs.NewSlot(req.GetOrder().GetSlot())
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (m *Marketplace) GetOrders(_ context.Context, req *pb.GetOrdersRequest) (*p
 
 	searchParams := &searchParams{
 		slot:      slot,
-		orderType: req.GetOrderType(),
+		orderType: req.GetOrder().GetOrderType(),
 		count:     resultCount,
 	}
 

@@ -123,9 +123,11 @@ func (h *orderHandler) search(m pb.MarketClient) ([]*pb.Order, error) {
 	h.status = statusSearching
 
 	req := &pb.GetOrdersRequest{
-		Slot:      h.order.GetSlot(),
-		OrderType: pb.OrderType_ASK,
-		Count:     100,
+		Order: &pb.Order{
+			Slot:      h.order.GetSlot(),
+			OrderType: pb.OrderType_ASK,
+		},
+		Count: 100,
 	}
 
 	reply, err := m.GetOrders(h.ctx, req)

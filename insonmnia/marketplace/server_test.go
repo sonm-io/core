@@ -392,9 +392,11 @@ func TestMarketplace_GetOrders(t *testing.T) {
 	assert.NoError(t, err)
 
 	req := &pb.GetOrdersRequest{
-		Slot:      nil,
-		Count:     0,
-		OrderType: pb.OrderType_ANY,
+		Count: 0,
+		Order: &pb.Order{
+			Slot:      nil,
+			OrderType: pb.OrderType_ANY,
+		},
 	}
 	_, err = mp.GetOrders(nil, req)
 
