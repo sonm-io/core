@@ -51,6 +51,7 @@ var approveTokenCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		// TODO(sshaman1101): printer
 		showJSON(cmd, convertTransactionInfo(tx))
 	},
 }

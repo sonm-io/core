@@ -3,19 +3,17 @@ package commands
 import (
 	"os"
 
-	ds "github.com/c2h5oh/datasize"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
-	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
 func init() {
 	hubOrderRootCmd.AddCommand(
-		nodeOrderListCmd,
-		nodeOrderCreateCmd,
-		nodeOrderRemoveCmd,
+		hubOrderListCmd,
+		hubOrderCreateCmd,
+		hubOrderRemoveCmd,
 	)
 }
 
@@ -24,34 +22,7 @@ var hubOrderRootCmd = &cobra.Command{
 	Short: "Operations with ask order plan",
 }
 
-func printAskList(cmd *cobra.Command, slots *pb.SlotsReply) {
-	if isSimpleFormat() {
-		slots := slots.GetSlots()
-		if len(slots) == 0 {
-			cmd.Printf("No Ask Order configured\r\n")
-			return
-		}
-
-		for id, slot := range slots {
-			cmd.Printf(" ID:  %s", id)
-			cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
-			cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
-			cmd.Printf(" RAM: %s\r\n", ds.ByteSize(slot.Resources.RamBytes).HR())
-			cmd.Printf(" Net: %s\r\n", slot.Resources.NetworkType.String())
-			cmd.Printf("     %s IN\r\n", ds.ByteSize(slot.Resources.NetTrafficIn).HR())
-			cmd.Printf("     %s OUT\r\n", ds.ByteSize(slot.Resources.NetTrafficOut).HR())
-
-			if slot.Geo != nil && slot.Geo.City != "" && slot.Geo.Country != "" {
-				cmd.Printf(" Geo: %s, %s\r\n", slot.Geo.City, slot.Geo.Country)
-			}
-			cmd.Println("")
-		}
-	} else {
-		showJSON(cmd, slots)
-	}
-}
-
-var nodeOrderListCmd = &cobra.Command{
+var hubOrderListCmd = &cobra.Command{
 	Use:    "list",
 	Short:  "Show current ask plans",
 	PreRun: loadKeyStoreWrapper,
@@ -72,8 +43,8 @@ var nodeOrderListCmd = &cobra.Command{
 	},
 }
 
-var nodeOrderCreateCmd = &cobra.Command{
-	Use:    "create <price> <plan.yaml>",
+var hubOrderCreateCmd = &cobra.Command{
+	Use:    "create <price> <slot.yaml>",
 	Short:  "Create new plan",
 	Args:   cobra.MinimumNArgs(2),
 	PreRun: loadKeyStoreWrapper,
@@ -109,7 +80,7 @@ var nodeOrderCreateCmd = &cobra.Command{
 	},
 }
 
-var nodeOrderRemoveCmd = &cobra.Command{
+var hubOrderRemoveCmd = &cobra.Command{
 	Use:    "remove <order_id>",
 	Short:  "Remove plan by",
 	Args:   cobra.MinimumNArgs(1),

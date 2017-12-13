@@ -30,7 +30,6 @@ var (
 	version string
 
 	// flags var
-	hubAddressFlag  string
 	nodeAddressFlag string
 	outputModeFlag  string
 	insecureFlag    bool
@@ -50,7 +49,6 @@ var (
 	creds      credentials.TransportCredentials
 
 	// errors
-	errNotEnoughArguments   = errors.New("not enough arguments")
 	errCannotParsePropsFile = errors.New("cannot parse props file")
 )
 
@@ -60,14 +58,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
 	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "disable TLS via components")
 
-	rootCmd.AddCommand(hubRootCmd, nodeMarketRootCmd, nodeDealsRootCmd, nodeTaskRootCmd)
+	rootCmd.AddCommand(hubRootCmd, marketRootCmd, nodeDealsRootCmd, taskRootCmd)
 	rootCmd.AddCommand(loginCmd, approveTokenCmd, versionCmd)
 }
 
 // Root configure and return root command
 func Root(c config.Config) *cobra.Command {
 	cfg = c
-	hubAddressFlag = cfg.HubAddress()
 	rootCmd.SetOutput(os.Stdout)
 	return rootCmd
 }

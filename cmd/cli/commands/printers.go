@@ -8,6 +8,7 @@ import (
 	ds "github.com/c2h5oh/datasize"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/sonm-io/core/insonmnia/node"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
@@ -67,8 +68,7 @@ func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusRep
 			v["net"] = taskStatus.GetUsage().GetNetwork()
 		}
 
-		b, _ := json.Marshal(v)
-		cmd.Println(string(b))
+		showJSON(cmd, v)
 	}
 }
 
@@ -90,8 +90,7 @@ func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskListRep
 			}
 		}
 	} else {
-		b, _ := json.Marshal(tasksMap)
-		fmt.Printf("%s\r\n", string(b))
+		showJSON(cmd, tasksMap)
 	}
 }
 
@@ -113,8 +112,7 @@ func printWorkerList(cmd *cobra.Command, lr *pb.ListReply) {
 			}
 		}
 	} else {
-		b, _ := json.Marshal(lr)
-		cmd.Println(string(b))
+		showJSON(cmd, lr)
 	}
 }
 
@@ -162,8 +160,7 @@ func printWorkerStatus(cmd *cobra.Command, workerID string, metrics *pb.InfoRepl
 			}
 		}
 	} else {
-		b, _ := json.Marshal(metrics)
-		cmd.Println(string(b))
+		showJSON(cmd, metrics)
 	}
 }
 
@@ -174,8 +171,7 @@ func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
 		cmd.Printf("Version:          %s %s\r\n", stat.Version, stat.Platform)
 		cmd.Printf("Eth address:      %s\r\n", stat.EthAddr)
 	} else {
-		b, _ := json.Marshal(stat)
-		cmd.Println(string(b))
+		showJSON(cmd, stat)
 	}
 }
 
@@ -207,8 +203,7 @@ func printDeviceList(cmd *cobra.Command, devices *pb.DevicesReply) {
 			cmd.Printf("No GPUs detected.\r\n")
 		}
 	} else {
-		b, _ := json.Marshal(devices)
-		cmd.Println(string(b))
+		showJSON(cmd, devices)
 	}
 }
 
@@ -218,8 +213,7 @@ func printDevicesProps(cmd *cobra.Command, props map[string]float64) {
 			cmd.Printf("%s = %f\r\n", k, v)
 		}
 	} else {
-		b, _ := json.Marshal(props)
-		cmd.Println(string(b))
+		showJSON(cmd, props)
 	}
 }
 
@@ -230,8 +224,7 @@ func printWorkerAclList(cmd *cobra.Command, list *pb.GetRegisteredWorkersReply) 
 		}
 
 	} else {
-		b, _ := json.Marshal(list)
-		cmd.Printf("%s\r\n", string(b))
+		showJSON(cmd, list)
 	}
 }
 
@@ -251,4 +244,105 @@ func convertTransactionInfo(tx *types.Transaction) map[string]interface{} {
 		"gas":       gas,
 		"gas_price": gasPrice,
 	}
+}
+
+func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
+	if isSimpleFormat() {
+		if len(orders) == 0 {
+			cmd.Printf("No matching orders found")
+			return
+		}
+
+		for i, order := range orders {
+			cmd.Printf("%d) %s %s | price = %s\r\n", i+1, order.OrderType.String(), order.Id, order.Price)
+		}
+	} else {
+		showJSON(cmd, map[string]interface{}{"orders": orders})
+	}
+}
+
+func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
+	if isSimpleFormat() {
+		cmd.Printf("ID:             %s\r\n", order.Id)
+		cmd.Printf("Price:          %s\r\n", order.Price)
+
+		cmd.Printf("SupplierID:     %s\r\n", order.SupplierID)
+		cmd.Printf("SupplierRating: %d\r\n", order.Slot.SupplierRating)
+		cmd.Printf("BuyerID:        %s\r\n", order.ByuerID)
+		cmd.Printf("BuyerRating:    %d\r\n", order.Slot.BuyerRating)
+
+		rs := order.Slot.Resources
+		cmd.Printf("Resources:\r\n")
+		cmd.Printf("  CPU:     %d\r\n", rs.CpuCores)
+		cmd.Printf("  GPU:     %d\r\n", rs.GpuCount)
+		cmd.Printf("  RAM:     %s\r\n", ds.ByteSize(rs.RamBytes).HR())
+		cmd.Printf("  Storage: %s\r\n", ds.ByteSize(rs.Storage).HR())
+		cmd.Printf("  Network: %s\r\n", rs.NetworkType.String())
+		cmd.Printf("    In:   %s\r\n", ds.ByteSize(rs.NetTrafficIn).HR())
+		cmd.Printf("    Out:  %s\r\n", ds.ByteSize(rs.NetTrafficOut).HR())
+	} else {
+		showJSON(cmd, order)
+	}
+}
+
+func printOrderCreated(cmd *cobra.Command, order *pb.Order) {
+	if isSimpleFormat() {
+		cmd.Println("Order created!")
+		cmd.Printf("ID = %s\r\n", order.Id)
+	} else {
+		showJSON(cmd, map[string]string{"id": order.Id})
+	}
+}
+
+func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
+	if isSimpleFormat() {
+		if len(tasks.GetOrders()) == 0 {
+			cmd.Printf("No processing orders\r\n")
+			return
+		}
+
+		for id, order := range tasks.GetOrders() {
+			t := time.Unix(order.Timestamp.Seconds, 0)
+			s := node.HandlerStatusString(uint8(order.Status))
+			cmd.Printf("%s %s %s %s\r\n", t, id, s, order.Extra)
+		}
+
+	} else {
+		showJSON(cmd, tasks)
+	}
+}
+func printAskList(cmd *cobra.Command, slots *pb.SlotsReply) {
+	if isSimpleFormat() {
+		slots := slots.GetSlots()
+		if len(slots) == 0 {
+			cmd.Printf("No Ask Order configured\r\n")
+			return
+		}
+
+		for id, slot := range slots {
+			cmd.Printf(" ID:  %s", id)
+			cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
+			cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
+			cmd.Printf(" RAM: %s\r\n", ds.ByteSize(slot.Resources.RamBytes).HR())
+			cmd.Printf(" Net: %s\r\n", slot.Resources.NetworkType.String())
+			cmd.Printf("     %s IN\r\n", ds.ByteSize(slot.Resources.NetTrafficIn).HR())
+			cmd.Printf("     %s OUT\r\n", ds.ByteSize(slot.Resources.NetTrafficOut).HR())
+
+			if slot.Geo != nil && slot.Geo.City != "" && slot.Geo.Country != "" {
+				cmd.Printf(" Geo: %s, %s\r\n", slot.Geo.City, slot.Geo.Country)
+			}
+			cmd.Println("")
+		}
+	} else {
+		showJSON(cmd, slots)
+	}
+}
+
+func printVersion(cmd *cobra.Command, v string) {
+	if isSimpleFormat() {
+		cmd.Printf("Version: %s\r\n", v)
+	} else {
+		showJSON(cmd, map[string]string{"version": v})
+	}
+
 }

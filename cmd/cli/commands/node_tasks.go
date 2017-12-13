@@ -30,7 +30,7 @@ func init() {
 
 	taskPullCmd.Flags().StringVar(&taskPullOutput, "output", "", "file to output")
 
-	nodeTaskRootCmd.AddCommand(
+	taskRootCmd.AddCommand(
 		taskListCmd,
 		taskStartCmd,
 		taskStatusCmd,
@@ -43,7 +43,7 @@ func init() {
 
 var taskPullOutput string
 
-var nodeTaskRootCmd = &cobra.Command{
+var taskRootCmd = &cobra.Command{
 	Use:   "tasks",
 	Short: "Manage tasks",
 }
