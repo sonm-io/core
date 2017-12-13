@@ -126,10 +126,11 @@ func TestInMemOrderStorage_GetOrders_NilParams(t *testing.T) {
 	assert.EqualError(t, err, errSearchParamsIsNil.Error())
 }
 
-func TestInMemOrderStorage_GetOrders_NilSlot(t *testing.T) {
+func TestInMemOrderStorage_GetOrders_NilOrder(t *testing.T) {
 	s := NewInMemoryStorage()
+
 	_, err := s.GetOrders(&searchParams{})
-	assert.EqualError(t, err, errSlotIsNil.Error())
+	assert.EqualError(t, err, errOrderIsNil.Error())
 }
 
 func TestNewOrder(t *testing.T) {
@@ -273,9 +274,11 @@ func TestInMemOrderStorage_GetOrders_Count(t *testing.T) {
 	assert.NoError(t, err)
 
 	search := &searchParams{
-		slot:      sl,
-		count:     3,
-		orderType: pb.OrderType_BID,
+		order: &pb.Order{
+			Slot:      sl.Unwrap(),
+			OrderType: pb.OrderType_BID,
+		},
+		count: 3,
 	}
 
 	found, err := stor.GetOrders(search)
@@ -319,9 +322,11 @@ func TestInMemOrderStorage_GetOrders_Count2(t *testing.T) {
 	assert.NoError(t, err)
 
 	search := &searchParams{
-		slot:      sl,
-		count:     10,
-		orderType: pb.OrderType_ASK,
+		order: &pb.Order{
+			Slot:      sl.Unwrap(),
+			OrderType: pb.OrderType_ASK,
+		},
+		count: 3,
 	}
 
 	found, err := stor.GetOrders(search)
@@ -360,20 +365,28 @@ func TestInMemOrderStorage_GetOrders_Count3(t *testing.T) {
 	assert.NoError(t, err)
 
 	search := []*searchParams{
+
 		{
-			slot:      sl,
-			count:     5,
-			orderType: pb.OrderType_ANY,
+			count: 5,
+			order: &pb.Order{
+				Slot:      sl.Unwrap(),
+				OrderType: pb.OrderType_ANY,
+			},
 		},
 		{
-			slot:      sl,
-			count:     10,
-			orderType: pb.OrderType_ASK,
+			count: 10,
+			order: &pb.Order{
+				Slot:      sl.Unwrap(),
+				OrderType: pb.OrderType_ASK,
+			},
 		},
 		{
-			slot:      sl,
-			count:     50,
-			orderType: pb.OrderType_BID,
+			order: &pb.Order{
+				Slot:      sl.Unwrap(),
+				OrderType: pb.OrderType_ASK,
+			},
+
+			count: 50,
 		},
 	}
 
@@ -385,10 +398,9 @@ func TestInMemOrderStorage_GetOrders_Count3(t *testing.T) {
 	}
 }
 
-func TestMarketplace_GetOrders(t *testing.T) {
+func TestMarketplace_GetOrders_NoSlot(t *testing.T) {
 	cfg := &MarketplaceConfig{ListenAddr: "127.0.0.1:9095"}
 	mp, err := NewMarketplace(context.Background(), cfg, key)
-
 	assert.NoError(t, err)
 
 	req := &pb.GetOrdersRequest{
@@ -398,9 +410,31 @@ func TestMarketplace_GetOrders(t *testing.T) {
 			OrderType: pb.OrderType_ANY,
 		},
 	}
-	_, err = mp.GetOrders(nil, req)
 
-	assert.EqualError(t, err, errSlotIsNil.Error())
+	_, err = mp.GetOrders(nil, req)
+	assert.EqualError(t, err, errNotEnoughSearchParams.Error())
+}
+
+func TestMarketplace_GetOrders_WithID(t *testing.T) {
+	cfg := &MarketplaceConfig{ListenAddr: "127.0.0.1:9095"}
+	mp, err := NewMarketplace(context.Background(), cfg, key)
+	assert.NoError(t, err)
+
+	req := &pb.GetOrdersRequest{
+		Count: 0,
+		Order: &pb.Order{
+			Slot:       nil,
+			SupplierID: "0xDEADBEEF",
+			OrderType:  pb.OrderType_ANY,
+		},
+	}
+	_, err = mp.GetOrders(nil, req)
+	assert.NoError(t, err)
+
+	req.Order.SupplierID = ""
+	req.Order.ByuerID = "0xDEADBEEF"
+	_, err = mp.GetOrders(nil, req)
+	assert.NoError(t, err)
 }
 
 func TestInMemOrderStorage_GetOrders_Ordering(t *testing.T) {
@@ -427,9 +461,11 @@ func TestInMemOrderStorage_GetOrders_Ordering(t *testing.T) {
 	assert.NoError(t, err)
 
 	search := &searchParams{
-		slot:      sl,
-		count:     10,
-		orderType: pb.OrderType_BID,
+		order: &pb.Order{
+			Slot:      sl.Unwrap(),
+			OrderType: pb.OrderType_BID,
+		},
+		count: 10,
 	}
 
 	found, err := stor.GetOrders(search)
@@ -444,4 +480,100 @@ func TestInMemOrderStorage_GetOrders_Ordering(t *testing.T) {
 
 		assert.True(t, ok, fmt.Sprintf("iter %d :: %d should be gt %d", i, p1, p2))
 	}
+}
+
+func TestInMemOrderStorage_GetOrders_ByID(t *testing.T) {
+	stor := NewInMemoryStorage()
+
+	ord, err := structs.NewOrder(&pb.Order{
+		Price:      big.NewInt(int64(100)).String(),
+		OrderType:  pb.OrderType_ASK,
+		SupplierID: "123",
+		Slot: &pb.Slot{
+			Resources: &pb.Resources{},
+		},
+	})
+
+	assert.NoError(t, err)
+
+	_, err = stor.CreateOrder(ord)
+	assert.NoError(t, err)
+
+	ord, err = structs.NewOrder(&pb.Order{
+		Price:      big.NewInt(int64(100)).String(),
+		OrderType:  pb.OrderType_BID,
+		SupplierID: "321",
+		Slot: &pb.Slot{
+			Resources: &pb.Resources{},
+		},
+	})
+
+	assert.NoError(t, err)
+
+	_, err = stor.CreateOrder(ord)
+	assert.NoError(t, err)
+
+	result, err := stor.GetOrders(&searchParams{
+		count: 100,
+		order: &pb.Order{
+			SupplierID: "123",
+		},
+	})
+
+	assert.NoError(t, err)
+	assert.Len(t, result, 1)
+}
+
+func TestMarketPlaceSearch(t *testing.T) {
+	cfg := &MarketplaceConfig{ListenAddr: "127.0.0.1:9095"}
+	mp, err := NewMarketplace(context.Background(), cfg, key)
+	assert.NoError(t, err)
+
+	createMe := []*pb.Order{
+		{
+			Price:      big.NewInt(int64(100)).String(),
+			OrderType:  pb.OrderType_ASK,
+			SupplierID: "123",
+			Slot: &pb.Slot{
+				Resources: &pb.Resources{},
+			},
+		},
+		{
+			Price:      big.NewInt(int64(200)).String(),
+			OrderType:  pb.OrderType_BID,
+			SupplierID: "123",
+			Slot: &pb.Slot{
+				Resources: &pb.Resources{},
+			},
+		},
+
+		{
+			Price:      big.NewInt(int64(300)).String(),
+			OrderType:  pb.OrderType_BID,
+			SupplierID: "999",
+			Slot: &pb.Slot{
+				Resources: &pb.Resources{},
+			},
+		},
+		{
+			Price:      big.NewInt(int64(400)).String(),
+			OrderType:  pb.OrderType_ASK,
+			SupplierID: "457",
+			Slot: &pb.Slot{
+				Resources: &pb.Resources{},
+			},
+		},
+	}
+
+	for _, ord := range createMe {
+		_, err := mp.CreateOrder(nil, ord)
+		assert.NoError(t, err)
+	}
+
+	found, err := mp.GetOrders(nil, &pb.GetOrdersRequest{Order: &pb.Order{
+		SupplierID: "123",
+	}})
+
+	assert.NoError(t, err)
+	assert.Len(t, found.GetOrders(), 2)
 }
