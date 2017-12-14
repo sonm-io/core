@@ -1,7 +1,9 @@
-hub_address: "localhost:10001"
-
+# In what format CLI must show their output
+# can be "simple" for human-readable messages
+# and "json" for output in machine-readable JSON format
 output_format: "simple"
 
+# path to keystore
 key_store: "./keys"
-
+# passphrase for keystore
 pass_phrase: "any"

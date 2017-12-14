@@ -17,7 +17,6 @@ const (
 
 type Config interface {
 	OutputFormat() string
-	HubAddress() string
 	// KeyStorager included into config because of
 	// cli instance must know how to open the keystore
 	accounts.KeyStorager
@@ -25,7 +24,6 @@ type Config interface {
 
 // cliConfig implements Config interface
 type cliConfig struct {
-	HubAddr    string `required:"false" default:"" yaml:"hub_address"`
 	OutFormat  string `required:"false" default:"" yaml:"output_format"`
 	Keystore   string `required:"false" default:"" yaml:"key_store"`
 	Passphrase string `required:"false" default:"" yaml:"pass_phrase"`
@@ -33,10 +31,6 @@ type cliConfig struct {
 
 func (cc *cliConfig) OutputFormat() string {
 	return cc.OutFormat
-}
-
-func (cc *cliConfig) HubAddress() string {
-	return cc.HubAddr
 }
 
 func (cc *cliConfig) PassPhrase() string {
@@ -59,7 +53,6 @@ func (cc *cliConfig) getConfigPath() (string, error) {
 
 func (cc *cliConfig) fillWithDefaults() {
 	cc.OutFormat = OutputModeSimple
-	cc.HubAddr = ""
 }
 
 func NewConfig() (Config, error) {

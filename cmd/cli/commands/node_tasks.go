@@ -30,7 +30,7 @@ func init() {
 
 	taskPullCmd.Flags().StringVar(&taskPullOutput, "output", "", "file to output")
 
-	nodeTaskRootCmd.AddCommand(
+	taskRootCmd.AddCommand(
 		taskListCmd,
 		taskStartCmd,
 		taskStatusCmd,
@@ -43,7 +43,7 @@ func init() {
 
 var taskPullOutput string
 
-var nodeTaskRootCmd = &cobra.Command{
+var taskRootCmd = &cobra.Command{
 	Use:   "tasks",
 	Short: "Manage tasks",
 }
@@ -70,7 +70,7 @@ var taskListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		showJSON(cmd, list)
+		printNodeTaskStatus(cmd, list.Info)
 	},
 }
 
@@ -115,7 +115,7 @@ var taskStartCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		showJSON(cmd, reply)
+		printTaskStart(cmd, reply)
 	},
 }
 
@@ -139,7 +139,7 @@ var taskStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		showJSON(cmd, status)
+		printTaskStatus(cmd, taskID, status)
 	},
 }
 
@@ -205,13 +205,13 @@ var taskStopCmd = &cobra.Command{
 
 		hubAddr := args[0]
 		taskID := args[1]
-		status, err := node.Stop(taskID, hubAddr)
+		_, err = node.Stop(taskID, hubAddr)
 		if err != nil {
 			showError(cmd, "Cannot stop status", err)
 			os.Exit(1)
 		}
 
-		showJSON(cmd, status)
+		showOk(cmd)
 	},
 }
 

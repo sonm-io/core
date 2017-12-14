@@ -16,15 +16,15 @@ var (
 )
 
 func init() {
-	nodeDealsListCmd.PersistentFlags().StringVar(&dealListFlagFrom, "from", "",
+	dealsListCmd.PersistentFlags().StringVar(&dealListFlagFrom, "from", "",
 		"Transactions author, using self address if empty")
-	nodeDealsListCmd.PersistentFlags().StringVar(&dealListFlagStatus, "status", "ANY",
+	dealsListCmd.PersistentFlags().StringVar(&dealListFlagStatus, "status", "ANY",
 		"Transaction status (ANY, PENDING, ACCEPTED, CLOSED)")
 
 	nodeDealsRootCmd.AddCommand(
-		nodeDealsListCmd,
-		nodeDealsStatusCmd,
-		nodeDealsFinishCmd,
+		dealsListCmd,
+		dealsStatusCmd,
+		dealsFinishCmd,
 	)
 }
 
@@ -34,7 +34,7 @@ var nodeDealsRootCmd = &cobra.Command{
 	PreRun: loadKeyStoreWrapper,
 }
 
-var nodeDealsListCmd = &cobra.Command{
+var dealsListCmd = &cobra.Command{
 	Use:    "list",
 	Short:  "Show my deals",
 	PreRun: loadKeyStoreWrapper,
@@ -57,11 +57,11 @@ var nodeDealsListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		showJSON(cmd, map[string]interface{}{"deals": deals})
+		printDealsList(cmd, deals)
 	},
 }
 
-var nodeDealsStatusCmd = &cobra.Command{
+var dealsStatusCmd = &cobra.Command{
 	Use:    "status <deal_id>",
 	Short:  "show deal status",
 	Args:   cobra.MinimumNArgs(1),
@@ -86,11 +86,11 @@ var nodeDealsStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		showJSON(cmd, deal)
+		printDealInfo(cmd, deal)
 	},
 }
 
-var nodeDealsFinishCmd = &cobra.Command{
+var dealsFinishCmd = &cobra.Command{
 	Use:    "finish <deal_id>",
 	Short:  "finish deal",
 	Args:   cobra.MinimumNArgs(1),

@@ -51,6 +51,6 @@ var approveTokenCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		showJSON(cmd, convertTransactionInfo(tx))
+		printTransactionInfo(cmd, tx)
 	},
 }

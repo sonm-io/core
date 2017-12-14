@@ -69,7 +69,6 @@ var deviceSetDevPropsCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(2),
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
-
 		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
