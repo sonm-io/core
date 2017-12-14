@@ -74,8 +74,9 @@ type Node struct {
 	srv     *grpc.Server
 	ctx     context.Context
 	privKey *ecdsa.PrivateKey
-
-	orderProcessor func() error
+	// processorRestarter must start together with node .Serve (not .New).
+	// This func must fetch orders from the Market and restart it background processing.
+	processorRestarter func() error
 }
 
 // New creates new Local Node instance
@@ -133,20 +134,22 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	log.G(ctx).Info("tasks service registered")
 
 	return &Node{
-		lis:            lis,
-		ctx:            ctx,
-		srv:            srv,
-		orderProcessor: market.(*marketAPI).restartOrdersProcessing(),
+		lis:                lis,
+		ctx:                ctx,
+		srv:                srv,
+		processorRestarter: market.(*marketAPI).restartOrdersProcessing(),
 	}, nil
 }
 
 // Serve binds gRPC services and start it
 func (n *Node) Serve() error {
-	// start background services
-	err := n.orderProcessor()
-	if err != nil {
-		// is this must break start-up?
-		log.G(n.ctx).Error("cannot restart order processing", zap.Error(err))
+	// restart background processing
+	if n.processorRestarter != nil {
+		err := n.processorRestarter()
+		if err != nil {
+			// should it breaks startup?
+			log.G(n.ctx).Error("cannot restart order processing", zap.Error(err))
+		}
 	}
 
 	return n.srv.Serve(n.lis)
