@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"math/big"
 	"testing"
-
 	"time"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -39,15 +38,15 @@ func TestEth_CheckDealExists(t *testing.T) {
 
 	exists, err := eeth.CheckDealExists("1")
 	assert.NoError(t, err)
-	assert.True(t, exists)
+	assert.NotNil(t, exists)
 
 	exists, err = eeth.CheckDealExists("2")
-	assert.NoError(t, err)
-	assert.False(t, exists)
+	assert.Error(t, err)
+	assert.Nil(t, exists)
 
 	exists, err = eeth.CheckDealExists("3")
-	assert.NoError(t, err)
-	assert.False(t, exists)
+	assert.Error(t, err)
+	assert.Nil(t, exists)
 
 	exists, err = eeth.CheckDealExists("qwerty")
 	assert.Error(t, err)
