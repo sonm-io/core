@@ -270,6 +270,7 @@ func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
 func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 	if isSimpleFormat() {
 		cmd.Printf("ID:             %s\r\n", order.Id)
+		cmd.Printf("Type:           %s\r\n", order.OrderType.String())
 		cmd.Printf("Price:          %s\r\n", order.Price)
 
 		cmd.Printf("SupplierID:     %s\r\n", order.SupplierID)
