@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"github.com/jinzhu/configor"
+	"github.com/sonm-io/core/accounts"
 )
 
 type LoggingConfig struct {
@@ -12,11 +13,6 @@ type LoggingConfig struct {
 
 type GatewayConfig struct {
 	Ports []uint16 `required:"true" yaml:"ports"`
-}
-
-type EthConfig struct {
-	Passphrase string `required:"false" default:"" yaml:"pass_phrase"`
-	Keystore   string `required:"false" default:"" yaml:"key_store"`
 }
 
 type LocatorConfig struct {
@@ -50,13 +46,13 @@ type ClusterConfig struct {
 }
 
 type Config struct {
-	Endpoint      string         `required:"true" yaml:"endpoint"`
-	GatewayConfig *GatewayConfig `yaml:"gateway"`
-	Logging       LoggingConfig  `yaml:"logging"`
-	Eth           EthConfig      `yaml:"ethereum"`
-	Locator       LocatorConfig  `yaml:"locator"`
-	Market        MarketConfig   `yaml:"market"`
-	Cluster       ClusterConfig  `yaml:"cluster"`
+	Endpoint      string             `required:"true" yaml:"endpoint"`
+	GatewayConfig *GatewayConfig     `yaml:"gateway"`
+	Logging       LoggingConfig      `yaml:"logging"`
+	Eth           accounts.EthConfig `yaml:"ethereum"`
+	Locator       LocatorConfig      `yaml:"locator"`
+	Market        MarketConfig       `yaml:"market"`
+	Cluster       ClusterConfig      `yaml:"cluster"`
 }
 
 // NewConfig loads a hub config from the specified YAML file.

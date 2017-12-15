@@ -24,9 +24,8 @@ type Config interface {
 
 // cliConfig implements Config interface
 type cliConfig struct {
-	OutFormat  string `required:"false" default:"" yaml:"output_format"`
-	Keystore   string `required:"false" default:"" yaml:"key_store"`
-	Passphrase string `required:"false" default:"" yaml:"pass_phrase"`
+	Eth       accounts.EthConfig `yaml:"ethereum"`
+	OutFormat string             `required:"false" default:"" yaml:"output_format"`
 }
 
 func (cc *cliConfig) OutputFormat() string {
@@ -34,11 +33,11 @@ func (cc *cliConfig) OutputFormat() string {
 }
 
 func (cc *cliConfig) PassPhrase() string {
-	return cc.Passphrase
+	return cc.Eth.Passphrase
 }
 
 func (cc *cliConfig) KeyStore() string {
-	return cc.Keystore
+	return cc.Eth.Keystore
 }
 
 func (cc *cliConfig) getConfigPath() (string, error) {

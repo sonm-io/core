@@ -33,12 +33,12 @@ type node struct {
 type Locator struct {
 	mx sync.Mutex
 
-	grpc        *grpc.Server
 	conf        *LocatorConfig
 	db          map[common.Address]*node
 	ctx         context.Context
-	certRotator util.HitlessCertRotator
 	ethKey      *ecdsa.PrivateKey
+	grpc        *grpc.Server
+	certRotator util.HitlessCertRotator
 	creds       credentials.TransportCredentials
 }
 

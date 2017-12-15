@@ -32,7 +32,6 @@ var (
 	// flags var
 	nodeAddressFlag string
 	outputModeFlag  string
-	insecureFlag    bool
 	timeoutFlag     = 60 * time.Second
 
 	// logging flag vars
@@ -56,7 +55,6 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "127.0.0.1:9999", "node addr")
 	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
-	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "disable TLS via components")
 
 	rootCmd.AddCommand(hubRootCmd, marketRootCmd, nodeDealsRootCmd, taskRootCmd)
 	rootCmd.AddCommand(loginCmd, approveTokenCmd, versionCmd)
@@ -165,14 +163,12 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 
 	sessionKey = key
 
-	if !insecureFlag {
-		_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), sessionKey)
-		if err != nil {
-			showError(cmd, err.Error(), nil)
-			os.Exit(1)
-		}
-		creds = util.NewTLS(TLSConfig)
+	_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), sessionKey)
+	if err != nil {
+		showError(cmd, err.Error(), nil)
+		os.Exit(1)
 	}
+	creds = util.NewTLS(TLSConfig)
 }
 
 func showJSON(cmd *cobra.Command, s interface{}) {

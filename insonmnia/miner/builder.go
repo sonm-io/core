@@ -1,9 +1,7 @@
 package miner
 
 import (
-	"crypto/tls"
 	"fmt"
-	"os"
 
 	"crypto/ecdsa"
 
@@ -17,7 +15,6 @@ import (
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc/credentials"
 )
 
 var (
@@ -120,32 +117,22 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	log.G(ctx).Info("collected Hardware info", zap.Any("hardware", hardwareInfo))
 
-	var (
-		creds       credentials.TransportCredentials
-		certRotator util.HitlessCertRotator
-	)
-
-	hubAddr, hubEthAddr, err := parseHubEndpoint(b.cfg.HubEndpoint())
+	hubAddr, hubEthAddr, err := util.ParseEndpoint(b.cfg.HubEndpoint())
 	if err != nil {
 		return nil, err
 	}
 
-	if os.Getenv("GRPC_INSECURE") == "" {
-		var (
-			TLSConf *tls.Config
-		)
-		if b.key == nil {
-			cancel()
-			return nil, fmt.Errorf("either PrivateKey or GRPC_INSECURE environment variable must be set")
-		}
-
-		// The rotator will be stopped by ctx
-		certRotator, TLSConf, err = util.NewHitlessCertRotator(ctx, b.key)
-		if err != nil {
-			return nil, err
-		}
-		creds = newWalletAuthenticator(util.NewTLS(TLSConf), hubEthAddr)
+	if b.key == nil {
+		cancel()
+		return nil, fmt.Errorf("either PrivateKey or GRPC_INSECURE environment variable must be set")
 	}
+
+	// The rotator will be stopped by ctx
+	certRotator, TLSConf, err := util.NewHitlessCertRotator(ctx, b.key)
+	if err != nil {
+		return nil, err
+	}
+	creds := util.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEthAddr)
 	grpcServer := util.MakeGrpcServer(creds)
 
 	cgroup, cGroupManager, err := makeCgroupManager(b.cfg.HubResources())
