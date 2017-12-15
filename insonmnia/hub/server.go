@@ -434,7 +434,7 @@ func (h *Hub) generateTaskID() string {
 }
 
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
-	deal, err := h.eth.CheckDealExists(request.GetDeal().Id)
+	deal, err := h.eth.GetDeal(request.GetDeal().Id)
 	if err != nil {
 		return nil, err
 	}

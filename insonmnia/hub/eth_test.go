@@ -36,19 +36,19 @@ func TestEth_CheckDealExists(t *testing.T) {
 		bc:  bC,
 	}
 
-	exists, err := eeth.CheckDealExists("1")
+	exists, err := eeth.GetDeal("1")
 	assert.NoError(t, err)
 	assert.NotNil(t, exists)
 
-	exists, err = eeth.CheckDealExists("2")
+	exists, err = eeth.GetDeal("2")
 	assert.Error(t, err)
 	assert.Nil(t, exists)
 
-	exists, err = eeth.CheckDealExists("3")
+	exists, err = eeth.GetDeal("3")
 	assert.Error(t, err)
 	assert.Nil(t, exists)
 
-	exists, err = eeth.CheckDealExists("qwerty")
+	exists, err = eeth.GetDeal("qwerty")
 	assert.Error(t, err)
 }
 

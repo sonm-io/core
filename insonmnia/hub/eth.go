@@ -23,8 +23,8 @@ type ETH interface {
 	// AcceptDeal approves deal on Hub-side
 	AcceptDeal(id string) error
 
-	// CheckDealExists checks whether a given deal exists.
-	CheckDealExists(id string) (*pb.Deal, error)
+	// GetDeal checks whether a given deal exists.
+	GetDeal(id string) (*pb.Deal, error)
 }
 
 const defaultDealWaitTimeout = 900 * time.Second
@@ -139,7 +139,7 @@ func (e *eth) AcceptDeal(id string) error {
 	return err
 }
 
-func (e *eth) CheckDealExists(id string) (*pb.Deal, error) {
+func (e *eth) GetDeal(id string) (*pb.Deal, error) {
 	bigID, err := util.ParseBigInt(id)
 	if err != nil {
 		return nil, err
