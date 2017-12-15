@@ -1,11 +1,15 @@
 package miner
 
 import (
-	"fmt"
-
 	"crypto/ecdsa"
+	"fmt"
+	"strings"
+	"time"
+
+	"net"
 
 	"github.com/ccding/go-stun/stun"
+	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
@@ -23,14 +27,15 @@ var (
 )
 
 type MinerBuilder struct {
-	ctx      context.Context
-	cfg      Config
-	hardware hardware.HardwareInfo
-	nat      stun.NATType
-	ovs      Overseer
-	uuid     string
-	ssh      SSH
-	key      *ecdsa.PrivateKey
+	ctx           context.Context
+	cfg           Config
+	hardware      hardware.HardwareInfo
+	nat           stun.NATType
+	ovs           Overseer
+	uuid          string
+	ssh           SSH
+	key           *ecdsa.PrivateKey
+	locatorClient pb.LocatorClient
 }
 
 func (b *MinerBuilder) Context(ctx context.Context) *MinerBuilder {
@@ -117,15 +122,9 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	log.G(ctx).Info("collected Hardware info", zap.Any("hardware", hardwareInfo))
 
-	hubAddr, hubEthAddr, err := util.ParseEndpoint(b.cfg.HubEndpoint())
-	if err != nil {
-		cancel()
-		return nil, err
-	}
-
 	if b.key == nil {
 		cancel()
-		return nil, fmt.Errorf("either PrivateKey or GRPC_INSECURE environment variable must be set")
+		return nil, fmt.Errorf("ethereum private key must be provided")
 	}
 
 	// The rotator will be stopped by ctx
@@ -134,6 +133,12 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 		cancel()
 		return nil, err
 	}
+
+	hubSockaddr, hubEthAddr, err := b.getHubConnectionInfo()
+	if err != nil {
+		return nil, err
+	}
+
 	creds := util.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEthAddr)
 	grpcServer := util.MakeGrpcServer(creds)
 
@@ -159,7 +164,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 		publicIPs:  publicIPs,
 		natType:    b.nat,
-		hubAddress: hubAddr,
+		hubAddress: hubSockaddr,
 
 		rl:             newReverseListener(1),
 		containers:     make(map[string]*ContainerInfo),
@@ -225,6 +230,43 @@ func (b *MinerBuilder) getPublicIPs() (pubIPs []string, err error) {
 	return nil, errors.New("failed to get public IPs")
 }
 
+func (b *MinerBuilder) getHubConnectionInfo() (string, common.Address, error) {
+	var hubEndpoint = b.cfg.HubEndpoint()
+	if strings.Contains(hubEndpoint, "@") {
+		return util.ParseEndpoint(b.cfg.HubEndpoint())
+	} else {
+		resolved, err := b.locatorClient.Resolve(b.ctx, &pb.ResolveRequest{EthAddr: hubEndpoint})
+		if err != nil {
+			return "", common.Address{}, fmt.Errorf(
+				"failed to resolve hub addr from %s: %s", hubEndpoint, err)
+		}
+
+		log.G(b.ctx).Info("resolved hub endpoints", zap.Any("endpoints", resolved.IpAddr))
+
+		for _, addr := range resolved.IpAddr {
+			addr = strings.Replace(addr, "10001", "10002", 1)
+
+			log.G(b.ctx).Debug("trying hub endpoint", zap.Any("endpoint", addr))
+
+			dialer := net.Dialer{DualStack: true, Timeout: time.Second}
+			testCC, err := dialer.DialContext(b.ctx, "tcp", addr)
+			if err != nil {
+				log.G(b.ctx).Debug(
+					"hub endpoint is unreachable", zap.Any("endpoint", addr),
+					zap.Any("error", err))
+			} else {
+				testCC.Close()
+				hubSockaddr, hubEthAddr, err := util.ParseEndpoint(hubEndpoint + "@" + addr)
+				if err == nil {
+					return hubSockaddr, hubEthAddr, nil
+				}
+			}
+		}
+
+		return "", common.Address{}, errors.New("all hub endpoints are unreachable")
+	}
+}
+
 func makeCgroupManager(cfg *ResourcesConfig) (cGroup, cGroupManager, error) {
 	if !platformSupportCGroups || cfg == nil {
 		return newNilCgroupManager()
@@ -232,8 +274,27 @@ func makeCgroupManager(cfg *ResourcesConfig) (cGroup, cGroupManager, error) {
 	return newCgroupManager(cfg.Cgroup, cfg.Resources)
 }
 
-func NewMinerBuilder(cfg Config, key *ecdsa.PrivateKey) MinerBuilder {
-	b := MinerBuilder{key: key}
+func NewMinerBuilder(cfg Config, key *ecdsa.PrivateKey) (*MinerBuilder, error) {
+	b := &MinerBuilder{key: key}
 	b.Config(cfg)
-	return b
+
+	if b.ctx == nil {
+		b.ctx = context.Background()
+	}
+
+	_, TLSConf, err := util.NewHitlessCertRotator(b.ctx, b.key)
+	if err != nil {
+		return nil, err
+	}
+
+	creds := util.NewTLS(TLSConf)
+
+	locatorCC, err := util.MakeWalletAuthenticatedClient(b.ctx, creds, cfg.LocatorEndpoint())
+	if err != nil {
+		return nil, err
+	}
+
+	b.locatorClient = pb.NewLocatorClient(locatorCC)
+
+	return b, nil
 }

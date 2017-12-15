@@ -24,7 +24,9 @@ func TestLoadConfig(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
 hub:
-  endpoint: 127.0.0.1`
+  endpoint: 127.0.0.1
+locator:
+  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"`
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
 
@@ -43,6 +45,8 @@ logging:
 GPUConfig:
   type: nvidiadocker
   args: { nvidiadockerdriver: "localhost:3476" }
+locator:
+  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"
 `)
 	assert.NoError(t, err)
 	defer deleteTestConfigFile()
