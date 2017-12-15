@@ -23,8 +23,8 @@ type ETH interface {
 	// AcceptDeal approves deal on Hub-side
 	AcceptDeal(id string) error
 
-	// CheckDealExists checks whether a given deal exists.
-	CheckDealExists(id string) (bool, error)
+	// GetDeal checks whether a given deal exists.
+	GetDeal(id string) (*pb.Deal, error)
 }
 
 const defaultDealWaitTimeout = 900 * time.Second
@@ -57,7 +57,7 @@ func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID stri
 				return err
 			}
 
-			log.S(ctx).Info("found %d closed deals", len(ids))
+			log.G(ctx).Info("found some closed deals", zap.Int("count", len(ids)))
 
 			for _, id := range ids {
 				dealInfo, err := e.bc.GetDealInfo(id)
@@ -139,15 +139,15 @@ func (e *eth) AcceptDeal(id string) error {
 	return err
 }
 
-func (e *eth) CheckDealExists(id string) (bool, error) {
+func (e *eth) GetDeal(id string) (*pb.Deal, error) {
 	bigID, err := util.ParseBigInt(id)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	deal, err := e.bc.GetDealInfo(bigID)
 	if err != nil {
-		return false, err
+		return nil, err
 	}
 
 	// NOTE: May GetSupplierID return common.Address?
@@ -155,7 +155,11 @@ func (e *eth) CheckDealExists(id string) (bool, error) {
 	statusOK := deal.GetStatus() == pb.DealStatus_ACCEPTED
 	dealOK := idOK && statusOK
 
-	return dealOK, nil
+	if dealOK {
+		return deal, nil
+	} else {
+		return nil, errDealNotFound
+	}
 }
 
 // NewETH constructs a new Ethereum client.

@@ -11,3 +11,8 @@ type TaskInfo struct {
 	ID      string
 	MinerId string
 }
+
+type DealMeta struct {
+	BidID string
+	Tasks []*TaskInfo
+}

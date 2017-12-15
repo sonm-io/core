@@ -104,7 +104,8 @@ type Hub struct {
 
 	// Retroactive deals to tasks association. Tasks aren't popped when
 	// completed to be able to save the history for the entire deal.
-	deals map[DealID][]*TaskInfo
+	// Note: this field is protected by tasksMu mutex.
+	deals map[DealID]*DealMeta
 
 	// Tasks
 	tasks   map[string]*TaskInfo
@@ -408,7 +409,7 @@ func (h *Hub) getTaskHistory(dealID, taskID string) (*TaskInfo, error) {
 		return nil, errDealNotFound
 	}
 
-	for _, task := range tasks {
+	for _, task := range tasks.Tasks {
 		if task.ID == taskID {
 			return task, nil
 		}
@@ -424,6 +425,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	if err != nil {
 		return nil, err
 	}
+
 	return h.startTask(ctx, taskRequest)
 }
 
@@ -432,16 +434,22 @@ func (h *Hub) generateTaskID() string {
 }
 
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
-	exists, err := h.eth.CheckDealExists(request.GetDeal().Id)
+	deal, err := h.eth.GetDeal(request.GetDeal().Id)
 	if err != nil {
 		return nil, err
 	}
-	if !exists {
-		return nil, errContractNotExists
+
+	h.tasksMu.Lock()
+	meta, ok := h.deals[DealID(deal.GetId())]
+	h.tasksMu.Unlock()
+
+	if !ok {
+		// Hub knows nothing about this deal
+		return nil, errDealNotFound
 	}
 
 	// Extract proper miner associated with the deal specified.
-	miner, usage, err := h.findMinerByOrder(OrderId(request.GetDealId()))
+	miner, usage, err := h.findMinerByOrder(OrderId(meta.BidID))
 	if err != nil {
 		return nil, err
 	}
@@ -690,6 +698,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 	if err != nil {
 		return nil, err
 	}
+
 	if err := miner.Consume(OrderId(request.GetBidId()), &usage); err != nil {
 		return nil, err
 	}
@@ -726,9 +735,12 @@ func (h *Hub) getDealWaiter(ctx context.Context, req *structs.DealRequest) func(
 		}
 
 		dealID := DealID(createdDeal.GetId())
+
 		h.tasksMu.Lock()
 		defer h.tasksMu.Unlock()
-		h.deals[dealID] = make([]*TaskInfo, 0)
+
+		h.deals[dealID] = &DealMeta{Tasks: make([]*TaskInfo, 0), BidID: req.GetBidId()}
+
 		go h.watchForDealClosed(dealID, req.GetOrder().GetByuerID())
 
 		return nil
@@ -1105,7 +1117,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		eth:    ethWrapper,
 		market: defaults.market,
 
-		deals:            make(map[DealID][]*TaskInfo),
+		deals:            make(map[DealID]*DealMeta),
 		tasks:            make(map[string]*TaskInfo),
 		miners:           make(map[string]*MinerCtx),
 		associatedHubs:   make(map[string]struct{}),
@@ -1325,7 +1337,8 @@ func (h *Hub) saveTask(dealID DealID, info *TaskInfo) error {
 	if !ok {
 		return errDealNotFound
 	}
-	taskIDs = append(taskIDs, info)
+
+	taskIDs.Tasks = append(taskIDs.Tasks, info)
 	h.deals[dealID] = taskIDs
 
 	return h.cluster.Synchronize(h.tasks)
@@ -1363,7 +1376,7 @@ func (h *Hub) popDealHistory(dealID DealID) ([]*TaskInfo, error) {
 	}
 	delete(h.deals, dealID)
 
-	return tasks, nil
+	return tasks.Tasks, nil
 }
 
 func (h *Hub) startLocatorAnnouncer() error {
