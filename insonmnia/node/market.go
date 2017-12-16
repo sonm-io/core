@@ -397,7 +397,7 @@ func (m *marketAPI) loadBalanceAndAllowance() (*big.Int, *big.Int, error) {
 }
 
 func (m *marketAPI) checkBalanceAndAllowance(price, balance, allowance *big.Int) bool {
-	if balance.Cmp(price) == -1 && allowance.Cmp(price) == -1 {
+	if balance.Cmp(price) == -1 || allowance.Cmp(price) == -1 {
 		return false
 	}
 	return true
@@ -423,7 +423,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 
 	balance, allowance, err := m.loadBalanceAndAllowance()
 	if err != nil {
-		log.G(handler.ctx).Error("cannot get orders", zap.Error(err))
+		log.G(handler.ctx).Error("cannot load balance and allowance", zap.Error(err))
 		handler.setError(err)
 		return err
 	}
@@ -432,7 +432,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 	for _, ord := range orders {
 		price, err := util.ParseBigInt(ord.Price)
 		if !m.checkBalanceAndAllowance(price, balance, allowance) {
-			log.G(handler.ctx).Info("lack of balance and allowance for order", zap.String("order_id", ord.Id))
+			log.G(handler.ctx).Info("lack of balance or allowance for order", zap.String("order_id", ord.Id))
 			continue
 		}
 
