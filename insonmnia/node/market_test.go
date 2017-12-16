@@ -391,7 +391,7 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 		Return(&pb.Deal{Status: pb.DealStatus_PENDING, SpecificationHash: "614000"}, nil)
 
 	opts := getTestRemotes(ctx, ctrl)
-	opts.eth = et
+	opts.eth = eth
 
 	server, err := newMarketAPI(opts)
 	assert.NoError(t, err)
