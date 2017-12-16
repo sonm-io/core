@@ -418,7 +418,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 	for _, ord := range orders {
 		price, err := util.ParseBigInt(ord.Price)
 		if balance.Cmp(price) == -1 && allowance.Cmp(price) == -1 {
-			log.G(handler.ctx).Info("Где деньги, Лебовски???", zap.String("order_id", ord.Id))
+			log.G(handler.ctx).Info("lack of balance and allowance for order", zap.String("order_id", ord.Id))
 			continue
 		}
 
