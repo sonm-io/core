@@ -9,6 +9,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/blockchain/tsc"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -370,7 +371,7 @@ func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
 		case <-handler.ctx.Done():
 			log.G(handler.ctx).Info("handler is cancelled")
 			return
-		// retrier for order polling
+			// retrier for order polling
 		case <-tk.C:
 			err := m.orderLoop(handler)
 			if err == nil {
@@ -399,8 +400,28 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		log.G(handler.ctx).Info("found order", zap.Int("count", len(orders)))
 	}
 
+	addr := util.PubKeyToAddr(m.remotes.key.PublicKey).String()
+	balance, err := m.remotes.eth.BalanceOf(addr)
+	if err != nil {
+		log.G(handler.ctx).Info("cannot get balance", zap.Error(err), zap.String("address", addr))
+		handler.setError(err)
+		return err
+	}
+	allowance, err := m.remotes.eth.AllowanceOf(addr, tsc.DealsAddress)
+	if err != nil {
+		log.G(handler.ctx).Info("cannot get allowance", zap.Error(err), zap.String("address", addr))
+		handler.setError(err)
+		return err
+	}
+
 	var orderToDeal *pb.Order = nil
 	for _, ord := range orders {
+		price, err := util.ParseBigInt(ord.Price)
+		if balance.Cmp(price) == -1 && allowance.Cmp(price) == -1 {
+			log.G(handler.ctx).Info("Где деньги, Лебовски???", zap.String("order_id", ord.Id))
+			continue
+		}
+
 		err = handler.propose(ord.Id, ord.SupplierID)
 		if err != nil {
 			if err == errCannotProposeOrder {

@@ -42,6 +42,10 @@ func getTestEth(ctrl *gomock.Controller) blockchain.Blockchainer {
 	}
 
 	bc := blockchain.NewMockBlockchainer(ctrl)
+	bc.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+		Return(big.NewInt(big.MaxPrec), nil)
+	bc.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(big.MaxPrec), nil)
 	bc.EXPECT().OpenDeal(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(&types.Transaction{}, nil)
 	bc.EXPECT().GetAcceptedDeal(gomock.Any(), gomock.Any()).AnyTimes().
@@ -325,6 +329,10 @@ func TestCreateOrder_CannotCreateDeal(t *testing.T) {
 	defer ctrl.Finish()
 
 	eth := blockchain.NewMockBlockchainer(ctrl)
+	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+		Return(big.NewInt(big.MaxPrec), nil)
+	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(big.MaxPrec), nil)
 	eth.EXPECT().OpenDeal(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(nil, errors.New("TEST: cannot open deal"))
 	eth.EXPECT().GetAcceptedDeal(gomock.Any(), gomock.Any()).AnyTimes().
@@ -369,6 +377,10 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 	ctx := context.Background()
 
 	eth := blockchain.NewMockBlockchainer(ctrl)
+	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+		Return(big.NewInt(big.MaxPrec), nil)
+	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(big.MaxPrec), nil)
 	eth.EXPECT().OpenDeal(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(&types.Transaction{}, nil)
 	eth.EXPECT().GetAcceptedDeal(gomock.Any(), gomock.Any()).AnyTimes().
@@ -379,7 +391,7 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 		Return(&pb.Deal{Status: pb.DealStatus_PENDING, SpecificationHash: "614000"}, nil)
 
 	opts := getTestRemotes(ctx, ctrl)
-	opts.eth = eth
+	opts.eth = et
 
 	server, err := newMarketAPI(opts)
 	assert.NoError(t, err)
