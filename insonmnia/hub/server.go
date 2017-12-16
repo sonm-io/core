@@ -438,8 +438,10 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		return nil, err
 	}
 
+	dealID := DealID(deal.GetId())
+
 	h.tasksMu.Lock()
-	meta, ok := h.deals[DealID(deal.GetId())]
+	meta, ok := h.deals[dealID]
 	h.tasksMu.Unlock()
 
 	if !ok {
@@ -479,7 +481,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
 	}
 
-	info := TaskInfo{*request, *response, taskID, miner.uuid}
+	info := TaskInfo{*request, *response, taskID, dealID, miner.uuid, nil}
 
 	err = h.saveTask(DealID(request.GetDealId()), &info)
 	if err != nil {
@@ -562,8 +564,38 @@ func (h *Hub) stopTask(ctx context.Context, task *TaskInfo) error {
 type dealInfo struct {
 	ID             DealID
 	Order          structs.Order
-	TasksRunning   []*TaskInfo
-	TasksCompleted []*TaskInfo
+	TasksRunning   []TaskInfo
+	TasksCompleted []TaskInfo
+}
+
+func (h *Hub) GetDealInfo(ctx context.Context, dealID *pb.ID) (*pb.DealInfoReply, error) {
+	dealInfo, err := h.getDealInfo(DealID(dealID.Id))
+	if err != nil {
+		return nil, err
+	}
+
+	r := &pb.DealInfoReply{
+		Id:             dealID,
+		Order:          dealInfo.Order.Unwrap(),
+		TasksRunning:   make([]*pb.ID, 0, len(dealInfo.TasksRunning)),
+		TasksCompleted: make([]*pb.CompletedTask, 0, len(dealInfo.TasksCompleted)),
+	}
+
+	for _, taskInfo := range dealInfo.TasksRunning {
+		r.TasksRunning = append(r.TasksRunning, &pb.ID{Id: taskInfo.ID})
+	}
+
+	for _, taskInfo := range dealInfo.TasksCompleted {
+		r.TasksCompleted = append(r.TasksCompleted, &pb.CompletedTask{
+			Id:    &pb.ID{Id: taskInfo.ID},
+			Image: taskInfo.Image,
+			EndTime: &pb.Timestamp{
+				Seconds: taskInfo.EndTime.Unix(),
+			},
+		})
+	}
+
+	return r, nil
 }
 
 func (h *Hub) getDealInfo(dealID DealID) (*dealInfo, error) {
@@ -577,12 +609,16 @@ func (h *Hub) getDealInfo(dealID DealID) (*dealInfo, error) {
 	dealInfo := &dealInfo{
 		ID:             dealID,
 		Order:          meta.Order,
-		TasksRunning:   make([]*TaskInfo, 0, len(h.tasks)),
-		TasksCompleted: meta.Tasks,
+		TasksRunning:   make([]TaskInfo, 0, len(h.tasks)),
+		TasksCompleted: make([]TaskInfo, 0, len(meta.Tasks)),
 	}
 
 	for _, taskInfo := range h.tasks {
-		dealInfo.TasksRunning = append(dealInfo.TasksRunning, taskInfo)
+		dealInfo.TasksRunning = append(dealInfo.TasksRunning, *taskInfo)
+	}
+
+	for _, taskInfo := range meta.Tasks {
+		dealInfo.TasksCompleted = append(dealInfo.TasksCompleted, *taskInfo)
 	}
 
 	return dealInfo, nil
@@ -1389,10 +1425,23 @@ func (h *Hub) getTask(taskID string) (*TaskInfo, error) {
 func (h *Hub) deleteTask(taskID string) error {
 	h.tasksMu.Lock()
 	defer h.tasksMu.Unlock()
-	_, ok := h.tasks[taskID]
+	taskInfo, ok := h.tasks[taskID]
 	if ok {
 		delete(h.tasks, taskID)
 		return h.cluster.Synchronize(h.tasks)
+	}
+
+	// Commit end time if such task exists in the history, if not - do nothing,
+	// something terrible happened, but we just pretend nothing happened.
+	taskHistory, ok := h.deals[taskInfo.DealId]
+	if ok {
+		for _, dealTaskInfo := range taskHistory.Tasks {
+			if dealTaskInfo.ID == taskID {
+				now := time.Now()
+				dealTaskInfo.EndTime = &now
+				break
+			}
+		}
 	}
 	return nil
 }

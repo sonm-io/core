@@ -43,6 +43,8 @@ It has these top-level messages:
 	DevicesReply
 	InsertSlotRequest
 	PullTaskRequest
+	DealInfoReply
+	CompletedTask
 	Empty
 	ID
 	TaskID
