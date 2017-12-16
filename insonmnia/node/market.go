@@ -3,6 +3,7 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
@@ -382,6 +383,26 @@ func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
 	}
 }
 
+func (m *marketAPI) loadBalanceAndAllowance() (*big.Int, *big.Int, error) {
+	addr := util.PubKeyToAddr(m.remotes.key.PublicKey).Hex()
+	balance, err := m.remotes.eth.BalanceOf(addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	allowance, err := m.remotes.eth.AllowanceOf(addr, tsc.DealsAddress)
+	if err != nil {
+		return nil, nil, err
+	}
+	return balance, allowance, nil
+}
+
+func (m *marketAPI) checkBalanceAndAllowance(price, balance, allowance *big.Int) bool {
+	if balance.Cmp(price) == -1 && allowance.Cmp(price) == -1 {
+		return false
+	}
+	return true
+}
+
 // orderLoop searching for orders, iterate found orders and trying to propose deal
 func (m *marketAPI) orderLoop(handler *orderHandler) error {
 	log.G(handler.ctx).Info("starting orderLoop", zap.String("id", handler.id))
@@ -400,16 +421,9 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		log.G(handler.ctx).Info("found order", zap.Int("count", len(orders)))
 	}
 
-	addr := util.PubKeyToAddr(m.remotes.key.PublicKey).String()
-	balance, err := m.remotes.eth.BalanceOf(addr)
+	balance, allowance, err := m.loadBalanceAndAllowance()
 	if err != nil {
-		log.G(handler.ctx).Info("cannot get balance", zap.Error(err), zap.String("address", addr))
-		handler.setError(err)
-		return err
-	}
-	allowance, err := m.remotes.eth.AllowanceOf(addr, tsc.DealsAddress)
-	if err != nil {
-		log.G(handler.ctx).Info("cannot get allowance", zap.Error(err), zap.String("address", addr))
+		log.G(handler.ctx).Error("cannot get orders", zap.Error(err))
 		handler.setError(err)
 		return err
 	}
@@ -417,7 +431,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 	var orderToDeal *pb.Order = nil
 	for _, ord := range orders {
 		price, err := util.ParseBigInt(ord.Price)
-		if balance.Cmp(price) == -1 && allowance.Cmp(price) == -1 {
+		if !m.checkBalanceAndAllowance(price, balance, allowance) {
 			log.G(handler.ctx).Info("lack of balance and allowance for order", zap.String("order_id", ord.Id))
 			continue
 		}

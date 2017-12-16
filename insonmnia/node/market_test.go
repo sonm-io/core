@@ -417,3 +417,43 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusWaitForApprove], statusMap[handlr.status]))
 	assert.NoError(t, handlr.err)
 }
+
+func TestCreateOrder_LackAllowanceBalance(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	eth := blockchain.NewMockBlockchainer(ctrl)
+	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+		Return(big.NewInt(0), nil)
+	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(0), nil)
+
+	opts := getTestRemotes(ctx, ctrl)
+	opts.eth = eth
+
+	server, err := newMarketAPI(opts)
+	assert.NoError(t, err)
+
+	inner := server.(*marketAPI)
+
+	mustCreate := &pb.Order{
+		OrderType: pb.OrderType_BID,
+	}
+
+	created, err := inner.CreateOrder(ctx, mustCreate)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+	assert.NotEmpty(t, created.Id)
+
+	// wait for async handler is finished
+	time.Sleep(1 * time.Second)
+
+	assert.Equal(t, len(inner.tasks), 1, "Handler must not be removed")
+
+	handlr := inner.tasks[created.Id]
+	assert.Equal(t, statusFailed, handlr.status,
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	assert.Error(t, handlr.err, errProposeNotAccepted)
+}
