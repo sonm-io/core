@@ -5,7 +5,7 @@ Description=SONM Marketplace
 [Service]
 EnvironmentFile=/etc/default/sonm-marketplace
 Type=simple
-ExecStart=/usr/bin/sonmmarketplace --addr=${LISTEN_ADDR}
+ExecStart=/usr/bin/sonmmarketplace --config=${CONFIG_PATH}
 Restart=on-failure
 
 
