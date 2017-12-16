@@ -38,13 +38,12 @@ import (
 )
 
 var (
-	ErrInvalidOrderType  = status.Errorf(codes.InvalidArgument, "invalid order type")
-	ErrAskNotFound       = status.Errorf(codes.NotFound, "ask not found")
-	ErrDeviceNotFound    = status.Errorf(codes.NotFound, "device not found")
-	ErrMinerNotFound     = status.Errorf(codes.NotFound, "miner not found")
-	errContractNotExists = status.Errorf(codes.NotFound, "specified contract not exists in the Ethereum")
-	errDealNotFound      = status.Errorf(codes.NotFound, "deal not found")
-	errTaskNotFound      = status.Errorf(codes.NotFound, "task not found")
+	ErrInvalidOrderType = status.Errorf(codes.InvalidArgument, "invalid order type")
+	ErrAskNotFound      = status.Errorf(codes.NotFound, "ask not found")
+	ErrDeviceNotFound   = status.Errorf(codes.NotFound, "device not found")
+	ErrMinerNotFound    = status.Errorf(codes.NotFound, "miner not found")
+	errDealNotFound     = status.Errorf(codes.NotFound, "deal not found")
+	errTaskNotFound     = status.Errorf(codes.NotFound, "task not found")
 )
 
 type DealID string
@@ -102,12 +101,12 @@ type Hub struct {
 	acl   ACLStorage
 	aclMu sync.RWMutex
 
-	// Retroactive deals to tasks association. Tasks aren't popped when
+	// Retroactive deals to tasks association. TasksRunning aren't popped when
 	// completed to be able to save the history for the entire deal.
 	// Note: this field is protected by tasksMu mutex.
 	deals map[DealID]*DealMeta
 
-	// Tasks
+	// TasksRunning
 	tasks   map[string]*TaskInfo
 	tasksMu sync.Mutex
 
@@ -560,6 +559,35 @@ func (h *Hub) stopTask(ctx context.Context, task *TaskInfo) error {
 	return nil
 }
 
+type dealInfo struct {
+	ID             DealID
+	Order          structs.Order
+	TasksRunning   []*TaskInfo
+	TasksCompleted []*TaskInfo
+}
+
+func (h *Hub) getDealInfo(dealID DealID) (*dealInfo, error) {
+	meta, ok := h.deals[dealID]
+	if !ok {
+		return nil, errDealNotFound
+	}
+
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+	dealInfo := &dealInfo{
+		ID:             dealID,
+		Order:          meta.Order,
+		TasksRunning:   make([]*TaskInfo, 0, len(h.tasks)),
+		TasksCompleted: meta.Tasks,
+	}
+
+	for _, taskInfo := range h.tasks {
+		dealInfo.TasksRunning = append(dealInfo.TasksRunning, taskInfo)
+	}
+
+	return dealInfo, nil
+}
+
 //TODO: refactor - we can use h.tasks here
 func (h *Hub) TaskList(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
 	log.G(h.ctx).Info("handling TaskList request")
@@ -703,12 +731,12 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	h.waiter.Go(h.getDealWaiter(ctx, request))
+	h.waiter.Go(h.getDealWaiter(ctx, request, order))
 
 	return &pb.Empty{}, nil
 }
 
-func (h *Hub) getDealWaiter(ctx context.Context, req *structs.DealRequest) func() error {
+func (h *Hub) getDealWaiter(ctx context.Context, req *structs.DealRequest, order *structs.Order) func() error {
 	return func() error {
 		createdDeal, err := h.eth.WaitForDealCreated(req)
 		if err != nil || createdDeal == nil {
@@ -739,7 +767,11 @@ func (h *Hub) getDealWaiter(ctx context.Context, req *structs.DealRequest) func(
 		h.tasksMu.Lock()
 		defer h.tasksMu.Unlock()
 
-		h.deals[dealID] = &DealMeta{Tasks: make([]*TaskInfo, 0), BidID: req.GetBidId()}
+		h.deals[dealID] = &DealMeta{
+			BidID: req.GetBidId(),
+			Order: *order,
+			Tasks: make([]*TaskInfo, 0),
+		}
 
 		go h.watchForDealClosed(dealID, req.GetOrder().GetByuerID())
 

@@ -49,8 +49,10 @@ service Hub {
     // Note, that this method overrides all previously specified properties.
     rpc SetDeviceProperties(SetDevicePropertiesRequest) returns (Empty) {}
 
+    // Worker ACL management.
+
     // GetRegisteredWorkers returns a list of Worker IDs that
-    // allowed to connet to the Hub
+    // allowed to connect to the Hub.
     rpc GetRegisteredWorkers(Empty) returns (GetRegisteredWorkersReply) {}
     // RegisterWorker adds Worker credentials to be able for them to connect
     // to a Hub.

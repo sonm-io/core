@@ -14,5 +14,6 @@ type TaskInfo struct {
 
 type DealMeta struct {
 	BidID string
+	Order structs.Order
 	Tasks []*TaskInfo
 }
