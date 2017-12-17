@@ -101,12 +101,12 @@ type Hub struct {
 	acl   ACLStorage
 	aclMu sync.RWMutex
 
-	// Retroactive deals to tasks association. TasksRunning aren't popped when
+	// Retroactive deals to tasks association. Tasks aren't popped when
 	// completed to be able to save the history for the entire deal.
 	// Note: this field is protected by tasksMu mutex.
 	deals map[DealID]*DealMeta
 
-	// TasksRunning
+	// Tasks
 	tasks   map[string]*TaskInfo
 	tasksMu sync.Mutex
 
