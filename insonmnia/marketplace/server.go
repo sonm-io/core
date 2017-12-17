@@ -24,21 +24,21 @@ const (
 )
 
 var (
-	errOrderNotFound     = errors.New("order cannot be found")
-	errPriceIsZero       = errors.New("order price cannot be less or equal than zero")
-	errOrderIsNil        = errors.New("order cannot be nil")
-	errSlotIsNil         = errors.New("order slot cannot be nil")
-	errResourcesIsNil    = errors.New("slot resources cannot be nil")
-	errSearchParamsIsNil = errors.New("search params cannot be nil")
+	errOrderNotFound         = errors.New("order cannot be found")
+	errPriceIsZero           = errors.New("order price cannot be less or equal than zero")
+	errOrderIsNil            = errors.New("order cannot be nil")
+	errSlotIsNil             = errors.New("order slot cannot be nil")
+	errResourcesIsNil        = errors.New("slot resources cannot be nil")
+	errSearchParamsIsNil     = errors.New("search params cannot be nil")
+	errNotEnoughSearchParams = errors.New("not enough search params")
 )
 
 // searchParams holds all fields that are used to search on the market.
 // Extend this structure instead of increasing amount of params accepted
 // by OrderStorage.GetOrders() function.
 type searchParams struct {
-	slot      *structs.Slot
-	orderType pb.OrderType
-	count     uint64
+	order *pb.Order
+	count uint64
 }
 
 type OrderStorage interface {
@@ -63,8 +63,8 @@ func (in *inMemOrderStorage) GetOrders(c *searchParams) ([]*structs.Order, error
 		return nil, errSearchParamsIsNil
 	}
 
-	if c.slot == nil {
-		return nil, errSlotIsNil
+	if c.order == nil {
+		return nil, errOrderIsNil
 	}
 
 	in.RLock()
@@ -76,7 +76,20 @@ func (in *inMemOrderStorage) GetOrders(c *searchParams) ([]*structs.Order, error
 			break
 		}
 
-		if compareOrderAndSlot(c.slot, order, c.orderType) {
+		var isMatch = false
+		if c.order.Slot != nil {
+			slot, _ := structs.NewSlot(c.order.Slot)
+			isMatch = compareOrderAndSlot(slot, order, c.order.GetOrderType())
+		}
+
+		if c.order.GetSupplierID() != "" || c.order.GetByuerID() != "" {
+			supplierMatch := order.Unwrap().GetSupplierID() == c.order.GetSupplierID() && order.Unwrap().GetSupplierID() != ""
+			buyerMatch := order.Unwrap().GetByuerID() == c.order.GetByuerID() && order.Unwrap().ByuerID != ""
+
+			isMatch = buyerMatch || supplierMatch
+		}
+
+		if isMatch {
 			orders = append(orders, order)
 		}
 	}
@@ -148,9 +161,8 @@ type Marketplace struct {
 func (m *Marketplace) GetOrders(_ context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
 	log.G(m.ctx).Info("handling GetOrders request", zap.Any("req", req))
 
-	slot, err := structs.NewSlot(req.Slot)
-	if err != nil {
-		return nil, err
+	if req.Order.GetSlot() == nil && req.Order.GetSupplierID() == "" && req.Order.GetByuerID() == "" {
+		return nil, errNotEnoughSearchParams
 	}
 
 	resultCount := req.GetCount()
@@ -159,9 +171,8 @@ func (m *Marketplace) GetOrders(_ context.Context, req *pb.GetOrdersRequest) (*p
 	}
 
 	searchParams := &searchParams{
-		slot:      slot,
-		orderType: req.GetOrderType(),
-		count:     resultCount,
+		order: req.GetOrder(),
+		count: resultCount,
 	}
 
 	orders, err := m.db.GetOrders(searchParams)

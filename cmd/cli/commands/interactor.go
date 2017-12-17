@@ -178,9 +178,11 @@ func (it *marketInteractor) GetOrders(slot *structs.Slot, orderType pb.OrderType
 	defer cancel()
 
 	req := &pb.GetOrdersRequest{
-		Slot:      slot.Unwrap(),
-		OrderType: orderType,
-		Count:     count,
+		Order: &pb.Order{
+			Slot:      slot.Unwrap(),
+			OrderType: orderType,
+		},
+		Count: count,
 	}
 
 	reply, err := it.market.GetOrders(ctx, req)

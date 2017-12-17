@@ -17,12 +17,10 @@ service Market {
 }
 
 message GetOrdersRequest {
-    // Slot describe resuorces to search for
-    Slot slot = 1;
-    // OrderType describe a type of orders to search
-    OrderType orderType = 2;
+    // Order keeps slot and type for searching
+    Order order = 1;
     // Count describe how namy results must be returned (order by price)
-    uint64 count = 3;
+    uint64 count = 2;
 }
 
 message GetOrdersReply {

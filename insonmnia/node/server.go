@@ -70,11 +70,13 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, c
 
 // Node is LocalNode instance
 type Node struct {
-	ctx     context.Context
-	conf    Config
 	lis     net.Listener
 	srv     *grpc.Server
+	ctx     context.Context
 	privKey *ecdsa.PrivateKey
+	// processorRestarter must start together with node .Serve (not .New).
+	// This func must fetch orders from the Market and restart it background processing.
+	processorRestarter func() error
 }
 
 // New creates new Local Node instance
@@ -127,19 +129,28 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	pb.RegisterTaskManagementServer(srv, tasks)
 	log.G(ctx).Info("tasks service registered")
 
 	return &Node{
-		lis:     lis,
-		conf:    c,
-		ctx:     ctx,
-		srv:     srv,
-		privKey: key,
+		lis:                lis,
+		ctx:                ctx,
+		srv:                srv,
+		processorRestarter: market.(*marketAPI).restartOrdersProcessing(),
 	}, nil
 }
 
 // Serve binds gRPC services and start it
 func (n *Node) Serve() error {
+	// restart background processing
+	if n.processorRestarter != nil {
+		err := n.processorRestarter()
+		if err != nil {
+			// should it breaks startup?
+			log.G(n.ctx).Error("cannot restart order processing", zap.Error(err))
+		}
+	}
+
 	return n.srv.Serve(n.lis)
 }

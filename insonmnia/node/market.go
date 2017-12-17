@@ -125,9 +125,11 @@ func (h *orderHandler) search(m pb.MarketClient) ([]*pb.Order, error) {
 	h.status = statusSearching
 
 	req := &pb.GetOrdersRequest{
-		Slot:      h.order.GetSlot(),
-		OrderType: pb.OrderType_ASK,
-		Count:     100,
+		Order: &pb.Order{
+			Slot:      h.order.GetSlot(),
+			OrderType: pb.OrderType_ASK,
+		},
+		Count: 100,
 	}
 
 	reply, err := m.GetOrders(h.ctx, req)
@@ -523,6 +525,39 @@ func (m *marketAPI) removeOrderHandler(id string) error {
 
 	handlr.cancel()
 	return nil
+}
+
+// getMyOrders query Marketplace service for orders
+// with type == BID and that placed with current eth address
+func (m *marketAPI) getMyOrders() (*pb.GetOrdersReply, error) {
+	req := &pb.GetOrdersRequest{
+		Order: &pb.Order{
+			ByuerID:   util.PubKeyToAddr(m.remotes.key.PublicKey).Hex(),
+			OrderType: pb.OrderType_BID,
+		},
+	}
+	return m.remotes.market.GetOrders(m.ctx, req)
+}
+
+// restartOrdersProcessing loads BIDs for current account
+// and restarts background processing for that orders
+func (m *marketAPI) restartOrdersProcessing() func() error {
+	return func() error {
+		orders, err := m.getMyOrders()
+		if err != nil {
+			return err
+		}
+
+		log.G(m.ctx).Info("restart order processing",
+			zap.Int("order_count", len(orders.GetOrders())))
+
+		for _, o := range orders.GetOrders() {
+			go m.startExecOrderHandler(o)
+		}
+
+		return nil
+	}
+
 }
 
 func newMarketAPI(opts *remoteOptions) (pb.MarketServer, error) {
