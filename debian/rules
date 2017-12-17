@@ -17,6 +17,7 @@ override_dh_auto_install:
 	install -m644 hub.yaml $(DEB_DESTDIR)etc/sonm/hub-default.yaml
 	install -m644 node.yaml $(DEB_DESTDIR)etc/sonm/node-default.yaml
 	install -m644 locator.yaml $(DEB_DESTDIR)etc/sonm/locator-default.yaml
+	install -m644 marketplace.yaml $(DEB_DESTDIR)etc/sonm/marketplace-default.yaml
 
 override_dh_systemd_start:
 	echo "Not running dh_systemd_start"

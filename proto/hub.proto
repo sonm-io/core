@@ -30,6 +30,9 @@ service Hub {
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
 
     rpc ProposeDeal(DealRequest) returns (Empty) {}
+
+    // Note: currently used for testing pusposes.
+    rpc GetDealInfo(ID) returns (DealInfoReply) {}
     rpc DiscoverHub(DiscoverHubRequest) returns (Empty) {}
 
     // Device configuration API.
@@ -49,8 +52,10 @@ service Hub {
     // Note, that this method overrides all previously specified properties.
     rpc SetDeviceProperties(SetDevicePropertiesRequest) returns (Empty) {}
 
+    // Worker ACL management.
+
     // GetRegisteredWorkers returns a list of Worker IDs that
-    // allowed to connet to the Hub
+    // allowed to connect to the Hub.
     rpc GetRegisteredWorkers(Empty) returns (GetRegisteredWorkersReply) {}
     // RegisterWorker adds Worker credentials to be able for them to connect
     // to a Hub.
@@ -189,4 +194,21 @@ message InsertSlotRequest {
 message PullTaskRequest {
     string dealId = 1;
     string taskId = 2;
+}
+
+// Note: no secure info should be here.
+message DealInfoReply {
+    ID id = 1;
+    Order order = 2;
+    // List of currently running task IDs. More detailed info can be obtained
+    // using "TaskStatus" method.
+    repeated ID tasksRunning = 3;
+    // List of completed tasks.
+    repeated CompletedTask tasksCompleted = 4;
+}
+
+message CompletedTask {
+    ID id = 1;
+    string image = 2;
+    Timestamp endTime = 3;
 }
