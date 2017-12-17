@@ -42,6 +42,10 @@ func getTestEth(ctrl *gomock.Controller) blockchain.Blockchainer {
 	}
 
 	bc := blockchain.NewMockBlockchainer(ctrl)
+	bc.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+		Return(big.NewInt(big.MaxPrec), nil)
+	bc.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(big.MaxPrec), nil)
 	bc.EXPECT().OpenDeal(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(&types.Transaction{}, nil)
 	bc.EXPECT().GetAcceptedDeal(gomock.Any(), gomock.Any()).AnyTimes().
@@ -325,6 +329,10 @@ func TestCreateOrder_CannotCreateDeal(t *testing.T) {
 	defer ctrl.Finish()
 
 	eth := blockchain.NewMockBlockchainer(ctrl)
+	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+		Return(big.NewInt(big.MaxPrec), nil)
+	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(big.MaxPrec), nil)
 	eth.EXPECT().OpenDeal(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(nil, errors.New("TEST: cannot open deal"))
 	eth.EXPECT().GetAcceptedDeal(gomock.Any(), gomock.Any()).AnyTimes().
@@ -369,6 +377,10 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 	ctx := context.Background()
 
 	eth := blockchain.NewMockBlockchainer(ctrl)
+	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+		Return(big.NewInt(big.MaxPrec), nil)
+	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(big.MaxPrec), nil)
 	eth.EXPECT().OpenDeal(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(&types.Transaction{}, nil)
 	eth.EXPECT().GetAcceptedDeal(gomock.Any(), gomock.Any()).AnyTimes().
@@ -404,4 +416,124 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 	assert.Equal(t, statusWaitForApprove, handlr.status,
 		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusWaitForApprove], statusMap[handlr.status]))
 	assert.NoError(t, handlr.err)
+}
+
+func TestCreateOrder_LackAllowanceBalance(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	eth := blockchain.NewMockBlockchainer(ctrl)
+	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+		Return(big.NewInt(100), nil)
+	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(50), nil)
+
+	opts := getTestRemotes(ctx, ctrl)
+	opts.eth = eth
+
+	server, err := newMarketAPI(opts)
+	assert.NoError(t, err)
+
+	inner := server.(*marketAPI)
+
+	mustCreate := &pb.Order{
+		OrderType: pb.OrderType_BID,
+	}
+
+	created, err := inner.CreateOrder(ctx, mustCreate)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+	assert.NotEmpty(t, created.Id)
+
+	// wait for async handler is finished
+	time.Sleep(1 * time.Second)
+
+	assert.Equal(t, len(inner.tasks), 1, "Handler must not be removed")
+
+	handlr := inner.tasks[created.Id]
+	assert.Equal(t, statusFailed, handlr.status,
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	assert.Error(t, handlr.err, errProposeNotAccepted)
+}
+
+func TestCreateOrder_LackAllowance(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	eth := blockchain.NewMockBlockchainer(ctrl)
+	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+		Return(big.NewInt(10000), nil)
+	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(50), nil)
+
+	opts := getTestRemotes(ctx, ctrl)
+	opts.eth = eth
+
+	server, err := newMarketAPI(opts)
+	assert.NoError(t, err)
+
+	inner := server.(*marketAPI)
+
+	mustCreate := &pb.Order{
+		OrderType: pb.OrderType_BID,
+	}
+
+	created, err := inner.CreateOrder(ctx, mustCreate)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+	assert.NotEmpty(t, created.Id)
+
+	// wait for async handler is finished
+	time.Sleep(1 * time.Second)
+
+	assert.Equal(t, len(inner.tasks), 1, "Handler must not be removed")
+
+	handlr := inner.tasks[created.Id]
+	assert.Equal(t, statusFailed, handlr.status,
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	assert.Error(t, handlr.err, errProposeNotAccepted)
+}
+
+func TestCreateOrder_LackBalance(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	eth := blockchain.NewMockBlockchainer(ctrl)
+	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+		Return(big.NewInt(100), nil)
+	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(50000), nil)
+
+	opts := getTestRemotes(ctx, ctrl)
+	opts.eth = eth
+
+	server, err := newMarketAPI(opts)
+	assert.NoError(t, err)
+
+	inner := server.(*marketAPI)
+
+	mustCreate := &pb.Order{
+		OrderType: pb.OrderType_BID,
+	}
+
+	created, err := inner.CreateOrder(ctx, mustCreate)
+	assert.NoError(t, err)
+	assert.NotNil(t, created)
+	assert.NotEmpty(t, created.Id)
+
+	// wait for async handler is finished
+	time.Sleep(1 * time.Second)
+
+	assert.Equal(t, len(inner.tasks), 1, "Handler must not be removed")
+
+	handlr := inner.tasks[created.Id]
+	assert.Equal(t, statusFailed, handlr.status,
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	assert.Error(t, handlr.err, errProposeNotAccepted)
 }

@@ -3,12 +3,14 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"math/big"
 	"sync"
 	"time"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/blockchain/tsc"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -370,7 +372,7 @@ func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
 		case <-handler.ctx.Done():
 			log.G(handler.ctx).Info("handler is cancelled")
 			return
-		// retrier for order polling
+			// retrier for order polling
 		case <-tk.C:
 			err := m.orderLoop(handler)
 			if err == nil {
@@ -379,6 +381,26 @@ func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
 			}
 		}
 	}
+}
+
+func (m *marketAPI) loadBalanceAndAllowance() (*big.Int, *big.Int, error) {
+	addr := util.PubKeyToAddr(m.remotes.key.PublicKey).Hex()
+	balance, err := m.remotes.eth.BalanceOf(addr)
+	if err != nil {
+		return nil, nil, err
+	}
+	allowance, err := m.remotes.eth.AllowanceOf(addr, tsc.DealsAddress)
+	if err != nil {
+		return nil, nil, err
+	}
+	return balance, allowance, nil
+}
+
+func (m *marketAPI) checkBalanceAndAllowance(price, balance, allowance *big.Int) bool {
+	if balance.Cmp(price) == -1 || allowance.Cmp(price) == -1 {
+		return false
+	}
+	return true
 }
 
 // orderLoop searching for orders, iterate found orders and trying to propose deal
@@ -399,8 +421,21 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		log.G(handler.ctx).Info("found order", zap.Int("count", len(orders)))
 	}
 
+	balance, allowance, err := m.loadBalanceAndAllowance()
+	if err != nil {
+		log.G(handler.ctx).Error("cannot load balance and allowance", zap.Error(err))
+		handler.setError(err)
+		return err
+	}
+
 	var orderToDeal *pb.Order = nil
 	for _, ord := range orders {
+		price, err := util.ParseBigInt(ord.Price)
+		if !m.checkBalanceAndAllowance(price, balance, allowance) {
+			log.G(handler.ctx).Info("lack of balance or allowance for order", zap.String("order_id", ord.Id))
+			continue
+		}
+
 		err = handler.propose(ord.Id, ord.SupplierID)
 		if err != nil {
 			if err == errCannotProposeOrder {
