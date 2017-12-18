@@ -1,12 +1,10 @@
 package node
 
 import (
+	"fmt"
 	"reflect"
 	"strings"
-
 	"time"
-
-	"fmt"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"

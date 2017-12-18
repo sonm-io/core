@@ -119,6 +119,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	hubAddr, hubEthAddr, err := util.ParseEndpoint(b.cfg.HubEndpoint())
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
@@ -130,6 +131,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	// The rotator will be stopped by ctx
 	certRotator, TLSConf, err := util.NewHitlessCertRotator(ctx, b.key)
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 	creds := util.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEthAddr)
