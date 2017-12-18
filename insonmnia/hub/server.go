@@ -130,11 +130,11 @@ func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, erro
 	minersCount := len(h.miners)
 	h.minersMu.Unlock()
 
-	uptime := time.Now().Unix() - h.startTime.Unix()
+	uptime := uint64(time.Now().Sub(h.startTime).Seconds())
 
 	reply := &pb.HubStatusReply{
 		MinerCount: uint64(minersCount),
-		Uptime:     uint64(uptime),
+		Uptime:     uptime,
 		Platform:   util.GetPlatformName(),
 		Version:    h.version,
 		EthAddr:    util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
