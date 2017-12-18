@@ -21,7 +21,9 @@ var (
 	errNoPeerInfo       = status.Error(codes.Unauthenticated, "no peer info")
 	errNoDealProvided   = status.Error(codes.Unauthenticated, "no `deal` metadata provided")
 	errNoDealFieldFound = status.Error(codes.Internal, "no `Deal` field found")
+	errInvalidDealField = status.Error(codes.Internal, "invalid `Deal` field type")
 	errNoTaskFieldFound = status.Errorf(codes.Internal, "no task `ID` field found")
+	errInvalidTaskField = status.Error(codes.Internal, "invalid task `ID` field type")
 	errNoMetadata       = status.Error(codes.Unauthenticated, "no metadata provided")
 	errNoWalletProvided = status.Error(codes.Unauthenticated, "no wallet provided")
 )
@@ -277,14 +279,22 @@ type fieldDealMetaData struct{}
 
 func (fieldDealMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
 	requestValue := reflect.Indirect(reflect.ValueOf(request))
-	deal := requestValue.FieldByName("Deal")
+	deal := reflect.Indirect(requestValue.FieldByName("Deal"))
 	if !deal.IsValid() {
 		return "", errNoDealFieldFound
 	}
 
+	if deal.Type().Kind() != reflect.Struct {
+		return "", errInvalidDealField
+	}
+
 	dealId := reflect.Indirect(deal).FieldByName("Id")
 	if !dealId.IsValid() {
-		return "", errNoDealFieldFound
+		return "", errInvalidDealField
+	}
+
+	if dealId.Type().Kind() != reflect.String {
+		return "", errInvalidDealField
 	}
 
 	return DealID(dealId.String()), nil
@@ -325,9 +335,13 @@ type taskFieldDealMetaData struct {
 
 func (t *taskFieldDealMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
 	requestValue := reflect.Indirect(reflect.ValueOf(request))
-	taskID := requestValue.FieldByName("Id")
+	taskID := reflect.Indirect(requestValue.FieldByName("Id"))
 	if !taskID.IsValid() {
 		return "", errNoTaskFieldFound
+	}
+
+	if taskID.Type().Kind() != reflect.String {
+		return "", errInvalidTaskField
 	}
 
 	taskInfo, ok := t.hub.tasks[taskID.String()]
