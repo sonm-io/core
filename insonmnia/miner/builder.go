@@ -232,13 +232,18 @@ func (b *MinerBuilder) getPublicIPs() (pubIPs []string, err error) {
 
 func (b *MinerBuilder) getHubConnectionInfo() (string, common.Address, error) {
 	var (
-		hubEndpoint       = b.cfg.HubEndpoint()
-		encounteredErrors = make(map[string]error)
+		hubEndpoint                  = b.cfg.HubEndpoint()
+		encounteredErrors            = make(map[string]error)
+		hubSockAddr, hubEthAddr, err = util.ParseEndpoint(b.cfg.HubEndpoint())
 	)
-	if strings.Contains(hubEndpoint, "@") {
-		return util.ParseEndpoint(b.cfg.HubEndpoint())
-	} else {
-		resolved, err := b.locatorClient.Resolve(b.ctx, &pb.ResolveRequest{EthAddr: hubEndpoint})
+
+	if err != nil {
+		return "", common.Address{}, err
+	}
+
+	if strings.HasPrefix(hubSockAddr, ":") {
+		// Only hub's port is provided.
+		resolved, err := b.locatorClient.Resolve(b.ctx, &pb.ResolveRequest{EthAddr: hubEthAddr.Hex()})
 		if err != nil {
 			return "", common.Address{}, fmt.Errorf(
 				"failed to resolve hub addr from %s: %s", hubEndpoint, err)
@@ -247,7 +252,7 @@ func (b *MinerBuilder) getHubConnectionInfo() (string, common.Address, error) {
 		log.G(b.ctx).Info("resolved hub endpoints", zap.Any("endpoints", resolved.IpAddr))
 
 		for _, addr := range resolved.IpAddr {
-			addr = strings.Replace(addr, "10001", "10002", 1)
+			addr = strings.Split(addr, ":")[0] + hubSockAddr
 
 			log.G(b.ctx).Debug("trying hub endpoint", zap.Any("endpoint", addr))
 
@@ -260,17 +265,14 @@ func (b *MinerBuilder) getHubConnectionInfo() (string, common.Address, error) {
 				encounteredErrors[addr] = err
 			} else {
 				testCC.Close()
-				hubSockaddr, hubEthAddr, err := util.ParseEndpoint(hubEndpoint + "@" + addr)
-				if err == nil {
-					return hubSockaddr, hubEthAddr, nil
-				}
-
-				encounteredErrors[addr] = err
+				return addr, hubEthAddr, nil
 			}
 		}
 
 		return "", common.Address{}, fmt.Errorf("all hub endpoints are unreachable: %+v", encounteredErrors)
 	}
+
+	return hubSockAddr, hubEthAddr, err
 }
 
 func makeCgroupManager(cfg *ResourcesConfig) (cGroup, cGroupManager, error) {
