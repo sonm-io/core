@@ -24,6 +24,7 @@ var (
 	errNoMatchingOrder    = errors.New("cannot find matching ASK order")
 	errNotAnBidOrder      = errors.New("can create only Orders with type BID")
 	errProposeNotAccepted = errors.New("no one hub accept proposed deal")
+	errLackOfBalance      = errors.New("lack of balance or allowance for order")
 )
 
 const (
@@ -435,6 +436,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		price, err := util.ParseBigInt(ord.Price)
 		if !m.checkBalanceAndAllowance(price, balance, allowance) {
 			log.G(handler.ctx).Info("lack of balance or allowance for order", zap.String("order_id", ord.Id))
+			handler.setError(errLackOfBalance)
 			continue
 		}
 
