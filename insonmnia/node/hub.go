@@ -36,7 +36,6 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 	log.S(h.ctx).Infof("handling %s request", methodName)
 
 	ctx = util.ForwardMetadata(ctx)
-
 	if !strings.HasPrefix(info.FullMethod, "/sonm.HubManagement") {
 		return handler(ctx, req)
 	}
