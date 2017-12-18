@@ -275,11 +275,14 @@ type fieldDealRequestMetaData struct{}
 func (fieldDealRequestMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
 	requestValue := reflect.Indirect(reflect.ValueOf(request))
 	deal := requestValue.FieldByName("Deal")
-	if deal.IsNil() {
+	if !deal.IsValid() {
 		return "", errNoDealFieldFound
 	}
 
 	dealId := reflect.Indirect(deal).FieldByName("Id")
+	if !dealId.IsValid() {
+		return "", errNoDealFieldFound
+	}
 
 	return DealID(dealId.String()), nil
 }
@@ -320,6 +323,10 @@ type taskFieldDealRequestMetaData struct {
 func (t *taskFieldDealRequestMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
 	requestValue := reflect.Indirect(reflect.ValueOf(request))
 	taskID := requestValue.FieldByName("Id")
+	if !taskID.IsValid() {
+		return "", errNoTaskFieldFound
+	}
+
 	taskInfo, ok := t.hub.tasks[taskID.String()]
 	if !ok {
 		return "", errTaskNotFound
