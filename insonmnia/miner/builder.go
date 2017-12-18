@@ -231,7 +231,10 @@ func (b *MinerBuilder) getPublicIPs() (pubIPs []string, err error) {
 }
 
 func (b *MinerBuilder) getHubConnectionInfo() (string, common.Address, error) {
-	var hubEndpoint = b.cfg.HubEndpoint()
+	var (
+		hubEndpoint       = b.cfg.HubEndpoint()
+		encounteredErrors = make(map[string]error)
+	)
 	if strings.Contains(hubEndpoint, "@") {
 		return util.ParseEndpoint(b.cfg.HubEndpoint())
 	} else {
@@ -254,16 +257,19 @@ func (b *MinerBuilder) getHubConnectionInfo() (string, common.Address, error) {
 				log.G(b.ctx).Debug(
 					"hub endpoint is unreachable", zap.Any("endpoint", addr),
 					zap.Any("error", err))
+				encounteredErrors[addr] = err
 			} else {
 				testCC.Close()
 				hubSockaddr, hubEthAddr, err := util.ParseEndpoint(hubEndpoint + "@" + addr)
 				if err == nil {
 					return hubSockaddr, hubEthAddr, nil
 				}
+
+				encounteredErrors[addr] = err
 			}
 		}
 
-		return "", common.Address{}, errors.New("all hub endpoints are unreachable")
+		return "", common.Address{}, fmt.Errorf("all hub endpoints are unreachable: %+v", encounteredErrors)
 	}
 }
 
