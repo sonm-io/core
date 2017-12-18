@@ -185,11 +185,11 @@ type EventAuthorization interface {
 	Authorize(ctx context.Context, request interface{}) error
 }
 
-// DealRequestMetaData allows to extract deal-specific parameters for
+// DealMetaData allows to extract deal-specific parameters for
 // authorization.
 // We implement this interface for all methods that require wallet
 // authorization.
-type DealRequestMetaData interface {
+type DealMetaData interface {
 	// Deal extracts deal ID from the request.
 	Deal(ctx context.Context, request interface{}) (DealID, error)
 	// Wallet extracts self-signed wallet from the request.
@@ -198,12 +198,12 @@ type DealRequestMetaData interface {
 
 type dealAuthorization struct {
 	ctx      context.Context
-	metaData DealRequestMetaData
+	metaData DealMetaData
 	// Allowed wallets to interact with some deal API.
 	allowedWallets map[DealID]string
 }
 
-func newDealAuthorization(ctx context.Context, metaData DealRequestMetaData) EventAuthorization {
+func newDealAuthorization(ctx context.Context, metaData DealMetaData) EventAuthorization {
 	return &dealAuthorization{
 		ctx:            ctx,
 		metaData:       metaData,
@@ -271,11 +271,11 @@ func extractWalletFromContext(ctx context.Context) (string, error) {
 	}
 }
 
-// FieldDealRequestMetaInfo is a deal meta info extractor that requires the
-// specified request to have "sonm.Deal" field and "wallet" metadata.
-type fieldDealRequestMetaData struct{}
+// FieldDealMetaData is a deal meta info extractor that requires the specified
+// request to have "sonm.Deal" field and "wallet" metadata.
+type fieldDealMetaData struct{}
 
-func (fieldDealRequestMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
+func (fieldDealMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
 	requestValue := reflect.Indirect(reflect.ValueOf(request))
 	deal := requestValue.FieldByName("Deal")
 	if !deal.IsValid() {
@@ -290,15 +290,15 @@ func (fieldDealRequestMetaData) Deal(ctx context.Context, request interface{}) (
 	return DealID(dealId.String()), nil
 }
 
-func (fieldDealRequestMetaData) Wallet(ctx context.Context, request interface{}) (string, error) {
+func (fieldDealMetaData) Wallet(ctx context.Context, request interface{}) (string, error) {
 	return extractWalletFromContext(ctx)
 }
 
-// ContextDealRequestMetaData is a deal meta info extractor that requires the
+// ContextDealMetaData is a deal meta info extractor that requires the
 // specified context to have both "deal" and "wallet" metadata.
-type contextDealRequestMetaData struct{}
+type contextDealMetaData struct{}
 
-func (contextDealRequestMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
+func (contextDealMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
 	md, ok := metadata.FromContext(ctx)
 	if !ok {
 		return "", errNoPeerInfo
@@ -312,18 +312,18 @@ func (contextDealRequestMetaData) Deal(ctx context.Context, request interface{})
 	return DealID(dealMD[0]), nil
 }
 
-func (contextDealRequestMetaData) Wallet(ctx context.Context, request interface{}) (string, error) {
+func (contextDealMetaData) Wallet(ctx context.Context, request interface{}) (string, error) {
 	return extractWalletFromContext(ctx)
 }
 
-// TaskFieldDealRequestMetaData is a deal meta info extractor that requires the
+// TaskFieldDealMetaData is a deal meta info extractor that requires the
 // specified request to have "Id" field, which is task id, and the context to
 // have "wallet" metadata.
-type taskFieldDealRequestMetaData struct {
+type taskFieldDealMetaData struct {
 	hub *Hub
 }
 
-func (t *taskFieldDealRequestMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
+func (t *taskFieldDealMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
 	requestValue := reflect.Indirect(reflect.ValueOf(request))
 	taskID := requestValue.FieldByName("Id")
 	if !taskID.IsValid() {
@@ -338,6 +338,6 @@ func (t *taskFieldDealRequestMetaData) Deal(ctx context.Context, request interfa
 	return DealID(taskInfo.GetDealId()), nil
 }
 
-func (taskFieldDealRequestMetaData) Wallet(ctx context.Context, request interface{}) (string, error) {
+func (taskFieldDealMetaData) Wallet(ctx context.Context, request interface{}) (string, error) {
 	return extractWalletFromContext(ctx)
 }

@@ -1172,13 +1172,13 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		clusterEvents: defaults.clusterEvents,
 	}
 
-	dealAuthorization := map[string]DealRequestMetaData{
-		"TaskStatus": &taskFieldDealRequestMetaData{hub: h},
-		"StartTask":  &fieldDealRequestMetaData{},
-		"StopTask":   &taskFieldDealRequestMetaData{hub: h},
-		"TaskLogs":   &taskFieldDealRequestMetaData{hub: h},
-		"PushTask":   &contextDealRequestMetaData{},
-		"PullTask":   &contextDealRequestMetaData{},
+	dealAuthorization := map[string]DealMetaData{
+		"TaskStatus": &taskFieldDealMetaData{hub: h},
+		"StartTask":  &fieldDealMetaData{},
+		"StopTask":   &taskFieldDealMetaData{hub: h},
+		"TaskLogs":   &taskFieldDealMetaData{hub: h},
+		"PushTask":   &contextDealMetaData{},
+		"PullTask":   &contextDealMetaData{},
 	}
 
 	for event, metadata := range dealAuthorization {
