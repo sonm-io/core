@@ -7,6 +7,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 type NodeHubInteractor interface {
@@ -358,8 +359,8 @@ func (it *tasksInteractor) ImagePull(dealID, taskID string) (pb.Hub_PullTaskClie
 	return it.tasks.PullTask(ctx, req)
 }
 
-func NewTasksInteractor(addr string, timeout time.Duration) (TasksInteractor, error) {
-	cc, err := util.MakeGrpcClient(context.Background(), addr, creds)
+func NewTasksInteractor(addr string, timeout time.Duration, opts ...grpc.DialOption) (TasksInteractor, error) {
+	cc, err := util.MakeGrpcClient(context.Background(), addr, creds, opts...)
 	if err != nil {
 		return nil, err
 	}
