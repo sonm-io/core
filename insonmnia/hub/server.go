@@ -23,8 +23,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 
 	"github.com/pborman/uuid"
@@ -100,6 +98,10 @@ type Hub struct {
 	// Must be synchronized with out Hub cluster.
 	acl   ACLStorage
 	aclMu sync.RWMutex
+
+	// Per-call ACL.
+	// Must be synchronized with the Hub cluster.
+	eventAuthorization *eventACL
 
 	// Retroactive deals to tasks association. Tasks aren't popped when
 	// completed to be able to save the history for the entire deal.
@@ -188,46 +190,18 @@ type routeMapping struct {
 	route         *route
 }
 
-func (h *Hub) onRequest(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+func (h *Hub) onRequest(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	log.G(h.ctx).Debug("intercepting request")
-	forwarded, r, err := h.tryForwardToLeader(ctx, req, info)
+	forwarded, r, err := h.tryForwardToLeader(ctx, request, info)
 	if forwarded {
 		return r, err
 	}
 
-	p, ok := peer.FromContext(ctx)
-	if !ok {
-		return nil, status.Error(codes.Unauthenticated, "no peer info")
+	if err := h.eventAuthorization.authorize(ctx, method(info.FullMethod), request); err != nil {
+		return nil, err
 	}
 
-	switch au := p.AuthInfo.(type) {
-	case nil:
-		// GRPC_INSECURE should be set
-		return handler(ctx, req)
-	case util.EthAuthInfo:
-		if !util.EqualAddresses(au.Wallet, h.ethAddr) {
-			if h.acl.Has(au.Wallet.Hex()) {
-				return handler(ctx, req)
-			}
-			return nil, status.Errorf(codes.Unauthenticated, "the wallet %s has no access", au.Wallet)
-		}
-
-		// either we have a redirected request or a request from someone with our key
-		var wallet string
-		if md, ok := metadata.FromContext(ctx); ok {
-			walletMD := md["Wallet"]
-			if len(walletMD) != 0 {
-				wallet = walletMD[0]
-			}
-		}
-		if len(wallet) == 0 || (common.IsHexAddress(wallet) && h.acl.Has(common.HexToAddress(wallet).Hex())) {
-			return handler(ctx, req)
-		}
-		return nil, status.Errorf(codes.Unauthenticated, "the wallet %s has no access", wallet)
-	default:
-		// we are unlikely to reach the point
-		return nil, status.Error(codes.Unauthenticated, "unknown auth info")
-	}
+	return handler(ctx, request)
 }
 
 func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo) (bool, interface{}, error) {
@@ -246,11 +220,6 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 		parts := strings.Split(info.FullMethod, "/")
 		methodName := parts[len(parts)-1]
 		m := t.MethodByName(methodName)
-		if prInfo, ok := peer.FromContext(ctx); ok {
-			if au, ok := prInfo.AuthInfo.(util.EthAuthInfo); ok {
-				ctx = metadata.NewContext(ctx, metadata.MD{"Wallet": []string{au.Wallet.Hex()}})
-			}
-		}
 		inValues := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(request)}
 		values := m.Call(inValues)
 		var err error
@@ -803,11 +772,8 @@ func (h *Hub) getDealWaiter(ctx context.Context, req *structs.DealRequest, order
 		h.tasksMu.Lock()
 		defer h.tasksMu.Unlock()
 
-		h.deals[dealID] = &DealMeta{
-			BidID: req.GetBidId(),
-			Order: *order,
-			Tasks: make([]*TaskInfo, 0),
-		}
+		h.deals[dealID] = &DealMeta{Tasks: make([]*TaskInfo, 0), BidID: req.GetBidId()}
+		h.eventAuthorization.insertDealCredentials(dealID, req.GetOrder().GetByuerID())
 
 		go h.watchForDealClosed(dealID, req.GetOrder().GetByuerID())
 
@@ -842,6 +808,8 @@ func (h *Hub) watchForDealClosed(dealID DealID, buyerId string) {
 			)
 		}
 	}
+
+	h.eventAuthorization.removeDealCredentials(dealID)
 }
 
 func (h *Hub) isTaskFinished(id string) bool {
@@ -1166,6 +1134,8 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		acl.Insert(defaults.ethAddr.Hex())
 	}
 
+	eventACL := newEventACL(ctx)
+
 	h := &Hub{
 		cfg:              cfg,
 		ctx:              ctx,
@@ -1193,12 +1163,21 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		slots:            make(map[string]*structs.Slot),
 		acl:              acl,
 
+		eventAuthorization: eventACL,
+
 		certRotator: defaults.rot,
 		creds:       defaults.creds,
 
 		cluster:       defaults.cluster,
 		clusterEvents: defaults.clusterEvents,
 	}
+
+	eventACL.verifiers["/sonm.Hub/TaskStatus"] = newDealAuthorization(ctx, &taskFieldDealRequestMetaData{hub: h})
+	eventACL.verifiers["/sonm.Hub/StartTask"] = newDealAuthorization(ctx, &fieldDealRequestMetaData{})
+	eventACL.verifiers["/sonm.Hub/StopTask"] = newDealAuthorization(ctx, &taskFieldDealRequestMetaData{hub: h})
+	eventACL.verifiers["/sonm.Hub/TaskLogs"] = newDealAuthorization(ctx, &taskFieldDealRequestMetaData{hub: h})
+	eventACL.verifiers["/sonm.Hub/PushTask"] = newDealAuthorization(ctx, &contextDealRequestMetaData{})
+	eventACL.verifiers["/sonm.Hub/PullTask"] = newDealAuthorization(ctx, &contextDealRequestMetaData{})
 
 	grpcServer := util.MakeGrpcServer(h.creds, grpc.UnaryInterceptor(h.onRequest))
 	h.externalGrpc = grpcServer
