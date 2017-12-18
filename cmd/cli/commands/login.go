@@ -36,6 +36,6 @@ var loginCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		cmd.Printf("Eth address: %s\r\n", util.PubKeyToAddr(key.PublicKey))
+		cmd.Printf("Eth address: %s\r\n", util.PubKeyToAddr(key.PublicKey).Hex())
 	},
 }
