@@ -21,6 +21,7 @@ var (
 	errNoPeerInfo       = status.Error(codes.Unauthenticated, "no peer info")
 	errNoDealProvided   = status.Error(codes.Unauthenticated, "no `deal` metadata provided")
 	errNoDealFieldFound = status.Error(codes.Internal, "no `Deal` field found")
+	errNoTaskFieldFound = status.Errorf(codes.Internal, "no task `ID` field found")
 	errNoMetadata       = status.Error(codes.Unauthenticated, "no metadata provided")
 	errNoWalletProvided = status.Error(codes.Unauthenticated, "no wallet provided")
 )
@@ -237,8 +238,10 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 		return err
 	}
 
+	log.G(d.ctx).Debug("recovered address", zap.String("addr", string(recoveredAddr)))
+
 	if allowedWallet != recoveredAddr {
-		status.Errorf(codes.Unauthenticated, "wallet mismatch: want: %x have: %x", allowedWallet, recoveredAddr)
+		return status.Errorf(codes.Unauthenticated, "wallet mismatch: %s", recoveredAddr)
 	}
 
 	return nil
