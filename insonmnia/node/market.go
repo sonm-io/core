@@ -19,12 +19,13 @@ import (
 )
 
 var (
-	errNoHandlerWithID    = errors.New("cannot get handler with ID")
-	errCannotProposeOrder = errors.New("cannot propose order")
-	errNoMatchingOrder    = errors.New("cannot find matching ASK order")
-	errNotAnBidOrder      = errors.New("can create only Orders with type BID")
-	errProposeNotAccepted = errors.New("no one hub accept proposed deal")
-	errLackOfBalance      = errors.New("lack of balance or allowance for order")
+	errNoHandlerWithID     = errors.New("cannot get handler with ID")
+	errCannotProposeOrder  = errors.New("cannot propose order")
+	errNoMatchingOrder     = errors.New("cannot find matching ASK order")
+	errNotAnBidOrder       = errors.New("can create only Orders with type BID")
+	errProposeNotAccepted  = errors.New("no one hub accept proposed deal")
+	errLackOfBalance       = errors.New("lack of balance or allowance for order")
+	errHubEndpointIsNotSet = errors.New("hub endpoint is not configured, please check Node settings")
 )
 
 const (
