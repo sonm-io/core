@@ -145,6 +145,13 @@ func (e *eventACL) authorize(ctx context.Context, method method, request interfa
 	return authorization.Authorize(ctx, request)
 }
 
+func (e *eventACL) addAuthorization(method method, auth EventAuthorization) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	e.verifiers[method] = auth
+}
+
 // InsertDealCredentials inserts the specified deal credentials for entire
 // Deal API.
 func (e *eventACL) insertDealCredentials(dealID DealID, wallet string) {
