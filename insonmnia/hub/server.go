@@ -1172,12 +1172,18 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		clusterEvents: defaults.clusterEvents,
 	}
 
-	eventACL.verifiers["/sonm.Hub/TaskStatus"] = newDealAuthorization(ctx, &taskFieldDealRequestMetaData{hub: h})
-	eventACL.verifiers["/sonm.Hub/StartTask"] = newDealAuthorization(ctx, &fieldDealRequestMetaData{})
-	eventACL.verifiers["/sonm.Hub/StopTask"] = newDealAuthorization(ctx, &taskFieldDealRequestMetaData{hub: h})
-	eventACL.verifiers["/sonm.Hub/TaskLogs"] = newDealAuthorization(ctx, &taskFieldDealRequestMetaData{hub: h})
-	eventACL.verifiers["/sonm.Hub/PushTask"] = newDealAuthorization(ctx, &contextDealRequestMetaData{})
-	eventACL.verifiers["/sonm.Hub/PullTask"] = newDealAuthorization(ctx, &contextDealRequestMetaData{})
+	dealAuthorization := map[string]DealRequestMetaData{
+		"TaskStatus": &taskFieldDealRequestMetaData{hub: h},
+		"StartTask":  &fieldDealRequestMetaData{},
+		"StopTask":   &taskFieldDealRequestMetaData{hub: h},
+		"TaskLogs":   &taskFieldDealRequestMetaData{hub: h},
+		"PushTask":   &contextDealRequestMetaData{},
+		"PullTask":   &contextDealRequestMetaData{},
+	}
+
+	for event, metadata := range dealAuthorization {
+		eventACL.addAuthorization(method("/sonm.Hub/"+event), newDealAuthorization(ctx, metadata))
+	}
 
 	grpcServer := util.MakeGrpcServer(h.creds, grpc.UnaryInterceptor(h.onRequest))
 	h.externalGrpc = grpcServer
