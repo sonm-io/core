@@ -8,8 +8,8 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 
-	pb "github.com/sonm-io/core/proto"
 	ds "github.com/sonm-io/core/insonmnia/locator/datastruct"
+	pb "github.com/sonm-io/core/proto"
 )
 
 type Storage interface {
