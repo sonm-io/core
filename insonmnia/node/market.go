@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/cnf/structhash"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
@@ -174,8 +175,12 @@ func (h *orderHandler) propose(askID, supID string) error {
 		return err
 	}
 
-	// TODO(sshaman1101): spec hash required here
-	req := &pb.DealRequest{BidId: h.order.Id, AskId: askID, Order: h.order, SpecHash: "0"}
+	req := &pb.DealRequest{
+		BidId:    h.order.Id,
+		AskId:    askID,
+		Order:    h.order,
+		SpecHash: h.slotSpecHash(),
+	}
 	_, err = hub.ProposeDeal(h.ctx, req)
 	if err != nil {
 		log.G(h.ctx).Info("cannot propose createDeal to Hub", zap.Error(err))
@@ -192,12 +197,12 @@ func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey) error 
 	h.status = statusDealing
 
 	deal := &pb.Deal{
-		SupplierID: order.GetSupplierID(),
-		BuyerID:    util.PubKeyToAddr(key.PublicKey).Hex(),
-		Price:      order.Price,
-		Status:     pb.DealStatus_PENDING,
-		// TODO(sshaman1101): calculate hash
-		SpecificationHash: "0",
+		// todo: add start & end time from order
+		SupplierID:        order.GetSupplierID(),
+		BuyerID:           util.PubKeyToAddr(key.PublicKey).Hex(),
+		Price:             order.Price,
+		Status:            pb.DealStatus_PENDING,
+		SpecificationHash: h.slotSpecHash(),
 	}
 
 	tx, err := h.bc.OpenDeal(key, deal)
@@ -216,8 +221,7 @@ func (h *orderHandler) waitForApprove(order *pb.Order, key *ecdsa.PrivateKey, wa
 	h.status = statusWaitForApprove
 
 	localCtx := context.Background()
-	// TODO(sshaman1101): calculate hash
-	deal, err := h.findDeals(localCtx, key, order.GetSupplierID(), "0", wait)
+	deal, err := h.findDeals(localCtx, key, order.GetSupplierID(), h.slotSpecHash(), wait)
 	if err != nil {
 		log.G(h.ctx).Info("cannot find accepted deal", zap.Error(err))
 		h.setError(err)
@@ -561,4 +565,12 @@ func newMarketAPI(opts *remoteOptions) (pb.MarketServer, error) {
 		ctx:     opts.ctx,
 		tasks:   make(map[string]*orderHandler),
 	}, nil
+}
+
+// slotSpecHash hashes handler's order and convert hash to big.Int
+func (h *orderHandler) slotSpecHash() string {
+	s := structhash.Md5(h.order.GetSlot().GetResources(), 1)
+	result := big.NewInt(0).SetBytes(s).String()
+	log.G(h.ctx).Debug("slot hash calculated", zap.String("value", result))
+	return result
 }
