@@ -83,6 +83,7 @@ func (w *whitelist) Allowed(ctx context.Context, registry string, image string, 
 	if err != nil {
 		return false, nil, err
 	}
+	defer dockerClient.Close()
 	inspection, err := dockerClient.DistributionInspect(ctx, image, auth)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "could not perform DistributionInspect")
