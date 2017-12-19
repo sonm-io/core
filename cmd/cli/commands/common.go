@@ -27,7 +27,7 @@ const (
 )
 
 var (
-	rootCmd = &cobra.Command{Use: "sonm"}
+	rootCmd = &cobra.Command{Use: "sonmcli"}
 	version string
 
 	// flags var
