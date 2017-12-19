@@ -145,7 +145,6 @@ func (h *orderHandler) search(m pb.MarketClient) ([]*pb.Order, error) {
 // resolveHubAddr resolving Hub IP addr from Hub's Eth address
 // via Locator service
 func (h *orderHandler) resolveHubAddr(ethAddr string) (string, error) {
-	log.G(h.ctx).Info("resolving Hub IP ip", zap.String("eth_addr", ethAddr))
 	req := &pb.ResolveRequest{EthAddr: ethAddr}
 	reply, err := h.locator.Resolve(h.ctx, req)
 	if err != nil {
@@ -307,18 +306,14 @@ func (m *marketAPI) registerHandler(id string, t *orderHandler) {
 }
 
 func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
-	log.G(m.ctx).Info("handling GetOrders request")
 	return m.remotes.market.GetOrders(ctx, req)
 }
 
 func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, error) {
-	log.G(m.ctx).Info("handling GetOrderByID request", zap.String("id", req.Id))
 	return m.remotes.market.GetOrderByID(ctx, req)
 }
 
 func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, error) {
-	log.G(m.ctx).Info("handling CreateOrder request")
-
 	if req.OrderType != pb.OrderType_BID {
 		return nil, errNotAnBidOrder
 	}
@@ -486,13 +481,10 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 }
 
 func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.Order) (*pb.Empty, error) {
-	log.G(m.ctx).Info("handling CancelOrder request", zap.String("id", req.Id))
 	return m.remotes.market.CancelOrder(ctx, req)
 }
 
 func (m *marketAPI) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetProcessingReply, error) {
-	log.G(m.ctx).Info("handling GetProcessing request")
-
 	m.taskMux.Lock()
 	defer m.taskMux.Unlock()
 

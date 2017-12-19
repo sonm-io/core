@@ -21,8 +21,6 @@ type tasksAPI struct {
 }
 
 func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskListReply, error) {
-	log.G(t.ctx).Info("handling List request", zap.Any("request", req))
-
 	// has hubID, can perform direct request
 	if req.GetHubID() != "" {
 		log.G(t.ctx).Info("has HubAddr, performing direct request")
@@ -78,8 +76,6 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 }
 
 func (t *tasksAPI) Start(ctx context.Context, req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
-	log.G(t.ctx).Info("handling Start request", zap.Any("request", req))
-
 	hub, err := t.getHubClientForDeal(ctx, req.Deal.GetId())
 	if err != nil {
 		return nil, err
@@ -94,8 +90,6 @@ func (t *tasksAPI) Start(ctx context.Context, req *pb.HubStartTaskRequest) (*pb.
 }
 
 func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusReply, error) {
-	log.G(t.ctx).Info("handling Status request", zap.String("id", id.Id))
-
 	hubClient, err := t.getHubClientByEthAddr(ctx, id.HubAddr)
 	if err != nil {
 		return nil, err
@@ -136,8 +130,6 @@ func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServe
 }
 
 func (t *tasksAPI) Stop(ctx context.Context, id *pb.TaskID) (*pb.Empty, error) {
-	log.G(t.ctx).Info("handling Stop request", zap.String("id", id.Id))
-
 	hubClient, err := t.getHubClientByEthAddr(ctx, id.HubAddr)
 	if err != nil {
 		return nil, err
@@ -221,10 +213,6 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 }
 
 func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullTaskServer) error {
-	log.G(t.ctx).Info("handling PullTask request",
-		zap.String("deal_id", req.DealId),
-		zap.String("task_id", req.TaskId))
-
 	ctx := context.Background()
 	hub, err := t.getHubClientForDeal(ctx, req.GetDealId())
 	if err != nil {

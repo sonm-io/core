@@ -9,7 +9,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
-	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -31,7 +30,10 @@ func (h *hubAPI) getClient() (pb.HubClient, error) {
 }
 
 func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	log.G(h.ctx).Info("handling request", zap.String("method", info.FullMethod))
+	parts := strings.Split(info.FullMethod, "/")
+	methodName := parts[len(parts)-1]
+
+	log.S(h.ctx).Infof("handling %s request", methodName)
 
 	ctx = util.ForwardMetadata(ctx)
 
@@ -49,9 +51,6 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 	}
 
 	t := reflect.ValueOf(cli)
-	parts := strings.Split(info.FullMethod, "/")
-
-	methodName := parts[len(parts)-1]
 	mappedName := hubToNodeMethods[methodName]
 	method := t.MethodByName(mappedName)
 
