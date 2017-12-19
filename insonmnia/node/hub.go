@@ -1,101 +1,92 @@
 package node
 
 import (
+	"fmt"
+	"reflect"
+	"strings"
+	"time"
+
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 type hubAPI struct {
-	hub pb.HubClient
-	ctx context.Context
+	pb.HubManagementServer
+	remotes *remoteOptions
+	ctx     context.Context
 }
 
-func (h *hubAPI) Status(ctx context.Context, req *pb.Empty) (*pb.HubStatusReply, error) {
-	log.G(h.ctx).Info("handling Status request")
-	return h.hub.Status(ctx, req)
-}
-
-func (h *hubAPI) WorkersList(ctx context.Context, req *pb.Empty) (*pb.ListReply, error) {
-	log.G(h.ctx).Info("handling WorkersList request")
-	return h.hub.List(ctx, req)
-}
-
-func (h *hubAPI) WorkerStatus(ctx context.Context, req *pb.ID) (*pb.InfoReply, error) {
-	log.G(h.ctx).Info("handling WorkersStatus request")
-	return h.hub.Info(ctx, req)
-}
-
-func (h *hubAPI) GetRegisteredWorkers(ctx context.Context, req *pb.Empty) (*pb.GetRegisteredWorkersReply, error) {
-	log.G(h.ctx).Info("handling GetRegisteredWorkers request")
-	return h.hub.GetRegisteredWorkers(ctx, req)
-}
-
-func (h *hubAPI) RegisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling RegisterWorkers request")
-	return h.hub.RegisterWorker(ctx, req)
-}
-
-func (h *hubAPI) DeregisterWorker(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling DeregisterWorkers request")
-	return h.hub.DeregisterWorker(ctx, req)
-}
-
-func (h *hubAPI) DeviceList(ctx context.Context, req *pb.Empty) (*pb.DevicesReply, error) {
-	log.G(h.ctx).Info("handling DeviceList request")
-	return h.hub.Devices(ctx, req)
-}
-
-func (h *hubAPI) GetDeviceProperties(ctx context.Context, req *pb.ID) (*pb.GetDevicePropertiesReply, error) {
-	log.G(h.ctx).Info("handling GetDeviceProperties request")
-	return h.hub.GetDeviceProperties(ctx, req)
-}
-
-func (h *hubAPI) SetDeviceProperties(ctx context.Context, req *pb.SetDevicePropertiesRequest) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling SetDeviceProperties request")
-	return h.hub.SetDeviceProperties(ctx, req)
-}
-
-func (h *hubAPI) GetAskPlan(context.Context, *pb.ID) (*pb.SlotsReply, error) {
-	// TODO(sshaman1101): get info about single slot?
-	// TODO(sshaman1101): Need to implement this method on hub.
-	return &pb.SlotsReply{}, nil
-}
-
-func (h *hubAPI) GetAskPlans(ctx context.Context, req *pb.Empty) (*pb.SlotsReply, error) {
-	log.G(h.ctx).Info("GetAskPlans")
-	return h.hub.Slots(ctx, &pb.Empty{})
-}
-
-func (h *hubAPI) CreateAskPlan(ctx context.Context, req *pb.InsertSlotRequest) (*pb.ID, error) {
-	log.G(h.ctx).Info("CreateAskPlan")
-	return h.hub.InsertSlot(ctx, req)
-}
-
-func (h *hubAPI) RemoveAskPlan(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling RemoveAskPlan request")
-	return h.hub.RemoveSlot(ctx, req)
-}
-
-func (h *hubAPI) TaskList(ctx context.Context, req *pb.Empty) (*pb.TaskListReply, error) {
-	log.G(h.ctx).Info("handling TaskList request")
-	return h.hub.TaskList(ctx, &pb.Empty{})
-}
-
-func (h *hubAPI) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusReply, error) {
-	log.G(h.ctx).Info("handling TaskStatus request")
-	return h.hub.TaskStatus(ctx, req)
-}
-
-func newHubAPI(opts *remoteOptions) (pb.HubManagementServer, error) {
-	cc, err := util.MakeGrpcClient(opts.ctx, opts.conf.HubEndpoint(), opts.creds)
+func (h *hubAPI) getClient() (pb.HubClient, error) {
+	cc, err := util.MakeGrpcClient(h.ctx, h.remotes.conf.HubEndpoint(), h.remotes.creds,
+		grpc.WithBlock(), grpc.WithTimeout(15*time.Second))
 	if err != nil {
 		return nil, err
 	}
 
+	return pb.NewHubClient(cc), nil
+}
+
+func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	parts := strings.Split(info.FullMethod, "/")
+	methodName := parts[len(parts)-1]
+
+	log.S(h.ctx).Infof("handling %s request", methodName)
+
+	ctx = util.ForwardMetadata(ctx)
+
+	if !strings.HasPrefix(info.FullMethod, "/sonm.HubManagement") {
+		return handler(ctx, req)
+	}
+
+	if h.remotes.conf.HubEndpoint() == "" {
+		return nil, errHubEndpointIsNotSet
+	}
+
+	cli, err := h.getClient()
+	if err != nil {
+		return nil, fmt.Errorf("cannot connect to hub at %s, please check Node settings", h.remotes.conf.HubEndpoint())
+	}
+
+	t := reflect.ValueOf(cli)
+	mappedName := hubToNodeMethods[methodName]
+	method := t.MethodByName(mappedName)
+
+	inValues := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
+	values := method.Call(inValues)
+
+	if !values[1].IsNil() {
+		err = values[1].Interface().(error)
+	}
+	return values[0].Interface(), err
+}
+
+// we need this because of not all of the methods can be mapped one-to-one between Node and Hub
+// The more simplest way to omit this mapping is to refactor Hub's proto definition
+// (not the Node's one because of the Node API is publicly declared and must be changed as rare as possible).
+var hubToNodeMethods = map[string]string{
+	"Status":               "Status",
+	"WorkersList":          "List",
+	"WorkerStatus":         "Info",
+	"GetRegisteredWorkers": "GetRegisteredWorkers",
+	"RegisterWorker":       "RegisterWorker",
+	"DeregisterWorker":     "DeregisterWorker",
+	"DeviceList":           "Devices",
+	"GetDeviceProperties":  "GetDeviceProperties",
+	"SetDeviceProperties":  "SetDeviceProperties",
+	"GetAskPlan":           "GetAskPlan",
+	"GetAskPlans":          "Slots",
+	"CreateAskPlan":        "InsertSlot",
+	"RemoveAskPlan":        "RemoveSlot",
+	"TaskList":             "TaskList",
+	"TaskStatus":           "TaskStatus",
+}
+
+func newHubAPI(opts *remoteOptions) pb.HubManagementServer {
 	return &hubAPI{
-		ctx: opts.ctx,
-		hub: pb.NewHubClient(cc),
-	}, nil
+		remotes: opts,
+		ctx:     opts.ctx,
+	}
 }

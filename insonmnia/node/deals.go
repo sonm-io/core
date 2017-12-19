@@ -1,10 +1,8 @@
 package node
 
 import (
-	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
-	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
 
@@ -14,7 +12,6 @@ type dealsAPI struct {
 }
 
 func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealListReply, error) {
-	log.G(d.ctx).Info("handling Deals_List request", zap.Any("req", req))
 	IDs, err := d.remotes.eth.GetDeals(req.Owner)
 	if err != nil {
 		return nil, err
@@ -39,7 +36,6 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealL
 }
 
 func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.Deal, error) {
-	log.G(d.ctx).Info("handling Deals_Status request", zap.String("id", id.Id))
 	bigID, err := util.ParseBigInt(id.Id)
 	if err != nil {
 		return nil, err
@@ -49,7 +45,6 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.Deal, error) {
 }
 
 func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
-	log.G(d.ctx).Info("handling Deals_Finish request", zap.String("id", id.Id))
 	bigID, err := util.ParseBigInt(id.Id)
 	if err != nil {
 		return nil, err

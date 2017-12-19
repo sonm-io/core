@@ -2,7 +2,7 @@
 node:
   # address to bind Node's gRPC endpoint
   # required
-  listen_addr: 127.0.0.1:9999
+  listen_addr: "127.0.0.1:9999"
 
 # Marketplace service settings
 market:
@@ -29,9 +29,8 @@ ethereum:
   # passphrase for keystore
   pass_phrase: "any"
 
-# Hub management settings
-# set this if you have your own hub and want to manage it
-# hub:
-  # endpoint is Hub's monitoring gRPC endpoint
-  # for client connections
-  # endpoint: 127.0.0.1:10001
+# Hub management settings.
+# Set this if you have your own Hub and want to manage it.
+hub:
+  # endpoint is Hub's monitoring gRPC endpoint for client connections.
+  endpoint: "127.0.0.1:10001"

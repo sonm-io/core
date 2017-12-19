@@ -124,6 +124,7 @@ func (it *hubInteractor) CreateAskPlan(slot *structs.Slot, price string) (*pb.ID
 		Price: price,
 		Slot:  slot.Unwrap(),
 	}
+
 	return it.hub.CreateAskPlan(ctx, req)
 }
 

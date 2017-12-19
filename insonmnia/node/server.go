@@ -94,41 +94,39 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	}
 
 	creds := util.NewTLS(TLSConfig)
-	srv := util.MakeGrpcServer(creds, grpc.UnaryInterceptor(onRequest))
 
 	opts, err := newRemoteOptions(ctx, key, c, creds)
 	if err != nil {
 		return nil, err
 	}
 
-	// register hub connection if hub addr is set
-	if c.HubEndpoint() != "" {
-		hub, err := newHubAPI(opts)
-		if err != nil {
-			return nil, err
-		}
-		pb.RegisterHubManagementServer(srv, hub)
-		log.G(ctx).Info("hub service registered", zap.String("endpt", c.HubEndpoint()))
-	}
+	hub := newHubAPI(opts)
 
 	market, err := newMarketAPI(opts)
 	if err != nil {
 		return nil, err
 	}
-	pb.RegisterMarketServer(srv, market)
-	log.G(ctx).Info("market service registered", zap.String("endpt", c.MarketEndpoint()))
 
 	deals, err := newDealsAPI(opts)
 	if err != nil {
 		return nil, err
 	}
-	pb.RegisterDealManagementServer(srv, deals)
-	log.G(ctx).Info("deals service registered")
 
 	tasks, err := newTasksAPI(opts)
 	if err != nil {
 		return nil, err
 	}
+
+	srv := util.MakeGrpcServer(creds, grpc.UnaryInterceptor(hub.(*hubAPI).intercept))
+
+	pb.RegisterHubManagementServer(srv, hub)
+	log.G(ctx).Info("hub service registered", zap.String("endpt", c.HubEndpoint()))
+
+	pb.RegisterMarketServer(srv, market)
+	log.G(ctx).Info("market service registered", zap.String("endpt", c.MarketEndpoint()))
+
+	pb.RegisterDealManagementServer(srv, deals)
+	log.G(ctx).Info("deals service registered")
 
 	pb.RegisterTaskManagementServer(srv, tasks)
 	log.G(ctx).Info("tasks service registered")
@@ -153,8 +151,4 @@ func (n *Node) Serve() error {
 	}
 
 	return n.srv.Serve(n.lis)
-}
-
-func onRequest(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	return handler(util.ForwardMetadata(ctx), request)
 }
