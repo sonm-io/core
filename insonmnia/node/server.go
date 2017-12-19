@@ -94,7 +94,7 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	}
 
 	creds := util.NewTLS(TLSConfig)
-	srv := util.MakeGrpcServer(creds)
+	srv := util.MakeGrpcServer(creds, grpc.UnaryInterceptor(onRequest))
 
 	opts, err := newRemoteOptions(ctx, key, c, creds)
 	if err != nil {
@@ -153,4 +153,8 @@ func (n *Node) Serve() error {
 	}
 
 	return n.srv.Serve(n.lis)
+}
+
+func onRequest(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	return handler(util.ForwardMetadata(ctx), request)
 }
