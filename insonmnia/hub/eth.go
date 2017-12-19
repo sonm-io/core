@@ -38,6 +38,7 @@ type eth struct {
 
 func (e *eth) WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error) {
 	// e.findDeals blocks until order will be found or timeout will reached
+	log.G(e.ctx).Debug("waiting for deal created", zap.Any("req", request))
 	return e.findDeals(e.ctx, request.Order.ByuerID, request.SpecHash)
 }
 
@@ -77,7 +78,6 @@ func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID stri
 }
 
 func (e *eth) findDeals(ctx context.Context, addr, hash string) (*pb.Deal, error) {
-	// TODO(sshaman1101): make if configurable?
 	ctx, cancel := context.WithTimeout(e.ctx, e.timeout)
 	defer cancel()
 
