@@ -45,6 +45,11 @@ type ClusterConfig struct {
 	MemberGCPeriod               uint64      `yaml:"member_gc_period" default:"60"`
 }
 
+type WhitelistConfig struct {
+	Url     string `yaml:"url"`
+	Enabled *bool  `yaml:"enabled" default:"true" required:"true"`
+}
+
 type Config struct {
 	Endpoint      string             `required:"true" yaml:"endpoint"`
 	GatewayConfig *GatewayConfig     `yaml:"gateway"`
@@ -53,6 +58,7 @@ type Config struct {
 	Locator       LocatorConfig      `yaml:"locator"`
 	Market        MarketConfig       `yaml:"market"`
 	Cluster       ClusterConfig      `yaml:"cluster"`
+	Whitelist     WhitelistConfig    `yaml:"whitelist"`
 }
 
 // NewConfig loads a hub config from the specified YAML file.

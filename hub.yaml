@@ -69,3 +69,7 @@ locator:
 market:
   # marketplace gRPC endpoint, required
   endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9095"
+
+whitelist:
+  url: "https://raw.githubusercontent.com/sonm-io/allowed-list/master/general_whitelist.json"
+  enabled: true

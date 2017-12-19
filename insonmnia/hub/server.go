@@ -7,11 +7,14 @@ import (
 	"io"
 	"math/rand"
 	"net"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/docker/distribution/reference"
+	dc "github.com/docker/docker/client"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
@@ -42,6 +45,7 @@ var (
 	ErrMinerNotFound    = status.Errorf(codes.NotFound, "miner not found")
 	errDealNotFound     = status.Errorf(codes.NotFound, "deal not found")
 	errTaskNotFound     = status.Errorf(codes.NotFound, "task not found")
+	errImageForbidden   = status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
 )
 
 type DealID string
@@ -116,6 +120,8 @@ type Hub struct {
 	certRotator util.HitlessCertRotator
 	// GRPC TransportCredentials supported our Auth
 	creds credentials.TransportCredentials
+
+	whitelist Whitelist
 }
 
 type DeviceProperties map[string]float64
@@ -402,6 +408,13 @@ func (h *Hub) generateTaskID() string {
 }
 
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
+	allowed, ref, err := h.checkImageWhitelist(request.Registry, request.Image, request.Auth)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		return nil, errImageForbidden
+	}
 	deal, err := h.eth.GetDeal(request.GetDeal().Id)
 	if err != nil {
 		return nil, err
@@ -428,8 +441,8 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	startRequest := &pb.MinerStartRequest{
 		OrderId:       request.GetDealId(),
 		Id:            taskID,
-		Registry:      request.GetRegistry(),
-		Image:         request.GetImage(),
+		Registry:      reference.Domain(ref),
+		Image:         reference.Path(ref),
 		Auth:          request.GetAuth(),
 		PublicKeyData: request.GetPublicKeyData(),
 		CommitOnStop:  request.GetCommitOnStop(),
@@ -474,6 +487,42 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	}
 
 	return reply, nil
+}
+
+func (h *Hub) checkImageWhitelist(registry string, image string, auth string) (bool, reference.Named, error) {
+	fullName := filepath.Join(registry, image)
+	ref, err := reference.ParseNormalizedNamed(fullName)
+	if err != nil {
+		return false, nil, err
+	}
+
+	if !*h.cfg.Whitelist.Enabled {
+		return true, ref, nil
+	}
+
+	digestedRef, isDigested := ref.(reference.Digested)
+	if isDigested {
+		if err != nil {
+			return false, nil, err
+		}
+		allowed, err := h.whitelist.Allowed(ref.Name(), (string)(digestedRef.Digest()))
+		return allowed, ref, err
+	}
+	dockerClient, err := dc.NewEnvClient()
+	if err != nil {
+		return false, nil, err
+	}
+	inspection, err := dockerClient.DistributionInspect(h.ctx, image, auth)
+	if err != nil {
+		return false, nil, errors.Wrap(err, "could not perform DistributionInspect")
+	}
+	ref, err = reference.ParseNormalizedNamed(ref.String() + "@" + (string)(inspection.Descriptor.Digest))
+	if err != nil {
+		// This should never happen
+		panic("logical error - can not append digest and parse")
+	}
+	allowed, err := h.whitelist.Allowed(ref.Name(), (string)(inspection.Descriptor.Digest))
+	return allowed, ref, err
 }
 
 func (h *Hub) findMinerByOrder(id OrderId) (*MinerCtx, *resource.Resources, error) {
@@ -1134,6 +1183,11 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		acl.Insert(defaults.ethAddr.Hex())
 	}
 
+	wl, err := NewWhitelist(ctx, &cfg.Whitelist)
+	if err != nil {
+		return nil, err
+	}
+
 	eventACL := newEventACL(ctx)
 
 	h := &Hub{
@@ -1170,6 +1224,8 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 
 		cluster:       defaults.cluster,
 		clusterEvents: defaults.clusterEvents,
+
+		whitelist: wl,
 	}
 
 	dealAuthorization := map[string]DealMetaData{
