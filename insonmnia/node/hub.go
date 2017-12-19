@@ -31,7 +31,7 @@ func (h *hubAPI) getClient() (pb.HubClient, error) {
 }
 
 func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	log.G(h.ctx).Debug("intercepting request", zap.String("method", info.FullMethod))
+	log.G(h.ctx).Info("handling request", zap.String("method", info.FullMethod))
 
 	ctx = util.ForwardMetadata(ctx)
 
