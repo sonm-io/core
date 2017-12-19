@@ -44,6 +44,28 @@ var (
 	errDealNotFound     = status.Errorf(codes.NotFound, "deal not found")
 	errTaskNotFound     = status.Errorf(codes.NotFound, "task not found")
 	errImageForbidden   = status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
+
+	hubAPIPrefix = "/sonm.Hub/"
+
+	// The following methods require TLS authentication and checking for client
+	// and Hub's wallet equality.
+	// The wallet is passed as peer metadata.
+	hubManagementMethods = []string{
+		"Status",
+		"List",
+		"Info",
+		"TaskList",
+		"Devices",
+		"MinerDevices",
+		"GetDeviceProperties",
+		"SetDeviceProperties",
+		"GetRegisteredWorkers",
+		"RegisterWorker",
+		"DeregisterWorker",
+		"Slots",
+		"InsertSlot",
+		"RemoveSlot",
+	}
 )
 
 type DealID string
@@ -1200,7 +1222,11 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	for event, metadata := range dealAuthorization {
-		eventACL.addAuthorization(method("/sonm.Hub/"+event), newDealAuthorization(ctx, metadata))
+		eventACL.addAuthorization(method(hubAPIPrefix+event), newDealAuthorization(ctx, metadata))
+	}
+
+	for _, event := range hubManagementMethods {
+		eventACL.addAuthorization(method(hubAPIPrefix+event), newHubManagementAuthorization(ctx, h.ethAddr))
 	}
 
 	grpcServer := util.MakeGrpcServer(h.creds, grpc.UnaryInterceptor(h.onRequest))
