@@ -1250,7 +1250,7 @@ func (h *Hub) Serve() error {
 	if err := h.cluster.RegisterAndLoadEntity("device_properties", &h.deviceProperties); err != nil {
 		return err
 	}
-	if err := h.cluster.RegisterAndLoadEntity("acl", &h.acl); err != nil {
+	if err := h.cluster.RegisterAndLoadEntity("acl", h.acl); err != nil {
 		return err
 	}
 	if err := h.cluster.RegisterAndLoadEntity("slots", &h.slots); err != nil {
