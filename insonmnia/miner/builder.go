@@ -3,10 +3,9 @@ package miner
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"net"
 	"strings"
 	"time"
-
-	"net"
 
 	"github.com/ccding/go-stun/stun"
 	"github.com/ethereum/go-ethereum/common"
@@ -136,6 +135,7 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 
 	hubSockaddr, hubEthAddr, err := b.getHubConnectionInfo()
 	if err != nil {
+		cancel()
 		return nil, err
 	}
 
