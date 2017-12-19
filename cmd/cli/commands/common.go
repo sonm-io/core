@@ -51,7 +51,6 @@ var (
 
 	// errors
 	errCannotParsePropsFile = errors.New("cannot parse props file")
-	errNoHubConnection      = errors.New("cannot connect to hub via Node, please check Hub Address settings into Node's config")
 )
 
 func init() {
@@ -171,8 +170,8 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 		showError(cmd, err.Error(), nil)
 		os.Exit(1)
 	}
-	creds = util.NewTLS(TLSConfig)
 
+	creds = util.NewWalletAuthenticator(util.NewTLS(TLSConfig), util.PubKeyToAddr(sessionKey.PublicKey))
 	wallet, err := util.NewSelfSignedWallet(sessionKey)
 	if err != nil {
 		showError(cmd, err.Error(), nil)
