@@ -5,18 +5,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"path/filepath"
 
 	"github.com/docker/distribution/reference"
+	dc "github.com/docker/docker/client"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 )
 
 type Whitelist interface {
-	Allowed(name string, digest string) (bool, error)
+	Allowed(ctx context.Context, registry string, image string, auth string) (bool, reference.Named, error)
 }
 
 func NewWhitelist(ctx context.Context, config *WhitelistConfig) (Whitelist, error) {
-	if !*config.Enabled {
+	if config.Enabled != nil && !*config.Enabled {
 		return &disabledWhitelist{}, nil
 	}
 	resp, err := http.Get(config.Url)
@@ -45,7 +47,7 @@ type whitelist struct {
 	Records map[string]WhitelistRecord
 }
 
-func (w *whitelist) Allowed(name string, digest string) (bool, error) {
+func (w *whitelist) digestAllowed(name string, digest string) (bool, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return false, err
@@ -62,9 +64,46 @@ func (w *whitelist) Allowed(name string, digest string) (bool, error) {
 	return false, nil
 }
 
+func (w *whitelist) Allowed(ctx context.Context, registry string, image string, auth string) (bool, reference.Named, error) {
+	fullName := filepath.Join(registry, image)
+	ref, err := reference.ParseNormalizedNamed(fullName)
+	if err != nil {
+		return false, nil, err
+	}
+
+	digestedRef, isDigested := ref.(reference.Digested)
+	if isDigested {
+		if err != nil {
+			return false, nil, err
+		}
+		allowed, err := w.digestAllowed(ref.Name(), (string)(digestedRef.Digest()))
+		return allowed, ref, err
+	}
+	dockerClient, err := dc.NewEnvClient()
+	if err != nil {
+		return false, nil, err
+	}
+	inspection, err := dockerClient.DistributionInspect(ctx, image, auth)
+	if err != nil {
+		return false, nil, errors.Wrap(err, "could not perform DistributionInspect")
+	}
+	ref, err = reference.ParseNormalizedNamed(ref.String() + "@" + (string)(inspection.Descriptor.Digest))
+	if err != nil {
+		// This should never happen
+		panic("logical error - can not append digest and parse")
+	}
+	allowed, err := w.digestAllowed(ref.Name(), (string)(inspection.Descriptor.Digest))
+	return allowed, ref, err
+}
+
 type disabledWhitelist struct {
 }
 
-func (w *disabledWhitelist) Allowed(name string, digest string) (bool, error) {
-	return true, nil
+func (w *disabledWhitelist) Allowed(ctx context.Context, registry string, image string, auth string) (bool, reference.Named, error) {
+	fullName := filepath.Join(registry, image)
+	ref, err := reference.ParseNormalizedNamed(fullName)
+	if err != nil {
+		return false, nil, err
+	}
+	return true, ref, nil
 }

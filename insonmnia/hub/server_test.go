@@ -118,6 +118,7 @@ func getTestHubConfig() *Config {
 			Failover: false,
 			Store:    StoreConfig{Type: "boltdb", Endpoint: "tmp/sonm/boltdb", Bucket: "sonm"},
 		},
+		Whitelist: WhitelistConfig{Enabled: new(bool)},
 	}
 }
 

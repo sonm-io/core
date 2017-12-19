@@ -7,14 +7,12 @@ import (
 	"io"
 	"math/rand"
 	"net"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/docker/distribution/reference"
-	dc "github.com/docker/docker/client"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
@@ -408,7 +406,7 @@ func (h *Hub) generateTaskID() string {
 }
 
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
-	allowed, ref, err := h.checkImageWhitelist(request.Registry, request.Image, request.Auth)
+	allowed, ref, err := h.whitelist.Allowed(h.ctx, request.Registry, request.Image, request.Auth)
 	if err != nil {
 		return nil, err
 	}
@@ -487,42 +485,6 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	}
 
 	return reply, nil
-}
-
-func (h *Hub) checkImageWhitelist(registry string, image string, auth string) (bool, reference.Named, error) {
-	fullName := filepath.Join(registry, image)
-	ref, err := reference.ParseNormalizedNamed(fullName)
-	if err != nil {
-		return false, nil, err
-	}
-
-	if !*h.cfg.Whitelist.Enabled {
-		return true, ref, nil
-	}
-
-	digestedRef, isDigested := ref.(reference.Digested)
-	if isDigested {
-		if err != nil {
-			return false, nil, err
-		}
-		allowed, err := h.whitelist.Allowed(ref.Name(), (string)(digestedRef.Digest()))
-		return allowed, ref, err
-	}
-	dockerClient, err := dc.NewEnvClient()
-	if err != nil {
-		return false, nil, err
-	}
-	inspection, err := dockerClient.DistributionInspect(h.ctx, image, auth)
-	if err != nil {
-		return false, nil, errors.Wrap(err, "could not perform DistributionInspect")
-	}
-	ref, err = reference.ParseNormalizedNamed(ref.String() + "@" + (string)(inspection.Descriptor.Digest))
-	if err != nil {
-		// This should never happen
-		panic("logical error - can not append digest and parse")
-	}
-	allowed, err := h.whitelist.Allowed(ref.Name(), (string)(inspection.Descriptor.Digest))
-	return allowed, ref, err
 }
 
 func (h *Hub) findMinerByOrder(id OrderId) (*MinerCtx, *resource.Resources, error) {
