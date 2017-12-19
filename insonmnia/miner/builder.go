@@ -272,6 +272,10 @@ func (b *MinerBuilder) getHubConnectionInfo() (string, common.Address, error) {
 		return "", common.Address{}, fmt.Errorf("all hub endpoints are unreachable: %+v", encounteredErrors)
 	}
 
+	if _, _, err := net.SplitHostPort(hubSockAddr); err != nil {
+		return "", common.Address{}, err
+	}
+
 	return hubSockAddr, hubEthAddr, err
 }
 
