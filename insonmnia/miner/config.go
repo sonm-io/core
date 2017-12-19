@@ -38,6 +38,10 @@ type ResourcesConfig struct {
 	Resources *specs.LinuxResources `required:"false" yaml:"resources"`
 }
 
+type LocatorConfig struct {
+	Endpoint string `required:"true" yaml:"endpoint"`
+}
+
 type config struct {
 	HubConfig       HubConfig           `required:"true" yaml:"hub"`
 	FirewallConfig  *FirewallConfig     `required:"false" yaml:"firewall"`
@@ -45,6 +49,7 @@ type config struct {
 	GPUConfig       *gpu.Config         `required:"false" yaml:"GPUConfig"`
 	SSHConfig       *SSHConfig          `required:"false" yaml:"ssh"`
 	LoggingConfig   LoggingConfig       `yaml:"logging"`
+	LocatorConfig   *LocatorConfig      `required:"true" yaml:"locator"`
 	UUIDPathConfig  string              `required:"false" yaml:"uuid_path"`
 	PublicIPsConfig []string            `required:"false" yaml:"public_ip_addrs"`
 }
@@ -85,6 +90,10 @@ func (c *config) ETH() *accounts.EthConfig {
 	return c.Eth
 }
 
+func (c *config) LocatorEndpoint() string {
+	return c.LocatorConfig.Endpoint
+}
+
 // NewConfig creates a new Miner config from the specified YAML file.
 func NewConfig(path string) (Config, error) {
 	cfg := &config{}
@@ -119,4 +128,6 @@ type Config interface {
 	UUIDPath() string
 	// ETH returns ethereum configuration
 	ETH() *accounts.EthConfig
+	// LocatorEndpoint returns locator endpoint.
+	LocatorEndpoint() string
 }

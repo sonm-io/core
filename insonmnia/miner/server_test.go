@@ -31,7 +31,7 @@ func getTestKey() *ecdsa.PrivateKey {
 func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg := NewMockConfig(mock)
 	mockedwallet := util.PubKeyToAddr(getTestKey().PublicKey).Hex()
-	cfg.EXPECT().HubEndpoint().AnyTimes().Return(mockedwallet + "@::1")
+	cfg.EXPECT().HubEndpoint().AnyTimes().Return(mockedwallet + "@localhost:4242")
 	cfg.EXPECT().HubResources().AnyTimes()
 	cfg.EXPECT().Firewall().AnyTimes()
 	cfg.EXPECT().GPU().AnyTimes()
@@ -55,7 +55,7 @@ func TestServerNewExtractsHubEndpoint(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.NotNil(t, m)
-	assert.Equal(t, "::1", m.hubAddress)
+	assert.Equal(t, "localhost:4242", m.hubAddress)
 }
 
 func TestServerNewFailsWhenFailedCollectResources(t *testing.T) {

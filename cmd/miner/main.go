@@ -56,7 +56,12 @@ func main() {
 	logger := logging.BuildLogger(cfg.Logging().Level, true)
 	ctx = log.WithLogger(ctx, logger)
 
-	builder := miner.NewMinerBuilder(cfg, key)
+	builder, err := miner.NewMinerBuilder(cfg, key)
+	if err != nil {
+		log.GetLogger(ctx).Error("failed to init miner builder:", zap.Error(err))
+		os.Exit(1)
+	}
+
 	builder.Context(ctx)
 	builder.UUID(uuid)
 	m, err := builder.Build()

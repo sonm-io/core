@@ -161,10 +161,11 @@ func ParseEndpoint(endpoint string) (string, ethcommon.Address, error) {
 	return socketAddr, ethcommon.HexToAddress(ethAddr), nil
 }
 
-func MakeWalletAuthenticatedClient(ctx context.Context, creds credentials.TransportCredentials, endpoint string) (*grpc.ClientConn, error) {
+func MakeWalletAuthenticatedClient(ctx context.Context, creds credentials.TransportCredentials, endpoint string,
+	opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	sockaddr, ethAddr, err := ParseEndpoint(endpoint)
 	if err != nil {
-		conn, err := MakeGrpcClient(ctx, endpoint, creds)
+		conn, err := MakeGrpcClient(ctx, endpoint, creds, opts...)
 		if err != nil {
 			return nil, err
 		}

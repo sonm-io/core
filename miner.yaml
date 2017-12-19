@@ -1,8 +1,9 @@
 # Hub settings.
 hub:
   # Endpoint for hub communication
-  # Format is "ethAddr@ip:port".
-  endpoint: 8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:10002
+  # Format is either "ethAddr@:port" or "ethAddr@ip:port". If only "ethAddr@:port" is provided,
+  # ip will be resolved via locator.
+  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:10002"
 
 #  Resources section is available only on Linux
 #  If configured, all tasks will share this pool of resources.
@@ -51,3 +52,8 @@ ethereum:
   key_store: "./keys"
   # passphrase for keystore
   pass_phrase: "any"
+
+# locator service allows nodes to discover each other
+locator:
+  # locator gRPC endpoint, required
+  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"
