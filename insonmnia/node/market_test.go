@@ -138,8 +138,8 @@ func TestCreateOrder_FullAsyncOrderHandler(t *testing.T) {
 	assert.NoError(t, err)
 
 	inner := server.(*marketAPI)
-
 	created, err := inner.CreateOrder(ctx, makeOrder())
+
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
@@ -176,8 +176,8 @@ func TestCreateOrder_CannotCreateHandler(t *testing.T) {
 	assert.NoError(t, err)
 
 	inner := server.(*marketAPI)
-
 	created, err := inner.CreateOrder(ctx, makeOrder())
+
 	assert.NoError(t, err, "order must be created on remote market")
 
 	time.Sleep(50 * time.Millisecond)
@@ -274,8 +274,8 @@ func TestCreateOrder_CannotResolveHubIP(t *testing.T) {
 	assert.NoError(t, err)
 
 	inner := server.(*marketAPI)
-
 	created, err := inner.CreateOrder(ctx, makeOrder())
+
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
@@ -316,8 +316,8 @@ func TestCreateOrder_CannotCreateDeal(t *testing.T) {
 	assert.NoError(t, err)
 
 	inner := server.(*marketAPI)
-
 	created, err := inner.CreateOrder(ctx, makeOrder())
+
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
@@ -361,8 +361,8 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 	assert.NoError(t, err)
 
 	inner := server.(*marketAPI)
-
 	created, err := inner.CreateOrder(ctx, makeOrder())
+
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
@@ -397,8 +397,8 @@ func TestCreateOrder_LackAllowanceBalance(t *testing.T) {
 	assert.NoError(t, err)
 
 	inner := server.(*marketAPI)
-
 	created, err := inner.CreateOrder(ctx, makeOrder())
+
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
@@ -433,8 +433,8 @@ func TestCreateOrder_LackAllowance(t *testing.T) {
 	assert.NoError(t, err)
 
 	inner := server.(*marketAPI)
-
 	created, err := inner.CreateOrder(ctx, makeOrder())
+
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
@@ -471,8 +471,8 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 	assert.NoError(t, err)
 
 	inner := server.(*marketAPI)
-
 	created, err := inner.CreateOrder(ctx, makeOrder())
+
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
