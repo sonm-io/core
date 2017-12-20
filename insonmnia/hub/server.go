@@ -1167,10 +1167,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		acl.Insert(defaults.ethAddr.Hex())
 	}
 
-	wl, err := NewWhitelist(ctx, &cfg.Whitelist)
-	if err != nil {
-		return nil, err
-	}
+	wl := NewWhitelist(ctx, &cfg.Whitelist)
 
 	eventACL := newEventACL(ctx)
 
