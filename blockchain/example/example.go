@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sonm-io/core/accounts"
@@ -9,12 +10,12 @@ import (
 	"github.com/sonm-io/core/proto"
 )
 
-const testPass = ""
+const testPass = "any"
 
 func main() {
 	var err error
 
-	ks := accounts.NewIdentity("sonm-test-keystore")
+	ks := accounts.NewIdentity("keys")
 
 	err = ks.Open(testPass)
 	if err != nil {
@@ -47,18 +48,20 @@ func main() {
 	//}
 
 	deal := sonm.Deal{
-		BuyerID:           "0x41ba7e0e1e661f7114f2f05afd2536210c2ed351",
-		SupplierID:        "0x41ba7e0e1e661f7114f2f05afd2536210c2ed352",
+		BuyerID:           "0x8125721c2413d99a33e351e1f6bb4e56b6b633fd",
+		SupplierID:        "0x8125721c2413d99a33e351e1f6bb4e56b6b633fd",
 		SpecificationHash: "1234567890",
-		Price:             "10000",
+		Price:             "100",
 		WorkTime:          60,
 	}
 
-	tx, err = bch.OpenDeal(prv, &deal)
+	dealId, err := bch.OpenDealPending(prv, &deal, time.Duration(60*time.Second))
 	if err != nil {
 		log.Fatalln(err)
 		return
 	}
+
+	log.Println("DealId: ", dealId)
 
 	//tx, err := bch.AcceptDeal(prv, big.NewInt(2))
 	//if err != nil {
