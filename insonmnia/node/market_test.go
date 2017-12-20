@@ -161,7 +161,6 @@ func TestCreateOrder_CannotCreateHandler(t *testing.T) {
 
 	// create custom market mock that can fail
 	m := pb.NewMockMarketClient(ctrl)
-
 	m.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(&pb.Order{Id: "some-broken-order", Slot: &pb.Slot{}}, nil)
 	m.EXPECT().GetOrders(gomock.Any(), gomock.Any()).AnyTimes().
