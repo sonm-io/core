@@ -147,7 +147,6 @@ func TestCreateOrder_FullAsyncOrderHandler(t *testing.T) {
 
 	// wait for async handler is finished
 	time.Sleep(1 * time.Second)
-
 	assert.True(t, len(inner.tasks) == 1, "Handler must not be removed")
 
 	handlr := inner.tasks[created.Id]
