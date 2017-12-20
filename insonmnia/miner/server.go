@@ -626,7 +626,7 @@ func (m *Miner) connectToHub(address string) {
 		return
 	}
 
-	// NOTE: it's not the best soluction
+	// NOTE: it's not the best solution.
 	// It's needed to detect connection failure.
 	// Refactor: to detect reconnection from Accept
 	// Look at LimitListener

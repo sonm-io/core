@@ -6,6 +6,7 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -185,6 +186,35 @@ func (e *eventACL) removeDealCredentials(dealID DealID) {
 
 type EventAuthorization interface {
 	Authorize(ctx context.Context, request interface{}) error
+}
+
+type hubManagementAuthorization struct {
+	ctx     context.Context
+	ethAddr common.Address
+}
+
+func newHubManagementAuthorization(ctx context.Context, ethAddr common.Address) EventAuthorization {
+	return &hubManagementAuthorization{
+		ctx:     ctx,
+		ethAddr: ethAddr,
+	}
+}
+
+func (h *hubManagementAuthorization) Authorize(ctx context.Context, request interface{}) error {
+	peerInfo, ok := peer.FromContext(ctx)
+	if !ok {
+		return errNoPeerInfo
+	}
+
+	switch auth := peerInfo.AuthInfo.(type) {
+	case util.EthAuthInfo:
+		if util.EqualAddresses(auth.Wallet, h.ethAddr) {
+			return nil
+		}
+		return status.Errorf(codes.Unauthenticated, "the wallet %s has no access", auth.Wallet)
+	default:
+		return status.Error(codes.Unauthenticated, "unknown auth info")
+	}
 }
 
 // DealMetaData allows to extract deal-specific parameters for

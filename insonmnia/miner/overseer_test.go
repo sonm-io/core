@@ -4,15 +4,14 @@ import (
 	"archive/tar"
 	"bytes"
 	"io"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"sync"
-	"time"
 
 	"golang.org/x/net/context"
 )

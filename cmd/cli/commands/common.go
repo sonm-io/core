@@ -27,7 +27,7 @@ const (
 )
 
 var (
-	rootCmd = &cobra.Command{Use: "sonm"}
+	rootCmd = &cobra.Command{Use: "sonmcli"}
 	version string
 
 	// flags var
@@ -170,8 +170,8 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 		showError(cmd, err.Error(), nil)
 		os.Exit(1)
 	}
-	creds = util.NewTLS(TLSConfig)
 
+	creds = util.NewWalletAuthenticator(util.NewTLS(TLSConfig), util.PubKeyToAddr(sessionKey.PublicKey))
 	wallet, err := util.NewSelfSignedWallet(sessionKey)
 	if err != nil {
 		showError(cmd, err.Error(), nil)

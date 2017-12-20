@@ -38,7 +38,7 @@ func getTestEth(ctrl *gomock.Controller) blockchain.Blockchainer {
 	deal := &pb.Deal{
 		Id:                "my-deal-id",
 		Status:            pb.DealStatus_ACCEPTED,
-		SpecificationHash: "0",
+		SpecificationHash: "217643283185136810854905094570012887099",
 	}
 
 	bc := blockchain.NewMockBlockchainer(ctrl)
@@ -386,7 +386,7 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 	eth.EXPECT().GetAcceptedDeal(gomock.Any(), gomock.Any()).AnyTimes().
 		Return([]*big.Int{big.NewInt(1), big.NewInt(2)}, nil)
 	eth.EXPECT().GetDealInfo(big.NewInt(1)).AnyTimes().
-		Return(&pb.Deal{Status: pb.DealStatus_CLOSED, SpecificationHash: "0"}, nil)
+		Return(&pb.Deal{Status: pb.DealStatus_CLOSED, SpecificationHash: "217643283185136810854905094570012887099"}, nil)
 	eth.EXPECT().GetDealInfo(big.NewInt(2)).AnyTimes().
 		Return(&pb.Deal{Status: pb.DealStatus_PENDING, SpecificationHash: "614000"}, nil)
 

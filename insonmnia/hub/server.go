@@ -12,6 +12,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
@@ -42,6 +43,29 @@ var (
 	ErrMinerNotFound    = status.Errorf(codes.NotFound, "miner not found")
 	errDealNotFound     = status.Errorf(codes.NotFound, "deal not found")
 	errTaskNotFound     = status.Errorf(codes.NotFound, "task not found")
+	errImageForbidden   = status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
+
+	hubAPIPrefix = "/sonm.Hub/"
+
+	// The following methods require TLS authentication and checking for client
+	// and Hub's wallet equality.
+	// The wallet is passed as peer metadata.
+	hubManagementMethods = []string{
+		"Status",
+		"List",
+		"Info",
+		"TaskList",
+		"Devices",
+		"MinerDevices",
+		"GetDeviceProperties",
+		"SetDeviceProperties",
+		"GetRegisteredWorkers",
+		"RegisterWorker",
+		"DeregisterWorker",
+		"Slots",
+		"InsertSlot",
+		"RemoveSlot",
+	}
 )
 
 type DealID string
@@ -116,6 +140,8 @@ type Hub struct {
 	certRotator util.HitlessCertRotator
 	// GRPC TransportCredentials supported our Auth
 	creds credentials.TransportCredentials
+
+	whitelist Whitelist
 }
 
 type DeviceProperties map[string]float64
@@ -402,6 +428,13 @@ func (h *Hub) generateTaskID() string {
 }
 
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
+	allowed, ref, err := h.whitelist.Allowed(h.ctx, request.Registry, request.Image, request.Auth)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		return nil, errImageForbidden
+	}
 	deal, err := h.eth.GetDeal(request.GetDeal().Id)
 	if err != nil {
 		return nil, err
@@ -428,8 +461,8 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	startRequest := &pb.MinerStartRequest{
 		OrderId:       request.GetDealId(),
 		Id:            taskID,
-		Registry:      request.GetRegistry(),
-		Image:         request.GetImage(),
+		Registry:      reference.Domain(ref),
+		Image:         reference.Path(ref),
 		Auth:          request.GetAuth(),
 		PublicKeyData: request.GetPublicKeyData(),
 		CommitOnStop:  request.GetCommitOnStop(),
@@ -1134,6 +1167,11 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		acl.Insert(defaults.ethAddr.Hex())
 	}
 
+	wl, err := NewWhitelist(ctx, &cfg.Whitelist)
+	if err != nil {
+		return nil, err
+	}
+
 	eventACL := newEventACL(ctx)
 
 	h := &Hub{
@@ -1170,6 +1208,8 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 
 		cluster:       defaults.cluster,
 		clusterEvents: defaults.clusterEvents,
+
+		whitelist: wl,
 	}
 
 	dealAuthorization := map[string]DealMetaData{
@@ -1182,7 +1222,11 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	for event, metadata := range dealAuthorization {
-		eventACL.addAuthorization(method("/sonm.Hub/"+event), newDealAuthorization(ctx, metadata))
+		eventACL.addAuthorization(method(hubAPIPrefix+event), newDealAuthorization(ctx, metadata))
+	}
+
+	for _, event := range hubManagementMethods {
+		eventACL.addAuthorization(method(hubAPIPrefix+event), newHubManagementAuthorization(ctx, h.ethAddr))
 	}
 
 	grpcServer := util.MakeGrpcServer(h.creds, grpc.UnaryInterceptor(h.onRequest))
