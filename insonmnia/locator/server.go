@@ -14,7 +14,7 @@ import (
 
 type Storage interface {
 	ByEthAddr(ethAddr common.Address) (*ds.Node, error)
-	Put(n *ds.Node)
+	Put(n *ds.Node) error
 }
 
 type Srv struct {
@@ -34,12 +34,12 @@ func (s *Srv) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Empty,
 	log.G(ctx).Info("Handling Announce request",
 		zap.Stringer("eth", ethAddr), zap.Strings("ips", req.IpAddr))
 
-	s.s.Put(&ds.Node{
+	err = s.s.Put(&ds.Node{
 		EthAddr: ethAddr,
 		IpAddr:  req.IpAddr,
 	})
 
-	return &pb.Empty{}, nil
+	return &pb.Empty{}, err
 }
 
 func (s *Srv) Resolve(ctx context.Context, req *pb.ResolveRequest) (*pb.ResolveReply, error) {

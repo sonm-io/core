@@ -8,7 +8,7 @@ import (
 
 // Node holds information about a Node.
 type Node struct {
-	EthAddr common.Address
-	IpAddr  []string
-	TS      time.Time
+	EthAddr common.Address `json:"eth_addr"`
+	IpAddr  []string       `json:"ip_addr"`
+	TS      time.Time      `json:"time"`
 }

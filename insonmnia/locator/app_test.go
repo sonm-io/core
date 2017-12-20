@@ -23,14 +23,12 @@ func getTestKey() *ecdsa.PrivateKey {
 }
 
 func TestStorage_PutExternal(t *testing.T) {
-	lc, err := NewApp(DefaultConfig("localhost:9090"), key)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	app := NewApp(TestConfig("localhost:9090"), key)
+	err := app.Init()
+	require.NoError(t, err)
 
 	go func() {
-		if err := lc.Serve(); err != nil {
+		if err := app.Serve(); err != nil {
 			t.Errorf("App server failed: %s", err)
 		}
 	}()

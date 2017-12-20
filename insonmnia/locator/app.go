@@ -4,20 +4,30 @@ import (
 	"crypto/ecdsa"
 	"net"
 	"sync"
+	"time"
 
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 
+	"github.com/docker/libkv"
+	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/boltdb"
+
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 
-	"github.com/sonm-io/core/insonmnia/locator/storage/inmemory"
+	engine "github.com/sonm-io/core/insonmnia/locator/storage/libkv"
 	"github.com/sonm-io/core/insonmnia/logging"
 )
+
+func init() {
+	boltdb.Register()
+}
 
 type App struct {
 	mx sync.Mutex
@@ -30,41 +40,63 @@ type App struct {
 	creds       credentials.TransportCredentials
 }
 
-func (l *App) Serve() error {
-	lis, err := net.Listen("tcp", l.conf.ListenAddr)
+func (a *App) Serve() error {
+	lis, err := net.Listen("tcp", a.conf.ListenAddr)
 	if err != nil {
 		return err
 	}
 
-	return l.grpc.Serve(lis)
+	return a.grpc.Serve(lis)
 }
 
-func NewApp(conf *Config, key *ecdsa.PrivateKey) (*App, error) {
-	if key == nil {
-		return nil, errors.New("private key should be provided")
+func NewApp(conf *Config, key *ecdsa.PrivateKey) *App {
+	return &App{conf: conf, ethKey: key}
+}
+
+func (a *App) Init() error {
+	if a.conf == nil {
+		return errors.New("conf option cannot be nil")
 	}
 
+	if a.ethKey == nil {
+		return errors.New("private key should be provided")
+	}
+
+	// init logger
 	logger := logging.BuildLogger(-1, true)
 	ctx := ctxlog.WithLogger(context.Background(), logger)
 
-	certRotator, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
+	// init cert rotator
+	cr, TLSConfig, err := util.NewHitlessCertRotator(ctx, a.ethKey)
 	if err != nil {
-		return nil, errors.Wrap(err, "canot init CertRotator")
+		return errors.Wrap(err, "cannot init CertRotator")
+	}
+	a.certRotator = cr
+
+	// init storage
+	logger.Info("initializing storage", zap.Any("storage", a.conf.Store))
+
+	kv, err := libkv.NewStore(
+		store.Backend(a.conf.Store.Type),
+		[]string{a.conf.Store.Endpoint},
+		&store.Config{
+			Bucket:            a.conf.Store.Bucket,
+			ConnectionTimeout: 10 * time.Second,
+		},
+	)
+	if err != nil {
+		logger.Fatal("cannot initialize storage engine", zap.Error(err))
 	}
 
-	creds := util.NewTLS(TLSConfig)
-
-	app := &App{
-		conf:   conf,
-		ethKey: key,
-
-		creds:       creds,
-		grpc:        util.MakeGrpcServer(creds),
-		certRotator: certRotator,
+	storage, err := engine.NewStorage(a.conf.NodeTTL, kv)
+	if err != nil {
+		logger.Fatal("cannot initialize storage", zap.Error(err))
 	}
 
-	pb.RegisterLocatorServer(app.grpc,
-		NewServer(inmemory.NewStorage(conf.CleanupPeriod, conf.NodeTTL, ctxlog.GetLogger(ctx))))
+	// init gRPC server
+	a.creds = util.NewTLS(TLSConfig)
+	a.grpc = util.MakeGrpcServer(a.creds)
+	pb.RegisterLocatorServer(a.grpc, NewServer(storage))
 
-	return app, nil
+	return nil
 }

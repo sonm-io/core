@@ -37,13 +37,13 @@ func main() {
 		logger.Fatal("failed load private key", zap.Error(err))
 	}
 
-	lc, err := locator.NewApp(cfg, key)
-	if err != nil {
+	app := locator.NewApp(cfg, key)
+	if err := app.Init(); err != nil {
 		logger.Fatal("cannot start App service", zap.Error(err))
 	}
 
 	logger.Info("starting App service", zap.String("bind_addr", cfg.ListenAddr))
-	if err := lc.Serve(); err != nil {
+	if err := app.Serve(); err != nil {
 		logger.Fatal("cannot start App service", zap.Error(err))
 	}
 }
