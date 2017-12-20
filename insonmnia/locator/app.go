@@ -2,7 +2,6 @@ package locator
 
 import (
 	"crypto/ecdsa"
-	"crypto/tls"
 	"net"
 	"sync"
 
@@ -40,31 +39,32 @@ func (l *App) Serve() error {
 	return l.grpc.Serve(lis)
 }
 
-func NewApp(conf *Config, key *ecdsa.PrivateKey) (l *App, err error) {
-
+func NewApp(conf *Config, key *ecdsa.PrivateKey) (*App, error) {
 	if key == nil {
-		return nil, errors.Wrap(err, "private key should be provided")
+		return nil, errors.New("private key should be provided")
 	}
 
 	logger := logging.BuildLogger(-1, true)
 	ctx := ctxlog.WithLogger(context.Background(), logger)
 
-	l = &App{
+	certRotator, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
+	if err != nil {
+		return nil, errors.Wrap(err, "canot init CertRotator")
+	}
+
+	creds := util.NewTLS(TLSConfig)
+
+	app := &App{
 		conf:   conf,
 		ethKey: key,
+
+		creds:       creds,
+		grpc:        util.MakeGrpcServer(creds),
+		certRotator: certRotator,
 	}
 
-	var TLSConfig *tls.Config
-	l.certRotator, TLSConfig, err = util.NewHitlessCertRotator(ctx, l.ethKey)
-	if err != nil {
-		return nil, err
-	}
-
-	l.creds = util.NewTLS(TLSConfig)
-	l.grpc = util.MakeGrpcServer(l.creds)
-
-	pb.RegisterLocatorServer(l.grpc,
+	pb.RegisterLocatorServer(app.grpc,
 		NewServer(inmemory.NewStorage(conf.CleanupPeriod, conf.NodeTTL, ctxlog.GetLogger(ctx))))
 
-	return l, nil
+	return app, nil
 }
