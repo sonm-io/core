@@ -181,6 +181,7 @@ func (h *orderHandler) propose(askID, supID string) error {
 		Order:    h.order,
 		SpecHash: h.slotSpecHash(),
 	}
+
 	_, err = hub.ProposeDeal(h.ctx, req)
 	if err != nil {
 		log.G(h.ctx).Info("cannot propose createDeal to Hub", zap.Error(err))
@@ -332,6 +333,9 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, 
 		return nil, err
 	}
 
+	// Marketplace knows nothing about the required duration, we must bypass it by hand.
+	// Looks awful, but nevermind, it feels like out timing system is broken by design.
+	created.Slot.Duration = req.GetSlot().GetDuration()
 	go m.startExecOrderHandler(created)
 
 	return created, nil
