@@ -1,9 +1,7 @@
 price: 100
 order_type: BID
 slot:
-  duration:
-    since: 2017-12-02T00:00:00Z
-    until: 2017-12-03T00:00:00Z
+  duration: 1h
 
   rating:
     buyer: 0
@@ -11,13 +9,13 @@ slot:
 
   resources:
     cpu_cores: 1
-    ram_bytes: 100000000
+    ram_bytes: 50mb
     gpu_count: NO_GPU
-    storage: 1000000000
+    storage: 1Gb
 
     network:
-      in: 0
-      out: 0
+      in: 100Mb
+      out: 100Mb
       type: INCOMING
 
     properties:

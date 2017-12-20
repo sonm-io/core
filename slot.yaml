@@ -1,21 +1,19 @@
-duration:
-  since: 2017-12-01T00:00:00Z
-  until: 2017-12-02T00:00:00Z
+duration: 1h
 
 rating:
-  buyer: 100
-  supplier: 42
+  buyer: 0
+  supplier: 0
 
 resources:
   cpu_cores: 1
-  ram_bytes: 100000000
+  ram_bytes: 50mb
   gpu_count: NO_GPU
-  storage: 1000000000
+  storage: 1Gb
 
   network:
-    in: 0
-    out: 0
-    type: NO_NETWORK
+    in: 100Mb
+    out: 100Mb
+    type: INCOMING
 
   properties:
     foo: 1101

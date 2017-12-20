@@ -132,6 +132,7 @@ func TestCreateOrder_FullAsyncOrderHandler(t *testing.T) {
 
 	mustCreate := &pb.Order{
 		OrderType: pb.OrderType_BID,
+		Slot:      &pb.Slot{Duration: uint64(structs.MinSlotDuration.Seconds())},
 	}
 
 	created, err := inner.CreateOrder(ctx, mustCreate)
@@ -175,6 +176,7 @@ func TestCreateOrder_CannotCreateHandler(t *testing.T) {
 
 	mustCreate := &pb.Order{
 		OrderType: pb.OrderType_BID,
+		Slot:      &pb.Slot{Duration: uint64(structs.MinSlotDuration.Seconds())},
 	}
 
 	created, err := inner.CreateOrder(ctx, mustCreate)
@@ -225,6 +227,7 @@ func TestCreateOrder_CannotFetchOrders(t *testing.T) {
 	mustCreate := &pb.Order{
 		OrderType: pb.OrderType_BID,
 		Price:     "1000",
+		Slot:      &pb.Slot{Duration: uint64(structs.MinSlotDuration.Seconds())},
 	}
 
 	created, err := inner.CreateOrder(ctx, mustCreate)
@@ -274,6 +277,7 @@ func TestCreateOrder_CannotNoMatchingOrders(t *testing.T) {
 	inner := server.(*marketAPI)
 
 	mustCreate := &pb.Order{
+		Slot:      &pb.Slot{Duration: uint64(structs.MinSlotDuration.Seconds())},
 		OrderType: pb.OrderType_BID,
 		Price:     "100",
 	}
@@ -309,6 +313,7 @@ func TestCreateOrder_CannotResolveHubIP(t *testing.T) {
 
 	mustCreate := &pb.Order{
 		OrderType: pb.OrderType_BID,
+		Slot:      &pb.Slot{Duration: uint64(structs.MinSlotDuration.Seconds())},
 	}
 
 	created, err := inner.CreateOrder(ctx, mustCreate)
@@ -354,6 +359,7 @@ func TestCreateOrder_CannotCreateDeal(t *testing.T) {
 	inner := server.(*marketAPI)
 
 	mustCreate := &pb.Order{
+		Slot:      &pb.Slot{Duration: uint64(structs.MinSlotDuration.Seconds())},
 		OrderType: pb.OrderType_BID,
 	}
 
@@ -403,6 +409,7 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 	inner := server.(*marketAPI)
 
 	mustCreate := &pb.Order{
+		Slot:      &pb.Slot{Duration: uint64(structs.MinSlotDuration.Seconds())},
 		OrderType: pb.OrderType_BID,
 	}
 
@@ -443,6 +450,7 @@ func TestCreateOrder_LackAllowanceBalance(t *testing.T) {
 	inner := server.(*marketAPI)
 
 	mustCreate := &pb.Order{
+		Slot:      &pb.Slot{Duration: uint64(structs.MinSlotDuration.Seconds())},
 		OrderType: pb.OrderType_BID,
 	}
 
@@ -483,6 +491,7 @@ func TestCreateOrder_LackAllowance(t *testing.T) {
 	inner := server.(*marketAPI)
 
 	mustCreate := &pb.Order{
+		Slot:      &pb.Slot{Duration: uint64(structs.MinSlotDuration.Seconds())},
 		OrderType: pb.OrderType_BID,
 	}
 
@@ -523,6 +532,7 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 	inner := server.(*marketAPI)
 
 	mustCreate := &pb.Order{
+		Slot:      &pb.Slot{Duration: uint64(structs.MinSlotDuration.Seconds())},
 		OrderType: pb.OrderType_BID,
 	}
 
