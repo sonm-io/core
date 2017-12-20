@@ -198,7 +198,7 @@ func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey) error 
 	h.status = statusDealing
 
 	deal := &pb.Deal{
-		// todo: add start & end time from order
+		WorkTime:          h.order.GetSlot().GetDuration(),
 		SupplierID:        order.GetSupplierID(),
 		BuyerID:           util.PubKeyToAddr(key.PublicKey).Hex(),
 		Price:             order.Price,
@@ -468,7 +468,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		// order still nil - proposeDeal failed for each order for each hub
 		log.G(handler.ctx).Info("no one hub accept proposed deal")
 		handler.setError(errProposeNotAccepted)
-		return err
+		return errProposeNotAccepted
 	}
 
 	err = handler.createDeal(orderToDeal, m.remotes.key)

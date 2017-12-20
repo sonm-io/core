@@ -159,7 +159,7 @@ func TestCreateOrder_CannotCreateHandler(t *testing.T) {
 	m := pb.NewMockMarketClient(ctrl)
 
 	m.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).AnyTimes().
-		Return(&pb.Order{Id: "some-broken-order"}, nil)
+		Return(&pb.Order{Id: "some-broken-order", Slot: &pb.Slot{}}, nil)
 	m.EXPECT().GetOrders(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(nil, errors.New("TEST: cannot get orders"))
 	m.EXPECT().CancelOrder(gomock.Any(), gomock.Any()).AnyTimes().
