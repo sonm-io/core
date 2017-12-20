@@ -512,7 +512,7 @@ func (c *cluster) watchEvents() error {
 func (c *cluster) nameByEntity(entity interface{}) (string, error) {
 	c.registeredEntitiesMu.RLock()
 	defer c.registeredEntitiesMu.RUnlock()
-	t := reflect.TypeOf(entity)
+	t := reflect.Indirect(reflect.ValueOf(entity)).Type()
 	name, ok := c.entityNames[t]
 	if !ok {
 		return "", errors.New("entity " + t.String() + " is not registered")
