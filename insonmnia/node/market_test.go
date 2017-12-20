@@ -14,6 +14,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
@@ -64,6 +65,7 @@ func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
 		Price:     "1000",
 		ByuerID:   addr.Hex(),
 		Slot: &pb.Slot{
+			Duration:  uint64(structs.MinSlotDuration.Seconds()),
 			Resources: &pb.Resources{},
 		},
 	}
@@ -199,6 +201,7 @@ func TestCreateOrder_CannotFetchOrders(t *testing.T) {
 		Price:     "1000",
 		ByuerID:   addr.Hex(),
 		Slot: &pb.Slot{
+			Duration:  uint64(structs.MinSlotDuration.Seconds()),
 			Resources: &pb.Resources{},
 		},
 	}
@@ -249,6 +252,7 @@ func TestCreateOrder_CannotNoMatchingOrders(t *testing.T) {
 		Price:     "1000",
 		ByuerID:   addr.Hex(),
 		Slot: &pb.Slot{
+			Duration:  uint64(structs.MinSlotDuration.Seconds()),
 			Resources: &pb.Resources{},
 		},
 	}

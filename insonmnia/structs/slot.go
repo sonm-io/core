@@ -4,15 +4,20 @@ import (
 	"encoding/json"
 	"errors"
 
+	"time"
+
 	pb "github.com/sonm-io/core/proto"
 )
 
 var (
-	errSlotIsNil         = errors.New("order slot cannot be nil")
-	errResourcesIsNil    = errors.New("slot resources cannot be nil")
-	errStartTimeAfterEnd = errors.New("start time is after end time")
-	errStartTimeRequired = errors.New("start time is required")
-	errEndTimeRequired   = errors.New("end time is required")
+	errSlotIsNil          = errors.New("order slot cannot be nil")
+	errResourcesIsNil     = errors.New("slot resources cannot be nil")
+	ErrDurationIsTooShort = errors.New("duration is too short")
+)
+
+const (
+	// TODO(sshaman1101): discuss the value again
+	MinSlotDuration = 10 * time.Minute
 )
 
 type Slot struct {
@@ -60,6 +65,10 @@ func (s *Slot) Unwrap() *pb.Slot {
 func validateSlot(s *pb.Slot) error {
 	if s == nil {
 		return errSlotIsNil
+	}
+
+	if time.Duration(s.Duration)*time.Second < MinSlotDuration {
+		return ErrDurationIsTooShort
 	}
 
 	if err := ValidateResources(s.GetResources()); err != nil {

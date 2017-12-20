@@ -28,9 +28,7 @@ func deleteTestYamlFile(p string) {
 
 func TestLoadSlotYaml(t *testing.T) {
 	p, err := createTestYamlFile(`
-duration:
-  since: 2017-12-01T00:00:00Z
-  until: 2017-12-02T00:00:00Z
+duration: 1h
 
 rating:
   buyer: 100
@@ -58,6 +56,7 @@ resources:
 	assert.NoError(t, err)
 
 	ss := slot.Unwrap()
+	assert.Equal(t, uint64(3600), ss.Duration)
 	assert.Equal(t, int64(100), ss.BuyerRating)
 	assert.Equal(t, int64(42), ss.SupplierRating)
 	assert.Equal(t, uint64(1), ss.Resources.CpuCores)
@@ -76,9 +75,7 @@ func TestLoadOrderYaml(t *testing.T) {
 price: 145
 order_type: BID
 slot:
-  duration:
-    since: 2017-12-02T00:00:00Z
-    until: 2017-12-03T00:00:00Z
+  duration: 1h
 
   rating:
     buyer: 45

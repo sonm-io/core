@@ -11,6 +11,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
+	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
@@ -150,6 +151,7 @@ func TestHubCreateRemoveSlot(t *testing.T) {
 	req := &pb.InsertSlotRequest{
 		Price: "100",
 		Slot: &pb.Slot{
+			Duration:  uint64(structs.MinSlotDuration.Seconds()),
 			Resources: &pb.Resources{},
 		},
 	}

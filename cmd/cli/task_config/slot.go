@@ -1,14 +1,11 @@
 package task_config
 
 import (
+	"time"
+
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 )
-
-type DurationConfig struct {
-	Since string `yaml:"since" required:"true"`
-	Until string `yaml:"until" required:"true"`
-}
 
 type RatingConfig struct {
 	Buyer    int64 `yaml:"buyer" required:"true"`
@@ -31,7 +28,7 @@ type NetworkConfig struct {
 }
 
 type SlotConfig struct {
-	Duration  DurationConfig  `yaml:"duration" required:"true"`
+	Duration  string          `yaml:"duration" required:"true"`
 	Rating    RatingConfig    `yaml:"rating" required:"true"`
 	Resources ResourcesConfig `yaml:"resources" required:"true"`
 }
@@ -47,7 +44,13 @@ func (c *SlotConfig) IntoSlot() (*structs.Slot, error) {
 		return nil, err
 	}
 
+	duration, err := time.ParseDuration(c.Duration)
+	if err != nil {
+		return nil, err
+	}
+
 	return structs.NewSlot(&sonm.Slot{
+		Duration:       uint64(duration.Round(time.Second).Seconds()),
 		BuyerRating:    c.Rating.Buyer,
 		SupplierRating: c.Rating.Supplier,
 		Resources: &sonm.Resources{
