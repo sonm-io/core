@@ -361,7 +361,7 @@ func (it *tasksInteractor) ImagePull(dealID, taskID string) (pb.Hub_PullTaskClie
 }
 
 func NewTasksInteractor(addr string, timeout time.Duration, opts ...grpc.DialOption) (TasksInteractor, error) {
-	cc, err := util.MakeWalletAuthenticatedClient(context.Background(), creds, addr)
+	cc, err := util.MakeWalletAuthenticatedClient(context.Background(), creds, addr, opts...)
 	if err != nil {
 		return nil, err
 	}
