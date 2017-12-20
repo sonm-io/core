@@ -242,20 +242,27 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 		return true, nil, err
 	}
 	if cli != nil {
-		t := reflect.ValueOf(cli)
-		parts := strings.Split(info.FullMethod, "/")
-		methodName := parts[len(parts)-1]
-		m := t.MethodByName(methodName)
-		inValues := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(request)}
-		values := m.Call(inValues)
-		var err error
-		if !values[1].IsNil() {
-			err = values[1].Interface().(error)
-		}
-		return true, values[0].Interface(), err
-	} else {
-		return true, nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
+		value, err := proxyRequestCall(ctx, cli, request, info)
+		return true, value, err
 	}
+
+	return true, nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
+}
+
+func proxyRequestCall(ctx context.Context, client pb.HubClient, request interface{}, info *grpc.UnaryServerInfo) (interface{}, error) {
+	parts := strings.Split(info.FullMethod, "/")
+	methodName := parts[len(parts)-1]
+
+	m := reflect.ValueOf(client).MethodByName(methodName)
+	ctx = util.ForwardMetadata(ctx)
+
+	inValues := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(request)}
+	values := m.Call(inValues)
+	var err error
+	if !values[1].IsNil() {
+		err = values[1].Interface().(error)
+	}
+	return values[0].Interface(), err
 }
 
 func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
