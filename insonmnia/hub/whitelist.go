@@ -28,11 +28,12 @@ func NewWhitelist(ctx context.Context, config *WhitelistConfig) Whitelist {
 
 	wl := whitelist{}
 	go wl.updateRoutine(ctx, config.Url, config.RefreshPeriod)
+
 	return &wl
 }
 
 type WhitelistRecord struct {
-	AllowedHashes []string
+	AllowedHashes []string `json:"allowed_hashes"`
 }
 
 type whitelist struct {
@@ -43,6 +44,7 @@ type whitelist struct {
 func (w *whitelist) updateRoutine(ctx context.Context, url string, updatePeriod uint) error {
 	ticker := util.NewImmediateTicker(time.Duration(time.Second * time.Duration(updatePeriod)))
 	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -61,20 +63,24 @@ func (w *whitelist) load(ctx context.Context, url string) error {
 	if err != nil {
 		return err
 	}
-	log.G(ctx).Info("fetched whitelist")
 	defer resp.Body.Close()
+
+	log.G(ctx).Info("fetched whitelist")
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("failed to download whitelist - got %s", resp.Status)
 	}
+
 	decoder := json.NewDecoder(resp.Body)
 	r := make(map[string]WhitelistRecord)
 	err = decoder.Decode(&r)
 	if err != nil {
 		return errors.Wrap(err, "could not decode whitelist data")
 	}
+
 	w.RecordsMu.Lock()
-	defer w.RecordsMu.Unlock()
 	w.Records = r
+	w.RecordsMu.Unlock()
+
 	return nil
 }
 
@@ -83,17 +89,20 @@ func (w *whitelist) digestAllowed(name string, digest string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+
 	w.RecordsMu.RLock()
 	defer w.RecordsMu.RUnlock()
 	record, ok := w.Records[ref.Name()]
 	if !ok {
 		return false, nil
 	}
+
 	for _, allowedDigest := range record.AllowedHashes {
 		if allowedDigest == digest {
 			return true, nil
 		}
 	}
+
 	return false, nil
 }
 
@@ -109,7 +118,9 @@ func (w *whitelist) Allowed(ctx context.Context, registry string, image string, 
 		if err != nil {
 			return false, nil, err
 		}
+
 		allowed, err := w.digestAllowed(ref.Name(), (string)(digestedRef.Digest()))
+
 		return allowed, ref, err
 	}
 	dockerClient, err := dc.NewEnvClient()
@@ -117,16 +128,20 @@ func (w *whitelist) Allowed(ctx context.Context, registry string, image string, 
 		return false, nil, err
 	}
 	defer dockerClient.Close()
+
 	inspection, err := dockerClient.DistributionInspect(ctx, image, auth)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "could not perform DistributionInspect")
 	}
+
 	ref, err = reference.ParseNormalizedNamed(ref.String() + "@" + (string)(inspection.Descriptor.Digest))
 	if err != nil {
 		// This should never happen
 		panic("logical error - can not append digest and parse")
 	}
+
 	allowed, err := w.digestAllowed(ref.Name(), (string)(inspection.Descriptor.Digest))
+
 	return allowed, ref, err
 }
 
@@ -139,5 +154,6 @@ func (w *disabledWhitelist) Allowed(ctx context.Context, registry string, image 
 	if err != nil {
 		return false, nil, err
 	}
+
 	return true, ref, nil
 }
