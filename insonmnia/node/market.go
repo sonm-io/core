@@ -221,7 +221,7 @@ func (h *orderHandler) waitForApprove(order *pb.Order, key *ecdsa.PrivateKey, wa
 	h.status = statusWaitForApprove
 
 	localCtx := context.Background()
-	deal, err := h.findDeals(localCtx, key, order.GetSupplierID(), h.slotSpecHash(), wait)
+	deal, err := h.findDeals(localCtx, key, order.GetByuerID(), h.slotSpecHash(), wait)
 	if err != nil {
 		log.G(h.ctx).Info("cannot find accepted deal", zap.Error(err))
 		h.setError(err)
