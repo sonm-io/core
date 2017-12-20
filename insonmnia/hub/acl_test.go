@@ -99,6 +99,36 @@ func TestContextDealMetaData(t *testing.T) {
 	assert.Equal(t, DealID("0x42"), dealID)
 }
 
+func TestDealAuthorization(t *testing.T) {
+	wallet, err := util.NewSelfSignedWallet(key)
+	require.NoError(t, err)
+
+	access := util.NewWalletAccess(wallet)
+
+	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
+		AuthInfo: util.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
+	})
+
+	requestMD, err := access.GetRequestMetadata(nil)
+	require.NoError(t, err)
+
+	ctx := metadata.NewIncomingContext(peerCtx, metadata.MD(map[string][]string{
+		"wallet": {requestMD["wallet"]},
+	}))
+
+	request := &sonm.HubStartTaskRequest{
+		Deal: &sonm.Deal{
+			Id: "0x42",
+		},
+	}
+
+	md := fieldDealMetaData{}
+	auth := newDealAuthorization(context.Background(), &md)
+	auth.(*dealAuthorization).allowedWallets[DealID("0x42")] = addr.Hex()
+
+	require.NoError(t, auth.Authorize(ctx, request))
+}
+
 func TestDealAuthorizationErrors(t *testing.T) {
 	wallet, err := util.NewSelfSignedWallet(key)
 	require.NoError(t, err)

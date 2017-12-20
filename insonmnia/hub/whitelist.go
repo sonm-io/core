@@ -6,37 +6,29 @@ import (
 	"fmt"
 	"net/http"
 	"path/filepath"
+	"sync"
+	"time"
 
 	"github.com/docker/distribution/reference"
 	dc "github.com/docker/docker/client"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/util"
+	"go.uber.org/zap"
 )
 
 type Whitelist interface {
 	Allowed(ctx context.Context, registry string, image string, auth string) (bool, reference.Named, error)
 }
 
-func NewWhitelist(ctx context.Context, config *WhitelistConfig) (Whitelist, error) {
+func NewWhitelist(ctx context.Context, config *WhitelistConfig) Whitelist {
 	if config.Enabled != nil && !*config.Enabled {
-		return &disabledWhitelist{}, nil
+		return &disabledWhitelist{}
 	}
-	resp, err := http.Get(config.Url)
-	if err != nil {
-		return nil, err
-	}
-	log.G(ctx).Info("fetched whitelist")
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return nil, fmt.Errorf("failed to download whitelist - got %s", resp.Status)
-	}
-	decoder := json.NewDecoder(resp.Body)
+
 	wl := whitelist{}
-	err = decoder.Decode(&wl)
-	if err != nil {
-		return nil, errors.Wrap(err, "could not decode whitelist data")
-	}
-	return &wl, nil
+	go wl.updateRoutine(ctx, config.Url, config.RefreshPeriod)
+	return &wl
 }
 
 type WhitelistRecord struct {
@@ -44,7 +36,46 @@ type WhitelistRecord struct {
 }
 
 type whitelist struct {
-	Records map[string]WhitelistRecord
+	Records   map[string]WhitelistRecord
+	RecordsMu sync.RWMutex
+}
+
+func (w *whitelist) updateRoutine(ctx context.Context, url string, updatePeriod uint) error {
+	ticker := util.NewImmediateTicker(time.Duration(time.Second * time.Duration(updatePeriod)))
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			err := w.load(ctx, url)
+			if err != nil {
+				log.G(ctx).Error("could not load whitelist", zap.Error(err))
+			}
+		}
+	}
+}
+
+func (w *whitelist) load(ctx context.Context, url string) error {
+	resp, err := http.Get(url)
+	if err != nil {
+		return err
+	}
+	log.G(ctx).Info("fetched whitelist")
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("failed to download whitelist - got %s", resp.Status)
+	}
+	decoder := json.NewDecoder(resp.Body)
+	r := make(map[string]WhitelistRecord)
+	err = decoder.Decode(&r)
+	if err != nil {
+		return errors.Wrap(err, "could not decode whitelist data")
+	}
+	w.RecordsMu.Lock()
+	defer w.RecordsMu.Unlock()
+	w.Records = r
+	return nil
 }
 
 func (w *whitelist) digestAllowed(name string, digest string) (bool, error) {
@@ -52,6 +83,8 @@ func (w *whitelist) digestAllowed(name string, digest string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
+	w.RecordsMu.RLock()
+	defer w.RecordsMu.RUnlock()
 	record, ok := w.Records[ref.Name()]
 	if !ok {
 		return false, nil
