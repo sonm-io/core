@@ -58,6 +58,7 @@ func getTestEth(ctrl *gomock.Controller) blockchain.Blockchainer {
 	}
 
 	bc := blockchain.NewMockBlockchainer(ctrl)
+
 	bc.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
 		Return(big.NewInt(big.MaxPrec), nil)
 	bc.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
