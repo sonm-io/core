@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"time"
 
@@ -55,7 +56,8 @@ func main() {
 		WorkTime:          60,
 	}
 
-	dealId, err := bch.OpenDealPending(prv, &deal, time.Duration(60*time.Second))
+	dealId, err := bch.OpenDealPending(context.Background(), prv, &deal, time.Duration(180*time.Second))
+
 	if err != nil {
 		log.Fatalln(err)
 		return
