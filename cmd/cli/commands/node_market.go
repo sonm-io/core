@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/sonm-io/core/insonmnia/structs"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -13,8 +14,8 @@ var (
 )
 
 func init() {
-	marketSearchCmd.PersistentFlags().StringVar(&orderSearchType, "type", "ANY",
-		"Orders type to search: ANY, BID or ASK")
+	marketSearchCmd.PersistentFlags().StringVar(&orderSearchType, "type", "BID",
+		"Orders type to search: BID or ASK")
 	marketSearchCmd.PersistentFlags().Uint64Var(&ordersSearchLimit, "limit", 10,
 		"Orders count to show")
 
@@ -46,7 +47,7 @@ var marketSearchCmd = &cobra.Command{
 
 		ordType, err := structs.ParseOrderType(orderSearchType)
 		slotPath := args[0]
-		if err != nil {
+		if err != nil || ordType == pb.OrderType_ANY {
 			showError(cmd, "Cannot parse order type", err)
 			os.Exit(1)
 		}
