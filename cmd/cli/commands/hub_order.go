@@ -5,6 +5,7 @@ import (
 
 	pb "github.com/sonm-io/core/proto"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/util"
@@ -78,7 +79,8 @@ var hubOrderCreateCmd = &cobra.Command{
 		}
 
 		if len(args) > 2 {
-			req.BuyerID = args[2]
+			addr := common.HexToAddress(args[2])
+			req.BuyerID = addr.Hex()
 		}
 
 		id, err := hub.CreateAskPlan(req)

@@ -3,6 +3,7 @@ package commands
 import (
 	"os"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
@@ -132,7 +133,8 @@ var marketCreteCmd = &cobra.Command{
 
 		inner := order.Unwrap()
 		if len(args) > 1 {
-			inner.SupplierID = args[1]
+			addr := common.HexToAddress(args[1])
+			inner.SupplierID = addr.Hex()
 		}
 
 		created, err := market.CreateOrder(inner)
