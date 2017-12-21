@@ -2,7 +2,9 @@ package blockchain
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -31,6 +33,9 @@ type Dealer interface {
 	// It could be called by client
 	// return transaction, not deal id
 	OpenDeal(key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error)
+	// OpenDealPending creates deal and waits for transaction to be committed on blockchain.
+	// wait is duration to wait for transaction commit, recommended value is 180 seconds.
+	OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal, wait time.Duration) (*big.Int, error)
 
 	// AcceptDeal accepting deal by hub, causes that hub accept to sell its resources
 	// It could be called by hub
@@ -143,9 +148,9 @@ func NewAPI(ethEndpoint *string, gasPrice *int64) (Blockchainer, error) {
 // Deals appearance
 // ----------------
 
-var DealOpenedTopic common.Hash = common.HexToHash("0x873cb35202fef184c9f8ee23c04e36dc38f3e26fb285224ca574a837be976848")
-var DealAcceptedTopic common.Hash = common.HexToHash("0x3a38edea6028913403c74ce8433c90eca94f4ca074d318d8cb77be5290ba4f15")
-var DealClosedTopic common.Hash = common.HexToHash("0x72615f99a62a6cc2f8452d5c0c9cbc5683995297e1d988f09bb1471d4eefb890")
+var DealOpenedTopic = common.HexToHash("0x873cb35202fef184c9f8ee23c04e36dc38f3e26fb285224ca574a837be976848")
+var DealAcceptedTopic = common.HexToHash("0x3a38edea6028913403c74ce8433c90eca94f4ca074d318d8cb77be5290ba4f15")
+var DealClosedTopic = common.HexToHash("0x72615f99a62a6cc2f8452d5c0c9cbc5683995297e1d988f09bb1471d4eefb890")
 
 func (bch *api) OpenDeal(key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error) {
 	opts := bch.getTxOpts(key, 305000)
@@ -172,6 +177,74 @@ func (bch *api) OpenDeal(key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transacti
 		return nil, err
 	}
 	return tx, err
+}
+
+func (bch *api) checkTransactionResult(ctx context.Context, tx *types.Transaction) (*big.Int, error) {
+	txReceipt, err := bch.client.TransactionReceipt(ctx, tx.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	if txReceipt.Status != types.ReceiptStatusSuccessful {
+		return nil, errors.New("transaction failed")
+	}
+
+	for _, l := range txReceipt.Logs {
+		if len(l.Topics) < 1 {
+			return nil, errors.New("transaction topics is malformed")
+		}
+
+		if l.Topics[0] == DealOpenedTopic {
+			if len(l.Topics) < 4 {
+				return nil, errors.New("transaction topics content is malformed")
+			}
+
+			return l.Topics[3].Big(), nil
+		}
+	}
+
+	return nil, errors.New("cannot find the DealOpened topic in transaction")
+}
+
+func (bch *api) OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal, wait time.Duration) (*big.Int, error) {
+	tx, err := bch.OpenDeal(key, deal)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := bch.checkTransactionResult(ctx, tx)
+	if err != nil {
+		// if transaction status is NOT FOUND, then just wait for next tick
+		// and try to find it again.
+		if err != ethereum.NotFound {
+			return nil, err
+		}
+	} else {
+		return id, err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+
+	tk := time.NewTicker(1 * time.Second)
+	defer tk.Stop()
+
+	for {
+		select {
+		case <-tk.C:
+			id, err := bch.checkTransactionResult(ctx, tx)
+			if err != nil {
+				if err == ethereum.NotFound {
+					break
+				}
+				return nil, err
+			}
+
+			return id, err
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
 }
 
 func (bch *api) AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
