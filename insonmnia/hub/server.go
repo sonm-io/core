@@ -776,49 +776,50 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	h.waiter.Go(h.getDealWaiter(ctx, request, order))
+	go h.watchForDealCreated(ctx, request, order)
 
 	return &pb.Empty{}, nil
 }
 
-func (h *Hub) getDealWaiter(ctx context.Context, req *structs.DealRequest, order *structs.Order) func() error {
-	return func() error {
-		createdDeal, err := h.eth.WaitForDealCreated(req)
-		if err != nil || createdDeal == nil {
-			log.G(h.ctx).Warn(
-				"cannot find created deal for current proposal",
-				zap.String("bid_id", req.BidId),
-				zap.String("ask_id", req.GetAskId()))
-			return errors.New("cannot find created deal for current proposal")
-		}
-
-		err = h.eth.AcceptDeal(createdDeal.GetId())
-		if err != nil {
-			log.G(ctx).Warn("cannot accept deal",
-				zap.String("deal_id", createdDeal.GetId()),
-				zap.Error(err))
-			return err
-		}
-
-		_, err = h.market.CancelOrder(h.ctx, &pb.Order{Id: req.GetAskId()})
-		if err != nil {
-			log.G(ctx).Warn("cannot cancel ask order from marketplace",
-				zap.String("ask_id", req.GetAskId()),
-				zap.Error(err))
-		}
-
-		dealID := DealID(createdDeal.GetId())
-
-		h.tasksMu.Lock()
-		defer h.tasksMu.Unlock()
-
-		h.deals[dealID] = &DealMeta{Tasks: make([]*TaskInfo, 0), BidID: req.GetBidId()}
-		h.eventAuthorization.insertDealCredentials(dealID, req.GetOrder().GetByuerID())
-
-		go h.watchForDealClosed(dealID, req.GetOrder().GetByuerID())
-
-		return nil
+func (h *Hub) watchForDealCreated(ctx context.Context, req *structs.DealRequest, order *structs.Order) {
+	createdDeal, err := h.eth.WaitForDealCreated(req)
+	if err != nil || createdDeal == nil {
+		log.G(h.ctx).Warn(
+			"cannot find created deal for current proposal",
+			zap.String("bid_id", req.BidId),
+			zap.String("ask_id", req.GetAskId()))
+		return
 	}
+
+	err = h.eth.AcceptDeal(createdDeal.GetId())
+	if err != nil {
+		log.G(ctx).Warn("cannot accept deal",
+			zap.String("deal_id", createdDeal.GetId()),
+			zap.Error(err))
+		return
+	}
+
+	_, err = h.market.CancelOrder(h.ctx, &pb.Order{Id: req.GetAskId()})
+	if err != nil {
+		log.G(ctx).Warn("cannot cancel ask order from marketplace",
+			zap.String("ask_id", req.GetAskId()),
+			zap.Error(err))
+	}
+
+	dealID := DealID(createdDeal.GetId())
+
+	h.tasksMu.Lock()
+	h.deals[dealID] = &DealMeta{
+		BidID: req.GetBidId(),
+		Order: *order,
+		Tasks: make([]*TaskInfo, 0),
+	}
+	h.tasksMu.Unlock()
+
+	h.deals[dealID] = &DealMeta{Tasks: make([]*TaskInfo, 0), BidID: req.GetBidId()}
+	h.eventAuthorization.insertDealCredentials(dealID, req.GetOrder().GetByuerID())
+
+	go h.watchForDealClosed(dealID, req.GetOrder().GetByuerID())
 }
 
 func (h *Hub) watchForDealClosed(dealID DealID, buyerId string) {
