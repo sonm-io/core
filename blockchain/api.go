@@ -74,6 +74,9 @@ type Tokener interface {
 	AllowanceOf(from string, to string) (*big.Int, error)
 	// TotalSupply - all amount of emitted token
 	TotalSupply() (*big.Int, error)
+	// GetTokens - send 100 SNMT token for message caller
+	// this function added for MVP purposes and has been deleted later
+	GetTokens(key *ecdsa.PrivateKey) (*types.Transaction, error)
 }
 
 // Blockchainer interface describes operations with deals and tokens
@@ -108,7 +111,7 @@ type api struct {
 	gasPrice int64
 
 	dealsContract *token_api.Deals
-	tokenContract *token_api.TSCToken
+	tokenContract *token_api.SNMTToken
 }
 
 // NewAPI builds new Blockchain instance with given endpoint and gas price
@@ -130,7 +133,7 @@ func NewAPI(ethEndpoint *string, gasPrice *int64) (Blockchainer, error) {
 		return nil, err
 	}
 
-	tokenContract, err := token_api.NewTSCToken(common.HexToAddress(tsc.TSCAddress), client)
+	tokenContract, err := token_api.NewSNMTToken(common.HexToAddress(tsc.SNMTAddress), client)
 	if err != nil {
 		return nil, err
 	}
@@ -517,4 +520,14 @@ func (bch *api) TotalSupply() (*big.Int, error) {
 		return nil, err
 	}
 	return supply, nil
+}
+
+func (bch *api) GetTokens(key *ecdsa.PrivateKey) (*types.Transaction, error) {
+	opts := bch.getTxOpts(key, 50000)
+
+	tx, err := bch.tokenContract.GetTokens(opts)
+	if err != nil {
+		return nil, err
+	}
+	return tx, err
 }

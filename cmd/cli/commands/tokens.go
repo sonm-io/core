@@ -11,6 +11,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var getTokenCmd = &cobra.Command{
+	Use:    "get",
+	Short:  "Get SONM test tokens (ERC20)",
+	PreRun: loadKeyStoreWrapper,
+	Run: func(cmd *cobra.Command, args []string) {
+		bch, err := blockchain.NewAPI(nil, nil)
+		if err != nil {
+			showError(cmd, "Cannot create blockchain connection", err)
+			os.Exit(1)
+		}
+
+		tx, err := bch.GetTokens(sessionKey)
+		if err != nil {
+			showError(cmd, "Cannot get tokens", err)
+			os.Exit(1)
+		}
+
+		printTransactionInfo(cmd, tx)
+	},
+}
+
 var approveTokenCmd = &cobra.Command{
 	Use:    "approve <amount>",
 	Short:  "Approve tokens (ERC20)",
