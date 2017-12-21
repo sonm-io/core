@@ -35,6 +35,21 @@ func getTestKey() *ecdsa.PrivateKey {
 	return k
 }
 
+func makeSlot() *pb.Slot {
+	return &pb.Slot{
+		Duration:  uint64(structs.MinSlotDuration.Seconds()),
+		Resources: &pb.Resources{},
+	}
+}
+
+func makeOrder() *pb.Order {
+	return &pb.Order{
+		Price:     "100",
+		OrderType: pb.OrderType_BID,
+		Slot:      makeSlot(),
+	}
+}
+
 func getTestEth(ctrl *gomock.Controller) blockchain.Blockchainer {
 	deal := &pb.Deal{
 		Id:                "my-deal-id",
@@ -59,16 +74,10 @@ func getTestEth(ctrl *gomock.Controller) blockchain.Blockchainer {
 
 func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
 	m := pb.NewMockMarketClient(ctrl)
-	ord := &pb.Order{
-		Id:        "my-order-id",
-		OrderType: pb.OrderType_BID,
-		Price:     "1000",
-		ByuerID:   addr.Hex(),
-		Slot: &pb.Slot{
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-			Resources: &pb.Resources{},
-		},
-	}
+	ord := makeOrder()
+	ord.ByuerID = addr.Hex()
+	ord.Id = "my-order-id"
+
 	m.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(ord, nil)
 	m.EXPECT().GetOrders(gomock.Any(), gomock.Any()).AnyTimes().
@@ -130,16 +139,7 @@ func TestCreateOrder_FullAsyncOrderHandler(t *testing.T) {
 
 	inner := server.(*marketAPI)
 
-	mustCreate := &pb.Order{
-		Price:     "100",
-		OrderType: pb.OrderType_BID,
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{},
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-		},
-	}
-
-	created, err := inner.CreateOrder(ctx, mustCreate)
+	created, err := inner.CreateOrder(ctx, makeOrder())
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
@@ -178,16 +178,7 @@ func TestCreateOrder_CannotCreateHandler(t *testing.T) {
 
 	inner := server.(*marketAPI)
 
-	mustCreate := &pb.Order{
-		Price:     "100",
-		OrderType: pb.OrderType_BID,
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{},
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-		},
-	}
-
-	created, err := inner.CreateOrder(ctx, mustCreate)
+	created, err := inner.CreateOrder(ctx, makeOrder())
 	assert.NoError(t, err, "order must be created on remote market")
 
 	time.Sleep(50 * time.Millisecond)
@@ -205,19 +196,8 @@ func TestCreateOrder_CannotFetchOrders(t *testing.T) {
 
 	// create custom market mock that can fail
 	m := pb.NewMockMarketClient(ctrl)
-	ord := &pb.Order{
-		Id:        "my-order-id",
-		OrderType: pb.OrderType_BID,
-		Price:     "1000",
-		ByuerID:   addr.Hex(),
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{},
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-		},
-	}
-
 	m.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).AnyTimes().
-		Return(ord, nil)
+		Return(makeOrder(), nil)
 	m.EXPECT().GetOrders(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(nil, errors.New("TEST: cannot get orders"))
 	m.EXPECT().CancelOrder(gomock.Any(), gomock.Any()).AnyTimes().
@@ -232,16 +212,7 @@ func TestCreateOrder_CannotFetchOrders(t *testing.T) {
 
 	inner := server.(*marketAPI)
 
-	mustCreate := &pb.Order{
-		OrderType: pb.OrderType_BID,
-		Price:     "1000",
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{},
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-		},
-	}
-
-	created, err := inner.CreateOrder(ctx, mustCreate)
+	created, err := inner.CreateOrder(ctx, makeOrder())
 	assert.NoError(t, err, "order must be created on remote market")
 
 	time.Sleep(50 * time.Millisecond)
@@ -260,19 +231,8 @@ func TestCreateOrder_CannotNoMatchingOrders(t *testing.T) {
 
 	// create custom market mock that can fail
 	m := pb.NewMockMarketClient(ctrl)
-	ord := &pb.Order{
-		Id:        "my-order-id",
-		OrderType: pb.OrderType_BID,
-		Price:     "1000",
-		ByuerID:   addr.Hex(),
-		Slot: &pb.Slot{
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-			Resources: &pb.Resources{},
-		},
-	}
-
 	m.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).AnyTimes().
-		Return(ord, nil)
+		Return(makeOrder(), nil)
 	m.EXPECT().GetOrders(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(&pb.GetOrdersReply{Orders: []*pb.Order{}}, nil)
 	m.EXPECT().CancelOrder(gomock.Any(), gomock.Any()).AnyTimes().
@@ -287,16 +247,7 @@ func TestCreateOrder_CannotNoMatchingOrders(t *testing.T) {
 
 	inner := server.(*marketAPI)
 
-	mustCreate := &pb.Order{
-		OrderType: pb.OrderType_BID,
-		Price:     "100",
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{},
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-		},
-	}
-
-	created, err := inner.CreateOrder(ctx, mustCreate)
+	created, err := inner.CreateOrder(ctx, makeOrder())
 	assert.NoError(t, err, "order must be created on remote market")
 
 	time.Sleep(50 * time.Millisecond)
@@ -325,16 +276,7 @@ func TestCreateOrder_CannotResolveHubIP(t *testing.T) {
 
 	inner := server.(*marketAPI)
 
-	mustCreate := &pb.Order{
-		Price:     "100",
-		OrderType: pb.OrderType_BID,
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{},
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-		},
-	}
-
-	created, err := inner.CreateOrder(ctx, mustCreate)
+	created, err := inner.CreateOrder(ctx, makeOrder())
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
@@ -376,16 +318,7 @@ func TestCreateOrder_CannotCreateDeal(t *testing.T) {
 
 	inner := server.(*marketAPI)
 
-	mustCreate := &pb.Order{
-		Price:     "100",
-		OrderType: pb.OrderType_BID,
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{},
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-		},
-	}
-
-	created, err := inner.CreateOrder(ctx, mustCreate)
+	created, err := inner.CreateOrder(ctx, makeOrder())
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
@@ -430,16 +363,7 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 
 	inner := server.(*marketAPI)
 
-	mustCreate := &pb.Order{
-		Price:     "100",
-		OrderType: pb.OrderType_BID,
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{},
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-		},
-	}
-
-	created, err := inner.CreateOrder(ctx, mustCreate)
+	created, err := inner.CreateOrder(ctx, makeOrder())
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
@@ -475,16 +399,7 @@ func TestCreateOrder_LackAllowanceBalance(t *testing.T) {
 
 	inner := server.(*marketAPI)
 
-	mustCreate := &pb.Order{
-		Price:     "100",
-		OrderType: pb.OrderType_BID,
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{},
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-		},
-	}
-
-	created, err := inner.CreateOrder(ctx, mustCreate)
+	created, err := inner.CreateOrder(ctx, makeOrder())
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
@@ -520,16 +435,7 @@ func TestCreateOrder_LackAllowance(t *testing.T) {
 
 	inner := server.(*marketAPI)
 
-	mustCreate := &pb.Order{
-		Price:     "100",
-		OrderType: pb.OrderType_BID,
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{},
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-		},
-	}
-
-	created, err := inner.CreateOrder(ctx, mustCreate)
+	created, err := inner.CreateOrder(ctx, makeOrder())
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
@@ -556,6 +462,8 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 		Return(big.NewInt(100), nil)
 	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(big.NewInt(50000), nil)
+	eth.EXPECT().OpenDeal(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(nil, errors.New("1"))
 
 	opts := getTestRemotes(ctx, ctrl)
 	opts.eth = eth
@@ -565,16 +473,7 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 
 	inner := server.(*marketAPI)
 
-	mustCreate := &pb.Order{
-		Price:     "100",
-		OrderType: pb.OrderType_BID,
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{},
-			Duration:  uint64(structs.MinSlotDuration.Seconds()),
-		},
-	}
-
-	created, err := inner.CreateOrder(ctx, mustCreate)
+	created, err := inner.CreateOrder(ctx, makeOrder())
 	assert.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
