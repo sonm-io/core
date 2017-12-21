@@ -608,13 +608,14 @@ func (h *Hub) GetDealInfo(ctx context.Context, dealID *pb.ID) (*pb.DealInfoReply
 }
 
 func (h *Hub) getDealInfo(dealID DealID) (*dealInfo, error) {
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+
 	meta, ok := h.deals[dealID]
 	if !ok {
 		return nil, errDealNotFound
 	}
 
-	h.tasksMu.Lock()
-	defer h.tasksMu.Unlock()
 	dealInfo := &dealInfo{
 		ID:             dealID,
 		Order:          meta.Order,
@@ -814,9 +815,9 @@ func (h *Hub) watchForDealCreated(ctx context.Context, req *structs.DealRequest,
 		Order: *order,
 		Tasks: make([]*TaskInfo, 0),
 	}
+	h.cluster.Synchronize(h.deals)
 	h.tasksMu.Unlock()
 
-	h.deals[dealID] = &DealMeta{Tasks: make([]*TaskInfo, 0), BidID: req.GetBidId()}
 	h.eventAuthorization.insertDealCredentials(dealID, req.GetOrder().GetByuerID())
 
 	go h.watchForDealClosed(dealID, req.GetOrder().GetByuerID())
@@ -1305,6 +1306,9 @@ func (h *Hub) Serve() error {
 	if err := h.cluster.RegisterAndLoadEntity("slots", &h.slots); err != nil {
 		return err
 	}
+	if err := h.cluster.RegisterAndLoadEntity("deals", &h.deals); err != nil {
+		return err
+	}
 	log.G(h.ctx).Info("fetched entities",
 		zap.Any("tasks", h.tasks),
 		zap.Any("device_properties", h.deviceProperties),
@@ -1367,8 +1371,12 @@ func (h *Hub) processClusterEvent(value interface{}) {
 		h.slotsMu.Lock()
 		defer h.slotsMu.Unlock()
 		h.slots = value
-	case ACLStorage:
-		h.acl = value
+	case workerACLStorage:
+		h.acl = &value
+	case map[DealID]*DealMeta:
+		h.tasksMu.Lock()
+		defer h.tasksMu.Unlock()
+		h.deals = value
 	default:
 		log.G(h.ctx).Warn("received unknown cluster event",
 			zap.Any("event", value),
@@ -1443,7 +1451,11 @@ func (h *Hub) saveTask(dealID DealID, info *TaskInfo) error {
 	taskIDs.Tasks = append(taskIDs.Tasks, info)
 	h.deals[dealID] = taskIDs
 
-	return h.cluster.Synchronize(h.tasks)
+	err := h.cluster.Synchronize(h.tasks)
+	if err != nil {
+		return err
+	}
+	return h.cluster.Synchronize(h.deals)
 }
 
 func (h *Hub) getTask(taskID string) (*TaskInfo, error) {
@@ -1473,7 +1485,7 @@ func (h *Hub) deleteTask(taskID string) error {
 			if dealTaskInfo.ID == taskID {
 				now := time.Now()
 				dealTaskInfo.EndTime = &now
-				break
+				return h.cluster.Synchronize(h.deals)
 			}
 		}
 	}
@@ -1491,6 +1503,10 @@ func (h *Hub) popDealHistory(dealID DealID) ([]*TaskInfo, error) {
 	}
 	delete(h.deals, dealID)
 
+	err := h.cluster.Synchronize(h.deals)
+	if err != nil {
+		return nil, err
+	}
 	return tasks.Tasks, nil
 }
 
