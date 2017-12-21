@@ -46,7 +46,7 @@ var hubOrderListCmd = &cobra.Command{
 }
 
 var hubOrderCreateCmd = &cobra.Command{
-	Use:    "create <price> <slot.yaml>",
+	Use:    "create <price> <slot.yaml> [buyer-eth-addr]",
 	Short:  "Create new plan",
 	Args:   cobra.MinimumNArgs(2),
 	PreRun: loadKeyStoreWrapper,

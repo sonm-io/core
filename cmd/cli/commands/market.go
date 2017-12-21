@@ -112,7 +112,7 @@ var marketProcessingCmd = &cobra.Command{
 }
 
 var marketCreteCmd = &cobra.Command{
-	Use:    "create <order.yaml>",
+	Use:    "create <order.yaml> [supplier-eth-addr]",
 	Short:  "Place new Bid order on Marketplace",
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(1),
