@@ -129,8 +129,9 @@ func (h *orderHandler) search(m pb.MarketClient) ([]*pb.Order, error) {
 
 	req := &pb.GetOrdersRequest{
 		Order: &pb.Order{
-			Slot:      h.order.GetSlot(),
-			OrderType: pb.OrderType_ASK,
+			SupplierID: h.order.SupplierID,
+			OrderType:  pb.OrderType_ASK,
+			Slot:       h.order.GetSlot(),
 		},
 		Count: 100,
 	}
