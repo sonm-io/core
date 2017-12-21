@@ -45,11 +45,9 @@ func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusRep
 
 		if portsParsedOK && len(ports) > 0 {
 			cmd.Printf("  Ports:\r\n")
-			for containerPort, host := range ports {
-				if len(host) > 0 {
-					cmd.Printf("    %s: %s:%s\r\n", containerPort, host[0].HostIP, host[0].HostPort)
-				} else {
-					cmd.Printf("    %s\r\n", containerPort)
+			for containerPort, portBindings := range ports {
+				for _, portBinding := range portBindings {
+					cmd.Printf("    %s: %s:%s\r\n", containerPort, portBinding.HostIP, portBinding.HostPort)
 				}
 			}
 		}
