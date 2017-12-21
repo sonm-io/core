@@ -189,6 +189,7 @@ message DevicesReply {
 message InsertSlotRequest {
     Slot slot = 1;
     string price = 2;
+    string buyerID = 3;
 }
 
 message PullTaskRequest {
