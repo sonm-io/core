@@ -156,34 +156,6 @@ func (e *eventACL) addAuthorization(method method, auth EventAuthorization) {
 	e.verifiers[method] = auth
 }
 
-// InsertDealCredentials inserts the specified deal credentials for entire
-// Deal API.
-func (e *eventACL) insertDealCredentials(dealID DealID, wallet string) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	for _, auth := range e.verifiers {
-		au, ok := auth.(*dealAuthorization)
-		if ok {
-			au.allowedWallets[dealID] = wallet
-		}
-	}
-}
-
-// RemoveDealCredentials remove the specified deal credentials for entire
-// Deal API.
-func (e *eventACL) removeDealCredentials(dealID DealID) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	for _, auth := range e.verifiers {
-		au, ok := auth.(*dealAuthorization)
-		if ok {
-			delete(au.allowedWallets, dealID)
-		}
-	}
-}
-
 type EventAuthorization interface {
 	Authorize(ctx context.Context, request interface{}) error
 }
@@ -230,16 +202,15 @@ type DealMetaData interface {
 
 type dealAuthorization struct {
 	ctx      context.Context
+	hub      *Hub
 	metaData DealMetaData
-	// Allowed wallets to interact with some deal API.
-	allowedWallets map[DealID]string
 }
 
-func newDealAuthorization(ctx context.Context, metaData DealMetaData) EventAuthorization {
+func newDealAuthorization(ctx context.Context, hub *Hub, metaData DealMetaData) EventAuthorization {
 	return &dealAuthorization{
-		ctx:            ctx,
-		metaData:       metaData,
-		allowedWallets: make(map[DealID]string, 0),
+		ctx:      ctx,
+		hub:      hub,
+		metaData: metaData,
 	}
 }
 
@@ -254,10 +225,13 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 		return err
 	}
 
-	allowedWallet, ok := d.allowedWallets[dealID]
-	if !ok {
-		return errDealNotFound
+	meta, err := d.hub.getDealMeta(dealID)
+
+	if err != nil {
+		return err
 	}
+
+	allowedWallet := meta.Order.GetByuerID()
 
 	log.G(d.ctx).Debug("found allowed wallet for a deal",
 		zap.String("deal", string(dealID)),

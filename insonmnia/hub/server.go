@@ -607,6 +607,17 @@ func (h *Hub) GetDealInfo(ctx context.Context, dealID *pb.ID) (*pb.DealInfoReply
 	return r, nil
 }
 
+func (h *Hub) getDealMeta(dealID DealID) (*DealMeta, error) {
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+
+	meta, ok := h.deals[dealID]
+	if !ok {
+		return nil, errDealNotFound
+	}
+	return meta, nil
+}
+
 func (h *Hub) getDealInfo(dealID DealID) (*dealInfo, error) {
 	h.tasksMu.Lock()
 	defer h.tasksMu.Unlock()
@@ -818,8 +829,6 @@ func (h *Hub) watchForDealCreated(ctx context.Context, req *structs.DealRequest,
 	h.cluster.Synchronize(h.deals)
 	h.tasksMu.Unlock()
 
-	h.eventAuthorization.insertDealCredentials(dealID, req.GetOrder().GetByuerID())
-
 	go h.watchForDealClosed(dealID, req.GetOrder().GetByuerID())
 }
 
@@ -850,8 +859,6 @@ func (h *Hub) watchForDealClosed(dealID DealID, buyerId string) {
 			)
 		}
 	}
-
-	h.eventAuthorization.removeDealCredentials(dealID)
 }
 
 func (h *Hub) isTaskFinished(id string) bool {
@@ -1228,7 +1235,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	for event, metadata := range dealAuthorization {
-		eventACL.addAuthorization(method(hubAPIPrefix+event), newDealAuthorization(ctx, metadata))
+		eventACL.addAuthorization(method(hubAPIPrefix+event), newDealAuthorization(ctx, h, metadata))
 	}
 
 	for _, event := range hubManagementMethods {

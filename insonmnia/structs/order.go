@@ -94,3 +94,7 @@ func (o *Order) IsBid() bool {
 func (o *Order) GetType() pb.OrderType {
 	return o.inner.GetOrderType()
 }
+
+func (o *Order) GetByuerID() string {
+	return o.inner.GetByuerID()
+}
