@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -13,6 +15,23 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
+
+func makeDefaultOrder(t *testing.T, buyerId string) *structs.Order {
+	slot := &pb.Slot{
+		Resources: &pb.Resources{},
+	}
+
+	order, err := structs.NewOrder(&pb.Order{Price: "1", ByuerID: buyerId, Slot: slot})
+	assert.NoError(t, err)
+	return order
+}
+
+func makeHubWithOrder(t *testing.T, buyerId string, dealId DealID) *Hub {
+	order := makeDefaultOrder(t, buyerId)
+	return &Hub{
+		deals: map[DealID]*DealMeta{dealId: {Order: *order}},
+	}
+}
 
 func TestFieldDealMetaData(t *testing.T) {
 	request := &sonm.HubStartTaskRequest{
@@ -123,8 +142,7 @@ func TestDealAuthorization(t *testing.T) {
 	}
 
 	md := fieldDealMetaData{}
-	auth := newDealAuthorization(context.Background(), &md)
-	auth.(*dealAuthorization).allowedWallets[DealID("0x42")] = addr.Hex()
+	auth := newDealAuthorization(context.Background(), makeHubWithOrder(t, addr.Hex(), "0x42"), &md)
 
 	require.NoError(t, auth.Authorize(ctx, request))
 }
@@ -153,8 +171,7 @@ func TestDealAuthorizationErrors(t *testing.T) {
 	}
 
 	md := fieldDealMetaData{}
-	auth := newDealAuthorization(context.Background(), &md)
-	auth.(*dealAuthorization).allowedWallets[DealID("0x42")] = "0x100500"
+	auth := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), &md)
 
 	require.Error(t, auth.Authorize(ctx, request))
 }
@@ -175,8 +192,7 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 	}
 
 	md := fieldDealMetaData{}
-	auth := newDealAuthorization(context.Background(), &md)
-	auth.(*dealAuthorization).allowedWallets[DealID("0x42")] = "0x100500"
+	auth := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), &md)
 
 	require.Error(t, auth.Authorize(ctx, request))
 }
