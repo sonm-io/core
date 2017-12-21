@@ -744,7 +744,6 @@ func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer
 
 func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling ProposeDeal request", zap.Any("request", r))
-
 	request, err := structs.NewDealRequest(r)
 	if err != nil {
 		return nil, err
