@@ -478,7 +478,6 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 
 	// wait for async handler is finished
 	time.Sleep(1 * time.Second)
-
 	assert.Equal(t, len(inner.tasks), 1, "Handler must not be removed")
 
 	handlr := inner.tasks[created.Id]
