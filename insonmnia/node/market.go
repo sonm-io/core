@@ -323,8 +323,8 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, 
 		return nil, errNotAnBidOrder
 	}
 
-	if time.Duration(req.GetSlot().GetDuration())*time.Second < structs.MinSlotDuration {
-		return nil, structs.ErrDurationIsTooShort
+	if _, err := structs.NewOrder(req); err != nil {
+		return nil, err
 	}
 
 	req.ByuerID = util.PubKeyToAddr(m.remotes.key.PublicKey).Hex()
