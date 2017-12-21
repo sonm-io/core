@@ -380,7 +380,6 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 func TestCreateOrder_LackAllowanceBalance(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-
 	ctx := context.Background()
 
 	eth := blockchain.NewMockBlockchainer(ctrl)
