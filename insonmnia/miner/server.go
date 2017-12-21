@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/api/types"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 	"github.com/gliderlabs/ssh"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
@@ -366,39 +367,50 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	containerInfo.StartAt = time.Now()
 	containerInfo.ImageName = d.Image
 
-	m.saveContainerInfo(request.Id, containerInfo)
-
-	go m.listenForStatus(statusListener, request.Id)
-
 	var rpl = pb.MinerStartReply{
 		Container: containerInfo.ID,
 		Routes:    []*pb.Route{},
 	}
-	for port, v := range containerInfo.Ports {
-		if len(v) > 0 {
-			hostPort, err := strconv.ParseUint(v[0].HostPort, 10, 16)
-			if err != nil {
-				log.G(m.ctx).Warn("failed to convert real port to uint16",
-					zap.Error(err),
-					zap.String("port", v[0].HostPort),
-				)
-				continue
-			}
 
-			for _, publicIP := range m.publicIPs {
-				replyRoute := &pb.Route{
-					Port: string(port),
-					Endpoint: &pb.SocketAddr{
-						Addr: publicIP,
-						Port: uint32(hostPort),
-					},
-				}
-				rpl.Routes = append(rpl.Routes, replyRoute)
-			}
+	for port, initialPortBindings := range containerInfo.Ports {
+		if len(initialPortBindings) < 1 {
+			continue
 		}
+
+		internalPortStr := initialPortBindings[0].HostPort
+		internalPortUint, err := strconv.ParseUint(internalPortStr, 10, 16)
+		if err != nil {
+			log.G(m.ctx).Warn("failed to convert real port to uint16",
+				zap.Error(err),
+				zap.String("port", internalPortStr),
+			)
+
+			continue
+		}
+
+		var fixedPortBindings []nat.PortBinding
+		for _, publicIP := range m.publicIPs {
+			fixedPortBindings = append(fixedPortBindings, nat.PortBinding{
+				HostIP: publicIP, HostPort: internalPortStr})
+
+			rpl.Routes = append(rpl.Routes, &pb.Route{
+				Port: string(port),
+				Endpoint: &pb.SocketAddr{
+					Addr: publicIP,
+					Port: uint32(internalPortUint),
+				},
+			})
+		}
+
+		containerInfo.Ports[port] = fixedPortBindings
 	}
 
+	m.saveContainerInfo(request.Id, containerInfo)
+
+	go m.listenForStatus(statusListener, request.Id)
+
 	resourceHandle.commit()
+
 	return &rpl, nil
 }
 
@@ -442,10 +454,13 @@ func (m *Miner) Stop(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	if err := m.ovs.Stop(ctx, containerInfo.ID); err != nil {
 		log.G(ctx).Error("failed to Stop container", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+
 		return nil, status.Errorf(codes.Internal, "failed to stop container %v", err)
 	}
+
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
 	m.resources.Release(&containerInfo.Resources)
+
 	return &pb.Empty{}, nil
 }
 
@@ -460,10 +475,13 @@ func (m *Miner) sendTasksStatus(server pb.Miner_TasksStatusServer) error {
 	result := &pb.StatusMapReply{Statuses: make(map[string]*pb.TaskStatusReply)}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	for id, info := range m.containers {
 		result.Statuses[id] = info.status
 	}
+
 	log.G(m.ctx).Info("sending result", zap.Any("info", m.containers), zap.Any("statuses", result.Statuses))
+
 	return server.Send(result)
 }
 
