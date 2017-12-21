@@ -120,7 +120,7 @@ func getTestRemotes(ctx context.Context, ctrl *gomock.Controller) *remoteOptions
 	opts.eth = getTestEth(ctrl)
 	opts.market = getTestMarket(ctrl)
 	opts.locator = getTestLocator(ctrl)
-	opts.approveTimeout = 3 * time.Second
+	opts.dealApproveTimeout = 3 * time.Second
 	opts.hubCreator = func(addr string) (pb.HubClient, error) {
 		return getTestHubClient(ctrl), nil
 	}
