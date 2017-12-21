@@ -74,6 +74,9 @@ type Tokener interface {
 	AllowanceOf(from string, to string) (*big.Int, error)
 	// TotalSupply - all amount of emitted token
 	TotalSupply() (*big.Int, error)
+	// GetTokens - send 100 SNMT token for message caller
+	// this function added for MVP purposes and has been deleted later
+	GetTokens(key *ecdsa.PrivateKey) (*types.Transaction, error)
 }
 
 // Blockchainer interface describes operations with deals and tokens
@@ -517,4 +520,14 @@ func (bch *api) TotalSupply() (*big.Int, error) {
 		return nil, err
 	}
 	return supply, nil
+}
+
+func (bch *api) GetTokens(key *ecdsa.PrivateKey) (*types.Transaction, error) {
+	opts := bch.getTxOpts(key, 50000)
+
+	tx, err := bch.tokenContract.GetTokens(opts)
+	if err != nil {
+		return nil, err
+	}
+	return tx, err
 }
