@@ -108,7 +108,7 @@ type api struct {
 	gasPrice int64
 
 	dealsContract *token_api.Deals
-	tokenContract *token_api.TSCToken
+	tokenContract *token_api.SNMTToken
 }
 
 // NewAPI builds new Blockchain instance with given endpoint and gas price
@@ -130,7 +130,7 @@ func NewAPI(ethEndpoint *string, gasPrice *int64) (Blockchainer, error) {
 		return nil, err
 	}
 
-	tokenContract, err := token_api.NewTSCToken(common.HexToAddress(tsc.TSCAddress), client)
+	tokenContract, err := token_api.NewSNMTToken(common.HexToAddress(tsc.SNMTAddress), client)
 	if err != nil {
 		return nil, err
 	}
