@@ -19,15 +19,16 @@ type hubClientCreator func(addr string) (pb.HubClient, error)
 
 // remoteOptions describe options related to remove gRPC services
 type remoteOptions struct {
-	ctx            context.Context
-	key            *ecdsa.PrivateKey
-	conf           Config
-	creds          credentials.TransportCredentials
-	approveTimeout time.Duration
-	locator        pb.LocatorClient
-	market         pb.MarketClient
-	eth            blockchain.Blockchainer
-	hubCreator     hubClientCreator
+	ctx                context.Context
+	key                *ecdsa.PrivateKey
+	conf               Config
+	creds              credentials.TransportCredentials
+	locator            pb.LocatorClient
+	market             pb.MarketClient
+	eth                blockchain.Blockchainer
+	hubCreator         hubClientCreator
+	dealApproveTimeout time.Duration
+	dealCreateTimeout  time.Duration
 }
 
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, creds credentials.TransportCredentials) (*remoteOptions, error) {
@@ -56,15 +57,16 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, c
 	}
 
 	return &remoteOptions{
-		key:            key,
-		conf:           conf,
-		ctx:            ctx,
-		creds:          creds,
-		locator:        pb.NewLocatorClient(locatorCC),
-		market:         pb.NewMarketClient(marketCC),
-		eth:            bcAPI,
-		approveTimeout: 900 * time.Second,
-		hubCreator:     hc,
+		key:                key,
+		conf:               conf,
+		ctx:                ctx,
+		creds:              creds,
+		locator:            pb.NewLocatorClient(locatorCC),
+		market:             pb.NewMarketClient(marketCC),
+		eth:                bcAPI,
+		dealApproveTimeout: 900 * time.Second,
+		dealCreateTimeout:  180 * time.Second,
+		hubCreator:         hc,
 	}, nil
 }
 
