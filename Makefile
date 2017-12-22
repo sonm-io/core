@@ -18,7 +18,6 @@ MINER=sonmminer
 HUB=sonmhub
 CLI=sonmcli
 LOCATOR=sonmlocator
-MARKET=sonmmarketplace
 LOCAL_NODE=sonmnode
 
 TAGS=nocgo
@@ -53,10 +52,6 @@ build/hub:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${HUB} ${GOCMD}/hub
 
-build/marketplace:
-	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${MARKET} ${GOCMD}/marketplace
-
 build/cli:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
@@ -76,14 +71,14 @@ build/node_win32:
 
 build/insomnia: build/hub build/miner build/cli build/node
 
-build/aux: build/locator build/marketplace
+build/aux: build/locator
 
 build: build/insomnia build/aux
 
 install: all
 	@echo "+ $@"
 	mkdir -p ${INSTALLDIR}
-	cp ${MINER} ${HUB} ${CLI} ${LOCATOR} ${MARKET} ${LOCAL_NODE} ${INSTALLDIR}
+	cp ${MINER} ${HUB} ${CLI} ${LOCATOR} ${LOCAL_NODE} ${INSTALLDIR}
 
 vet:
 	@echo "+ $@"
@@ -129,7 +124,7 @@ mock:
 		"github.com/sonm-io/core/proto" HubClient && ${SED}
 
 clean:
-	rm -f ${MINER} ${HUB} ${CLI} ${MARKET}
+	rm -f ${MINER} ${HUB} ${CLI}
 
 deb:
 	debuild --no-lintian --preserve-env -uc -us -i -I
