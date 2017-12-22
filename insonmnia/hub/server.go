@@ -760,7 +760,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 	}
 
 	bidOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: r.GetBidId()})
-	if err != nil || bidOrder == nil {
+	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "bid not found")
 	}
 
@@ -770,7 +770,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 	}
 
 	askOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: r.GetAskId()})
-	if err != nil || askOrder == nil {
+	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "ask not found")
 	}
 
