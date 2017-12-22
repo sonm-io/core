@@ -30,10 +30,6 @@ func TestLoadSlotYaml(t *testing.T) {
 	p, err := createTestYamlFile(`
 duration: 1h
 
-rating:
-  buyer: 100
-  supplier: 42
-
 resources:
   cpu_cores: 1
   ram_bytes: 100000000
@@ -57,8 +53,6 @@ resources:
 
 	ss := slot.Unwrap()
 	assert.Equal(t, uint64(3600), ss.Duration)
-	assert.Equal(t, int64(100), ss.BuyerRating)
-	assert.Equal(t, int64(42), ss.SupplierRating)
 	assert.Equal(t, uint64(1), ss.Resources.CpuCores)
 	assert.Equal(t, uint64(100000000), ss.Resources.RamBytes)
 	assert.Equal(t, pb.GPUCount_SINGLE_GPU, ss.Resources.GpuCount)
@@ -76,10 +70,6 @@ price: 145
 order_type: BID
 slot:
   duration: 1h
-
-  rating:
-    buyer: 45
-    supplier: 54
 
   resources:
     cpu_cores: 2

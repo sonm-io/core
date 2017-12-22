@@ -9,48 +9,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 )
 
-func TestNewInMemoryStorage_GetOrders_compareSupRating(t *testing.T) {
-	cases := []struct {
-		r1        int64
-		r2        int64
-		mustMatch bool
-		message   string
-	}{
-		{
-			r1:        1,
-			r2:        1,
-			mustMatch: true,
-		},
-		{
-			r1:        1,
-			r2:        2,
-			mustMatch: true,
-		},
-		{
-			r1:        2,
-			r2:        1,
-			mustMatch: false,
-		},
-	}
-
-	for i, cc := range cases {
-		s1 := &Slot{
-			inner: &pb.Slot{
-				SupplierRating: cc.r1,
-			},
-		}
-		s2 := &Slot{
-			inner: &pb.Slot{
-				SupplierRating: cc.r2,
-			},
-		}
-
-		isMatch := s1.compareSupplierRating(s2)
-		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
-	}
-}
-
-func TestNewInMemoryStorage_GetOrders_compareCpuCores(t *testing.T) {
+func TestSlotCompare_compareCpuCores(t *testing.T) {
 	cases := []struct {
 		c1        uint64
 		c2        uint64
@@ -89,12 +48,12 @@ func TestNewInMemoryStorage_GetOrders_compareCpuCores(t *testing.T) {
 			},
 		}
 
-		isMatch := s1.compareCpuCoresBid(s2)
+		isMatch := s1.compareCpuCores(s2)
 		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
 }
 
-func TestNewInMemoryStorage_GetOrders_compareRamBytes(t *testing.T) {
+func TestSlotCompare_compareRamBytes(t *testing.T) {
 	cases := []struct {
 		ram1      uint64
 		ram2      uint64
@@ -133,35 +92,31 @@ func TestNewInMemoryStorage_GetOrders_compareRamBytes(t *testing.T) {
 			},
 		}
 
-		isMatch := s1.compareRamBytesBid(s2)
+		isMatch := s1.compareRamBytes(s2)
 		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
 }
 
-func TestNewInMemoryStorage_GetOrders_compareGpuCount(t *testing.T) {
+func TestSlotCompare_compareGpuCount(t *testing.T) {
 	cases := []struct {
-		gpu1     pb.GPUCount
-		gpu2     pb.GPUCount
-		matchBid bool
-		matchAsk bool
+		gpu1      pb.GPUCount
+		gpu2      pb.GPUCount
+		mustMatch bool
 	}{
 		{
-			gpu1:     pb.GPUCount_NO_GPU,
-			gpu2:     pb.GPUCount_NO_GPU,
-			matchBid: true,
-			matchAsk: true,
+			gpu1:      pb.GPUCount_NO_GPU,
+			gpu2:      pb.GPUCount_NO_GPU,
+			mustMatch: true,
 		},
 		{
-			gpu1:     pb.GPUCount_NO_GPU,
-			gpu2:     pb.GPUCount_SINGLE_GPU,
-			matchBid: true,
-			matchAsk: false,
+			gpu1:      pb.GPUCount_NO_GPU,
+			gpu2:      pb.GPUCount_SINGLE_GPU,
+			mustMatch: true,
 		},
 		{
-			gpu1:     pb.GPUCount_NO_GPU,
-			gpu2:     pb.GPUCount_MULTIPLE_GPU,
-			matchBid: true,
-			matchAsk: false,
+			gpu1:      pb.GPUCount_NO_GPU,
+			gpu2:      pb.GPUCount_MULTIPLE_GPU,
+			mustMatch: true,
 		},
 	}
 
@@ -181,15 +136,12 @@ func TestNewInMemoryStorage_GetOrders_compareGpuCount(t *testing.T) {
 			},
 		}
 
-		matchBid := s1.compareGpuCountBid(s2)
-		assert.Equal(t, cc.matchBid, matchBid, fmt.Sprintf("%d bid", i))
-
-		matchAsk := s1.compareGpuCountAsk(s2)
-		assert.Equal(t, cc.matchAsk, matchAsk, fmt.Sprintf("%d ask", i))
+		isMatch := s1.compareGpuCount(s2)
+		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
 }
 
-func TestNewInMemoryStorage_GetOrders_compareStorage(t *testing.T) {
+func TestSlotCompare__compareStorage(t *testing.T) {
 	cases := []struct {
 		stor1     uint64
 		stor2     uint64
@@ -228,12 +180,12 @@ func TestNewInMemoryStorage_GetOrders_compareStorage(t *testing.T) {
 			},
 		}
 
-		isMatch := s1.compareStorageBid(s2)
+		isMatch := s1.compareStorage(s2)
 		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
 }
 
-func TestNewInMemoryStorage_GetOrders_compareNetTrafficIn(t *testing.T) {
+func TestSlotCompare_compareNetTrafficIn(t *testing.T) {
 	cases := []struct {
 		t1        uint64
 		t2        uint64
@@ -272,12 +224,12 @@ func TestNewInMemoryStorage_GetOrders_compareNetTrafficIn(t *testing.T) {
 			},
 		}
 
-		isMatch := s1.compareNetTrafficInBid(s2)
+		isMatch := s1.compareNetTrafficIn(s2)
 		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
 }
 
-func TestNewInMemoryStorage_GetOrders_compareNetTrafficOut(t *testing.T) {
+func TestSlotCompare_compareNetTrafficOut(t *testing.T) {
 	cases := []struct {
 		t1        uint64
 		t2        uint64
@@ -316,12 +268,12 @@ func TestNewInMemoryStorage_GetOrders_compareNetTrafficOut(t *testing.T) {
 			},
 		}
 
-		isMatch := s1.compareNetTrafficOutBid(s2)
+		isMatch := s1.compareNetTrafficOut(s2)
 		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
 }
 
-func TestNewInMemoryStorage_GetOrders_compareNetTrafficType(t *testing.T) {
+func TestSlotCompare_compareNetTrafficType(t *testing.T) {
 	cases := []struct {
 		n1        pb.NetworkType
 		n2        pb.NetworkType
@@ -391,7 +343,7 @@ func TestNewInMemoryStorage_GetOrders_compareNetTrafficType(t *testing.T) {
 			},
 		}
 
-		isMatch := s1.compareNetworkTypeBid(s2)
+		isMatch := s1.compareNetworkType(s2)
 		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
 }
@@ -430,300 +382,156 @@ func TestSlot_Compare(t *testing.T) {
 		mustMatch bool
 	}{
 		{
-			orderType: pb.OrderType_BID,
-			one:       &Slot{},
-			two:       &Slot{},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_ASK,
-			one:       &Slot{},
-			two:       &Slot{},
-			mustMatch: true,
-		},
-		// compare rating
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{SupplierRating: 1}},
-			one:       &Slot{inner: &pb.Slot{SupplierRating: 2}},
-			mustMatch: false,
-		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{SupplierRating: 1}},
-			one:       &Slot{inner: &pb.Slot{SupplierRating: 2}},
-			mustMatch: false,
-		},
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{SupplierRating: 2}},
-			one:       &Slot{inner: &pb.Slot{SupplierRating: 1}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{SupplierRating: 2}},
-			one:       &Slot{inner: &pb.Slot{SupplierRating: 1}},
+			one:       &Slot{inner: nil},
+			two:       &Slot{inner: nil},
 			mustMatch: true,
 		},
 		// compareCpuCores
 		{
-			orderType: pb.OrderType_BID,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{CpuCores: 2}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{CpuCores: 1}}},
 			mustMatch: true,
 		},
 		{
-			orderType: pb.OrderType_BID,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{CpuCores: 1}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{CpuCores: 2}}},
 			mustMatch: false,
 		},
 		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{CpuCores: 2}}},
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{CpuCores: 1}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{CpuCores: 1}}},
-			mustMatch: false,
-		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{CpuCores: 1}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{CpuCores: 2}}},
 			mustMatch: true,
 		},
+
 		// compareRamBytes
 		{
-			orderType: pb.OrderType_BID,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{RamBytes: 1}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{RamBytes: 2}}},
 			mustMatch: false,
 		},
 		{
-			orderType: pb.OrderType_BID,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{RamBytes: 2}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{RamBytes: 1}}},
 			mustMatch: true,
 		},
 		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{RamBytes: 1}}},
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{RamBytes: 2}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{RamBytes: 2}}},
 			mustMatch: true,
 		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{RamBytes: 2}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{RamBytes: 1}}},
-			mustMatch: false,
-		},
+
 		// compareGpuCountBid
 		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: 2}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: 1}}},
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: pb.GPUCount_NO_GPU}}},
+			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: pb.GPUCount_MULTIPLE_GPU}}},
+			mustMatch: false,
+		},
+		{
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: pb.GPUCount_SINGLE_GPU}}},
+			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: pb.GPUCount_SINGLE_GPU}}},
 			mustMatch: true,
 		},
 		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: 1}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: 2}}},
-			mustMatch: false,
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: pb.GPUCount_MULTIPLE_GPU}}},
+			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: pb.GPUCount_SINGLE_GPU}}},
+			mustMatch: true,
 		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: 2}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: 1}}},
-			mustMatch: false,
-		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: 1}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{GpuCount: 2}}},
-			mustMatch: false,
-		},
+
 		// compareStorage
 		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{Storage: 1}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{Storage: 2}}},
-			mustMatch: false,
-		},
-		{
-			orderType: pb.OrderType_BID,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{Storage: 2}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{Storage: 1}}},
 			mustMatch: true,
 		},
 		{
-			orderType: pb.OrderType_ASK,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{Storage: 1}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{Storage: 2}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{Storage: 2}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{Storage: 1}}},
 			mustMatch: false,
 		},
+		{
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{Storage: 1}}},
+			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{Storage: 1}}},
+			mustMatch: true,
+		},
+
 		// compareNetTrafficIn
 		{
-			orderType: pb.OrderType_BID,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficIn: 2}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficIn: 1}}},
 			mustMatch: true,
 		},
 		{
-			orderType: pb.OrderType_BID,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficIn: 1}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficIn: 2}}},
 			mustMatch: false,
 		},
 		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficIn: 1}}},
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficIn: 2}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficIn: 2}}},
 			mustMatch: true,
 		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficIn: 2}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficIn: 1}}},
-			mustMatch: false,
-		},
+
 		// compareNetTrafficOut
 		{
-			orderType: pb.OrderType_BID,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficOut: 2}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficOut: 1}}},
 			mustMatch: true,
 		},
 		{
-			orderType: pb.OrderType_BID,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficOut: 1}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficOut: 2}}},
 			mustMatch: false,
 		},
 		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficOut: 1}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficOut: 2}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_ASK,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficOut: 2}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetTrafficOut: 1}}},
-			mustMatch: false,
-		},
-		// compareNetworkType -> BID
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
-			mustMatch: false,
-		},
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
-			mustMatch: false,
-		},
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
-			mustMatch: false,
-		},
-		{
-			orderType: pb.OrderType_BID,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
-			mustMatch: true,
-		},
-		// compareNetworkType -> ASK
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
 			mustMatch: true,
 		},
 
+		// compare network type
 		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
+			mustMatch: true,
+		},
+		{
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
+			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
 			mustMatch: false,
 		},
 		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
-			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
-			mustMatch: true,
-		},
-		{
-			orderType: pb.OrderType_ASK,
-			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
-			mustMatch: true,
+			mustMatch: false,
 		},
 
 		{
-			orderType: pb.OrderType_ASK,
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
+			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
+			mustMatch: true,
+		},
+		{
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
+			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
+			mustMatch: true,
+		},
+		{
+			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
+			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
+			mustMatch: false,
+		},
+
+		{
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_NO_NETWORK}}},
-			mustMatch: false,
+			mustMatch: true,
 		},
 		{
-			orderType: pb.OrderType_ASK,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_OUTBOUND}}},
-			mustMatch: false,
+			mustMatch: true,
 		},
 		{
-			orderType: pb.OrderType_ASK,
 			two:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
 			one:       &Slot{inner: &pb.Slot{Resources: &pb.Resources{NetworkType: pb.NetworkType_INCOMING}}},
 			mustMatch: true,
@@ -731,7 +539,7 @@ func TestSlot_Compare(t *testing.T) {
 	}
 
 	for i, cc := range cases {
-		isMatch := cc.one.Compare(cc.two, cc.orderType)
+		isMatch := cc.one.Compare(cc.two)
 		assert.Equal(t, cc.mustMatch, isMatch, fmt.Sprintf("%d", i))
 	}
 }
