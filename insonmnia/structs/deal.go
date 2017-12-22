@@ -20,6 +20,7 @@ func NewDealRequest(deal *sonm.DealRequest) (*DealRequest, error) {
 	if order == nil {
 		return nil, ErrOrderIsRequired
 	}
+
 	slot := order.GetSlot()
 	if slot == nil {
 		return nil, ErrSlotIsRequired

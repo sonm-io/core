@@ -140,7 +140,7 @@ func (s *Slot) compareNetworkTypeAsk(two *Slot) bool {
 
 func (s *Slot) Compare(two *Slot, orderType pb.OrderType) bool {
 	// comparison of rating is performing
-	// at the same way for different types of orders
+	// at the same way for different types of orders.
 	rt := s.compareSupplierRating(two)
 
 	// TODO: Seems equal.

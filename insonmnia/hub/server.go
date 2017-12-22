@@ -37,13 +37,11 @@ import (
 )
 
 var (
-	ErrInvalidOrderType = status.Errorf(codes.InvalidArgument, "invalid order type")
-	ErrAskNotFound      = status.Errorf(codes.NotFound, "ask not found")
-	ErrDeviceNotFound   = status.Errorf(codes.NotFound, "device not found")
-	ErrMinerNotFound    = status.Errorf(codes.NotFound, "miner not found")
-	errDealNotFound     = status.Errorf(codes.NotFound, "deal not found")
-	errTaskNotFound     = status.Errorf(codes.NotFound, "task not found")
-	errImageForbidden   = status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
+	ErrDeviceNotFound = status.Errorf(codes.NotFound, "device not found")
+	ErrMinerNotFound  = status.Errorf(codes.NotFound, "miner not found")
+	errDealNotFound   = status.Errorf(codes.NotFound, "deal not found")
+	errTaskNotFound   = status.Errorf(codes.NotFound, "task not found")
+	errImageForbidden = status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
 
 	hubAPIPrefix = "/sonm.Hub/"
 
@@ -752,27 +750,45 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	order, err := structs.NewOrder(request.GetOrder())
-	if err != nil {
-		return nil, err
-	}
-	if !order.IsBid() {
-		return nil, ErrInvalidOrderType
+	h.slotsMu.Lock()
+	// check if Hub knows smth about this order
+	_, ok := h.slots[r.AskId]
+	h.slotsMu.Unlock()
+
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "slot not found")
 	}
 
-	found, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: order.GetID()})
+	bidOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: r.GetBidId()})
 	if err != nil {
-		return nil, err
+		return nil, status.Errorf(codes.NotFound, "bid not found")
 	}
 
-	if found == nil {
-		return nil, ErrAskNotFound
+	order, err := structs.NewOrder(bidOrder)
+	if err != nil {
+		return nil, status.Errorf(codes.DataLoss, "bid order is malformed")
+	}
+
+	askOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: r.GetAskId()})
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "ask not found")
+	}
+
+	if askOrder.GetByuerID() != "" {
+		if askOrder.GetByuerID() != bidOrder.GetByuerID() {
+			return nil, status.Errorf(codes.NotFound, "ask order is bound to special buyer, but IDs is not matching")
+		}
+
+		log.G(h.ctx).Info("handle proposal for bound order",
+			zap.String("bid_id", r.GetBidId()),
+			zap.String("ask_id", r.GetAskId()))
 	}
 
 	resources, err := structs.NewResources(request.GetOrder().GetSlot().GetResources())
 	if err != nil {
 		return nil, err
 	}
+
 	usage := resource.NewResources(
 		int(resources.GetCpuCores()),
 		int64(resources.GetMemoryInBytes()),
