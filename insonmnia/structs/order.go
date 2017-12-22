@@ -3,6 +3,7 @@ package structs
 import (
 	"errors"
 	"math/big"
+	"time"
 
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -97,4 +98,8 @@ func (o *Order) GetType() pb.OrderType {
 
 func (o *Order) GetByuerID() string {
 	return o.inner.GetByuerID()
+}
+
+func (o *Order) GetDuration() time.Duration {
+	return time.Duration(o.inner.Slot.Duration)
 }
