@@ -1004,6 +1004,7 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*p
 		OrderType:  pb.OrderType_ASK,
 		Slot:       slot.Unwrap(),
 		Price:      request.Price,
+		ByuerID:    request.BuyerID,
 		SupplierID: util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
 	}
 

@@ -406,8 +406,12 @@ func TestNewSlot(t *testing.T) {
 			err:  errSlotIsNil,
 		},
 		{
-			slot: &pb.Slot{},
+			slot: &pb.Slot{Duration: uint64(MinSlotDuration.Seconds())},
 			err:  errResourcesIsNil,
+		},
+		{
+			slot: &pb.Slot{Duration: 0, Resources: &pb.Resources{}},
+			err:  ErrDurationIsTooShort,
 		},
 	}
 

@@ -47,6 +47,8 @@ message Slot {
     Geo geo = 3;
     // Hardware resources requirements
     Resources resources = 4;
+    // Duration is resource rent duration in seconds
+    uint64 duration = 5;
 }
 
 message Order {

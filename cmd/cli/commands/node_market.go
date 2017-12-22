@@ -130,7 +130,12 @@ var marketCreteCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		created, err := market.CreateOrder(order.Unwrap())
+		inner := order.Unwrap()
+		if len(args) > 1 {
+			inner.SupplierID = args[1]
+		}
+
+		created, err := market.CreateOrder(inner)
 		if err != nil {
 			showError(cmd, "Cannot create order at Marketplace", err)
 			os.Exit(1)

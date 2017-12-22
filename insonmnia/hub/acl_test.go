@@ -18,6 +18,7 @@ import (
 
 func makeDefaultOrder(t *testing.T, buyerId string) *structs.Order {
 	slot := &pb.Slot{
+		Duration:  uint64(structs.MinSlotDuration.Seconds()),
 		Resources: &pb.Resources{},
 	}
 

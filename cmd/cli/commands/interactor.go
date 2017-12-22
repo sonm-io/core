@@ -25,7 +25,7 @@ type NodeHubInteractor interface {
 	SetDeviceProperties(ID string, properties map[string]float64) (*pb.Empty, error)
 
 	GetAskPlans() (*pb.SlotsReply, error)
-	CreateAskPlan(slot *structs.Slot, price string) (*pb.ID, error)
+	CreateAskPlan(req *pb.InsertSlotRequest) (*pb.ID, error)
 	RemoveAskPlan(id string) (*pb.Empty, error)
 
 	TaskList() (*pb.TaskListReply, error)
@@ -116,14 +116,9 @@ func (it *hubInteractor) GetAskPlans() (*pb.SlotsReply, error) {
 	return it.hub.GetAskPlans(ctx, &pb.Empty{})
 }
 
-func (it *hubInteractor) CreateAskPlan(slot *structs.Slot, price string) (*pb.ID, error) {
+func (it *hubInteractor) CreateAskPlan(req *pb.InsertSlotRequest) (*pb.ID, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
-
-	req := &pb.InsertSlotRequest{
-		Price: price,
-		Slot:  slot.Unwrap(),
-	}
 
 	return it.hub.CreateAskPlan(ctx, req)
 }

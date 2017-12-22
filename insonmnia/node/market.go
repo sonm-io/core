@@ -181,6 +181,7 @@ func (h *orderHandler) propose(askID, supID string) error {
 		Order:    h.order,
 		SpecHash: h.slotSpecHash(),
 	}
+
 	_, err = hub.ProposeDeal(h.ctx, req)
 	if err != nil {
 		log.G(h.ctx).Info("cannot propose createDeal to Hub", zap.Error(err))
@@ -197,7 +198,7 @@ func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey) error 
 	h.status = statusDealing
 
 	deal := &pb.Deal{
-		// todo: add start & end time from order
+		WorkTime:          h.order.GetSlot().GetDuration(),
 		SupplierID:        order.GetSupplierID(),
 		BuyerID:           util.PubKeyToAddr(key.PublicKey).Hex(),
 		Price:             order.Price,
@@ -322,12 +323,19 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, 
 		return nil, errNotAnBidOrder
 	}
 
+	if _, err := structs.NewOrder(req); err != nil {
+		return nil, err
+	}
+
 	req.ByuerID = util.PubKeyToAddr(m.remotes.key.PublicKey).Hex()
 	created, err := m.remotes.market.CreateOrder(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
+	// Marketplace knows nothing about the required duration, we must bypass it by hand.
+	// Looks awful, but nevermind, it feels like out timing system is broken by design.
+	created.Slot.Duration = req.GetSlot().GetDuration()
 	go m.startExecOrderHandler(created)
 
 	return created, nil
@@ -460,7 +468,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		// order still nil - proposeDeal failed for each order for each hub
 		log.G(handler.ctx).Info("no one hub accept proposed deal")
 		handler.setError(errProposeNotAccepted)
-		return err
+		return errProposeNotAccepted
 	}
 
 	err = handler.createDeal(orderToDeal, m.remotes.key)

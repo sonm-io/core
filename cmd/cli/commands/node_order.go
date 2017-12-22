@@ -3,6 +3,8 @@ package commands
 import (
 	"os"
 
+	pb "github.com/sonm-io/core/proto"
+
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/util"
@@ -70,7 +72,16 @@ var hubOrderCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		id, err := hub.CreateAskPlan(slot, price)
+		req := &pb.InsertSlotRequest{
+			Slot:  slot.Unwrap(),
+			Price: price,
+		}
+
+		if len(args) > 2 {
+			req.BuyerID = args[2]
+		}
+
+		id, err := hub.CreateAskPlan(req)
 		if err != nil {
 			showError(cmd, "Cannot create new AskOrder", err)
 			os.Exit(1)
