@@ -193,8 +193,8 @@ func (h *orderHandler) propose(askID, supID string) error {
 	return nil
 }
 
-// createDeal creates deal on Etherum blockchain
-func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey) error {
+// createDeal creates deal on Ethereum blockchain
+func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey, wait time.Duration) (*big.Int, error) {
 	log.G(h.ctx).Info("creating deal on Etherum")
 	h.status = statusDealing
 
@@ -207,23 +207,23 @@ func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey) error 
 		SpecificationHash: h.slotSpecHash(),
 	}
 
-	tx, err := h.bc.OpenDeal(key, deal)
+	// tx, err := h.bc.OpenDeal(key, deal)
+	txID, err := h.bc.OpenDealPending(h.ctx, key, deal, wait)
 	if err != nil {
 		log.G(h.ctx).Info("cannot open deal", zap.Error(err))
 		h.setError(err)
-		return err
+		return nil, err
 	}
 
-	log.G(h.ctx).Info("deal created", zap.String("tx_id", tx.Hash().String()))
-	return nil
+	log.G(h.ctx).Info("deal opened", zap.String("tx_id", txID.String()))
+	return txID, nil
 }
 
-func (h *orderHandler) waitForApprove(order *pb.Order, key *ecdsa.PrivateKey, wait time.Duration) (*pb.Deal, error) {
+func (h *orderHandler) waitForApprove(key *ecdsa.PrivateKey, dealID *big.Int, wait time.Duration) (*pb.Deal, error) {
 	log.G(h.ctx).Info("waiting for deal become approved")
 	h.status = statusWaitForApprove
 
-	localCtx := context.Background()
-	deal, err := h.findDeals(localCtx, key, order.GetByuerID(), h.slotSpecHash(), wait)
+	deal, err := h.pollForApprovedStatus(key, dealID, wait)
 	if err != nil {
 		log.G(h.ctx).Info("cannot find accepted deal", zap.Error(err))
 		h.setError(err)
@@ -231,32 +231,30 @@ func (h *orderHandler) waitForApprove(order *pb.Order, key *ecdsa.PrivateKey, wa
 	}
 
 	if deal == nil {
+		h.setError(errors.New("deal was not accepted"))
 		log.G(h.ctx).Info("deal was not accepted, fail by timeout")
-		err = errors.New("deal was not accepted")
-		h.setError(err)
-		return nil, err
+		return nil, h.err
 	}
 
-	h.dealID = deal.Id
 	log.G(h.ctx).Info("deal approved, ready to allocate task", zap.String("deal_id", deal.Id))
 	return deal, nil
 }
 
-func (h *orderHandler) findDeals(ctx context.Context, key *ecdsa.PrivateKey, addr, hash string, wait time.Duration) (*pb.Deal, error) {
+func (h *orderHandler) pollForApprovedStatus(key *ecdsa.PrivateKey, dealID *big.Int, wait time.Duration) (*pb.Deal, error) {
 	ctx, cancel := context.WithTimeout(h.ctx, wait)
 	defer cancel()
 
 	tk := time.NewTicker(3 * time.Second)
 	defer tk.Stop()
 
-	if deal := h.findDealOnce(key, addr, hash); deal != nil {
+	if deal := h.findDealOnce(key, dealID); deal != nil {
 		return deal, nil
 	}
 
 	for {
 		select {
 		case <-tk.C:
-			if deal := h.findDealOnce(key, addr, hash); deal != nil {
+			if deal := h.findDealOnce(key, dealID); deal != nil {
 				return deal, nil
 			}
 		case <-ctx.Done():
@@ -265,25 +263,11 @@ func (h *orderHandler) findDeals(ctx context.Context, key *ecdsa.PrivateKey, add
 	}
 }
 
-func (h *orderHandler) findDealOnce(key *ecdsa.PrivateKey, addr, hash string) *pb.Deal {
+func (h *orderHandler) findDealOnce(key *ecdsa.PrivateKey, dealID *big.Int) *pb.Deal {
 	// get deals opened by our client
-	IDs, err := h.bc.GetAcceptedDeal(util.PubKeyToAddr(key.PublicKey).Hex(), addr)
-	if err != nil {
-		return nil
-	}
-
-	for _, id := range IDs {
-		// then get extended info
-		deal, err := h.bc.GetDealInfo(id)
-		if err != nil {
-			continue
-		}
-
-		// then check for status
-		// and check if task hash is equal with request's one
-		if deal.GetStatus() == pb.DealStatus_ACCEPTED && deal.GetSpecificationHash() == hash {
-			return deal
-		}
+	deal, err := h.bc.GetDealInfo(dealID)
+	if err == nil && deal.Status == pb.DealStatus_ACCEPTED {
+		return deal
 	}
 
 	return nil
@@ -472,20 +456,21 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		return errProposeNotAccepted
 	}
 
-	err = handler.createDeal(orderToDeal, m.remotes.key)
+	dealID, err := handler.createDeal(orderToDeal, m.remotes.key, m.remotes.dealCreateTimeout)
 	if err != nil {
 		log.G(handler.ctx).Info("cannot create deal", zap.Error(err))
 		handler.setError(err)
 		return err
 	}
 
-	deal, err := handler.waitForApprove(orderToDeal, m.remotes.key, m.remotes.approveTimeout)
+	deal, err := handler.waitForApprove(m.remotes.key, dealID, m.remotes.dealApproveTimeout)
 	if err != nil {
 		log.G(handler.ctx).Info("wailed waiting for deal", zap.Error(err))
 		handler.setError(err)
 		return err
 	}
 
+	handler.dealID = deal.Id
 	handler.status = statusDone
 	log.G(handler.ctx).Info("handler done",
 		zap.String("handle_id", handler.id),

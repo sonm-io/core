@@ -52,12 +52,13 @@ func makeOrder() *pb.Order {
 
 func getTestEth(ctrl *gomock.Controller) blockchain.Blockchainer {
 	deal := &pb.Deal{
-		Id:                "my-deal-id",
+		Id:                "1",
 		Status:            pb.DealStatus_ACCEPTED,
 		SpecificationHash: "217643283185136810854905094570012887099",
 	}
 
 	bc := blockchain.NewMockBlockchainer(ctrl)
+
 	bc.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
 		Return(big.NewInt(big.MaxPrec), nil)
 	bc.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
@@ -68,6 +69,8 @@ func getTestEth(ctrl *gomock.Controller) blockchain.Blockchainer {
 		Return([]*big.Int{big.NewInt(1)}, nil)
 	bc.EXPECT().GetDealInfo(big.NewInt(1)).AnyTimes().
 		Return(deal, nil)
+	bc.EXPECT().OpenDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(1), nil)
 
 	return bc
 }
@@ -119,7 +122,7 @@ func getTestRemotes(ctx context.Context, ctrl *gomock.Controller) *remoteOptions
 	opts.eth = getTestEth(ctrl)
 	opts.market = getTestMarket(ctrl)
 	opts.locator = getTestLocator(ctrl)
-	opts.approveTimeout = 3 * time.Second
+	opts.dealApproveTimeout = 3 * time.Second
 	opts.hubCreator = func(addr string) (pb.HubClient, error) {
 		return getTestHubClient(ctrl), nil
 	}
@@ -146,13 +149,12 @@ func TestCreateOrder_FullAsyncOrderHandler(t *testing.T) {
 
 	// wait for async handler is finished
 	time.Sleep(1 * time.Second)
-
 	assert.True(t, len(inner.tasks) == 1, "Handler must not be removed")
 
 	handlr := inner.tasks[created.Id]
 	assert.Equal(t, statusDone, handlr.status,
 		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusDone], statusMap[handlr.status]))
-	assert.Equal(t, "my-deal-id", handlr.dealID)
+	assert.Equal(t, "1", handlr.dealID)
 }
 
 func TestCreateOrder_CannotCreateHandler(t *testing.T) {
@@ -303,6 +305,8 @@ func TestCreateOrder_CannotCreateDeal(t *testing.T) {
 		Return(big.NewInt(big.MaxPrec), nil)
 	eth.EXPECT().OpenDeal(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(nil, errors.New("TEST: cannot open deal"))
+	eth.EXPECT().OpenDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		Return(nil, errors.New("TEST: cannot open deal"))
 	eth.EXPECT().GetAcceptedDeal(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(nil, errors.New("TEST: cannot get accepted deals"))
 	eth.EXPECT().GetDealInfo(big.NewInt(1)).AnyTimes().
@@ -345,8 +349,8 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 		Return(big.NewInt(big.MaxPrec), nil)
 	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(big.NewInt(big.MaxPrec), nil)
-	eth.EXPECT().OpenDeal(gomock.Any(), gomock.Any()).AnyTimes().
-		Return(&types.Transaction{}, nil)
+	eth.EXPECT().OpenDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(1), nil)
 	eth.EXPECT().GetAcceptedDeal(gomock.Any(), gomock.Any()).AnyTimes().
 		Return([]*big.Int{big.NewInt(1), big.NewInt(2)}, nil)
 	eth.EXPECT().GetDealInfo(big.NewInt(1)).AnyTimes().
@@ -380,7 +384,6 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 func TestCreateOrder_LackAllowanceBalance(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-
 	ctx := context.Background()
 
 	eth := blockchain.NewMockBlockchainer(ctrl)
@@ -460,7 +463,7 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 		Return(big.NewInt(100), nil)
 	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(big.NewInt(50000), nil)
-	eth.EXPECT().OpenDeal(gomock.Any(), gomock.Any()).AnyTimes().
+	eth.EXPECT().OpenDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		Return(nil, errors.New("1"))
 
 	opts := getTestRemotes(ctx, ctrl)

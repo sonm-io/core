@@ -112,9 +112,9 @@ func (e *eth) findDealOnce(addr, hash string) *pb.Deal {
 		zap.String("hash", hash),
 		zap.Int("count", len(IDs)))
 
-	for _, id := range IDs {
+	for i := len(IDs) - 1; i >= 0; i-- {
 		// then get extended info
-		deal, err := e.bc.GetDealInfo(id)
+		deal, err := e.bc.GetDealInfo(IDs[i])
 		if err != nil {
 			continue
 		}
