@@ -272,9 +272,7 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 		cmd.Printf("Price:          %s\r\n", order.Price)
 
 		cmd.Printf("SupplierID:     %s\r\n", order.SupplierID)
-		cmd.Printf("SupplierRating: %d\r\n", order.Slot.SupplierRating)
 		cmd.Printf("BuyerID:        %s\r\n", order.ByuerID)
-		cmd.Printf("BuyerRating:    %d\r\n", order.Slot.BuyerRating)
 
 		rs := order.Slot.Resources
 		cmd.Printf("Resources:\r\n")

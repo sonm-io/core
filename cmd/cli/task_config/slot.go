@@ -9,9 +9,9 @@ import (
 	"github.com/sonm-io/core/proto"
 )
 
-type RatingConfig struct {
-	Buyer    int64 `yaml:"buyer" required:"true"`
-	Supplier int64 `yaml:"supplier" required:"true"`
+type DurationConfig struct {
+	Since string `yaml:"since" required:"true"`
+	Until string `yaml:"until" required:"true"`
 }
 
 type ResourcesConfig struct {
@@ -31,7 +31,6 @@ type NetworkConfig struct {
 
 type SlotConfig struct {
 	Duration  string          `yaml:"duration" required:"true"`
-	Rating    RatingConfig    `yaml:"rating" required:"true"`
 	Resources ResourcesConfig `yaml:"resources" required:"true"`
 }
 
@@ -73,9 +72,7 @@ func (c *SlotConfig) IntoSlot() (*structs.Slot, error) {
 	}
 
 	return structs.NewSlot(&sonm.Slot{
-		Duration:       uint64(duration.Round(time.Second).Seconds()),
-		BuyerRating:    c.Rating.Buyer,
-		SupplierRating: c.Rating.Supplier,
+		Duration: uint64(duration.Round(time.Second).Seconds()),
 		Resources: &sonm.Resources{
 			CpuCores:      c.Resources.Cpu,
 			RamBytes:      ram.Bytes(),

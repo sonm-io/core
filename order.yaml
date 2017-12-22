@@ -3,10 +3,6 @@ order_type: BID
 slot:
   duration: 1h
 
-  rating:
-    buyer: 0
-    supplier: 0
-
   resources:
     cpu_cores: 1
     ram_bytes: 50mb
