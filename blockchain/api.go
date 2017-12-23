@@ -156,7 +156,7 @@ var DealAcceptedTopic = common.HexToHash("0x3a38edea6028913403c74ce8433c90eca94f
 var DealClosedTopic = common.HexToHash("0x72615f99a62a6cc2f8452d5c0c9cbc5683995297e1d988f09bb1471d4eefb890")
 
 func (bch *api) OpenDeal(key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error) {
-	opts := bch.getTxOpts(key, 335000)
+	opts := bch.getTxOpts(key, 360000)
 
 	bigSpec, err := util.ParseBigInt(deal.SpecificationHash)
 	if err != nil {
