@@ -121,9 +121,13 @@ func (w *whitelist) Allowed(ctx context.Context, registry string, image string, 
 		return false, nil, err
 	}
 
-	wallet, err := extractWalletFromContext(ctx)
+	signedWallet, err := extractWalletFromContext(ctx)
 	if err != nil {
 		log.G(ctx).Warn("could not extract wallet from context", zap.Error(err))
+	}
+	wallet, err := util.VerifySelfSignedWallet(signedWallet)
+	if err != nil {
+		return false, nil, err
 	}
 	_, ok := w.superusers[wallet]
 	if ok {
