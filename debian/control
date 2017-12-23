@@ -18,7 +18,7 @@ Description: Hub daemon for SONM network
 Package: sonm-worker
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Miner daemon for SONM network
+Description: Worker daemon for SONM network
  This daemon starts actual jobs
 
 Package: sonm-cli
