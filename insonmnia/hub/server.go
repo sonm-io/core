@@ -660,13 +660,14 @@ func (h *Hub) TaskList(ctx context.Context, request *pb.Empty) (*pb.TaskListRepl
 
 	for workerID, worker := range h.miners {
 		worker.statusMu.Lock()
-		taskStatuses := pb.StatusMapReply{Statuses: worker.statusMap}
+		statuses := make([]string, 0, len(worker.statusMap))
+		for status := range worker.statusMap {
+			statuses = append(statuses, status)
+		}
 		worker.statusMu.Unlock()
-
 		// maps TaskID to TaskStatus
 		info := &pb.TaskListReply_TaskInfo{Tasks: map[string]*pb.TaskStatusReply{}}
-
-		for taskID := range taskStatuses.GetStatuses() {
+		for _, taskID := range statuses {
 			taskInfo, err := worker.Client.TaskDetails(ctx, &pb.ID{Id: taskID})
 			if err != nil {
 				return nil, err
@@ -676,7 +677,6 @@ func (h *Hub) TaskList(ctx context.Context, request *pb.Empty) (*pb.TaskListRepl
 		}
 
 		reply.Info[workerID] = info
-
 	}
 
 	return reply, nil
@@ -693,7 +693,10 @@ func (h *Hub) MinerStatus(ctx context.Context, request *pb.ID) (*pb.StatusMapRep
 	}
 
 	mincli.statusMu.Lock()
-	reply := pb.StatusMapReply{Statuses: mincli.statusMap}
+	reply := pb.StatusMapReply{Statuses: make(map[string]*pb.TaskStatusReply, len(mincli.statusMap))}
+	for k, v := range mincli.statusMap {
+		reply.Statuses[k] = v
+	}
 	mincli.statusMu.Unlock()
 	return &reply, nil
 }
