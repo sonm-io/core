@@ -176,9 +176,14 @@ func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error
 	reply := &pb.ListReply{
 		Info: make(map[string]*pb.ListReply_ListValue),
 	}
+
+	h.minersMu.Lock()
 	for k := range h.miners {
 		reply.Info[k] = new(pb.ListReply_ListValue)
 	}
+	h.minersMu.Unlock()
+
+	h.tasksMu.Lock()
 	for _, taskInfo := range h.tasks {
 		list, ok := reply.Info[taskInfo.MinerId]
 		if !ok {
@@ -189,6 +194,7 @@ func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error
 		}
 		list.Values = append(list.Values, taskInfo.ID)
 	}
+	h.tasksMu.Unlock()
 
 	return reply, nil
 }
