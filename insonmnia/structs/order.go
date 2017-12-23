@@ -92,10 +92,6 @@ func (o *Order) IsBid() bool {
 	return o.GetOrderType() == pb.OrderType_BID
 }
 
-func (o *Order) GetType() pb.OrderType {
-	return o.GetOrderType()
-}
-
 func (o *Order) GetDuration() time.Duration {
 	return time.Duration(o.Slot.Duration) * time.Second
 }
