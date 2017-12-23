@@ -30,7 +30,7 @@ var (
 )
 
 const (
-	statusNew            uint8 = iota
+	statusNew uint8 = iota
 	statusSearching
 	statusProposing
 	statusDealing
