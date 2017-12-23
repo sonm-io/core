@@ -20,7 +20,7 @@ var (
 // This is used to decompose the validation out of the protocol. All
 // methods must return the valid sub-structures.
 type Order struct {
-	inner *pb.Order
+	*pb.Order
 }
 
 // ByPrice implements sort.Interface; it allows for sorting Orders by Price field.
@@ -31,14 +31,14 @@ func (a ByPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByPrice) Less(i, j int) bool { return a[i].GetPrice().Cmp(a[j].GetPrice()) == 1 }
 
 func (o *Order) Unwrap() *pb.Order {
-	return o.inner
+	return o.Order
 }
 
 func NewOrder(o *pb.Order) (*Order, error) {
 	if err := validateOrder(o); err != nil {
 		return nil, err
 	} else {
-		return &Order{inner: o}, nil
+		return &Order{o}, nil
 	}
 }
 
@@ -68,20 +68,20 @@ func validateOrder(o *pb.Order) error {
 }
 
 func (o *Order) GetID() string {
-	return o.inner.GetId()
+	return o.Order.GetId()
 }
 
 func (o *Order) SetID(ID string) {
-	o.inner.Id = ID
+	o.Order.Id = ID
 }
 
 func (o *Order) GetPrice() *big.Int {
-	bigPrice, _ := util.ParseBigInt(o.inner.Price)
+	bigPrice, _ := util.ParseBigInt(o.Price)
 	return bigPrice
 }
 
 func (o *Order) GetSlot() *Slot {
-	slot, err := NewSlot(o.inner.GetSlot())
+	slot, err := NewSlot(o.Order.GetSlot())
 	if err != nil {
 		panic("validation has failed")
 	}
@@ -89,17 +89,13 @@ func (o *Order) GetSlot() *Slot {
 }
 
 func (o *Order) IsBid() bool {
-	return o.inner.GetOrderType() == pb.OrderType_BID
+	return o.GetOrderType() == pb.OrderType_BID
 }
 
 func (o *Order) GetType() pb.OrderType {
-	return o.inner.GetOrderType()
-}
-
-func (o *Order) GetByuerID() string {
-	return o.inner.GetByuerID()
+	return o.GetOrderType()
 }
 
 func (o *Order) GetDuration() time.Duration {
-	return time.Duration(o.inner.Slot.Duration) * time.Second
+	return time.Duration(o.Slot.Duration) * time.Second
 }
