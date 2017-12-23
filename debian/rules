@@ -13,7 +13,7 @@ override_dh_auto_test:
 
 override_dh_auto_install:
 	install -d $(DEB_DESTDIR)etc/sonm/
-	install -m644 miner.yaml $(DEB_DESTDIR)etc/sonm/miner-default.yaml
+	install -m644 worker.yaml $(DEB_DESTDIR)etc/sonm/worker-default.yaml
 	install -m644 hub.yaml $(DEB_DESTDIR)etc/sonm/hub-default.yaml
 	install -m644 node.yaml $(DEB_DESTDIR)etc/sonm/node-default.yaml
 	install -m644 locator.yaml $(DEB_DESTDIR)etc/sonm/locator-default.yaml

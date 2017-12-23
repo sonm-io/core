@@ -15,7 +15,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Hub daemon for SONM network
  Controls jobs distribution
 
-Package: sonm-miner
+Package: sonm-worker
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Miner daemon for SONM network

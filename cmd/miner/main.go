@@ -16,7 +16,7 @@ import (
 )
 
 var (
-	configPath  = flag.String("config", "miner.yaml", "Path to miner config file")
+	configPath  = flag.String("config", "worker.yaml", "Path to miner config file")
 	showVersion = flag.BoolP("version", "v", false, "Show Hub version and exit")
 	version     string
 )

@@ -56,7 +56,7 @@ func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusRep
 	} else {
 		v := map[string]interface{}{
 			"id":     id,
-			"miner":  taskStatus.MinerID,
+			"worker": taskStatus.MinerID,
 			"status": taskStatus.Status.String(),
 			"image":  taskStatus.GetImageName(),
 			"ports":  taskStatus.GetPorts(),
@@ -166,10 +166,10 @@ func printWorkerStatus(cmd *cobra.Command, workerID string, metrics *pb.InfoRepl
 
 func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
 	if isSimpleFormat() {
-		cmd.Printf("Connected miners: %d\r\n", stat.MinerCount)
-		cmd.Printf("Uptime:           %s\r\n", (time.Second * time.Duration(stat.Uptime)).String())
-		cmd.Printf("Version:          %s %s\r\n", stat.Version, stat.Platform)
-		cmd.Printf("Eth address:      %s\r\n", stat.EthAddr)
+		cmd.Printf("Connected workers: %d\r\n", stat.MinerCount)
+		cmd.Printf("Uptime:            %s\r\n", (time.Second * time.Duration(stat.Uptime)).String())
+		cmd.Printf("Version:           %s %s\r\n", stat.Version, stat.Platform)
+		cmd.Printf("Eth address:       %s\r\n", stat.EthAddr)
 	} else {
 		showJSON(cmd, stat)
 	}
@@ -334,7 +334,7 @@ func printAskList(cmd *cobra.Command, slots *pb.SlotsReply) {
 		}
 
 		for id, slot := range slots {
-			cmd.Printf(" ID:  %s", id)
+			cmd.Printf(" ID:  %s\r\n", id)
 			cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
 			cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
 			cmd.Printf(" RAM: %s\r\n", ds.ByteSize(slot.Resources.RamBytes).HR())
