@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"sort"
+
 	ds "github.com/c2h5oh/datasize"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -288,6 +290,12 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 	}
 }
 
+type handlerByTime []*pb.GetProcessingReply_ProcessedOrder
+
+func (h handlerByTime) Len() int           { return len(h) }
+func (h handlerByTime) Less(i, j int) bool { return h[i].Timestamp.Seconds < h[j].Timestamp.Seconds }
+func (h handlerByTime) Swap(i, j int)      { *h[i], *h[j] = *h[j], *h[i] }
+
 func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
 	if isSimpleFormat() {
 		if len(tasks.GetOrders()) == 0 {
@@ -295,10 +303,21 @@ func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
 			return
 		}
 
-		for id, order := range tasks.GetOrders() {
-			t := time.Unix(order.Timestamp.Seconds, 0)
-			s := node.HandlerStatusString(uint8(order.Status))
-			cmd.Printf("%s %s %s %s\r\n", t, id, s, order.Extra)
+		// transform map to the slice, then order the slice
+		handlers := make([]*pb.GetProcessingReply_ProcessedOrder, 0, len(tasks.GetOrders()))
+		for _, handlr := range tasks.GetOrders() {
+			handlers = append(handlers, handlr)
+		}
+
+		sort.Sort(handlerByTime(handlers))
+
+		for _, handlr := range handlers {
+			t := time.Unix(handlr.Timestamp.Seconds, 0).Format(time.RFC822)
+			s := node.HandlerStatusString(uint8(handlr.Status))
+
+			cmd.Printf("id:     %s start: %s\r\n", handlr.Id, t)
+			cmd.Printf("status: %s (%s)\r\n", s, handlr.Extra)
+			cmd.Println()
 		}
 
 	} else {
