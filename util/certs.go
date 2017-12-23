@@ -26,7 +26,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 )
 
-var validPeriod = time.Hour * 4
+const defaultValidPeriod = time.Hour * 4
 
 // HitlessCertRotator renews TLS cert periodically
 type HitlessCertRotator interface {
@@ -42,12 +42,19 @@ type hitlessCertRotator struct {
 
 	cert    *tls.Certificate
 	ethPriv *ecdsa.PrivateKey
+
+	certValidPeriod time.Duration
 }
 
 func NewHitlessCertRotator(ctx context.Context, ethPriv *ecdsa.PrivateKey) (HitlessCertRotator, *tls.Config, error) {
+	return newHitlessCertRotator(ctx, ethPriv, defaultValidPeriod)
+}
+
+func newHitlessCertRotator(ctx context.Context, ethPriv *ecdsa.PrivateKey, certValidPeriod time.Duration) (HitlessCertRotator, *tls.Config, error) {
 	var err error
 	rotator := hitlessCertRotator{
-		ethPriv: ethPriv,
+		ethPriv:         ethPriv,
+		certValidPeriod: certValidPeriod,
 	}
 
 	rotator.cert, err = rotator.rotateOnce()
@@ -73,7 +80,7 @@ func NewHitlessCertRotator(ctx context.Context, ethPriv *ecdsa.PrivateKey) (Hitl
 }
 
 func (r *hitlessCertRotator) rotateOnce() (*tls.Certificate, error) {
-	certPEM, keyPEM, err := GenerateCert(r.ethPriv)
+	certPEM, keyPEM, err := GenerateCert(r.ethPriv, r.certValidPeriod)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +93,7 @@ func (r *hitlessCertRotator) rotateOnce() (*tls.Certificate, error) {
 }
 
 func (r *hitlessCertRotator) rotation() {
-	rotationPeriod := validPeriod / 3
+	rotationPeriod := r.certValidPeriod / 3
 	log.G(r.ctx).Debug("start certificate rotation loop", zap.Duration("every", rotationPeriod))
 	t := time.NewTicker(rotationPeriod)
 	defer t.Stop()
@@ -131,7 +138,7 @@ func (r *hitlessCertRotator) GetClientCertificate(*tls.CertificateRequestInfo) (
 
 // GenerateCert generates new PEM encoded x509cert and privatekey key.
 // Generated certificate contains signature of a publick key by eth key
-func GenerateCert(ethpriv *ecdsa.PrivateKey) (cert []byte, key []byte, err error) {
+func GenerateCert(ethpriv *ecdsa.PrivateKey, validPeriod time.Duration) (cert []byte, key []byte, err error) {
 	var issuerCommonName = new(bytes.Buffer)
 	// x509 Certificate signed with an randomly generated RSA key
 	// Certificate contains signature of ecdsa publick with ethprivate key
