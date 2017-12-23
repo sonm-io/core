@@ -273,7 +273,7 @@ func extractWalletFromContext(ctx context.Context) (string, error) {
 
 		return walletMD[0], nil
 	default:
-		return "", status.Error(codes.Unauthenticated, "unknown auth info")
+		return "", status.Errorf(codes.Unauthenticated, "unknown auth info %T", peerInfo.AuthInfo)
 	}
 }
 

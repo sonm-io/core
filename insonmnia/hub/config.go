@@ -46,9 +46,10 @@ type ClusterConfig struct {
 }
 
 type WhitelistConfig struct {
-	Url           string `yaml:"url"`
-	Enabled       *bool  `yaml:"enabled" default:"true" required:"true"`
-	RefreshPeriod uint   `yaml:"refresh_period" default:"60"`
+	Url                 string   `yaml:"url"`
+	Enabled             *bool    `yaml:"enabled" default:"true" required:"true"`
+	PrivilegedAddresses []string `yaml:"privileged_addresses"`
+	RefreshPeriod       uint     `yaml:"refresh_period" default:"60"`
 }
 
 type Config struct {
