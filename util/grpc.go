@@ -2,6 +2,7 @@ package util
 
 import (
 	"context"
+	"strings"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -33,4 +34,9 @@ func MakeGrpcServer(creds credentials.TransportCredentials, extraopts ...grpc.Se
 	}
 	srv := grpc.NewServer(append(opts, extraopts...)...)
 	return srv
+}
+
+func ExtractMethod(fullMethod string) string {
+	parts := strings.Split(fullMethod, "/")
+	return parts[len(parts)-1]
 }
