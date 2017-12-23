@@ -799,41 +799,78 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	if err := miner.Consume(OrderId(request.GetBidId()), &usage); err != nil {
+	orderID := OrderId(request.GetBidId())
+	if err := miner.Consume(orderID, &usage); err != nil {
 		return nil, err
 	}
 
-	go h.watchForDealCreated(ctx, request, order)
+	go func() {
+		h.executeDeal(ctx, request, order)
+		miner.Release(OrderId(order.GetID()))
+	}()
 
 	return &pb.Empty{}, nil
 }
 
-func (h *Hub) watchForDealCreated(ctx context.Context, req *structs.DealRequest, order *structs.Order) {
-	createdDeal, err := h.eth.WaitForDealCreated(req)
-	if err != nil || createdDeal == nil {
-		log.G(h.ctx).Warn(
-			"cannot find created deal for current proposal",
-			zap.String("bid_id", req.BidId),
-			zap.String("ask_id", req.GetAskId()))
-		return
+func (h *Hub) executeDeal(ctx context.Context, request *structs.DealRequest, order *structs.Order) error {
+	dealID, err := h.waitForDealCreated(ctx, request, order)
+	if err != nil {
+		log.G(h.ctx).Error("failed to wait for deal created", zap.Error(err))
+		return err
 	}
 
-	err = h.eth.AcceptDeal(createdDeal.GetId())
+	// Start deal timer to properly deallocate resources.
+	timer := time.AfterFunc(order.GetDuration(), func() {
+		if err := h.eth.CloseDeal(dealID); err != nil {
+			log.G(h.ctx).Error("failed to close using blockchain API",
+				zap.String("dealID", string(dealID)),
+				zap.Error(err),
+			)
+		}
+	})
+	defer timer.Stop()
+
+	if err := h.waitForDealClosed(dealID, request.GetOrder().GetByuerID()); err != nil {
+		log.G(h.ctx).Warn("failed to wait for deal closed",
+			zap.String("dealID", string(dealID)),
+			zap.Error(err),
+		)
+	}
+
+	if err := h.closeDeal(dealID); err != nil {
+		log.G(h.ctx).Error("failed to close deal",
+			zap.String("dealID", string(dealID)),
+			zap.Error(err),
+		)
+		return err
+	}
+
+	return nil
+}
+
+func (h *Hub) waitForDealCreated(ctx context.Context, req *structs.DealRequest, order *structs.Order) (DealID, error) {
+	createdDeal, err := h.eth.WaitForDealCreated(req)
+	if err != nil || createdDeal == nil {
+		log.G(h.ctx).Warn("cannot find created deal for current proposal",
+			zap.String("bidID", req.BidId),
+			zap.String("askID", req.GetAskId()),
+		)
+		return "", err
+	}
+
+	dealID := DealID(createdDeal.GetId())
+	err = h.eth.AcceptDeal(string(dealID))
 	if err != nil {
-		log.G(ctx).Warn("cannot accept deal",
-			zap.String("deal_id", createdDeal.GetId()),
-			zap.Error(err))
-		return
+		log.G(ctx).Warn("cannot accept deal", zap.String("dealID", string(dealID)), zap.Error(err))
+		return "", err
 	}
 
 	_, err = h.market.CancelOrder(h.ctx, &pb.Order{Id: req.GetAskId()})
 	if err != nil {
 		log.G(ctx).Warn("cannot cancel ask order from marketplace",
-			zap.String("ask_id", req.GetAskId()),
+			zap.String("askID", req.GetAskId()),
 			zap.Error(err))
 	}
-
-	dealID := DealID(createdDeal.GetId())
 
 	h.tasksMu.Lock()
 	h.deals[dealID] = &DealMeta{
@@ -844,20 +881,26 @@ func (h *Hub) watchForDealCreated(ctx context.Context, req *structs.DealRequest,
 	h.cluster.Synchronize(h.deals)
 	h.tasksMu.Unlock()
 
-	go h.watchForDealClosed(dealID, req.GetOrder().GetByuerID())
+	return dealID, nil
 }
 
-func (h *Hub) watchForDealClosed(dealID DealID, buyerId string) {
+func (h *Hub) waitForDealClosed(dealID DealID, buyerId string) error {
 	if err := h.eth.WaitForDealClosed(h.ctx, dealID, buyerId); err != nil {
 		log.G(h.ctx).Error("failed to wait for closing deal",
 			zap.String("dealID", string(dealID)),
 			zap.Error(err),
 		)
+		return err
 	}
 
+	return nil
+}
+
+// CloseDeal closes the specified deal freeing all associated resources.
+func (h *Hub) closeDeal(dealID DealID) error {
 	tasks, err := h.popDealHistory(dealID)
 	if err != nil {
-		return
+		return err
 	}
 
 	log.S(h.ctx).Infof("stopping at max %d tasks due to deal closing", len(tasks))
@@ -874,6 +917,8 @@ func (h *Hub) watchForDealClosed(dealID DealID, buyerId string) {
 			)
 		}
 	}
+
+	return nil
 }
 
 func (h *Hub) isTaskFinished(id string) bool {
