@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -20,26 +19,31 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
+
+	"encoding/json"
+
+	"github.com/docker/libkv"
+	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/boltdb"
+	"github.com/docker/libkv/store/consul"
 )
 
-var errNodeNotFound = errors.New("node with given Eth address cannot be found")
+var errNodeNotFound = errors.New("record with given Eth address cannot be found")
 
-type node struct {
-	ethAddr common.Address
-	ipAddr  []string
-	ts      time.Time
+type record struct {
+	EthAddr common.Address
+	IPs     []string
+	TS      time.Time
 }
 
 type Locator struct {
-	mx sync.Mutex
-
-	conf        *LocatorConfig
-	db          map[common.Address]*node
+	conf        *Config
 	ctx         context.Context
-	ethKey      *ecdsa.PrivateKey
 	grpc        *grpc.Server
 	certRotator util.HitlessCertRotator
 	creds       credentials.TransportCredentials
+
+	storage store.Store
 }
 
 func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Empty, error) {
@@ -49,12 +53,17 @@ func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Em
 	}
 
 	log.G(l.ctx).Info("handling Announce request",
-		zap.Stringer("eth", ethAddr), zap.Strings("ips", req.IpAddr))
+		zap.Stringer("eth", ethAddr),
+		zap.Strings("ips", req.IpAddr))
 
-	l.putAnnounce(&node{
-		ethAddr: ethAddr,
-		ipAddr:  req.IpAddr,
+	err = l.put(&record{
+		EthAddr: ethAddr,
+		IPs:     req.IpAddr,
 	})
+
+	if err != nil {
+		return nil, err
+	}
 
 	return &pb.Empty{}, nil
 }
@@ -66,12 +75,12 @@ func (l *Locator) Resolve(ctx context.Context, req *pb.ResolveRequest) (*pb.Reso
 		return nil, fmt.Errorf("invalid ethaddress %s", req.EthAddr)
 	}
 
-	n, err := l.getResolve(common.HexToAddress(req.EthAddr))
+	rec, err := l.get(common.HexToAddress(req.EthAddr))
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.ResolveReply{IpAddr: n.ipAddr}, nil
+	return &pb.ResolveReply{IpAddr: rec.IPs}, nil
 }
 
 func (l *Locator) Serve() error {
@@ -97,87 +106,88 @@ func (l *Locator) extractEthAddr(ctx context.Context) (common.Address, error) {
 	}
 }
 
-func (l *Locator) putAnnounce(n *node) {
-	l.mx.Lock()
-	defer l.mx.Unlock()
+func (l *Locator) put(rec *record) error {
+	rec.TS = time.Now()
+	key := rec.EthAddr.Hex()
+	value, err := json.Marshal(rec)
+	if err != nil {
+		return err
+	}
 
-	n.ts = time.Now()
-	l.db[n.ethAddr] = n
+	return l.storage.Put(key, value, nil)
 }
 
-func (l *Locator) getResolve(ethAddr common.Address) (*node, error) {
-	l.mx.Lock()
-	defer l.mx.Unlock()
+func (l *Locator) get(ethAddr common.Address) (*record, error) {
+	key := ethAddr.Hex()
 
-	n, ok := l.db[ethAddr]
-	if !ok {
+	pair, err := l.storage.Get(key)
+	if err != nil {
+		log.G(l.ctx).Debug("record not found", zap.String("key", key))
 		return nil, errNodeNotFound
 	}
 
-	return n, nil
-}
-
-func (l *Locator) cleanExpiredNodes() {
-	t := time.NewTicker(l.conf.CleanupPeriod)
-	defer t.Stop()
-
-	for {
-		select {
-		case <-t.C:
-			l.traverseAndClean()
-		}
-	}
-}
-
-func (l *Locator) traverseAndClean() {
-	deadline := time.Now().Add(-1 * l.conf.NodeTTL)
-
-	l.mx.Lock()
-	defer l.mx.Unlock()
-
-	var (
-		total = len(l.db)
-		del   uint64
-		keep  uint64
-	)
-	for addr, node := range l.db {
-		if node.ts.Before(deadline) {
-			delete(l.db, addr)
-			del++
-		} else {
-			keep++
-		}
+	rec := &record{}
+	if err = json.Unmarshal(pair.Value, rec); err != nil {
+		return nil, err
 	}
 
-	log.G(l.ctx).Debug("expired nodes cleaned",
-		zap.Int("total", total), zap.Uint64("keep", keep), zap.Uint64("del", del))
+	notBefore := time.Now().Add(-1 * l.conf.NodeTTL)
+	if rec.TS.Before(notBefore) {
+		log.G(l.ctx).Debug("record is expired", zap.String("key", key))
+		l.storage.Delete(pair.Key)
+		return nil, errNodeNotFound
+	}
+
+	return rec, nil
 }
 
-func NewLocator(ctx context.Context, conf *LocatorConfig, key *ecdsa.PrivateKey) (l *Locator, err error) {
+func initStorage(ctx context.Context, conf storeConfig) (store.Store, error) {
+	consul.Register()
+	boltdb.Register()
+
+	log.G(ctx).Info("creating store", zap.Any("store", conf))
+
+	endpoints := []string{conf.Endpoint}
+	backend := store.Backend(conf.Type)
+
+	config := store.Config{
+		TLS:    nil,
+		Bucket: conf.Bucket,
+	}
+
+	storage, err := libkv.NewStore(backend, endpoints, &config)
+	if err != nil {
+		return nil, err
+	}
+
+	return storage, nil
+}
+
+func NewLocator(ctx context.Context, conf *Config, key *ecdsa.PrivateKey) (l *Locator, err error) {
 	if key == nil {
 		return nil, errors.Wrap(err, "private key should be provided")
 	}
 
 	l = &Locator{
-		db:     make(map[common.Address]*node),
-		conf:   conf,
-		ctx:    ctx,
-		ethKey: key,
+		conf: conf,
+		ctx:  ctx,
 	}
 
 	var TLSConfig *tls.Config
-	l.certRotator, TLSConfig, err = util.NewHitlessCertRotator(ctx, l.ethKey)
+	l.certRotator, TLSConfig, err = util.NewHitlessCertRotator(ctx, key)
 	if err != nil {
 		return nil, err
 	}
 
+	s, err := initStorage(ctx, conf.Store)
+	if err != nil {
+		return nil, err
+	}
+
+	l.storage = s
 	l.creds = util.NewTLS(TLSConfig)
-	srv := util.MakeGrpcServer(l.creds)
-	l.grpc = srv
+	l.grpc = util.MakeGrpcServer(l.creds)
 
-	go l.cleanExpiredNodes()
-
-	pb.RegisterLocatorServer(srv, l)
-
+	pb.RegisterLocatorServer(l.grpc, l)
 	return l, nil
 }
