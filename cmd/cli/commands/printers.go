@@ -76,11 +76,11 @@ func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskListRep
 	if isSimpleFormat() {
 		for worker, tasks := range tasksMap {
 			if len(tasks.GetTasks()) == 0 {
-				cmd.Printf("Worker \"%s\" has no tasks\r\n", worker)
+				cmd.Printf("Hub \"%s\" has no tasks\r\n", worker)
 				continue
 			}
 
-			cmd.Printf("Worker \"%s\":\r\n", worker)
+			cmd.Printf("Hub \"%s\":\r\n", worker)
 			i := 1
 			for ID, status := range tasks.GetTasks() {
 				up := time.Duration(status.GetUptime())
