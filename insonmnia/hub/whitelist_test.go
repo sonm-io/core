@@ -13,7 +13,7 @@ import (
 
 func TestWhitelistSuperuser(t *testing.T) {
 	w := whitelist{
-		superusers: map[string]struct{}{"0x42": struct{}{}},
+		superusers: map[string]struct{}{"0x42": {}},
 	}
 
 	ctx := peer.NewContext(context.Background(), &peer.Peer{AuthInfo: util.EthAuthInfo{Wallet: common.HexToAddress("0x42")}})
