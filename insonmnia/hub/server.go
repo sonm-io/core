@@ -865,7 +865,7 @@ func (h *Hub) waitForDealCreated(ctx context.Context, req *structs.DealRequest, 
 		return "", err
 	}
 
-	_, err = h.market.CancelOrder(h.ctx, &pb.Order{Id: req.GetAskId()})
+	_, err = h.market.CancelOrder(h.ctx, &pb.Order{Id: req.GetAskId(), OrderType: pb.OrderType_ASK})
 	if err != nil {
 		log.G(ctx).Warn("cannot cancel ask order from marketplace",
 			zap.String("askID", req.GetAskId()),
