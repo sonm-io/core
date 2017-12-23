@@ -59,7 +59,6 @@ message Order {
     // Supplier's is EtherumID
     string supplierID = 3;
     // Order price
-    // int64 price = 4;
     string price = 4;
     // Order type (Bid or Ask)
     OrderType orderType = 5;
