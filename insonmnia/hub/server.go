@@ -771,7 +771,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 
 	order, err := structs.NewOrder(bidOrder)
 	if err != nil {
-		return nil, status.Errorf(codes.DataLoss, "bid order is malformed: %v", err)
+		return nil, status.Errorf(codes.Internal, "bid order is malformed: %v", err)
 	}
 
 	askOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: r.GetAskId()})
