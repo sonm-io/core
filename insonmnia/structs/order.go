@@ -101,5 +101,5 @@ func (o *Order) GetByuerID() string {
 }
 
 func (o *Order) GetDuration() time.Duration {
-	return time.Duration(o.inner.Slot.Duration)
+	return time.Duration(o.inner.Slot.Duration) * time.Second
 }
