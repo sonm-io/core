@@ -24,80 +24,80 @@ func getTestKey() *ecdsa.PrivateKey {
 }
 
 func TestLocator_Announce(t *testing.T) {
-	lc, err := NewLocator(context.Background(), DefaultConfig(":9090"), key)
+	lc, err := NewLocator(context.Background(), testConfig(":9090"), key)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	lc.putAnnounce(&node{ethAddr: common.StringToAddress("123")})
-	lc.putAnnounce(&node{ethAddr: common.StringToAddress("234")})
-	lc.putAnnounce(&node{ethAddr: common.StringToAddress("345")})
+	put := []string{
+		"123",
+		"234",
+		"345",
+	}
 
-	assert.Len(t, lc.db, 3)
+	for _, addr := range put {
+		lc.put(&record{EthAddr: common.StringToAddress(addr)})
+	}
 
-	lc.putAnnounce(&node{ethAddr: common.StringToAddress("123")})
-	lc.putAnnounce(&node{ethAddr: common.StringToAddress("123")})
-	lc.putAnnounce(&node{ethAddr: common.StringToAddress("123")})
-
-	assert.Len(t, lc.db, 3)
+	for _, addr := range put {
+		rk, err := lc.get(common.StringToAddress(addr))
+		assert.NoError(t, err)
+		assert.Equal(t, rk.EthAddr, common.StringToAddress(addr))
+	}
 }
 
 func TestLocator_Resolve(t *testing.T) {
-	lc, err := NewLocator(context.Background(), DefaultConfig(":9090"), key)
+	lc, err := NewLocator(context.Background(), testConfig(":9090"), key)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	n := &node{ethAddr: common.StringToAddress("123"), ipAddr: []string{"111", "222"}}
-	lc.putAnnounce(n)
+	n := &record{EthAddr: common.StringToAddress("123"), IPs: []string{"111", "222"}}
+	lc.put(n)
 
-	n2, err := lc.getResolve(common.StringToAddress("123"))
+	n2, err := lc.get(common.StringToAddress("123"))
 	assert.NoError(t, err)
-	assert.Len(t, n2.ipAddr, 2)
+	assert.Len(t, n2.IPs, 2)
 }
 
 func TestLocator_Resolve2(t *testing.T) {
-	lc, err := NewLocator(context.Background(), DefaultConfig(":9090"), key)
+	lc, err := NewLocator(context.Background(), testConfig(":9090"), key)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	n := &node{ethAddr: common.StringToAddress("123"), ipAddr: []string{"111", "222"}}
-	lc.putAnnounce(n)
+	n := &record{EthAddr: common.StringToAddress("123"), IPs: []string{"111", "222"}}
+	lc.put(n)
 
-	n2, err := lc.getResolve(common.StringToAddress("666"))
+	n2, err := lc.get(common.StringToAddress("666"))
 	assert.Equal(t, err, errNodeNotFound)
 	assert.Nil(t, n2)
 }
 
 func TestLocator_Expire(t *testing.T) {
-	conf := &LocatorConfig{
-		ListenAddr:    ":9090",
-		NodeTTL:       2 * time.Second,
-		CleanupPeriod: time.Second,
-	}
-
-	lc, err := NewLocator(context.Background(), conf, key)
+	lc, err := NewLocator(context.Background(), testConfig(":9090"), key)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	lc.putAnnounce(&node{ethAddr: common.StringToAddress("111")})
-	lc.putAnnounce(&node{ethAddr: common.StringToAddress("222")})
-	time.Sleep(1 * time.Second)
-	assert.Len(t, lc.db, 2)
-	lc.putAnnounce(&node{ethAddr: common.StringToAddress("333")})
-	assert.Len(t, lc.db, 3)
-	time.Sleep(1500 * time.Millisecond)
-	assert.Len(t, lc.db, 1)
+	lc.put(&record{EthAddr: common.StringToAddress("111")})
+	time.Sleep(500 * time.Millisecond)
+	rec, err := lc.get(common.StringToAddress("111"))
+	assert.NoError(t, err)
+	assert.Equal(t, rec.EthAddr, common.StringToAddress("111"))
+
+	time.Sleep(1000 * time.Millisecond)
+	rec, err = lc.get(common.StringToAddress("111"))
+	assert.Error(t, err)
+	assert.Nil(t, rec)
 }
 
 func TestLocator_AnnounceExternal(t *testing.T) {
-	lc, err := NewLocator(context.Background(), DefaultConfig("localhost:9090"), key)
+	lc, err := NewLocator(context.Background(), testConfig("localhost:9090"), key)
 	if err != nil {
 		t.Error(err)
 		return
@@ -109,13 +109,13 @@ func TestLocator_AnnounceExternal(t *testing.T) {
 		}
 	}()
 
-	cert, key, err := util.GenerateCert(key)
+	cert, crtKey, err := util.GenerateCert(key)
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
-	crt, err := tls.X509KeyPair(cert, key)
+	crt, err := tls.X509KeyPair(cert, crtKey)
 	if err != nil {
 		t.Error(err)
 		return
@@ -136,7 +136,8 @@ func TestLocator_AnnounceExternal(t *testing.T) {
 		return
 	}
 
-	if len(lc.db) != 1 {
-		t.Error("Failed to securely announce")
-	}
+	rec, err := lc.get(util.PubKeyToAddr(key.PublicKey))
+	assert.NoError(t, err)
+
+	assert.Equal(t, rec.EthAddr, util.PubKeyToAddr(key.PublicKey))
 }
