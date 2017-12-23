@@ -581,14 +581,18 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 		return nil, status.Errorf(codes.NotFound, "no task with id %s", req.GetId())
 	}
 
-	metrics, err := m.ovs.Info(ctx)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "cannot get container metrics: %s", err.Error())
-	}
+	var metric ContainerMetrics
+	// If a container has been stoped, ovs.Info has no metrics for such container
+	if info.status.Status == pb.TaskStatusReply_RUNNING {
+		metrics, err := m.ovs.Info(ctx)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "cannot get container metrics: %s", err.Error())
+		}
 
-	metric, ok := metrics[info.ID]
-	if !ok {
-		return nil, status.Errorf(codes.NotFound, "Cannot get metrics for container %s", req.GetId())
+		metric, ok = metrics[info.ID]
+		if !ok {
+			return nil, status.Errorf(codes.NotFound, "Cannot get metrics for container %s", req.GetId())
+		}
 	}
 
 	portsStr, _ := json.Marshal(info.Ports)
@@ -596,7 +600,7 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 		Status:    info.status.Status,
 		ImageName: info.ImageName,
 		Ports:     string(portsStr),
-		Uptime:    uint64(time.Now().UnixNano() - info.StartAt.UnixNano()),
+		Uptime:    uint64(time.Now().Sub(info.StartAt).Nanoseconds()),
 		Usage:     metric.Marshal(),
 		AvailableResources: &pb.AvailableResources{
 			NumCPUs:      int64(info.Resources.NumCPUs),
