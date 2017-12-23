@@ -433,7 +433,7 @@ func (h *Hub) generateTaskID() string {
 }
 
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
-	allowed, ref, err := h.whitelist.Allowed(h.ctx, request.Registry, request.Image, request.Auth)
+	allowed, ref, err := h.whitelist.Allowed(ctx, request.Registry, request.Image, request.Auth)
 	if err != nil {
 		return nil, err
 	}
@@ -1243,6 +1243,8 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	if defaults.creds != nil {
 		acl.Insert(defaults.ethAddr.Hex())
 	}
+
+	cfg.Whitelist.PrivilegedAddresses = append(cfg.Whitelist.PrivilegedAddresses, defaults.ethAddr.Hex())
 
 	wl := NewWhitelist(ctx, &cfg.Whitelist)
 

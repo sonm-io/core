@@ -27,6 +27,11 @@ func NewWhitelist(ctx context.Context, config *WhitelistConfig) Whitelist {
 	}
 
 	wl := whitelist{}
+
+	for _, su := range config.PrivilegedAddresses {
+		wl.superusers[su] = struct{}{}
+	}
+
 	go wl.updateRoutine(ctx, config.Url, config.RefreshPeriod)
 
 	return &wl
@@ -37,8 +42,9 @@ type WhitelistRecord struct {
 }
 
 type whitelist struct {
-	Records   map[string]WhitelistRecord
-	RecordsMu sync.RWMutex
+	superusers map[string]struct{}
+	Records    map[string]WhitelistRecord
+	RecordsMu  sync.RWMutex
 }
 
 func (w *whitelist) updateRoutine(ctx context.Context, url string, updatePeriod uint) error {
@@ -111,6 +117,15 @@ func (w *whitelist) Allowed(ctx context.Context, registry string, image string, 
 	ref, err := reference.ParseNormalizedNamed(fullName)
 	if err != nil {
 		return false, nil, err
+	}
+
+	wallet, err := extractWalletFromContext(ctx)
+	if err != nil {
+		log.G(ctx).Warn("could not extract wallet from context", zap.Error(err))
+	}
+	_, ok := w.superusers[wallet]
+	if ok {
+		return true, ref, nil
 	}
 
 	digestedRef, isDigested := ref.(reference.Digested)
