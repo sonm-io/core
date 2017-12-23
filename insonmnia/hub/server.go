@@ -179,18 +179,16 @@ func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error
 	}
 	h.minersMu.Unlock()
 
-	h.tasksMu.Lock()
-	for _, taskInfo := range h.tasks {
-		list, ok := reply.Info[taskInfo.MinerId]
-		if !ok {
-			reply.Info[taskInfo.MinerId] = &pb.ListReply_ListValue{
-				Values: make([]string, 0),
+	for minerID := range reply.Info {
+		infoReply, err := h.Info(ctx, &pb.ID{Id: minerID})
+		if err == nil {
+			list := reply.Info[minerID]
+			for taskID := range infoReply.Usage {
+				list.Values = append(list.Values, taskID)
 			}
-			list = reply.Info[taskInfo.MinerId]
+			reply.Info[minerID] = list
 		}
-		list.Values = append(list.Values, taskInfo.ID)
 	}
-	h.tasksMu.Unlock()
 
 	return reply, nil
 }
