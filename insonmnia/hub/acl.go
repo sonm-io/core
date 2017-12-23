@@ -183,7 +183,7 @@ func (h *hubManagementAuthorization) Authorize(ctx context.Context, request inte
 		if util.EqualAddresses(auth.Wallet, h.ethAddr) {
 			return nil
 		}
-		return status.Errorf(codes.Unauthenticated, "the wallet %s has no access", auth.Wallet)
+		return status.Errorf(codes.Unauthenticated, "the wallet %s has no access", auth.Wallet.Hex())
 	default:
 		return status.Error(codes.Unauthenticated, "unknown auth info")
 	}
