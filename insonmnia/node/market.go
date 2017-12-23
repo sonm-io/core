@@ -30,7 +30,7 @@ var (
 )
 
 const (
-	statusNew uint8 = iota
+	statusNew            uint8 = iota
 	statusSearching
 	statusProposing
 	statusDealing
@@ -200,12 +200,13 @@ func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey, wait t
 
 	bigPricePerHour, err := util.ParseBigInt(order.Price)
 	if err != nil {
+		h.setError(err)
 		return nil, err
 	}
 	bigPricePerSecond := bigPricePerHour.Div(bigPricePerHour, big.NewInt(3600))
 	bigDuration := big.NewInt(int64(order.Slot.Duration))
-	price:= big.NewInt(0).Mul(bigPricePerSecond, bigDuration).String()
-	
+	price := big.NewInt(0).Mul(bigPricePerSecond, bigDuration).String()
+
 	deal := &pb.Deal{
 		WorkTime:          h.order.GetSlot().GetDuration(),
 		SupplierID:        order.GetSupplierID(),
