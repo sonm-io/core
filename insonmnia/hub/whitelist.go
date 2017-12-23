@@ -26,7 +26,9 @@ func NewWhitelist(ctx context.Context, config *WhitelistConfig) Whitelist {
 		return &disabledWhitelist{}
 	}
 
-	wl := whitelist{}
+	wl := whitelist{
+		superusers: make(map[string]struct{}),
+	}
 
 	for _, su := range config.PrivilegedAddresses {
 		wl.superusers[su] = struct{}{}
