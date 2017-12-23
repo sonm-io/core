@@ -7,17 +7,28 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
 
 func TestWhitelistSuperuser(t *testing.T) {
 	w := whitelist{
-		superusers: map[string]struct{}{"0x42": {}},
+		superusers: map[string]struct{}{addr.Hex(): {}},
 	}
 
-	ctx := peer.NewContext(context.Background(), &peer.Peer{AuthInfo: util.EthAuthInfo{Wallet: common.HexToAddress("0x42")}})
-	ctx = metadata.NewIncomingContext(ctx, metadata.New(map[string]string{"wallet": "0x42"}))
+	wallet, err := util.NewSelfSignedWallet(key)
+	require.NoError(t, err)
+
+	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
+		AuthInfo: util.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
+	})
+
+	ctx := metadata.NewIncomingContext(peerCtx, metadata.New(map[string]string{
+		"wallet": wallet.Message,
+	}))
+
 	allowed, _, err := w.Allowed(ctx, "docker.io", "hello-world", "")
 	assert.NoError(t, err)
 	assert.True(t, allowed)
