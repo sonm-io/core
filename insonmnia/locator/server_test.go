@@ -109,7 +109,7 @@ func TestLocator_AnnounceExternal(t *testing.T) {
 		}
 	}()
 
-	cert, crtKey, err := util.GenerateCert(key)
+	cert, crtKey, err := util.GenerateCert(key, time.Hour*4)
 	if err != nil {
 		t.Error(err)
 		return

@@ -22,7 +22,7 @@ func TestTLSGenCerts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	certPEM, keyPEM, err := GenerateCert(priv)
+	certPEM, keyPEM, err := GenerateCert(priv, time.Second*20)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
