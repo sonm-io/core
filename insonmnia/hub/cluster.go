@@ -646,12 +646,19 @@ func makeDuration(numSeconds uint64) time.Duration {
 
 func parseEndpoints(config *ClusterConfig) ([]string, error) {
 	endpoints := make([]string, 0)
-	host, port, err := net.SplitHostPort(config.Endpoint)
-	if len(host) != 0 {
+	ipAddr, port, err := net.SplitHostPort(config.Endpoint)
+	if err != nil {
+		return nil, err
+	}
+	ip := net.ParseIP(ipAddr)
+	if ip == nil {
+		return nil, fmt.Errorf("%s must be a valid IP", ipAddr)
+	}
+	if !ip.IsUnspecified() {
 		endpoints = append(endpoints, config.Endpoint)
 		return endpoints, nil
 	}
-
+	// Fallback to autodetection IP mechanism
 	systemIPs, err := util.GetAvailableIPs()
 	if err != nil {
 		return nil, err
