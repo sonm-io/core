@@ -8,7 +8,6 @@ import (
 	"math/rand"
 	"net"
 	"reflect"
-	"strings"
 	"sync"
 	"time"
 
@@ -146,7 +145,6 @@ type DeviceProperties map[string]float64
 
 // Ping should be used as Healthcheck for Hub
 func (h *Hub) Ping(ctx context.Context, _ *pb.Empty) (*pb.PingReply, error) {
-	log.G(h.ctx).Info("handling Ping request")
 	return &pb.PingReply{}, nil
 }
 
@@ -171,8 +169,6 @@ func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, erro
 
 // List returns attached miners
 func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error) {
-	log.G(h.ctx).Info("handling List request")
-
 	reply := &pb.ListReply{
 		Info: make(map[string]*pb.ListReply_ListValue),
 	}
@@ -201,7 +197,6 @@ func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error
 
 // Info returns aggregated runtime statistics for specified miners.
 func (h *Hub) Info(ctx context.Context, request *pb.ID) (*pb.InfoReply, error) {
-	log.G(h.ctx).Info("handling Info request", zap.Any("req", request))
 	client, ok := h.getMinerByID(request.GetId())
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no such miner")
@@ -222,14 +217,16 @@ type routeMapping struct {
 
 func (h *Hub) onRequest(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	log.G(h.ctx).Debug("intercepting request")
-	forwarded, r, err := h.tryForwardToLeader(ctx, request, info)
-	if forwarded {
-		return r, err
-	}
-
 	if err := h.eventAuthorization.authorize(ctx, method(info.FullMethod), request); err != nil {
 		return nil, err
 	}
+
+	forwarded, r, err := h.tryForwardToLeader(ctx, request, info)
+	if forwarded {
+		log.S(h.ctx).Infof("forwarded %s request to leader", util.ExtractMethod(info.FullMethod))
+		return r, err
+	}
+	log.S(h.ctx).Infof("handling %s request", util.ExtractMethod(info.FullMethod))
 
 	return handler(ctx, request)
 }
@@ -239,7 +236,7 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 		log.G(h.ctx).Info("isLeader is true")
 		return false, nil, nil
 	}
-	log.G(h.ctx).Info("forwarding to leader", zap.String("method", info.FullMethod))
+	log.S(h.ctx).Info("forwarding %s request to leader", util.ExtractMethod(info.FullMethod))
 	cli, err := h.cluster.LeaderClient()
 	if err != nil {
 		log.G(h.ctx).Warn("failed to get leader client")
@@ -254,10 +251,7 @@ func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info 
 }
 
 func proxyRequestCall(ctx context.Context, client pb.HubClient, request interface{}, info *grpc.UnaryServerInfo) (interface{}, error) {
-	parts := strings.Split(info.FullMethod, "/")
-	methodName := parts[len(parts)-1]
-
-	m := reflect.ValueOf(client).MethodByName(methodName)
+	m := reflect.ValueOf(client).MethodByName(util.ExtractMethod(info.FullMethod))
 	ctx = util.ForwardMetadata(ctx)
 
 	inValues := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(request)}
