@@ -645,31 +645,30 @@ func makeDuration(numSeconds uint64) time.Duration {
 }
 
 func parseEndpoints(config *ClusterConfig) ([]string, error) {
-	endpoints := make([]string, 0)
 	ipAddr, port, err := net.SplitHostPort(config.Endpoint)
 	if err != nil {
 		return nil, err
 	}
-	ip := net.ParseIP(ipAddr)
-	if ip == nil {
-		return nil, fmt.Errorf("%s must be a valid IP", ipAddr)
+
+	if len(ipAddr) != 0 {
+		ip := net.ParseIP(ipAddr)
+		if ip == nil {
+			return nil, fmt.Errorf("%s must be a valid IP", ipAddr)
+		}
+		if !ip.IsUnspecified() {
+			return []string{config.Endpoint}, nil
+		}
 	}
-	if !ip.IsUnspecified() {
-		endpoints = append(endpoints, config.Endpoint)
-		return endpoints, nil
-	}
-	// Fallback to autodetection IP mechanism
+
+	// Fallback to IP autodetection mechanism
+	endpoints := make([]string, 0)
 	systemIPs, err := util.GetAvailableIPs()
 	if err != nil {
 		return nil, err
 	}
 
 	for _, ip := range systemIPs {
-		if ip4 := ip.To4(); ip4 != nil {
-			endpoints = append(endpoints, ip4.String()+":"+port)
-		} else {
-			endpoints = append(endpoints, "["+ip.String()+"]:"+port)
-		}
+		endpoints = append(endpoints, net.JoinHostPort(ip.String(), port))
 	}
 
 	return endpoints, nil
