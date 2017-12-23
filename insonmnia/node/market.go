@@ -204,9 +204,9 @@ func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey, wait t
 		return nil, err
 	}
 	bigDuration := big.NewInt(int64(order.Slot.Duration))
-	
-	bigDirationHours := big.NewInt(0).Div(bigDuration, big.NewInt(3600))
-	price := big.NewInt(0).Mul(bigPricePerHour, bigDirationHours).String()
+
+	bigDurationHours := big.NewInt(0).Div(bigDuration, big.NewInt(3600))
+	price := big.NewInt(0).Mul(bigPricePerHour, bigDurationHours).String()
 
 	deal := &pb.Deal{
 		WorkTime:          h.order.GetSlot().GetDuration(),
