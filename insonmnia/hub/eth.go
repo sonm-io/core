@@ -19,10 +19,10 @@ type ETH interface {
 	// WaitForDealClosed blocks the current execution context until the
 	// specified deal is closed.
 	WaitForDealClosed(ctx context.Context, dealID DealID, buyerID string) error
-
-	// AcceptDeal approves deal on Hub-side
+	// AcceptDeal approves deal on Hub-side.
 	AcceptDeal(id string) error
-
+	// CloseDeal closes the specified deal on Hub-side.
+	CloseDeal(id DealID) error
 	// GetDeal checks whether a given deal exists.
 	GetDeal(id string) (*pb.Deal, error)
 }
@@ -136,6 +136,16 @@ func (e *eth) AcceptDeal(id string) error {
 	}
 
 	_, err = e.bc.AcceptDeal(e.key, bigID)
+	return err
+}
+
+func (e *eth) CloseDeal(id DealID) error {
+	bigID, err := util.ParseBigInt(string(id))
+	if err != nil {
+		return err
+	}
+
+	_, err = e.bc.CloseDeal(e.key, bigID)
 	return err
 }
 
