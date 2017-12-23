@@ -1,8 +1,8 @@
 address: "127.0.0.1:9090"
 
-node_ttl: "1h"
+node_ttl: "10m"
 
-cleanup_period: "1s"
+cleanup_period: "1m"
 
 # blockchain-specific settings.
 ethereum:
@@ -10,3 +10,15 @@ ethereum:
   key_store: "./keys"
   # passphrase for keystore
   pass_phrase: "any"
+
+store:
+  # Type of the storage to use.
+  # Possible types are: "consul", "zookeeper", "etcd" and "boltdb"
+  # boltDB is a local storage, so it can not be used with failover switched on
+  type: "boltdb"
+
+  # storage specific endpoint. Directory for boltdb, tcp endpoint for other types
+  endpoint: "/tmp/sonm/locator_boltdb"
+
+  # Storage bucket to store all data in
+  bucket: "sonm"
