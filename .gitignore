@@ -29,7 +29,7 @@ coverage*
 sonmhub
 sonmcli
 sonmcli_win32.exe
-sonmminer
+sonmworker
 sonmbootnode
 sonmmarketplace
 sonmlocator

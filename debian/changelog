@@ -1,3 +1,9 @@
+sonm-core (0.3) unstable; urgency=low
+
+  * Preparing to MVP
+
+ -- Alex Nikonov <alex@nikonov.tech>  Sat, 23 Dec 2017 11:19:21 +0000
+
 sonm-core (0.2.1) unstable; urgency=low
 
   * Add Marketplace package
