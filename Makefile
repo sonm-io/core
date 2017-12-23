@@ -1,5 +1,5 @@
 #!/usr/bin/env make
-VER = v0.2.1.1
+VER = v0.3
 BUILD = $(shell git rev-parse --short HEAD)
 FULL_VER = $(VER)-$(BUILD)
 
@@ -14,7 +14,7 @@ endif
 
 INSTALLDIR=${GOPATH}/bin/
 
-MINER=sonmminer
+MINER=sonmworker
 HUB=sonmhub
 CLI=sonmcli
 LOCATOR=sonmlocator
