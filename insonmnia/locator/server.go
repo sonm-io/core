@@ -109,28 +109,31 @@ func (l *Locator) extractEthAddr(ctx context.Context) (common.Address, error) {
 func (l *Locator) put(rec *record) error {
 	rec.TS = time.Now()
 	key := rec.EthAddr.Hex()
-	value, _ := json.Marshal(rec)
+	value, err := json.Marshal(rec)
+	if err != nil {
+		return err
+	}
 
 	return l.storage.Put(key, value, nil)
 }
 
 func (l *Locator) get(ethAddr common.Address) (*record, error) {
-	addr := ethAddr.Hex()
+	key := ethAddr.Hex()
 
-	pair, err := l.storage.Get(addr)
+	pair, err := l.storage.Get(key)
 	if err != nil {
-		log.G(l.ctx).Debug("record not found", zap.String("eth", addr))
+		log.G(l.ctx).Debug("record not found", zap.String("key", key))
 		return nil, errNodeNotFound
 	}
 
-	rec := new(record)
-	if err = json.Unmarshal(pair.Value, &rec); err != nil {
+	rec := &record{}
+	if err = json.Unmarshal(pair.Value, rec); err != nil {
 		return nil, err
 	}
 
 	notBefore := time.Now().Add(-1 * l.conf.NodeTTL)
 	if rec.TS.Before(notBefore) {
-		log.G(l.ctx).Debug("record is expired", zap.String("eth", addr))
+		log.G(l.ctx).Debug("record is expired", zap.String("key", key))
 		l.storage.Delete(pair.Key)
 		return nil, errNodeNotFound
 	}
