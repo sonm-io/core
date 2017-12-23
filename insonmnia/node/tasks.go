@@ -67,8 +67,8 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 			return nil, err
 		}
 
-		for k, v := range taskList.GetInfo() {
-			tasks[k] = v
+		for _, v := range taskList.GetInfo() {
+			tasks[deal.GetSupplierID()] = v
 		}
 	}
 
