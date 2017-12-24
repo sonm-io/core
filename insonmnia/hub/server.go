@@ -36,7 +36,6 @@ import (
 )
 
 var (
-	ErrDeviceNotFound = status.Errorf(codes.NotFound, "device not found")
 	ErrMinerNotFound  = status.Errorf(codes.NotFound, "miner not found")
 	errDealNotFound   = status.Errorf(codes.NotFound, "deal not found")
 	errTaskNotFound   = status.Errorf(codes.NotFound, "task not found")
@@ -1007,11 +1006,7 @@ func (h *Hub) GetDeviceProperties(ctx context.Context, request *pb.ID) (*pb.GetD
 	h.devicePropertiesMu.RLock()
 	defer h.devicePropertiesMu.RUnlock()
 
-	properties, exists := h.deviceProperties[request.Id]
-	if !exists {
-		return nil, ErrDeviceNotFound
-	}
-
+	properties := h.deviceProperties[request.Id]
 	return &pb.GetDevicePropertiesReply{Properties: properties}, nil
 }
 
