@@ -95,7 +95,8 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		return nil, err
 	}
 
-	creds := util.NewTLS(TLSConfig)
+	addr := util.PubKeyToAddr(key.PublicKey)
+	creds := util.NewWalletAuthenticator(util.NewTLS(TLSConfig), addr)
 
 	opts, err := newRemoteOptions(ctx, key, c, creds)
 	if err != nil {
