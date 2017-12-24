@@ -164,21 +164,26 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 			chunk, err := clientStream.Recv()
 			if err != nil {
 				if err == io.EOF {
+					log.G(t.ctx).Debug("recieved last push chunk")
 					clientCompleted = true
 				} else {
+					log.G(t.ctx).Debug("recieved push error", zap.Error(err))
 					return err
 				}
 			}
 
 			if chunk == nil {
+				log.G(t.ctx).Debug("closing hub stream")
 				if err := hubStream.CloseSend(); err != nil {
 					return err
 				}
 			} else {
 				bytesRemaining = len(chunk.Chunk)
 				if err := hubStream.Send(chunk); err != nil {
+					log.G(t.ctx).Debug("failed to send chunk to hub", zap.Error(err))
 					return err
 				}
+				log.G(t.ctx).Debug("sent chunk to hub")
 			}
 		}
 
@@ -186,13 +191,16 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 			progress, err := hubStream.Recv()
 			if err != nil {
 				if err == io.EOF {
+					log.G(t.ctx).Debug("received last chunk from hub")
 					if bytesCommitted == meta.fileSize {
 						clientStream.SetTrailer(hubStream.Trailer())
 						return nil
 					} else {
-						return status.Errorf(codes.Aborted, "miner closed its stream without committing all bytes")
+						log.G(t.ctx).Debug("hub closed its stream without committing all bytes")
+						return status.Errorf(codes.Aborted, "hub closed its stream without committing all bytes")
 					}
 				} else {
+					log.G(t.ctx).Debug("received error from hub", zap.Error(err))
 					return err
 				}
 			}
@@ -201,6 +209,7 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 			bytesRemaining -= int(progress.Size)
 
 			if err := clientStream.Send(progress); err != nil {
+				log.G(t.ctx).Debug("failed to send chunk back to cli", zap.Error(err))
 				return err
 			}
 

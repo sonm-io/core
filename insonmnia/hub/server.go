@@ -275,8 +275,9 @@ func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 
 	log.G(h.ctx).Info("pushing image", zap.Int64("size", request.ImageSize()))
 
-	miner, _, err := h.findMinerByOrder(OrderID(request.DealId()))
+	miner, _, err := h.findMinerByDeal(DealID(request.DealId()))
 	if err != nil {
+		log.G(h.ctx).Info("unable to find miner by deal", zap.Error(err))
 		return err
 	}
 
@@ -284,6 +285,7 @@ func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 
 	client, err := miner.Client.Load(stream.Context())
 	if err != nil {
+		log.G(h.ctx).Info("unable to forward push request to miner", zap.Error(err))
 		return err
 	}
 
@@ -361,8 +363,9 @@ func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer
 
 	ctx := log.WithLogger(h.ctx, log.G(h.ctx).With(zap.String("request", "pull task"), zap.String("id", uuid.New())))
 
-	miner, _, err := h.findMinerByOrder(OrderID(request.GetDealId()))
+	miner, _, err := h.findMinerByDeal(DealID(request.DealId))
 	if err != nil {
+		log.G(h.ctx).Info("could not find miner by deal", zap.Error(err))
 		return err
 	}
 
@@ -536,6 +539,16 @@ func (h *Hub) findMinerByOrder(id OrderID) (*MinerCtx, *resource.Resources, erro
 	}
 
 	return nil, nil, ErrMinerNotFound
+}
+
+func (h *Hub) findMinerByDeal(id DealID) (*MinerCtx, *resource.Resources, error) {
+	dealMeta, err := h.getDealMeta(id)
+	if err != nil {
+		log.G(h.ctx).Info("unable to find deal meta by deal id", zap.Error(err))
+		return nil, nil, err
+	}
+
+	return h.findMinerByOrder(OrderID(dealMeta.Order.Id))
 }
 
 // StopTask sends termination request to a miner handling the task

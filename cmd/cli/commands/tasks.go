@@ -105,6 +105,7 @@ var taskStartCmd = &cobra.Command{
 			Auth:          taskDef.GetRegistryAuth(),
 			PublicKeyData: taskDef.GetSSHKey(),
 			Env:           taskDef.GetEnvVars(),
+			CommitOnStop:  taskDef.GetCommitOnStop(),
 		}
 
 		reply, err := node.Start(req)
