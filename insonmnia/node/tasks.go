@@ -101,13 +101,12 @@ func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusRep
 func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServer) error {
 	log.G(t.ctx).Info("handling Logs request", zap.Any("request", req))
 
-	ctx := context.Background()
-	hubClient, err := t.getHubClientByEthAddr(ctx, req.HubAddr)
+	hubClient, err := t.getHubClientByEthAddr(srv.Context(), req.HubAddr)
 	if err != nil {
 		return err
 	}
 
-	logClient, err := hubClient.TaskLogs(ctx, req)
+	logClient, err := hubClient.TaskLogs(srv.Context(), req)
 	if err != nil {
 		return err
 	}

@@ -165,7 +165,7 @@ var taskLogsCmd = &cobra.Command{
 			Details:       details,
 		}
 
-		logClient, err := node.Logs(req)
+		logClient, err := node.Logs(context.Background(), req)
 		if err != nil {
 			showError(cmd, "Cannot get task logs", err)
 			os.Exit(1)
