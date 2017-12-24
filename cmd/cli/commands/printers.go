@@ -209,6 +209,11 @@ func printDeviceList(cmd *cobra.Command, devices *pb.DevicesReply) {
 
 func printDevicesProps(cmd *cobra.Command, props map[string]float64) {
 	if isSimpleFormat() {
+		if len(props) == 0 {
+			cmd.Printf("No properties configured.\r\n")
+			return
+		}
+
 		for k, v := range props {
 			cmd.Printf("%s = %f\r\n", k, v)
 		}
