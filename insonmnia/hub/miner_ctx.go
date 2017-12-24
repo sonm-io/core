@@ -27,7 +27,7 @@ var (
 	errForbiddenMiner    = errors.New("miner is forbidden")
 )
 
-type OrderId string
+type OrderID string
 
 // MinerCtx holds all the data related to a connected Miner
 type MinerCtx struct {
@@ -55,7 +55,7 @@ type MinerCtx struct {
 	mu           sync.Mutex
 	capabilities *hardware.Hardware
 	usage        *resource.Pool
-	usageMapping map[OrderId]*resource.Resources
+	usageMapping map[OrderID]*resource.Resources
 }
 
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
@@ -72,7 +72,7 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 		m = MinerCtx{
 			conn:         conn,
 			statusMap:    make(map[string]*pb.TaskStatusReply),
-			usageMapping: make(map[OrderId]*resource.Resources),
+			usageMapping: make(map[OrderID]*resource.Resources),
 		}
 	)
 	m.ctx, m.cancel = context.WithCancel(ctx)
@@ -233,14 +233,17 @@ func (m *MinerCtx) ping() error {
 }
 
 // Consume consumes the specified resources from the miner.
-func (m *MinerCtx) Consume(Id OrderId, usage *resource.Resources) error {
+func (m *MinerCtx) Consume(Id OrderID, usage *resource.Resources) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	return m.consume(Id, usage)
 }
 
-func (m *MinerCtx) consume(id OrderId, usage *resource.Resources) error {
+func (m *MinerCtx) consume(id OrderID, usage *resource.Resources) error {
+	if m.orderExists(id) {
+		return fmt.Errorf("order already exists")
+	}
 	if err := m.usage.Consume(usage); err != nil {
 		return err
 	}
@@ -252,9 +255,14 @@ func (m *MinerCtx) consume(id OrderId, usage *resource.Resources) error {
 		zap.Any("capabilities", m.capabilities),
 	)
 
-	m.usageMapping[OrderId(id)] = usage
+	m.usageMapping[OrderID(id)] = usage
 
 	return nil
+}
+
+func (m *MinerCtx) orderExists(id OrderID) bool {
+	_, exists := m.usageMapping[id]
+	return exists
 }
 
 func (m *MinerCtx) PollConsume(usage *resource.Resources) error {
@@ -267,14 +275,14 @@ func (m *MinerCtx) PollConsume(usage *resource.Resources) error {
 // Release returns back resources for the miner.
 //
 // Should be called when a deal has finished no matter for what reason.
-func (m *MinerCtx) Release(id OrderId) {
+func (m *MinerCtx) Release(id OrderID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.releaseDeal(id)
 }
 
-func (m *MinerCtx) releaseDeal(id OrderId) {
+func (m *MinerCtx) releaseDeal(id OrderID) {
 	usage, exists := m.usageMapping[id]
 	if !exists {
 		return
@@ -291,13 +299,13 @@ func (m *MinerCtx) releaseDeal(id OrderId) {
 	m.usage.Release(usage)
 }
 
-func (m *MinerCtx) OrderUsage(id OrderId) (*resource.Resources, error) {
+func (m *MinerCtx) OrderUsage(id OrderID) (*resource.Resources, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.orderUsage(id)
 }
 
-func (m *MinerCtx) orderUsage(id OrderId) (*resource.Resources, error) {
+func (m *MinerCtx) orderUsage(id OrderID) (*resource.Resources, error) {
 	usage, exists := m.usageMapping[id]
 	if !exists {
 		return nil, errOrderNotExists
@@ -308,12 +316,10 @@ func (m *MinerCtx) orderUsage(id OrderId) (*resource.Resources, error) {
 
 // Orders returns a list of allocated orders.
 // Useful for looking for a proper miner for starting tasks.
-//
-// TODO: rename to Deals()
-func (m *MinerCtx) Orders() []OrderId {
+func (m *MinerCtx) Orders() []OrderID {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	orders := []OrderId{}
+	orders := []OrderID{}
 	for id := range m.usageMapping {
 		orders = append(orders, id)
 	}
