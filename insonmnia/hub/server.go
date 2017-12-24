@@ -1112,7 +1112,7 @@ func (h *Hub) GetRegisteredWorkers(ctx context.Context, empty *pb.Empty) (*pb.Ge
 func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling RegisterWorker request", zap.String("id", request.GetId()))
 
-	h.acl.Insert(request.Id)
+	h.acl.Insert(common.HexToAddress(request.Id).Hex())
 	err := h.cluster.Synchronize(h.acl)
 	if err != nil {
 		return nil, err
