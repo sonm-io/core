@@ -277,7 +277,7 @@ func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 
 	miner, _, err := h.findMinerByDeal(DealID(request.DealId()))
 	if err != nil {
-		log.G(h.ctx).Info("unable to find miner by deal", zap.Error(err))
+		log.G(h.ctx).Warn("unable to find miner by deal", zap.Error(err))
 		return err
 	}
 
@@ -285,7 +285,7 @@ func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 
 	client, err := miner.Client.Load(stream.Context())
 	if err != nil {
-		log.G(h.ctx).Info("unable to forward push request to miner", zap.Error(err))
+		log.G(h.ctx).Warn("unable to forward push request to miner", zap.Error(err))
 		return err
 	}
 
@@ -365,12 +365,13 @@ func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer
 
 	miner, _, err := h.findMinerByDeal(DealID(request.DealId))
 	if err != nil {
-		log.G(h.ctx).Info("could not find miner by deal", zap.Error(err))
+		log.G(h.ctx).Warn("could not find miner by deal", zap.Error(err))
 		return err
 	}
 
 	task, err := h.getTaskHistory(request.GetDealId(), request.GetTaskId())
 	if err != nil {
+		log.G(h.ctx).Warn("could not fetch task history by deal", zap.Error(err))
 		return err
 	}
 
@@ -544,7 +545,7 @@ func (h *Hub) findMinerByOrder(id OrderID) (*MinerCtx, *resource.Resources, erro
 func (h *Hub) findMinerByDeal(id DealID) (*MinerCtx, *resource.Resources, error) {
 	dealMeta, err := h.getDealMeta(id)
 	if err != nil {
-		log.G(h.ctx).Info("unable to find deal meta by deal id", zap.Error(err))
+		log.G(h.ctx).Warn("unable to find deal meta by deal id", zap.Error(err))
 		return nil, nil, err
 	}
 
