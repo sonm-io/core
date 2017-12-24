@@ -294,7 +294,7 @@ type TasksInteractor interface {
 	ImagePush(ctx context.Context) (pb.Hub_PushTaskClient, error)
 	Start(req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error)
 	Status(id, hub string) (*pb.TaskStatusReply, error)
-	Logs(req *pb.TaskLogsRequest) (pb.TaskManagement_LogsClient, error)
+	Logs(ctx context.Context, req *pb.TaskLogsRequest) (pb.TaskManagement_LogsClient, error)
 	Stop(id, hub string) (*pb.Empty, error)
 	ImagePull(dealID, taskID string) (pb.Hub_PullTaskClient, error)
 }
@@ -330,10 +330,7 @@ func (it *tasksInteractor) Status(id, hub string) (*pb.TaskStatusReply, error) {
 	return it.tasks.Status(ctx, &pb.TaskID{Id: id, HubAddr: hub})
 }
 
-func (it *tasksInteractor) Logs(req *pb.TaskLogsRequest) (pb.TaskManagement_LogsClient, error) {
-	ctx, cancel := ctx(it.timeout)
-	defer cancel()
-
+func (it *tasksInteractor) Logs(ctx context.Context, req *pb.TaskLogsRequest) (pb.TaskManagement_LogsClient, error) {
 	return it.tasks.Logs(ctx, req)
 }
 
