@@ -714,6 +714,7 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.ID) (*pb.TaskStatusRep
 }
 
 func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer) error {
+	log.G(h.ctx).Info("handling TaskLogs request", zap.Any("request", request))
 	task, err := h.getTask(request.Id)
 	if err != nil {
 		return err
