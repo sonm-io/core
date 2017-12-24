@@ -36,6 +36,7 @@ type ClusterConfig struct {
 	Store                        StoreConfig `yaml:"store"`
 	Failover                     bool        `yaml:"failover"`
 	Endpoint                     string      `yaml:"endpoint"`
+	AnnounceEndpoint             string      `yaml:"announce_endpoint"`
 	LeaderKey                    string      `yaml:"leader_key" default:"sonm/hub/leader"`
 	MemberListKey                string      `yaml:"member_list_key" default:"sonm/hub/list"`
 	SynchronizableEntitiesPrefix string      `yaml:"sync_prefix" default:"sonm/hub/sync"`
