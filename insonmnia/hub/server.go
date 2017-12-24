@@ -797,14 +797,14 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	orderID := OrderId(request.GetBidId())
+	orderID := OrderId(order.GetID())
 	if err := miner.Consume(orderID, &usage); err != nil {
 		return nil, err
 	}
 
 	go func() {
 		h.executeDeal(ctx, request, order)
-		miner.Release(OrderId(order.GetID()))
+		miner.Release(orderID)
 	}()
 
 	return &pb.Empty{}, nil
