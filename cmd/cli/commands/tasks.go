@@ -105,6 +105,7 @@ var taskStartCmd = &cobra.Command{
 			Auth:          taskDef.GetRegistryAuth(),
 			PublicKeyData: taskDef.GetSSHKey(),
 			Env:           taskDef.GetEnvVars(),
+			CommitOnStop:  taskDef.GetCommitOnStop(),
 		}
 
 		reply, err := node.Start(req)
@@ -404,7 +405,7 @@ var taskPushCmd = &cobra.Command{
 				}
 
 				if err != nil {
-					showError(cmd, "Cannot read from stream", nil)
+					showError(cmd, "Cannot read from stream", err)
 					os.Exit(1)
 				}
 

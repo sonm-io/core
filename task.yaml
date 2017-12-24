@@ -3,6 +3,8 @@ task:
   miners: []
   # docker image settings, required section
   container:
+    # Add ability to pull container back
+    commit_on_stop: true
     # image name to start on miner, required param
     name: image:v1
     # env variables that will be passed to container on start
