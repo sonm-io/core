@@ -95,10 +95,8 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		return nil, err
 	}
 
-	addr := util.PubKeyToAddr(key.PublicKey)
-	creds := util.NewWalletAuthenticator(util.NewTLS(TLSConfig), addr)
-
-	opts, err := newRemoteOptions(ctx, key, c, creds)
+	remoteCreds := util.NewTLS(TLSConfig)
+	opts, err := newRemoteOptions(ctx, key, c, remoteCreds)
 	if err != nil {
 		return nil, err
 	}
@@ -120,6 +118,8 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		return nil, err
 	}
 
+	addr := util.PubKeyToAddr(key.PublicKey)
+	creds := util.NewWalletAuthenticator(util.NewTLS(TLSConfig), addr)
 	srv := util.MakeGrpcServer(creds, grpc.UnaryInterceptor(hub.(*hubAPI).intercept))
 
 	pb.RegisterHubManagementServer(srv, hub)
