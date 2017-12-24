@@ -645,7 +645,11 @@ func makeDuration(numSeconds uint64) time.Duration {
 }
 
 func parseEndpoints(config *ClusterConfig) ([]string, error) {
-	ipAddr, port, err := net.SplitHostPort(config.Endpoint)
+	ep := config.AnnounceEndpoint
+	if len(ep) == 0 {
+		ep = config.Endpoint
+	}
+	ipAddr, port, err := net.SplitHostPort(ep)
 	if err != nil {
 		return nil, err
 	}
@@ -656,7 +660,7 @@ func parseEndpoints(config *ClusterConfig) ([]string, error) {
 			return nil, fmt.Errorf("%s must be a valid IP", ipAddr)
 		}
 		if !ip.IsUnspecified() {
-			return []string{config.Endpoint}, nil
+			return []string{ep}, nil
 		}
 	}
 
