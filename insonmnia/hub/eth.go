@@ -21,7 +21,7 @@ type ETH interface {
 	// VerifyBuyerBalance verifies that the buyer specified under the given
 	// order has enough balance to have a deal.
 	VerifyBuyerBalance(bidOrder *structs.Order) error
-	// VerifyBuyerBalance verifies that the buyer specified under the given
+	// VerifyBuyerAllowance verifies that the buyer specified under the given
 	// order has enough allowance to have a deal.
 	VerifyBuyerAllowance(bidOrder *structs.Order) error
 	// GetAcceptedDeals returns all currently accepted deals.
