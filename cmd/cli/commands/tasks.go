@@ -404,7 +404,7 @@ var taskPushCmd = &cobra.Command{
 				}
 
 				if err != nil {
-					showError(cmd, "Cannot read from stream", nil)
+					showError(cmd, "Cannot read from stream", err)
 					os.Exit(1)
 				}
 

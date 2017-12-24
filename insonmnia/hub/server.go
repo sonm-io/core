@@ -264,6 +264,10 @@ func proxyRequestCall(ctx context.Context, client pb.HubClient, request interfac
 func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 	log.G(h.ctx).Info("handling PushTask request")
 
+	if err := h.eventAuthorization.authorize(stream.Context(), method("PushTask"), nil); err != nil {
+		return err
+	}
+
 	request, err := structs.NewImagePush(stream)
 	if err != nil {
 		return err
@@ -350,6 +354,10 @@ func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 
 func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer) error {
 	log.G(h.ctx).Info("handling PullTask request", zap.Any("request", request))
+
+	if err := h.eventAuthorization.authorize(stream.Context(), method("PullTask"), nil); err != nil {
+		return err
+	}
 
 	ctx := log.WithLogger(h.ctx, log.G(h.ctx).With(zap.String("request", "pull task"), zap.String("id", uuid.New())))
 
@@ -714,6 +722,10 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.ID) (*pb.TaskStatusRep
 
 func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer) error {
 	log.G(h.ctx).Info("handling TaskLogs request", zap.Any("request", request))
+	if err := h.eventAuthorization.authorize(server.Context(), method("TaskLogs"), request); err != nil {
+		return err
+	}
+
 	task, err := h.getTask(request.Id)
 	if err != nil {
 		return err
