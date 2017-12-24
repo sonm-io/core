@@ -66,6 +66,10 @@ var (
 
 type DealID string
 
+func (id DealID) String() string {
+	return string(id)
+}
+
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
@@ -853,9 +857,9 @@ func (h *Hub) waitForDealCreatedAndAccepted(ctx context.Context, req *structs.De
 	}
 
 	dealID := DealID(createdDeal.GetId())
-	err = h.eth.AcceptDeal(string(dealID))
+	err = h.eth.AcceptDeal(dealID.String())
 	if err != nil {
-		log.G(ctx).Warn("cannot accept deal", zap.String("dealID", string(dealID)), zap.Error(err))
+		log.G(ctx).Warn("cannot accept deal", zap.Stringer("dealID", dealID), zap.Error(err))
 		return "", err
 	}
 
@@ -897,7 +901,7 @@ func (h *Hub) releaseDeal(dealID DealID) error {
 
 		if err := h.stopTask(h.ctx, task); err != nil {
 			log.G(h.ctx).Error("failed to stop task",
-				zap.String("dealID", string(dealID)),
+				zap.Stringer("dealID", dealID),
 				zap.String("taskID", task.ID),
 				zap.Error(err),
 			)
@@ -1411,7 +1415,7 @@ func (h *Hub) watchDealsAccepted() error {
 				deal.timer = time.AfterFunc(duration, func() {
 					if err := h.eth.CloseDeal(dealID); err != nil {
 						log.G(h.ctx).Error("failed to close using blockchain API",
-							zap.String("dealID", string(dealID)),
+							zap.Stringer("dealID", dealID),
 							zap.Error(err),
 						)
 					}
@@ -1449,7 +1453,7 @@ func (h *Hub) watchDealsClosed() error {
 
 				if err := h.releaseDeal(dealID); err != nil {
 					log.G(h.ctx).Error("failed to release deal resources",
-						zap.String("dealID", string(dealID)),
+						zap.Stringer("dealID", dealID),
 						zap.Error(err),
 					)
 					return err
@@ -1556,7 +1560,7 @@ func (h *Hub) registerMiner(miner *MinerCtx) {
 	for dealID, dealMeta := range h.deals {
 		if dealMeta.MinerID == miner.uuid {
 			log.G(h.ctx).Debug("restoring resources consumption settings",
-				zap.String("dealID", string(dealID)),
+				zap.Stringer("dealID", dealID),
 				zap.String("minerID", dealMeta.MinerID),
 			)
 			miner.Consume(OrderID(dealMeta.Order.GetID()), dealMeta.Usage)
@@ -1760,7 +1764,7 @@ func (h *Hub) restoreResourceUsage() {
 			// Either miner has died or we have some kind of synchronization
 			// error. Unfortunately we can't do anything meaningful here.
 			log.G(h.ctx).Warn("detected worker inconsistency - found deal associated with unknown worker",
-				zap.String("dealID", string(dealID)),
+				zap.Stringer("dealID", dealID),
 				zap.String("minerID", dealInfo.MinerID),
 			)
 			continue

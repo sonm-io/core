@@ -79,7 +79,7 @@ func (e *eth) WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error)
 }
 
 func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID string) error {
-	log.G(ctx).Debug("waiting for deal closed", zap.String("dealID", string(dealID)))
+	log.G(ctx).Debug("waiting for deal closed", zap.Stringer("dealID", dealID))
 
 	timer := time.NewTicker(5 * time.Second)
 	defer timer.Stop()
@@ -102,7 +102,7 @@ func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID stri
 					continue
 				}
 
-				if dealInfo.GetId() == string(dealID) && dealInfo.GetStatus() == pb.DealStatus_CLOSED {
+				if dealInfo.GetId() == dealID.String() && dealInfo.GetStatus() == pb.DealStatus_CLOSED {
 					return nil
 				}
 			}
