@@ -273,6 +273,12 @@ func (m *MinerCtx) PollConsume(usage *resource.Resources) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	log.G(m.ctx).Debug("checking for resources",
+		zap.Any("usage", usage),
+		zap.Any("usageTotal", m.usage.GetUsage()),
+		zap.Any("capabilities", m.capabilities),
+	)
+
 	return m.usage.PollConsume(usage)
 }
 
