@@ -59,12 +59,16 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 	for _, deal := range activeDeals {
 		hub, err := t.getHubClientByEthAddr(ctx, deal.GetSupplierID())
 		if err != nil {
-			return nil, err
+			log.G(t.ctx).Info("cannot resolve hub address",
+				zap.String("hub_eth", deal.GetSupplierID()),
+				zap.Error(err))
+			continue
 		}
 
 		taskList, err := hub.TaskList(ctx, &pb.Empty{})
 		if err != nil {
-			return nil, err
+			log.G(t.ctx).Info("cannot retrieve tasks from the hub", zap.Error(err))
+			continue
 		}
 
 		for _, v := range taskList.GetInfo() {
