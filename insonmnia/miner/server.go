@@ -212,7 +212,7 @@ func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest
 }
 
 func (m *Miner) scheduleStatusPurge(id string) {
-	t := time.NewTimer(time.Second * 30)
+	t := time.NewTimer(time.Second * 3600)
 	defer t.Stop()
 	select {
 	case <-t.C:
