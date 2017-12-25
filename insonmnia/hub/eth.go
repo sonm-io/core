@@ -3,12 +3,14 @@ package hub
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/blockchain/tsc"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -16,8 +18,17 @@ import (
 )
 
 type ETH interface {
+	// VerifyBuyerBalance verifies that the buyer specified under the given
+	// order has enough balance to have a deal.
+	VerifyBuyerBalance(bidOrder *structs.Order) error
+	// VerifyBuyerAllowance verifies that the buyer specified under the given
+	// order has enough allowance to have a deal.
+	VerifyBuyerAllowance(bidOrder *structs.Order) error
+	// GetAcceptedDeals returns all currently accepted deals.
 	GetAcceptedDeals(ctx context.Context) ([]*pb.Deal, error)
 	// GetClosedDeals returns all currently closed deals.
+	// Warning: use with caution: this may return significantly large amount
+	// of data.
 	GetClosedDeals(ctx context.Context) ([]*pb.Deal, error)
 	// WaitForDealCreated waits for deal created on Buyer-side
 	WaitForDealCreated(request *structs.DealRequest, buyerID string) (*pb.Deal, error)
@@ -43,6 +54,30 @@ type eth struct {
 
 func (e *eth) hubAddress() string {
 	return crypto.PubkeyToAddress(e.key.PublicKey).Hex()
+}
+
+func (e *eth) VerifyBuyerBalance(bidOrder *structs.Order) error {
+	balance, err := e.bc.BalanceOf(bidOrder.ByuerID)
+	if err != nil {
+		return err
+	}
+	if balance.Cmp(bidOrder.PriceAsBigInt()) == -1 {
+		return fmt.Errorf("not enough balance to have a deal")
+	}
+
+	return nil
+}
+
+func (e *eth) VerifyBuyerAllowance(bidOrder *structs.Order) error {
+	allowance, err := e.bc.AllowanceOf(bidOrder.ByuerID, tsc.DealsAddress)
+	if err != nil {
+		return err
+	}
+	if allowance.Cmp(bidOrder.PriceAsBigInt()) == -1 {
+		return fmt.Errorf("not enough allowance to have a deal")
+	}
+
+	return nil
 }
 
 func (e *eth) GetAcceptedDeals(ctx context.Context) ([]*pb.Deal, error) {

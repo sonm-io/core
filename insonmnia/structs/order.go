@@ -95,3 +95,12 @@ func (o *Order) IsBid() bool {
 func (o *Order) GetDuration() time.Duration {
 	return time.Duration(o.Slot.Duration) * time.Second
 }
+
+func (o *Order) PriceAsBigInt() *big.Int {
+	v, err := util.ParseBigInt(o.Price)
+	// We've already checked that during construction, but who knows...
+	if err != nil {
+		panic("order price has failed big.Int conversion")
+	}
+	return v
+}
