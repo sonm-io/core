@@ -18,6 +18,7 @@ type TaskInfo struct {
 }
 
 type DealMeta struct {
+	ID      DealID
 	BidID   string
 	MinerID string
 	Order   structs.Order

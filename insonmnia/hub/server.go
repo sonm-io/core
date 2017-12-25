@@ -828,59 +828,75 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 	}
 
 	go func() {
-		if err := h.executeDeal(ctx, request, order); err != nil {
+		dealMeta, err := h.executeDeal(ctx, request, order)
+		if err != nil {
+			log.G(h.ctx).Error("failed to execute deal", zap.Error(err))
 			miner.Release(orderID)
+			return
+		}
+
+		dealMeta.MinerID = miner.ID()
+		dealMeta.Usage = &usage
+
+		h.tasksMu.Lock()
+		defer h.tasksMu.Unlock()
+		h.deals[dealMeta.ID] = dealMeta
+		if err := h.cluster.Synchronize(h.deals); err != nil {
+			log.G(h.ctx).Error("failed to synchronize deal with the cluster", zap.Error(err))
 		}
 	}()
 
 	return &pb.Empty{}, nil
 }
 
-func (h *Hub) executeDeal(ctx context.Context, request *structs.DealRequest, order *structs.Order) error {
-	_, err := h.waitForDealCreatedAndAccepted(ctx, request, order)
+func (h *Hub) executeDeal(ctx context.Context, request *structs.DealRequest, order *structs.Order) (*DealMeta, error) {
+	dealMeta, err := h.waitForDealCreatedAndAccepted(ctx, request, order)
 	if err != nil {
 		log.G(h.ctx).Error("failed to wait for deal created", zap.Error(err))
-		return err
+		return nil, err
 	}
 
-	return nil
+	return dealMeta, nil
 }
 
-func (h *Hub) waitForDealCreatedAndAccepted(ctx context.Context, req *structs.DealRequest, order *structs.Order) (DealID, error) {
+func (h *Hub) waitForDealCreatedAndAccepted(ctx context.Context, req *structs.DealRequest, order *structs.Order) (*DealMeta, error) {
 	createdDeal, err := h.eth.WaitForDealCreated(req, order.GetByuerID())
-
 	if err != nil || createdDeal == nil {
 		log.G(h.ctx).Warn("cannot find created deal for current proposal",
 			zap.String("bidID", req.BidId),
 			zap.String("askID", req.GetAskId()),
 		)
-		return "", err
+		return nil, err
 	}
 
 	dealID := DealID(createdDeal.GetId())
 	err = h.eth.AcceptDeal(dealID.String())
 	if err != nil {
 		log.G(ctx).Warn("cannot accept deal", zap.Stringer("dealID", dealID), zap.Error(err))
-		return "", err
+		return nil, err
 	}
 
 	_, err = h.market.CancelOrder(h.ctx, &pb.Order{Id: req.GetAskId(), OrderType: pb.OrderType_ASK})
 	if err != nil {
 		log.G(ctx).Warn("cannot cancel ask order from marketplace",
 			zap.String("askID", req.GetAskId()),
-			zap.Error(err))
+			zap.Error(err),
+		)
 	}
 
-	h.tasksMu.Lock()
-	h.deals[dealID] = &DealMeta{
+	dealMeta := &DealMeta{
+		ID:    dealID,
 		BidID: req.GetBidId(),
 		Order: *order,
 		Tasks: make([]*TaskInfo, 0),
+		// These will be filled later.
+		MinerID: "",
+		Usage:   nil,
+		// This will be filled when Hub accepts a deal event via Blockchain.
+		timer: nil,
 	}
-	h.cluster.Synchronize(h.deals)
-	h.tasksMu.Unlock()
 
-	return dealID, nil
+	return dealMeta, nil
 }
 
 func (h *Hub) waitForDealClosed(dealID DealID, buyerId string) error {
