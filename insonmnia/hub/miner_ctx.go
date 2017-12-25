@@ -29,6 +29,10 @@ var (
 
 type OrderID string
 
+func (id OrderID) String() string {
+	return string(id)
+}
+
 // MinerCtx holds all the data related to a connected Miner
 type MinerCtx struct {
 	ctx    context.Context
@@ -249,7 +253,7 @@ func (m *MinerCtx) consume(id OrderID, usage *resource.Resources) error {
 	}
 
 	log.G(m.ctx).Debug("consumed resources for a task",
-		zap.String("id", string(id)),
+		zap.Stringer("id", id),
 		zap.Any("usage", usage),
 		zap.Any("usageTotal", m.usage.GetUsage()),
 		zap.Any("capabilities", m.capabilities),
@@ -289,7 +293,7 @@ func (m *MinerCtx) releaseDeal(id OrderID) {
 	}
 
 	log.G(m.ctx).Debug("retained resources for a task",
-		zap.String("id", string(id)),
+		zap.Stringer("id", id),
 		zap.Any("usage", usage),
 		zap.Any("usageTotal", m.usage.GetUsage()),
 		zap.Any("capabilities", m.capabilities),
