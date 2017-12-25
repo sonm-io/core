@@ -379,7 +379,18 @@ func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer
 		return err
 	}
 
-	imageID := fmt.Sprintf("%s:%s_%s", task.Image, request.GetDealId(), request.GetTaskId())
+	named, err := reference.ParseNormalizedNamed(task.Image)
+	if err != nil {
+		log.G(h.ctx).Warn("could not parse image to reference", zap.Error(err), zap.String("image", task.Image))
+		return err
+	}
+
+	tagged, err := reference.WithTag(named, fmt.Sprintf("%s_%s", request.GetDealId(), request.GetTaskId()))
+	if err != nil {
+		log.G(h.ctx).Warn("could not tag image", zap.Error(err), zap.String("image", task.Image))
+		return err
+	}
+	imageID := tagged.String()
 
 	log.G(ctx).Debug("pulling image", zap.String("imageID", imageID))
 
