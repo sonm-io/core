@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math/big"
 	"math/rand"
 	"net"
 	"reflect"
@@ -904,7 +905,13 @@ func (h *Hub) waitForDealCreatedAndAccepted(ctx context.Context, req *structs.De
 		zap.String("orderPrice", order.Price),
 	)
 
-	if err := util.VerifyEqualPrice(createdDeal.Price, order.Price); err != nil {
+	// TODO: Refactor.
+	bigOrderPrice, err := util.ParseBigInt(order.Price)
+	if err != nil {
+		return nil, err
+	}
+	totalOrderPrice := bigOrderPrice.Mul(bigOrderPrice, big.NewInt(int64(order.GetDuration().Hours())))
+	if err := util.VerifyEqualPrice(createdDeal.Price, totalOrderPrice.String()); err != nil {
 		return nil, err
 	}
 
