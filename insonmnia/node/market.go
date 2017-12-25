@@ -198,12 +198,12 @@ func (h *orderHandler) createDeal(order *pb.Order, key *ecdsa.PrivateKey, wait t
 	log.G(h.ctx).Info("creating deal on Etherum")
 	h.status = statusDealing
 
-	bigPricePerHour, err := util.ParseBigInt(order.Price)
+	bigPricePerHour, err := util.ParseBigInt(h.order.GetPrice())
 	if err != nil {
 		h.setError(err)
 		return nil, err
 	}
-	bigDuration := big.NewInt(int64(order.Slot.Duration))
+	bigDuration := big.NewInt(int64(h.order.GetSlot().GetDuration()))
 
 	bigDurationHours := big.NewInt(0).Div(bigDuration, big.NewInt(3600))
 	price := big.NewInt(0).Mul(bigPricePerHour, bigDurationHours).String()
