@@ -95,9 +95,8 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		return nil, err
 	}
 
-	creds := util.NewTLS(TLSConfig)
-
-	opts, err := newRemoteOptions(ctx, key, c, creds)
+	remoteCreds := util.NewTLS(TLSConfig)
+	opts, err := newRemoteOptions(ctx, key, c, remoteCreds)
 	if err != nil {
 		return nil, err
 	}
@@ -119,6 +118,8 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		return nil, err
 	}
 
+	addr := util.PubKeyToAddr(key.PublicKey)
+	creds := util.NewWalletAuthenticator(util.NewTLS(TLSConfig), addr)
 	srv := util.MakeGrpcServer(creds, grpc.UnaryInterceptor(hub.(*hubAPI).intercept))
 
 	pb.RegisterHubManagementServer(srv, hub)
@@ -139,6 +140,18 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		srv:                srv,
 		processorRestarter: market.(*marketAPI).restartOrdersProcessing(),
 	}, nil
+}
+
+type serverStreamMDForwarder struct {
+	grpc.ServerStream
+}
+
+func (s *serverStreamMDForwarder) Context() context.Context {
+	return util.ForwardMetadata(s.ServerStream.Context())
+}
+
+func (n *Node) InterceptStreamRequest(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+	return handler(srv, &serverStreamMDForwarder{ss})
 }
 
 // Serve binds gRPC services and start it

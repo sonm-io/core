@@ -3,6 +3,7 @@ package hub
 import (
 	"time"
 
+	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 )
@@ -17,7 +18,11 @@ type TaskInfo struct {
 }
 
 type DealMeta struct {
-	BidID string
-	Order structs.Order
-	Tasks []*TaskInfo
+	ID      DealID
+	BidID   string
+	MinerID string
+	Order   structs.Order
+	Usage   *resource.Resources
+	Tasks   []*TaskInfo
+	timer   *time.Timer
 }

@@ -36,7 +36,6 @@ import (
 )
 
 var (
-	ErrDeviceNotFound = status.Errorf(codes.NotFound, "device not found")
 	ErrMinerNotFound  = status.Errorf(codes.NotFound, "miner not found")
 	errDealNotFound   = status.Errorf(codes.NotFound, "deal not found")
 	errTaskNotFound   = status.Errorf(codes.NotFound, "task not found")
@@ -66,6 +65,10 @@ var (
 )
 
 type DealID string
+
+func (id DealID) String() string {
+	return string(id)
+}
 
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
@@ -124,6 +127,7 @@ type Hub struct {
 	// Must be synchronized with the Hub cluster.
 	eventAuthorization *eventACL
 
+	// Currently running deals.
 	// Retroactive deals to tasks association. Tasks aren't popped when
 	// completed to be able to save the history for the entire deal.
 	// Note: this field is protected by tasksMu mutex.
@@ -264,6 +268,10 @@ func proxyRequestCall(ctx context.Context, client pb.HubClient, request interfac
 func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 	log.G(h.ctx).Info("handling PushTask request")
 
+	if err := h.eventAuthorization.authorize(stream.Context(), method("PushTask"), nil); err != nil {
+		return err
+	}
+
 	request, err := structs.NewImagePush(stream)
 	if err != nil {
 		return err
@@ -271,8 +279,9 @@ func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 
 	log.G(h.ctx).Info("pushing image", zap.Int64("size", request.ImageSize()))
 
-	miner, _, err := h.findMinerByOrder(OrderId(request.DealId()))
+	miner, _, err := h.findMinerByDeal(DealID(request.DealId()))
 	if err != nil {
+		log.G(h.ctx).Warn("unable to find miner by deal", zap.Error(err))
 		return err
 	}
 
@@ -280,6 +289,7 @@ func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 
 	client, err := miner.Client.Load(stream.Context())
 	if err != nil {
+		log.G(h.ctx).Warn("unable to forward push request to miner", zap.Error(err))
 		return err
 	}
 
@@ -351,16 +361,21 @@ func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer) error {
 	log.G(h.ctx).Info("handling PullTask request", zap.Any("request", request))
 
+	if err := h.eventAuthorization.authorize(stream.Context(), method("PullTask"), nil); err != nil {
+		return err
+	}
+
 	ctx := log.WithLogger(h.ctx, log.G(h.ctx).With(zap.String("request", "pull task"), zap.String("id", uuid.New())))
 
-	// TODO: Rename OrderId to DealId.
-	miner, _, err := h.findMinerByOrder(OrderId(request.GetDealId()))
+	miner, _, err := h.findMinerByDeal(DealID(request.DealId))
 	if err != nil {
+		log.G(h.ctx).Warn("could not find miner by deal", zap.Error(err))
 		return err
 	}
 
 	task, err := h.getTaskHistory(request.GetDealId(), request.GetTaskId())
 	if err != nil {
+		log.G(h.ctx).Warn("could not fetch task history by deal", zap.Error(err))
 		return err
 	}
 
@@ -455,7 +470,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	}
 
 	// Extract proper miner associated with the deal specified.
-	miner, usage, err := h.findMinerByOrder(OrderId(meta.BidID))
+	miner, usage, err := h.findMinerByOrder(OrderID(meta.BidID))
 	if err != nil {
 		return nil, err
 	}
@@ -512,7 +527,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	return reply, nil
 }
 
-func (h *Hub) findMinerByOrder(id OrderId) (*MinerCtx, *resource.Resources, error) {
+func (h *Hub) findMinerByOrder(id OrderID) (*MinerCtx, *resource.Resources, error) {
 	h.minersMu.Lock()
 	defer h.minersMu.Unlock()
 
@@ -529,6 +544,16 @@ func (h *Hub) findMinerByOrder(id OrderId) (*MinerCtx, *resource.Resources, erro
 	}
 
 	return nil, nil, ErrMinerNotFound
+}
+
+func (h *Hub) findMinerByDeal(id DealID) (*MinerCtx, *resource.Resources, error) {
+	dealMeta, err := h.getDealMeta(id)
+	if err != nil {
+		log.G(h.ctx).Warn("unable to find deal meta by deal id", zap.Error(err))
+		return nil, nil, err
+	}
+
+	return h.findMinerByOrder(OrderID(dealMeta.Order.Id))
 }
 
 // StopTask sends termination request to a miner handling the task
@@ -715,6 +740,10 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.ID) (*pb.TaskStatusRep
 
 func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer) error {
 	log.G(h.ctx).Info("handling TaskLogs request", zap.Any("request", request))
+	if err := h.eventAuthorization.authorize(server.Context(), method("TaskLogs"), request); err != nil {
+		return err
+	}
+
 	task, err := h.getTask(request.Id)
 	if err != nil {
 		return err
@@ -748,12 +777,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	h.slotsMu.Lock()
-	// check if Hub knows smth about this order
-	_, ok := h.slots[r.AskId]
-	h.slotsMu.Unlock()
-
-	if !ok {
+	if !h.hasSlot(r.AskId) {
 		return nil, status.Errorf(codes.NotFound, "slot not found")
 	}
 
@@ -782,7 +806,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 			zap.String("ask_id", r.GetAskId()))
 	}
 
-	resources, err := structs.NewResources(request.GetOrder().GetSlot().GetResources())
+	resources, err := structs.NewResources(bidOrder.GetSlot().GetResources())
 	if err != nil {
 		return nil, err
 	}
@@ -798,105 +822,89 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	orderID := OrderId(order.GetID())
+	orderID := OrderID(order.GetID())
 	if err := miner.Consume(orderID, &usage); err != nil {
 		return nil, err
 	}
 
 	go func() {
-		h.executeDeal(ctx, request, order)
-		miner.Release(orderID)
+		dealMeta, err := h.executeDeal(ctx, request, order)
+		if err != nil {
+			log.G(h.ctx).Error("failed to execute deal", zap.Error(err))
+			miner.Release(orderID)
+			return
+		}
+
+		dealMeta.MinerID = miner.ID()
+		dealMeta.Usage = &usage
+
+		h.tasksMu.Lock()
+		defer h.tasksMu.Unlock()
+		h.deals[dealMeta.ID] = dealMeta
+		if err := h.cluster.Synchronize(h.deals); err != nil {
+			log.G(h.ctx).Error("failed to synchronize deal with the cluster", zap.Error(err))
+		}
 	}()
 
 	return &pb.Empty{}, nil
 }
 
-func (h *Hub) executeDeal(ctx context.Context, request *structs.DealRequest, order *structs.Order) error {
-	dealID, err := h.waitForDealCreated(ctx, request, order)
+func (h *Hub) executeDeal(ctx context.Context, request *structs.DealRequest, order *structs.Order) (*DealMeta, error) {
+	dealMeta, err := h.waitForDealCreatedAndAccepted(ctx, request, order)
 	if err != nil {
 		log.G(h.ctx).Error("failed to wait for deal created", zap.Error(err))
-		return err
+		return nil, err
 	}
 
-	// Start deal timer to properly deallocate resources.
-	timer := time.AfterFunc(order.GetDuration(), func() {
-		if err := h.eth.CloseDeal(dealID); err != nil {
-			log.G(h.ctx).Error("failed to close using blockchain API",
-				zap.String("dealID", string(dealID)),
-				zap.Error(err),
-			)
-		}
-	})
-	defer timer.Stop()
-
-	if err := h.waitForDealClosed(dealID, request.GetOrder().GetByuerID()); err != nil {
-		log.G(h.ctx).Warn("failed to wait for deal closed",
-			zap.String("dealID", string(dealID)),
-			zap.Error(err),
-		)
-	}
-
-	if err := h.closeDeal(dealID); err != nil {
-		log.G(h.ctx).Error("failed to close deal",
-			zap.String("dealID", string(dealID)),
-			zap.Error(err),
-		)
-		return err
-	}
-
-	return nil
+	return dealMeta, nil
 }
 
-func (h *Hub) waitForDealCreated(ctx context.Context, req *structs.DealRequest, order *structs.Order) (DealID, error) {
-	createdDeal, err := h.eth.WaitForDealCreated(req)
+func (h *Hub) waitForDealCreatedAndAccepted(ctx context.Context, req *structs.DealRequest, order *structs.Order) (*DealMeta, error) {
+	createdDeal, err := h.eth.WaitForDealCreated(req, order.GetByuerID())
 	if err != nil || createdDeal == nil {
 		log.G(h.ctx).Warn("cannot find created deal for current proposal",
 			zap.String("bidID", req.BidId),
 			zap.String("askID", req.GetAskId()),
 		)
-		return "", err
+		return nil, err
 	}
 
 	dealID := DealID(createdDeal.GetId())
-	err = h.eth.AcceptDeal(string(dealID))
+	err = h.eth.AcceptDeal(dealID.String())
 	if err != nil {
-		log.G(ctx).Warn("cannot accept deal", zap.String("dealID", string(dealID)), zap.Error(err))
-		return "", err
+		log.G(ctx).Warn("cannot accept deal", zap.Stringer("dealID", dealID), zap.Error(err))
+		return nil, err
 	}
 
 	_, err = h.market.CancelOrder(h.ctx, &pb.Order{Id: req.GetAskId(), OrderType: pb.OrderType_ASK})
 	if err != nil {
 		log.G(ctx).Warn("cannot cancel ask order from marketplace",
 			zap.String("askID", req.GetAskId()),
-			zap.Error(err))
+			zap.Error(err),
+		)
 	}
 
-	h.tasksMu.Lock()
-	h.deals[dealID] = &DealMeta{
+	dealMeta := &DealMeta{
+		ID:    dealID,
 		BidID: req.GetBidId(),
 		Order: *order,
 		Tasks: make([]*TaskInfo, 0),
+		// These will be filled later.
+		MinerID: "",
+		Usage:   nil,
+		// This will be filled when Hub accepts a deal event via Blockchain.
+		timer: nil,
 	}
-	h.cluster.Synchronize(h.deals)
-	h.tasksMu.Unlock()
 
-	return dealID, nil
+	return dealMeta, nil
 }
 
 func (h *Hub) waitForDealClosed(dealID DealID, buyerId string) error {
-	if err := h.eth.WaitForDealClosed(h.ctx, dealID, buyerId); err != nil {
-		log.G(h.ctx).Error("failed to wait for closing deal",
-			zap.String("dealID", string(dealID)),
-			zap.Error(err),
-		)
-		return err
-	}
-
-	return nil
+	return h.eth.WaitForDealClosed(h.ctx, dealID, buyerId)
 }
 
 // CloseDeal closes the specified deal freeing all associated resources.
-func (h *Hub) closeDeal(dealID DealID) error {
+func (h *Hub) releaseDeal(dealID DealID) error {
 	tasks, err := h.popDealHistory(dealID)
 	if err != nil {
 		return err
@@ -910,7 +918,7 @@ func (h *Hub) closeDeal(dealID DealID) error {
 
 		if err := h.stopTask(h.ctx, task); err != nil {
 			log.G(h.ctx).Error("failed to stop task",
-				zap.String("dealID", string(dealID)),
+				zap.Stringer("dealID", dealID),
 				zap.String("taskID", task.ID),
 				zap.Error(err),
 			)
@@ -1007,11 +1015,7 @@ func (h *Hub) GetDeviceProperties(ctx context.Context, request *pb.ID) (*pb.GetD
 	h.devicePropertiesMu.RLock()
 	defer h.devicePropertiesMu.RUnlock()
 
-	properties, exists := h.deviceProperties[request.Id]
-	if !exists {
-		return nil, ErrDeviceNotFound
-	}
-
+	properties := h.deviceProperties[request.Id]
 	return &pb.GetDevicePropertiesReply{Properties: properties}, nil
 }
 
@@ -1129,7 +1133,7 @@ func (h *Hub) GetRegisteredWorkers(ctx context.Context, empty *pb.Empty) (*pb.Ge
 func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling RegisterWorker request", zap.String("id", request.GetId()))
 
-	h.acl.Insert(request.Id)
+	h.acl.Insert(common.HexToAddress(request.Id).Hex())
 	err := h.cluster.Synchronize(h.acl)
 	if err != nil {
 		return nil, err
@@ -1387,10 +1391,102 @@ func (h *Hub) Serve() error {
 	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.listenClusterEvents)
 	h.waiter.Go(h.startLocatorAnnouncer)
+	h.waiter.Go(h.watchDealsAccepted)
+	h.waiter.Go(h.watchDealsClosed)
 
 	h.waiter.Wait()
 
 	return nil
+}
+
+func (h *Hub) watchDealsAccepted() error {
+	timer := util.NewImmediateTicker(30 * time.Second)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-timer.C:
+			log.G(h.ctx).Debug("fetching accepted deals from the Blockchain")
+
+			acceptedDeals, err := h.eth.GetAcceptedDeals(h.ctx)
+			if err != nil {
+				log.G(h.ctx).Warn("failed to fetch accepted deals from the Blockchain", zap.Error(err))
+				continue
+			}
+
+			h.tasksMu.Lock()
+			for _, acceptedDeal := range acceptedDeals {
+				dealID := DealID(acceptedDeal.Id)
+
+				deal, ok := h.deals[dealID]
+				if !ok {
+					continue
+				}
+				if deal.timer != nil {
+					continue
+				}
+
+				now := time.Now()
+				duration := deal.Order.GetDuration() - now.Sub(time.Unix(acceptedDeal.StartTime.Seconds, 0))
+				// Start deal timer to properly deallocate resources.
+				deal.timer = time.AfterFunc(duration, func() {
+					if err := h.eth.CloseDeal(dealID); err != nil {
+						log.G(h.ctx).Error("failed to close using blockchain API",
+							zap.Stringer("dealID", dealID),
+							zap.Error(err),
+						)
+					}
+				})
+			}
+			h.tasksMu.Unlock()
+		case <-h.ctx.Done():
+			return nil
+		}
+	}
+}
+
+// WatchDealsClosed watches ETH for currently closed deals.
+func (h *Hub) watchDealsClosed() error {
+	timer := util.NewImmediateTicker(30 * time.Second)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-timer.C:
+			log.G(h.ctx).Debug("fetching closed deals from the Blockchain")
+
+			closedDeals, err := h.eth.GetClosedDeals(h.ctx)
+			if err != nil {
+				log.G(h.ctx).Warn("failed to fetch closed deals from the Blockchain", zap.Error(err))
+				continue
+			}
+
+			for _, closedDeal := range closedDeals {
+				dealID := DealID(closedDeal.Id)
+				deal, ok := h.deals[dealID]
+				if !ok {
+					continue
+				}
+
+				if err := h.releaseDeal(dealID); err != nil {
+					log.G(h.ctx).Error("failed to release deal resources",
+						zap.Stringer("dealID", dealID),
+						zap.Error(err),
+					)
+					return err
+				}
+
+				miner, ok := h.getMinerByID(deal.MinerID)
+				if !ok {
+					continue
+				}
+
+				miner.Release(OrderID(deal.Order.GetID()))
+			}
+		case <-h.ctx.Done():
+			return nil
+		}
+	}
 }
 
 func (h *Hub) runCluster() error {
@@ -1446,6 +1542,7 @@ func (h *Hub) processClusterEvent(value interface{}) {
 		h.tasksMu.Lock()
 		defer h.tasksMu.Unlock()
 		h.deals = value
+		h.restoreResourceUsage()
 	default:
 		log.G(h.ctx).Warn("received unknown cluster event",
 			zap.Any("event", value),
@@ -1472,9 +1569,21 @@ func (h *Hub) registerMiner(miner *MinerCtx) {
 	h.miners[miner.uuid] = miner
 	h.minersMu.Unlock()
 	for address := range h.associatedHubs {
-		log.G(h.ctx).Info("sending hub adderess", zap.String("hub_address", address))
+		log.G(h.ctx).Info("sending hub address", zap.String("hubAddress", address))
 		miner.Client.DiscoverHub(h.ctx, &pb.DiscoverHubRequest{Endpoint: address})
 	}
+
+	h.minersMu.Lock()
+	for dealID, dealMeta := range h.deals {
+		if dealMeta.MinerID == miner.uuid {
+			log.G(h.ctx).Debug("restoring resources consumption settings",
+				zap.Stringer("dealID", dealID),
+				zap.String("minerID", dealMeta.MinerID),
+			)
+			miner.Consume(OrderID(dealMeta.Order.GetID()), dealMeta.Usage)
+		}
+	}
+	h.minersMu.Unlock()
 }
 
 func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
@@ -1483,6 +1592,7 @@ func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
 
 	miner, err := h.createMinerCtx(ctx, conn)
 	if err != nil {
+		log.G(h.ctx).Warn("failed to create miner context", zap.Error(err))
 		return
 	}
 
@@ -1567,7 +1677,6 @@ func (h *Hub) popDealHistory(dealID DealID) ([]*TaskInfo, error) {
 
 	tasks, ok := h.deals[dealID]
 	if !ok {
-		h.tasksMu.Unlock()
 		return nil, errDealNotFound
 	}
 	delete(h.deals, dealID)
@@ -1657,4 +1766,51 @@ func (h *Hub) collectMinerGPUs(miner *MinerCtx, dst map[string]*pb.GPUDeviceInfo
 			}
 		}
 	}
+}
+
+// NOTE: `tasksMu` must be held.
+func (h *Hub) restoreResourceUsage() {
+	log.G(h.ctx).Debug("synchronizing resource usage")
+
+	h.minersMu.Lock()
+	defer h.minersMu.Unlock()
+
+	for dealID, dealInfo := range h.deals {
+		miner, ok := h.miners[dealInfo.MinerID]
+		if !ok {
+			// Either miner has died or we have some kind of synchronization
+			// error. Unfortunately we can't do anything meaningful here.
+			log.G(h.ctx).Warn("detected worker inconsistency - found deal associated with unknown worker",
+				zap.Stringer("dealID", dealID),
+				zap.String("minerID", dealInfo.MinerID),
+			)
+			continue
+		}
+
+		// It's okay to ignore `AlreadyConsumed` errors here.
+		miner.Consume(OrderID(dealInfo.Order.GetID()), dealInfo.Usage)
+	}
+
+	for _, miner := range h.miners {
+		for _, orderID := range miner.Orders() {
+			orderExists := false
+			for _, dealInfo := range h.deals {
+				if orderID == OrderID(dealInfo.Order.GetID()) {
+					orderExists = true
+				}
+			}
+
+			if !orderExists {
+				miner.Release(orderID)
+			}
+		}
+	}
+}
+
+func (h *Hub) hasSlot(id string) bool {
+	h.slotsMu.Lock()
+	defer h.slotsMu.Unlock()
+
+	_, ok := h.slots[id]
+	return ok
 }

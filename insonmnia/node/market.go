@@ -179,7 +179,6 @@ func (h *orderHandler) propose(askID, supID string) error {
 	req := &pb.DealRequest{
 		BidId:    h.order.Id,
 		AskId:    askID,
-		Order:    h.order,
 		SpecHash: h.slotSpecHash(),
 	}
 

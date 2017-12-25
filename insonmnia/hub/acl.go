@@ -234,7 +234,7 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 	allowedWallet := meta.Order.GetByuerID()
 
 	log.G(d.ctx).Debug("found allowed wallet for a deal",
-		zap.String("deal", string(dealID)),
+		zap.Stringer("deal", dealID),
 		zap.String("signedWallet", signedWallet),
 		zap.String("allowedWallet", allowedWallet),
 	)
@@ -244,7 +244,7 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 		return err
 	}
 
-	log.G(d.ctx).Debug("recovered address", zap.String("addr", string(recoveredAddr)))
+	log.G(d.ctx).Debug("recovered address", zap.String("addr", recoveredAddr))
 
 	if allowedWallet != recoveredAddr {
 		return status.Errorf(codes.Unauthenticated, "wallet mismatch: %s", recoveredAddr)

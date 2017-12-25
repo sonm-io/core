@@ -3,8 +3,10 @@ package hub
 import (
 	"context"
 	"crypto/ecdsa"
+	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -14,8 +16,11 @@ import (
 )
 
 type ETH interface {
+	GetAcceptedDeals(ctx context.Context) ([]*pb.Deal, error)
+	// GetClosedDeals returns all currently closed deals.
+	GetClosedDeals(ctx context.Context) ([]*pb.Deal, error)
 	// WaitForDealCreated waits for deal created on Buyer-side
-	WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error)
+	WaitForDealCreated(request *structs.DealRequest, buyerID string) (*pb.Deal, error)
 	// WaitForDealClosed blocks the current execution context until the
 	// specified deal is closed.
 	WaitForDealClosed(ctx context.Context, dealID DealID, buyerID string) error
@@ -36,14 +41,45 @@ type eth struct {
 	timeout time.Duration
 }
 
-func (e *eth) WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error) {
+func (e *eth) hubAddress() string {
+	return crypto.PubkeyToAddress(e.key.PublicKey).Hex()
+}
+
+func (e *eth) GetAcceptedDeals(ctx context.Context) ([]*pb.Deal, error) {
+	return e.getTemplateDeals(ctx, e.bc.GetAcceptedDeal)
+}
+
+func (e *eth) GetClosedDeals(ctx context.Context) ([]*pb.Deal, error) {
+	return e.getTemplateDeals(ctx, e.bc.GetClosedDeal)
+}
+
+func (e *eth) getTemplateDeals(ctx context.Context, fn func(string, string) ([]*big.Int, error)) ([]*pb.Deal, error) {
+	ids, err := fn(e.hubAddress(), "")
+	if err != nil {
+		return nil, err
+	}
+
+	deals := make([]*pb.Deal, 0, len(ids))
+	for _, id := range ids {
+		deal, err := e.bc.GetDealInfo(id)
+		if err != nil {
+			return nil, err
+		}
+
+		deals = append(deals, deal)
+	}
+
+	return deals, nil
+}
+
+func (e *eth) WaitForDealCreated(request *structs.DealRequest, buyerID string) (*pb.Deal, error) {
 	// e.findDeals blocks until order will be found or timeout will reached
 	log.G(e.ctx).Debug("waiting for deal created", zap.Any("req", request))
-	return e.findDeals(e.ctx, request.Order.ByuerID, request.SpecHash)
+	return e.findDeals(e.ctx, buyerID, request.SpecHash)
 }
 
 func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID string) error {
-	log.G(ctx).Debug("waiting for deal closed", zap.String("dealID", string(dealID)))
+	log.G(ctx).Debug("waiting for deal closed", zap.Stringer("dealID", dealID))
 
 	timer := time.NewTicker(5 * time.Second)
 	defer timer.Stop()
@@ -66,7 +102,7 @@ func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID stri
 					continue
 				}
 
-				if dealInfo.GetId() == string(dealID) && dealInfo.GetStatus() == pb.DealStatus_CLOSED {
+				if dealInfo.GetId() == dealID.String() && dealInfo.GetStatus() == pb.DealStatus_CLOSED {
 					return nil
 				}
 			}
