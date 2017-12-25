@@ -20,7 +20,7 @@ type ETH interface {
 	// GetClosedDeals returns all currently closed deals.
 	GetClosedDeals(ctx context.Context) ([]*pb.Deal, error)
 	// WaitForDealCreated waits for deal created on Buyer-side
-	WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error)
+	WaitForDealCreated(request *structs.DealRequest, buyerID string) (*pb.Deal, error)
 	// WaitForDealClosed blocks the current execution context until the
 	// specified deal is closed.
 	WaitForDealClosed(ctx context.Context, dealID DealID, buyerID string) error
@@ -72,10 +72,10 @@ func (e *eth) getTemplateDeals(ctx context.Context, fn func(string, string) ([]*
 	return deals, nil
 }
 
-func (e *eth) WaitForDealCreated(request *structs.DealRequest) (*pb.Deal, error) {
+func (e *eth) WaitForDealCreated(request *structs.DealRequest, buyerID string) (*pb.Deal, error) {
 	// e.findDeals blocks until order will be found or timeout will reached
 	log.G(e.ctx).Debug("waiting for deal created", zap.Any("req", request))
-	return e.findDeals(e.ctx, request.Order.ByuerID, request.SpecHash)
+	return e.findDeals(e.ctx, buyerID, request.SpecHash)
 }
 
 func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID string) error {

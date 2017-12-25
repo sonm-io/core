@@ -6,24 +6,21 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var (
-	ErrOrderIsRequired = status.Errorf(codes.InvalidArgument, "order is required")
-	ErrSlotIsRequired  = status.Errorf(codes.InvalidArgument, "slot is required")
-)
-
 type DealRequest struct {
 	*sonm.DealRequest
 }
 
 func NewDealRequest(deal *sonm.DealRequest) (*DealRequest, error) {
-	order := deal.GetOrder()
-	if order == nil {
-		return nil, ErrOrderIsRequired
+	if deal.GetBidId() == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "bid_id is required")
 	}
 
-	slot := order.GetSlot()
-	if slot == nil {
-		return nil, ErrSlotIsRequired
+	if deal.GetAskId() == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "ask_id is required")
+	}
+
+	if deal.GetSpecHash() == "" {
+		return nil, status.Errorf(codes.InvalidArgument, "specification hash is required")
 	}
 
 	return &DealRequest{deal}, nil

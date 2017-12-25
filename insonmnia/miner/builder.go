@@ -105,6 +105,10 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 	}
 
 	hardwareInfo, err := b.hardware.Info()
+	if err != nil {
+		cancel()
+		return nil, err
+	}
 
 	if b.ssh == nil && b.cfg.SSH() != nil {
 		b.ssh, err = NewSSH(b.cfg.SSH())
@@ -112,11 +116,6 @@ func (b *MinerBuilder) Build() (miner *Miner, err error) {
 			cancel()
 			return nil, err
 		}
-	}
-
-	if err != nil {
-		cancel()
-		return nil, err
 	}
 
 	log.G(ctx).Info("collected Hardware info", zap.Any("hardware", hardwareInfo))

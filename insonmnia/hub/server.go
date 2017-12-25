@@ -806,7 +806,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 			zap.String("ask_id", r.GetAskId()))
 	}
 
-	resources, err := structs.NewResources(request.GetOrder().GetSlot().GetResources())
+	resources, err := structs.NewResources(bidOrder.GetSlot().GetResources())
 	if err != nil {
 		return nil, err
 	}
@@ -847,7 +847,8 @@ func (h *Hub) executeDeal(ctx context.Context, request *structs.DealRequest, ord
 }
 
 func (h *Hub) waitForDealCreatedAndAccepted(ctx context.Context, req *structs.DealRequest, order *structs.Order) (DealID, error) {
-	createdDeal, err := h.eth.WaitForDealCreated(req)
+	createdDeal, err := h.eth.WaitForDealCreated(req, order.GetByuerID())
+
 	if err != nil || createdDeal == nil {
 		log.G(h.ctx).Warn("cannot find created deal for current proposal",
 			zap.String("bidID", req.BidId),
