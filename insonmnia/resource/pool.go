@@ -112,4 +112,5 @@ func (p *Pool) Release(usage *Resources) {
 
 	p.usage.NumCPUs -= usage.NumCPUs
 	p.usage.Memory -= usage.Memory
+	p.usage.NumGPUs -= usage.NumGPUs
 }
