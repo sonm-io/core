@@ -90,11 +90,10 @@ func TestEth_WaitForDealCreated(t *testing.T) {
 		AskId:    addr,
 		BidId:    "client-addr",
 		SpecHash: "bbb",
-		Order:    &pb.Order{Slot: &pb.Slot{}, ByuerID: "client-addr"},
 	})
 	assert.NoError(t, err)
 
-	found, err := eeth.WaitForDealCreated(req)
+	found, err := eeth.WaitForDealCreated(req, "client-addr")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "bbb", found.SpecificationHash)
@@ -131,11 +130,10 @@ func TestEth_CheckDealExists2(t *testing.T) {
 		AskId:    addr,
 		BidId:    "client-addr",
 		SpecHash: "aaa",
-		Order:    &pb.Order{Slot: &pb.Slot{}, ByuerID: "client-addr"},
 	})
 	assert.NoError(t, err)
 
-	found, err := eeth.WaitForDealCreated(req)
+	found, err := eeth.WaitForDealCreated(req, "client-addr")
 	assert.Nil(t, found)
 	assert.Error(t, err)
 	assert.EqualError(t, err, "context deadline exceeded")
