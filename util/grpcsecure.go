@@ -103,13 +103,8 @@ func (w *WalletAuthenticator) ServerHandshake(conn net.Conn) (net.Conn, credenti
 		return nil, nil, err
 	}
 
-	switch authInfo := authInfo.(type) {
-	case EthAuthInfo:
-		if !EqualAddresses(authInfo.Wallet, w.Wallet) {
-			return nil, nil, fmt.Errorf("authorization failed: expected %s, actual %s", w.Wallet, authInfo.Wallet)
-		}
-	default:
-		return nil, nil, fmt.Errorf("unsupported AuthInfo %s %T", authInfo.AuthType(), authInfo)
+	if err := w.compareWallets(authInfo); err != nil {
+		return nil, nil, err
 	}
 
 	return conn, authInfo, nil
