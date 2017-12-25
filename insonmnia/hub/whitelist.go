@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"path/filepath"
 	"sync"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	dc "github.com/docker/docker/client"
+	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/util"
@@ -31,7 +33,8 @@ func NewWhitelist(ctx context.Context, config *WhitelistConfig) Whitelist {
 	}
 
 	for _, su := range config.PrivilegedAddresses {
-		wl.superusers[su] = struct{}{}
+		parsed := common.HexToAddress(su)
+		wl.superusers[parsed.Hex()] = struct{}{}
 	}
 
 	go wl.updateRoutine(ctx, config.Url, config.RefreshPeriod)
@@ -78,9 +81,13 @@ func (w *whitelist) load(ctx context.Context, url string) error {
 		return fmt.Errorf("failed to download whitelist - got %s", resp.Status)
 	}
 
-	decoder := json.NewDecoder(resp.Body)
+	return w.fillFromJsonReader(ctx, resp.Body)
+}
+
+func (w *whitelist) fillFromJsonReader(ctx context.Context, jsonReader io.Reader) error {
+	decoder := json.NewDecoder(jsonReader)
 	r := make(map[string]WhitelistRecord)
-	err = decoder.Decode(&r)
+	err := decoder.Decode(&r)
 	if err != nil {
 		return errors.Wrap(err, "could not decode whitelist data")
 	}

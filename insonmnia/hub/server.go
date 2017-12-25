@@ -686,10 +686,10 @@ func (h *Hub) TaskList(ctx context.Context, request *pb.Empty) (*pb.TaskListRepl
 		for taskID := range taskStatuses.GetStatuses() {
 			taskInfo, err := worker.Client.TaskDetails(ctx, &pb.ID{Id: taskID})
 			if err != nil {
-				return nil, err
+				info.Tasks[taskID] = &pb.TaskStatusReply{Status: pb.TaskStatusReply_UNKNOWN}
+			} else {
+				info.Tasks[taskID] = taskInfo
 			}
-
-			info.Tasks[taskID] = taskInfo
 		}
 
 		reply.Info[workerID] = info
@@ -1275,7 +1275,9 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		acl.Insert(defaults.ethAddr.Hex())
 	}
 
-	cfg.Whitelist.PrivilegedAddresses = append(cfg.Whitelist.PrivilegedAddresses, defaults.ethAddr.Hex())
+	if len(cfg.Whitelist.PrivilegedAddresses) == 0 {
+		cfg.Whitelist.PrivilegedAddresses = append(cfg.Whitelist.PrivilegedAddresses, defaults.ethAddr.Hex())
+	}
 
 	wl := NewWhitelist(ctx, &cfg.Whitelist)
 
