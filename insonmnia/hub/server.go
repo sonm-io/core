@@ -904,9 +904,9 @@ func (h *Hub) waitForDealCreatedAndAccepted(ctx context.Context, req *structs.De
 		zap.String("orderPrice", order.Price),
 	)
 
-	if err := util.VerifyEqualPrice(createdDeal.Price, order.Price); err != nil {
-		return nil, err
-	}
+	//if err := util.VerifyEqualPrice(createdDeal.Price, order.Price); err != nil {
+	//	return nil, err
+	//}
 
 	dealID := DealID(createdDeal.GetId())
 	err = h.eth.AcceptDeal(dealID.String())
