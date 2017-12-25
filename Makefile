@@ -24,7 +24,7 @@ TAGS=nocgo
 
 GPU_SUPPORT?=false
 ifeq ($(GPU_SUPPORT),true)
-    TAGS+=cl
+    GPU_TAGS=cl
 endif
 
 UNAME_S := $(shell uname -s)
@@ -46,7 +46,7 @@ build/locator:
 
 build/miner:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${MINER} ${GOCMD}/miner
+	${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${MINER} ${GOCMD}/miner
 
 build/hub:
 	@echo "+ $@"
