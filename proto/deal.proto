@@ -16,6 +16,8 @@ message Deal {
     string SupplierID = 2;
     DealStatus status = 3;
 
+    // todo(sshaman1101): need to change the type from a string to a bigInt
+    // todo(sshaman1101):  but for now it will be out of scope.
     string price = 4;
     Timestamp startTime = 5;
     Timestamp endTime = 6;

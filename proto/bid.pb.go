@@ -310,6 +310,7 @@ type Order struct {
 	// Supplier's is EtherumID
 	SupplierID string `protobuf:"bytes,3,opt,name=supplierID" json:"supplierID,omitempty"`
 	// Order price
+	// todo(all): remove this filed
 	Price string `protobuf:"bytes,4,opt,name=price" json:"price,omitempty"`
 	// Order type (Bid or Ask)
 	OrderType OrderType `protobuf:"varint,5,opt,name=orderType,enum=sonm.OrderType" json:"orderType,omitempty"`

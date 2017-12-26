@@ -40,9 +40,11 @@ func (x DealStatus) String() string {
 func (DealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
 
 type Deal struct {
-	BuyerID           string     `protobuf:"bytes,1,opt,name=BuyerID" json:"BuyerID,omitempty"`
-	SupplierID        string     `protobuf:"bytes,2,opt,name=SupplierID" json:"SupplierID,omitempty"`
-	Status            DealStatus `protobuf:"varint,3,opt,name=status,enum=sonm.DealStatus" json:"status,omitempty"`
+	BuyerID    string     `protobuf:"bytes,1,opt,name=BuyerID" json:"BuyerID,omitempty"`
+	SupplierID string     `protobuf:"bytes,2,opt,name=SupplierID" json:"SupplierID,omitempty"`
+	Status     DealStatus `protobuf:"varint,3,opt,name=status,enum=sonm.DealStatus" json:"status,omitempty"`
+	// todo(sshaman1101): need to change the type from a string to a bigInt
+	// todo(sshaman1101):  but for now it will be out of scope.
 	Price             string     `protobuf:"bytes,4,opt,name=price" json:"price,omitempty"`
 	StartTime         *Timestamp `protobuf:"bytes,5,opt,name=startTime" json:"startTime,omitempty"`
 	EndTime           *Timestamp `protobuf:"bytes,6,opt,name=endTime" json:"endTime,omitempty"`

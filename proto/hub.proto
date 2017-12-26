@@ -4,6 +4,7 @@ import "bid.proto";
 import "capabilities.proto";
 import "deal.proto";
 import "insonmnia.proto";
+import "bigint.proto";
 
 package sonm;
 
@@ -117,6 +118,7 @@ message DealRequest {
     string bidId = 1;
     string askId = 2;
     string specHash = 4;
+    BigInt dealID = 5;
 }
 
 message GetDevicePropertiesReply {
@@ -187,7 +189,10 @@ message DevicesReply {
 
 message InsertSlotRequest {
     Slot slot = 1;
+    // todo(all): remove this field
     string price = 2;
+    BigInt pricePerSecond = 4;
+
     string buyerID = 3;
 }
 
