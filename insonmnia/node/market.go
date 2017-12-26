@@ -405,7 +405,7 @@ func (m *marketAPI) checkBalanceAndAllowance(price, balance, allowance *big.Int)
 	if balance.Cmp(price) == -1 || allowance.Cmp(price) == -1 {
 		return false
 	}
-	
+
 	return true
 }
 
