@@ -108,6 +108,7 @@ func getTestConfig(ctrl *gomock.Controller) Config {
 func getTestHubClient(ctrl *gomock.Controller) pb.HubClient {
 	hub := NewMockHubClient(ctrl)
 	hub.EXPECT().ProposeDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
+	hub.EXPECT().ApproveDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
 	return hub
 }
 
@@ -344,23 +345,14 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 	defer ctrl.Finish()
 
 	ctx := context.Background()
-
-	eth := blockchain.NewMockBlockchainer(ctrl)
-	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
-		Return(big.NewInt(big.MaxPrec), nil)
-	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
-		Return(big.NewInt(big.MaxPrec), nil)
-	eth.EXPECT().OpenDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
-		Return(big.NewInt(1), nil)
-	eth.EXPECT().GetAcceptedDeal(gomock.Any(), gomock.Any()).AnyTimes().
-		Return([]*big.Int{big.NewInt(1), big.NewInt(2)}, nil)
-	eth.EXPECT().GetDealInfo(big.NewInt(1)).AnyTimes().
-		Return(&pb.Deal{Status: pb.DealStatus_CLOSED, SpecificationHash: "217643283185136810854905094570012887099"}, nil)
-	eth.EXPECT().GetDealInfo(big.NewInt(2)).AnyTimes().
-		Return(&pb.Deal{Status: pb.DealStatus_PENDING, SpecificationHash: "614000"}, nil)
-
 	opts := getTestRemotes(ctx, ctrl)
-	opts.eth = eth
+	opts.hubCreator = func(addr string) (pb.HubClient, error) {
+		hub := NewMockHubClient(ctrl)
+		hub.EXPECT().ProposeDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
+		hub.EXPECT().ApproveDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(
+			nil, errors.New("TEST: cannot approve deal"))
+		return hub, nil
+	}
 
 	server, err := newMarketAPI(opts)
 	assert.NoError(t, err)
@@ -377,9 +369,9 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 	assert.True(t, len(inner.tasks) == 1, "Handler must not be removed")
 
 	handlr := inner.tasks[created.Id]
-	assert.Equal(t, statusWaitForApprove, handlr.status,
-		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusWaitForApprove], statusMap[handlr.status]))
-	assert.NoError(t, handlr.err)
+	assert.Equal(t, statusFailed, handlr.status,
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	assert.Error(t, handlr.err)
 }
 
 func TestCreateOrder_LackAllowanceBalance(t *testing.T) {

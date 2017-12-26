@@ -874,6 +874,11 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 	return &pb.Empty{}, nil
 }
 
+func (h *Hub) ApproveDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, error) {
+	log.G(h.ctx).Info("handling ApproveDeal request", zap.Any("request", r))
+	return &pb.Empty{}, nil
+}
+
 func (h *Hub) executeDeal(ctx context.Context, request *structs.DealRequest, order *structs.Order) (*DealMeta, error) {
 	dealMeta, err := h.waitForDealCreatedAndAccepted(ctx, request, order)
 	if err != nil {
