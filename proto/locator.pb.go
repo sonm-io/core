@@ -25,7 +25,7 @@ type AnnounceRequest struct {
 func (m *AnnounceRequest) Reset()                    { *m = AnnounceRequest{} }
 func (m *AnnounceRequest) String() string            { return proto.CompactTextString(m) }
 func (*AnnounceRequest) ProtoMessage()               {}
-func (*AnnounceRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{0} }
+func (*AnnounceRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
 
 func (m *AnnounceRequest) GetIpAddr() []string {
 	if m != nil {
@@ -41,7 +41,7 @@ type ResolveRequest struct {
 func (m *ResolveRequest) Reset()                    { *m = ResolveRequest{} }
 func (m *ResolveRequest) String() string            { return proto.CompactTextString(m) }
 func (*ResolveRequest) ProtoMessage()               {}
-func (*ResolveRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{1} }
+func (*ResolveRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{1} }
 
 func (m *ResolveRequest) GetEthAddr() string {
 	if m != nil {
@@ -57,7 +57,7 @@ type ResolveReply struct {
 func (m *ResolveReply) Reset()                    { *m = ResolveReply{} }
 func (m *ResolveReply) String() string            { return proto.CompactTextString(m) }
 func (*ResolveReply) ProtoMessage()               {}
-func (*ResolveReply) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{2} }
+func (*ResolveReply) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{2} }
 
 func (m *ResolveReply) GetIpAddr() []string {
 	if m != nil {
@@ -177,9 +177,9 @@ var _Locator_serviceDesc = grpc.ServiceDesc{
 	Metadata: "locator.proto",
 }
 
-func init() { proto.RegisterFile("locator.proto", fileDescriptor5) }
+func init() { proto.RegisterFile("locator.proto", fileDescriptor6) }
 
-var fileDescriptor5 = []byte{
+var fileDescriptor6 = []byte{
 	// 195 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0xcd, 0xc9, 0x4f, 0x4e,
 	0x2c, 0xc9, 0x2f, 0xd2, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x29, 0xce, 0xcf, 0xcb, 0x95,

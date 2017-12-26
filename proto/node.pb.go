@@ -26,7 +26,7 @@ type TaskListRequest struct {
 func (m *TaskListRequest) Reset()                    { *m = TaskListRequest{} }
 func (m *TaskListRequest) String() string            { return proto.CompactTextString(m) }
 func (*TaskListRequest) ProtoMessage()               {}
-func (*TaskListRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{0} }
+func (*TaskListRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{0} }
 
 func (m *TaskListRequest) GetHubID() string {
 	if m != nil {
@@ -43,7 +43,7 @@ type DealListRequest struct {
 func (m *DealListRequest) Reset()                    { *m = DealListRequest{} }
 func (m *DealListRequest) String() string            { return proto.CompactTextString(m) }
 func (*DealListRequest) ProtoMessage()               {}
-func (*DealListRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{1} }
+func (*DealListRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{1} }
 
 func (m *DealListRequest) GetOwner() string {
 	if m != nil {
@@ -66,7 +66,7 @@ type DealListReply struct {
 func (m *DealListReply) Reset()                    { *m = DealListReply{} }
 func (m *DealListReply) String() string            { return proto.CompactTextString(m) }
 func (*DealListReply) ProtoMessage()               {}
-func (*DealListReply) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{2} }
+func (*DealListReply) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{2} }
 
 func (m *DealListReply) GetDeal() []*Deal {
 	if m != nil {
@@ -1125,9 +1125,9 @@ var _HubManagement_serviceDesc = grpc.ServiceDesc{
 	Metadata: "node.proto",
 }
 
-func init() { proto.RegisterFile("node.proto", fileDescriptor8) }
+func init() { proto.RegisterFile("node.proto", fileDescriptor9) }
 
-var fileDescriptor8 = []byte{
+var fileDescriptor9 = []byte{
 	// 610 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x54, 0x41, 0x4f, 0xdb, 0x4c,
 	0x10, 0x8d, 0xf9, 0x42, 0x04, 0x13, 0x92, 0xa0, 0x85, 0x4f, 0x50, 0x1f, 0x68, 0xea, 0x1e, 0xea,
