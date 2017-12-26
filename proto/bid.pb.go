@@ -84,7 +84,7 @@ It has these top-level messages:
 	TaskListRequest
 	DealListRequest
 	DealListReply
-	Price
+	BigInt
 */
 package sonm
 

@@ -6,15 +6,15 @@ import (
 )
 
 // NewPrice constructs a new price using specified big.Int.
-func NewPrice(v *big.Int) *Price {
-	return &Price{
+func NewPrice(v *big.Int) *BigInt {
+	return &BigInt{
 		Neg: v.Sign() < 0,
 		Abs: v.Bytes(),
 	}
 }
 
 // NewPriceFromString tries to construct a new price from the specified string.
-func NewPriceFromString(s string) (*Price, error) {
+func NewPriceFromString(s string) (*BigInt, error) {
 	v := new(big.Int)
 	v, ok := v.SetString(s, 10)
 	if !ok {
@@ -24,7 +24,7 @@ func NewPriceFromString(s string) (*Price, error) {
 }
 
 // BigInt returns the current price as *big.Int.
-func (m *Price) BigInt() *big.Int {
+func (m *BigInt) BigInt() *big.Int {
 	v := new(big.Int)
 	v.SetBytes(m.Abs)
 	if m.Neg {
