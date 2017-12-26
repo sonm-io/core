@@ -105,35 +105,6 @@ func ParseBigInt(s string) (*big.Int, error) {
 	return n, nil
 }
 
-// CmpPrice transforms the given prices in string format and compares them,
-// returning:
-// 	-1 if x <  y
-//   0 if x == y
-//  +1 if x >  y
-func CmpPrice(x, y string) (int, error) {
-	xBig, err := ParseBigInt(x)
-	if err != nil {
-		return 0, err
-	}
-	yBig, err := ParseBigInt(y)
-	if err != nil {
-		return 0, err
-	}
-
-	return xBig.Cmp(yBig), nil
-}
-
-func VerifyEqualPrice(x, y string) error {
-	cmp, err := CmpPrice(x, y)
-	if err != nil {
-		return err
-	}
-	if cmp != 0 {
-		return fmt.Errorf("prices are not equal")
-	}
-	return nil
-}
-
 func GetAvailableIPs() (availableIPs []net.IP, err error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {

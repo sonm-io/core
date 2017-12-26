@@ -13,6 +13,10 @@ func NewBigInt(v *big.Int) *BigInt {
 	}
 }
 
+func NewBigIntFromInt(v int64) *BigInt {
+	return NewBigInt(big.NewInt(v))
+}
+
 // NewBigIntFromString tries to construct a new value from the specified string.
 func NewBigIntFromString(s string) (*BigInt, error) {
 	v := new(big.Int)
@@ -31,4 +35,12 @@ func (m *BigInt) Unwrap() *big.Int {
 		v.Neg(v)
 	}
 	return v
+}
+
+// Cmp compares this value with the other one, returning:
+//  -1 if x <  y
+//   0 if x == y
+//  +1 if x >  y
+func (m *BigInt) Cmp(other *BigInt) int {
+	return m.Unwrap().Cmp(other.Unwrap())
 }

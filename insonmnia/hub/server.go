@@ -819,11 +819,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 
 	// Verify that bid price >= ask price, i.e we're not selling our resources
 	// with lesser price than expected.
-	cmp, err := util.CmpPrice(bidOrder.Price, askOrder.Price)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "malformed price format: %v", err)
-	}
-	if cmp < 0 {
+	if bidOrder.PricePerSecond.Cmp(askOrder.PricePerSecond) < 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "BID price can not be less than ASK price")
 	}
 
@@ -904,9 +900,13 @@ func (h *Hub) waitForDealCreatedAndAccepted(ctx context.Context, req *structs.De
 		zap.String("orderPrice", order.Price),
 	)
 
-	//if err := util.VerifyEqualPrice(createdDeal.Price, order.Price); err != nil {
-	//	return nil, err
-	//}
+	dealPrice, err := util.ParseBigInt(createdDeal.Price)
+	if err != nil {
+		return nil, err
+	}
+	if cmp := dealPrice.Cmp(order.GetTotalPrice()); cmp != 0 {
+		return nil, fmt.Errorf("prices are not equal: %v != %v", dealPrice, order.GetTotalPrice())
+	}
 
 	dealID := DealID(createdDeal.GetId())
 	err = h.eth.AcceptDeal(dealID.String())

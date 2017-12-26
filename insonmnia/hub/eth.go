@@ -61,8 +61,8 @@ func (e *eth) VerifyBuyerBalance(bidOrder *structs.Order) error {
 	if err != nil {
 		return err
 	}
-	if balance.Cmp(bidOrder.PriceAsBigInt()) == -1 {
-		return fmt.Errorf("not enough balance to have a deal")
+	if balance.Cmp(bidOrder.GetTotalPrice()) == -1 {
+		return fmt.Errorf("not enough balance to have a deal: %v when required at least %v", balance, bidOrder.GetTotalPrice())
 	}
 
 	return nil
@@ -73,8 +73,8 @@ func (e *eth) VerifyBuyerAllowance(bidOrder *structs.Order) error {
 	if err != nil {
 		return err
 	}
-	if allowance.Cmp(bidOrder.PriceAsBigInt()) == -1 {
-		return fmt.Errorf("not enough allowance to have a deal")
+	if allowance.Cmp(bidOrder.GetTotalPrice()) == -1 {
+		return fmt.Errorf("not enough allowance to have a deal: %v when required at least %v", allowance, bidOrder.GetTotalPrice())
 	}
 
 	return nil
