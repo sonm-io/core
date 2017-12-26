@@ -800,6 +800,12 @@
 			"revisionTime": "2017-07-22T14:45:13Z"
 		},
 		{
+			"checksumSHA1": "iVfdaLxIDjfk2KLP8dCMIbsxZZM=",
+			"path": "github.com/golang/protobuf/jsonpb",
+			"revision": "1e59b77b52bf8e4b449a57e6f79f21226d571845",
+			"revisionTime": "2017-11-13T18:07:20Z"
+		},
+		{
 			"checksumSHA1": "qlPUeFabwF4RKAOF1H+yBFU1Veg=",
 			"path": "github.com/golang/protobuf/proto",
 			"revision": "748d386b5c1ea99658fd69fe9f03991ce86a90c1",
@@ -816,6 +822,12 @@
 			"path": "github.com/golang/protobuf/ptypes/any",
 			"revision": "748d386b5c1ea99658fd69fe9f03991ce86a90c1",
 			"revisionTime": "2017-07-26T21:28:29Z"
+		},
+		{
+			"checksumSHA1": "Ylq6kq3KWBy6mu68oyEwenhNMdg=",
+			"path": "github.com/golang/protobuf/ptypes/struct",
+			"revision": "1e59b77b52bf8e4b449a57e6f79f21226d571845",
+			"revisionTime": "2017-11-13T18:07:20Z"
 		},
 		{
 			"checksumSHA1": "p/8vSviYF91gFflhrt5vkyksroo=",
@@ -841,6 +853,36 @@
 			"path": "github.com/gosuri/uiprogress/util/strutil",
 			"revision": "d0567a9d84a1c40dd7568115ea66f4887bf57b33",
 			"revisionTime": "2017-02-24T06:39:37Z"
+		},
+		{
+			"checksumSHA1": "/qnBi21MarbK8w84dm8ogKs0yyA=",
+			"path": "github.com/grpc-ecosystem/go-grpc-middleware",
+			"revision": "967bee733a734780623ac3d7c8e9216e4372ea62",
+			"revisionTime": "2017-12-15T09:52:38Z"
+		},
+		{
+			"checksumSHA1": "YdjXbik3OwU+YwQL7OAzwqAAUjo=",
+			"path": "github.com/grpc-ecosystem/go-grpc-middleware/logging",
+			"revision": "967bee733a734780623ac3d7c8e9216e4372ea62",
+			"revisionTime": "2017-12-15T09:52:38Z"
+		},
+		{
+			"checksumSHA1": "+QME275GEDNK1QyUM06dGooPEes=",
+			"path": "github.com/grpc-ecosystem/go-grpc-middleware/logging/zap",
+			"revision": "967bee733a734780623ac3d7c8e9216e4372ea62",
+			"revisionTime": "2017-12-15T09:52:38Z"
+		},
+		{
+			"checksumSHA1": "tWERdnjAI+a4U6cxqfmYHzPBYC8=",
+			"path": "github.com/grpc-ecosystem/go-grpc-middleware/tags",
+			"revision": "967bee733a734780623ac3d7c8e9216e4372ea62",
+			"revisionTime": "2017-12-15T09:52:38Z"
+		},
+		{
+			"checksumSHA1": "6ktd44fYOvN8YrdTAU0a+QaJ1+8=",
+			"path": "github.com/grpc-ecosystem/go-grpc-middleware/tags/zap",
+			"revision": "967bee733a734780623ac3d7c8e9216e4372ea62",
+			"revisionTime": "2017-12-15T09:52:38Z"
 		},
 		{
 			"checksumSHA1": "lCMq+IA+prPLb267kRN/4m7sKDU=",
