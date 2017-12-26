@@ -54,7 +54,7 @@ var NATType_value = map[string]int32{
 func (x NATType) String() string {
 	return proto.EnumName(NATType_name, int32(x))
 }
-func (NATType) EnumDescriptor() ([]byte, []int) { return fileDescriptor7, []int{0} }
+func (NATType) EnumDescriptor() ([]byte, []int) { return fileDescriptor8, []int{0} }
 
 type MinerHandshakeRequest struct {
 	Hub   string      `protobuf:"bytes,1,opt,name=hub" json:"hub,omitempty"`
@@ -64,7 +64,7 @@ type MinerHandshakeRequest struct {
 func (m *MinerHandshakeRequest) Reset()                    { *m = MinerHandshakeRequest{} }
 func (m *MinerHandshakeRequest) String() string            { return proto.CompactTextString(m) }
 func (*MinerHandshakeRequest) ProtoMessage()               {}
-func (*MinerHandshakeRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{0} }
+func (*MinerHandshakeRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{0} }
 
 func (m *MinerHandshakeRequest) GetHub() string {
 	if m != nil {
@@ -89,7 +89,7 @@ type MinerHandshakeReply struct {
 func (m *MinerHandshakeReply) Reset()                    { *m = MinerHandshakeReply{} }
 func (m *MinerHandshakeReply) String() string            { return proto.CompactTextString(m) }
 func (*MinerHandshakeReply) ProtoMessage()               {}
-func (*MinerHandshakeReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{1} }
+func (*MinerHandshakeReply) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{1} }
 
 func (m *MinerHandshakeReply) GetMiner() string {
 	if m != nil {
@@ -130,7 +130,7 @@ type MinerStartRequest struct {
 func (m *MinerStartRequest) Reset()                    { *m = MinerStartRequest{} }
 func (m *MinerStartRequest) String() string            { return proto.CompactTextString(m) }
 func (*MinerStartRequest) ProtoMessage()               {}
-func (*MinerStartRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{2} }
+func (*MinerStartRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{2} }
 
 func (m *MinerStartRequest) GetId() string {
 	if m != nil {
@@ -212,7 +212,7 @@ type SocketAddr struct {
 func (m *SocketAddr) Reset()                    { *m = SocketAddr{} }
 func (m *SocketAddr) String() string            { return proto.CompactTextString(m) }
 func (*SocketAddr) ProtoMessage()               {}
-func (*SocketAddr) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{3} }
+func (*SocketAddr) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{3} }
 
 func (m *SocketAddr) GetAddr() string {
 	if m != nil {
@@ -236,7 +236,7 @@ type MinerStartReply struct {
 func (m *MinerStartReply) Reset()                    { *m = MinerStartReply{} }
 func (m *MinerStartReply) String() string            { return proto.CompactTextString(m) }
 func (*MinerStartReply) ProtoMessage()               {}
-func (*MinerStartReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{4} }
+func (*MinerStartReply) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{4} }
 
 func (m *MinerStartReply) GetContainer() string {
 	if m != nil {
@@ -260,7 +260,7 @@ type TaskInfo struct {
 func (m *TaskInfo) Reset()                    { *m = TaskInfo{} }
 func (m *TaskInfo) String() string            { return proto.CompactTextString(m) }
 func (*TaskInfo) ProtoMessage()               {}
-func (*TaskInfo) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{5} }
+func (*TaskInfo) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{5} }
 
 func (m *TaskInfo) GetRequest() *MinerStartRequest {
 	if m != nil {
@@ -284,7 +284,7 @@ type Route struct {
 func (m *Route) Reset()                    { *m = Route{} }
 func (m *Route) String() string            { return proto.CompactTextString(m) }
 func (*Route) ProtoMessage()               {}
-func (*Route) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{6} }
+func (*Route) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{6} }
 
 func (m *Route) GetPort() string {
 	if m != nil {
@@ -306,7 +306,7 @@ type MinerStatusMapRequest struct {
 func (m *MinerStatusMapRequest) Reset()                    { *m = MinerStatusMapRequest{} }
 func (m *MinerStatusMapRequest) String() string            { return proto.CompactTextString(m) }
 func (*MinerStatusMapRequest) ProtoMessage()               {}
-func (*MinerStatusMapRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{7} }
+func (*MinerStatusMapRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{7} }
 
 type SaveRequest struct {
 	ImageID string `protobuf:"bytes,1,opt,name=imageID" json:"imageID,omitempty"`
@@ -315,7 +315,7 @@ type SaveRequest struct {
 func (m *SaveRequest) Reset()                    { *m = SaveRequest{} }
 func (m *SaveRequest) String() string            { return proto.CompactTextString(m) }
 func (*SaveRequest) ProtoMessage()               {}
-func (*SaveRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{8} }
+func (*SaveRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{8} }
 
 func (m *SaveRequest) GetImageID() string {
 	if m != nil {
@@ -858,9 +858,9 @@ var _Miner_serviceDesc = grpc.ServiceDesc{
 	Metadata: "miner.proto",
 }
 
-func init() { proto.RegisterFile("miner.proto", fileDescriptor7) }
+func init() { proto.RegisterFile("miner.proto", fileDescriptor8) }
 
-var fileDescriptor7 = []byte{
+var fileDescriptor8 = []byte{
 	// 909 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x55, 0x5d, 0x6f, 0xe2, 0x46,
 	0x17, 0xc6, 0x60, 0x02, 0x1c, 0x36, 0x09, 0x7b, 0xb2, 0x79, 0xd7, 0xaf, 0xbb, 0x6a, 0x91, 0xbb,

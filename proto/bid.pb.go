@@ -6,6 +6,7 @@ Package sonm is a generated protocol buffer package.
 
 It is generated from these files:
 	bid.proto
+	bigint.proto
 	capabilities.proto
 	deal.proto
 	hub.proto
@@ -14,13 +15,13 @@ It is generated from these files:
 	marketplace.proto
 	miner.proto
 	node.proto
-	price.proto
 
 It has these top-level messages:
 	Geo
 	Resources
 	Slot
 	Order
+	BigInt
 	Capabilities
 	CPUDevice
 	RAMDevice
@@ -84,7 +85,6 @@ It has these top-level messages:
 	TaskListRequest
 	DealListRequest
 	DealListReply
-	BigInt
 */
 package sonm
 
