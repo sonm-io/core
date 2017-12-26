@@ -42,14 +42,14 @@ type Dealer interface {
 	AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
 	// AcceptDealPending accept deal and waits for transaction to be committed on blockchain.
 	// wait is duration to wait for transaction commit, recommended value is 180 seconds.
-	AcceptDealPending(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) (error)
+	AcceptDealPending(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) error
 
 	// CloseDeal closing deal by given id
 	// It could be called by client
 	CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
 	// CloseDealPending close deal and waits for transaction to be committed on blockchain.
 	// wait is duration to wait for transaction commit, recommended value is 180 seconds.
-	CloseDealPending(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) (error)
+	CloseDealPending(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) error
 
 	// GetDeals is returns ids by given address
 	GetDeals(address string) ([]*big.Int, error)
@@ -264,7 +264,7 @@ func (bch *api) AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transacti
 	return tx, err
 }
 
-func (bch *api) AcceptDealPending(ctx context.Context, key *ecdsa.PrivateKey, dealId *big.Int, wait time.Duration) (error) {
+func (bch *api) AcceptDealPending(ctx context.Context, key *ecdsa.PrivateKey, dealId *big.Int, wait time.Duration) error {
 	tx, err := bch.AcceptDeal(key, dealId)
 	if err != nil {
 		return err
@@ -322,7 +322,7 @@ func (bch *api) CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transactio
 	return tx, err
 }
 
-func (bch *api) CloseDealPending(ctx context.Context, key *ecdsa.PrivateKey, dealId *big.Int, wait time.Duration) (error) {
+func (bch *api) CloseDealPending(ctx context.Context, key *ecdsa.PrivateKey, dealId *big.Int, wait time.Duration) error {
 	tx, err := bch.CloseDeal(key, dealId)
 	if err != nil {
 		return err
