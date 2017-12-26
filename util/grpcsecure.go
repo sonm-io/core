@@ -106,7 +106,8 @@ func (w *WalletAuthenticator) ServerHandshake(conn net.Conn) (net.Conn, credenti
 	switch authInfo := authInfo.(type) {
 	case EthAuthInfo:
 		if !EqualAddresses(authInfo.Wallet, w.Wallet) {
-			return nil, nil, fmt.Errorf("authorization failed: expected %s, actual %s", w.Wallet, authInfo.Wallet)
+			return nil, nil, fmt.Errorf("authorization failed: expected %s, actual %s",
+				w.Wallet.Hex(), authInfo.Wallet.Hex())
 		}
 	default:
 		return nil, nil, fmt.Errorf("unsupported AuthInfo %s %T", authInfo.AuthType(), authInfo)
@@ -132,7 +133,8 @@ func (w *WalletAuthenticator) compareWallets(authInfo credentials.AuthInfo) erro
 	switch authInfo := authInfo.(type) {
 	case EthAuthInfo:
 		if !EqualAddresses(authInfo.Wallet, w.Wallet) {
-			return fmt.Errorf("authorization failed: expected %s, actual %s", w.Wallet.Hex(), authInfo.Wallet.Hex())
+			return fmt.Errorf("authorization failed: expected %s, actual %s",
+				w.Wallet.Hex(), authInfo.Wallet.Hex())
 		}
 	default:
 		return fmt.Errorf("unsupported AuthInfo %s %T", authInfo.AuthType(), authInfo)
