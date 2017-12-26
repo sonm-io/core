@@ -14,6 +14,7 @@ It is generated from these files:
 	marketplace.proto
 	miner.proto
 	node.proto
+	price.proto
 
 It has these top-level messages:
 	Geo
@@ -83,6 +84,7 @@ It has these top-level messages:
 	TaskListRequest
 	DealListRequest
 	DealListReply
+	Price
 */
 package sonm
 
