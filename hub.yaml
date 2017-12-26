@@ -20,7 +20,7 @@ cluster:
   # This one useful if hub is behind router with DMZ or port forwarding
   # This endpoint will be used to communicate with hub,
   # however hub will still bind on "endpoint", not "announce_andpoint"
-  # announce_andpoint: "1.2.3.4:1234"
+  # announce_endpoint: "1.2.3.4:1234"
 
   # Use automated failover in case of hub death
   # Requires consul, etcd or zookeeper as a store
