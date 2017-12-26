@@ -9,12 +9,6 @@ import (
 	"github.com/sonm-io/core/util"
 )
 
-var (
-	errOrderIsNil   = errors.New("order cannot be nil")
-	errPriceIsZero  = errors.New("order price cannot be less or equal than zero")
-	errPriceIsEmpty = errors.New("order price cannot be empty")
-)
-
 // Order represents a safe order wrapper.
 //
 // This is used to decompose the validation out of the protocol. All
@@ -44,20 +38,15 @@ func NewOrder(o *pb.Order) (*Order, error) {
 
 func validateOrder(o *pb.Order) error {
 	if o == nil {
-		return errOrderIsNil
+		return errors.New("order cannot be nil")
 	}
 
-	if o.Price == "" {
-		return errPriceIsEmpty
+	if o.PricePerSecond == nil {
+		return errors.New("price cannot be nil")
 	}
 
-	bigPrice, err := util.ParseBigInt(o.Price)
-	if err != nil {
-		return err
-	}
-
-	if bigPrice.Cmp(big.NewInt(0)) != 1 {
-		return errPriceIsZero
+	if o.PricePerSecond.Unwrap().Sign() <= 0 {
+		return errors.New("price/sec must be positive")
 	}
 
 	if err := validateSlot(o.Slot); err != nil {
@@ -76,8 +65,12 @@ func (o *Order) SetID(ID string) {
 }
 
 func (o *Order) GetPrice() *big.Int {
-	bigPrice, _ := util.ParseBigInt(o.Price)
-	return bigPrice
+	v, err := util.ParseBigInt(o.Price)
+	// We've already checked that during construction, but who knows...
+	if err != nil {
+		panic("order price has failed big.Int conversion")
+	}
+	return v
 }
 
 func (o *Order) GetSlot() *Slot {
@@ -96,11 +89,7 @@ func (o *Order) GetDuration() time.Duration {
 	return time.Duration(o.Slot.Duration) * time.Second
 }
 
-func (o *Order) PriceAsBigInt() *big.Int {
-	v, err := util.ParseBigInt(o.Price)
-	// We've already checked that during construction, but who knows...
-	if err != nil {
-		panic("order price has failed big.Int conversion")
-	}
-	return v
+func (o *Order) GetTotalPrice() *big.Int {
+	bigDuration := big.NewInt(int64(o.GetDuration().Seconds()))
+	return big.NewInt(0).Mul(o.PricePerSecond.Unwrap(), bigDuration)
 }

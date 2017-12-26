@@ -25,12 +25,18 @@ func (c *OrderConfig) IntoOrder() (*structs.Order, error) {
 		return nil, err
 	}
 
+	price, err := sonm.NewBigIntFromString(c.Price)
+	if err != nil {
+		return nil, err
+	}
+
 	return structs.NewOrder(&sonm.Order{
-		Id:         c.ID,
-		ByuerID:    c.BuyerID,
-		SupplierID: c.SupplierID,
-		Price:      c.Price,
-		OrderType:  orderType,
-		Slot:       slot.Unwrap(),
+		Id:             c.ID,
+		ByuerID:        c.BuyerID,
+		SupplierID:     c.SupplierID,
+		Price:          c.Price,
+		PricePerSecond: price,
+		OrderType:      orderType,
+		Slot:           slot.Unwrap(),
 	})
 }

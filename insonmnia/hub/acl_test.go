@@ -22,7 +22,12 @@ func makeDefaultOrder(t *testing.T, buyerId string) *structs.Order {
 		Resources: &pb.Resources{},
 	}
 
-	order, err := structs.NewOrder(&pb.Order{Price: "1", ByuerID: buyerId, Slot: slot})
+	order, err := structs.NewOrder(&pb.Order{
+		Price:          "1",
+		ByuerID:        buyerId,
+		Slot:           slot,
+		PricePerSecond: pb.NewBigIntFromInt(1),
+	})
 	assert.NoError(t, err)
 	return order
 }
