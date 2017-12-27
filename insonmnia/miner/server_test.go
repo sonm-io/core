@@ -37,6 +37,7 @@ func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg.EXPECT().GPU().AnyTimes()
 	cfg.EXPECT().SSH().AnyTimes()
 	cfg.EXPECT().ETH().AnyTimes().Return(&accounts.EthConfig{})
+	cfg.EXPECT().LocatorEndpoint().AnyTimes().Return("127.0.0.1:9090")
 	cfg.EXPECT().PublicIPs().AnyTimes().Return([]string{"192.168.70.17", "46.148.198.133"})
 	return cfg
 }
@@ -45,12 +46,11 @@ func TestServerNewExtractsHubEndpoint(t *testing.T) {
 	mock := gomock.NewController(t)
 	defer mock.Finish()
 
+	ovs := NewMockOverseer(mock)
 	cfg := defaultMockCfg(mock)
+	locator := pb.NewMockLocatorClient(mock)
 
-	builder := MinerBuilder{key: key}
-	builder.Config(cfg)
-
-	m, err := builder.Build()
+	m, err := NewMiner(cfg, WithKey(key), WithLocatorClient(locator), WithOverseer(ovs))
 	cfg.EXPECT().GPU().AnyTimes()
 
 	require.NoError(t, err)
@@ -62,14 +62,14 @@ func TestServerNewFailsWhenFailedCollectResources(t *testing.T) {
 	mock := gomock.NewController(t)
 	defer mock.Finish()
 
+	ovs := NewMockOverseer(mock)
 	cfg := defaultMockCfg(mock)
 	collector := hardware.NewMockHardwareInfo(mock)
 	collector.EXPECT().Info().Times(1).Return(nil, errors.New(""))
+	locator := pb.NewMockLocatorClient(mock)
 
-	builder := MinerBuilder{key: key}
-	builder.Hardware(collector)
-	builder.Config(cfg)
-	m, err := builder.Build()
+	m, err := NewMiner(cfg, WithKey(key), WithHardware(collector), WithLocatorClient(locator),
+		WithOverseer(ovs))
 
 	assert.Nil(t, m)
 	assert.Error(t, err)
@@ -79,17 +79,17 @@ func TestServerNewSavesResources(t *testing.T) {
 	mock := gomock.NewController(t)
 	defer mock.Finish()
 
+	ovs := NewMockOverseer(mock)
 	cfg := defaultMockCfg(mock)
 	collector := hardware.NewMockHardwareInfo(mock)
 	collector.EXPECT().Info().Times(1).Return(&hardware.Hardware{
 		CPU:    []cpu.Device{},
 		Memory: &mem.VirtualMemoryStat{Total: 42},
 	}, nil)
+	locator := pb.NewMockLocatorClient(mock)
 
-	builder := MinerBuilder{key: key}
-	builder.Hardware(collector)
-	builder.Config(cfg)
-	m, err := builder.Build()
+	m, err := NewMiner(cfg, WithKey(key), WithHardware(collector),
+		WithLocatorClient(locator), WithOverseer(ovs))
 
 	assert.NotNil(t, m)
 	require.Nil(t, err)
@@ -105,19 +105,16 @@ func TestMinerInfo(t *testing.T) {
 	ovs := NewMockOverseer(mock)
 	info := make(map[string]ContainerMetrics)
 	info["id1"] = ContainerMetrics{mem: types.MemoryStats{Usage: 42, MaxUsage: 43}}
-	ovs.EXPECT().Info(context.Background()).AnyTimes().Return(info, nil)
+	ovs.EXPECT().Info(gomock.Any()).AnyTimes().Return(info, nil)
+	locator := pb.NewMockLocatorClient(mock)
 
-	builder := MinerBuilder{key: key}
-	builder.Config(cfg)
-	builder.Overseer(ovs)
-
-	m, err := builder.Build()
+	m, err := NewMiner(cfg, WithKey(key), WithOverseer(ovs), WithLocatorClient(locator))
 	t.Log(err)
 	require.NotNil(t, m)
 	require.Nil(t, err)
 
 	m.nameMapping["id1"] = "id1"
-	ret, err := m.Info(builder.ctx, &pb.Empty{})
+	ret, err := m.Info(m.ctx, &pb.Empty{})
 
 	assert.NotNil(t, ret)
 	assert.Nil(t, err)
@@ -140,14 +137,11 @@ func TestMinerHandshake(t *testing.T) {
 		CPU:    []cpu.Device{{Cores: 2}},
 		Memory: &mem.VirtualMemoryStat{Total: 2048},
 	}, nil)
+	locator := pb.NewMockLocatorClient(mock)
 
-	builder := MinerBuilder{key: key}
-	builder.Config(cfg)
-	builder.Overseer(ovs)
-	builder.Hardware(collector)
-	builder.UUID("deadbeef-cafe-dead-beef-cafedeadbeef")
+	m, err := NewMiner(cfg, WithKey(key), WithHardware(collector),
+		WithOverseer(ovs), WithUUID("deadbeef-cafe-dead-beef-cafedeadbeef"), WithLocatorClient(locator))
 
-	m, err := builder.Build()
 	require.NotNil(t, m)
 	require.Nil(t, err)
 	reply, err := m.Handshake(context.Background(), &pb.MinerHandshakeRequest{Hub: "testHub"})
@@ -172,9 +166,11 @@ func TestMinerStart(t *testing.T) {
 		ID:     "deadbeef-cafe-dead-beef-cafedeadbeef",
 	}
 	ovs.EXPECT().Start(gomock.Any(), gomock.Any()).Times(1).Return(statusChan, info, nil)
+	locator := pb.NewMockLocatorClient(mock)
 
-	builder := MinerBuilder{key: key}
-	m, err := builder.Config(cfg).Overseer(ovs).Build()
+	m, err := NewMiner(cfg, WithKey(key), WithOverseer(ovs),
+		WithUUID("deadbeef-cafe-dead-beef-cafedeadbeef"), WithLocatorClient(locator))
+
 	require.NotNil(t, m)
 	require.Nil(t, err)
 	reply, err := m.Start(context.Background(), &pb.MinerStartRequest{Id: "test", Resources: &pb.TaskResourceRequirements{}})
