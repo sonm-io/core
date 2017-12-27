@@ -8,6 +8,8 @@ import (
 	"time"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 
 	"golang.org/x/net/context"
@@ -80,7 +82,7 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 		}
 	)
 	m.ctx, m.cancel = context.WithCancel(ctx)
-	m.grpcConn, err = util.MakeGrpcClient(ctx, "miner", nil, grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
+	m.grpcConn, err = xgrpc.NewClient(ctx, "miner", nil, grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
 		return conn, nil
 	}))
 	if err != nil {
@@ -107,7 +109,7 @@ func (h *Hub) tlsHandshake(ctx context.Context, conn net.Conn) (net.Conn, error)
 	}
 
 	switch authInfo := authInfo.(type) {
-	case util.EthAuthInfo:
+	case auth.EthAuthInfo:
 		if !h.acl.Has(authInfo.Wallet.Hex()) {
 			return nil, errForbiddenMiner
 		}

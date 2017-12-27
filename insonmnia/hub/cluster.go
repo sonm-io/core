@@ -22,6 +22,7 @@ import (
 	"github.com/satori/uuid"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -614,7 +615,7 @@ func (c *cluster) registerMember(id string, endpoints []string) error {
 	}
 
 	for _, ep := range endpoints {
-		conn, err := util.MakeGrpcClient(c.ctx, ep, c.creds, grpc.WithBlock(), grpc.WithTimeout(time.Second*5))
+		conn, err := xgrpc.NewClient(c.ctx, ep, c.creds, grpc.WithBlock(), grpc.WithTimeout(time.Second*5))
 		if err != nil {
 			log.G(c.ctx).Warn("could not connect to hub", zap.String("endpoint", ep), zap.Error(err))
 			continue

@@ -17,11 +17,13 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -135,7 +137,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 			return nil, errors.Wrap(err, "failed to create locator client")
 		}
 
-		locatorCC, err := util.MakeWalletAuthenticatedClient(o.ctx, util.NewTLS(TLSConf), cfg.LocatorEndpoint())
+		locatorCC, err := xgrpc.NewWalletAuthenticatedClient(o.ctx, util.NewTLS(TLSConf), cfg.LocatorEndpoint())
 		if err != nil {
 			cancel()
 			return nil, errors.Wrap(err, "failed to create locator client")
@@ -157,8 +159,11 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		return nil, err
 	}
 
-	creds := util.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEthAddr)
-	grpcServer := util.MakeGrpcServer(creds)
+	creds := auth.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEthAddr)
+	grpcServer := xgrpc.NewServer(log.GetLogger(ctx),
+		xgrpc.Credentials(creds),
+		xgrpc.DefaultTraceInterceptor(),
+	)
 
 	if !platformSupportCGroups && cfg.HubResources() != nil {
 		log.G(ctx).Warn("your platform does not support CGroup, but the config has resources section")

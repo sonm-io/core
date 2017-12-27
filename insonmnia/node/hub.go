@@ -9,6 +9,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -20,7 +21,7 @@ type hubAPI struct {
 }
 
 func (h *hubAPI) getClient() (pb.HubClient, error) {
-	cc, err := util.MakeGrpcClient(h.ctx, h.remotes.conf.HubEndpoint(), h.remotes.creds,
+	cc, err := xgrpc.NewClient(h.ctx, h.remotes.conf.HubEndpoint(), h.remotes.creds,
 		grpc.WithBlock(), grpc.WithTimeout(15*time.Second))
 	if err != nil {
 		return nil, err
@@ -30,8 +31,7 @@ func (h *hubAPI) getClient() (pb.HubClient, error) {
 }
 
 func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	parts := strings.Split(info.FullMethod, "/")
-	methodName := parts[len(parts)-1]
+	methodName := util.ExtractMethod(info.FullMethod)
 
 	log.S(h.ctx).Infof("handling %s request", methodName)
 

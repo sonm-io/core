@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -178,12 +179,12 @@ func (h *hubManagementAuthorization) Authorize(ctx context.Context, request inte
 		return errNoPeerInfo
 	}
 
-	switch auth := peerInfo.AuthInfo.(type) {
-	case util.EthAuthInfo:
-		if util.EqualAddresses(auth.Wallet, h.ethAddr) {
+	switch authInfo := peerInfo.AuthInfo.(type) {
+	case auth.EthAuthInfo:
+		if util.EqualAddresses(authInfo.Wallet, h.ethAddr) {
 			return nil
 		}
-		return status.Errorf(codes.Unauthenticated, "the wallet %s has no access", auth.Wallet.Hex())
+		return status.Errorf(codes.Unauthenticated, "the wallet %s has no access", authInfo.Wallet.Hex())
 	default:
 		return status.Error(codes.Unauthenticated, "unknown auth info")
 	}
@@ -260,7 +261,7 @@ func extractWalletFromContext(ctx context.Context) (string, error) {
 	}
 
 	switch peerInfo.AuthInfo.(type) {
-	case util.EthAuthInfo:
+	case auth.EthAuthInfo:
 		md, ok := metadata.FromContext(ctx)
 		if !ok {
 			return "", errNoMetadata

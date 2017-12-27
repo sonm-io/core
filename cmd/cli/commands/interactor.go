@@ -5,7 +5,7 @@ import (
 
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -146,7 +146,7 @@ func (it *hubInteractor) TaskStatus(id string) (*pb.TaskStatusReply, error) {
 }
 
 func NewHubInteractor(addr string, timeout time.Duration) (NodeHubInteractor, error) {
-	cc, err := util.MakeWalletAuthenticatedClient(context.Background(), creds, addr)
+	cc, err := xgrpc.NewWalletAuthenticatedClient(context.Background(), creds, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +224,7 @@ func ctx(timeout time.Duration) (context.Context, context.CancelFunc) {
 }
 
 func NewMarketInteractor(addr string, timeout time.Duration) (NodeMarketInteractor, error) {
-	cc, err := util.MakeWalletAuthenticatedClient(context.Background(), creds, addr)
+	cc, err := xgrpc.NewWalletAuthenticatedClient(context.Background(), creds, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +278,7 @@ func (it *dealsInteractor) FinishDeal(id string) error {
 }
 
 func NewDealsInteractor(addr string, timeout time.Duration) (DealsInteractor, error) {
-	cc, err := util.MakeWalletAuthenticatedClient(context.Background(), creds, addr)
+	cc, err := xgrpc.NewWalletAuthenticatedClient(context.Background(), creds, addr)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +353,7 @@ func (it *tasksInteractor) ImagePull(dealID, taskID string) (pb.Hub_PullTaskClie
 }
 
 func NewTasksInteractor(addr string, timeout time.Duration, opts ...grpc.DialOption) (TasksInteractor, error) {
-	cc, err := util.MakeWalletAuthenticatedClient(context.Background(), creds, addr, opts...)
+	cc, err := xgrpc.NewWalletAuthenticatedClient(context.Background(), creds, addr, opts...)
 	if err != nil {
 		return nil, err
 	}

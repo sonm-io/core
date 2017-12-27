@@ -8,6 +8,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -287,7 +288,7 @@ func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.Hu
 	}
 
 	// maybe blocking connection required?
-	cc, err := util.MakeGrpcClient(ctx, addrReply.IpAddr[0], t.remotes.creds)
+	cc, err := xgrpc.NewClient(ctx, addrReply.IpAddr[0], t.remotes.creds)
 	if err != nil {
 		return nil, err
 	}
