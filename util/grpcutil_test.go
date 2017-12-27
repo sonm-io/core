@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sonm-io/core/util/xgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -49,7 +50,7 @@ func TestSecureGRPCConnect(t *testing.T) {
 	require.NoError(err)
 	defer rot.Close()
 	serCreds := NewTLS(serTLS)
-	server := MakeGrpcServer(serCreds)
+	server := xgrpc.NewServer(nil, xgrpc.Credentials(serCreds))
 	lis, err := net.Listen("tcp", "localhost:0")
 	require.NoError(err)
 	defer lis.Close()
@@ -64,7 +65,7 @@ func TestSecureGRPCConnect(t *testing.T) {
 		require.NoError(err)
 		defer rot.Close()
 		var clientCreds = NewTLS(clientTLS)
-		conn, err := MakeGrpcClient(ctx, lis.Addr().String(), clientCreds, grpc.WithTimeout(time.Second), grpc.WithBlock())
+		conn, err := xgrpc.NewClient(ctx, lis.Addr().String(), clientCreds, grpc.WithTimeout(time.Second), grpc.WithBlock())
 		require.NoError(err)
 		defer conn.Close()
 
@@ -76,7 +77,7 @@ func TestSecureGRPCConnect(t *testing.T) {
 	})
 
 	t.Run("ClientWithoutTLS", func(t *testing.T) {
-		conn, err := MakeGrpcClient(ctx, lis.Addr().String(), nil, grpc.WithBlock(), grpc.WithTimeout(time.Second))
+		conn, err := xgrpc.NewClient(ctx, lis.Addr().String(), nil, grpc.WithBlock(), grpc.WithTimeout(time.Second))
 		if err != nil {
 			// On Linux we can have an error here due to failed TLS Handshake
 			// It's expected behavior

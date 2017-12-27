@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
@@ -123,7 +124,7 @@ func TestLocator_AnnounceExternal(t *testing.T) {
 
 	creds := util.NewTLS(&tls.Config{Certificates: []tls.Certificate{crt}, InsecureSkipVerify: true})
 
-	conn, err := util.MakeGrpcClient(context.Background(), "localhost:9090", creds)
+	conn, err := xgrpc.NewClient(context.Background(), "localhost:9090", creds)
 	if err != nil {
 		t.Error(err)
 		return

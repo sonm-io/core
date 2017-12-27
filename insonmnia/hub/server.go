@@ -16,6 +16,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 
@@ -1262,7 +1263,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	if defaults.locator == nil {
-		conn, err := util.MakeWalletAuthenticatedClient(ctx, defaults.creds, cfg.Locator.Endpoint)
+		conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, defaults.creds, cfg.Locator.Endpoint)
 		if err != nil {
 			return nil, err
 		}
@@ -1271,7 +1272,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	if defaults.market == nil {
-		conn, err := util.MakeWalletAuthenticatedClient(ctx, defaults.creds, cfg.Market.Endpoint)
+		conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, defaults.creds, cfg.Market.Endpoint)
 		if err != nil {
 			return nil, err
 		}
@@ -1354,7 +1355,12 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		eventACL.addAuthorization(method(hubAPIPrefix+event), newHubManagementAuthorization(ctx, h.ethAddr))
 	}
 
-	grpcServer := util.MakeGrpcServer(h.creds, grpc.UnaryInterceptor(h.onRequest))
+	logger := log.GetLogger(h.ctx)
+	grpcServer := xgrpc.NewServer(logger,
+		xgrpc.Credentials(h.creds),
+		xgrpc.DefaultTraceInterceptor(),
+		xgrpc.UnaryServerInterceptor(h.onRequest),
+	)
 	h.externalGrpc = grpcServer
 
 	pb.RegisterHubServer(grpcServer, h)

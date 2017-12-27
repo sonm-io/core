@@ -10,8 +10,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/auth"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -98,9 +100,9 @@ func (l *Locator) extractEthAddr(ctx context.Context) (common.Address, error) {
 		return common.Address{}, status.Error(codes.DataLoss, "failed to get peer from ctx")
 	}
 
-	switch info := pr.AuthInfo.(type) {
-	case util.EthAuthInfo:
-		return info.Wallet, nil
+	switch authInfo := pr.AuthInfo.(type) {
+	case auth.EthAuthInfo:
+		return authInfo.Wallet, nil
 	default:
 		return common.Address{}, status.Error(codes.Unauthenticated, "wrong AuthInfo type")
 	}
@@ -186,7 +188,10 @@ func NewLocator(ctx context.Context, conf *Config, key *ecdsa.PrivateKey) (l *Lo
 
 	l.storage = s
 	l.creds = util.NewTLS(TLSConfig)
-	l.grpc = util.MakeGrpcServer(l.creds)
+	l.grpc = xgrpc.NewServer(log.GetLogger(l.ctx),
+		xgrpc.Credentials(l.creds),
+		xgrpc.DefaultTraceInterceptor(),
+	)
 
 	pb.RegisterLocatorServer(l.grpc, l)
 	return l, nil

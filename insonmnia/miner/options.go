@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -34,7 +35,7 @@ func (o *options) getHubConnectionInfo(cfg Config) (string, common.Address, erro
 	var (
 		hubEndpoint                  = cfg.HubEndpoint()
 		encounteredErrors            = make(map[string]error)
-		hubSockAddr, hubEthAddr, err = util.ParseEndpoint(cfg.HubEndpoint())
+		hubSockAddr, hubEthAddr, err = auth.ParseEndpoint(cfg.HubEndpoint())
 	)
 
 	if err != nil {
