@@ -3,7 +3,6 @@ package miner
 import (
 	"crypto/ecdsa"
 	"encoding/json"
-	"errors"
 	"io"
 	"net"
 	"strconv"
@@ -17,6 +16,7 @@ import (
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
