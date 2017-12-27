@@ -794,6 +794,12 @@
 			"revisionTime": "2017-07-07T17:46:28Z"
 		},
 		{
+			"checksumSHA1": "wn2shNJMwRZpvuvkf1s7h0wvqHI=",
+			"path": "github.com/gogo/protobuf/proto",
+			"revision": "35b81a066e522fb86ece043a8ef1dbfa10b4fed1",
+			"revisionTime": "2017-12-13T10:47:50Z"
+		},
+		{
 			"checksumSHA1": "M3BUApw7nNipzKvYbHSpxqE04FY=",
 			"path": "github.com/golang/mock/gomock",
 			"revision": "13f360950a79f5864a972c786a10a50e44b69541",
@@ -881,6 +887,18 @@
 		{
 			"checksumSHA1": "6ktd44fYOvN8YrdTAU0a+QaJ1+8=",
 			"path": "github.com/grpc-ecosystem/go-grpc-middleware/tags/zap",
+			"revision": "967bee733a734780623ac3d7c8e9216e4372ea62",
+			"revisionTime": "2017-12-15T09:52:38Z"
+		},
+		{
+			"checksumSHA1": "nUc0i0n+2nXbsNHUx46+Wm0dNnw=",
+			"path": "github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing",
+			"revision": "967bee733a734780623ac3d7c8e9216e4372ea62",
+			"revisionTime": "2017-12-15T09:52:38Z"
+		},
+		{
+			"checksumSHA1": "L5z1C445GhhQmDKSisTFv754LdU=",
+			"path": "github.com/grpc-ecosystem/go-grpc-middleware/util/metautils",
 			"revision": "967bee733a734780623ac3d7c8e9216e4372ea62",
 			"revisionTime": "2017-12-15T09:52:38Z"
 		},
@@ -1146,6 +1164,36 @@
 			"path": "github.com/opencontainers/runtime-spec/specs-go",
 			"revision": "6d696f524b25a2839e79885cf3fe542dd0c896e8",
 			"revisionTime": "2017-07-28T17:22:16Z"
+		},
+		{
+			"checksumSHA1": "HxZk1VWHKzU4xdyhe0Jvu7UOwjM=",
+			"path": "github.com/opentracing/basictracer-go",
+			"revision": "7be4bbce182d33e50e45b8dd991014c9a7afaad4",
+			"revisionTime": "2017-12-05T17:31:51Z"
+		},
+		{
+			"checksumSHA1": "bvLGShW2gTFyRs7kHShIczVuR1c=",
+			"path": "github.com/opentracing/basictracer-go/wire",
+			"revision": "7be4bbce182d33e50e45b8dd991014c9a7afaad4",
+			"revisionTime": "2017-12-05T17:31:51Z"
+		},
+		{
+			"checksumSHA1": "hpXnjCM/a0edhWUb2+and0mnPyY=",
+			"path": "github.com/opentracing/opentracing-go",
+			"revision": "1361b9cd60be79c4c3a7fa9841b3c132e40066a7",
+			"revisionTime": "2017-10-03T13:35:19Z"
+		},
+		{
+			"checksumSHA1": "uhDxBvLEqRAMZKgpTZ8MFuLIIM8=",
+			"path": "github.com/opentracing/opentracing-go/ext",
+			"revision": "1361b9cd60be79c4c3a7fa9841b3c132e40066a7",
+			"revisionTime": "2017-10-03T13:35:19Z"
+		},
+		{
+			"checksumSHA1": "tnkdNJbJxNKuPZMWapP1xhKIIGw=",
+			"path": "github.com/opentracing/opentracing-go/log",
+			"revision": "1361b9cd60be79c4c3a7fa9841b3c132e40066a7",
+			"revisionTime": "2017-10-03T13:35:19Z"
 		},
 		{
 			"checksumSHA1": "ELPTXxA5/bRO8Zu8o/telKHfsVg=",
