@@ -348,6 +348,7 @@ func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
 	}
 
 	tk := time.NewTicker(orderPollPeriod)
+	defer tk.Stop()
 
 	for {
 		select {
