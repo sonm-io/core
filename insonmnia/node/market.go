@@ -340,19 +340,6 @@ func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
 
 	m.registerHandler(handler.id, handler)
 
-	// remove order from Market if deal was make
-	defer func() {
-		err := m.removeOrderHandler(handler.id)
-		if err != nil {
-			log.G(m.ctx).Info("cannot remove order handler", zap.String("handler_id", handler.id))
-		}
-
-		_, err = m.CancelOrder(m.ctx, ord)
-		if err != nil {
-			log.G(handler.ctx).Info("cannot cancel order", zap.String("err", err.Error()))
-		}
-	}()
-
 	// process order (search -> propose -> deal)
 	err = m.orderLoop(handler)
 	if err == nil {
@@ -364,15 +351,21 @@ func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
 
 	for {
 		select {
-		// cancel context to stop polling for ordrs
+		// Cancel context to stop polling for orders.
 		case <-handler.ctx.Done():
-			log.G(handler.ctx).Info("handler is cancelled")
+			log.G(handler.ctx).Info("order handler is cancelled", zap.String("order_id", handler.id))
 			return
-			// retrier for order polling
 		case <-tk.C:
 			err := m.orderLoop(handler)
 			if err == nil {
 				log.G(handler.ctx).Info("order loop complete at n > 1 iteration, exiting")
+
+				_, err := m.remotes.market.CancelOrder(m.ctx, ord)
+				if err != nil {
+					log.G(handler.ctx).Info("cannot cancel order", zap.String("err", err.Error()),
+						zap.String("order_id", handler.id))
+				}
+
 				return
 			}
 		}
@@ -385,10 +378,12 @@ func (m *marketAPI) loadBalanceAndAllowance() (*big.Int, *big.Int, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+
 	allowance, err := m.remotes.eth.AllowanceOf(addr, tsc.DealsAddress)
 	if err != nil {
 		return nil, nil, err
 	}
+
 	return balance, allowance, nil
 }
 
@@ -425,12 +420,12 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		return err
 	}
 
-	var orderToDeal *pb.Order = nil
-	var hubClient pb.HubClient = nil
-	var dealRequest *pb.DealRequest = nil
-
+	var (
+		orderToDeal *pb.Order
+		hubClient   pb.HubClient
+		dealRequest *pb.DealRequest
+	)
 	for _, ord := range orders {
-		// price := ord.PricePerSecond.Unwrap()
 		price, err := util.ParseBigInt(ord.Price)
 		if !m.checkBalanceAndAllowance(price, balance, allowance) {
 			log.G(handler.ctx).Info("lack of balance or allowance for order", zap.String("order_id", ord.Id))
@@ -493,13 +488,24 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 	handler.dealID = dealID.String()
 	handler.status = statusDone
 	log.G(handler.ctx).Info("handler done",
-		zap.String("handle_id", handler.id),
+		zap.String("order_id", handler.id),
 		zap.String("deal_id", dealID.String()))
 	return nil
 }
 
 func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.Order) (*pb.Empty, error) {
-	return m.remotes.market.CancelOrder(ctx, req)
+	repl, err := m.remotes.market.CancelOrder(ctx, req)
+	if err == nil {
+		handler, ok := m.getHandler(req.Id)
+		if ok {
+			handler.setError(errors.New("cancelled by user"))
+			handler.cancel()
+		} else {
+			log.G(handler.ctx).Info("no order handler found", zap.String("order_id", req.Id))
+		}
+	}
+
+	return repl, err
 }
 
 func (m *marketAPI) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetProcessingReply, error) {
@@ -527,17 +533,6 @@ func (m *marketAPI) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetPr
 	}
 
 	return reply, nil
-}
-
-// removeOrderHandler must cancel context and DO NOT REMOVE the handler from tasks map
-func (m *marketAPI) removeOrderHandler(id string) error {
-	handlr, ok := m.getHandler(id)
-	if !ok {
-		return errNoHandlerWithID
-	}
-
-	handlr.cancel()
-	return nil
 }
 
 // getMyOrders query Marketplace service for orders
