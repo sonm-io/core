@@ -56,18 +56,7 @@ func main() {
 	logger := logging.BuildLogger(cfg.Logging().Level, true)
 	ctx = log.WithLogger(ctx, logger)
 
-	builder, err := miner.NewMinerBuilder(cfg, key)
-	if err != nil {
-		log.GetLogger(ctx).Error("failed to init miner builder:", zap.Error(err))
-		os.Exit(1)
-	}
-
-	builder.Context(ctx)
-	builder.UUID(uuid)
-	m, err := builder.Build()
-	if err != nil {
-		log.G(ctx).Fatal("failed to create a new Miner", zap.Error(err))
-	}
+	m, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithUUID(uuid))
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
