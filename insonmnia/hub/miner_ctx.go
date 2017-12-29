@@ -54,7 +54,7 @@ type MinerCtx struct {
 
 	// Traffic routing.
 
-	router router
+	router Router
 
 	// Scheduling.
 
@@ -166,20 +166,20 @@ func (m *MinerCtx) handshake(h *Hub) error {
 }
 
 // NewRouter constructs a new router that will route requests to bypass miner's firewall.
-func (h *Hub) newRouter(id string, natType pb.NATType) (router, error) {
+func (h *Hub) newRouter(id string, natType pb.NATType) (Router, error) {
 	if h.gateway == nil || natType == pb.NATType_NONE {
 		return newDirectRouter(), nil
 	}
 
 	if gateway.PlatformSupportIPVS {
-		return newIPVSRouter(h.ctx, id, h.gateway, h.portPool), nil
+		return newIPVSRouter(h.ctx, h.gateway, h.portPool), nil
 	}
 
 	return nil, errors.New("miner has firewall configured, but Hub's host OS has no IPVS support")
 }
 
 func (m *MinerCtx) deregisterRoute(ID string) error {
-	return m.router.DeregisterRoute(ID)
+	return m.router.Deregister(ID)
 }
 
 func (m *MinerCtx) initStatusClient() (statusClient pb.Miner_TasksStatusClient, err error) {
@@ -340,7 +340,7 @@ func (m *MinerCtx) Orders() []OrderID {
 
 func (m *MinerCtx) registerRoutes(ID string, routes []*pb.Route) []routeMapping {
 	var outRoutes []routeMapping
-	for _, route := range routes {
+	for id, route := range routes {
 		binding, err := util.ParsePortBinding(route.Port)
 		if err != nil {
 			log.G(m.ctx).Warn("failed to decode miner's port mapping",
@@ -350,10 +350,22 @@ func (m *MinerCtx) registerRoutes(ID string, routes []*pb.Route) []routeMapping 
 			continue
 		}
 
-		outRoute, err := m.router.RegisterRoute(ID,
-			binding.Network(),
-			route.Endpoint.GetAddr(),
-			uint16(route.GetEndpoint().GetPort()))
+		protocol, err := NewProtocol(binding.Network())
+		if err != nil {
+			log.G(m.ctx).Warn("failed to parse network protocol", zap.Error(err))
+			continue
+		}
+
+		// TODO: It is possible here to save a couple of ports by squashing several real IPs with the same port.
+		// TODO: But first we need to fix worker by adding composition, because theoretically even with the same ports on different IPs can be different services. Also they must work under the same protocol.
+		vsID := fmt.Sprintf("%s#%d", ID, id)
+		vs, err := m.router.Register(vsID, protocol)
+		if err != nil {
+			log.G(m.ctx).Warn("failed to register route", zap.Error(err))
+			continue
+		}
+
+		outRoute, err := vs.AddReal(vsID, route.Endpoint.GetAddr(), uint16(route.GetEndpoint().GetPort()))
 		if err != nil {
 			log.G(m.ctx).Warn("failed to register route", zap.Error(err))
 			continue
