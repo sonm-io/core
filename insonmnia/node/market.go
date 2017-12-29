@@ -494,15 +494,25 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 	return nil
 }
 
-func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.Order) (*pb.Empty, error) {
-	repl, err := m.remotes.market.CancelOrder(ctx, req)
+func (m *marketAPI) CancelOrder(ctx context.Context, order *pb.Order) (*pb.Empty, error) {
+	order, err := m.GetOrderByID(ctx, &pb.ID{Id: order.Id})
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to resolve order type")
+	}
+
+	if order.OrderType != pb.OrderType_BID {
+		return nil, errors.New(
+			"can only remove bids via Market API; please use Hub ask-plan API to manage asks")
+	}
+
+	repl, err := m.remotes.market.CancelOrder(ctx, order)
 	if err == nil {
-		handler, ok := m.getHandler(req.Id)
+		handler, ok := m.getHandler(order.Id)
 		if ok {
 			handler.setError(errors.New("cancelled by user"))
 			handler.cancel()
 		} else {
-			log.G(handler.ctx).Info("no order handler found", zap.String("order_id", req.Id))
+			log.G(m.ctx).Info("no order handler found", zap.String("order_id", order.Id))
 		}
 	}
 
