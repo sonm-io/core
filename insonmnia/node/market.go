@@ -23,10 +23,10 @@ var (
 	errNoHandlerWithID     = errors.New("cannot get handler with ID")
 	errCannotProposeOrder  = errors.New("cannot propose order")
 	errNoMatchingOrder     = errors.New("cannot find matching ASK order")
-	errNotAnBidOrder       = errors.New("can create only Orders with type BID")
+	errNotAnBidOrder       = errors.New("can create only orders with type BID")
 	errProposeNotAccepted  = errors.New("no one hub accept proposed deal")
 	errLackOfBalance       = errors.New("lack of balance or allowance for order")
-	errHubEndpointIsNotSet = errors.New("hub endpoint is not configured, please check Node settings")
+	errHubEndpointIsNotSet = errors.New("hub endpoint is not configured, please check node settings")
 )
 
 const (
@@ -154,21 +154,21 @@ func (h *orderHandler) resolveHubAddr(ethAddr string) (string, error) {
 	}
 
 	ip := reply.IpAddr[0]
-	log.G(h.ctx).Info("hub ip resolved successful", zap.String("ip", ip))
+	log.G(h.ctx).Info("hub ip resolution successful", zap.String("ip", ip))
 	return ip, nil
 }
 
 func (h *orderHandler) makeHubClient(ethAddr string) (pb.HubClient, error) {
 	hubIP, err := h.resolveHubAddr(ethAddr)
 	if err != nil {
-		log.G(h.ctx).Info("cannot resolve Hub IP", zap.Error(err))
+		log.G(h.ctx).Info("cannot resolve hub IP", zap.Error(err))
 		h.setError(err)
 		return nil, err
 	}
 
 	hub, err := h.hubCreator(hubIP)
 	if err != nil {
-		log.G(h.ctx).Info("cannot create Hub gRPC client", zap.Error(err))
+		log.G(h.ctx).Info("cannot create hub gRPC client", zap.Error(err))
 		h.setError(err)
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func (h *orderHandler) propose(req *pb.DealRequest, hubClient pb.HubClient) erro
 
 	_, err := hubClient.ProposeDeal(h.ctx, req)
 	if err != nil {
-		log.G(h.ctx).Info("cannot propose openDeal to Hub", zap.Error(err))
+		log.G(h.ctx).Info("cannot propose openDeal to hub", zap.Error(err))
 		return errCannotProposeOrder
 	}
 
@@ -502,7 +502,7 @@ func (m *marketAPI) CancelOrder(ctx context.Context, order *pb.Order) (*pb.Empty
 
 	if order.OrderType != pb.OrderType_BID {
 		return nil, errors.New(
-			"can only remove bids via Market API; please use Hub ask-plan API to manage asks")
+			"can only remove bids via Market API; please use hub ask-plan API to manage asks")
 	}
 
 	repl, err := m.remotes.market.CancelOrder(ctx, order)
