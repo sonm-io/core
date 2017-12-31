@@ -24,7 +24,7 @@ func newIPVSRouter(ctx context.Context, gate *gateway.Gateway, pool *gateway.Por
 	}
 }
 
-func (r *ipvsRouter) Register(ID string, protocol Protocol) (VirtualService, error) {
+func (r *ipvsRouter) Register(ID string, protocol string) (VirtualService, error) {
 	host, err := gateway.GetOutboundIP()
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func (r *ipvsRouter) Register(ID string, protocol Protocol) (VirtualService, err
 		return nil, err
 	}
 
-	serviceOptions, err := gateway.NewServiceOptions(host.String(), port, protocol.String())
+	serviceOptions, err := gateway.NewServiceOptions(host.String(), port, protocol)
 	if err != nil {
 		return nil, err
 	}

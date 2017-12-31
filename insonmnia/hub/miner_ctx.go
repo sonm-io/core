@@ -350,16 +350,10 @@ func (m *MinerCtx) registerRoutes(ID string, routes []*pb.Route) []routeMapping 
 			continue
 		}
 
-		protocol, err := NewProtocol(binding.Network())
-		if err != nil {
-			log.G(m.ctx).Warn("failed to parse network protocol", zap.Error(err))
-			continue
-		}
-
 		// TODO: It is possible here to save a couple of ports by squashing several real IPs with the same port.
 		// TODO: But first we need to fix worker by adding composition, because theoretically even with the same ports on different IPs can be different services. Also they must work under the same protocol.
 		vsID := fmt.Sprintf("%s#%d", ID, id)
-		vs, err := m.router.Register(vsID, protocol)
+		vs, err := m.router.Register(vsID, binding.Network())
 		if err != nil {
 			log.G(m.ctx).Warn("failed to register route", zap.Error(err))
 			continue

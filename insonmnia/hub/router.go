@@ -3,9 +3,6 @@
 package hub
 
 import (
-	"errors"
-	"syscall"
-
 	"github.com/sonm-io/core/insonmnia/gateway"
 )
 
@@ -16,40 +13,6 @@ type Route struct {
 	Port        uint16
 	BackendHost string
 	BackendPort uint16
-}
-
-type Protocol struct {
-	ty uint16
-}
-
-func NewProtocol(ty string) (Protocol, error) {
-	switch ty {
-	case "tcp":
-		return TCPProtocol(), nil
-	case "udp":
-		return UDPProtocol(), nil
-	default:
-		return Protocol{}, errors.New("unknown IPVS underlying protocol")
-	}
-}
-
-func TCPProtocol() Protocol {
-	return Protocol{ty: syscall.IPPROTO_TCP}
-}
-
-func UDPProtocol() Protocol {
-	return Protocol{ty: syscall.IPPROTO_UDP}
-}
-
-func (p Protocol) String() string {
-	switch p.ty {
-	case syscall.IPPROTO_TCP:
-		return "tcp"
-	case syscall.IPPROTO_UDP:
-		return "udp"
-	default:
-		return "tcp"
-	}
 }
 
 // VirtualService describes a virtual service.
@@ -68,7 +31,7 @@ type VirtualService interface {
 
 type Router interface {
 	// Register registers a new virtual service specified by the given ID.
-	Register(ID string, protocol Protocol) (VirtualService, error)
+	Register(ID string, protocol string) (VirtualService, error)
 	// Deregister deregisters a virtual service specified by the given ID.
 	Deregister(ID string) error
 	// GetMetrics returns gateway-specific metrics.
@@ -84,7 +47,7 @@ func newDirectRouter() Router {
 	return &directRouter{}
 }
 
-func (r *directRouter) Register(ID string, protocol Protocol) (VirtualService, error) {
+func (r *directRouter) Register(ID string, protocol string) (VirtualService, error) {
 	return &directVirtualService{id: ID, protocol: protocol}, nil
 }
 
@@ -102,7 +65,7 @@ func (r *directRouter) Close() error {
 
 type directVirtualService struct {
 	id       string
-	protocol Protocol
+	protocol string
 }
 
 func (s *directVirtualService) ID() string {
@@ -112,7 +75,7 @@ func (s *directVirtualService) ID() string {
 func (s *directVirtualService) AddReal(ID string, host string, port uint16) (*Route, error) {
 	route := &Route{
 		ID:          ID,
-		Protocol:    s.protocol.String(),
+		Protocol:    s.protocol,
 		Host:        host,
 		Port:        port,
 		BackendHost: host,
