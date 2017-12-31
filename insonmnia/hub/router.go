@@ -9,7 +9,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/gateway"
 )
 
-type route struct {
+type Route struct {
 	ID          string
 	Protocol    string
 	Host        string
@@ -59,7 +59,7 @@ type VirtualService interface {
 	// AddReal registers a new real service endpoint under the current virtual
 	// service.
 	// Host parameter may be both FQDN and IP address.
-	AddReal(ID string, host string, port uint16) (*route, error)
+	AddReal(ID string, host string, port uint16) (*Route, error)
 	// RemoveReal removes the real service specified by the ID from the
 	// current virtual service.
 	// Established connections won't be affected.
@@ -109,8 +109,8 @@ func (s *directVirtualService) ID() string {
 	return s.id
 }
 
-func (s *directVirtualService) AddReal(ID string, host string, port uint16) (*route, error) {
-	route := &route{
+func (s *directVirtualService) AddReal(ID string, host string, port uint16) (*Route, error) {
+	route := &Route{
 		ID:          ID,
 		Protocol:    s.protocol.String(),
 		Host:        host,

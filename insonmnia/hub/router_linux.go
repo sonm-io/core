@@ -134,7 +134,7 @@ func (s *ipvsVirtualService) ID() string {
 	return s.vsID
 }
 
-func (s *ipvsVirtualService) AddReal(ID string, host string, port uint16) (*route, error) {
+func (s *ipvsVirtualService) AddReal(ID string, host string, port uint16) (*Route, error) {
 	realOptions, err := gateway.NewRealOptions(host, port, 100, s.vsID)
 	if err != nil {
 		return nil, err
@@ -144,7 +144,7 @@ func (s *ipvsVirtualService) AddReal(ID string, host string, port uint16) (*rout
 		return nil, err
 	}
 
-	route := &route{
+	route := &Route{
 		ID:          ID,
 		Protocol:    s.options.Protocol,
 		Host:        s.options.Host,
