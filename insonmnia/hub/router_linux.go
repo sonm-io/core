@@ -10,23 +10,21 @@ import (
 type ipvsRouter struct {
 	gateway  *gateway.Gateway
 	pool     *gateway.PortPool
-	minerID  string
 	metrics  map[string]*gateway.Metrics
-	services map[string]struct{}
+	services map[string]VirtualService
 	mu       sync.Mutex
 }
 
-func newIPVSRouter(ctx context.Context, minerID string, gate *gateway.Gateway, pool *gateway.PortPool) router {
+func newIPVSRouter(ctx context.Context, gate *gateway.Gateway, pool *gateway.PortPool) Router {
 	return &ipvsRouter{
 		gateway:  gate,
 		pool:     pool,
-		minerID:  minerID,
 		metrics:  make(map[string]*gateway.Metrics, 0),
-		services: make(map[string]struct{}, 0),
+		services: make(map[string]VirtualService, 0),
 	}
 }
 
-func (r *ipvsRouter) RegisterRoute(ID string, protocol string, realIP string, realPort uint16) (*route, error) {
+func (r *ipvsRouter) Register(ID string, protocol string) (VirtualService, error) {
 	host, err := gateway.GetOutboundIP()
 	if err != nil {
 		return nil, err
@@ -46,33 +44,22 @@ func (r *ipvsRouter) RegisterRoute(ID string, protocol string, realIP string, re
 		return nil, err
 	}
 
-	realOptions, err := gateway.NewRealOptions(realIP, realPort, 100, ID)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := r.gateway.CreateBackend(ID, ID, realOptions); err != nil {
-		return nil, err
+	virtualService := &ipvsVirtualService{
+		vsID:    ID,
+		options: serviceOptions,
+		gateway: r.gateway,
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
 	r.metrics[ID] = &gateway.Metrics{}
-	r.services[ID] = struct{}{}
+	r.services[ID] = virtualService
 
-	route := &route{
-		ID:          ID,
-		Protocol:    protocol,
-		Host:        host.String(),
-		Port:        port,
-		BackendHost: realIP,
-		BackendPort: realPort,
-	}
-
-	return route, nil
+	return virtualService, nil
 }
 
-func (r *ipvsRouter) DeregisterRoute(ID string) error {
+func (r *ipvsRouter) Deregister(ID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -135,4 +122,41 @@ func (r *ipvsRouter) Close() error {
 	}
 
 	return nil
+}
+
+type ipvsVirtualService struct {
+	vsID    string
+	options *gateway.ServiceOptions
+	gateway *gateway.Gateway
+}
+
+func (s *ipvsVirtualService) ID() string {
+	return s.vsID
+}
+
+func (s *ipvsVirtualService) AddReal(ID string, host string, port uint16) (*Route, error) {
+	realOptions, err := gateway.NewRealOptions(host, port, 100, s.vsID)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.gateway.CreateBackend(s.vsID, ID, realOptions); err != nil {
+		return nil, err
+	}
+
+	route := &Route{
+		ID:          ID,
+		Protocol:    s.options.Protocol,
+		Host:        s.options.Host,
+		Port:        s.options.Port,
+		BackendHost: host,
+		BackendPort: port,
+	}
+
+	return route, nil
+}
+
+func (s *ipvsVirtualService) RemoveReal(ID string) error {
+	_, err := s.gateway.RemoveBackend(s.vsID, ID)
+	return err
 }

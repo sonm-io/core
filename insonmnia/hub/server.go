@@ -215,7 +215,7 @@ func (h *Hub) Info(ctx context.Context, request *pb.ID) (*pb.InfoReply, error) {
 
 type routeMapping struct {
 	containerPort string
-	route         *route
+	route         *Route
 }
 
 func (h *Hub) onRequest(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
