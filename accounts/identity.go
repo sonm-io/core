@@ -3,7 +3,6 @@ package accounts
 import (
 	"crypto/ecdsa"
 	"io/ioutil"
-	"net/url"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -119,11 +118,7 @@ func (idt *identityPassphrase) initKeystore(keydir string) {
 
 // Read and decrypt Privatekey with getting passphrase
 func (idt *identityPassphrase) readPrivateKey(pass string) error {
-	path, err := parseKeystoreUrl(idt.defaultAccount.URL.String())
-	if err != nil {
-		return err
-	}
-	file, err := ioutil.ReadFile(path)
+	file, err := ioutil.ReadFile(idt.defaultAccount.URL.Path)
 	if err != nil {
 		return err
 	}
@@ -134,16 +129,4 @@ func (idt *identityPassphrase) readPrivateKey(pass string) error {
 	idt.key = key
 	idt.privateKey = key.PrivateKey
 	return nil
-}
-
-// parsing key identity file and return path
-// inbound param url looks like
-// keystore:///users/user/home/.sonm/keystore/keyfile
-// its return path - /users/user/home/.sonm/keystore/keyfile
-func parseKeystoreUrl(path string) (string, error) {
-	u, err := url.Parse(path)
-	if err != nil {
-		return "", err
-	}
-	return u.Path, nil
 }
