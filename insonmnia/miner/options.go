@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/ccding/go-stun/stun"
-	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/auth"
@@ -31,29 +30,29 @@ type options struct {
 	locatorClient pb.LocatorClient
 }
 
-func (o *options) getHubConnectionInfo(cfg Config) (string, common.Address, error) {
+func (o *options) getHubConnectionInfo(cfg Config) (auth.Endpoint, error) {
 	var (
-		hubEndpoint                  = cfg.HubEndpoint()
-		encounteredErrors            = make(map[string]error)
-		hubSockAddr, hubEthAddr, err = auth.ParseEndpoint(cfg.HubEndpoint())
+		hubEndpoint       = cfg.HubEndpoint()
+		encounteredErrors = make(map[string]error)
+		endpoint, err     = auth.NewEndpoint(cfg.HubEndpoint())
 	)
 
 	if err != nil {
-		return "", common.Address{}, err
+		return auth.Endpoint{}, err
 	}
 
-	if strings.HasPrefix(hubSockAddr, ":") {
+	// TODO: IPv6 ready? Never heard...
+	if strings.HasPrefix(endpoint.Endpoint, ":") {
 		// Only hub's port is provided.
-		resolved, err := o.locatorClient.Resolve(o.ctx, &pb.ResolveRequest{EthAddr: hubEthAddr.Hex()})
+		resolved, err := o.locatorClient.Resolve(o.ctx, &pb.ResolveRequest{EthAddr: endpoint.EthAddress.Hex()})
 		if err != nil {
-			return "", common.Address{}, fmt.Errorf(
-				"failed to resolve hub addr from %s: %s", hubEndpoint, err)
+			return auth.Endpoint{}, fmt.Errorf("failed to resolve hub addr from %s: %s", hubEndpoint, err)
 		}
 
 		log.G(o.ctx).Info("resolved hub endpoints", zap.Any("endpoints", resolved.IpAddr))
 
 		for _, addr := range resolved.IpAddr {
-			addr = strings.Split(addr, ":")[0] + hubSockAddr
+			addr = strings.Split(addr, ":")[0] + endpoint.Endpoint
 
 			log.G(o.ctx).Debug("trying hub endpoint", zap.Any("endpoint", addr))
 
@@ -66,18 +65,21 @@ func (o *options) getHubConnectionInfo(cfg Config) (string, common.Address, erro
 				encounteredErrors[addr] = err
 			} else {
 				testCC.Close()
-				return addr, hubEthAddr, nil
+				return auth.Endpoint{
+					Endpoint:   addr,
+					EthAddress: endpoint.EthAddress,
+				}, nil
 			}
 		}
 
-		return "", common.Address{}, fmt.Errorf("all hub endpoints are unreachable: %+v", encounteredErrors)
+		return auth.Endpoint{}, fmt.Errorf("all hub endpoints are unreachable: %+v", encounteredErrors)
 	}
 
-	if _, _, err := net.SplitHostPort(hubSockAddr); err != nil {
-		return "", common.Address{}, err
+	if _, _, err := net.SplitHostPort(endpoint.Endpoint); err != nil {
+		return auth.Endpoint{}, err
 	}
 
-	return hubSockAddr, hubEthAddr, err
+	return *endpoint, err
 }
 
 func (o *options) setupNetworkOptions(cfg Config) error {

@@ -37,22 +37,10 @@ func NewClient(ctx context.Context, addr string, creds credentials.TransportCred
 }
 
 func NewWalletAuthenticatedClient(ctx context.Context, creds credentials.TransportCredentials, endpoint string, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	socketAddr, ethAddr, err := auth.ParseEndpoint(endpoint)
+	authEndpoint, err := auth.NewEndpoint(endpoint)
 	if err != nil {
-		conn, err := NewClient(ctx, endpoint, creds, opts...)
-		if err != nil {
-			return nil, err
-		}
-
-		return conn, nil
+		return NewClient(ctx, endpoint, creds, opts...)
 	}
 
-	locatorCreds := auth.NewWalletAuthenticator(creds, ethAddr)
-
-	conn, err := NewClient(ctx, socketAddr, locatorCreds)
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
+	return NewClient(ctx, authEndpoint.Endpoint, auth.NewWalletAuthenticator(creds, authEndpoint.EthAddress), opts...)
 }

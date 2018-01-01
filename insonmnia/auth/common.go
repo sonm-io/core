@@ -3,7 +3,6 @@ package auth
 import (
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"golang.org/x/net/context"
@@ -99,21 +98,4 @@ func equalAddresses(a, b common.Address) bool {
 		}
 	}
 	return true
-}
-
-// TODO: We should introduce our-special struct for this case, like `TrustedEndpoint`.
-func ParseEndpoint(endpoint string) (string, common.Address, error) {
-	parsed := strings.SplitN(endpoint, "@", 2)
-	if len(parsed) != 2 {
-		return "", common.Address{}, fmt.Errorf("invalid Ethereum address format")
-	}
-
-	ethAddr := parsed[0]
-	socketAddr := parsed[1]
-
-	if !common.IsHexAddress(ethAddr) {
-		return "", common.Address{}, fmt.Errorf("invalid Ethereum address format")
-	}
-
-	return socketAddr, common.HexToAddress(ethAddr), nil
 }
