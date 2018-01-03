@@ -153,13 +153,13 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		return nil, err
 	}
 
-	hubSockaddr, hubEthAddr, err := o.getHubConnectionInfo(cfg)
+	hubEndpoint, err := o.getHubConnectionInfo(cfg)
 	if err != nil {
 		cancel()
 		return nil, err
 	}
 
-	creds := auth.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEthAddr)
+	creds := auth.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEndpoint.EthAddress)
 	grpcServer := xgrpc.NewServer(log.GetLogger(ctx),
 		xgrpc.Credentials(creds),
 		xgrpc.DefaultTraceInterceptor(),
@@ -190,7 +190,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 
 		publicIPs:  o.publicIPs,
 		natType:    o.nat,
-		hubAddress: hubSockaddr,
+		hubAddress: hubEndpoint.Endpoint,
 
 		rl:             newReverseListener(1),
 		containers:     make(map[string]*ContainerInfo),
