@@ -41,7 +41,6 @@ func (o *options) getHubConnectionInfo(cfg Config) (auth.Endpoint, error) {
 		return auth.Endpoint{}, err
 	}
 
-	// TODO: IPv6 ready? Never heard...
 	if strings.HasPrefix(endpoint.Endpoint, ":") {
 		// Only hub's port is provided.
 		resolved, err := o.locatorClient.Resolve(o.ctx, &pb.ResolveRequest{EthAddr: endpoint.EthAddress.Hex()})
