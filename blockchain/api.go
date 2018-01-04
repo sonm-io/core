@@ -40,9 +40,16 @@ type Dealer interface {
 	// AcceptDeal accepting deal by hub, causes that hub accept to sell its resources
 	// It could be called by hub
 	AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
+	// AcceptDealPending accept deal and waits for transaction to be committed on blockchain.
+	// wait is duration to wait for transaction commit, recommended value is 180 seconds.
+	AcceptDealPending(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) error
+
 	// CloseDeal closing deal by given id
 	// It could be called by client
 	CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
+	// CloseDealPending close deal and waits for transaction to be committed on blockchain.
+	// wait is duration to wait for transaction commit, recommended value is 180 seconds.
+	CloseDealPending(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) error
 
 	// GetDeals is returns ids by given address
 	GetDeals(address string) ([]*big.Int, error)
@@ -193,15 +200,12 @@ func (bch *api) checkTransactionResult(ctx context.Context, tx *types.Transactio
 	}
 
 	for _, l := range txReceipt.Logs {
-		if len(l.Topics) < 1 {
+		if len(l.Topics) < 4 {
 			return nil, errors.New("transaction topics is malformed")
 		}
+		nameTopic := l.Topics[0]
 
-		if l.Topics[0] == DealOpenedTopic {
-			if len(l.Topics) < 4 {
-				return nil, errors.New("transaction topics content is malformed")
-			}
-
+		if (nameTopic == DealOpenedTopic) || (nameTopic == DealAcceptedTopic) || (nameTopic == DealClosedTopic) {
 			return l.Topics[3].Big(), nil
 		}
 	}
@@ -260,6 +264,54 @@ func (bch *api) AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transacti
 	return tx, err
 }
 
+func (bch *api) AcceptDealPending(ctx context.Context, key *ecdsa.PrivateKey, dealId *big.Int, wait time.Duration) error {
+	tx, err := bch.AcceptDeal(key, dealId)
+	if err != nil {
+		return err
+	}
+
+	id, err := bch.checkTransactionResult(ctx, tx)
+	if err != nil {
+		// if transaction status is NOT FOUND, then just wait for next tick
+		// and try to find it again.
+		if err != ethereum.NotFound {
+			return err
+		}
+	} else {
+		if id.Cmp(dealId) != 0 {
+			return errors.New("given transaction is malformed, dealId is mismatch")
+		}
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+
+	tk := time.NewTicker(1 * time.Second)
+	defer tk.Stop()
+
+	for {
+		select {
+		case <-tk.C:
+			id, err := bch.checkTransactionResult(ctx, tx)
+			if err != nil {
+				// if transaction status is NOT FOUND, then just wait for next tick
+				// and try to find it again.
+				if err != ethereum.NotFound {
+					return err
+				}
+			} else {
+				if id != dealId {
+					return errors.New("given transaction is malformed, dealId is mismatch")
+				}
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
 func (bch *api) CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
 	opts := bch.getTxOpts(key, 90000)
 
@@ -268,6 +320,54 @@ func (bch *api) CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transactio
 		return nil, err
 	}
 	return tx, err
+}
+
+func (bch *api) CloseDealPending(ctx context.Context, key *ecdsa.PrivateKey, dealId *big.Int, wait time.Duration) error {
+	tx, err := bch.CloseDeal(key, dealId)
+	if err != nil {
+		return err
+	}
+
+	id, err := bch.checkTransactionResult(ctx, tx)
+	if err != nil {
+		// if transaction status is NOT FOUND, then just wait for next tick
+		// and try to find it again.
+		if err != ethereum.NotFound {
+			return err
+		}
+	} else {
+		if id.Cmp(dealId) != 0 {
+			return errors.New("given transaction is malformed, dealId is mismatch")
+		}
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+
+	tk := time.NewTicker(1 * time.Second)
+	defer tk.Stop()
+
+	for {
+		select {
+		case <-tk.C:
+			id, err := bch.checkTransactionResult(ctx, tx)
+			if err != nil {
+				// if transaction status is NOT FOUND, then just wait for next tick
+				// and try to find it again.
+				if err != ethereum.NotFound {
+					return err
+				}
+			} else {
+				if id.Cmp(dealId) != 0 {
+					return errors.New("given transaction is malformed, dealId is mismatch")
+				}
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
 }
 
 func (bch *api) GetOpenedDeal(hubAddr string, clientAddr string) ([]*big.Int, error) {
