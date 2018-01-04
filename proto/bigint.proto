@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package sonm;
+
+// BigInt represents multi-precision value stored as a big integer.
+message BigInt {
+    bool neg = 1;
+    bytes abs = 2;
+}

@@ -7,8 +7,10 @@ import (
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/insonmnia/auth"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -32,12 +34,12 @@ type remoteOptions struct {
 }
 
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, creds credentials.TransportCredentials) (*remoteOptions, error) {
-	locatorCC, err := util.MakeWalletAuthenticatedClient(ctx, creds, conf.LocatorEndpoint())
+	locatorCC, err := xgrpc.NewWalletAuthenticatedClient(ctx, creds, conf.LocatorEndpoint())
 	if err != nil {
 		return nil, err
 	}
 
-	marketCC, err := util.MakeWalletAuthenticatedClient(ctx, creds, conf.MarketEndpoint())
+	marketCC, err := xgrpc.NewWalletAuthenticatedClient(ctx, creds, conf.MarketEndpoint())
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +50,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, c
 	}
 
 	hc := func(addr string) (pb.HubClient, error) {
-		cc, err := util.MakeGrpcClient(ctx, addr, creds)
+		cc, err := xgrpc.NewClient(ctx, addr, creds)
 		if err != nil {
 			return nil, err
 		}
@@ -119,8 +121,13 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	}
 
 	addr := util.PubKeyToAddr(key.PublicKey)
-	creds := util.NewWalletAuthenticator(util.NewTLS(TLSConfig), addr)
-	srv := util.MakeGrpcServer(creds, grpc.UnaryInterceptor(hub.(*hubAPI).intercept))
+	creds := auth.NewWalletAuthenticator(util.NewTLS(TLSConfig), addr)
+	logger := log.GetLogger(ctx)
+	srv := xgrpc.NewServer(logger,
+		xgrpc.Credentials(creds),
+		xgrpc.DefaultTraceInterceptor(),
+		xgrpc.UnaryServerInterceptor(hub.(*hubAPI).intercept),
+	)
 
 	pb.RegisterHubManagementServer(srv, hub)
 	log.G(ctx).Info("hub service registered", zap.String("endpt", c.HubEndpoint()))

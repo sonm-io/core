@@ -21,7 +21,7 @@ type Capabilities struct {
 func (m *Capabilities) Reset()                    { *m = Capabilities{} }
 func (m *Capabilities) String() string            { return proto.CompactTextString(m) }
 func (*Capabilities) ProtoMessage()               {}
-func (*Capabilities) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
+func (*Capabilities) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
 
 func (m *Capabilities) GetCpu() []*CPUDevice {
 	if m != nil {
@@ -69,7 +69,7 @@ type CPUDevice struct {
 func (m *CPUDevice) Reset()                    { *m = CPUDevice{} }
 func (m *CPUDevice) String() string            { return proto.CompactTextString(m) }
 func (*CPUDevice) ProtoMessage()               {}
-func (*CPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
+func (*CPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
 
 func (m *CPUDevice) GetNum() int32 {
 	if m != nil {
@@ -142,7 +142,7 @@ type RAMDevice struct {
 func (m *RAMDevice) Reset()                    { *m = RAMDevice{} }
 func (m *RAMDevice) String() string            { return proto.CompactTextString(m) }
 func (*RAMDevice) ProtoMessage()               {}
-func (*RAMDevice) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
+func (*RAMDevice) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2} }
 
 func (m *RAMDevice) GetTotal() uint64 {
 	if m != nil {
@@ -178,7 +178,7 @@ type GPUDevice struct {
 func (m *GPUDevice) Reset()                    { *m = GPUDevice{} }
 func (m *GPUDevice) String() string            { return proto.CompactTextString(m) }
 func (*GPUDevice) ProtoMessage()               {}
-func (*GPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3} }
+func (*GPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{3} }
 
 func (m *GPUDevice) GetName() string {
 	if m != nil {
@@ -236,9 +236,9 @@ func init() {
 	proto.RegisterType((*GPUDevice)(nil), "sonm.GPUDevice")
 }
 
-func init() { proto.RegisterFile("capabilities.proto", fileDescriptor1) }
+func init() { proto.RegisterFile("capabilities.proto", fileDescriptor2) }
 
-var fileDescriptor1 = []byte{
+var fileDescriptor2 = []byte{
 	// 396 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x52, 0x4d, 0x8b, 0xd4, 0x40,
 	0x10, 0xa5, 0x37, 0xc9, 0xba, 0x29, 0xbf, 0x1b, 0x0f, 0x8d, 0x88, 0xc4, 0x41, 0x64, 0x0e, 0x32,

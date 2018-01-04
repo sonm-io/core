@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 	pb "github.com/sonm-io/core/proto"
@@ -22,7 +23,12 @@ func makeDefaultOrder(t *testing.T, buyerId string) *structs.Order {
 		Resources: &pb.Resources{},
 	}
 
-	order, err := structs.NewOrder(&pb.Order{Price: "1", ByuerID: buyerId, Slot: slot})
+	order, err := structs.NewOrder(&pb.Order{
+		Price:          "1",
+		ByuerID:        buyerId,
+		Slot:           slot,
+		PricePerSecond: pb.NewBigIntFromInt(1),
+	})
 	assert.NoError(t, err)
 	return order
 }
@@ -82,7 +88,7 @@ func TestFieldDealMetaDataErrorsOnInvalidInnerType(t *testing.T) {
 
 func TestFieldDealMetaDataWallet(t *testing.T) {
 	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
-		AuthInfo: util.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
+		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
 	})
 
 	ctx := metadata.NewIncomingContext(peerCtx, metadata.MD(map[string][]string{
@@ -97,7 +103,7 @@ func TestFieldDealMetaDataWallet(t *testing.T) {
 
 func TestFieldDealMetaDataWalletErrorsOnEmptyMD(t *testing.T) {
 	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
-		AuthInfo: util.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
+		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
 	})
 
 	ctx := metadata.NewIncomingContext(peerCtx, metadata.MD(map[string][]string{}))
@@ -126,7 +132,7 @@ func TestDealAuthorization(t *testing.T) {
 	access := util.NewWalletAccess(wallet)
 
 	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
-		AuthInfo: util.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
+		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
 	})
 
 	requestMD, err := access.GetRequestMetadata(nil)
@@ -155,7 +161,7 @@ func TestDealAuthorizationErrors(t *testing.T) {
 	access := util.NewWalletAccess(wallet)
 
 	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
-		AuthInfo: util.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
+		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
 	})
 
 	requestMD, err := access.GetRequestMetadata(nil)
@@ -172,14 +178,14 @@ func TestDealAuthorizationErrors(t *testing.T) {
 	}
 
 	md := fieldDealMetaData{}
-	auth := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), &md)
+	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), &md)
 
-	require.Error(t, auth.Authorize(ctx, request))
+	require.Error(t, au.Authorize(ctx, request))
 }
 
 func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
-		AuthInfo: util.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
+		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
 	})
 
 	ctx := metadata.NewIncomingContext(peerCtx, metadata.MD(map[string][]string{
@@ -193,7 +199,7 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 	}
 
 	md := fieldDealMetaData{}
-	auth := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), &md)
+	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), &md)
 
-	require.Error(t, auth.Authorize(ctx, request))
+	require.Error(t, au.Authorize(ctx, request))
 }

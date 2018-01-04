@@ -27,7 +27,7 @@ type GetOrdersRequest struct {
 func (m *GetOrdersRequest) Reset()                    { *m = GetOrdersRequest{} }
 func (m *GetOrdersRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetOrdersRequest) ProtoMessage()               {}
-func (*GetOrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
+func (*GetOrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{0} }
 
 func (m *GetOrdersRequest) GetOrder() *Order {
 	if m != nil {
@@ -50,7 +50,7 @@ type GetOrdersReply struct {
 func (m *GetOrdersReply) Reset()                    { *m = GetOrdersReply{} }
 func (m *GetOrdersReply) String() string            { return proto.CompactTextString(m) }
 func (*GetOrdersReply) ProtoMessage()               {}
-func (*GetOrdersReply) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{1} }
+func (*GetOrdersReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{1} }
 
 func (m *GetOrdersReply) GetOrders() []*Order {
 	if m != nil {
@@ -68,7 +68,7 @@ type GetProcessingReply struct {
 func (m *GetProcessingReply) Reset()                    { *m = GetProcessingReply{} }
 func (m *GetProcessingReply) String() string            { return proto.CompactTextString(m) }
 func (*GetProcessingReply) ProtoMessage()               {}
-func (*GetProcessingReply) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{2} }
+func (*GetProcessingReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{2} }
 
 func (m *GetProcessingReply) GetOrders() map[string]*GetProcessingReply_ProcessedOrder {
 	if m != nil {
@@ -88,7 +88,7 @@ func (m *GetProcessingReply_ProcessedOrder) Reset()         { *m = GetProcessing
 func (m *GetProcessingReply_ProcessedOrder) String() string { return proto.CompactTextString(m) }
 func (*GetProcessingReply_ProcessedOrder) ProtoMessage()    {}
 func (*GetProcessingReply_ProcessedOrder) Descriptor() ([]byte, []int) {
-	return fileDescriptor6, []int{2, 0}
+	return fileDescriptor7, []int{2, 0}
 }
 
 func (m *GetProcessingReply_ProcessedOrder) GetId() string {
@@ -336,9 +336,9 @@ var _Market_serviceDesc = grpc.ServiceDesc{
 	Metadata: "marketplace.proto",
 }
 
-func init() { proto.RegisterFile("marketplace.proto", fileDescriptor6) }
+func init() { proto.RegisterFile("marketplace.proto", fileDescriptor7) }
 
-var fileDescriptor6 = []byte{
+var fileDescriptor7 = []byte{
 	// 393 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x52, 0x5d, 0xaf, 0xd2, 0x40,
 	0x10, 0xa5, 0x05, 0x1a, 0x3b, 0x95, 0x0f, 0x27, 0x84, 0x34, 0x7d, 0xc2, 0x6a, 0x02, 0x3e, 0xc8,

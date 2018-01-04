@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "bigint.proto";
 import "insonmnia.proto";
 
 package sonm;
@@ -59,9 +60,12 @@ message Order {
     // Supplier's is EtherumID
     string supplierID = 3;
     // Order price
+    // todo(all): remove this filed
     string price = 4;
     // Order type (Bid or Ask)
     OrderType orderType = 5;
     // Slot describe resource requiements
     Slot slot = 6;
+    // PricePerSecond specifies order price for ordered resources per second.
+    BigInt pricePerSecond = 7;
 }

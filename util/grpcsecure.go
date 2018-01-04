@@ -13,23 +13,10 @@ import (
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
-
-// EthAuthInfo implements credentials.AuthInfo
-// It provides access to a wallet of a connected user
-type EthAuthInfo struct {
-	TLS    credentials.TLSInfo
-	Wallet ethcommon.Address
-}
-
-// AuthType implements credentials.AuthInfo interface
-func (e EthAuthInfo) AuthType() string {
-	return "ETH+" + e.TLS.AuthType()
-}
 
 type tlsVerifier struct {
 	credentials.TransportCredentials
@@ -80,7 +67,7 @@ func verifyCertificate(authInfo credentials.AuthInfo) (credentials.AuthInfo, err
 		if !ethcommon.IsHexAddress(wallet) {
 			return nil, fmt.Errorf("%s is not a valid eth Address", wallet)
 		}
-		return EthAuthInfo{TLS: authInfo, Wallet: ethcommon.HexToAddress(wallet)}, nil
+		return auth.EthAuthInfo{TLS: authInfo, Wallet: ethcommon.HexToAddress(wallet)}, nil
 	default:
 		return nil, fmt.Errorf("unsupported AuthInfo %s %T", authInfo.AuthType(), authInfo)
 	}
@@ -92,97 +79,7 @@ func NewTLS(c *tls.Config) credentials.TransportCredentials {
 	return tlsVerifier{TransportCredentials: tc}
 }
 
-type WalletAuthenticator struct {
-	credentials.TransportCredentials
-	Wallet ethcommon.Address
-}
-
-func (w *WalletAuthenticator) ServerHandshake(conn net.Conn) (net.Conn, credentials.AuthInfo, error) {
-	conn, authInfo, err := w.TransportCredentials.ServerHandshake(conn)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	switch authInfo := authInfo.(type) {
-	case EthAuthInfo:
-		if !EqualAddresses(authInfo.Wallet, w.Wallet) {
-			return nil, nil, fmt.Errorf("authorization failed: expected %s, actual %s", w.Wallet, authInfo.Wallet)
-		}
-	default:
-		return nil, nil, fmt.Errorf("unsupported AuthInfo %s %T", authInfo.AuthType(), authInfo)
-	}
-
-	return conn, authInfo, nil
-}
-
-func (w *WalletAuthenticator) ClientHandshake(ctx context.Context, arg string, conn net.Conn) (net.Conn, credentials.AuthInfo, error) {
-	conn, authInfo, err := w.TransportCredentials.ClientHandshake(ctx, arg, conn)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if err := w.compareWallets(authInfo); err != nil {
-		return nil, nil, err
-	}
-
-	return conn, authInfo, nil
-}
-
-func (w *WalletAuthenticator) compareWallets(authInfo credentials.AuthInfo) error {
-	switch authInfo := authInfo.(type) {
-	case EthAuthInfo:
-		if !EqualAddresses(authInfo.Wallet, w.Wallet) {
-			return fmt.Errorf("authorization failed: expected %s, actual %s", w.Wallet.Hex(), authInfo.Wallet.Hex())
-		}
-	default:
-		return fmt.Errorf("unsupported AuthInfo %s %T", authInfo.AuthType(), authInfo)
-	}
-
-	return nil
-}
-
-func NewWalletAuthenticator(c credentials.TransportCredentials, wallet ethcommon.Address) credentials.TransportCredentials {
-	return &WalletAuthenticator{c, wallet}
-}
-
-func ParseEndpoint(endpoint string) (string, ethcommon.Address, error) {
-	parsed := strings.SplitN(endpoint, "@", 2)
-	if len(parsed) != 2 {
-		return "", ethcommon.Address{}, errors.New("invalid Ethereum address format")
-	}
-
-	ethAddr := parsed[0]
-	socketAddr := parsed[1]
-
-	if !ethcommon.IsHexAddress(ethAddr) {
-		return "", ethcommon.Address{}, errors.New("invalid Ethereum address format")
-	}
-
-	return socketAddr, ethcommon.HexToAddress(ethAddr), nil
-}
-
-func MakeWalletAuthenticatedClient(ctx context.Context, creds credentials.TransportCredentials, endpoint string,
-	opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	sockaddr, ethAddr, err := ParseEndpoint(endpoint)
-	if err != nil {
-		conn, err := MakeGrpcClient(ctx, endpoint, creds, opts...)
-		if err != nil {
-			return nil, err
-		}
-
-		return conn, nil
-	}
-
-	locatorCreds := NewWalletAuthenticator(creds, ethAddr)
-
-	conn, err := MakeGrpcClient(ctx, sockaddr, locatorCreds)
-	if err != nil {
-		return nil, err
-	}
-
-	return conn, nil
-}
-
+// TODO: Will be removed in the nearest future in favor of TLS-wallet extraction and token-based authorization.
 type SelfSignedWallet struct {
 	Message string
 }

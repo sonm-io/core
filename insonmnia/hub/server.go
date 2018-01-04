@@ -16,6 +16,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 
@@ -214,7 +215,7 @@ func (h *Hub) Info(ctx context.Context, request *pb.ID) (*pb.InfoReply, error) {
 
 type routeMapping struct {
 	containerPort string
-	route         *route
+	route         *Route
 }
 
 func (h *Hub) onRequest(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
@@ -819,11 +820,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 
 	// Verify that bid price >= ask price, i.e we're not selling our resources
 	// with lesser price than expected.
-	cmp, err := util.CmpPrice(bidOrder.Price, askOrder.Price)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "malformed price format: %v", err)
-	}
-	if cmp < 0 {
+	if bidOrder.PricePerSecond.Cmp(askOrder.PricePerSecond) < 0 {
 		return nil, status.Errorf(codes.InvalidArgument, "BID price can not be less than ASK price")
 	}
 
@@ -878,6 +875,11 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 	return &pb.Empty{}, nil
 }
 
+func (h *Hub) ApproveDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, error) {
+	log.G(h.ctx).Info("handling ApproveDeal request", zap.Any("request", r))
+	return &pb.Empty{}, nil
+}
+
 func (h *Hub) executeDeal(ctx context.Context, request *structs.DealRequest, order *structs.Order) (*DealMeta, error) {
 	dealMeta, err := h.waitForDealCreatedAndAccepted(ctx, request, order)
 	if err != nil {
@@ -904,9 +906,13 @@ func (h *Hub) waitForDealCreatedAndAccepted(ctx context.Context, req *structs.De
 		zap.String("orderPrice", order.Price),
 	)
 
-	//if err := util.VerifyEqualPrice(createdDeal.Price, order.Price); err != nil {
-	//	return nil, err
-	//}
+	dealPrice, err := util.ParseBigInt(createdDeal.Price)
+	if err != nil {
+		return nil, err
+	}
+	if cmp := dealPrice.Cmp(order.GetTotalPrice()); cmp != 0 {
+		return nil, fmt.Errorf("prices are not equal: %v != %v", dealPrice, order.GetTotalPrice())
+	}
 
 	dealID := DealID(createdDeal.GetId())
 	err = h.eth.AcceptDeal(dealID.String())
@@ -1257,7 +1263,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	if defaults.locator == nil {
-		conn, err := util.MakeWalletAuthenticatedClient(ctx, defaults.creds, cfg.Locator.Endpoint)
+		conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, defaults.creds, cfg.Locator.Endpoint)
 		if err != nil {
 			return nil, err
 		}
@@ -1266,7 +1272,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	if defaults.market == nil {
-		conn, err := util.MakeWalletAuthenticatedClient(ctx, defaults.creds, cfg.Market.Endpoint)
+		conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, defaults.creds, cfg.Market.Endpoint)
 		if err != nil {
 			return nil, err
 		}
@@ -1349,7 +1355,12 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		eventACL.addAuthorization(method(hubAPIPrefix+event), newHubManagementAuthorization(ctx, h.ethAddr))
 	}
 
-	grpcServer := util.MakeGrpcServer(h.creds, grpc.UnaryInterceptor(h.onRequest))
+	logger := log.GetLogger(h.ctx)
+	grpcServer := xgrpc.NewServer(logger,
+		xgrpc.Credentials(h.creds),
+		xgrpc.DefaultTraceInterceptor(),
+		xgrpc.UnaryServerInterceptor(h.onRequest),
+	)
 	h.externalGrpc = grpcServer
 
 	pb.RegisterHubServer(grpcServer, h)

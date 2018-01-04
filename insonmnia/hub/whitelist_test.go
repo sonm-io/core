@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -20,7 +21,7 @@ func walletCtx(t *testing.T, key *ecdsa.PrivateKey) context.Context {
 	require.NoError(t, err)
 
 	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
-		AuthInfo: util.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
+		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
 	})
 
 	ctx := metadata.NewIncomingContext(peerCtx, metadata.New(map[string]string{

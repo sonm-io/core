@@ -10,6 +10,7 @@ import (
 
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/cmd/cli/config"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -171,7 +172,7 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 		os.Exit(1)
 	}
 
-	creds = util.NewWalletAuthenticator(util.NewTLS(TLSConfig), util.PubKeyToAddr(sessionKey.PublicKey))
+	creds = auth.NewWalletAuthenticator(util.NewTLS(TLSConfig), util.PubKeyToAddr(sessionKey.PublicKey))
 	wallet, err := util.NewSelfSignedWallet(sessionKey)
 	if err != nil {
 		showError(cmd, err.Error(), nil)

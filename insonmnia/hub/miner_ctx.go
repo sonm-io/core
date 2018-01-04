@@ -8,6 +8,8 @@ import (
 	"time"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 
 	"golang.org/x/net/context"
@@ -52,7 +54,7 @@ type MinerCtx struct {
 
 	// Traffic routing.
 
-	router router
+	router Router
 
 	// Scheduling.
 
@@ -80,7 +82,7 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 		}
 	)
 	m.ctx, m.cancel = context.WithCancel(ctx)
-	m.grpcConn, err = util.MakeGrpcClient(ctx, "miner", nil, grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
+	m.grpcConn, err = xgrpc.NewClient(ctx, "miner", nil, grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
 		return conn, nil
 	}))
 	if err != nil {
@@ -107,7 +109,7 @@ func (h *Hub) tlsHandshake(ctx context.Context, conn net.Conn) (net.Conn, error)
 	}
 
 	switch authInfo := authInfo.(type) {
-	case util.EthAuthInfo:
+	case auth.EthAuthInfo:
 		if !h.acl.Has(authInfo.Wallet.Hex()) {
 			return nil, errForbiddenMiner
 		}
@@ -164,20 +166,20 @@ func (m *MinerCtx) handshake(h *Hub) error {
 }
 
 // NewRouter constructs a new router that will route requests to bypass miner's firewall.
-func (h *Hub) newRouter(id string, natType pb.NATType) (router, error) {
+func (h *Hub) newRouter(id string, natType pb.NATType) (Router, error) {
 	if h.gateway == nil || natType == pb.NATType_NONE {
 		return newDirectRouter(), nil
 	}
 
 	if gateway.PlatformSupportIPVS {
-		return newIPVSRouter(h.ctx, id, h.gateway, h.portPool), nil
+		return newIPVSRouter(h.ctx, h.gateway, h.portPool), nil
 	}
 
 	return nil, errors.New("miner has firewall configured, but Hub's host OS has no IPVS support")
 }
 
 func (m *MinerCtx) deregisterRoute(ID string) error {
-	return m.router.DeregisterRoute(ID)
+	return m.router.Deregister(ID)
 }
 
 func (m *MinerCtx) initStatusClient() (statusClient pb.Miner_TasksStatusClient, err error) {
@@ -338,7 +340,7 @@ func (m *MinerCtx) Orders() []OrderID {
 
 func (m *MinerCtx) registerRoutes(ID string, routes []*pb.Route) []routeMapping {
 	var outRoutes []routeMapping
-	for _, route := range routes {
+	for id, route := range routes {
 		binding, err := util.ParsePortBinding(route.Port)
 		if err != nil {
 			log.G(m.ctx).Warn("failed to decode miner's port mapping",
@@ -348,10 +350,16 @@ func (m *MinerCtx) registerRoutes(ID string, routes []*pb.Route) []routeMapping 
 			continue
 		}
 
-		outRoute, err := m.router.RegisterRoute(ID,
-			binding.Network(),
-			route.Endpoint.GetAddr(),
-			uint16(route.GetEndpoint().GetPort()))
+		// TODO: It is possible here to save a couple of ports by squashing several real IPs with the same port.
+		// TODO: But first we need to fix worker by adding composition, because theoretically even with the same ports on different IPs can be different services. Also they must work under the same protocol.
+		vsID := fmt.Sprintf("%s#%d", ID, id)
+		vs, err := m.router.Register(vsID, binding.Network())
+		if err != nil {
+			log.G(m.ctx).Warn("failed to register route", zap.Error(err))
+			continue
+		}
+
+		outRoute, err := vs.AddReal(vsID, route.Endpoint.GetAddr(), uint16(route.GetEndpoint().GetPort()))
 		if err != nil {
 			log.G(m.ctx).Warn("failed to register route", zap.Error(err))
 			continue

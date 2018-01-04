@@ -37,12 +37,14 @@ var DealStatus_value = map[string]int32{
 func (x DealStatus) String() string {
 	return proto.EnumName(DealStatus_name, int32(x))
 }
-func (DealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
+func (DealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
 
 type Deal struct {
-	BuyerID           string     `protobuf:"bytes,1,opt,name=BuyerID" json:"BuyerID,omitempty"`
-	SupplierID        string     `protobuf:"bytes,2,opt,name=SupplierID" json:"SupplierID,omitempty"`
-	Status            DealStatus `protobuf:"varint,3,opt,name=status,enum=sonm.DealStatus" json:"status,omitempty"`
+	BuyerID    string     `protobuf:"bytes,1,opt,name=BuyerID" json:"BuyerID,omitempty"`
+	SupplierID string     `protobuf:"bytes,2,opt,name=SupplierID" json:"SupplierID,omitempty"`
+	Status     DealStatus `protobuf:"varint,3,opt,name=status,enum=sonm.DealStatus" json:"status,omitempty"`
+	// todo(sshaman1101): need to change the type from a string to a bigInt
+	// todo(sshaman1101):  but for now it will be out of scope.
 	Price             string     `protobuf:"bytes,4,opt,name=price" json:"price,omitempty"`
 	StartTime         *Timestamp `protobuf:"bytes,5,opt,name=startTime" json:"startTime,omitempty"`
 	EndTime           *Timestamp `protobuf:"bytes,6,opt,name=endTime" json:"endTime,omitempty"`
@@ -54,7 +56,7 @@ type Deal struct {
 func (m *Deal) Reset()                    { *m = Deal{} }
 func (m *Deal) String() string            { return proto.CompactTextString(m) }
 func (*Deal) ProtoMessage()               {}
-func (*Deal) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
+func (*Deal) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
 
 func (m *Deal) GetBuyerID() string {
 	if m != nil {
@@ -124,9 +126,9 @@ func init() {
 	proto.RegisterEnum("sonm.DealStatus", DealStatus_name, DealStatus_value)
 }
 
-func init() { proto.RegisterFile("deal.proto", fileDescriptor2) }
+func init() { proto.RegisterFile("deal.proto", fileDescriptor3) }
 
-var fileDescriptor2 = []byte{
+var fileDescriptor3 = []byte{
 	// 300 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0x41, 0x4b, 0xc3, 0x30,
 	0x1c, 0xc5, 0x4d, 0xd7, 0xb5, 0xdb, 0x7f, 0xb2, 0xd5, 0x3f, 0x1e, 0xc2, 0x0e, 0x52, 0x3c, 0x55,

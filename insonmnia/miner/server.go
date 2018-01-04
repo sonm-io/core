@@ -9,29 +9,28 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ccding/go-stun/stun"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
+	"github.com/gliderlabs/ssh"
+	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/hardware"
+	"github.com/sonm-io/core/insonmnia/resource"
+	"github.com/sonm-io/core/insonmnia/structs"
+	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/metadata"
-
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-
-	log "github.com/noxiouz/zapctx/ctxlog"
-
-	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
-
-	"github.com/ccding/go-stun/stun"
-	"github.com/docker/docker/api/types"
-
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/go-connections/nat"
-	"github.com/gliderlabs/ssh"
-	"github.com/sonm-io/core/insonmnia/hardware"
-	"github.com/sonm-io/core/insonmnia/resource"
-	"github.com/sonm-io/core/insonmnia/structs"
 )
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
@@ -82,6 +81,135 @@ type Miner struct {
 	creds credentials.TransportCredentials
 	// Certificate rotator
 	certRotator util.HitlessCertRotator
+}
+
+func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
+	o := &options{}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	if cfg == nil {
+		return nil, errors.New("config is mandatory for MinerBuilder")
+	}
+
+	if o.key == nil {
+		return nil, errors.New("private key is mandatory")
+	}
+
+	if o.ctx == nil {
+		o.ctx = context.Background()
+	}
+
+	if o.hardware == nil {
+		o.hardware = hardware.New()
+	}
+
+	if len(o.uuid) == 0 {
+		o.uuid = uuid.New()
+	}
+
+	ctx, cancel := context.WithCancel(o.ctx)
+	if o.ovs == nil {
+		o.ovs, err = NewOverseer(ctx, cfg.GPU())
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+	}
+
+	hardwareInfo, err := o.hardware.Info()
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	cgroup, cGroupManager, err := makeCgroupManager(cfg.HubResources())
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	if o.locatorClient == nil {
+		_, TLSConf, err := util.NewHitlessCertRotator(o.ctx, o.key)
+		if err != nil {
+			cancel()
+			return nil, errors.Wrap(err, "failed to create locator client")
+		}
+
+		locatorCC, err := xgrpc.NewWalletAuthenticatedClient(o.ctx, util.NewTLS(TLSConf), cfg.LocatorEndpoint())
+		if err != nil {
+			cancel()
+			return nil, errors.Wrap(err, "failed to create locator client")
+		}
+
+		o.locatorClient = pb.NewLocatorClient(locatorCC)
+	}
+
+	// The rotator will be stopped by ctx
+	certRotator, TLSConf, err := util.NewHitlessCertRotator(ctx, o.key)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	hubEndpoint, err := o.getHubConnectionInfo(cfg)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	creds := auth.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEndpoint.EthAddress)
+	grpcServer := xgrpc.NewServer(log.GetLogger(ctx),
+		xgrpc.Credentials(creds),
+		xgrpc.DefaultTraceInterceptor(),
+	)
+
+	if !platformSupportCGroups && cfg.HubResources() != nil {
+		log.G(ctx).Warn("your platform does not support CGroup, but the config has resources section")
+	}
+
+	if err := o.setupNetworkOptions(cfg); err != nil {
+		cancel()
+		return nil, errors.Wrap(err, "failed to set up network options")
+	}
+
+	log.G(o.ctx).Info("discovered public IPs",
+		zap.Any("public IPs", o.publicIPs),
+		zap.Any("nat", o.nat))
+
+	m = &Miner{
+		ctx:        ctx,
+		cancel:     cancel,
+		grpcServer: grpcServer,
+		ovs:        o.ovs,
+
+		name:      o.uuid,
+		hardware:  hardwareInfo,
+		resources: resource.NewPool(hardwareInfo),
+
+		publicIPs:  o.publicIPs,
+		natType:    o.nat,
+		hubAddress: hubEndpoint.Endpoint,
+
+		rl:             newReverseListener(1),
+		containers:     make(map[string]*ContainerInfo),
+		statusChannels: make(map[int]chan bool),
+		nameMapping:    make(map[string]string),
+
+		controlGroup:  cgroup,
+		cGroupManager: cGroupManager,
+		ssh:           o.ssh,
+
+		connectedHubs: make(map[string]struct{}),
+
+		certRotator: certRotator,
+		creds:       creds,
+	}
+
+	pb.RegisterMinerServer(grpcServer, m)
+
+	return m, nil
 }
 
 type resourceHandle interface {

@@ -2,7 +2,7 @@ package hub
 
 import (
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"golang.org/x/net/context"
 )
 
@@ -41,7 +41,7 @@ func (m *market) CreateOrder(ord *pb.Order) (*pb.Order, error) {
 
 // NewMarket constructs a new SONM marketplace client.
 func NewMarket(ctx context.Context, addr string) (Market, error) {
-	cc, err := util.MakeGrpcClient(ctx, addr, nil)
+	cc, err := xgrpc.NewClient(ctx, addr, nil)
 	if err != nil {
 		return nil, err
 	}
