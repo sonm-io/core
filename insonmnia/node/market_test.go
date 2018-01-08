@@ -485,6 +485,22 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 	assert.Error(t, handlr.err, errProposeNotAccepted)
 }
 
+func TestCreateOrder_CalculatePrice(t *testing.T) {
+	handlr := &orderHandler{
+		order: &pb.Order{
+			// price per sec
+			PricePerSecond: pb.NewBigIntFromInt(5),
+			Slot: &pb.Slot{
+				// seconds
+				Duration: 5,
+			},
+		},
+	}
+
+	price := handlr.calculateOrderPrice()
+	assert.Equal(t, "25", price)
+}
+
 type mockConn struct{}
 
 func (c *mockConn) Close() error { return nil }
