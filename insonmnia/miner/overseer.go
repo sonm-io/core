@@ -7,7 +7,6 @@ import (
 	"io"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -47,7 +46,7 @@ type Description struct {
 func (d *Description) FormatEnv() []string {
 	vars := make([]string, 0, len(d.Env))
 	for k, v := range d.Env {
-		vars = append(vars, fmt.Sprintf("%s=%s", strings.ToUpper(k), v))
+		vars = append(vars, fmt.Sprintf("%s=%s", k, v))
 	}
 
 	return vars
