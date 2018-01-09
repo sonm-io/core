@@ -313,7 +313,7 @@ func (bch *api) AcceptDealPending(ctx context.Context, key *ecdsa.PrivateKey, de
 }
 
 func (bch *api) CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
-	opts := bch.getTxOpts(key, 90000)
+	opts := bch.getTxOpts(key, 300000)
 
 	tx, err := bch.dealsContract.CloseDeal(opts, id)
 	if err != nil {
