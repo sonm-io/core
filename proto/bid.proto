@@ -59,9 +59,6 @@ message Order {
     string byuerID = 2;
     // Supplier's is EtherumID
     string supplierID = 3;
-    // Order price
-    // todo(all): remove this filed
-    string price = 4;
     // Order type (Bid or Ask)
     OrderType orderType = 5;
     // Slot describe resource requiements

@@ -16,13 +16,6 @@ type Order struct {
 	*pb.Order
 }
 
-// ByPrice implements sort.Interface; it allows for sorting Orders by Price field.
-// type ByPrice []*Order
-
-//func (a ByPrice) Len() int           { return len(a) }
-// func (a ByPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-// func (a ByPrice) Less(i, j int) bool { return a[i].GetPrice().Cmp(a[j].GetPrice()) == 1 }
-
 func (o *Order) Unwrap() *pb.Order {
 	return o.Order
 }

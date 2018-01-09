@@ -192,14 +192,6 @@ func (h *orderHandler) propose(req *pb.DealRequest, hubClient pb.HubClient) erro
 	return nil
 }
 
-func calculateOrderPrice(order *pb.Order) string {
-	pricePerSecond := order.PricePerSecond.Unwrap()
-	durationInSeconds := big.NewInt(int64(order.GetSlot().GetDuration()))
-	price := big.NewInt(0).Mul(pricePerSecond, durationInSeconds).String()
-
-	return price
-}
-
 // openDeal creates deal on Ethereum blockchain
 func (h *orderHandler) openDeal(order *pb.Order, key *ecdsa.PrivateKey, wait time.Duration) (*big.Int, error) {
 	log.G(h.ctx).Info("creating deal on Etherum")
