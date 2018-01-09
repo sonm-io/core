@@ -186,14 +186,14 @@ func TestTransformEnvVars(t *testing.T) {
 	vars := map[string]string{
 		"key1": "value1",
 		"KEY2": "VALUE2",
-		"key3": "12345",
+		"keY":  "12345",
 		"key4": "",
 	}
 
 	description := Description{Env: vars}
 
-	assert.Contains(t, description.FormatEnv(), "KEY1=value1")
+	assert.Contains(t, description.FormatEnv(), "key1=value1")
 	assert.Contains(t, description.FormatEnv(), "KEY2=VALUE2")
-	assert.Contains(t, description.FormatEnv(), "KEY3=12345")
-	assert.Contains(t, description.FormatEnv(), "KEY4=")
+	assert.Contains(t, description.FormatEnv(), "keY=12345")
+	assert.Contains(t, description.FormatEnv(), "key4=")
 }
