@@ -60,7 +60,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
 
 	rootCmd.AddCommand(hubRootCmd, marketRootCmd, nodeDealsRootCmd, taskRootCmd)
-	rootCmd.AddCommand(loginCmd, approveTokenCmd, getTokenCmd, versionCmd)
+	rootCmd.AddCommand(loginCmd, approveTokenCmd, getTokenCmd, versionCmd, autoCompleteCmd)
 }
 
 // Root configure and return root command
