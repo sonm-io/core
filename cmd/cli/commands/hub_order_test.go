@@ -92,7 +92,7 @@ slot:
 	assert.NoError(t, err)
 
 	ord := order.Unwrap()
-	assert.Equal(t, "145", ord.Price)
+	assert.Equal(t, "145", ord.PricePerSecond.Unwrap().String())
 	assert.Equal(t, pb.OrderType_BID, ord.OrderType)
 }
 

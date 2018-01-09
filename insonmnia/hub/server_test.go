@@ -94,18 +94,16 @@ func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
 	m := pb.NewMockMarketClient(ctrl)
 
 	ord := &pb.Order{
-		Id:        "my-order-id",
-		OrderType: pb.OrderType_BID,
-		Price:     "1000",
-		ByuerID:   addr.Hex(),
+		Id:             "my-order-id",
+		OrderType:      pb.OrderType_BID,
+		PricePerSecond: pb.NewBigIntFromInt(1000),
+		ByuerID:        addr.Hex(),
 		Slot: &pb.Slot{
 			Resources: &pb.Resources{},
 		},
 	}
 	m.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(ord, nil).MinTimes(1)
-	//m.EXPECT().GetOrders(gomock.Any(), gomock.Any()).AnyTimes().
-	//	Return(&pb.GetOrdersReply{Orders: []*pb.Order{ord}}, nil)
 	m.EXPECT().CancelOrder(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(&pb.Empty{}, nil).MinTimes(1)
 	return m
@@ -149,7 +147,7 @@ func TestHubCreateRemoveSlot(t *testing.T) {
 	assert.NoError(t, err)
 
 	req := &pb.InsertSlotRequest{
-		Price: "100",
+		PricePerSecond: pb.NewBigIntFromInt(100),
 		Slot: &pb.Slot{
 			Duration:  uint64(structs.MinSlotDuration.Seconds()),
 			Resources: &pb.Resources{},

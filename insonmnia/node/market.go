@@ -192,9 +192,9 @@ func (h *orderHandler) propose(req *pb.DealRequest, hubClient pb.HubClient) erro
 	return nil
 }
 
-func (h *orderHandler) calculateOrderPrice() string {
-	pricePerSecond := h.order.PricePerSecond.Unwrap()
-	durationInSeconds := big.NewInt(int64(h.order.GetSlot().GetDuration()))
+func calculateOrderPrice(order *pb.Order) string {
+	pricePerSecond := order.PricePerSecond.Unwrap()
+	durationInSeconds := big.NewInt(int64(order.GetSlot().GetDuration()))
 	price := big.NewInt(0).Mul(pricePerSecond, durationInSeconds).String()
 
 	return price
@@ -209,7 +209,7 @@ func (h *orderHandler) openDeal(order *pb.Order, key *ecdsa.PrivateKey, wait tim
 		WorkTime:          h.order.GetSlot().GetDuration(),
 		SupplierID:        order.GetSupplierID(),
 		BuyerID:           util.PubKeyToAddr(key.PublicKey).Hex(),
-		Price:             h.calculateOrderPrice(),
+		Price:             structs.CalculateTotalPrice(h.order).String(),
 		Status:            pb.DealStatus_PENDING,
 		SpecificationHash: h.slotSpecHash(),
 	}
@@ -427,7 +427,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		dealRequest *pb.DealRequest
 	)
 	for _, ord := range orders {
-		price, err := util.ParseBigInt(ord.Price)
+		price := structs.CalculateTotalPrice(ord)
 		if !m.checkBalanceAndAllowance(price, balance, allowance) {
 			log.G(handler.ctx).Info("lack of balance or allowance for order", zap.String("order_id", ord.Id))
 			handler.setError(errLackOfBalance)

@@ -903,7 +903,7 @@ func (h *Hub) waitForDealCreatedAndAccepted(ctx context.Context, req *structs.De
 	log.G(ctx).Info("received created deal",
 		zap.String("dealID", createdDeal.GetId()),
 		zap.String("dealPrice", createdDeal.Price),
-		zap.String("orderPrice", order.Price),
+		zap.String("orderPrice", order.PricePerSecond.Unwrap().String()),
 	)
 
 	dealPrice, err := util.ParseBigInt(createdDeal.Price)
@@ -1102,18 +1102,13 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*p
 		return nil, err
 	}
 
-	_, err = util.ParseBigInt(request.Price)
-	if err != nil {
-		return nil, err
-	}
-
 	// send slot to market
 	ord := &pb.Order{
-		OrderType:  pb.OrderType_ASK,
-		Slot:       slot.Unwrap(),
-		Price:      request.Price,
-		ByuerID:    request.BuyerID,
-		SupplierID: util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
+		OrderType:      pb.OrderType_ASK,
+		Slot:           slot.Unwrap(),
+		ByuerID:        request.BuyerID,
+		PricePerSecond: request.PricePerSecond,
+		SupplierID:     util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
 	}
 
 	created, err := h.market.CreateOrder(h.ctx, ord)

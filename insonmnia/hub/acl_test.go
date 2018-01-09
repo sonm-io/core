@@ -24,7 +24,6 @@ func makeDefaultOrder(t *testing.T, buyerId string) *structs.Order {
 	}
 
 	order, err := structs.NewOrder(&pb.Order{
-		Price:          "1",
 		ByuerID:        buyerId,
 		Slot:           slot,
 		PricePerSecond: pb.NewBigIntFromInt(1),
