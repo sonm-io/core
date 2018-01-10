@@ -3,6 +3,7 @@ package node
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"io"
 	"math/big"
 	"sync"
 	"time"
@@ -158,23 +159,23 @@ func (h *orderHandler) resolveHubAddr(ethAddr string) (string, error) {
 	return ip, nil
 }
 
-func (h *orderHandler) makeHubClient(ethAddr string) (pb.HubClient, error) {
+func (h *orderHandler) makeHubClient(ethAddr string) (pb.HubClient, io.Closer, error) {
 	hubIP, err := h.resolveHubAddr(ethAddr)
 	if err != nil {
 		log.G(h.ctx).Info("cannot resolve Hub IP", zap.Error(err))
 		h.setError(err)
-		return nil, err
+		return nil, nil, err
 	}
 
-	hub, err := h.hubCreator(hubIP)
+	hub, cc, err := h.hubCreator(hubIP)
 	if err != nil {
 		log.G(h.ctx).Info("cannot create Hub gRPC client", zap.Error(err))
 		h.setError(err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	log.G(h.ctx).Info("hub connection built", zap.String("hub_ip", hubIP))
-	return hub, nil
+	return hub, cc, nil
 }
 
 // propose proposes new deal to the Hub
@@ -424,6 +425,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 	var (
 		orderToDeal *pb.Order
 		hubClient   pb.HubClient
+		cc          io.Closer
 		dealRequest *pb.DealRequest
 	)
 	for _, ord := range orders {
@@ -434,7 +436,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 			continue
 		}
 
-		hubClient, err = handler.makeHubClient(ord.SupplierID)
+		hubClient, cc, err = handler.makeHubClient(ord.SupplierID)
 		if err != nil {
 			log.G(handler.ctx).Info("cannot create hub client", zap.Error(err))
 			handler.setError(err)
@@ -451,6 +453,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		if err != nil {
 			if err == errCannotProposeOrder {
 				log.G(handler.ctx).Info("cannot propose order, trying next order")
+				cc.Close()
 				continue
 			}
 		} else {
@@ -469,6 +472,8 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		handler.setError(errProposeNotAccepted)
 		return errProposeNotAccepted
 	}
+
+	defer cc.Close()
 
 	dealID, err := handler.openDeal(orderToDeal, m.remotes.key, m.remotes.dealCreateTimeout)
 	if err != nil {

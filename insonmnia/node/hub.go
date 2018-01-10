@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"io"
 	"reflect"
 	"strings"
 	"time"
@@ -20,14 +21,14 @@ type hubAPI struct {
 	ctx     context.Context
 }
 
-func (h *hubAPI) getClient() (pb.HubClient, error) {
+func (h *hubAPI) getClient() (pb.HubClient, io.Closer, error) {
 	cc, err := xgrpc.NewClient(h.ctx, h.remotes.conf.HubEndpoint(), h.remotes.creds,
 		grpc.WithBlock(), grpc.WithTimeout(15*time.Second))
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return pb.NewHubClient(cc), nil
+	return pb.NewHubClient(cc), cc, nil
 }
 
 func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
@@ -44,21 +45,23 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 		return nil, errHubEndpointIsNotSet
 	}
 
-	cli, err := h.getClient()
+	cli, cc, err := h.getClient()
 	if err != nil {
 		return nil, fmt.Errorf("cannot connect to hub at %s, please check Node settings", h.remotes.conf.HubEndpoint())
 	}
+	defer cc.Close()
 
-	t := reflect.ValueOf(cli)
-	mappedName := hubToNodeMethods[methodName]
-	method := t.MethodByName(mappedName)
-
-	inValues := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
-	values := method.Call(inValues)
-
+	var (
+		t          = reflect.ValueOf(cli)
+		mappedName = hubToNodeMethods[methodName]
+		method     = t.MethodByName(mappedName)
+		inValues   = []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
+		values     = method.Call(inValues)
+	)
 	if !values[1].IsNil() {
 		err = values[1].Interface().(error)
 	}
+
 	return values[0].Interface(), err
 }
 

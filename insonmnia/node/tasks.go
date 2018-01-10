@@ -25,10 +25,11 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 	// has hubID, can perform direct request
 	if req.GetHubID() != "" {
 		log.G(t.ctx).Info("has HubAddr, performing direct request")
-		hubClient, err := t.getHubClientByEthAddr(ctx, req.GetHubID())
+		hubClient, cc, err := t.getHubClientByEthAddr(ctx, req.GetHubID())
 		if err != nil {
 			return nil, err
 		}
+		defer cc.Close()
 
 		return hubClient.TaskList(ctx, &pb.Empty{})
 	}
@@ -58,33 +59,39 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 
 	tasks := make(map[string]*pb.TaskListReply_TaskInfo)
 	for _, deal := range activeDeals {
-		hub, err := t.getHubClientByEthAddr(ctx, deal.GetSupplierID())
-		if err != nil {
-			log.G(t.ctx).Info("cannot resolve hub address",
-				zap.String("hub_eth", deal.GetSupplierID()),
-				zap.Error(err))
-			continue
-		}
-
-		taskList, err := hub.TaskList(ctx, &pb.Empty{})
-		if err != nil {
-			log.G(t.ctx).Info("cannot retrieve tasks from the hub", zap.Error(err))
-			continue
-		}
-
-		for _, v := range taskList.GetInfo() {
-			tasks[deal.GetSupplierID()] = v
-		}
+		t.getSupplierTasks(ctx, tasks, deal)
 	}
 
 	return &pb.TaskListReply{Info: tasks}, nil
 }
 
+func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskListReply_TaskInfo, deal *pb.Deal) {
+	hub, cc, err := t.getHubClientByEthAddr(ctx, deal.GetSupplierID())
+	if err != nil {
+		log.G(t.ctx).Error("cannot resolve hub address",
+			zap.String("hub_eth", deal.GetSupplierID()),
+			zap.Error(err))
+		return
+	}
+	defer cc.Close()
+
+	taskList, err := hub.TaskList(ctx, &pb.Empty{})
+	if err != nil {
+		log.G(t.ctx).Error("cannot retrieve tasks from the hub", zap.Error(err))
+		return
+	}
+
+	for _, v := range taskList.GetInfo() {
+		tasks[deal.GetSupplierID()] = v
+	}
+}
+
 func (t *tasksAPI) Start(ctx context.Context, req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
-	hub, err := t.getHubClientForDeal(ctx, req.Deal.GetId())
+	hub, cc, err := t.getHubClientForDeal(ctx, req.Deal.GetId())
 	if err != nil {
 		return nil, err
 	}
+	defer cc.Close()
 
 	reply, err := hub.StartTask(ctx, req)
 	if err != nil {
@@ -95,10 +102,11 @@ func (t *tasksAPI) Start(ctx context.Context, req *pb.HubStartTaskRequest) (*pb.
 }
 
 func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusReply, error) {
-	hubClient, err := t.getHubClientByEthAddr(ctx, id.HubAddr)
+	hubClient, cc, err := t.getHubClientByEthAddr(ctx, id.HubAddr)
 	if err != nil {
 		return nil, err
 	}
+	defer cc.Close()
 
 	return hubClient.TaskStatus(ctx, &pb.ID{Id: id.Id})
 }
@@ -106,10 +114,11 @@ func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusRep
 func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServer) error {
 	log.G(t.ctx).Info("handling Logs request", zap.Any("request", req))
 
-	hubClient, err := t.getHubClientByEthAddr(srv.Context(), req.HubAddr)
+	hubClient, cc, err := t.getHubClientByEthAddr(srv.Context(), req.HubAddr)
 	if err != nil {
 		return err
 	}
+	defer cc.Close()
 
 	logClient, err := hubClient.TaskLogs(srv.Context(), req)
 	if err != nil {
@@ -134,10 +143,11 @@ func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServe
 }
 
 func (t *tasksAPI) Stop(ctx context.Context, id *pb.TaskID) (*pb.Empty, error) {
-	hubClient, err := t.getHubClientByEthAddr(ctx, id.HubAddr)
+	hubClient, cc, err := t.getHubClientByEthAddr(ctx, id.HubAddr)
 	if err != nil {
 		return nil, err
 	}
+	defer cc.Close()
 
 	return hubClient.StopTask(ctx, &pb.ID{Id: id.Id})
 }
@@ -150,10 +160,11 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 
 	log.G(t.ctx).Info("handling PushTask request", zap.String("deal_id", meta.dealID))
 
-	hub, err := t.getHubClientForDeal(meta.ctx, meta.dealID)
+	hub, cc, err := t.getHubClientForDeal(meta.ctx, meta.dealID)
 	if err != nil {
 		return err
 	}
+	defer cc.Close()
 
 	hubStream, err := hub.PushTask(meta.ctx)
 	if err != nil {
@@ -227,10 +238,11 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 
 func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullTaskServer) error {
 	ctx := context.Background()
-	hub, err := t.getHubClientForDeal(ctx, req.GetDealId())
+	hub, cc, err := t.getHubClientForDeal(ctx, req.GetDealId())
 	if err != nil {
 		return err
 	}
+	defer cc.Close()
 
 	pullClient, err := hub.PullTask(ctx, req)
 	if err != nil {
@@ -266,34 +278,34 @@ func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullT
 	}
 }
 
-func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (pb.HubClient, error) {
+func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (pb.HubClient, io.Closer, error) {
 	bigID, err := util.ParseBigInt(id)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	dealInfo, err := t.remotes.eth.GetDealInfo(bigID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	return t.getHubClientByEthAddr(ctx, dealInfo.GetSupplierID())
 }
 
-func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.HubClient, error) {
+func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.HubClient, io.Closer, error) {
 	resolve := &pb.ResolveRequest{EthAddr: eth}
 	addrReply, err := t.remotes.locator.Resolve(ctx, resolve)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	// maybe blocking connection required?
+	// Maybe blocking connection required?
 	cc, err := xgrpc.NewClient(ctx, addrReply.IpAddr[0], t.remotes.creds)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return pb.NewHubClient(cc), nil
+	return pb.NewHubClient(cc), cc, nil
 }
 
 type streamMeta struct {
