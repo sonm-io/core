@@ -200,12 +200,13 @@ func (bch *api) checkTransactionResult(ctx context.Context, tx *types.Transactio
 	}
 
 	for _, l := range txReceipt.Logs {
-		if len(l.Topics) < 4 {
+		if len(l.Topics) < 1 {
 			return nil, errors.New("transaction topics is malformed")
 		}
-		nameTopic := l.Topics[0]
 
-		if (nameTopic == DealOpenedTopic) || (nameTopic == DealAcceptedTopic) || (nameTopic == DealClosedTopic) {
+		nameTopic := l.Topics[0]
+		topicMatched := (nameTopic == DealOpenedTopic) || (nameTopic == DealAcceptedTopic) || (nameTopic == DealClosedTopic)
+		if topicMatched && len(l.Topics) > 3 {
 			return l.Topics[3].Big(), nil
 		}
 	}
