@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 
@@ -47,14 +48,8 @@ func (w *WalletAuthenticator) ServerHandshake(conn net.Conn) (net.Conn, credenti
 		return nil, nil, err
 	}
 
-	switch authInfo := authInfo.(type) {
-	case EthAuthInfo:
-		if !equalAddresses(authInfo.Wallet, w.Wallet) {
-			return nil, nil, fmt.Errorf("authorization failed: expected %s, actual %s",
-				w.Wallet.Hex(), authInfo.Wallet.Hex())
-		}
-	default:
-		return nil, nil, fmt.Errorf("unsupported AuthInfo %s %T", authInfo.AuthType(), authInfo)
+	if err := w.compareWallets(authInfo); err != nil {
+		return nil, nil, err
 	}
 
 	return conn, authInfo, nil
@@ -92,10 +87,5 @@ func NewWalletAuthenticator(c credentials.TransportCredentials, wallet common.Ad
 }
 
 func equalAddresses(a, b common.Address) bool {
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
+	return bytes.Equal(a.Bytes(), b.Bytes())
 }

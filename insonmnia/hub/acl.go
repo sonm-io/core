@@ -6,13 +6,10 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
 	"gopkg.in/fatih/set.v0"
 
@@ -26,8 +23,6 @@ var (
 	errInvalidDealField = status.Error(codes.Internal, "invalid `Deal` field type")
 	errNoTaskFieldFound = status.Errorf(codes.Internal, "no task `ID` field found")
 	errInvalidTaskField = status.Error(codes.Internal, "invalid task `ID` field type")
-	errNoMetadata       = status.Error(codes.Unauthenticated, "no metadata provided")
-	errNoWalletProvided = status.Error(codes.Unauthenticated, "no wallet provided")
 )
 
 // ACLStorage describes an ACL storage for workers.
@@ -120,76 +115,6 @@ func (s *workerACLStorage) Each(fn func(string) bool) {
 	})
 }
 
-// Method describes GRPC event, i.e some method name.
-type method string
-
-type eventACL struct {
-	ctx       context.Context
-	mu        sync.RWMutex
-	verifiers map[method]EventAuthorization
-}
-
-func newEventACL(ctx context.Context) *eventACL {
-	return &eventACL{
-		ctx:       ctx,
-		verifiers: make(map[method]EventAuthorization, 0),
-	}
-}
-
-func (e *eventACL) authorize(ctx context.Context, method method, request interface{}) error {
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-
-	log.G(e.ctx).Debug("authorizing request", zap.String("method", string(method)))
-
-	authorization, ok := e.verifiers[method]
-	if !ok {
-		return nil
-	}
-
-	return authorization.Authorize(ctx, request)
-}
-
-func (e *eventACL) addAuthorization(method method, auth EventAuthorization) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	e.verifiers[method] = auth
-}
-
-type EventAuthorization interface {
-	Authorize(ctx context.Context, request interface{}) error
-}
-
-type hubManagementAuthorization struct {
-	ctx     context.Context
-	ethAddr common.Address
-}
-
-func newHubManagementAuthorization(ctx context.Context, ethAddr common.Address) EventAuthorization {
-	return &hubManagementAuthorization{
-		ctx:     ctx,
-		ethAddr: ethAddr,
-	}
-}
-
-func (h *hubManagementAuthorization) Authorize(ctx context.Context, request interface{}) error {
-	peerInfo, ok := peer.FromContext(ctx)
-	if !ok {
-		return errNoPeerInfo
-	}
-
-	switch authInfo := peerInfo.AuthInfo.(type) {
-	case auth.EthAuthInfo:
-		if util.EqualAddresses(authInfo.Wallet, h.ethAddr) {
-			return nil
-		}
-		return status.Errorf(codes.Unauthenticated, "the wallet %s has no access", authInfo.Wallet.Hex())
-	default:
-		return status.Error(codes.Unauthenticated, "unknown auth info")
-	}
-}
-
 // DealMetaData allows to extract deal-specific parameters for
 // authorization.
 // We implement this interface for all methods that require wallet
@@ -197,8 +122,6 @@ func (h *hubManagementAuthorization) Authorize(ctx context.Context, request inte
 type DealMetaData interface {
 	// Deal extracts deal ID from the request.
 	Deal(ctx context.Context, request interface{}) (DealID, error)
-	// Wallet extracts self-signed wallet from the request.
-	Wallet(ctx context.Context, request interface{}) (string, error)
 }
 
 type dealAuthorization struct {
@@ -207,7 +130,7 @@ type dealAuthorization struct {
 	metaData DealMetaData
 }
 
-func newDealAuthorization(ctx context.Context, hub *Hub, metaData DealMetaData) EventAuthorization {
+func newDealAuthorization(ctx context.Context, hub *Hub, metaData DealMetaData) auth.Authorization {
 	return &dealAuthorization{
 		ctx:      ctx,
 		hub:      hub,
@@ -221,11 +144,12 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 		return err
 	}
 
-	signedWallet, err := d.metaData.Wallet(ctx, request)
+	wallet, err := auth.ExtractWalletFromContext(ctx)
 	if err != nil {
 		return err
 	}
 
+	peerWallet := wallet.Hex()
 	meta, err := d.hub.getDealMeta(dealID)
 
 	if err != nil {
@@ -236,50 +160,19 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 
 	log.G(d.ctx).Debug("found allowed wallet for a deal",
 		zap.Stringer("deal", dealID),
-		zap.String("signedWallet", signedWallet),
+		zap.String("wallet", peerWallet),
 		zap.String("allowedWallet", allowedWallet),
 	)
 
-	recoveredAddr, err := util.VerifySelfSignedWallet(signedWallet)
-	if err != nil {
-		return err
-	}
-
-	log.G(d.ctx).Debug("recovered address", zap.String("addr", recoveredAddr))
-
-	if allowedWallet != recoveredAddr {
-		return status.Errorf(codes.Unauthenticated, "wallet mismatch: %s", recoveredAddr)
+	if allowedWallet != peerWallet {
+		return status.Errorf(codes.Unauthenticated, "wallet mismatch: %s", peerWallet)
 	}
 
 	return nil
 }
 
-func extractWalletFromContext(ctx context.Context) (string, error) {
-	peerInfo, ok := peer.FromContext(ctx)
-	if !ok {
-		return "", errNoPeerInfo
-	}
-
-	switch peerInfo.AuthInfo.(type) {
-	case auth.EthAuthInfo:
-		md, ok := metadata.FromContext(ctx)
-		if !ok {
-			return "", errNoMetadata
-		}
-
-		walletMD := md["wallet"]
-		if len(walletMD) == 0 {
-			return "", errNoWalletProvided
-		}
-
-		return walletMD[0], nil
-	default:
-		return "", status.Errorf(codes.Unauthenticated, "unknown auth info %T", peerInfo.AuthInfo)
-	}
-}
-
 // FieldDealMetaData is a deal meta info extractor that requires the specified
-// request to have "sonm.Deal" field and "wallet" metadata.
+// request to have "sonm.Deal" field.
 type fieldDealMetaData struct{}
 
 func (fieldDealMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
@@ -305,12 +198,8 @@ func (fieldDealMetaData) Deal(ctx context.Context, request interface{}) (DealID,
 	return DealID(dealId.String()), nil
 }
 
-func (fieldDealMetaData) Wallet(ctx context.Context, request interface{}) (string, error) {
-	return extractWalletFromContext(ctx)
-}
-
 // ContextDealMetaData is a deal meta info extractor that requires the
-// specified context to have both "deal" and "wallet" metadata.
+// specified context to have "deal" metadata.
 type contextDealMetaData struct{}
 
 func (contextDealMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
@@ -327,18 +216,13 @@ func (contextDealMetaData) Deal(ctx context.Context, request interface{}) (DealI
 	return DealID(dealMD[0]), nil
 }
 
-func (contextDealMetaData) Wallet(ctx context.Context, request interface{}) (string, error) {
-	return extractWalletFromContext(ctx)
-}
-
-// TaskFieldDealMetaData is a deal meta info extractor that requires the
-// specified request to have "Id" field, which is task id, and the context to
-// have "wallet" metadata.
-type taskFieldDealMetaData struct {
+// FieldIdMetaData is a deal meta info extractor that requires the specified
+// request to have "Id" field, which is the task id.
+type fieldIdMetaData struct {
 	hub *Hub
 }
 
-func (t *taskFieldDealMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
+func (t *fieldIdMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
 	requestValue := reflect.Indirect(reflect.ValueOf(request))
 	taskID := reflect.Indirect(requestValue.FieldByName("Id"))
 	if !taskID.IsValid() {
@@ -355,8 +239,4 @@ func (t *taskFieldDealMetaData) Deal(ctx context.Context, request interface{}) (
 	}
 
 	return DealID(taskInfo.GetDealId()), nil
-}
-
-func (taskFieldDealMetaData) Wallet(ctx context.Context, request interface{}) (string, error) {
-	return extractWalletFromContext(ctx)
 }

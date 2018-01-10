@@ -135,13 +135,3 @@ func GetAvailableIPs() (availableIPs []net.IP, err error) {
 
 	return availableIPs, nil
 }
-
-// EqualAddresses checks if provided Addresses are equal
-func EqualAddresses(a, b common.Address) bool {
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}

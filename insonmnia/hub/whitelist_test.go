@@ -2,39 +2,32 @@ package hub
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
 
-func walletCtx(t *testing.T, key *ecdsa.PrivateKey) context.Context {
-	wallet, err := util.NewSelfSignedWallet(key)
-	require.NoError(t, err)
-
+func walletCtx(addr common.Address) context.Context {
 	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
-		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
+		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: addr},
 	})
 
-	ctx := metadata.NewIncomingContext(peerCtx, metadata.New(map[string]string{
-		"wallet": wallet.Message,
-	}))
+	ctx := metadata.NewIncomingContext(peerCtx, metadata.New(map[string]string{}))
 	return ctx
 }
+
 func TestWhitelistSuperuser(t *testing.T) {
 	w := whitelist{
 		superusers: map[string]struct{}{addr.Hex(): {}},
 	}
 
-	ctx := walletCtx(t, key)
+	ctx := walletCtx(addr)
 	allowed, _, err := w.Allowed(ctx, "docker.io", "hello-world", "")
 	assert.NoError(t, err)
 	assert.True(t, allowed)
@@ -54,7 +47,7 @@ func TestWhitelistAllowed(t *testing.T) {
   }
 }`
 
-	ctx := walletCtx(t, key)
+	ctx := walletCtx(addr)
 	reader := strings.NewReader(data)
 	w := whitelist{}
 	w.fillFromJsonReader(ctx, reader)

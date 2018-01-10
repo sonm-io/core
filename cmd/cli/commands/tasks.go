@@ -78,7 +78,7 @@ var taskStartCmd = &cobra.Command{
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag, WithWalletPerRPCCredentials())
+		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -124,7 +124,7 @@ var taskStatusCmd = &cobra.Command{
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag, WithWalletPerRPCCredentials())
+		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -148,7 +148,7 @@ var taskLogsCmd = &cobra.Command{
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag, WithWalletPerRPCCredentials())
+		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -196,7 +196,7 @@ var taskStopCmd = &cobra.Command{
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag, WithWalletPerRPCCredentials())
+		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -240,7 +240,7 @@ var taskPullCmd = &cobra.Command{
 
 		w := bufio.NewWriter(wr)
 
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag, WithWalletPerRPCCredentials())
+		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -337,7 +337,7 @@ var taskPushCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag, WithWalletPerRPCCredentials())
+		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)

@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
@@ -121,22 +122,19 @@ func (w *whitelist) digestAllowed(name string, digest string) (bool, error) {
 	return false, nil
 }
 
-func (w *whitelist) Allowed(ctx context.Context, registry string, image string, auth string) (bool, reference.Named, error) {
+func (w *whitelist) Allowed(ctx context.Context, registry string, image string, authority string) (bool, reference.Named, error) {
 	fullName := filepath.Join(registry, image)
 	ref, err := reference.ParseNormalizedNamed(fullName)
 	if err != nil {
 		return false, nil, err
 	}
 
-	signedWallet, err := extractWalletFromContext(ctx)
+	wallet, err := auth.ExtractWalletFromContext(ctx)
 	if err != nil {
 		log.G(ctx).Warn("could not extract wallet from context", zap.Error(err))
-	}
-	wallet, err := util.VerifySelfSignedWallet(signedWallet)
-	if err != nil {
 		return false, nil, err
 	}
-	_, ok := w.superusers[wallet]
+	_, ok := w.superusers[wallet.Hex()]
 	if ok {
 		return true, ref, nil
 	}
@@ -157,7 +155,7 @@ func (w *whitelist) Allowed(ctx context.Context, registry string, image string, 
 	}
 	defer dockerClient.Close()
 
-	inspection, err := dockerClient.DistributionInspect(ctx, image, auth)
+	inspection, err := dockerClient.DistributionInspect(ctx, image, authority)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "could not perform DistributionInspect")
 	}

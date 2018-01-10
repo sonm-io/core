@@ -13,7 +13,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -48,7 +47,6 @@ var (
 	cfg        config.Config
 	sessionKey *ecdsa.PrivateKey = nil
 	creds      credentials.TransportCredentials
-	walletAuth *util.SelfSignedWallet
 
 	// errors
 	errCannotParsePropsFile = errors.New("cannot parse props file")
@@ -173,20 +171,9 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 	}
 
 	creds = auth.NewWalletAuthenticator(util.NewTLS(TLSConfig), util.PubKeyToAddr(sessionKey.PublicKey))
-	wallet, err := util.NewSelfSignedWallet(sessionKey)
-	if err != nil {
-		showError(cmd, err.Error(), nil)
-		os.Exit(1)
-	}
-
-	walletAuth = wallet
 }
 
 func showJSON(cmd *cobra.Command, s interface{}) {
 	b, _ := json.Marshal(s)
 	cmd.Printf("%s\r\n", b)
-}
-
-func WithWalletPerRPCCredentials() grpc.DialOption {
-	return grpc.WithPerRPCCredentials(util.NewWalletAccess(walletAuth))
 }

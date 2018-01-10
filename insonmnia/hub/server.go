@@ -16,6 +16,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -126,7 +127,7 @@ type Hub struct {
 
 	// Per-call ACL.
 	// Must be synchronized with the Hub cluster.
-	eventAuthorization *eventACL
+	eventAuthorization *auth.AuthRouter
 
 	// Currently running deals.
 	// Retroactive deals to tasks association. Tasks aren't popped when
@@ -220,9 +221,6 @@ type routeMapping struct {
 
 func (h *Hub) onRequest(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	log.G(h.ctx).Debug("intercepting request")
-	if err := h.eventAuthorization.authorize(ctx, method(info.FullMethod), request); err != nil {
-		return nil, err
-	}
 
 	forwarded, r, err := h.tryForwardToLeader(ctx, request, info)
 	if forwarded {
@@ -269,7 +267,7 @@ func proxyRequestCall(ctx context.Context, client pb.HubClient, request interfac
 func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 	log.G(h.ctx).Info("handling PushTask request")
 
-	if err := h.eventAuthorization.authorize(stream.Context(), method("PushTask"), nil); err != nil {
+	if err := h.eventAuthorization.Authorize(stream.Context(), auth.Event("PushTask"), nil); err != nil {
 		return err
 	}
 
@@ -362,7 +360,7 @@ func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer) error {
 	log.G(h.ctx).Info("handling PullTask request", zap.Any("request", request))
 
-	if err := h.eventAuthorization.authorize(stream.Context(), method("PullTask"), nil); err != nil {
+	if err := h.eventAuthorization.Authorize(stream.Context(), auth.Event("PullTask"), nil); err != nil {
 		return err
 	}
 
@@ -752,7 +750,7 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.ID) (*pb.TaskStatusRep
 
 func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer) error {
 	log.G(h.ctx).Info("handling TaskLogs request", zap.Any("request", request))
-	if err := h.eventAuthorization.authorize(server.Context(), method("TaskLogs"), request); err != nil {
+	if err := h.eventAuthorization.Authorize(server.Context(), auth.Event("TaskLogs"), request); err != nil {
 		return err
 	}
 
@@ -1298,8 +1296,6 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 
 	wl := NewWhitelist(ctx, &cfg.Whitelist)
 
-	eventACL := newEventACL(ctx)
-
 	h := &Hub{
 		cfg:              cfg,
 		ctx:              ctx,
@@ -1327,7 +1323,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		slots:            make(map[string]*structs.Slot),
 		acl:              acl,
 
-		eventAuthorization: eventACL,
+		eventAuthorization: nil,
 
 		certRotator: defaults.rot,
 		creds:       defaults.creds,
@@ -1338,27 +1334,25 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		whitelist: wl,
 	}
 
-	dealAuthorization := map[string]DealMetaData{
-		"TaskStatus": &taskFieldDealMetaData{hub: h},
-		"StartTask":  &fieldDealMetaData{},
-		"StopTask":   &taskFieldDealMetaData{hub: h},
-		"TaskLogs":   &taskFieldDealMetaData{hub: h},
-		"PushTask":   &contextDealMetaData{},
-		"PullTask":   &contextDealMetaData{},
-	}
+	authorization := auth.NewEventAuthorization(h.ctx,
+		auth.WithLog(log.G(ctx)),
+		auth.WithEventPrefix(hubAPIPrefix),
+		auth.Allow("Handshake", "ProposeDeal").With(auth.NewNilAuthorization()),
+		auth.Allow(hubManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
+		auth.Allow("TaskStatus", "StopTask").With(newDealAuthorization(ctx, h, &fieldIdMetaData{hub: h})),
+		auth.Allow("StartTask").With(newDealAuthorization(ctx, h, &fieldDealMetaData{})),
+		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, h, &fieldIdMetaData{})),
+		auth.Allow("PushTask", "PullTask").With(newDealAuthorization(ctx, h, &contextDealMetaData{})),
+		auth.WithFallback(auth.NewDenyAuthorization()),
+	)
 
-	for event, metadata := range dealAuthorization {
-		eventACL.addAuthorization(method(hubAPIPrefix+event), newDealAuthorization(ctx, h, metadata))
-	}
-
-	for _, event := range hubManagementMethods {
-		eventACL.addAuthorization(method(hubAPIPrefix+event), newHubManagementAuthorization(ctx, h.ethAddr))
-	}
+	h.eventAuthorization = authorization
 
 	logger := log.GetLogger(h.ctx)
 	grpcServer := xgrpc.NewServer(logger,
 		xgrpc.Credentials(h.creds),
 		xgrpc.DefaultTraceInterceptor(),
+		xgrpc.AuthorizationInterceptor(authorization),
 		xgrpc.UnaryServerInterceptor(h.onRequest),
 	)
 	h.externalGrpc = grpcServer
