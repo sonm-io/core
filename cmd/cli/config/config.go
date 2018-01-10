@@ -12,7 +12,8 @@ import (
 const (
 	OutputModeSimple = "simple"
 	OutputModeJSON   = "json"
-	homeConfigPath   = ".sonm/cli.yaml"
+	homeConfigDir    = ".sonm"
+	configName       = "cli.yaml"
 )
 
 type Config interface {
@@ -40,13 +41,30 @@ func (cc *cliConfig) KeyStore() string {
 	return cc.Eth.Keystore
 }
 
-func (cc *cliConfig) getConfigPath() (string, error) {
+func (cc *cliConfig) getDefaultConfigDir() (string, error) {
 	currentUser, err := user.Current()
 	if err != nil {
 		return "", err
 	}
 
-	cfgPath := path.Join(currentUser.HomeDir, homeConfigPath)
+	dir := path.Join(currentUser.HomeDir, homeConfigDir)
+	return dir, nil
+}
+
+func (cc *cliConfig) getConfigPath(p ...string) (string, error) {
+	var cfgPath string
+	var err error
+
+	if len(p) > 0 && p[0] != "" {
+		cfgPath = p[0]
+	} else {
+		cfgPath, err = cc.getDefaultConfigDir()
+		if err != nil {
+			return "", err
+		}
+	}
+
+	cfgPath = path.Join(cfgPath, configName)
 	return cfgPath, nil
 }
 
@@ -54,9 +72,10 @@ func (cc *cliConfig) fillWithDefaults() {
 	cc.OutFormat = OutputModeSimple
 }
 
-func NewConfig() (Config, error) {
+func NewConfig(p ...string) (Config, error) {
 	cfg := &cliConfig{}
-	cfgPath, err := cfg.getConfigPath()
+
+	cfgPath, err := cfg.getConfigPath(p...)
 	if err != nil {
 		return nil, err
 	}
