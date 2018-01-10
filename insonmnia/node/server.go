@@ -2,6 +2,7 @@ package node
 
 import (
 	"crypto/ecdsa"
+	"io"
 	"net"
 	"time"
 
@@ -17,7 +18,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-type hubClientCreator func(addr string) (pb.HubClient, error)
+type hubClientCreator func(addr string) (pb.HubClient, io.Closer, error)
 
 // remoteOptions describe options related to remove gRPC services
 type remoteOptions struct {
@@ -49,13 +50,13 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, c
 		return nil, err
 	}
 
-	hc := func(addr string) (pb.HubClient, error) {
+	hc := func(addr string) (pb.HubClient, io.Closer, error) {
 		cc, err := xgrpc.NewClient(ctx, addr, creds)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
-		return pb.NewHubClient(cc), nil
+		return pb.NewHubClient(cc), cc, nil
 	}
 
 	return &remoteOptions{

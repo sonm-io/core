@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"testing"
 	"time"
@@ -105,11 +106,12 @@ func getTestConfig(ctrl *gomock.Controller) Config {
 	return cfg
 }
 
-func getTestHubClient(ctrl *gomock.Controller) pb.HubClient {
+func getTestHubClient(ctrl *gomock.Controller) (pb.HubClient, io.Closer) {
 	hub := NewMockHubClient(ctrl)
 	hub.EXPECT().ProposeDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
 	hub.EXPECT().ApproveDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
-	return hub
+
+	return hub, &mockConn{}
 }
 
 func getTestRemotes(ctx context.Context, ctrl *gomock.Controller) *remoteOptions {
@@ -125,8 +127,9 @@ func getTestRemotes(ctx context.Context, ctrl *gomock.Controller) *remoteOptions
 	opts.market = getTestMarket(ctrl)
 	opts.locator = getTestLocator(ctrl)
 	opts.dealApproveTimeout = 3 * time.Second
-	opts.hubCreator = func(addr string) (pb.HubClient, error) {
-		return getTestHubClient(ctrl), nil
+	opts.hubCreator = func(addr string) (pb.HubClient, io.Closer, error) {
+		hub, cc := getTestHubClient(ctrl)
+		return hub, cc, nil
 	}
 
 	return opts
@@ -346,12 +349,12 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 
 	ctx := context.Background()
 	opts := getTestRemotes(ctx, ctrl)
-	opts.hubCreator = func(addr string) (pb.HubClient, error) {
+	opts.hubCreator = func(addr string) (pb.HubClient, io.Closer, error) {
 		hub := NewMockHubClient(ctrl)
 		hub.EXPECT().ProposeDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
 		hub.EXPECT().ApproveDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(
 			nil, errors.New("TEST: cannot approve deal"))
-		return hub, nil
+		return hub, &mockConn{}, nil
 	}
 
 	server, err := newMarketAPI(opts)
@@ -481,3 +484,7 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
 	assert.Error(t, handlr.err, errProposeNotAccepted)
 }
+
+type mockConn struct{}
+
+func (c *mockConn) Close() error { return nil }
