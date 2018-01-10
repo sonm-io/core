@@ -10,32 +10,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testConfigDir = "/tmp/_sonm"
-)
-
-func createTestConfigFile(body string) error {
-	dir := path.Join(testConfigDir)
-	os.Mkdir(dir, 0700)
-	cfg := path.Join(dir, configName)
-	return ioutil.WriteFile(cfg, []byte(body), 0600)
+func testConfigDir() string {
+	d, _ := ioutil.TempDir("", "sonm_test")
+	return d
 }
 
-func deleteTestConfigFile() {
-	cfg := path.Join(testConfigDir, configName)
+func createTestConfigFile(body string) (string, error) {
+	dir := testConfigDir()
+	os.Mkdir(dir, 0700)
+	cfg := path.Join(dir, configName)
+	return dir, ioutil.WriteFile(cfg, []byte(body), 0600)
+}
+
+func deleteTestConfigFile(dir string) {
+	cfg := path.Join(dir, configName)
 	os.Remove(cfg)
 }
 
 func TestConfigLoad(t *testing.T) {
-	err := createTestConfigFile(`
+	dir, err := createTestConfigFile(`
 output_format: json
 ethereum:
   key_store: "/home/user/.sonm/keys/"
   pass_phrase: "qwerty123"`)
-	defer deleteTestConfigFile()
+	defer deleteTestConfigFile(dir)
 	assert.NoError(t, err)
 
-	cfg, err := NewConfig(testConfigDir)
+	cfg, err := NewConfig(dir)
 	assert.NoError(t, err)
 	assert.Equal(t, "json", cfg.OutputFormat())
 	assert.Equal(t, "/home/user/.sonm/keys/", cfg.KeyStore())
@@ -43,35 +44,35 @@ ethereum:
 }
 
 func TestConfigDefaults(t *testing.T) {
-	err := createTestConfigFile("")
-	defer deleteTestConfigFile()
+	dir, err := createTestConfigFile("")
+	defer deleteTestConfigFile(dir)
 	assert.NoError(t, err)
 
-	cfg, err := NewConfig()
+	cfg, err := NewConfig(dir)
 	assert.NoError(t, err)
-	assert.Equal(t, "simple", cfg.OutputFormat())
+	assert.Equal(t, "", cfg.OutputFormat())
 }
 
 func TestConfigNoFile(t *testing.T) {
-	deleteTestConfigFile()
-
 	// no config == all defalts
-	cfg, err := NewConfig(testConfigDir)
+	cfg, err := NewConfig(testConfigDir())
 	assert.NoError(t, err)
 	assert.Equal(t, "simple", cfg.OutputFormat())
 }
 
 func TestConfigCannotRead(t *testing.T) {
-	defer deleteTestConfigFile()
+	dir := testConfigDir()
 
-	os.Mkdir(testConfigDir, 0700)
-	cfgPath := path.Join(testConfigDir, configName)
+	os.Mkdir(dir, 0700)
+	cfgPath := path.Join(dir, configName)
 
-	// remove read permissions
+	defer deleteTestConfigFile(cfgPath)
+
+	// drop read permissions
 	err := ioutil.WriteFile(cfgPath, []byte{}, 0200)
 	assert.NoError(t, err)
 
-	cfg, err := NewConfig(testConfigDir)
+	cfg, err := NewConfig(dir)
 	assert.Nil(t, cfg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "permission denied")
