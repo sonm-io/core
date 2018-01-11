@@ -46,8 +46,8 @@ func TestFieldDealMetaData(t *testing.T) {
 		},
 	}
 
-	md := fieldDealMetaData{}
-	dealID, err := md.Deal(context.Background(), request)
+	md := newFieldDealExtractor()
+	dealID, err := md(context.Background(), request)
 	require.NoError(t, err)
 	assert.Equal(t, DealID("0x42"), dealID)
 }
@@ -60,8 +60,8 @@ func TestFieldDealMetaDataErrorsOnInvalidType(t *testing.T) {
 		Deal: "0x42",
 	}
 
-	md := fieldDealMetaData{}
-	dealID, err := md.Deal(context.Background(), request)
+	md := newFieldDealExtractor()
+	dealID, err := md(context.Background(), request)
 	assert.Error(t, err)
 	assert.Equal(t, DealID(""), dealID)
 }
@@ -79,8 +79,8 @@ func TestFieldDealMetaDataErrorsOnInvalidInnerType(t *testing.T) {
 		},
 	}
 
-	md := fieldDealMetaData{}
-	dealID, err := md.Deal(context.Background(), request)
+	md := newFieldDealExtractor()
+	dealID, err := md(context.Background(), request)
 	assert.Error(t, err)
 	assert.Equal(t, DealID(""), dealID)
 }
@@ -90,8 +90,8 @@ func TestContextDealMetaData(t *testing.T) {
 		"deal": {"0x42"},
 	}))
 
-	md := contextDealMetaData{}
-	dealID, err := md.Deal(ctx, nil)
+	md := newContextDealExtractor()
+	dealID, err := md(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, DealID("0x42"), dealID)
 }
@@ -107,8 +107,8 @@ func TestDealAuthorization(t *testing.T) {
 		},
 	}
 
-	md := fieldDealMetaData{}
-	authorization := newDealAuthorization(context.Background(), makeHubWithOrder(t, addr.Hex(), "0x42"), &md)
+	md := newFieldDealExtractor()
+	authorization := newDealAuthorization(context.Background(), makeHubWithOrder(t, addr.Hex(), "0x42"), md)
 
 	require.NoError(t, authorization.Authorize(ctx, request))
 }
@@ -124,8 +124,8 @@ func TestDealAuthorizationErrors(t *testing.T) {
 		},
 	}
 
-	md := fieldDealMetaData{}
-	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), &md)
+	md := newFieldDealExtractor()
+	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), md)
 
 	require.Error(t, au.Authorize(ctx, request))
 }
@@ -145,8 +145,8 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 		},
 	}
 
-	md := fieldDealMetaData{}
-	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), &md)
+	md := newFieldDealExtractor()
+	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), md)
 
 	require.Error(t, au.Authorize(ctx, request))
 }
