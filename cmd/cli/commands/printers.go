@@ -265,7 +265,8 @@ func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
 		}
 
 		for i, order := range orders {
-			cmd.Printf("%d) %s %s | price = %s\r\n", i+1, order.OrderType.String(), order.Id, order.Price)
+			cmd.Printf("%d) %s %s | price = %s\r\n", i+1,
+				order.OrderType.String(), order.GetId(), order.GetPricePerSecond())
 		}
 	} else {
 		showJSON(cmd, map[string]interface{}{"orders": orders})
@@ -276,7 +277,8 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 	if isSimpleFormat() {
 		cmd.Printf("ID:             %s\r\n", order.Id)
 		cmd.Printf("Type:           %s\r\n", order.OrderType.String())
-		cmd.Printf("Price:          %s\r\n", order.Price)
+		// TODO(sshaman1101): show full price
+		cmd.Printf("Price:          %s\r\n", order.PricePerSecond)
 
 		cmd.Printf("SupplierID:     %s\r\n", order.SupplierID)
 		cmd.Printf("BuyerID:        %s\r\n", order.ByuerID)

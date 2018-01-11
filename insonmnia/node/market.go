@@ -197,21 +197,11 @@ func (h *orderHandler) openDeal(order *pb.Order, key *ecdsa.PrivateKey, wait tim
 	log.G(h.ctx).Info("creating deal on Etherum")
 	h.status = statusDealing
 
-	bigPricePerHour, err := util.ParseBigInt(h.order.GetPrice())
-	if err != nil {
-		h.setError(err)
-		return nil, err
-	}
-	bigDuration := big.NewInt(int64(h.order.GetSlot().GetDuration()))
-
-	bigDurationHours := big.NewInt(0).Div(bigDuration, big.NewInt(3600))
-	price := big.NewInt(0).Mul(bigPricePerHour, bigDurationHours).String()
-
 	deal := &pb.Deal{
 		WorkTime:          h.order.GetSlot().GetDuration(),
 		SupplierID:        order.GetSupplierID(),
 		BuyerID:           util.PubKeyToAddr(key.PublicKey).Hex(),
-		Price:             price,
+		Price:             structs.CalculateTotalPrice(h.order).String(),
 		Status:            pb.DealStatus_PENDING,
 		SpecificationHash: h.slotSpecHash(),
 	}
@@ -429,7 +419,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		dealRequest *pb.DealRequest
 	)
 	for _, ord := range orders {
-		price, err := util.ParseBigInt(ord.Price)
+		price := structs.CalculateTotalPrice(ord)
 		if !m.checkBalanceAndAllowance(price, balance, allowance) {
 			log.G(handler.ctx).Info("lack of balance or allowance for order", zap.String("order_id", ord.Id))
 			handler.setError(errLackOfBalance)

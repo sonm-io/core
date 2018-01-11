@@ -61,7 +61,7 @@ var hubOrderCreateCmd = &cobra.Command{
 		price := args[0]
 		planPath := args[1]
 
-		_, err = util.ParseBigInt(price)
+		bigPrice, err := pb.NewBigIntFromString(price)
 		if err != nil {
 			showError(cmd, "Cannot parse price", err)
 			os.Exit(1)
@@ -74,8 +74,8 @@ var hubOrderCreateCmd = &cobra.Command{
 		}
 
 		req := &pb.InsertSlotRequest{
-			Slot:  slot.Unwrap(),
-			Price: price,
+			Slot:           slot.Unwrap(),
+			PricePerSecond: bigPrice,
 		}
 
 		if len(args) > 2 {

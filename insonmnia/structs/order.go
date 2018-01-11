@@ -6,7 +6,6 @@ import (
 	"time"
 
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
 )
 
 // Order represents a safe order wrapper.
@@ -16,13 +15,6 @@ import (
 type Order struct {
 	*pb.Order
 }
-
-// ByPrice implements sort.Interface; it allows for sorting Orders by Price field.
-type ByPrice []*Order
-
-func (a ByPrice) Len() int           { return len(a) }
-func (a ByPrice) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByPrice) Less(i, j int) bool { return a[i].GetPrice().Cmp(a[j].GetPrice()) == 1 }
 
 func (o *Order) Unwrap() *pb.Order {
 	return o.Order
@@ -64,15 +56,6 @@ func (o *Order) SetID(ID string) {
 	o.Order.Id = ID
 }
 
-func (o *Order) GetPrice() *big.Int {
-	v, err := util.ParseBigInt(o.Price)
-	// We've already checked that during construction, but who knows...
-	if err != nil {
-		panic("order price has failed big.Int conversion")
-	}
-	return v
-}
-
 func (o *Order) GetSlot() *Slot {
 	slot, err := NewSlot(o.Order.GetSlot())
 	if err != nil {
@@ -90,6 +73,13 @@ func (o *Order) GetDuration() time.Duration {
 }
 
 func (o *Order) GetTotalPrice() *big.Int {
-	bigDuration := big.NewInt(int64(o.GetDuration().Seconds()))
-	return big.NewInt(0).Mul(o.PricePerSecond.Unwrap(), bigDuration)
+	return CalculateTotalPrice(o.Unwrap())
+}
+
+func CalculateTotalPrice(order *pb.Order) *big.Int {
+	pricePerSecond := order.PricePerSecond.Unwrap()
+	durationInSeconds := big.NewInt(int64(order.GetSlot().GetDuration()))
+	price := big.NewInt(0).Mul(pricePerSecond, durationInSeconds)
+
+	return price
 }

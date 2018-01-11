@@ -34,7 +34,6 @@ func (c *OrderConfig) IntoOrder() (*structs.Order, error) {
 		Id:             c.ID,
 		ByuerID:        c.BuyerID,
 		SupplierID:     c.SupplierID,
-		Price:          c.Price,
 		PricePerSecond: price,
 		OrderType:      orderType,
 		Slot:           slot.Unwrap(),

@@ -45,7 +45,6 @@ func makeSlot() *pb.Slot {
 
 func makeOrder() *pb.Order {
 	return &pb.Order{
-		Price:          "100",
 		PricePerSecond: pb.NewBigIntFromInt(100),
 		OrderType:      pb.OrderType_BID,
 		Slot:           makeSlot(),
