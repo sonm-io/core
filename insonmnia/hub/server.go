@@ -1344,7 +1344,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, h, newFromTaskDealExtractor(h))),
 		auth.Allow("PushTask").With(newDealAuthorization(ctx, h, newContextDealExtractor())),
 		auth.Allow("PullTask").With(newDealAuthorization(ctx, h, newRequestDealExtractor(func(request interface{}) (DealID, error) {
-			return DealID(request.(pb.PullTaskRequest).DealId), nil
+			return DealID(request.(*pb.PullTaskRequest).DealId), nil
 		}))),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
