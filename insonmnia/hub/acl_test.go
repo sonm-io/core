@@ -9,7 +9,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/credentials"
@@ -46,8 +45,8 @@ func TestFieldDealMetaData(t *testing.T) {
 		},
 	}
 
-	md := fieldDealMetaData{}
-	dealID, err := md.Deal(context.Background(), request)
+	md := newFieldDealExtractor()
+	dealID, err := md(context.Background(), request)
 	require.NoError(t, err)
 	assert.Equal(t, DealID("0x42"), dealID)
 }
@@ -60,8 +59,8 @@ func TestFieldDealMetaDataErrorsOnInvalidType(t *testing.T) {
 		Deal: "0x42",
 	}
 
-	md := fieldDealMetaData{}
-	dealID, err := md.Deal(context.Background(), request)
+	md := newFieldDealExtractor()
+	dealID, err := md(context.Background(), request)
 	assert.Error(t, err)
 	assert.Equal(t, DealID(""), dealID)
 }
@@ -79,38 +78,10 @@ func TestFieldDealMetaDataErrorsOnInvalidInnerType(t *testing.T) {
 		},
 	}
 
-	md := fieldDealMetaData{}
-	dealID, err := md.Deal(context.Background(), request)
+	md := newFieldDealExtractor()
+	dealID, err := md(context.Background(), request)
 	assert.Error(t, err)
 	assert.Equal(t, DealID(""), dealID)
-}
-
-func TestFieldDealMetaDataWallet(t *testing.T) {
-	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
-		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
-	})
-
-	ctx := metadata.NewIncomingContext(peerCtx, metadata.MD(map[string][]string{
-		"wallet": {"0x42"},
-	}))
-
-	md := contextDealMetaData{}
-	dealID, err := md.Wallet(ctx, nil)
-	require.NoError(t, err)
-	assert.Equal(t, "0x42", dealID)
-}
-
-func TestFieldDealMetaDataWalletErrorsOnEmptyMD(t *testing.T) {
-	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
-		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
-	})
-
-	ctx := metadata.NewIncomingContext(peerCtx, metadata.MD(map[string][]string{}))
-
-	md := contextDealMetaData{}
-	dealID, err := md.Wallet(ctx, nil)
-	assert.Error(t, err)
-	assert.Equal(t, "", dealID)
 }
 
 func TestContextDealMetaData(t *testing.T) {
@@ -118,28 +89,16 @@ func TestContextDealMetaData(t *testing.T) {
 		"deal": {"0x42"},
 	}))
 
-	md := contextDealMetaData{}
-	dealID, err := md.Deal(ctx, nil)
+	md := newContextDealExtractor()
+	dealID, err := md(ctx, nil)
 	require.NoError(t, err)
 	assert.Equal(t, DealID("0x42"), dealID)
 }
 
 func TestDealAuthorization(t *testing.T) {
-	wallet, err := util.NewSelfSignedWallet(key)
-	require.NoError(t, err)
-
-	access := util.NewWalletAccess(wallet)
-
-	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
-		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
+	ctx := peer.NewContext(context.Background(), &peer.Peer{
+		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: addr},
 	})
-
-	requestMD, err := access.GetRequestMetadata(nil)
-	require.NoError(t, err)
-
-	ctx := metadata.NewIncomingContext(peerCtx, metadata.MD(map[string][]string{
-		"wallet": {requestMD["wallet"]},
-	}))
 
 	request := &sonm.HubStartTaskRequest{
 		Deal: &sonm.Deal{
@@ -147,28 +106,16 @@ func TestDealAuthorization(t *testing.T) {
 		},
 	}
 
-	md := fieldDealMetaData{}
-	auth := newDealAuthorization(context.Background(), makeHubWithOrder(t, addr.Hex(), "0x42"), &md)
+	md := newFieldDealExtractor()
+	authorization := newDealAuthorization(context.Background(), makeHubWithOrder(t, addr.Hex(), "0x42"), md)
 
-	require.NoError(t, auth.Authorize(ctx, request))
+	require.NoError(t, authorization.Authorize(ctx, request))
 }
 
 func TestDealAuthorizationErrors(t *testing.T) {
-	wallet, err := util.NewSelfSignedWallet(key)
-	require.NoError(t, err)
-
-	access := util.NewWalletAccess(wallet)
-
-	peerCtx := peer.NewContext(context.Background(), &peer.Peer{
-		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: common.Address{}},
+	ctx := peer.NewContext(context.Background(), &peer.Peer{
+		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: addr},
 	})
-
-	requestMD, err := access.GetRequestMetadata(nil)
-	require.NoError(t, err)
-
-	ctx := metadata.NewIncomingContext(peerCtx, metadata.MD(map[string][]string{
-		"wallet": {requestMD["wallet"]},
-	}))
 
 	request := &sonm.HubStartTaskRequest{
 		Deal: &sonm.Deal{
@@ -176,8 +123,8 @@ func TestDealAuthorizationErrors(t *testing.T) {
 		},
 	}
 
-	md := fieldDealMetaData{}
-	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), &md)
+	md := newFieldDealExtractor()
+	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), md)
 
 	require.Error(t, au.Authorize(ctx, request))
 }
@@ -197,8 +144,8 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 		},
 	}
 
-	md := fieldDealMetaData{}
-	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), &md)
+	md := newFieldDealExtractor()
+	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), md)
 
 	require.Error(t, au.Authorize(ctx, request))
 }

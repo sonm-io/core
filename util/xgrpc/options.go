@@ -148,3 +148,20 @@ func wrapZapContextWithTracing(ctx context.Context) context.Context {
 func hex(v interface{}) string {
 	return fmt.Sprintf("%x", v)
 }
+
+func authUnaryInterceptor(router *auth.AuthRouter) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		if err := router.Authorize(ctx, auth.Event(info.FullMethod), req); err != nil {
+			return nil, err
+		}
+		return handler(ctx, req)
+	}
+}
+
+func AuthorizationInterceptor(router *auth.AuthRouter) ServerOption {
+	return func(o *options) {
+		o.interceptors.u = append(o.interceptors.u, authUnaryInterceptor(router))
+		// TODO: Stream interceptors.
+		// o.interceptors.s = append(o.interceptors.s, authStreamInterceptor(router))
+	}
+}

@@ -1,18 +1,11 @@
 package util
 
 import (
-	"bytes"
-	"crypto/ecdsa"
 	"crypto/tls"
-	"encoding/base32"
 	"fmt"
-	"io/ioutil"
 	"net"
 
-	"strings"
-
 	ethcommon "github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/credentials"
@@ -77,72 +70,4 @@ func verifyCertificate(authInfo credentials.AuthInfo) (credentials.AuthInfo, err
 func NewTLS(c *tls.Config) credentials.TransportCredentials {
 	tc := credentials.NewTLS(c)
 	return tlsVerifier{TransportCredentials: tc}
-}
-
-// TODO: Will be removed in the nearest future in favor of TLS-wallet extraction and token-based authorization.
-type SelfSignedWallet struct {
-	Message string
-}
-
-func NewSelfSignedWallet(key *ecdsa.PrivateKey) (*SelfSignedWallet, error) {
-	address := crypto.PubkeyToAddress(key.PublicKey).Hex()
-	message := crypto.Keccak256([]byte(address))
-
-	sign, err := crypto.Sign(message, key)
-	if err != nil {
-		return nil, err
-	}
-
-	signed := new(bytes.Buffer)
-	signed.WriteString(address)
-	signed.WriteByte('@')
-	signed.WriteString(base32.StdEncoding.EncodeToString(sign))
-
-	return &SelfSignedWallet{Message: signed.String()}, nil
-}
-
-// WalletAccess supplies PerRPCCredentials from a given self-signed wallet.
-type WalletAccess struct {
-	wallet *SelfSignedWallet
-}
-
-// NewWalletAccess constructs the new PerRPCCredentials using with given
-// self-signed wallet.
-func NewWalletAccess(wallet *SelfSignedWallet) credentials.PerRPCCredentials {
-	return &WalletAccess{
-		wallet: wallet,
-	}
-}
-
-func (c WalletAccess) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	return map[string]string{
-		"wallet": c.wallet.Message,
-	}, nil
-}
-
-func (c WalletAccess) RequireTransportSecurity() bool {
-	return true
-}
-
-func VerifySelfSignedWallet(signedWallet string) (string, error) {
-	parts := strings.Split(signedWallet, "@")
-	if len(parts) != 2 {
-		return "", fmt.Errorf("malformed wallet provided")
-	}
-
-	address := []byte(parts[0])
-	sign, err := ioutil.ReadAll(base32.NewDecoder(base32.StdEncoding, strings.NewReader(parts[1])))
-	if err != nil {
-		return "", err
-	}
-
-	recoveredPub, err := crypto.Ecrecover(crypto.Keccak256(address), sign)
-	if err != nil {
-		return "", err
-	}
-
-	pubKey := crypto.ToECDSAPub(recoveredPub)
-	recoveredAddr := crypto.PubkeyToAddress(*pubKey).Hex()
-
-	return recoveredAddr, nil
 }
