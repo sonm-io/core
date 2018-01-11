@@ -175,6 +175,10 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 // request to have "sonm.Deal" field.
 type fieldDealMetaData struct{}
 
+func newFieldDealMetaData() DealMetaData {
+	return &fieldDealMetaData{}
+}
+
 func (fieldDealMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
 	requestValue := reflect.Indirect(reflect.ValueOf(request))
 	deal := reflect.Indirect(requestValue.FieldByName("Deal"))
@@ -202,6 +206,10 @@ func (fieldDealMetaData) Deal(ctx context.Context, request interface{}) (DealID,
 // specified context to have "deal" metadata.
 type contextDealMetaData struct{}
 
+func newContextDealMetaData() DealMetaData {
+	return &contextDealMetaData{}
+}
+
 func (contextDealMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
 	md, ok := metadata.FromContext(ctx)
 	if !ok {
@@ -222,6 +230,10 @@ type fieldIdMetaData struct {
 	hub *Hub
 }
 
+func newFieldIdMetaData(hub *Hub) DealMetaData {
+	return &fieldIdMetaData{hub: hub}
+}
+
 func (t *fieldIdMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
 	requestValue := reflect.Indirect(reflect.ValueOf(request))
 	taskID := reflect.Indirect(requestValue.FieldByName("Id"))
@@ -233,9 +245,9 @@ func (t *fieldIdMetaData) Deal(ctx context.Context, request interface{}) (DealID
 		return "", errInvalidTaskField
 	}
 
-	taskInfo, ok := t.hub.tasks[taskID.String()]
-	if !ok {
-		return "", errTaskNotFound
+	taskInfo, err := t.hub.getTask(taskID.String())
+	if err != nil {
+		return "", err
 	}
 
 	return DealID(taskInfo.GetDealId()), nil
