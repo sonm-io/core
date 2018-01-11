@@ -1339,13 +1339,13 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		auth.WithEventPrefix(hubAPIPrefix),
 		auth.Allow("Handshake", "ProposeDeal", "ApproveDeal").With(auth.NewNilAuthorization()),
 		auth.Allow(hubManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
-		auth.Allow("TaskStatus", "StopTask").With(newDealAuthorization(ctx, h, newStringerFieldMetaData(h))),
-		auth.Allow("StartTask").With(newDealAuthorization(ctx, h, newFieldDealMetaData())),
-		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, h, newStringerFieldMetaData(h))),
-		auth.Allow("PushTask").With(newDealAuthorization(ctx, h, newContextDealMetaData())),
-		// TODO: Tactical architectural solution.
-		// auth.Allow("PullTask").With(newDealAuthorization(ctx, h, newNamedStringerFieldMetaData(h, "TaskId"))),
-		auth.Allow("PullTask").With(auth.NewNilAuthorization()),
+		auth.Allow("TaskStatus", "StopTask").With(newDealAuthorization(ctx, h, newFromTaskDealExtractor(h))),
+		auth.Allow("StartTask").With(newDealAuthorization(ctx, h, newFieldDealExtractor())),
+		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, h, newFromTaskDealExtractor(h))),
+		auth.Allow("PushTask").With(newDealAuthorization(ctx, h, newContextDealExtractor())),
+		auth.Allow("PullTask").With(newDealAuthorization(ctx, h, newRequestDealExtractor(func(request interface{}) (DealID, error) {
+			return DealID(request.(pb.PullTaskRequest).DealId), nil
+		}))),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
 

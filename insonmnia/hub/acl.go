@@ -115,31 +115,25 @@ func (s *workerACLStorage) Each(fn func(string) bool) {
 	})
 }
 
-// DealMetaData allows to extract deal-specific parameters for
-// authorization.
-// We implement this interface for all methods that require wallet
-// authorization.
-type DealMetaData interface {
-	// Deal extracts deal ID from the request.
-	Deal(ctx context.Context, request interface{}) (DealID, error)
-}
+// DealExtractor allows to extract deal id that is used for authorization.
+type DealExtractor func(ctx context.Context, request interface{}) (DealID, error)
 
 type dealAuthorization struct {
-	ctx      context.Context
-	hub      *Hub
-	metaData DealMetaData
+	ctx       context.Context
+	hub       *Hub
+	extractor DealExtractor
 }
 
-func newDealAuthorization(ctx context.Context, hub *Hub, metaData DealMetaData) auth.Authorization {
+func newDealAuthorization(ctx context.Context, hub *Hub, extractor DealExtractor) auth.Authorization {
 	return &dealAuthorization{
-		ctx:      ctx,
-		hub:      hub,
-		metaData: metaData,
+		ctx:       ctx,
+		hub:       hub,
+		extractor: extractor,
 	}
 }
 
 func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) error {
-	dealID, err := d.metaData.Deal(ctx, request)
+	dealID, err := d.extractor(ctx, request)
 	if err != nil {
 		return err
 	}
@@ -171,89 +165,82 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 	return nil
 }
 
-// FieldDealMetaData is a deal meta info extractor that requires the specified
-// request to have "sonm.Deal" field.
-type fieldDealMetaData struct{}
+// NewFieldDealExtractor constructs a deal id extractor that requires the
+// specified request to have "sonm.Deal" field.
+// Extraction is performed using reflection.
+func newFieldDealExtractor() DealExtractor {
+	return func(ctx context.Context, request interface{}) (DealID, error) {
+		requestValue := reflect.Indirect(reflect.ValueOf(request))
+		deal := reflect.Indirect(requestValue.FieldByName("Deal"))
+		if !deal.IsValid() {
+			return "", errNoDealFieldFound
+		}
 
-func newFieldDealMetaData() DealMetaData {
-	return &fieldDealMetaData{}
+		if deal.Type().Kind() != reflect.Struct {
+			return "", errInvalidDealField
+		}
+
+		dealId := reflect.Indirect(deal).FieldByName("Id")
+		if !dealId.IsValid() {
+			return "", errInvalidDealField
+		}
+
+		if dealId.Type().Kind() != reflect.String {
+			return "", errInvalidDealField
+		}
+
+		return DealID(dealId.String()), nil
+	}
 }
 
-func (fieldDealMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
-	requestValue := reflect.Indirect(reflect.ValueOf(request))
-	deal := reflect.Indirect(requestValue.FieldByName("Deal"))
-	if !deal.IsValid() {
-		return "", errNoDealFieldFound
-	}
-
-	if deal.Type().Kind() != reflect.Struct {
-		return "", errInvalidDealField
-	}
-
-	dealId := reflect.Indirect(deal).FieldByName("Id")
-	if !dealId.IsValid() {
-		return "", errInvalidDealField
-	}
-
-	if dealId.Type().Kind() != reflect.String {
-		return "", errInvalidDealField
-	}
-
-	return DealID(dealId.String()), nil
-}
-
-// ContextDealMetaData is a deal meta info extractor that requires the
+// NewContextDealExtractor constructs a deal id extractor that requires the
 // specified context to have "deal" metadata.
-type contextDealMetaData struct{}
+func newContextDealExtractor() DealExtractor {
+	return func(ctx context.Context, request interface{}) (DealID, error) {
+		md, ok := metadata.FromContext(ctx)
+		if !ok {
+			return "", errNoPeerInfo
+		}
 
-func newContextDealMetaData() DealMetaData {
-	return &contextDealMetaData{}
+		dealMD := md["deal"]
+		if len(dealMD) == 0 {
+			return "", errNoDealProvided
+		}
+
+		return DealID(dealMD[0]), nil
+	}
 }
 
-func (contextDealMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
-	md, ok := metadata.FromContext(ctx)
-	if !ok {
-		return "", errNoPeerInfo
-	}
-
-	dealMD := md["deal"]
-	if len(dealMD) == 0 {
-		return "", errNoDealProvided
-	}
-
-	return DealID(dealMD[0]), nil
+// NewFromTaskDealExtractor constructs a deal id extractor that requires the
+// specified request to have "Id" field, which is the task id.
+// This task id is used to extract current deal id from the Hub.
+func newFromTaskDealExtractor(hub *Hub) DealExtractor {
+	return newFromNamedTaskDealExtractor(hub, "Id")
 }
 
-// FieldIdMetaData is a deal meta info extractor that requires the specified
-// request to have "Id" field, which is the task id.
-type stringerFieldMetaData struct {
-	hub  *Hub
-	name string
+func newFromNamedTaskDealExtractor(hub *Hub, name string) DealExtractor {
+	return func(ctx context.Context, request interface{}) (DealID, error) {
+		requestValue := reflect.Indirect(reflect.ValueOf(request))
+		taskID := reflect.Indirect(requestValue.FieldByName(name))
+		if !taskID.IsValid() {
+			return "", errNoTaskFieldFound
+		}
+
+		if taskID.Type().Kind() != reflect.String {
+			return "", errInvalidTaskField
+		}
+
+		taskInfo, err := hub.getTask(taskID.String())
+		if err != nil {
+			return "", err
+		}
+
+		return DealID(taskInfo.GetDealId()), nil
+	}
 }
 
-func newStringerFieldMetaData(hub *Hub) DealMetaData {
-	return &stringerFieldMetaData{hub: hub, name: "Id"}
-}
-
-func newNamedStringerFieldMetaData(hub *Hub, name string) DealMetaData {
-	return &stringerFieldMetaData{hub: hub, name: name}
-}
-
-func (t *stringerFieldMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
-	requestValue := reflect.Indirect(reflect.ValueOf(request))
-	taskID := reflect.Indirect(requestValue.FieldByName(t.name))
-	if !taskID.IsValid() {
-		return "", errNoTaskFieldFound
+func newRequestDealExtractor(fn func(request interface{}) (DealID, error)) DealExtractor {
+	return func(ctx context.Context, request interface{}) (DealID, error) {
+		return fn(request)
 	}
-
-	if taskID.Type().Kind() != reflect.String {
-		return "", errInvalidTaskField
-	}
-
-	taskInfo, err := t.hub.getTask(taskID.String())
-	if err != nil {
-		return "", err
-	}
-
-	return DealID(taskInfo.GetDealId()), nil
 }
