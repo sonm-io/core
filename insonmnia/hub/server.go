@@ -1339,11 +1339,11 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		auth.WithEventPrefix(hubAPIPrefix),
 		auth.Allow("Handshake", "ProposeDeal", "ApproveDeal").With(auth.NewNilAuthorization()),
 		auth.Allow(hubManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
-		auth.Allow("TaskStatus", "StopTask").With(newDealAuthorization(ctx, h, newFieldIdMetaData(h))),
+		auth.Allow("TaskStatus", "StopTask").With(newDealAuthorization(ctx, h, newStringerFieldMetaData(h))),
 		auth.Allow("StartTask").With(newDealAuthorization(ctx, h, newFieldDealMetaData())),
-		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, h, newFieldIdMetaData(h))),
+		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, h, newStringerFieldMetaData(h))),
 		auth.Allow("PushTask").With(newDealAuthorization(ctx, h, newContextDealMetaData())),
-		auth.Allow("PullTask").With(newDealAuthorization(ctx, h, newFieldDealMetaData())),
+		auth.Allow("PullTask").With(newDealAuthorization(ctx, h, newNamedStringerFieldMetaData(h, "TaskId"))),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
 

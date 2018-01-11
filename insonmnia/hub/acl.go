@@ -226,17 +226,22 @@ func (contextDealMetaData) Deal(ctx context.Context, request interface{}) (DealI
 
 // FieldIdMetaData is a deal meta info extractor that requires the specified
 // request to have "Id" field, which is the task id.
-type fieldIdMetaData struct {
-	hub *Hub
+type stringerFieldMetaData struct {
+	hub  *Hub
+	name string
 }
 
-func newFieldIdMetaData(hub *Hub) DealMetaData {
-	return &fieldIdMetaData{hub: hub}
+func newStringerFieldMetaData(hub *Hub) DealMetaData {
+	return &stringerFieldMetaData{hub: hub, name: "Id"}
 }
 
-func (t *fieldIdMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
+func newNamedStringerFieldMetaData(hub *Hub, name string) DealMetaData {
+	return &stringerFieldMetaData{hub: hub, name: name}
+}
+
+func (t *stringerFieldMetaData) Deal(ctx context.Context, request interface{}) (DealID, error) {
 	requestValue := reflect.Indirect(reflect.ValueOf(request))
-	taskID := reflect.Indirect(requestValue.FieldByName("Id"))
+	taskID := reflect.Indirect(requestValue.FieldByName(t.name))
 	if !taskID.IsValid() {
 		return "", errNoTaskFieldFound
 	}
