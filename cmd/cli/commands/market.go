@@ -113,10 +113,10 @@ var marketProcessingCmd = &cobra.Command{
 }
 
 var marketCreteCmd = &cobra.Command{
-	Use:    "create <order.yaml> [supplier-eth-addr]",
+	Use:    "create <price> <slot.yaml> [supplier-eth-addr]",
 	Short:  "Place new Bid order on Marketplace",
 	PreRun: loadKeyStoreWrapper,
-	Args:   cobra.MinimumNArgs(1),
+	Args:   cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
@@ -124,20 +124,32 @@ var marketCreteCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		orderPath := args[0]
-		order, err := loadOrderFile(orderPath)
+		price := args[0]
+		orderPath := args[1]
+
+		bigPrice, err := pb.NewBigIntFromString(price)
+		if err != nil {
+			showError(cmd, "Cannot parse price", err)
+			os.Exit(1)
+		}
+
+		slot, err := loadSlotFile(orderPath)
 		if err != nil {
 			showError(cmd, "Cannot load order", err)
 			os.Exit(1)
 		}
 
-		inner := order.Unwrap()
-		if len(args) > 1 {
-			addr := common.HexToAddress(args[1])
-			inner.SupplierID = addr.Hex()
+		order := &pb.Order{
+			PricePerSecond: bigPrice,
+			Slot:           slot.Unwrap(),
+			OrderType:      pb.OrderType_BID,
 		}
 
-		created, err := market.CreateOrder(inner)
+		if len(args) > 2 {
+			order.SupplierID = common.HexToAddress(args[2]).Hex()
+		}
+
+		created, err := market.CreateOrder(order)
 		if err != nil {
 			showError(cmd, "Cannot create order at Marketplace", err)
 			os.Exit(1)

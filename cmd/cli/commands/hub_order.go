@@ -116,21 +116,6 @@ var hubOrderRemoveCmd = &cobra.Command{
 	},
 }
 
-func loadOrderFile(path string) (*structs.Order, error) {
-	cfg := task_config.OrderConfig{}
-	err := util.LoadYamlFile(path, &cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	order, err := cfg.IntoOrder()
-	if err != nil {
-		return nil, err
-	}
-
-	return order, nil
-}
-
 func loadSlotFile(path string) (*structs.Slot, error) {
 	cfg := task_config.SlotConfig{}
 	err := util.LoadYamlFile(path, &cfg)
