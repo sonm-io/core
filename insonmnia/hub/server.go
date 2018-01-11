@@ -360,7 +360,7 @@ func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer) error {
 	log.G(h.ctx).Info("handling PullTask request", zap.Any("request", request))
 
-	if err := h.eventAuthorization.Authorize(stream.Context(), auth.Event(hubAPIPrefix+"PullTask"), nil); err != nil {
+	if err := h.eventAuthorization.Authorize(stream.Context(), auth.Event(hubAPIPrefix+"PullTask"), request); err != nil {
 		return err
 	}
 
@@ -1337,12 +1337,13 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	authorization := auth.NewEventAuthorization(h.ctx,
 		auth.WithLog(log.G(ctx)),
 		auth.WithEventPrefix(hubAPIPrefix),
-		auth.Allow("Handshake", "ProposeDeal").With(auth.NewNilAuthorization()),
+		auth.Allow("Handshake", "ProposeDeal", "ApproveDeal").With(auth.NewNilAuthorization()),
 		auth.Allow(hubManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
 		auth.Allow("TaskStatus", "StopTask").With(newDealAuthorization(ctx, h, newFieldIdMetaData(h))),
 		auth.Allow("StartTask").With(newDealAuthorization(ctx, h, newFieldDealMetaData())),
 		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, h, newFieldIdMetaData(h))),
-		auth.Allow("PushTask", "PullTask").With(newDealAuthorization(ctx, h, newContextDealMetaData())),
+		auth.Allow("PushTask").With(newDealAuthorization(ctx, h, newContextDealMetaData())),
+		auth.Allow("PullTask").With(newDealAuthorization(ctx, h, newFieldDealMetaData())),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
 
