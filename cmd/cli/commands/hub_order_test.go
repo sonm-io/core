@@ -64,38 +64,6 @@ resources:
 	assert.Contains(t, ss.Resources.Properties, "cycles")
 }
 
-func TestLoadOrderYaml(t *testing.T) {
-	p, err := createTestYamlFile(`
-price: 145
-order_type: BID
-slot:
-  duration: 1h
-
-  resources:
-    cpu_cores: 2
-    ram_bytes: 100000000
-    gpu_count: MULTIPLE_GPU
-    storage: 2000000000
-
-    network:
-      in: 200
-      out: 300
-      type: INCOMING
-
-    properties:
-      foo: 3.14
-      cycles: 42`)
-	assert.NoError(t, err)
-	defer deleteTestYamlFile(p)
-
-	order, err := loadOrderFile(p)
-	assert.NoError(t, err)
-
-	ord := order.Unwrap()
-	assert.Equal(t, "145", ord.PricePerSecond.Unwrap().String())
-	assert.Equal(t, pb.OrderType_BID, ord.OrderType)
-}
-
 func TestLoadPropsYaml(t *testing.T) {
 	p, err := createTestYamlFile(`
 foo: 3.14
