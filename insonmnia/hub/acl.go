@@ -240,7 +240,13 @@ func newFromNamedTaskDealExtractor(hub *Hub, name string) DealExtractor {
 }
 
 func newRequestDealExtractor(fn func(request interface{}) (DealID, error)) DealExtractor {
-	return func(ctx context.Context, request interface{}) (DealID, error) {
+	return newCustomDealExtractor(func(ctx context.Context, request interface{}) (DealID, error) {
 		return fn(request)
+	})
+}
+
+func newCustomDealExtractor(fn func(ctx context.Context, request interface{}) (DealID, error)) DealExtractor {
+	return func(ctx context.Context, request interface{}) (DealID, error) {
+		return fn(ctx, request)
 	}
 }
