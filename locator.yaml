@@ -11,6 +11,8 @@ ethereum:
   # passphrase for keystore
   pass_phrase: "any"
 
+only_public_ips: false
+
 store:
   # Type of the storage to use.
   # Possible types are: "consul", "zookeeper", "etcd" and "boltdb"
