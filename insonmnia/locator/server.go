@@ -3,10 +3,15 @@ package locator
 import (
 	"crypto/ecdsa"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net"
 	"time"
 
+	"github.com/docker/libkv"
+	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/boltdb"
+	"github.com/docker/libkv/store/consul"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
@@ -21,13 +26,6 @@ import (
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
-
-	"encoding/json"
-
-	"github.com/docker/libkv"
-	"github.com/docker/libkv/store"
-	"github.com/docker/libkv/store/boltdb"
-	"github.com/docker/libkv/store/consul"
 )
 
 var errNodeNotFound = errors.New("record with given Eth address cannot be found")
@@ -39,13 +37,13 @@ type record struct {
 }
 
 type Locator struct {
-	conf        *Config
-	ctx         context.Context
-	grpc        *grpc.Server
-	certRotator util.HitlessCertRotator
-	creds       credentials.TransportCredentials
-
-	storage store.Store
+	conf          *Config
+	ctx           context.Context
+	grpc          *grpc.Server
+	certRotator   util.HitlessCertRotator
+	creds         credentials.TransportCredentials
+	onlyPublicIPs bool
+	storage       store.Store
 }
 
 func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Empty, error) {
@@ -54,13 +52,39 @@ func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Em
 		return nil, err
 	}
 
+	var (
+		okIPs      []string
+		skippedIPs []string
+	)
+	for _, strIP := range req.IpAddr {
+		if l.onlyPublicIPs {
+			if ip := net.ParseIP(strIP); ip != nil && !util.IsPrivateIP(ip) {
+				okIPs = append(okIPs, strIP)
+			} else {
+				skippedIPs = append(skippedIPs, strIP)
+			}
+		} else {
+			okIPs = append(okIPs, strIP)
+		}
+	}
+
+	if len(skippedIPs) > 0 {
+		log.G(l.ctx).Info("skipped some announced IPs (only public IPs mode is on)",
+			zap.Stringer("eth", ethAddr),
+			zap.Strings("skipped_ips", skippedIPs))
+	}
+
+	if len(okIPs) < 1 {
+		return nil, errors.New("no white IPs provided")
+	}
+
 	log.G(l.ctx).Info("handling Announce request",
 		zap.Stringer("eth", ethAddr),
-		zap.Strings("ips", req.IpAddr))
+		zap.Strings("ips", okIPs))
 
 	err = l.put(&record{
 		EthAddr: ethAddr,
-		IPs:     req.IpAddr,
+		IPs:     okIPs,
 	})
 
 	if err != nil {
@@ -171,8 +195,9 @@ func NewLocator(ctx context.Context, conf *Config, key *ecdsa.PrivateKey) (l *Lo
 	}
 
 	l = &Locator{
-		conf: conf,
-		ctx:  ctx,
+		conf:          conf,
+		ctx:           ctx,
+		onlyPublicIPs: conf.OnlyPublicIPs,
 	}
 
 	var TLSConfig *tls.Config
@@ -194,5 +219,6 @@ func NewLocator(ctx context.Context, conf *Config, key *ecdsa.PrivateKey) (l *Lo
 	)
 
 	pb.RegisterLocatorServer(l.grpc, l)
+
 	return l, nil
 }

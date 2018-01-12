@@ -3,6 +3,7 @@ package locator
 import (
 	"crypto/ecdsa"
 	"crypto/tls"
+	"os"
 	"testing"
 	"time"
 
@@ -98,7 +99,7 @@ func TestLocator_Expire(t *testing.T) {
 }
 
 func TestLocator_AnnounceExternal(t *testing.T) {
-	lc, err := NewLocator(context.Background(), testConfig("localhost:9090"), key)
+	lc, err := NewLocator(context.Background(), testConfig("localhost:9090"), getTestKey())
 	if err != nil {
 		t.Error(err)
 		return
@@ -110,7 +111,7 @@ func TestLocator_AnnounceExternal(t *testing.T) {
 		}
 	}()
 
-	cert, crtKey, err := util.GenerateCert(key, time.Hour*4)
+	cert, crtKey, err := util.GenerateCert(key, time.Hour)
 	if err != nil {
 		t.Error(err)
 		return
@@ -131,7 +132,7 @@ func TestLocator_AnnounceExternal(t *testing.T) {
 	}
 
 	locatorClient := pb.NewLocatorClient(conn)
-	_, err = locatorClient.Announce(context.Background(), &pb.AnnounceRequest{IpAddr: []string{"42.42.42.42"}})
+	_, err = locatorClient.Announce(context.Background(), &pb.AnnounceRequest{IpAddr: []string{"41.41.41.41"}})
 	if err != nil {
 		t.Error(err)
 		return
@@ -141,4 +142,64 @@ func TestLocator_AnnounceExternal(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, rec.EthAddr, util.PubKeyToAddr(key.PublicKey))
+	assert.Equal(t, rec.IPs, []string{"41.41.41.41"})
+
+	if err := conn.Close(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestLocator_SkipPrivateIP(t *testing.T) {
+	cfg := testConfig("localhost:9191")
+	cfg.Store.Endpoint += "-skip-private"
+
+	lc, err := NewLocator(context.Background(), cfg, getTestKey())
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	defer os.Remove(cfg.Store.Endpoint)
+
+	lc.onlyPublicIPs = true
+	go func() {
+		if err := lc.Serve(); err != nil {
+			t.Errorf("Locator server failed: %s", err)
+		}
+	}()
+
+	cert, crtKey, err := util.GenerateCert(key, time.Hour)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	crt, err := tls.X509KeyPair(cert, crtKey)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	creds := util.NewTLS(&tls.Config{Certificates: []tls.Certificate{crt}, InsecureSkipVerify: true})
+
+	conn, err := xgrpc.NewWalletAuthenticatedClient(context.Background(), creds, "localhost:9191")
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	locatorClient := pb.NewLocatorClient(conn)
+	_, err = locatorClient.Announce(context.Background(), &pb.AnnounceRequest{IpAddr: []string{"192.168.0.0"}})
+	assert.Error(t, err)
+
+	_, err = locatorClient.Announce(context.Background(),
+		&pb.AnnounceRequest{IpAddr: []string{"42.42.42.42", "192.168.0.0"}})
+	assert.NoError(t, err)
+	rec, err := lc.get(util.PubKeyToAddr(key.PublicKey))
+	assert.NoError(t, err)
+	assert.Equal(t, rec.IPs, []string{"42.42.42.42"})
+
+	if err := conn.Close(); err != nil {
+		t.Error(err)
+	}
 }
