@@ -148,11 +148,12 @@ func isPrivateIPv4(ip net.IP) bool {
 		private20BitBlock.Contains(ip) ||
 		private16BitBlock.Contains(ip) ||
 		ip.IsLoopback() ||
-		ip.IsLinkLocalUnicast()
+		ip.IsLinkLocalUnicast() ||
+		ip.IsLinkLocalMulticast()
 }
 
 func isPrivateIPv6(ip net.IP) bool {
 	_, block, _ := net.ParseCIDR("fc00::/7")
 
-	return block.Contains(ip) || ip.IsLoopback() || ip.IsLinkLocalUnicast()
+	return block.Contains(ip) || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
 }

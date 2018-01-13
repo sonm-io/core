@@ -65,6 +65,7 @@ func TestIsPrivateIPv4(t *testing.T) {
 		{ip: "169.254.1.0", isPriv: true},
 		{ip: "169.254.123.222", isPriv: true},
 		{ip: "169.254.255.255", isPriv: true},
+		{ip: "224.0.0.1", isPriv: true},
 
 		{ip: "1.2.3.4", isPriv: false},
 		{ip: "0.0.0.0", isPriv: false},
