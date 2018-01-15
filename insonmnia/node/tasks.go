@@ -300,7 +300,7 @@ func getHubClientByEthAddr(ctx context.Context, rm *remoteOptions, eth string) (
 	}
 
 	// Maybe blocking connection required?
-	cc, err := xgrpc.NewClient(ctx, addrReply.IpAddr[0], rm.creds)
+	cc, err := xgrpc.NewClient(ctx, addrReply.Endpoints[0], rm.creds)
 	if err != nil {
 		return nil, nil, err
 	}

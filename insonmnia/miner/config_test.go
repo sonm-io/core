@@ -24,7 +24,8 @@ func TestLoadConfig(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
 hub:
-  endpoint: 127.0.0.1
+  eth_addr: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD"
+  endpoints: ["127.0.0.1:10002"]
 locator:
   endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"`
 	err := createTestConfigFile(raw)
@@ -33,20 +34,21 @@ locator:
 	conf, err := NewConfig(testMinerConfigPath)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "127.0.0.1", conf.HubEndpoint())
+	assert.Equal(t, []string{"127.0.0.1:10002"}, conf.HubEndpoints())
 }
 
 func TestGPUConfig(t *testing.T) {
 	err := createTestConfigFile(`
 hub:
-  endpoint: "127.0.0.1:10002"
+  eth_addr: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD"
+  endpoints: ["127.0.0.1:10002"]
 logging:
   level: -1
 GPUConfig:
   type: nvidiadocker
   args: { nvidiadockerdriver: "localhost:3476" }
 locator:
-  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"
+  endpoint: "127.0.0.1:9090"
 `)
 	assert.NoError(t, err)
 	defer deleteTestConfigFile()

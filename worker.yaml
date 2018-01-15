@@ -1,10 +1,10 @@
 # Hub settings.
 hub:
-  # Endpoint for hub communication.
-  # Format is either "ethAddr@:port" or "ethAddr@ip:port". If only "ethAddr@:port" is provided,
-  # ip will be resolved via locator. In case of IPv6, address must be wrapped in square brackets,
-  # i.e., [::1]:10002.
-  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:10002"
+  eth_addr: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD"
+  # Either `resolve_endpoints: true` or `endpoints` should be provided. If `resolve_endpoints`
+  # is set to `true`, hub's addresses will be resolved via locator.
+  resolve_endpoints: false
+  endpoints: ["127.0.0.1:10002", "127.0.0.1:10002"]
 
 #  Resources section is available only on Linux
 #  If configured, all tasks will share this pool of resources.

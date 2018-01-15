@@ -96,7 +96,7 @@ func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
 func getTestLocator(ctrl *gomock.Controller) pb.LocatorClient {
 	loc := pb.NewMockLocatorClient(ctrl)
 	loc.EXPECT().Resolve(gomock.Any(), gomock.Any()).AnyTimes().
-		Return(&pb.ResolveReply{IpAddr: []string{"127.0.0.1:10001"}}, nil)
+		Return(&pb.ResolveReply{Endpoints: []string{"127.0.0.1:10001"}}, nil)
 	return loc
 }
 

@@ -1202,7 +1202,7 @@ func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, 
 	return &pb.Empty{}, nil
 }
 
-// New returns new Hub
+// New returns new Hub.
 func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub, error) {
 	defaults := defaultHubOptions()
 	for _, o := range opts {
@@ -1280,7 +1280,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	}
 
 	if defaults.cluster == nil {
-		defaults.cluster, defaults.clusterEvents, err = NewCluster(ctx, &cfg.Cluster, defaults.creds)
+		defaults.cluster, defaults.clusterEvents, err = NewCluster(ctx, &cfg.Cluster, cfg.Endpoint, defaults.creds)
 		if err != nil {
 			return nil, err
 		}
@@ -1808,32 +1808,38 @@ func (h *Hub) startLocatorAnnouncer() error {
 }
 
 func (h *Hub) announceAddress() error {
-	//TODO: is it really wrong to announce from several nodes simultaniously?
+	// TODO: is it really wrong to announce from several nodes simultaneously?
 	if !h.cluster.IsLeader() {
 		return nil
 	}
+
 	members, err := h.cluster.Members()
 	if err != nil {
 		return err
 	}
+
 	log.G(h.ctx).Info("got cluster members for locator announcement", zap.Any("members", members))
 
-	endpoints := make([]string, 0)
+	var (
+		clientEndpoints []string
+		workerEndpoints []string
+	)
 	for _, member := range members {
-		for _, ep := range member.endpoints {
-			endpoints = append(endpoints, ep)
-		}
-
+		clientEndpoints = append(clientEndpoints, member.client...)
+		workerEndpoints = append(workerEndpoints, member.worker...)
 	}
 	req := &pb.AnnounceRequest{
-		IpAddr: endpoints,
+		ClientEndpoints: clientEndpoints,
+		WorkerEndpoints: workerEndpoints,
 	}
 
-	log.G(h.ctx).Info("announcing Hub address",
+	log.G(h.ctx).Info("announcing Hub addresses",
 		zap.Stringer("eth", h.ethAddr),
-		zap.Strings("addr", req.IpAddr))
+		zap.Strings("client_endpoints", clientEndpoints),
+		zap.Strings("worker_endpoints", workerEndpoints))
 
 	_, err = h.locatorClient.Announce(h.ctx, req)
+
 	return err
 }
 

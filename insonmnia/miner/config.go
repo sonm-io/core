@@ -3,14 +3,17 @@ package miner
 import (
 	"github.com/jinzhu/configor"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
 )
 
 // HubConfig describes Hub configuration.
 type HubConfig struct {
-	Endpoint string           `required:"true" yaml:"endpoint"`
-	CGroups  *ResourcesConfig `required:"false" yaml:"resources"`
+	EthAddr          string           `required:"true" yaml:"eth_addr"`
+	ResolveEndpoints bool             `required:"false" yaml:"resolve_endpoints"`
+	Endpoints        []string         `required:"false" yaml:"endpoints"`
+	CGroups          *ResourcesConfig `required:"false" yaml:"resources"`
 }
 
 // FirewallConfig describes firewall detection settings.
@@ -54,8 +57,16 @@ type config struct {
 	PublicIPsConfig []string            `required:"false" yaml:"public_ip_addrs"`
 }
 
-func (c *config) HubEndpoint() string {
-	return c.HubConfig.Endpoint
+func (c *config) HubResolveEndpoints() bool {
+	return c.HubConfig.ResolveEndpoints
+}
+
+func (c *config) HubEthAddr() string {
+	return c.HubConfig.EthAddr
+}
+
+func (c *config) HubEndpoints() (endpoints []string) {
+	return c.HubConfig.Endpoints
 }
 
 func (c *config) HubResources() *ResourcesConfig {
@@ -94,6 +105,22 @@ func (c *config) LocatorEndpoint() string {
 	return c.LocatorConfig.Endpoint
 }
 
+func (c *config) validate() error {
+	if len(c.HubConfig.EthAddr) == 0 {
+		return errors.New("hub's ethereum address should be specified")
+	}
+
+	if !c.HubConfig.ResolveEndpoints && len(c.HubConfig.Endpoints) == 0 {
+		return errors.New("`resolve_endpoints` is `false`, an array of hub's endpoints must be specified")
+	}
+
+	if c.HubConfig.ResolveEndpoints && len(c.HubConfig.Endpoints) > 0 {
+		return errors.New("`resolve_endpoints` is `true`, only hub's ethereum address should be specified")
+	}
+
+	return nil
+}
+
 // NewConfig creates a new Miner config from the specified YAML file.
 func NewConfig(path string) (Config, error) {
 	cfg := &config{}
@@ -105,13 +132,21 @@ func NewConfig(path string) (Config, error) {
 		return nil, err
 	}
 
+	if err := cfg.validate(); err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
 }
 
 // Config represents a Miner configuration interface.
 type Config interface {
-	// HubEndpoint returns a string representation of a Hub endpoint to communicate with.
-	HubEndpoint() string
+	// HubEndpoints returns a string representation of a Hub endpoint to communicate with.
+	HubEndpoints() []string
+	// HubEthAddr returns hub's ethereum address.
+	HubEthAddr() string
+	// HubResolveEndpoints returns `true` if we need to resolve hub's endpoints via locator.
+	HubResolveEndpoints() bool
 	// HubResources returns resources allocated for a Hub.
 	HubResources() *ResourcesConfig
 	// Firewall returns firewall detection settings.

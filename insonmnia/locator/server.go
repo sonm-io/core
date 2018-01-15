@@ -31,9 +31,10 @@ import (
 var errNodeNotFound = errors.New("record with given Eth address cannot be found")
 
 type record struct {
-	EthAddr common.Address
-	IPs     []string
-	TS      time.Time
+	EthAddr         common.Address
+	ClientEndpoints []string
+	WorkerEndpoints []string
+	TS              time.Time
 }
 
 type Locator struct {
@@ -52,11 +53,38 @@ func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Em
 		return nil, err
 	}
 
-	var (
-		okEndpoints      []string
-		skippedEndpoints []string
+	clientEndpoints, err := l.filterEndpoints(ethAddr, req.ClientEndpoints)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid client endpoints")
+	}
+
+	workerEndpoints, err := l.filterEndpoints(ethAddr, req.WorkerEndpoints)
+	if err != nil {
+		return nil, errors.Wrap(err, "invalid worker endpoints")
+	}
+
+	log.G(l.ctx).Info("handling Announce request",
+		zap.Stringer("eth", ethAddr),
+		zap.Strings("client_endpoints", clientEndpoints),
+		zap.Strings("worker_endpoints", workerEndpoints),
 	)
-	for _, endpoint := range req.IpAddr {
+
+	err = l.put(&record{
+		EthAddr:         ethAddr,
+		ClientEndpoints: clientEndpoints,
+		WorkerEndpoints: workerEndpoints,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Empty{}, nil
+}
+
+func (l *Locator) filterEndpoints(ethAddr common.Address, endpoints []string) ([]string, error) {
+	var okEndpoints, skippedEndpoints []string
+	for _, endpoint := range endpoints {
 		strIP, _, err := net.SplitHostPort(endpoint)
 		if err != nil {
 			skippedEndpoints = append(skippedEndpoints, endpoint)
@@ -75,7 +103,7 @@ func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Em
 	}
 
 	if len(skippedEndpoints) > 0 {
-		log.G(l.ctx).Info("skipped some announced IPs (only public IPs mode is on)",
+		log.G(l.ctx).Info("skipped some announced endpoints (only public IPs mode is on)",
 			zap.Stringer("eth", ethAddr),
 			zap.Strings("skipped_ips", skippedEndpoints))
 	}
@@ -84,20 +112,7 @@ func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Em
 		return nil, errors.New("no white IPs provided")
 	}
 
-	log.G(l.ctx).Info("handling Announce request",
-		zap.Stringer("eth", ethAddr),
-		zap.Strings("ips", okEndpoints))
-
-	err = l.put(&record{
-		EthAddr: ethAddr,
-		IPs:     okEndpoints,
-	})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.Empty{}, nil
+	return okEndpoints, nil
 }
 
 func (l *Locator) Resolve(ctx context.Context, req *pb.ResolveRequest) (*pb.ResolveReply, error) {
@@ -112,7 +127,19 @@ func (l *Locator) Resolve(ctx context.Context, req *pb.ResolveRequest) (*pb.Reso
 		return nil, err
 	}
 
-	return &pb.ResolveReply{IpAddr: rec.IPs}, nil
+	var endpoints []string
+	switch req.EndpointType {
+	case pb.ResolveRequest_CLIENT:
+		endpoints = rec.ClientEndpoints
+	case pb.ResolveRequest_WORKER:
+		endpoints = rec.WorkerEndpoints
+	case pb.ResolveRequest_ANY:
+		endpoints = append(rec.ClientEndpoints, rec.WorkerEndpoints...)
+	default:
+		return nil, fmt.Errorf("unknown endpoint type: %d", req.EndpointType)
+	}
+
+	return &pb.ResolveReply{Endpoints: endpoints}, nil
 }
 
 func (l *Locator) Serve() error {

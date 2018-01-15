@@ -3,6 +3,10 @@ package miner
 import (
 	"crypto/ecdsa"
 	"errors"
+	"fmt"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -22,6 +26,7 @@ import (
 
 var (
 	key = getTestKey()
+	_   = setupTestResponder()
 )
 
 func getTestKey() *ecdsa.PrivateKey {
@@ -29,10 +34,23 @@ func getTestKey() *ecdsa.PrivateKey {
 	return k
 }
 
+func setupTestResponder() *httptest.Server {
+	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintln(w, "Hello, client")
+	}))
+	l, _ := net.Listen("tcp", "127.0.0.1:4242")
+	ts.Listener = l
+	ts.Start()
+
+	return ts
+}
+
 func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg := NewMockConfig(mock)
 	mockedwallet := util.PubKeyToAddr(getTestKey().PublicKey).Hex()
-	cfg.EXPECT().HubEndpoint().AnyTimes().Return(mockedwallet + "@localhost:4242")
+	cfg.EXPECT().HubEndpoints().AnyTimes().Return([]string{"localhost:4242"})
+	cfg.EXPECT().HubEthAddr().AnyTimes().Return(mockedwallet)
+	cfg.EXPECT().HubResolveEndpoints().AnyTimes().Return(false)
 	cfg.EXPECT().HubResources().AnyTimes()
 	cfg.EXPECT().Firewall().AnyTimes()
 	cfg.EXPECT().GPU().AnyTimes()
