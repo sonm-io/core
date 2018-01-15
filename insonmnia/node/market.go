@@ -21,7 +21,6 @@ import (
 )
 
 var (
-	errNoHandlerWithID     = errors.New("cannot get handler with ID")
 	errCannotProposeOrder  = errors.New("cannot propose order")
 	errNoMatchingOrder     = errors.New("cannot find matching ASK order")
 	errNotAnBidOrder       = errors.New("can create only Orders with type BID")
@@ -79,6 +78,7 @@ func HandlerStatusString(status uint8) string {
 // In any internal error -> status = "Failed"
 
 type orderHandler struct {
+	sync.Mutex
 	id     string
 	order  *pb.Order
 	status uint8
@@ -119,14 +119,31 @@ func newOrderHandler(ctx context.Context, loc pb.LocatorClient, bc blockchain.Bl
 // setError keeps error into handler struct and
 // changes task status to "failed"
 func (h *orderHandler) setError(err error) {
+	h.Lock()
+	defer h.Unlock()
+
 	h.status = statusFailed
 	h.err = err
+}
+
+func (h *orderHandler) setStatus(s uint8) {
+	h.Lock()
+	defer h.Unlock()
+
+	h.status = s
+}
+
+func (h *orderHandler) getStatus() uint8 {
+	h.Lock()
+	defer h.Unlock()
+
+	return h.status
 }
 
 // search searches for matching orders on Marketplace
 func (h *orderHandler) search(m pb.MarketClient) ([]*pb.Order, error) {
 	log.G(h.ctx).Info("searching for orders")
-	h.status = statusSearching
+	h.setStatus(statusSearching)
 
 	req := &pb.GetOrdersRequest{
 		Order: &pb.Order{
@@ -180,7 +197,7 @@ func (h *orderHandler) makeHubClient(ethAddr string) (pb.HubClient, io.Closer, e
 
 // propose proposes new deal to the Hub
 func (h *orderHandler) propose(req *pb.DealRequest, hubClient pb.HubClient) error {
-	h.status = statusProposing
+	h.setStatus(statusProposing)
 
 	_, err := hubClient.ProposeDeal(h.ctx, req)
 	if err != nil {
@@ -195,7 +212,7 @@ func (h *orderHandler) propose(req *pb.DealRequest, hubClient pb.HubClient) erro
 // openDeal creates deal on Ethereum blockchain
 func (h *orderHandler) openDeal(order *pb.Order, key *ecdsa.PrivateKey, wait time.Duration) (*big.Int, error) {
 	log.G(h.ctx).Info("creating deal on Etherum")
-	h.status = statusDealing
+	h.setStatus(statusDealing)
 
 	deal := &pb.Deal{
 		WorkTime:          h.order.GetSlot().GetDuration(),
@@ -220,7 +237,7 @@ func (h *orderHandler) openDeal(order *pb.Order, key *ecdsa.PrivateKey, wait tim
 // approveOnHub send deal to the Hub and wait for approval on Hub-side
 func (h *orderHandler) approveOnHub(req *pb.DealRequest, hub pb.HubClient) error {
 	log.G(h.ctx).Info("waiting for deal become approved")
-	h.status = statusWaitForApprove
+	h.setStatus(statusWaitForApprove)
 
 	_, err := hub.ApproveDeal(h.ctx, req)
 	if err != nil {
@@ -267,6 +284,7 @@ func (h *orderHandler) findDealOnce(key *ecdsa.PrivateKey, dealID *big.Int) *pb.
 type marketAPI struct {
 	remotes *remoteOptions
 	ctx     context.Context
+
 	taskMux sync.Mutex
 	tasks   map[string]*orderHandler
 }
@@ -284,6 +302,13 @@ func (m *marketAPI) registerHandler(id string, t *orderHandler) {
 	defer m.taskMux.Unlock()
 
 	m.tasks[id] = t
+}
+
+func (m *marketAPI) countHandlers() int {
+	m.taskMux.Lock()
+	defer m.taskMux.Unlock()
+
+	return len(m.tasks)
 }
 
 func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
@@ -480,9 +505,12 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		return err
 	}
 
+	handler.Lock()
 	handler.err = nil
 	handler.dealID = dealID.String()
 	handler.status = statusDone
+	handler.Unlock()
+
 	log.G(handler.ctx).Info("handler done",
 		zap.String("order_id", handler.id),
 		zap.String("deal_id", dealID.String()))

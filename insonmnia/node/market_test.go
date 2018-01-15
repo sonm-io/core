@@ -19,6 +19,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/grpclog"
 )
 
@@ -45,6 +46,7 @@ func makeSlot() *pb.Slot {
 
 func makeOrder() *pb.Order {
 	return &pb.Order{
+		Id:             "qwe",
 		PricePerSecond: pb.NewBigIntFromInt(100),
 		OrderType:      pb.OrderType_BID,
 		Slot:           makeSlot(),
@@ -142,22 +144,24 @@ func TestCreateOrder_FullAsyncOrderHandler(t *testing.T) {
 	opts := getTestRemotes(ctx, ctrl)
 
 	server, err := newMarketAPI(opts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	inner := server.(*marketAPI)
 	created, err := inner.CreateOrder(ctx, makeOrder())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
 
 	// wait for async handler is finished
 	time.Sleep(1 * time.Second)
-	assert.True(t, len(inner.tasks) == 1, "Handler must not be removed")
+	assert.True(t, inner.countHandlers() == 1, "Handler must not be removed")
 
-	handlr := inner.tasks[created.Id]
-	assert.Equal(t, statusDone, handlr.status,
-		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusDone], statusMap[handlr.status]))
+	handlr, ok := inner.getHandler(created.Id)
+	require.True(t, ok)
+
+	assert.Equal(t, statusDone, handlr.getStatus(),
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusDone], statusMap[handlr.getStatus()]))
 	assert.Equal(t, "1", handlr.dealID)
 }
 
@@ -179,19 +183,21 @@ func TestCreateOrder_CannotCreateHandler(t *testing.T) {
 	opts.market = m
 
 	server, err := newMarketAPI(opts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	inner := server.(*marketAPI)
 	created, err := inner.CreateOrder(ctx, makeOrder())
 
-	assert.NoError(t, err, "order must be created on remote market")
+	require.NoError(t, err, "order must be created on remote market")
 
 	time.Sleep(50 * time.Millisecond)
-	assert.True(t, len(inner.tasks) == 1)
+	assert.True(t, inner.countHandlers() == 1)
 
-	handlr := inner.tasks[created.Id]
-	assert.Equal(t, statusFailed, handlr.status,
-		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	handlr, ok := inner.getHandler(created.Id)
+	require.True(t, ok)
+
+	assert.Equal(t, statusFailed, handlr.getStatus(),
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.getStatus()]))
 	assert.Error(t, handlr.err)
 }
 
@@ -213,19 +219,21 @@ func TestCreateOrder_CannotFetchOrders(t *testing.T) {
 	opts.market = m
 
 	server, err := newMarketAPI(opts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	inner := server.(*marketAPI)
 
 	created, err := inner.CreateOrder(ctx, makeOrder())
-	assert.NoError(t, err, "order must be created on remote market")
+	require.NoError(t, err, "order must be created on remote market")
 
 	time.Sleep(50 * time.Millisecond)
-	assert.True(t, len(inner.tasks) == 1)
+	assert.True(t, inner.countHandlers() == 1)
 
-	handlr := inner.tasks[created.Id]
-	assert.Equal(t, statusFailed, handlr.status,
-		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	handlr, ok := inner.getHandler(created.Id)
+	require.True(t, ok)
+
+	assert.Equal(t, statusFailed, handlr.getStatus(),
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.getStatus()]))
 	assert.Error(t, handlr.err)
 	assert.EqualError(t, handlr.err, "TEST: cannot get orders")
 }
@@ -248,20 +256,22 @@ func TestCreateOrder_CannotNoMatchingOrders(t *testing.T) {
 	opts.market = m
 
 	server, err := newMarketAPI(opts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	inner := server.(*marketAPI)
 
 	created, err := inner.CreateOrder(ctx, makeOrder())
-	assert.NoError(t, err, "order must be created on remote market")
+	require.NoError(t, err, "order must be created on remote market")
 
 	time.Sleep(50 * time.Millisecond)
-	assert.True(t, len(inner.tasks) == 1)
+	assert.True(t, inner.countHandlers() == 1)
 
-	handlr := inner.tasks[created.Id]
-	assert.Equal(t, statusSearching, handlr.status,
-		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusSearching], statusMap[handlr.status]))
-	assert.NoError(t, handlr.err)
+	handlr, ok := inner.getHandler(created.Id)
+	require.True(t, ok)
+
+	assert.Equal(t, statusSearching, handlr.getStatus(),
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusSearching], statusMap[handlr.getStatus()]))
+	require.NoError(t, handlr.err)
 }
 
 func TestCreateOrder_CannotResolveHubIP(t *testing.T) {
@@ -277,23 +287,25 @@ func TestCreateOrder_CannotResolveHubIP(t *testing.T) {
 	opts.locator = loc
 
 	server, err := newMarketAPI(opts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	inner := server.(*marketAPI)
 	created, err := inner.CreateOrder(ctx, makeOrder())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
 
 	// wait for async handler is finished
 	time.Sleep(50 * time.Millisecond)
 
-	assert.True(t, len(inner.tasks) == 1, "Handler must not be removed")
+	assert.True(t, inner.countHandlers() == 1, "Handler must not be removed")
 
-	handlr := inner.tasks[created.Id]
-	assert.Equal(t, statusFailed, handlr.status,
-		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	handlr, ok := inner.getHandler(created.Id)
+	require.True(t, ok)
+
+	assert.Equal(t, statusFailed, handlr.getStatus(),
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.getStatus()]))
 	assert.Error(t, handlr.err)
 	assert.EqualError(t, handlr.err, errProposeNotAccepted.Error())
 }
@@ -321,23 +333,25 @@ func TestCreateOrder_CannotCreateDeal(t *testing.T) {
 	opts.eth = eth
 
 	server, err := newMarketAPI(opts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	inner := server.(*marketAPI)
 	created, err := inner.CreateOrder(ctx, makeOrder())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
 
 	// wait for async handler is finished
 	time.Sleep(1 * time.Second)
 
-	assert.True(t, len(inner.tasks) == 1, "Handler must not be removed")
+	assert.True(t, inner.countHandlers() == 1, "Handler must not be removed")
 
-	handlr := inner.tasks[created.Id]
-	assert.Equal(t, statusFailed, handlr.status,
-		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	handlr, ok := inner.getHandler(created.Id)
+	require.True(t, ok)
+
+	assert.Equal(t, statusFailed, handlr.getStatus(),
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.getStatus()]))
 	assert.Error(t, handlr.err)
 	assert.EqualError(t, handlr.err, "TEST: cannot open deal")
 }
@@ -357,22 +371,24 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 	}
 
 	server, err := newMarketAPI(opts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	inner := server.(*marketAPI)
 	created, err := inner.CreateOrder(ctx, makeOrder())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
 
 	// wait for async handler is finished
 	time.Sleep(1 * time.Second)
-	assert.True(t, len(inner.tasks) == 1, "Handler must not be removed")
+	assert.True(t, inner.countHandlers() == 1, "Handler must not be removed")
 
-	handlr := inner.tasks[created.Id]
-	assert.Equal(t, statusFailed, handlr.status,
-		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	handlr, ok := inner.getHandler(created.Id)
+	require.True(t, ok)
+
+	assert.Equal(t, statusFailed, handlr.getStatus(),
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.getStatus()]))
 	assert.Error(t, handlr.err)
 }
 
@@ -391,23 +407,25 @@ func TestCreateOrder_LackAllowanceBalance(t *testing.T) {
 	opts.eth = eth
 
 	server, err := newMarketAPI(opts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	inner := server.(*marketAPI)
 	created, err := inner.CreateOrder(ctx, makeOrder())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
 
 	// wait for async handler is finished
 	time.Sleep(1 * time.Second)
 
-	assert.Equal(t, len(inner.tasks), 1, "Handler must not be removed")
+	assert.Equal(t, inner.countHandlers(), 1, "Handler must not be removed")
 
-	handlr := inner.tasks[created.Id]
-	assert.Equal(t, statusFailed, handlr.status,
-		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	handlr, ok := inner.getHandler(created.Id)
+	require.True(t, ok)
+
+	assert.Equal(t, statusFailed, handlr.getStatus(),
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.getStatus()]))
 	assert.Error(t, handlr.err, errProposeNotAccepted)
 }
 
@@ -427,23 +445,25 @@ func TestCreateOrder_LackAllowance(t *testing.T) {
 	opts.eth = eth
 
 	server, err := newMarketAPI(opts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	inner := server.(*marketAPI)
 	created, err := inner.CreateOrder(ctx, makeOrder())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
 
 	// wait for async handler is finished
 	time.Sleep(1 * time.Second)
 
-	assert.Equal(t, len(inner.tasks), 1, "Handler must not be removed")
+	assert.Equal(t, inner.countHandlers(), 1, "Handler must not be removed")
 
-	handlr := inner.tasks[created.Id]
-	assert.Equal(t, statusFailed, handlr.status,
-		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	handlr, ok := inner.getHandler(created.Id)
+	require.True(t, ok)
+
+	assert.Equal(t, statusFailed, handlr.getStatus(),
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.getStatus()]))
 	assert.Error(t, handlr.err, errProposeNotAccepted)
 }
 
@@ -465,22 +485,24 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 	opts.eth = eth
 
 	server, err := newMarketAPI(opts)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	inner := server.(*marketAPI)
 	created, err := inner.CreateOrder(ctx, makeOrder())
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, created)
 	assert.NotEmpty(t, created.Id)
 
 	// wait for async handler is finished
 	time.Sleep(1 * time.Second)
-	assert.Equal(t, len(inner.tasks), 1, "Handler must not be removed")
+	assert.Equal(t, inner.countHandlers(), 1, "Handler must not be removed")
 
-	handlr := inner.tasks[created.Id]
-	assert.Equal(t, statusFailed, handlr.status,
-		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.status]))
+	handlr, ok := inner.getHandler(created.Id)
+	require.True(t, ok)
+
+	assert.Equal(t, statusFailed, handlr.getStatus(),
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.getStatus()]))
 	assert.Error(t, handlr.err, errProposeNotAccepted)
 }
 
