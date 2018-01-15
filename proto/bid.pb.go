@@ -73,6 +73,7 @@ It has these top-level messages:
 	GetOrdersRequest
 	GetOrdersReply
 	GetProcessingReply
+	TouchOrdersRequest
 	MinerHandshakeRequest
 	MinerHandshakeReply
 	MinerStartRequest
