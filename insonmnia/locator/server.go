@@ -53,38 +53,44 @@ func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Em
 	}
 
 	var (
-		okIPs      []string
-		skippedIPs []string
+		okEndpoints      []string
+		skippedEndpoints []string
 	)
-	for _, strIP := range req.IpAddr {
+	for _, endpoint := range req.IpAddr {
+		strIP, _, err := net.SplitHostPort(endpoint)
+		if err != nil {
+			skippedEndpoints = append(skippedEndpoints, endpoint)
+			continue
+		}
+
 		if l.onlyPublicIPs {
 			if ip := net.ParseIP(strIP); ip != nil && !util.IsPrivateIP(ip) {
-				okIPs = append(okIPs, strIP)
+				okEndpoints = append(okEndpoints, endpoint)
 			} else {
-				skippedIPs = append(skippedIPs, strIP)
+				skippedEndpoints = append(skippedEndpoints, endpoint)
 			}
 		} else {
-			okIPs = append(okIPs, strIP)
+			okEndpoints = append(okEndpoints, endpoint)
 		}
 	}
 
-	if len(skippedIPs) > 0 {
+	if len(skippedEndpoints) > 0 {
 		log.G(l.ctx).Info("skipped some announced IPs (only public IPs mode is on)",
 			zap.Stringer("eth", ethAddr),
-			zap.Strings("skipped_ips", skippedIPs))
+			zap.Strings("skipped_ips", skippedEndpoints))
 	}
 
-	if len(okIPs) < 1 {
+	if len(okEndpoints) < 1 {
 		return nil, errors.New("no white IPs provided")
 	}
 
 	log.G(l.ctx).Info("handling Announce request",
 		zap.Stringer("eth", ethAddr),
-		zap.Strings("ips", okIPs))
+		zap.Strings("ips", okEndpoints))
 
 	err = l.put(&record{
 		EthAddr: ethAddr,
-		IPs:     okIPs,
+		IPs:     okEndpoints,
 	})
 
 	if err != nil {
