@@ -218,7 +218,7 @@ func (h *orderHandler) openDeal(order *pb.Order, key *ecdsa.PrivateKey, wait tim
 		WorkTime:          h.order.GetSlot().GetDuration(),
 		SupplierID:        order.GetSupplierID(),
 		BuyerID:           util.PubKeyToAddr(key.PublicKey).Hex(),
-		Price:             structs.CalculateTotalPrice(h.order).String(),
+		Price:             pb.NewBigInt(structs.CalculateTotalPrice(h.order)),
 		Status:            pb.DealStatus_PENDING,
 		SpecificationHash: h.slotSpecHash(),
 	}

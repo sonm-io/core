@@ -8,7 +8,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
-	"github.com/sonm-io/core/proto"
+	pb "github.com/sonm-io/core/proto"
 )
 
 const testPass = "any"
@@ -48,11 +48,11 @@ func main() {
 	//	return
 	//}
 
-	deal := sonm.Deal{
+	deal := pb.Deal{
 		BuyerID:           "0x8125721c2413d99a33e351e1f6bb4e56b6b633fd",
 		SupplierID:        "0x8125721c2413d99a33e351e1f6bb4e56b6b633fd",
 		SpecificationHash: "1234567890",
-		Price:             "100",
+		Price:             pb.NewBigIntFromInt(100),
 		WorkTime:          60,
 	}
 
