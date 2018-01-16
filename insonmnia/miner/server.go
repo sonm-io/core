@@ -115,7 +115,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	if o.hardware == nil {
-		o.hardware = hardware.New(ctx)
+		o.hardware = hardware.New()
 	}
 
 	hardwareInfo, err := o.hardware.Info()

@@ -1,13 +1,9 @@
 package hardware
 
 import (
-	"context"
-
-	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/shirou/gopsutil/mem"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
-	"go.uber.org/zap"
 )
 
 // Hardware accumulates the finest hardware information about system the miner
@@ -59,9 +55,7 @@ type HardwareInfo interface {
 	Info() (*Hardware, error)
 }
 
-type hardwareInfo struct {
-	ctx context.Context
-}
+type hardwareInfo struct{}
 
 func (*hardwareInfo) CPU() ([]cpu.Device, error) {
 	return cpu.GetCPUDevices()
@@ -88,8 +82,7 @@ func (h *hardwareInfo) Info() (*Hardware, error) {
 
 	gpuInfo, err := h.GPU()
 	if err != nil {
-		log.G(h.ctx).Warn("cannot get GPU devices list", zap.Error(err))
-		gpuInfo = make([]gpu.Device, 0)
+		return nil, err
 	}
 
 	hardware := &Hardware{
@@ -102,6 +95,6 @@ func (h *hardwareInfo) Info() (*Hardware, error) {
 }
 
 // New constructs a new hardware info collector.
-func New(ctx context.Context) HardwareInfo {
-	return &hardwareInfo{ctx: ctx}
+func New() HardwareInfo {
+	return &hardwareInfo{}
 }
