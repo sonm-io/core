@@ -55,8 +55,7 @@ type HardwareInfo interface {
 	Info() (*Hardware, error)
 }
 
-type hardwareInfo struct {
-}
+type hardwareInfo struct{}
 
 func (*hardwareInfo) CPU() ([]cpu.Device, error) {
 	return cpu.GetCPUDevices()
@@ -83,7 +82,7 @@ func (h *hardwareInfo) Info() (*Hardware, error) {
 
 	gpuInfo, err := h.GPU()
 	if err != nil {
-		gpuInfo = make([]gpu.Device, 0)
+		return nil, err
 	}
 
 	hardware := &Hardware{
