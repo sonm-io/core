@@ -101,10 +101,6 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		o.ctx = context.Background()
 	}
 
-	if o.hardware == nil {
-		o.hardware = hardware.New()
-	}
-
 	if len(o.uuid) == 0 {
 		o.uuid = uuid.New()
 	}
@@ -116,6 +112,10 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 			cancel()
 			return nil, err
 		}
+	}
+
+	if o.hardware == nil {
+		o.hardware = hardware.New(ctx)
 	}
 
 	hardwareInfo, err := o.hardware.Info()
