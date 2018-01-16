@@ -900,16 +900,13 @@ func (h *Hub) waitForDealCreatedAndAccepted(ctx context.Context, req *structs.De
 
 	log.G(ctx).Info("received created deal",
 		zap.String("dealID", createdDeal.GetId()),
-		zap.String("dealPrice", createdDeal.Price),
+		zap.String("dealPrice", createdDeal.Price.Unwrap().String()),
 		zap.String("orderPrice", order.PricePerSecond.Unwrap().String()),
 	)
 
-	dealPrice, err := util.ParseBigInt(createdDeal.Price)
-	if err != nil {
-		return nil, err
-	}
-	if cmp := dealPrice.Cmp(order.GetTotalPrice()); cmp != 0 {
-		return nil, fmt.Errorf("prices are not equal: %v != %v", dealPrice, order.GetTotalPrice())
+	if cmp := createdDeal.Price.Cmp(pb.NewBigInt(order.GetTotalPrice())); cmp != 0 {
+		return nil, fmt.Errorf("prices are not equal: %v != %v",
+			createdDeal.Price.Unwrap().String(), order.GetTotalPrice())
 	}
 
 	dealID := DealID(createdDeal.GetId())

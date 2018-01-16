@@ -170,17 +170,12 @@ func (bch *api) OpenDeal(key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transacti
 		return nil, err
 	}
 
-	bigPrice, err := util.ParseBigInt(deal.Price)
-	if err != nil {
-		return nil, err
-	}
-
 	tx, err := bch.dealsContract.OpenDeal(
 		opts,
 		common.HexToAddress(deal.GetSupplierID()),
 		common.HexToAddress(deal.GetBuyerID()),
 		bigSpec,
-		bigPrice,
+		deal.Price.Unwrap(),
 		big.NewInt(int64(deal.GetWorkTime())),
 	)
 	if err != nil {
@@ -548,7 +543,7 @@ func (bch *api) GetDealInfo(id *big.Int) (*pb.Deal, error) {
 		BuyerID:           deal.Client.String(),
 		SupplierID:        deal.Hub.String(),
 		SpecificationHash: deal.SpecHach.String(),
-		Price:             deal.Price.String(),
+		Price:             pb.NewBigInt(deal.Price),
 		Status:            pb.DealStatus(deal.Status.Int64()),
 		StartTime:         &pb.Timestamp{Seconds: deal.StartTime.Int64()},
 		WorkTime:          deal.WorkTime.Uint64(),

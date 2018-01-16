@@ -190,8 +190,6 @@ message DevicesReply {
 
 message InsertSlotRequest {
     Slot slot = 1;
-    // todo(all): remove this field
-    string price = 2;
     BigInt pricePerSecond = 4;
 
     string buyerID = 3;
