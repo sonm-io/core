@@ -542,6 +542,10 @@ func (m *marketAPI) CancelOrder(ctx context.Context, order *pb.Order) (*pb.Empty
 	return repl, err
 }
 
+func (m *marketAPI) TouchOrders(ctx context.Context, req *pb.TouchOrdersRequest) (*pb.Empty, error) {
+	return m.remotes.market.TouchOrders(ctx, req)
+}
+
 func (m *marketAPI) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetProcessingReply, error) {
 	m.taskMux.Lock()
 	defer m.taskMux.Unlock()

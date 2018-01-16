@@ -10,6 +10,7 @@ service Market {
     rpc GetOrderByID(ID) returns (Order) {}
     rpc CreateOrder(Order) returns (Order) {}
     rpc CancelOrder(Order) returns (Empty) {}
+    rpc TouchOrders(TouchOrdersRequest) returns (Empty) {}
     // GetProcessing returns currently processing orders
     // not required in Marketplace service
     // must be implemented on Node
@@ -38,4 +39,8 @@ message GetProcessingReply {
     }
 
     map <string, ProcessedOrder> orders = 2;
+}
+
+message TouchOrdersRequest {
+    repeated string IDs = 1;
 }
