@@ -47,7 +47,6 @@ It has these top-level messages:
 	InsertSlotRequest
 	PullTaskRequest
 	DealInfoReply
-	CompletedTask
 	Empty
 	ID
 	TaskID
@@ -87,6 +86,7 @@ It has these top-level messages:
 	TaskListRequest
 	DealListRequest
 	DealListReply
+	DealStatusReply
 */
 package sonm
 
