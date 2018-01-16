@@ -124,6 +124,8 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		return nil, err
 	}
 
+	log.G(ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
+
 	cgroup, cGroupManager, err := makeCgroupManager(cfg.HubResources())
 	if err != nil {
 		cancel()
