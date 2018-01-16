@@ -33,7 +33,7 @@ func main() {
 
 	cfg, err := miner.NewConfig(*configPath)
 	if err != nil {
-		log.G(ctx).Error("Cannot load config", zap.Error(err))
+		log.G(ctx).Error("cannot load config", zap.Error(err))
 		os.Exit(1)
 	}
 
@@ -48,7 +48,7 @@ func main() {
 	}
 	uuidData, err := ioutil.ReadFile(cfg.UUIDPath())
 	if err != nil {
-		log.G(ctx).Error("Cannot load uuid", zap.Error(err))
+		log.G(ctx).Error("cannot load uuid", zap.Error(err))
 		os.Exit(1)
 	}
 	uuid := string(uuidData)
@@ -57,6 +57,11 @@ func main() {
 	ctx = log.WithLogger(ctx, logger)
 
 	m, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithUUID(uuid))
+	if err != nil {
+		log.G(ctx).Error("cannot create worker instance", zap.Error(err))
+		os.Exit(1)
+	}
+
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
