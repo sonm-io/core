@@ -32,6 +32,7 @@ It has these top-level messages:
 	HubStartTaskReply
 	HubStatusReply
 	DealRequest
+	ApproveDealRequest
 	GetDevicePropertiesReply
 	SetDevicePropertiesRequest
 	SlotsReply

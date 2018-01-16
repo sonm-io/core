@@ -9,7 +9,6 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/blockchain"
-	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
@@ -64,6 +63,7 @@ func TestEth_WaitForDealCreated(t *testing.T) {
 
 	bC.EXPECT().GetDealInfo(big.NewInt(100)).AnyTimes().Return(
 		&pb.Deal{
+			Id:                "100500",
 			SupplierID:        addr,
 			BuyerID:           "client-addr",
 			Status:            pb.DealStatus_ACCEPTED,
@@ -72,12 +72,12 @@ func TestEth_WaitForDealCreated(t *testing.T) {
 		nil)
 	bC.EXPECT().GetDealInfo(big.NewInt(200)).AnyTimes().Return(
 		&pb.Deal{
+			Id:                "42",
 			SupplierID:        addr,
 			BuyerID:           "client-addr",
 			Status:            pb.DealStatus_PENDING,
 			SpecificationHash: "bbb",
-		},
-		nil)
+		}, nil)
 
 	eeth := &eth{
 		ctx:     context.Background(),
@@ -86,14 +86,7 @@ func TestEth_WaitForDealCreated(t *testing.T) {
 		timeout: time.Second,
 	}
 
-	req, err := structs.NewDealRequest(&pb.DealRequest{
-		AskId:    addr,
-		BidId:    "client-addr",
-		SpecHash: "bbb",
-	})
-	assert.NoError(t, err)
-
-	found, err := eeth.WaitForDealCreated(req, "client-addr")
+	found, err := eeth.WaitForDealCreated(DealID("42"), "client-addr")
 
 	assert.NoError(t, err)
 	assert.Equal(t, "bbb", found.SpecificationHash)
@@ -112,6 +105,7 @@ func TestEth_CheckDealExists2(t *testing.T) {
 
 	bC.EXPECT().GetDealInfo(big.NewInt(100)).AnyTimes().Return(
 		&pb.Deal{
+			Id:                "42",
 			SupplierID:        addr,
 			BuyerID:           "client-addr",
 			Status:            pb.DealStatus_PENDING,
@@ -126,14 +120,7 @@ func TestEth_CheckDealExists2(t *testing.T) {
 		timeout: time.Second,
 	}
 
-	req, err := structs.NewDealRequest(&pb.DealRequest{
-		AskId:    addr,
-		BidId:    "client-addr",
-		SpecHash: "aaa",
-	})
-	assert.NoError(t, err)
-
-	found, err := eeth.WaitForDealCreated(req, "client-addr")
+	found, err := eeth.WaitForDealCreated("43", "client-addr")
 	assert.Nil(t, found)
 	assert.Error(t, err)
 	assert.EqualError(t, err, "context deadline exceeded")

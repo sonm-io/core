@@ -31,7 +31,7 @@ service Hub {
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
 
     rpc ProposeDeal(DealRequest) returns (Empty) {}
-    rpc ApproveDeal(DealRequest) returns (Empty) {}
+    rpc ApproveDeal(ApproveDealRequest) returns (Empty) {}
 
     // Note: currently used for testing pusposes.
     rpc GetDealInfo(ID) returns (DealInfoReply) {}
@@ -119,7 +119,12 @@ message DealRequest {
     string bidId = 1;
     string askId = 2;
     string specHash = 4;
-    BigInt dealID = 5;
+}
+
+message ApproveDealRequest {
+    BigInt dealID = 1;
+    string bidID = 2;
+    string askID = 3;
 }
 
 message GetDevicePropertiesReply {
