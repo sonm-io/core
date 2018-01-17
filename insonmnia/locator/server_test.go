@@ -132,7 +132,11 @@ func TestLocator_AnnounceExternal(t *testing.T) {
 	}
 
 	locatorClient := pb.NewLocatorClient(conn)
-	_, err = locatorClient.Announce(context.Background(), &pb.AnnounceRequest{IpAddr: []string{"41.41.41.41"}})
+
+	_, err = locatorClient.Announce(context.Background(), &pb.AnnounceRequest{IpAddr: []string{"192.168.0.0"}})
+	assert.Error(t, err)
+
+	_, err = locatorClient.Announce(context.Background(), &pb.AnnounceRequest{IpAddr: []string{"41.41.41.41:10001"}})
 	if err != nil {
 		t.Error(err)
 		return
@@ -142,7 +146,7 @@ func TestLocator_AnnounceExternal(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, rec.EthAddr, util.PubKeyToAddr(key.PublicKey))
-	assert.Equal(t, rec.IPs, []string{"41.41.41.41"})
+	assert.Equal(t, []string{"41.41.41.41:10001"}, rec.IPs)
 
 	if err := conn.Close(); err != nil {
 		t.Error(err)
@@ -189,15 +193,15 @@ func TestLocator_SkipPrivateIP(t *testing.T) {
 	}
 
 	locatorClient := pb.NewLocatorClient(conn)
-	_, err = locatorClient.Announce(context.Background(), &pb.AnnounceRequest{IpAddr: []string{"192.168.0.0"}})
+	_, err = locatorClient.Announce(context.Background(), &pb.AnnounceRequest{IpAddr: []string{"192.168.0.0:10001"}})
 	assert.Error(t, err)
 
 	_, err = locatorClient.Announce(context.Background(),
-		&pb.AnnounceRequest{IpAddr: []string{"42.42.42.42", "192.168.0.0"}})
+		&pb.AnnounceRequest{IpAddr: []string{"42.42.42.42:10001", "192.168.0.0:10001"}})
 	assert.NoError(t, err)
 	rec, err := lc.get(util.PubKeyToAddr(key.PublicKey))
 	assert.NoError(t, err)
-	assert.Equal(t, rec.IPs, []string{"42.42.42.42"})
+	assert.Equal(t, []string{"42.42.42.42:10001"}, rec.IPs)
 
 	if err := conn.Close(); err != nil {
 		t.Error(err)

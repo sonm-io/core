@@ -101,10 +101,6 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		o.ctx = context.Background()
 	}
 
-	if o.hardware == nil {
-		o.hardware = hardware.New()
-	}
-
 	if len(o.uuid) == 0 {
 		o.uuid = uuid.New()
 	}
@@ -118,11 +114,17 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		}
 	}
 
+	if o.hardware == nil {
+		o.hardware = hardware.New()
+	}
+
 	hardwareInfo, err := o.hardware.Info()
 	if err != nil {
 		cancel()
 		return nil, err
 	}
+
+	log.G(ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
 
 	cgroup, cGroupManager, err := makeCgroupManager(cfg.HubResources())
 	if err != nil {
@@ -850,14 +852,19 @@ func (m *Miner) Serve() error {
 // Close disposes all resources related to the Miner
 func (m *Miner) Close() {
 	log.G(m.ctx).Info("closing miner")
+
 	m.cancel()
 	m.grpcServer.Stop()
+
 	if m.ssh != nil {
 		m.ssh.Close()
 	}
+
 	if m.certRotator != nil {
 		m.certRotator.Close()
 	}
+
+	m.ovs.Close()
 	m.rl.Close()
 	m.controlGroup.Delete()
 }

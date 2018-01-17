@@ -12,6 +12,7 @@ import (
 	accounts "github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
+	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
@@ -42,6 +43,24 @@ func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	return cfg
 }
 
+func magicHardware(ctrl *gomock.Controller) hardware.HardwareInfo {
+	hw := hardware.NewMockHardwareInfo(ctrl)
+
+	c := []cpu.Device{}
+	g1, _ := gpu.NewDevice("test", "null", 1, 2)
+	g := []gpu.Device{g1}
+	m := &mem.VirtualMemoryStat{}
+
+	h := &hardware.Hardware{CPU: c, GPU: g, Memory: m}
+
+	hw.EXPECT().CPU().AnyTimes().Return(c, nil)
+	hw.EXPECT().GPU().AnyTimes().Return(g, nil)
+	hw.EXPECT().Memory().AnyTimes().Return(m, nil)
+	hw.EXPECT().Info().AnyTimes().Return(h, nil)
+
+	return hw
+}
+
 func TestServerNewExtractsHubEndpoint(t *testing.T) {
 	mock := gomock.NewController(t)
 	defer mock.Finish()
@@ -49,8 +68,9 @@ func TestServerNewExtractsHubEndpoint(t *testing.T) {
 	ovs := NewMockOverseer(mock)
 	cfg := defaultMockCfg(mock)
 	locator := pb.NewMockLocatorClient(mock)
+	hw := magicHardware(mock)
 
-	m, err := NewMiner(cfg, WithKey(key), WithLocatorClient(locator), WithOverseer(ovs))
+	m, err := NewMiner(cfg, WithKey(key), WithLocatorClient(locator), WithOverseer(ovs), WithHardware(hw))
 	cfg.EXPECT().GPU().AnyTimes()
 
 	require.NoError(t, err)
@@ -107,8 +127,9 @@ func TestMinerInfo(t *testing.T) {
 	info["id1"] = ContainerMetrics{mem: types.MemoryStats{Usage: 42, MaxUsage: 43}}
 	ovs.EXPECT().Info(gomock.Any()).AnyTimes().Return(info, nil)
 	locator := pb.NewMockLocatorClient(mock)
+	hw := magicHardware(mock)
 
-	m, err := NewMiner(cfg, WithKey(key), WithOverseer(ovs), WithLocatorClient(locator))
+	m, err := NewMiner(cfg, WithKey(key), WithOverseer(ovs), WithLocatorClient(locator), WithHardware(hw))
 	t.Log(err)
 	require.NotNil(t, m)
 	require.Nil(t, err)
@@ -167,9 +188,10 @@ func TestMinerStart(t *testing.T) {
 	}
 	ovs.EXPECT().Start(gomock.Any(), gomock.Any()).Times(1).Return(statusChan, info, nil)
 	locator := pb.NewMockLocatorClient(mock)
+	hw := magicHardware(mock)
 
 	m, err := NewMiner(cfg, WithKey(key), WithOverseer(ovs),
-		WithUUID("deadbeef-cafe-dead-beef-cafedeadbeef"), WithLocatorClient(locator))
+		WithUUID("deadbeef-cafe-dead-beef-cafedeadbeef"), WithLocatorClient(locator), WithHardware(hw))
 
 	require.NotNil(t, m)
 	require.Nil(t, err)
