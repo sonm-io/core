@@ -10,6 +10,7 @@ import (
 
 var (
 	errMalformedOpenCLVersion = errors.New("malformed OpenCL device version string")
+	ErrUnsupportedPlatform    = errors.New("the platform is not currently supported to expose GPU devices")
 )
 
 // Device describes a GPU device.
