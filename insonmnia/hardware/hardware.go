@@ -82,7 +82,11 @@ func (h *hardwareInfo) Info() (*Hardware, error) {
 
 	gpuInfo, err := h.GPU()
 	if err != nil {
-		return nil, err
+		if err != gpu.ErrUnsupportedPlatform {
+			return nil, err
+		}
+
+		gpuInfo = make([]gpu.Device, 0)
 	}
 
 	hardware := &Hardware{
