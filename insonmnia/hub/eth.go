@@ -7,10 +7,12 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/blockchain/tsc"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -31,7 +33,7 @@ type ETH interface {
 	// of data.
 	GetClosedDeals(ctx context.Context) ([]*pb.Deal, error)
 	// WaitForDealCreated waits for deal created on Buyer-side
-	WaitForDealCreated(dealID DealID, buyerID string) (*pb.Deal, error)
+	WaitForDealCreated(dealID DealID, buyerID common.Address) (*pb.Deal, error)
 	// WaitForDealClosed blocks the current execution context until the
 	// specified deal is closed.
 	WaitForDealClosed(ctx context.Context, dealID DealID, buyerID string) error
@@ -107,9 +109,15 @@ func (e *eth) getTemplateDeals(ctx context.Context, fn func(string, string) ([]*
 	return deals, nil
 }
 
-func (e *eth) WaitForDealCreated(dealID DealID, buyerID string) (*pb.Deal, error) {
+func (e *eth) WaitForDealCreated(dealID DealID, buyerID common.Address) (*pb.Deal, error) {
 	log.G(e.ctx).Debug("waiting for deal created", zap.Stringer("dealID", dealID))
-	return e.findDeals(e.ctx, dealID, buyerID)
+
+	id, err := util.ParseBigInt(dealID.String())
+	if err != nil {
+		return nil, err
+	}
+
+	return e.findDeals(e.ctx, id, buyerID)
 }
 
 func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID string) error {
@@ -147,21 +155,21 @@ func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID stri
 	}
 }
 
-func (e *eth) findDeals(ctx context.Context, dealID DealID, addr string) (*pb.Deal, error) {
+func (e *eth) findDeals(ctx context.Context, dealID *big.Int, buyerID common.Address) (*pb.Deal, error) {
 	ctx, cancel := context.WithTimeout(e.ctx, e.timeout)
 	defer cancel()
 
 	tk := time.NewTicker(3 * time.Second)
 	defer tk.Stop()
 
-	if deal := e.findDealOnce(addr, dealID); deal != nil {
+	if deal := e.findDealOnce(buyerID, dealID); deal != nil {
 		return deal, nil
 	}
 
 	for {
 		select {
 		case <-tk.C:
-			if deal := e.findDealOnce(addr, dealID); deal != nil {
+			if deal := e.findDealOnce(buyerID, dealID); deal != nil {
 				return deal, nil
 			}
 		case <-ctx.Done():
@@ -170,27 +178,23 @@ func (e *eth) findDeals(ctx context.Context, dealID DealID, addr string) (*pb.De
 	}
 }
 
-func (e *eth) findDealOnce(addr string, dealID DealID) *pb.Deal {
-	IDs, err := e.bc.GetOpenedDeal(crypto.PubkeyToAddress(e.key.PublicKey).Hex(), addr)
+func (e *eth) findDealOnce(buyerID common.Address, dealID *big.Int) *pb.Deal {
+	deal, err := e.bc.GetDealInfo(dealID)
 	if err != nil {
 		return nil
 	}
 
-	log.G(e.ctx).Info("found some opened deals",
-		zap.String("addr", addr),
-		zap.Stringer("dealID", dealID),
-		zap.Int("count", len(IDs)),
-	)
+	log.G(e.ctx).Info("deal found",
+		zap.String("dealID", deal.GetId()),
+		zap.String("supplierID", deal.GetSupplierID()),
+		zap.String("buyerID", deal.GetBuyerID()))
 
-	for i := len(IDs) - 1; i >= 0; i-- {
-		deal, err := e.bc.GetDealInfo(IDs[i])
-		if err != nil {
-			continue
-		}
+	me := util.PubKeyToAddr(e.key.PublicKey)
+	dealSupplier := common.HexToAddress(deal.GetSupplierID())
+	dealBuyer := common.HexToAddress(deal.GetBuyerID())
 
-		if deal.GetStatus() == pb.DealStatus_PENDING && deal.GetId() == dealID.String() {
-			return deal
-		}
+	if auth.EqualAddresses(buyerID, dealBuyer) && auth.EqualAddresses(me, dealSupplier) {
+		return deal
 	}
 
 	return nil
