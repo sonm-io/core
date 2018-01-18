@@ -601,7 +601,7 @@ func (h *Hub) stopTask(ctx context.Context, task *TaskInfo) error {
 
 	err = h.deleteTask(task.ID)
 	if err != nil {
-		log.G(ctx).Warn("cannot delete task", zap.Error(err))
+		log.G(ctx).Error("cannot delete task", zap.Error(err))
 		return err
 	}
 
@@ -631,7 +631,7 @@ func (h *Hub) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, er
 		taskDetails, err := mctx.Client.TaskDetails(ctx, &pb.ID{Id: t.ID})
 		if err != nil {
 			log.G(h.ctx).Warn("cannot get task status",
-				zap.String("worker_id", t.MinerId), zap.String("task_id", t.ID), zap.Error(err))
+				zap.String("workerID", t.MinerId), zap.String("taskID", t.ID), zap.Error(err))
 			continue
 		}
 
