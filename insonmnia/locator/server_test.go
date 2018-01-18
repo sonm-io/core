@@ -39,13 +39,13 @@ func TestLocator_Announce(t *testing.T) {
 	}
 
 	for _, addr := range put {
-		lc.put(&record{EthAddr: common.StringToAddress(addr)})
+		lc.put(&record{EthAddr: common.HexToAddress(addr)})
 	}
 
 	for _, addr := range put {
-		rk, err := lc.get(common.StringToAddress(addr))
+		rk, err := lc.get(common.HexToAddress(addr))
 		assert.NoError(t, err)
-		assert.Equal(t, rk.EthAddr, common.StringToAddress(addr))
+		assert.Equal(t, rk.EthAddr, common.HexToAddress(addr))
 	}
 }
 
@@ -56,10 +56,10 @@ func TestLocator_Resolve(t *testing.T) {
 		return
 	}
 
-	n := &record{EthAddr: common.StringToAddress("123"), IPs: []string{"111", "222"}}
+	n := &record{EthAddr: common.HexToAddress("123"), IPs: []string{"111", "222"}}
 	lc.put(n)
 
-	n2, err := lc.get(common.StringToAddress("123"))
+	n2, err := lc.get(common.HexToAddress("123"))
 	assert.NoError(t, err)
 	assert.Len(t, n2.IPs, 2)
 }
@@ -71,10 +71,10 @@ func TestLocator_Resolve2(t *testing.T) {
 		return
 	}
 
-	n := &record{EthAddr: common.StringToAddress("123"), IPs: []string{"111", "222"}}
+	n := &record{EthAddr: common.HexToAddress("123"), IPs: []string{"111", "222"}}
 	lc.put(n)
 
-	n2, err := lc.get(common.StringToAddress("666"))
+	n2, err := lc.get(common.HexToAddress("666"))
 	assert.Equal(t, err, errNodeNotFound)
 	assert.Nil(t, n2)
 }
@@ -86,14 +86,14 @@ func TestLocator_Expire(t *testing.T) {
 		return
 	}
 
-	lc.put(&record{EthAddr: common.StringToAddress("111")})
+	lc.put(&record{EthAddr: common.HexToAddress("111")})
 	time.Sleep(500 * time.Millisecond)
-	rec, err := lc.get(common.StringToAddress("111"))
+	rec, err := lc.get(common.HexToAddress("111"))
 	assert.NoError(t, err)
-	assert.Equal(t, rec.EthAddr, common.StringToAddress("111"))
+	assert.Equal(t, rec.EthAddr, common.HexToAddress("111"))
 
 	time.Sleep(1000 * time.Millisecond)
-	rec, err = lc.get(common.StringToAddress("111"))
+	rec, err = lc.get(common.HexToAddress("111"))
 	assert.Error(t, err)
 	assert.Nil(t, rec)
 }
