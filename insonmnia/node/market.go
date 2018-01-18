@@ -449,7 +449,7 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		if !m.checkBalanceAndAllowance(price, balance, allowance) {
 			log.G(handler.ctx).Info("lack of balance or allowance for order", zap.String("order_id", ord.Id))
 			handler.setError(errLackOfBalance)
-			continue
+			return errLackOfBalance
 		}
 
 		hubClient, cc, err = handler.makeHubClient(ord.SupplierID)
