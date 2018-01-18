@@ -266,6 +266,13 @@ func (m *MinerCtx) consume(id OrderID, usage *resource.Resources) error {
 	return nil
 }
 
+func (m *MinerCtx) OrderExists(id OrderID) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.orderExists(id)
+}
+
 func (m *MinerCtx) orderExists(id OrderID) bool {
 	_, exists := m.usageMapping[id]
 	return exists

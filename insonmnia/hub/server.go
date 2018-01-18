@@ -135,6 +135,9 @@ type Hub struct {
 	// Note: this field is protected by tasksMu mutex.
 	deals map[DealID]*DealMeta
 
+	// Reserved orders.
+	orderShelter *OrderShelter
+
 	// Tasks
 	tasks   map[string]*TaskInfo
 	tasksMu sync.Mutex
@@ -787,11 +790,11 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	if !h.hasSlot(r.AskId) {
+	if !h.hasSlot(request.AskId) {
 		return nil, status.Errorf(codes.NotFound, "slot not found")
 	}
 
-	bidOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: r.GetBidId()})
+	bidOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: request.GetBidId()})
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "bid not found")
 	}
@@ -801,7 +804,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, status.Errorf(codes.Internal, "bid order is malformed: %v", err)
 	}
 
-	askOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: r.GetAskId()})
+	askOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: request.GetAskId()})
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "ask not found")
 	}
@@ -812,8 +815,14 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		}
 
 		log.G(h.ctx).Info("handle proposal for bound order",
-			zap.String("bid_id", r.GetBidId()),
-			zap.String("ask_id", r.GetAskId()))
+			zap.String("bidID", request.GetBidId()),
+			zap.String("askID", request.GetAskId()),
+		)
+	}
+
+	// Verify that bid's duration fits in ask.
+	if bidOrder.GetDuration() > askOrder.GetDuration() {
+		return nil, status.Errorf(codes.InvalidArgument, "bid's duration must fit in ask")
 	}
 
 	// Verify that bid price >= ask price, i.e we're not selling our resources
@@ -846,97 +855,118 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
+	ethAddr, err := auth.ExtractWalletFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	orderID := OrderID(order.GetID())
 	if err := miner.Consume(orderID, &usage); err != nil {
 		return nil, err
 	}
 
-	go func() {
-		dealMeta, err := h.executeDeal(ctx, request, order)
-		if err != nil {
-			log.G(h.ctx).Error("failed to execute deal", zap.Error(err))
-			miner.Release(orderID)
-			return
-		}
-
-		dealMeta.MinerID = miner.ID()
-		dealMeta.Usage = &usage
-
-		h.tasksMu.Lock()
-		defer h.tasksMu.Unlock()
-		h.deals[dealMeta.ID] = dealMeta
-		if err := h.cluster.Synchronize(h.deals); err != nil {
-			log.G(h.ctx).Error("failed to synchronize deal with the cluster", zap.Error(err))
-		}
-	}()
-
-	return &pb.Empty{}, nil
-}
-
-func (h *Hub) ApproveDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling ApproveDeal request", zap.Any("request", r))
-	return &pb.Empty{}, nil
-}
-
-func (h *Hub) executeDeal(ctx context.Context, request *structs.DealRequest, order *structs.Order) (*DealMeta, error) {
-	dealMeta, err := h.waitForDealCreatedAndAccepted(ctx, request, order)
-	if err != nil {
-		log.G(h.ctx).Error("failed to wait for deal created", zap.Error(err))
+	reservedDuration := time.Duration(10 * time.Minute)
+	if err := h.orderShelter.Reserve(orderID, miner.ID(), *ethAddr, reservedDuration); err != nil {
+		miner.Release(orderID)
 		return nil, err
 	}
 
-	return dealMeta, nil
+	h.cluster.Synchronize(h.orderShelter.Dump())
+
+	return &pb.Empty{}, nil
 }
 
-func (h *Hub) waitForDealCreatedAndAccepted(ctx context.Context, req *structs.DealRequest, order *structs.Order) (*DealMeta, error) {
-	createdDeal, err := h.eth.WaitForDealCreated(req, order.GetByuerID())
-	if err != nil || createdDeal == nil {
-		log.G(h.ctx).Warn("cannot find created deal for current proposal",
-			zap.String("bidID", req.BidId),
-			zap.String("askID", req.GetAskId()),
+func (h *Hub) ApproveDeal(ctx context.Context, request *pb.ApproveDealRequest) (*pb.Empty, error) {
+	log.G(h.ctx).Info("handling ApproveDeal request", zap.Any("request", request))
+
+	bidOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: request.GetBidID()})
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "bid not found")
+	}
+
+	order, err := structs.NewOrder(bidOrder)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "bid order is malformed: %v", err)
+	}
+
+	// Ensure that deal is created in BC, if not - wait.
+	dealID := DealID(request.GetDealID().Unwrap().String())
+	deal, err := h.eth.GetDeal(dealID.String())
+	if err != nil {
+		log.G(h.ctx).Error("failed to find deal for approving",
+			zap.Stringer("dealID", dealID),
+			zap.String("bidID", request.GetBidID()),
+			zap.String("askID", request.GetAskID()),
+			zap.Error(err),
 		)
 		return nil, err
 	}
 
-	log.G(ctx).Info("received created deal",
-		zap.String("dealID", createdDeal.GetId()),
-		zap.String("dealPrice", createdDeal.Price.Unwrap().String()),
+	log.G(ctx).Info("received deal",
+		zap.String("dealID", deal.GetId()),
+		zap.String("dealPrice", deal.Price.Unwrap().String()),
 		zap.String("orderPrice", order.PricePerSecond.Unwrap().String()),
 	)
 
-	if cmp := createdDeal.Price.Cmp(pb.NewBigInt(order.GetTotalPrice())); cmp != 0 {
+	if cmp := deal.Price.Cmp(pb.NewBigInt(order.GetTotalPrice())); cmp != 0 {
 		return nil, fmt.Errorf("prices are not equal: %v != %v",
-			createdDeal.Price.Unwrap().String(), order.GetTotalPrice())
+			deal.Price.Unwrap().String(), order.GetTotalPrice())
 	}
 
-	dealID := DealID(createdDeal.GetId())
+	// Accept deal.
 	err = h.eth.AcceptDeal(dealID.String())
 	if err != nil {
-		log.G(ctx).Warn("cannot accept deal", zap.Stringer("dealID", dealID), zap.Error(err))
+		log.G(ctx).Error("failed to accept deal", zap.Stringer("dealID", dealID), zap.Error(err))
 		return nil, err
 	}
 
-	_, err = h.market.CancelOrder(h.ctx, &pb.Order{Id: req.GetAskId(), OrderType: pb.OrderType_ASK})
+	// Commit reserved order.
+	orderID := OrderID(order.GetID())
+	reservedOrder, err := h.orderShelter.Commit(orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	miner := h.GetMinerByID(reservedOrder.MinerID)
+	if miner == nil {
+		return nil, status.Errorf(codes.NotFound, "no miner with %s id found", reservedOrder.MinerID)
+	}
+
+	usage, err := miner.OrderUsage(orderID)
+	if miner == nil {
+		return nil, err
+	}
+
+	// Cancel order from market.
+	_, err = h.market.CancelOrder(h.ctx, &pb.Order{Id: request.GetAskID(), OrderType: pb.OrderType_ASK})
 	if err != nil {
 		log.G(ctx).Warn("cannot cancel ask order from marketplace",
-			zap.String("askID", req.GetAskId()),
+			zap.String("askID", request.GetAskID()),
 			zap.Error(err),
 		)
 	}
 
 	dealMeta := &DealMeta{
 		ID:    dealID,
-		BidID: req.GetBidId(),
+		BidID: request.GetBidID(),
 		Order: *order,
 		Tasks: make([]*TaskInfo, 0),
 		// These will be filled later.
-		MinerID: "",
-		Usage:   nil,
+		MinerID: reservedOrder.MinerID,
+		Usage:   usage,
 		// This will be filled when Hub accepts a deal event via Blockchain.
+		// TODO: Instead of timers implement passive tracking, like for pending orders.
 		timer: nil,
 	}
 
-	return dealMeta, nil
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+	h.deals[dealMeta.ID] = dealMeta
+	if err := h.cluster.Synchronize(h.deals); err != nil {
+		log.G(h.ctx).Error("failed to synchronize deal with the cluster", zap.Error(err))
+	}
+
+	return &pb.Empty{}, nil
 }
 
 func (h *Hub) waitForDealClosed(dealID DealID, buyerId string) error {
@@ -1308,6 +1338,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		market: defaults.market,
 
 		deals:            make(map[DealID]*DealMeta),
+		orderShelter:     nil,
 		tasks:            make(map[string]*TaskInfo),
 		miners:           make(map[string]*MinerCtx),
 		associatedHubs:   make(map[string]struct{}),
@@ -1326,10 +1357,13 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		whitelist: wl,
 	}
 
+	orderShelter := NewOrderShelter(h)
+	h.orderShelter = orderShelter
+
 	authorization := auth.NewEventAuthorization(h.ctx,
 		auth.WithLog(log.G(ctx)),
 		auth.WithEventPrefix(hubAPIPrefix),
-		auth.Allow("Handshake", "ProposeDeal", "ApproveDeal").With(auth.NewNilAuthorization()),
+		auth.Allow("Handshake", "ProposeDeal").With(auth.NewNilAuthorization()),
 		auth.Allow(hubManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
 		auth.Allow("TaskStatus", "StopTask").With(newDealAuthorization(ctx, h, newFromTaskDealExtractor(h))),
 		auth.Allow("StartTask").With(newDealAuthorization(ctx, h, newFieldDealExtractor())),
@@ -1337,6 +1371,9 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		auth.Allow("PushTask").With(newDealAuthorization(ctx, h, newContextDealExtractor())),
 		auth.Allow("PullTask").With(newDealAuthorization(ctx, h, newRequestDealExtractor(func(request interface{}) (DealID, error) {
 			return DealID(request.(*pb.PullTaskRequest).DealId), nil
+		}))),
+		auth.Allow("ApproveDeal").With(newOrderAuthorization(orderShelter, OrderExtractor(func(request interface{}) (OrderID, error) {
+			return OrderID(request.(*pb.ApproveDealRequest).BidID), nil
 		}))),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
@@ -1423,17 +1460,29 @@ func (h *Hub) Serve() error {
 	if err := h.cluster.RegisterAndLoadEntity("deals", &h.deals); err != nil {
 		return err
 	}
+
+	reservedOrders := make(map[OrderID]ReservedOrder, 0)
+	if err := h.cluster.RegisterAndLoadEntity("reserved_orders", &reservedOrders); err != nil {
+		return err
+	}
+	h.orderShelter.RestoreFrom(reservedOrders)
+
 	log.G(h.ctx).Info("fetched entities",
 		zap.Any("tasks", h.tasks),
 		zap.Any("device_properties", h.deviceProperties),
 		zap.Any("acl", h.acl),
-		zap.Any("slots", h.slots))
+		zap.Any("slots", h.slots),
+		zap.Any("reserved_orders", h.orderShelter),
+	)
 
 	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.listenClusterEvents)
 	h.waiter.Go(h.startLocatorAnnouncer)
 	h.waiter.Go(h.watchDealsAccepted)
 	h.waiter.Go(h.watchDealsClosed)
+	h.waiter.Go(func() error {
+		return h.orderShelter.Run(h.ctx)
+	})
 
 	h.waiter.Wait()
 
@@ -1522,7 +1571,17 @@ func (h *Hub) watchDealsClosed() error {
 					continue
 				}
 
-				miner.Release(OrderID(deal.Order.GetID()))
+				orderID := OrderID(deal.Order.GetID())
+				miner.Release(orderID)
+
+				_, err = h.market.CreateOrder(h.ctx, &pb.Order{Id: orderID.String(), OrderType: pb.OrderType_ASK})
+				if err != nil {
+					log.G(h.ctx).Error("failed to republish order on a market",
+						zap.Stringer("dealID", dealID),
+						zap.Stringer("orderID", orderID),
+						zap.Error(err),
+					)
+				}
 			}
 		case <-h.ctx.Done():
 			return nil
@@ -1584,6 +1643,8 @@ func (h *Hub) processClusterEvent(value interface{}) {
 		defer h.tasksMu.Unlock()
 		h.deals = value
 		h.restoreResourceUsage()
+	case map[OrderID]ReservedOrder:
+		h.orderShelter.RestoreFrom(value)
 	default:
 		log.G(h.ctx).Warn("received unknown cluster event",
 			zap.Any("event", value),
@@ -1649,6 +1710,15 @@ func (h *Hub) handleInterconnect(ctx context.Context, conn net.Conn) {
 	h.minersMu.Lock()
 	delete(h.miners, miner.ID())
 	h.minersMu.Unlock()
+}
+
+func (h *Hub) GetMinerByID(minerID string) *MinerCtx {
+	miner, ok := h.getMinerByID(minerID)
+	if miner != nil && ok {
+		return miner
+	} else {
+		return nil
+	}
 }
 
 func (h *Hub) getMinerByID(minerID string) (*MinerCtx, bool) {

@@ -235,7 +235,7 @@ func (h *orderHandler) openDeal(order *pb.Order, key *ecdsa.PrivateKey, wait tim
 }
 
 // approveOnHub send deal to the Hub and wait for approval on Hub-side
-func (h *orderHandler) approveOnHub(req *pb.DealRequest, hub pb.HubClient) error {
+func (h *orderHandler) approveOnHub(req *pb.ApproveDealRequest, hub pb.HubClient) error {
 	log.G(h.ctx).Info("waiting for deal become approved")
 	h.setStatus(statusWaitForApprove)
 
@@ -497,8 +497,13 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		return err
 	}
 
-	dealRequest.DealID = pb.NewBigInt(dealID)
-	err = handler.approveOnHub(dealRequest, hubClient)
+	approveRequest := &pb.ApproveDealRequest{
+		DealID: pb.NewBigInt(dealID),
+		AskID:  orderToDeal.GetId(),
+		BidID:  handler.order.GetId(),
+	}
+
+	err = handler.approveOnHub(approveRequest, hubClient)
 	if err != nil {
 		log.G(handler.ctx).Info("wailed waiting for deal", zap.Error(err))
 		handler.setError(err)

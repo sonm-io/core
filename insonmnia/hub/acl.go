@@ -250,3 +250,36 @@ func newCustomDealExtractor(fn func(ctx context.Context, request interface{}) (D
 		return fn(ctx, request)
 	}
 }
+
+// OrderExtractor allows to extract order id that is used for authorization.
+type OrderExtractor func(request interface{}) (OrderID, error)
+
+type orderAuthorization struct {
+	shelter   *OrderShelter
+	extractor OrderExtractor
+}
+
+func newOrderAuthorization(shelter *OrderShelter, extractor OrderExtractor) auth.Authorization {
+	return &orderAuthorization{
+		shelter:   shelter,
+		extractor: extractor,
+	}
+}
+
+func (au *orderAuthorization) Authorize(ctx context.Context, request interface{}) error {
+	wallet, err := auth.ExtractWalletFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	orderID, err := au.extractor(request)
+	if err != nil {
+		return err
+	}
+
+	if err := au.shelter.PollCommit(orderID, *wallet); err != nil {
+		return status.Errorf(codes.Unauthenticated, "%s", err)
+	}
+
+	return nil
+}

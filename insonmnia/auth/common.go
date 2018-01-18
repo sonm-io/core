@@ -86,6 +86,12 @@ func NewWalletAuthenticator(c credentials.TransportCredentials, wallet common.Ad
 	return &WalletAuthenticator{c, wallet}
 }
 
+// TODO: Left for backward compabitility, prune later.
 func equalAddresses(a, b common.Address) bool {
 	return bytes.Equal(a.Bytes(), b.Bytes())
+}
+
+// EqualAddresses compares the two given ETH addresses for equality.
+func EqualAddresses(a, b common.Address) bool {
+	return equalAddresses(a, b)
 }
