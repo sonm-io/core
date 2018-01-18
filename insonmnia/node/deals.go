@@ -4,6 +4,9 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
+
+	log "github.com/noxiouz/zapctx/ctxlog"
+	"go.uber.org/zap"
 )
 
 type dealsAPI struct {
@@ -35,13 +38,37 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealL
 	return &pb.DealListReply{Deal: deals}, nil
 }
 
-func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.Deal, error) {
+func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealStatusReply, error) {
 	bigID, err := util.ParseBigInt(id.Id)
 	if err != nil {
 		return nil, err
 	}
 
-	return d.remotes.eth.GetDealInfo(bigID)
+	deal, err := d.remotes.eth.GetDealInfo(bigID)
+	if err != nil {
+		return nil, err
+	}
+
+	reply := &pb.DealStatusReply{
+		Deal: deal,
+	}
+
+	if deal.GetStatus() == pb.DealStatus_ACCEPTED || deal.GetStatus() == pb.DealStatus_PENDING {
+		hubClient, closr, err := getHubClientByEthAddr(ctx, d.remotes, deal.GetSupplierID())
+		if err == nil {
+			defer closr.Close()
+			dealInfo, err := hubClient.GetDealInfo(ctx, id)
+			if err == nil {
+				reply.Info = dealInfo
+			} else {
+				log.G(ctx).Info("cannot get deal details from hub", zap.Error(err))
+			}
+		} else {
+			log.G(ctx).Info("cannot resolve hub address", zap.Error(err))
+		}
+	}
+
+	return reply, nil
 }
 
 func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {

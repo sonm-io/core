@@ -205,19 +205,14 @@ message PullTaskRequest {
     string taskId = 2;
 }
 
-// Note: no secure info should be here.
 message DealInfoReply {
+    // ID is deal ID.
     ID id = 1;
+    // Order is BID order associated with a deal.
     Order order = 2;
-    // List of currently running task IDs. More detailed info can be obtained
-    // using "TaskStatus" method.
-    repeated ID tasksRunning = 3;
+    // List of currently running tasks.
+    StatusMapReply running = 3;
     // List of completed tasks.
-    repeated CompletedTask tasksCompleted = 4;
+    StatusMapReply completed = 4;
 }
 
-message CompletedTask {
-    ID id = 1;
-    string image = 2;
-    Timestamp endTime = 3;
-}

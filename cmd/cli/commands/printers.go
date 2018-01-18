@@ -277,24 +277,26 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 	if isSimpleFormat() {
 		cmd.Printf("ID:             %s\r\n", order.Id)
 		cmd.Printf("Type:           %s\r\n", order.OrderType.String())
-		// TODO(sshaman1101): show full price
-		cmd.Printf("Price:          %s\r\n", order.PricePerSecond)
+		cmd.Printf("Price:          %s\r\n", order.PricePerSecond.Unwrap().String())
 
 		cmd.Printf("SupplierID:     %s\r\n", order.SupplierID)
 		cmd.Printf("BuyerID:        %s\r\n", order.ByuerID)
 
-		rs := order.Slot.Resources
-		cmd.Printf("Resources:\r\n")
-		cmd.Printf("  CPU:     %d\r\n", rs.CpuCores)
-		cmd.Printf("  GPU:     %d\r\n", rs.GpuCount)
-		cmd.Printf("  RAM:     %s\r\n", ds.ByteSize(rs.RamBytes).HR())
-		cmd.Printf("  Storage: %s\r\n", ds.ByteSize(rs.Storage).HR())
-		cmd.Printf("  Network: %s\r\n", rs.NetworkType.String())
-		cmd.Printf("    In:   %s\r\n", ds.ByteSize(rs.NetTrafficIn).HR())
-		cmd.Printf("    Out:  %s\r\n", ds.ByteSize(rs.NetTrafficOut).HR())
+		printOrderResources(cmd, order.Slot.Resources)
 	} else {
 		showJSON(cmd, order)
 	}
+}
+
+func printOrderResources(cmd *cobra.Command, rs *pb.Resources) {
+	cmd.Printf("Resources:\r\n")
+	cmd.Printf("  CPU:     %d\r\n", rs.CpuCores)
+	cmd.Printf("  GPU:     %s\r\n", rs.GpuCount.String())
+	cmd.Printf("  RAM:     %s\r\n", ds.ByteSize(rs.RamBytes).HR())
+	cmd.Printf("  Storage: %s\r\n", ds.ByteSize(rs.Storage).HR())
+	cmd.Printf("  Network: %s\r\n", rs.NetworkType.String())
+	cmd.Printf("    In:   %s\r\n", ds.ByteSize(rs.NetTrafficIn).HR())
+	cmd.Printf("    Out:  %s\r\n", ds.ByteSize(rs.NetTrafficOut).HR())
 }
 
 type handlerByTime []*pb.GetProcessingReply_ProcessedOrder
@@ -400,7 +402,12 @@ func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 	} else {
 		showJSON(cmd, deal)
 	}
+}
 
+func printDealTasksShort(cmd *cobra.Command, tasks map[string]*pb.TaskStatusReply) {
+	for id, info := range tasks {
+		cmd.Printf("%s ID: %s | image \"%s\"\r\n", info.GetStatus(), id, info.GetImageName())
+	}
 }
 
 func printID(cmd *cobra.Command, id string) {
@@ -421,5 +428,31 @@ func printTaskStart(cmd *cobra.Command, start *pb.HubStartTaskReply) {
 	} else {
 		showJSON(cmd, start)
 	}
+}
 
+func printDealDetails(cmd *cobra.Command, d *pb.DealStatusReply) {
+	if !isSimpleFormat() {
+		showJSON(cmd, d)
+		return
+	}
+
+	if d.GetDeal() != nil {
+		cmd.Printf("Deal info:\r\n")
+		printDealInfo(cmd, d.GetDeal())
+	}
+
+	if d.GetInfo().GetOrder() != nil {
+		cmd.Printf("\r\n")
+		printOrderResources(cmd, d.GetInfo().GetOrder().GetSlot().GetResources())
+	}
+
+	if d.GetInfo().GetRunning() != nil && len(d.GetInfo().GetRunning().GetStatuses()) > 0 {
+		cmd.Printf("\r\nRunning tasks:\r\n")
+		printDealTasksShort(cmd, d.GetInfo().GetRunning().GetStatuses())
+	}
+
+	if d.GetInfo().GetCompleted() != nil && len(d.GetInfo().GetCompleted().GetStatuses()) > 0 {
+		cmd.Printf("\r\nCompleted tasks:\r\n")
+		printDealTasksShort(cmd, d.GetInfo().GetCompleted().GetStatuses())
+	}
 }

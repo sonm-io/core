@@ -240,7 +240,7 @@ func NewMarketInteractor(addr string, timeout time.Duration) (NodeMarketInteract
 
 type DealsInteractor interface {
 	List(from string, status pb.DealStatus) ([]*pb.Deal, error)
-	Status(id string) (*pb.Deal, error)
+	Status(id string) (*pb.DealStatusReply, error)
 	FinishDeal(id string) error
 }
 
@@ -262,7 +262,7 @@ func (it *dealsInteractor) List(from string, status pb.DealStatus) ([]*pb.Deal, 
 	return reply.GetDeal(), nil
 }
 
-func (it *dealsInteractor) Status(id string) (*pb.Deal, error) {
+func (it *dealsInteractor) Status(id string) (*pb.DealStatusReply, error) {
 	ctx, cancel := ctx(it.timeout)
 	defer cancel()
 

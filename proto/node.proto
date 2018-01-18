@@ -41,7 +41,7 @@ service DealManagement {
     // List produces a list of all deals made by client with given ID
     rpc List(DealListRequest) returns (DealListReply) {}
     // Status produces a detailed info about deal with given ID
-    rpc Status(ID) returns (Deal) {}
+    rpc Status(ID) returns (DealStatusReply) {}
     // Finish finishes a deal with given ID
     rpc Finish(ID) returns (Empty) {}
 }
@@ -53,6 +53,11 @@ message DealListRequest {
 
 message DealListReply {
     repeated Deal deal = 1;
+}
+
+message DealStatusReply {
+    Deal deal = 1;
+    DealInfoReply info = 2;
 }
 
 // HubManagement describe a bunch of methods

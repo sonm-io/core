@@ -80,13 +80,13 @@ var dealsStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		deal, err := itr.Status(id)
+		reply, err := itr.Status(id)
 		if err != nil {
-			showError(cmd, "Cannot get deal deal", err)
+			showError(cmd, "Cannot get deal info", err)
 			os.Exit(1)
 		}
 
-		printDealInfo(cmd, deal)
+		printDealDetails(cmd, reply)
 	},
 }
 

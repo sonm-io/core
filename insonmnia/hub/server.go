@@ -599,43 +599,47 @@ func (h *Hub) stopTask(ctx context.Context, task *TaskInfo) error {
 
 	miner.deregisterRoute(task.ID)
 
-	h.deleteTask(task.ID)
+	err = h.deleteTask(task.ID)
+	if err != nil {
+		log.G(ctx).Error("cannot delete task", zap.Error(err))
+		return err
+	}
 
 	return nil
 }
 
-type dealInfo struct {
-	ID             DealID
-	Order          structs.Order
-	TasksRunning   []TaskInfo
-	TasksCompleted []TaskInfo
-}
-
-func (h *Hub) GetDealInfo(ctx context.Context, dealID *pb.ID) (*pb.DealInfoReply, error) {
-	dealInfo, err := h.getDealInfo(DealID(dealID.Id))
+func (h *Hub) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
+	meta, err := h.getDealMeta(DealID(id.Id))
 	if err != nil {
 		return nil, err
 	}
 
 	r := &pb.DealInfoReply{
-		Id:             dealID,
-		Order:          dealInfo.Order.Unwrap(),
-		TasksRunning:   make([]*pb.ID, 0, len(dealInfo.TasksRunning)),
-		TasksCompleted: make([]*pb.CompletedTask, 0, len(dealInfo.TasksCompleted)),
+		Id:        id,
+		Order:     meta.Order.Unwrap(),
+		Running:   &pb.StatusMapReply{Statuses: make(map[string]*pb.TaskStatusReply)},
+		Completed: &pb.StatusMapReply{Statuses: make(map[string]*pb.TaskStatusReply)},
 	}
 
-	for _, taskInfo := range dealInfo.TasksRunning {
-		r.TasksRunning = append(r.TasksRunning, &pb.ID{Id: taskInfo.ID})
-	}
+	for _, t := range meta.Tasks {
+		mctx, ok := h.getMinerByID(t.MinerId)
+		if !ok {
+			log.G(h.ctx).Warn("cannot get worker by id", zap.String("id", t.MinerId), zap.Error(err))
+			continue
+		}
 
-	for _, taskInfo := range dealInfo.TasksCompleted {
-		r.TasksCompleted = append(r.TasksCompleted, &pb.CompletedTask{
-			Id:    &pb.ID{Id: taskInfo.ID},
-			Image: taskInfo.Image,
-			EndTime: &pb.Timestamp{
-				Seconds: taskInfo.EndTime.Unix(),
-			},
-		})
+		taskDetails, err := mctx.Client.TaskDetails(ctx, &pb.ID{Id: t.ID})
+		if err != nil {
+			log.G(h.ctx).Warn("cannot get task status",
+				zap.String("workerID", t.MinerId), zap.String("taskID", t.ID), zap.Error(err))
+			continue
+		}
+
+		if taskDetails.GetStatus() == pb.TaskStatusReply_RUNNING {
+			r.Running.Statuses[t.ID] = taskDetails
+		} else {
+			r.Completed.Statuses[t.ID] = taskDetails
+		}
 	}
 
 	return r, nil
@@ -650,33 +654,6 @@ func (h *Hub) getDealMeta(dealID DealID) (*DealMeta, error) {
 		return nil, errDealNotFound
 	}
 	return meta, nil
-}
-
-func (h *Hub) getDealInfo(dealID DealID) (*dealInfo, error) {
-	h.tasksMu.Lock()
-	defer h.tasksMu.Unlock()
-
-	meta, ok := h.deals[dealID]
-	if !ok {
-		return nil, errDealNotFound
-	}
-
-	dealInfo := &dealInfo{
-		ID:             dealID,
-		Order:          meta.Order,
-		TasksRunning:   make([]TaskInfo, 0, len(h.tasks)),
-		TasksCompleted: make([]TaskInfo, 0, len(meta.Tasks)),
-	}
-
-	for _, taskInfo := range h.tasks {
-		dealInfo.TasksRunning = append(dealInfo.TasksRunning, *taskInfo)
-	}
-
-	for _, taskInfo := range meta.Tasks {
-		dealInfo.TasksCompleted = append(dealInfo.TasksCompleted, *taskInfo)
-	}
-
-	return dealInfo, nil
 }
 
 //TODO: refactor - we can use h.tasks here
@@ -1372,8 +1349,8 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		auth.Allow("PullTask").With(newDealAuthorization(ctx, h, newRequestDealExtractor(func(request interface{}) (DealID, error) {
 			return DealID(request.(*pb.PullTaskRequest).DealId), nil
 		}))),
-		auth.Allow("ApproveDeal").With(newOrderAuthorization(orderShelter, OrderExtractor(func(request interface{}) (OrderID, error) {
-			return OrderID(request.(*pb.ApproveDealRequest).BidID), nil
+		auth.Allow("GetDealInfo").With(newDealAuthorization(ctx, h, newRequestDealExtractor(func(request interface{}) (DealID, error) {
+			return DealID(request.(*pb.ID).GetId()), nil
 		}))),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
@@ -1755,16 +1732,17 @@ func (h *Hub) getTask(taskID string) (*TaskInfo, error) {
 	if !ok {
 		return nil, errors.New("no such task")
 	}
+
 	return info, nil
 }
 
 func (h *Hub) deleteTask(taskID string) error {
 	h.tasksMu.Lock()
 	defer h.tasksMu.Unlock()
+
 	taskInfo, ok := h.tasks[taskID]
 	if ok {
 		delete(h.tasks, taskID)
-		return h.cluster.Synchronize(h.tasks)
 	}
 
 	// Commit end time if such task exists in the history, if not - do nothing,
@@ -1775,11 +1753,16 @@ func (h *Hub) deleteTask(taskID string) error {
 			if dealTaskInfo.ID == taskID {
 				now := time.Now()
 				dealTaskInfo.EndTime = &now
-				return h.cluster.Synchronize(h.deals)
 			}
 		}
 	}
-	return nil
+
+	err := h.cluster.Synchronize(h.tasks)
+	if err != nil {
+		return err
+	}
+
+	return h.cluster.Synchronize(h.deals)
 }
 
 func (h *Hub) popDealHistory(dealID DealID) ([]*TaskInfo, error) {
