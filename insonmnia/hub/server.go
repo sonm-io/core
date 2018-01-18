@@ -868,7 +868,9 @@ func (h *Hub) ApproveDeal(ctx context.Context, request *pb.ApproveDealRequest) (
 
 	// Ensure that deal is created in BC, if not - wait.
 	dealID := DealID(request.GetDealID().Unwrap().String())
-	deal, err := h.eth.GetDeal(dealID.String())
+	buyerID := common.HexToAddress(bidOrder.GetByuerID())
+
+	deal, err := h.eth.WaitForDealCreated(dealID, buyerID)
 	if err != nil {
 		log.G(h.ctx).Error("failed to find deal for approving",
 			zap.Stringer("dealID", dealID),
@@ -1351,6 +1353,9 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		}))),
 		auth.Allow("GetDealInfo").With(newDealAuthorization(ctx, h, newRequestDealExtractor(func(request interface{}) (DealID, error) {
 			return DealID(request.(*pb.ID).GetId()), nil
+		}))),
+		auth.Allow("ApproveDeal").With(newOrderAuthorization(orderShelter, OrderExtractor(func(request interface{}) (OrderID, error) {
+			return OrderID(request.(*pb.ApproveDealRequest).BidID), nil
 		}))),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
