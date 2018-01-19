@@ -171,8 +171,9 @@ func (h *orderHandler) resolveHubAddr(ethAddr string) (string, error) {
 		return "", err
 	}
 
-	ip := reply.IpAddr[0]
+	ip := reply.Endpoints[0]
 	log.G(h.ctx).Info("hub ip resolved successful", zap.String("ip", ip))
+
 	return ip, nil
 }
 

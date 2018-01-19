@@ -146,24 +146,26 @@ locator:
 	assert.Equal(t, conf.Locator.Period, 500)
 }
 
-func TestParseEndpoints(t *testing.T) {
+func TestGetEndpoints(t *testing.T) {
 	assert := assert.New(t)
 	var fixtures = []struct {
-		Endpoint    string
-		ExpectError bool
+		WorkerEndpoint  string
+		ClusterEndpoint string
+		ExpectError     bool
 	}{
-		{":10000", false},
-		{"0.0.0.0:10000", false},
-		{"aaaa:50000", true},
+		{WorkerEndpoint: ":10002", ClusterEndpoint: ":10001", ExpectError: false},
+		{WorkerEndpoint: ":10002", ClusterEndpoint: "0.0.0.0:10001", ExpectError: false},
+		{WorkerEndpoint: ":10002", ClusterEndpoint: "aaaa:50000", ExpectError: true},
 	}
 
 	for _, fixture := range fixtures {
-		result, err := parseEndpoints(&ClusterConfig{Endpoint: fixture.Endpoint})
+		clientEndpoints, _, err := getEndpoints(
+			&ClusterConfig{Endpoint: fixture.ClusterEndpoint}, fixture.WorkerEndpoint)
 		if fixture.ExpectError {
 			assert.NotNil(err)
 		} else {
 			assert.NoError(err)
-			assert.NotEmpty(result)
+			assert.NotEmpty(clientEndpoints)
 		}
 	}
 }
