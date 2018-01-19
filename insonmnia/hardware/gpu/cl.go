@@ -20,6 +20,7 @@ import "C"
 
 import (
 	"fmt"
+	"strconv"
 	"unsafe"
 )
 
@@ -88,7 +89,7 @@ func getPlatforms() ([]*platform, error) {
 	var num C.cl_uint
 
 	if err := C.clGetPlatformIDs(C.cl_uint(maxPlatforms), &ids[0], &num); err != C.CL_SUCCESS {
-		return nil, fmt.Errorf("failed to obtain OpenCL platforms: %s", err)
+		return nil, fmt.Errorf("failed to obtain OpenCL platforms: %s", errorToString(err))
 	}
 
 	platforms := make([]*platform, num)
@@ -108,7 +109,7 @@ func (p *platform) getGPUDevices() ([]*clDevice, error) {
 	}
 
 	if err := C.clGetDeviceIDs(p.id, C.cl_device_type(C.CL_DEVICE_TYPE_GPU), C.cl_uint(maxDeviceCount), &ids[0], &num); err != C.CL_SUCCESS {
-		return nil, fmt.Errorf("failed to obtain GPU devices for a platform: %s", err)
+		return nil, fmt.Errorf("failed to obtain GPU devices for a platform: %s", errorToString(err))
 	}
 
 	devices := make([]*clDevice, num)
@@ -128,7 +129,7 @@ func (d *clDevice) getInfoString(param C.cl_device_info) (string, error) {
 	var size C.size_t
 
 	if err := C.clGetDeviceInfo(d.id, param, 1024, unsafe.Pointer(&data), &size); err != C.CL_SUCCESS {
-		return "", fmt.Errorf("failed to convert device info into a string: %s", err)
+		return "", fmt.Errorf("failed to convert device info into a string: %s", errorToString(err))
 	}
 
 	return C.GoStringN((*C.char)(unsafe.Pointer(&data)), C.int(size)-1), nil
@@ -138,7 +139,7 @@ func (d *clDevice) getInfoUint(param C.cl_device_info) (uint, error) {
 	var val C.cl_uint
 
 	if err := C.clGetDeviceInfo(d.id, param, C.size_t(unsafe.Sizeof(val)), unsafe.Pointer(&val), nil); err != C.CL_SUCCESS {
-		return 0, fmt.Errorf("failed to convert device info into an integer: %s", err)
+		return 0, fmt.Errorf("failed to convert device info into an integer: %s", errorToString(err))
 	}
 
 	return uint(val), nil
@@ -148,7 +149,7 @@ func (d *clDevice) getInfoUint64(param C.cl_device_info) (uint64, error) {
 	var val C.cl_ulong
 
 	if err := C.clGetDeviceInfo(d.id, param, C.size_t(unsafe.Sizeof(val)), unsafe.Pointer(&val), nil); err != C.CL_SUCCESS {
-		return 0, fmt.Errorf("failed to convert device info into an integer: %s", err)
+		return 0, fmt.Errorf("failed to convert device info into an integer: %s", errorToString(err))
 	}
 
 	return uint64(val), nil
@@ -184,4 +185,103 @@ func (d *clDevice) deviceMaxClockFrequency() (uint, error) {
 
 func (d *clDevice) deviceMaxComputeUnits() (uint, error) {
 	return d.getInfoUint(C.CL_DEVICE_MAX_COMPUTE_UNITS)
+}
+
+func errorToString(err C.cl_int) string {
+	switch err {
+	case C.CL_SUCCESS:
+		return "success"
+	case C.CL_DEVICE_NOT_FOUND:
+		return "no OpenCL devices that matched device_type were found"
+	case C.CL_DEVICE_NOT_AVAILABLE:
+		return "device is currently not available"
+	case C.CL_COMPILER_NOT_AVAILABLE:
+		return "compiler not available"
+	case C.CL_MEM_OBJECT_ALLOCATION_FAILURE:
+		return "memory object allocation failure"
+	case C.CL_OUT_OF_RESOURCES:
+		return "out of resources"
+	case C.CL_OUT_OF_HOST_MEMORY:
+		return "out of host memory"
+	case C.CL_PROFILING_INFO_NOT_AVAILABLE:
+		return "profiling information not available"
+	case C.CL_MEM_COPY_OVERLAP:
+		return "memory copy overlap"
+	case C.CL_IMAGE_FORMAT_MISMATCH:
+		return "image format mismatch"
+	case C.CL_IMAGE_FORMAT_NOT_SUPPORTED:
+		return "image format not supported"
+	case C.CL_BUILD_PROGRAM_FAILURE:
+		return "program build failure"
+	case C.CL_MAP_FAILURE:
+		return "map failure"
+	case C.CL_INVALID_VALUE:
+		return "invalid value"
+	case C.CL_INVALID_DEVICE_TYPE:
+		return "invalid device type"
+	case C.CL_INVALID_PLATFORM:
+		return "invalid platform"
+	case C.CL_INVALID_DEVICE:
+		return "invalid device"
+	case C.CL_INVALID_CONTEXT:
+		return "invalid context"
+	case C.CL_INVALID_QUEUE_PROPERTIES:
+		return "invalid queue properties"
+	case C.CL_INVALID_COMMAND_QUEUE:
+		return "invalid command queue"
+	case C.CL_INVALID_HOST_PTR:
+		return "invalid host pointer"
+	case C.CL_INVALID_MEM_OBJECT:
+		return "invalid memory object"
+	case C.CL_INVALID_IMAGE_FORMAT_DESCRIPTOR:
+		return "invalid image format descriptor"
+	case C.CL_INVALID_IMAGE_SIZE:
+		return "invalid image size"
+	case C.CL_INVALID_SAMPLER:
+		return "invalid sampler"
+	case C.CL_INVALID_BINARY:
+		return "invalid binary"
+	case C.CL_INVALID_BUILD_OPTIONS:
+		return "invalid build options"
+	case C.CL_INVALID_PROGRAM:
+		return "invalid program"
+	case C.CL_INVALID_PROGRAM_EXECUTABLE:
+		return "invalid program executable"
+	case C.CL_INVALID_KERNEL_NAME:
+		return "invalid kernel name"
+	case C.CL_INVALID_KERNEL_DEFINITION:
+		return "invalid kernel definition"
+	case C.CL_INVALID_KERNEL:
+		return "invalid kernel"
+	case C.CL_INVALID_ARG_INDEX:
+		return "invalid argument index"
+	case C.CL_INVALID_ARG_VALUE:
+		return "invalid argument value"
+	case C.CL_INVALID_ARG_SIZE:
+		return "invalid argument size"
+	case C.CL_INVALID_KERNEL_ARGS:
+		return "invalid kernel arguments"
+	case C.CL_INVALID_WORK_DIMENSION:
+		return "invalid work dimension"
+	case C.CL_INVALID_WORK_GROUP_SIZE:
+		return "invalid work group size"
+	case C.CL_INVALID_WORK_ITEM_SIZE:
+		return "invalid work item size"
+	case C.CL_INVALID_GLOBAL_OFFSET:
+		return "invalid global offset"
+	case C.CL_INVALID_EVENT_WAIT_LIST:
+		return "invalid event wait list"
+	case C.CL_INVALID_EVENT:
+		return "invalid event"
+	case C.CL_INVALID_OPERATION:
+		return "invalid operation"
+	case C.CL_INVALID_GL_OBJECT:
+		return "invalid OpenGL object"
+	case C.CL_INVALID_BUFFER_SIZE:
+		return "invalid buffer size"
+	case C.CL_INVALID_MIP_LEVEL:
+		return "invalid mip-map level"
+	default:
+		return "unknown OpenCL error: " + strconv.FormatInt(int64(err), 10)
+	}
 }
