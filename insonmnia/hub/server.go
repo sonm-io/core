@@ -912,7 +912,7 @@ func (h *Hub) ApproveDeal(ctx context.Context, request *pb.ApproveDealRequest) (
 	}
 
 	usage, err := miner.OrderUsage(orderID)
-	if miner == nil {
+	if err != nil {
 		return nil, err
 	}
 
