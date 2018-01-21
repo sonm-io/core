@@ -122,8 +122,7 @@ type Hub struct {
 
 	// Worker ACL.
 	// Must be synchronized with out Hub cluster.
-	acl   ACLStorage
-	aclMu sync.RWMutex
+	acl ACLStorage
 
 	// Per-call ACL.
 	// Must be synchronized with the Hub cluster.
