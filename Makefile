@@ -128,3 +128,6 @@ clean:
 
 deb:
 	debuild --no-lintian --preserve-env -uc -us -i -I
+
+coverage:
+	.ci/coverage.sh
