@@ -32,7 +32,6 @@ script:
           make all
           ;;
         Debian)
-          make all
           GO=$(which go) make deb
           ;;
         Coverage)
