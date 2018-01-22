@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/gliderlabs/ssh"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
@@ -210,6 +211,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)
+	grpc_prometheus.Register(grpcServer)
 
 	return m, nil
 }

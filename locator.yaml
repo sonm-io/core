@@ -1,4 +1,4 @@
-address: "127.0.0.1:9090"
+address: "127.0.0.1:15020"
 
 node_ttl: "10m"
 
@@ -24,3 +24,5 @@ store:
 
   # Storage bucket to store all data in
   bucket: "sonm"
+
+metrics_listen_addr: "127.0.0.1:14002"

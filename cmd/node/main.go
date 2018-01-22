@@ -1,16 +1,18 @@
 package main
 
 import (
-	"fmt"
-	"os"
-
 	"crypto/ecdsa"
+	"fmt"
+	"net/http"
+	"os"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/node"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
 
@@ -48,6 +50,13 @@ func main() {
 		fmt.Printf("Err: cannot build Node instance: %s\r\n", err)
 		os.Exit(1)
 	}
+
+	go func() {
+		log.GetLogger(ctx).Info(
+			"starting metrics server", zap.String("metrics_addr", cfg.MetricsListenAddr()))
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(cfg.MetricsListenAddr(), nil)
+	}()
 
 	fmt.Printf("Starting Local Node at %s...\r\n", cfg.ListenAddress())
 	if err := n.Serve(); err != nil {

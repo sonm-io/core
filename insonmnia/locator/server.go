@@ -13,6 +13,7 @@ import (
 	"github.com/docker/libkv/store/boltdb"
 	"github.com/docker/libkv/store/consul"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/auth"
@@ -252,6 +253,7 @@ func NewLocator(ctx context.Context, conf *Config, key *ecdsa.PrivateKey) (l *Lo
 	)
 
 	pb.RegisterLocatorServer(l.grpc, l)
+	grpc_prometheus.Register(l.grpc)
 
 	return l, nil
 }

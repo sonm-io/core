@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sonm-io/core/insonmnia/locator"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"go.uber.org/zap"
@@ -48,6 +50,14 @@ func main() {
 		log.G(ctx).Error("cannot start Locator service", zap.Error(err))
 		os.Exit(1)
 	}
+
+	go func() {
+		log.GetLogger(ctx).Info(
+			"starting metrics server", zap.String("metrics_addr", cfg.MetricsListenAddr))
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(cfg.MetricsListenAddr, nil)
+	}()
+
 	log.G(ctx).Info("starting Locator service", zap.String("bind_addr", cfg.ListenAddr))
 	if err := lc.Serve(); err != nil {
 		log.G(ctx).Error("cannot start Locator service", zap.Error(err))

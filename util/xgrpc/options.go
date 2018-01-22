@@ -10,6 +10,7 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
 	"github.com/grpc-ecosystem/go-grpc-middleware/tags/zap"
 	"github.com/grpc-ecosystem/go-grpc-middleware/tracing/opentracing"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/opentracing/basictracer-go"
 	"github.com/opentracing/opentracing-go"
 	"github.com/sonm-io/core/insonmnia/auth"
@@ -77,9 +78,17 @@ func newOptions(logger *zap.Logger, extraOpts ...ServerOption) *options {
 		opts.interceptors.s = append(opts.interceptors.s, grpc_zap.StreamServerInterceptor(logger))
 	}
 
+	opts.interceptors.u = append(
+		opts.interceptors.u, grpc.UnaryServerInterceptor(grpc_prometheus.UnaryServerInterceptor))
+	opts.interceptors.s = append(
+		opts.interceptors.s, grpc.StreamServerInterceptor(grpc_prometheus.StreamServerInterceptor))
+
 	for _, o := range extraOpts {
 		o(opts)
 	}
+
+	opts.options = append(opts.options, grpc.StatsHandler(&Handler{}))
+
 	return opts
 }
 

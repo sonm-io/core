@@ -3,12 +3,14 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/signal"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
 	"github.com/pborman/uuid"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner"
 	"go.uber.org/zap"
@@ -69,6 +71,13 @@ func main() {
 		signal.Notify(c, os.Interrupt)
 		<-c
 		m.Close()
+	}()
+
+	go func() {
+		log.GetLogger(ctx).Info(
+			"starting metrics server", zap.String("metrics_addr", cfg.MetricsListenAddr()))
+		http.Handle("/metrics", promhttp.Handler())
+		http.ListenAndServe(cfg.MetricsListenAddr(), nil)
 	}()
 
 	// TODO: check error type
