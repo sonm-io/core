@@ -18,9 +18,6 @@ before_install:
   - sudo apt-get install debhelper devscripts dh-systemd ocl-icd-opencl-dev -y
 
 install:
-  - . $HOME/.nvm/nvm.sh
-  - nvm install stable
-  - nvm use stable
   - git submodule update
 
 script:

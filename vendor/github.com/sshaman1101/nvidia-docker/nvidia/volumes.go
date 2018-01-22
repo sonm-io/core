@@ -101,77 +101,6 @@ func Copy(src, dst string) error {
 	return d.Close()
 }
 
-var Volumes = []VolumeInfo{
-	{
-		"nvidia_driver",
-		"/usr/local/nvidia",
-		"ro",
-		components{
-			"binaries": {
-				//"nvidia-modprobe",       // Kernel module loader
-				//"nvidia-settings",       // X server settings
-				//"nvidia-xconfig",        // X xorg.conf editor
-				"nvidia-cuda-mps-control", // Multi process service CLI
-				"nvidia-cuda-mps-server",  // Multi process service server
-				"nvidia-debugdump",        // GPU coredump utility
-				"nvidia-persistenced",     // Persistence mode utility
-				"nvidia-smi",              // System management interface
-			},
-			"libraries": {
-				// ------- X11 -------
-
-				//"libnvidia-cfg.so",  // GPU configuration (used by nvidia-xconfig)
-				//"libnvidia-gtk2.so", // GTK2 (used by nvidia-settings)
-				//"libnvidia-gtk3.so", // GTK3 (used by nvidia-settings)
-				//"libnvidia-wfb.so",  // Wrapped software rendering module for X server
-				//"libglx.so",         // GLX extension module for X server
-
-				// ----- Compute -----
-
-				"libnvidia-ml.so",              // Management library
-				"libcuda.so",                   // CUDA driver library
-				"libnvidia-ptxjitcompiler.so",  // PTX-SASS JIT compiler (used by libcuda)
-				"libnvidia-fatbinaryloader.so", // fatbin loader (used by libcuda)
-				"libnvidia-opencl.so",          // NVIDIA OpenCL ICD
-				"libnvidia-compiler.so",        // NVVM-PTX compiler for OpenCL (used by libnvidia-opencl)
-				//"libOpenCL.so",               // OpenCL ICD loader
-
-				// ------ Video ------
-
-				"libvdpau_nvidia.so",  // NVIDIA VDPAU ICD
-				"libnvidia-encode.so", // Video encoder
-				"libnvcuvid.so",       // Video decoder
-				"libnvidia-fbc.so",    // Framebuffer capture
-				"libnvidia-ifr.so",    // OpenGL framebuffer capture
-
-				// ----- Graphic -----
-
-				// XXX In an ideal world we would only mount nvidia_* vendor specific libraries and
-				// install ICD loaders inside the container. However, for backward compatibility reason
-				// we need to mount everything. This will hopefully change once GLVND is well established.
-
-				"libGL.so",         // OpenGL/GLX legacy _or_ compatibility wrapper (GLVND)
-				"libGLX.so",        // GLX ICD loader (GLVND)
-				"libOpenGL.so",     // OpenGL ICD loader (GLVND)
-				"libGLESv1_CM.so",  // OpenGL ES v1 common profile legacy _or_ ICD loader (GLVND)
-				"libGLESv2.so",     // OpenGL ES v2 legacy _or_ ICD loader (GLVND)
-				"libEGL.so",        // EGL ICD loader
-				"libGLdispatch.so", // OpenGL dispatch (GLVND) (used by libOpenGL, libEGL and libGLES*)
-
-				"libGLX_nvidia.so",         // OpenGL/GLX ICD (GLVND)
-				"libEGL_nvidia.so",         // EGL ICD (GLVND)
-				"libGLESv2_nvidia.so",      // OpenGL ES v2 ICD (GLVND)
-				"libGLESv1_CM_nvidia.so",   // OpenGL ES v1 common profile ICD (GLVND)
-				"libnvidia-eglcore.so",     // EGL core (used by libGLES* or libGLES*_nvidia and libEGL_nvidia)
-				"libnvidia-egl-wayland.so", // EGL wayland extensions (used by libEGL_nvidia)
-				"libnvidia-glcore.so",      // OpenGL core (used by libGL or libGLX_nvidia)
-				"libnvidia-tls.so",         // Thread local storage (used by libGL or libGLX_nvidia)
-				"libnvidia-glsi.so",        // OpenGL system interaction (used by libEGL_nvidia)
-			},
-		},
-	},
-}
-
 func blacklisted(file string, obj *elf.File) (bool, error) {
 	lib := regexp.MustCompile(`^.*/lib([\w-]+)\.so[\d.]*$`)
 	glcore := regexp.MustCompile(`libnvidia-e?glcore\.so`)
@@ -217,6 +146,7 @@ func (v *Volume) Create(s FileCloneStrategy) (err error) {
 	if err = os.MkdirAll(root, 0755); err != nil {
 		return
 	}
+
 	defer func() {
 		if err != nil {
 			v.Remove()
@@ -251,6 +181,7 @@ func (v *Volume) Create(s FileCloneStrategy) (err error) {
 			if err := s.Clone(f, l); err != nil {
 				return err
 			}
+
 			soname, err := obj.DynString(elf.DT_SONAME)
 			if err != nil {
 				return fmt.Errorf("%s: %v", f, err)
@@ -268,6 +199,7 @@ func (v *Volume) Create(s FileCloneStrategy) (err error) {
 						return err
 					}
 				}
+
 				// XXX GLVND requires this symlink for indirect GLX support
 				// It won't be needed once we have an indirect GLX vendor neutral library.
 				if strings.HasPrefix(soname[0], "libGLX_nvidia") {
@@ -342,14 +274,7 @@ func which(bins ...string) ([]string, error) {
 	return paths, nil
 }
 
-func LookupVolumes(prefix string) (vols VolumeMap, err error) {
-	// NOTE: freeze it
-	// Otherwise it requires to rewrite everything almost from scratch
-	// drv, err := GetDriverVersion()
-	// if err != nil {
-	// 	return nil, err
-	// }
-	const drv = "300.0"
+func LookupVolumes(prefix, ver string, vi []VolumeInfo) (vols VolumeMap, err error) {
 	cache, err := ldcache.Open()
 	if err != nil {
 		return nil, err
@@ -360,13 +285,13 @@ func LookupVolumes(prefix string) (vols VolumeMap, err error) {
 		}
 	}()
 
-	vols = make(VolumeMap, len(Volumes))
+	vols = make(VolumeMap, len(vi))
 
-	for i := range Volumes {
+	for i := range vi {
 		vol := &Volume{
-			VolumeInfo: &Volumes[i],
-			Path:       path.Join(prefix, Volumes[i].Name),
-			Version:    drv,
+			VolumeInfo: &vi[i],
+			Path:       path.Join(prefix, vi[i].Name),
+			Version:    ver,
 		}
 
 		for t, c := range vol.Components {

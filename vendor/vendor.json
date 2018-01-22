@@ -1357,6 +1357,17 @@
 			"revisionTime": "2017-05-08T18:43:26Z"
 		},
 		{
+			"checksumSHA1": "zaplK46fEuycISw+2PxKSurH8QU=",
+			"path": "github.com/sshaman1101/nvidia-docker",
+			"revision": "8f13dece16af40869b73b3dae19a8380f71bd8ea",
+			"revisionTime": "2018-01-22T14:00:35Z",
+			"tree": true
+		},
+		{
+			"path": "github.com/sshaman1101/nvidia-docker^",
+			"revision": ""
+		},
+		{
 			"checksumSHA1": "90Am6VJJxRudklNGXyamS1Xdjyw=",
 			"path": "github.com/stretchr/testify/assert",
 			"revision": ""

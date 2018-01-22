@@ -166,7 +166,8 @@ func NewOverseer(ctx context.Context, gpuCfg *gpu.Config) (Overseer, error) {
 
 	var tuner gpu.Tuner = gpu.NilTuner{}
 	if gpuCfg != nil {
-		tuner, err = gpu.New(ctx, gpuCfg)
+		// todo: autodetect GPU type
+		tuner, err = gpu.New(ctx, gpuCfg.Type)
 		if err != nil {
 			return nil, err
 		}
@@ -248,6 +249,7 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 				delete(o.containers, id)
 				delete(o.statuses, id)
 				o.mu.Unlock()
+
 				if !containerFound {
 					// NOTE: it could be orphaned container from our previous launch
 					log.G(ctx).Warn("unknown container with sonm tag will be removed", zap.String("id", id))
