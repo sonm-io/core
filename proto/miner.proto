@@ -2,10 +2,11 @@ syntax = "proto3";
 
 import "insonmnia.proto";
 import "capabilities.proto";
+import "nat.proto";
 
 package sonm;
 
-service Miner{
+service Miner {
     rpc Ping(Empty) returns (PingReply) {}
     rpc Info(Empty) returns (InfoReply) {}
     rpc Handshake(MinerHandshakeRequest) returns (MinerHandshakeReply) {}
@@ -25,17 +26,6 @@ service Miner{
 message MinerHandshakeRequest {
     string hub = 1;
     repeated TaskInfo tasks = 2;
-}
-
-enum NATType {
-    NONE = 0;
-    BLOCKED = 1;
-    FULL = 2;
-    SYMMETRIC = 3;
-    RESTRICTED = 4;
-    PORT_RESTRICTED = 5;
-    SYMMETRIC_UDP_FIREWALL = 6;
-    UNKNOWN = 7;
 }
 
 message MinerHandshakeReply {

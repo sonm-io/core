@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package sonm;
+
+enum NATType {
+    NONE = 0;
+    BLOCKED = 1;
+    FULL = 2;
+    SYMMETRIC = 3;
+    RESTRICTED = 4;
+    PORT_RESTRICTED = 5;
+    SYMMETRIC_UDP_FIREWALL = 6;
+    UNKNOWN = 7;
+}
