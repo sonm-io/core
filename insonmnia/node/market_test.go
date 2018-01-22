@@ -506,6 +506,45 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 	assert.Error(t, handlr.err, errProposeNotAccepted)
 }
 
+func TestFilterOrdersByPriceAndAllowance(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	opts := getTestRemotes(ctx, ctrl)
+	server, err := newMarketAPI(opts)
+	require.NoError(t, err)
+
+	inner := server.(*marketAPI)
+	ordersFromSearch := []*pb.Order{
+		{PricePerSecond: pb.NewBigIntFromInt(100), Slot: &pb.Slot{Duration: 1}},
+		{PricePerSecond: pb.NewBigIntFromInt(200), Slot: &pb.Slot{Duration: 1}},
+	}
+
+	balance := big.NewInt(999999)
+	allowance := big.NewInt(150)
+	ordersToDeal, err := inner.filterOrdersByPriceAndAllowance(ctx, balance, allowance, ordersFromSearch)
+	require.NoError(t, err)
+	assert.Len(t, ordersToDeal, 1, "order with price = 200 must be filtered")
+
+	balance = big.NewInt(150)
+	allowance = big.NewInt(9999999)
+	ordersToDeal, err = inner.filterOrdersByPriceAndAllowance(ctx, balance, allowance, ordersFromSearch)
+	require.NoError(t, err)
+	assert.Len(t, ordersToDeal, 1, "order with price = 200 must be filtered")
+
+	balance = big.NewInt(99)
+	allowance = big.NewInt(9999999)
+	ordersToDeal, err = inner.filterOrdersByPriceAndAllowance(ctx, balance, allowance, ordersFromSearch)
+	require.EqualError(t, err, errLackOfBalance.Error())
+
+	balance = big.NewInt(999)
+	allowance = big.NewInt(999)
+	ordersToDeal, err = inner.filterOrdersByPriceAndAllowance(ctx, balance, allowance, ordersFromSearch)
+	require.NoError(t, err)
+	assert.Len(t, ordersToDeal, 2, "all orders must be returned")
+}
+
 type mockConn struct{}
 
 func (c *mockConn) Close() error { return nil }
