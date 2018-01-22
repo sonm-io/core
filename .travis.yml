@@ -6,6 +6,11 @@ language: "go"
 go:
     - 1.9.x
 
+env:
+  - BUILD_TYPE=Tests
+  - BUILD_TYPE=Debian
+  - BUILD_TYPE=Coverage
+
 services:
     - "docker"
 
@@ -21,5 +26,20 @@ install:
 script:
     - go get github.com/golang/mock/gomock
     - go get github.com/golang/mock/mockgen
-    - make all
-    - GO=$(which go) make deb
+    - |
+      case "${BUILD_TYPE}" in
+        Tests)
+          make all
+          ;;
+        Debian)
+          GO=$(which go) make deb
+          ;;
+        Coverage)
+          make mock
+          make coverage;
+          bash <(curl -s https://codecov.io/bash);
+          ;;
+        *)
+          echo "Unknown BUILD_TYPE value"
+          exit 1
+      esac

@@ -8,6 +8,7 @@
 
 [![Build Status](https://travis-ci.org/sonm-io/core.svg?branch=master)](https://travis-ci.org/sonm-io/core)
 [![Build status](https://ci.appveyor.com/api/projects/status/01d7cpccwi8scwqp/branch/master?svg=true)](https://ci.appveyor.com/project/Sokel/core/branch/master)
+[![codecov](https://codecov.io/gh/sonm-io/core/branch/master/graph/badge.svg)](https://codecov.io/gh/sonm-io/core)
 [![Gitter](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/sonm-io_core/Lobby?utm_source=share-link&utm_medium=link&utm_campaign=share-link)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sonm-io/core)](https://goreportcard.com/report/github.com/sonm-io/core)
 

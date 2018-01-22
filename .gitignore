@@ -25,6 +25,7 @@ _testmain.go
 *.prof
 
 coverage*
+!.ci/coverage.sh
 
 sonmhub
 sonmcli
