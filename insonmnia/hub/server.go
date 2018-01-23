@@ -117,8 +117,7 @@ type Hub struct {
 
 	// Scheduling.
 	// Must be synchronized with out Hub cluster.
-	slots   map[string]*structs.Slot
-	slotsMu sync.RWMutex
+	askPlans *AskPlans
 
 	// Worker ACL.
 	// Must be synchronized with out Hub cluster.
@@ -766,7 +765,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	if !h.hasSlot(request.AskId) {
+	if !h.askPlans.HasOrder(request.AskId) {
 		return nil, status.Errorf(codes.NotFound, "slot not found")
 	}
 
@@ -1008,6 +1007,17 @@ func (h *Hub) findRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, erro
 	return result, nil
 }
 
+func (h *Hub) HasResources(resources *structs.Resources) bool {
+	usage := resource.NewResources(
+		int(resources.GetCpuCores()),
+		int64(resources.GetMemoryInBytes()),
+		resources.GetGPUCount(),
+	)
+
+	ctx, err := h.findRandomMinerByUsage(&usage)
+	return ctx != nil && err == nil
+}
+
 func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.Empty, error) {
 	h.onNewHub(request.Endpoint)
 	return &pb.Empty{}, nil
@@ -1081,31 +1091,20 @@ func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDeviceProp
 	return &pb.Empty{}, nil
 }
 
+//TODO: It actually should be called getAskPlans
 func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, error) {
 	log.G(h.ctx).Info("handling Slots request")
-
-	h.slotsMu.RLock()
-	defer h.slotsMu.RUnlock()
-
-	slots := make(map[string]*pb.Slot)
-	for id, slot := range h.slots {
-		slots[id] = slot.Unwrap()
-	}
-
-	return &pb.SlotsReply{Slots: slots}, nil
+	return &pb.SlotsReply{Slots: h.askPlans.DumpSlots()}, nil
 }
 
 func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*pb.ID, error) {
 	log.G(h.ctx).Info("handling InsertSlot request", zap.Any("request", request))
 
-	// We do not perform any resource existence check here, because miners
-	// can be added dynamically.
 	slot, err := structs.NewSlot(request.Slot)
 	if err != nil {
 		return nil, err
 	}
 
-	// send slot to market
 	ord := &pb.Order{
 		OrderType:      pb.OrderType_ASK,
 		Slot:           slot.Unwrap(),
@@ -1113,43 +1112,28 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*p
 		PricePerSecond: request.PricePerSecond,
 		SupplierID:     util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
 	}
-
-	created, err := h.market.CreateOrder(h.ctx, ord)
+	order, err := structs.NewOrder(ord)
 	if err != nil {
 		return nil, err
 	}
 
-	h.slotsMu.Lock()
-	defer h.slotsMu.Unlock()
-
-	h.slots[created.Id] = slot
-	err = h.cluster.Synchronize(h.slots)
+	id, err := h.askPlans.Add(order)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.ID{Id: created.Id}, nil
+	err = h.cluster.Synchronize(h.askPlans.Dump())
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.ID{Id: id}, nil
 }
 
 func (h *Hub) RemoveSlot(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Info("RemoveSlot request", zap.Any("id", request.Id))
 
-	h.slotsMu.Lock()
-	defer h.slotsMu.Unlock()
-
-	_, ok := h.slots[request.Id]
-	if !ok {
-		return nil, errSlotNotExists
-	}
-
-	_, err := h.market.CancelOrder(h.ctx, &pb.Order{Id: request.Id})
-	if err != nil {
-		return nil, err
-	}
-
-	delete(h.slots, request.Id)
-
-	err = h.cluster.Synchronize(h.slots)
+	err := h.askPlans.Remove(request.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -1321,7 +1305,6 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 		miners:           make(map[string]*MinerCtx),
 		associatedHubs:   make(map[string]struct{}),
 		deviceProperties: make(map[string]DeviceProperties),
-		slots:            make(map[string]*structs.Slot),
 		acl:              acl,
 
 		eventAuthorization: nil,
@@ -1337,6 +1320,9 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 
 	orderShelter := NewOrderShelter(h)
 	h.orderShelter = orderShelter
+
+	askPlans := NewAskPlans(ctx, h, defaults.market)
+	h.askPlans = askPlans
 
 	authorization := auth.NewEventAuthorization(h.ctx,
 		auth.WithLog(log.G(ctx)),
@@ -1426,6 +1412,8 @@ func (h *Hub) Serve() error {
 		}
 	})
 
+	h.waiter.Go(h.askPlans.Run)
+
 	if err := h.cluster.RegisterAndLoadEntity("tasks", &h.tasks); err != nil {
 		return err
 	}
@@ -1435,12 +1423,15 @@ func (h *Hub) Serve() error {
 	if err := h.cluster.RegisterAndLoadEntity("acl", h.acl); err != nil {
 		return err
 	}
-	if err := h.cluster.RegisterAndLoadEntity("slots", &h.slots); err != nil {
-		return err
-	}
 	if err := h.cluster.RegisterAndLoadEntity("deals", &h.deals); err != nil {
 		return err
 	}
+
+	askPlansData := AskPlansData{}
+	if err := h.cluster.RegisterAndLoadEntity("ask_plans", &askPlansData); err != nil {
+		return err
+	}
+	h.askPlans.RestoreFrom(askPlansData)
 
 	reservedOrders := make(map[OrderID]ReservedOrder, 0)
 	if err := h.cluster.RegisterAndLoadEntity("reserved_orders", &reservedOrders); err != nil {
@@ -1452,7 +1443,7 @@ func (h *Hub) Serve() error {
 		zap.Any("tasks", h.tasks),
 		zap.Any("device_properties", h.deviceProperties),
 		zap.Any("acl", h.acl),
-		zap.Any("slots", h.slots),
+		zap.Any("ask_plans", h.askPlans),
 		zap.Any("reserved_orders", h.orderShelter),
 	)
 
@@ -1613,10 +1604,8 @@ func (h *Hub) processClusterEvent(value interface{}) {
 		h.devicePropertiesMu.Lock()
 		defer h.devicePropertiesMu.Unlock()
 		h.deviceProperties = value
-	case map[string]*structs.Slot:
-		h.slotsMu.Lock()
-		defer h.slotsMu.Unlock()
-		h.slots = value
+	case AskPlansData:
+		h.askPlans.RestoreFrom(value)
 	case workerACLStorage:
 		h.acl = &value
 	case map[DealID]*DealMeta:
@@ -1645,6 +1634,10 @@ func (h *Hub) Close() {
 		h.certRotator.Close()
 	}
 	h.waiter.Wait()
+}
+
+func (h *Hub) SynchronizeAskPlans(data AskPlansData) error {
+	return h.cluster.Synchronize(data)
 }
 
 func (h *Hub) registerMiner(miner *MinerCtx) {
@@ -1909,12 +1902,4 @@ func (h *Hub) restoreResourceUsage() {
 			}
 		}
 	}
-}
-
-func (h *Hub) hasSlot(id string) bool {
-	h.slotsMu.Lock()
-	defer h.slotsMu.Unlock()
-
-	_, ok := h.slots[id]
-	return ok
 }

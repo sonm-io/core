@@ -21,7 +21,8 @@ type LocatorConfig struct {
 }
 
 type MarketConfig struct {
-	Endpoint string `required:"true" yaml:"endpoint"`
+	Endpoint        string `required:"true" yaml:"endpoint"`
+	UpdatePeriodSec uint64 `default:"60" yaml:"update_period_sec"`
 }
 
 type StoreConfig struct {
