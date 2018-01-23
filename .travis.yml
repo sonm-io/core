@@ -7,9 +7,10 @@ go:
     - 1.9.x
 
 env:
-  - BUILD_TYPE=Tests
-  - BUILD_TYPE=Debian
-  - BUILD_TYPE=Coverage
+  matrix:
+    - BUILD_TYPE=Tests
+    - BUILD_TYPE=Debian
+    - BUILD_TYPE=Coverage
 
 services:
     - "docker"
@@ -18,9 +19,6 @@ before_install:
   - sudo apt-get install debhelper devscripts dh-systemd ocl-icd-opencl-dev -y
 
 install:
-  - . $HOME/.nvm/nvm.sh
-  - nvm install stable
-  - nvm use stable
   - git submodule update
 
 script:
