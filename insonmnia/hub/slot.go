@@ -57,10 +57,15 @@ func (a *AskPlans) Add(order *structs.Order) (string, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	id := uuid.New()
-	a.Data[id] = &AskPlan{
+	plan := &AskPlan{
 		Id:    id,
 		Order: order,
 	}
+	a.Data[id] = plan
+	if a.hub.HasResources(plan.Order.GetSlot().GetResources()) {
+		a.announcePlan(plan)
+	}
+	a.sync()
 	return id, nil
 }
 
@@ -93,7 +98,9 @@ func (a *AskPlans) Remove(planId string) error {
 	if !ok {
 		return errSlotNotExists
 	}
-	a.deannouncePlan(askPlan)
+	if askPlan.Order.Id != "" {
+		a.deannouncePlan(askPlan)
+	}
 	delete(a.Data, planId)
 	a.sync()
 	return nil
