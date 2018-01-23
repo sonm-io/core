@@ -39,8 +39,8 @@ func NewAskPlans(ctx context.Context, hub *Hub, market pb.MarketClient) *AskPlan
 }
 
 func (a *AskPlans) Run() error {
-	a.hub.cfg.Market
-	ticker := util.NewImmediateTicker(time.Second)
+	period := time.Duration(a.hub.cfg.Market.UpdatePeriodSec) * time.Second
+	ticker := util.NewImmediateTicker(period)
 	for {
 		select {
 		case <-a.ctx.Done():
@@ -100,7 +100,26 @@ func (a *AskPlans) Remove(planId string) error {
 }
 
 func (a *AskPlans) HasOrder(orderId string) bool {
-	panic("unimplemented")
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	//TODO: not very efficient, maybe we can hold another index by market orderId, but now it looks like overkill
+	for _, plan := range a.Data {
+		if plan.Order.Id == orderId {
+			return true
+		}
+	}
+	return false
+}
+
+func (a *AskPlans) forceRenewAnnounces() {
+	for _, plan := range a.Data {
+		if a.hub.HasResources(plan.Order.GetSlot().GetResources()) {
+			a.announcePlan(plan)
+		} else {
+			a.deannouncePlan(plan)
+		}
+	}
 }
 
 func (a *AskPlans) checkAnnounces() error {
@@ -127,7 +146,8 @@ func (a *AskPlans) checkAnnounces() error {
 	if len(toUpdate) > 0 {
 		_, err := a.market.TouchOrders(a.ctx, &pb.TouchOrdersRequest{IDs: toUpdate})
 		if err != nil {
-			log.G(a.ctx).Warn("failed to touch orders on market", zap.Error(err))
+			log.G(a.ctx).Warn("failed to touch orders on market, forcing renewing announces", zap.Error(err))
+			a.forceRenewAnnounces()
 		}
 	}
 	if changed {
