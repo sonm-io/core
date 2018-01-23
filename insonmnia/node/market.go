@@ -413,6 +413,30 @@ func (m *marketAPI) checkBalanceAndAllowance(price, balance, allowance *big.Int)
 	return true
 }
 
+func (m *marketAPI) filterOrdersByPriceAndAllowance(ctx context.Context, balance, allowance *big.Int, orders []*pb.Order) ([]*pb.Order, error) {
+	var matched []*pb.Order
+
+	for _, ord := range orders {
+		price := structs.CalculateTotalPrice(ord)
+		if !m.checkBalanceAndAllowance(price, balance, allowance) {
+			log.G(ctx).Info("lack of balance or allowance for order, skip",
+				zap.String("orderID", ord.Id),
+				zap.String("price", price.String()),
+				zap.String("balance", balance.String()),
+				zap.String("allowance", allowance.String()))
+			continue
+		}
+
+		matched = append(matched, ord)
+	}
+
+	if len(matched) == 0 {
+		return nil, errLackOfBalance
+	}
+
+	return matched, nil
+}
+
 // orderLoop searching for orders, iterate found orders and trying to propose deal
 func (m *marketAPI) orderLoop(handler *orderHandler) error {
 	log.G(handler.ctx).Info("starting orderLoop", zap.String("id", handler.id))
@@ -438,20 +462,23 @@ func (m *marketAPI) orderLoop(handler *orderHandler) error {
 		return err
 	}
 
+	// iterate orders #1, check for balance,
+	// filter orders if price is too high or allowance is too low
+	ordersForProposeDeal, err := m.filterOrdersByPriceAndAllowance(handler.ctx, balance, allowance, orders)
+	if err != nil {
+		handler.setError(err)
+		return err
+	}
+
 	var (
 		orderToDeal *pb.Order
 		hubClient   pb.HubClient
 		cc          io.Closer
 		dealRequest *pb.DealRequest
 	)
-	for _, ord := range orders {
-		price := structs.CalculateTotalPrice(ord)
-		if !m.checkBalanceAndAllowance(price, balance, allowance) {
-			log.G(handler.ctx).Info("lack of balance or allowance for order", zap.String("order_id", ord.Id))
-			handler.setError(errLackOfBalance)
-			continue
-		}
 
+	// iterate orders #2, try to propose order
+	for _, ord := range ordersForProposeDeal {
 		hubClient, cc, err = handler.makeHubClient(ord.SupplierID)
 		if err != nil {
 			log.G(handler.ctx).Info("cannot create hub client", zap.Error(err))
