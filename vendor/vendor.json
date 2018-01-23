@@ -1357,10 +1357,10 @@
 			"revisionTime": "2017-05-08T18:43:26Z"
 		},
 		{
-			"checksumSHA1": "zaplK46fEuycISw+2PxKSurH8QU=",
+			"checksumSHA1": "9ZaYO8UaMAwapjRBBbKDM9HkTyg=",
 			"path": "github.com/sshaman1101/nvidia-docker",
-			"revision": "8f13dece16af40869b73b3dae19a8380f71bd8ea",
-			"revisionTime": "2018-01-22T14:00:35Z",
+			"revision": "759a11342d8f1187002fae9f4072bf369f3b1b85",
+			"revisionTime": "2018-01-23T15:05:02Z",
 			"tree": true
 		},
 		{

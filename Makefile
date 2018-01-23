@@ -26,8 +26,9 @@ GPU_SUPPORT?=false
 ifeq ($(GPU_SUPPORT),true)
     GPU_TAGS=cl
     # required for build nvidia-docker libs with NVML included via cgo
-    CGO_LDFLAGS=-L/usr/local/cuda/lib64/
-    CGO_CFLAGS=-I/usr/local/cuda/include
+    NV_CGO=vendor/github.com/sshaman1101/nvidia-docker/build
+    CGO_LDFLAGS=-L$(shell pwd)/${NV_CGO}/lib
+    CGO_CFLAGS=-I$(shell pwd)/${NV_CGO}/include
 endif
 
 UNAME_S := $(shell uname -s)
