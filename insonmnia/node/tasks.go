@@ -34,8 +34,9 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 		return hubClient.TaskList(ctx, &pb.Empty{})
 	}
 
-	myAddr := util.PubKeyToAddr(t.remotes.key.PublicKey)
-	dealIDs, err := t.remotes.eth.GetDeals(myAddr.Hex())
+	clientAddr := util.PubKeyToAddr(t.remotes.key.PublicKey)
+	// get all accepted deals, because only on the accepted deals client can start the payloads.
+	dealIDs, err := t.remotes.eth.GetAcceptedDeal("", clientAddr.Hex())
 	if err != nil {
 		return nil, err
 	}
