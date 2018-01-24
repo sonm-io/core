@@ -46,7 +46,6 @@ logging:
   level: -1
 GPUConfig:
   type: nvidiadocker
-  args: { nvidiadockerdriver: "localhost:3476" }
 locator:
   endpoint: "127.0.0.1:9090"
 `)
@@ -56,6 +55,4 @@ locator:
 	conf, err := NewConfig(testMinerConfigPath)
 	assert.Nil(t, err)
 	assert.Equal(t, "nvidiadocker", conf.GPU().Type)
-	assert.NotEmpty(t, conf.GPU().Args)
-	assert.Equal(t, "localhost:3476", conf.GPU().Args["nvidiadockerdriver"])
 }

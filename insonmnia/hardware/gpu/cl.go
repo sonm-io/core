@@ -41,7 +41,7 @@ func GetGPUDevicesUsingOpenCL() ([]Device, error) {
 	for _, platform := range platforms {
 		devices, err := platform.getGPUDevices()
 		if err != nil {
-			return nil, err
+			continue
 		}
 
 		for _, d := range devices {

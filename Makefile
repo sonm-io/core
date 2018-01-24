@@ -25,6 +25,10 @@ TAGS=nocgo
 GPU_SUPPORT?=false
 ifeq ($(GPU_SUPPORT),true)
     GPU_TAGS=cl
+    # required for build nvidia-docker libs with NVML included via cgo
+    NV_CGO=vendor/github.com/sshaman1101/nvidia-docker/build
+    CGO_LDFLAGS=-L$(shell pwd)/${NV_CGO}/lib
+    CGO_CFLAGS=-I$(shell pwd)/${NV_CGO}/include
 endif
 
 UNAME_S := $(shell uname -s)
@@ -46,7 +50,7 @@ build/locator:
 
 build/miner:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${MINER} ${GOCMD}/miner
+	CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${MINER} ${GOCMD}/miner
 
 build/hub:
 	@echo "+ $@"

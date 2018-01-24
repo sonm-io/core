@@ -1,4 +1,4 @@
-// +build linux,embeddednvidia
+// +build linux,cl
 
 package gpu
 
@@ -9,8 +9,8 @@ import (
 	"path"
 	"regexp"
 
-	"github.com/NVIDIA/nvidia-docker/src/nvidia"
 	"github.com/docker/go-plugins-helpers/volume"
+	"github.com/sshaman1101/nvidia-docker/nvidia"
 )
 
 var (
@@ -51,9 +51,11 @@ func (p *volumePlugin) Create(req *volume.CreateRequest) error {
 	if err != nil {
 		return err
 	}
+
 	if !ok {
 		return vol.Create(nvidia.LinkStrategy{})
 	}
+
 	return nil
 }
 
@@ -101,12 +103,12 @@ func (p *volumePlugin) Get(req *volume.GetRequest) (*volume.GetResponse, error) 
 
 func (p *volumePlugin) Remove(req *volume.RemoveRequest) error {
 	log.Printf("Received remove request for volume '%s'", req.Name)
-	volume, version, err := p.getVolume(req.Name)
+	vol, version, err := p.getVolume(req.Name)
 	if err != nil {
 		return err
 	}
 
-	return volume.Remove(version)
+	return vol.Remove(version)
 }
 
 func (p *volumePlugin) Path(req *volume.PathRequest) (*volume.PathResponse, error) {
@@ -131,6 +133,7 @@ func (p *volumePlugin) Mount(req *volume.MountRequest) (*volume.MountResponse, e
 	if err != nil {
 		return nil, err
 	}
+
 	if !ok {
 		return nil, ErrVolumeNotFound
 	}
@@ -158,9 +161,11 @@ func (p *volumePlugin) getVolume(name string) (*nvidia.Volume, string, error) {
 	if len(m) != 3 {
 		return nil, "", ErrVolumeBadFormat
 	}
-	volume, version := p.Volumes[m[1]], m[2]
-	if volume == nil {
+
+	vol, version := p.Volumes[m[1]], m[2]
+	if vol == nil {
 		return nil, "", ErrVolumeUnsupported
 	}
-	return volume, version, nil
+
+	return vol, version, nil
 }

@@ -1,4 +1,4 @@
-// +build linux
+// +build linux,cl
 
 package gpu
 
@@ -12,15 +12,7 @@ import (
 	"os"
 
 	"github.com/docker/docker/api/types/container"
-
-	log "github.com/noxiouz/zapctx/ctxlog"
 )
-
-const openCLVendorDir = "/etc/OpenCL/vendors"
-
-func init() {
-	modes["nvidiadocker"] = newNvidiaDockerTuner
-}
 
 type gpuNvidiaDockerTuner struct {
 	args nvidiaPluginArgs
@@ -33,14 +25,10 @@ type nvidiaPluginArgs struct {
 	Devices      []string
 }
 
-func newNvidiaDockerTuner(ctx context.Context, args Args) (Tuner, error) {
-	nvidiaDockerDriverEndpoint, ok := args["nvidiadockerdriver"].(string)
-	if !ok {
-		log.G(ctx).Error("missing option pointing to NvidiaDockerEndpoint or it's not a string")
-		return nil, fmt.Errorf("configuration error")
-	}
+func newNvidiaDockerTuner(_ context.Context, opts *tunerOptions) (Tuner, error) {
 	// TODO: construct the URL in a more safe way
-	resp, err := http.Get("http://" + nvidiaDockerDriverEndpoint + "/docker/cli/json")
+	url := fmt.Sprintf("http://%s/docker/cli/json", opts.nvidiaDockerEndpoint)
+	resp, err := http.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch GPU configuration from nvidia-docker-plugin: %v", err)
 	}
@@ -58,8 +46,7 @@ func newNvidiaDockerTuner(ctx context.Context, args Args) (Tuner, error) {
 	}
 
 	// If we have OpenCL vendors dir, bind it into a container too
-	_, err = os.Stat(openCLVendorDir)
-	if err == nil {
+	if _, err := os.Stat(openCLVendorDir); err == nil {
 		plArgs.Volumes = append(plArgs.Volumes, openCLVendorDir+":"+openCLVendorDir+":ro")
 	}
 
@@ -70,7 +57,12 @@ func (*gpuNvidiaDockerTuner) Close() error { return nil }
 
 func (g *gpuNvidiaDockerTuner) Tune(hostconfig *container.HostConfig) error {
 	// This tunes configs to get the same result as docker run with:
-	// --volume-driver=nvidia-docker --volume=nvidia_driver_375.66:/usr/local/nvidia:ro --device=/dev/nvidiactl --device=/dev/nvidia-uvm --device=/dev/nvidia-uvm-tools --device=/dev/nvidia
+	// --volume-driver=nvidia-docker
+	// --volume=nvidia_driver_375.66:/usr/local/nvidia:ro
+	// --device=/dev/nvidiactl
+	// --device=/dev/nvidia-uvm
+	// --device=/dev/nvidia-uvm-tools
+	// --device=/dev/nvidia
 
 	// volumes must be provisioned by docker-nvidia-plugin
 	// TODO: can we do the same but w/o plugin? Be a plugin for docker?
@@ -78,9 +70,11 @@ func (g *gpuNvidiaDockerTuner) Tune(hostconfig *container.HostConfig) error {
 
 	// bind driver volumes inside container
 	hostconfig.Binds = g.args.Volumes
+
 	// bind devices inside container
 	for _, device := range g.args.Devices {
 		hostconfig.Devices = append(hostconfig.Devices, container.DeviceMapping{
+			PathInContainer:   device,
 			PathOnHost:        device,
 			CgroupPermissions: "rwm",
 		})
