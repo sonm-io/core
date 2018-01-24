@@ -11,6 +11,8 @@ import (
 )
 
 var (
+	// The CPU CFS scheduler period in nanoseconds. Used alongside CPU quota.
+	defaultCPUPeriod     = int64(100000)
 	errResourcesRequired = errors.New("resources field is required")
 )
 
@@ -132,6 +134,8 @@ func (r *TaskResources) ToUsage() resource.Resources {
 func (r *TaskResources) ToContainerResources(cgroupParent string) container.Resources {
 	return container.Resources{
 		CgroupParent: cgroupParent,
+		CPUQuota:     r.cpuQuota(),
+		CPUPeriod:    defaultCPUPeriod,
 		Memory:       r.inner.GetMaxMemory(),
 	}
 }
@@ -144,4 +148,8 @@ func (r *TaskResources) ToCgroupResources() *specs.LinuxResources {
 			Limit: &maxMemory,
 		},
 	}
+}
+
+func (r *TaskResources) cpuQuota() int64 {
+	return defaultCPUPeriod * int64(r.inner.GetCPUCores())
 }
