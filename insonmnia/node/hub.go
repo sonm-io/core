@@ -9,7 +9,6 @@ import (
 	"time"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"

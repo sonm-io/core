@@ -595,6 +595,32 @@ func TestCreateOrder_NotApprovedAndNotCancelled(t *testing.T) {
 	assert.EqualError(t, handlr.err, "TEST: cannot close deal")
 }
 
+func TestRestartOrdersProcessing(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	opts := getTestRemotes(ctx, ctrl)
+
+	server, err := newMarketAPI(opts)
+	require.NoError(t, err)
+
+	api := server.(*marketAPI)
+	assert.Equal(t, api.countHandlers(), 0)
+
+	f := api.restartOrdersProcessing()
+
+	err = f()
+	require.NoError(t, err)
+
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, api.countHandlers(), 1)
+	h, ok := api.getHandler("my-order-id")
+	require.True(t, ok)
+
+	assert.Equal(t, h.getStatus(), statusDone)
+}
+
 type mockConn struct{}
 
 func (c *mockConn) Close() error { return nil }
