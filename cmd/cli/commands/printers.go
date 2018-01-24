@@ -322,10 +322,10 @@ func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
 
 		for _, handlr := range handlers {
 			t := time.Unix(handlr.Timestamp.Seconds, 0).Format(time.RFC822)
-			s := node.HandlerStatusString(uint8(handlr.Status))
+			status := node.HandlerStatus(handlr.Status).String()
 
 			cmd.Printf("id:     %s start: %s\r\n", handlr.Id, t)
-			cmd.Printf("status: %s (%s)\r\n", s, handlr.Extra)
+			cmd.Printf("status: %s (%s)\r\n", status, handlr.Extra)
 			cmd.Println()
 		}
 

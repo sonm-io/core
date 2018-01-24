@@ -26,36 +26,37 @@ var (
 	errNoAskFound         = errors.New("cannot find matching ASK order")
 )
 
-// todo: custom type with .String method
+type HandlerStatus uint8
+
+func (h HandlerStatus) String() string {
+	m := map[HandlerStatus]string{
+		statusNew:            "New",
+		statusSearching:      "Searching",
+		statusProposing:      "Proposing",
+		statusDealing:        "Dealing",
+		statusWaitForApprove: "Waiting for approve",
+		statusDone:           "Done",
+		statusFailed:         "Failed",
+	}
+
+	s, ok := m[h]
+	if !ok {
+		return "Unknown"
+	}
+	return s
+}
+
 const (
-	statusNew uint8 = iota
+	orderPollPeriod = 5 * time.Second
+
+	statusNew HandlerStatus = iota
 	statusSearching
 	statusProposing
 	statusDealing
 	statusWaitForApprove
 	statusDone
 	statusFailed
-
-	orderPollPeriod = 5 * time.Second
 )
-
-var statusMap = map[uint8]string{
-	statusNew:            "New",
-	statusSearching:      "Searching",
-	statusProposing:      "Proposing",
-	statusDealing:        "Dealing",
-	statusWaitForApprove: "Waiting for approve",
-	statusDone:           "Done",
-	statusFailed:         "Failed",
-}
-
-func HandlerStatusString(status uint8) string {
-	s, ok := statusMap[status]
-	if !ok {
-		return "Unknown"
-	}
-	return s
-}
 
 // orderHandler is wrapper over Order
 // allows to keep order execution status
@@ -79,7 +80,7 @@ type orderHandler struct {
 	sync.Mutex
 	id     string
 	order  *pb.Order
-	status uint8
+	status HandlerStatus
 	ts     time.Time
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -124,14 +125,14 @@ func (h *orderHandler) setError(err error) {
 	h.err = err
 }
 
-func (h *orderHandler) setStatus(s uint8) {
+func (h *orderHandler) setStatus(s HandlerStatus) {
 	h.Lock()
 	defer h.Unlock()
 
 	h.status = s
 }
 
-func (h *orderHandler) getStatus() uint8 {
+func (h *orderHandler) getStatus() HandlerStatus {
 	h.Lock()
 	defer h.Unlock()
 
