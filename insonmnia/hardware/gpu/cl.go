@@ -50,21 +50,26 @@ func GetGPUDevicesUsingOpenCL() ([]Device, error) {
 			if err != nil {
 				return nil, err
 			}
+
 			vendor, err := d.vendor()
 			if err != nil {
 				return nil, err
 			}
+
 			maxClockFrequency, err := d.deviceMaxClockFrequency()
 			if err != nil {
 				return nil, err
 			}
+
 			globalMemSize, err := d.globalMemSize()
 			if err != nil {
 				return nil, err
 			}
+
 			if vendorId, err := d.vendorId(); err == nil {
 				options = append(options, WithVendorId(vendorId))
 			}
+
 			if deviceVersion, err := d.deviceVersion(); err == nil {
 				options = append(options, WithOpenClDeviceVersion(deviceVersion))
 			}
@@ -73,6 +78,7 @@ func GetGPUDevicesUsingOpenCL() ([]Device, error) {
 			if err != nil {
 				return nil, err
 			}
+
 			result = append(result, device)
 		}
 	}

@@ -22,16 +22,18 @@ type Device interface {
 	VendorId() uint
 	// VendorName returns GPU vendor name.
 	VendorName() string
+	// VendorType returns GPU vendor type. could be nvidia, radeon or none
+	VendorType() sonm.GPUVendorType
 	// MaxMemorySize returns the total maximum memory size the device can hold
 	// in bytes.
 	MaxMemorySize() uint64
 	// MaxClockFrequency returns maximum configured clock frequency of the
 	// device in MHz.
 	MaxClockFrequency() uint
-	// OpenCLDeviceVersion returns the OpenCL major version supported by the
+	// OpenCLDeviceVersionMajor returns the OpenCL major version supported by the
 	// device.
 	OpenCLDeviceVersionMajor() int
-	// OpenCLDeviceVersion returns the OpenCL minor version supported by the
+	// OpenCLDeviceVersionMinor returns the OpenCL minor version supported by the
 	// device.
 	OpenCLDeviceVersionMinor() int
 
@@ -51,7 +53,10 @@ type Option func(*sonm.GPUDevice) error
 
 func WithVendorId(id uint) func(*sonm.GPUDevice) error {
 	return func(d *sonm.GPUDevice) error {
-		d.VendorId = uint64(id)
+		id := uint64(id)
+		d.VendorId = id
+		d.VendorType = gpuTypeFromVendorID(id)
+
 		return nil
 	}
 }
@@ -112,6 +117,10 @@ func (d *device) VendorName() string {
 	return d.d.GetVendorName()
 }
 
+func (d *device) VendorType() sonm.GPUVendorType {
+	return d.d.GetVendorType()
+}
+
 func (d *device) MaxMemorySize() uint64 {
 	return d.d.GetMaxMemorySize()
 }
@@ -140,4 +149,31 @@ func GetGPUDevices() ([]Device, error) {
 	}
 
 	return devices, nil
+}
+
+func gpuTypeFromVendorID(v uint64) sonm.GPUVendorType {
+	// Note: need more vendor IDs
+	Radeons := []uint64{
+		4098,
+		// macbook pro 2017
+		16915456,
+	}
+
+	Nvidias := []uint64{
+		4318,
+	}
+
+	for _, id := range Radeons {
+		if id == v {
+			return sonm.GPUVendorType_RADEON
+		}
+	}
+
+	for _, id := range Nvidias {
+		if id == v {
+			return sonm.GPUVendorType_NVIDIA
+		}
+	}
+
+	return sonm.GPUVendorType_GPU_UNKNOWN
 }
