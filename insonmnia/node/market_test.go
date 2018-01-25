@@ -74,6 +74,8 @@ func getTestEth(ctrl *gomock.Controller) blockchain.Blockchainer {
 		Return(deal, nil)
 	bc.EXPECT().OpenDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		Return(big.NewInt(1), nil)
+	bc.EXPECT().CloseDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		Return(nil)
 
 	return bc
 }
@@ -426,7 +428,7 @@ func TestCreateOrder_LackAllowanceBalance(t *testing.T) {
 
 	assert.Equal(t, statusFailed, handlr.getStatus(),
 		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.getStatus()]))
-	assert.Error(t, handlr.err, errProposeNotAccepted)
+	assert.EqualError(t, handlr.err, errLackOfBalance.Error())
 }
 
 func TestCreateOrder_LackAllowance(t *testing.T) {
@@ -464,7 +466,7 @@ func TestCreateOrder_LackAllowance(t *testing.T) {
 
 	assert.Equal(t, statusFailed, handlr.getStatus(),
 		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.getStatus()]))
-	assert.Error(t, handlr.err, errProposeNotAccepted)
+	assert.EqualError(t, handlr.err, errLackOfBalance.Error())
 }
 
 func TestCreateOrder_LackBalance(t *testing.T) {
@@ -503,7 +505,7 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 
 	assert.Equal(t, statusFailed, handlr.getStatus(),
 		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.getStatus()]))
-	assert.Error(t, handlr.err, errProposeNotAccepted)
+	assert.EqualError(t, handlr.err, errLackOfBalance.Error())
 }
 
 func TestFilterOrdersByPriceAndAllowance(t *testing.T) {
@@ -543,6 +545,54 @@ func TestFilterOrdersByPriceAndAllowance(t *testing.T) {
 	ordersToDeal, err = inner.filterOrdersByPriceAndAllowance(ctx, balance, allowance, ordersFromSearch)
 	require.NoError(t, err)
 	assert.Len(t, ordersToDeal, 2, "all orders must be returned")
+}
+
+func TestCreateOrder_NotApprovedAndNotCancelled(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	opts := getTestRemotes(ctx, ctrl)
+
+	eth := blockchain.NewMockBlockchainer(ctrl)
+	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+		Return(big.NewInt(9999999999), nil)
+	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(9999999999), nil)
+	eth.EXPECT().OpenDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		Return(big.NewInt(1), nil)
+	eth.EXPECT().CloseDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		Return(errors.New("TEST: cannot close deal"))
+
+	opts.eth = eth
+	opts.hubCreator = func(addr string) (pb.HubClient, io.Closer, error) {
+		hub := NewMockHubClient(ctrl)
+		hub.EXPECT().ProposeDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
+		hub.EXPECT().ApproveDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(
+			nil, errors.New("TEST: cannot approve deal"))
+
+		return hub, &mockConn{}, nil
+	}
+
+	server, err := newMarketAPI(opts)
+	require.NoError(t, err)
+
+	inner := server.(*marketAPI)
+	created, err := inner.CreateOrder(ctx, makeOrder())
+	require.NoError(t, err)
+	assert.NotNil(t, created)
+	assert.NotEmpty(t, created.Id)
+
+	// wait for async handler is finished
+	time.Sleep(1 * time.Second)
+	assert.Equal(t, inner.countHandlers(), 1, "Handler must not be removed")
+
+	handlr, ok := inner.getHandler(created.Id)
+	require.True(t, ok)
+
+	assert.Equal(t, statusFailed, handlr.getStatus(),
+		fmt.Sprintf("Wait for status %s, but has %s", statusMap[statusFailed], statusMap[handlr.getStatus()]))
+	assert.EqualError(t, handlr.err, "TEST: cannot close deal")
 }
 
 type mockConn struct{}
