@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
@@ -141,6 +142,8 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 
 	pb.RegisterTaskManagementServer(srv, tasks)
 	log.G(ctx).Info("tasks service registered")
+
+	grpc_prometheus.Register(srv)
 
 	return &Node{
 		lis:                lis,

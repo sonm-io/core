@@ -1,7 +1,7 @@
 # An endpoint for miner connections.
 # allowed format is "ip:port" to bind Hub to given IP address
 # or ":port" to bind Hub to all available IPs
-endpoint: ":10002"
+endpoint: ":15011"
 
 # Hub as a gateway settings. Can be omitted indicating that the Hub should not
 # be a gateway.
@@ -14,7 +14,7 @@ cluster:
   # An endpoint for client connections using cli
   # allowed format is "ip:port" to bind Hub to given IP address
   # or ":port" to bind Hub to all available IPs
-  endpoint: ":10001"
+  endpoint: ":15010"
 
   # An endpoint for hub announcements
   # This one useful if hub is behind router with DMZ or port forwarding
@@ -69,13 +69,15 @@ ethereum:
 # locator service allows nodes to discover each other
 locator:
   # locator gRPC endpoint, required
-  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"
+  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:15020"
 
 # Marketplace service settings
 market:
   # marketplace gRPC endpoint, required
-  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9095"
+  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:15021"
 
 whitelist:
   url: "https://raw.githubusercontent.com/sonm-io/allowed-list/master/general_whitelist.json"
   enabled: true
+
+metrics_listen_addr: "127.0.0.1:14000"

@@ -13,21 +13,12 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/util/xgrpc"
-	"go.uber.org/zap"
-	"golang.org/x/net/context"
-
-	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/status"
-
-	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/insonmnia/math"
@@ -35,6 +26,14 @@ import (
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
+	"go.uber.org/zap"
+	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -535,6 +534,8 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		)
 	}
 
+	tasksGauge.Inc()
+
 	return reply, nil
 }
 
@@ -602,6 +603,8 @@ func (h *Hub) stopTask(ctx context.Context, task *TaskInfo) error {
 		log.G(ctx).Error("cannot delete task", zap.Error(err))
 		return err
 	}
+
+	tasksGauge.Dec()
 
 	return nil
 }
@@ -939,6 +942,9 @@ func (h *Hub) ApproveDeal(ctx context.Context, request *pb.ApproveDealRequest) (
 	h.tasksMu.Lock()
 	defer h.tasksMu.Unlock()
 	h.deals[dealMeta.ID] = dealMeta
+
+	dealsGauge.Inc()
+
 	if err := h.cluster.Synchronize(h.deals); err != nil {
 		log.G(h.ctx).Error("failed to synchronize deal with the cluster", zap.Error(err))
 	}
@@ -950,7 +956,7 @@ func (h *Hub) waitForDealClosed(dealID DealID, buyerId string) error {
 	return h.eth.WaitForDealClosed(h.ctx, dealID, buyerId)
 }
 
-// CloseDeal closes the specified deal freeing all associated resources.
+// releaseDeal closes the specified deal freeing all associated resources.
 func (h *Hub) releaseDeal(dealID DealID) error {
 	tasks, err := h.popDealHistory(dealID)
 	if err != nil {
@@ -969,6 +975,8 @@ func (h *Hub) releaseDeal(dealID DealID) error {
 				zap.String("taskID", task.ID),
 				zap.Error(err),
 			)
+		} else {
+			tasksGauge.Dec()
 		}
 	}
 
@@ -1359,6 +1367,8 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	h.externalGrpc = grpcServer
 
 	pb.RegisterHubServer(grpcServer, h)
+	grpc_prometheus.Register(grpcServer)
+
 	return h, nil
 }
 
@@ -1776,10 +1786,13 @@ func (h *Hub) popDealHistory(dealID DealID) ([]*TaskInfo, error) {
 	}
 	delete(h.deals, dealID)
 
+	dealsGauge.Dec()
+
 	err := h.cluster.Synchronize(h.deals)
 	if err != nil {
 		return nil, err
 	}
+
 	return tasks.Tasks, nil
 }
 

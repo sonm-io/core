@@ -9,6 +9,7 @@ import (
 	flag "github.com/ogier/pflag"
 	"github.com/sonm-io/core/insonmnia/locator"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
 
@@ -48,6 +49,9 @@ func main() {
 		log.G(ctx).Error("cannot start Locator service", zap.Error(err))
 		os.Exit(1)
 	}
+
+	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
+
 	log.G(ctx).Info("starting Locator service", zap.String("bind_addr", cfg.ListenAddr))
 	if err := lc.Serve(); err != nil {
 		log.G(ctx).Error("cannot start Locator service", zap.Error(err))

@@ -46,15 +46,16 @@ type LocatorConfig struct {
 }
 
 type config struct {
-	HubConfig       HubConfig           `required:"true" yaml:"hub"`
-	FirewallConfig  *FirewallConfig     `required:"false" yaml:"firewall"`
-	Eth             *accounts.EthConfig `yaml:"ethereum"`
-	GPUConfig       *gpu.Config         `required:"false" yaml:"GPUConfig"`
-	SSHConfig       *SSHConfig          `required:"false" yaml:"ssh"`
-	LoggingConfig   LoggingConfig       `yaml:"logging"`
-	LocatorConfig   *LocatorConfig      `required:"true" yaml:"locator"`
-	UUIDPathConfig  string              `required:"false" yaml:"uuid_path"`
-	PublicIPsConfig []string            `required:"false" yaml:"public_ip_addrs"`
+	HubConfig               HubConfig           `required:"true" yaml:"hub"`
+	FirewallConfig          *FirewallConfig     `required:"false" yaml:"firewall"`
+	Eth                     *accounts.EthConfig `yaml:"ethereum"`
+	GPUConfig               *gpu.Config         `required:"false" yaml:"GPUConfig"`
+	SSHConfig               *SSHConfig          `required:"false" yaml:"ssh"`
+	LoggingConfig           LoggingConfig       `yaml:"logging"`
+	LocatorConfig           *LocatorConfig      `required:"true" yaml:"locator"`
+	UUIDPathConfig          string              `required:"false" yaml:"uuid_path"`
+	PublicIPsConfig         []string            `required:"false" yaml:"public_ip_addrs"`
+	MetricsListenAddrConfig string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14001"`
 }
 
 func (c *config) HubResolveEndpoints() bool {
@@ -103,6 +104,10 @@ func (c *config) ETH() *accounts.EthConfig {
 
 func (c *config) LocatorEndpoint() string {
 	return c.LocatorConfig.Endpoint
+}
+
+func (c *config) MetricsListenAddr() string {
+	return c.MetricsListenAddrConfig
 }
 
 func (c *config) validate() error {
@@ -165,4 +170,7 @@ type Config interface {
 	ETH() *accounts.EthConfig
 	// LocatorEndpoint returns locator endpoint.
 	LocatorEndpoint() string
+	// MetricsListenAddr returns the address that can be used by Prometheus to get
+	// metrics.
+	MetricsListenAddr() string
 }

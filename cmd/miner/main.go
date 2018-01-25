@@ -11,6 +11,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
@@ -70,6 +71,8 @@ func main() {
 		<-c
 		m.Close()
 	}()
+
+	go util.StartPrometheus(ctx, cfg.MetricsListenAddr())
 
 	// TODO: check error type
 	if err = m.Serve(); err != nil {

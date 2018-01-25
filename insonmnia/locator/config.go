@@ -14,11 +14,12 @@ type storeConfig struct {
 }
 
 type Config struct {
-	ListenAddr    string             `yaml:"address"`
-	NodeTTL       time.Duration      `yaml:"node_ttl"`
-	Eth           accounts.EthConfig `required:"true" yaml:"ethereum"`
-	OnlyPublicIPs bool               `required:"false" yaml:"only_public_ips"`
-	Store         storeConfig        `required:"true" yaml:"store"`
+	ListenAddr        string             `yaml:"address"`
+	NodeTTL           time.Duration      `yaml:"node_ttl"`
+	Eth               accounts.EthConfig `required:"true" yaml:"ethereum"`
+	OnlyPublicIPs     bool               `required:"false" yaml:"only_public_ips"`
+	Store             storeConfig        `required:"true" yaml:"store"`
+	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14002"`
 }
 
 // NewConfig loads a hub config from the specified YAML file.

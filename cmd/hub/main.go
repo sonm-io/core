@@ -5,17 +5,13 @@ import (
 	"os"
 	"os/signal"
 
+	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
-	"github.com/sonm-io/core/util"
-	"golang.org/x/net/context"
-
-	"github.com/noxiouz/zapctx/ctxlog"
-	"go.uber.org/zap"
-
 	"github.com/sonm-io/core/insonmnia/hub"
 	"github.com/sonm-io/core/insonmnia/logging"
-
-	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/util"
+	"go.uber.org/zap"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -36,7 +32,7 @@ func main() {
 
 	cfg, err := hub.NewConfig(*configPath)
 	if err != nil {
-		ctxlog.GetLogger(ctx).Error("failed to load config", zap.Error(err))
+		log.GetLogger(ctx).Error("failed to load config", zap.Error(err))
 		os.Exit(1)
 	}
 
@@ -45,13 +41,13 @@ func main() {
 
 	key, err := cfg.Eth.LoadKey()
 	if err != nil {
-		ctxlog.GetLogger(ctx).Error("failed load private key", zap.Error(err))
+		log.GetLogger(ctx).Error("failed load private key", zap.Error(err))
 		os.Exit(1)
 	}
 
 	certRotator, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
 	if err != nil {
-		ctxlog.GetLogger(ctx).Error("failed to create cert rotator", zap.Error(err))
+		log.GetLogger(ctx).Error("failed to create cert rotator", zap.Error(err))
 		os.Exit(1)
 	}
 	creds := util.NewTLS(TLSConfig)
@@ -59,7 +55,7 @@ func main() {
 	h, err := hub.New(ctx, cfg, version, hub.WithVersion(version), hub.WithContext(ctx),
 		hub.WithPrivateKey(key), hub.WithCreds(creds), hub.WithCertRotator(certRotator))
 	if err != nil {
-		ctxlog.GetLogger(ctx).Error("failed to create a new Hub", zap.Error(err))
+		log.GetLogger(ctx).Error("failed to create a new Hub", zap.Error(err))
 		os.Exit(1)
 	}
 	go func() {
@@ -69,8 +65,10 @@ func main() {
 		h.Close()
 	}()
 
+	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
+
 	// TODO: check error type
 	if err = h.Serve(); err != nil {
-		ctxlog.GetLogger(ctx).Error("Server stop", zap.Error(err))
+		log.GetLogger(ctx).Error("Server stop", zap.Error(err))
 	}
 }

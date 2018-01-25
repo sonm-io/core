@@ -6,7 +6,7 @@ task:
     # Add ability to pull container back
     commit_on_stop: true
     # image name to start on miner, required param
-    name: image:v1
+    name: httpd:latest
     # env variables that will be passed to container on start
     env:
       param1: value1

@@ -56,14 +56,15 @@ type WhitelistConfig struct {
 }
 
 type Config struct {
-	Endpoint      string             `required:"true" yaml:"endpoint"`
-	GatewayConfig *GatewayConfig     `yaml:"gateway"`
-	Logging       LoggingConfig      `yaml:"logging"`
-	Eth           accounts.EthConfig `yaml:"ethereum"`
-	Locator       LocatorConfig      `yaml:"locator"`
-	Market        MarketConfig       `yaml:"market"`
-	Cluster       ClusterConfig      `yaml:"cluster"`
-	Whitelist     WhitelistConfig    `yaml:"whitelist"`
+	Endpoint          string             `required:"true" yaml:"endpoint"`
+	GatewayConfig     *GatewayConfig     `yaml:"gateway"`
+	Logging           LoggingConfig      `yaml:"logging"`
+	Eth               accounts.EthConfig `yaml:"ethereum"`
+	Locator           LocatorConfig      `yaml:"locator"`
+	Market            MarketConfig       `yaml:"market"`
+	Cluster           ClusterConfig      `yaml:"cluster"`
+	Whitelist         WhitelistConfig    `yaml:"whitelist"`
+	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14000"`
 }
 
 // NewConfig loads a hub config from the specified YAML file.

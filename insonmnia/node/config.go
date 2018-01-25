@@ -17,6 +17,9 @@ type Config interface {
 	LocatorEndpoint() string
 	// LogLevel return log verbosity
 	LogLevel() int
+	// MetricsListenAddr returns the address that can be used by Prometheus to get
+	// metrics.
+	MetricsListenAddr() string
 	// KeyStorager included into config because of
 	// Node instance must know how to open the keystore
 	accounts.KeyStorager
@@ -43,12 +46,13 @@ type locatorConfig struct {
 }
 
 type yamlConfig struct {
-	Node    nodeConfig         `required:"true" yaml:"node"`
-	Market  marketConfig       `required:"true" yaml:"market"`
-	Log     logConfig          `required:"true" yaml:"log"`
-	Locator locatorConfig      `required:"true" yaml:"locator"`
-	Eth     accounts.EthConfig `required:"false" yaml:"ethereum"`
-	Hub     *hubConfig         `required:"false" yaml:"hub"`
+	Node                    nodeConfig         `required:"true" yaml:"node"`
+	Market                  marketConfig       `required:"true" yaml:"market"`
+	Log                     logConfig          `required:"true" yaml:"log"`
+	Locator                 locatorConfig      `required:"true" yaml:"locator"`
+	Eth                     accounts.EthConfig `required:"false" yaml:"ethereum"`
+	Hub                     *hubConfig         `required:"false" yaml:"hub"`
+	MetricsListenAddrConfig string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14003"`
 }
 
 func (y *yamlConfig) ListenAddress() string {
@@ -80,6 +84,10 @@ func (y *yamlConfig) KeyStore() string {
 
 func (y *yamlConfig) PassPhrase() string {
 	return y.Eth.Passphrase
+}
+
+func (y *yamlConfig) MetricsListenAddr() string {
+	return y.MetricsListenAddrConfig
 }
 
 // NewConfig loads localNode config from given .yaml file

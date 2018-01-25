@@ -1,16 +1,16 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"os"
-
-	"crypto/ecdsa"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/node"
+	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
 )
 
@@ -48,6 +48,8 @@ func main() {
 		fmt.Printf("Err: cannot build Node instance: %s\r\n", err)
 		os.Exit(1)
 	}
+
+	go util.StartPrometheus(ctx, cfg.MetricsListenAddr())
 
 	fmt.Printf("Starting Local Node at %s...\r\n", cfg.ListenAddress())
 	if err := n.Serve(); err != nil {
