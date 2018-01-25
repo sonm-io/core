@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package sonm;
 
-import "insonmnia.proto";
 import "bigint.proto";
+import "timestamp.proto";
 
 enum DealStatus {
     ANY_STATUS = 0;

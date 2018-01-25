@@ -22,7 +22,7 @@ type DealMeta struct {
 	BidID   string
 	MinerID string
 	Order   structs.Order
-	Usage   *resource.Resources
+	Usage   resource.Resources
 	Tasks   []*TaskInfo
-	timer   *time.Timer
+	EndTime time.Time
 }

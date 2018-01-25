@@ -61,7 +61,7 @@ type MinerCtx struct {
 	mu           sync.Mutex
 	capabilities *hardware.Hardware
 	usage        *resource.Pool
-	usageMapping map[OrderID]*resource.Resources
+	usageMapping map[OrderID]resource.Resources
 }
 
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
@@ -78,7 +78,7 @@ func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, err
 		m = MinerCtx{
 			conn:         conn,
 			statusMap:    make(map[string]*pb.TaskStatusReply),
-			usageMapping: make(map[OrderID]*resource.Resources),
+			usageMapping: make(map[OrderID]resource.Resources),
 		}
 	)
 	m.ctx, m.cancel = context.WithCancel(ctx)
@@ -261,7 +261,7 @@ func (m *MinerCtx) consume(id OrderID, usage *resource.Resources) error {
 		zap.Any("capabilities", m.capabilities),
 	)
 
-	m.usageMapping[OrderID(id)] = usage
+	m.usageMapping[OrderID(id)] = *usage
 
 	return nil
 }
@@ -315,19 +315,19 @@ func (m *MinerCtx) releaseDeal(id OrderID) {
 	)
 
 	delete(m.usageMapping, id)
-	m.usage.Release(usage)
+	m.usage.Release(&usage)
 }
 
-func (m *MinerCtx) OrderUsage(id OrderID) (*resource.Resources, error) {
+func (m *MinerCtx) OrderUsage(id OrderID) (resource.Resources, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return m.orderUsage(id)
 }
 
-func (m *MinerCtx) orderUsage(id OrderID) (*resource.Resources, error) {
+func (m *MinerCtx) orderUsage(id OrderID) (resource.Resources, error) {
 	usage, exists := m.usageMapping[id]
 	if !exists {
-		return nil, errOrderNotExists
+		return resource.Resources{}, errOrderNotExists
 	}
 
 	return usage, nil
