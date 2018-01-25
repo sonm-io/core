@@ -766,7 +766,7 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 	}
 
 	if !h.askPlans.HasOrder(request.AskId) {
-		return nil, status.Errorf(codes.NotFound, "slot not found")
+		return nil, status.Errorf(codes.NotFound, "order not found")
 	}
 
 	bidOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: request.GetBidId()})
@@ -1014,8 +1014,8 @@ func (h *Hub) HasResources(resources *structs.Resources) bool {
 		resources.GetGPUCount(),
 	)
 
-	ctx, err := h.findRandomMinerByUsage(&usage)
-	return ctx != nil && err == nil
+	miner, err := h.findRandomMinerByUsage(&usage)
+	return miner != nil && err == nil
 }
 
 func (h *Hub) DiscoverHub(ctx context.Context, request *pb.DiscoverHubRequest) (*pb.Empty, error) {
@@ -1097,6 +1097,7 @@ func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, err
 	return &pb.SlotsReply{Slots: h.askPlans.DumpSlots()}, nil
 }
 
+//TODO: Actually it is not slot, but AskPlan
 func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*pb.ID, error) {
 	log.G(h.ctx).Info("handling InsertSlot request", zap.Any("request", request))
 
@@ -1130,6 +1131,7 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*p
 	return &pb.ID{Id: id}, nil
 }
 
+//TODO: Actually it is not slot, but AskPlan
 func (h *Hub) RemoveSlot(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Info("RemoveSlot request", zap.Any("id", request.Id))
 
