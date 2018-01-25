@@ -16,6 +16,7 @@ It is generated from these files:
 	miner.proto
 	nat.proto
 	node.proto
+	timestamp.proto
 
 It has these top-level messages:
 	Geo
@@ -65,7 +66,6 @@ It has these top-level messages:
 	TaskLogsChunk
 	DiscoverHubRequest
 	TaskResourceRequirements
-	Timestamp
 	Chunk
 	Progress
 	AnnounceRequest
@@ -88,6 +88,7 @@ It has these top-level messages:
 	DealListRequest
 	DealListReply
 	DealStatusReply
+	Timestamp
 */
 package sonm
 

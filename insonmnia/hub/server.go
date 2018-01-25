@@ -550,7 +550,7 @@ func (h *Hub) findMinerByOrder(id OrderID) (*MinerCtx, *resource.Resources, erro
 				if err != nil {
 					return nil, nil, err
 				}
-				return miner, usage, nil
+				return miner, &usage, nil
 			}
 		}
 	}
@@ -927,16 +927,13 @@ func (h *Hub) ApproveDeal(ctx context.Context, request *pb.ApproveDealRequest) (
 	}
 
 	dealMeta := &DealMeta{
-		ID:    dealID,
-		BidID: request.GetBidID(),
-		Order: *order,
-		Tasks: make([]*TaskInfo, 0),
-		// These will be filled later.
+		ID:      dealID,
+		BidID:   request.GetBidID(),
+		Order:   *order,
+		Tasks:   make([]*TaskInfo, 0),
 		MinerID: reservedOrder.MinerID,
 		Usage:   usage,
-		// This will be filled when Hub accepts a deal event via Blockchain.
-		// TODO: Instead of timers implement passive tracking, like for pending orders.
-		timer: nil,
+		EndTime: time.Now().Add(order.GetDuration()),
 	}
 
 	h.tasksMu.Lock()
@@ -1464,7 +1461,8 @@ func (h *Hub) Serve() error {
 	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.listenClusterEvents)
 	h.waiter.Go(h.startLocatorAnnouncer)
-	h.waiter.Go(h.watchDealsAccepted)
+	h.waiter.Go(h.runAcceptedDealsWatcher)
+	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.watchDealsClosed)
 	h.waiter.Go(func() error {
 		return h.orderShelter.Run(h.ctx)
@@ -1475,7 +1473,39 @@ func (h *Hub) Serve() error {
 	return nil
 }
 
-func (h *Hub) watchDealsAccepted() error {
+func (h *Hub) runDealsWatcher() error {
+	timer := util.NewImmediateTicker(1 * time.Second)
+	defer timer.Stop()
+
+	for {
+		select {
+		case <-timer.C:
+			h.closeExpiredDeals()
+		case <-h.ctx.Done():
+			return nil
+		}
+	}
+}
+
+func (h *Hub) closeExpiredDeals() {
+	now := time.Now()
+
+	h.tasksMu.Lock()
+	defer h.tasksMu.Unlock()
+
+	for dealID, dealMeta := range h.deals {
+		if now.After(dealMeta.EndTime) {
+			if err := h.eth.CloseDeal(dealID); err != nil {
+				log.G(h.ctx).Error("failed to close deal using blockchain API",
+					zap.Stringer("dealID", dealID),
+					zap.Error(err),
+				)
+			}
+		}
+	}
+}
+
+func (h *Hub) runAcceptedDealsWatcher() error {
 	timer := util.NewImmediateTicker(30 * time.Second)
 	defer timer.Stop()
 
@@ -1498,22 +1528,12 @@ func (h *Hub) watchDealsAccepted() error {
 				if !ok {
 					continue
 				}
-				if deal.timer != nil {
-					continue
-				}
 
-				now := time.Now()
-				duration := deal.Order.GetDuration() - now.Sub(time.Unix(acceptedDeal.StartTime.Seconds, 0))
-				// Start deal timer to properly deallocate resources.
-				deal.timer = time.AfterFunc(duration, func() {
-					if err := h.eth.CloseDeal(dealID); err != nil {
-						log.G(h.ctx).Error("failed to close using blockchain API",
-							zap.Stringer("dealID", dealID),
-							zap.Error(err),
-						)
-					}
-				})
+				// Update deal expiration time according to the contract.
+				deal.EndTime = acceptedDeal.EndTime.Unix()
 			}
+
+			h.cluster.Synchronize(h.deals)
 			h.tasksMu.Unlock()
 		case <-h.ctx.Done():
 			return nil
@@ -1670,7 +1690,7 @@ func (h *Hub) registerMiner(miner *MinerCtx) {
 				zap.Stringer("dealID", dealID),
 				zap.String("minerID", dealMeta.MinerID),
 			)
-			miner.Consume(OrderID(dealMeta.Order.GetID()), dealMeta.Usage)
+			miner.Consume(OrderID(dealMeta.Order.GetID()), &dealMeta.Usage)
 		}
 	}
 	h.minersMu.Unlock()
@@ -1902,7 +1922,7 @@ func (h *Hub) restoreResourceUsage() {
 		}
 
 		// It's okay to ignore `AlreadyConsumed` errors here.
-		miner.Consume(OrderID(dealInfo.Order.GetID()), dealInfo.Usage)
+		miner.Consume(OrderID(dealInfo.Order.GetID()), &dealInfo.Usage)
 	}
 
 	for _, miner := range h.miners {
