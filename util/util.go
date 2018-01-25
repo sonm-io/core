@@ -7,13 +7,19 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net"
+	"net/http"
 	"os"
 	"os/user"
 	"runtime"
 	"strconv"
 
+	"context"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
 	"gopkg.in/yaml.v2"
 )
 
@@ -156,4 +162,11 @@ func isPrivateIPv6(ip net.IP) bool {
 	_, block, _ := net.ParseCIDR("fc00::/7")
 
 	return block.Contains(ip) || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
+}
+
+func StartPrometheus(ctx context.Context, listenAddr string) {
+	log.GetLogger(ctx).Info(
+		"starting metrics server", zap.String("metrics_addr", listenAddr))
+	http.Handle("/metrics", promhttp.Handler())
+	http.ListenAndServe(listenAddr, nil)
 }

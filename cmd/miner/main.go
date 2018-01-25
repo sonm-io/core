@@ -3,16 +3,15 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/signal"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	flag "github.com/ogier/pflag"
 	"github.com/pborman/uuid"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
@@ -73,12 +72,7 @@ func main() {
 		m.Close()
 	}()
 
-	go func() {
-		log.GetLogger(ctx).Info(
-			"starting metrics server", zap.String("metrics_addr", cfg.MetricsListenAddr()))
-		http.Handle("/metrics", promhttp.Handler())
-		http.ListenAndServe(cfg.MetricsListenAddr(), nil)
-	}()
+	go util.StartPrometheus(ctx, cfg.MetricsListenAddr())
 
 	// TODO: check error type
 	if err = m.Serve(); err != nil {
