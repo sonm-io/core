@@ -3,7 +3,6 @@ package hub
 import (
 	"context"
 	"sync"
-	"time"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
@@ -18,54 +17,51 @@ type AskPlan struct {
 	Order *structs.Order
 }
 
-type AskPlansData map[string]*AskPlan
+type AskPlansData map[string]AskPlan
 
 type AskPlans struct {
 	Data   AskPlansData
-	ctx    context.Context
 	mu     sync.Mutex
 	hub    *Hub
 	market pb.MarketClient
 }
 
-func NewAskPlans(ctx context.Context, hub *Hub, market pb.MarketClient) *AskPlans {
+func NewAskPlans(hub *Hub, market pb.MarketClient) *AskPlans {
 	askPlans := AskPlans{
-		Data:   make(map[string]*AskPlan),
-		ctx:    ctx,
+		Data:   make(map[string]AskPlan),
 		hub:    hub,
 		market: market,
 	}
 	return &askPlans
 }
 
-func (a *AskPlans) Run() error {
-	period := time.Duration(a.hub.cfg.Market.UpdatePeriodSec) * time.Second
-	ticker := util.NewImmediateTicker(period)
+func (a *AskPlans) Run(ctx context.Context) error {
+	ticker := util.NewImmediateTicker(a.hub.cfg.Market.UpdatePeriod)
 	for {
 		select {
-		case <-a.ctx.Done():
+		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			if err := a.checkAnnounces(); err != nil {
+			if err := a.checkAnnounces(ctx); err != nil {
 				return err
 			}
 		}
 	}
 }
 
-func (a *AskPlans) Add(order *structs.Order) (string, error) {
+func (a *AskPlans) Add(ctx context.Context, order *structs.Order) (string, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	id := uuid.New()
-	plan := &AskPlan{
+	plan := AskPlan{
 		Id:    id,
 		Order: order,
 	}
 	a.Data[id] = plan
 	if a.hub.HasResources(plan.Order.GetSlot().GetResources()) {
-		a.announcePlan(plan)
+		a.announcePlan(ctx, &plan)
 	}
-	a.sync()
+	a.sync(ctx)
 	return id, nil
 }
 
@@ -91,7 +87,7 @@ func (a *AskPlans) RestoreFrom(data AskPlansData) {
 	a.Data = data
 }
 
-func (a *AskPlans) Remove(planId string) error {
+func (a *AskPlans) Remove(ctx context.Context, planId string) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	askPlan, ok := a.Data[planId]
@@ -99,10 +95,10 @@ func (a *AskPlans) Remove(planId string) error {
 		return errSlotNotExists
 	}
 	if askPlan.Order.Id != "" {
-		a.deannouncePlan(askPlan)
+		a.deannouncePlan(ctx, &askPlan)
 	}
 	delete(a.Data, planId)
-	a.sync()
+	a.sync(ctx)
 	return nil
 }
 
@@ -119,17 +115,17 @@ func (a *AskPlans) HasOrder(orderId string) bool {
 	return false
 }
 
-func (a *AskPlans) forceRenewAnnounces() {
+func (a *AskPlans) forceRenewAnnounces(ctx context.Context) {
 	for _, plan := range a.Data {
 		if a.hub.HasResources(plan.Order.GetSlot().GetResources()) {
-			a.announcePlan(plan)
+			a.announcePlan(ctx, &plan)
 		} else {
-			a.deannouncePlan(plan)
+			a.deannouncePlan(ctx, &plan)
 		}
 	}
 }
 
-func (a *AskPlans) checkAnnounces() error {
+func (a *AskPlans) checkAnnounces(ctx context.Context) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	changed := false
@@ -140,55 +136,55 @@ func (a *AskPlans) checkAnnounces() error {
 		announced := plan.Order.Id != ""
 		if has && !announced {
 			changed = true
-			a.announcePlan(plan)
+			a.announcePlan(ctx, &plan)
 		}
 		if !has && announced {
 			changed = true
-			a.deannouncePlan(plan)
+			a.deannouncePlan(ctx, &plan)
 		}
 		if has && announced {
 			toUpdate = append(toUpdate, plan.Order.Id)
 		}
 	}
 	if len(toUpdate) > 0 {
-		_, err := a.market.TouchOrders(a.ctx, &pb.TouchOrdersRequest{IDs: toUpdate})
+		_, err := a.market.TouchOrders(ctx, &pb.TouchOrdersRequest{IDs: toUpdate})
 		if err != nil {
-			log.G(a.ctx).Warn("failed to touch orders on market, forcing renewing announces", zap.Error(err))
-			a.forceRenewAnnounces()
+			log.G(ctx).Warn("failed to touch orders on market, forcing renewing announces", zap.Error(err))
+			a.forceRenewAnnounces(ctx)
 		}
 	}
 	if changed {
-		a.sync()
+		a.sync(ctx)
 	}
 	return nil
 }
 
 //TODO: do we need to signal about error?
-func (a *AskPlans) announcePlan(plan *AskPlan) {
-	createdOrder, err := a.market.CreateOrder(a.ctx, plan.Order.Unwrap())
+func (a *AskPlans) announcePlan(ctx context.Context, plan *AskPlan) {
+	createdOrder, err := a.market.CreateOrder(ctx, plan.Order.Unwrap())
 	if err != nil {
-		log.S(a.ctx).Warnf("failed to announce ask plan with id{} on market - {}", plan.Id, zap.Error(err))
+		log.S(ctx).Warnf("failed to announce ask plan with id{} on market - {}", plan.Id, zap.Error(err))
 		return
 	}
 	wrappedOrder, err := structs.NewOrder(createdOrder)
 	if err != nil {
-		log.S(a.ctx).Warnf("invalid order received from market - {}", plan.Id, zap.Error(err))
+		log.S(ctx).Warnf("invalid order received from market - {}", plan.Id, zap.Error(err))
 		return
 	}
 	plan.Order = wrappedOrder
 }
 
-func (a *AskPlans) deannouncePlan(plan *AskPlan) {
-	_, err := a.market.CancelOrder(a.ctx, plan.Order.Unwrap())
+func (a *AskPlans) deannouncePlan(ctx context.Context, plan *AskPlan) {
+	_, err := a.market.CancelOrder(ctx, plan.Order.Unwrap())
 	if err != nil {
-		log.S(a.ctx).Warnf("failed to deannounce order {} (ask plan - {}) on market - {}", plan.Order.Id, plan.Id, zap.Error(err))
+		log.S(ctx).Warnf("failed to deannounce order {} (ask plan - {}) on market - {}", plan.Order.Id, plan.Id, zap.Error(err))
 	} else {
 		plan.Order.Id = ""
 	}
 }
 
-func (a *AskPlans) sync() {
+func (a *AskPlans) sync(ctx context.Context) {
 	if err := a.hub.SynchronizeAskPlans(a.Data); err != nil {
-		log.G(a.ctx).Warn("failed to sync ask plans to cluster", zap.Error(err))
+		log.G(ctx).Warn("failed to sync ask plans to cluster", zap.Error(err))
 	}
 }

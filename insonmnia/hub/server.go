@@ -1091,7 +1091,7 @@ func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDeviceProp
 	return &pb.Empty{}, nil
 }
 
-//TODO: It actually should be called getAskPlans
+//TODO: It actually should be called AskPlans
 func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, error) {
 	log.G(h.ctx).Info("handling Slots request")
 	return &pb.SlotsReply{Slots: h.askPlans.DumpSlots()}, nil
@@ -1117,7 +1117,7 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*p
 		return nil, err
 	}
 
-	id, err := h.askPlans.Add(order)
+	id, err := h.askPlans.Add(h.ctx, order)
 	if err != nil {
 		return nil, err
 	}
@@ -1133,7 +1133,7 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*p
 func (h *Hub) RemoveSlot(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Info("RemoveSlot request", zap.Any("id", request.Id))
 
-	err := h.askPlans.Remove(request.Id)
+	err := h.askPlans.Remove(h.ctx, request.Id)
 	if err != nil {
 		return nil, err
 	}
@@ -1321,7 +1321,7 @@ func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub
 	orderShelter := NewOrderShelter(h)
 	h.orderShelter = orderShelter
 
-	askPlans := NewAskPlans(ctx, h, defaults.market)
+	askPlans := NewAskPlans(h, defaults.market)
 	h.askPlans = askPlans
 
 	authorization := auth.NewEventAuthorization(h.ctx,
@@ -1412,7 +1412,9 @@ func (h *Hub) Serve() error {
 		}
 	})
 
-	h.waiter.Go(h.askPlans.Run)
+	h.waiter.Go(func() error {
+		return h.askPlans.Run(h.ctx)
+	})
 
 	if err := h.cluster.RegisterAndLoadEntity("tasks", &h.tasks); err != nil {
 		return err
