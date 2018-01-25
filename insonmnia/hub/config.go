@@ -2,6 +2,7 @@ package hub
 
 import (
 	"strings"
+	"time"
 
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
@@ -21,7 +22,8 @@ type LocatorConfig struct {
 }
 
 type MarketConfig struct {
-	Endpoint string `required:"true" yaml:"endpoint"`
+	Endpoint     string        `required:"true" yaml:"endpoint"`
+	UpdatePeriod time.Duration `default:"60s" yaml:"update_period_sec"`
 }
 
 type StoreConfig struct {

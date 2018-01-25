@@ -1,6 +1,7 @@
 package node
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -42,7 +43,7 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 	}
 
 	if h.remotes.conf.HubEndpoint() == "" {
-		return nil, errHubEndpointIsNotSet
+		return nil, errors.New("hub endpoint is not configured, please check Node settings")
 	}
 
 	cli, cc, err := h.getClient()
