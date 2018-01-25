@@ -27,12 +27,11 @@ type AskPlans struct {
 }
 
 func NewAskPlans(hub *Hub, market pb.MarketClient) *AskPlans {
-	askPlans := AskPlans{
+	return &AskPlans{
 		Data:   make(map[string]AskPlan),
 		hub:    hub,
 		market: market,
 	}
-	return &askPlans
 }
 
 func (a *AskPlans) Run(ctx context.Context) error {
