@@ -120,7 +120,8 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	log.G(ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
 
 	if o.ovs == nil {
-		o.ovs, err = NewOverseer(ctx, hardwareInfo.GPUType())
+		log.G(ctx).Info("using given gpu type to create tuner", zap.String("type", cfg.GPU().String()))
+		o.ovs, err = NewOverseer(ctx, cfg.GPU())
 		if err != nil {
 			cancel()
 			return nil, err

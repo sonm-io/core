@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,15 +38,13 @@ locator:
 	assert.Equal(t, []string{"127.0.0.1:10002"}, conf.HubEndpoints())
 }
 
-func TestGPUConfig(t *testing.T) {
+func TestGPUConfigDefault(t *testing.T) {
 	err := createTestConfigFile(`
 hub:
   eth_addr: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD"
   endpoints: ["127.0.0.1:10002"]
 logging:
   level: -1
-GPUConfig:
-  type: nvidiadocker
 locator:
   endpoint: "127.0.0.1:9090"
 `)
@@ -54,5 +53,29 @@ locator:
 
 	conf, err := NewConfig(testMinerConfigPath)
 	assert.Nil(t, err)
-	assert.Equal(t, "nvidiadocker", conf.GPU().Type)
+	assert.Equal(t, sonm.GPUVendorType_GPU_UNKNOWN, conf.GPU())
+}
+
+func TestGpuConfigTypes(t *testing.T) {
+	tests := []struct {
+		in  string
+		out sonm.GPUVendorType
+	}{
+		{in: "nvidia", out: sonm.GPUVendorType_NVIDIA},
+		{in: "Nvidia", out: sonm.GPUVendorType_NVIDIA},
+		{in: "NVIDIA", out: sonm.GPUVendorType_NVIDIA},
+
+		{in: "radeon", out: sonm.GPUVendorType_RADEON},
+		{in: "Radeon", out: sonm.GPUVendorType_RADEON},
+		{in: "RADEON", out: sonm.GPUVendorType_RADEON},
+
+		{in: "", out: sonm.GPUVendorType_GPU_UNKNOWN},
+		{in: "intel", out: sonm.GPUVendorType_GPU_UNKNOWN},
+		{in: "erhgserh8e5ythwuerghsdklghu", out: sonm.GPUVendorType_GPU_UNKNOWN},
+	}
+
+	for _, tt := range tests {
+		conf := &config{GPUConfig: tt.in}
+		assert.Equal(t, tt.out, conf.GPU())
+	}
 }

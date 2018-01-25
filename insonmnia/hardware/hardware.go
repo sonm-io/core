@@ -4,7 +4,6 @@ import (
 	"github.com/shirou/gopsutil/mem"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
-	"github.com/sonm-io/core/proto"
 )
 
 // Hardware accumulates the finest hardware information about system the miner
@@ -33,17 +32,6 @@ func (h *Hardware) TotalMemory() uint64 {
 // HasGPU returns true if a system has GPU on the board.
 func (h *Hardware) HasGPU() bool {
 	return len(h.GPU) > 0
-}
-
-func (h *Hardware) GPUType() sonm.GPUVendorType {
-	for _, g := range h.GPU {
-		// find first GPU with the known tuner
-		if g.VendorType() != sonm.GPUVendorType_GPU_UNKNOWN {
-			return g.VendorType()
-		}
-	}
-
-	return sonm.GPUVendorType_GPU_UNKNOWN
 }
 
 type HardwareInfo interface {

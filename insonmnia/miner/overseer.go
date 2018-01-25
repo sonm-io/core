@@ -154,8 +154,6 @@ type overseer struct {
 }
 
 func (o *overseer) supportGPU() bool {
-	// TODO(sshaman1101): do not store gpuCfg into an overseer,
-	// teach gpuTuner to return type instead
 	return o.gpuCfg != pb.GPUVendorType_GPU_UNKNOWN
 }
 
@@ -166,8 +164,7 @@ func NewOverseer(ctx context.Context, gpuType pb.GPUVendorType) (Overseer, error
 		return nil, err
 	}
 
-	var tuner gpu.Tuner = gpu.NilTuner{}
-	tuner, err = gpu.New(ctx, gpuType)
+	tuner, err := gpu.New(ctx, gpuType)
 	if err != nil {
 		return nil, err
 	}

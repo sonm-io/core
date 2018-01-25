@@ -53,7 +53,7 @@ func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg.EXPECT().HubResolveEndpoints().AnyTimes().Return(false)
 	cfg.EXPECT().HubResources().AnyTimes()
 	cfg.EXPECT().Firewall().AnyTimes()
-	cfg.EXPECT().GPU().AnyTimes()
+	cfg.EXPECT().GPU().AnyTimes().Return(pb.GPUVendorType_GPU_UNKNOWN)
 	cfg.EXPECT().SSH().AnyTimes()
 	cfg.EXPECT().ETH().AnyTimes().Return(&accounts.EthConfig{})
 	cfg.EXPECT().LocatorEndpoint().AnyTimes().Return("127.0.0.1:9090")
