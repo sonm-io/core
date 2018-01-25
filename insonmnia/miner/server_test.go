@@ -74,7 +74,7 @@ func magicHardware(ctrl *gomock.Controller) hardware.HardwareInfo {
 	hw.EXPECT().CPU().AnyTimes().Return(c, nil)
 	hw.EXPECT().GPU().AnyTimes().Return(g, nil)
 	hw.EXPECT().Memory().AnyTimes().Return(m, nil)
-	hw.EXPECT().Info().AnyTimes().Return(h, nil)
+	hw.EXPECT().Info(gomock.Any()).AnyTimes().Return(h, nil)
 
 	return hw
 }
@@ -103,7 +103,7 @@ func TestServerNewFailsWhenFailedCollectResources(t *testing.T) {
 	ovs := NewMockOverseer(mock)
 	cfg := defaultMockCfg(mock)
 	collector := hardware.NewMockHardwareInfo(mock)
-	collector.EXPECT().Info().Times(1).Return(nil, errors.New(""))
+	collector.EXPECT().Info(gomock.Any()).Times(1).Return(nil, errors.New(""))
 	locator := pb.NewMockLocatorClient(mock)
 
 	m, err := NewMiner(cfg, WithKey(key), WithHardware(collector), WithLocatorClient(locator),
@@ -120,7 +120,7 @@ func TestServerNewSavesResources(t *testing.T) {
 	ovs := NewMockOverseer(mock)
 	cfg := defaultMockCfg(mock)
 	collector := hardware.NewMockHardwareInfo(mock)
-	collector.EXPECT().Info().Times(1).Return(&hardware.Hardware{
+	collector.EXPECT().Info(gomock.Any()).Times(1).Return(&hardware.Hardware{
 		CPU:    []cpu.Device{},
 		Memory: &mem.VirtualMemoryStat{Total: 42},
 	}, nil)
@@ -172,7 +172,7 @@ func TestMinerHandshake(t *testing.T) {
 	ovs.EXPECT().Info(context.Background()).AnyTimes().Return(info, nil)
 
 	collector := hardware.NewMockHardwareInfo(mock)
-	collector.EXPECT().Info().AnyTimes().Return(&hardware.Hardware{
+	collector.EXPECT().Info(gomock.Any()).AnyTimes().Return(&hardware.Hardware{
 		CPU:    []cpu.Device{{Cores: 2}},
 		Memory: &mem.VirtualMemoryStat{Total: 2048},
 	}, nil)
