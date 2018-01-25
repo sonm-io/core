@@ -8,14 +8,11 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"go.uber.org/zap"
+	pb "github.com/sonm-io/core/proto"
 )
 
 const (
-	openCLVendorDir         = "/etc/OpenCL/vendors"
-	radeonTunerName         = "radeon"
-	nvidiaTunerName         = "nvidia"
-	nvidiaDockerV1TunerName = "nvidia-docker-v1"
+	openCLVendorDir = "/etc/OpenCL/vendors"
 )
 
 // Tuner is responsible for preparing GPU-friendly environment and baking proper options in container.HostConfig
@@ -27,16 +24,14 @@ type Tuner interface {
 // New creates Tuner based on provided config.
 // Currently supported type: radeon, nvidia, nvidia-docker-v1,
 // if type is undefined, nilTuner will be returned.
-func New(ctx context.Context, tunerType string) (Tuner, error) {
-	switch tunerType {
-	case radeonTunerName:
+func New(ctx context.Context, gpuType pb.GPUVendorType) (Tuner, error) {
+	switch gpuType {
+	case pb.GPUVendorType_RADEON:
 		return newRadeonTuner(ctx, newRadeonOptions())
-	case nvidiaTunerName:
+	case pb.GPUVendorType_NVIDIA:
 		return newNvidiaTuner(ctx, newNvidiaOptions())
-	case nvidiaDockerV1TunerName:
-		return newNvidiaDockerTuner(ctx, newNvidiaDockerV1Options())
 	default:
-		log.G(ctx).Warn("unknown gpu tuner type, fallback to nil tuner", zap.String("type", tunerType))
+		log.G(ctx).Debug("cannot detect gpu type, use nil tuner")
 		return NilTuner{}, nil
 	}
 }

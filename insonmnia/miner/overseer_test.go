@@ -13,12 +13,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 )
 
 func TestOvsSpool(t *testing.T) {
 	ctx := context.Background()
-	ovs, err := NewOverseer(ctx, nil)
+	ovs, err := NewOverseer(ctx, sonm.GPUVendorType_GPU_UNKNOWN)
 	defer ovs.Close()
 	require.NoError(t, err, "failed to create Overseer")
 	err = ovs.Spool(ctx, Description{Registry: "docker.io", Image: "alpine"})
@@ -100,7 +101,7 @@ func TestOvsSpawn(t *testing.T) {
 	assrt.NoError(err)
 	defer cl.Close()
 	ctx := context.Background()
-	ovs, err := NewOverseer(ctx, nil)
+	ovs, err := NewOverseer(ctx, sonm.GPUVendorType_GPU_UNKNOWN)
 	require.NoError(t, err)
 	ch, info, err := ovs.Start(ctx, Description{Registry: "", Image: "worker"})
 	require.NoError(t, err)

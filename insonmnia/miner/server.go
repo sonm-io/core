@@ -106,19 +106,11 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		o.uuid = uuid.New()
 	}
 
-	ctx, cancel := context.WithCancel(o.ctx)
-	if o.ovs == nil {
-		o.ovs, err = NewOverseer(ctx, cfg.GPU())
-		if err != nil {
-			cancel()
-			return nil, err
-		}
-	}
-
 	if o.hardware == nil {
 		o.hardware = hardware.New()
 	}
 
+	ctx, cancel := context.WithCancel(o.ctx)
 	hardwareInfo, err := o.hardware.Info()
 	if err != nil {
 		cancel()
@@ -126,6 +118,14 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	log.G(ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
+
+	if o.ovs == nil {
+		o.ovs, err = NewOverseer(ctx, hardwareInfo.GPUType())
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+	}
 
 	cgroup, cGroupManager, err := makeCgroupManager(cfg.HubResources())
 	if err != nil {
