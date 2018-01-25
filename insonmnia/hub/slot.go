@@ -42,9 +42,7 @@ func (a *AskPlans) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return nil
 		case <-ticker.C:
-			if err := a.checkAnnounces(ctx); err != nil {
-				return err
-			}
+			a.checkAnnounces(ctx)
 		}
 	}
 }
@@ -125,7 +123,7 @@ func (a *AskPlans) forceRenewAnnounces(ctx context.Context) {
 	}
 }
 
-func (a *AskPlans) checkAnnounces(ctx context.Context) error {
+func (a *AskPlans) checkAnnounces(ctx context.Context) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	changed := false
@@ -156,7 +154,6 @@ func (a *AskPlans) checkAnnounces(ctx context.Context) error {
 	if changed {
 		a.sync(ctx)
 	}
-	return nil
 }
 
 //TODO: do we need to signal about error?
