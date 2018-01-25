@@ -81,7 +81,7 @@ It has these top-level messages:
 	SocketAddr
 	MinerStartReply
 	TaskInfo
-	Route
+	Endpoints
 	MinerStatusMapRequest
 	SaveRequest
 	TaskListRequest
