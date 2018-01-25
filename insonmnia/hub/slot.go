@@ -36,6 +36,7 @@ func NewAskPlans(hub *Hub, market pb.MarketClient) *AskPlans {
 
 func (a *AskPlans) Run(ctx context.Context) error {
 	ticker := util.NewImmediateTicker(a.hub.cfg.Market.UpdatePeriod)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
