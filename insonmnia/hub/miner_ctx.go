@@ -15,11 +15,11 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
+	"github.com/docker/go-connections/nat"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
 )
 
 var (
@@ -345,37 +345,31 @@ func (m *MinerCtx) Orders() []OrderID {
 	return orders
 }
 
-func (m *MinerCtx) registerRoutes(ID string, routes []*pb.Route) []routeMapping {
+func (m *MinerCtx) registerRoutes(ID string, routes map[string]*pb.Endpoints) []routeMapping {
 	var outRoutes []routeMapping
-	for id, route := range routes {
-		binding, err := util.ParsePortBinding(route.Port)
-		if err != nil {
-			log.G(m.ctx).Warn("failed to decode miner's port mapping",
-				zap.String("mapping", route.Port),
-				zap.Error(err),
-			)
-			continue
-		}
 
-		// TODO: It is possible here to save a couple of ports by squashing several real IPs with the same port.
-		// TODO: But first we need to fix worker by adding composition, because theoretically even with the same ports on different IPs can be different services. Also they must work under the same protocol.
-		vsID := fmt.Sprintf("%s#%d", ID, id)
-		vs, err := m.router.Register(vsID, binding.Network())
+	for natPort, endpoints := range routes {
+		port := nat.Port(natPort)
+
+		vsID := fmt.Sprintf("%s#%s", ID, natPort)
+		vs, err := m.router.Register(vsID, port.Proto())
 		if err != nil {
 			log.G(m.ctx).Warn("failed to register route", zap.Error(err))
 			continue
 		}
 
-		outRoute, err := vs.AddReal(vsID, route.Endpoint.GetAddr(), uint16(route.GetEndpoint().GetPort()))
-		if err != nil {
-			log.G(m.ctx).Warn("failed to register route", zap.Error(err))
-			continue
-		}
+		for _, endpoint := range endpoints.Endpoints {
+			outRoute, err := vs.AddReal(vsID, endpoint.Addr, uint16(endpoint.Port))
+			if err != nil {
+				log.G(m.ctx).Warn("failed to register route", zap.Error(err))
+				continue
+			}
 
-		outRoutes = append(outRoutes, routeMapping{
-			containerPort: route.Port,
-			route:         outRoute,
-		})
+			outRoutes = append(outRoutes, routeMapping{
+				containerPort: port.Port(),
+				route:         outRoute,
+			})
+		}
 	}
 
 	return outRoutes

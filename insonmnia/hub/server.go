@@ -521,7 +521,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		return nil, err
 	}
 
-	routes := miner.registerRoutes(taskID, response.GetRoutes())
+	routes := miner.registerRoutes(taskID, response.GetPortMap())
 
 	// TODO: Synchronize routes with the cluster.
 	reply := &pb.HubStartTaskReply{

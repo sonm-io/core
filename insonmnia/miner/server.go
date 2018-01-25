@@ -497,42 +497,39 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	containerInfo.StartAt = time.Now()
 	containerInfo.ImageName = d.Image
 
-	var rpl = pb.MinerStartReply{
+	var reply = pb.MinerStartReply{
 		Container: containerInfo.ID,
-		Routes:    []*pb.Route{},
+		PortMap:   make(map[string]*pb.Endpoints, 0),
 	}
 
-	for port, initialPortBindings := range containerInfo.Ports {
-		if len(initialPortBindings) < 1 {
+	for internalPort, portBindings := range containerInfo.Ports {
+		if len(portBindings) < 1 {
 			continue
 		}
 
-		internalPortStr := initialPortBindings[0].HostPort
-		internalPortUint, err := strconv.ParseUint(internalPortStr, 10, 16)
-		if err != nil {
-			log.G(m.ctx).Warn("failed to convert real port to uint16",
-				zap.Error(err),
-				zap.String("port", internalPortStr),
-			)
+		var socketAddrs []*pb.SocketAddr
+		var pubPortBindings []nat.PortBinding
 
-			continue
-		}
+		for _, portBinding := range portBindings {
+			hostPort := portBinding.HostPort
+			hostPortInt, err := nat.ParsePort(hostPort)
+			if err != nil {
+				return nil, err
+			}
 
-		var fixedPortBindings []nat.PortBinding
-		for _, publicIP := range m.publicIPs {
-			fixedPortBindings = append(fixedPortBindings, nat.PortBinding{
-				HostIP: publicIP, HostPort: internalPortStr})
-
-			rpl.Routes = append(rpl.Routes, &pb.Route{
-				Port: string(port),
-				Endpoint: &pb.SocketAddr{
+			for _, publicIP := range m.publicIPs {
+				socketAddrs = append(socketAddrs, &pb.SocketAddr{
 					Addr: publicIP,
-					Port: uint32(internalPortUint),
-				},
-			})
+					Port: uint32(hostPortInt),
+				})
+
+				pubPortBindings = append(pubPortBindings, nat.PortBinding{HostIP: publicIP, HostPort: hostPort})
+			}
 		}
 
-		containerInfo.Ports[port] = fixedPortBindings
+		containerInfo.Ports[internalPort] = pubPortBindings
+
+		reply.PortMap[string(internalPort)] = &pb.Endpoints{Endpoints: socketAddrs}
 	}
 
 	m.saveContainerInfo(request.Id, containerInfo)
@@ -541,7 +538,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 
 	resourceHandle.commit()
 
-	return &rpl, nil
+	return &reply, nil
 }
 
 func (m *Miner) consume(orderId string, resources *structs.TaskResources) (cGroup, resourceHandle, error) {

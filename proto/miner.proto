@@ -58,7 +58,8 @@ message SocketAddr {
 
 message MinerStartReply {
     string container = 1;
-    repeated Route routes = 2;
+    // PortMap represent port mapping between container network and host ones.
+    map<string, Endpoints> portMap = 2;
 }
 
 message TaskInfo {
@@ -66,9 +67,8 @@ message TaskInfo {
     MinerStartReply reply = 2;
 }
 
-message Route {
-    string port = 1;
-    SocketAddr endpoint = 2;
+message Endpoints {
+    repeated SocketAddr endpoints = 1;
 }
 
 message MinerStatusMapRequest {}
