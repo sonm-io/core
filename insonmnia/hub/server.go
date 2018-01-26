@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math/big"
 	"math/rand"
 	"net"
 	"reflect"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
@@ -63,6 +65,8 @@ var (
 		"InsertSlot",
 		"RemoveSlot",
 	}
+
+	orderPublishThresholdETH = new(big.Int).Mul(big.NewInt(10), big.NewInt(params.Finney))
 )
 
 type DealID string
@@ -1564,9 +1568,12 @@ func (h *Hub) watchDealsClosed() error {
 					continue
 				}
 
+				orderID := OrderID(deal.Order.GetID())
+
 				if err := h.releaseDeal(dealID); err != nil {
 					log.G(h.ctx).Error("failed to release deal resources",
 						zap.Stringer("dealID", dealID),
+						zap.Stringer("orderID", orderID),
 						zap.Error(err),
 					)
 					return err
@@ -1577,11 +1584,9 @@ func (h *Hub) watchDealsClosed() error {
 					continue
 				}
 
-				orderID := OrderID(deal.Order.GetID())
 				miner.Release(orderID)
 
-				_, err = h.market.CreateOrder(h.ctx, &pb.Order{Id: orderID.String(), OrderType: pb.OrderType_ASK})
-				if err != nil {
+				if err := h.publishOrder(orderID); err != nil {
 					log.G(h.ctx).Error("failed to republish order on a market",
 						zap.Stringer("dealID", dealID),
 						zap.Stringer("orderID", orderID),
@@ -1593,6 +1598,20 @@ func (h *Hub) watchDealsClosed() error {
 			return nil
 		}
 	}
+}
+
+func (h *Hub) publishOrder(orderID OrderID) error {
+	balance, err := h.eth.Balance()
+	if err != nil {
+		return err
+	}
+
+	if balance.Cmp(orderPublishThresholdETH) <= 0 {
+		return fmt.Errorf("insufficient balance (%s <= %s)", balance.String(), orderPublishThresholdETH.String())
+	}
+
+	_, err = h.market.CreateOrder(h.ctx, &pb.Order{Id: orderID.String(), OrderType: pb.OrderType_ASK})
+	return err
 }
 
 func (h *Hub) runCluster() error {

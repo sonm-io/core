@@ -43,6 +43,8 @@ type ETH interface {
 	CloseDeal(id DealID) error
 	// GetDeal checks whether a given deal exists.
 	GetDeal(id string) (*pb.Deal, error)
+	// Balance returns Hub's balance.
+	Balance() (*big.Int, error)
 }
 
 const defaultDealWaitTimeout = 900 * time.Second
@@ -241,6 +243,10 @@ func (e *eth) GetDeal(id string) (*pb.Deal, error) {
 	} else {
 		return nil, errDealNotFound
 	}
+}
+
+func (e *eth) Balance() (*big.Int, error) {
+	return e.bc.BalanceOf(e.hubAddress())
 }
 
 // NewETH constructs a new Ethereum client.
