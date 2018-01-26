@@ -6,7 +6,7 @@ import (
 	"os/signal"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	flag "github.com/ogier/pflag"
+	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/hub"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/util"
@@ -15,22 +15,24 @@ import (
 )
 
 var (
-	configPath  = flag.String("config", "hub.yaml", "Path to hub config file")
-	showVersion = flag.BoolP("version", "v", false, "Show Hub version and exit")
+	configFlag  string
+	versionFlag bool
 	version     string
 )
 
 func main() {
-	flag.Parse()
+	cmd.NewCmd("sonmhub", &configFlag, &versionFlag, run).Execute()
+}
 
-	if *showVersion {
+func run() {
+	if versionFlag {
 		fmt.Printf("SONM Hub %s\r\n", version)
 		return
 	}
 
 	ctx := context.Background()
 
-	cfg, err := hub.NewConfig(*configPath)
+	cfg, err := hub.NewConfig(configFlag)
 	if err != nil {
 		log.GetLogger(ctx).Error("failed to load config", zap.Error(err))
 		os.Exit(1)
@@ -67,7 +69,6 @@ func main() {
 
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
 
-	// TODO: check error type
 	if err = h.Serve(); err != nil {
 		log.GetLogger(ctx).Error("Server stop", zap.Error(err))
 	}

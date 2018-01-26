@@ -6,31 +6,34 @@ import (
 	"os"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	flag "github.com/ogier/pflag"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/node"
 	"github.com/sonm-io/core/util"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
 
 var (
-	configPath  = flag.String("config", "node.yaml", "Local Node config path")
-	showVersion = flag.BoolP("version", "v", false, "Show Node version and exit")
+	configFlag  string
+	versionFlag bool
 	version     string
 )
 
 func main() {
-	flag.Parse()
+	cmd.NewCmd("sonmnode", &configFlag, &versionFlag, run).Execute()
+}
 
-	if *showVersion {
-		fmt.Printf("SONM Locator %s\r\n", version)
+func run() {
+	if versionFlag {
+		fmt.Printf("SONM Node %s\r\n", version)
 		return
 	}
 
-	cfg, err := node.NewConfig(*configPath)
+	cfg, err := node.NewConfig(configFlag)
 	if err != nil {
-		fmt.Printf("Err: Cannot load config file: %s\r\n", err)
+		fmt.Printf("cannot load config file: %s\r\n", err)
 		os.Exit(1)
 	}
 
@@ -39,21 +42,21 @@ func main() {
 
 	key, err := loadKeys(cfg)
 	if err != nil {
-		fmt.Printf("Cannot load Etherum keys: %s\r\n", err.Error())
+		log.G(ctx).Error("cannot load Ethereum keys", zap.Error(err))
 		os.Exit(1)
 	}
 
 	n, err := node.New(ctx, cfg, key)
 	if err != nil {
-		fmt.Printf("Err: cannot build Node instance: %s\r\n", err)
+		log.G(ctx).Error("cannot build node instance", zap.Error(err))
 		os.Exit(1)
 	}
 
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr())
 
-	fmt.Printf("Starting Local Node at %s...\r\n", cfg.ListenAddress())
+	log.G(ctx).Error("starting node", zap.String("listen_addr", cfg.ListenAddress()))
 	if err := n.Serve(); err != nil {
-		fmt.Printf("Cannot start Local Node: %s\r\n", err.Error())
+		log.G(ctx).Error("cannot start node", zap.Error(err))
 		os.Exit(1)
 	}
 }
