@@ -111,7 +111,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	ctx, cancel := context.WithCancel(o.ctx)
-	hardwareInfo, err := o.hardware.Info(cfg.GPU())
+	hardwareInfo, err := o.hardware.Info(hardware.FilterGPUByVendor(cfg.GPU()))
 	if err != nil {
 		cancel()
 		return nil, err

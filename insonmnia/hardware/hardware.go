@@ -53,7 +53,7 @@ type HardwareInfo interface {
 	GPU() ([]gpu.Device, error)
 
 	// Info returns all described above hardware statistics.
-	Info(preferredGPU pb.GPUVendorType) (*Hardware, error)
+	Info(filters ...FilterFunc) (*Hardware, error)
 }
 
 type hardwareInfo struct{}
@@ -70,18 +70,24 @@ func (*hardwareInfo) GPU() ([]gpu.Device, error) {
 	return gpu.GetGPUDevices()
 }
 
-func (h *hardwareInfo) filterGPUs(devs []gpu.Device, t pb.GPUVendorType) []gpu.Device {
-	var filtered []gpu.Device
-	for _, d := range devs {
-		if t != pb.GPUVendorType_GPU_UNKNOWN && t == d.VendorType() {
-			filtered = append(filtered, d)
-		}
-	}
+type FilterFunc func(hw *Hardware) *Hardware
 
-	return filtered
+func FilterGPUByVendor(t pb.GPUVendorType) FilterFunc {
+	return func(hw *Hardware) *Hardware {
+		var filtered []gpu.Device
+		for _, d := range hw.GPU {
+			if t != pb.GPUVendorType_GPU_UNKNOWN && t == d.VendorType() {
+				filtered = append(filtered, d)
+			}
+		}
+
+		hw.GPU = filtered
+
+		return hw
+	}
 }
 
-func (h *hardwareInfo) Info(preferredGPU pb.GPUVendorType) (*Hardware, error) {
+func (h *hardwareInfo) Info(filters ...FilterFunc) (*Hardware, error) {
 	cpuInfo, err := h.CPU()
 	if err != nil {
 		return nil, err
@@ -100,12 +106,16 @@ func (h *hardwareInfo) Info(preferredGPU pb.GPUVendorType) (*Hardware, error) {
 
 		gpuInfo = make([]gpu.Device, 0)
 	}
-	gpuInfo = h.filterGPUs(gpuInfo, preferredGPU)
 
 	hardware := &Hardware{
 		CPU:    cpuInfo,
 		Memory: memory,
 		GPU:    gpuInfo,
+	}
+
+	// apply filters
+	for _, ff := range filters {
+		hardware = ff(hardware)
 	}
 
 	return hardware, nil
