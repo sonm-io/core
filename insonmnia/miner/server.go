@@ -169,7 +169,6 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	if o.ovs == nil {
 		o.ovs, err = NewOverseer(ctx, cfg.GPU())
 		if err != nil {
-			cancel()
 			return nil, err
 		}
 	}
