@@ -59,53 +59,42 @@ locator:
 	assert.Equal(t, sonm.GPUVendorType_GPU_UNKNOWN, conf.GPU())
 }
 
+var gpuConfigStringTestTable = []struct {
+	in  string
+	out sonm.GPUVendorType
+}{
+	{in: "nvidia", out: sonm.GPUVendorType_NVIDIA},
+	{in: "Nvidia", out: sonm.GPUVendorType_NVIDIA},
+	{in: "NVIDIA", out: sonm.GPUVendorType_NVIDIA},
+
+	{in: "radeon", out: sonm.GPUVendorType_RADEON},
+	{in: "Radeon", out: sonm.GPUVendorType_RADEON},
+	{in: "RADEON", out: sonm.GPUVendorType_RADEON},
+
+	{in: "", out: sonm.GPUVendorType_GPU_UNKNOWN},
+	{in: "intel", out: sonm.GPUVendorType_GPU_UNKNOWN},
+	{in: "erhgserh8e5ythwuerghsdklghu", out: sonm.GPUVendorType_GPU_UNKNOWN},
+}
+
 func TestGpuConfigTypes(t *testing.T) {
-	tests := []struct {
-		in  string
-		out sonm.GPUVendorType
-	}{
-		{in: "nvidia", out: sonm.GPUVendorType_NVIDIA},
-		{in: "Nvidia", out: sonm.GPUVendorType_NVIDIA},
-		{in: "NVIDIA", out: sonm.GPUVendorType_NVIDIA},
-
-		{in: "radeon", out: sonm.GPUVendorType_RADEON},
-		{in: "Radeon", out: sonm.GPUVendorType_RADEON},
-		{in: "RADEON", out: sonm.GPUVendorType_RADEON},
-
-		{in: "", out: sonm.GPUVendorType_GPU_UNKNOWN},
-		{in: "intel", out: sonm.GPUVendorType_GPU_UNKNOWN},
-		{in: "erhgserh8e5ythwuerghsdklghu", out: sonm.GPUVendorType_GPU_UNKNOWN},
-	}
-
-	for _, tt := range tests {
+	for _, tt := range gpuConfigStringTestTable {
 		conf := &config{GPUConfig: tt.in}
 		assert.Equal(t, tt.out, conf.GPU())
 	}
 }
 
 func TestGPUConfigShouldITtimThis(t *testing.T) {
-	tests := []struct {
+	tests := append(gpuConfigStringTestTable, []struct {
 		in  string
 		out sonm.GPUVendorType
 	}{
-		{in: "nvidia", out: sonm.GPUVendorType_NVIDIA},
-		{in: "Nvidia", out: sonm.GPUVendorType_NVIDIA},
-		{in: "NVIDIA", out: sonm.GPUVendorType_NVIDIA},
 		{in: "  NVIDIA", out: sonm.GPUVendorType_NVIDIA},
 		{in: "  NVIDIA  ", out: sonm.GPUVendorType_NVIDIA},
 		{in: "NVIDIA  ", out: sonm.GPUVendorType_NVIDIA},
-
-		{in: "radeon", out: sonm.GPUVendorType_RADEON},
-		{in: "Radeon", out: sonm.GPUVendorType_RADEON},
-		{in: "RADEON", out: sonm.GPUVendorType_RADEON},
 		{in: "  RADEON  ", out: sonm.GPUVendorType_RADEON},
 		{in: "  RADEON", out: sonm.GPUVendorType_RADEON},
 		{in: "RADEON  ", out: sonm.GPUVendorType_RADEON},
-
-		{in: "", out: sonm.GPUVendorType_GPU_UNKNOWN},
-		{in: "intel", out: sonm.GPUVendorType_GPU_UNKNOWN},
-		{in: "erhgserh8e5ythwuerghsdklghu", out: sonm.GPUVendorType_GPU_UNKNOWN},
-	}
+	}...)
 
 	cfgTpl := `
 hub:
