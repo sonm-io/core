@@ -151,18 +151,17 @@ func GetGPUDevices() ([]Device, error) {
 	return devices, nil
 }
 
+var Radeons = []uint64{
+	4098,
+	// macbook pro 2017
+	16915456,
+}
+
+var Nvidias = []uint64{
+	4318,
+}
+
 func gpuTypeFromVendorID(v uint64) sonm.GPUVendorType {
-	// Note: need more vendor IDs
-	Radeons := []uint64{
-		4098,
-		// macbook pro 2017
-		16915456,
-	}
-
-	Nvidias := []uint64{
-		4318,
-	}
-
 	for _, id := range Radeons {
 		if id == v {
 			return sonm.GPUVendorType_RADEON
