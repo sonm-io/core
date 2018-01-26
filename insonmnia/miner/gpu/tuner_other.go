@@ -1,4 +1,4 @@
-// +build darwin
+// +build !cl
 
 package gpu
 
@@ -13,9 +13,5 @@ func newRadeonTuner(_ context.Context, _ *tunerOptions) (Tuner, error) {
 }
 
 func newNvidiaTuner(_ context.Context, _ *tunerOptions) (Tuner, error) {
-	return NilTuner{}, nil
-}
-
-func newNvidiaDockerTuner(_ context.Context, _ *tunerOptions) (Tuner, error) {
 	return NilTuner{}, nil
 }
