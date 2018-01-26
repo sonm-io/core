@@ -106,43 +106,30 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		o.uuid = uuid.New()
 	}
 
-	ctx, cancel := context.WithCancel(o.ctx)
-	if o.ovs == nil {
-		o.ovs, err = NewOverseer(ctx, cfg.GPU())
-		if err != nil {
-			cancel()
-			return nil, err
-		}
-	}
-
 	if o.hardware == nil {
 		o.hardware = hardware.New()
 	}
 
 	hardwareInfo, err := o.hardware.Info()
 	if err != nil {
-		cancel()
 		return nil, err
 	}
 
-	log.G(ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
+	log.G(o.ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
 
 	cgroup, cGroupManager, err := makeCgroupManager(cfg.HubResources())
 	if err != nil {
-		cancel()
 		return nil, err
 	}
 
 	if o.locatorClient == nil {
 		_, TLSConf, err := util.NewHitlessCertRotator(o.ctx, o.key)
 		if err != nil {
-			cancel()
 			return nil, errors.Wrap(err, "failed to create locator client")
 		}
 
 		locatorCC, err := xgrpc.NewWalletAuthenticatedClient(o.ctx, util.NewTLS(TLSConf), cfg.LocatorEndpoint())
 		if err != nil {
-			cancel()
 			return nil, errors.Wrap(err, "failed to create locator client")
 		}
 
@@ -150,36 +137,41 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	// The rotator will be stopped by ctx
-	certRotator, TLSConf, err := util.NewHitlessCertRotator(ctx, o.key)
+	certRotator, TLSConf, err := util.NewHitlessCertRotator(o.ctx, o.key)
 	if err != nil {
-		cancel()
 		return nil, err
 	}
 
 	hubEndpoint, err := o.getHubConnectionInfo(cfg)
 	if err != nil {
-		cancel()
 		return nil, err
 	}
 
 	creds := auth.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEndpoint.EthAddress)
-	grpcServer := xgrpc.NewServer(log.GetLogger(ctx),
+	grpcServer := xgrpc.NewServer(log.GetLogger(o.ctx),
 		xgrpc.Credentials(creds),
 		xgrpc.DefaultTraceInterceptor(),
 	)
 
 	if !platformSupportCGroups && cfg.HubResources() != nil {
-		log.G(ctx).Warn("your platform does not support CGroup, but the config has resources section")
+		log.G(o.ctx).Warn("your platform does not support CGroup, but the config has resources section")
 	}
 
 	if err := o.setupNetworkOptions(cfg); err != nil {
-		cancel()
 		return nil, errors.Wrap(err, "failed to set up network options")
 	}
 
 	log.G(o.ctx).Info("discovered public IPs",
 		zap.Any("public IPs", o.publicIPs),
 		zap.Any("nat", o.nat))
+
+	ctx, cancel := context.WithCancel(o.ctx)
+	if o.ovs == nil {
+		o.ovs, err = NewOverseer(ctx, cfg.GPU())
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	m = &Miner{
 		ctx:        ctx,
