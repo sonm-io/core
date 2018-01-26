@@ -110,22 +110,12 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		o.hardware = hardware.New()
 	}
 
-	ctx, cancel := context.WithCancel(o.ctx)
 	hardwareInfo, err := o.hardware.Info(hardware.FilterGPUByVendor(cfg.GPU()))
 	if err != nil {
 		return nil, err
 	}
 
 	log.G(o.ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
-
-	if o.ovs == nil {
-		log.G(ctx).Info("using given gpu type to create tuner", zap.String("type", cfg.GPU().String()))
-		o.ovs, err = NewOverseer(ctx, cfg.GPU())
-		if err != nil {
-			cancel()
-			return nil, err
-		}
-	}
 
 	cgroup, cGroupManager, err := makeCgroupManager(cfg.HubResources())
 	if err != nil {
