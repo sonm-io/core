@@ -43,10 +43,9 @@ logging:
 # Ignored if firewall settings are not null.
 # public_ip_addrs: ["46.148.198.134"]
 
-# GPUConfig:
-  # type: "nvidiadocker"
-  # by default nvidia-docker-plugin works on that endpoint
-  # args: { nvidiadockerdriver: "localhost:3476" }
+# Preferred type for GPU tuner, may be "nvidia" or "radeon".
+# Any other value will disable auto GPU tuning.
+GPUConfig: "any"
 
 ethereum:
   # path to keystore

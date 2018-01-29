@@ -110,7 +110,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		o.hardware = hardware.New()
 	}
 
-	hardwareInfo, err := o.hardware.Info()
+	hardwareInfo, err := o.hardware.Info(hardware.FilterGPUByVendor(cfg.GPU()))
 	if err != nil {
 		return nil, err
 	}

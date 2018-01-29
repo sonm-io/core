@@ -1,11 +1,13 @@
 package miner
 
 import (
+	"strings"
+
 	"github.com/jinzhu/configor"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/accounts"
-	"github.com/sonm-io/core/insonmnia/miner/gpu"
+	pb "github.com/sonm-io/core/proto"
 )
 
 // HubConfig describes Hub configuration.
@@ -20,11 +22,6 @@ type HubConfig struct {
 type FirewallConfig struct {
 	// STUN server endpoint (with port).
 	Server string `yaml:"server"`
-}
-
-// GPUConfig contains options related to NVIDIA GPU support
-type GPUConfig struct {
-	NvidiaDockerDriver string `yaml:"nvidiadockerdriver"`
 }
 
 type SSHConfig struct {
@@ -49,7 +46,7 @@ type config struct {
 	HubConfig               HubConfig           `required:"true" yaml:"hub"`
 	FirewallConfig          *FirewallConfig     `required:"false" yaml:"firewall"`
 	Eth                     *accounts.EthConfig `yaml:"ethereum"`
-	GPUConfig               *gpu.Config         `required:"false" yaml:"GPUConfig"`
+	GPUConfig               string              `required:"false" default:"" yaml:"GPUConfig"`
 	SSHConfig               *SSHConfig          `required:"false" yaml:"ssh"`
 	LoggingConfig           LoggingConfig       `yaml:"logging"`
 	LocatorConfig           *LocatorConfig      `required:"true" yaml:"locator"`
@@ -82,8 +79,14 @@ func (c *config) PublicIPs() []string {
 	return c.PublicIPsConfig
 }
 
-func (c *config) GPU() *gpu.Config {
-	return c.GPUConfig
+func (c *config) GPU() pb.GPUVendorType {
+	t := strings.ToUpper(c.GPUConfig)
+	v, ok := pb.GPUVendorType_value[t]
+	if ok {
+		return pb.GPUVendorType(v)
+	}
+
+	return pb.GPUVendorType_GPU_UNKNOWN
 }
 
 func (c *config) SSH() *SSHConfig {
@@ -158,8 +161,8 @@ type Config interface {
 	Firewall() *FirewallConfig
 	// PublicIPs returns all IPs that can be used to communicate with the miner.
 	PublicIPs() []string
-	// GPU returns options about NVIDIA GPU support via nvidia-docker-plugin
-	GPU() *gpu.Config
+	// GPU returns GPU Tuner type
+	GPU() pb.GPUVendorType
 	// SSH returns settings for built-in ssh server
 	SSH() *SSHConfig
 	// Logging returns logging settings.

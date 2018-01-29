@@ -144,7 +144,7 @@ type overseer struct {
 	registryAuth map[string]string
 
 	// GPU tuner
-	gpuCfg   *gpu.Config
+	gpuCfg   pb.GPUVendorType
 	gpuTuner gpu.Tuner
 
 	// protects containers map
@@ -154,23 +154,19 @@ type overseer struct {
 }
 
 func (o *overseer) supportGPU() bool {
-	return o.gpuCfg != nil
+	return o.gpuCfg != pb.GPUVendorType_GPU_UNKNOWN
 }
 
 // NewOverseer creates new overseer
-func NewOverseer(ctx context.Context, gpuCfg *gpu.Config) (Overseer, error) {
+func NewOverseer(ctx context.Context, gpuType pb.GPUVendorType) (Overseer, error) {
 	dockerClient, err := client.NewEnvClient()
 	if err != nil {
 		return nil, err
 	}
 
-	var tuner gpu.Tuner = gpu.NilTuner{}
-	if gpuCfg != nil {
-		// todo: autodetect GPU type
-		tuner, err = gpu.New(ctx, gpuCfg.Type)
-		if err != nil {
-			return nil, err
-		}
+	tuner, err := gpu.New(ctx, gpuType)
+	if err != nil {
+		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -180,7 +176,7 @@ func NewOverseer(ctx context.Context, gpuCfg *gpu.Config) (Overseer, error) {
 
 		client: dockerClient,
 
-		gpuCfg:   gpuCfg,
+		gpuCfg:   gpuType,
 		gpuTuner: tuner,
 
 		containers: make(map[string]*containerDescriptor),

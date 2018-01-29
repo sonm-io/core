@@ -2,6 +2,12 @@ syntax = "proto3";
 
 package sonm;
 
+enum GPUVendorType {
+    GPU_UNKNOWN = 0;
+    NVIDIA = 1;
+    RADEON = 2;
+}
+
 message Capabilities {
     repeated CPUDevice cpu = 1;
     RAMDevice mem = 2;
@@ -50,4 +56,6 @@ message GPUDevice {
     int32 openCLDeviceVersionMajor = 6;
     // OpenCL minor version.
     int32 openCLDeviceVersionMinor = 7;
+    // vendorType is nvidia or radeon or none
+    GPUVendorType vendorType = 8;
 }
