@@ -1,15 +1,15 @@
 package commands
 
 import (
+	"sort"
 	"testing"
 
-	"sort"
-
+	"github.com/sonm-io/core/cmd/cli/config"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestXXX(t *testing.T) {
+func TestOrdersSort(t *testing.T) {
 	in := &pb.GetProcessingReply{
 		Orders: map[string]*pb.GetProcessingReply_ProcessedOrder{
 			"ccc": {
@@ -43,4 +43,18 @@ func TestXXX(t *testing.T) {
 	assert.Equal(t, "ccc", ls[0].Id)
 	assert.Equal(t, "bbb", ls[1].Id)
 	assert.Equal(t, "aaa", ls[2].Id)
+}
+
+func TestJsonOutputForOrder(t *testing.T) {
+	buf := initRootCmd(t, config.OutputModeJSON)
+
+	bigVal, _ := pb.NewBigIntFromString("1000000000000000000000000000")
+	printSearchResults(rootCmd, []*pb.Order{{
+		PricePerSecond: bigVal,
+	},
+	})
+
+	out := buf.String()
+	assert.Equal(t, "{\"orders\":[{\"pricePerSecond\":\"1000000000000000000000000000\"}]}\r\n", out,
+		"price must be serialized as string, not `abs` and `neg` parts of pb.BigInt")
 }
