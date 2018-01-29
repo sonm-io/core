@@ -33,7 +33,7 @@ duration: 1h
 resources:
   cpu_cores: 1
   ram_bytes: 100000000
-  gpu_count: SINGLE_GPU
+  gpu_count: MULTIPLE_GPU
   storage: 2000000000
 
   network:
@@ -55,7 +55,7 @@ resources:
 	assert.Equal(t, uint64(3600), ss.Duration)
 	assert.Equal(t, uint64(1), ss.Resources.CpuCores)
 	assert.Equal(t, uint64(100000000), ss.Resources.RamBytes)
-	assert.Equal(t, pb.GPUCount_SINGLE_GPU, ss.Resources.GpuCount)
+	assert.Equal(t, pb.GPUCount_MULTIPLE_GPU, ss.Resources.GpuCount)
 	assert.Equal(t, uint64(2000000000), ss.Resources.Storage)
 	assert.Equal(t, uint64(100), ss.Resources.NetTrafficIn)
 	assert.Equal(t, uint64(200), ss.Resources.NetTrafficOut)

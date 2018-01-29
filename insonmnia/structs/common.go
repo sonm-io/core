@@ -30,5 +30,10 @@ func ParseGPUCount(ty string) (pb.GPUCount, error) {
 		return pb.GPUCount_NO_GPU, errors.New("unknown gpu count")
 	}
 
-	return pb.GPUCount(typeID), nil
+	count := pb.GPUCount(typeID)
+	if count == pb.GPUCount_SINGLE_GPU {
+		return pb.GPUCount_NO_GPU, ErrUnsupportedSingleGPU
+	}
+
+	return count, nil
 }

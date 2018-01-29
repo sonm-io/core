@@ -12,8 +12,9 @@ import (
 
 var (
 	// The CPU CFS scheduler period in nanoseconds. Used alongside CPU quota.
-	defaultCPUPeriod     = int64(100000)
-	errResourcesRequired = errors.New("resources field is required")
+	defaultCPUPeriod        = int64(100000)
+	errResourcesRequired    = errors.New("resources field is required")
+	ErrUnsupportedSingleGPU = errors.New("unsupported gpu count, use MULTIPLE_GPU instead")
 )
 
 // Resources wraps the underlying protobuf object with full validation, such
@@ -66,6 +67,11 @@ func ValidateResources(resources *pb.Resources) error {
 	if resources == nil {
 		return errResourcesIsNil
 	}
+
+	if resources.GetGpuCount() == pb.GPUCount_SINGLE_GPU {
+		return ErrUnsupportedSingleGPU
+	}
+
 	return nil
 }
 
