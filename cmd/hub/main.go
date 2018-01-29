@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 
@@ -17,19 +16,14 @@ import (
 var (
 	configFlag  string
 	versionFlag bool
-	version     string
+	appVersion  string
 )
 
 func main() {
-	cmd.NewCmd("sonmhub", &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd("sonmhub", appVersion, &configFlag, &versionFlag, run).Execute()
 }
 
 func run() {
-	if versionFlag {
-		fmt.Printf("SONM Hub %s\r\n", version)
-		return
-	}
-
 	ctx := context.Background()
 
 	cfg, err := hub.NewConfig(configFlag)
@@ -54,7 +48,7 @@ func run() {
 	}
 	creds := util.NewTLS(TLSConfig)
 
-	h, err := hub.New(ctx, cfg, version, hub.WithVersion(version), hub.WithContext(ctx),
+	h, err := hub.New(ctx, cfg, hub.WithVersion(appVersion), hub.WithContext(ctx),
 		hub.WithPrivateKey(key), hub.WithCreds(creds), hub.WithCertRotator(certRotator))
 	if err != nil {
 		log.GetLogger(ctx).Error("failed to create a new Hub", zap.Error(err))

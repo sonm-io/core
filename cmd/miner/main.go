@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -19,19 +18,14 @@ import (
 var (
 	configFlag  string
 	versionFlag bool
-	version     string
+	appVersion  string
 )
 
 func main() {
-	cmd.NewCmd("sonmminer", &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd("sonmworker", appVersion, &configFlag, &versionFlag, run).Execute()
 }
 
 func run() {
-	if versionFlag {
-		fmt.Printf("SONM Worker %s\r\n", version)
-		return
-	}
-
 	ctx := context.Background()
 
 	cfg, err := miner.NewConfig(configFlag)

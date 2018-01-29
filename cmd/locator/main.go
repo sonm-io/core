@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -16,19 +15,14 @@ import (
 var (
 	configFlag  string
 	versionFlag bool
-	version     string
+	appVersion  string
 )
 
 func main() {
-	cmd.NewCmd("sonmlocator", &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd("sonmlocator", appVersion, &configFlag, &versionFlag, run).Execute()
 }
 
 func run() {
-	if versionFlag {
-		fmt.Printf("SONM Locator %s\r\n", version)
-		return
-	}
-
 	ctx := context.Background()
 
 	cfg, err := locator.NewConfig(configFlag)

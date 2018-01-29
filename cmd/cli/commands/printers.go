@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sonm-io/core/insonmnia/node"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -363,11 +364,13 @@ func printAskList(cmd *cobra.Command, slots *pb.SlotsReply) {
 
 func printVersion(cmd *cobra.Command, v string) {
 	if isSimpleFormat() {
-		cmd.Printf("Version: %s\r\n", v)
+		cmd.Printf("sonmcli %s (%s)\r\n", v, util.GetPlatformName())
 	} else {
-		showJSON(cmd, map[string]string{"version": v})
+		showJSON(cmd, map[string]string{
+			"version":  v,
+			"platform": util.GetPlatformName(),
+		})
 	}
-
 }
 
 func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {

@@ -18,19 +18,14 @@ import (
 var (
 	configFlag  string
 	versionFlag bool
-	version     string
+	appVersion  string
 )
 
 func main() {
-	cmd.NewCmd("sonmnode", &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd("sonmnode", appVersion, &configFlag, &versionFlag, run).Execute()
 }
 
 func run() {
-	if versionFlag {
-		fmt.Printf("SONM Node %s\r\n", version)
-		return
-	}
-
 	cfg, err := node.NewConfig(configFlag)
 	if err != nil {
 		fmt.Printf("cannot load config file: %s\r\n", err)
