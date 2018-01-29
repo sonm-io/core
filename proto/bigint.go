@@ -1,6 +1,7 @@
 package sonm
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 )
@@ -43,4 +44,30 @@ func (m *BigInt) Unwrap() *big.Int {
 //  +1 if x >  y
 func (m *BigInt) Cmp(other *BigInt) int {
 	return m.Unwrap().Cmp(other.Unwrap())
+}
+
+func (m *BigInt) MarshalJSON() ([]byte, error) {
+	if m == nil {
+		return json.Marshal(nil)
+	}
+
+	return json.Marshal(m.Unwrap().String())
+}
+
+func (m *BigInt) UnmarshalJSON(data []byte) error {
+	var unmarshalled string
+	err := json.Unmarshal(data, &unmarshalled)
+	if err != nil {
+		return err
+	}
+
+	v, err := NewBigIntFromString(unmarshalled)
+	if err != nil {
+		return err
+	}
+
+	m.Abs = v.Abs
+	m.Neg = v.Neg
+
+	return nil
 }

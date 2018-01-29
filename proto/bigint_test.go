@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"testing"
 
+	"encoding/json"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,4 +28,29 @@ func TestNewBigIntFromString(t *testing.T) {
 func TestBigIntString(t *testing.T) {
 	price := NewBigInt(big.NewInt(42000000002))
 	assert.Equal(t, "42000000002", price.Unwrap().String())
+}
+
+func TestBigIntUnmarshal(t *testing.T) {
+	in := []byte(`{"test": "100000000000000000000000"}`)
+	r := make(map[string]*BigInt)
+
+	err := json.Unmarshal(in, &r)
+	assert.NoError(t, err)
+	assert.Contains(t, r, "test")
+
+	intVal, _ := NewBigIntFromString("100000000000000000000000")
+	compare := r["test"].Cmp(intVal)
+	assert.Equal(t, compare, 0)
+}
+
+func TestBigIntMarshal(t *testing.T) {
+	intVal, _ := big.NewInt(0).SetString("100000000000000000000000", 10)
+	in := map[string]*BigInt{
+		"test": NewBigInt(intVal),
+	}
+
+	b, err := json.Marshal(&in)
+	assert.NoError(t, err)
+
+	assert.Equal(t, `{"test":"100000000000000000000000"}`, string(b))
 }
