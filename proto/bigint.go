@@ -46,11 +46,7 @@ func (m *BigInt) Cmp(other *BigInt) int {
 	return m.Unwrap().Cmp(other.Unwrap())
 }
 
-func (m *BigInt) MarshalJSON() ([]byte, error) {
-	if m == nil {
-		return json.Marshal(nil)
-	}
-
+func (m BigInt) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m.Unwrap().String())
 }
 
