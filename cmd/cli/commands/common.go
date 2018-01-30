@@ -62,8 +62,10 @@ func init() {
 }
 
 // Root configure and return root command
-func Root(c config.Config) *cobra.Command {
+func Root(appVersion string, c config.Config) *cobra.Command {
+	version = appVersion
 	cfg = c
+
 	rootCmd.SetOutput(os.Stdout)
 	return rootCmd
 }

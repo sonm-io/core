@@ -1197,7 +1197,7 @@ func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, 
 }
 
 // New returns new Hub.
-func New(ctx context.Context, cfg *Config, version string, opts ...Option) (*Hub, error) {
+func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 	defaults := defaultHubOptions()
 	for _, o := range opts {
 		o(defaults)
