@@ -16,7 +16,7 @@ func NewCmd(name, appVersion string, conf *string, version *bool, run Runner) *c
 	c := &cobra.Command{
 		Use: name,
 		Run: func(_ *cobra.Command, _ []string) {
-			if *version {
+			if version != nil && *version {
 				fmt.Printf("%s %s (%s)\r\n", name, appVersion, util.GetPlatformName())
 				return
 			}
