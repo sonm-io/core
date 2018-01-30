@@ -621,6 +621,49 @@ func TestRestartOrdersProcessing(t *testing.T) {
 	assert.Equal(t, h.getStatus(), statusDone)
 }
 
+func TestCancelOrderHandler(t *testing.T) {
+	ctx := context.Background()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	mrk := pb.NewMockMarketClient(ctrl)
+	ord := makeOrder()
+	ord.ByuerID = addr.Hex()
+	ord.Id = "my-order-id"
+
+	mrk.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(ord, nil)
+	mrk.EXPECT().GetOrderByID(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(ord, nil)
+	mrk.EXPECT().GetOrders(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(&pb.GetOrdersReply{Orders: []*pb.Order{}}, nil)
+	mrk.EXPECT().CancelOrder(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(&pb.Empty{}, nil)
+
+	opts := getTestRemotes(ctx, ctrl)
+	opts.market = mrk
+
+	server, err := newMarketAPI(opts)
+	require.NoError(t, err)
+
+	api := server.(*marketAPI)
+	assert.Equal(t, api.countHandlers(), 0)
+
+	created, err := api.CreateOrder(ctx, makeOrder())
+	require.NoError(t, err)
+	assert.NotNil(t, created)
+	assert.NotEmpty(t, created.Id)
+
+	// wait for async handler is finished
+	time.Sleep(50 * time.Millisecond)
+	assert.Equal(t, api.countHandlers(), 1)
+
+	_, err = api.CancelOrder(ctx, created)
+	require.NoError(t, err)
+
+	assert.Equal(t, api.countHandlers(), 0)
+}
+
 type mockConn struct{}
 
 func (c *mockConn) Close() error { return nil }
