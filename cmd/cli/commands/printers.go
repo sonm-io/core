@@ -267,7 +267,7 @@ func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
 
 		for i, order := range orders {
 			cmd.Printf("%d) %s %s | price = %s\r\n", i+1,
-				order.OrderType.String(), order.GetId(), order.GetPricePerSecond())
+				order.OrderType.String(), order.GetId(), order.GetPricePerSecond().Unwrap().String())
 		}
 	} else {
 		showJSON(cmd, map[string]interface{}{"orders": orders})
