@@ -90,7 +90,7 @@ func newNvidiaTuner(ctx context.Context, opts *tunerOptions) (Tuner, error) {
 
 	volInfo := []nvidia.VolumeInfo{
 		{
-			Name:         "nvidia_driver",
+			Name:         ovs.options.volumeDriverName,
 			Mountpoint:   "/usr/local/nvidia",
 			MountOptions: "ro",
 			Components: map[string][]string{
