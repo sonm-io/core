@@ -57,6 +57,24 @@
 			"revisionTime": "2017-06-26T11:06:00Z"
 		},
 		{
+			"checksumSHA1": "CYOsDWXfV5932K1EVx5tEsD0sxI=",
+			"path": "github.com/ContainX/docker-volume-netshare",
+			"revision": "3b432b74a4be34781aaebeba878128f8b392dfa4",
+			"revisionTime": "2018-01-28T06:46:39Z"
+		},
+		{
+			"checksumSHA1": "fpkhR+kUiMfz9UK+Io7xqI5X9tM=",
+			"path": "github.com/ContainX/docker-volume-netshare/netshare",
+			"revision": "3b432b74a4be34781aaebeba878128f8b392dfa4",
+			"revisionTime": "2018-01-28T06:46:39Z"
+		},
+		{
+			"checksumSHA1": "CAPa7vvTtl8jRqbliUwGkM/o6Mg=",
+			"path": "github.com/ContainX/docker-volume-netshare/netshare/drivers",
+			"revision": "3b432b74a4be34781aaebeba878128f8b392dfa4",
+			"revisionTime": "2018-01-28T06:46:39Z"
+		},
+		{
 			"checksumSHA1": "AzjRkOQtVBTwIw4RJLTygFhJs3s=",
 			"origin": "github.com/docker/docker/vendor/github.com/Microsoft/go-winio",
 			"path": "github.com/Microsoft/go-winio",
@@ -198,6 +216,12 @@
 			"path": "github.com/dgrijalva/jwt-go",
 			"revision": "a539ee1a749a2b895533f979515ac7e6e0f5b650",
 			"revisionTime": "2017-06-08T00:51:49Z"
+		},
+		{
+			"checksumSHA1": "gCEQcvw/iI0KnSI0qAjEnPeCK1A=",
+			"path": "github.com/dickeyxxx/netrc",
+			"revision": "3acf1b3de25d89c7688c63bb45f6b07f566555ec",
+			"revisionTime": "2015-09-24T21:42:09Z"
 		},
 		{
 			"checksumSHA1": "Gj+xR1VgFKKmFXYOJMnAczC3Znk=",
@@ -1097,6 +1121,12 @@
 			"revisionTime": "2016-04-24T11:30:07Z"
 		},
 		{
+			"checksumSHA1": "XTeOihCDhjG6ltUKExoJ2uEzShk=",
+			"path": "github.com/miekg/dns",
+			"revision": "5364553f1ee9cddc7ac8b62dce148309c386695b",
+			"revisionTime": "2018-01-25T10:38:03Z"
+		},
+		{
 			"checksumSHA1": "V/quM7+em2ByJbWBLOsEwnY3j/Q=",
 			"path": "github.com/mitchellh/go-homedir",
 			"revision": "b8bc1bf767474819792c23f32d8286a45736f1c6",
@@ -1686,6 +1716,12 @@
 			"revisionTime": "2017-07-28T03:03:01Z"
 		},
 		{
+			"checksumSHA1": "uX2McdP4VcQ6zkAF0Q4oyd0rFtU=",
+			"path": "golang.org/x/net/bpf",
+			"revision": "0ed95abb35c445290478a5348a7b38bb154135fd",
+			"revisionTime": "2018-01-24T06:08:02Z"
+		},
+		{
 			"checksumSHA1": "9jjO5GjLa0XF/nfWihF02RoH4qc=",
 			"path": "golang.org/x/net/context",
 			"revision": "f5079bd7f6f74e23c4d65efa0f4ce14cbd6a3c0f",
@@ -1738,10 +1774,34 @@
 			"revisionTime": "2017-07-19T21:11:51Z"
 		},
 		{
+			"checksumSHA1": "5JWn/wMC+EWNDKI/AYE4JifQF54=",
+			"path": "golang.org/x/net/internal/iana",
+			"revision": "0ed95abb35c445290478a5348a7b38bb154135fd",
+			"revisionTime": "2018-01-24T06:08:02Z"
+		},
+		{
+			"checksumSHA1": "WnI4058Oj6W4YSvyXAnK3qCKqvo=",
+			"path": "golang.org/x/net/internal/socket",
+			"revision": "0ed95abb35c445290478a5348a7b38bb154135fd",
+			"revisionTime": "2018-01-24T06:08:02Z"
+		},
+		{
 			"checksumSHA1": "UxahDzW2v4mf/+aFxruuupaoIwo=",
 			"path": "golang.org/x/net/internal/timeseries",
 			"revision": "f5079bd7f6f74e23c4d65efa0f4ce14cbd6a3c0f",
 			"revisionTime": "2017-07-19T21:11:51Z"
+		},
+		{
+			"checksumSHA1": "zPTKyZ1C55w1fk1W+/qGE15jaek=",
+			"path": "golang.org/x/net/ipv4",
+			"revision": "0ed95abb35c445290478a5348a7b38bb154135fd",
+			"revisionTime": "2018-01-24T06:08:02Z"
+		},
+		{
+			"checksumSHA1": "3L3n7qKMO9X8E1ibA5mExKvwbmI=",
+			"path": "golang.org/x/net/ipv6",
+			"revision": "0ed95abb35c445290478a5348a7b38bb154135fd",
+			"revisionTime": "2018-01-24T06:08:02Z"
 		},
 		{
 			"checksumSHA1": "3xyuaSNmClqG4YWC7g0isQIbUTc=",
