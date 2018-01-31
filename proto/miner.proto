@@ -1,7 +1,8 @@
 syntax = "proto3";
 
-import "insonmnia.proto";
 import "capabilities.proto";
+import "container.proto";
+import "insonmnia.proto";
 import "nat.proto";
 
 package sonm;
@@ -36,17 +37,13 @@ message MinerHandshakeReply {
 
 message MinerStartRequest{
     string id = 1;
-    string registry = 2;
-    string image = 3;
-    string auth = 4;
-    ContainerRestartPolicy restartPolicy = 5;
-    TaskResourceRequirements resources = 6;
-    string PublicKeyData = 7;
-    bool commitOnStop = 8;
-    map<string, string> env = 9;
+    // Container describes container settings.
+    Container container = 2;
+    ContainerRestartPolicy restartPolicy = 3;
+    TaskResourceRequirements resources = 4;
     // OrderId describes an unique order identifier.
     // It is here for proper resource allocation and limitation.
-    string orderId = 10;
+    string orderId = 5;
 }
 
 message SocketAddr {

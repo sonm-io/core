@@ -1,13 +1,11 @@
 package task_config
 
 import (
-	"fmt"
-	"strings"
-
 	b64 "encoding/base64"
 	"encoding/json"
-
+	"fmt"
 	"os"
+	"strings"
 
 	ds "github.com/c2h5oh/datasize"
 	"github.com/docker/docker/api/types"
@@ -31,6 +29,9 @@ type TaskConfig interface {
 	GetCPUType() string
 	GetGPURequirement() bool
 	GetGPUType() string
+
+	Volumes() map[string]volume
+	Mounts() []string
 }
 
 type container struct {
@@ -39,6 +40,13 @@ type container struct {
 	SSHKey       string            `yaml:"ssh_key" required:"false"`
 	Env          map[string]string `yaml:"env" required:"false"`
 	CommitOnStop bool              `yaml:"commit_on_stop" required:"false"`
+	Volumes      map[string]volume
+	Mounts       []string
+}
+
+type volume struct {
+	Type    string            `yaml:"type" required:"true"`
+	Options map[string]string `yaml:"options" required:"false"`
 }
 
 type registry struct {
@@ -143,6 +151,14 @@ func (yc *YamlConfig) GetGPUType() string {
 
 func (yc *YamlConfig) GetGPURequirement() bool {
 	return yc.Task.Resources.UseGPU
+}
+
+func (yc *YamlConfig) Volumes() map[string]volume {
+	return yc.Task.Container.Volumes
+}
+
+func (yc *YamlConfig) Mounts() []string {
+	return yc.Task.Container.Mounts
 }
 
 func LoadConfig(path string) (TaskConfig, error) {

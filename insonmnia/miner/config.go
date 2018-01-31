@@ -7,6 +7,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -53,6 +54,7 @@ type config struct {
 	UUIDPathConfig          string              `required:"false" yaml:"uuid_path"`
 	PublicIPsConfig         []string            `required:"false" yaml:"public_ip_addrs"`
 	MetricsListenAddrConfig string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14001"`
+	PluginsConfig           plugin.Config       `yaml:"plugins"`
 }
 
 func (c *config) HubResolveEndpoints() bool {
@@ -111,6 +113,10 @@ func (c *config) LocatorEndpoint() string {
 
 func (c *config) MetricsListenAddr() string {
 	return c.MetricsListenAddrConfig
+}
+
+func (c *config) Plugins() plugin.Config {
+	return c.PluginsConfig
 }
 
 func (c *config) validate() error {
@@ -176,4 +182,6 @@ type Config interface {
 	// MetricsListenAddr returns the address that can be used by Prometheus to get
 	// metrics.
 	MetricsListenAddr() string
+	// Plugins returns plugins settings.
+	Plugins() plugin.Config
 }
