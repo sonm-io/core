@@ -17,6 +17,10 @@ type TaskInfo struct {
 	EndTime *time.Time
 }
 
+func (t TaskInfo) ContainerID() string {
+	return t.MinerStartReply.Container
+}
+
 type DealMeta struct {
 	ID      DealID
 	BidID   string
