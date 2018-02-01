@@ -21,3 +21,12 @@ func TestTaskResourcesRestrictCPUs(t *testing.T) {
 	assert.Equal(t, int64(100000), containerResources.CPUPeriod)
 	assert.Equal(t, int64(200000), containerResources.CPUQuota)
 }
+
+func TestValidateSlot_SingleGPU(t *testing.T) {
+	s := &sonm.Resources{
+		GpuCount: sonm.GPUCount_SINGLE_GPU,
+	}
+
+	err := ValidateResources(s)
+	assert.EqualError(t, err, ErrUnsupportedSingleGPU.Error())
+}
