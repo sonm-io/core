@@ -3,6 +3,7 @@ package miner
 import (
 	"crypto/ecdsa"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net"
 	"strconv"
@@ -20,6 +21,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/hardware"
+	"github.com/sonm-io/core/insonmnia/miner/plugin"
+	"github.com/sonm-io/core/insonmnia/miner/volume"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
@@ -27,6 +30,7 @@ import (
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -39,6 +43,9 @@ type Miner struct {
 	ctx        context.Context
 	cancel     context.CancelFunc
 	grpcServer *grpc.Server
+
+	wg      *errgroup.Group
+	plugins *plugin.Repository
 
 	// Miner name for nice self-representation.
 	name      string
@@ -165,9 +172,15 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		zap.Any("public IPs", o.publicIPs),
 		zap.Any("nat", o.nat))
 
+	wg := &errgroup.Group{}
+	plugins, err := plugin.NewRepository(o.ctx, cfg.Plugins(), wg)
+	if err != nil {
+		return nil, err
+	}
+
 	ctx, cancel := context.WithCancel(o.ctx)
 	if o.ovs == nil {
-		o.ovs, err = NewOverseer(ctx, cfg.GPU())
+		o.ovs, err = NewOverseer(ctx, cfg.GPU(), plugins)
 		if err != nil {
 			return nil, err
 		}
@@ -178,6 +191,9 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		cancel:     cancel,
 		grpcServer: grpcServer,
 		ovs:        o.ovs,
+
+		wg:      wg,
+		plugins: plugins,
 
 		name:      o.uuid,
 		hardware:  hardwareInfo,
@@ -438,12 +454,16 @@ func (m *Miner) Save(request *pb.SaveRequest, stream pb.Miner_SaveServer) error 
 func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
 
+	if request.GetContainer() == nil {
+		return nil, fmt.Errorf("container field is required")
+	}
+
 	resources, err := structs.NewTaskResources(request.GetResources())
 	if err != nil {
 		return nil, err
 	}
 
-	publicKey, err := parsePublicKey(request.PublicKeyData)
+	publicKey, err := parsePublicKey(request.Container.PublicKeyData)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
@@ -455,17 +475,28 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	// This can be canceled by using "resourceHandle.commit()".
 	defer resourceHandle.release()
 
+	mounts := make([]volume.Mount, 0)
+	for _, spec := range request.Container.Mounts {
+		mount, err := volume.NewMount(spec)
+		if err != nil {
+			return nil, err
+		}
+		mounts = append(mounts, mount)
+	}
+
 	var d = Description{
-		Image:         request.Image,
-		Registry:      request.Registry,
-		Auth:          request.Auth,
+		Image:         request.Container.Image,
+		Registry:      request.Container.Registry,
+		Auth:          request.Container.Auth,
 		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
 		Resources:     resources.ToContainerResources(cgroup.Suffix()),
 		DealId:        request.GetOrderId(),
 		TaskId:        request.Id,
-		CommitOnStop:  request.CommitOnStop,
-		Env:           request.Env,
+		CommitOnStop:  request.Container.CommitOnStop,
+		Env:           request.Container.Env,
 		GPURequired:   resources.RequiresGPU(),
+		volumes:       request.Container.Volumes,
+		mounts:        mounts,
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
@@ -794,50 +825,44 @@ func (m *Miner) connectToHub(address string) {
 // Serve starts discovery of Hubs,
 // accepts incoming connections from a Hub
 func (m *Miner) Serve() error {
-	var grpcError error
-	var wg sync.WaitGroup
-
 	if m.ssh != nil {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		m.wg.Go(func() error {
 			log.G(m.ctx).Info("starting ssh server")
-			switch sshErr := m.ssh.Run(m); sshErr {
+			switch err := m.ssh.Run(m); err {
 			case nil, ssh.ErrServerClosed:
 				log.G(m.ctx).Info("closed ssh server")
+				m.Close()
+				return nil
 			default:
-				log.G(m.ctx).Error("failed to run SSH server", zap.Error(sshErr))
+				log.G(m.ctx).Error("failed to run SSH server", zap.Error(err))
+				m.Close()
+				return err
 			}
-			m.Close()
-		}()
+		})
 	}
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		grpcError = m.grpcServer.Serve(m.rl)
+	m.wg.Go(func() error {
+		err := m.grpcServer.Serve(m.rl)
 		m.Close()
-	}()
+		return err
+	})
 
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-
+	m.wg.Go(func() error {
 		t := time.NewTicker(time.Second * 5)
 		defer t.Stop()
+
 		m.connectToHub(m.hubAddress)
 		for {
 			select {
 			case <-m.ctx.Done():
-				return
+				return nil
 			case <-t.C:
 				m.connectToHub(m.hubAddress)
 			}
 		}
-	}()
-	wg.Wait()
+	})
 
-	return grpcError
+	return m.wg.Wait()
 }
 
 // Close disposes all resources related to the Miner
@@ -858,4 +883,6 @@ func (m *Miner) Close() {
 	m.ovs.Close()
 	m.rl.Close()
 	m.controlGroup.Delete()
+
+	m.plugins.Close()
 }

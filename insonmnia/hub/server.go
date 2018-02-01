@@ -382,15 +382,15 @@ func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer
 		return err
 	}
 
-	named, err := reference.ParseNormalizedNamed(task.Image)
+	named, err := reference.ParseNormalizedNamed(task.ContainerID())
 	if err != nil {
-		log.G(h.ctx).Warn("could not parse image to reference", zap.Error(err), zap.String("image", task.Image))
+		log.G(h.ctx).Warn("could not parse image to reference", zap.Error(err), zap.String("image", task.ContainerID()))
 		return err
 	}
 
 	tagged, err := reference.WithTag(named, fmt.Sprintf("%s_%s", request.GetDealId(), request.GetTaskId()))
 	if err != nil {
-		log.G(h.ctx).Warn("could not tag image", zap.Error(err), zap.String("image", task.Image))
+		log.G(h.ctx).Warn("could not tag image", zap.Error(err), zap.String("image", task.ContainerID()))
 		return err
 	}
 	imageID := tagged.String()
@@ -460,7 +460,7 @@ func (h *Hub) generateTaskID() string {
 }
 
 func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
-	allowed, ref, err := h.whitelist.Allowed(ctx, request.Registry, request.Image, request.Auth)
+	allowed, ref, err := h.whitelist.Allowed(ctx, request.Container.Registry, request.Container.Image, request.Container.Auth)
 	if err != nil {
 		return nil, err
 	}
@@ -490,15 +490,14 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	}
 
 	taskID := h.generateTaskID()
+	container := request.Container
+	container.Registry = reference.Domain(ref)
+	container.Image = reference.Path(ref)
+
 	startRequest := &pb.MinerStartRequest{
-		OrderId:       request.GetDealId(),
-		Id:            taskID,
-		Registry:      reference.Domain(ref),
-		Image:         reference.Path(ref),
-		Auth:          request.GetAuth(),
-		PublicKeyData: request.GetPublicKeyData(),
-		CommitOnStop:  request.GetCommitOnStop(),
-		Env:           request.GetEnv(),
+		OrderId:   request.GetDealId(), // TODO: WTF?
+		Id:        taskID,
+		Container: container,
 		Resources: &pb.TaskResourceRequirements{
 			CPUCores:   uint64(usage.NumCPUs),
 			MaxMemory:  usage.Memory,
