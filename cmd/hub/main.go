@@ -20,7 +20,7 @@ var (
 )
 
 func main() {
-	cmd.NewCmd("sonmhub", appVersion, &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd("hub", appVersion, &configFlag, &versionFlag, run).Execute()
 }
 
 func run() {

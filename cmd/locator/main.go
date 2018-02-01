@@ -19,7 +19,7 @@ var (
 )
 
 func main() {
-	cmd.NewCmd("sonmlocator", appVersion, &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd("locator", appVersion, &configFlag, &versionFlag, run).Execute()
 }
 
 func run() {
