@@ -17,7 +17,7 @@ type AskPlan struct {
 	Order *structs.Order
 }
 
-type AskPlansData map[string]AskPlan
+type AskPlansData map[string]*AskPlan
 
 type AskPlans struct {
 	Data   AskPlansData
@@ -28,7 +28,7 @@ type AskPlans struct {
 
 func NewAskPlans(hub *Hub, market pb.MarketClient) *AskPlans {
 	return &AskPlans{
-		Data:   make(map[string]AskPlan),
+		Data:   make(map[string]*AskPlan),
 		hub:    hub,
 		market: market,
 	}
@@ -55,7 +55,7 @@ func (a *AskPlans) Add(ctx context.Context, order *structs.Order) (string, error
 		Id:    id,
 		Order: order,
 	}
-	a.Data[id] = plan
+	a.Data[id] = &plan
 	if a.hub.HasResources(plan.Order.GetSlot().GetResources()) {
 		a.announcePlan(ctx, &plan)
 	}
@@ -93,7 +93,7 @@ func (a *AskPlans) Remove(ctx context.Context, planId string) error {
 		return errSlotNotExists
 	}
 	if askPlan.Order.Id != "" {
-		a.deannouncePlan(ctx, &askPlan)
+		a.deannouncePlan(ctx, askPlan)
 	}
 	delete(a.Data, planId)
 	a.sync(ctx)
@@ -116,9 +116,9 @@ func (a *AskPlans) HasOrder(orderId string) bool {
 func (a *AskPlans) forceRenewAnnounces(ctx context.Context) {
 	for _, plan := range a.Data {
 		if a.hub.HasResources(plan.Order.GetSlot().GetResources()) {
-			a.announcePlan(ctx, &plan)
+			a.announcePlan(ctx, plan)
 		} else {
-			a.deannouncePlan(ctx, &plan)
+			a.deannouncePlan(ctx, plan)
 		}
 	}
 }
@@ -134,11 +134,11 @@ func (a *AskPlans) checkAnnounces(ctx context.Context) {
 		announced := plan.Order.Id != ""
 		if has && !announced {
 			changed = true
-			a.announcePlan(ctx, &plan)
+			a.announcePlan(ctx, plan)
 		}
 		if !has && announced {
 			changed = true
-			a.deannouncePlan(ctx, &plan)
+			a.deannouncePlan(ctx, plan)
 		}
 		if has && announced {
 			toUpdate = append(toUpdate, plan.Order.Id)
