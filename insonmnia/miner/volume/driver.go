@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 )
 
 // Volume specifies volume interface, that is mounted within Docker
@@ -59,12 +58,12 @@ func NewNilVolumeDriver() VolumeDriver {
 }
 
 // NewVolumeDriver constructs a new volume driver.
-func NewVolumeDriver(ctx context.Context, wg *errgroup.Group, ty string, options ...Option) (VolumeDriver, error) {
+func NewVolumeDriver(ctx context.Context, ty string, options ...Option) (VolumeDriver, error) {
 	ctx = log.WithLogger(ctx, log.G(ctx).With(zap.String("driver", ty)))
 
 	switch ty {
 	case drivers.CIFS.String():
-		return NewCIFSVolumeDriver(ctx, wg, options...)
+		return NewCIFSVolumeDriver(ctx, options...)
 	default:
 		return nil, fmt.Errorf("unknown volume driver: %s", ty)
 	}

@@ -30,7 +30,6 @@ import (
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -44,7 +43,6 @@ type Miner struct {
 	cancel     context.CancelFunc
 	grpcServer *grpc.Server
 
-	wg      *errgroup.Group
 	plugins *plugin.Repository
 
 	// Miner name for nice self-representation.
@@ -172,10 +170,13 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		zap.Any("public IPs", o.publicIPs),
 		zap.Any("nat", o.nat))
 
-	wg := &errgroup.Group{}
-	plugins, err := plugin.NewRepository(o.ctx, cfg.Plugins(), wg)
+	plugins, err := plugin.NewRepository(o.ctx, cfg.Plugins())
 	if err != nil {
 		return nil, err
+	}
+
+	if o.ssh == nil {
+		o.ssh = nilSSH{}
 	}
 
 	ctx, cancel := context.WithCancel(o.ctx)
@@ -192,7 +193,6 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		grpcServer: grpcServer,
 		ovs:        o.ovs,
 
-		wg:      wg,
 		plugins: plugins,
 
 		name:      o.uuid,
@@ -236,11 +236,9 @@ type resourceHandle interface {
 // NilResourceHandle is a resource handle that does nothing.
 type nilResourceHandle struct{}
 
-func (h *nilResourceHandle) commit() {
-}
+func (h *nilResourceHandle) commit() {}
 
-func (h *nilResourceHandle) release() {
-}
+func (h *nilResourceHandle) release() {}
 
 type ownedResourceHandle struct {
 	miner     *Miner
@@ -822,47 +820,40 @@ func (m *Miner) connectToHub(address string) {
 	}
 }
 
+func (m *Miner) startSSH() {
+	switch err := m.ssh.Run(); err {
+	case nil, ssh.ErrServerClosed:
+		log.G(m.ctx).Info("ssh server closed", zap.Error(err))
+	default:
+		log.G(m.ctx).Error("failed to run SSH server", zap.Error(err))
+		m.cancel()
+	}
+}
+
+func (m *Miner) startHubConnection() {
+	t := time.NewTicker(time.Second * 5)
+	defer t.Stop()
+
+	m.connectToHub(m.hubAddress)
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-t.C:
+			m.connectToHub(m.hubAddress)
+		}
+	}
+}
+
 // Serve starts discovery of Hubs,
 // accepts incoming connections from a Hub
 func (m *Miner) Serve() error {
-	if m.ssh != nil {
-		m.wg.Go(func() error {
-			log.G(m.ctx).Info("starting ssh server")
-			switch err := m.ssh.Run(m); err {
-			case nil, ssh.ErrServerClosed:
-				log.G(m.ctx).Info("closed ssh server")
-				m.Close()
-				return nil
-			default:
-				log.G(m.ctx).Error("failed to run SSH server", zap.Error(err))
-				m.Close()
-				return err
-			}
-		})
-	}
+	go func() { m.startSSH() }()
+	go func() { m.startHubConnection() }()
+	go func() { m.grpcServer.Serve(m.rl) }()
 
-	m.wg.Go(func() error {
-		err := m.grpcServer.Serve(m.rl)
-		m.Close()
-		return err
-	})
-
-	m.wg.Go(func() error {
-		t := time.NewTicker(time.Second * 5)
-		defer t.Stop()
-
-		m.connectToHub(m.hubAddress)
-		for {
-			select {
-			case <-m.ctx.Done():
-				return nil
-			case <-t.C:
-				m.connectToHub(m.hubAddress)
-			}
-		}
-	})
-
-	return m.wg.Wait()
+	<-m.ctx.Done()
+	return m.ctx.Err()
 }
 
 // Close disposes all resources related to the Miner
@@ -870,19 +861,12 @@ func (m *Miner) Close() {
 	log.G(m.ctx).Info("closing miner")
 
 	m.cancel()
+
 	m.grpcServer.Stop()
-
-	if m.ssh != nil {
-		m.ssh.Close()
-	}
-
-	if m.certRotator != nil {
-		m.certRotator.Close()
-	}
-
+	m.certRotator.Close()
+	m.ssh.Close()
 	m.ovs.Close()
 	m.rl.Close()
 	m.controlGroup.Delete()
-
 	m.plugins.Close()
 }

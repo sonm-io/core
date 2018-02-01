@@ -16,7 +16,6 @@ import (
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
 )
 
 type cifsVolumeDriver struct {
@@ -29,7 +28,7 @@ type cifsVolumeDriver struct {
 
 // NewCIFSVolumeDriver constructs and runs a new CIFS volume driver within the
 // provided error group.
-func NewCIFSVolumeDriver(ctx context.Context, wg *errgroup.Group, options ...Option) (VolumeDriver, error) {
+func NewCIFSVolumeDriver(ctx context.Context, options ...Option) (VolumeDriver, error) {
 	opts := &Options{
 		SocketDir: pluginSockDir,
 	}
@@ -57,10 +56,10 @@ func NewCIFSVolumeDriver(ctx context.Context, wg *errgroup.Group, options ...Opt
 	driver := drivers.NewCIFSDriver(rootDir, &drivers.CifsCreds{}, "", "")
 	handle := volume.NewHandler(driver)
 
-	wg.Go(func() error {
+	go func() {
 		log.G(ctx).Info("CIFS volume plugin has been initialized")
-		return handle.Serve(listener)
-	})
+		handle.Serve(listener)
+	}()
 
 	return &cifsVolumeDriver{driver, listener, log.G(ctx)}, nil
 }

@@ -8,7 +8,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/miner/volume"
 	"github.com/sonm-io/core/proto"
-	"golang.org/x/sync/errgroup"
 )
 
 // Provider unifies all possible providers for tuning.
@@ -17,7 +16,7 @@ type Provider interface {
 	VolumeProvider
 }
 
-// VolumeProvider describes an interface for applying GPU settings to the
+// GPUProvider describes an interface for applying GPU settings to the
 // container.
 type GPUProvider interface {
 }
@@ -45,16 +44,13 @@ type Repository struct {
 // during the call of this function. Any error that can be recovered at the
 // initialization stage will be returned. Other errors will interrupt the wait
 // group, forcing making the entire plugin system to halt.
-func NewRepository(ctx context.Context, cfg Config, wg *errgroup.Group) (*Repository, error) {
+func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 	r := EmptyRepository()
 
 	log.G(ctx).Info("initializing SONM plugins")
 
 	for ty, options := range cfg.Volumes.Volumes {
-		driver, err := volume.NewVolumeDriver(
-			ctx,
-			wg,
-			ty,
+		driver, err := volume.NewVolumeDriver(ctx, ty,
 			volume.WithPluginSocketDir(cfg.SocketPath),
 			volume.WithOptions(options),
 		)
