@@ -284,6 +284,10 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 						if err != nil {
 							log.G(ctx).Error("failed to commit container", zap.String("id", id), zap.Error(err))
 						}
+
+						if err := c.Cleanup(); err != nil {
+							log.G(ctx).Error("failed to clean up container", zap.String("id", id), zap.Error(err))
+						}
 						c.cancel()
 					}()
 				}

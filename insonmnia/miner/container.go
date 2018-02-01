@@ -28,6 +28,8 @@ type containerDescriptor struct {
 	ID          string
 	description Description
 	stats       types.StatsJSON
+
+	cleanup plugin.Cleanup
 }
 
 func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuner gpu.Tuner, tuners *plugin.Repository) (*containerDescriptor, error) {
@@ -80,7 +82,8 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		return nil, err
 	}
 
-	if err := tuners.Tune(&d, &hostConfig); err != nil {
+	cleanup, err := tuners.Tune(&d, &hostConfig)
+	if err != nil {
 		return nil, err
 	}
 
@@ -93,6 +96,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	}
 	cont.ID = resp.ID
 	cont.ctx = log.WithLogger(cont.ctx, log.G(ctx).With(zap.String("id", cont.ID)))
+	cont.cleanup = cleanup
 	if len(resp.Warnings) > 0 {
 		log.G(ctx).Warn("ContainerCreate finished with warnings", zap.Strings("warnings", resp.Warnings))
 	}
@@ -173,6 +177,10 @@ func (c *containerDescriptor) Kill() (err error) {
 
 func (c *containerDescriptor) remove() {
 	containerRemove(c.ctx, c.client, c.ID)
+}
+
+func (c *containerDescriptor) Cleanup() error {
+	return c.cleanup.Close()
 }
 
 func containerRemove(ctx context.Context, client client.APIClient, id string) {

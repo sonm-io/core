@@ -74,15 +74,12 @@ func EmptyRepository() *Repository {
 
 // Tune creates all plugin bound required for the given provider with further
 // host config tuning.
-func (r *Repository) Tune(provider Provider, cfg *container.HostConfig) error {
+func (r *Repository) Tune(provider Provider, cfg *container.HostConfig) (Cleanup, error) {
 	if err := r.TuneGPU(provider, cfg); err != nil {
-		return err
-	}
-	if err := r.TuneVolumes(provider, cfg); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return r.TuneVolumes(provider, cfg)
 }
 
 // TuneGPU creates GPU bound required for the given provider with further
@@ -93,7 +90,9 @@ func (r *Repository) TuneGPU(provider GPUProvider, cfg *container.HostConfig) er
 
 // TuneVolumes creates volumes required for the given provider with further
 // host config tuning with mount settings.
-func (r *Repository) TuneVolumes(provider VolumeProvider, cfg *container.HostConfig) error {
+func (r *Repository) TuneVolumes(provider VolumeProvider, cfg *container.HostConfig) (Cleanup, error) {
+	cleanup := newNestedCleanup()
+
 	for volumeName, options := range provider.Volumes() {
 		mounts := provider.Mounts(volumeName)
 		// No mounts - no volumes.
@@ -103,14 +102,16 @@ func (r *Repository) TuneVolumes(provider VolumeProvider, cfg *container.HostCon
 
 		driver, ok := r.volumes[options.Driver]
 		if !ok {
-			return fmt.Errorf("volume driver not supported: %s", options.Driver)
+			cleanup.Close()
+			return nil, fmt.Errorf("volume driver not supported: %s", options.Driver)
 		}
 
 		id := fmt.Sprintf("%s/%s", provider.ID(), volumeName)
 
 		v, err := driver.CreateVolume(id, options.Settings)
 		if err != nil {
-			return err
+			cleanup.Close()
+			return nil, err
 		}
 
 		for _, mount := range mounts {
@@ -126,12 +127,15 @@ func (r *Repository) TuneVolumes(provider VolumeProvider, cfg *container.HostCon
 			}
 
 			if err := v.Configure(mount, cfg); err != nil {
-				return err
+				cleanup.Close()
+				return nil, err
 			}
 		}
+
+		cleanup.Add(&volumeCleanup{driver: driver, id: id})
 	}
 
-	return nil
+	return &cleanup, nil
 }
 
 func (r *Repository) Close() error {
