@@ -10,6 +10,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sonm-io/core/insonmnia/miner/plugin"
+	"github.com/sonm-io/core/insonmnia/miner/volume"
 	"go.uber.org/zap"
 
 	"github.com/docker/docker/api/types"
@@ -41,6 +43,21 @@ type Description struct {
 	CommitOnStop  bool
 
 	GPURequired bool
+
+	volumes map[string]*pb.Volume
+	mounts  []volume.Mount
+}
+
+func (d *Description) ID() string {
+	return d.TaskId
+}
+
+func (d *Description) Volumes() map[string]*pb.Volume {
+	return d.volumes
+}
+
+func (d *Description) Mounts(source string) []volume.Mount {
+	return d.mounts
 }
 
 func (d *Description) FormatEnv() []string {
@@ -139,6 +156,8 @@ type overseer struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
+	plugins *plugin.Repository
+
 	client *client.Client
 
 	registryAuth map[string]string
@@ -158,7 +177,7 @@ func (o *overseer) supportGPU() bool {
 }
 
 // NewOverseer creates new overseer
-func NewOverseer(ctx context.Context, gpuType pb.GPUVendorType) (Overseer, error) {
+func NewOverseer(ctx context.Context, gpuType pb.GPUVendorType, plugins *plugin.Repository) (Overseer, error) {
 	dockerClient, err := client.NewEnvClient()
 	if err != nil {
 		return nil, err
@@ -173,6 +192,8 @@ func NewOverseer(ctx context.Context, gpuType pb.GPUVendorType) (Overseer, error
 	ovr := &overseer{
 		ctx:    ctx,
 		cancel: cancel,
+
+		plugins: plugins,
 
 		client: dockerClient,
 
@@ -263,7 +284,6 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 						if err != nil {
 							log.G(ctx).Error("failed to commit container", zap.String("id", id), zap.Error(err))
 						}
-						c.remove()
 						c.cancel()
 					}()
 				}
@@ -424,7 +444,8 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		tuner = o.gpuTuner
 	}
 
-	pr, err := newContainer(ctx, o.client, description, tuner)
+	// TODO: Well, we should refactor those dozens of arguments.
+	pr, err := newContainer(ctx, o.client, description, tuner, o.plugins)
 	if err != nil {
 		return
 	}

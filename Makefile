@@ -40,37 +40,39 @@ ifeq ($(UNAME_S),Darwin)
 SED=sed -i "" 's/github\.com\/sonm-io\/core\/vendor\///g' insonmnia/node/hub_mock.go
 endif
 
+LDFLAGS = -X main.appVersion=$(FULL_VER)
+
 .PHONY: fmt vet test
 
 all: mock vet fmt build test
 
 build/locator:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${LOCATOR} ${GOCMD}/locator
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${LOCATOR} ${GOCMD}/locator
 
 build/miner:
 	@echo "+ $@"
-	CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${MINER} ${GOCMD}/miner
+	CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s $(LDFLAGS)" -o ${MINER} ${GOCMD}/miner
 
 build/hub:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${HUB} ${GOCMD}/hub
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${HUB} ${GOCMD}/hub
 
 build/cli:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER)" -o ${CLI} ${GOCMD}/cli
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${CLI} ${GOCMD}/cli
 
 build/node:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER)" -o ${LOCAL_NODE} ${GOCMD}/node
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${LOCAL_NODE} ${GOCMD}/node
 
 build/cli_win32:
 	@echo "+ $@"
-	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s -X github.com/sonm-io/core/cmd/cli/commands.version=$(FULL_VER).win32" -o ${CLI}_win32.exe ${GOCMD}/cli
+	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${CLI}_win32.exe ${GOCMD}/cli
 
 build/node_win32:
 	@echo "+ $@"
-	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s -X main.version=$(FULL_VER).win32" -o ${LOCAL_NODE}_win32.exe ${GOCMD}/node
+	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${LOCAL_NODE}_win32.exe ${GOCMD}/node
 
 
 build/insomnia: build/hub build/miner build/cli build/node

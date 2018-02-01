@@ -1,4 +1,4 @@
-// +build !cl
+// +build !cl darwin
 
 package gpu
 

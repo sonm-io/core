@@ -43,21 +43,21 @@ func TestJsonErrorCustom(t *testing.T) {
 }
 
 func TestShowErrorNilErr(t *testing.T) {
-	buf := initRootCmd(t, config.OutputModeSimple)
+	buf := initRootCmd(t, "1.2.3", config.OutputModeSimple)
 	showError(rootCmd, "test error", nil)
 	out := buf.String()
 	assert.Equal(t, "[ERR] test error\r\n", out)
 }
 
 func TestShowErrorWithErr(t *testing.T) {
-	buf := initRootCmd(t, config.OutputModeSimple)
+	buf := initRootCmd(t, "1.2.3", config.OutputModeSimple)
 	showError(rootCmd, "test error", errors.New("internal"))
 	out := buf.String()
 	assert.Equal(t, "[ERR] test error: internal\r\n", out)
 }
 
 func TestShowErrorJsonNilErr(t *testing.T) {
-	buf := initRootCmd(t, config.OutputModeJSON)
+	buf := initRootCmd(t, "1.2.3", config.OutputModeJSON)
 	showError(rootCmd, "test error", nil)
 	out := buf.String()
 
@@ -68,7 +68,7 @@ func TestShowErrorJsonNilErr(t *testing.T) {
 }
 
 func TestShowErrorJsonWithErr(t *testing.T) {
-	buf := initRootCmd(t, config.OutputModeJSON)
+	buf := initRootCmd(t, "1.2.3", config.OutputModeJSON)
 	showError(rootCmd, "test error", errors.New("reason"))
 	out := buf.String()
 

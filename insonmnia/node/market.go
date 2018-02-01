@@ -267,6 +267,13 @@ func (m *marketAPI) registerHandler(id string, t *orderHandler) {
 	m.tasks[id] = t
 }
 
+func (m *marketAPI) deregisterHandler(id string) {
+	m.taskMux.Lock()
+	defer m.taskMux.Unlock()
+
+	delete(m.tasks, id)
+}
+
 func (m *marketAPI) countHandlers() int {
 	m.taskMux.Lock()
 	defer m.taskMux.Unlock()
@@ -533,8 +540,8 @@ func (m *marketAPI) CancelOrder(ctx context.Context, order *pb.Order) (*pb.Empty
 	if err == nil {
 		handler, ok := m.getHandler(order.Id)
 		if ok {
-			handler.setError(errors.New("cancelled by user"))
 			handler.cancel()
+			m.deregisterHandler(order.Id)
 		} else {
 			log.G(m.ctx).Info("no order handler found", zap.String("order_id", order.Id))
 		}

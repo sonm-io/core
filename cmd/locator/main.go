@@ -2,11 +2,10 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	flag "github.com/ogier/pflag"
+	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/locator"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/util"
@@ -14,22 +13,19 @@ import (
 )
 
 var (
-	configPath  = flag.String("config", "locator.yaml", "Path to locator config file")
-	showVersion = flag.BoolP("version", "v", false, "Show Hub version and exit")
-	version     string
+	configFlag  string
+	versionFlag bool
+	appVersion  string
 )
 
 func main() {
-	flag.Parse()
+	cmd.NewCmd("sonmlocator", appVersion, &configFlag, &versionFlag, run).Execute()
+}
 
-	if *showVersion {
-		fmt.Printf("SONM Locator %s\r\n", version)
-		return
-	}
-
+func run() {
 	ctx := context.Background()
 
-	cfg, err := locator.NewConfig(*configPath)
+	cfg, err := locator.NewConfig(configFlag)
 	if err != nil {
 		log.GetLogger(ctx).Error("failed to load config", zap.Error(err))
 		os.Exit(1)

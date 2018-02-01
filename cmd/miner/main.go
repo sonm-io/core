@@ -1,14 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/signal"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	flag "github.com/ogier/pflag"
 	"github.com/pborman/uuid"
+	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/util"
@@ -17,22 +16,19 @@ import (
 )
 
 var (
-	configPath  = flag.String("config", "worker.yaml", "Path to miner config file")
-	showVersion = flag.BoolP("version", "v", false, "Show Hub version and exit")
-	version     string
+	configFlag  string
+	versionFlag bool
+	appVersion  string
 )
 
 func main() {
-	flag.Parse()
+	cmd.NewCmd("sonmworker", appVersion, &configFlag, &versionFlag, run).Execute()
+}
 
-	if *showVersion {
-		fmt.Printf("SONM Miner %s\r\n", version)
-		return
-	}
-
+func run() {
 	ctx := context.Background()
 
-	cfg, err := miner.NewConfig(*configPath)
+	cfg, err := miner.NewConfig(configFlag)
 	if err != nil {
 		log.G(ctx).Error("cannot load config", zap.Error(err))
 		os.Exit(1)
@@ -55,7 +51,6 @@ func main() {
 	}
 
 	workerID := string(uuidData)
-
 	logger := logging.BuildLogger(cfg.Logging().Level, true)
 	ctx = log.WithLogger(ctx, logger)
 
@@ -74,7 +69,6 @@ func main() {
 
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr())
 
-	// TODO: check error type
 	if err = m.Serve(); err != nil {
 		log.G(ctx).Error("Server stop", zap.Error(err))
 	}

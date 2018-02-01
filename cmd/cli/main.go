@@ -7,6 +7,8 @@ import (
 	"github.com/sonm-io/core/cmd/cli/config"
 )
 
+var appVersion string
+
 func main() {
 	cfg, err := config.NewConfig()
 	if err != nil {
@@ -14,5 +16,5 @@ func main() {
 		return
 	}
 
-	commands.Root(cfg).Execute()
+	commands.Root(appVersion, cfg).Execute()
 }

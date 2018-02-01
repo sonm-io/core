@@ -52,9 +52,6 @@ type Config struct {
 type tunerOptions struct {
 	volumeDriverName string
 	driverVersion    string
-
-	// extra option for nvidia-docker v1 support
-	nvidiaDockerEndpoint string
 }
 
 func newNvidiaOptions() *tunerOptions {
@@ -66,15 +63,9 @@ func newNvidiaOptions() *tunerOptions {
 
 func newRadeonOptions() *tunerOptions {
 	return &tunerOptions{
+		// TODO(sshaman1101): rename to "radeon-docker"
 		volumeDriverName: "amd-docker",
 		driverVersion:    "2482.3",
-	}
-}
-
-func newNvidiaDockerV1Options() *tunerOptions {
-	return &tunerOptions{
-		// FIXME(sshaman1101): do not hardcode the addr
-		nvidiaDockerEndpoint: "localhost:3476",
 	}
 }
 

@@ -98,14 +98,26 @@ var taskStartCmd = &cobra.Command{
 			BuyerID: util.PubKeyToAddr(sessionKey.PublicKey).Hex(),
 		}
 
+		volumes := map[string]*pb.Volume{}
+		for name, v := range taskDef.Volumes() {
+			volumes[name] = &pb.Volume{
+				Driver:   v.Type,
+				Settings: v.Options,
+			}
+		}
+
 		var req = &pb.HubStartTaskRequest{
-			Deal:          deal,
-			Image:         taskDef.GetImageName(),
-			Registry:      taskDef.GetRegistryName(),
-			Auth:          taskDef.GetRegistryAuth(),
-			PublicKeyData: taskDef.GetSSHKey(),
-			Env:           taskDef.GetEnvVars(),
-			CommitOnStop:  taskDef.GetCommitOnStop(),
+			Deal: deal,
+			Container: &pb.Container{
+				Image:         taskDef.GetImageName(),
+				Registry:      taskDef.GetRegistryName(),
+				Auth:          taskDef.GetRegistryAuth(),
+				PublicKeyData: taskDef.GetSSHKey(),
+				Env:           taskDef.GetEnvVars(),
+				CommitOnStop:  taskDef.GetCommitOnStop(),
+				Volumes:       volumes,
+				Mounts:        taskDef.Mounts(),
+			},
 		}
 
 		reply, err := node.Start(req)

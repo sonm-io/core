@@ -26,7 +26,7 @@ type TaskListRequest struct {
 func (m *TaskListRequest) Reset()                    { *m = TaskListRequest{} }
 func (m *TaskListRequest) String() string            { return proto.CompactTextString(m) }
 func (*TaskListRequest) ProtoMessage()               {}
-func (*TaskListRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{0} }
+func (*TaskListRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{0} }
 
 func (m *TaskListRequest) GetHubID() string {
 	if m != nil {
@@ -43,7 +43,7 @@ type DealListRequest struct {
 func (m *DealListRequest) Reset()                    { *m = DealListRequest{} }
 func (m *DealListRequest) String() string            { return proto.CompactTextString(m) }
 func (*DealListRequest) ProtoMessage()               {}
-func (*DealListRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{1} }
+func (*DealListRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{1} }
 
 func (m *DealListRequest) GetOwner() string {
 	if m != nil {
@@ -66,7 +66,7 @@ type DealListReply struct {
 func (m *DealListReply) Reset()                    { *m = DealListReply{} }
 func (m *DealListReply) String() string            { return proto.CompactTextString(m) }
 func (*DealListReply) ProtoMessage()               {}
-func (*DealListReply) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{2} }
+func (*DealListReply) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{2} }
 
 func (m *DealListReply) GetDeal() []*Deal {
 	if m != nil {
@@ -83,7 +83,7 @@ type DealStatusReply struct {
 func (m *DealStatusReply) Reset()                    { *m = DealStatusReply{} }
 func (m *DealStatusReply) String() string            { return proto.CompactTextString(m) }
 func (*DealStatusReply) ProtoMessage()               {}
-func (*DealStatusReply) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{3} }
+func (*DealStatusReply) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{3} }
 
 func (m *DealStatusReply) GetDeal() *Deal {
 	if m != nil {
@@ -1150,9 +1150,9 @@ var _HubManagement_serviceDesc = grpc.ServiceDesc{
 	Metadata: "node.proto",
 }
 
-func init() { proto.RegisterFile("node.proto", fileDescriptor10) }
+func init() { proto.RegisterFile("node.proto", fileDescriptor11) }
 
-var fileDescriptor10 = []byte{
+var fileDescriptor11 = []byte{
 	// 639 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x55, 0x4d, 0x6f, 0xd3, 0x40,
 	0x10, 0xb5, 0x4b, 0x1a, 0xb5, 0x93, 0x26, 0xa9, 0x36, 0x45, 0x2d, 0x3e, 0x94, 0x60, 0x0e, 0x0d,

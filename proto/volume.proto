@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package sonm;
+
+// Volume describes volume settings.
+message Volume {
+    // Driver describes a volume driver.
+    string driver = 1;
+    // Settings describes a place for your volume settings.
+    map<string, string> settings = 2;
+}
