@@ -98,7 +98,7 @@ func (radeonTuner) getDevices() []string {
 func (tun radeonTuner) Tune(hostconfig *container.HostConfig) error {
 	// NOTE: driver name depends on UNIX socket name which Docker uses to connect to a driver
 	hostconfig.VolumeDriver = tun.options.volumeDriverName
-	hostconfig.Binds = append(hostconfig.Binds, tun.options.volumeName()+":/usr/local/amdgpu:ro")
+	hostconfig.Binds = append(hostconfig.Binds, tun.options.volumeName()+":/usr/local/lib/amdgpu:ro")
 
 	// put CL vendor into a container
 	if tun.OpenCLVendorDir != "" {

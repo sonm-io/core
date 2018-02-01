@@ -1,12 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
 	"os/signal"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	flag "github.com/ogier/pflag"
+	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/hub"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/util"
@@ -15,22 +14,19 @@ import (
 )
 
 var (
-	configPath  = flag.String("config", "hub.yaml", "Path to hub config file")
-	showVersion = flag.BoolP("version", "v", false, "Show Hub version and exit")
-	version     string
+	configFlag  string
+	versionFlag bool
+	appVersion  string
 )
 
 func main() {
-	flag.Parse()
+	cmd.NewCmd("sonmhub", appVersion, &configFlag, &versionFlag, run).Execute()
+}
 
-	if *showVersion {
-		fmt.Printf("SONM Hub %s\r\n", version)
-		return
-	}
-
+func run() {
 	ctx := context.Background()
 
-	cfg, err := hub.NewConfig(*configPath)
+	cfg, err := hub.NewConfig(configFlag)
 	if err != nil {
 		log.GetLogger(ctx).Error("failed to load config", zap.Error(err))
 		os.Exit(1)
@@ -52,7 +48,7 @@ func main() {
 	}
 	creds := util.NewTLS(TLSConfig)
 
-	h, err := hub.New(ctx, cfg, version, hub.WithVersion(version), hub.WithContext(ctx),
+	h, err := hub.New(ctx, cfg, hub.WithVersion(appVersion), hub.WithContext(ctx),
 		hub.WithPrivateKey(key), hub.WithCreds(creds), hub.WithCertRotator(certRotator))
 	if err != nil {
 		log.GetLogger(ctx).Error("failed to create a new Hub", zap.Error(err))
@@ -67,7 +63,6 @@ func main() {
 
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
 
-	// TODO: check error type
 	if err = h.Serve(); err != nil {
 		log.GetLogger(ctx).Error("Server stop", zap.Error(err))
 	}

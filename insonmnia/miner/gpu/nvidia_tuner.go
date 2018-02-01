@@ -21,7 +21,7 @@ type nvidiaTuner struct {
 func (g *nvidiaTuner) Tune(hostconfig *container.HostConfig) error {
 	// NOTE: driver name depends on UNIX socket name which Docker uses to connect to a driver
 	hostconfig.VolumeDriver = g.options.volumeDriverName
-	hostconfig.Binds = append(hostconfig.Binds, g.options.volumeName()+":/usr/local/nvidia:ro")
+	hostconfig.Binds = append(hostconfig.Binds, g.options.volumeName()+":/usr/local/lib/nvidia:ro")
 
 	if g.OpenCLVendorDir != "" {
 		hostconfig.Binds = append(hostconfig.Binds, g.OpenCLVendorDir+":"+g.OpenCLVendorDir+":ro")
@@ -90,7 +90,7 @@ func newNvidiaTuner(ctx context.Context, opts *tunerOptions) (Tuner, error) {
 
 	volInfo := []nvidia.VolumeInfo{
 		{
-			Name:         "nvidia_driver",
+			Name:         ovs.options.volumeDriverName,
 			Mountpoint:   "/usr/local/nvidia",
 			MountOptions: "ro",
 			Components: map[string][]string{

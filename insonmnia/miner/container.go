@@ -6,6 +6,7 @@ import (
 	"io"
 	"path/filepath"
 
+	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"go.uber.org/zap"
 
 	"github.com/docker/distribution/reference"
@@ -29,7 +30,7 @@ type containerDescriptor struct {
 	stats       types.StatsJSON
 }
 
-func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuner gpu.Tuner) (*containerDescriptor, error) {
+func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuner gpu.Tuner, tuners *plugin.Repository) (*containerDescriptor, error) {
 	log.G(ctx).Info("start container with application")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -78,6 +79,11 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	if err := tuner.Tune(&hostConfig); err != nil {
 		return nil, err
 	}
+
+	if err := tuners.Tune(&d, &hostConfig); err != nil {
+		return nil, err
+	}
+
 	// create new container
 	// assign resulted containerid
 	// log all warnings
