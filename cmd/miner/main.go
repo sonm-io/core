@@ -22,7 +22,7 @@ var (
 )
 
 func main() {
-	cmd.NewCmd("sonmworker", appVersion, &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd("worker", appVersion, &configFlag, &versionFlag, run).Execute()
 }
 
 func run() {
