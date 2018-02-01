@@ -22,7 +22,7 @@ var (
 )
 
 func main() {
-	cmd.NewCmd("sonmnode", appVersion, &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd("node", appVersion, &configFlag, &versionFlag, run).Execute()
 }
 
 func run() {
