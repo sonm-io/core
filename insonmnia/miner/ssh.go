@@ -13,9 +13,17 @@ import (
 )
 
 type SSH interface {
-	Run(miner *Miner) error
+	Run() error
 	Close()
 }
+
+type nilSSH struct{}
+
+func (nilSSH) Run() error {
+	return nil
+}
+
+func (nilSSH) Close() {}
 
 type sshServer struct {
 	miner          *Miner
@@ -25,13 +33,16 @@ type sshServer struct {
 	server         *ssh.Server
 }
 
-func NewSSH(config *SSHConfig) (SSH, error) {
-	ret := sshServer{laddr: config.BindEndpoint, privateKeyPath: config.PrivateKeyPath}
+func NewSSH(miner *Miner, config *SSHConfig) (SSH, error) {
+	ret := sshServer{
+		laddr:          config.BindEndpoint,
+		privateKeyPath: config.PrivateKeyPath,
+		miner:          miner,
+	}
 	return &ret, nil
 }
 
-func (s *sshServer) Run(miner *Miner) error {
-	s.miner = miner
+func (s *sshServer) Run() error {
 	l, err := net.Listen("tcp", s.laddr)
 	if err != nil {
 		return err

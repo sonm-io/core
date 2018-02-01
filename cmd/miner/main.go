@@ -54,6 +54,7 @@ func run() {
 	logger := logging.BuildLogger(cfg.Logging().Level, true)
 	ctx = log.WithLogger(ctx, logger)
 
+	ctx, cancel := context.WithCancel(ctx)
 	m, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithUUID(workerID))
 	if err != nil {
 		log.G(ctx).Error("cannot create worker instance", zap.Error(err))
@@ -64,7 +65,7 @@ func run() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, os.Interrupt)
 		<-c
-		m.Close()
+		cancel()
 	}()
 
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr())
@@ -72,4 +73,6 @@ func run() {
 	if err = m.Serve(); err != nil {
 		log.G(ctx).Error("Server stop", zap.Error(err))
 	}
+
+	m.Close()
 }
