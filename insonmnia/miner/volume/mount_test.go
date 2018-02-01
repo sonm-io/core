@@ -43,6 +43,14 @@ func TestNewMountWithoutPerm(t *testing.T) {
 	assert.False(t, mount.ReadOnly())
 }
 
+func TestNewMountOnlyTarget(t *testing.T) {
+	mount, err := NewMount("/mnt")
+
+	require.NoError(t, err)
+	assert.Equal(t, Mount{Source: "", Target: "/mnt", Permission: RW}, mount)
+	assert.False(t, mount.ReadOnly())
+}
+
 func TestNewMountInvalidSpec(t *testing.T) {
 	mount, err := NewMount("whatever:cifs:/mnt:rw")
 
@@ -52,6 +60,13 @@ func TestNewMountInvalidSpec(t *testing.T) {
 
 func TestNewMountInvalidSpecEmptySource(t *testing.T) {
 	mount, err := NewMount(":/mnt:rw")
+
+	assert.Equal(t, Mount{}, mount)
+	assert.Error(t, err)
+}
+
+func TestNewMountInvalidPerm(t *testing.T) {
+	mount, err := NewMount("cifs:/mnt:?")
 
 	assert.Equal(t, Mount{}, mount)
 	assert.Error(t, err)
