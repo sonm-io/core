@@ -50,6 +50,7 @@ func (a *AskPlans) Run(ctx context.Context) error {
 func (a *AskPlans) Add(ctx context.Context, order *structs.Order) (string, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+
 	id := uuid.New()
 	plan := AskPlan{
 		Id:    id,
@@ -59,7 +60,7 @@ func (a *AskPlans) Add(ctx context.Context, order *structs.Order) (string, error
 	if a.hub.HasResources(plan.Order.GetSlot().GetResources()) {
 		a.announcePlan(ctx, &plan)
 	}
-	a.sync(ctx)
+
 	return id, nil
 }
 
@@ -73,15 +74,13 @@ func (a *AskPlans) DumpSlots() map[string]*pb.Slot {
 	return result
 }
 
+// Note: `a.mu` should be held.
 func (a *AskPlans) Dump() AskPlansData {
-	a.mu.Lock()
-	defer a.mu.Unlock()
 	return a.Data
 }
 
-func (a *AskPlans) RestoreFrom(data AskPlansData) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
+// Note: `a.mu` should be held.
+func (a *AskPlans) Load(data AskPlansData) {
 	a.Data = data
 }
 
@@ -96,7 +95,7 @@ func (a *AskPlans) Remove(ctx context.Context, planId string) error {
 		a.deannouncePlan(ctx, askPlan)
 	}
 	delete(a.Data, planId)
-	a.sync(ctx)
+
 	return nil
 }
 
@@ -125,11 +124,10 @@ func (a *AskPlans) forceRenewAnnounces(ctx context.Context) {
 
 func (a *AskPlans) checkAnnounces(ctx context.Context) {
 	a.mu.Lock()
-	defer a.mu.Unlock()
+
 	changed := false
 	toUpdate := make([]string, 0)
 	for _, plan := range a.Data {
-
 		has := a.hub.HasResources(plan.Order.GetSlot().GetResources())
 		announced := plan.Order.Id != ""
 		if has && !announced {
@@ -151,8 +149,13 @@ func (a *AskPlans) checkAnnounces(ctx context.Context) {
 			a.forceRenewAnnounces(ctx)
 		}
 	}
+
+	a.mu.Unlock()
+
 	if changed {
-		a.sync(ctx)
+		if err := a.hub.dumpState(); err != nil {
+			log.G(ctx).Error("failed to dump AskPlans state", zap.Error(err))
+		}
 	}
 }
 
@@ -174,14 +177,9 @@ func (a *AskPlans) announcePlan(ctx context.Context, plan *AskPlan) {
 func (a *AskPlans) deannouncePlan(ctx context.Context, plan *AskPlan) {
 	_, err := a.market.CancelOrder(ctx, plan.Order.Unwrap())
 	if err != nil {
-		log.S(ctx).Warnf("failed to deannounce order {} (ask plan - {}) on market - {}", plan.Order.Id, plan.Id, zap.Error(err))
+		log.S(ctx).Warnf("failed to deannounce order %v (ask plan - %v) on market - %v",
+			plan.Order.Id, plan.Id, zap.Error(err))
 	} else {
 		plan.Order.Id = ""
-	}
-}
-
-func (a *AskPlans) sync(ctx context.Context) {
-	if err := a.hub.SynchronizeAskPlans(a.Data); err != nil {
-		log.G(ctx).Warn("failed to sync ask plans to cluster", zap.Error(err))
 	}
 }

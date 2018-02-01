@@ -123,17 +123,13 @@ func (s *OrderShelter) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// Note: `s.mu` should be held.
 func (s *OrderShelter) Dump() map[OrderID]ReservedOrder {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
 	return s.orders
 }
 
-func (s *OrderShelter) RestoreFrom(orders map[OrderID]ReservedOrder) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
+// Note: `s.mu` should be held.
+func (s *OrderShelter) Load(orders map[OrderID]ReservedOrder) {
 	s.orders = orders
 }
 

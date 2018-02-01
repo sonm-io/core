@@ -852,7 +852,9 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, err
 	}
 
-	h.cluster.Synchronize(h.orderShelter.Dump())
+	if err := h.dumpState(); err != nil {
+		return nil, errors.Wrap(err, "failed to dump state")
+	}
 
 	return &pb.Empty{}, nil
 }
@@ -940,13 +942,13 @@ func (h *Hub) ApproveDeal(ctx context.Context, request *pb.ApproveDealRequest) (
 	}
 
 	h.tasksMu.Lock()
-	defer h.tasksMu.Unlock()
 	h.deals[dealMeta.ID] = dealMeta
+	h.tasksMu.Unlock()
 
 	dealsGauge.Inc()
 
-	if err := h.cluster.Synchronize(h.deals); err != nil {
-		log.G(h.ctx).Error("failed to synchronize deal with the cluster", zap.Error(err))
+	if err := h.dumpState(); err != nil {
+		return nil, errors.Wrap(err, "failed to dump state")
 	}
 
 	return &pb.Empty{}, nil
@@ -1089,11 +1091,11 @@ func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDeviceProp
 	log.G(h.ctx).Info("handling SetDeviceProperties request", zap.Any("req", request))
 
 	h.devicePropertiesMu.Lock()
-	defer h.devicePropertiesMu.Unlock()
 	h.deviceProperties[request.ID] = DeviceProperties(request.Properties)
-	err := h.cluster.Synchronize(h.deviceProperties)
-	if err != nil {
-		return nil, err
+	h.devicePropertiesMu.Unlock()
+
+	if err := h.dumpState(); err != nil {
+		return nil, errors.Wrap(err, "failed to dump state")
 	}
 
 	return &pb.Empty{}, nil
@@ -1131,9 +1133,8 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*p
 		return nil, err
 	}
 
-	err = h.cluster.Synchronize(h.askPlans.Dump())
-	if err != nil {
-		return nil, err
+	if err := h.dumpState(); err != nil {
+		return nil, errors.Wrap(err, "failed to dump state")
 	}
 
 	return &pb.ID{Id: id}, nil
@@ -1146,6 +1147,10 @@ func (h *Hub) RemoveSlot(ctx context.Context, request *pb.ID) (*pb.Empty, error)
 	err := h.askPlans.Remove(h.ctx, request.Id)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := h.dumpState(); err != nil {
+		return nil, errors.Wrap(err, "failed to dump state")
 	}
 
 	return &pb.Empty{}, nil
@@ -1171,9 +1176,9 @@ func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, er
 	log.G(h.ctx).Info("handling RegisterWorker request", zap.String("id", request.GetId()))
 
 	h.acl.Insert(common.HexToAddress(request.Id).Hex())
-	err := h.cluster.Synchronize(h.acl)
-	if err != nil {
-		return nil, err
+
+	if err := h.dumpState(); err != nil {
+		return nil, errors.Wrap(err, "failed to dump state")
 	}
 
 	return &pb.Empty{}, nil
@@ -1186,9 +1191,8 @@ func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, 
 	if existed := h.acl.Remove(request.Id); !existed {
 		log.G(h.ctx).Warn("attempt to deregister unregistered worker", zap.String("id", request.GetId()))
 	} else {
-		err := h.cluster.Synchronize(h.acl)
-		if err != nil {
-			return nil, err
+		if err := h.dumpState(); err != nil {
+			return nil, errors.Wrap(err, "failed to dump state")
 		}
 	}
 
@@ -1374,6 +1378,7 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 
 func (h *Hub) onNewHub(endpoint string) {
 	h.associatedHubsMu.Lock()
+
 	log.G(h.ctx).Info("new hub discovered", zap.String("endpoint", endpoint), zap.Any("known_hubs", h.associatedHubs))
 	h.associatedHubs[endpoint] = struct{}{}
 
@@ -1428,44 +1433,21 @@ func (h *Hub) Serve() error {
 		return h.askPlans.Run(h.ctx)
 	})
 
-	if err := h.cluster.RegisterAndLoadEntity("tasks", &h.tasks); err != nil {
-		return err
-	}
-	if err := h.cluster.RegisterAndLoadEntity("device_properties", &h.deviceProperties); err != nil {
-		return err
-	}
-	if err := h.cluster.RegisterAndLoadEntity("acl", h.acl); err != nil {
-		return err
-	}
-	if err := h.cluster.RegisterAndLoadEntity("deals", &h.deals); err != nil {
+	state := h.getState()
+	if err := h.cluster.RegisterAndLoadEntity("hub_state", state); err != nil {
 		return err
 	}
 
-	askPlansData := AskPlansData{}
-	if err := h.cluster.RegisterAndLoadEntity("ask_plans", &askPlansData); err != nil {
+	if err := h.loadState(state); err != nil {
 		return err
 	}
-	h.askPlans.RestoreFrom(askPlansData)
 
-	reservedOrders := make(map[OrderID]ReservedOrder, 0)
-	if err := h.cluster.RegisterAndLoadEntity("reserved_orders", &reservedOrders); err != nil {
-		return err
-	}
-	h.orderShelter.RestoreFrom(reservedOrders)
-
-	log.G(h.ctx).Info("fetched entities",
-		zap.Any("tasks", h.tasks),
-		zap.Any("device_properties", h.deviceProperties),
-		zap.Any("acl", h.acl),
-		zap.Any("ask_plans", h.askPlans),
-		zap.Any("reserved_orders", h.orderShelter),
-	)
+	log.G(h.ctx).Info("fetched hub state", zap.Any("hub_state", state))
 
 	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.listenClusterEvents)
 	h.waiter.Go(h.startLocatorAnnouncer)
 	h.waiter.Go(h.runAcceptedDealsWatcher)
-	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.watchDealsClosed)
 	h.waiter.Go(func() error {
 		return h.orderShelter.Run(h.ctx)
@@ -1535,9 +1517,11 @@ func (h *Hub) runAcceptedDealsWatcher() error {
 				// Update deal expiration time according to the contract.
 				deal.EndTime = acceptedDeal.EndTime.Unix()
 			}
-
-			h.cluster.Synchronize(h.deals)
 			h.tasksMu.Unlock()
+
+			if err := h.dumpState(); err != nil {
+				return errors.Wrap(err, "failed to dump state")
+			}
 		case <-h.ctx.Done():
 			return nil
 		}
@@ -1647,26 +1631,10 @@ func (h *Hub) processClusterEvent(value interface{}) {
 		h.announceAddress()
 	case LeadershipEvent:
 		h.announceAddress()
-	case map[string]*TaskInfo:
-		log.G(h.ctx).Info("synchronizing tasks from cluster")
-		h.tasksMu.Lock()
-		defer h.tasksMu.Unlock()
-		h.tasks = value
-	case map[string]DeviceProperties:
-		h.devicePropertiesMu.Lock()
-		defer h.devicePropertiesMu.Unlock()
-		h.deviceProperties = value
-	case AskPlansData:
-		h.askPlans.RestoreFrom(value)
-	case workerACLStorage:
-		h.acl = &value
-	case map[DealID]*DealMeta:
-		h.tasksMu.Lock()
-		defer h.tasksMu.Unlock()
-		h.deals = value
-		h.restoreResourceUsage()
-	case map[OrderID]ReservedOrder:
-		h.orderShelter.RestoreFrom(value)
+	case hubState:
+		if err := h.loadState(&value); err != nil {
+			log.G(h.ctx).Warn("failed to load hub state", zap.Any("state", value), zap.Error(err))
+		}
 	default:
 		log.G(h.ctx).Warn("received unknown cluster event",
 			zap.Any("event", value),
@@ -1686,10 +1654,6 @@ func (h *Hub) Close() {
 		h.certRotator.Close()
 	}
 	h.waiter.Wait()
-}
-
-func (h *Hub) SynchronizeAskPlans(data AskPlansData) error {
-	return h.cluster.Synchronize(data)
 }
 
 func (h *Hub) registerMiner(miner *MinerCtx) {
@@ -1756,22 +1720,24 @@ func (h *Hub) getMinerByID(minerID string) (*MinerCtx, bool) {
 
 func (h *Hub) saveTask(dealID DealID, info *TaskInfo) error {
 	h.tasksMu.Lock()
-	defer h.tasksMu.Unlock()
-	h.tasks[info.ID] = info
 
+	h.tasks[info.ID] = info
 	taskIDs, ok := h.deals[dealID]
 	if !ok {
+		h.tasksMu.Unlock()
 		return errDealNotFound
 	}
 
 	taskIDs.Tasks = append(taskIDs.Tasks, info)
 	h.deals[dealID] = taskIDs
 
-	err := h.cluster.Synchronize(h.tasks)
-	if err != nil {
-		return err
+	h.tasksMu.Unlock()
+
+	if err := h.dumpState(); err != nil {
+		return errors.Wrap(err, "failed to dump state")
 	}
-	return h.cluster.Synchronize(h.deals)
+
+	return nil
 }
 
 func (h *Hub) getTask(taskID string) (*TaskInfo, error) {
@@ -1787,7 +1753,6 @@ func (h *Hub) getTask(taskID string) (*TaskInfo, error) {
 
 func (h *Hub) deleteTask(taskID string) error {
 	h.tasksMu.Lock()
-	defer h.tasksMu.Unlock()
 
 	taskInfo, ok := h.tasks[taskID]
 	if ok {
@@ -1806,29 +1771,31 @@ func (h *Hub) deleteTask(taskID string) error {
 		}
 	}
 
-	err := h.cluster.Synchronize(h.tasks)
-	if err != nil {
-		return err
+	h.tasksMu.Unlock()
+
+	if err := h.dumpState(); err != nil {
+		return errors.Wrap(err, "failed to dump state")
 	}
 
-	return h.cluster.Synchronize(h.deals)
+	return nil
 }
 
 func (h *Hub) popDealHistory(dealID DealID) ([]*TaskInfo, error) {
 	h.tasksMu.Lock()
-	defer h.tasksMu.Unlock()
 
 	tasks, ok := h.deals[dealID]
 	if !ok {
+		h.tasksMu.Unlock()
 		return nil, errDealNotFound
 	}
 	delete(h.deals, dealID)
 
+	h.tasksMu.Unlock()
+
 	dealsGauge.Dec()
 
-	err := h.cluster.Synchronize(h.deals)
-	if err != nil {
-		return nil, err
+	if err := h.dumpState(); err != nil {
+		return nil, errors.Wrap(err, "failed to dump state")
 	}
 
 	return tasks.Tasks, nil
@@ -1923,9 +1890,6 @@ func (h *Hub) collectMinerGPUs(miner *MinerCtx, dst map[string]*pb.GPUDeviceInfo
 // NOTE: `tasksMu` must be held.
 func (h *Hub) restoreResourceUsage() {
 	log.G(h.ctx).Debug("synchronizing resource usage")
-
-	h.minersMu.Lock()
-	defer h.minersMu.Unlock()
 
 	for dealID, dealInfo := range h.deals {
 		miner, ok := h.miners[dealInfo.MinerID]
