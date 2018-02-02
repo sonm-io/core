@@ -26,6 +26,7 @@ func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 
 	tun := radeonTuner{}
 	tun.options = options
+
 	tun.devices = tun.getDevices()
 
 	if _, err := os.Stat(openCLVendorDir); err == nil {
