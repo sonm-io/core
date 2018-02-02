@@ -2,13 +2,13 @@ package gpu
 
 import (
 	"context"
-	"fmt"
 	"net"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
+	"go.uber.org/zap"
 )
 
 const (
@@ -22,16 +22,16 @@ type Tuner interface {
 }
 
 // New creates Tuner based on provided config.
-// Currently supported type: radeon, nvidia, nvidia-docker-v1,
+// Currently supported type: "radeon" or "nvidia".
 // if type is undefined, nilTuner will be returned.
-func New(ctx context.Context, gpuType pb.GPUVendorType) (Tuner, error) {
+func New(ctx context.Context, gpuType pb.GPUVendorType, opts ...Option) (Tuner, error) {
 	switch gpuType {
 	case pb.GPUVendorType_RADEON:
-		return newRadeonTuner(ctx, newRadeonOptions())
+		return newRadeonTuner(ctx, opts...)
 	case pb.GPUVendorType_NVIDIA:
-		return newNvidiaTuner(ctx, newNvidiaOptions())
+		return newNvidiaTuner(ctx, opts...)
 	default:
-		log.G(ctx).Debug("cannot detect gpu type, use nil tuner")
+		log.G(ctx).Debug("cannot detect gpu type, use nil tuner", zap.Int32("given_type", int32(gpuType)))
 		return NilTuner{}, nil
 	}
 }
@@ -39,46 +39,12 @@ func New(ctx context.Context, gpuType pb.GPUVendorType) (Tuner, error) {
 // NilTuner is just a null pattern
 type NilTuner struct{}
 
-func (NilTuner) Tune(hostconfig *container.HostConfig) error { return nil }
-
-func (NilTuner) Close() error { return nil }
-
-// Config contains options related to NVIDIA GPU support
-type Config struct {
-	Type string `yaml:"type"`
+func (NilTuner) Tune(hostconfig *container.HostConfig) error {
+	return nil
 }
 
-// tunerOptions contains various options for embedded GPU tuners
-type tunerOptions struct {
-	volumeDriverName string
-	driverVersion    string
-}
-
-func newNvidiaOptions() *tunerOptions {
-	return &tunerOptions{
-		volumeDriverName: "nvidia-docker",
-		driverVersion:    "300.0",
-	}
-}
-
-func newRadeonOptions() *tunerOptions {
-	return &tunerOptions{
-		// TODO(sshaman1101): rename to "radeon-docker"
-		volumeDriverName: "amd-docker",
-		driverVersion:    "2482.3",
-	}
-}
-
-func (opts *tunerOptions) volumePath() string {
-	return fmt.Sprintf("/var/lib/%s/volumes", opts.volumeDriverName)
-}
-
-func (opts *tunerOptions) socketPath() string {
-	return fmt.Sprintf("/run/docker/plugins/%s.sock", opts.volumeDriverName)
-}
-
-func (opts *tunerOptions) volumeName() string {
-	return fmt.Sprintf("%s_%s", opts.volumeDriverName, opts.driverVersion)
+func (NilTuner) Close() error {
+	return nil
 }
 
 type volumePluginHandler struct {

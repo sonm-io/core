@@ -115,7 +115,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		o.hardware = hardware.New()
 	}
 
-	hardwareInfo, err := o.hardware.Info(hardware.FilterGPUByVendor(cfg.GPU()))
+	hardwareInfo, err := o.hardware.Info()
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +181,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 
 	ctx, cancel := context.WithCancel(o.ctx)
 	if o.ovs == nil {
-		o.ovs, err = NewOverseer(ctx, cfg.GPU(), plugins)
+		o.ovs, err = NewOverseer(ctx, plugins)
 		if err != nil {
 			return nil, err
 		}

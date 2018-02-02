@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/insonmnia/miner/gpu"
 )
 
 type containerDescriptor struct {
@@ -32,7 +31,7 @@ type containerDescriptor struct {
 	cleanup plugin.Cleanup
 }
 
-func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuner gpu.Tuner, tuners *plugin.Repository) (*containerDescriptor, error) {
+func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
 	log.G(ctx).Info("start container with application")
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -77,10 +76,6 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	}
 
 	var networkingConfig network.NetworkingConfig
-
-	if err := tuner.Tune(&hostConfig); err != nil {
-		return nil, err
-	}
 
 	cleanup, err := tuners.Tune(&d, &hostConfig)
 	if err != nil {

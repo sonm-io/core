@@ -18,9 +18,14 @@ type radeonTuner struct {
 	volumePluginHandler
 }
 
-func newRadeonTuner(ctx context.Context, opts *tunerOptions) (Tuner, error) {
+func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
+	options := radeonDefaultOptions()
+	for _, f := range opts {
+		f(options)
+	}
+
 	tun := radeonTuner{}
-	tun.options = opts
+	tun.options = options
 	tun.devices = tun.getDevices()
 
 	if _, err := os.Stat(openCLVendorDir); err == nil {
@@ -29,7 +34,7 @@ func newRadeonTuner(ctx context.Context, opts *tunerOptions) (Tuner, error) {
 
 	volInfo := []nvidia.VolumeInfo{
 		{
-			Name:         tun.options.volumeDriverName,
+			Name:         tun.options.VolumeDriverName,
 			Mountpoint:   "/opt/amdgpu-pro",
 			MountOptions: "ro",
 			Components: map[string][]string{
@@ -61,17 +66,17 @@ func newRadeonTuner(ctx context.Context, opts *tunerOptions) (Tuner, error) {
 		},
 	}
 
-	log.G(ctx).Info("Provisioning volumes", zap.String("at", tun.options.volumePath()))
-	volumes, err := nvidia.LookupVolumes(tun.options.volumePath(), tun.options.driverVersion, volInfo)
+	log.G(ctx).Info("Provisioning volumes", zap.String("at", tun.options.VolumePath))
+	volumes, err := nvidia.LookupVolumes(tun.options.VolumePath, tun.options.DriverVersion, volInfo)
 	if err != nil {
 		return nil, err
 	}
 
 	tun.handler = volume.NewHandler(NewPlugin(volumes))
-	tun.listener, err = net.Listen("unix", tun.options.socketPath())
+	tun.listener, err = net.Listen("unix", tun.options.SocketPath)
 	if err != nil {
 		log.G(ctx).Error("failed to create listening socket for to communicate with Docker as plugin",
-			zap.String("path", tun.options.socketPath()), zap.Error(err))
+			zap.String("path", tun.options.SocketPath), zap.Error(err))
 		return nil, err
 	}
 
@@ -97,7 +102,7 @@ func (radeonTuner) getDevices() []string {
 
 func (tun radeonTuner) Tune(hostconfig *container.HostConfig) error {
 	// NOTE: driver name depends on UNIX socket name which Docker uses to connect to a driver
-	hostconfig.VolumeDriver = tun.options.volumeDriverName
+	hostconfig.VolumeDriver = tun.options.VolumeDriverName
 	hostconfig.Binds = append(hostconfig.Binds, tun.options.volumeName()+":/usr/local/lib/amdgpu:ro")
 
 	// put CL vendor into a container
@@ -122,5 +127,5 @@ func (tun radeonTuner) Close() error {
 		return err
 	}
 
-	return os.Remove(tun.options.socketPath())
+	return os.Remove(tun.options.SocketPath)
 }

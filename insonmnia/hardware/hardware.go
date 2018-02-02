@@ -4,7 +4,6 @@ import (
 	"github.com/shirou/gopsutil/mem"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/gpu"
-	pb "github.com/sonm-io/core/proto"
 )
 
 // Hardware accumulates the finest hardware information about system the miner
@@ -53,7 +52,7 @@ type HardwareInfo interface {
 	GPU() ([]gpu.Device, error)
 
 	// Info returns all described above hardware statistics.
-	Info(filters ...FilterFunc) (*Hardware, error)
+	Info() (*Hardware, error)
 }
 
 type hardwareInfo struct{}
@@ -70,24 +69,7 @@ func (*hardwareInfo) GPU() ([]gpu.Device, error) {
 	return gpu.GetGPUDevices()
 }
 
-type FilterFunc func(hw *Hardware) *Hardware
-
-func FilterGPUByVendor(t pb.GPUVendorType) FilterFunc {
-	return func(hw *Hardware) *Hardware {
-		var filtered []gpu.Device
-		for _, d := range hw.GPU {
-			if t != pb.GPUVendorType_GPU_UNKNOWN && t == d.VendorType() {
-				filtered = append(filtered, d)
-			}
-		}
-
-		hw.GPU = filtered
-
-		return hw
-	}
-}
-
-func (h *hardwareInfo) Info(filters ...FilterFunc) (*Hardware, error) {
+func (h *hardwareInfo) Info() (*Hardware, error) {
 	cpuInfo, err := h.CPU()
 	if err != nil {
 		return nil, err
@@ -111,11 +93,6 @@ func (h *hardwareInfo) Info(filters ...FilterFunc) (*Hardware, error) {
 		CPU:    cpuInfo,
 		Memory: memory,
 		GPU:    gpuInfo,
-	}
-
-	// apply filters
-	for _, ff := range filters {
-		hardware = ff(hardware)
 	}
 
 	return hardware, nil
