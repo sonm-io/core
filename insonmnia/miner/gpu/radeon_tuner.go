@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sshaman1101/nvidia-docker/nvidia"
@@ -101,9 +102,24 @@ func (radeonTuner) getDevices() []string {
 }
 
 func (tun radeonTuner) Tune(hostconfig *container.HostConfig) error {
-	// NOTE: driver name depends on UNIX socket name which Docker uses to connect to a driver
-	hostconfig.VolumeDriver = tun.options.VolumeDriverName
-	hostconfig.Binds = append(hostconfig.Binds, tun.options.volumeName()+":/usr/local/lib/amdgpu:ro")
+	hostconfig.Mounts = append(hostconfig.Mounts, mount.Mount{
+		Type:   mount.TypeVolume,
+		Source: tun.options.volumeName(),
+		// Note: store this field into the tuner's options, so we can make this part reusable
+		Target:       "/usr/local/lib/amdgpu",
+		ReadOnly:     true,
+		Consistency:  mount.ConsistencyDefault,
+		BindOptions:  nil,
+		TmpfsOptions: nil,
+		VolumeOptions: &mount.VolumeOptions{
+			NoCopy: false,
+			Labels: map[string]string{},
+			DriverConfig: &mount.Driver{
+				Name:    tun.options.VolumeDriverName,
+				Options: map[string]string{},
+			},
+		},
+	})
 
 	// put CL vendor into a container
 	if tun.OpenCLVendorDir != "" {
