@@ -75,8 +75,8 @@ plugins:
       ipfs: {}
 
   gpus:
-    radeon: {}
     nvidia: {}
+    radeon: {}
 `
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
