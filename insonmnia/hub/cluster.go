@@ -583,7 +583,13 @@ func (c *cluster) close(err error) {
 func (c *cluster) emitLeadershipEvent() {
 	c.leaderLock.Lock()
 	defer c.leaderLock.Unlock()
-	endpoints, _ := c.clusterEndpoints[c.leaderId]
+
+	endpoints, ok := c.clusterEndpoints[c.leaderId]
+	if !ok {
+		log.G(c.ctx).Error("leader endpoint not found", zap.String("leader_id", c.leaderId))
+		return
+	}
+
 	c.eventChannel <- LeadershipEvent{
 		Held:            c.isLeader,
 		LeaderId:        c.leaderId,
