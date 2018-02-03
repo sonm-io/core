@@ -46,8 +46,8 @@ type NewMemberEvent struct {
 	Id string
 }
 
-// Specific type of cluster event emited when leadership is transferred.
-// It is not always loss or aquire of leadership of this specific node
+// Specific type of cluster event emitted when leadership is transferred.
+// It is not always loss or acquire of leadership of this specific node
 type LeadershipEvent struct {
 	Held            bool
 	LeaderId        string
@@ -103,9 +103,12 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, workerEndpoint string,
 
 		store: clusterStore,
 
-		isLeader:  true,
-		id:        uuid.NewV1().String(),
-		endpoints: clientEndpoints,
+		isLeader: true,
+		id:       uuid.NewV1().String(),
+		endpoints: &endpointsInfo{
+			Client: clientEndpoints,
+			Worker: workerEndpoints,
+		},
 
 		clients:          make(map[string]*client),
 		clusterEndpoints: make(map[string]*endpointsInfo),
@@ -132,8 +135,8 @@ type client struct {
 }
 
 type endpointsInfo struct {
-	client []string
-	worker []string
+	Client []string
+	Worker []string
 }
 
 type cluster struct {
@@ -151,7 +154,7 @@ type cluster struct {
 	// self info
 	isLeader  bool
 	id        string
-	endpoints []string
+	endpoints *endpointsInfo
 
 	leaderLock sync.RWMutex
 
@@ -179,9 +182,9 @@ func (c *cluster) Run() error {
 	if c.cfg.Failover {
 		c.isLeader = false
 		w.Go(c.election)
-		w.Go(c.leaderWatch)
 		w.Go(c.announce)
 		w.Go(c.hubWatch)
+		w.Go(c.leaderWatch)
 		w.Go(c.hubGC)
 	} else {
 		log.G(c.ctx).Info("runnning in dev single-server mode")
@@ -202,7 +205,7 @@ func (c *cluster) LeaderClient() (pb.HubClient, error) {
 	defer c.leaderLock.RUnlock()
 
 	endpts, ok := c.clusterEndpoints[c.leaderId]
-	if !ok || len(endpts.client) == 0 {
+	if !ok || len(endpts.Client) == 0 {
 		log.G(c.ctx).Warn("can not determine leader")
 		return nil, errors.New("can not determine leader")
 	}
@@ -358,9 +361,9 @@ func (c *cluster) hubWatch() error {
 					if member.Value == nil {
 						log.G(c.ctx).Debug("received cluster member with nil Value, skipping (this can happen due to consul peculiarities)", zap.Any("member", member))
 						continue
-					} else {
-						log.G(c.ctx).Debug("received cluster member, registering", zap.Any("member", member))
 					}
+
+					log.G(c.ctx).Debug("received cluster member, registering", zap.Any("member", member))
 					err := c.registerMemberFromKV(member)
 					if err != nil {
 						log.G(c.ctx).Warn("trash data in cluster members folder: ", zap.Any("kvPair", member), zap.Error(err))
@@ -593,7 +596,7 @@ func (c *cluster) emitLeadershipEvent() {
 	c.eventChannel <- LeadershipEvent{
 		Held:            c.isLeader,
 		LeaderId:        c.leaderId,
-		LeaderEndpoints: endpoints.client,
+		LeaderEndpoints: endpoints.Client,
 	}
 }
 
@@ -620,7 +623,7 @@ func (c *cluster) registerMemberFromKV(member *store.KVPair) error {
 		return err
 	}
 
-	return c.registerMember(id, endpts.client, endpts.worker)
+	return c.registerMember(id, endpts.Client, endpts.Worker)
 }
 
 func (c *cluster) registerMember(id string, clientEndpoints, workerEndpoints []string) error {
@@ -628,7 +631,7 @@ func (c *cluster) registerMember(id string, clientEndpoints, workerEndpoints []s
 		zap.Any("client_endpoints", clientEndpoints),
 		zap.Any("worker_endpoints", workerEndpoints))
 	c.leaderLock.Lock()
-	c.clusterEndpoints[id] = &endpointsInfo{client: clientEndpoints, worker: workerEndpoints}
+	c.clusterEndpoints[id] = &endpointsInfo{Client: clientEndpoints, Worker: workerEndpoints}
 	c.eventChannel <- NewMemberEvent{endpointsInfo: *c.clusterEndpoints[id], Id: id}
 	c.leaderLock.Unlock()
 

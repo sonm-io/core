@@ -1872,8 +1872,8 @@ func (h *Hub) announceAddress() error {
 		workerEndpoints []string
 	)
 	for _, member := range members {
-		clientEndpoints = append(clientEndpoints, member.client...)
-		workerEndpoints = append(workerEndpoints, member.worker...)
+		clientEndpoints = append(clientEndpoints, member.Client...)
+		workerEndpoints = append(workerEndpoints, member.Worker...)
 	}
 	req := &pb.AnnounceRequest{
 		ClientEndpoints: clientEndpoints,
