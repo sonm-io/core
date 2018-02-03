@@ -4,7 +4,10 @@ import (
 	"context"
 	"net"
 
+	"fmt"
+
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
@@ -53,4 +56,44 @@ type volumePluginHandler struct {
 	OpenCLVendorDir string
 	handler         *volume.Handler
 	listener        net.Listener
+}
+
+func (vh *volumePluginHandler) tune(hostconfig *container.HostConfig) error {
+	hostconfig.Mounts = append(hostconfig.Mounts,
+		makeVolumeMount(vh.options.volumeName(), vh.options.libsMountPoint, vh.options.VolumeDriverName))
+
+	if vh.OpenCLVendorDir != "" {
+		b := fmt.Sprintf("%s:%s:ro", vh.OpenCLVendorDir, vh.OpenCLVendorDir)
+		hostconfig.Binds = append(hostconfig.Binds, b)
+	}
+
+	for _, device := range vh.devices {
+		hostconfig.Devices = append(hostconfig.Devices, container.DeviceMapping{
+			PathOnHost:        device,
+			PathInContainer:   device,
+			CgroupPermissions: "rwm",
+		})
+	}
+
+	return nil
+}
+
+func makeVolumeMount(src, dst, name string) mount.Mount {
+	return mount.Mount{
+		Type:         mount.TypeVolume,
+		Source:       src,
+		Target:       dst,
+		ReadOnly:     true,
+		Consistency:  mount.ConsistencyDefault,
+		BindOptions:  nil,
+		TmpfsOptions: nil,
+		VolumeOptions: &mount.VolumeOptions{
+			NoCopy: false,
+			Labels: map[string]string{},
+			DriverConfig: &mount.Driver{
+				Name:    name,
+				Options: map[string]string{},
+			},
+		},
+	}
 }

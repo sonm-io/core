@@ -8,7 +8,6 @@ import (
 	"os"
 
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sshaman1101/nvidia-docker/nvidia"
@@ -102,40 +101,7 @@ func (radeonTuner) getDevices() []string {
 }
 
 func (tun radeonTuner) Tune(hostconfig *container.HostConfig) error {
-	hostconfig.Mounts = append(hostconfig.Mounts, mount.Mount{
-		Type:   mount.TypeVolume,
-		Source: tun.options.volumeName(),
-		// Note: store this field into the tuner's options, so we can make this part reusable
-		Target:       "/usr/local/lib/amdgpu",
-		ReadOnly:     true,
-		Consistency:  mount.ConsistencyDefault,
-		BindOptions:  nil,
-		TmpfsOptions: nil,
-		VolumeOptions: &mount.VolumeOptions{
-			NoCopy: false,
-			Labels: map[string]string{},
-			DriverConfig: &mount.Driver{
-				Name:    tun.options.VolumeDriverName,
-				Options: map[string]string{},
-			},
-		},
-	})
-
-	// put CL vendor into a container
-	if tun.OpenCLVendorDir != "" {
-		hostconfig.Binds = append(hostconfig.Binds, tun.OpenCLVendorDir+":"+tun.OpenCLVendorDir+":ro")
-	}
-
-	// put devices into a container
-	for _, device := range tun.devices {
-		hostconfig.Devices = append(hostconfig.Devices, container.DeviceMapping{
-			PathOnHost:        device,
-			PathInContainer:   device,
-			CgroupPermissions: "rwm",
-		})
-	}
-
-	return nil
+	return tun.tune(hostconfig)
 }
 
 func (tun radeonTuner) Close() error {

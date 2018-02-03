@@ -8,10 +8,12 @@ import (
 )
 
 const (
-	nvidiaVolumeDriver  = "nvidia-docker"
-	nvidiaDriverVersion = "300.0"
-	radeonVolumeDriver  = "radeon-docker"
-	radeonDriverVersion = "2482.3"
+	nvidiaVolumeDriver   = "nvidia-docker"
+	nvidiaDriverVersion  = "300.0"
+	nvidiaLibsMountPoint = "/usr/local/lib/nvidia"
+	radeonVolumeDriver   = "radeon-docker"
+	radeonDriverVersion  = "2482.3"
+	radeonLibsMountPoint = "/usr/local/lib/amdgpu"
 )
 
 // tunerOptions contains various options for embedded GPU tuners
@@ -20,6 +22,7 @@ type tunerOptions struct {
 	DriverVersion    string `mapstructure:"driver_version"`
 	VolumePath       string `mapstructure:"volume_path"`
 	SocketPath       string `mapstructure:"-"`
+	libsMountPoint   string `mapstructure:"-"`
 }
 
 type Option func(*tunerOptions)
@@ -41,6 +44,7 @@ func nvidiaDefaultOptions() *tunerOptions {
 	return &tunerOptions{
 		VolumeDriverName: nvidiaVolumeDriver,
 		DriverVersion:    nvidiaDriverVersion,
+		libsMountPoint:   nvidiaLibsMountPoint,
 		VolumePath:       fmt.Sprintf("/var/lib/%s/volumes", nvidiaVolumeDriver),
 		SocketPath:       fmt.Sprintf("/run/docker/plugins/%s.sock", nvidiaVolumeDriver),
 	}
@@ -50,6 +54,7 @@ func radeonDefaultOptions() *tunerOptions {
 	return &tunerOptions{
 		VolumeDriverName: radeonVolumeDriver,
 		DriverVersion:    radeonDriverVersion,
+		libsMountPoint:   radeonLibsMountPoint,
 		VolumePath:       fmt.Sprintf("/var/lib/%s/volumes", radeonVolumeDriver),
 		SocketPath:       fmt.Sprintf("/run/docker/plugins/%s.sock", radeonVolumeDriver),
 	}
