@@ -66,7 +66,7 @@ func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 		},
 	}
 
-	log.G(ctx).Info("Provisioning volumes", zap.String("at", tun.options.VolumePath))
+	log.G(ctx).Info("provisioning volumes", zap.String("at", tun.options.VolumePath))
 	volumes, err := nvidia.LookupVolumes(tun.options.VolumePath, tun.options.DriverVersion, volInfo)
 	if err != nil {
 		return nil, err

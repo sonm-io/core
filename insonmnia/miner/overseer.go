@@ -143,7 +143,7 @@ type Overseer interface {
 	// Stop terminates the container.
 	Stop(ctx context.Context, containerID string) error
 
-	// Info Returns runtime statistics collected from all running containers.
+	// Info returns runtime statistics collected from all running containers.
 	//
 	// Depending on the implementation this can be cached.
 	Info(ctx context.Context) (map[string]ContainerMetrics, error)

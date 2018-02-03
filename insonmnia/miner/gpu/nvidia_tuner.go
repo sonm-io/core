@@ -54,13 +54,13 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	ovs.options = options
 
 	// Detect if we support NVIDIA
-	log.G(ctx).Info("Loading NVIDIA unified memory")
+	log.G(ctx).Info("loading NVIDIA unified memory")
 	UVMErr := nvidia.LoadUVM()
 	if UVMErr != nil {
 		log.G(ctx).Warn("failed to load UVM. Seems NVIDIA is not installed on the host", zap.Error(UVMErr))
 	}
 
-	log.G(ctx).Info("Loading NVIDIA management library")
+	log.G(ctx).Info("loading NVIDIA management library")
 	initErr := nvidia.Init()
 	if initErr == nil {
 		defer func() { nvidia.Shutdown() }()
@@ -76,7 +76,7 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 		}
 		cdevices, err := nvidia.GetControlDevicePaths()
 		if err != nil {
-			log.G(ctx).Error("failed to get contorl devices paths", zap.Error(err))
+			log.G(ctx).Error("failed to get control devices paths", zap.Error(err))
 			return nil, err
 		}
 		ovs.devices = append(ovs.devices, cdevices...)
@@ -146,7 +146,7 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 		},
 	}
 
-	log.G(ctx).Info("Provisioning volumes", zap.String("at", ovs.options.VolumePath))
+	log.G(ctx).Info("provisioning volumes", zap.String("at", ovs.options.VolumePath))
 	volumes, err := nvidia.LookupVolumes(ovs.options.VolumePath, ovs.options.DriverVersion, volInfo)
 	if err != nil {
 		return nil, err

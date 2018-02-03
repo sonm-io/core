@@ -74,7 +74,7 @@ plugins:
       webdav: {}
       ipfs: {}
 
-  GPUs:
+  gpus:
     nvidia: {}
     radeon: {}
 `

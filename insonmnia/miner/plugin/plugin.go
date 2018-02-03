@@ -2,9 +2,7 @@ package plugin
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -64,7 +62,7 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 		)
 
 		if err != nil {
-			return nil, fmt.Errorf("cannnot initialize volume plugin \"%s\": %v", ty, err)
+			return nil, fmt.Errorf("cannot initialize volume plugin \"%s\": %v", ty, err)
 		}
 
 		r.volumes[ty] = driver
@@ -74,17 +72,14 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 		log.G(ctx).Debug("initializing GPU plugin",
 			zap.String("vendor", vendor), zap.Any("options", options))
 
-		vendorName := strings.ToUpper(vendor)
-		t, ok := sonm.GPUVendorType_value[vendorName]
-		if !ok {
-			return nil, errors.New("unknown GPU vendor type")
+		typeID, err := gpu.GetVendorByName(vendor)
+		if err != nil {
+			return nil, err
 		}
-
-		typeID := sonm.GPUVendorType(t)
 
 		tuner, err := gpu.New(ctx, typeID, gpu.WithSocketDir(cfg.SocketDir), gpu.WithOptions(options))
 		if err != nil {
-			return nil, fmt.Errorf("cannnot initialize GPU plugin for vendor\"%s\": %v", vendor, err)
+			return nil, fmt.Errorf("cannot initialize GPU plugin for vendor\"%s\": %v", vendor, err)
 		}
 
 		r.gpuTuners[typeID] = tuner
@@ -107,8 +102,7 @@ func (r *Repository) Tune(provider Provider, cfg *container.HostConfig) (Cleanup
 	// Do not specify GPU type right now,
 	// just check that GPU is required
 	if provider.GPU() {
-		err := r.TuneGPU(provider, cfg)
-		if err != nil {
+		if err := r.TuneGPU(provider, cfg); err != nil {
 			return nil, err
 		}
 	}
