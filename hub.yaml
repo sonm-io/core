@@ -49,9 +49,9 @@ cluster:
   leader_key: "sonm/hub/leader"
   member_list_key: "sonm/hub/list"
   sync_prefix: "sync_prefix"
-  leader_ttl: 20
-  announce_period: 10
-  member_gc_period: 60
+  leader_ttl: "20s"
+  announce_period: "10s"
+  member_gc_period: "10s"
 
 # Logging settings.
 logging:
@@ -66,10 +66,12 @@ ethereum:
   # passphrase for keystore
   pass_phrase: "any"
 
-# locator service allows nodes to discover each other
+# Locator service allows nodes to discover each other.
 locator:
-  # locator gRPC endpoint, required
+  # Locator gRPC endpoint, required.
   endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:15020"
+  # Background announcements period.
+  update_period: "10s"
 
 # Marketplace service settings
 market:

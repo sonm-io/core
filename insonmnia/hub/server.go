@@ -1303,7 +1303,7 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		ethAddr: defaults.ethAddr,
 		version: defaults.version,
 
-		locatorPeriod: time.Second * time.Duration(cfg.Locator.Period),
+		locatorPeriod: cfg.Locator.UpdatePeriod,
 		locatorClient: defaults.locator,
 
 		eth:    ethWrapper,

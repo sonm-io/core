@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -135,7 +136,7 @@ market:
   endpoint: "127.0.0.1:9095"
 locator:
   endpoint: "127.0.0.1:9090"
-  period: 500
+  update_period: "5s"
   `)
 	assert.Nil(t, err)
 
@@ -143,7 +144,7 @@ locator:
 
 	conf, err := NewConfig(testHubConfigPath)
 	assert.NoError(t, err)
-	assert.Equal(t, conf.Locator.Period, 500)
+	assert.Equal(t, time.Second*5, conf.Locator.UpdatePeriod)
 }
 
 func TestGetEndpoints(t *testing.T) {
