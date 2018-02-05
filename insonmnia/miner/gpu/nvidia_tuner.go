@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/proto"
 	"github.com/sshaman1101/nvidia-docker/nvidia"
 	"go.uber.org/zap"
 )
@@ -37,6 +38,10 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 
 	ovs := nvidiaTuner{}
 	ovs.options = options
+
+	if err := hasGPUWithVendor(sonm.GPUVendorType_NVIDIA); err != nil {
+		return nil, err
+	}
 
 	// Detect if we support NVIDIA
 	log.G(ctx).Info("loading NVIDIA unified memory")

@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/proto"
 	"github.com/sshaman1101/nvidia-docker/nvidia"
 	"go.uber.org/zap"
 )
@@ -26,6 +27,11 @@ func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 
 	tun := radeonTuner{}
 	tun.options = options
+
+	if err := hasGPUWithVendor(sonm.GPUVendorType_RADEON); err != nil {
+		return nil, err
+	}
+
 	tun.devices = tun.getDevices()
 
 	if _, err := os.Stat(openCLVendorDir); err == nil {
