@@ -1,11 +1,12 @@
 package plugin
 
 type Config struct {
-	SocketPath string        `yaml:"path"`
-	Volumes    VolumesConfig `yaml:"volume"`
+	SocketDir string        `yaml:"socket_dir" default:"/run/docker/plugins"`
+	Volumes   VolumesConfig `yaml:"volume"`
+	GPUs      map[string]map[string]string
 }
 
 type VolumesConfig struct {
-	Root    string
+	Root    string `yaml:"root" default:"/var/lib/docker-volumes"`
 	Volumes map[string]map[string]string
 }

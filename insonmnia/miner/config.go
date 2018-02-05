@@ -1,14 +1,11 @@
 package miner
 
 import (
-	"strings"
-
 	"github.com/jinzhu/configor"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
-	pb "github.com/sonm-io/core/proto"
 )
 
 // HubConfig describes Hub configuration.
@@ -47,7 +44,6 @@ type config struct {
 	HubConfig               HubConfig           `required:"true" yaml:"hub"`
 	FirewallConfig          *FirewallConfig     `required:"false" yaml:"firewall"`
 	Eth                     *accounts.EthConfig `yaml:"ethereum"`
-	GPUConfig               string              `required:"false" default:"" yaml:"GPUConfig"`
 	SSHConfig               *SSHConfig          `required:"false" yaml:"ssh"`
 	LoggingConfig           LoggingConfig       `yaml:"logging"`
 	LocatorConfig           *LocatorConfig      `required:"true" yaml:"locator"`
@@ -79,16 +75,6 @@ func (c *config) Firewall() *FirewallConfig {
 
 func (c *config) PublicIPs() []string {
 	return c.PublicIPsConfig
-}
-
-func (c *config) GPU() pb.GPUVendorType {
-	t := strings.ToUpper(c.GPUConfig)
-	v, ok := pb.GPUVendorType_value[t]
-	if ok {
-		return pb.GPUVendorType(v)
-	}
-
-	return pb.GPUVendorType_GPU_UNKNOWN
 }
 
 func (c *config) SSH() *SSHConfig {
@@ -167,8 +153,6 @@ type Config interface {
 	Firewall() *FirewallConfig
 	// PublicIPs returns all IPs that can be used to communicate with the miner.
 	PublicIPs() []string
-	// GPU returns GPU Tuner type
-	GPU() pb.GPUVendorType
 	// SSH returns settings for built-in ssh server
 	SSH() *SSHConfig
 	// Logging returns logging settings.

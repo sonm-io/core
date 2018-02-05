@@ -61,8 +61,12 @@ locator:
 metrics_listen_addr: "127.0.0.1:14001"
 
 #plugins:
-#  path: /run/docker/plugins
+#  socket_dir: /run/docker/plugins
+#
 #  volume:
 #    root: /var/lib/docker-volumes
 #    volumes:
 #      cifs: {}
+#  GPUs:
+#    nvidia: {}
+#    radeon: {}

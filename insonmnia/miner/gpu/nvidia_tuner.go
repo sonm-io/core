@@ -20,7 +20,7 @@ type nvidiaTuner struct {
 
 func (g *nvidiaTuner) Tune(hostconfig *container.HostConfig) error {
 	// NOTE: driver name depends on UNIX socket name which Docker uses to connect to a driver
-	hostconfig.VolumeDriver = g.options.volumeDriverName
+	hostconfig.VolumeDriver = g.options.VolumeDriverName
 	hostconfig.Binds = append(hostconfig.Binds, g.options.volumeName()+":/usr/local/lib/nvidia:ro")
 
 	if g.OpenCLVendorDir != "" {
@@ -41,21 +41,26 @@ func (g *nvidiaTuner) Close() error {
 	if err := g.listener.Close(); err != nil {
 		return err
 	}
-	return os.Remove(g.options.socketPath())
+	return os.Remove(g.options.SocketPath)
 }
 
-func newNvidiaTuner(ctx context.Context, opts *tunerOptions) (Tuner, error) {
+func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
+	options := nvidiaDefaultOptions()
+	for _, f := range opts {
+		f(options)
+	}
+
 	ovs := nvidiaTuner{}
-	ovs.options = opts
+	ovs.options = options
 
 	// Detect if we support NVIDIA
-	log.G(ctx).Info("Loading NVIDIA unified memory")
+	log.G(ctx).Info("loading NVIDIA unified memory")
 	UVMErr := nvidia.LoadUVM()
 	if UVMErr != nil {
 		log.G(ctx).Warn("failed to load UVM. Seems NVIDIA is not installed on the host", zap.Error(UVMErr))
 	}
 
-	log.G(ctx).Info("Loading NVIDIA management library")
+	log.G(ctx).Info("loading NVIDIA management library")
 	initErr := nvidia.Init()
 	if initErr == nil {
 		defer func() { nvidia.Shutdown() }()
@@ -71,7 +76,7 @@ func newNvidiaTuner(ctx context.Context, opts *tunerOptions) (Tuner, error) {
 		}
 		cdevices, err := nvidia.GetControlDevicePaths()
 		if err != nil {
-			log.G(ctx).Error("failed to get contorl devices paths", zap.Error(err))
+			log.G(ctx).Error("failed to get control devices paths", zap.Error(err))
 			return nil, err
 		}
 		ovs.devices = append(ovs.devices, cdevices...)
@@ -90,7 +95,7 @@ func newNvidiaTuner(ctx context.Context, opts *tunerOptions) (Tuner, error) {
 
 	volInfo := []nvidia.VolumeInfo{
 		{
-			Name:         ovs.options.volumeDriverName,
+			Name:         ovs.options.VolumeDriverName,
 			Mountpoint:   "/usr/local/nvidia",
 			MountOptions: "ro",
 			Components: map[string][]string{
@@ -141,18 +146,18 @@ func newNvidiaTuner(ctx context.Context, opts *tunerOptions) (Tuner, error) {
 		},
 	}
 
-	log.G(ctx).Info("Provisioning volumes", zap.String("at", ovs.options.volumePath()))
-	volumes, err := nvidia.LookupVolumes(ovs.options.volumePath(), ovs.options.driverVersion, volInfo)
+	log.G(ctx).Info("provisioning volumes", zap.String("at", ovs.options.VolumePath))
+	volumes, err := nvidia.LookupVolumes(ovs.options.VolumePath, ovs.options.DriverVersion, volInfo)
 	if err != nil {
 		return nil, err
 	}
 
 	ovs.handler = volume.NewHandler(NewPlugin(volumes))
-	ovs.listener, err = net.Listen("unix", ovs.options.socketPath())
+	ovs.listener, err = net.Listen("unix", ovs.options.SocketPath)
 
 	if err != nil {
 		log.G(ctx).Error("failed to create listening socket for to communicate with Docker as plugin",
-			zap.String("path", ovs.options.socketPath()), zap.Error(err))
+			zap.String("path", ovs.options.SocketPath), zap.Error(err))
 		return nil, err
 	}
 

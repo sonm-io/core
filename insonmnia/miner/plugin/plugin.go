@@ -6,8 +6,10 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/miner/gpu"
 	"github.com/sonm-io/core/insonmnia/miner/volume"
 	"github.com/sonm-io/core/proto"
+	"go.uber.org/zap"
 )
 
 // Provider unifies all possible providers for tuning.
@@ -19,6 +21,7 @@ type Provider interface {
 // GPUProvider describes an interface for applying GPU settings to the
 // container.
 type GPUProvider interface {
+	GPU() bool
 }
 
 // VolumeProvider describes an interface for applying volumes to the container.
@@ -34,7 +37,8 @@ type VolumeProvider interface {
 
 // Repository describes a place where all SONM plugins for Docker live.
 type Repository struct {
-	volumes map[string]volume.VolumeDriver
+	volumes   map[string]volume.VolumeDriver
+	gpuTuners map[sonm.GPUVendorType]gpu.Tuner
 }
 
 // NewRepository constructs a new repository for SONM plugins from the
@@ -50,16 +54,35 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 	log.G(ctx).Info("initializing SONM plugins")
 
 	for ty, options := range cfg.Volumes.Volumes {
+		log.G(ctx).Debug("initializing Volume plugin", zap.String("type", ty))
+
 		driver, err := volume.NewVolumeDriver(ctx, ty,
-			volume.WithPluginSocketDir(cfg.SocketPath),
+			volume.WithPluginSocketDir(cfg.SocketDir),
 			volume.WithOptions(options),
 		)
 
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("cannot initialize volume plugin \"%s\": %v", ty, err)
 		}
 
 		r.volumes[ty] = driver
+	}
+
+	for vendor, options := range cfg.GPUs {
+		log.G(ctx).Debug("initializing GPU plugin",
+			zap.String("vendor", vendor), zap.Any("options", options))
+
+		typeID, err := gpu.GetVendorByName(vendor)
+		if err != nil {
+			return nil, err
+		}
+
+		tuner, err := gpu.New(ctx, typeID, gpu.WithSocketDir(cfg.SocketDir), gpu.WithOptions(options))
+		if err != nil {
+			return nil, fmt.Errorf("cannot initialize GPU plugin for vendor\"%s\": %v", vendor, err)
+		}
+
+		r.gpuTuners[typeID] = tuner
 	}
 
 	return r, nil
@@ -68,23 +91,41 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 // EmptyRepository constructs an empty repository. Used primarily in tests.
 func EmptyRepository() *Repository {
 	return &Repository{
-		volumes: make(map[string]volume.VolumeDriver),
+		volumes:   make(map[string]volume.VolumeDriver),
+		gpuTuners: make(map[sonm.GPUVendorType]gpu.Tuner),
 	}
 }
 
 // Tune creates all plugin bound required for the given provider with further
 // host config tuning.
 func (r *Repository) Tune(provider Provider, cfg *container.HostConfig) (Cleanup, error) {
-	if err := r.TuneGPU(provider, cfg); err != nil {
-		return nil, err
+	// Do not specify GPU type right now,
+	// just check that GPU is required
+	if provider.GPU() {
+		if err := r.TuneGPU(provider, cfg); err != nil {
+			return nil, err
+		}
 	}
 
 	return r.TuneVolumes(provider, cfg)
 }
 
+// HasGPU returns true if the Repository has at least one GPU plugin loaded
+func (r *Repository) HasGPU() bool {
+	return len(r.gpuTuners) > 0
+}
+
 // TuneGPU creates GPU bound required for the given provider with further
 // host config tuning.
 func (r *Repository) TuneGPU(provider GPUProvider, cfg *container.HostConfig) error {
+
+	for _, tuner := range r.gpuTuners {
+		err := tuner.Tune(cfg)
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -139,15 +180,21 @@ func (r *Repository) TuneVolumes(provider VolumeProvider, cfg *container.HostCon
 }
 
 func (r *Repository) Close() error {
-	errors := make([]error, 0)
+	errs := make([]error, 0)
 	for ty, vol := range r.volumes {
 		if err := vol.Close(); err != nil {
-			errors = append(errors, fmt.Errorf("%s - %s", ty, err))
+			errs = append(errs, fmt.Errorf("%s - %s", ty, err))
 		}
 	}
 
-	if len(errors) > 0 {
-		return fmt.Errorf("failed to close %d plugins: %v", len(errors), errors)
+	for ty, g := range r.gpuTuners {
+		if err := g.Close(); err != nil {
+			errs = append(errs, fmt.Errorf("%s - %s", ty.String(), err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("failed to close %d plugins: %v", len(errs), errs)
 	} else {
 		return nil
 	}

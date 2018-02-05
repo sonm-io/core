@@ -54,7 +54,6 @@ func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg.EXPECT().HubResolveEndpoints().AnyTimes().Return(false)
 	cfg.EXPECT().HubResources().AnyTimes()
 	cfg.EXPECT().Firewall().AnyTimes()
-	cfg.EXPECT().GPU().AnyTimes().Return(pb.GPUVendorType_GPU_UNKNOWN)
 	cfg.EXPECT().SSH().AnyTimes()
 	cfg.EXPECT().ETH().AnyTimes().Return(&accounts.EthConfig{})
 	cfg.EXPECT().LocatorEndpoint().AnyTimes().Return("127.0.0.1:9090")
@@ -76,7 +75,7 @@ func magicHardware(ctrl *gomock.Controller) hardware.HardwareInfo {
 	hw.EXPECT().CPU().AnyTimes().Return(c, nil)
 	hw.EXPECT().GPU().AnyTimes().Return(g, nil)
 	hw.EXPECT().Memory().AnyTimes().Return(m, nil)
-	hw.EXPECT().Info(gomock.Any()).AnyTimes().Return(h, nil)
+	hw.EXPECT().Info().AnyTimes().Return(h, nil)
 
 	return hw
 }
@@ -91,7 +90,6 @@ func TestServerNewExtractsHubEndpoint(t *testing.T) {
 	hw := magicHardware(mock)
 
 	m, err := NewMiner(cfg, WithKey(key), WithLocatorClient(locator), WithOverseer(ovs), WithHardware(hw))
-	cfg.EXPECT().GPU().AnyTimes()
 
 	require.NoError(t, err)
 	assert.NotNil(t, m)
@@ -105,7 +103,7 @@ func TestServerNewFailsWhenFailedCollectResources(t *testing.T) {
 	ovs := NewMockOverseer(mock)
 	cfg := defaultMockCfg(mock)
 	collector := hardware.NewMockHardwareInfo(mock)
-	collector.EXPECT().Info(gomock.Any()).Times(1).Return(nil, errors.New(""))
+	collector.EXPECT().Info().Times(1).Return(nil, errors.New(""))
 	locator := pb.NewMockLocatorClient(mock)
 
 	m, err := NewMiner(cfg, WithKey(key), WithHardware(collector), WithLocatorClient(locator),
@@ -122,7 +120,7 @@ func TestServerNewSavesResources(t *testing.T) {
 	ovs := NewMockOverseer(mock)
 	cfg := defaultMockCfg(mock)
 	collector := hardware.NewMockHardwareInfo(mock)
-	collector.EXPECT().Info(gomock.Any()).Times(1).Return(&hardware.Hardware{
+	collector.EXPECT().Info().Times(1).Return(&hardware.Hardware{
 		CPU:    []cpu.Device{},
 		Memory: &mem.VirtualMemoryStat{Total: 42},
 	}, nil)
@@ -174,7 +172,7 @@ func TestMinerHandshake(t *testing.T) {
 	ovs.EXPECT().Info(context.Background()).AnyTimes().Return(info, nil)
 
 	collector := hardware.NewMockHardwareInfo(mock)
-	collector.EXPECT().Info(gomock.Any()).AnyTimes().Return(&hardware.Hardware{
+	collector.EXPECT().Info().AnyTimes().Return(&hardware.Hardware{
 		CPU:    []cpu.Device{{Cores: 2}},
 		Memory: &mem.VirtualMemoryStat{Total: 2048},
 	}, nil)
