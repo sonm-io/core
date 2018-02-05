@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gliderlabs/ssh"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -39,8 +40,11 @@ import (
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
 type Miner struct {
-	ctx        context.Context
-	cancel     context.CancelFunc
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	cfg Config
+
 	grpcServer *grpc.Server
 
 	plugins *plugin.Repository
@@ -50,8 +54,7 @@ type Miner struct {
 	hardware  *hardware.Hardware
 	resources *resource.Pool
 
-	hubAddress string
-	hubKey     *ecdsa.PublicKey
+	hubKey *ecdsa.PublicKey
 
 	publicIPs []string
 	natType   stun.NATType
@@ -87,6 +90,8 @@ type Miner struct {
 	creds credentials.TransportCredentials
 	// Certificate rotator
 	certRotator util.HitlessCertRotator
+
+	locatorClient pb.LocatorClient
 }
 
 func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
@@ -147,15 +152,13 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		return nil, err
 	}
 
-	hubEndpoint, err := o.getHubConnectionInfo(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	creds := auth.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEndpoint.EthAddress)
-	grpcServer := xgrpc.NewServer(log.GetLogger(o.ctx),
-		xgrpc.Credentials(creds),
-		xgrpc.DefaultTraceInterceptor(),
+	var (
+		hubEthAddr = common.HexToAddress(cfg.HubEthAddr())
+		creds      = auth.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEthAddr)
+		grpcServer = xgrpc.NewServer(log.GetLogger(o.ctx),
+			xgrpc.Credentials(creds),
+			xgrpc.DefaultTraceInterceptor(),
+		)
 	)
 
 	if !platformSupportCGroups && cfg.HubResources() != nil {
@@ -188,8 +191,11 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	m = &Miner{
-		ctx:        ctx,
-		cancel:     cancel,
+		ctx:    ctx,
+		cancel: cancel,
+
+		cfg: cfg,
+
 		grpcServer: grpcServer,
 		ovs:        o.ovs,
 
@@ -199,9 +205,8 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		hardware:  hardwareInfo,
 		resources: resource.NewPool(hardwareInfo),
 
-		publicIPs:  o.publicIPs,
-		natType:    o.nat,
-		hubAddress: hubEndpoint.Endpoint,
+		publicIPs: o.publicIPs,
+		natType:   o.nat,
 
 		rl:             newReverseListener(1),
 		containers:     make(map[string]*ContainerInfo),
@@ -216,6 +221,8 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 
 		certRotator: certRotator,
 		creds:       creds,
+
+		locatorClient: o.locatorClient,
 	}
 
 	pb.RegisterMinerServer(grpcServer, m)
@@ -764,35 +771,82 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 	return reply, nil
 }
 
-func (m *Miner) connectToHub(address string) {
-	log.G(m.ctx).Info("connecting to hub", zap.String("address", address))
+func (m *Miner) manageConnections() {
+	t := time.NewTicker(time.Second * 15)
+	defer t.Stop()
+
+	if err := m.setupHubConnections(); err != nil {
+		log.G(m.ctx).Error("failed to setup hub connections", zap.Error(err))
+	}
+
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case <-t.C:
+			if err := m.setupHubConnections(); err != nil {
+				log.G(m.ctx).Error("failed to setup hub connections", zap.Error(err))
+			}
+		}
+	}
+}
+
+func (m *Miner) setupHubConnections() error {
+	var endpoints []string
+	if m.cfg.HubResolveEndpoints() {
+		log.G(m.ctx).Info("resolving hub endpoints", zap.String("eth_addr", m.cfg.HubEthAddr()))
+		resolved, err := m.locatorClient.Resolve(m.ctx,
+			&pb.ResolveRequest{EthAddr: m.cfg.HubEthAddr(), EndpointType: pb.ResolveRequest_WORKER})
+		if err != nil {
+			return fmt.Errorf("failed to resolve hub addr from %s: %s", m.cfg.HubEthAddr(), err)
+		}
+
+		endpoints = resolved.Endpoints
+	} else {
+		endpoints = m.cfg.HubEndpoints()
+	}
+
+	log.G(m.ctx).Info("connecting to hub endpoints", zap.Any("endpoints", endpoints))
+
+	for _, endpoint := range endpoints {
+		go m.connectToHub(endpoint)
+	}
+
+	return nil
+}
+
+func (m *Miner) connectToHub(endpoint string) {
+	log.G(m.ctx).Info("connecting to hub", zap.String("endpoint", endpoint))
+
 	m.connectedHubsLock.Lock()
-	_, ok := m.connectedHubs[address]
-	if ok {
+	if _, ok := m.connectedHubs[endpoint]; ok {
 		m.connectedHubsLock.Unlock()
-		log.G(m.ctx).Info("already connected to hub", zap.String("endpoint", address))
+		log.G(m.ctx).Info("already connected to hub", zap.String("endpoint", endpoint))
 		return
 	}
-	m.connectedHubs[address] = struct{}{}
+	m.connectedHubs[endpoint] = struct{}{}
 	m.connectedHubsLock.Unlock()
+
 	defer func() {
 		m.connectedHubsLock.Lock()
-		delete(m.connectedHubs, address)
+		delete(m.connectedHubs, endpoint)
 		m.connectedHubsLock.Unlock()
 	}()
+
 	// Connect to the Hub
 	var d = net.Dialer{
 		DualStack: true,
 		KeepAlive: 5 * time.Second,
 	}
-	conn, err := d.DialContext(m.ctx, "tcp", address)
+	conn, err := d.DialContext(m.ctx, "tcp", endpoint)
 	if err != nil {
-		log.G(m.ctx).Error("failed to dial to the Hub", zap.String("addr", address), zap.Error(err))
+		log.G(m.ctx).Error("failed to dial to the Hub", zap.String("addr", endpoint), zap.Error(err))
 		return
 	}
+
 	defer conn.Close()
 
-	// Push the connection to a pool for grpcServer
+	// Push the connection to a pool for grpcServer.
 	if err = m.rl.enqueue(conn); err != nil {
 		log.G(m.ctx).Error("failed to enqueue yaConn for gRPC server", zap.Error(err))
 		return
@@ -808,7 +862,7 @@ func (m *Miner) connectToHub(address string) {
 	for {
 		select {
 		case <-t.C:
-			log.G(m.ctx).Info("check status of TCP connection to a Hub")
+			log.G(m.ctx).Info("check status of TCP connection to Hub", zap.String("hub_endpoint", endpoint))
 			_, err := conn.Read(zeroFrame)
 			if err != nil {
 				return
@@ -830,26 +884,11 @@ func (m *Miner) startSSH() {
 	}
 }
 
-func (m *Miner) startHubConnection() {
-	t := time.NewTicker(time.Second * 5)
-	defer t.Stop()
-
-	m.connectToHub(m.hubAddress)
-	for {
-		select {
-		case <-m.ctx.Done():
-			return
-		case <-t.C:
-			m.connectToHub(m.hubAddress)
-		}
-	}
-}
-
 // Serve starts discovery of Hubs,
 // accepts incoming connections from a Hub
 func (m *Miner) Serve() error {
+	go func() { m.manageConnections() }()
 	go func() { m.startSSH() }()
-	go func() { m.startHubConnection() }()
 	go func() { m.grpcServer.Serve(m.rl) }()
 
 	<-m.ctx.Done()

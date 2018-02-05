@@ -80,22 +80,6 @@ func magicHardware(ctrl *gomock.Controller) hardware.HardwareInfo {
 	return hw
 }
 
-func TestServerNewExtractsHubEndpoint(t *testing.T) {
-	mock := gomock.NewController(t)
-	defer mock.Finish()
-
-	ovs := NewMockOverseer(mock)
-	cfg := defaultMockCfg(mock)
-	locator := pb.NewMockLocatorClient(mock)
-	hw := magicHardware(mock)
-
-	m, err := NewMiner(cfg, WithKey(key), WithLocatorClient(locator), WithOverseer(ovs), WithHardware(hw))
-
-	require.NoError(t, err)
-	assert.NotNil(t, m)
-	assert.Equal(t, "localhost:4242", m.hubAddress)
-}
-
 func TestServerNewFailsWhenFailedCollectResources(t *testing.T) {
 	mock := gomock.NewController(t)
 	defer mock.Finish()

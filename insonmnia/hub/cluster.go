@@ -187,7 +187,7 @@ func (c *cluster) Run() error {
 		w.Go(c.leaderWatch)
 		w.Go(c.hubGC)
 	} else {
-		log.G(c.ctx).Info("runnning in dev single-server mode")
+		log.G(c.ctx).Info("running in dev single-server mode")
 	}
 
 	w.Go(c.watchEvents)
@@ -277,7 +277,7 @@ func (c *cluster) Members() ([]NewMemberEvent, error) {
 }
 
 func (c *cluster) election() error {
-	candidate := leadership.NewCandidate(c.store, c.cfg.LeaderKey, c.id, makeDuration(c.cfg.LeaderTTL))
+	candidate := leadership.NewCandidate(c.store, c.cfg.LeaderKey, c.id, c.cfg.LeaderTTL)
 	electedCh, errCh := candidate.RunForElection()
 	log.G(c.ctx).Info("starting leader election goroutine")
 
@@ -325,12 +325,12 @@ func (c *cluster) leaderWatch() error {
 func (c *cluster) announce() error {
 	log.G(c.ctx).Info("starting announce goroutine", zap.Any("endpointsInfo", c.endpoints), zap.String("ID", c.id))
 	endpointsData, _ := json.Marshal(c.endpoints)
-	ticker := time.NewTicker(makeDuration(c.cfg.AnnounceTTL))
+	ticker := time.NewTicker(c.cfg.AnnounceTTL)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
-			err := c.store.Put(c.cfg.MemberListKey+"/"+c.id, endpointsData, &store.WriteOptions{TTL: makeDuration(c.cfg.AnnounceTTL)})
+			err := c.store.Put(c.cfg.MemberListKey+"/"+c.id, endpointsData, &store.WriteOptions{TTL: c.cfg.AnnounceTTL})
 			if err != nil {
 				log.G(c.ctx).Error("could not update announce", zap.Error(err))
 				c.close(errors.WithStack(err))
@@ -381,18 +381,21 @@ func (c *cluster) checkHub(id string) error {
 	if id == c.id {
 		return nil
 	}
+
 	exists, err := c.store.Exists(c.cfg.MemberListKey + "/" + id)
 	if err != nil {
 		return err
 	}
+
 	if !exists {
 		log.G(c.ctx).Info("hub is offline, removing", zap.String("hubId", id))
 		c.leaderLock.Lock()
 		defer c.leaderLock.Unlock()
-		cli, ok := c.clients[id]
-		if ok {
+
+		if cli, ok := c.clients[id]; ok {
 			cli.conn.Close()
 			delete(c.clients, id)
+			delete(c.clusterEndpoints, id)
 		}
 	}
 	return nil
@@ -400,8 +403,9 @@ func (c *cluster) checkHub(id string) error {
 
 func (c *cluster) hubGC() error {
 	log.G(c.ctx).Info("starting hub GC goroutine")
-	t := time.NewTicker(makeDuration(c.cfg.MemberGCPeriod))
+	t := time.NewTicker(c.cfg.MemberGCPeriod)
 	defer t.Stop()
+
 	for {
 		select {
 		case <-t.C:
@@ -669,10 +673,6 @@ func (c *cluster) registerMember(id string, clientEndpoints, workerEndpoints []s
 func fetchNameFromPath(key string) string {
 	parts := strings.Split(key, "/")
 	return parts[len(parts)-1]
-}
-
-func makeDuration(numSeconds uint64) time.Duration {
-	return time.Second * time.Duration(numSeconds)
 }
 
 func getEndpoints(config *ClusterConfig, workerEndpoint string) (clientEndpoints, workerEndpoints []string, err error) {

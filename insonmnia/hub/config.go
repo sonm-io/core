@@ -17,8 +17,8 @@ type GatewayConfig struct {
 }
 
 type LocatorConfig struct {
-	Endpoint string `required:"true" yaml:"endpoint"`
-	Period   int    `required:"true" default:"300" yaml:"period"`
+	Endpoint     string        `yaml:"endpoint" required:"true"`
+	UpdatePeriod time.Duration `yaml:"update_period" required:"true" default:"10s"`
 }
 
 type MarketConfig struct {
@@ -35,17 +35,17 @@ type StoreConfig struct {
 }
 
 type ClusterConfig struct {
-	Store                        StoreConfig `yaml:"store"`
-	Failover                     bool        `yaml:"failover"`
-	Endpoint                     string      `yaml:"endpoint"`
-	AnnounceEndpoint             string      `yaml:"announce_endpoint"`
-	LeaderKey                    string      `yaml:"leader_key" default:"sonm/hub/leader"`
-	MemberListKey                string      `yaml:"member_list_key" default:"sonm/hub/list"`
-	SynchronizableEntitiesPrefix string      `yaml:"sync_prefix" default:"sonm/hub/sync"`
-	LeaderTTL                    uint64      `yaml:"leader_ttl" default:"20"`
-	AnnouncePeriod               uint64      `yaml:"announce_period" default:"10"`
-	AnnounceTTL                  uint64      `yaml:"announce_ttl" default:"20"`
-	MemberGCPeriod               uint64      `yaml:"member_gc_period" default:"60"`
+	Store                        StoreConfig   `yaml:"store"`
+	Failover                     bool          `yaml:"failover"`
+	Endpoint                     string        `yaml:"endpoint"`
+	AnnounceEndpoint             string        `yaml:"announce_endpoint"`
+	LeaderKey                    string        `yaml:"leader_key" default:"sonm/hub/leader"`
+	MemberListKey                string        `yaml:"member_list_key" default:"sonm/hub/list"`
+	SynchronizableEntitiesPrefix string        `yaml:"sync_prefix" default:"sonm/hub/sync"`
+	LeaderTTL                    time.Duration `yaml:"leader_ttl" default:"20s"`
+	AnnouncePeriod               time.Duration `yaml:"announce_period" default:"10s"`
+	AnnounceTTL                  time.Duration `yaml:"announce_ttl" default:"20s"`
+	MemberGCPeriod               time.Duration `yaml:"member_gc_period" default:"15s"`
 }
 
 type WhitelistConfig struct {
