@@ -45,42 +45,39 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 
 	// Detect if we support NVIDIA
 	log.G(ctx).Info("loading NVIDIA unified memory")
-	UVMErr := nvidia.LoadUVM()
-	if UVMErr != nil {
-		log.G(ctx).Warn("failed to load UVM. Seems NVIDIA is not installed on the host", zap.Error(UVMErr))
+	if err := nvidia.LoadUVM(); err != nil {
+		log.G(ctx).Error("failed to load UVM. Seems NVIDIA is not installed on the host", zap.Error(err))
+		return nil, err
 	}
 
 	log.G(ctx).Info("loading NVIDIA management library")
-	initErr := nvidia.Init()
-	if initErr == nil {
-		defer func() { nvidia.Shutdown() }()
+	if err := nvidia.Init(); err != nil {
+		log.G(ctx).Error("failed to init NVML", zap.Error(err))
+		return nil, err
 	}
 
-	var nvidiaSupported = initErr == nil && UVMErr == nil
-	if nvidiaSupported {
-		log.G(ctx).Info("NVIDIA GPU supported by the host. Discovering GPU devices")
-		devices, err := nvidia.LookupDevices()
-		if err != nil {
-			log.G(ctx).Error("failed to lookup GPU devices", zap.Error(err))
-			return nil, err
-		}
-		cdevices, err := nvidia.GetControlDevicePaths()
-		if err != nil {
-			log.G(ctx).Error("failed to get control devices paths", zap.Error(err))
-			return nil, err
-		}
-		ovs.devices = append(ovs.devices, cdevices...)
-		for _, device := range devices {
-			ovs.devices = append(ovs.devices, device.Path)
-		}
+	defer func() { nvidia.Shutdown() }()
+
+	log.G(ctx).Info("NVIDIA GPU supported by the host. Discovering GPU devices")
+	devices, err := nvidia.LookupDevices()
+	if err != nil {
+		log.G(ctx).Error("failed to lookup GPU devices", zap.Error(err))
+		return nil, err
+	}
+
+	cdevices, err := nvidia.GetControlDevicePaths()
+	if err != nil {
+		log.G(ctx).Error("failed to get control devices paths", zap.Error(err))
+		return nil, err
+	}
+
+	ovs.devices = append(ovs.devices, cdevices...)
+	for _, device := range devices {
+		ovs.devices = append(ovs.devices, device.Path)
 	}
 
 	if _, err := os.Stat("/dev/dri"); err == nil {
 		ovs.devices = append(ovs.devices, "/dev/dri")
-	}
-
-	if _, err := os.Stat(openCLVendorDir); err == nil {
-		ovs.OpenCLVendorDir = openCLVendorDir
 	}
 
 	volInfo := []nvidia.VolumeInfo{
@@ -90,47 +87,10 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 			MountOptions: "ro",
 			Components: map[string][]string{
 				"binaries": {
-					"nvidia-cuda-mps-control", // Multi process service CLI
-					"nvidia-cuda-mps-server",  // Multi process service server
-					"nvidia-debugdump",        // GPU coredump utility
-					"nvidia-persistenced",     // Persistence mode utility
-					"nvidia-smi",              // System management interface
+					"nvidia-smi", // System management interface
 				},
 				"libraries": {
-					// ----- Compute -----
-					"libnvidia-ml.so",              // Management library
-					"libcuda.so",                   // CUDA driver library
-					"libnvidia-ptxjitcompiler.so",  // PTX-SASS JIT compiler (used by libcuda)
-					"libnvidia-fatbinaryloader.so", // fatbin loader (used by libcuda)
-					"libnvidia-opencl.so",          // NVIDIA OpenCL ICD
-					"libnvidia-compiler.so",        // NVVM-PTX compiler for OpenCL (used by libnvidia-opencl)
-					"libOpenCL.so",                 // OpenCL ICD loader
-
-					// ------ Video ------
-					"libvdpau_nvidia.so",  // NVIDIA VDPAU ICD
-					"libnvidia-encode.so", // Video encoder
-					"libnvcuvid.so",       // Video decoder
-					"libnvidia-fbc.so",    // Framebuffer capture
-					"libnvidia-ifr.so",    // OpenGL framebuffer capture
-
-					// ----- Graphic -----
-					"libGL.so",         // OpenGL/GLX legacy _or_ compatibility wrapper (GLVND)
-					"libGLX.so",        // GLX ICD loader (GLVND)
-					"libOpenGL.so",     // OpenGL ICD loader (GLVND)
-					"libGLESv1_CM.so",  // OpenGL ES v1 common profile legacy _or_ ICD loader (GLVND)
-					"libGLESv2.so",     // OpenGL ES v2 legacy _or_ ICD loader (GLVND)
-					"libEGL.so",        // EGL ICD loader
-					"libGLdispatch.so", // OpenGL dispatch (GLVND) (used by libOpenGL, libEGL and libGLES*)
-
-					"libGLX_nvidia.so",         // OpenGL/GLX ICD (GLVND)
-					"libEGL_nvidia.so",         // EGL ICD (GLVND)
-					"libGLESv2_nvidia.so",      // OpenGL ES v2 ICD (GLVND)
-					"libGLESv1_CM_nvidia.so",   // OpenGL ES v1 common profile ICD (GLVND)
-					"libnvidia-eglcore.so",     // EGL core (used by libGLES* or libGLES*_nvidia and libEGL_nvidia)
-					"libnvidia-egl-wayland.so", // EGL wayland extensions (used by libEGL_nvidia)
-					"libnvidia-glcore.so",      // OpenGL core (used by libGL or libGLX_nvidia)
-					"libnvidia-tls.so",         // Thread local storage (used by libGL or libGLX_nvidia)
-					"libnvidia-glsi.so",        // OpenGL system interaction (used by libEGL_nvidia)
+					"libnvidia-ml.so", // Management library
 				},
 			},
 		},

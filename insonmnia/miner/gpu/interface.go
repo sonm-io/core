@@ -4,18 +4,12 @@ import (
 	"context"
 	"net"
 
-	"fmt"
-
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
-)
-
-const (
-	openCLVendorDir = "/etc/OpenCL/vendors"
 )
 
 // Tuner is responsible for preparing GPU-friendly environment and baking proper options in container.HostConfig
@@ -51,20 +45,17 @@ func (NilTuner) Close() error {
 }
 
 type volumePluginHandler struct {
-	options         *tunerOptions
-	devices         []string
-	OpenCLVendorDir string
-	handler         *volume.Handler
-	listener        net.Listener
+	options  *tunerOptions
+	devices  []string
+	handler  *volume.Handler
+	listener net.Listener
 }
 
 func (vh *volumePluginHandler) tune(hostconfig *container.HostConfig) error {
-	hostconfig.Mounts = append(hostconfig.Mounts,
-		makeVolumeMount(vh.options.volumeName(), vh.options.libsMountPoint, vh.options.VolumeDriverName))
-
-	if vh.OpenCLVendorDir != "" {
-		b := fmt.Sprintf("%s:%s:ro", vh.OpenCLVendorDir, vh.OpenCLVendorDir)
-		hostconfig.Binds = append(hostconfig.Binds, b)
+	if vh.handler != nil {
+		// we have plugin handler, so must mount the volume into the container
+		hostconfig.Mounts = append(hostconfig.Mounts,
+			makeVolumeMount(vh.options.volumeName(), vh.options.libsMountPoint, vh.options.VolumeDriverName))
 	}
 
 	for _, device := range vh.devices {
