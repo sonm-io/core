@@ -2,7 +2,6 @@ package hub
 
 import (
 	"context"
-	"encoding/json"
 	"reflect"
 	"sync"
 
@@ -42,6 +41,10 @@ type ACLStorage interface {
 	// Traversal will continue until all items in the Set have been visited,
 	// or if the closure returns false.
 	Each(fn func(string) bool)
+	// Dump a slice representation of the storage.
+	Dump() []string
+	// Load reads a slice of strings into the storage (replacing any previous state).
+	Load([]string)
 }
 
 type workerACLStorage struct {
@@ -55,34 +58,31 @@ func NewACLStorage() ACLStorage {
 	}
 }
 
-func (s *workerACLStorage) MarshalJSON() ([]byte, error) {
+func (s *workerACLStorage) Dump() []string {
 	if s == nil {
-		return json.Marshal(nil)
+		return []string{}
 	}
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	set := make([]string, 0)
+
+	out := make([]string, 0)
 	s.storage.Each(func(item interface{}) bool {
-		set = append(set, item.(string))
+		out = append(out, item.(string))
 		return true
 	})
-	return json.Marshal(set)
+
+	return out
 }
 
-func (s *workerACLStorage) UnmarshalJSON(data []byte) error {
+func (s *workerACLStorage) Load(data []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	unmarshalled := make([]string, 0)
-	err := json.Unmarshal(data, &unmarshalled)
-	if err != nil {
-		return err
-	}
-	s.storage = set.NewNonTS()
 
-	for _, val := range unmarshalled {
+	s.storage = set.NewNonTS()
+	for _, val := range data {
 		s.storage.Add(val)
 	}
-	return nil
 }
 
 func (s *workerACLStorage) Insert(credentials string) {
