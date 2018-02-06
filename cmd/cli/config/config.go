@@ -80,7 +80,7 @@ func NewConfig(p ...string) (Config, error) {
 		return nil, err
 	}
 
-	// if config does not exists - use default values
+	// If config does not exist - use default values.
 	if _, err := os.Stat(cfgPath); os.IsNotExist(err) {
 		cfg.fillWithDefaults()
 		return cfg, nil
