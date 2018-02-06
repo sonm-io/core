@@ -24,7 +24,7 @@ type Tuner interface {
 func New(ctx context.Context, gpuType pb.GPUVendorType, opts ...Option) (Tuner, error) {
 	switch gpuType {
 	case pb.GPUVendorType_RADEON:
-		return newRadeonTuner(ctx, opts...)
+		return newRadeonTuner(opts...)
 	case pb.GPUVendorType_NVIDIA:
 		return newNvidiaTuner(ctx, opts...)
 	default:

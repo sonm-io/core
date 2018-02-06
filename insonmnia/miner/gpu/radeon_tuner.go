@@ -3,7 +3,6 @@
 package gpu
 
 import (
-	"context"
 	"os"
 
 	"github.com/docker/docker/api/types/container"
@@ -14,7 +13,7 @@ type radeonTuner struct {
 	volumePluginHandler
 }
 
-func newRadeonTuner(_ context.Context, opts ...Option) (Tuner, error) {
+func newRadeonTuner(opts ...Option) (Tuner, error) {
 	options := radeonDefaultOptions()
 	for _, f := range opts {
 		f(options)
