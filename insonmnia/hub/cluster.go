@@ -270,7 +270,14 @@ func (c *cluster) Members() ([]NewMemberEvent, error) {
 	defer c.leaderLock.RUnlock()
 
 	for id, endpts := range c.clusterEndpoints {
-		result = append(result, NewMemberEvent{endpointsInfo: *endpts, Id: id})
+		memberEvent := NewMemberEvent{endpointsInfo: *endpts, Id: id}
+
+		// Clients can see only leader's endpoints.
+		if memberEvent.Id != c.leaderId {
+			memberEvent.endpointsInfo.Client = []string{}
+		}
+
+		result = append(result, memberEvent)
 	}
 
 	return result, nil
