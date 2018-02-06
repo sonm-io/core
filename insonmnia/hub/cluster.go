@@ -20,12 +20,9 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/satori/uuid"
-	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
-	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -64,8 +61,6 @@ type Cluster interface {
 	// synchronization process.
 	IsLeader() bool
 
-	LeaderClient() (pb.HubClient, error)
-
 	RegisterAndLoadEntity(name string, prototype interface{}) error
 
 	Synchronize(entity interface{}) error
@@ -94,6 +89,7 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, workerEndpoint string,
 	if err != nil {
 		return nil, nil, err
 	}
+
 	c := cluster{
 		parentCtx: ctx,
 		cfg:       cfg,
@@ -105,12 +101,7 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, workerEndpoint string,
 
 		isLeader: true,
 		id:       uuid.NewV1().String(),
-		endpoints: &endpointsInfo{
-			Client: clientEndpoints,
-			Worker: workerEndpoints,
-		},
 
-		clients:          make(map[string]*client),
 		clusterEndpoints: make(map[string]*endpointsInfo),
 
 		eventChannel: make(chan ClusterEvent, 100),
@@ -127,11 +118,6 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, workerEndpoint string,
 	c.registerMember(c.id, clientEndpoints, workerEndpoints)
 
 	return &c, c.eventChannel, nil
-}
-
-type client struct {
-	client pb.HubClient
-	conn   *grpc.ClientConn
 }
 
 type endpointsInfo struct {
@@ -152,13 +138,11 @@ type cluster struct {
 	store store.Store
 
 	// self info
-	isLeader  bool
-	id        string
-	endpoints *endpointsInfo
+	isLeader bool
+	id       string
 
 	leaderLock sync.RWMutex
 
-	clients          map[string]*client
 	clusterEndpoints map[string]*endpointsInfo
 	leaderId         string
 
@@ -196,27 +180,6 @@ func (c *cluster) Run() error {
 
 func (c *cluster) IsLeader() bool {
 	return c.isLeader
-}
-
-// Get GRPC hub client to current leader
-func (c *cluster) LeaderClient() (pb.HubClient, error) {
-	log.G(c.ctx).Debug("fetching leader client")
-	c.leaderLock.RLock()
-	defer c.leaderLock.RUnlock()
-
-	endpts, ok := c.clusterEndpoints[c.leaderId]
-	if !ok || len(endpts.Client) == 0 {
-		log.G(c.ctx).Warn("can not determine leader")
-		return nil, errors.New("can not determine leader")
-	}
-
-	client, ok := c.clients[c.leaderId]
-	if !ok || client == nil {
-		log.G(c.ctx).Warn("not connected to leader")
-		return nil, errors.New("not connected to leader")
-	}
-
-	return client.client, nil
 }
 
 func (c *cluster) RegisterAndLoadEntity(name string, prototype interface{}) error {
@@ -259,7 +222,7 @@ func (c *cluster) Synchronize(entity interface{}) error {
 		log.G(c.ctx).Warn("could not marshal entity", zap.Error(err))
 		return err
 	}
-	log.G(c.ctx).Debug("synchronizing entity", zap.Any("entity", entity), zap.ByteString("marshalled", data))
+	log.G(c.ctx).Debug("synchronizing entity", zap.Any("entity", entity), zap.ByteString("marshaled", data))
 	c.store.Put(c.cfg.SynchronizableEntitiesPrefix+"/"+name, data, &store.WriteOptions{})
 	return nil
 }
@@ -270,7 +233,14 @@ func (c *cluster) Members() ([]NewMemberEvent, error) {
 	defer c.leaderLock.RUnlock()
 
 	for id, endpts := range c.clusterEndpoints {
-		result = append(result, NewMemberEvent{endpointsInfo: *endpts, Id: id})
+		memberEvent := NewMemberEvent{endpointsInfo: *endpts, Id: id}
+
+		// Clients can see only leader's endpoints.
+		if memberEvent.Id != c.leaderId {
+			memberEvent.endpointsInfo.Client = []string{}
+		}
+
+		result = append(result, memberEvent)
 	}
 
 	return result, nil
@@ -323,10 +293,22 @@ func (c *cluster) leaderWatch() error {
 }
 
 func (c *cluster) announce() error {
-	log.G(c.ctx).Info("starting announce goroutine", zap.Any("endpointsInfo", c.endpoints), zap.String("ID", c.id))
-	endpointsData, _ := json.Marshal(c.endpoints)
+	endpoints, ok := c.clusterEndpoints[c.id]
+	if !ok {
+		return fmt.Errorf("member %s failed to find endpointsInfo for announcement", c.id)
+	}
+
+	log.G(c.ctx).Info("starting announce goroutine",
+		zap.Any("endpointsInfo", endpoints), zap.String("ID", c.id))
+
+	endpointsData, err := json.Marshal(endpoints)
+	if err != nil {
+		return fmt.Errorf("member %s failed to marshal endpointsInfo: %s", c.id, err)
+	}
+
 	ticker := time.NewTicker(c.cfg.AnnounceTTL)
 	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ticker.C:
@@ -392,9 +374,7 @@ func (c *cluster) checkHub(id string) error {
 		c.leaderLock.Lock()
 		defer c.leaderLock.Unlock()
 
-		if cli, ok := c.clients[id]; ok {
-			cli.conn.Close()
-			delete(c.clients, id)
+		if _, ok := c.clusterEndpoints[id]; ok {
 			delete(c.clusterEndpoints, id)
 		}
 	}
@@ -411,7 +391,11 @@ func (c *cluster) hubGC() error {
 		case <-t.C:
 			c.leaderLock.RLock()
 			idsToCheck := make([]string, 0)
-			for id := range c.clients {
+			for id := range c.clusterEndpoints {
+				if id == c.id {
+					continue
+				}
+
 				idsToCheck = append(idsToCheck, id)
 			}
 			c.leaderLock.RUnlock()
@@ -424,7 +408,6 @@ func (c *cluster) hubGC() error {
 					log.G(c.ctx).Info("checked hub", zap.String("hubId", id))
 				}
 			}
-
 		case <-c.ctx.Done():
 			return nil
 		}
@@ -607,7 +590,9 @@ func (c *cluster) emitLeadershipEvent() {
 func (c *cluster) memberExists(id string) bool {
 	c.leaderLock.RLock()
 	defer c.leaderLock.RUnlock()
-	_, ok := c.clients[id]
+
+	_, ok := c.clusterEndpoints[id]
+
 	return ok
 }
 
@@ -639,35 +624,7 @@ func (c *cluster) registerMember(id string, clientEndpoints, workerEndpoints []s
 	c.eventChannel <- NewMemberEvent{endpointsInfo: *c.clusterEndpoints[id], Id: id}
 	c.leaderLock.Unlock()
 
-	if id == c.id {
-		return nil
-	}
-
-	for _, ep := range clientEndpoints {
-		conn, err := xgrpc.NewClient(c.ctx, ep, c.creds, grpc.WithBlock(), grpc.WithTimeout(time.Second*5))
-		if err != nil {
-			log.G(c.ctx).Warn("could not connect to hub", zap.String("endpoint", ep), zap.Error(err))
-			continue
-		} else {
-			log.G(c.ctx).Info("successfully connected to cluster member")
-			c.leaderLock.Lock()
-
-			_, ok := c.clients[id]
-			if ok {
-				log.G(c.ctx).Info("duplicated connection - dropping")
-				conn.Close()
-				c.leaderLock.Unlock()
-
-				return nil
-			}
-			c.clients[id] = &client{pb.NewHubClient(conn), conn}
-			c.leaderLock.Unlock()
-
-			return nil
-		}
-	}
-
-	return errors.New("could not connect to any provided member endpoint")
+	return nil
 }
 
 func fetchNameFromPath(key string) string {
