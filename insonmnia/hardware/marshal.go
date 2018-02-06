@@ -3,7 +3,6 @@ package hardware
 import (
 	"github.com/shirou/gopsutil/mem"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
-	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/proto"
 )
 
@@ -11,7 +10,7 @@ func (h *Hardware) IntoProto() *sonm.Capabilities {
 	return &sonm.Capabilities{
 		Cpu: cpu.MarshalDevices(h.CPU),
 		Mem: MemoryIntoProto(h.Memory),
-		Gpu: gpu.MarshalDevices(h.GPU),
+		Gpu: h.GPU,
 	}
 }
 
@@ -39,15 +38,10 @@ func HardwareFromProto(cap *sonm.Capabilities) (*Hardware, error) {
 		return nil, err
 	}
 
-	g, err := gpu.UnmarshalDevices(cap.Gpu)
-	if err != nil {
-		return nil, err
-	}
-
 	h := &Hardware{
 		CPU:    c,
 		Memory: m,
-		GPU:    g,
+		GPU:    cap.Gpu,
 	}
 
 	return h, nil

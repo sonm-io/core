@@ -38,6 +38,7 @@ sonmlocator
 sonmnode
 autocli
 sonmrendezvous
+lsgpu
 target/
 release/
 .idea/

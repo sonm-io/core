@@ -41,21 +41,24 @@ message RAMDevice {
     uint64 used = 2;
 }
 
+
 message GPUDevice {
-    // Name describes full GPU device name.
-    string name = 1;
-    // VendorId describes vendor id.
-    uint64 vendorId = 2;
-    // VendorName describes vendor name, for example "NVIDIA" or "AMD".
+    // ID returns unique device ID on workers machine,
+    // typically PCI bus ID
+    string ID = 1;
+
+    // VendorID returns an unique device vendor identifier
+    uint64 vendorID = 2;
+    // VendorName returns GPU vendor name.
     string vendorName = 3;
-    // Total maximum memory size the device can hold.
-    uint64 maxMemorySize = 4;
-    // Maximum configured clock frequency of the device in MHz.
-    uint64 maxClockFrequency = 5;
-    // OpenCL major version.
-    int32 openCLDeviceVersionMajor = 6;
-    // OpenCL minor version.
-    int32 openCLDeviceVersionMinor = 7;
-    // vendorType is nvidia or radeon or none
-    GPUVendorType vendorType = 8;
+
+    // DeviceID returns device ID (e.g.: NVidia)
+    uint64 deviceID = 5;
+    // DeviceName returns device name, (e.g.: 1080Ti)
+    string deviceName = 6;
+
+    // MajorNumber returns device's major number
+    uint64 majorNumber = 7;
+    // MinorNumber returns device's minor number
+    uint64 minorNumber = 8;
 }

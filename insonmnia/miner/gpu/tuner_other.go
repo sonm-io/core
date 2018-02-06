@@ -8,7 +8,7 @@ import (
 
 // override all Tuner implementation with NilTuner if we building without GPU support
 
-func newRadeonTuner(opts ...Option) (Tuner, error) {
+func newRadeonTuner(_ context.Context, opts ...Option) (Tuner, error) {
 	return NilTuner{}, nil
 }
 
