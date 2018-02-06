@@ -60,6 +60,12 @@ func (s *OrderShelter) Reserve(orderID OrderID, minerID string, ethAddr common.A
 	return nil
 }
 
+func (s *OrderShelter) Exists(orderID OrderID) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.exists(orderID)
+}
+
 func (s *OrderShelter) exists(orderID OrderID) bool {
 	_, ok := s.orders[orderID]
 	return ok
