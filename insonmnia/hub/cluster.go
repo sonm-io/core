@@ -246,7 +246,7 @@ func (c *cluster) RegisterAndLoadEntity(name string, prototype interface{}) erro
 
 func (c *cluster) Synchronize(entity interface{}) error {
 	if !c.isLeader {
-		log.G(c.ctx).Warn("failed to synchronize entity - not a leader")
+		log.G(c.ctx).Info("failed to synchronize entity - not a leader")
 		return errors.New("not a leader")
 	}
 	name, err := c.nameByEntity(entity)
