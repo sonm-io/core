@@ -15,7 +15,7 @@ import (
 const defaultKeystorePath = ".sonm/keystore/"
 
 var (
-	errNoKeystoreDir = errors.New("keystore directory does not exists")
+	errNoKeystoreDir = errors.New("keystore directory does not exist")
 )
 
 // PassPhraser is interface for retrieving
@@ -35,7 +35,7 @@ type KeyOpener interface {
 	// that provides pass phrase for loaded keys
 	GetPassPhraser() PassPhraser
 	// OpenKeystore opens key storage.
-	// bool param is true if keystore was not existed and was created
+	// Bool param is true if keystore did not exist and was created.
 	OpenKeystore() (bool, error)
 	// GetKey returns private key from opened storage
 	GetKey() (*ecdsa.PrivateKey, error)
@@ -207,7 +207,7 @@ func DefaultKeyOpener(p Printer, keyDir, passPhrase string) (KeyOpener, error) {
 	p.Printf("Using %s as KeyStore directory\r\n", keyDir)
 
 	if !util.DirectoryExists(keyDir) {
-		p.Printf("KeyStore directory does not exists, try to create it...\r\n")
+		p.Printf("KeyStore directory does not exist, try to create it...\r\n")
 		err = os.MkdirAll(keyDir, 0700)
 		if err != nil {
 			return nil, err

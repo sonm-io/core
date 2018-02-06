@@ -23,9 +23,9 @@ import (
 )
 
 var (
-	errSlotNotExists     = errors.New("specified slot is not exists")
+	errSlotNotExists     = errors.New("specified slot does not exist")
 	errSlotAlreadyExists = errors.New("specified slot already exists")
-	errOrderNotExists    = errors.New("specified order not exists")
+	errOrderNotExists    = errors.New("specified order does not exist")
 	errForbiddenMiner    = errors.New("miner is forbidden")
 )
 
