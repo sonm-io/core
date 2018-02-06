@@ -1,25 +1,24 @@
 package hub
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"sync"
 	"time"
 
+	"github.com/docker/go-connections/nat"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/util/xgrpc"
-	"go.uber.org/zap"
-
-	"golang.org/x/net/context"
-	"google.golang.org/grpc"
-
-	"github.com/docker/go-connections/nat"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/xgrpc"
+	"go.uber.org/zap"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -62,6 +61,20 @@ type MinerCtx struct {
 	capabilities *hardware.Hardware
 	usage        *resource.Pool
 	usageMapping map[OrderID]resource.Resources
+}
+
+func (m *MinerCtx) MarshalJSON() ([]byte, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return json.Marshal(m.usageMapping)
+}
+
+func (m *MinerCtx) UnmarshalJSON(data []byte) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return json.Unmarshal(data, &m.usageMapping)
 }
 
 func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
@@ -110,7 +123,7 @@ func (h *Hub) tlsHandshake(ctx context.Context, conn net.Conn) (net.Conn, error)
 
 	switch authInfo := authInfo.(type) {
 	case auth.EthAuthInfo:
-		if !h.acl.Has(authInfo.Wallet.Hex()) {
+		if !h.state.ACLHas(authInfo.Wallet.Hex()) {
 			return nil, errForbiddenMiner
 		}
 	default:

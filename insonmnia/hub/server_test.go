@@ -23,19 +23,21 @@ func TestDevices(t *testing.T) {
 	assert.NoError(t, err)
 
 	hub := Hub{
-		miners: map[string]*MinerCtx{
-			"miner1": {
-				uuid: "miner1",
-				capabilities: &hardware.Hardware{
-					CPU: []cpu.Device{{CPU: 64}},
-					GPU: []gpu.Device{gpuDevice},
+		state: &state{
+			miners: map[string]*MinerCtx{
+				"miner1": {
+					uuid: "miner1",
+					capabilities: &hardware.Hardware{
+						CPU: []cpu.Device{{CPU: 64}},
+						GPU: []gpu.Device{gpuDevice},
+					},
 				},
-			},
-			"miner2": {
-				uuid: "miner2",
-				capabilities: &hardware.Hardware{
-					CPU: []cpu.Device{{CPU: 65}},
-					GPU: []gpu.Device{gpuDevice},
+				"miner2": {
+					uuid: "miner2",
+					capabilities: &hardware.Hardware{
+						CPU: []cpu.Device{{CPU: 65}},
+						GPU: []gpu.Device{gpuDevice},
+					},
 				},
 			},
 		},
@@ -52,20 +54,22 @@ func TestMinerDevices(t *testing.T) {
 	assert.NoError(t, err)
 
 	hub := Hub{
-		miners: map[string]*MinerCtx{
-			"miner1": {
-				uuid: "miner1",
-				capabilities: &hardware.Hardware{
-					CPU: []cpu.Device{{CPU: 64}},
-					GPU: []gpu.Device{gpuDevice},
+		state: &state{
+			miners: map[string]*MinerCtx{
+				"miner1": {
+					uuid: "miner1",
+					capabilities: &hardware.Hardware{
+						CPU: []cpu.Device{{CPU: 64}},
+						GPU: []gpu.Device{gpuDevice},
+					},
 				},
-			},
 
-			"miner2": {
-				uuid: "miner2",
-				capabilities: &hardware.Hardware{
-					CPU: []cpu.Device{{CPU: 65}},
-					GPU: []gpu.Device{gpuDevice},
+				"miner2": {
+					uuid: "miner2",
+					capabilities: &hardware.Hardware{
+						CPU: []cpu.Device{{CPU: 65}},
+						GPU: []gpu.Device{gpuDevice},
+					},
 				},
 			},
 		},
@@ -125,6 +129,8 @@ func getTestHubConfig() *Config {
 func getTestCluster(ctrl *gomock.Controller) Cluster {
 	cl := NewMockCluster(ctrl)
 	cl.EXPECT().Synchronize(gomock.Any()).AnyTimes().Return(nil)
+	cl.EXPECT().RegisterAndLoadEntity(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
+	cl.EXPECT().IsLeader().AnyTimes().Return(true)
 	return cl
 }
 

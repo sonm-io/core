@@ -34,7 +34,9 @@ func makeDefaultOrder(t *testing.T, buyerId string) *structs.Order {
 func makeHubWithOrder(t *testing.T, buyerId string, dealId DealID) *Hub {
 	order := makeDefaultOrder(t, buyerId)
 	return &Hub{
-		deals: map[DealID]*DealMeta{dealId: {Order: *order}},
+		state: &state{
+			deals: map[DealID]*DealMeta{dealId: {Order: *order}},
+		},
 	}
 }
 
@@ -107,7 +109,7 @@ func TestDealAuthorization(t *testing.T) {
 	}
 
 	md := newFieldDealExtractor()
-	authorization := newDealAuthorization(context.Background(), makeHubWithOrder(t, addr.Hex(), "0x42"), md)
+	authorization := newDealAuthorization(context.Background(), makeHubWithOrder(t, addr.Hex(), "0x42").state, md)
 
 	require.NoError(t, authorization.Authorize(ctx, request))
 }
@@ -124,7 +126,7 @@ func TestDealAuthorizationErrors(t *testing.T) {
 	}
 
 	md := newFieldDealExtractor()
-	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), md)
+	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42").state, md)
 
 	require.Error(t, au.Authorize(ctx, request))
 }
@@ -145,7 +147,7 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 	}
 
 	md := newFieldDealExtractor()
-	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42"), md)
+	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42").state, md)
 
 	require.Error(t, au.Authorize(ctx, request))
 }
