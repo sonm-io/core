@@ -43,10 +43,6 @@ logging:
 # Ignored if firewall settings are not null.
 # public_ip_addrs: ["46.148.198.134"]
 
-# Preferred type for GPU tuner, may be "nvidia" or "radeon".
-# Any other value will disable auto GPU tuning.
-GPUConfig: "any"
-
 ethereum:
   # path to keystore
   key_store: "./keys"
@@ -67,6 +63,6 @@ metrics_listen_addr: "127.0.0.1:14001"
 #    root: /var/lib/docker-volumes
 #    volumes:
 #      cifs: {}
-#  GPUs:
+#  gpus:
 #    nvidia: {}
 #    radeon: {}
