@@ -1647,30 +1647,36 @@ func (h *Hub) processClusterEvent(value interface{}) {
 		h.announceAddress()
 	case LeadershipEvent:
 		h.announceAddress()
-	case map[string]*TaskInfo:
-		log.G(h.ctx).Info("synchronizing tasks from cluster")
-		h.tasksMu.Lock()
-		defer h.tasksMu.Unlock()
-		h.tasks = value
-	case map[string]DeviceProperties:
-		h.devicePropertiesMu.Lock()
-		defer h.devicePropertiesMu.Unlock()
-		h.deviceProperties = value
-	case AskPlansData:
-		h.askPlans.RestoreFrom(value)
-	case workerACLStorage:
-		h.acl = &value
-	case map[DealID]*DealMeta:
-		h.tasksMu.Lock()
-		defer h.tasksMu.Unlock()
-		h.deals = value
-		h.restoreResourceUsage()
-	case map[OrderID]ReservedOrder:
-		h.orderShelter.RestoreFrom(value)
 	default:
-		log.G(h.ctx).Warn("received unknown cluster event",
-			zap.Any("event", value),
-			zap.String("type", reflect.TypeOf(value).String()))
+		if h.cluster.IsLeader() {
+			return
+		}
+		switch value := value.(type) {
+		case map[string]*TaskInfo:
+			log.G(h.ctx).Info("synchronizing tasks from cluster")
+			h.tasksMu.Lock()
+			defer h.tasksMu.Unlock()
+			h.tasks = value
+		case map[string]DeviceProperties:
+			h.devicePropertiesMu.Lock()
+			defer h.devicePropertiesMu.Unlock()
+			h.deviceProperties = value
+		case AskPlansData:
+			h.askPlans.RestoreFrom(value)
+		case workerACLStorage:
+			h.acl = &value
+		case map[DealID]*DealMeta:
+			h.tasksMu.Lock()
+			defer h.tasksMu.Unlock()
+			h.deals = value
+			h.restoreResourceUsage()
+		case map[OrderID]ReservedOrder:
+			h.orderShelter.RestoreFrom(value)
+		default:
+			log.G(h.ctx).Warn("received unknown cluster event",
+				zap.Any("event", value),
+				zap.String("type", reflect.TypeOf(value).String()))
+		}
 	}
 }
 
@@ -1945,8 +1951,11 @@ func (h *Hub) restoreResourceUsage() {
 
 	for _, miner := range h.miners {
 		for _, orderID := range miner.Orders() {
-			orderExists := false
+			orderExists := h.orderShelter.Exists(orderID)
 			for _, dealInfo := range h.deals {
+				if orderExists {
+					break
+				}
 				if orderID == OrderID(dealInfo.Order.GetID()) {
 					orderExists = true
 				}

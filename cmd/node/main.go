@@ -49,7 +49,7 @@ func run() {
 
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr())
 
-	log.G(ctx).Error("starting node", zap.String("listen_addr", cfg.ListenAddress()))
+	log.G(ctx).Info("starting node", zap.String("listen_addr", cfg.ListenAddress()))
 	if err := n.Serve(); err != nil {
 		log.G(ctx).Error("cannot start node", zap.Error(err))
 		os.Exit(1)
