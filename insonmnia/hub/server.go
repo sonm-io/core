@@ -224,48 +224,11 @@ type routeMapping struct {
 }
 
 func (h *Hub) onRequest(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	log.G(h.ctx).Debug("intercepting request")
-
-	forwarded, r, err := h.tryForwardToLeader(ctx, request, info)
-	if forwarded {
-		log.S(h.ctx).Infof("forwarded %s request to leader", util.ExtractMethod(info.FullMethod))
-		return r, err
+	if !h.cluster.IsLeader() {
+		return nil, status.Error(codes.PermissionDenied, "not a leader, check locator for leader endpoints")
 	}
-	log.S(h.ctx).Infof("handling %s request", util.ExtractMethod(info.FullMethod))
 
 	return handler(ctx, request)
-}
-
-func (h *Hub) tryForwardToLeader(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo) (bool, interface{}, error) {
-	if h.cluster.IsLeader() {
-		log.G(h.ctx).Info("isLeader is true")
-		return false, nil, nil
-	}
-	log.S(h.ctx).Info("forwarding %s request to leader", util.ExtractMethod(info.FullMethod))
-	cli, err := h.cluster.LeaderClient()
-	if err != nil {
-		log.G(h.ctx).Warn("failed to get leader client")
-		return true, nil, err
-	}
-	if cli != nil {
-		value, err := proxyRequestCall(ctx, cli, request, info)
-		return true, value, err
-	}
-
-	return true, nil, status.Errorf(codes.Internal, "is not leader and no connection to hub leader")
-}
-
-func proxyRequestCall(ctx context.Context, client pb.HubClient, request interface{}, info *grpc.UnaryServerInfo) (interface{}, error) {
-	m := reflect.ValueOf(client).MethodByName(util.ExtractMethod(info.FullMethod))
-	ctx = util.ForwardMetadata(ctx)
-
-	inValues := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(request)}
-	values := m.Call(inValues)
-	var err error
-	if !values[1].IsNil() {
-		err = values[1].Interface().(error)
-	}
-	return values[0].Interface(), err
 }
 
 func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {

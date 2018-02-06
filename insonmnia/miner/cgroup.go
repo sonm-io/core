@@ -9,7 +9,7 @@ import (
 
 var (
 	errCgroupAlreadyExists = errors.New("nested cgroup already exists")
-	errCgroupNotExists     = errors.New("nested cgroup not exists")
+	errCgroupNotExists     = errors.New("nested cgroup does not exist")
 )
 
 type cGroup interface {

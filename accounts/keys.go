@@ -15,7 +15,7 @@ import (
 const defaultKeystorePath = ".sonm/keystore/"
 
 var (
-	errNoKeystoreDir = errors.New("keystore directory does not exists")
+	errNoKeystoreDir = errors.New("keystore directory does not exist")
 )
 
 // PassPhraser is interface for retrieving
@@ -207,7 +207,7 @@ func DefaultKeyOpener(p Printer, keyDir, passPhrase string) (KeyOpener, error) {
 	p.Printf("Using %s as KeyStore directory\r\n", keyDir)
 
 	if !util.DirectoryExists(keyDir) {
-		p.Printf("KeyStore directory does not exists, try to create it...\r\n")
+		p.Printf("KeyStore directory does not exist, try to create it...\r\n")
 		err = os.MkdirAll(keyDir, 0700)
 		if err != nil {
 			return nil, err
