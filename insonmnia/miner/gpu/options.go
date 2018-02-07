@@ -10,10 +10,10 @@ import (
 const (
 	nvidiaVolumeDriver   = "nvidia-docker"
 	nvidiaDriverVersion  = "300.0"
-	nvidiaLibsMountPoint = "/usr/local/lib/nvidia"
+	nvidiaLibsMountPoint = "/usr/local/nvidia"
 	radeonVolumeDriver   = "radeon-docker"
 	radeonDriverVersion  = "2482.3"
-	radeonLibsMountPoint = "/usr/local/lib/amdgpu"
+	radeonLibsMountPoint = "/usr/local/amdgpu"
 )
 
 // tunerOptions contains various options for embedded GPU tuners
