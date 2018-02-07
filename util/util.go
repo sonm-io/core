@@ -17,6 +17,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -109,6 +110,27 @@ func ParseBigInt(s string) (*big.Int, error) {
 	}
 
 	return n, nil
+}
+
+// StringToEtherPrice converts input string s to Ethereum's price present as big.Int
+// This function expects to receive trimmed input.
+func StringToEtherPrice(s string) (*big.Int, error) {
+	bigFloat, ok := big.NewFloat(0).SetString(s)
+	if !ok {
+		return nil, fmt.Errorf("cannot convert %s to float value", s)
+	}
+
+	if bigFloat.Cmp(big.NewFloat(0)) < 0 {
+		return nil, errors.New("value cannot be negative")
+	}
+
+	v, _ := big.NewFloat(0).Mul(bigFloat, big.NewFloat(params.Ether)).Int(nil)
+
+	if v.Cmp(big.NewInt(0)) == 0 && bigFloat.Cmp(big.NewFloat(0)) > 0 {
+		return nil, errors.New("value is too low")
+	}
+
+	return v, nil
 }
 
 func GetAvailableIPs() (availableIPs []net.IP, err error) {

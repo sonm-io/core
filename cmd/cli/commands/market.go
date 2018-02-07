@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -127,7 +128,7 @@ var marketCreteCmd = &cobra.Command{
 		price := args[0]
 		orderPath := args[1]
 
-		bigPrice, err := pb.NewBigIntFromString(price)
+		bigPrice, err := util.StringToEtherPrice(price)
 		if err != nil {
 			showError(cmd, "Cannot parse price", err)
 			os.Exit(1)
@@ -140,7 +141,7 @@ var marketCreteCmd = &cobra.Command{
 		}
 
 		order := &pb.Order{
-			PricePerSecond: bigPrice,
+			PricePerSecond: pb.NewBigInt(bigPrice),
 			Slot:           slot.Unwrap(),
 			OrderType:      pb.OrderType_BID,
 		}
