@@ -1,3 +1,68 @@
+sonm-core (0.3.1) unstable; urgency=low
+
+  * Break: massive protocol breakage.
+    All components with the same version are guaranteed to work, while otherwise - are not.
+  * Added: distributed tracing and audit.
+    This quite large addition includes utilities for ease debugging and finding out what the hell
+    is going on: audit logs and distributed tracing.
+    Now all server components are constructed with audit logs interceptor, which writes a record
+    when an RPC request finishes. It includes: time spent, tracing info (new feature), peer
+    wallet etc.
+  * Added: improved the gateway by allowing several reals under the same virtual service (#363).
+    Each internal Docker port can now be exposed into several external to avoid ambiguity in the
+    case of complex containers which run more than one network service.
+  * Added: auto-completion for the sonmcli (#373).
+  * Added: auto-refreshing orders in the Market by heart beating (#384).
+  * Added: extended deal info (#386).
+    Hub now collects an extended info for deal: deal id, order's resources, running tasks, task
+    history.
+  * Added: collecting Prometheus metrics with Graphana examples.
+  * Added: network volumes support.
+    Introducing container volumes support. Currently there is only CIFS support, but it will be
+    extended later. Volume configuration now can be specified in the task spec.
+  * Added: GPU tuners now can check if the required GPU is present on a system.
+  * Changed: all prices are now kept internally as a big int.
+  * Changed: merged `order.yaml` into a `slot.yaml` (#380).
+  * Changed: allowing to publish only public IP addresses via special mode for the Locator (#381).
+  * Changed: split proposing deal (#389).
+    This change finally splits proposing a deal into the two methods: proposing and approving.
+    Pending orders now lives in a shelter. This entity is managed by passive timer, cleaning up
+    unapproved orders. Also approving deals requires wallet authorization.
+  * Changed: multiple Hub endpoints now can be specified in the Worker's config (#392).
+  * Changed: make OpenCL errors eye-candy (#400).
+  * Changed: check ETH balance before republishing order (#420).
+  * Changed: temporarily disable SINGLE_GPU slot param (#423).
+    This deactivates an ability to sell/buy a separate GPUs, leaving a choice: none or all.
+  * Fixed: price validations during proposing deal (#356).
+  * Fixed: all wallet addresses should now correctly be printed as a hex.
+  * Fixed: cancelling an order now stops processing loop (#361).
+  * Fixed: forbidding removing ask orders via market api (#362).
+  * Fixed: no longer uppercasing the env var keys (#372).
+  * Fixed: correct gas price for closing deal (#374).
+  * Fixed: check topic length before parsing pending deals (#377).
+  * Fixed: the Node should now properly close its connections to Hubs, preventing fd leak (#378).
+  * Fixed: check whether an IP is either loopback or link-local before publishing (#382).
+  * Fixed: thread-safety by race condition elimination (#383).
+  * Fixed: hardware collection now correctly informs about errors via logs (#385).
+  * Fixed: the Locator now rejects announcements without ports (#388).
+  * Fixed: check whether we can use OpenCL to determine GPU on a platform (#391).
+  * Fixed: workers should now be correctly closed without hanging.
+  * Fixed: compare order durations during proposing deal.
+  * Fixed: republish orders on a market after freeing a deal.
+  * Fixed: show error about the balance if there is not enough balance (#398).
+  * Fixed: the Node should now properly cancel unapproved deal (#410).
+  * Fixed: properly allocate and restrict CPUs using cgroups in tasks (#414).
+  * Fixed: proper cleaning up expired deals (#418).
+  * Fixed: do not remove container after commit (#416).
+    This allows to fetch logs and pull the container unless the associated deal is alive.
+  * Fixed: Hub should now less often cause segmentation error while synchronizing with the
+    cluster (#441).
+  * Fixed: workers should now properly connect to all Hubs (#444).
+  * Fixed: only leader serves clients (#447).
+    This includes that only leader's client endpoints are announced.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 07 Feb 2018 00:10:37 +0300
+
 sonm-core (0.3) unstable; urgency=low
 
   * Preparing to MVP
