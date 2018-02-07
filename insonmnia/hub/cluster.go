@@ -111,6 +111,8 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, workerEndpoint string,
 
 	if cfg.Failover {
 		c.isLeader = false
+	} else {
+		c.leaderId = c.id
 	}
 
 	c.ctx, c.cancel = context.WithCancel(c.parentCtx)
@@ -172,7 +174,6 @@ func (c *cluster) Run() error {
 		w.Go(c.hubGC)
 	} else {
 		log.G(c.ctx).Info("running in dev single-server mode")
-		c.leaderId = c.id
 	}
 
 	w.Go(c.watchEvents)

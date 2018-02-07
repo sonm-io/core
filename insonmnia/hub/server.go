@@ -1426,10 +1426,9 @@ func (h *Hub) Serve() error {
 
 	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.listenClusterEvents)
-	h.waiter.Go(h.startLocatorAnnouncer)
 	h.waiter.Go(h.runAcceptedDealsWatcher)
-	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.watchDealsClosed)
+	h.waiter.Go(h.startLocatorAnnouncer)
 	h.waiter.Go(func() error {
 		return h.orderShelter.Run(h.ctx)
 	})
