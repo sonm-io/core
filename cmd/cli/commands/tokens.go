@@ -46,7 +46,7 @@ var approveTokenCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		amount, err := util.ParseBigInt(args[0])
+		amount, err := util.StringToEtherPrice(args[0])
 		if err != nil {
 			showError(cmd, "Invalid parameter", err)
 			os.Exit(1)
