@@ -112,7 +112,7 @@ func NewCluster(ctx context.Context, cfg *ClusterConfig, workerEndpoint string,
 	if cfg.Failover {
 		c.isLeader = false
 	} else {
-		c.leaderId = c.id
+		c.leaderID = c.id
 	}
 
 	c.ctx, c.cancel = context.WithCancel(c.parentCtx)
