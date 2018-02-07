@@ -1824,7 +1824,6 @@ func (h *Hub) startLocatorAnnouncer() error {
 }
 
 func (h *Hub) announceAddress() error {
-	// TODO: is it really wrong to announce from several nodes simultaneously?
 	if !h.cluster.IsLeader() {
 		return nil
 	}

@@ -172,6 +172,7 @@ func (c *cluster) Run() error {
 		w.Go(c.hubGC)
 	} else {
 		log.G(c.ctx).Info("running in dev single-server mode")
+		c.leaderId = c.id
 	}
 
 	w.Go(c.watchEvents)
