@@ -50,8 +50,8 @@ cluster:
   member_list_key: "sonm/hub/list"
   sync_prefix: "sync_prefix"
   leader_ttl: "20s"
-  announce_period: "10s"
-  member_gc_period: "10s"
+  announce_period: "20s"
+  member_gc_period: "20s"
 
 # Logging settings.
 logging:

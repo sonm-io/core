@@ -40,14 +40,14 @@ type ClusterEvent interface{}
 // Specific type of cluster event emitted when new member joins cluster
 type NewMemberEvent struct {
 	endpointsInfo
-	Id string
+	ID string
 }
 
 // Specific type of cluster event emitted when leadership is transferred.
 // It is not always loss or acquire of leadership of this specific node
 type LeadershipEvent struct {
 	Held            bool
-	LeaderId        string
+	LeaderID        string
 	LeaderEndpoints []string
 }
 
@@ -146,7 +146,7 @@ type cluster struct {
 	leaderLock sync.RWMutex
 
 	clusterEndpoints map[string]*endpointsInfo
-	leaderId         string
+	leaderID         string
 
 	eventChannel chan ClusterEvent
 
@@ -235,10 +235,10 @@ func (c *cluster) Members() ([]NewMemberEvent, error) {
 	defer c.leaderLock.RUnlock()
 
 	for id, endpts := range c.clusterEndpoints {
-		memberEvent := NewMemberEvent{endpointsInfo: *endpts, Id: id}
+		memberEvent := NewMemberEvent{endpointsInfo: *endpts, ID: id}
 
 		// Clients can see only leader's endpoints.
-		if memberEvent.Id != c.leaderId {
+		if memberEvent.ID != c.leaderID {
 			memberEvent.endpointsInfo.Client = []string{}
 		}
 
@@ -287,7 +287,7 @@ func (c *cluster) leaderWatch() error {
 			return err
 		case leaderId := <-leaderCh:
 			c.leaderLock.Lock()
-			c.leaderId = leaderId
+			c.leaderID = leaderId
 			c.leaderLock.Unlock()
 			c.emitLeadershipEvent()
 		}
@@ -372,7 +372,7 @@ func (c *cluster) checkHub(id string) error {
 	}
 
 	if !exists {
-		log.G(c.ctx).Info("hub is offline, removing", zap.String("hubId", id))
+		log.G(c.ctx).Info("hub is offline, removing", zap.String("hub_id", id))
 		c.leaderLock.Lock()
 		defer c.leaderLock.Unlock()
 
@@ -405,9 +405,9 @@ func (c *cluster) hubGC() error {
 			for _, id := range idsToCheck {
 				err := c.checkHub(id)
 				if err != nil {
-					log.G(c.ctx).Warn("failed to check hub", zap.String("hubId", id), zap.Error(err))
+					log.G(c.ctx).Warn("failed to check hub", zap.String("hub_id", id), zap.Error(err))
 				} else {
-					log.G(c.ctx).Info("checked hub", zap.String("hubId", id))
+					log.G(c.ctx).Info("checked hub", zap.String("hub_id", id))
 				}
 			}
 		case <-c.ctx.Done():
@@ -566,7 +566,7 @@ func makeStore(ctx context.Context, cfg *ClusterConfig) (store.Store, error) {
 func (c *cluster) close(err error) {
 	log.G(c.ctx).Error("cluster failure", zap.Error(err))
 	c.leaderLock.Lock()
-	c.leaderId = ""
+	c.leaderID = ""
 	c.isLeader = false
 	c.leaderLock.Unlock()
 	c.Close()
@@ -576,15 +576,15 @@ func (c *cluster) emitLeadershipEvent() {
 	c.leaderLock.Lock()
 	defer c.leaderLock.Unlock()
 
-	endpoints, ok := c.clusterEndpoints[c.leaderId]
+	endpoints, ok := c.clusterEndpoints[c.leaderID]
 	if !ok {
-		log.G(c.ctx).Error("leader endpoint not found", zap.String("leader_id", c.leaderId))
+		log.G(c.ctx).Error("leader endpoint not found", zap.String("leader_id", c.leaderID))
 		return
 	}
 
 	c.eventChannel <- LeadershipEvent{
 		Held:            c.isLeader,
-		LeaderId:        c.leaderId,
+		LeaderID:        c.leaderID,
 		LeaderEndpoints: endpoints.Client,
 	}
 }
@@ -623,7 +623,7 @@ func (c *cluster) registerMember(id string, clientEndpoints, workerEndpoints []s
 		zap.Any("worker_endpoints", workerEndpoints))
 	c.leaderLock.Lock()
 	c.clusterEndpoints[id] = &endpointsInfo{Client: clientEndpoints, Worker: workerEndpoints}
-	c.eventChannel <- NewMemberEvent{endpointsInfo: *c.clusterEndpoints[id], Id: id}
+	c.eventChannel <- NewMemberEvent{endpointsInfo: *c.clusterEndpoints[id], ID: id}
 	c.leaderLock.Unlock()
 
 	return nil
