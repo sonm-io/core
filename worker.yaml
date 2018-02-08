@@ -63,6 +63,6 @@ plugins:
     root: /var/lib/docker-volumes
     volumes:
       cifs: {}
-  gpus:
-    nvidia: {}
-    radeon: {}
+#  gpus:
+#    nvidia: {}
+#    radeon: {}
