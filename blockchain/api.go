@@ -90,6 +90,7 @@ type Tokener interface {
 type Blockchainer interface {
 	Dealer
 	Tokener
+	GetTxOpts(key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts
 }
 
 func initEthClient(ethEndpoint *string) (*ethclient.Client, error) {
@@ -106,7 +107,7 @@ func initEthClient(ethEndpoint *string) (*ethclient.Client, error) {
 	return ethClient, nil
 }
 
-func (bch *api) getTxOpts(key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts {
+func (bch *api) GetTxOpts(key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts {
 	opts := bind.NewKeyedTransactor(key)
 	opts.GasLimit = big.NewInt(gasLimit)
 	opts.GasPrice = big.NewInt(bch.gasPrice)
@@ -163,7 +164,7 @@ var DealAcceptedTopic = common.HexToHash("0x3a38edea6028913403c74ce8433c90eca94f
 var DealClosedTopic = common.HexToHash("0x72615f99a62a6cc2f8452d5c0c9cbc5683995297e1d988f09bb1471d4eefb890")
 
 func (bch *api) OpenDeal(key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error) {
-	opts := bch.getTxOpts(key, 360000)
+	opts := bch.GetTxOpts(key, 360000)
 
 	bigSpec, err := util.ParseBigInt(deal.SpecificationHash)
 	if err != nil {
@@ -251,7 +252,7 @@ func (bch *api) OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal
 }
 
 func (bch *api) AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
-	opts := bch.getTxOpts(key, 90000)
+	opts := bch.GetTxOpts(key, 90000)
 
 	tx, err := bch.dealsContract.AcceptDeal(opts, id)
 	if err != nil {
@@ -309,7 +310,7 @@ func (bch *api) AcceptDealPending(ctx context.Context, key *ecdsa.PrivateKey, de
 }
 
 func (bch *api) CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
-	opts := bch.getTxOpts(key, 300000)
+	opts := bch.GetTxOpts(key, 300000)
 
 	tx, err := bch.dealsContract.CloseDeal(opts, id)
 	if err != nil {
@@ -581,7 +582,7 @@ func (bch *api) AllowanceOf(from string, to string) (*big.Int, error) {
 }
 
 func (bch *api) Approve(key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
-	opts := bch.getTxOpts(key, 50000)
+	opts := bch.GetTxOpts(key, 50000)
 
 	tx, err := bch.tokenContract.Approve(opts, common.HexToAddress(to), amount)
 	if err != nil {
@@ -591,7 +592,7 @@ func (bch *api) Approve(key *ecdsa.PrivateKey, to string, amount *big.Int) (*typ
 }
 
 func (bch *api) Transfer(key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
-	opts := bch.getTxOpts(key, 50000)
+	opts := bch.GetTxOpts(key, 50000)
 
 	tx, err := bch.tokenContract.Transfer(opts, common.HexToAddress(to), amount)
 	if err != nil {
@@ -601,7 +602,7 @@ func (bch *api) Transfer(key *ecdsa.PrivateKey, to string, amount *big.Int) (*ty
 }
 
 func (bch *api) TransferFrom(key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (*types.Transaction, error) {
-	opts := bch.getTxOpts(key, 50000)
+	opts := bch.GetTxOpts(key, 50000)
 
 	tx, err := bch.tokenContract.TransferFrom(opts, common.HexToAddress(from), common.HexToAddress(to), amount)
 	if err != nil {
@@ -619,7 +620,7 @@ func (bch *api) TotalSupply() (*big.Int, error) {
 }
 
 func (bch *api) GetTokens(key *ecdsa.PrivateKey) (*types.Transaction, error) {
-	opts := bch.getTxOpts(key, 50000)
+	opts := bch.GetTxOpts(key, 50000)
 
 	tx, err := bch.tokenContract.GetTokens(opts)
 	if err != nil {
