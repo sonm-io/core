@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"os/signal"
+	"syscall"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
@@ -57,7 +58,7 @@ func run() {
 
 	go func() {
 		c := make(chan os.Signal, 1)
-		signal.Notify(c, os.Interrupt)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		<-c
 		h.Close()
 	}()
