@@ -3,10 +3,11 @@
 
 
 %:
-	dh $@ --with systemd
+	dh $@ --with systemd --with bash-completion
 
 override_dh_auto_build:
 	GPU_SUPPORT=true make -j build/insomnia build/aux
+	./sonmcli completion bash > sonmcli.bash-completion
 
 override_dh_auto_test:
 	echo "skip tests"
