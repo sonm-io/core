@@ -124,6 +124,7 @@ func (a *AskPlans) forceRenewAnnounces(ctx context.Context) {
 }
 
 func (a *AskPlans) checkAnnounces(ctx context.Context) {
+	log.G(ctx).Debug("checking announces on market")
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	changed := false
@@ -134,13 +135,16 @@ func (a *AskPlans) checkAnnounces(ctx context.Context) {
 		announced := plan.Order.Id != ""
 		if has && !announced {
 			changed = true
+			log.S(ctx).Debugf("hub has enough resources for ask-plan %s, announcing", plan.Id)
 			a.announcePlan(ctx, plan)
 		}
 		if !has && announced {
 			changed = true
+			log.S(ctx).Debugf("hub lacks resources for ask-plan %s, deannouncing", plan.Id)
 			a.deannouncePlan(ctx, plan)
 		}
 		if has && announced {
+			log.S(ctx).Debugf("hub has enough resources for ask-plan %s, will touch corresponding order %s", plan.Id, plan.Order.Id)
 			toUpdate = append(toUpdate, plan.Order.Id)
 		}
 	}
@@ -169,15 +173,18 @@ func (a *AskPlans) announcePlan(ctx context.Context, plan *AskPlan) {
 		return
 	}
 	plan.Order = wrappedOrder
+	log.S(ctx).Infof("announced order %s on market for ask-plan %s", plan.Order.Id, plan.Id)
 }
 
 func (a *AskPlans) deannouncePlan(ctx context.Context, plan *AskPlan) {
+	orderId := plan.Order.Id
 	_, err := a.market.CancelOrder(ctx, plan.Order.Unwrap())
 	if err != nil {
 		log.S(ctx).Warnf("failed to deannounce order {} (ask plan - {}) on market - {}", plan.Order.Id, plan.Id, zap.Error(err))
 	} else {
 		plan.Order.Id = ""
 	}
+	log.S(ctx).Infof("deannounced order %s on market for ask-plan %s", orderId, plan.Id)
 }
 
 func (a *AskPlans) sync(ctx context.Context) {
