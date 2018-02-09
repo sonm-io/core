@@ -299,12 +299,16 @@ func (s *state) checkAnnouncesTS() error {
 		has := s.hasResources(plan.Order.GetSlot().GetResources())
 		announced := plan.Order.Id != ""
 		if has && !announced {
+			log.S(s.ctx).Debugf("hub has enough resources for ask-plan %s, announcing", plan.ID)
 			s.announcePlan(s.ctx, plan)
 		}
 		if !has && announced {
+			log.S(s.ctx).Debugf("hub lacks resources for ask-plan %s, deannouncing", plan.ID)
 			s.deannouncePlan(s.ctx, plan)
 		}
 		if has && announced {
+			log.S(s.ctx).Debugf("hub has enough resources for ask-plan %s, will touch corresponding order %s",
+				plan.ID, plan.Order.Id)
 			toUpdate = append(toUpdate, plan.Order.Id)
 		}
 	}
