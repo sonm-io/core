@@ -25,8 +25,9 @@ import (
 )
 
 const (
-	maxPlatforms   = 32
-	maxDeviceCount = 64
+	maxPlatforms              = 32
+	maxDeviceCount            = 64
+	CL_PLATFORM_NOT_FOUND_KHR = C.cl_int(-1001)
 )
 
 // GetGPUDevicesUsingOpenCL returns a list of available GPU devices on the machine using OpenCL API.
@@ -95,6 +96,10 @@ func getPlatforms() ([]*platform, error) {
 	var num C.cl_uint
 
 	if err := C.clGetPlatformIDs(C.cl_uint(maxPlatforms), &ids[0], &num); err != C.CL_SUCCESS {
+		if err == CL_PLATFORM_NOT_FOUND_KHR {
+			return []*platform{}, nil
+		}
+
 		return nil, fmt.Errorf("failed to obtain OpenCL platforms: %s", errorToString(err))
 	}
 
@@ -287,6 +292,8 @@ func errorToString(err C.cl_int) string {
 		return "invalid buffer size"
 	case C.CL_INVALID_MIP_LEVEL:
 		return "invalid mip-map level"
+	case CL_PLATFORM_NOT_FOUND_KHR:
+		return "no valid ICDs found"
 	default:
 		return "unknown OpenCL error: " + strconv.FormatInt(int64(err), 10)
 	}
