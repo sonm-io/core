@@ -29,6 +29,7 @@ ifeq ($(GPU_SUPPORT),true)
     NV_CGO=vendor/github.com/sshaman1101/nvidia-docker/build
     CGO_LDFLAGS=-L$(shell pwd)/${NV_CGO}/lib
     CGO_CFLAGS=-I$(shell pwd)/${NV_CGO}/include
+    CGO_LDFLAGS_ALLOW='-Wl,--unresolved-symbols=ignore-in-object-files'
 endif
 
 UNAME_S := $(shell uname -s)
@@ -52,7 +53,7 @@ build/locator:
 
 build/miner:
 	@echo "+ $@"
-	CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s $(LDFLAGS)" -o ${MINER} ${GOCMD}/miner
+	CGO_LDFLAGS_ALLOW=${CGO_LDFLAGS_ALLOW} CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s $(LDFLAGS)" -o ${MINER} ${GOCMD}/miner
 
 build/hub:
 	@echo "+ $@"
@@ -133,7 +134,7 @@ clean:
 	rm -f ${MINER} ${HUB} ${CLI}
 
 deb:
-	debuild --no-lintian --preserve-env -uc -us -i -I
+	debuild --no-lintian --preserve-env -uc -us -i -I -b
 
 coverage:
 	.ci/coverage.sh
