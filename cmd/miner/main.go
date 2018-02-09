@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -54,7 +55,26 @@ func run() {
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	m, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithUUID(string(uuidData)))
+	opts := make([]miner.Option, 0)
+	opts = append(opts, miner.WithContext(ctx), miner.WithKey(key), miner.WithUUID(string(uuidData)))
+	if dev := cfg.Dev(); dev != nil {
+		if len(dev.DevAddr) != 0 {
+			listener, err := net.Listen("tcp", dev.DevAddr)
+			if err != nil {
+				fmt.Printf("cannot listen on %s in development mode: %s\r\n", dev.DevAddr, err)
+				os.Exit(1)
+			}
+			opts = append(opts, miner.WithListener(listener))
+			log.S(ctx).Infof("listening on %s", dev.DevAddr)
+
+		}
+		if dev.Insecure {
+			log.G(ctx).Info("disabling TLS")
+			opts = append(opts, miner.WithInsecure(true))
+		}
+	}
+
+	m, err := miner.NewMiner(cfg, opts...)
 	if err != nil {
 		log.G(ctx).Error("cannot create worker instance", zap.Error(err))
 		os.Exit(1)

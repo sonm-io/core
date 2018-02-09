@@ -43,6 +43,11 @@ type LocatorConfig struct {
 	Endpoint string `required:"true" yaml:"endpoint"`
 }
 
+type DevConfig struct {
+	DevAddr  string `yaml:"listen"`
+	Insecure bool   `yaml:"insecure"`
+}
+
 type config struct {
 	HubConfig               HubConfig           `required:"true" yaml:"hub"`
 	FirewallConfig          *FirewallConfig     `required:"false" yaml:"firewall"`
@@ -54,6 +59,7 @@ type config struct {
 	PublicIPsConfig         []string            `required:"false" yaml:"public_ip_addrs"`
 	MetricsListenAddrConfig string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14001"`
 	PluginsConfig           plugin.Config       `yaml:"plugins"`
+	DevConfig               *DevConfig          `yaml:"yes_i_want_to_use_dev-only_features"`
 }
 
 func (c *config) LogLevel() zapcore.Level {
@@ -106,6 +112,10 @@ func (c *config) MetricsListenAddr() string {
 
 func (c *config) Plugins() plugin.Config {
 	return c.PluginsConfig
+}
+
+func (c *config) Dev() *DevConfig {
+	return c.DevConfig
 }
 
 func (c *config) validate() error {
@@ -177,4 +187,6 @@ type Config interface {
 	MetricsListenAddr() string
 	// Plugins returns plugins settings.
 	Plugins() plugin.Config
+	// DevAddr to listen on. For dev purposes only!
+	Dev() *DevConfig
 }

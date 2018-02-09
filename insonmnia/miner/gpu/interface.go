@@ -14,7 +14,7 @@ import (
 
 // Tuner is responsible for preparing GPU-friendly environment and baking proper options in container.HostConfig
 type Tuner interface {
-	Tune(hostconfig *container.HostConfig) error
+	Tune(hostConfig *container.HostConfig) error
 	Close() error
 }
 

@@ -2,6 +2,7 @@ package miner
 
 import (
 	"crypto/ecdsa"
+	"net"
 
 	"github.com/ccding/go-stun/stun"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -22,6 +23,8 @@ type options struct {
 	key           *ecdsa.PrivateKey
 	publicIPs     []string
 	locatorClient pb.LocatorClient
+	listener      net.Listener
+	insecure      bool
 }
 
 func (o *options) setupNetworkOptions(cfg Config) error {
@@ -120,6 +123,18 @@ func WithKey(key *ecdsa.PrivateKey) Option {
 func WithLocatorClient(locatorClient pb.LocatorClient) Option {
 	return func(opts *options) {
 		opts.locatorClient = locatorClient
+	}
+}
+
+func WithListener(listener net.Listener) Option {
+	return func(opts *options) {
+		opts.listener = listener
+	}
+}
+
+func WithInsecure(val bool) Option {
+	return func(opts *options) {
+		opts.insecure = val
 	}
 }
 

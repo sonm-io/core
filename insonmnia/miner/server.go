@@ -59,7 +59,7 @@ type Miner struct {
 	publicIPs []string
 	natType   stun.NATType
 
-	rl *reverseListener
+	listener net.Listener
 
 	ovs Overseer
 
@@ -120,6 +120,10 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		o.hardware = hardware.New()
 	}
 
+	if o.listener == nil {
+		o.listener = newReverseListener(1)
+	}
+
 	hardwareInfo, err := o.hardware.Info()
 	if err != nil {
 		return nil, err
@@ -152,14 +156,15 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		return nil, err
 	}
 
-	var (
-		hubEthAddr = common.HexToAddress(cfg.HubEthAddr())
-		creds      = auth.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEthAddr)
-		grpcServer = xgrpc.NewServer(log.GetLogger(o.ctx),
-			xgrpc.Credentials(creds),
-			xgrpc.DefaultTraceInterceptor(),
-		)
-	)
+	grpcOpts := make([]xgrpc.ServerOption, 0)
+	grpcOpts = append(grpcOpts, xgrpc.DefaultTraceInterceptor())
+
+	hubEthAddr := common.HexToAddress(cfg.HubEthAddr())
+	creds := auth.NewWalletAuthenticator(util.NewTLS(TLSConf), hubEthAddr)
+	if !o.insecure {
+		grpcOpts = append(grpcOpts, xgrpc.Credentials(creds))
+	}
+	grpcServer := xgrpc.NewServer(log.GetLogger(o.ctx), grpcOpts...)
 
 	if !platformSupportCGroups && cfg.HubResources() != nil {
 		log.G(o.ctx).Warn("your platform does not support CGroup, but the config has resources section")
@@ -208,7 +213,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		publicIPs: o.publicIPs,
 		natType:   o.nat,
 
-		rl:             newReverseListener(1),
+		listener:       o.listener,
 		containers:     make(map[string]*ContainerInfo),
 		statusChannels: make(map[int]chan bool),
 		nameMapping:    make(map[string]string),
@@ -457,7 +462,7 @@ func (m *Miner) Save(request *pb.SaveRequest, stream pb.Miner_SaveServer) error 
 
 // Start request from Hub makes Miner start a container
 func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
-	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
+	log.G(m.ctx).Info("handling Start request", zap.Any("request", request), zap.Any("HUY", request.Container.Networks))
 
 	if request.GetContainer() == nil {
 		return nil, fmt.Errorf("container field is required")
@@ -489,6 +494,12 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		mounts = append(mounts, mount)
 	}
 
+	networks, err := structs.NewNetworkSpecs(request.Id, request.Container.Networks)
+	if err != nil {
+		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
+		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		return nil, status.Errorf(codes.Internal, "failed to parse network specs", err)
+	}
 	var d = Description{
 		Image:         request.Container.Image,
 		Registry:      request.Container.Registry,
@@ -502,6 +513,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		GPURequired:   resources.RequiresGPU(),
 		volumes:       request.Container.Volumes,
 		mounts:        mounts,
+		networks:      networks,
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
@@ -816,6 +828,11 @@ func (m *Miner) setupHubConnections() error {
 }
 
 func (m *Miner) connectToHub(endpoint string) {
+	rl, ok := m.listener.(*reverseListener)
+	if !ok {
+		return
+	}
+
 	log.G(m.ctx).Info("connecting to hub", zap.String("endpoint", endpoint))
 
 	m.connectedHubsLock.Lock()
@@ -847,7 +864,7 @@ func (m *Miner) connectToHub(endpoint string) {
 	defer conn.Close()
 
 	// Push the connection to a pool for grpcServer.
-	if err = m.rl.enqueue(conn); err != nil {
+	if err = rl.enqueue(conn); err != nil {
 		log.G(m.ctx).Error("failed to enqueue yaConn for gRPC server", zap.Error(err))
 		return
 	}
@@ -889,7 +906,7 @@ func (m *Miner) startSSH() {
 func (m *Miner) Serve() error {
 	go func() { m.manageConnections() }()
 	go func() { m.startSSH() }()
-	go func() { m.grpcServer.Serve(m.rl) }()
+	go func() { m.grpcServer.Serve(m.listener) }()
 
 	<-m.ctx.Done()
 	return m.ctx.Err()
@@ -905,7 +922,7 @@ func (m *Miner) Close() {
 	m.certRotator.Close()
 	m.ssh.Close()
 	m.ovs.Close()
-	m.rl.Close()
+	m.listener.Close()
 	m.controlGroup.Delete()
 	m.plugins.Close()
 }
