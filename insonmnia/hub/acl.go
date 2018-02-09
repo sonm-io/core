@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"reflect"
-	"sync"
 
 	"github.com/sonm-io/core/insonmnia/auth"
 	"go.uber.org/zap"
@@ -25,31 +24,15 @@ var (
 	errInvalidTaskField = status.Error(codes.Internal, "invalid task `ID` field type")
 )
 
-// ACLStorage describes an ACL storage for workers.
+// workerACLStorage describes an ACL storage for workers.
 //
 // A worker connection can be accepted only and the only if its credentials
 // provided with the certificate contains in this storage.
-type ACLStorage interface {
-	// Insert inserts the given worker credentials to the storage.
-	Insert(credentials string)
-	// Remove removes the given worker credentials from the storage.
-	// Returns true if it was actually removed.
-	Remove(credentials string) bool
-	// Has checks whether the given worker credentials contains in the
-	// storage.
-	Has(credentials string) bool
-	// Each applies the specified function to each credentials in the storage.
-	// Traversal will continue until all items in the Set have been visited,
-	// or if the closure returns false.
-	Each(fn func(string) bool)
-}
-
 type workerACLStorage struct {
 	storage *set.SetNonTS
-	mu      sync.RWMutex
 }
 
-func NewACLStorage() ACLStorage {
+func newWorkerACLStorage() *workerACLStorage {
 	return &workerACLStorage{
 		storage: set.NewNonTS(),
 	}
@@ -59,57 +42,56 @@ func (s *workerACLStorage) MarshalJSON() ([]byte, error) {
 	if s == nil {
 		return json.Marshal(nil)
 	}
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+
 	set := make([]string, 0)
 	s.storage.Each(func(item interface{}) bool {
 		set = append(set, item.(string))
 		return true
 	})
+
 	return json.Marshal(set)
 }
 
 func (s *workerACLStorage) UnmarshalJSON(data []byte) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	unmarshalled := make([]string, 0)
-	err := json.Unmarshal(data, &unmarshalled)
-	if err != nil {
+	unmarshaled := make([]string, 0)
+	if err := json.Unmarshal(data, &unmarshaled); err != nil {
 		return err
 	}
 	s.storage = set.NewNonTS()
 
-	for _, val := range unmarshalled {
+	for _, val := range unmarshaled {
 		s.storage.Add(val)
 	}
+
 	return nil
 }
 
+// Insert inserts the given worker credentials to the storage.
 func (s *workerACLStorage) Insert(credentials string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.storage.Add(credentials)
 }
 
+// Remove removes the given worker credentials from the storage.
+// Returns true if it was actually removed.
 func (s *workerACLStorage) Remove(credentials string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	exists := s.storage.Has(credentials)
 	if exists {
 		s.storage.Remove(credentials)
 	}
+
 	return exists
 }
 
+// Has checks whether the given worker credentials contains in the
+// storage.
 func (s *workerACLStorage) Has(credentials string) bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 	return s.storage.Has(credentials)
 }
 
+// Each applies the specified function to each credentials in the storage.
+// Traversal will continue until all items in the Set have been visited,
+// or if the closure returns false.
 func (s *workerACLStorage) Each(fn func(string) bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
 	s.storage.Each(func(credentials interface{}) bool {
 		return fn(credentials.(string))
 	})
@@ -120,14 +102,14 @@ type DealExtractor func(ctx context.Context, request interface{}) (DealID, error
 
 type dealAuthorization struct {
 	ctx       context.Context
-	hub       *Hub
+	state     *state
 	extractor DealExtractor
 }
 
-func newDealAuthorization(ctx context.Context, hub *Hub, extractor DealExtractor) auth.Authorization {
+func newDealAuthorization(ctx context.Context, hubState *state, extractor DealExtractor) auth.Authorization {
 	return &dealAuthorization{
 		ctx:       ctx,
-		hub:       hub,
+		state:     hubState,
 		extractor: extractor,
 	}
 }
@@ -144,7 +126,7 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 	}
 
 	peerWallet := wallet.Hex()
-	meta, err := d.hub.getDealMeta(dealID)
+	meta, err := d.state.GetDealMeta(dealID)
 
 	if err != nil {
 		return err
@@ -214,11 +196,11 @@ func newContextDealExtractor() DealExtractor {
 // NewFromTaskDealExtractor constructs a deal id extractor that requires the
 // specified request to have "Id" field, which is the task id.
 // This task id is used to extract current deal id from the Hub.
-func newFromTaskDealExtractor(hub *Hub) DealExtractor {
-	return newFromNamedTaskDealExtractor(hub, "Id")
+func newFromTaskDealExtractor(hubState *state) DealExtractor {
+	return newFromNamedTaskDealExtractor(hubState, "Id")
 }
 
-func newFromNamedTaskDealExtractor(hub *Hub, name string) DealExtractor {
+func newFromNamedTaskDealExtractor(hubState *state, name string) DealExtractor {
 	return func(ctx context.Context, request interface{}) (DealID, error) {
 		requestValue := reflect.Indirect(reflect.ValueOf(request))
 		taskID := reflect.Indirect(requestValue.FieldByName(name))
@@ -230,9 +212,9 @@ func newFromNamedTaskDealExtractor(hub *Hub, name string) DealExtractor {
 			return "", errInvalidTaskField
 		}
 
-		taskInfo, err := hub.getTask(taskID.String())
-		if err != nil {
-			return "", err
+		taskInfo, ok := hubState.GetTaskByID(taskID.String())
+		if !ok {
+			return "", status.Errorf(codes.NotFound, "task %s not found", taskID.String())
 		}
 
 		return DealID(taskInfo.GetDealId()), nil
@@ -255,29 +237,29 @@ func newCustomDealExtractor(fn func(ctx context.Context, request interface{}) (D
 type OrderExtractor func(request interface{}) (OrderID, error)
 
 type orderAuthorization struct {
-	shelter   *OrderShelter
+	state     *state
 	extractor OrderExtractor
 }
 
-func newOrderAuthorization(shelter *OrderShelter, extractor OrderExtractor) auth.Authorization {
+func newOrderAuthorization(hubState *state, extractor OrderExtractor) auth.Authorization {
 	return &orderAuthorization{
-		shelter:   shelter,
+		state:     hubState,
 		extractor: extractor,
 	}
 }
 
-func (au *orderAuthorization) Authorize(ctx context.Context, request interface{}) error {
+func (a *orderAuthorization) Authorize(ctx context.Context, request interface{}) error {
 	wallet, err := auth.ExtractWalletFromContext(ctx)
 	if err != nil {
 		return err
 	}
 
-	orderID, err := au.extractor(request)
+	orderID, err := a.extractor(request)
 	if err != nil {
 		return err
 	}
 
-	if err := au.shelter.PollCommit(orderID, *wallet); err != nil {
+	if err := a.state.PollCommitOrder(orderID, *wallet); err != nil {
 		return status.Errorf(codes.Unauthenticated, "%s", err)
 	}
 
