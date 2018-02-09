@@ -1,3 +1,14 @@
+sonm-core (0.3.2) unstable; urgency=low
+
+  * Fixed: listen for SIGTERM to perform correct termination (#460).
+  * Fixed: bash-completion script should properly be installed via Debian package (#462).
+  * Fixed: disable Hub as a gateway by default (#463).
+  * Fixed: enable volumes plugin by default (#464).
+  * Fixed: worker should terminate after starting on machines without GPUs (#465).
+  * Fixed: fixed build on go 1.9.4 (#466).
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 09 Feb 2018 12:40:38 +0300
+
 sonm-core (0.3.1) unstable; urgency=low
 
   * Break: massive protocol breakage.
