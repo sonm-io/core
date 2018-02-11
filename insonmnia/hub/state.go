@@ -145,7 +145,7 @@ func (s *state) load(other *stateJSON) error {
 
 func (s *state) init() error {
 	sJSON := &stateJSON{
-		Acl:              &workerACLStorage{},
+		Acl:              s.acl,
 		Deals:            make(map[DealID]*DealMeta),
 		Tasks:            make(map[string]*TaskInfo),
 		Miners:           make(map[string]*MinerCtx),
