@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -29,7 +30,7 @@ func run() {
 
 	cfg, err := hub.NewConfig(configFlag)
 	if err != nil {
-		log.GetLogger(ctx).Error("failed to load config", zap.Error(err))
+		fmt.Printf("failed to load config: %s\r\n", err)
 		os.Exit(1)
 	}
 
@@ -38,13 +39,13 @@ func run() {
 
 	key, err := cfg.Eth.LoadKey()
 	if err != nil {
-		log.GetLogger(ctx).Error("failed load private key", zap.Error(err))
+		log.G(ctx).Error("failed load private key", zap.Error(err))
 		os.Exit(1)
 	}
 
 	certRotator, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
 	if err != nil {
-		log.GetLogger(ctx).Error("failed to create cert rotator", zap.Error(err))
+		log.G(ctx).Error("failed to create cert rotator", zap.Error(err))
 		os.Exit(1)
 	}
 	creds := util.NewTLS(TLSConfig)
@@ -52,7 +53,7 @@ func run() {
 	h, err := hub.New(ctx, cfg, hub.WithVersion(appVersion), hub.WithContext(ctx),
 		hub.WithPrivateKey(key), hub.WithCreds(creds), hub.WithCertRotator(certRotator))
 	if err != nil {
-		log.GetLogger(ctx).Error("failed to create a new Hub", zap.Error(err))
+		log.G(ctx).Error("failed to create a new Hub", zap.Error(err))
 		os.Exit(1)
 	}
 
@@ -66,6 +67,6 @@ func run() {
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
 
 	if err = h.Serve(); err != nil {
-		log.GetLogger(ctx).Error("Server stop", zap.Error(err))
+		log.G(ctx).Error("Server stop", zap.Error(err))
 	}
 }
