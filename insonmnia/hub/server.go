@@ -770,13 +770,13 @@ func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDeviceProp
 	return &pb.Empty{}, nil
 }
 
-//TODO: It actually should be called AskPlans
+//TODO: It actually should be called AskPlans.
 func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, error) {
 	log.G(h.ctx).Info("handling Slots request")
 	return &pb.SlotsReply{Slots: h.state.DumpSlots()}, nil
 }
 
-//TODO: Actually it is not slot, but AskPlan
+//TODO: Actually it is not slot, but AskPlan.
 func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*pb.ID, error) {
 	log.G(h.ctx).Info("handling InsertSlot request", zap.Any("request", request))
 

@@ -237,6 +237,11 @@ func (s *state) checkAcceptedDealsTS() error {
 // WatchDealsClosed watches ETH for closed deals.
 // Synchronized by `s.mu`.
 func (s *state) checkClosedDealsTS() error {
+	if !s.cluster.IsLeader() {
+		log.S(s.ctx).Info("not a leader, skipping checkClosedDeals()")
+		return nil
+	}
+
 	log.G(s.ctx).Debug("checking closed deals")
 	closedDeals, err := s.eth.GetClosedDeals(s.ctx)
 	if err != nil {
@@ -290,10 +295,15 @@ func (s *state) checkClosedDealsTS() error {
 
 // Synchronized by `s.mu`.
 func (s *state) checkAnnouncesTS() error {
-	log.G(s.ctx).Debug("checking announces")
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if !s.cluster.IsLeader() {
+		log.S(s.ctx).Info("not a leader, skipping checkAnnounces()")
+		return nil
+	}
+
+	log.G(s.ctx).Debug("checking announces")
 	var toUpdate = make([]string, 0)
 	for _, plan := range s.askPlans {
 		has := s.hasResources(plan.Order.GetSlot().GetResources())
@@ -332,10 +342,15 @@ func (s *state) checkAnnouncesTS() error {
 
 // Synchronized by `s.mu`.
 func (s *state) checkOrdersTS() error {
-	log.G(s.ctx).Debug("checking orders")
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if !s.cluster.IsLeader() {
+		log.S(s.ctx).Info("not a leader, skipping checkOrders()")
+		return nil
+	}
+
+	log.G(s.ctx).Debug("checking orders")
 	renewedOrders := make(map[OrderID]ReservedOrder, 0)
 	for orderID, orderInfo := range s.orders {
 		if orderInfo.IsExpired() {
@@ -365,6 +380,11 @@ func (s *state) checkOrdersTS() error {
 func (s *state) closeExpiredDealsTS() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	if !s.cluster.IsLeader() {
+		log.S(s.ctx).Info("not a leader, skipping closeExpiredDeals()")
+		return
+	}
 
 	now := time.Now()
 	for dealID, dealMeta := range s.deals {
@@ -559,7 +579,7 @@ func (s *state) orderExists(orderID OrderID) bool {
 }
 
 // Commit commits the specified reserved order, removing it from the shelter.
-// Note, that this method does not releases resources from the miner's tracker,
+// Note, that this method does not release resources from the miner's tracker,
 // because using it means that the resource's lifetime was prolonged by
 // accepting a deal.
 func (s *state) CommitOrder(orderID OrderID) (ReservedOrder, error) {
@@ -1060,13 +1080,13 @@ func (s *state) hasResources(resources *structs.Resources) bool {
 func (s *state) announcePlan(ctx context.Context, plan *askPlan) {
 	createdOrder, err := s.market.CreateOrder(ctx, plan.Order.Unwrap())
 	if err != nil {
-		log.S(ctx).Warnf("failed to announce ask plan with id{} on market - {}", plan.ID, zap.Error(err))
+		log.S(ctx).Warnf("failed to announce ask plan with id %s on market - %s", plan.ID, zap.Error(err))
 		return
 	}
 
 	wrappedOrder, err := structs.NewOrder(createdOrder)
 	if err != nil {
-		log.S(ctx).Warnf("invalid order received from market - {}", plan.ID, zap.Error(err))
+		log.S(ctx).Warnf("invalid order received from market - %s", plan.ID, zap.Error(err))
 		return
 	}
 
@@ -1076,7 +1096,7 @@ func (s *state) announcePlan(ctx context.Context, plan *askPlan) {
 func (s *state) deannouncePlan(ctx context.Context, plan *askPlan) {
 	_, err := s.market.CancelOrder(ctx, plan.Order.Unwrap())
 	if err != nil {
-		log.S(ctx).Warnf("failed to deannounce order {} (ask plan - {}) on market - {}",
+		log.S(ctx).Warnf("failed to deannounce order %s (ask plan - %s) on market - %s",
 			plan.Order.Id, plan.ID, zap.Error(err))
 	} else {
 		plan.Order.Id = ""
