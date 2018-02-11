@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/signal"
@@ -27,17 +28,18 @@ func main() {
 }
 
 func run() {
-	ctx := context.Background()
-
 	cfg, err := miner.NewConfig(configFlag)
 	if err != nil {
-		log.G(ctx).Error("cannot load config", zap.Error(err))
+		fmt.Printf("cannot load config: %s\r\n", err)
 		os.Exit(1)
 	}
 
+	logger := logging.BuildLogger(cfg.Logging().Level, true)
+	ctx := log.WithLogger(context.Background(), logger)
+
 	key, err := cfg.ETH().LoadKey()
 	if err != nil {
-		log.GetLogger(ctx).Error("failed load private key", zap.Error(err))
+		log.G(ctx).Error("failed load private key", zap.Error(err))
 		os.Exit(1)
 	}
 
@@ -51,12 +53,8 @@ func run() {
 		os.Exit(1)
 	}
 
-	workerID := string(uuidData)
-	logger := logging.BuildLogger(cfg.Logging().Level, true)
-	ctx = log.WithLogger(ctx, logger)
-
 	ctx, cancel := context.WithCancel(ctx)
-	m, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithUUID(workerID))
+	m, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithUUID(string(uuidData)))
 	if err != nil {
 		log.G(ctx).Error("cannot create worker instance", zap.Error(err))
 		os.Exit(1)

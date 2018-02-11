@@ -23,22 +23,20 @@ func main() {
 }
 
 func run() {
-	ctx := context.Background()
+	logger := logging.BuildLogger(-1, true)
+	ctx := log.WithLogger(context.Background(), logger)
 
 	cfg, err := locator.NewConfig(configFlag)
 	if err != nil {
-		log.GetLogger(ctx).Error("failed to load config", zap.Error(err))
+		log.G(ctx).Error("failed to load config", zap.Error(err))
 		os.Exit(1)
 	}
 
 	key, err := cfg.Eth.LoadKey()
 	if err != nil {
-		log.GetLogger(ctx).Error("failed load private key", zap.Error(err))
+		log.G(ctx).Error("failed load private key", zap.Error(err))
 		os.Exit(1)
 	}
-
-	logger := logging.BuildLogger(-1, true)
-	ctx = log.WithLogger(context.Background(), logger)
 
 	lc, err := locator.NewLocator(ctx, cfg, key)
 	if err != nil {
