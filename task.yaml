@@ -1,6 +1,4 @@
 task:
-  # Preferred miners.
-  miners: []
   # docker image settings, required section
   container:
     # Add ability to pull container back

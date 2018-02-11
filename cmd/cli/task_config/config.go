@@ -23,7 +23,6 @@ type TaskConfig interface {
 	GetRegistryName() string
 	GetRegistryAuth() string
 
-	GetMinersPreferred() []string
 	GetCPUCount() uint64
 	GetRAMCount() uint64
 	GetCPUType() string
@@ -127,10 +126,6 @@ func (yc *YamlConfig) GetRegistryAuth() string {
 		return b64.StdEncoding.EncodeToString(jsonAuth)
 	}
 	return ""
-}
-
-func (yc *YamlConfig) GetMinersPreferred() []string {
-	return yc.Task.Miners
 }
 
 func (yc *YamlConfig) GetCPUCount() uint64 {
