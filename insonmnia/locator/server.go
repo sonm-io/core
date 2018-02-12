@@ -54,12 +54,12 @@ func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Em
 		return nil, err
 	}
 
-	clientEndpoints, err := l.filterEndpoints(ethAddr, req.ClientEndpoints)
+	clientEndpoints, err := l.filterEndpoints(ethAddr, req.ClientEndpoints, l.onlyPublicIPs)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid client endpoints")
 	}
 
-	workerEndpoints, err := l.filterEndpoints(ethAddr, req.WorkerEndpoints)
+	workerEndpoints, err := l.filterEndpoints(ethAddr, req.WorkerEndpoints, false)
 	if err != nil {
 		return nil, errors.Wrap(err, "invalid worker endpoints")
 	}
@@ -83,7 +83,7 @@ func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Em
 	return &pb.Empty{}, nil
 }
 
-func (l *Locator) filterEndpoints(ethAddr common.Address, endpoints []string) ([]string, error) {
+func (l *Locator) filterEndpoints(ethAddr common.Address, endpoints []string, onlyPublic bool) ([]string, error) {
 	var okEndpoints, skippedEndpoints []string
 	for _, endpoint := range endpoints {
 		strIP, _, err := net.SplitHostPort(endpoint)
@@ -92,7 +92,7 @@ func (l *Locator) filterEndpoints(ethAddr common.Address, endpoints []string) ([
 			continue
 		}
 
-		if l.onlyPublicIPs {
+		if onlyPublic {
 			if ip := net.ParseIP(strIP); ip != nil && !util.IsPrivateIP(ip) {
 				okEndpoints = append(okEndpoints, endpoint)
 			} else {

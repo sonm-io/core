@@ -218,7 +218,7 @@ func TestLocator_SkipPrivateIP(t *testing.T) {
 	rec, err := lc.get(util.PubKeyToAddr(key.PublicKey))
 	assert.NoError(t, err)
 	assert.Equal(t, rec.ClientEndpoints, []string{"42.42.42.42:10001"})
-	assert.Equal(t, rec.WorkerEndpoints, []string{"42.42.42.42:10002"})
+	assert.Equal(t, rec.WorkerEndpoints, []string{"42.42.42.42:10002", "192.168.0.0:10002"})
 
 	if err := conn.Close(); err != nil {
 		t.Error(err)
