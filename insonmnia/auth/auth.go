@@ -24,9 +24,9 @@ func (e Event) String() string {
 // By default the router allows unregistered events, but this behavior can be
 // changed using `DenyUnregistered` option.
 type AuthRouter struct {
+	mu        sync.RWMutex
 	ctx       context.Context
 	log       *zap.Logger
-	mu        sync.RWMutex
 	prefix    string
 	fallback  Authorization
 	verifiers map[Event]Authorization
