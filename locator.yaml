@@ -11,7 +11,7 @@ ethereum:
   # passphrase for keystore
   pass_phrase: "any"
 
-only_public_ips: false
+only_public_client_ips: false
 
 store:
   # Type of the storage to use.
