@@ -635,14 +635,18 @@ func fetchNameFromPath(key string) string {
 }
 
 func getEndpoints(config *ClusterConfig, workerEndpoint string) (clientEndpoints, workerEndpoints []string, err error) {
-	clientEndpoint := config.AnnounceEndpoint
-	if len(clientEndpoint) == 0 {
-		clientEndpoint = config.Endpoint
+	clientEndpoint := config.Endpoint
+	if len(config.AnnounceEndpoint) > 0 {
+		clientEndpoint = config.AnnounceEndpoint
 	}
 
 	clientEndpoints, err = parseEndpoints(clientEndpoint)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to get client endpointsInfo")
+	}
+
+	if len(config.AnnounceEndpoint) > 0 {
+		workerEndpoint = config.AnnounceEndpoint
 	}
 
 	workerEndpoints, err = parseEndpoints(workerEndpoint)
