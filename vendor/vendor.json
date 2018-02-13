@@ -951,6 +951,18 @@
 			"revisionTime": "2017-08-26T09:06:48Z"
 		},
 		{
+			"checksumSHA1": "YtLKaK8Ht8bGfqs0JIbBKcTRkpg=",
+			"path": "github.com/gxed/GoEndian",
+			"revision": "0f5c6873267e5abf306ffcdfcfa4bf77517ef4a7",
+			"revisionTime": "2016-09-16T11:27:11Z"
+		},
+		{
+			"checksumSHA1": "cBFbr8wzdtrp4Ke6P36B3L7grdc=",
+			"path": "github.com/gxed/eventfd",
+			"revision": "80a92cca79a8041496ccc9dd773fcb52a57ec6f9",
+			"revisionTime": "2016-09-16T11:34:12Z"
+		},
+		{
 			"checksumSHA1": "lCMq+IA+prPLb267kRN/4m7sKDU=",
 			"path": "github.com/hashicorp/consul/api",
 			"revision": "15c0a72f742b0536af66e467536c2e66d80dca29",
@@ -1074,6 +1086,12 @@
 			"revisionTime": "2014-10-17T20:07:13Z"
 		},
 		{
+			"checksumSHA1": "rpALtAOTgJNgIEIJCK6YKdylLAY=",
+			"path": "github.com/ipfs/go-log",
+			"revision": "0e2a17b81af445147a78d94a45d4398c4008c219",
+			"revisionTime": "2018-01-31T20:29:11Z"
+		},
+		{
 			"checksumSHA1": "vTGKMIfiMwz43y5bsgx9PrL+AVw=",
 			"origin": "github.com/ethereum/go-ethereum/vendor/github.com/jackpal/go-nat-pmp",
 			"path": "github.com/jackpal/go-nat-pmp",
@@ -1099,6 +1117,30 @@
 			"revision": "3d32690b54539d13ec8e7884bf3416ada6046354",
 			"revisionTime": "2017-07-28T13:09:39Z",
 			"tree": true
+		},
+		{
+			"checksumSHA1": "werI1dw2MgXO9lW7XDBcpgnT0g8=",
+			"path": "github.com/libp2p/go-reuseport",
+			"revision": "5f99154da15f232dd930262ecfaa44baa20bd2f8",
+			"revisionTime": "2018-02-01T02:53:15Z"
+		},
+		{
+			"checksumSHA1": "Z+KuXi/DgMEzCHO98ADkQmDajNo=",
+			"path": "github.com/libp2p/go-reuseport/poll",
+			"revision": "5f99154da15f232dd930262ecfaa44baa20bd2f8",
+			"revisionTime": "2018-02-01T02:53:15Z"
+		},
+		{
+			"checksumSHA1": "5SWM6S/ksWO2egmaQOv8MAluYnQ=",
+			"path": "github.com/libp2p/go-reuseport/singlepoll",
+			"revision": "5f99154da15f232dd930262ecfaa44baa20bd2f8",
+			"revisionTime": "2018-02-01T02:53:15Z"
+		},
+		{
+			"checksumSHA1": "CkZAHZwZTwxHwqhfS14i1RfxOMk=",
+			"path": "github.com/libp2p/go-sockaddr/net",
+			"revision": "09ae606455f81dc795c406a93b35993fcfc3a912",
+			"revisionTime": "2018-01-28T06:23:01Z"
 		},
 		{
 			"checksumSHA1": "7hln62oZPZmyqEmgXaybf9WxQ7A=",
@@ -1591,6 +1633,12 @@
 			"path": "github.com/urfave/cli",
 			"revision": "168c95418e66e019fe17b8f4f5c45aa62ff80e23",
 			"revisionTime": "2016-08-01T03:09:57Z"
+		},
+		{
+			"checksumSHA1": "BtK7hL0GNjhCUpNR/JD+9QY0ioo=",
+			"path": "github.com/whyrusleeping/go-logging",
+			"revision": "0457bb6b88fc1973573aaf6b5145d8d3ae972390",
+			"revisionTime": "2017-05-15T21:13:32Z"
 		},
 		{
 			"checksumSHA1": "3IdEHJfBkeEE8guKA2tcA8Fv6eg=",
