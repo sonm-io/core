@@ -1,3 +1,9 @@
+sonm-core (0.3.4) unstable; urgency=low
+
+  * Fixed: locator now allows private worker IPs (#478).
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 13 Feb 2018 12:02:12 +0300
+
 sonm-core (0.3.3) unstable; urgency=low
 
   * Fixed: better logging for ask-plan processing (#469).
