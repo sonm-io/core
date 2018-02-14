@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+import "insonmnia.proto";
+import "net.proto";
+
+package sonm;
+
+service Rendezvous {
+    // Resolve resolves the remote peer addresses.
+    rpc Resolve(ConnectRequest) returns (RendezvousReply) {}
+    // Publish allows to publish the caller server's endpoints.
+    //
+    // While published the server can be located using the ID extracted from
+    // the transport credentials.
+    rpc Publish(PublishRequest) returns (RendezvousReply) {}
+    // Info returns server's internal state.
+    rpc Info(Empty) returns (RendezvousState) {}
+}
+
+// ConnectRequest describres a connection request to a remote target, possibly
+// located under the NAT.
+message ConnectRequest {
+    // ID describes an unique ID of a target. Mainly it's an ETH address.
+    string ID = 1;
+    // Protocol describes network protocol the peer wants to resolve.
+    string protocol = 2;
+    // PrivateAddrs describes source private addresses.
+    repeated Addr privateAddrs = 3;
+}
+
+message PublishRequest {
+    // Protocol describes network protocol the peer wants to publish.
+    string protocol = 1;
+    // PrivateAddrs describes source private addresses.
+    repeated Addr privateAddrs = 2;
+}
+
+// RendezvousReply describes a rendezvous point reply.
+message RendezvousReply {
+    // PublicAddr is a public network address of a target.
+    Addr publicAddr = 1;
+    // PrivateAddrs describes private network addresses of a target.
+    //
+    // These addresses should be used to perform an initial connection
+    // attempt for cases where both peers are located under the same NAT.
+    repeated Addr privateAddrs = 2;
+}
+
+// RendezvousState is a response returned from Info handle.
+message RendezvousState {
+    map<string, RendezvousMeeting> state = 1;
+}
+
+// RendezvousMeeting represents rendezvous point.
+message RendezvousMeeting {
+    map<string, RendezvousReply> clients = 1;
+    map<string, RendezvousReply> servers = 2;
+}

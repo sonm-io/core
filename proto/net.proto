@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package sonm;
+
+message Addr {
+    string protocol = 1;
+    SocketAddr addr = 2;
+}
+
+message SocketAddr {
+    // Addr describes an IP address.
+    string addr = 1;
+    // Port describes a port number.
+    // Actually an `uint16` here. Protobuf is so clear and handy.
+    uint32 port = 2;
+}

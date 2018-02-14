@@ -5,6 +5,8 @@ package xgrpc
 
 import (
 	"fmt"
+	"net"
+	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
 	"github.com/grpc-ecosystem/go-grpc-middleware/logging/zap"
@@ -173,4 +175,12 @@ func AuthorizationInterceptor(router *auth.AuthRouter) ServerOption {
 		// TODO: Stream interceptors.
 		// o.interceptors.s = append(o.interceptors.s, authStreamInterceptor(router))
 	}
+}
+
+// WithConn is a client option that specifies a predefined connection used for
+// a service.
+func WithConn(conn net.Conn) grpc.DialOption {
+	return grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
+		return conn, nil
+	})
 }

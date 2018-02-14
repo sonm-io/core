@@ -1262,6 +1262,7 @@ const (
 	SO_RCVLOWAT                      = 0x12
 	SO_RCVTIMEO                      = 0x14
 	SO_REUSEADDR                     = 0x2
+	SO_REUSEPORT                     = 0xf
 	SO_RXQ_OVFL                      = 0x28
 	SO_SECURITY_AUTHENTICATION       = 0x16
 	SO_SECURITY_ENCRYPTION_NETWORK   = 0x18

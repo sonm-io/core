@@ -16,7 +16,9 @@ It is generated from these files:
 	marketplace.proto
 	miner.proto
 	nat.proto
+	net.proto
 	node.proto
+	rendezvous.proto
 	timestamp.proto
 	volume.proto
 
@@ -82,16 +84,22 @@ It has these top-level messages:
 	MinerHandshakeRequest
 	MinerHandshakeReply
 	MinerStartRequest
-	SocketAddr
 	MinerStartReply
 	TaskInfo
 	Endpoints
 	MinerStatusMapRequest
 	SaveRequest
+	Addr
+	SocketAddr
 	TaskListRequest
 	DealListRequest
 	DealListReply
 	DealStatusReply
+	ConnectRequest
+	PublishRequest
+	RendezvousReply
+	RendezvousState
+	RendezvousMeeting
 	Timestamp
 	Volume
 */

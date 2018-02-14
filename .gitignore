@@ -3,6 +3,7 @@
 *.a
 *.so
 *.uuid
+target/
 
 # Folders
 _obj
@@ -36,6 +37,7 @@ sonmmarketplace
 sonmlocator
 sonmnode
 autocli
+sonmrendezvous
 .idea/
 
 
