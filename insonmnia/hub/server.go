@@ -20,6 +20,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/math"
+	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
@@ -81,7 +82,9 @@ type Hub struct {
 	portPool         *gateway.PortPool
 	grpcEndpointAddr string
 	externalGrpc     *grpc.Server
-	minerListener    net.Listener
+
+	grpcListener  net.Listener
+	minerListener net.Listener
 
 	ethKey  *ecdsa.PrivateKey
 	ethAddr common.Address
@@ -1053,27 +1056,31 @@ func (h *Hub) onNewHub(endpoint string) {
 func (h *Hub) Serve() error {
 	h.startTime = time.Now()
 
-	listener, err := net.Listen("tcp", h.cfg.Endpoint)
+	rendezvousEndpoints, err := h.cfg.NPP.Rendezvous.ConvertEndpoints()
 	if err != nil {
-		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Endpoint), zap.Error(err))
 		return err
 	}
-	log.G(h.ctx).Info("listening for connections from Miners", zap.Stringer("address", listener.Addr()))
 
-	grpcL, err := net.Listen("tcp", h.cfg.Cluster.Endpoint)
+	grpcL, err := npp.NewListener(h.ctx, h.cfg.Cluster.Endpoint, npp.WithRendezvous(rendezvousEndpoints, h.creds), npp.WithLogger(log.G(h.ctx)))
 	if err != nil {
-		log.G(h.ctx).Error("failed to listen",
-			zap.String("address", h.cfg.Cluster.Endpoint), zap.Error(err))
-		listener.Close()
+		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Cluster.Endpoint), zap.Error(err))
 		return err
 	}
 	log.G(h.ctx).Info("listening for gRPC API connections", zap.Stringer("address", grpcL.Addr()))
-	// TODO: fix this possible race: Close before Serve
+	h.grpcListener = grpcL
+
+	listener, err := net.Listen("tcp", h.cfg.Endpoint)
+	if err != nil {
+		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Endpoint), zap.Error(err))
+		grpcL.Close()
+		return err
+	}
+
+	log.G(h.ctx).Info("listening for connections from Miners", zap.Stringer("address", listener.Addr()))
+
 	h.minerListener = listener
 
-	h.waiter.Go(func() error {
-		return h.externalGrpc.Serve(grpcL)
-	})
+	h.waiter.Go(h.listenAPI)
 
 	h.waiter.Go(func() error {
 		for {
@@ -1096,6 +1103,27 @@ func (h *Hub) Serve() error {
 	h.waiter.Wait()
 
 	return nil
+}
+
+func (h *Hub) listenAPI() error {
+	for {
+		select {
+		case <-h.ctx.Done():
+			return h.ctx.Err()
+		default:
+		}
+
+		if err := h.externalGrpc.Serve(h.grpcListener); err != nil {
+			if _, ok := err.(npp.TransportError); ok {
+				timer := time.NewTimer(1 * time.Second)
+				select {
+				case <-h.ctx.Done():
+				case <-timer.C:
+				}
+				timer.Stop()
+			}
+		}
+	}
 }
 
 func (h *Hub) runCluster() error {

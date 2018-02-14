@@ -4,6 +4,7 @@ import "capabilities.proto";
 import "container.proto";
 import "insonmnia.proto";
 import "nat.proto";
+import "net.proto";
 
 package sonm;
 
@@ -44,13 +45,6 @@ message MinerStartRequest{
     // OrderId describes an unique order identifier.
     // It is here for proper resource allocation and limitation.
     string orderId = 5;
-}
-
-message SocketAddr {
-    string addr = 1;
-    //
-    // Actually an `uint16` here. Protobuf is so clear and handy.
-    uint32 port = 2;
 }
 
 message MinerStartReply {

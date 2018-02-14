@@ -7,6 +7,7 @@ import (
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/insonmnia/npp"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -68,6 +69,7 @@ type Config struct {
 	Cluster           ClusterConfig      `yaml:"cluster"`
 	Whitelist         WhitelistConfig    `yaml:"whitelist"`
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14000"`
+	NPP               npp.Config
 }
 
 func (c *Config) LogLevel() zapcore.Level {

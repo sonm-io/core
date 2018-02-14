@@ -62,11 +62,8 @@ plugins:
   volume:
     root: /var/lib/docker-volumes
     volumes:
-      cifs: {}
+#      cifs: {}
 
   network:
     tinc:
       enabled: true
-#  gpus:
-#    nvidia: {}
-#    radeon: {}

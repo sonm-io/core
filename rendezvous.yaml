@@ -1,0 +1,12 @@
+endpoint: "[::]:14099"
+
+logging:
+  # The desired logging level.
+  # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
+  level: debug
+
+ethereum:
+  # Path to keystore.
+  key_store: "./keys"
+  # Passphrase for keystore
+  pass_phrase: "any"
