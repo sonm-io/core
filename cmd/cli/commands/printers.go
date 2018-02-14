@@ -3,9 +3,9 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
-	"time"
-
+	"math/big"
 	"sort"
+	"time"
 
 	ds "github.com/c2h5oh/datasize"
 	"github.com/docker/go-connections/nat"
@@ -237,11 +237,11 @@ func printWorkerAclList(cmd *cobra.Command, list *pb.GetRegisteredWorkersReply) 
 func printTransactionInfo(cmd *cobra.Command, tx *types.Transaction) {
 	if isSimpleFormat() {
 		cmd.Printf("Hash:      %s\r\n", tx.Hash().String())
-		cmd.Printf("Value:     %d\r\n", tx.Value().Uint64())
+		cmd.Printf("Value:     %s\r\n", tx.Value().String())
 		cmd.Printf("To:        %s\r\n", tx.To().String())
-		cmd.Printf("Cost:      %d\r\n", tx.Cost().Uint64())
-		cmd.Printf("Gas:       %d\r\n", tx.Gas().Uint64())
-		cmd.Printf("Gas price: %d\r\n", tx.GasPrice().Uint64())
+		cmd.Printf("Cost:      %s\r\n", tx.Cost().String())
+		cmd.Printf("Gas:       %s\r\n", tx.Gas().String())
+		cmd.Printf("Gas price: %s\r\n", tx.GasPrice().String())
 	} else {
 		showJSON(cmd, convertTransactionInfo(tx))
 	}
@@ -250,11 +250,11 @@ func printTransactionInfo(cmd *cobra.Command, tx *types.Transaction) {
 func convertTransactionInfo(tx *types.Transaction) map[string]interface{} {
 	return map[string]interface{}{
 		"hash":      tx.Hash().String(),
-		"value":     tx.Value().Uint64(),
+		"value":     tx.Value().String(),
 		"to":        tx.To().String(),
-		"cost":      tx.Cost().Uint64(),
-		"gas":       tx.Gas().Uint64(),
-		"gas_price": tx.GasPrice().Uint64(),
+		"cost":      tx.Cost().String(),
+		"gas":       tx.Gas().String(),
+		"gas_price": tx.GasPrice().String(),
 	}
 }
 
@@ -267,7 +267,7 @@ func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
 
 		for i, order := range orders {
 			cmd.Printf("%d) %s %s | price = %s\r\n", i+1,
-				order.OrderType.String(), order.GetId(), order.GetPricePerSecond().Unwrap().String())
+				order.OrderType.String(), order.GetId(), order.GetPricePerSecond().ToPriceString())
 		}
 	} else {
 		showJSON(cmd, map[string]interface{}{"orders": orders})
@@ -278,7 +278,7 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 	if isSimpleFormat() {
 		cmd.Printf("ID:             %s\r\n", order.Id)
 		cmd.Printf("Type:           %s\r\n", order.OrderType.String())
-		cmd.Printf("Price:          %s\r\n", order.PricePerSecond.Unwrap().String())
+		cmd.Printf("Price:          %s\r\n", order.PricePerSecond.ToPriceString())
 
 		cmd.Printf("SupplierID:     %s\r\n", order.SupplierID)
 		cmd.Printf("BuyerID:        %s\r\n", order.ByuerID)
@@ -395,9 +395,15 @@ func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 		start := time.Unix(deal.GetStartTime().GetSeconds(), int64(deal.GetStartTime().GetNanos()))
 		end := time.Unix(deal.GetEndTime().GetSeconds(), int64(deal.GetEndTime().GetNanos()))
 
+		dealDuration := end.Sub(start)
+		durationBig := big.NewInt(int64(dealDuration.Seconds()))
+		pps := big.NewInt(0).Div(deal.GetPrice().Unwrap(), durationBig)
+		ppsBig := pb.NewBigInt(pps)
+
 		cmd.Printf("ID:       %s\r\n", deal.GetId())
-		cmd.Printf("Price:    %s\r\n", deal.GetPrice().Unwrap().String())
 		cmd.Printf("Status:   %s\r\n", deal.GetStatus())
+		cmd.Printf("Duraton:  %s\r\n", dealDuration.String())
+		cmd.Printf("Price:    %s (%s SNM/sec)\r\n", deal.GetPrice().ToPriceString(), ppsBig.ToPriceString())
 		cmd.Printf("Buyer:    %s\r\n", deal.GetBuyerID())
 		cmd.Printf("Supplier: %s\r\n", deal.GetSupplierID())
 		cmd.Printf("Start at: %s\r\n", start.Format(time.RFC3339))
