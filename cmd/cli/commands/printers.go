@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
+	"strings"
 	"time"
 
 	ds "github.com/c2h5oh/datasize"
@@ -166,11 +167,18 @@ func printWorkerStatus(cmd *cobra.Command, workerID string, metrics *pb.InfoRepl
 }
 
 func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
+	announceMsg := "OK"
+	if stat.GetAnnounceError() != "" {
+		announceMsg = fmt.Sprintf("error: %s", stat.GetAnnounceError())
+	}
+
 	if isSimpleFormat() {
-		cmd.Printf("Connected workers: %d\r\n", stat.MinerCount)
-		cmd.Printf("Uptime:            %s\r\n", (time.Second * time.Duration(stat.Uptime)).String())
-		cmd.Printf("Version:           %s %s\r\n", stat.Version, stat.Platform)
-		cmd.Printf("Eth address:       %s\r\n", stat.EthAddr)
+		cmd.Printf("Connected workers:  %d\r\n", stat.MinerCount)
+		cmd.Printf("Uptime:             %s\r\n", (time.Second * time.Duration(stat.GetUptime())).String())
+		cmd.Printf("Client endpoint:    %s (announce %s)\r\n", stat.GetClientEndpoint(), announceMsg)
+		cmd.Printf("Worker endpoint(s): %v \r\n", strings.Join(stat.GetWorkerEndpoints(), ", "))
+		cmd.Printf("Version:            %s %s\r\n", stat.GetVersion(), stat.GetPlatform())
+		cmd.Printf("Eth address:        %s\r\n", stat.GetEthAddr())
 	} else {
 		showJSON(cmd, stat)
 	}

@@ -85,10 +85,7 @@ type Hub struct {
 	ethKey  *ecdsa.PrivateKey
 	ethAddr common.Address
 
-	// locatorEndpoint string
-	locatorPeriod time.Duration
-	locatorClient pb.LocatorClient
-
+	announcer     Announcer
 	cluster       Cluster
 	clusterEvents <-chan ClusterEvent
 
@@ -123,15 +120,24 @@ func (h *Hub) Ping(ctx context.Context, _ *pb.Empty) (*pb.PingReply, error) {
 
 // Status returns internal hub statistic
 func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, error) {
+	clients, workers, err := collectEndpoints(h.cluster)
+	if err != nil {
+		log.G(h.ctx).Warn("cannot collect cluster endpoints", zap.Error(err))
+		return nil, err
+	}
+
 	var (
 		minersCount = h.state.MinersCount()
 		uptime      = uint64(time.Now().Sub(h.startTime).Seconds())
 		reply       = &pb.HubStatusReply{
-			MinerCount: uint64(minersCount),
-			Uptime:     uptime,
-			Platform:   util.GetPlatformName(),
-			Version:    h.version,
-			EthAddr:    util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
+			MinerCount:      uint64(minersCount),
+			Uptime:          uptime,
+			Platform:        util.GetPlatformName(),
+			Version:         h.version,
+			EthAddr:         util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
+			ClientEndpoint:  clients[0],
+			WorkerEndpoints: workers,
+			AnnounceError:   h.announcer.ErrorMsg(),
 		}
 	)
 
@@ -927,6 +933,14 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		defaults.locator = pb.NewLocatorClient(conn)
 	}
 
+	if defaults.announcer == nil {
+		defaults.announcer = newLocatorAnnouncer(
+			defaults.ethKey,
+			defaults.locator,
+			cfg.Locator.UpdatePeriod,
+			defaults.cluster)
+	}
+
 	if defaults.market == nil {
 		conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, defaults.creds, cfg.Market.Endpoint)
 		if err != nil {
@@ -971,15 +985,13 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		ethAddr: defaults.ethAddr,
 		version: defaults.version,
 
-		locatorPeriod: cfg.Locator.UpdatePeriod,
-		locatorClient: defaults.locator,
-
 		eth:    ethWrapper,
 		market: defaults.market,
 
 		certRotator: defaults.rot,
 		creds:       defaults.creds,
 
+		announcer:     defaults.announcer,
 		cluster:       defaults.cluster,
 		clusterEvents: defaults.clusterEvents,
 
@@ -1073,7 +1085,10 @@ func (h *Hub) Serve() error {
 
 	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.listenClusterEvents)
-	h.waiter.Go(h.startLocatorAnnouncer)
+	h.waiter.Go(func() error {
+		h.announcer.Start(h.ctx)
+		return nil
+	})
 
 	h.waiter.Wait()
 
@@ -1111,9 +1126,9 @@ func (h *Hub) processClusterEvent(value interface{}) {
 	log.G(h.ctx).Info("received cluster event", zap.Any("event", value))
 	switch value := value.(type) {
 	case NewMemberEvent:
-		h.announceAddress()
+		h.announcer.Once(h.ctx)
 	case LeadershipEvent:
-		h.announceAddress()
+		h.announcer.Once(h.ctx)
 	default:
 		if h.cluster.IsLeader() {
 			return
@@ -1179,57 +1194,19 @@ func (h *Hub) GetMinerByID(minerID string) *MinerCtx {
 	}
 }
 
-func (h *Hub) startLocatorAnnouncer() error {
-	tk := time.NewTicker(h.locatorPeriod)
-	defer tk.Stop()
+func collectEndpoints(cluster Cluster) ([]string, []string, error) {
+	var clients []string
+	var workers []string
 
-	if err := h.announceAddress(); err != nil {
-		log.G(h.ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
-	}
-
-	for {
-		select {
-		case <-tk.C:
-			if err := h.announceAddress(); err != nil {
-				log.G(h.ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
-			}
-		case <-h.ctx.Done():
-			return nil
-		}
-	}
-}
-
-func (h *Hub) announceAddress() error {
-	if !h.cluster.IsLeader() {
-		return nil
-	}
-
-	members, err := h.cluster.Members()
+	members, err := cluster.Members()
 	if err != nil {
-		return err
+		return clients, workers, err
 	}
 
-	log.G(h.ctx).Info("got cluster members for locator announcement", zap.Any("members", members))
-
-	var (
-		clientEndpoints []string
-		workerEndpoints []string
-	)
 	for _, member := range members {
-		clientEndpoints = append(clientEndpoints, member.Client...)
-		workerEndpoints = append(workerEndpoints, member.Worker...)
-	}
-	req := &pb.AnnounceRequest{
-		ClientEndpoints: clientEndpoints,
-		WorkerEndpoints: workerEndpoints,
+		clients = append(clients, member.Client...)
+		workers = append(workers, member.Worker...)
 	}
 
-	log.G(h.ctx).Info("announcing Hub addresses",
-		zap.Stringer("eth", h.ethAddr),
-		zap.Strings("client_endpoints", clientEndpoints),
-		zap.Strings("worker_endpoints", workerEndpoints))
-
-	_, err = h.locatorClient.Announce(h.ctx, req)
-
-	return err
+	return clients, workers, nil
 }
