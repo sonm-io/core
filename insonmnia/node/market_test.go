@@ -664,6 +664,50 @@ func TestCancelOrderHandler(t *testing.T) {
 	assert.Equal(t, api.countHandlers(), 0)
 }
 
+func TestDealCreatedOnFirstTryAndOrderIsCancelled(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+	opts := getTestRemotes(ctx, ctrl)
+
+	marketClient := pb.NewMockMarketClient(ctrl)
+	ord := makeOrder()
+	ord.ByuerID = addr.Hex()
+	ord.Id = "my-order-id"
+
+	marketClient.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(ord, nil)
+	marketClient.EXPECT().GetOrders(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(&pb.GetOrdersReply{Orders: []*pb.Order{ord}}, nil)
+	// wait for at least one call for Cancel()
+	marketClient.EXPECT().CancelOrder(gomock.Any(), gomock.Any()).MinTimes(1).
+		Return(&pb.Empty{}, nil)
+
+	opts.market = marketClient
+
+	server, err := newMarketAPI(opts)
+	require.NoError(t, err)
+
+	inner := server.(*marketAPI)
+	created, err := inner.CreateOrder(ctx, makeOrder())
+
+	require.NoError(t, err)
+	assert.NotNil(t, created)
+	assert.NotEmpty(t, created.Id)
+
+	// wait for async handler is finished
+	time.Sleep(1 * time.Second)
+	assert.True(t, inner.countHandlers() == 1, "Handler must not be removed")
+
+	handlr, ok := inner.getHandler(created.Id)
+	require.True(t, ok)
+
+	assert.Equal(t, statusDone, handlr.getStatus(),
+		fmt.Sprintf("Wait for status %s, but has %s", statusDone.String(), handlr.getStatus().String()))
+	assert.Equal(t, "1", handlr.dealID)
+}
+
 type mockConn struct{}
 
 func (c *mockConn) Close() error { return nil }
