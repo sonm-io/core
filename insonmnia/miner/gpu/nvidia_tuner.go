@@ -90,7 +90,10 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 					"nvidia-smi", // System management interface
 				},
 				"libraries": {
-					"libnvidia-ml.so", // Management library
+					"libnvidia-ml.so",              // Management library
+					"libcuda.so",                   // CUDA driver library
+					"libnvidia-ptxjitcompiler.so",  // PTX-SASS JIT compiler (used by libcuda)
+					"libnvidia-fatbinaryloader.so", // fatbin loader (used by libcuda)
 				},
 			},
 		},
