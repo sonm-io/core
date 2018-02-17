@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+
+	"github.com/ethereum/go-ethereum/params"
 )
 
 // NewBigInt constructs a new value using specified big.Int.
@@ -66,4 +68,12 @@ func (m *BigInt) UnmarshalJSON(data []byte) error {
 	m.Neg = v.Neg
 
 	return nil
+}
+
+func (m *BigInt) ToPriceString() string {
+	v := big.NewFloat(0).SetInt(m.Unwrap())
+	div := big.NewFloat(params.Ether)
+
+	r := big.NewFloat(0).Quo(v, div)
+	return r.Text('f', -18)
 }
