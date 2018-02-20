@@ -10,6 +10,10 @@ import (
 
 // NewBigInt constructs a new value using specified big.Int.
 func NewBigInt(v *big.Int) *BigInt {
+	if v == nil {
+		v = big.NewInt(0)
+	}
+
 	return &BigInt{
 		Neg: v.Sign() < 0,
 		Abs: v.Bytes(),

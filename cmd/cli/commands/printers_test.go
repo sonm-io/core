@@ -58,3 +58,21 @@ func TestJsonOutputForOrder(t *testing.T) {
 	assert.Equal(t, "{\"orders\":[{\"pricePerSecond\":\"1000000000000000000000000000\"}]}\r\n", out,
 		"price must be serialized as string, not `abs` and `neg` parts of pb.BigInt")
 }
+
+func TestDealInfoWithZeroDuration(t *testing.T) {
+	deal := &pb.Deal{
+		WorkTime:   606060,
+		Status:     pb.DealStatus_CLOSED,
+		Id:         "1488",
+		BuyerID:    "0x111",
+		SupplierID: "0x222",
+		Price:      pb.NewBigIntFromInt(1e18),
+		StartTime:  &pb.Timestamp{Seconds: 0},
+		EndTime:    &pb.Timestamp{Seconds: 0},
+	}
+
+	buf := initRootCmd(t, "", config.OutputModeSimple)
+	printDealInfo(rootCmd, deal)
+
+	assert.Contains(t, buf.String(), "Duraton:  0s")
+}
