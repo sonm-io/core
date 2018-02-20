@@ -28,18 +28,29 @@ func TestTaskFull(t *testing.T) {
 	createTestConfigFile(`task:
   container:
     name: user/image:v1
-    command: /myapp -param=1
     ssh_key: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD
+
+    volumes:
+      mysmb:
+        type: cifs
+        options:
+          share: samba-host.ru/share
+          username: username
+          password: password
+          security: ntlm
+          vers: 3.0
+      otherType:
+        type: ipfs
+
+    mounts:
+      - mysmb:/mnt:rw
+      - mysmb:/opt:rw
+      - otherType:/home/data:ro
+
   registry:
     name: registry.user.dev
     user: name
     password: secret
-  resources:
-    CPU: 1
-    CPU_type: i5
-    GPU: true
-    GPU_type: nv1080it
-    RAM: 10240kb
 `)
 	defer deleteTestConfigFile()
 
@@ -48,18 +59,29 @@ func TestTaskFull(t *testing.T) {
 
 	// check container description
 	assert.Equal(t, "user/image:v1", cfg.GetImageName())
-	assert.Equal(t, "/myapp -param=1", cfg.GetEntrypoint())
 	assert.Equal(t, "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD", cfg.GetSSHKey())
+
+	// volumes
+	assert.Contains(t, cfg.Volumes(), "mysmb")
+	assert.Contains(t, cfg.Volumes(), "otherType")
+
+	vols := cfg.Volumes()
+	assert.Equal(t, "cifs", vols["mysmb"].Type)
+	assert.Equal(t, "samba-host.ru/share", vols["mysmb"].Options["share"])
+	assert.Equal(t, "username", vols["mysmb"].Options["username"])
+	assert.Equal(t, "password", vols["mysmb"].Options["password"])
+	assert.Equal(t, "ntlm", vols["mysmb"].Options["security"])
+	assert.Equal(t, "3.0", vols["mysmb"].Options["vers"])
+
+	assert.Equal(t, "ipfs", vols["otherType"].Type)
+
+	// mounts
+	assert.Contains(t, cfg.Mounts()[0], "mysmb:/mnt:rw")
+	assert.Contains(t, cfg.Mounts()[1], "mysmb:/opt:rw")
+	assert.Contains(t, cfg.Mounts()[2], "otherType:/home/data:ro")
 
 	// check registry description
 	assert.Equal(t, "registry.user.dev", cfg.GetRegistryName())
-
-	// check resources description
-	assert.Equal(t, uint64(1), cfg.GetCPUCount())
-	assert.Equal(t, "i5", cfg.GetCPUType())
-	assert.Equal(t, true, cfg.GetGPURequirement())
-	assert.Equal(t, "nv1080it", cfg.GetGPUType())
-	assert.Equal(t, uint64(10485760), cfg.GetRAMCount())
 }
 
 func TestTaskNoRegistry(t *testing.T) {
@@ -89,8 +111,6 @@ func TestTaskMinimal(t *testing.T) {
 	createTestConfigFile(`task:
   container:
     name: user/image:v1
-  resources:
-    RAM: 100MB
 `)
 	defer deleteTestConfigFile()
 
@@ -98,66 +118,23 @@ func TestTaskMinimal(t *testing.T) {
 	assert.NoError(t, err)
 	// check explicitly set fileds
 	assert.Equal(t, "user/image:v1", cfg.GetImageName())
-	assert.Equal(t, uint64(104857600), cfg.GetRAMCount())
 
 	// check if non-required fields are empty
-	assert.Equal(t, "", cfg.GetEntrypoint())
 	assert.Equal(t, "", cfg.GetSSHKey())
 	assert.Equal(t, "", cfg.GetRegistryName())
 	assert.Equal(t, "", cfg.GetRegistryAuth())
-
-	// check if defaults are defaults
-	assert.Equal(t, uint64(1), cfg.GetCPUCount())
-	assert.Equal(t, "any", cfg.GetCPUType())
-	assert.Equal(t, false, cfg.GetGPURequirement())
-	assert.Equal(t, "any", cfg.GetGPUType())
 }
 
 func TestTaskNameRequired(t *testing.T) {
 	createTestConfigFile(`task:
   container:
     name:
-  resources:
-    CPU: 2
-    RAM: 100MB
 `)
 	defer deleteTestConfigFile()
 	cfg, err := LoadConfig(testCfgPath)
 	assert.Nil(t, cfg)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "required")
-}
-
-func TestTaskRAMRequired(t *testing.T) {
-	createTestConfigFile(`task:
-  container:
-    name: user/image:v1
-  resources:
-    CPU: 1
-`)
-	defer deleteTestConfigFile()
-	cfg, err := LoadConfig(testCfgPath)
-	assert.Nil(t, cfg)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "RAM")
-	assert.Contains(t, err.Error(), "required")
-}
-
-func TestTaskInvaludRAMValue(t *testing.T) {
-	createTestConfigFile(`task:
-  container:
-    name: user/image:v1
-  resources:
-    CPU: 1
-    RAM: 1488kHz
-`)
-	defer deleteTestConfigFile()
-
-	cfg, err := LoadConfig(testCfgPath)
-	assert.Nil(t, cfg)
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot parse")
-	assert.Contains(t, err.Error(), "invalid syntax")
 }
 
 func TestTaskRegistryAuth(t *testing.T) {
@@ -168,9 +145,6 @@ func TestTaskRegistryAuth(t *testing.T) {
     name: registry.user.dev
     user: name
     password: secret
-  resources:
-    CPU: 1
-    RAM: 10MB
 `)
 	defer deleteTestConfigFile()
 
@@ -206,8 +180,6 @@ func TestTaskConfigReadError(t *testing.T) {
 	body := `task:
   container:
     name: user/image:v1
-  resources:
-    RAM: 100MB
 `
 	defer deleteTestConfigFile()
 
@@ -228,8 +200,6 @@ func TestTaskConfigEnv(t *testing.T) {
     env:
       key1: value1
       key2: value2
-  resources:
-    RAM: 100MB
 `)
 	defer deleteTestConfigFile()
 
