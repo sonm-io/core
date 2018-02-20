@@ -392,13 +392,16 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 
 func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 	if isSimpleFormat() {
-		start := time.Unix(deal.GetStartTime().GetSeconds(), int64(deal.GetStartTime().GetNanos()))
-		end := time.Unix(deal.GetEndTime().GetSeconds(), int64(deal.GetEndTime().GetNanos()))
+		start := deal.StartTime.Unix()
+		end := deal.EndTime.Unix()
 
+		ppsBig := pb.NewBigInt(nil)
 		dealDuration := end.Sub(start)
-		durationBig := big.NewInt(int64(dealDuration.Seconds()))
-		pps := big.NewInt(0).Div(deal.GetPrice().Unwrap(), durationBig)
-		ppsBig := pb.NewBigInt(pps)
+		if dealDuration > 0 {
+			durationBig := big.NewInt(int64(dealDuration.Seconds()))
+			pps := big.NewInt(0).Div(deal.GetPrice().Unwrap(), durationBig)
+			ppsBig = pb.NewBigInt(pps)
+		}
 
 		cmd.Printf("ID:       %s\r\n", deal.GetId())
 		cmd.Printf("Status:   %s\r\n", deal.GetStatus())
