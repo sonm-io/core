@@ -107,7 +107,7 @@ message HubStatusReply {
     string platform = 4;
     string ethAddr = 5;
 
-    string clientEndpoint = 6;
+    repeated string clientEndpoint = 6;
     repeated string workerEndpoints = 7;
     string announceError = 8;
 }

@@ -175,7 +175,8 @@ func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
 	if isSimpleFormat() {
 		cmd.Printf("Connected workers:  %d\r\n", stat.MinerCount)
 		cmd.Printf("Uptime:             %s\r\n", (time.Second * time.Duration(stat.GetUptime())).String())
-		cmd.Printf("Client endpoint:    %s (announce %s)\r\n", stat.GetClientEndpoint(), announceMsg)
+		cmd.Printf("Client endpoint:    %s (announce %s)\r\n",
+			strings.Join(stat.GetClientEndpoint(), ", "), announceMsg)
 		cmd.Printf("Worker endpoint(s): %v \r\n", strings.Join(stat.GetWorkerEndpoints(), ", "))
 		cmd.Printf("Version:            %s %s\r\n", stat.GetVersion(), stat.GetPlatform())
 		cmd.Printf("Eth address:        %s\r\n", stat.GetEthAddr())

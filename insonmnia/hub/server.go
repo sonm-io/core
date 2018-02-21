@@ -135,7 +135,7 @@ func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, erro
 			Platform:        util.GetPlatformName(),
 			Version:         h.version,
 			EthAddr:         util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
-			ClientEndpoint:  clients[0],
+			ClientEndpoint:  clients,
 			WorkerEndpoints: workers,
 			AnnounceError:   h.announcer.ErrorMsg(),
 		}
@@ -933,14 +933,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		defaults.locator = pb.NewLocatorClient(conn)
 	}
 
-	if defaults.announcer == nil {
-		defaults.announcer = newLocatorAnnouncer(
-			defaults.ethKey,
-			defaults.locator,
-			cfg.Locator.UpdatePeriod,
-			defaults.cluster)
-	}
-
 	if defaults.market == nil {
 		conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, defaults.creds, cfg.Market.Endpoint)
 		if err != nil {
@@ -955,6 +947,14 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if defaults.announcer == nil {
+		defaults.announcer = newLocatorAnnouncer(
+			defaults.ethKey,
+			defaults.locator,
+			cfg.Locator.UpdatePeriod,
+			defaults.cluster)
 	}
 
 	acl := newWorkerACLStorage()
