@@ -1085,10 +1085,7 @@ func (h *Hub) Serve() error {
 
 	h.waiter.Go(h.runCluster)
 	h.waiter.Go(h.listenClusterEvents)
-	h.waiter.Go(func() error {
-		h.announcer.Start(h.ctx)
-		return nil
-	})
+	h.waiter.Go(h.startLocatorAnnouncer)
 
 	h.waiter.Wait()
 
@@ -1194,15 +1191,19 @@ func (h *Hub) GetMinerByID(minerID string) *MinerCtx {
 	}
 }
 
-func collectEndpoints(cluster Cluster) ([]string, []string, error) {
-	var clients []string
-	var workers []string
+func (h *Hub) startLocatorAnnouncer() error {
+	h.announcer.Start(h.ctx)
+	return nil
+}
 
+func collectEndpoints(cluster Cluster) ([]string, []string, error) {
 	members, err := cluster.Members()
 	if err != nil {
-		return clients, workers, err
+		return nil, nil, err
 	}
 
+	var clients []string
+	var workers []string
 	for _, member := range members {
 		clients = append(clients, member.Client...)
 		workers = append(workers, member.Worker...)

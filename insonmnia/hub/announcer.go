@@ -41,12 +41,8 @@ func newLocatorAnnouncer(key *ecdsa.PrivateKey, lc pb.LocatorClient, td time.Dur
 }
 
 func (la *locatorAnnouncer) Start(ctx context.Context) {
-	tk := time.NewTicker(la.period)
+	tk := util.NewImmediateTicker(la.period)
 	defer tk.Stop()
-
-	if err := la.once(ctx); err != nil {
-		log.G(ctx).Warn("cannot announce addresses to Locator", zap.Error(err))
-	}
 
 	for {
 		select {
