@@ -329,7 +329,13 @@ func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
 	// process order (search -> propose -> deal)
 	err = m.orderLoop(handler)
 	if err == nil {
-		log.G(handler.ctx).Info("order loop complete at n=1 iteration, exiting")
+		log.G(handler.ctx).Debug("order loop complete at n=1 iteration, exiting")
+		if _, err := m.remotes.market.CancelOrder(m.ctx, ord); err != nil {
+			log.G(handler.ctx).Warn("cannot cancel order",
+				zap.String("order_id", handler.id),
+				zap.Error(err))
+		}
+
 		return
 	} else {
 		if err != errNoAskFound {
@@ -356,11 +362,11 @@ func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
 				continue
 			}
 
-			log.G(handler.ctx).Info("order loop complete at n > 1 iteration, exiting")
+			log.G(handler.ctx).Debug("order loop complete at n > 1 iteration, exiting")
 			if _, err := m.remotes.market.CancelOrder(m.ctx, ord); err != nil {
-				log.G(handler.ctx).Info("cannot cancel order",
+				log.G(handler.ctx).Warn("cannot cancel order",
 					zap.String("order_id", handler.id),
-					zap.String("err", err.Error()))
+					zap.Error(err))
 			}
 
 			return
