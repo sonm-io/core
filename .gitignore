@@ -37,6 +37,8 @@ sonmlocator
 sonmnode
 .idea/
 
+sonm.crt
+sonm.key
 
 fusrodah/examples/bootnode/main
 fusrodah/examples/fusrodah/main
