@@ -64,6 +64,8 @@ plugins:
     volumes:
 #      cifs: {}
 
-  network:
-    tinc:
-      enabled: true
+  tinc:
+    enabled: true
+  l2tp:
+    enabled: true
+

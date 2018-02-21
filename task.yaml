@@ -10,32 +10,23 @@ task:
       param1: value1
       param2: value2
       param3: value3
-#    volumes:
-#      cifs:
-#        type: cifs
-#        options:
-#          share: samba-host.ru/share
-#          username: username
-#          password: password
-#          security: ntlm
-#          vers: 3.0
-#    mounts:
-#      - cifs:/mnt:rw
-#      - cifs:/opt:rw
-  # container resources definition, required section
-  resources:
-      # number of CPU cores required by task, required param
-      CPU: 1
-      # amount of memory required by task, required param
-      # You may use Kb, Mb and Gb suffixes
-      RAM: 10240kb
-      # is GPU device is required by task, optional param, set to false by default
-      # GPU: true
+    volumes:
+      cifs:
+        type: cifs
+        options:
+          share: samba-host.ru/share
+          username: username
+          password: password
+          security: ntlm
+          vers: 3.0
+    mounts:
+      - cifs:/mnt:rw
+      - cifs:/opt:rw
   # custom registry settings, optional section
-  # registry:
+  registry:
     # if not empty, Miner will use given registry to pull an image from, optional param
-    # name: registry.user.io
+    name: registry.user.io
     # registry username, optional param
-    # user: name
+    user: name
     # registry password, optional param
-    # password: secret
+    password: secret

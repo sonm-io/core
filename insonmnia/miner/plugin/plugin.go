@@ -18,6 +18,7 @@ import (
 const (
 	bridgeNetwork = "bridge"
 	tincNetwork   = "tinc"
+	l2tpNetwork   = "l2tp"
 )
 
 // Provider unifies all possible providers for tuning.
@@ -107,6 +108,14 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 		r.networkTuners[tincNetwork] = tincTuner
 	}
 
+	if cfg.L2TP != nil {
+		l2tpTuner, err := minet.NewL2TPTuner(ctx, cfg.L2TP)
+		if err != nil {
+			return nil, fmt.Errorf("failed to initialize l2tp tuner - %v", err)
+		}
+		r.networkTuners[l2tpNetwork] = l2tpTuner
+	}
+
 	return r, nil
 }
 
@@ -119,11 +128,10 @@ func EmptyRepository() *Repository {
 	}
 }
 
-// Tune creates all plugin bound required for the given provider with further
-// host config tuning.
+// Tune creates all plugin bound required for the given provider with further host config tuning.
 func (r *Repository) Tune(provider Provider, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
-	// Do not specify GPU type right now,
-	// just check that GPU is required
+	log.G(context.Background()).Info("tuning container")
+	// Do not specify GPU type right now, just check that GPU is required.
 	if provider.GPU() {
 		if err := r.TuneGPU(provider, hostCfg); err != nil {
 			return nil, err

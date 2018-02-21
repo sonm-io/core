@@ -3,33 +3,35 @@ package network
 import (
 	"context"
 	"io/ioutil"
+	"net"
+	"os"
 	"os/exec"
 	"time"
-
-	"os"
 
 	"github.com/docker/go-plugins-helpers/ipam"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
-	"github.com/vishvananda/netlink"
 	"go.uber.org/zap"
 )
 
 type IPAMDriver struct {
 	ctx     context.Context
 	counter int
-	store   *networkInfoStore
+	state   *l2tpState
 }
 
-func NewIPAMDriver(ctx context.Context, store *networkInfoStore) *IPAMDriver {
+func NewIPAMDriver(ctx context.Context, state *l2tpState) *IPAMDriver {
 	return &IPAMDriver{
 		ctx:   ctx,
-		store: store,
+		state: state,
 	}
 }
 
 func (d *IPAMDriver) RequestPool(request *ipam.RequestPoolRequest) (*ipam.RequestPoolResponse, error) {
 	log.G(d.ctx).Info("received RequestPool request", zap.Any("request", request))
+	d.state.Lock()
+	defer d.state.Unlock()
+	defer d.state.Sync()
 
 	opts, err := parseOptsIPAM(request)
 	if err != nil {
@@ -37,14 +39,14 @@ func (d *IPAMDriver) RequestPool(request *ipam.RequestPoolRequest) (*ipam.Reques
 		return nil, errors.Wrap(err, "failed to parse options")
 	}
 
-	netInfo := newNetworkInfo(opts)
+	netInfo := newL2tpNetwork(opts)
 	if err := netInfo.Setup(); err != nil {
 		log.G(d.ctx).Error("failed to setup network", zap.Error(err))
 		return nil, err
 	}
 
-	if err := d.store.AddNetwork(netInfo.PoolID, netInfo); err != nil {
-		log.G(d.ctx).Error("failed to add network to store", zap.Error(err))
+	if err := d.state.AddNetwork(netInfo.PoolID, netInfo); err != nil {
+		log.G(d.ctx).Error("failed to add network to state", zap.Error(err))
 		return nil, err
 	}
 
@@ -53,14 +55,22 @@ func (d *IPAMDriver) RequestPool(request *ipam.RequestPoolRequest) (*ipam.Reques
 
 func (d *IPAMDriver) RequestAddress(request *ipam.RequestAddressRequest) (*ipam.RequestAddressResponse, error) {
 	log.G(d.ctx).Info("received RequestAddress request", zap.Any("request", request))
+	d.state.Lock()
+	defer d.state.Unlock()
+	defer d.state.Sync()
 
-	netInfo, err := d.store.GetNetwork(request.PoolID)
+	if len(request.Address) > 0 {
+		log.G(d.ctx).Error("requests for specific addresses are not supported")
+		return nil, errors.New("requests for specific addresses are not supported")
+	}
+
+	netInfo, err := d.state.GetNetwork(request.PoolID)
 	if err != nil {
 		log.G(d.ctx).Error("failed to get network", zap.String("pool_id", request.PoolID), zap.Error(err))
 		return nil, errors.Wrap(err, "failed to get network")
 	}
 
-	eptInfo := newEndpointInfo(netInfo)
+	eptInfo := NewL2TPEndpoint(netInfo)
 	if err := eptInfo.setup(); err != nil {
 		log.G(d.ctx).Error("failed to setup endpoint", zap.String("pool_id", netInfo.PoolID),
 			zap.String("network_id", netInfo.ID), zap.Error(err))
@@ -93,24 +103,6 @@ func (d *IPAMDriver) RequestAddress(request *ipam.RequestAddressRequest) (*ipam.
 			netInfo.ID, xl2tpdCfg)
 	}
 
-	var (
-		linkEvents  = make(chan netlink.LinkUpdate)
-		linkStopper = make(chan struct{})
-		addrEvents  = make(chan netlink.AddrUpdate)
-		addrStopper = make(chan struct{})
-	)
-	if err := netlink.LinkSubscribe(linkEvents, linkStopper); err != nil {
-		log.G(d.ctx).Error("failed to subscribe to netlink", zap.String("network_id", netInfo.ID),
-			zap.Error(err))
-		return nil, errors.Wrapf(err, "failed to subscribe to netlink: %s", err)
-	}
-
-	if err := netlink.AddrSubscribe(addrEvents, addrStopper); err != nil {
-		log.G(d.ctx).Error("failed to subscribe to netlink", zap.String("network_id", netInfo.ID),
-			zap.String("endpoint_name", eptInfo.Name), zap.Error(err))
-		return nil, errors.Wrapf(err, "failed to subscribe to netlink: %s", err)
-	}
-
 	log.G(d.ctx).Info("setting up xl2tpd connection", zap.String("connection_name", eptInfo.ConnName),
 		zap.String("network_id", netInfo.ID), zap.String("endpoint_name", eptInfo.Name))
 	if err := setupConnCmd.Run(); err != nil {
@@ -120,7 +112,7 @@ func (d *IPAMDriver) RequestAddress(request *ipam.RequestAddressRequest) (*ipam.
 			netInfo.ID, xl2tpdCfg)
 	}
 
-	assignedCIDR, err := d.getAssignedCIDR(eptInfo.PPPDevName, linkEvents, addrEvents, linkStopper, addrStopper)
+	assignedCIDR, err := d.getAssignedCIDR(eptInfo.PPPDevName)
 	if err != nil {
 		log.G(d.ctx).Error("failed to get assigned IP", zap.String("network_id", netInfo.ID),
 			zap.Any("config", xl2tpdCfg), zap.Error(err))
@@ -133,7 +125,7 @@ func (d *IPAMDriver) RequestAddress(request *ipam.RequestAddressRequest) (*ipam.
 	eptInfo.AssignedIP, _ = getAddrFromCIDR(assignedCIDR)
 	eptInfo.AssignedCIDR = assignedCIDR
 
-	if err := netInfo.store.AddEndpoint(eptInfo.AssignedIP, eptInfo); err != nil {
+	if err := netInfo.Store.AddEndpoint(eptInfo.AssignedIP, eptInfo); err != nil {
 		log.G(d.ctx).Error("failed to add endpoint", zap.Error(err))
 		return nil, err
 	}
@@ -143,22 +135,25 @@ func (d *IPAMDriver) RequestAddress(request *ipam.RequestAddressRequest) (*ipam.
 
 func (d *IPAMDriver) ReleasePool(request *ipam.ReleasePoolRequest) error {
 	log.G(d.ctx).Info("received ReleasePool request", zap.Any("request", request))
+	d.state.Lock()
+	defer d.state.Unlock()
+	defer d.state.Sync()
 
-	netInfo, err := d.store.GetNetwork(request.PoolID)
+	netInfo, err := d.state.GetNetwork(request.PoolID)
 	if err != nil {
 		log.G(d.ctx).Error("failed to get network", zap.String("pool_id", request.PoolID), zap.Error(err))
 		return errors.Wrap(err, "failed to get network info")
 	}
 
 	// Normally there won't be any endpoints: `ReleasePool` is called after releasing all addresses.
-	for _, eptInfo := range netInfo.store.GetEndpoints() {
+	for _, eptInfo := range netInfo.Store.GetEndpoints() {
 		if err := d.removeEndpoint(netInfo, eptInfo); err != nil {
 			log.G(d.ctx).Error("xl2tpd failed to removeEndpoint", zap.String("pool_id", netInfo.PoolID),
 				zap.String("network_id", netInfo.ID), zap.Error(err))
 		}
 	}
 
-	if err := d.store.RemoveNetwork(request.PoolID); err != nil {
+	if err := d.state.RemoveNetwork(request.PoolID); err != nil {
 		log.G(d.ctx).Error("failed to remove network", zap.String("pool_id", netInfo.PoolID),
 			zap.String("network_id", netInfo.ID), zap.Error(err))
 		return err
@@ -169,14 +164,17 @@ func (d *IPAMDriver) ReleasePool(request *ipam.ReleasePoolRequest) error {
 
 func (d *IPAMDriver) ReleaseAddress(request *ipam.ReleaseAddressRequest) error {
 	log.G(d.ctx).Info("received ReleaseAddress request", zap.Any("request", request))
+	d.state.Lock()
+	defer d.state.Unlock()
+	defer d.state.Sync()
 
-	netInfo, err := d.store.GetNetwork(request.PoolID)
+	netInfo, err := d.state.GetNetwork(request.PoolID)
 	if err != nil {
 		log.G(d.ctx).Error("failed to get network", zap.String("pool_id", request.PoolID), zap.Error(err))
 		return errors.Wrap(err, "failed to get network")
 	}
 
-	eptInfo, err := netInfo.store.GetEndpoint(request.Address)
+	eptInfo, err := netInfo.Store.GetEndpoint(request.Address)
 	if err != nil {
 		log.G(d.ctx).Error("failed to get endpoint", zap.String("pool_id", request.PoolID),
 			zap.String("network_id", netInfo.ID), zap.String("ip", request.Address), zap.Error(err))
@@ -194,70 +192,48 @@ func (d *IPAMDriver) ReleaseAddress(request *ipam.ReleaseAddressRequest) error {
 
 func (d *IPAMDriver) GetCapabilities() (*ipam.CapabilitiesResponse, error) {
 	log.G(d.ctx).Info("received GetCapabilities request")
+	d.state.Lock()
+	defer d.state.Unlock()
+	defer d.state.Sync()
+
 	return &ipam.CapabilitiesResponse{RequiresMACAddress: false}, nil
 }
 
 func (d *IPAMDriver) GetDefaultAddressSpaces() (*ipam.AddressSpacesResponse, error) {
 	log.G(d.ctx).Info("received GetDefaultAddressSpaces request")
+	d.state.Lock()
+	defer d.state.Unlock()
+	defer d.state.Sync()
+
 	return &ipam.AddressSpacesResponse{}, nil
 }
 
-func (d *IPAMDriver) getAssignedCIDR(devName string, link chan netlink.LinkUpdate, addr chan netlink.AddrUpdate,
-	linkStopper, addrStopper chan struct{}) (string, error) {
-	var (
-		linkIndex  int
-		assignedIP string
-		timeout    = time.Second * 10
-	)
+func (d *IPAMDriver) getAssignedCIDR(devName string) (string, error) {
+	time.Sleep(time.Second * 5)
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
 
-	linkTicker := time.NewTicker(timeout)
-	defer linkTicker.Stop()
-
-	for {
-		var done bool
-		select {
-		case update := <-link:
-			if update.Attrs().Name == devName {
-				linkIndex = update.Link.Attrs().Index
-				done = true
+	for _, i := range ifaces {
+		if i.Name == devName {
+			addrs, err := i.Addrs()
+			if err != nil {
+				return "", err
 			}
-		case <-linkTicker.C:
-			return "", errors.New("failed to receive link update: timeout")
-		}
 
-		if done {
-			break
+			if len(addrs) < 1 {
+				return "", errors.New("no addresses assigned!")
+			}
+
+			return addrs[0].String(), nil
 		}
 	}
 
-	linkStopper <- struct{}{}
-
-	addrTicker := time.NewTicker(timeout)
-	defer addrTicker.Stop()
-
-	for {
-		var done bool
-		select {
-		case update := <-addr:
-			if update.LinkIndex == linkIndex {
-				assignedIP = update.LinkAddress.String()
-				done = true
-			}
-		case <-addrTicker.C:
-			return "", errors.New("failed to receive addr update: timeout")
-		}
-
-		if done {
-			break
-		}
-	}
-
-	addrStopper <- struct{}{}
-
-	return assignedIP, nil
+	return "", errors.Errorf("device %s not found", devName)
 }
 
-func (d *IPAMDriver) removeEndpoint(netInfo *networkInfo, eptInfo *endpointInfo) error {
+func (d *IPAMDriver) removeEndpoint(netInfo *l2tpNetwork, eptInfo *l2tpEndpoint) error {
 	disconnectCmd := exec.Command("xl2tpd-control", "disconnect", eptInfo.ConnName)
 	if err := disconnectCmd.Run(); err != nil {
 		return errors.Wrapf(err, "xl2rpd failed to close connection %s", eptInfo.ConnName)
@@ -267,8 +243,8 @@ func (d *IPAMDriver) removeEndpoint(netInfo *networkInfo, eptInfo *endpointInfo)
 		return errors.Wrapf(err, "failed to remove ppp opts file %s", eptInfo.PPPOptFile)
 	}
 
-	if err := netInfo.store.RemoveEndpoint(eptInfo.AssignedIP); err != nil {
-		return errors.Wrap(err, "failed to remove endpoint from store")
+	if err := netInfo.Store.RemoveEndpoint(eptInfo.AssignedIP); err != nil {
+		return errors.Wrap(err, "failed to remove endpoint from state")
 	}
 
 	return nil
