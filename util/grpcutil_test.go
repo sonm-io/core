@@ -83,13 +83,13 @@ func TestSecureGRPCConnect(t *testing.T) {
 			// It's expected behavior
 			return
 		}
-		// If we passed here, error must occure after the first call
+		// If we got here, error must occur after the first call
 		require.NotNil(conn)
 		defer conn.Close()
 		err = grpc.Invoke(ctx, "/DummyService/dummyMethod", nil, nil, conn)
 		require.NotNil(err)
 		st, ok := status.FromError(err)
 		require.True(ok)
-		require.True(st.Code() == codes.Internal)
+		require.True(st.Code() == codes.Unavailable)
 	})
 }

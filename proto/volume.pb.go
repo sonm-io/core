@@ -13,8 +13,6 @@ var _ = fmt.Errorf
 var _ = math.Inf
 
 // Volume describes volume settings.
-// One may notice - why the Hell should we describe an entire message with
-// a single field? Map of maps - that's why.
 type Volume struct {
 	// Driver describes a volume driver.
 	Driver string `protobuf:"bytes,1,opt,name=driver" json:"driver,omitempty"`

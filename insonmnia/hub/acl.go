@@ -179,7 +179,7 @@ func newFieldDealExtractor() DealExtractor {
 // specified context to have "deal" metadata.
 func newContextDealExtractor() DealExtractor {
 	return func(ctx context.Context, request interface{}) (DealID, error) {
-		md, ok := metadata.FromContext(ctx)
+		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			return "", errNoPeerInfo
 		}
