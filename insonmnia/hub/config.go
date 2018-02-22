@@ -6,10 +6,12 @@ import (
 
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/insonmnia/logging"
+	"go.uber.org/zap/zapcore"
 )
 
 type LoggingConfig struct {
-	Level int `required:"true" default:"1"`
+	Level string `required:"true" default:"debug"`
 }
 
 type GatewayConfig struct {
@@ -65,6 +67,10 @@ type Config struct {
 	Cluster           ClusterConfig      `yaml:"cluster"`
 	Whitelist         WhitelistConfig    `yaml:"whitelist"`
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14000"`
+}
+
+func (c *Config) LogLevel() zapcore.Level {
+	return logging.ParseLogLevel(c.Logging.Level)
 }
 
 // NewConfig loads a hub config from the specified YAML file.

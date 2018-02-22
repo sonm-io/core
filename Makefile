@@ -114,7 +114,8 @@ mock:
 	echo "\`go get github.com/golang/mock/mockgen\`"; \
 	echo "and add your go bin directory to PATH"; exit 1; fi;
 	mockgen -package miner -destination insonmnia/miner/overseer_mock.go -source insonmnia/miner/overseer.go
-	mockgen -package miner -destination insonmnia/miner/config_mock.go -source insonmnia/miner/config.go
+	mockgen -package miner -destination insonmnia/miner/config_mock.go -source insonmnia/miner/config.go \
+		-aux_files logging=insonmnia/logging/logging.go
 	mockgen -package hardware -destination insonmnia/hardware/hardware_mock.go -source insonmnia/hardware/hardware.go
 	mockgen -package commands -destination cmd/cli/commands/interactor_mock.go  -source cmd/cli/commands/interactor.go
 	mockgen -package task_config -destination cmd/cli/task_config/config_mock.go  -source cmd/cli/task_config/config.go
@@ -124,9 +125,9 @@ mock:
 	mockgen -package sonm -destination proto/marketplace_mock.go  -source proto/marketplace.pb.go
 	mockgen -package hub -destination insonmnia/hub/cluster_mock.go  -source insonmnia/hub/cluster.go
 	mockgen -package config -destination cmd/cli/config/config_mock.go  -source cmd/cli/config/config.go \
-		-aux_files accounts=accounts/keys.go
+		-aux_files accounts=accounts/keys.go,logging=insonmnia/logging/logging.go
 	mockgen -package node -destination insonmnia/node/config_mock.go -source insonmnia/node/config.go \
-		-aux_files accounts=accounts/keys.go
+		-aux_files accounts=accounts/keys.go,logging=insonmnia/logging/logging.go
 	mockgen -imports "context=golang.org/x/net/context" -package node -destination insonmnia/node/hub_mock.go \
 		"github.com/sonm-io/core/proto" HubClient && ${SED}
 

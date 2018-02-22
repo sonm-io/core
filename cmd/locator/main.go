@@ -10,6 +10,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -23,7 +24,7 @@ func main() {
 }
 
 func run() {
-	logger := logging.BuildLogger(-1, true)
+	logger := logging.BuildLogger(zapcore.DebugLevel)
 	ctx := log.WithLogger(context.Background(), logger)
 
 	cfg, err := locator.NewConfig(configFlag)

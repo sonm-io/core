@@ -3,6 +3,8 @@ package node
 import (
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/insonmnia/logging"
+	"go.uber.org/zap/zapcore"
 )
 
 // Config is LocalNode config
@@ -15,14 +17,13 @@ type Config interface {
 	HubEndpoint() string
 	// LocatorEndpoint is Locator service gRPC endpoint
 	LocatorEndpoint() string
-	// LogLevel return log verbosity
-	LogLevel() int
 	// MetricsListenAddr returns the address that can be used by Prometheus to get
 	// metrics.
 	MetricsListenAddr() string
 	// KeyStorager included into config because of
 	// Node instance must know how to open the keystore
 	accounts.KeyStorager
+	logging.Leveler
 }
 
 type nodeConfig struct {
@@ -38,7 +39,7 @@ type hubConfig struct {
 }
 
 type logConfig struct {
-	Level int `required:"true" default:"-1" yaml:"level"`
+	Level string `required:"true" default:"debug" yaml:"level"`
 }
 
 type locatorConfig struct {
@@ -74,8 +75,8 @@ func (y *yamlConfig) HubEndpoint() string {
 	return ""
 }
 
-func (y *yamlConfig) LogLevel() int {
-	return y.Log.Level
+func (y *yamlConfig) LogLevel() zapcore.Level {
+	return logging.ParseLogLevel(y.Log.Level)
 }
 
 func (y *yamlConfig) KeyStore() string {
