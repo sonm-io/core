@@ -1453,6 +1453,12 @@
 			"revisionTime": "2017-05-08T18:43:26Z"
 		},
 		{
+			"checksumSHA1": "vxA68PIyuCvDLOaUasVzrD2dq7A=",
+			"path": "github.com/sshaman1101/grpccmd",
+			"revision": "424baef5e8b874219f93568e55a2f97cb4034575",
+			"revisionTime": "2018-02-22T10:45:41Z"
+		},
+		{
 			"checksumSHA1": "9ZaYO8UaMAwapjRBBbKDM9HkTyg=",
 			"path": "github.com/sshaman1101/nvidia-docker",
 			"revision": "759a11342d8f1187002fae9f4072bf369f3b1b85",
