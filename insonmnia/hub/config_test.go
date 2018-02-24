@@ -86,7 +86,10 @@ market:
 	conf, err := NewConfig(testHubConfigPath)
 	assert.Nil(t, err)
 
-	assert.Equal(t, zapcore.InfoLevel, conf.LogLevel())
+	lvl, err := conf.LogLevel()
+	assert.NoError(t, err)
+
+	assert.Equal(t, zapcore.InfoLevel, lvl)
 }
 
 func TestLoadConfigLoggerDefault(t *testing.T) {
@@ -108,7 +111,10 @@ market:
 	conf, err := NewConfig(testHubConfigPath)
 	assert.Nil(t, err)
 
-	assert.Equal(t, zapcore.DebugLevel, conf.LogLevel())
+	lvl, err := conf.LogLevel()
+	assert.NoError(t, err)
+
+	assert.Equal(t, zapcore.DebugLevel, lvl)
 }
 
 func TestLoadConfigWithoutLocator(t *testing.T) {

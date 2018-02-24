@@ -69,7 +69,7 @@ type Config struct {
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14000"`
 }
 
-func (c *Config) LogLevel() zapcore.Level {
+func (c *Config) LogLevel() (zapcore.Level, error) {
 	return logging.ParseLogLevel(c.Logging.Level)
 }
 

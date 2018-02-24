@@ -3,6 +3,8 @@ package logging
 import (
 	"strings"
 
+	"fmt"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
@@ -29,18 +31,18 @@ func BuildLogger(level zapcore.Level) *zap.Logger {
 
 type Leveler interface {
 	// LogLevel return log verbosity
-	LogLevel() zapcore.Level
+	LogLevel() (zapcore.Level, error)
 }
 
 // ParseLogLevel returns zap logger level by it's name
-func ParseLogLevel(s string) zapcore.Level {
+func ParseLogLevel(s string) (zapcore.Level, error) {
 	s = strings.ToLower(s)
 
 	var lvl = zapcore.DebugLevel
 	err := lvl.Set(s)
 	if err != nil {
-		return zapcore.DebugLevel
+		return zapcore.DebugLevel, fmt.Errorf("cannot parse config file: \"%s\" is invalid log level", s)
 	}
 
-	return lvl
+	return lvl, nil
 }

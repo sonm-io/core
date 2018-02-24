@@ -13,7 +13,7 @@ market:
 # Logging settings.
 log:
   # The desired logging level.
-  # Allowed values is "debug", "info", "warn", "error", "panic" and "fatal"
+  # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
   level: debug
 
 # locator settings

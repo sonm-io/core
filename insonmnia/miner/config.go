@@ -55,7 +55,7 @@ type config struct {
 	PluginsConfig           plugin.Config       `yaml:"plugins"`
 }
 
-func (c *config) LogLevel() zapcore.Level {
+func (c *config) LogLevel() (zapcore.Level, error) {
 	return logging.ParseLogLevel(c.LoggingConfig.Level)
 }
 

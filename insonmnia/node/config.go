@@ -75,7 +75,7 @@ func (y *yamlConfig) HubEndpoint() string {
 	return ""
 }
 
-func (y *yamlConfig) LogLevel() zapcore.Level {
+func (y *yamlConfig) LogLevel() (zapcore.Level, error) {
 	return logging.ParseLogLevel(y.Log.Level)
 }
 

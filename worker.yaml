@@ -27,7 +27,7 @@ hub:
 # Logging settings.
 logging:
   # The desired logging level.
-  # Allowed values is "debug", "info", "warn", "error", "panic" and "fatal"
+  # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
   level: debug
 
 # Firewall discovery settings, optional param
