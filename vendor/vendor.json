@@ -397,6 +397,18 @@
 			"revisionTime": "2017-06-08T04:50:38Z"
 		},
 		{
+			"checksumSHA1": "o0CkgMecepL72O+P/0owv6wyUcc=",
+			"path": "github.com/docker/go-plugins-helpers/ipam",
+			"revision": "61cb8e2334204460162c8bd2417cd43cb71da66f",
+			"revisionTime": "2018-01-16T16:00:15Z"
+		},
+		{
+			"checksumSHA1": "vpdQhinBu4qOnlUzRAIA13MtI1E=",
+			"path": "github.com/docker/go-plugins-helpers/network",
+			"revision": "61cb8e2334204460162c8bd2417cd43cb71da66f",
+			"revisionTime": "2018-01-16T16:00:15Z"
+		},
+		{
 			"checksumSHA1": "e/cSY11dRBYpw1MpxpKLDG0NO28=",
 			"path": "github.com/docker/go-plugins-helpers/sdk",
 			"revision": "bd8c600f0cdd76c7a57ff6aa86bd2b423868c688",

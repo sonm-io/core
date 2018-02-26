@@ -498,7 +498,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		return nil, status.Errorf(codes.Internal, "failed to parse network specs", err)
+		return nil, status.Errorf(codes.Internal, "failed to parse network specs - %s", err)
 	}
 	var d = Description{
 		Image:         request.Container.Image,
