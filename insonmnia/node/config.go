@@ -39,7 +39,8 @@ type hubConfig struct {
 }
 
 type logConfig struct {
-	Level string `required:"true" default:"debug" yaml:"level"`
+	Level       string `required:"true" default:"debug" yaml:"level"`
+	parsedLevel zapcore.Level
 }
 
 type locatorConfig struct {
@@ -75,8 +76,8 @@ func (y *yamlConfig) HubEndpoint() string {
 	return ""
 }
 
-func (y *yamlConfig) LogLevel() (zapcore.Level, error) {
-	return logging.ParseLogLevel(y.Log.Level)
+func (y *yamlConfig) LogLevel() zapcore.Level {
+	return y.Log.parsedLevel
 }
 
 func (y *yamlConfig) KeyStore() string {
@@ -100,5 +101,11 @@ func NewConfig(path string) (Config, error) {
 		return nil, err
 	}
 
+	lvl, err := logging.ParseLogLevel(cfg.Log.Level)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg.Log.parsedLevel = lvl
 	return cfg, nil
 }

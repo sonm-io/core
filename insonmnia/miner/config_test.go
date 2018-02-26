@@ -39,11 +39,7 @@ logging:
 	assert.Nil(t, err)
 
 	assert.Equal(t, []string{"127.0.0.1:10002"}, conf.HubEndpoints())
-
-	lvl, err := conf.LogLevel()
-	assert.NoError(t, err)
-
-	assert.Equal(t, zapcore.WarnLevel, lvl)
+	assert.Equal(t, zapcore.WarnLevel, conf.LogLevel())
 }
 
 func TestConfigPluginsDefaults(t *testing.T) {

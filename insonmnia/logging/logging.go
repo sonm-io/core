@@ -31,7 +31,7 @@ func BuildLogger(level zapcore.Level) *zap.Logger {
 
 type Leveler interface {
 	// LogLevel return log verbosity
-	LogLevel() (zapcore.Level, error)
+	LogLevel() zapcore.Level
 }
 
 // ParseLogLevel returns zap logger level by it's name

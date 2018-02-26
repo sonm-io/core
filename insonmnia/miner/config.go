@@ -30,7 +30,8 @@ type SSHConfig struct {
 }
 
 type LoggingConfig struct {
-	Level string `required:"true" default:"debug"`
+	Level       string `required:"true" default:"debug"`
+	parsedLevel zapcore.Level
 }
 
 type ResourcesConfig struct {
@@ -55,8 +56,8 @@ type config struct {
 	PluginsConfig           plugin.Config       `yaml:"plugins"`
 }
 
-func (c *config) LogLevel() (zapcore.Level, error) {
-	return logging.ParseLogLevel(c.LoggingConfig.Level)
+func (c *config) LogLevel() zapcore.Level {
+	return c.LoggingConfig.parsedLevel
 }
 
 func (c *config) HubResolveEndpoints() bool {
@@ -137,6 +138,12 @@ func NewConfig(path string) (Config, error) {
 	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
+
+	lvl, err := logging.ParseLogLevel(cfg.LoggingConfig.Level)
+	if err != nil {
+		return nil, err
+	}
+	cfg.LoggingConfig.parsedLevel = lvl
 
 	return cfg, nil
 }

@@ -34,13 +34,7 @@ func run() {
 		os.Exit(1)
 	}
 
-	logLevel, err := cfg.LogLevel()
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
-
-	logger := logging.BuildLogger(logLevel)
+	logger := logging.BuildLogger(cfg.LogLevel())
 	ctx = log.WithLogger(ctx, logger)
 
 	key, err := cfg.Eth.LoadKey()

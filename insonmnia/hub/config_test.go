@@ -86,13 +86,10 @@ market:
 	conf, err := NewConfig(testHubConfigPath)
 	assert.Nil(t, err)
 
-	lvl, err := conf.LogLevel()
-	assert.NoError(t, err)
-
-	assert.Equal(t, zapcore.InfoLevel, lvl)
+	assert.Equal(t, zapcore.InfoLevel, conf.LogLevel())
 }
 
-func TestLoadConfigLoggerDefault(t *testing.T) {
+func TestLoadConfigInvalidLogLevel(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
 ethereum:
@@ -103,18 +100,16 @@ monitoring:
 locator:
   endpoint: "127.0.0.1:9090"
 market:
-  endpoint: "127.0.0.1:9095"`
+  endpoint: "127.0.0.1:9095"
+logging:
+  level: wtf
+`
 
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
 
-	conf, err := NewConfig(testHubConfigPath)
-	assert.Nil(t, err)
-
-	lvl, err := conf.LogLevel()
-	assert.NoError(t, err)
-
-	assert.Equal(t, zapcore.DebugLevel, lvl)
+	_, err = NewConfig(testHubConfigPath)
+	assert.Error(t, err)
 }
 
 func TestLoadConfigWithoutLocator(t *testing.T) {
