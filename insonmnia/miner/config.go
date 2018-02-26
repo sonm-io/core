@@ -5,7 +5,9 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
+	"go.uber.org/zap/zapcore"
 )
 
 // HubConfig describes Hub configuration.
@@ -28,7 +30,8 @@ type SSHConfig struct {
 }
 
 type LoggingConfig struct {
-	Level int `required:"true" default:"1"`
+	Level       string `required:"true" default:"debug"`
+	parsedLevel zapcore.Level
 }
 
 type ResourcesConfig struct {
@@ -51,6 +54,10 @@ type config struct {
 	PublicIPsConfig         []string            `required:"false" yaml:"public_ip_addrs"`
 	MetricsListenAddrConfig string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14001"`
 	PluginsConfig           plugin.Config       `yaml:"plugins"`
+}
+
+func (c *config) LogLevel() zapcore.Level {
+	return c.LoggingConfig.parsedLevel
 }
 
 func (c *config) HubResolveEndpoints() bool {
@@ -79,10 +86,6 @@ func (c *config) PublicIPs() []string {
 
 func (c *config) SSH() *SSHConfig {
 	return c.SSHConfig
-}
-
-func (c *config) Logging() LoggingConfig {
-	return c.LoggingConfig
 }
 
 func (c *config) UUIDPath() string {
@@ -136,11 +139,19 @@ func NewConfig(path string) (Config, error) {
 		return nil, err
 	}
 
+	lvl, err := logging.ParseLogLevel(cfg.LoggingConfig.Level)
+	if err != nil {
+		return nil, err
+	}
+	cfg.LoggingConfig.parsedLevel = lvl
+
 	return cfg, nil
 }
 
 // Config represents a Miner configuration interface.
 type Config interface {
+	logging.Leveler
+
 	// HubEndpoints returns a string representation of a Hub endpoint to communicate with.
 	HubEndpoints() []string
 	// HubEthAddr returns hub's ethereum address.
@@ -155,8 +166,6 @@ type Config interface {
 	PublicIPs() []string
 	// SSH returns settings for built-in ssh server
 	SSH() *SSHConfig
-	// Logging returns logging settings.
-	Logging() LoggingConfig
 	// Path to store Miner uuid
 	UUIDPath() string
 	// ETH returns ethereum configuration
