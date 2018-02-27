@@ -30,7 +30,7 @@ func NewTincTuner(ctx context.Context, config *TincNetworkConfig) (*TincTuner, e
 	if err != nil {
 		return nil, err
 	}
-	netDriver, ipamDriver, err := NewTincNetwork(ctx, config)
+	netDriver, ipamDriver, err := NewTincNetwork(ctx, cli, config)
 	if err != nil {
 		return nil, err
 	}

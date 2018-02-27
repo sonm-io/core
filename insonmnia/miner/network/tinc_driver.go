@@ -3,13 +3,17 @@ package network
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	cnet "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	"github.com/docker/go-plugins-helpers/ipam"
 	"github.com/docker/go-plugins-helpers/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -18,7 +22,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewTincNetwork(ctx context.Context, config *TincNetworkConfig) (*TincNetworkDriver, *TincIPAMDriver, error) {
+func NewTincNetwork(ctx context.Context, client *client.Client, config *TincNetworkConfig) (*TincNetworkDriver, *TincIPAMDriver, error) {
 	err := os.MkdirAll(config.ConfigDir, 0770)
 	if err != nil {
 		return nil, nil, err
@@ -27,6 +31,7 @@ func NewTincNetwork(ctx context.Context, config *TincNetworkConfig) (*TincNetwor
 	state := &TincNetworkState{
 		ctx:      ctx,
 		config:   config,
+		cli:      client,
 		networks: make(map[string]*TincNetwork),
 		pools:    make(map[string]*net.IPNet),
 	}
@@ -40,17 +45,20 @@ type TincNetworkOptions struct {
 }
 
 type TincNetwork struct {
-	ID         string
-	Options    *TincNetworkOptions
-	IPv4Data   []*network.IPAMData
-	IPv6Data   []*network.IPAMData
-	ConfigPath string
+	ID              string
+	Options         *TincNetworkOptions
+	IPv4Data        []*network.IPAMData
+	IPv6Data        []*network.IPAMData
+	ConfigPath      string
+	cli             *client.Client
+	TincContainerID string
 }
 
 type TincNetworkState struct {
 	ctx      context.Context
 	config   *TincNetworkConfig
 	mu       sync.RWMutex
+	cli      *client.Client
 	networks map[string]*TincNetwork
 	pools    map[string]*net.IPNet
 }
@@ -147,6 +155,23 @@ func (t *TincNetworkDriver) newTincNetwork(request *network.CreateNetworkRequest
 	if err != nil {
 		return nil, err
 	}
+	containerConfig := &container.Config{
+		Image: "antmat/tinc",
+	}
+	hostConfig := &container.HostConfig{
+		Privileged:  true,
+		NetworkMode: "host",
+	}
+	netConfig := &cnet.NetworkingConfig{}
+	resp, err := t.cli.ContainerCreate(t.ctx, containerConfig, hostConfig, netConfig, "")
+	if err != nil {
+		return nil, err
+	}
+	err = t.cli.ContainerStart(t.ctx, resp.ID, types.ContainerStartOptions{})
+	if err != nil {
+		return nil, err
+	}
+	log.S(t.ctx).Infof("started container %s", resp.ID)
 
 	return &TincNetwork{
 		ID:       request.NetworkID,
@@ -154,7 +179,9 @@ func (t *TincNetworkDriver) newTincNetwork(request *network.CreateNetworkRequest
 		IPv4Data: request.IPv4Data,
 		IPv6Data: request.IPv6Data,
 		// TODO: configurable
-		ConfigPath: configPath,
+		ConfigPath:      configPath,
+		cli:             t.cli,
+		TincContainerID: resp.ID,
 	}, nil
 }
 
@@ -192,7 +219,7 @@ func (t *TincNetworkDriver) CreateNetwork(request *network.CreateNetworkRequest)
 
 	time.Sleep(time.Second)
 
-	err = runCommand(t.ctx, "tinc", "--batch", "-n", network.ID, "-c", network.ConfigPath, "join", network.Options.Invitation)
+	err = network.runCommand(t.ctx, "tinc", "--batch", "-n", network.ID, "-c", network.ConfigPath, "join", network.Options.Invitation)
 	if err != nil {
 		return err
 	}
@@ -255,8 +282,8 @@ func (t *TincNetworkDriver) CreateEndpoint(request *network.CreateEndpointReques
 	//TODO: each pool should be considered
 	pool := net.IPv4Data[0].Pool
 	selfAddr := strings.Split(request.Interface.Address, "/")[0]
-	err := runCommand(t.ctx, "tinc", "-n", net.ID, "-c", net.ConfigPath, "start",
-		"-o", "Interface="+iface, "-o", "Subnet="+pool, "-o", "Subnet="+selfAddr+"/32")
+	err := net.runCommand(t.ctx, "tinc", "-n", net.ID, "-c", net.ConfigPath, "start",
+		"-o", "Interface="+iface, "-o", "Subnet="+pool, "-o", "Subnet="+selfAddr+"/32", "-o", "LogLevel=9")
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +301,7 @@ func (t *TincNetworkDriver) DeleteEndpoint(request *network.DeleteEndpointReques
 	if !ok {
 		return errors.Errorf("no such network %s", request.NetworkID)
 	}
-	err := runCommand(t.ctx, "tinc", "--batch", "-n", net.ID, "-c", net.ConfigPath, "stop")
+	err := net.runCommand(t.ctx, "tinc", "--batch", "-n", net.ID, "-c", net.ConfigPath, "stop")
 	if err != nil {
 		return err
 	}
@@ -293,7 +320,7 @@ func (t *TincNetworkDriver) Join(request *network.JoinRequest) (*network.JoinRes
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	iface := request.NetworkID[:15]
-	return &network.JoinResponse{DisableGatewayService: true, InterfaceName: network.InterfaceName{SrcName: iface, DstPrefix: "tinc"}}, nil
+	return &network.JoinResponse{DisableGatewayService: false, InterfaceName: network.InterfaceName{SrcName: iface, DstPrefix: "tinc"}}, nil
 }
 
 func (t *TincNetworkDriver) Leave(request *network.LeaveRequest) error {
@@ -321,14 +348,45 @@ func (t *TincNetworkDriver) RevokeExternalConnectivity(request *network.RevokeEx
 	return nil
 }
 
-func runCommand(ctx context.Context, name string, arg ...string) error {
-	cmd := exec.Command(name, arg...)
-	out, err := cmd.CombinedOutput()
+func (t *TincNetwork) runCommand(ctx context.Context, name string, arg ...string) error {
+	cmd := append([]string{name}, arg...)
+	cfg := types.ExecConfig{
+		User:         "root",
+		Detach:       false,
+		Cmd:          cmd,
+		AttachStderr: true,
+		AttachStdout: true,
+	}
+
+	execId, err := t.cli.ContainerExecCreate(ctx, t.TincContainerID, cfg)
+	if err != nil {
+		log.G(ctx).Warn("ContainerExecCreate finished with error", zap.Error(err))
+		return err
+	}
+
+	conn, err := t.cli.ContainerExecAttach(ctx, execId.ID, cfg)
+	if err != nil {
+		log.G(ctx).Warn("ContainerExecAttach finished with error", zap.Error(err))
+	}
+
+	byteOut, err := ioutil.ReadAll(conn.Reader)
+	out := string(byteOut)
 	if err != nil {
 		log.S(ctx).Errorf("failed to execute command - %s %s, output - %s", name, arg, out)
 		return err
-	} else {
-		log.S(ctx).Info("executed command", zap.String("cmd", name), zap.Any("args", arg), zap.String("output", (string)(out)))
 	}
-	return nil
+
+	inspect, err := t.cli.ContainerExecInspect(ctx, execId.ID)
+	if err != nil {
+		log.S(ctx).Errorf("failed to inspect command - %s", err)
+		return err
+	}
+
+	if inspect.ExitCode != 0 {
+		return errors.Errorf("failed to execute command %s %s, exit code %d, output: %s", name, arg, inspect.ExitCode, out)
+	} else {
+		log.S(ctx).Infof("finished command - %s %s, output - %s", name, arg, out)
+		return nil
+	}
+
 }
