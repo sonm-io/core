@@ -21,6 +21,7 @@ type TaskConfig interface {
 
 	Volumes() map[string]volume
 	Mounts() []string
+	Networks() []network
 }
 
 type container struct {
@@ -31,11 +32,19 @@ type container struct {
 	CommitOnStop bool              `yaml:"commit_on_stop" required:"false"`
 	Volumes      map[string]volume
 	Mounts       []string
+	Networks     []network
 }
 
 type volume struct {
 	Type    string            `yaml:"type" required:"true"`
 	Options map[string]string `yaml:"options" required:"false"`
+}
+
+type network struct {
+	Type    string            `yaml:"type,omitempty"`
+	Options map[string]string `yaml:"options,omitempty"`
+	Subnet  string            `yaml:"subnet,omitempty"`
+	Addr    string            `yaml:"addr,omitempty"`
 }
 
 type registry struct {
@@ -95,6 +104,10 @@ func (yc *YamlConfig) Volumes() map[string]volume {
 
 func (yc *YamlConfig) Mounts() []string {
 	return yc.Task.Container.Mounts
+}
+
+func (yc *YamlConfig) Networks() []network {
+	return yc.Task.Container.Networks
 }
 
 func LoadConfig(path string) (TaskConfig, error) {

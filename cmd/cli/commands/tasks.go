@@ -106,6 +106,16 @@ var taskStartCmd = &cobra.Command{
 			}
 		}
 
+		networks := make([]*pb.NetworkSpec, 0)
+		for _, net := range taskDef.Networks() {
+			networks = append(networks, &pb.NetworkSpec{
+				Type:    net.Type,
+				Options: net.Options,
+				Subnet:  net.Subnet,
+				Addr:    net.Addr,
+			})
+		}
+
 		var req = &pb.HubStartTaskRequest{
 			Deal: deal,
 			Container: &pb.Container{
@@ -117,6 +127,7 @@ var taskStartCmd = &cobra.Command{
 				CommitOnStop:  taskDef.GetCommitOnStop(),
 				Volumes:       volumes,
 				Mounts:        taskDef.Mounts(),
+				Networks:      networks,
 			},
 		}
 
