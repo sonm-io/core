@@ -4,9 +4,21 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/sonm-io/core/insonmnia/miner/network"
 	"github.com/sonm-io/core/proto"
 )
+
+type Network interface {
+	// ID returns a unique identifier that will be used as a new network name.
+	ID() string
+	// NetworkType returns a network driver name used to establish networking.
+	NetworkType() string
+	// NetworkOptions return configuration map, passed directly to network driver, this map should not be mutated.
+	NetworkOptions() map[string]string
+	// Returns network subnet in CIDR notation if applicable
+	NetworkCIDR() string
+	// Returns specified addr to join the network
+	NetworkAddr() string
+}
 
 type NetworkSpec struct {
 	*sonm.NetworkSpec
@@ -50,8 +62,8 @@ func NewNetworkSpec(id string, spec *sonm.NetworkSpec) (*NetworkSpec, error) {
 	return &NetworkSpec{spec, id}, nil
 }
 
-func NewNetworkSpecs(idPrefix string, specs []*sonm.NetworkSpec) ([]network.Network, error) {
-	result := make([]network.Network, 0, len(specs))
+func NewNetworkSpecs(idPrefix string, specs []*sonm.NetworkSpec) ([]Network, error) {
+	result := make([]Network, 0, len(specs))
 	for i, s := range specs {
 		spec, err := NewNetworkSpec(idPrefix+"__"+fmt.Sprint(i), s)
 		if err != nil {

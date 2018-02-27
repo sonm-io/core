@@ -10,6 +10,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
 	minet "github.com/sonm-io/core/insonmnia/miner/network"
 	"github.com/sonm-io/core/insonmnia/miner/volume"
+	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
@@ -42,7 +43,7 @@ type VolumeProvider interface {
 }
 
 type NetworkProvider interface {
-	Networks() []minet.Network
+	Networks() []structs.Network
 }
 
 // Repository describes a place where all SONM plugins for Docker live.

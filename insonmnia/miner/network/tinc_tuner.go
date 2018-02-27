@@ -11,6 +11,7 @@ import (
 	"github.com/docker/go-plugins-helpers/ipam"
 	netdriver "github.com/docker/go-plugins-helpers/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/structs"
 )
 
 type TincTuner struct {
@@ -80,7 +81,7 @@ func (t *TincTuner) runDriver(ctx context.Context) error {
 }
 
 //TODO: pass context from outside
-func (t *TincTuner) Tune(net Network, config *network.NetworkingConfig) (Cleanup, error) {
+func (t *TincTuner) Tune(net structs.Network, config *network.NetworkingConfig) (Cleanup, error) {
 	createOpts := types.NetworkCreate{
 		Driver:  "tinc",
 		Options: net.NetworkOptions(),
