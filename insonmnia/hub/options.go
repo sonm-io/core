@@ -24,6 +24,7 @@ type options struct {
 	rot           util.HitlessCertRotator
 	cluster       Cluster
 	clusterEvents <-chan ClusterEvent
+	announcer     Announcer
 }
 
 func defaultHubOptions() *options {
@@ -88,5 +89,11 @@ func WithCluster(cl Cluster, evt <-chan ClusterEvent) Option {
 	return func(o *options) {
 		o.cluster = cl
 		o.clusterEvents = evt
+	}
+}
+
+func WithAnnouncer(an Announcer) Option {
+	return func(o *options) {
+		o.announcer = an
 	}
 }
