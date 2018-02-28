@@ -101,13 +101,11 @@ func (t *TincTuner) Tune(net structs.Network, hostConfig *container.HostConfig, 
 		Driver:  "tinc",
 		Options: opts,
 	}
-	if len(net.NetworkCIDR()) != 0 {
-		createOpts.IPAM = &network.IPAM{
-			Driver: "default",
-			Config: make([]network.IPAMConfig, 0),
-		}
-		createOpts.IPAM.Config = append(createOpts.IPAM.Config, network.IPAMConfig{Subnet: net.NetworkCIDR()})
+	createOpts.IPAM = &network.IPAM{
+		Driver: "tincipam",
+		Config: make([]network.IPAMConfig, 0),
 	}
+	createOpts.IPAM.Config = append(createOpts.IPAM.Config, network.IPAMConfig{Subnet: net.NetworkCIDR()})
 	response, err := t.client.NetworkCreate(context.Background(), net.ID(), createOpts)
 	if err != nil {
 		return nil, err
