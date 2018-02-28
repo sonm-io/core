@@ -12,6 +12,14 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
+// grpccmd imports
+import (
+	"io"
+
+	"github.com/spf13/cobra"
+	"github.com/sshaman1101/grpccmd"
+)
+
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
@@ -771,6 +779,255 @@ var _Miner_serviceDesc = grpc.ServiceDesc{
 	},
 	Metadata: "miner.proto",
 }
+
+// Begin grpccmd
+var _ = grpccmd.RunE
+
+// Miner
+var _MinerCmd = &cobra.Command{
+	Use:   "miner [method]",
+	Short: "Subcommand for the Miner service.",
+}
+
+var _Miner_PingCmd = &cobra.Command{
+	Use:   "ping",
+	Short: "Make the Ping method call, input-type: sonm.Empty output-type: sonm.PingReply",
+	RunE: grpccmd.RunE(
+		"Ping",
+		"sonm.Empty",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMinerClient(cc)
+		},
+	),
+}
+
+var _Miner_PingCmd_gen = &cobra.Command{
+	Use:   "ping-gen",
+	Short: "Generate JSON for method call of Ping (input-type: sonm.Empty)",
+	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+}
+
+var _Miner_InfoCmd = &cobra.Command{
+	Use:   "info",
+	Short: "Make the Info method call, input-type: sonm.Empty output-type: sonm.InfoReply",
+	RunE: grpccmd.RunE(
+		"Info",
+		"sonm.Empty",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMinerClient(cc)
+		},
+	),
+}
+
+var _Miner_InfoCmd_gen = &cobra.Command{
+	Use:   "info-gen",
+	Short: "Generate JSON for method call of Info (input-type: sonm.Empty)",
+	RunE:  grpccmd.TypeToJson("sonm.Empty"),
+}
+
+var _Miner_HandshakeCmd = &cobra.Command{
+	Use:   "handshake",
+	Short: "Make the Handshake method call, input-type: sonm.MinerHandshakeRequest output-type: sonm.MinerHandshakeReply",
+	RunE: grpccmd.RunE(
+		"Handshake",
+		"sonm.MinerHandshakeRequest",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMinerClient(cc)
+		},
+	),
+}
+
+var _Miner_HandshakeCmd_gen = &cobra.Command{
+	Use:   "handshake-gen",
+	Short: "Generate JSON for method call of Handshake (input-type: sonm.MinerHandshakeRequest)",
+	RunE:  grpccmd.TypeToJson("sonm.MinerHandshakeRequest"),
+}
+
+var _Miner_SaveCmd = &cobra.Command{
+	Use:   "save",
+	Short: "Make the Save method call, input-type: sonm.SaveRequest output-type: sonm.Chunk",
+	RunE: grpccmd.RunE(
+		"Save",
+		"sonm.SaveRequest",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMinerClient(cc)
+		},
+	),
+}
+
+var _Miner_SaveCmd_gen = &cobra.Command{
+	Use:   "save-gen",
+	Short: "Generate JSON for method call of Save (input-type: sonm.SaveRequest)",
+	RunE:  grpccmd.TypeToJson("sonm.SaveRequest"),
+}
+
+var _Miner_LoadCmd = &cobra.Command{
+	Use:   "load",
+	Short: "Make the Load method call, input-type: sonm.Chunk output-type: sonm.Progress",
+	RunE: grpccmd.RunE(
+		"Load",
+		"sonm.Chunk",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMinerClient(cc)
+		},
+	),
+}
+
+var _Miner_LoadCmd_gen = &cobra.Command{
+	Use:   "load-gen",
+	Short: "Generate JSON for method call of Load (input-type: sonm.Chunk)",
+	RunE:  grpccmd.TypeToJson("sonm.Chunk"),
+}
+
+var _Miner_StartCmd = &cobra.Command{
+	Use:   "start",
+	Short: "Make the Start method call, input-type: sonm.MinerStartRequest output-type: sonm.MinerStartReply",
+	RunE: grpccmd.RunE(
+		"Start",
+		"sonm.MinerStartRequest",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMinerClient(cc)
+		},
+	),
+}
+
+var _Miner_StartCmd_gen = &cobra.Command{
+	Use:   "start-gen",
+	Short: "Generate JSON for method call of Start (input-type: sonm.MinerStartRequest)",
+	RunE:  grpccmd.TypeToJson("sonm.MinerStartRequest"),
+}
+
+var _Miner_StopCmd = &cobra.Command{
+	Use:   "stop",
+	Short: "Make the Stop method call, input-type: sonm.ID output-type: sonm.Empty",
+	RunE: grpccmd.RunE(
+		"Stop",
+		"sonm.ID",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMinerClient(cc)
+		},
+	),
+}
+
+var _Miner_StopCmd_gen = &cobra.Command{
+	Use:   "stop-gen",
+	Short: "Generate JSON for method call of Stop (input-type: sonm.ID)",
+	RunE:  grpccmd.TypeToJson("sonm.ID"),
+}
+
+var _Miner_TasksStatusCmd = &cobra.Command{
+	Use:   "tasksStatus",
+	Short: "Make the TasksStatus method call, input-type: sonm.MinerStatusMapRequest output-type: sonm.StatusMapReply",
+	RunE: grpccmd.RunE(
+		"TasksStatus",
+		"sonm.MinerStatusMapRequest",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMinerClient(cc)
+		},
+	),
+}
+
+var _Miner_TasksStatusCmd_gen = &cobra.Command{
+	Use:   "tasksStatus-gen",
+	Short: "Generate JSON for method call of TasksStatus (input-type: sonm.MinerStatusMapRequest)",
+	RunE:  grpccmd.TypeToJson("sonm.MinerStatusMapRequest"),
+}
+
+var _Miner_TaskDetailsCmd = &cobra.Command{
+	Use:   "taskDetails",
+	Short: "Make the TaskDetails method call, input-type: sonm.ID output-type: sonm.TaskStatusReply",
+	RunE: grpccmd.RunE(
+		"TaskDetails",
+		"sonm.ID",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMinerClient(cc)
+		},
+	),
+}
+
+var _Miner_TaskDetailsCmd_gen = &cobra.Command{
+	Use:   "taskDetails-gen",
+	Short: "Generate JSON for method call of TaskDetails (input-type: sonm.ID)",
+	RunE:  grpccmd.TypeToJson("sonm.ID"),
+}
+
+var _Miner_TaskLogsCmd = &cobra.Command{
+	Use:   "taskLogs",
+	Short: "Make the TaskLogs method call, input-type: sonm.TaskLogsRequest output-type: sonm.TaskLogsChunk",
+	RunE: grpccmd.RunE(
+		"TaskLogs",
+		"sonm.TaskLogsRequest",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMinerClient(cc)
+		},
+	),
+}
+
+var _Miner_TaskLogsCmd_gen = &cobra.Command{
+	Use:   "taskLogs-gen",
+	Short: "Generate JSON for method call of TaskLogs (input-type: sonm.TaskLogsRequest)",
+	RunE:  grpccmd.TypeToJson("sonm.TaskLogsRequest"),
+}
+
+var _Miner_DiscoverHubCmd = &cobra.Command{
+	Use:   "discoverHub",
+	Short: "Make the DiscoverHub method call, input-type: sonm.DiscoverHubRequest output-type: sonm.Empty",
+	RunE: grpccmd.RunE(
+		"DiscoverHub",
+		"sonm.DiscoverHubRequest",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewMinerClient(cc)
+		},
+	),
+}
+
+var _Miner_DiscoverHubCmd_gen = &cobra.Command{
+	Use:   "discoverHub-gen",
+	Short: "Generate JSON for method call of DiscoverHub (input-type: sonm.DiscoverHubRequest)",
+	RunE:  grpccmd.TypeToJson("sonm.DiscoverHubRequest"),
+}
+
+// Register commands with the root command and service command
+func init() {
+	grpccmd.RegisterServiceCmd(_MinerCmd)
+	_MinerCmd.AddCommand(
+		_Miner_PingCmd,
+		_Miner_PingCmd_gen,
+		_Miner_InfoCmd,
+		_Miner_InfoCmd_gen,
+		_Miner_HandshakeCmd,
+		_Miner_HandshakeCmd_gen,
+		_Miner_SaveCmd,
+		_Miner_SaveCmd_gen,
+		_Miner_LoadCmd,
+		_Miner_LoadCmd_gen,
+		_Miner_StartCmd,
+		_Miner_StartCmd_gen,
+		_Miner_StopCmd,
+		_Miner_StopCmd_gen,
+		_Miner_TasksStatusCmd,
+		_Miner_TasksStatusCmd_gen,
+		_Miner_TaskDetailsCmd,
+		_Miner_TaskDetailsCmd_gen,
+		_Miner_TaskLogsCmd,
+		_Miner_TaskLogsCmd_gen,
+		_Miner_DiscoverHubCmd,
+		_Miner_DiscoverHubCmd_gen,
+	)
+}
+
+// End grpccmd
 
 func init() { proto.RegisterFile("miner.proto", fileDescriptor9) }
 

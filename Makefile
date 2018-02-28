@@ -19,6 +19,7 @@ HUB=sonmhub
 CLI=sonmcli
 LOCATOR=sonmlocator
 LOCAL_NODE=sonmnode
+AUTOCLI=autocli
 
 TAGS=nocgo
 
@@ -75,6 +76,10 @@ build/node_win32:
 	@echo "+ $@"
 	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${LOCAL_NODE}_win32.exe ${GOCMD}/node
 
+build/autocli:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${AUTOCLI} ${GOCMD}/autocli
+
 
 build/insomnia: build/hub build/miner build/cli build/node
 
@@ -103,8 +108,8 @@ test: mock
 grpc:
 	@echo "+ $@"
 	@if ! which protoc > /dev/null; then echo "protoc protobuf compiler required for build"; exit 1; fi;
-	@if ! which protoc-gen-go > /dev/null; then echo "protoc-gen-go protobuf  plugin required for build.\nRun \`go get -u github.com/golang/protobuf/protoc-gen-go\`"; exit 1; fi;
-	@protoc -I proto proto/*.proto --go_out=plugins=grpc:proto/
+	@if ! which protoc-gen-grpccmd > /dev/null; then echo "protoc-gen-grpccmd protobuf  plugin required for build.\nRun \`go get -u github.com/sshaman1101/grpccmd/cmd/protoc-gen-grpccmd\`"; exit 1; fi;
+	@protoc -I proto proto/*.proto --grpccmd_out=proto/
 
 mock:
 	@echo "+ $@"
