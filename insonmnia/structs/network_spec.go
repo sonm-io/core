@@ -14,9 +14,9 @@ type Network interface {
 	NetworkType() string
 	// NetworkOptions return configuration map, passed directly to network driver, this map should not be mutated.
 	NetworkOptions() map[string]string
-	// Returns network subnet in CIDR notation if applicable
+	// Returns network subnet in CIDR notation if applicable.
 	NetworkCIDR() string
-	// Returns specified addr to join the network
+	// Returns specified addr to join the network.
 	NetworkAddr() string
 }
 

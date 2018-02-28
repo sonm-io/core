@@ -15,8 +15,10 @@ import (
 	"go.uber.org/zap"
 )
 
-const bridgeNetwork = "bridge"
-const tincNetwork = "tinc"
+const (
+	bridgeNetwork = "bridge"
+	tincNetwork   = "tinc"
+)
 
 // Provider unifies all possible providers for tuning.
 type Provider interface {

@@ -8,7 +8,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -227,8 +226,6 @@ func (t *TincNetworkDriver) CreateNetwork(request *network.CreateNetworkRequest)
 	if err != nil {
 		return err
 	}
-
-	time.Sleep(time.Second)
 
 	err = network.runCommand(t.ctx, "tinc", "--batch", "-n", network.ID, "-c", network.ConfigPath, "join", network.Options.Invitation)
 	if err != nil {
