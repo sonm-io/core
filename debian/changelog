@@ -1,3 +1,9 @@
+sonm-core (0.3.5) unstable; urgency=low
+
+  * Fixed: add libcuda to the NVidia drivers volume (#482).
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 28 Feb 2018 16:24:48 +0300
+
 sonm-core (0.3.4) unstable; urgency=low
 
   * Fixed: locator now allows private worker IPs (#478).

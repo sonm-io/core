@@ -1,5 +1,5 @@
 #!/usr/bin/env make
-VER = v0.3.4
+VER = v0.3.5
 BUILD = $(shell git rev-parse --short HEAD)
 FULL_VER = $(VER)-$(BUILD)
 
