@@ -177,11 +177,10 @@ func (t *TincNetworkDriver) newTincNetwork(request *network.CreateNetworkRequest
 	log.S(t.ctx).Infof("started container %s", resp.ID)
 
 	return &TincNetwork{
-		ID:       request.NetworkID,
-		Options:  opts,
-		IPv4Data: request.IPv4Data,
-		IPv6Data: request.IPv6Data,
-		// TODO: configurable
+		ID:              request.NetworkID,
+		Options:         opts,
+		IPv4Data:        request.IPv4Data,
+		IPv6Data:        request.IPv6Data,
 		ConfigPath:      configPath,
 		cli:             t.cli,
 		TincContainerID: resp.ID,

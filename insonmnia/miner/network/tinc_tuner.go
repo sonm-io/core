@@ -2,6 +2,8 @@ package network
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"syscall"
 
 	"github.com/docker/docker/api/types"
@@ -49,8 +51,18 @@ func NewTincTuner(ctx context.Context, config *TincNetworkConfig) (*TincTuner, e
 }
 
 func (t *TincTuner) runDriver(ctx context.Context) error {
-	//TODO: maybe remove config duplication?
-	//TODO: dir creation
+	pluginDir := filepath.Dir(t.netDriver.config.DockerNetPluginSockPath)
+	err := os.MkdirAll(pluginDir, 0770)
+	if err != nil {
+		return err
+	}
+
+	ipamDir := filepath.Dir(t.ipamDriver.config.DockerIPAMPluginSockPath)
+	err = os.MkdirAll(ipamDir, 0770)
+	if err != nil {
+		return err
+	}
+
 	netListener, err := sockets.NewUnixSocket(t.netDriver.config.DockerNetPluginSockPath, syscall.Getgid())
 	if err != nil {
 		return err
