@@ -4,6 +4,13 @@ import "volume.proto";
 
 package sonm;
 
+message NetworkSpec {
+    string type = 1;
+    map<string, string> options = 2;
+    string subnet = 3;
+    string addr = 4;
+}
+
 message Container {
     // Image describes a Docker image name. Required.
     string image = 1;
@@ -26,4 +33,6 @@ message Container {
     // Mounts describes mount points from the volume name to the container.
     // TODO: Dragons nearby - beware of injection attacks.
     repeated string mounts = 9;
+
+    repeated NetworkSpec networks = 10;
 }

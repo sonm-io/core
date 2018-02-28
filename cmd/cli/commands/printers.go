@@ -26,7 +26,8 @@ func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusRep
 			portsParsedOK = err == nil
 		}
 
-		cmd.Printf("Task %s (on %s):\r\n", id, taskStatus.MinerID)
+		cmd.Printf("Task %s (on %s):\r\n", id, taskStatus.
+			MinerID)
 		cmd.Printf("  Image:  %s\r\n", taskStatus.GetImageName())
 		cmd.Printf("  Status: %s\r\n", taskStatus.GetStatus().String())
 		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.GetUptime()).String())

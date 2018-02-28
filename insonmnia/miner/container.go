@@ -75,9 +75,9 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		},
 	}
 
-	var networkingConfig network.NetworkingConfig
+	networkingConfig := network.NetworkingConfig{}
 
-	cleanup, err := tuners.Tune(&d, &hostConfig)
+	cleanup, err := tuners.Tune(&d, &hostConfig, &networkingConfig)
 	if err != nil {
 		return nil, err
 	}

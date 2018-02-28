@@ -12,6 +12,7 @@ import (
 
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/miner/volume"
+	"github.com/sonm-io/core/insonmnia/structs"
 	"go.uber.org/zap"
 
 	"github.com/docker/docker/api/types"
@@ -45,6 +46,8 @@ type Description struct {
 
 	volumes map[string]*pb.Volume
 	mounts  []volume.Mount
+
+	networks []structs.Network
 }
 
 func (d *Description) ID() string {
@@ -61,6 +64,10 @@ func (d *Description) Mounts(source string) []volume.Mount {
 
 func (d *Description) GPU() bool {
 	return d.GPURequired
+}
+
+func (d *Description) Networks() []structs.Network {
+	return d.networks
 }
 
 func (d *Description) FormatEnv() []string {

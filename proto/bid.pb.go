@@ -30,6 +30,7 @@ It has these top-level messages:
 	CPUDevice
 	RAMDevice
 	GPUDevice
+	NetworkSpec
 	Container
 	Deal
 	ListReply
