@@ -1,10 +1,6 @@
-version: 0.2.2.{build}
+version: 0.3.3.{build}
 
 platform: x86
-
-branches:
-  only:
-    - master
 
 clone_folder: c:\gopath\src\github.com\sonm-io\core
 
