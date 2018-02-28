@@ -5,6 +5,7 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/sockets"
@@ -30,7 +31,7 @@ func NewTincTuner(ctx context.Context, config *TincNetworkConfig) (*TincTuner, e
 	if err != nil {
 		return nil, err
 	}
-	netDriver, ipamDriver, err := NewTincNetwork(ctx, cli, config)
+	netDriver, ipamDriver, err := NewTinc(ctx, cli, config)
 	if err != nil {
 		return nil, err
 	}
@@ -81,10 +82,12 @@ func (t *TincTuner) runDriver(ctx context.Context) error {
 }
 
 //TODO: pass context from outside
-func (t *TincTuner) Tune(net structs.Network, config *network.NetworkingConfig) (Cleanup, error) {
+func (t *TincTuner) Tune(net structs.Network, hostConfig *container.HostConfig, config *network.NetworkingConfig) (Cleanup, error) {
+	opts := cloneOptions(net.NetworkOptions())
+	opts["cgroup_parent"] = hostConfig.Resources.CgroupParent
 	createOpts := types.NetworkCreate{
 		Driver:  "tinc",
-		Options: net.NetworkOptions(),
+		Options: opts,
 	}
 	if len(net.NetworkCIDR()) != 0 {
 		createOpts.IPAM = &network.IPAM{
@@ -116,4 +119,12 @@ func (t *TincTuner) Tune(net structs.Network, config *network.NetworkingConfig) 
 
 func (t *TincCleaner) Close() error {
 	return t.client.NetworkRemove(context.Background(), t.networkID)
+}
+
+func cloneOptions(from map[string]string) map[string]string {
+	result := map[string]string{}
+	for k, v := range from {
+		result[k] = v
+	}
+	return result
 }

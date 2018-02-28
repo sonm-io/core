@@ -134,7 +134,7 @@ func (r *Repository) Tune(provider Provider, hostCfg *container.HostConfig, netC
 	}
 	cleanup.Add(c)
 
-	c, err = r.TuneNetworks(provider, netCfg)
+	c, err = r.TuneNetworks(provider, hostCfg, netCfg)
 	if err != nil {
 		cleanup.Close()
 		return nil, err
@@ -212,7 +212,7 @@ func (r *Repository) TuneVolumes(provider VolumeProvider, cfg *container.HostCon
 	return &cleanup, nil
 }
 
-func (r *Repository) TuneNetworks(provider NetworkProvider, cfg *network.NetworkingConfig) (Cleanup, error) {
+func (r *Repository) TuneNetworks(provider NetworkProvider, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
 	log.G(context.Background()).Info("tuning networks")
 	cleanup := newNestedCleanup()
 	networks := provider.Networks()
@@ -222,7 +222,7 @@ func (r *Repository) TuneNetworks(provider NetworkProvider, cfg *network.Network
 			cleanup.Close()
 			return nil, fmt.Errorf("network driver not supported: %s", net.NetworkType())
 		}
-		c, err := tuner.Tune(net, cfg)
+		c, err := tuner.Tune(net, hostCfg, netCfg)
 		if err != nil {
 			cleanup.Close()
 			return nil, err

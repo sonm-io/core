@@ -22,7 +22,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewTincNetwork(ctx context.Context, client *client.Client, config *TincNetworkConfig) (*TincNetworkDriver, *TincIPAMDriver, error) {
+func NewTinc(ctx context.Context, client *client.Client, config *TincNetworkConfig) (*TincNetworkDriver, *TincIPAMDriver, error) {
 	err := os.MkdirAll(config.ConfigDir, 0770)
 	if err != nil {
 		return nil, nil, err
@@ -42,6 +42,7 @@ func NewTincNetwork(ctx context.Context, client *client.Client, config *TincNetw
 type TincNetworkOptions struct {
 	Invitation   string
 	EnableBridge bool
+	CgroupParent string
 }
 
 type TincNetwork struct {
@@ -161,6 +162,9 @@ func (t *TincNetworkDriver) newTincNetwork(request *network.CreateNetworkRequest
 	hostConfig := &container.HostConfig{
 		Privileged:  true,
 		NetworkMode: "host",
+		Resources: container.Resources{
+			CgroupParent: opts.CgroupParent,
+		},
 	}
 	netConfig := &cnet.NetworkingConfig{}
 	resp, err := t.cli.ContainerCreate(t.ctx, containerConfig, hostConfig, netConfig, "")
@@ -198,8 +202,15 @@ func ParseNetworkOpts(data map[string]interface{}) (*TincNetworkOptions, error) 
 	if !ok {
 		return nil, errors.New("invitation is required")
 	}
-	_, ok = generic["enable_bridge"]
-	return &TincNetworkOptions{Invitation: invitation.(string), EnableBridge: ok}, nil
+	_, enableBridge := generic["enable_bridge"]
+	cgroupParent := ""
+
+	cgroupParentI, ok := generic["cgroup_parent"]
+	if ok {
+		cgroupParent = cgroupParentI.(string)
+	}
+
+	return &TincNetworkOptions{Invitation: invitation.(string), EnableBridge: enableBridge, CgroupParent: cgroupParent}, nil
 }
 
 func (t *TincNetworkDriver) GetCapabilities() (*network.CapabilitiesResponse, error) {
