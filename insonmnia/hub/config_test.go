@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -32,7 +33,10 @@ cluster:
 locator:
   endpoint: "127.0.0.1:9090"
 market:
-  endpoint: "127.0.0.1:9095"`
+  endpoint: "127.0.0.1:9095"
+logging:
+  level: info
+`
 
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
@@ -70,7 +74,7 @@ endpoint: ":10002"
 monitoring:
   endpoint: ":10001"
 logging:
-  level: -1
+  level: info
 locator:
   endpoint: "127.0.0.1:9090"
 market:
@@ -82,10 +86,10 @@ market:
 	conf, err := NewConfig(testHubConfigPath)
 	assert.Nil(t, err)
 
-	assert.Equal(t, -1, conf.Logging.Level)
+	assert.Equal(t, zapcore.InfoLevel, conf.LogLevel())
 }
 
-func TestLoadConfigLoggerDefault(t *testing.T) {
+func TestLoadConfigInvalidLogLevel(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
 ethereum:
@@ -96,15 +100,16 @@ monitoring:
 locator:
   endpoint: "127.0.0.1:9090"
 market:
-  endpoint: "127.0.0.1:9095"`
+  endpoint: "127.0.0.1:9095"
+logging:
+  level: wtf
+`
 
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
 
-	conf, err := NewConfig(testHubConfigPath)
-	assert.Nil(t, err)
-
-	assert.Equal(t, 1, conf.Logging.Level)
+	_, err = NewConfig(testHubConfigPath)
+	assert.Error(t, err)
 }
 
 func TestLoadConfigWithoutLocator(t *testing.T) {

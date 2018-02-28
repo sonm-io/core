@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -27,7 +28,10 @@ hub:
   eth_addr: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD"
   endpoints: ["127.0.0.1:10002"]
 locator:
-  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"`
+  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"
+logging:
+  level: warn
+`
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
 
@@ -35,6 +39,7 @@ locator:
 	assert.Nil(t, err)
 
 	assert.Equal(t, []string{"127.0.0.1:10002"}, conf.HubEndpoints())
+	assert.Equal(t, zapcore.WarnLevel, conf.LogLevel())
 }
 
 func TestConfigPluginsDefaults(t *testing.T) {

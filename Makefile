@@ -19,6 +19,7 @@ HUB=sonmhub
 CLI=sonmcli
 LOCATOR=sonmlocator
 LOCAL_NODE=sonmnode
+AUTOCLI=autocli
 
 TAGS=nocgo
 
@@ -75,6 +76,10 @@ build/node_win32:
 	@echo "+ $@"
 	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${LOCAL_NODE}_win32.exe ${GOCMD}/node
 
+build/autocli:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${AUTOCLI} ${GOCMD}/autocli
+
 
 build/insomnia: build/hub build/miner build/cli build/node
 
@@ -103,8 +108,8 @@ test: mock
 grpc:
 	@echo "+ $@"
 	@if ! which protoc > /dev/null; then echo "protoc protobuf compiler required for build"; exit 1; fi;
-	@if ! which protoc-gen-go > /dev/null; then echo "protoc-gen-go protobuf  plugin required for build.\nRun \`go get -u github.com/golang/protobuf/protoc-gen-go\`"; exit 1; fi;
-	@protoc -I proto proto/*.proto --go_out=plugins=grpc:proto/
+	@if ! which protoc-gen-grpccmd > /dev/null; then echo "protoc-gen-grpccmd protobuf  plugin required for build.\nRun \`go get -u github.com/sshaman1101/grpccmd/cmd/protoc-gen-grpccmd\`"; exit 1; fi;
+	@protoc -I proto proto/*.proto --grpccmd_out=proto/
 
 mock:
 	@echo "+ $@"
@@ -114,7 +119,8 @@ mock:
 	echo "\`go get github.com/golang/mock/mockgen\`"; \
 	echo "and add your go bin directory to PATH"; exit 1; fi;
 	mockgen -package miner -destination insonmnia/miner/overseer_mock.go -source insonmnia/miner/overseer.go
-	mockgen -package miner -destination insonmnia/miner/config_mock.go -source insonmnia/miner/config.go
+	mockgen -package miner -destination insonmnia/miner/config_mock.go -source insonmnia/miner/config.go \
+		-aux_files logging=insonmnia/logging/logging.go
 	mockgen -package hardware -destination insonmnia/hardware/hardware_mock.go -source insonmnia/hardware/hardware.go
 	mockgen -package commands -destination cmd/cli/commands/interactor_mock.go  -source cmd/cli/commands/interactor.go
 	mockgen -package task_config -destination cmd/cli/task_config/config_mock.go  -source cmd/cli/task_config/config.go
@@ -124,9 +130,9 @@ mock:
 	mockgen -package sonm -destination proto/marketplace_mock.go  -source proto/marketplace.pb.go
 	mockgen -package hub -destination insonmnia/hub/cluster_mock.go  -source insonmnia/hub/cluster.go
 	mockgen -package config -destination cmd/cli/config/config_mock.go  -source cmd/cli/config/config.go \
-		-aux_files accounts=accounts/keys.go
+		-aux_files accounts=accounts/keys.go,logging=insonmnia/logging/logging.go
 	mockgen -package node -destination insonmnia/node/config_mock.go -source insonmnia/node/config.go \
-		-aux_files accounts=accounts/keys.go
+		-aux_files accounts=accounts/keys.go,logging=insonmnia/logging/logging.go
 	mockgen -imports "context=golang.org/x/net/context" -package node -destination insonmnia/node/hub_mock.go \
 		"github.com/sonm-io/core/proto" HubClient && ${SED}
 

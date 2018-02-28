@@ -32,7 +32,7 @@ func run() {
 		os.Exit(1)
 	}
 
-	logger := logging.BuildLogger(cfg.LogLevel(), true)
+	logger := logging.BuildLogger(cfg.LogLevel())
 	ctx := log.WithLogger(context.Background(), logger)
 
 	key, err := loadKeys(cfg)

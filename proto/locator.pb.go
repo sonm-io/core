@@ -12,6 +12,14 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
+// grpccmd imports
+import (
+	"io"
+
+	"github.com/spf13/cobra"
+	"github.com/sshaman1101/grpccmd"
+)
+
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
@@ -218,6 +226,66 @@ var _Locator_serviceDesc = grpc.ServiceDesc{
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "locator.proto",
 }
+
+// Begin grpccmd
+var _ = grpccmd.RunE
+
+// Locator
+var _LocatorCmd = &cobra.Command{
+	Use:   "locator [method]",
+	Short: "Subcommand for the Locator service.",
+}
+
+var _Locator_AnnounceCmd = &cobra.Command{
+	Use:   "announce",
+	Short: "Make the Announce method call, input-type: sonm.AnnounceRequest output-type: sonm.Empty",
+	RunE: grpccmd.RunE(
+		"Announce",
+		"sonm.AnnounceRequest",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewLocatorClient(cc)
+		},
+	),
+}
+
+var _Locator_AnnounceCmd_gen = &cobra.Command{
+	Use:   "announce-gen",
+	Short: "Generate JSON for method call of Announce (input-type: sonm.AnnounceRequest)",
+	RunE:  grpccmd.TypeToJson("sonm.AnnounceRequest"),
+}
+
+var _Locator_ResolveCmd = &cobra.Command{
+	Use:   "resolve",
+	Short: "Make the Resolve method call, input-type: sonm.ResolveRequest output-type: sonm.ResolveReply",
+	RunE: grpccmd.RunE(
+		"Resolve",
+		"sonm.ResolveRequest",
+		func(c io.Closer) interface{} {
+			cc := c.(*grpc.ClientConn)
+			return NewLocatorClient(cc)
+		},
+	),
+}
+
+var _Locator_ResolveCmd_gen = &cobra.Command{
+	Use:   "resolve-gen",
+	Short: "Generate JSON for method call of Resolve (input-type: sonm.ResolveRequest)",
+	RunE:  grpccmd.TypeToJson("sonm.ResolveRequest"),
+}
+
+// Register commands with the root command and service command
+func init() {
+	grpccmd.RegisterServiceCmd(_LocatorCmd)
+	_LocatorCmd.AddCommand(
+		_Locator_AnnounceCmd,
+		_Locator_AnnounceCmd_gen,
+		_Locator_ResolveCmd,
+		_Locator_ResolveCmd_gen,
+	)
+}
+
+// End grpccmd
 
 func init() { proto.RegisterFile("locator.proto", fileDescriptor7) }
 
