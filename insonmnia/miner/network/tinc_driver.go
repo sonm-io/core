@@ -238,19 +238,19 @@ func (t *TincNetworkDriver) GetCapabilities() (*network.CapabilitiesResponse, er
 
 func (t *TincNetworkDriver) CreateNetwork(request *network.CreateNetworkRequest) error {
 	t.logger.Info("received CreateNetwork request", zap.Any("request", request))
-	network, err := t.newTincNetwork(request)
+	n, err := t.newTincNetwork(request)
 	if err != nil {
 		return err
 	}
 
-	err = network.Join(t.ctx)
+	err = n.Join(t.ctx)
 	if err != nil {
 		return err
 	}
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.networks[network.ID] = network
+	t.networks[n.ID] = n
 
 	return nil
 }
@@ -263,20 +263,20 @@ func (t *TincNetworkDriver) AllocateNetwork(request *network.AllocateNetworkRequ
 func (t *TincNetworkDriver) popNetwork(ID string) *TincNetwork {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	net, ok := t.networks[ID]
+	n, ok := t.networks[ID]
 	if !ok {
 		return nil
 	}
 	delete(t.networks, ID)
-	return net
+	return n
 }
 
 func (t *TincNetworkDriver) DeleteNetwork(request *network.DeleteNetworkRequest) error {
-	net := t.popNetwork(request.NetworkID)
-	if net == nil {
+	n := t.popNetwork(request.NetworkID)
+	if n == nil {
 		return errors.Errorf("no network with id %s", request.NetworkID)
 	}
-	return net.Shutdown()
+	return n.Shutdown()
 }
 
 func (t *TincNetworkDriver) FreeNetwork(request *network.FreeNetworkRequest) error {
@@ -289,13 +289,13 @@ func (t *TincNetworkDriver) CreateEndpoint(request *network.CreateEndpointReques
 
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	net, ok := t.networks[request.NetworkID]
+	n, ok := t.networks[request.NetworkID]
 	if !ok {
 		t.logger.Warn("no such network %s", request.NetworkID)
 		return nil, errors.Errorf("no such network %s", request.NetworkID)
 	}
 	selfAddr := strings.Split(request.Interface.Address, "/")[0]
-	err := net.Start(t.ctx, selfAddr)
+	err := n.Start(t.ctx, selfAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -308,17 +308,11 @@ func (t *TincNetworkDriver) DeleteEndpoint(request *network.DeleteEndpointReques
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	net, ok := t.networks[request.NetworkID]
+	n, ok := t.networks[request.NetworkID]
 	if !ok {
 		return errors.Errorf("no such network %s", request.NetworkID)
 	}
-	return net.Stop(t.ctx)
-	err := net.runCommand(t.ctx, "tinc", "--batch", "-n", net.ID, "-c", net.ConfigPath, "stop")
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return n.Stop(t.ctx)
 }
 
 func (t *TincNetworkDriver) EndpointInfo(request *network.InfoRequest) (*network.InfoResponse, error) {
