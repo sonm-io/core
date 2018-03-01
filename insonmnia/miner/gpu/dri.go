@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	devDriCardNameRe = regexp.MustCompile(`^(card)([\d]+)`)
+	devDRICardNameRe = regexp.MustCompile(`^(card)([\d]+)`)
 	fullDevicePathRe = regexp.MustCompile(`(\/dev\/[a-z]+)(\d+)`)
 
 	errBadNameFormat = errors.New("bad name format")
@@ -170,9 +170,9 @@ func parsePCISlotName(s string) (string, bool) {
 	return "", false
 }
 
-// CollectDriCardDevices traverses overs /dev/dri and collect card Devices
+// CollectDRICardDevices traverses overs /dev/dri and collect card Devices
 // which can be bound into the container
-func CollectDriCardDevices() ([]DRICard, error) {
+func CollectDRICardDevices() ([]DRICard, error) {
 	var cards []DRICard
 
 	ls, err := ioutil.ReadDir("/dev/dri")
@@ -196,7 +196,7 @@ func CollectDriCardDevices() ([]DRICard, error) {
 
 // newCardDeviceByName returns DRI device by given name.
 func newCardDeviceByName(s string) (DRICard, error) {
-	m := devDriCardNameRe.FindStringSubmatch(s)
+	m := devDRICardNameRe.FindStringSubmatch(s)
 	match := m != nil && len(m) == 3
 
 	if !match {

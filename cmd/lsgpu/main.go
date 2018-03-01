@@ -11,7 +11,7 @@ var appVersion string
 
 func main() {
 	fmt.Printf("sonm lspgu %s\r\n", appVersion)
-	cards, err := gpu.CollectDriCardDevices()
+	cards, err := gpu.CollectDRICardDevices()
 	if err != nil {
 		fmt.Printf("cannot collect card devces: %v\r\n", err)
 		os.Exit(1)

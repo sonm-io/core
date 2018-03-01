@@ -33,7 +33,7 @@ func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 		return nil, err
 	}
 
-	cards, err := CollectDriCardDevices()
+	cards, err := CollectDRICardDevices()
 	if err != nil {
 		return nil, err
 	}

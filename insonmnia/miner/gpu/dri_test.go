@@ -26,7 +26,7 @@ func TestMatchDeviceName(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		m := devDriCardNameRe.FindStringSubmatch(tt.name)
+		m := devDRICardNameRe.FindStringSubmatch(tt.name)
 		match := m != nil && len(m) == 3
 
 		if tt.match {

@@ -131,7 +131,7 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	// Detect if we support NVIDIA
 	log.G(ctx).Info("loading NVIDIA unified memory")
 	if err := nvidia.LoadUVM(); err != nil {
-		log.G(ctx).Error("failed to load UVM. Seems NVIDIA is not installed on the host", zap.Error(err))
+		log.G(ctx).Error("failed to load UVM, seems NVIDIA is not installed on the host", zap.Error(err))
 		return nil, err
 	}
 
@@ -143,16 +143,16 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 
 	defer func() { nvidia.Shutdown() }()
 
-	log.G(ctx).Info("NVIDIA GPU supported by the host. Discovering GPU Devices")
+	log.G(ctx).Info("NVIDIA GPU supported by the host, discovering GPU devices")
 	devices, err := nvidia.LookupDevices()
 	if err != nil {
-		log.G(ctx).Error("failed to lookup GPU Devices", zap.Error(err))
+		log.G(ctx).Error("failed to lookup GPU devices", zap.Error(err))
 		return nil, err
 	}
 
 	ctrlDevices, err := nvidia.GetControlDevicePaths()
 	if err != nil {
-		log.G(ctx).Error("failed to get control Devices paths", zap.Error(err))
+		log.G(ctx).Error("failed to get control devices paths", zap.Error(err))
 		return nil, err
 	}
 
@@ -170,10 +170,10 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 		}
 		ovs.devMap[dev.ID()] = dev
 
-		log.G(ctx).Debug("discovered gpu device ",
-			zap.String("dev", dev.String()),
-			zap.Strings("ctrlDevices", dev.ctrlDevices),
-			zap.Strings("driDevice", card.Devices))
+		log.G(ctx).Debug("discovered gpu devices",
+			zap.String("root", dev.String()),
+			zap.Strings("ctrl", dev.ctrlDevices),
+			zap.Strings("dri", card.Devices))
 	}
 
 	volInfo := []nvidia.VolumeInfo{
