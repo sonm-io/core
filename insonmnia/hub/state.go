@@ -506,27 +506,29 @@ func (s *state) GetMinerByDeal(id DealID) (*MinerCtx, *resource.Resources, error
 	return s.getMinerByOrder(OrderID(dealMeta.Order.Id))
 }
 
-// TODO: refactor - we can use s.tasks here.
 func (s *state) GetTaskList(ctx context.Context) (*pb.TaskListReply, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	reply := &pb.TaskListReply{Info: map[string]*pb.TaskListReply_TaskInfo{}}
-	for workerID, worker := range s.miners {
-		var (
-			taskStatuses = pb.StatusMapReply{Statuses: worker.statusMap}
-			info         = &pb.TaskListReply_TaskInfo{Tasks: map[string]*pb.TaskStatusReply{}}
-		)
-		for taskID := range taskStatuses.GetStatuses() {
-			taskInfo, err := worker.Client.TaskDetails(ctx, &pb.ID{Id: taskID})
-			if err != nil {
-				info.Tasks[taskID] = &pb.TaskStatusReply{Status: pb.TaskStatusReply_UNKNOWN}
-			} else {
-				info.Tasks[taskID] = taskInfo
+
+	// iter over known tasks
+	for taskID, taskInfo := range s.tasks {
+		info := &pb.TaskListReply_TaskInfo{Tasks: map[string]*pb.TaskStatusReply{
+			taskID: {Status: pb.TaskStatusReply_UNKNOWN},
+		}}
+
+		// get worker for this task
+		worker, ok := s.getMinerByID(taskInfo.MinerId)
+		if ok {
+			// ask worker for actual status
+			taskDetails, err := worker.Client.TaskDetails(ctx, &pb.ID{Id: taskID})
+			if err == nil {
+				info.Tasks[taskID] = taskDetails
 			}
 		}
 
-		reply.Info[workerID] = info
+		reply.Info[taskInfo.MinerId] = info
 	}
 
 	return reply, nil
@@ -870,7 +872,7 @@ func (s *state) GetTaskStatus(taskID string) (*pb.TaskStatusReply, error) {
 
 	task, ok := s.getTaskByID(taskID)
 	if !ok {
-		return nil, status.Errorf(codes.NotFound, "failed to stop the task %s", task.ID)
+		return nil, status.Errorf(codes.NotFound, "cannot get task with id \"%s\"", taskID)
 	}
 
 	minerCtx, ok := s.getMinerByID(task.MinerId)
