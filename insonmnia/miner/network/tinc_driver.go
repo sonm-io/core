@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -15,24 +16,44 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/go-plugins-helpers/ipam"
 	"github.com/docker/go-plugins-helpers/network"
+	"github.com/docker/libkv"
+	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/boltdb"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
+func makeStore(ctx context.Context, path string) (store.Store, error) {
+	boltdb.Register()
+	s := store.Backend(store.BOLTDB)
+	endpoints := []string{path}
+	config := store.Config{
+		Bucket: "sonm_tinc_driver_state",
+	}
+	return libkv.NewStore(s, endpoints, &config)
+}
+
 func NewTinc(ctx context.Context, client *client.Client, config *TincNetworkConfig) (*TincNetworkDriver, *TincIPAMDriver, error) {
 	err := os.MkdirAll(config.ConfigDir, 0770)
 	if err != nil {
 		return nil, nil, err
 	}
+	storage, err := makeStore(ctx, config.StatePath)
 
 	state := &TincNetworkState{
 		ctx:      ctx,
 		config:   config,
 		cli:      client,
-		networks: make(map[string]*TincNetwork),
-		pools:    make(map[string]*net.IPNet),
+		Networks: make(map[string]*TincNetwork),
+		Pools:    make(map[string]*net.IPNet),
+		storage:  storage,
+		logger:   log.S(ctx).With("source", "tinc/state"),
+	}
+	err = state.load()
+	if err != nil {
+		return nil, nil, err
 	}
 
 	netDr := &TincNetworkDriver{
@@ -69,9 +90,61 @@ type TincNetworkState struct {
 	config   *TincNetworkConfig
 	mu       sync.RWMutex
 	cli      *client.Client
-	networks map[string]*TincNetwork
-	pools    map[string]*net.IPNet
+	Networks map[string]*TincNetwork
+	Pools    map[string]*net.IPNet
 	logger   *zap.SugaredLogger
+	storage  store.Store
+}
+
+func (t *TincNetworkState) load() (err error) {
+	defer func() {
+		if err == store.ErrKeyNotFound {
+			err = nil
+		}
+		if err != nil {
+			t.logger.Errorf("could not load tinc network state - %s; erasing key", err)
+			delErr := t.storage.Delete("state")
+			if delErr != nil {
+				t.logger.Errorf("could not cleanup storage for tinc network - %s", delErr)
+			}
+		}
+	}()
+
+	exists, err := t.storage.Exists("state")
+	if err != nil || !exists {
+		return
+	}
+
+	data, err := t.storage.Get("state")
+	if err != nil {
+		return
+	}
+
+	err = json.Unmarshal(data.Value, t)
+	if err != nil {
+		return
+	}
+	for _, n := range t.Networks {
+		n.cli = t.cli
+		n.logger = t.logger.With("source", "tinc/network/"+n.ID, "container", n.TincContainerID)
+	}
+	return
+}
+
+func (t *TincNetworkState) sync() error {
+	var err error
+	defer func() {
+		if err != nil {
+			t.logger.Errorf("could not sync network state - %s", err)
+		}
+	}()
+
+	marshalled, err := json.Marshal(t)
+	if err != nil {
+		return err
+	}
+	err = t.storage.Put("state", marshalled, &store.WriteOptions{})
+	return err
 }
 
 type TincNetworkDriver struct {
@@ -104,7 +177,8 @@ func (t *TincIPAMDriver) RequestPool(request *ipam.RequestPoolRequest) (*ipam.Re
 		t.logger.Errorf("invalid pool CIDR specified - %s", err)
 		return nil, err
 	}
-	t.pools[id] = n
+	t.Pools[id] = n
+	t.sync()
 	return &ipam.RequestPoolResponse{
 		PoolID: id,
 		Pool:   request.Pool,
@@ -116,7 +190,8 @@ func (t *TincIPAMDriver) ReleasePool(request *ipam.ReleasePoolRequest) error {
 	t.logger.Info("received ReleasePool request", zap.Any("request", request))
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	delete(t.pools, request.PoolID)
+	delete(t.Pools, request.PoolID)
+	t.sync()
 	return nil
 }
 
@@ -125,7 +200,7 @@ func (t *TincIPAMDriver) RequestAddress(request *ipam.RequestAddressRequest) (*i
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
-	pool, ok := t.pools[request.PoolID]
+	pool, ok := t.Pools[request.PoolID]
 	if !ok {
 		t.logger.Errorf("pool %s not found", request.PoolID)
 		return nil, errors.New("pool not found")
@@ -250,7 +325,8 @@ func (t *TincNetworkDriver) CreateNetwork(request *network.CreateNetworkRequest)
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.networks[n.ID] = n
+	t.Networks[n.ID] = n
+	t.sync()
 
 	return nil
 }
@@ -263,11 +339,12 @@ func (t *TincNetworkDriver) AllocateNetwork(request *network.AllocateNetworkRequ
 func (t *TincNetworkDriver) popNetwork(ID string) *TincNetwork {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	n, ok := t.networks[ID]
+	n, ok := t.Networks[ID]
 	if !ok {
 		return nil
 	}
-	delete(t.networks, ID)
+	delete(t.Networks, ID)
+	t.sync()
 	return n
 }
 
@@ -289,7 +366,7 @@ func (t *TincNetworkDriver) CreateEndpoint(request *network.CreateEndpointReques
 
 	t.mu.RLock()
 	defer t.mu.RUnlock()
-	n, ok := t.networks[request.NetworkID]
+	n, ok := t.Networks[request.NetworkID]
 	if !ok {
 		t.logger.Warn("no such network %s", request.NetworkID)
 		return nil, errors.Errorf("no such network %s", request.NetworkID)
@@ -308,7 +385,7 @@ func (t *TincNetworkDriver) DeleteEndpoint(request *network.DeleteEndpointReques
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	n, ok := t.networks[request.NetworkID]
+	n, ok := t.Networks[request.NetworkID]
 	if !ok {
 		return errors.Errorf("no such network %s", request.NetworkID)
 	}
