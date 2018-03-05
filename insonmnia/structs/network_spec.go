@@ -8,25 +8,25 @@ import (
 )
 
 type Network interface {
-	// ID returns a unique identifier that will be used as a new network name.
-	ID() string
+	// Name returns a unique identifier that will be used as a new network name.
+	Name() string
 	// NetworkType returns a network driver name used to establish networking.
 	NetworkType() string
 	// NetworkOptions return configuration map, passed directly to network driver, this map should not be mutated.
 	NetworkOptions() map[string]string
 	// Returns network subnet in CIDR notation if applicable.
 	NetworkCIDR() string
-	// Returns specified addr to join the network.
+	// Returns specified addr to join the network
 	NetworkAddr() string
 }
 
 type NetworkSpec struct {
 	*sonm.NetworkSpec
-	Id string
+	NetName string
 }
 
-func (n *NetworkSpec) ID() string {
-	return n.Id
+func (n *NetworkSpec) Name() string {
+	return n.NetName
 }
 
 func (n *NetworkSpec) NetworkType() string {

@@ -18,6 +18,8 @@ service Miner {
     rpc Start(MinerStartRequest) returns (MinerStartReply) {}
     rpc Stop(ID) returns (Empty) {}
 
+    rpc JoinNetwork(ID) returns (NetworkSpec) {}
+
     rpc TasksStatus(stream MinerStatusMapRequest) returns (stream StatusMapReply) {}
     rpc TaskDetails(ID) returns (TaskStatusReply) {}
 

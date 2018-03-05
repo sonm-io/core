@@ -1,28 +1,37 @@
 package network
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	cnet "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-plugins-helpers/ipam"
 	"github.com/docker/go-plugins-helpers/network"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
+	"github.com/docker/libnetwork"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
+)
+
+const (
+	defaultNetwork = "10.20.30.0/24"
 )
 
 func makeStore(ctx context.Context, path string) (store.Store, error) {
@@ -43,13 +52,14 @@ func NewTinc(ctx context.Context, client *client.Client, config *TincNetworkConf
 	storage, err := makeStore(ctx, config.StatePath)
 
 	state := &TincNetworkState{
-		ctx:      ctx,
-		config:   config,
-		cli:      client,
-		Networks: make(map[string]*TincNetwork),
-		Pools:    make(map[string]*net.IPNet),
-		storage:  storage,
-		logger:   log.S(ctx).With("source", "tinc/state"),
+		ctx:             ctx,
+		config:          config,
+		cli:             client,
+		Networks:        map[string]*TincNetwork{},
+		networkNameToId: map[string]string{},
+		Pools:           map[string]*net.IPNet{},
+		storage:         storage,
+		logger:          log.S(ctx).With("source", "tinc/state"),
 	}
 	err = state.load()
 	if err != nil {
@@ -75,6 +85,7 @@ type TincNetworkOptions struct {
 }
 
 type TincNetwork struct {
+	Name            string
 	ID              string
 	Options         *TincNetworkOptions
 	IPv4Data        []*network.IPAMData
@@ -85,15 +96,35 @@ type TincNetwork struct {
 	logger          *zap.SugaredLogger
 }
 
+type Pool struct {
+	Net *net.IPNet
+	libnetwork.IpamConf
+}
+
 type TincNetworkState struct {
-	ctx      context.Context
-	config   *TincNetworkConfig
-	mu       sync.RWMutex
-	cli      *client.Client
-	Networks map[string]*TincNetwork
-	Pools    map[string]*net.IPNet
-	logger   *zap.SugaredLogger
-	storage  store.Store
+	ctx             context.Context
+	config          *TincNetworkConfig
+	mu              sync.RWMutex
+	cli             *client.Client
+	Networks        map[string]*TincNetwork
+	networkNameToId map[string]string
+	Pools           map[string]*net.IPNet
+	logger          *zap.SugaredLogger
+	storage         store.Store
+}
+
+func (t *TincNetworkState) RegisterNetworkMapping(id string, name string) error {
+	if len(name) == 0 || len(id) == 0 {
+		return errors.Errorf("invalid network mapping arguments: \"%s\" \"%s\"", id, name)
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	_, ok := t.Networks[id]
+	if !ok {
+		return errors.Errorf("no network with id %s", id)
+	}
+	t.networkNameToId[name] = id
+	return nil
 }
 
 func (t *TincNetworkState) load() (err error) {
@@ -127,6 +158,7 @@ func (t *TincNetworkState) load() (err error) {
 	for _, n := range t.Networks {
 		n.cli = t.cli
 		n.logger = t.logger.With("source", "tinc/network/"+n.ID, "container", n.TincContainerID)
+		t.RegisterNetworkMapping(n.ID, n.Name)
 	}
 	return
 }
@@ -280,27 +312,31 @@ func (t *TincNetworkDriver) newTincNetwork(request *network.CreateNetworkRequest
 }
 
 func ParseNetworkOpts(data map[string]interface{}) (*TincNetworkOptions, error) {
+	options := &TincNetworkOptions{}
 	g, ok := data["com.docker.network.generic"]
 	if !ok {
-		return nil, errors.New("no options passed - invitation is required")
+		return options, nil
+		//return nil, errors.New("no options passed - invitation is required")
 	}
 	generic, ok := g.(map[string]interface{})
 	if !ok {
-		return nil, errors.New("invalid type of generic options")
+		//return nil, errors.New("invalid type of generic options")
+		return options, nil
 	}
 	invitation, ok := generic["invitation"]
-	if !ok {
-		return nil, errors.New("invitation is required")
+	if ok {
+		options.Invitation = invitation.(string)
+		//return nil, errors.New("invitation is required")
 	}
 	_, enableBridge := generic["enable_bridge"]
-	cgroupParent := ""
+	options.EnableBridge = enableBridge
 
-	cgroupParentI, ok := generic["cgroup_parent"]
+	cgroupParent, ok := generic["cgroup_parent"]
 	if ok {
-		cgroupParent = cgroupParentI.(string)
+		options.CgroupParent = cgroupParent.(string)
 	}
 
-	return &TincNetworkOptions{Invitation: invitation.(string), EnableBridge: enableBridge, CgroupParent: cgroupParent}, nil
+	return options, nil
 }
 
 func (t *TincNetworkDriver) GetCapabilities() (*network.CapabilitiesResponse, error) {
@@ -318,7 +354,11 @@ func (t *TincNetworkDriver) CreateNetwork(request *network.CreateNetworkRequest)
 		return err
 	}
 
-	err = n.Join(t.ctx)
+	if len(n.Options.Invitation) != 0 {
+		err = n.Join(t.ctx)
+	} else {
+		err = n.Init(t.ctx)
+	}
 	if err != nil {
 		return err
 	}
@@ -344,6 +384,7 @@ func (t *TincNetworkDriver) popNetwork(ID string) *TincNetwork {
 		return nil
 	}
 	delete(t.Networks, ID)
+	delete(t.networkNameToId, n.Name)
 	t.sync()
 	return n
 }
@@ -384,6 +425,7 @@ func (t *TincNetworkDriver) DeleteEndpoint(request *network.DeleteEndpointReques
 
 	t.mu.RLock()
 	defer t.mu.RUnlock()
+	time.Timer{}
 
 	n, ok := t.Networks[request.NetworkID]
 	if !ok {
@@ -431,7 +473,51 @@ func (t *TincNetworkDriver) RevokeExternalConnectivity(request *network.RevokeEx
 	return nil
 }
 
+func (t *TincNetworkDriver) HasNetwork(name string) bool {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	id, ok := t.networkNameToId[name]
+	if !ok {
+		return ok
+	}
+	_, ok = t.Networks[id]
+	return ok
+}
+
+func (t *TincNetworkDriver) GenerateInvitation(name string) (structs.Network, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	id, ok := t.networkNameToId[name]
+	if !ok {
+		return nil, errors.Errorf("no such network %s", name)
+	}
+	n := t.Networks[id]
+
+	inviteeID := strings.Replace(uuid.New(), "-", "_", -1)
+	invitation, err := n.Invite(t.ctx, inviteeID)
+	spec := structs.NetworkSpec{
+		NetworkSpec: &sonm.NetworkSpec{
+			Type:    "tinc",
+			Options: map[string]string{"invitation": invitation},
+		},
+	}
+	return &spec, err
+}
+
+func (t *TincNetwork) Init(ctx context.Context) error {
+	err := t.runCommand(ctx, "tinc", "--batch", "-n", t.ID, "-c", t.ConfigPath, "init", "initial_node_"+t.ID)
+	if err != nil {
+		t.logger.Errorf("failed to init network - %s", err)
+	} else {
+		t.logger.Info("succesefully initialized tinc network")
+	}
+	return err
+}
+
 func (t *TincNetwork) Join(ctx context.Context) error {
+	if len(t.Options.Invitation) == 0 {
+		return errors.New("can not join to network without invitation")
+	}
 	err := t.runCommand(ctx, "tinc", "--batch", "-n", t.ID, "-c", t.ConfigPath, "join", t.Options.Invitation)
 	if err != nil {
 		t.logger.Errorf("failed to join network - %s", err)
@@ -471,7 +557,17 @@ func (t *TincNetwork) Stop(ctx context.Context) error {
 	return err
 }
 
+func (t *TincNetwork) Invite(ctx context.Context, inviteeID string) (string, error) {
+	out, _, err := t.runCommandWithOutput(ctx, "tinc", "--batch", "-n", t.ID, "-c", t.ConfigPath, "invite", inviteeID)
+	out = strings.Trim(out, "\n")
+	return out, err
+}
+
 func (t *TincNetwork) runCommand(ctx context.Context, name string, arg ...string) error {
+	_, _, err := t.runCommandWithOutput(ctx, name, arg...)
+	return err
+}
+func (t *TincNetwork) runCommandWithOutput(ctx context.Context, name string, arg ...string) (string, string, error) {
 	cmd := append([]string{name}, arg...)
 	cfg := types.ExecConfig{
 		User:         "root",
@@ -484,32 +580,34 @@ func (t *TincNetwork) runCommand(ctx context.Context, name string, arg ...string
 	execId, err := t.cli.ContainerExecCreate(ctx, t.TincContainerID, cfg)
 	if err != nil {
 		t.logger.Warnf("ContainerExecCreate finished with error - %s", err)
-		return err
+		return "", "", err
 	}
 
 	conn, err := t.cli.ContainerExecAttach(ctx, execId.ID, cfg)
 	if err != nil {
 		t.logger.Warnf("ContainerExecAttach finished with error - %s", err)
 	}
+	stdoutBuf := bytes.Buffer{}
+	stderrBuf := bytes.Buffer{}
+	stdcopy.StdCopy(&stdoutBuf, &stderrBuf, conn.Reader)
+	stdout := stdoutBuf.String()
+	stderr := stderrBuf.String()
 
-	byteOut, err := ioutil.ReadAll(conn.Reader)
-	out := string(byteOut)
 	if err != nil {
-		t.logger.Warnf("failed to execute command - %s %s, output - %s", name, arg, out)
-		return err
+		t.logger.Warnf("failed to execute command - %s %s, stdout - %s, stderr - %s", name, arg, stdout, stderr)
+		return stdout, stderr, err
 	}
 
 	inspect, err := t.cli.ContainerExecInspect(ctx, execId.ID)
 	if err != nil {
 		t.logger.Warnf("failed to inspect command - %s", err)
-		return err
+		return stdout, stderr, err
 	}
 
 	if inspect.ExitCode != 0 {
-		return errors.Errorf("failed to execute command %s %s, exit code %d, output: %s", name, arg, inspect.ExitCode, out)
+		return stdout, stderr, errors.Errorf("failed to execute command %s %s, exit code %d, stdout - %s, stderr - %s", name, arg, inspect.ExitCode, stdout, stderr)
 	} else {
-		t.logger.Debugf("finished command - %s %s, output - %s", name, arg, out)
-		return nil
+		t.logger.Debugf("finished command - %s %s, stdout - %s, stderr - %s", name, arg, stdout, stderr)
+		return stdout, stderr, err
 	}
-
 }

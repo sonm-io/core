@@ -301,7 +301,7 @@ func (c *cluster) announce() error {
 	}
 
 	log.G(c.ctx).Info("starting announce goroutine",
-		zap.Any("endpointsInfo", endpoints), zap.String("ID", c.id))
+		zap.Any("endpointsInfo", endpoints), zap.String("Name", c.id))
 
 	endpointsData, err := json.Marshal(endpoints)
 	if err != nil {

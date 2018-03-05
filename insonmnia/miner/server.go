@@ -66,7 +66,7 @@ type Miner struct {
 	mu sync.Mutex
 	// One-to-one mapping between container IDs and userland task names.
 	//
-	// The overseer operates with containers in terms of their ID, which does not change even during auto-restart.
+	// The overseer operates with containers in terms of their Name, which does not change even during auto-restart.
 	// However some requests pass an application (or task) name, which is more meaningful for user. To be able to
 	// transform between these two identifiers this map exists.
 	//
@@ -742,6 +742,20 @@ func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
 	m.sendUpdatesOnRequest(server)
 
 	return nil
+}
+
+//TODO: proper request
+func (m *Miner) JoinNetwork(ctx context.Context, req *pb.ID) (*pb.NetworkSpec, error) {
+	spec, err := m.plugins.JoinNetwork(req.Id)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.NetworkSpec{
+		Type:    spec.NetworkType(),
+		Options: spec.NetworkOptions(),
+		Subnet:  spec.NetworkCIDR(),
+		Addr:    spec.NetworkAddr(),
+	}, nil
 }
 
 func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusReply, error) {

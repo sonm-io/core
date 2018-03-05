@@ -106,10 +106,11 @@ func (t *TincTuner) Tune(net structs.Network, hostConfig *container.HostConfig, 
 		Config: make([]network.IPAMConfig, 0),
 	}
 	createOpts.IPAM.Config = append(createOpts.IPAM.Config, network.IPAMConfig{Subnet: net.NetworkCIDR()})
-	response, err := t.client.NetworkCreate(context.Background(), net.ID(), createOpts)
+	response, err := t.client.NetworkCreate(context.Background(), net.Name(), createOpts)
 	if err != nil {
 		return nil, err
 	}
+	t.netDriver.RegisterNetworkMapping(response.ID, net.Name())
 	if config.EndpointsConfig == nil {
 		config.EndpointsConfig = make(map[string]*network.EndpointSettings)
 		config.EndpointsConfig[response.ID] = &network.EndpointSettings{
@@ -125,6 +126,14 @@ func (t *TincTuner) Tune(net structs.Network, hostConfig *container.HostConfig, 
 		client:    t.client,
 		networkID: response.ID,
 	}, nil
+}
+
+func (t *TincTuner) Tuned(ID string) bool {
+	return t.netDriver.HasNetwork(ID)
+}
+
+func (t *TincTuner) GenerateInvitation(ID string) (structs.Network, error) {
+	return t.netDriver.GenerateInvitation(ID)
 }
 
 func (t *TincCleaner) Close() error {

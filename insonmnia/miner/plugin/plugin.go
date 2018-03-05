@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
 	minet "github.com/sonm-io/core/insonmnia/miner/network"
@@ -38,7 +39,7 @@ type GPUProvider interface {
 
 // VolumeProvider describes an interface for applying volumes to the container.
 type VolumeProvider interface {
-	// ID returns a unique identifier that will be used as a new volume name.
+	// Name returns a unique identifier that will be used as a new volume name.
 	ID() string
 	// Volumes returns volumes specified for configuring.
 	Volumes() map[string]*sonm.Volume
@@ -107,7 +108,7 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize tinc tuner - %v", err)
 		}
-		r.networkTuners[tincNetwork] = tincTuner
+		r.networkTuners[TincNetworkType] = tincTuner
 	}
 
 	if cfg.L2TP != nil {
@@ -257,6 +258,15 @@ func (r *Repository) TuneNetworks(provider NetworkProvider, hostCfg *container.H
 		cleanup.Add(c)
 	}
 	return &cleanup, nil
+}
+
+func (r *Repository) JoinNetwork(ID string) (structs.Network, error) {
+	for _, net := range r.networkTuners {
+		if net.Tuned(ID) {
+			return net.GenerateInvitation(ID)
+		}
+	}
+	return nil, errors.Errorf("no such network %s", ID)
 }
 
 func (r *Repository) Close() error {

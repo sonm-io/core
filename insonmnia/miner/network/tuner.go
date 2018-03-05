@@ -14,4 +14,6 @@ type Cleanup interface {
 // network.NetworkingConfig.
 type Tuner interface {
 	Tune(net structs.Network, hostConfig *container.HostConfig, netConfig *network.NetworkingConfig) (Cleanup, error)
+	GenerateInvitation(ID string) (structs.Network, error)
+	Tuned(ID string) bool
 }
