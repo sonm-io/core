@@ -2,6 +2,7 @@ package hub
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -150,4 +151,35 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, "0x100500", "0x42").state, md)
 
 	require.Error(t, au.Authorize(ctx, request))
+}
+
+type magicAuthorizer struct {
+	ok bool
+}
+
+func (ma *magicAuthorizer) Authorize(ctx context.Context, request interface{}) error {
+	if ma.ok {
+		return nil
+	}
+
+	return errors.New("sorry")
+}
+
+func TestMultiAuth(t *testing.T) {
+	mul := newMultiAuth(&magicAuthorizer{ok: true}, &magicAuthorizer{ok: true}, &magicAuthorizer{ok: true})
+	err := mul.Authorize(context.Background(), nil)
+	assert.NoError(t, err)
+
+	mul = newMultiAuth(&magicAuthorizer{ok: false}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: true})
+	err = mul.Authorize(context.Background(), nil)
+	assert.NoError(t, err)
+
+	mul = newMultiAuth(&magicAuthorizer{ok: true}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: false})
+	err = mul.Authorize(context.Background(), nil)
+	assert.NoError(t, err)
+
+	mul = newMultiAuth(&magicAuthorizer{ok: false}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: false})
+
+	err = mul.Authorize(context.Background(), nil)
+	assert.Error(t, err)
 }

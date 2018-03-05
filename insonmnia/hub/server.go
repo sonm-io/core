@@ -49,6 +49,7 @@ var (
 		"List",
 		"Info",
 		"TaskList",
+		"TaskStatus",
 		"Devices",
 		"MinerDevices",
 		"GetDeviceProperties",
@@ -1005,7 +1006,12 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		auth.WithEventPrefix(hubAPIPrefix),
 		auth.Allow("Handshake", "ProposeDeal").With(auth.NewNilAuthorization()),
 		auth.Allow(hubManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
-		auth.Allow("TaskStatus", "StopTask").With(newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState))),
+
+		auth.Allow("TaskStatus").With(newMultiAuth(
+			auth.NewTransportAuthorization(h.ethAddr),
+			newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState)),
+		)),
+		auth.Allow("StopTask").With(newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState))),
 		auth.Allow("StartTask").With(newDealAuthorization(ctx, hubState, newFieldDealExtractor())),
 		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState))),
 		auth.Allow("PushTask").With(newDealAuthorization(ctx, hubState, newContextDealExtractor())),

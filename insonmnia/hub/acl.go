@@ -3,6 +3,7 @@ package hub
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"reflect"
 
 	"github.com/sonm-io/core/insonmnia/auth"
@@ -264,4 +265,22 @@ func (a *orderAuthorization) Authorize(ctx context.Context, request interface{})
 	}
 
 	return nil
+}
+
+type multiAuth struct {
+	authorizers []auth.Authorization
+}
+
+func (a *multiAuth) Authorize(ctx context.Context, request interface{}) error {
+	for _, au := range a.authorizers {
+		if err := au.Authorize(ctx, request); err == nil {
+			return nil
+		}
+	}
+
+	return errors.New("all of required auth methods is failed")
+}
+
+func newMultiAuth(a ...auth.Authorization) auth.Authorization {
+	return &multiAuth{authorizers: a}
 }
