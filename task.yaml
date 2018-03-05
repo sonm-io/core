@@ -22,11 +22,11 @@ task:
     mounts:
       - cifs:/mnt:rw
       - cifs:/opt:rw
-  # custom registry settings, optional section
-  registry:
-    # if not empty, Miner will use given registry to pull an image from, optional param
-    name: registry.user.io
-    # registry username, optional param
-    user: name
-    # registry password, optional param
-    password: secret
+#  # custom registry settings, optional section
+#  registry:
+#    # if not empty, Miner will use given registry to pull an image from, optional param
+#    name: registry.user.io
+#    # registry username, optional param
+#    user: name
+#    # registry password, optional param
+#    password: secret
