@@ -38,6 +38,8 @@ sonmlocator
 sonmnode
 autocli
 sonmrendezvous
+target/
+release/
 .idea/
 
 

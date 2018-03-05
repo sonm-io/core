@@ -14,13 +14,19 @@ endif
 
 INSTALLDIR=${GOPATH}/bin/
 
-MINER=sonmworker
-HUB=sonmhub
-CLI=sonmcli
-LOCATOR=sonmlocator
-LOCAL_NODE=sonmnode
-AUTOCLI=autocli
-RENDEZVOUS=sonmrendezvous
+
+TARGETDIR=target
+ARCH := $(shell uname -m)
+OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+OS_ARCH := $(OS)_$(ARCH)
+
+MINER=${TARGETDIR}/sonmworker_$(OS_ARCH)
+HUB=${TARGETDIR}/sonmhub_$(OS_ARCH)
+CLI=${TARGETDIR}/sonmcli_$(OS_ARCH)
+LOCATOR=${TARGETDIR}/sonmlocator_$(OS_ARCH)
+LOCAL_NODE=${TARGETDIR}/sonmnode_$(OS_ARCH)
+AUTOCLI=${TARGETDIR}/autocli_$(OS_ARCH)
+RENDEZVOUS=${TARGETDIR}/sonmrendezvous_$(OS_ARCH)
 
 TAGS=nocgo
 
@@ -34,12 +40,12 @@ ifeq ($(GPU_SUPPORT),true)
     CGO_LDFLAGS_ALLOW='-Wl,--unresolved-symbols=ignore-in-object-files'
 endif
 
-UNAME_S := $(shell uname -s)
-ifeq ($(UNAME_S),Linux)
+
+ifeq ($(OS),linux)
 SED=sed -i 's/github\.com\/sonm-io\/core\/vendor\///g' insonmnia/node/hub_mock.go
 endif
 
-ifeq ($(UNAME_S),Darwin)
+ifeq ($(OS),darwin)
 SED=sed -i "" 's/github\.com\/sonm-io\/core\/vendor\///g' insonmnia/node/hub_mock.go
 endif
 
@@ -144,10 +150,11 @@ mock:
 		"github.com/sonm-io/core/proto" HubClient && ${SED}
 
 clean:
-	rm -f ${MINER} ${HUB} ${CLI}
+	rm -f ${MINER} ${HUB} ${CLI} ${LOCATOR} ${LOCAL_NODE} ${AUTOCLI} ${RENDEZVOUS}
 
 deb:
 	debuild --no-lintian --preserve-env -uc -us -i -I -b
+	debuild clean
 
 coverage:
 	.ci/coverage.sh

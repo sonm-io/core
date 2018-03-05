@@ -1,2 +1,2 @@
-sonmnode usr/bin
+target/sonmnode usr/bin
 etc/sonm/node-default.yaml

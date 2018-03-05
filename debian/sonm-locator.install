@@ -1,2 +1,2 @@
-sonmlocator usr/bin
+target/sonmlocator usr/bin
 etc/sonm/locator-default.yaml

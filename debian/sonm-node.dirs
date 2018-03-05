@@ -1,0 +1,3 @@
+var/lib/sonm
+var/run/sonm
+etc/sonm

@@ -7,21 +7,28 @@
 
 override_dh_auto_build:
 	GPU_SUPPORT=true make -j build/insomnia build/aux
-	./sonmcli completion bash > sonmcli.bash-completion
+
+	mv target/sonmcli_linux_x86_64 target/sonmcli
+	mv target/sonmhub_linux_x86_64 target/sonmhub
+	mv target/sonmlocator_linux_x86_64 target/sonmlocator
+	mv target/sonmnode_linux_x86_64 target/sonmnode
+	mv target/sonmworker_linux_x86_64 target/sonmworker
+
+	./target/sonmcli completion bash > sonmcli.bash-completion
 
 override_dh_auto_test:
 	echo "skip tests"
 
 override_dh_auto_install:
 	install -d $(DEB_DESTDIR)etc/sonm/
-	install -m644 worker.yaml $(DEB_DESTDIR)etc/sonm/worker-default.yaml
-	install -m644 hub.yaml $(DEB_DESTDIR)etc/sonm/hub-default.yaml
-	install -m644 node.yaml $(DEB_DESTDIR)etc/sonm/node-default.yaml
-	install -m644 locator.yaml $(DEB_DESTDIR)etc/sonm/locator-default.yaml
+	install -m644 etc/worker.yaml $(DEB_DESTDIR)etc/sonm/worker-default.yaml
+	install -m644 etc/hub.yaml $(DEB_DESTDIR)etc/sonm/hub-default.yaml
+	install -m644 etc/node.yaml $(DEB_DESTDIR)etc/sonm/node-default.yaml
+	install -m644 etc/locator.yaml $(DEB_DESTDIR)etc/sonm/locator-default.yaml
 
 override_dh_systemd_start:
 	echo "Not running dh_systemd_start"
 
 override_dh_auto_clean:
-	rm -rf etc/
+	rm -rf etc/sonm/
 	dh_auto_clean
