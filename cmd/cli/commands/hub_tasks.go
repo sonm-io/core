@@ -16,9 +16,8 @@ var hubTasksRootCmd = &cobra.Command{
 }
 
 var hubTaskListCmd = &cobra.Command{
-	Use:    "list",
-	Short:  "Show task list",
-	PreRun: loadKeyStoreWrapper,
+	Use:   "list",
+	Short: "Show task list",
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
@@ -37,10 +36,9 @@ var hubTaskListCmd = &cobra.Command{
 }
 
 var hubTaskStatusCmd = &cobra.Command{
-	Use:    "status <task_id>",
-	Short:  "Show task status",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreWrapper,
+	Use:   "status <task_id>",
+	Short: "Show task status",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		taskID := args[0]
 		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)

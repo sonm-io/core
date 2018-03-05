@@ -19,3 +19,7 @@ func NewServer(logger *zap.Logger, extraOpts ...ServerOption) *grpc.Server {
 
 	return srv
 }
+
+func NewUnencryptedServer(logger *zap.Logger) *grpc.Server {
+	return NewServer(logger, DefaultTraceInterceptor())
+}

@@ -29,9 +29,8 @@ func init() {
 }
 
 var nodeDealsRootCmd = &cobra.Command{
-	Use:    "deals",
-	Short:  "Manage deals",
-	PreRun: loadKeyStoreWrapper,
+	Use:   "deals",
+	Short: "Manage deals",
 }
 
 var dealsListCmd = &cobra.Command{
@@ -62,10 +61,9 @@ var dealsListCmd = &cobra.Command{
 }
 
 var dealsStatusCmd = &cobra.Command{
-	Use:    "status <deal_id>",
-	Short:  "show deal status",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreWrapper,
+	Use:   "status <deal_id>",
+	Short: "show deal status",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		itr, err := NewDealsInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
@@ -91,10 +89,9 @@ var dealsStatusCmd = &cobra.Command{
 }
 
 var dealsFinishCmd = &cobra.Command{
-	Use:    "finish <deal_id>",
-	Short:  "finish deal",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreWrapper,
+	Use:   "finish <deal_id>",
+	Short: "finish deal",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		itr, err := NewDealsInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {

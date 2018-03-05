@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
@@ -10,10 +9,7 @@ import (
 
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/cmd/cli/config"
-	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -46,14 +42,13 @@ var (
 	// session-related vars
 	cfg        config.Config
 	sessionKey *ecdsa.PrivateKey = nil
-	creds      credentials.TransportCredentials
 
 	// errors
 	errCannotParsePropsFile = errors.New("cannot parse props file")
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "127.0.0.1:15030", "node addr")
+	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "/tmp/sonm_node.sock", "node socket")
 	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
 
@@ -165,14 +160,6 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 	}
 
 	sessionKey = key
-
-	_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), sessionKey)
-	if err != nil {
-		showError(cmd, err.Error(), nil)
-		os.Exit(1)
-	}
-
-	creds = auth.NewWalletAuthenticator(util.NewTLS(TLSConfig), util.PubKeyToAddr(sessionKey.PublicKey))
 }
 
 func showJSON(cmd *cobra.Command, s interface{}) {

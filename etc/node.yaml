@@ -1,8 +1,7 @@
 # Local Node settings
 node:
-  # address to bind Node's gRPC endpoint
-  # required
-  listen_addr: "127.0.0.1:15030"
+  # socket path to bind Node's gRPC endpoint, required
+  socket_path: "/tmp/sonm_node.sock"
 
 # Marketplace service settings
 market:
