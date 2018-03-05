@@ -20,7 +20,7 @@ store:
   type: "boltdb"
 
   # storage specific endpoint. Directory for boltdb, tcp endpoint for other types
-  endpoint: "/tmp/sonm/locator_boltdb"
+  endpoint: "/var/lib/sonm/locator_boltdb"
 
   # Storage bucket to store all data in
   bucket: "sonm"
