@@ -34,7 +34,7 @@ cluster:
     type: "boltdb"
 
     # storage specific endpoint. Directory for boltdb, tcp endpoint for other types
-    endpoint: "/tmp/sonm/boltdb"
+    endpoint: "/var/lib/sonm/boltdb"
 
     # Storage bucket to store all data in
     bucket: "sonm"
