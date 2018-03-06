@@ -10,6 +10,7 @@ Sample `task.json`:
       {
         "type": "l2tp",
         "options": {
+          "id": "test_1",
           "lns_addr": "172.16.1.126",
           "subnet": "10.0.5.0/24",
           "ppp_username": "any",

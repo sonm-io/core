@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"github.com/docker/go-plugins-helpers/ipam"
@@ -15,147 +16,156 @@ import (
 )
 
 type IPAMDriver struct {
-	ctx     context.Context
+	// NOTE: `mu` is shared with L2TPNeworktDriver.
+	mu      *sync.Mutex
 	counter int
 	state   *l2tpState
+	logger  *zap.SugaredLogger
 }
 
-func NewIPAMDriver(ctx context.Context, state *l2tpState) *IPAMDriver {
+func NewIPAMDriver(ctx context.Context, mu *sync.Mutex, state *l2tpState) *IPAMDriver {
 	return &IPAMDriver{
-		ctx:   ctx,
-		state: state,
+		mu:     mu,
+		state:  state,
+		logger: log.S(ctx).With("source", "l2tp/ipam"),
 	}
 }
 
 func (d *IPAMDriver) RequestPool(request *ipam.RequestPoolRequest) (*ipam.RequestPoolResponse, error) {
-	log.G(d.ctx).Info("received RequestPool request", zap.Any("request", request))
-	d.state.Lock()
-	defer d.state.Unlock()
+	d.logger.Infow("received RequestPool request", zap.Any("request", request))
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	defer d.state.Sync()
 
 	opts, err := parseOptsIPAM(request)
 	if err != nil {
-		log.G(d.ctx).Error("failed to parse options", zap.Error(err))
+		d.logger.Errorw("failed to parse options", zap.Error(err))
 		return nil, errors.Wrap(err, "failed to parse options")
 	}
 
-	netInfo := newL2tpNetwork(opts)
-	if err := netInfo.Setup(); err != nil {
-		log.G(d.ctx).Error("failed to setup network", zap.Error(err))
+	l2tpNet := newL2tpNetwork(opts)
+	if err := l2tpNet.Setup(); err != nil {
+		d.logger.Errorw("failed to setup network", zap.Error(err))
 		return nil, err
 	}
 
-	if err := d.state.AddNetwork(netInfo.PoolID, netInfo); err != nil {
-		log.G(d.ctx).Error("failed to add network to state", zap.Error(err))
+	if err := d.state.AddNetwork(l2tpNet.PoolID, l2tpNet); err != nil {
+		d.logger.Errorw("failed to add network to state", zap.Error(err))
 		return nil, err
 	}
 
-	return &ipam.RequestPoolResponse{PoolID: netInfo.PoolID, Pool: opts.Subnet}, nil
+	return &ipam.RequestPoolResponse{PoolID: l2tpNet.PoolID, Pool: opts.Subnet}, nil
 }
 
 func (d *IPAMDriver) RequestAddress(request *ipam.RequestAddressRequest) (*ipam.RequestAddressResponse, error) {
-	log.G(d.ctx).Info("received RequestAddress request", zap.Any("request", request))
-	d.state.Lock()
-	defer d.state.Unlock()
+	d.logger.Infow("received RequestAddress request", zap.Any("request", request))
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	defer d.state.Sync()
 
 	if len(request.Address) > 0 {
-		log.G(d.ctx).Error("requests for specific addresses are not supported")
+		d.logger.Errorw("requests for specific addresses are not supported")
 		return nil, errors.New("requests for specific addresses are not supported")
 	}
 
-	netInfo, err := d.state.GetNetwork(request.PoolID)
+	l2tpNet, err := d.state.GetNetwork(request.PoolID)
 	if err != nil {
-		log.G(d.ctx).Error("failed to get network", zap.String("pool_id", request.PoolID), zap.Error(err))
+		d.logger.Errorw("failed to get network", zap.String("pool_id", request.PoolID), zap.Error(err))
 		return nil, errors.Wrap(err, "failed to get network")
 	}
 
-	eptInfo := NewL2TPEndpoint(netInfo)
-	if err := eptInfo.setup(); err != nil {
-		log.G(d.ctx).Error("failed to setup endpoint", zap.String("pool_id", netInfo.PoolID),
-			zap.String("network_id", netInfo.ID), zap.Error(err))
+	// The first RequestAddress() call gets gateway IP for the network, which is not required
+	// for PPP interfaces.
+	if l2tpNet.NeedsGateway {
+		l2tpNet.NeedsGateway = false
+		d.logger.Infow("allocated fake gateway", zap.String("pool_id", request.PoolID))
+		return &ipam.RequestAddressResponse{Address: l2tpNet.NetworkOpts.Subnet}, nil
+	}
+
+	l2tpEpt := NewL2TPEndpoint(l2tpNet)
+	if err := l2tpEpt.setup(); err != nil {
+		d.logger.Errorw("failed to setup endpoint", zap.String("pool_id", l2tpNet.PoolID),
+			zap.String("network_id", l2tpNet.ID), zap.Error(err))
 		return nil, err
 	}
 
-	netInfo.ConnInc()
+	l2tpNet.ConnInc()
 
 	var (
-		pppCfg       = eptInfo.GetPppConfig()
-		xl2tpdCfg    = eptInfo.GetXl2tpConfig()
-		addCfgCmd    = exec.Command("xl2tpd-control", "add", eptInfo.ConnName, xl2tpdCfg[0], xl2tpdCfg[1])
-		setupConnCmd = exec.Command("xl2tpd-control", "connect", eptInfo.ConnName)
+		pppCfg       = l2tpEpt.GetPppConfig()
+		xl2tpdCfg    = l2tpEpt.GetXl2tpConfig()
+		addCfgCmd    = exec.Command("xl2tpd-control", "add", l2tpEpt.ConnName, xl2tpdCfg[0], xl2tpdCfg[1])
+		setupConnCmd = exec.Command("xl2tpd-control", "connect", l2tpEpt.ConnName)
 	)
-	log.G(d.ctx).Info("creating ppp options file", zap.String("network_id", netInfo.ID),
-		zap.String("ppo_opt_file", eptInfo.PPPOptFile))
-	if err := ioutil.WriteFile(eptInfo.PPPOptFile, []byte(pppCfg), 0644); err != nil {
-		log.G(d.ctx).Error("failed to create ppp options file", zap.String("network_id", netInfo.ID),
+	d.logger.Infow("creating ppp options file", zap.String("network_id", l2tpNet.ID),
+		zap.String("ppo_opt_file", l2tpEpt.PPPOptFile))
+	if err := ioutil.WriteFile(l2tpEpt.PPPOptFile, []byte(pppCfg), 0644); err != nil {
+		d.logger.Errorw("failed to create ppp options file", zap.String("network_id", l2tpNet.ID),
 			zap.Any("config", xl2tpdCfg), zap.Error(err))
 		return nil, errors.Wrapf(err, "failed to create ppp options file for network %s, config is `%s`",
-			netInfo.ID, xl2tpdCfg)
+			l2tpNet.ID, xl2tpdCfg)
 	}
 
-	log.G(d.ctx).Info("adding xl2tp connection config", zap.String("network_id", netInfo.ID),
-		zap.String("endpoint_name", eptInfo.Name), zap.Any("config", xl2tpdCfg))
+	d.logger.Infow("adding xl2tp connection config", zap.String("network_id", l2tpNet.ID),
+		zap.String("endpoint_name", l2tpEpt.Name), zap.Any("config", xl2tpdCfg))
 	if err := addCfgCmd.Run(); err != nil {
-		log.G(d.ctx).Error("failed to add xl2tpd config", zap.String("network_id", netInfo.ID),
+		d.logger.Errorw("failed to add xl2tpd config", zap.String("network_id", l2tpNet.ID),
 			zap.Any("config", xl2tpdCfg), zap.Error(err))
 		return nil, errors.Wrapf(err, "failed to add xl2tpd connection config for network %s, config is `%s`",
-			netInfo.ID, xl2tpdCfg)
+			l2tpNet.ID, xl2tpdCfg)
 	}
 
-	log.G(d.ctx).Info("setting up xl2tpd connection", zap.String("connection_name", eptInfo.ConnName),
-		zap.String("network_id", netInfo.ID), zap.String("endpoint_name", eptInfo.Name))
+	d.logger.Infow("setting up xl2tpd connection", zap.String("connection_name", l2tpEpt.ConnName),
+		zap.String("network_id", l2tpNet.ID), zap.String("endpoint_name", l2tpEpt.Name))
 	if err := setupConnCmd.Run(); err != nil {
-		log.G(d.ctx).Error("xl2tpd failed to setup connection", zap.String("network_id", netInfo.ID),
+		d.logger.Errorw("xl2tpd failed to setup connection", zap.String("network_id", l2tpNet.ID),
 			zap.Any("config", xl2tpdCfg), zap.Error(err))
 		return nil, errors.Wrapf(err, "failed to add xl2tpd config for network %s, config is `%s`",
-			netInfo.ID, xl2tpdCfg)
+			l2tpNet.ID, xl2tpdCfg)
 	}
 
-	assignedCIDR, err := d.getAssignedCIDR(eptInfo.PPPDevName)
+	assignedCIDR, err := d.getAssignedCIDR(l2tpEpt.PPPDevName)
 	if err != nil {
-		log.G(d.ctx).Error("failed to get assigned IP", zap.String("network_id", netInfo.ID),
+		d.logger.Errorw("failed to get assigned IP", zap.String("network_id", l2tpNet.ID),
 			zap.Any("config", xl2tpdCfg), zap.Error(err))
 		return nil, errors.Wrap(err, "failed to get assigned IP")
 	}
 
-	log.G(d.ctx).Info("received IP", zap.String("network_id", netInfo.ID),
+	d.logger.Infow("received IP", zap.String("network_id", l2tpNet.ID),
 		zap.String("ip", assignedCIDR))
 
-	eptInfo.AssignedIP, _ = getAddrFromCIDR(assignedCIDR)
-	eptInfo.AssignedCIDR = assignedCIDR
+	l2tpEpt.AssignedIP, _ = getAddrFromCIDR(assignedCIDR)
+	l2tpEpt.AssignedCIDR = assignedCIDR
+	l2tpNet.Endpoint = l2tpEpt
 
-	if err := netInfo.Store.AddEndpoint(eptInfo.AssignedIP, eptInfo); err != nil {
-		log.G(d.ctx).Error("failed to add endpoint", zap.Error(err))
-		return nil, err
-	}
-
-	return &ipam.RequestAddressResponse{Address: eptInfo.AssignedCIDR}, nil
+	return &ipam.RequestAddressResponse{Address: l2tpEpt.AssignedCIDR}, nil
 }
 
 func (d *IPAMDriver) ReleasePool(request *ipam.ReleasePoolRequest) error {
-	log.G(d.ctx).Info("received ReleasePool request", zap.Any("request", request))
-	d.state.Lock()
-	defer d.state.Unlock()
+	d.logger.Infow("received ReleasePool request", zap.Any("request", request))
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	defer d.state.Sync()
 
-	netInfo, err := d.state.GetNetwork(request.PoolID)
+	l2tpNet, err := d.state.GetNetwork(request.PoolID)
 	if err != nil {
-		log.G(d.ctx).Error("failed to get network", zap.String("pool_id", request.PoolID), zap.Error(err))
+		d.logger.Errorw("failed to get network", zap.String("pool_id", request.PoolID), zap.Error(err))
 		return errors.Wrap(err, "failed to get network info")
 	}
 
-	// Normally there won't be any endpoints: `ReleasePool` is called after releasing all addresses.
-	for _, eptInfo := range netInfo.Store.GetEndpoints() {
-		if err := d.removeEndpoint(netInfo, eptInfo); err != nil {
-			log.G(d.ctx).Error("xl2tpd failed to removeEndpoint", zap.String("pool_id", netInfo.PoolID),
-				zap.String("network_id", netInfo.ID), zap.Error(err))
-		}
+	if l2tpNet.Endpoint == nil {
+		d.logger.Errorw("network's endpoint is nil", zap.String("network_id", l2tpNet.ID))
+		return nil
+	}
+
+	if err := d.removeEndpoint(l2tpNet, l2tpNet.Endpoint); err != nil {
+		d.logger.Errorw("xl2tpd failed to remove endpoint", zap.String("pool_id", l2tpNet.PoolID),
+			zap.String("network_id", l2tpNet.ID), zap.Error(err))
 	}
 
 	if err := d.state.RemoveNetwork(request.PoolID); err != nil {
-		log.G(d.ctx).Error("failed to remove network", zap.String("pool_id", netInfo.PoolID),
-			zap.String("network_id", netInfo.ID), zap.Error(err))
+		d.logger.Errorw("failed to remove network", zap.String("pool_id", l2tpNet.PoolID),
+			zap.String("network_id", l2tpNet.ID), zap.Error(err))
 		return err
 	}
 
@@ -163,53 +173,34 @@ func (d *IPAMDriver) ReleasePool(request *ipam.ReleasePoolRequest) error {
 }
 
 func (d *IPAMDriver) ReleaseAddress(request *ipam.ReleaseAddressRequest) error {
-	log.G(d.ctx).Info("received ReleaseAddress request", zap.Any("request", request))
-	d.state.Lock()
-	defer d.state.Unlock()
+	d.logger.Infow("received ReleaseAddress request", zap.Any("request", request))
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	defer d.state.Sync()
-
-	netInfo, err := d.state.GetNetwork(request.PoolID)
-	if err != nil {
-		log.G(d.ctx).Error("failed to get network", zap.String("pool_id", request.PoolID), zap.Error(err))
-		return errors.Wrap(err, "failed to get network")
-	}
-
-	eptInfo, err := netInfo.Store.GetEndpoint(request.Address)
-	if err != nil {
-		log.G(d.ctx).Error("failed to get endpoint", zap.String("pool_id", request.PoolID),
-			zap.String("network_id", netInfo.ID), zap.String("ip", request.Address), zap.Error(err))
-		return errors.Wrap(err, "failed to get endpoint")
-	}
-
-	if err := d.removeEndpoint(netInfo, eptInfo); err != nil {
-		log.G(d.ctx).Error("xl2tpd failed to removeEndpoint", zap.String("pool_id", netInfo.PoolID),
-			zap.String("network_id", netInfo.ID), zap.Error(err))
-		return errors.Wrap(err, "xl2tpd failed to removeEndpoint")
-	}
 
 	return nil
 }
 
 func (d *IPAMDriver) GetCapabilities() (*ipam.CapabilitiesResponse, error) {
-	log.G(d.ctx).Info("received GetCapabilities request")
-	d.state.Lock()
-	defer d.state.Unlock()
+	d.logger.Infow("received GetCapabilities request")
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	defer d.state.Sync()
 
 	return &ipam.CapabilitiesResponse{RequiresMACAddress: false}, nil
 }
 
 func (d *IPAMDriver) GetDefaultAddressSpaces() (*ipam.AddressSpacesResponse, error) {
-	log.G(d.ctx).Info("received GetDefaultAddressSpaces request")
-	d.state.Lock()
-	defer d.state.Unlock()
+	d.logger.Infow("received GetDefaultAddressSpaces request")
+	d.mu.Lock()
+	defer d.mu.Unlock()
 	defer d.state.Sync()
 
 	return &ipam.AddressSpacesResponse{}, nil
 }
 
 func (d *IPAMDriver) getAssignedCIDR(devName string) (string, error) {
-	time.Sleep(time.Second * 5)
+	time.Sleep(time.Second * 7)
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		return "", err
@@ -233,18 +224,14 @@ func (d *IPAMDriver) getAssignedCIDR(devName string) (string, error) {
 	return "", errors.Errorf("device %s not found", devName)
 }
 
-func (d *IPAMDriver) removeEndpoint(netInfo *l2tpNetwork, eptInfo *l2tpEndpoint) error {
-	disconnectCmd := exec.Command("xl2tpd-control", "disconnect", eptInfo.ConnName)
+func (d *IPAMDriver) removeEndpoint(l2tpNet *l2tpNetwork, l2tpEpt *l2tpEndpoint) error {
+	disconnectCmd := exec.Command("xl2tpd-control", "disconnect", l2tpEpt.ConnName)
 	if err := disconnectCmd.Run(); err != nil {
-		return errors.Wrapf(err, "xl2rpd failed to close connection %s", eptInfo.ConnName)
+		return errors.Wrapf(err, "xl2rpd failed to close connection %s", l2tpEpt.ConnName)
 	}
 
-	if err := os.Remove(eptInfo.PPPOptFile); err != nil {
-		return errors.Wrapf(err, "failed to remove ppp opts file %s", eptInfo.PPPOptFile)
-	}
-
-	if err := netInfo.Store.RemoveEndpoint(eptInfo.AssignedIP); err != nil {
-		return errors.Wrap(err, "failed to remove endpoint from state")
+	if err := os.Remove(l2tpEpt.PPPOptFile); err != nil {
+		return errors.Wrapf(err, "failed to remove ppp opts file %s", l2tpEpt.PPPOptFile)
 	}
 
 	return nil

@@ -20,7 +20,8 @@ type L2TPConfig struct {
 	StatePath      string `required:"false" yaml:"state_path" default:"/tmp/sonm/l2tp/l2tp_network_state"`
 }
 
-type L2TPNetworkConfig struct {
+type l2tpNetworkConfig struct {
+	ID                  string `required:"true" yaml:"id"`
 	LNSAddr             string `required:"true" yaml:"lns_addr"`
 	Subnet              string `required:"true" yaml:"subnet"`
 	PPPUsername         string `required:"false" yaml:"ppp_username"`
@@ -41,13 +42,13 @@ type L2TPNetworkConfig struct {
 	PPPRequireMSChapV2  bool   `required:"false" yaml:"ppp_require_mschap_v2" default:"true"`
 }
 
-func (o *L2TPNetworkConfig) GetHash() string {
+func (o *l2tpNetworkConfig) GetPoolID() string {
 	hasher := md5.New()
-	hasher.Write([]byte(o.LNSAddr + o.PPPUsername + o.PPPPassword))
+	hasher.Write([]byte(o.ID + o.LNSAddr))
 	return hex.EncodeToString(hasher.Sum(nil))
 }
 
-func (o *L2TPNetworkConfig) validate() error {
+func (o *l2tpNetworkConfig) validate() error {
 	if ip := net.ParseIP(o.LNSAddr); ip == nil {
 		return errors.Errorf("failed to parse lns_addr `%s` to IP", o.LNSAddr)
 	}
@@ -59,13 +60,13 @@ func (o *L2TPNetworkConfig) validate() error {
 	return nil
 }
 
-func parseOptsIPAM(request *ipam.RequestPoolRequest) (*L2TPNetworkConfig, error) {
+func parseOptsIPAM(request *ipam.RequestPoolRequest) (*l2tpNetworkConfig, error) {
 	path, ok := request.Options["config"]
 	if !ok {
 		return nil, errors.New("config path not provided")
 	}
 
-	cfg := &L2TPNetworkConfig{}
+	cfg := &l2tpNetworkConfig{}
 	if err := configor.Load(cfg, path); err != nil {
 		return nil, err
 	}
@@ -77,7 +78,7 @@ func parseOptsIPAM(request *ipam.RequestPoolRequest) (*L2TPNetworkConfig, error)
 	return cfg, nil
 }
 
-func parseOptsNetwork(request *network.CreateNetworkRequest) (*L2TPNetworkConfig, error) {
+func parseOptsNetwork(request *network.CreateNetworkRequest) (*l2tpNetworkConfig, error) {
 	rawOpts, ok := request.Options["com.docker.network.generic"]
 	if !ok {
 		return nil, errors.New("no options provided")
@@ -93,7 +94,7 @@ func parseOptsNetwork(request *network.CreateNetworkRequest) (*L2TPNetworkConfig
 		return nil, errors.New("config path not provided")
 	}
 
-	cfg := &L2TPNetworkConfig{}
+	cfg := &l2tpNetworkConfig{}
 	if err := configor.Load(cfg, path.(string)); err != nil {
 		return nil, err
 	}

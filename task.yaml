@@ -10,18 +10,18 @@ task:
       param1: value1
       param2: value2
       param3: value3
-    volumes:
-      cifs:
-        type: cifs
-        options:
-          share: samba-host.ru/share
-          username: username
-          password: password
-          security: ntlm
-          vers: 3.0
-    mounts:
-      - cifs:/mnt:rw
-      - cifs:/opt:rw
+#    volumes:
+#      cifs:
+#        type: cifs
+#        options:
+#          share: samba-host.ru/share
+#          username: username
+#          password: password
+#          security: ntlm
+#          vers: 3.0
+#    mounts:
+#      - cifs:/mnt:rw
+#      - cifs:/opt:rw
 #  # custom registry settings, optional section
 #  registry:
 #    # if not empty, Miner will use given registry to pull an image from, optional param

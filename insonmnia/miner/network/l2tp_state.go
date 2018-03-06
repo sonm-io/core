@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"sync"
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
@@ -14,15 +13,18 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	pppOptsDir = "/etc/ppp/"
+)
+
 type l2tpState struct {
 	Aliases  map[string]string
 	Networks map[string]*l2tpNetwork
-	mu       sync.Mutex
-	ctx      context.Context
 	storage  store.Store
+	logger   *zap.SugaredLogger
 }
 
-func newL2TPNetworkStore(ctx context.Context, path string) (*l2tpState, error) {
+func newL2TPNetworkState(ctx context.Context, path string) (*l2tpState, error) {
 	boltdb.Register()
 	var (
 		backend   = store.Backend(store.BOLTDB)
@@ -37,7 +39,7 @@ func newL2TPNetworkStore(ctx context.Context, path string) (*l2tpState, error) {
 	state := &l2tpState{
 		Aliases:  make(map[string]string),
 		Networks: make(map[string]*l2tpNetwork),
-		ctx:      ctx,
+		logger:   log.S(ctx).With("source", "l2tp/store"),
 		storage:  storage,
 	}
 
@@ -48,18 +50,10 @@ func newL2TPNetworkStore(ctx context.Context, path string) (*l2tpState, error) {
 	return state, nil
 }
 
-func (s *l2tpState) Lock() {
-	s.mu.Lock()
-}
-
-func (s *l2tpState) Unlock() {
-	s.mu.Unlock()
-}
-
 func (s *l2tpState) Sync() (err error) {
 	defer func() {
 		if err != nil {
-			log.G(s.ctx).Error("failed to sync l2tp state", zap.Error(err))
+			s.logger.Error("failed to sync l2tp state", zap.Error(err))
 		}
 	}()
 
@@ -123,110 +117,30 @@ func (s *l2tpState) GetNetwork(netID string) (*l2tpNetwork, error) {
 	return nil, errors.Errorf("network not found: %s", netID)
 }
 
-func (s *l2tpState) GetNetworks() []*l2tpNetwork {
-	var out []*l2tpNetwork
-	for _, netInfo := range s.Networks {
-		out = append(out, netInfo)
-	}
-
-	return out
-}
-
 type l2tpNetwork struct {
-	ID          string
-	PoolID      string
-	Count       int
-	NetworkOpts *L2TPNetworkConfig
-	Store       *l2tpEndpointStore
+	ID           string
+	PoolID       string
+	Count        int
+	NetworkOpts  *l2tpNetworkConfig
+	Endpoint     *l2tpEndpoint
+	NeedsGateway bool
 }
 
-func newL2tpNetwork(opts *L2TPNetworkConfig) *l2tpNetwork {
+func newL2tpNetwork(opts *l2tpNetworkConfig) *l2tpNetwork {
 	return &l2tpNetwork{
-		NetworkOpts: opts,
-		Store:       NewL2TPEndpointStore(),
+		NetworkOpts:  opts,
+		NeedsGateway: true,
 	}
 }
 
 func (n *l2tpNetwork) Setup() error {
-	n.PoolID = n.NetworkOpts.GetHash()
+	n.PoolID = n.NetworkOpts.GetPoolID()
 
 	return nil
 }
 
 func (n *l2tpNetwork) ConnInc() {
 	n.Count++
-}
-
-type l2tpEndpointStore struct {
-	Aliases   map[string]string
-	Endpoints map[string]*l2tpEndpoint
-}
-
-func NewL2TPEndpointStore() *l2tpEndpointStore {
-	return &l2tpEndpointStore{
-		Aliases:   make(map[string]string),
-		Endpoints: make(map[string]*l2tpEndpoint),
-	}
-}
-
-func (s *l2tpEndpointStore) AddEndpoint(endpointID string, eptInfo *l2tpEndpoint) error {
-	if _, ok := s.Aliases[endpointID]; ok {
-		return errors.Errorf("endpoint already exists: %s", endpointID)
-	}
-
-	s.Aliases[endpointID] = endpointID
-	s.Endpoints[endpointID] = eptInfo
-
-	return nil
-}
-
-func (s *l2tpEndpointStore) AddEndpointAlias(endpointID, alias string) error {
-	if _, ok := s.Aliases[endpointID]; !ok {
-		return errors.Errorf("network not found: %s", endpointID)
-	}
-
-	s.Aliases[alias] = endpointID
-
-	return nil
-}
-
-func (s *l2tpEndpointStore) RemoveEndpoint(endpointID string) error {
-	translatedID, ok := s.Aliases[endpointID]
-	if !ok {
-		return errors.Errorf("endpoint not found: %s", endpointID)
-	}
-
-	delete(s.Endpoints, translatedID)
-
-	for alias, target := range s.Aliases {
-		if target == translatedID {
-			delete(s.Aliases, alias)
-		}
-	}
-
-	return nil
-}
-
-func (s *l2tpEndpointStore) GetEndpoint(netID string) (*l2tpEndpoint, error) {
-	translatedID, ok := s.Aliases[netID]
-	if !ok {
-		return nil, errors.Errorf("endpoint not found: %s", netID)
-	}
-
-	if netInfo, ok := s.Endpoints[translatedID]; ok {
-		return netInfo, nil
-	}
-
-	return nil, errors.Errorf("endpoint not found: %s", netID)
-}
-
-func (s *l2tpEndpointStore) GetEndpoints() []*l2tpEndpoint {
-	var out []*l2tpEndpoint
-	for _, eptInfo := range s.Endpoints {
-		out = append(out, eptInfo)
-	}
-
-	return out
 }
 
 type l2tpEndpoint struct {
@@ -237,7 +151,7 @@ type l2tpEndpoint struct {
 	PPPDevName   string
 	AssignedCIDR string
 	AssignedIP   string
-	NetworkOpts  *L2TPNetworkConfig
+	NetworkOpts  *l2tpNetworkConfig
 }
 
 func NewL2TPEndpoint(netInfo *l2tpNetwork) *l2tpEndpoint {
@@ -315,10 +229,10 @@ func (s *l2tpState) load() (err error) {
 			err = nil
 		}
 		if err != nil {
-			log.G(s.ctx).Error("failed to load l2tp state, erasing key", zap.Error(err))
+			s.logger.Error("failed to load l2tp state, erasing key", zap.Error(err))
 			delErr := s.storage.Delete("state")
 			if delErr != nil {
-				log.G(s.ctx).Error("could not cleanup l2tp state", zap.Error(delErr))
+				s.logger.Error("could not cleanup l2tp state", zap.Error(delErr))
 			}
 		}
 	}()
@@ -338,11 +252,15 @@ func (s *l2tpState) load() (err error) {
 		return
 	}
 
-	for _, net := range s.Networks {
-		for _, ept := range net.Store.Endpoints {
-			msg := fmt.Sprintf("Starting with network %s, endpoint %s (%s)", net.ID, ept.ID, ept.AssignedIP)
-			log.G(s.ctx).Info(msg)
+	for netID, l2tpNet := range s.Networks {
+		if l2tpNet.Endpoint == nil {
+			s.logger.Warnw("found a network without endpoint, removing", zap.String("network_id", netID))
+			delete(s.Networks, netID)
+			continue
 		}
+		msg := fmt.Sprintf("starting with network %s, endpoint %s (%s)",
+			l2tpNet.ID, l2tpNet.Endpoint.ID, l2tpNet.Endpoint.AssignedIP)
+		s.logger.Info(msg)
 	}
 
 	return

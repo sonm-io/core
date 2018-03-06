@@ -10,6 +10,8 @@ import (
 
 	"io/ioutil"
 
+	"sync"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -24,7 +26,7 @@ import (
 type L2TPTuner struct {
 	cfg        *L2TPConfig
 	cli        *client.Client
-	netDriver  *L2TPDriver
+	netDriver  *L2TPNeworktDriver
 	ipamDriver *IPAMDriver
 }
 
@@ -39,16 +41,18 @@ func NewL2TPTuner(ctx context.Context, cfg *L2TPConfig) (*L2TPTuner, error) {
 		return nil, err
 	}
 
-	store, err := newL2TPNetworkStore(ctx, cfg.StatePath)
+	state, err := newL2TPNetworkState(ctx, cfg.StatePath)
 	if err != nil {
 		return nil, err
 	}
 
+	// NOTE: both IPAM and network drivers are synchronized by the same mutex.
+	var mu = &sync.Mutex{}
 	tuner := &L2TPTuner{
 		cfg:        cfg,
 		cli:        cli,
-		netDriver:  NewL2TPDriver(ctx, store),
-		ipamDriver: NewIPAMDriver(ctx, store),
+		netDriver:  NewL2TPDriver(ctx, mu, state),
+		ipamDriver: NewIPAMDriver(ctx, mu, state),
 	}
 	if err := tuner.Run(ctx); err != nil {
 		return nil, err
@@ -78,7 +82,7 @@ func (t *L2TPTuner) Run(ctx context.Context) error {
 
 	go func() {
 		<-ctx.Done()
-		log.G(context.Background()).Info("stopping tinc socket listener")
+		log.G(context.Background()).Info("stopping l2tp socket listener")
 		netListener.Close()
 		ipamListener.Close()
 	}()
@@ -100,10 +104,9 @@ func (t *L2TPTuner) Run(ctx context.Context) error {
 	return nil
 }
 
-func (t *L2TPTuner) Tune(net structs.Network, hostConfig *container.HostConfig, config *network.NetworkingConfig) (Cleanup, error) {
+func (t *L2TPTuner) Tune(net structs.Network, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
 	log.G(context.Background()).Info("tuning 2ltp")
-	opts := cloneOptions(net.NetworkOptions())
-	configPath, err := t.writeConfig(net.ID(), opts)
+	configPath, err := t.writeConfig(net.ID(), net.NetworkOptions())
 	if err != nil {
 		return nil, err
 	}
@@ -120,9 +123,9 @@ func (t *L2TPTuner) Tune(net structs.Network, hostConfig *container.HostConfig, 
 		return nil, err
 	}
 
-	if config.EndpointsConfig == nil {
-		config.EndpointsConfig = make(map[string]*network.EndpointSettings)
-		config.EndpointsConfig[response.ID] = &network.EndpointSettings{
+	if netCfg.EndpointsConfig == nil {
+		netCfg.EndpointsConfig = make(map[string]*network.EndpointSettings)
+		netCfg.EndpointsConfig[response.ID] = &network.EndpointSettings{
 			IPAMConfig: &network.EndpointIPAMConfig{IPv4Address: net.NetworkAddr()},
 			IPAddress:  net.NetworkAddr(),
 			NetworkID:  response.ID,
@@ -144,7 +147,7 @@ func (t *L2TPTuner) writeConfig(netID string, opts map[string]string) (string, e
 
 	path := t.cfg.ConfigDir + "/" + netID
 
-	return path, ioutil.WriteFile(path, []byte(data), 700)
+	return path, ioutil.WriteFile(path, []byte(data), 0700)
 }
 
 type L2TPCleaner struct {
