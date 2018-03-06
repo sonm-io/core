@@ -21,7 +21,7 @@ Sample `task.json`:
 }
 ```
 
-After starting miner in dev mode in port `15010`, run:
+After starting miner in dev mode on port `15010`, run:
 
 ```
 $ make build/autocli && ./autocli miner start --input task.json --remote 8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:15010
