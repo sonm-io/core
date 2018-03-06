@@ -27,7 +27,7 @@ type Config interface {
 }
 
 type nodeConfig struct {
-	SocketPath string `required:"true" yaml:"socket_path"`
+	SocketPath string `yaml:"socket_path" default:"/var/run/sonm_node.sock"`
 }
 
 type marketConfig struct {
@@ -48,7 +48,7 @@ type locatorConfig struct {
 }
 
 type yamlConfig struct {
-	Node                    nodeConfig         `required:"true" yaml:"node"`
+	Node                    nodeConfig         `yaml:"node"`
 	Market                  marketConfig       `required:"true" yaml:"market"`
 	Log                     logConfig          `required:"true" yaml:"log"`
 	Locator                 locatorConfig      `required:"true" yaml:"locator"`

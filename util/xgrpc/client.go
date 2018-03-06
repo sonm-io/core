@@ -13,7 +13,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-func getTracer() opentracing.Tracer {
+func newTracer() opentracing.Tracer {
 	return basictracer.NewWithOptions(basictracer.Options{
 		ShouldSample:   func(traceID uint64) bool { return true },
 		MaxLogsPerSpan: 100,
@@ -32,7 +32,7 @@ func NewClient(ctx context.Context, addr string, creds credentials.TransportCred
 	var extraOpts = append(opts, secureOpt,
 		grpc.WithCompressor(grpc.NewGZIPCompressor()),
 		grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
-		grpc.WithUnaryInterceptor(grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(getTracer()))),
+		grpc.WithUnaryInterceptor(grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(newTracer()))),
 		grpc.WithStreamInterceptor(grpc_opentracing.StreamClientInterceptor()),
 	)
 	cc, err := grpc.DialContext(ctx, addr, extraOpts...)
@@ -47,7 +47,7 @@ func NewUnencryptedUnixSocketClient(ctx context.Context, p string, timeout time.
 		grpc.WithInsecure(),
 		grpc.WithCompressor(grpc.NewGZIPCompressor()),
 		grpc.WithDecompressor(grpc.NewGZIPDecompressor()),
-		grpc.WithUnaryInterceptor(grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(getTracer()))),
+		grpc.WithUnaryInterceptor(grpc_opentracing.UnaryClientInterceptor(grpc_opentracing.WithTracer(newTracer()))),
 		grpc.WithStreamInterceptor(grpc_opentracing.StreamClientInterceptor()),
 		grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
 			return net.DialTimeout("unix", p, timeout)

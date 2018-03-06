@@ -1,7 +1,7 @@
 # Local Node settings
 node:
   # socket path to bind Node's gRPC endpoint, required
-  socket_path: "/tmp/sonm_node.sock"
+  socket_path: "/var/run/sonm_node.sock"
 
 # Marketplace service settings
 market:
