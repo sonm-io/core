@@ -317,7 +317,7 @@ github.com/op/go-logging
 
 github.com/technoweenie/grohl
 
-github.com/Sirupsen/logrus
+github.com/sirupsen/logrus
 
 github.com/kr/logfmt
 
