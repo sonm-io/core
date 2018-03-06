@@ -32,7 +32,7 @@ type ConnectRequest struct {
 	ID string `protobuf:"bytes,1,opt,name=ID" json:"ID,omitempty"`
 	// Protocol describes network protocol the peer wants to resolve.
 	Protocol string `protobuf:"bytes,2,opt,name=protocol" json:"protocol,omitempty"`
-	// PrivateAddrs describes source privare addresses.
+	// PrivateAddrs describes source private addresses.
 	PrivateAddrs []*Addr `protobuf:"bytes,3,rep,name=privateAddrs" json:"privateAddrs,omitempty"`
 }
 
