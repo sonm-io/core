@@ -8,6 +8,12 @@ package sonm;
 service Rendezvous {
     // Resolve resolves the remote peer addresses.
     rpc Resolve(ConnectRequest) returns (RendezvousReply) {}
+    // ResolveAll resolves remote servers using the specified peer ID,
+    // returning the list of unique id's of these servets.
+    //
+    // Such UUIDs can be used for establishing aimed connection with all
+    // servers under the same ID without randomization games.
+    rpc ResolveAll(ID) returns (ResolveMetaReply) {}
     // Publish allows to publish the caller server's endpoints.
     //
     // While published the server can be located using the ID extracted from
@@ -55,4 +61,8 @@ message RendezvousState {
 message RendezvousMeeting {
     map<string, RendezvousReply> clients = 1;
     map<string, RendezvousReply> servers = 2;
+}
+
+message ResolveMetaReply {
+    repeated string IDs = 1;
 }
