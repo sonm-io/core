@@ -15,7 +15,7 @@ import (
 
 type options struct {
 	ctx           context.Context
-	hardware      hardware.HardwareInfo
+	hardware      hardware.Info
 	nat           stun.NATType
 	ovs           Overseer
 	uuid          string
@@ -84,7 +84,7 @@ func WithContext(ctx context.Context) Option {
 	}
 }
 
-func WithHardware(hardwareInfo hardware.HardwareInfo) Option {
+func WithHardware(hardwareInfo hardware.Info) Option {
 	return func(opts *options) {
 		opts.hardware = hardwareInfo
 	}

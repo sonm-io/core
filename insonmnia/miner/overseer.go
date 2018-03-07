@@ -22,6 +22,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/miner/gpu"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 )
@@ -62,8 +63,12 @@ func (d *Description) Mounts(source string) []volume.Mount {
 	return d.mounts
 }
 
-func (d *Description) GPU() bool {
-	return d.GPURequired
+func (d *Description) IsGPURequired() bool {
+	return false
+}
+
+func (d *Description) GpuDeviceIDs() []gpu.GPUID {
+	return []gpu.GPUID{}
 }
 
 func (d *Description) Networks() []structs.Network {

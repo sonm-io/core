@@ -10,7 +10,6 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
-	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -19,8 +18,6 @@ import (
 
 func TestDevices(t *testing.T) {
 	// GPU characteristics shared between miners.
-	gpuDevice, err := gpu.NewDevice("a", "b", 1488, 660)
-	assert.NoError(t, err)
 
 	hub := Hub{
 		state: &state{
@@ -29,14 +26,14 @@ func TestDevices(t *testing.T) {
 					uuid: "miner1",
 					capabilities: &hardware.Hardware{
 						CPU: []cpu.Device{{CPU: 64}},
-						GPU: []gpu.Device{gpuDevice},
+						GPU: []*pb.GPUDevice{{}},
 					},
 				},
 				"miner2": {
 					uuid: "miner2",
 					capabilities: &hardware.Hardware{
 						CPU: []cpu.Device{{CPU: 65}},
-						GPU: []gpu.Device{gpuDevice},
+						GPU: []*pb.GPUDevice{{}},
 					},
 				},
 			},
@@ -50,9 +47,6 @@ func TestDevices(t *testing.T) {
 }
 
 func TestMinerDevices(t *testing.T) {
-	gpuDevice, err := gpu.NewDevice("a", "b", 1488, 660)
-	assert.NoError(t, err)
-
 	hub := Hub{
 		state: &state{
 			miners: map[string]*MinerCtx{
@@ -60,7 +54,7 @@ func TestMinerDevices(t *testing.T) {
 					uuid: "miner1",
 					capabilities: &hardware.Hardware{
 						CPU: []cpu.Device{{CPU: 64}},
-						GPU: []gpu.Device{gpuDevice},
+						GPU: []*pb.GPUDevice{{}},
 					},
 				},
 
@@ -68,7 +62,7 @@ func TestMinerDevices(t *testing.T) {
 					uuid: "miner2",
 					capabilities: &hardware.Hardware{
 						CPU: []cpu.Device{{CPU: 65}},
-						GPU: []gpu.Device{gpuDevice},
+						GPU: []*pb.GPUDevice{{}},
 					},
 				},
 			},

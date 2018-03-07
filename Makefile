@@ -27,6 +27,7 @@ LOCATOR=${TARGETDIR}/sonmlocator_$(OS_ARCH)
 LOCAL_NODE=${TARGETDIR}/sonmnode_$(OS_ARCH)
 AUTOCLI=${TARGETDIR}/autocli_$(OS_ARCH)
 RENDEZVOUS=${TARGETDIR}/sonmrendezvous_$(OS_ARCH)
+LSGPU=${TARGETDIR}/lsgpu_$(OS_ARCH)
 
 TAGS=nocgo
 
@@ -80,6 +81,10 @@ build/cli:
 build/node:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${LOCAL_NODE} ${GOCMD}/node
+
+build/lsgpu:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${LSGPU} ${GOCMD}/lsgpu
 
 build/cli_win32:
 	@echo "+ $@"
