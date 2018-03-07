@@ -3,7 +3,7 @@ package hardware
 import (
 	"github.com/shirou/gopsutil/mem"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 )
 
 // Hardware accumulates the finest hardware information about system the miner
@@ -11,7 +11,7 @@ import (
 type Hardware struct {
 	CPU    []cpu.Device
 	Memory *mem.VirtualMemoryStat
-	GPU    []*pb.GPUDevice
+	GPU    []*sonm.GPUDevice
 }
 
 // LogicalCPUCount returns the number of logical CPUs in the system.
@@ -37,9 +37,6 @@ type Info interface {
 	// This includes total physical  memory, available memory and many others,
 	// expressed in bytes.
 	Memory() (*mem.VirtualMemoryStat, error)
-
-	// GPU returns information about GPU devices on the machine.
-	// GPU() ([]*pb.GPUDevice, error)
 
 	// Info returns all described above hardware statistics.
 	Info() (*Hardware, error)

@@ -82,7 +82,7 @@ func (g *nvidiaTuner) Tune(hostconfig *container.HostConfig, ids []GPUID) error 
 		}
 	}
 
-	mnt := makeVolumeMount(g.options.volumeName(), g.options.libsMountPoint, g.options.VolumeDriverName)
+	mnt := newVolumeMount(g.options.volumeName(), g.options.libsMountPoint, g.options.VolumeDriverName)
 	hostconfig.Mounts = append(hostconfig.Mounts, mnt)
 
 	return nil
@@ -217,7 +217,7 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	return &ovs, nil
 }
 
-func makeVolumeMount(src, dst, name string) mount.Mount {
+func newVolumeMount(src, dst, name string) mount.Mount {
 	return mount.Mount{
 		Type:         mount.TypeVolume,
 		Source:       src,

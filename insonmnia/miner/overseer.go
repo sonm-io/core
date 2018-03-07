@@ -64,18 +64,11 @@ func (d *Description) Mounts(source string) []volume.Mount {
 }
 
 func (d *Description) IsGPURequired() bool {
-	_, ok := d.Env["GPU"]
-	return ok
+	return false
 }
 
 func (d *Description) GpuDeviceIDs() []gpu.GPUID {
-	// warn: hack just for testing, allows to set GPU device via task's ENV params
-	v, ok := d.Env["GPU"]
-	if !ok {
-		return []gpu.GPUID{}
-	}
-
-	return []gpu.GPUID{gpu.GPUID(v)}
+	return []gpu.GPUID{}
 }
 
 func (d *Description) Networks() []structs.Network {
