@@ -68,4 +68,3 @@ plugins:
     enabled: true
   l2tp:
     enabled: true
-

@@ -22,11 +22,20 @@ task:
 #    mounts:
 #      - cifs:/mnt:rw
 #      - cifs:/opt:rw
-#  # custom registry settings, optional section
-#  registry:
-#    # if not empty, Miner will use given registry to pull an image from, optional param
-#    name: registry.user.io
-#    # registry username, optional param
-#    user: name
-#    # registry password, optional param
-#    password: secret
+  # container resources definition, required section
+  resources:
+      # number of CPU cores required by task, required param
+      CPU: 1
+      # amount of memory required by task, required param
+      # You may use Kb, Mb and Gb suffixes
+      RAM: 10240kb
+      # is GPU device is required by task, optional param, set to false by default
+      # GPU: true
+  # custom registry settings, optional section
+  # registry:
+    # if not empty, Miner will use given registry to pull an image from, optional param
+    # name: registry.user.io
+    # registry username, optional param
+    # user: name
+    # registry password, optional param
+    # password: secret

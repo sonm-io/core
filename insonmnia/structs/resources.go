@@ -109,6 +109,10 @@ type TaskResources struct {
 }
 
 func NewTaskResources(r *pb.TaskResourceRequirements) (*TaskResources, error) {
+	if r == nil {
+		return nil, errResourcesRequired
+	}
+
 	return &TaskResources{inner: r}, nil
 }
 
