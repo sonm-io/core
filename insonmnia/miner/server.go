@@ -129,8 +129,6 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		return nil, err
 	}
 
-	log.G(o.ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
-
 	cgroup, cGroupManager, err := makeCgroupManager(cfg.HubResources())
 	if err != nil {
 		return nil, err
@@ -182,6 +180,10 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// apply info about GPUs, expose to logs
+	plugins.ApplyHardwareInfo(hardwareInfo)
+	log.G(o.ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
 
 	if o.ssh == nil {
 		o.ssh = nilSSH{}

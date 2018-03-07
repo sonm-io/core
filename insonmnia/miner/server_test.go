@@ -16,7 +16,6 @@ import (
 	accounts "github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
-	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -62,18 +61,16 @@ func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	return cfg
 }
 
-func magicHardware(ctrl *gomock.Controller) hardware.HardwareInfo {
-	hw := hardware.NewMockHardwareInfo(ctrl)
+func magicHardware(ctrl *gomock.Controller) hardware.Info {
+	hw := hardware.NewMockInfo(ctrl)
 
 	c := []cpu.Device{}
-	g1, _ := gpu.NewDevice("test", "null", 1, 2)
-	g := []gpu.Device{g1}
+	g := []*pb.GPUDevice{}
 	m := &mem.VirtualMemoryStat{}
 
 	h := &hardware.Hardware{CPU: c, GPU: g, Memory: m}
 
 	hw.EXPECT().CPU().AnyTimes().Return(c, nil)
-	hw.EXPECT().GPU().AnyTimes().Return(g, nil)
 	hw.EXPECT().Memory().AnyTimes().Return(m, nil)
 	hw.EXPECT().Info().AnyTimes().Return(h, nil)
 
@@ -86,7 +83,7 @@ func TestServerNewFailsWhenFailedCollectResources(t *testing.T) {
 
 	ovs := NewMockOverseer(mock)
 	cfg := defaultMockCfg(mock)
-	collector := hardware.NewMockHardwareInfo(mock)
+	collector := hardware.NewMockInfo(mock)
 	collector.EXPECT().Info().Times(1).Return(nil, errors.New(""))
 	locator := pb.NewMockLocatorClient(mock)
 
@@ -103,7 +100,7 @@ func TestServerNewSavesResources(t *testing.T) {
 
 	ovs := NewMockOverseer(mock)
 	cfg := defaultMockCfg(mock)
-	collector := hardware.NewMockHardwareInfo(mock)
+	collector := hardware.NewMockInfo(mock)
 	collector.EXPECT().Info().Times(1).Return(&hardware.Hardware{
 		CPU:    []cpu.Device{},
 		Memory: &mem.VirtualMemoryStat{Total: 42},
@@ -155,7 +152,7 @@ func TestMinerHandshake(t *testing.T) {
 	info["id1"] = ContainerMetrics{mem: types.MemoryStats{Usage: 42, MaxUsage: 43}}
 	ovs.EXPECT().Info(context.Background()).AnyTimes().Return(info, nil)
 
-	collector := hardware.NewMockHardwareInfo(mock)
+	collector := hardware.NewMockInfo(mock)
 	collector.EXPECT().Info().AnyTimes().Return(&hardware.Hardware{
 		CPU:    []cpu.Device{{Cores: 2}},
 		Memory: &mem.VirtualMemoryStat{Total: 2048},

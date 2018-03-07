@@ -128,7 +128,7 @@ func printCpuInfo(cmd *cobra.Command, cap *pb.Capabilities) {
 func printGpuInfo(cmd *cobra.Command, cap *pb.Capabilities) {
 	if len(cap.Gpu) > 0 {
 		for i, gpu := range cap.Gpu {
-			cmd.Printf("    GPU%d: %s %s\r\n", i, gpu.VendorName, gpu.Name)
+			cmd.Printf("    GPU%d: %s %s\r\n", i, gpu.VendorName, gpu.GetDeviceName())
 		}
 	} else {
 		cmd.Println("    GPU: None")
@@ -208,7 +208,7 @@ func printDeviceList(cmd *cobra.Command, devices *pb.DevicesReply) {
 		if len(GPUs) > 0 {
 			cmd.Printf("GPUs:\r\n")
 			for id, gpu := range GPUs {
-				cmd.Printf(" %s: %s\r\n", id, gpu.Device.Name)
+				cmd.Printf(" %s: %s\r\n", id, gpu.Device.GetDeviceName())
 			}
 		} else {
 			cmd.Printf("No GPUs detected.\r\n")

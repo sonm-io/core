@@ -13,7 +13,6 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
@@ -961,7 +960,7 @@ func (s *state) collectMinerGPUs(miner *MinerCtx, dst map[string]*pb.GPUDeviceIn
 		} else {
 			dst[hash] = &pb.GPUDeviceInfo{
 				Miners: []string{miner.ID()},
-				Device: gpu.Marshal(dev),
+				Device: dev,
 			}
 		}
 	}

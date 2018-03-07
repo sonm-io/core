@@ -2,6 +2,10 @@
 
 package gpu
 
-func GetGPUDevicesUsingOpenCL() ([]Device, error) {
+import (
+	"github.com/sonm-io/core/proto"
+)
+
+func GetGPUDevicesUsingOpenCL() ([]*sonm.GPUDevice, error) {
 	return nil, ErrUnsupportedPlatform
 }
