@@ -10,7 +10,8 @@ type Cleanup interface {
 	Close() error
 }
 
-// Tuner is responsible for preparing networking and baking proper options in container.HostConfig and network.NetworkingConfig
+// Tuner is responsible for preparing networking and baking proper options in container.HostConfig and
+// network.NetworkingConfig.
 type Tuner interface {
 	Tune(net structs.Network, hostConfig *container.HostConfig, netConfig *network.NetworkingConfig) (Cleanup, error)
 }
