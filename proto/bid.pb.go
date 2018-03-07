@@ -100,6 +100,7 @@ It has these top-level messages:
 	RendezvousReply
 	RendezvousState
 	RendezvousMeeting
+	ResolveMetaReply
 	Timestamp
 	Volume
 */
