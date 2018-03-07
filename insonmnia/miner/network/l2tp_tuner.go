@@ -10,8 +10,6 @@ import (
 
 	"io/ioutil"
 
-	"sync"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -26,7 +24,7 @@ import (
 type L2TPTuner struct {
 	cfg        *L2TPConfig
 	cli        *client.Client
-	netDriver  *L2TPNeworktDriver
+	netDriver  *L2TPNetworkDriver
 	ipamDriver *IPAMDriver
 }
 
@@ -46,13 +44,11 @@ func NewL2TPTuner(ctx context.Context, cfg *L2TPConfig) (*L2TPTuner, error) {
 		return nil, err
 	}
 
-	// NOTE: both IPAM and network drivers are synchronized by the same mutex.
-	var mu = &sync.Mutex{}
 	tuner := &L2TPTuner{
 		cfg:        cfg,
 		cli:        cli,
-		netDriver:  NewL2TPDriver(ctx, mu, state),
-		ipamDriver: NewIPAMDriver(ctx, mu, state),
+		netDriver:  NewL2TPDriver(ctx, state),
+		ipamDriver: NewIPAMDriver(ctx, state),
 	}
 	if err := tuner.Run(ctx); err != nil {
 		return nil, err
@@ -105,7 +101,7 @@ func (t *L2TPTuner) Run(ctx context.Context) error {
 }
 
 func (t *L2TPTuner) Tune(net structs.Network, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
-	log.G(context.Background()).Info("tuning 2ltp")
+	log.G(context.Background()).Info("tuning l2tp")
 	configPath, err := t.writeConfig(net.ID(), net.NetworkOptions())
 	if err != nil {
 		return nil, err

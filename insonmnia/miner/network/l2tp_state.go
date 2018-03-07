@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"sync"
+
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
@@ -18,6 +20,7 @@ const (
 )
 
 type l2tpState struct {
+	mu       sync.Mutex
 	Aliases  map[string]string
 	Networks map[string]*l2tpNetwork
 	storage  store.Store
@@ -50,7 +53,7 @@ func newL2TPNetworkState(ctx context.Context, path string) (*l2tpState, error) {
 	return state, nil
 }
 
-func (s *l2tpState) Sync() (err error) {
+func (s *l2tpState) sync() (err error) {
 	defer func() {
 		if err != nil {
 			s.logger.Error("failed to sync l2tp state", zap.Error(err))
@@ -134,7 +137,7 @@ func newL2tpNetwork(opts *l2tpNetworkConfig) *l2tpNetwork {
 }
 
 func (n *l2tpNetwork) Setup() error {
-	n.PoolID = n.NetworkOpts.GetPoolID()
+	n.PoolID = n.NetworkOpts.PoolID()
 
 	return nil
 }

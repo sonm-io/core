@@ -42,7 +42,7 @@ type l2tpNetworkConfig struct {
 	PPPRequireMSChapV2  bool   `required:"false" yaml:"ppp_require_mschap_v2" default:"true"`
 }
 
-func (o *l2tpNetworkConfig) GetPoolID() string {
+func (o *l2tpNetworkConfig) PoolID() string {
 	hasher := md5.New()
 	hasher.Write([]byte(o.ID + o.LNSAddr))
 	return hex.EncodeToString(hasher.Sum(nil))
