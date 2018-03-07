@@ -327,20 +327,8 @@ func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
 	m.registerHandler(handler.id, handler)
 
 	// process order (search -> propose -> deal)
-	err = m.orderLoop(handler)
-	if err == nil {
-		log.G(handler.ctx).Debug("order loop complete at n=1 iteration, exiting")
-		if _, err := m.remotes.market.CancelOrder(m.ctx, ord); err != nil {
-			log.G(handler.ctx).Warn("cannot cancel order",
-				zap.String("order_id", handler.id),
-				zap.Error(err))
-		}
-
+	if ok := m.executeOrderOnceWithCancel(handler); ok {
 		return
-	} else {
-		if err != errNoAskFound {
-			handler.setError(err)
-		}
 	}
 
 	tk := time.NewTicker(orderPollPeriod)
@@ -353,23 +341,9 @@ func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
 			log.G(handler.ctx).Info("order handler is cancelled", zap.String("order_id", handler.id))
 			return
 		case <-tk.C:
-			err := m.orderLoop(handler)
-			if err != nil {
-				if err != errNoAskFound {
-					handler.setError(err)
-				}
-
-				continue
+			if ok := m.executeOrderOnceWithCancel(handler); ok {
+				return
 			}
-
-			log.G(handler.ctx).Debug("order loop complete at n > 1 iteration, exiting")
-			if _, err := m.remotes.market.CancelOrder(m.ctx, ord); err != nil {
-				log.G(handler.ctx).Warn("cannot cancel order",
-					zap.String("order_id", handler.id),
-					zap.Error(err))
-			}
-
-			return
 		}
 	}
 }
@@ -450,9 +424,31 @@ func (m *marketAPI) proposeDeal(h *orderHandler, ord *pb.Order) (*pb.Order, pb.H
 	return ord, hubClient, cc
 }
 
-// orderLoop searching for orders, iterate found orders and trying to propose deal
-func (m *marketAPI) orderLoop(handler *orderHandler) error {
-	log.G(handler.ctx).Info("starting orderLoop", zap.String("id", handler.id))
+func (m *marketAPI) executeOrderOnceWithCancel(handler *orderHandler) bool {
+	err := m.executeOrder(handler)
+
+	if err != nil {
+		if err != errNoAskFound {
+			handler.setError(err)
+		}
+
+		return false
+	}
+
+	log.G(handler.ctx).Debug("order loop complete at n=1 iteration, exiting")
+
+	if _, err := m.remotes.market.CancelOrder(m.ctx, handler.order); err != nil {
+		log.G(handler.ctx).Warn("cannot cancel order on market",
+			zap.String("order_id", handler.id),
+			zap.Error(err))
+	}
+
+	return true
+}
+
+// executeOrder searching for orders, iterate found orders and trying to propose deal
+func (m *marketAPI) executeOrder(handler *orderHandler) error {
+	log.G(handler.ctx).Info("starting executeOrder", zap.String("id", handler.id))
 
 	balance, allowance, err := m.loadBalanceAndAllowance()
 	if err != nil {
