@@ -1,2 +1,2 @@
-sonmhub usr/bin
+target/sonmhub usr/bin
 etc/sonm/hub-default.yaml
