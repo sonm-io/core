@@ -43,7 +43,9 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 type deleter func()
@@ -174,6 +176,25 @@ func (m *Server) Resolve(ctx context.Context, request *sonm.ConnectRequest) (*so
 		)
 		return m.newReply(p)
 	}
+}
+
+func (m *Server) ResolveAll(ctx context.Context, request *sonm.ID) (*sonm.ResolveMetaReply, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	meeting, ok := m.rv[request.Id]
+	if !ok {
+		return nil, errPeerNotFound()
+	}
+
+	var ids []string
+	for id := range meeting.servers {
+		ids = append(ids, id.String())
+	}
+
+	return &sonm.ResolveMetaReply{
+		IDs: ids,
+	}, nil
 }
 
 func (m *Server) Publish(ctx context.Context, request *sonm.PublishRequest) (*sonm.RendezvousReply, error) {
@@ -375,4 +396,8 @@ func (m *Server) Stop() {
 
 func errNoPeerInfo() error {
 	return errors.New("no peer info provided")
+}
+
+func errPeerNotFound() error {
+	return status.Errorf(codes.NotFound, "peer not found")
 }
