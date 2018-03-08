@@ -9,8 +9,8 @@ import (
 
 // Config is LocalNode config
 type Config interface {
-	// ListenAddress is gRPC endpoint that Node binds to
-	ListenAddress() string
+	// SocketPath is path to socket file that Node binds to
+	SocketPath() string
 	// MarketEndpoint is Marketplace gRPC endpoint
 	MarketEndpoint() string
 	// HubEndpoint is Hub's gRPC endpoint (not required)
@@ -27,7 +27,7 @@ type Config interface {
 }
 
 type nodeConfig struct {
-	ListenAddr string `required:"true" yaml:"listen_addr"`
+	SocketPath string `yaml:"socket_path" default:"/var/run/sonm_node.sock"`
 }
 
 type marketConfig struct {
@@ -48,7 +48,7 @@ type locatorConfig struct {
 }
 
 type yamlConfig struct {
-	Node                    nodeConfig         `required:"true" yaml:"node"`
+	Node                    nodeConfig         `yaml:"node"`
 	Market                  marketConfig       `required:"true" yaml:"market"`
 	Log                     logConfig          `required:"true" yaml:"log"`
 	Locator                 locatorConfig      `required:"true" yaml:"locator"`
@@ -57,8 +57,8 @@ type yamlConfig struct {
 	MetricsListenAddrConfig string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14003"`
 }
 
-func (y *yamlConfig) ListenAddress() string {
-	return y.Node.ListenAddr
+func (y *yamlConfig) SocketPath() string {
+	return y.Node.SocketPath
 }
 
 func (y *yamlConfig) MarketEndpoint() string {

@@ -9,7 +9,6 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
-	"github.com/sonm-io/core/insonmnia/auth"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -76,10 +75,11 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, c
 
 // Node is LocalNode instance
 type Node struct {
-	lis     net.Listener
-	srv     *grpc.Server
-	ctx     context.Context
-	privKey *ecdsa.PrivateKey
+	lis           net.Listener
+	lisSocketPath string
+	srv           *grpc.Server
+	ctx           context.Context
+	privKey       *ecdsa.PrivateKey
 	// processorRestarter must start together with node .Serve (not .New).
 	// This func must fetch orders from the Market and restart it background processing.
 	processorRestarter func() error
@@ -89,7 +89,7 @@ type Node struct {
 // also method starts internal gRPC client connections
 // to the external services like Market and Hub
 func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
-	lis, err := net.Listen("tcp", c.ListenAddress())
+	lis, err := net.Listen("unix", c.SocketPath())
 	if err != nil {
 		return nil, err
 	}
@@ -122,14 +122,8 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		return nil, err
 	}
 
-	addr := util.PubKeyToAddr(key.PublicKey)
-	creds := auth.NewWalletAuthenticator(util.NewTLS(TLSConfig), addr)
 	logger := log.GetLogger(ctx)
-	srv := xgrpc.NewServer(logger,
-		xgrpc.Credentials(creds),
-		xgrpc.DefaultTraceInterceptor(),
-		xgrpc.UnaryServerInterceptor(hub.(*hubAPI).intercept),
-	)
+	srv := xgrpc.NewUnencryptedServer(logger)
 
 	pb.RegisterHubManagementServer(srv, hub)
 	log.G(ctx).Info("hub service registered", zap.String("endpt", c.HubEndpoint()))
@@ -149,6 +143,7 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		lis:                lis,
 		ctx:                ctx,
 		srv:                srv,
+		lisSocketPath:      c.SocketPath(),
 		processorRestarter: market.(*marketAPI).restartOrdersProcessing(),
 	}, nil
 }
@@ -177,4 +172,12 @@ func (n *Node) Serve() error {
 	}
 
 	return n.srv.Serve(n.lis)
+}
+
+func (n *Node) Close() {
+	if n.lis != nil {
+		if err := n.lis.Close(); err != nil {
+			log.G(n.ctx).Warn("cannot close socket listener", zap.Error(err))
+		}
+	}
 }

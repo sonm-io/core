@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/accounts"
@@ -47,11 +49,18 @@ func run() {
 		os.Exit(1)
 	}
 
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		<-c
+		n.Close()
+	}()
+
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr())
 
-	log.G(ctx).Info("starting node", zap.String("listen_addr", cfg.ListenAddress()))
+	log.G(ctx).Info("starting node", zap.String("socket_path", cfg.SocketPath()))
 	if err := n.Serve(); err != nil {
-		log.G(ctx).Error("cannot start node", zap.Error(err))
+		log.G(ctx).Error("node termination", zap.Error(err))
 		os.Exit(1)
 	}
 }

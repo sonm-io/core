@@ -26,9 +26,8 @@ var hubOrderRootCmd = &cobra.Command{
 }
 
 var hubOrderListCmd = &cobra.Command{
-	Use:    "list",
-	Short:  "Show current ask plans",
-	PreRun: loadKeyStoreWrapper,
+	Use:   "list",
+	Short: "Show current ask plans",
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
@@ -47,10 +46,9 @@ var hubOrderListCmd = &cobra.Command{
 }
 
 var hubOrderCreateCmd = &cobra.Command{
-	Use:    "create <price> <slot.yaml> [buyer-eth-addr]",
-	Short:  "Create new plan",
-	Args:   cobra.MinimumNArgs(2),
-	PreRun: loadKeyStoreWrapper,
+	Use:   "create <price> <slot.yaml> [buyer-eth-addr]",
+	Short: "Create new plan",
+	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
@@ -94,10 +92,9 @@ var hubOrderCreateCmd = &cobra.Command{
 }
 
 var hubOrderRemoveCmd = &cobra.Command{
-	Use:    "remove <order_id>",
-	Short:  "Remove plan by",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreWrapper,
+	Use:   "remove <order_id>",
+	Short: "Remove plan by",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {

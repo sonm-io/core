@@ -20,9 +20,8 @@ var hubACLRootCmd = &cobra.Command{
 }
 
 var nodeACLListCmd = &cobra.Command{
-	Use:    "list",
-	Short:  "Show current ACLs",
-	PreRun: loadKeyStoreWrapper,
+	Use:   "list",
+	Short: "Show current ACLs",
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
@@ -41,10 +40,9 @@ var nodeACLListCmd = &cobra.Command{
 }
 
 var nodeACLRegisterCmd = &cobra.Command{
-	Use:    "register <worker_id>",
-	Short:  "Deregisters a worker credentials",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreWrapper,
+	Use:   "register <worker_id>",
+	Short: "Deregisters a worker credentials",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {
@@ -63,10 +61,9 @@ var nodeACLRegisterCmd = &cobra.Command{
 }
 
 var nodeACLDeregisterCmd = &cobra.Command{
-	Use:    "deregister <worker_id>",
-	Short:  "Deregisters a worker credentials",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreWrapper,
+	Use:   "deregister <worker_id>",
+	Short: "Deregisters a worker credentials",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
 		if err != nil {

@@ -7,7 +7,6 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/xgrpc"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 type NodeHubInteractor interface {
@@ -146,7 +145,7 @@ func (it *hubInteractor) TaskStatus(id string) (*pb.TaskStatusReply, error) {
 }
 
 func NewHubInteractor(addr string, timeout time.Duration) (NodeHubInteractor, error) {
-	cc, err := xgrpc.NewWalletAuthenticatedClient(context.Background(), creds, addr)
+	cc, err := xgrpc.NewUnencryptedUnixSocketClient(context.Background(), addr, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -224,7 +223,7 @@ func ctx(timeout time.Duration) (context.Context, context.CancelFunc) {
 }
 
 func NewMarketInteractor(addr string, timeout time.Duration) (NodeMarketInteractor, error) {
-	cc, err := xgrpc.NewWalletAuthenticatedClient(context.Background(), creds, addr)
+	cc, err := xgrpc.NewUnencryptedUnixSocketClient(context.Background(), addr, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -278,7 +277,7 @@ func (it *dealsInteractor) FinishDeal(id string) error {
 }
 
 func NewDealsInteractor(addr string, timeout time.Duration) (DealsInteractor, error) {
-	cc, err := xgrpc.NewWalletAuthenticatedClient(context.Background(), creds, addr)
+	cc, err := xgrpc.NewUnencryptedUnixSocketClient(context.Background(), addr, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -352,8 +351,8 @@ func (it *tasksInteractor) ImagePull(dealID, taskID string) (pb.Hub_PullTaskClie
 	return it.tasks.PullTask(ctx, req)
 }
 
-func NewTasksInteractor(addr string, timeout time.Duration, opts ...grpc.DialOption) (TasksInteractor, error) {
-	cc, err := xgrpc.NewWalletAuthenticatedClient(context.Background(), creds, addr, opts...)
+func NewTasksInteractor(addr string, timeout time.Duration) (TasksInteractor, error) {
+	cc, err := xgrpc.NewUnencryptedUnixSocketClient(context.Background(), addr, timeout)
 	if err != nil {
 		return nil, err
 	}
