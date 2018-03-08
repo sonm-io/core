@@ -1,0 +1,38 @@
+# Local Node settings
+node:
+  # address to bind Node's gRPC endpoint
+  # required
+  listen_addr: "127.0.0.1:15030"
+
+# Marketplace service settings
+market:
+  # marketplace gRPC endpoint
+  # required
+  endpoint: "0xA99faEeF5559b823B63EB8Fe51CC13E14907C909@188.166.190.188:15021"
+
+# Logging settings.
+log:
+  # The desired logging level.
+  # Allowed values in range of -1 (high verbosity) to 3 (most quiet)
+  level: -1
+
+# locator settings
+locator:
+  # Locator's gRPC endpoint for Eth to IP addr resolution
+  endpoint: "0xd67749caa651b5f4a056be437f6c6c3725776602@139.59.250.244:15020"
+
+
+# Settings for Ethereum keys
+ethereum:
+  # path to keystore, for example "/home/sonm/keys"
+  key_store: "keystore_path"
+  # passphrase for keystore
+  pass_phrase: "yourSecretPassword"
+
+# Hub management settings.
+# Set this if you have your own Hub and want to manage it.
+hub:
+  # endpoint is Hub's monitoring gRPC endpoint for client connections.
+  endpoint: "127.0.0.1:15010"
+
+metrics_listen_addr: "127.0.0.1:14003"

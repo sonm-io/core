@@ -1,0 +1,13 @@
+### This config must be stored at 'home/<current user>/.sonm/' folder,
+### otherwise CLI will work with default settings
+
+# In what format CLI must show their output
+# can be "simple" for human-readable messages
+# and "json" for output in machine-readable JSON format
+output_format: "simple"
+
+ethereum:
+  # path to keystore, for example "/home/sonm/keys"
+  key_store: "keystore_path"
+  # passphrase for keystore
+  pass_phrase: "yourSecretPassword"

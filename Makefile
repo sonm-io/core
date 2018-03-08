@@ -163,3 +163,7 @@ deb:
 
 coverage:
 	.ci/coverage.sh
+
+release:
+	@echo "preparing $(VER) to release..."
+	@ .ci/release.sh $(VER) $(GH_TOKEN)
