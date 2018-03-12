@@ -61,7 +61,7 @@ func (e *eth) hubAddress() string {
 }
 
 func (e *eth) VerifyBuyerBalance(bidOrder *structs.Order) error {
-	balance, err := e.bc.BalanceOf(bidOrder.ByuerID)
+	balance, err := e.bc.BalanceOf(e.ctx, bidOrder.ByuerID)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (e *eth) VerifyBuyerBalance(bidOrder *structs.Order) error {
 }
 
 func (e *eth) VerifyBuyerAllowance(bidOrder *structs.Order) error {
-	allowance, err := e.bc.AllowanceOf(bidOrder.ByuerID, tsc.DealsAddress)
+	allowance, err := e.bc.AllowanceOf(e.ctx, bidOrder.ByuerID, tsc.DealsAddress)
 	if err != nil {
 		return err
 	}
@@ -92,15 +92,15 @@ func (e *eth) GetClosedDeals(ctx context.Context) ([]*pb.Deal, error) {
 	return e.getTemplateDeals(ctx, e.bc.GetClosedDeal)
 }
 
-func (e *eth) getTemplateDeals(ctx context.Context, fn func(string, string) ([]*big.Int, error)) ([]*pb.Deal, error) {
-	ids, err := fn(e.hubAddress(), "")
+func (e *eth) getTemplateDeals(ctx context.Context, fn func(context.Context, string, string) ([]*big.Int, error)) ([]*pb.Deal, error) {
+	ids, err := fn(ctx, e.hubAddress(), "")
 	if err != nil {
 		return nil, err
 	}
 
 	deals := make([]*pb.Deal, 0, len(ids))
 	for _, id := range ids {
-		deal, err := e.bc.GetDealInfo(id)
+		deal, err := e.bc.GetDealInfo(ctx, id)
 		if err != nil {
 			return nil, err
 		}
@@ -133,7 +133,7 @@ func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID stri
 		case <-timer.C:
 			log.G(ctx).Debug("checking whether deal is closed")
 
-			ids, err := e.bc.GetClosedDeal(crypto.PubkeyToAddress(e.key.PublicKey).Hex(), buyerID)
+			ids, err := e.bc.GetClosedDeal(ctx, crypto.PubkeyToAddress(e.key.PublicKey).Hex(), buyerID)
 			if err != nil {
 				return err
 			}
@@ -141,7 +141,7 @@ func (e *eth) WaitForDealClosed(ctx context.Context, dealID DealID, buyerID stri
 			log.G(ctx).Info("found some closed deals", zap.Int("count", len(ids)))
 
 			for _, id := range ids {
-				dealInfo, err := e.bc.GetDealInfo(id)
+				dealInfo, err := e.bc.GetDealInfo(ctx, id)
 				if err != nil {
 					continue
 				}
@@ -181,7 +181,7 @@ func (e *eth) findDeals(ctx context.Context, dealID *big.Int, buyerID common.Add
 }
 
 func (e *eth) findDealOnce(buyerID common.Address, dealID *big.Int) *pb.Deal {
-	deal, err := e.bc.GetDealInfo(dealID)
+	deal, err := e.bc.GetDealInfo(e.ctx, dealID)
 	if err != nil {
 		return nil
 	}
@@ -208,7 +208,7 @@ func (e *eth) AcceptDeal(id string) error {
 		return err
 	}
 
-	_, err = e.bc.AcceptDeal(e.key, bigID)
+	_, err = e.bc.AcceptDeal(e.ctx, e.key, bigID)
 	return err
 }
 
@@ -218,7 +218,7 @@ func (e *eth) CloseDeal(id DealID) error {
 		return err
 	}
 
-	_, err = e.bc.CloseDeal(e.key, bigID)
+	_, err = e.bc.CloseDeal(e.ctx, e.key, bigID)
 	return err
 }
 
@@ -228,7 +228,7 @@ func (e *eth) GetDeal(id string) (*pb.Deal, error) {
 		return nil, err
 	}
 
-	deal, err := e.bc.GetDealInfo(bigID)
+	deal, err := e.bc.GetDealInfo(e.ctx, bigID)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ func (e *eth) GetDeal(id string) (*pb.Deal, error) {
 }
 
 func (e *eth) Balance() (*big.Int, error) {
-	return e.bc.BalanceOf(e.hubAddress())
+	return e.bc.BalanceOf(e.ctx, e.hubAddress())
 }
 
 // NewETH constructs a new Ethereum client.

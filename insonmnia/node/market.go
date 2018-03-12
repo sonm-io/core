@@ -350,12 +350,12 @@ func (m *marketAPI) startExecOrderHandler(ord *pb.Order) {
 
 func (m *marketAPI) loadBalanceAndAllowance() (*big.Int, *big.Int, error) {
 	addr := util.PubKeyToAddr(m.remotes.key.PublicKey).Hex()
-	balance, err := m.remotes.eth.BalanceOf(addr)
+	balance, err := m.remotes.eth.BalanceOf(m.ctx, addr)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	allowance, err := m.remotes.eth.AllowanceOf(addr, tsc.DealsAddress)
+	allowance, err := m.remotes.eth.AllowanceOf(m.ctx, addr, tsc.DealsAddress)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
 	"math/big"
@@ -15,82 +16,83 @@ import (
 	token_api "github.com/sonm-io/core/blockchain/tsc/api"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
-	"golang.org/x/net/context"
 )
 
 const defaultEthEndpoint = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
 
 const defaultGasPrice = 20 * 1000000000
 
-// Dealer - interface above SONM deals
-// client - who wanna buy
-// hub - who wanna selling its resources
-// WARN: this may change at future, by any proposal
+// Dealer interface describe ethereum-backed deals into the SONM network.
+//
+// Entities to operate with:
+// client - a person who wanna buy resources
+// hub - a person who wanna sell their resources
 type Dealer interface {
 	// OpenDeal is function to open new deal in blockchain from given address,
 	// it have effect to change blockchain state, key is mandatory param
 	// other params caused by SONM office's agreement
 	// It could be called by client
 	// return transaction, not deal id
-	OpenDeal(key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error)
+	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error)
 	// OpenDealPending creates deal and waits for transaction to be committed on blockchain.
 	// wait is duration to wait for transaction commit, recommended value is 180 seconds.
 	OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal, wait time.Duration) (*big.Int, error)
 
 	// AcceptDeal accepting deal by hub, causes that hub accept to sell its resources
 	// It could be called by hub
-	AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
+	AcceptDeal(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
 	// AcceptDealPending accept deal and waits for transaction to be committed on blockchain.
 	// wait is duration to wait for transaction commit, recommended value is 180 seconds.
 	AcceptDealPending(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) error
 
 	// CloseDeal closing deal by given id
 	// It could be called by client
-	CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
+	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
 	// CloseDealPending close deal and waits for transaction to be committed on blockchain.
 	// wait is duration to wait for transaction commit, recommended value is 180 seconds.
 	CloseDealPending(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) error
 
 	// GetDeals is returns ids by given address
-	GetDeals(address string) ([]*big.Int, error)
+	GetDeals(ctx context.Context, address string) ([]*big.Int, error)
 	// GetDealInfo is returns deal info by given id
-	GetDealInfo(id *big.Int) (*pb.Deal, error)
+	GetDealInfo(ctx context.Context, id *big.Int) (*pb.Deal, error)
 	// GetDealAmount return global deal counter
-	GetDealAmount() (*big.Int, error)
+	GetDealAmount(ctx context.Context) (*big.Int, error)
 	// GetOpenedDeal returns only opened deals by given hub/client addresses
-	GetOpenedDeal(hubAddr string, clientAddr string) ([]*big.Int, error)
+	GetOpenedDeal(ctx context.Context, hubAddr string, clientAddr string) ([]*big.Int, error)
 	// GetAcceptedDeal returns only accepted deals by given hub/client addresses
-	GetAcceptedDeal(hubAddr string, clientAddr string) ([]*big.Int, error)
+	GetAcceptedDeal(ctx context.Context, hubAddr string, clientAddr string) ([]*big.Int, error)
 	// GetClosedDeal returns only closed deals by given hub/client addresses
-	GetClosedDeal(hubAddr string, clientAddr string) ([]*big.Int, error)
+	GetClosedDeal(ctx context.Context, hubAddr string, clientAddr string) ([]*big.Int, error)
 }
 
 // Tokener is go implementation of ERC20-compatibility token with full functionality high-level interface
 // standart description with placed: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
 type Tokener interface {
 	// Approve - add allowance from caller to other contract to spend tokens
-	Approve(key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error)
+	Approve(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error)
 	// Transfer token from caller
-	Transfer(key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error)
+	Transfer(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error)
 	// TransferFrom fallback function for contracts to transfer you allowance
-	TransferFrom(key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (*types.Transaction, error)
+	TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (*types.Transaction, error)
 
 	// BalanceOf returns balance of given address
-	BalanceOf(address string) (*big.Int, error)
+	BalanceOf(ctx context.Context, address string) (*big.Int, error)
 	// AllowanceOf returns allowance of given address to spender account
-	AllowanceOf(from string, to string) (*big.Int, error)
+	AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error)
 	// TotalSupply - all amount of emitted token
-	TotalSupply() (*big.Int, error)
+	TotalSupply(ctx context.Context) (*big.Int, error)
 	// GetTokens - send 100 SNMT token for message caller
 	// this function added for MVP purposes and has been deleted later
-	GetTokens(key *ecdsa.PrivateKey) (*types.Transaction, error)
+	GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error)
 }
 
 // Blockchainer interface describes operations with deals and tokens
 type Blockchainer interface {
 	Dealer
 	Tokener
-	GetTxOpts(key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts
+	// GetTxOpts return transaction options that used to perform operations into Ethereum blockchain
+	GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts
 }
 
 func initEthClient(ethEndpoint *string) (*ethclient.Client, error) {
@@ -107,11 +109,19 @@ func initEthClient(ethEndpoint *string) (*ethclient.Client, error) {
 	return ethClient, nil
 }
 
-func (bch *api) GetTxOpts(key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts {
+func (bch *api) GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts {
 	opts := bind.NewKeyedTransactor(key)
+	opts.Context = ctx
 	opts.GasLimit = big.NewInt(gasLimit)
 	opts.GasPrice = big.NewInt(bch.gasPrice)
 	return opts
+}
+
+func getCallOptions(ctx context.Context) *bind.CallOpts {
+	return &bind.CallOpts{
+		Pending: true,
+		Context: ctx,
+	}
 }
 
 type api struct {
@@ -163,8 +173,8 @@ var DealOpenedTopic = common.HexToHash("0x873cb35202fef184c9f8ee23c04e36dc38f3e2
 var DealAcceptedTopic = common.HexToHash("0x3a38edea6028913403c74ce8433c90eca94f4ca074d318d8cb77be5290ba4f15")
 var DealClosedTopic = common.HexToHash("0x72615f99a62a6cc2f8452d5c0c9cbc5683995297e1d988f09bb1471d4eefb890")
 
-func (bch *api) OpenDeal(key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error) {
-	opts := bch.GetTxOpts(key, 360000)
+func (bch *api) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error) {
+	opts := bch.GetTxOpts(ctx, key, 360000)
 
 	bigSpec, err := util.ParseBigInt(deal.SpecificationHash)
 	if err != nil {
@@ -211,7 +221,7 @@ func (bch *api) checkTransactionResult(ctx context.Context, tx *types.Transactio
 }
 
 func (bch *api) OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal, wait time.Duration) (*big.Int, error) {
-	tx, err := bch.OpenDeal(key, deal)
+	tx, err := bch.OpenDeal(ctx, key, deal)
 	if err != nil {
 		return nil, err
 	}
@@ -251,8 +261,8 @@ func (bch *api) OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal
 	}
 }
 
-func (bch *api) AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
-	opts := bch.GetTxOpts(key, 90000)
+func (bch *api) AcceptDeal(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
+	opts := bch.GetTxOpts(ctx, key, 90000)
 
 	tx, err := bch.dealsContract.AcceptDeal(opts, id)
 	if err != nil {
@@ -262,7 +272,7 @@ func (bch *api) AcceptDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transacti
 }
 
 func (bch *api) AcceptDealPending(ctx context.Context, key *ecdsa.PrivateKey, dealId *big.Int, wait time.Duration) error {
-	tx, err := bch.AcceptDeal(key, dealId)
+	tx, err := bch.AcceptDeal(ctx, key, dealId)
 	if err != nil {
 		return err
 	}
@@ -309,8 +319,8 @@ func (bch *api) AcceptDealPending(ctx context.Context, key *ecdsa.PrivateKey, de
 	}
 }
 
-func (bch *api) CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
-	opts := bch.GetTxOpts(key, 300000)
+func (bch *api) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
+	opts := bch.GetTxOpts(ctx, key, 300000)
 
 	tx, err := bch.dealsContract.CloseDeal(opts, id)
 	if err != nil {
@@ -320,7 +330,7 @@ func (bch *api) CloseDeal(key *ecdsa.PrivateKey, id *big.Int) (*types.Transactio
 }
 
 func (bch *api) CloseDealPending(ctx context.Context, key *ecdsa.PrivateKey, dealId *big.Int, wait time.Duration) error {
-	tx, err := bch.CloseDeal(key, dealId)
+	tx, err := bch.CloseDeal(ctx, key, dealId)
 	if err != nil {
 		return err
 	}
@@ -367,7 +377,7 @@ func (bch *api) CloseDealPending(ctx context.Context, key *ecdsa.PrivateKey, dea
 	}
 }
 
-func (bch *api) GetOpenedDeal(hubAddr string, clientAddr string) ([]*big.Int, error) {
+func (bch *api) GetOpenedDeal(ctx context.Context, hubAddr string, clientAddr string) ([]*big.Int, error) {
 	var topics [][]common.Hash
 
 	// precompile EventName topics
@@ -381,7 +391,7 @@ func (bch *api) GetOpenedDeal(hubAddr string, clientAddr string) ([]*big.Int, er
 		topics = append(topics, addrTopic)
 	}
 
-	logs, err := bch.client.FilterLogs(context.Background(), ethereum.FilterQuery{
+	logs, err := bch.client.FilterLogs(ctx, ethereum.FilterQuery{
 		Addresses: []common.Address{common.HexToAddress(tsc.DealsAddress)},
 		Topics:    topics,
 	})
@@ -428,7 +438,7 @@ func (bch *api) GetOpenedDeal(hubAddr string, clientAddr string) ([]*big.Int, er
 	return out, nil
 }
 
-func (bch *api) GetAcceptedDeal(hubAddr string, clientAddr string) ([]*big.Int, error) {
+func (bch *api) GetAcceptedDeal(ctx context.Context, hubAddr string, clientAddr string) ([]*big.Int, error) {
 	var topics [][]common.Hash
 
 	// precompile EventName topics
@@ -442,7 +452,7 @@ func (bch *api) GetAcceptedDeal(hubAddr string, clientAddr string) ([]*big.Int, 
 		topics = append(topics, addrTopic)
 	}
 
-	logs, err := bch.client.FilterLogs(context.Background(), ethereum.FilterQuery{
+	logs, err := bch.client.FilterLogs(ctx, ethereum.FilterQuery{
 		Addresses: []common.Address{common.HexToAddress(tsc.DealsAddress)},
 		Topics:    topics,
 	})
@@ -489,7 +499,7 @@ func (bch *api) GetAcceptedDeal(hubAddr string, clientAddr string) ([]*big.Int, 
 	return out, nil
 }
 
-func (bch *api) GetClosedDeal(hubAddr string, clientAddr string) ([]*big.Int, error) {
+func (bch *api) GetClosedDeal(ctx context.Context, hubAddr string, clientAddr string) ([]*big.Int, error) {
 	var topics [][]common.Hash
 
 	// precompile EventName topics
@@ -503,7 +513,7 @@ func (bch *api) GetClosedDeal(hubAddr string, clientAddr string) ([]*big.Int, er
 		topics = append(topics, addrTopic)
 	}
 
-	logs, err := bch.client.FilterLogs(context.Background(), ethereum.FilterQuery{
+	logs, err := bch.client.FilterLogs(ctx, ethereum.FilterQuery{
 		Addresses: []common.Address{common.HexToAddress(tsc.DealsAddress)},
 		Topics:    topics,
 	})
@@ -526,19 +536,20 @@ func (bch *api) GetClosedDeal(hubAddr string, clientAddr string) ([]*big.Int, er
 	return out, nil
 }
 
-func (bch *api) GetDeals(address string) ([]*big.Int, error) {
-	clientDeals, err := bch.dealsContract.GetDeals(&bind.CallOpts{Pending: true}, common.HexToAddress(address))
+func (bch *api) GetDeals(ctx context.Context, address string) ([]*big.Int, error) {
+	clientDeals, err := bch.dealsContract.GetDeals(getCallOptions(ctx), common.HexToAddress(address))
 	if err != nil {
 		return nil, err
 	}
 	return clientDeals, nil
 }
 
-func (bch *api) GetDealInfo(id *big.Int) (*pb.Deal, error) {
-	deal, err := bch.dealsContract.GetDealInfo(&bind.CallOpts{Pending: true}, id)
+func (bch *api) GetDealInfo(ctx context.Context, id *big.Int) (*pb.Deal, error) {
+	deal, err := bch.dealsContract.GetDealInfo(getCallOptions(ctx), id)
 	if err != nil {
 		return nil, err
 	}
+
 	dealInfo := pb.Deal{
 		Id:                id.String(),
 		BuyerID:           deal.Client.String(),
@@ -553,8 +564,8 @@ func (bch *api) GetDealInfo(id *big.Int) (*pb.Deal, error) {
 	return &dealInfo, nil
 }
 
-func (bch *api) GetDealAmount() (*big.Int, error) {
-	res, err := bch.dealsContract.GetDealsAmount(&bind.CallOpts{Pending: true})
+func (bch *api) GetDealAmount(ctx context.Context) (*big.Int, error) {
+	res, err := bch.dealsContract.GetDealsAmount(getCallOptions(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -565,24 +576,24 @@ func (bch *api) GetDealAmount() (*big.Int, error) {
 // Tokener appearance
 // ----------------
 
-func (bch *api) BalanceOf(address string) (*big.Int, error) {
-	balance, err := bch.tokenContract.BalanceOf(&bind.CallOpts{Pending: true}, common.HexToAddress(address))
+func (bch *api) BalanceOf(ctx context.Context, address string) (*big.Int, error) {
+	balance, err := bch.tokenContract.BalanceOf(getCallOptions(ctx), common.HexToAddress(address))
 	if err != nil {
 		return nil, err
 	}
 	return balance, nil
 }
 
-func (bch *api) AllowanceOf(from string, to string) (*big.Int, error) {
-	allowance, err := bch.tokenContract.Allowance(&bind.CallOpts{Pending: true}, common.HexToAddress(from), common.HexToAddress(to))
+func (bch *api) AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error) {
+	allowance, err := bch.tokenContract.Allowance(getCallOptions(ctx), common.HexToAddress(from), common.HexToAddress(to))
 	if err != nil {
 		return nil, err
 	}
 	return allowance, nil
 }
 
-func (bch *api) Approve(key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
-	opts := bch.GetTxOpts(key, 50000)
+func (bch *api) Approve(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
+	opts := bch.GetTxOpts(ctx, key, 50000)
 
 	tx, err := bch.tokenContract.Approve(opts, common.HexToAddress(to), amount)
 	if err != nil {
@@ -591,8 +602,8 @@ func (bch *api) Approve(key *ecdsa.PrivateKey, to string, amount *big.Int) (*typ
 	return tx, err
 }
 
-func (bch *api) Transfer(key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
-	opts := bch.GetTxOpts(key, 50000)
+func (bch *api) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
+	opts := bch.GetTxOpts(ctx, key, 50000)
 
 	tx, err := bch.tokenContract.Transfer(opts, common.HexToAddress(to), amount)
 	if err != nil {
@@ -601,8 +612,8 @@ func (bch *api) Transfer(key *ecdsa.PrivateKey, to string, amount *big.Int) (*ty
 	return tx, err
 }
 
-func (bch *api) TransferFrom(key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (*types.Transaction, error) {
-	opts := bch.GetTxOpts(key, 50000)
+func (bch *api) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (*types.Transaction, error) {
+	opts := bch.GetTxOpts(ctx, key, 50000)
 
 	tx, err := bch.tokenContract.TransferFrom(opts, common.HexToAddress(from), common.HexToAddress(to), amount)
 	if err != nil {
@@ -611,16 +622,16 @@ func (bch *api) TransferFrom(key *ecdsa.PrivateKey, from string, to string, amou
 	return tx, err
 }
 
-func (bch *api) TotalSupply() (*big.Int, error) {
-	supply, err := bch.tokenContract.TotalSupply(&bind.CallOpts{Pending: true})
+func (bch *api) TotalSupply(ctx context.Context) (*big.Int, error) {
+	supply, err := bch.tokenContract.TotalSupply(getCallOptions(ctx))
 	if err != nil {
 		return nil, err
 	}
 	return supply, nil
 }
 
-func (bch *api) GetTokens(key *ecdsa.PrivateKey) (*types.Transaction, error) {
-	opts := bch.GetTxOpts(key, 50000)
+func (bch *api) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
+	opts := bch.GetTxOpts(ctx, key, 50000)
 
 	tx, err := bch.tokenContract.GetTokens(opts)
 	if err != nil {

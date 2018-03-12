@@ -29,12 +29,13 @@ func makeTestKey() (string, *ecdsa.PrivateKey) {
 }
 
 func TestEth_CheckDealExists(t *testing.T) {
+	ctx := context.Background()
 	addr, key := makeTestKey()
 	bC := blockchain.NewMockBlockchainer(gomock.NewController(t))
-	bC.EXPECT().GetDeals(addr).AnyTimes().Return([]*big.Int{big.NewInt(1), big.NewInt(2)}, nil)
-	bC.EXPECT().GetDealInfo(big.NewInt(1)).AnyTimes().Return(&pb.Deal{SupplierID: addr, Status: pb.DealStatus_ACCEPTED}, nil)
-	bC.EXPECT().GetDealInfo(big.NewInt(2)).AnyTimes().Return(&pb.Deal{SupplierID: addr, Status: pb.DealStatus_CLOSED}, nil)
-	bC.EXPECT().GetDealInfo(big.NewInt(3)).AnyTimes().Return(&pb.Deal{SupplierID: "anotherEthAddress", Status: pb.DealStatus_CLOSED}, nil)
+	bC.EXPECT().GetDeals(ctx, addr).AnyTimes().Return([]*big.Int{big.NewInt(1), big.NewInt(2)}, nil)
+	bC.EXPECT().GetDealInfo(ctx, big.NewInt(1)).AnyTimes().Return(&pb.Deal{SupplierID: addr, Status: pb.DealStatus_ACCEPTED}, nil)
+	bC.EXPECT().GetDealInfo(ctx, big.NewInt(2)).AnyTimes().Return(&pb.Deal{SupplierID: addr, Status: pb.DealStatus_CLOSED}, nil)
+	bC.EXPECT().GetDealInfo(ctx, big.NewInt(3)).AnyTimes().Return(&pb.Deal{SupplierID: "anotherEthAddress", Status: pb.DealStatus_CLOSED}, nil)
 
 	eeth := &eth{
 		ctx: context.Background(),
@@ -59,16 +60,18 @@ func TestEth_CheckDealExists(t *testing.T) {
 }
 
 func TestEth_WaitForDealCreated(t *testing.T) {
+	ctx := context.Background()
 	addr, key := makeTestKey()
+
 	bC := blockchain.NewMockBlockchainer(gomock.NewController(t))
-	bC.EXPECT().GetOpenedDeal(addr, clientAddrString).AnyTimes().Return(
+	bC.EXPECT().GetOpenedDeal(ctx, addr, clientAddrString).AnyTimes().Return(
 		[]*big.Int{
 			big.NewInt(100),
 			big.NewInt(200),
 		},
 		nil)
 
-	bC.EXPECT().GetDealInfo(big.NewInt(100)).AnyTimes().Return(
+	bC.EXPECT().GetDealInfo(ctx, big.NewInt(100)).AnyTimes().Return(
 		&pb.Deal{
 			Id:                "100",
 			SupplierID:        addr,
@@ -77,7 +80,7 @@ func TestEth_WaitForDealCreated(t *testing.T) {
 			SpecificationHash: "aaa",
 		},
 		nil)
-	bC.EXPECT().GetDealInfo(big.NewInt(200)).AnyTimes().Return(
+	bC.EXPECT().GetDealInfo(ctx, big.NewInt(200)).AnyTimes().Return(
 		&pb.Deal{
 			Id:                "200",
 			SupplierID:        addr,
@@ -102,15 +105,17 @@ func TestEth_WaitForDealCreated(t *testing.T) {
 }
 
 func TestEth_CheckDealExists2(t *testing.T) {
+	ctx := context.Background()
 	addr, key := makeTestKey()
+
 	bC := blockchain.NewMockBlockchainer(gomock.NewController(t))
-	bC.EXPECT().GetOpenedDeal(addr, clientAddrString).AnyTimes().Return(
+	bC.EXPECT().GetOpenedDeal(ctx, addr, clientAddrString).AnyTimes().Return(
 		[]*big.Int{
 			big.NewInt(100),
 		},
 		nil)
 
-	bC.EXPECT().GetDealInfo(big.NewInt(100)).AnyTimes().Return(
+	bC.EXPECT().GetDealInfo(ctx, big.NewInt(100)).AnyTimes().Return(
 		&pb.Deal{
 			Id:                "100",
 			SupplierID:        addr,

@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"encoding/json"
 	"errors"
@@ -165,4 +166,8 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 func showJSON(cmd *cobra.Command, s interface{}) {
 	b, _ := json.Marshal(s)
 	cmd.Printf("%s\r\n", b)
+}
+
+func newTimeoutContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), timeoutFlag)
 }

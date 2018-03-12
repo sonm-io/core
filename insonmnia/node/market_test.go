@@ -53,7 +53,7 @@ func makeOrder() *pb.Order {
 	}
 }
 
-func getTestEth(ctrl *gomock.Controller) blockchain.Blockchainer {
+func getTestEth(ctx context.Context, ctrl *gomock.Controller) blockchain.Blockchainer {
 	deal := &pb.Deal{
 		Id:                "1",
 		Status:            pb.DealStatus_ACCEPTED,
@@ -62,15 +62,15 @@ func getTestEth(ctrl *gomock.Controller) blockchain.Blockchainer {
 
 	bc := blockchain.NewMockBlockchainer(ctrl)
 
-	bc.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+	bc.EXPECT().BalanceOf(ctx, gomock.Any()).AnyTimes().
 		Return(big.NewInt(big.MaxPrec), nil)
-	bc.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+	bc.EXPECT().AllowanceOf(ctx, gomock.Any(), gomock.Any()).AnyTimes().
 		Return(big.NewInt(big.MaxPrec), nil)
-	bc.EXPECT().OpenDeal(gomock.Any(), gomock.Any()).AnyTimes().
+	bc.EXPECT().OpenDeal(ctx, gomock.Any(), gomock.Any()).AnyTimes().
 		Return(&types.Transaction{}, nil)
-	bc.EXPECT().GetAcceptedDeal(gomock.Any(), gomock.Any()).AnyTimes().
+	bc.EXPECT().GetAcceptedDeal(ctx, gomock.Any(), gomock.Any()).AnyTimes().
 		Return([]*big.Int{big.NewInt(1)}, nil)
-	bc.EXPECT().GetDealInfo(big.NewInt(1)).AnyTimes().
+	bc.EXPECT().GetDealInfo(ctx, big.NewInt(1)).AnyTimes().
 		Return(deal, nil)
 	bc.EXPECT().OpenDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		Return(big.NewInt(1), nil)
@@ -126,7 +126,7 @@ func getTestRemotes(ctx context.Context, ctrl *gomock.Controller) *remoteOptions
 		panic(err)
 	}
 
-	opts.eth = getTestEth(ctrl)
+	opts.eth = getTestEth(ctx, ctrl)
 	opts.market = getTestMarket(ctrl)
 	opts.locator = getTestLocator(ctrl)
 	opts.dealApproveTimeout = 3 * time.Second
@@ -313,24 +313,24 @@ func TestCreateOrder_CannotResolveHubIP(t *testing.T) {
 }
 
 func TestCreateOrder_CannotCreateDeal(t *testing.T) {
+	ctx := context.Background()
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	eth := blockchain.NewMockBlockchainer(ctrl)
-	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+	eth.EXPECT().BalanceOf(ctx, gomock.Any()).AnyTimes().
 		Return(big.NewInt(big.MaxPrec), nil)
-	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+	eth.EXPECT().AllowanceOf(ctx, gomock.Any(), gomock.Any()).AnyTimes().
 		Return(big.NewInt(big.MaxPrec), nil)
-	eth.EXPECT().OpenDeal(gomock.Any(), gomock.Any()).AnyTimes().
+	eth.EXPECT().OpenDeal(ctx, gomock.Any(), gomock.Any()).AnyTimes().
 		Return(nil, errors.New("TEST: cannot open deal"))
 	eth.EXPECT().OpenDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		Return(nil, errors.New("TEST: cannot open deal"))
-	eth.EXPECT().GetAcceptedDeal(gomock.Any(), gomock.Any()).AnyTimes().
+	eth.EXPECT().GetAcceptedDeal(ctx, gomock.Any(), gomock.Any()).AnyTimes().
 		Return(nil, errors.New("TEST: cannot get accepted deals"))
-	eth.EXPECT().GetDealInfo(big.NewInt(1)).AnyTimes().
+	eth.EXPECT().GetDealInfo(ctx, big.NewInt(1)).AnyTimes().
 		Return(nil, errors.New("TEST: cannot get deal info"))
 
-	ctx := context.Background()
 	opts := getTestRemotes(ctx, ctrl)
 	opts.eth = eth
 
@@ -400,9 +400,9 @@ func TestCreateOrder_LackAllowanceBalance(t *testing.T) {
 	ctx := context.Background()
 
 	eth := blockchain.NewMockBlockchainer(ctrl)
-	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+	eth.EXPECT().BalanceOf(ctx, gomock.Any()).AnyTimes().
 		Return(big.NewInt(100), nil)
-	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+	eth.EXPECT().AllowanceOf(ctx, gomock.Any(), gomock.Any()).AnyTimes().
 		Return(big.NewInt(50), nil)
 
 	opts := getTestRemotes(ctx, ctrl)
@@ -438,9 +438,9 @@ func TestCreateOrder_LackAllowance(t *testing.T) {
 	ctx := context.Background()
 
 	eth := blockchain.NewMockBlockchainer(ctrl)
-	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+	eth.EXPECT().BalanceOf(ctx, gomock.Any()).AnyTimes().
 		Return(big.NewInt(10000), nil)
-	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+	eth.EXPECT().AllowanceOf(ctx, gomock.Any(), gomock.Any()).AnyTimes().
 		Return(big.NewInt(50), nil)
 
 	opts := getTestRemotes(ctx, ctrl)
@@ -476,9 +476,9 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 	ctx := context.Background()
 
 	eth := blockchain.NewMockBlockchainer(ctrl)
-	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+	eth.EXPECT().BalanceOf(ctx, gomock.Any()).AnyTimes().
 		Return(big.NewInt(100), nil)
-	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+	eth.EXPECT().AllowanceOf(ctx, gomock.Any(), gomock.Any()).AnyTimes().
 		Return(big.NewInt(50000), nil)
 	eth.EXPECT().OpenDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		Return(nil, errors.New("1"))
@@ -555,9 +555,9 @@ func TestCreateOrder_NotApprovedAndNotCancelled(t *testing.T) {
 	opts := getTestRemotes(ctx, ctrl)
 
 	eth := blockchain.NewMockBlockchainer(ctrl)
-	eth.EXPECT().BalanceOf(gomock.Any()).AnyTimes().
+	eth.EXPECT().BalanceOf(ctx, gomock.Any()).AnyTimes().
 		Return(big.NewInt(9999999999), nil)
-	eth.EXPECT().AllowanceOf(gomock.Any(), gomock.Any()).AnyTimes().
+	eth.EXPECT().AllowanceOf(ctx, gomock.Any(), gomock.Any()).AnyTimes().
 		Return(big.NewInt(9999999999), nil)
 	eth.EXPECT().OpenDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		Return(big.NewInt(1), nil)
