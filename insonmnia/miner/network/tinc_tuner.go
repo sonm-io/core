@@ -95,22 +95,25 @@ func (t *TincTuner) runDriver(ctx context.Context) error {
 
 //TODO: pass context from outside
 func (t *TincTuner) Tune(net structs.Network, hostConfig *container.HostConfig, config *network.NetworkingConfig) (Cleanup, error) {
-	opts := cloneOptions(net.NetworkOptions())
-	opts["cgroup_parent"] = hostConfig.Resources.CgroupParent
+	tincNet, err := t.netDriver.InsertTincNetwork(net, hostConfig.Resources.CgroupParent)
+	opts := map[string]string{"id": tincNet.NodeID}
+
 	createOpts := types.NetworkCreate{
 		Driver:  "tinc",
 		Options: opts,
 	}
 	createOpts.IPAM = &network.IPAM{
-		Driver: "tincipam",
-		Config: make([]network.IPAMConfig, 0),
+		Driver:  "tincipam",
+		Config:  make([]network.IPAMConfig, 0),
+		Options: opts,
 	}
+
 	createOpts.IPAM.Config = append(createOpts.IPAM.Config, network.IPAMConfig{Subnet: net.NetworkCIDR()})
-	response, err := t.client.NetworkCreate(context.Background(), net.Name(), createOpts)
+	response, err := t.client.NetworkCreate(context.Background(), net.ID(), createOpts)
 	if err != nil {
 		return nil, err
 	}
-	t.netDriver.RegisterNetworkMapping(response.ID, net.Name())
+	//t.netDriver.RegisterNetworkMapping(response.ID, net.ID())
 	if config.EndpointsConfig == nil {
 		config.EndpointsConfig = make(map[string]*network.EndpointSettings)
 		config.EndpointsConfig[response.ID] = &network.EndpointSettings{

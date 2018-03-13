@@ -9,7 +9,7 @@ import (
 
 type Network interface {
 	// Name returns a unique identifier that will be used as a new network name.
-	Name() string
+	ID() string
 	// NetworkType returns a network driver name used to establish networking.
 	NetworkType() string
 	// NetworkOptions return configuration map, passed directly to network driver, this map should not be mutated.
@@ -22,11 +22,11 @@ type Network interface {
 
 type NetworkSpec struct {
 	*sonm.NetworkSpec
-	NetName string
+	NetID string
 }
 
-func (n *NetworkSpec) Name() string {
-	return n.NetName
+func (n *NetworkSpec) ID() string {
+	return n.NetID
 }
 
 func (n *NetworkSpec) NetworkType() string {
@@ -62,10 +62,14 @@ func NewNetworkSpec(id string, spec *sonm.NetworkSpec) (*NetworkSpec, error) {
 	return &NetworkSpec{spec, id}, nil
 }
 
-func NewNetworkSpecs(idPrefix string, specs []*sonm.NetworkSpec) ([]Network, error) {
+func NewNetworkSpecs(idHint string, specs []*sonm.NetworkSpec) ([]Network, error) {
 	result := make([]Network, 0, len(specs))
 	for i, s := range specs {
-		spec, err := NewNetworkSpec(idPrefix+"__"+fmt.Sprint(i), s)
+		id := s.ID
+		if len(id) == 0 {
+			id = idHint + "__" + fmt.Sprint(i)
+		}
+		spec, err := NewNetworkSpec(id, s)
 		if err != nil {
 			return nil, err
 		}

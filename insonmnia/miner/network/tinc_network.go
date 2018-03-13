@@ -3,6 +3,7 @@ package network
 import (
 	"bytes"
 	"context"
+	"net"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -10,8 +11,18 @@ import (
 	"github.com/pkg/errors"
 )
 
+// A comparable type for v4 address
+type IP4 struct {
+	a, b, c, d byte
+}
+
+func newIP4(ip net.IP) IP4 {
+	v4 := ip.To4()
+	return IP4{v4[0], v4[1], v4[2], v4[3]}
+}
+
 func (t *TincNetwork) Init(ctx context.Context) error {
-	err := t.runCommand(ctx, "tinc", "--batch", "-n", t.ID, "-c", t.ConfigPath, "init", "initial_node_"+t.ID)
+	err := t.runCommand(ctx, "tinc", "--batch", "-n", t.NodeID, "-c", t.ConfigPath, "init", "initial_node_"+t.NodeID)
 	if err != nil {
 		t.logger.Errorf("failed to init network - %s", err)
 	} else {
@@ -21,10 +32,10 @@ func (t *TincNetwork) Init(ctx context.Context) error {
 }
 
 func (t *TincNetwork) Join(ctx context.Context) error {
-	if len(t.Options.Invitation) == 0 {
+	if len(t.Invitation) == 0 {
 		return errors.New("can not join to network without invitation")
 	}
-	err := t.runCommand(ctx, "tinc", "--batch", "-n", t.ID, "-c", t.ConfigPath, "join", t.Options.Invitation)
+	err := t.runCommand(ctx, "tinc", "--batch", "-n", t.NodeID, "-c", t.ConfigPath, "join", t.Invitation)
 	if err != nil {
 		t.logger.Errorf("failed to join network - %s", err)
 	} else {
@@ -34,12 +45,10 @@ func (t *TincNetwork) Join(ctx context.Context) error {
 }
 
 func (t *TincNetwork) Start(ctx context.Context, addr string) error {
-	iface := t.ID[:15]
-	//TODO: each pool should be considered
-	pool := t.IPv4Data[0].Pool
+	iface := t.NodeID[:15]
 
-	err := t.runCommand(ctx, "tinc", "-n", t.ID, "-c", t.ConfigPath, "start",
-		"-o", "Interface="+iface, "-o", "Subnet="+pool, "-o", "Subnet="+addr+"/32", "-o", "LogLevel=0")
+	err := t.runCommand(ctx, "tinc", "-n", t.NodeID, "-c", t.ConfigPath, "start",
+		"-o", "Interface="+iface, "-o", "Subnet="+t.Pool.String(), "-o", "Subnet="+addr+"/32", "-o", "LogLevel=0")
 	if err != nil {
 		t.logger.Error("failed to start tinc - %s", err)
 	} else {
@@ -53,7 +62,7 @@ func (t *TincNetwork) Shutdown() error {
 }
 
 func (t *TincNetwork) Stop(ctx context.Context) error {
-	err := t.runCommand(ctx, "tinc", "--batch", "-n", t.ID, "-c", t.ConfigPath, "stop")
+	err := t.runCommand(ctx, "tinc", "--batch", "-n", t.NodeID, "-c", t.ConfigPath, "stop")
 	if err != nil {
 		t.logger.Errorf("failed to stop tinc - %s", err)
 		return err
@@ -64,9 +73,45 @@ func (t *TincNetwork) Stop(ctx context.Context) error {
 }
 
 func (t *TincNetwork) Invite(ctx context.Context, inviteeID string) (string, error) {
-	out, _, err := t.runCommandWithOutput(ctx, "tinc", "--batch", "-n", t.ID, "-c", t.ConfigPath, "invite", inviteeID)
+	out, _, err := t.runCommandWithOutput(ctx, "tinc", "--batch", "-n", t.NodeID, "-c", t.ConfigPath, "invite", inviteeID)
 	out = strings.Trim(out, "\n")
 	return out, err
+}
+
+func (t *TincNetwork) OccupiedIPs(ctx context.Context) (map[IP4]struct{}, error) {
+	err := t.runCommand(ctx, "tinc", "-n", t.NodeID, "-c", t.ConfigPath, "start")
+	if err != nil {
+		return nil, err
+	}
+	stdout, _, err := t.runCommandWithOutput(ctx, "tinc", "-n", t.NodeID, "-c", t.ConfigPath, "dump", "subnets")
+	if err != nil {
+		return nil, err
+	}
+	err = t.runCommand(ctx, "tinc", "-n", t.NodeID, "-c", t.ConfigPath, "stop")
+	if err != nil {
+		return nil, err
+	}
+	lines := strings.Split(stdout, "\n")
+	ips := map[IP4]struct{}{}
+	for _, line := range lines {
+		addr := strings.Split(line, " ")[0]
+		if strings.Contains(addr, "/") {
+			continue
+		}
+		ip := net.ParseIP(addr)
+		if ip == nil {
+			return nil, errors.Errorf("could not parse ip from %s", addr)
+		}
+		if ip.To4() == nil {
+			continue
+		}
+		if !ip.IsGlobalUnicast() {
+			continue
+		}
+		ips[newIP4(ip)] = struct{}{}
+	}
+
+	return ips, nil
 }
 
 func (t *TincNetwork) runCommand(ctx context.Context, name string, arg ...string) error {

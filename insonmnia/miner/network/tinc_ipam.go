@@ -11,7 +11,6 @@ import (
 	"github.com/docker/libnetwork/datastore"
 	i "github.com/docker/libnetwork/ipam"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pborman/uuid"
 	"go.uber.org/zap"
 )
 
@@ -58,37 +57,33 @@ func (t *TincIPAMDriver) GetDefaultAddressSpaces() (*ipam.AddressSpacesResponse,
 }
 
 func (t *TincIPAMDriver) RequestPool(request *ipam.RequestPoolRequest) (*ipam.RequestPoolResponse, error) {
+	t.logger.Infow("received RequestPool request", zap.Any("request", request))
 
-	t.logger.Info("received RequestPool request", zap.Any("request", *request))
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	id := uuid.New()
-	_, n, err := net.ParseCIDR(request.Pool)
+	n, err := t.netByIPAMOptions(request.Options)
 	if err != nil {
-		t.logger.Errorf("invalid pool CIDR specified - %s", err)
 		return nil, err
 	}
-	t.Pools[id] = n
-	t.sync()
 	return &ipam.RequestPoolResponse{
-		PoolID: id,
-		Pool:   request.Pool,
+		PoolID: n.PoolID,
+		Pool:   n.Pool.String(),
 		Data:   request.Options,
 	}, nil
 }
 
 func (t *TincIPAMDriver) ReleasePool(request *ipam.ReleasePoolRequest) error {
-	t.logger.Info("received ReleasePool request", zap.Any("request", request))
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	delete(t.Pools, request.PoolID)
-	t.sync()
+	t.logger.Infow("received ReleasePool request", zap.Any("request", request))
 	return nil
 }
 
 func (t *TincIPAMDriver) RequestAddress(request *ipam.RequestAddressRequest) (*ipam.RequestAddressResponse, error) {
-	t.logger.Info("received RequestAddress request", zap.Any("request", request))
-	t.mu.Lock()
+	t.logger.Infow("received RequestAddress request", zap.Any("request", request))
+
+	n, err := t.netByIPAMOptions(request.Options)
+	if err != nil {
+		return nil, err
+	}
+	n.
+		t.mu.Lock()
 	defer t.mu.Unlock()
 
 	pool, ok := t.Pools[request.PoolID]
@@ -125,6 +120,6 @@ func (t *TincIPAMDriver) RequestAddress(request *ipam.RequestAddressRequest) (*i
 }
 
 func (t *TincIPAMDriver) ReleaseAddress(request *ipam.ReleaseAddressRequest) error {
-	t.logger.Info("received ReleaseAddress request", zap.Any("request", request))
+	t.logger.Infow("received ReleaseAddress request", zap.Any("request", request))
 	return nil
 }

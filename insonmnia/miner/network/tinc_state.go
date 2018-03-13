@@ -4,27 +4,37 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"strings"
 	"sync"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/structs"
 	"go.uber.org/zap"
 )
 
 type TincNetworkState struct {
-	ctx             context.Context
-	config          *TincNetworkConfig
-	mu              sync.RWMutex
-	cli             *client.Client
-	Networks        map[string]*TincNetwork
-	networkNameToId map[string]string
-	Pools           map[string]*net.IPNet
-	logger          *zap.SugaredLogger
-	storage         store.Store
+	ctx      context.Context
+	config   *TincNetworkConfig
+	mu       sync.RWMutex
+	cli      *client.Client
+	Networks map[string]*TincNetwork
+	Pools    map[string]*net.IPNet
+	logger   *zap.SugaredLogger
+	storage  store.Store
+}
+
+func defaultNet() *net.IPNet {
+	_, r, _ := net.ParseCIDR("10.20.30.0/24")
+	return r
 }
 
 func newTincNetworkState(ctx context.Context, client *client.Client, config *TincNetworkConfig) (*TincNetworkState, error) {
@@ -34,14 +44,12 @@ func newTincNetworkState(ctx context.Context, client *client.Client, config *Tin
 	}
 
 	state := &TincNetworkState{
-		ctx:             ctx,
-		config:          config,
-		cli:             client,
-		Networks:        map[string]*TincNetwork{},
-		networkNameToId: map[string]string{},
-		Pools:           map[string]*net.IPNet{},
-		storage:         storage,
-		logger:          log.S(ctx).With("source", "tinc/state"),
+		ctx:      ctx,
+		config:   config,
+		cli:      client,
+		Networks: map[string]*TincNetwork{},
+		storage:  storage,
+		logger:   log.S(ctx).With("source", "tinc/state"),
 	}
 
 	err = state.load()
@@ -49,6 +57,107 @@ func newTincNetworkState(ctx context.Context, client *client.Client, config *Tin
 		return nil, err
 	}
 	return state, nil
+}
+
+func getNetByCIDR(cidr string) (*net.IPNet, error) {
+	if len(cidr) != 0 {
+		_, ipNet, err := net.ParseCIDR(cidr)
+		if err != nil {
+			return nil, err
+		}
+		return ipNet, nil
+	} else {
+		return defaultNet(), nil
+	}
+}
+
+func (t *TincNetworkState) InsertTincNetwork(n structs.Network, cgroupParent string) (*TincNetwork, error) {
+	pool, err := getNetByCIDR(n.NetworkCIDR())
+	if err != nil {
+		return nil, err
+	}
+
+	ip := net.ParseIP(n.NetworkAddr())
+	if ip.Mask(pool.Mask).Equal(pool.IP) {
+		return nil, errors.New("ip does not match network pool")
+	}
+
+	nodeID := strings.Replace(uuid.New(), "-", "", -1)
+
+	containerConfig := &container.Config{
+		Image: "sonm/tinc",
+	}
+	hostConfig := &container.HostConfig{
+		Privileged:  true,
+		NetworkMode: "host",
+		Resources: container.Resources{
+			CgroupParent: cgroupParent,
+		},
+	}
+	netConfig := &network.NetworkingConfig{}
+	resp, err := t.cli.ContainerCreate(t.ctx, containerConfig, hostConfig, netConfig, "")
+	if err != nil {
+		t.logger.Errorf("failed to create tinc container - %s", err)
+		return nil, err
+	}
+	err = t.cli.ContainerStart(t.ctx, resp.ID, types.ContainerStartOptions{})
+	if err != nil {
+		t.logger.Errorf("failed to start tinc container - %s", err)
+		return nil, err
+	}
+	log.S(t.ctx).Infof("started container %s", resp.ID)
+
+	_, enableBridge := n.NetworkOptions()["enable_bridge"]
+	invitation, _ := n.NetworkOptions()["invitation"]
+
+	result := &TincNetwork{
+		NodeID:          nodeID,
+		NetworkID:       n.ID(),
+		DockerID:        "",
+		PoolID:          nodeID,
+		Pool:            pool,
+		Invitation:      invitation,
+		EnableBridge:    enableBridge,
+		CgroupParent:    cgroupParent,
+		ConfigPath:      t.config.ConfigDir + "/" + nodeID,
+		TincContainerID: resp.ID,
+		cli:             t.cli,
+		logger:          t.logger.With("source", "tinc/network/"+nodeID, "container", resp.ID),
+	}
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	t.Networks[result.NodeID] = result
+	return result, nil
+}
+
+func (t *TincNetworkState) netByID(id string) (*TincNetwork, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	n, ok := t.Networks[id]
+	if !ok {
+		return nil, errors.Errorf("could not find network by id %s", id)
+	}
+	return n, nil
+}
+func (t *TincNetworkState) netByOptions(data map[string]interface{}) (*TincNetwork, error) {
+	g, ok := data["com.docker.network.generic"]
+	if !ok {
+		return nil, errors.New("no options passed - id is required")
+	}
+	generic := g.(map[string]interface{})
+	id, ok := generic["id"]
+	if !ok {
+		return nil, errors.New("missing id in option is required")
+	}
+	return t.netByID(id.(string))
+}
+
+func (t *TincNetworkState) netByIPAMOptions(data map[string]string) (*TincNetwork, error) {
+	id, ok := data["id"]
+	if !ok {
+		return nil, errors.New("missing id in option is required")
+	}
+	return t.netByID(id)
 }
 
 func makeStore(ctx context.Context, path string) (store.Store, error) {
@@ -59,20 +168,6 @@ func makeStore(ctx context.Context, path string) (store.Store, error) {
 		Bucket: "sonm_tinc_driver_state",
 	}
 	return libkv.NewStore(s, endpoints, &config)
-}
-
-func (t *TincNetworkState) RegisterNetworkMapping(id string, name string) error {
-	if len(name) == 0 || len(id) == 0 {
-		return errors.Errorf("invalid network mapping arguments: \"%s\" \"%s\"", id, name)
-	}
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	_, ok := t.Networks[id]
-	if !ok {
-		return errors.Errorf("no network with id %s", id)
-	}
-	t.networkNameToId[name] = id
-	return nil
 }
 
 func (t *TincNetworkState) load() (err error) {
@@ -105,8 +200,7 @@ func (t *TincNetworkState) load() (err error) {
 	}
 	for _, n := range t.Networks {
 		n.cli = t.cli
-		n.logger = t.logger.With("source", "tinc/network/"+n.ID, "container", n.TincContainerID)
-		t.RegisterNetworkMapping(n.ID, n.Name)
+		n.logger = t.logger.With("source", "tinc/network/"+n.NodeID, "container", n.TincContainerID)
 	}
 	return
 }

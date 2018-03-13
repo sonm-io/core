@@ -6,9 +6,6 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	cnet "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-plugins-helpers/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -17,10 +14,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
-)
-
-const (
-	defaultNetwork = "10.20.30.0/24"
 )
 
 func NewTinc(ctx context.Context, client *client.Client, config *TincNetworkConfig) (*TincNetworkDriver, *TincIPAMDriver, error) {
@@ -43,108 +36,29 @@ func NewTinc(ctx context.Context, client *client.Client, config *TincNetworkConf
 	if err != nil {
 		return nil, nil, err
 	}
-	//ipamDr := &TincIPAMDriver{
-	//	TincNetworkState: state,
-	//	logger:           log.S(ctx).With("source", "tinc/ipam"),
-	//}
 	return netDr, ipamDr, nil
 }
 
-type TincNetworkOptions struct {
+type TincNetwork struct {
+	NodeID       string
+	NetworkID    string
+	DockerID     string
+	PoolID       string
+	Pool         *net.IPNet
 	Invitation   string
 	EnableBridge bool
 	CgroupParent string
-}
 
-type TincNetwork struct {
-	Name            string
-	ID              string
-	Options         *TincNetworkOptions
-	IPv4Data        []*network.IPAMData
-	IPv6Data        []*network.IPAMData
 	ConfigPath      string
-	cli             *client.Client
 	TincContainerID string
-	logger          *zap.SugaredLogger
-}
 
-type Pool struct {
-	Net *net.IPNet
-	//libnetwork.IpamConf
+	cli    *client.Client
+	logger *zap.SugaredLogger
 }
 
 type TincNetworkDriver struct {
 	*TincNetworkState
 	logger *zap.SugaredLogger
-}
-
-func (t *TincNetworkDriver) newTincNetwork(request *network.CreateNetworkRequest) (*TincNetwork, error) {
-	opts, err := ParseNetworkOpts(request.Options)
-	if err != nil {
-		t.logger.Errorf("failed to parse network options - %s", err)
-		return nil, err
-	}
-	containerConfig := &container.Config{
-		Image: "antmat/tinc",
-	}
-	hostConfig := &container.HostConfig{
-		Privileged:  true,
-		NetworkMode: "host",
-		Resources: container.Resources{
-			CgroupParent: opts.CgroupParent,
-		},
-	}
-	netConfig := &cnet.NetworkingConfig{}
-	resp, err := t.cli.ContainerCreate(t.ctx, containerConfig, hostConfig, netConfig, "")
-	if err != nil {
-		t.logger.Errorf("failed to create tinc container - %s", err)
-		return nil, err
-	}
-	err = t.cli.ContainerStart(t.ctx, resp.ID, types.ContainerStartOptions{})
-	if err != nil {
-		t.logger.Errorf("failed to start tinc container - %s", err)
-		return nil, err
-	}
-	log.S(t.ctx).Infof("started container %s", resp.ID)
-
-	return &TincNetwork{
-		ID:              request.NetworkID,
-		Options:         opts,
-		IPv4Data:        request.IPv4Data,
-		IPv6Data:        request.IPv6Data,
-		ConfigPath:      t.config.ConfigDir + "/" + request.NetworkID,
-		cli:             t.cli,
-		TincContainerID: resp.ID,
-		logger:          t.logger.With("source", "tinc/network/"+request.NetworkID, "container", resp.ID),
-	}, nil
-}
-
-func ParseNetworkOpts(data map[string]interface{}) (*TincNetworkOptions, error) {
-	options := &TincNetworkOptions{}
-	g, ok := data["com.docker.network.generic"]
-	if !ok {
-		return options, nil
-		//return nil, errors.New("no options passed - invitation is required")
-	}
-	generic, ok := g.(map[string]interface{})
-	if !ok {
-		//return nil, errors.New("invalid type of generic options")
-		return options, nil
-	}
-	invitation, ok := generic["invitation"]
-	if ok {
-		options.Invitation = invitation.(string)
-		//return nil, errors.New("invitation is required")
-	}
-	_, enableBridge := generic["enable_bridge"]
-	options.EnableBridge = enableBridge
-
-	cgroupParent, ok := generic["cgroup_parent"]
-	if ok {
-		options.CgroupParent = cgroupParent.(string)
-	}
-
-	return options, nil
 }
 
 func (t *TincNetworkDriver) GetCapabilities() (*network.CapabilitiesResponse, error) {
@@ -157,12 +71,12 @@ func (t *TincNetworkDriver) GetCapabilities() (*network.CapabilitiesResponse, er
 
 func (t *TincNetworkDriver) CreateNetwork(request *network.CreateNetworkRequest) error {
 	t.logger.Info("received CreateNetwork request", zap.Any("request", request))
-	n, err := t.newTincNetwork(request)
+	n, err := t.netByOptions(request.Options)
 	if err != nil {
 		return err
 	}
 
-	if len(n.Options.Invitation) != 0 {
+	if len(n.Invitation) != 0 {
 		err = n.Join(t.ctx)
 	} else {
 		err = n.Init(t.ctx)
@@ -173,7 +87,6 @@ func (t *TincNetworkDriver) CreateNetwork(request *network.CreateNetworkRequest)
 
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	t.Networks[n.ID] = n
 	t.sync()
 
 	return nil
@@ -192,7 +105,6 @@ func (t *TincNetworkDriver) popNetwork(ID string) *TincNetwork {
 		return nil
 	}
 	delete(t.Networks, ID)
-	delete(t.networkNameToId, n.Name)
 	t.sync()
 	return n
 }
