@@ -5,7 +5,7 @@ package tlsconfig
 import (
 	"crypto/x509"
 
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // SystemCertPool returns an new empty cert pool,

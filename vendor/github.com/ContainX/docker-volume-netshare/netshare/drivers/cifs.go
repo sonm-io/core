@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 	"github.com/dickeyxxx/netrc"
 	"github.com/docker/go-plugins-helpers/volume"
 )

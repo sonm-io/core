@@ -8,7 +8,7 @@ import (
 	"syscall"
 
 	"github.com/ContainX/docker-volume-netshare/netshare/drivers"
-	log "github.com/sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/go-plugins-helpers/volume"
 	"github.com/spf13/cobra"
 )

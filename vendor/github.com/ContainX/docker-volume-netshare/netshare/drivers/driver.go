@@ -3,7 +3,7 @@ package drivers
 import (
 	"sync"
 
-	log "github.com/sirupsen/logrus"
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/go-plugins-helpers/volume"
 )
 

@@ -352,24 +352,6 @@
 			"revisionTime": "2017-06-08T04:50:38Z"
 		},
 		{
-			"checksumSHA1": "24vnM9bsUrCsWLPYogYzMyRVlNM=",
-			"path": "github.com/docker/docker/pkg/plugingetter",
-			"revision": "c7911389e646104180063f069280a8b6cbc47211",
-			"revisionTime": "2017-08-09T00:54:17Z"
-		},
-		{
-			"checksumSHA1": "flpgqc4r+nSId6LNorz4ojuGBiI=",
-			"path": "github.com/docker/docker/pkg/plugins",
-			"revision": "c7911389e646104180063f069280a8b6cbc47211",
-			"revisionTime": "2017-08-09T00:54:17Z"
-		},
-		{
-			"checksumSHA1": "7PpleyPctFC+y0OS4+kksrD6sJE=",
-			"path": "github.com/docker/docker/pkg/plugins/transport",
-			"revision": "c7911389e646104180063f069280a8b6cbc47211",
-			"revisionTime": "2017-08-09T00:54:17Z"
-		},
-		{
 			"checksumSHA1": "XYo8UDJ4nik6fSpYwAu+gcGo+wk=",
 			"path": "github.com/docker/docker/pkg/reexec",
 			"revision": "e9cd2fef805c8182b719d489967fb4d1aa34eecd",
@@ -474,48 +456,6 @@
 			"path": "github.com/docker/libkv/store/consul",
 			"revision": "93ab0e6c056d325dfbb11e1d58a3b4f5f62e7f3c",
 			"revisionTime": "2017-07-01T23:26:44Z"
-		},
-		{
-			"checksumSHA1": "TmW3b4ApZuVELcU5RE4ay148vLI=",
-			"path": "github.com/docker/libnetwork/bitseq",
-			"revision": "c592ee4dba835dd96e15868768327d3ff55cc8a7",
-			"revisionTime": "2018-02-07T18:43:35Z"
-		},
-		{
-			"checksumSHA1": "vP99gKPvFnHkOKAPsWCvLx53JBo=",
-			"path": "github.com/docker/libnetwork/datastore",
-			"revision": "c592ee4dba835dd96e15868768327d3ff55cc8a7",
-			"revisionTime": "2018-02-07T18:43:35Z"
-		},
-		{
-			"checksumSHA1": "D3+HP6HHNGk97yygDnTMhq4sTQs=",
-			"path": "github.com/docker/libnetwork/discoverapi",
-			"revision": "c592ee4dba835dd96e15868768327d3ff55cc8a7",
-			"revisionTime": "2018-02-07T18:43:35Z"
-		},
-		{
-			"checksumSHA1": "IXjtBdG0CTwsK4oAlHK+LRE76wo=",
-			"path": "github.com/docker/libnetwork/ipam",
-			"revision": "c592ee4dba835dd96e15868768327d3ff55cc8a7",
-			"revisionTime": "2018-02-07T18:43:35Z"
-		},
-		{
-			"checksumSHA1": "B8tQZ+A/B6ibSjvhSbIzFYMlgFU=",
-			"path": "github.com/docker/libnetwork/ipamapi",
-			"revision": "c592ee4dba835dd96e15868768327d3ff55cc8a7",
-			"revisionTime": "2018-02-07T18:43:35Z"
-		},
-		{
-			"checksumSHA1": "XkLmJPJNe8ZpUuGe/JmVbvf+mVM=",
-			"path": "github.com/docker/libnetwork/ipamutils",
-			"revision": "c592ee4dba835dd96e15868768327d3ff55cc8a7",
-			"revisionTime": "2018-02-07T18:43:35Z"
-		},
-		{
-			"checksumSHA1": "o3PIHRfwvF7U5+M+Nbz8SipNoRQ=",
-			"path": "github.com/docker/libnetwork/types",
-			"revision": "c592ee4dba835dd96e15868768327d3ff55cc8a7",
-			"revisionTime": "2018-02-07T18:43:35Z"
 		},
 		{
 			"checksumSHA1": "r5hHPg1v9SL/gyatPWdaujG9aoE=",
@@ -1553,12 +1493,6 @@
 			"path": "github.com/shirou/gopsutil/mem",
 			"revision": "3aa2ffab12a1852644f6d33cd782f877272bf305",
 			"revisionTime": "2017-08-04T03:09:34Z"
-		},
-		{
-			"checksumSHA1": "vdLUwBPAX/dtVsKYY8BnTUcyADg=",
-			"path": "github.com/sirupsen/logrus",
-			"revision": "f4ee69125072b22721efbe639bd0da9c9d19b8cc",
-			"revisionTime": "2018-02-28T22:01:33Z"
 		},
 		{
 			"checksumSHA1": "233z49QwgSzdLglskKTSdI/CPQ8=",

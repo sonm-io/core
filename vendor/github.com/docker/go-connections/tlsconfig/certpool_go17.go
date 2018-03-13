@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"runtime"
 
-	"github.com/sirupsen/logrus"
+	"github.com/Sirupsen/logrus"
 )
 
 // SystemCertPool returns a copy of the system cert pool,
