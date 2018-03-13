@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/cnf/structhash"
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -82,4 +83,11 @@ func CalculateTotalPrice(order *pb.Order) *big.Int {
 	price := big.NewInt(0).Mul(pricePerSecond, durationInSeconds)
 
 	return price
+}
+
+// CalculateSpecHash hashes handler's order and convert hash to big.Int
+func CalculateSpecHash(order *pb.Order) string {
+	s := structhash.Md5(order.GetSlot().GetResources(), 1)
+	result := big.NewInt(0).SetBytes(s).String()
+	return result
 }
