@@ -1,0 +1,85 @@
+# An endpoint for miner connections.
+# allowed format is "ip:port" to bind Hub to given IP address
+# or ":port" to bind Hub to all available IPs
+endpoint: ":15011"
+
+# Hub as a gateway settings. Can be omitted indicating that the Hub should not
+# be a gateway.
+# gateway:
+  # Port range allocated for virtual services if any.
+  # ports: [32768, 33768]
+
+# Cluster settings.
+cluster:
+  # An endpoint for client connections using cli
+  # allowed format is "ip:port" to bind Hub to given IP address
+  # or ":port" to bind Hub to all available IPs
+  endpoint: ":15010"
+
+  # An endpoint for hub announcements
+  # This one useful if hub is behind router with DMZ or port forwarding
+  # This endpoint will be used to communicate with hub,
+  # however hub will still bind on "endpoint", not "announce_endpoint"
+  # announce_endpoint: "1.2.3.4:1234"
+
+  # Use automated failover in case of hub death
+  # Requires consul, etcd or zookeeper as a store
+  failover: false
+
+  # Configuration of persistent store
+  store:
+    # Type of the storage to use.
+    # Possible types are: "consul", "zookeeper", "etcd" and "boltdb"
+    # boltDB is a local storage, so it can not be used with failover switched on
+    type: "boltdb"
+
+    # storage specific endpoint. Directory for boltdb, tcp endpoint for other types
+    endpoint: "/tmp/sonm/boltdb"
+
+    # Storage bucket to store all data in
+    bucket: "sonm"
+
+    # TLS key file for stores, supporting it
+    # key_file: "/path/to/key.key
+
+    # Cert file for stores, supporting it
+    # cert_file: "/path/to/cert.crt"
+
+  # Fine tuning
+  leader_key: "sonm/hub/leader"
+  member_list_key: "sonm/hub/list"
+  sync_prefix: "sync_prefix"
+  leader_ttl: "20s"
+  announce_period: "20s"
+  member_gc_period: "20s"
+
+# Logging settings.
+logging:
+  # The desired logging level.
+  # Allowed values in range of -1 (high verbosity) to 3 (most quiet)
+  level: -1
+
+# blockchain-specific settings.
+ethereum:
+  # path to keystore, for example "/home/sonm/keys"
+  key_store: "keystore_path"
+  # passphrase for keystore
+  pass_phrase: "yourSecretPassword"
+
+# Locator service allows nodes to discover each other.
+locator:
+  # Locator gRPC endpoint, required.
+  endpoint: "0xd67749caa651b5f4a056be437f6c6c3725776602@139.59.250.244:15020"
+  # Background announcements period.
+  update_period: "10s"
+
+# Marketplace service settings
+market:
+  # marketplace gRPC endpoint, required
+  endpoint: "0xA99faEeF5559b823B63EB8Fe51CC13E14907C909@188.166.190.188:15021"
+
+whitelist:
+  url: "https://raw.githubusercontent.com/sonm-io/allowed-list/master/general_whitelist.json"
+  enabled: true
+
+metrics_listen_addr: "127.0.0.1:14000"
