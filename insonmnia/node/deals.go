@@ -15,14 +15,14 @@ type dealsAPI struct {
 }
 
 func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealListReply, error) {
-	IDs, err := d.remotes.eth.GetDeals(req.Owner)
+	IDs, err := d.remotes.eth.GetDeals(ctx, req.Owner)
 	if err != nil {
 		return nil, err
 	}
 
 	deals := make([]*pb.Deal, 0, len(IDs))
 	for _, id := range IDs {
-		deal, err := d.remotes.eth.GetDealInfo(id)
+		deal, err := d.remotes.eth.GetDealInfo(ctx, id)
 		if err != nil {
 			return nil, err
 		}
@@ -44,7 +44,7 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealStatusReply, 
 		return nil, err
 	}
 
-	deal, err := d.remotes.eth.GetDealInfo(bigID)
+	deal, err := d.remotes.eth.GetDealInfo(ctx, bigID)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
 		return nil, err
 	}
 
-	_, err = d.remotes.eth.CloseDeal(d.remotes.key, bigID)
+	_, err = d.remotes.eth.CloseDeal(ctx, d.remotes.key, bigID)
 	if err != nil {
 		return nil, err
 	}

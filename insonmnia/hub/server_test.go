@@ -133,10 +133,12 @@ func buildTestHub(ctrl *gomock.Controller) (*Hub, error) {
 	clustr := getTestCluster(ctrl)
 	config := getTestHubConfig()
 
-	bc := blockchain.NewMockBlockchainer(ctrl)
-	bc.EXPECT().GetDealInfo(gomock.Any()).AnyTimes().Return(&pb.Deal{}, nil)
+	ctx := context.Background()
 
-	return New(context.Background(), config, WithPrivateKey(key), WithMarket(market),
+	bc := blockchain.NewMockBlockchainer(ctrl)
+	bc.EXPECT().GetDealInfo(ctx, gomock.Any()).AnyTimes().Return(&pb.Deal{}, nil)
+
+	return New(ctx, config, WithPrivateKey(key), WithMarket(market),
 		WithCluster(clustr, nil), WithBlockchain(bc))
 }
 

@@ -22,7 +22,10 @@ var getTokenCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		tx, err := bch.GetTokens(sessionKey)
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		tx, err := bch.GetTokens(ctx, sessionKey)
 		if err != nil {
 			showError(cmd, "Cannot get tokens", err)
 			os.Exit(1)
@@ -52,21 +55,24 @@ var approveTokenCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		currentAllowance, err := bch.AllowanceOf(crypto.PubkeyToAddress(sessionKey.PublicKey).String(), tsc.DealsAddress)
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		currentAllowance, err := bch.AllowanceOf(ctx, crypto.PubkeyToAddress(sessionKey.PublicKey).String(), tsc.DealsAddress)
 		if err != nil {
 			showError(cmd, "Cannot get allowance ", err)
 			os.Exit(1)
 		}
 
 		if currentAllowance.Cmp(zero) != 0 {
-			_, err = bch.Approve(sessionKey, tsc.DealsAddress, zero)
+			_, err = bch.Approve(ctx, sessionKey, tsc.DealsAddress, zero)
 			if err != nil {
 				showError(cmd, "Cannot set approved value to zero", err)
 				os.Exit(1)
 			}
 		}
 
-		tx, err := bch.Approve(sessionKey, tsc.DealsAddress, amount)
+		tx, err := bch.Approve(ctx, sessionKey, tsc.DealsAddress, amount)
 		if err != nil {
 			showError(cmd, "Cannot approve tokens", err)
 			os.Exit(1)
