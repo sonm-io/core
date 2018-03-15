@@ -110,7 +110,7 @@ func (t *TincTuner) Tune(net structs.Network, hostConfig *container.HostConfig, 
 	createOpts.IPAM = &network.IPAM{
 		Driver: "tincipam",
 		Config: []network.IPAMConfig{
-			network.IPAMConfig{
+			{
 				Subnet: tincNet.Pool.String(),
 			},
 		},

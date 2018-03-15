@@ -488,7 +488,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 	}
 
 	var networkIDs []string
-	for k, _ := range cjson.NetworkSettings.Networks {
+	for k := range cjson.NetworkSettings.Networks {
 		networkIDs = append(networkIDs, k)
 	}
 
