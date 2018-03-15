@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
 	"syscall"
@@ -17,7 +18,6 @@ import (
 	"github.com/docker/go-plugins-helpers/ipam"
 	netDriver "github.com/docker/go-plugins-helpers/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"go.uber.org/zap"
 )

@@ -17,7 +17,7 @@ type Network interface {
 	NetworkOptions() map[string]string
 	// Returns network subnet in CIDR notation if applicable.
 	NetworkCIDR() string
-	// Returns specified addr to join the network
+	// Returns specified addr to join the network.
 	NetworkAddr() string
 }
 

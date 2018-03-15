@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
 	minet "github.com/sonm-io/core/insonmnia/miner/network"
@@ -266,7 +265,7 @@ func (r *Repository) JoinNetwork(ID string) (structs.Network, error) {
 			return net.GenerateInvitation(ID)
 		}
 	}
-	return nil, errors.Errorf("no such network %s", ID)
+	return nil, fmt.Errorf("no such network %s", ID)
 }
 
 func (r *Repository) Close() error {
