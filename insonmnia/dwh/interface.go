@@ -20,7 +20,7 @@ type OrderFilter struct {
 	Counterparty common.Address
 }
 
-type DWH interface {
+type MockDWH interface {
 	GetOrders(ctx context.Context, filter OrderFilter) ([]*sonm.MarketOrder, error)
 	GetDeals(ctx context.Context, filter DealsFilter) ([]*sonm.MarketDeal, error)
 }
@@ -37,6 +37,6 @@ func (dwh *dumbDWH) GetOrders(ctx context.Context, filter OrderFilter) ([]*sonm.
 	return []*sonm.MarketOrder{}, nil
 }
 
-func NewDumbDWH(ctx context.Context) DWH {
+func NewDumbDWH(ctx context.Context) MockDWH {
 	return &dumbDWH{ctx: ctx}
 }

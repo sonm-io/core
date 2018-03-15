@@ -1,0 +1,21 @@
+address: "127.0.0.1:15030"
+
+storage:
+  driver: "sqlite3"
+  endpoint: "target/dwh.db"
+
+# blockchain-specific settings.
+ethereum:
+  # path to keystore
+  key_store: "./keys"
+  # passphrase for keystore
+  pass_phrase: "any"
+
+
+blockchain:
+  eth_endpoint: "https://private-dev.sonm.io"
+
+logging:
+  # The desired logging level.
+  # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
+  level: debug

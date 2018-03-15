@@ -109,4 +109,3 @@ message DealInfoReply {
     // List of completed tasks.
     StatusMapReply completed = 5;
 }
-

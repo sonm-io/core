@@ -61,7 +61,7 @@ It has these top-level messages:
 	OrdersReply
 	DWHOrder
 	DealCondition
-	WorkerAnnouncement
+	DWHWorker
 	ProfilesRequest
 	ProfilesReply
 	Profile
@@ -77,6 +77,8 @@ It has these top-level messages:
 	DWHBenchmarkConditions
 	MaxMinUint64
 	MaxMinBig
+	CmpUint64
+	DealChangeRequest
 	StartTaskRequest
 	HubJoinNetworkRequest
 	StartTaskReply
@@ -114,8 +116,8 @@ It has these top-level messages:
 	GetOrdersReply
 	GetProcessingReply
 	TouchOrdersRequest
-	MarketOrder
 	MarketDeal
+	MarketOrder
 	MinerStartRequest
 	MinerStartReply
 	TaskInfo

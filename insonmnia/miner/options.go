@@ -21,7 +21,7 @@ type options struct {
 	benchList benchmarks.BenchList
 	storage   *state.Storage
 	eth       blockchain.API
-	dwh       dwh.DWH
+	dwh       dwh.MockDWH
 }
 
 func (o *options) setupNetworkOptions(cfg *Config) error {
@@ -94,7 +94,7 @@ func WithETH(e blockchain.API) Option {
 	}
 }
 
-func WithDWH(d dwh.DWH) Option {
+func WithDWH(d dwh.MockDWH) Option {
 	return func(o *options) {
 		o.dwh = d
 	}

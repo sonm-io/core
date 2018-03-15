@@ -42,7 +42,7 @@ type remoteOptions struct {
 	conf              *Config
 	creds             credentials.TransportCredentials
 	eth               blockchain.API
-	dwh               dwh.DWH
+	dwh               dwh.MockDWH
 	hubCreator        hubClientCreator
 	blockchainTimeout time.Duration
 	nppDialer         *npp.Dialer

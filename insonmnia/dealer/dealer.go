@@ -47,7 +47,7 @@ func (d *dealer) Deal(ctx context.Context, bid, ask *sonm.MarketOrder) (*big.Int
 	log.G(ctx).Info("created deal on eth",
 		zap.String("dealID", id.String()),
 		zap.String("bidID", bid.GetId()),
-		zap.String("hubID", ask.GetAuthor()))
+		zap.String("hubID", ask.GetAuthorID()))
 
 	return id, nil
 }
