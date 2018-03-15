@@ -496,7 +496,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		mounts = append(mounts, mount)
 	}
 
-	networks, err := structs.NewNetworkSpecs(request.Id, request.Container.Networks)
+	networks, err := structs.NewNetworkSpecs(request.Container.Networks)
 	if err != nil {
 		log.G(ctx).Error("failed to parse networking specification", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
@@ -542,8 +542,9 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	containerInfo.ImageName = d.Image
 
 	var reply = pb.MinerStartReply{
-		Container: containerInfo.ID,
-		PortMap:   make(map[string]*pb.Endpoints, 0),
+		Container:  containerInfo.ID,
+		PortMap:    make(map[string]*pb.Endpoints, 0),
+		NetworkIDs: containerInfo.NetworkIDs,
 	}
 
 	for internalPort, portBindings := range containerInfo.Ports {

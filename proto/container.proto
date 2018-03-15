@@ -5,11 +5,10 @@ import "volume.proto";
 package sonm;
 
 message NetworkSpec {
-    string ID = 1;
-    string type = 2;
-    map<string, string> options = 3;
-    string subnet = 4;
-    string addr = 5;
+    string type = 1;
+    map<string, string> options = 2;
+    string subnet = 3;
+    string addr = 4;
 }
 
 message Container {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"net"
 	"strings"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -19,6 +20,10 @@ type IP4 struct {
 func newIP4(ip net.IP) IP4 {
 	v4 := ip.To4()
 	return IP4{v4[0], v4[1], v4[2], v4[3]}
+}
+
+func (i *IP4) ToCommon() net.IP {
+	return net.IP{i.a, i.b, i.c, i.d}
 }
 
 func (t *TincNetwork) Init(ctx context.Context) error {
@@ -57,7 +62,9 @@ func (t *TincNetwork) Start(ctx context.Context, addr string) error {
 	return err
 }
 
-func (t *TincNetwork) Shutdown() error {
+func (t *TincNetwork) Shutdown(ctx context.Context) error {
+	timeout := time.Second * 120
+	t.cli.ContainerStop(ctx, t.TincContainerID, &timeout)
 	return nil
 }
 
@@ -100,7 +107,7 @@ func (t *TincNetwork) OccupiedIPs(ctx context.Context) (map[IP4]struct{}, error)
 		}
 		ip := net.ParseIP(addr)
 		if ip == nil {
-			return nil, errors.Errorf("could not parse ip from %s", addr)
+			continue
 		}
 		if ip.To4() == nil {
 			continue

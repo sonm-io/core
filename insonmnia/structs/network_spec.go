@@ -1,8 +1,9 @@
 package structs
 
 import (
-	"fmt"
+	"strings"
 
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/proto"
 )
@@ -46,15 +47,14 @@ func (n *NetworkSpec) NetworkAddr() string {
 }
 
 func validateNetworkSpec(id string, spec *sonm.NetworkSpec) error {
-	if spec.Type == "tinc" {
-		if len(spec.Addr) == 0 || len(spec.Subnet) == 0 {
-			return errors.New("address and subnet are required for tinc driver")
-		}
+	if len(spec.GetType()) == 0 {
+		return errors.New("network type is required in network spec")
 	}
 	return nil
 }
 
-func NewNetworkSpec(id string, spec *sonm.NetworkSpec) (*NetworkSpec, error) {
+func NewNetworkSpec(spec *sonm.NetworkSpec) (*NetworkSpec, error) {
+	id := strings.Replace(uuid.New(), "-", "", -1)
 	err := validateNetworkSpec(id, spec)
 	if err != nil {
 		return nil, err
@@ -62,14 +62,10 @@ func NewNetworkSpec(id string, spec *sonm.NetworkSpec) (*NetworkSpec, error) {
 	return &NetworkSpec{spec, id}, nil
 }
 
-func NewNetworkSpecs(idHint string, specs []*sonm.NetworkSpec) ([]Network, error) {
+func NewNetworkSpecs(specs []*sonm.NetworkSpec) ([]Network, error) {
 	result := make([]Network, 0, len(specs))
-	for i, s := range specs {
-		id := s.ID
-		if len(id) == 0 {
-			id = idHint + "__" + fmt.Sprint(i)
-		}
-		spec, err := NewNetworkSpec(id, s)
+	for _, s := range specs {
+		spec, err := NewNetworkSpec(s)
 		if err != nil {
 			return nil, err
 		}

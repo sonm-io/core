@@ -4,45 +4,45 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 
 	"github.com/docker/go-plugins-helpers/ipam"
-	"github.com/docker/libkv/store"
-	"github.com/docker/libnetwork/datastore"
-	i "github.com/docker/libnetwork/ipam"
+
+	//"github.com/docker/libkv/store"
+	//"github.com/docker/libnetwork/datastore"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 )
 
 type TincIPAMDriver struct {
 	*TincNetworkState
-	allocator *i.Allocator
-	logger    *zap.SugaredLogger
+	logger *zap.SugaredLogger
 }
 
 func NewTincIPAMDriver(ctx context.Context, state *TincNetworkState, config *TincNetworkConfig) (*TincIPAMDriver, error) {
-	s, err := datastore.NewDataStore(datastore.LocalScope, &datastore.ScopeCfg{
-		Client: datastore.ScopeClientCfg{
-			Provider: string(store.BOLTDB),
-			Address:  config.StatePath,
-			Config: &store.Config{
-				Bucket: "sonm_tinc_ipam",
-			},
-		},
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	allocator, err := i.NewAllocator(s, s)
-	if err != nil {
-		return nil, err
-	}
+	//s, err := datastore.NewDataStore(datastore.LocalScope, &datastore.ScopeCfg{
+	//	Client: datastore.ScopeClientCfg{
+	//		Provider: string(store.BOLTDB),
+	//		Address:  config.StatePath,
+	//		Config: &store.Config{
+	//			Bucket: "sonm_tinc_ipam",
+	//		},
+	//	},
+	//})
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//allocator, err := i.NewAllocator(s, s)
+	//if err != nil {
+	//	return nil, err
+	//}
 
 	return &TincIPAMDriver{
 		TincNetworkState: state,
-		allocator:        allocator,
-		logger:           log.S(ctx).With("source", "tinc/ipam"),
+		//allocator:        allocator,
+		logger: log.S(ctx).With("source", "tinc/ipam"),
 	}, nil
 }
 
@@ -64,7 +64,7 @@ func (t *TincIPAMDriver) RequestPool(request *ipam.RequestPoolRequest) (*ipam.Re
 		return nil, err
 	}
 	return &ipam.RequestPoolResponse{
-		PoolID: n.PoolID,
+		PoolID: n.NodeID,
 		Pool:   n.Pool.String(),
 		Data:   request.Options,
 	}, nil
@@ -78,26 +78,23 @@ func (t *TincIPAMDriver) ReleasePool(request *ipam.ReleasePoolRequest) error {
 func (t *TincIPAMDriver) RequestAddress(request *ipam.RequestAddressRequest) (*ipam.RequestAddressResponse, error) {
 	t.logger.Infow("received RequestAddress request", zap.Any("request", request))
 
-	n, err := t.netByIPAMOptions(request.Options)
+	n, err := t.netByID(request.PoolID)
 	if err != nil {
 		return nil, err
 	}
-	n.
-		t.mu.Lock()
-	defer t.mu.Unlock()
+	t.logger.Debugw("fetched network", zap.Any("network", n))
 
-	pool, ok := t.Pools[request.PoolID]
-	if !ok {
-		t.logger.Errorf("pool %s not found", request.PoolID)
-		return nil, errors.New("pool not found")
+	mask, _ := n.Pool.Mask.Size()
+
+	if mask == 0 {
+		t.logger.Errorf("invalid subnet specified for pool %s", n.Pool.String())
+		return nil, errors.New("invalid subnet")
 	}
-
-	mask, _ := pool.Mask.Size()
 
 	ty, ok := request.Options["RequestAddressType"]
 	if ok && ty == "com.docker.network.gateway" {
-		ip := make(net.IP, len(pool.IP))
-		copy(ip, pool.IP)
+		ip := make(net.IP, len(n.Pool.IP))
+		copy(ip, n.Pool.IP)
 		if len(ip) == 4 {
 			ip[3]++
 		} else {
@@ -110,16 +107,57 @@ func (t *TincIPAMDriver) RequestAddress(request *ipam.RequestAddressRequest) (*i
 		}, nil
 	}
 
-	if mask == 0 {
-		t.logger.Errorf("invalid subnet specified for pool %s", pool.String())
-		return nil, errors.New("invalid subnet")
+	addrs, err := n.OccupiedIPs(t.ctx)
+	t.logger.Debugw("fetched occupied ips", zap.Any("ips", addrs))
+	if err != nil {
+		return nil, err
 	}
+
+	ip, err := getRandomIP(addrs, n.Pool)
+	if err != nil {
+		return nil, err
+	}
+
 	return &ipam.RequestAddressResponse{
-		Address: request.Address + "/" + fmt.Sprint(mask),
+		Address: ip.ToCommon().String() + "/" + fmt.Sprint(mask),
 	}, nil
 }
 
 func (t *TincIPAMDriver) ReleaseAddress(request *ipam.ReleaseAddressRequest) error {
 	t.logger.Infow("received ReleaseAddress request", zap.Any("request", request))
 	return nil
+}
+
+func getRandomIP(occupied map[IP4]struct{}, ipNet *net.IPNet) (IP4, error) {
+	ones, bits := ipNet.Mask.Size()
+	if bits != 32 {
+		return IP4{}, errors.New("invalid mask")
+	}
+	if len(occupied) >= 1<<uint(32-ones) {
+		return IP4{}, errors.New("pool is full")
+	}
+	var ip IP4
+	for i := 0; i < 1000; i++ {
+		ip = randomIP(ipNet, bits-ones)
+		if _, ok := occupied[ip]; !ok {
+			return ip, nil
+		}
+	}
+	return ip, errors.New("give up")
+}
+
+func randomIP(ipNet *net.IPNet, addrBits int) IP4 {
+	var r int
+	for {
+		r = rand.Intn(1 << uint(addrBits))
+		if (r&0xff) != 0xff && r != 0 {
+			break
+		}
+	}
+	ip := newIP4(ipNet.IP)
+	ip.a += byte(r & 0xff000000 >> 24)
+	ip.b += byte(r & 0xff0000 >> 16)
+	ip.c += byte(r & 0xff00 >> 8)
+	ip.d += byte(r & 0xff)
+	return ip
 }

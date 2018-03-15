@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -15,6 +16,7 @@ import (
 	netdriver "github.com/docker/go-plugins-helpers/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/structs"
+	"go.uber.org/zap"
 )
 
 type TincTuner struct {
@@ -96,6 +98,9 @@ func (t *TincTuner) runDriver(ctx context.Context) error {
 //TODO: pass context from outside
 func (t *TincTuner) Tune(net structs.Network, hostConfig *container.HostConfig, config *network.NetworkingConfig) (Cleanup, error) {
 	tincNet, err := t.netDriver.InsertTincNetwork(net, hostConfig.Resources.CgroupParent)
+	if err != nil {
+		return nil, err
+	}
 	opts := map[string]string{"id": tincNet.NodeID}
 
 	createOpts := types.NetworkCreate{
@@ -103,25 +108,30 @@ func (t *TincTuner) Tune(net structs.Network, hostConfig *container.HostConfig, 
 		Options: opts,
 	}
 	createOpts.IPAM = &network.IPAM{
-		Driver:  "tincipam",
-		Config:  make([]network.IPAMConfig, 0),
+		Driver: "tincipam",
+		Config: []network.IPAMConfig{
+			network.IPAMConfig{
+				Subnet: tincNet.Pool.String(),
+			},
+		},
 		Options: opts,
 	}
 
-	createOpts.IPAM.Config = append(createOpts.IPAM.Config, network.IPAMConfig{Subnet: net.NetworkCIDR()})
 	response, err := t.client.NetworkCreate(context.Background(), net.ID(), createOpts)
 	if err != nil {
+		log.G(context.Background()).Warn("failed to create tinc network", zap.Error(err))
 		return nil, err
 	}
 	//t.netDriver.RegisterNetworkMapping(response.ID, net.ID())
 	if config.EndpointsConfig == nil {
 		config.EndpointsConfig = make(map[string]*network.EndpointSettings)
 		config.EndpointsConfig[response.ID] = &network.EndpointSettings{
-			IPAMConfig: &network.EndpointIPAMConfig{
-				IPv4Address: net.NetworkAddr(),
-			},
-			IPAddress: net.NetworkAddr(),
-			NetworkID: response.ID,
+			//IPAMConfig: &network.EndpointIPAMConfig{
+			//	IPv4Address: net.NetworkAddr(),
+			//},
+			//IPAddress: net.NetworkAddr(),
+			//NetworkID: response.ID,
+			DriverOpts: opts,
 		}
 	}
 
@@ -139,8 +149,21 @@ func (t *TincTuner) GenerateInvitation(ID string) (structs.Network, error) {
 	return t.netDriver.GenerateInvitation(ID)
 }
 
-func (t *TincCleaner) Close() error {
-	return t.client.NetworkRemove(context.Background(), t.networkID)
+func (t *TincCleaner) Close() (err error) {
+	timeout := time.Millisecond * 100
+	for i := 0; i < 10; i++ {
+		err = t.client.NetworkRemove(context.Background(), t.networkID)
+		if err == nil {
+			return
+		}
+		log.S(context.Background()).Warnf("failed to remove network, retrying after %s", timeout)
+		timeout = timeout * 2
+		if timeout > time.Second*2 {
+			timeout = time.Second * 2
+		}
+		time.Sleep(timeout)
+	}
+	return
 }
 
 func cloneOptions(from map[string]string) map[string]string {

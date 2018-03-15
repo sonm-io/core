@@ -41,9 +41,7 @@ func NewTinc(ctx context.Context, client *client.Client, config *TincNetworkConf
 
 type TincNetwork struct {
 	NodeID       string
-	NetworkID    string
 	DockerID     string
-	PoolID       string
 	Pool         *net.IPNet
 	Invitation   string
 	EnableBridge bool
@@ -70,8 +68,9 @@ func (t *TincNetworkDriver) GetCapabilities() (*network.CapabilitiesResponse, er
 }
 
 func (t *TincNetworkDriver) CreateNetwork(request *network.CreateNetworkRequest) error {
-	t.logger.Info("received CreateNetwork request", zap.Any("request", request))
+	t.logger.Infow("received CreateNetwork request", zap.Any("request", request))
 	n, err := t.netByOptions(request.Options)
+	n.DockerID = request.NetworkID
 	if err != nil {
 		return err
 	}
@@ -93,7 +92,7 @@ func (t *TincNetworkDriver) CreateNetwork(request *network.CreateNetworkRequest)
 }
 
 func (t *TincNetworkDriver) AllocateNetwork(request *network.AllocateNetworkRequest) (*network.AllocateNetworkResponse, error) {
-	log.G(t.ctx).Info("received AllocateNetwork request", zap.Any("request", request))
+	t.logger.Infow("received AllocateNetwork request", zap.Any("request", request))
 	return nil, nil
 }
 
@@ -110,30 +109,32 @@ func (t *TincNetworkDriver) popNetwork(ID string) *TincNetwork {
 }
 
 func (t *TincNetworkDriver) DeleteNetwork(request *network.DeleteNetworkRequest) error {
-	n := t.popNetwork(request.NetworkID)
-	if n == nil {
-		return errors.Errorf("no network with id %s", request.NetworkID)
+	t.logger.Infow("received DeleteNetwork request", zap.Any("request", request))
+	n, err := t.netByDockerID(request.NetworkID)
+	if err != nil {
+		return err
 	}
-	return n.Shutdown()
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.Networks, n.NodeID)
+	return n.Shutdown(t.ctx)
 }
 
 func (t *TincNetworkDriver) FreeNetwork(request *network.FreeNetworkRequest) error {
-	t.logger.Info("received FreeNetwork request", zap.Any("request", request))
+	t.logger.Infow("received FreeNetwork request", zap.Any("request", request))
 	return nil
 }
 
 func (t *TincNetworkDriver) CreateEndpoint(request *network.CreateEndpointRequest) (*network.CreateEndpointResponse, error) {
-	t.logger.Info("received CreateEndpoint request", zap.Any("request", request))
+	t.logger.Infow("received CreateEndpoint request", zap.Any("request", request))
 
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	n, ok := t.Networks[request.NetworkID]
-	if !ok {
-		t.logger.Warn("no such network %s", request.NetworkID)
-		return nil, errors.Errorf("no such network %s", request.NetworkID)
+	n, err := t.netByOptions(request.Options)
+	if err != nil {
+		t.logger.Warnw("no such network", zap.Error(err))
+		return nil, err
 	}
 	selfAddr := strings.Split(request.Interface.Address, "/")[0]
-	err := n.Start(t.ctx, selfAddr)
+	err = n.Start(t.ctx, selfAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +142,7 @@ func (t *TincNetworkDriver) CreateEndpoint(request *network.CreateEndpointReques
 }
 
 func (t *TincNetworkDriver) DeleteEndpoint(request *network.DeleteEndpointRequest) error {
-	t.logger.Info("received DeleteEndpoint request", zap.Any("request", request))
+	t.logger.Infow("received DeleteEndpoint request", zap.Any("request", request))
 
 	t.mu.RLock()
 	defer t.mu.RUnlock()
@@ -154,64 +155,63 @@ func (t *TincNetworkDriver) DeleteEndpoint(request *network.DeleteEndpointReques
 }
 
 func (t *TincNetworkDriver) EndpointInfo(request *network.InfoRequest) (*network.InfoResponse, error) {
-	t.logger.Info("received EndpointInfo request", zap.Any("request", request))
+	t.logger.Infow("received EndpointInfo request", zap.Any("request", request))
 	val := make(map[string]string)
 	return &network.InfoResponse{Value: val}, nil
 }
 
 func (t *TincNetworkDriver) Join(request *network.JoinRequest) (*network.JoinResponse, error) {
-	t.logger.Info("received Join request", zap.Any("request", request))
-	t.mu.RLock()
-	defer t.mu.RUnlock()
-	iface := request.NetworkID[:15]
+	t.logger.Infow("received Join request", zap.Any("request", request))
+	n, err := t.netByDockerID(request.NetworkID)
+	if err != nil {
+		t.logger.Warnw("no such network", zap.Error(err))
+		return nil, err
+	}
+	iface := n.NodeID[:15]
 	return &network.JoinResponse{DisableGatewayService: false, InterfaceName: network.InterfaceName{SrcName: iface, DstPrefix: "tinc"}}, nil
 }
 
 func (t *TincNetworkDriver) Leave(request *network.LeaveRequest) error {
-	t.logger.Info("received Leave request", zap.Any("request", request))
+	t.logger.Infow("received Leave request", zap.Any("request", request))
 	return nil
 }
 
 func (t *TincNetworkDriver) DiscoverNew(request *network.DiscoveryNotification) error {
-	t.logger.Info("received DiscoverNew request", zap.Any("request", request))
+	t.logger.Infow("received DiscoverNew request", zap.Any("request", request))
 	return nil
 }
 
 func (t *TincNetworkDriver) DiscoverDelete(request *network.DiscoveryNotification) error {
-	t.logger.Info("received DiscoverDelete request", zap.Any("request", request))
+	t.logger.Infow("received DiscoverDelete request", zap.Any("request", request))
 	return nil
 }
 
 func (t *TincNetworkDriver) ProgramExternalConnectivity(request *network.ProgramExternalConnectivityRequest) error {
-	t.logger.Info("received ProgramExternalConnectivity request", zap.Any("request", request))
+	t.logger.Infow("received ProgramExternalConnectivity request", zap.Any("request", request))
 	return nil
 }
 
 func (t *TincNetworkDriver) RevokeExternalConnectivity(request *network.RevokeExternalConnectivityRequest) error {
-	t.logger.Info("received RevokeExternalConnectivity request", zap.Any("request", request))
+	t.logger.Infow("received RevokeExternalConnectivity request", zap.Any("request", request))
 	return nil
 }
 
-func (t *TincNetworkDriver) HasNetwork(name string) bool {
+func (t *TincNetworkDriver) HasNetwork(NodeID string) bool {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	id, ok := t.networkNameToId[name]
-	if !ok {
-		return ok
-	}
-	_, ok = t.Networks[id]
+	_, ok := t.Networks[NodeID]
 	return ok
 }
 
-func (t *TincNetworkDriver) GenerateInvitation(name string) (structs.Network, error) {
+func (t *TincNetworkDriver) GenerateInvitation(NodeID string) (structs.Network, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	id, ok := t.networkNameToId[name]
+	n, ok := t.Networks[NodeID]
 	if !ok {
-		return nil, errors.Errorf("no such network %s", name)
+		return nil, errors.Errorf("no such network %s", NodeID)
 	}
-	n := t.Networks[id]
 
+	//TODO: Check this
 	inviteeID := strings.Replace(uuid.New(), "-", "_", -1)
 	invitation, err := n.Invite(t.ctx, inviteeID)
 	spec := structs.NetworkSpec{

@@ -53,6 +53,7 @@ message MinerStartReply {
     string container = 1;
     // PortMap represent port mapping between container network and host ones.
     map<string, Endpoints> portMap = 2;
+    repeated string networkIDs = 3;
 }
 
 message TaskInfo {

@@ -95,6 +95,7 @@ type ContainerInfo struct {
 	PublicKey    ssh.PublicKey
 	Cgroup       string
 	CgroupParent string
+	NetworkIDs   []string
 }
 
 // ContainerMetrics are metrics collected from Docker about running containers
@@ -276,20 +277,19 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 					s <- pb.TaskStatusReply_BROKEN
 					close(s)
 				}
-				if c.description.CommitOnStop {
-					go func() {
+				go func() {
+					if c.description.CommitOnStop {
 						log.G(ctx).Info("trying to upload container")
 						err := c.upload()
 						if err != nil {
 							log.G(ctx).Error("failed to commit container", zap.String("id", id), zap.Error(err))
 						}
-
-						if err := c.Cleanup(); err != nil {
-							log.G(ctx).Error("failed to clean up container", zap.String("id", id), zap.Error(err))
-						}
-						c.cancel()
-					}()
-				}
+					}
+					if err := c.Cleanup(); err != nil {
+						log.G(ctx).Error("failed to clean up container", zap.String("id", id), zap.Error(err))
+					}
+					c.cancel()
+				}()
 			default:
 				log.G(ctx).Warn("received unknown event", zap.String("status", message.Status))
 			}
@@ -487,6 +487,11 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		gpuCount = -1
 	}
 
+	var networkIDs []string
+	for k, _ := range cjson.NetworkSettings.Networks {
+		networkIDs = append(networkIDs, k)
+	}
+
 	cinfo = ContainerInfo{
 		status:       &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
 		ID:           cjson.ID,
@@ -494,6 +499,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		Resources:    resource.NewResources(cpuCount, description.Resources.Memory, gpuCount),
 		Cgroup:       string(cjson.HostConfig.Cgroup),
 		CgroupParent: string(cjson.HostConfig.CgroupParent),
+		NetworkIDs:   networkIDs,
 	}
 
 	return status, cinfo, nil

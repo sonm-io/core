@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net"
-	"strings"
 	"sync"
 
 	"github.com/docker/docker/api/types"
@@ -15,7 +14,6 @@ import (
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"go.uber.org/zap"
@@ -82,8 +80,6 @@ func (t *TincNetworkState) InsertTincNetwork(n structs.Network, cgroupParent str
 		return nil, errors.New("ip does not match network pool")
 	}
 
-	nodeID := strings.Replace(uuid.New(), "-", "", -1)
-
 	containerConfig := &container.Config{
 		Image: "sonm/tinc",
 	}
@@ -111,18 +107,16 @@ func (t *TincNetworkState) InsertTincNetwork(n structs.Network, cgroupParent str
 	invitation, _ := n.NetworkOptions()["invitation"]
 
 	result := &TincNetwork{
-		NodeID:          nodeID,
-		NetworkID:       n.ID(),
+		NodeID:          n.ID(),
 		DockerID:        "",
-		PoolID:          nodeID,
 		Pool:            pool,
 		Invitation:      invitation,
 		EnableBridge:    enableBridge,
 		CgroupParent:    cgroupParent,
-		ConfigPath:      t.config.ConfigDir + "/" + nodeID,
+		ConfigPath:      t.config.ConfigDir + "/" + n.ID(),
 		TincContainerID: resp.ID,
 		cli:             t.cli,
-		logger:          t.logger.With("source", "tinc/network/"+nodeID, "container", resp.ID),
+		logger:          t.logger.With("source", "tinc/network/"+n.ID(), "container", resp.ID),
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -140,13 +134,16 @@ func (t *TincNetworkState) netByID(id string) (*TincNetwork, error) {
 	return n, nil
 }
 func (t *TincNetworkState) netByOptions(data map[string]interface{}) (*TincNetwork, error) {
-	g, ok := data["com.docker.network.generic"]
+	var id interface{}
+	id, ok := data["id"]
 	if !ok {
-		return nil, errors.New("no options passed - id is required")
+		g, ok := data["com.docker.network.generic"]
+		if ok {
+			id, _ = g.(map[string]interface{})["id"]
+		}
 	}
-	generic := g.(map[string]interface{})
-	id, ok := generic["id"]
-	if !ok {
+
+	if id == nil {
 		return nil, errors.New("missing id in option is required")
 	}
 	return t.netByID(id.(string))
@@ -155,9 +152,21 @@ func (t *TincNetworkState) netByOptions(data map[string]interface{}) (*TincNetwo
 func (t *TincNetworkState) netByIPAMOptions(data map[string]string) (*TincNetwork, error) {
 	id, ok := data["id"]
 	if !ok {
-		return nil, errors.New("missing id in option is required")
+		t.logger.Warnw("missing id field in options", zap.Any("options", data))
+		return nil, errors.New("missing id field in options")
 	}
 	return t.netByID(id)
+}
+
+func (t *TincNetworkState) netByDockerID(id string) (*TincNetwork, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	for _, n := range t.Networks {
+		if n.DockerID == id {
+			return n, nil
+		}
+	}
+	return nil, errors.Errorf("network not found by docker id %s", id)
 }
 
 func makeStore(ctx context.Context, path string) (store.Store, error) {

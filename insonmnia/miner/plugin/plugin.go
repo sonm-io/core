@@ -108,7 +108,7 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize tinc tuner - %v", err)
 		}
-		r.networkTuners[TincNetworkType] = tincTuner
+		r.networkTuners[tincNetwork] = tincTuner
 	}
 
 	if cfg.L2TP != nil {
