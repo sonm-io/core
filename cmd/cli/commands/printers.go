@@ -286,7 +286,7 @@ func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
 
 func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 	if isSimpleFormat() {
-		cmd.Printf("Name:             %s\r\n", order.Id)
+		cmd.Printf("ID:             %s\r\n", order.Id)
 		cmd.Printf("Type:           %s\r\n", order.OrderType.String())
 		cmd.Printf("Price:          %s\r\n", order.PricePerSecond.ToPriceString())
 
@@ -354,7 +354,7 @@ func printAskList(cmd *cobra.Command, slots *pb.SlotsReply) {
 		}
 
 		for id, slot := range slots {
-			cmd.Printf(" Name:  %s\r\n", id)
+			cmd.Printf(" ID:  %s\r\n", id)
 			cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
 			cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
 			cmd.Printf(" RAM: %s\r\n", ds.ByteSize(slot.Resources.RamBytes).HR())
@@ -413,7 +413,7 @@ func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 			ppsBig = pb.NewBigInt(pps)
 		}
 
-		cmd.Printf("Name:       %s\r\n", deal.GetId())
+		cmd.Printf("ID:       %s\r\n", deal.GetId())
 		cmd.Printf("Status:   %s\r\n", deal.GetStatus())
 		cmd.Printf("Duraton:  %s\r\n", dealDuration.String())
 		cmd.Printf("Price:    %s (%s SNM/sec)\r\n", deal.GetPrice().ToPriceString(), ppsBig.ToPriceString())
@@ -428,13 +428,13 @@ func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 
 func printDealTasksShort(cmd *cobra.Command, tasks map[string]*pb.TaskStatusReply) {
 	for id, info := range tasks {
-		cmd.Printf("%s Name: %s | image \"%s\"\r\n", info.GetStatus(), id, info.GetImageName())
+		cmd.Printf("%s ID: %s | image \"%s\"\r\n", info.GetStatus(), id, info.GetImageName())
 	}
 }
 
 func printID(cmd *cobra.Command, id string) {
 	if isSimpleFormat() {
-		cmd.Printf("Name = %s\r\n", id)
+		cmd.Printf("ID = %s\r\n", id)
 	} else {
 		showJSON(cmd, map[string]string{"id": id})
 	}
@@ -442,7 +442,7 @@ func printID(cmd *cobra.Command, id string) {
 
 func printTaskStart(cmd *cobra.Command, start *pb.HubStartTaskReply) {
 	if isSimpleFormat() {
-		cmd.Printf("Task Name:      %s\r\n", start.Id)
+		cmd.Printf("Task ID:      %s\r\n", start.Id)
 		cmd.Printf("Hub Address:  %s\r\n", start.HubAddr)
 		for _, end := range start.GetEndpoint() {
 			cmd.Printf("  Endpoint:    %s\r\n", end)

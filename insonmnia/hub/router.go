@@ -17,22 +17,22 @@ type Route struct {
 
 // VirtualService describes a virtual service.
 type VirtualService interface {
-	// Name returns this virtual service's Name.
+	// ID returns this virtual service's Name.
 	ID() string
 	// AddReal registers a new real service endpoint under the current virtual
 	// service.
 	// Host parameter may be both FQDN and IP address.
 	AddReal(ID string, host string, port uint16) (*Route, error)
-	// RemoveReal removes the real service specified by the Name from the
+	// RemoveReal removes the real service specified by the ID from the
 	// current virtual service.
 	// Established connections won't be affected.
 	RemoveReal(ID string) error
 }
 
 type Router interface {
-	// Register registers a new virtual service specified by the given Name.
+	// Register registers a new virtual service specified by the given ID.
 	Register(ID string, protocol string) (VirtualService, error)
-	// Deregister deregisters a virtual service specified by the given Name.
+	// Deregister deregisters a virtual service specified by the given ID.
 	Deregister(ID string) error
 	// GetMetrics returns gateway-specific metrics.
 	GetMetrics() (*gateway.Metrics, error)

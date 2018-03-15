@@ -133,7 +133,7 @@ func (h *Hub) tlsHandshake(ctx context.Context, conn net.Conn) (net.Conn, error)
 	return conn, nil
 }
 
-// Name returns the miner id.
+// ID returns the miner id.
 func (m *MinerCtx) ID() string {
 	return m.uuid
 }

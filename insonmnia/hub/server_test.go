@@ -162,7 +162,7 @@ func TestHubCreateRemoveSlot(t *testing.T) {
 
 	id, err := hu.InsertSlot(testCtx, req)
 	assert.NoError(t, err)
-	assert.True(t, id.Id != "", "Name must not be empty")
+	assert.True(t, id.Id != "", "ID must not be empty")
 
 	actualSlots, err := hu.Slots(testCtx, &pb.Empty{})
 	assert.NoError(t, err)

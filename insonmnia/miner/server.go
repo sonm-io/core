@@ -66,7 +66,7 @@ type Miner struct {
 	mu sync.Mutex
 	// One-to-one mapping between container IDs and userland task names.
 	//
-	// The overseer operates with containers in terms of their Name, which does not change even during auto-restart.
+	// The overseer operates with containers in terms of their ID, which does not change even during auto-restart.
 	// However some requests pass an application (or task) name, which is more meaningful for user. To be able to
 	// transform between these two identifiers this map exists.
 	//

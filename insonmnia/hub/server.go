@@ -1074,7 +1074,7 @@ func (h *Hub) GetRegisteredWorkers(ctx context.Context, empty *pb.Empty) (*pb.Ge
 	return &pb.GetRegisteredWorkersReply{Ids: h.state.GetRegisteredWorkers()}, nil
 }
 
-// RegisterWorker allows Worker with given Name to connect to the Hub
+// RegisterWorker allows Worker with given ID to connect to the Hub
 func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling RegisterWorker request", zap.String("id", request.GetId()))
 	h.state.ACLInsert(common.HexToAddress(request.Id).Hex())
@@ -1086,7 +1086,7 @@ func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, er
 	return &pb.Empty{}, nil
 }
 
-// DeregisterWorkers deny Worker with given Name to connect to the Hub
+// DeregisterWorkers deny Worker with given ID to connect to the Hub
 func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling DeregisterWorker request", zap.String("id", request.GetId()))
 

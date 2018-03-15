@@ -94,7 +94,7 @@ var marketShowCmd = &cobra.Command{
 		orderID := args[0]
 		order, err := market.GetOrderByID(ctx, &pb.ID{Id: orderID})
 		if err != nil {
-			showError(cmd, "Cannot get order by Name", err)
+			showError(cmd, "Cannot get order by ID", err)
 			os.Exit(1)
 		}
 
