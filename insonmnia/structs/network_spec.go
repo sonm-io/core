@@ -9,7 +9,7 @@ import (
 )
 
 type Network interface {
-	// Name returns a unique identifier that will be used as a new network name.
+	// ID returns a unique identifier that will be used as a new network name.
 	ID() string
 	// NetworkType returns a network driver name used to establish networking.
 	NetworkType() string

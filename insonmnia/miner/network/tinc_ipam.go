@@ -21,28 +21,9 @@ type TincIPAMDriver struct {
 }
 
 func NewTincIPAMDriver(ctx context.Context, state *TincNetworkState, config *TincNetworkConfig) (*TincIPAMDriver, error) {
-	//s, err := datastore.NewDataStore(datastore.LocalScope, &datastore.ScopeCfg{
-	//	Client: datastore.ScopeClientCfg{
-	//		Provider: string(store.BOLTDB),
-	//		Address:  config.StatePath,
-	//		Config: &store.Config{
-	//			Bucket: "sonm_tinc_ipam",
-	//		},
-	//	},
-	//})
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//allocator, err := i.NewAllocator(s, s)
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	return &TincIPAMDriver{
 		TincNetworkState: state,
-		//allocator:        allocator,
-		logger: log.S(ctx).With("source", "tinc/ipam"),
+		logger:           log.S(ctx).With("source", "tinc/ipam"),
 	}, nil
 }
 

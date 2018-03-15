@@ -39,7 +39,7 @@ type GPUProvider interface {
 
 // VolumeProvider describes an interface for applying volumes to the container.
 type VolumeProvider interface {
-	// Name returns a unique identifier that will be used as a new volume name.
+	// ID returns a unique identifier that will be used as a new volume name.
 	ID() string
 	// Volumes returns volumes specified for configuring.
 	Volumes() map[string]*sonm.Volume

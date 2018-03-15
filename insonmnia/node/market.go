@@ -569,7 +569,7 @@ func (m *marketAPI) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetPr
 		if task.err != nil {
 			extra = fmt.Sprintf("error: %s", task.err.Error())
 		} else if task.dealID != "" {
-			extra = fmt.Sprintf("deal Name: %s", task.dealID)
+			extra = fmt.Sprintf("deal ID: %s", task.dealID)
 		}
 
 		reply.Orders[id] = &pb.GetProcessingReply_ProcessedOrder{

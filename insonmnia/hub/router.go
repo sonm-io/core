@@ -17,7 +17,7 @@ type Route struct {
 
 // VirtualService describes a virtual service.
 type VirtualService interface {
-	// ID returns this virtual service's Name.
+	// ID returns this virtual service's ID.
 	ID() string
 	// AddReal registers a new real service endpoint under the current virtual
 	// service.
