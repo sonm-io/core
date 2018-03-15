@@ -9,8 +9,6 @@ import (
 
 	"github.com/docker/go-plugins-helpers/ipam"
 
-	//"github.com/docker/libkv/store"
-	//"github.com/docker/libnetwork/datastore"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 )
