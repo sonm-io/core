@@ -263,6 +263,7 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 			newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState)),
 		)),
 		auth.Allow("StopTask").With(newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState))),
+		auth.Allow("JoinNetwork").With(newDealAuthorization(ctx, hubState, newFromNamedTaskDealExtractor(hubState, "TaskID"))),
 		auth.Allow("StartTask").With(newDealAuthorization(ctx, hubState, newFieldDealExtractor())),
 		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState))),
 		auth.Allow("PushTask").With(newDealAuthorization(ctx, hubState, newContextDealExtractor())),
@@ -601,6 +602,15 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	return h.startTask(ctx, taskRequest)
 }
 
+func (h *Hub) JoinNetwork(ctx context.Context, request *pb.HubJoinNetworkRequest) (*pb.NetworkSpec, error) {
+	log.G(h.ctx).Info("handling JoinNetwork request", zap.Any("request", request))
+	miner, err := h.state.GetMinerByTask(request.TaskID)
+	if err != nil {
+		return nil, err
+	}
+	return miner.Client.JoinNetwork(ctx, &pb.ID{Id: request.NetworkID})
+}
+
 func (h *Hub) generateTaskID() string {
 	return uuid.New()
 }
@@ -674,8 +684,9 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 
 	// TODO: Synchronize routes with the cluster.
 	reply := &pb.HubStartTaskReply{
-		Id:      taskID,
-		HubAddr: h.ethAddr.Hex(),
+		Id:         taskID,
+		HubAddr:    h.ethAddr.Hex(),
+		NetworkIDs: response.NetworkIDs,
 	}
 
 	for _, route := range routes {

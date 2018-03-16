@@ -37,6 +37,7 @@ It has these top-level messages:
 	Deal
 	ListReply
 	HubStartTaskRequest
+	HubJoinNetworkRequest
 	HubStartTaskReply
 	HubStatusReply
 	DealRequest
@@ -91,6 +92,7 @@ It has these top-level messages:
 	SaveRequest
 	Addr
 	SocketAddr
+	JoinNetworkRequest
 	TaskListRequest
 	DealListRequest
 	DealListReply

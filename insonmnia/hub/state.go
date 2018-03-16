@@ -505,6 +505,21 @@ func (s *state) GetMinerByDeal(id DealID) (*MinerCtx, *resource.Resources, error
 	return s.getMinerByOrder(OrderID(dealMeta.Order.Id))
 }
 
+func (s *state) GetMinerByTask(taskID string) (*MinerCtx, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	task, ok := s.getTaskByID(taskID)
+	if !ok {
+		return nil, fmt.Errorf("could not find task by id %s", taskID)
+	}
+
+	miner, ok := s.getMinerByID(task.MinerId)
+	if !ok {
+		return nil, fmt.Errorf("could not find miner by id %s from task %s", task.MinerId, taskID)
+	}
+	return miner, nil
+}
+
 func (s *state) GetTaskList(ctx context.Context) (*pb.TaskListReply, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

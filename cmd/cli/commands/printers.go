@@ -15,6 +15,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v1"
 )
 
 func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusReply) {
@@ -72,6 +73,15 @@ func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusRep
 		}
 
 		showJSON(cmd, v)
+	}
+}
+
+func printNetworkSpec(cmd *cobra.Command, spec *pb.NetworkSpec) {
+	out, err := yaml.Marshal(spec)
+	if err != nil {
+		cmd.Printf("%s", err)
+	} else {
+		cmd.Print(out)
 	}
 }
 
@@ -446,6 +456,9 @@ func printTaskStart(cmd *cobra.Command, start *pb.HubStartTaskReply) {
 		cmd.Printf("Hub Address:  %s\r\n", start.HubAddr)
 		for _, end := range start.GetEndpoint() {
 			cmd.Printf("  Endpoint:    %s\r\n", end)
+		}
+		for _, end := range start.GetNetworkIDs() {
+			cmd.Printf("  Network:    %s\r\n", end)
 		}
 	} else {
 		showJSON(cmd, start)

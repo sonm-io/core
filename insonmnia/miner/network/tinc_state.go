@@ -89,6 +89,7 @@ func (t *TincNetworkState) InsertTincNetwork(n structs.Network, cgroupParent str
 		Resources: container.Resources{
 			CgroupParent: cgroupParent,
 		},
+		AutoRemove: true,
 	}
 	netConfig := &network.NetworkingConfig{}
 	resp, err := t.cli.ContainerCreate(t.ctx, containerConfig, hostConfig, netConfig, "")

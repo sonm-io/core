@@ -102,6 +102,24 @@ func (t *tasksAPI) Start(ctx context.Context, req *pb.HubStartTaskRequest) (*pb.
 	return reply, nil
 }
 
+func (t *tasksAPI) JoinNetwork(ctx context.Context, request *pb.JoinNetworkRequest) (*pb.NetworkSpec, error) {
+	hub, cc, err := getHubClientByEthAddr(ctx, t.remotes, request.TaskID.HubAddr)
+	if err != nil {
+		return nil, err
+	}
+	defer cc.Close()
+
+	reply, err := hub.JoinNetwork(ctx, &pb.HubJoinNetworkRequest{
+		TaskID:    request.TaskID.Id,
+		NetworkID: request.NetworkID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return reply, nil
+}
+
 func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusReply, error) {
 	hubClient, cc, err := getHubClientByEthAddr(ctx, t.remotes, id.HubAddr)
 	if err != nil {
