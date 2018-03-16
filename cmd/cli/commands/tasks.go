@@ -201,7 +201,7 @@ var taskJoinNetworkCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		printNetworkSpec(cmd, taskID, spec)
+		printNetworkSpec(cmd, spec)
 	},
 }
 

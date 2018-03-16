@@ -55,7 +55,7 @@ func (t *TincNetwork) Start(ctx context.Context, addr string) error {
 	err := t.runCommand(ctx, "tinc", "-n", t.NodeID, "-c", t.ConfigPath, "start",
 		"-o", "Interface="+iface, "-o", "Subnet="+t.Pool.String(), "-o", "Subnet="+addr+"/32", "-o", "LogLevel=0")
 	if err != nil {
-		t.logger.Error("failed to start tinc - %s", err)
+		t.logger.Errorf("failed to start tinc - %s", err)
 	} else {
 		t.logger.Info("started tinc")
 	}
