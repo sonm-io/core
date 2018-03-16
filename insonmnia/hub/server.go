@@ -72,6 +72,8 @@ func (id DealID) String() string {
 	return string(id)
 }
 
+type DeviceProperties map[string]float64
+
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
@@ -115,7 +117,237 @@ type Hub struct {
 	eventAuthorization *auth.AuthRouter
 }
 
-type DeviceProperties map[string]float64
+// New returns new Hub.
+func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
+	defaults := defaultHubOptions()
+	for _, o := range opts {
+		o(defaults)
+	}
+
+	if defaults.ethKey == nil {
+		return nil, errors.New("cannot build Hub instance without private key")
+	}
+
+	if defaults.ctx == nil {
+		defaults.ctx = context.Background()
+	}
+
+	var err error
+	ctx, cancel := context.WithCancel(defaults.ctx)
+	defer func() {
+		if err != nil {
+			cancel()
+		}
+	}()
+
+	ip := cfg.EndpointIP()
+	clientPort, err := util.ParseEndpointPort(cfg.Cluster.Endpoint)
+	if err != nil {
+		return nil, errors.Wrap(err, "error during parsing client endpoint")
+	}
+	grpcEndpointAddr := ip + ":" + clientPort
+
+	var gate *gateway.Gateway
+	var portPool *gateway.PortPool
+	if cfg.GatewayConfig != nil {
+		gate, err = gateway.NewGateway(ctx)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(cfg.GatewayConfig.Ports) != 2 {
+			return nil, errors.New("gateway ports must be a range of two values")
+		}
+
+		portRangeFrom := cfg.GatewayConfig.Ports[0]
+		portRangeSize := cfg.GatewayConfig.Ports[1] - portRangeFrom
+		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
+	}
+
+	if defaults.bcr == nil {
+		defaults.bcr, err = blockchain.NewAPI(nil, nil)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	ethWrapper, err := NewETH(ctx, defaults.ethKey, defaults.bcr, defaultDealWaitTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	if defaults.locator == nil {
+		conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, defaults.creds, cfg.Locator.Endpoint)
+		if err != nil {
+			return nil, err
+		}
+
+		defaults.locator = pb.NewLocatorClient(conn)
+	}
+
+	if defaults.market == nil {
+		conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, defaults.creds, cfg.Market.Endpoint)
+		if err != nil {
+			return nil, err
+		}
+
+		defaults.market = pb.NewMarketClient(conn)
+	}
+
+	if defaults.cluster == nil {
+		defaults.cluster, defaults.clusterEvents, err = NewCluster(ctx, &cfg.Cluster, cfg.Endpoint, defaults.creds)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if defaults.announcer == nil {
+		defaults.announcer = newLocatorAnnouncer(
+			defaults.ethKey,
+			defaults.locator,
+			cfg.Locator.UpdatePeriod,
+			defaults.cluster)
+	}
+
+	acl := newWorkerACLStorage()
+	if defaults.creds != nil {
+		acl.Insert(defaults.ethAddr.Hex())
+	}
+
+	if len(cfg.Whitelist.PrivilegedAddresses) == 0 {
+		cfg.Whitelist.PrivilegedAddresses = append(cfg.Whitelist.PrivilegedAddresses, defaults.ethAddr.Hex())
+	}
+
+	wl := NewWhitelist(ctx, &cfg.Whitelist)
+	hubState, err := newState(ctx, acl, ethWrapper, defaults.market, defaults.cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	h := &Hub{
+		cfg:              cfg,
+		ctx:              ctx,
+		cancel:           cancel,
+		gateway:          gate,
+		portPool:         portPool,
+		externalGrpc:     nil,
+		grpcEndpointAddr: grpcEndpointAddr,
+
+		ethKey:  defaults.ethKey,
+		ethAddr: defaults.ethAddr,
+		version: defaults.version,
+
+		eth:    ethWrapper,
+		market: defaults.market,
+
+		certRotator: defaults.rot,
+		creds:       defaults.creds,
+
+		announcer:     defaults.announcer,
+		cluster:       defaults.cluster,
+		clusterEvents: defaults.clusterEvents,
+
+		whitelist: wl,
+
+		state: hubState,
+	}
+
+	authorization := auth.NewEventAuthorization(h.ctx,
+		auth.WithLog(log.G(ctx)),
+		auth.WithEventPrefix(hubAPIPrefix),
+		auth.Allow("Handshake", "ProposeDeal").With(auth.NewNilAuthorization()),
+		auth.Allow(hubManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
+
+		auth.Allow("TaskStatus").With(newMultiAuth(
+			auth.NewTransportAuthorization(h.ethAddr),
+			newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState)),
+		)),
+		auth.Allow("StopTask").With(newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState))),
+		auth.Allow("StartTask").With(newDealAuthorization(ctx, hubState, newFieldDealExtractor())),
+		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState))),
+		auth.Allow("PushTask").With(newDealAuthorization(ctx, hubState, newContextDealExtractor())),
+		auth.Allow("PullTask").With(newDealAuthorization(ctx, hubState, newRequestDealExtractor(func(request interface{}) (DealID, error) {
+			return DealID(request.(*pb.PullTaskRequest).DealId), nil
+		}))),
+		auth.Allow("GetDealInfo").With(newDealAuthorization(ctx, hubState, newRequestDealExtractor(func(request interface{}) (DealID, error) {
+			return DealID(request.(*pb.ID).GetId()), nil
+		}))),
+		auth.Allow("ApproveDeal").With(newOrderAuthorization(hubState, OrderExtractor(func(request interface{}) (OrderID, error) {
+			return OrderID(request.(*pb.ApproveDealRequest).BidID), nil
+		}))),
+		auth.WithFallback(auth.NewDenyAuthorization()),
+	)
+
+	h.eventAuthorization = authorization
+
+	logger := log.GetLogger(h.ctx)
+	grpcServer := xgrpc.NewServer(logger,
+		xgrpc.Credentials(h.creds),
+		xgrpc.DefaultTraceInterceptor(),
+		xgrpc.AuthorizationInterceptor(authorization),
+		xgrpc.UnaryServerInterceptor(h.onRequest),
+	)
+	h.externalGrpc = grpcServer
+
+	pb.RegisterHubServer(grpcServer, h)
+	grpc_prometheus.Register(grpcServer)
+
+	return h, nil
+}
+
+// Serve starts handling incoming API gRPC request and communicates
+// with miners
+func (h *Hub) Serve() error {
+	h.startTime = time.Now()
+
+	rendezvousEndpoints, err := h.cfg.NPP.Rendezvous.ConvertEndpoints()
+	if err != nil {
+		return err
+	}
+
+	grpcL, err := npp.NewListener(h.ctx, h.cfg.Cluster.Endpoint, npp.WithRendezvous(rendezvousEndpoints, h.creds), npp.WithLogger(log.G(h.ctx)))
+	if err != nil {
+		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Cluster.Endpoint), zap.Error(err))
+		return err
+	}
+	log.G(h.ctx).Info("listening for gRPC API connections", zap.Stringer("address", grpcL.Addr()))
+	h.grpcListener = grpcL
+
+	listener, err := net.Listen("tcp", h.cfg.Endpoint)
+	if err != nil {
+		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Endpoint), zap.Error(err))
+		grpcL.Close()
+		return err
+	}
+
+	log.G(h.ctx).Info("listening for connections from Miners", zap.Stringer("address", listener.Addr()))
+
+	h.minerListener = listener
+
+	h.waiter.Go(h.listenAPI)
+
+	h.waiter.Go(func() error {
+		for {
+			conn, err := h.minerListener.Accept()
+			if err != nil {
+				return err
+			}
+			go h.handleInterconnect(h.ctx, conn)
+		}
+	})
+
+	h.waiter.Go(func() error {
+		return h.state.RunMonitoring(h.ctx)
+	})
+
+	h.waiter.Go(h.runCluster)
+	h.waiter.Go(h.listenClusterEvents)
+	h.waiter.Go(h.startLocatorAnnouncer)
+
+	h.waiter.Wait()
+
+	return nil
+}
 
 // Ping should be used as Healthcheck for Hub
 func (h *Hub) Ping(ctx context.Context, _ *pb.Empty) (*pb.PingReply, error) {
@@ -869,240 +1101,8 @@ func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, 
 	return &pb.Empty{}, nil
 }
 
-// New returns new Hub.
-func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
-	defaults := defaultHubOptions()
-	for _, o := range opts {
-		o(defaults)
-	}
-
-	if defaults.ethKey == nil {
-		return nil, errors.New("cannot build Hub instance without private key")
-	}
-
-	if defaults.ctx == nil {
-		defaults.ctx = context.Background()
-	}
-
-	var err error
-	ctx, cancel := context.WithCancel(defaults.ctx)
-	defer func() {
-		if err != nil {
-			cancel()
-		}
-	}()
-
-	ip := cfg.EndpointIP()
-	clientPort, err := util.ParseEndpointPort(cfg.Cluster.Endpoint)
-	if err != nil {
-		return nil, errors.Wrap(err, "error during parsing client endpoint")
-	}
-	grpcEndpointAddr := ip + ":" + clientPort
-
-	var gate *gateway.Gateway
-	var portPool *gateway.PortPool
-	if cfg.GatewayConfig != nil {
-		gate, err = gateway.NewGateway(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(cfg.GatewayConfig.Ports) != 2 {
-			return nil, errors.New("gateway ports must be a range of two values")
-		}
-
-		portRangeFrom := cfg.GatewayConfig.Ports[0]
-		portRangeSize := cfg.GatewayConfig.Ports[1] - portRangeFrom
-		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
-	}
-
-	if defaults.bcr == nil {
-		defaults.bcr, err = blockchain.NewAPI(nil, nil)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	ethWrapper, err := NewETH(ctx, defaults.ethKey, defaults.bcr, defaultDealWaitTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	if defaults.locator == nil {
-		conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, defaults.creds, cfg.Locator.Endpoint)
-		if err != nil {
-			return nil, err
-		}
-
-		defaults.locator = pb.NewLocatorClient(conn)
-	}
-
-	if defaults.market == nil {
-		conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, defaults.creds, cfg.Market.Endpoint)
-		if err != nil {
-			return nil, err
-		}
-
-		defaults.market = pb.NewMarketClient(conn)
-	}
-
-	if defaults.cluster == nil {
-		defaults.cluster, defaults.clusterEvents, err = NewCluster(ctx, &cfg.Cluster, cfg.Endpoint, defaults.creds)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if defaults.announcer == nil {
-		defaults.announcer = newLocatorAnnouncer(
-			defaults.ethKey,
-			defaults.locator,
-			cfg.Locator.UpdatePeriod,
-			defaults.cluster)
-	}
-
-	acl := newWorkerACLStorage()
-	if defaults.creds != nil {
-		acl.Insert(defaults.ethAddr.Hex())
-	}
-
-	if len(cfg.Whitelist.PrivilegedAddresses) == 0 {
-		cfg.Whitelist.PrivilegedAddresses = append(cfg.Whitelist.PrivilegedAddresses, defaults.ethAddr.Hex())
-	}
-
-	wl := NewWhitelist(ctx, &cfg.Whitelist)
-	hubState, err := newState(ctx, acl, ethWrapper, defaults.market, defaults.cluster)
-	if err != nil {
-		return nil, err
-	}
-
-	h := &Hub{
-		cfg:              cfg,
-		ctx:              ctx,
-		cancel:           cancel,
-		gateway:          gate,
-		portPool:         portPool,
-		externalGrpc:     nil,
-		grpcEndpointAddr: grpcEndpointAddr,
-
-		ethKey:  defaults.ethKey,
-		ethAddr: defaults.ethAddr,
-		version: defaults.version,
-
-		eth:    ethWrapper,
-		market: defaults.market,
-
-		certRotator: defaults.rot,
-		creds:       defaults.creds,
-
-		announcer:     defaults.announcer,
-		cluster:       defaults.cluster,
-		clusterEvents: defaults.clusterEvents,
-
-		whitelist: wl,
-
-		state: hubState,
-	}
-
-	authorization := auth.NewEventAuthorization(h.ctx,
-		auth.WithLog(log.G(ctx)),
-		auth.WithEventPrefix(hubAPIPrefix),
-		auth.Allow("Handshake", "ProposeDeal").With(auth.NewNilAuthorization()),
-		auth.Allow(hubManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
-
-		auth.Allow("TaskStatus").With(newMultiAuth(
-			auth.NewTransportAuthorization(h.ethAddr),
-			newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState)),
-		)),
-		auth.Allow("StopTask").With(newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState))),
-		auth.Allow("StartTask").With(newDealAuthorization(ctx, hubState, newFieldDealExtractor())),
-		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState))),
-		auth.Allow("PushTask").With(newDealAuthorization(ctx, hubState, newContextDealExtractor())),
-		auth.Allow("PullTask").With(newDealAuthorization(ctx, hubState, newRequestDealExtractor(func(request interface{}) (DealID, error) {
-			return DealID(request.(*pb.PullTaskRequest).DealId), nil
-		}))),
-		auth.Allow("GetDealInfo").With(newDealAuthorization(ctx, hubState, newRequestDealExtractor(func(request interface{}) (DealID, error) {
-			return DealID(request.(*pb.ID).GetId()), nil
-		}))),
-		auth.Allow("ApproveDeal").With(newOrderAuthorization(hubState, OrderExtractor(func(request interface{}) (OrderID, error) {
-			return OrderID(request.(*pb.ApproveDealRequest).BidID), nil
-		}))),
-		auth.WithFallback(auth.NewDenyAuthorization()),
-	)
-
-	h.eventAuthorization = authorization
-
-	logger := log.GetLogger(h.ctx)
-	grpcServer := xgrpc.NewServer(logger,
-		xgrpc.Credentials(h.creds),
-		xgrpc.DefaultTraceInterceptor(),
-		xgrpc.AuthorizationInterceptor(authorization),
-		xgrpc.UnaryServerInterceptor(h.onRequest),
-	)
-	h.externalGrpc = grpcServer
-
-	pb.RegisterHubServer(grpcServer, h)
-	grpc_prometheus.Register(grpcServer)
-
-	return h, nil
-}
-
 func (h *Hub) onNewHub(endpoint string) {
 	log.G(h.ctx).Info("new hub discovered", zap.String("endpoint", endpoint))
-}
-
-// Serve starts handling incoming API gRPC request and communicates
-// with miners
-func (h *Hub) Serve() error {
-	h.startTime = time.Now()
-
-	rendezvousEndpoints, err := h.cfg.NPP.Rendezvous.ConvertEndpoints()
-	if err != nil {
-		return err
-	}
-
-	grpcL, err := npp.NewListener(h.ctx, h.cfg.Cluster.Endpoint, npp.WithRendezvous(rendezvousEndpoints, h.creds), npp.WithLogger(log.G(h.ctx)))
-	if err != nil {
-		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Cluster.Endpoint), zap.Error(err))
-		return err
-	}
-	log.G(h.ctx).Info("listening for gRPC API connections", zap.Stringer("address", grpcL.Addr()))
-	h.grpcListener = grpcL
-
-	listener, err := net.Listen("tcp", h.cfg.Endpoint)
-	if err != nil {
-		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Endpoint), zap.Error(err))
-		grpcL.Close()
-		return err
-	}
-
-	log.G(h.ctx).Info("listening for connections from Miners", zap.Stringer("address", listener.Addr()))
-
-	h.minerListener = listener
-
-	h.waiter.Go(h.listenAPI)
-
-	h.waiter.Go(func() error {
-		for {
-			conn, err := h.minerListener.Accept()
-			if err != nil {
-				return err
-			}
-			go h.handleInterconnect(h.ctx, conn)
-		}
-	})
-
-	h.waiter.Go(func() error {
-		return h.state.RunMonitoring(h.ctx)
-	})
-
-	h.waiter.Go(h.runCluster)
-	h.waiter.Go(h.listenClusterEvents)
-	h.waiter.Go(h.startLocatorAnnouncer)
-
-	h.waiter.Wait()
-
-	return nil
 }
 
 func (h *Hub) listenAPI() error {
