@@ -42,11 +42,11 @@ endif
 
 
 ifeq ($(OS),linux)
-SED=sed -i 's/github\.com\/sonm-io\/core\/vendor\///g' insonmnia/node/hub_mock.go
+SED=sed -i 's/github\.com\/sonm-io\/core\/vendor\///g' insonmnia/dealer/hub_mock.go
 endif
 
 ifeq ($(OS),darwin)
-SED=sed -i "" 's/github\.com\/sonm-io\/core\/vendor\///g' insonmnia/node/hub_mock.go
+SED=sed -i "" 's/github\.com\/sonm-io\/core\/vendor\///g' insonmnia/dealer/hub_mock.go
 endif
 
 LDFLAGS = -X main.appVersion=$(FULL_VER)
@@ -145,7 +145,7 @@ mock:
 		-aux_files accounts=accounts/keys.go,logging=insonmnia/logging/logging.go
 	mockgen -package node -destination insonmnia/node/config_mock.go -source insonmnia/node/config.go \
 		-aux_files accounts=accounts/keys.go,logging=insonmnia/logging/logging.go
-	mockgen -imports "context=golang.org/x/net/context" -package node -destination insonmnia/node/hub_mock.go \
+	mockgen -package dealer -destination insonmnia/dealer/hub_mock.go \
 		"github.com/sonm-io/core/proto" HubClient && ${SED}
 
 clean:

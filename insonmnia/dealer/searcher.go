@@ -9,6 +9,8 @@ import (
 	"github.com/sonm-io/core/proto"
 )
 
+var ErrOrdersNotFound = errors.New("no orders found")
+
 // Searcher interface describes method for retrieving orders on Market|DWH.
 type Searcher interface {
 	// Search returns orders matching given filter.
@@ -83,14 +85,21 @@ func (s *askSearcher) filterByAllowance(orders []*sonm.Order, allowance *big.Int
 
 func (s *askSearcher) Search(ctx context.Context, filter *SearchFilter) ([]*sonm.Order, error) {
 	req := &sonm.GetOrdersRequest{
-		Order: filter.order,
-		Count: filter.count,
+		Order: &sonm.Order{
+			SupplierID: filter.supplierID,
+			OrderType:  filter.orderType,
+			Slot:       filter.slot,
+		},
 	}
 
 	// query market for orders
 	reply, err := s.market.GetOrders(ctx, req)
 	if err != nil {
 		return nil, err
+	}
+
+	if len(reply.GetOrders()) == 0 {
+		return nil, ErrOrdersNotFound
 	}
 
 	// apply extra filter for price and allowance
@@ -106,16 +115,22 @@ func (s *askSearcher) Search(ctx context.Context, filter *SearchFilter) ([]*sonm
 // SearchFilter represent params for searching and filtering orders
 // on the marketplace. Accepted by `Searcher` interface.
 type SearchFilter struct {
-	order     *sonm.Order
-	balance   *big.Int
-	allowance *big.Int
-	count     uint64
+	orderType  sonm.OrderType
+	slot       *sonm.Slot
+	balance    *big.Int
+	allowance  *big.Int
+	supplierID string
+	count      uint64
 }
 
 // NewSearchFilter validates input data and constructs `SearchFilter`
-func NewSearchFilter(order *sonm.Order, balance, allowance *big.Int) (*SearchFilter, error) {
-	if order == nil {
+func NewSearchFilter(slot *sonm.Slot, typ sonm.OrderType, balance, allowance *big.Int, supplierID string) (*SearchFilter, error) {
+	if slot == nil {
 		return nil, errors.New("order cannot be nil")
+	}
+
+	if typ == sonm.OrderType_ANY {
+		return nil, errors.New("cannot perform search by with orderType = ANY")
 	}
 
 	if balance == nil {
@@ -127,9 +142,11 @@ func NewSearchFilter(order *sonm.Order, balance, allowance *big.Int) (*SearchFil
 	}
 
 	return &SearchFilter{
-		order:     order,
-		balance:   balance,
-		allowance: allowance,
-		count:     100,
+		slot:       slot,
+		orderType:  typ,
+		balance:    balance,
+		allowance:  allowance,
+		supplierID: supplierID,
+		count:      100,
 	}, nil
 }

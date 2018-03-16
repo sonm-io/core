@@ -14,6 +14,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/insonmnia/dealer"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
@@ -110,7 +111,7 @@ func getTestConfig(ctrl *gomock.Controller) Config {
 }
 
 func getTestHubClient(ctrl *gomock.Controller) (pb.HubClient, io.Closer) {
-	hub := NewMockHubClient(ctrl)
+	hub := dealer.NewMockHubClient(ctrl)
 	hub.EXPECT().ProposeDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
 	hub.EXPECT().ApproveDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
 
@@ -240,7 +241,7 @@ func TestCreateOrder_CannotFetchOrders(t *testing.T) {
 	assert.EqualError(t, handlr.err, "TEST: cannot get orders")
 }
 
-func TestCreateOrder_CannotNoMatchingOrders(t *testing.T) {
+func TestCreateOrder_NoMatchingOrders(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -309,7 +310,7 @@ func TestCreateOrder_CannotResolveHubIP(t *testing.T) {
 	assert.Equal(t, statusFailed, handlr.getStatus(),
 		fmt.Sprintf("Wait for status %s, but has %s", statusFailed.String(), handlr.getStatus().String()))
 	assert.Error(t, handlr.err)
-	assert.EqualError(t, handlr.err, errProposeNotAccepted.Error())
+	assert.EqualError(t, handlr.err, "no hub accept proposed deal")
 }
 
 func TestCreateOrder_CannotCreateDeal(t *testing.T) {
@@ -365,7 +366,7 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 	ctx := context.Background()
 	opts := getTestRemotes(ctx, ctrl)
 	opts.hubCreator = func(addr string) (pb.HubClient, io.Closer, error) {
-		hub := NewMockHubClient(ctrl)
+		hub := dealer.NewMockHubClient(ctrl)
 		hub.EXPECT().ProposeDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
 		hub.EXPECT().ApproveDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(
 			nil, errors.New("TEST: cannot approve deal"))
@@ -428,7 +429,7 @@ func TestCreateOrder_LackAllowanceBalance(t *testing.T) {
 
 	assert.Equal(t, statusFailed, handlr.getStatus(),
 		fmt.Sprintf("Wait for status %s, but has %s", statusFailed.String(), handlr.getStatus().String()))
-	assert.EqualError(t, handlr.err, errLackOfBalance.Error())
+	assert.EqualError(t, handlr.err, "no orders fit into available balance")
 }
 
 func TestCreateOrder_LackAllowance(t *testing.T) {
@@ -466,7 +467,7 @@ func TestCreateOrder_LackAllowance(t *testing.T) {
 
 	assert.Equal(t, statusFailed, handlr.getStatus(),
 		fmt.Sprintf("Wait for status %s, but has %s", statusFailed.String(), handlr.getStatus().String()))
-	assert.EqualError(t, handlr.err, errLackOfBalance.Error())
+	assert.EqualError(t, handlr.err, "no orders fit into available balance")
 }
 
 func TestCreateOrder_LackBalance(t *testing.T) {
@@ -505,46 +506,7 @@ func TestCreateOrder_LackBalance(t *testing.T) {
 
 	assert.Equal(t, statusFailed, handlr.getStatus(),
 		fmt.Sprintf("Wait for status %s, but has %s", statusFailed.String(), handlr.getStatus().String()))
-	assert.EqualError(t, handlr.err, errLackOfBalance.Error())
-}
-
-func TestFilterOrdersByPriceAndAllowance(t *testing.T) {
-	ctx := context.Background()
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	opts := getTestRemotes(ctx, ctrl)
-	server, err := newMarketAPI(opts)
-	require.NoError(t, err)
-
-	inner := server.(*marketAPI)
-	ordersFromSearch := []*pb.Order{
-		{PricePerSecond: pb.NewBigIntFromInt(100), Slot: &pb.Slot{Duration: 1}},
-		{PricePerSecond: pb.NewBigIntFromInt(200), Slot: &pb.Slot{Duration: 1}},
-	}
-
-	balance := big.NewInt(999999)
-	allowance := big.NewInt(150)
-	ordersToDeal, err := inner.filterOrdersByPriceAndAllowance(ctx, balance, allowance, ordersFromSearch)
-	require.NoError(t, err)
-	assert.Len(t, ordersToDeal, 1, "order with price = 200 must be filtered")
-
-	balance = big.NewInt(150)
-	allowance = big.NewInt(9999999)
-	ordersToDeal, err = inner.filterOrdersByPriceAndAllowance(ctx, balance, allowance, ordersFromSearch)
-	require.NoError(t, err)
-	assert.Len(t, ordersToDeal, 1, "order with price = 200 must be filtered")
-
-	balance = big.NewInt(99)
-	allowance = big.NewInt(9999999)
-	ordersToDeal, err = inner.filterOrdersByPriceAndAllowance(ctx, balance, allowance, ordersFromSearch)
-	require.EqualError(t, err, errLackOfBalance.Error())
-
-	balance = big.NewInt(999)
-	allowance = big.NewInt(999)
-	ordersToDeal, err = inner.filterOrdersByPriceAndAllowance(ctx, balance, allowance, ordersFromSearch)
-	require.NoError(t, err)
-	assert.Len(t, ordersToDeal, 2, "all orders must be returned")
+	assert.EqualError(t, handlr.err, "no orders fit into available balance")
 }
 
 func TestCreateOrder_NotApprovedAndNotCancelled(t *testing.T) {
@@ -566,7 +528,7 @@ func TestCreateOrder_NotApprovedAndNotCancelled(t *testing.T) {
 
 	opts.eth = eth
 	opts.hubCreator = func(addr string) (pb.HubClient, io.Closer, error) {
-		hub := NewMockHubClient(ctrl)
+		hub := dealer.NewMockHubClient(ctrl)
 		hub.EXPECT().ProposeDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
 		hub.EXPECT().ApproveDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(
 			nil, errors.New("TEST: cannot approve deal"))

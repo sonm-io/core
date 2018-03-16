@@ -12,13 +12,12 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
-	"github.com/sonm-io/core/insonmnia/node"
 	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 )
 
 func newHubMock(ctrl *gomock.Controller) (sonm.HubClient, io.Closer) {
-	hub := node.NewMockHubClient(ctrl)
+	hub := NewMockHubClient(ctrl)
 	hub.EXPECT().ProposeDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&sonm.Empty{}, nil)
 	hub.EXPECT().ApproveDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&sonm.Empty{}, nil)
 	return hub, &mockConn{}
@@ -71,7 +70,7 @@ func TestDealer_DealFailedAndCancelled(t *testing.T) {
 	bc.EXPECT().CloseDealPending(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		MinTimes(1).Return(nil)
 
-	hub := node.NewMockHubClient(ctrl)
+	hub := NewMockHubClient(ctrl)
 	hub.EXPECT().ApproveDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(nil, errors.New("test"))
 
 	dlr := NewDealer(key, hub, bc, time.Second)

@@ -66,15 +66,18 @@ func TestAskSearcher_filtersChain(t *testing.T) {
 }
 
 func TestNewSearchFilter(t *testing.T) {
-	_, err := NewSearchFilter(nil, big.NewInt(1), big.NewInt(2))
+	_, err := NewSearchFilter(nil, sonm.OrderType_ANY, big.NewInt(1), big.NewInt(2), "")
 	assert.EqualError(t, err, "order cannot be nil")
 
-	_, err = NewSearchFilter(&sonm.Order{}, nil, big.NewInt(2))
+	_, err = NewSearchFilter(&sonm.Slot{}, sonm.OrderType_ANY, big.NewInt(1), big.NewInt(2), "")
+	assert.EqualError(t, err, "cannot perform search by with orderType = ANY")
+
+	_, err = NewSearchFilter(&sonm.Slot{}, sonm.OrderType_BID, nil, big.NewInt(2), "")
 	assert.EqualError(t, err, "balance cannot be nil")
 
-	_, err = NewSearchFilter(&sonm.Order{}, big.NewInt(1), nil)
+	_, err = NewSearchFilter(&sonm.Slot{}, sonm.OrderType_ASK, big.NewInt(1), nil, "")
 	assert.EqualError(t, err, "allowance cannot be nil")
 
-	_, err = NewSearchFilter(&sonm.Order{}, big.NewInt(1), big.NewInt(2))
+	_, err = NewSearchFilter(&sonm.Slot{}, sonm.OrderType_BID, big.NewInt(1), big.NewInt(2), "")
 	assert.NoError(t, err)
 }
