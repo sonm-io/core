@@ -23,10 +23,15 @@ func TestBidMatcher_Match(t *testing.T) {
 	assert.Equal(t, uint64(10), out.PricePerSecond.Unwrap().Uint64())
 }
 
-func TestBidMatcher_MatchNil(t *testing.T) {
+func TestBidMatcher_MatchNilEmpty(t *testing.T) {
 	m := NewBidMatcher()
+
 	out, err := m.Match(nil)
-	assert.NoError(t, err)
+	assert.EqualError(t, err, "no orders provided")
+	assert.Nil(t, out)
+
+	out, err = m.Match([]*sonm.Order{})
+	assert.EqualError(t, err, "no orders provided")
 	assert.Nil(t, out)
 }
 
@@ -38,9 +43,14 @@ func TestAskMatcher_Match(t *testing.T) {
 	assert.Equal(t, uint64(200), out.PricePerSecond.Unwrap().Uint64())
 }
 
-func TestAskMatcher_MatchNil(t *testing.T) {
+func TestAskMatcher_MatchNilEmpty(t *testing.T) {
 	m := NewAskMatcher()
+
 	out, err := m.Match(nil)
-	assert.NoError(t, err)
+	assert.EqualError(t, err, "no orders provided")
+	assert.Nil(t, out)
+
+	out, err = m.Match([]*sonm.Order{})
+	assert.EqualError(t, err, "no orders provided")
 	assert.Nil(t, out)
 }

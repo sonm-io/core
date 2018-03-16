@@ -1,6 +1,7 @@
 package dealer
 
 import (
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/proto"
 )
 
@@ -17,8 +18,8 @@ func NewBidMatcher() Matcher {
 }
 
 func (m *bidMatcher) Match(orders []*sonm.Order) (*sonm.Order, error) {
-	if len(orders) == 0 {
-		return nil, nil
+	if orders == nil || len(orders) == 0 {
+		return nil, errors.New("no orders provided")
 	}
 
 	// var min = &sonm.Order{PricePerSecond: sonm.NewBigIntFromInt(0)}
@@ -39,8 +40,8 @@ func NewAskMatcher() Matcher {
 }
 
 func (m *askMatcher) Match(orders []*sonm.Order) (*sonm.Order, error) {
-	if len(orders) == 0 {
-		return nil, nil
+	if orders == nil || len(orders) == 0 {
+		return nil, errors.New("no orders provided")
 	}
 
 	var max = orders[0]
