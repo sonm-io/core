@@ -40,7 +40,7 @@ func WithRendezvous(addrs []auth.Endpoint, credentials credentials.TransportCred
 				}
 			}
 
-			return nil, fmt.Errorf("failed to connect to %s", addrs)
+			return nil, fmt.Errorf("failed to connect to %+v", addrs)
 		}
 
 		return nil
