@@ -1,7 +1,7 @@
 # Local Node settings
 node:
-  # socket path to bind Node's gRPC endpoint, required
-  socket_path: "/var/run/sonm_node.sock"
+  # Node's port to listen for client connection
+  bind_port: 15030
 
 # Marketplace service settings
 market:

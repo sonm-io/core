@@ -7,15 +7,15 @@ import (
 	"google.golang.org/grpc"
 )
 
-// newUnixSocketClientConn provides a single point for gPRC's ClientConn configuration.
+// newClientConn provides a single point for gPRC's ClientConn configuration.
 //
 // Note that `timeoutFlag` and `nodeAddressFlag` are set implicitly because it is global for all CLI-related stuff.
-func newUnixSocketClientConn(ctx context.Context) (*grpc.ClientConn, error) {
-	return xgrpc.NewUnencryptedUnixSocketClient(ctx, nodeAddressFlag, timeoutFlag)
+func newClientConn(ctx context.Context) (*grpc.ClientConn, error) {
+	return xgrpc.NewClient(ctx, nodeAddressFlag, nil)
 }
 
 func newHubManagementClient(ctx context.Context) (pb.HubManagementClient, error) {
-	cc, err := newUnixSocketClientConn(ctx)
+	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -24,7 +24,7 @@ func newHubManagementClient(ctx context.Context) (pb.HubManagementClient, error)
 }
 
 func newMarketClient(ctx context.Context) (pb.MarketClient, error) {
-	cc, err := newUnixSocketClientConn(ctx)
+	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func newMarketClient(ctx context.Context) (pb.MarketClient, error) {
 }
 
 func newDealsClient(ctx context.Context) (pb.DealManagementClient, error) {
-	cc, err := newUnixSocketClientConn(ctx)
+	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -42,7 +42,7 @@ func newDealsClient(ctx context.Context) (pb.DealManagementClient, error) {
 }
 
 func newTaskClient(ctx context.Context) (pb.TaskManagementClient, error) {
-	cc, err := newUnixSocketClientConn(ctx)
+	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}

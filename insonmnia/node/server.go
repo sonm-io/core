@@ -2,6 +2,8 @@ package node
 
 import (
 	"crypto/ecdsa"
+	"errors"
+	"fmt"
 	"io"
 	"net"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -75,11 +78,11 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, c
 
 // Node is LocalNode instance
 type Node struct {
-	lis           net.Listener
-	lisSocketPath string
-	srv           *grpc.Server
-	ctx           context.Context
-	privKey       *ecdsa.PrivateKey
+	lis4, lis6 net.Listener
+	cfg        Config
+	srv        *grpc.Server
+	ctx        context.Context
+	privKey    *ecdsa.PrivateKey
 	// processorRestarter must start together with node .Serve (not .New).
 	// This func must fetch orders from the Market and restart it background processing.
 	processorRestarter func() error
@@ -89,11 +92,6 @@ type Node struct {
 // also method starts internal gRPC client connections
 // to the external services like Market and Hub
 func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
-	lis, err := net.Listen("unix", c.SocketPath())
-	if err != nil {
-		return nil, err
-	}
-
 	_, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
 	if err != nil {
 		return nil, err
@@ -145,10 +143,9 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	grpc_prometheus.Register(srv)
 
 	return &Node{
-		lis:                lis,
+		cfg:                c,
 		ctx:                ctx,
 		srv:                srv,
-		lisSocketPath:      c.SocketPath(),
 		processorRestarter: market.(*marketAPI).restartOrdersProcessing(),
 	}, nil
 }
@@ -167,22 +164,59 @@ func (n *Node) InterceptStreamRequest(srv interface{}, ss grpc.ServerStream, inf
 
 // Serve binds gRPC services and start it
 func (n *Node) Serve() error {
-	// restart background processing
+	wg := errgroup.Group{}
 	if n.processorRestarter != nil {
-		err := n.processorRestarter()
-		if err != nil {
-			// should it breaks startup?
-			log.G(n.ctx).Error("cannot restart order processing", zap.Error(err))
-		}
+		// restart background processing
+		wg.Go(func() error {
+			err := n.processorRestarter()
+			if err != nil {
+				// should it breaks startup?
+				log.G(n.ctx).Warn("cannot restart order processing", zap.Error(err))
+			}
+			return nil
+		})
 	}
 
-	return n.srv.Serve(n.lis)
+	lis6, err := net.Listen("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.BindPort()))
+	if err == nil {
+		n.lis6 = lis6
+		log.G(n.ctx).Info("starting node ipv6 listener", zap.String("bind", lis6.Addr().String()))
+		wg.Go(func() error {
+			return n.srv.Serve(lis6)
+		})
+	} else {
+		log.G(n.ctx).Warn("cannot create ipv6 listener", zap.Error(err))
+	}
+
+	lis4, err := net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", n.cfg.BindPort()))
+	if err == nil {
+		n.lis4 = lis4
+
+		log.G(n.ctx).Info("starting node ipv4 listener", zap.String("bind", lis4.Addr().String()))
+		wg.Go(func() error {
+			return n.srv.Serve(lis4)
+		})
+	} else {
+		log.G(n.ctx).Warn("cannot create ipv4 listener", zap.Error(err))
+	}
+
+	if lis6 == nil && lis4 == nil {
+		return errors.New("neither ipv4 nor ipv6 localhost is available to bind")
+	}
+
+	return wg.Wait()
 }
 
 func (n *Node) Close() {
-	if n.lis != nil {
-		if err := n.lis.Close(); err != nil {
-			log.G(n.ctx).Warn("cannot close socket listener", zap.Error(err))
+	if n.lis6 != nil {
+		if err := n.lis6.Close(); err != nil {
+			log.G(n.ctx).Warn("cannot close ipv6 listener", zap.Error(err))
+		}
+	}
+
+	if n.lis4 != nil {
+		if err := n.lis4.Close(); err != nil {
+			log.G(n.ctx).Warn("cannot close ipv4 listener", zap.Error(err))
 		}
 	}
 }
