@@ -180,7 +180,8 @@ var taskJoinNetworkCmd = &cobra.Command{
 	Short: "Provide network specs for joining to specified task's specific network",
 	Args:  cobra.MinimumNArgs(3),
 	Run: func(cmd *cobra.Command, args []string) {
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -189,7 +190,7 @@ var taskJoinNetworkCmd = &cobra.Command{
 		hubAddr := args[0]
 		taskID := args[1]
 		netID := args[2]
-		spec, err := node.JoinNetwork(&pb.JoinNetworkRequest{
+		spec, err := node.JoinNetwork(ctx, &pb.JoinNetworkRequest{
 			TaskID: &pb.TaskID{
 				Id:      taskID,
 				HubAddr: hubAddr,
