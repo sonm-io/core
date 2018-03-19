@@ -7,30 +7,35 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"time"
 
 	"go.uber.org/zap"
 )
 
 type connTuple struct {
 	net.Conn
-	error
+	err error
 }
 
 func newConnTuple(conn net.Conn, err error) connTuple {
 	return connTuple{conn, err}
 }
 
+func (m *connTuple) Error() error {
+	return m.err
+}
+
 func (m *connTuple) IsTransportError() bool {
-	if m.error == nil {
+	if m.err == nil {
 		return false
 	}
 
-	_, ok := m.error.(TransportError)
+	_, ok := m.err.(TransportError)
 	return ok
 }
 
 func (m *connTuple) unwrap() (net.Conn, error) {
-	return m.Conn, m.error
+	return m.Conn, m.err
 }
 
 // Listener specifies a net.Listener wrapper that is aware of NAT Punching
@@ -46,6 +51,10 @@ type Listener struct {
 
 	puncher    NATPuncher
 	puncherNew func() (NATPuncher, error)
+	nppChannel chan connTuple
+
+	minBackoffInterval time.Duration
+	maxBackoffInterval time.Duration
 }
 
 // NewListener constructs a new NPP listener that will listen the specified
@@ -74,9 +83,14 @@ func NewListener(ctx context.Context, addr string, options ...Option) (net.Liste
 		listener:        listener,
 		puncher:         opts.puncher,
 		puncherNew:      opts.puncherNew,
+		nppChannel:      make(chan connTuple, opts.nppBacklog),
+
+		minBackoffInterval: 500 * time.Millisecond,
+		maxBackoffInterval: 8000 * time.Millisecond,
 	}
 
 	go m.listen()
+	go m.listenPuncher(ctx)
 
 	return m, nil
 }
@@ -92,6 +106,44 @@ func (m *Listener) listen() error {
 	}
 }
 
+func (m *Listener) listenPuncher(ctx context.Context) error {
+	if m.puncherNew == nil {
+		return nil
+	}
+
+	timeout := m.minBackoffInterval
+	for {
+		timer := time.NewTimer(timeout)
+
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+			// Okay, let's go.
+		}
+
+		if m.puncher == nil {
+			m.log.Debug("constructing new puncher")
+			puncher, err := m.puncherNew()
+			if err != nil {
+				m.log.Warn("failed to construct a puncher", zap.Error(err))
+				if timeout < m.maxBackoffInterval {
+					timeout = 2 * timeout
+				}
+				continue
+			}
+
+			m.log.Debug("puncher has been constructed", zap.Stringer("remote", puncher.RemoteAddr()))
+			m.puncher = puncher
+
+			timeout = m.minBackoffInterval
+		}
+
+		m.nppChannel <- newConnTuple(m.puncher.AcceptContext(ctx))
+	}
+}
+
 // Accept waits for and returns the next connection to the listener.
 //
 // This method will firstly check whether there are pending sockets in the
@@ -104,23 +156,6 @@ func (m *Listener) listen() error {
 // descriptors, so be prepared to enlarge your limits.
 func (m *Listener) Accept() (net.Conn, error) {
 	// Act as a listener if there is no puncher specified.
-	if m.puncherNew == nil {
-		conn := <-m.listenerChannel
-		return conn.unwrap()
-	}
-
-	if m.puncher == nil {
-		m.log.Debug("constructing new puncher")
-		puncher, err := m.puncherNew()
-		if err != nil {
-			m.log.Error("failed to construct a puncher", zap.Error(err))
-			return nil, TransportError{err}
-		}
-
-		m.log.Debug("puncher has been constructed", zap.Stringer("remote", puncher.RemoteAddr()))
-		m.puncher = puncher
-	}
-
 	// Check for acceptor listenerChannel, if there is a connection - return immediately.
 	select {
 	case conn := <-m.listenerChannel:
@@ -129,27 +164,21 @@ func (m *Listener) Accept() (net.Conn, error) {
 	default:
 	}
 
-	ctx, cancel := context.WithCancel(m.ctx)
-	defer cancel()
-
 	// Otherwise block when either a new connection arrives or NPP does its job.
-	nppChannel := make(chan connTuple, 1)
-
-	go func() {
-		nppChannel <- newConnTuple(m.puncher.AcceptContext(ctx))
-	}()
-
-	select {
-	case conn := <-m.listenerChannel:
-		m.log.Info("received acceptor peer", zap.Any("conn", conn))
-		return conn.unwrap()
-	case conn := <-nppChannel:
-		m.log.Info("received NPP peer", zap.Any("conn", conn))
-		if conn.IsTransportError() {
-			m.puncher.Close()
-			m.puncher = nil
+	for {
+		select {
+		case conn := <-m.listenerChannel:
+			m.log.Info("received acceptor peer", zap.Any("conn", conn))
+			return conn.unwrap()
+		case conn := <-m.nppChannel:
+			m.log.Info("received NPP peer", zap.Any("conn", conn))
+			if conn.IsTransportError() {
+				m.puncher.Close()
+				m.puncher = nil
+			} else {
+				return conn.unwrap()
+			}
 		}
-		return conn.unwrap()
 	}
 }
 

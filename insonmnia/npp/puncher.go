@@ -235,9 +235,9 @@ func (m *natPuncher) punch(ctx context.Context, addrs *sonm.RendezvousReply) (ne
 	for i := 0; i < 1+len(addrs.PrivateAddrs); i++ {
 		conn := <-pending
 
-		if conn.error != nil {
-			m.log.Info("failed to punch", zap.Error(conn.error))
-			errs = append(errs, conn.error)
+		if conn.Error() != nil {
+			m.log.Info("failed to punch", zap.Error(conn.Error()))
+			errs = append(errs, conn.Error())
 			continue
 		}
 
