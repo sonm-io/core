@@ -92,7 +92,7 @@ type Blockchainer interface {
 	Dealer
 	Tokener
 	// GetTxOpts return transaction options that used to perform operations into Ethereum blockchain
-	GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts
+	GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit uint64) *bind.TransactOpts
 }
 
 func initEthClient(ethEndpoint *string) (*ethclient.Client, error) {
@@ -109,10 +109,10 @@ func initEthClient(ethEndpoint *string) (*ethclient.Client, error) {
 	return ethClient, nil
 }
 
-func (bch *api) GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts {
+func (bch *api) GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit uint64) *bind.TransactOpts {
 	opts := bind.NewKeyedTransactor(key)
 	opts.Context = ctx
-	opts.GasLimit = big.NewInt(gasLimit)
+	opts.GasLimit = gasLimit
 	opts.GasPrice = big.NewInt(bch.gasPrice)
 	return opts
 }

@@ -18,10 +18,10 @@
 package main
 
 //go:generate go-bindata -nometadata -o website.go faucet.html
+//go:generate gofmt -w -s website.go
 
 import (
 	"bytes"
-	"compress/zlib"
 	"context"
 	"encoding/json"
 	"errors"
@@ -223,7 +223,6 @@ func newFaucet(genesis *core.Genesis, port int, enodes []*discv5.Node, network u
 			NoDiscovery:      true,
 			DiscoveryV5:      true,
 			ListenAddr:       fmt.Sprintf(":%d", port),
-			DiscoveryV5Addr:  fmt.Sprintf(":%d", port+1),
 			MaxPeers:         25,
 			BootstrapNodesV5: enodes,
 		},
@@ -474,7 +473,7 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 			amount = new(big.Int).Mul(amount, new(big.Int).Exp(big.NewInt(5), big.NewInt(int64(msg.Tier)), nil))
 			amount = new(big.Int).Div(amount, new(big.Int).Exp(big.NewInt(2), big.NewInt(int64(msg.Tier)), nil))
 
-			tx := types.NewTransaction(f.nonce+uint64(len(f.reqs)), address, amount, big.NewInt(21000), f.price, nil)
+			tx := types.NewTransaction(f.nonce+uint64(len(f.reqs)), address, amount, 21000, f.price, nil)
 			signed, err := f.keystore.SignTx(f.account, tx, f.config.ChainId)
 			if err != nil {
 				f.lock.Unlock()
@@ -506,7 +505,7 @@ func (f *faucet) apiHandler(conn *websocket.Conn) {
 
 		// Send an error if too frequent funding, othewise a success
 		if !fund {
-			if err = sendError(conn, fmt.Errorf("%s left until next allowance", common.PrettyDuration(timeout.Sub(time.Now())))); err != nil {
+			if err = sendError(conn, fmt.Errorf("%s left until next allowance", common.PrettyDuration(timeout.Sub(time.Now())))); err != nil { // nolint: gosimple
 				log.Warn("Failed to send funding error to client", "err", err)
 				return
 			}
@@ -534,9 +533,11 @@ func (f *faucet) loop() {
 	}
 	defer sub.Unsubscribe()
 
-	for {
-		select {
-		case head := <-heads:
+	// Start a goroutine to update the state from head notifications in the background
+	update := make(chan *types.Header)
+
+	go func() {
+		for head := range update {
 			// New chain head arrived, query the current stats and stream to clients
 			var (
 				balance *big.Int
@@ -589,6 +590,17 @@ func (f *faucet) loop() {
 				}
 			}
 			f.lock.RUnlock()
+		}
+	}()
+	// Wait for various events and assing to the appropriate background threads
+	for {
+		select {
+		case head := <-heads:
+			// New head arrived, send if for state update if there's none running
+			select {
+			case update <- head:
+			default:
+			}
 
 		case <-f.update:
 			// Pending requests updated, stream to clients
@@ -687,8 +699,6 @@ func authTwitter(url string) (string, string, common.Address, error) {
 	if len(parts) < 4 || parts[len(parts)-2] != "status" {
 		return "", "", common.Address{}, errors.New("Invalid Twitter status URL")
 	}
-	username := parts[len(parts)-3]
-
 	// Twitter's API isn't really friendly with direct links. Still, we don't
 	// want to do ask read permissions from users, so just load the public posts and
 	// scrape it for the Ethereum address and profile URL.
@@ -698,11 +708,14 @@ func authTwitter(url string) (string, string, common.Address, error) {
 	}
 	defer res.Body.Close()
 
-	reader, err := zlib.NewReader(res.Body)
-	if err != nil {
-		return "", "", common.Address{}, err
+	// Resolve the username from the final redirect, no intermediate junk
+	parts = strings.Split(res.Request.URL.String(), "/")
+	if len(parts) < 4 || parts[len(parts)-2] != "status" {
+		return "", "", common.Address{}, errors.New("Invalid Twitter status URL")
 	}
-	body, err := ioutil.ReadAll(reader)
+	username := parts[len(parts)-3]
+
+	body, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return "", "", common.Address{}, err
 	}
