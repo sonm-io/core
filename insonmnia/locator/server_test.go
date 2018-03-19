@@ -13,6 +13,7 @@ import (
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -27,10 +28,7 @@ func getTestKey() *ecdsa.PrivateKey {
 
 func TestLocator_Announce(t *testing.T) {
 	lc, err := NewLocator(context.Background(), testConfig(":9090"), key)
-	if err != nil {
-		t.Error(err)
-		return
-	}
+	require.NoError(t, err)
 
 	put := []string{
 		"123",
@@ -39,12 +37,13 @@ func TestLocator_Announce(t *testing.T) {
 	}
 
 	for _, addr := range put {
-		lc.put(&record{EthAddr: common.HexToAddress(addr)})
+		err := lc.put(&record{EthAddr: common.HexToAddress(addr)})
+		require.NoError(t, err)
 	}
 
 	for _, addr := range put {
 		rk, err := lc.get(common.HexToAddress(addr))
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Equal(t, rk.EthAddr, common.HexToAddress(addr))
 	}
 }
