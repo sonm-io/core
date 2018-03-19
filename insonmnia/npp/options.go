@@ -17,11 +17,13 @@ type options struct {
 	log        *zap.Logger
 	puncher    NATPuncher
 	puncherNew func() (NATPuncher, error)
+	nppBacklog int
 }
 
 func newOptions(ctx context.Context) *options {
 	return &options{
-		ctx: ctx,
+		ctx:        ctx,
+		nppBacklog: 128,
 	}
 }
 
@@ -54,6 +56,14 @@ func WithRendezvous(addrs []auth.Endpoint, credentials credentials.TransportCred
 func WithLogger(log *zap.Logger) Option {
 	return func(o *options) error {
 		o.log = log
+		return nil
+	}
+}
+
+// WithNPPBacklog is an option that specifies NPP backlog size.
+func WithNPPBacklog(backlog int) Option {
+	return func(o *options) error {
+		o.nppBacklog = backlog
 		return nil
 	}
 }
