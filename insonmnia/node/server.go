@@ -123,7 +123,12 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	}
 
 	logger := log.GetLogger(ctx)
-	srv := xgrpc.NewUnencryptedServer(logger)
+	srv := xgrpc.NewServer(
+		logger,
+		// Intentionally constructing an unencrypted server.
+		xgrpc.DefaultTraceInterceptor(),
+		xgrpc.UnaryServerInterceptor(hub.(*hubAPI).intercept),
+	)
 
 	pb.RegisterHubManagementServer(srv, hub)
 	log.G(ctx).Info("hub service registered", zap.String("endpt", c.HubEndpoint()))
