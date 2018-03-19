@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"os"
 
 	"strings"
@@ -38,9 +39,10 @@ var dealsListCmd = &cobra.Command{
 	Short:  "Show my deals",
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, _ []string) {
-		itr, err := NewDealsInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		dealer, err := newDealsClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
@@ -50,13 +52,17 @@ var dealsListCmd = &cobra.Command{
 			from = util.PubKeyToAddr(sessionKey.PublicKey).Hex()
 		}
 
-		deals, err := itr.List(from, status)
+		req := &pb.DealListRequest{
+			Owner:  from,
+			Status: status,
+		}
+		deals, err := dealer.List(ctx, req)
 		if err != nil {
 			showError(cmd, "Cannot get deals list", err)
 			os.Exit(1)
 		}
 
-		printDealsList(cmd, deals)
+		printDealsList(cmd, deals.GetDeal())
 	},
 }
 
@@ -65,9 +71,10 @@ var dealsStatusCmd = &cobra.Command{
 	Short: "show deal status",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		itr, err := NewDealsInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		dealer, err := newDealsClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
@@ -78,7 +85,7 @@ var dealsStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		reply, err := itr.Status(id)
+		reply, err := dealer.Status(ctx, &pb.ID{Id: id})
 		if err != nil {
 			showError(cmd, "Cannot get deal info", err)
 			os.Exit(1)
@@ -93,9 +100,10 @@ var dealsFinishCmd = &cobra.Command{
 	Short: "finish deal",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		itr, err := NewDealsInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		dealer, err := newDealsClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
@@ -106,7 +114,7 @@ var dealsFinishCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		err = itr.FinishDeal(id)
+		_, err = dealer.Finish(ctx, &pb.ID{Id: id})
 		if err != nil {
 			showError(cmd, "Cannot finish deal", err)
 			os.Exit(1)

@@ -1,8 +1,10 @@
 package commands
 
 import (
+	"context"
 	"os"
 
+	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -23,13 +25,14 @@ var nodeACLListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Show current ACLs",
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		hub, err := newHubManagementClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
-		list, err := hub.GetRegisteredWorkers()
+		list, err := hub.GetRegisteredWorkers(ctx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get Workers ACLs: %s", err)
 			os.Exit(1)
@@ -44,14 +47,15 @@ var nodeACLRegisterCmd = &cobra.Command{
 	Short: "Deregisters a worker credentials",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		hub, err := newHubManagementClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
-		id := args[0]
 
-		_, err = hub.RegisterWorker(id)
+		id := args[0]
+		_, err = hub.RegisterWorker(ctx, &pb.ID{Id: id})
 		if err != nil {
 			showError(cmd, "Cannot register new Worker", err)
 			os.Exit(1)
@@ -65,14 +69,15 @@ var nodeACLDeregisterCmd = &cobra.Command{
 	Short: "Deregisters a worker credentials",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		hub, err := newHubManagementClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
-		id := args[0]
 
-		_, err = hub.DeregisterWorker(id)
+		id := args[0]
+		_, err = hub.DeregisterWorker(ctx, &pb.ID{Id: id})
 		if err != nil {
 			showError(cmd, "Cannot deregister Worker", err)
 			os.Exit(1)

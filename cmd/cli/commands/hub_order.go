@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"os"
 
 	pb "github.com/sonm-io/core/proto"
@@ -29,13 +30,14 @@ var hubOrderListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Show current ask plans",
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		hub, err := newHubManagementClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
-		asks, err := hub.GetAskPlans()
+		asks, err := hub.GetAskPlans(ctx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get Ask Orders from Worker", err)
 			os.Exit(1)
@@ -50,9 +52,10 @@ var hubOrderCreateCmd = &cobra.Command{
 	Short: "Create new plan",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		hub, err := newHubManagementClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
@@ -81,7 +84,7 @@ var hubOrderCreateCmd = &cobra.Command{
 			req.BuyerID = addr.Hex()
 		}
 
-		id, err := hub.CreateAskPlan(req)
+		id, err := hub.CreateAskPlan(ctx, req)
 		if err != nil {
 			showError(cmd, "Cannot create new AskOrder", err)
 			os.Exit(1)
@@ -96,14 +99,15 @@ var hubOrderRemoveCmd = &cobra.Command{
 	Short: "Remove plan by",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		hub, err := newHubManagementClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
 		ID := args[0]
-		_, err = hub.RemoveAskPlan(ID)
+		_, err = hub.RemoveAskPlan(ctx, &pb.ID{Id: ID})
 		if err != nil {
 			showError(cmd, "Cannot remove AskOrder", err)
 			os.Exit(1)

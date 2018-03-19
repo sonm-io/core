@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -40,9 +41,10 @@ var marketSearchCmd = &cobra.Command{
 	Short: "Search for orders on Marketplace",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		market, err := newMarketClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
@@ -59,13 +61,21 @@ var marketSearchCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		orders, err := market.GetOrders(slot, ordType, ordersSearchLimit)
+		req := &pb.GetOrdersRequest{
+			Order: &pb.Order{
+				OrderType: ordType,
+				Slot:      slot.Unwrap(),
+			},
+			Count: ordersSearchLimit,
+		}
+
+		reply, err := market.GetOrders(ctx, req)
 		if err != nil {
 			showError(cmd, "Cannot get orders", err)
 			os.Exit(1)
 		}
 
-		printSearchResults(cmd, orders)
+		printSearchResults(cmd, reply.GetOrders())
 	},
 }
 
@@ -74,14 +84,15 @@ var marketShowCmd = &cobra.Command{
 	Short: "Show order details",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		market, err := newMarketClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
 		orderID := args[0]
-		order, err := market.GetOrderByID(orderID)
+		order, err := market.GetOrderByID(ctx, &pb.ID{Id: orderID})
 		if err != nil {
 			showError(cmd, "Cannot get order by ID", err)
 			os.Exit(1)
@@ -95,17 +106,19 @@ var marketProcessingCmd = &cobra.Command{
 	Use:   "processing",
 	Short: "Show processing orders",
 	Run: func(cmd *cobra.Command, args []string) {
-		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		market, err := newMarketClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
-		reply, err := market.GetProcessing()
+		reply, err := market.GetProcessing(ctx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get processing orders", err)
 			os.Exit(1)
 		}
+
 		printProcessingOrders(cmd, reply)
 	},
 }
@@ -115,9 +128,10 @@ var marketCreteCmd = &cobra.Command{
 	Short: "Place new Bid order on Marketplace",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		market, err := newMarketClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
@@ -146,7 +160,7 @@ var marketCreteCmd = &cobra.Command{
 			order.SupplierID = common.HexToAddress(args[2]).Hex()
 		}
 
-		created, err := market.CreateOrder(order)
+		created, err := market.CreateOrder(ctx, order)
 		if err != nil {
 			showError(cmd, "Cannot create order at Marketplace", err)
 			os.Exit(1)
@@ -161,15 +175,15 @@ var marketCancelCmd = &cobra.Command{
 	Short: "Cancel order on Marketplace",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		market, err := NewMarketInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		market, err := newMarketClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
 		orderID := args[0]
-
-		err = market.CancelOrder(orderID)
+		_, err = market.CancelOrder(ctx, &pb.Order{Id: orderID})
 		if err != nil {
 			showError(cmd, "Cannot cancel order on Marketplace", err)
 			os.Exit(1)
