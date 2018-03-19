@@ -126,7 +126,7 @@ test: mock
 grpc:
 	@echo "+ $@"
 	@if ! which protoc > /dev/null; then echo "protoc protobuf compiler required for build"; exit 1; fi;
-	@if ! which protoc-gen-grpccmd > /dev/null; then echo "protoc-gen-grpccmd protobuf  plugin required for build.\nRun \`go get -u github.com/sshaman1101/grpccmd/cmd/protoc-gen-grpccmd\`"; exit 1; fi;
+	@if ! which protoc-gen-grpccmd > /dev/null; then echo "protoc-gen-grpccmd protobuf plugin required for build.\nRun \`go get -u github.com/sshaman1101/grpccmd/cmd/protoc-gen-grpccmd\`"; exit 1; fi;
 	@protoc -I proto proto/*.proto --grpccmd_out=proto/
 
 mock:
