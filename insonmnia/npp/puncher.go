@@ -223,11 +223,11 @@ func (m *natPuncher) punch(ctx context.Context, addrs *sonm.RendezvousReply) (ne
 	}
 
 	for _, addr := range addrs.PrivateAddrs {
-		go func() {
+		go func(addr *sonm.Addr) {
 			conn, err := m.punchAddr(ctx, addr)
 			m.log.Info("using private address", zap.Any("addr", addr), zap.Error(err))
 			pending <- newConnTuple(conn, err)
-		}()
+		}(addr)
 	}
 
 	var errs []error
