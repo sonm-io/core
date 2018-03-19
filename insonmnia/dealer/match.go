@@ -1,28 +1,30 @@
 package dealer
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+
 	"github.com/sonm-io/core/proto"
 )
 
+// Matcher interface describes method to select most profitable order from search results.
 type Matcher interface {
-	// Match takes orders found on market, returns most profitable order to deal with
 	Match(orders []*sonm.Order) (*sonm.Order, error)
 }
 
 // bidMatcher matches the cheapest order to deal
 type bidMatcher struct{}
 
+// NewBidMatcher returns Matcher implementation which
+// matches given BID order with most cheapest ASK.
 func NewBidMatcher() Matcher {
 	return &bidMatcher{}
 }
 
 func (m *bidMatcher) Match(orders []*sonm.Order) (*sonm.Order, error) {
-	if orders == nil || len(orders) == 0 {
+	if len(orders) == 0 {
 		return nil, errors.New("no orders provided")
 	}
 
-	// var min = &sonm.Order{PricePerSecond: sonm.NewBigIntFromInt(0)}
 	var min = orders[0]
 	for _, o := range orders {
 		if o.PricePerSecond.Cmp(min.PricePerSecond) < 0 {
@@ -35,12 +37,14 @@ func (m *bidMatcher) Match(orders []*sonm.Order) (*sonm.Order, error) {
 
 type askMatcher struct{}
 
+// NewAskMatcher returns Matcher implementation which
+// matches given ASK order with most expensive BID.
 func NewAskMatcher() Matcher {
 	return &askMatcher{}
 }
 
 func (m *askMatcher) Match(orders []*sonm.Order) (*sonm.Order, error) {
-	if orders == nil || len(orders) == 0 {
+	if len(orders) == 0 {
 		return nil, errors.New("no orders provided")
 	}
 

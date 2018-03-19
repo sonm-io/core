@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
+// Dealer interface describes method to open a deal within two orders.
 type Dealer interface {
 	Deal(ctx context.Context, bid, ask *sonm.Order) (*big.Int, error)
 }
@@ -26,6 +27,8 @@ type dealer struct {
 	hub     sonm.HubClient
 }
 
+// NewDealer returns `Dealer` implementation which can open deal
+// for BID and matched ASK orders.
 func NewDealer(key *ecdsa.PrivateKey, hub sonm.HubClient, bc blockchain.Blockchainer, timeout time.Duration) Dealer {
 	return &dealer{
 		key:     key,

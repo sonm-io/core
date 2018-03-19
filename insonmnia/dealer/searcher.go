@@ -2,14 +2,16 @@ package dealer
 
 import (
 	"context"
+	"errors"
 	"math/big"
 
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 )
 
+// Searcher interface describes method for retrieving orders on Market|DWH.
 type Searcher interface {
+	// Search returns orders matching given filter.
 	Search(context.Context, *SearchFilter) ([]*sonm.Order, error)
 }
 
@@ -17,6 +19,8 @@ type askSearcher struct {
 	market sonm.MarketClient
 }
 
+// NewAskSearcher returns `Searcher` implementation which can search
+// for matching ASK orders for given BIDs.
 func NewAskSearcher(market sonm.MarketClient) Searcher {
 	return &askSearcher{
 		market: market,
@@ -80,7 +84,7 @@ func (s *askSearcher) filterByAllowance(orders []*sonm.Order, allowance *big.Int
 func (s *askSearcher) Search(ctx context.Context, filter *SearchFilter) ([]*sonm.Order, error) {
 	req := &sonm.GetOrdersRequest{
 		Order: filter.order,
-		Count: 100, // wow, such number, very magic
+		Count: filter.count,
 	}
 
 	// query market for orders
@@ -105,6 +109,7 @@ type SearchFilter struct {
 	order     *sonm.Order
 	balance   *big.Int
 	allowance *big.Int
+	count     uint64
 }
 
 // NewSearchFilter validates input data and constructs `SearchFilter`
@@ -125,5 +130,6 @@ func NewSearchFilter(order *sonm.Order, balance, allowance *big.Int) (*SearchFil
 		order:     order,
 		balance:   balance,
 		allowance: allowance,
+		count:     100,
 	}, nil
 }
