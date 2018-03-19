@@ -3,6 +3,7 @@ syntax = "proto3";
 import "deal.proto";
 import "insonmnia.proto";
 import "hub.proto";
+import "container.proto";
 
 package sonm;
 
@@ -19,6 +20,8 @@ service TaskManagement {
     rpc PushTask(stream Chunk) returns (stream Progress) {}
     // Start starts a task on given resource
     rpc Start(HubStartTaskRequest) returns (HubStartTaskReply) {}
+    // JoinNetwork provides network specs to join specified task
+    rpc JoinNetwork(JoinNetworkRequest) returns (NetworkSpec) {}
     // Status produces a task status by their ID
     rpc Status(TaskID) returns (TaskStatusReply) {}
     // Logs retrieves a task log (stdin/stderr) from given task
@@ -27,6 +30,11 @@ service TaskManagement {
     rpc Stop(TaskID) returns (Empty) {}
     // PullTask pulls task image back
     rpc PullTask(PullTaskRequest) returns (stream Chunk) {}
+}
+
+message JoinNetworkRequest {
+    TaskID taskID = 1;
+    string NetworkID = 2;
 }
 
 message TaskListRequest {

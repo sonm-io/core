@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"errors"
 	"net"
 	"os"
 	"syscall"
@@ -55,6 +56,14 @@ func NewL2TPTuner(ctx context.Context, cfg *L2TPConfig) (*L2TPTuner, error) {
 	}
 
 	return tuner, nil
+}
+
+func (t *L2TPTuner) GenerateInvitation(ID string) (structs.Network, error) {
+	return nil, errors.New("not supported")
+}
+
+func (t *L2TPTuner) Tuned(ID string) bool {
+	return false
 }
 
 func (t *L2TPTuner) Run(ctx context.Context) error {

@@ -175,6 +175,37 @@ var taskStatusCmd = &cobra.Command{
 	},
 }
 
+var taskJoinNetworkCmd = &cobra.Command{
+	Use:   "join <hub_addr> <task_id> <network_id>",
+	Short: "Provide network specs for joining to specified task's specific network",
+	Args:  cobra.MinimumNArgs(3),
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx := context.Background()
+		node, err := newTaskClient(ctx)
+		if err != nil {
+			showError(cmd, "Cannot connect to Node", err)
+			os.Exit(1)
+		}
+
+		hubAddr := args[0]
+		taskID := args[1]
+		netID := args[2]
+		spec, err := node.JoinNetwork(ctx, &pb.JoinNetworkRequest{
+			TaskID: &pb.TaskID{
+				Id:      taskID,
+				HubAddr: hubAddr,
+			},
+			NetworkID: netID,
+		})
+		if err != nil {
+			showError(cmd, "Cannot get task status", err)
+			os.Exit(1)
+		}
+
+		printNetworkSpec(cmd, spec)
+	},
+}
+
 var taskLogsCmd = &cobra.Command{
 	Use:   "logs <hub_addr> <task_id>",
 	Short: "Retrieve task logs",

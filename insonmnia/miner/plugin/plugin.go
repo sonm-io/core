@@ -259,6 +259,15 @@ func (r *Repository) TuneNetworks(provider NetworkProvider, hostCfg *container.H
 	return &cleanup, nil
 }
 
+func (r *Repository) JoinNetwork(ID string) (structs.Network, error) {
+	for _, net := range r.networkTuners {
+		if net.Tuned(ID) {
+			return net.GenerateInvitation(ID)
+		}
+	}
+	return nil, fmt.Errorf("no such network %s", ID)
+}
+
 func (r *Repository) Close() error {
 	errs := make([]error, 0)
 	for ty, vol := range r.volumes {

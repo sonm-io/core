@@ -25,6 +25,7 @@ service Hub {
     rpc PullTask(PullTaskRequest) returns (stream Chunk) {}
     // StartTask schedules the task associcated with a deal on some miner.
     rpc StartTask(HubStartTaskRequest) returns (HubStartTaskReply) {}
+    rpc JoinNetwork(HubJoinNetworkRequest) returns (NetworkSpec) {}
     rpc StopTask(ID) returns (Empty) {}
 
     rpc TaskStatus(ID) returns (TaskStatusReply) {}
@@ -94,10 +95,16 @@ message HubStartTaskRequest {
     Container container = 2;
 }
 
+message HubJoinNetworkRequest {
+    string taskID = 1;
+    string networkID = 2;
+}
+
 message HubStartTaskReply {
     string id = 1;
     repeated string endpoint = 2;
     string hubAddr = 3;
+    repeated string networkIDs = 4;
 }
 
 message HubStatusReply {

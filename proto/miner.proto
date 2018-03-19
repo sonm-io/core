@@ -18,6 +18,8 @@ service Miner {
     rpc Start(MinerStartRequest) returns (MinerStartReply) {}
     rpc Stop(ID) returns (Empty) {}
 
+    rpc JoinNetwork(ID) returns (NetworkSpec) {}
+
     rpc TasksStatus(stream MinerStatusMapRequest) returns (stream StatusMapReply) {}
     rpc TaskDetails(ID) returns (TaskStatusReply) {}
 
@@ -51,6 +53,7 @@ message MinerStartReply {
     string container = 1;
     // PortMap represent port mapping between container network and host ones.
     map<string, Endpoints> portMap = 2;
+    repeated string networkIDs = 3;
 }
 
 message TaskInfo {
