@@ -33,3 +33,7 @@ func NewEndpoint(endpoint string) (*Endpoint, error) {
 		Endpoint:   hostPort,
 	}, nil
 }
+
+func (m Endpoint) String() string {
+	return fmt.Sprintf("%s:%s", m.EthAddress.Hex(), m.Endpoint)
+}

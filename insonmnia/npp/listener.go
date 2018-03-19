@@ -113,6 +113,7 @@ func (m *Listener) Accept() (net.Conn, error) {
 		m.log.Debug("constructing new puncher")
 		puncher, err := m.puncherNew()
 		if err != nil {
+			m.log.Error("failed to construct a puncher", zap.Error(err))
 			return nil, TransportError{err}
 		}
 
