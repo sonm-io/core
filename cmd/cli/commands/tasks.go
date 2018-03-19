@@ -50,18 +50,23 @@ var taskListCmd = &cobra.Command{
 	Use:   "list [hub_addr]",
 	Short: "Show active tasks",
 	Run: func(cmd *cobra.Command, args []string) {
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
 		}
 
-		var hubAddr string
+		var hubID string
 		if len(args) > 0 {
-			hubAddr = args[0]
+			hubID = args[0]
 		}
 
-		list, err := node.List(hubAddr)
+		req := &pb.TaskListRequest{
+			HubID: hubID,
+		}
+
+		list, err := node.List(ctx, req)
 		if err != nil {
 			showError(cmd, "Cannot get task list", err)
 			os.Exit(1)
@@ -77,7 +82,8 @@ var taskStartCmd = &cobra.Command{
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -130,7 +136,7 @@ var taskStartCmd = &cobra.Command{
 			},
 		}
 
-		reply, err := node.Start(req)
+		reply, err := node.Start(ctx, req)
 		if err != nil {
 			showError(cmd, "Cannot start task", err)
 			os.Exit(1)
@@ -145,7 +151,8 @@ var taskStatusCmd = &cobra.Command{
 	Short: "Show task status",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -153,7 +160,12 @@ var taskStatusCmd = &cobra.Command{
 
 		hubAddr := args[0]
 		taskID := args[1]
-		status, err := node.Status(taskID, hubAddr)
+		req := &pb.TaskID{
+			Id:      taskID,
+			HubAddr: hubAddr,
+		}
+
+		status, err := node.Status(ctx, req)
 		if err != nil {
 			showError(cmd, "Cannot get task status", err)
 			os.Exit(1)
@@ -168,7 +180,8 @@ var taskLogsCmd = &cobra.Command{
 	Short: "Retrieve task logs",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -186,7 +199,7 @@ var taskLogsCmd = &cobra.Command{
 			Details:       details,
 		}
 
-		logClient, err := node.Logs(context.Background(), req)
+		logClient, err := node.Logs(ctx, req)
 		if err != nil {
 			showError(cmd, "Cannot get task logs", err)
 			os.Exit(1)
@@ -215,7 +228,8 @@ var taskStopCmd = &cobra.Command{
 	Short: "Stop task",
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
@@ -223,7 +237,11 @@ var taskStopCmd = &cobra.Command{
 
 		hubAddr := args[0]
 		taskID := args[1]
-		_, err = node.Stop(taskID, hubAddr)
+		req := &pb.TaskID{
+			Id:      taskID,
+			HubAddr: hubAddr,
+		}
+		_, err = node.Stop(ctx, req)
 		if err != nil {
 			showError(cmd, "Cannot stop status", err)
 			os.Exit(1)
@@ -258,13 +276,19 @@ var taskPullCmd = &cobra.Command{
 
 		w := bufio.NewWriter(wr)
 
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
 		}
 
-		client, err := node.ImagePull(dealID, taskID)
+		req := &pb.PullTaskRequest{
+			DealId: dealID,
+			TaskId: taskID,
+		}
+
+		client, err := node.PullTask(ctx, req)
 		if err != nil {
 			showError(cmd, "Cannot create image pull client", err)
 			os.Exit(1)
@@ -354,18 +378,19 @@ var taskPushCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		node, err := NewTasksInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
 			os.Exit(1)
 		}
 
-		ctx := metadata.NewOutgoingContext(context.Background(), metadata.New(map[string]string{
+		ctx = metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
 			"deal": dealID,
 			"size": strconv.FormatInt(fileInfo.Size(), 10),
 		}))
 
-		client, err := node.ImagePush(ctx)
+		client, err := node.PushTask(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create push task client", err)
 			os.Exit(1)

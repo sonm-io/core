@@ -1,8 +1,10 @@
 package commands
 
 import (
+	"context"
 	"os"
 
+	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -19,13 +21,14 @@ var hubTaskListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Show task list",
 	Run: func(cmd *cobra.Command, args []string) {
-		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		hub, err := newHubManagementClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
-		list, err := hub.TaskList()
+		list, err := hub.TaskList(ctx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get task list", err)
 			os.Exit(1)
@@ -40,14 +43,15 @@ var hubTaskStatusCmd = &cobra.Command{
 	Short: "Show task status",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		taskID := args[0]
-		hub, err := NewHubInteractor(nodeAddressFlag, timeoutFlag)
+		ctx := context.Background()
+		hub, err := newHubManagementClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
-		status, err := hub.TaskStatus(taskID)
+		taskID := args[0]
+		status, err := hub.TaskStatus(ctx, &pb.ID{Id: taskID})
 		if err != nil {
 			showError(cmd, "Cannot get task status", err)
 			os.Exit(1)
