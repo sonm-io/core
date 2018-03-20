@@ -58,7 +58,6 @@ func run() {
 
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr())
 
-	log.G(ctx).Info("starting node", zap.String("socket_path", cfg.SocketPath()))
 	if err := n.Serve(); err != nil {
 		log.G(ctx).Error("node termination", zap.Error(err))
 		os.Exit(1)

@@ -9,8 +9,8 @@ import (
 
 // Config is LocalNode config
 type Config interface {
-	// SocketPath is path to socket file that Node binds to
-	SocketPath() string
+	// BindPort is port to listen for client connection at localhost
+	BindPort() uint16
 	// MarketEndpoint is Marketplace gRPC endpoint
 	MarketEndpoint() string
 	// HubEndpoint is Hub's gRPC endpoint (not required)
@@ -27,7 +27,7 @@ type Config interface {
 }
 
 type nodeConfig struct {
-	SocketPath string `yaml:"socket_path" default:"/var/run/sonm_node.sock"`
+	BindPort uint16 `yaml:"bind_port" default:"15030"`
 }
 
 type marketConfig struct {
@@ -57,8 +57,8 @@ type yamlConfig struct {
 	MetricsListenAddrConfig string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14003"`
 }
 
-func (y *yamlConfig) SocketPath() string {
-	return y.Node.SocketPath
+func (y *yamlConfig) BindPort() uint16 {
+	return y.Node.BindPort
 }
 
 func (y *yamlConfig) MarketEndpoint() string {

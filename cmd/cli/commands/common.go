@@ -49,7 +49,7 @@ var (
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "/var/run/sonm_node.sock", "node socket")
+	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "localhost:15030", "node endpoint")
 	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
 
