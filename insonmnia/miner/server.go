@@ -36,7 +36,6 @@ type Miner struct {
 
 	plugins *plugin.Repository
 
-	// Miner name for nice self-representation.
 	hardware  *hardware.Hardware
 	resources *resource.Pool
 
@@ -66,6 +65,7 @@ type Miner struct {
 	controlGroup   cGroup
 	cGroupManager  cGroupManager
 	ssh            SSH
+	state          *state
 }
 
 func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
@@ -96,6 +96,11 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	cgroup, cGroupManager, err := makeCgroupManager(cfg.HubResources())
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := NewState(o.ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +159,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		controlGroup:  cgroup,
 		cGroupManager: cGroupManager,
 		ssh:           o.ssh,
+		state:         state,
 	}
 
 	return m, nil
