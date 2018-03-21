@@ -6,19 +6,16 @@ import (
 	"fmt"
 	"net"
 	"sync"
-	"time"
 
-	"github.com/docker/go-connections/nat"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware"
+	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 )
 
 var (
@@ -39,21 +36,10 @@ type MinerCtx struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	// gRPC connection
-	grpcConn *grpc.ClientConn
-	// gRPC Client
-	Client    pb.MinerClient
-	statusMap map[string]*pb.TaskStatusReply
-	statusMu  sync.Mutex
-	// Incoming TCP-connection
-	conn net.Conn
+	miner *miner.Miner
 
 	// Miner name received after handshaking.
 	uuid string
-
-	// Traffic routing.
-
-	router Router
 
 	// Scheduling.
 
@@ -77,37 +63,23 @@ func (m *MinerCtx) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &m.usageMapping)
 }
 
-func (h *Hub) createMinerCtx(ctx context.Context, conn net.Conn) (*MinerCtx, error) {
+func createMinerCtx(ctx context.Context, miner *miner.Miner) (*MinerCtx, error) {
 	var err error
-
-	if h.creds != nil {
-		conn, err = h.tlsHandshake(ctx, conn)
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	var (
 		m = MinerCtx{
-			conn:         conn,
-			statusMap:    make(map[string]*pb.TaskStatusReply),
+			miner:        miner,
 			usageMapping: make(map[OrderID]resource.Resources),
 		}
 	)
 	m.ctx, m.cancel = context.WithCancel(ctx)
-	m.grpcConn, err = xgrpc.NewClient(ctx, "miner", nil, grpc.WithDialer(func(_ string, _ time.Duration) (net.Conn, error) {
-		return conn, nil
-	}))
 	if err != nil {
 		log.G(ctx).Error("failed to connect to Miner's grpc server", zap.Error(err))
 		m.Close()
 		return nil, err
 	}
 
-	log.G(ctx).Info("grpc.Dial successfully finished")
-	m.Client = pb.NewMinerClient(m.grpcConn)
-
-	if err := m.handshake(h); err != nil {
+	if err := m.handshake(); err != nil {
 		m.Close()
 		return nil, err
 	}
@@ -138,14 +110,11 @@ func (m *MinerCtx) ID() string {
 	return m.uuid
 }
 
-func (m *MinerCtx) handshake(h *Hub) error {
-	log.G(m.ctx).Info("sending handshake to a Miner", zap.Stringer("addr", m.conn.RemoteAddr()))
-	resp, err := m.Client.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
+func (m *MinerCtx) handshake() error {
+	log.G(m.ctx).Info("sending handshake to a Miner")
+	resp, err := m.miner.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
 	if err != nil {
-		log.G(m.ctx).Error("failed to receive handshake from a Miner",
-			zap.Any("addr", m.conn.RemoteAddr()),
-			zap.Error(err),
-		)
+		log.G(m.ctx).Error("failed to receive handshake from a Miner", zap.Error(err))
 		return err
 	}
 
@@ -166,15 +135,6 @@ func (m *MinerCtx) handshake(h *Hub) error {
 	m.capabilities = capabilities
 	m.usage = resource.NewPool(capabilities)
 
-	if m.router, err = h.newRouter(m.uuid, resp.NatType); err != nil {
-		log.G(m.ctx).Warn("failed to create router for a miner",
-			zap.String("uuid", m.uuid),
-			zap.Error(err),
-		)
-		// TODO (3Hren): Possible we should disconnect the miner instead. Need investigation.
-		m.router = newDirectRouter()
-	}
-
 	return nil
 }
 
@@ -189,66 +149,6 @@ func (h *Hub) newRouter(id string, natType pb.NATType) (Router, error) {
 	}
 
 	return nil, errors.New("miner has firewall configured, but Hub's host OS has no IPVS support")
-}
-
-func (m *MinerCtx) deregisterRoute(ID string) error {
-	return m.router.Deregister(ID)
-}
-
-func (m *MinerCtx) initStatusClient() (statusClient pb.Miner_TasksStatusClient, err error) {
-	statusClient, err = m.Client.TasksStatus(m.ctx)
-	if err != nil {
-		log.G(m.ctx).Error("failed to get status client", zap.Error(err))
-		return
-	}
-
-	err = statusClient.Send(&pb.MinerStatusMapRequest{})
-	if err != nil {
-		log.G(m.ctx).Error("failed to send tasks status request", zap.Error(err))
-		return
-	}
-	return
-}
-
-func (m *MinerCtx) pollStatuses() error {
-	statusClient, err := m.initStatusClient()
-	if err != nil {
-		return err
-	}
-
-	for {
-		statusReply, err := statusClient.Recv()
-		if err != nil {
-			log.G(m.ctx).Error("failed to receive miner status", zap.Error(err))
-			return err
-		}
-
-		m.statusMu.Lock()
-		m.statusMap = statusReply.Statuses
-		m.statusMu.Unlock()
-	}
-}
-
-func (m *MinerCtx) ping() error {
-	t := time.NewTicker(time.Second * 10)
-	defer t.Stop()
-
-	for {
-		select {
-		case <-t.C:
-			log.G(m.ctx).Info("ping the Miner", zap.Stringer("remote", m.conn.RemoteAddr()))
-			// TODO: implement retries
-			ctx, cancel := context.WithTimeout(m.ctx, time.Second*5)
-			_, err := m.Client.Ping(ctx, &pb.Empty{})
-			cancel()
-			if err != nil {
-				log.G(ctx).Error("failed to ping miner", zap.Error(err))
-				return err
-			}
-		case <-m.ctx.Done():
-			return m.ctx.Err()
-		}
-	}
 }
 
 // Consume consumes the specified resources from the miner.
@@ -358,46 +258,7 @@ func (m *MinerCtx) Orders() []OrderID {
 	return orders
 }
 
-func (m *MinerCtx) registerRoutes(ID string, routes map[string]*pb.Endpoints) []routeMapping {
-	var outRoutes []routeMapping
-
-	for natPort, endpoints := range routes {
-		port := nat.Port(natPort)
-
-		vsID := fmt.Sprintf("%s#%s", ID, natPort)
-		vs, err := m.router.Register(vsID, port.Proto())
-		if err != nil {
-			log.G(m.ctx).Warn("failed to register route", zap.Error(err))
-			continue
-		}
-
-		for _, endpoint := range endpoints.Endpoints {
-			outRoute, err := vs.AddReal(vsID, endpoint.Addr, uint16(endpoint.Port))
-			if err != nil {
-				log.G(m.ctx).Warn("failed to register route", zap.Error(err))
-				continue
-			}
-
-			outRoutes = append(outRoutes, routeMapping{
-				containerPort: port.Port(),
-				route:         outRoute,
-			})
-		}
-	}
-
-	return outRoutes
-}
-
 // Close frees all connections related to a Miner
 func (m *MinerCtx) Close() {
 	m.cancel()
-	if m.grpcConn != nil {
-		m.grpcConn.Close()
-	}
-	if m.conn != nil {
-		m.conn.Close()
-	}
-	if m.router != nil {
-		m.router.Close()
-	}
 }

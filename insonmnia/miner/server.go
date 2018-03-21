@@ -643,17 +643,21 @@ func (m *Miner) removeStatusChannel(idx int) {
 	delete(m.statusChannels, idx)
 }
 
-func (m *Miner) sendTasksStatus(server pb.Miner_TasksStatusServer) error {
-	result := &pb.StatusMapReply{Statuses: make(map[string]*pb.TaskStatusReply)}
+func (m *Miner) CollectTasksStatuses() map[string]*pb.TaskStatusReply {
+	result := map[string]*pb.TaskStatusReply{}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	for id, info := range m.containers {
-		result.Statuses[id] = info.status
+		result[id] = info.status
 	}
+	return result
+}
 
+func (m *Miner) sendTasksStatus(server pb.Miner_TasksStatusServer) error {
+	result := &pb.StatusMapReply{Statuses: make(map[string]*pb.TaskStatusReply)}
+	result.Statuses = m.CollectTasksStatuses()
 	log.G(m.ctx).Info("sending result", zap.Any("info", m.containers), zap.Any("statuses", result.Statuses))
-
 	return server.Send(result)
 }
 

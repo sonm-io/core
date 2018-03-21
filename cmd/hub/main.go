@@ -10,19 +10,23 @@ import (
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/hub"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
 
 var (
-	configFlag  string
-	versionFlag bool
-	appVersion  string
+	configFlag   string
+	workerConfig string
+	versionFlag  bool
+	appVersion   string
 )
 
 func main() {
-	cmd.NewCmd("hub", appVersion, &configFlag, &versionFlag, run).Execute()
+	c := cmd.NewCmd("hub", appVersion, &configFlag, &versionFlag, run)
+	c.PersistentFlags().StringVar(&workerConfig, "worker_config", "worker.yaml", "Path to the worker config file")
+	c.Execute()
 }
 
 func run() {
@@ -31,6 +35,11 @@ func run() {
 	cfg, err := hub.NewConfig(configFlag)
 	if err != nil {
 		fmt.Printf("failed to load config: %s\r\n", err)
+		os.Exit(1)
+	}
+	wCfg, err := miner.NewConfig(workerConfig)
+	if err != nil {
+		fmt.Printf("failed to load worker config: %s\r\n", err)
 		os.Exit(1)
 	}
 
@@ -50,8 +59,16 @@ func run() {
 	}
 	creds := util.NewTLS(TLSConfig)
 
+	opts := make([]miner.Option, 0)
+	opts = append(opts, miner.WithContext(ctx), miner.WithKey(key))
+	w, err := miner.NewMiner(wCfg, opts...)
+	if err != nil {
+		log.G(ctx).Error("cannot create worker instance", zap.Error(err))
+		os.Exit(1)
+	}
+
 	h, err := hub.New(ctx, cfg, hub.WithVersion(appVersion), hub.WithContext(ctx),
-		hub.WithPrivateKey(key), hub.WithCreds(creds), hub.WithCertRotator(certRotator))
+		hub.WithPrivateKey(key), hub.WithCreds(creds), hub.WithCertRotator(certRotator), hub.WithWorker(w))
 	if err != nil {
 		log.G(ctx).Error("failed to create a new Hub", zap.Error(err))
 		os.Exit(1)

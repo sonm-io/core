@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/insonmnia/miner"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
@@ -25,6 +26,7 @@ type options struct {
 	cluster       Cluster
 	clusterEvents <-chan ClusterEvent
 	announcer     Announcer
+	worker        *miner.Miner
 }
 
 func defaultHubOptions() *options {
@@ -95,5 +97,11 @@ func WithCluster(cl Cluster, evt <-chan ClusterEvent) Option {
 func WithAnnouncer(an Announcer) Option {
 	return func(o *options) {
 		o.announcer = an
+	}
+}
+
+func WithWorker(w *miner.Miner) Option {
+	return func(o *options) {
+		o.worker = w
 	}
 }

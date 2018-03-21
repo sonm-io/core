@@ -3,7 +3,6 @@ package network
 import (
 	"context"
 	"net"
-	"os"
 	"strings"
 
 	"github.com/docker/docker/client"
@@ -17,11 +16,6 @@ import (
 )
 
 func NewTinc(ctx context.Context, client *client.Client, config *TincNetworkConfig) (*TincNetworkDriver, *TincIPAMDriver, error) {
-	err := os.MkdirAll(config.ConfigDir, 0770)
-	if err != nil {
-		return nil, nil, err
-	}
-
 	state, err := newTincNetworkState(ctx, client, config)
 	if err != nil {
 		return nil, nil, err

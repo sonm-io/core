@@ -37,7 +37,6 @@ service Hub {
 
     // Note: currently used for testing pusposes.
     rpc GetDealInfo(ID) returns (DealInfoReply) {}
-    rpc DiscoverHub(DiscoverHubRequest) returns (Empty) {}
 
     // Device configuration API.
 
@@ -108,14 +107,15 @@ message HubStartTaskReply {
 }
 
 message HubStatusReply {
-    uint64 minerCount = 1;
+    reserved 1, 7;
+//    uint64 minerCount = 1;
     uint64 uptime = 2;
     string version = 3;
     string platform = 4;
     string ethAddr = 5;
 
     repeated string clientEndpoint = 6;
-    repeated string workerEndpoints = 7;
+//    repeated string workerEndpoints = 7;
     string announceError = 8;
 }
 
@@ -192,9 +192,9 @@ message GPUDeviceInfo {
 
 message DevicesReply {
     // CPU unique ID -> Info.
-    map<string, CPUDeviceInfo> CPUs = 1;
+    repeated CPUDevice CPUs = 1;
     // GPU unique ID -> Info.
-    map<string, GPUDeviceInfo> GPUs = 2;
+    repeated GPUDevice GPUs = 2;
 }
 
 message InsertSlotRequest {

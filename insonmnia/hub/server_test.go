@@ -7,9 +7,13 @@ import (
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
+	"github.com/shirou/gopsutil/mem"
+	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
+	"github.com/sonm-io/core/insonmnia/miner"
+	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -17,65 +21,71 @@ import (
 )
 
 func TestDevices(t *testing.T) {
-	// GPU characteristics shared between miners.
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
+	miner, err := getTestMiner(ctrl)
+	assert.NoError(t, err)
 	hub := Hub{
+		worker: miner,
 		state: &state{
-			miners: map[string]*MinerCtx{
-				"miner1": {
-					uuid: "miner1",
-					capabilities: &hardware.Hardware{
-						CPU: []cpu.Device{{CPU: 64}},
-						GPU: []*pb.GPUDevice{{}},
-					},
-				},
-				"miner2": {
-					uuid: "miner2",
-					capabilities: &hardware.Hardware{
-						CPU: []cpu.Device{{CPU: 65}},
-						GPU: []*pb.GPUDevice{{}},
-					},
-				},
+			minerCtx: &MinerCtx{
+				uuid:  "miner1",
+				miner: miner,
 			},
 		},
 	}
 
 	devices, err := hub.Devices(context.Background(), &pb.Empty{})
 	assert.NoError(t, err)
-	assert.Equal(t, len(devices.CPUs), 2)
-	assert.Equal(t, len(devices.GPUs), 1)
+	assert.Equal(t, 1, len(devices.CPUs))
 }
 
-func TestMinerDevices(t *testing.T) {
-	hub := Hub{
-		state: &state{
-			miners: map[string]*MinerCtx{
-				"miner1": {
-					uuid: "miner1",
-					capabilities: &hardware.Hardware{
-						CPU: []cpu.Device{{CPU: 64}},
-						GPU: []*pb.GPUDevice{{}},
-					},
-				},
+func defaultMinerMockCfg(mock *gomock.Controller) *miner.MockConfig {
+	cfg := miner.NewMockConfig(mock)
+	mockedwallet := util.PubKeyToAddr(getTestKey().PublicKey).Hex()
+	cfg.EXPECT().HubEndpoints().AnyTimes().Return([]string{"localhost:4242"})
+	cfg.EXPECT().HubEthAddr().AnyTimes().Return(mockedwallet)
+	cfg.EXPECT().HubResolveEndpoints().AnyTimes().Return(false)
+	cfg.EXPECT().HubResources().AnyTimes()
+	cfg.EXPECT().Firewall().AnyTimes()
+	cfg.EXPECT().SSH().AnyTimes()
+	cfg.EXPECT().ETH().AnyTimes().Return(&accounts.EthConfig{})
+	cfg.EXPECT().LocatorEndpoint().AnyTimes().Return("127.0.0.1:9090")
+	cfg.EXPECT().PublicIPs().AnyTimes().Return([]string{"192.168.70.17", "46.148.198.133"})
+	cfg.EXPECT().Plugins().AnyTimes().Return(plugin.Config{})
+	return cfg
+}
 
-				"miner2": {
-					uuid: "miner2",
-					capabilities: &hardware.Hardware{
-						CPU: []cpu.Device{{CPU: 65}},
-						GPU: []*pb.GPUDevice{{}},
-					},
-				},
-			},
-		},
-	}
+func magicHardware(ctrl *gomock.Controller) hardware.Info {
+	hw := hardware.NewMockInfo(ctrl)
 
-	devices, err := hub.MinerDevices(context.Background(), &pb.ID{Id: "miner1"})
-	assert.NoError(t, err)
-	assert.Equal(t, len(devices.CPUs), 1)
-	assert.Equal(t, len(devices.GPUs), 1)
+	c := []cpu.Device{{}}
+	g := []*pb.GPUDevice{}
+	m := &mem.VirtualMemoryStat{}
 
-	devices, err = hub.MinerDevices(context.Background(), &pb.ID{Id: "span"})
-	assert.Error(t, err)
+	h := &hardware.Hardware{CPU: c, GPU: g, Memory: m}
+	print(h)
+
+	hw.EXPECT().CPU().AnyTimes().Return(c, nil)
+	hw.EXPECT().Memory().AnyTimes().Return(m, nil)
+	hw.EXPECT().Info().AnyTimes().Return(h, nil)
+
+	return hw
+}
+
+func getTestMiner(mock *gomock.Controller) (*miner.Miner, error) {
+
+	cfg := defaultMinerMockCfg(mock)
+
+	ovs := miner.NewMockOverseer(mock)
+
+	ovs.EXPECT().Info(gomock.Any()).AnyTimes().Return(map[string]miner.ContainerMetrics{}, nil)
+	locator := pb.NewMockLocatorClient(mock)
+	hw := magicHardware(mock)
+
+	return miner.NewMiner(cfg, miner.WithKey(getTestKey()), miner.WithOverseer(ovs),
+		miner.WithUUID("deadbeef-cafe-dead-beef-cafedeadbeef"), miner.WithLocatorClient(locator), miner.WithHardware(hw))
 }
 
 var (
@@ -132,6 +142,7 @@ func buildTestHub(ctrl *gomock.Controller) (*Hub, error) {
 	market := getTestMarket(ctrl)
 	clustr := getTestCluster(ctrl)
 	config := getTestHubConfig()
+	worker, _ := getTestMiner(ctrl)
 
 	ctx := context.Background()
 
@@ -139,7 +150,7 @@ func buildTestHub(ctrl *gomock.Controller) (*Hub, error) {
 	bc.EXPECT().GetDealInfo(ctx, gomock.Any()).AnyTimes().Return(&pb.Deal{}, nil)
 
 	return New(ctx, config, WithPrivateKey(key), WithMarket(market),
-		WithCluster(clustr, nil), WithBlockchain(bc))
+		WithCluster(clustr, nil), WithBlockchain(bc), WithWorker(worker))
 }
 
 //TODO: Move this to separate test for AskPlans
