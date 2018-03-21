@@ -43,7 +43,8 @@ type Description struct {
 	DealId        string
 	CommitOnStop  bool
 
-	GPURequired bool
+	GpuRequired bool
+	GpuDevices  []gpu.GPUID
 
 	volumes map[string]*pb.Volume
 	mounts  []volume.Mount
@@ -64,11 +65,12 @@ func (d *Description) Mounts(source string) []volume.Mount {
 }
 
 func (d *Description) IsGPURequired() bool {
-	return false
+	// todo: remove boolean flag, check as len(d.GpuDevices) > 0
+	return d.GpuRequired
 }
 
 func (d *Description) GpuDeviceIDs() []gpu.GPUID {
-	return []gpu.GPUID{}
+	return d.GpuDevices
 }
 
 func (d *Description) Networks() []structs.Network {
@@ -440,7 +442,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 func (o *overseer) Start(ctx context.Context, description Description) (status chan pb.TaskStatusReply_Status, cinfo ContainerInfo, err error) {
 	// TODO: do we really need this check in that place?
 	// TODO: maybe will be better to check somewhere into the "newContainer()" method?
-	if description.GPURequired {
+	if description.GpuRequired {
 		if !o.supportGPU() {
 			err = fmt.Errorf("GPU required but not supported or disabled")
 			return
@@ -483,7 +485,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 	}
 
 	var gpuCount = 0
-	if description.GPURequired {
+	if description.GpuRequired {
 		gpuCount = -1
 	}
 

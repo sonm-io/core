@@ -16,10 +16,8 @@ import (
 )
 
 var (
-	errSlotNotExists     = errors.New("specified slot does not exist")
-	errSlotAlreadyExists = errors.New("specified slot already exists")
-	errOrderNotExists    = errors.New("specified order does not exist")
-	errForbiddenMiner    = errors.New("miner is forbidden")
+	errSlotNotExists  = errors.New("specified slot does not exist")
+	errOrderNotExists = errors.New("specified order does not exist")
 )
 
 type OrderID string
@@ -36,7 +34,6 @@ type MinerCtx struct {
 	miner *miner.Miner
 
 	// Scheduling.
-
 	mu           sync.Mutex
 	capabilities *hardware.Hardware
 	usage        *resource.Pool
@@ -58,21 +55,19 @@ func (m *MinerCtx) UnmarshalJSON(data []byte) error {
 }
 
 func createMinerCtx(ctx context.Context, miner *miner.Miner) (*MinerCtx, error) {
-	var err error
+	m := MinerCtx{
+		miner:        miner,
+		usageMapping: make(map[OrderID]resource.Resources),
+	}
 
-	var (
-		m = MinerCtx{
-			miner:        miner,
-			usageMapping: make(map[OrderID]resource.Resources),
-		}
-	)
-	m.ctx, m.cancel = context.WithCancel(ctx)
+	// run benchmarks before "handshake" because
+	// worker must fill their hardware capabilities with actual data
+	err := miner.RunBenchmarks()
 	if err != nil {
-		log.G(ctx).Error("failed to connect to Miner's grpc server", zap.Error(err))
-		m.Close()
 		return nil, err
 	}
 
+	m.ctx, m.cancel = context.WithCancel(ctx)
 	if err := m.handshake(); err != nil {
 		m.Close()
 		return nil, err
@@ -82,28 +77,11 @@ func createMinerCtx(ctx context.Context, miner *miner.Miner) (*MinerCtx, error) 
 }
 
 func (m *MinerCtx) handshake() error {
-	log.G(m.ctx).Info("sending handshake to a Miner")
-	resp, err := m.miner.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
-	if err != nil {
-		log.G(m.ctx).Error("failed to receive handshake from a Miner", zap.Error(err))
-		return err
-	}
+	hw := m.miner.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
+	log.G(m.ctx).Debug("received Miner's capabilities", zap.Any("capabilities", hw))
 
-	log.G(m.ctx).Info("received handshake from a Miner")
-
-	capabilities, err := hardware.HardwareFromProto(resp.Capabilities)
-	if err != nil {
-		log.G(m.ctx).Error("failed to decode capabilities from a Miner", zap.Error(err))
-		return err
-	}
-
-	log.G(m.ctx).Debug("received Miner's capabilities",
-		zap.String("id", resp.Miner),
-		zap.Any("capabilities", capabilities),
-	)
-
-	m.capabilities = capabilities
-	m.usage = resource.NewPool(capabilities)
+	m.capabilities = hw
+	m.usage = resource.NewPool(hw)
 
 	return nil
 }

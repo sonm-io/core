@@ -173,7 +173,13 @@ func (r *Repository) collectGPUDevices() []*sonm.GPUDevice {
 // ApplyHardwareInfo exposing info about hardware units controlled by
 // various plugins.
 func (r *Repository) ApplyHardwareInfo(hw *hardware.Hardware) {
-	hw.GPU = r.collectGPUDevices()
+	devices := r.collectGPUDevices()
+	for _, dev := range devices {
+		hw.GPU = append(hw.GPU, &hardware.GPUProperties{
+			Device:    dev,
+			Benchmark: make(map[string]*sonm.Benchmark),
+		})
+	}
 }
 
 // TuneGPU creates GPU bound required for the given provider with further

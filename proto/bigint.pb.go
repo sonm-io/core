@@ -21,7 +21,7 @@ type BigInt struct {
 func (m *BigInt) Reset()                    { *m = BigInt{} }
 func (m *BigInt) String() string            { return proto.CompactTextString(m) }
 func (*BigInt) ProtoMessage()               {}
-func (*BigInt) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
+func (*BigInt) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
 
 func (m *BigInt) GetNeg() bool {
 	if m != nil {
@@ -41,9 +41,9 @@ func init() {
 	proto.RegisterType((*BigInt)(nil), "sonm.BigInt")
 }
 
-func init() { proto.RegisterFile("bigint.proto", fileDescriptor1) }
+func init() { proto.RegisterFile("bigint.proto", fileDescriptor2) }
 
-var fileDescriptor1 = []byte{
+var fileDescriptor2 = []byte{
 	// 88 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x49, 0xca, 0x4c, 0xcf,
 	0xcc, 0x2b, 0xd1, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x29, 0xce, 0xcf, 0xcb, 0x55, 0xd2,

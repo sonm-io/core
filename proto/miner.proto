@@ -11,6 +11,7 @@ package sonm;
 service Miner {
     rpc Ping(Empty) returns (PingReply) {}
     rpc Info(Empty) returns (InfoReply) {}
+    // Handshake is deprecated.
     rpc Handshake(MinerHandshakeRequest) returns (MinerHandshakeReply) {}
 
     rpc Save(SaveRequest) returns (stream Chunk) {}
@@ -27,11 +28,13 @@ service Miner {
     rpc DiscoverHub(DiscoverHubRequest) returns (Empty) {}
 }
 
+// MinerHandshakeRequest is deprecated.
 message MinerHandshakeRequest {
     string hub = 1;
     repeated TaskInfo tasks = 2;
 }
 
+// MinerHandshakeReply is deprecated.
 message MinerHandshakeReply {
     string miner = 1;
     Capabilities capabilities = 2;

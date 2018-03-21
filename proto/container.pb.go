@@ -22,7 +22,7 @@ type NetworkSpec struct {
 func (m *NetworkSpec) Reset()                    { *m = NetworkSpec{} }
 func (m *NetworkSpec) String() string            { return proto.CompactTextString(m) }
 func (*NetworkSpec) ProtoMessage()               {}
-func (*NetworkSpec) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
+func (*NetworkSpec) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
 
 func (m *NetworkSpec) GetType() string {
 	if m != nil {
@@ -80,7 +80,7 @@ type Container struct {
 func (m *Container) Reset()                    { *m = Container{} }
 func (m *Container) String() string            { return proto.CompactTextString(m) }
 func (*Container) ProtoMessage()               {}
-func (*Container) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{1} }
+func (*Container) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{1} }
 
 func (m *Container) GetImage() string {
 	if m != nil {
@@ -150,9 +150,9 @@ func init() {
 	proto.RegisterType((*Container)(nil), "sonm.Container")
 }
 
-func init() { proto.RegisterFile("container.proto", fileDescriptor3) }
+func init() { proto.RegisterFile("container.proto", fileDescriptor4) }
 
-var fileDescriptor3 = []byte{
+var fileDescriptor4 = []byte{
 	// 374 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x52, 0x4d, 0x6b, 0xe3, 0x30,
 	0x10, 0xc5, 0x71, 0x3e, 0x9c, 0x89, 0x97, 0xdd, 0x15, 0xcb, 0x22, 0x4c, 0x29, 0xc6, 0xf4, 0x10,

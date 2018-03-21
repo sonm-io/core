@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package sonm;
 
+// NATType is deprecated.
 enum NATType {
     NONE = 0;
     BLOCKED = 1;

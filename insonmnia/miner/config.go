@@ -48,6 +48,11 @@ type DevConfig struct {
 	Insecure bool   `yaml:"insecure"`
 }
 
+type storeConfig struct {
+	Path   string `required:"true" yaml:"path" default:"/var/lib/sonm/worker.boltdb"`
+	Bucket string `required:"true" yaml:"bucket" default:"sonm"`
+}
+
 type config struct {
 	HubConfig               HubConfig           `required:"true" yaml:"hub"`
 	FirewallConfig          *FirewallConfig     `required:"false" yaml:"firewall"`
@@ -55,10 +60,10 @@ type config struct {
 	SSHConfig               *SSHConfig          `required:"false" yaml:"ssh"`
 	LoggingConfig           LoggingConfig       `yaml:"logging"`
 	LocatorConfig           *LocatorConfig      `required:"true" yaml:"locator"`
-	UUIDPathConfig          string              `required:"false" yaml:"uuid_path"`
 	PublicIPsConfig         []string            `required:"false" yaml:"public_ip_addrs"`
 	MetricsListenAddrConfig string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14001"`
 	PluginsConfig           plugin.Config       `yaml:"plugins"`
+	StoreConfig             storeConfig         `yaml:"store"`
 	DevConfig               *DevConfig          `yaml:"yes_i_want_to_use_dev-only_features"`
 }
 
@@ -94,10 +99,6 @@ func (c *config) SSH() *SSHConfig {
 	return c.SSHConfig
 }
 
-func (c *config) UUIDPath() string {
-	return c.UUIDPathConfig
-}
-
 func (c *config) ETH() *accounts.EthConfig {
 	return c.Eth
 }
@@ -116,6 +117,14 @@ func (c *config) Plugins() plugin.Config {
 
 func (c *config) Dev() *DevConfig {
 	return c.DevConfig
+}
+
+func (c *config) StorePath() string {
+	return c.StoreConfig.Path
+}
+
+func (c *config) StoreBucket() string {
+	return c.StoreConfig.Bucket
 }
 
 func (c *config) validate() error {
@@ -138,9 +147,7 @@ func (c *config) validate() error {
 func NewConfig(path string) (Config, error) {
 	cfg := &config{}
 	err := configor.Load(cfg, path)
-	if cfg.UUIDPath() == "" {
-		cfg.UUIDPathConfig = path + ".uuid"
-	}
+
 	if err != nil {
 		return nil, err
 	}
@@ -176,8 +183,10 @@ type Config interface {
 	PublicIPs() []string
 	// SSH returns settings for built-in ssh server
 	SSH() *SSHConfig
-	// Path to store Miner uuid
-	UUIDPath() string
+	// StorePath returns path to boltdb which keeps Worker's state.
+	StorePath() string
+	// StoreBucket returns boltdb data-bucket name.
+	StoreBucket() string
 	// ETH returns ethereum configuration
 	ETH() *accounts.EthConfig
 	// LocatorEndpoint returns locator endpoint.
