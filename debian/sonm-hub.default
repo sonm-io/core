@@ -1,1 +1,2 @@
 CONFIG_PATH="/etc/sonm/hub-default.yaml"
+WORKER_CONFIG_PATH="/etc/sonm/worker-default.yaml"
