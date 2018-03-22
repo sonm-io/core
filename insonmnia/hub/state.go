@@ -2,9 +2,7 @@ package hub
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
-	"math/rand"
 	"sync"
 	"time"
 
@@ -39,10 +37,9 @@ type askPlan struct {
 }
 
 type stateJSON struct {
-	Acl              *workerACLStorage           `json:"acl"`
 	Deals            map[DealID]*DealMeta        `json:"deals"`
 	Tasks            map[string]*TaskInfo        `json:"tasks"`
-	Miners           map[string]*MinerCtx        `json:"miners"`
+	Miner            *MinerCtx                   `json:"miner"`
 	Orders           map[OrderID]ReservedOrder   `json:"orders"`
 	AskPlans         map[string]*askPlan         `json:"ask_plans"`
 	DeviceProperties map[string]DeviceProperties `json:"device_properties"`
@@ -55,16 +52,15 @@ type state struct {
 	cluster Cluster
 	market  pb.MarketClient
 
-	acl              *workerACLStorage
 	deals            map[DealID]*DealMeta
 	tasks            map[string]*TaskInfo
-	miners           map[string]*MinerCtx
+	minerCtx         *MinerCtx
 	orders           map[OrderID]ReservedOrder
 	askPlans         map[string]*askPlan
 	deviceProperties map[string]DeviceProperties
 }
 
-func newState(ctx context.Context, acl *workerACLStorage, eth ETH, market pb.MarketClient, cluster Cluster) (
+func newState(ctx context.Context, eth ETH, market pb.MarketClient, cluster Cluster, minerCtx *MinerCtx) (
 	*state, error) {
 	out := &state{
 		ctx:     ctx,
@@ -72,16 +68,15 @@ func newState(ctx context.Context, acl *workerACLStorage, eth ETH, market pb.Mar
 		cluster: cluster,
 		market:  market,
 
-		acl:              acl,
 		deals:            make(map[DealID]*DealMeta),
 		tasks:            make(map[string]*TaskInfo),
-		miners:           make(map[string]*MinerCtx),
+		minerCtx:         minerCtx,
 		orders:           make(map[OrderID]ReservedOrder, 0),
 		askPlans:         make(map[string]*askPlan, 0),
 		deviceProperties: make(map[string]DeviceProperties),
 	}
 
-	if err := out.init(); err != nil {
+	if err := out.init(minerCtx); err != nil {
 		return nil, err
 	}
 
@@ -96,15 +91,10 @@ func (s *state) Dump() error {
 }
 
 func (s *state) dump() error {
-	if !s.cluster.IsLeader() {
-		return nil
-	}
-
 	sJSON := &stateJSON{
-		Acl:              s.acl,
 		Deals:            s.deals,
 		Tasks:            s.tasks,
-		Miners:           s.miners,
+		Miner:            s.minerCtx,
 		Orders:           s.orders,
 		AskPlans:         s.askPlans,
 		DeviceProperties: s.deviceProperties,
@@ -121,33 +111,22 @@ func (s *state) Load(other *stateJSON) error {
 }
 
 func (s *state) load(other *stateJSON) error {
-	s.acl = other.Acl
 	s.deals = other.Deals
 	s.tasks = other.Tasks
 	s.orders = other.Orders
 	s.askPlans = other.AskPlans
 	s.deviceProperties = other.DeviceProperties
-
-	for minerID, minerCtx := range other.Miners {
-		_, ok := s.miners[minerID]
-		if !ok {
-			continue
-		}
-
-		s.miners[minerID].usageMapping = minerCtx.usageMapping
-	}
-
+	s.minerCtx.usageMapping = other.Miner.usageMapping
 	s.restoreResourceUsage()
 
 	return nil
 }
 
-func (s *state) init() error {
+func (s *state) init(minerCtx *MinerCtx) error {
 	sJSON := &stateJSON{
-		Acl:              s.acl,
 		Deals:            make(map[DealID]*DealMeta),
 		Tasks:            make(map[string]*TaskInfo),
-		Miners:           make(map[string]*MinerCtx),
+		Miner:            minerCtx,
 		Orders:           make(map[OrderID]ReservedOrder, 0),
 		AskPlans:         make(map[string]*askPlan, 0),
 		DeviceProperties: make(map[string]DeviceProperties),
@@ -236,11 +215,6 @@ func (s *state) checkAcceptedDealsTS() error {
 // WatchDealsClosed watches ETH for closed deals.
 // Synchronized by `s.mu`.
 func (s *state) checkClosedDealsTS() error {
-	if !s.cluster.IsLeader() {
-		log.S(s.ctx).Info("not a leader, skipping checkClosedDeals()")
-		return nil
-	}
-
 	log.G(s.ctx).Debug("checking closed deals")
 	closedDeals, err := s.eth.GetClosedDeals(s.ctx)
 	if err != nil {
@@ -269,12 +243,7 @@ func (s *state) checkClosedDealsTS() error {
 			continue
 		}
 
-		miner, ok := s.getMinerByID(deal.MinerID)
-		if !ok {
-			continue
-		}
-
-		miner.Release(orderID)
+		s.minerCtx.Release(orderID)
 	}
 
 	s.mu.Unlock()
@@ -296,11 +265,6 @@ func (s *state) checkClosedDealsTS() error {
 func (s *state) checkAnnouncesTS() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	if !s.cluster.IsLeader() {
-		log.S(s.ctx).Info("not a leader, skipping checkAnnounces()")
-		return nil
-	}
 
 	log.G(s.ctx).Debug("checking announces")
 	var toUpdate = make([]string, 0)
@@ -344,28 +308,12 @@ func (s *state) checkOrdersTS() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if !s.cluster.IsLeader() {
-		log.S(s.ctx).Info("not a leader, skipping checkOrders()")
-		return nil
-	}
-
 	log.G(s.ctx).Debug("checking orders")
 	renewedOrders := make(map[OrderID]ReservedOrder, 0)
 	for orderID, orderInfo := range s.orders {
 		if orderInfo.IsExpired() {
-			miner, ok := s.getMinerByID(orderInfo.MinerID)
-			if miner != nil && ok {
-				log.G(s.ctx).Info("releasing order due to timeout",
-					zap.Stringer("orderID", orderID),
-					zap.String("minerID", orderInfo.MinerID),
-				)
-				miner.Release(orderID)
-			} else {
-				log.G(s.ctx).Warn("unable to release order from a miner: no such miner",
-					zap.Stringer("orderID", orderID),
-					zap.String("minerID", orderInfo.MinerID),
-				)
-			}
+			s.minerCtx.Release(orderID)
+			log.G(s.ctx).Info("releasing order due to timeout", zap.Stringer("orderID", orderID), zap.String("minerID", orderInfo.MinerID))
 		} else {
 			renewedOrders[orderID] = orderInfo
 		}
@@ -380,11 +328,6 @@ func (s *state) closeExpiredDealsTS() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if !s.cluster.IsLeader() {
-		log.S(s.ctx).Info("not a leader, skipping closeExpiredDeals()")
-		return
-	}
-
 	now := time.Now()
 	for dealID, dealMeta := range s.deals {
 		if now.After(dealMeta.EndTime) {
@@ -396,24 +339,6 @@ func (s *state) closeExpiredDealsTS() {
 			}
 		}
 	}
-}
-
-func (s *state) MinersCount() int {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return len(s.miners)
-}
-
-func (s *state) MinerIDs() (out []string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	for minerID := range s.miners {
-		out = append(out, minerID)
-	}
-
-	return
 }
 
 func (s *state) GetTaskInfo(dealID, taskID string) (*TaskInfo, error) {
@@ -469,57 +394,6 @@ func (s *state) popDealHistory(dealID DealID) ([]*TaskInfo, error) {
 	return tasks.Tasks, nil
 }
 
-func (s *state) GetMinerByOrder(id OrderID) (*MinerCtx, *resource.Resources, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.getMinerByOrder(id)
-}
-
-func (s *state) getMinerByOrder(id OrderID) (*MinerCtx, *resource.Resources, error) {
-	for _, miner := range s.miners {
-		for _, order := range miner.Orders() {
-			if order == id {
-				usage, err := miner.OrderUsage(id)
-				if err != nil {
-					return nil, nil, err
-				}
-				return miner, &usage, nil
-			}
-		}
-	}
-
-	return nil, nil, ErrMinerNotFound
-}
-
-func (s *state) GetMinerByDeal(id DealID) (*MinerCtx, *resource.Resources, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	dealMeta, err := s.getDealMeta(id)
-	if err != nil {
-		log.G(s.ctx).Warn("unable to find deal meta by deal id", zap.Error(err))
-		return nil, nil, err
-	}
-
-	return s.getMinerByOrder(OrderID(dealMeta.Order.Id))
-}
-
-func (s *state) GetMinerByTask(taskID string) (*MinerCtx, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	task, ok := s.getTaskByID(taskID)
-	if !ok {
-		return nil, fmt.Errorf("could not find task by id %s", taskID)
-	}
-
-	miner, ok := s.getMinerByID(task.MinerId)
-	if !ok {
-		return nil, fmt.Errorf("could not find miner by id %s from task %s", task.MinerId, taskID)
-	}
-	return miner, nil
-}
-
 func (s *state) GetTaskList(ctx context.Context) (*pb.TaskListReply, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -527,22 +401,17 @@ func (s *state) GetTaskList(ctx context.Context) (*pb.TaskListReply, error) {
 	reply := &pb.TaskListReply{Info: map[string]*pb.TaskListReply_TaskInfo{}}
 
 	// iter over known tasks
-	for taskID, taskInfo := range s.tasks {
+	for taskID := range s.tasks {
 		info := &pb.TaskListReply_TaskInfo{Tasks: map[string]*pb.TaskStatusReply{
 			taskID: {Status: pb.TaskStatusReply_UNKNOWN},
 		}}
 
-		// get worker for this task
-		worker, ok := s.getMinerByID(taskInfo.MinerId)
-		if ok {
-			// ask worker for actual status
-			taskDetails, err := worker.Client.TaskDetails(ctx, &pb.ID{Id: taskID})
-			if err == nil {
-				info.Tasks[taskID] = taskDetails
-			}
+		taskDetails, err := s.minerCtx.miner.TaskDetails(ctx, &pb.ID{Id: taskID})
+		if err == nil {
+			info.Tasks[taskID] = taskDetails
 		}
 
-		reply.Info[taskInfo.MinerId] = info
+		reply.Info["self"] = info
 	}
 
 	return reply, nil
@@ -647,81 +516,6 @@ func (s *state) isTaskFinished(taskID string) bool {
 	return !ok
 }
 
-func (s *state) GetRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.getRandomMinerByUsage(usage)
-}
-
-func (s *state) getRandomMinerByUsage(usage *resource.Resources) (*MinerCtx, error) {
-	var (
-		rg               = rand.New(rand.NewSource(time.Now().UnixNano()))
-		id               = 0
-		result *MinerCtx = nil
-	)
-	for _, miner := range s.miners {
-		if err := miner.PollConsume(usage); err == nil {
-			id++
-			threshold := 1.0 / float64(id)
-			if rg.Float64() < threshold {
-				result = miner
-			}
-		}
-	}
-
-	if result == nil {
-		return nil, ErrMinerNotFound
-	}
-
-	return result, nil
-}
-
-func (s *state) GetDevices() (*pb.DevicesReply, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	CPUs := map[string]*pb.CPUDeviceInfo{}
-	for _, miner := range s.miners {
-		s.collectMinerCPUs(miner, CPUs)
-	}
-
-	GPUs := map[string]*pb.GPUDeviceInfo{}
-	for _, miner := range s.miners {
-		s.collectMinerGPUs(miner, GPUs)
-	}
-
-	reply := &pb.DevicesReply{
-		CPUs: CPUs,
-		GPUs: GPUs,
-	}
-
-	return reply, nil
-}
-
-func (s *state) GetMinerDevices(request *pb.ID) (*pb.DevicesReply, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	miner, ok := s.miners[request.Id]
-	if !ok {
-		return nil, ErrMinerNotFound
-	}
-
-	CPUs := map[string]*pb.CPUDeviceInfo{}
-	s.collectMinerCPUs(miner, CPUs)
-
-	GPUs := map[string]*pb.GPUDeviceInfo{}
-	s.collectMinerGPUs(miner, GPUs)
-
-	reply := &pb.DevicesReply{
-		CPUs: CPUs,
-		GPUs: GPUs,
-	}
-
-	return reply, nil
-}
-
 func (s *state) GetDeviceProperties(id string) (*pb.GetDevicePropertiesReply, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -782,92 +576,6 @@ func (s *state) RemoveSlot(ctx context.Context, planID string) error {
 	return nil
 }
 
-func (s *state) GetRegisteredWorkers() []*pb.ID {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var ids []*pb.ID
-	s.acl.Each(func(cred string) bool {
-		ids = append(ids, &pb.ID{Id: cred})
-		return true
-	})
-
-	return ids
-}
-
-func (s *state) ACLInsert(credentials string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.acl.Insert(credentials)
-}
-
-func (s *state) ACLRemove(credentials string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.acl.Remove(credentials)
-}
-
-func (s *state) ACLHas(credentials string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.acl.Has(credentials)
-}
-
-func (s *state) GetMinerByID(minerID string) (*MinerCtx, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.getMinerByID(minerID)
-}
-
-func (s *state) getMinerByID(minerID string) (*MinerCtx, bool) {
-	m, ok := s.miners[minerID]
-	return m, ok
-}
-
-func (s *state) RegisterMiner(miner *MinerCtx) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.miners[miner.uuid] = miner
-	for dealID, dealMeta := range s.deals {
-		if dealMeta.MinerID == miner.uuid {
-			log.G(s.ctx).Debug("restoring resources consumption settings",
-				zap.Stringer("dealID", dealID),
-				zap.String("minerID", dealMeta.MinerID),
-			)
-			miner.Consume(OrderID(dealMeta.Order.GetID()), &dealMeta.Usage)
-		}
-	}
-}
-
-func (s *state) DeleteMiner(minerID string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	delete(s.miners, minerID)
-}
-
-func (s *state) GetMinerStatus(minerID string) (*pb.StatusMapReply, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	minerCtx, ok := s.getMinerByID(minerID)
-	if !ok {
-		log.G(s.ctx).Error("miner not found", zap.String("miner", minerID))
-		return nil, status.Errorf(codes.NotFound, "no such miner %s", minerID)
-	}
-
-	minerCtx.statusMu.Lock()
-	reply := pb.StatusMapReply{Statuses: minerCtx.statusMap}
-	minerCtx.statusMu.Unlock()
-
-	return &reply, nil
-}
-
 func (s *state) GetTaskByID(taskID string) (*TaskInfo, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -881,27 +589,8 @@ func (s *state) getTaskByID(taskID string) (*TaskInfo, bool) {
 }
 
 func (s *state) GetTaskStatus(taskID string) (*pb.TaskStatusReply, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	task, ok := s.getTaskByID(taskID)
-	if !ok {
-		return nil, status.Errorf(codes.NotFound, "cannot get task with id \"%s\"", taskID)
-	}
-
-	minerCtx, ok := s.getMinerByID(task.MinerId)
-	if !ok {
-		return nil, status.Errorf(codes.NotFound, "no miner %s for task %s", task.MinerId, taskID)
-	}
-
 	req := &pb.ID{Id: taskID}
-	reply, err := minerCtx.Client.TaskDetails(s.ctx, req)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "no status report for task %s", taskID)
-	}
-
-	reply.MinerID = minerCtx.ID()
-	return reply, nil
+	return s.minerCtx.miner.TaskDetails(s.ctx, req)
 }
 
 func (s *state) SaveTask(dealID DealID, info *TaskInfo) error {
@@ -934,51 +623,15 @@ func (s *state) stopTask(ctx context.Context, taskID string) error {
 		return errors.New("no such task")
 	}
 
-	miner, ok := s.getMinerByID(task.MinerId)
-	if !ok {
-		return status.Errorf(codes.NotFound, "no miner with id %s", task.MinerId)
-	}
-
-	_, err := miner.Client.Stop(ctx, &pb.ID{Id: task.ID})
+	_, err := s.minerCtx.miner.Stop(ctx, &pb.ID{Id: task.ID})
 	if err != nil {
 		return status.Errorf(codes.NotFound, "failed to stop the task %s", task.ID)
 	}
 
-	miner.deregisterRoute(task.ID)
 	s.deleteTask(task.ID)
 	tasksGauge.Dec()
 
 	return nil
-}
-
-func (s *state) collectMinerCPUs(miner *MinerCtx, dst map[string]*pb.CPUDeviceInfo) {
-	for _, cpu := range miner.capabilities.CPU {
-		hash := hex.EncodeToString(cpu.Hash())
-		info, exists := dst[hash]
-		if exists {
-			info.Miners = append(info.Miners, miner.ID())
-		} else {
-			dst[hash] = &pb.CPUDeviceInfo{
-				Miners: []string{miner.ID()},
-				Device: cpu.Marshal(),
-			}
-		}
-	}
-}
-
-func (s *state) collectMinerGPUs(miner *MinerCtx, dst map[string]*pb.GPUDeviceInfo) {
-	for _, dev := range miner.capabilities.GPU {
-		hash := hex.EncodeToString(dev.Hash())
-		info, exists := dst[hash]
-		if exists {
-			info.Miners = append(info.Miners, miner.ID())
-		} else {
-			dst[hash] = &pb.GPUDeviceInfo{
-				Miners: []string{miner.ID()},
-				Device: dev,
-			}
-		}
-	}
 }
 
 func (s *state) deleteTask(taskID string) {
@@ -1004,37 +657,25 @@ func (s *state) deleteTask(taskID string) {
 func (s *state) restoreResourceUsage() {
 	log.G(s.ctx).Debug("synchronizing resource usage")
 
-	for dealID, dealInfo := range s.deals {
-		miner, ok := s.miners[dealInfo.MinerID]
-		if !ok {
-			// Either miner has died or we have some kind of synchronization
-			// error. Unfortunately we can't do anything meaningful here.
-			log.G(s.ctx).Warn("detected worker inconsistency - found deal associated with unknown worker",
-				zap.Stringer("dealID", dealID),
-				zap.String("minerID", dealInfo.MinerID),
-			)
-			continue
-		}
+	for _, dealInfo := range s.deals {
 
 		// It's okay to ignore `AlreadyConsumed` errors here.
-		miner.Consume(OrderID(dealInfo.Order.GetID()), &dealInfo.Usage)
+		s.minerCtx.Consume(OrderID(dealInfo.Order.GetID()), &dealInfo.Usage)
 	}
 
-	for _, miner := range s.miners {
-		for _, orderID := range miner.Orders() {
-			orderExists := s.orderExists(orderID)
-			for _, dealInfo := range s.deals {
-				if orderExists {
-					break
-				}
-				if orderID == OrderID(dealInfo.Order.GetID()) {
-					orderExists = true
-				}
+	for _, orderID := range s.minerCtx.Orders() {
+		orderExists := s.orderExists(orderID)
+		for _, dealInfo := range s.deals {
+			if orderExists {
+				break
 			}
+			if orderID == OrderID(dealInfo.Order.GetID()) {
+				orderExists = true
+			}
+		}
 
-			if !orderExists {
-				miner.Release(orderID)
-			}
+		if !orderExists {
+			s.minerCtx.Release(orderID)
 		}
 	}
 }
@@ -1087,9 +728,10 @@ func (s *state) hasResources(resources *structs.Resources) bool {
 		int64(resources.GetMemoryInBytes()),
 		resources.GetGPUCount(),
 	)
-	miner, err := s.getRandomMinerByUsage(&usage)
-
-	return miner != nil && err == nil
+	if err := s.minerCtx.PollConsume(&usage); err == nil {
+		return true
+	}
+	return false
 }
 
 // TODO: do we need to signal about error?

@@ -12,7 +12,6 @@ override_dh_auto_build:
 	mv target/sonmhub_linux_x86_64 target/sonmhub
 	mv target/sonmlocator_linux_x86_64 target/sonmlocator
 	mv target/sonmnode_linux_x86_64 target/sonmnode
-	mv target/sonmworker_linux_x86_64 target/sonmworker
 
 	./target/sonmcli completion bash > sonmcli.bash-completion
 

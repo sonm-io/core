@@ -20,7 +20,6 @@ ARCH := $(shell uname -m)
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 OS_ARCH := $(OS)_$(ARCH)
 
-MINER=${TARGETDIR}/sonmworker_$(OS_ARCH)
 HUB=${TARGETDIR}/sonmhub_$(OS_ARCH)
 CLI=${TARGETDIR}/sonmcli_$(OS_ARCH)
 LOCATOR=${TARGETDIR}/sonmlocator_$(OS_ARCH)
@@ -60,10 +59,6 @@ build/locator:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${LOCATOR} ${GOCMD}/locator
 
-build/miner:
-	@echo "+ $@"
-	CGO_LDFLAGS_ALLOW=${CGO_LDFLAGS_ALLOW} CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s $(LDFLAGS)" -o ${MINER} ${GOCMD}/miner
-
 build/hub:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${HUB} ${GOCMD}/hub
@@ -99,7 +94,7 @@ build/autocli:
 	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${AUTOCLI} ${GOCMD}/autocli
 
 
-build/insomnia: build/hub build/miner build/cli build/node build/rv
+build/insomnia: build/hub build/cli build/node build/rv
 
 build/aux: build/locator
 
@@ -108,7 +103,7 @@ build: build/insomnia build/aux
 install: all
 	@echo "+ $@"
 	mkdir -p ${INSTALLDIR}
-	cp ${MINER} ${HUB} ${CLI} ${LOCATOR} ${LOCAL_NODE} ${INSTALLDIR}
+	cp ${HUB} ${CLI} ${LOCATOR} ${LOCAL_NODE} ${INSTALLDIR}
 
 vet:
 	@echo "+ $@"
@@ -154,7 +149,7 @@ mock:
 		"github.com/sonm-io/core/proto" HubClient && ${SED}
 
 clean:
-	rm -f ${MINER} ${HUB} ${CLI} ${LOCATOR} ${LOCAL_NODE} ${AUTOCLI} ${RENDEZVOUS}
+	rm -f ${HUB} ${CLI} ${LOCATOR} ${LOCAL_NODE} ${AUTOCLI} ${RENDEZVOUS}
 
 deb:
 	debuild --no-lintian --preserve-env -uc -us -i -I -b

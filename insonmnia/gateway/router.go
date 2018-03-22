@@ -1,6 +1,6 @@
 // TODO: I think this is the first candidate for package decomposition. Not going to do this right now to avoid unreviewable diff.
 
-package hub
+package gateway
 
 import (
 	"github.com/sonm-io/core/insonmnia/gateway"

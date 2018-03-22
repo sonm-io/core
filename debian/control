@@ -11,15 +11,9 @@ Vcs-Browser: https://github.com/sonm-io/core
 
 Package: sonm-hub
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
+Depends: ${shlibs:Depends}, ${misc:Depends}, libopencl1
 Description: Hub daemon for SONM network
  Controls jobs distribution
-
-Package: sonm-worker
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libopencl1
-Description: Worker daemon for SONM network
- This daemon starts actual jobs
 
 Package: sonm-cli
 Architecture: any

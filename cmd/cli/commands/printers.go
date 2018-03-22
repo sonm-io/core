@@ -184,11 +184,9 @@ func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
 	}
 
 	if isSimpleFormat() {
-		cmd.Printf("Connected workers:  %d\r\n", stat.MinerCount)
 		cmd.Printf("Uptime:             %s\r\n", (time.Second * time.Duration(stat.GetUptime())).String())
 		cmd.Printf("Client endpoint:    %s (announce %s)\r\n",
 			strings.Join(stat.GetClientEndpoint(), ", "), announceMsg)
-		cmd.Printf("Worker endpoint(s): %v \r\n", strings.Join(stat.GetWorkerEndpoints(), ", "))
 		cmd.Printf("Version:            %s %s\r\n", stat.GetVersion(), stat.GetPlatform())
 		cmd.Printf("Eth address:        %s\r\n", stat.GetEthAddr())
 	} else {
@@ -209,7 +207,7 @@ func printDeviceList(cmd *cobra.Command, devices *pb.DevicesReply) {
 		if len(CPUs) > 0 {
 			cmd.Printf("CPUs:\r\n")
 			for id, cpu := range CPUs {
-				cmd.Printf(" %s: %s\r\n", id, cpu.Device.ModelName)
+				cmd.Printf(" %s: %s\r\n", id, cpu.ModelName)
 			}
 		} else {
 			cmd.Printf("No CPUs detected.\r\n")
@@ -218,7 +216,7 @@ func printDeviceList(cmd *cobra.Command, devices *pb.DevicesReply) {
 		if len(GPUs) > 0 {
 			cmd.Printf("GPUs:\r\n")
 			for id, gpu := range GPUs {
-				cmd.Printf(" %s: %s\r\n", id, gpu.Device.GetDeviceName())
+				cmd.Printf(" %s: %s\r\n", id, gpu.GetDeviceName())
 			}
 		} else {
 			cmd.Printf("No GPUs detected.\r\n")

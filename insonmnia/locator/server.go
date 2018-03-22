@@ -59,21 +59,19 @@ func (l *Locator) Announce(ctx context.Context, req *pb.AnnounceRequest) (*pb.Em
 		return nil, errors.Wrap(err, "invalid client endpoints")
 	}
 
-	workerEndpoints, err := l.filterEndpoints(ethAddr, req.WorkerEndpoints, false)
-	if err != nil {
-		return nil, errors.Wrap(err, "invalid worker endpoints")
-	}
+	//workerEndpoints, err := l.filterEndpoints(ethAddr, req.WorkerEndpoints, false)
+	//if err != nil {
+	//	return nil, errors.Wrap(err, "invalid worker endpoints")
+	//}
 
 	log.G(l.ctx).Info("handling Announce request",
 		zap.Stringer("eth", ethAddr),
 		zap.Strings("client_endpoints", clientEndpoints),
-		zap.Strings("worker_endpoints", workerEndpoints),
 	)
 
 	err = l.put(&record{
 		EthAddr:         ethAddr,
 		ClientEndpoints: clientEndpoints,
-		WorkerEndpoints: workerEndpoints,
 	})
 
 	if err != nil {

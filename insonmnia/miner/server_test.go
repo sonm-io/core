@@ -85,10 +85,8 @@ func TestServerNewFailsWhenFailedCollectResources(t *testing.T) {
 	cfg := defaultMockCfg(mock)
 	collector := hardware.NewMockInfo(mock)
 	collector.EXPECT().Info().Times(1).Return(nil, errors.New(""))
-	locator := pb.NewMockLocatorClient(mock)
 
-	m, err := NewMiner(cfg, WithKey(key), WithHardware(collector), WithLocatorClient(locator),
-		WithOverseer(ovs))
+	m, err := NewMiner(cfg, WithKey(key), WithHardware(collector), WithOverseer(ovs))
 
 	assert.Nil(t, m)
 	assert.Error(t, err)
@@ -105,10 +103,8 @@ func TestServerNewSavesResources(t *testing.T) {
 		CPU:    []cpu.Device{},
 		Memory: &mem.VirtualMemoryStat{Total: 42},
 	}, nil)
-	locator := pb.NewMockLocatorClient(mock)
 
-	m, err := NewMiner(cfg, WithKey(key), WithHardware(collector),
-		WithLocatorClient(locator), WithOverseer(ovs))
+	m, err := NewMiner(cfg, WithKey(key), WithHardware(collector), WithOverseer(ovs))
 
 	assert.NotNil(t, m)
 	require.Nil(t, err)
@@ -125,10 +121,9 @@ func TestMinerInfo(t *testing.T) {
 	info := make(map[string]ContainerMetrics)
 	info["id1"] = ContainerMetrics{mem: types.MemoryStats{Usage: 42, MaxUsage: 43}}
 	ovs.EXPECT().Info(gomock.Any()).AnyTimes().Return(info, nil)
-	locator := pb.NewMockLocatorClient(mock)
 	hw := magicHardware(mock)
 
-	m, err := NewMiner(cfg, WithKey(key), WithOverseer(ovs), WithLocatorClient(locator), WithHardware(hw))
+	m, err := NewMiner(cfg, WithKey(key), WithOverseer(ovs), WithHardware(hw))
 	t.Log(err)
 	require.NotNil(t, m)
 	require.Nil(t, err)
@@ -157,17 +152,14 @@ func TestMinerHandshake(t *testing.T) {
 		CPU:    []cpu.Device{{Cores: 2}},
 		Memory: &mem.VirtualMemoryStat{Total: 2048},
 	}, nil)
-	locator := pb.NewMockLocatorClient(mock)
 
-	m, err := NewMiner(cfg, WithKey(key), WithHardware(collector),
-		WithOverseer(ovs), WithUUID("deadbeef-cafe-dead-beef-cafedeadbeef"), WithLocatorClient(locator))
+	m, err := NewMiner(cfg, WithKey(key), WithHardware(collector), WithOverseer(ovs))
 
 	require.NotNil(t, m)
 	require.Nil(t, err)
 	reply, err := m.Handshake(context.Background(), &pb.MinerHandshakeRequest{Hub: "testHub"})
 	assert.NotNil(t, reply)
 	assert.Nil(t, err)
-	assert.Equal(t, reply.Miner, "deadbeef-cafe-dead-beef-cafedeadbeef")
 	assert.Equal(t, int32(2), reply.Capabilities.Cpu[0].Cores)
 	assert.Equal(t, uint64(2048), reply.Capabilities.Mem.Total)
 }
@@ -186,11 +178,9 @@ func TestMinerStart(t *testing.T) {
 		ID:     "deadbeef-cafe-dead-beef-cafedeadbeef",
 	}
 	ovs.EXPECT().Start(gomock.Any(), gomock.Any()).Times(1).Return(statusChan, info, nil)
-	locator := pb.NewMockLocatorClient(mock)
 	hw := magicHardware(mock)
 
-	m, err := NewMiner(cfg, WithKey(key), WithOverseer(ovs),
-		WithUUID("deadbeef-cafe-dead-beef-cafedeadbeef"), WithLocatorClient(locator), WithHardware(hw))
+	m, err := NewMiner(cfg, WithKey(key), WithOverseer(ovs), WithHardware(hw))
 
 	require.NotNil(t, m)
 	require.Nil(t, err)
