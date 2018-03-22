@@ -37,7 +37,6 @@ type askPlan struct {
 }
 
 type stateJSON struct {
-	Acl              *workerACLStorage           `json:"acl"`
 	Deals            map[DealID]*DealMeta        `json:"deals"`
 	Tasks            map[string]*TaskInfo        `json:"tasks"`
 	Miner            *MinerCtx                   `json:"miner"`

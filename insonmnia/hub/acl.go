@@ -2,7 +2,6 @@ package hub
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"reflect"
 
@@ -11,7 +10,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-	"gopkg.in/fatih/set.v0"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 )
@@ -24,79 +22,6 @@ var (
 	errNoTaskFieldFound = status.Errorf(codes.Internal, "no task `ID` field found")
 	errInvalidTaskField = status.Error(codes.Internal, "invalid task `ID` field type")
 )
-
-// workerACLStorage describes an ACL storage for workers.
-//
-// A worker connection can be accepted only and the only if its credentials
-// provided with the certificate contains in this storage.
-type workerACLStorage struct {
-	storage *set.SetNonTS
-}
-
-func newWorkerACLStorage() *workerACLStorage {
-	return &workerACLStorage{
-		storage: set.NewNonTS(),
-	}
-}
-
-func (s *workerACLStorage) MarshalJSON() ([]byte, error) {
-	if s == nil {
-		return json.Marshal(nil)
-	}
-
-	set := make([]string, 0)
-	s.storage.Each(func(item interface{}) bool {
-		set = append(set, item.(string))
-		return true
-	})
-
-	return json.Marshal(set)
-}
-
-func (s *workerACLStorage) UnmarshalJSON(data []byte) error {
-	unmarshaled := make([]string, 0)
-	if err := json.Unmarshal(data, &unmarshaled); err != nil {
-		return err
-	}
-	s.storage = set.NewNonTS()
-
-	for _, val := range unmarshaled {
-		s.storage.Add(val)
-	}
-
-	return nil
-}
-
-// Insert inserts the given worker credentials to the storage.
-func (s *workerACLStorage) Insert(credentials string) {
-	s.storage.Add(credentials)
-}
-
-// Remove removes the given worker credentials from the storage.
-// Returns true if it was actually removed.
-func (s *workerACLStorage) Remove(credentials string) bool {
-	exists := s.storage.Has(credentials)
-	if exists {
-		s.storage.Remove(credentials)
-	}
-
-	return exists
-}
-
-// Has checks whether the given worker credentials contains in the
-// storage.
-func (s *workerACLStorage) Has(credentials string) bool {
-	return s.storage.Has(credentials)
-}
-
-// Each applies the specified function to each credentials in the storage.
-// Traversal will continue until all items in the Set have been visited,
-// or if the closure returns false.
-func (s *workerACLStorage) Each(fn func(string) bool) {
-	s.storage.Each(func(credentials interface{}) bool {
-		return fn(credentials.(string))
-	})
-}
 
 // DealExtractor allows to extract deal id that is used for authorization.
 type DealExtractor func(ctx context.Context, request interface{}) (DealID, error)

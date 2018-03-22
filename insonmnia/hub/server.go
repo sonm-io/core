@@ -188,11 +188,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		defaults.announcer = a
 	}
 
-	acl := newWorkerACLStorage()
-	if defaults.creds != nil {
-		acl.Insert(defaults.ethAddr.Hex())
-	}
-
 	if len(cfg.Whitelist.PrivilegedAddresses) == 0 {
 		cfg.Whitelist.PrivilegedAddresses = append(cfg.Whitelist.PrivilegedAddresses, defaults.ethAddr.Hex())
 	}
