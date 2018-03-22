@@ -53,8 +53,12 @@ type Listener struct {
 	puncherNew func() (NATPuncher, error)
 	nppChannel chan connTuple
 
+	relayNew     func() (net.Conn, error)
+	relayChannel chan connTuple
+
 	minBackoffInterval time.Duration
 	maxBackoffInterval time.Duration
+	nppTimeout         time.Duration
 }
 
 // NewListener constructs a new NPP listener that will listen the specified
@@ -85,12 +89,17 @@ func NewListener(ctx context.Context, addr string, options ...Option) (net.Liste
 		puncherNew:      opts.puncherNew,
 		nppChannel:      make(chan connTuple, opts.nppBacklog),
 
+		relayNew:     opts.relayNew,
+		relayChannel: make(chan connTuple, opts.nppBacklog),
+
 		minBackoffInterval: 500 * time.Millisecond,
 		maxBackoffInterval: 8000 * time.Millisecond,
+		nppTimeout:         5 * time.Second,
 	}
 
 	go m.listen()
 	go m.listenPuncher(ctx)
+	go m.listenRelay(ctx)
 
 	return m, nil
 }
@@ -144,6 +153,39 @@ func (m *Listener) listenPuncher(ctx context.Context) error {
 	}
 }
 
+func (m *Listener) listenRelay(ctx context.Context) error {
+	if m.relayNew == nil {
+		return nil
+	}
+
+	timeout := m.minBackoffInterval
+
+	for {
+		timer := time.NewTimer(timeout)
+
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+
+		m.log.Debug("connecting using relay")
+
+		conn, err := m.relayNew()
+		if err != nil {
+			m.log.Warn("failed to relay", zap.Error(err))
+			if timeout < m.maxBackoffInterval {
+				timeout = 2 * timeout
+			}
+		} else {
+			timeout = m.minBackoffInterval
+		}
+
+		m.relayChannel <- newConnTuple(conn, &RelayError{err})
+	}
+}
+
 // Accept waits for and returns the next connection to the listener.
 //
 // This method will firstly check whether there are pending sockets in the
@@ -164,20 +206,28 @@ func (m *Listener) Accept() (net.Conn, error) {
 	default:
 	}
 
+	timer := time.NewTimer(m.nppTimeout)
+	defer timer.Stop()
+
 	// Otherwise block when either a new connection arrives or NPP does its job.
 	for {
 		select {
+		case <-m.ctx.Done():
+			return nil, m.ctx.Err()
 		case conn := <-m.listenerChannel:
-			m.log.Info("received acceptor peer", zap.Any("conn", conn))
+			m.log.Info("received acceptor peer", zap.Any("conn", conn), zap.Error(conn.err))
 			return conn.unwrap()
 		case conn := <-m.nppChannel:
-			m.log.Info("received NPP peer", zap.Any("conn", conn))
+			m.log.Info("received NPP peer", zap.Any("conn", conn), zap.Error(conn.err))
 			if conn.IsTransportError() {
 				m.puncher.Close()
 				m.puncher = nil
 			} else {
 				return conn.unwrap()
 			}
+		case conn := <-m.relayChannel:
+			m.log.Info("received relay peer", zap.Any("conn", conn), zap.Error(conn.err))
+			return conn.unwrap()
 		}
 	}
 }

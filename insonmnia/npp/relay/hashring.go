@@ -1,0 +1,109 @@
+// This module describes the consistent hash ring used to distribute the relay
+// load between multiple discovered servers.
+//
+// The Continuum evolution.
+// 1. [ | | | | | | | | | | | | | | | | ]
+// 2. [ | | | |x| | | | | |x| | | | |x| ]
+// 3. [ | | | |x| | |K| | |x| | | |U|x| ]
+// 4. [v| | | |x| | |K| |v|x| | |v|U|x| ]
+// 5. [v| | | | | | |K| |v| | | |v|U| | ]
+//
+// 1. Initial continuum.
+// 2. After inserting node "x".
+// 3. Discovering both key "K" and "U" results in "x".
+// 4. After inserting another node "v" discovering result of key "U" left the
+// same while discovering key "K" now results in node "v".
+// Then K needs to be rediscovered, while U doesn't.
+// 5. Removing node "x" results in "U" discovering, but it's done
+// automatically, since leaving from the group usually means that the node is
+// shutting down.
+
+package relay
+
+import (
+	"sync"
+
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/serialx/hashring"
+)
+
+type continuum struct {
+	mu        sync.RWMutex
+	continuum *hashring.HashRing
+	tracking  map[common.Address]string
+}
+
+func newContinuum() *continuum {
+	return &continuum{
+		continuum: hashring.New([]string{}),
+	}
+}
+
+// Add adds a new weighted node into the continuum, returning list of ETH
+// addresses that are need to be rescheduled.
+func (m *continuum) Add(node string, weight int) []common.Address {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.continuum = m.continuum.AddNode(node)
+
+	return m.scanTrackingChanges()
+}
+
+// Track starts tracking the given address.
+//
+// When a new node is inserted into the continuum the Add method returns the
+// list of addresses that must be rescheduled.
+func (m *continuum) Track(addr common.Address) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	node, ok := m.continuum.GetNode(addr.String())
+	if ok {
+		m.tracking[addr] = node
+	} else {
+		m.tracking[addr] = ""
+	}
+}
+
+// StopServerTracking stops tracking the given server connection described by ID.
+func (m *continuum) StopServerTracking(addr common.Address) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	delete(m.tracking, addr)
+}
+
+// Remove removes the specified node from the continuum
+func (m *continuum) Remove(node string) []common.Address {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.continuum = m.continuum.RemoveNode(node)
+
+	return m.scanTrackingChanges()
+}
+
+func (m *continuum) scanTrackingChanges() []common.Address {
+	addrs := make([]common.Address, 0)
+	tracking := make(map[common.Address]string, 0)
+
+	for addr, trackedNode := range m.tracking {
+		node, ok := m.continuum.GetNode(addr.String())
+		if ok && node != trackedNode {
+			addrs = append(addrs, addr)
+		}
+
+		tracking[addr] = node
+	}
+
+	m.tracking = tracking
+	return addrs
+}
+
+// Get returns a node that will serve the specified ETH address.
+func (m *continuum) Get(addr common.Address) (string, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.continuum.GetNode(addr.String())
+}

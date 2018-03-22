@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+import "insonmnia.proto";
+
+package sonm;
+
+enum PeerType {
+    SERVER = 0;
+    CLIENT = 1;
+    DISCOVER = 2;
+}
+
+message HandshakeRequest {
+    // PeerType describes a peer's source.
+    PeerType peerType = 1;
+    // Addr represents a common Ethereum address both peers are connecting
+    // around.
+    // In case of servers it's their own id. Must be signed. In case of
+    // clients - it's the target server id.
+    //
+    // In case of discovery requests this field has special meaning.
+    // Both client and server must discover the same relay server to be able to
+    // meet each other. At this stage there is no parameter verification.
+    // It is done in the Handshake method.
+    bytes addr = 2;
+    // Signature for ETH address.
+    // Should be empty for clients.
+    bytes sign = 3;
+    // Optional connection id.
+    // It is used when a client wants to connect to a specific server avoiding
+    // random select.
+    // Should be empty for servers.
+    string UUID = 4;
+}
+
+message DiscoverResponse {
+    // Addr represents network address in form "host:port".
+    string addr = 1;
+}
+
+message HandshakeResponse {
+    // Error describes an error number.
+    // Zero value means that there is no error.
+    int32 error = 1;
+    // Description describes an error above.
+    string description = 2;
+}
+
+service Relay {
+    rpc Cluster(Empty) returns (RelayClusterReply) {}
+}
+
+message RelayClusterReply {
+    repeated string members = 1;
+}
