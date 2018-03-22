@@ -80,10 +80,9 @@ func getTestMiner(mock *gomock.Controller) (*miner.Miner, error) {
 	ovs := miner.NewMockOverseer(mock)
 
 	ovs.EXPECT().Info(gomock.Any()).AnyTimes().Return(map[string]miner.ContainerMetrics{}, nil)
-	locator := pb.NewMockLocatorClient(mock)
 	hw := magicHardware(mock)
 
-	return miner.NewMiner(cfg, miner.WithKey(getTestKey()), miner.WithOverseer(ovs), miner.WithLocatorClient(locator), miner.WithHardware(hw))
+	return miner.NewMiner(cfg, miner.WithKey(getTestKey()), miner.WithOverseer(ovs), miner.WithHardware(hw))
 }
 
 var (

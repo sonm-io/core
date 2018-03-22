@@ -34,7 +34,6 @@ import (
 )
 
 var (
-	ErrMinerNotFound  = status.Errorf(codes.NotFound, "miner not found")
 	errDealNotFound   = status.Errorf(codes.NotFound, "deal not found")
 	errImageForbidden = status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
 

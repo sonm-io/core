@@ -2,29 +2,23 @@ package miner
 
 import (
 	"crypto/ecdsa"
-	"net"
 
 	"github.com/ccding/go-stun/stun"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/hardware"
-	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
 )
 
 type options struct {
-	ctx           context.Context
-	hardware      hardware.Info
-	nat           stun.NATType
-	ovs           Overseer
-	uuid          string
-	ssh           SSH
-	key           *ecdsa.PrivateKey
-	publicIPs     []string
-	locatorClient pb.LocatorClient
-	listener      net.Listener
-	insecure      bool
+	ctx       context.Context
+	hardware  hardware.Info
+	nat       stun.NATType
+	ovs       Overseer
+	ssh       SSH
+	key       *ecdsa.PrivateKey
+	publicIPs []string
 }
 
 func (o *options) setupNetworkOptions(cfg Config) error {
@@ -102,12 +96,6 @@ func WithOverseer(ovs Overseer) Option {
 	}
 }
 
-func WithUUID(uuid string) Option {
-	return func(opts *options) {
-		opts.uuid = uuid
-	}
-}
-
 func WithSSH(ssh SSH) Option {
 	return func(opts *options) {
 		opts.ssh = ssh
@@ -117,24 +105,6 @@ func WithSSH(ssh SSH) Option {
 func WithKey(key *ecdsa.PrivateKey) Option {
 	return func(opts *options) {
 		opts.key = key
-	}
-}
-
-func WithLocatorClient(locatorClient pb.LocatorClient) Option {
-	return func(opts *options) {
-		opts.locatorClient = locatorClient
-	}
-}
-
-func WithListener(listener net.Listener) Option {
-	return func(opts *options) {
-		opts.listener = listener
-	}
-}
-
-func WithInsecure(val bool) Option {
-	return func(opts *options) {
-		opts.insecure = val
 	}
 }
 
