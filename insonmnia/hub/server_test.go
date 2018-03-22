@@ -30,7 +30,6 @@ func TestDevices(t *testing.T) {
 		worker: miner,
 		state: &state{
 			minerCtx: &MinerCtx{
-				uuid:  "miner1",
 				miner: miner,
 			},
 		},
@@ -84,8 +83,7 @@ func getTestMiner(mock *gomock.Controller) (*miner.Miner, error) {
 	locator := pb.NewMockLocatorClient(mock)
 	hw := magicHardware(mock)
 
-	return miner.NewMiner(cfg, miner.WithKey(getTestKey()), miner.WithOverseer(ovs),
-		miner.WithUUID("deadbeef-cafe-dead-beef-cafedeadbeef"), miner.WithLocatorClient(locator), miner.WithHardware(hw))
+	return miner.NewMiner(cfg, miner.WithKey(getTestKey()), miner.WithOverseer(ovs), miner.WithLocatorClient(locator), miner.WithHardware(hw))
 }
 
 var (

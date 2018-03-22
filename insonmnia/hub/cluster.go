@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
-	"strings"
 	"sync"
 
 	"github.com/docker/libkv"
@@ -169,9 +168,4 @@ func makeStore(ctx context.Context, cfg *ClusterConfig) (store.Store, error) {
 	config.Bucket = cfg.Store.Bucket
 
 	return libkv.NewStore(backend, endpts, &config)
-}
-
-func fetchNameFromPath(key string) string {
-	parts := strings.Split(key, "/")
-	return parts[len(parts)-1]
 }

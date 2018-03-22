@@ -35,9 +35,6 @@ type MinerCtx struct {
 
 	miner *miner.Miner
 
-	// Miner name received after handshaking.
-	uuid string
-
 	// Scheduling.
 
 	mu           sync.Mutex
@@ -84,11 +81,6 @@ func createMinerCtx(ctx context.Context, miner *miner.Miner) (*MinerCtx, error) 
 	return &m, nil
 }
 
-// ID returns the miner id.
-func (m *MinerCtx) ID() string {
-	return m.uuid
-}
-
 func (m *MinerCtx) handshake() error {
 	log.G(m.ctx).Info("sending handshake to a Miner")
 	resp, err := m.miner.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
@@ -110,7 +102,6 @@ func (m *MinerCtx) handshake() error {
 		zap.Any("capabilities", capabilities),
 	)
 
-	m.uuid = resp.Miner
 	m.capabilities = capabilities
 	m.usage = resource.NewPool(capabilities)
 

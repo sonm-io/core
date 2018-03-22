@@ -16,10 +16,6 @@ type LoggingConfig struct {
 	parsedLevel zapcore.Level
 }
 
-type GatewayConfig struct {
-	Ports []uint16 `required:"true" yaml:"ports"`
-}
-
 type LocatorConfig struct {
 	Endpoint     string        `yaml:"endpoint" required:"true"`
 	UpdatePeriod time.Duration `yaml:"update_period" required:"true" default:"10s"`
@@ -53,7 +49,6 @@ type WhitelistConfig struct {
 type Config struct {
 	Endpoint          string `required:"true" yaml:"endpoint"`
 	AnnounceEndpoint  string
-	GatewayConfig     *GatewayConfig     `yaml:"gateway"`
 	Logging           LoggingConfig      `yaml:"logging"`
 	Eth               accounts.EthConfig `yaml:"ethereum"`
 	Locator           LocatorConfig      `yaml:"locator"`
