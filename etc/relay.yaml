@@ -1,0 +1,51 @@
+# Endpoint of the Relay server.
+#
+# Note that for the entire cluster it is meant that all of them will listen
+# the same port.
+endpoint: "127.0.0.1:12240"
+
+# Cluster settings.
+cluster:
+  # The name of this node. This must be unique in the cluster.
+  #
+  # Optional. If not configured the relay will select the name based on
+  # this host's name.
+#  name: sonm-0000-0001
+
+  # Endpoint related to what address to bind to and ports to listen on.
+  #
+  # The port is used for both UDP and TCP gossip. It is assumed other nodes
+  # are running on this port, but they do not need to.
+  # Optional.
+  endpoint: "127.0.0.1:7946"
+
+  # Endpoint related to what address to advertise to other cluster members.
+  #
+  # Used for nat traversal.
+  # Optional.
+#  announce: 138.68.189.138:7946
+
+  # SecretKey is used to initialize the primary encryption key in a keyring.
+  #
+  # The primary encryption key is the only key used to encrypt messages and
+  # the first key used while attempting to decrypt messages. Providing a
+  # value for this primary key will enable message-level encryption and
+  # verification, and automatically install the key onto the keyring.
+  # The value should be either 16, 24, or 32 bytes to select AES-128,
+  # AES-192, or AES-256.
+  # Optional. If not configured the encryption/decryption is disabled.
+  secret_key: 514c43455834324a3436345a595031394c594c48343056525543514d4530514b
+
+  # The list of IP addresses of members of this cluster to be able to join.
+  # Can be empty.
+  members:
+    - 127.0.0.1
+
+# GRPC server for monitoring.
+monitoring:
+  endpoint: "[::1]:12241"
+
+logging:
+  # The desired logging level.
+  # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
+  level: debug

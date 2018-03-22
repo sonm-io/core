@@ -26,6 +26,7 @@ LOCATOR=${TARGETDIR}/sonmlocator_$(OS_ARCH)
 LOCAL_NODE=${TARGETDIR}/sonmnode_$(OS_ARCH)
 AUTOCLI=${TARGETDIR}/autocli_$(OS_ARCH)
 RENDEZVOUS=${TARGETDIR}/sonmrendezvous_$(OS_ARCH)
+RELAY=${TARGETDIR}/sonmrelay_$(OS_ARCH)
 LSGPU=${TARGETDIR}/lsgpu_$(OS_ARCH)
 
 TAGS=nocgo
@@ -69,6 +70,10 @@ build/rv:
 
 build/rendezvous: build/rv
 
+build/relay:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -o ${RELAY} ${GOCMD}/relay
+
 build/cli:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${CLI} ${GOCMD}/cli
@@ -96,7 +101,7 @@ build/autocli:
 
 build/insomnia: build/hub build/cli build/node build/rv
 
-build/aux: build/locator
+build/aux: build/locator build/relay
 
 build: build/insomnia build/aux
 

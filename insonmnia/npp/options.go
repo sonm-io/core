@@ -2,9 +2,12 @@ package npp
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"fmt"
+	"net"
 
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials"
 )
@@ -18,6 +21,7 @@ type options struct {
 	puncher    NATPuncher
 	puncherNew func() (NATPuncher, error)
 	nppBacklog int
+	relayNew   func() (net.Conn, error)
 }
 
 func newOptions(ctx context.Context) *options {
@@ -64,6 +68,32 @@ func WithLogger(log *zap.Logger) Option {
 func WithNPPBacklog(backlog int) Option {
 	return func(o *options) error {
 		o.nppBacklog = backlog
+		return nil
+	}
+}
+
+// WithRelay is an option that specifies Relay client settings.
+//
+// Without this option no intermediate server will be used for relaying
+// TCP.
+func WithRelay(addrs []net.Addr, key *ecdsa.PrivateKey) Option {
+	return func(o *options) error {
+		signedAddr, err := relay.NewSignedAddr(key)
+		if err != nil {
+			return err
+		}
+
+		o.relayNew = func() (net.Conn, error) {
+			for _, addr := range addrs {
+				conn, err := relay.Listen(addr, signedAddr)
+				if err == nil {
+					return conn, nil
+				}
+			}
+
+			return nil, fmt.Errorf("failed to connect to %+v", addrs)
+		}
+
 		return nil
 	}
 }

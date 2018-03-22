@@ -18,6 +18,7 @@ It is generated from these files:
 	nat.proto
 	net.proto
 	node.proto
+	relay.proto
 	rendezvous.proto
 	timestamp.proto
 	volume.proto
@@ -97,6 +98,10 @@ It has these top-level messages:
 	DealListRequest
 	DealListReply
 	DealStatusReply
+	HandshakeRequest
+	DiscoverResponse
+	HandshakeResponse
+	RelayClusterReply
 	ConnectRequest
 	PublishRequest
 	RendezvousReply
