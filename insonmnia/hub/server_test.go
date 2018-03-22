@@ -53,6 +53,7 @@ func defaultMinerMockCfg(mock *gomock.Controller) *miner.MockConfig {
 	cfg.EXPECT().LocatorEndpoint().AnyTimes().Return("127.0.0.1:9090")
 	cfg.EXPECT().PublicIPs().AnyTimes().Return([]string{"192.168.70.17", "46.148.198.133"})
 	cfg.EXPECT().Plugins().AnyTimes().Return(plugin.Config{})
+	cfg.EXPECT().Store().AnyTimes().Return("/tmp/sonm/worker.boltdb")
 	return cfg
 }
 
@@ -74,9 +75,7 @@ func magicHardware(ctrl *gomock.Controller) hardware.Info {
 }
 
 func getTestMiner(mock *gomock.Controller) (*miner.Miner, error) {
-
 	cfg := defaultMinerMockCfg(mock)
-
 	ovs := miner.NewMockOverseer(mock)
 
 	ovs.EXPECT().Info(gomock.Any()).AnyTimes().Return(map[string]miner.ContainerMetrics{}, nil)

@@ -58,6 +58,7 @@ func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg.EXPECT().LocatorEndpoint().AnyTimes().Return("127.0.0.1:9090")
 	cfg.EXPECT().PublicIPs().AnyTimes().Return([]string{"192.168.70.17", "46.148.198.133"})
 	cfg.EXPECT().Plugins().AnyTimes().Return(plugin.Config{})
+	cfg.EXPECT().Store().AnyTimes().Return("/tmp/sonm/worker_test.boltdb")
 	return cfg
 }
 
@@ -154,7 +155,6 @@ func TestMinerHandshake(t *testing.T) {
 	}, nil)
 
 	m, err := NewMiner(cfg, WithKey(key), WithHardware(collector), WithOverseer(ovs))
-
 	require.NotNil(t, m)
 	require.Nil(t, err)
 	reply, err := m.Handshake(context.Background(), &pb.MinerHandshakeRequest{Hub: "testHub"})
