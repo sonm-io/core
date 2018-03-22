@@ -28,8 +28,6 @@ func TestLoadConfig(t *testing.T) {
 ethereum:
   private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
-cluster:
-  endpoint: ":10001"
 locator:
   endpoint: "127.0.0.1:9090"
 market:
@@ -45,7 +43,6 @@ logging:
 	assert.Nil(t, err)
 
 	assert.Equal(t, ":10002", conf.Endpoint)
-	assert.Equal(t, ":10001", conf.Cluster.Endpoint)
 }
 
 func TestLoadInvalidConfig(t *testing.T) {
@@ -150,28 +147,4 @@ locator:
 	conf, err := NewConfig(testHubConfigPath)
 	assert.NoError(t, err)
 	assert.Equal(t, time.Second*5, conf.Locator.UpdatePeriod)
-}
-
-func TestGetEndpoints(t *testing.T) {
-	assert := assert.New(t)
-	var fixtures = []struct {
-		WorkerEndpoint  string
-		ClusterEndpoint string
-		ExpectError     bool
-	}{
-		{WorkerEndpoint: ":10002", ClusterEndpoint: ":10001", ExpectError: false},
-		{WorkerEndpoint: ":10002", ClusterEndpoint: "0.0.0.0:10001", ExpectError: false},
-		{WorkerEndpoint: ":10002", ClusterEndpoint: "aaaa:50000", ExpectError: true},
-	}
-
-	for _, fixture := range fixtures {
-		clientEndpoints, _, err := getEndpoints(
-			&ClusterConfig{Endpoint: fixture.ClusterEndpoint}, fixture.WorkerEndpoint)
-		if fixture.ExpectError {
-			assert.NotNil(err)
-		} else {
-			assert.NoError(err)
-			assert.NotEmpty(clientEndpoints)
-		}
-	}
 }

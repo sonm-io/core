@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"net"
-	"reflect"
 	"time"
 
 	"github.com/docker/distribution/reference"
@@ -76,20 +75,18 @@ type DeviceProperties map[string]float64
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
 	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
-	cfg              *Config
-	ctx              context.Context
-	cancel           context.CancelFunc
-	grpcEndpointAddr string
-	externalGrpc     *grpc.Server
+	cfg          *Config
+	ctx          context.Context
+	cancel       context.CancelFunc
+	externalGrpc *grpc.Server
 
 	grpcListener net.Listener
 
 	ethKey  *ecdsa.PrivateKey
 	ethAddr common.Address
 
-	announcer     Announcer
-	cluster       Cluster
-	clusterEvents <-chan ClusterEvent
+	announcer Announcer
+	cluster   Cluster
 
 	// TODO: rediscover jobs if Miner disconnected.
 	// TODO: store this data in some Storage interface.
@@ -142,13 +139,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		}
 	}()
 
-	ip := cfg.EndpointIP()
-	clientPort, err := util.ParseEndpointPort(cfg.Cluster.Endpoint)
-	if err != nil {
-		return nil, errors.Wrap(err, "error during parsing client endpoint")
-	}
-	grpcEndpointAddr := ip + ":" + clientPort
-
 	if defaults.bcr == nil {
 		defaults.bcr, err = blockchain.NewAPI(nil, nil)
 		if err != nil {
@@ -180,18 +170,22 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 	}
 
 	if defaults.cluster == nil {
-		defaults.cluster, defaults.clusterEvents, err = NewCluster(ctx, &cfg.Cluster, cfg.Endpoint, defaults.creds)
+		defaults.cluster, err = NewCluster(ctx, &cfg.Cluster, defaults.creds)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	if defaults.announcer == nil {
-		defaults.announcer = newLocatorAnnouncer(
+		a, err := newLocatorAnnouncer(
 			defaults.ethKey,
 			defaults.locator,
 			cfg.Locator.UpdatePeriod,
-			defaults.cluster)
+			cfg)
+		if err != nil {
+			return nil, err
+		}
+		defaults.announcer = a
 	}
 
 	acl := newWorkerACLStorage()
@@ -215,11 +209,10 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 	}
 
 	h := &Hub{
-		cfg:              cfg,
-		ctx:              ctx,
-		cancel:           cancel,
-		externalGrpc:     nil,
-		grpcEndpointAddr: grpcEndpointAddr,
+		cfg:          cfg,
+		ctx:          ctx,
+		cancel:       cancel,
+		externalGrpc: nil,
 
 		ethKey:  defaults.ethKey,
 		ethAddr: defaults.ethAddr,
@@ -231,9 +224,8 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		certRotator: defaults.rot,
 		creds:       defaults.creds,
 
-		announcer:     defaults.announcer,
-		cluster:       defaults.cluster,
-		clusterEvents: defaults.clusterEvents,
+		announcer: defaults.announcer,
+		cluster:   defaults.cluster,
 
 		whitelist: wl,
 
@@ -295,9 +287,9 @@ func (h *Hub) Serve() error {
 		return err
 	}
 
-	grpcL, err := npp.NewListener(h.ctx, h.cfg.Cluster.Endpoint, npp.WithRendezvous(rendezvousEndpoints, h.creds), npp.WithLogger(log.G(h.ctx)))
+	grpcL, err := npp.NewListener(h.ctx, h.cfg.Endpoint, npp.WithRendezvous(rendezvousEndpoints, h.creds), npp.WithLogger(log.G(h.ctx)))
 	if err != nil {
-		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Cluster.Endpoint), zap.Error(err))
+		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Endpoint), zap.Error(err))
 		return err
 	}
 	log.G(h.ctx).Info("listening for gRPC API connections", zap.Stringer("address", grpcL.Addr()))
@@ -309,8 +301,6 @@ func (h *Hub) Serve() error {
 		return h.state.RunMonitoring(h.ctx)
 	})
 
-	h.waiter.Go(h.runCluster)
-	h.waiter.Go(h.listenClusterEvents)
 	h.waiter.Go(h.startLocatorAnnouncer)
 
 	h.waiter.Wait()
@@ -325,23 +315,15 @@ func (h *Hub) Ping(ctx context.Context, _ *pb.Empty) (*pb.PingReply, error) {
 
 // Status returns internal hub statistic
 func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, error) {
-	clients, _, err := collectEndpoints(h.cluster)
-	if err != nil {
-		log.G(h.ctx).Warn("cannot collect cluster endpoints", zap.Error(err))
-		return nil, err
+	uptime := uint64(time.Now().Sub(h.startTime).Seconds())
+	reply := &pb.HubStatusReply{
+		Uptime:         uptime,
+		Platform:       util.GetPlatformName(),
+		Version:        h.version,
+		EthAddr:        util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
+		ClientEndpoint: h.announcer.Endpoints(),
+		AnnounceError:  h.announcer.ErrorMsg(),
 	}
-
-	var (
-		uptime = uint64(time.Now().Sub(h.startTime).Seconds())
-		reply  = &pb.HubStatusReply{
-			Uptime:         uptime,
-			Platform:       util.GetPlatformName(),
-			Version:        h.version,
-			EthAddr:        util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
-			ClientEndpoint: clients,
-			AnnounceError:  h.announcer.ErrorMsg(),
-		}
-	)
 
 	return reply, nil
 }
@@ -881,59 +863,6 @@ func (h *Hub) listenAPI() error {
 	}
 }
 
-func (h *Hub) runCluster() error {
-	for {
-		err := h.cluster.Run()
-		log.G(h.ctx).Warn("cluster failure, retrying after 10 seconds", zap.Error(err))
-
-		t := time.NewTimer(time.Second * 10)
-		select {
-		case <-h.ctx.Done():
-			t.Stop()
-			return nil
-		case <-t.C:
-			t.Stop()
-		}
-	}
-}
-
-func (h *Hub) listenClusterEvents() error {
-	for {
-		select {
-		case event := <-h.clusterEvents:
-			h.processClusterEvent(event)
-		case <-h.ctx.Done():
-			return nil
-		}
-	}
-}
-
-func (h *Hub) processClusterEvent(value interface{}) {
-	log.G(h.ctx).Info("received cluster event", zap.Any("event", value))
-	switch value := value.(type) {
-	case NewMemberEvent:
-		h.announcer.Once(h.ctx)
-	case LeadershipEvent:
-		h.announcer.Once(h.ctx)
-	default:
-		if h.cluster.IsLeader() {
-			return
-		}
-
-		switch value := value.(type) {
-		case stateJSON:
-			log.G(h.ctx).Debug("received state", zap.Any("state", value))
-			if err := h.state.Load(&value); err != nil {
-				log.G(h.ctx).Error("failed to load state", zap.Any("state", value), zap.Error(err))
-			}
-		default:
-			log.G(h.ctx).Warn("received unknown cluster event",
-				zap.Any("event", value),
-				zap.String("type", reflect.TypeOf(value).String()))
-		}
-	}
-}
-
 // Close disposes all resources attached to the Hub
 func (h *Hub) Close() {
 	h.cancel()
@@ -947,20 +876,4 @@ func (h *Hub) Close() {
 func (h *Hub) startLocatorAnnouncer() error {
 	h.announcer.Start(h.ctx)
 	return nil
-}
-
-func collectEndpoints(cluster Cluster) ([]string, []string, error) {
-	members, err := cluster.Members()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	var clients []string
-	var workers []string
-	for _, member := range members {
-		clients = append(clients, member.Client...)
-		workers = append(workers, member.Worker...)
-	}
-
-	return clients, workers, nil
 }

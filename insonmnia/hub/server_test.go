@@ -122,9 +122,7 @@ func getTestHubConfig() *Config {
 	return &Config{
 		Endpoint: "127.0.0.1:10002",
 		Cluster: ClusterConfig{
-			Endpoint: "127.0.0.1:10001",
-			Failover: false,
-			Store:    StoreConfig{Type: "boltdb", Endpoint: "tmp/sonm/boltdb", Bucket: "sonm"},
+			Store: StoreConfig{Type: "boltdb", Endpoint: "tmp/sonm/boltdb", Bucket: "sonm"},
 		},
 		Whitelist: WhitelistConfig{Enabled: new(bool)},
 	}
@@ -134,7 +132,6 @@ func getTestCluster(ctrl *gomock.Controller) Cluster {
 	cl := NewMockCluster(ctrl)
 	cl.EXPECT().Synchronize(gomock.Any()).AnyTimes().Return(nil)
 	cl.EXPECT().RegisterAndLoadEntity(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-	cl.EXPECT().IsLeader().AnyTimes().Return(true)
 	return cl
 }
 

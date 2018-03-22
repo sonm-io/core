@@ -133,25 +133,19 @@ func TestLocator_AnnounceExternal(t *testing.T) {
 	locatorClient := pb.NewLocatorClient(conn)
 
 	_, err = locatorClient.Announce(context.Background(), &pb.AnnounceRequest{
-		ClientEndpoints: []string{"192.168.0.0"},
-		WorkerEndpoints: []string{"192.168.0.0"}})
+		ClientEndpoints: []string{"192.168.0.0"}})
 	assert.Error(t, err)
 
 	_, err = locatorClient.Announce(context.Background(),
 		&pb.AnnounceRequest{
-			ClientEndpoints: []string{"192.168.0.1:10001"},
-			WorkerEndpoints: []string{"192.168.0.1:10002"}})
-	if err != nil {
-		t.Error(err)
-		return
-	}
+			ClientEndpoints: []string{"192.168.0.1:10001"}})
+	assert.NoError(t, err)
 
 	rec, err := lc.get(util.PubKeyToAddr(key.PublicKey))
 	assert.NoError(t, err)
 
 	assert.Equal(t, rec.EthAddr, util.PubKeyToAddr(key.PublicKey))
 	assert.Equal(t, rec.ClientEndpoints, []string{"192.168.0.1:10001"})
-	assert.Equal(t, rec.WorkerEndpoints, []string{"192.168.0.1:10002"})
 
 	if err := conn.Close(); err != nil {
 		t.Error(err)
@@ -199,25 +193,16 @@ func TestLocator_SkipPrivateIP(t *testing.T) {
 
 	locatorClient := pb.NewLocatorClient(conn)
 	_, err = locatorClient.Announce(context.Background(),
-		&pb.AnnounceRequest{
-			ClientEndpoints: []string{"192.168.0.0:10001"},
-			WorkerEndpoints: []string{"192.168.0.0:10002"}})
-	assert.Error(t, err)
-
-	_, err = locatorClient.Announce(context.Background(),
 		&pb.AnnounceRequest{ClientEndpoints: []string{"192.168.0.0:10001"}})
 	assert.Error(t, err)
 
 	_, err = locatorClient.Announce(context.Background(),
-		&pb.AnnounceRequest{
-			ClientEndpoints: []string{"42.42.42.42:10001", "192.168.0.0:10001"},
-			WorkerEndpoints: []string{"42.42.42.42:10002", "192.168.0.0:10002"}})
+		&pb.AnnounceRequest{ClientEndpoints: []string{"42.42.42.42:10001", "192.168.0.0:10001"}})
 	assert.NoError(t, err)
 
 	rec, err := lc.get(util.PubKeyToAddr(key.PublicKey))
 	assert.NoError(t, err)
 	assert.Equal(t, rec.ClientEndpoints, []string{"42.42.42.42:10001"})
-	assert.Equal(t, rec.WorkerEndpoints, []string{"42.42.42.42:10002", "192.168.0.0:10002"})
 
 	if err := conn.Close(); err != nil {
 		t.Error(err)

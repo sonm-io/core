@@ -216,11 +216,6 @@ func (s *state) checkAcceptedDealsTS() error {
 // WatchDealsClosed watches ETH for closed deals.
 // Synchronized by `s.mu`.
 func (s *state) checkClosedDealsTS() error {
-	if !s.cluster.IsLeader() {
-		log.S(s.ctx).Info("not a leader, skipping checkClosedDeals()")
-		return nil
-	}
-
 	log.G(s.ctx).Debug("checking closed deals")
 	closedDeals, err := s.eth.GetClosedDeals(s.ctx)
 	if err != nil {
@@ -272,11 +267,6 @@ func (s *state) checkAnnouncesTS() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if !s.cluster.IsLeader() {
-		log.S(s.ctx).Info("not a leader, skipping checkAnnounces()")
-		return nil
-	}
-
 	log.G(s.ctx).Debug("checking announces")
 	var toUpdate = make([]string, 0)
 	for _, plan := range s.askPlans {
@@ -319,11 +309,6 @@ func (s *state) checkOrdersTS() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if !s.cluster.IsLeader() {
-		log.S(s.ctx).Info("not a leader, skipping checkOrders()")
-		return nil
-	}
-
 	log.G(s.ctx).Debug("checking orders")
 	renewedOrders := make(map[OrderID]ReservedOrder, 0)
 	for orderID, orderInfo := range s.orders {
@@ -343,11 +328,6 @@ func (s *state) checkOrdersTS() error {
 func (s *state) closeExpiredDealsTS() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	if !s.cluster.IsLeader() {
-		log.S(s.ctx).Info("not a leader, skipping closeExpiredDeals()")
-		return
-	}
 
 	now := time.Now()
 	for dealID, dealMeta := range s.deals {

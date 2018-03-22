@@ -1,7 +1,13 @@
-# An endpoint for miner connections.
+# An endpoint for client connections using cli
 # allowed format is "ip:port" to bind Hub to given IP address
 # or ":port" to bind Hub to all available IPs
-endpoint: ":15011"
+endpoint: ":15010"
+  
+# An endpoint for hub announcements
+# This one useful if hub is behind router with DMZ or port forwarding
+# This endpoint will be used to communicate with hub,
+# however hub will still bind on "endpoint", not "announce_endpoint"
+# announce_endpoint: "1.2.3.4:1234"
 
 # NAT punching settings.
 npp:
@@ -20,20 +26,7 @@ npp:
 
 # Cluster settings.
 cluster:
-  # An endpoint for client connections using cli
-  # allowed format is "ip:port" to bind Hub to given IP address
-  # or ":port" to bind Hub to all available IPs
   endpoint: ":15010"
-
-  # An endpoint for hub announcements
-  # This one useful if hub is behind router with DMZ or port forwarding
-  # This endpoint will be used to communicate with hub,
-  # however hub will still bind on "endpoint", not "announce_endpoint"
-  # announce_endpoint: "1.2.3.4:1234"
-
-  # Use automated failover in case of hub death
-  # Requires consul, etcd or zookeeper as a store
-  failover: false
 
   # Configuration of persistent store
   store:
@@ -55,12 +48,7 @@ cluster:
     # cert_file: "/path/to/cert.crt"
 
   # Fine tuning
-  leader_key: "sonm/hub/leader"
-  member_list_key: "sonm/hub/list"
   sync_prefix: "sync_prefix"
-  leader_ttl: "20s"
-  announce_period: "20s"
-  member_gc_period: "20s"
 
 # Logging settings.
 logging:
