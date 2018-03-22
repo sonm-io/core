@@ -17,7 +17,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/math"
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/npp"
@@ -80,8 +79,6 @@ type Hub struct {
 	cfg              *Config
 	ctx              context.Context
 	cancel           context.CancelFunc
-	gateway          *gateway.Gateway
-	portPool         *gateway.PortPool
 	grpcEndpointAddr string
 	externalGrpc     *grpc.Server
 
@@ -152,23 +149,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 	}
 	grpcEndpointAddr := ip + ":" + clientPort
 
-	var gate *gateway.Gateway
-	var portPool *gateway.PortPool
-	if cfg.GatewayConfig != nil {
-		gate, err = gateway.NewGateway(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		if len(cfg.GatewayConfig.Ports) != 2 {
-			return nil, errors.New("gateway ports must be a range of two values")
-		}
-
-		portRangeFrom := cfg.GatewayConfig.Ports[0]
-		portRangeSize := cfg.GatewayConfig.Ports[1] - portRangeFrom
-		portPool = gateway.NewPortPool(portRangeFrom, portRangeSize)
-	}
-
 	if defaults.bcr == nil {
 		defaults.bcr, err = blockchain.NewAPI(nil, nil)
 		if err != nil {
@@ -229,7 +209,7 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
-	hubState, err := newState(ctx, acl, ethWrapper, defaults.market, defaults.cluster, minerCtx)
+	hubState, err := newState(ctx, ethWrapper, defaults.market, defaults.cluster, minerCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -238,8 +218,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		cfg:              cfg,
 		ctx:              ctx,
 		cancel:           cancel,
-		gateway:          gate,
-		portPool:         portPool,
 		externalGrpc:     nil,
 		grpcEndpointAddr: grpcEndpointAddr,
 
@@ -325,15 +303,6 @@ func (h *Hub) Serve() error {
 	log.G(h.ctx).Info("listening for gRPC API connections", zap.Stringer("address", grpcL.Addr()))
 	h.grpcListener = grpcL
 
-	listener, err := net.Listen("tcp", h.cfg.Endpoint)
-	if err != nil {
-		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Endpoint), zap.Error(err))
-		grpcL.Close()
-		return err
-	}
-
-	log.G(h.ctx).Info("listening for connections from Miners", zap.Stringer("address", listener.Addr()))
-
 	h.waiter.Go(h.listenAPI)
 
 	h.waiter.Go(func() error {
@@ -385,11 +354,6 @@ func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error
 // Info returns aggregated runtime statistics for specified miners.
 func (h *Hub) Info(ctx context.Context, request *pb.ID) (*pb.InfoReply, error) {
 	return h.worker.Info(ctx, &pb.Empty{})
-}
-
-type routeMapping struct {
-	containerPort string
-	route         *Route
 }
 
 func (h *Hub) onRequest(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
@@ -529,7 +493,6 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		log.G(h.ctx).Error("failed to dump state", zap.Error(err))
 	}
 
-	// TODO: Synchronize routes with the cluster.
 	reply := &pb.HubStartTaskReply{
 		Id:         taskID,
 		HubAddr:    h.ethAddr.Hex(),
@@ -884,34 +847,17 @@ func (h *Hub) RemoveSlot(ctx context.Context, request *pb.ID) (*pb.Empty, error)
 // connect to the Hub.
 func (h *Hub) GetRegisteredWorkers(ctx context.Context, empty *pb.Empty) (*pb.GetRegisteredWorkersReply, error) {
 	log.G(h.ctx).Info("handling GetRegisteredWorkers request")
-	return &pb.GetRegisteredWorkersReply{Ids: h.state.GetRegisteredWorkers()}, nil
+	return nil, errors.New("deprecated")
 }
 
 // RegisterWorker allows Worker with given ID to connect to the Hub
 func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling RegisterWorker request", zap.String("id", request.GetId()))
-	h.state.ACLInsert(common.HexToAddress(request.Id).Hex())
-
-	if err := h.state.Dump(); err != nil {
-		log.G(h.ctx).Error("failed to dump state", zap.Error(err))
-	}
-
-	return &pb.Empty{}, nil
+	return nil, errors.New("deprecated")
 }
 
 // DeregisterWorkers deny Worker with given ID to connect to the Hub
 func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling DeregisterWorker request", zap.String("id", request.GetId()))
-
-	if existed := h.state.ACLRemove(request.Id); !existed {
-		log.G(h.ctx).Warn("attempt to deregister unregistered worker", zap.String("id", request.GetId()))
-	} else {
-		if err := h.state.Dump(); err != nil {
-			log.G(h.ctx).Error("failed to dump state", zap.Error(err))
-		}
-	}
-
-	return &pb.Empty{}, nil
+	return nil, errors.New("deprecated")
 }
 
 func (h *Hub) listenAPI() error {
@@ -992,9 +938,6 @@ func (h *Hub) processClusterEvent(value interface{}) {
 func (h *Hub) Close() {
 	h.cancel()
 	h.externalGrpc.Stop()
-	if h.gateway != nil {
-		h.gateway.Close()
-	}
 	if h.certRotator != nil {
 		h.certRotator.Close()
 	}

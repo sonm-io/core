@@ -4,12 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net"
 	"sync"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/insonmnia/gateway"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/resource"
@@ -87,24 +84,6 @@ func createMinerCtx(ctx context.Context, miner *miner.Miner) (*MinerCtx, error) 
 	return &m, nil
 }
 
-func (h *Hub) tlsHandshake(ctx context.Context, conn net.Conn) (net.Conn, error) {
-	conn, authInfo, err := h.creds.ClientHandshake(ctx, "", conn)
-	if err != nil {
-		return nil, err
-	}
-
-	switch authInfo := authInfo.(type) {
-	case auth.EthAuthInfo:
-		if !h.state.ACLHas(authInfo.Wallet.Hex()) {
-			return nil, errForbiddenMiner
-		}
-	default:
-		return nil, fmt.Errorf("unsupported AuthInfo %s %T", authInfo.AuthType(), authInfo)
-	}
-
-	return conn, nil
-}
-
 // ID returns the miner id.
 func (m *MinerCtx) ID() string {
 	return m.uuid
@@ -136,19 +115,6 @@ func (m *MinerCtx) handshake() error {
 	m.usage = resource.NewPool(capabilities)
 
 	return nil
-}
-
-// NewRouter constructs a new router that will route requests to bypass miner's firewall.
-func (h *Hub) newRouter(id string, natType pb.NATType) (Router, error) {
-	if h.gateway == nil || natType == pb.NATType_NONE {
-		return newDirectRouter(), nil
-	}
-
-	if gateway.PlatformSupportIPVS {
-		return newIPVSRouter(h.ctx, h.gateway, h.portPool), nil
-	}
-
-	return nil, errors.New("miner has firewall configured, but Hub's host OS has no IPVS support")
 }
 
 // Consume consumes the specified resources from the miner.

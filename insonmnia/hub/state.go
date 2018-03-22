@@ -53,7 +53,6 @@ type state struct {
 	cluster Cluster
 	market  pb.MarketClient
 
-	acl              *workerACLStorage
 	deals            map[DealID]*DealMeta
 	tasks            map[string]*TaskInfo
 	minerCtx         *MinerCtx
@@ -62,7 +61,7 @@ type state struct {
 	deviceProperties map[string]DeviceProperties
 }
 
-func newState(ctx context.Context, acl *workerACLStorage, eth ETH, market pb.MarketClient, cluster Cluster, minerCtx *MinerCtx) (
+func newState(ctx context.Context, eth ETH, market pb.MarketClient, cluster Cluster, minerCtx *MinerCtx) (
 	*state, error) {
 	out := &state{
 		ctx:     ctx,
@@ -70,7 +69,6 @@ func newState(ctx context.Context, acl *workerACLStorage, eth ETH, market pb.Mar
 		cluster: cluster,
 		market:  market,
 
-		acl:              acl,
 		deals:            make(map[DealID]*DealMeta),
 		tasks:            make(map[string]*TaskInfo),
 		minerCtx:         minerCtx,
@@ -94,12 +92,7 @@ func (s *state) Dump() error {
 }
 
 func (s *state) dump() error {
-	if !s.cluster.IsLeader() {
-		return nil
-	}
-
 	sJSON := &stateJSON{
-		Acl:              s.acl,
 		Deals:            s.deals,
 		Tasks:            s.tasks,
 		Miner:            s.minerCtx,
@@ -119,7 +112,6 @@ func (s *state) Load(other *stateJSON) error {
 }
 
 func (s *state) load(other *stateJSON) error {
-	s.acl = other.Acl
 	s.deals = other.Deals
 	s.tasks = other.Tasks
 	s.orders = other.Orders
@@ -133,7 +125,6 @@ func (s *state) load(other *stateJSON) error {
 
 func (s *state) init(minerCtx *MinerCtx) error {
 	sJSON := &stateJSON{
-		Acl:              s.acl,
 		Deals:            make(map[DealID]*DealMeta),
 		Tasks:            make(map[string]*TaskInfo),
 		Miner:            minerCtx,
@@ -604,40 +595,6 @@ func (s *state) RemoveSlot(ctx context.Context, planID string) error {
 	delete(s.askPlans, planID)
 
 	return nil
-}
-
-func (s *state) GetRegisteredWorkers() []*pb.ID {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	var ids []*pb.ID
-	s.acl.Each(func(cred string) bool {
-		ids = append(ids, &pb.ID{Id: cred})
-		return true
-	})
-
-	return ids
-}
-
-func (s *state) ACLInsert(credentials string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.acl.Insert(credentials)
-}
-
-func (s *state) ACLRemove(credentials string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.acl.Remove(credentials)
-}
-
-func (s *state) ACLHas(credentials string) bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.acl.Has(credentials)
 }
 
 func (s *state) GetTaskByID(taskID string) (*TaskInfo, bool) {
