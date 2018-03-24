@@ -3,29 +3,27 @@ package gateway
 import (
 	"context"
 	"sync"
-
-	"github.com/sonm-io/core/insonmnia/gateway"
 )
 
 type ipvsRouter struct {
-	gateway  *gateway.Gateway
-	pool     *gateway.PortPool
-	metrics  map[string]*gateway.Metrics
+	gateway  *Gateway
+	pool     *PortPool
+	metrics  map[string]*Metrics
 	services map[string]VirtualService
 	mu       sync.Mutex
 }
 
-func newIPVSRouter(ctx context.Context, gate *gateway.Gateway, pool *gateway.PortPool) Router {
+func newIPVSRouter(ctx context.Context, gate *Gateway, pool *PortPool) Router {
 	return &ipvsRouter{
 		gateway:  gate,
 		pool:     pool,
-		metrics:  make(map[string]*gateway.Metrics, 0),
+		metrics:  make(map[string]*Metrics, 0),
 		services: make(map[string]VirtualService, 0),
 	}
 }
 
 func (r *ipvsRouter) Register(ID string, protocol string) (VirtualService, error) {
-	host, err := gateway.GetOutboundIP()
+	host, err := GetOutboundIP()
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +33,7 @@ func (r *ipvsRouter) Register(ID string, protocol string) (VirtualService, error
 		return nil, err
 	}
 
-	serviceOptions, err := gateway.NewServiceOptions(host.String(), port, protocol)
+	serviceOptions, err := NewServiceOptions(host.String(), port, protocol)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +51,7 @@ func (r *ipvsRouter) Register(ID string, protocol string) (VirtualService, error
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.metrics[ID] = &gateway.Metrics{}
+	r.metrics[ID] = &Metrics{}
 	r.services[ID] = virtualService
 
 	return virtualService, nil
@@ -81,21 +79,21 @@ func (r *ipvsRouter) deregisterRoute(ID string) error {
 }
 
 // GetMetrics collects network specific metrics that are associated with this router.
-func (r *ipvsRouter) GetMetrics() (*gateway.Metrics, error) {
+func (r *ipvsRouter) GetMetrics() (*Metrics, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	return r.getMetrics()
 }
 
-func (r *ipvsRouter) getMetrics() (*gateway.Metrics, error) {
+func (r *ipvsRouter) getMetrics() (*Metrics, error) {
 	for id := range r.services {
 		if err := r.updateServiceMetrics(id); err != nil {
 			return nil, err
 		}
 	}
 
-	metrics := &gateway.Metrics{}
+	metrics := &Metrics{}
 	for _, current := range r.metrics {
 		metrics.Add(current)
 	}
@@ -126,8 +124,8 @@ func (r *ipvsRouter) Close() error {
 
 type ipvsVirtualService struct {
 	vsID    string
-	options *gateway.ServiceOptions
-	gateway *gateway.Gateway
+	options *ServiceOptions
+	gateway *Gateway
 }
 
 func (s *ipvsVirtualService) ID() string {
@@ -135,7 +133,7 @@ func (s *ipvsVirtualService) ID() string {
 }
 
 func (s *ipvsVirtualService) AddReal(ID string, host string, port uint16) (*Route, error) {
-	realOptions, err := gateway.NewRealOptions(host, port, 100, s.vsID)
+	realOptions, err := NewRealOptions(host, port, 100, s.vsID)
 	if err != nil {
 		return nil, err
 	}
