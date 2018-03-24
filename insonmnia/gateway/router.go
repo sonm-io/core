@@ -2,10 +2,6 @@
 
 package gateway
 
-import (
-	"github.com/sonm-io/core/insonmnia/gateway"
-)
-
 type Route struct {
 	ID          string
 	Protocol    string
@@ -35,7 +31,7 @@ type Router interface {
 	// Deregister deregisters a virtual service specified by the given ID.
 	Deregister(ID string) error
 	// GetMetrics returns gateway-specific metrics.
-	GetMetrics() (*gateway.Metrics, error)
+	GetMetrics() (*Metrics, error)
 	// Close closes the router, freeing all associated resources.
 	Close() error
 }
@@ -55,8 +51,8 @@ func (r *directRouter) Deregister(ID string) error {
 	return nil
 }
 
-func (r *directRouter) GetMetrics() (*gateway.Metrics, error) {
-	return &gateway.Metrics{}, nil
+func (r *directRouter) GetMetrics() (*Metrics, error) {
+	return &Metrics{}, nil
 }
 
 func (r *directRouter) Close() error {
