@@ -1,0 +1,2 @@
+target/sonmrendezvous usr/bin
+etc/sonm/rendezvous-default.yaml

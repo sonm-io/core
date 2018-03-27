@@ -33,3 +33,19 @@ Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Node for SONM network
  Local proxy that provides SONM Node API for clients
+
+Package: sonm-rendezvous
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Rendezvous allows to connect two clients
+ Rendezvous penetrating several types of NAT
+ and allows clients to connect with each other without having
+ publicity-available IP-addresses.
+
+Package: sonm-relay
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Relay transports TCP traffic in the userland
+ The Relay server is a tool used to penetrate the NAT
+ in case of over-paranoid network configurations,
+ such as Symmetrical NAT or manual iptables hacks.

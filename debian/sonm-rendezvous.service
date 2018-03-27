@@ -1,0 +1,13 @@
+[Unit]
+Description=SONM Rendezvous
+
+
+[Service]
+EnvironmentFile=/etc/default/sonm-rendezvous
+Type=simple
+ExecStart=/usr/bin/sonmrendezvous --config=${CONFIG_PATH}
+Restart=on-failure
+
+
+[Install]
+WantedBy=multi-user.target

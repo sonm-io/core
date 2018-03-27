@@ -1,0 +1,13 @@
+[Unit]
+Description=SONM Relay
+
+
+[Service]
+EnvironmentFile=/etc/default/sonm-relay
+Type=simple
+ExecStart=/usr/bin/sonmrelay --config=${CONFIG_PATH}
+Restart=on-failure
+
+
+[Install]
+WantedBy=multi-user.target
