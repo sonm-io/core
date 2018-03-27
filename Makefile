@@ -99,9 +99,9 @@ build/autocli:
 	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${AUTOCLI} ${GOCMD}/autocli
 
 
-build/insomnia: build/hub build/cli build/node build/rv
+build/insomnia: build/hub build/cli build/node
 
-build/aux: build/locator build/relay
+build/aux: build/locator build/relay build/rv
 
 build: build/insomnia build/aux
 
