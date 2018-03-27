@@ -9,7 +9,9 @@ import (
 
 // Config is LocalNode config
 type Config interface {
-	// BindPort is port to listen for client connection at localhost
+	// HttpBindPort is port to listen for client connection via REST at localhost
+	HttpBindPort() uint16
+	// BindPort is port to listen for client connection via GRPC at localhost
 	BindPort() uint16
 	// MarketEndpoint is Marketplace gRPC endpoint
 	MarketEndpoint() string
@@ -27,7 +29,8 @@ type Config interface {
 }
 
 type nodeConfig struct {
-	BindPort uint16 `yaml:"bind_port" default:"15030"`
+	HttpBindPort uint16 `yaml:"http_bind_port" default:"15031"`
+	BindPort     uint16 `yaml:"bind_port" default:"15030"`
 }
 
 type marketConfig struct {
@@ -55,6 +58,10 @@ type yamlConfig struct {
 	Eth                     accounts.EthConfig `required:"false" yaml:"ethereum"`
 	Hub                     *hubConfig         `required:"false" yaml:"hub"`
 	MetricsListenAddrConfig string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14003"`
+}
+
+func (y *yamlConfig) HttpBindPort() uint16 {
+	return y.Node.HttpBindPort
 }
 
 func (y *yamlConfig) BindPort() uint16 {

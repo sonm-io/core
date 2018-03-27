@@ -2,6 +2,7 @@ package node
 
 import (
 	"crypto/ecdsa"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -78,20 +80,29 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, c
 
 // Node is LocalNode instance
 type Node struct {
-	lis4, lis6 net.Listener
-	cfg        Config
-	srv        *grpc.Server
-	ctx        context.Context
-	privKey    *ecdsa.PrivateKey
-	// processorRestarter must start together with node .Serve (not .New).
-	// This func must fetch orders from the Market and restart it background processing.
-	processorRestarter func() error
+	cfg Config
+
+	// servers for processing requests
+	httpSrv *rest.Server
+	srv     *grpc.Server
+
+	// services, responsible for request handling
+	hub    pb.HubManagementServer
+	market pb.MarketServer
+	deals  pb.DealManagementServer
+	tasks  pb.TaskManagementServer
+
+	//
+	ctx     context.Context
+	cancel  context.CancelFunc
+	privKey *ecdsa.PrivateKey
 }
 
 // New creates new Local Node instance
 // also method starts internal gRPC client connections
 // to the external services like Market and Hub
 func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	_, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
 	if err != nil {
 		return nil, err
@@ -143,10 +154,15 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	grpc_prometheus.Register(srv)
 
 	return &Node{
-		cfg:                c,
-		ctx:                ctx,
-		srv:                srv,
-		processorRestarter: market.(*marketAPI).restartOrdersProcessing(),
+		privKey: key,
+		cfg:     c,
+		ctx:     ctx,
+		cancel:  cancel,
+		srv:     srv,
+		hub:     hub,
+		market:  market,
+		deals:   deals,
+		tasks:   tasks,
 	}, nil
 }
 
@@ -164,59 +180,109 @@ func (n *Node) InterceptStreamRequest(srv interface{}, ss grpc.ServerStream, inf
 
 // Serve binds gRPC services and start it
 func (n *Node) Serve() error {
+	err := n.market.(*marketAPI).restartOrdersProcessing()
+	if err != nil {
+		// should it breaks startup?
+		log.G(n.ctx).Warn("cannot restart order processing", zap.Error(err))
+	}
 	wg := errgroup.Group{}
-	if n.processorRestarter != nil {
-		// restart background processing
-		wg.Go(func() error {
-			err := n.processorRestarter()
-			if err != nil {
-				// should it breaks startup?
-				log.G(n.ctx).Warn("cannot restart order processing", zap.Error(err))
-			}
-			return nil
-		})
-	}
-
-	lis6, err := net.Listen("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.BindPort()))
-	if err == nil {
-		n.lis6 = lis6
-		log.G(n.ctx).Info("starting node ipv6 listener", zap.String("bind", lis6.Addr().String()))
-		wg.Go(func() error {
-			return n.srv.Serve(lis6)
-		})
-	} else {
-		log.G(n.ctx).Warn("cannot create ipv6 listener", zap.Error(err))
-	}
-
-	lis4, err := net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", n.cfg.BindPort()))
-	if err == nil {
-		n.lis4 = lis4
-
-		log.G(n.ctx).Info("starting node ipv4 listener", zap.String("bind", lis4.Addr().String()))
-		wg.Go(func() error {
-			return n.srv.Serve(lis4)
-		})
-	} else {
-		log.G(n.ctx).Warn("cannot create ipv4 listener", zap.Error(err))
-	}
-
-	if lis6 == nil && lis4 == nil {
-		return errors.New("neither ipv4 nor ipv6 localhost is available to bind")
-	}
+	wg.Go(n.ServeHttp)
+	wg.Go(n.ServeGRPC)
 
 	return wg.Wait()
 }
 
-func (n *Node) Close() {
-	if n.lis6 != nil {
-		if err := n.lis6.Close(); err != nil {
-			log.G(n.ctx).Warn("cannot close ipv6 listener", zap.Error(err))
+func (n *Node) ServeGRPC() error {
+	wg := errgroup.Group{}
+
+	serve := func(netFam, laddr string) error {
+		lis, err := net.Listen(netFam, laddr)
+		if err == nil {
+			log.S(n.ctx).Infof("starting node %s listener on %s", netFam, lis.Addr().String())
+			wg.Go(func() error {
+				err := n.srv.Serve(lis)
+				n.Close()
+				return err
+			})
+		} else {
+			log.S(n.ctx).Warnf("cannot create %s listener - %s", netFam, err)
 		}
+		return err
 	}
 
-	if n.lis4 != nil {
-		if err := n.lis4.Close(); err != nil {
-			log.G(n.ctx).Warn("cannot close ipv4 listener", zap.Error(err))
-		}
+	v4err := serve("tcp4", fmt.Sprintf("127.0.0.1:%d", n.cfg.BindPort()))
+	v6err := serve("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.BindPort()))
+
+	if v4err != nil && v6err != nil {
+		n.Close()
+		return errors.New("neither ipv4 nor ipv6 localhost is available to bind")
+	}
+	return wg.Wait()
+}
+
+func (n *Node) ServeHttp() error {
+	err := n.serveHttp()
+	n.Close()
+	return err
+}
+
+func (n *Node) serveHttp() error {
+	aesKey := []byte{}
+	h := sha256.New()
+	h.Write(n.privKey.D.Bytes())
+	aesKey = h.Sum(aesKey)
+	decoder, err := rest.NewAESDecoder(aesKey)
+	if err != nil {
+		return err
+	}
+
+	options := []rest.Option{rest.WithContext(n.ctx), rest.WithDecoder(decoder), rest.WithInterceptor(n.hub.(*hubAPI).intercept)}
+
+	lis6, err := net.Listen("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.HttpBindPort()))
+	if err == nil {
+		log.S(n.ctx).Info("created ipv6 listener for http")
+		options = append(options, rest.WithListener(lis6))
+	}
+
+	lis4, err := net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", n.cfg.HttpBindPort()))
+	if err == nil {
+		log.S(n.ctx).Info("created ipv4 listener for http")
+		options = append(options, rest.WithListener(lis4))
+	}
+
+	if lis4 == nil && lis6 == nil {
+		return errors.New("could not listen http")
+	}
+	srv, err := rest.NewServer(options...)
+	if err != nil {
+		return err
+	}
+	err = srv.RegisterService((*pb.HubManagementServer)(nil), n.hub)
+	if err != nil {
+		return err
+	}
+	err = srv.RegisterService((*pb.MarketServer)(nil), n.market)
+	if err != nil {
+		return err
+	}
+	err = srv.RegisterService((*pb.DealManagementServer)(nil), n.deals)
+	if err != nil {
+		return err
+	}
+	err = srv.RegisterService((*pb.TaskManagementServer)(nil), n.tasks)
+	if err != nil {
+		return err
+	}
+	n.httpSrv = srv
+	return srv.Serve()
+}
+
+func (n *Node) Close() {
+	n.cancel()
+	if n.httpSrv != nil {
+		n.httpSrv.Close()
+	}
+	if n.srv != nil {
+		n.srv.Stop()
 	}
 }
