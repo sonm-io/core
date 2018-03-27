@@ -1,6 +1,7 @@
 package rendezvous
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -69,5 +70,9 @@ func (m *externalResolver) resolve() (net.IP, error) {
 	}
 
 	addr, err := ioutil.ReadAll(resp.Body)
-	return net.ParseIP(string(addr)), nil
+	if err != nil {
+		return nil, err
+	}
+
+	return net.ParseIP(string(bytes.TrimSpace(addr))), nil
 }
