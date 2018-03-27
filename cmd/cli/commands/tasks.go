@@ -43,7 +43,7 @@ var taskPullOutput string
 
 var taskRootCmd = &cobra.Command{
 	Use:   "tasks",
-	Short: "Manage tasks",
+	Short: "Tasks management",
 }
 
 var taskListCmd = &cobra.Command{

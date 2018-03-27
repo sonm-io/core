@@ -14,19 +14,19 @@ import (
 )
 
 func init() {
-	hubOrderRootCmd.AddCommand(
-		hubOrderListCmd,
-		hubOrderCreateCmd,
-		hubOrderRemoveCmd,
+	askPlansRootCmd.AddCommand(
+		askPlanListCmd,
+		askPlanCreateCmd,
+		askPlanRemoveCmd,
 	)
 }
 
-var hubOrderRootCmd = &cobra.Command{
+var askPlansRootCmd = &cobra.Command{
 	Use:   "ask-plan",
 	Short: "Operations with ask order plan",
 }
 
-var hubOrderListCmd = &cobra.Command{
+var askPlanListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Show current ask plans",
 	Run: func(cmd *cobra.Command, args []string) {
@@ -47,7 +47,7 @@ var hubOrderListCmd = &cobra.Command{
 	},
 }
 
-var hubOrderCreateCmd = &cobra.Command{
+var askPlanCreateCmd = &cobra.Command{
 	Use:   "create <price> <slot.yaml> [buyer-eth-addr]",
 	Short: "Create new plan",
 	Args:  cobra.MinimumNArgs(2),
@@ -94,7 +94,7 @@ var hubOrderCreateCmd = &cobra.Command{
 	},
 }
 
-var hubOrderRemoveCmd = &cobra.Command{
+var askPlanRemoveCmd = &cobra.Command{
 	Use:   "remove <order_id>",
 	Short: "Remove plan by",
 	Args:  cobra.MinimumNArgs(1),
@@ -130,14 +130,4 @@ func loadSlotFile(path string) (*structs.Slot, error) {
 	}
 
 	return slot, nil
-}
-
-func loadPropsFile(path string) (map[string]float64, error) {
-	props := map[string]float64{}
-	err := util.LoadYamlFile(path, &props)
-	if err != nil {
-		return nil, err
-	}
-
-	return props, nil
 }

@@ -23,6 +23,15 @@ func newHubManagementClient(ctx context.Context) (pb.HubManagementClient, error)
 	return pb.NewHubManagementClient(cc), nil
 }
 
+func newMasterManagementClient(ctx context.Context) (pb.MasterManagementClient, error) {
+	cc, err := newClientConn(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return pb.NewMasterManagementClient(cc), nil
+}
+
 func newMarketClient(ctx context.Context) (pb.MarketClient, error) {
 	cc, err := newClientConn(ctx)
 	if err != nil {
