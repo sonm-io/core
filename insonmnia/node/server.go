@@ -231,12 +231,12 @@ func (n *Node) serveHttp() error {
 	h := sha256.New()
 	h.Write(n.privKey.D.Bytes())
 	aesKey = h.Sum(aesKey)
-	decoder, err := rest.NewAESDecoder(aesKey)
+	decenc, err := rest.NewAESDecoderEncoder(aesKey)
 	if err != nil {
 		return err
 	}
 
-	options := []rest.Option{rest.WithContext(n.ctx), rest.WithDecoder(decoder), rest.WithInterceptor(n.hub.(*hubAPI).intercept)}
+	options := []rest.Option{rest.WithContext(n.ctx), rest.WithDecoder(decenc), rest.WithEncoder(decenc), rest.WithInterceptor(n.hub.(*hubAPI).intercept)}
 
 	lis6, err := net.Listen("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.HttpBindPort()))
 	if err == nil {

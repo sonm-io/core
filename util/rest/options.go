@@ -14,6 +14,7 @@ type options struct {
 	ctx         context.Context
 	listeners   []net.Listener
 	decoder     Decoder
+	encoder     Encoder
 	interceptor grpc.UnaryServerInterceptor
 }
 
@@ -22,13 +23,20 @@ func defaultOptions() *options {
 		ctx:       context.Background(),
 		listeners: []net.Listener{},
 		decoder:   &NilDecoder{},
+		encoder:   &NilEncoder{},
 	}
 }
 
 type NilDecoder struct{}
 
+type NilEncoder struct{}
+
 func (n *NilDecoder) DecodeBody(request *http.Request) (io.Reader, error) {
 	return request.Body, nil
+}
+
+func (n *NilEncoder) Encode(rw http.ResponseWriter) (http.ResponseWriter, error) {
+	return rw, nil
 }
 
 // Option func is for applying any params to hub options
@@ -36,6 +44,10 @@ type Option func(options *options)
 
 type Decoder interface {
 	DecodeBody(request *http.Request) (io.Reader, error)
+}
+
+type Encoder interface {
+	Encode(rw http.ResponseWriter) (http.ResponseWriter, error)
 }
 
 func WithContext(ctx context.Context) Option {
@@ -53,6 +65,12 @@ func WithListener(l net.Listener) Option {
 func WithDecoder(d Decoder) Option {
 	return func(o *options) {
 		o.decoder = d
+	}
+}
+
+func WithEncoder(e Encoder) Option {
+	return func(o *options) {
+		o.encoder = e
 	}
 }
 
