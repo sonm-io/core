@@ -5,6 +5,7 @@ import (
 
 	"github.com/hashicorp/memberlist"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -14,24 +15,36 @@ import (
 type monitor struct {
 	cfg MonitorConfig
 
-	server   *grpc.Server
-	listener net.Listener
+	certificate util.HitlessCertRotator
+	server      *grpc.Server
+	listener    net.Listener
 
 	cluster *memberlist.Memberlist
 
 	log *zap.Logger
 }
 
-func newMonitor(cfg MonitorConfig, cluster *memberlist.Memberlist, log *zap.Logger) *monitor {
-	server := xgrpc.NewServer(log, xgrpc.DefaultTraceInterceptor())
-
-	m := &monitor{
-		cfg:     cfg,
-		server:  server,
-		cluster: cluster,
+func newMonitor(cfg MonitorConfig, cluster *memberlist.Memberlist, log *zap.Logger) (*monitor, error) {
+	certificate, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), cfg.PrivateKey)
+	if err != nil {
+		return nil, err
 	}
 
-	return m
+	credentials := util.NewTLS(TLSConfig)
+
+	server := xgrpc.NewServer(log,
+		xgrpc.Credentials(credentials),
+		xgrpc.DefaultTraceInterceptor(),
+	)
+
+	m := &monitor{
+		cfg:         cfg,
+		certificate: certificate,
+		server:      server,
+		cluster:     cluster,
+	}
+
+	return m, nil
 }
 
 func (m *monitor) Cluster(ctx context.Context, request *sonm.Empty) (*sonm.RelayClusterReply, error) {
@@ -62,12 +75,8 @@ func (m *monitor) Serve() error {
 }
 
 func (m *monitor) Close() error {
-	if m.listener != nil {
-		m.listener.Close()
-	}
-	if m.server != nil {
-		m.server.Stop()
-	}
+	m.server.Stop()
+	m.certificate.Close()
 
 	return nil
 }
