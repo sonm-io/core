@@ -19,7 +19,7 @@ var workerTasksCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		list, err := hub.TaskList(ctx, &pb.Empty{})
+		list, err := hub.Tasks(ctx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get task list", err)
 			os.Exit(1)

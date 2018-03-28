@@ -19,7 +19,7 @@ var workerDevicesCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		devices, err := hub.GetDeviceInfo(ctx, &pb.Empty{})
+		devices, err := hub.Devices(ctx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get devices list", err)
 			os.Exit(1)

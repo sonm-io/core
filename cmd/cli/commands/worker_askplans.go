@@ -37,7 +37,7 @@ var askPlanListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		asks, err := hub.GetAskPlans(ctx, &pb.Empty{})
+		asks, err := hub.AskPlans(ctx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get Ask Orders from Worker", err)
 			os.Exit(1)

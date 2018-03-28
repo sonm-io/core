@@ -97,6 +97,8 @@ It has these top-level messages:
 	DealListRequest
 	DealListReply
 	DealStatusReply
+	Worker
+	WorkerListReply
 	HandshakeRequest
 	DiscoverResponse
 	HandshakeResponse

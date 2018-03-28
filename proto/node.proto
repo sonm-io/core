@@ -77,18 +77,17 @@ service HubManagement {
     // Status produse a detailed info about Hub
     rpc Status (Empty) returns (HubStatusReply) {}
 
-    // rpc DeviceList(Empty) returns (DevicesReply) {}
-    // GetDeviceInfo provides detailed information about device
+    // Devices provides detailed information about device
     // and show benchmark results.
     //
     // TODO: returns smth that can represent miner.hardware (extend Capabilities?)
-    rpc GetDeviceInfo(Empty) returns (DevicesReply) {}
+    rpc Devices(Empty) returns (DevicesReply) {}
 
-    // List produces a list of all running tasks on the Hub
-    rpc TaskList(Empty) returns (TaskListReply) {}
+    // Tasks produces a list of all running tasks on the Hub
+    rpc Tasks(Empty) returns (TaskListReply) {}
 
-    // GetAskPlans allows to obtain previously assigned Ask Plans from for a given worker.
-    rpc GetAskPlans(Empty) returns (SlotsReply) {}
+    // AskPlans allows to obtain previously assigned Ask Plans from for a given worker.
+    rpc AskPlans(Empty) returns (SlotsReply) {}
     // CreateAskPlan allows to create rules
     // for creating Ask orders on Marketplace
     rpc CreateAskPlan(InsertSlotRequest) returns (ID) {}
@@ -101,9 +100,23 @@ service HubManagement {
 service MasterManagement {
     // WorkersList returns worker's list for current master address.
     // List includes already registred workers and pending unapproved requests.
-    rpc WorkersList(Empty) returns (Empty) {}
+    rpc WorkersList(Empty) returns (WorkerListReply) {}
     // WorkerConfirm (as master) confirms incoming request for given Worker address.
     rpc WorkerConfirm(ID) returns (Empty) {}
     // WorkerRemove (as master) unbinds given Worker address from Master address.
     rpc WorkerRemove(ID) returns (Empty) {}
+}
+
+enum WorkerRelationshipStatus {
+    RELATION_UNAPPROVED = 0;
+    RELATION_APPROVED = 1;
+}
+
+message Worker {
+    string ID = 1;
+    WorkerRelationshipStatus status = 2;
+}
+
+message WorkerListReply {
+    repeated Worker workers = 1;
 }

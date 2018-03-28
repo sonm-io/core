@@ -4,6 +4,8 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type masterMgmtAPI struct {
@@ -19,17 +21,17 @@ func newMasterManagementAPI(opts *remoteOptions) sonm.MasterManagementServer {
 	}
 }
 
-func (m *masterMgmtAPI) WorkersList(context.Context, *sonm.Empty) (*sonm.Empty, error) {
+func (m *masterMgmtAPI) WorkersList(context.Context, *sonm.Empty) (*sonm.WorkerListReply, error) {
 	ctxlog.G(m.ctx).Info("handling WorkersList request")
-	return &sonm.Empty{}, nil
+	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 func (m *masterMgmtAPI) WorkerConfirm(context.Context, *sonm.ID) (*sonm.Empty, error) {
 	ctxlog.G(m.ctx).Info("handling WorkersConfirm request")
-	return &sonm.Empty{}, nil
+	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
 
 func (m *masterMgmtAPI) WorkerRemove(context.Context, *sonm.ID) (*sonm.Empty, error) {
 	ctxlog.G(m.ctx).Info("handling WorkersRemove request")
-	return &sonm.Empty{}, nil
+	return nil, status.Error(codes.Unimplemented, "unimplemented")
 }
