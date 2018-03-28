@@ -570,9 +570,8 @@ func TestRestartOrdersProcessing(t *testing.T) {
 	api := server.(*marketAPI)
 	assert.Equal(t, api.countHandlers(), 0)
 
-	f := api.restartOrdersProcessing()
+	err = api.restartOrdersProcessing()
 
-	err = f()
 	require.NoError(t, err)
 
 	time.Sleep(50 * time.Millisecond)

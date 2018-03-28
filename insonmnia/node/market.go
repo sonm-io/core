@@ -457,23 +457,18 @@ func (m *marketAPI) getMyOrders() (*pb.GetOrdersReply, error) {
 
 // restartOrdersProcessing loads BIDs for current account
 // and restarts background processing for that orders
-func (m *marketAPI) restartOrdersProcessing() func() error {
-	return func() error {
-		orders, err := m.getMyOrders()
-		if err != nil {
-			return err
-		}
+func (m *marketAPI) restartOrdersProcessing() error {
+	orders, err := m.getMyOrders()
+	if err != nil {
+		return err
+	}
+	log.G(m.ctx).Info("restart order processing", zap.Int("order_count", len(orders.GetOrders())))
 
-		log.G(m.ctx).Info("restart order processing",
-			zap.Int("order_count", len(orders.GetOrders())))
-
-		for _, o := range orders.GetOrders() {
-			go m.startHandler(o)
-		}
-
-		return nil
+	for _, o := range orders.GetOrders() {
+		go m.startHandler(o)
 	}
 
+	return nil
 }
 
 func newMarketAPI(opts *remoteOptions) (pb.MarketServer, error) {
