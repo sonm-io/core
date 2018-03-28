@@ -44,13 +44,16 @@ func privateAddrs(addr net.Addr) ([]net.Addr, error) {
 		return nil, err
 	}
 
+	if !ip.IsUnspecified() {
+		return []net.Addr{addr}, nil
+	}
+
+	// For unspecified bind addresses, actual address set has to be resolved.
+	// In other words, unspecified means every available (but still private)
+	// address for the host.
 	ips, err := util.GetAvailableIPs()
 	if err != nil {
 		return nil, err
-	}
-
-	if !ip.IsUnspecified() {
-		ips = filteredIPs(ips, ip)
 	}
 
 	var addrs []net.Addr
@@ -64,15 +67,4 @@ func privateAddrs(addr net.Addr) ([]net.Addr, error) {
 	}
 
 	return addrs, nil
-}
-
-func filteredIPs(ips []net.IP, target net.IP) []net.IP {
-	var filtered []net.IP
-	for _, ip := range ips {
-		if ip.Equal(target) {
-			filtered = append(filtered, ip)
-		}
-	}
-
-	return filtered
 }
