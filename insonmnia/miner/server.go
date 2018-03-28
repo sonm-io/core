@@ -91,7 +91,10 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	if o.benchList == nil {
-		o.benchList = bm.NewDumbBenchmarks()
+		o.benchList, err = bm.NewBenchmarksList(o.ctx, cfg.Benchmarks())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	hardwareInfo, err := hardware.NewHardware()
@@ -658,10 +661,7 @@ func (m *Miner) RunBenchmarks() error {
 		zap.String("exiting", exitingHardware))
 
 	savedBenchmarks := m.state.getPassedBenchmarks()
-	requiredBenchmarks, err := m.benchmarkList.List()
-	if err != nil {
-		return err
-	}
+	requiredBenchmarks := m.benchmarkList.List()
 
 	hwHashesMatched := exitingHardware == savedHardware
 	benchMatched := m.isBenchmarkListMatches(requiredBenchmarks, savedBenchmarks)
@@ -844,7 +844,7 @@ func (m *Miner) runStorageBenchGroup(benches []*pb.Benchmark) error {
 
 // execBenchmarkContainerWithResults executes benchmark as docker image,
 // returns JSON output with measured values.
-func (m *Miner) execBenchmarkContainerWithResults(d Description) (map[uint64]*bm.ResultJSON, error) {
+func (m *Miner) execBenchmarkContainerWithResults(d Description) (map[string]*bm.ResultJSON, error) {
 	statusChan, statusReply, err := m.ovs.Start(m.ctx, d)
 	if err != nil {
 		return nil, fmt.Errorf("cannot start container with benchmark: %v", err)
@@ -888,7 +888,7 @@ func (m *Miner) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*bm.
 		zap.Uint64("bench_id", ben.GetID()),
 		zap.Any("result", res))
 
-	v, ok := res[ben.GetID()]
+	v, ok := res[ben.GetCode()]
 	if !ok {
 		return nil, fmt.Errorf("no results for benchmark id=%d found into container's output", ben.GetID())
 	}
@@ -897,7 +897,7 @@ func (m *Miner) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*bm.
 
 }
 
-func parseBenchmarkResult(data []byte) (map[uint64]*bm.ResultJSON, error) {
+func parseBenchmarkResult(data []byte) (map[string]*bm.ResultJSON, error) {
 	v := &bm.ContainerBenchmarkResultsJSON{}
 	err := json.Unmarshal(data, &v)
 	if err != nil {

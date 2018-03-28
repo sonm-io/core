@@ -31,6 +31,8 @@ locator:
   endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"
 logging:
   level: warn
+benchmarks:
+  url: "http://localhost.dev/list.json"
 `
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
@@ -52,6 +54,8 @@ hub:
   endpoints: ["127.0.0.1:10002"]
 locator:
   endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"
+benchmarks:
+  url: "http://localhost.dev/list.json"
 `
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
@@ -71,9 +75,11 @@ hub:
   endpoints: ["127.0.0.1:10002"]
 locator:
   endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"
+benchmarks:
+  url: "http://localhost.dev/list.json"
+
 plugins:
   socket_dir: /tmp/run/test-plugins
-
   volume:
     root: /my/random/dir
     volumes:
