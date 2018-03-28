@@ -80,7 +80,10 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, c
 
 // Node is LocalNode instance
 type Node struct {
-	cfg Config
+	cfg     Config
+	ctx     context.Context
+	cancel  context.CancelFunc
+	privKey *ecdsa.PrivateKey
 
 	// servers for processing requests
 	httpSrv *rest.Server
@@ -91,11 +94,6 @@ type Node struct {
 	market pb.MarketServer
 	deals  pb.DealManagementServer
 	tasks  pb.TaskManagementServer
-
-	//
-	ctx     context.Context
-	cancel  context.CancelFunc
-	privKey *ecdsa.PrivateKey
 }
 
 // New creates new Local Node instance

@@ -22,20 +22,20 @@ func defaultOptions() *options {
 	return &options{
 		ctx:       context.Background(),
 		listeners: []net.Listener{},
-		decoder:   &NilDecoder{},
-		encoder:   &NilEncoder{},
+		decoder:   &nilDecoder{},
+		encoder:   &nilEncoder{},
 	}
 }
 
-type NilDecoder struct{}
+type nilDecoder struct{}
 
-type NilEncoder struct{}
+type nilEncoder struct{}
 
-func (n *NilDecoder) DecodeBody(request *http.Request) (io.Reader, error) {
+func (n *nilDecoder) DecodeBody(request *http.Request) (io.Reader, error) {
 	return request.Body, nil
 }
 
-func (n *NilEncoder) Encode(rw http.ResponseWriter) (http.ResponseWriter, error) {
+func (n *nilEncoder) Encode(rw http.ResponseWriter) (http.ResponseWriter, error) {
 	return rw, nil
 }
 
