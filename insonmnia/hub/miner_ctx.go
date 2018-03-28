@@ -10,7 +10,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/resource"
-	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
@@ -77,7 +76,7 @@ func createMinerCtx(ctx context.Context, miner *miner.Miner) (*MinerCtx, error) 
 }
 
 func (m *MinerCtx) handshake() error {
-	hw := m.miner.Handshake(m.ctx, &pb.MinerHandshakeRequest{})
+	hw := m.miner.Hardware()
 	log.G(m.ctx).Debug("received Miner's capabilities", zap.Any("capabilities", hw))
 
 	m.capabilities = hw

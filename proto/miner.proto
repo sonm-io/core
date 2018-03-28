@@ -8,32 +8,6 @@ import "net.proto";
 
 package sonm;
 
-service Miner {
-    rpc Ping(Empty) returns (PingReply) {}
-    rpc Info(Empty) returns (InfoReply) {}
-    // Handshake is deprecated.
-    rpc Handshake(MinerHandshakeRequest) returns (MinerHandshakeReply) {}
-
-    rpc Save(SaveRequest) returns (stream Chunk) {}
-    rpc Load(stream Chunk) returns (stream Progress) {}
-    rpc Start(MinerStartRequest) returns (MinerStartReply) {}
-    rpc Stop(ID) returns (Empty) {}
-
-    rpc JoinNetwork(ID) returns (NetworkSpec) {}
-
-    rpc TasksStatus(stream MinerStatusMapRequest) returns (stream StatusMapReply) {}
-    rpc TaskDetails(ID) returns (TaskStatusReply) {}
-
-    rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
-    rpc DiscoverHub(DiscoverHubRequest) returns (Empty) {}
-}
-
-// MinerHandshakeRequest is deprecated.
-message MinerHandshakeRequest {
-    string hub = 1;
-    repeated TaskInfo tasks = 2;
-}
-
 // MinerHandshakeReply is deprecated.
 message MinerHandshakeReply {
     string miner = 1;

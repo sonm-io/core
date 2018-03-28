@@ -100,11 +100,11 @@ func isIPv4(ip net.IP) bool {
 }
 
 type chunkReader struct {
-	stream sonm.Miner_LoadServer
+	stream sonm.Hub_PushTaskServer
 	buf    []byte
 }
 
-func newChunkReader(stream sonm.Miner_LoadServer) io.Reader {
+func newChunkReader(stream sonm.Hub_PushTaskServer) io.Reader {
 	return &chunkReader{stream: stream, buf: nil}
 }
 

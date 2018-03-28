@@ -85,7 +85,6 @@ It has these top-level messages:
 	GetOrdersReply
 	GetProcessingReply
 	TouchOrdersRequest
-	MinerHandshakeRequest
 	MinerHandshakeReply
 	MinerStartRequest
 	MinerStartReply

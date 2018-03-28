@@ -64,7 +64,6 @@ type Miner struct {
 	// TODO: It's doubtful that we should keep this map here instead in the Overseer.
 	containers map[string]*ContainerInfo
 
-	statusChannels map[int]chan bool
 	channelCounter int
 	controlGroup   cGroup
 	cGroupManager  cGroupManager
@@ -151,9 +150,8 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		resources: resource.NewPool(hardwareInfo),
 		publicIPs: o.publicIPs,
 
-		containers:     make(map[string]*ContainerInfo),
-		statusChannels: make(map[int]chan bool),
-		nameMapping:    make(map[string]string),
+		containers:  make(map[string]*ContainerInfo),
+		nameMapping: make(map[string]string),
 
 		controlGroup:  cgroup,
 		cGroupManager: cGroupManager,
@@ -274,7 +272,7 @@ func (m *Miner) Info(ctx context.Context, request *pb.Empty) (*pb.InfoReply, err
 }
 
 // Handshake notifies Hub about Worker's hardware capabilities
-func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest) *hardware.Hardware {
+func (m *Miner) Hardware() *hardware.Hardware {
 	return m.hardware
 }
 
@@ -304,12 +302,6 @@ func (m *Miner) setStatus(status *pb.TaskStatusReply, id string) {
 	if status.Status == pb.TaskStatusReply_BROKEN || status.Status == pb.TaskStatusReply_FINISHED {
 		go m.scheduleStatusPurge(id)
 	}
-	for _, ch := range m.statusChannels {
-		select {
-		case ch <- true:
-		case <-m.ctx.Done():
-		}
-	}
 }
 
 func (m *Miner) listenForStatus(statusListener chan pb.TaskStatusReply_Status, id string) {
@@ -334,7 +326,7 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 	return restartPolicy
 }
 
-func (m *Miner) Load(stream pb.Miner_LoadServer) error {
+func (m *Miner) Load(stream pb.Hub_PushTaskServer) error {
 	log.G(m.ctx).Info("handling Load request")
 
 	result, err := m.ovs.Load(stream.Context(), newChunkReader(stream))
@@ -347,7 +339,7 @@ func (m *Miner) Load(stream pb.Miner_LoadServer) error {
 	return nil
 }
 
-func (m *Miner) Save(request *pb.SaveRequest, stream pb.Miner_SaveServer) error {
+func (m *Miner) Save(request *pb.SaveRequest, stream pb.Hub_PullTaskServer) error {
 	log.G(m.ctx).Info("handling Save request", zap.Any("request", request))
 
 	info, rd, err := m.ovs.Save(stream.Context(), request.ImageID)
@@ -551,13 +543,6 @@ func (m *Miner) Stop(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
-func (m *Miner) removeStatusChannel(idx int) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	delete(m.statusChannels, idx)
-}
-
 func (m *Miner) CollectTasksStatuses() map[string]*pb.TaskStatusReply {
 	result := map[string]*pb.TaskStatusReply{}
 	m.mu.Lock()
@@ -569,45 +554,8 @@ func (m *Miner) CollectTasksStatuses() map[string]*pb.TaskStatusReply {
 	return result
 }
 
-func (m *Miner) sendTasksStatus(server pb.Miner_TasksStatusServer) error {
-	result := &pb.StatusMapReply{Statuses: make(map[string]*pb.TaskStatusReply)}
-	result.Statuses = m.CollectTasksStatuses()
-	log.G(m.ctx).Info("sending result", zap.Any("info", m.containers), zap.Any("statuses", result.Statuses))
-	return server.Send(result)
-}
-
-func (m *Miner) sendUpdatesOnNotify(server pb.Miner_TasksStatusServer, ch chan bool) {
-	for {
-		select {
-		case <-ch:
-			err := m.sendTasksStatus(server)
-			if err != nil {
-				return
-			}
-		case <-m.ctx.Done():
-			return
-		}
-	}
-}
-
-func (m *Miner) sendUpdatesOnRequest(server pb.Miner_TasksStatusServer) {
-	for {
-		_, err := server.Recv()
-		if err != nil {
-			log.G(m.ctx).Info("tasks status server returned an error", zap.Error(err))
-			return
-		}
-		log.G(m.ctx).Debug("handling tasks status request")
-		err = m.sendTasksStatus(server)
-		if err != nil {
-			log.G(m.ctx).Info("failed to send status update", zap.Error(err))
-			return
-		}
-	}
-}
-
 // TaskLogs returns logs from container
-func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Miner_TaskLogsServer) error {
+func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer) error {
 	log.G(m.ctx).Info("handling TaskLogs request", zap.Any("request", request))
 	cid, ok := m.getContainerIdByTaskId(request.Id)
 	if !ok {
@@ -640,22 +588,6 @@ func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Miner_TaskLogsSe
 			return err
 		}
 	}
-}
-
-// TasksStatus returns the status of a task
-func (m *Miner) TasksStatus(server pb.Miner_TasksStatusServer) error {
-	log.G(m.ctx).Info("starting tasks status server")
-	m.mu.Lock()
-	ch := make(chan bool)
-	m.channelCounter++
-	m.statusChannels[m.channelCounter] = ch
-	defer m.removeStatusChannel(m.channelCounter)
-	m.mu.Unlock()
-
-	go m.sendUpdatesOnNotify(server, ch)
-	m.sendUpdatesOnRequest(server)
-
-	return nil
 }
 
 //TODO: proper request
