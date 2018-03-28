@@ -185,7 +185,7 @@ func TestLocator_SkipPrivateIP(t *testing.T) {
 
 	creds := util.NewTLS(&tls.Config{Certificates: []tls.Certificate{crt}, InsecureSkipVerify: true})
 
-	conn, err := xgrpc.NewWalletAuthenticatedClient(context.Background(), creds, "localhost:9191")
+	conn, err := xgrpc.NewClient(context.Background(), "localhost:9191", creds)
 	if err != nil {
 		t.Error(err)
 		return

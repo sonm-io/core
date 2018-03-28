@@ -34,7 +34,7 @@ type client struct {
 // optional credentials - for authentication. Additionally other dial options
 // can be specified.
 func NewRendezvousClient(ctx context.Context, addr string, credentials credentials.TransportCredentials, opts ...grpc.DialOption) (Client, error) {
-	conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, credentials, addr, opts...)
+	conn, err := xgrpc.NewClient(ctx, addr, credentials, opts...)
 	if err != nil {
 		return nil, err
 	}

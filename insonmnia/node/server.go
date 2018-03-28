@@ -38,12 +38,12 @@ type remoteOptions struct {
 }
 
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, creds credentials.TransportCredentials) (*remoteOptions, error) {
-	locatorCC, err := xgrpc.NewWalletAuthenticatedClient(ctx, creds, conf.LocatorEndpoint())
+	locatorCC, err := xgrpc.NewClient(ctx, conf.LocatorEndpoint(), creds)
 	if err != nil {
 		return nil, err
 	}
 
-	marketCC, err := xgrpc.NewWalletAuthenticatedClient(ctx, creds, conf.MarketEndpoint())
+	marketCC, err := xgrpc.NewClient(ctx, conf.MarketEndpoint(), creds)
 	if err != nil {
 		return nil, err
 	}

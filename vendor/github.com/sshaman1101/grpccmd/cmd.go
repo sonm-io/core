@@ -140,7 +140,7 @@ func dial(key *ecdsa.PrivateKey) (io.Closer, error) {
 	}
 
 	creds := util.NewTLS(TLSConfig)
-	return xgrpc.NewWalletAuthenticatedClient(ctx, creds, *remote)
+	return xgrpc.NewClient(ctx, *remote, creds)
 }
 
 func openConfigAndLoadEthKey() (*ecdsa.PrivateKey, error) {

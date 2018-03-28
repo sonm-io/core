@@ -151,7 +151,7 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 	}
 
 	if defaults.locator == nil {
-		conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, defaults.creds, cfg.Locator.Endpoint)
+		conn, err := xgrpc.NewClient(ctx, cfg.Locator.Endpoint, defaults.creds)
 		if err != nil {
 			return nil, err
 		}
@@ -160,7 +160,7 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 	}
 
 	if defaults.market == nil {
-		conn, err := xgrpc.NewWalletAuthenticatedClient(ctx, defaults.creds, cfg.Market.Endpoint)
+		conn, err := xgrpc.NewClient(ctx, cfg.Market.Endpoint, defaults.creds)
 		if err != nil {
 			return nil, err
 		}
