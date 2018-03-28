@@ -1,19 +1,10 @@
 syntax = "proto3";
 
-import "capabilities.proto";
 import "container.proto";
 import "insonmnia.proto";
-import "nat.proto";
 import "net.proto";
 
 package sonm;
-
-// MinerHandshakeReply is deprecated.
-message MinerHandshakeReply {
-    string miner = 1;
-    Capabilities capabilities = 2;
-    NATType natType = 3;
-}
 
 message MinerStartRequest{
     string id = 1;

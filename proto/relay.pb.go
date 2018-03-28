@@ -47,7 +47,7 @@ var PeerType_value = map[string]int32{
 func (x PeerType) String() string {
 	return proto.EnumName(PeerType_name, int32(x))
 }
-func (PeerType) EnumDescriptor() ([]byte, []int) { return fileDescriptor14, []int{0} }
+func (PeerType) EnumDescriptor() ([]byte, []int) { return fileDescriptor13, []int{0} }
 
 type HandshakeRequest struct {
 	// PeerType describes a peer's source.
@@ -75,7 +75,7 @@ type HandshakeRequest struct {
 func (m *HandshakeRequest) Reset()                    { *m = HandshakeRequest{} }
 func (m *HandshakeRequest) String() string            { return proto.CompactTextString(m) }
 func (*HandshakeRequest) ProtoMessage()               {}
-func (*HandshakeRequest) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{0} }
+func (*HandshakeRequest) Descriptor() ([]byte, []int) { return fileDescriptor13, []int{0} }
 
 func (m *HandshakeRequest) GetPeerType() PeerType {
 	if m != nil {
@@ -113,7 +113,7 @@ type DiscoverResponse struct {
 func (m *DiscoverResponse) Reset()                    { *m = DiscoverResponse{} }
 func (m *DiscoverResponse) String() string            { return proto.CompactTextString(m) }
 func (*DiscoverResponse) ProtoMessage()               {}
-func (*DiscoverResponse) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{1} }
+func (*DiscoverResponse) Descriptor() ([]byte, []int) { return fileDescriptor13, []int{1} }
 
 func (m *DiscoverResponse) GetAddr() string {
 	if m != nil {
@@ -133,7 +133,7 @@ type HandshakeResponse struct {
 func (m *HandshakeResponse) Reset()                    { *m = HandshakeResponse{} }
 func (m *HandshakeResponse) String() string            { return proto.CompactTextString(m) }
 func (*HandshakeResponse) ProtoMessage()               {}
-func (*HandshakeResponse) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{2} }
+func (*HandshakeResponse) Descriptor() ([]byte, []int) { return fileDescriptor13, []int{2} }
 
 func (m *HandshakeResponse) GetError() int32 {
 	if m != nil {
@@ -156,7 +156,7 @@ type RelayClusterReply struct {
 func (m *RelayClusterReply) Reset()                    { *m = RelayClusterReply{} }
 func (m *RelayClusterReply) String() string            { return proto.CompactTextString(m) }
 func (*RelayClusterReply) ProtoMessage()               {}
-func (*RelayClusterReply) Descriptor() ([]byte, []int) { return fileDescriptor14, []int{3} }
+func (*RelayClusterReply) Descriptor() ([]byte, []int) { return fileDescriptor13, []int{3} }
 
 func (m *RelayClusterReply) GetMembers() []string {
 	if m != nil {
@@ -284,9 +284,9 @@ func init() {
 
 // End grpccmd
 
-func init() { proto.RegisterFile("relay.proto", fileDescriptor14) }
+func init() { proto.RegisterFile("relay.proto", fileDescriptor13) }
 
-var fileDescriptor14 = []byte{
+var fileDescriptor13 = []byte{
 	// 308 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x64, 0x91, 0x5f, 0x4f, 0xc2, 0x30,
 	0x14, 0xc5, 0x29, 0xff, 0xb9, 0x10, 0x1c, 0x8d, 0x89, 0x0b, 0x4f, 0xcb, 0x1e, 0xcc, 0x42, 0x22,
