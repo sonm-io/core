@@ -36,7 +36,7 @@ func newRendezvousClient(ctx context.Context, addr auth.Endpoint, credentials cr
 		return nil, err
 	}
 
-	client, err := rendezvous.NewRendezvousClient(ctx, "", credentials, xgrpc.WithConn(conn))
+	client, err := rendezvous.NewRendezvousClient(ctx, "", auth.NewWalletAuthenticator(credentials, addr.EthAddress), xgrpc.WithConn(conn))
 	if err != nil {
 		return nil, err
 	}
