@@ -301,6 +301,10 @@ func (m *Server) removeServerWatch(id string, peer Peer) {
 }
 
 func (m *Server) maybeCleanMeeting(id string, candidates *meeting) {
+	if candidates == nil {
+		return
+	}
+
 	if len(candidates.clients) == 0 && len(candidates.servers) == 0 {
 		delete(m.rv, id)
 	}
