@@ -154,7 +154,7 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 	body, _ := ioutil.ReadAll(decodedReader)
 	if len(body) == 0 {
-		s.log.Errorf("missing required body", err)
+		s.log.Error("missing required body")
 		rw.WriteHeader(http.StatusBadRequest)
 		rw.Write([]byte(fmt.Sprintf("miissing required body")))
 		return
