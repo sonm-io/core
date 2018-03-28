@@ -16,7 +16,6 @@ It is generated from these files:
 	locator.proto
 	marketplace.proto
 	miner.proto
-	nat.proto
 	net.proto
 	node.proto
 	relay.proto
@@ -85,8 +84,6 @@ It has these top-level messages:
 	GetOrdersReply
 	GetProcessingReply
 	TouchOrdersRequest
-	MinerHandshakeRequest
-	MinerHandshakeReply
 	MinerStartRequest
 	MinerStartReply
 	TaskInfo
