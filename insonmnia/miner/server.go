@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
@@ -9,12 +10,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ccding/go-stun/stun"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/miner/gpu"
+
+	// todo: drop alias
+	bm "github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/miner/volume"
@@ -36,14 +41,12 @@ type Miner struct {
 
 	plugins *plugin.Repository
 
-	// Miner name for nice self-representation.
 	hardware  *hardware.Hardware
 	resources *resource.Pool
 
 	hubKey *ecdsa.PublicKey
 
 	publicIPs []string
-	natType   stun.NATType
 
 	ovs Overseer
 
@@ -66,6 +69,8 @@ type Miner struct {
 	controlGroup   cGroup
 	cGroupManager  cGroupManager
 	ssh            SSH
+	state          *state
+	benchmarkList  bm.BenchList
 }
 
 func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
@@ -86,16 +91,21 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		o.ctx = context.Background()
 	}
 
-	if o.hardware == nil {
-		o.hardware = hardware.New()
+	if o.benchList == nil {
+		o.benchList = bm.NewDumbBenchmarks()
 	}
 
-	hardwareInfo, err := o.hardware.Info()
+	hardwareInfo, err := hardware.NewHardware()
 	if err != nil {
 		return nil, err
 	}
 
 	cgroup, cGroupManager, err := makeCgroupManager(cfg.HubResources())
+	if err != nil {
+		return nil, err
+	}
+
+	state, err := NewState(o.ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -108,9 +118,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		return nil, errors.Wrap(err, "failed to set up network options")
 	}
 
-	log.G(o.ctx).Info("discovered public IPs",
-		zap.Any("public IPs", o.publicIPs),
-		zap.Any("nat", o.nat))
+	log.G(o.ctx).Info("discovered public IPs", zap.Any("public IPs", o.publicIPs))
 
 	plugins, err := plugin.NewRepository(o.ctx, cfg.Plugins())
 	if err != nil {
@@ -134,18 +142,14 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 
 	m = &Miner{
 		ctx: o.ctx,
-
 		cfg: cfg,
-
 		ovs: o.ovs,
 
 		plugins: plugins,
 
 		hardware:  hardwareInfo,
 		resources: resource.NewPool(hardwareInfo),
-
 		publicIPs: o.publicIPs,
-		natType:   o.nat,
 
 		containers:     make(map[string]*ContainerInfo),
 		statusChannels: make(map[int]chan bool),
@@ -154,6 +158,8 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		controlGroup:  cgroup,
 		cGroupManager: cGroupManager,
 		ssh:           o.ssh,
+		state:         state,
+		benchmarkList: o.benchList,
 	}
 
 	return m, nil
@@ -267,19 +273,9 @@ func (m *Miner) Info(ctx context.Context, request *pb.Empty) (*pb.InfoReply, err
 	return result, nil
 }
 
-// Handshake is the first frame received from a Hub.
-//
-// This is a self representation about initial resources this Miner provides.
-// TODO: May be useful to register a channel to cover runtime resource changes.
-func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest) (*pb.MinerHandshakeReply, error) {
-	log.G(m.ctx).Info("handling Handshake request", zap.Any("req", request))
-
-	resp := &pb.MinerHandshakeReply{
-		Capabilities: m.hardware.IntoProto(),
-		NatType:      pb.NewNATType(m.natType),
-	}
-
-	return resp, nil
+// Handshake notifies Hub about Worker's hardware capabilities
+func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest) *hardware.Hardware {
+	return m.hardware
 }
 
 func (m *Miner) scheduleStatusPurge(id string) {
@@ -716,9 +712,280 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 
 	return reply, nil
 }
-
 func (m *Miner) RunSSH() error {
 	return m.ssh.Run()
+}
+
+// RunBenchmarks perform benchmarking of Worker's resources.
+func (m *Miner) RunBenchmarks() error {
+	savedHardware := m.state.getHardwareHash()
+	exitingHardware := m.hardware.Hash()
+
+	log.G(m.ctx).Debug("hardware hashes",
+		zap.String("saved", savedHardware),
+		zap.String("exiting", exitingHardware))
+
+	savedBenchmarks := m.state.getPassedBenchmarks()
+	requiredBenchmarks, err := m.benchmarkList.List()
+	if err != nil {
+		return err
+	}
+
+	hwHashesMatched := exitingHardware == savedHardware
+	benchMatched := m.isBenchmarkListMatches(requiredBenchmarks, savedBenchmarks)
+
+	log.G(m.ctx).Debug("state matching",
+		zap.Bool("hwHashesMatched", hwHashesMatched),
+		zap.Bool("benchMatched", benchMatched))
+
+	if benchMatched && hwHashesMatched {
+		log.G(m.ctx).Debug("benchmarks list is matched, hardware is not changed, skip benchmarking this worker")
+		// return back previously measured results for hardware
+		m.hardware = m.state.getHardwareWithBenchmarks()
+		return nil
+	}
+
+	passedBenchmarks := map[uint64]bool{}
+	for dev, benches := range requiredBenchmarks {
+		err := m.runBenchmarkGroup(dev, benches)
+		if err != nil {
+			return err
+		}
+
+		for _, b := range benches {
+			passedBenchmarks[b.GetID()] = true
+		}
+	}
+
+	if err := m.state.setPassedBenchmarks(passedBenchmarks); err != nil {
+		return err
+	}
+
+	if err := m.state.setHardwareWithBenchmarks(m.hardware); err != nil {
+		return err
+	}
+
+	return m.state.setHardwareHash(m.hardware.Hash())
+}
+
+// isBenchmarkListMatches checks if already passed benchmarks is matches required benchmarks list.
+//
+// todo: test me
+func (m *Miner) isBenchmarkListMatches(required map[pb.DeviceType][]*pb.Benchmark, exiting map[uint64]bool) bool {
+	for _, benchs := range required {
+		for _, bench := range benchs {
+			if _, ok := exiting[bench.ID]; !ok {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+// runBenchmarkGroup executes group of benchmarks for given device type (CPU, GPU, Network, etc...).
+// The results must be attached to worker's hardware capabilities inside this function (by magic).
+func (m *Miner) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) error {
+	switch dev {
+	case pb.DeviceType_DEV_CPU:
+		return m.runCPUBenchGroup(benches)
+	case pb.DeviceType_DEV_RAM:
+		return m.runRAMBenchGroup(benches)
+	case pb.DeviceType_DEV_GPU:
+		return m.runGPUBenchGroup(benches)
+	case pb.DeviceType_DEV_NETWORK:
+		return m.runNetworkBenchGroup(benches)
+	case pb.DeviceType_DEV_STORAGE:
+		return m.runStorageBenchGroup(benches)
+	default:
+		return fmt.Errorf("unknown benchmark group \"%s\"", dev.String())
+	}
+}
+
+func (m *Miner) runCPUBenchGroup(benches []*pb.Benchmark) error {
+	for _, c := range m.hardware.CPU {
+		for _, ben := range benches {
+			// check for special cases
+			if ben.GetID() == bm.CPUCores {
+				c.Benchmark[bm.CPUCores] = &pb.Benchmark{
+					ID:     bm.CPUCores,
+					Result: uint64(c.Device.Cores),
+				}
+
+				continue
+			}
+
+			d := getDescriptionForBenchmark(ben)
+			d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", c.Device.Cores)
+
+			res, err := m.execBenchmarkContainer(ben, d)
+			if err != nil {
+				return err
+			}
+
+			// save benchmark resutls for current CPU unit
+			c.Benchmark[ben.GetID()] = &pb.Benchmark{ID: ben.GetID(), Result: res.Result}
+		}
+	}
+
+	return nil
+}
+
+func (m *Miner) runRAMBenchGroup(benches []*pb.Benchmark) error {
+	for _, ben := range benches {
+		// special case, just copy available amount of mem as benchmark result.
+		if ben.GetID() == bm.RamSize {
+			b := &pb.Benchmark{
+				ID:     bm.RamSize,
+				Result: m.hardware.AvailableMemory(),
+			}
+
+			m.hardware.Memory.Benchmark[bm.RamSize] = b
+			continue
+		}
+
+		d := getDescriptionForBenchmark(ben)
+		res, err := m.execBenchmarkContainer(ben, d)
+		if err != nil {
+			return err
+		}
+
+		m.hardware.Memory.Benchmark[ben.GetID()] = &pb.Benchmark{ID: ben.GetID(), Result: res.Result}
+		return nil
+	}
+
+	return nil
+}
+
+func (m *Miner) runGPUBenchGroup(benches []*pb.Benchmark) error {
+	for _, dev := range m.hardware.GPU {
+		for _, ben := range benches {
+			if ben.GetID() == bm.GPUCount {
+				dev.Benchmark[bm.GPUCount] = &pb.Benchmark{ID: ben.GetID(), Result: 1}
+				continue
+			}
+
+			if ben.GetID() == bm.GPUMem {
+				dev.Benchmark[bm.GPUMem] = &pb.Benchmark{
+					ID: ben.GetID(),
+					// todo(sshaman1101): add some method to retrieve GPU's memory
+					Result: 100500,
+				}
+				continue
+			}
+
+			d := getDescriptionForBenchmark(ben)
+			d.GPUDevices = []gpu.GPUID{gpu.GPUID(dev.Device.GetID())}
+			d.GPURequired = true
+
+			res, err := m.execBenchmarkContainer(ben, d)
+			if err != nil {
+				return err
+			}
+
+			dev.Benchmark[ben.GetID()] = &pb.Benchmark{ID: ben.GetID(), Result: res.Result}
+		}
+	}
+
+	return nil
+}
+
+func (m *Miner) runNetworkBenchGroup(benches []*pb.Benchmark) error {
+	for _, ben := range benches {
+		d := getDescriptionForBenchmark(ben)
+		res, err := m.execBenchmarkContainer(ben, d)
+		if err != nil {
+			return err
+		}
+
+		m.hardware.Network.Benchmark[ben.GetID()] = &pb.Benchmark{ID: ben.GetID(), Result: res.Result}
+	}
+
+	return nil
+}
+
+func (m *Miner) runStorageBenchGroup(benches []*pb.Benchmark) error {
+	// note: there is no storage sub-system for worker yet, so benchmark always returns zero
+	m.hardware.Storage.Benchmark[bm.StorageSize] = &pb.Benchmark{ID: bm.StorageSize, Result: 0}
+	return nil
+}
+
+// execBenchmarkContainerWithResults executes benchmark as docker image,
+// returns JSON output with measured values.
+func (m *Miner) execBenchmarkContainerWithResults(d Description) (map[uint64]*bm.ResultJSON, error) {
+	statusChan, statusReply, err := m.ovs.Start(m.ctx, d)
+	if err != nil {
+		return nil, fmt.Errorf("cannot start container with benchmark: %v", err)
+	}
+
+	logOpts := types.ContainerLogsOptions{ShowStdout: true}
+	reader, err := m.ovs.Logs(m.ctx, statusReply.ID, logOpts)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create container log reader: %v", err)
+	}
+	defer reader.Close()
+
+	stdoutBuf := bytes.Buffer{}
+	stderrBuf := bytes.Buffer{}
+	_, err = stdcopy.StdCopy(&stdoutBuf, &stderrBuf, reader)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read logs into buffer: %v", err)
+	}
+
+	resultsMap, err := parseBenchmarkResult(stdoutBuf.Bytes())
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse benchmark result: %v", err)
+	}
+
+	<-statusChan
+	if err := m.ovs.Stop(m.ctx, statusReply.ID); err != nil {
+		log.G(m.ctx).Warn("cannot stop benchmark container", zap.Error(err))
+	}
+
+	return resultsMap, nil
+}
+
+func (m *Miner) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*bm.ResultJSON, error) {
+	log.G(m.ctx).Debug("starting containered benchmark", zap.Any("benchmark", ben))
+	res, err := m.execBenchmarkContainerWithResults(des)
+	if err != nil {
+		return nil, err
+	}
+
+	log.G(m.ctx).Debug("received raw benchmark results",
+		zap.Uint64("bench_id", ben.GetID()),
+		zap.Any("result", res))
+
+	v, ok := res[ben.GetID()]
+	if !ok {
+		return nil, fmt.Errorf("no results for benchmark id=%d found into container's output", ben.GetID())
+	}
+
+	return v, nil
+
+}
+
+func parseBenchmarkResult(data []byte) (map[uint64]*bm.ResultJSON, error) {
+	v := &bm.ContainerBenchmarkResultsJSON{}
+	err := json.Unmarshal(data, &v)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(v.Results) == 0 {
+		return nil, errors.New("results is empty")
+	}
+
+	return v.Results, nil
+}
+
+func getDescriptionForBenchmark(b *pb.Benchmark) Description {
+	return Description{
+		Image: b.GetImage(),
+		Env: map[string]string{
+			bm.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
+		},
+	}
 }
 
 // Close disposes all resources related to the Miner

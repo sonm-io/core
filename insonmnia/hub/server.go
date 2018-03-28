@@ -197,6 +197,7 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	hubState, err := newState(ctx, ethWrapper, defaults.market, defaults.cluster, minerCtx)
 	if err != nil {
 		return nil, err

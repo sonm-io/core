@@ -44,6 +44,7 @@ type Description struct {
 	CommitOnStop  bool
 
 	GPURequired bool
+	GPUDevices  []gpu.GPUID
 
 	volumes map[string]*pb.Volume
 	mounts  []volume.Mount
@@ -64,11 +65,12 @@ func (d *Description) Mounts(source string) []volume.Mount {
 }
 
 func (d *Description) IsGPURequired() bool {
-	return false
+	// todo: remove boolean flag, check as len(d.GPUDevices) > 0
+	return d.GPURequired
 }
 
 func (d *Description) GpuDeviceIDs() []gpu.GPUID {
-	return []gpu.GPUID{}
+	return d.GPUDevices
 }
 
 func (d *Description) Networks() []structs.Network {

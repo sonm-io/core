@@ -89,7 +89,7 @@ func (p *Pool) pollConsume(usage *Resources) error {
 
 	free := NewResources(
 		p.OS.LogicalCPUCount()-p.usage.NumCPUs,
-		int64(p.OS.Memory.Total)-p.usage.Memory,
+		int64(p.OS.Memory.Device.Total)-p.usage.Memory,
 		len(p.OS.GPU)-p.usage.NumGPUs,
 	)
 

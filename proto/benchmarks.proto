@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package sonm;
+
+//  BenchmarkType describes hardware group for which this benchmark is applicable
+enum DeviceType {
+    DEV_UNKNOWN = 0;
+    DEV_CPU = 1;
+    DEV_GPU = 2;
+    DEV_RAM = 3;
+    DEV_STORAGE = 4;
+    DEV_NETWORK = 5;
+}
+
+// Benchmark describes a way to measure hardware performance
+message Benchmark {
+    uint64 ID = 1;
+    string code = 2;
+    DeviceType type = 3;
+    string description = 4;
+    string image = 5;
+    uint64 result = 6;
+}

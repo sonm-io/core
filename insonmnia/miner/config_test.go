@@ -40,6 +40,8 @@ logging:
 
 	assert.Equal(t, []string{"127.0.0.1:10002"}, conf.HubEndpoints())
 	assert.Equal(t, zapcore.WarnLevel, conf.LogLevel())
+	assert.Equal(t, "/var/lib/sonm/worker.boltdb", conf.StorePath())
+	assert.Equal(t, "sonm", conf.StoreBucket())
 }
 
 func TestConfigPluginsDefaults(t *testing.T) {

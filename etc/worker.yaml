@@ -54,6 +54,9 @@ locator:
   # locator gRPC endpoint, required
   endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:15020"
 
+store:
+  path: "/var/lib/sonm/worker.boltdb"
+
 metrics_listen_addr: "127.0.0.1:14001"
 
 plugins:

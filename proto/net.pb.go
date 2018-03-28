@@ -20,7 +20,7 @@ type Addr struct {
 func (m *Addr) Reset()                    { *m = Addr{} }
 func (m *Addr) String() string            { return proto.CompactTextString(m) }
 func (*Addr) ProtoMessage()               {}
-func (*Addr) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{0} }
+func (*Addr) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{0} }
 
 func (m *Addr) GetProtocol() string {
 	if m != nil {
@@ -47,7 +47,7 @@ type SocketAddr struct {
 func (m *SocketAddr) Reset()                    { *m = SocketAddr{} }
 func (m *SocketAddr) String() string            { return proto.CompactTextString(m) }
 func (*SocketAddr) ProtoMessage()               {}
-func (*SocketAddr) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{1} }
+func (*SocketAddr) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{1} }
 
 func (m *SocketAddr) GetAddr() string {
 	if m != nil {
@@ -68,9 +68,9 @@ func init() {
 	proto.RegisterType((*SocketAddr)(nil), "sonm.SocketAddr")
 }
 
-func init() { proto.RegisterFile("net.proto", fileDescriptor11) }
+func init() { proto.RegisterFile("net.proto", fileDescriptor12) }
 
-var fileDescriptor11 = []byte{
+var fileDescriptor12 = []byte{
 	// 128 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0xcc, 0x4b, 0x2d, 0xd1,
 	0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0x62, 0x29, 0xce, 0xcf, 0xcb, 0x55, 0xf2, 0xe0, 0x62, 0x71,

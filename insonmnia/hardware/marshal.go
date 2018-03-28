@@ -7,10 +7,20 @@ import (
 )
 
 func (h *Hardware) IntoProto() *sonm.Capabilities {
+	cpus := []cpu.Device{}
+	for _, c := range h.CPU {
+		cpus = append(cpus, c.Device)
+	}
+
+	gpus := []*sonm.GPUDevice{}
+	for _, g := range h.GPU {
+		gpus = append(gpus, g.Device)
+	}
+
 	return &sonm.Capabilities{
-		Cpu: cpu.MarshalDevices(h.CPU),
-		Mem: MemoryIntoProto(h.Memory),
-		Gpu: h.GPU,
+		Cpu: cpu.MarshalDevices(cpus),
+		Mem: MemoryIntoProto(h.Memory.Device),
+		Gpu: gpus,
 	}
 }
 
@@ -19,30 +29,4 @@ func MemoryIntoProto(m *mem.VirtualMemoryStat) *sonm.RAMDevice {
 		Total: m.Total,
 		Used:  m.Used,
 	}
-}
-
-func MemoryFromProto(m *sonm.RAMDevice) (*mem.VirtualMemoryStat, error) {
-	return &mem.VirtualMemoryStat{
-		Total: m.Total,
-	}, nil
-}
-
-func HardwareFromProto(cap *sonm.Capabilities) (*Hardware, error) {
-	c, err := cpu.UnmarshalDevices(cap.Cpu)
-	if err != nil {
-		return nil, err
-	}
-
-	m, err := MemoryFromProto(cap.Mem)
-	if err != nil {
-		return nil, err
-	}
-
-	h := &Hardware{
-		CPU:    c,
-		Memory: m,
-		GPU:    cap.Gpu,
-	}
-
-	return h, nil
 }
