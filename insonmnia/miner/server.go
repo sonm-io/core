@@ -18,6 +18,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
 
+	// todo: drop alias
 	bm "github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
@@ -426,7 +427,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		TaskId:        request.Id,
 		CommitOnStop:  request.Container.CommitOnStop,
 		Env:           request.Container.Env,
-		GpuRequired:   resources.RequiresGPU(),
+		GPURequired:   resources.RequiresGPU(),
 		volumes:       request.Container.Volumes,
 		mounts:        mounts,
 		networks:      networks,
@@ -724,8 +725,11 @@ func (m *Miner) RunBenchmarks() error {
 		zap.String("saved", savedHardware),
 		zap.String("exiting", exitingHardware))
 
-	requiredBenchmarks := m.benchmarkList.List()
 	savedBenchmarks := m.state.getPassedBenchmarks()
+	requiredBenchmarks, err := m.benchmarkList.List()
+	if err != nil {
+		return err
+	}
 
 	hwHashesMatched := exitingHardware == savedHardware
 	benchMatched := m.isBenchmarkListMatches(requiredBenchmarks, savedBenchmarks)
@@ -741,7 +745,7 @@ func (m *Miner) RunBenchmarks() error {
 		return nil
 	}
 
-	passedBenchmarks := map[string]bool{}
+	passedBenchmarks := map[uint64]bool{}
 	for dev, benches := range requiredBenchmarks {
 		err := m.runBenchmarkGroup(dev, benches)
 		if err != nil {
@@ -749,17 +753,15 @@ func (m *Miner) RunBenchmarks() error {
 		}
 
 		for _, b := range benches {
-			passedBenchmarks[b.ID] = true
+			passedBenchmarks[b.GetID()] = true
 		}
 	}
 
-	err := m.state.setPassedBenchmarks(passedBenchmarks)
-	if err != nil {
+	if err := m.state.setPassedBenchmarks(passedBenchmarks); err != nil {
 		return err
 	}
 
-	err = m.state.setHardwareWithBenchmarks(m.hardware)
-	if err != nil {
+	if err := m.state.setHardwareWithBenchmarks(m.hardware); err != nil {
 		return err
 	}
 
@@ -769,14 +771,13 @@ func (m *Miner) RunBenchmarks() error {
 // isBenchmarkListMatches checks if already passed benchmarks is matches required benchmarks list.
 //
 // todo: test me
-func (m *Miner) isBenchmarkListMatches(required map[pb.DeviceType][]*pb.Benchmark, exiting map[string]bool) bool {
+func (m *Miner) isBenchmarkListMatches(required map[pb.DeviceType][]*pb.Benchmark, exiting map[uint64]bool) bool {
 	for _, benchs := range required {
 		for _, bench := range benchs {
 			if _, ok := exiting[bench.ID]; !ok {
 				return false
 			}
 		}
-
 	}
 
 	return true
@@ -787,11 +788,11 @@ func (m *Miner) isBenchmarkListMatches(required map[pb.DeviceType][]*pb.Benchmar
 func (m *Miner) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) error {
 	switch dev {
 	case pb.DeviceType_DEV_CPU:
-		return m.runCpuBenchGroup(benches)
+		return m.runCPUBenchGroup(benches)
 	case pb.DeviceType_DEV_RAM:
-		return m.runRamBenchGroup(benches)
+		return m.runRAMBenchGroup(benches)
 	case pb.DeviceType_DEV_GPU:
-		return m.runGpuBenchGroup(benches)
+		return m.runGPUBenchGroup(benches)
 	case pb.DeviceType_DEV_NETWORK:
 		return m.runNetworkBenchGroup(benches)
 	case pb.DeviceType_DEV_STORAGE:
@@ -801,7 +802,7 @@ func (m *Miner) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) er
 	}
 }
 
-func (m *Miner) runCpuBenchGroup(benches []*pb.Benchmark) error {
+func (m *Miner) runCPUBenchGroup(benches []*pb.Benchmark) error {
 	for _, c := range m.hardware.CPU {
 		for _, ben := range benches {
 			// check for special cases
@@ -815,7 +816,7 @@ func (m *Miner) runCpuBenchGroup(benches []*pb.Benchmark) error {
 			}
 
 			d := getDescriptionForBenchmark(ben)
-			d.Env["SONM_CPU_COUNT"] = fmt.Sprintf("%d", c.Device.Cores)
+			d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", c.Device.Cores)
 
 			res, err := m.execBenchmarkContainer(ben, d)
 			if err != nil {
@@ -830,7 +831,7 @@ func (m *Miner) runCpuBenchGroup(benches []*pb.Benchmark) error {
 	return nil
 }
 
-func (m *Miner) runRamBenchGroup(benches []*pb.Benchmark) error {
+func (m *Miner) runRAMBenchGroup(benches []*pb.Benchmark) error {
 	for _, ben := range benches {
 		// special case, just copy available amount of mem as benchmark result.
 		if ben.GetID() == bm.RamSize {
@@ -856,7 +857,7 @@ func (m *Miner) runRamBenchGroup(benches []*pb.Benchmark) error {
 	return nil
 }
 
-func (m *Miner) runGpuBenchGroup(benches []*pb.Benchmark) error {
+func (m *Miner) runGPUBenchGroup(benches []*pb.Benchmark) error {
 	for _, dev := range m.hardware.GPU {
 		for _, ben := range benches {
 			if ben.GetID() == bm.GPUCount {
@@ -874,8 +875,8 @@ func (m *Miner) runGpuBenchGroup(benches []*pb.Benchmark) error {
 			}
 
 			d := getDescriptionForBenchmark(ben)
-			d.GpuDevices = []gpu.GPUID{gpu.GPUID(dev.Device.GetID())}
-			d.GpuRequired = true
+			d.GPUDevices = []gpu.GPUID{gpu.GPUID(dev.Device.GetID())}
+			d.GPURequired = true
 
 			res, err := m.execBenchmarkContainer(ben, d)
 			if err != nil {
@@ -909,8 +910,9 @@ func (m *Miner) runStorageBenchGroup(benches []*pb.Benchmark) error {
 	return nil
 }
 
-// execBenchmarkContainer executes benchmark as docker image.
-func (m *Miner) execBenchmarkContainerWithResults(d Description) (map[string]*bm.ResultJSON, error) {
+// execBenchmarkContainerWithResults executes benchmark as docker image,
+// returns JSON output with measured values.
+func (m *Miner) execBenchmarkContainerWithResults(d Description) (map[uint64]*bm.ResultJSON, error) {
 	statusChan, statusReply, err := m.ovs.Start(m.ctx, d)
 	if err != nil {
 		return nil, fmt.Errorf("cannot start container with benchmark: %v", err)
@@ -951,19 +953,19 @@ func (m *Miner) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*bm.
 	}
 
 	log.G(m.ctx).Debug("received raw benchmark results",
-		zap.String("benchmark", ben.GetID()),
+		zap.Uint64("bench_id", ben.GetID()),
 		zap.Any("result", res))
 
 	v, ok := res[ben.GetID()]
 	if !ok {
-		return nil, fmt.Errorf("no results for benchmark \"%s\" found into container's output", ben.GetID())
+		return nil, fmt.Errorf("no results for benchmark id=%d found into container's output", ben.GetID())
 	}
 
 	return v, nil
 
 }
 
-func parseBenchmarkResult(data []byte) (map[string]*bm.ResultJSON, error) {
+func parseBenchmarkResult(data []byte) (map[uint64]*bm.ResultJSON, error) {
 	v := &bm.ContainerBenchmarkResultsJSON{}
 	err := json.Unmarshal(data, &v)
 	if err != nil {
@@ -981,7 +983,7 @@ func getDescriptionForBenchmark(b *pb.Benchmark) Description {
 	return Description{
 		Image: b.GetImage(),
 		Env: map[string]string{
-			"SONM_BENCHMARK_ID": b.GetID(),
+			bm.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
 		},
 	}
 }

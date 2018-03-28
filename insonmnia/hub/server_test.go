@@ -25,7 +25,6 @@ func defaultMinerMockCfg(mock *gomock.Controller) *miner.MockConfig {
 	cfg.EXPECT().HubEthAddr().AnyTimes().Return(mockedwallet)
 	cfg.EXPECT().HubResolveEndpoints().AnyTimes().Return(false)
 	cfg.EXPECT().HubResources().AnyTimes()
-	cfg.EXPECT().Firewall().AnyTimes()
 	cfg.EXPECT().SSH().AnyTimes()
 	cfg.EXPECT().ETH().AnyTimes().Return(&accounts.EthConfig{})
 	cfg.EXPECT().LocatorEndpoint().AnyTimes().Return("127.0.0.1:9090")
@@ -44,7 +43,7 @@ func getTestMiner(mock *gomock.Controller) (*miner.Miner, error) {
 	ovs.EXPECT().Info(gomock.Any()).AnyTimes().Return(map[string]miner.ContainerMetrics{}, nil)
 
 	bl := benchmarks.NewMockBenchList(mock)
-	bl.EXPECT().List().AnyTimes().Return(map[pb.DeviceType][]*pb.Benchmark{})
+	bl.EXPECT().List().AnyTimes().Return(map[pb.DeviceType][]*pb.Benchmark{}, nil)
 
 	return miner.NewMiner(
 		cfg,

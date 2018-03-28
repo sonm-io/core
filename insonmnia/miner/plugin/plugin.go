@@ -177,7 +177,7 @@ func (r *Repository) ApplyHardwareInfo(hw *hardware.Hardware) {
 	for _, dev := range devices {
 		hw.GPU = append(hw.GPU, &hardware.GPUProperties{
 			Device:    dev,
-			Benchmark: make(map[string]*sonm.Benchmark),
+			Benchmark: make(map[uint64]*sonm.Benchmark),
 		})
 	}
 }

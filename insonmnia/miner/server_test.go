@@ -47,7 +47,6 @@ func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg.EXPECT().HubEthAddr().AnyTimes().Return(mockedwallet)
 	cfg.EXPECT().HubResolveEndpoints().AnyTimes().Return(false)
 	cfg.EXPECT().HubResources().AnyTimes()
-	cfg.EXPECT().Firewall().AnyTimes()
 	cfg.EXPECT().SSH().AnyTimes()
 	cfg.EXPECT().ETH().AnyTimes().Return(&accounts.EthConfig{})
 	cfg.EXPECT().LocatorEndpoint().AnyTimes().Return("127.0.0.1:9090")

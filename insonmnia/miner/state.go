@@ -15,14 +15,14 @@ import (
 const stateKey = "state"
 
 type stateJSON struct {
-	Benchmarks map[string]bool    `json:"benchmarks"`
+	Benchmarks map[uint64]bool    `json:"benchmarks"`
 	HwHash     string             `json:"hw_hash"`
 	Hardware   *hardware.Hardware `json:"hardware"`
 }
 
 func newEmptyState() *stateJSON {
 	return &stateJSON{
-		Benchmarks: map[string]bool{},
+		Benchmarks: map[uint64]bool{},
 		HwHash:     "",
 	}
 }
@@ -54,7 +54,7 @@ func NewState(ctx context.Context, config Config) (*state, error) {
 		ctx: ctx,
 		db:  stor,
 		data: &stateJSON{
-			Benchmarks: map[string]bool{},
+			Benchmarks: map[uint64]bool{},
 		},
 	}
 
@@ -107,14 +107,14 @@ func (s *state) save() error {
 	return s.db.Put(stateKey, b, &store.WriteOptions{})
 }
 
-func (s *state) getPassedBenchmarks() map[string]bool {
+func (s *state) getPassedBenchmarks() map[uint64]bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	return s.data.Benchmarks
 }
 
-func (s *state) setPassedBenchmarks(v map[string]bool) error {
+func (s *state) setPassedBenchmarks(v map[uint64]bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

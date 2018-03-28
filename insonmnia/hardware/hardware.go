@@ -11,27 +11,27 @@ import (
 
 type CPUProperties struct {
 	Device    cpu.Device                 `json:"device"`
-	Benchmark map[string]*sonm.Benchmark `json:"benchmark"`
+	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
 }
 
 type MemoryProperties struct {
 	Device    *mem.VirtualMemoryStat     `json:"device"`
-	Benchmark map[string]*sonm.Benchmark `json:"benchmark"`
+	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
 }
 
 type GPUProperties struct {
 	Device    *sonm.GPUDevice            `json:"device"`
-	Benchmark map[string]*sonm.Benchmark `json:"benchmark"`
+	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
 }
 
 type NetworkProperties struct {
 	Device    interface{}                `json:"device"`
-	Benchmark map[string]*sonm.Benchmark `json:"benchmark"`
+	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
 }
 
 type StorageProperties struct {
 	Device    interface{}                `json:"device"`
-	Benchmark map[string]*sonm.Benchmark `json:"benchmark"`
+	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
 }
 
 // Hardware accumulates the finest hardware information about system the worker
@@ -48,11 +48,9 @@ type Hardware struct {
 // Parts of the struct may be filled later by HW-plugins.
 func NewHardware() (*Hardware, error) {
 	hw := &Hardware{
-		CPU:     []*CPUProperties{},
-		GPU:     []*GPUProperties{},
-		Memory:  &MemoryProperties{Benchmark: make(map[string]*sonm.Benchmark)},
-		Network: &NetworkProperties{Benchmark: make(map[string]*sonm.Benchmark)},
-		Storage: &StorageProperties{Benchmark: make(map[string]*sonm.Benchmark)},
+		Memory:  &MemoryProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
+		Network: &NetworkProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
+		Storage: &StorageProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
 	}
 
 	CPUs, err := cpu.GetCPUDevices()
@@ -63,7 +61,7 @@ func NewHardware() (*Hardware, error) {
 	for _, dev := range CPUs {
 		hw.CPU = append(hw.CPU, &CPUProperties{
 			Device:    dev,
-			Benchmark: make(map[string]*sonm.Benchmark),
+			Benchmark: make(map[uint64]*sonm.Benchmark),
 		})
 	}
 
@@ -74,7 +72,7 @@ func NewHardware() (*Hardware, error) {
 
 	hw.Memory = &MemoryProperties{
 		Device:    vm,
-		Benchmark: make(map[string]*sonm.Benchmark),
+		Benchmark: make(map[uint64]*sonm.Benchmark),
 	}
 
 	return hw, nil

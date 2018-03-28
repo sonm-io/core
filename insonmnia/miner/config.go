@@ -55,7 +55,6 @@ type storeConfig struct {
 
 type config struct {
 	HubConfig               HubConfig           `required:"true" yaml:"hub"`
-	FirewallConfig          *FirewallConfig     `required:"false" yaml:"firewall"`
 	Eth                     *accounts.EthConfig `yaml:"ethereum"`
 	SSHConfig               *SSHConfig          `required:"false" yaml:"ssh"`
 	LoggingConfig           LoggingConfig       `yaml:"logging"`
@@ -85,10 +84,6 @@ func (c *config) HubEndpoints() (endpoints []string) {
 
 func (c *config) HubResources() *ResourcesConfig {
 	return c.HubConfig.CGroups
-}
-
-func (c *config) Firewall() *FirewallConfig {
-	return c.FirewallConfig
 }
 
 func (c *config) PublicIPs() []string {
@@ -177,8 +172,6 @@ type Config interface {
 	HubResolveEndpoints() bool
 	// HubResources returns resources allocated for a Hub.
 	HubResources() *ResourcesConfig
-	// Firewall returns firewall detection settings.
-	Firewall() *FirewallConfig
 	// PublicIPs returns all IPs that can be used to communicate with the miner.
 	PublicIPs() []string
 	// SSH returns settings for built-in ssh server

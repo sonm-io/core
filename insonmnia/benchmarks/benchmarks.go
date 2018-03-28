@@ -5,25 +5,19 @@ import (
 )
 
 const (
-	// we can get values for this benchmarks from the host system
-	CPUCores    = "cpu-cores"
-	RamSize     = "ram-size"
-	StorageSize = "storage-size"
-	GPUCount    = "gpu-count"
-	GPUMem      = "gpu-mem"
+	// benchmark IDs that must be handled as values from hosts.
+	CPUCores    = 3
+	RamSize     = 4
+	StorageSize = 5
+	GPUCount    = 8
+	GPUMem      = 9
 
-	// this benchmarks executed into a container
-	CPUSysbenchSingle = "cpu-sysbench-single"
-	CPUSysbenchMulti  = "cpu-sysbench-multi"
-	NetDownload       = "net-download"
-	NetUpload         = "net-upload"
-	GPUEthHashrate    = "gpu-eth-hashrate"
-	GPUCashHashrate   = "gpu-cash-hashrate"
-	GPURedshift       = "gpu-redshift"
+	BenchIDEnvParamName = "SONM_BENCHMARK_ID"
+	CPUCountBenchParam  = "SONM_CPU_COUNT"
 )
 
 type BenchList interface {
-	List() map[pb.DeviceType][]*pb.Benchmark
+	List() (map[pb.DeviceType][]*pb.Benchmark, error)
 }
 
 type dumbBenchmark struct{}
@@ -33,8 +27,8 @@ func NewDumbBenchmarks() BenchList {
 	return &dumbBenchmark{}
 }
 
-func (db *dumbBenchmark) List() map[pb.DeviceType][]*pb.Benchmark {
-	return map[pb.DeviceType][]*pb.Benchmark{}
+func (db *dumbBenchmark) List() (map[pb.DeviceType][]*pb.Benchmark, error) {
+	return map[pb.DeviceType][]*pb.Benchmark{}, nil
 }
 
 // ResultJSON describes results of single benchmark.
@@ -47,5 +41,5 @@ type ResultJSON struct {
 // ContainerBenchmarkResultsJSON describes JSON structure which container
 // must return as result of one or many benchmarks.
 type ContainerBenchmarkResultsJSON struct {
-	Results map[string]*ResultJSON `json:"results"`
+	Results map[uint64]*ResultJSON `json:"results"`
 }

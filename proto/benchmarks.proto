@@ -12,11 +12,12 @@ enum DeviceType {
     DEV_NETWORK = 5;
 }
 
-// Benchmark
+// Benchmark describes a way to measure hardware performance
 message Benchmark {
-    string ID = 1;
-    DeviceType type = 2;
-    string description = 3;
-    string image = 4;
-    uint64 result = 5;
+    uint64 ID = 1;
+    string code = 2;
+    DeviceType type = 3;
+    string description = 4;
+    string image = 5;
+    uint64 result = 6;
 }
