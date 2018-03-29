@@ -35,8 +35,10 @@ func (g *grpccmd) GenerateImports(file *generator.FileDescriptor) {
 	if len(file.GetService()) > 0 {
 		g.P("// grpccmd imports")
 		g.P(`import (
-	"github.com/sshaman1101/grpccmd"
+	"io"
+
 	"github.com/spf13/cobra"
+	"github.com/sshaman1101/grpccmd"
 )`)
 	}
 }
@@ -80,8 +82,9 @@ func (g *grpccmd) Generate(file *generator.FileDescriptor) {
 				`RunE: grpccmd.RunE(
 						"%s",
 						"%s",
-						func(c *grpc.ClientConn) interface{} {
-						return New%sClient(c)
+						func(c io.Closer) interface{} {
+						cc := c.(*grpc.ClientConn)
+						return New%sClient(cc)
 					},
 				),`,
 				methodName,
