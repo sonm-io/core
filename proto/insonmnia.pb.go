@@ -701,6 +701,7 @@ type TaskResourceRequirements struct {
 	// MaxMemory specifies the maximum memory in bytes required.
 	MaxMemory int64 `protobuf:"varint,2,opt,name=maxMemory" json:"maxMemory,omitempty"`
 	// GPUCount Describes whether a task requires GPU support.
+	// todo: completely useless in that representation.
 	GPUSupport GPUCount `protobuf:"varint,3,opt,name=GPUSupport,enum=sonm.GPUCount" json:"GPUSupport,omitempty"`
 }
 

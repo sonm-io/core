@@ -141,6 +141,7 @@ message TaskResourceRequirements {
     // MaxMemory specifies the maximum memory in bytes required.
     int64 maxMemory = 2;
     // GPUCount Describes whether a task requires GPU support.
+    // todo: completely useless in that representation.
     GPUCount GPUSupport = 3;
 }
 

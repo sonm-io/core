@@ -422,7 +422,6 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		TaskId:        request.Id,
 		CommitOnStop:  request.Container.CommitOnStop,
 		Env:           request.Container.Env,
-		GPURequired:   resources.RequiresGPU(),
 		volumes:       request.Container.Volumes,
 		mounts:        mounts,
 		networks:      networks,
@@ -808,7 +807,6 @@ func (m *Miner) runGPUBenchGroup(benches []*pb.Benchmark) error {
 
 			d := getDescriptionForBenchmark(ben)
 			d.GPUDevices = []gpu.GPUID{gpu.GPUID(dev.Device.GetID())}
-			d.GPURequired = true
 
 			res, err := m.execBenchmarkContainer(ben, d)
 			if err != nil {

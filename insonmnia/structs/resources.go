@@ -116,10 +116,6 @@ func NewTaskResources(r *pb.TaskResourceRequirements) (*TaskResources, error) {
 	return &TaskResources{inner: r}, nil
 }
 
-func (r *TaskResources) RequiresGPU() bool {
-	return r.inner.GetGPUSupport() != pb.GPUCount_NO_GPU
-}
-
 func (r *TaskResources) ToUsage() resource.Resources {
 	numGPUs := -1
 	switch r.inner.GetGPUSupport() {
