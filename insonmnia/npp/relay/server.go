@@ -211,7 +211,10 @@ func NewServer(cfg Config, options ...Option) (*server, error) {
 		return nil, err
 	}
 
-	m.monitoring = newMonitor(cfg.Monitor, m.cluster, opts.log)
+	m.monitoring, err = newMonitor(cfg.Monitor, m.cluster, opts.log)
+	if err != nil {
+		return nil, err
+	}
 
 	return m, nil
 }

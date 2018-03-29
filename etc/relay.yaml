@@ -4,6 +4,13 @@
 # the same port.
 endpoint: "[::]:12240"
 
+# Account settings.
+ethereum: &ethereum
+  # Path to the keystore.
+  key_store: "./keys"
+  # Passphrase for the keystore.
+  pass_phrase: "any"
+
 # Cluster settings.
 cluster:
   # The name of this node. This must be unique in the cluster.
@@ -44,6 +51,7 @@ cluster:
 # GRPC server for monitoring.
 monitoring:
   endpoint: "[::1]:12241"
+  ethereum: *ethereum
 
 logging:
   # The desired logging level.

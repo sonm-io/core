@@ -1,12 +1,14 @@
 package relay
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"net"
 	"os"
 
 	"github.com/jinzhu/configor"
 	"github.com/pborman/uuid"
+	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"go.uber.org/zap/zapcore"
 )
@@ -27,14 +29,20 @@ type LoggingConfig struct {
 }
 
 type MonitorConfig struct {
+	Endpoint   string
+	PrivateKey *ecdsa.PrivateKey `json:"-"`
+}
+
+type monitorConfig struct {
 	Endpoint string
+	ETH      accounts.EthConfig `yaml:"ethereum"`
 }
 
 type config struct {
 	Addr    string        `yaml:"endpoint" required:"true"`
 	Cluster ClusterConfig `yaml:"cluster"`
 	Logging LoggingConfig `yaml:"logging"`
-	Monitor MonitorConfig `yaml:"monitoring"`
+	Monitor monitorConfig `yaml:"monitoring"`
 }
 
 // Config describes the complete relay server configuration.
@@ -73,11 +81,19 @@ func NewConfig(path string) (*Config, error) {
 		cfg.Cluster.Name = fmt.Sprintf("%s-%s", hostname, uuid.New())
 	}
 
+	privateKey, err := cfg.Monitor.ETH.LoadKey()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Config{
 		Addr:    addr,
 		Cluster: cfg.Cluster,
 		Logging: cfg.Logging,
-		Monitor: cfg.Monitor,
+		Monitor: MonitorConfig{
+			Endpoint:   cfg.Monitor.Endpoint,
+			PrivateKey: privateKey,
+		},
 	}, nil
 }
 
