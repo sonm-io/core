@@ -1,3 +1,11 @@
+// This module is used as a glue for connecting our Zap logging with logging
+// system of MemberList package.
+//
+// As an intermediate adapter it parses the written logging event splitting
+// the received message into severity and the message itself. Additionally
+// all datetime formatting is truncated, because it anyway be replaced with
+// Zap one.
+
 package relay
 
 import (
