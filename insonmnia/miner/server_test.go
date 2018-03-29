@@ -12,6 +12,7 @@ import (
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
 	accounts "github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -54,7 +55,14 @@ func defaultMockCfg(mock *gomock.Controller) *MockConfig {
 	cfg.EXPECT().Plugins().AnyTimes().Return(plugin.Config{})
 	cfg.EXPECT().StorePath().AnyTimes().Return("/tmp/sonm/worker_test.boltdb")
 	cfg.EXPECT().StoreBucket().AnyTimes().Return("sonm")
+	cfg.EXPECT().Benchmarks().AnyTimes().Return(benchmarks.Config{})
 	return cfg
+}
+
+func newMockBench(ctrl *gomock.Controller) benchmarks.BenchList {
+	ls := benchmarks.NewMockBenchList(ctrl)
+	ls.EXPECT().List().AnyTimes().Return(map[pb.DeviceType][]*pb.Benchmark{})
+	return ls
 }
 
 func TestMinerInfo(t *testing.T) {
@@ -68,7 +76,7 @@ func TestMinerInfo(t *testing.T) {
 	info["id1"] = ContainerMetrics{mem: types.MemoryStats{Usage: 42, MaxUsage: 43}}
 	ovs.EXPECT().Info(gomock.Any()).AnyTimes().Return(info, nil)
 
-	m, err := NewMiner(cfg, WithKey(key), WithOverseer(ovs))
+	m, err := NewMiner(cfg, WithKey(key), WithOverseer(ovs), WithBenchmarkList(newMockBench(mock)))
 	t.Log(err)
 	require.NotNil(t, m)
 	require.Nil(t, err)

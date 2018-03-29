@@ -5,6 +5,7 @@ import (
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"go.uber.org/zap/zapcore"
@@ -63,6 +64,7 @@ type config struct {
 	MetricsListenAddrConfig string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14001"`
 	PluginsConfig           plugin.Config       `yaml:"plugins"`
 	StoreConfig             storeConfig         `yaml:"store"`
+	BenchConfig             benchmarks.Config   `yaml:"benchmarks"`
 	DevConfig               *DevConfig          `yaml:"yes_i_want_to_use_dev-only_features"`
 }
 
@@ -120,6 +122,10 @@ func (c *config) StorePath() string {
 
 func (c *config) StoreBucket() string {
 	return c.StoreConfig.Bucket
+}
+
+func (c *config) Benchmarks() benchmarks.Config {
+	return c.BenchConfig
 }
 
 func (c *config) validate() error {
@@ -189,6 +195,8 @@ type Config interface {
 	MetricsListenAddr() string
 	// Plugins returns plugins settings.
 	Plugins() plugin.Config
+	// Benchmarks returns benchmarking settings.
+	Benchmarks() benchmarks.Config
 	// DevAddr to listen on. For dev purposes only!
 	Dev() *DevConfig
 }

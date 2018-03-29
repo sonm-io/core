@@ -43,7 +43,7 @@ func getTestMiner(mock *gomock.Controller) (*miner.Miner, error) {
 	ovs.EXPECT().Info(gomock.Any()).AnyTimes().Return(map[string]miner.ContainerMetrics{}, nil)
 
 	bl := benchmarks.NewMockBenchList(mock)
-	bl.EXPECT().List().AnyTimes().Return(map[pb.DeviceType][]*pb.Benchmark{}, nil)
+	bl.EXPECT().List().AnyTimes().Return(map[pb.DeviceType][]*pb.Benchmark{})
 
 	return miner.NewMiner(
 		cfg,

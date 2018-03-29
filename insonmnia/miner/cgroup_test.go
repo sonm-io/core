@@ -26,6 +26,8 @@ locator:
   endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:9090"
 logging:
   level: debug
+benchmarks:
+  url: "http://localhost.dev/list.json"
 `
 	err := createTestConfigFile(raw)
 	assertions.NoError(err)

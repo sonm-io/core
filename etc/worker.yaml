@@ -57,6 +57,9 @@ locator:
 store:
   path: "/var/lib/sonm/worker.boltdb"
 
+benchmarks:
+  url: "https://raw.githubusercontent.com/sonm-io/allowed-list/master/benchmarks_list.json"
+
 metrics_listen_addr: "127.0.0.1:14001"
 
 plugins:
