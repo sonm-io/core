@@ -77,10 +77,3 @@ func WithBenchmarkList(list benchmarks.BenchList) Option {
 	}
 
 }
-
-func makeCgroupManager(cfg *ResourcesConfig) (cGroup, cGroupManager, error) {
-	if !platformSupportCGroups || cfg == nil {
-		return newNilCgroupManager()
-	}
-	return newCgroupManager(cfg.Cgroup, cfg.Resources)
-}

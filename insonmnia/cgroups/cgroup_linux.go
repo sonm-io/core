@@ -1,6 +1,6 @@
 // +build linux
 
-package miner
+package cgroups
 
 import (
 	"fmt"
@@ -20,7 +20,17 @@ type cgroup struct {
 	suffix string
 }
 
-func (c *cgroup) New(name string, resources *specs.LinuxResources) (cGroup, error) {
+func (c *cgroup) Stats() (*Stats, error) {
+	cgStat, err := c.Stat(cgroups.IgnoreNotExist)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Stats{MemoryLimit: cgStat.Memory.HierarchicalMemoryLimit}, nil
+}
+
+func (c *cgroup) New(name string, resources *specs.LinuxResources) (CGroup, error) {
+	resources.Memory.Swap = new(int64)
 	control, err := c.Cgroup.New(name, resources)
 	if err != nil {
 		return nil, err
@@ -63,10 +73,11 @@ func (r *Resources) SetYAML(tag string, value interface{}) bool {
 	return true
 }
 
-func initializeControlGroup(name string, resources *specs.LinuxResources) (cGroup, error) {
+func initializeControlGroup(name string, resources *specs.LinuxResources) (CGroup, error) {
 	// Cook or update parent cgroup for all containers we spawn.
 	cgroupPath := cgroups.StaticPath(name)
 	control, err := cgroups.Load(cgroups.V1, cgroupPath)
+
 	switch err {
 	case nil:
 	case cgroups.ErrCgroupDeleted:

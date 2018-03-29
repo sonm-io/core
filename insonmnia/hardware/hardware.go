@@ -4,8 +4,9 @@ import (
 	"fmt"
 
 	"github.com/cnf/structhash"
-	"github.com/shirou/gopsutil/mem"
+	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
+	"github.com/sonm-io/core/insonmnia/hardware/mem"
 	"github.com/sonm-io/core/proto"
 )
 
@@ -15,7 +16,7 @@ type CPUProperties struct {
 }
 
 type MemoryProperties struct {
-	Device    *mem.VirtualMemoryStat     `json:"device"`
+	Device    *mem.Device                `json:"device"`
 	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
 }
 
@@ -46,7 +47,7 @@ type Hardware struct {
 
 // NewHardware returns initial hardware capabilities for Worker's host.
 // Parts of the struct may be filled later by HW-plugins.
-func NewHardware() (*Hardware, error) {
+func NewHardware(cg cgroups.CGroup) (*Hardware, error) {
 	hw := &Hardware{
 		Memory:  &MemoryProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
 		Network: &NetworkProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
@@ -65,7 +66,7 @@ func NewHardware() (*Hardware, error) {
 		})
 	}
 
-	vm, err := mem.VirtualMemory()
+	vm, err := mem.NewMemoryDevice(cg)
 	if err != nil {
 		return nil, err
 	}
@@ -86,19 +87,6 @@ func (h *Hardware) LogicalCPUCount() int {
 	}
 
 	return count
-}
-
-// AvailableMemory returns amount of available RAM which can be used to allocate for containers
-// (in bytes).
-//
-// TODO(sshaman1101): check for parent cGroup settings
-func (h *Hardware) AvailableMemory() uint64 {
-	return h.Memory.Device.Total
-}
-
-// GPUCount returns amount of available GPU devices.
-func (h *Hardware) GPUCount() uint64 {
-	return uint64(len(h.GPU))
 }
 
 func (h *Hardware) Hash() string {
