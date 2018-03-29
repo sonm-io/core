@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
-	"errors"
 	"os"
 	"time"
 
@@ -43,9 +42,6 @@ var (
 	// session-related vars
 	cfg        config.Config
 	sessionKey *ecdsa.PrivateKey = nil
-
-	// errors
-	errCannotParsePropsFile = errors.New("cannot parse props file")
 )
 
 func init() {
@@ -53,7 +49,7 @@ func init() {
 	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
 
-	rootCmd.AddCommand(hubRootCmd, marketRootCmd, nodeDealsRootCmd, taskRootCmd)
+	rootCmd.AddCommand(workerMgmtCmd, marketRootCmd, nodeDealsRootCmd, taskRootCmd)
 	rootCmd.AddCommand(loginCmd, approveTokenCmd, getTokenCmd, versionCmd, autoCompleteCmd)
 }
 

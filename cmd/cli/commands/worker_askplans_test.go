@@ -63,19 +63,3 @@ resources:
 	assert.Contains(t, ss.Resources.Properties, "foo")
 	assert.Contains(t, ss.Resources.Properties, "cycles")
 }
-
-func TestLoadPropsYaml(t *testing.T) {
-	p, err := createTestYamlFile(`
-foo: 3.14
-cycles: 42`)
-	assert.NoError(t, err)
-	defer deleteTestYamlFile(p)
-
-	props, err := loadPropsFile(p)
-	assert.NoError(t, err)
-
-	assert.Contains(t, props, "foo")
-	assert.Contains(t, props, "cycles")
-	assert.Equal(t, 3.14, props["foo"])
-	assert.Equal(t, 42.0, props["cycles"])
-}

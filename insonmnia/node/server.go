@@ -94,6 +94,7 @@ type Node struct {
 	market pb.MarketServer
 	deals  pb.DealManagementServer
 	tasks  pb.TaskManagementServer
+	master pb.MasterManagementServer
 }
 
 // New creates new Local Node instance
@@ -129,6 +130,8 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		return nil, err
 	}
 
+	masterMgmt := newMasterManagementAPI(opts)
+
 	logger := log.GetLogger(ctx)
 	srv := xgrpc.NewServer(
 		logger,
@@ -149,6 +152,9 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	pb.RegisterTaskManagementServer(srv, tasks)
 	log.G(ctx).Info("tasks service registered")
 
+	pb.RegisterMasterManagementServer(srv, masterMgmt)
+	log.G(ctx).Info("master keys service registered")
+
 	grpc_prometheus.Register(srv)
 
 	return &Node{
@@ -161,6 +167,7 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		market:  market,
 		deals:   deals,
 		tasks:   tasks,
+		master:  masterMgmt,
 	}, nil
 }
 
@@ -271,6 +278,11 @@ func (n *Node) serveHttp() error {
 	if err != nil {
 		return err
 	}
+	err = srv.RegisterService((*pb.MasterManagementServer)(nil), n.master)
+	if err != nil {
+		return err
+	}
+
 	n.httpSrv = srv
 	return srv.Serve()
 }

@@ -52,12 +52,16 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 	}
 	defer cc.Close()
 
+	mappedName, ok := hubToNodeMethods[methodName]
+	if !ok {
+		return nil, fmt.Errorf("unknwon management api method \"%s\"", methodName)
+	}
+
 	var (
-		t          = reflect.ValueOf(cli)
-		mappedName = hubToNodeMethods[methodName]
-		method     = t.MethodByName(mappedName)
-		inValues   = []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
-		values     = method.Call(inValues)
+		t        = reflect.ValueOf(cli)
+		method   = t.MethodByName(mappedName)
+		inValues = []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
+		values   = method.Call(inValues)
 	)
 	if !values[1].IsNil() {
 		err = values[1].Interface().(error)
@@ -70,21 +74,14 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 // The more simplest way to omit this mapping is to refactor Hub's proto definition
 // (not the Node's one because of the Node API is publicly declared and must be changed as rare as possible).
 var hubToNodeMethods = map[string]string{
-	"Status":               "Status",
-	"WorkersList":          "List",
-	"WorkerStatus":         "Info",
-	"GetRegisteredWorkers": "GetRegisteredWorkers",
-	"RegisterWorker":       "RegisterWorker",
-	"DeregisterWorker":     "DeregisterWorker",
-	"DeviceList":           "Devices",
-	"GetDeviceProperties":  "GetDeviceProperties",
-	"SetDeviceProperties":  "SetDeviceProperties",
-	"GetAskPlan":           "GetAskPlan",
-	"GetAskPlans":          "Slots",
-	"CreateAskPlan":        "InsertSlot",
-	"RemoveAskPlan":        "RemoveSlot",
-	"TaskList":             "TaskList",
-	"TaskStatus":           "TaskStatus",
+	"Status":        "Status",
+	"GetDeviceInfo": "Devices",
+	"GetAskPlan":    "GetAskPlan",
+	"GetAskPlans":   "Slots",
+	"CreateAskPlan": "InsertSlot",
+	"RemoveAskPlan": "RemoveSlot",
+	"TaskList":      "TaskList",
+	"TaskStatus":    "TaskStatus",
 }
 
 func newHubAPI(opts *remoteOptions) pb.HubManagementServer {

@@ -107,76 +107,6 @@ func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskListRep
 	}
 }
 
-func printWorkerList(cmd *cobra.Command, lr *pb.ListReply) {
-	if isSimpleFormat() {
-		if len(lr.Info) == 0 {
-			cmd.Printf("No workers connected\r\n")
-			return
-		}
-
-		for addr, meta := range lr.Info {
-			cmd.Printf("Worker: %s", addr)
-
-			taskCount := len(meta.Values)
-			if taskCount == 0 {
-				cmd.Printf("\t\tIdle\r\n")
-			} else {
-				cmd.Printf("\t\t%d active task(s)\r\n", taskCount)
-			}
-		}
-	} else {
-		showJSON(cmd, lr)
-	}
-}
-
-func printCpuInfo(cmd *cobra.Command, cap *pb.Capabilities) {
-	for i, cpu := range cap.Cpu {
-		cmd.Printf("    CPU%d: %d x %s\r\n", i, cpu.GetCores(), cpu.GetModelName())
-	}
-}
-
-func printGpuInfo(cmd *cobra.Command, cap *pb.Capabilities) {
-	if len(cap.Gpu) > 0 {
-		for i, gpu := range cap.Gpu {
-			cmd.Printf("    GPU%d: %s %s\r\n", i, gpu.VendorName, gpu.GetDeviceName())
-		}
-	} else {
-		cmd.Println("    GPU: None")
-	}
-}
-
-func printMemInfo(cmd *cobra.Command, cap *pb.Capabilities) {
-	cmd.Println("    RAM:")
-	cmd.Printf("      Total: %s\r\n", ds.ByteSize(cap.Mem.GetTotal()).HR())
-	cmd.Printf("      Used:  %s\r\n", ds.ByteSize(cap.Mem.GetUsed()).HR())
-}
-
-func printWorkerStatus(cmd *cobra.Command, workerID string, metrics *pb.InfoReply) {
-	if isSimpleFormat() {
-		cmd.Printf("Worker \"%s\":\r\n", workerID)
-
-		if metrics.Capabilities != nil {
-			cmd.Println("  Hardware:")
-			printCpuInfo(cmd, metrics.Capabilities)
-			printGpuInfo(cmd, metrics.Capabilities)
-			printMemInfo(cmd, metrics.Capabilities)
-		}
-
-		if len(metrics.GetUsage()) == 0 {
-			cmd.Println("  No active tasks")
-		} else {
-			cmd.Println("  Tasks:")
-			i := 1
-			for task := range metrics.Usage {
-				cmd.Printf("    %d) %s\r\n", i, task)
-				i++
-			}
-		}
-	} else {
-		showJSON(cmd, metrics)
-	}
-}
-
 func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
 	announceMsg := "OK"
 	if stat.GetAnnounceError() != "" {
@@ -223,32 +153,6 @@ func printDeviceList(cmd *cobra.Command, devices *pb.DevicesReply) {
 		}
 	} else {
 		showJSON(cmd, devices)
-	}
-}
-
-func printDevicesProps(cmd *cobra.Command, props map[string]float64) {
-	if isSimpleFormat() {
-		if len(props) == 0 {
-			cmd.Printf("No properties configured.\r\n")
-			return
-		}
-
-		for k, v := range props {
-			cmd.Printf("%s = %f\r\n", k, v)
-		}
-	} else {
-		showJSON(cmd, props)
-	}
-}
-
-func printWorkerAclList(cmd *cobra.Command, list *pb.GetRegisteredWorkersReply) {
-	if isSimpleFormat() {
-		for i, id := range list.GetIds() {
-			cmd.Printf("%d) %s\r\n", i+1, id.GetId())
-		}
-
-	} else {
-		showJSON(cmd, list)
 	}
 }
 

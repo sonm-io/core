@@ -9,24 +9,23 @@ import (
 )
 
 func init() {
-	hubRootCmd.AddCommand(
-		hubStatusCmd,
-		hubWorkerRootCmd,
-		hubACLRootCmd,
-		hubOrderRootCmd,
-		hubTasksRootCmd,
-		hubDeviceRootCmd,
+	workerMgmtCmd.AddCommand(
+		workerStatusCmd,
+		masterRootCmd,
+		askPlansRootCmd,
+		workerTasksCmd,
+		workerDevicesCmd,
 	)
 }
 
-var hubRootCmd = &cobra.Command{
-	Use:   "hub",
-	Short: "Hub management",
+var workerMgmtCmd = &cobra.Command{
+	Use:   "worker",
+	Short: "Worker management",
 }
 
-var hubStatusCmd = &cobra.Command{
+var workerStatusCmd = &cobra.Command{
 	Use:   "status",
-	Short: "Show hub status",
+	Short: "Show worker status",
 	Run: func(cmd *cobra.Command, _ []string) {
 		ctx := context.Background()
 		hub, err := newHubManagementClient(ctx)
@@ -37,7 +36,7 @@ var hubStatusCmd = &cobra.Command{
 
 		status, err := hub.Status(ctx, &pb.Empty{})
 		if err != nil {
-			showError(cmd, "Cannot get hub status", err)
+			showError(cmd, "Cannot get worker status", err)
 			os.Exit(1)
 		}
 
