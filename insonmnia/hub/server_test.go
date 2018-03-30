@@ -93,16 +93,8 @@ func getTestHubConfig() *Config {
 	}
 }
 
-func getTestCluster(ctrl *gomock.Controller) Cluster {
-	cl := NewMockCluster(ctrl)
-	cl.EXPECT().Synchronize(gomock.Any()).AnyTimes().Return(nil)
-	cl.EXPECT().RegisterAndLoadEntity(gomock.Any(), gomock.Any()).AnyTimes().Return(nil)
-	return cl
-}
-
 func buildTestHub(ctrl *gomock.Controller) (*Hub, error) {
 	market := getTestMarket(ctrl)
-	clustr := getTestCluster(ctrl)
 	config := getTestHubConfig()
 	worker, _ := getTestMiner(ctrl)
 
@@ -111,8 +103,7 @@ func buildTestHub(ctrl *gomock.Controller) (*Hub, error) {
 	bc := blockchain.NewMockBlockchainer(ctrl)
 	bc.EXPECT().GetDealInfo(ctx, gomock.Any()).AnyTimes().Return(&pb.Deal{}, nil)
 
-	return New(ctx, config, WithPrivateKey(key), WithMarket(market),
-		WithCluster(clustr, nil), WithBlockchain(bc), WithWorker(worker))
+	return New(ctx, config, WithPrivateKey(key), WithMarket(market), WithBlockchain(bc), WithWorker(worker))
 }
 
 //TODO: Move this to separate test for AskPlans

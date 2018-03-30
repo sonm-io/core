@@ -85,7 +85,6 @@ type Hub struct {
 	ethAddr common.Address
 
 	announcer Announcer
-	cluster   Cluster
 
 	// TODO: rediscover jobs if Miner disconnected.
 	// TODO: store this data in some Storage interface.
@@ -168,13 +167,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		defaults.market = pb.NewMarketClient(conn)
 	}
 
-	if defaults.cluster == nil {
-		defaults.cluster, err = NewCluster(ctx, &cfg.Cluster, defaults.creds)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	if defaults.announcer == nil {
 		a, err := newLocatorAnnouncer(
 			defaults.ethKey,
@@ -198,7 +190,7 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		return nil, err
 	}
 
-	hubState, err := newState(ctx, ethWrapper, defaults.market, defaults.cluster, minerCtx)
+	hubState, err := newState(ctx, &cfg.Cluster, ethWrapper, defaults.market, minerCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +212,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		creds:       defaults.creds,
 
 		announcer: defaults.announcer,
-		cluster:   defaults.cluster,
 
 		whitelist: wl,
 

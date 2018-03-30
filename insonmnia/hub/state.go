@@ -2,14 +2,18 @@ package hub
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
 
+	"github.com/docker/libkv"
+	"github.com/docker/libkv/store"
+	"github.com/docker/libkv/store/boltdb"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -37,8 +41,9 @@ type askPlan struct {
 }
 
 type stateJSON struct {
-	Deals            map[DealID]*DealMeta        `json:"deals"`
-	Tasks            map[string]*TaskInfo        `json:"tasks"`
+	Deals map[DealID]*DealMeta `json:"deals"`
+	Tasks map[string]*TaskInfo `json:"tasks"`
+	// todo: replace with Resource usage
 	Miner            *MinerCtx                   `json:"miner"`
 	Orders           map[OrderID]ReservedOrder   `json:"orders"`
 	AskPlans         map[string]*askPlan         `json:"ask_plans"`
@@ -46,11 +51,11 @@ type stateJSON struct {
 }
 
 type state struct {
-	mu      sync.Mutex
-	ctx     context.Context
-	eth     ETH
-	cluster Cluster
-	market  pb.MarketClient
+	mu     sync.Mutex
+	ctx    context.Context
+	eth    ETH
+	store  store.Store
+	market pb.MarketClient
 
 	deals    map[DealID]*DealMeta
 	tasks    map[string]*TaskInfo
@@ -59,13 +64,28 @@ type state struct {
 	askPlans map[string]*askPlan
 }
 
-func newState(ctx context.Context, eth ETH, market pb.MarketClient, cluster Cluster, minerCtx *MinerCtx) (
-	*state, error) {
+func makeStore(ctx context.Context, cfg *ClusterConfig) (store.Store, error) {
+	boltdb.Register()
+	log.G(ctx).Info("creating store", zap.Any("store", cfg))
+
+	config := store.Config{
+		Bucket: cfg.Store.Bucket,
+	}
+
+	return libkv.NewStore(store.BOLTDB, []string{cfg.Store.Endpoint}, &config)
+}
+
+func newState(ctx context.Context, cfg *ClusterConfig, eth ETH, market pb.MarketClient, minerCtx *MinerCtx) (*state, error) {
+	clusterStore, err := makeStore(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	out := &state{
-		ctx:     ctx,
-		eth:     eth,
-		cluster: cluster,
-		market:  market,
+		ctx:    ctx,
+		eth:    eth,
+		market: market,
+		store:  clusterStore,
 
 		deals:    make(map[DealID]*DealMeta),
 		tasks:    make(map[string]*TaskInfo),
@@ -97,7 +117,7 @@ func (s *state) dump() error {
 		AskPlans: s.askPlans,
 	}
 
-	return s.cluster.Synchronize(sJSON)
+	return s.put(sJSON)
 }
 
 func (s *state) Load(other *stateJSON) error {
@@ -118,21 +138,27 @@ func (s *state) load(other *stateJSON) error {
 	return nil
 }
 
-func (s *state) init(minerCtx *MinerCtx) error {
-	sJSON := &stateJSON{
-		Deals:            make(map[DealID]*DealMeta),
-		Tasks:            make(map[string]*TaskInfo),
-		Miner:            minerCtx,
-		Orders:           make(map[OrderID]ReservedOrder, 0),
-		AskPlans:         make(map[string]*askPlan, 0),
-		DeviceProperties: make(map[string]DeviceProperties),
-	}
-
-	if err := s.cluster.RegisterAndLoadEntity("state", sJSON); err != nil {
+func (s *state) put(data *stateJSON) error {
+	bin, err := json.Marshal(data)
+	if err != nil {
 		return err
 	}
 
-	return s.load(sJSON)
+	return s.store.Put("state", bin, &store.WriteOptions{})
+}
+
+func (s *state) init(minerCtx *MinerCtx) error {
+	sJSON := &stateJSON{
+		Deals:    make(map[DealID]*DealMeta),
+		Tasks:    make(map[string]*TaskInfo),
+		Miner:    minerCtx,
+		Orders:   make(map[OrderID]ReservedOrder, 0),
+		AskPlans: make(map[string]*askPlan, 0),
+		// todo: remove
+		DeviceProperties: make(map[string]DeviceProperties),
+	}
+
+	return s.put(sJSON)
 }
 
 func (s *state) RunMonitoring(ctx context.Context) error {
@@ -459,7 +485,7 @@ func (s *state) orderExists(orderID OrderID) bool {
 	return ok
 }
 
-// Commit commits the specified reserved order, removing it from the shelter.
+// CommitOrder commits the specified reserved order, removing it from the shelter.
 // Note, that this method does not release resources from the miner's tracker,
 // because using it means that the resource's lifetime was prolonged by
 // accepting a deal.
