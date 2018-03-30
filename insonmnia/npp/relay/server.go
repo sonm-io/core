@@ -442,15 +442,15 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		}
 
 		select {
-		case clientConn, ok := <-rx:
+		case serverConn, ok := <-rx:
 			if ok {
 				if err := sendOk(conn); err != nil {
 					return err
 				}
-				if err := sendOk(clientConn); err != nil {
+				if err := sendOk(serverConn); err != nil {
 					return err
 				}
-				return m.relay(ctx, conn, clientConn)
+				return m.relay(ctx, serverConn, conn)
 			}
 		case <-timer.C:
 			if clients, ok := m.clients[addr]; ok {

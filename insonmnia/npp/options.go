@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"go.uber.org/zap"
@@ -86,6 +87,23 @@ func WithRelay(addrs []net.Addr, key *ecdsa.PrivateKey) Option {
 		o.relayNew = func() (net.Conn, error) {
 			for _, addr := range addrs {
 				conn, err := relay.Listen(addr, signedAddr)
+				if err == nil {
+					return conn, nil
+				}
+			}
+
+			return nil, fmt.Errorf("failed to connect to %+v", addrs)
+		}
+
+		return nil
+	}
+}
+
+func WithRelayClient(addrs []net.Addr, target common.Address) Option {
+	return func(o *options) error {
+		o.relayNew = func() (net.Conn, error) {
+			for _, addr := range addrs {
+				conn, err := relay.Dial(addr, target, "")
 				if err == nil {
 					return conn, nil
 				}

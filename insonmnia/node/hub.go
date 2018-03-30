@@ -30,18 +30,25 @@ func (h *hubAPI) getClient() (pb.HubClient, io.Closer, error) {
 		return nil, nil, err
 	}
 
-	dial, err := npp.NewDialer(h.ctx, npp.WithRendezvous(rendezvousEndpoints, h.remotes.creds))
+	relayEndpoints, err := h.remotes.conf.NPPConfig().Relay.ConvertEndpoints()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	addr := auth.NewAddrFromParts(crypto.PubkeyToAddress(h.remotes.key.PublicKey), h.remotes.conf.HubEndpoint())
+	hubETH := crypto.PubkeyToAddress(h.remotes.key.PublicKey)
+
+	dial, err := npp.NewDialer(h.ctx, npp.WithRendezvous(rendezvousEndpoints, h.remotes.creds), npp.WithRelayClient(relayEndpoints, hubETH))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	addr := auth.NewAddrFromParts(hubETH, h.remotes.conf.HubEndpoint())
 	conn, err := dial.Dial(addr)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	cc, err := xgrpc.NewClient(h.ctx, "-", h.remotes.creds, xgrpc.WithConn(conn))
+	cc, err := xgrpc.NewClient(h.ctx, "-", auth.NewWalletAuthenticator(h.remotes.creds, hubETH), xgrpc.WithConn(conn))
 	if err != nil {
 		return nil, nil, err
 	}

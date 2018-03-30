@@ -5,6 +5,7 @@ package npp
 import (
 	"context"
 	"net"
+	"time"
 
 	"github.com/sonm-io/core/insonmnia/auth"
 )
@@ -15,8 +16,10 @@ import (
 // must be an authenticated endpoint and the connection establishment process
 // is done via NAT Punching Protocol.
 type Dialer struct {
-	ctx     context.Context
-	puncher NATPuncher
+	ctx context.Context
+
+	puncherNew func() (NATPuncher, error)
+	relayNew   func() (net.Conn, error)
 }
 
 // NewDialer constructs a new dialer that is aware of NAT Punching Protocol.
@@ -29,14 +32,10 @@ func NewDialer(ctx context.Context, options ...Option) (*Dialer, error) {
 		}
 	}
 
-	puncher, err := opts.puncherNew()
-	if err != nil {
-		return nil, err
-	}
-
 	return &Dialer{
-		ctx:     ctx,
-		puncher: puncher,
+		ctx:        ctx,
+		puncherNew: opts.puncherNew,
+		relayNew:   opts.relayNew,
 	}, nil
 }
 
@@ -50,7 +49,32 @@ func (m *Dialer) Dial(addr auth.Addr) (net.Conn, error) {
 	if err != nil {
 		return nil, err
 	}
-	return m.puncher.Dial(ethAddr)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	channel := make(chan connTuple)
+
+	go func() {
+		puncher, err := m.puncherNew()
+		if err != nil {
+			channel <- newConnTuple(nil, err)
+			return
+		}
+
+		channel <- newConnTuple(puncher.Dial(ethAddr))
+	}()
+
+	select {
+	case conn := <-channel:
+		if conn.err != nil && m.relayNew != nil {
+			return m.relayNew()
+		} else {
+			return conn.unwrap()
+		}
+	case <-ctx.Done():
+		return m.relayNew()
+	}
 }
 
 func (m *Dialer) dialDirect(addr auth.Addr) net.Conn {
@@ -69,5 +93,5 @@ func (m *Dialer) dialDirect(addr auth.Addr) net.Conn {
 //
 // Any blocked operations will be unblocked and return errors.
 func (m *Dialer) Close() error {
-	return m.puncher.Close()
+	return nil
 }
