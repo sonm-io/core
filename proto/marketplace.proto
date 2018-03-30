@@ -85,7 +85,7 @@ message MarketOrder {
     MarketOrderType orderType = 2;
     MarketOrderStatus orderStatus = 3;
     string author = 4;
-    string counteragent = 5;
+    string counterparty = 5;
     BigInt price = 6;
     uint64 duration = 7;
     repeated bool netflags = 8;
