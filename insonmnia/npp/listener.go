@@ -182,7 +182,7 @@ func (m *Listener) listenRelay(ctx context.Context) error {
 			timeout = m.minBackoffInterval
 		}
 
-		m.relayChannel <- newConnTuple(conn, &RelayError{err})
+		m.relayChannel <- newConnTuple(conn, newRelayError(err))
 	}
 }
 
