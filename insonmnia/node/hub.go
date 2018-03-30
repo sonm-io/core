@@ -48,7 +48,7 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 
 	cli, cc, err := h.getClient()
 	if err != nil {
-		return nil, fmt.Errorf("cannot connect to hub at %s, please check Node settings", h.remotes.conf.HubEndpoint())
+		return nil, fmt.Errorf("cannot connect to hub at %s, please check Node settings: %s", h.remotes.conf.HubEndpoint(), err.Error())
 	}
 	defer cc.Close()
 
