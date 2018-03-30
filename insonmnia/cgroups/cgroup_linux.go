@@ -30,7 +30,6 @@ func (c *cgroup) Stats() (*Stats, error) {
 }
 
 func (c *cgroup) New(name string, resources *specs.LinuxResources) (CGroup, error) {
-	resources.Memory.Swap = new(int64)
 	control, err := c.Cgroup.New(name, resources)
 	if err != nil {
 		return nil, err

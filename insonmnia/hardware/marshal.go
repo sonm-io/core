@@ -27,6 +27,5 @@ func (h *Hardware) IntoProto() *sonm.Capabilities {
 func MemoryIntoProto(m *mem.Device) *sonm.RAMDevice {
 	return &sonm.RAMDevice{
 		Total: m.Total,
-		Used:  m.Used,
 	}
 }

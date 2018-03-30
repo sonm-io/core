@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/cnf/structhash"
-	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/mem"
 	"github.com/sonm-io/core/proto"
@@ -47,7 +46,7 @@ type Hardware struct {
 
 // NewHardware returns initial hardware capabilities for Worker's host.
 // Parts of the struct may be filled later by HW-plugins.
-func NewHardware(cg cgroups.CGroup) (*Hardware, error) {
+func NewHardware() (*Hardware, error) {
 	hw := &Hardware{
 		Memory:  &MemoryProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
 		Network: &NetworkProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
@@ -66,7 +65,7 @@ func NewHardware(cg cgroups.CGroup) (*Hardware, error) {
 		})
 	}
 
-	vm, err := mem.NewMemoryDevice(cg)
+	vm, err := mem.NewMemoryDevice()
 	if err != nil {
 		return nil, err
 	}

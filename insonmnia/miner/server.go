@@ -111,9 +111,18 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		return nil, err
 	}
 
-	hardwareInfo, err := hardware.NewHardware(cgroup)
+	hardwareInfo, err := hardware.NewHardware()
 	if err != nil {
 		return nil, err
+	}
+
+	// check if memory is limited into cgroup
+	if s, err := cgroup.Stats(); err == nil {
+		if s.MemoryLimit < hardwareInfo.Memory.Device.Total {
+			hardwareInfo.Memory.Device.Available = s.MemoryLimit
+		}
+	} else {
+		hardwareInfo.Memory.Device.Available = hardwareInfo.Memory.Device.Total
 	}
 
 	state, err := NewState(o.ctx, cfg)
