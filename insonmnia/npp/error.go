@@ -6,14 +6,29 @@ type TransportError struct {
 	error
 }
 
-type RelayError struct {
+type relayError struct {
 	error
 }
 
-func (m *RelayError) Error() string {
+func newRelayError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	return &relayError{err}
+}
+
+func (m *relayError) Error() string {
+	if m.error == nil {
+		return "no error"
+	}
 	return m.error.Error()
 }
 
-func (m *RelayError) Temporary() bool {
+// Temporary returns true if this error is temporary.
+//
+// Used to trick into submission gRPC's machinery about exponentially delaying
+// failed connections.
+func (m *relayError) Temporary() bool {
 	return true
 }
