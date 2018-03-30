@@ -75,6 +75,8 @@ It has these top-level messages:
 	GetOrdersReply
 	GetProcessingReply
 	TouchOrdersRequest
+	MarketOrder
+	MarketDeal
 	MinerStartRequest
 	MinerStartReply
 	TaskInfo
