@@ -37,25 +37,16 @@ It has these top-level messages:
 	NetworkSpec
 	Container
 	Deal
-	ListReply
-	HubStartTaskRequest
+	StartTaskRequest
 	HubJoinNetworkRequest
-	HubStartTaskReply
+	StartTaskReply
 	HubStatusReply
 	DealRequest
 	ApproveDealRequest
-	GetDevicePropertiesReply
-	SetDevicePropertiesRequest
-	SlotsReply
-	GetAllSlotsReply
-	AddSlotRequest
-	RemoveSlotRequest
-	GetRegisteredWorkersReply
+	AskPlansReply
 	TaskListReply
-	CPUDeviceInfo
-	GPUDeviceInfo
 	DevicesReply
-	InsertSlotRequest
+	CreateAskPlanRequest
 	PullTaskRequest
 	DealInfoReply
 	Empty
@@ -88,7 +79,6 @@ It has these top-level messages:
 	MinerStartReply
 	TaskInfo
 	Endpoints
-	MinerStatusMapRequest
 	SaveRequest
 	Addr
 	SocketAddr

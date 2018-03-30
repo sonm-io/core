@@ -33,8 +33,6 @@ message Endpoints {
     repeated SocketAddr endpoints = 1;
 }
 
-message MinerStatusMapRequest {}
-
 message SaveRequest {
     string imageID = 1;
 }

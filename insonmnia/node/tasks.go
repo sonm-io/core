@@ -31,7 +31,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 		}
 		defer cc.Close()
 
-		return hubClient.TaskList(ctx, &pb.Empty{})
+		return hubClient.Tasks(ctx, &pb.Empty{})
 	}
 
 	clientAddr := util.PubKeyToAddr(t.remotes.key.PublicKey)
@@ -76,7 +76,7 @@ func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.Ta
 	}
 	defer cc.Close()
 
-	taskList, err := hub.TaskList(ctx, &pb.Empty{})
+	taskList, err := hub.Tasks(ctx, &pb.Empty{})
 	if err != nil {
 		log.G(t.ctx).Error("cannot retrieve tasks from the hub", zap.Error(err))
 		return
@@ -87,7 +87,7 @@ func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.Ta
 	}
 }
 
-func (t *tasksAPI) Start(ctx context.Context, req *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
+func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	hub, cc, err := getHubClientForDeal(ctx, t.remotes, req.Deal.GetId())
 	if err != nil {
 		return nil, err

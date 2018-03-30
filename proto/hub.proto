@@ -10,26 +10,34 @@ import "insonmnia.proto";
 package sonm;
 
 service Hub {
-    // Ping should be used as Healthcheck for Hub
-    rpc Ping(Empty) returns (PingReply) {}
+    /// Management section
+
     // Status returns internal hub statistic
     rpc Status(Empty) returns (HubStatusReply) {}
-    // List returns a list for connected Workers
-    rpc List(Empty) returns (ListReply) {}
-    // Info returns info about given Worker
-    rpc Info(ID) returns (InfoReply) {}
-    // TaskList returns info about all Tasks on all Workers on the Hub
-    rpc TaskList(Empty) returns (TaskListReply) {}
+    // Devices returns list of all available devices that this Hub awares of
+    // with tieir full description.
+    rpc Devices(Empty) returns (DevicesReply) {}
+    // Tasks returns info about all Tasks
+    rpc Tasks(Empty) returns (TaskListReply) {}
+    // GetSlots allows to obtain previously assigned slots for the Hub.
+    rpc AskPlans(Empty) returns (AskPlansReply) {}
+    // AddSlot allows to assign a new slot.
+    // This method can fail if either there are no such resources found or it
+    // has been previourly assigned.
+    rpc CreateAskPlan(CreateAskPlanRequest) returns (ID) {}
+    // RemoveSlot removes the speified slot if fully matches.
+    rpc RemoveAskPlan(ID) returns (Empty) {}
+
+    /// Task Management section
 
     rpc PushTask(stream Chunk) returns (stream Progress) {}
     rpc PullTask(PullTaskRequest) returns (stream Chunk) {}
     // StartTask schedules the task associcated with a deal on some miner.
-    rpc StartTask(HubStartTaskRequest) returns (HubStartTaskReply) {}
-    rpc JoinNetwork(HubJoinNetworkRequest) returns (NetworkSpec) {}
+    rpc StartTask(StartTaskRequest) returns (StartTaskReply) {}
     rpc StopTask(ID) returns (Empty) {}
-
     rpc TaskStatus(ID) returns (TaskStatusReply) {}
-    rpc MinerStatus(ID) returns (StatusMapReply) {}
+    rpc JoinNetwork(HubJoinNetworkRequest) returns (NetworkSpec) {}
+
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
 
     rpc ProposeDeal(DealRequest) returns (Empty) {}
@@ -37,56 +45,9 @@ service Hub {
 
     // Note: currently used for testing pusposes.
     rpc GetDealInfo(ID) returns (DealInfoReply) {}
-
-    // Device configuration API.
-
-    // Devices returns list of all available devices that this Hub awares of
-    // with tieir full description.
-    rpc Devices(Empty) returns (DevicesReply) {}
-    // MinerDevices returns a list of all available devices for given miner ID.
-    rpc MinerDevices(ID) returns (DevicesReply) {}
-    // GetDeviceProperties allows to obtain previously assigned resource
-    // properties for a given device.
-    rpc GetDeviceProperties(ID) returns (GetDevicePropertiesReply) {}
-    // SetDeviceProperties method allows to specify additional resource
-    // properties for a device specified by its ID.
-    // This may include GPU's capability to execute a well-known work such as
-    // Ethereum mining etc.
-    // Note, that this method overrides all previously specified properties.
-    rpc SetDeviceProperties(SetDevicePropertiesRequest) returns (Empty) {}
-
-    // Worker ACL management.
-
-    // GetRegisteredWorkers returns a list of Worker IDs that
-    // allowed to connect to the Hub.
-    rpc GetRegisteredWorkers(Empty) returns (GetRegisteredWorkersReply) {}
-    // RegisterWorker adds Worker credentials to be able for them to connect
-    // to a Hub.
-    rpc RegisterWorker(ID) returns (Empty) {}
-    // DeregisterWorkers removed Worker credentials denying them to connect to
-    // a Hub.
-    rpc DeregisterWorker(ID) returns (Empty) {}
-
-    // Slot management.
-
-    // GetSlots allows to obtain previously assigned slots for the Hub.
-    rpc Slots(Empty) returns (SlotsReply) {}
-    // AddSlot allows to assign a new slot.
-    // This method can fail if either there are no such resources found or it
-    // has been previourly assigned.
-    rpc InsertSlot(InsertSlotRequest) returns (ID) {}
-    // RemoveSlot removes the speified slot if fully matches.
-    rpc RemoveSlot(ID) returns (Empty) {}
 }
 
-message ListReply {
-    message ListValue {
-        repeated string values = 1;
-    }
-    map<string, ListValue> info = 1;
-}
-
-message HubStartTaskRequest {
+message StartTaskRequest {
     // Deal points to the deal associated with workers where the task should be
     // started.
     Deal deal = 1;
@@ -99,7 +60,7 @@ message HubJoinNetworkRequest {
     string networkID = 2;
 }
 
-message HubStartTaskReply {
+message StartTaskReply {
     string id = 1;
     repeated string endpoint = 2;
     string hubAddr = 3;
@@ -107,16 +68,13 @@ message HubStartTaskReply {
 }
 
 message HubStatusReply {
-    reserved 1, 7;
-//    uint64 minerCount = 1;
-    uint64 uptime = 2;
-    string version = 3;
-    string platform = 4;
-    string ethAddr = 5;
-
-    repeated string clientEndpoint = 6;
-//    repeated string workerEndpoints = 7;
-    string announceError = 8;
+    uint64 uptime = 1;
+    string version = 2;
+    string platform = 3;
+    string ethAddr = 4;
+    uint32 taskCount = 5;
+    string DWHStatus = 6;
+    string randezvousStatus = 7;
 }
 
 message DealRequest {
@@ -131,42 +89,8 @@ message ApproveDealRequest {
     string askID = 3;
 }
 
-message GetDevicePropertiesReply {
-    map<string, double> properties = 1;
-}
-
-message SetDevicePropertiesRequest {
-    // Device identifier.
-    string ID = 1;
-    // Its properties.
-    map<string, double> properties = 2;
-}
-
-message SlotsReply {
+message AskPlansReply {
     map <string, Slot> slots = 1;
-}
-
-message GetAllSlotsReply {
-    message SlotList {
-        repeated Slot slot = 1;
-    }
-    map<string, SlotList> slots = 1;
-}
-
-message AddSlotRequest {
-    // Miner ID.
-    string ID = 1;
-    // Slot destription.
-    Slot slot = 2;
-}
-
-message RemoveSlotRequest {
-    string ID = 1;
-    Slot slot = 2;
-}
-
-message GetRegisteredWorkersReply {
-    repeated ID ids = 1;
 }
 
 message TaskListReply {
@@ -176,20 +100,6 @@ message TaskListReply {
     map<string, TaskInfo> info = 1;
 }
 
-message CPUDeviceInfo {
-    // Miners where such device exists.
-    repeated string miners = 1;
-    // Its properties.
-    CPUDevice device = 2;
-}
-
-message GPUDeviceInfo {
-    // Miners where such device exists.
-    repeated string miners = 1;
-    // Its properties.
-    GPUDevice device = 2;
-}
-
 message DevicesReply {
     // CPU unique ID -> Info.
     repeated CPUDevice CPUs = 1;
@@ -197,7 +107,7 @@ message DevicesReply {
     repeated GPUDevice GPUs = 2;
 }
 
-message InsertSlotRequest {
+message CreateAskPlanRequest {
     Slot slot = 1;
     BigInt pricePerSecond = 4;
 

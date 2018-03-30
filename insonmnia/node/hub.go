@@ -75,13 +75,11 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 // (not the Node's one because of the Node API is publicly declared and must be changed as rare as possible).
 var hubToNodeMethods = map[string]string{
 	"Status":        "Status",
-	"GetDeviceInfo": "Devices",
-	"GetAskPlan":    "GetAskPlan",
-	"GetAskPlans":   "Slots",
-	"CreateAskPlan": "InsertSlot",
-	"RemoveAskPlan": "RemoveSlot",
-	"TaskList":      "TaskList",
-	"TaskStatus":    "TaskStatus",
+	"Devices":       "Devices",
+	"Tasks":         "Tasks",
+	"AskPlans":      "AskPlans",
+	"CreateAskPlan": "CreateAskPlan",
+	"RemoveAskPlan": "RemoveAskPlan",
 }
 
 func newHubAPI(opts *remoteOptions) pb.HubManagementServer {
