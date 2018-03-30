@@ -34,6 +34,7 @@ type DRICard struct {
 	Major    uint64
 	Minor    uint64
 	PCIBusID string
+	Memory   uint64
 }
 
 func NewDRICard(num int, name, path string) (DRICard, error) {

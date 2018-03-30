@@ -813,9 +813,8 @@ func (m *Miner) runGPUBenchGroup(benches []*pb.Benchmark) error {
 
 			if ben.GetID() == bm.GPUMem {
 				dev.Benchmark[bm.GPUMem] = &pb.Benchmark{
-					ID: ben.GetID(),
-					// todo(sshaman1101): add some method to retrieve GPU's memory
-					Result: 100500,
+					ID:     ben.GetID(),
+					Result: dev.Device.Memory,
 				}
 				continue
 			}

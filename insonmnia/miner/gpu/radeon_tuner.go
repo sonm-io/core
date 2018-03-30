@@ -4,11 +4,13 @@ package gpu
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
 	"github.com/docker/docker/api/types/container"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/proto"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
@@ -29,7 +31,12 @@ func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 		devMap: make(map[GPUID]DRICard),
 	}
 
-	if err := hasGPUWithVendor(sonm.GPUVendorType_RADEON); err != nil {
+	clDevices, err := gpu.GetGPUDevices()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := hasGPUWithVendor(sonm.GPUVendorType_RADEON, clDevices); err != nil {
 		return nil, err
 	}
 
@@ -38,12 +45,37 @@ func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 		return nil, err
 	}
 
-	for _, card := range cards {
+	// filter CL devices by known vendor IDs
+	var radeonDevices []*sonm.GPUDevice
+	for _, dev := range clDevices {
+		if dev.VendorType() == sonm.GPUVendorType_RADEON {
+			radeonDevices = append(radeonDevices, dev)
+		}
+	}
+
+	// match DRI and CL devices by vendor ID
+	var driRadeonDevices []DRICard
+	for _, dev := range cards {
+		for _, rid := range sonm.Radeons {
+			if dev.VendorID == rid {
+				driRadeonDevices = append(driRadeonDevices, dev)
+			}
+		}
+	}
+
+	// wow, so different, such weird
+	if len(radeonDevices) != len(driRadeonDevices) {
+		return nil, errors.New("cannot find matching CL device to extract vmem")
+	}
+
+	for i, card := range driRadeonDevices {
+		card.Memory = radeonDevices[i].Memory
 		tun.devMap[GPUID(card.Path)] = card
 
 		log.G(ctx).Debug("discovered gpu device ",
 			zap.String("dev", card.Path),
-			zap.Strings("driDevice", card.Devices))
+			zap.Strings("driDevice", card.Devices),
+			zap.Uint64("vmem", card.Memory))
 	}
 
 	return tun, nil
@@ -86,14 +118,14 @@ func (tun radeonTuner) Devices() []*pb.GPUDevice {
 	var devices []*pb.GPUDevice
 	for _, d := range tun.devMap {
 		devices = append(devices, &pb.GPUDevice{
-			ID:         d.PCIBusID,
-			VendorName: "Radeon",
-			VendorID:   d.VendorID,
-			// note: name may be some awkward shit
+			ID:          d.PCIBusID,
+			VendorName:  "Radeon",
+			VendorID:    d.VendorID,
 			DeviceName:  d.Name,
 			DeviceID:    d.DeviceID,
 			MajorNumber: d.Major,
 			MinorNumber: d.Minor,
+			Memory:      d.Memory,
 		})
 	}
 
