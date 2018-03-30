@@ -22,7 +22,7 @@ type rendezvousClient struct {
 	conn net.Conn
 }
 
-func newRendezvousClient(ctx context.Context, addr auth.Endpoint, credentials credentials.TransportCredentials) (*rendezvousClient, error) {
+func newRendezvousClient(ctx context.Context, addr auth.Addr, credentials credentials.TransportCredentials) (*rendezvousClient, error) {
 	// Setting TCP keepalive is required, because NAT's conntrack can purge out
 	// idle connections for its internal garbage collection reasons at the most
 	// inopportune moment.
@@ -31,12 +31,18 @@ func newRendezvousClient(ctx context.Context, addr auth.Endpoint, credentials cr
 			KeepAlive: tcpKeepAliveInterval,
 		},
 	}
-	conn, err := dialer.Dial(protocol, addr.Endpoint)
+
+	netAddr, err := addr.Addr()
 	if err != nil {
 		return nil, err
 	}
 
-	client, err := rendezvous.NewRendezvousClient(ctx, "", auth.NewWalletAuthenticator(credentials, addr.EthAddress), xgrpc.WithConn(conn))
+	conn, err := dialer.Dial(protocol, netAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := rendezvous.NewRendezvousClient(ctx, addr.String(), credentials, xgrpc.WithConn(conn))
 	if err != nil {
 		return nil, err
 	}

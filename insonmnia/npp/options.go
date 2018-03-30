@@ -36,7 +36,7 @@ func newOptions(ctx context.Context) *options {
 // Without this option no intermediate server will be used for obtaining
 // peer's endpoints and the entire connection establishment process will fall
 // back to the old good plain TCP connection.
-func WithRendezvous(addrs []auth.Endpoint, credentials credentials.TransportCredentials) Option {
+func WithRendezvous(addrs []auth.Addr, credentials credentials.TransportCredentials) Option {
 	return func(o *options) error {
 		o.puncherNew = func() (NATPuncher, error) {
 			for _, addr := range addrs {

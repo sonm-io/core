@@ -25,12 +25,22 @@ func newTracer() opentracing.Tracer {
 // using ETH authentication. To enable this the argument should be in
 // format "ethAddr@Endpoint".
 func NewClient(ctx context.Context, addr string, credentials credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
-	authEndpoint, err := auth.NewEndpoint(addr)
+	authEndpoint, err := auth.NewAddr(addr)
+	if err != nil {
+		return nil, err
+	}
+
+	netAddr, err := authEndpoint.Addr()
+	if err != nil {
+		return nil, err
+	}
+
+	ethAddr, err := authEndpoint.ETH()
 	if err != nil {
 		return newClient(ctx, addr, credentials, opts...)
 	}
 
-	return newClient(ctx, authEndpoint.Endpoint, auth.NewWalletAuthenticator(credentials, authEndpoint.EthAddress), opts...)
+	return newClient(ctx, netAddr, auth.NewWalletAuthenticator(credentials, ethAddr), opts...)
 }
 
 func newClient(ctx context.Context, addr string, credentials credentials.TransportCredentials, opts ...grpc.DialOption) (*grpc.ClientConn, error) {

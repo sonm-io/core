@@ -4,6 +4,7 @@ import (
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/insonmnia/npp"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -13,6 +14,7 @@ type Config interface {
 	HttpBindPort() uint16
 	// BindPort is port to listen for client connection via GRPC at localhost
 	BindPort() uint16
+	NPPConfig() *npp.Config
 	// MarketEndpoint is Marketplace gRPC endpoint
 	MarketEndpoint() string
 	// HubEndpoint is Hub's gRPC endpoint (not required)
@@ -52,6 +54,7 @@ type locatorConfig struct {
 
 type yamlConfig struct {
 	Node                    nodeConfig         `yaml:"node"`
+	NPPCfg                  npp.Config         `yaml:"npp"`
 	Market                  marketConfig       `required:"true" yaml:"market"`
 	Log                     logConfig          `required:"true" yaml:"log"`
 	Locator                 locatorConfig      `required:"true" yaml:"locator"`
@@ -66,6 +69,10 @@ func (y *yamlConfig) HttpBindPort() uint16 {
 
 func (y *yamlConfig) BindPort() uint16 {
 	return y.Node.BindPort
+}
+
+func (y *yamlConfig) NPPConfig() *npp.Config {
+	return &y.NPPCfg
 }
 
 func (y *yamlConfig) MarketEndpoint() string {

@@ -6,9 +6,10 @@ import (
 	"io"
 	"reflect"
 	"strings"
-	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/npp"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -23,8 +24,22 @@ type hubAPI struct {
 }
 
 func (h *hubAPI) getClient() (pb.HubClient, io.Closer, error) {
-	cc, err := xgrpc.NewClient(h.ctx, h.remotes.conf.HubEndpoint(), h.remotes.creds,
-		grpc.WithBlock(), grpc.WithTimeout(15*time.Second))
+	rendezvousEndpoints, err := h.remotes.conf.NPPConfig().Rendezvous.ConvertEndpoints()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	dial, err := npp.NewDialer(h.ctx, npp.WithRendezvous(rendezvousEndpoints, h.remotes.creds))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	conn, err := dial.Dial(crypto.PubkeyToAddress(h.remotes.key.PublicKey))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	cc, err := xgrpc.NewClient(h.ctx, h.remotes.conf.HubEndpoint(), h.remotes.creds, xgrpc.WithConn(conn))
 	if err != nil {
 		return nil, nil, err
 	}
