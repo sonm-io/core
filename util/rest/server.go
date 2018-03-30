@@ -59,7 +59,7 @@ func NewServer(opts ...Option) (*Server, error) {
 func (s *Server) RegisterService(interfacePtr, concretePtr interface{}) error {
 	iface := reflect.TypeOf(interfacePtr).Elem()
 	serviceName := iface.Name()
-	s.log.Infof("registering service %s", serviceName)
+	s.log.Debugf("registering service %s", serviceName)
 
 	service, ok := s.services[serviceName]
 	if ok {
@@ -81,7 +81,6 @@ func (s *Server) RegisterService(interfacePtr, concretePtr interface{}) error {
 	}
 	for i := 0; i < iface.NumMethod(); i++ {
 		method := iface.Method(i)
-		s.log.Debugf("registering %s method for %s service", method.Name, serviceName)
 
 		//TODO: handle streaming
 		if method.Type.NumIn() != 2 {
@@ -103,7 +102,6 @@ func (s *Server) RegisterService(interfacePtr, concretePtr interface{}) error {
 			methodValue:  concrete.MethodByName(method.Name),
 			fullName:     fullServiceName + "/" + method.Name,
 		}
-		s.log.Infof("registered %s method for %s service", method.Name, serviceName)
 	}
 	return nil
 }
