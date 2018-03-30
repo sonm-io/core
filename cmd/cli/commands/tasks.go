@@ -121,7 +121,7 @@ var taskStartCmd = &cobra.Command{
 			})
 		}
 
-		var req = &pb.HubStartTaskRequest{
+		var req = &pb.StartTaskRequest{
 			Deal: deal,
 			Container: &pb.Container{
 				Image:         taskDef.GetImageName(),

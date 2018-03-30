@@ -19,7 +19,7 @@ service TaskManagement {
     // PushTask pushes image to Worker
     rpc PushTask(stream Chunk) returns (stream Progress) {}
     // Start starts a task on given resource
-    rpc Start(HubStartTaskRequest) returns (HubStartTaskReply) {}
+    rpc Start(StartTaskRequest) returns (StartTaskReply) {}
     // JoinNetwork provides network specs to join specified task
     rpc JoinNetwork(JoinNetworkRequest) returns (NetworkSpec) {}
     // Status produces a task status by their ID
@@ -87,10 +87,10 @@ service HubManagement {
     rpc Tasks(Empty) returns (TaskListReply) {}
 
     // AskPlans allows to obtain previously assigned Ask Plans from for a given worker.
-    rpc AskPlans(Empty) returns (SlotsReply) {}
+    rpc AskPlans(Empty) returns (AskPlansReply) {}
     // CreateAskPlan allows to create rules
     // for creating Ask orders on Marketplace
-    rpc CreateAskPlan(InsertSlotRequest) returns (ID) {}
+    rpc CreateAskPlan(CreateAskPlanRequest) returns (ID) {}
     // RemoveAskPlan allows to remove rules
     // for creating Ask orders on Marketplace
     rpc RemoveAskPlan(ID) returns (Empty) {}

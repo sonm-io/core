@@ -312,34 +312,17 @@ func (h *Hub) Serve() error {
 	return nil
 }
 
-// Ping should be used as Healthcheck for Hub
-func (h *Hub) Ping(ctx context.Context, _ *pb.Empty) (*pb.PingReply, error) {
-	return &pb.PingReply{}, nil
-}
-
 // Status returns internal hub statistic
 func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, error) {
 	uptime := uint64(time.Now().Sub(h.startTime).Seconds())
 	reply := &pb.HubStatusReply{
-		Uptime:         uptime,
-		Platform:       util.GetPlatformName(),
-		Version:        h.version,
-		EthAddr:        util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
-		ClientEndpoint: h.announcer.Endpoints(),
-		AnnounceError:  h.announcer.ErrorMsg(),
+		Uptime:   uptime,
+		Platform: util.GetPlatformName(),
+		Version:  h.version,
+		EthAddr:  util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
 	}
 
 	return reply, nil
-}
-
-// List returns attached miners
-func (h *Hub) List(ctx context.Context, request *pb.Empty) (*pb.ListReply, error) {
-	return nil, errors.New("deprecated")
-}
-
-// Info returns aggregated runtime statistics for specified miners.
-func (h *Hub) Info(ctx context.Context, request *pb.ID) (*pb.InfoReply, error) {
-	return h.worker.Info(ctx, &pb.Empty{})
 }
 
 func (h *Hub) onRequest(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
@@ -394,7 +377,7 @@ func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer
 	return h.worker.Save(&pb.SaveRequest{ImageID: imageID}, stream)
 }
 
-func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*pb.HubStartTaskReply, error) {
+func (h *Hub) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(h.ctx).Info("handling StartTask request", zap.Any("request", request))
 
 	taskRequest, err := structs.NewStartTaskRequest(request)
@@ -405,16 +388,7 @@ func (h *Hub) StartTask(ctx context.Context, request *pb.HubStartTaskRequest) (*
 	return h.startTask(ctx, taskRequest)
 }
 
-func (h *Hub) JoinNetwork(ctx context.Context, request *pb.HubJoinNetworkRequest) (*pb.NetworkSpec, error) {
-	log.G(h.ctx).Info("handling JoinNetwork request", zap.Any("request", request))
-	return h.worker.JoinNetwork(ctx, &pb.ID{Id: request.NetworkID})
-}
-
-func (h *Hub) generateTaskID() string {
-	return uuid.New()
-}
-
-func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.HubStartTaskReply, error) {
+func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.StartTaskReply, error) {
 	allowed, ref, err := h.whitelist.Allowed(ctx, request.Container.Registry, request.Container.Image, request.Container.Auth)
 	if err != nil {
 		return nil, err
@@ -479,7 +453,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		log.G(h.ctx).Error("failed to dump state", zap.Error(err))
 	}
 
-	reply := &pb.HubStartTaskReply{
+	reply := &pb.StartTaskReply{
 		Id:         taskID,
 		HubAddr:    h.ethAddr.Hex(),
 		NetworkIDs: response.NetworkIDs,
@@ -488,6 +462,15 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	tasksGauge.Inc()
 
 	return reply, nil
+}
+
+func (h *Hub) JoinNetwork(ctx context.Context, request *pb.HubJoinNetworkRequest) (*pb.NetworkSpec, error) {
+	log.G(h.ctx).Info("handling JoinNetwork request", zap.Any("request", request))
+	return h.worker.JoinNetwork(ctx, &pb.ID{Id: request.NetworkID})
+}
+
+func (h *Hub) generateTaskID() string {
+	return uuid.New()
 }
 
 // StopTask sends termination request to a miner handling the task
@@ -535,16 +518,9 @@ func (h *Hub) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, er
 	return r, nil
 }
 
-func (h *Hub) TaskList(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
+func (h *Hub) Tasks(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
 	log.G(h.ctx).Info("handling TaskList request")
 	return h.state.GetTaskList(ctx)
-}
-
-func (h *Hub) MinerStatus(ctx context.Context, request *pb.ID) (*pb.StatusMapReply, error) {
-	log.G(h.ctx).Info("handling MinerStatus request", zap.Any("req", request))
-	result := &pb.StatusMapReply{}
-	result.Statuses = h.worker.CollectTasksStatuses()
-	return result, nil
 }
 
 func (h *Hub) TaskStatus(ctx context.Context, request *pb.ID) (*pb.TaskStatusReply, error) {
@@ -754,34 +730,13 @@ func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply,
 	}, nil
 }
 
-func (h *Hub) MinerDevices(ctx context.Context, request *pb.ID) (*pb.DevicesReply, error) {
-	return nil, errors.New("deprecated")
-}
-
-func (h *Hub) GetDeviceProperties(ctx context.Context, request *pb.ID) (*pb.GetDevicePropertiesReply, error) {
-	log.G(h.ctx).Info("handling GetMinerProperties request", zap.Any("req", request))
-	return h.state.GetDeviceProperties(request.Id)
-}
-
-func (h *Hub) SetDeviceProperties(ctx context.Context, request *pb.SetDevicePropertiesRequest) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling SetDeviceProperties request", zap.Any("req", request))
-	h.state.SetDeviceProperties(request.ID, request.Properties)
-
-	if err := h.state.Dump(); err != nil {
-		log.G(h.ctx).Error("failed to dump state", zap.Error(err))
-	}
-
-	return &pb.Empty{}, nil
-}
-
-//TODO: It actually should be called AskPlans.
-func (h *Hub) Slots(ctx context.Context, request *pb.Empty) (*pb.SlotsReply, error) {
+func (h *Hub) AskPlans(ctx context.Context, request *pb.Empty) (*pb.AskPlansReply, error) {
 	log.G(h.ctx).Info("handling Slots request")
-	return &pb.SlotsReply{Slots: h.state.DumpSlots()}, nil
+	return &pb.AskPlansReply{Slots: h.state.DumpSlots()}, nil
 }
 
 //TODO: Actually it is not slot, but AskPlan.
-func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*pb.ID, error) {
+func (h *Hub) CreateAskPlan(ctx context.Context, request *pb.CreateAskPlanRequest) (*pb.ID, error) {
 	log.G(h.ctx).Info("handling InsertSlot request", zap.Any("request", request))
 
 	slot, err := structs.NewSlot(request.Slot)
@@ -814,7 +769,7 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*p
 }
 
 //TODO: Actually it is not slot, but AskPlan
-func (h *Hub) RemoveSlot(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
+func (h *Hub) RemoveAskPlan(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Info("RemoveSlot request", zap.Any("id", request.Id))
 
 	err := h.state.RemoveSlot(h.ctx, request.Id)
@@ -827,23 +782,6 @@ func (h *Hub) RemoveSlot(ctx context.Context, request *pb.ID) (*pb.Empty, error)
 	}
 
 	return &pb.Empty{}, nil
-}
-
-// GetRegisteredWorkers returns a list of Worker IDs that are allowed to
-// connect to the Hub.
-func (h *Hub) GetRegisteredWorkers(ctx context.Context, empty *pb.Empty) (*pb.GetRegisteredWorkersReply, error) {
-	log.G(h.ctx).Info("handling GetRegisteredWorkers request")
-	return nil, errors.New("deprecated")
-}
-
-// RegisterWorker allows Worker with given ID to connect to the Hub
-func (h *Hub) RegisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
-	return nil, errors.New("deprecated")
-}
-
-// DeregisterWorkers deny Worker with given ID to connect to the Hub
-func (h *Hub) DeregisterWorker(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
-	return nil, errors.New("deprecated")
 }
 
 func (h *Hub) listenAPI() error {

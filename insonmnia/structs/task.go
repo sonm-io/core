@@ -12,10 +12,10 @@ var (
 )
 
 type StartTaskRequest struct {
-	*sonm.HubStartTaskRequest
+	*sonm.StartTaskRequest
 }
 
-func NewStartTaskRequest(request *sonm.HubStartTaskRequest) (*StartTaskRequest, error) {
+func NewStartTaskRequest(request *sonm.StartTaskRequest) (*StartTaskRequest, error) {
 	deal := request.GetDeal()
 	if deal == nil {
 		return nil, errDealRequired

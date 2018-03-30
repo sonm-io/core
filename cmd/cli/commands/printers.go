@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math/big"
 	"sort"
-	"strings"
 	"time"
 
 	ds "github.com/c2h5oh/datasize"
@@ -108,17 +107,13 @@ func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskListRep
 }
 
 func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
-	announceMsg := "OK"
-	if stat.GetAnnounceError() != "" {
-		announceMsg = fmt.Sprintf("error: %s", stat.GetAnnounceError())
-	}
-
 	if isSimpleFormat() {
 		cmd.Printf("Uptime:             %s\r\n", (time.Second * time.Duration(stat.GetUptime())).String())
-		cmd.Printf("Client endpoint:    %s (announce %s)\r\n",
-			strings.Join(stat.GetClientEndpoint(), ", "), announceMsg)
 		cmd.Printf("Version:            %s %s\r\n", stat.GetVersion(), stat.GetPlatform())
 		cmd.Printf("Eth address:        %s\r\n", stat.GetEthAddr())
+		cmd.Printf("Task count:         %d\r\n", stat.GetTaskCount())
+		cmd.Printf("DWH status:         %s\r\n", stat.GetDWHStatus())
+		cmd.Printf("Randezvous status:  %s\r\n", stat.GetRandezvousStatus())
 	} else {
 		showJSON(cmd, stat)
 	}
@@ -257,7 +252,7 @@ func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
 	}
 }
 
-func printAskList(cmd *cobra.Command, slots *pb.SlotsReply) {
+func printAskList(cmd *cobra.Command, slots *pb.AskPlansReply) {
 	if isSimpleFormat() {
 		slots := slots.GetSlots()
 		if len(slots) == 0 {
@@ -352,7 +347,7 @@ func printID(cmd *cobra.Command, id string) {
 	}
 }
 
-func printTaskStart(cmd *cobra.Command, start *pb.HubStartTaskReply) {
+func printTaskStart(cmd *cobra.Command, start *pb.StartTaskReply) {
 	if isSimpleFormat() {
 		cmd.Printf("Task ID:      %s\r\n", start.Id)
 		cmd.Printf("Hub Address:  %s\r\n", start.HubAddr)

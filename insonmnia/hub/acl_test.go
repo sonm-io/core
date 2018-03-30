@@ -42,7 +42,7 @@ func makeHubWithOrder(t *testing.T, buyerId string, dealId DealID) *Hub {
 }
 
 func TestFieldDealMetaData(t *testing.T) {
-	request := &sonm.HubStartTaskRequest{
+	request := &sonm.StartTaskRequest{
 		Deal: &sonm.Deal{
 			Id: "0x42",
 		},
@@ -103,7 +103,7 @@ func TestDealAuthorization(t *testing.T) {
 		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: addr},
 	})
 
-	request := &sonm.HubStartTaskRequest{
+	request := &sonm.StartTaskRequest{
 		Deal: &sonm.Deal{
 			Id: "0x42",
 		},
@@ -120,7 +120,7 @@ func TestDealAuthorizationErrors(t *testing.T) {
 		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: addr},
 	})
 
-	request := &sonm.HubStartTaskRequest{
+	request := &sonm.StartTaskRequest{
 		Deal: &sonm.Deal{
 			Id: "0x42",
 		},
@@ -141,7 +141,7 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 		"wallet": {"0x100500"},
 	}))
 
-	request := &sonm.HubStartTaskRequest{
+	request := &sonm.StartTaskRequest{
 		Deal: &sonm.Deal{
 			Id: "0x42",
 		},

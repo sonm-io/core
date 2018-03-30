@@ -74,7 +74,7 @@ var askPlanCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		req := &pb.InsertSlotRequest{
+		req := &pb.CreateAskPlanRequest{
 			Slot:           slot.Unwrap(),
 			PricePerSecond: pb.NewBigInt(bigPrice),
 		}

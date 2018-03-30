@@ -52,12 +52,11 @@ type state struct {
 	cluster Cluster
 	market  pb.MarketClient
 
-	deals            map[DealID]*DealMeta
-	tasks            map[string]*TaskInfo
-	minerCtx         *MinerCtx
-	orders           map[OrderID]ReservedOrder
-	askPlans         map[string]*askPlan
-	deviceProperties map[string]DeviceProperties
+	deals    map[DealID]*DealMeta
+	tasks    map[string]*TaskInfo
+	minerCtx *MinerCtx
+	orders   map[OrderID]ReservedOrder
+	askPlans map[string]*askPlan
 }
 
 func newState(ctx context.Context, eth ETH, market pb.MarketClient, cluster Cluster, minerCtx *MinerCtx) (
@@ -68,12 +67,11 @@ func newState(ctx context.Context, eth ETH, market pb.MarketClient, cluster Clus
 		cluster: cluster,
 		market:  market,
 
-		deals:            make(map[DealID]*DealMeta),
-		tasks:            make(map[string]*TaskInfo),
-		minerCtx:         minerCtx,
-		orders:           make(map[OrderID]ReservedOrder, 0),
-		askPlans:         make(map[string]*askPlan, 0),
-		deviceProperties: make(map[string]DeviceProperties),
+		deals:    make(map[DealID]*DealMeta),
+		tasks:    make(map[string]*TaskInfo),
+		minerCtx: minerCtx,
+		orders:   make(map[OrderID]ReservedOrder, 0),
+		askPlans: make(map[string]*askPlan, 0),
 	}
 
 	if err := out.init(minerCtx); err != nil {
@@ -92,12 +90,11 @@ func (s *state) Dump() error {
 
 func (s *state) dump() error {
 	sJSON := &stateJSON{
-		Deals:            s.deals,
-		Tasks:            s.tasks,
-		Miner:            s.minerCtx,
-		Orders:           s.orders,
-		AskPlans:         s.askPlans,
-		DeviceProperties: s.deviceProperties,
+		Deals:    s.deals,
+		Tasks:    s.tasks,
+		Miner:    s.minerCtx,
+		Orders:   s.orders,
+		AskPlans: s.askPlans,
 	}
 
 	return s.cluster.Synchronize(sJSON)
@@ -115,7 +112,6 @@ func (s *state) load(other *stateJSON) error {
 	s.tasks = other.Tasks
 	s.orders = other.Orders
 	s.askPlans = other.AskPlans
-	s.deviceProperties = other.DeviceProperties
 	s.minerCtx.usageMapping = other.Miner.usageMapping
 	s.restoreResourceUsage()
 
@@ -514,21 +510,6 @@ func (s *state) IsTaskFinished(taskID string) bool {
 func (s *state) isTaskFinished(taskID string) bool {
 	_, ok := s.tasks[taskID]
 	return !ok
-}
-
-func (s *state) GetDeviceProperties(id string) (*pb.GetDevicePropertiesReply, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	properties := s.deviceProperties[id]
-	return &pb.GetDevicePropertiesReply{Properties: properties}, nil
-}
-
-func (s *state) SetDeviceProperties(id string, properties map[string]float64) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.deviceProperties[id] = DeviceProperties(properties)
 }
 
 func (s *state) DumpSlots() map[string]*pb.Slot {

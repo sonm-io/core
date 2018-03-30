@@ -123,7 +123,7 @@ func TestHubCreateRemoveSlot(t *testing.T) {
 	hu, err := buildTestHub(ctrl)
 	assert.NoError(t, err)
 
-	req := &pb.InsertSlotRequest{
+	req := &pb.CreateAskPlanRequest{
 		PricePerSecond: pb.NewBigIntFromInt(100),
 		Slot: &pb.Slot{
 			Duration:  uint64(structs.MinSlotDuration.Seconds()),
@@ -133,18 +133,18 @@ func TestHubCreateRemoveSlot(t *testing.T) {
 
 	testCtx := context.Background()
 
-	id, err := hu.InsertSlot(testCtx, req)
+	id, err := hu.CreateAskPlan(testCtx, req)
 	assert.NoError(t, err)
 	assert.True(t, id.Id != "", "ID must not be empty")
 
-	actualSlots, err := hu.Slots(testCtx, &pb.Empty{})
+	actualSlots, err := hu.AskPlans(testCtx, &pb.Empty{})
 	assert.NoError(t, err)
 	assert.Equal(t, len(actualSlots.Slots), 1)
 
-	_, err = hu.RemoveSlot(testCtx, id)
+	_, err = hu.RemoveAskPlan(testCtx, id)
 	assert.NoError(t, err)
 
-	actualSlots, err = hu.Slots(testCtx, &pb.Empty{})
+	actualSlots, err = hu.AskPlans(testCtx, &pb.Empty{})
 	assert.NoError(t, err)
 	assert.Equal(t, len(actualSlots.Slots), 0)
 }
