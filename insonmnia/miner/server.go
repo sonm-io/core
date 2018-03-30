@@ -843,6 +843,11 @@ func (m *Miner) runStorageBenchGroup(benches []*pb.Benchmark) error {
 // execBenchmarkContainerWithResults executes benchmark as docker image,
 // returns JSON output with measured values.
 func (m *Miner) execBenchmarkContainerWithResults(d Description) (map[string]*bm.ResultJSON, error) {
+	err := m.ovs.Spool(m.ctx, d)
+	if err != nil {
+		return nil, err
+	}
+
 	statusChan, statusReply, err := m.ovs.Start(m.ctx, d)
 	if err != nil {
 		return nil, fmt.Errorf("cannot start container with benchmark: %v", err)
