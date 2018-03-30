@@ -6,7 +6,7 @@ import (
 	"context"
 	"net"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/insonmnia/auth"
 )
 
 // Dialer represents an NPP dialer.
@@ -29,15 +29,40 @@ func NewDialer(ctx context.Context, options ...Option) (*Dialer, error) {
 		}
 	}
 
+	puncher, err := opts.puncherNew()
+	if err != nil {
+		return nil, err
+	}
+
 	return &Dialer{
 		ctx:     ctx,
-		puncher: opts.puncher,
+		puncher: puncher,
 	}, nil
 }
 
 // Dial dials the given verified address using NPP.
-func (m *Dialer) Dial(addr common.Address) (net.Conn, error) {
-	return m.puncher.Dial(addr)
+func (m *Dialer) Dial(addr auth.Addr) (net.Conn, error) {
+	if conn := m.dialDirect(addr); conn != nil {
+		return conn, nil
+	}
+
+	ethAddr, err := addr.ETH()
+	if err != nil {
+		return nil, err
+	}
+	return m.puncher.Dial(ethAddr)
+}
+
+func (m *Dialer) dialDirect(addr auth.Addr) net.Conn {
+	netAddr, err := addr.Addr()
+	if err == nil {
+		conn, err := net.Dial("tcp", netAddr)
+		if err == nil {
+			return conn
+		}
+	}
+
+	return nil
 }
 
 // Close closes the dialer.

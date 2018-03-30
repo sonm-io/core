@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/npp"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -34,12 +35,13 @@ func (h *hubAPI) getClient() (pb.HubClient, io.Closer, error) {
 		return nil, nil, err
 	}
 
-	conn, err := dial.Dial(crypto.PubkeyToAddress(h.remotes.key.PublicKey))
+	addr := auth.NewAddrFromParts(crypto.PubkeyToAddress(h.remotes.key.PublicKey), h.remotes.conf.HubEndpoint())
+	conn, err := dial.Dial(addr)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	cc, err := xgrpc.NewClient(h.ctx, h.remotes.conf.HubEndpoint(), h.remotes.creds, xgrpc.WithConn(conn))
+	cc, err := xgrpc.NewClient(h.ctx, "-", h.remotes.creds, xgrpc.WithConn(conn))
 	if err != nil {
 		return nil, nil, err
 	}

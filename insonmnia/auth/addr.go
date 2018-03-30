@@ -47,6 +47,13 @@ func NewAddr(addr string) (*Addr, error) {
 	}
 }
 
+func NewAddrFromParts(eth common.Address, netAddr string) Addr {
+	return Addr{
+		eth:     &eth,
+		netAddr: netAddr,
+	}
+}
+
 func (m *Addr) ETH() (common.Address, error) {
 	if m.eth == nil {
 		return common.Address{}, fmt.Errorf("no Ethereum address specified")
