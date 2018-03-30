@@ -53,8 +53,8 @@ enum MarketOrderStatus {
 
 enum MarketIdentityLevel {
     MARKET_ANONIMOUS = 0;
-    MARKET_PSEUDONIMUOUS = 1;
-    MARKET_IDENTRIFIED = 2;
+    MARKET_PSEUDONYMOUS = 1;
+    MARKET_IDENTIFIED = 2;
 }
 
 enum MarketDealStatus {
