@@ -87,19 +87,6 @@ func WithCertRotator(rot util.HitlessCertRotator) Option {
 	}
 }
 
-func WithCluster(cl Cluster, evt <-chan ClusterEvent) Option {
-	return func(o *options) {
-		o.cluster = cl
-		o.clusterEvents = evt
-	}
-}
-
-func WithAnnouncer(an Announcer) Option {
-	return func(o *options) {
-		o.announcer = an
-	}
-}
-
 func WithWorker(w *miner.Miner) Option {
 	return func(o *options) {
 		o.worker = w
