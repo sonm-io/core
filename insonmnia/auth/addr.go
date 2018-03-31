@@ -64,7 +64,6 @@ func (m *Addr) ETH() (common.Address, error) {
 
 func (m *Addr) Addr() (string, error) {
 	if len(m.netAddr) == 0 {
-		ctxlog.G(context.Background()).Error("dsad")
 		return "", fmt.Errorf("no network address specified")
 	}
 
