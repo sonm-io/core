@@ -1,12 +1,10 @@
 package auth
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/noxiouz/zapctx/ctxlog"
 )
 
 const separator = "@"
