@@ -18,13 +18,6 @@ func newRelayError(err error) error {
 	return &relayError{err}
 }
 
-func (m *relayError) Error() string {
-	if m.error == nil {
-		return "no error"
-	}
-	return m.error.Error()
-}
-
 // Temporary returns true if this error is temporary.
 //
 // Used to trick into submission gRPC's machinery about exponentially delaying

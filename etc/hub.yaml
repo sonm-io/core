@@ -13,10 +13,10 @@ endpoint: ":15010"
 npp:
   rendezvous:
     endpoints:
-      - 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@138.68.189.138:14099
+      - 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:14099
   relay:
     endpoints:
-      - 138.68.189.138:12240
+      - 127.0.0.1:12240
 
 # Hub as a gateway settings. Can be omitted indicating that the Hub should not
 # be a gateway.

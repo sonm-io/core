@@ -10,10 +10,10 @@ type RendezvousConfig struct {
 	Endpoints []string
 }
 
-func (m *RendezvousConfig) ConvertEndpoints() ([]auth.Endpoint, error) {
-	var endpoints []auth.Endpoint
+func (m *RendezvousConfig) ConvertEndpoints() ([]auth.Addr, error) {
+	var endpoints []auth.Addr
 	for _, endpoint := range m.Endpoints {
-		addr, err := auth.NewEndpoint(endpoint)
+		addr, err := auth.NewAddr(endpoint)
 		if err != nil {
 			return nil, err
 		}

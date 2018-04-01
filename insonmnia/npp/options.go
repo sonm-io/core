@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"go.uber.org/zap"
@@ -36,7 +37,7 @@ func newOptions(ctx context.Context) *options {
 // Without this option no intermediate server will be used for obtaining
 // peer's endpoints and the entire connection establishment process will fall
 // back to the old good plain TCP connection.
-func WithRendezvous(addrs []auth.Endpoint, credentials credentials.TransportCredentials) Option {
+func WithRendezvous(addrs []auth.Addr, credentials credentials.TransportCredentials) Option {
 	return func(o *options) error {
 		o.puncherNew = func() (NATPuncher, error) {
 			for _, addr := range addrs {
@@ -86,6 +87,23 @@ func WithRelay(addrs []net.Addr, key *ecdsa.PrivateKey) Option {
 		o.relayNew = func() (net.Conn, error) {
 			for _, addr := range addrs {
 				conn, err := relay.Listen(addr, signedAddr)
+				if err == nil {
+					return conn, nil
+				}
+			}
+
+			return nil, fmt.Errorf("failed to connect to %+v", addrs)
+		}
+
+		return nil
+	}
+}
+
+func WithRelayClient(addrs []net.Addr, target common.Address) Option {
+	return func(o *options) error {
+		o.relayNew = func() (net.Conn, error) {
+			for _, addr := range addrs {
+				conn, err := relay.Dial(addr, target, "")
 				if err == nil {
 					return conn, nil
 				}

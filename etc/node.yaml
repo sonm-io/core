@@ -3,6 +3,24 @@ node:
   # Node's port to listen for client connection
   bind_port: 15030
 
+# NAT punching settings.
+npp:
+  # Rendezvous settings.
+  rendezvous:
+    # Known rendezvous endpoints.
+    #
+    # Must be in ETHAddress@Host:Port format.
+    endpoints:
+      - 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:14099
+  # Relay settings.
+  relay:
+    # Known relay endpoints.
+    #
+    # The format is Host:Port.
+    # Can be omitted, meaning that relaying is disabled.
+    endpoints:
+      - 127.0.0.1:12240
+
 # Marketplace service settings
 market:
   # marketplace gRPC endpoint
@@ -19,7 +37,6 @@ log:
 locator:
   # Locator's gRPC endpoint for Eth to IP addr resolution
   endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:15020"
-
 
 # Settings for Ethereum keys
 ethereum:
