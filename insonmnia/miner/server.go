@@ -15,7 +15,9 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
 
 	// todo: drop alias
@@ -65,8 +67,8 @@ type Miner struct {
 	containers map[string]*ContainerInfo
 
 	channelCounter int
-	controlGroup   cGroup
-	cGroupManager  cGroupManager
+	controlGroup   cgroups.CGroup
+	cGroupManager  cgroups.CGroupManager
 	ssh            SSH
 	state          *state
 	benchmarkList  bm.BenchList
@@ -97,23 +99,35 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		}
 	}
 
+	cgName := ""
+	var cgRes *specs.LinuxResources
+	if cfg.HubResources() != nil {
+		cgName = cfg.HubResources().Cgroup
+		cgRes = cfg.HubResources().Resources
+	}
+
+	cgroup, cGroupManager, err := cgroups.NewCgroupManager(cgName, cgRes)
+	if err != nil {
+		return nil, err
+	}
+
 	hardwareInfo, err := hardware.NewHardware()
 	if err != nil {
 		return nil, err
 	}
 
-	cgroup, cGroupManager, err := makeCgroupManager(cfg.HubResources())
-	if err != nil {
-		return nil, err
+	// check if memory is limited into cgroup
+	if s, err := cgroup.Stats(); err == nil {
+		if s.MemoryLimit < hardwareInfo.Memory.Device.Total {
+			hardwareInfo.Memory.Device.Available = s.MemoryLimit
+		}
+	} else {
+		hardwareInfo.Memory.Device.Available = hardwareInfo.Memory.Device.Total
 	}
 
 	state, err := NewState(o.ctx, cfg)
 	if err != nil {
 		return nil, err
-	}
-
-	if !platformSupportCGroups && cfg.HubResources() != nil {
-		log.G(o.ctx).Warn("your platform does not support CGroup, but the config has resources section")
 	}
 
 	if err := o.setupNetworkOptions(cfg); err != nil {
@@ -390,7 +404,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
 
-	cgroup, resourceHandle, err := m.consume(request.GetOrderId(), resources)
+	cGroup, resourceHandle, err := m.consume(request.GetOrderId(), resources)
 	if err != nil {
 		return nil, status.Errorf(codes.ResourceExhausted, "failed to start %v", err)
 	}
@@ -417,7 +431,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Registry:      request.Container.Registry,
 		Auth:          request.Container.Auth,
 		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
-		Resources:     resources.ToContainerResources(cgroup.Suffix()),
+		Resources:     resources.ToContainerResources(cGroup.Suffix()),
 		DealId:        request.GetOrderId(),
 		TaskId:        request.Id,
 		CommitOnStop:  request.Container.CommitOnStop,
@@ -495,12 +509,13 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	return &reply, nil
 }
 
-func (m *Miner) consume(orderId string, resources *structs.TaskResources) (cGroup, resourceHandle, error) {
+func (m *Miner) consume(orderId string, resources *structs.TaskResources) (cgroups.CGroup, resourceHandle, error) {
 	cgroup, err := m.cGroupManager.Attach(orderId, resources.ToCgroupResources())
-	if err != nil && err != errCgroupAlreadyExists {
+	if err != nil && err != cgroups.ErrCgroupAlreadyExists {
 		return nil, nil, err
 	}
-	if err != errCgroupAlreadyExists {
+
+	if err != cgroups.ErrCgroupAlreadyExists {
 		return cgroup, &nilResourceHandle{}, nil
 	}
 
@@ -768,7 +783,7 @@ func (m *Miner) runRAMBenchGroup(benches []*pb.Benchmark) error {
 		if ben.GetID() == bm.RamSize {
 			b := &pb.Benchmark{
 				ID:     bm.RamSize,
-				Result: m.hardware.AvailableMemory(),
+				Result: m.hardware.Memory.Device.Total,
 			}
 
 			m.hardware.Memory.Benchmark[bm.RamSize] = b

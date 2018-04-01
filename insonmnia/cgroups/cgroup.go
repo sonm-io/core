@@ -1,4 +1,4 @@
-package miner
+package cgroups
 
 import (
 	"errors"
@@ -8,32 +8,39 @@ import (
 )
 
 var (
-	errCgroupAlreadyExists = errors.New("nested cgroup already exists")
-	errCgroupNotExists     = errors.New("nested cgroup does not exist")
+	ErrCgroupAlreadyExists = errors.New("nested cgroup already exists")
+	ErrCgroupNotExists     = errors.New("nested cgroup does not exist")
 )
 
-type cGroup interface {
+type Stats struct {
+	MemoryLimit uint64
+}
+
+type CGroup interface {
 	// New creates a new cgroup under the calling cgroup.
-	New(name string, resources *specs.LinuxResources) (cGroup, error)
+	New(name string, resources *specs.LinuxResources) (CGroup, error)
 	// Delete removes the cgroup as a whole.
 	Delete() error
+	// Stats returns resource description
+	Stats() (*Stats, error)
+
 	Suffix() string
 }
 
-type cGroupManager interface {
+type CGroupManager interface {
 	// Parent returns a parent cgroup.
-	Parent() cGroup
+	Parent() CGroup
 	// Attach attaches a new nested cgroup under the parent cgroup, returning
 	// that new cgroup handle.
 	// Also returns cgroup handle if it is already exists.
-	Attach(name string, resources *specs.LinuxResources) (cGroup, error)
+	Attach(name string, resources *specs.LinuxResources) (CGroup, error)
 	// Detach detaches and deletes a nested cgroup.
 	Detach(name string) error
 }
 
 type nilCgroup struct{}
 
-func (c *nilCgroup) New(name string, resources *specs.LinuxResources) (cGroup, error) {
+func (c *nilCgroup) New(name string, resources *specs.LinuxResources) (CGroup, error) {
 	return c, nil
 }
 
@@ -45,17 +52,21 @@ func (*nilCgroup) Suffix() string {
 	return ""
 }
 
+func (*nilCgroup) Stats() (*Stats, error) {
+	return nil, errors.New("unimplemented")
+}
+
 type nilGroupManager struct{}
 
-func newNilCgroupManager() (cGroup, cGroupManager, error) {
+func newNilCgroupManager() (CGroup, CGroupManager, error) {
 	return &nilCgroup{}, &nilGroupManager{}, nil
 }
 
-func (c *nilGroupManager) Parent() cGroup {
+func (c *nilGroupManager) Parent() CGroup {
 	return &nilCgroup{}
 }
 
-func (c *nilGroupManager) Attach(name string, resources *specs.LinuxResources) (cGroup, error) {
+func (c *nilGroupManager) Attach(name string, resources *specs.LinuxResources) (CGroup, error) {
 	return &nilCgroup{}, nil
 }
 
@@ -64,15 +75,15 @@ func (c *nilGroupManager) Detach(name string) error {
 }
 
 type controlGroupManager struct {
-	parent     cGroup
+	parent     CGroup
 	parentName string
 	mu         sync.Mutex
-	nested     map[string]cGroup
+	nested     map[string]CGroup
 }
 
 // NewCgroupManager initializes a new cgroup with a nested group manager
 // associated with it.
-func newCgroupManager(name string, resources *specs.LinuxResources) (cGroup, cGroupManager, error) {
+func newCgroupManager(name string, resources *specs.LinuxResources) (CGroup, CGroupManager, error) {
 	parent, err := initializeControlGroup(name, resources)
 	if err != nil {
 		return nil, nil, err
@@ -81,22 +92,22 @@ func newCgroupManager(name string, resources *specs.LinuxResources) (cGroup, cGr
 	manager := &controlGroupManager{
 		parent:     parent,
 		parentName: name,
-		nested:     map[string]cGroup{},
+		nested:     map[string]CGroup{},
 	}
 
 	return parent, manager, nil
 }
 
-func (c *controlGroupManager) Parent() cGroup {
+func (c *controlGroupManager) Parent() CGroup {
 	return c.parent
 }
 
-func (c *controlGroupManager) Attach(name string, resources *specs.LinuxResources) (cGroup, error) {
+func (c *controlGroupManager) Attach(name string, resources *specs.LinuxResources) (CGroup, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if cgroup, exists := c.nested[name]; exists {
-		return cgroup, errCgroupAlreadyExists
+		return cgroup, ErrCgroupAlreadyExists
 	}
 
 	cgroup, err := c.parent.New(name, resources)
@@ -114,7 +125,7 @@ func (c *controlGroupManager) Detach(name string) error {
 
 	cgroup, exists := c.nested[name]
 	if !exists {
-		return errCgroupNotExists
+		return ErrCgroupNotExists
 	}
 	delete(c.nested, name)
 	if err := cgroup.Delete(); err != nil {
@@ -122,4 +133,11 @@ func (c *controlGroupManager) Detach(name string) error {
 	}
 
 	return nil
+}
+
+func NewCgroupManager(name string, res *specs.LinuxResources) (CGroup, CGroupManager, error) {
+	if !platformSupportCGroups || res == nil {
+		return newNilCgroupManager()
+	}
+	return newCgroupManager(name, res)
 }

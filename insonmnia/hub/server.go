@@ -812,6 +812,7 @@ func (h *Hub) Close() {
 	if h.certRotator != nil {
 		h.certRotator.Close()
 	}
+	h.worker.Close()
 	h.waiter.Wait()
 }
 

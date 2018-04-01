@@ -1,18 +1,21 @@
 package mem
 
-type Device interface {
-	// PhysicalId returns device's physical id on the motherboard.
-	PhysicalId() int
-	// DeviceName returns device name for example "DIMM DDR3 1333 MHz (0.8 ns)".
-	DeviceName() string
-	// Vendor returns vendor name.
-	VendorName() string
-	// MemorySize returns memory size in bytes.
-	MemorySize() uint64
-	// Width returns device's bus width in bits.
-	Width() uint64
-	// ClockFrequency returns a memory device clock frequency in Hz.
-	ClockFrequency() uint64
+import (
+	"github.com/shirou/gopsutil/mem"
+)
+
+type Device struct {
+	// Total is total mem present on the host system
+	Total uint64 `json:"total"`
+	// Available is available mem for tasks scheduling
+	Available uint64 `json:"available"`
 }
 
-// On other platforms get just MemorySize
+func NewMemoryDevice() (*Device, error) {
+	m, err := mem.VirtualMemory()
+	if err != nil {
+		return nil, err
+	}
+
+	return &Device{Total: m.Total}, err
+}

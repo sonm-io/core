@@ -1,8 +1,8 @@
 package hardware
 
 import (
-	"github.com/shirou/gopsutil/mem"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
+	"github.com/sonm-io/core/insonmnia/hardware/mem"
 	"github.com/sonm-io/core/proto"
 )
 
@@ -24,9 +24,8 @@ func (h *Hardware) IntoProto() *sonm.Capabilities {
 	}
 }
 
-func MemoryIntoProto(m *mem.VirtualMemoryStat) *sonm.RAMDevice {
+func MemoryIntoProto(m *mem.Device) *sonm.RAMDevice {
 	return &sonm.RAMDevice{
 		Total: m.Total,
-		Used:  m.Used,
 	}
 }
