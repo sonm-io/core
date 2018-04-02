@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/npp/relay"
+	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials"
 )
@@ -77,7 +78,7 @@ func WithNPPBacklog(backlog int) Option {
 //
 // Without this option no intermediate server will be used for relaying
 // TCP.
-func WithRelay(addrs []net.Addr, key *ecdsa.PrivateKey) Option {
+func WithRelay(addrs []netutil.TCPAddr, key *ecdsa.PrivateKey) Option {
 	return func(o *options) error {
 		signedAddr, err := relay.NewSignedAddr(key)
 		if err != nil {
@@ -86,7 +87,7 @@ func WithRelay(addrs []net.Addr, key *ecdsa.PrivateKey) Option {
 
 		o.relayNew = func() (net.Conn, error) {
 			for _, addr := range addrs {
-				conn, err := relay.Listen(addr, signedAddr)
+				conn, err := relay.Listen(&addr, signedAddr)
 				if err == nil {
 					return conn, nil
 				}
@@ -99,11 +100,11 @@ func WithRelay(addrs []net.Addr, key *ecdsa.PrivateKey) Option {
 	}
 }
 
-func WithRelayClient(addrs []net.Addr, target common.Address) Option {
+func WithRelayClient(addrs []netutil.TCPAddr, target common.Address) Option {
 	return func(o *options) error {
 		o.relayNew = func() (net.Conn, error) {
 			for _, addr := range addrs {
-				conn, err := relay.Dial(addr, target, "")
+				conn, err := relay.Dial(&addr, target, "")
 				if err == nil {
 					return conn, nil
 				}

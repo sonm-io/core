@@ -22,7 +22,7 @@ var (
 )
 
 func start() {
-	cfg, err := rendezvous.NewConfig(cfgPath)
+	cfg, err := rendezvous.NewServerConfig(cfgPath)
 	if err != nil {
 		fmt.Printf("failed to load config file: %s\r\n", err)
 		os.Exit(1)

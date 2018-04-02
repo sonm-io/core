@@ -1,6 +1,7 @@
 package netutil
 
 import (
+	"fmt"
 	"net"
 	"strconv"
 )
@@ -38,4 +39,25 @@ func ExtractHost(hostport string) (net.IP, error) {
 func ExtractPort(hostport string) (Port, error) {
 	_, port, err := SplitHostPort(hostport)
 	return port, err
+}
+
+// TCPAddr wraps net.TCPAddr allowing to initialize itself using YAML
+// unmarshaller.
+type TCPAddr struct {
+	net.TCPAddr
+}
+
+func (m *TCPAddr) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var addr string
+	if err := unmarshal(&addr); err != nil {
+		return err
+	}
+
+	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("cannot convert `%s` into a TCP address - %s", addr, err)
+	}
+
+	m.TCPAddr = *tcpAddr
+	return nil
 }
