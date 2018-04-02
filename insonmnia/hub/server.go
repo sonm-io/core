@@ -3,6 +3,7 @@ package hub
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"math"
 	"math/big"
 	"net"
 	"time"
@@ -16,7 +17,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/insonmnia/math"
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/resource"
@@ -428,7 +428,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		Resources: &pb.TaskResourceRequirements{
 			CPUCores:   uint64(usage.NumCPUs),
 			MaxMemory:  usage.Memory,
-			GPUSupport: pb.GPUCount(math.Min(usage.NumGPUs, 2)),
+			GPUSupport: pb.GPUCount(math.Min(float64(usage.NumGPUs), 2)),
 		},
 		RestartPolicy: &pb.ContainerRestartPolicy{
 			Name:              "",
