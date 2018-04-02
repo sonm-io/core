@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/proto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sshaman1101/nvidia-docker/nvidia"
@@ -28,6 +29,7 @@ type nvidiaDevice struct {
 	driDevice DRICard
 	// "/dev/nvidiactl", "/dev/nvidia-uvm", "/dev/nvidia-uvm-tools"
 	ctrlDevices []string
+	mem         uint64
 }
 
 func (dev *nvidiaDevice) String() string {
@@ -102,6 +104,7 @@ func (g *nvidiaTuner) Devices() []*pb.GPUDevice {
 			DeviceID:    d.driDevice.DeviceID,
 			MajorNumber: d.driDevice.Major,
 			MinorNumber: d.driDevice.Minor,
+			Memory:      d.mem,
 		})
 	}
 
@@ -124,7 +127,14 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 	ovs := nvidiaTuner{devMap: make(map[GPUID]nvidiaDevice)}
 	ovs.options = options
 
-	if err := hasGPUWithVendor(sonm.GPUVendorType_NVIDIA); err != nil {
+	// get devices list provided by openCL
+	clDevices, err := gpu.GetGPUDevices()
+	if err != nil {
+		return nil, err
+	}
+
+	// check if there is any device with required type
+	if err := hasGPUWithVendor(sonm.GPUVendorType_NVIDIA, clDevices); err != nil {
 		return nil, err
 	}
 
@@ -162,18 +172,23 @@ func newNvidiaTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 			return nil, err
 		}
 
+		// d.Memory.Global is presented in Megabytes
+		memBytes := uint64(*d.Memory.Global) * 1024 * 1024
+
 		dev := nvidiaDevice{
 			name:        *d.Model,
 			devicePath:  d.Path,
 			driDevice:   card,
 			ctrlDevices: ctrlDevices,
+			mem:         memBytes,
 		}
 		ovs.devMap[dev.ID()] = dev
 
 		log.G(ctx).Debug("discovered gpu devices",
 			zap.String("root", dev.String()),
 			zap.Strings("ctrl", dev.ctrlDevices),
-			zap.Strings("dri", card.Devices))
+			zap.Strings("dri", card.Devices),
+			zap.Uint64("mem", memBytes))
 	}
 
 	volInfo := []nvidia.VolumeInfo{

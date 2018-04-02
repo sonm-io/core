@@ -63,10 +63,16 @@ func GetGPUDevicesUsingOpenCL() ([]*sonm.GPUDevice, error) {
 				return nil, err
 			}
 
+			memInfo, err := d.globalMemory()
+			if err != nil {
+				return nil, err
+			}
+
 			result = append(result, &sonm.GPUDevice{
 				DeviceName: name,
 				VendorID:   uint64(vendorId),
 				VendorName: vendorName,
+				Memory:     memInfo,
 			})
 		}
 	}
@@ -163,6 +169,10 @@ func (d *clDevice) vendorName() (string, error) {
 
 func (d *clDevice) vendorID() (uint, error) {
 	return d.getInfoUint(C.CL_DEVICE_VENDOR_ID)
+}
+
+func (d *clDevice) globalMemory() (uint64, error) {
+	return d.getInfoUint64(C.CL_DEVICE_GLOBAL_MEM_SIZE)
 }
 
 func errorToString(err C.cl_int) string {

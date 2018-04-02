@@ -4,17 +4,11 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/sonm-io/core/insonmnia/hardware/gpu"
 	"github.com/sonm-io/core/proto"
 )
 
 // hasGPUWithVendor uses OpenCL to check device existence on the Worker's system
-func hasGPUWithVendor(v sonm.GPUVendorType) error {
-	devices, err := gpu.GetGPUDevices()
-	if err != nil {
-		return err
-	}
-
+func hasGPUWithVendor(v sonm.GPUVendorType, devices []*sonm.GPUDevice) error {
 	found := false
 	for _, dev := range devices {
 		if dev.VendorType() == v {

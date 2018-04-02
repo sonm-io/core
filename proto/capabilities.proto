@@ -61,4 +61,7 @@ message GPUDevice {
     uint64 majorNumber = 7;
     // MinorNumber returns device's minor number
     uint64 minorNumber = 8;
+
+    // Memory is amount of vmem for device, in bytes
+    uint64 Memory = 9;
 }
