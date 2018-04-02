@@ -6,7 +6,7 @@ import (
 
 	"github.com/libp2p/go-reuseport"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/insonmnia/rendezvous"
+	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/util/xgrpc"
 	"google.golang.org/grpc/credentials"
 )
