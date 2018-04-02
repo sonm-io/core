@@ -105,7 +105,7 @@ func randomPeerCandidate(candidates map[PeerID]peerCandidate) *peerCandidate {
 // This server is responsible for tracking servers and clients to make them
 // meet each other.
 type Server struct {
-	cfg      Config
+	cfg      ServerConfig
 	log      *zap.Logger
 	server   *grpc.Server
 	resolver resolver
@@ -121,7 +121,7 @@ type Server struct {
 // WithCredentials option.
 // Also it is possible to activate logging system by passing a logger using
 // WithLogger function as an option.
-func NewServer(cfg Config, options ...Option) (*Server, error) {
+func NewServer(cfg ServerConfig, options ...Option) (*Server, error) {
 	opts := newOptions()
 	for _, option := range options {
 		option(opts)

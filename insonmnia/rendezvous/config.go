@@ -6,7 +6,9 @@ import (
 
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -16,8 +18,8 @@ type LoggingConfig struct {
 	level zapcore.Level
 }
 
-// Config represents a Rendezvous server configuration.
-type Config struct {
+// ServerConfig represents a Rendezvous server configuration.
+type ServerConfig struct {
 	// Listening address.
 	Addr       net.Addr
 	PrivateKey *ecdsa.PrivateKey
@@ -25,25 +27,20 @@ type Config struct {
 }
 
 // LogLevel returns the minimum logging level configured.
-func (c *Config) LogLevel() zapcore.Level {
+func (c *ServerConfig) LogLevel() zapcore.Level {
 	return c.Logging.level
 }
 
-type config struct {
-	Addr    string             `yaml:"endpoint" required:"true"`
+type serverConfig struct {
+	Addr    netutil.TCPAddr    `yaml:"endpoint" required:"true"`
 	Eth     accounts.EthConfig `yaml:"ethereum"`
 	Logging LoggingConfig      `yaml:"logging"`
 }
 
-// NewConfig loads a new Rendezvous server config from a file.
-func NewConfig(path string) (*Config, error) {
-	cfg := &config{}
+// NewServerConfig loads a new Rendezvous server config from a file.
+func NewServerConfig(path string) (*ServerConfig, error) {
+	cfg := &serverConfig{}
 	err := configor.Load(cfg, path)
-	if err != nil {
-		return nil, err
-	}
-
-	addr, err := net.ResolveTCPAddr("tcp", cfg.Addr)
 	if err != nil {
 		return nil, err
 	}
@@ -59,9 +56,13 @@ func NewConfig(path string) (*Config, error) {
 	}
 	cfg.Logging.level = lvl
 
-	return &Config{
-		Addr:       addr,
+	return &ServerConfig{
+		Addr:       &cfg.Addr,
 		PrivateKey: privateKey,
 		Logging:    cfg.Logging,
 	}, nil
+}
+
+type Config struct {
+	Endpoints []auth.Addr
 }

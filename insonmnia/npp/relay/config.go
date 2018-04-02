@@ -3,13 +3,13 @@ package relay
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"net"
 	"os"
 
 	"github.com/jinzhu/configor"
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -38,30 +38,25 @@ type monitorConfig struct {
 	ETH      accounts.EthConfig `yaml:"ethereum"`
 }
 
-type config struct {
-	Addr    string        `yaml:"endpoint" required:"true"`
-	Cluster ClusterConfig `yaml:"cluster"`
-	Logging LoggingConfig `yaml:"logging"`
-	Monitor monitorConfig `yaml:"monitoring"`
+type serverConfig struct {
+	Addr    netutil.TCPAddr `yaml:"endpoint" required:"true"`
+	Cluster ClusterConfig   `yaml:"cluster"`
+	Logging LoggingConfig   `yaml:"logging"`
+	Monitor monitorConfig   `yaml:"monitoring"`
 }
 
-// Config describes the complete relay server configuration.
-type Config struct {
-	Addr    net.Addr
+// ServerConfig describes the complete relay server configuration.
+type ServerConfig struct {
+	Addr    netutil.TCPAddr
 	Cluster ClusterConfig
 	Logging LoggingConfig
 	Monitor MonitorConfig
 }
 
-// NewConfig loads a new Relay server config from a file.
-func NewConfig(path string) (*Config, error) {
-	cfg := &config{}
+// NewServerConfig loads a new Relay server config from a file.
+func NewServerConfig(path string) (*ServerConfig, error) {
+	cfg := &serverConfig{}
 	err := configor.Load(cfg, path)
-	if err != nil {
-		return nil, err
-	}
-
-	addr, err := net.ResolveTCPAddr("tcp", cfg.Addr)
 	if err != nil {
 		return nil, err
 	}
@@ -86,8 +81,8 @@ func NewConfig(path string) (*Config, error) {
 		return nil, err
 	}
 
-	return &Config{
-		Addr:    addr,
+	return &ServerConfig{
+		Addr:    cfg.Addr,
 		Cluster: cfg.Cluster,
 		Logging: cfg.Logging,
 		Monitor: MonitorConfig{
@@ -98,6 +93,13 @@ func NewConfig(path string) (*Config, error) {
 }
 
 // LogLevel returns the minimum logging level configured.
-func (c *Config) LogLevel() zapcore.Level {
+func (c *ServerConfig) LogLevel() zapcore.Level {
 	return c.Logging.level
+}
+
+// Config represents a client-side relay configuration.
+//
+// Used as a basic building block for high-level configurations.
+type Config struct {
+	Endpoints []netutil.TCPAddr
 }

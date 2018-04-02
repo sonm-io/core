@@ -18,7 +18,7 @@ var (
 )
 
 func start() {
-	cfg, err := relay.NewConfig(cfgPath)
+	cfg, err := relay.NewServerConfig(cfgPath)
 	if err != nil {
 		fmt.Printf("Failed to load config file: %s\r\n", err)
 		os.Exit(1)

@@ -25,19 +25,12 @@ type hubAPI struct {
 }
 
 func (h *hubAPI) getClient() (pb.HubClient, io.Closer, error) {
-	rendezvousEndpoints, err := h.remotes.conf.NPPConfig().Rendezvous.ConvertEndpoints()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	relayEndpoints, err := h.remotes.conf.NPPConfig().Relay.ConvertEndpoints()
-	if err != nil {
-		return nil, nil, err
-	}
-
 	hubETH := crypto.PubkeyToAddress(h.remotes.key.PublicKey)
 
-	dial, err := npp.NewDialer(h.ctx, npp.WithRendezvous(rendezvousEndpoints, h.remotes.creds), npp.WithRelayClient(relayEndpoints, hubETH))
+	dial, err := npp.NewDialer(h.ctx,
+		npp.WithRendezvous(h.remotes.conf.NPPConfig().Rendezvous.Endpoints, h.remotes.creds),
+		npp.WithRelayClient(h.remotes.conf.NPPConfig().Relay.Endpoints, hubETH),
+	)
 	if err != nil {
 		return nil, nil, err
 	}

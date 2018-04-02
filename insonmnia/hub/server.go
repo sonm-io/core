@@ -265,19 +265,9 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 func (h *Hub) Serve() error {
 	h.startTime = time.Now()
 
-	rendezvousEndpoints, err := h.cfg.NPP.Rendezvous.ConvertEndpoints()
-	if err != nil {
-		return err
-	}
-
-	relayEndpoints, err := h.cfg.NPP.Relay.ConvertEndpoints()
-	if err != nil {
-		return err
-	}
-
 	grpcL, err := npp.NewListener(h.ctx, h.cfg.Endpoint,
-		npp.WithRendezvous(rendezvousEndpoints, h.creds),
-		npp.WithRelay(relayEndpoints, h.ethKey),
+		npp.WithRendezvous(h.cfg.NPP.Rendezvous.Endpoints, h.creds),
+		npp.WithRelay(h.cfg.NPP.Relay.Endpoints, h.ethKey),
 		npp.WithLogger(log.G(h.ctx)),
 	)
 	if err != nil {

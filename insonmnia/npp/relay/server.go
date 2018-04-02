@@ -135,7 +135,7 @@ func (m *connPool) popRandom() *meeting {
 }
 
 type server struct {
-	cfg Config
+	cfg ServerConfig
 
 	port     netutil.Port
 	listener net.Listener
@@ -164,7 +164,7 @@ type server struct {
 
 // NewServer constructs a new relay server using specified config with
 // options.
-func NewServer(cfg Config, options ...Option) (*server, error) {
+func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 	opts := newOptions()
 
 	for _, o := range options {
