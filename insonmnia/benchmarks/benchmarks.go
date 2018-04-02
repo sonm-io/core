@@ -4,7 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
+	"net/url"
+	"os"
 
 	"github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
@@ -31,22 +34,53 @@ type benchmarkList struct {
 	data map[pb.DeviceType][]*pb.Benchmark
 }
 
-func (bl *benchmarkList) load(ctx context.Context, url string) error {
-	ctxlog.G(ctx).Debug("updating benchmarks list")
+func (bl *benchmarkList) load(ctx context.Context, s string) error {
+	u, err := url.Parse(s)
+	if err != nil {
+		return fmt.Errorf("cannot parse input as URL: %v", err)
+	}
 
-	resp, err := http.Get(url)
+	var reader io.ReadCloser
+	switch u.Scheme {
+	case "http", "https":
+		reader, err = bl.loadURL(ctx, u.String())
+	case "file":
+		reader, err = bl.loadFile(ctx, u.Path)
+	default:
+		err = fmt.Errorf("unknown url schema for downloading: %v", u.Scheme)
+	}
+
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("failed to download benchmarks list: got %s status", resp.Status)
+	defer reader.Close()
+	return bl.readResults(ctx, reader)
+}
+
+func (bl *benchmarkList) loadURL(ctx context.Context, url string) (io.ReadCloser, error) {
+	ctxlog.G(ctx).Debug("loading benchmark list url", zap.String("url", url))
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, err
 	}
 
-	data := make(map[string]*pb.Benchmark)
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("failed to download benchmarks list: got %s status", resp.Status)
+	}
 
-	decoder := json.NewDecoder(resp.Body)
+	return resp.Body, nil
+}
+
+func (bl *benchmarkList) loadFile(ctx context.Context, path string) (io.ReadCloser, error) {
+	ctxlog.G(ctx).Debug("loading benchmark list from file", zap.String("path", path))
+	return os.Open(path)
+}
+
+func (bl *benchmarkList) readResults(ctx context.Context, reader io.ReadCloser) error {
+	data := make(map[string]*pb.Benchmark)
+	decoder := json.NewDecoder(reader)
 	if err := decoder.Decode(&data); err != nil {
 		return fmt.Errorf("cannot decode JSON response: %v", err)
 	}
@@ -64,7 +98,6 @@ func (bl *benchmarkList) load(ctx context.Context, url string) error {
 	}
 
 	ctxlog.G(ctx).Debug("received benchmarks list", zap.Any("data", bl.data))
-
 	return nil
 }
 
@@ -72,6 +105,11 @@ func (bl *benchmarkList) load(ctx context.Context, url string) error {
 func NewBenchmarksList(ctx context.Context, cfg Config) (BenchList, error) {
 	ls := &benchmarkList{
 		data: make(map[pb.DeviceType][]*pb.Benchmark),
+	}
+
+	if len(cfg.URL) == 0 {
+		ctxlog.G(ctx).Debug("benchmark list loading is disabled, skipping")
+		return ls, nil
 	}
 
 	if err := ls.load(ctx, cfg.URL); err != nil {
@@ -99,5 +137,5 @@ type ContainerBenchmarkResultsJSON struct {
 }
 
 type Config struct {
-	URL string `yaml:"url" required:"true"`
+	URL string `yaml:"url"`
 }
