@@ -2,7 +2,7 @@ package npp
 
 import (
 	"github.com/sonm-io/core/insonmnia/npp/relay"
-	"github.com/sonm-io/core/insonmnia/rendezvous"
+	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 )
 
 type Config struct {

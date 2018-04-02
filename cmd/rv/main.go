@@ -10,7 +10,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
-	"github.com/sonm-io/core/insonmnia/rendezvous"
+	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
