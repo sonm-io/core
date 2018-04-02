@@ -14,19 +14,17 @@ import (
 
 // options for building hub instance
 type options struct {
-	version       string
-	ctx           context.Context
-	ethKey        *ecdsa.PrivateKey
-	ethAddr       common.Address
-	bcr           blockchain.Blockchainer
-	market        pb.MarketClient
-	locator       pb.LocatorClient
-	creds         credentials.TransportCredentials
-	rot           util.HitlessCertRotator
-	cluster       Cluster
-	clusterEvents <-chan ClusterEvent
-	announcer     Announcer
-	worker        *miner.Miner
+	version   string
+	ctx       context.Context
+	ethKey    *ecdsa.PrivateKey
+	ethAddr   common.Address
+	bcr       blockchain.Blockchainer
+	market    pb.MarketClient
+	locator   pb.LocatorClient
+	creds     credentials.TransportCredentials
+	rot       util.HitlessCertRotator
+	announcer Announcer
+	worker    *miner.Miner
 }
 
 func defaultHubOptions() *options {
@@ -56,12 +54,6 @@ func WithMarket(mp pb.MarketClient) Option {
 	}
 }
 
-func WithLocator(loc pb.LocatorClient) Option {
-	return func(o *options) {
-		o.locator = loc
-	}
-}
-
 func WithPrivateKey(k *ecdsa.PrivateKey) Option {
 	return func(o *options) {
 		o.ethKey = k
@@ -84,19 +76,6 @@ func WithCreds(creds credentials.TransportCredentials) Option {
 func WithCertRotator(rot util.HitlessCertRotator) Option {
 	return func(o *options) {
 		o.rot = rot
-	}
-}
-
-func WithCluster(cl Cluster, evt <-chan ClusterEvent) Option {
-	return func(o *options) {
-		o.cluster = cl
-		o.clusterEvents = evt
-	}
-}
-
-func WithAnnouncer(an Announcer) Option {
-	return func(o *options) {
-		o.announcer = an
 	}
 }
 

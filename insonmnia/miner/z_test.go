@@ -43,7 +43,7 @@ func TestImagePll(t *testing.T) {
 	}
 
 	var opt = types.ImagePullOptions{}
-	rd, err := dockclient.ImagePull(context.Background(), "schturmfogel/sonm-q3:alpha", opt)
+	rd, err := dockclient.ImagePull(context.Background(), "alpine:latest", opt)
 	if err != nil {
 		t.Fatal(err)
 	}

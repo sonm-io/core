@@ -145,7 +145,6 @@ mock:
 	mockgen -package blockchain -destination blockchain/api_mock.go  -source blockchain/api.go
 	mockgen -package sonm -destination proto/locator_mock.go  -source proto/locator.pb.go
 	mockgen -package sonm -destination proto/marketplace_mock.go  -source proto/marketplace.pb.go
-	mockgen -package hub -destination insonmnia/hub/cluster_mock.go  -source insonmnia/hub/cluster.go
 	mockgen -package config -destination cmd/cli/config/config_mock.go  -source cmd/cli/config/config.go \
 		-aux_files accounts=accounts/keys.go,logging=insonmnia/logging/logging.go
 	mockgen -package node -destination insonmnia/node/config_mock.go -source insonmnia/node/config.go \

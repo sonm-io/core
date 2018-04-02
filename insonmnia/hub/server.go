@@ -85,10 +85,6 @@ type Hub struct {
 	ethAddr common.Address
 
 	announcer Announcer
-	cluster   Cluster
-
-	// TODO: rediscover jobs if Miner disconnected.
-	// TODO: store this data in some Storage interface.
 
 	waiter    errgroup.Group
 	startTime time.Time
@@ -168,13 +164,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		defaults.market = pb.NewMarketClient(conn)
 	}
 
-	if defaults.cluster == nil {
-		defaults.cluster, err = NewCluster(ctx, &cfg.Cluster, defaults.creds)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	if defaults.announcer == nil {
 		a, err := newLocatorAnnouncer(
 			defaults.ethKey,
@@ -198,7 +187,7 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		return nil, err
 	}
 
-	hubState, err := newState(ctx, ethWrapper, defaults.market, defaults.cluster, minerCtx)
+	hubState, err := newState(ctx, &cfg.Store, ethWrapper, defaults.market, minerCtx)
 	if err != nil {
 		return nil, err
 	}
@@ -220,7 +209,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		creds:       defaults.creds,
 
 		announcer: defaults.announcer,
-		cluster:   defaults.cluster,
 
 		whitelist: wl,
 
@@ -231,7 +219,7 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 	authorization := auth.NewEventAuthorization(h.ctx,
 		auth.WithLog(log.G(ctx)),
 		auth.WithEventPrefix(hubAPIPrefix),
-		auth.Allow("Handshake", "ProposeDeal").With(auth.NewNilAuthorization()),
+		auth.Allow("ProposeDeal").With(auth.NewNilAuthorization()),
 		auth.Allow(hubManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
 
 		auth.Allow("TaskStatus").With(newMultiAuth(
@@ -720,13 +708,13 @@ func (h *Hub) waitForDealClosed(dealID DealID, buyerId string) error {
 }
 
 func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
-	cap, err := h.worker.Info(ctx, &pb.Empty{})
+	info, err := h.worker.Info(ctx, &pb.Empty{})
 	if err != nil {
 		return nil, err
 	}
 	return &pb.DevicesReply{
-		CPUs: cap.Capabilities.Cpu,
-		GPUs: cap.Capabilities.Gpu,
+		CPUs: info.Capabilities.Cpu,
+		GPUs: info.Capabilities.Gpu,
 	}, nil
 }
 
