@@ -27,16 +27,8 @@ type MarketConfig struct {
 }
 
 type StoreConfig struct {
-	Type     string `required:"true" default:"boltdb" yaml:"type"`
 	Endpoint string `required:"true" default:"/tmp/sonm/boltdb" yaml:"endpoint"`
 	Bucket   string `required:"true" default:"sonm" yaml:"bucket"`
-	KeyFile  string `yaml:"key_file"`
-	CertFile string `yaml:"cert_file"`
-}
-
-type ClusterConfig struct {
-	Store                        StoreConfig `yaml:"store"`
-	SynchronizableEntitiesPrefix string      `yaml:"sync_prefix" default:"sonm/hub/sync"`
 }
 
 type WhitelistConfig struct {
@@ -53,7 +45,7 @@ type Config struct {
 	Eth               accounts.EthConfig `yaml:"ethereum"`
 	Locator           LocatorConfig      `yaml:"locator"`
 	Market            MarketConfig       `yaml:"market"`
-	Cluster           ClusterConfig      `yaml:"cluster"`
+	Store             StoreConfig        `yaml:"store"`
 	Whitelist         WhitelistConfig    `yaml:"whitelist"`
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14000"`
 	NPP               npp.Config

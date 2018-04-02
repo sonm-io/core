@@ -3,6 +3,8 @@ package hub
 import (
 	"context"
 	"crypto/ecdsa"
+	"os"
+	"path"
 	"testing"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
@@ -84,11 +86,11 @@ func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
 }
 
 func getTestHubConfig() *Config {
+	p := path.Join(os.TempDir(), "hub_test.boltdb")
+
 	return &Config{
-		Endpoint: "127.0.0.1:10002",
-		Cluster: ClusterConfig{
-			Store: StoreConfig{Type: "boltdb", Endpoint: "tmp/sonm/boltdb", Bucket: "sonm"},
-		},
+		Endpoint:  "127.0.0.1:10002",
+		Store:     StoreConfig{Endpoint: p, Bucket: "sonm"},
 		Whitelist: WhitelistConfig{Enabled: new(bool)},
 	}
 }

@@ -64,18 +64,18 @@ type state struct {
 	askPlans map[string]*askPlan
 }
 
-func makeStore(ctx context.Context, cfg *ClusterConfig) (store.Store, error) {
+func makeStore(ctx context.Context, cfg *StoreConfig) (store.Store, error) {
 	boltdb.Register()
 	log.G(ctx).Info("creating store", zap.Any("store", cfg))
 
 	config := store.Config{
-		Bucket: cfg.Store.Bucket,
+		Bucket: cfg.Bucket,
 	}
 
-	return libkv.NewStore(store.BOLTDB, []string{cfg.Store.Endpoint}, &config)
+	return libkv.NewStore(store.BOLTDB, []string{cfg.Endpoint}, &config)
 }
 
-func newState(ctx context.Context, cfg *ClusterConfig, eth ETH, market pb.MarketClient, minerCtx *MinerCtx) (*state, error) {
+func newState(ctx context.Context, cfg *StoreConfig, eth ETH, market pb.MarketClient, minerCtx *MinerCtx) (*state, error) {
 	clusterStore, err := makeStore(ctx, cfg)
 	if err != nil {
 		return nil, err
