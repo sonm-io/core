@@ -74,7 +74,7 @@ message HubStatusReply {
     string ethAddr = 4;
     uint32 taskCount = 5;
     string DWHStatus = 6;
-    string randezvousStatus = 7;
+    string rendezvousStatus = 7;
 }
 
 message DealRequest {

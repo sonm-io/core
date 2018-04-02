@@ -113,7 +113,7 @@ func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
 		cmd.Printf("Eth address:        %s\r\n", stat.GetEthAddr())
 		cmd.Printf("Task count:         %d\r\n", stat.GetTaskCount())
 		cmd.Printf("DWH status:         %s\r\n", stat.GetDWHStatus())
-		cmd.Printf("Randezvous status:  %s\r\n", stat.GetRandezvousStatus())
+		cmd.Printf("Rendezvous status:  %s\r\n", stat.GetRendezvousStatus())
 	} else {
 		showJSON(cmd, stat)
 	}
