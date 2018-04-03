@@ -23,12 +23,12 @@ import (
 type API interface {
 	CertsAPI
 	MarketAPI
+	BlacklistAPI
 	TokenAPI
 	GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts
 }
 
-type CertsAPI interface {
-}
+type CertsAPI interface{}
 
 type MarketAPI interface {
 	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) (*types.Transaction, error)
@@ -48,6 +48,12 @@ type MarketAPI interface {
 }
 
 type BlacklistAPI interface {
+	Check(ctx context.Context, who, whom common.Address) (bool, error)
+	Add(ctx context.Context, key *ecdsa.PrivateKey, who, whom common.Address) (*types.Transaction, error)
+	Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) (*types.Transaction, error)
+	AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error)
+	RemoveMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error)
+	SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey, market common.Address) (*types.Transaction, error)
 }
 
 // MarketTokener is a go implementation of ERC20-compatibility token with full functionality high-level interface
