@@ -135,7 +135,7 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 	}()
 
 	if defaults.bcr == nil {
-		defaults.bcr, err = blockchain.NewAPI(nil, nil)
+		defaults.bcr, err = blockchain.NewAPI_DEPRECATED(nil, nil)
 		if err != nil {
 			return nil, err
 		}

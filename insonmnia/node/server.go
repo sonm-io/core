@@ -50,7 +50,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, c
 		return nil, err
 	}
 
-	bcAPI, err := blockchain.NewAPI(nil, nil)
+	bcAPI, err := blockchain.NewAPI_DEPRECATED(nil, nil)
 	if err != nil {
 		return nil, err
 	}

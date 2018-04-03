@@ -16,7 +16,7 @@ var getTokenCmd = &cobra.Command{
 	Short:  "Get SONM test tokens (ERC20)",
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
-		bch, err := blockchain.NewAPI(nil, nil)
+		bch, err := blockchain.NewAPI_DEPRECATED(nil, nil)
 		if err != nil {
 			showError(cmd, "Cannot create blockchain connection", err)
 			os.Exit(1)
@@ -43,7 +43,7 @@ var approveTokenCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var zero = big.NewInt(0)
 
-		bch, err := blockchain.NewAPI(nil, nil)
+		bch, err := blockchain.NewAPI_DEPRECATED(nil, nil)
 		if err != nil {
 			showError(cmd, "Cannot create blockchain connection", err)
 			os.Exit(1)

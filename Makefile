@@ -143,6 +143,7 @@ mock:
 	mockgen -package accounts -destination accounts/keys_mock.go  -source accounts/keys.go
 	mockgen -package benchmarks -destination insonmnia/benchmarks/benchmarks_mock.go  -source insonmnia/benchmarks/benchmarks.go
 	mockgen -package blockchain -destination blockchain/api_mock.go  -source blockchain/api.go
+	mockgen -package blockchain -destination blockchain/api_old_mock.go  -source blockchain/api_old.go
 	mockgen -package sonm -destination proto/locator_mock.go  -source proto/locator.pb.go
 	mockgen -package sonm -destination proto/marketplace_mock.go  -source proto/marketplace.pb.go
 	mockgen -package config -destination cmd/cli/config/config_mock.go  -source cmd/cli/config/config.go \
