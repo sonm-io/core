@@ -318,7 +318,7 @@ func (api *BasicAPI) GetMarketEvents(ctx context.Context, fromBlockInitial *big.
 
 func (api *BasicAPI) processLog(log types.Log, marketABI abi.ABI, out chan *Event) {
 	// This should never happen, but it's ethereum, and things might happen.
-	if len(log.Topics) < 0 {
+	if len(log.Topics) < 1 {
 		out <- &Event{
 			Data:        &ErrorData{Err: errors.New("malformed log entry"), Topic: "unknown"},
 			BlockNumber: log.BlockNumber,
