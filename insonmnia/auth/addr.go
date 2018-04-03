@@ -45,7 +45,7 @@ func NewAddr(addr string) (*Addr, error) {
 	}
 }
 
-func NewAddrFromParts(eth common.Address, netAddr string) Addr {
+func NewAddrRaw(eth common.Address, netAddr string) Addr {
 	return Addr{
 		eth:     &eth,
 		netAddr: netAddr,

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain/tsc"
@@ -134,36 +135,8 @@ type marketAPI struct {
 	tasks   map[string]*orderHandler
 }
 
-// resolveHubAddr resolving Hub IP addr from Hub's Eth address
-// via Locator service
-func (m *marketAPI) resolveHubAddr(ethAddr string) (string, error) {
-	req := &pb.ResolveRequest{EthAddr: ethAddr}
-	reply, err := m.remotes.locator.Resolve(m.ctx, req)
-	if err != nil {
-		return "", err
-	}
-
-	ip := reply.Endpoints[0]
-	log.G(m.ctx).Info("hub ip resolved successful", zap.String("ip", ip))
-
-	return ip, nil
-}
-
 func (m *marketAPI) makeHubClient(ethAddr string) (pb.HubClient, io.Closer, error) {
-	hubIP, err := m.resolveHubAddr(ethAddr)
-	if err != nil {
-		log.G(m.ctx).Info("cannot resolve Hub IP", zap.Error(err), zap.String("addr", ethAddr))
-		return nil, nil, err
-	}
-
-	hub, cc, err := m.hubCreator(hubIP)
-	if err != nil {
-		log.G(m.ctx).Info("cannot create Hub gRPC client", zap.Error(err))
-		return nil, nil, err
-	}
-
-	log.G(m.ctx).Info("hub connection built", zap.String("hub_ip", hubIP))
-	return hub, cc, nil
+	return m.remotes.hubCreator(common.StringToAddress(ethAddr), "")
 }
 
 func (m *marketAPI) getHandler(id string) (*orderHandler, bool) {
