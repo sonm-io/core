@@ -3,7 +3,7 @@
     	url=https://github.com/sonm-io/deals-registry
 [submodule "blockchain/market"]
 	path = blockchain/market
-	url = git@github.com:sonm-io/market.git
+	url = https://github.com/sonm-io/market.git
 	branch = master
 [submodule "blockchain/certs"]
 	path = blockchain/certs
