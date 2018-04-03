@@ -5,7 +5,3 @@
 	path = blockchain/market
 	url = https://github.com/sonm-io/market.git
 	branch = master
-[submodule "blockchain/certs"]
-	path = blockchain/certs
-	url = https://github.com/sonm-io/certificate-registry
-	branch = master
