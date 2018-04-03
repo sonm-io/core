@@ -9,11 +9,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/insonmnia/npp"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
-	"github.com/sonm-io/core/util/xgrpc"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
@@ -25,28 +22,10 @@ type hubAPI struct {
 }
 
 func (h *hubAPI) getClient() (pb.HubClient, io.Closer, error) {
-	hubETH := crypto.PubkeyToAddress(h.remotes.key.PublicKey)
+	ethAddr := crypto.PubkeyToAddress(h.remotes.key.PublicKey)
+	netAddr := h.remotes.conf.HubEndpoint()
 
-	dial, err := npp.NewDialer(h.ctx,
-		npp.WithRendezvous(h.remotes.conf.NPPConfig().Rendezvous.Endpoints, h.remotes.creds),
-		npp.WithRelayClient(h.remotes.conf.NPPConfig().Relay.Endpoints, hubETH),
-	)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	addr := auth.NewAddrFromParts(hubETH, h.remotes.conf.HubEndpoint())
-	conn, err := dial.Dial(addr)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	cc, err := xgrpc.NewClient(h.ctx, "-", auth.NewWalletAuthenticator(h.remotes.creds, hubETH), xgrpc.WithConn(conn))
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return pb.NewHubClient(cc), cc, nil
+	return h.remotes.hubCreator(ethAddr, netAddr)
 }
 
 func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {

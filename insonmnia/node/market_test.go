@@ -10,12 +10,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/dealer"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -96,17 +98,10 @@ func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
 	return m
 }
 
-func getTestLocator(ctrl *gomock.Controller) pb.LocatorClient {
-	loc := pb.NewMockLocatorClient(ctrl)
-	loc.EXPECT().Resolve(gomock.Any(), gomock.Any()).AnyTimes().
-		Return(&pb.ResolveReply{Endpoints: []string{"127.0.0.1:10001"}}, nil)
-	return loc
-}
-
 func getTestConfig(ctrl *gomock.Controller) Config {
 	cfg := NewMockConfig(ctrl)
-	cfg.EXPECT().LocatorEndpoint().AnyTimes().Return("127.0.0.1:9090")
 	cfg.EXPECT().MarketEndpoint().AnyTimes().Return("127.0.0.1:9095")
+	cfg.EXPECT().NPPConfig().AnyTimes().Return(&npp.Config{})
 	return cfg
 }
 
@@ -129,9 +124,8 @@ func getTestRemotes(ctx context.Context, ctrl *gomock.Controller) *remoteOptions
 
 	opts.eth = getTestEth(ctx, ctrl)
 	opts.market = getTestMarket(ctrl)
-	opts.locator = getTestLocator(ctrl)
 	opts.dealApproveTimeout = 3 * time.Second
-	opts.hubCreator = func(addr string) (pb.HubClient, io.Closer, error) {
+	opts.hubCreator = func(ethAddr common.Address, addr string) (pb.HubClient, io.Closer, error) {
 		hub, cc := getTestHubClient(ctrl)
 		return hub, cc, nil
 	}
@@ -278,16 +272,13 @@ func TestCreateOrder_NoMatchingOrders(t *testing.T) {
 }
 
 func TestCreateOrder_CannotResolveHubIP(t *testing.T) {
+	t.Skip("@sshaman1101")
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	ctx := context.Background()
-	loc := pb.NewMockLocatorClient(ctrl)
-	loc.EXPECT().Resolve(gomock.Any(), gomock.Any()).AnyTimes().
-		Return(nil, errors.New("TEST: cannot resolve hub ip"))
-
 	opts := getTestRemotes(ctx, ctrl)
-	opts.locator = loc
 
 	server, err := newMarketAPI(opts)
 	require.NoError(t, err)
@@ -365,7 +356,7 @@ func TestCreateOrder_CannotWaitForApprove(t *testing.T) {
 
 	ctx := context.Background()
 	opts := getTestRemotes(ctx, ctrl)
-	opts.hubCreator = func(addr string) (pb.HubClient, io.Closer, error) {
+	opts.hubCreator = func(ethAddr common.Address, addr string) (pb.HubClient, io.Closer, error) {
 		hub := dealer.NewMockHubClient(ctrl)
 		hub.EXPECT().ProposeDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
 		hub.EXPECT().ApproveDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(
@@ -527,7 +518,7 @@ func TestCreateOrder_NotApprovedAndNotCancelled(t *testing.T) {
 		Return(errors.New("TEST: cannot close deal"))
 
 	opts.eth = eth
-	opts.hubCreator = func(addr string) (pb.HubClient, io.Closer, error) {
+	opts.hubCreator = func(ethAddr common.Address, addr string) (pb.HubClient, io.Closer, error) {
 		hub := dealer.NewMockHubClient(ctrl)
 		hub.EXPECT().ProposeDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
 		hub.EXPECT().ApproveDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(

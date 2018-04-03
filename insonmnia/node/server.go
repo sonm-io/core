@@ -9,9 +9,13 @@ import (
 	"net"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/npp"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/rest"
@@ -23,7 +27,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-type hubClientCreator func(addr string) (pb.HubClient, io.Closer, error)
+type hubClientCreator func(ethAddr common.Address, netAddr string) (pb.HubClient, io.Closer, error)
 
 // remoteOptions describe options related to remove gRPC services
 type remoteOptions struct {
@@ -31,32 +35,40 @@ type remoteOptions struct {
 	key                *ecdsa.PrivateKey
 	conf               Config
 	creds              credentials.TransportCredentials
-	locator            pb.LocatorClient
 	market             pb.MarketClient
 	eth                blockchain.Blockchainer
 	hubCreator         hubClientCreator
 	dealApproveTimeout time.Duration
 	dealCreateTimeout  time.Duration
+
+	nppDialer *npp.Dialer
 }
 
-func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, creds credentials.TransportCredentials) (*remoteOptions, error) {
-	locatorCC, err := xgrpc.NewClient(ctx, conf.LocatorEndpoint(), creds)
-	if err != nil {
-		return nil, err
-	}
-
-	marketCC, err := xgrpc.NewClient(ctx, conf.MarketEndpoint(), creds)
+func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
+	marketCC, err := xgrpc.NewClient(ctx, cfg.MarketEndpoint(), credentials)
 	if err != nil {
 		return nil, err
 	}
 
 	bcAPI, err := blockchain.NewAPI_DEPRECATED(nil, nil)
+	nppDialerOptions := []npp.Option{
+		npp.WithRendezvous(cfg.NPPConfig().Rendezvous.Endpoints, credentials),
+		npp.WithRelayClient(cfg.NPPConfig().Relay.Endpoints, crypto.PubkeyToAddress(key.PublicKey)),
+	}
+	nppDialer, err := npp.NewDialer(ctx, nppDialerOptions...)
+
 	if err != nil {
 		return nil, err
 	}
 
-	hc := func(addr string) (pb.HubClient, io.Closer, error) {
-		cc, err := xgrpc.NewClient(ctx, addr, creds)
+	hubFactory := func(ethAddr common.Address, netAddr string) (pb.HubClient, io.Closer, error) {
+		addr := auth.NewAddrRaw(ethAddr, netAddr)
+		conn, err := nppDialer.Dial(addr)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		cc, err := xgrpc.NewClient(ctx, "-", auth.NewWalletAuthenticator(credentials, ethAddr), xgrpc.WithConn(conn))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -65,16 +77,16 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, conf Config, c
 	}
 
 	return &remoteOptions{
-		key:                key,
-		conf:               conf,
 		ctx:                ctx,
-		creds:              creds,
-		locator:            pb.NewLocatorClient(locatorCC),
+		key:                key,
+		conf:               cfg,
+		creds:              credentials,
 		market:             pb.NewMarketClient(marketCC),
 		eth:                bcAPI,
 		dealApproveTimeout: 900 * time.Second,
 		dealCreateTimeout:  180 * time.Second,
-		hubCreator:         hc,
+		hubCreator:         hubFactory,
+		nppDialer:          nppDialer,
 	}, nil
 }
 
