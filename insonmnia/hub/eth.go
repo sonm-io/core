@@ -253,7 +253,7 @@ func (e *eth) Balance() (*big.Int, error) {
 func NewETH(ctx context.Context, key *ecdsa.PrivateKey, bcr blockchain.Blockchainer, timeout time.Duration) (ETH, error) {
 	var err error
 	if bcr == nil {
-		bcr, err = blockchain.NewAPI(nil, nil)
+		bcr, err = blockchain.NewAPI_DEPRECATED(nil, nil)
 		if err != nil {
 			return nil, err
 		}
