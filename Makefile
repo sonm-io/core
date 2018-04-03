@@ -22,7 +22,6 @@ OS_ARCH := $(OS)_$(ARCH)
 
 HUB=${TARGETDIR}/sonmhub_$(OS_ARCH)
 CLI=${TARGETDIR}/sonmcli_$(OS_ARCH)
-LOCATOR=${TARGETDIR}/sonmlocator_$(OS_ARCH)
 LOCAL_NODE=${TARGETDIR}/sonmnode_$(OS_ARCH)
 AUTOCLI=${TARGETDIR}/autocli_$(OS_ARCH)
 RENDEZVOUS=${TARGETDIR}/sonmrendezvous_$(OS_ARCH)
@@ -55,10 +54,6 @@ LDFLAGS = -X main.appVersion=$(FULL_VER)
 .PHONY: fmt vet test
 
 all: mock vet fmt build test
-
-build/locator:
-	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${LOCATOR} ${GOCMD}/locator
 
 build/hub:
 	@echo "+ $@"
@@ -101,14 +96,14 @@ build/autocli:
 
 build/insomnia: build/hub build/cli build/node
 
-build/aux: build/locator build/relay build/rv
+build/aux: build/relay build/rv
 
 build: build/insomnia build/aux
 
 install: all
 	@echo "+ $@"
 	mkdir -p ${INSTALLDIR}
-	cp ${HUB} ${CLI} ${LOCATOR} ${LOCAL_NODE} ${INSTALLDIR}
+	cp ${HUB} ${CLI} ${LOCAL_NODE} ${INSTALLDIR}
 
 vet:
 	@echo "+ $@"
@@ -141,7 +136,6 @@ mock: build_mockgen
 	mockgen -package benchmarks -destination insonmnia/benchmarks/benchmarks_mock.go  -source insonmnia/benchmarks/benchmarks.go
 	mockgen -package blockchain -destination blockchain/api_mock.go  -source blockchain/api.go
 	mockgen -package blockchain -destination blockchain/api_old_mock.go  -source blockchain/api_old.go
-	mockgen -package sonm -destination proto/locator_mock.go  -source proto/locator.pb.go
 	mockgen -package sonm -destination proto/marketplace_mock.go  -source proto/marketplace.pb.go
 	mockgen -package config -destination cmd/cli/config/config_mock.go  -source cmd/cli/config/config.go \
 		-aux_files accounts=accounts/keys.go,logging=insonmnia/logging/logging.go
@@ -151,7 +145,7 @@ mock: build_mockgen
 		"github.com/sonm-io/core/proto" HubClient && ${SED}
 
 clean:
-	rm -f ${HUB} ${CLI} ${LOCATOR} ${LOCAL_NODE} ${AUTOCLI} ${RENDEZVOUS}
+	rm -f ${HUB} ${CLI} ${LOCAL_NODE} ${AUTOCLI} ${RENDEZVOUS}
 
 deb:
 	debuild --no-lintian --preserve-env -uc -us -i -I -b

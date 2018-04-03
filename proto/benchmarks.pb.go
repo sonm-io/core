@@ -13,7 +13,6 @@ It is generated from these files:
 	deal.proto
 	hub.proto
 	insonmnia.proto
-	locator.proto
 	marketplace.proto
 	miner.proto
 	net.proto
@@ -68,9 +67,6 @@ It has these top-level messages:
 	TaskResourceRequirements
 	Chunk
 	Progress
-	AnnounceRequest
-	ResolveRequest
-	ResolveReply
 	GetOrdersRequest
 	GetOrdersReply
 	GetProcessingReply

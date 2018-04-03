@@ -14,17 +14,15 @@ import (
 
 // options for building hub instance
 type options struct {
-	version   string
-	ctx       context.Context
-	ethKey    *ecdsa.PrivateKey
-	ethAddr   common.Address
-	bcr       blockchain.Blockchainer
-	market    pb.MarketClient
-	locator   pb.LocatorClient
-	creds     credentials.TransportCredentials
-	rot       util.HitlessCertRotator
-	announcer Announcer
-	worker    *miner.Miner
+	version string
+	ctx     context.Context
+	ethKey  *ecdsa.PrivateKey
+	ethAddr common.Address
+	bcr     blockchain.Blockchainer
+	market  pb.MarketClient
+	creds   credentials.TransportCredentials
+	rot     util.HitlessCertRotator
+	worker  *miner.Miner
 }
 
 func defaultHubOptions() *options {

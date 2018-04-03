@@ -13,10 +13,9 @@ import (
 
 // HubConfig describes Hub configuration.
 type HubConfig struct {
-	EthAddr          string           `required:"true" yaml:"eth_addr"`
-	ResolveEndpoints bool             `required:"false" yaml:"resolve_endpoints"`
-	Endpoints        []string         `required:"false" yaml:"endpoints"`
-	CGroups          *ResourcesConfig `required:"false" yaml:"resources"`
+	EthAddr   string           `required:"true" yaml:"eth_addr"`
+	Endpoints []string         `required:"false" yaml:"endpoints"`
+	CGroups   *ResourcesConfig `required:"false" yaml:"resources"`
 }
 
 // FirewallConfig describes firewall detection settings.
@@ -40,10 +39,6 @@ type ResourcesConfig struct {
 	Resources *specs.LinuxResources `required:"false" yaml:"resources"`
 }
 
-type LocatorConfig struct {
-	Endpoint string `required:"true" yaml:"endpoint"`
-}
-
 type DevConfig struct {
 	DevAddr  string `yaml:"listen"`
 	Insecure bool   `yaml:"insecure"`
@@ -59,7 +54,6 @@ type config struct {
 	Eth                     *accounts.EthConfig `yaml:"ethereum"`
 	SSHConfig               *SSHConfig          `required:"false" yaml:"ssh"`
 	LoggingConfig           LoggingConfig       `yaml:"logging"`
-	LocatorConfig           *LocatorConfig      `required:"true" yaml:"locator"`
 	PublicIPsConfig         []string            `required:"false" yaml:"public_ip_addrs"`
 	MetricsListenAddrConfig string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14001"`
 	PluginsConfig           plugin.Config       `yaml:"plugins"`
@@ -70,10 +64,6 @@ type config struct {
 
 func (c *config) LogLevel() zapcore.Level {
 	return c.LoggingConfig.parsedLevel
-}
-
-func (c *config) HubResolveEndpoints() bool {
-	return c.HubConfig.ResolveEndpoints
 }
 
 func (c *config) HubEthAddr() string {
@@ -98,10 +88,6 @@ func (c *config) SSH() *SSHConfig {
 
 func (c *config) ETH() *accounts.EthConfig {
 	return c.Eth
-}
-
-func (c *config) LocatorEndpoint() string {
-	return c.LocatorConfig.Endpoint
 }
 
 func (c *config) MetricsListenAddr() string {
@@ -131,14 +117,6 @@ func (c *config) Benchmarks() benchmarks.Config {
 func (c *config) validate() error {
 	if len(c.HubConfig.EthAddr) == 0 {
 		return errors.New("hub's ethereum address should be specified")
-	}
-
-	if !c.HubConfig.ResolveEndpoints && len(c.HubConfig.Endpoints) == 0 {
-		return errors.New("`resolve_endpoints` is `false`, an array of hub's endpoints must be specified")
-	}
-
-	if c.HubConfig.ResolveEndpoints && len(c.HubConfig.Endpoints) > 0 {
-		return errors.New("`resolve_endpoints` is `true`, only hub's ethereum address should be specified")
 	}
 
 	return nil
@@ -174,8 +152,6 @@ type Config interface {
 	HubEndpoints() []string
 	// HubEthAddr returns hub's ethereum address.
 	HubEthAddr() string
-	// HubResolveEndpoints returns `true` if we need to resolve hub's endpoints via locator.
-	HubResolveEndpoints() bool
 	// HubResources returns resources allocated for a Hub.
 	HubResources() *ResourcesConfig
 	// PublicIPs returns all IPs that can be used to communicate with the miner.
@@ -188,8 +164,6 @@ type Config interface {
 	StoreBucket() string
 	// ETH returns ethereum configuration
 	ETH() *accounts.EthConfig
-	// LocatorEndpoint returns locator endpoint.
-	LocatorEndpoint() string
 	// MetricsListenAddr returns the address that can be used by Prometheus to get
 	// metrics.
 	MetricsListenAddr() string

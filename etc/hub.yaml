@@ -63,13 +63,6 @@ ethereum:
   # passphrase for keystore
   pass_phrase: "any"
 
-# Locator service allows nodes to discover each other.
-locator:
-  # Locator gRPC endpoint, required.
-  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:15020"
-  # Background announcements period.
-  update_period: "10s"
-
 # Marketplace service settings
 market:
   # marketplace gRPC endpoint, required

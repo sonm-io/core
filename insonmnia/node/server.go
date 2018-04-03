@@ -56,7 +56,6 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg Config, cr
 		npp.WithRelayClient(cfg.NPPConfig().Relay.Endpoints, crypto.PubkeyToAddress(key.PublicKey)),
 	}
 	nppDialer, err := npp.NewDialer(ctx, nppDialerOptions...)
-
 	if err != nil {
 		return nil, err
 	}
