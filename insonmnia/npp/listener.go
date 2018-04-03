@@ -58,7 +58,6 @@ type Listener struct {
 
 	minBackoffInterval time.Duration
 	maxBackoffInterval time.Duration
-	nppTimeout         time.Duration
 }
 
 // NewListener constructs a new NPP listener that will listen the specified
@@ -94,7 +93,6 @@ func NewListener(ctx context.Context, addr string, options ...Option) (net.Liste
 
 		minBackoffInterval: 500 * time.Millisecond,
 		maxBackoffInterval: 8000 * time.Millisecond,
-		nppTimeout:         5 * time.Second,
 	}
 
 	go m.listen()
@@ -106,6 +104,7 @@ func NewListener(ctx context.Context, addr string, options ...Option) (net.Liste
 
 func (m *Listener) listen() error {
 	defer m.log.Info("finished listening")
+
 	for {
 		conn, err := m.listener.Accept()
 		m.listenerChannel <- connTuple{conn, err}
@@ -205,9 +204,6 @@ func (m *Listener) Accept() (net.Conn, error) {
 		return conn.unwrap()
 	default:
 	}
-
-	timer := time.NewTimer(m.nppTimeout)
-	defer timer.Stop()
 
 	// Otherwise block when either a new connection arrives or NPP does its job.
 	for {
