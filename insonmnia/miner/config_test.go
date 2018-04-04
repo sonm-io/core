@@ -38,10 +38,9 @@ benchmarks:
 	conf, err := NewConfig(testMinerConfigPath)
 	assert.Nil(t, err)
 
-	assert.Equal(t, []string{"127.0.0.1:10002"}, conf.HubEndpoints())
 	assert.Equal(t, zapcore.WarnLevel, conf.LogLevel())
-	assert.Equal(t, "/var/lib/sonm/worker.boltdb", conf.StorePath())
-	assert.Equal(t, "sonm", conf.StoreBucket())
+	assert.Equal(t, "/var/lib/sonm/worker.boltdb", conf.Storage().Endpoint)
+	assert.Equal(t, "sonm", conf.Storage().Bucket)
 }
 
 func TestConfigPluginsDefaults(t *testing.T) {

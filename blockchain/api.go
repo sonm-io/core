@@ -7,17 +7,19 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+	pb "github.com/sonm-io/core/proto"
+	"go.uber.org/zap"
+
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/pkg/errors"
+
 	"github.com/sonm-io/core/blockchain/market"
 	marketAPI "github.com/sonm-io/core/blockchain/market/api"
-	pb "github.com/sonm-io/core/proto"
-	"go.uber.org/zap"
 )
 
 type API interface {
@@ -56,7 +58,7 @@ type BlacklistAPI interface {
 	SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey, market common.Address) (*types.Transaction, error)
 }
 
-// MarketTokener is a go implementation of ERC20-compatibility token with full functionality high-level interface
+// TokenAPI is a go implementation of ERC20-compatibility token with full functionality high-level interface
 // standard description with placed: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
 type TokenAPI interface {
 	// Approve - add allowance from caller to other contract to spend tokens

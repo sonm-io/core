@@ -17,8 +17,12 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/cgroups"
+	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
+	"github.com/sonm-io/core/insonmnia/state"
+	"github.com/sonm-io/core/util"
 
 	// todo: drop alias
 	bm "github.com/sonm-io/core/insonmnia/benchmarks"
@@ -37,22 +41,18 @@ import (
 
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
 type Miner struct {
-	ctx context.Context
-
-	cfg Config
-
-	plugins *plugin.Repository
-
+	ctx       context.Context
+	cfg       Config
+	mu        sync.Mutex
+	ovs       Overseer
+	plugins   *plugin.Repository
 	hardware  *hardware.Hardware
 	resources *resource.Pool
-
-	hubKey *ecdsa.PublicKey
-
+	ethkey    *ecdsa.PrivateKey
 	publicIPs []string
+	eth       blockchain.API
+	dwh       dwh.DWH
 
-	ovs Overseer
-
-	mu sync.Mutex
 	// One-to-one mapping between container IDs and userland task names.
 	//
 	// The overseer operates with containers in terms of their ID, which does not change even during auto-restart.
@@ -60,18 +60,27 @@ type Miner struct {
 	// transform between these two identifiers this map exists.
 	//
 	// WARNING: This must be protected using `mu`.
+	//
+	// fixme: only write and delete on this struct, looks like we can
+	// safety removes them.
 	nameMapping map[string]string
 
 	// Maps StartRequest's IDs to containers' IDs
 	// TODO: It's doubtful that we should keep this map here instead in the Overseer.
 	containers map[string]*ContainerInfo
 
-	channelCounter int
-	controlGroup   cgroups.CGroup
-	cGroupManager  cgroups.CGroupManager
-	ssh            SSH
-	state          *state
-	benchmarkList  bm.BenchList
+	controlGroup  cgroups.CGroup
+	cGroupManager cgroups.CGroupManager
+	ssh           SSH
+
+	// external and in-mem storage
+	state         *state.Storage
+	benchmarkList bm.BenchList
+
+	// In-mem state, can be safety reloaded
+	// from the external sources.
+	// Must be protected by `mu` mutex.
+	Deals map[structs.DealID]*structs.DealMeta
 }
 
 func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
@@ -88,8 +97,21 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		return nil, errors.New("private key is mandatory")
 	}
 
+	if o.storage == nil {
+		return nil, errors.New("state storage is mandatory")
+	}
+
 	if o.ctx == nil {
 		o.ctx = context.Background()
+	}
+
+	if o.eth == nil {
+		eth, err := blockchain.NewAPI(nil, nil)
+		if err != nil {
+			return nil, err
+		}
+
+		o.eth = eth
 	}
 
 	if o.benchList == nil {
@@ -97,6 +119,10 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if o.dwh == nil {
+		o.dwh = dwh.NewDumbDWH(o.ctx)
 	}
 
 	cgName := ""
@@ -123,11 +149,6 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		}
 	} else {
 		hardwareInfo.Memory.Device.Available = hardwareInfo.Memory.Device.Total
-	}
-
-	state, err := NewState(o.ctx, cfg)
-	if err != nil {
-		return nil, err
 	}
 
 	if err := o.setupNetworkOptions(cfg); err != nil {
@@ -157,9 +178,10 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	m = &Miner{
-		ctx: o.ctx,
-		cfg: cfg,
-		ovs: o.ovs,
+		ctx:    o.ctx,
+		cfg:    cfg,
+		ovs:    o.ovs,
+		ethkey: o.key,
 
 		plugins: plugins,
 
@@ -173,8 +195,14 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		controlGroup:  cgroup,
 		cGroupManager: cGroupManager,
 		ssh:           o.ssh,
-		state:         state,
+		state:         o.storage,
 		benchmarkList: o.benchList,
+		eth:           o.eth,
+		dwh:           o.dwh,
+	}
+
+	if err := m.loadExternalState(); err != nil {
+		return nil, err
 	}
 
 	return m, nil
@@ -230,13 +258,6 @@ func (m *Miner) GetContainerInfo(id string) (*ContainerInfo, bool) {
 	return info, ok
 }
 
-func (m *Miner) getTaskIdByContainerId(id string) (string, bool) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	name, ok := m.nameMapping[id]
-	return name, ok
-}
-
 func (m *Miner) getContainerIdByTaskId(id string) (string, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -255,40 +276,7 @@ func (m *Miner) deleteTaskMapping(id string) {
 	delete(m.nameMapping, id)
 }
 
-// Ping works as Healthcheck for the Hub
-func (m *Miner) Ping(ctx context.Context, _ *pb.Empty) (*pb.PingReply, error) {
-	log.G(m.ctx).Info("got ping request from Hub")
-	return &pb.PingReply{}, nil
-}
-
-// Info returns runtime statistics collected from all containers working on this miner.
-//
-// This works the following way: a miner periodically collects various runtime statistics from all
-// spawned containers that it knows about. For running containers metrics map the immediate
-// state, for dead containers - their last memento.
-func (m *Miner) Info(ctx context.Context, request *pb.Empty) (*pb.InfoReply, error) {
-	log.G(m.ctx).Info("handling Info request", zap.Any("req", request))
-
-	info, err := m.ovs.Info(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var result = &pb.InfoReply{
-		Usage:        make(map[string]*pb.ResourceUsage),
-		Capabilities: m.hardware.IntoProto(),
-	}
-
-	for containerID, stat := range info {
-		if id, ok := m.getTaskIdByContainerId(containerID); ok {
-			result.Usage[id] = stat.Marshal()
-		}
-	}
-
-	return result, nil
-}
-
-// Handshake notifies Hub about Worker's hardware capabilities
+// Hardware returns Worker's hardware capabilities
 func (m *Miner) Hardware() *hardware.Hardware {
 	return m.hardware
 }
@@ -404,10 +392,12 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
 
+	// fixme: this
 	cGroup, resourceHandle, err := m.consume(request.GetOrderId(), resources)
 	if err != nil {
 		return nil, status.Errorf(codes.ResourceExhausted, "failed to start %v", err)
 	}
+
 	// This can be canceled by using "resourceHandle.commit()".
 	defer resourceHandle.release()
 
@@ -444,7 +434,6 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, request.Id)
-
 	log.G(m.ctx).Info("spooling an image")
 	if err := m.ovs.Spool(ctx, d); err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
@@ -661,20 +650,21 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 
 	return reply, nil
 }
+
 func (m *Miner) RunSSH() error {
 	return m.ssh.Run()
 }
 
 // RunBenchmarks perform benchmarking of Worker's resources.
 func (m *Miner) RunBenchmarks() error {
-	savedHardware := m.state.getHardwareHash()
+	savedHardware := m.state.GetHardwareHash()
 	exitingHardware := m.hardware.Hash()
 
 	log.G(m.ctx).Debug("hardware hashes",
 		zap.String("saved", savedHardware),
 		zap.String("exiting", exitingHardware))
 
-	savedBenchmarks := m.state.getPassedBenchmarks()
+	savedBenchmarks := m.state.GetPassedBenchmarks()
 	requiredBenchmarks := m.benchmarkList.List()
 
 	hwHashesMatched := exitingHardware == savedHardware
@@ -687,7 +677,7 @@ func (m *Miner) RunBenchmarks() error {
 	if benchMatched && hwHashesMatched {
 		log.G(m.ctx).Debug("benchmarks list is matched, hardware is not changed, skip benchmarking this worker")
 		// return back previously measured results for hardware
-		m.hardware = m.state.getHardwareWithBenchmarks()
+		m.hardware = m.state.GetHardwareWithBenchmarks()
 		return nil
 	}
 
@@ -703,15 +693,15 @@ func (m *Miner) RunBenchmarks() error {
 		}
 	}
 
-	if err := m.state.setPassedBenchmarks(passedBenchmarks); err != nil {
+	if err := m.state.SetPassedBenchmarks(passedBenchmarks); err != nil {
 		return err
 	}
 
-	if err := m.state.setHardwareWithBenchmarks(m.hardware); err != nil {
+	if err := m.state.SetHardwareWithBenchmarks(m.hardware); err != nil {
 		return err
 	}
 
-	return m.state.setHardwareHash(m.hardware.Hash())
+	return m.state.SetHardwareHash(m.hardware.Hash())
 }
 
 // isBenchmarkListMatches checks if already passed benchmarks is matches required benchmarks list.
@@ -907,11 +897,10 @@ func (m *Miner) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*bm.
 
 	v, ok := res[ben.GetCode()]
 	if !ok {
-		return nil, fmt.Errorf("no results for benchmark id=%d found into container's output", ben.GetID())
+		return nil, fmt.Errorf("no results for benchmark id=%v found into container's output", ben.GetID())
 	}
 
 	return v, nil
-
 }
 
 func parseBenchmarkResult(data []byte) (map[string]*bm.ResultJSON, error) {
@@ -936,6 +925,97 @@ func getDescriptionForBenchmark(b *pb.Benchmark) Description {
 		},
 	}
 }
+
+func (m *Miner) AskPlans(ctx context.Context) (*pb.AskPlansReply, error) {
+	log.G(m.ctx).Info("handling AskPlans request")
+	return &pb.AskPlansReply{Slots: m.state.GetAskPlans()}, nil
+}
+
+func (m *Miner) CreateAskPlan(ctx context.Context, request *pb.CreateAskPlanRequest) (string, error) {
+	log.G(m.ctx).Info("handling CreateAskPlan request", zap.Any("request", request))
+
+	ord := &pb.Order{
+		OrderType:      pb.OrderType_ASK,
+		Slot:           request.GetSlot(),
+		ByuerID:        request.BuyerID,
+		PricePerSecond: request.PricePerSecond,
+		SupplierID:     util.PubKeyToAddr(m.ethkey.PublicKey).Hex(),
+	}
+
+	order, err := structs.NewOrder(ord)
+	if err != nil {
+		return "", err
+	}
+
+	return m.state.CreateAskPlan(order)
+}
+
+func (m *Miner) RemoveAskPlan(ctx context.Context, id string) error {
+	log.G(m.ctx).Info("handling RemoveAskPlan request", zap.String("id", id))
+
+	if err := m.state.RemoveAskPlan(id); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Miner) GetDealByID(id structs.DealID) (*structs.DealMeta, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	deal, ok := m.Deals[id]
+	if !ok {
+		return nil, fmt.Errorf("deal with id=%s does not found", id)
+	}
+
+	return deal, nil
+}
+
+// loadExternalState loads external state into in-mem storage
+// (from blockchain, DWH, etc...). Must be called before
+// boltdb state is loaded.
+func (m *Miner) loadExternalState() error {
+	log.G(m.ctx).Debug("loading initial state from external sources")
+	if err := m.loadDeals(); err != nil {
+		return err
+	}
+
+	if err := m.syncAskPlans(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *Miner) loadDeals() error {
+	log.G(m.ctx).Debug("loading opened deals")
+
+	filter := dwh.DealsFilter{
+		Author: util.PubKeyToAddr(m.ethkey.PublicKey),
+	}
+
+	deals, err := m.dwh.GetDeals(filter)
+	if err != nil {
+		return err
+	}
+
+	m.mu.Lock()
+	for _, deal := range deals {
+		m.Deals[structs.DealID(deal.GetId())] = structs.NewDealMeta(deal)
+	}
+	m.mu.Unlock()
+
+	return nil
+}
+
+func (m *Miner) syncAskPlans() error {
+	log.G(m.ctx).Debug("synchronizing ask-plans with remote marketplace")
+	return nil
+}
+
+// todo: make the `miner.Init() error` method to kickstart all initial jobs for the Worker instance.
+// (state loading, benchmarking, market sync).
 
 // Close disposes all resources related to the Miner
 func (m *Miner) Close() {

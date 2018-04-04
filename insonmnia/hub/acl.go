@@ -6,6 +6,8 @@ import (
 	"reflect"
 
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -24,18 +26,18 @@ var (
 )
 
 // DealExtractor allows to extract deal id that is used for authorization.
-type DealExtractor func(ctx context.Context, request interface{}) (DealID, error)
+type DealExtractor func(ctx context.Context, request interface{}) (structs.DealID, error)
 
 type dealAuthorization struct {
 	ctx       context.Context
-	state     *state
 	extractor DealExtractor
+	hub       *Hub
 }
 
-func newDealAuthorization(ctx context.Context, hubState *state, extractor DealExtractor) auth.Authorization {
+func newDealAuthorization(ctx context.Context, hub *Hub, extractor DealExtractor) auth.Authorization {
 	return &dealAuthorization{
 		ctx:       ctx,
-		state:     hubState,
+		hub:       hub,
 		extractor: extractor,
 	}
 }
@@ -52,8 +54,7 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 	}
 
 	peerWallet := wallet.Hex()
-	meta, err := d.state.GetDealMeta(dealID)
-
+	meta, err := d.hub.GetDealInfo(ctx, &sonm.ID{Id: dealID.String()})
 	if err != nil {
 		return err
 	}
@@ -77,7 +78,7 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 // specified request to have "sonm.Deal" field.
 // Extraction is performed using reflection.
 func newFieldDealExtractor() DealExtractor {
-	return func(ctx context.Context, request interface{}) (DealID, error) {
+	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
 		requestValue := reflect.Indirect(reflect.ValueOf(request))
 		deal := reflect.Indirect(requestValue.FieldByName("Deal"))
 		if !deal.IsValid() {
@@ -97,14 +98,14 @@ func newFieldDealExtractor() DealExtractor {
 			return "", errInvalidDealField
 		}
 
-		return DealID(dealId.String()), nil
+		return structs.DealID(dealId.String()), nil
 	}
 }
 
 // NewContextDealExtractor constructs a deal id extractor that requires the
 // specified context to have "deal" metadata.
 func newContextDealExtractor() DealExtractor {
-	return func(ctx context.Context, request interface{}) (DealID, error) {
+	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			return "", errNoPeerInfo
@@ -115,19 +116,19 @@ func newContextDealExtractor() DealExtractor {
 			return "", errNoDealProvided
 		}
 
-		return DealID(dealMD[0]), nil
+		return structs.DealID(dealMD[0]), nil
 	}
 }
 
 // NewFromTaskDealExtractor constructs a deal id extractor that requires the
 // specified request to have "Id" field, which is the task id.
 // This task id is used to extract current deal id from the Hub.
-func newFromTaskDealExtractor(hubState *state) DealExtractor {
-	return newFromNamedTaskDealExtractor(hubState, "Id")
+func newFromTaskDealExtractor(hub *Hub) DealExtractor {
+	return newFromNamedTaskDealExtractor(hub, "Id")
 }
 
-func newFromNamedTaskDealExtractor(hubState *state, name string) DealExtractor {
-	return func(ctx context.Context, request interface{}) (DealID, error) {
+func newFromNamedTaskDealExtractor(hub *Hub, name string) DealExtractor {
+	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
 		requestValue := reflect.Indirect(reflect.ValueOf(request))
 		taskID := reflect.Indirect(requestValue.FieldByName(name))
 		if !taskID.IsValid() {
@@ -138,59 +139,30 @@ func newFromNamedTaskDealExtractor(hubState *state, name string) DealExtractor {
 			return "", errInvalidTaskField
 		}
 
-		taskInfo, ok := hubState.GetTaskByID(taskID.String())
-		if !ok {
+		_, err := hub.TaskStatus(ctx, &sonm.ID{Id: taskID.String()})
+		if err != nil {
 			return "", status.Errorf(codes.NotFound, "task %s not found", taskID.String())
 		}
 
-		return DealID(taskInfo.GetDealId()), nil
+		// todo: panic("fix this auth method")
+		return structs.DealID("1"), nil
 	}
 }
 
-func newRequestDealExtractor(fn func(request interface{}) (DealID, error)) DealExtractor {
-	return newCustomDealExtractor(func(ctx context.Context, request interface{}) (DealID, error) {
+func newRequestDealExtractor(fn func(request interface{}) (structs.DealID, error)) DealExtractor {
+	return newCustomDealExtractor(func(ctx context.Context, request interface{}) (structs.DealID, error) {
 		return fn(request)
 	})
 }
 
-func newCustomDealExtractor(fn func(ctx context.Context, request interface{}) (DealID, error)) DealExtractor {
-	return func(ctx context.Context, request interface{}) (DealID, error) {
+func newCustomDealExtractor(fn func(ctx context.Context, request interface{}) (structs.DealID, error)) DealExtractor {
+	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
 		return fn(ctx, request)
 	}
 }
 
 // OrderExtractor allows to extract order id that is used for authorization.
-type OrderExtractor func(request interface{}) (OrderID, error)
-
-type orderAuthorization struct {
-	state     *state
-	extractor OrderExtractor
-}
-
-func newOrderAuthorization(hubState *state, extractor OrderExtractor) auth.Authorization {
-	return &orderAuthorization{
-		state:     hubState,
-		extractor: extractor,
-	}
-}
-
-func (a *orderAuthorization) Authorize(ctx context.Context, request interface{}) error {
-	wallet, err := auth.ExtractWalletFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	orderID, err := a.extractor(request)
-	if err != nil {
-		return err
-	}
-
-	if err := a.state.PollCommitOrder(orderID, *wallet); err != nil {
-		return status.Errorf(codes.Unauthenticated, "%s", err)
-	}
-
-	return nil
-}
+type OrderExtractor func(request interface{}) (structs.OrderID, error)
 
 type multiAuth struct {
 	authorizers []auth.Authorization

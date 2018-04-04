@@ -4,7 +4,10 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
+	"github.com/sonm-io/core/insonmnia/dwh"
+	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
 )
@@ -16,6 +19,9 @@ type options struct {
 	key       *ecdsa.PrivateKey
 	publicIPs []string
 	benchList benchmarks.BenchList
+	storage   *state.Storage
+	eth       blockchain.API
+	dwh       dwh.DWH
 }
 
 func (o *options) setupNetworkOptions(cfg Config) error {
@@ -76,4 +82,22 @@ func WithBenchmarkList(list benchmarks.BenchList) Option {
 		opts.benchList = list
 	}
 
+}
+
+func WithStateStorage(s *state.Storage) Option {
+	return func(o *options) {
+		o.storage = s
+	}
+}
+
+func WithETH(e blockchain.API) Option {
+	return func(o *options) {
+		o.eth = e
+	}
+}
+
+func WithDWH(d dwh.DWH) Option {
+	return func(o *options) {
+		o.dwh = d
+	}
 }

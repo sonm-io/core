@@ -11,6 +11,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/hub"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner"
+	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -59,9 +60,13 @@ func run() {
 	}
 	creds := util.NewTLS(TLSConfig)
 
-	opts := make([]miner.Option, 0)
-	opts = append(opts, miner.WithContext(ctx), miner.WithKey(key))
-	w, err := miner.NewMiner(wCfg, opts...)
+	storage, err := state.NewState(ctx, wCfg.Storage())
+	if err != nil {
+		log.G(ctx).Error("cannot create state storage", zap.Error(err))
+		os.Exit(1)
+	}
+
+	w, err := miner.NewMiner(wCfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithStateStorage(storage))
 	if err != nil {
 		log.G(ctx).Error("cannot create worker instance", zap.Error(err))
 		os.Exit(1)

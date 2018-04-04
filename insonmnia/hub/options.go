@@ -6,6 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/miner"
+	"github.com/sonm-io/core/insonmnia/state"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
@@ -23,6 +24,7 @@ type options struct {
 	creds   credentials.TransportCredentials
 	rot     util.HitlessCertRotator
 	worker  *miner.Miner
+	storage *state.Storage
 }
 
 func defaultHubOptions() *options {

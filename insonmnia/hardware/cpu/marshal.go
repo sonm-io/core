@@ -1,18 +1,8 @@
 package cpu
 
 import (
-	"github.com/shirou/gopsutil/cpu"
 	"github.com/sonm-io/core/proto"
 )
-
-func MarshalDevices(d []Device) []*sonm.CPUDevice {
-	devices := make([]*sonm.CPUDevice, 0, len(d))
-	for _, device := range d {
-		devices = append(devices, device.Marshal())
-	}
-
-	return devices
-}
 
 func (d *Device) Marshal() *sonm.CPUDevice {
 	return &sonm.CPUDevice{
@@ -26,33 +16,4 @@ func (d *Device) Marshal() *sonm.CPUDevice {
 		Stepping:       d.Stepping,
 		Flags:          d.Flags,
 	}
-}
-
-func UnmarshalDevices(d []*sonm.CPUDevice) ([]Device, error) {
-	devices := make([]Device, 0, len(d))
-	for _, device := range d {
-		dev, err := Unmarshal(device)
-		if err != nil {
-			return nil, err
-		}
-		devices = append(devices, dev)
-	}
-
-	return devices, nil
-}
-
-func Unmarshal(proto *sonm.CPUDevice) (Device, error) {
-	info := cpu.InfoStat{
-		CPU:       proto.GetNum(),
-		VendorID:  proto.GetVendorId(),
-		Model:     proto.GetModel(),
-		ModelName: proto.GetModelName(),
-		Cores:     proto.GetCores(),
-		Mhz:       proto.GetClockFrequency(),
-		CacheSize: proto.GetCacheSize(),
-		Stepping:  proto.GetStepping(),
-		Flags:     proto.GetFlags(),
-	}
-
-	return Device(info), nil
 }

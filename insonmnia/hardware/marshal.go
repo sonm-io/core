@@ -1,31 +1,40 @@
 package hardware
 
 import (
-	"github.com/sonm-io/core/insonmnia/hardware/cpu"
-	"github.com/sonm-io/core/insonmnia/hardware/mem"
 	"github.com/sonm-io/core/proto"
 )
 
-func (h *Hardware) IntoProto() *sonm.Capabilities {
-	cpus := []cpu.Device{}
+func (h *Hardware) IntoProto() *sonm.DevicesReply {
+	var cpus []*sonm.CPUDevice
 	for _, c := range h.CPU {
-		cpus = append(cpus, c.Device)
+		dev := c.Device.Marshal()
+		dev.Benchmarks = c.Benchmark
+		cpus = append(cpus, c.Device.Marshal())
 	}
 
-	gpus := []*sonm.GPUDevice{}
+	var gpus []*sonm.GPUDevice
 	for _, g := range h.GPU {
 		gpus = append(gpus, g.Device)
 	}
 
-	return &sonm.Capabilities{
-		Cpu: cpu.MarshalDevices(cpus),
-		Mem: MemoryIntoProto(h.Memory.Device),
-		Gpu: gpus,
+	ram := &sonm.RAMDevice{
+		Total:      h.Memory.Device.Available,
+		Benchmarks: h.Memory.Benchmark,
 	}
-}
 
-func MemoryIntoProto(m *mem.Device) *sonm.RAMDevice {
-	return &sonm.RAMDevice{
-		Total: m.Total,
+	net := &sonm.NetworkDevice{
+		Benchmarks: h.Network.Benchmark,
+	}
+
+	stor := &sonm.StorageDevice{
+		Benchmarks: h.Storage.Benchmark,
+	}
+
+	return &sonm.DevicesReply{
+		CPUs:    cpus,
+		GPUs:    gpus,
+		Memory:  ram,
+		Network: net,
+		Storage: stor,
 	}
 }

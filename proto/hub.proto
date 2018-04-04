@@ -94,17 +94,15 @@ message AskPlansReply {
 }
 
 message TaskListReply {
-    message TaskInfo {
-        map<string, TaskStatusReply> tasks = 1;
-    }
-    map<string, TaskInfo> info = 1;
+    map<string, TaskStatusReply> info = 1;
 }
 
 message DevicesReply {
-    // CPU unique ID -> Info.
     repeated CPUDevice CPUs = 1;
-    // GPU unique ID -> Info.
     repeated GPUDevice GPUs = 2;
+    RAMDevice memory = 3;
+    NetworkDevice network = 4;
+    StorageDevice storage = 5;
 }
 
 message CreateAskPlanRequest {
