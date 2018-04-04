@@ -9,7 +9,7 @@ go:
 env:
   - BUILD_TYPE=Tests
   - BUILD_TYPE=Debian
-  - BUILD_TYPE=Coverage
+#  - BUILD_TYPE=Coverage
 
 services:
     - "docker"
