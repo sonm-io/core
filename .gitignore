@@ -43,7 +43,6 @@ target/
 release/
 .idea/
 
-
 fusrodah/examples/bootnode/main
 fusrodah/examples/fusrodah/main
 fusrodah/examples/hub/main
@@ -63,3 +62,5 @@ blockchain/package-lock.json
 
 # truffle stores build artifacts here
 blockchain/build
+
+vendor/github.com/golang/mock/mockgen/mockgen
