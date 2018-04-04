@@ -73,7 +73,6 @@ type DeviceProperties map[string]float64
 
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
-	// TODO (3Hren): Probably port pool should be associated with the gateway implicitly.
 	cfg          *Config
 	ctx          context.Context
 	cancel       context.CancelFunc
@@ -83,8 +82,6 @@ type Hub struct {
 
 	ethKey  *ecdsa.PrivateKey
 	ethAddr common.Address
-
-	announcer Announcer
 
 	waiter    errgroup.Group
 	startTime time.Time
@@ -146,15 +143,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		return nil, err
 	}
 
-	if defaults.locator == nil {
-		conn, err := xgrpc.NewClient(ctx, cfg.Locator.Endpoint, defaults.creds)
-		if err != nil {
-			return nil, err
-		}
-
-		defaults.locator = pb.NewLocatorClient(conn)
-	}
-
 	if defaults.market == nil {
 		conn, err := xgrpc.NewClient(ctx, cfg.Market.Endpoint, defaults.creds)
 		if err != nil {
@@ -162,18 +150,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		}
 
 		defaults.market = pb.NewMarketClient(conn)
-	}
-
-	if defaults.announcer == nil {
-		a, err := newLocatorAnnouncer(
-			defaults.ethKey,
-			defaults.locator,
-			cfg.Locator.UpdatePeriod,
-			cfg)
-		if err != nil {
-			return nil, err
-		}
-		defaults.announcer = a
 	}
 
 	if len(cfg.Whitelist.PrivilegedAddresses) == 0 {
@@ -207,8 +183,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 
 		certRotator: defaults.rot,
 		creds:       defaults.creds,
-
-		announcer: defaults.announcer,
 
 		whitelist: wl,
 
@@ -282,8 +256,6 @@ func (h *Hub) Serve() error {
 	h.waiter.Go(func() error {
 		return h.state.RunMonitoring(h.ctx)
 	})
-
-	h.waiter.Go(h.startLocatorAnnouncer)
 
 	h.waiter.Wait()
 
@@ -792,9 +764,4 @@ func (h *Hub) Close() {
 	}
 	h.worker.Close()
 	h.waiter.Wait()
-}
-
-func (h *Hub) startLocatorAnnouncer() error {
-	h.announcer.Start(h.ctx)
-	return nil
 }

@@ -19,8 +19,6 @@ type Config interface {
 	MarketEndpoint() string
 	// HubEndpoint is Hub's gRPC endpoint (not required)
 	HubEndpoint() string
-	// LocatorEndpoint is Locator service gRPC endpoint
-	LocatorEndpoint() string
 	// MetricsListenAddr returns the address that can be used by Prometheus to get
 	// metrics.
 	MetricsListenAddr() string
@@ -48,16 +46,11 @@ type logConfig struct {
 	parsedLevel zapcore.Level
 }
 
-type locatorConfig struct {
-	Endpoint string `required:"true" default:"" yaml:"endpoint"`
-}
-
 type yamlConfig struct {
 	Node                    nodeConfig         `yaml:"node"`
 	NPPCfg                  npp.Config         `yaml:"npp"`
 	Market                  marketConfig       `required:"true" yaml:"market"`
 	Log                     logConfig          `required:"true" yaml:"log"`
-	Locator                 locatorConfig      `required:"true" yaml:"locator"`
 	Eth                     accounts.EthConfig `required:"false" yaml:"ethereum"`
 	Hub                     *hubConfig         `required:"false" yaml:"hub"`
 	MetricsListenAddrConfig string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14003"`
@@ -77,10 +70,6 @@ func (y *yamlConfig) NPPConfig() *npp.Config {
 
 func (y *yamlConfig) MarketEndpoint() string {
 	return y.Market.Endpoint
-}
-
-func (y *yamlConfig) LocatorEndpoint() string {
-	return y.Locator.Endpoint
 }
 
 func (y *yamlConfig) HubEndpoint() string {

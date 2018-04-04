@@ -47,7 +47,7 @@ var MarketOrderType_value = map[string]int32{
 func (x MarketOrderType) String() string {
 	return proto.EnumName(MarketOrderType_name, int32(x))
 }
-func (MarketOrderType) EnumDescriptor() ([]byte, []int) { return fileDescriptor9, []int{0} }
+func (MarketOrderType) EnumDescriptor() ([]byte, []int) { return fileDescriptor8, []int{0} }
 
 type MarketOrderStatus int32
 
@@ -68,7 +68,7 @@ var MarketOrderStatus_value = map[string]int32{
 func (x MarketOrderStatus) String() string {
 	return proto.EnumName(MarketOrderStatus_name, int32(x))
 }
-func (MarketOrderStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor9, []int{1} }
+func (MarketOrderStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor8, []int{1} }
 
 type MarketIdentityLevel int32
 
@@ -92,7 +92,7 @@ var MarketIdentityLevel_value = map[string]int32{
 func (x MarketIdentityLevel) String() string {
 	return proto.EnumName(MarketIdentityLevel_name, int32(x))
 }
-func (MarketIdentityLevel) EnumDescriptor() ([]byte, []int) { return fileDescriptor9, []int{2} }
+func (MarketIdentityLevel) EnumDescriptor() ([]byte, []int) { return fileDescriptor8, []int{2} }
 
 type MarketDealStatus int32
 
@@ -116,7 +116,7 @@ var MarketDealStatus_value = map[string]int32{
 func (x MarketDealStatus) String() string {
 	return proto.EnumName(MarketDealStatus_name, int32(x))
 }
-func (MarketDealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor9, []int{3} }
+func (MarketDealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor8, []int{3} }
 
 type GetOrdersRequest struct {
 	// Order keeps slot and type for searching
@@ -128,7 +128,7 @@ type GetOrdersRequest struct {
 func (m *GetOrdersRequest) Reset()                    { *m = GetOrdersRequest{} }
 func (m *GetOrdersRequest) String() string            { return proto.CompactTextString(m) }
 func (*GetOrdersRequest) ProtoMessage()               {}
-func (*GetOrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{0} }
+func (*GetOrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{0} }
 
 func (m *GetOrdersRequest) GetOrder() *Order {
 	if m != nil {
@@ -151,7 +151,7 @@ type GetOrdersReply struct {
 func (m *GetOrdersReply) Reset()                    { *m = GetOrdersReply{} }
 func (m *GetOrdersReply) String() string            { return proto.CompactTextString(m) }
 func (*GetOrdersReply) ProtoMessage()               {}
-func (*GetOrdersReply) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{1} }
+func (*GetOrdersReply) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{1} }
 
 func (m *GetOrdersReply) GetOrders() []*Order {
 	if m != nil {
@@ -169,7 +169,7 @@ type GetProcessingReply struct {
 func (m *GetProcessingReply) Reset()                    { *m = GetProcessingReply{} }
 func (m *GetProcessingReply) String() string            { return proto.CompactTextString(m) }
 func (*GetProcessingReply) ProtoMessage()               {}
-func (*GetProcessingReply) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{2} }
+func (*GetProcessingReply) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{2} }
 
 func (m *GetProcessingReply) GetOrders() map[string]*GetProcessingReply_ProcessedOrder {
 	if m != nil {
@@ -189,7 +189,7 @@ func (m *GetProcessingReply_ProcessedOrder) Reset()         { *m = GetProcessing
 func (m *GetProcessingReply_ProcessedOrder) String() string { return proto.CompactTextString(m) }
 func (*GetProcessingReply_ProcessedOrder) ProtoMessage()    {}
 func (*GetProcessingReply_ProcessedOrder) Descriptor() ([]byte, []int) {
-	return fileDescriptor9, []int{2, 0}
+	return fileDescriptor8, []int{2, 0}
 }
 
 func (m *GetProcessingReply_ProcessedOrder) GetId() string {
@@ -227,7 +227,7 @@ type TouchOrdersRequest struct {
 func (m *TouchOrdersRequest) Reset()                    { *m = TouchOrdersRequest{} }
 func (m *TouchOrdersRequest) String() string            { return proto.CompactTextString(m) }
 func (*TouchOrdersRequest) ProtoMessage()               {}
-func (*TouchOrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{3} }
+func (*TouchOrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{3} }
 
 func (m *TouchOrdersRequest) GetIDs() []string {
 	if m != nil {
@@ -255,7 +255,7 @@ type MarketOrder struct {
 func (m *MarketOrder) Reset()                    { *m = MarketOrder{} }
 func (m *MarketOrder) String() string            { return proto.CompactTextString(m) }
 func (*MarketOrder) ProtoMessage()               {}
-func (*MarketOrder) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{4} }
+func (*MarketOrder) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{4} }
 
 func (m *MarketOrder) GetId() string {
 	if m != nil {
@@ -369,7 +369,7 @@ type MarketDeal struct {
 func (m *MarketDeal) Reset()                    { *m = MarketDeal{} }
 func (m *MarketDeal) String() string            { return proto.CompactTextString(m) }
 func (*MarketDeal) ProtoMessage()               {}
-func (*MarketDeal) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{5} }
+func (*MarketDeal) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{5} }
 
 func (m *MarketDeal) GetId() string {
 	if m != nil {
@@ -895,9 +895,9 @@ func init() {
 
 // End grpccmd
 
-func init() { proto.RegisterFile("marketplace.proto", fileDescriptor9) }
+func init() { proto.RegisterFile("marketplace.proto", fileDescriptor8) }
 
-var fileDescriptor9 = []byte{
+var fileDescriptor8 = []byte{
 	// 995 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x56, 0xff, 0x6e, 0xa3, 0x46,
 	0x10, 0xb6, 0x71, 0x92, 0x0b, 0x83, 0xe3, 0x90, 0xbd, 0x24, 0xc7, 0x59, 0xd5, 0xc9, 0xa5, 0x55,

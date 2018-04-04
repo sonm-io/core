@@ -16,11 +16,6 @@ type LoggingConfig struct {
 	parsedLevel zapcore.Level
 }
 
-type LocatorConfig struct {
-	Endpoint     string        `yaml:"endpoint" required:"true"`
-	UpdatePeriod time.Duration `yaml:"update_period" required:"true" default:"10s"`
-}
-
 type MarketConfig struct {
 	Endpoint     string        `required:"true" yaml:"endpoint"`
 	UpdatePeriod time.Duration `default:"60s" yaml:"update_period_sec"`
@@ -43,7 +38,6 @@ type Config struct {
 	AnnounceEndpoint  string
 	Logging           LoggingConfig      `yaml:"logging"`
 	Eth               accounts.EthConfig `yaml:"ethereum"`
-	Locator           LocatorConfig      `yaml:"locator"`
 	Market            MarketConfig       `yaml:"market"`
 	Store             StoreConfig        `yaml:"store"`
 	Whitelist         WhitelistConfig    `yaml:"whitelist"`

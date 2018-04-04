@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/zap/zapcore"
@@ -28,8 +27,6 @@ func TestLoadConfig(t *testing.T) {
 ethereum:
   private_key: "1000000000000000000000000000000000000000000000000000000000000000"
 endpoint: ":10002"
-locator:
-  endpoint: "127.0.0.1:9090"
 market:
   endpoint: "127.0.0.1:9095"
 logging:
@@ -72,8 +69,6 @@ monitoring:
   endpoint: ":10001"
 logging:
   level: info
-locator:
-  endpoint: "127.0.0.1:9090"
 market:
   endpoint: "127.0.0.1:9095"`
 
@@ -94,8 +89,6 @@ ethereum:
 endpoint: ":10002"
 monitoring:
   endpoint: ":10001"
-locator:
-  endpoint: "127.0.0.1:9090"
 market:
   endpoint: "127.0.0.1:9095"
 logging:
@@ -107,44 +100,4 @@ logging:
 
 	_, err = NewConfig(testHubConfigPath)
 	assert.Error(t, err)
-}
-
-func TestLoadConfigWithoutLocator(t *testing.T) {
-	err := createTestConfigFile(`
-ethereum:
-  private_key: "1000000000000000000000000000000000000000000000000000000000000000"
-endpoint: ":10002"
-monitoring:
-  endpoint: ":10001"
-locator:
-  endpoint: ""`)
-	assert.Nil(t, err)
-
-	defer deleteTestConfigFile()
-
-	conf, err := NewConfig(testHubConfigPath)
-	assert.Error(t, err)
-	assert.Nil(t, conf)
-}
-
-func TestLoadConfigLocatorPeriod(t *testing.T) {
-	err := createTestConfigFile(`
-ethereum:
-  private_key: "1000000000000000000000000000000000000000000000000000000000000000"
-endpoint: ":10002"
-monitoring:
-  endpoint: ":10001"
-market:
-  endpoint: "127.0.0.1:9095"
-locator:
-  endpoint: "127.0.0.1:9090"
-  update_period: "5s"
-  `)
-	assert.Nil(t, err)
-
-	defer deleteTestConfigFile()
-
-	conf, err := NewConfig(testHubConfigPath)
-	assert.NoError(t, err)
-	assert.Equal(t, time.Second*5, conf.Locator.UpdatePeriod)
 }

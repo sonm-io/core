@@ -10,7 +10,6 @@ override_dh_auto_build:
 
 	mv target/sonmcli_linux_x86_64 target/sonmcli
 	mv target/sonmhub_linux_x86_64 target/sonmhub
-	mv target/sonmlocator_linux_x86_64 target/sonmlocator
 	mv target/sonmnode_linux_x86_64 target/sonmnode
 	mv target/sonmrendezvous_linux_x86_64 target/sonmrendezvous
 	mv target/sonmrelay_linux_x86_64 target/sonmrelay
@@ -25,7 +24,6 @@ override_dh_auto_install:
 	install -m644 etc/worker.yaml $(DEB_DESTDIR)etc/sonm/worker-default.yaml
 	install -m644 etc/hub.yaml $(DEB_DESTDIR)etc/sonm/hub-default.yaml
 	install -m644 etc/node.yaml $(DEB_DESTDIR)etc/sonm/node-default.yaml
-	install -m644 etc/locator.yaml $(DEB_DESTDIR)etc/sonm/locator-default.yaml
 	install -m644 etc/rendezvous.yaml $(DEB_DESTDIR)etc/sonm/rendezvous-default.yaml
 	install -m644 etc/relay.yaml $(DEB_DESTDIR)etc/sonm/relay-default.yaml
 
