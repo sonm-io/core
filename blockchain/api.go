@@ -135,12 +135,13 @@ func (api *BasicAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealI
 }
 
 func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.MarketDeal, error) {
-	deal1, err := api.marketContract.GetDealInfoVol1(getCallOptions(ctx), dealID)
+
+	deal1, err := api.marketContract.GetDealInfo(getCallOptions(ctx), dealID)
 	if err != nil {
 		return nil, err
 	}
 
-	deal2, err := api.marketContract.GetDealInfoVol2(getCallOptions(ctx), dealID)
+	deal2, err := api.marketContract.GetDealParams(getCallOptions(ctx), dealID)
 	if err != nil {
 		return nil, err
 	}
@@ -158,9 +159,9 @@ func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Mark
 		MasterID:       deal1.MasterID.String(),
 		AskID:          deal1.AskID.String(),
 		BidID:          deal1.BidID.String(),
-		Duration:       deal1.Duration.Uint64(),
+		Duration:       deal2.Duration.Uint64(),
 		Price:          pb.NewBigInt(deal2.Price),
-		StartTime:      &pb.Timestamp{Seconds: deal2.StartTime.Int64()},
+		StartTime:      &pb.Timestamp{Seconds: deal1.StartTime.Int64()},
 		EndTime:        &pb.Timestamp{Seconds: deal2.EndTime.Int64()},
 		Status:         pb.MarketDealStatus(deal2.Status),
 		BlockedBalance: pb.NewBigInt(deal2.BlockedBalance),
@@ -204,30 +205,36 @@ func (api *BasicAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id 
 }
 
 func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.MarketOrder, error) {
-	order, err := api.marketContract.GetOrderInfo(getCallOptions(ctx), orderID)
+	order1, err := api.marketContract.GetOrderInfo(getCallOptions(ctx), orderID)
 	if err != nil {
 		return nil, err
 	}
 
-	var benchmarks = make([]uint64, len(order.Benchmarks))
-	for idx, benchmark := range order.Benchmarks {
+	order2, err := api.marketContract.GetOrderParams(getCallOptions(ctx), orderID)
+	if err != nil {
+		return nil, err
+	}
+
+	var benchmarks = make([]uint64, len(order1.Benchmarks))
+	for idx, benchmark := range order1.Benchmarks {
 		benchmarks[idx] = benchmark.Uint64()
 	}
 
 	return &pb.MarketOrder{
 		Id:            orderID.String(),
-		OrderType:     pb.MarketOrderType(order.OrderType),
-		OrderStatus:   pb.MarketOrderStatus(order.OrderStatus),
-		Author:        order.Author.String(),
-		Counterparty:  order.Counterparty.String(),
-		Price:         pb.NewBigInt(order.Price),
-		Duration:      order.Duration.Uint64(),
-		Netflags:      order.Netflags[:],
-		IdentityLevel: pb.MarketIdentityLevel(order.IdentityLevel),
-		Blacklist:     order.Blacklist.String(),
-		Tag:           order.Tag[:],
+		DealID:        order2.DealID.String(),
+		OrderType:     pb.MarketOrderType(order1.OrderType),
+		OrderStatus:   pb.MarketOrderStatus(order2.OrderStatus),
+		Author:        order1.Author.String(),
+		Counterparty:  order1.Counterparty.String(),
+		Price:         pb.NewBigInt(order1.Price),
+		Duration:      order1.Duration.Uint64(),
+		Netflags:      order1.Netflags[:],
+		IdentityLevel: pb.MarketIdentityLevel(order1.IdentityLevel),
+		Blacklist:     order1.Blacklist.String(),
+		Tag:           order1.Tag[:],
 		Benchmarks:    benchmarks,
-		FrozenSum:     pb.NewBigInt(order.FrozenSum),
+		FrozenSum:     pb.NewBigInt(order1.FrozenSum),
 	}, nil
 }
 

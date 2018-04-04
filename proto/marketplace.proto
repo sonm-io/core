@@ -82,18 +82,19 @@ message TouchOrdersRequest {
 
 message MarketOrder {
     string id = 1;
-    MarketOrderType orderType = 2;
-    MarketOrderStatus orderStatus = 3;
-    string author = 4;
-    string counterparty = 5;
-    BigInt price = 6;
-    uint64 duration = 7;
-    repeated bool netflags = 8;
-    MarketIdentityLevel identityLevel = 9;
-    string blacklist = 10;
-    bytes tag = 11;
-    repeated uint64 benchmarks = 12;
-    BigInt frozenSum = 13;
+    string dealID = 2;
+    MarketOrderType orderType = 3;
+    MarketOrderStatus orderStatus = 4;
+    string author = 5;
+    string counterparty = 6;
+    BigInt price = 7;
+    uint64 duration = 8;
+    repeated bool netflags = 9;
+    MarketIdentityLevel identityLevel = 10;
+    string blacklist = 11;
+    bytes tag = 12;
+    repeated uint64 benchmarks = 13;
+    BigInt frozenSum = 14;
 }
 
 message MarketDeal {
