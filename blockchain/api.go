@@ -92,7 +92,8 @@ func NewAPI(ethEndpoint *string, gasPrice *int64) (API, error) {
 	}
 
 	if gasPrice == nil {
-		*gasPrice = defaultGasPrice
+		var p int64 = defaultGasPrice
+		gasPrice = &p
 	}
 
 	blacklistContract, err := marketAPI.NewBlacklist(common.HexToAddress(market.BlacklistAddress), client)
