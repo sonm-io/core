@@ -129,13 +129,10 @@ grpc:
 	@if ! which protoc-gen-grpccmd > /dev/null; then echo "protoc-gen-grpccmd protobuf plugin required for build.\nRun \`go get -u github.com/sshaman1101/grpccmd/cmd/protoc-gen-grpccmd\`"; exit 1; fi;
 	@protoc -I proto proto/*.proto --grpccmd_out=proto/
 
-mock:
-	@echo "+ $@"
-	@if ! which mockgen > /dev/null; then \
-	echo "mockgen is required."; \
-	echo "Run \`go get github.com/golang/mock/gomock\`"; \
-	echo "\`go get github.com/golang/mock/mockgen\`"; \
-	echo "and add your go bin directory to PATH"; exit 1; fi;
+build_mockgen:
+	cd ./vendor/github.com/golang/mock/mockgen/ && go install
+
+mock: build_mockgen
 	mockgen -package miner -destination insonmnia/miner/overseer_mock.go -source insonmnia/miner/overseer.go
 	mockgen -package miner -destination insonmnia/miner/config_mock.go -source insonmnia/miner/config.go \
 		-aux_files logging=insonmnia/logging/logging.go
