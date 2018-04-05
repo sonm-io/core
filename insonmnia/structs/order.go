@@ -9,6 +9,12 @@ import (
 	pb "github.com/sonm-io/core/proto"
 )
 
+type OrderID string
+
+func (id OrderID) String() string {
+	return string(id)
+}
+
 // Order represents a safe order wrapper.
 //
 // This is used to decompose the validation out of the protocol. All

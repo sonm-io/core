@@ -1,25 +1,21 @@
-# Hub settings.
-hub:
-  eth_addr: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD"
-  endpoints: ["127.0.0.1:15011", "127.0.0.2:15011"]
 
 #  Resources section is available only on Linux
 #  If configured, all tasks will share this pool of resources.
 #  This pool is a parent control group.
 #  Format is Open Container Initiative Runtime Specification:
+#resources:
+#  cgroup: insonmnia
 #  resources:
-#    cgroup: insonmnia
-#    resources:
-#      # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#memory
-#      memory:
-#        limit: 1000
-#      # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#cpu
-#      cpu:
-#        quota: 1024
-#        cpus: "2-3"
-#      # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#network
-#      network:
-#        classID: 1048577
+#    # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#memory
+#    memory:
+#      limit: 1000
+#    # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#cpu
+#    cpu:
+#      quota: 1024
+#      cpus: "2-3"
+#    # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#network
+#    network:
+#      classID: 1048577
 
 # Logging settings.
 logging:
@@ -27,24 +23,10 @@ logging:
   # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
   level: debug
 
-# Firewall discovery settings, optional param
-# If enabled the miner tries to discover its own public IP address and the
-# firewall configuration. STUN server can be configured.
-# If disabled it is treated as having public IP address that is determined
-# automatically.
-# firewall:
-#   server: "stun.ekiga.net:3478"
-
 # A list of IPs that can be used to reach the miner, optional param. If not provided, miner's interfaces will
 # be scanned for such IPs (if there's no firewall settings).
 # Ignored if firewall settings are not null.
 # public_ip_addrs: ["46.148.198.134"]
-
-ethereum:
-  # path to keystore
-  key_store: "./keys"
-  # passphrase for keystore
-  pass_phrase: "any"
 
 store:
   path: "/var/lib/sonm/worker.boltdb"

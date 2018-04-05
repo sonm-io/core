@@ -56,7 +56,7 @@ type BlacklistAPI interface {
 	SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey, market common.Address) (*types.Transaction, error)
 }
 
-// MarketTokener is a go implementation of ERC20-compatibility token with full functionality high-level interface
+// TokenAPI is a go implementation of ERC20-compatibility token with full functionality high-level interface
 // standard description with placed: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
 type TokenAPI interface {
 	// Approve - add allowance from caller to other contract to spend tokens

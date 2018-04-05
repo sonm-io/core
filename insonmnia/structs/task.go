@@ -2,6 +2,7 @@ package structs
 
 import (
 	"errors"
+	"time"
 
 	"github.com/sonm-io/core/proto"
 )
@@ -34,4 +35,17 @@ func (r *StartTaskRequest) GetDeal() *sonm.Deal {
 
 func (r *StartTaskRequest) GetDealId() string {
 	return r.GetDeal().GetId()
+}
+
+type TaskInfo struct {
+	StartTaskRequest
+	sonm.MinerStartReply
+	ID      string
+	DealId  DealID
+	MinerId string
+	EndTime *time.Time
+}
+
+func (t TaskInfo) ContainerID() string {
+	return t.MinerStartReply.Container
 }

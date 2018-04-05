@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "benchmarks.proto";
+
 package sonm;
 
 enum GPUVendorType {
@@ -34,13 +36,17 @@ message CPUDevice {
     int32 stepping = 8;
     // Flags describes supported extensions on a CPU.
     repeated string flags = 9;
+
+    map<uint64, Benchmark> benchmarks = 10;
 }
 
 message RAMDevice {
     uint64 total = 1;
+    // fixme: do we really need this?
     uint64 used = 2;
-}
 
+    map<uint64, Benchmark> benchmarks = 3;
+}
 
 message GPUDevice {
     // ID returns unique device ID on workers machine,
@@ -64,4 +70,18 @@ message GPUDevice {
 
     // Memory is amount of vmem for device, in bytes
     uint64 Memory = 9;
+
+    map<uint64, Benchmark> benchmarks = 10;
+}
+
+message NetworkDevice {
+    uint64 bandwidthIn = 1;
+    uint64 bandwidthOut = 2;
+
+    map<uint64, Benchmark> benchmarks = 3;
+}
+
+message StorageDevice {
+    uint64 bytesAvailable = 1;
+    map<uint64, Benchmark> benchmarks = 2;
 }

@@ -57,7 +57,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 
 	log.G(t.ctx).Info("found some active deals", zap.Int("count", len(activeDeals)))
 
-	tasks := make(map[string]*pb.TaskListReply_TaskInfo)
+	tasks := make(map[string]*pb.TaskStatusReply)
 	for _, deal := range activeDeals {
 		t.getSupplierTasks(ctx, tasks, deal)
 	}
@@ -65,7 +65,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 	return &pb.TaskListReply{Info: tasks}, nil
 }
 
-func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskListReply_TaskInfo, deal *pb.Deal) {
+func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.Deal) {
 	hub, cc, err := t.getHubClientByEthAddr(ctx, deal.GetSupplierID())
 	if err != nil {
 		log.G(t.ctx).Error("cannot resolve hub address",
@@ -314,6 +314,7 @@ func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.Hu
 	return t.remotes.hubCreator(common.StringToAddress(eth), "")
 }
 
+// getHubClientByEthAddr is deprecated.
 func getHubClientByEthAddr(ctx context.Context, remotes *remoteOptions, eth string) (pb.HubClient, io.Closer, error) {
 	return remotes.hubCreator(common.StringToAddress(eth), "")
 }

@@ -10,18 +10,15 @@ func TestParseResources(t *testing.T) {
 	assertions := assert.New(t)
 	defer deleteTestConfigFile()
 	raw := `
-hub:
-  eth_addr: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD"
-  endpoints: ["127.0.0.1:10002", "127.0.0.1:10002"]
+resources:
+  cgroup: insonmnia
   resources:
-    cgroup: insonmnia
-    resources:
-      memory:
-        limit: 1000
-        swap: 1024
-      cpu:
-        quota: 1024
-        cpus: "ddd"
+    memory:
+      limit: 1000
+      swap: 1024
+    cpu:
+      quota: 1024
+      cpus: "ddd"
 logging:
   level: debug
 benchmarks:

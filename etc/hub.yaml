@@ -2,12 +2,6 @@
 # allowed format is "ip:port" to bind Hub to given IP address
 # or ":port" to bind Hub to all available IPs
 endpoint: ":15010"
-  
-# An endpoint for hub announcements
-# This one useful if hub is behind router with DMZ or port forwarding
-# This endpoint will be used to communicate with hub,
-# however hub will still bind on "endpoint", not "announce_endpoint"
-# announce_endpoint: "1.2.3.4:1234"
 
 # NAT punching settings.
 npp:
@@ -17,38 +11,6 @@ npp:
   relay:
     endpoints:
       - 127.0.0.1:12240
-
-# Hub as a gateway settings. Can be omitted indicating that the Hub should not
-# be a gateway.
-# gateway:
-  # # Port range allocated for virtual services if any.
-  # ports: [32768, 33768]
-
-# Cluster settings.
-cluster:
-  endpoint: ":15010"
-
-  # Configuration of persistent store
-  store:
-    # Type of the storage to use.
-    # Possible types are: "consul", "zookeeper", "etcd" and "boltdb"
-    # boltDB is a local storage, so it can not be used with failover switched on
-    type: "boltdb"
-
-    # storage specific endpoint. Directory for boltdb, tcp endpoint for other types
-    endpoint: "/var/lib/sonm/boltdb"
-
-    # Storage bucket to store all data in
-    bucket: "sonm"
-
-    # TLS key file for stores, supporting it
-    # key_file: "/path/to/key.key
-
-    # Cert file for stores, supporting it
-    # cert_file: "/path/to/cert.crt"
-
-  # Fine tuning
-  sync_prefix: "sync_prefix"
 
 # Logging settings.
 logging:
@@ -62,11 +24,6 @@ ethereum:
   key_store: "./keys"
   # passphrase for keystore
   pass_phrase: "any"
-
-# Marketplace service settings
-market:
-  # marketplace gRPC endpoint, required
-  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:15021"
 
 whitelist:
   url: "https://raw.githubusercontent.com/sonm-io/allowed-list/master/general_whitelist.json"

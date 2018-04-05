@@ -3,14 +3,11 @@ package hub
 import (
 	"crypto/ecdsa"
 	"fmt"
-	"math"
-	"math/big"
 	"net"
 	"time"
 
 	"github.com/docker/distribution/reference"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
@@ -19,7 +16,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/npp"
-	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -33,43 +29,25 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var (
-	errDealNotFound   = status.Errorf(codes.NotFound, "deal not found")
-	errImageForbidden = status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
-
+const (
 	hubAPIPrefix = "/sonm.Hub/"
+)
+
+var (
+	errImageForbidden = status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
 
 	// The following methods require TLS authentication and checking for client
 	// and Hub's wallet equality.
 	// The wallet is passed as peer metadata.
 	hubManagementMethods = []string{
 		"Status",
-		"List",
-		"Info",
-		"TaskList",
-		"TaskStatus",
+		"Tasks",
 		"Devices",
-		"MinerDevices",
-		"GetDeviceProperties",
-		"SetDeviceProperties",
-		"GetRegisteredWorkers",
-		"RegisterWorker",
-		"DeregisterWorker",
-		"Slots",
-		"InsertSlot",
-		"RemoveSlot",
+		"AskPlans",
+		"CreateAskPlan",
+		"RemoveAskPlan",
 	}
-
-	orderPublishThresholdETH = new(big.Int).Mul(big.NewInt(10), big.NewInt(params.Finney))
 )
-
-type DealID string
-
-func (id DealID) String() string {
-	return string(id)
-}
-
-type DeviceProperties map[string]float64
 
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
@@ -87,17 +65,12 @@ type Hub struct {
 	startTime time.Time
 	version   string
 
-	eth    ETH
-	market pb.MarketClient
-
 	// TLS certificate rotator
 	certRotator util.HitlessCertRotator
 	// GRPC TransportCredentials supported our Auth
 	creds credentials.TransportCredentials
 
 	whitelist Whitelist
-
-	state *state
 
 	eventAuthorization *auth.AuthRouter
 
@@ -138,33 +111,12 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		}
 	}
 
-	ethWrapper, err := NewETH(ctx, defaults.ethKey, defaults.bcr, defaultDealWaitTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	if defaults.market == nil {
-		conn, err := xgrpc.NewClient(ctx, cfg.Market.Endpoint, defaults.creds)
-		if err != nil {
-			return nil, err
-		}
-
-		defaults.market = pb.NewMarketClient(conn)
-	}
-
 	if len(cfg.Whitelist.PrivilegedAddresses) == 0 {
 		cfg.Whitelist.PrivilegedAddresses = append(cfg.Whitelist.PrivilegedAddresses, defaults.ethAddr.Hex())
 	}
 
 	wl := NewWhitelist(ctx, &cfg.Whitelist)
-
-	minerCtx, err := createMinerCtx(ctx, defaults.worker)
-	if err != nil {
-		return nil, err
-	}
-
-	hubState, err := newState(ctx, &cfg.Store, ethWrapper, defaults.market, minerCtx)
-	if err != nil {
+	if _, err := createMinerCtx(ctx, defaults.worker); err != nil {
 		return nil, err
 	}
 
@@ -178,41 +130,34 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		ethAddr: defaults.ethAddr,
 		version: defaults.version,
 
-		eth:    ethWrapper,
-		market: defaults.market,
-
 		certRotator: defaults.rot,
 		creds:       defaults.creds,
 
 		whitelist: wl,
-
-		state:  hubState,
-		worker: defaults.worker,
+		worker:    defaults.worker,
 	}
 
 	authorization := auth.NewEventAuthorization(h.ctx,
 		auth.WithLog(log.G(ctx)),
 		auth.WithEventPrefix(hubAPIPrefix),
-		auth.Allow("ProposeDeal").With(auth.NewNilAuthorization()),
+		auth.Allow("ProposeDeal", "ApproveDeal").With(auth.NewNilAuthorization()),
+
 		auth.Allow(hubManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
 
 		auth.Allow("TaskStatus").With(newMultiAuth(
 			auth.NewTransportAuthorization(h.ethAddr),
-			newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState)),
+			newDealAuthorization(ctx, h, newFromTaskDealExtractor(h)),
 		)),
-		auth.Allow("StopTask").With(newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState))),
-		auth.Allow("JoinNetwork").With(newDealAuthorization(ctx, hubState, newFromNamedTaskDealExtractor(hubState, "TaskID"))),
-		auth.Allow("StartTask").With(newDealAuthorization(ctx, hubState, newFieldDealExtractor())),
-		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, hubState, newFromTaskDealExtractor(hubState))),
-		auth.Allow("PushTask").With(newDealAuthorization(ctx, hubState, newContextDealExtractor())),
-		auth.Allow("PullTask").With(newDealAuthorization(ctx, hubState, newRequestDealExtractor(func(request interface{}) (DealID, error) {
-			return DealID(request.(*pb.PullTaskRequest).DealId), nil
+		auth.Allow("StopTask").With(newDealAuthorization(ctx, h, newFromTaskDealExtractor(h))),
+		auth.Allow("JoinNetwork").With(newDealAuthorization(ctx, h, newFromNamedTaskDealExtractor(h, "TaskID"))),
+		auth.Allow("StartTask").With(newDealAuthorization(ctx, h, newFieldDealExtractor())),
+		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, h, newFromTaskDealExtractor(h))),
+		auth.Allow("PushTask").With(newDealAuthorization(ctx, h, newContextDealExtractor())),
+		auth.Allow("PullTask").With(newDealAuthorization(ctx, h, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
+			return structs.DealID(request.(*pb.PullTaskRequest).DealId), nil
 		}))),
-		auth.Allow("GetDealInfo").With(newDealAuthorization(ctx, hubState, newRequestDealExtractor(func(request interface{}) (DealID, error) {
-			return DealID(request.(*pb.ID).GetId()), nil
-		}))),
-		auth.Allow("ApproveDeal").With(newOrderAuthorization(hubState, OrderExtractor(func(request interface{}) (OrderID, error) {
-			return OrderID(request.(*pb.ApproveDealRequest).BidID), nil
+		auth.Allow("GetDealInfo").With(newDealAuthorization(ctx, h, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
+			return structs.DealID(request.(*pb.ID).GetId()), nil
 		}))),
 		auth.WithFallback(auth.NewDenyAuthorization()),
 	)
@@ -224,7 +169,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		xgrpc.Credentials(h.creds),
 		xgrpc.DefaultTraceInterceptor(),
 		xgrpc.AuthorizationInterceptor(authorization),
-		xgrpc.UnaryServerInterceptor(h.onRequest),
 	)
 	h.externalGrpc = grpcServer
 
@@ -253,10 +197,6 @@ func (h *Hub) Serve() error {
 
 	h.waiter.Go(h.listenAPI)
 
-	h.waiter.Go(func() error {
-		return h.state.RunMonitoring(h.ctx)
-	})
-
 	h.waiter.Wait()
 
 	return nil
@@ -266,17 +206,14 @@ func (h *Hub) Serve() error {
 func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, error) {
 	uptime := uint64(time.Now().Sub(h.startTime).Seconds())
 	reply := &pb.HubStatusReply{
-		Uptime:   uptime,
-		Platform: util.GetPlatformName(),
-		Version:  h.version,
-		EthAddr:  util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
+		Uptime:    uptime,
+		Platform:  util.GetPlatformName(),
+		Version:   h.version,
+		EthAddr:   util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
+		TaskCount: uint32(len(h.worker.CollectTasksStatuses())),
 	}
 
 	return reply, nil
-}
-
-func (h *Hub) onRequest(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	return handler(ctx, request)
 }
 
 func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
@@ -303,21 +240,21 @@ func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer
 
 	ctx := log.WithLogger(h.ctx, log.G(h.ctx).With(zap.String("request", "pull task"), zap.String("id", uuid.New())))
 
-	task, err := h.state.GetTaskInfo(request.GetDealId(), request.GetTaskId())
+	task, err := h.worker.TaskDetails(ctx, &pb.ID{Id: request.GetTaskId()})
 	if err != nil {
 		log.G(h.ctx).Warn("could not fetch task history by deal", zap.Error(err))
 		return err
 	}
 
-	named, err := reference.ParseNormalizedNamed(task.ContainerID())
+	named, err := reference.ParseNormalizedNamed(task.GetImageName())
 	if err != nil {
-		log.G(h.ctx).Warn("could not parse image to reference", zap.Error(err), zap.String("image", task.ContainerID()))
+		log.G(h.ctx).Warn("could not parse image to reference", zap.Error(err), zap.String("image", task.GetImageName()))
 		return err
 	}
 
 	tagged, err := reference.WithTag(named, fmt.Sprintf("%s_%s", request.GetDealId(), request.GetTaskId()))
 	if err != nil {
-		log.G(h.ctx).Warn("could not tag image", zap.Error(err), zap.String("image", task.ContainerID()))
+		log.G(h.ctx).Warn("could not tag image", zap.Error(err), zap.String("image", task.GetImageName()))
 		return err
 	}
 	imageID := tagged.String()
@@ -348,23 +285,8 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		return nil, errImageForbidden
 	}
 
-	deal, err := h.eth.GetDeal(request.GetDeal().Id)
-	if err != nil {
-		return nil, err
-	}
-
-	dealID := DealID(deal.GetId())
-	meta, err := h.state.GetDealMeta(dealID)
-	if err != nil {
-		// Hub knows nothing about this deal
-		return nil, errDealNotFound
-	}
-
-	// Extract proper miner associated with the deal specified.
-	usage, err := h.state.minerCtx.OrderUsage(OrderID(meta.BidID))
-	if err != nil {
-		return nil, err
-	}
+	// TODO(sshaman1101): REFACTOR:   only check for whitelist there,
+	// TODO(sshaman1101): REFACTOR:   move all deals and tasks related code into the Worker.
 
 	taskID := h.generateTaskID()
 	container := request.Container
@@ -375,11 +297,6 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		OrderId:   request.GetDealId(), // TODO: WTF?
 		Id:        taskID,
 		Container: container,
-		Resources: &pb.TaskResourceRequirements{
-			CPUCores:   uint64(usage.NumCPUs),
-			MaxMemory:  usage.Memory,
-			GPUSupport: pb.GPUCount(math.Min(float64(usage.NumGPUs), 2)),
-		},
 		RestartPolicy: &pb.ContainerRestartPolicy{
 			Name:              "",
 			MaximumRetryCount: 0,
@@ -391,25 +308,11 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
 	}
 
-	info := TaskInfo{*request, *response, taskID, dealID, "self", nil}
-
-	err = h.state.SaveTask(DealID(request.GetDealId()), &info)
-	if err != nil {
-		h.worker.Stop(ctx, &pb.ID{Id: taskID})
-		return nil, err
-	}
-
-	if err := h.state.Dump(); err != nil {
-		log.G(h.ctx).Error("failed to dump state", zap.Error(err))
-	}
-
 	reply := &pb.StartTaskReply{
 		Id:         taskID,
 		HubAddr:    h.ethAddr.Hex(),
 		NetworkIDs: response.NetworkIDs,
 	}
-
-	tasksGauge.Inc()
 
 	return reply, nil
 }
@@ -426,51 +329,28 @@ func (h *Hub) generateTaskID() string {
 // StopTask sends termination request to a miner handling the task
 func (h *Hub) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling StopTask request", zap.Any("req", request))
-	if err := h.state.StopTask(ctx, request.Id); err != nil {
-		return nil, err
-	}
-
-	if err := h.state.Dump(); err != nil {
-		log.G(h.ctx).Error("failed to dump state", zap.Error(err))
-	}
-
-	return &pb.Empty{}, nil
+	return h.worker.Stop(ctx, request)
 }
 
 func (h *Hub) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
-	meta, err := h.state.GetDealMeta(DealID(id.Id))
+	log.G(h.ctx).Info("handling GetDealInfo request")
+
+	deal, err := h.worker.GetDealByID(structs.DealID(id.GetId()))
 	if err != nil {
 		return nil, err
 	}
 
-	r := &pb.DealInfoReply{
-		Id:        id,
-		Order:     meta.Order.Unwrap(),
-		Running:   &pb.StatusMapReply{Statuses: make(map[string]*pb.TaskStatusReply)},
-		Completed: &pb.StatusMapReply{Statuses: make(map[string]*pb.TaskStatusReply)},
+	reply := &pb.DealInfoReply{
+		Id:    &pb.ID{Id: deal.Deal.GetId()},
+		Order: deal.BidOrder.Unwrap(),
 	}
 
-	for _, t := range meta.Tasks {
-		taskDetails, err := h.worker.TaskDetails(ctx, &pb.ID{Id: t.ID})
-		if err != nil {
-			log.G(h.ctx).Warn("cannot get task status",
-				zap.String("workerID", t.MinerId), zap.String("taskID", t.ID), zap.Error(err))
-			continue
-		}
-
-		if taskDetails.GetStatus() == pb.TaskStatusReply_RUNNING {
-			r.Running.Statuses[t.ID] = taskDetails
-		} else {
-			r.Completed.Statuses[t.ID] = taskDetails
-		}
-	}
-
-	return r, nil
+	return reply, nil
 }
 
 func (h *Hub) Tasks(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
-	log.G(h.ctx).Info("handling TaskList request")
-	return h.state.GetTaskList(ctx)
+	log.G(h.ctx).Info("handling Tasks request")
+	return &pb.TaskListReply{Info: h.worker.CollectTasksStatuses()}, nil
 }
 
 func (h *Hub) TaskStatus(ctx context.Context, request *pb.ID) (*pb.TaskStatusReply, error) {
@@ -487,248 +367,38 @@ func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer
 	return h.worker.TaskLogs(request, server)
 }
 
+// ProposeDeal is deprecated.
 func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling ProposeDeal request", zap.Any("request", r))
-	request, err := structs.NewDealRequest(r)
-	if err != nil {
-		return nil, err
-	}
-
-	if !h.state.HasOrder(request.AskId) {
-		return nil, status.Errorf(codes.NotFound, "order not found")
-	}
-
-	bidOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: request.GetBidId()})
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "bid not found")
-	}
-
-	order, err := structs.NewOrder(bidOrder)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "bid order is malformed: %v", err)
-	}
-
-	askOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: request.GetAskId()})
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "ask not found")
-	}
-
-	if askOrder.GetByuerID() != "" {
-		if askOrder.GetByuerID() != bidOrder.GetByuerID() {
-			return nil, status.Errorf(codes.NotFound, "ask order is bound to special buyer, but IDs is not matching")
-		}
-
-		log.G(h.ctx).Info("handle proposal for bound order",
-			zap.String("bidID", request.GetBidId()),
-			zap.String("askID", request.GetAskId()),
-		)
-	}
-
-	// Verify that bid's duration fits in ask.
-	if bidOrder.GetDuration() > askOrder.GetDuration() {
-		return nil, status.Errorf(codes.InvalidArgument, "bid's duration must fit in ask")
-	}
-
-	// Verify that bid price >= ask price, i.e we're not selling our resources
-	// with lesser price than expected.
-	if bidOrder.PricePerSecond.Cmp(askOrder.PricePerSecond) < 0 {
-		return nil, status.Errorf(codes.InvalidArgument, "BID price can not be less than ASK price")
-	}
-
-	// Verify that buyer has both enough money and allowance to have a deal.
-	if err := h.eth.VerifyBuyerBalance(order); err != nil {
-		return nil, err
-	}
-	if err := h.eth.VerifyBuyerAllowance(order); err != nil {
-		return nil, err
-	}
-
-	resources, err := structs.NewResources(bidOrder.GetSlot().GetResources())
-	if err != nil {
-		return nil, err
-	}
-
-	usage := resource.NewResources(
-		int(resources.GetCpuCores()),
-		int64(resources.GetMemoryInBytes()),
-		resources.GetGPUCount(),
-	)
-
-	ethAddr, err := auth.ExtractWalletFromContext(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	orderID := OrderID(order.GetID())
-	if err := h.state.minerCtx.Consume(orderID, &usage); err != nil {
-		return nil, err
-	}
-
-	reservedDuration := time.Duration(10 * time.Minute)
-	if err := h.state.ReserveOrder(orderID, "self", *ethAddr, reservedDuration); err != nil {
-		h.state.minerCtx.Release(orderID)
-		return nil, err
-	}
-
-	if err := h.state.Dump(); err != nil {
-		log.G(h.ctx).Error("failed to dump state", zap.Error(err))
-	}
-
-	return &pb.Empty{}, nil
+	return nil, nil
 }
 
+// ApproveDeal is deprecated.
 func (h *Hub) ApproveDeal(ctx context.Context, request *pb.ApproveDealRequest) (*pb.Empty, error) {
 	log.G(h.ctx).Info("handling ApproveDeal request", zap.Any("request", request))
-
-	bidOrder, err := h.market.GetOrderByID(h.ctx, &pb.ID{Id: request.GetBidID()})
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "bid not found")
-	}
-
-	order, err := structs.NewOrder(bidOrder)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "bid order is malformed: %v", err)
-	}
-
-	// Ensure that deal is created in BC, if not - wait.
-	dealID := DealID(request.GetDealID().Unwrap().String())
-	buyerID := common.HexToAddress(bidOrder.GetByuerID())
-
-	deal, err := h.eth.WaitForDealCreated(dealID, buyerID)
-	if err != nil {
-		log.G(h.ctx).Error("failed to find deal for approving",
-			zap.Stringer("dealID", dealID),
-			zap.String("bidID", request.GetBidID()),
-			zap.String("askID", request.GetAskID()),
-			zap.Error(err),
-		)
-		return nil, err
-	}
-
-	log.G(ctx).Info("received deal",
-		zap.String("dealID", deal.GetId()),
-		zap.String("dealPrice", deal.Price.Unwrap().String()),
-		zap.String("orderPrice", order.PricePerSecond.Unwrap().String()),
-	)
-
-	if cmp := deal.Price.Cmp(pb.NewBigInt(order.GetTotalPrice())); cmp != 0 {
-		return nil, fmt.Errorf("prices are not equal: %v != %v",
-			deal.Price.Unwrap().String(), order.GetTotalPrice())
-	}
-
-	// Accept deal.
-	err = h.eth.AcceptDeal(dealID.String())
-	if err != nil {
-		log.G(ctx).Error("failed to accept deal", zap.Stringer("dealID", dealID), zap.Error(err))
-		return nil, err
-	}
-
-	// Commit reserved order.
-	orderID := OrderID(order.GetID())
-	reservedOrder, err := h.state.CommitOrder(orderID)
-	if err != nil {
-		return nil, err
-	}
-
-	usage, err := h.state.minerCtx.OrderUsage(orderID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Cancel order from market.
-	_, err = h.market.CancelOrder(h.ctx, &pb.Order{Id: request.GetAskID(), OrderType: pb.OrderType_ASK})
-	if err != nil {
-		log.G(ctx).Warn("cannot cancel ask order from marketplace",
-			zap.String("askID", request.GetAskID()),
-			zap.Error(err),
-		)
-	}
-
-	dealMeta := &DealMeta{
-		ID:      dealID,
-		BidID:   request.GetBidID(),
-		Order:   *order,
-		Tasks:   make([]*TaskInfo, 0),
-		MinerID: reservedOrder.MinerID,
-		Usage:   usage,
-		EndTime: time.Now().Add(order.GetDuration()),
-	}
-
-	h.state.SetDealMeta(dealMeta)
-
-	dealsGauge.Inc()
-
-	if err := h.state.Dump(); err != nil {
-		log.G(h.ctx).Error("failed to dump state", zap.Error(err))
-	}
-
-	return &pb.Empty{}, nil
-}
-
-func (h *Hub) waitForDealClosed(dealID DealID, buyerId string) error {
-	return h.eth.WaitForDealClosed(h.ctx, dealID, buyerId)
+	return nil, nil
 }
 
 func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
-	info, err := h.worker.Info(ctx, &pb.Empty{})
-	if err != nil {
-		return nil, err
-	}
-	return &pb.DevicesReply{
-		CPUs: info.Capabilities.Cpu,
-		GPUs: info.Capabilities.Gpu,
-	}, nil
+	return h.worker.Hardware().IntoProto(), nil
 }
 
-func (h *Hub) AskPlans(ctx context.Context, request *pb.Empty) (*pb.AskPlansReply, error) {
-	log.G(h.ctx).Info("handling Slots request")
-	return &pb.AskPlansReply{Slots: h.state.DumpSlots()}, nil
+func (h *Hub) AskPlans(ctx context.Context, _ *pb.Empty) (*pb.AskPlansReply, error) {
+	return h.worker.AskPlans(ctx)
 }
 
-//TODO: Actually it is not slot, but AskPlan.
 func (h *Hub) CreateAskPlan(ctx context.Context, request *pb.CreateAskPlanRequest) (*pb.ID, error) {
-	log.G(h.ctx).Info("handling InsertSlot request", zap.Any("request", request))
-
-	slot, err := structs.NewSlot(request.Slot)
+	id, err := h.worker.CreateAskPlan(ctx, request)
 	if err != nil {
 		return nil, err
-	}
-
-	ord := &pb.Order{
-		OrderType:      pb.OrderType_ASK,
-		Slot:           slot.Unwrap(),
-		ByuerID:        request.BuyerID,
-		PricePerSecond: request.PricePerSecond,
-		SupplierID:     util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
-	}
-	order, err := structs.NewOrder(ord)
-	if err != nil {
-		return nil, err
-	}
-
-	id, err := h.state.AddSlot(h.ctx, order)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := h.state.Dump(); err != nil {
-		log.G(h.ctx).Error("failed to dump state", zap.Error(err))
 	}
 
 	return &pb.ID{Id: id}, nil
 }
 
-//TODO: Actually it is not slot, but AskPlan
 func (h *Hub) RemoveAskPlan(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
-	log.G(h.ctx).Info("RemoveSlot request", zap.Any("id", request.Id))
-
-	err := h.state.RemoveSlot(h.ctx, request.Id)
-	if err != nil {
+	if err := h.worker.RemoveAskPlan(ctx, request.GetId()); err != nil {
 		return nil, err
-	}
-
-	if err := h.state.Dump(); err != nil {
-		log.G(h.ctx).Error("failed to dump state", zap.Error(err))
 	}
 
 	return &pb.Empty{}, nil

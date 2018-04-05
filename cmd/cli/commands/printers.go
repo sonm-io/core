@@ -84,22 +84,15 @@ func printNetworkSpec(cmd *cobra.Command, spec *pb.NetworkSpec) {
 	}
 }
 
-func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskListReply_TaskInfo) {
+func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskStatusReply) {
 	if isSimpleFormat() {
-		for worker, tasks := range tasksMap {
-			if len(tasks.GetTasks()) == 0 {
-				cmd.Printf("Worker \"%s\" has no tasks\r\n", worker)
-				continue
-			}
-
-			cmd.Printf("Worker \"%s\":\r\n", worker)
+		for id, task := range tasksMap {
 			i := 1
-			for ID, status := range tasks.GetTasks() {
-				up := time.Duration(status.GetUptime())
-				cmd.Printf("  %d) %s \r\n     %s  %s (up: %v)\r\n",
-					i, ID, status.Status.String(), status.ImageName, up.String())
-				i++
-			}
+			up := time.Duration(task.GetUptime())
+
+			cmd.Printf("  %d) %s \r\n     %s  %s (up: %v)\r\n",
+				i, id, task.GetImageName(), task.GetStatus().String(), up.String())
+			i++
 		}
 	} else {
 		showJSON(cmd, tasksMap)

@@ -3,13 +3,10 @@ package hub
 import (
 	"context"
 	"crypto/ecdsa"
-	"os"
-	"path"
 	"testing"
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
-	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/miner"
@@ -22,16 +19,11 @@ import (
 
 func defaultMinerMockCfg(mock *gomock.Controller) *miner.MockConfig {
 	cfg := miner.NewMockConfig(mock)
-	mockedwallet := util.PubKeyToAddr(getTestKey().PublicKey).Hex()
-	cfg.EXPECT().HubEndpoints().AnyTimes().Return([]string{"localhost:4242"})
-	cfg.EXPECT().HubEthAddr().AnyTimes().Return(mockedwallet)
+
 	cfg.EXPECT().HubResources().AnyTimes()
 	cfg.EXPECT().SSH().AnyTimes()
-	cfg.EXPECT().ETH().AnyTimes().Return(&accounts.EthConfig{})
 	cfg.EXPECT().PublicIPs().AnyTimes().Return([]string{"192.168.70.17", "46.148.198.133"})
 	cfg.EXPECT().Plugins().AnyTimes().Return(plugin.Config{})
-	cfg.EXPECT().StorePath().AnyTimes().Return("/tmp/sonm/worker.boltdb")
-	cfg.EXPECT().StoreBucket().AnyTimes().Return("sonm")
 
 	return cfg
 }
@@ -84,11 +76,8 @@ func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
 }
 
 func getTestHubConfig() *Config {
-	p := path.Join(os.TempDir(), "hub_test.boltdb")
-
 	return &Config{
 		Endpoint:  "127.0.0.1:10002",
-		Store:     StoreConfig{Endpoint: p, Bucket: "sonm"},
 		Whitelist: WhitelistConfig{Enabled: new(bool)},
 	}
 }
