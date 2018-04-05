@@ -210,6 +210,14 @@ func (m *natPuncher) punch(ctx context.Context, addrs *sonm.RendezvousReply) (ne
 		return nil, fmt.Errorf("no addresses resolved")
 	}
 
+	channel := make(chan connTuple, 1)
+	go m.doPunch(ctx, addrs, channel)
+
+	conn := <-channel
+	return conn.unwrap()
+}
+
+func (m *natPuncher) doPunch(ctx context.Context, addrs *sonm.RendezvousReply, channel chan<- connTuple) {
 	m.log.Debug("punching", zap.Any("addrs", addrs))
 
 	pending := make(chan connTuple, 1+len(addrs.PrivateAddrs))
@@ -245,14 +253,13 @@ func (m *natPuncher) punch(ctx context.Context, addrs *sonm.RendezvousReply) (ne
 			conn.Close()
 		} else {
 			peer = conn
+			channel <- newConnTuple(peer, nil)
 		}
 	}
 
-	if peer != nil {
-		return peer, nil
+	if peer == nil {
+		channel <- newConnTuple(nil, fmt.Errorf("failed to punch the network: all attempts has failed - %+v", errs))
 	}
-
-	return nil, fmt.Errorf("failed to punch the network: all attempts has failed - %+v", errs)
 }
 
 func (m *natPuncher) punchAddr(ctx context.Context, addr *sonm.Addr) (net.Conn, error) {
@@ -264,10 +271,10 @@ func (m *natPuncher) punchAddr(ctx context.Context, addr *sonm.Addr) (net.Conn, 
 	var conn net.Conn
 	for i := 0; i < m.maxAttempts; i++ {
 		conn, err = DialContext(ctx, protocol, m.client.LocalAddr().String(), peerAddr.String())
-		m.log.Debug("failed to punch", zap.Error(err), zap.Int("attempt", i), zap.Stringer("peer_addr", peerAddr))
 		if err == nil {
 			return conn, nil
 		}
+		m.log.Debug("failed to punch", zap.Error(err), zap.Int("attempt", i), zap.Stringer("peer_addr", peerAddr))
 	}
 
 	return nil, fmt.Errorf("failed to connect: %s", err)
