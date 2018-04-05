@@ -7,7 +7,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/state"
-	"go.uber.org/zap/zapcore"
 )
 
 type SSHConfig struct {
@@ -16,8 +15,7 @@ type SSHConfig struct {
 }
 
 type LoggingConfig struct {
-	Level       string `required:"true" default:"debug"`
-	parsedLevel zapcore.Level
+	Level logging.Level `required:"true" default:"debug"`
 }
 
 type ResourcesConfig struct {
@@ -33,10 +31,6 @@ type config struct {
 	PluginsConfig   plugin.Config       `yaml:"plugins"`
 	StoreConfig     state.StorageConfig `yaml:"store"`
 	BenchConfig     benchmarks.Config   `yaml:"benchmarks"`
-}
-
-func (c *config) LogLevel() zapcore.Level {
-	return c.LoggingConfig.parsedLevel
 }
 
 func (c *config) HubResources() *ResourcesConfig {
@@ -72,19 +66,11 @@ func NewConfig(path string) (Config, error) {
 		return nil, err
 	}
 
-	lvl, err := logging.ParseLogLevel(cfg.LoggingConfig.Level)
-	if err != nil {
-		return nil, err
-	}
-	cfg.LoggingConfig.parsedLevel = lvl
-
 	return cfg, nil
 }
 
 // Config represents a Miner configuration interface.
 type Config interface {
-	logging.Leveler
-
 	// HubResources returns resources allocated for a Hub.
 	HubResources() *ResourcesConfig
 	// PublicIPs returns all IPs that can be used to communicate with the miner.

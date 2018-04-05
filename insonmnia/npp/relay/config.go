@@ -10,7 +10,6 @@ import (
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/util/netutil"
-	"go.uber.org/zap/zapcore"
 )
 
 // ClusterConfig represents a cluster membership config.
@@ -24,8 +23,7 @@ type ClusterConfig struct {
 
 // LoggingConfig represents a logging config.
 type LoggingConfig struct {
-	Level string `required:"true" default:"debug"`
-	level zapcore.Level
+	Level logging.Level `required:"true" default:"debug"`
 }
 
 type MonitorConfig struct {
@@ -61,12 +59,6 @@ func NewServerConfig(path string) (*ServerConfig, error) {
 		return nil, err
 	}
 
-	lvl, err := logging.ParseLogLevel(cfg.Logging.Level)
-	if err != nil {
-		return nil, err
-	}
-	cfg.Logging.level = lvl
-
 	if len(cfg.Cluster.Name) == 0 {
 		hostname, err := os.Hostname()
 		if err != nil {
@@ -90,11 +82,6 @@ func NewServerConfig(path string) (*ServerConfig, error) {
 			PrivateKey: privateKey,
 		},
 	}, nil
-}
-
-// LogLevel returns the minimum logging level configured.
-func (c *ServerConfig) LogLevel() zapcore.Level {
-	return c.Logging.level
 }
 
 // Config represents a client-side relay configuration.

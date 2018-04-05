@@ -17,12 +17,6 @@
 #    network:
 #      classID: 1048577
 
-# Logging settings.
-logging:
-  # The desired logging level.
-  # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
-  level: debug
-
 # A list of IPs that can be used to reach the miner, optional param. If not provided, miner's interfaces will
 # be scanned for such IPs (if there's no firewall settings).
 # Ignored if firewall settings are not null.

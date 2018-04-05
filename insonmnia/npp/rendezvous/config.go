@@ -9,13 +9,11 @@ import (
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/util/netutil"
-	"go.uber.org/zap/zapcore"
 )
 
 // LoggingConfig represents a logging config.
 type LoggingConfig struct {
-	Level string `required:"true" default:"debug"`
-	level zapcore.Level
+	Level logging.Level
 }
 
 // ServerConfig represents a Rendezvous server configuration.
@@ -24,11 +22,6 @@ type ServerConfig struct {
 	Addr       net.Addr
 	PrivateKey *ecdsa.PrivateKey
 	Logging    LoggingConfig
-}
-
-// LogLevel returns the minimum logging level configured.
-func (c *ServerConfig) LogLevel() zapcore.Level {
-	return c.Logging.level
 }
 
 type serverConfig struct {
@@ -49,12 +42,6 @@ func NewServerConfig(path string) (*ServerConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	lvl, err := logging.ParseLogLevel(cfg.Logging.Level)
-	if err != nil {
-		return nil, err
-	}
-	cfg.Logging.level = lvl
 
 	return &ServerConfig{
 		Addr:       &cfg.Addr,

@@ -78,7 +78,7 @@ market:
 	conf, err := NewConfig(testHubConfigPath)
 	assert.Nil(t, err)
 
-	assert.Equal(t, zapcore.InfoLevel, conf.LogLevel())
+	assert.Equal(t, zapcore.InfoLevel, conf.LogLevel().Zap())
 }
 
 func TestLoadConfigInvalidLogLevel(t *testing.T) {
