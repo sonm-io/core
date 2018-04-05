@@ -26,7 +26,7 @@ func (h *Hardware) IntoProto() *sonm.DevicesReply {
 		Benchmarks: h.Network.Benchmark,
 	}
 
-	stor := &sonm.StorageDevice{
+	storage := &sonm.StorageDevice{
 		Benchmarks: h.Storage.Benchmark,
 	}
 
@@ -35,6 +35,6 @@ func (h *Hardware) IntoProto() *sonm.DevicesReply {
 		GPUs:    gpus,
 		Memory:  ram,
 		Network: net,
-		Storage: stor,
+		Storage: storage,
 	}
 }

@@ -33,9 +33,8 @@ func (r *StartTaskRequest) GetDeal() *sonm.Deal {
 	return r.Deal
 }
 
-func (r *StartTaskRequest) GetDealId() *sonm.BigInt {
-	v, _ := sonm.NewBigIntFromString(r.GetDeal().GetId())
-	return v
+func (r *StartTaskRequest) GetDealId() string {
+	return r.GetDeal().GetId()
 }
 
 type TaskInfo struct {

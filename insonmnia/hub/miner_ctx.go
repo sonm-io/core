@@ -2,7 +2,7 @@ package hub
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"sync"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -73,7 +73,7 @@ func (m *MinerCtx) Consume(id structs.OrderID, usage *resource.Resources) error 
 
 func (m *MinerCtx) consume(id structs.OrderID, usage *resource.Resources) error {
 	if m.orderExists(id) {
-		return fmt.Errorf("order already exists")
+		return errors.New("order already exists")
 	}
 	if err := m.usage.Consume(usage); err != nil {
 		return err
@@ -152,7 +152,7 @@ func (m *MinerCtx) OrderUsage(id structs.OrderID) (resource.Resources, error) {
 func (m *MinerCtx) orderUsage(id structs.OrderID) (resource.Resources, error) {
 	usage, exists := m.usageMapping[id]
 	if !exists {
-		return resource.Resources{}, fmt.Errorf("order with id=%s does not found", id)
+		return resource.Resources{}, errors.New("order not exists")
 	}
 
 	return usage, nil

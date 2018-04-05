@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
+	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -378,6 +379,12 @@ func (m *Miner) Save(request *pb.SaveRequest, stream pb.Hub_PullTaskServer) erro
 func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
 
+	// TODO(sshaman1101): check for deals existence in a right way;
+	// Note: orderID is dealID;
+	if _, err := m.GetDealByID(structs.DealID(request.GetOrderId())); err != nil {
+		return nil, err
+	}
+
 	if request.GetContainer() == nil {
 		return nil, fmt.Errorf("container field is required")
 	}
@@ -392,7 +399,6 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
 
-	// fixme: this
 	cGroup, resourceHandle, err := m.consume(request.GetOrderId(), resources)
 	if err != nil {
 		return nil, status.Errorf(codes.ResourceExhausted, "failed to start %v", err)
@@ -657,14 +663,14 @@ func (m *Miner) RunSSH() error {
 
 // RunBenchmarks perform benchmarking of Worker's resources.
 func (m *Miner) RunBenchmarks() error {
-	savedHardware := m.state.GetHardwareHash()
+	savedHardware := m.state.HardwareHash()
 	exitingHardware := m.hardware.Hash()
 
 	log.G(m.ctx).Debug("hardware hashes",
 		zap.String("saved", savedHardware),
 		zap.String("exiting", exitingHardware))
 
-	savedBenchmarks := m.state.GetPassedBenchmarks()
+	savedBenchmarks := m.state.PassedBenchmarks()
 	requiredBenchmarks := m.benchmarkList.List()
 
 	hwHashesMatched := exitingHardware == savedHardware
@@ -677,7 +683,7 @@ func (m *Miner) RunBenchmarks() error {
 	if benchMatched && hwHashesMatched {
 		log.G(m.ctx).Debug("benchmarks list is matched, hardware is not changed, skip benchmarking this worker")
 		// return back previously measured results for hardware
-		m.hardware = m.state.GetHardwareWithBenchmarks()
+		m.hardware = m.state.HardwareWithBenchmarks()
 		return nil
 	}
 
@@ -928,7 +934,7 @@ func getDescriptionForBenchmark(b *pb.Benchmark) Description {
 
 func (m *Miner) AskPlans(ctx context.Context) (*pb.AskPlansReply, error) {
 	log.G(m.ctx).Info("handling AskPlans request")
-	return &pb.AskPlansReply{Slots: m.state.GetAskPlans()}, nil
+	return &pb.AskPlansReply{Slots: m.state.AskPlans()}, nil
 }
 
 func (m *Miner) CreateAskPlan(ctx context.Context, request *pb.CreateAskPlanRequest) (string, error) {
@@ -939,7 +945,7 @@ func (m *Miner) CreateAskPlan(ctx context.Context, request *pb.CreateAskPlanRequ
 		Slot:           request.GetSlot(),
 		ByuerID:        request.BuyerID,
 		PricePerSecond: request.PricePerSecond,
-		SupplierID:     util.PubKeyToAddr(m.ethkey.PublicKey).Hex(),
+		SupplierID:     crypto.PubkeyToAddress(m.ethkey.PublicKey).Hex(),
 	}
 
 	order, err := structs.NewOrder(ord)

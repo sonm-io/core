@@ -7,19 +7,17 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
-	pb "github.com/sonm-io/core/proto"
-	"go.uber.org/zap"
-
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
-
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain/market"
 	marketAPI "github.com/sonm-io/core/blockchain/market/api"
+	pb "github.com/sonm-io/core/proto"
+	"go.uber.org/zap"
 )
 
 type API interface {

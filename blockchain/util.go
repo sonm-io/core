@@ -2,7 +2,6 @@ package blockchain
 
 import (
 	"context"
-	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
@@ -17,7 +16,6 @@ const (
 	defaultEthEndpoint = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
 	defaultGasPrice    = 20 * 1000000000
 	defaultGasLimit    = 360000
-	DefaultPollTimeout = 900 * time.Second
 )
 
 var (

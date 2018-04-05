@@ -39,8 +39,8 @@ type Storage struct {
 }
 
 type StorageConfig struct {
-	Endpoint string `required:"true" default:"/var/lib/sonm/worker.boltdb" yaml:"endpoint"`
-	Bucket   string `required:"true" default:"sonm" yaml:"bucket"`
+	Endpoint string `yaml:"endpoint" required:"true" default:"/var/lib/sonm/worker.boltdb"`
+	Bucket   string `yaml:"bucket" required:"true" default:"sonm"`
 }
 
 func makeStore(ctx context.Context, cfg *StorageConfig) (store.Store, error) {
@@ -104,15 +104,12 @@ func (s *Storage) loadInitial() error {
 		if err := json.Unmarshal(kv.Value, &s.data); err != nil {
 			return err
 		}
-	} else {
-		// create new state (clean start)
-		s.data = newEmptyState()
 	}
 
 	return s.dump()
 }
 
-func (s *Storage) GetAskPlans() map[string]*pb.Slot {
+func (s *Storage) AskPlans() map[string]*pb.Slot {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -154,7 +151,7 @@ func (s *Storage) RemoveAskPlan(planID string) error {
 	return s.dump()
 }
 
-func (s *Storage) GetPassedBenchmarks() map[uint64]bool {
+func (s *Storage) PassedBenchmarks() map[uint64]bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -169,7 +166,7 @@ func (s *Storage) SetPassedBenchmarks(v map[uint64]bool) error {
 	return s.dump()
 }
 
-func (s *Storage) GetHardwareHash() string {
+func (s *Storage) HardwareHash() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -184,7 +181,7 @@ func (s *Storage) SetHardwareHash(v string) error {
 	return s.dump()
 }
 
-func (s *Storage) GetHardwareWithBenchmarks() *hardware.Hardware {
+func (s *Storage) HardwareWithBenchmarks() *hardware.Hardware {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

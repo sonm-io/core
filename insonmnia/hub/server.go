@@ -169,8 +169,6 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 		xgrpc.Credentials(h.creds),
 		xgrpc.DefaultTraceInterceptor(),
 		xgrpc.AuthorizationInterceptor(authorization),
-		// todo: wtf?
-		// xgrpc.UnaryServerInterceptor(h.onRequest),
 	)
 	h.externalGrpc = grpcServer
 
@@ -217,11 +215,6 @@ func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, erro
 
 	return reply, nil
 }
-
-// looks useless
-//func (h *Hub) onRequest(ctx context.Context, request interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-//	return handler(ctx, request)
-//}
 
 func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 	log.G(h.ctx).Info("handling PushTask request")
@@ -292,13 +285,16 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 		return nil, errImageForbidden
 	}
 
+	// TODO(sshaman1101): REFACTOR:   only check for whitelist there,
+	// TODO(sshaman1101): REFACTOR:   move all deals and tasks related code into the Worker.
+
 	taskID := h.generateTaskID()
 	container := request.Container
 	container.Registry = reference.Domain(ref)
 	container.Image = reference.Path(ref)
 
 	startRequest := &pb.MinerStartRequest{
-		OrderId:   request.GetDealId().Unwrap().String(), // TODO: WTF?
+		OrderId:   request.GetDealId(), // TODO: WTF?
 		Id:        taskID,
 		Container: container,
 		RestartPolicy: &pb.ContainerRestartPolicy{

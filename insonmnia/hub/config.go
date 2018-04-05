@@ -23,7 +23,7 @@ type WhitelistConfig struct {
 }
 
 type Config struct {
-	Endpoint          string             `required:"true" yaml:"endpoint"`
+	Endpoint          string             `yaml:"endpoint" required:"true"`
 	Logging           LoggingConfig      `yaml:"logging"`
 	Eth               accounts.EthConfig `yaml:"ethereum"`
 	Whitelist         WhitelistConfig    `yaml:"whitelist"`

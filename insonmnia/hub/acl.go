@@ -34,6 +34,7 @@ type dealAuthorization struct {
 	hub       *Hub
 }
 
+// todo: do not accept Hub as param, use some interface that have DealInfo method.
 func newDealAuthorization(ctx context.Context, hub *Hub, extractor DealExtractor) auth.Authorization {
 	return &dealAuthorization{
 		ctx:       ctx,
@@ -127,6 +128,7 @@ func newFromTaskDealExtractor(hub *Hub) DealExtractor {
 	return newFromNamedTaskDealExtractor(hub, "Id")
 }
 
+// todo: do not accept Hub as param, use some interface that have TaskStatus method.
 func newFromNamedTaskDealExtractor(hub *Hub, name string) DealExtractor {
 	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
 		requestValue := reflect.Indirect(reflect.ValueOf(request))
@@ -144,8 +146,8 @@ func newFromNamedTaskDealExtractor(hub *Hub, name string) DealExtractor {
 			return "", status.Errorf(codes.NotFound, "task %s not found", taskID.String())
 		}
 
-		// todo: panic("fix this auth method")
-		return structs.DealID("1"), nil
+		// todo: extract dealID associated with task.
+		panic("fix this auth method")
 	}
 }
 
