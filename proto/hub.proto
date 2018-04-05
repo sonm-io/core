@@ -98,7 +98,7 @@ message TaskListReply {
 }
 
 message DevicesReply {
-    repeated CPUDevice CPUs = 1;
+    CPUDevice CPUs = 1;
     repeated GPUDevice GPUs = 2;
     RAMDevice memory = 3;
     NetworkDevice network = 4;

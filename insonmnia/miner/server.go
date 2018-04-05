@@ -745,28 +745,31 @@ func (m *Miner) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) er
 }
 
 func (m *Miner) runCPUBenchGroup(benches []*pb.Benchmark) error {
-	for _, c := range m.hardware.CPU {
-		for _, ben := range benches {
-			// check for special cases
-			if ben.GetID() == bm.CPUCores {
-				c.Benchmark[bm.CPUCores] = &pb.Benchmark{
-					ID:     bm.CPUCores,
-					Result: uint64(c.Device.Cores),
-				}
-
-				continue
+	for _, ben := range benches {
+		// check for special cases
+		if ben.GetID() == bm.CPUCores {
+			m.hardware.CPU.Benchmark[bm.CPUCores] = &pb.Benchmark{
+				ID:     bm.CPUCores,
+				Code:   ben.GetCode(),
+				Result: uint64(m.hardware.CPU.Device.Cores),
 			}
 
-			d := getDescriptionForBenchmark(ben)
-			d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", c.Device.Cores)
+			continue
+		}
 
-			res, err := m.execBenchmarkContainer(ben, d)
-			if err != nil {
-				return err
-			}
+		d := getDescriptionForBenchmark(ben)
+		d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
 
-			// save benchmark resutls for current CPU unit
-			c.Benchmark[ben.GetID()] = &pb.Benchmark{ID: ben.GetID(), Result: res.Result}
+		res, err := m.execBenchmarkContainer(ben, d)
+		if err != nil {
+			return err
+		}
+
+		// save benchmark resutls for current CPU unit
+		m.hardware.CPU.Benchmark[ben.GetID()] = &pb.Benchmark{
+			ID:     ben.GetID(),
+			Code:   ben.GetCode(),
+			Result: res.Result,
 		}
 	}
 
@@ -779,6 +782,7 @@ func (m *Miner) runRAMBenchGroup(benches []*pb.Benchmark) error {
 		if ben.GetID() == bm.RamSize {
 			b := &pb.Benchmark{
 				ID:     bm.RamSize,
+				Code:   ben.GetCode(),
 				Result: m.hardware.Memory.Device.Total,
 			}
 
@@ -792,7 +796,11 @@ func (m *Miner) runRAMBenchGroup(benches []*pb.Benchmark) error {
 			return err
 		}
 
-		m.hardware.Memory.Benchmark[ben.GetID()] = &pb.Benchmark{ID: ben.GetID(), Result: res.Result}
+		m.hardware.Memory.Benchmark[ben.GetID()] = &pb.Benchmark{
+			ID:     ben.GetID(),
+			Code:   ben.GetCode(),
+			Result: res.Result,
+		}
 		return nil
 	}
 
@@ -803,13 +811,18 @@ func (m *Miner) runGPUBenchGroup(benches []*pb.Benchmark) error {
 	for _, dev := range m.hardware.GPU {
 		for _, ben := range benches {
 			if ben.GetID() == bm.GPUCount {
-				dev.Benchmark[bm.GPUCount] = &pb.Benchmark{ID: ben.GetID(), Result: 1}
+				dev.Benchmark[bm.GPUCount] = &pb.Benchmark{
+					ID:     ben.GetID(),
+					Code:   ben.GetCode(),
+					Result: 1,
+				}
 				continue
 			}
 
 			if ben.GetID() == bm.GPUMem {
 				dev.Benchmark[bm.GPUMem] = &pb.Benchmark{
 					ID:     ben.GetID(),
+					Code:   ben.GetCode(),
 					Result: dev.Device.Memory,
 				}
 				continue
@@ -823,7 +836,11 @@ func (m *Miner) runGPUBenchGroup(benches []*pb.Benchmark) error {
 				return err
 			}
 
-			dev.Benchmark[ben.GetID()] = &pb.Benchmark{ID: ben.GetID(), Result: res.Result}
+			dev.Benchmark[ben.GetID()] = &pb.Benchmark{
+				ID:     ben.GetID(),
+				Code:   ben.GetCode(),
+				Result: res.Result,
+			}
 		}
 	}
 
@@ -838,7 +855,11 @@ func (m *Miner) runNetworkBenchGroup(benches []*pb.Benchmark) error {
 			return err
 		}
 
-		m.hardware.Network.Benchmark[ben.GetID()] = &pb.Benchmark{ID: ben.GetID(), Result: res.Result}
+		m.hardware.Network.Benchmark[ben.GetID()] = &pb.Benchmark{
+			ID:     ben.GetID(),
+			Code:   ben.GetCode(),
+			Result: res.Result,
+		}
 	}
 
 	return nil
@@ -846,7 +867,14 @@ func (m *Miner) runNetworkBenchGroup(benches []*pb.Benchmark) error {
 
 func (m *Miner) runStorageBenchGroup(benches []*pb.Benchmark) error {
 	// note: there is no storage sub-system for worker yet, so benchmark always returns zero
-	m.hardware.Storage.Benchmark[bm.StorageSize] = &pb.Benchmark{ID: bm.StorageSize, Result: 0}
+	for _, ben := range benches {
+		m.hardware.Storage.Benchmark[ben.GetID()] = &pb.Benchmark{
+			ID:     ben.GetID(),
+			Code:   ben.GetCode(),
+			Result: 0,
+		}
+	}
+
 	return nil
 }
 

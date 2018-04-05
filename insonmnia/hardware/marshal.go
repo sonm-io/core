@@ -5,13 +5,6 @@ import (
 )
 
 func (h *Hardware) IntoProto() *sonm.DevicesReply {
-	var cpus []*sonm.CPUDevice
-	for _, c := range h.CPU {
-		dev := c.Device.Marshal()
-		dev.Benchmarks = c.Benchmark
-		cpus = append(cpus, c.Device.Marshal())
-	}
-
 	var gpus []*sonm.GPUDevice
 	for _, g := range h.GPU {
 		gpus = append(gpus, g.Device)
@@ -31,7 +24,7 @@ func (h *Hardware) IntoProto() *sonm.DevicesReply {
 	}
 
 	return &sonm.DevicesReply{
-		CPUs:    cpus,
+		CPUs:    h.CPU.Device.Marshal(h.CPU.Benchmark),
 		GPUs:    gpus,
 		Memory:  ram,
 		Network: net,

@@ -9,12 +9,15 @@ import (
 	"github.com/sonm-io/core/proto"
 )
 
+// CPU and GPU want an ID based on properties hash.
+
 type CPUProperties struct {
-	Device    cpu.Device                 `json:"device"`
+	Device    *cpu.Device                `json:"device"`
 	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
 }
 
 type MemoryProperties struct {
+	ID        string                     `json:"id"`
 	Device    *mem.Device                `json:"device"`
 	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
 }
@@ -37,7 +40,7 @@ type StorageProperties struct {
 // Hardware accumulates the finest hardware information about system the worker
 // is running on.
 type Hardware struct {
-	CPU     []*CPUProperties   `json:"cpu"`
+	CPU     *CPUProperties     `json:"cpu"`
 	GPU     []*GPUProperties   `json:"gpu"`
 	Memory  *MemoryProperties  `json:"memory"`
 	Network *NetworkProperties `json:"network"`
@@ -47,22 +50,17 @@ type Hardware struct {
 // NewHardware returns initial hardware capabilities for Worker's host.
 // Parts of the struct may be filled later by HW-plugins.
 func NewHardware() (*Hardware, error) {
+	var err error
 	hw := &Hardware{
+		CPU:     &CPUProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
 		Memory:  &MemoryProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
 		Network: &NetworkProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
 		Storage: &StorageProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
 	}
 
-	CPUs, err := cpu.GetCPUDevices()
+	hw.CPU.Device, err = cpu.GetCPUDevice()
 	if err != nil {
 		return nil, err
-	}
-
-	for _, dev := range CPUs {
-		hw.CPU = append(hw.CPU, &CPUProperties{
-			Device:    dev,
-			Benchmark: make(map[uint64]*sonm.Benchmark),
-		})
 	}
 
 	vm, err := mem.NewMemoryDevice()
@@ -79,13 +77,10 @@ func NewHardware() (*Hardware, error) {
 }
 
 // LogicalCPUCount returns the number of logical CPUs in the system.
+//
+// Method is deprecated.
 func (h *Hardware) LogicalCPUCount() int {
-	count := 0
-	for _, c := range h.CPU {
-		count += int(c.Device.Cores)
-	}
-
-	return count
+	return int(h.CPU.Device.Cores)
 }
 
 func (h *Hardware) Hash() string {
@@ -98,7 +93,7 @@ type HashableMemory struct {
 
 // DeviceMapping maps hardware capabilities to device description, hashing-friendly
 type DeviceMapping struct {
-	CPU     []cpu.Device      `json:"cpu"`
+	CPU     *cpu.Device       `json:"cpu"`
 	GPU     []*sonm.GPUDevice `json:"gpu"`
 	Memory  HashableMemory    `json:"memory"`
 	Network interface{}       `json:"network"`
@@ -111,15 +106,11 @@ func (dm *DeviceMapping) Hash() string {
 
 func (h *Hardware) devicesMap() *DeviceMapping {
 	m := &DeviceMapping{
-		CPU:     []cpu.Device{},
+		CPU:     h.CPU.Device,
 		GPU:     []*sonm.GPUDevice{},
 		Memory:  HashableMemory{Total: h.Memory.Device.Total},
 		Network: h.Network.Device,
 		Storage: h.Storage.Device,
-	}
-
-	for _, c := range h.CPU {
-		m.CPU = append(m.CPU, c.Device)
 	}
 
 	for _, g := range h.GPU {

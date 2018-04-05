@@ -1,27 +1,39 @@
 package cpu
 
 import (
+	"errors"
+
 	"github.com/cnf/structhash"
 	"github.com/shirou/gopsutil/cpu"
 )
 
 // Device describes a CPU device.
-type Device cpu.InfoStat
+type Device struct {
+	Name    string `json:"model"`
+	Cores   uint   `json:"cores"`
+	Sockets uint   `json:"sockets"`
+}
 
-func GetCPUDevices() ([]Device, error) {
+func (d *Device) Hash() []byte {
+	return structhash.Md5(d, 1)
+}
+
+func GetCPUDevice() (*Device, error) {
 	info, err := cpu.Info()
 	if err != nil {
 		return nil, err
 	}
 
-	devices := []Device{}
-	for _, device := range info {
-		dev := Device(device)
-		devices = append(devices, dev)
+	if len(info) == 0 {
+		// o_O
+		return nil, errors.New("no CPU detected")
 	}
-	return devices, nil
-}
 
-func (d *Device) Hash() []byte {
-	return structhash.Md5(d, 1)
+	dev := &Device{Name: info[0].ModelName}
+	for _, c := range info {
+		dev.Cores += uint(c.Cores)
+		dev.Sockets += 1
+	}
+
+	return dev, nil
 }
