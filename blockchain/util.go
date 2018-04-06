@@ -9,13 +9,8 @@ import (
 )
 
 const (
-	CertsAddress = "0x1"
-)
-
-const (
-	defaultEthEndpoint = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
-	defaultGasPrice    = 20 * 1000000000
-	defaultGasLimit    = 360000
+	CertsAddress    = "0x1"
+	defaultGasLimit = 360000
 )
 
 var (
@@ -30,14 +25,7 @@ var (
 	WorkerRemovedTopic       = common.HexToHash("0x9")
 )
 
-func initEthClient(ethEndpoint *string) (*ethclient.Client, error) {
-	var endpoint string
-	if ethEndpoint == nil {
-		endpoint = defaultEthEndpoint
-	} else {
-		endpoint = *ethEndpoint
-	}
-
+func initEthClient(endpoint string) (*ethclient.Client, error) {
 	ethClient, err := ethclient.Dial(endpoint)
 	if err != nil {
 		return nil, err

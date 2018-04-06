@@ -85,15 +85,15 @@ type BasicAPI struct {
 	logger            *zap.Logger
 }
 
-func NewAPI(ethEndpoint *string, gasPrice *int64) (API, error) {
-	client, err := initEthClient(ethEndpoint)
-	if err != nil {
-		return nil, err
+func NewAPI(opts ...Option) (API, error) {
+	defaults := defaultOptions()
+	for _, o := range opts {
+		o(defaults)
 	}
 
-	if gasPrice == nil {
-		var p int64 = defaultGasPrice
-		gasPrice = &p
+	client, err := initEthClient(defaults.apiEndpoint)
+	if err != nil {
+		return nil, err
 	}
 
 	blacklistContract, err := marketAPI.NewBlacklist(common.HexToAddress(market.BlacklistAddress), client)
@@ -113,7 +113,7 @@ func NewAPI(ethEndpoint *string, gasPrice *int64) (API, error) {
 
 	api := &BasicAPI{
 		client:            client,
-		gasPrice:          *gasPrice,
+		gasPrice:          defaults.gasPrice,
 		marketContract:    marketContract,
 		blacklistContract: blacklistContract,
 		tokenContract:     tokenContract,

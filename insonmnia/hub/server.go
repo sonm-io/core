@@ -105,7 +105,7 @@ func New(cfg *miner.Config, opts ...Option) (*Hub, error) {
 	}()
 
 	if defaults.bcr == nil {
-		defaults.bcr, err = blockchain.NewAPI_DEPRECATED(nil, nil)
+		defaults.bcr, err = blockchain.NewAPI_DEPRECATED()
 		if err != nil {
 			return nil, err
 		}

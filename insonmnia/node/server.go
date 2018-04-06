@@ -50,7 +50,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg Config, cr
 		return nil, err
 	}
 
-	bcAPI, err := blockchain.NewAPI_DEPRECATED(nil, nil)
+	bcAPI, err := blockchain.NewAPI_DEPRECATED()
 	nppDialerOptions := []npp.Option{
 		npp.WithRendezvous(cfg.NPPConfig().Rendezvous.Endpoints, credentials),
 		npp.WithRelayClient(cfg.NPPConfig().Relay.Endpoints, crypto.PubkeyToAddress(key.PublicKey)),
