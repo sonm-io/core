@@ -7,12 +7,10 @@ import (
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/npp"
-	"go.uber.org/zap/zapcore"
 )
 
 type LoggingConfig struct {
-	Level       string `required:"true" default:"debug"`
-	parsedLevel zapcore.Level
+	Level logging.Level `yaml:"level" required:"true" default:"debug"`
 }
 
 type WhitelistConfig struct {
@@ -31,8 +29,8 @@ type Config struct {
 	NPP               npp.Config
 }
 
-func (c *Config) LogLevel() zapcore.Level {
-	return c.Logging.parsedLevel
+func (c *Config) LogLevel() logging.Level {
+	return c.Logging.Level
 }
 
 // NewConfig loads a hub config from the specified YAML file.
@@ -42,12 +40,6 @@ func NewConfig(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	lvl, err := logging.ParseLogLevel(conf.Logging.Level)
-	if err != nil {
-		return nil, err
-	}
-	conf.Logging.parsedLevel = lvl
 
 	return conf, nil
 }

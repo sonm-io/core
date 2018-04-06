@@ -24,7 +24,7 @@ func TestParseLogLevel(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		out, err := ParseLogLevel(tt.in)
+		out, err := parseLogLevel(tt.in)
 		if tt.mustFail {
 			assert.Error(t, err)
 		} else {

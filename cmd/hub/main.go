@@ -72,7 +72,7 @@ func run() {
 		os.Exit(1)
 	}
 
-	h, err := hub.New(ctx, cfg, hub.WithVersion(appVersion), hub.WithContext(ctx),
+	h, err := hub.New(cfg, hub.WithVersion(appVersion), hub.WithContext(ctx),
 		hub.WithPrivateKey(key), hub.WithCreds(creds), hub.WithCertRotator(certRotator), hub.WithWorker(w))
 	if err != nil {
 		log.G(ctx).Error("failed to create a new Hub", zap.Error(err))

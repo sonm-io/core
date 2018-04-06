@@ -1,9 +1,8 @@
 package logging
 
 import (
-	"strings"
-
 	"fmt"
+	"strings"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -14,8 +13,8 @@ var (
 )
 
 // BuildLogger return new zap.Logger instance with given severity and debug settings
-func BuildLogger(level zapcore.Level) *zap.Logger {
-	atom.SetLevel(level)
+func BuildLogger(level Level) *zap.Logger {
+	atom.SetLevel(level.Zap())
 	loggerConfig := zap.Config{
 		Development:      false,
 		Level:            atom,
@@ -30,17 +29,43 @@ func BuildLogger(level zapcore.Level) *zap.Logger {
 }
 
 type Leveler interface {
-	// LogLevel return log verbosity
-	LogLevel() zapcore.Level
+	// LogLevel return log verbosity.
+	LogLevel() Level
+}
+
+// Level represents a shifted zap logging level that is able to being
+// constructed from YAML.
+type Level struct {
+	level zapcore.Level
+}
+
+// Zap returns the underlying zap logging level.
+func (m Level) Zap() zapcore.Level {
+	return m.level - 1
+}
+
+func (m *Level) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var level string
+	if err := unmarshal(&level); err != nil {
+		return err
+	}
+
+	v, err := parseLogLevel(level)
+	if err != nil {
+		return err
+	}
+
+	m.level = v + 1
+
+	return nil
 }
 
 // ParseLogLevel returns zap logger level by it's name
-func ParseLogLevel(s string) (zapcore.Level, error) {
+func parseLogLevel(s string) (zapcore.Level, error) {
 	s = strings.ToLower(s)
 
-	var lvl = zapcore.DebugLevel
-	err := lvl.Set(s)
-	if err != nil {
+	lvl := zapcore.DebugLevel
+	if err := lvl.Set(s); err != nil {
 		return zapcore.DebugLevel, fmt.Errorf("cannot parse config file: \"%s\" is invalid log level", s)
 	}
 

@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -27,8 +26,6 @@ func TestLoadConfig(t *testing.T) {
 hub:
   eth_addr: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD"
   endpoints: ["127.0.0.1:10002"]
-logging:
-  level: warn
 benchmarks:
   url: "http://localhost.dev/list.json"
 `
@@ -38,7 +35,6 @@ benchmarks:
 	conf, err := NewConfig(testMinerConfigPath)
 	assert.Nil(t, err)
 
-	assert.Equal(t, zapcore.WarnLevel, conf.LogLevel())
 	assert.Equal(t, "/var/lib/sonm/worker.boltdb", conf.Storage().Endpoint)
 	assert.Equal(t, "sonm", conf.Storage().Bucket)
 }

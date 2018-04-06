@@ -5,7 +5,6 @@ import (
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/npp"
-	"go.uber.org/zap/zapcore"
 )
 
 // Config is LocalNode config
@@ -42,8 +41,7 @@ type hubConfig struct {
 }
 
 type logConfig struct {
-	Level       string `required:"true" default:"debug" yaml:"level"`
-	parsedLevel zapcore.Level
+	Level logging.Level `yaml:"level" required:"true" default:"debug"`
 }
 
 type yamlConfig struct {
@@ -79,8 +77,8 @@ func (y *yamlConfig) HubEndpoint() string {
 	return ""
 }
 
-func (y *yamlConfig) LogLevel() zapcore.Level {
-	return y.Log.parsedLevel
+func (y *yamlConfig) LogLevel() logging.Level {
+	return y.Log.Level
 }
 
 func (y *yamlConfig) KeyStore() string {
@@ -104,11 +102,5 @@ func NewConfig(path string) (Config, error) {
 		return nil, err
 	}
 
-	lvl, err := logging.ParseLogLevel(cfg.Log.Level)
-	if err != nil {
-		return nil, err
-	}
-
-	cfg.Log.parsedLevel = lvl
 	return cfg, nil
 }

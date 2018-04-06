@@ -78,7 +78,7 @@ type Hub struct {
 }
 
 // New returns new Hub.
-func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
+func New(cfg *Config, opts ...Option) (*Hub, error) {
 	defaults := defaultHubOptions()
 	for _, o := range opts {
 		o(defaults)

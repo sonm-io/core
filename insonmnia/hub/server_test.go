@@ -92,7 +92,7 @@ func buildTestHub(ctrl *gomock.Controller) (*Hub, error) {
 	bc := blockchain.NewMockBlockchainer(ctrl)
 	bc.EXPECT().GetDealInfo(ctx, gomock.Any()).AnyTimes().Return(&pb.Deal{}, nil)
 
-	return New(ctx, config, WithPrivateKey(key), WithMarket(market), WithBlockchain(bc), WithWorker(worker))
+	return New(config, WithPrivateKey(key), WithMarket(market), WithBlockchain(bc), WithWorker(worker))
 }
 
 //TODO: Move this to separate test for AskPlans
