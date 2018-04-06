@@ -18,33 +18,24 @@ import (
 )
 
 var (
-	configFlag   string
-	workerConfig string
-	versionFlag  bool
-	appVersion   string
+	configFlag  string
+	versionFlag bool
+	appVersion  string
 )
 
 func main() {
-	c := cmd.NewCmd("hub", appVersion, &configFlag, &versionFlag, run)
-	c.PersistentFlags().StringVar(&workerConfig, "worker_config", "worker.yaml", "Path to the worker config file")
-	c.Execute()
+	cmd.NewCmd("hub", appVersion, &configFlag, &versionFlag, run).Execute()
 }
 
 func run() {
 	ctx := context.Background()
-
-	cfg, err := hub.NewConfig(configFlag)
-	if err != nil {
-		fmt.Printf("failed to load config: %s\r\n", err)
-		os.Exit(1)
-	}
-	wCfg, err := miner.NewConfig(workerConfig)
+	cfg, err := miner.NewConfig(configFlag)
 	if err != nil {
 		fmt.Printf("failed to load worker config: %s\r\n", err)
 		os.Exit(1)
 	}
 
-	logger := logging.BuildLogger(cfg.LogLevel())
+	logger := logging.BuildLogger(cfg.Logging.Level)
 	ctx = log.WithLogger(ctx, logger)
 
 	key, err := cfg.Eth.LoadKey()
@@ -60,13 +51,13 @@ func run() {
 	}
 	creds := util.NewTLS(TLSConfig)
 
-	storage, err := state.NewState(ctx, wCfg.Storage())
+	storage, err := state.NewState(ctx, &cfg.Storage)
 	if err != nil {
 		log.G(ctx).Error("cannot create state storage", zap.Error(err))
 		os.Exit(1)
 	}
 
-	w, err := miner.NewMiner(wCfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithStateStorage(storage))
+	w, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithStateStorage(storage))
 	if err != nil {
 		log.G(ctx).Error("cannot create worker instance", zap.Error(err))
 		os.Exit(1)

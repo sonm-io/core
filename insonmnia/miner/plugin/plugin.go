@@ -70,7 +70,7 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 
 	log.G(ctx).Info("initializing SONM plugins")
 
-	for ty, options := range cfg.Volumes.Volumes {
+	for ty, options := range cfg.Volumes.Drivers {
 		log.G(ctx).Debug("initializing Volume plugin", zap.String("type", ty))
 
 		driver, err := volume.NewVolumeDriver(ctx, ty,
@@ -102,16 +102,16 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 		r.gpuTuners[typeID] = tuner
 	}
 
-	if cfg.Tinc != nil {
-		tincTuner, err := minet.NewTincTuner(ctx, cfg.Tinc)
+	if cfg.Overlay.Drivers.Tinc != nil {
+		tincTuner, err := minet.NewTincTuner(ctx, cfg.Overlay.Drivers.Tinc)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize tinc tuner - %v", err)
 		}
 		r.networkTuners[tincNetwork] = tincTuner
 	}
 
-	if cfg.L2TP != nil {
-		l2tpTuner, err := minet.NewL2TPTuner(ctx, cfg.L2TP)
+	if cfg.Overlay.Drivers.L2TP != nil {
+		l2tpTuner, err := minet.NewL2TPTuner(ctx, cfg.Overlay.Drivers.L2TP)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize l2tp tuner - %v", err)
 		}

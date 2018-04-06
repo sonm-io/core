@@ -10,6 +10,7 @@ func TestParseResources(t *testing.T) {
 	assertions := assert.New(t)
 	defer deleteTestConfigFile()
 	raw := `
+endpoint: ":0"
 resources:
   cgroup: insonmnia
   resources:
@@ -21,8 +22,6 @@ resources:
       cpus: "ddd"
 logging:
   level: debug
-benchmarks:
-  url: "http://localhost.dev/list.json"
 `
 	err := createTestConfigFile(raw)
 	assertions.NoError(err)
@@ -30,7 +29,7 @@ benchmarks:
 	conf, err := NewConfig(testMinerConfigPath)
 	assertions.NoError(err)
 
-	res := conf.HubResources()
+	res := conf.Resources
 	assertions.NotNil(res)
 	assertions.NotNil(res.Resources)
 	assertions.NotNil(res.Resources.Memory)

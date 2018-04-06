@@ -43,7 +43,7 @@ import (
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
 type Miner struct {
 	ctx       context.Context
-	cfg       Config
+	cfg       *Config
 	mu        sync.Mutex
 	ovs       Overseer
 	plugins   *plugin.Repository
@@ -84,7 +84,7 @@ type Miner struct {
 	Deals map[structs.DealID]*structs.DealMeta
 }
 
-func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
+func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	o := &options{}
 	for _, opt := range opts {
 		opt(o)
@@ -116,7 +116,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	if o.benchList == nil {
-		o.benchList, err = bm.NewBenchmarksList(o.ctx, cfg.Benchmarks())
+		o.benchList, err = bm.NewBenchmarksList(o.ctx, cfg.Benchmarks)
 		if err != nil {
 			return nil, err
 		}
@@ -128,9 +128,9 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 
 	cgName := ""
 	var cgRes *specs.LinuxResources
-	if cfg.HubResources() != nil {
-		cgName = cfg.HubResources().Cgroup
-		cgRes = cfg.HubResources().Resources
+	if cfg.Resources != nil {
+		cgName = cfg.Resources.Cgroup
+		cgRes = cfg.Resources.Resources
 	}
 
 	cgroup, cGroupManager, err := cgroups.NewCgroupManager(cgName, cgRes)
@@ -158,7 +158,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 
 	log.G(o.ctx).Info("discovered public IPs", zap.Any("public IPs", o.publicIPs))
 
-	plugins, err := plugin.NewRepository(o.ctx, cfg.Plugins())
+	plugins, err := plugin.NewRepository(o.ctx, cfg.Plugins)
 	if err != nil {
 		return nil, err
 	}
