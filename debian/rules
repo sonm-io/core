@@ -21,7 +21,6 @@ override_dh_auto_test:
 
 override_dh_auto_install:
 	install -d $(DEB_DESTDIR)etc/sonm/
-	install -m644 etc/worker.yaml $(DEB_DESTDIR)etc/sonm/worker-default.yaml
 	install -m644 etc/hub.yaml $(DEB_DESTDIR)etc/sonm/hub-default.yaml
 	install -m644 etc/node.yaml $(DEB_DESTDIR)etc/sonm/node-default.yaml
 	install -m644 etc/rendezvous.yaml $(DEB_DESTDIR)etc/sonm/rendezvous-default.yaml
