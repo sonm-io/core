@@ -811,7 +811,7 @@ func (m *Miner) runGPUBenchGroup(benches []*pb.Benchmark) error {
 	for _, dev := range m.hardware.GPU {
 		for _, ben := range benches {
 			if ben.GetID() == bm.GPUCount {
-				dev.Benchmark[bm.GPUCount] = &pb.Benchmark{
+				dev.Benchmarks[bm.GPUCount] = &pb.Benchmark{
 					ID:     ben.GetID(),
 					Code:   ben.GetCode(),
 					Result: 1,
@@ -820,23 +820,23 @@ func (m *Miner) runGPUBenchGroup(benches []*pb.Benchmark) error {
 			}
 
 			if ben.GetID() == bm.GPUMem {
-				dev.Benchmark[bm.GPUMem] = &pb.Benchmark{
+				dev.Benchmarks[bm.GPUMem] = &pb.Benchmark{
 					ID:     ben.GetID(),
 					Code:   ben.GetCode(),
-					Result: dev.Device.Memory,
+					Result: dev.Memory,
 				}
 				continue
 			}
 
 			d := getDescriptionForBenchmark(ben)
-			d.GPUDevices = []gpu.GPUID{gpu.GPUID(dev.Device.GetID())}
+			d.GPUDevices = []gpu.GPUID{gpu.GPUID(dev.GetID())}
 
 			res, err := m.execBenchmarkContainer(ben, d)
 			if err != nil {
 				return err
 			}
 
-			dev.Benchmark[ben.GetID()] = &pb.Benchmark{
+			dev.Benchmarks[ben.GetID()] = &pb.Benchmark{
 				ID:     ben.GetID(),
 				Code:   ben.GetCode(),
 				Result: res.Result,

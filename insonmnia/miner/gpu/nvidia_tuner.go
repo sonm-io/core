@@ -105,6 +105,7 @@ func (g *nvidiaTuner) Devices() []*pb.GPUDevice {
 			MajorNumber: d.driDevice.Major,
 			MinorNumber: d.driDevice.Minor,
 			Memory:      d.mem,
+			Benchmarks:  make(map[uint64]*pb.Benchmark),
 		})
 	}
 

@@ -22,11 +22,6 @@ type MemoryProperties struct {
 	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
 }
 
-type GPUProperties struct {
-	Device    *sonm.GPUDevice            `json:"device"`
-	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
-}
-
 type NetworkProperties struct {
 	Device    interface{}                `json:"device"`
 	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
@@ -41,7 +36,7 @@ type StorageProperties struct {
 // is running on.
 type Hardware struct {
 	CPU     *CPUProperties     `json:"cpu"`
-	GPU     []*GPUProperties   `json:"gpu"`
+	GPU     []*sonm.GPUDevice  `json:"gpu"`
 	Memory  *MemoryProperties  `json:"memory"`
 	Network *NetworkProperties `json:"network"`
 	Storage *StorageProperties `json:"storage"`
@@ -105,17 +100,11 @@ func (dm *DeviceMapping) Hash() string {
 }
 
 func (h *Hardware) devicesMap() *DeviceMapping {
-	m := &DeviceMapping{
+	return &DeviceMapping{
 		CPU:     h.CPU.Device,
-		GPU:     []*sonm.GPUDevice{},
+		GPU:     h.GPU,
 		Memory:  HashableMemory{Total: h.Memory.Device.Total},
 		Network: h.Network.Device,
 		Storage: h.Storage.Device,
 	}
-
-	for _, g := range h.GPU {
-		m.GPU = append(m.GPU, g.Device)
-	}
-
-	return m
 }
