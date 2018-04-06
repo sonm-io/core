@@ -17,19 +17,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func defaultMinerMockCfg(mock *gomock.Controller) *miner.MockConfig {
-	cfg := miner.NewMockConfig(mock)
-
-	cfg.EXPECT().HubResources().AnyTimes()
-	cfg.EXPECT().SSH().AnyTimes()
-	cfg.EXPECT().PublicIPs().AnyTimes().Return([]string{"192.168.70.17", "46.148.198.133"})
-	cfg.EXPECT().Plugins().AnyTimes().Return(plugin.Config{})
-
-	return cfg
+func defaultMinerMockCfg() *miner.Config {
+	return &miner.Config{
+		Endpoint:  "127.0.0.1:10002",
+		Resources: &miner.ResourcesConfig{},
+		SSH:       &miner.SSHConfig{},
+		PublicIPs: []string{"192.168.70.17", "46.148.198.133"},
+		Plugins:   plugin.Config{},
+		Whitelist: miner.WhitelistConfig{Enabled: new(bool)},
+	}
 }
 
 func getTestMiner(mock *gomock.Controller) (*miner.Miner, error) {
-	cfg := defaultMinerMockCfg(mock)
+	cfg := defaultMinerMockCfg()
 
 	ovs := miner.NewMockOverseer(mock)
 	ovs.EXPECT().Info(gomock.Any()).AnyTimes().Return(map[string]miner.ContainerMetrics{}, nil)
@@ -75,16 +75,9 @@ func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
 	return m
 }
 
-func getTestHubConfig() *Config {
-	return &Config{
-		Endpoint:  "127.0.0.1:10002",
-		Whitelist: WhitelistConfig{Enabled: new(bool)},
-	}
-}
-
 func buildTestHub(ctrl *gomock.Controller) (*Hub, error) {
 	market := getTestMarket(ctrl)
-	config := getTestHubConfig()
+	config := defaultMinerMockCfg()
 	worker, _ := getTestMiner(ctrl)
 
 	ctx := context.Background()

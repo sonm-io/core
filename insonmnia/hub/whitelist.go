@@ -16,6 +16,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
@@ -24,7 +25,7 @@ type Whitelist interface {
 	Allowed(ctx context.Context, registry string, image string, auth string) (bool, reference.Named, error)
 }
 
-func NewWhitelist(ctx context.Context, config *WhitelistConfig) Whitelist {
+func NewWhitelist(ctx context.Context, config *miner.WhitelistConfig) Whitelist {
 	if config.Enabled != nil && !*config.Enabled {
 		return &disabledWhitelist{}
 	}

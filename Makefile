@@ -129,8 +129,6 @@ build_mockgen:
 
 mock: build_mockgen
 	mockgen -package miner -destination insonmnia/miner/overseer_mock.go -source insonmnia/miner/overseer.go
-	mockgen -package miner -destination insonmnia/miner/config_mock.go -source insonmnia/miner/config.go \
-		-aux_files logging=insonmnia/logging/logging.go
 	mockgen -package task_config -destination cmd/cli/task_config/config_mock.go  -source cmd/cli/task_config/config.go
 	mockgen -package accounts -destination accounts/keys_mock.go  -source accounts/keys.go
 	mockgen -package benchmarks -destination insonmnia/benchmarks/benchmarks_mock.go  -source insonmnia/benchmarks/benchmarks.go

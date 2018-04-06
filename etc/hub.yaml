@@ -1,7 +1,15 @@
 # An endpoint for client connections using cli
-# allowed format is "ip:port" to bind Hub to given IP address
+# allowed format is "ip:port" to bind Worker to given IP address
 # or ":port" to bind Hub to all available IPs
 endpoint: ":15010"
+
+# blockchain-specific settings.
+ethereum:
+  # path to keystore
+  key_store: "./keys"
+  # passphrase for keystore
+  pass_phrase: "any"
+
 
 # NAT punching settings.
 npp:
@@ -12,21 +20,65 @@ npp:
     endpoints:
       - 127.0.0.1:12240
 
-# Logging settings.
+#  Resources section is available only on Linux
+#  If configured, all tasks will share this pool of resources.
+#  This pool is a parent control group.
+#  Format is Open Container Initiative Runtime Specification:
+#resources:
+#  cgroup: insonmnia
+#  resources:
+#    # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#memory
+#    memory:
+#      limit: 1000
+#    # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#cpu
+#    cpu:
+#      quota: 1024
+#      cpus: "2-3"
+#    # https://github.com/opencontainers/runtime-spec/blob/master/config-linux.md#network
+#    network:
+#      classID: 1048577
+
+# A list of IPs that can be used to reach the miner, optional param. If not provided, miner's interfaces will
+# be scanned for such IPs (if there's no firewall settings).
+# Ignored if firewall settings are not null.
+# public_ip_addrs: ["12.34.56.78", "1.2.3.4"]
+
 logging:
   # The desired logging level.
   # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
   level: debug
 
-# blockchain-specific settings.
-ethereum:
-  # path to keystore
-  key_store: "./keys"
-  # passphrase for keystore
-  pass_phrase: "any"
+store:
+  path: "/var/lib/sonm/worker.boltdb"
+
+benchmarks:
+  # URL to download benchmark list, use `file://` schema to load file from a filesystem.
+  url: "https://raw.githubusercontent.com/sonm-io/allowed-list/master/benchmarks_list.json"
 
 whitelist:
+  # URL to downloads list of allowed containers.
   url: "https://raw.githubusercontent.com/sonm-io/allowed-list/master/general_whitelist.json"
   enabled: true
 
-metrics_listen_addr: "127.0.0.1:14000"
+plugins:
+  socket_dir: /run/docker/plugins
+
+#  gpus:
+#    nvidia: {}
+#    radeon: {}
+
+  volume:
+    root: /var/lib/docker-volumes
+    drivers:
+#      cifs: {}
+
+  overlay:
+    drivers:
+      tinc:
+        enabled: true
+      l2tp:
+        enabled: true
+
+# metrics_listen_addr is addr to bind prometheus
+# metrics exporter endpoint.
+metrics_listen_addr: "127.0.0.1:14001"

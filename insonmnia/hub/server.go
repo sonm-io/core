@@ -51,7 +51,7 @@ var (
 
 // Hub collects miners, send them orders to spawn containers, etc.
 type Hub struct {
-	cfg          *Config
+	cfg          *miner.Config
 	ctx          context.Context
 	cancel       context.CancelFunc
 	externalGrpc *grpc.Server
@@ -78,7 +78,7 @@ type Hub struct {
 }
 
 // New returns new Hub.
-func New(cfg *Config, opts ...Option) (*Hub, error) {
+func New(cfg *miner.Config, opts ...Option) (*Hub, error) {
 	defaults := defaultHubOptions()
 	for _, o := range opts {
 		o(defaults)

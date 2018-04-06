@@ -24,11 +24,9 @@ type options struct {
 	dwh       dwh.DWH
 }
 
-func (o *options) setupNetworkOptions(cfg Config) error {
-	var pubIPs []string
-
+func (o *options) setupNetworkOptions(cfg *Config) error {
 	// Use public IPs from config (if provided).
-	pubIPs = cfg.PublicIPs()
+	pubIPs := cfg.PublicIPs
 	if len(pubIPs) > 0 {
 		o.publicIPs = SortedIPs(pubIPs)
 		return nil
