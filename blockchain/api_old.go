@@ -108,17 +108,15 @@ type api struct {
 }
 
 // NewAPI_DEPRECATED builds new Blockchain instance with given endpoint and gas price
-func NewAPI_DEPRECATED(ethEndpoint *string, gasPrice *int64) (Blockchainer, error) {
-	client, err := initEthClient(ethEndpoint)
-	if err != nil {
-		return nil, err
+func NewAPI_DEPRECATED(opts ...Option) (Blockchainer, error) {
+	defaults := defaultOptions()
+	for _, o := range opts {
+		o(defaults)
 	}
 
-	var gp int64
-	if gasPrice == nil {
-		gp = defaultGasPrice
-	} else {
-		gp = *gasPrice
+	client, err := initEthClient(defaults.apiEndpoint)
+	if err != nil {
+		return nil, err
 	}
 
 	dealsContract, err := token_api.NewDeals(common.HexToAddress(tsc.DealsAddress), client)
@@ -133,7 +131,7 @@ func NewAPI_DEPRECATED(ethEndpoint *string, gasPrice *int64) (Blockchainer, erro
 
 	bch := &api{
 		client:        client,
-		gasPrice:      gp,
+		gasPrice:      defaults.gasPrice,
 		dealsContract: dealsContract,
 		tokenContract: tokenContract,
 	}
