@@ -2,20 +2,14 @@ package mem
 
 import (
 	"github.com/shirou/gopsutil/mem"
+	"github.com/sonm-io/core/proto"
 )
 
-type Device struct {
-	// Total is total mem present on the host system
-	Total uint64 `json:"total"`
-	// Available is available mem for tasks scheduling
-	Available uint64 `json:"available"`
-}
-
-func NewMemoryDevice() (*Device, error) {
+func NewMemoryDevice() (*sonm.RAMDevice, error) {
 	m, err := mem.VirtualMemory()
 	if err != nil {
 		return nil, err
 	}
 
-	return &Device{Total: m.Total}, err
+	return &sonm.RAMDevice{Total: m.Total}, err
 }

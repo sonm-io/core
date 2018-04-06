@@ -126,7 +126,6 @@ func (tun radeonTuner) Devices() []*pb.GPUDevice {
 			MajorNumber: d.Major,
 			MinorNumber: d.Minor,
 			Memory:      d.Memory,
-			Benchmarks:  make(map[uint64]*pb.Benchmark),
 		})
 	}
 

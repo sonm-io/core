@@ -31,10 +31,15 @@ It has these top-level messages:
 	BigInt
 	Capabilities
 	CPUDevice
+	CPU
 	RAMDevice
+	RAM
 	GPUDevice
+	GPU
 	NetworkDevice
+	Network
 	StorageDevice
+	Storage
 	NetworkSpec
 	Container
 	Deal

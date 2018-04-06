@@ -122,30 +122,30 @@ func printBenchmarkGroup(cmd *cobra.Command, benchmarks map[uint64]*pb.Benchmark
 
 func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
 	if isSimpleFormat() {
-		cmd.Printf("CPU: %d cores at %d sockets\r\n",
-			dev.GetCPUs().GetCores(), dev.GetCPUs().GetSockets())
-		printBenchmarkGroup(cmd, dev.GetCPUs().GetBenchmarks())
+		cpu := dev.GetCPU().GetDevice()
+		cmd.Printf("CPU: %d cores at %d sockets\r\n", cpu.GetCores(), cpu.GetSockets())
+		printBenchmarkGroup(cmd, dev.GetCPU().GetBenchmarks())
 
-		ram := ds.ByteSize(dev.GetMemory().GetTotal()).HR()
+		ram := ds.ByteSize(dev.GetMemory().GetDevice().GetAvailable()).HR()
 		cmd.Printf("RAM: %s\r\n", ram)
 		printBenchmarkGroup(cmd, dev.GetMemory().GetBenchmarks())
 
 		GPUs := dev.GetGPUs()
 		if len(GPUs) > 0 {
 			cmd.Printf("GPUs:\r\n")
-			for id, gpu := range GPUs {
-				cmd.Printf("  %d: %s\r\n", id, gpu.GetDeviceName())
+			for i, gpu := range GPUs {
+				cmd.Printf("  id=%d: %s\r\n", i, gpu.Device.GetDeviceName())
 				printBenchmarkGroup(cmd, gpu.Benchmarks)
 			}
 		}
 
-		netIn := ds.ByteSize(dev.GetNetwork().GetBandwidthIn()).HR()
-		netOut := ds.ByteSize(dev.GetNetwork().GetBandwidthOut()).HR()
+		netIn := ds.ByteSize(dev.GetNetwork().GetDevice().GetBandwidthIn()).HR()
+		netOut := ds.ByteSize(dev.GetNetwork().GetDevice().GetBandwidthOut()).HR()
 		cmd.Println("Network:")
 		cmd.Printf("  In: %s\\s | Out: %s\\s \r\n", netIn, netOut)
 		printBenchmarkGroup(cmd, dev.GetNetwork().GetBenchmarks())
 
-		storageAvailable := ds.ByteSize(dev.GetStorage().BytesAvailable).HR()
+		storageAvailable := ds.ByteSize(dev.GetStorage().GetDevice().GetBytesAvailable()).HR()
 		cmd.Println("Storage:")
 		cmd.Printf("  Volume: %s\r\n", storageAvailable)
 		printBenchmarkGroup(cmd, dev.GetStorage().GetBenchmarks())

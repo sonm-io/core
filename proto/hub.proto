@@ -98,11 +98,11 @@ message TaskListReply {
 }
 
 message DevicesReply {
-    CPUDevice CPUs = 1;
-    repeated GPUDevice GPUs = 2;
-    RAMDevice memory = 3;
-    NetworkDevice network = 4;
-    StorageDevice storage = 5;
+    CPU CPU = 1;
+    repeated GPU GPUs = 2;
+    RAM memory = 3;
+    Network network = 4;
+    Storage storage = 5;
 }
 
 message CreateAskPlanRequest {

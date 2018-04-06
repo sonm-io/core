@@ -1,7 +1,5 @@
 package sonm
 
-import "github.com/cnf/structhash"
-
 var Radeons = []uint64{
 	4098,
 	// macbook pro 2017
@@ -31,8 +29,4 @@ func TypeFromVendorID(v uint64) GPUVendorType {
 // VendorType returns GPU vendor type.
 func (m *GPUDevice) VendorType() GPUVendorType {
 	return TypeFromVendorID(m.VendorID)
-}
-
-func (m *GPUDevice) Hash() []byte {
-	return structhash.Md5(m, 1)
 }

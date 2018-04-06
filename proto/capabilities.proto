@@ -24,16 +24,21 @@ message CPUDevice {
     uint32 cores = 2;
     // Sockets describes number of CPU sockets on a host system.
     uint32 sockets = 3;
+}
 
+message CPU {
+    CPUDevice device = 1;
     map<uint64, Benchmark> benchmarks = 4;
 }
 
 message RAMDevice {
     uint64 total = 1;
-    // fixme: do we really need this?
-    uint64 used = 2;
+    uint64 available = 2;
+}
 
-    map<uint64, Benchmark> benchmarks = 3;
+message RAM {
+    RAMDevice device = 1;
+    map<uint64, Benchmark> benchmarks = 4;
 }
 
 message GPUDevice {
@@ -58,18 +63,28 @@ message GPUDevice {
 
     // Memory is amount of vmem for device, in bytes
     uint64 Memory = 9;
+}
 
-    map<uint64, Benchmark> benchmarks = 10;
+message GPU {
+    GPUDevice device = 1;
+    map<uint64, Benchmark> benchmarks = 4;
 }
 
 message NetworkDevice {
     uint64 bandwidthIn = 1;
     uint64 bandwidthOut = 2;
+}
 
-    map<uint64, Benchmark> benchmarks = 3;
+message Network {
+    NetworkDevice device = 1;
+    map<uint64, Benchmark> benchmarks = 4;
 }
 
 message StorageDevice {
     uint64 bytesAvailable = 1;
-    map<uint64, Benchmark> benchmarks = 2;
+}
+
+message Storage {
+    StorageDevice device = 1;
+    map<uint64, Benchmark> benchmarks = 4;
 }

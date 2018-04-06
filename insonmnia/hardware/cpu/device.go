@@ -3,22 +3,11 @@ package cpu
 import (
 	"errors"
 
-	"github.com/cnf/structhash"
 	"github.com/shirou/gopsutil/cpu"
+	"github.com/sonm-io/core/proto"
 )
 
-// Device describes a CPU device.
-type Device struct {
-	Name    string `json:"model"`
-	Cores   uint   `json:"cores"`
-	Sockets uint   `json:"sockets"`
-}
-
-func (d *Device) Hash() []byte {
-	return structhash.Md5(d, 1)
-}
-
-func GetCPUDevice() (*Device, error) {
+func GetCPUDevice() (*sonm.CPUDevice, error) {
 	info, err := cpu.Info()
 	if err != nil {
 		return nil, err
@@ -29,9 +18,9 @@ func GetCPUDevice() (*Device, error) {
 		return nil, errors.New("no CPU detected")
 	}
 
-	dev := &Device{Name: info[0].ModelName}
+	dev := &sonm.CPUDevice{ModelName: info[0].ModelName}
 	for _, c := range info {
-		dev.Cores += uint(c.Cores)
+		dev.Cores += uint32(c.Cores)
 		dev.Sockets += 1
 	}
 

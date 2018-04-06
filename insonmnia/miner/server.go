@@ -145,11 +145,11 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 
 	// check if memory is limited into cgroup
 	if s, err := cgroup.Stats(); err == nil {
-		if s.MemoryLimit < hardwareInfo.Memory.Device.Total {
-			hardwareInfo.Memory.Device.Available = s.MemoryLimit
+		if s.MemoryLimit < hardwareInfo.RAM.Device.Total {
+			hardwareInfo.RAM.Device.Available = s.MemoryLimit
 		}
 	} else {
-		hardwareInfo.Memory.Device.Available = hardwareInfo.Memory.Device.Total
+		hardwareInfo.RAM.Device.Available = hardwareInfo.RAM.Device.Total
 	}
 
 	if err := o.setupNetworkOptions(cfg); err != nil {
@@ -748,7 +748,7 @@ func (m *Miner) runCPUBenchGroup(benches []*pb.Benchmark) error {
 	for _, ben := range benches {
 		// check for special cases
 		if ben.GetID() == bm.CPUCores {
-			m.hardware.CPU.Benchmark[bm.CPUCores] = &pb.Benchmark{
+			m.hardware.CPU.Benchmarks[bm.CPUCores] = &pb.Benchmark{
 				ID:     bm.CPUCores,
 				Code:   ben.GetCode(),
 				Result: uint64(m.hardware.CPU.Device.Cores),
@@ -766,7 +766,7 @@ func (m *Miner) runCPUBenchGroup(benches []*pb.Benchmark) error {
 		}
 
 		// save benchmark resutls for current CPU unit
-		m.hardware.CPU.Benchmark[ben.GetID()] = &pb.Benchmark{
+		m.hardware.CPU.Benchmarks[ben.GetID()] = &pb.Benchmark{
 			ID:     ben.GetID(),
 			Code:   ben.GetCode(),
 			Result: res.Result,
@@ -783,10 +783,10 @@ func (m *Miner) runRAMBenchGroup(benches []*pb.Benchmark) error {
 			b := &pb.Benchmark{
 				ID:     bm.RamSize,
 				Code:   ben.GetCode(),
-				Result: m.hardware.Memory.Device.Total,
+				Result: m.hardware.RAM.Device.Total,
 			}
 
-			m.hardware.Memory.Benchmark[bm.RamSize] = b
+			m.hardware.RAM.Benchmarks[bm.RamSize] = b
 			continue
 		}
 
@@ -796,7 +796,7 @@ func (m *Miner) runRAMBenchGroup(benches []*pb.Benchmark) error {
 			return err
 		}
 
-		m.hardware.Memory.Benchmark[ben.GetID()] = &pb.Benchmark{
+		m.hardware.RAM.Benchmarks[ben.GetID()] = &pb.Benchmark{
 			ID:     ben.GetID(),
 			Code:   ben.GetCode(),
 			Result: res.Result,
@@ -823,13 +823,13 @@ func (m *Miner) runGPUBenchGroup(benches []*pb.Benchmark) error {
 				dev.Benchmarks[bm.GPUMem] = &pb.Benchmark{
 					ID:     ben.GetID(),
 					Code:   ben.GetCode(),
-					Result: dev.Memory,
+					Result: dev.Device.Memory,
 				}
 				continue
 			}
 
 			d := getDescriptionForBenchmark(ben)
-			d.GPUDevices = []gpu.GPUID{gpu.GPUID(dev.GetID())}
+			d.GPUDevices = []gpu.GPUID{gpu.GPUID(dev.GetDevice().GetID())}
 
 			res, err := m.execBenchmarkContainer(ben, d)
 			if err != nil {
@@ -855,7 +855,7 @@ func (m *Miner) runNetworkBenchGroup(benches []*pb.Benchmark) error {
 			return err
 		}
 
-		m.hardware.Network.Benchmark[ben.GetID()] = &pb.Benchmark{
+		m.hardware.Network.Benchmarks[ben.GetID()] = &pb.Benchmark{
 			ID:     ben.GetID(),
 			Code:   ben.GetCode(),
 			Result: res.Result,
@@ -868,7 +868,7 @@ func (m *Miner) runNetworkBenchGroup(benches []*pb.Benchmark) error {
 func (m *Miner) runStorageBenchGroup(benches []*pb.Benchmark) error {
 	// note: there is no storage sub-system for worker yet, so benchmark always returns zero
 	for _, ben := range benches {
-		m.hardware.Storage.Benchmark[ben.GetID()] = &pb.Benchmark{
+		m.hardware.Storage.Benchmarks[ben.GetID()] = &pb.Benchmark{
 			ID:     ben.GetID(),
 			Code:   ben.GetCode(),
 			Result: 0,

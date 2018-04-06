@@ -5,24 +5,11 @@ import (
 )
 
 func (h *Hardware) IntoProto() *sonm.DevicesReply {
-	ram := &sonm.RAMDevice{
-		Total:      h.Memory.Device.Available,
-		Benchmarks: h.Memory.Benchmark,
-	}
-
-	net := &sonm.NetworkDevice{
-		Benchmarks: h.Network.Benchmark,
-	}
-
-	storage := &sonm.StorageDevice{
-		Benchmarks: h.Storage.Benchmark,
-	}
-
 	return &sonm.DevicesReply{
-		CPUs:    h.CPU.Device.Marshal(h.CPU.Benchmark),
+		CPU:     h.CPU,
 		GPUs:    h.GPU,
-		Memory:  ram,
-		Network: net,
-		Storage: storage,
+		Memory:  h.RAM,
+		Network: h.Network,
+		Storage: h.Storage,
 	}
 }
