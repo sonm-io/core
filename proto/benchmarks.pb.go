@@ -93,6 +93,8 @@ It has these top-level messages:
 	DiscoverResponse
 	HandshakeResponse
 	RelayClusterReply
+	RelayMetrics
+	NetMetrics
 	ConnectRequest
 	PublishRequest
 	RendezvousReply

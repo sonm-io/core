@@ -21,10 +21,11 @@ type monitor struct {
 
 	cluster *memberlist.Memberlist
 
-	log *zap.Logger
+	metrics *metrics
+	log     *zap.Logger
 }
 
-func newMonitor(cfg MonitorConfig, cluster *memberlist.Memberlist, log *zap.Logger) (*monitor, error) {
+func newMonitor(cfg MonitorConfig, cluster *memberlist.Memberlist, metrics *metrics, log *zap.Logger) (*monitor, error) {
 	certificate, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), cfg.PrivateKey)
 	if err != nil {
 		return nil, err
@@ -42,6 +43,8 @@ func newMonitor(cfg MonitorConfig, cluster *memberlist.Memberlist, log *zap.Logg
 		certificate: certificate,
 		server:      server,
 		cluster:     cluster,
+		metrics:     metrics,
+		log:         log,
 	}
 
 	return m, nil
@@ -60,7 +63,9 @@ func (m *monitor) Cluster(ctx context.Context, request *sonm.Empty) (*sonm.Relay
 	}, nil
 }
 
-// TODO: Metrics.
+func (m *monitor) Metrics(ctx context.Context, request *sonm.Empty) (*sonm.RelayMetrics, error) {
+	return m.metrics.Dump(), nil
+}
 
 func (m *monitor) Serve() error {
 	listener, err := net.Listen("tcp", m.cfg.Endpoint)

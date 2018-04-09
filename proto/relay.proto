@@ -48,8 +48,19 @@ message HandshakeResponse {
 
 service Relay {
     rpc Cluster(Empty) returns (RelayClusterReply) {}
+    rpc Metrics(Empty) returns (RelayMetrics) {}
 }
 
 message RelayClusterReply {
     repeated string members = 1;
+}
+
+message RelayMetrics {
+    uint64 connCurrent = 1;
+    map<string, NetMetrics> net = 2;
+}
+
+message NetMetrics {
+    uint64 txBytes = 1;
+    uint64 rxBytes = 2;
 }

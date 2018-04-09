@@ -72,6 +72,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/netutil"
+	"go.uber.org/atomic"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 )
@@ -236,6 +237,52 @@ func (m *connPool) popRandom() *meeting {
 	return v
 }
 
+type meetingHandler struct {
+	bufferSize int
+	metrics    *netMetrics
+	log        *zap.SugaredLogger
+}
+
+func (m *meetingHandler) Relay(ctx context.Context, server, client net.Conn) error {
+	log := m.log.With(zap.Stringer("server", server.RemoteAddr()), zap.Stringer("client", client.RemoteAddr()))
+	log.Info("ready for relaying")
+	defer log.Info("finished relaying")
+
+	wg := errgroup.Group{}
+	wg.Go(func() error {
+		return m.transmitTCP(server, client, m.metrics.TxBytes, log)
+	})
+	wg.Go(func() error {
+		return m.transmitTCP(client, server, m.metrics.RxBytes, log)
+	})
+
+	return wg.Wait()
+}
+
+func (m *meetingHandler) transmitTCP(from, to net.Conn, metrics *atomic.Uint64, log *zap.SugaredLogger) error {
+	buf := make([]byte, m.bufferSize)
+
+	for {
+		bytesRead, err := from.Read(buf[:])
+		if err != nil {
+			return err
+		}
+
+		var bytesSent int
+		for bytesSent < bytesRead {
+			n, err := to.Write(buf[bytesSent:bytesRead])
+			if err != nil {
+				return err
+			}
+
+			bytesSent += n
+			metrics.Add(uint64(n))
+		}
+
+		log.Debugf("%d bytes transmitted %s -> %s", bytesRead, from.RemoteAddr(), to.RemoteAddr())
+	}
+}
+
 type server struct {
 	cfg ServerConfig
 
@@ -250,9 +297,9 @@ type server struct {
 
 	handshakeTimeout time.Duration
 	waitTimeout      time.Duration
-	bufferSize       int
 
-	metrics *metrics
+	metrics           *metrics
+	newMeetingHandler func(addr common.Address) *meetingHandler
 
 	monitoring *monitor
 
@@ -282,6 +329,17 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		return nil, err
 	}
 
+	metrics := newMetrics()
+
+	newMeetingHandler := func(addr common.Address) *meetingHandler {
+		return &meetingHandler{
+			bufferSize: opts.bufferSize,
+
+			metrics: metrics.NetMetrics(addr),
+			log:     opts.log.Sugar(),
+		}
+	}
+
 	m := &server{
 		cfg: cfg,
 
@@ -296,9 +354,9 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 
 		handshakeTimeout: 30 * time.Second,
 		waitTimeout:      60 * time.Second,
-		bufferSize:       32 * 1024,
 
-		metrics: newMetrics(),
+		metrics:           metrics,
+		newMeetingHandler: newMeetingHandler,
 
 		log: opts.log.Sugar(),
 	}
@@ -307,7 +365,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		return nil, err
 	}
 
-	m.monitoring, err = newMonitor(cfg.Monitor, m.cluster, opts.log)
+	m.monitoring, err = newMonitor(cfg.Monitor, m.cluster, metrics, opts.log)
 	if err != nil {
 		return nil, err
 	}
@@ -487,7 +545,7 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 				if err := sendOk(clientConn); err != nil {
 					return err
 				}
-				return m.relay(ctx, conn, clientConn)
+				return m.newMeetingHandler(addr).Relay(ctx, conn, clientConn)
 			}
 		case <-timer.C:
 			m.meetingRoom.PopServer(addr, id)
@@ -516,7 +574,7 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 				if err := sendOk(serverConn); err != nil {
 					return err
 				}
-				return m.relay(ctx, serverConn, conn)
+				return m.newMeetingHandler(addr).Relay(ctx, serverConn, conn)
 			}
 		case <-timer.C:
 			m.meetingRoom.PopClient(addr, id)
@@ -554,46 +612,6 @@ func (m *server) readHandshake(ctx context.Context, conn net.Conn) (*sonm.Handsh
 		}
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	}
-}
-
-func (m *server) relay(ctx context.Context, server, client net.Conn) error {
-	log := m.log.With(zap.Stringer("server", server.RemoteAddr()), zap.Stringer("client", client.RemoteAddr()))
-	log.Info("ready for relaying")
-	defer log.Info("finished relaying")
-
-	wg := errgroup.Group{}
-	wg.Go(func() error {
-		return m.transmitTCP(server, client, log)
-	})
-	wg.Go(func() error {
-		return m.transmitTCP(client, server, log)
-	})
-
-	return wg.Wait()
-}
-
-func (m *server) transmitTCP(from, to net.Conn, log *zap.SugaredLogger) error {
-	// TODO: Accounting.
-	buf := make([]byte, m.bufferSize)
-
-	for {
-		bytesRead, err := from.Read(buf[:])
-		if err != nil {
-			return err
-		}
-
-		var bytesSent int
-		for bytesSent < bytesRead {
-			n, err := to.Write(buf[bytesSent:bytesRead])
-			if err != nil {
-				return err
-			}
-
-			bytesSent += n
-		}
-
-		log.Debugf("%d bytes transmitted %s -> %s", bytesRead, from.RemoteAddr(), to.RemoteAddr())
 	}
 }
 

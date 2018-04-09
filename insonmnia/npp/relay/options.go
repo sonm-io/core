@@ -6,12 +6,14 @@ import "go.uber.org/zap"
 type Option func(options *options) error
 
 type options struct {
-	log *zap.Logger
+	bufferSize int
+	log        *zap.Logger
 }
 
 func newOptions() *options {
 	return &options{
-		log: zap.NewNop(),
+		bufferSize: 32 * 1024,
+		log:        zap.NewNop(),
 	}
 }
 

@@ -167,7 +167,8 @@ func (m *CPUDevice) GetBenchmarks() map[uint64]*Benchmark {
 }
 
 type RAMDevice struct {
-	Total      uint64                `protobuf:"varint,1,opt,name=total" json:"total,omitempty"`
+	Total uint64 `protobuf:"varint,1,opt,name=total" json:"total,omitempty"`
+	// fixme: do we really need this?
 	Used       uint64                `protobuf:"varint,2,opt,name=used" json:"used,omitempty"`
 	Benchmarks map[uint64]*Benchmark `protobuf:"bytes,3,rep,name=benchmarks" json:"benchmarks,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 }
