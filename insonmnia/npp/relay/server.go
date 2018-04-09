@@ -263,23 +263,25 @@ func (m *meetingHandler) transmitTCP(from, to net.Conn, metrics *atomic.Uint64, 
 	buf := make([]byte, m.bufferSize)
 
 	for {
-		bytesRead, err := from.Read(buf[:])
-		if err != nil {
-			return err
-		}
+		bytesRead, errRead := from.Read(buf[:])
+		if bytesRead > 0 {
+			var bytesSent int
+			for bytesSent < bytesRead {
+				n, err := to.Write(buf[bytesSent:bytesRead])
+				if err != nil {
+					return err
+				}
 
-		var bytesSent int
-		for bytesSent < bytesRead {
-			n, err := to.Write(buf[bytesSent:bytesRead])
-			if err != nil {
-				return err
+				bytesSent += n
+				metrics.Add(uint64(n))
 			}
 
-			bytesSent += n
-			metrics.Add(uint64(n))
+			log.Debugf("%d bytes transmitted %s -> %s", bytesRead, from.RemoteAddr(), to.RemoteAddr())
 		}
 
-		log.Debugf("%d bytes transmitted %s -> %s", bytesRead, from.RemoteAddr(), to.RemoteAddr())
+		if errRead != nil {
+			return errRead
+		}
 	}
 }
 
