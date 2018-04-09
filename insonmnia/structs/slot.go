@@ -106,6 +106,8 @@ func (s *Slot) compareNetworkType(two *Slot) bool {
 }
 
 // Compare compares two slots, returns true if "s" slot is fits into an "another" slot
+//
+// Deprecated: no longer need to compare orders on client-side
 func (s *Slot) Compare(another *Slot) bool {
 	return s.compareCpuCores(another) &&
 		s.compareRamBytes(another) &&

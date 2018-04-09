@@ -4,39 +4,44 @@ import "bigint.proto";
 
 package sonm;
 
-message AskPlanResources {
-    message CPU {
-        uint64 cores = 1;
-    }
-    message RAM {
-        uint64 size = 1;
-    }
-    message Storage {
-        uint64 size = 1;
-    }
-    message GPU {
-        repeated uint64 devices = 1;
-    }
-    message Net {
-        uint64 throughputIn = 1;
-        uint64 throughputOut = 2;
-        bool overlay = 3;
-        bool outbound = 4;
-        bool incoming = 5;
-    }
+message AskPlanCPU {
+    uint64 cores = 1;
+}
 
-    CPU cpu = 1;
-    RAM ram = 2;
-    Storage storage = 3;
-    GPU gpu = 4;
-    Net network = 5;
+message AskPlanRAM {
+    uint64 size = 1;
+}
+
+message AskPlanStorage {
+    uint64 size = 1;
+}
+
+message AskPlanGPU {
+    repeated uint64 devices = 1;
+}
+
+message AskPlanNetwork {
+    uint64 throughputIn = 1;
+    uint64 throughputOut = 2;
+    bool overlay = 3;
+    bool outbound = 4;
+    bool incoming = 5;
+}
+
+message AskPlanResources {
+    AskPlanCPU cpu = 1;
+    AskPlanRAM ram = 2;
+    AskPlanStorage storage = 3;
+    AskPlanGPU gpu = 4;
+    AskPlanNetwork network = 5;
 }
 
 message AskPlan {
-    uint64 duration = 1;
-    BigInt priceTotal = 2;
-    BigInt pricePerHour = 3;
+    string ID = 1;
+    string marketID = 2;
 
-    BigInt blacklistAddr = 4;
-    AskPlanResources resources = 5;
+    uint64 duration = 3;
+    BigInt pricePerSecond = 4;
+    string blacklistAddr = 5;
+    AskPlanResources resources = 6;
 }

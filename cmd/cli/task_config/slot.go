@@ -1,5 +1,9 @@
 package task_config
 
+/*
+	Note: whole `Slot` structure and it's wrapper seems deprecated;
+*/
+
 import (
 	"strings"
 	"time"
