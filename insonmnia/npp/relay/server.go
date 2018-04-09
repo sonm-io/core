@@ -88,9 +88,111 @@ type meetingRoom struct {
 	// Also we allow the opposite: multiple servers can be registered for
 	// fault tolerance.
 	servers map[common.Address]*connPool
+
+	log *zap.SugaredLogger
+}
+
+func newMeetingRoom(log *zap.Logger) *meetingRoom {
+	return &meetingRoom{
+		clients: map[common.Address]*connPool{},
+		servers: map[common.Address]*connPool{},
+		log:     log.Sugar(),
+	}
+}
+
+func (m *meetingRoom) PopRandomClient(addr common.Address) *meeting {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if clients, ok := m.clients[addr]; ok {
+		return clients.popRandom()
+	}
+	return nil
+}
+
+func (m *meetingRoom) PopRandomServer(addr common.Address) *meeting {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if servers, ok := m.servers[addr]; ok {
+		return servers.popRandom()
+	}
+	return nil
+}
+
+func (m *meetingRoom) PopClient(addr common.Address, id ConnID) *meeting {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if clients, ok := m.clients[addr]; ok {
+		return clients.pop(id)
+	}
+	return nil
+}
+
+func (m *meetingRoom) PopServer(addr common.Address, id ConnID) *meeting {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if servers, ok := m.servers[addr]; ok {
+		return servers.pop(id)
+	}
+	return nil
+}
+
+func (m *meetingRoom) PutClient(addr common.Address, id ConnID, conn net.Conn, tx chan<- net.Conn) {
+	m.log.Debugf("putting %s client into the meeting map with %s id", addr.String(), id)
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	clients, ok := m.clients[addr]
+	if !ok {
+		clients = newConnPool()
+		m.clients[addr] = clients
+	}
+	clients.put(id, conn, tx)
+}
+
+func (m *meetingRoom) PutServer(addr common.Address, id ConnID, conn net.Conn, tx chan<- net.Conn) {
+	m.log.Debugf("putting %s server into the meeting map with %s id", addr.String(), id)
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	servers, ok := m.servers[addr]
+	if !ok {
+		servers = newConnPool()
+		m.servers[addr] = servers
+	}
+	servers.put(id, conn, tx)
+}
+
+func (m *meetingRoom) DiscardConnections(addrs []common.Address) {
+	for _, addr := range addrs {
+		m.log.Infof("closing connections associated with %s address", addr.String())
+
+		servers, ok := m.servers[addr]
+		if ok {
+			for _, server := range servers.candidates {
+				server.conn.Close()
+			}
+		}
+
+		clients, ok := m.clients[addr]
+		if ok {
+			for _, client := range clients.candidates {
+				client.conn.Close()
+			}
+		}
+	}
 }
 
 type ConnID string
+
+func (m ConnID) String() string {
+	return string(m)
+}
 
 type connPool struct {
 	candidates map[ConnID]*meeting
@@ -142,12 +244,7 @@ type server struct {
 	cluster  *memberlist.Memberlist
 	members  []string
 
-	mu sync.Mutex
-	// We allow multiple clients to be waited for servers.
-	clients map[common.Address]*connPool
-	// Also we allow the opposite: multiple servers can be registered for
-	// fault tolerance.
-	servers map[common.Address]*connPool
+	meetingRoom *meetingRoom
 
 	continuum *continuum
 
@@ -193,8 +290,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		cluster:  nil,
 		members:  cfg.Cluster.Members,
 
-		clients: map[common.Address]*connPool{},
-		servers: map[common.Address]*connPool{},
+		meetingRoom: newMeetingRoom(opts.log),
 
 		continuum: newContinuum(),
 
@@ -374,26 +470,12 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		// a random one and relay.
 		// Otherwise put ourselves into a meeting map.
 
-		// TODO: Decompose into "targetPeer := m.meetingRoom.PopRandomClient()"
-
-		var targetPeer *meeting
-		clients, ok := m.clients[addr]
-		if ok {
-			if client := clients.popRandom(); client != nil {
-				targetPeer = client
-			}
-		}
+		targetPeer := m.meetingRoom.PopRandomClient(addr)
 
 		if targetPeer != nil {
 			tx <- targetPeer.conn
 		} else {
-			m.log.Debug("putting server into the meeting map")
-			servers, ok := m.servers[addr]
-			if !ok {
-				servers = newConnPool()
-				m.servers[addr] = servers
-			}
-			servers.put(id, conn, tx)
+			m.meetingRoom.PutServer(addr, id, conn, tx)
 		}
 
 		select {
@@ -408,37 +490,21 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 				return m.relay(ctx, conn, clientConn)
 			}
 		case <-timer.C:
-			// TODO: m.meetingRoom.PopServer(id)
-			if servers, ok := m.servers[addr]; ok {
-				servers.pop(id)
-			}
+			m.meetingRoom.PopServer(addr, id)
 			return errTimeout()
 		}
 	case sonm.PeerType_CLIENT:
 		var targetPeer *meeting
-		servers, ok := m.servers[addr]
-		if ok {
-			if handshake.HasUUID() {
-				if server := servers.pop(ConnID(handshake.UUID)); server != nil {
-					targetPeer = server
-				}
-			} else {
-				if server := servers.popRandom(); server != nil {
-					targetPeer = server
-				}
-			}
+		if handshake.HasUUID() {
+			targetPeer = m.meetingRoom.PopServer(addr, ConnID(handshake.UUID))
+		} else {
+			targetPeer = m.meetingRoom.PopRandomServer(addr)
 		}
 
 		if targetPeer != nil {
 			tx <- targetPeer.conn
 		} else {
-			m.log.Debug("putting client into the meeting map")
-			clients, ok := m.clients[addr]
-			if !ok {
-				clients = newConnPool()
-				m.clients[addr] = clients
-			}
-			clients.put(id, conn, tx)
+			m.meetingRoom.PutClient(addr, id, conn, tx)
 		}
 
 		select {
@@ -453,9 +519,7 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 				return m.relay(ctx, serverConn, conn)
 			}
 		case <-timer.C:
-			if clients, ok := m.clients[addr]; ok {
-				clients.pop(id)
-			}
+			m.meetingRoom.PopClient(addr, id)
 			return errTimeout()
 		}
 	default:
@@ -542,14 +606,14 @@ func (m *server) NotifyJoin(node *memberlist.Node) {
 	m.log.Infof("node `%s` has joined to the cluster from %s", node.Name, node.Address())
 
 	discarded := m.continuum.Add(m.formatEndpoint(node.Addr), 1)
-	m.discardConnections(discarded)
+	m.meetingRoom.DiscardConnections(discarded)
 }
 
 func (m *server) NotifyLeave(node *memberlist.Node) {
 	m.log.Infof("node `%s` has left from the cluster from %s", node.Name, node.Address())
 
 	discarded := m.continuum.Remove(m.formatEndpoint(node.Addr))
-	m.discardConnections(discarded)
+	m.meetingRoom.DiscardConnections(discarded)
 }
 
 func (m *server) NotifyUpdate(node *memberlist.Node) {
@@ -558,26 +622,6 @@ func (m *server) NotifyUpdate(node *memberlist.Node) {
 
 func (m *server) formatEndpoint(ip net.IP) string {
 	return fmt.Sprintf("%s:%d", ip.String(), m.port)
-}
-
-func (m *server) discardConnections(addrs []common.Address) {
-	for _, addr := range addrs {
-		m.log.Infof("closing connections associated with %s address", addr.String())
-
-		servers, ok := m.servers[addr]
-		if ok {
-			for _, server := range servers.candidates {
-				server.conn.Close()
-			}
-		}
-
-		clients, ok := m.clients[addr]
-		if ok {
-			for _, client := range clients.candidates {
-				client.conn.Close()
-			}
-		}
-	}
 }
 
 func mpsc() (chan<- net.Conn, <-chan net.Conn) {
