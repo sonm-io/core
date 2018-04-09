@@ -5,6 +5,7 @@ package sonm;
 import "bigint.proto";
 import "timestamp.proto";
 
+// Deprecated: migrate to new marketplace API.
 enum DealStatus {
     ANY_STATUS = 0;
     PENDING = 1;
@@ -12,6 +13,7 @@ enum DealStatus {
     CLOSED = 3;
 }
 
+// Deprecated: migrate to new marketplace API.
 message Deal {
     string BuyerID = 1;
     string SupplierID = 2;
