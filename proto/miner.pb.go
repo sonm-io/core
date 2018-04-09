@@ -96,7 +96,7 @@ func (m *MinerStartReply) GetNetworkIDs() []string {
 	return nil
 }
 
-// Deprecated: TODO: seems useless
+// Deprecated: seems useless
 type TaskInfo struct {
 	Request *MinerStartRequest `protobuf:"bytes,1,opt,name=request" json:"request,omitempty"`
 	Reply   *MinerStartReply   `protobuf:"bytes,2,opt,name=reply" json:"reply,omitempty"`

@@ -60,6 +60,7 @@ message ResourceUsage {
     map<string, NetworkUsage> network = 3;
 }
 
+// Deprecated: no longer used.
 message InfoReply {
     map<string, ResourceUsage> usage = 1;
     string name = 2;
@@ -142,7 +143,7 @@ message TaskResourceRequirements {
     // MaxMemory specifies the maximum memory in bytes required.
     int64 maxMemory = 2;
     // GPUCount Describes whether a task requires GPU support.
-    // todo: completely useless in that representation.
+    // Deplreated: completely useless in that representation.
     GPUCount GPUSupport = 3;
 }
 
