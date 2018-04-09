@@ -34,8 +34,9 @@ var GPUVendorType_value = map[string]int32{
 func (x GPUVendorType) String() string {
 	return proto.EnumName(GPUVendorType_name, int32(x))
 }
-func (GPUVendorType) EnumDescriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
+func (GPUVendorType) EnumDescriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
 
+// Deprecated: no longer used.
 type Capabilities struct {
 	Cpu []*CPUDevice `protobuf:"bytes,1,rep,name=cpu" json:"cpu,omitempty"`
 	Mem *RAMDevice   `protobuf:"bytes,2,opt,name=mem" json:"mem,omitempty"`
@@ -45,7 +46,7 @@ type Capabilities struct {
 func (m *Capabilities) Reset()                    { *m = Capabilities{} }
 func (m *Capabilities) String() string            { return proto.CompactTextString(m) }
 func (*Capabilities) ProtoMessage()               {}
-func (*Capabilities) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
+func (*Capabilities) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
 
 func (m *Capabilities) GetCpu() []*CPUDevice {
 	if m != nil {
@@ -81,7 +82,7 @@ type CPUDevice struct {
 func (m *CPUDevice) Reset()                    { *m = CPUDevice{} }
 func (m *CPUDevice) String() string            { return proto.CompactTextString(m) }
 func (*CPUDevice) ProtoMessage()               {}
-func (*CPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{1} }
+func (*CPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{1} }
 
 func (m *CPUDevice) GetModelName() string {
 	if m != nil {
@@ -112,7 +113,7 @@ type CPU struct {
 func (m *CPU) Reset()                    { *m = CPU{} }
 func (m *CPU) String() string            { return proto.CompactTextString(m) }
 func (*CPU) ProtoMessage()               {}
-func (*CPU) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{2} }
+func (*CPU) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{2} }
 
 func (m *CPU) GetDevice() *CPUDevice {
 	if m != nil {
@@ -136,7 +137,7 @@ type RAMDevice struct {
 func (m *RAMDevice) Reset()                    { *m = RAMDevice{} }
 func (m *RAMDevice) String() string            { return proto.CompactTextString(m) }
 func (*RAMDevice) ProtoMessage()               {}
-func (*RAMDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{3} }
+func (*RAMDevice) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{3} }
 
 func (m *RAMDevice) GetTotal() uint64 {
 	if m != nil {
@@ -160,7 +161,7 @@ type RAM struct {
 func (m *RAM) Reset()                    { *m = RAM{} }
 func (m *RAM) String() string            { return proto.CompactTextString(m) }
 func (*RAM) ProtoMessage()               {}
-func (*RAM) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{4} }
+func (*RAM) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{4} }
 
 func (m *RAM) GetDevice() *RAMDevice {
 	if m != nil {
@@ -199,7 +200,7 @@ type GPUDevice struct {
 func (m *GPUDevice) Reset()                    { *m = GPUDevice{} }
 func (m *GPUDevice) String() string            { return proto.CompactTextString(m) }
 func (*GPUDevice) ProtoMessage()               {}
-func (*GPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{5} }
+func (*GPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{5} }
 
 func (m *GPUDevice) GetID() string {
 	if m != nil {
@@ -265,7 +266,7 @@ type GPU struct {
 func (m *GPU) Reset()                    { *m = GPU{} }
 func (m *GPU) String() string            { return proto.CompactTextString(m) }
 func (*GPU) ProtoMessage()               {}
-func (*GPU) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{6} }
+func (*GPU) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{6} }
 
 func (m *GPU) GetDevice() *GPUDevice {
 	if m != nil {
@@ -289,7 +290,7 @@ type NetworkDevice struct {
 func (m *NetworkDevice) Reset()                    { *m = NetworkDevice{} }
 func (m *NetworkDevice) String() string            { return proto.CompactTextString(m) }
 func (*NetworkDevice) ProtoMessage()               {}
-func (*NetworkDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{7} }
+func (*NetworkDevice) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{7} }
 
 func (m *NetworkDevice) GetBandwidthIn() uint64 {
 	if m != nil {
@@ -313,7 +314,7 @@ type Network struct {
 func (m *Network) Reset()                    { *m = Network{} }
 func (m *Network) String() string            { return proto.CompactTextString(m) }
 func (*Network) ProtoMessage()               {}
-func (*Network) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{8} }
+func (*Network) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{8} }
 
 func (m *Network) GetDevice() *NetworkDevice {
 	if m != nil {
@@ -336,7 +337,7 @@ type StorageDevice struct {
 func (m *StorageDevice) Reset()                    { *m = StorageDevice{} }
 func (m *StorageDevice) String() string            { return proto.CompactTextString(m) }
 func (*StorageDevice) ProtoMessage()               {}
-func (*StorageDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{9} }
+func (*StorageDevice) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{9} }
 
 func (m *StorageDevice) GetBytesAvailable() uint64 {
 	if m != nil {
@@ -353,7 +354,7 @@ type Storage struct {
 func (m *Storage) Reset()                    { *m = Storage{} }
 func (m *Storage) String() string            { return proto.CompactTextString(m) }
 func (*Storage) ProtoMessage()               {}
-func (*Storage) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{10} }
+func (*Storage) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{10} }
 
 func (m *Storage) GetDevice() *StorageDevice {
 	if m != nil {
@@ -384,9 +385,9 @@ func init() {
 	proto.RegisterEnum("sonm.GPUVendorType", GPUVendorType_name, GPUVendorType_value)
 }
 
-func init() { proto.RegisterFile("capabilities.proto", fileDescriptor3) }
+func init() { proto.RegisterFile("capabilities.proto", fileDescriptor4) }
 
-var fileDescriptor3 = []byte{
+var fileDescriptor4 = []byte{
 	// 596 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x55, 0x5d, 0x8b, 0xd3, 0x40,
 	0x14, 0x35, 0xc9, 0x6e, 0x77, 0x73, 0xbb, 0xdd, 0x96, 0x51, 0x24, 0x16, 0x95, 0x1a, 0x50, 0x17,

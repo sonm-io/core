@@ -12,6 +12,7 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// Deprecated: migrate to new marketplace API.
 type DealStatus int32
 
 const (
@@ -37,8 +38,9 @@ var DealStatus_value = map[string]int32{
 func (x DealStatus) String() string {
 	return proto.EnumName(DealStatus_name, int32(x))
 }
-func (DealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor5, []int{0} }
+func (DealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
 
+// Deprecated: migrate to new marketplace API.
 type Deal struct {
 	BuyerID           string     `protobuf:"bytes,1,opt,name=BuyerID" json:"BuyerID,omitempty"`
 	SupplierID        string     `protobuf:"bytes,2,opt,name=SupplierID" json:"SupplierID,omitempty"`
@@ -54,7 +56,7 @@ type Deal struct {
 func (m *Deal) Reset()                    { *m = Deal{} }
 func (m *Deal) String() string            { return proto.CompactTextString(m) }
 func (*Deal) ProtoMessage()               {}
-func (*Deal) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{0} }
+func (*Deal) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
 
 func (m *Deal) GetBuyerID() string {
 	if m != nil {
@@ -124,9 +126,9 @@ func init() {
 	proto.RegisterEnum("sonm.DealStatus", DealStatus_name, DealStatus_value)
 }
 
-func init() { proto.RegisterFile("deal.proto", fileDescriptor5) }
+func init() { proto.RegisterFile("deal.proto", fileDescriptor6) }
 
-var fileDescriptor5 = []byte{
+var fileDescriptor6 = []byte{
 	// 315 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0xcd, 0x4e, 0xf2, 0x40,
 	0x14, 0x86, 0xbf, 0x96, 0xd2, 0xc2, 0x81, 0x40, 0xbf, 0xb3, 0x9a, 0xb0, 0x30, 0x0d, 0xab, 0x6a,
