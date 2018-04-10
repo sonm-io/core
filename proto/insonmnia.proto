@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "capabilities.proto";
 import "timestamp.proto";
+import "bigint.proto";
 
 package sonm;
 
@@ -152,4 +153,25 @@ message Chunk {
 
 message Progress {
     int64 size = 1;
+}
+
+message Duration {
+    int64 seconds = 1;
+}
+
+message EthAddress {
+    string address = 1;
+}
+
+message DataSize {
+    uint64 size = 1;
+}
+
+message DataSizeRate {
+    uint64 size = 1;
+}
+
+message Price {
+    // 1 SNM/h or 3600 SNM/s
+    BigInt perSecond = 1;
 }
