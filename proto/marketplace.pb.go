@@ -119,9 +119,9 @@ func (x MarketDealStatus) String() string {
 func (MarketDealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor8, []int{3} }
 
 type GetOrdersRequest struct {
-	// Order keeps slot and type for searching
+	// Order keeps slot and type for searching.
 	Order *Order `protobuf:"bytes,1,opt,name=order" json:"order,omitempty"`
-	// Count describe how namy results must be returned (order by price)
+	// Count describes how many results must be returned (ordered by price).
 	Count uint64 `protobuf:"varint,2,opt,name=count" json:"count,omitempty"`
 }
 
