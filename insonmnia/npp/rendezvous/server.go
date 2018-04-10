@@ -134,6 +134,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*Server, error) {
 			opts.log,
 			xgrpc.Credentials(opts.credentials),
 			xgrpc.DefaultTraceInterceptor(),
+			xgrpc.VerifyInterceptor(),
 		),
 		resolver: newExternalResolver(""),
 		rv:       map[string]*meeting{},
@@ -148,10 +149,6 @@ func NewServer(cfg ServerConfig, options ...Option) (*Server, error) {
 }
 
 func (m *Server) Resolve(ctx context.Context, request *sonm.ConnectRequest) (*sonm.RendezvousReply, error) {
-	if err := request.Validate(); err != nil {
-		return nil, err
-	}
-
 	peerInfo, ok := peer.FromContext(ctx)
 	if !ok {
 		return nil, errNoPeerInfo()

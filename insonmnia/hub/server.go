@@ -169,6 +169,7 @@ func New(cfg *miner.Config, opts ...Option) (*Hub, error) {
 		xgrpc.Credentials(h.creds),
 		xgrpc.DefaultTraceInterceptor(),
 		xgrpc.AuthorizationInterceptor(authorization),
+		xgrpc.VerifyInterceptor(),
 	)
 	h.externalGrpc = grpcServer
 
