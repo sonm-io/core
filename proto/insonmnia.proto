@@ -156,7 +156,7 @@ message Progress {
 }
 
 message Duration {
-    int64 seconds = 1;
+    int64 nanoseconds = 1;
 }
 
 message EthAddress {
@@ -164,11 +164,11 @@ message EthAddress {
 }
 
 message DataSize {
-    uint64 size = 1;
+    uint64 bytes = 1;
 }
 
 message DataSizeRate {
-    uint64 size = 1;
+    uint64 bitsPerSecond = 1;
 }
 
 message Price {

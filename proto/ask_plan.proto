@@ -5,7 +5,7 @@ import "insonmnia.proto";
 package sonm;
 
 message AskPlanCPU {
-    uint64 cores = 1;
+    uint64 core_percents = 1;
 }
 
 message AskPlanGPU {

@@ -21,7 +21,7 @@ blacklist: 0x8125721c2413d99a33e351e1f6bb4e56b6b633fd
 
 resources:
   cpu:
-    cores: 150
+    cores: 1.50
   ram:
     size: 2gb
   storage: 
@@ -29,8 +29,8 @@ resources:
   gpu:
     devices: [3, 5]
   network:
-    throughputin: 25 mb/s
-    throughputout: 40 mb/s
+    throughputin: 25 Mibit/s
+    throughputout: 40 Mbit/s
     overlay: true
     outbound: true
     incoming: true
@@ -50,16 +50,16 @@ resources:
 	assert.Equal(t, common.HexToAddress("0x8125721c2413d99a33e351e1f6bb4e56b6b633fd").Bytes(),
 		ask.GetBlacklist().GetAddress())
 
-	assert.Equal(t, uint64(2147483648), ask.GetResources().GetRAM().GetSize().GetSize())
-	assert.Equal(t, uint64(10737418240), ask.GetResources().GetStorage().GetSize().GetSize())
-	assert.Equal(t, uint64(150), ask.GetResources().GetCPU().GetCores())
+	assert.Equal(t, uint64(2147483648), ask.GetResources().GetRAM().GetSize().GetBytes())
+	assert.Equal(t, uint64(10737418240), ask.GetResources().GetStorage().GetSize().GetBytes())
+	assert.Equal(t, uint64(150), ask.GetResources().GetCPU().GetCorePercents())
 
 	assert.Len(t, ask.Resources.GPU.Devices, 2)
 	assert.Contains(t, ask.Resources.GPU.Devices, uint64(3))
 	assert.Contains(t, ask.Resources.GPU.Devices, uint64(5))
 
-	assert.Equal(t, uint64(26214400), ask.Resources.GetNetwork().GetThroughputIn().GetSize())
-	assert.Equal(t, uint64(41943040), ask.Resources.GetNetwork().GetThroughputOut().GetSize())
+	assert.Equal(t, uint64(25*1024*1024), ask.Resources.GetNetwork().GetThroughputIn().GetBitsPerSecond())
+	assert.Equal(t, uint64(40e6), ask.Resources.GetNetwork().GetThroughputOut().GetBitsPerSecond())
 	assert.True(t, ask.Resources.GetNetwork().Overlay)
 	assert.True(t, ask.Resources.GetNetwork().Outbound)
 	assert.True(t, ask.Resources.GetNetwork().Incoming)
