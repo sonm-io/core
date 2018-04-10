@@ -11,23 +11,18 @@ import (
 	"github.com/sonm-io/core/util/netutil"
 )
 
-// LoggingConfig represents a logging config.
-type LoggingConfig struct {
-	Level logging.Level
-}
-
 // ServerConfig represents a Rendezvous server configuration.
 type ServerConfig struct {
 	// Listening address.
 	Addr       net.Addr
 	PrivateKey *ecdsa.PrivateKey
-	Logging    LoggingConfig
+	Logging    logging.Config
 }
 
 type serverConfig struct {
 	Addr    netutil.TCPAddr    `yaml:"endpoint" required:"true"`
 	Eth     accounts.EthConfig `yaml:"ethereum"`
-	Logging LoggingConfig      `yaml:"logging"`
+	Logging logging.Config     `yaml:"logging"`
 }
 
 // NewServerConfig loads a new Rendezvous server config from a file.

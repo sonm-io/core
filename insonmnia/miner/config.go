@@ -16,10 +16,6 @@ type SSHConfig struct {
 	PrivateKeyPath string `required:"true" yaml:"private_key_path"`
 }
 
-type LoggingConfig struct {
-	Level logging.Level `required:"true" default:"debug"`
-}
-
 type ResourcesConfig struct {
 	Cgroup    string                `required:"true" yaml:"cgroup"`
 	Resources *specs.LinuxResources `required:"false" yaml:"resources"`
@@ -34,7 +30,7 @@ type WhitelistConfig struct {
 
 type Config struct {
 	Endpoint          string              `yaml:"endpoint" required:"true"`
-	Logging           LoggingConfig       `yaml:"logging"`
+	Logging           logging.Config      `yaml:"logging"`
 	Resources         *ResourcesConfig    `yaml:"resources" required:"false" `
 	Eth               accounts.EthConfig  `yaml:"ethereum"`
 	NPP               npp.Config          `yaml:"npp"`

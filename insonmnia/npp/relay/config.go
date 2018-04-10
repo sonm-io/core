@@ -21,11 +21,6 @@ type ClusterConfig struct {
 	Members   []string
 }
 
-// LoggingConfig represents a logging config.
-type LoggingConfig struct {
-	Level logging.Level `required:"true" default:"debug"`
-}
-
 type MonitorConfig struct {
 	Endpoint   string
 	PrivateKey *ecdsa.PrivateKey `json:"-"`
@@ -39,7 +34,7 @@ type monitorConfig struct {
 type serverConfig struct {
 	Addr    netutil.TCPAddr `yaml:"endpoint" required:"true"`
 	Cluster ClusterConfig   `yaml:"cluster"`
-	Logging LoggingConfig   `yaml:"logging"`
+	Logging logging.Config  `yaml:"logging"`
 	Monitor monitorConfig   `yaml:"monitoring"`
 }
 
@@ -47,7 +42,7 @@ type serverConfig struct {
 type ServerConfig struct {
 	Addr    netutil.TCPAddr
 	Cluster ClusterConfig
-	Logging LoggingConfig
+	Logging logging.Config
 	Monitor MonitorConfig
 }
 
