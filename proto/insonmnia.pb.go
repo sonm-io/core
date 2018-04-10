@@ -319,7 +319,7 @@ func (m *ResourceUsage) GetNetwork() map[string]*NetworkUsage {
 	return nil
 }
 
-// Deprecated: no longer used.
+// Deprecated: TODO: no longer used.
 type InfoReply struct {
 	Usage        map[string]*ResourceUsage `protobuf:"bytes,1,rep,name=usage" json:"usage,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Name         string                    `protobuf:"bytes,2,opt,name=name" json:"name,omitempty"`

@@ -36,7 +36,7 @@ func (x GPUVendorType) String() string {
 }
 func (GPUVendorType) EnumDescriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
 
-// Deprecated: no longer used.
+// Deprecated: TODO: no longer used.
 type Capabilities struct {
 	Cpu []*CPUDevice `protobuf:"bytes,1,rep,name=cpu" json:"cpu,omitempty"`
 	Mem *RAMDevice   `protobuf:"bytes,2,opt,name=mem" json:"mem,omitempty"`
