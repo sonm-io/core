@@ -116,7 +116,8 @@ func New(cfg *miner.Config, opts ...Option) (*Hub, error) {
 	}
 
 	wl := NewWhitelist(ctx, &cfg.Whitelist)
-	if _, err := createMinerCtx(ctx, defaults.worker); err != nil {
+
+	if err := defaults.worker.RunBenchmarks(); err != nil {
 		return nil, err
 	}
 
