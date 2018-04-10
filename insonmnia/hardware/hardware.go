@@ -5,7 +5,7 @@ import (
 
 	"github.com/cnf/structhash"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
-	"github.com/sonm-io/core/insonmnia/hardware/mem"
+	"github.com/sonm-io/core/insonmnia/hardware/ram"
 	"github.com/sonm-io/core/proto"
 )
 
@@ -35,7 +35,7 @@ func NewHardware() (*Hardware, error) {
 		return nil, err
 	}
 
-	hw.RAM.Device, err = mem.NewMemoryDevice()
+	hw.RAM.Device, err = ram.NewRAMDevice()
 	if err != nil {
 		return nil, err
 	}
@@ -54,15 +54,15 @@ func (h *Hardware) Hash() string {
 	return h.devicesMap().Hash()
 }
 
-type hashableMemory struct {
-	Available uint64 `json:"total"`
+type hashableRAM struct {
+	Available uint64 `json:"available"`
 }
 
 // DeviceMapping maps hardware capabilities to device description, hashing-friendly
 type DeviceMapping struct {
 	CPU     *sonm.CPUDevice     `json:"cpu"`
 	GPU     []*sonm.GPUDevice   `json:"gpu"`
-	Memory  hashableMemory      `json:"memory"`
+	RAM     hashableRAM         `json:"ram"`
 	Network *sonm.NetworkDevice `json:"network"`
 	Storage *sonm.StorageDevice `json:"storage"`
 }
@@ -80,7 +80,7 @@ func (h *Hardware) devicesMap() *DeviceMapping {
 	return &DeviceMapping{
 		CPU:     h.CPU.Device,
 		GPU:     GPUs,
-		Memory:  hashableMemory{Available: h.RAM.Device.Available},
+		RAM:     hashableRAM{Available: h.RAM.Device.Available},
 		Network: h.Network.Device,
 		Storage: h.Storage.Device,
 	}

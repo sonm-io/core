@@ -14,14 +14,18 @@ func GetCPUDevice() (*sonm.CPUDevice, error) {
 	}
 
 	if len(info) == 0 {
-		// o_O
 		return nil, errors.New("no CPU detected")
 	}
 
-	dev := &sonm.CPUDevice{ModelName: info[0].ModelName}
+	// We've picked up a name of the first CPU because assuming
+	// that multi-CPU board will have similar CPUs into the sockets.
+	dev := &sonm.CPUDevice{
+		ModelName: info[0].ModelName,
+		Sockets:   uint32(len(info)),
+	}
+
 	for _, c := range info {
 		dev.Cores += uint32(c.Cores)
-		dev.Sockets += 1
 	}
 
 	return dev, nil

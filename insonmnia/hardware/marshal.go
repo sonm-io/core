@@ -8,7 +8,7 @@ func (h *Hardware) IntoProto() *sonm.DevicesReply {
 	return &sonm.DevicesReply{
 		CPU:     h.CPU,
 		GPUs:    h.GPU,
-		Memory:  h.RAM,
+		RAM:     h.RAM,
 		Network: h.Network,
 		Storage: h.Storage,
 	}

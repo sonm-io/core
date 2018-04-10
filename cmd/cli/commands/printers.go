@@ -126,9 +126,9 @@ func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
 		cmd.Printf("CPU: %d cores at %d sockets\r\n", cpu.GetCores(), cpu.GetSockets())
 		printBenchmarkGroup(cmd, dev.GetCPU().GetBenchmarks())
 
-		ram := ds.ByteSize(dev.GetMemory().GetDevice().GetAvailable()).HR()
+		ram := ds.ByteSize(dev.GetRAM().GetDevice().GetAvailable()).HR()
 		cmd.Printf("RAM: %s\r\n", ram)
-		printBenchmarkGroup(cmd, dev.GetMemory().GetBenchmarks())
+		printBenchmarkGroup(cmd, dev.GetRAM().GetBenchmarks())
 
 		GPUs := dev.GetGPUs()
 		if len(GPUs) > 0 {

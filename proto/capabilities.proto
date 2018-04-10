@@ -28,7 +28,7 @@ message CPUDevice {
 
 message CPU {
     CPUDevice device = 1;
-    map<uint64, Benchmark> benchmarks = 4;
+    map<uint64, Benchmark> benchmarks = 2;
 }
 
 message RAMDevice {
@@ -38,7 +38,7 @@ message RAMDevice {
 
 message RAM {
     RAMDevice device = 1;
-    map<uint64, Benchmark> benchmarks = 4;
+    map<uint64, Benchmark> benchmarks = 2;
 }
 
 message GPUDevice {
@@ -67,7 +67,7 @@ message GPUDevice {
 
 message GPU {
     GPUDevice device = 1;
-    map<uint64, Benchmark> benchmarks = 4;
+    map<uint64, Benchmark> benchmarks = 2;
 }
 
 message NetworkDevice {
@@ -77,7 +77,7 @@ message NetworkDevice {
 
 message Network {
     NetworkDevice device = 1;
-    map<uint64, Benchmark> benchmarks = 4;
+    map<uint64, Benchmark> benchmarks = 2;
 }
 
 message StorageDevice {
@@ -86,5 +86,5 @@ message StorageDevice {
 
 message Storage {
     StorageDevice device = 1;
-    map<uint64, Benchmark> benchmarks = 4;
+    map<uint64, Benchmark> benchmarks = 2;
 }

@@ -100,7 +100,7 @@ message TaskListReply {
 message DevicesReply {
     CPU CPU = 1;
     repeated GPU GPUs = 2;
-    RAM memory = 3;
+    RAM RAM = 3;
     Network network = 4;
     Storage storage = 5;
 }
