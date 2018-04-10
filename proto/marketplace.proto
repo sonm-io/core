@@ -30,9 +30,9 @@ service Market {
 }
 
 message GetOrdersRequest {
-    // Order keeps slot and type for searching
+    // Order keeps slot and type for searching.
     Order order = 1;
-    // Count describe how namy results must be returned (order by price)
+    // Count describes how many results must be returned (ordered by price).
     uint64 count = 2;
 }
 
