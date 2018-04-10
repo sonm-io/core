@@ -47,7 +47,8 @@ resources:
 	assert.Equal(t, expectedPrice, ask.GetPrice().GetPerSecond().Unwrap())
 
 	assert.Equal(t, time.Duration(time.Hour*8), ask.Duration.Unwrap())
-	assert.Equal(t, common.HexToAddress("0x8125721c2413d99a33e351e1f6bb4e56b6b633fd").Hex(), ask.GetBlacklist().GetAddress())
+	assert.Equal(t, common.HexToAddress("0x8125721c2413d99a33e351e1f6bb4e56b6b633fd").Bytes(),
+		ask.GetBlacklist().GetAddress())
 
 	assert.Equal(t, uint64(2147483648), ask.GetResources().GetRAM().GetSize().GetSize())
 	assert.Equal(t, uint64(10737418240), ask.GetResources().GetStorage().GetSize().GetSize())

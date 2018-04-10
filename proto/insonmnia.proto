@@ -143,7 +143,7 @@ message TaskResourceRequirements {
     // MaxMemory specifies the maximum memory in bytes required.
     int64 maxMemory = 2;
     // GPUCount Describes whether a task requires GPU support.
-    // Deplreated: completely useless in that representation.
+    // Deprecated: completely useless in that representation.
     GPUCount GPUSupport = 3;
 }
 
@@ -160,7 +160,7 @@ message Duration {
 }
 
 message EthAddress {
-    string address = 1;
+    bytes address = 1;
 }
 
 message DataSize {
@@ -172,6 +172,5 @@ message DataSizeRate {
 }
 
 message Price {
-    // 1 SNM/h or 3600 SNM/s
     BigInt perSecond = 1;
 }

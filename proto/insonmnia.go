@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -13,8 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 )
-
-var snmPriceRe = regexp.MustCompile(`(\S+)(\s*)(snm)(\S+)`)
 
 func (m *Duration) Unwrap() time.Duration {
 	return time.Second * time.Duration(m.GetSeconds())
@@ -45,7 +42,7 @@ func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return errors.New("invalid ethereum address format")
 	}
 
-	m.Address = common.HexToAddress(v).Hex()
+	m.Address = common.HexToAddress(v).Bytes()
 	return nil
 }
 
@@ -82,7 +79,6 @@ func (m *DataSizeRate) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 func trimTimeRate(v string) string {
 	v = strings.ToLower(v)
-	v = strings.Trim(v, `\s`)
 	v = strings.Trim(v, `/s`)
 	return v
 }
@@ -93,12 +89,7 @@ func (m *Price) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	value, timeDim, err := extractPricePerTimeValues(v)
-	if err != nil {
-		return err
-	}
-
-	price, err := convertToPrice(value, timeDim)
+	price, err := m.parse(v)
 	if err != nil {
 		return err
 	}
@@ -107,25 +98,17 @@ func (m *Price) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-func extractPricePerTimeValues(v string) (string, string, error) {
+func (m *Price) parse(v string) (*BigInt, error) {
+	v = strings.TrimSpace(v)
 	v = strings.ToLower(v)
-	matches := snmPriceRe.FindStringSubmatch(v)
-	if len(matches) != 5 {
-		return "", "", errors.New("invalid price format")
+	parts := strings.Split(v, " ")
+	if len(parts) != 2 {
+		return nil, errors.New("invalid value")
 	}
 
-	num := matches[1]
-	timeDim := strings.TrimFunc(matches[4], func(r rune) bool {
-		return r == '/' || r == '\\'
-	})
-
-	return num, timeDim, nil
-}
-
-func convertToPrice(value, timeDim string) (*BigInt, error) {
-	f, err := strconv.ParseFloat(value, 64)
+	f, err := strconv.ParseFloat(parts[0], 64)
 	if err != nil {
-		return nil, fmt.Errorf("failed to convert \"%s\" to float64", value)
+		return nil, fmt.Errorf("failed to convert \"%s\" to float64", parts[0])
 	}
 
 	if f < 0 {
@@ -138,10 +121,10 @@ func convertToPrice(value, timeDim string) (*BigInt, error) {
 	}
 
 	var div *big.Int
-	switch timeDim {
-	case "h":
+	switch parts[1] {
+	case "snm/h":
 		div = big.NewInt(3600)
-	case "s":
+	case "snm/s":
 		div = big.NewInt(1)
 	default:
 		return nil, errors.New("invalid time dimension")
