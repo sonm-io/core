@@ -20,7 +20,7 @@ ARCH := $(shell uname -m)
 OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
 OS_ARCH := $(OS)_$(ARCH)
 
-HUB=${TARGETDIR}/sonmhub_$(OS_ARCH)
+WORKER=${TARGETDIR}/sonmworker_$(OS_ARCH)
 CLI=${TARGETDIR}/sonmcli_$(OS_ARCH)
 LOCAL_NODE=${TARGETDIR}/sonmnode_$(OS_ARCH)
 AUTOCLI=${TARGETDIR}/autocli_$(OS_ARCH)
@@ -55,9 +55,9 @@ LDFLAGS = -X main.appVersion=$(FULL_VER)
 
 all: mock vet fmt build test
 
-build/hub:
+build/worker:
 	@echo "+ $@"
-	CGO_LDFLAGS_ALLOW=${CGO_LDFLAGS_ALLOW} CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s $(LDFLAGS)" -o ${HUB} ${GOCMD}/hub
+	CGO_LDFLAGS_ALLOW=${CGO_LDFLAGS_ALLOW} CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s $(LDFLAGS)" -o ${WORKER} ${GOCMD}/worker
 
 build/rv:
 	@echo "+ $@"
@@ -94,7 +94,7 @@ build/autocli:
 	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${AUTOCLI} ${GOCMD}/autocli
 
 
-build/insomnia: build/hub build/cli build/node
+build/insomnia: build/worker build/cli build/node
 
 build/aux: build/relay build/rv
 
@@ -103,7 +103,7 @@ build: build/insomnia build/aux
 install: all
 	@echo "+ $@"
 	mkdir -p ${INSTALLDIR}
-	cp ${HUB} ${CLI} ${LOCAL_NODE} ${INSTALLDIR}
+	cp ${WORKER} ${CLI} ${LOCAL_NODE} ${INSTALLDIR}
 
 vet:
 	@echo "+ $@"
@@ -143,7 +143,7 @@ mock: build_mockgen
 		"github.com/sonm-io/core/proto" HubClient && ${SED}
 
 clean:
-	rm -f ${HUB} ${CLI} ${LOCAL_NODE} ${AUTOCLI} ${RENDEZVOUS}
+	rm -f ${WORKER} ${CLI} ${LOCAL_NODE} ${AUTOCLI} ${RENDEZVOUS}
 
 deb:
 	debuild --no-lintian --preserve-env -uc -us -i -I -b

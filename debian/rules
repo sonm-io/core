@@ -9,7 +9,7 @@ override_dh_auto_build:
 	GPU_SUPPORT=true make -j build/insomnia build/aux
 
 	mv target/sonmcli_linux_x86_64 target/sonmcli
-	mv target/sonmhub_linux_x86_64 target/sonmhub
+	mv target/sonmworker_linux_x86_64 target/sonmworker
 	mv target/sonmnode_linux_x86_64 target/sonmnode
 	mv target/sonmrendezvous_linux_x86_64 target/sonmrendezvous
 	mv target/sonmrelay_linux_x86_64 target/sonmrelay
@@ -21,7 +21,7 @@ override_dh_auto_test:
 
 override_dh_auto_install:
 	install -d $(DEB_DESTDIR)etc/sonm/
-	install -m644 etc/hub.yaml $(DEB_DESTDIR)etc/sonm/hub-default.yaml
+	install -m644 etc/worker.yaml $(DEB_DESTDIR)etc/sonm/worker-default.yaml
 	install -m644 etc/node.yaml $(DEB_DESTDIR)etc/sonm/node-default.yaml
 	install -m644 etc/rendezvous.yaml $(DEB_DESTDIR)etc/sonm/rendezvous-default.yaml
 	install -m644 etc/relay.yaml $(DEB_DESTDIR)etc/sonm/relay-default.yaml
