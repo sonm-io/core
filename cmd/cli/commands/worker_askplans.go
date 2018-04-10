@@ -6,10 +6,7 @@ import (
 
 	pb "github.com/sonm-io/core/proto"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/cmd/cli/task_config"
-	"github.com/sonm-io/core/insonmnia/structs"
-	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -48,9 +45,9 @@ var askPlanListCmd = &cobra.Command{
 }
 
 var askPlanCreateCmd = &cobra.Command{
-	Use:   "create <price> <slot.yaml> [buyer-eth-addr]",
+	Use:   "create <ask-plan.yaml>",
 	Short: "Create new plan",
-	Args:  cobra.MinimumNArgs(2),
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		hub, err := newHubManagementClient(ctx)
@@ -59,34 +56,16 @@ var askPlanCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		price := args[0]
-		planPath := args[1]
-
-		bigPrice, err := util.StringToEtherPrice(price)
+		planPath := args[0]
+		ask, err := loadAskPlanYAML(planPath)
 		if err != nil {
-			showError(cmd, "Cannot parse price", err)
+			showError(cmd, "Cannot load Ask-plan definition", err)
 			os.Exit(1)
 		}
 
-		slot, err := loadSlotFile(planPath)
+		id, err := hub.CreateAskPlan(ctx, ask)
 		if err != nil {
-			showError(cmd, "Cannot load AskOrder definition", err)
-			os.Exit(1)
-		}
-
-		req := &pb.CreateAskPlanRequest{
-			Slot:           slot.Unwrap(),
-			PricePerSecond: pb.NewBigInt(bigPrice),
-		}
-
-		if len(args) > 2 {
-			addr := common.HexToAddress(args[2])
-			req.BuyerID = addr.Hex()
-		}
-
-		id, err := hub.CreateAskPlan(ctx, req)
-		if err != nil {
-			showError(cmd, "Cannot create new AskOrder", err)
+			showError(cmd, "Cannot create new Ask-plan", err)
 			os.Exit(1)
 		}
 
@@ -95,7 +74,7 @@ var askPlanCreateCmd = &cobra.Command{
 }
 
 var askPlanRemoveCmd = &cobra.Command{
-	Use:   "remove <order_id>",
+	Use:   "remove <ask_id>",
 	Short: "Remove plan by",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -109,7 +88,7 @@ var askPlanRemoveCmd = &cobra.Command{
 		ID := args[0]
 		_, err = hub.RemoveAskPlan(ctx, &pb.ID{Id: ID})
 		if err != nil {
-			showError(cmd, "Cannot remove AskOrder", err)
+			showError(cmd, "Cannot remove Ask-plan", err)
 			os.Exit(1)
 		}
 
@@ -117,17 +96,11 @@ var askPlanRemoveCmd = &cobra.Command{
 	},
 }
 
-func loadSlotFile(path string) (*structs.Slot, error) {
-	cfg := task_config.SlotConfig{}
-	err := util.LoadYamlFile(path, &cfg)
+func loadAskPlanYAML(path string) (*pb.AskPlan, error) {
+	planYAML, err := task_config.LoadAskPlan(path)
 	if err != nil {
 		return nil, err
 	}
 
-	slot, err := cfg.IntoSlot()
-	if err != nil {
-		return nil, err
-	}
-
-	return slot, nil
+	return planYAML.Unwrap()
 }

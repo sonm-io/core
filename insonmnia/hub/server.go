@@ -381,7 +381,7 @@ func (h *Hub) AskPlans(ctx context.Context, _ *pb.Empty) (*pb.AskPlansReply, err
 	return h.worker.AskPlans(ctx)
 }
 
-func (h *Hub) CreateAskPlan(ctx context.Context, request *pb.CreateAskPlanRequest) (*pb.ID, error) {
+func (h *Hub) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (*pb.ID, error) {
 	id, err := h.worker.CreateAskPlan(ctx, request)
 	if err != nil {
 		return nil, err

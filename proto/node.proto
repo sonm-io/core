@@ -3,6 +3,7 @@ syntax = "proto3";
 import "deal.proto";
 import "insonmnia.proto";
 import "hub.proto";
+import "ask_plan.proto";
 import "container.proto";
 
 package sonm;
@@ -77,10 +78,8 @@ service HubManagement {
     // Status produse a detailed info about Hub
     rpc Status (Empty) returns (HubStatusReply) {}
 
-    // Devices provides detailed information about device
+    // Devices provides detailed information about devices
     // and show benchmark results.
-    //
-    // TODO: returns smth that can represent miner.hardware (extend Capabilities?)
     rpc Devices(Empty) returns (DevicesReply) {}
 
     // Tasks produces a list of all running tasks on the Hub
@@ -90,7 +89,7 @@ service HubManagement {
     rpc AskPlans(Empty) returns (AskPlansReply) {}
     // CreateAskPlan allows to create rules
     // for creating Ask orders on Marketplace
-    rpc CreateAskPlan(CreateAskPlanRequest) returns (ID) {}
+    rpc CreateAskPlan(AskPlan) returns (ID) {}
     // RemoveAskPlan allows to remove rules
     // for creating Ask orders on Marketplace
     rpc RemoveAskPlan(ID) returns (Empty) {}
