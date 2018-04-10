@@ -12,7 +12,7 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
-// Deprecated: please move to the blockchain's MarketAPI
+// Deprecated: TODO: please move to the blockchain's MarketAPI
 type OrderType int32
 
 const (
@@ -38,7 +38,7 @@ func (x OrderType) String() string {
 func (OrderType) EnumDescriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
 
 // Geo represent GeoIP results for node.
-// Deprecated: useless for now.
+// Deprecated: TODO: useless for now.
 type Geo struct {
 	Country string  `protobuf:"bytes,1,opt,name=country" json:"country,omitempty"`
 	City    string  `protobuf:"bytes,2,opt,name=city" json:"city,omitempty"`
@@ -79,7 +79,7 @@ func (m *Geo) GetLon() float32 {
 	return 0
 }
 
-// Deprecated: please move to the blockchain's MarketAPI
+// Deprecated: TODO: please move to the blockchain's MarketAPI
 type Resources struct {
 	// CPU core count
 	CpuCores uint64 `protobuf:"varint,1,opt,name=cpuCores" json:"cpuCores,omitempty"`
@@ -161,7 +161,7 @@ func (m *Resources) GetProperties() map[string]float64 {
 	return nil
 }
 
-// Deprecated: please move to the blockchain's MarketAPI
+// Deprecated: TODO: please move to the blockchain's MarketAPI
 type Slot struct {
 	// Buyer’s rating. Got from Buyer’s profile for BID orders rating_supplier.
 	BuyerRating int64 `protobuf:"varint,1,opt,name=buyerRating" json:"buyerRating,omitempty"`
@@ -215,7 +215,7 @@ func (m *Slot) GetDuration() uint64 {
 	return 0
 }
 
-// Deprecated: please move to the blockchain's MarketAPI
+// Deprecated: TODO: please move to the blockchain's MarketAPI
 type Order struct {
 	// Order ID, UUIDv4
 	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`

@@ -24,7 +24,7 @@ message MinerStartReply {
     repeated string networkIDs = 3;
 }
 
-// Deprecated: seems useless
+// Deprecated: TODO: seems useless
 message TaskInfo {
     MinerStartRequest request = 1;
     MinerStartReply reply = 2;

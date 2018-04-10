@@ -59,7 +59,7 @@ message ResourceUsage {
     map<string, NetworkUsage> network = 3;
 }
 
-// Deprecated: no longer used.
+// Deprecated: TODO: no longer used.
 message InfoReply {
     map<string, ResourceUsage> usage = 1;
     string name = 2;
