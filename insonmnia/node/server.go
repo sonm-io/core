@@ -149,6 +149,7 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 		// Intentionally constructing an unencrypted server.
 		xgrpc.DefaultTraceInterceptor(),
 		xgrpc.UnaryServerInterceptor(hub.(*hubAPI).intercept),
+		xgrpc.VerifyInterceptor(),
 	)
 
 	pb.RegisterHubManagementServer(srv, hub)

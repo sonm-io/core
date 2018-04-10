@@ -184,3 +184,45 @@ func WithConn(conn net.Conn) grpc.DialOption {
 		return conn, nil
 	})
 }
+
+// VerifyInterceptor is an interceptor that performs server-side validation
+// for both gRPC request and reply if possible.
+//
+// It automatically checks whether those types has `Validate` method and
+// calls it if so.
+func VerifyInterceptor() ServerOption {
+	return func(o *options) {
+		o.interceptors.u = append(o.interceptors.u, verifyUnaryInterceptor())
+	}
+}
+
+func verifyUnaryInterceptor() grpc.UnaryServerInterceptor {
+	validate := func(v interface{}) error {
+		if v, ok := v.(interface {
+			Validate() error
+		}); ok {
+			if err := v.Validate(); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		if err := validate(req); err != nil {
+			return nil, err
+		}
+
+		resp, err := handler(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := validate(resp); err != nil {
+			return nil, err
+		}
+
+		return resp, nil
+	}
+}
