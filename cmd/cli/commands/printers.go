@@ -112,35 +112,45 @@ func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
 	}
 }
 
-func printDeviceList(cmd *cobra.Command, devices *pb.DevicesReply) {
+func printBenchmarkGroup(cmd *cobra.Command, benchmarks map[uint64]*pb.Benchmark) {
+	cmd.Println("  Benchmarks:")
+	for _, bn := range benchmarks {
+		cmd.Printf("    %s: %v\r\n", bn.Code, bn.Result)
+	}
+	cmd.Println()
+}
+
+func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
 	if isSimpleFormat() {
-		CPUs := devices.GetCPUs()
-		GPUs := devices.GetGPUs()
+		cpu := dev.GetCPU().GetDevice()
+		cmd.Printf("CPU: %d cores at %d sockets\r\n", cpu.GetCores(), cpu.GetSockets())
+		printBenchmarkGroup(cmd, dev.GetCPU().GetBenchmarks())
 
-		if len(CPUs) == 0 && len(GPUs) == 0 {
-			cmd.Printf("No devices detected.\r\n")
-			return
-		}
+		ram := ds.ByteSize(dev.GetRAM().GetDevice().GetAvailable()).HR()
+		cmd.Printf("RAM: %s\r\n", ram)
+		printBenchmarkGroup(cmd, dev.GetRAM().GetBenchmarks())
 
-		if len(CPUs) > 0 {
-			cmd.Printf("CPUs:\r\n")
-			for id, cpu := range CPUs {
-				cmd.Printf(" %s: %s\r\n", id, cpu.ModelName)
-			}
-		} else {
-			cmd.Printf("No CPUs detected.\r\n")
-		}
-
+		GPUs := dev.GetGPUs()
 		if len(GPUs) > 0 {
 			cmd.Printf("GPUs:\r\n")
-			for id, gpu := range GPUs {
-				cmd.Printf(" %s: %s\r\n", id, gpu.GetDeviceName())
+			for i, gpu := range GPUs {
+				cmd.Printf("  id=%d: %s\r\n", i, gpu.Device.GetDeviceName())
+				printBenchmarkGroup(cmd, gpu.Benchmarks)
 			}
-		} else {
-			cmd.Printf("No GPUs detected.\r\n")
 		}
+
+		netIn := ds.ByteSize(dev.GetNetwork().GetDevice().GetBandwidthIn()).HR()
+		netOut := ds.ByteSize(dev.GetNetwork().GetDevice().GetBandwidthOut()).HR()
+		cmd.Println("Network:")
+		cmd.Printf("  In: %s\\s | Out: %s\\s \r\n", netIn, netOut)
+		printBenchmarkGroup(cmd, dev.GetNetwork().GetBenchmarks())
+
+		storageAvailable := ds.ByteSize(dev.GetStorage().GetDevice().GetBytesAvailable()).HR()
+		cmd.Println("Storage:")
+		cmd.Printf("  Volume: %s\r\n", storageAvailable)
+		printBenchmarkGroup(cmd, dev.GetStorage().GetBenchmarks())
 	} else {
-		showJSON(cmd, devices)
+		showJSON(cmd, dev)
 	}
 }
 

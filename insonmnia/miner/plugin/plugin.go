@@ -173,11 +173,10 @@ func (r *Repository) collectGPUDevices() []*sonm.GPUDevice {
 // ApplyHardwareInfo exposing info about hardware units controlled by
 // various plugins.
 func (r *Repository) ApplyHardwareInfo(hw *hardware.Hardware) {
-	devices := r.collectGPUDevices()
-	for _, dev := range devices {
-		hw.GPU = append(hw.GPU, &hardware.GPUProperties{
-			Device:    dev,
-			Benchmark: make(map[uint64]*sonm.Benchmark),
+	for _, dev := range r.collectGPUDevices() {
+		hw.GPU = append(hw.GPU, &sonm.GPU{
+			Device:     dev,
+			Benchmarks: make(map[uint64]*sonm.Benchmark),
 		})
 	}
 }

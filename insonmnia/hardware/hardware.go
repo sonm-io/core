@@ -5,104 +5,66 @@ import (
 
 	"github.com/cnf/structhash"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
-	"github.com/sonm-io/core/insonmnia/hardware/mem"
+	"github.com/sonm-io/core/insonmnia/hardware/ram"
 	"github.com/sonm-io/core/proto"
 )
-
-type CPUProperties struct {
-	Device    cpu.Device                 `json:"device"`
-	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
-}
-
-type MemoryProperties struct {
-	Device    *mem.Device                `json:"device"`
-	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
-}
-
-type GPUProperties struct {
-	Device    *sonm.GPUDevice            `json:"device"`
-	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
-}
-
-type NetworkProperties struct {
-	Device    interface{}                `json:"device"`
-	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
-}
-
-type StorageProperties struct {
-	Device    interface{}                `json:"device"`
-	Benchmark map[uint64]*sonm.Benchmark `json:"benchmark"`
-}
 
 // Hardware accumulates the finest hardware information about system the worker
 // is running on.
 type Hardware struct {
-	CPU     []*CPUProperties   `json:"cpu"`
-	GPU     []*GPUProperties   `json:"gpu"`
-	Memory  *MemoryProperties  `json:"memory"`
-	Network *NetworkProperties `json:"network"`
-	Storage *StorageProperties `json:"storage"`
+	CPU     *sonm.CPU     `json:"cpu"`
+	GPU     []*sonm.GPU   `json:"gpu"`
+	RAM     *sonm.RAM     `json:"ram"`
+	Network *sonm.Network `json:"network"`
+	Storage *sonm.Storage `json:"storage"`
 }
 
 // NewHardware returns initial hardware capabilities for Worker's host.
 // Parts of the struct may be filled later by HW-plugins.
 func NewHardware() (*Hardware, error) {
+	var err error
 	hw := &Hardware{
-		Memory:  &MemoryProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
-		Network: &NetworkProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
-		Storage: &StorageProperties{Benchmark: make(map[uint64]*sonm.Benchmark)},
+		CPU:     &sonm.CPU{Benchmarks: make(map[uint64]*sonm.Benchmark)},
+		RAM:     &sonm.RAM{Benchmarks: make(map[uint64]*sonm.Benchmark)},
+		Network: &sonm.Network{Benchmarks: make(map[uint64]*sonm.Benchmark)},
+		Storage: &sonm.Storage{Benchmarks: make(map[uint64]*sonm.Benchmark)},
 	}
 
-	CPUs, err := cpu.GetCPUDevices()
+	hw.CPU.Device, err = cpu.GetCPUDevice()
 	if err != nil {
 		return nil, err
 	}
 
-	for _, dev := range CPUs {
-		hw.CPU = append(hw.CPU, &CPUProperties{
-			Device:    dev,
-			Benchmark: make(map[uint64]*sonm.Benchmark),
-		})
-	}
-
-	vm, err := mem.NewMemoryDevice()
+	hw.RAM.Device, err = ram.NewRAMDevice()
 	if err != nil {
 		return nil, err
-	}
-
-	hw.Memory = &MemoryProperties{
-		Device:    vm,
-		Benchmark: make(map[uint64]*sonm.Benchmark),
 	}
 
 	return hw, nil
 }
 
 // LogicalCPUCount returns the number of logical CPUs in the system.
+//
+// Method is deprecated.
 func (h *Hardware) LogicalCPUCount() int {
-	count := 0
-	for _, c := range h.CPU {
-		count += int(c.Device.Cores)
-	}
-
-	return count
+	return int(h.CPU.Device.Cores)
 }
 
 func (h *Hardware) Hash() string {
 	return h.devicesMap().Hash()
 }
 
-type HashableMemory struct {
-	Total uint64 `json:"total"`
+type hashableRAM struct {
+	Available uint64 `json:"available"`
 }
 
 // DeviceMapping maps hardware capabilities to device description, hashing-friendly
 type DeviceMapping struct {
-	CPU     []cpu.Device      `json:"cpu"`
-	GPU     []*sonm.GPUDevice `json:"gpu"`
-	Memory  HashableMemory    `json:"memory"`
-	Network interface{}       `json:"network"`
-	Storage interface{}       `json:"storage"`
+	CPU     *sonm.CPUDevice     `json:"cpu"`
+	GPU     []*sonm.GPUDevice   `json:"gpu"`
+	RAM     hashableRAM         `json:"ram"`
+	Network *sonm.NetworkDevice `json:"network"`
+	Storage *sonm.StorageDevice `json:"storage"`
 }
 
 func (dm *DeviceMapping) Hash() string {
@@ -110,21 +72,16 @@ func (dm *DeviceMapping) Hash() string {
 }
 
 func (h *Hardware) devicesMap() *DeviceMapping {
-	m := &DeviceMapping{
-		CPU:     []cpu.Device{},
-		GPU:     []*sonm.GPUDevice{},
-		Memory:  HashableMemory{Total: h.Memory.Device.Total},
+	var GPUs []*sonm.GPUDevice
+	for _, dev := range h.GPU {
+		GPUs = append(GPUs, dev.Device)
+	}
+
+	return &DeviceMapping{
+		CPU:     h.CPU.Device,
+		GPU:     GPUs,
+		RAM:     hashableRAM{Available: h.RAM.Device.Available},
 		Network: h.Network.Device,
 		Storage: h.Storage.Device,
 	}
-
-	for _, c := range h.CPU {
-		m.CPU = append(m.CPU, c.Device)
-	}
-
-	for _, g := range h.GPU {
-		m.GPU = append(m.GPU, g.Device)
-	}
-
-	return m
 }
