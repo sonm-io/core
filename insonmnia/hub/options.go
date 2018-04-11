@@ -4,10 +4,7 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/miner"
-	"github.com/sonm-io/core/insonmnia/state"
-	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/credentials"
@@ -19,12 +16,9 @@ type options struct {
 	ctx     context.Context
 	ethKey  *ecdsa.PrivateKey
 	ethAddr common.Address
-	bcr     blockchain.Blockchainer
-	market  pb.MarketClient
 	creds   credentials.TransportCredentials
 	rot     util.HitlessCertRotator
 	worker  *miner.Miner
-	storage *state.Storage
 }
 
 func defaultHubOptions() *options {
@@ -39,18 +33,6 @@ type Option func(options *options)
 func WithContext(ctx context.Context) Option {
 	return func(o *options) {
 		o.ctx = ctx
-	}
-}
-
-func WithBlockchain(bcr blockchain.Blockchainer) Option {
-	return func(o *options) {
-		o.bcr = bcr
-	}
-}
-
-func WithMarket(mp pb.MarketClient) Option {
-	return func(o *options) {
-		o.market = mp
 	}
 }
 
