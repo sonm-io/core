@@ -17,7 +17,6 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/dealer"
 	"github.com/sonm-io/core/insonmnia/logging"
-	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -98,13 +97,6 @@ func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
 	return m
 }
 
-func getTestConfig(ctrl *gomock.Controller) Config {
-	cfg := NewMockConfig(ctrl)
-	cfg.EXPECT().MarketEndpoint().AnyTimes().Return("127.0.0.1:9095")
-	cfg.EXPECT().NPPConfig().AnyTimes().Return(&npp.Config{})
-	return cfg
-}
-
 func getTestHubClient(ctrl *gomock.Controller) (pb.HubClient, io.Closer) {
 	hub := dealer.NewMockHubClient(ctrl)
 	hub.EXPECT().ProposeDeal(gomock.Any(), gomock.Any()).AnyTimes().Return(&pb.Empty{}, nil)
@@ -115,7 +107,9 @@ func getTestHubClient(ctrl *gomock.Controller) (pb.HubClient, io.Closer) {
 
 func getTestRemotes(ctx context.Context, ctrl *gomock.Controller) *remoteOptions {
 	key := getTestKey()
-	conf := getTestConfig(ctrl)
+	conf := &Config{
+		Market: marketConfig{Endpoint: "127.0.0.1:15010"},
+	}
 
 	opts, err := newRemoteOptions(ctx, key, conf, nil)
 	if err != nil {

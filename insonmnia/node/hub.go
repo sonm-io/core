@@ -23,7 +23,7 @@ type hubAPI struct {
 
 func (h *hubAPI) getClient() (pb.HubClient, io.Closer, error) {
 	ethAddr := crypto.PubkeyToAddress(h.remotes.key.PublicKey)
-	netAddr := h.remotes.conf.HubEndpoint()
+	netAddr := h.remotes.conf.Hub.Endpoint
 
 	return h.remotes.hubCreator(ethAddr, netAddr)
 }
@@ -38,13 +38,13 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 		return handler(ctx, req)
 	}
 
-	if h.remotes.conf.HubEndpoint() == "" {
+	if h.remotes.conf.Hub.Endpoint == "" {
 		return nil, errors.New("hub endpoint is not configured, please check Node settings")
 	}
 
 	cli, cc, err := h.getClient()
 	if err != nil {
-		return nil, fmt.Errorf("cannot connect to hub at %s, please check Node settings: %s", h.remotes.conf.HubEndpoint(), err.Error())
+		return nil, fmt.Errorf("cannot connect to hub at %s, please check Node settings: %s", h.remotes.conf.Hub.Endpoint, err.Error())
 	}
 	defer cc.Close()
 
