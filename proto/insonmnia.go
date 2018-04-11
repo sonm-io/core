@@ -127,7 +127,7 @@ func (m *DataSizeRate) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return fmt.Errorf("could not parse DataSizeRate - unknown data rate suffix \"%s\". Possible values are - %s", v, possibleRateSiffixesStr)
 	}
 	// Overflow check
-	if ^uint64(0)/value < multiplier {
+	if value != 0 && ^uint64(0)/value < multiplier {
 		return errors.New("could not parse DataSizeRate - too big value")
 	}
 
