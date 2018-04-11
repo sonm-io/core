@@ -90,6 +90,10 @@ func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+func (m *DataSize) Unwrap() datasize.ByteSize {
+	return datasize.ByteSize(m.Bytes)
+}
+
 func (m *DataSize) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var v string
 	if err := unmarshal(&v); err != nil {
