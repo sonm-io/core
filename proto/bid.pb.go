@@ -12,6 +12,7 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
+// Deprecated: TODO: please move to the blockchain's MarketAPI
 type OrderType int32
 
 const (
@@ -34,9 +35,10 @@ var OrderType_value = map[string]int32{
 func (x OrderType) String() string {
 	return proto.EnumName(OrderType_name, int32(x))
 }
-func (OrderType) EnumDescriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
+func (OrderType) EnumDescriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
 
-// Geo represent GeoIP results for node
+// Geo represent GeoIP results for node.
+// Deprecated: TODO: useless for now.
 type Geo struct {
 	Country string  `protobuf:"bytes,1,opt,name=country" json:"country,omitempty"`
 	City    string  `protobuf:"bytes,2,opt,name=city" json:"city,omitempty"`
@@ -47,7 +49,7 @@ type Geo struct {
 func (m *Geo) Reset()                    { *m = Geo{} }
 func (m *Geo) String() string            { return proto.CompactTextString(m) }
 func (*Geo) ProtoMessage()               {}
-func (*Geo) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{0} }
+func (*Geo) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{0} }
 
 func (m *Geo) GetCountry() string {
 	if m != nil {
@@ -77,6 +79,7 @@ func (m *Geo) GetLon() float32 {
 	return 0
 }
 
+// Deprecated: TODO: please move to the blockchain's MarketAPI
 type Resources struct {
 	// CPU core count
 	CpuCores uint64 `protobuf:"varint,1,opt,name=cpuCores" json:"cpuCores,omitempty"`
@@ -100,7 +103,7 @@ type Resources struct {
 func (m *Resources) Reset()                    { *m = Resources{} }
 func (m *Resources) String() string            { return proto.CompactTextString(m) }
 func (*Resources) ProtoMessage()               {}
-func (*Resources) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{1} }
+func (*Resources) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{1} }
 
 func (m *Resources) GetCpuCores() uint64 {
 	if m != nil {
@@ -158,6 +161,7 @@ func (m *Resources) GetProperties() map[string]float64 {
 	return nil
 }
 
+// Deprecated: TODO: please move to the blockchain's MarketAPI
 type Slot struct {
 	// Buyer’s rating. Got from Buyer’s profile for BID orders rating_supplier.
 	BuyerRating int64 `protobuf:"varint,1,opt,name=buyerRating" json:"buyerRating,omitempty"`
@@ -174,7 +178,7 @@ type Slot struct {
 func (m *Slot) Reset()                    { *m = Slot{} }
 func (m *Slot) String() string            { return proto.CompactTextString(m) }
 func (*Slot) ProtoMessage()               {}
-func (*Slot) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{2} }
+func (*Slot) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{2} }
 
 func (m *Slot) GetBuyerRating() int64 {
 	if m != nil {
@@ -211,6 +215,7 @@ func (m *Slot) GetDuration() uint64 {
 	return 0
 }
 
+// Deprecated: TODO: please move to the blockchain's MarketAPI
 type Order struct {
 	// Order ID, UUIDv4
 	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
@@ -229,7 +234,7 @@ type Order struct {
 func (m *Order) Reset()                    { *m = Order{} }
 func (m *Order) String() string            { return proto.CompactTextString(m) }
 func (*Order) ProtoMessage()               {}
-func (*Order) Descriptor() ([]byte, []int) { return fileDescriptor1, []int{3} }
+func (*Order) Descriptor() ([]byte, []int) { return fileDescriptor2, []int{3} }
 
 func (m *Order) GetId() string {
 	if m != nil {
@@ -281,9 +286,9 @@ func init() {
 	proto.RegisterEnum("sonm.OrderType", OrderType_name, OrderType_value)
 }
 
-func init() { proto.RegisterFile("bid.proto", fileDescriptor1) }
+func init() { proto.RegisterFile("bid.proto", fileDescriptor2) }
 
-var fileDescriptor1 = []byte{
+var fileDescriptor2 = []byte{
 	// 540 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x5c, 0x93, 0xdd, 0x8a, 0xd3, 0x40,
 	0x14, 0xc7, 0xcd, 0x47, 0x77, 0x9b, 0x93, 0xda, 0xd6, 0xc1, 0x8b, 0x50, 0x61, 0x2d, 0x45, 0x96,

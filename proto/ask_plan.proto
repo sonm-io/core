@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+import "insonmnia.proto";
+
+package sonm;
+
+message AskPlanCPU {
+    uint64 core_percents = 1;
+}
+
+message AskPlanGPU {
+    repeated uint64 devices = 1;
+}
+
+message AskPlanRAM {
+    DataSize size = 1;
+}
+
+message AskPlanStorage {
+    DataSize size = 1;
+}
+
+message AskPlanNetwork {
+    DataSizeRate throughputIn = 1;
+    DataSizeRate throughputOut = 2;
+    bool overlay = 3;
+    bool outbound = 4;
+    bool incoming = 5;
+}
+
+message AskPlanResources {
+    AskPlanCPU CPU = 1;
+    AskPlanRAM RAM = 2;
+    AskPlanStorage storage = 3;
+    AskPlanGPU GPU = 4;
+    AskPlanNetwork network = 5;
+}
+
+message AskPlan {
+    string ID = 1;
+    string marketID = 2;
+
+    Duration duration = 3;
+    Price price = 4;
+    EthAddress blacklist = 5;
+    AskPlanResources resources = 6;
+}

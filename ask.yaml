@@ -1,0 +1,21 @@
+duration: 8h
+price: 23.73 SNM/h
+
+blacklist: 0x8125721c2413d99a33e351e1f6bb4e56b6b633fd
+
+resources:
+  cpu:
+    # Number of cores to assign for this plan, can be fractional
+    cores: 1.5
+  ram:
+    size: 2GB
+  storage:
+    size: 10GB
+  gpu:
+    devices: [3, 5]
+  network:
+    throughputin: 25 MBit/s
+    throughputout: 40 MBit/s
+    overlay: true
+    outbound: true
+    incoming: true

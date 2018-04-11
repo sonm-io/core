@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "bigint.proto";
 import "capabilities.proto";
 import "timestamp.proto";
 
@@ -151,4 +152,24 @@ message Chunk {
 
 message Progress {
     int64 size = 1;
+}
+
+message Duration {
+    int64 nanoseconds = 1;
+}
+
+message EthAddress {
+    bytes address = 1;
+}
+
+message DataSize {
+    uint64 bytes = 1;
+}
+
+message DataSizeRate {
+    uint64 bitsPerSecond = 1;
+}
+
+message Price {
+    BigInt perSecond = 1;
 }
