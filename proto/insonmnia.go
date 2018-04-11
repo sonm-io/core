@@ -97,7 +97,7 @@ func (m *DataSize) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	var byteSize datasize.ByteSize
-	if err := byteSize.UnmarshalText([]byte(strings.ToLower(v))); err != nil {
+	if err := byteSize.UnmarshalText([]byte(v)); err != nil {
 		return err
 	}
 
@@ -124,8 +124,11 @@ func (m *DataSizeRate) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 	multiplier, ok := rateSuffixes[parts[1]]
 	if !ok {
-
 		return fmt.Errorf("could not parse DataSizeRate - unknown data rate suffix \"%s\". Possible values are - %s", v, possibleRateSiffixesStr)
+	}
+	// Overflow check
+	if ^uint64(0)/value < multiplier {
+		return errors.New("could not parse DataSizeRate - too big value")
 	}
 
 	m.BitsPerSecond = value * multiplier

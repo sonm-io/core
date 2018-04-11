@@ -12,8 +12,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-const askPlanTestFile = "ask_test.yaml"
-
 func TestAskPlanUnmarshallers(t *testing.T) {
 	data := []byte(`
 duration: 8h

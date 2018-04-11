@@ -11,7 +11,7 @@ enum OrderType {
     ASK = 2;
 }
 
-// Geo represent GeoIP results for node.
+// Geo represent GeoIP results for node
 message Geo {
     string country = 1;
     string city = 2;
