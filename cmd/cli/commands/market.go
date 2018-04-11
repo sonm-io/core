@@ -49,23 +49,12 @@ var marketSearchCmd = &cobra.Command{
 		}
 
 		ordType, err := structs.ParseOrderType(orderSearchType)
-		slotPath := args[0]
 		if err != nil || ordType == pb.OrderType_ANY {
 			showError(cmd, "Cannot parse order type", err)
 			os.Exit(1)
 		}
 
-		slot, err := loadSlotFile(slotPath)
-		if err != nil {
-			showError(cmd, "Cannot parse slot file", err)
-			os.Exit(1)
-		}
-
 		req := &pb.GetOrdersRequest{
-			Order: &pb.Order{
-				OrderType: ordType,
-				Slot:      slot.Unwrap(),
-			},
 			Count: ordersSearchLimit,
 		}
 
@@ -160,7 +149,7 @@ var marketCreteCmd = &cobra.Command{
 			order.SupplierID = common.HexToAddress(args[2]).Hex()
 		}
 
-		created, err := market.CreateOrder(ctx, order)
+		created, err := market.CreateOrder(ctx, &pb.MarketOrder{})
 		if err != nil {
 			showError(cmd, "Cannot create order at Marketplace", err)
 			os.Exit(1)
@@ -183,7 +172,7 @@ var marketCancelCmd = &cobra.Command{
 		}
 
 		orderID := args[0]
-		_, err = market.CancelOrder(ctx, &pb.Order{Id: orderID})
+		_, err = market.CancelOrder(ctx, &pb.ID{Id: orderID})
 		if err != nil {
 			showError(cmd, "Cannot cancel order on Marketplace", err)
 			os.Exit(1)

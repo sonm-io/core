@@ -49,13 +49,13 @@ func TestJsonOutputForOrder(t *testing.T) {
 	buf := initRootCmd(t, "", config.OutputModeJSON)
 
 	bigVal, _ := pb.NewBigIntFromString("1000000000000000000000000000")
-	printSearchResults(rootCmd, []*pb.Order{{
-		PricePerSecond: bigVal,
+	printSearchResults(rootCmd, []*pb.MarketOrder{{
+		Price: bigVal,
 	},
 	})
 
 	out := buf.String()
-	assert.Equal(t, "{\"orders\":[{\"pricePerSecond\":\"1000000000000000000000000000\"}]}\r\n", out,
+	assert.Equal(t, "{\"orders\":[{\"price\":\"1000000000000000000000000000\"}]}\r\n", out,
 		"price must be serialized as string, not `abs` and `neg` parts of pb.BigInt")
 }
 

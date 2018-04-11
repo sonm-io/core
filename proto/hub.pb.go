@@ -324,7 +324,6 @@ func (m *DevicesReply) GetStorage() *Storage {
 	return nil
 }
 
-// Deprecated: TODO: will be removed when we'll migrate to new Ask plan API
 type CreateAskPlanRequest struct {
 	Slot           *Slot   `protobuf:"bytes,1,opt,name=slot" json:"slot,omitempty"`
 	PricePerSecond *BigInt `protobuf:"bytes,4,opt,name=pricePerSecond" json:"pricePerSecond,omitempty"`

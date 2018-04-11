@@ -1,7 +1,6 @@
 package node
 
 import (
-	"fmt"
 	"io"
 	"math/big"
 	"sync"
@@ -169,34 +168,23 @@ func (m *marketAPI) countHandlers() int {
 }
 
 func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
-	return m.remotes.market.GetOrders(ctx, req)
+	return nil, errors.New("not implemented")
 }
 
-func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, error) {
-	return m.remotes.market.GetOrderByID(ctx, req)
+func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.MarketOrder, error) {
+	return nil, errors.New("not implemented")
 }
 
-func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, error) {
-	if req.OrderType != pb.OrderType_BID {
-		return nil, errors.New("can create only Orders with type BID")
-	}
+func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.MarketOrder) (*pb.MarketOrder, error) {
+	return nil, errors.New("not implemented")
+}
 
-	if _, err := structs.NewOrder(req); err != nil {
-		return nil, err
-	}
+func (m *marketAPI) CancelOrder(ctx context.Context, order *pb.ID) (*pb.Empty, error) {
+	return nil, errors.New("not implemented")
+}
 
-	req.ByuerID = util.PubKeyToAddr(m.remotes.key.PublicKey).Hex()
-	created, err := m.remotes.market.CreateOrder(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Marketplace knows nothing about the required duration, we must bypass it by hand.
-	// Looks awful, but nevermind, it feels like out timing system is broken by design.
-	created.Slot.Duration = req.GetSlot().GetDuration()
-	go m.startHandler(created)
-
-	return created, nil
+func (m *marketAPI) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetProcessingReply, error) {
+	return nil, errors.New("not implemented")
 }
 
 func (m *marketAPI) startHandler(ord *pb.Order) {
@@ -289,7 +277,7 @@ func (m *marketAPI) executeOnceWithCancel(handler *orderHandler) bool {
 		return false
 	}
 
-	if _, err := m.remotes.market.CancelOrder(m.ctx, handler.order); err != nil {
+	if _, err := m.remotes.market.CancelOrder(m.ctx, nil); err != nil {
 		log.G(handler.ctx).Warn("cannot cancel order on market",
 			zap.String("order_id", handler.id),
 			zap.Error(err))
@@ -359,88 +347,18 @@ func (m *marketAPI) execute(handler *orderHandler) error {
 	return nil
 }
 
-func (m *marketAPI) CancelOrder(ctx context.Context, order *pb.Order) (*pb.Empty, error) {
-	order, err := m.GetOrderByID(ctx, &pb.ID{Id: order.Id})
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to resolve order type")
-	}
-
-	if order.OrderType != pb.OrderType_BID {
-		return nil, errors.New(
-			"can only remove bids via Market API; please use Hub ask-plan API to manage asks")
-	}
-
-	repl, err := m.remotes.market.CancelOrder(ctx, order)
-	if err == nil {
-		handler, ok := m.getHandler(order.Id)
-		if ok {
-			handler.cancel()
-			m.deregisterHandler(order.Id)
-		} else {
-			log.G(m.ctx).Info("no order handler found", zap.String("order_id", order.Id))
-		}
-	}
-
-	return repl, err
-}
-
-func (m *marketAPI) TouchOrders(ctx context.Context, req *pb.TouchOrdersRequest) (*pb.Empty, error) {
-	return m.remotes.market.TouchOrders(ctx, req)
-}
-
-func (m *marketAPI) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetProcessingReply, error) {
-	m.taskMux.Lock()
-	defer m.taskMux.Unlock()
-
-	reply := &pb.GetProcessingReply{
-		Orders: make(map[string]*pb.GetProcessingReply_ProcessedOrder),
-	}
-
-	for id, task := range m.tasks {
-		var extra string
-		if task.err != nil {
-			extra = fmt.Sprintf("error: %s", task.err.Error())
-		} else if task.dealID != "" {
-			extra = fmt.Sprintf("deal ID: %s", task.dealID)
-		}
-
-		reply.Orders[id] = &pb.GetProcessingReply_ProcessedOrder{
-			Id:        id,
-			Status:    uint32(task.status),
-			Timestamp: &pb.Timestamp{Seconds: task.ts.Unix()},
-			Extra:     extra,
-		}
-	}
-
-	return reply, nil
-}
-
 // getMyOrders query Marketplace service for orders
 // with type == BID and that placed with current eth address
 func (m *marketAPI) getMyOrders() (*pb.GetOrdersReply, error) {
-	req := &pb.GetOrdersRequest{
-		Order: &pb.Order{
-			ByuerID:   util.PubKeyToAddr(m.remotes.key.PublicKey).Hex(),
-			OrderType: pb.OrderType_BID,
-		},
-	}
-
+	// todo: apply correct filters
+	req := &pb.GetOrdersRequest{}
 	return m.remotes.market.GetOrders(m.ctx, req)
 }
 
 // restartOrdersProcessing loads BIDs for current account
 // and restarts background processing for that orders
 func (m *marketAPI) restartOrdersProcessing() error {
-	orders, err := m.getMyOrders()
-	if err != nil {
-		return err
-	}
-	log.G(m.ctx).Info("restart order processing", zap.Int("order_count", len(orders.GetOrders())))
-
-	for _, o := range orders.GetOrders() {
-		go m.startHandler(o)
-	}
-
+	// todo: re-implement for new marketAPI
 	return nil
 }
 

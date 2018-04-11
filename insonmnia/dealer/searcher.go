@@ -84,32 +84,8 @@ func (s *askSearcher) filterByAllowance(orders []*sonm.Order, allowance *big.Int
 }
 
 func (s *askSearcher) Search(ctx context.Context, filter *SearchFilter) ([]*sonm.Order, error) {
-	req := &sonm.GetOrdersRequest{
-		Order: &sonm.Order{
-			SupplierID: filter.supplierID,
-			OrderType:  filter.orderType,
-			Slot:       filter.slot,
-		},
-	}
-
-	// query market for orders
-	reply, err := s.market.GetOrders(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(reply.GetOrders()) == 0 {
-		return nil, ErrOrdersNotFound
-	}
-
-	// apply extra filter for price and allowance
-	// todo(all): can market/dwh perform filtering by price itself?
-	orders, err := s.filterByPriceAndAllowance(reply.GetOrders(), filter.balance, filter.allowance)
-	if err != nil {
-		return nil, err
-	}
-
-	return orders, nil
+	// TODO(sshaman1101): migrate to DWH
+	return nil, errors.New("not implemented")
 }
 
 // SearchFilter represent params for searching and filtering orders
