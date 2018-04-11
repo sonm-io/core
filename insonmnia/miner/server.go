@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
-	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -962,26 +961,13 @@ func getDescriptionForBenchmark(b *pb.Benchmark) Description {
 
 func (m *Miner) AskPlans(ctx context.Context) (*pb.AskPlansReply, error) {
 	log.G(m.ctx).Info("handling AskPlans request")
-	return &pb.AskPlansReply{Slots: m.state.AskPlans()}, nil
+	return &pb.AskPlansReply{AskPlans: m.state.AskPlans()}, nil
 }
 
-func (m *Miner) CreateAskPlan(ctx context.Context, request *pb.CreateAskPlanRequest) (string, error) {
+func (m *Miner) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (string, error) {
 	log.G(m.ctx).Info("handling CreateAskPlan request", zap.Any("request", request))
 
-	ord := &pb.Order{
-		OrderType:      pb.OrderType_ASK,
-		Slot:           request.GetSlot(),
-		ByuerID:        request.BuyerID,
-		PricePerSecond: request.PricePerSecond,
-		SupplierID:     crypto.PubkeyToAddress(m.ethkey.PublicKey).Hex(),
-	}
-
-	order, err := structs.NewOrder(ord)
-	if err != nil {
-		return "", err
-	}
-
-	return m.state.CreateAskPlan(order)
+	return m.state.CreateAskPlan(request)
 }
 
 func (m *Miner) RemoveAskPlan(ctx context.Context, id string) error {

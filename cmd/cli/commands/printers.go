@@ -257,24 +257,21 @@ func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
 
 func printAskList(cmd *cobra.Command, slots *pb.AskPlansReply) {
 	if isSimpleFormat() {
-		slots := slots.GetSlots()
-		if len(slots) == 0 {
+		plans := slots.GetAskPlans()
+		if len(plans) == 0 {
 			cmd.Printf("No Ask Order configured\r\n")
 			return
 		}
 
-		for id, slot := range slots {
+		for id, plan := range plans {
+			gpuDevices, _ := json.Marshal(plan.Resources.GetGPU().GetDevices())
 			cmd.Printf(" ID:  %s\r\n", id)
-			cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
-			cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
-			cmd.Printf(" RAM: %s\r\n", datasize.NewByteSize(slot.Resources.RamBytes).HumanReadable())
-			cmd.Printf(" Net: %s\r\n", slot.Resources.NetworkType.String())
-			cmd.Printf("     %s IN\r\n", datasize.NewByteSize(slot.Resources.NetTrafficIn).HumanReadable())
-			cmd.Printf("     %s OUT\r\n", datasize.NewByteSize(slot.Resources.NetTrafficOut).HumanReadable())
-
-			if slot.Geo != nil && slot.Geo.City != "" && slot.Geo.Country != "" {
-				cmd.Printf(" Geo: %s, %s\r\n", slot.Geo.City, slot.Geo.Country)
-			}
+			cmd.Printf(" CPU: %f Cores\r\n", plan.Resources.GetCPU().GetCorePercents()/100.)
+			cmd.Printf(" GPU: %s Devices\r\n", string(gpuDevices))
+			cmd.Printf(" RAM: %s\r\n", plan.Resources.GetRAM().GetSize().Unwrap().HumanReadable())
+			cmd.Printf(" Net: %s\r\n", plan.Resources.GetNetwork().String())
+			cmd.Printf("     %s IN\r\n", plan.Resources.GetNetwork().GetThroughputIn())
+			cmd.Printf("     %s OUT\r\n", plan.Resources.GetNetwork().GetThroughputOut())
 			cmd.Println("")
 		}
 	} else {

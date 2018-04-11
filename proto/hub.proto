@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "ask_plan.proto";
 import "bid.proto";
 import "bigint.proto";
 import "capabilities.proto";
@@ -24,7 +25,7 @@ service Hub {
     // AddSlot allows to assign a new slot.
     // This method can fail if either there are no such resources found or it
     // has been previourly assigned.
-    rpc CreateAskPlan(CreateAskPlanRequest) returns (ID) {}
+    rpc CreateAskPlan(AskPlan) returns (ID) {}
     // RemoveSlot removes the speified slot if fully matches.
     rpc RemoveAskPlan(ID) returns (Empty) {}
 
@@ -90,7 +91,7 @@ message ApproveDealRequest {
 }
 
 message AskPlansReply {
-    map <string, Slot> slots = 1;
+    map <string, AskPlan> askPlans = 1;
 }
 
 message TaskListReply {
