@@ -1,4 +1,4 @@
-package task_config
+package sonm
 
 import (
 	"math/big"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
@@ -35,7 +34,7 @@ resources:
     outbound: true
     incoming: true
 `)
-	ask := &sonm.AskPlan{}
+	ask := &AskPlan{}
 	err := yaml.Unmarshal(data, ask)
 	require.NoError(t, err)
 	require.NotNil(t, ask)
