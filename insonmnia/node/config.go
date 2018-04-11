@@ -22,11 +22,11 @@ type hubConfig struct {
 
 type Config struct {
 	Node              nodeConfig         `yaml:"node"`
-	NPPCfg            npp.Config         `yaml:"npp"`
-	Market            marketConfig       `required:"true" yaml:"market"`
+	NPP               npp.Config         `yaml:"npp"`
+	Market            marketConfig       `yaml:"market" required:"true"`
 	Log               logging.Config     `yaml:"log"`
-	Eth               accounts.EthConfig `required:"false" yaml:"ethereum"`
-	Hub               hubConfig          `required:"false" yaml:"hub"`
+	Eth               accounts.EthConfig `yaml:"ethereum" required:"false"`
+	Hub               hubConfig          `yaml:"hub" required:"false"`
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14003"`
 }
 
