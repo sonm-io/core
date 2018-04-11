@@ -137,8 +137,6 @@ mock: build_mockgen
 	mockgen -package sonm -destination proto/marketplace_mock.go  -source proto/marketplace.pb.go
 	mockgen -package config -destination cmd/cli/config/config_mock.go  -source cmd/cli/config/config.go \
 		-aux_files accounts=accounts/keys.go,logging=insonmnia/logging/logging.go
-	mockgen -package node -destination insonmnia/node/config_mock.go -source insonmnia/node/config.go \
-		-aux_files accounts=accounts/keys.go,logging=insonmnia/logging/logging.go
 	mockgen -package dealer -destination insonmnia/dealer/hub_mock.go \
 		"github.com/sonm-io/core/proto" HubClient && ${SED}
 

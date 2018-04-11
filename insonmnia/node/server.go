@@ -33,7 +33,7 @@ type hubClientCreator func(ethAddr common.Address, netAddr string) (pb.HubClient
 type remoteOptions struct {
 	ctx                context.Context
 	key                *ecdsa.PrivateKey
-	conf               Config
+	conf               *Config
 	creds              credentials.TransportCredentials
 	market             pb.MarketClient
 	eth                blockchain.Blockchainer
@@ -44,16 +44,16 @@ type remoteOptions struct {
 	nppDialer *npp.Dialer
 }
 
-func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
-	marketCC, err := xgrpc.NewClient(ctx, cfg.MarketEndpoint(), credentials)
+func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
+	marketCC, err := xgrpc.NewClient(ctx, cfg.Market.Endpoint, credentials)
 	if err != nil {
 		return nil, err
 	}
 
 	bcAPI, err := blockchain.NewAPI_DEPRECATED()
 	nppDialerOptions := []npp.Option{
-		npp.WithRendezvous(cfg.NPPConfig().Rendezvous.Endpoints, credentials),
-		npp.WithRelayClient(cfg.NPPConfig().Relay.Endpoints, crypto.PubkeyToAddress(key.PublicKey)),
+		npp.WithRendezvous(cfg.NPPCfg.Rendezvous.Endpoints, credentials),
+		npp.WithRelayClient(cfg.NPPCfg.Relay.Endpoints, crypto.PubkeyToAddress(key.PublicKey)),
 	}
 	nppDialer, err := npp.NewDialer(ctx, nppDialerOptions...)
 	if err != nil {
@@ -91,7 +91,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg Config, cr
 
 // Node is LocalNode instance
 type Node struct {
-	cfg     Config
+	cfg     *Config
 	ctx     context.Context
 	cancel  context.CancelFunc
 	privKey *ecdsa.PrivateKey
@@ -111,7 +111,7 @@ type Node struct {
 // New creates new Local Node instance
 // also method starts internal gRPC client connections
 // to the external services like Market and Hub
-func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
+func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	_, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
 	if err != nil {
@@ -119,7 +119,7 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	}
 
 	remoteCreds := util.NewTLS(TLSConfig)
-	opts, err := newRemoteOptions(ctx, key, c, remoteCreds)
+	opts, err := newRemoteOptions(ctx, key, config, remoteCreds)
 	if err != nil {
 		return nil, err
 	}
@@ -153,10 +153,10 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 	)
 
 	pb.RegisterHubManagementServer(srv, hub)
-	log.G(ctx).Info("hub service registered", zap.String("endpt", c.HubEndpoint()))
+	log.G(ctx).Info("hub service registered", zap.String("endpt", config.Hub.Endpoint))
 
 	pb.RegisterMarketServer(srv, market)
-	log.G(ctx).Info("market service registered", zap.String("endpt", c.MarketEndpoint()))
+	log.G(ctx).Info("market service registered", zap.String("endpt", config.Market.Endpoint))
 
 	pb.RegisterDealManagementServer(srv, deals)
 	log.G(ctx).Info("deals service registered")
@@ -171,7 +171,7 @@ func New(ctx context.Context, c Config, key *ecdsa.PrivateKey) (*Node, error) {
 
 	return &Node{
 		privKey: key,
-		cfg:     c,
+		cfg:     config,
 		ctx:     ctx,
 		cancel:  cancel,
 		srv:     srv,
@@ -227,8 +227,8 @@ func (n *Node) ServeGRPC() error {
 		return err
 	}
 
-	v4err := serve("tcp4", fmt.Sprintf("127.0.0.1:%d", n.cfg.BindPort()))
-	v6err := serve("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.BindPort()))
+	v4err := serve("tcp4", fmt.Sprintf("127.0.0.1:%d", n.cfg.Node.BindPort))
+	v6err := serve("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.Node.BindPort))
 
 	if v4err != nil && v6err != nil {
 		n.Close()
@@ -255,13 +255,13 @@ func (n *Node) serveHttp() error {
 
 	options := []rest.Option{rest.WithContext(n.ctx), rest.WithDecoder(decenc), rest.WithEncoder(decenc), rest.WithInterceptor(n.hub.(*hubAPI).intercept)}
 
-	lis6, err := net.Listen("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.HttpBindPort()))
+	lis6, err := net.Listen("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.Node.HttpBindPort))
 	if err == nil {
 		log.S(n.ctx).Info("created ipv6 listener for http")
 		options = append(options, rest.WithListener(lis6))
 	}
 
-	lis4, err := net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", n.cfg.HttpBindPort()))
+	lis4, err := net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", n.cfg.Node.HttpBindPort))
 	if err == nil {
 		log.S(n.ctx).Info("created ipv4 listener for http")
 		options = append(options, rest.WithListener(lis4))
