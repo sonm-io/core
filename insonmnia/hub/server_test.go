@@ -7,7 +7,6 @@ import (
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
-	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
@@ -55,37 +54,11 @@ func getTestKey() *ecdsa.PrivateKey {
 	return k
 }
 
-func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
-	m := pb.NewMockMarketClient(ctrl)
-
-	ord := &pb.Order{
-		Id:             "my-order-id",
-		OrderType:      pb.OrderType_BID,
-		PricePerSecond: pb.NewBigIntFromInt(1000),
-		ByuerID:        addr.Hex(),
-		Slot: &pb.Slot{
-			Resources: &pb.Resources{},
-		},
-	}
-	// TODO: fix this - it does not really call create order or cancel order
-	m.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).AnyTimes().
-		Return(ord, nil).AnyTimes()
-	m.EXPECT().CancelOrder(gomock.Any(), gomock.Any()).AnyTimes().
-		Return(&pb.Empty{}, nil).AnyTimes()
-	return m
-}
-
 func buildTestHub(ctrl *gomock.Controller) (*Hub, error) {
-	market := getTestMarket(ctrl)
 	config := defaultMinerMockCfg()
 	worker, _ := getTestMiner(ctrl)
 
-	ctx := context.Background()
-
-	bc := blockchain.NewMockBlockchainer(ctrl)
-	bc.EXPECT().GetDealInfo(ctx, gomock.Any()).AnyTimes().Return(&pb.Deal{}, nil)
-
-	return New(config, WithPrivateKey(key), WithMarket(market), WithBlockchain(bc), WithWorker(worker))
+	return New(config, WithPrivateKey(key), WithWorker(worker))
 }
 
 //TODO: Move this to separate test for AskPlans

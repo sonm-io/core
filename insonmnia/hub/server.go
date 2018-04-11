@@ -12,7 +12,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
-	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/npp"
@@ -103,13 +102,6 @@ func New(cfg *miner.Config, opts ...Option) (*Hub, error) {
 			cancel()
 		}
 	}()
-
-	if defaults.bcr == nil {
-		defaults.bcr, err = blockchain.NewAPI_DEPRECATED()
-		if err != nil {
-			return nil, err
-		}
-	}
 
 	if len(cfg.Whitelist.PrivilegedAddresses) == 0 {
 		cfg.Whitelist.PrivilegedAddresses = append(cfg.Whitelist.PrivilegedAddresses, defaults.ethAddr.Hex())
