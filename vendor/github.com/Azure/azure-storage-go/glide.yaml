@@ -1,8 +1,0 @@
-package: github.com/Azure/azure-storage-go
-import:
-- package: github.com/Azure/go-autorest
-  subpackages:
-  - autorest/azure
-- package: github.com/satori/uuid
-testImport:
-- package: gopkg.in/check.v1
