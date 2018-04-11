@@ -9,7 +9,8 @@ const (
 
 func (c *AskPlanCPU) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// NOTE: this works till AskPlanCPU has only one field.
-	// When another fields are added we may use map[string] interface{} or unmarshaller for each field.
+	// When another fields are added we may use yaml.MapSlice (or better representation announced in yaml.v3)
+	// or unmarshaller for each field.
 	var cpuData map[string]float64
 	err := unmarshal(&cpuData)
 	if err != nil {

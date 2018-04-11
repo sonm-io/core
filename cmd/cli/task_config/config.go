@@ -10,8 +10,6 @@ import (
 )
 
 // TaskConfig describe how to start task (docker image) on Miner
-//
-// TODO(sshaman1101): drop interface
 type TaskConfig interface {
 	GetImageName() string
 	GetSSHKey() string
