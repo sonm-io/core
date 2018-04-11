@@ -16,16 +16,16 @@ const (
 	testCfgPath = "test.yaml"
 )
 
-func createTestConfigFile(p, body string) error {
-	return ioutil.WriteFile(p, []byte(body), 0600)
+func createTestConfigFile(body string) error {
+	return ioutil.WriteFile(testCfgPath, []byte(body), 0600)
 }
 
-func deleteTestConfigFile(p string) {
-	os.Remove(p)
+func deleteTestConfigFile() {
+	os.Remove(testCfgPath)
 }
 
 func TestTaskFull(t *testing.T) {
-	createTestConfigFile(testCfgPath, `task:
+	createTestConfigFile(`task:
   container:
     name: user/image:v1
     ssh_key: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD
@@ -52,7 +52,7 @@ func TestTaskFull(t *testing.T) {
     user: name
     password: secret
 `)
-	defer deleteTestConfigFile(testCfgPath)
+	defer deleteTestConfigFile()
 
 	cfg, err := LoadConfig(testCfgPath)
 	assert.NoError(t, err)
@@ -85,7 +85,7 @@ func TestTaskFull(t *testing.T) {
 }
 
 func TestTaskNoRegistry(t *testing.T) {
-	createTestConfigFile(testCfgPath, `task:
+	createTestConfigFile(`task:
   container:
     name: user/image:v1
     command: /myapp -param=1
@@ -97,7 +97,7 @@ func TestTaskNoRegistry(t *testing.T) {
     GPU_type: nv1080it
     RAM: 10240kb
 `)
-	defer deleteTestConfigFile(testCfgPath)
+	defer deleteTestConfigFile()
 
 	cfg, err := LoadConfig(testCfgPath)
 	assert.NoError(t, err)
@@ -108,11 +108,11 @@ func TestTaskNoRegistry(t *testing.T) {
 }
 
 func TestTaskMinimal(t *testing.T) {
-	createTestConfigFile(testCfgPath, `task:
+	createTestConfigFile(`task:
   container:
     name: user/image:v1
 `)
-	defer deleteTestConfigFile(testCfgPath)
+	defer deleteTestConfigFile()
 
 	cfg, err := LoadConfig(testCfgPath)
 	assert.NoError(t, err)
@@ -126,11 +126,11 @@ func TestTaskMinimal(t *testing.T) {
 }
 
 func TestTaskNameRequired(t *testing.T) {
-	createTestConfigFile(testCfgPath, `task:
+	createTestConfigFile(`task:
   container:
     name:
 `)
-	defer deleteTestConfigFile(testCfgPath)
+	defer deleteTestConfigFile()
 	cfg, err := LoadConfig(testCfgPath)
 	assert.Nil(t, cfg)
 	assert.Error(t, err)
@@ -138,7 +138,7 @@ func TestTaskNameRequired(t *testing.T) {
 }
 
 func TestTaskRegistryAuth(t *testing.T) {
-	createTestConfigFile(testCfgPath, `task:
+	createTestConfigFile(`task:
   container:
     name: user/image:v1
   registry:
@@ -146,7 +146,7 @@ func TestTaskRegistryAuth(t *testing.T) {
     user: name
     password: secret
 `)
-	defer deleteTestConfigFile(testCfgPath)
+	defer deleteTestConfigFile()
 
 	cfg, err := LoadConfig(testCfgPath)
 	assert.NoError(t, err)
@@ -168,7 +168,7 @@ func TestTaskRegistryAuth(t *testing.T) {
 }
 
 func TestTaskConfigNotExists(t *testing.T) {
-	deleteTestConfigFile(testCfgPath)
+	deleteTestConfigFile()
 
 	cfg, err := LoadConfig(testCfgPath)
 	assert.Nil(t, cfg)
@@ -181,7 +181,7 @@ func TestTaskConfigReadError(t *testing.T) {
   container:
     name: user/image:v1
 `
-	defer deleteTestConfigFile(testCfgPath)
+	defer deleteTestConfigFile()
 
 	// write only permissions
 	err := ioutil.WriteFile(testCfgPath, []byte(body), 0200)
@@ -194,14 +194,14 @@ func TestTaskConfigReadError(t *testing.T) {
 }
 
 func TestTaskConfigEnv(t *testing.T) {
-	createTestConfigFile(testCfgPath, `task:
+	createTestConfigFile(`task:
   container:
     name: user/image:v1
     env:
       key1: value1
       key2: value2
 `)
-	defer deleteTestConfigFile(testCfgPath)
+	defer deleteTestConfigFile()
 
 	cfg, err := LoadConfig(testCfgPath)
 	assert.NoError(t, err)

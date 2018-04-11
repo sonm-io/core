@@ -105,7 +105,6 @@ message DevicesReply {
     Storage storage = 5;
 }
 
-// Deprecated: TODO: will be removed when we'll migrate to new Ask plan API
 message CreateAskPlanRequest {
     Slot slot = 1;
     BigInt pricePerSecond = 4;

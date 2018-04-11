@@ -6,14 +6,16 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 const askPlanTestFile = "ask_test.yaml"
 
-func TestLoadAskPlan(t *testing.T) {
-	err := createTestConfigFile(askPlanTestFile, `
+func TestAskPlanUnmarshallers(t *testing.T) {
+	data := []byte(`
 duration: 8h
 price: 23.73 SNM/h
 
@@ -35,12 +37,12 @@ resources:
     outbound: true
     incoming: true
 `)
-	require.NoError(t, err)
-	defer deleteTestConfigFile(askPlanTestFile)
-
-	ask, err := LoadAskPlan(askPlanTestFile)
+	ask := &sonm.AskPlan{}
+	err := yaml.Unmarshal(data, ask)
 	require.NoError(t, err)
 	require.NotNil(t, ask)
+	err = ask.Validate()
+	require.NoError(t, err)
 
 	expectedPrice := big.NewInt(0).Mul(big.NewInt(2373), big.NewInt(1e16))
 	expectedPrice = big.NewInt(0).Quo(expectedPrice, big.NewInt(3600))

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	ds "github.com/c2h5oh/datasize"
+	"github.com/c2h5oh/datasize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 )
@@ -72,6 +72,10 @@ func (m *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+func (m *EthAddress) Unwrap() common.Address {
+	return common.BytesToAddress(m.Address)
+}
+
 func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var v string
 	if err := unmarshal(&v); err != nil {
@@ -92,12 +96,12 @@ func (m *DataSize) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	var bs ds.ByteSize
-	if err := bs.UnmarshalText([]byte(strings.ToLower(v))); err != nil {
+	var byteSize datasize.ByteSize
+	if err := byteSize.UnmarshalText([]byte(strings.ToLower(v))); err != nil {
 		return err
 	}
 
-	m.Bytes = bs.Bytes()
+	m.Bytes = byteSize.Bytes()
 	return nil
 }
 

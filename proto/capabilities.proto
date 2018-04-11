@@ -10,7 +10,6 @@ enum GPUVendorType {
     RADEON = 2;
 }
 
-// Deprecated: TODO: no longer used.
 message Capabilities {
     repeated CPUDevice cpu = 1;
     RAMDevice mem = 2;
