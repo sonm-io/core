@@ -5,9 +5,9 @@ import (
 	"github.com/sonm-io/core/proto"
 )
 
-func LoadAskPlan(p string) (*sonm.AskPlan, error) {
+func LoadAskPlan(path string) (*sonm.AskPlan, error) {
 	ask := &sonm.AskPlan{}
-	if err := configor.Load(ask, p); err != nil {
+	if err := configor.Load(ask, path); err != nil {
 		return nil, err
 	}
 
