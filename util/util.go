@@ -1,10 +1,10 @@
 package util
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/http"
@@ -13,15 +13,12 @@ import (
 	"runtime"
 	"strconv"
 
-	"context"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v2"
 )
 
 // GetLocalIP find local non-loopback ip addr
@@ -77,20 +74,6 @@ func PubKeyToString(key ecdsa.PublicKey) string {
 
 func PubKeyToAddr(key ecdsa.PublicKey) common.Address {
 	return crypto.PubkeyToAddress(key)
-}
-
-func LoadYamlFile(from string, to interface{}) error {
-	buf, err := ioutil.ReadFile(from)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(buf, to)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // DirectoryExists returns true if the given directory exists

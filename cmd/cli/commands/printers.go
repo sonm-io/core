@@ -255,30 +255,33 @@ func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
 	}
 }
 
-func printAskList(cmd *cobra.Command, slots *pb.AskPlansReply) {
+func printAskList(cmd *cobra.Command, list *pb.AskPlansReply) {
 	if isSimpleFormat() {
-		slots := slots.GetSlots()
-		if len(slots) == 0 {
-			cmd.Printf("No Ask Order configured\r\n")
+		plans := list.GetAskPlans()
+		if len(plans) == 0 {
+			cmd.Printf("No Ask-plans configured\r\n")
 			return
 		}
 
-		for id, slot := range slots {
-			cmd.Printf(" ID:  %s\r\n", id)
-			cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
-			cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
-			cmd.Printf(" RAM: %s\r\n", ds.ByteSize(slot.Resources.RamBytes).HR())
-			cmd.Printf(" Net: %s\r\n", slot.Resources.NetworkType.String())
-			cmd.Printf("     %s IN\r\n", ds.ByteSize(slot.Resources.NetTrafficIn).HR())
-			cmd.Printf("     %s OUT\r\n", ds.ByteSize(slot.Resources.NetTrafficOut).HR())
-
-			if slot.Geo != nil && slot.Geo.City != "" && slot.Geo.Country != "" {
-				cmd.Printf(" Geo: %s, %s\r\n", slot.Geo.City, slot.Geo.Country)
+		for _, ask := range plans {
+			cmd.Printf("ID:  %s\r\n", ask.GetID())
+			if ask.GetMarketID() != "" {
+				cmd.Printf("MarketID:  %s\r\n", ask.GetMarketID())
 			}
+
+			cmd.Printf("CPU: %d Cores\r\n", ask.GetResources().GetCpu().GetCores())
+			cmd.Printf("GPU: %d Devices\r\n", len(ask.GetResources().GetGpu().GetDevices()))
+			cmd.Printf("RAM: %s\r\n", ds.ByteSize(ask.GetResources().GetRam().GetSize()).HR())
+			cmd.Printf("Net: overlay: %v | incoming: %v | outbound: %v\r\n",
+				ask.GetResources().GetNetwork().GetOverlay(),
+				ask.GetResources().GetNetwork().GetIncoming(),
+				ask.GetResources().GetNetwork().GetOutbound())
+			cmd.Printf("  %s\\s IN\r\n", ds.ByteSize(ask.GetResources().GetNetwork().GetThroughputIn()).HR())
+			cmd.Printf("  %s\\s OUT\r\n", ds.ByteSize(ask.GetResources().GetNetwork().GetThroughputOut()).HR())
 			cmd.Println("")
 		}
 	} else {
-		showJSON(cmd, slots)
+		showJSON(cmd, list)
 	}
 }
 

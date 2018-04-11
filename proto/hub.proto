@@ -6,6 +6,8 @@ import "capabilities.proto";
 import "container.proto";
 import "deal.proto";
 import "insonmnia.proto";
+import "ask_plan.proto";
+
 
 package sonm;
 
@@ -19,13 +21,14 @@ service Hub {
     rpc Devices(Empty) returns (DevicesReply) {}
     // Tasks returns info about all Tasks
     rpc Tasks(Empty) returns (TaskListReply) {}
-    // GetSlots allows to obtain previously assigned slots for the Hub.
+
+    // AskPlans allows to obtain previously assigned ask-lans for the Worker.
     rpc AskPlans(Empty) returns (AskPlansReply) {}
-    // AddSlot allows to assign a new slot.
+    // CreateAskPlan allows to assign a new rule to sell resources.
     // This method can fail if either there are no such resources found or it
     // has been previourly assigned.
-    rpc CreateAskPlan(CreateAskPlanRequest) returns (ID) {}
-    // RemoveSlot removes the speified slot if fully matches.
+    rpc CreateAskPlan(AskPlan) returns (ID) {}
+    // RemoveAskPlan removes the speified plan.
     rpc RemoveAskPlan(ID) returns (Empty) {}
 
     /// Task Management section
@@ -90,7 +93,7 @@ message ApproveDealRequest {
 }
 
 message AskPlansReply {
-    map <string, Slot> slots = 1;
+    map <string, AskPlan> askPlans = 1;
 }
 
 message TaskListReply {
@@ -103,13 +106,6 @@ message DevicesReply {
     RAM RAM = 3;
     Network network = 4;
     Storage storage = 5;
-}
-
-message CreateAskPlanRequest {
-    Slot slot = 1;
-    BigInt pricePerSecond = 4;
-
-    string buyerID = 3;
 }
 
 message PullTaskRequest {

@@ -5,13 +5,15 @@ import "insonmnia.proto";
 
 package sonm;
 
+// Deprecated: TODO: please move to the blockchain's MarketAPI
 enum OrderType {
     ANY = 0;
     BID = 1;
     ASK = 2;
 }
 
-// Geo represent GeoIP results for node
+// Geo represent GeoIP results for node.
+// Deprecated: TODO: useless for now.
 message Geo {
     string country = 1;
     string city = 2;
@@ -19,6 +21,7 @@ message Geo {
     float lon = 4;
 }
 
+// Deprecated: TODO: please move to the blockchain's MarketAPI
 message Resources {
     // CPU core count
     uint64 cpuCores = 1;
@@ -39,6 +42,7 @@ message Resources {
     map<string, double> properties = 8;
 }
 
+// Deprecated: TODO: please move to the blockchain's MarketAPI
 message Slot {
     // Buyer’s rating. Got from Buyer’s profile for BID orders rating_supplier.
     int64 buyerRating = 1;
@@ -52,6 +56,7 @@ message Slot {
     uint64 duration = 5;
 }
 
+// Deprecated: TODO: please move to the blockchain's MarketAPI
 message Order {
     // Order ID, UUIDv4
     string id = 1;

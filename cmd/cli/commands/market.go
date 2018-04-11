@@ -49,22 +49,10 @@ var marketSearchCmd = &cobra.Command{
 		}
 
 		ordType, err := structs.ParseOrderType(orderSearchType)
-		slotPath := args[0]
-		if err != nil || ordType == pb.OrderType_ANY {
-			showError(cmd, "Cannot parse order type", err)
-			os.Exit(1)
-		}
-
-		slot, err := loadSlotFile(slotPath)
-		if err != nil {
-			showError(cmd, "Cannot parse slot file", err)
-			os.Exit(1)
-		}
-
 		req := &pb.GetOrdersRequest{
 			Order: &pb.Order{
 				OrderType: ordType,
-				Slot:      slot.Unwrap(),
+				Slot:      &pb.Slot{},
 			},
 			Count: ordersSearchLimit,
 		}
@@ -144,17 +132,12 @@ var marketCreteCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		slot, err := loadSlotFile(orderPath)
+		order, err := loadOrderYAML(orderPath)
 		if err != nil {
-			showError(cmd, "Cannot load order", err)
+			showError(cmd, "Cannot load order.yaml", err)
 			os.Exit(1)
 		}
-
-		order := &pb.Order{
-			PricePerSecond: pb.NewBigInt(bigPrice),
-			Slot:           slot.Unwrap(),
-			OrderType:      pb.OrderType_BID,
-		}
+		order.PricePerSecond = pb.NewBigInt(bigPrice)
 
 		if len(args) > 2 {
 			order.SupplierID = common.HexToAddress(args[2]).Hex()
@@ -191,4 +174,9 @@ var marketCancelCmd = &cobra.Command{
 
 		showOk(cmd)
 	},
+}
+
+// todo: used as stub while migrating on the new MarketplaceAPI.
+func loadOrderYAML(path string) (*pb.Order, error) {
+	return &pb.Order{}, nil
 }

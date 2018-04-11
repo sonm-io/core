@@ -12,22 +12,15 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/hardware"
-	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
 
-// todo: candidate to move into the `structs` package
-type askPlan struct {
-	ID    string
-	Order *structs.Order
-}
-
 type stateJSON struct {
-	AskPlans   map[string]*askPlan `json:"ask_plans"`
-	Benchmarks map[uint64]bool     `json:"benchmarks"`
-	Hardware   *hardware.Hardware  `json:"hardware"`
-	HwHash     string              `json:"hw_hash"`
+	AskPlans   map[string]*pb.AskPlan `json:"ask_plans"`
+	Benchmarks map[uint64]bool        `json:"benchmarks"`
+	Hardware   *hardware.Hardware     `json:"hardware"`
+	HwHash     string                 `json:"hw_hash"`
 }
 
 type Storage struct {
@@ -56,7 +49,7 @@ func makeStore(ctx context.Context, cfg *StorageConfig) (store.Store, error) {
 
 func newEmptyState() *stateJSON {
 	return &stateJSON{
-		AskPlans:   make(map[string]*askPlan, 0),
+		AskPlans:   make(map[string]*pb.AskPlan),
 		Benchmarks: make(map[uint64]bool),
 		Hardware:   new(hardware.Hardware),
 	}
@@ -109,28 +102,22 @@ func (s *Storage) loadInitial() error {
 	return s.dump()
 }
 
-func (s *Storage) AskPlans() map[string]*pb.Slot {
+func (s *Storage) AskPlans() map[string]*pb.AskPlan {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	result := make(map[string]*pb.Slot)
-	for id, plan := range s.data.AskPlans {
-		result[id] = plan.Order.Slot
-	}
-
-	return result
+	return s.data.AskPlans
 }
 
-func (s *Storage) CreateAskPlan(order *structs.Order) (string, error) {
+func (s *Storage) CreateAskPlan(plan *pb.AskPlan) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	plan := askPlan{
-		ID:    uuid.New(),
-		Order: order,
+	if plan.GetID() == "" {
+		plan.ID = uuid.New()
 	}
 
-	s.data.AskPlans[plan.ID] = &plan
+	s.data.AskPlans[plan.GetID()] = plan
 	if err := s.dump(); err != nil {
 		return "", err
 	}

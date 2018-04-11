@@ -60,7 +60,6 @@ It has these top-level messages:
 	AskPlansReply
 	TaskListReply
 	DevicesReply
-	CreateAskPlanRequest
 	PullTaskRequest
 	DealInfoReply
 	Empty
