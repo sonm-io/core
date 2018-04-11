@@ -24,7 +24,7 @@ func start() {
 		os.Exit(1)
 	}
 
-	ctx := log.WithLogger(context.Background(), logging.BuildLogger(cfg.Logging.Level))
+	ctx := log.WithLogger(context.Background(), logging.BuildLogger(cfg.Logging.LogLevel()))
 
 	options := []relay.Option{
 		relay.WithLogger(log.G(ctx)),

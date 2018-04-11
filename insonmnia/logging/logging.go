@@ -41,7 +41,7 @@ type Level struct {
 
 // Zap returns the underlying zap logging level.
 func (m Level) Zap() zapcore.Level {
-	return m.level - 1
+	return m.level
 }
 
 func (m *Level) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -55,7 +55,7 @@ func (m *Level) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	m.level = v + 1
+	m.level = v
 
 	return nil
 }

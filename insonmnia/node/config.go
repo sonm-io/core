@@ -40,15 +40,11 @@ type hubConfig struct {
 	Endpoint string `required:"false" yaml:"endpoint"`
 }
 
-type logConfig struct {
-	Level logging.Level `yaml:"level" required:"true" default:"debug"`
-}
-
 type yamlConfig struct {
 	Node                    nodeConfig         `yaml:"node"`
 	NPPCfg                  npp.Config         `yaml:"npp"`
 	Market                  marketConfig       `required:"true" yaml:"market"`
-	Log                     logConfig          `yaml:"log"`
+	Log                     logging.Config     `yaml:"log"`
 	Eth                     accounts.EthConfig `required:"false" yaml:"ethereum"`
 	Hub                     *hubConfig         `required:"false" yaml:"hub"`
 	MetricsListenAddrConfig string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14003"`
@@ -78,7 +74,7 @@ func (y *yamlConfig) HubEndpoint() string {
 }
 
 func (y *yamlConfig) LogLevel() logging.Level {
-	return y.Log.Level
+	return y.Log.LogLevel()
 }
 
 func (y *yamlConfig) KeyStore() string {
