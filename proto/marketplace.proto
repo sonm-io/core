@@ -19,9 +19,6 @@ service Market {
     rpc GetOrderByID(ID) returns (MarketOrder) {}
     // CancelOrder removes active order from the Marketplace.
     rpc CancelOrder(ID) returns (Empty) {}
-    // GetProcessing returns currently processing orders.
-    // todo: rethink and improve.
-    rpc GetProcessing(Empty) returns (GetProcessingReply) {}
 }
 
 message GetOrdersRequest {

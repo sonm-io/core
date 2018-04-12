@@ -4,12 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"sort"
 	"time"
 
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/sonm-io/core/insonmnia/node"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/datasize"
@@ -26,8 +24,7 @@ func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusRep
 			portsParsedOK = err == nil
 		}
 
-		cmd.Printf("Task %s (on %s):\r\n", id, taskStatus.
-			MinerID)
+		cmd.Printf("Task %s (on %s):\r\n", id, taskStatus.MinerID)
 		cmd.Printf("  Image:  %s\r\n", taskStatus.GetImageName())
 		cmd.Printf("  Status: %s\r\n", taskStatus.GetStatus().String())
 		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.GetUptime()).String())
@@ -220,41 +217,6 @@ func printOrderResources(cmd *cobra.Command, rs *pb.Resources) {
 	cmd.Printf("    Out:  %s\r\n", datasize.NewByteSize(rs.NetTrafficOut).HumanReadable())
 }
 
-type handlerByTime []*pb.GetProcessingReply_ProcessedOrder
-
-func (h handlerByTime) Len() int           { return len(h) }
-func (h handlerByTime) Less(i, j int) bool { return h[i].Timestamp.Seconds < h[j].Timestamp.Seconds }
-func (h handlerByTime) Swap(i, j int)      { *h[i], *h[j] = *h[j], *h[i] }
-
-func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
-	if isSimpleFormat() {
-		if len(tasks.GetOrders()) == 0 {
-			cmd.Printf("No processing orders\r\n")
-			return
-		}
-
-		// transform map to the slice, then order the slice
-		handlers := make([]*pb.GetProcessingReply_ProcessedOrder, 0, len(tasks.GetOrders()))
-		for _, handlr := range tasks.GetOrders() {
-			handlers = append(handlers, handlr)
-		}
-
-		sort.Sort(handlerByTime(handlers))
-
-		for _, handlr := range handlers {
-			t := time.Unix(handlr.Timestamp.Seconds, 0).Format(time.RFC822)
-			status := node.HandlerStatus(handlr.Status).String()
-
-			cmd.Printf("id:     %s start: %s\r\n", handlr.Id, t)
-			cmd.Printf("status: %s (%s)\r\n", status, handlr.Extra)
-			cmd.Println()
-		}
-
-	} else {
-		showJSON(cmd, tasks)
-	}
-}
-
 func printAskList(cmd *cobra.Command, slots *pb.AskPlansReply) {
 	if isSimpleFormat() {
 		plans := slots.GetAskPlans()
@@ -284,7 +246,7 @@ func printVersion(cmd *cobra.Command, v string) {
 	}
 }
 
-func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
+func printDealsList(cmd *cobra.Command, deals []*pb.MarketDeal) {
 	if isSimpleFormat() {
 		if len(deals) == 0 {
 			cmd.Println("No deals found")
@@ -301,7 +263,7 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 
 }
 
-func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
+func printDealInfo(cmd *cobra.Command, deal *pb.MarketDeal) {
 	if isSimpleFormat() {
 		start := deal.StartTime.Unix()
 		end := deal.EndTime.Unix()
@@ -318,7 +280,7 @@ func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 		cmd.Printf("Status:   %s\r\n", deal.GetStatus())
 		cmd.Printf("Duraton:  %s\r\n", dealDuration.String())
 		cmd.Printf("Price:    %s (%s SNM/sec)\r\n", deal.GetPrice().ToPriceString(), ppsBig.ToPriceString())
-		cmd.Printf("Buyer:    %s\r\n", deal.GetBuyerID())
+		cmd.Printf("Consumer: %s\r\n", deal.GetConsumerID())
 		cmd.Printf("Supplier: %s\r\n", deal.GetSupplierID())
 		cmd.Printf("Start at: %s\r\n", start.Format(time.RFC3339))
 		cmd.Printf("End at:   %s\r\n", end.Format(time.RFC3339))

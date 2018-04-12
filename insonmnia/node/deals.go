@@ -1,12 +1,10 @@
 package node
 
 import (
+	"github.com/sonm-io/core/insonmnia/dwh"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
-
-	log "github.com/noxiouz/zapctx/ctxlog"
-	"go.uber.org/zap"
 )
 
 type dealsAPI struct {
@@ -15,24 +13,15 @@ type dealsAPI struct {
 }
 
 func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealListReply, error) {
-	IDs, err := d.remotes.eth.GetDeals(ctx, req.Owner)
-	if err != nil {
-		return nil, err
+	// TODO(sshaman1101): better filters, need to discuss first
+	filters := dwh.DealsFilter{
+		Author: req.Owner.Unwrap(),
+		Status: pb.MarketDealStatus(req.Status),
 	}
 
-	deals := make([]*pb.Deal, 0, len(IDs))
-	for _, id := range IDs {
-		deal, err := d.remotes.eth.GetDealInfo(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-
-		// filter by status
-		if req.Status != pb.DealStatus_ANY_STATUS && req.Status != pb.DealStatus(deal.Status) {
-			continue
-		}
-
-		deals = append(deals, deal)
+	deals, err := d.remotes.dwh.GetDeals(ctx, filters)
+	if err != nil {
+		return nil, err
 	}
 
 	return &pb.DealListReply{Deal: deals}, nil
@@ -50,22 +39,8 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealStatusReply, 
 	}
 
 	reply := &pb.DealStatusReply{
+		// TODO(sshaman1101): need to find a way to extract deal details from related Worker.
 		Deal: deal,
-	}
-
-	if deal.GetStatus() == pb.DealStatus_ACCEPTED || deal.GetStatus() == pb.DealStatus_PENDING {
-		hubClient, closr, err := getHubClientByEthAddr(ctx, d.remotes, deal.GetSupplierID())
-		if err == nil {
-			defer closr.Close()
-			dealInfo, err := hubClient.GetDealInfo(ctx, id)
-			if err == nil {
-				reply.Info = dealInfo
-			} else {
-				log.G(ctx).Info("cannot get deal details from hub", zap.Error(err))
-			}
-		} else {
-			log.G(ctx).Info("cannot resolve hub address", zap.Error(err))
-		}
 	}
 
 	return reply, nil
@@ -77,8 +52,7 @@ func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
 		return nil, err
 	}
 
-	_, err = d.remotes.eth.CloseDeal(ctx, d.remotes.key, bigID)
-	if err != nil {
+	if _, err = d.remotes.eth.CloseDeal(ctx, d.remotes.key, bigID, false); err != nil {
 		return nil, err
 	}
 

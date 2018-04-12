@@ -69,6 +69,8 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 // we need this because of not all of the methods can be mapped one-to-one between Node and Hub
 // The more simplest way to omit this mapping is to refactor Hub's proto definition
 // (not the Node's one because of the Node API is publicly declared and must be changed as rare as possible).
+//
+// Deprecated: methods maps one-to-one, so this mapping become meaningless.
 var hubToNodeMethods = map[string]string{
 	"Status":        "Status",
 	"Devices":       "Devices",

@@ -6,6 +6,7 @@ import (
 
 	"strings"
 
+	"github.com/ethereum/go-ethereum/common"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
@@ -53,7 +54,7 @@ var dealsListCmd = &cobra.Command{
 		}
 
 		req := &pb.DealListRequest{
-			Owner:  from,
+			Owner:  &pb.EthAddress{Address: common.HexToAddress(from).Bytes()},
 			Status: status,
 		}
 		deals, err := dealer.List(ctx, req)
@@ -123,13 +124,11 @@ var dealsFinishCmd = &cobra.Command{
 	},
 }
 
-func convertTransactionStatus(s string) pb.DealStatus {
+func convertTransactionStatus(s string) pb.MarketDealStatus {
 	s = strings.ToUpper(s)
-	// looks stupid, but more convenient to use and easy to type
-	if s == "ANY" {
-		s = "ANY_STATUS"
-	}
+	// add prefix for protobuf constants
+	s = "MARKET_STATUS_" + s
 
-	id := pb.DealStatus_value[s]
-	return pb.DealStatus(id)
+	id := pb.MarketDealStatus_value[s]
+	return pb.MarketDealStatus(id)
 }

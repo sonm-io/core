@@ -12,10 +12,6 @@ type nodeConfig struct {
 	BindPort     uint16 `yaml:"bind_port" default:"15030"`
 }
 
-type marketConfig struct {
-	Endpoint string `required:"true" yaml:"endpoint"`
-}
-
 type hubConfig struct {
 	Endpoint string `required:"false" yaml:"endpoint"`
 }
@@ -23,7 +19,6 @@ type hubConfig struct {
 type Config struct {
 	Node              nodeConfig         `yaml:"node"`
 	NPP               npp.Config         `yaml:"npp"`
-	Market            marketConfig       `yaml:"market" required:"true"`
 	Log               logging.Config     `yaml:"log"`
 	Eth               accounts.EthConfig `yaml:"ethereum" required:"false"`
 	Hub               hubConfig          `yaml:"hub" required:"false"`

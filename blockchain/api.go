@@ -32,10 +32,12 @@ type CertsAPI interface{}
 
 type MarketAPI interface {
 	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) (*types.Transaction, error)
+	OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal, wait time.Duration) (*big.Int, error)
 	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (*types.Transaction, error)
 	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.MarketDeal, error)
 	GetDealsAmount(ctx context.Context) (*big.Int, error)
 	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder) (*types.Transaction, error)
+	PlaceOrderPending(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, wait time.Duration) (*big.Int, error)
 	CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
 	GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.MarketOrder, error)
 	GetOrdersAmount(ctx context.Context) (*big.Int, error)
@@ -128,6 +130,10 @@ func (api *BasicAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID,
 	return api.marketContract.OpenDeal(opts, askID, bigID)
 }
 
+func (api *BasicAPI) OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal, wait time.Duration) (*big.Int, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (api *BasicAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (
 	*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
@@ -196,6 +202,10 @@ func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, orde
 		fixedTag,
 		bigBenchmarks,
 	)
+}
+
+func (api *BasicAPI) PlaceOrderPending(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, wait time.Duration) (*big.Int, error) {
+	return nil, errors.New("not implemented")
 }
 
 func (api *BasicAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (

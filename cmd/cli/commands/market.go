@@ -24,7 +24,6 @@ func init() {
 		marketShowCmd,
 		marketCreteCmd,
 		marketCancelCmd,
-		marketProcessingCmd,
 	)
 }
 
@@ -67,26 +66,8 @@ var marketShowCmd = &cobra.Command{
 	},
 }
 
-var marketProcessingCmd = &cobra.Command{
-	Use:   "processing",
-	Short: "Show processing orders",
-	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
-		market, err := newMarketClient(ctx)
-		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
-		}
-
-		reply, err := market.GetProcessing(ctx, &pb.Empty{})
-		if err != nil {
-			showError(cmd, "Cannot get processing orders", err)
-			os.Exit(1)
-		}
-
-		printProcessingOrders(cmd, reply)
-	},
-}
+// Note: here is no processing method at all, we need to move matching code
+// into the separated package, and then reinvent processing from scratch.
 
 var marketCreteCmd = &cobra.Command{
 	Use:   "create <price> <slot.yaml> [supplier-eth-addr]",
