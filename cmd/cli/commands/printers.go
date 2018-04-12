@@ -139,10 +139,10 @@ func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
 			}
 		}
 
-		netIn := datasize.NewByteSize(dev.GetNetwork().GetDevice().GetBandwidthIn()).HumanReadable()
-		netOut := datasize.NewByteSize(dev.GetNetwork().GetDevice().GetBandwidthOut()).HumanReadable()
+		netIn := datasize.NewBitRate(dev.GetNetwork().GetDevice().GetBandwidthIn()).HumanReadable()
+		netOut := datasize.NewBitRate(dev.GetNetwork().GetDevice().GetBandwidthOut()).HumanReadable()
 		cmd.Println("Network:")
-		cmd.Printf("  In: %s\\s | Out: %s\\s \r\n", netIn, netOut)
+		cmd.Printf("  In: %s | Out: %s \r\n", netIn, netOut)
 		printBenchmarkGroup(cmd, dev.GetNetwork().GetBenchmarks())
 
 		storageAvailable := datasize.NewByteSize(dev.GetStorage().GetDevice().GetBytesAvailable()).HumanReadable()
