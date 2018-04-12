@@ -1,7 +1,6 @@
 package datasize
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -248,10 +247,9 @@ func (b *bitSize) Unmarshal(size interface{}, dimension string, flags uint8) err
 			default:
 				return errors.New("invalid size for unmarshall, should be float64 or uint64")
 			}
-
 		}
 	}
-	possibleDimensions, _ := json.Marshal(getPossibleDimensions(flags))
+	possibleDimensions := "[" + strings.Join(getPossibleDimensions(flags), ",") + "]"
 	return fmt.Errorf(`could not parse bitSize - invalid suffix "%s", possible values are %s`,
 		dimension, possibleDimensions)
 }
