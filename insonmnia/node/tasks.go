@@ -5,7 +5,9 @@ import (
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/dwh"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -33,26 +35,13 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 		return hubClient.Tasks(ctx, &pb.Empty{})
 	}
 
-	clientAddr := util.PubKeyToAddr(t.remotes.key.PublicKey)
 	// get all accepted deals, because only on the accepted deals client can start the payloads.
-	dealIDs, err := t.remotes.eth.GetAcceptedDeal(ctx, "", clientAddr.Hex())
+	activeDeals, err := t.remotes.dwh.GetDeals(ctx, dwh.DealsFilter{
+		Author: crypto.PubkeyToAddress(t.remotes.key.PublicKey),
+		Status: pb.MarketDealStatus_MARKET_STATUS_ACCEPTED,
+	})
 	if err != nil {
 		return nil, err
-	}
-
-	log.G(t.ctx).Info("found some deals", zap.Int("count", len(dealIDs)))
-
-	var activeDeals []*pb.Deal
-	for _, id := range dealIDs {
-		dealInfo, err := t.remotes.eth.GetDealInfo(ctx, id)
-		if err != nil {
-			return nil, err
-		}
-
-		// NOTE: status id should be changed
-		if dealInfo.Status == pb.DealStatus_ACCEPTED {
-			activeDeals = append(activeDeals, dealInfo)
-		}
 	}
 
 	log.G(t.ctx).Info("found some active deals", zap.Int("count", len(activeDeals)))
@@ -65,7 +54,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 	return &pb.TaskListReply{Info: tasks}, nil
 }
 
-func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.Deal) {
+func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.MarketDeal) {
 	hub, cc, err := t.getHubClientByEthAddr(ctx, deal.GetSupplierID())
 	if err != nil {
 		log.G(t.ctx).Error("cannot resolve hub address",
@@ -312,11 +301,6 @@ func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (pb.HubCl
 
 func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.HubClient, io.Closer, error) {
 	return t.remotes.hubCreator(common.StringToAddress(eth), "")
-}
-
-// getHubClientByEthAddr is deprecated.
-func getHubClientByEthAddr(ctx context.Context, remotes *remoteOptions, eth string) (pb.HubClient, io.Closer, error) {
-	return remotes.hubCreator(common.StringToAddress(eth), "")
 }
 
 type streamMeta struct {

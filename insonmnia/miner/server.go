@@ -1015,7 +1015,7 @@ func (m *Miner) loadDeals() error {
 		Author: util.PubKeyToAddr(m.ethkey.PublicKey),
 	}
 
-	deals, err := m.dwh.GetDeals(filter)
+	deals, err := m.dwh.GetDeals(m.ctx, filter)
 	if err != nil {
 		return err
 	}

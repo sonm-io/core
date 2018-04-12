@@ -15,6 +15,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/insonmnia/npp"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -31,26 +32,18 @@ type hubClientCreator func(ethAddr common.Address, netAddr string) (pb.HubClient
 
 // remoteOptions describe options related to remove gRPC services
 type remoteOptions struct {
-	ctx                context.Context
-	key                *ecdsa.PrivateKey
-	conf               *Config
-	creds              credentials.TransportCredentials
-	market             pb.MarketClient
-	eth                blockchain.Blockchainer
-	hubCreator         hubClientCreator
-	dealApproveTimeout time.Duration
-	dealCreateTimeout  time.Duration
-
-	nppDialer *npp.Dialer
+	ctx               context.Context
+	key               *ecdsa.PrivateKey
+	conf              *Config
+	creds             credentials.TransportCredentials
+	eth               blockchain.API
+	dwh               dwh.DWH
+	hubCreator        hubClientCreator
+	blockchainTimeout time.Duration
+	nppDialer         *npp.Dialer
 }
 
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
-	marketCC, err := xgrpc.NewClient(ctx, cfg.Market.Endpoint, credentials)
-	if err != nil {
-		return nil, err
-	}
-
-	bcAPI, err := blockchain.NewAPI_DEPRECATED()
 	nppDialerOptions := []npp.Option{
 		npp.WithRendezvous(cfg.NPP.Rendezvous.Endpoints, credentials),
 		npp.WithRelayClient(cfg.NPP.Relay.Endpoints, crypto.PubkeyToAddress(key.PublicKey)),
@@ -75,17 +68,21 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		return pb.NewHubClient(cc), cc, nil
 	}
 
+	eth, err := blockchain.NewAPI()
+	if err != nil {
+		return nil, err
+	}
+
 	return &remoteOptions{
-		ctx:                ctx,
-		key:                key,
-		conf:               cfg,
-		creds:              credentials,
-		market:             pb.NewMarketClient(marketCC),
-		eth:                bcAPI,
-		dealApproveTimeout: 900 * time.Second,
-		dealCreateTimeout:  180 * time.Second,
-		hubCreator:         hubFactory,
-		nppDialer:          nppDialer,
+		ctx:               ctx,
+		key:               key,
+		conf:              cfg,
+		creds:             credentials,
+		eth:               eth,
+		dwh:               dwh.NewDumbDWH(ctx),
+		blockchainTimeout: 180 * time.Second,
+		hubCreator:        hubFactory,
+		nppDialer:         nppDialer,
 	}, nil
 }
 
@@ -156,7 +153,7 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 	log.G(ctx).Info("hub service registered", zap.String("endpt", config.Hub.Endpoint))
 
 	pb.RegisterMarketServer(srv, market)
-	log.G(ctx).Info("market service registered", zap.String("endpt", config.Market.Endpoint))
+	log.G(ctx).Info("market service registered")
 
 	pb.RegisterDealManagementServer(srv, deals)
 	log.G(ctx).Info("deals service registered")
@@ -197,11 +194,7 @@ func (n *Node) InterceptStreamRequest(srv interface{}, ss grpc.ServerStream, inf
 
 // Serve binds gRPC services and start it
 func (n *Node) Serve() error {
-	err := n.market.(*marketAPI).restartOrdersProcessing()
-	if err != nil {
-		// should it breaks startup?
-		log.G(n.ctx).Warn("cannot restart order processing", zap.Error(err))
-	}
+	// todo: how to deal with background processing into brave new blockchain world?
 	wg := errgroup.Group{}
 	wg.Go(n.ServeHttp)
 	wg.Go(n.ServeGRPC)
