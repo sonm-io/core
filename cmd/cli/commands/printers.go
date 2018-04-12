@@ -7,12 +7,12 @@ import (
 	"sort"
 	"time"
 
-	ds "github.com/c2h5oh/datasize"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/sonm-io/core/insonmnia/node"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/datasize"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v1"
 )
@@ -35,7 +35,7 @@ func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusRep
 		if taskStatus.GetUsage() != nil {
 			cmd.Println("  Resources:")
 			cmd.Printf("    CPU: %d\r\n", taskStatus.Usage.GetCpu().GetTotal())
-			cmd.Printf("    MEM: %s\r\n", ds.ByteSize(taskStatus.Usage.GetMemory().GetMaxUsage()).HR())
+			cmd.Printf("    MEM: %s\r\n", datasize.NewByteSize(taskStatus.Usage.GetMemory().GetMaxUsage()).HumanReadable())
 			if taskStatus.GetUsage().GetNetwork() != nil {
 				cmd.Printf("    NET:\r\n")
 				for i, net := range taskStatus.GetUsage().GetNetwork() {
@@ -126,7 +126,7 @@ func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
 		cmd.Printf("CPU: %d cores at %d sockets\r\n", cpu.GetCores(), cpu.GetSockets())
 		printBenchmarkGroup(cmd, dev.GetCPU().GetBenchmarks())
 
-		ram := ds.ByteSize(dev.GetRAM().GetDevice().GetAvailable()).HR()
+		ram := datasize.NewByteSize(dev.GetRAM().GetDevice().GetAvailable()).HumanReadable()
 		cmd.Printf("RAM: %s\r\n", ram)
 		printBenchmarkGroup(cmd, dev.GetRAM().GetBenchmarks())
 
@@ -139,13 +139,13 @@ func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
 			}
 		}
 
-		netIn := ds.ByteSize(dev.GetNetwork().GetDevice().GetBandwidthIn()).HR()
-		netOut := ds.ByteSize(dev.GetNetwork().GetDevice().GetBandwidthOut()).HR()
+		netIn := datasize.NewByteSize(dev.GetNetwork().GetDevice().GetBandwidthIn()).HumanReadable()
+		netOut := datasize.NewByteSize(dev.GetNetwork().GetDevice().GetBandwidthOut()).HumanReadable()
 		cmd.Println("Network:")
 		cmd.Printf("  In: %s\\s | Out: %s\\s \r\n", netIn, netOut)
 		printBenchmarkGroup(cmd, dev.GetNetwork().GetBenchmarks())
 
-		storageAvailable := ds.ByteSize(dev.GetStorage().GetDevice().GetBytesAvailable()).HR()
+		storageAvailable := datasize.NewByteSize(dev.GetStorage().GetDevice().GetBytesAvailable()).HumanReadable()
 		cmd.Println("Storage:")
 		cmd.Printf("  Volume: %s\r\n", storageAvailable)
 		printBenchmarkGroup(cmd, dev.GetStorage().GetBenchmarks())
@@ -213,11 +213,11 @@ func printOrderResources(cmd *cobra.Command, rs *pb.Resources) {
 	cmd.Printf("Resources:\r\n")
 	cmd.Printf("  CPU:     %d\r\n", rs.CpuCores)
 	cmd.Printf("  GPU:     %s\r\n", rs.GpuCount.String())
-	cmd.Printf("  RAM:     %s\r\n", ds.ByteSize(rs.RamBytes).HR())
-	cmd.Printf("  Storage: %s\r\n", ds.ByteSize(rs.Storage).HR())
+	cmd.Printf("  RAM:     %s\r\n", datasize.NewByteSize(rs.RamBytes).HumanReadable())
+	cmd.Printf("  Storage: %s\r\n", datasize.NewByteSize(rs.Storage).HumanReadable())
 	cmd.Printf("  Network: %s\r\n", rs.NetworkType.String())
-	cmd.Printf("    In:   %s\r\n", ds.ByteSize(rs.NetTrafficIn).HR())
-	cmd.Printf("    Out:  %s\r\n", ds.ByteSize(rs.NetTrafficOut).HR())
+	cmd.Printf("    In:   %s\r\n", datasize.NewByteSize(rs.NetTrafficIn).HumanReadable())
+	cmd.Printf("    Out:  %s\r\n", datasize.NewByteSize(rs.NetTrafficOut).HumanReadable())
 }
 
 type handlerByTime []*pb.GetProcessingReply_ProcessedOrder
@@ -267,10 +267,10 @@ func printAskList(cmd *cobra.Command, slots *pb.AskPlansReply) {
 			cmd.Printf(" ID:  %s\r\n", id)
 			cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
 			cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
-			cmd.Printf(" RAM: %s\r\n", ds.ByteSize(slot.Resources.RamBytes).HR())
+			cmd.Printf(" RAM: %s\r\n", datasize.NewByteSize(slot.Resources.RamBytes).HumanReadable())
 			cmd.Printf(" Net: %s\r\n", slot.Resources.NetworkType.String())
-			cmd.Printf("     %s IN\r\n", ds.ByteSize(slot.Resources.NetTrafficIn).HR())
-			cmd.Printf("     %s OUT\r\n", ds.ByteSize(slot.Resources.NetTrafficOut).HR())
+			cmd.Printf("     %s IN\r\n", datasize.NewByteSize(slot.Resources.NetTrafficIn).HumanReadable())
+			cmd.Printf("     %s OUT\r\n", datasize.NewByteSize(slot.Resources.NetTrafficOut).HumanReadable())
 
 			if slot.Geo != nil && slot.Geo.City != "" && slot.Geo.Country != "" {
 				cmd.Printf(" Geo: %s, %s\r\n", slot.Geo.City, slot.Geo.Country)

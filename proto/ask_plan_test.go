@@ -22,9 +22,9 @@ resources:
   cpu:
     cores: 1.50
   ram:
-    size: 2gb
+    size: 2GiB
   storage: 
-    size: 10gb
+    size: 10GiB
   gpu:
     devices: [3, 5]
   network:
@@ -49,8 +49,8 @@ resources:
 	assert.Equal(t, common.HexToAddress("0x8125721c2413d99a33e351e1f6bb4e56b6b633fd").Bytes(),
 		ask.GetBlacklist().GetAddress())
 
-	assert.Equal(t, uint64(2147483648), ask.GetResources().GetRAM().GetSize().GetBytes())
-	assert.Equal(t, uint64(10737418240), ask.GetResources().GetStorage().GetSize().GetBytes())
+	assert.Equal(t, uint64(2*1024*1024*1024), ask.GetResources().GetRAM().GetSize().GetBytes())
+	assert.Equal(t, uint64(10*1024*1024*1024), ask.GetResources().GetStorage().GetSize().GetBytes())
 	assert.Equal(t, uint64(150), ask.GetResources().GetCPU().GetCorePercents())
 
 	assert.Len(t, ask.Resources.GPU.Devices, 2)
