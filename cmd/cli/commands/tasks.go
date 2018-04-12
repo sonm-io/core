@@ -36,6 +36,7 @@ func init() {
 		taskStopCmd,
 		taskPullCmd,
 		taskPushCmd,
+		taskJoinNetworkCmd,
 	)
 }
 
