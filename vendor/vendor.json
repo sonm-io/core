@@ -125,12 +125,6 @@
 			"revisionTime": "2017-10-13T21:36:40Z"
 		},
 		{
-			"checksumSHA1": "jQ7JB1XsEO3528jVoX9wKM/9wWU=",
-			"path": "github.com/c2h5oh/datasize",
-			"revision": "54516c931ae99c3c74637b9ea2390cf9a6327f26",
-			"revisionTime": "2017-05-19T14:33:21Z"
-		},
-		{
 			"checksumSHA1": "jib7EIZj7b3EmH8P/W31BRb84mA=",
 			"path": "github.com/ccding/go-stun",
 			"revision": "04a4eed61c57ecc9903f8983d1d2c17b88d2e9e1",
