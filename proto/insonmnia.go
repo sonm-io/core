@@ -4,39 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
-	"strconv"
 	"strings"
 	"time"
 
-	"github.com/c2h5oh/datasize"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/sonm-io/core/util/datasize"
 )
-
-var rateSuffixes = map[string]uint64{
-	"bit/s":  1,
-	"kbit/s": 1e3,
-	"kb/s":   1e3,
-	"Mb/s":   1e6,
-	"Mbit/s": 1e6,
-	"Gb/s":   1e9,
-	"Gbit/s": 1e9,
-	"Tb/s":   1e12,
-	"Tbit/s": 1e12,
-
-	"Kibit/s": 1 << 10,
-	"Mibit/s": 1 << 20,
-	"Gibit/s": 1 << 30,
-	"Tibit/s": 1 << 40,
-}
-
-var possibleRateSiffixesStr = func() string {
-	keys := make([]string, 0, len(rateSuffixes))
-	for k := range rateSuffixes {
-		keys = append(keys, k)
-	}
-	return strings.Join(keys, ", ")
-}()
 
 var bigEther = big.NewFloat(params.Ether).SetPrec(256)
 
@@ -91,7 +65,7 @@ func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (m *DataSize) Unwrap() datasize.ByteSize {
-	return datasize.ByteSize(m.Bytes)
+	return datasize.NewByteSize(m.Bytes)
 }
 
 func (m *DataSize) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -109,34 +83,31 @@ func (m *DataSize) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+func (m *DataSize) MarshalYAML() (interface{}, error) {
+	return m.Unwrap().MarshalText()
+}
+
+func (m *DataSizeRate) Unwrap() datasize.BitRate {
+	return datasize.NewBitRate(m.BitsPerSecond)
+}
+
 func (m *DataSizeRate) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var v string
 	if err := unmarshal(&v); err != nil {
 		return err
 	}
 
-	parts := strings.FieldsFunc(v, func(c rune) bool {
-		return c == ' '
-	})
-	if len(parts) != 2 {
-		return fmt.Errorf("could not parse DataSizeRate - \"%s\" can not be split to 2 parts", v)
+	var bitRate datasize.BitRate
+	if err := bitRate.UnmarshalText([]byte(v)); err != nil {
+		return err
 	}
 
-	value, err := strconv.ParseUint(parts[0], 10, 64)
-	if err != nil {
-		return fmt.Errorf("could not parse DataSizeRate numeric part -  %s", err)
-	}
-	multiplier, ok := rateSuffixes[parts[1]]
-	if !ok {
-		return fmt.Errorf("could not parse DataSizeRate - unknown data rate suffix \"%s\". Possible values are - %s", v, possibleRateSiffixesStr)
-	}
-	// Overflow check
-	if value != 0 && ^uint64(0)/value < multiplier {
-		return errors.New("could not parse DataSizeRate - too big value")
-	}
-
-	m.BitsPerSecond = value * multiplier
+	m.BitsPerSecond = bitRate.Bits()
 	return nil
+}
+
+func (m *DataSizeRate) MarshalYAML() (interface{}, error) {
+	return m.Unwrap().MarshalText()
 }
 
 func (m *Price) UnmarshalYAML(unmarshal func(interface{}) error) error {

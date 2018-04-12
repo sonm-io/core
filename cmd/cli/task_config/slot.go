@@ -1,12 +1,11 @@
 package task_config
 
 import (
-	"strings"
 	"time"
 
-	ds "github.com/c2h5oh/datasize"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/datasize"
 )
 
 type DurationConfig struct {
@@ -50,23 +49,24 @@ func (c *SlotConfig) IntoSlot() (*structs.Slot, error) {
 		return nil, err
 	}
 
-	var ram, storage, netIn, netOut ds.ByteSize
-	err = ram.UnmarshalText([]byte(strings.ToLower(c.Resources.Ram)))
+	var ram, storage datasize.ByteSize
+	var netIn, netOut datasize.BitRate
+	err = ram.UnmarshalText([]byte(c.Resources.Ram))
 	if err != nil {
 		return nil, err
 	}
 
-	err = storage.UnmarshalText([]byte(strings.ToLower(c.Resources.Storage)))
+	err = storage.UnmarshalText([]byte(c.Resources.Storage))
 	if err != nil {
 		return nil, err
 	}
 
-	err = netIn.UnmarshalText([]byte(strings.ToLower(c.Resources.Network.In)))
+	err = netIn.UnmarshalText([]byte(c.Resources.Network.In))
 	if err != nil {
 		return nil, err
 	}
 
-	err = netOut.UnmarshalText([]byte(strings.ToLower(c.Resources.Network.Out)))
+	err = netOut.UnmarshalText([]byte(c.Resources.Network.Out))
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +78,8 @@ func (c *SlotConfig) IntoSlot() (*structs.Slot, error) {
 			RamBytes:      ram.Bytes(),
 			GpuCount:      gpuCount,
 			Storage:       storage.Bytes(),
-			NetTrafficIn:  netIn.Bytes(),
-			NetTrafficOut: netOut.Bytes(),
+			NetTrafficIn:  netIn.Bits(),
+			NetTrafficOut: netOut.Bits(),
 			NetworkType:   networkType,
 			Properties:    c.Resources.Properties,
 		},
