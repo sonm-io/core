@@ -14,7 +14,7 @@ import (
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/datasize"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v1"
+	"gopkg.in/yaml.v2"
 )
 
 func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusReply) {
@@ -257,25 +257,16 @@ func printProcessingOrders(cmd *cobra.Command, tasks *pb.GetProcessingReply) {
 
 func printAskList(cmd *cobra.Command, slots *pb.AskPlansReply) {
 	if isSimpleFormat() {
-		slots := slots.GetSlots()
-		if len(slots) == 0 {
+		plans := slots.GetAskPlans()
+		if len(plans) == 0 {
 			cmd.Printf("No Ask Order configured\r\n")
 			return
 		}
-
-		for id, slot := range slots {
-			cmd.Printf(" ID:  %s\r\n", id)
-			cmd.Printf(" CPU: %d Cores\r\n", slot.Resources.CpuCores)
-			cmd.Printf(" GPU: %d Devices\r\n", slot.Resources.GpuCount)
-			cmd.Printf(" RAM: %s\r\n", datasize.NewByteSize(slot.Resources.RamBytes).HumanReadable())
-			cmd.Printf(" Net: %s\r\n", slot.Resources.NetworkType.String())
-			cmd.Printf("     %s IN\r\n", datasize.NewByteSize(slot.Resources.NetTrafficIn).HumanReadable())
-			cmd.Printf("     %s OUT\r\n", datasize.NewByteSize(slot.Resources.NetTrafficOut).HumanReadable())
-
-			if slot.Geo != nil && slot.Geo.City != "" && slot.Geo.Country != "" {
-				cmd.Printf(" Geo: %s, %s\r\n", slot.Geo.City, slot.Geo.Country)
-			}
-			cmd.Println("")
+		out, err := yaml.Marshal(plans)
+		if err != nil {
+			showError(cmd, "could not marshall ask plans", err)
+		} else {
+			cmd.Println(string(out))
 		}
 	} else {
 		showJSON(cmd, slots)

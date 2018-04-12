@@ -6,7 +6,6 @@ import (
 
 	pb "github.com/sonm-io/core/proto"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/util"
@@ -48,9 +47,9 @@ var askPlanListCmd = &cobra.Command{
 }
 
 var askPlanCreateCmd = &cobra.Command{
-	Use:   "create <price> <slot.yaml> [buyer-eth-addr]",
+	Use:   "create <ask_plan.yaml>",
 	Short: "Create new plan",
-	Args:  cobra.MinimumNArgs(2),
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		hub, err := newHubManagementClient(ctx)
@@ -59,32 +58,15 @@ var askPlanCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		price := args[0]
-		planPath := args[1]
+		planPath := args[0]
 
-		bigPrice, err := util.StringToEtherPrice(price)
+		plan, err := task_config.LoadAskPlan(planPath)
 		if err != nil {
-			showError(cmd, "Cannot parse price", err)
+			showError(cmd, "Cannot load AskPlan definition", err)
 			os.Exit(1)
 		}
 
-		slot, err := loadSlotFile(planPath)
-		if err != nil {
-			showError(cmd, "Cannot load AskOrder definition", err)
-			os.Exit(1)
-		}
-
-		req := &pb.CreateAskPlanRequest{
-			Slot:           slot.Unwrap(),
-			PricePerSecond: pb.NewBigInt(bigPrice),
-		}
-
-		if len(args) > 2 {
-			addr := common.HexToAddress(args[2])
-			req.BuyerID = addr.Hex()
-		}
-
-		id, err := hub.CreateAskPlan(ctx, req)
+		id, err := hub.CreateAskPlan(ctx, plan)
 		if err != nil {
 			showError(cmd, "Cannot create new AskOrder", err)
 			os.Exit(1)

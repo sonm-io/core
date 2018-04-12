@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "ask_plan.proto";
 import "deal.proto";
 import "insonmnia.proto";
 import "hub.proto";
@@ -90,7 +91,7 @@ service HubManagement {
     rpc AskPlans(Empty) returns (AskPlansReply) {}
     // CreateAskPlan allows to create rules
     // for creating Ask orders on Marketplace
-    rpc CreateAskPlan(CreateAskPlanRequest) returns (ID) {}
+    rpc CreateAskPlan(AskPlan) returns (ID) {}
     // RemoveAskPlan allows to remove rules
     // for creating Ask orders on Marketplace
     rpc RemoveAskPlan(ID) returns (Empty) {}
