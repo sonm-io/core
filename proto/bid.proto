@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "bigint.proto";
 import "insonmnia.proto";
+import "marketplace.proto";
 
 package sonm;
 
@@ -9,6 +10,29 @@ enum OrderType {
     ANY = 0;
     BID = 1;
     ASK = 2;
+}
+
+message BidNetwork {
+    bool overlay = 1;
+    bool outbound = 2;
+    bool incoming = 3;
+}
+
+message BidResources{
+    BidNetwork network = 1;
+    map<string, uint64> benchmarks = 2;
+}
+
+message BidOrder {
+    string ID = 1;
+
+    Duration duration = 2;
+    Price price = 3;
+    EthAddress blacklist = 4;
+    MarketIdentityLevel identity = 5;
+    string tag = 6;
+
+    BidResources resources = 7;
 }
 
 // Geo represent GeoIP results for node
