@@ -7,6 +7,10 @@ const (
 	minCPUPercent = 1
 )
 
+func (c *AskPlanCPU) MarshalYAML() (interface{}, error) {
+	return map[string]float64{"cores": float64(c.CorePercents) / 100.}, nil
+}
+
 func (c *AskPlanCPU) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	// NOTE: this works till AskPlanCPU has only one field.
 	// When another fields are added we may use yaml.MapSlice (or better representation announced in yaml.v3)

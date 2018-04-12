@@ -31,6 +31,10 @@ func (m *Duration) Unwrap() time.Duration {
 	return time.Nanosecond * time.Duration(m.GetNanoseconds())
 }
 
+func (m *Duration) MarshalYAML() (interface{}, error) {
+	return m.Unwrap().String(), nil
+}
+
 func (m *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var v string
 	if err := unmarshal(&v); err != nil {
@@ -48,6 +52,10 @@ func (m *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 func (m *EthAddress) Unwrap() common.Address {
 	return common.BytesToAddress(m.Address)
+}
+
+func (m *EthAddress) MarshalYAML() (interface{}, error) {
+	return m.Unwrap().Hex(), nil
 }
 
 func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -84,7 +92,8 @@ func (m *DataSize) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (m *DataSize) MarshalYAML() (interface{}, error) {
-	return m.Unwrap().MarshalText()
+	text, err := m.Unwrap().MarshalText()
+	return string(text), err
 }
 
 func (m *DataSizeRate) Unwrap() datasize.BitRate {
@@ -107,7 +116,17 @@ func (m *DataSizeRate) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (m *DataSizeRate) MarshalYAML() (interface{}, error) {
-	return m.Unwrap().MarshalText()
+	text, err := m.Unwrap().MarshalText()
+	return string(text), err
+}
+
+func (m *Price) MarshalYAML() (interface{}, error) {
+	v := big.NewFloat(0).SetPrec(256).SetInt(m.PerSecond.Unwrap())
+	div := big.NewFloat(params.Ether).SetPrec(256)
+	div.Quo(div, big.NewFloat(3600.))
+
+	r := big.NewFloat(0).Quo(v, div)
+	return r.Text('g', 10) + " SNM/h", nil
 }
 
 func (m *Price) UnmarshalYAML(unmarshal func(interface{}) error) error {

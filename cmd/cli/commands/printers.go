@@ -14,7 +14,7 @@ import (
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/datasize"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v1"
+	"gopkg.in/yaml.v2"
 )
 
 func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusReply) {
@@ -262,20 +262,11 @@ func printAskList(cmd *cobra.Command, slots *pb.AskPlansReply) {
 			cmd.Printf("No Ask Order configured\r\n")
 			return
 		}
-
-		for id, plan := range plans {
-			gpuDevices, _ := json.Marshal(plan.Resources.GetGPU().GetDevices())
-			cmd.Printf(" ID:  %s\r\n", id)
-			cmd.Printf(" CPU: %f Cores\r\n", plan.Resources.GetCPU().GetCorePercents()/100.)
-			cmd.Printf(" GPU: %s Devices\r\n", string(gpuDevices))
-			cmd.Printf(" RAM: %s\r\n", plan.Resources.GetRAM().GetSize().Unwrap().HumanReadable())
-			cmd.Printf(" Net:\r\n", plan.Resources.GetNetwork().String())
-			cmd.Printf("  Overlay: %v\r\n", plan.Resources.GetNetwork().GetOverlay())
-			cmd.Printf("  Outbound: %v\r\n", plan.Resources.GetNetwork().GetOutbound())
-			cmd.Printf("  Incoming: %v\r\n", plan.Resources.GetNetwork().GetIncoming())
-			cmd.Printf("     %s IN\r\n", plan.Resources.GetNetwork().GetThroughputIn())
-			cmd.Printf("     %s OUT\r\n", plan.Resources.GetNetwork().GetThroughputOut())
-			cmd.Println("")
+		out, err := yaml.Marshal(plans)
+		if err != nil {
+			showError(cmd, "could not marshall ask plans", err)
+		} else {
+			cmd.Println(string(out))
 		}
 	} else {
 		showJSON(cmd, slots)
