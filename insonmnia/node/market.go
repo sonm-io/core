@@ -277,7 +277,7 @@ func (m *marketAPI) executeOnceWithCancel(handler *orderHandler) bool {
 		return false
 	}
 
-	if _, err := m.remotes.market.CancelOrder(m.ctx, nil); err != nil {
+	if _, err := m.remotes.market.CancelOrder(m.ctx, &pb.ID{Id: handler.id}); err != nil {
 		log.G(handler.ctx).Warn("cannot cancel order on market",
 			zap.String("order_id", handler.id),
 			zap.Error(err))
@@ -345,14 +345,6 @@ func (m *marketAPI) execute(handler *orderHandler) error {
 		zap.String("deal_id", dealID.String()))
 
 	return nil
-}
-
-// getMyOrders query Marketplace service for orders
-// with type == BID and that placed with current eth address
-func (m *marketAPI) getMyOrders() (*pb.GetOrdersReply, error) {
-	// todo: apply correct filters
-	req := &pb.GetOrdersRequest{}
-	return m.remotes.market.GetOrders(m.ctx, req)
 }
 
 // restartOrdersProcessing loads BIDs for current account
