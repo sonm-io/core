@@ -178,7 +178,7 @@ func convertTransactionInfo(tx *types.Transaction) map[string]interface{} {
 	}
 }
 
-func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
+func printSearchResults(cmd *cobra.Command, orders []*pb.MarketOrder) {
 	if isSimpleFormat() {
 		if len(orders) == 0 {
 			cmd.Printf("No matching orders found")
@@ -187,23 +187,23 @@ func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
 
 		for i, order := range orders {
 			cmd.Printf("%d) %s %s | price = %s\r\n", i+1,
-				order.OrderType.String(), order.GetId(), order.GetPricePerSecond().ToPriceString())
+				order.OrderType.String(), order.GetId(), order.GetPrice().ToPriceString())
 		}
 	} else {
 		showJSON(cmd, map[string]interface{}{"orders": orders})
 	}
 }
 
-func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
+func printOrderDetails(cmd *cobra.Command, order *pb.MarketOrder) {
 	if isSimpleFormat() {
 		cmd.Printf("ID:             %s\r\n", order.Id)
 		cmd.Printf("Type:           %s\r\n", order.OrderType.String())
-		cmd.Printf("Price:          %s\r\n", order.PricePerSecond.ToPriceString())
+		cmd.Printf("Price:          %s\r\n", order.GetPrice().ToPriceString())
 
-		cmd.Printf("SupplierID:     %s\r\n", order.SupplierID)
-		cmd.Printf("BuyerID:        %s\r\n", order.ByuerID)
+		cmd.Printf("AuthorID:     %s\r\n", order.GetAuthor())
+		cmd.Printf("CounterpartyID:        %s\r\n", order.GetCounterparty())
 
-		printOrderResources(cmd, order.Slot.Resources)
+		// todo: find a way to print resources as they presented into MarketOrder struct.
 	} else {
 		showJSON(cmd, order)
 	}

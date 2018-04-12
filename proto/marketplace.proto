@@ -1,6 +1,5 @@
 syntax = "proto3";
 
-import "bid.proto";
 import "bigint.proto";
 import "insonmnia.proto";
 import "timestamp.proto";
@@ -14,30 +13,26 @@ service Market {
     // CreateOrder places new order on the Marketplace.
     // Note that current impl of Node API prevents you from
     // creating ASKs orders.
-    rpc CreateOrder(Order) returns (Order) {}
+    rpc CreateOrder(MarketOrder) returns (MarketOrder) {}
     // GetOrderByID returns order by given ID.
     // If order save an `inactive` status returns error instead.
-    rpc GetOrderByID(ID) returns (Order) {}
+    rpc GetOrderByID(ID) returns (MarketOrder) {}
     // CancelOrder removes active order from the Marketplace.
-    // todo(sshaman1101): use `ID` as parameter instead of whole `Order` struct.
-    rpc CancelOrder(Order) returns (Empty) {}
+    rpc CancelOrder(ID) returns (Empty) {}
     // GetProcessing returns currently processing orders.
     // todo: rethink and improve.
     rpc GetProcessing(Empty) returns (GetProcessingReply) {}
-
-    // todo: remove
-    rpc TouchOrders(TouchOrdersRequest) returns (Empty) {}
 }
 
 message GetOrdersRequest {
-    // Order keeps slot and type for searching.
-    Order order = 1;
-    // Count describes how many results must be returned (ordered by price).
-    uint64 count = 2;
+    MarketOrderType type = 1;
+    BigInt Price = 2;
+    EthAddress Counterparty  = 3;
+    uint64 count = 4;
 }
 
 message GetOrdersReply {
-    repeated Order orders = 1;
+    repeated MarketOrder orders = 1;
 }
 
 enum MarketOrderType {
