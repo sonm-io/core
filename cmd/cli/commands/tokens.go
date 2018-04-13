@@ -6,7 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/blockchain"
-	"github.com/sonm-io/core/blockchain/tsc"
+	"github.com/sonm-io/core/blockchain/market"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
@@ -16,7 +16,7 @@ var getTokenCmd = &cobra.Command{
 	Short:  "Get SONM test tokens (ERC20)",
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
-		bch, err := blockchain.NewAPI_DEPRECATED()
+		bch, err := blockchain.NewAPI()
 		if err != nil {
 			showError(cmd, "Cannot create blockchain connection", err)
 			os.Exit(1)
@@ -43,7 +43,7 @@ var approveTokenCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		var zero = big.NewInt(0)
 
-		bch, err := blockchain.NewAPI_DEPRECATED()
+		bch, err := blockchain.NewAPI()
 		if err != nil {
 			showError(cmd, "Cannot create blockchain connection", err)
 			os.Exit(1)
@@ -58,21 +58,21 @@ var approveTokenCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		currentAllowance, err := bch.AllowanceOf(ctx, crypto.PubkeyToAddress(sessionKey.PublicKey).String(), tsc.DealsAddress)
+		currentAllowance, err := bch.AllowanceOf(ctx, crypto.PubkeyToAddress(sessionKey.PublicKey).String(), market.SNMTAddress)
 		if err != nil {
 			showError(cmd, "Cannot get allowance ", err)
 			os.Exit(1)
 		}
 
 		if currentAllowance.Cmp(zero) != 0 {
-			_, err = bch.Approve(ctx, sessionKey, tsc.DealsAddress, zero)
+			_, err = bch.Approve(ctx, sessionKey, market.SNMTAddress, zero)
 			if err != nil {
 				showError(cmd, "Cannot set approved value to zero", err)
 				os.Exit(1)
 			}
 		}
 
-		tx, err := bch.Approve(ctx, sessionKey, tsc.DealsAddress, amount)
+		tx, err := bch.Approve(ctx, sessionKey, market.SNMTAddress, amount)
 		if err != nil {
 			showError(cmd, "Cannot approve tokens", err)
 			os.Exit(1)
