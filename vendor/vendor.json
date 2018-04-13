@@ -396,13 +396,25 @@
 			"revisionTime": "2017-06-08T04:50:38Z"
 		},
 		{
-			"checksumSHA1": "nbym4olXild4cvf4GqJdZ4ZFWIU=",
+			"checksumSHA1": "jElNoLEe7m/iaoF1vYIHyNaS2SE=",
+			"path": "github.com/elastic/gosigar",
+			"revision": "37f05ff46ffa7a825d1b24cf2b62d4a4c1a9d2e8",
+			"revisionTime": "2018-03-30T10:04:40Z"
+		},
+		{
+			"checksumSHA1": "qDsgp2kAeI9nhj565HUScaUyjU4=",
+			"path": "github.com/elastic/gosigar/sys/windows",
+			"revision": "37f05ff46ffa7a825d1b24cf2b62d4a4c1a9d2e8",
+			"revisionTime": "2018-03-30T10:04:40Z"
+		},
+		{
+			"checksumSHA1": "HM5i9cwRNWrtWSt+2OscsWAzOTM=",
 			"path": "github.com/ethereum/go-ethereum",
-			"revision": "32516c768ec09e2a71cab5983d2c8b8ae5d92fc7",
-			"revisionTime": "2017-12-11T21:56:06Z",
+			"revision": "b8b9f7f4476a30a0aaf6077daade6ae77f969960",
+			"revisionTime": "2018-03-05T13:48:48Z",
 			"tree": true,
-			"version": "v1.7.1",
-			"versionExact": "v1.7.1"
+			"version": "v1.8.2",
+			"versionExact": "v1.8.2"
 		},
 		{
 			"checksumSHA1": "l357/XwKHU9+GQuf7mg+pJe2HkQ=",
@@ -968,6 +980,24 @@
 			"path": "github.com/inconshreveable/mousetrap",
 			"revision": "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75",
 			"revisionTime": "2014-10-17T20:07:13Z"
+		},
+		{
+			"checksumSHA1": "neZLV3C4AXCIgETS3Ucjc3I4YLY=",
+			"path": "github.com/influxdata/influxdb/client",
+			"revision": "7ebfc9c544e08c90f72e14aab39fb760840d292d",
+			"revisionTime": "2018-04-12T21:20:38Z"
+		},
+		{
+			"checksumSHA1": "GcIJOVtM/u9EF/Yz8G4jchi7TkY=",
+			"path": "github.com/influxdata/influxdb/models",
+			"revision": "7ebfc9c544e08c90f72e14aab39fb760840d292d",
+			"revisionTime": "2018-04-12T21:20:38Z"
+		},
+		{
+			"checksumSHA1": "Z0Bb5PWa5WL/j5Dm2KJCLGn1l7U=",
+			"path": "github.com/influxdata/influxdb/pkg/escape",
+			"revision": "7ebfc9c544e08c90f72e14aab39fb760840d292d",
+			"revisionTime": "2018-04-12T21:20:38Z"
 		},
 		{
 			"checksumSHA1": "rpALtAOTgJNgIEIJCK6YKdylLAY=",
@@ -1757,6 +1787,12 @@
 			"path": "gopkg.in/karalabe/cookiejar.v2/collections/prque",
 			"revision": "a602ee90f2c28eadbca8cdc2e143825a4c24ab23",
 			"revisionTime": "2017-07-26T07:40:41Z"
+		},
+		{
+			"checksumSHA1": "vndxs5Tv09/8S+Dr2PBAiM557lI=",
+			"path": "gopkg.in/olebedev/go-duktape.v3",
+			"revision": "abf0ba0be5d5d36b1f9266463cc320b9a5ab224e",
+			"revisionTime": "2018-03-02T12:15:09Z"
 		},
 		{
 			"checksumSHA1": "7YPmpDeCouwlD2QYzDCE83USHTg=",
