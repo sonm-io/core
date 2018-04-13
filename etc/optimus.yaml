@@ -1,0 +1,45 @@
+logging:
+  # The desired logging level.
+  # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
+  level: debug
+
+# Account settings.
+ethereum: &ethereum
+  # Path to the keystore.
+  key_store: "./keys"
+  # Passphrase for the keystore.
+  pass_phrase: "any"
+
+# List of workers trusted endpoints this bot manages.
+workers:
+ - 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@[::1]:15010
+ # TODO: Support multiple timeouts per each worker. How?
+
+# Marketplace polling settings.
+marketplace:
+  # Interval of periodic current orders fetching from the marketplace.
+  interval: 30s
+  # DWH endpoint.
+  endpoint: 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@5.178.85.52:15021
+
+# Optimization engine settings.
+optimization:
+  # Interval of time for optimization.
+  # Note that the optimization process may be triggered by other external
+  # conditions.
+  interval: 30s
+  classifier:
+    type: regression
+    model:
+      type: lls
+      alpha: 1e-6
+      regularization: 6.0
+      max_iterations: 1000
+    # Logistic function parameters.
+    #
+    # The function has the following definition: 1 - (1 / exp(-alpha * (x - delta) / delta)).
+    # Used to calculate relative order weight, depending on its birth time.
+    logistic:
+      alpha: 10.0
+      delta: 43200.0
+
