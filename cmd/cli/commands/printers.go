@@ -157,7 +157,7 @@ func printTransactionInfo(cmd *cobra.Command, tx *types.Transaction) {
 		cmd.Printf("Value:     %s\r\n", tx.Value().String())
 		cmd.Printf("To:        %s\r\n", tx.To().String())
 		cmd.Printf("Cost:      %s\r\n", tx.Cost().String())
-		cmd.Printf("Gas:       %s\r\n", tx.Gas().String())
+		cmd.Printf("Gas:       %d\r\n", tx.Gas())
 		cmd.Printf("Gas price: %s\r\n", tx.GasPrice().String())
 	} else {
 		showJSON(cmd, convertTransactionInfo(tx))
@@ -170,7 +170,7 @@ func convertTransactionInfo(tx *types.Transaction) map[string]interface{} {
 		"value":     tx.Value().String(),
 		"to":        tx.To().String(),
 		"cost":      tx.Cost().String(),
-		"gas":       tx.Gas().String(),
+		"gas":       tx.Gas(),
 		"gas_price": tx.GasPrice().String(),
 	}
 }

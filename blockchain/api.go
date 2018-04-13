@@ -25,7 +25,7 @@ type API interface {
 	MarketAPI
 	BlacklistAPI
 	TokenAPI
-	GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts
+	GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit uint64) *bind.TransactOpts
 }
 
 type CertsAPI interface{}
@@ -446,10 +446,10 @@ func (api *BasicAPI) SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey
 	return api.blacklistContract.SetMarketAddress(opts, market)
 }
 
-func (api *BasicAPI) GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts {
+func (api *BasicAPI) GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit uint64) *bind.TransactOpts {
 	opts := bind.NewKeyedTransactor(key)
 	opts.Context = ctx
-	opts.GasLimit = big.NewInt(gasLimit)
+	opts.GasLimit = gasLimit
 	opts.GasPrice = big.NewInt(api.gasPrice)
 	return opts
 }
