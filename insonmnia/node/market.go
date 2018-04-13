@@ -1,11 +1,9 @@
 package node
 
 import (
-	"math/big"
-
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
 )
 
@@ -32,16 +30,16 @@ func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*p
 }
 
 func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.MarketOrder, error) {
-	id, ok := big.NewInt(0).SetString(req.GetId(), 10)
-	if !ok {
-		return nil, errors.New("cannot convert value to *big.Int")
+	id, err := util.ParseBigInt(req.GetId())
+	if err != nil {
+		return nil, err
 	}
 
 	return m.remotes.eth.GetOrderInfo(ctx, id)
 }
 
 func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.MarketOrder) (*pb.MarketOrder, error) {
-	id, err := m.remotes.eth.PlaceOrderPending(ctx, m.remotes.key, req, m.remotes.blockchainTimeout)
+	id, err := m.remotes.eth.PlaceOrder(ctx, m.remotes.key, req, m.remotes.blockchainTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -51,12 +49,12 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.MarketOrder) (*pb.M
 }
 
 func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
-	id, ok := big.NewInt(0).SetString(req.GetId(), 10)
-	if !ok {
-		return nil, errors.New("cannot convert value to *big.Int")
+	id, err := util.ParseBigInt(req.GetId())
+	if err != nil {
+		return nil, err
 	}
 
-	if _, err := m.remotes.eth.CancelOrder(ctx, m.remotes.key, id); err != nil {
+	if err := m.remotes.eth.CancelOrder(ctx, m.remotes.key, id, m.remotes.blockchainTimeout); err != nil {
 		return nil, err
 	}
 

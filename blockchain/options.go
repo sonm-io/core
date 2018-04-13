@@ -1,19 +1,23 @@
 package blockchain
 
+import "time"
+
 const (
-	defaultEthEndpoint = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
-	defaultGasPrice    = 20 * 1000000000
+	defaultEthEndpoint = "https://private-dev.sonm.io"
+	defaultGasPrice    = 0
 )
 
 type options struct {
-	gasPrice    int64
-	apiEndpoint string
+	gasPrice       int64
+	apiEndpoint    string
+	logParsePeriod time.Duration
 }
 
 func defaultOptions() *options {
 	return &options{
-		gasPrice:    defaultGasPrice,
-		apiEndpoint: defaultEthEndpoint,
+		gasPrice:       defaultGasPrice,
+		apiEndpoint:    defaultEthEndpoint,
+		logParsePeriod: time.Second,
 	}
 }
 
@@ -28,5 +32,11 @@ func WithGasPrice(p int64) Option {
 func WithEthEndpoint(s string) Option {
 	return func(o *options) {
 		o.apiEndpoint = s
+	}
+}
+
+func WithTimeout(d time.Duration) Option {
+	return func(o *options) {
+		o.logParsePeriod = d
 	}
 }

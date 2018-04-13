@@ -1,8 +1,10 @@
 package blockchain
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -17,6 +19,7 @@ import (
 	"github.com/sonm-io/core/blockchain/market"
 	marketAPI "github.com/sonm-io/core/blockchain/market/api"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
 
@@ -31,14 +34,12 @@ type API interface {
 type CertsAPI interface{}
 
 type MarketAPI interface {
-	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) (*types.Transaction, error)
-	OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal, wait time.Duration) (*big.Int, error)
+	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int, wait time.Duration) (*pb.MarketDeal, error)
 	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (*types.Transaction, error)
 	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.MarketDeal, error)
 	GetDealsAmount(ctx context.Context) (*big.Int, error)
-	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder) (*types.Transaction, error)
-	PlaceOrderPending(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, wait time.Duration) (*big.Int, error)
-	CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
+	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, wait time.Duration) (*pb.MarketOrder, error)
+	CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) error
 	GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.MarketOrder, error)
 	GetOrdersAmount(ctx context.Context) (*big.Int, error)
 	Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) (*types.Transaction, error)
@@ -85,6 +86,7 @@ type BasicAPI struct {
 	blacklistContract *marketAPI.Blacklist
 	tokenContract     *marketAPI.SNMTToken
 	logger            *zap.Logger
+	logParsePeriod    time.Duration
 }
 
 func NewAPI(opts ...Option) (API, error) {
@@ -119,15 +121,30 @@ func NewAPI(opts ...Option) (API, error) {
 		marketContract:    marketContract,
 		blacklistContract: blacklistContract,
 		tokenContract:     tokenContract,
+		logParsePeriod:    defaults.logParsePeriod,
 	}
 
 	return api, nil
 }
 
-func (api *BasicAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) (
-	*types.Transaction, error) {
+func (api *BasicAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int, wait time.Duration) (*pb.MarketDeal, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
-	return api.marketContract.OpenDeal(opts, askID, bigID)
+	tx, err := api.marketContract.OpenDeal(opts, askID, bigID)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := api.waitForTransactionResult(ctx, tx, DealOpenedTopic, wait)
+	if err != nil {
+		return nil, err
+	}
+
+	deal, err := api.GetDealInfo(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	return deal, nil
 }
 
 func (api *BasicAPI) OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal, wait time.Duration) (*big.Int, error) {
@@ -180,8 +197,7 @@ func (api *BasicAPI) GetDealsAmount(ctx context.Context) (*big.Int, error) {
 	return api.marketContract.GetDealsAmount(getCallOptions(ctx))
 }
 
-func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder) (
-	*types.Transaction, error) {
+func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, wait time.Duration) (*pb.MarketOrder, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	var bigBenchmarks = make([]*big.Int, len(order.Benchmarks))
 	for idx, benchmark := range order.Benchmarks {
@@ -191,7 +207,8 @@ func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, orde
 	copy(fixedTag[:], order.Tag[:])
 	var fixedNetflags [3]bool
 	copy(fixedNetflags[:], order.Netflags[:])
-	return api.marketContract.PlaceOrder(opts,
+
+	tx, err := api.marketContract.PlaceOrder(opts,
 		uint8(order.OrderType),
 		common.StringToAddress(order.Counterparty),
 		order.Price.Unwrap(),
@@ -202,16 +219,27 @@ func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, orde
 		fixedTag,
 		bigBenchmarks,
 	)
+
+	id, err := api.waitForTransactionResult(ctx, tx, OrderPlacedTopic, wait)
+	if err != nil {
+		return nil, err
+	}
+
+	return api.GetOrderInfo(ctx, id)
 }
 
-func (api *BasicAPI) PlaceOrderPending(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, wait time.Duration) (*big.Int, error) {
-	return nil, errors.New("not implemented")
-}
-
-func (api *BasicAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (
-	*types.Transaction, error) {
+func (api *BasicAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) error {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
-	return api.marketContract.CancelOrder(opts, id)
+	tx, err := api.marketContract.CancelOrder(opts, id)
+	if err != nil {
+		return err
+	}
+
+	if _, err := api.waitForTransactionResult(ctx, tx, OrderUpdatedTopic, wait); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.MarketOrder, error) {
@@ -519,6 +547,57 @@ func (api *BasicAPI) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*typ
 		return nil, err
 	}
 	return tx, err
+}
+
+func (api *BasicAPI) waitForTransactionResult(ctx context.Context, tx *types.Transaction, topic common.Hash, wait time.Duration) (*big.Int, error) {
+	ctx, cancel := context.WithTimeout(ctx, wait)
+	defer cancel()
+
+	tk := util.NewImmediateTicker(api.logParsePeriod)
+	defer tk.Stop()
+
+	for {
+		select {
+		case <-tk.C:
+			id, err := api.parseTransactionLogs(ctx, tx, topic)
+			if err != nil {
+				if err == ethereum.NotFound {
+					break
+				}
+				return nil, err
+			}
+
+			return id, err
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+}
+
+func (api *BasicAPI) parseTransactionLogs(ctx context.Context, tx *types.Transaction, topic common.Hash) (*big.Int, error) {
+	txReceipt, err := api.client.TransactionReceipt(ctx, tx.Hash())
+	if err != nil {
+		return nil, err
+	}
+
+	if txReceipt.Status != types.ReceiptStatusSuccessful {
+		return nil, errors.New("transaction failed")
+	}
+
+	for _, l := range txReceipt.Logs {
+		if len(l.Topics) < 1 {
+			return nil, errors.New("transaction topics is malformed")
+		}
+
+		receivedTopic := l.Topics[0]
+		topicCmp := bytes.Compare(receivedTopic.Bytes(), topic.Bytes())
+		if topicCmp == 0 && len(l.Topics) > 1 {
+			return l.Topics[1].Big(), nil
+		}
+	}
+
+	// TODO(sshaman1101): not so user-friendly message leaved for debugging, remove before releasing.
+	return nil, fmt.Errorf("cannot find topic \"%s\"in transaction", topic.Hex())
 }
 
 type Event struct {

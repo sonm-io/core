@@ -75,6 +75,7 @@ var marketCreteCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		// todo: need to implement with new market API.
+		// todo: create parser for bid.yaml
 		showError(cmd, "not implemented", nil)
 		os.Exit(1)
 	},
