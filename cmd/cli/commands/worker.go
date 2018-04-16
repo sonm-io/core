@@ -24,8 +24,9 @@ var workerMgmtCmd = &cobra.Command{
 }
 
 var workerStatusCmd = &cobra.Command{
-	Use:   "status",
-	Short: "Show worker status",
+	Use:    "status",
+	Short:  "Show worker status",
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, _ []string) {
 		ctx := context.Background()
 		hub, err := newWorkerManagementClient(ctx)

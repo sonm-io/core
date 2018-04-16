@@ -48,8 +48,9 @@ var taskRootCmd = &cobra.Command{
 }
 
 var taskListCmd = &cobra.Command{
-	Use:   "list [hub_addr]",
-	Short: "Show active tasks",
+	Use:    "list [hub_addr]",
+	Short:  "Show active tasks",
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		node, err := newTaskClient(ctx)
@@ -148,9 +149,10 @@ var taskStartCmd = &cobra.Command{
 }
 
 var taskStatusCmd = &cobra.Command{
-	Use:   "status <hub_addr> <task_id>",
-	Short: "Show task status",
-	Args:  cobra.MinimumNArgs(2),
+	Use:    "status <hub_addr> <task_id>",
+	Short:  "Show task status",
+	Args:   cobra.MinimumNArgs(2),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		node, err := newTaskClient(ctx)
@@ -177,9 +179,10 @@ var taskStatusCmd = &cobra.Command{
 }
 
 var taskJoinNetworkCmd = &cobra.Command{
-	Use:   "join <hub_addr> <task_id> <network_id>",
-	Short: "Provide network specs for joining to specified task's specific network",
-	Args:  cobra.MinimumNArgs(3),
+	Use:    "join <hub_addr> <task_id> <network_id>",
+	Short:  "Provide network specs for joining to specified task's specific network",
+	Args:   cobra.MinimumNArgs(3),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		node, err := newTaskClient(ctx)
@@ -208,9 +211,10 @@ var taskJoinNetworkCmd = &cobra.Command{
 }
 
 var taskLogsCmd = &cobra.Command{
-	Use:   "logs <hub_addr> <task_id>",
-	Short: "Retrieve task logs",
-	Args:  cobra.MinimumNArgs(2),
+	Use:    "logs <hub_addr> <task_id>",
+	Short:  "Retrieve task logs",
+	Args:   cobra.MinimumNArgs(2),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		node, err := newTaskClient(ctx)
@@ -256,9 +260,10 @@ var taskLogsCmd = &cobra.Command{
 }
 
 var taskStopCmd = &cobra.Command{
-	Use:   "stop <hub_addr> <task_id>",
-	Short: "Stop task",
-	Args:  cobra.MinimumNArgs(2),
+	Use:    "stop <hub_addr> <task_id>",
+	Short:  "Stop task",
+	Args:   cobra.MinimumNArgs(2),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		node, err := newTaskClient(ctx)
@@ -284,9 +289,10 @@ var taskStopCmd = &cobra.Command{
 }
 
 var taskPullCmd = &cobra.Command{
-	Use:   "pull <deal_id> <task_id>",
-	Short: "Pull committed image from the completed task.",
-	Args:  cobra.MinimumNArgs(2),
+	Use:    "pull <deal_id> <task_id>",
+	Short:  "Pull committed image from the completed task.",
+	Args:   cobra.MinimumNArgs(2),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		dealID := args[0]
 		taskID := args[1]
@@ -389,9 +395,10 @@ var taskPullCmd = &cobra.Command{
 }
 
 var taskPushCmd = &cobra.Command{
-	Use:   "push <deal_id> <archive_path>",
-	Short: "Push an image from the filesystem",
-	Args:  cobra.MinimumNArgs(2),
+	Use:    "push <deal_id> <archive_path>",
+	Short:  "Push an image from the filesystem",
+	Args:   cobra.MinimumNArgs(2),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		dealID := args[0]
 		path := args[1]

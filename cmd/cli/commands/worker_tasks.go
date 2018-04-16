@@ -9,8 +9,9 @@ import (
 )
 
 var workerTasksCmd = &cobra.Command{
-	Use:   "tasks",
-	Short: "Show tasks running on Worker",
+	Use:    "tasks",
+	Short:  "Show tasks running on Worker",
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		hub, err := newWorkerManagementClient(ctx)
