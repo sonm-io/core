@@ -32,6 +32,9 @@ It has these top-level messages:
 	AskPlanResources
 	AskPlan
 	Benchmark
+	BidNetwork
+	BidResources
+	BidOrder
 	Geo
 	Resources
 	Slot

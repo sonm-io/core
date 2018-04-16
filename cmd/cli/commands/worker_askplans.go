@@ -61,9 +61,9 @@ var askPlanCreateCmd = &cobra.Command{
 		}
 
 		planPath := args[0]
+		plan := &pb.AskPlan{}
 
-		plan, err := task_config.LoadAskPlan(planPath)
-		if err != nil {
+		if err := task_config.LoadFromFile(planPath, plan); err != nil {
 			showError(cmd, "Cannot load AskPlan definition", err)
 			os.Exit(1)
 		}
