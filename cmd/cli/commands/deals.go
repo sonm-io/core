@@ -68,9 +68,10 @@ var dealsListCmd = &cobra.Command{
 }
 
 var dealsStatusCmd = &cobra.Command{
-	Use:   "status <deal_id>",
-	Short: "show deal status",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "status <deal_id>",
+	Short:  "show deal status",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		dealer, err := newDealsClient(ctx)
@@ -97,9 +98,10 @@ var dealsStatusCmd = &cobra.Command{
 }
 
 var dealsFinishCmd = &cobra.Command{
-	Use:   "finish <deal_id>",
-	Short: "finish deal",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "finish <deal_id>",
+	Short:  "finish deal",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		dealer, err := newDealsClient(ctx)

@@ -33,9 +33,10 @@ var marketRootCmd = &cobra.Command{
 }
 
 var marketSearchCmd = &cobra.Command{
-	Use:   "search <slot.yaml>",
-	Short: "Search for orders on Marketplace",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "search <slot.yaml>",
+	Short:  "Search for orders on Marketplace",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		// todo: need to implement with new market API.
 		showError(cmd, "not implemented", nil)
@@ -44,9 +45,10 @@ var marketSearchCmd = &cobra.Command{
 }
 
 var marketShowCmd = &cobra.Command{
-	Use:   "show <order_id>",
-	Short: "Show order details",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "show <order_id>",
+	Short:  "Show order details",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		market, err := newMarketClient(ctx)
@@ -70,9 +72,10 @@ var marketShowCmd = &cobra.Command{
 // into the separated package, and then reinvent processing from scratch.
 
 var marketCreteCmd = &cobra.Command{
-	Use:   "create <price> <slot.yaml> [supplier-eth-addr]",
-	Short: "Place new Bid order on Marketplace",
-	Args:  cobra.MinimumNArgs(2),
+	Use:    "create <price> <slot.yaml> [supplier-eth-addr]",
+	Short:  "Place new Bid order on Marketplace",
+	Args:   cobra.MinimumNArgs(2),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		// todo: need to implement with new market API.
 		// todo: create parser for bid.yaml
@@ -82,9 +85,10 @@ var marketCreteCmd = &cobra.Command{
 }
 
 var marketCancelCmd = &cobra.Command{
-	Use:   "cancel <order_id>",
-	Short: "Cancel order on Marketplace",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "cancel <order_id>",
+	Short:  "Cancel order on Marketplace",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		market, err := newMarketClient(ctx)

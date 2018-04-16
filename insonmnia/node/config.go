@@ -8,8 +8,9 @@ import (
 )
 
 type nodeConfig struct {
-	HttpBindPort uint16 `yaml:"http_bind_port" default:"15031"`
-	BindPort     uint16 `yaml:"bind_port" default:"15030"`
+	HttpBindPort            uint16 `yaml:"http_bind_port" default:"15031"`
+	BindPort                uint16 `yaml:"bind_port" default:"15030"`
+	AllowInsecureConnection bool   `yaml:"allow_insecure_connection" default:"false"`
 }
 
 type hubConfig struct {

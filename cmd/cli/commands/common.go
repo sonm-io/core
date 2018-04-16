@@ -9,7 +9,10 @@ import (
 
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/cmd/cli/config"
+	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc/credentials"
 )
 
 const (
@@ -30,6 +33,7 @@ var (
 	nodeAddressFlag string
 	outputModeFlag  string
 	timeoutFlag     = 60 * time.Second
+	insecureFlag    bool
 
 	// logging flag vars
 	logType       string
@@ -42,12 +46,14 @@ var (
 	// session-related vars
 	cfg        config.Config
 	sessionKey *ecdsa.PrivateKey = nil
+	creds      credentials.TransportCredentials
 )
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "localhost:15030", "node endpoint")
 	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
+	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "Disable TLS for connection")
 
 	rootCmd.AddCommand(workerMgmtCmd, marketRootCmd, nodeDealsRootCmd, taskRootCmd)
 	rootCmd.AddCommand(loginCmd, approveTokenCmd, getTokenCmd, versionCmd, autoCompleteCmd)
@@ -157,6 +163,28 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 	}
 
 	sessionKey = key
+
+	// If an insecure flag is set - we do not require TLS auth.
+	// But we still need to load keys from a store, somewhere keys are used
+	// to sign blockchain transactions, or something like that.
+	if !insecureFlag {
+		_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), sessionKey)
+		if err != nil {
+			showError(cmd, err.Error(), nil)
+			os.Exit(1)
+		}
+
+		creds = auth.NewWalletAuthenticator(util.NewTLS(TLSConfig), util.PubKeyToAddr(sessionKey.PublicKey))
+	}
+}
+
+// loadKeyStoreIfRequired loads eth keystore if `insecure` flag is not set.
+// this wrapper is required for any command that not require eth keys implicitly
+// but may use TLS to connect to the Node.
+func loadKeyStoreIfRequired(cmd *cobra.Command, _ []string) {
+	if !insecureFlag {
+		loadKeyStoreWrapper(cmd, nil)
+	}
 }
 
 func showJSON(cmd *cobra.Command, s interface{}) {

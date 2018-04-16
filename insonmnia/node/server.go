@@ -150,14 +150,19 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 
 	masterMgmt := newMasterManagementAPI(opts)
 
-	logger := log.GetLogger(ctx)
-	srv := xgrpc.NewServer(
-		logger,
-		// Intentionally constructing an unencrypted server.
+	grpcServerOpts := []xgrpc.ServerOption{
 		xgrpc.DefaultTraceInterceptor(),
 		xgrpc.UnaryServerInterceptor(hub.(*hubAPI).intercept),
 		xgrpc.VerifyInterceptor(),
-	)
+	}
+
+	if !config.Node.AllowInsecureConnection {
+		grpcServerOpts = append(grpcServerOpts, xgrpc.Credentials(remoteCreds))
+	} else {
+		log.G(ctx).Warn("using insecure grpc connection")
+	}
+
+	srv := xgrpc.NewServer(log.GetLogger(ctx), grpcServerOpts...)
 
 	pb.RegisterWorkerManagementServer(srv, hub)
 	log.G(ctx).Info("hub service registered", zap.String("endpt", config.Hub.Endpoint))

@@ -26,8 +26,9 @@ var askPlansRootCmd = &cobra.Command{
 }
 
 var askPlanListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Show current ask plans",
+	Use:    "list",
+	Short:  "Show current ask plans",
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		hub, err := newWorkerManagementClient(ctx)
@@ -47,9 +48,10 @@ var askPlanListCmd = &cobra.Command{
 }
 
 var askPlanCreateCmd = &cobra.Command{
-	Use:   "create <ask_plan.yaml>",
-	Short: "Create new plan",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "create <ask_plan.yaml>",
+	Short:  "Create new plan",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		hub, err := newWorkerManagementClient(ctx)
@@ -77,9 +79,10 @@ var askPlanCreateCmd = &cobra.Command{
 }
 
 var askPlanRemoveCmd = &cobra.Command{
-	Use:   "remove <order_id>",
-	Short: "Remove plan by",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "remove <order_id>",
+	Short:  "Remove plan by",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		hub, err := newWorkerManagementClient(ctx)

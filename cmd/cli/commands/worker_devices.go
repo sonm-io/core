@@ -9,8 +9,9 @@ import (
 )
 
 var workerDevicesCmd = &cobra.Command{
-	Use:   "devices",
-	Short: "Show Worker's hardware",
+	Use:    "devices",
+	Short:  "Show Worker's hardware",
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
 		hub, err := newWorkerManagementClient(ctx)

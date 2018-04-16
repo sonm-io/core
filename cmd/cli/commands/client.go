@@ -9,9 +9,9 @@ import (
 
 // newClientConn provides a single point for gPRC's ClientConn configuration.
 //
-// Note that `timeoutFlag` and `nodeAddressFlag` are set implicitly because it is global for all CLI-related stuff.
+// Note that `timeoutFlag`, `nodeAddressFlag` and `creds` are set implicitly because it is global for all CLI-related stuff.
 func newClientConn(ctx context.Context) (*grpc.ClientConn, error) {
-	return xgrpc.NewClient(ctx, nodeAddressFlag, nil)
+	return xgrpc.NewClient(ctx, nodeAddressFlag, creds)
 }
 
 func newWorkerManagementClient(ctx context.Context) (pb.WorkerManagementClient, error) {
