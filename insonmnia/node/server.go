@@ -28,7 +28,12 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-type hubClientCreator func(ethAddr common.Address, netAddr string) (pb.HubClient, io.Closer, error)
+type hubClientCreator func(ethAddr common.Address, netAddr string) (*hubClient, io.Closer, error)
+
+type hubClient struct {
+	pb.HubClient
+	pb.WorkerManagementClient
+}
 
 // remoteOptions describe options related to remove gRPC services
 type remoteOptions struct {
@@ -53,7 +58,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		return nil, err
 	}
 
-	hubFactory := func(ethAddr common.Address, netAddr string) (pb.HubClient, io.Closer, error) {
+	hubFactory := func(ethAddr common.Address, netAddr string) (*hubClient, io.Closer, error) {
 		addr := auth.NewAddrRaw(ethAddr, netAddr)
 		conn, err := nppDialer.Dial(addr)
 		if err != nil {
@@ -65,7 +70,12 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 			return nil, nil, err
 		}
 
-		return pb.NewHubClient(cc), cc, nil
+		m := &hubClient{
+			pb.NewHubClient(cc),
+			pb.NewWorkerManagementClient(cc),
+		}
+
+		return m, cc, nil
 	}
 
 	eth, err := blockchain.NewAPI()
@@ -98,7 +108,7 @@ type Node struct {
 	srv     *grpc.Server
 
 	// services, responsible for request handling
-	hub    pb.HubManagementServer
+	hub    pb.WorkerManagementServer
 	market pb.MarketServer
 	deals  pb.DealManagementServer
 	tasks  pb.TaskManagementServer
@@ -149,7 +159,7 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 		xgrpc.VerifyInterceptor(),
 	)
 
-	pb.RegisterHubManagementServer(srv, hub)
+	pb.RegisterWorkerManagementServer(srv, hub)
 	log.G(ctx).Info("hub service registered", zap.String("endpt", config.Hub.Endpoint))
 
 	pb.RegisterMarketServer(srv, market)
@@ -267,7 +277,7 @@ func (n *Node) serveHttp() error {
 	if err != nil {
 		return err
 	}
-	err = srv.RegisterService((*pb.HubManagementServer)(nil), n.hub)
+	err = srv.RegisterService((*pb.WorkerManagementServer)(nil), n.hub)
 	if err != nil {
 		return err
 	}

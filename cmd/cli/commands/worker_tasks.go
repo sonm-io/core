@@ -13,7 +13,7 @@ var workerTasksCmd = &cobra.Command{
 	Short: "Show tasks running on Worker",
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
-		hub, err := newHubManagementClient(ctx)
+		hub, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)

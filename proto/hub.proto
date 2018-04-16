@@ -10,25 +10,29 @@ import "insonmnia.proto";
 
 package sonm;
 
-service Hub {
-    /// Management section
-
-    // Status returns internal hub statistic
-    rpc Status(Empty) returns (HubStatusReply) {}
-    // Devices returns list of all available devices that this Hub awares of
-    // with tieir full description.
+// WorkerManagement describe a bunch of methods to manage Worker instance.
+// Must be called by Worker's owner.
+service WorkerManagement {
+    // Status produse a detailed info about Hub
+    rpc Status (Empty) returns (HubStatusReply) {}
+    // Devices provides detailed information about device
+    // and show benchmark results.
+    //
+    // TODO: returns smth that can represent miner.hardware (extend Capabilities?)
     rpc Devices(Empty) returns (DevicesReply) {}
-    // Tasks returns info about all Tasks
+    // Tasks produces a list of all running tasks on the Hub
     rpc Tasks(Empty) returns (TaskListReply) {}
-    // GetSlots allows to obtain previously assigned slots for the Hub.
+    // AskPlans allows to obtain previously assigned Ask Plans from for a given worker.
     rpc AskPlans(Empty) returns (AskPlansReply) {}
-    // AddSlot allows to assign a new slot.
-    // This method can fail if either there are no such resources found or it
-    // has been previourly assigned.
+    // CreateAskPlan allows to create rules
+    // for creating Ask orders on Marketplace
     rpc CreateAskPlan(AskPlan) returns (ID) {}
-    // RemoveSlot removes the speified slot if fully matches.
+    // RemoveAskPlan allows to remove rules
+    // for creating Ask orders on Marketplace
     rpc RemoveAskPlan(ID) returns (Empty) {}
+}
 
+service Hub {
     /// Task Management section
 
     rpc PushTask(stream Chunk) returns (stream Progress) {}

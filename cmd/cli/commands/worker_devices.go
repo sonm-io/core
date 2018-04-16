@@ -13,7 +13,7 @@ var workerDevicesCmd = &cobra.Command{
 	Short: "Show Worker's hardware",
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
-		hub, err := newHubManagementClient(ctx)
+		hub, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)

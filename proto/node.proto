@@ -1,9 +1,8 @@
 syntax = "proto3";
 
-import "ask_plan.proto";
-import "insonmnia.proto";
-import "hub.proto";
 import "container.proto";
+import "hub.proto";
+import "insonmnia.proto";
 import "marketplace.proto";
 
 package sonm;
@@ -67,34 +66,6 @@ message DealListReply {
 message DealStatusReply {
     MarketDeal deal = 1;
     DealInfoReply info = 2;
-}
-
-// HubManagement describe a bunch of methods
-// to manage Hub instance. Must be called by
-// Worker's owner.
-//
-// TODO: rename to smth like `WorkerManagement`.
-service HubManagement {
-    // Status produse a detailed info about Hub
-    rpc Status (Empty) returns (HubStatusReply) {}
-
-    // Devices provides detailed information about device
-    // and show benchmark results.
-    //
-    // TODO: returns smth that can represent miner.hardware (extend Capabilities?)
-    rpc Devices(Empty) returns (DevicesReply) {}
-
-    // Tasks produces a list of all running tasks on the Hub
-    rpc Tasks(Empty) returns (TaskListReply) {}
-
-    // AskPlans allows to obtain previously assigned Ask Plans from for a given worker.
-    rpc AskPlans(Empty) returns (AskPlansReply) {}
-    // CreateAskPlan allows to create rules
-    // for creating Ask orders on Marketplace
-    rpc CreateAskPlan(AskPlan) returns (ID) {}
-    // RemoveAskPlan allows to remove rules
-    // for creating Ask orders on Marketplace
-    rpc RemoveAskPlan(ID) returns (Empty) {}
 }
 
 // todo: implement this as part of Node API

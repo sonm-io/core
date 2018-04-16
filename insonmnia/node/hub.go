@@ -16,12 +16,12 @@ import (
 )
 
 type hubAPI struct {
-	pb.HubManagementServer
+	pb.WorkerManagementServer
 	remotes *remoteOptions
 	ctx     context.Context
 }
 
-func (h *hubAPI) getClient() (pb.HubClient, io.Closer, error) {
+func (h *hubAPI) getClient() (pb.WorkerManagementClient, io.Closer, error) {
 	ethAddr := crypto.PubkeyToAddress(h.remotes.key.PublicKey)
 	netAddr := h.remotes.conf.Hub.Endpoint
 
@@ -34,7 +34,7 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 	log.S(h.ctx).Infof("handling %s request", methodName)
 
 	ctx = util.ForwardMetadata(ctx)
-	if !strings.HasPrefix(info.FullMethod, "/sonm.HubManagement") {
+	if !strings.HasPrefix(info.FullMethod, "/sonm.WorkerManagement") {
 		return handler(ctx, req)
 	}
 
@@ -50,7 +50,7 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 
 	mappedName, ok := hubToNodeMethods[methodName]
 	if !ok {
-		return nil, fmt.Errorf("unknwon management api method \"%s\"", methodName)
+		return nil, fmt.Errorf("unknwon management API method \"%s\"", methodName)
 	}
 
 	var (
@@ -80,7 +80,7 @@ var hubToNodeMethods = map[string]string{
 	"RemoveAskPlan": "RemoveAskPlan",
 }
 
-func newHubAPI(opts *remoteOptions) pb.HubManagementServer {
+func newHubAPI(opts *remoteOptions) pb.WorkerManagementServer {
 	return &hubAPI{
 		remotes: opts,
 		ctx:     opts.ctx,

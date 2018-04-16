@@ -30,7 +30,7 @@ var askPlanListCmd = &cobra.Command{
 	Short: "Show current ask plans",
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
-		hub, err := newHubManagementClient(ctx)
+		hub, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
@@ -52,7 +52,7 @@ var askPlanCreateCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
-		hub, err := newHubManagementClient(ctx)
+		hub, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
@@ -82,7 +82,7 @@ var askPlanRemoveCmd = &cobra.Command{
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx := context.Background()
-		hub, err := newHubManagementClient(ctx)
+		hub, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)

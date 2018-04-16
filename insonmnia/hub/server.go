@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	hubAPIPrefix = "/sonm.Hub/"
+	hubAPIPrefix = "/sonm.WorkerManagement/"
 )
 
 var (
@@ -38,7 +38,7 @@ var (
 	// The following methods require TLS authentication and checking for client
 	// and Hub's wallet equality.
 	// The wallet is passed as peer metadata.
-	hubManagementMethods = []string{
+	workerManagementMethods = []string{
 		"Status",
 		"Tasks",
 		"Devices",
@@ -135,7 +135,7 @@ func New(cfg *miner.Config, opts ...Option) (*Hub, error) {
 		auth.WithEventPrefix(hubAPIPrefix),
 		auth.Allow("ProposeDeal", "ApproveDeal").With(auth.NewNilAuthorization()),
 
-		auth.Allow(hubManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
+		auth.Allow(workerManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
 
 		auth.Allow("TaskStatus").With(newMultiAuth(
 			auth.NewTransportAuthorization(h.ethAddr),
@@ -167,6 +167,7 @@ func New(cfg *miner.Config, opts ...Option) (*Hub, error) {
 	h.externalGrpc = grpcServer
 
 	pb.RegisterHubServer(grpcServer, h)
+	pb.RegisterWorkerManagementServer(grpcServer, h)
 	grpc_prometheus.Register(grpcServer)
 
 	return h, nil

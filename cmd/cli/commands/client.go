@@ -14,13 +14,13 @@ func newClientConn(ctx context.Context) (*grpc.ClientConn, error) {
 	return xgrpc.NewClient(ctx, nodeAddressFlag, nil)
 }
 
-func newHubManagementClient(ctx context.Context) (pb.HubManagementClient, error) {
+func newWorkerManagementClient(ctx context.Context) (pb.WorkerManagementClient, error) {
 	cc, err := newClientConn(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	return pb.NewHubManagementClient(cc), nil
+	return pb.NewWorkerManagementClient(cc), nil
 }
 
 func newMasterManagementClient(ctx context.Context) (pb.MasterManagementClient, error) {
