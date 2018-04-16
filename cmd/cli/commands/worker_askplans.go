@@ -7,8 +7,6 @@ import (
 	pb "github.com/sonm-io/core/proto"
 
 	"github.com/sonm-io/core/cmd/cli/task_config"
-	"github.com/sonm-io/core/insonmnia/structs"
-	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -100,19 +98,4 @@ var askPlanRemoveCmd = &cobra.Command{
 
 		showOk(cmd)
 	},
-}
-
-func loadSlotFile(path string) (*structs.Slot, error) {
-	cfg := task_config.SlotConfig{}
-	err := util.LoadYamlFile(path, &cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	slot, err := cfg.IntoSlot()
-	if err != nil {
-		return nil, err
-	}
-
-	return slot, nil
 }

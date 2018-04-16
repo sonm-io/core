@@ -336,9 +336,11 @@ func (h *Hub) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, er
 		return nil, err
 	}
 
+	//TODO: return Tasks
 	reply := &pb.DealInfoReply{
-		Id:    &pb.ID{Id: deal.Deal.GetId()},
-		Order: deal.BidOrder.Unwrap(),
+		Deal:     deal.Deal,
+		BidOrder: deal.BidOrder,
+		AskOrder: deal.AskOrder,
 	}
 
 	return reply, nil

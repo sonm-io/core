@@ -1,12 +1,12 @@
 syntax = "proto3";
 
 import "ask_plan.proto";
-import "bid.proto";
 import "bigint.proto";
 import "capabilities.proto";
 import "container.proto";
 import "deal.proto";
 import "insonmnia.proto";
+import "marketplace.proto";
 
 package sonm;
 
@@ -111,26 +111,18 @@ message DevicesReply {
     Storage storage = 5;
 }
 
-message CreateAskPlanRequest {
-    Slot slot = 1;
-    BigInt pricePerSecond = 4;
-
-    string buyerID = 3;
-}
-
 message PullTaskRequest {
     string dealId = 1;
     string taskId = 2;
 }
 
 message DealInfoReply {
-    // ID is deal ID.
-    ID id = 1;
-    // Order is BID order associated with a deal.
-    Order order = 2;
+    MarketDeal deal = 1;
+    MarketOrder bidOrder = 2;
+    MarketOrder askOrder = 3;
     // List of currently running tasks.
-    StatusMapReply running = 3;
+    StatusMapReply running = 4;
     // List of completed tasks.
-    StatusMapReply completed = 4;
+    StatusMapReply completed = 5;
 }
 

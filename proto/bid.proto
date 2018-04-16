@@ -1,16 +1,9 @@
 syntax = "proto3";
 
-import "bigint.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
 
 package sonm;
-
-enum OrderType {
-    ANY = 0;
-    BID = 1;
-    ASK = 2;
-}
 
 message BidNetwork {
     bool overlay = 1;
@@ -35,14 +28,6 @@ message BidOrder {
     BidResources resources = 7;
 }
 
-// Geo represent GeoIP results for node
-message Geo {
-    string country = 1;
-    string city = 2;
-    float lat = 3;
-    float lon = 4;
-}
-
 message Resources {
     // CPU core count
     uint64 cpuCores = 1;
@@ -61,32 +46,4 @@ message Resources {
     NetworkType networkType = 7;
     // Other properties/benchmarks. The higher means better.
     map<string, double> properties = 8;
-}
-
-message Slot {
-    // Buyer’s rating. Got from Buyer’s profile for BID orders rating_supplier.
-    int64 buyerRating = 1;
-    // Supplier’s rating. Got from Supplier’s profile for ASK orders.
-    int64 supplierRating = 2;
-    // Geo represent Worker's position
-    Geo geo = 3;
-    // Hardware resources requirements
-    Resources resources = 4;
-    // Duration is resource rent duration in seconds
-    uint64 duration = 5;
-}
-
-message Order {
-    // Order ID, UUIDv4
-    string id = 1;
-    // Buyer's EtherumID
-    string byuerID = 2;
-    // Supplier's is EtherumID
-    string supplierID = 3;
-    // Order type (Bid or Ask)
-    OrderType orderType = 5;
-    // Slot describe resource requiements
-    Slot slot = 6;
-    // PricePerSecond specifies order price for ordered resources per second.
-    BigInt pricePerSecond = 7;
 }
