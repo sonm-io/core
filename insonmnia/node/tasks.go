@@ -285,7 +285,7 @@ func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullT
 	}
 }
 
-func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (pb.HubClient, io.Closer, error) {
+func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (*hubClient, io.Closer, error) {
 	bigID, err := util.ParseBigInt(id)
 	if err != nil {
 		return nil, nil, err
@@ -299,7 +299,7 @@ func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (pb.HubCl
 	return t.getHubClientByEthAddr(ctx, dealInfo.GetSupplierID())
 }
 
-func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (pb.HubClient, io.Closer, error) {
+func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (*hubClient, io.Closer, error) {
 	return t.remotes.hubCreator(common.StringToAddress(eth), "")
 }
 

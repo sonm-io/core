@@ -28,7 +28,7 @@ var workerStatusCmd = &cobra.Command{
 	Short: "Show worker status",
 	Run: func(cmd *cobra.Command, _ []string) {
 		ctx := context.Background()
-		hub, err := newHubManagementClient(ctx)
+		hub, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
