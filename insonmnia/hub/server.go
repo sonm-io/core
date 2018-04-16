@@ -378,6 +378,10 @@ func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply,
 	return h.worker.Hardware().IntoProto(), nil
 }
 
+func (h *Hub) FreeDevices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
+	return h.worker.FreeDevice().IntoProto(), nil
+}
+
 func (h *Hub) AskPlans(ctx context.Context, _ *pb.Empty) (*pb.AskPlansReply, error) {
 	return h.worker.AskPlans(ctx)
 }

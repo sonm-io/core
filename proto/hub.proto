@@ -17,9 +17,10 @@ service WorkerManagement {
     rpc Status (Empty) returns (HubStatusReply) {}
     // Devices provides detailed information about device
     // and show benchmark results.
-    //
-    // TODO: returns smth that can represent miner.hardware (extend Capabilities?)
     rpc Devices(Empty) returns (DevicesReply) {}
+    // FreeDevices provides information about unallocated resources
+    // that can be turned into ask-plans.
+    rpc FreeDevices(Empty) returns (DevicesReply) {}
     // Tasks produces a list of all running tasks on the Hub
     rpc Tasks(Empty) returns (TaskListReply) {}
     // AskPlans allows to obtain previously assigned Ask Plans from for a given worker.

@@ -281,6 +281,13 @@ func (m *Miner) Hardware() *hardware.Hardware {
 	return m.hardware
 }
 
+// AvailableDevices provides information about unallocated resources
+// that can be turned into ask-plans.
+func (m *Miner) FreeDevice() *hardware.Hardware {
+	// todo: this is stub, wait for Resource manager impl to use real data.
+	return m.hardware
+}
+
 func (m *Miner) scheduleStatusPurge(id string) {
 	t := time.NewTimer(time.Second * 3600)
 	defer t.Stop()
