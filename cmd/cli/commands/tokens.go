@@ -35,6 +35,31 @@ var getTokenCmd = &cobra.Command{
 	},
 }
 
+var getBalanceCmd = &cobra.Command{
+	Use:    "balance",
+	Short:  "Show SONM token balance (ERC20)",
+	PreRun: loadKeyStoreWrapper,
+	Run: func(cmd *cobra.Command, args []string) {
+		bch, err := blockchain.NewAPI()
+		if err != nil {
+			showError(cmd, "Cannot create blockchain connection", err)
+			os.Exit(1)
+		}
+
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		addr := crypto.PubkeyToAddress(sessionKey.PublicKey).Hex()
+		balance, err := bch.BalanceOf(ctx, addr)
+		if err != nil {
+			showError(cmd, "Cannot get tokens", err)
+			os.Exit(1)
+		}
+
+		printBalanceInfo(cmd, balance)
+	},
+}
+
 var approveTokenCmd = &cobra.Command{
 	Use:    "approve <amount>",
 	Short:  "Approve tokens (ERC20)",

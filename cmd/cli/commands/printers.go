@@ -344,3 +344,14 @@ func printDealDetails(cmd *cobra.Command, d *pb.DealStatusReply) {
 		printDealTasksShort(cmd, d.GetInfo().GetCompleted().GetStatuses())
 	}
 }
+
+func printBalanceInfo(cmd *cobra.Command, value *big.Int) {
+	s := pb.NewBigInt(value).ToPriceString()
+
+	if !isSimpleFormat() {
+		showJSON(cmd, map[string]string{"balance": s})
+		return
+	}
+
+	cmd.Printf("Balance is %s SNM\r\n", s)
+}
