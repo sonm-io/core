@@ -69,13 +69,19 @@ type hashableRAM struct {
 	Available uint64 `json:"available"`
 }
 
+type hashableNetworkCapabilities struct {
+	Overlay  bool `json:"overlay"`
+	Incoming bool `json:"incoming"`
+}
+
 // DeviceMapping maps hardware capabilities to device description, hashing-friendly
 type DeviceMapping struct {
-	CPU     *sonm.CPUDevice     `json:"cpu"`
-	GPU     []*sonm.GPUDevice   `json:"gpu"`
-	RAM     hashableRAM         `json:"ram"`
-	Network *sonm.NetworkDevice `json:"network"`
-	Storage *sonm.StorageDevice `json:"storage"`
+	CPU         *sonm.CPUDevice             `json:"cpu"`
+	GPU         []*sonm.GPUDevice           `json:"gpu"`
+	RAM         hashableRAM                 `json:"ram"`
+	Network     *sonm.NetworkDevice         `json:"network"`
+	Storage     *sonm.StorageDevice         `json:"storage"`
+	NetworkCaps hashableNetworkCapabilities `json:"network_caps"`
 }
 
 func (dm *DeviceMapping) Hash() string {
@@ -94,5 +100,9 @@ func (h *Hardware) devicesMap() *DeviceMapping {
 		RAM:     hashableRAM{Available: h.RAM.Device.Available},
 		Network: h.Network.Device,
 		Storage: h.Storage.Device,
+		NetworkCaps: hashableNetworkCapabilities{
+			Incoming: h.Network.Incoming,
+			Overlay:  h.Network.Overlay,
+		},
 	}
 }
