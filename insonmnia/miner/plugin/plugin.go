@@ -179,6 +179,8 @@ func (r *Repository) ApplyHardwareInfo(hw *hardware.Hardware) {
 			Benchmarks: make(map[uint64]*sonm.Benchmark),
 		})
 	}
+
+	hw.Network.Overlay = len(r.networkTuners) > 0
 }
 
 // TuneGPU creates GPU bound required for the given provider with further

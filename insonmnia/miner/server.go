@@ -166,6 +166,8 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	plugins.ApplyHardwareInfo(hardwareInfo)
 	log.G(o.ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
 
+	hardwareInfo.SetNetworkIncoming(o.publicIPs)
+
 	if o.ssh == nil {
 		o.ssh = nilSSH{}
 	}
@@ -281,7 +283,7 @@ func (m *Miner) Hardware() *hardware.Hardware {
 	return m.hardware
 }
 
-// AvailableDevices provides information about unallocated resources
+// FreeDevice provides information about unallocated resources
 // that can be turned into ask-plans.
 func (m *Miner) FreeDevice() *hardware.Hardware {
 	// todo: this is stub, wait for Resource manager impl to use real data.
