@@ -2,11 +2,13 @@ package hardware
 
 import (
 	"fmt"
+	"net"
 
 	"github.com/cnf/structhash"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/ram"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 )
 
 // Hardware accumulates the finest hardware information about system the worker
@@ -52,6 +54,15 @@ func (h *Hardware) LogicalCPUCount() int {
 
 func (h *Hardware) Hash() string {
 	return h.devicesMap().Hash()
+}
+
+func (h *Hardware) SetNetworkIncoming(IPs []string) {
+	for _, ip := range IPs {
+		if !util.IsPrivateIP(net.ParseIP(ip)) {
+			h.Network.Incoming = true
+			break
+		}
+	}
 }
 
 type hashableRAM struct {
