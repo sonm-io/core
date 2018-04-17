@@ -39,6 +39,10 @@ type Level struct {
 	level zapcore.Level
 }
 
+func NewLevel(level zapcore.Level) *Level {
+	return &Level{level}
+}
+
 // Zap returns the underlying zap logging level.
 func (m Level) Zap() zapcore.Level {
 	return m.level

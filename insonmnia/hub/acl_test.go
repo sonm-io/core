@@ -6,39 +6,30 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
-	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
 
-func makeDefaultOrder(t *testing.T, buyerId string) *structs.Order {
-	slot := &pb.Slot{
-		Duration:  uint64(structs.MinSlotDuration.Seconds()),
-		Resources: &pb.Resources{},
-	}
-
-	order, err := structs.NewOrder(&pb.Order{
-		ByuerID:        buyerId,
-		Slot:           slot,
-		PricePerSecond: pb.NewBigIntFromInt(1),
-	})
-	assert.NoError(t, err)
-	return order
+func testCtx() context.Context {
+	logger := logging.BuildLogger(*logging.NewLevel(zapcore.DebugLevel))
+	return log.WithLogger(context.Background(), logger)
 }
 
 func makeHubWithOrder(t *testing.T, ctx context.Context, buyerId string, dealId structs.DealID) *Hub {
-	order := makeDefaultOrder(t, buyerId)
 	return &Hub{
 		ctx: ctx,
 		worker: &miner.Miner{
-			Deals: map[structs.DealID]*structs.DealMeta{dealId: {BidOrder: order}},
+			Deals: map[structs.DealID]*structs.DealMeta{dealId: {Deal: &sonm.MarketDeal{ConsumerID: buyerId}}},
 		},
 	}
 }
@@ -101,7 +92,7 @@ func TestContextDealMetaData(t *testing.T) {
 }
 
 func TestDealAuthorization(t *testing.T) {
-	ctx := peer.NewContext(context.Background(), &peer.Peer{
+	ctx := peer.NewContext(testCtx(), &peer.Peer{
 		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: addr},
 	})
 
@@ -112,7 +103,7 @@ func TestDealAuthorization(t *testing.T) {
 	}
 
 	md := newFieldDealExtractor()
-	authorization := newDealAuthorization(context.Background(), makeHubWithOrder(t, ctx, addr.Hex(), "0x42"), md)
+	authorization := newDealAuthorization(ctx, makeHubWithOrder(t, ctx, addr.Hex(), "0x42"), md)
 
 	require.NoError(t, authorization.Authorize(ctx, request))
 }

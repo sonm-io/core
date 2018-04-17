@@ -10,7 +10,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
-	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
@@ -72,7 +71,7 @@ func TestHubCreateRemoveSlot(t *testing.T) {
 	assert.NoError(t, err)
 
 	req := &pb.AskPlan{
-		Duration:  &pb.Duration{Nanoseconds: structs.MinSlotDuration.Nanoseconds()},
+		Duration:  &pb.Duration{Nanoseconds: pb.MinDealDuration.Nanoseconds()},
 		Resources: &pb.AskPlanResources{},
 	}
 
