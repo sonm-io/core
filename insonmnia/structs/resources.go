@@ -65,7 +65,7 @@ func (r *Resources) GetGPUCount() int {
 // ValidateResources validates the specified protobuf object to be wrapped.
 func ValidateResources(resources *pb.Resources) error {
 	if resources == nil {
-		return errResourcesIsNil
+		return errors.New("resources are nil")
 	}
 
 	if resources.GetGpuCount() == pb.GPUCount_SINGLE_GPU {

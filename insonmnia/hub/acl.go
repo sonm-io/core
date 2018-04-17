@@ -60,9 +60,9 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 		return err
 	}
 
-	allowedWallet := meta.Order.GetByuerID()
+	allowedWallet := meta.Deal.GetConsumerID()
 
-	log.G(d.ctx).Debug("found allowed wallet for a deal",
+	log.G(ctx).Debug("found allowed wallet for a deal",
 		zap.Stringer("deal", dealID),
 		zap.String("wallet", peerWallet),
 		zap.String("allowedWallet", allowedWallet),
@@ -162,9 +162,6 @@ func newCustomDealExtractor(fn func(ctx context.Context, request interface{}) (s
 		return fn(ctx, request)
 	}
 }
-
-// OrderExtractor allows to extract order id that is used for authorization.
-type OrderExtractor func(request interface{}) (structs.OrderID, error)
 
 type multiAuth struct {
 	authorizers []auth.Authorization

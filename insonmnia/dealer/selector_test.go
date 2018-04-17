@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var input = []*sonm.Order{
-	{PricePerSecond: sonm.NewBigIntFromInt(100)},
-	{PricePerSecond: sonm.NewBigIntFromInt(20)},
-	{PricePerSecond: sonm.NewBigIntFromInt(10)},
-	{PricePerSecond: sonm.NewBigIntFromInt(200)},
-	{PricePerSecond: sonm.NewBigIntFromInt(50)},
+var input = []*sonm.MarketOrder{
+	{Price: sonm.NewBigIntFromInt(100)},
+	{Price: sonm.NewBigIntFromInt(20)},
+	{Price: sonm.NewBigIntFromInt(10)},
+	{Price: sonm.NewBigIntFromInt(200)},
+	{Price: sonm.NewBigIntFromInt(50)},
 }
 
 func TestAskSelector_Select(t *testing.T) {
@@ -20,7 +20,7 @@ func TestAskSelector_Select(t *testing.T) {
 	out, err := m.Select(input)
 
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(10), out.PricePerSecond.Unwrap().Uint64())
+	assert.Equal(t, uint64(10), out.Price.Unwrap().Uint64())
 }
 
 func TestAskSelector_SelectNilEmpty(t *testing.T) {
@@ -30,7 +30,7 @@ func TestAskSelector_SelectNilEmpty(t *testing.T) {
 	assert.EqualError(t, err, "no orders provided")
 	assert.Nil(t, out)
 
-	out, err = m.Select([]*sonm.Order{})
+	out, err = m.Select([]*sonm.MarketOrder{})
 	assert.EqualError(t, err, "no orders provided")
 	assert.Nil(t, out)
 }
@@ -40,7 +40,7 @@ func TestBidSelector_Select(t *testing.T) {
 	out, err := m.Select(input)
 
 	assert.NoError(t, err)
-	assert.Equal(t, uint64(200), out.PricePerSecond.Unwrap().Uint64())
+	assert.Equal(t, uint64(200), out.Price.Unwrap().Uint64())
 }
 
 func TestBidSelector_SelectNilEmpty(t *testing.T) {
@@ -50,7 +50,7 @@ func TestBidSelector_SelectNilEmpty(t *testing.T) {
 	assert.EqualError(t, err, "no orders provided")
 	assert.Nil(t, out)
 
-	out, err = m.Select([]*sonm.Order{})
+	out, err = m.Select([]*sonm.MarketOrder{})
 	assert.EqualError(t, err, "no orders provided")
 	assert.Nil(t, out)
 }

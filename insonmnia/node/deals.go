@@ -27,7 +27,7 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealL
 	return &pb.DealListReply{Deal: deals}, nil
 }
 
-func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealStatusReply, error) {
+func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
 	bigID, err := util.ParseBigInt(id.Id)
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealStatusReply, 
 		return nil, err
 	}
 
-	reply := &pb.DealStatusReply{
+	reply := &pb.DealInfoReply{
 		// TODO(sshaman1101): need to find a way to extract deal details from related Worker.
 		Deal: deal,
 	}

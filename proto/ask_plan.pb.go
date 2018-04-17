@@ -35,10 +35,7 @@ It has these top-level messages:
 	BidNetwork
 	BidResources
 	BidOrder
-	Geo
 	Resources
-	Slot
-	Order
 	BigInt
 	Capabilities
 	CPUDevice
@@ -63,7 +60,6 @@ It has these top-level messages:
 	AskPlansReply
 	TaskListReply
 	DevicesReply
-	CreateAskPlanRequest
 	PullTaskRequest
 	DealInfoReply
 	Empty

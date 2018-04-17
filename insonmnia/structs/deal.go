@@ -34,8 +34,8 @@ func (id DealID) String() string {
 
 type DealMeta struct {
 	Deal     *sonm.MarketDeal
-	BidOrder *Order
-	AskOrder *Order
+	BidOrder *sonm.MarketOrder
+	AskOrder *sonm.MarketOrder
 	Tasks    []*TaskInfo
 }
 

@@ -3,7 +3,10 @@ package sonm
 import (
 	"errors"
 	"strings"
+	"time"
 )
+
+const MinDealDuration = time.Minute * 10
 
 func (m *MarketIdentityLevel) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var v string

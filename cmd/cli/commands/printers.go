@@ -321,30 +321,17 @@ func printTaskStart(cmd *cobra.Command, start *pb.StartTaskReply) {
 	}
 }
 
-func printDealDetails(cmd *cobra.Command, d *pb.DealStatusReply) {
+func printDealDetails(cmd *cobra.Command, deals *pb.DealInfoReply) {
 	if !isSimpleFormat() {
-		showJSON(cmd, d)
+		showJSON(cmd, deals)
 		return
-	}
-
-	if d.GetDeal() != nil {
-		cmd.Printf("Deal info:\r\n")
-		printDealInfo(cmd, d.GetDeal())
-	}
-
-	if d.GetInfo().GetOrder() != nil {
-		cmd.Printf("\r\n")
-		printOrderResources(cmd, d.GetInfo().GetOrder().GetSlot().GetResources())
-	}
-
-	if d.GetInfo().GetRunning() != nil && len(d.GetInfo().GetRunning().GetStatuses()) > 0 {
-		cmd.Printf("\r\nRunning tasks:\r\n")
-		printDealTasksShort(cmd, d.GetInfo().GetRunning().GetStatuses())
-	}
-
-	if d.GetInfo().GetCompleted() != nil && len(d.GetInfo().GetCompleted().GetStatuses()) > 0 {
-		cmd.Printf("\r\nCompleted tasks:\r\n")
-		printDealTasksShort(cmd, d.GetInfo().GetCompleted().GetStatuses())
+	} else {
+		out, err := yaml.Marshal(deals)
+		if err != nil {
+			showError(cmd, "could not marshall ask plans", err)
+		} else {
+			cmd.Println(string(out))
+		}
 	}
 }
 

@@ -14,26 +14,3 @@ func ParseNetworkType(ty string) (pb.NetworkType, error) {
 
 	return pb.NetworkType(typeID), nil
 }
-
-func ParseOrderType(ty string) (pb.OrderType, error) {
-	typeID, ok := pb.OrderType_value[ty]
-	if !ok {
-		return pb.OrderType_ANY, errors.New("unknown order type")
-	}
-
-	return pb.OrderType(typeID), nil
-}
-
-func ParseGPUCount(ty string) (pb.GPUCount, error) {
-	typeID, ok := pb.GPUCount_value[ty]
-	if !ok {
-		return pb.GPUCount_NO_GPU, errors.New("unknown gpu count")
-	}
-
-	count := pb.GPUCount(typeID)
-	if count == pb.GPUCount_SINGLE_GPU {
-		return pb.GPUCount_NO_GPU, ErrUnsupportedSingleGPU
-	}
-
-	return count, nil
-}

@@ -48,8 +48,8 @@ message TaskListRequest {
 service DealManagement {
     // List produces a list of all deals made by client with given ID
     rpc List(DealListRequest) returns (DealListReply) {}
-    // Status produces a detailed info about deal with given ID
-    rpc Status(ID) returns (DealStatusReply) {}
+    // Status produces a detailed info about deal with given ID.
+    rpc Status(ID) returns (DealInfoReply) {}
     // Finish finishes a deal with given ID
     rpc Finish(ID) returns (Empty) {}
 }
