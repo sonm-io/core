@@ -42,6 +42,7 @@ var (
 		"Status",
 		"Tasks",
 		"Devices",
+		"FreeDevices",
 		"AskPlans",
 		"CreateAskPlan",
 		"RemoveAskPlan",
