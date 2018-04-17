@@ -44,7 +44,7 @@ var WorkerRelationshipStatus_value = map[string]int32{
 func (x WorkerRelationshipStatus) String() string {
 	return proto.EnumName(WorkerRelationshipStatus_name, int32(x))
 }
-func (WorkerRelationshipStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor13, []int{0} }
+func (WorkerRelationshipStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor12, []int{0} }
 
 type JoinNetworkRequest struct {
 	TaskID    *TaskID `protobuf:"bytes,1,opt,name=taskID" json:"taskID,omitempty"`
@@ -54,7 +54,7 @@ type JoinNetworkRequest struct {
 func (m *JoinNetworkRequest) Reset()                    { *m = JoinNetworkRequest{} }
 func (m *JoinNetworkRequest) String() string            { return proto.CompactTextString(m) }
 func (*JoinNetworkRequest) ProtoMessage()               {}
-func (*JoinNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor13, []int{0} }
+func (*JoinNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{0} }
 
 func (m *JoinNetworkRequest) GetTaskID() *TaskID {
 	if m != nil {
@@ -77,7 +77,7 @@ type DealsReply struct {
 func (m *DealsReply) Reset()                    { *m = DealsReply{} }
 func (m *DealsReply) String() string            { return proto.CompactTextString(m) }
 func (*DealsReply) ProtoMessage()               {}
-func (*DealsReply) Descriptor() ([]byte, []int) { return fileDescriptor13, []int{1} }
+func (*DealsReply) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{1} }
 
 func (m *DealsReply) GetDeal() []*Deal {
 	if m != nil {
@@ -94,7 +94,7 @@ type Worker struct {
 func (m *Worker) Reset()                    { *m = Worker{} }
 func (m *Worker) String() string            { return proto.CompactTextString(m) }
 func (*Worker) ProtoMessage()               {}
-func (*Worker) Descriptor() ([]byte, []int) { return fileDescriptor13, []int{2} }
+func (*Worker) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{2} }
 
 func (m *Worker) GetID() string {
 	if m != nil {
@@ -117,7 +117,7 @@ type WorkerListReply struct {
 func (m *WorkerListReply) Reset()                    { *m = WorkerListReply{} }
 func (m *WorkerListReply) String() string            { return proto.CompactTextString(m) }
 func (*WorkerListReply) ProtoMessage()               {}
-func (*WorkerListReply) Descriptor() ([]byte, []int) { return fileDescriptor13, []int{3} }
+func (*WorkerListReply) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{3} }
 
 func (m *WorkerListReply) GetWorkers() []*Worker {
 	if m != nil {
@@ -1152,9 +1152,9 @@ func init() {
 
 // End grpccmd
 
-func init() { proto.RegisterFile("node.proto", fileDescriptor13) }
+func init() { proto.RegisterFile("node.proto", fileDescriptor12) }
 
-var fileDescriptor13 = []byte{
+var fileDescriptor12 = []byte{
 	// 591 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x54, 0xdd, 0x6e, 0xd3, 0x4c,
 	0x10, 0xb5, 0xdb, 0x7c, 0xfe, 0x9a, 0x49, 0x49, 0xd3, 0x2d, 0x85, 0xc8, 0x42, 0x55, 0x31, 0x88,

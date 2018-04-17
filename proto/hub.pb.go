@@ -36,7 +36,7 @@ type StartTaskRequest struct {
 func (m *StartTaskRequest) Reset()                    { *m = StartTaskRequest{} }
 func (m *StartTaskRequest) String() string            { return proto.CompactTextString(m) }
 func (*StartTaskRequest) ProtoMessage()               {}
-func (*StartTaskRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{0} }
+func (*StartTaskRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{0} }
 
 func (m *StartTaskRequest) GetDeal() *Deal {
 	if m != nil {
@@ -60,7 +60,7 @@ type HubJoinNetworkRequest struct {
 func (m *HubJoinNetworkRequest) Reset()                    { *m = HubJoinNetworkRequest{} }
 func (m *HubJoinNetworkRequest) String() string            { return proto.CompactTextString(m) }
 func (*HubJoinNetworkRequest) ProtoMessage()               {}
-func (*HubJoinNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{1} }
+func (*HubJoinNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{1} }
 
 func (m *HubJoinNetworkRequest) GetTaskID() string {
 	if m != nil {
@@ -86,7 +86,7 @@ type StartTaskReply struct {
 func (m *StartTaskReply) Reset()                    { *m = StartTaskReply{} }
 func (m *StartTaskReply) String() string            { return proto.CompactTextString(m) }
 func (*StartTaskReply) ProtoMessage()               {}
-func (*StartTaskReply) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{2} }
+func (*StartTaskReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{2} }
 
 func (m *StartTaskReply) GetId() string {
 	if m != nil {
@@ -129,7 +129,7 @@ type HubStatusReply struct {
 func (m *HubStatusReply) Reset()                    { *m = HubStatusReply{} }
 func (m *HubStatusReply) String() string            { return proto.CompactTextString(m) }
 func (*HubStatusReply) ProtoMessage()               {}
-func (*HubStatusReply) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{3} }
+func (*HubStatusReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{3} }
 
 func (m *HubStatusReply) GetUptime() uint64 {
 	if m != nil {
@@ -187,7 +187,7 @@ type AskPlansReply struct {
 func (m *AskPlansReply) Reset()                    { *m = AskPlansReply{} }
 func (m *AskPlansReply) String() string            { return proto.CompactTextString(m) }
 func (*AskPlansReply) ProtoMessage()               {}
-func (*AskPlansReply) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{4} }
+func (*AskPlansReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{4} }
 
 func (m *AskPlansReply) GetAskPlans() map[string]*AskPlan {
 	if m != nil {
@@ -203,7 +203,7 @@ type TaskListReply struct {
 func (m *TaskListReply) Reset()                    { *m = TaskListReply{} }
 func (m *TaskListReply) String() string            { return proto.CompactTextString(m) }
 func (*TaskListReply) ProtoMessage()               {}
-func (*TaskListReply) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{5} }
+func (*TaskListReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{5} }
 
 func (m *TaskListReply) GetInfo() map[string]*TaskStatusReply {
 	if m != nil {
@@ -223,7 +223,7 @@ type DevicesReply struct {
 func (m *DevicesReply) Reset()                    { *m = DevicesReply{} }
 func (m *DevicesReply) String() string            { return proto.CompactTextString(m) }
 func (*DevicesReply) ProtoMessage()               {}
-func (*DevicesReply) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{6} }
+func (*DevicesReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{6} }
 
 func (m *DevicesReply) GetCPU() *CPU {
 	if m != nil {
@@ -268,7 +268,7 @@ type PullTaskRequest struct {
 func (m *PullTaskRequest) Reset()                    { *m = PullTaskRequest{} }
 func (m *PullTaskRequest) String() string            { return proto.CompactTextString(m) }
 func (*PullTaskRequest) ProtoMessage()               {}
-func (*PullTaskRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{7} }
+func (*PullTaskRequest) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{7} }
 
 func (m *PullTaskRequest) GetDealId() string {
 	if m != nil {
@@ -297,7 +297,7 @@ type DealInfoReply struct {
 func (m *DealInfoReply) Reset()                    { *m = DealInfoReply{} }
 func (m *DealInfoReply) String() string            { return proto.CompactTextString(m) }
 func (*DealInfoReply) ProtoMessage()               {}
-func (*DealInfoReply) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{8} }
+func (*DealInfoReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{8} }
 
 func (m *DealInfoReply) GetDeal() *Deal {
 	if m != nil {
@@ -1370,9 +1370,9 @@ func init() {
 
 // End grpccmd
 
-func init() { proto.RegisterFile("hub.proto", fileDescriptor8) }
+func init() { proto.RegisterFile("hub.proto", fileDescriptor7) }
 
-var fileDescriptor8 = []byte{
+var fileDescriptor7 = []byte{
 	// 967 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x56, 0xdd, 0x8e, 0xdb, 0x44,
 	0x14, 0xb6, 0x93, 0x6c, 0x7e, 0x4e, 0x48, 0x76, 0x3b, 0xdb, 0xae, 0x22, 0x97, 0x56, 0x8b, 0x7b,

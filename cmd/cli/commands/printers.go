@@ -202,6 +202,7 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 
 		cmd.Printf("AuthorID:       %s\r\n", order.GetAuthorID())
 		cmd.Printf("CounterpartyID: %s\r\n", order.GetCounterpartyID())
+		cmd.Printf("Benchmarks:     %s\r\n", order.GetBenchmarks())
 
 		// todo: find a way to print resources as they presented into MarketOrder struct.
 	} else {
