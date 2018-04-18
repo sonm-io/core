@@ -1,0 +1,269 @@
+syntax = "proto3";
+
+import "bigint.proto";
+import "marketplace.proto";
+import "insonmnia.proto";
+import "timestamp.proto";
+
+package sonm;
+
+enum CmpOp {
+    EQ = 0;
+    GTE = 1;
+    LTE = 2;
+}
+
+
+service DWH {
+    rpc GetDeals(DealsRequest) returns (DealsReply) {}
+    rpc GetDealDetails(ID) returns (DWHDeal) {}
+    rpc GetDealConditions(DealConditionsRequest) returns (DealConditionsReply) {}
+    rpc GetOrders(OrdersRequest) returns (OrdersReply) {}
+    rpc GetMatchingOrders(MatchingOrdersRequest) returns (OrdersReply) {}
+    rpc GetOrderDetails(ID) returns (DWHOrder) {}
+    rpc GetProfiles(ProfilesRequest) returns (ProfilesReply) {}
+    rpc GetProfileInfo(ID) returns (Profile) {}
+    rpc GetBlacklist(ID) returns (BlacklistReply) {}
+    rpc GetValidators(ValidatorsRequest) returns (ValidatorsReply) {}
+    rpc GetDealChangeRequests(ID) returns (DealChangeRequestsReply) {}
+    rpc GetWorkers(WorkersRequest) returns (WorkersReply) {}
+}
+
+message DealsRequest {
+    MarketDealStatus status = 1;
+    string supplierID = 2;
+    string consumerID = 3;
+    string masterID = 4;
+    string askID = 5;
+    string bidID = 6;
+    MaxMinUint64 duration = 7;
+    MaxMinBig price = 8;
+    uint64 netflags = 9;
+    MarketIdentityLevel askIdentityLevel = 10;
+    MarketIdentityLevel bidIdentityLevel = 11;
+    DWHBenchmarkConditions benchmarks = 12;
+    uint64 limit = 13;
+    uint64 offset = 14;
+}
+
+message DealsReply {
+    repeated DWHDeal deals = 1;
+}
+
+message DWHDeal {
+    string id = 1;
+    string supplierID = 2;
+    string consumerID = 3;
+    string masterID = 4;
+    string askID = 5;
+    string bidID = 6;
+    uint64 duration = 7;
+    BigInt price = 8;
+    Timestamp startTime = 9;
+    Timestamp endTime = 10;
+    MarketDealStatus status = 11;
+    BigInt blockedBalance = 12;
+    BigInt totalPayout = 13;
+    Timestamp lastBillTS = 14;
+    uint64 netflags = 15;
+    uint64 askIdentityLevel = 16;
+    uint64 bidIdentityLevel = 17;
+    bytes supplierCertificates = 18;
+    bytes consumerCertificates = 19;
+    bool activeChangeRequest = 20;
+    DWHBenchmarks benchmarks = 21;
+}
+
+message DealConditionsRequest {
+    uint64 limit = 1;
+    uint64 offset = 2;
+}
+
+message DealConditionsReply {
+    repeated DealCondition conditions = 1;
+}
+
+message OrdersRequest {
+    string dealID = 1;
+    MarketOrderType type = 2;
+    MarketOrderStatus status = 3;
+    string authorID = 4;
+    string counterpartyID = 5;
+    MaxMinUint64 duration = 6;
+    MaxMinBig price = 9;
+    uint64 netflags = 11;
+    MarketIdentityLevel creatorIdentityLevel = 12;
+    DWHBenchmarkConditions benchmarks = 13;
+    uint64 limit = 14;
+    uint64 offset = 15;
+}
+
+message MatchingOrdersRequest {
+    ID id = 1;
+    uint64 limit = 2;
+    uint64 offset = 3;
+}
+
+message OrdersReply {
+    repeated DWHOrder orders = 1;
+}
+
+message DWHOrder {
+    string id = 1;
+    string dealID = 2;
+    MarketOrderType orderType = 3;
+    MarketOrderStatus orderStatus = 4;
+    string authorID = 5;
+    string counterpartyID = 6;
+    uint64 duration = 7;
+    BigInt price = 8;
+    string netflags = 9;
+    MarketIdentityLevel identityLevel = 10;
+    string blacklist = 11;
+    bytes tag = 12;
+    BigInt frozenSum = 13;
+    uint64 creatorIdentityLevel = 14;
+    string creatorName = 15;
+    string creatorCountry = 16;
+    bytes creatorCertificates = 17;
+    uint64 CreatedTS = 18;
+    DWHBenchmarks benchmarks = 19;
+}
+
+message DealCondition {
+    uint64 id = 1;
+    string supplierID = 2;
+    string consumerID = 3;
+    string masterID = 4;
+    uint64 duration = 5;
+    BigInt price = 6;
+    Timestamp startTime = 7;
+    Timestamp endTime = 8;
+    BigInt totalPayout = 9;
+    string dealID = 10;
+}
+
+message WorkerAnnouncement {
+    uint64 id = 1;
+    string masterID = 2;
+    string slaveID = 3;
+    bool confirmed = 4;
+}
+
+enum ProfileRole {
+    AnyRole = 0;
+    Supplier = 1;
+    Consumer = 2;
+}
+
+enum BlacklistOptions {
+    WithoutMatching = 0;
+    IncludeAndMark = 1;
+    OnlyMatching = 2;
+}
+
+message ProfilesRequest {
+    ProfileRole role = 1;
+    MarketIdentityLevel identityLevel = 2;
+    string country = 3;
+    string name = 4;
+    string blacklistOwnerID = 5;
+    BlacklistOptions blacklistOption = 6;
+    uint64 limit = 7;
+    uint64 offset = 8;
+}
+
+message ProfilesReply {
+    repeated Profile profiles = 1;
+}
+
+message Profile {
+    string UserID = 1;
+    uint64 IdentityLevel = 2;
+    string Name = 3;
+    string Country = 4;
+    bool IsCorporation = 5;
+    bool IsProfessional = 6;
+    bytes Certificates = 7;
+}
+
+message BlacklistReply {
+    string ownerID = 1;
+    repeated string addresses = 2;
+}
+
+message ValidatorsRequest {
+    uint64 limit = 1;
+    uint64 offset = 2;
+}
+
+message ValidatorsReply {
+    repeated Validator validators = 1;
+}
+
+message Validator {
+    string id = 1;
+    uint64 level = 2;
+}
+
+message DealChangeRequestsReply {
+//    repeated DealChangeRequest requests = 1;
+}
+
+message WorkersRequest {
+    string MasterID = 1;
+    uint64 limit = 2;
+    uint64 offset = 3;
+}
+
+message WorkersReply {
+    repeated string workers = 1;
+}
+
+message Certificate {
+    string ownerID = 1;
+    string validatorID = 2;
+    uint64 attribute = 3;
+    uint64 identityLevel = 4;
+    bytes value = 5;
+}
+
+message DWHBenchmarks {
+    uint64 CPUSysbenchMulti = 1;
+    uint64 CPUSysbenchOne = 2;
+    uint64 CPUCores = 3;
+    uint64 RAMSize = 4;
+    uint64 StorageSize = 5;
+    uint64 NetTrafficIn = 6;
+    uint64 NetTrafficOut = 7;
+    uint64 GPUCount = 8;
+    uint64 GPUMem = 9;
+    uint64 GPUEthHashrate = 10;
+    uint64 GPUCashHashrate = 11;
+    uint64 GPURedshift = 12;
+}
+
+message DWHBenchmarkConditions {
+    MaxMinUint64 CPUSysbenchMulti = 1;
+    MaxMinUint64 CPUSysbenchOne = 2;
+    MaxMinUint64 CPUCores = 3;
+    MaxMinUint64 RAMSize = 4;
+    MaxMinUint64 StorageSize = 5;
+    MaxMinUint64 NetTrafficIn = 6;
+    MaxMinUint64 NetTrafficOut = 7;
+    MaxMinUint64 GPUCount = 8;
+    MaxMinUint64 GPUMem = 9;
+    MaxMinUint64 GPUEthHashrate = 10;
+    MaxMinUint64 GPUCashHashrate = 11;
+    MaxMinUint64 GPURedshift = 12;
+}
+
+message MaxMinUint64 {
+    uint64 max = 1;
+    uint64 min = 2;
+}
+
+message MaxMinBig {
+    BigInt max = 1;
+    BigInt min = 2;
+}

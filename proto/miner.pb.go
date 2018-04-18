@@ -26,7 +26,7 @@ type MinerStartRequest struct {
 func (m *MinerStartRequest) Reset()                    { *m = MinerStartRequest{} }
 func (m *MinerStartRequest) String() string            { return proto.CompactTextString(m) }
 func (*MinerStartRequest) ProtoMessage()               {}
-func (*MinerStartRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{0} }
+func (*MinerStartRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{0} }
 
 func (m *MinerStartRequest) GetId() string {
 	if m != nil {
@@ -73,7 +73,7 @@ type MinerStartReply struct {
 func (m *MinerStartReply) Reset()                    { *m = MinerStartReply{} }
 func (m *MinerStartReply) String() string            { return proto.CompactTextString(m) }
 func (*MinerStartReply) ProtoMessage()               {}
-func (*MinerStartReply) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{1} }
+func (*MinerStartReply) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{1} }
 
 func (m *MinerStartReply) GetContainer() string {
 	if m != nil {
@@ -104,7 +104,7 @@ type TaskInfo struct {
 func (m *TaskInfo) Reset()                    { *m = TaskInfo{} }
 func (m *TaskInfo) String() string            { return proto.CompactTextString(m) }
 func (*TaskInfo) ProtoMessage()               {}
-func (*TaskInfo) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{2} }
+func (*TaskInfo) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{2} }
 
 func (m *TaskInfo) GetRequest() *MinerStartRequest {
 	if m != nil {
@@ -127,7 +127,7 @@ type Endpoints struct {
 func (m *Endpoints) Reset()                    { *m = Endpoints{} }
 func (m *Endpoints) String() string            { return proto.CompactTextString(m) }
 func (*Endpoints) ProtoMessage()               {}
-func (*Endpoints) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{3} }
+func (*Endpoints) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{3} }
 
 func (m *Endpoints) GetEndpoints() []*SocketAddr {
 	if m != nil {
@@ -143,7 +143,7 @@ type SaveRequest struct {
 func (m *SaveRequest) Reset()                    { *m = SaveRequest{} }
 func (m *SaveRequest) String() string            { return proto.CompactTextString(m) }
 func (*SaveRequest) ProtoMessage()               {}
-func (*SaveRequest) Descriptor() ([]byte, []int) { return fileDescriptor10, []int{4} }
+func (*SaveRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{4} }
 
 func (m *SaveRequest) GetImageID() string {
 	if m != nil {
@@ -160,9 +160,9 @@ func init() {
 	proto.RegisterType((*SaveRequest)(nil), "sonm.SaveRequest")
 }
 
-func init() { proto.RegisterFile("miner.proto", fileDescriptor10) }
+func init() { proto.RegisterFile("miner.proto", fileDescriptor11) }
 
-var fileDescriptor10 = []byte{
+var fileDescriptor11 = []byte{
 	// 410 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x52, 0xd1, 0x6a, 0xd4, 0x40,
 	0x14, 0x25, 0x49, 0xd7, 0x35, 0x37, 0xea, 0xd6, 0x01, 0x71, 0x58, 0x4a, 0x59, 0x02, 0x62, 0x40,

@@ -12,6 +12,7 @@ It is generated from these files:
 	capabilities.proto
 	container.proto
 	deal.proto
+	dwh.proto
 	hub.proto
 	insonmnia.proto
 	marketplace.proto
@@ -51,6 +52,32 @@ It has these top-level messages:
 	NetworkSpec
 	Container
 	Deal
+	DealsRequest
+	DealsReply
+	DWHDeal
+	DealConditionsRequest
+	DealConditionsReply
+	OrdersRequest
+	MatchingOrdersRequest
+	OrdersReply
+	DWHOrder
+	DealCondition
+	WorkerAnnouncement
+	ProfilesRequest
+	ProfilesReply
+	Profile
+	BlacklistReply
+	ValidatorsRequest
+	ValidatorsReply
+	Validator
+	DealChangeRequestsReply
+	WorkersRequest
+	WorkersReply
+	Certificate
+	DWHBenchmarks
+	DWHBenchmarkConditions
+	MaxMinUint64
+	MaxMinBig
 	StartTaskRequest
 	HubJoinNetworkRequest
 	StartTaskReply
