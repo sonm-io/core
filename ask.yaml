@@ -12,7 +12,7 @@ resources:
   storage:
     size: 10GB
   gpu:
-    devices: [3, 5]
+    indexes: [3, 5]
   network:
     throughputin: 25 Mbit/s
     throughputout: 40 Mbit/s

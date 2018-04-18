@@ -37,5 +37,9 @@ func (m *AskPlan) Validate() error {
 		return errors.New("RAM size is too low")
 	}
 
+	if len(m.GetResources().GetGPU().GetHashes()) > 0 && len(m.GetResources().GetGPU().GetIndexes()) > 0 {
+		return errors.New("cannot set GPUs using both hashes and IDs")
+	}
+
 	return nil
 }

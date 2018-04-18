@@ -63,6 +63,9 @@ message GPUDevice {
 
     // Memory is amount of vmem for device, in bytes
     uint64 Memory = 9;
+
+    // Hash string built from device parameters
+    string hash = 10;
 }
 
 message GPU {

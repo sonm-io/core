@@ -70,7 +70,7 @@ func newRadeonTuner(ctx context.Context, opts ...Option) (Tuner, error) {
 
 	for i, card := range driRadeonDevices {
 		card.Memory = radeonDevices[i].Memory
-		tun.devMap[GPUID(card.Path)] = card
+		tun.devMap[GPUID(card.PCIBusID)] = card
 
 		log.G(ctx).Debug("discovered gpu device ",
 			zap.String("dev", card.Path),
@@ -117,7 +117,7 @@ func (tun radeonTuner) Devices() []*pb.GPUDevice {
 
 	var devices []*pb.GPUDevice
 	for _, d := range tun.devMap {
-		devices = append(devices, &pb.GPUDevice{
+		dev := &pb.GPUDevice{
 			ID:          d.PCIBusID,
 			VendorName:  "Radeon",
 			VendorID:    d.VendorID,
@@ -126,7 +126,10 @@ func (tun radeonTuner) Devices() []*pb.GPUDevice {
 			MajorNumber: d.Major,
 			MinorNumber: d.Minor,
 			Memory:      d.Memory,
-		})
+		}
+
+		dev.FillHashID()
+		devices = append(devices, dev)
 	}
 
 	return devices

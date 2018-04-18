@@ -26,7 +26,7 @@ resources:
   storage: 
     size: 10GiB
   gpu:
-    devices: [3, 5]
+    indexes: [3, 5]
   network:
     throughputin: 25 Mibit/s
     throughputout: 40 Mbit/s
@@ -53,13 +53,34 @@ resources:
 	assert.Equal(t, uint64(10*1024*1024*1024), ask.GetResources().GetStorage().GetSize().GetBytes())
 	assert.Equal(t, uint64(150), ask.GetResources().GetCPU().GetCorePercents())
 
-	assert.Len(t, ask.Resources.GPU.Devices, 2)
-	assert.Contains(t, ask.Resources.GPU.Devices, uint64(3))
-	assert.Contains(t, ask.Resources.GPU.Devices, uint64(5))
+	assert.Len(t, ask.Resources.GPU.Indexes, 2)
+	assert.Contains(t, ask.Resources.GPU.Indexes, "3")
+	assert.Contains(t, ask.Resources.GPU.Indexes, "5")
 
 	assert.Equal(t, uint64(25*1024*1024), ask.Resources.GetNetwork().GetThroughputIn().GetBitsPerSecond())
 	assert.Equal(t, uint64(40e6), ask.Resources.GetNetwork().GetThroughputOut().GetBitsPerSecond())
 	assert.True(t, ask.Resources.GetNetwork().Overlay)
 	assert.True(t, ask.Resources.GetNetwork().Outbound)
 	assert.True(t, ask.Resources.GetNetwork().Incoming)
+}
+
+func TestAskPlanIDsAndHashes(t *testing.T) {
+	data := []byte(`
+resources:
+  cpu:
+    cores: 1.50
+  ram:
+    size: 2GiB
+  gpu:
+    indexes: [3, 5]
+    hashes: ["aaa", "bbb"]
+`)
+
+	ask := &AskPlan{}
+	err := yaml.Unmarshal(data, ask)
+	require.NoError(t, err)
+	require.NotNil(t, ask)
+
+	err = ask.Validate()
+	require.Error(t, err)
 }
