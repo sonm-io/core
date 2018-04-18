@@ -16,11 +16,11 @@ import (
 
 const (
 	// benchmark IDs that must be handled as values from hosts.
-	CPUCores    = 3
-	RamSize     = 4
-	StorageSize = 5
-	GPUCount    = 8
-	GPUMem      = 9
+	CPUCores    = 2
+	RamSize     = 3
+	StorageSize = 4
+	GPUCount    = 7
+	GPUMem      = 8
 
 	BenchIDEnvParamName = "SONM_BENCHMARK_ID"
 	CPUCountBenchParam  = "SONM_CPU_COUNT"
