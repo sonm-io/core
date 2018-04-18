@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var input = []*sonm.MarketOrder{
+var input = []*sonm.Order{
 	{Price: sonm.NewBigIntFromInt(100)},
 	{Price: sonm.NewBigIntFromInt(20)},
 	{Price: sonm.NewBigIntFromInt(10)},
@@ -30,7 +30,7 @@ func TestAskSelector_SelectNilEmpty(t *testing.T) {
 	assert.EqualError(t, err, "no orders provided")
 	assert.Nil(t, out)
 
-	out, err = m.Select([]*sonm.MarketOrder{})
+	out, err = m.Select([]*sonm.Order{})
 	assert.EqualError(t, err, "no orders provided")
 	assert.Nil(t, out)
 }
@@ -50,7 +50,7 @@ func TestBidSelector_SelectNilEmpty(t *testing.T) {
 	assert.EqualError(t, err, "no orders provided")
 	assert.Nil(t, out)
 
-	out, err = m.Select([]*sonm.MarketOrder{})
+	out, err = m.Select([]*sonm.Order{})
 	assert.EqualError(t, err, "no orders provided")
 	assert.Nil(t, out)
 }

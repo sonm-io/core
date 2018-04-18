@@ -3,7 +3,7 @@ syntax = "proto3";
 import "container.proto";
 import "hub.proto";
 import "insonmnia.proto";
-import "marketplace.proto";
+import "dwh.proto";
 
 package sonm;
 
@@ -60,12 +60,7 @@ message DealListRequest {
 }
 
 message DealListReply {
-    repeated MarketDeal deal = 1;
-}
-
-message DealStatusReply {
-    MarketDeal deal = 1;
-    DealInfoReply info = 2;
+    repeated Deal deal = 1;
 }
 
 // todo: implement this as part of Node API

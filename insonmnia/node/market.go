@@ -13,7 +13,7 @@ type marketAPI struct {
 	hubCreator hubClientCreator
 }
 
-func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
+func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.OrdersReply, error) {
 	filter := dwh.OrderFilter{
 		Type:         req.Type,
 		Count:        req.Count,
@@ -26,10 +26,10 @@ func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*p
 		return nil, err
 	}
 
-	return &pb.GetOrdersReply{Orders: orders}, nil
+	return &pb.OrdersReply{Orders: orders}, nil
 }
 
-func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.MarketOrder, error) {
+func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, error) {
 	id, err := util.ParseBigInt(req.GetId())
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.MarketOrd
 	return m.remotes.eth.GetOrderInfo(ctx, id)
 }
 
-func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.MarketOrder) (*pb.MarketOrder, error) {
+func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, error) {
 	id, err := m.remotes.eth.PlaceOrder(ctx, m.remotes.key, req, m.remotes.blockchainTimeout)
 	if err != nil {
 		return nil, err

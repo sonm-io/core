@@ -34,13 +34,13 @@ type API interface {
 type CertsAPI interface{}
 
 type MarketAPI interface {
-	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int, wait time.Duration) (*pb.MarketDeal, error)
+	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int, wait time.Duration) (*pb.Deal, error)
 	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (*types.Transaction, error)
-	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.MarketDeal, error)
+	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error)
 	GetDealsAmount(ctx context.Context) (*big.Int, error)
-	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, wait time.Duration) (*pb.MarketOrder, error)
+	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order, wait time.Duration) (*pb.Order, error)
 	CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) error
-	GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.MarketOrder, error)
+	GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Order, error)
 	GetOrdersAmount(ctx context.Context) (*big.Int, error)
 	Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) (*types.Transaction, error)
 	RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) (*types.Transaction, error)
@@ -127,7 +127,7 @@ func NewAPI(opts ...Option) (API, error) {
 	return api, nil
 }
 
-func (api *BasicAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int, wait time.Duration) (*pb.MarketDeal, error) {
+func (api *BasicAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int, wait time.Duration) (*pb.Deal, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	tx, err := api.marketContract.OpenDeal(opts, askID, bigID)
 	if err != nil {
@@ -157,7 +157,7 @@ func (api *BasicAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealI
 	return api.marketContract.CloseDeal(opts, dealID, blacklisted)
 }
 
-func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.MarketDeal, error) {
+func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error) {
 
 	deal1, err := api.marketContract.GetDealInfo(getCallOptions(ctx), dealID)
 	if err != nil {
@@ -174,9 +174,14 @@ func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Mark
 		benchmarks[idx] = benchmark.Uint64()
 	}
 
-	return &pb.MarketDeal{
+	dwhBenchmarks, err := pb.NewBenchmarks(benchmarks)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Deal{
 		Id:             dealID.String(),
-		Benchmarks:     benchmarks,
+		Benchmarks:     dwhBenchmarks,
 		SupplierID:     deal1.SupplierID.String(),
 		ConsumerID:     deal1.ConsumerID.String(),
 		MasterID:       deal1.MasterID.String(),
@@ -197,20 +202,20 @@ func (api *BasicAPI) GetDealsAmount(ctx context.Context) (*big.Int, error) {
 	return api.marketContract.GetDealsAmount(getCallOptions(ctx))
 }
 
-func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, wait time.Duration) (*pb.MarketOrder, error) {
+func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order, wait time.Duration) (*pb.Order, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
-	var bigBenchmarks = make([]*big.Int, len(order.Benchmarks))
-	for idx, benchmark := range order.Benchmarks {
+	var bigBenchmarks = make([]*big.Int, len(order.Benchmarks.ToArray()))
+	for idx, benchmark := range order.Benchmarks.ToArray() {
 		bigBenchmarks[idx] = big.NewInt(int64(benchmark))
 	}
+
 	var fixedTag [32]byte
 	copy(fixedTag[:], order.Tag[:])
-	var fixedNetflags [3]bool
-	copy(fixedNetflags[:], order.Netflags[:])
+	fixedNetflags := pb.UintToNetflags(order.GetNetflags())
 
 	tx, err := api.marketContract.PlaceOrder(opts,
 		uint8(order.OrderType),
-		common.StringToAddress(order.Counterparty),
+		common.StringToAddress(order.CounterpartyID),
 		order.Price.Unwrap(),
 		big.NewInt(int64(order.Duration)),
 		fixedNetflags,
@@ -242,7 +247,7 @@ func (api *BasicAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id 
 	return nil
 }
 
-func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.MarketOrder, error) {
+func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Order, error) {
 	order1, err := api.marketContract.GetOrderInfo(getCallOptions(ctx), orderID)
 	if err != nil {
 		return nil, err
@@ -258,21 +263,26 @@ func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Ma
 		benchmarks[idx] = benchmark.Uint64()
 	}
 
-	return &pb.MarketOrder{
-		Id:            orderID.String(),
-		DealID:        order2.DealID.String(),
-		OrderType:     pb.MarketOrderType(order1.OrderType),
-		OrderStatus:   pb.MarketOrderStatus(order2.OrderStatus),
-		Author:        order1.Author.String(),
-		Counterparty:  order1.Counterparty.String(),
-		Price:         pb.NewBigInt(order1.Price),
-		Duration:      order1.Duration.Uint64(),
-		Netflags:      order1.Netflags[:],
-		IdentityLevel: pb.MarketIdentityLevel(order1.IdentityLevel),
-		Blacklist:     order1.Blacklist.String(),
-		Tag:           order1.Tag[:],
-		Benchmarks:    benchmarks,
-		FrozenSum:     pb.NewBigInt(order1.FrozenSum),
+	dwhBenchmarks, err := pb.NewBenchmarks(benchmarks)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Order{
+		Id:             orderID.String(),
+		DealID:         order2.DealID.String(),
+		OrderType:      pb.MarketOrderType(order1.OrderType),
+		OrderStatus:    pb.MarketOrderStatus(order2.OrderStatus),
+		AuthorID:       order1.Author.String(),
+		CounterpartyID: order1.Counterparty.String(),
+		Price:          pb.NewBigInt(order1.Price),
+		Duration:       order1.Duration.Uint64(),
+		Netflags:       pb.NetflagsToUint(order1.Netflags),
+		IdentityLevel:  pb.MarketIdentityLevel(order1.IdentityLevel),
+		Blacklist:      order1.Blacklist.String(),
+		Tag:            order1.Tag[:],
+		Benchmarks:     dwhBenchmarks,
+		FrozenSum:      pb.NewBigInt(order1.FrozenSum),
 	}, nil
 }
 

@@ -21,20 +21,20 @@ type OrderFilter struct {
 }
 
 type DWH interface {
-	GetOrders(ctx context.Context, filter OrderFilter) ([]*sonm.MarketOrder, error)
-	GetDeals(ctx context.Context, filter DealsFilter) ([]*sonm.MarketDeal, error)
+	GetOrders(ctx context.Context, filter OrderFilter) ([]*sonm.Order, error)
+	GetDeals(ctx context.Context, filter DealsFilter) ([]*sonm.Deal, error)
 }
 
 type dumbDWH struct {
 	ctx context.Context
 }
 
-func (dwh *dumbDWH) GetDeals(ctx context.Context, filter DealsFilter) ([]*sonm.MarketDeal, error) {
-	return []*sonm.MarketDeal{}, nil
+func (dwh *dumbDWH) GetDeals(ctx context.Context, filter DealsFilter) ([]*sonm.Deal, error) {
+	return []*sonm.Deal{}, nil
 }
 
-func (dwh *dumbDWH) GetOrders(ctx context.Context, filter OrderFilter) ([]*sonm.MarketOrder, error) {
-	return []*sonm.MarketOrder{}, nil
+func (dwh *dumbDWH) GetOrders(ctx context.Context, filter OrderFilter) ([]*sonm.Order, error) {
+	return []*sonm.Order{}, nil
 }
 
 func NewDumbDWH(ctx context.Context) DWH {

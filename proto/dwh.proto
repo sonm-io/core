@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 import "bigint.proto";
-import "marketplace.proto";
 import "insonmnia.proto";
 import "timestamp.proto";
 
@@ -13,14 +12,37 @@ enum CmpOp {
     LTE = 2;
 }
 
+enum MarketOrderType {
+    MARKET_ANY = 0;
+    MARKET_BID = 1;
+    MARKET_ASK = 2;
+}
+
+enum MarketOrderStatus {
+    MARKET_ORDER_INACTIVE = 0;
+    MARKET_ORDER_ACTIVE = 1;
+}
+
+enum MarketIdentityLevel {
+    MARKET_ANONIMOUS = 0;
+    MARKET_PSEUDONYMOUS = 1;
+    MARKET_IDENTIFIED = 2;
+}
+
+enum MarketDealStatus {
+    MARKET_STATUS_UNKNOWN = 0;
+    MARKET_STATUS_ACCEPTED = 1;
+    MARKET_STATUS_CLOSED = 2;
+}
+
 
 service DWH {
     rpc GetDeals(DealsRequest) returns (DealsReply) {}
-    rpc GetDealDetails(ID) returns (DWHDeal) {}
+    rpc GetDealDetails(ID) returns (Deal) {}
     rpc GetDealConditions(DealConditionsRequest) returns (DealConditionsReply) {}
     rpc GetOrders(OrdersRequest) returns (OrdersReply) {}
     rpc GetMatchingOrders(MatchingOrdersRequest) returns (OrdersReply) {}
-    rpc GetOrderDetails(ID) returns (DWHOrder) {}
+    rpc GetOrderDetails(ID) returns (Order) {}
     rpc GetProfiles(ProfilesRequest) returns (ProfilesReply) {}
     rpc GetProfileInfo(ID) returns (Profile) {}
     rpc GetBlacklist(ID) returns (BlacklistReply) {}
@@ -47,10 +69,10 @@ message DealsRequest {
 }
 
 message DealsReply {
-    repeated DWHDeal deals = 1;
+    repeated Deal deals = 1;
 }
 
-message DWHDeal {
+message Deal {
     string id = 1;
     string supplierID = 2;
     string consumerID = 3;
@@ -105,10 +127,10 @@ message MatchingOrdersRequest {
 }
 
 message OrdersReply {
-    repeated DWHOrder orders = 1;
+    repeated Order orders = 1;
 }
 
-message DWHOrder {
+message Order {
     string id = 1;
     string dealID = 2;
     MarketOrderType orderType = 3;
@@ -117,7 +139,7 @@ message DWHOrder {
     string counterpartyID = 6;
     uint64 duration = 7;
     BigInt price = 8;
-    string netflags = 9;
+    uint64 netflags = 9;
     MarketIdentityLevel identityLevel = 10;
     string blacklist = 11;
     bytes tag = 12;

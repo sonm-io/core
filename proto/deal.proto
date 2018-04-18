@@ -5,6 +5,7 @@ package sonm;
 import "bigint.proto";
 import "timestamp.proto";
 
+// Deprecated: migrate to DWH API
 enum DealStatus {
     ANY_STATUS = 0;
     PENDING = 1;
@@ -12,7 +13,8 @@ enum DealStatus {
     CLOSED = 3;
 }
 
-message Deal {
+// Deprecated: migrate to DWH API
+message DealDeprecated {
     string BuyerID = 1;
     string SupplierID = 2;
     DealStatus status = 3;

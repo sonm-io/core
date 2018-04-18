@@ -15,7 +15,7 @@ import (
 
 // Dealer interface describes method to open a deal within two orders.
 type Dealer interface {
-	Deal(ctx context.Context, bid, ask *sonm.MarketOrder) (*big.Int, error)
+	Deal(ctx context.Context, bid, ask *sonm.Order) (*big.Int, error)
 }
 
 type dealer struct {
@@ -36,7 +36,7 @@ func NewDealer(key *ecdsa.PrivateKey, hub sonm.HubClient, bc blockchain.Blockcha
 	}
 }
 
-func (d *dealer) Deal(ctx context.Context, bid, ask *sonm.MarketOrder) (*big.Int, error) {
+func (d *dealer) Deal(ctx context.Context, bid, ask *sonm.Order) (*big.Int, error) {
 	log.G(ctx).Info("creating deal on ethereum", zap.String("bidID", bid.GetId()))
 	id, err := d.openDeal(ctx, bid)
 	if err != nil {
@@ -47,12 +47,12 @@ func (d *dealer) Deal(ctx context.Context, bid, ask *sonm.MarketOrder) (*big.Int
 	log.G(ctx).Info("created deal on eth",
 		zap.String("dealID", id.String()),
 		zap.String("bidID", bid.GetId()),
-		zap.String("hubID", ask.GetAuthor()))
+		zap.String("hubID", ask.GetAuthorID()))
 
 	return id, nil
 }
 
-func (d *dealer) openDeal(ctx context.Context, bid *sonm.MarketOrder) (*big.Int, error) {
+func (d *dealer) openDeal(ctx context.Context, bid *sonm.Order) (*big.Int, error) {
 	//TODO: use MarketDeal
 	//dealRequest := &sonm.Deal{
 	//	WorkTime:          bid.GetDuration(),
