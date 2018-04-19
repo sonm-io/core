@@ -32,6 +32,7 @@ type TaskConfig interface {
 
 	Volumes() map[string]volume
 	Mounts() []string
+	Expose() []string
 }
 
 type container struct {
@@ -42,6 +43,7 @@ type container struct {
 	CommitOnStop bool              `yaml:"commit_on_stop" required:"false"`
 	Volumes      map[string]volume
 	Mounts       []string
+	Expose       []string
 }
 
 type volume struct {
@@ -159,6 +161,10 @@ func (yc *YamlConfig) Volumes() map[string]volume {
 
 func (yc *YamlConfig) Mounts() []string {
 	return yc.Task.Container.Mounts
+}
+
+func (yc *YamlConfig) Expose() []string {
+	return yc.Task.Container.Expose
 }
 
 func LoadConfig(path string) (TaskConfig, error) {

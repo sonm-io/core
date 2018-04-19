@@ -42,8 +42,17 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		description: d,
 	}
 
+	exposedPorts, portBindings, err := d.Expose()
+	if err != nil {
+		log.G(ctx).Error("failed to parse `expose` section", zap.Error(err))
+		return nil, err
+	}
+
+	log.G(ctx).Debug("exposing ports", zap.Any("portBindings", portBindings))
+
 	// NOTE: command to launch must be specified via ENTRYPOINT and CMD in Dockerfile
 	var config = container.Config{
+		ExposedPorts: exposedPorts,
 		AttachStdin:  false,
 		AttachStdout: false,
 		AttachStderr: false,
@@ -61,6 +70,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	// TODO: Move to StartTask?
 	logOpts["max-size"] = "100m"
 	var hostConfig = container.HostConfig{
+		PortBindings:    portBindings,
 		LogConfig:       container.LogConfig{Type: "json-file", Config: logOpts},
 		PublishAllPorts: true,
 		RestartPolicy:   d.RestartPolicy,

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/docker/go-connections/nat"
 	"golang.org/x/net/context"
 )
 
@@ -131,4 +132,13 @@ func TestOvsSpawn(t *testing.T) {
 	err = ovs.Stop(ctx, info.ID)
 	require.NoError(t, err)
 	wg.Wait()
+}
+
+func TestExpose(t *testing.T) {
+	portMap, portBinding, err := nat.ParsePortSpecs([]string{"81:80", "443:443"})
+
+	require.NoError(t, err)
+
+	assert.Equal(t, map[nat.Port]struct{}{"80/tcp": {}, "443/tcp": {}}, portMap)
+	assert.Equal(t, map[nat.Port][]nat.PortBinding{"80/tcp": {{"", "81"}}, "443/tcp": {{"", "443"}}}, portBinding)
 }

@@ -7,6 +7,9 @@ task:
     commit_on_stop: true
     # image name to start on miner, required param
     name: httpd:latest
+    # EXPERIMENTAL port mapping in format <hostPort>:<containerPort>
+    expose:
+      - 80:80
     # env variables that will be passed to container on start
     env:
       param1: value1
