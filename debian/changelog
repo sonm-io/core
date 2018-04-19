@@ -1,3 +1,9 @@
+sonm-core (0.3.6) unstable; urgency=low
+
+  * Feature: allow to specify exposed ports mapping in tasks.
+
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 19 Apr 2018 18:13:29 +0300
+
 sonm-core (0.3.5) unstable; urgency=low
 
   * Fixed: add libcuda to the NVidia drivers volume (#482).
