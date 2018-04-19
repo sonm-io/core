@@ -164,9 +164,9 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 
 	// apply info about GPUs, expose to logs
 	plugins.ApplyHardwareInfo(hardwareInfo)
-	log.G(o.ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
-
 	hardwareInfo.SetNetworkIncoming(o.publicIPs)
+
+	log.G(o.ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
 
 	if o.ssh == nil {
 		o.ssh = nilSSH{}

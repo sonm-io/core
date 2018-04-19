@@ -96,7 +96,7 @@ func (g *nvidiaTuner) Devices() []*pb.GPUDevice {
 
 	var devices []*pb.GPUDevice
 	for _, d := range g.devMap {
-		devices = append(devices, &pb.GPUDevice{
+		dev := &pb.GPUDevice{
 			ID:          string(d.ID()),
 			VendorName:  "Nvidia",
 			VendorID:    d.driDevice.VendorID,
@@ -105,7 +105,10 @@ func (g *nvidiaTuner) Devices() []*pb.GPUDevice {
 			MajorNumber: d.driDevice.Major,
 			MinorNumber: d.driDevice.Minor,
 			Memory:      d.mem,
-		})
+		}
+
+		dev.FillHashID()
+		devices = append(devices, dev)
 	}
 
 	return devices

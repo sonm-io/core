@@ -9,7 +9,8 @@ message AskPlanCPU {
 }
 
 message AskPlanGPU {
-    repeated uint64 devices = 1;
+    repeated string indexes = 1;
+    repeated string hashes = 2;
 }
 
 message AskPlanRAM {

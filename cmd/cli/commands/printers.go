@@ -131,7 +131,7 @@ func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
 		if len(GPUs) > 0 {
 			cmd.Printf("GPUs:\r\n")
 			for i, gpu := range GPUs {
-				cmd.Printf("  id=%d: %s\r\n", i, gpu.Device.GetDeviceName())
+				cmd.Printf("  index=%d: %s\r\n", i, gpu.Device.GetDeviceName())
 				printBenchmarkGroup(cmd, gpu.Benchmarks)
 			}
 		}
