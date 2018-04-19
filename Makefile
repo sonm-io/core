@@ -146,6 +146,7 @@ mock: build_mockgen
 
 clean:
 	rm -f ${WORKER} ${CLI} ${LOCAL_NODE} ${AUTOCLI} ${RENDEZVOUS}
+	find . -name "*_mock.go" | xargs rm -f
 
 deb:
 	debuild --no-lintian --preserve-env -uc -us -i -I -b
