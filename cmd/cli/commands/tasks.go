@@ -14,7 +14,6 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/metadata"
 )
 
@@ -52,7 +51,9 @@ var taskListCmd = &cobra.Command{
 	Short:  "Show active tasks",
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
@@ -84,7 +85,9 @@ var taskStartCmd = &cobra.Command{
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
@@ -154,7 +157,9 @@ var taskStatusCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(2),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
@@ -184,7 +189,9 @@ var taskJoinNetworkCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(3),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
@@ -216,7 +223,9 @@ var taskLogsCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(2),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
@@ -265,7 +274,9 @@ var taskStopCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(2),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
@@ -314,7 +325,9 @@ var taskPullCmd = &cobra.Command{
 
 		w := bufio.NewWriter(wr)
 
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
@@ -417,7 +430,9 @@ var taskPushCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		node, err := newTaskClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot connect to Node", err)
