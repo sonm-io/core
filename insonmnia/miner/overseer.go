@@ -45,6 +45,9 @@ type Description struct {
 
 	volumes map[string]*pb.Volume
 	mounts  []volume.Mount
+
+	publicIPs []string
+	expose    []string
 }
 
 func (d *Description) ID() string {
@@ -57,6 +60,15 @@ func (d *Description) Volumes() map[string]*pb.Volume {
 
 func (d *Description) Mounts(source string) []volume.Mount {
 	return d.mounts
+}
+
+func (d *Description) Expose() (nat.PortSet, nat.PortMap, error) {
+	portSet, portBinding, err := nat.ParsePortSpecs(d.expose)
+	if err != nil {
+		return nat.PortSet{}, nat.PortMap{}, err
+	}
+
+	return portSet, portBinding, nil
 }
 
 func (d *Description) GPU() bool {

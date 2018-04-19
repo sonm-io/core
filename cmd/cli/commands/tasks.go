@@ -117,6 +117,7 @@ var taskStartCmd = &cobra.Command{
 				CommitOnStop:  taskDef.GetCommitOnStop(),
 				Volumes:       volumes,
 				Mounts:        taskDef.Mounts(),
+				Expose:        taskDef.Expose(),
 			},
 		}
 

@@ -502,6 +502,8 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		GPURequired:   resources.RequiresGPU(),
 		volumes:       request.Container.Volumes,
 		mounts:        mounts,
+		expose:        request.Container.Expose,
+		publicIPs:     m.publicIPs,
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.

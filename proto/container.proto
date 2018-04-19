@@ -26,4 +26,5 @@ message Container {
     // Mounts describes mount points from the volume name to the container.
     // TODO: Dragons nearby - beware of injection attacks.
     repeated string mounts = 9;
+    repeated string expose = 10;
 }
