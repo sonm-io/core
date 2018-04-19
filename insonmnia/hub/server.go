@@ -134,8 +134,6 @@ func New(cfg *miner.Config, opts ...Option) (*Hub, error) {
 	authorization := auth.NewEventAuthorization(h.ctx,
 		auth.WithLog(log.G(ctx)),
 		auth.WithEventPrefix(hubAPIPrefix),
-		auth.Allow("ProposeDeal", "ApproveDeal").With(auth.NewNilAuthorization()),
-
 		auth.Allow(workerManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
 
 		auth.Allow("TaskStatus").With(newMultiAuth(
@@ -363,18 +361,6 @@ func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer
 	}
 
 	return h.worker.TaskLogs(request, server)
-}
-
-// ProposeDeal is deprecated.
-func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling ProposeDeal request", zap.Any("request", r))
-	return nil, nil
-}
-
-// ApproveDeal is deprecated.
-func (h *Hub) ApproveDeal(ctx context.Context, request *pb.ApproveDealRequest) (*pb.Empty, error) {
-	log.G(h.ctx).Info("handling ApproveDeal request", zap.Any("request", request))
-	return nil, nil
 }
 
 func (h *Hub) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {

@@ -1,7 +1,6 @@
 syntax = "proto3";
 
 import "ask_plan.proto";
-import "bigint.proto";
 import "capabilities.proto";
 import "container.proto";
 import "deal.proto";
@@ -46,9 +45,6 @@ service Hub {
 
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
 
-    rpc ProposeDeal(DealRequest) returns (Empty) {}
-    rpc ApproveDeal(ApproveDealRequest) returns (Empty) {}
-
     // Note: currently used for testing pusposes.
     rpc GetDealInfo(ID) returns (DealInfoReply) {}
 }
@@ -81,18 +77,6 @@ message HubStatusReply {
     uint32 taskCount = 5;
     string DWHStatus = 6;
     string rendezvousStatus = 7;
-}
-
-message DealRequest {
-    string bidId = 1;
-    string askId = 2;
-    string specHash = 4;
-}
-
-message ApproveDealRequest {
-    BigInt dealID = 1;
-    string bidID = 2;
-    string askID = 3;
 }
 
 message AskPlansReply {

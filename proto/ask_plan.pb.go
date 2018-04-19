@@ -36,7 +36,6 @@ It has these top-level messages:
 	BidNetwork
 	BidResources
 	BidOrder
-	Resources
 	BigInt
 	Capabilities
 	CPUDevice
@@ -82,8 +81,6 @@ It has these top-level messages:
 	HubJoinNetworkRequest
 	StartTaskReply
 	HubStatusReply
-	DealRequest
-	ApproveDealRequest
 	AskPlansReply
 	TaskListReply
 	DevicesReply

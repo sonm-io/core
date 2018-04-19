@@ -27,23 +27,3 @@ message BidOrder {
 
     BidResources resources = 7;
 }
-
-message Resources {
-    // CPU core count
-    uint64 cpuCores = 1;
-    // RAM, in bytes
-    uint64 ramBytes = 2;
-    // GPU devices count
-    GPUCount gpuCount = 3;
-    // todo: discuss
-    // storage volume, in Megabytes
-    uint64 storage = 4;
-    // Inbound network traffic (the higher value), in bytes
-    uint64 netTrafficIn = 5;
-    // Outbound network traffic (the higher value), in bytes
-    uint64 netTrafficOut = 6;
-    // Allowed network connections
-    NetworkType networkType = 7;
-    // Other properties/benchmarks. The higher means better.
-    map<string, double> properties = 8;
-}
