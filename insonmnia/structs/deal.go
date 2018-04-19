@@ -33,13 +33,13 @@ func (id DealID) String() string {
 }
 
 type DealMeta struct {
-	Deal     *sonm.MarketDeal
-	BidOrder *sonm.MarketOrder
-	AskOrder *sonm.MarketOrder
+	Deal     *sonm.Deal
+	BidOrder *sonm.Order
+	AskOrder *sonm.Order
 	Tasks    []*TaskInfo
 }
 
-func NewDealMeta(d *sonm.MarketDeal) *DealMeta {
+func NewDealMeta(d *sonm.Deal) *DealMeta {
 	m := &DealMeta{
 		Deal:  d,
 		Tasks: make([]*TaskInfo, 0),

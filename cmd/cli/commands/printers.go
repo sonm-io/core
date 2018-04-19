@@ -178,7 +178,7 @@ func convertTransactionInfo(tx *types.Transaction) map[string]interface{} {
 	}
 }
 
-func printSearchResults(cmd *cobra.Command, orders []*pb.MarketOrder) {
+func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
 	if isSimpleFormat() {
 		if len(orders) == 0 {
 			cmd.Printf("No matching orders found")
@@ -194,14 +194,14 @@ func printSearchResults(cmd *cobra.Command, orders []*pb.MarketOrder) {
 	}
 }
 
-func printOrderDetails(cmd *cobra.Command, order *pb.MarketOrder) {
+func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 	if isSimpleFormat() {
 		cmd.Printf("ID:             %s\r\n", order.Id)
 		cmd.Printf("Type:           %s\r\n", order.OrderType.String())
 		cmd.Printf("Price:          %s\r\n", order.GetPrice().ToPriceString())
 
-		cmd.Printf("AuthorID:     %s\r\n", order.GetAuthor())
-		cmd.Printf("CounterpartyID:        %s\r\n", order.GetCounterparty())
+		cmd.Printf("AuthorID:       %s\r\n", order.GetAuthorID())
+		cmd.Printf("CounterpartyID: %s\r\n", order.GetCounterpartyID())
 
 		// todo: find a way to print resources as they presented into MarketOrder struct.
 	} else {
@@ -249,7 +249,7 @@ func printVersion(cmd *cobra.Command, v string) {
 	}
 }
 
-func printDealsList(cmd *cobra.Command, deals []*pb.MarketDeal) {
+func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 	if isSimpleFormat() {
 		if len(deals) == 0 {
 			cmd.Println("No deals found")
@@ -266,7 +266,7 @@ func printDealsList(cmd *cobra.Command, deals []*pb.MarketDeal) {
 
 }
 
-func printDealInfo(cmd *cobra.Command, deal *pb.MarketDeal) {
+func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 	if isSimpleFormat() {
 		start := deal.StartTime.Unix()
 		end := deal.EndTime.Unix()

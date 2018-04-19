@@ -29,10 +29,10 @@ type Dealer interface {
 	// other params caused by SONM office's agreement
 	// It could be called by client
 	// return transaction, not deal id
-	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error)
+	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.DealDeprecated) (*types.Transaction, error)
 	// OpenDealPending creates deal and waits for transaction to be committed on blockchain.
 	// wait is duration to wait for transaction commit, recommended value is 180 seconds.
-	OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal, wait time.Duration) (*big.Int, error)
+	OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.DealDeprecated, wait time.Duration) (*big.Int, error)
 
 	// AcceptDeal accepting deal by hub, causes that hub accept to sell its resources
 	// It could be called by hub
@@ -51,7 +51,7 @@ type Dealer interface {
 	// GetDeals is returns ids by given address
 	GetDeals(ctx context.Context, address string) ([]*big.Int, error)
 	// GetDealInfo is returns deal info by given id
-	GetDealInfo(ctx context.Context, id *big.Int) (*pb.Deal, error)
+	GetDealInfo(ctx context.Context, id *big.Int) (*pb.DealDeprecated, error)
 	// GetDealAmount return global deal counter
 	GetDealAmount(ctx context.Context) (*big.Int, error)
 	// GetOpenedDeal returns only opened deals by given hub/client addresses
@@ -146,7 +146,7 @@ var DealOpenedTopicDeprecated = common.HexToHash("0x873cb35202fef184c9f8ee23c04e
 var DealAcceptedTopicDeprecated = common.HexToHash("0x3a38edea6028913403c74ce8433c90eca94f4ca074d318d8cb77be5290ba4f15")
 var DealClosedTopicDeprecated = common.HexToHash("0x72615f99a62a6cc2f8452d5c0c9cbc5683995297e1d988f09bb1471d4eefb890")
 
-func (bch *api) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error) {
+func (bch *api) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.DealDeprecated) (*types.Transaction, error) {
 	opts := bch.GetTxOpts(ctx, key, 360000)
 
 	bigSpec, err := util.ParseBigInt(deal.SpecificationHash)
@@ -193,7 +193,7 @@ func (bch *api) checkTransactionResult(ctx context.Context, tx *types.Transactio
 	return nil, errors.New("cannot find the DealOpened topic in transaction")
 }
 
-func (bch *api) OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal, wait time.Duration) (*big.Int, error) {
+func (bch *api) OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.DealDeprecated, wait time.Duration) (*big.Int, error) {
 	tx, err := bch.OpenDeal(ctx, key, deal)
 	if err != nil {
 		return nil, err
@@ -517,13 +517,13 @@ func (bch *api) GetDeals(ctx context.Context, address string) ([]*big.Int, error
 	return clientDeals, nil
 }
 
-func (bch *api) GetDealInfo(ctx context.Context, id *big.Int) (*pb.Deal, error) {
+func (bch *api) GetDealInfo(ctx context.Context, id *big.Int) (*pb.DealDeprecated, error) {
 	deal, err := bch.dealsContract.GetDealInfo(getCallOptions(ctx), id)
 	if err != nil {
 		return nil, err
 	}
 
-	dealInfo := pb.Deal{
+	dealInfo := pb.DealDeprecated{
 		Id:                id.String(),
 		BuyerID:           deal.Client.String(),
 		SupplierID:        deal.Hub.String(),

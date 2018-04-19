@@ -54,7 +54,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 	return &pb.TaskListReply{Info: tasks}, nil
 }
 
-func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.MarketDeal) {
+func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.Deal) {
 	hub, cc, err := t.getHubClientByEthAddr(ctx, deal.GetSupplierID())
 	if err != nil {
 		log.G(t.ctx).Error("cannot resolve hub address",

@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 import "insonmnia.proto";
-import "marketplace.proto";
+import "dwh.proto";
 
 package sonm;
 

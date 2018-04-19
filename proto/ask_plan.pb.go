@@ -51,16 +51,16 @@ It has these top-level messages:
 	Storage
 	NetworkSpec
 	Container
-	Deal
+	DealDeprecated
 	DealsRequest
 	DealsReply
-	DWHDeal
+	Deal
 	DealConditionsRequest
 	DealConditionsReply
 	OrdersRequest
 	MatchingOrdersRequest
 	OrdersReply
-	DWHOrder
+	Order
 	DealCondition
 	WorkerAnnouncement
 	ProfilesRequest
@@ -114,11 +114,8 @@ It has these top-level messages:
 	DataSizeRate
 	Price
 	GetOrdersRequest
-	GetOrdersReply
 	GetProcessingReply
 	TouchOrdersRequest
-	MarketOrder
-	MarketDeal
 	MinerStartRequest
 	MinerStartReply
 	TaskInfo
@@ -130,7 +127,6 @@ It has these top-level messages:
 	TaskListRequest
 	DealListRequest
 	DealListReply
-	DealStatusReply
 	Worker
 	WorkerListReply
 	HandshakeRequest

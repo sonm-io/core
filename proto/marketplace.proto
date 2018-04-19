@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "bigint.proto";
+import "dwh.proto";
 import "insonmnia.proto";
 import "timestamp.proto";
 
@@ -9,50 +10,28 @@ package sonm;
 service Market {
     // GetOrders returns orders by given filter parameters.
     // Note that set of filters may be changed in the closest future.
-    rpc GetOrders(GetOrdersRequest) returns (GetOrdersReply) {}
+    rpc GetOrders(GetOrdersRequest) returns (OrdersReply) {}
     // CreateOrder places new order on the Marketplace.
     // Note that current impl of Node API prevents you from
     // creating ASKs orders.
-    rpc CreateOrder(MarketOrder) returns (MarketOrder) {}
+    rpc CreateOrder(Order) returns (Order) {}
     // GetOrderByID returns order by given ID.
     // If order save an `inactive` status returns error instead.
-    rpc GetOrderByID(ID) returns (MarketOrder) {}
+    rpc GetOrderByID(ID) returns (Order) {}
     // CancelOrder removes active order from the Marketplace.
     rpc CancelOrder(ID) returns (Empty) {}
 }
 
+// todo: as we decided to make Node's search method simpliest as possible
+// this request is meaningless.
+//
+// Deprecated: Node's `GetOrders` method must return only orders
+// for current eth address.
 message GetOrdersRequest {
     MarketOrderType type = 1;
     BigInt Price = 2;
     EthAddress Counterparty  = 3;
     uint64 count = 4;
-}
-
-message GetOrdersReply {
-    repeated MarketOrder orders = 1;
-}
-
-enum MarketOrderType {
-    MARKET_ANY = 0;
-    MARKET_BID = 1;
-    MARKET_ASK = 2;
-}
-
-enum MarketOrderStatus {
-    MARKET_ORDER_INACTIVE = 0;
-    MARKET_ORDER_ACTIVE = 1;
-}
-
-enum MarketIdentityLevel {
-    MARKET_ANONIMOUS = 0;
-    MARKET_PSEUDONYMOUS = 1;
-    MARKET_IDENTIFIED = 2;
-}
-
-enum MarketDealStatus {
-    MARKET_STATUS_UNKNOWN = 0;
-    MARKET_STATUS_ACCEPTED = 1;
-    MARKET_STATUS_CLOSED = 2;
 }
 
 // GetProcessingReply represent Node's local
@@ -70,39 +49,4 @@ message GetProcessingReply {
 
 message TouchOrdersRequest {
     repeated string IDs = 1;
-}
-
-message MarketOrder {
-    string id = 1;
-    string dealID = 2;
-    MarketOrderType orderType = 3;
-    MarketOrderStatus orderStatus = 4;
-    string author = 5;
-    string counterparty = 6;
-    BigInt price = 7;
-    uint64 duration = 8;
-    repeated bool netflags = 9;
-    MarketIdentityLevel identityLevel = 10;
-    string blacklist = 11;
-    bytes tag = 12;
-    repeated uint64 benchmarks = 13;
-    BigInt frozenSum = 14;
-}
-
-message MarketDeal {
-    string id = 1;
-    repeated uint64 benchmarks = 2;
-    string supplierID = 3;
-    string consumerID = 4;
-    string masterID = 5;
-    string askID = 6;
-    string bidID = 7;
-    uint64 duration = 8;
-    BigInt price = 9;
-    Timestamp startTime = 10;
-    Timestamp endTime = 11;
-    MarketDealStatus status = 12;
-    BigInt blockedBalance = 13;
-    BigInt totalPayout = 14;
-    Timestamp lastBillTS = 15;
 }
