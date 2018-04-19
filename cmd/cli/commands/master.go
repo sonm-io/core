@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"os"
 
 	pb "github.com/sonm-io/core/proto"
@@ -25,7 +24,9 @@ var masterListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Show known worker's addresses",
 	Run: func(cmd *cobra.Command, _ []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		mm, err := newMasterManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
@@ -48,7 +49,9 @@ var masterConfirmCmd = &cobra.Command{
 	Short: "Confirm pending Worker's registration request",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		mm, err := newMasterManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
@@ -71,7 +74,9 @@ var masterRemoveCmd = &cobra.Command{
 	Short: "Remove registered worker",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		mm, err := newMasterManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)

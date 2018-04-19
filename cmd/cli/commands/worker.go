@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"os"
 
 	pb "github.com/sonm-io/core/proto"
@@ -28,7 +27,9 @@ var workerStatusCmd = &cobra.Command{
 	Short:  "Show worker status",
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, _ []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		hub, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)

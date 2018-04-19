@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"os"
 
 	pb "github.com/sonm-io/core/proto"
@@ -13,7 +12,9 @@ var workerTasksCmd = &cobra.Command{
 	Short:  "Show tasks running on Worker",
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		hub, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)

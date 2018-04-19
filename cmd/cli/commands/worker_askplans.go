@@ -1,12 +1,10 @@
 package commands
 
 import (
-	"context"
 	"os"
 
-	pb "github.com/sonm-io/core/proto"
-
 	"github.com/sonm-io/core/cmd/cli/task_config"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -28,7 +26,9 @@ var askPlanListCmd = &cobra.Command{
 	Short:  "Show current ask plans",
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		hub, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
@@ -51,7 +51,9 @@ var askPlanCreateCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		hub, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
@@ -82,7 +84,9 @@ var askPlanRemoveCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		hub, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)

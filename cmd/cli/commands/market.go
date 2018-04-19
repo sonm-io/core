@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	"os"
 
 	pb "github.com/sonm-io/core/proto"
@@ -50,7 +49,9 @@ var marketShowCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		market, err := newMarketClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
@@ -90,7 +91,9 @@ var marketCancelCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		market, err := newMarketClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)

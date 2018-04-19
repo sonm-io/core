@@ -1,9 +1,7 @@
 package commands
 
 import (
-	"context"
 	"os"
-
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -40,7 +38,9 @@ var dealsListCmd = &cobra.Command{
 	Short:  "Show my deals",
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, _ []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		dealer, err := newDealsClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
@@ -73,7 +73,9 @@ var dealsStatusCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		dealer, err := newDealsClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
@@ -103,7 +105,9 @@ var dealsFinishCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx := context.Background()
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
 		dealer, err := newDealsClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
