@@ -25,7 +25,9 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 type DWH struct {
@@ -96,6 +98,10 @@ func (w *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
+	return w.getDeals(ctx, request)
+}
+
+func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDealsReply, error) {
 	var filters []*filter
 	if request.Status > 0 {
 		filters = append(filters, newFilter("Status", eq, request.Status, "AND"))
@@ -141,10 +147,17 @@ func (w *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 	if request.Benchmarks != nil {
 		w.addBenchmarksConditions(request.Benchmarks, &filters)
 	}
-	rows, query, err := runQuery(w.db, "Deals", request.Offset, request.Limit,
-		"rowid", "ASC", filters...)
+
+	rows, _, err := runQuery(w.db, &queryOpts{
+		table:    "Deals",
+		filters:  filters,
+		sortings: filterSortings(request.Sortings, DealsColumns),
+		offset:   request.Offset,
+		limit:    request.Limit,
+	})
 	if err != nil {
-		return nil, err
+		w.logger.Error("failed to runQuery", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetDeals")
 	}
 	defer rows.Close()
 
@@ -152,8 +165,10 @@ func (w *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 	for rows.Next() {
 		deal, err := w.decodeDeal(rows)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to decode deal, query `%s`", query)
+			w.logger.Error("failed to decodeDeal", zap.Error(err), zap.Any("request", request))
+			return nil, status.Error(codes.Internal, "failed to GetDeals")
 		}
+
 		deals = append(deals, deal)
 	}
 
@@ -170,28 +185,68 @@ func (w *DWH) GetDealDetails(ctx context.Context, request *pb.ID) (*pb.DWHDeal, 
 func (w *DWH) getDealDetails(ctx context.Context, request *pb.ID) (*pb.DWHDeal, error) {
 	rows, err := w.db.Query(w.commands["selectDealByID"], request.Id)
 	if err != nil {
-		return nil, err
+		w.logger.Error("failed to selectDealByID", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetDealDetails")
 	}
 	defer rows.Close()
 
 	if ok := rows.Next(); !ok {
-		return nil, errors.Errorf("deal `%s` not found", request.Id)
+		w.logger.Error("deal not found", zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetDealDetails")
 	}
 
 	return w.decodeDeal(rows)
 }
 
-func (w *DWH) GetDealConditions(context.Context, *pb.DealConditionsRequest) (*pb.DealConditionsReply, error) {
+func (w *DWH) GetDealConditions(ctx context.Context, request *pb.DealConditionsRequest) (*pb.DealConditionsReply, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	return nil, errors.New("not implemented")
+	return w.getDealConditions(ctx, request)
+}
+
+func (w *DWH) getDealConditions(ctx context.Context, request *pb.DealConditionsRequest) (*pb.DealConditionsReply, error) {
+	var filters []*filter
+	if len(request.Sortings) < 1 {
+		request.Sortings = []*pb.SortingOption{{Field: "rowid", Order: pb.SortingOrder_Desc}}
+	}
+
+	filters = append(filters, newFilter("DealID", eq, request.DealID, "AND"))
+	rows, _, err := runQuery(w.db, &queryOpts{
+		table:     "DealConditions",
+		filters:   filters,
+		sortings:  request.Sortings,
+		offset:    request.Offset,
+		limit:     request.Limit,
+		withRowid: true,
+	})
+	if err != nil {
+		w.logger.Error("failed to runQuery", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetDealConditions")
+	}
+	defer rows.Close()
+
+	var out []*pb.DealCondition
+	for rows.Next() {
+		dealCondition, err := w.decodeDealCondition(rows)
+		if err != nil {
+			w.logger.Error("failed to decodeDealCondition", zap.Error(err), zap.Any("request", request))
+			return nil, status.Error(codes.Internal, "failed to GetDealConditions")
+		}
+		out = append(out, dealCondition)
+	}
+
+	return &pb.DealConditionsReply{Conditions: out}, nil
 }
 
 func (w *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWHOrdersReply, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
+	return w.getOrders(ctx, request)
+}
+
+func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWHOrdersReply, error) {
 	var filters []*filter
 	filters = append(filters, newFilter("Status", eq, pb.OrderStatus_ORDER_ACTIVE, "AND"))
 	if request.DealID > "0" {
@@ -229,10 +284,16 @@ func (w *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 	if request.Benchmarks != nil {
 		w.addBenchmarksConditions(request.Benchmarks, &filters)
 	}
-	rows, query, err := runQuery(w.db, "Orders", request.Offset, request.Limit,
-		"rowid", "ASC", filters...)
+	rows, _, err := runQuery(w.db, &queryOpts{
+		table:    "Orders",
+		filters:  filters,
+		sortings: filterSortings(request.Sortings, OrdersColumns),
+		offset:   request.Offset,
+		limit:    request.Limit,
+	})
 	if err != nil {
-		return nil, err
+		w.logger.Error("failed to runQuery", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetOrders")
 	}
 	defer rows.Close()
 
@@ -240,7 +301,8 @@ func (w *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 	for rows.Next() {
 		order, err := w.decodeOrder(rows)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to decode order, query `%s`", query)
+			w.logger.Error("failed to decodeOrder", zap.Error(err), zap.Any("request", request))
+			return nil, status.Error(codes.Internal, "failed to GetOrders")
 		}
 		orders = append(orders, order)
 	}
@@ -252,31 +314,36 @@ func (w *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
+	return w.getMatchingOrders(ctx, request)
+}
+
+func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersRequest) (*pb.DWHOrdersReply, error) {
 	order, err := w.getOrderDetails(ctx, request.Id)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to getOrderDetails")
+		w.logger.Error("failed to getOrderDetails", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetMatchingOrders (no matching order)")
 	}
 
 	var (
-		filters      []*filter
-		orderType    pb.OrderType
-		priceOp      string
-		durationOp   string
-		benchOp      string
-		sortingOrder string
+		filters    []*filter
+		orderType  pb.OrderType
+		priceOp    string
+		durationOp string
+		benchOp    string
+		sortOrder  pb.SortingOrder
 	)
 	if order.Order.OrderType == pb.OrderType_BID {
 		orderType = pb.OrderType_ASK
 		priceOp = lte
 		durationOp = gte
 		benchOp = gte
-		sortingOrder = "ASC"
+		sortOrder = pb.SortingOrder_Asc
 	} else {
 		orderType = pb.OrderType_BID
 		priceOp = gte
 		durationOp = lte
 		benchOp = lte
-		sortingOrder = "DESC"
+		sortOrder = pb.SortingOrder_Desc
 	}
 
 	filters = append(filters, newFilter("Type", eq, orderType, "AND"))
@@ -316,10 +383,16 @@ func (w *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	filters = append(filters, newFilter("GPUCashHashrate", benchOp, order.Order.Benchmarks.GPUCashHashrate, "AND"))
 	filters = append(filters, newFilter("GPURedshift", benchOp, order.Order.Benchmarks.GPURedshift, "AND"))
 
-	rows, query, err := runQuery(w.db, "Orders", request.Offset, request.Limit,
-		"Price", sortingOrder, filters...)
+	rows, _, err := runQuery(w.db, &queryOpts{
+		table:    "Orders",
+		filters:  filters,
+		sortings: []*pb.SortingOption{{Field: "Price", Order: sortOrder}},
+		offset:   request.Offset,
+		limit:    request.Limit,
+	})
 	if err != nil {
-		return nil, err
+		w.logger.Error("failed to runQuery", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetMatchingOrders")
 	}
 	defer rows.Close()
 
@@ -327,7 +400,8 @@ func (w *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	for rows.Next() {
 		order, err := w.decodeOrder(rows)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to decode order, query `%s`", query)
+			w.logger.Error("failed to decodeOrder", zap.Error(err), zap.Any("request", request))
+			return nil, status.Error(codes.Internal, "failed to GetMatchingOrders")
 		}
 		orders = append(orders, order)
 	}
@@ -345,22 +419,101 @@ func (w *DWH) GetOrderDetails(ctx context.Context, request *pb.ID) (*pb.DWHOrder
 func (w *DWH) getOrderDetails(ctx context.Context, request *pb.ID) (*pb.DWHOrder, error) {
 	rows, err := w.db.Query(w.commands["selectOrderByID"], request.Id)
 	if err != nil {
-		return nil, err
+		w.logger.Error("failed to selectOrderByID", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetOrderDetails")
 	}
 	defer rows.Close()
 
 	if ok := rows.Next(); !ok {
-		return nil, errors.Errorf("order `%s` not found", request.Id)
+		w.logger.Error("order not found", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetOrderDetails")
 	}
 
 	return w.decodeOrder(rows)
 }
 
-func (w *DWH) GetProfiles(context.Context, *pb.ProfilesRequest) (*pb.ProfilesReply, error) {
+func (w *DWH) GetProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb.ProfilesReply, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	return nil, errors.New("not implemented")
+	return w.getProfiles(ctx, request)
+}
+
+func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb.ProfilesReply, error) {
+	var filters []*filter
+	switch request.Role {
+	case pb.ProfileRole_Supplier:
+		filters = append(filters, newFilter("ActiveAsks", gte, 0, "AND"))
+	case pb.ProfileRole_Consumer:
+		filters = append(filters, newFilter("ActiveBids", gte, 0, "AND"))
+	}
+	filters = append(filters, newFilter("IdentityLevel", gte, request.IdentityLevel, "AND"))
+	if len(request.Country) > 0 {
+		filters = append(filters, newFilter("Country", eq, request.Country, "AND"))
+	}
+	if len(request.Name) > 0 {
+		filters = append(filters, newFilter("Name", eq, request.Name, "AND"))
+	}
+
+	opts := &queryOpts{
+		table:    "Profiles",
+		filters:  filters,
+		sortings: filterSortings(request.Sortings, ProfilesColumns),
+		offset:   request.Offset,
+		limit:    request.Limit,
+	}
+	if request.BlacklistQuery != nil {
+		opts.selectAs = "AS p"
+		switch request.BlacklistQuery.Option {
+		case pb.BlacklistOption_WithoutMatching:
+			opts.customFilter = &customFilter{
+				clause: w.commands["profileNotInBlacklist"],
+				values: []interface{}{request.BlacklistQuery.OwnerID},
+			}
+		case pb.BlacklistOption_OnlyMatching:
+			opts.customFilter = &customFilter{
+				clause: w.commands["profileInBlacklist"],
+				values: []interface{}{request.BlacklistQuery.OwnerID},
+			}
+		}
+	}
+
+	rows, _, err := runQuery(w.db, opts)
+	if err != nil {
+		w.logger.Error("failed to runQuery", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetProfiles")
+	}
+
+	var out []*pb.Profile
+	for rows.Next() {
+		if profile, err := w.decodeProfile(rows); err != nil {
+			w.logger.Error("failed to decodeProfile", zap.Error(err), zap.Any("request", request))
+			return nil, status.Error(codes.Internal, "failed to GetProfiles")
+		} else {
+			out = append(out, profile)
+		}
+	}
+
+	if request.BlacklistQuery != nil && request.BlacklistQuery.Option == pb.BlacklistOption_IncludeAndMark {
+		blacklistReply, err := w.getBlacklist(w.ctx, &pb.BlacklistRequest{OwnerID: request.BlacklistQuery.OwnerID})
+		if err != nil {
+			w.logger.Error("failed to GetBlacklist", zap.Error(err), zap.Any("request", request))
+			return nil, status.Error(codes.Internal, "failed to GetProfiles")
+		}
+
+		var blacklistedAddrs = map[string]bool{}
+		for _, blacklistedAddr := range blacklistReply.Addresses {
+			blacklistedAddrs[blacklistedAddr] = true
+		}
+
+		for _, profile := range out {
+			if blacklistedAddrs[profile.UserID] {
+				profile.IsBlacklisted = true
+			}
+		}
+	}
+
+	return &pb.ProfilesReply{Profiles: out}, nil
 }
 
 func (w *DWH) GetProfileInfo(ctx context.Context, request *pb.ID) (*pb.Profile, error) {
@@ -373,12 +526,14 @@ func (w *DWH) GetProfileInfo(ctx context.Context, request *pb.ID) (*pb.Profile, 
 func (w *DWH) getProfileInfo(ctx context.Context, request *pb.ID) (*pb.Profile, error) {
 	rows, err := w.db.Query(w.commands["selectProfileByID"], request.Id)
 	if err != nil {
-		return nil, err
+		w.logger.Error("failed to selectProfileByID", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetProfileInfo")
 	}
 	defer rows.Close()
 
 	if ok := rows.Next(); !ok {
-		return nil, errors.Errorf("profile `%s` not found", request.Id)
+		w.logger.Error("profile not found", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetProfileInfo")
 	}
 
 	return w.decodeProfile(rows)
@@ -387,24 +542,41 @@ func (w *DWH) getProfileInfo(ctx context.Context, request *pb.ID) (*pb.Profile, 
 func (w *DWH) getProfileInfoTx(tx *sql.Tx, request *pb.ID) (*pb.Profile, error) {
 	rows, err := tx.Query(w.commands["selectProfileByID"], request.Id)
 	if err != nil {
-		return nil, err
+		w.logger.Error("failed to selectProfileByID", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetProfileInfo")
 	}
 	defer rows.Close()
 
 	if ok := rows.Next(); !ok {
-		return nil, errors.Errorf("profile `%s` not found", request.Id)
+		w.logger.Error("profile not found", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetProfileInfo")
 	}
 
 	return w.decodeProfile(rows)
 }
 
-func (w *DWH) GetBlacklist(ctx context.Context, adderID *pb.ID) (*pb.BlacklistReply, error) {
+func (w *DWH) GetBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	rows, err := w.db.Query(w.commands["selectBlacklists"], adderID.Id)
+	return w.getBlacklist(ctx, request)
+}
+
+func (w *DWH) getBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
+	var filters []*filter
+	if request.OwnerID > "0" {
+		filters = append(filters, newFilter("AdderID", eq, request.OwnerID, "AND"))
+	}
+	rows, _, err := runQuery(w.db, &queryOpts{
+		table:    "Blacklists",
+		filters:  filters,
+		sortings: []*pb.SortingOption{{Field: "rowid", Order: pb.SortingOrder_Desc}},
+		offset:   request.Offset,
+		limit:    request.Limit,
+	})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to getBlacklists")
+		w.logger.Error("failed to runQuery", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetBlacklist")
 	}
 	defer rows.Close()
 
@@ -415,18 +587,15 @@ func (w *DWH) GetBlacklist(ctx context.Context, adderID *pb.ID) (*pb.BlacklistRe
 			addeeID string
 		)
 		if err := rows.Scan(&adderID, &addeeID); err != nil {
-			return nil, errors.Wrap(err, "failed to scan blacklist entry")
+			w.logger.Error("failed to scan blacklist entry", zap.Error(err), zap.Any("request", request))
+			return nil, status.Error(codes.Internal, "failed to GetBlacklist")
 		}
 
 		addees = append(addees, addeeID)
 	}
 
-	if len(addees) < 1 {
-		return nil, errors.Errorf("no blacklist entries found for `%s`", adderID.Id)
-	}
-
 	return &pb.BlacklistReply{
-		OwnerID:   adderID.Id,
+		OwnerID:   request.OwnerID,
 		Addresses: addees,
 	}, nil
 }
@@ -435,28 +604,40 @@ func (w *DWH) GetValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
+	return w.getValidators(ctx, request)
+}
+
+func (w *DWH) getValidators(ctx context.Context, request *pb.ValidatorsRequest) (*pb.ValidatorsReply, error) {
 	var filters []*filter
 	if request.ValidatorLevel != nil {
 		level := request.ValidatorLevel
 		filters = append(filters, newFilter("Level", opsTranslator[level.Operator], level.Value, "AND"))
 	}
-	rows, _, err := runQuery(w.db, "Validators", request.Offset, request.Limit, "Level", "DESC", filters...)
+	rows, _, err := runQuery(w.db, &queryOpts{
+		table:    "Validators",
+		filters:  filters,
+		sortings: request.Sortings,
+		offset:   request.Offset,
+		limit:    request.Limit,
+	})
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to selectValidators")
+		w.logger.Error("failed to runQuery", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetValidators")
 	}
+	defer rows.Close()
 
 	var out []*pb.Validator
 	for rows.Next() {
-		if validator, err := w.decodeValidator(rows); err != nil {
-			return nil, errors.Wrap(err, "failed to decodeValidator")
-		} else {
-			out = append(out, validator)
+		validator, err := w.decodeValidator(rows)
+		if err != nil {
+			w.logger.Error("failed to decodeValidator", zap.Error(err), zap.Any("request", request))
+			return nil, status.Error(codes.Internal, "failed to GetValidators")
 		}
+
+		out = append(out, validator)
 	}
 
-	return &pb.ValidatorsReply{
-		Validators: out,
-	}, nil
+	return &pb.ValidatorsReply{Validators: out}, nil
 }
 
 func (w *DWH) GetDealChangeRequests(ctx context.Context, request *pb.ID) (*pb.DealChangeRequestsReply, error) {
@@ -469,20 +650,18 @@ func (w *DWH) GetDealChangeRequests(ctx context.Context, request *pb.ID) (*pb.De
 func (w *DWH) getDealChangeRequests(ctx context.Context, request *pb.ID) (*pb.DealChangeRequestsReply, error) {
 	rows, err := w.db.Query(w.commands["selectDealChangeRequestsByID"], request.Id)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to getDealChangeRequests")
+		w.logger.Error("failed to selectDealChangeRequestsByID", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetDealChangeRequests")
 	}
 
 	var out []*pb.DealChangeRequest
 	for rows.Next() {
-		if changeRequest, err := w.decodeDealChangeRequest(rows); err != nil {
-			return nil, errors.Wrap(err, "failed to decodeDealChangeRequest")
-		} else {
-			out = append(out, changeRequest)
+		changeRequest, err := w.decodeDealChangeRequest(rows)
+		if err != nil {
+			w.logger.Error("failed to decodeDealChangeRequest", zap.Error(err), zap.Any("request", request))
+			return nil, status.Error(codes.Internal, "failed to GetDealChangeRequests")
 		}
-	}
-
-	if len(out) < 1 {
-		return nil, errors.Wrap(err, "no DealChangeRequests found")
+		out = append(out, changeRequest)
 	}
 
 	return &pb.DealChangeRequestsReply{Requests: out}, nil
@@ -492,22 +671,35 @@ func (w *DWH) GetWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
+	return w.getWorkers(ctx, request)
+}
+
+func (w *DWH) getWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.WorkersReply, error) {
 	var filters []*filter
 	if request.MasterID > "0" {
 		filters = append(filters, newFilter("Level", eq, request.MasterID, "AND"))
 	}
-	rows, query, err := runQuery(w.db, "Workers", request.Offset, request.Limit, "rowid", "DESC", filters...)
+	rows, _, err := runQuery(w.db, &queryOpts{
+		table:    "Workers",
+		filters:  filters,
+		sortings: []*pb.SortingOption{{Field: "rowid", Order: pb.SortingOrder_Desc}},
+		offset:   request.Offset,
+		limit:    request.Limit,
+	})
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to %s", query)
+		w.logger.Error("failed to runQuery", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetWorkers")
 	}
+	defer rows.Close()
 
 	var out []*pb.DWHWorker
 	for rows.Next() {
-		if worker, err := w.decodeWorker(rows); err != nil {
-			return nil, errors.Wrap(err, "failed to decodeWorker")
-		} else {
-			out = append(out, worker)
+		worker, err := w.decodeWorker(rows)
+		if err != nil {
+			w.logger.Error("failed to decodeWorker", zap.Error(err), zap.Any("request", request))
+			return nil, status.Error(codes.Internal, "failed to GetWorkers")
 		}
+		out = append(out, worker)
 	}
 
 	return &pb.WorkersReply{
@@ -661,11 +853,6 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		return errors.Wrapf(err, "failed to getOrderDetails (Bid)")
 	}
 
-	// benchmarksDecoded, err := pb.NewBenchmarks()
-	//if err != nil {
-	//	return errors.Wrapf(err, "failed to decode benchmarks (OrderID: `%s`)", deal.Id)
-	//}
-
 	if deal.Status == pb.DealStatus_DEAL_CLOSED {
 		return nil
 	}
@@ -788,6 +975,40 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			}
 
 			return errors.Wrap(err, "failed to deleteOrder")
+		}
+
+		askProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.SupplierID})
+		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				w.logger.Error("transaction rollback failed", zap.Error(err))
+			}
+
+			return errors.Wrap(err, "failed to getProfileInfo")
+		}
+
+		if err := w.updateProfileStats(tx, pb.OrderType_ASK, deal.SupplierID, askProfile, -1); err != nil {
+			if err := tx.Rollback(); err != nil {
+				w.logger.Error("transaction rollback failed", zap.Error(err))
+			}
+
+			return errors.Wrap(err, "failed to updateProfileStats")
+		}
+
+		bidProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.ConsumerID})
+		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				w.logger.Error("transaction rollback failed", zap.Error(err))
+			}
+
+			return errors.Wrap(err, "failed to getProfileInfo")
+		}
+
+		if err := w.updateProfileStats(tx, pb.OrderType_BID, deal.ConsumerID, bidProfile, -1); err != nil {
+			if err := tx.Rollback(); err != nil {
+				w.logger.Error("transaction rollback failed", zap.Error(err))
+			}
+
+			return errors.Wrap(err, "failed to updateProfileStats")
 		}
 
 		if err := tx.Commit(); err != nil {
@@ -966,19 +1187,12 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 }
 
 func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
-	rows, err := w.db.Query(w.commands["selectDealCondition"], dealID.String())
+	dealConditionsReply, err := w.getDealConditions(w.ctx, &pb.DealConditionsRequest{DealID: dealID.String()})
 	if err != nil {
-		return errors.Wrap(err, "failed to get last DealCondition")
-	}
-	if !rows.Next() {
-		return errors.Errorf("selectDealCondition returned no rows (dealID: `%s`)", dealID)
+		return errors.Wrap(err, "failed to GetDealConditions (last)")
 	}
 
-	dealCondition, err := w.decodeDealCondition(rows)
-	rows.Close()
-	if err != nil {
-		return errors.Wrap(err, "failed to decode DealCondition")
-	}
+	dealCondition := dealConditionsReply.Conditions[0]
 
 	tx, err := w.db.Begin()
 	if err != nil {
@@ -1023,19 +1237,47 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		return errors.Wrapf(err, "failed to GetOrderInfo")
 	}
 
-	if order.OrderStatus != pb.OrderStatus_ORDER_ACTIVE {
+	if order.OrderStatus != pb.OrderStatus_ORDER_ACTIVE || order.OrderType == pb.OrderType_ANY {
 		return nil
+	}
+
+	tx, err := w.db.Begin()
+	if err != nil {
+		return errors.Wrap(err, "failed to begin transaction")
 	}
 
 	profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID})
 	if err != nil {
+		var askOrders, bidOrders = 0, 0
+		if order.OrderType == pb.OrderType_ASK {
+			askOrders = 1
+		} else {
+			bidOrders = 1
+		}
+		_, err = tx.Exec(w.commands["insertProfileUserID"], order.AuthorID, askOrders, bidOrders)
+		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				w.logger.Error("transaction rollback failed", zap.Error(err))
+			}
+
+			return errors.Wrap(err, "failed to insertProfileUserID")
+		}
+
 		profile = &pb.Profile{
 			UserID:       order.AuthorID,
 			Certificates: []byte{},
 		}
+	} else {
+		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID, profile, 1); err != nil {
+			if err := tx.Rollback(); err != nil {
+				w.logger.Error("transaction rollback failed", zap.Error(err))
+			}
+
+			return errors.Wrap(err, "failed to updateProfileStats")
+		}
 	}
 
-	_, err = w.db.Exec(
+	_, err = tx.Exec(
 		w.commands["insertOrder"],
 		order.Id,
 		eventTS,
@@ -1069,7 +1311,15 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		order.Benchmarks.GPURedshift,
 	)
 	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			w.logger.Error("transaction rollback failed", zap.Error(err))
+		}
+
 		return errors.Wrapf(err, "failed to insertOrder")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errors.Wrap(err, "transaction commit failed")
 	}
 
 	return nil
@@ -1082,9 +1332,41 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 	}
 
 	if order.DealID <= "0" {
-		if _, err := w.db.Exec(w.commands["deleteOrder"], orderID.String()); err != nil {
+		tx, err := w.db.Begin()
+		if err != nil {
+			return errors.Wrap(err, "failed to begin transaction")
+		}
+
+		if _, err := tx.Exec(w.commands["deleteOrder"], orderID.String()); err != nil {
 			w.logger.Info("failed to delete Order (possibly old log entry)", zap.Error(err),
 				zap.String("order_id", orderID.String()))
+
+			if err := tx.Rollback(); err != nil {
+				w.logger.Error("transaction rollback failed", zap.Error(err))
+			}
+
+			return nil
+		}
+
+		profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID})
+		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				w.logger.Error("transaction rollback failed", zap.Error(err))
+			}
+
+			return errors.Wrap(err, "failed to getProfileInfo")
+		}
+
+		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID, profile, -1); err != nil {
+			if err := tx.Rollback(); err != nil {
+				w.logger.Error("transaction rollback failed", zap.Error(err))
+			}
+
+			return errors.Wrap(err, "failed to updateProfileStats")
+		}
+
+		if err := tx.Commit(); err != nil {
+			return errors.Wrap(err, "transaction commit failed")
 		}
 	}
 
@@ -1209,7 +1491,7 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 
 	// Create a Profile entry if it doesn't exist yet.
 	if _, err := w.getProfileInfo(w.ctx, &pb.ID{Id: attr.OwnerID}); err != nil {
-		_, err = tx.Exec(w.commands["insertProfileUserID"], attr.OwnerID)
+		_, err = tx.Exec(w.commands["insertProfileUserID"], attr.OwnerID, 0, 0)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1340,6 +1622,25 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 
 	if err := tx.Commit(); err != nil {
 		return errors.Wrap(err, "transaction commit failed")
+	}
+
+	return nil
+}
+
+func (w *DWH) updateProfileStats(tx *sql.Tx, orderType pb.OrderType, authorID string, profile *pb.Profile, update int) error {
+	var (
+		cmd   string
+		value int
+	)
+	if orderType == pb.OrderType_ASK {
+		cmd, value = fmt.Sprintf(w.commands["updateProfile"], "ActiveAsks"), int(profile.ActiveAsks)+update
+	} else {
+		cmd, value = fmt.Sprintf(w.commands["updateProfile"], "ActiveBids"), int(profile.ActiveBids)+update
+	}
+
+	_, err := tx.Exec(cmd, value, authorID)
+	if err != nil {
+		return errors.Wrap(err, "failed to updateProfile")
 	}
 
 	return nil
@@ -1615,7 +1916,7 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 
 func (w *DWH) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, error) {
 	var (
-		id          uint64
+		rowid       uint64
 		supplierID  string
 		consumerID  string
 		masterID    string
@@ -1627,7 +1928,7 @@ func (w *DWH) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, error) {
 		dealID      string
 	)
 	if err := rows.Scan(
-		&id,
+		&rowid,
 		&supplierID,
 		&consumerID,
 		&masterID,
@@ -1648,7 +1949,7 @@ func (w *DWH) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, error) {
 	bigTotalPayout.SetString(totalPayout, 10)
 
 	return &pb.DealCondition{
-		Id:          id,
+		Id:          rowid,
 		SupplierID:  supplierID,
 		ConsumerID:  consumerID,
 		MasterID:    masterID,
@@ -1691,6 +1992,8 @@ func (w *DWH) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 		isCorporation  bool
 		isProfessional bool
 		certificates   []byte
+		activeAsks     uint64
+		activeBids     uint64
 	)
 	if err := rows.Scan(
 		&userID,
@@ -1700,6 +2003,8 @@ func (w *DWH) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 		&isCorporation,
 		&isProfessional,
 		&certificates,
+		&activeAsks,
+		&activeBids,
 	); err != nil {
 		w.logger.Error("failed to scan deal row", zap.Error(err))
 		return nil, err
@@ -1713,6 +2018,8 @@ func (w *DWH) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 		IsCorporation:  isCorporation,
 		IsProfessional: isProfessional,
 		Certificates:   certificates,
+		ActiveAsks:     activeAsks,
+		ActiveBids:     activeBids,
 	}, nil
 }
 
@@ -1857,24 +2164,16 @@ func (w *DWH) updateLastKnownBlockTS(blockNumber int64) error {
 }
 
 func (w *DWH) updateDealConditionEndTime(tx *sql.Tx, dealID string, eventTS uint64) error {
-	rows, err := tx.Query(w.commands["selectDealCondition"], dealID)
+	dealConditionsReply, err := w.getDealConditions(w.ctx, &pb.DealConditionsRequest{DealID: dealID})
 	if err != nil {
-		return errors.Wrap(err, "failed to get last DealCondition")
+		return errors.Wrap(err, "failed to getDealConditions")
 	}
 
-	if rows.Next() {
-		dealCondition, err := w.decodeDealCondition(rows)
-		rows.Close()
-		if err != nil {
-			return errors.Wrap(err, "failed to decode DealCondition")
-		}
+	dealCondition := dealConditionsReply.Conditions[0]
 
-		if _, err := tx.Exec(w.commands["updateDealConditionEndTime"], eventTS, dealCondition.Id); err != nil {
-			return errors.Wrap(err, "failed to update DealCondition")
-		}
-
-		return nil
+	if _, err := tx.Exec(w.commands["updateDealConditionEndTime"], eventTS, dealCondition.Id); err != nil {
+		return errors.Wrap(err, "failed to update DealCondition")
 	}
 
-	return errors.Errorf("no rows returned (dealID: `%s`)", dealID)
+	return nil
 }

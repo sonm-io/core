@@ -50,6 +50,7 @@ It has these top-level messages:
 	NetworkSpec
 	Container
 	DeprecatedDeal
+	SortingOption
 	DealsRequest
 	DWHDealsReply
 	DWHDeal
@@ -63,6 +64,7 @@ It has these top-level messages:
 	DWHWorker
 	ProfilesRequest
 	ProfilesReply
+	BlacklistRequest
 	Profile
 	BlacklistReply
 	ValidatorsRequest
@@ -77,6 +79,7 @@ It has these top-level messages:
 	MaxMinBig
 	CmpUint64
 	DealChangeRequest
+	BlacklistQuery
 	StartTaskRequest
 	HubJoinNetworkRequest
 	StartTaskReply

@@ -442,9 +442,9 @@ func (api *BasicAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (
 					Topics:    topics,
 					FromBlock: fromBlock,
 					Addresses: []common.Address{
-						common.StringToAddress(market.MarketAddress),
-						common.StringToAddress(market.BlacklistAddress),
-						common.StringToAddress(market.ProfileRegistryAddress),
+						common.HexToAddress(market.MarketAddress),
+						common.HexToAddress(market.BlacklistAddress),
+						common.HexToAddress(market.ProfileRegistryAddress),
 					},
 				})
 

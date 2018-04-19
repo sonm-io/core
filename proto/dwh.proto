@@ -13,20 +13,29 @@ enum CmpOp {
     LTE = 2;
 }
 
+enum SortingOrder {
+    Asc = 0;
+    Desc = 1;
+}
+
+message SortingOption {
+    string field = 1;
+    SortingOrder order = 2;
+}
 
 service DWH {
-    rpc GetDeals (DealsRequest) returns (DWHDealsReply) {}
-    rpc GetDealDetails (ID) returns (DWHDeal) {}
-    rpc GetDealConditions (DealConditionsRequest) returns (DealConditionsReply) {}
-    rpc GetOrders (OrdersRequest) returns (DWHOrdersReply) {}
-    rpc GetMatchingOrders (MatchingOrdersRequest) returns (DWHOrdersReply) {}
-    rpc GetOrderDetails (ID) returns (DWHOrder) {}
-    rpc GetProfiles (ProfilesRequest) returns (ProfilesReply) {}
-    rpc GetProfileInfo (ID) returns (Profile) {}
-    rpc GetBlacklist (ID) returns (BlacklistReply) {}
-    rpc GetValidators (ValidatorsRequest) returns (ValidatorsReply) {}
-    rpc GetDealChangeRequests (ID) returns (DealChangeRequestsReply) {}
-    rpc GetWorkers (WorkersRequest) returns (WorkersReply) {}
+    rpc GetDeals(DealsRequest) returns (DWHDealsReply) {}
+    rpc GetDealDetails(ID) returns (DWHDeal) {}
+    rpc GetDealConditions(DealConditionsRequest) returns (DealConditionsReply) {}
+    rpc GetOrders(OrdersRequest) returns (DWHOrdersReply) {}
+    rpc GetMatchingOrders(MatchingOrdersRequest) returns (DWHOrdersReply) {}
+    rpc GetOrderDetails(ID) returns (DWHOrder) {}
+    rpc GetProfiles(ProfilesRequest) returns (ProfilesReply) {}
+    rpc GetProfileInfo(ID) returns (Profile) {}
+    rpc GetBlacklist(BlacklistRequest) returns (BlacklistReply) {}
+    rpc GetValidators(ValidatorsRequest) returns (ValidatorsReply) {}
+    rpc GetDealChangeRequests(ID) returns (DealChangeRequestsReply) {}
+    rpc GetWorkers(WorkersRequest) returns (WorkersReply) {}
 }
 
 message DealsRequest {
@@ -44,6 +53,7 @@ message DealsRequest {
     DWHBenchmarkConditions benchmarks = 12;
     uint64 limit = 13;
     uint64 offset = 14;
+    repeated SortingOption sortings = 15;
 }
 
 message DWHDealsReply {
@@ -62,8 +72,10 @@ message DWHDeal {
 }
 
 message DealConditionsRequest {
-    uint64 limit = 1;
-    uint64 offset = 2;
+    string dealID = 1;
+    uint64 limit = 2;
+    uint64 offset = 3;
+    repeated SortingOption sortings = 4;
 }
 
 message DealConditionsReply {
@@ -83,6 +95,7 @@ message OrdersRequest {
     DWHBenchmarkConditions benchmarks = 13;
     uint64 limit = 14;
     uint64 offset = 15;
+    repeated SortingOption sortings = 16;
 }
 
 message MatchingOrdersRequest {
@@ -130,7 +143,7 @@ enum ProfileRole {
     Consumer = 2;
 }
 
-enum BlacklistOptions {
+enum BlacklistOption {
     WithoutMatching = 0;
     IncludeAndMark = 1;
     OnlyMatching = 2;
@@ -141,14 +154,20 @@ message ProfilesRequest {
     IdentityLevel identityLevel = 2;
     string country = 3;
     string name = 4;
-    string blacklistOwnerID = 5;
-    BlacklistOptions blacklistOption = 6;
-    uint64 limit = 7;
-    uint64 offset = 8;
+    BlacklistQuery blacklistQuery = 5;
+    uint64 limit = 6;
+    uint64 offset = 7;
+    repeated SortingOption sortings = 8;
 }
 
 message ProfilesReply {
     repeated Profile profiles = 1;
+}
+
+message BlacklistRequest {
+    string ownerID = 1;
+    uint64 limit = 2;
+    uint64 offset = 3;
 }
 
 message Profile {
@@ -159,6 +178,9 @@ message Profile {
     bool IsCorporation = 5;
     bool IsProfessional = 6;
     bytes Certificates = 7;
+    uint64 activeAsks = 8;
+    uint64 activeBids = 9;
+    bool isBlacklisted = 10;
 }
 
 message BlacklistReply {
@@ -170,6 +192,7 @@ message ValidatorsRequest {
     CmpUint64 validatorLevel = 1;
     uint64 limit = 2;
     uint64 offset = 3;
+    repeated SortingOption sortings = 4;
 }
 
 message ValidatorsReply {
@@ -240,4 +263,9 @@ message DealChangeRequest {
     uint64 duration = 4;
     BigInt price = 5;
     ChangeRequestStatus status = 6;
+}
+
+message BlacklistQuery {
+    string ownerID = 1;
+    BlacklistOption option = 2;
 }

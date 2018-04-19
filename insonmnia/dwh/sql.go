@@ -10,13 +10,14 @@ import (
 )
 
 const (
-	MaxLimit = 50
+	MaxLimit = 500
 )
 
 const (
-	gte = ">="
-	lte = "<="
-	eq  = "="
+	gte   = ">="
+	lte   = "<="
+	eq    = "="
+	notEq = "!="
 )
 
 var (
@@ -31,71 +32,91 @@ var (
 )
 
 var (
-	OrdersColumns = []string{
-		"Id",
-		"CreatedTS",
-		"DealID",
-		"Type",
-		"Status",
-		"AuthorID",
-		"CounterpartyID",
-		"Duration",
-		"Price",
-		"Netflags",
-		"IdentityLevel",
-		"Blacklist",
-		"Tag",
-		"FrozenSum",
-		"CreatorIdentityLevel",
-		"CreatorName",
-		"CreatorCountry",
-		"CreatorCertificates",
-		"CPUSysbenchMulti",
-		"CPUSysbenchOne",
-		"CPUCores",
-		"RAMSize",
-		"StorageSize",
-		"NetTrafficIn",
-		"NetTrafficOut",
-		"GPUCount",
-		"GPUMem",
-		"GPUEthHashrate",
-		"GPUCashHashrate",
-		"GPURedshift",
+	OrdersColumns = map[string]bool{
+		"Id":                   true,
+		"CreatedTS":            true,
+		"DealID":               true,
+		"Type":                 true,
+		"Status":               true,
+		"AuthorID":             true,
+		"CounterpartyID":       true,
+		"Duration":             true,
+		"Price":                true,
+		"Netflags":             true,
+		"IdentityLevel":        true,
+		"Blacklist":            true,
+		"Tag":                  true,
+		"FrozenSum":            true,
+		"CreatorIdentityLevel": true,
+		"CreatorName":          true,
+		"CreatorCountry":       true,
+		"CreatorCertificates":  true,
+		"CPUSysbenchMulti":     true,
+		"CPUSysbenchOne":       true,
+		"CPUCores":             true,
+		"RAMSize":              true,
+		"StorageSize":          true,
+		"NetTrafficIn":         true,
+		"NetTrafficOut":        true,
+		"GPUCount":             true,
+		"GPUMem":               true,
+		"GPUEthHashrate":       true,
+		"GPUCashHashrate":      true,
+		"GPURedshift":          true,
 	}
-	DealsColumns = []string{
-		"Id",
-		"SupplierID",
-		"ConsumerID",
-		"MasterID",
-		"AskID",
-		"BidID",
-		"Duration",
-		"Price",
-		"StartTime",
-		"EndTime",
-		"Status",
-		"BlockedBalance",
-		"TotalPayout",
-		"LastBillTS",
-		"Netflags",
-		"AskIdentityLevel",
-		"BidIdentityLevel",
-		"SupplierCertificates",
-		"ConsumerCertificates",
-		"ActiveChangeRequest",
-		"CPUSysbenchMulti",
-		"CPUSysbenchOne",
-		"CPUCores",
-		"RAMSize",
-		"StorageSize",
-		"NetTrafficIn",
-		"NetTrafficOut",
-		"GPUCount",
-		"GPUMem",
-		"GPUEthHashrate",
-		"GPUCashHashrate",
-		"GPURedshift",
+	DealsColumns = map[string]bool{
+		"Id":                   true,
+		"SupplierID":           true,
+		"ConsumerID":           true,
+		"MasterID":             true,
+		"AskID":                true,
+		"BidID":                true,
+		"Duration":             true,
+		"Price":                true,
+		"StartTime":            true,
+		"EndTime":              true,
+		"Status":               true,
+		"BlockedBalance":       true,
+		"TotalPayout":          true,
+		"LastBillTS":           true,
+		"Netflags":             true,
+		"AskIdentityLevel":     true,
+		"BidIdentityLevel":     true,
+		"SupplierCertificates": true,
+		"ConsumerCertificates": true,
+		"ActiveChangeRequest":  true,
+		"CPUSysbenchMulti":     true,
+		"CPUSysbenchOne":       true,
+		"CPUCores":             true,
+		"RAMSize":              true,
+		"StorageSize":          true,
+		"NetTrafficIn":         true,
+		"NetTrafficOut":        true,
+		"GPUCount":             true,
+		"GPUMem":               true,
+		"GPUEthHashrate":       true,
+		"GPUCashHashrate":      true,
+		"GPURedshift":          true,
+	}
+	DealConditionsColumns = map[string]bool{
+		"SupplierID":  true,
+		"ConsumerID":  true,
+		"MasterID":    true,
+		"Duration":    true,
+		"Price":       true,
+		"StartTime":   true,
+		"EndTime":     true,
+		"TotalPayout": true,
+		"DealID":      true,
+	}
+	ProfilesColumns = map[string]bool{
+		"UserID":         true,
+		"IdentityLevel":  true,
+		"Name":           true,
+		"Country":        true,
+		"IsCorporation":  true,
+		"IsProfessional": true,
+		"Certificates":   true,
 	}
 )
 
@@ -238,7 +259,9 @@ var (
 		Country						TEXT NOT NULL,
 		IsCorporation				INTEGER NOT NULL,
 		IsProfessional				INTEGER NOT NULL,
-		Certificates				BLOB NOT NULL
+		Certificates				BLOB NOT NULL,
+		ActiveAsks					INTEGER NOT NULL,
+		ActiveBids					INTEGER NOT NULL
 	)`,
 		"createTableMisc": `
 	CREATE TABLE IF NOT EXISTS Misc (
@@ -263,7 +286,6 @@ var (
 		"deleteDealChangeRequest":      `DELETE FROM DealChangeRequests WHERE Id=?`,
 		"updateDealChangeRequest":      `UPDATE DealChangeRequests SET Status=? WHERE Id=?`,
 		"insertDealCondition":          `INSERT OR IGNORE INTO DealConditions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		"selectDealCondition":          `SELECT rowid, * FROM DealConditions WHERE DealID=? ORDER BY rowid DESC LIMIT 1`,
 		"updateDealConditionPayout":    `UPDATE DealConditions SET TotalPayout=? WHERE rowid=?`,
 		"updateDealConditionEndTime":   `UPDATE DealConditions SET EndTime=? WHERE rowid=?`,
 		"insertDealPayment":            `INSERT OR IGNORE INTO DealPayments VALUES (?, ?, ?)`,
@@ -277,8 +299,10 @@ var (
 		"updateValidator":              `UPDATE Validators SET Level=? WHERE Id=?`,
 		"insertCertificate":            `INSERT OR IGNORE INTO Certificates VALUES (?, ?, ?, ?, ?)`,
 		"selectCertificates":           `SELECT * FROM Certificates WHERE OwnerID=?`,
-		"insertProfileUserID":          `INSERT INTO Profiles VALUES (?, 0, "", "", 0, 0, "")`,
+		"insertProfileUserID":          `INSERT INTO Profiles VALUES (?, 0, "", "", 0, 0, "", ?, ?)`,
 		"selectProfileByID":            `SELECT * FROM Profiles WHERE UserID=?`,
+		"profileNotInBlacklist":        `AND UserID NOT IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
+		"profileInBlacklist":           `AND UserID IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
 		"updateProfile":                `UPDATE Profiles SET %s=? WHERE UserID=?`,
 		"selectLastKnownBlock":         `SELECT * FROM Misc`,
 		"updateLastKnownBlock":         `INSERT OR REPLACE INTO Misc (rowid, LastKnownBlock) VALUES (1, ?)`,
@@ -309,19 +333,53 @@ func setupSQLite(w *DWH) error {
 		}
 	}
 
-	for _, column := range DealsColumns {
-		cmd := fmt.Sprintf(sqliteCreateIndex, "Deals", column, "Deals", column)
-		_, err = db.Exec(cmd)
-		if err != nil {
-			return errors.Wrapf(err, "failed to %s (%s)", cmd, w.cfg.Storage.Backend)
+	for column := range DealsColumns {
+		if err := createIndex(db, sqliteCreateIndex, "Deals", column); err != nil {
+			return err
 		}
 	}
 
-	for _, column := range OrdersColumns {
-		cmd := fmt.Sprintf(sqliteCreateIndex, "Orders", column, "Orders", column)
-		_, err = db.Exec(cmd)
-		if err != nil {
-			return errors.Wrapf(err, "failed to %s (%s)", cmd, w.cfg.Storage.Backend)
+	for _, column := range []string{"Id", "DealID", "RequestType", "Status"} {
+		if err := createIndex(db, sqliteCreateIndex, "DealChangeRequests", column); err != nil {
+			return err
+		}
+	}
+
+	for column := range DealConditionsColumns {
+		if err := createIndex(db, sqliteCreateIndex, "DealConditions", column); err != nil {
+			return err
+		}
+	}
+
+	for column := range OrdersColumns {
+		if err := createIndex(db, sqliteCreateIndex, "Orders", column); err != nil {
+			return err
+		}
+	}
+
+	for _, column := range []string{"MasterID", "WorkerID"} {
+		if err := createIndex(db, sqliteCreateIndex, "Workers", column); err != nil {
+			return err
+		}
+	}
+
+	for _, column := range []string{"AdderID", "AddeeID"} {
+		if err := createIndex(db, sqliteCreateIndex, "Blacklists", column); err != nil {
+			return err
+		}
+	}
+
+	if err := createIndex(db, sqliteCreateIndex, "Validators", "Id"); err != nil {
+		return err
+	}
+
+	if err := createIndex(db, sqliteCreateIndex, "Certificates", "OwnerID"); err != nil {
+		return err
+	}
+
+	for column := range ProfilesColumns {
+		if err := createIndex(db, sqliteCreateIndex, "Profiles", column); err != nil {
+			return err
 		}
 	}
 
@@ -360,14 +418,34 @@ func newNetflagsFilter(operator pb.CmpOp, value uint64) *filter {
 	}
 }
 
-func runQuery(db *sql.DB, table string, offset, limit uint64, orderColumn, orderType string, filters ...*filter) (
-	*sql.Rows, string, error) {
+type customFilter struct {
+	clause string
+	values []interface{}
+}
+
+type queryOpts struct {
+	table        string
+	filters      []*filter
+	sortings     []*pb.SortingOption
+	offset       uint64
+	limit        uint64
+	withRowid    bool
+	customFilter *customFilter
+	selectAs     string
+}
+
+func runQuery(db *sql.DB, opts *queryOpts) (*sql.Rows, string, error) {
+	var query string
+	if opts.withRowid {
+		query = fmt.Sprintf("SELECT rowid, * FROM %s %s", opts.table, opts.selectAs)
+	} else {
+		query = fmt.Sprintf("SELECT * FROM %s %s", opts.table, opts.selectAs)
+	}
 	var (
-		query      = fmt.Sprintf("SELECT * FROM %s", table)
 		conditions []string
 		values     []interface{}
 	)
-	for idx, filter := range filters {
+	for idx, filter := range opts.filters {
 		var condition string
 		if filter.OpenBracket {
 			condition += "("
@@ -376,25 +454,37 @@ func runQuery(db *sql.DB, table string, offset, limit uint64, orderColumn, order
 		if filter.CloseBracket {
 			condition += ")"
 		}
-		if idx != len(filters)-1 {
+		if idx != len(opts.filters)-1 {
 			condition += fmt.Sprintf(" %s", filter.BoolOperator)
 		}
 		conditions = append(conditions, condition)
 		values = append(values, filter.Value)
 	}
 	if len(conditions) > 0 {
+		if opts.customFilter != nil {
+			conditions = append(conditions, opts.customFilter.clause)
+			values = append(values, opts.customFilter.values...)
+		}
+
 		query += " WHERE " + strings.Join(conditions, " ")
 	}
 
-	if limit > MaxLimit || limit == 0 {
-		limit = MaxLimit
+	if opts.limit > MaxLimit || opts.limit == 0 {
+		opts.limit = MaxLimit
 	}
-	query += fmt.Sprintf(" ORDER BY %s %s", orderColumn, orderType)
-	if limit > 0 {
-		query += fmt.Sprintf(" LIMIT %d", limit)
+
+	if len(opts.sortings) > 0 {
+		query += fmt.Sprintf(" ORDER BY ")
+		var sortsFlat []string
+		for _, sort := range opts.sortings {
+			sortsFlat = append(sortsFlat, fmt.Sprintf("%s %s", sort.Field, pb.SortingOrder_name[int32(sort.Order)]))
+		}
+		query += strings.Join(sortsFlat, ", ")
 	}
-	if offset > 0 {
-		query += fmt.Sprintf(" OFFSET %d", offset)
+
+	query += fmt.Sprintf(" LIMIT %d", opts.limit)
+	if opts.offset > 0 {
+		query += fmt.Sprintf(" OFFSET %d", opts.offset)
 	}
 	query += ";"
 
@@ -404,4 +494,28 @@ func runQuery(db *sql.DB, table string, offset, limit uint64, orderColumn, order
 	}
 
 	return rows, query, nil
+}
+
+func createIndex(db *sql.DB, command, table, column string) error {
+	cmd := fmt.Sprintf(command, table, column, table, column)
+	_, err := db.Exec(cmd)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s (%s)", cmd)
+	}
+
+	return nil
+}
+
+func filterSortings(sortings []*pb.SortingOption, columns map[string]bool) (out []*pb.SortingOption) {
+	for _, sorting := range sortings {
+		if columns[sorting.Field] {
+			out = append(out, sorting)
+		}
+	}
+
+	if len(out) < 1 {
+		out = append(out, &pb.SortingOption{Field: "rowid", Order: pb.SortingOrder_Asc})
+	}
+
+	return out
 }
