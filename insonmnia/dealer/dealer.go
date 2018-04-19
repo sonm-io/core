@@ -21,13 +21,13 @@ type Dealer interface {
 type dealer struct {
 	key     *ecdsa.PrivateKey
 	timeout time.Duration
-	bc      blockchain.Blockchainer
+	bc      blockchain.API
 	hub     sonm.HubClient
 }
 
 // NewDealer returns `Dealer` implementation which can open deal
 // for BID and matched ASK orders.
-func NewDealer(key *ecdsa.PrivateKey, hub sonm.HubClient, bc blockchain.Blockchainer, timeout time.Duration) Dealer {
+func NewDealer(key *ecdsa.PrivateKey, hub sonm.HubClient, bc blockchain.API, timeout time.Duration) Dealer {
 	return &dealer{
 		key:     key,
 		timeout: timeout,

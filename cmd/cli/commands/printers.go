@@ -209,17 +209,6 @@ func printOrderDetails(cmd *cobra.Command, order *pb.MarketOrder) {
 	}
 }
 
-func printOrderResources(cmd *cobra.Command, rs *pb.Resources) {
-	cmd.Printf("Resources:\r\n")
-	cmd.Printf("  CPU:     %d\r\n", rs.CpuCores)
-	cmd.Printf("  GPU:     %s\r\n", rs.GpuCount.String())
-	cmd.Printf("  RAM:     %s\r\n", datasize.NewByteSize(rs.RamBytes).HumanReadable())
-	cmd.Printf("  Storage: %s\r\n", datasize.NewByteSize(rs.Storage).HumanReadable())
-	cmd.Printf("  Network: %s\r\n", rs.NetworkType.String())
-	cmd.Printf("    In:   %s\r\n", datasize.NewByteSize(rs.NetTrafficIn).HumanReadable())
-	cmd.Printf("    Out:  %s\r\n", datasize.NewByteSize(rs.NetTrafficOut).HumanReadable())
-}
-
 func printAskList(cmd *cobra.Command, slots *pb.AskPlansReply) {
 	if isSimpleFormat() {
 		plans := slots.GetAskPlans()
@@ -289,12 +278,6 @@ func printDealInfo(cmd *cobra.Command, deal *pb.MarketDeal) {
 		cmd.Printf("End at:   %s\r\n", end.Format(time.RFC3339))
 	} else {
 		showJSON(cmd, deal)
-	}
-}
-
-func printDealTasksShort(cmd *cobra.Command, tasks map[string]*pb.TaskStatusReply) {
-	for id, info := range tasks {
-		cmd.Printf("%s ID: %s | image \"%s\"\r\n", info.GetStatus(), id, info.GetImageName())
 	}
 }
 
