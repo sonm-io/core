@@ -402,7 +402,7 @@ func (api *BasicAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (
 				return
 			case <-tk.C:
 				logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
-					//Topics:    topics,
+					Topics:    topics,
 					FromBlock: fromBlock,
 					Addresses: []common.Address{
 						common.StringToAddress(market.MarketAddress),
