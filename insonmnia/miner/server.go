@@ -51,7 +51,7 @@ type Miner struct {
 	ethkey    *ecdsa.PrivateKey
 	publicIPs []string
 	eth       blockchain.API
-	dwh       dwh.DWH
+	dwh       dwh.MockDWH
 
 	// One-to-one mapping between container IDs and userland task names.
 	//

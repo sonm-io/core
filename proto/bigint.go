@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/sonm-io/core/util"
 )
 
 // NewBigInt constructs a new value using specified big.Int.
@@ -57,13 +58,13 @@ func (m BigInt) MarshalJSON() ([]byte, error) {
 }
 
 func (m *BigInt) UnmarshalJSON(data []byte) error {
-	var unmarshalled string
-	err := json.Unmarshal(data, &unmarshalled)
+	var unmarshaled string
+	err := json.Unmarshal(data, &unmarshaled)
 	if err != nil {
 		return err
 	}
 
-	v, err := NewBigIntFromString(unmarshalled)
+	v, err := NewBigIntFromString(unmarshaled)
 	if err != nil {
 		return err
 	}
@@ -80,4 +81,8 @@ func (m *BigInt) ToPriceString() string {
 
 	r := big.NewFloat(0).Quo(v, div)
 	return r.Text('f', -18)
+}
+
+func (m *BigInt) PaddedString() string {
+	return util.BigIntToPaddedString(m.Unwrap())
 }

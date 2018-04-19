@@ -24,6 +24,7 @@ WORKER=${TARGETDIR}/sonmworker_$(OS_ARCH)
 CLI=${TARGETDIR}/sonmcli_$(OS_ARCH)
 LOCAL_NODE=${TARGETDIR}/sonmnode_$(OS_ARCH)
 AUTOCLI=${TARGETDIR}/autocli_$(OS_ARCH)
+DWH=${TARGETDIR}/sonmdwh_$(OS_ARCH)
 RENDEZVOUS=${TARGETDIR}/sonmrendezvous_$(OS_ARCH)
 RELAY=${TARGETDIR}/sonmrelay_$(OS_ARCH)
 LSGPU=${TARGETDIR}/lsgpu_$(OS_ARCH)
@@ -58,6 +59,10 @@ all: mock vet fmt build test
 build/worker:
 	@echo "+ $@"
 	CGO_LDFLAGS_ALLOW=${CGO_LDFLAGS_ALLOW} CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s $(LDFLAGS)" -o ${WORKER} ${GOCMD}/worker
+
+build/dwh:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${DWH} ${GOCMD}/dwh
 
 build/rv:
 	@echo "+ $@"
@@ -96,7 +101,7 @@ build/autocli:
 
 build/insomnia: build/worker build/cli build/node
 
-build/aux: build/relay build/rv
+build/aux: build/relay build/rv build/dwh
 
 build: build/insomnia build/aux
 

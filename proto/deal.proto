@@ -5,6 +5,7 @@ package sonm;
 import "bigint.proto";
 import "timestamp.proto";
 
+// TODO: deprecated.
 enum DealStatus {
     ANY_STATUS = 0;
     PENDING = 1;
@@ -12,6 +13,7 @@ enum DealStatus {
     CLOSED = 3;
 }
 
+// TODO: deprecated.
 message Deal {
     string BuyerID = 1;
     string SupplierID = 2;
@@ -19,8 +21,10 @@ message Deal {
     BigInt price = 4;
     Timestamp startTime = 5;
     Timestamp endTime = 6;
-
     string SpecificationHash = 7;
     uint64 workTime = 8;
     string id = 9;
+    repeated uint64 benchmarks = 10;
+    string AskID = 11;
+    string BidID = 12;
 }

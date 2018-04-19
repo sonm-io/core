@@ -6,6 +6,7 @@ import (
 
 const (
 	NumBenchmarks = 12
+	NumNetflags   = 3
 )
 
 func NewBenchmarks(benchmarks []uint64) (*DWHBenchmarks, error) {
@@ -44,4 +45,24 @@ func (m *DWHBenchmarks) ToArray() [NumBenchmarks]uint64 {
 		m.GPUCashHashrate,
 		m.GPURedshift,
 	}
+}
+
+func UintToNetflags(flags uint64) [NumNetflags]bool {
+	var fixedNetflags [3]bool
+	for idx := 0; idx < NumNetflags; idx++ {
+		fixedNetflags[NumNetflags-1-idx] = flags&(1<<uint64(idx)) != 0
+	}
+
+	return fixedNetflags
+}
+
+func NetflagsToUint(flags [NumNetflags]bool) uint64 {
+	var netflags uint64
+	for idx, flag := range flags {
+		if flag {
+			netflags |= 1 << uint64(NumNetflags-1-idx)
+		}
+	}
+
+	return netflags
 }

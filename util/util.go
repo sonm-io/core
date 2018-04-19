@@ -24,6 +24,10 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	FormattedBigIntLength = 80
+)
+
 // GetLocalIP find local non-loopback ip addr
 func GetLocalIP() string {
 	addrs, err := net.InterfaceAddrs()
@@ -191,4 +195,15 @@ func StartPrometheus(ctx context.Context, listenAddr string) {
 		"starting metrics server", zap.String("metrics_addr", listenAddr))
 	http.Handle("/metrics", promhttp.Handler())
 	http.ListenAndServe(listenAddr, nil)
+}
+
+func BigIntToPaddedString(x *big.Int) string {
+	raw := x.String()
+	paddingSize := FormattedBigIntLength - len(raw)
+	padding := make([]rune, paddingSize)
+	for idx := range padding {
+		padding[idx] = '0'
+	}
+
+	return string(padding) + raw
 }

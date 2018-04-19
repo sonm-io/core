@@ -15,6 +15,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain/market"
 	marketAPI "github.com/sonm-io/core/blockchain/market/api"
@@ -25,13 +26,21 @@ import (
 
 type API interface {
 	CertsAPI
+	EventsAPI
 	MarketAPI
 	BlacklistAPI
 	TokenAPI
 	GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit uint64) *bind.TransactOpts
 }
 
-type CertsAPI interface{}
+type CertsAPI interface {
+	GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error)
+	GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error)
+}
+
+type EventsAPI interface {
+	GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error)
+}
 
 type MarketAPI interface {
 	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int, wait time.Duration) (*pb.MarketDeal, error)
@@ -47,7 +56,7 @@ type MarketAPI interface {
 	ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (*types.Transaction, error)
 	RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) (*types.Transaction, error)
 	GetMaster(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (common.Address, error)
-	GetMarketEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error)
+	GetDealChangeRequestInfo(ctx context.Context, dealID *big.Int) (*pb.DealChangeRequest, error)
 }
 
 type BlacklistAPI interface {
@@ -84,7 +93,10 @@ type BasicAPI struct {
 	gasPrice          int64
 	marketContract    *marketAPI.Market
 	blacklistContract *marketAPI.Blacklist
+	profilesContract  *marketAPI.ProfileRegistry
 	tokenContract     *marketAPI.SNMTToken
+	marketABI         abi.ABI
+	profilesABI       abi.ABI
 	logger            *zap.Logger
 	logParsePeriod    time.Duration
 }
@@ -110,7 +122,22 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
+	profilesContract, err := marketAPI.NewProfileRegistry(common.HexToAddress(market.MarketAddress), client)
+	if err != nil {
+		return nil, err
+	}
+
 	tokenContract, err := marketAPI.NewSNMTToken(common.HexToAddress(market.SNMTAddress), client)
+	if err != nil {
+		return nil, err
+	}
+
+	marketABI, err := abi.JSON(strings.NewReader(marketAPI.MarketABI))
+	if err != nil {
+		return nil, err
+	}
+
+	profilesABI, err := abi.JSON(strings.NewReader(marketAPI.ProfileRegistryABI))
 	if err != nil {
 		return nil, err
 	}
@@ -120,14 +147,19 @@ func NewAPI(opts ...Option) (API, error) {
 		gasPrice:          defaults.gasPrice,
 		marketContract:    marketContract,
 		blacklistContract: blacklistContract,
+		profilesContract:  profilesContract,
 		tokenContract:     tokenContract,
+		marketABI:         marketABI,
+		profilesABI:       profilesABI,
 		logParsePeriod:    defaults.logParsePeriod,
+		logger:            ctxlog.GetLogger(context.Background()),
 	}
 
 	return api, nil
 }
 
-func (api *BasicAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int, wait time.Duration) (*pb.MarketDeal, error) {
+func (api *BasicAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int, wait time.Duration) (
+	*pb.MarketDeal, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	tx, err := api.marketContract.OpenDeal(opts, askID, bigID)
 	if err != nil {
@@ -147,10 +179,6 @@ func (api *BasicAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID,
 	return deal, nil
 }
 
-func (api *BasicAPI) OpenDealPending(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal, wait time.Duration) (*big.Int, error) {
-	return nil, errors.New("not implemented")
-}
-
 func (api *BasicAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (
 	*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
@@ -158,7 +186,6 @@ func (api *BasicAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealI
 }
 
 func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.MarketDeal, error) {
-
 	deal1, err := api.marketContract.GetDealInfo(getCallOptions(ctx), dealID)
 	if err != nil {
 		return nil, err
@@ -169,14 +196,9 @@ func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Mark
 		return nil, err
 	}
 
-	var benchmarks = make([]uint64, len(deal1.Benchmarks))
-	for idx, benchmark := range deal1.Benchmarks {
-		benchmarks[idx] = benchmark.Uint64()
-	}
-
 	return &pb.MarketDeal{
 		Id:             dealID.String(),
-		Benchmarks:     benchmarks,
+		Benchmarks:     deal1.Benchmarks,
 		SupplierID:     deal1.SupplierID.String(),
 		ConsumerID:     deal1.ConsumerID.String(),
 		MasterID:       deal1.MasterID.String(),
@@ -197,27 +219,23 @@ func (api *BasicAPI) GetDealsAmount(ctx context.Context) (*big.Int, error) {
 	return api.marketContract.GetDealsAmount(getCallOptions(ctx))
 }
 
-func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, wait time.Duration) (*pb.MarketOrder, error) {
+func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, wait time.Duration) (
+	*pb.MarketOrder, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
-	var bigBenchmarks = make([]*big.Int, len(order.Benchmarks))
-	for idx, benchmark := range order.Benchmarks {
-		bigBenchmarks[idx] = big.NewInt(int64(benchmark))
-	}
+
+	fixedNetflags := pb.UintToNetflags(order.Netflags)
 	var fixedTag [32]byte
 	copy(fixedTag[:], order.Tag[:])
-	var fixedNetflags [3]bool
-	copy(fixedNetflags[:], order.Netflags[:])
-
 	tx, err := api.marketContract.PlaceOrder(opts,
 		uint8(order.OrderType),
-		common.StringToAddress(order.Counterparty),
+		common.StringToAddress(order.CounterpartyID),
 		order.Price.Unwrap(),
 		big.NewInt(int64(order.Duration)),
 		fixedNetflags,
 		uint8(order.IdentityLevel),
 		common.StringToAddress(order.Blacklist),
 		fixedTag,
-		bigBenchmarks,
+		order.Benchmarks,
 	)
 
 	id, err := api.waitForTransactionResult(ctx, tx, OrderPlacedTopic, wait)
@@ -253,26 +271,23 @@ func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Ma
 		return nil, err
 	}
 
-	var benchmarks = make([]uint64, len(order1.Benchmarks))
-	for idx, benchmark := range order1.Benchmarks {
-		benchmarks[idx] = benchmark.Uint64()
-	}
+	netflags := pb.NetflagsToUint(order1.Netflags)
 
 	return &pb.MarketOrder{
-		Id:            orderID.String(),
-		DealID:        order2.DealID.String(),
-		OrderType:     pb.MarketOrderType(order1.OrderType),
-		OrderStatus:   pb.MarketOrderStatus(order2.OrderStatus),
-		Author:        order1.Author.String(),
-		Counterparty:  order1.Counterparty.String(),
-		Price:         pb.NewBigInt(order1.Price),
-		Duration:      order1.Duration.Uint64(),
-		Netflags:      order1.Netflags[:],
-		IdentityLevel: pb.MarketIdentityLevel(order1.IdentityLevel),
-		Blacklist:     order1.Blacklist.String(),
-		Tag:           order1.Tag[:],
-		Benchmarks:    benchmarks,
-		FrozenSum:     pb.NewBigInt(order1.FrozenSum),
+		Id:             orderID.String(),
+		DealID:         order2.DealID.String(),
+		OrderType:      pb.MarketOrderType(order1.OrderType),
+		OrderStatus:    pb.MarketOrderStatus(order2.OrderStatus),
+		AuthorID:       order1.Author.String(),
+		CounterpartyID: order1.Counterparty.String(),
+		Duration:       order1.Duration.Uint64(),
+		Price:          pb.NewBigInt(order1.Price),
+		Netflags:       netflags,
+		IdentityLevel:  pb.MarketIdentityLevel(order1.IdentityLevel),
+		Blacklist:      order1.Blacklist.String(),
+		Tag:            order1.Tag[:],
+		Benchmarks:     order1.Benchmarks,
+		FrozenSum:      pb.NewBigInt(order1.FrozenSum),
 	}, nil
 }
 
@@ -308,7 +323,49 @@ func (api *BasicAPI) GetMaster(ctx context.Context, key *ecdsa.PrivateKey, slave
 	return api.marketContract.GetMaster(getCallOptions(ctx), slave)
 }
 
-func (api *BasicAPI) GetMarketEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error) {
+func (api *BasicAPI) GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error) {
+	level, err := api.profilesContract.GetValidatorLevel(getCallOptions(ctx), validatorID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Validator{
+		Id:    validatorID.String(),
+		Level: uint64(level),
+	}, nil
+}
+
+func (api *BasicAPI) GetCertificate(ctx context.Context, certificateID *big.Int) (
+	*pb.Certificate, error) {
+
+	validatorID, ownerID, attribute, value, err := api.profilesContract.GetCertificate(getCallOptions(ctx), certificateID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Certificate{
+		ValidatorID: validatorID.String(),
+		OwnerID:     ownerID.String(),
+		Attribute:   attribute.Uint64(),
+		Value:       value,
+	}, nil
+}
+
+func (api *BasicAPI) GetLastBlockNumber() (uint64, error) {
+	p, err := api.client.SyncProgress(context.Background())
+
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to GetLastBlockNumber")
+	}
+
+	if p == nil {
+		return 0, errors.New("node is still syncing")
+	}
+
+	return p.CurrentBlock, nil
+}
+
+func (api *BasicAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error) {
 	var (
 		topics     [][]common.Hash
 		eventTopic = []common.Hash{
@@ -316,26 +373,28 @@ func (api *BasicAPI) GetMarketEvents(ctx context.Context, fromBlockInitial *big.
 			DealUpdatedTopic,
 			OrderPlacedTopic,
 			OrderUpdatedTopic,
-			DealChangeRequestSent,
-			DealChangeRequestUpdated,
+			DealChangeRequestSentTopic,
+			DealChangeRequestUpdatedTopic,
+			BilledTopic,
 			WorkerAnnouncedTopic,
 			WorkerConfirmedTopic,
 			WorkerConfirmedTopic,
-			WorkerRemovedTopic}
+			WorkerRemovedTopic,
+			AddedToBlacklistTopic,
+			RemovedFromBlacklistTopic,
+			ValidatorCreatedTopic,
+			ValidatorDeletedTopic,
+			CertificateCreatedTopic,
+		}
 		out = make(chan *Event, 128)
 	)
 	topics = append(topics, eventTopic)
 
-	marketABI, err := abi.JSON(strings.NewReader(string(marketAPI.MarketABI)))
-	if err != nil {
-		close(out)
-		return nil, err
-	}
-
 	go func() {
 		var (
-			fromBlock = fromBlockInitial
-			tk        = time.NewTicker(time.Second)
+			fromBlock       = fromBlockInitial
+			lastBlockNumber = fromBlockInitial
+			tk              = time.NewTicker(time.Second)
 		)
 		for {
 			select {
@@ -345,15 +404,40 @@ func (api *BasicAPI) GetMarketEvents(ctx context.Context, fromBlockInitial *big.
 				logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
 					Topics:    topics,
 					FromBlock: fromBlock,
+					Addresses: []common.Address{
+						common.StringToAddress(market.MarketAddress),
+						common.StringToAddress(market.BlacklistAddress),
+						common.StringToAddress(market.ProfileRegistryAddress),
+					},
 				})
+
 				if err != nil {
-					out <- &Event{Data: err, BlockNumber: fromBlock.Uint64()}
+					out <- &Event{
+						Data:        &ErrorData{Err: errors.Wrap(err, "failed to FilterLogs")},
+						BlockNumber: fromBlock.Uint64(),
+					}
 				}
 
-				fromBlock = big.NewInt(int64(logs[len(logs)-1].BlockNumber))
+				numLogs := len(logs)
+				if numLogs < 1 {
+					api.logger.Info("no logs, skipping")
+					continue
+				}
+				fromBlock = big.NewInt(int64(logs[numLogs-1].BlockNumber))
 
+				var eventTS uint64
 				for _, log := range logs {
-					api.processLog(log, marketABI, out)
+					logBlockNumber := big.NewInt(int64(log.BlockNumber))
+					if lastBlockNumber.Cmp(logBlockNumber) != 0 {
+						lastBlockNumber = logBlockNumber
+						block, err := api.client.BlockByNumber(context.Background(), lastBlockNumber)
+						if err != nil {
+							api.logger.Warn("failed to get event timestamp", zap.Error(err),
+								zap.Uint64("blockNumber", lastBlockNumber.Uint64()))
+						}
+						eventTS = block.Time().Uint64()
+					}
+					api.processLog(log, eventTS, out)
 				}
 			}
 		}
@@ -362,7 +446,7 @@ func (api *BasicAPI) GetMarketEvents(ctx context.Context, fromBlockInitial *big.
 	return out, nil
 }
 
-func (api *BasicAPI) processLog(log types.Log, marketABI abi.ABI, out chan *Event) {
+func (api *BasicAPI) processLog(log types.Log, eventTS uint64, out chan *Event) {
 	// This should never happen, but it's ethereum, and things might happen.
 	if len(log.Topics) < 1 {
 		out <- &Event{
@@ -372,71 +456,146 @@ func (api *BasicAPI) processLog(log types.Log, marketABI abi.ABI, out chan *Even
 		return
 	}
 
+	sendErr := func(out chan *Event, err error, topic common.Hash) {
+		out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber, TS: eventTS}
+	}
+
+	sendData := func(data interface{}) {
+		out <- &Event{Data: data, BlockNumber: log.BlockNumber, TS: eventTS}
+	}
+
 	var topic = log.Topics[0]
 	switch topic {
 	case DealOpenedTopic:
-		var dealOpenedData = &DealOpenedData{}
-		if err := marketABI.Unpack(&dealOpenedData, "DealOpened", log.Data); err != nil {
-			out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber}
-		} else {
-			out <- &Event{Data: dealOpenedData, BlockNumber: log.BlockNumber}
+		id, err := extractBig(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
 		}
+		sendData(&DealOpenedData{ID: id})
 	case DealUpdatedTopic:
-		var dealUpdatedData = &DealUpdatedData{}
-		if err := marketABI.Unpack(&dealUpdatedData, "DealUpdated", log.Data); err != nil {
-			out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber}
-		} else {
-			out <- &Event{Data: dealUpdatedData, BlockNumber: log.BlockNumber}
+		id, err := extractBig(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
 		}
+		sendData(&DealUpdatedData{ID: id})
+	case DealChangeRequestSentTopic:
+		id, err := extractBig(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&DealChangeRequestSentData{ID: id})
+	case DealChangeRequestUpdatedTopic:
+		id, err := extractBig(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&DealChangeRequestUpdatedData{ID: id})
+	case BilledTopic:
+		var billedData = &BilledData{}
+		if err := api.marketABI.Unpack(billedData, "Billed", log.Data); err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(billedData)
 	case OrderPlacedTopic:
-		var orderPlacedData = &OrderPlacedData{}
-		if err := marketABI.Unpack(&orderPlacedData, "OrderPlaced", log.Data); err != nil {
-			out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber}
-		} else {
-			out <- &Event{Data: orderPlacedData, BlockNumber: log.BlockNumber}
+		id, err := extractBig(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
 		}
+		sendData(&OrderPlacedData{ID: id})
 	case OrderUpdatedTopic:
-		var orderUpdatedData = &OrderUpdatedData{}
-		if err := marketABI.Unpack(&orderUpdatedData, "OrderUpdated", log.Data); err != nil {
-			out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber}
-		} else {
-			out <- &Event{Data: orderUpdatedData, BlockNumber: log.BlockNumber}
+		id, err := extractBig(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
 		}
-	case DealChangeRequestSent:
-		var dealChangeRequestSent = &DealChangeRequestSentData{}
-		if err := marketABI.Unpack(&dealChangeRequestSent, "DealChangeRequestSent", log.Data); err != nil {
-			out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber}
-		} else {
-			out <- &Event{Data: dealChangeRequestSent, BlockNumber: log.BlockNumber}
-		}
-	case DealChangeRequestUpdated:
-		var dealChangeRequestUpdated = &DealChangeRequestUpdatedData{}
-		if err := marketABI.Unpack(&dealChangeRequestUpdated, "DealChangeRequestUpdated", log.Data); err != nil {
-			out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber}
-		} else {
-			out <- &Event{Data: dealChangeRequestUpdated, BlockNumber: log.BlockNumber}
-		}
+		sendData(&OrderUpdatedData{ID: id})
 	case WorkerAnnouncedTopic:
-		var workerAnnouncedData = &WorkerAnnouncedData{}
-		if err := marketABI.Unpack(&workerAnnouncedData, "WorkerAnnounced", log.Data); err != nil {
-			out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber}
-		} else {
-			out <- &Event{Data: workerAnnouncedData, BlockNumber: log.BlockNumber}
+		slaveID, err := extractAddress(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
 		}
+		masterID, err := extractAddress(log, 2)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&WorkerAnnouncedData{SlaveID: slaveID, MasterID: masterID})
 	case WorkerConfirmedTopic:
-		var workerConfirmedData = &WorkerConfirmedData{}
-		if err := marketABI.Unpack(&workerConfirmedData, "WorkerConfirmed", log.Data); err != nil {
-			out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber}
-		} else {
-			out <- &Event{Data: workerConfirmedData, BlockNumber: log.BlockNumber}
+		slaveID, err := extractAddress(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
 		}
+		masterID, err := extractAddress(log, 2)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&WorkerConfirmedData{SlaveID: slaveID, MasterID: masterID})
 	case WorkerRemovedTopic:
-		var workerRemovedData = &WorkerRemovedData{}
-		if err := marketABI.Unpack(&workerRemovedData, "WorkerRemoved", log.Data); err != nil {
-			out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber}
-		} else {
-			out <- &Event{Data: workerRemovedData, BlockNumber: log.BlockNumber}
+		slaveID, err := extractAddress(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
 		}
+		masterID, err := extractAddress(log, 2)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&WorkerRemovedData{SlaveID: slaveID, MasterID: masterID})
+	case AddedToBlacklistTopic:
+		adderID, err := extractAddress(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		addeeID, err := extractAddress(log, 2)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&AddedToBlacklistData{AdderID: adderID, AddeeID: addeeID})
+	case RemovedFromBlacklistTopic:
+		removerID, err := extractAddress(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		removeeID, err := extractAddress(log, 2)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&RemovedFromBlacklistData{RemoverID: removerID, RemoveeID: removeeID})
+	case ValidatorCreatedTopic:
+		id, err := extractAddress(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&ValidatorCreatedData{ID: id})
+	case ValidatorDeletedTopic:
+		id, err := extractAddress(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&ValidatorDeletedData{ID: id})
+	case CertificateCreatedTopic:
+		var certificateCreatedData = &CertificateCreatedData{}
+		if err := api.profilesABI.Unpack(certificateCreatedData, "CertificateCreated", log.Data); err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(certificateCreatedData)
 	default:
 		out <- &Event{
 			Data:        &ErrorData{Err: errors.New("unknown topic"), Topic: topic.String()},
@@ -445,31 +604,51 @@ func (api *BasicAPI) processLog(log types.Log, marketABI abi.ABI, out chan *Even
 	}
 }
 
+func (api *BasicAPI) GetDealChangeRequestInfo(ctx context.Context, dealID *big.Int) (*pb.DealChangeRequest, error) {
+	changeRequest, err := api.marketContract.GetChangeRequestInfo(getCallOptions(ctx), dealID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.DealChangeRequest{
+		DealID:      changeRequest.DealID.String(),
+		RequestType: pb.MarketOrderType(changeRequest.RequestType),
+		Duration:    changeRequest.Duration.Uint64(),
+		Price:       pb.NewBigInt(changeRequest.Price),
+		Status:      pb.MarketChangeRequestStatus(changeRequest.Status),
+	}, nil
+}
+
 func (api *BasicAPI) Check(ctx context.Context, who, whom common.Address) (bool, error) {
 	return api.blacklistContract.Check(getCallOptions(ctx), who, whom)
 }
 
-func (api *BasicAPI) Add(ctx context.Context, key *ecdsa.PrivateKey, who, whom common.Address) (*types.Transaction, error) {
+func (api *BasicAPI) Add(ctx context.Context, key *ecdsa.PrivateKey, who, whom common.Address) (
+	*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.blacklistContract.Add(opts, who, whom)
 }
 
-func (api *BasicAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) (*types.Transaction, error) {
+func (api *BasicAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) (
+	*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.blacklistContract.Remove(opts, whom)
 }
 
-func (api *BasicAPI) AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error) {
+func (api *BasicAPI) AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (
+	*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.blacklistContract.AddMaster(opts, root)
 }
 
-func (api *BasicAPI) RemoveMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error) {
+func (api *BasicAPI) RemoveMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (
+	*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.blacklistContract.RemoveMaster(opts, root)
 }
 
-func (api *BasicAPI) SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey, market common.Address) (*types.Transaction, error) {
+func (api *BasicAPI) SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey, market common.Address) (
+	*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.blacklistContract.SetMarketAddress(opts, market)
 }
@@ -491,7 +670,8 @@ func (api *BasicAPI) BalanceOf(ctx context.Context, address string) (*big.Int, e
 }
 
 func (api *BasicAPI) AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error) {
-	allowance, err := api.tokenContract.Allowance(getCallOptions(ctx), common.HexToAddress(from), common.HexToAddress(to))
+	allowance, err := api.tokenContract.Allowance(getCallOptions(ctx), common.HexToAddress(from),
+		common.HexToAddress(to))
 	if err != nil {
 		return nil, err
 	}
@@ -549,7 +729,8 @@ func (api *BasicAPI) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*typ
 	return tx, err
 }
 
-func (api *BasicAPI) waitForTransactionResult(ctx context.Context, tx *types.Transaction, topic common.Hash, wait time.Duration) (*big.Int, error) {
+func (api *BasicAPI) waitForTransactionResult(ctx context.Context, tx *types.Transaction, topic common.Hash,
+	wait time.Duration) (*big.Int, error) {
 	ctx, cancel := context.WithTimeout(ctx, wait)
 	defer cancel()
 
@@ -574,7 +755,8 @@ func (api *BasicAPI) waitForTransactionResult(ctx context.Context, tx *types.Tra
 	}
 }
 
-func (api *BasicAPI) parseTransactionLogs(ctx context.Context, tx *types.Transaction, topic common.Hash) (*big.Int, error) {
+func (api *BasicAPI) parseTransactionLogs(ctx context.Context, tx *types.Transaction, topic common.Hash) (
+	*big.Int, error) {
 	txReceipt, err := api.client.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
 		return nil, err
@@ -603,6 +785,7 @@ func (api *BasicAPI) parseTransactionLogs(ctx context.Context, tx *types.Transac
 type Event struct {
 	Data        interface{}
 	BlockNumber uint64
+	TS          uint64
 }
 
 type DealOpenedData struct {
@@ -610,14 +793,6 @@ type DealOpenedData struct {
 }
 
 type DealUpdatedData struct {
-	ID *big.Int
-}
-
-type OrderPlacedData struct {
-	ID *big.Int
-}
-
-type OrderUpdatedData struct {
 	ID *big.Int
 }
 
@@ -629,22 +804,57 @@ type DealChangeRequestUpdatedData struct {
 	ID *big.Int
 }
 
+type OrderPlacedData struct {
+	ID *big.Int
+}
+
+type OrderUpdatedData struct {
+	ID *big.Int
+}
+
+type BilledData struct {
+	ID          *big.Int
+	PayedAmount *big.Int
+}
+
 type WorkerAnnouncedData struct {
-	Slave  common.Address
-	Master common.Address
+	SlaveID  common.Address
+	MasterID common.Address
 }
 
 type WorkerConfirmedData struct {
-	Slave  common.Address
-	Master common.Address
+	SlaveID  common.Address
+	MasterID common.Address
 }
 
 type WorkerRemovedData struct {
-	Slave  common.Address
-	Master common.Address
+	SlaveID  common.Address
+	MasterID common.Address
 }
 
 type ErrorData struct {
 	Err   error
 	Topic string
+}
+
+type AddedToBlacklistData struct {
+	AdderID common.Address
+	AddeeID common.Address
+}
+
+type RemovedFromBlacklistData struct {
+	RemoverID common.Address
+	RemoveeID common.Address
+}
+
+type ValidatorCreatedData struct {
+	ID common.Address
+}
+
+type ValidatorDeletedData struct {
+	ID common.Address
+}
+
+type CertificateCreatedData struct {
+	ID *big.Int
 }

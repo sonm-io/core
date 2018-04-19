@@ -38,7 +38,7 @@ message DealsRequest {
     string bidID = 6;
     MaxMinUint64 duration = 7;
     MaxMinBig price = 8;
-    uint64 netflags = 9;
+    CmpUint64 netflags = 9;
     MarketIdentityLevel askIdentityLevel = 10;
     MarketIdentityLevel bidIdentityLevel = 11;
     DWHBenchmarkConditions benchmarks = 12;
@@ -91,7 +91,7 @@ message OrdersRequest {
     string counterpartyID = 5;
     MaxMinUint64 duration = 6;
     MaxMinBig price = 9;
-    uint64 netflags = 11;
+    CmpUint64 netflags = 11;
     MarketIdentityLevel creatorIdentityLevel = 12;
     DWHBenchmarkConditions benchmarks = 13;
     uint64 limit = 14;
@@ -117,7 +117,7 @@ message DWHOrder {
     string counterpartyID = 6;
     uint64 duration = 7;
     BigInt price = 8;
-    string netflags = 9;
+    uint64 netflags = 9;
     MarketIdentityLevel identityLevel = 10;
     string blacklist = 11;
     bytes tag = 12;
@@ -143,11 +143,10 @@ message DealCondition {
     string dealID = 10;
 }
 
-message WorkerAnnouncement {
-    uint64 id = 1;
-    string masterID = 2;
-    string slaveID = 3;
-    bool confirmed = 4;
+message DWHWorker {
+    string masterID = 1;
+    string slaveID = 2;
+    bool confirmed = 3;
 }
 
 enum ProfileRole {
@@ -193,8 +192,9 @@ message BlacklistReply {
 }
 
 message ValidatorsRequest {
-    uint64 limit = 1;
-    uint64 offset = 2;
+    CmpUint64 validatorLevel = 1;
+    uint64 limit = 2;
+    uint64 offset = 3;
 }
 
 message ValidatorsReply {
@@ -207,7 +207,7 @@ message Validator {
 }
 
 message DealChangeRequestsReply {
-//    repeated DealChangeRequest requests = 1;
+    repeated DealChangeRequest requests = 1;
 }
 
 message WorkersRequest {
@@ -217,7 +217,7 @@ message WorkersRequest {
 }
 
 message WorkersReply {
-    repeated string workers = 1;
+    repeated DWHWorker workers = 1;
 }
 
 message Certificate {
@@ -266,4 +266,18 @@ message MaxMinUint64 {
 message MaxMinBig {
     BigInt max = 1;
     BigInt min = 2;
+}
+
+message CmpUint64 {
+    uint64 value = 1;
+    CmpOp operator = 2;
+}
+
+message DealChangeRequest {
+    string id = 1;
+    string dealID = 2;
+    MarketOrderType requestType = 3;
+    uint64 duration = 4;
+    BigInt price = 5;
+    MarketChangeRequestStatus status = 6;
 }
