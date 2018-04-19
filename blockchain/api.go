@@ -401,11 +401,6 @@ func (api *BasicAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (
 			case <-ctx.Done():
 				return
 			case <-tk.C:
-				if _, err := api.GetLastBlockNumber(); err != nil {
-					api.logger.Info("node not ready", zap.Error(err))
-					continue
-				}
-
 				logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
 					Topics:    topics,
 					FromBlock: fromBlock,
