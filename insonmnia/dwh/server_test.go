@@ -602,7 +602,7 @@ func TestDWH_monitor(t *testing.T) {
 	// Test that after a second ASK DealChangeRequest was created, the new one was kept and the old one was deleted.
 	changeRequest.Id = "1"
 	changeRequest.Duration = 10021
-	events <- &bch.Event{Data: &bch.DealChangeRequestSentData{big.NewInt(1)}, TS: commonEventTS}
+	events <- &bch.Event{Data: &bch.DealChangeRequestSentData{ID: big.NewInt(1)}, TS: commonEventTS}
 	time.Sleep(time.Millisecond * 200)
 	if changeRequest, err := getDealChangeRequest(changeRequest.Id); err != nil {
 		t.Errorf("Failed to getDealChangeRequest: %s", err)
@@ -621,7 +621,7 @@ func TestDWH_monitor(t *testing.T) {
 	changeRequest.Id = "2"
 	changeRequest.Duration = 10022
 	changeRequest.RequestType = pb.MarketOrderType_MARKET_BID
-	events <- &bch.Event{Data: &bch.DealChangeRequestSentData{big.NewInt(2)}, TS: commonEventTS}
+	events <- &bch.Event{Data: &bch.DealChangeRequestSentData{ID: big.NewInt(2)}, TS: commonEventTS}
 	time.Sleep(time.Millisecond * 200)
 	if changeRequest, err := getDealChangeRequest(changeRequest.Id); err != nil {
 		t.Errorf("Failed to getDealChangeRequest: %s", err)
@@ -639,7 +639,7 @@ func TestDWH_monitor(t *testing.T) {
 	// Test that when a DealChangeRequest is updated to any status but REJECTED, it is deleted.
 	changeRequest.Id = "1"
 	changeRequest.Status = pb.MarketChangeRequestStatus_REQUEST_ACCEPTED
-	events <- &bch.Event{Data: &bch.DealChangeRequestUpdatedData{big.NewInt(1)}, TS: commonEventTS}
+	events <- &bch.Event{Data: &bch.DealChangeRequestUpdatedData{ID: big.NewInt(1)}, TS: commonEventTS}
 	time.Sleep(time.Millisecond * 200)
 	if _, err := getDealChangeRequest("1"); err == nil {
 		t.Error("DealChangeRequest which status was changed to ACCEPTED was not deleted")
@@ -667,7 +667,7 @@ func TestDWH_monitor(t *testing.T) {
 	// Test that when a DealChangeRequest is updated to REJECTED, it is kept.
 	changeRequest.Id = "2"
 	changeRequest.Status = pb.MarketChangeRequestStatus_REQUEST_REJECTED
-	events <- &bch.Event{Data: &bch.DealChangeRequestUpdatedData{big.NewInt(2)}, TS: commonEventTS}
+	events <- &bch.Event{Data: &bch.DealChangeRequestUpdatedData{ID: big.NewInt(2)}, TS: commonEventTS}
 	time.Sleep(time.Millisecond * 200)
 	if _, err := getDealChangeRequest("2"); err != nil {
 		t.Error("DealChangeRequest which status was changed to REJECTED was deleted")
