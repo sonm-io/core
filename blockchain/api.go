@@ -42,13 +42,23 @@ type EventsAPI interface {
 	GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error)
 }
 
+type DealOrError struct {
+	Deal *pb.MarketDeal
+	err  error
+}
+
+type OrderOrError struct {
+	Order *pb.MarketOrder
+	Err   error
+}
+
 type MarketAPI interface {
-	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int, wait time.Duration) (*pb.MarketDeal, error)
+	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) chan DealOrError
 	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (*types.Transaction, error)
 	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.MarketDeal, error)
 	GetDealsAmount(ctx context.Context) (*big.Int, error)
-	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, wait time.Duration) (*pb.MarketOrder, error)
-	CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) error
+	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder) chan OrderOrError
+	CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) chan error
 	GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.MarketOrder, error)
 	GetOrdersAmount(ctx context.Context) (*big.Int, error)
 	Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) (*types.Transaction, error)
@@ -158,25 +168,28 @@ func NewAPI(opts ...Option) (API, error) {
 	return api, nil
 }
 
-func (api *BasicAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int, wait time.Duration) (
-	*pb.MarketDeal, error) {
+func (api *BasicAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) chan DealOrError {
+	ch := make(chan DealOrError, 0)
+	go api.openDeal(ctx, key, askID, bidID, ch)
+	return ch
+}
+
+func (api *BasicAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int, ch chan DealOrError) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
-	tx, err := api.marketContract.OpenDeal(opts, askID, bigID)
+	tx, err := api.marketContract.OpenDeal(opts, askID, bidID)
 	if err != nil {
-		return nil, err
+		ch <- DealOrError{nil, err}
+		return
 	}
 
-	id, err := api.waitForTransactionResult(ctx, tx, DealOpenedTopic, wait)
+	id, err := api.waitForTransactionResult(ctx, tx, DealOpenedTopic)
 	if err != nil {
-		return nil, err
+		ch <- DealOrError{nil, err}
+		return
 	}
 
 	deal, err := api.GetDealInfo(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	return deal, nil
+	ch <- DealOrError{deal, err}
 }
 
 func (api *BasicAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (
@@ -219,8 +232,13 @@ func (api *BasicAPI) GetDealsAmount(ctx context.Context) (*big.Int, error) {
 	return api.marketContract.GetDealsAmount(getCallOptions(ctx))
 }
 
-func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, wait time.Duration) (
-	*pb.MarketOrder, error) {
+func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder) chan OrderOrError {
+	ch := make(chan OrderOrError, 0)
+	go api.placeOrder(ctx, key, order, ch)
+	return ch
+}
+
+func (api *BasicAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, ch chan OrderOrError) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 
 	fixedNetflags := pb.UintToNetflags(order.Netflags)
@@ -238,26 +256,34 @@ func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, orde
 		order.Benchmarks,
 	)
 
-	id, err := api.waitForTransactionResult(ctx, tx, OrderPlacedTopic, wait)
+	id, err := api.waitForTransactionResult(ctx, tx, OrderPlacedTopic)
 	if err != nil {
-		return nil, err
+		ch <- OrderOrError{nil, err}
+		return
 	}
-
-	return api.GetOrderInfo(ctx, id)
+	orderInfo, err := api.GetOrderInfo(ctx, id)
+	ch <- OrderOrError{orderInfo, err}
 }
 
-func (api *BasicAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, wait time.Duration) error {
+func (api *BasicAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) chan error {
+	ch := make(chan error, 0)
+	go api.cancelOrder(ctx, key, id, ch)
+	return ch
+}
+
+func (api *BasicAPI) cancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, ch chan error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	tx, err := api.marketContract.CancelOrder(opts, id)
 	if err != nil {
-		return err
+		ch <- err
+		return
 	}
 
-	if _, err := api.waitForTransactionResult(ctx, tx, OrderUpdatedTopic, wait); err != nil {
-		return err
+	if _, err := api.waitForTransactionResult(ctx, tx, OrderUpdatedTopic); err != nil {
+		ch <- err
+		return
 	}
-
-	return nil
+	ch <- nil
 }
 
 func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.MarketOrder, error) {
@@ -729,11 +755,7 @@ func (api *BasicAPI) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*typ
 	return tx, err
 }
 
-func (api *BasicAPI) waitForTransactionResult(ctx context.Context, tx *types.Transaction, topic common.Hash,
-	wait time.Duration) (*big.Int, error) {
-	ctx, cancel := context.WithTimeout(ctx, wait)
-	defer cancel()
-
+func (api *BasicAPI) waitForTransactionResult(ctx context.Context, tx *types.Transaction, topic common.Hash) (*big.Int, error) {
 	tk := util.NewImmediateTicker(api.logParsePeriod)
 	defer tk.Stop()
 
