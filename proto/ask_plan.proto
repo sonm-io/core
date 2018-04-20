@@ -9,7 +9,7 @@ message AskPlanCPU {
 }
 
 message AskPlanGPU {
-    repeated string indexes = 1;
+    repeated uint64 indexes = 1;
     repeated string hashes = 2;
 }
 
