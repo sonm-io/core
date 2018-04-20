@@ -63,24 +63,6 @@ enum MarketChangeRequestStatus {
     REQUEST_ACCEPTED = 4;
 }
 
-// GetProcessingReply represent Node's local
-// orders processing status
-message GetProcessingReply {
-    message ProcessedOrder {
-        string id = 1;
-        uint32 status = 2;
-        Timestamp timestamp = 3;
-        string extra = 4;
-    }
-
-    map <string, ProcessedOrder> orders = 2;
-}
-
-message TouchOrdersRequest {
-    repeated string IDs = 1;
-}
-
-
 message MarketDeal {
     string id = 1;
     repeated uint64 benchmarks = 2;

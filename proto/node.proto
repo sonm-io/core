@@ -15,7 +15,7 @@ package sonm;
 // to manage tasks running into the SONM network
 service TaskManagement {
     // List produces a list of all tasks running on different SONM nodes
-    rpc List(TaskListRequest) returns (TaskListReply) {}
+    rpc List(EthAddress) returns (TaskListReply) {}
     // PushTask pushes image to Worker
     rpc PushTask(stream Chunk) returns (stream Progress) {}
     // Start starts a task on given resource
@@ -37,12 +37,6 @@ message JoinNetworkRequest {
     string NetworkID = 2;
 }
 
-message TaskListRequest {
-    // HubID is hub eth id;
-    // If empty - collect task info from all hubs
-    string hubID = 1;
-}
-
 // DealManagement describe a bunch of methods
 // to manage deals made into the SONM network
 service DealManagement {
@@ -61,11 +55,6 @@ message DealListRequest {
 
 message DealListReply {
     repeated MarketDeal deal = 1;
-}
-
-message DealStatusReply {
-    MarketDeal deal = 1;
-    DealInfoReply info = 2;
 }
 
 // todo: implement this as part of Node API

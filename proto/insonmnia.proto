@@ -19,22 +19,6 @@ message TaskID {
     string hubAddr = 2;
 }
 
-enum NetworkType {
-    NO_NETWORK = 0;
-    OUTBOUND = 1;
-    INCOMING = 2;
-}
-
-enum GPUCount {
-    NO_GPU = 0;
-    SINGLE_GPU = 1;
-    MULTIPLE_GPU = 2;
-}
-
-message PingReply {
-    string status = 1;
-}
-
 message CPUUsage {
     uint64 total = 1;
 }
@@ -58,12 +42,6 @@ message ResourceUsage {
     CPUUsage cpu = 1;
     MemoryUsage memory = 2;
     map<string, NetworkUsage> network = 3;
-}
-
-message InfoReply {
-    map<string, ResourceUsage> usage = 1;
-    string name = 2;
-    Capabilities capabilities = 3;
 }
 
 message TaskStatusReply {
@@ -132,18 +110,11 @@ message TaskLogsChunk {
     bytes data = 1;
 }
 
-message DiscoverHubRequest {
-    string endpoint = 1;
-}
-
 message TaskResourceRequirements {
     // CPUCores specifies the number of CPU cores required.
     uint64 CPUCores = 1;
     // MaxMemory specifies the maximum memory in bytes required.
     int64 maxMemory = 2;
-    // GPUCount Describes whether a task requires GPU support.
-    // todo: completely useless in that representation.
-    GPUCount GPUSupport = 3;
 }
 
 message Chunk {

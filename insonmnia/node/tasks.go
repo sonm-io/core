@@ -22,11 +22,11 @@ type tasksAPI struct {
 	remotes *remoteOptions
 }
 
-func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskListReply, error) {
+func (t *tasksAPI) List(ctx context.Context, req *pb.EthAddress) (*pb.TaskListReply, error) {
 	// has hubID, can perform direct request
-	if req.GetHubID() != "" {
+	if len(req.Address) > 0 {
 		log.G(t.ctx).Info("has HubAddr, performing direct request")
-		hubClient, cc, err := t.getHubClientByEthAddr(ctx, req.GetHubID())
+		hubClient, cc, err := t.getHubClientByEthAddr(ctx, req.Unwrap().Hex())
 		if err != nil {
 			return nil, err
 		}
