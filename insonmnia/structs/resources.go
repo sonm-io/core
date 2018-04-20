@@ -28,19 +28,10 @@ func NewTaskResources(r *pb.TaskResourceRequirements) (*TaskResources, error) {
 }
 
 func (r *TaskResources) ToUsage() resource.Resources {
-	numGPUs := -1
-	switch r.inner.GetGPUSupport() {
-	case pb.GPUCount_NO_GPU:
-		numGPUs = 0
-	case pb.GPUCount_SINGLE_GPU:
-		numGPUs = 1
-	default:
-	}
-
 	return resource.Resources{
 		NumCPUs: int(r.inner.GetCPUCores()),
 		Memory:  r.inner.GetMaxMemory(),
-		NumGPUs: numGPUs,
+		NumGPUs: -1,
 	}
 }
 

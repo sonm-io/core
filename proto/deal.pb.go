@@ -12,7 +12,7 @@ var _ = proto.Marshal
 var _ = fmt.Errorf
 var _ = math.Inf
 
-// TODO: deprecated.
+// Deprecated: TODO: please migrate to the new API.
 type DealStatus int32
 
 const (
@@ -40,7 +40,7 @@ func (x DealStatus) String() string {
 }
 func (DealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
 
-// TODO: deprecated.
+// Deprecated: TODO: please migrate to the new API.
 type Deal struct {
 	BuyerID           string     `protobuf:"bytes,1,opt,name=BuyerID" json:"BuyerID,omitempty"`
 	SupplierID        string     `protobuf:"bytes,2,opt,name=SupplierID" json:"SupplierID,omitempty"`

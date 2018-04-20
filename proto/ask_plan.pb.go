@@ -37,7 +37,6 @@ It has these top-level messages:
 	BidResources
 	BidOrder
 	BigInt
-	Capabilities
 	CPUDevice
 	CPU
 	RAMDevice
@@ -91,19 +90,16 @@ It has these top-level messages:
 	Empty
 	ID
 	TaskID
-	PingReply
 	CPUUsage
 	MemoryUsage
 	NetworkUsage
 	ResourceUsage
-	InfoReply
 	TaskStatusReply
 	AvailableResources
 	StatusMapReply
 	ContainerRestartPolicy
 	TaskLogsRequest
 	TaskLogsChunk
-	DiscoverHubRequest
 	TaskResourceRequirements
 	Chunk
 	Progress
@@ -114,8 +110,6 @@ It has these top-level messages:
 	Price
 	GetOrdersRequest
 	GetOrdersReply
-	GetProcessingReply
-	TouchOrdersRequest
 	MarketDeal
 	MarketOrder
 	MinerStartRequest
@@ -126,10 +120,8 @@ It has these top-level messages:
 	Addr
 	SocketAddr
 	JoinNetworkRequest
-	TaskListRequest
 	DealListRequest
 	DealListReply
-	DealStatusReply
 	Worker
 	WorkerListReply
 	HandshakeRequest

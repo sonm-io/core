@@ -10,12 +10,6 @@ enum GPUVendorType {
     RADEON = 2;
 }
 
-message Capabilities {
-    repeated CPUDevice cpu = 1;
-    RAMDevice mem = 2;
-    repeated GPUDevice gpu = 3;
-}
-
 message CPUDevice {
     // ModelName describes full model name.
     // For example "Intel(R) Core(TM) i5-5257U CPU @ 2.70GHz".

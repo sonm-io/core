@@ -8,6 +8,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gosuri/uiprogress"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -60,16 +61,12 @@ var taskListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		var hubID string
+		var hubID common.Address
 		if len(args) > 0 {
-			hubID = args[0]
+			hubID = common.StringToAddress(args[0])
 		}
 
-		req := &pb.TaskListRequest{
-			HubID: hubID,
-		}
-
-		list, err := node.List(ctx, req)
+		list, err := node.List(ctx, &pb.EthAddress{Address: hubID.Bytes()})
 		if err != nil {
 			showError(cmd, "Cannot get task list", err)
 			os.Exit(1)
