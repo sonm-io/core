@@ -52,6 +52,8 @@ type OrderOrError struct {
 	Err   error
 }
 
+type CancelFunc func()
+
 type MarketAPI interface {
 	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) chan DealOrError
 	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (*types.Transaction, error)

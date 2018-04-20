@@ -118,8 +118,8 @@ func (s *Storage) CreateAskPlan(askPlan *pb.AskPlan) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if len(askPlan.GetID()) != 0 || len(askPlan.GetMarketID()) != 0 {
-		return "", errors.New("creating ask plans with predefined id or market_id are not supported")
+	if len(askPlan.GetID()) != 0 || !askPlan.GetOrderID().IsZero() || !askPlan.GetDealID().IsZero() {
+		return "", errors.New("creating ask plans with predefined id, order_id or deal_id are not supported")
 	}
 	id := uuid.New()
 	askPlan.ID = id

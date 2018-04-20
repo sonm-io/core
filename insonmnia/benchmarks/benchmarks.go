@@ -27,6 +27,7 @@ const (
 )
 
 type BenchList interface {
+	ByID() []*pb.Benchmark
 	MapByDeviceType() map[pb.DeviceType][]*pb.Benchmark
 	MapByCode() map[string]*pb.Benchmark
 }
@@ -34,6 +35,7 @@ type BenchList interface {
 type benchmarkList struct {
 	byCode map[string]*pb.Benchmark
 	byType map[pb.DeviceType][]*pb.Benchmark
+	byID   []*pb.Benchmark
 }
 
 func (bl *benchmarkList) load(ctx context.Context, s string) error {
@@ -87,15 +89,15 @@ func (bl *benchmarkList) readResults(ctx context.Context, reader io.ReadCloser) 
 		return fmt.Errorf("cannot decode JSON response: %v", err)
 	}
 
-	var max uint64
+	bl.byID = make([]*pb.Benchmark, len(data))
 	for _, bench := range data {
-		if bench.ID > max {
-			max = bench.ID
+		if bench.ID >= uint64(len(bl.byID)) {
+			return fmt.Errorf("malformed benchmarks list json, have %d items, but found ID %d", len(bl.byID), bench.ID)
 		}
-	}
-
-	if len(data) != int(max+1) {
-		return fmt.Errorf("malformed benchmarks list json, have %d items, but max ID is %d", len(data), max)
+		if bl.byID[bench.ID] != nil {
+			return fmt.Errorf("malformed benchmarks list json, duplicate id %d", bench.ID)
+		}
+		bl.byID[bench.ID] = bench
 	}
 
 	bl.byCode = data
@@ -131,6 +133,10 @@ func NewBenchmarksList(ctx context.Context, cfg Config) (BenchList, error) {
 	}
 
 	return ls, nil
+}
+
+func (bl *benchmarkList) ByID() []*pb.Benchmark {
+	return bl.byID
 }
 
 func (bl *benchmarkList) MapByDeviceType() map[pb.DeviceType][]*pb.Benchmark {

@@ -53,6 +53,10 @@ func (m *BigInt) Cmp(other *BigInt) int {
 	return m.Unwrap().Cmp(other.Unwrap())
 }
 
+func (m *BigInt) IsZero() bool {
+	return m.Unwrap().BitLen() == 0
+}
+
 func (m BigInt) MarshalJSON() ([]byte, error) {
 	return json.Marshal(m.Unwrap().String())
 }

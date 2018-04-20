@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "ask_plan.proto";
 import "container.proto";
 import "insonmnia.proto";
 import "net.proto";
@@ -11,10 +12,10 @@ message MinerStartRequest{
     // Container describes container settings.
     Container container = 2;
     ContainerRestartPolicy restartPolicy = 3;
-    TaskResourceRequirements resources = 4;
+    AskPlanResources resources = 4;
     // OrderId describes an unique order identifier.
     // It is here for proper resource allocation and limitation.
-    string orderId = 5;
+    string dealID = 5;
 }
 
 message MinerStartReply {

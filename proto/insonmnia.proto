@@ -48,46 +48,7 @@ message ResourceUsage {
     map<string, NetworkUsage> network = 3;
 }
 
-message TaskStatusReply {
-    enum Status {
-        UNKNOWN = 0;
-        SPOOLING = 1;
-        SPAWNING = 2;
-        RUNNING = 3;
-        FINISHED = 4;
-        BROKEN = 5;
-    }
-    Status status = 1;
-    string imageName = 2;
-    string ports = 3;
-    uint64 uptime = 4;
-    ResourceUsage usage = 5;
-    AvailableResources availableResources = 6;
-    string minerID = 7;
-}
 
-message AvailableResources {
-    int64 numCPUs = 1;
-    int64 numGPUs = 2;
-    uint64 memory = 3;
-    int64 CPUPeriod = 4;
-    int64 CPUQuota = 5;
-    int64 CPURealtimePeriod = 6;
-    int64 CPURealtimeRuntime = 7;
-    string CpusetCpus = 8;
-    string CpusetMems = 9;
-    int64 DiskQuota = 10;
-    int64 KernelMemory = 11;
-    int64 MemoryReservation = 12;
-    int64 MemorySwap = 13;
-    int64 PidsLimit = 14;
-    string cgroup = 15;
-    string cgroupParent = 16;
-}
-
-message StatusMapReply {
-    map<string, TaskStatusReply> statuses = 1;
-}
 
 message ContainerRestartPolicy {
     string name = 1;

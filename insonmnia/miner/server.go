@@ -48,7 +48,8 @@ type Miner struct {
 	ovs       Overseer
 	plugins   *plugin.Repository
 	hardware  *hardware.Hardware
-	resources *resource.Pool
+	salesman  *Salesman
+	resources *resource.Scheduler
 	ethkey    *ecdsa.PrivateKey
 	publicIPs []string
 	eth       blockchain.API
@@ -189,7 +190,7 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		plugins: plugins,
 
 		hardware:  hardwareInfo,
-		resources: resource.NewPool(hardwareInfo),
+		resources: resource.NewScheduler(hardwareInfo),
 		publicIPs: o.publicIPs,
 
 		containers:  make(map[string]*ContainerInfo),
@@ -211,40 +212,40 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	return m, nil
 }
 
-type resourceHandle interface {
-	// Commit marks the handle that the resources consumed should not be
-	// released.
-	commit()
-	// Release releases consumed resources.
-	// Useful in conjunction with defer.
-	release()
-}
+//type resourceHandle interface {
+//	// Commit marks the handle that the resources consumed should not be
+//	// released.
+//	commit()
+//	// Release releases consumed resources.
+//	// Useful in conjunction with defer.
+//	release()
+//}
 
 // NilResourceHandle is a resource handle that does nothing.
-type nilResourceHandle struct{}
+//type nilResourceHandle struct{}
 
-func (h *nilResourceHandle) commit() {}
+//func (h *nilResourceHandle) commit() {}
 
-func (h *nilResourceHandle) release() {}
+//func (h *nilResourceHandle) release() {}
 
-type ownedResourceHandle struct {
-	miner     *Miner
-	usage     resource.Resources
-	committed bool
-}
+//type ownedResourceHandle struct {
+//	miner     *Miner
+//	usage     pb.AskPlanResources
+//	committed bool
+//}
 
-func (h *ownedResourceHandle) commit() {
-	h.committed = true
-}
+//func (h *ownedResourceHandle) commit() {
+//	h.committed = true
+//}
 
-func (h *ownedResourceHandle) release() {
-	if h.committed {
-		return
-	}
-
-	h.miner.resources.Release(&h.usage)
-	h.committed = true
-}
+//func (h *ownedResourceHandle) release() {
+//	if h.committed {
+//		return
+//	}
+//
+//	h.miner.resources.Release(&h.usage)
+//	h.committed = true
+//}
 
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
 	m.mu.Lock()
@@ -388,17 +389,17 @@ func (m *Miner) Save(request *pb.SaveRequest, stream pb.Hub_PullTaskServer) erro
 func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
 
-	// TODO(sshaman1101): check for deals existence in a right way;
-	// Note: orderID is dealID;
-	if _, err := m.GetDealByID(structs.DealID(request.GetOrderId())); err != nil {
-		return nil, err
-	}
-
+	//TODO: move to validate()
 	if request.GetContainer() == nil {
 		return nil, fmt.Errorf("container field is required")
 	}
 
-	resources, err := structs.NewTaskResources(request.GetResources())
+	ask, err := m.salesman.AskPlanByDeal(request.DealID)
+	if err != nil {
+		return nil, err
+	}
+
+	cgroup, err := m.resources.CGroup(ask.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -408,13 +409,18 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
 
-	cGroup, resourceHandle, err := m.consume(request.GetOrderId(), resources)
-	if err != nil {
-		return nil, status.Errorf(codes.ResourceExhausted, "failed to start %v", err)
+	//TODO: generate ID
+	if err := m.resources.ConsumeTask(ask.ID, request.Id, request.Resources); err != nil {
+		return nil, fmt.Errorf("could not start task - %s", err)
 	}
+	defer func() {
+		if err != nil {
+			m.resources.ReleaseTask(request.Id)
+		}
+	}()
 
 	// This can be canceled by using "resourceHandle.commit()".
-	defer resourceHandle.release()
+	//defer resourceHandle.release()
 
 	mounts := make([]volume.Mount, 0)
 	for _, spec := range request.Container.Mounts {
@@ -436,8 +442,9 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Registry:      request.Container.Registry,
 		Auth:          request.Container.Auth,
 		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
-		Resources:     resources.ToContainerResources(cGroup.Suffix()),
-		DealId:        request.GetOrderId(),
+		ParentCGroup:  cgroup,
+		Resources:     request.Resources,
+		DealId:        request.GetDealID(),
 		TaskId:        request.Id,
 		CommitOnStop:  request.Container.CommitOnStop,
 		Env:           request.Container.Env,
@@ -508,33 +515,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 
 	go m.listenForStatus(statusListener, request.Id)
 
-	resourceHandle.commit()
-
 	return &reply, nil
-}
-
-func (m *Miner) consume(orderId string, resources *structs.TaskResources) (cgroups.CGroup, resourceHandle, error) {
-	cgroup, err := m.cGroupManager.Attach(orderId, resources.ToCgroupResources())
-	if err != nil && err != cgroups.ErrCgroupAlreadyExists {
-		return nil, nil, err
-	}
-
-	if err != cgroups.ErrCgroupAlreadyExists {
-		return cgroup, &nilResourceHandle{}, nil
-	}
-
-	usage := resources.ToUsage()
-	if err := m.resources.Consume(&usage); err != nil {
-		return nil, nil, err
-	}
-
-	handle := &ownedResourceHandle{
-		miner:     m,
-		usage:     usage,
-		committed: false,
-	}
-
-	return cgroup, handle, nil
 }
 
 // Stop request forces to kill container
@@ -559,7 +540,7 @@ func (m *Miner) Stop(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	}
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
-	m.resources.Release(&containerInfo.Resources)
+	m.resources.ReleaseTask(request.Id)
 
 	return &pb.Empty{}, nil
 }
@@ -654,13 +635,8 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 		Ports:     string(portsStr),
 		Uptime:    uint64(time.Now().Sub(info.StartAt).Nanoseconds()),
 		Usage:     metric.Marshal(),
-		AvailableResources: &pb.AvailableResources{
-			NumCPUs:      int64(info.Resources.NumCPUs),
-			NumGPUs:      int64(info.Resources.NumGPUs),
-			Memory:       uint64(info.Resources.Memory),
-			Cgroup:       info.ID,
-			CgroupParent: info.CgroupParent,
-		},
+		//TODO: Fill
+		AllocatedResources: nil,
 	}
 
 	return reply, nil
@@ -875,23 +851,19 @@ func getDescriptionForBenchmark(b *pb.Benchmark) Description {
 
 func (m *Miner) AskPlans(ctx context.Context) (*pb.AskPlansReply, error) {
 	log.G(m.ctx).Info("handling AskPlans request")
-	return &pb.AskPlansReply{AskPlans: m.state.AskPlans()}, nil
+	return &pb.AskPlansReply{m.salesman.AskPlans()}, nil
 }
 
 func (m *Miner) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (string, error) {
 	log.G(m.ctx).Info("handling CreateAskPlan request", zap.Any("request", request))
 
-	return m.state.CreateAskPlan(request)
+	return m.salesman.CreateAskPlan(request)
 }
 
 func (m *Miner) RemoveAskPlan(ctx context.Context, id string) error {
 	log.G(m.ctx).Info("handling RemoveAskPlan request", zap.String("id", id))
 
-	if err := m.state.RemoveAskPlan(id); err != nil {
-		return err
-	}
-
-	return nil
+	return m.salesman.RemoveAskPlan(id)
 }
 
 func (m *Miner) GetDealByID(id structs.DealID) (*structs.DealMeta, error) {
@@ -915,9 +887,9 @@ func (m *Miner) loadExternalState() error {
 		return err
 	}
 
-	if err := m.syncAskPlans(); err != nil {
-		return err
-	}
+	//if err := m.syncAskPlans(); err != nil {
+	//	return err
+	//}
 
 	return nil
 }
@@ -943,10 +915,10 @@ func (m *Miner) loadDeals() error {
 	return nil
 }
 
-func (m *Miner) syncAskPlans() error {
-	log.G(m.ctx).Debug("synchronizing ask-plans with remote marketplace")
-	return nil
-}
+//func (m *Miner) syncAskPlans() error {
+//	log.G(m.ctx).Debug("synchronizing ask-plans with remote marketplace")
+//	return nil
+//}
 
 // todo: make the `miner.Init() error` method to kickstart all initial jobs for the Worker instance.
 // (state loading, benchmarking, market sync).

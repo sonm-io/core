@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "bigint.proto";
 import "insonmnia.proto";
 
 package sonm;
@@ -39,10 +40,10 @@ message AskPlanResources {
 
 message AskPlan {
     string ID = 1;
-    string marketID = 2;
-
-    Duration duration = 3;
-    Price price = 4;
-    EthAddress blacklist = 5;
-    AskPlanResources resources = 6;
+    BigInt orderID = 2;
+    BigInt dealID = 3;
+    Duration duration = 4;
+    Price price = 5;
+    EthAddress blacklist = 6;
+    AskPlanResources resources = 7;
 }
