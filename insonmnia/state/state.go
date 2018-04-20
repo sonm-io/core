@@ -10,7 +10,6 @@ import (
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
@@ -114,35 +113,37 @@ func (s *Storage) AskPlans() map[string]*pb.AskPlan {
 	return result
 }
 
-func (s *Storage) CreateAskPlan(askPlan *pb.AskPlan) (string, error) {
+func (s *Storage) SaveAskPlan(askPlan *pb.AskPlan) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if len(askPlan.GetID()) != 0 || len(askPlan.GetMarketID()) != 0 {
-		return "", errors.New("creating ask plans with predefined id or market_id are not supported")
+	if len(askPlan.GetID()) == 0 {
+		return errors.New("could not create ask plan  - missing id")
 	}
-	id := uuid.New()
-	askPlan.ID = id
-
 	s.data.AskPlans[askPlan.ID] = askPlan
 	if err := s.dump(); err != nil {
-		return "", err
+		return err
 	}
 
-	return askPlan.ID, nil
+	return nil
 }
 
-func (s *Storage) RemoveAskPlan(planID string) error {
+func (s *Storage) AskPlan(planID string) (*pb.AskPlan, error) {
+
+}
+
+func (s *Storage) RemoveAskPlan(planID string) (*pb.AskPlan, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	_, ok := s.data.AskPlans[planID]
+	askPlan, ok := s.data.AskPlans[planID]
 	if !ok {
-		return errors.New("specified ask-plan does not exist")
+		return nil, errors.New("specified ask-plan does not exist")
 	}
 
 	delete(s.data.AskPlans, planID)
-	return s.dump()
+	err := s.dump()
+	return askPlan, err
 }
 
 func (s *Storage) PassedBenchmarks() map[uint64]bool {

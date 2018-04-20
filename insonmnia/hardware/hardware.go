@@ -1,6 +1,7 @@
 package hardware
 
 import (
+	"errors"
 	"fmt"
 	"net"
 
@@ -59,6 +60,17 @@ func (h *Hardware) Hash() string {
 	return h.devicesMap().Hash()
 }
 
+func (m *Hardware) HashGPU(indexes []uint64) ([]string, error) {
+	hashes := []string{}
+	for _, idx := range indexes {
+		if idx >= uint64(len(m.GPU)) {
+			return nil, fmt.Errorf("invalid GPU index %d", idx)
+		}
+		hashes = append(hashes, m.GPU[idx].Device.Hash)
+	}
+	return hashes, nil
+}
+
 func (h *Hardware) SetNetworkIncoming(IPs []string) {
 	for _, ip := range IPs {
 		if !util.IsPrivateIP(net.ParseIP(ip)) {
@@ -66,6 +78,100 @@ func (h *Hardware) SetNetworkIncoming(IPs []string) {
 			break
 		}
 	}
+}
+
+func (h *Hardware) AskPlanResources() *sonm.AskPlanResources {
+	result := sonm.AskPlanResources{}
+	result.CPU.CorePercents = uint64(h.CPU.GetDevice().GetCores()) * 100
+	result.RAM.Size.Bytes = h.RAM.Device.Available
+	result.Storage.Size.Bytes = h.Storage.Device.BytesAvailable
+	for _, gpu := range h.GPU {
+		result.GPU.Hashes = append(result.GPU.Hashes, gpu.Device.Hash)
+	}
+	//TODO: Looks like this should be fixed
+	result.Network.Outbound = true
+	result.Network.Overlay = h.Network.Overlay
+	result.Network.Incoming = h.Network.Incoming
+	//TODO: Make network device use DataSizeRate
+	result.Network.ThroughputIn.BitsPerSecond = h.Network.GetIn()
+	result.Network.ThroughputOut.BitsPerSecond = h.Network.GetOut()
+	return &result
+}
+
+func insertBench(to []uint64, bench *sonm.Benchmark, proportion float64) error {
+	for len(to) <= int(bench.ID) {
+		to = append(to, uint64(0))
+	}
+	if bench.SplittingAlgorithm == sonm.SplittingAlgorithm_NONE {
+		if to[bench.ID] != 0 {
+			return fmt.Errorf("duplicate benchmark with id %d and type none", bench.ID)
+		}
+		to[bench.ID] = bench.GetResult()
+	} else if bench.SplittingAlgorithm == sonm.SplittingAlgorithm_PROPORTIONAL {
+		to[bench.ID] += uint64(float64(bench.Result) * proportion)
+	} else if bench.SplittingAlgorithm == sonm.SplittingAlgorithm_MAX {
+		if bench.Result > to[bench.ID] {
+			to[bench.ID] = bench.Result
+		}
+	} else if bench.SplittingAlgorithm == sonm.SplittingAlgorithm_MIN {
+		if bench.Result < to[bench.ID] {
+			to[bench.ID] = bench.Result
+		}
+	}
+	return nil
+}
+
+func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*sonm.Benchmarks, error) {
+	if !resources.GPU.Normalized() {
+		return nil, errors.New("passed resources are not normalized, call resources.GPU.Normalize(hardware) first")
+	}
+
+	benchmarks := []uint64{}
+
+	for _, bench := range h.CPU.Benchmarks {
+		proportion := float64(resources.CPU.CorePercents) / float64(h.CPU.Device.Cores) / 100
+		if err := insertBench(benchmarks, bench, proportion); err != nil {
+			return nil, err
+		}
+	}
+
+	proportions := []float64{}
+	hwBenches := []map[uint64]*sonm.Benchmark{}
+	for _, hash := range resources.GPU.Hashes {
+		found := false
+		for _, gpu := range h.GPU {
+			if gpu.Device.GetHash() == hash {
+				hwBenches = append(hwBenches, gpu.Benchmarks)
+				proportions = append(proportions, 1.0)
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("unknown hash in passed resources - %s", hash)
+		}
+	}
+
+	hwBenches = append(hwBenches,
+		h.Storage.Benchmarks,
+		h.RAM.Benchmarks,
+		h.Network.GetBenchmarksIn(),
+		h.Network.GetBenchmarksOut())
+	proportions = append(proportions,
+		float64(resources.GetStorage().GetSize().GetBytes())/float64(h.Storage.Device.BytesAvailable),
+		float64(resources.GetRAM().GetSize().GetBytes())/float64(h.RAM.Device.Available),
+		float64(resources.GetNetwork().GetThroughputIn().GetBitsPerSecond())/float64(h.Network.In),
+		float64(resources.GetNetwork().GetThroughputOut().GetBitsPerSecond())/float64(h.Network.Out))
+
+	for idx, benchMap := range hwBenches {
+		for _, bench := range benchMap {
+			if err := insertBench(benchmarks, bench, proportions[idx]); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return sonm.NewBenchmarks(benchmarks)
 }
 
 type hashableRAM struct {

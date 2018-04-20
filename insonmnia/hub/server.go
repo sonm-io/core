@@ -291,7 +291,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	container.Image = reference.Path(ref)
 
 	startRequest := &pb.MinerStartRequest{
-		OrderId:   request.GetDealId(), // TODO: WTF?
+		DealID:    request.GetDealId(),
 		Id:        taskID,
 		Container: container,
 		RestartPolicy: &pb.ContainerRestartPolicy{
