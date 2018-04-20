@@ -39,13 +39,8 @@ func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.MarketOrd
 }
 
 func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.MarketOrder) (*pb.MarketOrder, error) {
-	id, err := m.remotes.eth.PlaceOrder(ctx, m.remotes.key, req, m.remotes.blockchainTimeout)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Id = id.String()
-	return req, nil
+	ordOrErr := <-m.remotes.eth.PlaceOrder(ctx, m.remotes.key, req)
+	return ordOrErr.Order, ordOrErr.Err
 }
 
 func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
@@ -54,7 +49,7 @@ func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, err
 		return nil, err
 	}
 
-	if err := m.remotes.eth.CancelOrder(ctx, m.remotes.key, id, m.remotes.blockchainTimeout); err != nil {
+	if err := <-m.remotes.eth.CancelOrder(ctx, m.remotes.key, id); err != nil {
 		return nil, err
 	}
 
