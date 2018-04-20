@@ -29,7 +29,7 @@ func makeHubWithOrder(t *testing.T, ctx context.Context, buyerId string, dealId 
 	return &Hub{
 		ctx: ctx,
 		worker: &miner.Miner{
-			Deals: map[structs.DealID]*structs.DealMeta{dealId: {Deal: &sonm.MarketDeal{ConsumerID: buyerId}}},
+			Deals: map[structs.DealID]*structs.DealMeta{dealId: {Deal: &sonm.Deal{ConsumerID: buyerId}}},
 		},
 	}
 }

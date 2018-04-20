@@ -10,12 +10,12 @@ import (
 
 func TestName(t *testing.T) {
 	into := struct {
-		Level MarketIdentityLevel
+		Level IdentityLevel
 	}{}
 
 	input := []byte(`level: pseudonymous`)
 	err := yaml.Unmarshal(input, &into)
 
 	require.NoError(t, err)
-	assert.Equal(t, MarketIdentityLevel_MARKET_PSEUDONYMOUS, into.Level)
+	assert.Equal(t, IdentityLevel_PSEUDONYMOUS, into.Level)
 }

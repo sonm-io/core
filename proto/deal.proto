@@ -6,7 +6,7 @@ import "bigint.proto";
 import "timestamp.proto";
 
 // Deprecated: TODO: please migrate to the new API.
-enum DealStatus {
+enum DeprecatedDealStatus {
     ANY_STATUS = 0;
     PENDING = 1;
     ACCEPTED = 2;
@@ -14,10 +14,10 @@ enum DealStatus {
 }
 
 // Deprecated: TODO: please migrate to the new API.
-message Deal {
+message DeprecatedDeal {
     string BuyerID = 1;
     string SupplierID = 2;
-    DealStatus status = 3;
+    DeprecatedDealStatus status = 3;
     BigInt price = 4;
     Timestamp startTime = 5;
     Timestamp endTime = 6;

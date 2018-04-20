@@ -92,7 +92,7 @@ func (w *DWH) Serve() error {
 	return w.grpc.Serve(lis)
 }
 
-func (w *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DealsReply, error) {
+func (w *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDealsReply, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
@@ -157,7 +157,7 @@ func (w *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.Deals
 		deals = append(deals, deal)
 	}
 
-	return &pb.DealsReply{Deals: deals}, nil
+	return &pb.DWHDealsReply{Deals: deals}, nil
 }
 
 func (w *DWH) GetDealDetails(ctx context.Context, request *pb.ID) (*pb.DWHDeal, error) {
@@ -188,12 +188,12 @@ func (w *DWH) GetDealConditions(context.Context, *pb.DealConditionsRequest) (*pb
 	return nil, errors.New("not implemented")
 }
 
-func (w *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.OrdersReply, error) {
+func (w *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWHOrdersReply, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
 	var filters []*filter
-	filters = append(filters, newFilter("Status", eq, pb.MarketOrderStatus_MARKET_ORDER_ACTIVE, "AND"))
+	filters = append(filters, newFilter("Status", eq, pb.OrderStatus_ORDER_ACTIVE, "AND"))
 	if request.DealID > "0" {
 		filters = append(filters, newFilter("DealID", eq, request.DealID, "AND"))
 	}
@@ -245,10 +245,10 @@ func (w *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.Ord
 		orders = append(orders, order)
 	}
 
-	return &pb.OrdersReply{Orders: orders}, nil
+	return &pb.DWHOrdersReply{Orders: orders}, nil
 }
 
-func (w *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersRequest) (*pb.OrdersReply, error) {
+func (w *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersRequest) (*pb.DWHOrdersReply, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
@@ -259,20 +259,20 @@ func (w *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 
 	var (
 		filters      []*filter
-		orderType    pb.MarketOrderType
+		orderType    pb.OrderType
 		priceOp      string
 		durationOp   string
 		benchOp      string
 		sortingOrder string
 	)
-	if order.OrderType == pb.MarketOrderType_MARKET_BID {
-		orderType = pb.MarketOrderType_MARKET_ASK
+	if order.Order.OrderType == pb.OrderType_BID {
+		orderType = pb.OrderType_ASK
 		priceOp = lte
 		durationOp = gte
 		benchOp = gte
 		sortingOrder = "ASC"
 	} else {
-		orderType = pb.MarketOrderType_MARKET_BID
+		orderType = pb.OrderType_BID
 		priceOp = gte
 		durationOp = lte
 		benchOp = lte
@@ -280,41 +280,41 @@ func (w *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	}
 
 	filters = append(filters, newFilter("Type", eq, orderType, "AND"))
-	filters = append(filters, newFilter("Status", eq, pb.MarketOrderStatus_MARKET_ORDER_ACTIVE, "AND"))
-	filters = append(filters, newFilter("Price", priceOp, order.Price.PaddedString(), "AND"))
-	if order.Duration > 0 {
-		filters = append(filters, newFilter("Duration", durationOp, order.Duration, "AND"))
+	filters = append(filters, newFilter("Status", eq, pb.OrderStatus_ORDER_ACTIVE, "AND"))
+	filters = append(filters, newFilter("Price", priceOp, order.Order.Price.PaddedString(), "AND"))
+	if order.Order.Duration > 0 {
+		filters = append(filters, newFilter("Duration", durationOp, order.Order.Duration, "AND"))
 	} else {
-		filters = append(filters, newFilter("Duration", eq, order.Duration, "AND"))
+		filters = append(filters, newFilter("Duration", eq, order.Order.Duration, "AND"))
 	}
-	if order.CounterpartyID > "0" {
-		filters = append(filters, newFilter("AuthorID", eq, order.CounterpartyID, "AND"))
+	if order.Order.CounterpartyID > "0" {
+		filters = append(filters, newFilter("AuthorID", eq, order.Order.CounterpartyID, "AND"))
 	}
 	counterpartyFilter := newFilter("CounterpartyID", eq, "", "OR")
 	counterpartyFilter.OpenBracket = true
 	filters = append(filters, counterpartyFilter)
-	counterpartyFilter = newFilter("CounterpartyID", eq, order.AuthorID, "AND")
+	counterpartyFilter = newFilter("CounterpartyID", eq, order.Order.AuthorID, "AND")
 	counterpartyFilter.CloseBracket = true
 	filters = append(filters, counterpartyFilter)
-	if order.OrderType == pb.MarketOrderType_MARKET_BID {
-		filters = append(filters, newNetflagsFilter(pb.CmpOp_GTE, order.Netflags))
+	if order.Order.OrderType == pb.OrderType_BID {
+		filters = append(filters, newNetflagsFilter(pb.CmpOp_GTE, order.Order.Netflags))
 	} else {
-		filters = append(filters, newNetflagsFilter(pb.CmpOp_LTE, order.Netflags))
+		filters = append(filters, newNetflagsFilter(pb.CmpOp_LTE, order.Order.Netflags))
 	}
-	filters = append(filters, newFilter("IdentityLevel", gte, order.IdentityLevel, "AND"))
+	filters = append(filters, newFilter("IdentityLevel", gte, order.Order.IdentityLevel, "AND"))
 	filters = append(filters, newFilter("CreatorIdentityLevel", lte, order.CreatorIdentityLevel, "AND"))
-	filters = append(filters, newFilter("CPUSysbenchMulti", benchOp, order.Benchmarks.CPUSysbenchMulti, "AND"))
-	filters = append(filters, newFilter("CPUSysbenchOne", benchOp, order.Benchmarks.CPUSysbenchOne, "AND"))
-	filters = append(filters, newFilter("CPUCores", benchOp, order.Benchmarks.CPUCores, "AND"))
-	filters = append(filters, newFilter("RAMSize", benchOp, order.Benchmarks.RAMSize, "AND"))
-	filters = append(filters, newFilter("StorageSize", benchOp, order.Benchmarks.StorageSize, "AND"))
-	filters = append(filters, newFilter("NetTrafficIn", benchOp, order.Benchmarks.NetTrafficIn, "AND"))
-	filters = append(filters, newFilter("NetTrafficOut", benchOp, order.Benchmarks.NetTrafficOut, "AND"))
-	filters = append(filters, newFilter("GPUCount", benchOp, order.Benchmarks.GPUCount, "AND"))
-	filters = append(filters, newFilter("GPUMem", benchOp, order.Benchmarks.GPUMem, "AND"))
-	filters = append(filters, newFilter("GPUEthHashrate", benchOp, order.Benchmarks.GPUEthHashrate, "AND"))
-	filters = append(filters, newFilter("GPUCashHashrate", benchOp, order.Benchmarks.GPUCashHashrate, "AND"))
-	filters = append(filters, newFilter("GPURedshift", benchOp, order.Benchmarks.GPURedshift, "AND"))
+	filters = append(filters, newFilter("CPUSysbenchMulti", benchOp, order.Order.Benchmarks.CPUSysbenchMulti, "AND"))
+	filters = append(filters, newFilter("CPUSysbenchOne", benchOp, order.Order.Benchmarks.CPUSysbenchOne, "AND"))
+	filters = append(filters, newFilter("CPUCores", benchOp, order.Order.Benchmarks.CPUCores, "AND"))
+	filters = append(filters, newFilter("RAMSize", benchOp, order.Order.Benchmarks.RAMSize, "AND"))
+	filters = append(filters, newFilter("StorageSize", benchOp, order.Order.Benchmarks.StorageSize, "AND"))
+	filters = append(filters, newFilter("NetTrafficIn", benchOp, order.Order.Benchmarks.NetTrafficIn, "AND"))
+	filters = append(filters, newFilter("NetTrafficOut", benchOp, order.Order.Benchmarks.NetTrafficOut, "AND"))
+	filters = append(filters, newFilter("GPUCount", benchOp, order.Order.Benchmarks.GPUCount, "AND"))
+	filters = append(filters, newFilter("GPUMem", benchOp, order.Order.Benchmarks.GPUMem, "AND"))
+	filters = append(filters, newFilter("GPUEthHashrate", benchOp, order.Order.Benchmarks.GPUEthHashrate, "AND"))
+	filters = append(filters, newFilter("GPUCashHashrate", benchOp, order.Order.Benchmarks.GPUCashHashrate, "AND"))
+	filters = append(filters, newFilter("GPURedshift", benchOp, order.Order.Benchmarks.GPURedshift, "AND"))
 
 	rows, query, err := runQuery(w.db, "Orders", request.Offset, request.Limit,
 		"Price", sortingOrder, filters...)
@@ -332,7 +332,7 @@ func (w *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 		orders = append(orders, order)
 	}
 
-	return &pb.OrdersReply{Orders: orders}, nil
+	return &pb.DWHOrdersReply{Orders: orders}, nil
 }
 
 func (w *DWH) GetOrderDetails(ctx context.Context, request *pb.ID) (*pb.DWHOrder, error) {
@@ -661,12 +661,12 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		return errors.Wrapf(err, "failed to getOrderDetails (Bid)")
 	}
 
-	benchmarksDecoded, err := pb.NewBenchmarks(deal.Benchmarks)
-	if err != nil {
-		return errors.Wrapf(err, "failed to decode benchmarks (OrderID: `%s`)", deal.Id)
-	}
+	// benchmarksDecoded, err := pb.NewBenchmarks()
+	//if err != nil {
+	//	return errors.Wrapf(err, "failed to decode benchmarks (OrderID: `%s`)", deal.Id)
+	//}
 
-	if deal.Status == pb.MarketDealStatus_MARKET_STATUS_CLOSED {
+	if deal.Status == pb.DealStatus_DEAL_CLOSED {
 		return nil
 	}
 
@@ -696,24 +696,24 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		deal.BlockedBalance.PaddedString(),
 		deal.TotalPayout.PaddedString(),
 		deal.LastBillTS.Seconds,
-		ask.Netflags,
-		ask.IdentityLevel,
-		bid.IdentityLevel,
+		ask.GetOrder().Netflags,
+		ask.GetOrder().IdentityLevel,
+		bid.GetOrder().IdentityLevel,
 		ask.CreatorCertificates,
 		bid.CreatorCertificates,
 		hasActiveChangeRequests,
-		benchmarksDecoded.CPUSysbenchMulti,
-		benchmarksDecoded.CPUSysbenchOne,
-		benchmarksDecoded.CPUCores,
-		benchmarksDecoded.RAMSize,
-		benchmarksDecoded.StorageSize,
-		benchmarksDecoded.NetTrafficIn,
-		benchmarksDecoded.NetTrafficOut,
-		benchmarksDecoded.GPUCount,
-		benchmarksDecoded.GPUMem,
-		benchmarksDecoded.GPUEthHashrate,
-		benchmarksDecoded.GPUCashHashrate,
-		benchmarksDecoded.GPURedshift,
+		deal.Benchmarks.CPUSysbenchMulti,
+		deal.Benchmarks.CPUSysbenchOne,
+		deal.Benchmarks.CPUCores,
+		deal.Benchmarks.RAMSize,
+		deal.Benchmarks.StorageSize,
+		deal.Benchmarks.NetTrafficIn,
+		deal.Benchmarks.NetTrafficOut,
+		deal.Benchmarks.GPUCount,
+		deal.Benchmarks.GPUMem,
+		deal.Benchmarks.GPUEthHashrate,
+		deal.Benchmarks.GPUCashHashrate,
+		deal.Benchmarks.GPURedshift,
 	)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
@@ -756,7 +756,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 		return errors.Wrapf(err, "failed to GetDealInfo")
 	}
 
-	if deal.Status == pb.MarketDealStatus_MARKET_STATUS_CLOSED {
+	if deal.Status == pb.DealStatus_DEAL_CLOSED {
 		tx, err := w.db.Begin()
 		if err != nil {
 			return errors.Wrap(err, "failed to begin transaction")
@@ -822,7 +822,7 @@ func (w *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 		return err
 	}
 
-	if changeRequest.Status != pb.MarketChangeRequestStatus_REQUEST_CREATED {
+	if changeRequest.Status != pb.ChangeRequestStatus_REQUEST_CREATED {
 		return errors.New("onDealChangeRequest event points to DealChangeRequest with .Status != Created")
 	}
 
@@ -896,7 +896,7 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 	}
 
 	switch changeRequest.Status {
-	case pb.MarketChangeRequestStatus_REQUEST_REJECTED:
+	case pb.ChangeRequestStatus_REQUEST_REJECTED:
 		_, err := w.db.Exec(
 			w.commands["updateDealChangeRequest"],
 			changeRequest.Status,
@@ -905,7 +905,7 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 		if err != nil {
 			return errors.Wrapf(err, "failed to update DealChangeRequest %s", changeRequest.Id)
 		}
-	case pb.MarketChangeRequestStatus_REQUEST_ACCEPTED:
+	case pb.ChangeRequestStatus_REQUEST_ACCEPTED:
 		deal, err := w.getDealDetails(w.ctx, &pb.ID{Id: changeRequest.DealID})
 		if err != nil {
 			return errors.Wrap(err, "failed to getDealDetails")
@@ -916,7 +916,7 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 			return errors.Wrap(err, "failed to begin transaction")
 		}
 
-		if err := w.updateDealConditionEndTime(tx, deal.Id, eventTS); err != nil {
+		if err := w.updateDealConditionEndTime(tx, deal.GetDeal().Id, eventTS); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -925,15 +925,15 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 		}
 		_, err = tx.Exec(
 			w.commands["insertDealCondition"],
-			deal.SupplierID,
-			deal.ConsumerID,
-			deal.MasterID,
+			deal.GetDeal().SupplierID,
+			deal.GetDeal().ConsumerID,
+			deal.GetDeal().MasterID,
 			changeRequest.Duration,
 			changeRequest.Price.PaddedString(),
 			eventTS,
 			0,
 			"0",
-			deal.Id,
+			deal.GetDeal().Id,
 		)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
@@ -1023,13 +1023,8 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		return errors.Wrapf(err, "failed to GetOrderInfo")
 	}
 
-	if order.OrderStatus != pb.MarketOrderStatus_MARKET_ORDER_ACTIVE {
+	if order.OrderStatus != pb.OrderStatus_ORDER_ACTIVE {
 		return nil
-	}
-
-	benchmarksDecoded, err := pb.NewBenchmarks(order.Benchmarks)
-	if err != nil {
-		return errors.Wrapf(err, "failed to decode benchmarks (OrderID: `%s`)", order.Id)
 	}
 
 	profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID})
@@ -1060,18 +1055,18 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		profile.Name,
 		profile.Country,
 		profile.Certificates,
-		benchmarksDecoded.CPUSysbenchMulti,
-		benchmarksDecoded.CPUSysbenchOne,
-		benchmarksDecoded.CPUCores,
-		benchmarksDecoded.RAMSize,
-		benchmarksDecoded.StorageSize,
-		benchmarksDecoded.NetTrafficIn,
-		benchmarksDecoded.NetTrafficOut,
-		benchmarksDecoded.GPUCount,
-		benchmarksDecoded.GPUMem,
-		benchmarksDecoded.GPUEthHashrate,
-		benchmarksDecoded.GPUCashHashrate,
-		benchmarksDecoded.GPURedshift,
+		order.Benchmarks.CPUSysbenchMulti,
+		order.Benchmarks.CPUSysbenchOne,
+		order.Benchmarks.CPUCores,
+		order.Benchmarks.RAMSize,
+		order.Benchmarks.StorageSize,
+		order.Benchmarks.NetTrafficIn,
+		order.Benchmarks.NetTrafficOut,
+		order.Benchmarks.GPUCount,
+		order.Benchmarks.GPUMem,
+		order.Benchmarks.GPUEthHashrate,
+		order.Benchmarks.GPUCashHashrate,
+		order.Benchmarks.GPURedshift,
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to insertOrder")
@@ -1431,40 +1426,42 @@ func (w *DWH) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 	bigTotalPayout.SetString(totalPayout, 10)
 
 	return &pb.DWHDeal{
-		Id:                   id,
-		SupplierID:           supplierID,
-		ConsumerID:           consumerID,
-		MasterID:             masterID,
-		AskID:                askID,
-		BidID:                bidID,
-		Price:                pb.NewBigInt(bigPrice),
-		Duration:             duration,
-		StartTime:            &pb.Timestamp{Seconds: startTime},
-		EndTime:              &pb.Timestamp{Seconds: endTime},
-		Status:               pb.MarketDealStatus(status),
-		BlockedBalance:       pb.NewBigInt(bigBlockedBalance),
-		TotalPayout:          pb.NewBigInt(bigTotalPayout),
-		LastBillTS:           &pb.Timestamp{Seconds: lastBillTS},
+		Deal: &pb.Deal{
+			Id:             id,
+			SupplierID:     supplierID,
+			ConsumerID:     consumerID,
+			MasterID:       masterID,
+			AskID:          askID,
+			BidID:          bidID,
+			Price:          pb.NewBigInt(bigPrice),
+			Duration:       duration,
+			StartTime:      &pb.Timestamp{Seconds: startTime},
+			EndTime:        &pb.Timestamp{Seconds: endTime},
+			Status:         pb.DealStatus(status),
+			BlockedBalance: pb.NewBigInt(bigBlockedBalance),
+			TotalPayout:    pb.NewBigInt(bigTotalPayout),
+			LastBillTS:     &pb.Timestamp{Seconds: lastBillTS},
+			Benchmarks: &pb.Benchmarks{
+				CPUSysbenchMulti: cpuSysbenchMulti,
+				CPUSysbenchOne:   cpuSysbenchOne,
+				CPUCores:         cpuCores,
+				RAMSize:          ramSize,
+				StorageSize:      storageSize,
+				NetTrafficIn:     netTrafficIn,
+				NetTrafficOut:    netTrafficOut,
+				GPUCount:         gpuCount,
+				GPUMem:           gpuMem,
+				GPUEthHashrate:   gpuEthHashrate,
+				GPUCashHashrate:  gpuCashHashrate,
+				GPURedshift:      gpuRedshift,
+			},
+		},
 		Netflags:             netflags,
 		AskIdentityLevel:     askIdentityLevel,
 		BidIdentityLevel:     bidIdentityLevel,
 		SupplierCertificates: supplierCertificates,
 		ConsumerCertificates: consumerCertificates,
 		ActiveChangeRequest:  activeChangeRequest,
-		Benchmarks: &pb.DWHBenchmarks{
-			CPUSysbenchMulti: cpuSysbenchMulti,
-			CPUSysbenchOne:   cpuSysbenchOne,
-			CPUCores:         cpuCores,
-			RAMSize:          ramSize,
-			StorageSize:      storageSize,
-			NetTrafficIn:     netTrafficIn,
-			NetTrafficOut:    netTrafficOut,
-			GPUCount:         gpuCount,
-			GPUMem:           gpuMem,
-			GPUEthHashrate:   gpuEthHashrate,
-			GPUCashHashrate:  gpuCashHashrate,
-			GPURedshift:      gpuRedshift,
-		},
 	}, nil
 }
 
@@ -1496,10 +1493,10 @@ func (w *DWH) decodeDealChangeRequest(rows *sql.Rows) (*pb.DealChangeRequest, er
 	return &pb.DealChangeRequest{
 		Id:          changeRequestID,
 		DealID:      dealID,
-		RequestType: pb.MarketOrderType(requestType),
+		RequestType: pb.OrderType(requestType),
 		Duration:    duration,
 		Price:       pb.NewBigInt(bigPrice),
-		Status:      pb.MarketChangeRequestStatus(status),
+		Status:      pb.ChangeRequestStatus(status),
 	}, nil
 }
 
@@ -1578,38 +1575,41 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 	bigFrozenSum.SetString(frozenSum, 10)
 
 	return &pb.DWHOrder{
-		Id:                   id,
+		Order: &pb.Order{
+			Id:             id,
+			DealID:         dealID,
+			OrderType:      pb.OrderType(orderType),
+			OrderStatus:    pb.OrderStatus(status),
+			AuthorID:       author,
+			CounterpartyID: counterAgent,
+			Duration:       duration,
+			Price:          pb.NewBigInt(bigPrice),
+			Netflags:       netflags,
+			IdentityLevel:  pb.IdentityLevel(identityLevel),
+			Blacklist:      blacklist,
+			Tag:            tag,
+			FrozenSum:      pb.NewBigInt(bigFrozenSum),
+			Benchmarks: &pb.Benchmarks{
+				CPUSysbenchMulti: cpuSysbenchMulti,
+				CPUSysbenchOne:   cpuSysbenchOne,
+				CPUCores:         cpuCores,
+				RAMSize:          ramSize,
+				StorageSize:      storageSize,
+				NetTrafficIn:     netTrafficIn,
+				NetTrafficOut:    netTrafficOut,
+				GPUCount:         gpuCount,
+				GPUMem:           gpuMem,
+				GPUEthHashrate:   gpuEthHashrate,
+				GPUCashHashrate:  gpuCashHashrate,
+				GPURedshift:      gpuRedshift,
+			},
+		},
+
 		CreatedTS:            createdTS,
-		DealID:               dealID,
-		OrderType:            pb.MarketOrderType(orderType),
-		OrderStatus:          pb.MarketOrderStatus(status),
-		AuthorID:             author,
-		CounterpartyID:       counterAgent,
-		Duration:             duration,
-		Price:                pb.NewBigInt(bigPrice),
-		Netflags:             netflags,
-		IdentityLevel:        pb.MarketIdentityLevel(identityLevel),
-		Blacklist:            blacklist,
-		Tag:                  tag,
-		FrozenSum:            pb.NewBigInt(bigFrozenSum),
 		CreatorIdentityLevel: creatorIdentityLevel,
 		CreatorName:          creatorName,
 		CreatorCountry:       creatorCountry,
 		CreatorCertificates:  creatorCertificates,
-		Benchmarks: &pb.DWHBenchmarks{
-			CPUSysbenchMulti: cpuSysbenchMulti,
-			CPUSysbenchOne:   cpuSysbenchOne,
-			CPUCores:         cpuCores,
-			RAMSize:          ramSize,
-			StorageSize:      storageSize,
-			NetTrafficIn:     netTrafficIn,
-			NetTrafficOut:    netTrafficOut,
-			GPUCount:         gpuCount,
-			GPUMem:           gpuMem,
-			GPUEthHashrate:   gpuEthHashrate,
-			GPUCashHashrate:  gpuCashHashrate,
-			GPURedshift:      gpuRedshift,
-		},
 	}, nil
 }
 

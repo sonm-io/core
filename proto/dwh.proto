@@ -15,22 +15,22 @@ enum CmpOp {
 
 
 service DWH {
-    rpc GetDeals(DealsRequest) returns (DealsReply) {}
-    rpc GetDealDetails(ID) returns (DWHDeal) {}
-    rpc GetDealConditions(DealConditionsRequest) returns (DealConditionsReply) {}
-    rpc GetOrders(OrdersRequest) returns (OrdersReply) {}
-    rpc GetMatchingOrders(MatchingOrdersRequest) returns (OrdersReply) {}
-    rpc GetOrderDetails(ID) returns (DWHOrder) {}
-    rpc GetProfiles(ProfilesRequest) returns (ProfilesReply) {}
-    rpc GetProfileInfo(ID) returns (Profile) {}
-    rpc GetBlacklist(ID) returns (BlacklistReply) {}
-    rpc GetValidators(ValidatorsRequest) returns (ValidatorsReply) {}
-    rpc GetDealChangeRequests(ID) returns (DealChangeRequestsReply) {}
-    rpc GetWorkers(WorkersRequest) returns (WorkersReply) {}
+    rpc GetDeals (DealsRequest) returns (DWHDealsReply) {}
+    rpc GetDealDetails (ID) returns (DWHDeal) {}
+    rpc GetDealConditions (DealConditionsRequest) returns (DealConditionsReply) {}
+    rpc GetOrders (OrdersRequest) returns (DWHOrdersReply) {}
+    rpc GetMatchingOrders (MatchingOrdersRequest) returns (DWHOrdersReply) {}
+    rpc GetOrderDetails (ID) returns (DWHOrder) {}
+    rpc GetProfiles (ProfilesRequest) returns (ProfilesReply) {}
+    rpc GetProfileInfo (ID) returns (Profile) {}
+    rpc GetBlacklist (ID) returns (BlacklistReply) {}
+    rpc GetValidators (ValidatorsRequest) returns (ValidatorsReply) {}
+    rpc GetDealChangeRequests (ID) returns (DealChangeRequestsReply) {}
+    rpc GetWorkers (WorkersRequest) returns (WorkersReply) {}
 }
 
 message DealsRequest {
-    MarketDealStatus status = 1;
+    DealStatus status = 1;
     string supplierID = 2;
     string consumerID = 3;
     string masterID = 4;
@@ -39,39 +39,26 @@ message DealsRequest {
     MaxMinUint64 duration = 7;
     MaxMinBig price = 8;
     CmpUint64 netflags = 9;
-    MarketIdentityLevel askIdentityLevel = 10;
-    MarketIdentityLevel bidIdentityLevel = 11;
+    IdentityLevel askIdentityLevel = 10;
+    IdentityLevel bidIdentityLevel = 11;
     DWHBenchmarkConditions benchmarks = 12;
     uint64 limit = 13;
     uint64 offset = 14;
 }
 
-message DealsReply {
+message DWHDealsReply {
     repeated DWHDeal deals = 1;
 }
 
 message DWHDeal {
-    string id = 1;
-    string supplierID = 2;
-    string consumerID = 3;
-    string masterID = 4;
-    string askID = 5;
-    string bidID = 6;
-    uint64 duration = 7;
-    BigInt price = 8;
-    Timestamp startTime = 9;
-    Timestamp endTime = 10;
-    MarketDealStatus status = 11;
-    BigInt blockedBalance = 12;
-    BigInt totalPayout = 13;
-    Timestamp lastBillTS = 14;
-    uint64 netflags = 15;
-    uint64 askIdentityLevel = 16;
-    uint64 bidIdentityLevel = 17;
-    bytes supplierCertificates = 18;
-    bytes consumerCertificates = 19;
-    bool activeChangeRequest = 20;
-    DWHBenchmarks benchmarks = 21;
+    Deal deal = 1;
+
+    uint64 netflags = 2;
+    uint64 askIdentityLevel = 3;
+    uint64 bidIdentityLevel = 4;
+    bytes supplierCertificates = 5;
+    bytes consumerCertificates = 6;
+    bool activeChangeRequest = 7;
 }
 
 message DealConditionsRequest {
@@ -85,14 +72,14 @@ message DealConditionsReply {
 
 message OrdersRequest {
     string dealID = 1;
-    MarketOrderType type = 2;
-    MarketOrderStatus status = 3;
+    OrderType type = 2;
+    OrderStatus status = 3;
     string authorID = 4;
     string counterpartyID = 5;
     MaxMinUint64 duration = 6;
     MaxMinBig price = 9;
     CmpUint64 netflags = 11;
-    MarketIdentityLevel creatorIdentityLevel = 12;
+    IdentityLevel creatorIdentityLevel = 12;
     DWHBenchmarkConditions benchmarks = 13;
     uint64 limit = 14;
     uint64 offset = 15;
@@ -104,30 +91,18 @@ message MatchingOrdersRequest {
     uint64 offset = 3;
 }
 
-message OrdersReply {
+message DWHOrdersReply {
     repeated DWHOrder orders = 1;
 }
 
 message DWHOrder {
-    string id = 1;
-    string dealID = 2;
-    MarketOrderType orderType = 3;
-    MarketOrderStatus orderStatus = 4;
-    string authorID = 5;
-    string counterpartyID = 6;
-    uint64 duration = 7;
-    BigInt price = 8;
-    uint64 netflags = 9;
-    MarketIdentityLevel identityLevel = 10;
-    string blacklist = 11;
-    bytes tag = 12;
-    BigInt frozenSum = 13;
-    uint64 creatorIdentityLevel = 14;
-    string creatorName = 15;
-    string creatorCountry = 16;
-    bytes creatorCertificates = 17;
-    uint64 CreatedTS = 18;
-    DWHBenchmarks benchmarks = 19;
+    Order order = 1;
+
+    uint64 creatorIdentityLevel = 2;
+    string creatorName = 3;
+    string creatorCountry = 4;
+    bytes creatorCertificates = 5;
+    uint64 CreatedTS = 6;
 }
 
 message DealCondition {
@@ -163,7 +138,7 @@ enum BlacklistOptions {
 
 message ProfilesRequest {
     ProfileRole role = 1;
-    MarketIdentityLevel identityLevel = 2;
+    IdentityLevel identityLevel = 2;
     string country = 3;
     string name = 4;
     string blacklistOwnerID = 5;
@@ -228,21 +203,6 @@ message Certificate {
     bytes value = 5;
 }
 
-message DWHBenchmarks {
-    uint64 CPUSysbenchMulti = 1;
-    uint64 CPUSysbenchOne = 2;
-    uint64 CPUCores = 3;
-    uint64 RAMSize = 4;
-    uint64 StorageSize = 5;
-    uint64 NetTrafficIn = 6;
-    uint64 NetTrafficOut = 7;
-    uint64 GPUCount = 8;
-    uint64 GPUMem = 9;
-    uint64 GPUEthHashrate = 10;
-    uint64 GPUCashHashrate = 11;
-    uint64 GPURedshift = 12;
-}
-
 message DWHBenchmarkConditions {
     MaxMinUint64 CPUSysbenchMulti = 1;
     MaxMinUint64 CPUSysbenchOne = 2;
@@ -276,8 +236,8 @@ message CmpUint64 {
 message DealChangeRequest {
     string id = 1;
     string dealID = 2;
-    MarketOrderType requestType = 3;
+    OrderType requestType = 3;
     uint64 duration = 4;
     BigInt price = 5;
-    MarketChangeRequestStatus status = 6;
+    ChangeRequestStatus status = 6;
 }

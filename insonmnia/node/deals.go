@@ -12,11 +12,11 @@ type dealsAPI struct {
 	remotes *remoteOptions
 }
 
-func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealListReply, error) {
+func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealsReply, error) {
 	// TODO(sshaman1101): better filters, need to discuss first
 	filters := dwh.DealsFilter{
 		Author: req.Owner.Unwrap(),
-		Status: pb.MarketDealStatus(req.Status),
+		Status: pb.DealStatus(req.Status),
 	}
 
 	deals, err := d.remotes.dwh.GetDeals(ctx, filters)
@@ -24,7 +24,7 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealL
 		return nil, err
 	}
 
-	return &pb.DealListReply{Deal: deals}, nil
+	return &pb.DealsReply{Deal: deals}, nil
 }
 
 func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {

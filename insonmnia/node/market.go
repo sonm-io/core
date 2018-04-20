@@ -29,7 +29,7 @@ func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*p
 	return &pb.GetOrdersReply{Orders: orders}, nil
 }
 
-func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.MarketOrder, error) {
+func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, error) {
 	id, err := util.ParseBigInt(req.GetId())
 	if err != nil {
 		return nil, err
@@ -38,7 +38,7 @@ func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.MarketOrd
 	return m.remotes.eth.GetOrderInfo(ctx, id)
 }
 
-func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.MarketOrder) (*pb.MarketOrder, error) {
+func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, error) {
 	ordOrErr := <-m.remotes.eth.PlaceOrder(ctx, m.remotes.key, req)
 	return ordOrErr.Order, ordOrErr.Err
 }

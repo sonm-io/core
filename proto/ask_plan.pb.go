@@ -49,15 +49,15 @@ It has these top-level messages:
 	Storage
 	NetworkSpec
 	Container
-	Deal
+	DeprecatedDeal
 	DealsRequest
-	DealsReply
+	DWHDealsReply
 	DWHDeal
 	DealConditionsRequest
 	DealConditionsReply
 	OrdersRequest
 	MatchingOrdersRequest
-	OrdersReply
+	DWHOrdersReply
 	DWHOrder
 	DealCondition
 	DWHWorker
@@ -72,7 +72,6 @@ It has these top-level messages:
 	WorkersRequest
 	WorkersReply
 	Certificate
-	DWHBenchmarks
 	DWHBenchmarkConditions
 	MaxMinUint64
 	MaxMinBig
@@ -110,8 +109,9 @@ It has these top-level messages:
 	Price
 	GetOrdersRequest
 	GetOrdersReply
-	MarketDeal
-	MarketOrder
+	Benchmarks
+	Deal
+	Order
 	MinerStartRequest
 	MinerStartReply
 	TaskInfo
@@ -121,7 +121,7 @@ It has these top-level messages:
 	SocketAddr
 	JoinNetworkRequest
 	DealListRequest
-	DealListReply
+	DealsReply
 	Worker
 	WorkerListReply
 	HandshakeRequest
