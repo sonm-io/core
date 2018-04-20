@@ -54,8 +54,8 @@ resources:
 	assert.Equal(t, uint64(150), ask.GetResources().GetCPU().GetCorePercents())
 
 	assert.Len(t, ask.Resources.GPU.Indexes, 2)
-	assert.Contains(t, ask.Resources.GPU.Indexes, "3")
-	assert.Contains(t, ask.Resources.GPU.Indexes, "5")
+	assert.Contains(t, ask.Resources.GPU.Indexes, uint64(3))
+	assert.Contains(t, ask.Resources.GPU.Indexes, uint64(5))
 
 	assert.Equal(t, uint64(25*1024*1024), ask.Resources.GetNetwork().GetThroughputIn().GetBitsPerSecond())
 	assert.Equal(t, uint64(40e6), ask.Resources.GetNetwork().GetThroughputOut().GetBitsPerSecond())
