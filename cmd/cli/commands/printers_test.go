@@ -12,7 +12,7 @@ func TestJsonOutputForOrder(t *testing.T) {
 	buf := initRootCmd(t, "", config.OutputModeJSON)
 
 	bigVal, _ := pb.NewBigIntFromString("1000000000000000000000000000")
-	printSearchResults(rootCmd, []*pb.MarketOrder{{
+	printSearchResults(rootCmd, []*pb.Order{{
 		Price: bigVal,
 	},
 	})
@@ -23,8 +23,8 @@ func TestJsonOutputForOrder(t *testing.T) {
 }
 
 func TestDealInfoWithZeroDuration(t *testing.T) {
-	deal := &pb.MarketDeal{
-		Status:     pb.MarketDealStatus_MARKET_STATUS_CLOSED,
+	deal := &pb.Deal{
+		Status:     pb.DealStatus_DEAL_CLOSED,
 		Id:         "1488",
 		ConsumerID: "0x111",
 		SupplierID: "0x222",

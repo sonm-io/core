@@ -13,49 +13,49 @@ service Market {
     // CreateOrder places new order on the Marketplace.
     // Note that current impl of Node API prevents you from
     // creating ASKs orders.
-    rpc CreateOrder(MarketOrder) returns (MarketOrder) {}
+    rpc CreateOrder(Order) returns (Order) {}
     // GetOrderByID returns order by given ID.
     // If order save an `inactive` status returns error instead.
-    rpc GetOrderByID(ID) returns (MarketOrder) {}
+    rpc GetOrderByID(ID) returns (Order) {}
     // CancelOrder removes active order from the Marketplace.
     rpc CancelOrder(ID) returns (Empty) {}
 }
 
 message GetOrdersRequest {
-    MarketOrderType type = 1;
+    OrderType type = 1;
     BigInt Price = 2;
     EthAddress Counterparty  = 3;
     uint64 count = 4;
 }
 
 message GetOrdersReply {
-    repeated MarketOrder orders = 1;
+    repeated Order orders = 1;
 }
 
-enum MarketOrderType {
-    MARKET_ANY = 0;
-    MARKET_BID = 1;
-    MARKET_ASK = 2;
+enum OrderType {
+    ANY = 0;
+    BID = 1;
+    ASK = 2;
 }
 
-enum MarketOrderStatus {
-    MARKET_ORDER_INACTIVE = 0;
-    MARKET_ORDER_ACTIVE = 1;
+enum OrderStatus {
+    ORDER_INACTIVE = 0;
+    ORDER_ACTIVE = 1;
 }
 
-enum MarketIdentityLevel {
-    MARKET_ANONIMOUS = 0;
-    MARKET_PSEUDONYMOUS = 1;
-    MARKET_IDENTIFIED = 2;
+enum IdentityLevel {
+    ANONIMOUS = 0;
+    PSEUDONYMOUS = 1;
+    IDENTIFIED = 2;
 }
 
-enum MarketDealStatus {
-    MARKET_STATUS_UNKNOWN = 0;
-    MARKET_STATUS_ACCEPTED = 1;
-    MARKET_STATUS_CLOSED = 2;
+enum DealStatus {
+    DEAL_UNKNOWN = 0;
+    DEAL_ACCEPTED = 1;
+    DEAL_CLOSED = 2;
 }
 
-enum MarketChangeRequestStatus {
+enum ChangeRequestStatus {
     REQUEST_UNKNOWN = 0;
     REQUEST_CREATED = 1;
     REQUEST_CANCELED = 2;
@@ -63,9 +63,24 @@ enum MarketChangeRequestStatus {
     REQUEST_ACCEPTED = 4;
 }
 
-message MarketDeal {
+message Benchmarks {
+    uint64 CPUSysbenchMulti = 1;
+    uint64 CPUSysbenchOne = 2;
+    uint64 CPUCores = 3;
+    uint64 RAMSize = 4;
+    uint64 StorageSize = 5;
+    uint64 NetTrafficIn = 6;
+    uint64 NetTrafficOut = 7;
+    uint64 GPUCount = 8;
+    uint64 GPUMem = 9;
+    uint64 GPUEthHashrate = 10;
+    uint64 GPUCashHashrate = 11;
+    uint64 GPURedshift = 12;
+}
+
+message Deal {
     string id = 1;
-    repeated uint64 benchmarks = 2;
+    Benchmarks benchmarks = 2;
     string supplierID = 3;
     string consumerID = 4;
     string masterID = 5;
@@ -75,25 +90,25 @@ message MarketDeal {
     BigInt price = 9;
     Timestamp startTime = 10;
     Timestamp endTime = 11;
-    MarketDealStatus status = 12;
+    DealStatus status = 12;
     BigInt blockedBalance = 13;
     BigInt totalPayout = 14;
     Timestamp lastBillTS = 15;
 }
 
-message MarketOrder {
+message Order {
     string id = 1;
     string dealID = 2;
-    MarketOrderType orderType = 3;
-    MarketOrderStatus orderStatus = 4;
+    OrderType orderType = 3;
+    OrderStatus orderStatus = 4;
     string authorID = 5;
     string counterpartyID = 6;
     uint64 duration = 7;
     BigInt price = 8;
     uint64 netflags = 9;
-    MarketIdentityLevel identityLevel = 10;
+    IdentityLevel identityLevel = 10;
     string blacklist = 11;
     bytes tag = 12;
-    repeated uint64 benchmarks = 13;
+    Benchmarks benchmarks = 13;
     BigInt frozenSum = 14;
 }

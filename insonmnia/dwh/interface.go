@@ -10,31 +10,31 @@ import (
 
 type DealsFilter struct {
 	Author common.Address
-	Status sonm.MarketDealStatus
+	Status sonm.DealStatus
 }
 
 type OrderFilter struct {
 	Count        uint64
-	Type         sonm.MarketOrderType
+	Type         sonm.OrderType
 	Price        *big.Int
 	Counterparty common.Address
 }
 
 type MockDWH interface {
-	GetOrders(ctx context.Context, filter OrderFilter) ([]*sonm.MarketOrder, error)
-	GetDeals(ctx context.Context, filter DealsFilter) ([]*sonm.MarketDeal, error)
+	GetOrders(ctx context.Context, filter OrderFilter) ([]*sonm.Order, error)
+	GetDeals(ctx context.Context, filter DealsFilter) ([]*sonm.Deal, error)
 }
 
 type dumbDWH struct {
 	ctx context.Context
 }
 
-func (dwh *dumbDWH) GetDeals(ctx context.Context, filter DealsFilter) ([]*sonm.MarketDeal, error) {
-	return []*sonm.MarketDeal{}, nil
+func (dwh *dumbDWH) GetDeals(ctx context.Context, filter DealsFilter) ([]*sonm.Deal, error) {
+	return []*sonm.Deal{}, nil
 }
 
-func (dwh *dumbDWH) GetOrders(ctx context.Context, filter OrderFilter) ([]*sonm.MarketOrder, error) {
-	return []*sonm.MarketOrder{}, nil
+func (dwh *dumbDWH) GetOrders(ctx context.Context, filter OrderFilter) ([]*sonm.Order, error) {
+	return []*sonm.Order{}, nil
 }
 
 func NewDumbDWH(ctx context.Context) MockDWH {

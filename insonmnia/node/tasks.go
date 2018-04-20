@@ -38,7 +38,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.EthAddress) (*pb.TaskListRe
 	// get all accepted deals, because only on the accepted deals client can start the payloads.
 	activeDeals, err := t.remotes.dwh.GetDeals(ctx, dwh.DealsFilter{
 		Author: crypto.PubkeyToAddress(t.remotes.key.PublicKey),
-		Status: pb.MarketDealStatus_MARKET_STATUS_ACCEPTED,
+		Status: pb.DealStatus_DEAL_ACCEPTED,
 	})
 	if err != nil {
 		return nil, err
@@ -54,7 +54,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.EthAddress) (*pb.TaskListRe
 	return &pb.TaskListReply{Info: tasks}, nil
 }
 
-func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.MarketDeal) {
+func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.Deal) {
 	hub, cc, err := t.getHubClientByEthAddr(ctx, deal.GetSupplierID())
 	if err != nil {
 		log.G(t.ctx).Error("cannot resolve hub address",

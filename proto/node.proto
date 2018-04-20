@@ -41,7 +41,7 @@ message JoinNetworkRequest {
 // to manage deals made into the SONM network
 service DealManagement {
     // List produces a list of all deals made by client with given ID
-    rpc List(DealListRequest) returns (DealListReply) {}
+    rpc List(DealListRequest) returns (DealsReply) {}
     // Status produces a detailed info about deal with given ID.
     rpc Status(ID) returns (DealInfoReply) {}
     // Finish finishes a deal with given ID
@@ -50,11 +50,11 @@ service DealManagement {
 
 message DealListRequest {
     EthAddress owner = 1;
-    MarketDealStatus status = 2;
+    DealStatus status = 2;
 }
 
-message DealListReply {
-    repeated MarketDeal deal = 1;
+message DealsReply {
+    repeated Deal deal = 1;
 }
 
 // todo: implement this as part of Node API

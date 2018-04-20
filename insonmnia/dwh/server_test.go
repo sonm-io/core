@@ -16,6 +16,7 @@ import (
 	"github.com/pkg/errors"
 	bch "github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -46,7 +47,7 @@ func TestDWH_GetDeals(t *testing.T) {
 	// Test TEXT columns.
 	{
 		request := &pb.DealsRequest{
-			Status:     pb.MarketDealStatus_MARKET_STATUS_UNKNOWN,
+			Status:     pb.DealStatus_DEAL_UNKNOWN,
 			SupplierID: "supplier_5",
 		}
 		reply, err := w.GetDeals(context.Background(), request)
@@ -61,16 +62,16 @@ func TestDWH_GetDeals(t *testing.T) {
 			return
 		}
 
-		if reply.Deals[0].SupplierID != "supplier_5" {
+		if reply.Deals[0].GetDeal().SupplierID != "supplier_5" {
 			t.Errorf("Request `%+v` failed, expected %d, got %d (SupplierID)",
-				request, 10015, reply.Deals[0].Duration)
+				request, 10015, reply.Deals[0].GetDeal().Duration)
 			return
 		}
 	}
 	// Test INTEGER columns.
 	{
 		request := &pb.DealsRequest{
-			Status: pb.MarketDealStatus_MARKET_STATUS_UNKNOWN,
+			Status: pb.DealStatus_DEAL_UNKNOWN,
 			Duration: &pb.MaxMinUint64{
 				Min: 10015,
 			},
@@ -90,7 +91,7 @@ func TestDWH_GetDeals(t *testing.T) {
 	// Test TEXT columns which should be treated as INTEGERS.
 	{
 		request := &pb.DealsRequest{
-			Status: pb.MarketDealStatus_MARKET_STATUS_UNKNOWN,
+			Status: pb.DealStatus_DEAL_UNKNOWN,
 			Price: &pb.MaxMinBig{
 				Min: pb.NewBigIntFromInt(20015),
 			},
@@ -107,21 +108,22 @@ func TestDWH_GetDeals(t *testing.T) {
 			return
 		}
 
-		if reply.Deals[0].Price.Unwrap().String() != "20015" {
+		if reply.Deals[0].GetDeal().Price.Unwrap().String() != "20015" {
 			t.Errorf("Request `%+v` failed, expected %d, got %d (Price)",
-				request, 10015, reply.Deals[0].Duration)
+				request, 10015, reply.Deals[0].GetDeal().Duration)
 			return
 		}
 	}
 }
 
 func TestDWH_GetDealDetails(t *testing.T) {
-	reply, err := w.GetDealDetails(context.Background(), &pb.ID{Id: "id_5"})
+	deal, err := w.GetDealDetails(context.Background(), &pb.ID{Id: "id_5"})
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
+	reply := deal.GetDeal()
 	if reply.Id != "id_5" {
 		t.Errorf("Expected %s, got %s (Id)", "id_5", reply.Id)
 	}
@@ -161,11 +163,11 @@ func TestDWH_GetDealDetails(t *testing.T) {
 	if reply.LastBillTS.Seconds != 70015 {
 		t.Errorf("Expected %d, got %d (LastBillTS)", 70015, reply.LastBillTS.Seconds)
 	}
-	if !reply.ActiveChangeRequest {
-		t.Errorf("Expected %t, got %t (ActiveChangeRequest)", true, reply.ActiveChangeRequest)
+	if !deal.ActiveChangeRequest {
+		t.Errorf("Expected %t, got %t (ActiveChangeRequest)", true, deal.ActiveChangeRequest)
 	}
-	if string(reply.SupplierCertificates) != string([]byte{1, 2}) {
-		t.Errorf("Expected %s, got %s (SupplierCertificates)", string([]byte{1, 2}), reply.SupplierCertificates)
+	if string(deal.SupplierCertificates) != string([]byte{1, 2}) {
+		t.Errorf("Expected %s, got %s (SupplierCertificates)", string([]byte{1, 2}), deal.SupplierCertificates)
 	}
 }
 
@@ -173,7 +175,7 @@ func TestDWH_GetOrders(t *testing.T) {
 	// Test TEXT columns.
 	{
 		request := &pb.OrdersRequest{
-			Type:   pb.MarketOrderType_MARKET_ANY,
+			Type:   pb.OrderType_ANY,
 			DealID: "deal_id_5",
 		}
 		reply, err := w.GetOrders(context.Background(), request)
@@ -188,16 +190,16 @@ func TestDWH_GetOrders(t *testing.T) {
 			return
 		}
 
-		if reply.Orders[0].AuthorID != "ask_author" {
+		if reply.Orders[0].GetOrder().AuthorID != "ask_author" {
 			t.Errorf("Request `%+v` failed, expected %s, got %s (AuthorID)",
-				request, "ask_author", reply.Orders[0].AuthorID)
+				request, "ask_author", reply.Orders[0].GetOrder().AuthorID)
 			return
 		}
 	}
 	// Test INTEGER columns.
 	{
 		request := &pb.OrdersRequest{
-			Type: pb.MarketOrderType_MARKET_ASK,
+			Type: pb.OrderType_ASK,
 			Duration: &pb.MaxMinUint64{
 				Min: 10015,
 			},
@@ -219,16 +221,16 @@ func TestDWH_GetOrders(t *testing.T) {
 			return
 		}
 
-		if reply.Orders[0].Duration != uint64(10015) {
+		if reply.Orders[0].GetOrder().Duration != uint64(10015) {
 			t.Errorf("Request `%+v` failed, expected %d, got %d (Duration)",
-				request, 10015, reply.Orders[0].Duration)
+				request, 10015, reply.Orders[0].GetOrder().Duration)
 			return
 		}
 	}
 	// Test TEXT columns which should be treated as INTEGERS.
 	{
 		request := &pb.OrdersRequest{
-			Type: pb.MarketOrderType_MARKET_ASK,
+			Type: pb.OrderType_ASK,
 			Price: &pb.MaxMinBig{
 				Min: pb.NewBigIntFromInt(int64(20015)),
 			},
@@ -245,9 +247,9 @@ func TestDWH_GetOrders(t *testing.T) {
 			return
 		}
 
-		if reply.Orders[0].Price.Unwrap().String() != "20015" {
+		if reply.Orders[0].GetOrder().Price.Unwrap().String() != "20015" {
 			t.Errorf("Request `%+v` failed, expected %d, got %d (Price)",
-				request, 10015, reply.Orders[0].Duration)
+				request, 10015, reply.Orders[0].GetOrder().Duration)
 			return
 		}
 	}
@@ -270,12 +272,13 @@ func TestDWH_GetMatchingOrders(t *testing.T) {
 }
 
 func TestDWH_GetOrderDetails(t *testing.T) {
-	reply, err := w.GetOrderDetails(context.Background(), &pb.ID{Id: "ask_id_5"})
+	order, err := w.GetOrderDetails(context.Background(), &pb.ID{Id: "ask_id_5"})
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
+	reply := order.GetOrder()
 	if reply.Id != "ask_id_5" {
 		t.Errorf("Expected %s, got %s (Id)", "ask_id_5", reply.Id)
 	}
@@ -333,9 +336,12 @@ func TestDWH_monitor(t *testing.T) {
 
 	mockBlock.EXPECT().GetEvents(gomock.Any(), gomock.Any()).AnyTimes().Return(events, nil)
 
-	deal := &pb.MarketDeal{
+	benchmarks, err := pb.NewBenchmarks([]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
+	require.NoError(t, err)
+
+	deal := &pb.Deal{
 		Id:             commonID.String(),
-		Benchmarks:     []uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+		Benchmarks:     benchmarks,
 		SupplierID:     "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE",
 		ConsumerID:     "consumer_id",
 		MasterID:       "master_id",
@@ -345,27 +351,27 @@ func TestDWH_monitor(t *testing.T) {
 		Price:          pb.NewBigInt(big.NewInt(20010)),
 		StartTime:      &pb.Timestamp{Seconds: 30010},
 		EndTime:        &pb.Timestamp{Seconds: 40010},
-		Status:         pb.MarketDealStatus_MARKET_STATUS_ACCEPTED,
+		Status:         pb.DealStatus_DEAL_ACCEPTED,
 		BlockedBalance: pb.NewBigInt(big.NewInt(50010)),
 		TotalPayout:    pb.NewBigInt(big.NewInt(0)),
 		LastBillTS:     &pb.Timestamp{Seconds: 70010},
 	}
 	mockBlock.EXPECT().GetDealInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(deal, nil)
 
-	order := &pb.MarketOrder{
+	order := &pb.Order{
 		Id:             commonID.String(),
 		DealID:         "",
-		OrderType:      pb.MarketOrderType_MARKET_ASK,
-		OrderStatus:    pb.MarketOrderStatus_MARKET_ORDER_ACTIVE,
+		OrderType:      pb.OrderType_ASK,
+		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
 		AuthorID:       "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE",
 		CounterpartyID: "counterparty_id",
 		Duration:       10020,
 		Price:          pb.NewBigInt(big.NewInt(20010)),
 		Netflags:       7,
-		IdentityLevel:  pb.MarketIdentityLevel_MARKET_ANONIMOUS,
+		IdentityLevel:  pb.IdentityLevel_ANONIMOUS,
 		Blacklist:      "blacklist",
 		Tag:            []byte{0, 1},
-		Benchmarks:     []uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11},
+		Benchmarks:     benchmarks,
 		FrozenSum:      pb.NewBigInt(big.NewInt(30010)),
 	}
 	mockBlock.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(order, nil)
@@ -373,10 +379,10 @@ func TestDWH_monitor(t *testing.T) {
 	changeRequest := &pb.DealChangeRequest{
 		Id:          "0",
 		DealID:      commonID.String(),
-		RequestType: pb.MarketOrderType_MARKET_ASK,
+		RequestType: pb.OrderType_ASK,
 		Duration:    10020,
 		Price:       pb.NewBigInt(big.NewInt(20010)),
-		Status:      pb.MarketChangeRequestStatus_REQUEST_CREATED,
+		Status:      pb.ChangeRequestStatus_REQUEST_CREATED,
 	}
 	mockBlock.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
 
@@ -406,8 +412,8 @@ func TestDWH_monitor(t *testing.T) {
 		t.Errorf("Failed to GetOrderDetails: %s", err)
 		return
 	} else {
-		if order.Duration != 10020 {
-			t.Errorf("Expected %d, got %d (Order.Duration)", 10020, order.Duration)
+		if order.GetOrder().Duration != 10020 {
+			t.Errorf("Expected %d, got %d (Order.Duration)", 10020, order.GetOrder().Duration)
 		}
 	}
 
@@ -419,8 +425,8 @@ func TestDWH_monitor(t *testing.T) {
 		t.Errorf("Failed to GetDealDetails: %s", err)
 		return
 	} else {
-		if deal.Duration != 10020 {
-			t.Errorf("Expected %d, got %d (Deal.Duration)", 10020, deal.Duration)
+		if deal.GetDeal().Duration != 10020 {
+			t.Errorf("Expected %d, got %d (Deal.Duration)", 10020, deal.GetDeal().Duration)
 		}
 	}
 	// Secondly, check that a DealCondition was created.
@@ -582,8 +588,8 @@ func TestDWH_monitor(t *testing.T) {
 		t.Errorf("Failed to GetDealDetails: %s", err)
 		return
 	} else {
-		if deal.Duration != 10021 {
-			t.Errorf("Expected %d, got %d (Deal.Duration)", 10021, deal.Duration)
+		if deal.GetDeal().Duration != 10021 {
+			t.Errorf("Expected %d, got %d (Deal.Duration)", 10021, deal.GetDeal().Duration)
 		}
 	}
 
@@ -620,7 +626,7 @@ func TestDWH_monitor(t *testing.T) {
 	// Test that when a BID DealChangeRequest was created, it was kept (and nothing was deleted).
 	changeRequest.Id = "2"
 	changeRequest.Duration = 10022
-	changeRequest.RequestType = pb.MarketOrderType_MARKET_BID
+	changeRequest.RequestType = pb.OrderType_BID
 	events <- &bch.Event{Data: &bch.DealChangeRequestSentData{ID: big.NewInt(2)}, TS: commonEventTS}
 	time.Sleep(time.Millisecond * 200)
 	if changeRequest, err := getDealChangeRequest(changeRequest.Id); err != nil {
@@ -638,7 +644,7 @@ func TestDWH_monitor(t *testing.T) {
 
 	// Test that when a DealChangeRequest is updated to any status but REJECTED, it is deleted.
 	changeRequest.Id = "1"
-	changeRequest.Status = pb.MarketChangeRequestStatus_REQUEST_ACCEPTED
+	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_ACCEPTED
 	events <- &bch.Event{Data: &bch.DealChangeRequestUpdatedData{ID: big.NewInt(1)}, TS: commonEventTS}
 	time.Sleep(time.Millisecond * 200)
 	if _, err := getDealChangeRequest("1"); err == nil {
@@ -666,7 +672,7 @@ func TestDWH_monitor(t *testing.T) {
 
 	// Test that when a DealChangeRequest is updated to REJECTED, it is kept.
 	changeRequest.Id = "2"
-	changeRequest.Status = pb.MarketChangeRequestStatus_REQUEST_REJECTED
+	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_REJECTED
 	events <- &bch.Event{Data: &bch.DealChangeRequestUpdatedData{ID: big.NewInt(2)}, TS: commonEventTS}
 	time.Sleep(time.Millisecond * 200)
 	if _, err := getDealChangeRequest("2"); err != nil {
@@ -707,7 +713,7 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Test that when a Deal's status is updated to CLOSED, Deal and its DealConditions are deleted.
-	deal.Status = pb.MarketDealStatus_MARKET_STATUS_CLOSED
+	deal.Status = pb.DealStatus_DEAL_CLOSED
 	// Test onDealUpdated event handling.
 	events <- &bch.Event{Data: &bch.DealUpdatedData{ID: commonID}, TS: commonEventTS}
 	time.Sleep(time.Millisecond * 200)
@@ -966,7 +972,7 @@ func getTestDWH() (*DWH, error) {
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			30010+i, // StartTime
 			40010+i, // EndTime
-			uint64(pb.MarketDealStatus_MARKET_STATUS_ACCEPTED),
+			uint64(pb.DealStatus_DEAL_ACCEPTED),
 			pb.NewBigIntFromInt(50010+int64(i)).PaddedString(), // BlockedBalance
 			pb.NewBigIntFromInt(60010+int64(i)).PaddedString(), // TotalPayout
 			70010+i,      // LastBillTS
@@ -998,18 +1004,18 @@ func getTestDWH() (*DWH, error) {
 			fmt.Sprintf("ask_id_%d", i),
 			12345, // CreatedTS
 			fmt.Sprintf("deal_id_%d", i),
-			uint64(pb.MarketOrderType_MARKET_ASK),
-			uint64(pb.MarketOrderStatus_MARKET_ORDER_ACTIVE),
+			uint64(pb.OrderType_ASK),
+			uint64(pb.OrderStatus_ORDER_ACTIVE),
 			"ask_author", // AuthorID
 			"bid_author", // CounterpartyID
 			10010+i,
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			7, // Netflags
-			uint64(pb.MarketIdentityLevel_MARKET_ANONIMOUS),
+			uint64(pb.IdentityLevel_ANONIMOUS),
 			fmt.Sprintf("blacklist_%d", i),
 			[]byte{1, 2, 3},          // Tag
 			fmt.Sprintf("3001%d", i), // FrozenSum
-			uint64(pb.MarketIdentityLevel_MARKET_PSEUDONYMOUS),
+			uint64(pb.IdentityLevel_PSEUDONYMOUS),
 			"CreatorName",
 			"CreatorCountry",
 			[]byte{}, // CreatorCertificates
@@ -1035,18 +1041,18 @@ func getTestDWH() (*DWH, error) {
 			fmt.Sprintf("bid_id_%d", i),
 			12345, // CreatedTS
 			fmt.Sprintf("deal_id_%d", i),
-			uint64(pb.MarketOrderType_MARKET_BID),
-			uint64(pb.MarketOrderStatus_MARKET_ORDER_ACTIVE),
+			uint64(pb.OrderType_BID),
+			uint64(pb.OrderStatus_ORDER_ACTIVE),
 			"bid_author", // AuthorID
 			"ask_author", // CounterpartyID
 			10010-i,      // Duration
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			5, // Netflags
-			uint64(pb.MarketIdentityLevel_MARKET_ANONIMOUS),
+			uint64(pb.IdentityLevel_ANONIMOUS),
 			fmt.Sprintf("blacklist_%d", i),
-			[]byte{1, 2, 3},                                    // Tag
-			fmt.Sprintf("3001%d", i),                           // FrozenSum
-			uint64(pb.MarketIdentityLevel_MARKET_PSEUDONYMOUS), // CreatorIdentityLevel
+			[]byte{1, 2, 3},                       // Tag
+			fmt.Sprintf("3001%d", i),              // FrozenSum
+			uint64(pb.IdentityLevel_PSEUDONYMOUS), // CreatorIdentityLevel
 			"CreatorName",
 			"CreatorCountry",
 			[]byte{}, // CreatorCertificates

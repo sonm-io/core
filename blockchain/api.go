@@ -43,23 +43,23 @@ type EventsAPI interface {
 }
 
 type DealOrError struct {
-	Deal *pb.MarketDeal
+	Deal *pb.Deal
 	err  error
 }
 
 type OrderOrError struct {
-	Order *pb.MarketOrder
+	Order *pb.Order
 	Err   error
 }
 
 type MarketAPI interface {
 	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) chan DealOrError
 	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (*types.Transaction, error)
-	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.MarketDeal, error)
+	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error)
 	GetDealsAmount(ctx context.Context) (*big.Int, error)
-	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder) chan OrderOrError
+	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) chan OrderOrError
 	CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) chan error
-	GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.MarketOrder, error)
+	GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Order, error)
 	GetOrdersAmount(ctx context.Context) (*big.Int, error)
 	Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) (*types.Transaction, error)
 	RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) (*types.Transaction, error)
@@ -198,7 +198,7 @@ func (api *BasicAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealI
 	return api.marketContract.CloseDeal(opts, dealID, blacklisted)
 }
 
-func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.MarketDeal, error) {
+func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error) {
 	deal1, err := api.marketContract.GetDealInfo(getCallOptions(ctx), dealID)
 	if err != nil {
 		return nil, err
@@ -209,9 +209,14 @@ func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Mark
 		return nil, err
 	}
 
-	return &pb.MarketDeal{
+	benchmarks, err := pb.NewBenchmarks(deal1.Benchmarks)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Deal{
 		Id:             dealID.String(),
-		Benchmarks:     deal1.Benchmarks,
+		Benchmarks:     benchmarks,
 		SupplierID:     deal1.SupplierID.String(),
 		ConsumerID:     deal1.ConsumerID.String(),
 		MasterID:       deal1.MasterID.String(),
@@ -221,7 +226,7 @@ func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Mark
 		Price:          pb.NewBigInt(deal2.Price),
 		StartTime:      &pb.Timestamp{Seconds: deal1.StartTime.Int64()},
 		EndTime:        &pb.Timestamp{Seconds: deal2.EndTime.Int64()},
-		Status:         pb.MarketDealStatus(deal2.Status),
+		Status:         pb.DealStatus(deal2.Status),
 		BlockedBalance: pb.NewBigInt(deal2.BlockedBalance),
 		TotalPayout:    pb.NewBigInt(deal2.TotalPayout),
 		LastBillTS:     &pb.Timestamp{Seconds: deal2.LastBillTS.Int64()},
@@ -232,18 +237,19 @@ func (api *BasicAPI) GetDealsAmount(ctx context.Context) (*big.Int, error) {
 	return api.marketContract.GetDealsAmount(getCallOptions(ctx))
 }
 
-func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder) chan OrderOrError {
+func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) chan OrderOrError {
 	ch := make(chan OrderOrError, 0)
 	go api.placeOrder(ctx, key, order, ch)
 	return ch
 }
 
-func (api *BasicAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.MarketOrder, ch chan OrderOrError) {
+func (api *BasicAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order, ch chan OrderOrError) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 
 	fixedNetflags := pb.UintToNetflags(order.Netflags)
 	var fixedTag [32]byte
 	copy(fixedTag[:], order.Tag[:])
+
 	tx, err := api.marketContract.PlaceOrder(opts,
 		uint8(order.OrderType),
 		common.StringToAddress(order.CounterpartyID),
@@ -253,7 +259,7 @@ func (api *BasicAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey, orde
 		uint8(order.IdentityLevel),
 		common.StringToAddress(order.Blacklist),
 		fixedTag,
-		order.Benchmarks,
+		order.GetBenchmarks().ToArray(),
 	)
 
 	id, err := api.waitForTransactionResult(ctx, tx, OrderPlacedTopic)
@@ -286,7 +292,7 @@ func (api *BasicAPI) cancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id 
 	ch <- nil
 }
 
-func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.MarketOrder, error) {
+func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Order, error) {
 	order1, err := api.marketContract.GetOrderInfo(getCallOptions(ctx), orderID)
 	if err != nil {
 		return nil, err
@@ -299,20 +305,25 @@ func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Ma
 
 	netflags := pb.NetflagsToUint(order1.Netflags)
 
-	return &pb.MarketOrder{
+	dwhBenchmarks, err := pb.NewBenchmarks(order1.Benchmarks)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.Order{
 		Id:             orderID.String(),
 		DealID:         order2.DealID.String(),
-		OrderType:      pb.MarketOrderType(order1.OrderType),
-		OrderStatus:    pb.MarketOrderStatus(order2.OrderStatus),
+		OrderType:      pb.OrderType(order1.OrderType),
+		OrderStatus:    pb.OrderStatus(order2.OrderStatus),
 		AuthorID:       order1.Author.String(),
 		CounterpartyID: order1.Counterparty.String(),
 		Duration:       order1.Duration.Uint64(),
 		Price:          pb.NewBigInt(order1.Price),
 		Netflags:       netflags,
-		IdentityLevel:  pb.MarketIdentityLevel(order1.IdentityLevel),
+		IdentityLevel:  pb.IdentityLevel(order1.IdentityLevel),
 		Blacklist:      order1.Blacklist.String(),
 		Tag:            order1.Tag[:],
-		Benchmarks:     order1.Benchmarks,
+		Benchmarks:     dwhBenchmarks,
 		FrozenSum:      pb.NewBigInt(order1.FrozenSum),
 	}, nil
 }
@@ -638,10 +649,10 @@ func (api *BasicAPI) GetDealChangeRequestInfo(ctx context.Context, dealID *big.I
 
 	return &pb.DealChangeRequest{
 		DealID:      changeRequest.DealID.String(),
-		RequestType: pb.MarketOrderType(changeRequest.RequestType),
+		RequestType: pb.OrderType(changeRequest.RequestType),
 		Duration:    changeRequest.Duration.Uint64(),
 		Price:       pb.NewBigInt(changeRequest.Price),
-		Status:      pb.MarketChangeRequestStatus(changeRequest.Status),
+		Status:      pb.ChangeRequestStatus(changeRequest.Status),
 	}, nil
 }
 

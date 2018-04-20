@@ -9,12 +9,12 @@ const (
 	NumNetflags   = 3
 )
 
-func NewBenchmarks(benchmarks []uint64) (*DWHBenchmarks, error) {
+func NewBenchmarks(benchmarks []uint64) (*Benchmarks, error) {
 	if len(benchmarks) < NumBenchmarks {
 		return nil, errors.Errorf("expected %d benchmarks, got %d", NumBenchmarks, len(benchmarks))
 	}
 
-	return &DWHBenchmarks{
+	return &Benchmarks{
 		CPUSysbenchMulti: benchmarks[0],
 		CPUSysbenchOne:   benchmarks[1],
 		CPUCores:         benchmarks[2],
@@ -30,8 +30,8 @@ func NewBenchmarks(benchmarks []uint64) (*DWHBenchmarks, error) {
 	}, nil
 }
 
-func (m *DWHBenchmarks) ToArray() [NumBenchmarks]uint64 {
-	return [NumBenchmarks]uint64{
+func (m *Benchmarks) ToArray() []uint64 {
+	return []uint64{
 		m.CPUSysbenchMulti,
 		m.CPUSysbenchOne,
 		m.CPUCores,

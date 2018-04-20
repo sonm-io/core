@@ -3,7 +3,6 @@ syntax = "proto3";
 import "ask_plan.proto";
 import "capabilities.proto";
 import "container.proto";
-import "deal.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
 
@@ -101,9 +100,9 @@ message PullTaskRequest {
 }
 
 message DealInfoReply {
-    MarketDeal deal = 1;
-    MarketOrder bidOrder = 2;
-    MarketOrder askOrder = 3;
+    Deal deal = 1;
+    Order bidOrder = 2;
+    Order askOrder = 3;
     // List of currently running tasks.
     StatusMapReply running = 4;
     // List of completed tasks.

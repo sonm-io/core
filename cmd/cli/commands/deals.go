@@ -130,11 +130,11 @@ var dealsFinishCmd = &cobra.Command{
 	},
 }
 
-func convertTransactionStatus(s string) pb.MarketDealStatus {
+func convertTransactionStatus(s string) pb.DealStatus {
 	s = strings.ToUpper(s)
 	// add prefix for protobuf constants
-	s = "MARKET_STATUS_" + s
+	s = "DEAL_" + s
 
-	id := pb.MarketDealStatus_value[s]
-	return pb.MarketDealStatus(id)
+	id := pb.DealStatus_value[s]
+	return pb.DealStatus(id)
 }

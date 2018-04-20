@@ -22,7 +22,7 @@ message BidOrder {
     Duration duration = 2;
     Price price = 3;
     EthAddress blacklist = 4;
-    MarketIdentityLevel identity = 5;
+    IdentityLevel identity = 5;
     string tag = 6;
 
     BidResources resources = 7;
