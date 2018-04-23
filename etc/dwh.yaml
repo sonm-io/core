@@ -1,4 +1,4 @@
-address: "127.0.0.1:15030"
+address: "127.0.0.1:15021"
 
 storage:
   driver: "sqlite3"
@@ -13,7 +13,8 @@ ethereum:
 
 
 blockchain:
-  eth_endpoint: "https://private-dev.sonm.io"
+  eth_endpoint: "http://localhost:8545"
+# eth_endpoint: "https://private-dev.sonm.io"
 
 logging:
   # The desired logging level.
