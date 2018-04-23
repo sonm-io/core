@@ -741,102 +741,62 @@ func (w *DWH) watchMarketEvents() error {
 	}
 
 	for event := range dealEvents {
-		w.mu.Lock()
-		switch value := event.Data.(type) {
-		case *blockchain.DealOpenedData:
-			if err := w.onDealOpened(value.ID); err != nil {
-				w.logger.Error("failed to process DealOpened event",
-					zap.Error(err), zap.String("deal_id", value.ID.String()))
-			}
-		case *blockchain.DealUpdatedData:
-			if err := w.onDealUpdated(value.ID); err != nil {
-				w.logger.Error("failed to process DealUpdated event",
-					zap.Error(err), zap.String("deal_id", value.ID.String()))
-			}
-		case *blockchain.OrderPlacedData:
-			if err := w.onOrderPlaced(event.TS, value.ID); err != nil {
-				w.logger.Error("failed to process OrderPlaced event",
-					zap.Error(err), zap.String("order_id", value.ID.String()))
-			}
-		case *blockchain.OrderUpdatedData:
-			if err := w.onOrderUpdated(value.ID); err != nil {
-				w.logger.Error("failed to process OrderCancelled event",
-					zap.Error(err), zap.String("order_id", value.ID.String()))
-			}
-		case *blockchain.DealChangeRequestSentData:
-			if err := w.onDealChangeRequestSent(event.TS, value.ID); err != nil {
-				w.logger.Error("failed to process DealChangeRequestSent event",
-					zap.Error(err), zap.String("change_request_id", value.ID.String()))
-			}
-		case *blockchain.DealChangeRequestUpdatedData:
-			if err := w.onDealChangeRequestUpdated(event.TS, value.ID); err != nil {
-				w.logger.Error("failed to process DealChangeRequestUpdated event",
-					zap.Error(err), zap.String("change_request_id", value.ID.String()))
-			}
-		case *blockchain.BilledData:
-			if err := w.onBilled(event.TS, value.ID, value.PayedAmount); err != nil {
-				w.logger.Error("failed to process Billed event",
-					zap.Error(err), zap.String("deal_id", value.ID.String()))
-			}
-		case *blockchain.WorkerAnnouncedData:
-			if err := w.onWorkerAnnounced(value.MasterID.String(), value.SlaveID.String()); err != nil {
-				w.logger.Error("failed to process WorkerAnnounced event",
-					zap.Error(err), zap.String("master_id", value.MasterID.String()),
-					zap.String("slave_id", value.SlaveID.String()))
-			}
-		case *blockchain.WorkerConfirmedData:
-			if err := w.onWorkerConfirmed(value.MasterID.String(), value.SlaveID.String()); err != nil {
-				w.logger.Error("failed to process WorkerConfirmed event",
-					zap.Error(err), zap.String("master_id", value.MasterID.String()),
-					zap.String("slave_id", value.SlaveID.String()))
-			}
-		case *blockchain.WorkerRemovedData:
-			if err := w.onWorkerRemoved(value.MasterID.String(), value.SlaveID.String()); err != nil {
-				w.logger.Error("failed to process WorkerRemoved event",
-					zap.Error(err), zap.String("master_id", value.MasterID.String()),
-					zap.String("slave_id", value.SlaveID.String()))
-			}
-		case *blockchain.AddedToBlacklistData:
-			if err := w.onAddedToBlacklist(value.AdderID.String(), value.AddeeID.String()); err != nil {
-				w.logger.Error("failed to process AddedToBlacklist event",
-					zap.Error(err), zap.String("adder_id", value.AdderID.String()),
-					zap.String("addee_id", value.AddeeID.String()))
-			}
-		case *blockchain.RemovedFromBlacklistData:
-			if err := w.onRemovedFromBlacklist(value.RemoverID.String(), value.RemoveeID.String()); err != nil {
-				w.logger.Error("failed to process RemovedFromBlacklist event",
-					zap.Error(err), zap.String("adder_id", value.RemoverID.String()),
-					zap.String("addee_id", value.RemoveeID.String()))
-			}
-		case *blockchain.ValidatorCreatedData:
-			if err := w.onValidatorCreated(value.ID); err != nil {
-				w.logger.Error("failed to process ValidatorCreated event",
-					zap.Error(err), zap.String("validator_id", value.ID.String()))
-			}
-		case *blockchain.ValidatorDeletedData:
-			if err := w.onValidatorDeleted(value.ID); err != nil {
-				w.logger.Error("failed to process ValidatorDeleted event",
-					zap.Error(err), zap.String("validator_id", value.ID.String()))
-			}
-		case *blockchain.CertificateCreatedData:
-			if err := w.onCertificateCreated(value.ID); err != nil {
-				w.logger.Error("failed to process AttributeCreated event",
-					zap.Error(err), zap.String("cert_id", value.ID.String()))
-			}
-		case *blockchain.ErrorData:
-			w.logger.Error("received error from events channel", zap.Error(value.Err), zap.String("topic", value.Topic))
-		}
-		w.mu.Unlock()
-
-		w.logger.Info("processed event", zap.String("event_type", reflect.TypeOf(event.Data).String()))
-
 		if err := w.updateLastKnownBlockTS(int64(event.BlockNumber)); err != nil {
 			w.logger.Error("failed to updateLastKnownBlock", zap.Error(err),
 				zap.Uint64("block_number", event.BlockNumber))
 		}
+
+		if err := w.processEvent(event); err != nil {
+			w.logger.Error("failed to processEvent", zap.Error(err), zap.Uint64("block_number", event.BlockNumber),
+				zap.String("event_type", reflect.TypeOf(event.Data).Name()))
+		}
+
+		w.logger.Info("processed event", zap.String("event_type", reflect.TypeOf(event.Data).String()))
 	}
 
 	return errors.New("events channel closed")
+}
+
+func (w *DWH) processEvent(event *blockchain.Event) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	switch value := event.Data.(type) {
+	case *blockchain.DealOpenedData:
+		return w.onDealOpened(value.ID)
+	case *blockchain.DealUpdatedData:
+		return w.onDealUpdated(value.ID)
+	case *blockchain.OrderPlacedData:
+		return w.onOrderPlaced(event.TS, value.ID)
+	case *blockchain.OrderUpdatedData:
+		return w.onOrderUpdated(value.ID)
+	case *blockchain.DealChangeRequestSentData:
+		return w.onDealChangeRequestSent(event.TS, value.ID)
+	case *blockchain.DealChangeRequestUpdatedData:
+		return w.onDealChangeRequestUpdated(event.TS, value.ID)
+	case *blockchain.BilledData:
+		return w.onBilled(event.TS, value.ID, value.PayedAmount)
+	case *blockchain.WorkerAnnouncedData:
+		return w.onWorkerAnnounced(value.MasterID.String(), value.SlaveID.String())
+	case *blockchain.WorkerConfirmedData:
+		return w.onWorkerConfirmed(value.MasterID.String(), value.SlaveID.String())
+	case *blockchain.WorkerRemovedData:
+		return w.onWorkerRemoved(value.MasterID.String(), value.SlaveID.String())
+	case *blockchain.AddedToBlacklistData:
+		return w.onAddedToBlacklist(value.AdderID.String(), value.AddeeID.String())
+	case *blockchain.RemovedFromBlacklistData:
+		w.onRemovedFromBlacklist(value.RemoverID.String(), value.RemoveeID.String())
+	case *blockchain.ValidatorCreatedData:
+		return w.onValidatorCreated(value.ID)
+	case *blockchain.ValidatorDeletedData:
+		return w.onValidatorDeleted(value.ID)
+	case *blockchain.CertificateCreatedData:
+		return w.onCertificateCreated(value.ID)
+	case *blockchain.ErrorData:
+		w.logger.Error("received error from events channel", zap.Error(value.Err), zap.String("topic", value.Topic))
+	}
+
+	return nil
 }
 
 func (w *DWH) onDealOpened(dealID *big.Int) error {
