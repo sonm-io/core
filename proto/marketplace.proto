@@ -9,7 +9,7 @@ package sonm;
 service Market {
     // GetOrders returns orders by given filter parameters.
     // Note that set of filters may be changed in the closest future.
-    rpc GetOrders(GetOrdersRequest) returns (GetOrdersReply) {}
+    rpc GetOrders(Count) returns (GetOrdersReply) {}
     // CreateOrder places new order on the Marketplace.
     // Note that current impl of Node API prevents you from
     // creating ASKs orders.
@@ -19,13 +19,6 @@ service Market {
     rpc GetOrderByID(ID) returns (Order) {}
     // CancelOrder removes active order from the Marketplace.
     rpc CancelOrder(ID) returns (Empty) {}
-}
-
-message GetOrdersRequest {
-    OrderType type = 1;
-    BigInt Price = 2;
-    EthAddress Counterparty  = 3;
-    uint64 count = 4;
 }
 
 message GetOrdersReply {

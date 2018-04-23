@@ -1,7 +1,7 @@
 package node
 
 import (
-	"github.com/sonm-io/core/insonmnia/dwh"
+	"github.com/ethereum/go-ethereum/crypto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
@@ -12,19 +12,36 @@ type dealsAPI struct {
 	remotes *remoteOptions
 }
 
-func (d *dealsAPI) List(ctx context.Context, req *pb.DealListRequest) (*pb.DealsReply, error) {
-	// TODO(sshaman1101): better filters, need to discuss first
-	filters := dwh.DealsFilter{
-		Author: req.Owner.Unwrap(),
-		Status: pb.DealStatus(req.Status),
+func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, error) {
+	addr := crypto.PubkeyToAddress(d.remotes.key.PublicKey).Hex()
+	filter := &pb.DealsRequest{
+		Status: pb.DealStatus_DEAL_ACCEPTED,
+		Limit:  req.GetCount(),
 	}
 
-	deals, err := d.remotes.dwh.GetDeals(ctx, filters)
+	filter.SupplierID = addr
+	dealsBySupplier, err := d.remotes.dwh.GetDeals(ctx, filter)
 	if err != nil {
 		return nil, err
 	}
 
-	return &pb.DealsReply{Deal: deals}, nil
+	filter.SupplierID = ""
+	filter.ConsumerID = addr
+	dealsByConsumer, err := d.remotes.dwh.GetDeals(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	reply := &pb.DealsReply{Deal: []*pb.Deal{}}
+	for _, deal := range dealsBySupplier.GetDeals() {
+		reply.Deal = append(reply.Deal, deal.Deal)
+	}
+
+	for _, deal := range dealsByConsumer.GetDeals() {
+		reply.Deal = append(reply.Deal, deal.Deal)
+	}
+
+	return reply, nil
 }
 
 func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {

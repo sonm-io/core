@@ -1,7 +1,7 @@
 package node
 
 import (
-	"github.com/sonm-io/core/insonmnia/dwh"
+	"github.com/ethereum/go-ethereum/crypto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
@@ -13,12 +13,12 @@ type marketAPI struct {
 	hubCreator hubClientCreator
 }
 
-func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
-	filter := dwh.OrderFilter{
-		Type:         req.Type,
-		Count:        req.Count,
-		Price:        req.Price.Unwrap(),
-		Counterparty: req.Counterparty.Unwrap(),
+func (m *marketAPI) GetOrders(ctx context.Context, req *pb.Count) (*pb.GetOrdersReply, error) {
+	filter := &pb.OrdersRequest{
+		Type:     pb.OrderType_BID,
+		Status:   pb.OrderStatus_ORDER_ACTIVE,
+		AuthorID: crypto.PubkeyToAddress(m.remotes.key.PublicKey).Hex(),
+		Limit:    req.GetCount(),
 	}
 
 	orders, err := m.remotes.dwh.GetOrders(ctx, filter)
@@ -26,7 +26,12 @@ func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*p
 		return nil, err
 	}
 
-	return &pb.GetOrdersReply{Orders: orders}, nil
+	reply := &pb.GetOrdersReply{Orders: []*pb.Order{}}
+	for _, order := range orders.GetOrders() {
+		reply.Orders = append(reply.Orders, order.Order)
+	}
+
+	return reply, nil
 }
 
 func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, error) {

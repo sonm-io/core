@@ -19,6 +19,10 @@ message TaskID {
     string hubAddr = 2;
 }
 
+message Count {
+    uint64 count = 1;
+}
+
 message CPUUsage {
     uint64 total = 1;
 }

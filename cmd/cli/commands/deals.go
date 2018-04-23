@@ -2,24 +2,18 @@ package commands
 
 import (
 	"os"
-	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
 var (
-	dealListFlagFrom   string
-	dealListFlagStatus string
+	dealsSearchCount uint64
 )
 
 func init() {
-	dealsListCmd.PersistentFlags().StringVar(&dealListFlagFrom, "from", "",
-		"Transactions author, using self address if empty")
-	dealsListCmd.PersistentFlags().StringVar(&dealListFlagStatus, "status", "ANY",
-		"Transaction status (ANY, PENDING, ACCEPTED, CLOSED)")
+	dealsListCmd.PersistentFlags().Uint64Var(&dealsSearchCount, "limit", 10, "Deals count to show")
 
 	nodeDealsRootCmd.AddCommand(
 		dealsListCmd,
@@ -35,7 +29,7 @@ var nodeDealsRootCmd = &cobra.Command{
 
 var dealsListCmd = &cobra.Command{
 	Use:    "list",
-	Short:  "Show my deals",
+	Short:  "Show your active deals",
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, _ []string) {
 		ctx, cancel := newTimeoutContext()
@@ -47,16 +41,7 @@ var dealsListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		status := convertTransactionStatus(dealListFlagStatus)
-		from := dealListFlagFrom
-		if from == "" {
-			from = util.PubKeyToAddr(sessionKey.PublicKey).Hex()
-		}
-
-		req := &pb.DealListRequest{
-			Owner:  &pb.EthAddress{Address: common.HexToAddress(from).Bytes()},
-			Status: status,
-		}
+		req := &pb.Count{Count: dealsSearchCount}
 		deals, err := dealer.List(ctx, req)
 		if err != nil {
 			showError(cmd, "Cannot get deals list", err)
@@ -128,13 +113,4 @@ var dealsFinishCmd = &cobra.Command{
 		}
 		showOk(cmd)
 	},
-}
-
-func convertTransactionStatus(s string) pb.DealStatus {
-	s = strings.ToUpper(s)
-	// add prefix for protobuf constants
-	s = "DEAL_" + s
-
-	id := pb.DealStatus_value[s]
-	return pb.DealStatus(id)
 }
