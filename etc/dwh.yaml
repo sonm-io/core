@@ -14,7 +14,7 @@ ethereum:
 
 blockchain:
   eth_endpoint: "http://localhost:8545"
-#  eth_endpoint: "https://private-dev.sonm.io"
+# eth_endpoint: "https://private-dev.sonm.io"
 
 logging:
   # The desired logging level.
