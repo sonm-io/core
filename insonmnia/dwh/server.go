@@ -236,6 +236,11 @@ func (w *DWH) getDealConditions(ctx context.Context, request *pb.DealConditionsR
 		out = append(out, dealCondition)
 	}
 
+	if err := rows.Err(); err != nil {
+		w.logger.Error("failed to read rows from db", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to GetDealConditions")
+	}
+
 	return &pb.DealConditionsReply{Conditions: out}, nil
 }
 
@@ -305,6 +310,11 @@ func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 			return nil, status.Error(codes.Internal, "failed to GetOrders")
 		}
 		orders = append(orders, order)
+	}
+
+	if err := rows.Err(); err != nil {
+		w.logger.Error("failed to read rows from db", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to GetOrders")
 	}
 
 	return &pb.DWHOrdersReply{Orders: orders}, nil
@@ -406,6 +416,11 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 		orders = append(orders, order)
 	}
 
+	if err := rows.Err(); err != nil {
+		w.logger.Error("failed to read rows from db", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to GetMatchingOrders")
+	}
+
 	return &pb.DWHOrdersReply{Orders: orders}, nil
 }
 
@@ -424,8 +439,8 @@ func (w *DWH) getOrderDetails(ctx context.Context, request *pb.ID) (*pb.DWHOrder
 	}
 	defer rows.Close()
 
-	if ok := rows.Next(); !ok {
-		w.logger.Error("order not found", zap.Error(err), zap.Any("request", request))
+	if !rows.Next() {
+		w.logger.Error("order not found", zap.Error(rows.Err()), zap.Any("request", request))
 		return nil, status.Error(codes.Internal, "failed to GetOrderDetails")
 	}
 
@@ -531,9 +546,9 @@ func (w *DWH) getProfileInfo(ctx context.Context, request *pb.ID, logErrors bool
 	}
 	defer rows.Close()
 
-	if ok := rows.Next(); !ok {
+	if !rows.Next() {
 		if logErrors {
-			w.logger.Error("profile not found", zap.Error(err), zap.Any("request", request))
+			w.logger.Error("profile not found", zap.Error(rows.Err()), zap.Any("request", request))
 		}
 		return nil, status.Error(codes.Internal, "failed to GetProfileInfo")
 	}
@@ -549,8 +564,8 @@ func (w *DWH) getProfileInfoTx(tx *sql.Tx, request *pb.ID) (*pb.Profile, error) 
 	}
 	defer rows.Close()
 
-	if ok := rows.Next(); !ok {
-		w.logger.Error("profile not found", zap.Error(err), zap.Any("request", request))
+	if !rows.Next() {
+		w.logger.Error("profile not found", zap.Error(rows.Err()), zap.Any("request", request))
 		return nil, status.Error(codes.Internal, "failed to GetProfileInfo")
 	}
 
@@ -596,6 +611,11 @@ func (w *DWH) getBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 		addees = append(addees, addeeID)
 	}
 
+	if err := rows.Err(); err != nil {
+		w.logger.Error("failed to read rows from db", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to GetBlacklist")
+	}
+
 	return &pb.BlacklistReply{
 		OwnerID:   request.OwnerID,
 		Addresses: addees,
@@ -639,6 +659,11 @@ func (w *DWH) getValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 		out = append(out, validator)
 	}
 
+	if err := rows.Err(); err != nil {
+		w.logger.Error("failed to read rows from db", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to GetValidators")
+	}
+
 	return &pb.ValidatorsReply{Validators: out}, nil
 }
 
@@ -664,6 +689,11 @@ func (w *DWH) getDealChangeRequests(ctx context.Context, request *pb.ID) (*pb.De
 			return nil, status.Error(codes.Internal, "failed to GetDealChangeRequests")
 		}
 		out = append(out, changeRequest)
+	}
+
+	if err := rows.Err(); err != nil {
+		w.logger.Error("failed to read rows from db", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to GetDealChangeRequests")
 	}
 
 	return &pb.DealChangeRequestsReply{Requests: out}, nil
@@ -702,6 +732,11 @@ func (w *DWH) getWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 			return nil, status.Error(codes.Internal, "failed to GetWorkers")
 		}
 		out = append(out, worker)
+	}
+
+	if err := rows.Err(); err != nil {
+		w.logger.Error("failed to read rows from db", zap.Error(err))
+		return nil, status.Error(codes.Internal, "failed to GetWorkers")
 	}
 
 	return &pb.WorkersReply{
@@ -1068,6 +1103,10 @@ func (w *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 		} else {
 			expiredChangeRequests = append(expiredChangeRequests, expiredChangeRequest)
 		}
+	}
+
+	if err := rows.Err(); err != nil {
+		return errors.Wrap(err, "failed to fetch all DealChangeRequest(s) from db")
 	}
 
 	tx, err := w.db.Begin()
