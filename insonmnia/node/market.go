@@ -15,10 +15,8 @@ type marketAPI struct {
 
 func (m *marketAPI) GetOrders(ctx context.Context, req *pb.GetOrdersRequest) (*pb.GetOrdersReply, error) {
 	filter := dwh.OrderFilter{
-		Type:         req.Type,
-		Count:        req.Count,
-		Price:        req.Price.Unwrap(),
-		Counterparty: req.Counterparty.Unwrap(),
+		Type:  pb.OrderType_ANY,
+		Count: req.Count,
 	}
 
 	orders, err := m.remotes.dwh.GetOrders(ctx, filter)
