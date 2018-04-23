@@ -89,6 +89,7 @@ It has these top-level messages:
 	Empty
 	ID
 	TaskID
+	Count
 	CPUUsage
 	MemoryUsage
 	NetworkUsage
@@ -107,7 +108,6 @@ It has these top-level messages:
 	DataSize
 	DataSizeRate
 	Price
-	GetOrdersRequest
 	GetOrdersReply
 	Benchmarks
 	Deal
@@ -120,7 +120,6 @@ It has these top-level messages:
 	Addr
 	SocketAddr
 	JoinNetworkRequest
-	DealListRequest
 	DealsReply
 	Worker
 	WorkerListReply

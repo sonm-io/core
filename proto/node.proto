@@ -41,16 +41,11 @@ message JoinNetworkRequest {
 // to manage deals made into the SONM network
 service DealManagement {
     // List produces a list of all deals made by client with given ID
-    rpc List(DealListRequest) returns (DealsReply) {}
+    rpc List(Count) returns (DealsReply) {}
     // Status produces a detailed info about deal with given ID.
     rpc Status(ID) returns (DealInfoReply) {}
     // Finish finishes a deal with given ID
     rpc Finish(ID) returns (Empty) {}
-}
-
-message DealListRequest {
-    EthAddress owner = 1;
-    DealStatus status = 2;
 }
 
 message DealsReply {

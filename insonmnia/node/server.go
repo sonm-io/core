@@ -15,7 +15,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/insonmnia/npp"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -42,7 +41,7 @@ type remoteOptions struct {
 	conf              *Config
 	creds             credentials.TransportCredentials
 	eth               blockchain.API
-	dwh               dwh.MockDWH
+	dwh               pb.DWHClient
 	hubCreator        hubClientCreator
 	blockchainTimeout time.Duration
 	nppDialer         *npp.Dialer
@@ -78,6 +77,11 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		return m, cc, nil
 	}
 
+	dwhCC, err := xgrpc.NewClient(ctx, cfg.DWH.Endpoint, credentials)
+	if err != nil {
+		return nil, err
+	}
+
 	eth, err := blockchain.NewAPI()
 	if err != nil {
 		return nil, err
@@ -89,7 +93,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		conf:              cfg,
 		creds:             credentials,
 		eth:               eth,
-		dwh:               dwh.NewDumbDWH(ctx),
+		dwh:               pb.NewDWHClient(dwhCC),
 		blockchainTimeout: 180 * time.Second,
 		hubCreator:        hubFactory,
 		nppDialer:         nppDialer,

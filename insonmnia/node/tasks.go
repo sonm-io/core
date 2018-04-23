@@ -7,7 +7,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/insonmnia/dwh"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -36,19 +35,19 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.EthAddress) (*pb.TaskListRe
 	}
 
 	// get all accepted deals, because only on the accepted deals client can start the payloads.
-	activeDeals, err := t.remotes.dwh.GetDeals(ctx, dwh.DealsFilter{
-		Author: crypto.PubkeyToAddress(t.remotes.key.PublicKey),
-		Status: pb.DealStatus_DEAL_ACCEPTED,
+	activeDeals, err := t.remotes.dwh.GetDeals(ctx, &pb.DealsRequest{
+		ConsumerID: crypto.PubkeyToAddress(t.remotes.key.PublicKey).Hex(),
+		Status:     pb.DealStatus_DEAL_ACCEPTED,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	log.G(t.ctx).Info("found some active deals", zap.Int("count", len(activeDeals)))
+	log.G(t.ctx).Info("found some active deals", zap.Int("count", len(activeDeals.GetDeals())))
 
 	tasks := make(map[string]*pb.TaskStatusReply)
-	for _, deal := range activeDeals {
-		t.getSupplierTasks(ctx, tasks, deal)
+	for _, deal := range activeDeals.GetDeals() {
+		t.getSupplierTasks(ctx, tasks, deal.GetDeal())
 	}
 
 	return &pb.TaskListReply{Info: tasks}, nil

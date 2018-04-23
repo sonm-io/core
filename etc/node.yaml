@@ -21,10 +21,9 @@ npp:
     endpoints:
       - 127.0.0.1:12240
 
-# Marketplace service settings
-market:
-  # marketplace gRPC endpoint
-  # required
+# DWH service settings
+dwh:
+  # marketplace gRPC endpoint, required
   endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:15021"
 
 # Logging settings.
