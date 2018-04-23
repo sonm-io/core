@@ -520,10 +520,10 @@ func (w *DWH) GetProfileInfo(ctx context.Context, request *pb.ID) (*pb.Profile, 
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	return w.getProfileInfo(ctx, request)
+	return w.getProfileInfo(ctx, request, true)
 }
 
-func (w *DWH) getProfileInfo(ctx context.Context, request *pb.ID) (*pb.Profile, error) {
+func (w *DWH) getProfileInfo(ctx context.Context, request *pb.ID, logErrors bool) (*pb.Profile, error) {
 	rows, err := w.db.Query(w.commands["selectProfileByID"], request.Id)
 	if err != nil {
 		w.logger.Error("failed to selectProfileByID", zap.Error(err), zap.Any("request", request))
@@ -532,7 +532,9 @@ func (w *DWH) getProfileInfo(ctx context.Context, request *pb.ID) (*pb.Profile, 
 	defer rows.Close()
 
 	if ok := rows.Next(); !ok {
-		w.logger.Error("profile not found", zap.Error(err), zap.Any("request", request))
+		if logErrors {
+			w.logger.Error("profile not found", zap.Error(err), zap.Any("request", request))
+		}
 		return nil, status.Error(codes.Internal, "failed to GetProfileInfo")
 	}
 
@@ -977,7 +979,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to deleteOrder")
 		}
 
-		askProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.SupplierID})
+		askProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.SupplierID}, false)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -994,7 +996,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to updateProfileStats")
 		}
 
-		bidProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.ConsumerID})
+		bidProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.ConsumerID}, false)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1246,7 +1248,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
 
-	profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID})
+	profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID}, false)
 	if err != nil {
 		var askOrders, bidOrders = 0, 0
 		if order.OrderType == pb.OrderType_ASK {
@@ -1348,7 +1350,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 			return nil
 		}
 
-		profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID})
+		profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID}, false)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1490,7 +1492,7 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 	}
 
 	// Create a Profile entry if it doesn't exist yet.
-	if _, err := w.getProfileInfo(w.ctx, &pb.ID{Id: attr.OwnerID}); err != nil {
+	if _, err := w.getProfileInfo(w.ctx, &pb.ID{Id: attr.OwnerID}, false); err != nil {
 		_, err = tx.Exec(w.commands["insertProfileUserID"], attr.OwnerID, 0, 0)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {

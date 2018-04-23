@@ -946,7 +946,7 @@ func TestDWH_monitor(t *testing.T) {
 		}
 	}
 
-	if profile, err := monitorDWH.getProfileInfo(monitorDWH.ctx, &pb.ID{Id: "consumer_id"}); err != nil {
+	if profile, err := monitorDWH.getProfileInfo(monitorDWH.ctx, &pb.ID{Id: "consumer_id"}, true); err != nil {
 		t.Errorf("Failed to GetProfileInfo: %s", err)
 		return
 	} else {
