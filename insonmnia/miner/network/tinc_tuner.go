@@ -72,6 +72,8 @@ func (t *TincTuner) runDriver(ctx context.Context) error {
 
 	ipamListener, err := sockets.NewUnixSocket(t.ipamDriver.config.DockerIPAMPluginSockPath, syscall.Getgid())
 	if err != nil {
+		// cleanup
+		netListener.Close()
 		return err
 	}
 
