@@ -1333,6 +1333,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 		return errors.Wrap(err, "failed to GetOrderInfo")
 	}
 
+	// If order was updated, but no deal is associated with it, delete the order.
 	if order.DealID <= "0" {
 		tx, err := w.db.Begin()
 		if err != nil {
