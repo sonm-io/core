@@ -325,25 +325,25 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	}
 
 	var (
-		filters    []*filter
-		orderType  pb.OrderType
-		priceOp    string
-		durationOp string
-		benchOp    string
-		sortOrder  pb.SortingOrder
+		filters      []*filter
+		orderType    pb.OrderType
+		priceOp      string
+		durationOp   string
+		benchOp      string
+		sortingOrder pb.SortingOrder
 	)
 	if order.Order.OrderType == pb.OrderType_BID {
 		orderType = pb.OrderType_ASK
 		priceOp = lte
 		durationOp = gte
 		benchOp = gte
-		sortOrder = pb.SortingOrder_Asc
+		sortingOrder = pb.SortingOrder_Asc
 	} else {
 		orderType = pb.OrderType_BID
 		priceOp = gte
 		durationOp = lte
 		benchOp = lte
-		sortOrder = pb.SortingOrder_Desc
+		sortingOrder = pb.SortingOrder_Desc
 	}
 
 	filters = append(filters, newFilter("Type", eq, orderType, "AND"))
@@ -386,7 +386,7 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	rows, _, err := runQuery(w.db, &queryOpts{
 		table:    "Orders",
 		filters:  filters,
-		sortings: []*pb.SortingOption{{Field: "Price", Order: sortOrder}},
+		sortings: []*pb.SortingOption{{Field: "Price", Order: sortingOrder}},
 		offset:   request.Offset,
 		limit:    request.Limit,
 	})
