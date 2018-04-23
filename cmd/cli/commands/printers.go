@@ -181,7 +181,7 @@ func convertTransactionInfo(tx *types.Transaction) map[string]interface{} {
 func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
 	if isSimpleFormat() {
 		if len(orders) == 0 {
-			cmd.Printf("No matching orders found")
+			cmd.Println("No matching orders found")
 			return
 		}
 

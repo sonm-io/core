@@ -9,14 +9,10 @@ import (
 
 var (
 	ordersSearchLimit uint64 = 0
-	orderSearchType          = "ANY"
 )
 
 func init() {
-	marketSearchCmd.PersistentFlags().StringVar(&orderSearchType, "type", "BID",
-		"Orders type to search: BID or ASK")
-	marketSearchCmd.PersistentFlags().Uint64Var(&ordersSearchLimit, "limit", 10,
-		"Orders count to show")
+	marketSearchCmd.PersistentFlags().Uint64Var(&ordersSearchLimit, "limit", 10, "Orders count to show")
 
 	marketRootCmd.AddCommand(
 		marketSearchCmd,
@@ -32,14 +28,26 @@ var marketRootCmd = &cobra.Command{
 }
 
 var marketSearchCmd = &cobra.Command{
-	Use:    "search <slot.yaml>",
-	Short:  "Search for orders on Marketplace",
-	Args:   cobra.MinimumNArgs(1),
+	Use:    "list",
+	Short:  "Show your active orders",
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		// todo: need to implement with new market API.
-		showError(cmd, "not implemented", nil)
-		os.Exit(1)
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		market, err := newMarketClient(ctx)
+		if err != nil {
+			showError(cmd, "Cannot create client connection", err)
+			os.Exit(1)
+		}
+
+		reply, err := market.GetOrders(ctx, &pb.GetOrdersRequest{Count: ordersSearchLimit})
+		if err != nil {
+			showError(cmd, "Cannot receive orders from marketplace", err)
+			os.Exit(1)
+		}
+
+		printSearchResults(cmd, reply.Orders)
 	},
 }
 

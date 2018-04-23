@@ -23,8 +23,6 @@ service Market {
 
 message GetOrdersRequest {
     OrderType type = 1;
-    BigInt Price = 2;
-    EthAddress Counterparty  = 3;
     uint64 count = 4;
 }
 
