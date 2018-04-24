@@ -244,7 +244,7 @@ func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, orde
 }
 
 func (api *BasicAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order, ch chan OrderOrError) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
+	opts := api.GetTxOpts(ctx, key, gasLimitForPlaceOrderMethod)
 
 	fixedNetflags := pb.UintToNetflags(order.Netflags)
 	var fixedTag [32]byte
