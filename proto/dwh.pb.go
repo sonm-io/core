@@ -232,14 +232,14 @@ func (m *DealsRequest) GetAskIdentityLevel() IdentityLevel {
 	if m != nil {
 		return m.AskIdentityLevel
 	}
-	return IdentityLevel_ANONIMOUS
+	return IdentityLevel_ANONYMOUS
 }
 
 func (m *DealsRequest) GetBidIdentityLevel() IdentityLevel {
 	if m != nil {
 		return m.BidIdentityLevel
 	}
-	return IdentityLevel_ANONIMOUS
+	return IdentityLevel_ANONYMOUS
 }
 
 func (m *DealsRequest) GetBenchmarks() *DWHBenchmarkConditions {
@@ -487,7 +487,7 @@ func (m *OrdersRequest) GetCreatorIdentityLevel() IdentityLevel {
 	if m != nil {
 		return m.CreatorIdentityLevel
 	}
-	return IdentityLevel_ANONIMOUS
+	return IdentityLevel_ANONYMOUS
 }
 
 func (m *OrdersRequest) GetBenchmarks() *DWHBenchmarkConditions {
@@ -769,7 +769,7 @@ func (m *ProfilesRequest) GetIdentityLevel() IdentityLevel {
 	if m != nil {
 		return m.IdentityLevel
 	}
-	return IdentityLevel_ANONIMOUS
+	return IdentityLevel_ANONYMOUS
 }
 
 func (m *ProfilesRequest) GetCountry() string {

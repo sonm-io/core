@@ -555,7 +555,7 @@ func TestDWH_monitor(t *testing.T) {
 		Duration:       10020,
 		Price:          pb.NewBigInt(big.NewInt(20010)),
 		Netflags:       7,
-		IdentityLevel:  pb.IdentityLevel_ANONIMOUS,
+		IdentityLevel:  pb.IdentityLevel_ANONYMOUS,
 		Blacklist:      "blacklist",
 		Tag:            []byte{0, 1},
 		Benchmarks:     benchmarks,
@@ -1171,7 +1171,7 @@ func setupTestDB(w *DWH) error {
 			10010+i,
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			7, // Netflags
-			uint64(pb.IdentityLevel_ANONIMOUS),
+			uint64(pb.IdentityLevel_ANONYMOUS),
 			fmt.Sprintf("blacklist_%d", i),
 			[]byte{1, 2, 3},          // Tag
 			fmt.Sprintf("3001%d", i), // FrozenSum
@@ -1208,7 +1208,7 @@ func setupTestDB(w *DWH) error {
 			10010-i,      // Duration
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			5, // Netflags
-			uint64(pb.IdentityLevel_ANONIMOUS),
+			uint64(pb.IdentityLevel_ANONYMOUS),
 			fmt.Sprintf("blacklist_%d", i),
 			[]byte{1, 2, 3},                       // Tag
 			fmt.Sprintf("3001%d", i),              // FrozenSum

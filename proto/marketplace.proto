@@ -37,7 +37,7 @@ enum OrderStatus {
 }
 
 enum IdentityLevel {
-    ANONIMOUS = 0;
+    ANONYMOUS = 0;
     PSEUDONYMOUS = 1;
     IDENTIFIED = 2;
 }
