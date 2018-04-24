@@ -63,3 +63,5 @@ blockchain/package-lock.json
 blockchain/build
 
 vendor/github.com/golang/mock/mockgen/mockgen
+
+token.txt

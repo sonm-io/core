@@ -1,0 +1,30 @@
+pools:
+  - id: BFG
+    gun:
+      type: sonm
+      ethereumEndpoint: http://localhost:8545
+      ethereumAccountPath: ./keys
+      ethereumAccountPass: any
+    ammo:
+      limit: 100000
+
+      # Uncomment exactly one of the listed ammo.
+#      type: marketplace/order/info
+#      # Order IDs we want to fetch.
+#      order_ids: [1]
+
+      type: marketplace/order/place
+#      type: dwh/order/info
+      # Order IDs we want to fetch.
+    result:
+      type: phout
+      destination: ./target/sonm_out.log
+    rps:
+      type: line
+      from: 0
+      to: 1000
+      duration: 300s
+
+    startup:
+      type: once
+      times: 400
