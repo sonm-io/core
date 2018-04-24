@@ -412,18 +412,18 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	}
 	filters = append(filters, newFilter("IdentityLevel", gte, order.Order.IdentityLevel, "AND"))
 	filters = append(filters, newFilter("CreatorIdentityLevel", lte, order.CreatorIdentityLevel, "AND"))
-	filters = append(filters, newFilter("CPUSysbenchMulti", benchOp, order.Order.Benchmarks.CPUSysbenchMulti, "AND"))
-	filters = append(filters, newFilter("CPUSysbenchOne", benchOp, order.Order.Benchmarks.CPUSysbenchOne, "AND"))
-	filters = append(filters, newFilter("CPUCores", benchOp, order.Order.Benchmarks.CPUCores, "AND"))
-	filters = append(filters, newFilter("RAMSize", benchOp, order.Order.Benchmarks.RAMSize, "AND"))
-	filters = append(filters, newFilter("StorageSize", benchOp, order.Order.Benchmarks.StorageSize, "AND"))
-	filters = append(filters, newFilter("NetTrafficIn", benchOp, order.Order.Benchmarks.NetTrafficIn, "AND"))
-	filters = append(filters, newFilter("NetTrafficOut", benchOp, order.Order.Benchmarks.NetTrafficOut, "AND"))
-	filters = append(filters, newFilter("GPUCount", benchOp, order.Order.Benchmarks.GPUCount, "AND"))
-	filters = append(filters, newFilter("GPUMem", benchOp, order.Order.Benchmarks.GPUMem, "AND"))
-	filters = append(filters, newFilter("GPUEthHashrate", benchOp, order.Order.Benchmarks.GPUEthHashrate, "AND"))
-	filters = append(filters, newFilter("GPUCashHashrate", benchOp, order.Order.Benchmarks.GPUCashHashrate, "AND"))
-	filters = append(filters, newFilter("GPURedshift", benchOp, order.Order.Benchmarks.GPURedshift, "AND"))
+	filters = append(filters, newFilter("CPUSysbenchMulti", benchOp, order.Order.Benchmarks.CPUSysbenchMulti(), "AND"))
+	filters = append(filters, newFilter("CPUSysbenchOne", benchOp, order.Order.Benchmarks.CPUSysbenchOne(), "AND"))
+	filters = append(filters, newFilter("CPUCores", benchOp, order.Order.Benchmarks.CPUCores(), "AND"))
+	filters = append(filters, newFilter("RAMSize", benchOp, order.Order.Benchmarks.RAMSize(), "AND"))
+	filters = append(filters, newFilter("StorageSize", benchOp, order.Order.Benchmarks.StorageSize(), "AND"))
+	filters = append(filters, newFilter("NetTrafficIn", benchOp, order.Order.Benchmarks.NetTrafficIn(), "AND"))
+	filters = append(filters, newFilter("NetTrafficOut", benchOp, order.Order.Benchmarks.NetTrafficOut(), "AND"))
+	filters = append(filters, newFilter("GPUCount", benchOp, order.Order.Benchmarks.GPUCount(), "AND"))
+	filters = append(filters, newFilter("GPUMem", benchOp, order.Order.Benchmarks.GPUMem(), "AND"))
+	filters = append(filters, newFilter("GPUEthHashrate", benchOp, order.Order.Benchmarks.GPUEthHashrate(), "AND"))
+	filters = append(filters, newFilter("GPUCashHashrate", benchOp, order.Order.Benchmarks.GPUCashHashrate(), "AND"))
+	filters = append(filters, newFilter("GPURedshift", benchOp, order.Order.Benchmarks.GPURedshift(), "AND"))
 
 	rows, _, err := runQuery(w.db, &queryOpts{
 		table:    "Orders",
@@ -893,18 +893,18 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		ask.CreatorCertificates,
 		bid.CreatorCertificates,
 		hasActiveChangeRequests,
-		deal.Benchmarks.CPUSysbenchMulti,
-		deal.Benchmarks.CPUSysbenchOne,
-		deal.Benchmarks.CPUCores,
-		deal.Benchmarks.RAMSize,
-		deal.Benchmarks.StorageSize,
-		deal.Benchmarks.NetTrafficIn,
-		deal.Benchmarks.NetTrafficOut,
-		deal.Benchmarks.GPUCount,
-		deal.Benchmarks.GPUMem,
-		deal.Benchmarks.GPUEthHashrate,
-		deal.Benchmarks.GPUCashHashrate,
-		deal.Benchmarks.GPURedshift,
+		deal.Benchmarks.CPUSysbenchMulti(),
+		deal.Benchmarks.CPUSysbenchOne(),
+		deal.Benchmarks.CPUCores(),
+		deal.Benchmarks.RAMSize(),
+		deal.Benchmarks.StorageSize(),
+		deal.Benchmarks.NetTrafficIn(),
+		deal.Benchmarks.NetTrafficOut(),
+		deal.Benchmarks.GPUCount(),
+		deal.Benchmarks.GPUMem(),
+		deal.Benchmarks.GPUEthHashrate(),
+		deal.Benchmarks.GPUCashHashrate(),
+		deal.Benchmarks.GPURedshift(),
 	)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
@@ -1301,18 +1301,18 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		profile.Name,
 		profile.Country,
 		profile.Certificates,
-		order.Benchmarks.CPUSysbenchMulti,
-		order.Benchmarks.CPUSysbenchOne,
-		order.Benchmarks.CPUCores,
-		order.Benchmarks.RAMSize,
-		order.Benchmarks.StorageSize,
-		order.Benchmarks.NetTrafficIn,
-		order.Benchmarks.NetTrafficOut,
-		order.Benchmarks.GPUCount,
-		order.Benchmarks.GPUMem,
-		order.Benchmarks.GPUEthHashrate,
-		order.Benchmarks.GPUCashHashrate,
-		order.Benchmarks.GPURedshift,
+		order.Benchmarks.CPUSysbenchMulti(),
+		order.Benchmarks.CPUSysbenchOne(),
+		order.Benchmarks.CPUCores(),
+		order.Benchmarks.RAMSize(),
+		order.Benchmarks.StorageSize(),
+		order.Benchmarks.NetTrafficIn(),
+		order.Benchmarks.NetTrafficOut(),
+		order.Benchmarks.GPUCount(),
+		order.Benchmarks.GPUMem(),
+		order.Benchmarks.GPUEthHashrate(),
+		order.Benchmarks.GPUCashHashrate(),
+		order.Benchmarks.GPURedshift(),
 	)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
@@ -1748,18 +1748,20 @@ func (w *DWH) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 			TotalPayout:    pb.NewBigInt(bigTotalPayout),
 			LastBillTS:     &pb.Timestamp{Seconds: lastBillTS},
 			Benchmarks: &pb.Benchmarks{
-				CPUSysbenchMulti: cpuSysbenchMulti,
-				CPUSysbenchOne:   cpuSysbenchOne,
-				CPUCores:         cpuCores,
-				RAMSize:          ramSize,
-				StorageSize:      storageSize,
-				NetTrafficIn:     netTrafficIn,
-				NetTrafficOut:    netTrafficOut,
-				GPUCount:         gpuCount,
-				GPUMem:           gpuMem,
-				GPUEthHashrate:   gpuEthHashrate,
-				GPUCashHashrate:  gpuCashHashrate,
-				GPURedshift:      gpuRedshift,
+				Values: []uint64{
+					cpuSysbenchMulti,
+					cpuSysbenchOne,
+					cpuCores,
+					ramSize,
+					storageSize,
+					netTrafficIn,
+					netTrafficOut,
+					gpuCount,
+					gpuMem,
+					gpuEthHashrate,
+					gpuCashHashrate,
+					gpuRedshift,
+				},
 			},
 		},
 		Netflags:             netflags,
@@ -1896,18 +1898,20 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 			Tag:            tag,
 			FrozenSum:      pb.NewBigInt(bigFrozenSum),
 			Benchmarks: &pb.Benchmarks{
-				CPUSysbenchMulti: cpuSysbenchMulti,
-				CPUSysbenchOne:   cpuSysbenchOne,
-				CPUCores:         cpuCores,
-				RAMSize:          ramSize,
-				StorageSize:      storageSize,
-				NetTrafficIn:     netTrafficIn,
-				NetTrafficOut:    netTrafficOut,
-				GPUCount:         gpuCount,
-				GPUMem:           gpuMem,
-				GPUEthHashrate:   gpuEthHashrate,
-				GPUCashHashrate:  gpuCashHashrate,
-				GPURedshift:      gpuRedshift,
+				Values: []uint64{
+					cpuSysbenchMulti,
+					cpuSysbenchOne,
+					cpuCores,
+					ramSize,
+					storageSize,
+					netTrafficIn,
+					netTrafficOut,
+					gpuCount,
+					gpuMem,
+					gpuEthHashrate,
+					gpuCashHashrate,
+					gpuRedshift,
+				},
 			},
 		},
 

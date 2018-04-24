@@ -57,18 +57,7 @@ enum ChangeRequestStatus {
 }
 
 message Benchmarks {
-    uint64 CPUSysbenchMulti = 1;
-    uint64 CPUSysbenchOne = 2;
-    uint64 CPUCores = 3;
-    uint64 RAMSize = 4;
-    uint64 StorageSize = 5;
-    uint64 NetTrafficIn = 6;
-    uint64 NetTrafficOut = 7;
-    uint64 GPUCount = 8;
-    uint64 GPUMem = 9;
-    uint64 GPUEthHashrate = 10;
-    uint64 GPUCashHashrate = 11;
-    uint64 GPURedshift = 12;
+    repeated uint64 values = 1;
 }
 
 message Deal {
