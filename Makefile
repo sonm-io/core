@@ -28,6 +28,7 @@ DWH=${TARGETDIR}/sonmdwh_$(OS_ARCH)
 RENDEZVOUS=${TARGETDIR}/sonmrendezvous_$(OS_ARCH)
 RELAY=${TARGETDIR}/sonmrelay_$(OS_ARCH)
 LSGPU=${TARGETDIR}/lsgpu_$(OS_ARCH)
+PANDORA=${TARGETDIR}/pandora_$(OS_ARCH)
 
 TAGS=nocgo
 
@@ -98,10 +99,17 @@ build/autocli:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${AUTOCLI} ${GOCMD}/autocli
 
+build/pandora:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${PANDORA} ${GOCMD}/pandora
+
+build/pandora_linux:
+	@echo "+ $@"
+	GOOS=linux ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${TARGETDIR}/pandora_linux_x86_64 ${GOCMD}/pandora
 
 build/insomnia: build/worker build/cli build/node
 
-build/aux: build/relay build/rv build/dwh
+build/aux: build/relay build/rv build/dwh build/pandora
 
 build: build/insomnia build/aux
 

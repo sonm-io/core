@@ -38,7 +38,7 @@ func startReport(m engine.Metrics) {
 			activeUsers := m.InstanceStart.Get() - m.InstanceFinish.Get()
 			activeRequests := requestsNew - responsesNew
 			zap.S().Infof(
-				"[ENGINE] %d resp/s; %d req/s; %d users; %d active\n",
+				"[ENGINE] %d resp/s; %d req/s; %d users; %d active",
 				rps, reqps, activeUsers, activeRequests)
 
 			requests = requestsNew
