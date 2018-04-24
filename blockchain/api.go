@@ -262,6 +262,11 @@ func (api *BasicAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey, orde
 		order.GetBenchmarks().ToArray(),
 	)
 
+	if err != nil {
+		ch <- OrderOrError{nil, err}
+		return
+	}
+
 	id, err := api.waitForTransactionResult(ctx, tx, OrderPlacedTopic)
 	if err != nil {
 		ch <- OrderOrError{nil, err}
