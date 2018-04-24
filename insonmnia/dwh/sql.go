@@ -10,14 +10,13 @@ import (
 )
 
 const (
-	MaxLimit = 500
+	MaxLimit = 200
 )
 
 const (
-	gte   = ">="
-	lte   = "<="
-	eq    = "="
-	notEq = "!="
+	gte = ">="
+	lte = "<="
+	eq  = "="
 )
 
 var (

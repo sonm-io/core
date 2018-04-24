@@ -21,9 +21,11 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -36,6 +38,7 @@ type DWH struct {
 	cfg         *Config
 	cancel      context.CancelFunc
 	grpc        *grpc.Server
+	http        *rest.Server
 	logger      *zap.Logger
 	db          *sql.DB
 	creds       credentials.TransportCredentials
@@ -84,14 +87,53 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, blockchain 
 }
 
 func (w *DWH) Serve() error {
-	lis, err := net.Listen("tcp", w.cfg.ListenAddr)
-	if err != nil {
-		return errors.Wrapf(err, "failed to listen on %s", w.cfg.ListenAddr)
-	}
-
 	go w.monitorBlockchain()
 
+	wg := errgroup.Group{}
+	wg.Go(w.serveGRPC)
+	wg.Go(w.serveHTTP)
+
+	return wg.Wait()
+}
+
+func (w *DWH) Close() {
+	w.grpc.Stop()
+	w.http.Close()
+}
+
+func (w *DWH) serveGRPC() error {
+	lis, err := net.Listen("tcp", w.cfg.GRPCListenAddr)
+	if err != nil {
+		return errors.Wrapf(err, "failed to listen on %s", w.cfg.GRPCListenAddr)
+	}
+
 	return w.grpc.Serve(lis)
+}
+
+func (w *DWH) serveHTTP() error {
+	options := []rest.Option{rest.WithContext(w.ctx)}
+
+	lis, err := net.Listen("tcp", w.cfg.HTTPListenAddr)
+	if err != nil {
+		log.S(w.ctx).Info("failed to create http listener")
+		return err
+	}
+
+	options = append(options, rest.WithListener(lis))
+
+	srv, err := rest.NewServer(options...)
+	if err != nil {
+		return errors.Wrap(err, "failed to create rest server")
+	}
+
+	err = srv.RegisterService((*pb.DWHServer)(nil), w)
+	if err != nil {
+		return errors.Wrap(err, "failed to RegisterService")
+	}
+
+	w.http = srv
+
+	return srv.Serve()
 }
 
 func (w *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDealsReply, error) {

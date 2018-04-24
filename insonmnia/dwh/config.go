@@ -9,10 +9,11 @@ import (
 
 type Config struct {
 	Logging           LoggingConfig      `yaml:"logging"`
-	ListenAddr        string             `yaml:"address"`
-	Eth               accounts.EthConfig `required:"true" yaml:"ethereum"`
-	Storage           *storageConfig     `required:"true" yaml:"storage"`
-	Blockchain        *blockchainConfig  `required:"true" yaml:"blockchain"`
+	GRPCListenAddr    string             `yaml:"grpc_address" default:"127.0.0.1:15021"`
+	HTTPListenAddr    string             `yaml:"http_address" default:"127.0.0.1:15022"`
+	Eth               accounts.EthConfig `yaml:"ethereum" required:"true"`
+	Storage           *storageConfig     `yaml:"storage" required:"true"`
+	Blockchain        *blockchainConfig  `yaml:"blockchain" required:"true"`
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14004"`
 }
 
