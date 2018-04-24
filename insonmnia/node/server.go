@@ -15,6 +15,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/npp"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -45,6 +46,7 @@ type remoteOptions struct {
 	hubCreator        hubClientCreator
 	blockchainTimeout time.Duration
 	nppDialer         *npp.Dialer
+	benchList         benchmarks.BenchList
 }
 
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
@@ -87,6 +89,11 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		return nil, err
 	}
 
+	benchList, err := benchmarks.NewBenchmarksList(ctx, cfg.Benchmarks)
+	if err != nil {
+		return nil, err
+	}
+
 	return &remoteOptions{
 		ctx:               ctx,
 		key:               key,
@@ -97,6 +104,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		blockchainTimeout: 180 * time.Second,
 		hubCreator:        hubFactory,
 		nppDialer:         nppDialer,
+		benchList:         benchList,
 	}, nil
 }
 

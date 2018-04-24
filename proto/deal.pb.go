@@ -38,7 +38,7 @@ var DeprecatedDealStatus_value = map[string]int32{
 func (x DeprecatedDealStatus) String() string {
 	return proto.EnumName(DeprecatedDealStatus_name, int32(x))
 }
-func (DeprecatedDealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
+func (DeprecatedDealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor5, []int{0} }
 
 // Deprecated: TODO: please migrate to the new API.
 type DeprecatedDeal struct {
@@ -59,7 +59,7 @@ type DeprecatedDeal struct {
 func (m *DeprecatedDeal) Reset()                    { *m = DeprecatedDeal{} }
 func (m *DeprecatedDeal) String() string            { return proto.CompactTextString(m) }
 func (*DeprecatedDeal) ProtoMessage()               {}
-func (*DeprecatedDeal) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
+func (*DeprecatedDeal) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{0} }
 
 func (m *DeprecatedDeal) GetBuyerID() string {
 	if m != nil {
@@ -150,9 +150,9 @@ func init() {
 	proto.RegisterEnum("sonm.DeprecatedDealStatus", DeprecatedDealStatus_name, DeprecatedDealStatus_value)
 }
 
-func init() { proto.RegisterFile("deal.proto", fileDescriptor6) }
+func init() { proto.RegisterFile("deal.proto", fileDescriptor5) }
 
-var fileDescriptor6 = []byte{
+var fileDescriptor5 = []byte{
 	// 365 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0xcd, 0x8e, 0xda, 0x30,
 	0x14, 0x85, 0x9b, 0x1f, 0x12, 0xb8, 0x44, 0x21, 0xb5, 0x58, 0x58, 0x59, 0x54, 0x11, 0xab, 0xb4,

@@ -34,7 +34,7 @@ var GPUVendorType_value = map[string]int32{
 func (x GPUVendorType) String() string {
 	return proto.EnumName(GPUVendorType_name, int32(x))
 }
-func (GPUVendorType) EnumDescriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
+func (GPUVendorType) EnumDescriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
 
 type CPUDevice struct {
 	// ModelName describes full model name.
@@ -49,7 +49,7 @@ type CPUDevice struct {
 func (m *CPUDevice) Reset()                    { *m = CPUDevice{} }
 func (m *CPUDevice) String() string            { return proto.CompactTextString(m) }
 func (*CPUDevice) ProtoMessage()               {}
-func (*CPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
+func (*CPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
 
 func (m *CPUDevice) GetModelName() string {
 	if m != nil {
@@ -80,7 +80,7 @@ type CPU struct {
 func (m *CPU) Reset()                    { *m = CPU{} }
 func (m *CPU) String() string            { return proto.CompactTextString(m) }
 func (*CPU) ProtoMessage()               {}
-func (*CPU) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{1} }
+func (*CPU) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{1} }
 
 func (m *CPU) GetDevice() *CPUDevice {
 	if m != nil {
@@ -104,7 +104,7 @@ type RAMDevice struct {
 func (m *RAMDevice) Reset()                    { *m = RAMDevice{} }
 func (m *RAMDevice) String() string            { return proto.CompactTextString(m) }
 func (*RAMDevice) ProtoMessage()               {}
-func (*RAMDevice) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{2} }
+func (*RAMDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{2} }
 
 func (m *RAMDevice) GetTotal() uint64 {
 	if m != nil {
@@ -128,7 +128,7 @@ type RAM struct {
 func (m *RAM) Reset()                    { *m = RAM{} }
 func (m *RAM) String() string            { return proto.CompactTextString(m) }
 func (*RAM) ProtoMessage()               {}
-func (*RAM) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{3} }
+func (*RAM) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{3} }
 
 func (m *RAM) GetDevice() *RAMDevice {
 	if m != nil {
@@ -169,7 +169,7 @@ type GPUDevice struct {
 func (m *GPUDevice) Reset()                    { *m = GPUDevice{} }
 func (m *GPUDevice) String() string            { return proto.CompactTextString(m) }
 func (*GPUDevice) ProtoMessage()               {}
-func (*GPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{4} }
+func (*GPUDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{4} }
 
 func (m *GPUDevice) GetID() string {
 	if m != nil {
@@ -242,7 +242,7 @@ type GPU struct {
 func (m *GPU) Reset()                    { *m = GPU{} }
 func (m *GPU) String() string            { return proto.CompactTextString(m) }
 func (*GPU) ProtoMessage()               {}
-func (*GPU) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{5} }
+func (*GPU) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{5} }
 
 func (m *GPU) GetDevice() *GPUDevice {
 	if m != nil {
@@ -266,7 +266,7 @@ type NetworkDevice struct {
 func (m *NetworkDevice) Reset()                    { *m = NetworkDevice{} }
 func (m *NetworkDevice) String() string            { return proto.CompactTextString(m) }
 func (*NetworkDevice) ProtoMessage()               {}
-func (*NetworkDevice) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{6} }
+func (*NetworkDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{6} }
 
 func (m *NetworkDevice) GetBandwidthIn() uint64 {
 	if m != nil {
@@ -292,7 +292,7 @@ type Network struct {
 func (m *Network) Reset()                    { *m = Network{} }
 func (m *Network) String() string            { return proto.CompactTextString(m) }
 func (*Network) ProtoMessage()               {}
-func (*Network) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{7} }
+func (*Network) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{7} }
 
 func (m *Network) GetDevice() *NetworkDevice {
 	if m != nil {
@@ -329,7 +329,7 @@ type StorageDevice struct {
 func (m *StorageDevice) Reset()                    { *m = StorageDevice{} }
 func (m *StorageDevice) String() string            { return proto.CompactTextString(m) }
 func (*StorageDevice) ProtoMessage()               {}
-func (*StorageDevice) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{8} }
+func (*StorageDevice) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{8} }
 
 func (m *StorageDevice) GetBytesAvailable() uint64 {
 	if m != nil {
@@ -346,7 +346,7 @@ type Storage struct {
 func (m *Storage) Reset()                    { *m = Storage{} }
 func (m *Storage) String() string            { return proto.CompactTextString(m) }
 func (*Storage) ProtoMessage()               {}
-func (*Storage) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{9} }
+func (*Storage) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{9} }
 
 func (m *Storage) GetDevice() *StorageDevice {
 	if m != nil {
@@ -376,9 +376,9 @@ func init() {
 	proto.RegisterEnum("sonm.GPUVendorType", GPUVendorType_name, GPUVendorType_value)
 }
 
-func init() { proto.RegisterFile("capabilities.proto", fileDescriptor4) }
+func init() { proto.RegisterFile("capabilities.proto", fileDescriptor3) }
 
-var fileDescriptor4 = []byte{
+var fileDescriptor3 = []byte{
 	// 605 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x55, 0x4f, 0x6f, 0xd3, 0x4e,
 	0x10, 0xfd, 0xd9, 0xf9, 0xeb, 0xc9, 0x2f, 0x6d, 0xb4, 0x54, 0xc8, 0x54, 0x14, 0x45, 0x96, 0x80,

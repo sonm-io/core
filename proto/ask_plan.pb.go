@@ -7,7 +7,6 @@ Package sonm is a generated protocol buffer package.
 It is generated from these files:
 	ask_plan.proto
 	benchmarks.proto
-	bid.proto
 	bigint.proto
 	capabilities.proto
 	container.proto
@@ -33,9 +32,6 @@ It has these top-level messages:
 	AskPlanResources
 	AskPlan
 	Benchmark
-	BidNetwork
-	BidResources
-	BidOrder
 	BigInt
 	CPUDevice
 	CPU
@@ -115,6 +111,9 @@ It has these top-level messages:
 	Benchmarks
 	Deal
 	Order
+	BidNetwork
+	BidResources
+	BidOrder
 	MinerStartRequest
 	MinerStartReply
 	TaskInfo

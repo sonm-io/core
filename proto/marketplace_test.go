@@ -19,3 +19,13 @@ func TestName(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, IdentityLevel_PSEUDONYMOUS, into.Level)
 }
+
+func TestBidOrderValidate(t *testing.T) {
+	bid := &BidOrder{Tag: "this-string-is-too-long-for-tag-value"}
+	err := bid.Validate()
+	require.Error(t, err)
+
+	bid.Tag = "short-and-valid"
+	err = bid.Validate()
+	require.NoError(t, err)
+}

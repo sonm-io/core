@@ -1,6 +1,8 @@
 package node
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -43,8 +45,58 @@ func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, er
 	return m.remotes.eth.GetOrderInfo(ctx, id)
 }
 
-func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, error) {
-	ordOrErr := <-m.remotes.eth.PlaceOrder(ctx, m.remotes.key, req)
+func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Order, error) {
+	knownBenchmarks := m.remotes.benchList.MapByCode()
+	givenBenchmarks := req.GetResources().GetBenchmarks()
+
+	if len(givenBenchmarks) > len(knownBenchmarks) {
+		return nil, fmt.Errorf("benchmark list too large")
+	}
+
+	benchmarksValues := make([]uint64, len(knownBenchmarks))
+	for code, value := range givenBenchmarks {
+		bench, ok := knownBenchmarks[code]
+		if !ok {
+			return nil, fmt.Errorf("unknown benchmark code \"%s\"", code)
+		}
+
+		benchmarksValues[bench.GetID()] = value
+	}
+
+	benchStruct, err := pb.NewBenchmarks(benchmarksValues)
+	if err != nil {
+		return nil, err
+	}
+
+	var counterparty string
+	if req.CounterpartyID != nil {
+		counterparty = req.GetCounterpartyID().Unwrap().Hex()
+	}
+
+	var blacklist string
+	if req.GetBlacklist() != nil {
+		blacklist = req.GetBlacklist().Unwrap().Hex()
+	}
+
+	order := &pb.Order{
+		OrderType:      pb.OrderType_BID,
+		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
+		AuthorID:       crypto.PubkeyToAddress(m.remotes.key.PublicKey).Hex(),
+		CounterpartyID: counterparty,
+		Duration:       uint64(req.GetDuration().Unwrap().Seconds()),
+		Price:          req.GetPrice().GetPerSecond(),
+		Netflags: pb.NetflagsToUint([3]bool{
+			req.Resources.Network.Incoming,
+			req.Resources.Network.Outbound,
+			req.Resources.Network.Overlay,
+		}),
+		IdentityLevel: req.GetIdentity(),
+		Blacklist:     blacklist,
+		Tag:           []byte(req.GetTag()),
+		Benchmarks:    benchStruct,
+	}
+
+	ordOrErr := <-m.remotes.eth.PlaceOrder(ctx, m.remotes.key, order)
 	return ordOrErr.Order, ordOrErr.Err
 }
 
