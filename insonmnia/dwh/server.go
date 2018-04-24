@@ -21,9 +21,11 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
@@ -36,6 +38,7 @@ type DWH struct {
 	cfg         *Config
 	cancel      context.CancelFunc
 	grpc        *grpc.Server
+	http        *rest.Server
 	logger      *zap.Logger
 	db          *sql.DB
 	creds       credentials.TransportCredentials
@@ -84,14 +87,53 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, blockchain 
 }
 
 func (w *DWH) Serve() error {
-	lis, err := net.Listen("tcp", w.cfg.ListenAddr)
-	if err != nil {
-		return errors.Wrapf(err, "failed to listen on %s", w.cfg.ListenAddr)
-	}
-
 	go w.monitorBlockchain()
 
+	wg := errgroup.Group{}
+	wg.Go(w.serveGRPC)
+	wg.Go(w.serveHTTP)
+
+	return wg.Wait()
+}
+
+func (w *DWH) Close() {
+	w.grpc.Stop()
+	w.http.Close()
+}
+
+func (w *DWH) serveGRPC() error {
+	lis, err := net.Listen("tcp", w.cfg.GRPCListenAddr)
+	if err != nil {
+		return errors.Wrapf(err, "failed to listen on %s", w.cfg.GRPCListenAddr)
+	}
+
 	return w.grpc.Serve(lis)
+}
+
+func (w *DWH) serveHTTP() error {
+	options := []rest.Option{rest.WithContext(w.ctx)}
+
+	lis, err := net.Listen("tcp", w.cfg.HTTPListenAddr)
+	if err != nil {
+		log.S(w.ctx).Info("failed to create http listener")
+		return err
+	}
+
+	options = append(options, rest.WithListener(lis))
+
+	srv, err := rest.NewServer(options...)
+	if err != nil {
+		return errors.Wrap(err, "failed to create rest server")
+	}
+
+	err = srv.RegisterService((*pb.DWHServer)(nil), w)
+	if err != nil {
+		return errors.Wrap(err, "failed to RegisterService")
+	}
+
+	w.http = srv
+
+	return srv.Serve()
 }
 
 func (w *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDealsReply, error) {
@@ -380,18 +422,18 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	}
 	filters = append(filters, newFilter("IdentityLevel", gte, order.Order.IdentityLevel, "AND"))
 	filters = append(filters, newFilter("CreatorIdentityLevel", lte, order.CreatorIdentityLevel, "AND"))
-	filters = append(filters, newFilter("CPUSysbenchMulti", benchOp, order.Order.Benchmarks.CPUSysbenchMulti, "AND"))
-	filters = append(filters, newFilter("CPUSysbenchOne", benchOp, order.Order.Benchmarks.CPUSysbenchOne, "AND"))
-	filters = append(filters, newFilter("CPUCores", benchOp, order.Order.Benchmarks.CPUCores, "AND"))
-	filters = append(filters, newFilter("RAMSize", benchOp, order.Order.Benchmarks.RAMSize, "AND"))
-	filters = append(filters, newFilter("StorageSize", benchOp, order.Order.Benchmarks.StorageSize, "AND"))
-	filters = append(filters, newFilter("NetTrafficIn", benchOp, order.Order.Benchmarks.NetTrafficIn, "AND"))
-	filters = append(filters, newFilter("NetTrafficOut", benchOp, order.Order.Benchmarks.NetTrafficOut, "AND"))
-	filters = append(filters, newFilter("GPUCount", benchOp, order.Order.Benchmarks.GPUCount, "AND"))
-	filters = append(filters, newFilter("GPUMem", benchOp, order.Order.Benchmarks.GPUMem, "AND"))
-	filters = append(filters, newFilter("GPUEthHashrate", benchOp, order.Order.Benchmarks.GPUEthHashrate, "AND"))
-	filters = append(filters, newFilter("GPUCashHashrate", benchOp, order.Order.Benchmarks.GPUCashHashrate, "AND"))
-	filters = append(filters, newFilter("GPURedshift", benchOp, order.Order.Benchmarks.GPURedshift, "AND"))
+	filters = append(filters, newFilter("CPUSysbenchMulti", benchOp, order.Order.Benchmarks.CPUSysbenchMulti(), "AND"))
+	filters = append(filters, newFilter("CPUSysbenchOne", benchOp, order.Order.Benchmarks.CPUSysbenchOne(), "AND"))
+	filters = append(filters, newFilter("CPUCores", benchOp, order.Order.Benchmarks.CPUCores(), "AND"))
+	filters = append(filters, newFilter("RAMSize", benchOp, order.Order.Benchmarks.RAMSize(), "AND"))
+	filters = append(filters, newFilter("StorageSize", benchOp, order.Order.Benchmarks.StorageSize(), "AND"))
+	filters = append(filters, newFilter("NetTrafficIn", benchOp, order.Order.Benchmarks.NetTrafficIn(), "AND"))
+	filters = append(filters, newFilter("NetTrafficOut", benchOp, order.Order.Benchmarks.NetTrafficOut(), "AND"))
+	filters = append(filters, newFilter("GPUCount", benchOp, order.Order.Benchmarks.GPUCount(), "AND"))
+	filters = append(filters, newFilter("GPUMem", benchOp, order.Order.Benchmarks.GPUMem(), "AND"))
+	filters = append(filters, newFilter("GPUEthHashrate", benchOp, order.Order.Benchmarks.GPUEthHashrate(), "AND"))
+	filters = append(filters, newFilter("GPUCashHashrate", benchOp, order.Order.Benchmarks.GPUCashHashrate(), "AND"))
+	filters = append(filters, newFilter("GPURedshift", benchOp, order.Order.Benchmarks.GPURedshift(), "AND"))
 
 	rows, _, err := runQuery(w.db, &queryOpts{
 		table:    "Orders",
@@ -776,102 +818,62 @@ func (w *DWH) watchMarketEvents() error {
 	}
 
 	for event := range dealEvents {
-		w.mu.Lock()
-		switch value := event.Data.(type) {
-		case *blockchain.DealOpenedData:
-			if err := w.onDealOpened(value.ID); err != nil {
-				w.logger.Error("failed to process DealOpened event",
-					zap.Error(err), zap.String("deal_id", value.ID.String()))
-			}
-		case *blockchain.DealUpdatedData:
-			if err := w.onDealUpdated(value.ID); err != nil {
-				w.logger.Error("failed to process DealUpdated event",
-					zap.Error(err), zap.String("deal_id", value.ID.String()))
-			}
-		case *blockchain.OrderPlacedData:
-			if err := w.onOrderPlaced(event.TS, value.ID); err != nil {
-				w.logger.Error("failed to process OrderPlaced event",
-					zap.Error(err), zap.String("order_id", value.ID.String()))
-			}
-		case *blockchain.OrderUpdatedData:
-			if err := w.onOrderUpdated(value.ID); err != nil {
-				w.logger.Error("failed to process OrderCancelled event",
-					zap.Error(err), zap.String("order_id", value.ID.String()))
-			}
-		case *blockchain.DealChangeRequestSentData:
-			if err := w.onDealChangeRequestSent(event.TS, value.ID); err != nil {
-				w.logger.Error("failed to process DealChangeRequestSent event",
-					zap.Error(err), zap.String("change_request_id", value.ID.String()))
-			}
-		case *blockchain.DealChangeRequestUpdatedData:
-			if err := w.onDealChangeRequestUpdated(event.TS, value.ID); err != nil {
-				w.logger.Error("failed to process DealChangeRequestUpdated event",
-					zap.Error(err), zap.String("change_request_id", value.ID.String()))
-			}
-		case *blockchain.BilledData:
-			if err := w.onBilled(event.TS, value.ID, value.PayedAmount); err != nil {
-				w.logger.Error("failed to process Billed event",
-					zap.Error(err), zap.String("deal_id", value.ID.String()))
-			}
-		case *blockchain.WorkerAnnouncedData:
-			if err := w.onWorkerAnnounced(value.MasterID.String(), value.SlaveID.String()); err != nil {
-				w.logger.Error("failed to process WorkerAnnounced event",
-					zap.Error(err), zap.String("master_id", value.MasterID.String()),
-					zap.String("slave_id", value.SlaveID.String()))
-			}
-		case *blockchain.WorkerConfirmedData:
-			if err := w.onWorkerConfirmed(value.MasterID.String(), value.SlaveID.String()); err != nil {
-				w.logger.Error("failed to process WorkerConfirmed event",
-					zap.Error(err), zap.String("master_id", value.MasterID.String()),
-					zap.String("slave_id", value.SlaveID.String()))
-			}
-		case *blockchain.WorkerRemovedData:
-			if err := w.onWorkerRemoved(value.MasterID.String(), value.SlaveID.String()); err != nil {
-				w.logger.Error("failed to process WorkerRemoved event",
-					zap.Error(err), zap.String("master_id", value.MasterID.String()),
-					zap.String("slave_id", value.SlaveID.String()))
-			}
-		case *blockchain.AddedToBlacklistData:
-			if err := w.onAddedToBlacklist(value.AdderID.String(), value.AddeeID.String()); err != nil {
-				w.logger.Error("failed to process AddedToBlacklist event",
-					zap.Error(err), zap.String("adder_id", value.AdderID.String()),
-					zap.String("addee_id", value.AddeeID.String()))
-			}
-		case *blockchain.RemovedFromBlacklistData:
-			if err := w.onRemovedFromBlacklist(value.RemoverID.String(), value.RemoveeID.String()); err != nil {
-				w.logger.Error("failed to process RemovedFromBlacklist event",
-					zap.Error(err), zap.String("adder_id", value.RemoverID.String()),
-					zap.String("addee_id", value.RemoveeID.String()))
-			}
-		case *blockchain.ValidatorCreatedData:
-			if err := w.onValidatorCreated(value.ID); err != nil {
-				w.logger.Error("failed to process ValidatorCreated event",
-					zap.Error(err), zap.String("validator_id", value.ID.String()))
-			}
-		case *blockchain.ValidatorDeletedData:
-			if err := w.onValidatorDeleted(value.ID); err != nil {
-				w.logger.Error("failed to process ValidatorDeleted event",
-					zap.Error(err), zap.String("validator_id", value.ID.String()))
-			}
-		case *blockchain.CertificateCreatedData:
-			if err := w.onCertificateCreated(value.ID); err != nil {
-				w.logger.Error("failed to process AttributeCreated event",
-					zap.Error(err), zap.String("cert_id", value.ID.String()))
-			}
-		case *blockchain.ErrorData:
-			w.logger.Error("received error from events channel", zap.Error(value.Err), zap.String("topic", value.Topic))
-		}
-		w.mu.Unlock()
-
-		w.logger.Info("processed event", zap.String("event_type", reflect.TypeOf(event.Data).String()))
-
 		if err := w.updateLastKnownBlockTS(int64(event.BlockNumber)); err != nil {
 			w.logger.Error("failed to updateLastKnownBlock", zap.Error(err),
 				zap.Uint64("block_number", event.BlockNumber))
 		}
+
+		if err := w.processEvent(event); err != nil {
+			w.logger.Error("failed to processEvent", zap.Error(err), zap.Uint64("block_number", event.BlockNumber),
+				zap.String("event_type", reflect.TypeOf(event.Data).Name()))
+		}
+
+		w.logger.Info("processed event", zap.String("event_type", reflect.TypeOf(event.Data).String()))
 	}
 
 	return errors.New("events channel closed")
+}
+
+func (w *DWH) processEvent(event *blockchain.Event) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	switch value := event.Data.(type) {
+	case *blockchain.DealOpenedData:
+		return w.onDealOpened(value.ID)
+	case *blockchain.DealUpdatedData:
+		return w.onDealUpdated(value.ID)
+	case *blockchain.OrderPlacedData:
+		return w.onOrderPlaced(event.TS, value.ID)
+	case *blockchain.OrderUpdatedData:
+		return w.onOrderUpdated(value.ID)
+	case *blockchain.DealChangeRequestSentData:
+		return w.onDealChangeRequestSent(event.TS, value.ID)
+	case *blockchain.DealChangeRequestUpdatedData:
+		return w.onDealChangeRequestUpdated(event.TS, value.ID)
+	case *blockchain.BilledData:
+		return w.onBilled(event.TS, value.ID, value.PayedAmount)
+	case *blockchain.WorkerAnnouncedData:
+		return w.onWorkerAnnounced(value.MasterID.String(), value.SlaveID.String())
+	case *blockchain.WorkerConfirmedData:
+		return w.onWorkerConfirmed(value.MasterID.String(), value.SlaveID.String())
+	case *blockchain.WorkerRemovedData:
+		return w.onWorkerRemoved(value.MasterID.String(), value.SlaveID.String())
+	case *blockchain.AddedToBlacklistData:
+		return w.onAddedToBlacklist(value.AdderID.String(), value.AddeeID.String())
+	case *blockchain.RemovedFromBlacklistData:
+		w.onRemovedFromBlacklist(value.RemoverID.String(), value.RemoveeID.String())
+	case *blockchain.ValidatorCreatedData:
+		return w.onValidatorCreated(value.ID)
+	case *blockchain.ValidatorDeletedData:
+		return w.onValidatorDeleted(value.ID)
+	case *blockchain.CertificateCreatedData:
+		return w.onCertificateCreated(value.ID)
+	case *blockchain.ErrorData:
+		w.logger.Error("received error from events channel", zap.Error(value.Err), zap.String("topic", value.Topic))
+	}
+
+	return nil
 }
 
 func (w *DWH) onDealOpened(dealID *big.Int) error {
@@ -926,18 +928,18 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		ask.CreatorCertificates,
 		bid.CreatorCertificates,
 		hasActiveChangeRequests,
-		deal.Benchmarks.CPUSysbenchMulti,
-		deal.Benchmarks.CPUSysbenchOne,
-		deal.Benchmarks.CPUCores,
-		deal.Benchmarks.RAMSize,
-		deal.Benchmarks.StorageSize,
-		deal.Benchmarks.NetTrafficIn,
-		deal.Benchmarks.NetTrafficOut,
-		deal.Benchmarks.GPUCount,
-		deal.Benchmarks.GPUMem,
-		deal.Benchmarks.GPUEthHashrate,
-		deal.Benchmarks.GPUCashHashrate,
-		deal.Benchmarks.GPURedshift,
+		deal.Benchmarks.CPUSysbenchMulti(),
+		deal.Benchmarks.CPUSysbenchOne(),
+		deal.Benchmarks.CPUCores(),
+		deal.Benchmarks.RAMSize(),
+		deal.Benchmarks.StorageSize(),
+		deal.Benchmarks.NetTrafficIn(),
+		deal.Benchmarks.NetTrafficOut(),
+		deal.Benchmarks.GPUCount(),
+		deal.Benchmarks.GPUMem(),
+		deal.Benchmarks.GPUEthHashrate(),
+		deal.Benchmarks.GPUCashHashrate(),
+		deal.Benchmarks.GPURedshift(),
 	)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
@@ -1338,18 +1340,18 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		profile.Name,
 		profile.Country,
 		profile.Certificates,
-		order.Benchmarks.CPUSysbenchMulti,
-		order.Benchmarks.CPUSysbenchOne,
-		order.Benchmarks.CPUCores,
-		order.Benchmarks.RAMSize,
-		order.Benchmarks.StorageSize,
-		order.Benchmarks.NetTrafficIn,
-		order.Benchmarks.NetTrafficOut,
-		order.Benchmarks.GPUCount,
-		order.Benchmarks.GPUMem,
-		order.Benchmarks.GPUEthHashrate,
-		order.Benchmarks.GPUCashHashrate,
-		order.Benchmarks.GPURedshift,
+		order.Benchmarks.CPUSysbenchMulti(),
+		order.Benchmarks.CPUSysbenchOne(),
+		order.Benchmarks.CPUCores(),
+		order.Benchmarks.RAMSize(),
+		order.Benchmarks.StorageSize(),
+		order.Benchmarks.NetTrafficIn(),
+		order.Benchmarks.NetTrafficOut(),
+		order.Benchmarks.GPUCount(),
+		order.Benchmarks.GPUMem(),
+		order.Benchmarks.GPUEthHashrate(),
+		order.Benchmarks.GPUCashHashrate(),
+		order.Benchmarks.GPURedshift(),
 	)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
@@ -1785,18 +1787,20 @@ func (w *DWH) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 			TotalPayout:    pb.NewBigInt(bigTotalPayout),
 			LastBillTS:     &pb.Timestamp{Seconds: lastBillTS},
 			Benchmarks: &pb.Benchmarks{
-				CPUSysbenchMulti: cpuSysbenchMulti,
-				CPUSysbenchOne:   cpuSysbenchOne,
-				CPUCores:         cpuCores,
-				RAMSize:          ramSize,
-				StorageSize:      storageSize,
-				NetTrafficIn:     netTrafficIn,
-				NetTrafficOut:    netTrafficOut,
-				GPUCount:         gpuCount,
-				GPUMem:           gpuMem,
-				GPUEthHashrate:   gpuEthHashrate,
-				GPUCashHashrate:  gpuCashHashrate,
-				GPURedshift:      gpuRedshift,
+				Values: []uint64{
+					cpuSysbenchMulti,
+					cpuSysbenchOne,
+					cpuCores,
+					ramSize,
+					storageSize,
+					netTrafficIn,
+					netTrafficOut,
+					gpuCount,
+					gpuMem,
+					gpuEthHashrate,
+					gpuCashHashrate,
+					gpuRedshift,
+				},
 			},
 		},
 		Netflags:             netflags,
@@ -1933,18 +1937,20 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 			Tag:            tag,
 			FrozenSum:      pb.NewBigInt(bigFrozenSum),
 			Benchmarks: &pb.Benchmarks{
-				CPUSysbenchMulti: cpuSysbenchMulti,
-				CPUSysbenchOne:   cpuSysbenchOne,
-				CPUCores:         cpuCores,
-				RAMSize:          ramSize,
-				StorageSize:      storageSize,
-				NetTrafficIn:     netTrafficIn,
-				NetTrafficOut:    netTrafficOut,
-				GPUCount:         gpuCount,
-				GPUMem:           gpuMem,
-				GPUEthHashrate:   gpuEthHashrate,
-				GPUCashHashrate:  gpuCashHashrate,
-				GPURedshift:      gpuRedshift,
+				Values: []uint64{
+					cpuSysbenchMulti,
+					cpuSysbenchOne,
+					cpuCores,
+					ramSize,
+					storageSize,
+					netTrafficIn,
+					netTrafficOut,
+					gpuCount,
+					gpuMem,
+					gpuEthHashrate,
+					gpuCashHashrate,
+					gpuRedshift,
+				},
 			},
 		},
 

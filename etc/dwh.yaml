@@ -1,4 +1,6 @@
-address: "127.0.0.1:15021"
+grpc_address: "127.0.0.1:15021"
+
+http_address: "127.0.0.1:15022"
 
 storage:
   driver: "sqlite3"
@@ -20,3 +22,5 @@ logging:
   # The desired logging level.
   # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
   level: debug
+
+enable_rest: true

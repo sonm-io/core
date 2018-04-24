@@ -13,7 +13,7 @@ service Market {
     // CreateOrder places new order on the Marketplace.
     // Note that current impl of Node API prevents you from
     // creating ASKs orders.
-    rpc CreateOrder(Order) returns (Order) {}
+    rpc CreateOrder(BidOrder) returns (Order) {}
     // GetOrderByID returns order by given ID.
     // If order save an `inactive` status returns error instead.
     rpc GetOrderByID(ID) returns (Order) {}
@@ -57,18 +57,7 @@ enum ChangeRequestStatus {
 }
 
 message Benchmarks {
-    uint64 CPUSysbenchMulti = 1;
-    uint64 CPUSysbenchOne = 2;
-    uint64 CPUCores = 3;
-    uint64 RAMSize = 4;
-    uint64 StorageSize = 5;
-    uint64 NetTrafficIn = 6;
-    uint64 NetTrafficOut = 7;
-    uint64 GPUCount = 8;
-    uint64 GPUMem = 9;
-    uint64 GPUEthHashrate = 10;
-    uint64 GPUCashHashrate = 11;
-    uint64 GPURedshift = 12;
+    repeated uint64 values = 1;
 }
 
 message Deal {
@@ -104,4 +93,28 @@ message Order {
     bytes tag = 12;
     Benchmarks benchmarks = 13;
     BigInt frozenSum = 14;
+}
+
+message BidNetwork {
+    bool overlay = 1;
+    bool outbound = 2;
+    bool incoming = 3;
+}
+
+message BidResources{
+    BidNetwork network = 1;
+    map<string, uint64> benchmarks = 2;
+}
+
+message BidOrder {
+    string ID = 1;
+
+    Duration duration = 2;
+    Price price = 3;
+    EthAddress blacklist = 4;
+    IdentityLevel identity = 5;
+    string tag = 6;
+
+    EthAddress CounterpartyID = 7;
+    BidResources resources = 8;
 }

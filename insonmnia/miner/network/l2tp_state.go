@@ -1,6 +1,7 @@
 package network
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -173,50 +174,50 @@ func (e *l2tpEndpoint) setup() error {
 }
 
 func (e *l2tpEndpoint) GetPppConfig() string {
-	cfg := ""
+	cfg := new(bytes.Buffer)
 
 	if e.NetworkOpts.PPPIPCPAcceptLocal {
-		cfg += "\nipcp-accept-local"
+		fmt.Fprint(cfg, "\nipcp-accept-local")
 	}
 	if e.NetworkOpts.PPPIPCPAcceptRemote {
-		cfg += "\nipcp-accept-remote"
+		fmt.Fprint(cfg, "\nipcp-accept-remote")
 	}
 	if e.NetworkOpts.PPPRefuseEAP {
-		cfg += "\nrefuse-eap"
+		fmt.Fprint(cfg, "\nrefuse-eap")
 	}
 	if e.NetworkOpts.PPPRequireMSChapV2 {
-		cfg += "\nrequire-mschap-v2"
+		fmt.Fprint(cfg, "\nrequire-mschap-v2")
 	}
 	if e.NetworkOpts.PPPNoccp {
-		cfg += "\nnoccp"
+		fmt.Fprint(cfg, "\nnoccp")
 	}
 	if e.NetworkOpts.PPPNoauth {
-		cfg += "\nnoauth"
+		fmt.Fprint(cfg, "\nnoauth")
 	}
 
-	cfg += fmt.Sprintf("\nifname %s", e.PPPDevName)
-	cfg += fmt.Sprintf("\nname %s", e.NetworkOpts.PPPUsername)
-	cfg += fmt.Sprintf("\npassword %s", e.NetworkOpts.PPPPassword)
-	cfg += fmt.Sprintf("\nmtu %s", e.NetworkOpts.PPPMTU)
-	cfg += fmt.Sprintf("\nmru %s", e.NetworkOpts.PPPMRU)
-	cfg += fmt.Sprintf("\nidle %s", e.NetworkOpts.PPPIdle)
-	cfg += fmt.Sprintf("\nconnect-delay %s", e.NetworkOpts.PPPConnectDelay)
+	fmt.Fprintf(cfg, "\nifname %s", e.PPPDevName)
+	fmt.Fprintf(cfg, "\nname %s", e.NetworkOpts.PPPUsername)
+	fmt.Fprintf(cfg, "\npassword %s", e.NetworkOpts.PPPPassword)
+	fmt.Fprintf(cfg, "\nmtu %s", e.NetworkOpts.PPPMTU)
+	fmt.Fprintf(cfg, "\nmru %s", e.NetworkOpts.PPPMRU)
+	fmt.Fprintf(cfg, "\nidle %s", e.NetworkOpts.PPPIdle)
+	fmt.Fprintf(cfg, "\nconnect-delay %s", e.NetworkOpts.PPPConnectDelay)
 
 	if e.NetworkOpts.PPPDebug {
-		cfg += "\ndebug"
+		fmt.Fprint(cfg, "\ndebug")
 	}
 
 	if e.NetworkOpts.PPPDefaultRoute {
-		cfg += "\ndefaultroute"
+		fmt.Fprint(cfg, "\ndefaultroute")
 	}
 	if e.NetworkOpts.PPPUsepeerdns {
-		cfg += "\nusepeerdns"
+		fmt.Fprint(cfg, "\nusepeerdns")
 	}
 	if e.NetworkOpts.PPPLock {
-		cfg += "\nlock"
+		fmt.Fprint(cfg, "\nlock")
 	}
 
-	return cfg
+	return cfg.String()
 }
 
 func (e *l2tpEndpoint) GetXl2tpConfig() []string {

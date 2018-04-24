@@ -3,6 +3,7 @@ package commands
 import (
 	"os"
 
+	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
@@ -17,7 +18,7 @@ func init() {
 	marketRootCmd.AddCommand(
 		marketSearchCmd,
 		marketShowCmd,
-		marketCreteCmd,
+		marketCreateCmd,
 		marketCancelCmd,
 	)
 }
@@ -81,16 +82,36 @@ var marketShowCmd = &cobra.Command{
 // Note: here is no processing method at all, we need to move matching code
 // into the separated package, and then reinvent processing from scratch.
 
-var marketCreteCmd = &cobra.Command{
-	Use:    "create <price> <slot.yaml> [supplier-eth-addr]",
+var marketCreateCmd = &cobra.Command{
+	Use:    "create <bid.yaml>",
 	Short:  "Place new Bid order on Marketplace",
-	Args:   cobra.MinimumNArgs(2),
+	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		// todo: need to implement with new market API.
-		// todo: create parser for bid.yaml
-		showError(cmd, "not implemented", nil)
-		os.Exit(1)
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		market, err := newMarketClient(ctx)
+		if err != nil {
+			showError(cmd, "Cannot create client connection", err)
+			os.Exit(1)
+		}
+
+		path := args[0]
+		bid := &pb.BidOrder{}
+
+		if err := task_config.LoadFromFile(path, bid); err != nil {
+			showError(cmd, "Cannot load order definition", err)
+			os.Exit(1)
+		}
+
+		created, err := market.CreateOrder(ctx, bid)
+		if err != nil {
+			showError(cmd, "Cannot create order on marketplace", err)
+			os.Exit(1)
+		}
+
+		printID(cmd, created.GetId())
 	},
 }
 

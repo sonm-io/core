@@ -53,7 +53,8 @@ func run() {
 
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
 
-	log.G(ctx).Info("starting DWH service", zap.String("bind_addr", cfg.ListenAddr))
+	log.G(ctx).Info("starting DWH service", zap.String("grpc_addr", cfg.GRPCListenAddr),
+		zap.String("http_addr", cfg.HTTPListenAddr))
 	if err := w.Serve(); err != nil {
 		log.G(ctx).Error("cannot start DWH service", zap.Error(err))
 		os.Exit(1)

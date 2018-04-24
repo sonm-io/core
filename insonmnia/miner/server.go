@@ -679,7 +679,7 @@ func (m *Miner) RunBenchmarks() error {
 		zap.String("exiting", exitingHardware))
 
 	savedBenchmarks := m.state.PassedBenchmarks()
-	requiredBenchmarks := m.benchmarkList.List()
+	requiredBenchmarks := m.benchmarkList.MapByDeviceType()
 
 	hwHashesMatched := exitingHardware == savedHardware
 	benchMatched := m.isBenchmarkListMatches(requiredBenchmarks, savedBenchmarks)
