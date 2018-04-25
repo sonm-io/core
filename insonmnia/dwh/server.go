@@ -2,7 +2,6 @@ package dwh
 
 import (
 	"crypto/ecdsa"
-	"crypto/tls"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -32,6 +31,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const (
+	eventRetryTime = time.Second * 10
+)
+
 type DWH struct {
 	mu          sync.RWMutex
 	ctx         context.Context
@@ -47,16 +50,11 @@ type DWH struct {
 	commands    map[string]string
 }
 
-func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (w *DWH, err error) {
+func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, error) {
 	ctx, cancel := context.WithCancel(ctx)
-	defer func() {
-		if err != nil {
-			cancel()
-		}
-	}()
-
-	w = &DWH{
+	w := &DWH{
 		ctx:    ctx,
+		cancel: cancel,
 		cfg:    cfg,
 		logger: log.GetLogger(ctx),
 	}
@@ -66,23 +64,22 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (w *DWH, er
 		return nil, errors.Errorf("unsupported backend: %s", cfg.Storage.Backend)
 	}
 
-	if err = setupDB(w); err != nil {
+	if err := setupDB(w); err != nil {
 		return nil, errors.Wrap(err, "failed to setupDB")
 	}
 
-	var TLSConfig *tls.Config
-	w.certRotator, TLSConfig, err = util.NewHitlessCertRotator(ctx, key)
+	certRotator, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
 	if err != nil {
 		return nil, err
 	}
 
+	w.certRotator = certRotator
 	w.creds = util.NewTLS(TLSConfig)
-	server := xgrpc.NewServer(w.logger, xgrpc.Credentials(w.creds), xgrpc.DefaultTraceInterceptor())
-	w.grpc = server
+	w.grpc = xgrpc.NewServer(w.logger, xgrpc.Credentials(w.creds), xgrpc.DefaultTraceInterceptor())
 	pb.RegisterDWHServer(w.grpc, w)
 	grpc_prometheus.Register(w.grpc)
 
-	return
+	return w, nil
 }
 
 func (w *DWH) Serve() error {
@@ -104,7 +101,11 @@ func (w *DWH) Serve() error {
 	return wg.Wait()
 }
 
-func (w *DWH) Close() {
+func (w *DWH) Stop() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.cancel()
 	w.grpc.Stop()
 	w.http.Close()
 }
@@ -797,16 +798,15 @@ func (w *DWH) getWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 func (w *DWH) monitorBlockchain() error {
 	w.logger.Info("starting monitoring")
 
-	retryTime := time.Millisecond * 100
 	for {
-		if err := w.watchMarketEvents(); err != nil {
-			w.logger.Error("failed to watch market events, retrying",
-				zap.Error(err), zap.Duration("retry_time", retryTime))
-			retryTime *= 2
-			if retryTime > time.Second*10 {
-				retryTime = time.Second * 10
+		select {
+		case <-w.ctx.Done():
+			w.logger.Info("context cancelled (monitorBlockchain)")
+			return nil
+		default:
+			if err := w.watchMarketEvents(); err != nil {
+				w.logger.Error("failed to watch market events, retrying", zap.Error(err))
 			}
-			time.Sleep(retryTime)
 		}
 	}
 }
@@ -820,26 +820,40 @@ func (w *DWH) watchMarketEvents() error {
 		lastKnownBlock = 0
 	}
 
-	dealEvents, err := w.blockchain.GetEvents(context.Background(), big.NewInt(lastKnownBlock))
+	dealEvents, err := w.blockchain.GetEvents(w.ctx, big.NewInt(lastKnownBlock))
 	if err != nil {
 		return err
 	}
 
-	for event := range dealEvents {
-		if err := w.updateLastKnownBlockTS(int64(event.BlockNumber)); err != nil {
-			w.logger.Error("failed to updateLastKnownBlock", zap.Error(err),
-				zap.Uint64("block_number", event.BlockNumber))
-		}
+	for {
+		select {
+		case <-w.ctx.Done():
+			w.logger.Info("context cancelled (watchMarketEvents)")
+			return nil
+		case event, ok := <-dealEvents:
+			if !ok {
+				return errors.New("events channel closed")
+			}
 
-		if err := w.processEvent(event); err != nil {
-			w.logger.Error("failed to processEvent", zap.Error(err), zap.Uint64("block_number", event.BlockNumber),
-				zap.String("event_type", reflect.TypeOf(event.Data).Name()))
-		}
+			if err := w.updateLastKnownBlockTS(int64(event.BlockNumber)); err != nil {
+				w.logger.Error("failed to updateLastKnownBlock", zap.Error(err),
+					zap.Uint64("block_number", event.BlockNumber))
+			}
 
-		w.logger.Info("processed event", zap.String("event_type", reflect.TypeOf(event.Data).String()))
+			// Events in the same block can come in arbitrary order. If two events have to be processed
+			// in a specific order (e.g., OrderPlaced > DealOpened), we need to retry if the order is
+			// messed up.
+			if err := w.processEvent(event); err != nil {
+				w.logger.Error("failed to processEvent, retrying", zap.Error(err),
+					zap.Uint64("block_number", event.BlockNumber),
+					zap.String("event_type", reflect.TypeOf(event.Data).Name()))
+
+				go w.retryEvent(event)
+			}
+
+			w.logger.Info("processed event", zap.String("event_type", reflect.TypeOf(event.Data).String()))
+		}
 	}
-
-	return errors.New("events channel closed")
 }
 
 func (w *DWH) processEvent(event *blockchain.Event) error {
@@ -882,6 +896,23 @@ func (w *DWH) processEvent(event *blockchain.Event) error {
 	}
 
 	return nil
+}
+
+func (w *DWH) retryEvent(event *blockchain.Event) {
+	timer := time.NewTimer(eventRetryTime)
+	select {
+	case <-w.ctx.Done():
+		w.logger.Info("context cancelled while retrying event",
+			zap.Uint64("block_number", event.BlockNumber),
+			zap.String("event_type", reflect.TypeOf(event.Data).Name()))
+		return
+	case <-timer.C:
+		if err := w.processEvent(event); err != nil {
+			w.logger.Error("failed to retry processEvent", zap.Error(err),
+				zap.Uint64("block_number", event.BlockNumber),
+				zap.String("event_type", reflect.TypeOf(event.Data).Name()))
+		}
+	}
 }
 
 func (w *DWH) onDealOpened(dealID *big.Int) error {
@@ -985,7 +1016,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 }
 
 func (w *DWH) onDealUpdated(dealID *big.Int) error {
-	deal, err := w.blockchain.GetDealInfo(context.Background(), dealID)
+	deal, err := w.blockchain.GetDealInfo(w.ctx, dealID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to GetDealInfo")
 	}
@@ -1283,7 +1314,7 @@ func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 }
 
 func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
-	order, err := w.blockchain.GetOrderInfo(context.Background(), orderID)
+	order, err := w.blockchain.GetOrderInfo(w.ctx, orderID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to GetOrderInfo")
 	}
