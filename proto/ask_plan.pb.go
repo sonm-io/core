@@ -39,7 +39,6 @@ It has these top-level messages:
 	RAM
 	GPUDevice
 	GPU
-	NetworkDevice
 	Network
 	StorageDevice
 	Storage

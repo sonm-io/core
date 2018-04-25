@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
+	"github.com/mohae/deepcopy"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -679,6 +680,7 @@ func (m *Miner) RunBenchmarks() error {
 		zap.String("exiting", exitingHardware))
 
 	savedBenchmarks := m.state.PassedBenchmarks()
+	//TODO(@antmat): use plain list of benchmarks when it will be available (via following PR)
 	requiredBenchmarks := m.benchmarkList.MapByDeviceType()
 
 	hwHashesMatched := exitingHardware == savedHardware
@@ -736,153 +738,56 @@ func (m *Miner) isBenchmarkListMatches(required map[pb.DeviceType][]*pb.Benchmar
 // runBenchmarkGroup executes group of benchmarks for given device type (CPU, GPU, Network, etc...).
 // The results must be attached to worker's hardware capabilities inside this function (by magic).
 func (m *Miner) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) error {
+	var hwBenches []map[uint64]*pb.Benchmark
+	var gpuDevices []*pb.GPUDevice
 	switch dev {
 	case pb.DeviceType_DEV_CPU:
-		return m.runCPUBenchGroup(benches)
+		hwBenches = []map[uint64]*pb.Benchmark{m.hardware.CPU.Benchmarks}
 	case pb.DeviceType_DEV_RAM:
-		return m.runRAMBenchGroup(benches)
+		hwBenches = []map[uint64]*pb.Benchmark{m.hardware.RAM.Benchmarks}
 	case pb.DeviceType_DEV_GPU:
-		return m.runGPUBenchGroup(benches)
-	case pb.DeviceType_DEV_NETWORK:
-		return m.runNetworkBenchGroup(benches)
+		for _, gpu := range m.hardware.GPU {
+			hwBenches = append(hwBenches, gpu.Benchmarks)
+			gpuDevices = append(gpuDevices, gpu.Device)
+		}
+	case pb.DeviceType_DEV_NETWORK_IN:
+		hwBenches = []map[uint64]*pb.Benchmark{m.hardware.Network.BenchmarksIn}
+	case pb.DeviceType_DEV_NETWORK_OUT:
+		hwBenches = []map[uint64]*pb.Benchmark{m.hardware.Network.BenchmarksOut}
 	case pb.DeviceType_DEV_STORAGE:
-		return m.runStorageBenchGroup(benches)
+		hwBenches = []map[uint64]*pb.Benchmark{m.hardware.Storage.Benchmarks}
 	default:
 		return fmt.Errorf("unknown benchmark group \"%s\"", dev.String())
 	}
-}
 
-func (m *Miner) runCPUBenchGroup(benches []*pb.Benchmark) error {
-	for _, ben := range benches {
-		// check for special cases
-		if ben.GetID() == bm.CPUCores {
-			m.hardware.CPU.Benchmarks[bm.CPUCores] = &pb.Benchmark{
-				ID:     bm.CPUCores,
-				Code:   ben.GetCode(),
-				Result: uint64(m.hardware.CPU.Device.Cores),
-			}
-
-			continue
-		}
-
-		d := getDescriptionForBenchmark(ben)
-		d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
-
-		res, err := m.execBenchmarkContainer(ben, d)
-		if err != nil {
-			return err
-		}
-
-		// save benchmark resutls for current CPU unit
-		m.hardware.CPU.Benchmarks[ben.GetID()] = &pb.Benchmark{
-			ID:     ben.GetID(),
-			Code:   ben.GetCode(),
-			Result: res.Result,
-		}
-	}
-
-	return nil
-}
-
-func (m *Miner) runRAMBenchGroup(benches []*pb.Benchmark) error {
-	for _, ben := range benches {
-		// special case, just copy available amount of mem as benchmark result.
-		if ben.GetID() == bm.RamSize {
-			b := &pb.Benchmark{
-				ID:     bm.RamSize,
-				Code:   ben.GetCode(),
-				Result: m.hardware.RAM.Device.Total,
-			}
-
-			m.hardware.RAM.Benchmarks[bm.RamSize] = b
-			continue
-		}
-
-		d := getDescriptionForBenchmark(ben)
-		res, err := m.execBenchmarkContainer(ben, d)
-		if err != nil {
-			return err
-		}
-
-		m.hardware.RAM.Benchmarks[ben.GetID()] = &pb.Benchmark{
-			ID:     ben.GetID(),
-			Code:   ben.GetCode(),
-			Result: res.Result,
-		}
-		return nil
-	}
-
-	return nil
-}
-
-func (m *Miner) runGPUBenchGroup(benches []*pb.Benchmark) error {
-	for _, dev := range m.hardware.GPU {
-		for _, ben := range benches {
-			if ben.GetID() == bm.GPUCount {
-				dev.Benchmarks[bm.GPUCount] = &pb.Benchmark{
-					ID:     ben.GetID(),
-					Code:   ben.GetCode(),
-					Result: 1,
+	for _, bench := range benches {
+		for idx, receiver := range hwBenches {
+			if bench.GetID() == bm.CPUCores {
+				bench.Result = uint64(m.hardware.CPU.Device.Cores)
+			} else if bench.GetID() == bm.RamSize {
+				bench.Result = m.hardware.RAM.Device.Total
+			} else if bench.GetID() == bm.GPUCount {
+				bench.Result = uint64(len(m.hardware.GPU))
+			} else if bench.GetID() == bm.GPUMem {
+				bench.Result = gpuDevices[idx].Memory
+			} else if len(bench.GetImage()) != 0 {
+				d := getDescriptionForBenchmark(bench)
+				d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
+				if gpuDevices != nil {
+					d.GPUDevices = []gpu.GPUID{gpu.GPUID(gpuDevices[idx].GetID())}
 				}
-				continue
-			}
-
-			if ben.GetID() == bm.GPUMem {
-				dev.Benchmarks[bm.GPUMem] = &pb.Benchmark{
-					ID:     ben.GetID(),
-					Code:   ben.GetCode(),
-					Result: dev.Device.Memory,
+				res, err := m.execBenchmarkContainer(bench, d)
+				if err != nil {
+					return err
 				}
-				continue
+				bench.Result = res.Result
+			} else {
+				log.S(m.ctx).Warnf("skipping benchmark %s (setting explicitly to 0)", bench.Code)
+				bench.Result = uint64(0)
 			}
-
-			d := getDescriptionForBenchmark(ben)
-			d.GPUDevices = []gpu.GPUID{gpu.GPUID(dev.GetDevice().GetID())}
-
-			res, err := m.execBenchmarkContainer(ben, d)
-			if err != nil {
-				return err
-			}
-
-			dev.Benchmarks[ben.GetID()] = &pb.Benchmark{
-				ID:     ben.GetID(),
-				Code:   ben.GetCode(),
-				Result: res.Result,
-			}
+			receiver[bench.GetID()] = deepcopy.Copy(bench).(*pb.Benchmark)
 		}
 	}
-
-	return nil
-}
-
-func (m *Miner) runNetworkBenchGroup(benches []*pb.Benchmark) error {
-	for _, ben := range benches {
-		d := getDescriptionForBenchmark(ben)
-		res, err := m.execBenchmarkContainer(ben, d)
-		if err != nil {
-			return err
-		}
-
-		m.hardware.Network.Benchmarks[ben.GetID()] = &pb.Benchmark{
-			ID:     ben.GetID(),
-			Code:   ben.GetCode(),
-			Result: res.Result,
-		}
-	}
-
-	return nil
-}
-
-func (m *Miner) runStorageBenchGroup(benches []*pb.Benchmark) error {
-	// note: there is no storage sub-system for worker yet, so benchmark always returns zero
-	for _, ben := range benches {
-		m.hardware.Storage.Benchmarks[ben.GetID()] = &pb.Benchmark{
-			ID:     ben.GetID(),
-			Code:   ben.GetCode(),
-			Result: 0,
-		}
-	}
-
 	return nil
 }
 

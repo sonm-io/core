@@ -16,10 +16,9 @@ func TestHardwareHash(t *testing.T) {
 	x.CPU.Device = &sonm.CPUDevice{
 		ModelName: "Intel", Cores: 2, Sockets: 1,
 	}
-	x.Network.Device = &sonm.NetworkDevice{
-		BandwidthIn:  100,
-		BandwidthOut: 200,
-	}
+	x.Network.In = 100
+	x.Network.Out = 200
+
 	x.Storage.Device = &sonm.StorageDevice{
 		BytesAvailable: 100500,
 	}
@@ -33,7 +32,8 @@ func TestHardwareHash(t *testing.T) {
 
 	bench := &sonm.Benchmark{ID: 666, Result: 1337}
 	x.CPU.Benchmarks[111] = bench
-	x.Network.Benchmarks[222] = bench
+	x.Network.BenchmarksIn[222] = bench
+	x.Network.BenchmarksOut[234] = bench
 	x.Storage.Benchmarks[333] = bench
 	x.RAM.Benchmarks[444] = bench
 	x.GPU[0].Benchmarks[123] = bench

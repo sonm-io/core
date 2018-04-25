@@ -136,14 +136,20 @@ func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
 			}
 		}
 
-		netIn := datasize.NewBitRate(dev.GetNetwork().GetDevice().GetBandwidthIn()).HumanReadable()
-		netOut := datasize.NewBitRate(dev.GetNetwork().GetDevice().GetBandwidthOut()).HumanReadable()
+		netIn := datasize.NewBitRate(dev.GetNetwork().GetIn()).HumanReadable()
+		netOut := datasize.NewBitRate(dev.GetNetwork().GetOut()).HumanReadable()
 		cmd.Println("Network:")
 		cmd.Printf("  Incoming: %v\r\n", dev.GetNetwork().GetIncoming())
 		cmd.Printf("  Overlay:  %v\r\n", dev.GetNetwork().GetOverlay())
 		cmd.Printf("  In:       %s\r\n", netIn)
 		cmd.Printf("  Out:      %s\r\n", netOut)
-		printBenchmarkGroup(cmd, dev.GetNetwork().GetBenchmarks())
+
+		// merge network benchmarks to prevent printing two benchmarks groups with one item in each
+		networkBenchmarks := dev.GetNetwork().GetBenchmarksIn()
+		for k, v := range dev.GetNetwork().GetBenchmarksOut() {
+			networkBenchmarks[k] = v
+		}
+		printBenchmarkGroup(cmd, networkBenchmarks)
 
 		storageAvailable := datasize.NewByteSize(dev.GetStorage().GetDevice().GetBytesAvailable()).HumanReadable()
 		cmd.Println("Storage:")
