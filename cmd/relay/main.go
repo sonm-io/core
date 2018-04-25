@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
@@ -17,11 +16,10 @@ var (
 	appVersion  string
 )
 
-func start() {
+func start() error {
 	cfg, err := relay.NewServerConfig(cfgPath)
 	if err != nil {
-		fmt.Printf("Failed to load config file: %s\r\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to load config file: %s", err)
 	}
 
 	ctx := log.WithLogger(context.Background(), logging.BuildLogger(cfg.Logging.LogLevel()))
@@ -31,14 +29,14 @@ func start() {
 	}
 	server, err := relay.NewServer(*cfg, options...)
 	if err != nil {
-		log.S(ctx).Errorf("failed to construct a Relay server: %s", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to construct a Relay server: %s", err)
 	}
 
 	go server.Serve()
 	defer server.Close()
 
 	cmd.WaitInterrupted()
+	return nil
 }
 
 func main() {

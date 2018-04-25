@@ -3,36 +3,62 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
-// Runner func starts service wrapper by Cobra command
-type Runner func()
+// Runner func starts service wrapper by Cobra command.
+type Runner func() error
 
-// NewCmd returns new cobra.Command with --config and --version flags attached and output set to os.Stdout
-func NewCmd(name, appVersion string, conf *string, version *bool, run Runner) *cobra.Command {
-	appName := "sonm" + name
-	configName := name + ".yaml"
-	configFlagHelp := fmt.Sprintf("Path to the %s config file", name)
-	versionFlagHelp := fmt.Sprintf("Show %s version and exit", name)
-
+func NewCmd(name, appVersion string, cfg *string, version *bool, run Runner) *cobra.Command {
 	c := &cobra.Command{
-		Use: appName,
+		Use: appName(name),
 		Run: func(_ *cobra.Command, _ []string) {
 			if version != nil && *version {
-				fmt.Printf("%s %s (%s)\r\n", name, appVersion, util.GetPlatformName())
+				fmt.Println(versionString(name, appVersion))
 				return
 			}
 
-			run()
+			if err := run(); err != nil {
+				fmt.Println(capitalize(err.Error()))
+				os.Exit(1)
+			}
 		},
 	}
 
 	c.SetOutput(os.Stdout)
-	c.PersistentFlags().StringVar(conf, "config", configName, configFlagHelp)
-	c.PersistentFlags().BoolVar(version, "version", false, versionFlagHelp)
+	c.PersistentFlags().StringVar(cfg, "config", configName(name), configFlagHelp(name))
+	c.PersistentFlags().BoolVar(version, "version", false, versionFlagHelp(name))
 
 	return c
+}
+
+func capitalize(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+func appName(name string) string {
+	return "sonm" + name
+}
+
+func configName(name string) string {
+	return name + ".yaml"
+}
+
+func configFlagHelp(name string) string {
+	return fmt.Sprintf("Path to the %s config file", name)
+}
+
+func versionFlagHelp(name string) string {
+	return fmt.Sprintf("Show %s version and exit", name)
+}
+
+func versionString(name, appVersion string) string {
+	return fmt.Sprintf("%s %s (%s)", name, appVersion, util.GetPlatformName())
 }

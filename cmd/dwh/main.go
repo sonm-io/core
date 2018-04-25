@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"syscall"
@@ -24,11 +25,10 @@ func main() {
 	cmd.NewCmd("dwh", appVersion, &configFlag, &versionFlag, run).Execute()
 }
 
-func run() {
+func run() error {
 	cfg, err := dwh.NewConfig(configFlag)
 	if err != nil {
-		log.G(context.Background()).Error("failed to load config", zap.Error(err))
-		os.Exit(1)
+		return fmt.Errorf("failed to load config file: %s", err)
 	}
 
 	logger := logging.BuildLogger(cfg.Logging.Level)
@@ -36,14 +36,12 @@ func run() {
 
 	key, err := cfg.Eth.LoadKey()
 	if err != nil {
-		log.G(ctx).Error("failed load private key", zap.Error(err))
-		os.Exit(1)
+		return fmt.Errorf("failed to load private key: %s", err)
 	}
 
 	w, err := dwh.NewDWH(ctx, cfg, key)
 	if err != nil {
-		log.G(ctx).Error("cannot create new DWH", zap.Error(err))
-		os.Exit(1)
+		return fmt.Errorf("failed to create new DWH service: %s", err)
 	}
 
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
@@ -54,10 +52,10 @@ func run() {
 		w.Stop()
 	}()
 
-	log.G(ctx).Info("starting DWH service", zap.String("grpc_addr", cfg.GRPCListenAddr),
-		zap.String("http_addr", cfg.HTTPListenAddr))
+	log.G(ctx).Info("starting DWH service", zap.String("grpc_addr", cfg.GRPCListenAddr), zap.String("http_addr", cfg.HTTPListenAddr))
 	if err := w.Serve(); err != nil {
-		log.G(ctx).Error("DWH stopped", zap.Error(err))
-		os.Exit(1)
+		return fmt.Errorf("failed to serve DWH: %s", err)
 	}
+
+	return nil
 }

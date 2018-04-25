@@ -12,7 +12,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/util"
-	"go.uber.org/zap"
 )
 
 var (
@@ -21,19 +20,17 @@ var (
 	appVersion  string
 )
 
-func start() {
+func start() error {
 	cfg, err := rendezvous.NewServerConfig(cfgPath)
 	if err != nil {
-		fmt.Printf("failed to load config file: %s\r\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to load config file: %s", err)
 	}
 
 	ctx := log.WithLogger(context.Background(), logging.BuildLogger(cfg.Logging.LogLevel()))
 
 	certRotator, TLSConfig, err := util.NewHitlessCertRotator(ctx, cfg.PrivateKey)
 	if err != nil {
-		log.G(ctx).Error("failed to create certificate rotator", zap.Error(err))
-		os.Exit(1)
+		return fmt.Errorf("failed to create certificate rotator: %s", err)
 	}
 	defer certRotator.Close()
 
@@ -45,13 +42,14 @@ func start() {
 	}
 	server, err := rendezvous.NewServer(*cfg, options...)
 	if err != nil {
-		os.Exit(1)
+		return fmt.Errorf("failed to create Rendezvous server: %s", err)
 	}
 
 	go server.Run()
 	defer server.Stop()
 
 	waitInterrupted()
+	return nil
 }
 
 func waitInterrupted() {
