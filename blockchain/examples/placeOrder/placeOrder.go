@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"log"
-	"math/big"
 	"math/rand"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 )
 
 func main() {
@@ -47,21 +47,22 @@ func main() {
 	)
 	res := <-chPlace
 	if res.Err != nil {
-		log.Println(res.Err.Error())
+		log.Fatalln(res.Err.Error())
 		return
 	}
 
 	log.Println(res.Order.Id)
-	ordId, cast := big.NewInt(0).SetString(res.Order.Id, 10)
-	if !cast {
-		log.Println("Cannot cast")
+	ordId, err := util.ParseBigInt(res.Order.Id)
+	if err != nil{
+		log.Fatalln("Cannot cast")
 		return
 	}
 	chCancel := api.CancelOrder(context.Background(), prv, ordId)
 
-	resCancel := <-chCancel
-	if resCancel != nil {
-		log.Println(resCancel)
+	err = <-chCancel
+	if err != nil {
+		log.Fatalln(err)
+		return
 	}
 	log.Println("canceled")
 }
