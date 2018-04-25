@@ -67,17 +67,14 @@ message GPU {
     map<uint64, Benchmark> benchmarks = 2;
 }
 
-message NetworkDevice {
-    uint64 bandwidthIn = 1;
-    uint64 bandwidthOut = 2;
-}
-
 message Network {
-    NetworkDevice device = 1;
-    bool overlay = 2;
-    bool incoming = 3;
+    uint64 in = 1;
+    uint64 out = 2;
+    bool overlay = 3;
+    bool incoming = 4;
 
-    map<uint64, Benchmark> benchmarks = 4;
+    map<uint64, Benchmark> benchmarksIn = 5;
+    map<uint64, Benchmark> benchmarksOut = 6;
 }
 
 message StorageDevice {

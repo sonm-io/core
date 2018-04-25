@@ -9,7 +9,8 @@ enum DeviceType {
     DEV_GPU = 2;
     DEV_RAM = 3;
     DEV_STORAGE = 4;
-    DEV_NETWORK = 5;
+    DEV_NETWORK_IN = 5;
+    DEV_NETWORK_OUT = 6;
 }
 
 // SplittingAlgorithm describes how a benchmark is mapped to a device.

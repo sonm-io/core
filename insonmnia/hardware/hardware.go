@@ -17,7 +17,7 @@ type Hardware struct {
 	CPU     *sonm.CPU     `json:"cpu"`
 	GPU     []*sonm.GPU   `json:"gpu"`
 	RAM     *sonm.RAM     `json:"ram"`
-	Network *sonm.Network `json:"network"`
+	Network *sonm.Network `json:"network_in"`
 	Storage *sonm.Storage `json:"storage"`
 }
 
@@ -26,9 +26,12 @@ type Hardware struct {
 func NewHardware() (*Hardware, error) {
 	var err error
 	hw := &Hardware{
-		CPU:     &sonm.CPU{Benchmarks: make(map[uint64]*sonm.Benchmark)},
-		RAM:     &sonm.RAM{Benchmarks: make(map[uint64]*sonm.Benchmark)},
-		Network: &sonm.Network{Benchmarks: make(map[uint64]*sonm.Benchmark)},
+		CPU: &sonm.CPU{Benchmarks: make(map[uint64]*sonm.Benchmark)},
+		RAM: &sonm.RAM{Benchmarks: make(map[uint64]*sonm.Benchmark, 5)},
+		Network: &sonm.Network{
+			BenchmarksIn:  make(map[uint64]*sonm.Benchmark),
+			BenchmarksOut: make(map[uint64]*sonm.Benchmark),
+		},
 		Storage: &sonm.Storage{Benchmarks: make(map[uint64]*sonm.Benchmark)},
 	}
 
@@ -79,7 +82,8 @@ type DeviceMapping struct {
 	CPU         *sonm.CPUDevice             `json:"cpu"`
 	GPU         []*sonm.GPUDevice           `json:"gpu"`
 	RAM         hashableRAM                 `json:"ram"`
-	Network     *sonm.NetworkDevice         `json:"network"`
+	NetworkIn   uint64                      `json:"network_in"`
+	NetworkOut  uint64                      `json:"network_out"`
 	Storage     *sonm.StorageDevice         `json:"storage"`
 	NetworkCaps hashableNetworkCapabilities `json:"network_caps"`
 }
@@ -95,11 +99,12 @@ func (h *Hardware) devicesMap() *DeviceMapping {
 	}
 
 	return &DeviceMapping{
-		CPU:     h.CPU.Device,
-		GPU:     GPUs,
-		RAM:     hashableRAM{Available: h.RAM.Device.Available},
-		Network: h.Network.Device,
-		Storage: h.Storage.Device,
+		CPU:        h.CPU.Device,
+		GPU:        GPUs,
+		RAM:        hashableRAM{Available: h.RAM.Device.Available},
+		NetworkIn:  h.Network.In,
+		NetworkOut: h.Network.Out,
+		Storage:    h.Storage.Device,
 		NetworkCaps: hashableNetworkCapabilities{
 			Incoming: h.Network.Incoming,
 			Overlay:  h.Network.Overlay,
