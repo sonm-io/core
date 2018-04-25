@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"os"
+	"os/signal"
+	"syscall"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
@@ -40,16 +42,22 @@ func run() {
 
 	w, err := dwh.NewDWH(ctx, cfg, key)
 	if err != nil {
-		log.G(ctx).Error("cannot start DWH service", zap.Error(err))
+		log.G(ctx).Error("cannot create new DWH", zap.Error(err))
 		os.Exit(1)
 	}
 
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		<-c
+		w.Stop()
+	}()
 
 	log.G(ctx).Info("starting DWH service", zap.String("grpc_addr", cfg.GRPCListenAddr),
 		zap.String("http_addr", cfg.HTTPListenAddr))
 	if err := w.Serve(); err != nil {
-		log.G(ctx).Error("cannot start DWH service", zap.Error(err))
+		log.G(ctx).Error("DWH stopped", zap.Error(err))
 		os.Exit(1)
 	}
 }
