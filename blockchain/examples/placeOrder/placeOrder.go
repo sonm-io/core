@@ -40,7 +40,7 @@ func main() {
 		},
 	}
 
-	res := <- api.PlaceOrder(
+	res := <-api.PlaceOrder(
 		context.Background(),
 		prv,
 		order,
@@ -56,7 +56,7 @@ func main() {
 		log.Fatalln("Cannot cast")
 		return
 	}
-	err = <- api.CancelOrder(context.Background(), prv, ordId)
+	err = <-api.CancelOrder(context.Background(), prv, ordId)
 
 	if err != nil {
 		log.Fatalln(err)
