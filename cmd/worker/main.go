@@ -27,12 +27,11 @@ func main() {
 	cmd.NewCmd("hub", appVersion, &configFlag, &versionFlag, run).Execute()
 }
 
-func run() {
+func run() error {
 	ctx := context.Background()
 	cfg, err := miner.NewConfig(configFlag)
 	if err != nil {
-		fmt.Printf("failed to load worker config: %s\r\n", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to load config file: %s", err)
 	}
 
 	logger := logging.BuildLogger(cfg.Logging.LogLevel())
@@ -40,34 +39,29 @@ func run() {
 
 	key, err := cfg.Eth.LoadKey()
 	if err != nil {
-		log.G(ctx).Error("failed load private key", zap.Error(err))
-		os.Exit(1)
+		return fmt.Errorf("failed to load private key: %s", err)
 	}
 
 	certRotator, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
 	if err != nil {
-		log.G(ctx).Error("failed to create cert rotator", zap.Error(err))
-		os.Exit(1)
+		return fmt.Errorf("failed to create certificate rotator: %s", err)
 	}
-	creds := util.NewTLS(TLSConfig)
+	credentials := util.NewTLS(TLSConfig)
 
 	storage, err := state.NewState(ctx, &cfg.Storage)
 	if err != nil {
-		log.G(ctx).Error("cannot create state storage", zap.Error(err))
-		os.Exit(1)
+		return fmt.Errorf("failed to create state storage: %s", err)
 	}
 
 	w, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithStateStorage(storage))
 	if err != nil {
-		log.G(ctx).Error("cannot create worker instance", zap.Error(err))
-		os.Exit(1)
+		return fmt.Errorf("failed to create Worker instance: %s", err)
 	}
 
 	h, err := hub.New(cfg, hub.WithVersion(appVersion), hub.WithContext(ctx),
-		hub.WithPrivateKey(key), hub.WithCreds(creds), hub.WithCertRotator(certRotator), hub.WithWorker(w))
+		hub.WithPrivateKey(key), hub.WithCreds(credentials), hub.WithCertRotator(certRotator), hub.WithWorker(w))
 	if err != nil {
-		log.G(ctx).Error("failed to create a new Hub", zap.Error(err))
-		os.Exit(1)
+		return fmt.Errorf("failed to create new Hub: %s", err)
 	}
 
 	go func() {
@@ -82,4 +76,6 @@ func run() {
 	if err = h.Serve(); err != nil {
 		log.G(ctx).Error("Server stop", zap.Error(err))
 	}
+
+	return nil
 }
