@@ -47,7 +47,7 @@ type DWH struct {
 	commands    map[string]string
 }
 
-func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, blockchain blockchain.API) (w *DWH, err error) {
+func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (w *DWH, err error) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer func() {
 		if err != nil {
@@ -56,10 +56,9 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, blockchain 
 	}()
 
 	w = &DWH{
-		ctx:        ctx,
-		cfg:        cfg,
-		logger:     log.GetLogger(ctx),
-		blockchain: blockchain,
+		ctx:    ctx,
+		cfg:    cfg,
+		logger: log.GetLogger(ctx),
 	}
 
 	setupDB, ok := setupDBCallbacks[cfg.Storage.Backend]
@@ -87,7 +86,16 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, blockchain 
 }
 
 func (w *DWH) Serve() error {
-	go w.monitorBlockchain()
+	if w.cfg.Blockchain != nil {
+		bch, err := blockchain.NewAPI(blockchain.WithEthEndpoint(w.cfg.Blockchain.EthEndpoint))
+		if err != nil {
+			return errors.Wrap(err, "failed to create NewAPI")
+		}
+		w.blockchain = bch
+		go w.monitorBlockchain()
+	} else {
+		w.logger.Info("monitoring disabled")
+	}
 
 	wg := errgroup.Group{}
 	wg.Go(w.serveGRPC)

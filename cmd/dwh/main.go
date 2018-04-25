@@ -5,7 +5,6 @@ import (
 	"os"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/insonmnia/logging"
@@ -39,13 +38,7 @@ func run() {
 		os.Exit(1)
 	}
 
-	eth, err := blockchain.NewAPI(blockchain.WithEthEndpoint(cfg.Blockchain.EthEndpoint))
-	if err != nil {
-		log.G(ctx).Error("failed setup blockchain API", zap.Error(err))
-		os.Exit(1)
-	}
-
-	w, err := dwh.NewDWH(ctx, cfg, key, eth)
+	w, err := dwh.NewDWH(ctx, cfg, key)
 	if err != nil {
 		log.G(ctx).Error("cannot start DWH service", zap.Error(err))
 		os.Exit(1)
