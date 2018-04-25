@@ -16,6 +16,8 @@ enum DeviceType {
 enum SplittingAlgorithm {
     NONE = 0;
     PROPORTIONAL = 1;
+    MIN = 2;
+    MAX = 3;
 }
 
 // Benchmark describes a way to measure hardware performance

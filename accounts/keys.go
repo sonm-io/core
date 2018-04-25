@@ -236,9 +236,13 @@ func getDefaultKeyStorePath() (string, error) {
 	return keyDir, nil
 }
 
-func LoadKeys(keystore, passphrase string) (*ecdsa.PrivateKey, error) {
-	p := NewFmtPrinter()
-	ko, err := DefaultKeyOpener(p, keystore, passphrase)
+func LoadKeys(keystore, passphrase string, options ...Option) (*ecdsa.PrivateKey, error) {
+	opts := newOptions()
+	for _, o := range options {
+		o(opts)
+	}
+
+	ko, err := DefaultKeyOpener(opts.printer, keystore, passphrase)
 	if err != nil {
 		return nil, err
 	}
@@ -256,11 +260,29 @@ type EthConfig struct {
 	Keystore   string `required:"false" default:"" yaml:"key_store"`
 }
 
-func (c *EthConfig) LoadKey() (*ecdsa.PrivateKey, error) {
-	key, err := LoadKeys(c.Keystore, c.Passphrase)
+func (c *EthConfig) LoadKey(options ...Option) (*ecdsa.PrivateKey, error) {
+	key, err := LoadKeys(c.Keystore, c.Passphrase, options...)
 	if err != nil {
 		return nil, err
 	}
 
 	return key, nil
+}
+
+type options struct {
+	printer Printer
+}
+
+func newOptions() *options {
+	return &options{
+		printer: NewFmtPrinter(),
+	}
+}
+
+type Option func(o *options)
+
+func Silent() Option {
+	return func(o *options) {
+		o.printer = NewSilentPrinter()
+	}
 }
