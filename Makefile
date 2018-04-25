@@ -147,10 +147,9 @@ mock: build_mockgen
 	mockgen -package benchmarks -destination insonmnia/benchmarks/benchmarks_mock.go  -source insonmnia/benchmarks/benchmarks.go
 	mockgen -package blockchain -destination blockchain/api_mock.go  -source blockchain/api.go
 	mockgen -package sonm -destination proto/marketplace_mock.go  -source proto/marketplace.pb.go
+	mockgen -package sonm -destination proto/dwh_mock.go  -source proto/dwh.pb.go
 	mockgen -package config -destination cmd/cli/config/config_mock.go  -source cmd/cli/config/config.go \
 		-aux_files accounts=accounts/keys.go,logging=insonmnia/logging/logging.go
-	mockgen -package dealer -destination insonmnia/dealer/hub_mock.go \
-		"github.com/sonm-io/core/proto" HubClient && ${SED}
 
 clean:
 	rm -f ${WORKER} ${CLI} ${LOCAL_NODE} ${AUTOCLI} ${RENDEZVOUS}

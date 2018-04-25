@@ -44,7 +44,7 @@ type EventsAPI interface {
 
 type DealOrError struct {
 	Deal *pb.Deal
-	err  error
+	Err  error
 }
 
 type OrderOrError struct {
@@ -793,8 +793,7 @@ func (api *BasicAPI) waitForTransactionResult(ctx context.Context, tx *types.Tra
 	}
 }
 
-func (api *BasicAPI) parseTransactionLogs(ctx context.Context, tx *types.Transaction, topic common.Hash) (
-	*big.Int, error) {
+func (api *BasicAPI) parseTransactionLogs(ctx context.Context, tx *types.Transaction, topic common.Hash) (*big.Int, error) {
 	txReceipt, err := api.client.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
 		return nil, err
