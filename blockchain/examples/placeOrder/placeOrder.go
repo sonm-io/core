@@ -53,7 +53,7 @@ func main() {
 
 	log.Println(res.Order.Id)
 	ordId, err := util.ParseBigInt(res.Order.Id)
-	if err != nil{
+	if err != nil {
 		log.Fatalln("Cannot cast")
 		return
 	}
