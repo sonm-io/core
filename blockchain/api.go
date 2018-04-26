@@ -1,10 +1,8 @@
 package blockchain
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -20,7 +18,6 @@ import (
 	"github.com/sonm-io/core/blockchain/market"
 	marketAPI "github.com/sonm-io/core/blockchain/market/api"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
 
@@ -191,7 +188,7 @@ func (api *BasicAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, askID,
 		return
 	}
 
-	id, err := api.waitForTransactionResult(ctx, tx, DealOpenedTopic)
+	id, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, DealOpenedTopic)
 	if err != nil {
 		ch <- DealOrError{nil, err}
 		return
@@ -275,7 +272,7 @@ func (api *BasicAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey, orde
 		return
 	}
 
-	id, err := api.waitForTransactionResult(ctx, tx, OrderPlacedTopic)
+	id, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, OrderPlacedTopic)
 	if err != nil {
 		ch <- OrderOrError{nil, err}
 		return
@@ -298,7 +295,7 @@ func (api *BasicAPI) cancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id 
 		return
 	}
 
-	if _, err := api.waitForTransactionResult(ctx, tx, OrderUpdatedTopic); err != nil {
+	if _, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, OrderUpdatedTopic); err != nil {
 		ch <- err
 		return
 	}
@@ -764,52 +761,4 @@ func (api *BasicAPI) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*typ
 		return nil, err
 	}
 	return tx, err
-}
-
-func (api *BasicAPI) waitForTransactionResult(ctx context.Context, tx *types.Transaction, topic common.Hash) (*big.Int, error) {
-	tk := util.NewImmediateTicker(api.logParsePeriod)
-	defer tk.Stop()
-
-	for {
-		select {
-		case <-tk.C:
-			id, err := api.parseTransactionLogs(ctx, tx, topic)
-			if err != nil {
-				if err == ethereum.NotFound {
-					break
-				}
-				return nil, err
-			}
-
-			return id, err
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-	}
-}
-
-func (api *BasicAPI) parseTransactionLogs(ctx context.Context, tx *types.Transaction, topic common.Hash) (*big.Int, error) {
-	txReceipt, err := api.client.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		return nil, err
-	}
-
-	if txReceipt.Status != types.ReceiptStatusSuccessful {
-		return nil, errors.New("transaction failed")
-	}
-
-	for _, l := range txReceipt.Logs {
-		if len(l.Topics) < 1 {
-			return nil, errors.New("transaction topics is malformed")
-		}
-
-		receivedTopic := l.Topics[0]
-		topicCmp := bytes.Compare(receivedTopic.Bytes(), topic.Bytes())
-		if topicCmp == 0 && len(l.Topics) > 1 {
-			return l.Topics[1].Big(), nil
-		}
-	}
-
-	// TODO(sshaman1101): not so user-friendly message leaved for debugging, remove before releasing.
-	return nil, fmt.Errorf("cannot find topic \"%s\"in transaction", topic.Hex())
 }
