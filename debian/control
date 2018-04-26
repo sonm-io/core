@@ -44,3 +44,10 @@ Description: Relay transports TCP traffic in the userland
  The Relay server is a tool used to penetrate the NAT
  in case of over-paranoid network configurations,
  such as Symmetrical NAT or manual iptables hacks.
+
+Package: sonm-dwh
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: DWH caches actual data from blockchain
+ The DWH service communicates with Geth node and
+ caches event data into the local database.
