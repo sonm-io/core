@@ -43,6 +43,15 @@ func NewLevel(level zapcore.Level) *Level {
 	return &Level{level}
 }
 
+func NewLevelFromString(level string) (*Level, error) {
+	v, err := parseLogLevel(level)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Level{v}, nil
+}
+
 // Zap returns the underlying zap logging level.
 func (m Level) Zap() zapcore.Level {
 	return m.level
