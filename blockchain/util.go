@@ -3,6 +3,7 @@ package blockchain
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"math/big"
 	"time"
@@ -119,4 +120,12 @@ func waitForTransactionResult(ctx context.Context, client *ethclient.Client, log
 			return nil, ctx.Err()
 		}
 	}
+}
+
+func getTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit uint64, gasPrice int64) *bind.TransactOpts {
+	opts := bind.NewKeyedTransactor(key)
+	opts.Context = ctx
+	opts.GasLimit = gasLimit
+	opts.GasPrice = big.NewInt(gasPrice)
+	return opts
 }
