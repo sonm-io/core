@@ -128,7 +128,7 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
-	profilesContract, err := marketAPI.NewProfileRegistry(common.HexToAddress(market.MarketAddress), client)
+	profilesContract, err := marketAPI.NewProfileRegistry(common.HexToAddress(market.ProfileRegistryAddress), client)
 	if err != nil {
 		return nil, err
 	}
@@ -622,12 +622,12 @@ func (api *BasicAPI) processLog(log types.Log, eventTS uint64, out chan *Event) 
 		}
 		sendData(&ValidatorDeletedData{ID: id})
 	case CertificateCreatedTopic:
-		var certificateCreatedData = &CertificateCreatedData{}
-		if err := api.profilesABI.Unpack(certificateCreatedData, "CertificateCreated", log.Data); err != nil {
+		var id = big.NewInt(0)
+		if err := api.profilesABI.Unpack(&id, "CertificateCreated", log.Data); err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		sendData(certificateCreatedData)
+		sendData(&CertificateCreatedData{ID: id})
 	default:
 		out <- &Event{
 			Data:        &ErrorData{Err: errors.New("unknown topic"), Topic: topic.String()},

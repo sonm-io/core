@@ -445,7 +445,7 @@ func (m *OrdersRequest) GetStatus() OrderStatus {
 	if m != nil {
 		return m.Status
 	}
-	return OrderStatus_ORDER_INACTIVE
+	return OrderStatus_ORDER_UNKNOWN
 }
 
 func (m *OrdersRequest) GetAuthorID() string {
