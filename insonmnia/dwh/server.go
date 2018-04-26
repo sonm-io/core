@@ -846,12 +846,13 @@ func (w *DWH) watchMarketEvents() error {
 			if err := w.processEvent(event); err != nil {
 				w.logger.Error("failed to processEvent, retrying", zap.Error(err),
 					zap.Uint64("block_number", event.BlockNumber),
-					zap.String("event_type", reflect.TypeOf(event.Data).Name()))
+					zap.String("event_type", reflect.TypeOf(event.Data).String()))
 
 				go w.retryEvent(event)
 			}
 
-			w.logger.Info("processed event", zap.String("event_type", reflect.TypeOf(event.Data).String()))
+			w.logger.Info("processed event", zap.String("event_type", reflect.TypeOf(event.Data).String()),
+				zap.Any("event_data", event.Data))
 		}
 	}
 }
@@ -874,7 +875,7 @@ func (w *DWH) processEvent(event *blockchain.Event) error {
 	case *blockchain.DealChangeRequestUpdatedData:
 		return w.onDealChangeRequestUpdated(event.TS, value.ID)
 	case *blockchain.BilledData:
-		return w.onBilled(event.TS, value.ID, value.PayedAmount)
+		return w.onBilled(event.TS, value.DealID, value.PaidAmount)
 	case *blockchain.WorkerAnnouncedData:
 		return w.onWorkerAnnounced(value.MasterID.String(), value.SlaveID.String())
 	case *blockchain.WorkerConfirmedData:
@@ -929,10 +930,6 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 	bid, err := w.getOrderDetails(w.ctx, &pb.ID{Id: deal.BidID})
 	if err != nil {
 		return errors.Wrapf(err, "failed to getOrderDetails (Bid)")
-	}
-
-	if deal.Status == pb.DealStatus_DEAL_CLOSED {
-		return nil
 	}
 
 	var hasActiveChangeRequests bool
@@ -1069,7 +1066,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
 
-			return errors.Wrap(err, "failed to updateProfileStats")
+			return errors.Wrapf(err, "failed to updateProfileStats (OrderID: `%s`)", deal.AskID)
 		}
 
 		bidProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.ConsumerID}, false)
@@ -1086,7 +1083,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
 
-			return errors.Wrap(err, "failed to updateProfileStats")
+			return errors.Wrapf(err, "failed to updateProfileStats (OrderID: `%s`)", deal.BidID)
 		}
 
 		if err := tx.Commit(); err != nil {
@@ -1122,7 +1119,9 @@ func (w *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 	}
 
 	if changeRequest.Status != pb.ChangeRequestStatus_REQUEST_CREATED {
-		return errors.New("onDealChangeRequest event points to DealChangeRequest with .Status != Created")
+		w.logger.Info("onDealChangeRequest event points to DealChangeRequest with .Status != Created",
+			zap.String("actual_status", pb.ChangeRequestStatus_name[int32(changeRequest.Status)]))
+		return nil
 	}
 
 	// Sanity check: if more than 1 CR of one type is created for a Deal, we delete old CRs.
@@ -1274,6 +1273,10 @@ func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 		return errors.Wrap(err, "failed to GetDealConditions (last)")
 	}
 
+	if len(dealConditionsReply.Conditions) < 1 {
+		return errors.Errorf("no deal conditions found for deal `%s`", dealID.String())
+	}
+
 	dealCondition := dealConditionsReply.Conditions[0]
 
 	tx, err := w.db.Begin()
@@ -1317,10 +1320,6 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 	order, err := w.blockchain.GetOrderInfo(w.ctx, orderID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to GetOrderInfo")
-	}
-
-	if order.OrderStatus != pb.OrderStatus_ORDER_ACTIVE || order.OrderType == pb.OrderType_ANY {
-		return nil
 	}
 
 	tx, err := w.db.Begin()
@@ -1437,7 +1436,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
 
-			return errors.Wrap(err, "failed to getProfileInfo")
+			return errors.Wrapf(err, "failed to getProfileInfo (AuthorID: `%s`)", order.AuthorID)
 		}
 
 		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID, profile, -1); err != nil {
@@ -1445,7 +1444,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
 
-			return errors.Wrap(err, "failed to updateProfileStats")
+			return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", order.AuthorID)
 		}
 
 		if err := tx.Commit(); err != nil {
@@ -1716,9 +1715,17 @@ func (w *DWH) updateProfileStats(tx *sql.Tx, orderType pb.OrderType, authorID st
 		value int
 	)
 	if orderType == pb.OrderType_ASK {
-		cmd, value = fmt.Sprintf(w.commands["updateProfile"], "ActiveAsks"), int(profile.ActiveAsks)+update
+		updateResult := int(profile.ActiveAsks) + update
+		if updateResult < 0 {
+			return errors.Errorf("updateProfileStats resulted in a negative Asks value (UserID: `%s`)", authorID)
+		}
+		cmd, value = fmt.Sprintf(w.commands["updateProfile"], "ActiveAsks"), updateResult
 	} else {
-		cmd, value = fmt.Sprintf(w.commands["updateProfile"], "ActiveBids"), int(profile.ActiveBids)+update
+		updateResult := int(profile.ActiveBids) + update
+		if updateResult < 0 {
+			return errors.Errorf("updateProfileStats resulted in a negative Bids value (UserID: `%s`)", authorID)
+		}
+		cmd, value = fmt.Sprintf(w.commands["updateProfile"], "ActiveBids"), updateResult
 	}
 
 	_, err := tx.Exec(cmd, value, authorID)
