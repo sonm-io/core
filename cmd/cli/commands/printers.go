@@ -184,16 +184,20 @@ func convertTransactionInfo(tx *types.Transaction) map[string]interface{} {
 	}
 }
 
-func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
+func printOrdersList(cmd *cobra.Command, orders []*pb.Order) {
 	if isSimpleFormat() {
 		if len(orders) == 0 {
 			cmd.Println("No orders found")
 			return
 		}
 
-		for i, order := range orders {
-			cmd.Printf("%d) %s %s | price = %s\r\n", i+1,
-				order.OrderType.String(), order.GetId(), order.GetPrice().ToPriceString())
+		cmd.Println("        ID | type |        total price       |   duration ")
+		for _, order := range orders {
+			cmd.Printf("%10s | %4s | %20s SNM | %10s\r\n",
+				order.GetId().Unwrap().String(),
+				order.OrderType.String(),
+				order.TotalPrice(),
+				(time.Second * time.Duration(order.Duration)).String())
 		}
 	} else {
 		showJSON(cmd, map[string]interface{}{"orders": orders})
@@ -202,15 +206,37 @@ func printSearchResults(cmd *cobra.Command, orders []*pb.Order) {
 
 func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 	if isSimpleFormat() {
-		cmd.Printf("ID:             %s\r\n", order.Id)
-		cmd.Printf("Type:           %s\r\n", order.OrderType.String())
-		cmd.Printf("Price:          %s\r\n", order.GetPrice().ToPriceString())
+		cmd.Printf("ID:              %s\r\n", order.Id)
+		cmd.Printf("Type:            %s\r\n", order.OrderType.String())
+		cmd.Printf("Status:          %s\r\n", order.OrderStatus.String())
+		cmd.Printf("Duration:        %s\r\n", (time.Duration(order.GetDuration()) * time.Second).String())
+		cmd.Printf("Total price:     %s SNM (%s SNM/sec)\r\n", order.TotalPrice(), order.Price.ToPriceString())
 
-		cmd.Printf("AuthorID:       %s\r\n", order.GetAuthorID())
-		cmd.Printf("CounterpartyID: %s\r\n", order.GetCounterpartyID())
-		cmd.Printf("Benchmarks:     %s\r\n", order.GetBenchmarks())
+		cmd.Printf("Author ID:       %s\r\n", order.GetAuthorID().Unwrap().Hex())
+		if order.GetCounterpartyID() != nil {
+			cmd.Printf("Counterparty ID: %s\r\n", order.GetCounterpartyID().Unwrap().Hex())
+		}
 
-		// todo: find a way to print resources as they presented into MarketOrder struct.
+		flags := pb.UintToNetflags(order.GetNetflags())
+		cmd.Println("Net:")
+		cmd.Printf("  Overlay:  %v\r\n", flags[0])
+		cmd.Printf("  Outbound: %v\r\n", flags[1])
+		cmd.Printf("  Incoming: %v\r\n", flags[2])
+
+		b := order.GetBenchmarks()
+		cmd.Println("Benchmarks:")
+		cmd.Printf("  CPU Sysbench Multi:  %d\r\n", b.CPUSysbenchMulti())
+		cmd.Printf("  CPU Sysbench Single: %d\r\n", b.CPUSysbenchOne())
+		cmd.Printf("  CPU Cores:           %d\r\n", b.CPUCores())
+		cmd.Printf("  RAM Size             %d\r\n", b.RAMSize())
+		cmd.Printf("  Storage Size         %d\r\n", b.StorageSize())
+		cmd.Printf("  Net Download         %d\r\n", b.NetTrafficIn())
+		cmd.Printf("  Net Upload           %d\r\n", b.NetTrafficOut())
+		cmd.Printf("  GPU Count            %d\r\n", b.GPUCount())
+		cmd.Printf("  GPU Mem              %d\r\n", b.GPUMem())
+		cmd.Printf("  GPU Eth hashrate     %d\r\n", b.GPUEthHashrate())
+		cmd.Printf("  GPU Cash hashrate    %d\r\n", b.GPUCashHashrate())
+		cmd.Printf("  GPU Redshift         %d\r\n", b.GPUCashHashrate())
 	} else {
 		showJSON(cmd, order)
 	}
@@ -266,23 +292,25 @@ func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 	if isSimpleFormat() {
 		start := deal.StartTime.Unix()
 		end := deal.EndTime.Unix()
-
-		ppsBig := pb.NewBigInt(nil)
 		dealDuration := end.Sub(start)
-		if dealDuration > 0 {
-			durationBig := big.NewInt(int64(dealDuration.Seconds()))
-			pps := big.NewInt(0).Div(deal.GetPrice().Unwrap(), durationBig)
-			ppsBig = pb.NewBigInt(pps)
-		}
+		lastBill := deal.GetLastBillTS().Unix()
 
-		cmd.Printf("ID:       %s\r\n", deal.GetId())
-		cmd.Printf("Status:   %s\r\n", deal.GetStatus())
-		cmd.Printf("Duration:  %s\r\n", dealDuration.String())
-		cmd.Printf("Price:    %s (%s SNM/sec)\r\n", deal.GetPrice().ToPriceString(), ppsBig.ToPriceString())
-		cmd.Printf("Consumer: %s\r\n", deal.GetConsumerID())
-		cmd.Printf("Supplier: %s\r\n", deal.GetSupplierID())
-		cmd.Printf("Start at: %s\r\n", start.Format(time.RFC3339))
-		cmd.Printf("End at:   %s\r\n", end.Format(time.RFC3339))
+		cmd.Printf("ID:           %s\r\n", deal.GetId())
+		cmd.Printf("ASK ID:       %s\r\n", deal.GetAskID().Unwrap().String())
+		cmd.Printf("BID ID:       %s\r\n", deal.GetBidID().Unwrap().String())
+		cmd.Printf("Status:       %s\r\n", deal.GetStatus())
+		cmd.Printf("Duration:     %s\r\n", dealDuration.String())
+		cmd.Printf("Price:        %s SNM (%s SNM/sec)\r\n", deal.TotalPrice(), deal.GetPrice().ToPriceString())
+		cmd.Printf("Total payout: %s SNM\r\n", deal.GetTotalPayout().Unwrap().String())
+
+		cmd.Printf("Consumer ID:  %s\r\n", deal.GetConsumerID().Unwrap().Hex())
+		cmd.Printf("Supplier ID:  %s\r\n", deal.GetSupplierID().Unwrap().Hex())
+
+		cmd.Printf("Start at:     %s\r\n", start.Format(time.RFC3339))
+		cmd.Printf("End at:       %s\r\n", end.Format(time.RFC3339))
+		if !lastBill.IsZero() {
+			cmd.Printf("Last bill:    %s\r\n", lastBill.Format(time.RFC3339))
+		}
 	} else {
 		showJSON(cmd, deal)
 	}

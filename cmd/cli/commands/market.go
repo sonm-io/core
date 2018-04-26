@@ -49,7 +49,7 @@ var marketSearchCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		printSearchResults(cmd, reply.Orders)
+		printOrdersList(cmd, reply.Orders)
 	},
 }
 
