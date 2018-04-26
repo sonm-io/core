@@ -48,14 +48,9 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 	}
 	defer cc.Close()
 
-	mappedName, ok := hubToNodeMethods[methodName]
-	if !ok {
-		return nil, fmt.Errorf("unknwon management API method \"%s\"", methodName)
-	}
-
 	var (
 		t        = reflect.ValueOf(cli)
-		method   = t.MethodByName(mappedName)
+		method   = t.MethodByName(methodName)
 		inValues = []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
 		values   = method.Call(inValues)
 	)
@@ -64,20 +59,6 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 	}
 
 	return values[0].Interface(), err
-}
-
-// we need this because of not all of the methods can be mapped one-to-one between Node and Hub
-// The more simplest way to omit this mapping is to refactor Hub's proto definition
-// (not the Node's one because of the Node API is publicly declared and must be changed as rare as possible).
-//
-// Deprecated: methods maps one-to-one, so this mapping become meaningless.
-var hubToNodeMethods = map[string]string{
-	"Status":        "Status",
-	"Devices":       "Devices",
-	"Tasks":         "Tasks",
-	"AskPlans":      "AskPlans",
-	"CreateAskPlan": "CreateAskPlan",
-	"RemoveAskPlan": "RemoveAskPlan",
 }
 
 func newHubAPI(opts *remoteOptions) pb.WorkerManagementServer {
