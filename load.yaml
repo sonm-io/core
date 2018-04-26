@@ -1,0 +1,35 @@
+overload:
+  enabled: true
+  package: yandextank.plugins.DataUploader
+  token_file: token.txt
+pandora:
+  enabled: true
+  package: yandextank.plugins.Pandora
+  pandora_cmd: target/pandora_linux_x86_64
+  config_content:
+    pools:
+      - id: BFG
+        gun:
+          type: sonm
+          ethereumEndpoint: http://localhost:8545
+          ethereumAccountPath: ./keys
+          ethereumAccountPass: any
+        ammo:
+          type: marketplace/order/info
+          limit: 100000
+          order_ids: [1]
+        result:
+          type: phout
+          destination: ./phout.log
+        rps:
+          type: line
+          from: 0
+          to: 1000
+          duration: 300s
+        startup:
+          type: once
+          times: 600
+phantom:
+  enabled: false
+telegraf:
+  enabled: false
