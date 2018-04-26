@@ -201,9 +201,6 @@ func TestDWH_GetDealDetails(t *testing.T) {
 	if !deal.ActiveChangeRequest {
 		t.Errorf("Expected %t, got %t (ActiveChangeRequest)", true, deal.ActiveChangeRequest)
 	}
-	if string(deal.SupplierCertificates) != string([]byte{1, 2}) {
-		t.Errorf("Expected %s, got %s (SupplierCertificates)", string([]byte{1, 2}), deal.SupplierCertificates)
-	}
 }
 
 func TestDWH_GetOrders(t *testing.T) {
@@ -529,7 +526,7 @@ func TestDWH_monitor(t *testing.T) {
 	deal := &pb.Deal{
 		Id:             commonID.String(),
 		Benchmarks:     benchmarks,
-		SupplierID:     "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE",
+		SupplierID:     "supplier_id",
 		ConsumerID:     "consumer_id",
 		MasterID:       "master_id",
 		AskID:          "ask_id_5",
@@ -762,7 +759,7 @@ func TestDWH_monitor(t *testing.T) {
 		return
 	} else {
 		if len(deal.SupplierCertificates) == 0 {
-			t.Errorf("Expected some SupplierCertificated, got nothing")
+			t.Errorf("Expected some SupplierCertificates, got nothing")
 		}
 	}
 
@@ -1119,6 +1116,11 @@ func setupTestDB(w *DWH) error {
 		return err
 	}
 
+	var certs = []*pb.Certificate{
+		{OwnerID: "consumer_id", Value: []byte("Consumer"), Attribute: CertificateName},
+	}
+	byteCerts, _ := json.Marshal(certs)
+
 	for i := 0; i < 10; i++ {
 		_, err := w.db.Exec(
 			w.commands["insertDeal"],
@@ -1135,12 +1137,12 @@ func setupTestDB(w *DWH) error {
 			uint64(pb.DealStatus_DEAL_ACCEPTED),
 			pb.NewBigIntFromInt(50010+int64(i)).PaddedString(), // BlockedBalance
 			pb.NewBigIntFromInt(60010+int64(i)).PaddedString(), // TotalPayout
-			70010+i,      // LastBillTS
-			5,            // Netflags
-			3,            // AskIdentityLevel
-			4,            // BidIdentityLevel
-			[]byte{1, 2}, // SupplierCertificates
-			[]byte{3, 4}, // ConsumerCertificates
+			70010+i,   // LastBillTS
+			5,         // Netflags
+			3,         // AskIdentityLevel
+			4,         // BidIdentityLevel
+			byteCerts, // SupplierCertificates
+			byteCerts, // ConsumerCertificates
 			true,
 			10, // CPUSysbenchMulti
 			20,
@@ -1178,7 +1180,7 @@ func setupTestDB(w *DWH) error {
 			uint64(pb.IdentityLevel_PSEUDONYMOUS),
 			"CreatorName",
 			"CreatorCountry",
-			[]byte{}, // CreatorCertificates
+			byteCerts, // CreatorCertificates
 			10+i,
 			20+i,
 			30+i,
@@ -1215,7 +1217,7 @@ func setupTestDB(w *DWH) error {
 			uint64(pb.IdentityLevel_PSEUDONYMOUS), // CreatorIdentityLevel
 			"CreatorName",
 			"CreatorCountry",
-			[]byte{}, // CreatorCertificates
+			byteCerts, // CreatorCertificates
 			10-i,
 			20-i,
 			30-i,
@@ -1253,13 +1255,13 @@ func setupTestDB(w *DWH) error {
 	}
 
 	_, err := w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		fmt.Sprintf("consumer_id"), 3, "Consumer", "", 0, 0, []byte{}, 10, 10)
+		fmt.Sprintf("consumer_id"), 3, "Consumer", "", 0, 0, byteCerts, 10, 10)
 	if err != nil {
 		return err
 	}
 
 	_, err = w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		fmt.Sprintf("supplier_id"), 3, "Supplier", "", 0, 0, []byte{}, 10, 10)
+		fmt.Sprintf("supplier_id"), 3, "Supplier", "", 0, 0, byteCerts, 10, 10)
 	if err != nil {
 		return err
 	}

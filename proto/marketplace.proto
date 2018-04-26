@@ -32,8 +32,9 @@ enum OrderType {
 }
 
 enum OrderStatus {
-    ORDER_INACTIVE = 0;
-    ORDER_ACTIVE = 1;
+    ORDER_UNKNOWN = 0;
+    ORDER_INACTIVE = 1;
+    ORDER_ACTIVE = 2;
 }
 
 enum IdentityLevel {

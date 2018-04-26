@@ -1,6 +1,6 @@
-grpc_address: "127.0.0.1:15021"
+grpc_address: ":15021"
 
-http_address: "127.0.0.1:15022"
+http_address: ":15022"
 
 storage:
   driver: "sqlite3"
