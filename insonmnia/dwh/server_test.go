@@ -516,6 +516,7 @@ func TestDWH_monitor(t *testing.T) {
 	var (
 		controller           = gomock.NewController(t)
 		mockBlock            = bch.NewMockAPI(controller)
+		mockMarket           = bch.NewMockMarketAPI(controller)
 		commonID             = big.NewInt(0xDEADBEEF)
 		commonEventTS uint64 = 5
 	)
@@ -540,7 +541,7 @@ func TestDWH_monitor(t *testing.T) {
 		TotalPayout:    pb.NewBigInt(big.NewInt(0)),
 		LastBillTS:     &pb.Timestamp{Seconds: 70010},
 	}
-	mockBlock.EXPECT().GetDealInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(deal, nil)
+	mockMarket.EXPECT().GetDealInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(deal, nil)
 
 	order := &pb.Order{
 		Id:             commonID.String(),
@@ -558,7 +559,7 @@ func TestDWH_monitor(t *testing.T) {
 		Benchmarks:     benchmarks,
 		FrozenSum:      pb.NewBigInt(big.NewInt(30010)),
 	}
-	mockBlock.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(order, nil)
+	mockMarket.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(order, nil)
 
 	changeRequest := &pb.DealChangeRequest{
 		Id:          "0",
@@ -568,7 +569,7 @@ func TestDWH_monitor(t *testing.T) {
 		Price:       pb.NewBigInt(big.NewInt(20010)),
 		Status:      pb.ChangeRequestStatus_REQUEST_CREATED,
 	}
-	mockBlock.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
+	mockMarket.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
 
 	validator := &pb.Validator{
 		Id:    "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
@@ -585,6 +586,8 @@ func TestDWH_monitor(t *testing.T) {
 	}
 	mockBlock.EXPECT().GetCertificate(gomock.Any(), gomock.Any()).AnyTimes().Return(
 		certificate, nil)
+
+	mockBlock.EXPECT().Market().AnyTimes().Return(mockMarket)
 
 	monitorDWH.blockchain = mockBlock
 
@@ -1130,19 +1133,19 @@ func setupTestDB(w *DWH) error {
 			fmt.Sprintf("master_%d", i),
 			fmt.Sprintf("ask_id_%d", i),
 			fmt.Sprintf("bid_id_%d", i),
-			10010+i, // Duration
-			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
-			30010+i, // StartTime
-			40010+i, // EndTime
+			10010+i,                                              // Duration
+			pb.NewBigIntFromInt(20010 + int64(i)).PaddedString(), // Price
+			30010+i,                                              // StartTime
+			40010+i,                                              // EndTime
 			uint64(pb.DealStatus_DEAL_ACCEPTED),
-			pb.NewBigIntFromInt(50010+int64(i)).PaddedString(), // BlockedBalance
-			pb.NewBigIntFromInt(60010+int64(i)).PaddedString(), // TotalPayout
-			70010+i,   // LastBillTS
-			5,         // Netflags
-			3,         // AskIdentityLevel
-			4,         // BidIdentityLevel
-			byteCerts, // SupplierCertificates
-			byteCerts, // ConsumerCertificates
+			pb.NewBigIntFromInt(50010 + int64(i)).PaddedString(), // BlockedBalance
+			pb.NewBigIntFromInt(60010 + int64(i)).PaddedString(), // TotalPayout
+			70010+i,                                              // LastBillTS
+			5,                                                    // Netflags
+			3,                                                    // AskIdentityLevel
+			4,                                                    // BidIdentityLevel
+			byteCerts,                                            // SupplierCertificates
+			byteCerts,                                            // ConsumerCertificates
 			true,
 			10, // CPUSysbenchMulti
 			20,
@@ -1171,8 +1174,8 @@ func setupTestDB(w *DWH) error {
 			"ask_author", // AuthorID
 			"bid_author", // CounterpartyID
 			10010+i,
-			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
-			7, // Netflags
+			pb.NewBigIntFromInt(20010 + int64(i)).PaddedString(), // Price
+			7,                                                    // Netflags
 			uint64(pb.IdentityLevel_ANONYMOUS),
 			fmt.Sprintf("blacklist_%d", i),
 			[]byte{1, 2, 3},          // Tag
@@ -1205,11 +1208,11 @@ func setupTestDB(w *DWH) error {
 			fmt.Sprintf("deal_id_%d", i),
 			uint64(pb.OrderType_BID),
 			uint64(pb.OrderStatus_ORDER_ACTIVE),
-			"bid_author", // AuthorID
-			"ask_author", // CounterpartyID
-			10010-i,      // Duration
-			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
-			5, // Netflags
+			"bid_author",                                         // AuthorID
+			"ask_author",                                         // CounterpartyID
+			10010-i,                                              // Duration
+			pb.NewBigIntFromInt(20010 + int64(i)).PaddedString(), // Price
+			5,                                                    // Netflags
 			uint64(pb.IdentityLevel_ANONYMOUS),
 			fmt.Sprintf("blacklist_%d", i),
 			[]byte{1, 2, 3},                       // Tag

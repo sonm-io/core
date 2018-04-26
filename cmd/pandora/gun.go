@@ -43,7 +43,7 @@ func NewGun(cfg GunConfig) (*Gun, error) {
 		Passphrase: cfg.EthereumAccountPass,
 	}
 
-	market, err := blockchain.NewAPI(blockchain.WithEthEndpoint(cfg.EthereumEndpoint), blockchain.WithGasPrice(0))
+	bch, err := blockchain.NewAPI(blockchain.WithEthEndpoint(cfg.EthereumEndpoint), blockchain.WithGasPrice(0))
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func NewGun(cfg GunConfig) (*Gun, error) {
 
 	m := &Gun{
 		privateKey: PrivateKey(ethConfig),
-		market:     market,
+		market:     bch.Market(),
 		log:        log,
 	}
 
