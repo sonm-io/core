@@ -49,8 +49,8 @@ type OrderUpdatedData struct {
 }
 
 type BilledData struct {
-	ID          *big.Int
-	PayedAmount *big.Int
+	DealID     *big.Int `json:"dealID"`
+	PaidAmount *big.Int `json:"paidAmount"`
 }
 
 type WorkerAnnouncedData struct {
