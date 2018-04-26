@@ -1,0 +1,13 @@
+[Unit]
+Description=SONM DWH
+
+
+[Service]
+EnvironmentFile=/etc/default/sonm-dwh
+Type=simple
+ExecStart=/usr/bin/sonmdwh --config=${CONFIG_PATH}
+Restart=on-failure
+
+
+[Install]
+WantedBy=multi-user.target
