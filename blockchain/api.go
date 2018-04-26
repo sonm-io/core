@@ -30,6 +30,7 @@ type API interface {
 	MarketAPI
 	BlacklistAPI
 	TokenAPI
+	TestTokenAPI
 	GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit uint64) *bind.TransactOpts
 }
 
@@ -40,16 +41,6 @@ type CertsAPI interface {
 
 type EventsAPI interface {
 	GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error)
-}
-
-type DealOrError struct {
-	Deal *pb.Deal
-	Err  error
-}
-
-type OrderOrError struct {
-	Order *pb.Order
-	Err   error
 }
 
 type MarketAPI interface {
@@ -93,22 +84,27 @@ type TokenAPI interface {
 	AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error)
 	// TotalSupply - all amount of emitted token
 	TotalSupply(ctx context.Context) (*big.Int, error)
+}
+
+type TestTokenAPI interface {
 	// GetTokens - send 100 SNMT token for message caller
 	// this function added for MVP purposes and has been deleted later
 	GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error)
 }
 
 type BasicAPI struct {
-	client            *ethclient.Client
-	gasPrice          int64
-	marketContract    *marketAPI.Market
-	blacklistContract *marketAPI.Blacklist
-	profilesContract  *marketAPI.ProfileRegistry
-	tokenContract     *marketAPI.SNMTToken
-	marketABI         abi.ABI
-	profilesABI       abi.ABI
-	logger            *zap.Logger
-	logParsePeriod    time.Duration
+	client                 *ethclient.Client
+	clientPrivate          *ethclient.Client
+	gasPrice               int64
+	marketContract         *marketAPI.Market
+	blacklistContract      *marketAPI.Blacklist
+	profilesContract       *marketAPI.ProfileRegistry
+	tokenContract          *marketAPI.SNMTToken
+	sidechainTokenContract *marketAPI.SNMTToken
+	marketABI              abi.ABI
+	profilesABI            abi.ABI
+	logger                 *zap.Logger
+	logParsePeriod         time.Duration
 }
 
 func NewAPI(opts ...Option) (API, error) {
@@ -192,8 +188,7 @@ func (api *BasicAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, askID,
 	ch <- DealOrError{deal, err}
 }
 
-func (api *BasicAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (
-	*types.Transaction, error) {
+func (api *BasicAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.marketContract.CloseDeal(opts, dealID, blacklisted)
 }
@@ -342,26 +337,22 @@ func (api *BasicAPI) Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *bi
 	return api.marketContract.Bill(opts, dealID)
 }
 
-func (api *BasicAPI) RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) (
-	*types.Transaction, error) {
+func (api *BasicAPI) RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) (*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.marketContract.RegisterWorker(opts, master)
 }
 
-func (api *BasicAPI) ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (
-	*types.Transaction, error) {
+func (api *BasicAPI) ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.marketContract.RegisterWorker(opts, slave)
 }
 
-func (api *BasicAPI) RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) (
-	*types.Transaction, error) {
+func (api *BasicAPI) RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) (*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.marketContract.RemoveWorker(opts, master, slave)
 }
 
-func (api *BasicAPI) GetMaster(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (
-	common.Address, error) {
+func (api *BasicAPI) GetMaster(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (common.Address, error) {
 	return api.marketContract.GetMaster(getCallOptions(ctx), slave)
 }
 
@@ -377,8 +368,7 @@ func (api *BasicAPI) GetValidator(ctx context.Context, validatorID common.Addres
 	}, nil
 }
 
-func (api *BasicAPI) GetCertificate(ctx context.Context, certificateID *big.Int) (
-	*pb.Certificate, error) {
+func (api *BasicAPI) GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error) {
 
 	validatorID, ownerID, attribute, value, err := api.profilesContract.GetCertificate(getCallOptions(ctx), certificateID)
 	if err != nil {
@@ -665,32 +655,27 @@ func (api *BasicAPI) Check(ctx context.Context, who, whom common.Address) (bool,
 	return api.blacklistContract.Check(getCallOptions(ctx), who, whom)
 }
 
-func (api *BasicAPI) Add(ctx context.Context, key *ecdsa.PrivateKey, who, whom common.Address) (
-	*types.Transaction, error) {
+func (api *BasicAPI) Add(ctx context.Context, key *ecdsa.PrivateKey, who, whom common.Address) (*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.blacklistContract.Add(opts, who, whom)
 }
 
-func (api *BasicAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) (
-	*types.Transaction, error) {
+func (api *BasicAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) (*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.blacklistContract.Remove(opts, whom)
 }
 
-func (api *BasicAPI) AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (
-	*types.Transaction, error) {
+func (api *BasicAPI) AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.blacklistContract.AddMaster(opts, root)
 }
 
-func (api *BasicAPI) RemoveMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (
-	*types.Transaction, error) {
+func (api *BasicAPI) RemoveMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.blacklistContract.RemoveMaster(opts, root)
 }
 
-func (api *BasicAPI) SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey, market common.Address) (
-	*types.Transaction, error) {
+func (api *BasicAPI) SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey, market common.Address) (*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
 	return api.blacklistContract.SetMarketAddress(opts, market)
 }
@@ -720,8 +705,7 @@ func (api *BasicAPI) AllowanceOf(ctx context.Context, from string, to string) (*
 	return allowance, nil
 }
 
-func (api *BasicAPI) Approve(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (
-	*types.Transaction, error) {
+func (api *BasicAPI) Approve(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, 50000)
 
 	tx, err := api.tokenContract.Approve(opts, common.HexToAddress(to), amount)
@@ -731,8 +715,7 @@ func (api *BasicAPI) Approve(ctx context.Context, key *ecdsa.PrivateKey, to stri
 	return tx, err
 }
 
-func (api *BasicAPI) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (
-	*types.Transaction, error) {
+func (api *BasicAPI) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, 50000)
 
 	tx, err := api.tokenContract.Transfer(opts, common.HexToAddress(to), amount)
@@ -742,8 +725,7 @@ func (api *BasicAPI) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to str
 	return tx, err
 }
 
-func (api *BasicAPI) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (
-	*types.Transaction, error) {
+func (api *BasicAPI) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (*types.Transaction, error) {
 	opts := api.GetTxOpts(ctx, key, 50000)
 
 	tx, err := api.tokenContract.TransferFrom(opts, common.HexToAddress(from), common.HexToAddress(to), amount)
@@ -817,81 +799,4 @@ func (api *BasicAPI) parseTransactionLogs(ctx context.Context, tx *types.Transac
 
 	// TODO(sshaman1101): not so user-friendly message leaved for debugging, remove before releasing.
 	return nil, fmt.Errorf("cannot find topic \"%s\"in transaction", topic.Hex())
-}
-
-type Event struct {
-	Data        interface{}
-	BlockNumber uint64
-	TS          uint64
-}
-
-type DealOpenedData struct {
-	ID *big.Int
-}
-
-type DealUpdatedData struct {
-	ID *big.Int
-}
-
-type DealChangeRequestSentData struct {
-	ID *big.Int
-}
-
-type DealChangeRequestUpdatedData struct {
-	ID *big.Int
-}
-
-type OrderPlacedData struct {
-	ID *big.Int
-}
-
-type OrderUpdatedData struct {
-	ID *big.Int
-}
-
-type BilledData struct {
-	ID          *big.Int
-	PayedAmount *big.Int
-}
-
-type WorkerAnnouncedData struct {
-	SlaveID  common.Address
-	MasterID common.Address
-}
-
-type WorkerConfirmedData struct {
-	SlaveID  common.Address
-	MasterID common.Address
-}
-
-type WorkerRemovedData struct {
-	SlaveID  common.Address
-	MasterID common.Address
-}
-
-type ErrorData struct {
-	Err   error
-	Topic string
-}
-
-type AddedToBlacklistData struct {
-	AdderID common.Address
-	AddeeID common.Address
-}
-
-type RemovedFromBlacklistData struct {
-	RemoverID common.Address
-	RemoveeID common.Address
-}
-
-type ValidatorCreatedData struct {
-	ID common.Address
-}
-
-type ValidatorDeletedData struct {
-	ID common.Address
-}
-
-type CertificateCreatedData struct {
-	ID *big.Int
 }
