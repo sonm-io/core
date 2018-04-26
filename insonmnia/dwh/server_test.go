@@ -1133,19 +1133,19 @@ func setupTestDB(w *DWH) error {
 			fmt.Sprintf("master_%d", i),
 			fmt.Sprintf("ask_id_%d", i),
 			fmt.Sprintf("bid_id_%d", i),
-			10010+i,                                              // Duration
-			pb.NewBigIntFromInt(20010 + int64(i)).PaddedString(), // Price
-			30010+i,                                              // StartTime
-			40010+i,                                              // EndTime
+			10010+i, // Duration
+			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
+			30010+i, // StartTime
+			40010+i, // EndTime
 			uint64(pb.DealStatus_DEAL_ACCEPTED),
-			pb.NewBigIntFromInt(50010 + int64(i)).PaddedString(), // BlockedBalance
-			pb.NewBigIntFromInt(60010 + int64(i)).PaddedString(), // TotalPayout
-			70010+i,                                              // LastBillTS
-			5,                                                    // Netflags
-			3,                                                    // AskIdentityLevel
-			4,                                                    // BidIdentityLevel
-			byteCerts,                                            // SupplierCertificates
-			byteCerts,                                            // ConsumerCertificates
+			pb.NewBigIntFromInt(50010+int64(i)).PaddedString(), // BlockedBalance
+			pb.NewBigIntFromInt(60010+int64(i)).PaddedString(), // TotalPayout
+			70010+i,   // LastBillTS
+			5,         // Netflags
+			3,         // AskIdentityLevel
+			4,         // BidIdentityLevel
+			byteCerts, // SupplierCertificates
+			byteCerts, // ConsumerCertificates
 			true,
 			10, // CPUSysbenchMulti
 			20,
@@ -1174,8 +1174,8 @@ func setupTestDB(w *DWH) error {
 			"ask_author", // AuthorID
 			"bid_author", // CounterpartyID
 			10010+i,
-			pb.NewBigIntFromInt(20010 + int64(i)).PaddedString(), // Price
-			7,                                                    // Netflags
+			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
+			7, // Netflags
 			uint64(pb.IdentityLevel_ANONYMOUS),
 			fmt.Sprintf("blacklist_%d", i),
 			[]byte{1, 2, 3},          // Tag
@@ -1208,11 +1208,11 @@ func setupTestDB(w *DWH) error {
 			fmt.Sprintf("deal_id_%d", i),
 			uint64(pb.OrderType_BID),
 			uint64(pb.OrderStatus_ORDER_ACTIVE),
-			"bid_author",                                         // AuthorID
-			"ask_author",                                         // CounterpartyID
-			10010-i,                                              // Duration
-			pb.NewBigIntFromInt(20010 + int64(i)).PaddedString(), // Price
-			5,                                                    // Netflags
+			"bid_author", // AuthorID
+			"ask_author", // CounterpartyID
+			10010-i,      // Duration
+			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
+			5, // Netflags
 			uint64(pb.IdentityLevel_ANONYMOUS),
 			fmt.Sprintf("blacklist_%d", i),
 			[]byte{1, 2, 3},                       // Tag
