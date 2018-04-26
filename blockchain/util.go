@@ -65,10 +65,5 @@ func extractBig(log types.Log, pos int) (*big.Int, error) {
 		return nil, errors.New("topic index out of range")
 	}
 
-	id, ok := big.NewInt(0x0).SetString(log.Topics[pos].Hex(), 0)
-	if !ok {
-		return nil, errors.Errorf("failed to parse to *big.Int: %+v", log.Topics[pos].Hex())
-	}
-
-	return id, nil
+	return log.Topics[pos].Big(), nil
 }
