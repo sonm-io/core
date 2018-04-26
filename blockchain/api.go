@@ -25,7 +25,7 @@ import (
 )
 
 type API interface {
-	CertsAPI
+	ProfileRegistryAPI
 	EventsAPI
 	MarketAPI
 	BlacklistAPI
@@ -34,7 +34,7 @@ type API interface {
 	GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit uint64) *bind.TransactOpts
 }
 
-type CertsAPI interface {
+type ProfileRegistryAPI interface {
 	GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error)
 	GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error)
 }
@@ -94,7 +94,7 @@ type TestTokenAPI interface {
 
 type BasicAPI struct {
 	client                 *ethclient.Client
-	clientPrivate          *ethclient.Client
+	clientSidechain        *ethclient.Client
 	gasPrice               int64
 	marketContract         *marketAPI.Market
 	blacklistContract      *marketAPI.Blacklist
@@ -114,6 +114,11 @@ func NewAPI(opts ...Option) (API, error) {
 	}
 
 	client, err := initEthClient(defaults.apiEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	clientSidechain, err := initEthClient(defaults.apiSidechainEndpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +143,12 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
+	// TODO(sokel): chage address after submodule update
+	sidechainTokenContract, err := marketAPI.NewSNMTToken(common.HexToAddress(market.SNMTAddress), client)
+	if err != nil {
+		return nil, err
+	}
+
 	marketABI, err := abi.JSON(strings.NewReader(marketAPI.MarketABI))
 	if err != nil {
 		return nil, err
@@ -149,16 +160,18 @@ func NewAPI(opts ...Option) (API, error) {
 	}
 
 	api := &BasicAPI{
-		client:            client,
-		gasPrice:          defaults.gasPrice,
-		marketContract:    marketContract,
-		blacklistContract: blacklistContract,
-		profilesContract:  profilesContract,
-		tokenContract:     tokenContract,
-		marketABI:         marketABI,
-		profilesABI:       profilesABI,
-		logParsePeriod:    defaults.logParsePeriod,
-		logger:            ctxlog.GetLogger(context.Background()),
+		client:                 client,
+		clientSidechain:        clientSidechain,
+		gasPrice:               defaults.gasPrice,
+		marketContract:         marketContract,
+		blacklistContract:      blacklistContract,
+		profilesContract:       profilesContract,
+		tokenContract:          tokenContract,
+		sidechainTokenContract: sidechainTokenContract,
+		marketABI:              marketABI,
+		profilesABI:            profilesABI,
+		logParsePeriod:         defaults.logParsePeriod,
+		logger:                 ctxlog.GetLogger(context.Background()),
 	}
 
 	return api, nil
