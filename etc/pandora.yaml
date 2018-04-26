@@ -5,6 +5,7 @@ pools:
       ethereumEndpoint: http://localhost:8545
       ethereumAccountPath: ./keys
       ethereumAccountPass: any
+      loggingLevel: debug
     ammo:
       limit: 100000
 
@@ -14,7 +15,6 @@ pools:
 #      order_ids: [1]
 
       type: marketplace/order/place
-#      type: dwh/order/info
       # Order IDs we want to fetch.
     result:
       type: phout
@@ -27,4 +27,4 @@ pools:
 
     startup:
       type: once
-      times: 400
+      times: 1

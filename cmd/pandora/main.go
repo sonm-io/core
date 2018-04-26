@@ -1,9 +1,6 @@
 // How to use it?
 //
-// There are two modes: native and as a Yandex.Tank plugin.
-//
 // Direct usage: `pandora_OS_ARCH etc/pandora.yaml`
-// Via Yandex.Tank: docker run -v $(pwd):/var/loadtest -v $HOME/.ssh:/root/.ssh -it direvius/yandex-tank
 
 package main
 

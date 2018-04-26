@@ -10,15 +10,18 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/proto"
 	"github.com/yandex/pandora/core"
 	"github.com/yandex/pandora/core/aggregate/netsample"
+	"go.uber.org/zap"
 )
 
 type GunConfig struct {
 	EthereumEndpoint    string
 	EthereumAccountPath string
 	EthereumAccountPass string
+	LoggingLevel        string
 }
 
 func NewDefaultGunConfig() GunConfig {
@@ -31,6 +34,7 @@ type Gun struct {
 	counter    int
 	privateKey *ecdsa.PrivateKey
 	market     blockchain.MarketAPI
+	log        *zap.Logger
 }
 
 func NewGun(cfg GunConfig) (*Gun, error) {
@@ -44,9 +48,17 @@ func NewGun(cfg GunConfig) (*Gun, error) {
 		return nil, err
 	}
 
+	level, err := logging.NewLevelFromString(cfg.LoggingLevel)
+	if err != nil {
+		return nil, err
+	}
+
+	log := logging.BuildLogger(*level)
+
 	m := &Gun{
 		privateKey: PrivateKey(ethConfig),
 		market:     market,
+		log:        log,
 	}
 
 	return m, nil
@@ -72,7 +84,7 @@ func (m *Gun) Shoot(ctx context.Context, ammo core.Ammo) {
 	if err == nil {
 		sample.SetProtoCode(200)
 	} else {
-		fmt.Printf("failed to process ammo: #%+v - %v\n", ammo, err)
+		m.log.Warn("failed to process ammo", zap.Error(err))
 		sample.SetProtoCode(500)
 	}
 
@@ -80,19 +92,23 @@ func (m *Gun) Shoot(ctx context.Context, ammo core.Ammo) {
 }
 
 func (m *Gun) executeGetOrderInfo(ctx context.Context, ammo *OrderInfoAmmo) error {
-	_, err := m.market.GetOrderInfo(ctx, big.NewInt(ammo.OrderID))
+	order, err := m.market.GetOrderInfo(ctx, big.NewInt(ammo.OrderID))
 	if err != nil {
 		return err
 	}
+
+	m.log.Debug("OK", zap.String("ammo", "GetOrderInfo"), zap.Any("order", *order))
 
 	return nil
 }
 
 func (m *Gun) executePlaceOrder(ctx context.Context, ammo *OrderPlaceAmmo) error {
-	err := <-m.market.PlaceOrder(ctx, m.privateKey, m.order())
-	if err.Err != nil {
-		return err.Err
+	orderOrError := <-m.market.PlaceOrder(ctx, m.privateKey, m.order())
+	if orderOrError.Err != nil {
+		return orderOrError.Err
 	}
+
+	m.log.Debug("OK", zap.String("ammo", "PlaceOrder"), zap.Any("order", orderOrError.Order))
 
 	return nil
 }
