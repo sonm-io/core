@@ -132,8 +132,8 @@ message DealCondition {
 }
 
 message DWHWorker {
-    string masterID = 1;
-    string slaveID = 2;
+    EthAddress masterID = 1;
+    EthAddress slaveID = 2;
     bool confirmed = 3;
 }
 

@@ -879,15 +879,15 @@ func (w *DWH) processEvent(event *blockchain.Event) error {
 	case *blockchain.BilledData:
 		return w.onBilled(event.TS, value.DealID, value.PaidAmount)
 	case *blockchain.WorkerAnnouncedData:
-		return w.onWorkerAnnounced(value.MasterID.String(), value.SlaveID.String())
+		return w.onWorkerAnnounced(value.MasterID.Hex(), value.SlaveID.Hex())
 	case *blockchain.WorkerConfirmedData:
-		return w.onWorkerConfirmed(value.MasterID.String(), value.SlaveID.String())
+		return w.onWorkerConfirmed(value.MasterID.Hex(), value.SlaveID.Hex())
 	case *blockchain.WorkerRemovedData:
-		return w.onWorkerRemoved(value.MasterID.String(), value.SlaveID.String())
+		return w.onWorkerRemoved(value.MasterID.Hex(), value.SlaveID.Hex())
 	case *blockchain.AddedToBlacklistData:
-		return w.onAddedToBlacklist(value.AdderID.String(), value.AddeeID.String())
+		return w.onAddedToBlacklist(value.AdderID.Hex(), value.AddeeID.Hex())
 	case *blockchain.RemovedFromBlacklistData:
-		w.onRemovedFromBlacklist(value.RemoverID.String(), value.RemoveeID.String())
+		w.onRemovedFromBlacklist(value.RemoverID.Hex(), value.RemoveeID.Hex())
 	case *blockchain.ValidatorCreatedData:
 		return w.onValidatorCreated(value.ID)
 	case *blockchain.ValidatorDeletedData:
@@ -2130,8 +2130,8 @@ func (w *DWH) decodeWorker(rows *sql.Rows) (*pb.DWHWorker, error) {
 	}
 
 	return &pb.DWHWorker{
-		MasterID:  masterID,
-		SlaveID:   slaveID,
+		MasterID:  pb.NewEthAddress(common.HexToAddress(masterID)),
+		SlaveID:   pb.NewEthAddress(common.HexToAddress(slaveID)),
 		Confirmed: confirmed,
 	}, nil
 }
