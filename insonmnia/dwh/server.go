@@ -1346,7 +1346,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 
 		profile = &pb.Profile{
 			UserID:       order.AuthorID,
-			Certificates: []byte{},
+			Certificates: "",
 		}
 	} else {
 		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID, profile, 1); err != nil {
@@ -1377,7 +1377,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		profile.IdentityLevel,
 		profile.Name,
 		profile.Country,
-		profile.Certificates,
+		[]byte(profile.Certificates),
 		order.Benchmarks.CPUSysbenchMulti(),
 		order.Benchmarks.CPUSysbenchOne(),
 		order.Benchmarks.CPUCores(),
@@ -2095,7 +2095,7 @@ func (w *DWH) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 		Country:        country,
 		IsCorporation:  isCorporation,
 		IsProfessional: isProfessional,
-		Certificates:   certificates,
+		Certificates:   string(certificates),
 		ActiveAsks:     activeAsks,
 		ActiveBids:     activeBids,
 	}, nil

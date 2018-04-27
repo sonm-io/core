@@ -730,7 +730,7 @@ func TestDWH_monitor(t *testing.T) {
 		}
 
 		var certificates []*pb.Certificate
-		if err := json.Unmarshal(profiles[12].Certificates, &certificates); err != nil {
+		if err := json.Unmarshal([]byte(profiles[12].Certificates), &certificates); err != nil {
 			t.Errorf("(CertificateCreated) Failed to unmarshal Profile.Certificates: %s", err)
 			return
 		} else {
