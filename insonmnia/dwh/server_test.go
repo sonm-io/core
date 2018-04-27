@@ -4,13 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/golang/mock/gomock"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+	bch "github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
@@ -508,539 +513,539 @@ func TestDWH_GetProfiles(t *testing.T) {
 	}
 }
 
-//func TestDWH_monitor(t *testing.T) {
-//	var (
-//		controller           = gomock.NewController(t)
-//		mockBlock            = bch.NewMockAPI(controller)
-//		mockMarket           = bch.NewMockMarketAPI(controller)
-//		mockProfiles         = bch.NewMockProfileRegistryAPI(controller)
-//		commonID             = big.NewInt(0xDEADBEEF)
-//		commonEventTS uint64 = 5
-//	)
-//
-//	benchmarks, err := pb.NewBenchmarks([]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
-//	require.NoError(t, err)
-//
-//	deal := &pb.Deal{
-//		Id:             commonID.String(),
-//		Benchmarks:     benchmarks,
-//		SupplierID:     pb.NewEthAddress(common.HexToAddress("0xAA")),
-//		ConsumerID:     pb.NewEthAddress(common.HexToAddress("0xBB")),
-//		MasterID:       "master_id",
-//		AskID:          "ask_id_5",
-//		BidID:          "bid_id_5",
-//		Duration:       10020,
-//		Price:          pb.NewBigInt(big.NewInt(20010)),
-//		StartTime:      &pb.Timestamp{Seconds: 30010},
-//		EndTime:        &pb.Timestamp{Seconds: 40010},
-//		Status:         pb.DealStatus_DEAL_ACCEPTED,
-//		BlockedBalance: pb.NewBigInt(big.NewInt(50010)),
-//		TotalPayout:    pb.NewBigInt(big.NewInt(0)),
-//		LastBillTS:     &pb.Timestamp{Seconds: 70010},
-//	}
-//	mockMarket.EXPECT().GetDealInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(deal, nil)
-//
-//	order := &pb.Order{
-//		Id:             commonID.String(),
-//		DealID:         "",
-//		OrderType:      pb.OrderType_ASK,
-//		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
-//		AuthorID:       pb.NewEthAddress(common.HexToAddress("0xD")),
-//		CounterpartyID: pb.NewEthAddress(common.HexToAddress("0x0")),
-//		Duration:       10020,
-//		Price:          pb.NewBigInt(big.NewInt(20010)),
-//		Netflags:       7,
-//		IdentityLevel:  pb.IdentityLevel_ANONYMOUS,
-//		Blacklist:      "blacklist",
-//		Tag:            []byte{0, 1},
-//		Benchmarks:     benchmarks,
-//		FrozenSum:      pb.NewBigInt(big.NewInt(30010)),
-//	}
-//	mockMarket.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(order, nil)
-//
-//	changeRequest := &pb.DealChangeRequest{
-//		Id:          "0",
-//		DealID:      commonID.String(),
-//		RequestType: pb.OrderType_ASK,
-//		Duration:    10020,
-//		Price:       pb.NewBigInt(big.NewInt(20010)),
-//		Status:      pb.ChangeRequestStatus_REQUEST_CREATED,
-//	}
-//	mockMarket.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
-//
-//	validator := &pb.Validator{
-//		Id:    common.HexToAddress("0xC").Hex(),
-//		Level: 3,
-//	}
-//	mockProfiles.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)
-//
-//	certificate := &pb.Certificate{
-//		ValidatorID:   pb.NewEthAddress(common.HexToAddress("0xC")),
-//		OwnerID:       pb.NewEthAddress(common.HexToAddress("0xD")),
-//		Attribute:     CertificateName,
-//		IdentityLevel: 1,
-//		Value:         []byte("User Name"),
-//	}
-//	mockProfiles.EXPECT().GetCertificate(gomock.Any(), gomock.Any()).AnyTimes().Return(
-//		certificate, nil)
-//
-//	mockBlock.EXPECT().Market().AnyTimes().Return(mockMarket)
-//	mockBlock.EXPECT().ProfileRegistry().AnyTimes().Return(mockProfiles)
-//
-//	monitorDWH.blockchain = mockBlock
-//
-//	// Test onOrderPlaced event handling.
-//	if err := monitorDWH.onOrderPlaced(commonEventTS, commonID); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if order, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
-//		t.Errorf("Failed to GetOrderDetails: %s", err)
-//		return
-//	} else {
-//		if order.GetOrder().Duration != 10020 {
-//			t.Errorf("Expected %d, got %d (Order.Duration)", 10020, order.GetOrder().Duration)
-//		}
-//	}
-//
-//	// Test onDealOpened event handling.
-//	if err := monitorDWH.onDealOpened(commonID); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	// Firstly, check that a deal was created.
-//	if deal, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
-//		t.Errorf("Failed to GetDealDetails: %s", err)
-//		return
-//	} else {
-//		if deal.GetDeal().Duration != 10020 {
-//			t.Errorf("Expected %d, got %d (Deal.Duration)", 10020, deal.GetDeal().Duration)
-//		}
-//	}
-//	// Secondly, check that a DealCondition was created.
-//	if dealConditionsReply, err := monitorDWH.getDealConditions(
-//		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
-//		t.Errorf("Failed to GetDealConditions: %s", err)
-//		return
-//	} else {
-//		if dealConditionsReply.Conditions[0].Duration != 10020 {
-//			t.Errorf("Expected %d, got %d (DealCondition.Duration)", 10020, deal.Duration)
-//			return
-//		}
-//	}
-//
-//	// Test that a Validator entry is added after ValidatorCreated event.
-//	if err := monitorDWH.onValidatorCreated(common.HexToAddress(common.HexToAddress("0xC").Hex())); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if validatorsReply, err := monitorDWH.getValidators(monitorDWH.ctx, &pb.ValidatorsRequest{}); err != nil {
-//		t.Errorf("Failed to GetValidators: %s", err)
-//		return
-//	} else {
-//		if len(validatorsReply.Validators) != 1 {
-//			t.Errorf("(ValidatorCreated) Expected 1 Validator, got %d", len(validatorsReply.Validators))
-//			return
-//		}
-//		if validatorsReply.Validators[0].Level != 3 {
-//			t.Errorf("(ValidatorCreated) Expected %d, got %d (Validator.Level)",
-//				3, validatorsReply.Validators[0].Level)
-//		}
-//	}
-//
-//	validator.Level = 0
-//	// Test that a Validator entry is updated after ValidatorDeleted event.
-//	if err := monitorDWH.onValidatorDeleted(common.HexToAddress(common.HexToAddress("0xC").Hex())); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if validatorsReply, err := monitorDWH.getValidators(monitorDWH.ctx, &pb.ValidatorsRequest{}); err != nil {
-//		t.Errorf("Failed to GetValidators: %s", err)
-//		return
-//	} else {
-//		if len(validatorsReply.Validators) != 1 {
-//			t.Errorf("(ValidatorDeleted) Expected 1 Validator, got %d", len(validatorsReply.Validators))
-//			return
-//		}
-//		if validatorsReply.Validators[0].Level != 0 {
-//			t.Errorf("(ValidatorDeleted) Expected %d, got %d (Validator.Level)",
-//				0, validatorsReply.Validators[0].Level)
-//		}
-//	}
-//
-//	// Test that a Certificate entry is updated after CertificateCreated event.
-//	if err := monitorDWH.onCertificateCreated(commonID); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if certificateAttrs, err := getCertificates(monitorDWH); err != nil {
-//		t.Errorf("Failed to getValidators: %s", err)
-//		return
-//	} else {
-//		if len(certificateAttrs) != 1 {
-//			t.Errorf("(CertificateCreated) Expected 1 Certificate, got %d",
-//				len(certificateAttrs))
-//			return
-//		}
-//		if string(certificateAttrs[0].Value) != "User Name" {
-//			t.Errorf("(CertificateCreated) Expected %s, got %s (Certificate.Value)",
-//				"User Name", certificateAttrs[0].Value)
-//		}
-//	}
-//	if profilesReply, err := monitorDWH.getProfiles(monitorDWH.ctx, &pb.ProfilesRequest{}); err != nil {
-//		t.Errorf("Failed to getProfiles: %s", err)
-//		return
-//	} else {
-//		if len(profilesReply.Profiles) != 13 {
-//			t.Errorf("(CertificateCreated) Expected 1 Profile, got %d",
-//				len(profilesReply.Profiles))
-//			return
-//		}
-//		if profilesReply.Profiles[12].Name != "User Name" {
-//			t.Errorf("(CertificateCreated) Expected %s, got %s (Profile.Name)",
-//				"User Name", profilesReply.Profiles[12].Name)
-//		}
-//	}
-//
-//	certificate.Attribute = CertificateCountry
-//	certificate.Value = []byte("Country")
-//	// Test that a  Profile entry is updated after CertificateCreated event.
-//	if err := monitorDWH.onCertificateCreated(commonID); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if profilesReply, err := monitorDWH.getProfiles(monitorDWH.ctx, &pb.ProfilesRequest{}); err != nil {
-//		t.Errorf("Failed to getProfiles: %s", err)
-//		return
-//	} else {
-//		if len(profilesReply.Profiles) != 13 {
-//			t.Errorf("(CertificateCreated) Expected 1 Profile, got %d",
-//				len(profilesReply.Profiles))
-//			return
-//		}
-//
-//		profiles := profilesReply.Profiles
-//
-//		if profiles[12].Country != "Country" {
-//			t.Errorf("(CertificateCreated) Expected %s, got %s (Profile.Country)",
-//				"Country", profiles[12].Name)
-//		}
-//		if profiles[12].Name != "User Name" {
-//			t.Errorf("(CertificateCreated) Expected %s, got %s (Profile.Name)",
-//				"Name", profiles[12].Name)
-//		}
-//
-//		var certificates []*pb.Certificate
-//		if err := json.Unmarshal([]byte(profiles[12].Certificates), &certificates); err != nil {
-//			t.Errorf("(CertificateCreated) Failed to unmarshal Profile.Certificates: %s", err)
-//			return
-//		} else {
-//			if len(certificates) != 2 {
-//				t.Errorf("(CertificateCreated) Expected 2 Certificates, got %d",
-//					len(certificates))
-//				return
-//			}
-//		}
-//	}
-//	// Check that profile updates resulted in orders updates.
-//	dwhOrder, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()})
-//	if err != nil {
-//		t.Errorf("failed to getOrderDetails (`%s`): %s", commonID.String(), err)
-//		return
-//	}
-//	if dwhOrder.CreatorIdentityLevel != 3 {
-//		t.Errorf("(CertificateCreated) Expected %d, got %d (Order.CreatorIdentityLevel)",
-//			2, dwhOrder.CreatorIdentityLevel)
-//		return
-//	}
-//
-//	// Check that profile updates resulted in orders updates.
-//	if deal, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
-//		t.Errorf("Failed to GetDealDetails: %s", err)
-//		return
-//	} else {
-//		if len(deal.SupplierCertificates) == 0 {
-//			t.Errorf("Expected some SupplierCertificates, got nothing")
-//		}
-//	}
-//
-//	// Test that if order is updated, it is deleted.
-//	if err := monitorDWH.onOrderUpdated(commonID); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if _, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()}); err == nil {
-//		t.Error("GetOrderDetails returned an order that should have been deleted")
-//		return
-//	}
-//
-//	deal.Duration += 1
-//	// Test onDealUpdated event handling.
-//	if err := monitorDWH.onDealUpdated(commonID); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if deal, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
-//		t.Errorf("Failed to GetDealDetails: %s", err)
-//		return
-//	} else {
-//		if deal.GetDeal().Duration != 10021 {
-//			t.Errorf("Expected %d, got %d (Deal.Duration)", 10021, deal.GetDeal().Duration)
-//		}
-//	}
-//
-//	// Test creating an ASK DealChangeRequest.
-//	if err := monitorDWH.onDealChangeRequestSent(commonEventTS, big.NewInt(0)); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if changeRequest, err := getDealChangeRequest(monitorDWH, changeRequest.Id); err != nil {
-//		t.Errorf("Failed to getDealChangeRequest: %s", err)
-//		return
-//	} else {
-//		if changeRequest.Duration != 10020 {
-//			t.Errorf("Expected %d, got %d (DealChangeRequest.Duration)", 10020, changeRequest.Duration)
-//		}
-//	}
-//
-//	// Test that after a second ASK DealChangeRequest was created, the new one was kept and the old one was deleted.
-//	changeRequest.Id = "1"
-//	changeRequest.Duration = 10021
-//	if err := monitorDWH.onDealChangeRequestSent(commonEventTS, big.NewInt(1)); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if changeRequest, err := getDealChangeRequest(monitorDWH, changeRequest.Id); err != nil {
-//		t.Errorf("Failed to getDealChangeRequest: %s", err)
-//		return
-//	} else {
-//		if changeRequest.Duration != 10021 {
-//			t.Errorf("Expected %d, got %d (DealChangeRequest.Duration)", 10021, changeRequest.Duration)
-//		}
-//	}
-//	if _, err := getDealChangeRequest(monitorDWH, "0"); err == nil {
-//		t.Error("getDealChangeRequest returned a DealChangeRequest that should have been deleted")
-//		return
-//	}
-//
-//	// Test that when a BID DealChangeRequest was created, it was kept (and nothing was deleted).
-//	changeRequest.Id = "2"
-//	changeRequest.Duration = 10022
-//	changeRequest.RequestType = pb.OrderType_BID
-//	if err := monitorDWH.onDealChangeRequestSent(commonEventTS, big.NewInt(2)); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if changeRequest, err := getDealChangeRequest(monitorDWH, changeRequest.Id); err != nil {
-//		t.Errorf("Failed to getDealChangeRequest: %s", err)
-//		return
-//	} else {
-//		if changeRequest.Duration != 10022 {
-//			t.Errorf("Expected %d, got %d (DealChangeRequest.Duration)", 10022, changeRequest.Duration)
-//		}
-//	}
-//	if _, err := getDealChangeRequest(monitorDWH, "1"); err != nil {
-//		t.Errorf("DealChangeRequest of type ASK was deleted after a BID DealChangeRequest creation: %s", err)
-//		return
-//	}
-//
-//	// Test that when a DealChangeRequest is updated to any status but REJECTED, it is deleted.
-//	changeRequest.Id = "1"
-//	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_ACCEPTED
-//	if err := monitorDWH.onDealChangeRequestUpdated(commonEventTS, big.NewInt(1)); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if _, err := getDealChangeRequest(monitorDWH, "1"); err == nil {
-//		t.Error("DealChangeRequest which status was changed to ACCEPTED was not deleted")
-//		return
-//	}
-//	// Also test that a new DealCondition was created, and the old one was updated.
-//	if dealConditionsReply, err := monitorDWH.getDealConditions(
-//		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
-//		t.Errorf("Failed to GetDealConditions: %s", err)
-//		return
-//	} else {
-//		if len(dealConditionsReply.Conditions) != 2 {
-//			t.Errorf("Expected 2 DealConditions, got %d", len(dealConditionsReply.Conditions))
-//			return
-//		}
-//		conditions := dealConditionsReply.Conditions
-//		if conditions[1].EndTime.Seconds != 5 {
-//			t.Errorf("Expected %d, got %d (DealCondition.EndTime)", 5, conditions[0].EndTime.Seconds)
-//			return
-//		}
-//		if conditions[0].StartTime.Seconds != 5 {
-//			t.Errorf("Expected %d, got %d (DealCondition.StartTime)", 5, conditions[1].StartTime.Seconds)
-//			return
-//		}
-//	}
-//
-//	// Test that when a DealChangeRequest is updated to REJECTED, it is kept.
-//	changeRequest.Id = "2"
-//	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_REJECTED
-//	if err := monitorDWH.onDealChangeRequestUpdated(commonEventTS, big.NewInt(2)); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if _, err := getDealChangeRequest(monitorDWH, "2"); err != nil {
-//		t.Error("DealChangeRequest which status was changed to REJECTED was deleted")
-//		return
-//	}
-//
-//	// Test that after a Billed event last DealCondition.Payout is updated.
-//	if err := monitorDWH.onBilled(commonEventTS, commonID, big.NewInt(10)); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if dealConditionsReply, err := monitorDWH.getDealConditions(
-//		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
-//		t.Errorf("Failed to GetDealDetails: %s", err)
-//		return
-//	} else {
-//		if len(dealConditionsReply.Conditions) != 2 {
-//			t.Errorf("(Billed) Expected 2 DealConditions, got %d", len(dealConditionsReply.Conditions))
-//			return
-//		}
-//		conditions := dealConditionsReply.Conditions
-//		if conditions[0].TotalPayout.Unwrap().String() != "10" {
-//			t.Errorf("(Billed) Expected %s, got %s (DealCondition.TotalPayout)",
-//				"10", conditions[0].TotalPayout.Unwrap().String())
-//		}
-//	}
-//	if dealPayments, err := getDealPayments(monitorDWH); err != nil {
-//		t.Errorf("Failed to GetDealDetails: %s", err)
-//		return
-//	} else {
-//		if len(dealPayments) != 1 {
-//			t.Errorf("(Billed) Expected 1 DealPayment, got %d", len(dealPayments))
-//			return
-//		}
-//		if !strings.HasSuffix(dealPayments[0].PaidAmount, "10") {
-//			t.Errorf("(Billed) Expected %s, got %s (DealPayment.PaidAmount)",
-//				"10", dealPayments[0].PaidAmount)
-//		}
-//	}
-//
-//	// Test that when a Deal's status is updated to CLOSED, Deal and its DealConditions are deleted.
-//	deal.Status = pb.DealStatus_DEAL_CLOSED
-//	// Test onDealUpdated event handling.
-//	if err := monitorDWH.onDealUpdated(commonID); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if _, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err == nil {
-//		t.Errorf("Deal was not deleted after status changing to CLOSED")
-//		return
-//	}
-//	if dealConditions, err := monitorDWH.getDealConditions(
-//		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
-//		t.Errorf("Failed to GetDealConditions: %s", err)
-//		return
-//	} else {
-//		if len(dealConditions.Conditions) != 0 {
-//			t.Errorf("(DealUpdated) Expected 0 DealConditions, got %d", len(dealConditions.Conditions))
-//			return
-//		}
-//	}
-//
-//	if profile, err := monitorDWH.getProfileInfo(monitorDWH.ctx, pb.NewEthAddress(common.HexToAddress("0xBB")), true); err != nil {
-//		t.Errorf("Failed to GetProfileInfo: %s", err)
-//		return
-//	} else {
-//		if profile.ActiveBids != 9 {
-//			t.Errorf("(DealUpdated) Expected 9 ActiveBids, got %d", profile.ActiveBids)
-//			return
-//		}
-//	}
-//
-//	// Test that a worker is added after a WorkerAnnounced event.
-//	if err := monitorDWH.onWorkerAnnounced(common.HexToAddress("0xC").Hex(),
-//		common.HexToAddress("0xD").Hex()); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if workersReply, err := monitorDWH.getWorkers(monitorDWH.ctx, &pb.WorkersRequest{}); err != nil {
-//		t.Errorf("Failed to GetWorkers: %s", err)
-//		return
-//	} else {
-//		if len(workersReply.Workers) != 1 {
-//			t.Errorf("(WorkerAnnounced) Expected 1 Worker, got %d", len(workersReply.Workers))
-//			return
-//		}
-//		if workersReply.Workers[0].Confirmed {
-//			t.Errorf("(WorkerAnnounced) Expected %t, got %t (Worker.Confirmed)",
-//				false, workersReply.Workers[0].Confirmed)
-//		}
-//	}
-//	// Test that a worker is confirmed after a WorkerConfirmed event.
-//	if err := monitorDWH.onWorkerConfirmed(common.HexToAddress("0xC").Hex(),
-//		common.HexToAddress("0xD").Hex()); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if workersReply, err := monitorDWH.getWorkers(monitorDWH.ctx, &pb.WorkersRequest{}); err != nil {
-//		t.Errorf("Failed to GetWorkers: %s", err)
-//		return
-//	} else {
-//		if len(workersReply.Workers) != 1 {
-//			t.Errorf("(WorkerConfirmed) Expected 1 Worker, got %d", len(workersReply.Workers))
-//			return
-//		}
-//		if !workersReply.Workers[0].Confirmed {
-//			t.Errorf("(WorkerConfirmed) Expected %t, got %t (Worker.Confirmed)",
-//				true, workersReply.Workers[0].Confirmed)
-//		}
-//	}
-//	// Test that a worker is deleted after a WorkerRemoved event.
-//	if err := monitorDWH.onWorkerRemoved(common.HexToAddress("0xC").Hex(),
-//		common.HexToAddress("0xD").Hex()); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if workersReply, err := monitorDWH.getWorkers(monitorDWH.ctx, &pb.WorkersRequest{}); err != nil {
-//		t.Errorf("Failed to getWorkers: %s", err)
-//		return
-//	} else {
-//		if len(workersReply.Workers) != 0 {
-//			t.Errorf("(WorkerRemoved) Expected 0 Workers, got %d", len(workersReply.Workers))
-//			return
-//		}
-//	}
-//
-//	// Test that a Blacklist entry is added after AddedToBlacklist event.
-//	if err := monitorDWH.onAddedToBlacklist(common.HexToAddress("0xC").Hex(),
-//		common.HexToAddress("0xD").Hex()); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if blacklistReply, err := monitorDWH.getBlacklist(
-//		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
-//		t.Errorf("Failed to GetBlacklist: %s", err)
-//		return
-//	} else {
-//		if blacklistReply.OwnerID.Unwrap().Hex() != common.HexToAddress("0xC").Hex() {
-//			t.Errorf("(AddedToBlacklist) Expected %s, got %s (BlacklistReply.AdderID)",
-//				common.HexToAddress("0xC").Hex(), blacklistReply.OwnerID)
-//		}
-//	}
-//
-//	// Test that a Blacklist entry is deleted after RemovedFromBlacklist event.
-//	if err := monitorDWH.onRemovedFromBlacklist(common.HexToAddress("0xC").Hex(),
-//		common.HexToAddress("0xD").Hex()); err != nil {
-//		t.Error(err)
-//		return
-//	}
-//	if repl, err := monitorDWH.getBlacklist(
-//		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
-//		t.Error(err)
-//		return
-//	} else {
-//		if len(repl.Addresses) > 0 {
-//			t.Errorf("GetBlacklist returned a blacklist that should have been deleted: %s", err)
-//		}
-//	}
-//}
+func TestDWH_monitor(t *testing.T) {
+	var (
+		controller           = gomock.NewController(t)
+		mockBlock            = bch.NewMockAPI(controller)
+		mockMarket           = bch.NewMockMarketAPI(controller)
+		mockProfiles         = bch.NewMockProfileRegistryAPI(controller)
+		commonID             = big.NewInt(0xDEADBEEF)
+		commonEventTS uint64 = 5
+	)
+
+	benchmarks, err := pb.NewBenchmarks([]uint64{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})
+	require.NoError(t, err)
+
+	deal := &pb.Deal{
+		Id:             commonID.String(),
+		Benchmarks:     benchmarks,
+		SupplierID:     pb.NewEthAddress(common.HexToAddress("0xAA")),
+		ConsumerID:     pb.NewEthAddress(common.HexToAddress("0xBB")),
+		MasterID:       "master_id",
+		AskID:          "ask_id_5",
+		BidID:          "bid_id_5",
+		Duration:       10020,
+		Price:          pb.NewBigInt(big.NewInt(20010)),
+		StartTime:      &pb.Timestamp{Seconds: 30010},
+		EndTime:        &pb.Timestamp{Seconds: 40010},
+		Status:         pb.DealStatus_DEAL_ACCEPTED,
+		BlockedBalance: pb.NewBigInt(big.NewInt(50010)),
+		TotalPayout:    pb.NewBigInt(big.NewInt(0)),
+		LastBillTS:     &pb.Timestamp{Seconds: 70010},
+	}
+	mockMarket.EXPECT().GetDealInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(deal, nil)
+
+	order := &pb.Order{
+		Id:             commonID.String(),
+		DealID:         "",
+		OrderType:      pb.OrderType_ASK,
+		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
+		AuthorID:       pb.NewEthAddress(common.HexToAddress("0xD")),
+		CounterpartyID: pb.NewEthAddress(common.HexToAddress("0x0")),
+		Duration:       10020,
+		Price:          pb.NewBigInt(big.NewInt(20010)),
+		Netflags:       7,
+		IdentityLevel:  pb.IdentityLevel_ANONYMOUS,
+		Blacklist:      "blacklist",
+		Tag:            []byte{0, 1},
+		Benchmarks:     benchmarks,
+		FrozenSum:      pb.NewBigInt(big.NewInt(30010)),
+	}
+	mockMarket.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(order, nil)
+
+	changeRequest := &pb.DealChangeRequest{
+		Id:          "0",
+		DealID:      commonID.String(),
+		RequestType: pb.OrderType_ASK,
+		Duration:    10020,
+		Price:       pb.NewBigInt(big.NewInt(20010)),
+		Status:      pb.ChangeRequestStatus_REQUEST_CREATED,
+	}
+	mockMarket.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
+
+	validator := &pb.Validator{
+		Id:    common.HexToAddress("0xC").Hex(),
+		Level: 3,
+	}
+	mockProfiles.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)
+
+	certificate := &pb.Certificate{
+		ValidatorID:   pb.NewEthAddress(common.HexToAddress("0xC")),
+		OwnerID:       pb.NewEthAddress(common.HexToAddress("0xD")),
+		Attribute:     CertificateName,
+		IdentityLevel: 1,
+		Value:         []byte("User Name"),
+	}
+	mockProfiles.EXPECT().GetCertificate(gomock.Any(), gomock.Any()).AnyTimes().Return(
+		certificate, nil)
+
+	mockBlock.EXPECT().Market().AnyTimes().Return(mockMarket)
+	mockBlock.EXPECT().ProfileRegistry().AnyTimes().Return(mockProfiles)
+
+	monitorDWH.blockchain = mockBlock
+
+	// Test onOrderPlaced event handling.
+	if err := monitorDWH.onOrderPlaced(commonEventTS, commonID); err != nil {
+		t.Error(err)
+		return
+	}
+	if order, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+		t.Errorf("Failed to GetOrderDetails: %s", err)
+		return
+	} else {
+		if order.GetOrder().Duration != 10020 {
+			t.Errorf("Expected %d, got %d (Order.Duration)", 10020, order.GetOrder().Duration)
+		}
+	}
+
+	// Test onDealOpened event handling.
+	if err := monitorDWH.onDealOpened(commonID); err != nil {
+		t.Error(err)
+		return
+	}
+	// Firstly, check that a deal was created.
+	if deal, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+		t.Errorf("Failed to GetDealDetails: %s", err)
+		return
+	} else {
+		if deal.GetDeal().Duration != 10020 {
+			t.Errorf("Expected %d, got %d (Deal.Duration)", 10020, deal.GetDeal().Duration)
+		}
+	}
+	// Secondly, check that a DealCondition was created.
+	if dealConditionsReply, err := monitorDWH.getDealConditions(
+		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
+		t.Errorf("Failed to GetDealConditions: %s", err)
+		return
+	} else {
+		if dealConditionsReply.Conditions[0].Duration != 10020 {
+			t.Errorf("Expected %d, got %d (DealCondition.Duration)", 10020, deal.Duration)
+			return
+		}
+	}
+
+	// Test that a Validator entry is added after ValidatorCreated event.
+	if err := monitorDWH.onValidatorCreated(common.HexToAddress(common.HexToAddress("0xC").Hex())); err != nil {
+		t.Error(err)
+		return
+	}
+	if validatorsReply, err := monitorDWH.getValidators(monitorDWH.ctx, &pb.ValidatorsRequest{}); err != nil {
+		t.Errorf("Failed to GetValidators: %s", err)
+		return
+	} else {
+		if len(validatorsReply.Validators) != 1 {
+			t.Errorf("(ValidatorCreated) Expected 1 Validator, got %d", len(validatorsReply.Validators))
+			return
+		}
+		if validatorsReply.Validators[0].Level != 3 {
+			t.Errorf("(ValidatorCreated) Expected %d, got %d (Validator.Level)",
+				3, validatorsReply.Validators[0].Level)
+		}
+	}
+
+	validator.Level = 0
+	// Test that a Validator entry is updated after ValidatorDeleted event.
+	if err := monitorDWH.onValidatorDeleted(common.HexToAddress(common.HexToAddress("0xC").Hex())); err != nil {
+		t.Error(err)
+		return
+	}
+	if validatorsReply, err := monitorDWH.getValidators(monitorDWH.ctx, &pb.ValidatorsRequest{}); err != nil {
+		t.Errorf("Failed to GetValidators: %s", err)
+		return
+	} else {
+		if len(validatorsReply.Validators) != 1 {
+			t.Errorf("(ValidatorDeleted) Expected 1 Validator, got %d", len(validatorsReply.Validators))
+			return
+		}
+		if validatorsReply.Validators[0].Level != 0 {
+			t.Errorf("(ValidatorDeleted) Expected %d, got %d (Validator.Level)",
+				0, validatorsReply.Validators[0].Level)
+		}
+	}
+
+	// Test that a Certificate entry is updated after CertificateCreated event.
+	if err := monitorDWH.onCertificateCreated(commonID); err != nil {
+		t.Error(err)
+		return
+	}
+	if certificateAttrs, err := getCertificates(monitorDWH); err != nil {
+		t.Errorf("Failed to getValidators: %s", err)
+		return
+	} else {
+		if len(certificateAttrs) != 1 {
+			t.Errorf("(CertificateCreated) Expected 1 Certificate, got %d",
+				len(certificateAttrs))
+			return
+		}
+		if string(certificateAttrs[0].Value) != "User Name" {
+			t.Errorf("(CertificateCreated) Expected %s, got %s (Certificate.Value)",
+				"User Name", certificateAttrs[0].Value)
+		}
+	}
+	if profilesReply, err := monitorDWH.getProfiles(monitorDWH.ctx, &pb.ProfilesRequest{}); err != nil {
+		t.Errorf("Failed to getProfiles: %s", err)
+		return
+	} else {
+		if len(profilesReply.Profiles) != 13 {
+			t.Errorf("(CertificateCreated) Expected 1 Profile, got %d",
+				len(profilesReply.Profiles))
+			return
+		}
+		if profilesReply.Profiles[12].Name != "User Name" {
+			t.Errorf("(CertificateCreated) Expected %s, got %s (Profile.Name)",
+				"User Name", profilesReply.Profiles[12].Name)
+		}
+	}
+
+	certificate.Attribute = CertificateCountry
+	certificate.Value = []byte("Country")
+	// Test that a  Profile entry is updated after CertificateCreated event.
+	if err := monitorDWH.onCertificateCreated(commonID); err != nil {
+		t.Error(err)
+		return
+	}
+	if profilesReply, err := monitorDWH.getProfiles(monitorDWH.ctx, &pb.ProfilesRequest{}); err != nil {
+		t.Errorf("Failed to getProfiles: %s", err)
+		return
+	} else {
+		if len(profilesReply.Profiles) != 13 {
+			t.Errorf("(CertificateCreated) Expected 1 Profile, got %d",
+				len(profilesReply.Profiles))
+			return
+		}
+
+		profiles := profilesReply.Profiles
+
+		if profiles[12].Country != "Country" {
+			t.Errorf("(CertificateCreated) Expected %s, got %s (Profile.Country)",
+				"Country", profiles[12].Name)
+		}
+		if profiles[12].Name != "User Name" {
+			t.Errorf("(CertificateCreated) Expected %s, got %s (Profile.Name)",
+				"Name", profiles[12].Name)
+		}
+
+		var certificates []*pb.Certificate
+		if err := json.Unmarshal([]byte(profiles[12].Certificates), &certificates); err != nil {
+			t.Errorf("(CertificateCreated) Failed to unmarshal Profile.Certificates: %s", err)
+			return
+		} else {
+			if len(certificates) != 2 {
+				t.Errorf("(CertificateCreated) Expected 2 Certificates, got %d",
+					len(certificates))
+				return
+			}
+		}
+	}
+	// Check that profile updates resulted in orders updates.
+	dwhOrder, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()})
+	if err != nil {
+		t.Errorf("failed to getOrderDetails (`%s`): %s", commonID.String(), err)
+		return
+	}
+	if dwhOrder.CreatorIdentityLevel != 3 {
+		t.Errorf("(CertificateCreated) Expected %d, got %d (Order.CreatorIdentityLevel)",
+			2, dwhOrder.CreatorIdentityLevel)
+		return
+	}
+
+	// Check that profile updates resulted in orders updates.
+	if deal, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+		t.Errorf("Failed to GetDealDetails: %s", err)
+		return
+	} else {
+		if len(deal.SupplierCertificates) == 0 {
+			t.Errorf("Expected some SupplierCertificates, got nothing")
+		}
+	}
+
+	// Test that if order is updated, it is deleted.
+	if err := monitorDWH.onOrderUpdated(commonID); err != nil {
+		t.Error(err)
+		return
+	}
+	if _, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()}); err == nil {
+		t.Error("GetOrderDetails returned an order that should have been deleted")
+		return
+	}
+
+	deal.Duration += 1
+	// Test onDealUpdated event handling.
+	if err := monitorDWH.onDealUpdated(commonID); err != nil {
+		t.Error(err)
+		return
+	}
+	if deal, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+		t.Errorf("Failed to GetDealDetails: %s", err)
+		return
+	} else {
+		if deal.GetDeal().Duration != 10021 {
+			t.Errorf("Expected %d, got %d (Deal.Duration)", 10021, deal.GetDeal().Duration)
+		}
+	}
+
+	// Test creating an ASK DealChangeRequest.
+	if err := monitorDWH.onDealChangeRequestSent(commonEventTS, big.NewInt(0)); err != nil {
+		t.Error(err)
+		return
+	}
+	if changeRequest, err := getDealChangeRequest(monitorDWH, changeRequest.Id); err != nil {
+		t.Errorf("Failed to getDealChangeRequest: %s", err)
+		return
+	} else {
+		if changeRequest.Duration != 10020 {
+			t.Errorf("Expected %d, got %d (DealChangeRequest.Duration)", 10020, changeRequest.Duration)
+		}
+	}
+
+	// Test that after a second ASK DealChangeRequest was created, the new one was kept and the old one was deleted.
+	changeRequest.Id = "1"
+	changeRequest.Duration = 10021
+	if err := monitorDWH.onDealChangeRequestSent(commonEventTS, big.NewInt(1)); err != nil {
+		t.Error(err)
+		return
+	}
+	if changeRequest, err := getDealChangeRequest(monitorDWH, changeRequest.Id); err != nil {
+		t.Errorf("Failed to getDealChangeRequest: %s", err)
+		return
+	} else {
+		if changeRequest.Duration != 10021 {
+			t.Errorf("Expected %d, got %d (DealChangeRequest.Duration)", 10021, changeRequest.Duration)
+		}
+	}
+	if _, err := getDealChangeRequest(monitorDWH, "0"); err == nil {
+		t.Error("getDealChangeRequest returned a DealChangeRequest that should have been deleted")
+		return
+	}
+
+	// Test that when a BID DealChangeRequest was created, it was kept (and nothing was deleted).
+	changeRequest.Id = "2"
+	changeRequest.Duration = 10022
+	changeRequest.RequestType = pb.OrderType_BID
+	if err := monitorDWH.onDealChangeRequestSent(commonEventTS, big.NewInt(2)); err != nil {
+		t.Error(err)
+		return
+	}
+	if changeRequest, err := getDealChangeRequest(monitorDWH, changeRequest.Id); err != nil {
+		t.Errorf("Failed to getDealChangeRequest: %s", err)
+		return
+	} else {
+		if changeRequest.Duration != 10022 {
+			t.Errorf("Expected %d, got %d (DealChangeRequest.Duration)", 10022, changeRequest.Duration)
+		}
+	}
+	if _, err := getDealChangeRequest(monitorDWH, "1"); err != nil {
+		t.Errorf("DealChangeRequest of type ASK was deleted after a BID DealChangeRequest creation: %s", err)
+		return
+	}
+
+	// Test that when a DealChangeRequest is updated to any status but REJECTED, it is deleted.
+	changeRequest.Id = "1"
+	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_ACCEPTED
+	if err := monitorDWH.onDealChangeRequestUpdated(commonEventTS, big.NewInt(1)); err != nil {
+		t.Error(err)
+		return
+	}
+	if _, err := getDealChangeRequest(monitorDWH, "1"); err == nil {
+		t.Error("DealChangeRequest which status was changed to ACCEPTED was not deleted")
+		return
+	}
+	// Also test that a new DealCondition was created, and the old one was updated.
+	if dealConditionsReply, err := monitorDWH.getDealConditions(
+		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
+		t.Errorf("Failed to GetDealConditions: %s", err)
+		return
+	} else {
+		if len(dealConditionsReply.Conditions) != 2 {
+			t.Errorf("Expected 2 DealConditions, got %d", len(dealConditionsReply.Conditions))
+			return
+		}
+		conditions := dealConditionsReply.Conditions
+		if conditions[1].EndTime.Seconds != 5 {
+			t.Errorf("Expected %d, got %d (DealCondition.EndTime)", 5, conditions[0].EndTime.Seconds)
+			return
+		}
+		if conditions[0].StartTime.Seconds != 5 {
+			t.Errorf("Expected %d, got %d (DealCondition.StartTime)", 5, conditions[1].StartTime.Seconds)
+			return
+		}
+	}
+
+	// Test that when a DealChangeRequest is updated to REJECTED, it is kept.
+	changeRequest.Id = "2"
+	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_REJECTED
+	if err := monitorDWH.onDealChangeRequestUpdated(commonEventTS, big.NewInt(2)); err != nil {
+		t.Error(err)
+		return
+	}
+	if _, err := getDealChangeRequest(monitorDWH, "2"); err != nil {
+		t.Error("DealChangeRequest which status was changed to REJECTED was deleted")
+		return
+	}
+
+	// Test that after a Billed event last DealCondition.Payout is updated.
+	if err := monitorDWH.onBilled(commonEventTS, commonID, big.NewInt(10)); err != nil {
+		t.Error(err)
+		return
+	}
+	if dealConditionsReply, err := monitorDWH.getDealConditions(
+		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
+		t.Errorf("Failed to GetDealDetails: %s", err)
+		return
+	} else {
+		if len(dealConditionsReply.Conditions) != 2 {
+			t.Errorf("(Billed) Expected 2 DealConditions, got %d", len(dealConditionsReply.Conditions))
+			return
+		}
+		conditions := dealConditionsReply.Conditions
+		if conditions[0].TotalPayout.Unwrap().String() != "10" {
+			t.Errorf("(Billed) Expected %s, got %s (DealCondition.TotalPayout)",
+				"10", conditions[0].TotalPayout.Unwrap().String())
+		}
+	}
+	if dealPayments, err := getDealPayments(monitorDWH); err != nil {
+		t.Errorf("Failed to GetDealDetails: %s", err)
+		return
+	} else {
+		if len(dealPayments) != 1 {
+			t.Errorf("(Billed) Expected 1 DealPayment, got %d", len(dealPayments))
+			return
+		}
+		if !strings.HasSuffix(dealPayments[0].PaidAmount, "10") {
+			t.Errorf("(Billed) Expected %s, got %s (DealPayment.PaidAmount)",
+				"10", dealPayments[0].PaidAmount)
+		}
+	}
+
+	// Test that when a Deal's status is updated to CLOSED, Deal and its DealConditions are deleted.
+	deal.Status = pb.DealStatus_DEAL_CLOSED
+	// Test onDealUpdated event handling.
+	if err := monitorDWH.onDealUpdated(commonID); err != nil {
+		t.Error(err)
+		return
+	}
+	if _, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err == nil {
+		t.Errorf("Deal was not deleted after status changing to CLOSED")
+		return
+	}
+	if dealConditions, err := monitorDWH.getDealConditions(
+		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
+		t.Errorf("Failed to GetDealConditions: %s", err)
+		return
+	} else {
+		if len(dealConditions.Conditions) != 0 {
+			t.Errorf("(DealUpdated) Expected 0 DealConditions, got %d", len(dealConditions.Conditions))
+			return
+		}
+	}
+
+	if profile, err := monitorDWH.getProfileInfo(monitorDWH.ctx, pb.NewEthAddress(common.HexToAddress("0xBB")), true); err != nil {
+		t.Errorf("Failed to GetProfileInfo: %s", err)
+		return
+	} else {
+		if profile.ActiveBids != 9 {
+			t.Errorf("(DealUpdated) Expected 9 ActiveBids, got %d", profile.ActiveBids)
+			return
+		}
+	}
+
+	// Test that a worker is added after a WorkerAnnounced event.
+	if err := monitorDWH.onWorkerAnnounced(common.HexToAddress("0xC").Hex(),
+		common.HexToAddress("0xD").Hex()); err != nil {
+		t.Error(err)
+		return
+	}
+	if workersReply, err := monitorDWH.getWorkers(monitorDWH.ctx, &pb.WorkersRequest{}); err != nil {
+		t.Errorf("Failed to GetWorkers: %s", err)
+		return
+	} else {
+		if len(workersReply.Workers) != 1 {
+			t.Errorf("(WorkerAnnounced) Expected 1 Worker, got %d", len(workersReply.Workers))
+			return
+		}
+		if workersReply.Workers[0].Confirmed {
+			t.Errorf("(WorkerAnnounced) Expected %t, got %t (Worker.Confirmed)",
+				false, workersReply.Workers[0].Confirmed)
+		}
+	}
+	// Test that a worker is confirmed after a WorkerConfirmed event.
+	if err := monitorDWH.onWorkerConfirmed(common.HexToAddress("0xC").Hex(),
+		common.HexToAddress("0xD").Hex()); err != nil {
+		t.Error(err)
+		return
+	}
+	if workersReply, err := monitorDWH.getWorkers(monitorDWH.ctx, &pb.WorkersRequest{}); err != nil {
+		t.Errorf("Failed to GetWorkers: %s", err)
+		return
+	} else {
+		if len(workersReply.Workers) != 1 {
+			t.Errorf("(WorkerConfirmed) Expected 1 Worker, got %d", len(workersReply.Workers))
+			return
+		}
+		if !workersReply.Workers[0].Confirmed {
+			t.Errorf("(WorkerConfirmed) Expected %t, got %t (Worker.Confirmed)",
+				true, workersReply.Workers[0].Confirmed)
+		}
+	}
+	// Test that a worker is deleted after a WorkerRemoved event.
+	if err := monitorDWH.onWorkerRemoved(common.HexToAddress("0xC").Hex(),
+		common.HexToAddress("0xD").Hex()); err != nil {
+		t.Error(err)
+		return
+	}
+	if workersReply, err := monitorDWH.getWorkers(monitorDWH.ctx, &pb.WorkersRequest{}); err != nil {
+		t.Errorf("Failed to getWorkers: %s", err)
+		return
+	} else {
+		if len(workersReply.Workers) != 0 {
+			t.Errorf("(WorkerRemoved) Expected 0 Workers, got %d", len(workersReply.Workers))
+			return
+		}
+	}
+
+	// Test that a Blacklist entry is added after AddedToBlacklist event.
+	if err := monitorDWH.onAddedToBlacklist(common.HexToAddress("0xC").Hex(),
+		common.HexToAddress("0xD").Hex()); err != nil {
+		t.Error(err)
+		return
+	}
+	if blacklistReply, err := monitorDWH.getBlacklist(
+		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
+		t.Errorf("Failed to GetBlacklist: %s", err)
+		return
+	} else {
+		if blacklistReply.OwnerID.Unwrap().Hex() != common.HexToAddress("0xC").Hex() {
+			t.Errorf("(AddedToBlacklist) Expected %s, got %s (BlacklistReply.AdderID)",
+				common.HexToAddress("0xC").Hex(), blacklistReply.OwnerID)
+		}
+	}
+
+	// Test that a Blacklist entry is deleted after RemovedFromBlacklist event.
+	if err := monitorDWH.onRemovedFromBlacklist(common.HexToAddress("0xC").Hex(),
+		common.HexToAddress("0xD").Hex()); err != nil {
+		t.Error(err)
+		return
+	}
+	if repl, err := monitorDWH.getBlacklist(
+		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
+		t.Error(err)
+		return
+	} else {
+		if len(repl.Addresses) > 0 {
+			t.Errorf("GetBlacklist returned a blacklist that should have been deleted: %s", err)
+		}
+	}
+}
 
 func getDealChangeRequest(w *DWH, changeRequestID string) (*pb.DealChangeRequest, error) {
 	rows, err := w.db.Query("SELECT * FROM DealChangeRequests WHERE Id=?", changeRequestID)

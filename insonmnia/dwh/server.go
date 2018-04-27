@@ -987,8 +987,8 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 
 	_, err = tx.Exec(
 		w.commands["insertDealCondition"],
-		deal.SupplierID,
-		deal.ConsumerID,
+		deal.SupplierID.Unwrap().Hex(),
+		deal.ConsumerID.Unwrap().Hex(),
 		deal.MasterID,
 		deal.Duration,
 		deal.Price.PaddedString(),
@@ -1227,8 +1227,8 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 		}
 		_, err = tx.Exec(
 			w.commands["insertDealCondition"],
-			deal.GetDeal().SupplierID,
-			deal.GetDeal().ConsumerID,
+			deal.GetDeal().SupplierID.Unwrap().Hex(),
+			deal.GetDeal().ConsumerID.Unwrap().Hex(),
 			deal.GetDeal().MasterID,
 			changeRequest.Duration,
 			changeRequest.Price.PaddedString(),
@@ -1335,7 +1335,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		} else {
 			bidOrders = 1
 		}
-		_, err = tx.Exec(w.commands["insertProfileUserID"], order.AuthorID, askOrders, bidOrders)
+		_, err = tx.Exec(w.commands["insertProfileUserID"], order.AuthorID.Unwrap().Hex(), askOrders, bidOrders)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1563,17 +1563,17 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 	}
 
 	_, err = tx.Exec(w.commands["insertCertificate"],
-		cert.OwnerID,
+		cert.OwnerID.Unwrap().Hex(),
 		cert.Attribute,
 		(cert.Attribute/uint64(math.Pow(10, 2)))%10,
 		cert.Value,
-		cert.ValidatorID)
+		cert.ValidatorID.Unwrap().Hex())
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			w.logger.Error("transaction rollback failed", zap.Error(err))
 		}
 
-		return errors.Wrap(err, "failed to insert Certificate")
+		return errors.Wrap(err, "failed to insertCertificate")
 	}
 
 	if err := w.updateProfile(tx, cert); err != nil {
@@ -1599,33 +1599,33 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 	return nil
 }
 
-func (w *DWH) updateProfile(tx *sql.Tx, cert *pb.Certificate) error {
+func (w *DWH) updateProfile(tx *sql.Tx, certificate *pb.Certificate) error {
 	// Create a Profile entry if it doesn't exist yet.
-	if _, err := w.getProfileInfo(w.ctx, cert.OwnerID, false); err != nil {
-		_, err = tx.Exec(w.commands["insertProfileUserID"], cert.OwnerID, 0, 0)
+	if _, err := w.getProfileInfo(w.ctx, certificate.OwnerID, false); err != nil {
+		_, err = tx.Exec(w.commands["insertProfileUserID"], certificate.OwnerID, 0, 0)
 		if err != nil {
 			return errors.Wrap(err, "failed to insertProfileUserID")
 		}
 	}
 
 	// Update distinct Profile columns.
-	switch cert.Attribute {
+	switch certificate.Attribute {
 	case CertificateName:
-		_, err := tx.Exec(fmt.Sprintf(w.commands["updateProfile"], attributeToString[cert.Attribute]),
-			string(cert.Value), cert.OwnerID)
+		_, err := tx.Exec(fmt.Sprintf(w.commands["updateProfile"], attributeToString[certificate.Attribute]),
+			string(certificate.Value), certificate.OwnerID.Unwrap().Hex())
 		if err != nil {
 			return errors.Wrap(err, "failed to updateProfileName")
 		}
 	case CertificateCountry:
-		_, err := tx.Exec(fmt.Sprintf(w.commands["updateProfile"], attributeToString[cert.Attribute]),
-			string(cert.Value), cert.OwnerID)
+		_, err := tx.Exec(fmt.Sprintf(w.commands["updateProfile"], attributeToString[certificate.Attribute]),
+			string(certificate.Value), certificate.OwnerID.Unwrap().Hex())
 		if err != nil {
 			return errors.Wrap(err, "failed to updateProfileCountry")
 		}
 	}
 
 	// Update certificates blob.
-	rows, err := tx.Query(w.commands["selectCertificates"], cert.OwnerID)
+	rows, err := tx.Query(w.commands["selectCertificates"], certificate.OwnerID.Unwrap().Hex())
 	if err != nil {
 		return errors.Wrap(err, "failed to getCertificatesByUseID")
 	}
@@ -1651,13 +1651,13 @@ func (w *DWH) updateProfile(tx *sql.Tx, cert *pb.Certificate) error {
 	}
 
 	_, err = tx.Exec(fmt.Sprintf(w.commands["updateProfile"], "Certificates"),
-		certificateAttrsBytes, cert.OwnerID)
+		certificateAttrsBytes, certificate.OwnerID.Unwrap().Hex())
 	if err != nil {
 		return errors.Wrap(err, "failed to updateProfileCertificates (Certificates)")
 	}
 
 	_, err = tx.Exec(fmt.Sprintf(w.commands["updateProfile"], "IdentityLevel"),
-		maxIdentityLevel, cert.OwnerID)
+		maxIdentityLevel, certificate.OwnerID.Unwrap().Hex())
 	if err != nil {
 		return errors.Wrap(err, "failed to updateProfileCertificates (Level)")
 	}
@@ -1676,17 +1676,17 @@ func (w *DWH) updateEntitiesByProfile(tx *sql.Tx, certificate *pb.Certificate) e
 		profile.Name,
 		profile.Country,
 		profile.Certificates,
-		profile.UserID)
+		profile.UserID.Unwrap().Hex())
 	if err != nil {
 		return errors.Wrap(err, "failed to updateOrders")
 	}
 
-	_, err = tx.Exec(w.commands["updateDealsSupplier"], profile.Certificates, profile.UserID)
+	_, err = tx.Exec(w.commands["updateDealsSupplier"], profile.Certificates, profile.UserID.Unwrap().Hex())
 	if err != nil {
 		return errors.Wrap(err, "failed to updateDealsSupplier")
 	}
 
-	_, err = tx.Exec(w.commands["updateDealsConsumer"], profile.Certificates, profile.UserID)
+	_, err = tx.Exec(w.commands["updateDealsConsumer"], profile.Certificates, profile.UserID.Unwrap().Hex())
 	if err != nil {
 		return errors.Wrap(err, "failed to updateDealsConsumer")
 	}
