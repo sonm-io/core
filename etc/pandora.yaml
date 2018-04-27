@@ -1,24 +1,37 @@
+# Pool settings contains one or many tanks.
+# Each tank MUST be configured to blow up the separate target.
+# For example there shouldn't be tanks that fire at marketplace and DWH
+# simultaneously - this may affect timings and produce invalid results.
 pools:
-  - id: BFG
+  - id: BFG_MARKET
+    # The gun is a thing that consumes ammo to fire a target.
+    # A gun instance is spawned either at startup or on demand, so its
+    # initialization should be as fast as possible.
+    # Also note that ammo type prefix should be the same as gun's one, for
+    # example this gun has "sonm.marketplace" prefix, while its ammo
+    # has "sonm.marketplace.GetOrderInfo".
     gun:
-      type: sonm
-      ethereumEndpoint: http://localhost:8545
-      ethereumAccountPath: ./keys
-      ethereumAccountPass: any
-      loggingLevel: debug
+      type: sonm.marketplace
+      # Logging section should used ONLY for debugging, because it may affect
+      # metrics.
+      # Specify "fatal" otherwise.
+      logging:
+        level: debug
+      # Ethereum target settings.
+      ethereum:
+        endpoint: http://92.53.70.228:8545
+        account_path: ./keys
+        account_pass: any
     ammo:
+      type: sonm
       limit: 100000
-
-      # Uncomment exactly one of the listed ammo.
-#      type: marketplace/order/info
-#      # Order IDs we want to fetch.
-#      order_ids: [1]
-
-      type: marketplace/order/place
-      # Order IDs we want to fetch.
+      select: rr
+      detail:
+        - type: sonm.marketplace.GetOrderInfo
+          order_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     result:
       type: phout
-      destination: ./target/sonm_out.log
+      destination: ./target/sonm_marketplace_out.log
     rps:
       type: line
       from: 0
@@ -27,4 +40,35 @@ pools:
 
     startup:
       type: once
-      times: 1
+      times: 10
+  - id: BFG_DWH
+    gun:
+      type: sonm.DWH
+      logging:
+        level: debug
+      ethereum:
+        account_path: ./keys
+        account_pass: any
+      dwh_endpoint: 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@5.178.85.52:15021
+    ammo:
+      type: sonm
+      limit: 100000
+      select: rr
+      detail:
+        - type: sonm.DWH.Orders
+          orders:
+            - Type: 0
+            - Type: 2
+              AuthorID: 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD
+    result:
+      type: phout
+      destination: ./target/sonm_dwh_out.log
+    rps:
+      type: line
+      from: 0
+      to: 1000
+      duration: 300s
+
+    startup:
+      type: once
+      times: 10
