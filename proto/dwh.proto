@@ -31,7 +31,7 @@ service DWH {
     rpc GetMatchingOrders(MatchingOrdersRequest) returns (DWHOrdersReply) {}
     rpc GetOrderDetails(ID) returns (DWHOrder) {}
     rpc GetProfiles(ProfilesRequest) returns (ProfilesReply) {}
-    rpc GetProfileInfo(ID) returns (Profile) {}
+    rpc GetProfileInfo(EthAddress) returns (Profile) {}
     rpc GetBlacklist(BlacklistRequest) returns (BlacklistReply) {}
     rpc GetValidators(ValidatorsRequest) returns (ValidatorsReply) {}
     rpc GetDealChangeRequests(ID) returns (DealChangeRequestsReply) {}
@@ -165,7 +165,7 @@ message ProfilesReply {
 }
 
 message Profile {
-    string UserID = 1;
+    EthAddress UserID = 1;
     uint64 IdentityLevel = 2;
     string Name = 3;
     string Country = 4;
@@ -219,8 +219,8 @@ message WorkersReply {
 }
 
 message Certificate {
-    string ownerID = 1;
-    string validatorID = 2;
+    EthAddress ownerID = 1;
+    EthAddress validatorID = 2;
     uint64 attribute = 3;
     uint64 identityLevel = 4;
     bytes value = 5;

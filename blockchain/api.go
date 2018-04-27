@@ -257,8 +257,8 @@ func (api *BasicMarketAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*p
 	return &pb.Deal{
 		Id:             dealID.String(),
 		Benchmarks:     benchmarks,
-		SupplierID:     deal1.SupplierID.String(),
-		ConsumerID:     deal1.ConsumerID.String(),
+		SupplierID:     pb.NewEthAddress(deal1.SupplierID),
+		ConsumerID:     pb.NewEthAddress(deal1.ConsumerID),
 		MasterID:       deal1.MasterID.String(),
 		AskID:          deal1.AskID.String(),
 		BidID:          deal1.BidID.String(),
@@ -292,7 +292,7 @@ func (api *BasicMarketAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey
 
 	tx, err := api.marketContract.PlaceOrder(opts,
 		uint8(order.OrderType),
-		common.StringToAddress(order.CounterpartyID),
+		order.CounterpartyID.Unwrap(),
 		order.Price.Unwrap(),
 		big.NewInt(int64(order.Duration)),
 		fixedNetflags,
@@ -360,8 +360,8 @@ func (api *BasicMarketAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (
 		DealID:         order2.DealID.String(),
 		OrderType:      pb.OrderType(order1.OrderType),
 		OrderStatus:    pb.OrderStatus(order2.OrderStatus),
-		AuthorID:       order1.Author.String(),
-		CounterpartyID: order1.Counterparty.String(),
+		AuthorID:       pb.NewEthAddress(order1.Author),
+		CounterpartyID: pb.NewEthAddress(order1.Counterparty),
 		Duration:       order1.Duration.Uint64(),
 		Price:          pb.NewBigInt(order1.Price),
 		Netflags:       netflags,
@@ -454,8 +454,8 @@ func (api *ProfileRegistry) GetCertificate(ctx context.Context, certificateID *b
 	}
 
 	return &pb.Certificate{
-		ValidatorID: validatorID.String(),
-		OwnerID:     ownerID.String(),
+		ValidatorID: pb.NewEthAddress(validatorID),
+		OwnerID:     pb.NewEthAddress(ownerID),
 		Attribute:   attribute.Uint64(),
 		Value:       value,
 	}, nil

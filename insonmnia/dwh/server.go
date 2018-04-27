@@ -312,10 +312,10 @@ func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 		filters = append(filters, newFilter("Type", eq, request.Type, "AND"))
 	}
 	if request.AuthorID != nil && request.AuthorID.Unwrap().Hex() > "0x0" {
-		filters = append(filters, newFilter("AuthorID", eq, request.AuthorID, "AND"))
+		filters = append(filters, newFilter("AuthorID", eq, request.AuthorID.Unwrap().Hex(), "AND"))
 	}
 	if request.CounterpartyID != nil && request.CounterpartyID.Unwrap().Hex() > "0x0" {
-		filters = append(filters, newFilter("CounterpartyID", eq, request.CounterpartyID, "AND"))
+		filters = append(filters, newFilter("CounterpartyID", eq, request.CounterpartyID.Unwrap().Hex(), "AND"))
 	}
 	if request.Duration != nil {
 		if request.Duration.Max > 0 {
@@ -415,13 +415,13 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	} else {
 		filters = append(filters, newFilter("Duration", eq, order.Order.Duration, "AND"))
 	}
-	if order.Order.CounterpartyID > "0x0" {
-		filters = append(filters, newFilter("AuthorID", eq, order.Order.CounterpartyID, "AND"))
+	if order.Order.CounterpartyID.Unwrap().Hex() > "0x0" {
+		filters = append(filters, newFilter("AuthorID", eq, order.Order.CounterpartyID.Unwrap().Hex(), "AND"))
 	}
 	counterpartyFilter := newFilter("CounterpartyID", eq, "", "OR")
 	counterpartyFilter.OpenBracket = true
 	filters = append(filters, counterpartyFilter)
-	counterpartyFilter = newFilter("CounterpartyID", eq, order.Order.AuthorID, "AND")
+	counterpartyFilter = newFilter("CounterpartyID", eq, order.Order.AuthorID.Unwrap().Hex(), "AND")
 	counterpartyFilter.CloseBracket = true
 	filters = append(filters, counterpartyFilter)
 	if order.Order.OrderType == pb.OrderType_BID {
@@ -573,7 +573,7 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 		}
 
 		for _, profile := range out {
-			if blacklistedAddrs[profile.UserID] {
+			if blacklistedAddrs[profile.UserID.Unwrap().Hex()] {
 				profile.IsBlacklisted = true
 			}
 		}
@@ -582,15 +582,15 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 	return &pb.ProfilesReply{Profiles: out}, nil
 }
 
-func (w *DWH) GetProfileInfo(ctx context.Context, request *pb.ID) (*pb.Profile, error) {
+func (w *DWH) GetProfileInfo(ctx context.Context, request *pb.EthAddress) (*pb.Profile, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
 	return w.getProfileInfo(ctx, request, true)
 }
 
-func (w *DWH) getProfileInfo(ctx context.Context, request *pb.ID, logErrors bool) (*pb.Profile, error) {
-	rows, err := w.db.Query(w.commands["selectProfileByID"], request.Id)
+func (w *DWH) getProfileInfo(ctx context.Context, request *pb.EthAddress, logErrors bool) (*pb.Profile, error) {
+	rows, err := w.db.Query(w.commands["selectProfileByID"], request.Unwrap().Hex())
 	if err != nil {
 		w.logger.Error("failed to selectProfileByID", zap.Error(err), zap.Any("request", request))
 		return nil, status.Error(codes.Internal, "failed to GetProfileInfo")
@@ -607,8 +607,8 @@ func (w *DWH) getProfileInfo(ctx context.Context, request *pb.ID, logErrors bool
 	return w.decodeProfile(rows)
 }
 
-func (w *DWH) getProfileInfoTx(tx *sql.Tx, request *pb.ID) (*pb.Profile, error) {
-	rows, err := tx.Query(w.commands["selectProfileByID"], request.Id)
+func (w *DWH) getProfileInfoTx(tx *sql.Tx, request *pb.EthAddress) (*pb.Profile, error) {
+	rows, err := tx.Query(w.commands["selectProfileByID"], request.Unwrap().Hex())
 	if err != nil {
 		w.logger.Error("failed to selectProfileByID", zap.Error(err), zap.Any("request", request))
 		return nil, status.Error(codes.Internal, "failed to GetProfileInfo")
@@ -945,8 +945,8 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 	_, err = tx.Exec(
 		w.commands["insertDeal"],
 		deal.Id,
-		deal.SupplierID,
-		deal.ConsumerID,
+		deal.SupplierID.Unwrap().Hex(),
+		deal.ConsumerID.Unwrap().Hex(),
 		deal.MasterID,
 		deal.AskID,
 		deal.BidID,
@@ -1052,7 +1052,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to deleteOrder")
 		}
 
-		askProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.SupplierID}, false)
+		askProfile, err := w.getProfileInfo(w.ctx, deal.SupplierID, false)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1061,7 +1061,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to getProfileInfo")
 		}
 
-		if err := w.updateProfileStats(tx, pb.OrderType_ASK, deal.SupplierID, askProfile, -1); err != nil {
+		if err := w.updateProfileStats(tx, pb.OrderType_ASK, deal.SupplierID.Unwrap().Hex(), askProfile, -1); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1069,7 +1069,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrapf(err, "failed to updateProfileStats (OrderID: `%s`)", deal.AskID)
 		}
 
-		bidProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.ConsumerID}, false)
+		bidProfile, err := w.getProfileInfo(w.ctx, deal.ConsumerID, false)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1078,7 +1078,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to getProfileInfo")
 		}
 
-		if err := w.updateProfileStats(tx, pb.OrderType_BID, deal.ConsumerID, bidProfile, -1); err != nil {
+		if err := w.updateProfileStats(tx, pb.OrderType_BID, deal.ConsumerID.Unwrap().Hex(), bidProfile, -1); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1327,7 +1327,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
 
-	profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID}, false)
+	profile, err := w.getProfileInfo(w.ctx, order.AuthorID, false)
 	if err != nil {
 		var askOrders, bidOrders = 0, 0
 		if order.OrderType == pb.OrderType_ASK {
@@ -1349,7 +1349,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 			Certificates: "",
 		}
 	} else {
-		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID, profile, 1); err != nil {
+		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID.Unwrap().Hex(), profile, 1); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1365,8 +1365,8 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		order.DealID,
 		uint64(order.OrderType),
 		uint64(order.OrderStatus),
-		order.AuthorID,
-		order.CounterpartyID,
+		order.AuthorID.Unwrap().Hex(),
+		order.CounterpartyID.Unwrap().Hex(),
 		order.Duration,
 		order.Price.PaddedString(),
 		order.Netflags,
@@ -1430,7 +1430,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 			return nil
 		}
 
-		profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID}, false)
+		profile, err := w.getProfileInfo(w.ctx, order.AuthorID, false)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1439,7 +1439,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 			return errors.Wrapf(err, "failed to getProfileInfo (AuthorID: `%s`)", order.AuthorID)
 		}
 
-		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID, profile, -1); err != nil {
+		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID.Unwrap().Hex(), profile, -1); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1601,7 +1601,7 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 
 func (w *DWH) updateProfile(tx *sql.Tx, cert *pb.Certificate) error {
 	// Create a Profile entry if it doesn't exist yet.
-	if _, err := w.getProfileInfo(w.ctx, &pb.ID{Id: cert.OwnerID}, false); err != nil {
+	if _, err := w.getProfileInfo(w.ctx, cert.OwnerID, false); err != nil {
 		_, err = tx.Exec(w.commands["insertProfileUserID"], cert.OwnerID, 0, 0)
 		if err != nil {
 			return errors.Wrap(err, "failed to insertProfileUserID")
@@ -1666,7 +1666,7 @@ func (w *DWH) updateProfile(tx *sql.Tx, cert *pb.Certificate) error {
 }
 
 func (w *DWH) updateEntitiesByProfile(tx *sql.Tx, certificate *pb.Certificate) error {
-	profile, err := w.getProfileInfoTx(tx, &pb.ID{Id: certificate.OwnerID})
+	profile, err := w.getProfileInfoTx(tx, certificate.OwnerID)
 	if err != nil {
 		return errors.Wrap(err, "failed to getProfileInfo")
 	}
@@ -1804,8 +1804,8 @@ func (w *DWH) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 	return &pb.DWHDeal{
 		Deal: &pb.Deal{
 			Id:             id,
-			SupplierID:     supplierID,
-			ConsumerID:     consumerID,
+			SupplierID:     pb.NewEthAddress(common.HexToAddress(supplierID)),
+			ConsumerID:     pb.NewEthAddress(common.HexToAddress(consumerID)),
 			MasterID:       masterID,
 			AskID:          askID,
 			BidID:          bidID,
@@ -1958,8 +1958,8 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 			DealID:         dealID,
 			OrderType:      pb.OrderType(orderType),
 			OrderStatus:    pb.OrderStatus(status),
-			AuthorID:       author,
-			CounterpartyID: counterAgent,
+			AuthorID:       pb.NewEthAddress(common.HexToAddress(author)),
+			CounterpartyID: pb.NewEthAddress(common.HexToAddress(counterAgent)),
 			Duration:       duration,
 			Price:          pb.NewBigInt(bigPrice),
 			Netflags:       netflags,
@@ -2053,11 +2053,11 @@ func (w *DWH) decodeCertificate(rows *sql.Rows) (*pb.Certificate, error) {
 		return nil, errors.Wrap(err, "failed to decode Certificate")
 	} else {
 		return &pb.Certificate{
-			OwnerID:       ownerID,
+			OwnerID:       pb.NewEthAddress(common.HexToAddress(ownerID)),
 			Attribute:     attribute,
 			IdentityLevel: identityLevel,
 			Value:         value,
-			ValidatorID:   validatorID,
+			ValidatorID:   pb.NewEthAddress(common.HexToAddress(validatorID)),
 		}, nil
 	}
 }
@@ -2090,7 +2090,7 @@ func (w *DWH) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 	}
 
 	return &pb.Profile{
-		UserID:         userID,
+		UserID:         pb.NewEthAddress(common.HexToAddress(userID)),
 		IdentityLevel:  identityLevel,
 		Name:           name,
 		Country:        country,
