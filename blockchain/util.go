@@ -19,8 +19,8 @@ import (
 )
 
 const (
-	defaultGasLimit             = 360000
-	gasLimitForPlaceOrderMethod = 1000000
+	defaultGasLimit             = 500000
+	defaultGasLimitForSidechain = 2000000
 )
 
 var (
