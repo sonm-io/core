@@ -66,7 +66,7 @@ message Deal {
     Benchmarks benchmarks = 2;
     EthAddress supplierID = 3;
     EthAddress consumerID = 4;
-    string masterID = 5;
+    EthAddress masterID = 5;
     string askID = 6;
     string bidID = 7;
     uint64 duration = 8;

@@ -259,7 +259,7 @@ func (api *BasicMarketAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*p
 		Benchmarks:     benchmarks,
 		SupplierID:     pb.NewEthAddress(deal1.SupplierID),
 		ConsumerID:     pb.NewEthAddress(deal1.ConsumerID),
-		MasterID:       deal1.MasterID.String(),
+		MasterID:       pb.NewEthAddress(deal1.MasterID),
 		AskID:          deal1.AskID.String(),
 		BidID:          deal1.BidID.String(),
 		Duration:       deal2.Duration.Uint64(),

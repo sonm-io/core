@@ -169,7 +169,7 @@ func TestDWH_GetDealDetails(t *testing.T) {
 	if reply.ConsumerID.Unwrap().Hex() != common.HexToAddress("0x25").Hex() {
 		t.Errorf("Expected %s, got %s (ConsumerID)", common.HexToAddress("0x25").Hex(), reply.ConsumerID)
 	}
-	if reply.MasterID != common.HexToAddress("0x35").Hex() {
+	if reply.MasterID.Unwrap().Hex() != common.HexToAddress("0x35").Hex() {
 		t.Errorf("Expected %s, got %s (MasterID)", common.HexToAddress("0x35").Hex(), reply.MasterID)
 	}
 	if reply.AskID != "ask_id_5" {
@@ -531,7 +531,7 @@ func TestDWH_monitor(t *testing.T) {
 		Benchmarks:     benchmarks,
 		SupplierID:     pb.NewEthAddress(common.HexToAddress("0xAA")),
 		ConsumerID:     pb.NewEthAddress(common.HexToAddress("0xBB")),
-		MasterID:       "master_id",
+		MasterID:       pb.NewEthAddress(common.HexToAddress("0xCC")),
 		AskID:          "ask_id_5",
 		BidID:          "bid_id_5",
 		Duration:       10020,

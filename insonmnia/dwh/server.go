@@ -947,7 +947,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		deal.Id,
 		deal.SupplierID.Unwrap().Hex(),
 		deal.ConsumerID.Unwrap().Hex(),
-		deal.MasterID,
+		deal.MasterID.Unwrap().Hex(),
 		deal.AskID,
 		deal.BidID,
 		deal.Duration,
@@ -989,7 +989,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		w.commands["insertDealCondition"],
 		deal.SupplierID.Unwrap().Hex(),
 		deal.ConsumerID.Unwrap().Hex(),
-		deal.MasterID,
+		deal.MasterID.Unwrap().Hex(),
 		deal.Duration,
 		deal.Price.PaddedString(),
 		deal.StartTime.Seconds,
@@ -1002,7 +1002,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 			w.logger.Error("transaction rollback failed", zap.Error(err))
 		}
 
-		return errors.Wrapf(err, "onDealOpened: failed to insert into DealConditions")
+		return errors.Wrapf(err, "onDealOpened: failed to insertDealCondition")
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -1229,7 +1229,7 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 			w.commands["insertDealCondition"],
 			deal.GetDeal().SupplierID.Unwrap().Hex(),
 			deal.GetDeal().ConsumerID.Unwrap().Hex(),
-			deal.GetDeal().MasterID,
+			deal.GetDeal().MasterID.Unwrap().Hex(),
 			changeRequest.Duration,
 			changeRequest.Price.PaddedString(),
 			eventTS,
@@ -1806,7 +1806,7 @@ func (w *DWH) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 			Id:             id,
 			SupplierID:     pb.NewEthAddress(common.HexToAddress(supplierID)),
 			ConsumerID:     pb.NewEthAddress(common.HexToAddress(consumerID)),
-			MasterID:       masterID,
+			MasterID:       pb.NewEthAddress(common.HexToAddress(masterID)),
 			AskID:          askID,
 			BidID:          bidID,
 			Price:          pb.NewBigInt(bigPrice),
