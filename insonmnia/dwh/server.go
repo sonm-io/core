@@ -157,14 +157,14 @@ func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 	if request.Status > 0 {
 		filters = append(filters, newFilter("Status", eq, request.Status, "AND"))
 	}
-	if request.SupplierID > "0" {
-		filters = append(filters, newFilter("SupplierID", eq, request.SupplierID, "AND"))
+	if request.SupplierID != nil && request.SupplierID.Unwrap().Hex() > "0x0" {
+		filters = append(filters, newFilter("SupplierID", eq, request.SupplierID.Unwrap().Hex(), "AND"))
 	}
-	if request.ConsumerID > "0" {
-		filters = append(filters, newFilter("ConsumerID", eq, request.ConsumerID, "AND"))
+	if request.ConsumerID != nil && request.ConsumerID.Unwrap().Hex() > "0x0" {
+		filters = append(filters, newFilter("ConsumerID", eq, request.ConsumerID.Unwrap().Hex(), "AND"))
 	}
-	if request.MasterID > "0" {
-		filters = append(filters, newFilter("MasterID", eq, request.MasterID, "AND"))
+	if request.MasterID != nil && request.MasterID.Unwrap().Hex() > "0x0" {
+		filters = append(filters, newFilter("MasterID", eq, request.MasterID.Unwrap().Hex(), "AND"))
 	}
 	if request.AskID > "0" {
 		filters = append(filters, newFilter("AskID", eq, request.AskID, "AND"))

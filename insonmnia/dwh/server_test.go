@@ -35,6 +35,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		fmt.Println(err)
 		os.Remove(testDBPath)
+		os.Remove(testMonitorDBPath)
 		os.Exit(1)
 	}
 
@@ -47,8 +48,8 @@ func TestMain(m *testing.M) {
 
 	retCode := m.Run()
 	globalDWH.db.Close()
-	os.Remove(testDBPath)
-	os.Remove(testMonitorDBPath)
+	//os.Remove(testDBPath)
+	//os.Remove(testMonitorDBPath)
 	os.Exit(retCode)
 }
 
@@ -80,7 +81,7 @@ func TestDWH_GetDeals(t *testing.T) {
 	{
 		request := &pb.DealsRequest{
 			Status:     pb.DealStatus_DEAL_UNKNOWN,
-			SupplierID: "supplier_5",
+			SupplierID: pb.NewEthAddress(common.HexToAddress("0x15")),
 		}
 		reply, err := globalDWH.getDeals(context.Background(), request)
 
@@ -94,9 +95,9 @@ func TestDWH_GetDeals(t *testing.T) {
 			return
 		}
 
-		if reply.Deals[0].GetDeal().SupplierID != "supplier_5" {
-			t.Errorf("Request `%+v` failed, expected %d, got %d (SupplierID)",
-				request, 10015, reply.Deals[0].GetDeal().Duration)
+		if reply.Deals[0].GetDeal().SupplierID != common.HexToAddress("0x15").Hex() {
+			t.Errorf("Request `%+v` failed, expected %s, got %s (SupplierID)",
+				request, common.HexToAddress("0x15").Hex(), reply.Deals[0].GetDeal().SupplierID)
 			return
 		}
 	}
@@ -162,14 +163,14 @@ func TestDWH_GetDealDetails(t *testing.T) {
 	if reply.Id != "id_5" {
 		t.Errorf("Expected %s, got %s (Id)", "id_5", reply.Id)
 	}
-	if reply.SupplierID != "supplier_5" {
-		t.Errorf("Expected %s, got %s (SupplierID)", "supplier_5", reply.SupplierID)
+	if reply.SupplierID != common.HexToAddress("0x15").Hex() {
+		t.Errorf("Expected %s, got %s (SupplierID)", common.HexToAddress("0x15").Hex(), reply.SupplierID)
 	}
-	if reply.ConsumerID != "consumer_5" {
-		t.Errorf("Expected %s, got %s (ConsumerID)", "consumer_5", reply.ConsumerID)
+	if reply.ConsumerID != common.HexToAddress("0x25").Hex() {
+		t.Errorf("Expected %s, got %s (ConsumerID)", common.HexToAddress("0x25").Hex(), reply.ConsumerID)
 	}
-	if reply.MasterID != "master_5" {
-		t.Errorf("Expected %s, got %s (MasterID)", "master_5", reply.MasterID)
+	if reply.MasterID != common.HexToAddress("0x35").Hex() {
+		t.Errorf("Expected %s, got %s (MasterID)", common.HexToAddress("0x35").Hex(), reply.MasterID)
 	}
 	if reply.AskID != "ask_id_5" {
 		t.Errorf("Expected %s, got %s (AskID)", "ask_id_5", reply.AskID)
@@ -1130,9 +1131,9 @@ func setupTestDB(w *DWH) error {
 		_, err := w.db.Exec(
 			w.commands["insertDeal"],
 			fmt.Sprintf("id_%d", i),
-			fmt.Sprintf("supplier_%d", i),
-			fmt.Sprintf("consumer_%d", i),
-			fmt.Sprintf("master_%d", i),
+			common.HexToAddress(fmt.Sprintf("0x1%d", i)).Hex(), // Supplier
+			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(), // Consumer
+			common.HexToAddress(fmt.Sprintf("0x3%d", i)).Hex(), // Master
 			fmt.Sprintf("ask_id_%d", i),
 			fmt.Sprintf("bid_id_%d", i),
 			10010+i, // Duration
