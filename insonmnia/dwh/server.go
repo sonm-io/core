@@ -417,6 +417,7 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	}
 	if order.Order.CounterpartyID != nil && order.Order.CounterpartyID.Unwrap().Hex() > "0" {
 		filters = append(filters, newFilter("AuthorID", eq, order.Order.CounterpartyID.Unwrap().Hex(), "AND"))
+		fmt.Println(order.Order.CounterpartyID.Unwrap().Hex())
 	}
 	counterpartyFilter := newFilter("CounterpartyID", eq, "", "OR")
 	counterpartyFilter.OpenBracket = true

@@ -173,11 +173,11 @@ func TestDWH_GetDealDetails(t *testing.T) {
 	if reply.MasterID.Unwrap().Hex() != hex5 {
 		t.Errorf("Expected %s, got %s (MasterID)", "5", reply.MasterID.Unwrap().Hex())
 	}
-	if reply.AskID.Unwrap().String() != "5" {
-		t.Errorf("Expected %s, got %s (AskID)", "5", reply.AskID.Unwrap().String())
+	if reply.AskID.Unwrap().String() != "15" {
+		t.Errorf("Expected %s, got %s (AskID)", "15", reply.AskID.Unwrap().String())
 	}
-	if reply.BidID.Unwrap().String() != "5" {
-		t.Errorf("Expected %s, got %s (BidID)", "5", reply.AskID.Unwrap().String())
+	if reply.BidID.Unwrap().String() != "25" {
+		t.Errorf("Expected %s, got %s (BidID)", "25", reply.BidID.Unwrap().String())
 	}
 	if reply.Duration != uint64(10015) {
 		t.Errorf("Expected %d, got %d (Duration)", 10015, reply.Duration)
@@ -229,7 +229,7 @@ func TestDWH_GetOrders(t *testing.T) {
 
 		if reply.Orders[0].GetOrder().AuthorID.Unwrap().Hex() != common.HexToAddress("10").Hex() {
 			t.Errorf("Request `%+v` failed, expected %s, got %s (AuthorID)",
-				request, "1-", reply.Orders[0].GetOrder().AuthorID.Unwrap().Hex())
+				request, "10", reply.Orders[0].GetOrder().AuthorID.Unwrap().Hex())
 			return
 		}
 	}
@@ -296,18 +296,17 @@ func TestDWH_GetMatchingOrders(t *testing.T) {
 	globalDWH.mu.Lock()
 	defer globalDWH.mu.Unlock()
 
+	id, _ := pb.NewBigIntFromString("15")
 	request := &pb.MatchingOrdersRequest{
-		Id: pb.NewBigIntFromInt(15),
+		Id: id,
 	}
 
 	reply, err := globalDWH.getMatchingOrders(context.Background(), request)
-	if err != nil {
-		t.Errorf("GetMatchingOrders failed: %s", err)
-		return
-	}
+	require.NoError(t, err)
 
 	if len(reply.Orders) != 5 {
-		t.Errorf("Expected 5 orders in reply, got %d", len(reply.Orders))
+
+		t.Fatalf("Expected 5 orders in reply, got %d", len(reply.Orders))
 		return
 	}
 }
@@ -1131,9 +1130,9 @@ func setupTestDB(w *DWH) error {
 			fmt.Sprintf("%d", i),
 			fmt.Sprintf("%d", i),
 			fmt.Sprintf("%d", i),
-			fmt.Sprintf("2%d", i), // bid
 			fmt.Sprintf("1%d", i), // ask
-			10010+i, // Duration
+			fmt.Sprintf("2%d", i), // bid
+			10010+i,               // Duration
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			30010+i, // StartTime
 			40010+i, // EndTime
@@ -1171,8 +1170,8 @@ func setupTestDB(w *DWH) error {
 			fmt.Sprintf("%d", i),
 			uint64(pb.OrderType_ASK),
 			uint64(pb.OrderStatus_ORDER_ACTIVE),
-			"10", // AuthorID
-			"20", // CounterpartyID
+			common.HexToAddress("10").Hex(), // AuthorID
+			common.HexToAddress("20").Hex(), // CounterpartyID
 			10010+i,
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			7, // Netflags
@@ -1208,9 +1207,9 @@ func setupTestDB(w *DWH) error {
 			fmt.Sprintf("%d", i),
 			uint64(pb.OrderType_BID),
 			uint64(pb.OrderStatus_ORDER_ACTIVE),
-			"10",    // AuthorID
-			"20",    // CounterpartyID
-			10010-i, // Duration
+			common.HexToAddress("20").Hex(), // AuthorID
+			common.HexToAddress("10").Hex(), // CounterpartyID
+			10010-i,                         // Duration
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			5, // Netflags
 			uint64(pb.IdentityLevel_ANONYMOUS),
