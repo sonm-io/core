@@ -385,8 +385,6 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 		return nil, status.Error(codes.Internal, "failed to GetMatchingOrders (no matching order)")
 	}
 
-	fmt.Printf(">>>>>>>>>>> %+v\n", *order)
-
 	var (
 		filters      []*filter
 		orderType    pb.OrderType
@@ -536,12 +534,12 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 		case pb.BlacklistOption_WithoutMatching:
 			opts.customFilter = &customFilter{
 				clause: w.commands["profileNotInBlacklist"],
-				values: []interface{}{request.BlacklistQuery.OwnerID},
+				values: []interface{}{request.BlacklistQuery.OwnerID.Unwrap().Hex()},
 			}
 		case pb.BlacklistOption_OnlyMatching:
 			opts.customFilter = &customFilter{
 				clause: w.commands["profileInBlacklist"],
-				values: []interface{}{request.BlacklistQuery.OwnerID},
+				values: []interface{}{request.BlacklistQuery.OwnerID.Unwrap().Hex()},
 			}
 		}
 	}
@@ -634,8 +632,8 @@ func (w *DWH) GetBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 
 func (w *DWH) getBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
 	var filters []*filter
-	if request.OwnerID > "0" {
-		filters = append(filters, newFilter("AdderID", eq, request.OwnerID, "AND"))
+	if request.OwnerID.Unwrap().Hex() > "0x0" {
+		filters = append(filters, newFilter("AdderID", eq, request.OwnerID.Unwrap().Hex(), "AND"))
 	}
 	rows, _, err := runQuery(w.db, &queryOpts{
 		table:    "Blacklists",

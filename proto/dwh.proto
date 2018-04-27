@@ -164,12 +164,6 @@ message ProfilesReply {
     repeated Profile profiles = 1;
 }
 
-message BlacklistRequest {
-    string ownerID = 1;
-    uint64 limit = 2;
-    uint64 offset = 3;
-}
-
 message Profile {
     string UserID = 1;
     uint64 IdentityLevel = 2;
@@ -183,8 +177,14 @@ message Profile {
     bool isBlacklisted = 10;
 }
 
+message BlacklistRequest {
+    EthAddress ownerID = 1;
+    uint64 limit = 2;
+    uint64 offset = 3;
+}
+
 message BlacklistReply {
-    string ownerID = 1;
+    EthAddress ownerID = 1;
     repeated string addresses = 2;
 }
 
@@ -266,6 +266,6 @@ message DealChangeRequest {
 }
 
 message BlacklistQuery {
-    string ownerID = 1;
+    EthAddress ownerID = 1;
     BlacklistOption option = 2;
 }

@@ -455,7 +455,7 @@ func TestDWH_GetProfiles(t *testing.T) {
 
 	reply, err = globalDWH.getProfiles(globalDWH.ctx, &pb.ProfilesRequest{
 		BlacklistQuery: &pb.BlacklistQuery{
-			OwnerID: "blacklisting_user",
+			OwnerID: pb.NewEthAddress(common.HexToAddress("0xE")),
 			Option:  pb.BlacklistOption_OnlyMatching,
 		},
 	})
@@ -471,7 +471,7 @@ func TestDWH_GetProfiles(t *testing.T) {
 
 	reply, err = globalDWH.getProfiles(globalDWH.ctx, &pb.ProfilesRequest{
 		BlacklistQuery: &pb.BlacklistQuery{
-			OwnerID: "blacklisting_user",
+			OwnerID: pb.NewEthAddress(common.HexToAddress("0xE")),
 			Option:  pb.BlacklistOption_WithoutMatching,
 		},
 	})
@@ -487,7 +487,7 @@ func TestDWH_GetProfiles(t *testing.T) {
 
 	reply, err = globalDWH.getProfiles(globalDWH.ctx, &pb.ProfilesRequest{
 		BlacklistQuery: &pb.BlacklistQuery{
-			OwnerID: "blacklisting_user",
+			OwnerID: pb.NewEthAddress(common.HexToAddress("0xE")),
 			Option:  pb.BlacklistOption_IncludeAndMark,
 		},
 	})
@@ -1020,11 +1020,11 @@ func TestDWH_monitor(t *testing.T) {
 		return
 	}
 	if blacklistReply, err := monitorDWH.getBlacklist(
-		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: common.HexToAddress("0xC").Hex()}); err != nil {
+		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
 		t.Errorf("Failed to GetBlacklist: %s", err)
 		return
 	} else {
-		if blacklistReply.OwnerID != common.HexToAddress("0xC").Hex() {
+		if blacklistReply.OwnerID.Unwrap().Hex() != common.HexToAddress("0xC").Hex() {
 			t.Errorf("(AddedToBlacklist) Expected %s, got %s (BlacklistReply.AdderID)",
 				common.HexToAddress("0xC").Hex(), blacklistReply.OwnerID)
 		}
@@ -1037,7 +1037,7 @@ func TestDWH_monitor(t *testing.T) {
 		return
 	}
 	if repl, err := monitorDWH.getBlacklist(
-		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: common.HexToAddress("0xC").Hex()}); err != nil {
+		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
 		t.Error(err)
 		return
 	} else {
@@ -1272,7 +1272,7 @@ func setupTestDB(w *DWH) error {
 		return err
 	}
 
-	_, err = w.db.Exec("INSERT INTO Blacklists VALUES (?, ?)", "blacklisting_user", "consumer_id")
+	_, err = w.db.Exec("INSERT INTO Blacklists VALUES (?, ?)", common.HexToAddress("0xE").Hex(), "consumer_id")
 	if err != nil {
 		return err
 	}

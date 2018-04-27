@@ -59,8 +59,8 @@ It has these top-level messages:
 	DWHWorker
 	ProfilesRequest
 	ProfilesReply
-	BlacklistRequest
 	Profile
+	BlacklistRequest
 	BlacklistReply
 	ValidatorsRequest
 	ValidatorsReply
