@@ -2029,9 +2029,9 @@ func (w *DWH) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, error) {
 
 	return &pb.DealCondition{
 		Id:          rowid,
-		SupplierID:  supplierID,
-		ConsumerID:  consumerID,
-		MasterID:    masterID,
+		SupplierID:  pb.NewEthAddress(common.HexToAddress(supplierID)),
+		ConsumerID:  pb.NewEthAddress(common.HexToAddress(consumerID)),
+		MasterID:    pb.NewEthAddress(common.HexToAddress(masterID)),
 		Price:       pb.NewBigInt(bigPrice),
 		Duration:    duration,
 		StartTime:   &pb.Timestamp{Seconds: startTime},

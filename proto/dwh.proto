@@ -120,9 +120,9 @@ message DWHOrder {
 
 message DealCondition {
     uint64 id = 1;
-    string supplierID = 2;
-    string consumerID = 3;
-    string masterID = 4;
+    EthAddress supplierID = 2;
+    EthAddress consumerID = 3;
+    EthAddress masterID = 4;
     uint64 duration = 5;
     BigInt price = 6;
     Timestamp startTime = 7;
