@@ -223,7 +223,7 @@ func (api *BasicMarketAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, 
 		return
 	}
 
-	id, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, DealOpenedTopic)
+	id, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.DealOpenedTopic)
 	if err != nil {
 		ch <- DealOrError{nil, err}
 		return
@@ -307,7 +307,7 @@ func (api *BasicMarketAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey
 		return
 	}
 
-	id, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, OrderPlacedTopic)
+	id, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.OrderPlacedTopic)
 	if err != nil {
 		ch <- OrderOrError{nil, err}
 		return
@@ -330,7 +330,7 @@ func (api *BasicMarketAPI) cancelOrder(ctx context.Context, key *ecdsa.PrivateKe
 		return
 	}
 
-	if _, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, OrderUpdatedTopic); err != nil {
+	if _, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.OrderUpdatedTopic); err != nil {
 		ch <- err
 		return
 	}
@@ -609,22 +609,22 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 	var (
 		topics     [][]common.Hash
 		eventTopic = []common.Hash{
-			DealOpenedTopic,
-			DealUpdatedTopic,
-			OrderPlacedTopic,
-			OrderUpdatedTopic,
-			DealChangeRequestSentTopic,
-			DealChangeRequestUpdatedTopic,
-			BilledTopic,
-			WorkerAnnouncedTopic,
-			WorkerConfirmedTopic,
-			WorkerConfirmedTopic,
-			WorkerRemovedTopic,
-			AddedToBlacklistTopic,
-			RemovedFromBlacklistTopic,
-			ValidatorCreatedTopic,
-			ValidatorDeletedTopic,
-			CertificateCreatedTopic,
+			market.DealOpenedTopic,
+			market.DealUpdatedTopic,
+			market.OrderPlacedTopic,
+			market.OrderUpdatedTopic,
+			market.DealChangeRequestSentTopic,
+			market.DealChangeRequestUpdatedTopic,
+			market.BilledTopic,
+			market.WorkerAnnouncedTopic,
+			market.WorkerConfirmedTopic,
+			market.WorkerConfirmedTopic,
+			market.WorkerRemovedTopic,
+			market.AddedToBlacklistTopic,
+			market.RemovedFromBlacklistTopic,
+			market.ValidatorCreatedTopic,
+			market.ValidatorDeletedTopic,
+			market.CertificateCreatedTopic,
 		}
 		out = make(chan *Event, 128)
 	)
@@ -705,56 +705,56 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 
 	var topic = log.Topics[0]
 	switch topic {
-	case DealOpenedTopic:
+	case market.DealOpenedTopic:
 		id, err := extractBig(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&DealOpenedData{ID: id})
-	case DealUpdatedTopic:
+	case market.DealUpdatedTopic:
 		id, err := extractBig(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&DealUpdatedData{ID: id})
-	case DealChangeRequestSentTopic:
+	case market.DealChangeRequestSentTopic:
 		id, err := extractBig(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&DealChangeRequestSentData{ID: id})
-	case DealChangeRequestUpdatedTopic:
+	case market.DealChangeRequestUpdatedTopic:
 		id, err := extractBig(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&DealChangeRequestUpdatedData{ID: id})
-	case BilledTopic:
+	case market.BilledTopic:
 		var billedData = &BilledData{}
 		if err := api.marketABI.Unpack(billedData, "Billed", log.Data); err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(billedData)
-	case OrderPlacedTopic:
+	case market.OrderPlacedTopic:
 		id, err := extractBig(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&OrderPlacedData{ID: id})
-	case OrderUpdatedTopic:
+	case market.OrderUpdatedTopic:
 		id, err := extractBig(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&OrderUpdatedData{ID: id})
-	case WorkerAnnouncedTopic:
+	case market.WorkerAnnouncedTopic:
 		slaveID, err := extractAddress(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
@@ -766,7 +766,7 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			return
 		}
 		sendData(&WorkerAnnouncedData{SlaveID: slaveID, MasterID: masterID})
-	case WorkerConfirmedTopic:
+	case market.WorkerConfirmedTopic:
 		slaveID, err := extractAddress(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
@@ -778,7 +778,7 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			return
 		}
 		sendData(&WorkerConfirmedData{SlaveID: slaveID, MasterID: masterID})
-	case WorkerRemovedTopic:
+	case market.WorkerRemovedTopic:
 		slaveID, err := extractAddress(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
@@ -790,7 +790,7 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			return
 		}
 		sendData(&WorkerRemovedData{SlaveID: slaveID, MasterID: masterID})
-	case AddedToBlacklistTopic:
+	case market.AddedToBlacklistTopic:
 		adderID, err := extractAddress(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
@@ -802,7 +802,7 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			return
 		}
 		sendData(&AddedToBlacklistData{AdderID: adderID, AddeeID: addeeID})
-	case RemovedFromBlacklistTopic:
+	case market.RemovedFromBlacklistTopic:
 		removerID, err := extractAddress(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
@@ -814,21 +814,21 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			return
 		}
 		sendData(&RemovedFromBlacklistData{RemoverID: removerID, RemoveeID: removeeID})
-	case ValidatorCreatedTopic:
+	case market.ValidatorCreatedTopic:
 		id, err := extractAddress(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&ValidatorCreatedData{ID: id})
-	case ValidatorDeletedTopic:
+	case market.ValidatorDeletedTopic:
 		id, err := extractAddress(log, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&ValidatorDeletedData{ID: id})
-	case CertificateCreatedTopic:
+	case market.CertificateCreatedTopic:
 		var id = big.NewInt(0)
 		if err := api.profilesABI.Unpack(&id, "CertificateCreated", log.Data); err != nil {
 			sendErr(out, err, topic)
