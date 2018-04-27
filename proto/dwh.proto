@@ -165,7 +165,7 @@ message ProfilesReply {
 }
 
 message BlacklistRequest {
-    EthAddress ownerID = 1;
+    string ownerID = 1;
     uint64 limit = 2;
     uint64 offset = 3;
 }
