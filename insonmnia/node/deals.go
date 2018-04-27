@@ -50,7 +50,7 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, er
 		return nil, err
 	}
 
-	deal, err := d.remotes.eth.GetDealInfo(ctx, bigID)
+	deal, err := d.remotes.eth.Market().GetDealInfo(ctx, bigID)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +69,7 @@ func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
 		return nil, err
 	}
 
-	if _, err = d.remotes.eth.CloseDeal(ctx, d.remotes.key, bigID, false); err != nil {
+	if _, err = d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, bigID, false); err != nil {
 		return nil, err
 	}
 

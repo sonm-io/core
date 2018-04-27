@@ -86,7 +86,7 @@ func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*so
 }
 
 func (m *matcher) checkIfOrderExists(ctx context.Context, id *big.Int) error {
-	order, err := m.cfg.Eth.GetOrderInfo(ctx, id)
+	order, err := m.cfg.Eth.Market().GetOrderInfo(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -132,7 +132,7 @@ func (m *matcher) openDeal(ctx context.Context, bid, ask *sonm.Order) (*sonm.Dea
 	select {
 	case <-ctx.Done():
 		return nil, ctx.Err()
-	case res := <-m.cfg.Eth.OpenDeal(ctx, m.cfg.Key, askID, bidID):
+	case res := <-m.cfg.Eth.Market().OpenDeal(ctx, m.cfg.Key, askID, bidID):
 		return res.Deal, res.Err
 	}
 }

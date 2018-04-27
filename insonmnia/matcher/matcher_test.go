@@ -32,10 +32,13 @@ func mockEth(ctrl *gomock.Controller) (blockchain.API, chan blockchain.DealOrErr
 
 	ch := make(chan blockchain.DealOrError)
 
-	api.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().
+	marketApi := blockchain.NewMockMarketAPI(ctrl)
+	marketApi.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().
 		Return(&sonm.Order{OrderStatus: sonm.OrderStatus_ORDER_ACTIVE}, nil)
-	api.EXPECT().OpenDeal(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+	marketApi.EXPECT().OpenDeal(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
 		Return(ch)
+
+	api.EXPECT().Market().AnyTimes().Return(marketApi)
 
 	return api, ch
 }

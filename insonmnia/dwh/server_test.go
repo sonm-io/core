@@ -516,6 +516,8 @@ func TestDWH_monitor(t *testing.T) {
 	var (
 		controller           = gomock.NewController(t)
 		mockBlock            = bch.NewMockAPI(controller)
+		mockMarket           = bch.NewMockMarketAPI(controller)
+		mockProfiles         = bch.NewMockProfileRegistryAPI(controller)
 		commonID             = big.NewInt(0xDEADBEEF)
 		commonEventTS uint64 = 5
 	)
@@ -540,7 +542,7 @@ func TestDWH_monitor(t *testing.T) {
 		TotalPayout:    pb.NewBigInt(big.NewInt(0)),
 		LastBillTS:     &pb.Timestamp{Seconds: 70010},
 	}
-	mockBlock.EXPECT().GetDealInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(deal, nil)
+	mockMarket.EXPECT().GetDealInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(deal, nil)
 
 	order := &pb.Order{
 		Id:             commonID.String(),
@@ -558,7 +560,7 @@ func TestDWH_monitor(t *testing.T) {
 		Benchmarks:     benchmarks,
 		FrozenSum:      pb.NewBigInt(big.NewInt(30010)),
 	}
-	mockBlock.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(order, nil)
+	mockMarket.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(order, nil)
 
 	changeRequest := &pb.DealChangeRequest{
 		Id:          "0",
@@ -568,13 +570,13 @@ func TestDWH_monitor(t *testing.T) {
 		Price:       pb.NewBigInt(big.NewInt(20010)),
 		Status:      pb.ChangeRequestStatus_REQUEST_CREATED,
 	}
-	mockBlock.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
+	mockMarket.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
 
 	validator := &pb.Validator{
 		Id:    "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
 		Level: 3,
 	}
-	mockBlock.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)
+	mockProfiles.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)
 
 	certificate := &pb.Certificate{
 		ValidatorID:   "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
@@ -583,8 +585,11 @@ func TestDWH_monitor(t *testing.T) {
 		IdentityLevel: 1,
 		Value:         []byte("User Name"),
 	}
-	mockBlock.EXPECT().GetCertificate(gomock.Any(), gomock.Any()).AnyTimes().Return(
+	mockProfiles.EXPECT().GetCertificate(gomock.Any(), gomock.Any()).AnyTimes().Return(
 		certificate, nil)
+
+	mockBlock.EXPECT().Market().AnyTimes().Return(mockMarket)
+	mockBlock.EXPECT().ProfileRegistry().AnyTimes().Return(mockProfiles)
 
 	monitorDWH.blockchain = mockBlock
 

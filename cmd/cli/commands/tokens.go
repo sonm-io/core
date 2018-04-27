@@ -25,7 +25,7 @@ var getTokenCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		tx, err := bch.GetTokens(ctx, sessionKey)
+		tx, err := bch.TestToken().GetTokens(ctx, sessionKey)
 		if err != nil {
 			showError(cmd, "Cannot get tokens", err)
 			os.Exit(1)
@@ -50,7 +50,7 @@ var getBalanceCmd = &cobra.Command{
 		defer cancel()
 
 		addr := crypto.PubkeyToAddress(sessionKey.PublicKey).Hex()
-		balance, err := bch.BalanceOf(ctx, addr)
+		balance, err := bch.LiveToken().BalanceOf(ctx, addr)
 		if err != nil {
 			showError(cmd, "Cannot get tokens", err)
 			os.Exit(1)
@@ -83,21 +83,21 @@ var approveTokenCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		currentAllowance, err := bch.AllowanceOf(ctx, crypto.PubkeyToAddress(sessionKey.PublicKey).String(), market.SNMTAddress)
+		currentAllowance, err := bch.SideToken().AllowanceOf(ctx, crypto.PubkeyToAddress(sessionKey.PublicKey).String(), market.MarketAddress)
 		if err != nil {
 			showError(cmd, "Cannot get allowance ", err)
 			os.Exit(1)
 		}
 
 		if currentAllowance.Cmp(zero) != 0 {
-			_, err = bch.Approve(ctx, sessionKey, market.SNMTAddress, zero)
+			_, err = bch.SideToken().Approve(ctx, sessionKey, market.MarketAddress, zero)
 			if err != nil {
 				showError(cmd, "Cannot set approved value to zero", err)
 				os.Exit(1)
 			}
 		}
 
-		tx, err := bch.Approve(ctx, sessionKey, market.SNMTAddress, amount)
+		tx, err := bch.SideToken().Approve(ctx, sessionKey, market.MarketAddress, amount)
 		if err != nil {
 			showError(cmd, "Cannot approve tokens", err)
 			os.Exit(1)

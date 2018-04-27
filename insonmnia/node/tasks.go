@@ -290,7 +290,7 @@ func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (*hubClie
 		return nil, nil, err
 	}
 
-	dealInfo, err := t.remotes.eth.GetDealInfo(ctx, bigID)
+	dealInfo, err := t.remotes.eth.Market().GetDealInfo(ctx, bigID)
 	if err != nil {
 		return nil, nil, err
 	}

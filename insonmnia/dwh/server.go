@@ -820,7 +820,7 @@ func (w *DWH) watchMarketEvents() error {
 		lastKnownBlock = 0
 	}
 
-	dealEvents, err := w.blockchain.GetEvents(w.ctx, big.NewInt(lastKnownBlock))
+	dealEvents, err := w.blockchain.Events().GetEvents(w.ctx, big.NewInt(lastKnownBlock))
 	if err != nil {
 		return err
 	}
@@ -917,7 +917,7 @@ func (w *DWH) retryEvent(event *blockchain.Event) {
 }
 
 func (w *DWH) onDealOpened(dealID *big.Int) error {
-	deal, err := w.blockchain.GetDealInfo(w.ctx, dealID)
+	deal, err := w.blockchain.Market().GetDealInfo(w.ctx, dealID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to GetDealInfo")
 	}
@@ -1013,7 +1013,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 }
 
 func (w *DWH) onDealUpdated(dealID *big.Int) error {
-	deal, err := w.blockchain.GetDealInfo(w.ctx, dealID)
+	deal, err := w.blockchain.Market().GetDealInfo(w.ctx, dealID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to GetDealInfo")
 	}
@@ -1113,7 +1113,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 }
 
 func (w *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) error {
-	changeRequest, err := w.blockchain.GetDealChangeRequestInfo(w.ctx, changeRequestID)
+	changeRequest, err := w.blockchain.Market().GetDealChangeRequestInfo(w.ctx, changeRequestID)
 	if err != nil {
 		return err
 	}
@@ -1192,7 +1192,7 @@ func (w *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 }
 
 func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.Int) error {
-	changeRequest, err := w.blockchain.GetDealChangeRequestInfo(w.ctx, changeRequestID)
+	changeRequest, err := w.blockchain.Market().GetDealChangeRequestInfo(w.ctx, changeRequestID)
 	if err != nil {
 		return err
 	}
@@ -1317,7 +1317,7 @@ func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 }
 
 func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
-	order, err := w.blockchain.GetOrderInfo(w.ctx, orderID)
+	order, err := w.blockchain.Market().GetOrderInfo(w.ctx, orderID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to GetOrderInfo")
 	}
@@ -1407,7 +1407,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 }
 
 func (w *DWH) onOrderUpdated(orderID *big.Int) error {
-	order, err := w.blockchain.GetOrderInfo(w.ctx, orderID)
+	order, err := w.blockchain.Market().GetOrderInfo(w.ctx, orderID)
 	if err != nil {
 		return errors.Wrap(err, "failed to GetOrderInfo")
 	}
@@ -1523,7 +1523,7 @@ func (w *DWH) onRemovedFromBlacklist(removerID, removeeID string) error {
 }
 
 func (w *DWH) onValidatorCreated(validatorID common.Address) error {
-	validator, err := w.blockchain.GetValidator(w.ctx, validatorID)
+	validator, err := w.blockchain.ProfileRegistry().GetValidator(w.ctx, validatorID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get validator `%s`", validatorID.String())
 	}
@@ -1537,7 +1537,7 @@ func (w *DWH) onValidatorCreated(validatorID common.Address) error {
 }
 
 func (w *DWH) onValidatorDeleted(validatorID common.Address) error {
-	validator, err := w.blockchain.GetValidator(w.ctx, validatorID)
+	validator, err := w.blockchain.ProfileRegistry().GetValidator(w.ctx, validatorID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get validator `%s`", validatorID.String())
 	}
@@ -1551,7 +1551,8 @@ func (w *DWH) onValidatorDeleted(validatorID common.Address) error {
 }
 
 func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
-	cert, err := w.blockchain.GetCertificate(w.ctx, certificateID)
+	cert, err := w.blockchain.ProfileRegistry().GetCertificate(w.ctx, certificateID)
+
 	if err != nil {
 		return errors.Wrap(err, "failed to GetAttr")
 	}
