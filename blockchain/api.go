@@ -1,17 +1,14 @@
 package blockchain
 
 import (
-	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"fmt"
 	"math/big"
 	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
@@ -20,36 +17,26 @@ import (
 	"github.com/sonm-io/core/blockchain/market"
 	marketAPI "github.com/sonm-io/core/blockchain/market/api"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
 
 type API interface {
-	CertsAPI
-	EventsAPI
-	MarketAPI
-	BlacklistAPI
-	TokenAPI
-	GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit uint64) *bind.TransactOpts
+	ProfileRegistry() ProfileRegistryAPI
+	Events() EventsAPI
+	Market() MarketAPI
+	Blacklist() BlacklistAPI
+	LiveToken() TokenAPI
+	SideToken() TokenAPI
+	TestToken() TestTokenAPI
 }
 
-type CertsAPI interface {
+type ProfileRegistryAPI interface {
 	GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error)
 	GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error)
 }
 
 type EventsAPI interface {
 	GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error)
-}
-
-type DealOrError struct {
-	Deal *pb.Deal
-	Err  error
-}
-
-type OrderOrError struct {
-	Order *pb.Order
-	Err   error
 }
 
 type MarketAPI interface {
@@ -93,22 +80,22 @@ type TokenAPI interface {
 	AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error)
 	// TotalSupply - all amount of emitted token
 	TotalSupply(ctx context.Context) (*big.Int, error)
+}
+
+type TestTokenAPI interface {
 	// GetTokens - send 100 SNMT token for message caller
 	// this function added for MVP purposes and has been deleted later
 	GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error)
 }
 
 type BasicAPI struct {
-	client            *ethclient.Client
-	gasPrice          int64
-	marketContract    *marketAPI.Market
-	blacklistContract *marketAPI.Blacklist
-	profilesContract  *marketAPI.ProfileRegistry
-	tokenContract     *marketAPI.SNMTToken
-	marketABI         abi.ABI
-	profilesABI       abi.ABI
-	logger            *zap.Logger
-	logParsePeriod    time.Duration
+	market          MarketAPI
+	liveToken       TokenAPI
+	sideToken       TokenAPI
+	testToken       TestTokenAPI
+	blacklist       BlacklistAPI
+	profileRegistry ProfileRegistryAPI
+	events          EventsAPI
 }
 
 func NewAPI(opts ...Option) (API, error) {
@@ -122,67 +109,121 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
-	blacklistContract, err := marketAPI.NewBlacklist(common.HexToAddress(market.BlacklistAddress), client)
+	liveToken, err := NewStandardToken(client, market.SNMAddr(), defaults.gasPrice)
 	if err != nil {
 		return nil, err
 	}
 
-	marketContract, err := marketAPI.NewMarket(common.HexToAddress(market.MarketAddress), client)
+	testToken, err := NewTestToken(client, market.SNMAddr(), defaults.gasPrice)
 	if err != nil {
 		return nil, err
 	}
 
-	profilesContract, err := marketAPI.NewProfileRegistry(common.HexToAddress(market.ProfileRegistryAddress), client)
+	clientSidechain, err := initEthClient(defaults.apiSidechainEndpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	tokenContract, err := marketAPI.NewSNMTToken(common.HexToAddress(market.SNMTAddress), client)
+	blacklist, err := NewBasicBlacklist(clientSidechain, market.BlacklistAddr(), defaults.gasPriceSidechain)
 	if err != nil {
 		return nil, err
 	}
 
-	marketABI, err := abi.JSON(strings.NewReader(marketAPI.MarketABI))
+	marketApi, err := NewBasicMarket(clientSidechain, market.MarketAddr(), defaults.gasPriceSidechain, defaults.logParsePeriod)
 	if err != nil {
 		return nil, err
 	}
 
-	profilesABI, err := abi.JSON(strings.NewReader(marketAPI.ProfileRegistryABI))
+	profileRegistry, err := NewProfileRegistry(clientSidechain, market.ProfileRegistryAddr(), defaults.gasPriceSidechain)
 	if err != nil {
 		return nil, err
 	}
 
-	api := &BasicAPI{
-		client:            client,
-		gasPrice:          defaults.gasPrice,
-		marketContract:    marketContract,
-		blacklistContract: blacklistContract,
-		profilesContract:  profilesContract,
-		tokenContract:     tokenContract,
-		marketABI:         marketABI,
-		profilesABI:       profilesABI,
-		logParsePeriod:    defaults.logParsePeriod,
-		logger:            ctxlog.GetLogger(context.Background()),
+	sideToken, err := NewStandardToken(clientSidechain, market.SNMSidechainAddr(), defaults.gasPriceSidechain)
+	if err != nil {
+		return nil, err
 	}
 
-	return api, nil
+	events, err := NewEventsAPI(clientSidechain, ctxlog.GetLogger(context.Background()))
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicAPI{
+		market:          marketApi,
+		blacklist:       blacklist,
+		profileRegistry: profileRegistry,
+		liveToken:       liveToken,
+		sideToken:       sideToken,
+		testToken:       testToken,
+		events:          events,
+	}, nil
 }
 
-func (api *BasicAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) chan DealOrError {
+func (api *BasicAPI) Market() MarketAPI {
+	return api.market
+}
+
+func (api *BasicAPI) LiveToken() TokenAPI {
+	return api.liveToken
+}
+
+func (api *BasicAPI) SideToken() TokenAPI {
+	return api.sideToken
+}
+
+func (api *BasicAPI) TestToken() TestTokenAPI {
+	return api.testToken
+}
+
+func (api *BasicAPI) Blacklist() BlacklistAPI {
+	return api.blacklist
+}
+
+func (api *BasicAPI) ProfileRegistry() ProfileRegistryAPI {
+	return api.profileRegistry
+}
+
+func (api *BasicAPI) Events() EventsAPI {
+	return api.events
+}
+
+type BasicMarketAPI struct {
+	client         *ethclient.Client
+	marketContract *marketAPI.Market
+	gasPrice       int64
+	logParsePeriod time.Duration
+}
+
+func NewBasicMarket(client *ethclient.Client, address common.Address, gasPrice int64, logParsePeriod time.Duration) (MarketAPI, error) {
+	marketContract, err := marketAPI.NewMarket(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicMarketAPI{
+		client:         client,
+		marketContract: marketContract,
+		gasPrice:       gasPrice,
+		logParsePeriod: logParsePeriod,
+	}, nil
+}
+
+func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) chan DealOrError {
 	ch := make(chan DealOrError, 0)
 	go api.openDeal(ctx, key, askID, bidID, ch)
 	return ch
 }
 
-func (api *BasicAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int, ch chan DealOrError) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
+func (api *BasicMarketAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int, ch chan DealOrError) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
 	tx, err := api.marketContract.OpenDeal(opts, askID, bidID)
 	if err != nil {
 		ch <- DealOrError{nil, err}
 		return
 	}
 
-	id, err := api.waitForTransactionResult(ctx, tx, DealOpenedTopic)
+	id, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, DealOpenedTopic)
 	if err != nil {
 		ch <- DealOrError{nil, err}
 		return
@@ -192,13 +233,12 @@ func (api *BasicAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, askID,
 	ch <- DealOrError{deal, err}
 }
 
-func (api *BasicAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (
-	*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
+func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
 	return api.marketContract.CloseDeal(opts, dealID, blacklisted)
 }
 
-func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error) {
+func (api *BasicMarketAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error) {
 	deal1, err := api.marketContract.GetDealInfo(getCallOptions(ctx), dealID)
 	if err != nil {
 		return nil, err
@@ -233,18 +273,18 @@ func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal
 	}, nil
 }
 
-func (api *BasicAPI) GetDealsAmount(ctx context.Context) (*big.Int, error) {
+func (api *BasicMarketAPI) GetDealsAmount(ctx context.Context) (*big.Int, error) {
 	return api.marketContract.GetDealsAmount(getCallOptions(ctx))
 }
 
-func (api *BasicAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) chan OrderOrError {
+func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) chan OrderOrError {
 	ch := make(chan OrderOrError, 0)
 	go api.placeOrder(ctx, key, order, ch)
 	return ch
 }
 
-func (api *BasicAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order, ch chan OrderOrError) {
-	opts := api.GetTxOpts(ctx, key, gasLimitForPlaceOrderMethod)
+func (api *BasicMarketAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order, ch chan OrderOrError) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
 
 	fixedNetflags := pb.UintToNetflags(order.Netflags)
 	var fixedTag [32]byte
@@ -267,7 +307,7 @@ func (api *BasicAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey, orde
 		return
 	}
 
-	id, err := api.waitForTransactionResult(ctx, tx, OrderPlacedTopic)
+	id, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, OrderPlacedTopic)
 	if err != nil {
 		ch <- OrderOrError{nil, err}
 		return
@@ -276,28 +316,28 @@ func (api *BasicAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey, orde
 	ch <- OrderOrError{orderInfo, err}
 }
 
-func (api *BasicAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) chan error {
+func (api *BasicMarketAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) chan error {
 	ch := make(chan error, 0)
 	go api.cancelOrder(ctx, key, id, ch)
 	return ch
 }
 
-func (api *BasicAPI) cancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, ch chan error) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
+func (api *BasicMarketAPI) cancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int, ch chan error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
 	tx, err := api.marketContract.CancelOrder(opts, id)
 	if err != nil {
 		ch <- err
 		return
 	}
 
-	if _, err := api.waitForTransactionResult(ctx, tx, OrderUpdatedTopic); err != nil {
+	if _, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, OrderUpdatedTopic); err != nil {
 		ch <- err
 		return
 	}
 	ch <- nil
 }
 
-func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Order, error) {
+func (api *BasicMarketAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Order, error) {
 	order1, err := api.marketContract.GetOrderInfo(getCallOptions(ctx), orderID)
 	if err != nil {
 		return nil, err
@@ -310,7 +350,7 @@ func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Or
 
 	netflags := pb.NetflagsToUint(order1.Netflags)
 
-	dwhBenchmarks, err := pb.NewBenchmarks(order1.Benchmarks)
+	benchmarks, err := pb.NewBenchmarks(order1.Benchmarks)
 	if err != nil {
 		return nil, err
 	}
@@ -328,45 +368,75 @@ func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Or
 		IdentityLevel:  pb.IdentityLevel(order1.IdentityLevel),
 		Blacklist:      order1.Blacklist.String(),
 		Tag:            order1.Tag[:],
-		Benchmarks:     dwhBenchmarks,
+		Benchmarks:     benchmarks,
 		FrozenSum:      pb.NewBigInt(order1.FrozenSum),
 	}, nil
 }
 
-func (api *BasicAPI) GetOrdersAmount(ctx context.Context) (*big.Int, error) {
+func (api *BasicMarketAPI) GetOrdersAmount(ctx context.Context) (*big.Int, error) {
 	return api.marketContract.GetOrdersAmount(getCallOptions(ctx))
 }
 
-func (api *BasicAPI) Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) (*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
+func (api *BasicMarketAPI) Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
 	return api.marketContract.Bill(opts, dealID)
 }
 
-func (api *BasicAPI) RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) (
-	*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
+func (api *BasicMarketAPI) RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
 	return api.marketContract.RegisterWorker(opts, master)
 }
 
-func (api *BasicAPI) ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (
-	*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
+func (api *BasicMarketAPI) ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
 	return api.marketContract.RegisterWorker(opts, slave)
 }
 
-func (api *BasicAPI) RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) (
-	*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
+func (api *BasicMarketAPI) RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
 	return api.marketContract.RemoveWorker(opts, master, slave)
 }
 
-func (api *BasicAPI) GetMaster(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (
-	common.Address, error) {
+func (api *BasicMarketAPI) GetMaster(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (common.Address, error) {
 	return api.marketContract.GetMaster(getCallOptions(ctx), slave)
 }
 
-func (api *BasicAPI) GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error) {
-	level, err := api.profilesContract.GetValidatorLevel(getCallOptions(ctx), validatorID)
+func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, dealID *big.Int) (*pb.DealChangeRequest, error) {
+	changeRequest, err := api.marketContract.GetChangeRequestInfo(getCallOptions(ctx), dealID)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.DealChangeRequest{
+		DealID:      changeRequest.DealID.String(),
+		RequestType: pb.OrderType(changeRequest.RequestType),
+		Duration:    changeRequest.Duration.Uint64(),
+		Price:       pb.NewBigInt(changeRequest.Price),
+		Status:      pb.ChangeRequestStatus(changeRequest.Status),
+	}, nil
+}
+
+type ProfileRegistry struct {
+	client                  *ethclient.Client
+	profileRegistryContract *marketAPI.ProfileRegistry
+	gasPrice                int64
+}
+
+func NewProfileRegistry(client *ethclient.Client, address common.Address, gasPrice int64) (ProfileRegistryAPI, error) {
+	profileRegistryContract, err := marketAPI.NewProfileRegistry(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ProfileRegistry{
+		client:                  client,
+		profileRegistryContract: profileRegistryContract,
+		gasPrice:                gasPrice,
+	}, nil
+}
+
+func (api *ProfileRegistry) GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error) {
+	level, err := api.profileRegistryContract.GetValidatorLevel(getCallOptions(ctx), validatorID)
 	if err != nil {
 		return nil, err
 	}
@@ -377,10 +447,8 @@ func (api *BasicAPI) GetValidator(ctx context.Context, validatorID common.Addres
 	}, nil
 }
 
-func (api *BasicAPI) GetCertificate(ctx context.Context, certificateID *big.Int) (
-	*pb.Certificate, error) {
-
-	validatorID, ownerID, attribute, value, err := api.profilesContract.GetCertificate(getCallOptions(ctx), certificateID)
+func (api *ProfileRegistry) GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error) {
+	validatorID, ownerID, attribute, value, err := api.profileRegistryContract.GetCertificate(getCallOptions(ctx), certificateID)
 	if err != nil {
 		return nil, err
 	}
@@ -393,21 +461,151 @@ func (api *BasicAPI) GetCertificate(ctx context.Context, certificateID *big.Int)
 	}, nil
 }
 
-func (api *BasicAPI) GetLastBlockNumber() (uint64, error) {
-	p, err := api.client.SyncProgress(context.Background())
-
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to GetLastBlockNumber")
-	}
-
-	if p == nil {
-		return 0, errors.New("node is still syncing")
-	}
-
-	return p.CurrentBlock, nil
+type BasicBlacklistAPI struct {
+	client            *ethclient.Client
+	blacklistContract *marketAPI.Blacklist
+	gasPrice          int64
 }
 
-func (api *BasicAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error) {
+func NewBasicBlacklist(client *ethclient.Client, address common.Address, gasPrice int64) (BlacklistAPI, error) {
+	blacklistContract, err := marketAPI.NewBlacklist(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicBlacklistAPI{
+		client:            client,
+		blacklistContract: blacklistContract,
+		gasPrice:          gasPrice,
+	}, nil
+}
+
+func (api *BasicBlacklistAPI) Check(ctx context.Context, who, whom common.Address) (bool, error) {
+	return api.blacklistContract.Check(getCallOptions(ctx), who, whom)
+}
+
+func (api *BasicBlacklistAPI) Add(ctx context.Context, key *ecdsa.PrivateKey, who, whom common.Address) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	return api.blacklistContract.Add(opts, who, whom)
+}
+
+func (api *BasicBlacklistAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	return api.blacklistContract.Remove(opts, whom)
+}
+
+func (api *BasicBlacklistAPI) AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	return api.blacklistContract.AddMaster(opts, root)
+}
+
+func (api *BasicBlacklistAPI) RemoveMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	return api.blacklistContract.RemoveMaster(opts, root)
+}
+
+func (api *BasicBlacklistAPI) SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey, market common.Address) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	return api.blacklistContract.SetMarketAddress(opts, market)
+}
+
+type StandardTokenApi struct {
+	client        *ethclient.Client
+	tokenContract *marketAPI.StandardToken
+	gasPrice      int64
+}
+
+func NewStandardToken(client *ethclient.Client, address common.Address, gasPrice int64) (TokenAPI, error) {
+	tokenContract, err := marketAPI.NewStandardToken(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &StandardTokenApi{
+		client:        client,
+		tokenContract: tokenContract,
+		gasPrice:      gasPrice,
+	}, nil
+}
+
+func (api *StandardTokenApi) BalanceOf(ctx context.Context, address string) (*big.Int, error) {
+	return api.tokenContract.BalanceOf(getCallOptions(ctx), common.HexToAddress(address))
+}
+
+func (api *StandardTokenApi) AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error) {
+	return api.tokenContract.Allowance(getCallOptions(ctx), common.HexToAddress(from), common.HexToAddress(to))
+}
+
+func (api *StandardTokenApi) Approve(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimit, api.gasPrice)
+	return api.tokenContract.Approve(opts, common.HexToAddress(to), amount)
+}
+
+func (api *StandardTokenApi) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimit, api.gasPrice)
+	return api.tokenContract.Transfer(opts, common.HexToAddress(to), amount)
+}
+
+func (api *StandardTokenApi) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimit, api.gasPrice)
+	return api.tokenContract.TransferFrom(opts, common.HexToAddress(from), common.HexToAddress(to), amount)
+}
+
+func (api *StandardTokenApi) TotalSupply(ctx context.Context) (*big.Int, error) {
+	return api.tokenContract.TotalSupply(getCallOptions(ctx))
+}
+
+type TestTokenApi struct {
+	client        *ethclient.Client
+	tokenContract *marketAPI.SNMTToken
+	gasPrice      int64
+}
+
+func NewTestToken(client *ethclient.Client, address common.Address, gasPrice int64) (TestTokenAPI, error) {
+	tokenContract, err := marketAPI.NewSNMTToken(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &TestTokenApi{
+		client:        client,
+		tokenContract: tokenContract,
+		gasPrice:      gasPrice,
+	}, nil
+}
+
+func (api *TestTokenApi) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimit, api.gasPrice)
+	return api.tokenContract.GetTokens(opts)
+}
+
+type BasicEventsAPI struct {
+	client      *ethclient.Client
+	logger      *zap.Logger
+	marketABI   abi.ABI
+	profilesABI abi.ABI
+}
+
+func NewEventsAPI(client *ethclient.Client, logger *zap.Logger) (EventsAPI, error) {
+	marketABI, err := abi.JSON(strings.NewReader(marketAPI.MarketABI))
+	if err != nil {
+		return nil, err
+	}
+
+	profilesABI, err := abi.JSON(strings.NewReader(marketAPI.ProfileRegistryABI))
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicEventsAPI{
+		client:      client,
+		logger:      logger,
+		marketABI:   marketABI,
+		profilesABI: profilesABI,
+	}, nil
+}
+
+func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error) {
 	var (
 		topics     [][]common.Hash
 		eventTopic = []common.Hash{
@@ -447,9 +645,9 @@ func (api *BasicAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (
 					Topics:    topics,
 					FromBlock: fromBlock,
 					Addresses: []common.Address{
-						common.HexToAddress(market.MarketAddress),
-						common.HexToAddress(market.BlacklistAddress),
-						common.HexToAddress(market.ProfileRegistryAddress),
+						market.MarketAddr(),
+						market.BlacklistAddr(),
+						market.ProfileRegistryAddr(),
 					},
 				})
 
@@ -484,11 +682,10 @@ func (api *BasicAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (
 			}
 		}
 	}()
-
 	return out, nil
 }
 
-func (api *BasicAPI) processLog(log types.Log, eventTS uint64, out chan *Event) {
+func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *Event) {
 	// This should never happen, but it's ethereum, and things might happen.
 	if len(log.Topics) < 1 {
 		out <- &Event{
@@ -644,254 +841,4 @@ func (api *BasicAPI) processLog(log types.Log, eventTS uint64, out chan *Event) 
 			BlockNumber: log.BlockNumber,
 		}
 	}
-}
-
-func (api *BasicAPI) GetDealChangeRequestInfo(ctx context.Context, dealID *big.Int) (*pb.DealChangeRequest, error) {
-	changeRequest, err := api.marketContract.GetChangeRequestInfo(getCallOptions(ctx), dealID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &pb.DealChangeRequest{
-		DealID:      changeRequest.DealID.String(),
-		RequestType: pb.OrderType(changeRequest.RequestType),
-		Duration:    changeRequest.Duration.Uint64(),
-		Price:       pb.NewBigInt(changeRequest.Price),
-		Status:      pb.ChangeRequestStatus(changeRequest.Status),
-	}, nil
-}
-
-func (api *BasicAPI) Check(ctx context.Context, who, whom common.Address) (bool, error) {
-	return api.blacklistContract.Check(getCallOptions(ctx), who, whom)
-}
-
-func (api *BasicAPI) Add(ctx context.Context, key *ecdsa.PrivateKey, who, whom common.Address) (
-	*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
-	return api.blacklistContract.Add(opts, who, whom)
-}
-
-func (api *BasicAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) (
-	*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
-	return api.blacklistContract.Remove(opts, whom)
-}
-
-func (api *BasicAPI) AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (
-	*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
-	return api.blacklistContract.AddMaster(opts, root)
-}
-
-func (api *BasicAPI) RemoveMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (
-	*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
-	return api.blacklistContract.RemoveMaster(opts, root)
-}
-
-func (api *BasicAPI) SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey, market common.Address) (
-	*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, defaultGasLimit)
-	return api.blacklistContract.SetMarketAddress(opts, market)
-}
-
-func (api *BasicAPI) GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit uint64) *bind.TransactOpts {
-	opts := bind.NewKeyedTransactor(key)
-	opts.Context = ctx
-	opts.GasLimit = gasLimit
-	opts.GasPrice = big.NewInt(api.gasPrice)
-	return opts
-}
-
-func (api *BasicAPI) BalanceOf(ctx context.Context, address string) (*big.Int, error) {
-	balance, err := api.tokenContract.BalanceOf(getCallOptions(ctx), common.HexToAddress(address))
-	if err != nil {
-		return nil, err
-	}
-	return balance, nil
-}
-
-func (api *BasicAPI) AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error) {
-	allowance, err := api.tokenContract.Allowance(getCallOptions(ctx), common.HexToAddress(from),
-		common.HexToAddress(to))
-	if err != nil {
-		return nil, err
-	}
-	return allowance, nil
-}
-
-func (api *BasicAPI) Approve(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (
-	*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, 50000)
-
-	tx, err := api.tokenContract.Approve(opts, common.HexToAddress(to), amount)
-	if err != nil {
-		return nil, err
-	}
-	return tx, err
-}
-
-func (api *BasicAPI) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (
-	*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, 50000)
-
-	tx, err := api.tokenContract.Transfer(opts, common.HexToAddress(to), amount)
-	if err != nil {
-		return nil, err
-	}
-	return tx, err
-}
-
-func (api *BasicAPI) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (
-	*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, 50000)
-
-	tx, err := api.tokenContract.TransferFrom(opts, common.HexToAddress(from), common.HexToAddress(to), amount)
-	if err != nil {
-		return nil, err
-	}
-	return tx, err
-}
-
-func (api *BasicAPI) TotalSupply(ctx context.Context) (*big.Int, error) {
-	supply, err := api.tokenContract.TotalSupply(getCallOptions(ctx))
-	if err != nil {
-		return nil, err
-	}
-	return supply, nil
-}
-
-func (api *BasicAPI) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
-	opts := api.GetTxOpts(ctx, key, 50000)
-
-	tx, err := api.tokenContract.GetTokens(opts)
-	if err != nil {
-		return nil, err
-	}
-	return tx, err
-}
-
-func (api *BasicAPI) waitForTransactionResult(ctx context.Context, tx *types.Transaction, topic common.Hash) (*big.Int, error) {
-	tk := util.NewImmediateTicker(api.logParsePeriod)
-	defer tk.Stop()
-
-	for {
-		select {
-		case <-tk.C:
-			id, err := api.parseTransactionLogs(ctx, tx, topic)
-			if err != nil {
-				if err == ethereum.NotFound {
-					break
-				}
-				return nil, err
-			}
-
-			return id, err
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-	}
-}
-
-func (api *BasicAPI) parseTransactionLogs(ctx context.Context, tx *types.Transaction, topic common.Hash) (*big.Int, error) {
-	txReceipt, err := api.client.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		return nil, err
-	}
-
-	if txReceipt.Status != types.ReceiptStatusSuccessful {
-		return nil, errors.New("transaction failed")
-	}
-
-	for _, l := range txReceipt.Logs {
-		if len(l.Topics) < 1 {
-			return nil, errors.New("transaction topics is malformed")
-		}
-
-		receivedTopic := l.Topics[0]
-		topicCmp := bytes.Compare(receivedTopic.Bytes(), topic.Bytes())
-		if topicCmp == 0 && len(l.Topics) > 1 {
-			return l.Topics[1].Big(), nil
-		}
-	}
-
-	// TODO(sshaman1101): not so user-friendly message leaved for debugging, remove before releasing.
-	return nil, fmt.Errorf("cannot find topic \"%s\"in transaction", topic.Hex())
-}
-
-type Event struct {
-	Data        interface{}
-	BlockNumber uint64
-	TS          uint64
-}
-
-type DealOpenedData struct {
-	ID *big.Int
-}
-
-type DealUpdatedData struct {
-	ID *big.Int
-}
-
-type DealChangeRequestSentData struct {
-	ID *big.Int
-}
-
-type DealChangeRequestUpdatedData struct {
-	ID *big.Int
-}
-
-type OrderPlacedData struct {
-	ID *big.Int
-}
-
-type OrderUpdatedData struct {
-	ID *big.Int
-}
-
-type BilledData struct {
-	DealID     *big.Int `json:"dealID"`
-	PaidAmount *big.Int `json:"paidAmount"`
-}
-
-type WorkerAnnouncedData struct {
-	SlaveID  common.Address
-	MasterID common.Address
-}
-
-type WorkerConfirmedData struct {
-	SlaveID  common.Address
-	MasterID common.Address
-}
-
-type WorkerRemovedData struct {
-	SlaveID  common.Address
-	MasterID common.Address
-}
-
-type ErrorData struct {
-	Err   error
-	Topic string
-}
-
-type AddedToBlacklistData struct {
-	AdderID common.Address
-	AddeeID common.Address
-}
-
-type RemovedFromBlacklistData struct {
-	RemoverID common.Address
-	RemoveeID common.Address
-}
-
-type ValidatorCreatedData struct {
-	ID common.Address
-}
-
-type ValidatorDeletedData struct {
-	ID common.Address
-}
-
-type CertificateCreatedData struct {
-	ID *big.Int
 }

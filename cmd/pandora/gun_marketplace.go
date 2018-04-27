@@ -33,7 +33,7 @@ func NewMarketplaceGun(cfg MarketplaceExtConfig) (Gun, error) {
 
 	ext := &marketplaceExt{
 		privateKey: privateKey,
-		market:     market,
+		market:     market.Market(),
 		log:        log,
 	}
 	return newGun(ext, log), nil

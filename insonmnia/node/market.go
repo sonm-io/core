@@ -42,7 +42,7 @@ func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, er
 		return nil, err
 	}
 
-	return m.remotes.eth.GetOrderInfo(ctx, id)
+	return m.remotes.eth.Market().GetOrderInfo(ctx, id)
 }
 
 func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Order, error) {
@@ -96,7 +96,7 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 		Benchmarks:    benchStruct,
 	}
 
-	ordOrErr := <-m.remotes.eth.PlaceOrder(ctx, m.remotes.key, order)
+	ordOrErr := <-m.remotes.eth.Market().PlaceOrder(ctx, m.remotes.key, order)
 	return ordOrErr.Order, ordOrErr.Err
 }
 
@@ -106,7 +106,7 @@ func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, err
 		return nil, err
 	}
 
-	if err := <-m.remotes.eth.CancelOrder(ctx, m.remotes.key, id); err != nil {
+	if err := <-m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id); err != nil {
 		return nil, err
 	}
 
