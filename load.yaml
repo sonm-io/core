@@ -8,28 +8,47 @@ pandora:
   pandora_cmd: target/pandora_linux_x86_64
   config_content:
     pools:
-      - id: BFG
+      - id: BFG_MARKET
+        # The gun is a thing that consumes ammo to fire a target.
+        # A gun instance is spawned either at startup or on demand, so its
+        # initialization should be as fast as possible.
+        # Also note that ammo type prefix should be the same as gun's one, for
+        # example this gun has "sonm.marketplace" prefix, while its ammo
+        # has "sonm.marketplace.GetOrderInfo".
         gun:
-          type: sonm
-          ethereumEndpoint: http://localhost:8545
-          ethereumAccountPath: ./keys
-          ethereumAccountPass: any
+          type: sonm.marketplace
+          # Logging section should used ONLY for debugging, because it may affect
+          # metrics.
+          # Specify "fatal" otherwise.
+          logging:
+            level: debug
+          # Ethereum target settings.
+          ethereum:
+            endpoint: http://92.53.70.228:8545
+            account_path: ./keys
+            account_pass: any
         ammo:
-          type: marketplace/order/info
+          type: sonm
           limit: 100000
-          order_ids: [1]
+          select: rr
+          detail:
+            - type: sonm.marketplace.GetOrderInfo
+              order_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
         result:
           type: phout
-          destination: ./phout.log
+          destination: phout.log
         rps:
           type: line
           from: 0
           to: 1000
           duration: 300s
+
         startup:
           type: once
-          times: 600
+          times: 10
+
 phantom:
   enabled: false
 telegraf:
-  enabled: false
+  enabled: true
+  default_target: 92.53.70.228
