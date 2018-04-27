@@ -66,13 +66,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		RestartPolicy:   d.RestartPolicy,
 		// NOTE: we perform cleanup after commit manually
 		AutoRemove: false,
-		Resources: container.Resources{
-			// TODO: accept a name of a cgroup cooked by user
-			// NOTE: on non-Linux platform it's empty
-			CgroupParent: d.Resources.CgroupParent,
-			Memory:       d.Resources.Memory,
-			NanoCPUs:     d.Resources.NanoCPUs,
-		},
+		Resources:  d.Resources.ToHostConfigResources(d.cGroupParent),
 	}
 
 	networkingConfig := network.NetworkingConfig{}

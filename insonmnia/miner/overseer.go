@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/miner/volume"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -23,7 +24,6 @@ import (
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
-	"github.com/sonm-io/core/insonmnia/resource"
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -31,12 +31,15 @@ const overseerTag = "sonm.overseer"
 const dieEvent = "die"
 
 // Description for a target application.
+// TODO: Drop duplication (sonm.Container)
 type Description struct {
 	Registry      string
 	Image         string
 	Auth          string
 	RestartPolicy container.RestartPolicy
-	Resources     container.Resources
+	ParentCGroup  cgroups.CGroup
+	Resources     *pb.AskPlanResources
+	cGroupParent  string
 	Cmd           []string
 	Env           map[string]string
 	TaskId        string
@@ -86,12 +89,12 @@ func (d *Description) FormatEnv() []string {
 
 // ContainerInfo is a brief information about containers
 type ContainerInfo struct {
-	status       *pb.TaskStatusReply
-	ID           string
-	ImageName    string
-	StartAt      time.Time
-	Ports        nat.PortMap
-	Resources    resource.Resources
+	status    *pb.TaskStatusReply
+	ID        string
+	ImageName string
+	StartAt   time.Time
+	Ports     nat.PortMap
+	//Resources    resource.Resources
 	PublicKey    ssh.PublicKey
 	Cgroup       string
 	CgroupParent string
@@ -467,21 +470,21 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		return
 	}
 
-	var cpuCount int
-	if description.Resources.NanoCPUs > 0 {
-		cpuCount = int(description.Resources.NanoCPUs / 1000000000)
-	} else if description.Resources.CPUQuota > 0 && description.Resources.CPUPeriod > 0 {
-		cpuCount = int(description.Resources.CPUQuota / description.Resources.CPUPeriod)
-	} else if description.Resources.CPUCount > 0 {
-		cpuCount = int(description.Resources.CPUCount)
-	} else {
-		cpuCount = 1
-	}
+	//var cpuCount int
+	//if description.Resources.NanoCPUs > 0 {
+	//	cpuCount = int(description.Resources.NanoCPUs / 1000000000)
+	//} else if description.Resources.CPUQuota > 0 && description.Resources.CPUPeriod > 0 {
+	//	cpuCount = int(description.Resources.CPUQuota / description.Resources.CPUPeriod)
+	//} else if description.Resources.CPUCount > 0 {
+	//	cpuCount = int(description.Resources.CPUCount)
+	//} else {
+	//	cpuCount = 1
+	//}
 
-	var gpuCount = 0
-	if description.IsGPURequired() {
-		gpuCount = -1
-	}
+	//var gpuCount = 0
+	//if description.IsGPURequired() {
+	//	gpuCount = -1
+	//}
 
 	var networkIDs []string
 	for k := range cjson.NetworkSettings.Networks {
@@ -489,10 +492,10 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 	}
 
 	cinfo = ContainerInfo{
-		status:       &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
-		ID:           cjson.ID,
-		Ports:        cjson.NetworkSettings.Ports,
-		Resources:    resource.NewResources(cpuCount, description.Resources.Memory, gpuCount),
+		status: &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
+		ID:     cjson.ID,
+		Ports:  cjson.NetworkSettings.Ports,
+		//Resources:    resource.NewResources(cpuCount, description.Resources.Memory, gpuCount),
 		Cgroup:       string(cjson.HostConfig.Cgroup),
 		CgroupParent: string(cjson.HostConfig.CgroupParent),
 		NetworkIDs:   networkIDs,
