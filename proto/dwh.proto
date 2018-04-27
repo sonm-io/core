@@ -99,7 +99,7 @@ message OrdersRequest {
 }
 
 message MatchingOrdersRequest {
-    ID id = 1;
+    BigInt id = 1;
     uint64 limit = 2;
     uint64 offset = 3;
 }
