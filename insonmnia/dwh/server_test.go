@@ -547,7 +547,7 @@ func TestDWH_monitor(t *testing.T) {
 		DealID:         "",
 		OrderType:      pb.OrderType_ASK,
 		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
-		AuthorID:       "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE",
+		AuthorID:       strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE"),
 		CounterpartyID: "counterparty_id",
 		Duration:       10020,
 		Price:          pb.NewBigInt(big.NewInt(20010)),
@@ -571,14 +571,14 @@ func TestDWH_monitor(t *testing.T) {
 	mockBlock.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
 
 	validator := &pb.Validator{
-		Id:    "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
+		Id:    strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"),
 		Level: 3,
 	}
 	mockBlock.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)
 
 	certificate := &pb.Certificate{
-		ValidatorID:   "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
-		OwnerID:       "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE",
+		ValidatorID:   strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"),
+		OwnerID:       strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE"),
 		Attribute:     CertificateName,
 		IdentityLevel: 1,
 		Value:         []byte("User Name"),
@@ -629,7 +629,7 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Test that a Validator entry is added after ValidatorCreated event.
-	if err := monitorDWH.onValidatorCreated(common.HexToAddress("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD")); err != nil {
+	if err := monitorDWH.onValidatorCreated(common.HexToAddress(strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"))); err != nil {
 		t.Error(err)
 		return
 	}
@@ -954,8 +954,8 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Test that a worker is added after a WorkerAnnounced event.
-	if err := monitorDWH.onWorkerAnnounced("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
-		"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE"); err != nil {
+	if err := monitorDWH.onWorkerAnnounced(strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"),
+		strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE")); err != nil {
 		t.Error(err)
 		return
 	}
@@ -973,8 +973,8 @@ func TestDWH_monitor(t *testing.T) {
 		}
 	}
 	// Test that a worker is confirmed after a WorkerConfirmed event.
-	if err := monitorDWH.onWorkerConfirmed("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
-		"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE"); err != nil {
+	if err := monitorDWH.onWorkerConfirmed(strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"),
+		strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE")); err != nil {
 		t.Error(err)
 		return
 	}
@@ -992,8 +992,8 @@ func TestDWH_monitor(t *testing.T) {
 		}
 	}
 	// Test that a worker is deleted after a WorkerRemoved event.
-	if err := monitorDWH.onWorkerRemoved("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
-		"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE"); err != nil {
+	if err := monitorDWH.onWorkerRemoved(strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"),
+		strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE")); err != nil {
 		t.Error(err)
 		return
 	}
@@ -1008,30 +1008,30 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Test that a Blacklist entry is added after AddedToBlacklist event.
-	if err := monitorDWH.onAddedToBlacklist("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
-		"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE"); err != nil {
+	if err := monitorDWH.onAddedToBlacklist(strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"),
+		strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE")); err != nil {
 		t.Error(err)
 		return
 	}
 	if blacklistReply, err := monitorDWH.getBlacklist(
-		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"}); err != nil {
+		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD")}); err != nil {
 		t.Errorf("Failed to GetBlacklist: %s", err)
 		return
 	} else {
-		if blacklistReply.OwnerID != "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD" {
+		if blacklistReply.OwnerID != strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD") {
 			t.Errorf("(AddedToBlacklist) Expected %s, got %s (BlacklistReply.AdderID)",
-				"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD", blacklistReply.OwnerID)
+				strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"), blacklistReply.OwnerID)
 		}
 	}
 
 	// Test that a Blacklist entry is deleted after RemovedFromBlacklist event.
-	if err := monitorDWH.onRemovedFromBlacklist("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
-		"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE"); err != nil {
+	if err := monitorDWH.onRemovedFromBlacklist(strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"),
+		strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE")); err != nil {
 		t.Error(err)
 		return
 	}
 	if repl, err := monitorDWH.getBlacklist(
-		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"}); err != nil {
+		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: strings.ToLower("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD")}); err != nil {
 		t.Error(err)
 		return
 	} else {

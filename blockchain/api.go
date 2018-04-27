@@ -137,7 +137,7 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
-	tokenContract, err := marketAPI.NewSNMTToken(common.HexToAddress(market.SNMTAddress), client)
+	tokenContract, err := marketAPI.NewSNMTToken(common.HexToAddress(market.SNMAddress), client)
 	if err != nil {
 		return nil, err
 	}

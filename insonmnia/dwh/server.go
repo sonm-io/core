@@ -9,6 +9,7 @@ import (
 	"math/big"
 	"net"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 
@@ -157,13 +158,13 @@ func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 	if request.Status > 0 {
 		filters = append(filters, newFilter("Status", eq, request.Status, "AND"))
 	}
-	if request.SupplierID > "0" {
+	if request.SupplierIDNormalized() > "0" {
 		filters = append(filters, newFilter("SupplierID", eq, request.SupplierID, "AND"))
 	}
-	if request.ConsumerID > "0" {
+	if request.ConsumerIDNormalized() > "0" {
 		filters = append(filters, newFilter("ConsumerID", eq, request.ConsumerID, "AND"))
 	}
-	if request.MasterID > "0" {
+	if request.MasterIDNormalized() > "0" {
 		filters = append(filters, newFilter("MasterID", eq, request.MasterID, "AND"))
 	}
 	if request.AskID > "0" {
@@ -311,10 +312,10 @@ func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 	if request.Type > 0 {
 		filters = append(filters, newFilter("Type", eq, request.Type, "AND"))
 	}
-	if request.AuthorID > "0" {
+	if request.AuthorIDNormalized() > "0" {
 		filters = append(filters, newFilter("AuthorID", eq, request.AuthorID, "AND"))
 	}
-	if request.CounterpartyID > "0" {
+	if request.CounterpartyIDNormalized() > "0" {
 		filters = append(filters, newFilter("CounterpartyID", eq, request.CounterpartyID, "AND"))
 	}
 	if request.Duration != nil {
@@ -877,15 +878,15 @@ func (w *DWH) processEvent(event *blockchain.Event) error {
 	case *blockchain.BilledData:
 		return w.onBilled(event.TS, value.DealID, value.PaidAmount)
 	case *blockchain.WorkerAnnouncedData:
-		return w.onWorkerAnnounced(value.MasterID.String(), value.SlaveID.String())
+		return w.onWorkerAnnounced(strings.ToLower(value.MasterID.String()), strings.ToLower(value.SlaveID.String()))
 	case *blockchain.WorkerConfirmedData:
-		return w.onWorkerConfirmed(value.MasterID.String(), value.SlaveID.String())
+		return w.onWorkerConfirmed(strings.ToLower(value.MasterID.String()), strings.ToLower(value.SlaveID.String()))
 	case *blockchain.WorkerRemovedData:
-		return w.onWorkerRemoved(value.MasterID.String(), value.SlaveID.String())
+		return w.onWorkerRemoved(strings.ToLower(value.MasterID.String()), strings.ToLower(value.SlaveID.String()))
 	case *blockchain.AddedToBlacklistData:
-		return w.onAddedToBlacklist(value.AdderID.String(), value.AddeeID.String())
+		return w.onAddedToBlacklist(strings.ToLower(value.AdderID.String()), strings.ToLower(value.AddeeID.String()))
 	case *blockchain.RemovedFromBlacklistData:
-		w.onRemovedFromBlacklist(value.RemoverID.String(), value.RemoveeID.String())
+		w.onRemovedFromBlacklist(strings.ToLower(value.RemoverID.String()), strings.ToLower(value.RemoveeID.String()))
 	case *blockchain.ValidatorCreatedData:
 		return w.onValidatorCreated(value.ID)
 	case *blockchain.ValidatorDeletedData:
@@ -945,9 +946,9 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 	_, err = tx.Exec(
 		w.commands["insertDeal"],
 		deal.Id,
-		deal.SupplierID,
-		deal.ConsumerID,
-		deal.MasterID,
+		deal.SupplierIDNormalized(),
+		deal.ConsumerIDNormalized(),
+		deal.MasterIDNormalized(),
 		deal.AskID,
 		deal.BidID,
 		deal.Duration,
@@ -987,9 +988,9 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 
 	_, err = tx.Exec(
 		w.commands["insertDealCondition"],
-		deal.SupplierID,
-		deal.ConsumerID,
-		deal.MasterID,
+		deal.SupplierIDNormalized(),
+		deal.ConsumerIDNormalized(),
+		deal.MasterIDNormalized(),
 		deal.Duration,
 		deal.Price.PaddedString(),
 		deal.StartTime.Seconds,
@@ -1052,7 +1053,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to deleteOrder")
 		}
 
-		askProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.SupplierID}, false)
+		askProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.SupplierIDNormalized()}, false)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1061,7 +1062,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to getProfileInfo")
 		}
 
-		if err := w.updateProfileStats(tx, pb.OrderType_ASK, deal.SupplierID, askProfile, -1); err != nil {
+		if err := w.updateProfileStats(tx, pb.OrderType_ASK, deal.SupplierIDNormalized(), askProfile, -1); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1069,7 +1070,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrapf(err, "failed to updateProfileStats (OrderID: `%s`)", deal.AskID)
 		}
 
-		bidProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.ConsumerID}, false)
+		bidProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.ConsumerIDNormalized()}, false)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1078,7 +1079,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to getProfileInfo")
 		}
 
-		if err := w.updateProfileStats(tx, pb.OrderType_BID, deal.ConsumerID, bidProfile, -1); err != nil {
+		if err := w.updateProfileStats(tx, pb.OrderType_BID, deal.ConsumerIDNormalized(), bidProfile, -1); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1327,7 +1328,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
 
-	profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID}, false)
+	profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorIDNormalized()}, false)
 	if err != nil {
 		var askOrders, bidOrders = 0, 0
 		if order.OrderType == pb.OrderType_ASK {
@@ -1335,7 +1336,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		} else {
 			bidOrders = 1
 		}
-		_, err = tx.Exec(w.commands["insertProfileUserID"], order.AuthorID, askOrders, bidOrders)
+		_, err = tx.Exec(w.commands["insertProfileUserID"], order.AuthorIDNormalized(), askOrders, bidOrders)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1345,11 +1346,11 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		}
 
 		profile = &pb.Profile{
-			UserID:       order.AuthorID,
+			UserID:       order.AuthorIDNormalized(),
 			Certificates: []byte{},
 		}
 	} else {
-		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID, profile, 1); err != nil {
+		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorIDNormalized(), profile, 1); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1365,8 +1366,8 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		order.DealID,
 		uint64(order.OrderType),
 		uint64(order.OrderStatus),
-		order.AuthorID,
-		order.CounterpartyID,
+		order.AuthorIDNormalized(),
+		order.CounterpartyIDNormalized(),
 		order.Duration,
 		order.Price.PaddedString(),
 		order.Netflags,
@@ -1430,7 +1431,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 			return nil
 		}
 
-		profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID}, false)
+		profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorIDNormalized()}, false)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1439,7 +1440,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 			return errors.Wrapf(err, "failed to getProfileInfo (AuthorID: `%s`)", order.AuthorID)
 		}
 
-		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID, profile, -1); err != nil {
+		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorIDNormalized(), profile, -1); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1528,7 +1529,7 @@ func (w *DWH) onValidatorCreated(validatorID common.Address) error {
 		return errors.Wrapf(err, "failed to get validator `%s`", validatorID.String())
 	}
 
-	_, err = w.db.Exec(w.commands["insertValidator"], validator.Id, validator.Level)
+	_, err = w.db.Exec(w.commands["insertValidator"], strings.ToLower(validator.IDNormalized()), validator.Level)
 	if err != nil {
 		return errors.Wrap(err, "failed to insert Validator")
 	}
@@ -1542,7 +1543,7 @@ func (w *DWH) onValidatorDeleted(validatorID common.Address) error {
 		return errors.Wrapf(err, "failed to get validator `%s`", validatorID.String())
 	}
 
-	_, err = w.db.Exec(w.commands["updateValidator"], validator.Level, validator.Id)
+	_, err = w.db.Exec(w.commands["updateValidator"], validator.Level, strings.ToLower(validator.IDNormalized()))
 	if err != nil {
 		return errors.Wrap(err, "failed to update Validator")
 	}
@@ -1551,7 +1552,7 @@ func (w *DWH) onValidatorDeleted(validatorID common.Address) error {
 }
 
 func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
-	attr, err := w.blockchain.GetCertificate(w.ctx, certificateID)
+	cert, err := w.blockchain.GetCertificate(w.ctx, certificateID)
 	if err != nil {
 		return errors.Wrap(err, "failed to GetAttr")
 	}
@@ -1562,7 +1563,11 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 	}
 
 	_, err = tx.Exec(w.commands["insertCertificate"],
-		attr.OwnerID, attr.Attribute, (attr.Attribute/uint64(math.Pow(10, 2)))%10, attr.Value, attr.ValidatorID)
+		cert.OwnerIDNormalized(),
+		cert.Attribute,
+		(cert.Attribute/uint64(math.Pow(10, 2)))%10,
+		cert.Value,
+		cert.ValidatorIDNormalized())
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1571,49 +1576,57 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 		return errors.Wrap(err, "failed to insert Certificate")
 	}
 
-	// Create a Profile entry if it doesn't exist yet.
-	if _, err := w.getProfileInfo(w.ctx, &pb.ID{Id: attr.OwnerID}, false); err != nil {
-		_, err = tx.Exec(w.commands["insertProfileUserID"], attr.OwnerID, 0, 0)
-		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				w.logger.Error("transaction rollback failed", zap.Error(err))
-			}
+	if err := w.updateProfile(tx, cert); err != nil {
+		if err := tx.Rollback(); err != nil {
+			w.logger.Error("transaction rollback failed", zap.Error(err))
+		}
 
+		return errors.Wrap(err, "failed to updateProfile")
+	}
+
+	if err := w.updateEntitiesByProfile(tx, cert); err != nil {
+		if err := tx.Rollback(); err != nil {
+			w.logger.Error("transaction rollback failed", zap.Error(err))
+		}
+
+		return errors.Wrap(err, "failed to updateEntitiesByProfile")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errors.Wrap(err, "transaction commit failed")
+	}
+
+	return nil
+}
+
+func (w *DWH) updateProfile(tx *sql.Tx, cert *pb.Certificate) error {
+	// Create a Profile entry if it doesn't exist yet.
+	if _, err := w.getProfileInfo(w.ctx, &pb.ID{Id: cert.OwnerIDNormalized()}, false); err != nil {
+		_, err = tx.Exec(w.commands["insertProfileUserID"], cert.OwnerIDNormalized(), 0, 0)
+		if err != nil {
 			return errors.Wrap(err, "failed to insertProfileUserID")
 		}
 	}
 
 	// Update distinct Profile columns.
-	switch attr.Attribute {
+	switch cert.Attribute {
 	case CertificateName:
-		_, err = tx.Exec(fmt.Sprintf(w.commands["updateProfile"], attributeToString[attr.Attribute]),
-			string(attr.Value), attr.OwnerID)
+		_, err := tx.Exec(fmt.Sprintf(w.commands["updateProfile"], attributeToString[cert.Attribute]),
+			string(cert.Value), cert.OwnerIDNormalized())
 		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				w.logger.Error("transaction rollback failed", zap.Error(err))
-			}
-
 			return errors.Wrap(err, "failed to updateProfileName")
 		}
 	case CertificateCountry:
-		_, err = tx.Exec(fmt.Sprintf(w.commands["updateProfile"], attributeToString[attr.Attribute]),
-			string(attr.Value), attr.OwnerID)
+		_, err := tx.Exec(fmt.Sprintf(w.commands["updateProfile"], attributeToString[cert.Attribute]),
+			string(cert.Value), cert.OwnerIDNormalized())
 		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				w.logger.Error("transaction rollback failed", zap.Error(err))
-			}
-
 			return errors.Wrap(err, "failed to updateProfileCountry")
 		}
 	}
 
 	// Update certificates blob.
-	rows, err := tx.Query(w.commands["selectCertificates"], attr.OwnerID)
+	rows, err := tx.Query(w.commands["selectCertificates"], cert.OwnerIDNormalized())
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to getCertificatesByUseID")
 	}
 
@@ -1634,39 +1647,27 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 
 	certificateAttrsBytes, err := json.Marshal(certificates)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to marshal certificates")
 	}
 
 	_, err = tx.Exec(fmt.Sprintf(w.commands["updateProfile"], "Certificates"),
-		certificateAttrsBytes, attr.OwnerID)
+		certificateAttrsBytes, cert.OwnerIDNormalized())
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to updateProfileCertificates (Certificates)")
 	}
 
 	_, err = tx.Exec(fmt.Sprintf(w.commands["updateProfile"], "IdentityLevel"),
-		maxIdentityLevel, attr.OwnerID)
+		maxIdentityLevel, cert.OwnerIDNormalized())
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to updateProfileCertificates (Level)")
 	}
 
-	profile, err := w.getProfileInfoTx(tx, &pb.ID{Id: attr.OwnerID})
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
+	return nil
+}
 
+func (w *DWH) updateEntitiesByProfile(tx *sql.Tx, certificate *pb.Certificate) error {
+	profile, err := w.getProfileInfoTx(tx, &pb.ID{Id: certificate.OwnerIDNormalized()})
+	if err != nil {
 		return errors.Wrap(err, "failed to getProfileInfo")
 	}
 
@@ -1677,33 +1678,17 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 		profile.Certificates,
 		profile.UserID)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to updateOrders")
 	}
 
 	_, err = tx.Exec(w.commands["updateDealsSupplier"], profile.Certificates, profile.UserID)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to updateDealsSupplier")
 	}
 
 	_, err = tx.Exec(w.commands["updateDealsConsumer"], profile.Certificates, profile.UserID)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to updateDealsConsumer")
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errors.Wrap(err, "transaction commit failed")
 	}
 
 	return nil
