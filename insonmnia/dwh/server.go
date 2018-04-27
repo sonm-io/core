@@ -820,7 +820,7 @@ func (w *DWH) watchMarketEvents() error {
 		lastKnownBlock = 0
 	}
 
-	dealEvents, err := w.blockchain.GetEvents(w.ctx, big.NewInt(lastKnownBlock))
+	dealEvents, err := w.blockchain.Events().GetEvents(w.ctx, big.NewInt(lastKnownBlock))
 	if err != nil {
 		return err
 	}

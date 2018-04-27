@@ -12,12 +12,12 @@ import (
 	"github.com/sonm-io/core/util"
 )
 
-var (
-	HexKey = "a5dd45e0810ca83e21f1063e6bf055bd13544398f280701cbfda1346bcf3ae64"
+const (
+	hexKey = "a5dd45e0810ca83e21f1063e6bf055bd13544398f280701cbfda1346bcf3ae64"
 )
 
 func main() {
-	prv, err := crypto.HexToECDSA(HexKey)
+	prv, err := crypto.HexToECDSA(hexKey)
 	if err != nil {
 		log.Fatalln(err)
 		return
@@ -29,7 +29,7 @@ func main() {
 		return
 	}
 
-	balance, err := api.BalanceOf(context.Background(), crypto.PubkeyToAddress(prv.PublicKey).String())
+	balance, err := api.SideToken().BalanceOf(context.Background(), crypto.PubkeyToAddress(prv.PublicKey).String())
 	if err != nil {
 		log.Fatalln(err)
 		return
@@ -37,7 +37,7 @@ func main() {
 
 	log.Println("Balance: ", balance)
 
-	allowance, err := api.AllowanceOf(context.Background(), crypto.PubkeyToAddress(prv.PublicKey).String(), market.MarketAddr().String())
+	allowance, err := api.SideToken().AllowanceOf(context.Background(), crypto.PubkeyToAddress(prv.PublicKey).String(), market.MarketAddr().String())
 	if err != nil {
 		log.Fatalln(err)
 		return
@@ -53,7 +53,7 @@ func main() {
 	}
 
 	if allowance.Cmp(price.Unwrap()) < 0 {
-		log.Fatalln("lack of balance")
+		log.Fatalln("lack of allowance")
 		return
 	}
 
@@ -73,7 +73,7 @@ func main() {
 		},
 	}
 
-	res := <-api.PlaceOrder(
+	res := <-api.Market().PlaceOrder(
 		context.Background(),
 		prv,
 		order,
@@ -89,7 +89,7 @@ func main() {
 		log.Fatalln("Cannot cast")
 		return
 	}
-	err = <-api.CancelOrder(context.Background(), prv, ordId)
+	err = <-api.Market().CancelOrder(context.Background(), prv, ordId)
 
 	if err != nil {
 		log.Fatalln(err)
