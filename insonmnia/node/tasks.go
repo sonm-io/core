@@ -54,10 +54,10 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.EthAddress) (*pb.TaskListRe
 }
 
 func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.Deal) {
-	hub, cc, err := t.getHubClientByEthAddr(ctx, deal.GetSupplierID())
+	hub, cc, err := t.getHubClientByEthAddr(ctx, deal.GetSupplierID().Unwrap().Hex())
 	if err != nil {
 		log.G(t.ctx).Error("cannot resolve hub address",
-			zap.String("hub_eth", deal.GetSupplierID()),
+			zap.String("hub_eth", deal.GetSupplierID().Unwrap().Hex()),
 			zap.Error(err))
 		return
 	}
@@ -70,12 +70,12 @@ func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.Ta
 	}
 
 	for _, v := range taskList.GetInfo() {
-		tasks[deal.GetSupplierID()] = v
+		tasks[deal.GetSupplierID().Unwrap().Hex()] = v
 	}
 }
 
 func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
-	hub, cc, err := t.getHubClientForDeal(ctx, req.Deal.GetId())
+	hub, cc, err := t.getHubClientForDeal(ctx, req.Deal.GetId().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
@@ -295,7 +295,7 @@ func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (*hubClie
 		return nil, nil, err
 	}
 
-	return t.getHubClientByEthAddr(ctx, dealInfo.GetSupplierID())
+	return t.getHubClientByEthAddr(ctx, dealInfo.GetSupplierID().Unwrap().Hex())
 }
 
 func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (*hubClient, io.Closer, error) {

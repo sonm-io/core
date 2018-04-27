@@ -9,11 +9,11 @@ import (
 	"strconv"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gosuri/uiprogress"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/metadata"
 )
@@ -94,6 +94,12 @@ var taskStartCmd = &cobra.Command{
 		dealID := args[0]
 		taskFile := args[1]
 
+		bigID, err := pb.NewBigIntFromString(dealID)
+		if err != nil {
+			showError(cmd, "Cannot parse deal id", err)
+			os.Exit(1)
+		}
+
 		taskDef, err := task_config.LoadConfig(taskFile)
 		if err != nil {
 			showError(cmd, "Cannot load task definition", err)
@@ -101,8 +107,8 @@ var taskStartCmd = &cobra.Command{
 		}
 
 		deal := &pb.Deal{
-			Id:         dealID,
-			ConsumerID: util.PubKeyToAddr(sessionKey.PublicKey).Hex(),
+			Id:         bigID,
+			ConsumerID: pb.NewEthAddress(crypto.PubkeyToAddress(sessionKey.PublicKey)),
 		}
 
 		volumes := map[string]*pb.Volume{}

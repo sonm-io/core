@@ -60,7 +60,7 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 		return err
 	}
 
-	allowedWallet := meta.Deal.GetConsumerID()
+	allowedWallet := meta.Deal.GetConsumerID().Unwrap().Hex()
 
 	log.G(ctx).Debug("found allowed wallet for a deal",
 		zap.Stringer("deal", dealID),
@@ -82,24 +82,13 @@ func newFieldDealExtractor() DealExtractor {
 	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
 		requestValue := reflect.Indirect(reflect.ValueOf(request))
 		deal := reflect.Indirect(requestValue.FieldByName("Deal"))
-		if !deal.IsValid() {
-			return "", errNoDealFieldFound
-		}
 
-		if deal.Type().Kind() != reflect.Struct {
+		v, ok := deal.Interface().(sonm.Deal)
+		if !ok {
 			return "", errInvalidDealField
 		}
 
-		dealId := reflect.Indirect(deal).FieldByName("Id")
-		if !dealId.IsValid() {
-			return "", errInvalidDealField
-		}
-
-		if dealId.Type().Kind() != reflect.String {
-			return "", errInvalidDealField
-		}
-
-		return structs.DealID(dealId.String()), nil
+		return structs.DealID(v.Id.Unwrap().String()), nil
 	}
 }
 

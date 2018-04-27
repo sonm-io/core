@@ -40,6 +40,13 @@ service DWH {
 
 message DealsRequest {
     DealStatus status = 1;
+    /*
+    EthAddress supplierID = 2;
+    EthAddress consumerID = 3;
+    EthAddress masterID = 4;
+    BigInt askID = 5;
+    BigInt bidID = 6;
+    */
     string supplierID = 2;
     string consumerID = 3;
     string masterID = 4;

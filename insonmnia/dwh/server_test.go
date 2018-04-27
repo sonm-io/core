@@ -80,7 +80,7 @@ func TestDWH_GetDeals(t *testing.T) {
 	{
 		request := &pb.DealsRequest{
 			Status:     pb.DealStatus_DEAL_UNKNOWN,
-			SupplierID: "supplier_5",
+			SupplierID: "5",
 		}
 		reply, err := globalDWH.getDeals(context.Background(), request)
 
@@ -94,9 +94,9 @@ func TestDWH_GetDeals(t *testing.T) {
 			return
 		}
 
-		if reply.Deals[0].GetDeal().SupplierID != "supplier_5" {
-			t.Errorf("Request `%+v` failed, expected %d, got %d (SupplierID)",
-				request, 10015, reply.Deals[0].GetDeal().Duration)
+		if reply.Deals[0].GetDeal().SupplierID.Unwrap().Hex() != common.HexToAddress("5").Hex() {
+			t.Errorf("Request `%+v` failed, expected %s, got %s (SupplierID)",
+				request, "0x5", reply.Deals[0].GetDeal().SupplierID.Unwrap().Hex())
 			return
 		}
 	}
@@ -152,30 +152,32 @@ func TestDWH_GetDealDetails(t *testing.T) {
 	globalDWH.mu.Lock()
 	defer globalDWH.mu.Unlock()
 
-	deal, err := globalDWH.getDealDetails(context.Background(), &pb.ID{Id: "id_5"})
+	deal, err := globalDWH.getDealDetails(context.Background(), &pb.ID{Id: "5"})
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
+	hex5 := common.HexToAddress("5").Hex()
+
 	reply := deal.GetDeal()
-	if reply.Id != "id_5" {
-		t.Errorf("Expected %s, got %s (Id)", "id_5", reply.Id)
+	if reply.Id.Unwrap().String() != "5" {
+		t.Errorf("Expected %s, got %s (Id)", "5", reply.Id.Unwrap().String())
 	}
-	if reply.SupplierID != "supplier_5" {
-		t.Errorf("Expected %s, got %s (SupplierID)", "supplier_5", reply.SupplierID)
+	if reply.SupplierID.Unwrap().Hex() != hex5 {
+		t.Errorf("Expected %s, got %s (SupplierID)", "5", reply.SupplierID.Unwrap().Hex())
 	}
-	if reply.ConsumerID != "consumer_5" {
-		t.Errorf("Expected %s, got %s (ConsumerID)", "consumer_5", reply.ConsumerID)
+	if reply.ConsumerID.Unwrap().Hex() != hex5 {
+		t.Errorf("Expected %s, got %s (ConsumerID)", "5", reply.ConsumerID.Unwrap().Hex())
 	}
-	if reply.MasterID != "master_5" {
-		t.Errorf("Expected %s, got %s (MasterID)", "master_5", reply.MasterID)
+	if reply.MasterID.Unwrap().Hex() != hex5 {
+		t.Errorf("Expected %s, got %s (MasterID)", "5", reply.MasterID.Unwrap().Hex())
 	}
-	if reply.AskID != "ask_id_5" {
-		t.Errorf("Expected %s, got %s (AskID)", "ask_id_5", reply.AskID)
+	if reply.AskID.Unwrap().String() != "5" {
+		t.Errorf("Expected %s, got %s (AskID)", "5", reply.AskID.Unwrap().String())
 	}
-	if reply.BidID != "bid_id_5" {
-		t.Errorf("Expected %s, got %s (BidID)", "bid_id_5", reply.AskID)
+	if reply.BidID.Unwrap().String() != "5" {
+		t.Errorf("Expected %s, got %s (BidID)", "5", reply.AskID.Unwrap().String())
 	}
 	if reply.Duration != uint64(10015) {
 		t.Errorf("Expected %d, got %d (Duration)", 10015, reply.Duration)
@@ -211,7 +213,7 @@ func TestDWH_GetOrders(t *testing.T) {
 	{
 		request := &pb.OrdersRequest{
 			Type:   pb.OrderType_ANY,
-			DealID: "deal_id_5",
+			DealID: "5",
 		}
 		reply, err := globalDWH.getOrders(context.Background(), request)
 
@@ -225,9 +227,9 @@ func TestDWH_GetOrders(t *testing.T) {
 			return
 		}
 
-		if reply.Orders[0].GetOrder().AuthorID != "ask_author" {
+		if reply.Orders[0].GetOrder().AuthorID.Unwrap().Hex() != common.HexToAddress("10").Hex() {
 			t.Errorf("Request `%+v` failed, expected %s, got %s (AuthorID)",
-				request, "ask_author", reply.Orders[0].GetOrder().AuthorID)
+				request, "1-", reply.Orders[0].GetOrder().AuthorID.Unwrap().Hex())
 			return
 		}
 	}
@@ -295,8 +297,9 @@ func TestDWH_GetMatchingOrders(t *testing.T) {
 	defer globalDWH.mu.Unlock()
 
 	request := &pb.MatchingOrdersRequest{
-		Id: &pb.ID{Id: "ask_id_5"},
+		Id: pb.NewBigIntFromInt(15),
 	}
+
 	reply, err := globalDWH.getMatchingOrders(context.Background(), request)
 	if err != nil {
 		t.Errorf("GetMatchingOrders failed: %s", err)
@@ -313,27 +316,27 @@ func TestDWH_GetOrderDetails(t *testing.T) {
 	globalDWH.mu.Lock()
 	defer globalDWH.mu.Unlock()
 
-	order, err := globalDWH.getOrderDetails(context.Background(), &pb.ID{Id: "ask_id_5"})
+	order, err := globalDWH.getOrderDetails(context.Background(), "15")
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	reply := order.GetOrder()
-	if reply.Id != "ask_id_5" {
-		t.Errorf("Expected %s, got %s (Id)", "ask_id_5", reply.Id)
+	if reply.Id.Unwrap().String() != "15" {
+		t.Errorf("Expected %s, got %s (Id)", "5", reply.Id)
 	}
-	if reply.DealID != "deal_id_5" {
-		t.Errorf("Expected %s, got %s (DealID)", "deal_id_5", reply.DealID)
+	if reply.DealID.Unwrap().String() != "5" {
+		t.Errorf("Expected %s, got %s (DealID)", "5", reply.DealID)
 	}
 	if reply.OrderType != 2 {
 		t.Errorf("Expected %d, got %d (Type)", 2, reply.OrderType)
 	}
-	if reply.AuthorID != "ask_author" {
-		t.Errorf("Expected %s, got %s (AuthorID)", "ask_author", reply.AuthorID)
+	if reply.AuthorID.Unwrap().Hex() != common.HexToAddress("10").Hex() {
+		t.Errorf("Expected %s, got %s (AuthorID)", common.HexToAddress("10").Hex(), reply.AuthorID.Unwrap().Hex())
 	}
-	if reply.CounterpartyID != "bid_author" {
-		t.Errorf("Expected %s, got %s (CounterpartyID)", "bid_author", reply.CounterpartyID)
+	if reply.CounterpartyID.Unwrap().Hex() != common.HexToAddress("20").Hex() {
+		t.Errorf("Expected %s, got %s (CounterpartyID)", common.HexToAddress("20").Hex(), reply.CounterpartyID.Unwrap().Hex())
 	}
 	if reply.Duration != uint64(10015) {
 		t.Errorf("Expected %d, got %d (Duration)", 10015, reply.Duration)
@@ -344,8 +347,8 @@ func TestDWH_GetOrderDetails(t *testing.T) {
 	if reply.Netflags != 7 {
 		t.Errorf("Expected %d, got %d (Netflags)", 7, reply.Netflags)
 	}
-	if reply.Blacklist != "blacklist_5" {
-		t.Errorf("Expected %s, got %s (Blacklist)", "blacklist_5", reply.Blacklist)
+	if reply.Blacklist.Unwrap().Hex() != common.HexToAddress("5").Hex() {
+		t.Errorf("Expected %s, got %s (Blacklist)", reply.Blacklist.Unwrap().Hex(), common.HexToAddress("5").Hex())
 	}
 	if reply.FrozenSum.Unwrap().String() != "30015" {
 		t.Errorf("Expected %s, got %s (FrozenSum)", "30015", reply.FrozenSum.Unwrap().String())
@@ -356,7 +359,7 @@ func TestDWH_GetDealChangeRequests(t *testing.T) {
 	globalDWH.mu.Lock()
 	defer globalDWH.mu.Unlock()
 
-	reply, err := globalDWH.getDealChangeRequests(context.Background(), &pb.ID{Id: "id_0"})
+	reply, err := globalDWH.getDealChangeRequests(context.Background(), &pb.ID{Id: "0"})
 	if err != nil {
 		t.Error(err)
 		return
@@ -524,13 +527,13 @@ func TestDWH_monitor(t *testing.T) {
 	require.NoError(t, err)
 
 	deal := &pb.Deal{
-		Id:             commonID.String(),
+		Id:             pb.NewBigInt(commonID),
 		Benchmarks:     benchmarks,
-		SupplierID:     "supplier_id",
-		ConsumerID:     "consumer_id",
-		MasterID:       "master_id",
-		AskID:          "ask_id_5",
-		BidID:          "bid_id_5",
+		SupplierID:     pb.NewEthAddress(common.HexToAddress("111")),
+		ConsumerID:     pb.NewEthAddress(common.HexToAddress("222")),
+		MasterID:       pb.NewEthAddress(common.HexToAddress("333")),
+		AskID:          pb.NewBigIntFromInt(5),
+		BidID:          pb.NewBigIntFromInt(5),
 		Duration:       10020,
 		Price:          pb.NewBigInt(big.NewInt(20010)),
 		StartTime:      &pb.Timestamp{Seconds: 30010},
@@ -543,17 +546,17 @@ func TestDWH_monitor(t *testing.T) {
 	mockBlock.EXPECT().GetDealInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(deal, nil)
 
 	order := &pb.Order{
-		Id:             commonID.String(),
-		DealID:         "",
+		Id:             pb.NewBigInt(commonID),
+		DealID:         nil,
 		OrderType:      pb.OrderType_ASK,
 		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
-		AuthorID:       "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE",
-		CounterpartyID: "counterparty_id",
+		AuthorID:       pb.NewEthAddress(common.HexToAddress("5")),
+		CounterpartyID: pb.NewEthAddress(common.HexToAddress("5")),
 		Duration:       10020,
 		Price:          pb.NewBigInt(big.NewInt(20010)),
 		Netflags:       7,
 		IdentityLevel:  pb.IdentityLevel_ANONYMOUS,
-		Blacklist:      "blacklist",
+		Blacklist:      pb.NewEthAddress(common.HexToAddress("5")),
 		Tag:            []byte{0, 1},
 		Benchmarks:     benchmarks,
 		FrozenSum:      pb.NewBigInt(big.NewInt(30010)),
@@ -593,7 +596,7 @@ func TestDWH_monitor(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if order, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+	if order, err := monitorDWH.getOrderDetails(context.Background(), commonID.String()); err != nil {
 		t.Errorf("Failed to GetOrderDetails: %s", err)
 		return
 	} else {
@@ -742,7 +745,7 @@ func TestDWH_monitor(t *testing.T) {
 		}
 	}
 	// Check that profile updates resulted in orders updates.
-	dwhOrder, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()})
+	dwhOrder, err := monitorDWH.getOrderDetails(context.Background(), commonID.String())
 	if err != nil {
 		t.Errorf("failed to getOrderDetails (`%s`): %s", commonID.String(), err)
 		return
@@ -768,7 +771,7 @@ func TestDWH_monitor(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if _, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()}); err == nil {
+	if _, err := monitorDWH.getOrderDetails(context.Background(), commonID.String()); err == nil {
 		t.Error("GetOrderDetails returned an order that should have been deleted")
 		return
 	}
@@ -1124,12 +1127,12 @@ func setupTestDB(w *DWH) error {
 	for i := 0; i < 10; i++ {
 		_, err := w.db.Exec(
 			w.commands["insertDeal"],
-			fmt.Sprintf("id_%d", i),
-			fmt.Sprintf("supplier_%d", i),
-			fmt.Sprintf("consumer_%d", i),
-			fmt.Sprintf("master_%d", i),
-			fmt.Sprintf("ask_id_%d", i),
-			fmt.Sprintf("bid_id_%d", i),
+			fmt.Sprintf("%d", i),
+			fmt.Sprintf("%d", i),
+			fmt.Sprintf("%d", i),
+			fmt.Sprintf("%d", i),
+			fmt.Sprintf("2%d", i), // bid
+			fmt.Sprintf("1%d", i), // ask
 			10010+i, // Duration
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			30010+i, // StartTime
@@ -1163,18 +1166,18 @@ func setupTestDB(w *DWH) error {
 
 		_, err = w.db.Exec(
 			w.commands["insertOrder"],
-			fmt.Sprintf("ask_id_%d", i),
+			fmt.Sprintf("1%d", i),
 			12345, // CreatedTS
-			fmt.Sprintf("deal_id_%d", i),
+			fmt.Sprintf("%d", i),
 			uint64(pb.OrderType_ASK),
 			uint64(pb.OrderStatus_ORDER_ACTIVE),
-			"ask_author", // AuthorID
-			"bid_author", // CounterpartyID
+			"10", // AuthorID
+			"20", // CounterpartyID
 			10010+i,
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			7, // Netflags
 			uint64(pb.IdentityLevel_ANONYMOUS),
-			fmt.Sprintf("blacklist_%d", i),
+			fmt.Sprintf("%d", i),
 			[]byte{1, 2, 3},          // Tag
 			fmt.Sprintf("3001%d", i), // FrozenSum
 			uint64(pb.IdentityLevel_PSEUDONYMOUS),
@@ -1200,18 +1203,18 @@ func setupTestDB(w *DWH) error {
 
 		_, err = w.db.Exec(
 			w.commands["insertOrder"],
-			fmt.Sprintf("bid_id_%d", i),
+			fmt.Sprintf("2%d", i),
 			12345, // CreatedTS
-			fmt.Sprintf("deal_id_%d", i),
+			fmt.Sprintf("%d", i),
 			uint64(pb.OrderType_BID),
 			uint64(pb.OrderStatus_ORDER_ACTIVE),
-			"bid_author", // AuthorID
-			"ask_author", // CounterpartyID
-			10010-i,      // Duration
+			"10",    // AuthorID
+			"20",    // CounterpartyID
+			10010-i, // Duration
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			5, // Netflags
 			uint64(pb.IdentityLevel_ANONYMOUS),
-			fmt.Sprintf("blacklist_%d", i),
+			fmt.Sprintf("%d", i),
 			[]byte{1, 2, 3},                       // Tag
 			fmt.Sprintf("3001%d", i),              // FrozenSum
 			uint64(pb.IdentityLevel_PSEUDONYMOUS), // CreatorIdentityLevel
@@ -1236,7 +1239,7 @@ func setupTestDB(w *DWH) error {
 		}
 
 		_, err = w.db.Exec(w.commands["insertDealChangeRequest"],
-			fmt.Sprintf("changeRequest_%d", i), 0, 0, 0, 0, 0, "id_0")
+			fmt.Sprintf("changeRequest_%d", i), 0, 0, 0, 0, 0, "0")
 		if err != nil {
 			return err
 		}

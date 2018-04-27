@@ -143,7 +143,13 @@ func (m *SortingOption) GetOrder() SortingOrder {
 }
 
 type DealsRequest struct {
-	Status           DealStatus              `protobuf:"varint,1,opt,name=status,enum=sonm.DealStatus" json:"status,omitempty"`
+	Status DealStatus `protobuf:"varint,1,opt,name=status,enum=sonm.DealStatus" json:"status,omitempty"`
+	//
+	// EthAddress supplierID = 2;
+	// EthAddress consumerID = 3;
+	// EthAddress masterID = 4;
+	// BigInt askID = 5;
+	// BigInt bidID = 6;
 	SupplierID       string                  `protobuf:"bytes,2,opt,name=supplierID" json:"supplierID,omitempty"`
 	ConsumerID       string                  `protobuf:"bytes,3,opt,name=consumerID" json:"consumerID,omitempty"`
 	MasterID         string                  `protobuf:"bytes,4,opt,name=masterID" json:"masterID,omitempty"`

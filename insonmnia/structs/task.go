@@ -22,7 +22,7 @@ func NewStartTaskRequest(request *sonm.StartTaskRequest) (*StartTaskRequest, err
 		return nil, errDealRequired
 	}
 
-	if deal.GetId() == "" {
+	if deal.GetId() == nil {
 		return nil, errDealIdRequired
 	}
 
@@ -34,7 +34,7 @@ func (r *StartTaskRequest) GetDeal() *sonm.Deal {
 }
 
 func (r *StartTaskRequest) GetDealId() string {
-	return r.GetDeal().GetId()
+	return r.GetDeal().GetId().Unwrap().String()
 }
 
 type TaskInfo struct {

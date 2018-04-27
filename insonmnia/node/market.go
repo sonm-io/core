@@ -68,21 +68,11 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 		return nil, err
 	}
 
-	var counterparty string
-	if req.CounterpartyID != nil {
-		counterparty = req.GetCounterpartyID().Unwrap().Hex()
-	}
-
-	var blacklist string
-	if req.GetBlacklist() != nil {
-		blacklist = req.GetBlacklist().Unwrap().Hex()
-	}
-
 	order := &pb.Order{
 		OrderType:      pb.OrderType_BID,
 		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
-		AuthorID:       crypto.PubkeyToAddress(m.remotes.key.PublicKey).Hex(),
-		CounterpartyID: counterparty,
+		AuthorID:       pb.NewEthAddress(crypto.PubkeyToAddress(m.remotes.key.PublicKey)),
+		CounterpartyID: req.GetCounterpartyID(),
 		Duration:       uint64(req.GetDuration().Unwrap().Seconds()),
 		Price:          req.GetPrice().GetPerSecond(),
 		Netflags: pb.NetflagsToUint([3]bool{
@@ -91,7 +81,7 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 			req.Resources.Network.Overlay,
 		}),
 		IdentityLevel: req.GetIdentity(),
-		Blacklist:     blacklist,
+		Blacklist:     req.GetBlacklist(),
 		Tag:           []byte(req.GetTag()),
 		Benchmarks:    benchStruct,
 	}

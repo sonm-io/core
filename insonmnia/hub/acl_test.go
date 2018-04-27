@@ -29,7 +29,9 @@ func makeHubWithOrder(t *testing.T, ctx context.Context, buyerId string, dealId 
 	return &Hub{
 		ctx: ctx,
 		worker: &miner.Miner{
-			Deals: map[structs.DealID]*structs.DealMeta{dealId: {Deal: &sonm.Deal{ConsumerID: buyerId}}},
+			Deals: map[structs.DealID]*structs.DealMeta{dealId: {Deal: &sonm.Deal{
+				ConsumerID: sonm.NewEthAddress(common.HexToAddress(buyerId)),
+			}}},
 		},
 	}
 }
@@ -37,14 +39,14 @@ func makeHubWithOrder(t *testing.T, ctx context.Context, buyerId string, dealId 
 func TestFieldDealMetaData(t *testing.T) {
 	request := &sonm.StartTaskRequest{
 		Deal: &sonm.Deal{
-			Id: "0x42",
+			Id: sonm.NewBigIntFromInt(42),
 		},
 	}
 
 	md := newFieldDealExtractor()
 	dealID, err := md(context.Background(), request)
 	require.NoError(t, err)
-	assert.Equal(t, structs.DealID("0x42"), dealID)
+	assert.Equal(t, structs.DealID("42"), dealID)
 }
 
 func TestFieldDealMetaDataErrorsOnInvalidType(t *testing.T) {
@@ -98,12 +100,12 @@ func TestDealAuthorization(t *testing.T) {
 
 	request := &sonm.StartTaskRequest{
 		Deal: &sonm.Deal{
-			Id: "0x42",
+			Id: sonm.NewBigIntFromInt(42),
 		},
 	}
 
 	md := newFieldDealExtractor()
-	authorization := newDealAuthorization(ctx, makeHubWithOrder(t, ctx, addr.Hex(), "0x42"), md)
+	authorization := newDealAuthorization(ctx, makeHubWithOrder(t, ctx, addr.Hex(), "42"), md)
 
 	require.NoError(t, authorization.Authorize(ctx, request))
 }
@@ -115,12 +117,12 @@ func TestDealAuthorizationErrors(t *testing.T) {
 
 	request := &sonm.StartTaskRequest{
 		Deal: &sonm.Deal{
-			Id: "0x42",
+			Id: sonm.NewBigIntFromInt(42),
 		},
 	}
 
 	md := newFieldDealExtractor()
-	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, ctx, "0x100500", "0x42"), md)
+	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, ctx, "0x100500", "42"), md)
 
 	require.Error(t, au.Authorize(ctx, request))
 }
@@ -136,12 +138,12 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 
 	request := &sonm.StartTaskRequest{
 		Deal: &sonm.Deal{
-			Id: "0x42",
+			Id: sonm.NewBigIntFromInt(42),
 		},
 	}
 
 	md := newFieldDealExtractor()
-	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, ctx, "0x100500", "0x42"), md)
+	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, ctx, "0x100500", "42"), md)
 
 	require.Error(t, au.Authorize(ctx, request))
 }

@@ -16,9 +16,9 @@ import (
 
 func mockDWH(ctrl *gomock.Controller, t sonm.OrderType) sonm.DWHClient {
 	orders := []*sonm.DWHOrder{
-		{Order: &sonm.Order{OrderType: t, Id: "111", Price: sonm.NewBigIntFromInt(111)}},
-		{Order: &sonm.Order{OrderType: t, Id: "222", Price: sonm.NewBigIntFromInt(222)}},
-		{Order: &sonm.Order{OrderType: t, Id: "333", Price: sonm.NewBigIntFromInt(333)}},
+		{Order: &sonm.Order{OrderType: t, Id: sonm.NewBigIntFromInt(111), Price: sonm.NewBigIntFromInt(111)}},
+		{Order: &sonm.Order{OrderType: t, Id: sonm.NewBigIntFromInt(222), Price: sonm.NewBigIntFromInt(222)}},
+		{Order: &sonm.Order{OrderType: t, Id: sonm.NewBigIntFromInt(333), Price: sonm.NewBigIntFromInt(333)}},
 	}
 
 	dwh := sonm.NewMockDWHClient(ctrl)
@@ -56,7 +56,7 @@ func TestMatcher(t *testing.T) {
 	})
 
 	target := &sonm.Order{
-		Id:        "1",
+		Id:        sonm.NewBigIntFromInt(1),
 		OrderType: sonm.OrderType_BID,
 	}
 
@@ -64,7 +64,7 @@ func TestMatcher(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		dealChan <- blockchain.DealOrError{Deal: &sonm.Deal{Id: "123"}, Err: nil}
+		dealChan <- blockchain.DealOrError{Deal: &sonm.Deal{Id: sonm.NewBigIntFromInt(123)}, Err: nil}
 	}()
 
 	deal, err := m.CreateDealByOrder(ctx, target)
@@ -88,7 +88,7 @@ func TestMatcherFailedByTimeout(t *testing.T) {
 	})
 
 	target := &sonm.Order{
-		Id:        "1",
+		Id:        sonm.NewBigIntFromInt(1),
 		OrderType: sonm.OrderType_ASK,
 	}
 

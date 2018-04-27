@@ -215,13 +215,13 @@ func (api *BasicAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal
 	}
 
 	return &pb.Deal{
-		Id:             dealID.String(),
+		Id:             pb.NewBigInt(dealID),
 		Benchmarks:     benchmarks,
-		SupplierID:     deal1.SupplierID.String(),
-		ConsumerID:     deal1.ConsumerID.String(),
-		MasterID:       deal1.MasterID.String(),
-		AskID:          deal1.AskID.String(),
-		BidID:          deal1.BidID.String(),
+		SupplierID:     pb.NewEthAddress(deal1.SupplierID),
+		ConsumerID:     pb.NewEthAddress(deal1.ConsumerID),
+		MasterID:       pb.NewEthAddress(deal1.MasterID),
+		AskID:          pb.NewBigInt(deal1.AskID),
+		BidID:          pb.NewBigInt(deal1.BidID),
 		Duration:       deal2.Duration.Uint64(),
 		Price:          pb.NewBigInt(deal2.Price),
 		StartTime:      &pb.Timestamp{Seconds: deal1.StartTime.Int64()},
@@ -252,12 +252,12 @@ func (api *BasicAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey, orde
 
 	tx, err := api.marketContract.PlaceOrder(opts,
 		uint8(order.OrderType),
-		common.StringToAddress(order.CounterpartyID),
+		order.CounterpartyID.Unwrap(),
 		order.Price.Unwrap(),
 		big.NewInt(int64(order.Duration)),
 		fixedNetflags,
 		uint8(order.IdentityLevel),
-		common.StringToAddress(order.Blacklist),
+		order.Blacklist.Unwrap(),
 		fixedTag,
 		order.GetBenchmarks().ToArray(),
 	)
@@ -316,17 +316,17 @@ func (api *BasicAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Or
 	}
 
 	return &pb.Order{
-		Id:             orderID.String(),
-		DealID:         order2.DealID.String(),
+		Id:             pb.NewBigInt(orderID),
+		DealID:         pb.NewBigInt(order2.DealID),
 		OrderType:      pb.OrderType(order1.OrderType),
 		OrderStatus:    pb.OrderStatus(order2.OrderStatus),
-		AuthorID:       order1.Author.String(),
-		CounterpartyID: order1.Counterparty.String(),
+		AuthorID:       pb.NewEthAddress(order1.Author),
+		CounterpartyID: pb.NewEthAddress(order1.Counterparty),
 		Duration:       order1.Duration.Uint64(),
 		Price:          pb.NewBigInt(order1.Price),
 		Netflags:       netflags,
 		IdentityLevel:  pb.IdentityLevel(order1.IdentityLevel),
-		Blacklist:      order1.Blacklist.String(),
+		Blacklist:      pb.NewEthAddress(order1.Blacklist),
 		Tag:            order1.Tag[:],
 		Benchmarks:     dwhBenchmarks,
 		FrozenSum:      pb.NewBigInt(order1.FrozenSum),

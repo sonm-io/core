@@ -379,7 +379,7 @@ func (w *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 }
 
 func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersRequest) (*pb.DWHOrdersReply, error) {
-	order, err := w.getOrderDetails(ctx, request.Id)
+	order, err := w.getOrderDetails(ctx, request.GetId().Unwrap().String())
 	if err != nil {
 		w.logger.Error("failed to getOrderDetails", zap.Error(err), zap.Any("request", request))
 		return nil, status.Error(codes.Internal, "failed to GetMatchingOrders (no matching order)")
@@ -415,13 +415,13 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	} else {
 		filters = append(filters, newFilter("Duration", eq, order.Order.Duration, "AND"))
 	}
-	if order.Order.CounterpartyID > "0" {
-		filters = append(filters, newFilter("AuthorID", eq, order.Order.CounterpartyID, "AND"))
+	if order.Order.CounterpartyID != nil && order.Order.CounterpartyID.Unwrap().Hex() > "0" {
+		filters = append(filters, newFilter("AuthorID", eq, order.Order.CounterpartyID.Unwrap().Hex(), "AND"))
 	}
 	counterpartyFilter := newFilter("CounterpartyID", eq, "", "OR")
 	counterpartyFilter.OpenBracket = true
 	filters = append(filters, counterpartyFilter)
-	counterpartyFilter = newFilter("CounterpartyID", eq, order.Order.AuthorID, "AND")
+	counterpartyFilter = newFilter("CounterpartyID", eq, order.Order.AuthorID.Unwrap().Hex(), "AND")
 	counterpartyFilter.CloseBracket = true
 	filters = append(filters, counterpartyFilter)
 	if order.Order.OrderType == pb.OrderType_BID {
@@ -479,19 +479,20 @@ func (w *DWH) GetOrderDetails(ctx context.Context, request *pb.ID) (*pb.DWHOrder
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	return w.getOrderDetails(ctx, request)
+	return w.getOrderDetails(ctx, request.GetId())
 }
 
-func (w *DWH) getOrderDetails(ctx context.Context, request *pb.ID) (*pb.DWHOrder, error) {
-	rows, err := w.db.Query(w.commands["selectOrderByID"], request.Id)
+func (w *DWH) getOrderDetails(ctx context.Context, id string) (*pb.DWHOrder, error) {
+	fmt.Println(">>>>>>>>> get order details >>>>>>>>>>>>>>>>", id)
+	rows, err := w.db.Query(w.commands["selectOrderByID"], id)
 	if err != nil {
-		w.logger.Error("failed to selectOrderByID", zap.Error(err), zap.Any("request", request))
+		w.logger.Error("failed to selectOrderByID", zap.Error(err), zap.String("id", id))
 		return nil, status.Error(codes.Internal, "failed to GetOrderDetails")
 	}
 	defer rows.Close()
 
 	if !rows.Next() {
-		w.logger.Error("order not found", zap.Error(rows.Err()), zap.Any("request", request))
+		w.logger.Error("order not found", zap.Error(rows.Err()), zap.String("id", id))
 		return nil, status.Error(codes.Internal, "failed to GetOrderDetails")
 	}
 
@@ -922,18 +923,18 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		return errors.Wrapf(err, "failed to GetDealInfo")
 	}
 
-	ask, err := w.getOrderDetails(w.ctx, &pb.ID{Id: deal.AskID})
+	ask, err := w.getOrderDetails(w.ctx, deal.AskID.Unwrap().String())
 	if err != nil {
 		return errors.Wrapf(err, "failed to getOrderDetails (Ask)")
 	}
 
-	bid, err := w.getOrderDetails(w.ctx, &pb.ID{Id: deal.BidID})
+	bid, err := w.getOrderDetails(w.ctx, deal.BidID.Unwrap().String())
 	if err != nil {
 		return errors.Wrapf(err, "failed to getOrderDetails (Bid)")
 	}
 
 	var hasActiveChangeRequests bool
-	if _, err := w.getDealChangeRequests(w.ctx, &pb.ID{Id: deal.Id}); err == nil {
+	if _, err := w.getDealChangeRequests(w.ctx, &pb.ID{Id: deal.GetId().Unwrap().String()}); err == nil {
 		hasActiveChangeRequests = true
 	}
 
@@ -1027,7 +1028,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 		_, err = tx.Exec(w.commands["deleteDeal"], deal.Id)
 		if err != nil {
 			w.logger.Info("failed to delete closed Deal (possibly old log entry)", zap.Error(err),
-				zap.String("deal_id", deal.Id))
+				zap.String("deal_id", deal.Id.Unwrap().String()))
 
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1052,7 +1053,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to deleteOrder")
 		}
 
-		askProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.SupplierID}, false)
+		askProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.SupplierID.Unwrap().Hex()}, false)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1061,7 +1062,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to getProfileInfo")
 		}
 
-		if err := w.updateProfileStats(tx, pb.OrderType_ASK, deal.SupplierID, askProfile, -1); err != nil {
+		if err := w.updateProfileStats(tx, pb.OrderType_ASK, deal.SupplierID.Unwrap().Hex(), askProfile, -1); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1069,7 +1070,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrapf(err, "failed to updateProfileStats (OrderID: `%s`)", deal.AskID)
 		}
 
-		bidProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.ConsumerID}, false)
+		bidProfile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: deal.ConsumerID.Unwrap().Hex()}, false)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1078,7 +1079,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to getProfileInfo")
 		}
 
-		if err := w.updateProfileStats(tx, pb.OrderType_BID, deal.ConsumerID, bidProfile, -1); err != nil {
+		if err := w.updateProfileStats(tx, pb.OrderType_BID, deal.ConsumerID.Unwrap().Hex(), bidProfile, -1); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1218,7 +1219,7 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 			return errors.Wrap(err, "failed to begin transaction")
 		}
 
-		if err := w.updateDealConditionEndTime(tx, deal.GetDeal().Id, eventTS); err != nil {
+		if err := w.updateDealConditionEndTime(tx, deal.GetDeal().GetId().Unwrap().String(), eventTS); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1327,7 +1328,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
 
-	profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID}, false)
+	profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID.Unwrap().Hex()}, false)
 	if err != nil {
 		var askOrders, bidOrders = 0, 0
 		if order.OrderType == pb.OrderType_ASK {
@@ -1335,7 +1336,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		} else {
 			bidOrders = 1
 		}
-		_, err = tx.Exec(w.commands["insertProfileUserID"], order.AuthorID, askOrders, bidOrders)
+		_, err = tx.Exec(w.commands["insertProfileUserID"], order.AuthorID.Unwrap().Hex(), askOrders, bidOrders)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1345,11 +1346,11 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		}
 
 		profile = &pb.Profile{
-			UserID:       order.AuthorID,
+			UserID:       order.AuthorID.Unwrap().Hex(),
 			Certificates: []byte{},
 		}
 	} else {
-		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID, profile, 1); err != nil {
+		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID.Unwrap().Hex(), profile, 1); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1358,20 +1359,25 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		}
 	}
 
+	var dealID string
+	if order.DealID != nil {
+		dealID = order.Id.Unwrap().String()
+	}
+
 	_, err = tx.Exec(
 		w.commands["insertOrder"],
-		order.Id,
+		order.Id.Unwrap().String(),
 		eventTS,
-		order.DealID,
+		dealID,
 		uint64(order.OrderType),
 		uint64(order.OrderStatus),
-		order.AuthorID,
-		order.CounterpartyID,
+		order.AuthorID.Unwrap().Hex(),
+		order.CounterpartyID.Unwrap().Hex(),
 		order.Duration,
 		order.Price.PaddedString(),
 		order.Netflags,
 		uint64(order.IdentityLevel),
-		order.Blacklist,
+		order.Blacklist.Unwrap().Hex(),
 		order.Tag,
 		order.FrozenSum.PaddedString(),
 		profile.IdentityLevel,
@@ -1413,7 +1419,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 	}
 
 	// If order was updated, but no deal is associated with it, delete the order.
-	if order.DealID <= "0" {
+	if order.DealID == nil || order.GetDealID().Unwrap().Cmp(big.NewInt(0)) == 0 {
 		tx, err := w.db.Begin()
 		if err != nil {
 			return errors.Wrap(err, "failed to begin transaction")
@@ -1430,7 +1436,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 			return nil
 		}
 
-		profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID}, false)
+		profile, err := w.getProfileInfo(w.ctx, &pb.ID{Id: order.AuthorID.Unwrap().Hex()}, false)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1439,7 +1445,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 			return errors.Wrapf(err, "failed to getProfileInfo (AuthorID: `%s`)", order.AuthorID)
 		}
 
-		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID, profile, -1); err != nil {
+		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID.Unwrap().Hex(), profile, -1); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1815,15 +1821,21 @@ func (w *DWH) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 	bigBlockedBalance.SetString(blockedBalance, 10)
 	bigTotalPayout := new(big.Int)
 	bigTotalPayout.SetString(totalPayout, 10)
+	bigID := new(big.Int)
+	bigID.SetString(id, 10)
+	bigAskID := new(big.Int)
+	bigAskID.SetString(askID, 10)
+	bigBidID := new(big.Int)
+	bigBidID.SetString(bidID, 10)
 
 	return &pb.DWHDeal{
 		Deal: &pb.Deal{
-			Id:             id,
-			SupplierID:     supplierID,
-			ConsumerID:     consumerID,
-			MasterID:       masterID,
-			AskID:          askID,
-			BidID:          bidID,
+			Id:             pb.NewBigInt(bigID),
+			SupplierID:     pb.NewEthAddress(common.HexToAddress(supplierID)),
+			ConsumerID:     pb.NewEthAddress(common.HexToAddress(consumerID)),
+			MasterID:       pb.NewEthAddress(common.HexToAddress(masterID)),
+			AskID:          pb.NewBigInt(bigAskID),
+			BidID:          pb.NewBigInt(bigBidID),
 			Price:          pb.NewBigInt(bigPrice),
 			Duration:       duration,
 			StartTime:      &pb.Timestamp{Seconds: startTime},
@@ -1966,20 +1978,24 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 	bigPrice.SetString(price, 10)
 	bigFrozenSum := new(big.Int)
 	bigFrozenSum.SetString(frozenSum, 10)
+	bigID := new(big.Int)
+	bigID.SetString(id, 10)
+	bigDealID := new(big.Int)
+	bigDealID.SetString(dealID, 10)
 
 	return &pb.DWHOrder{
 		Order: &pb.Order{
-			Id:             id,
-			DealID:         dealID,
+			Id:             pb.NewBigInt(bigID),
+			DealID:         pb.NewBigInt(bigDealID),
 			OrderType:      pb.OrderType(orderType),
 			OrderStatus:    pb.OrderStatus(status),
-			AuthorID:       author,
-			CounterpartyID: counterAgent,
+			AuthorID:       pb.NewEthAddress(common.HexToAddress(author)),
+			CounterpartyID: pb.NewEthAddress(common.HexToAddress(counterAgent)),
 			Duration:       duration,
 			Price:          pb.NewBigInt(bigPrice),
 			Netflags:       netflags,
 			IdentityLevel:  pb.IdentityLevel(identityLevel),
-			Blacklist:      blacklist,
+			Blacklist:      pb.NewEthAddress(common.HexToAddress(blacklist)),
 			Tag:            tag,
 			FrozenSum:      pb.NewBigInt(bigFrozenSum),
 			Benchmarks: &pb.Benchmarks{
