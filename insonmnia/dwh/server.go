@@ -1551,7 +1551,7 @@ func (w *DWH) onValidatorDeleted(validatorID common.Address) error {
 }
 
 func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
-	attr, err := w.blockchain.GetCertificate(w.ctx, certificateID)
+	cert, err := w.blockchain.GetCertificate(w.ctx, certificateID)
 	if err != nil {
 		return errors.Wrap(err, "failed to GetAttr")
 	}
@@ -1562,7 +1562,11 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 	}
 
 	_, err = tx.Exec(w.commands["insertCertificate"],
-		attr.OwnerID, attr.Attribute, (attr.Attribute/uint64(math.Pow(10, 2)))%10, attr.Value, attr.ValidatorID)
+		cert.OwnerID,
+		cert.Attribute,
+		(cert.Attribute/uint64(math.Pow(10, 2)))%10,
+		cert.Value,
+		cert.ValidatorID)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1571,49 +1575,57 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 		return errors.Wrap(err, "failed to insert Certificate")
 	}
 
-	// Create a Profile entry if it doesn't exist yet.
-	if _, err := w.getProfileInfo(w.ctx, &pb.ID{Id: attr.OwnerID}, false); err != nil {
-		_, err = tx.Exec(w.commands["insertProfileUserID"], attr.OwnerID, 0, 0)
-		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				w.logger.Error("transaction rollback failed", zap.Error(err))
-			}
+	if err := w.updateProfile(tx, cert); err != nil {
+		if err := tx.Rollback(); err != nil {
+			w.logger.Error("transaction rollback failed", zap.Error(err))
+		}
 
+		return errors.Wrap(err, "failed to updateProfile")
+	}
+
+	if err := w.updateEntitiesByProfile(tx, cert); err != nil {
+		if err := tx.Rollback(); err != nil {
+			w.logger.Error("transaction rollback failed", zap.Error(err))
+		}
+
+		return errors.Wrap(err, "failed to updateEntitiesByProfile")
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errors.Wrap(err, "transaction commit failed")
+	}
+
+	return nil
+}
+
+func (w *DWH) updateProfile(tx *sql.Tx, cert *pb.Certificate) error {
+	// Create a Profile entry if it doesn't exist yet.
+	if _, err := w.getProfileInfo(w.ctx, &pb.ID{Id: cert.OwnerID}, false); err != nil {
+		_, err = tx.Exec(w.commands["insertProfileUserID"], cert.OwnerID, 0, 0)
+		if err != nil {
 			return errors.Wrap(err, "failed to insertProfileUserID")
 		}
 	}
 
 	// Update distinct Profile columns.
-	switch attr.Attribute {
+	switch cert.Attribute {
 	case CertificateName:
-		_, err = tx.Exec(fmt.Sprintf(w.commands["updateProfile"], attributeToString[attr.Attribute]),
-			string(attr.Value), attr.OwnerID)
+		_, err := tx.Exec(fmt.Sprintf(w.commands["updateProfile"], attributeToString[cert.Attribute]),
+			string(cert.Value), cert.OwnerID)
 		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				w.logger.Error("transaction rollback failed", zap.Error(err))
-			}
-
 			return errors.Wrap(err, "failed to updateProfileName")
 		}
 	case CertificateCountry:
-		_, err = tx.Exec(fmt.Sprintf(w.commands["updateProfile"], attributeToString[attr.Attribute]),
-			string(attr.Value), attr.OwnerID)
+		_, err := tx.Exec(fmt.Sprintf(w.commands["updateProfile"], attributeToString[cert.Attribute]),
+			string(cert.Value), cert.OwnerID)
 		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				w.logger.Error("transaction rollback failed", zap.Error(err))
-			}
-
 			return errors.Wrap(err, "failed to updateProfileCountry")
 		}
 	}
 
 	// Update certificates blob.
-	rows, err := tx.Query(w.commands["selectCertificates"], attr.OwnerID)
+	rows, err := tx.Query(w.commands["selectCertificates"], cert.OwnerID)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to getCertificatesByUseID")
 	}
 
@@ -1634,39 +1646,27 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 
 	certificateAttrsBytes, err := json.Marshal(certificates)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to marshal certificates")
 	}
 
 	_, err = tx.Exec(fmt.Sprintf(w.commands["updateProfile"], "Certificates"),
-		certificateAttrsBytes, attr.OwnerID)
+		certificateAttrsBytes, cert.OwnerID)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to updateProfileCertificates (Certificates)")
 	}
 
 	_, err = tx.Exec(fmt.Sprintf(w.commands["updateProfile"], "IdentityLevel"),
-		maxIdentityLevel, attr.OwnerID)
+		maxIdentityLevel, cert.OwnerID)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to updateProfileCertificates (Level)")
 	}
 
-	profile, err := w.getProfileInfoTx(tx, &pb.ID{Id: attr.OwnerID})
-	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
+	return nil
+}
 
+func (w *DWH) updateEntitiesByProfile(tx *sql.Tx, certificate *pb.Certificate) error {
+	profile, err := w.getProfileInfoTx(tx, &pb.ID{Id: certificate.OwnerID})
+	if err != nil {
 		return errors.Wrap(err, "failed to getProfileInfo")
 	}
 
@@ -1677,33 +1677,17 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 		profile.Certificates,
 		profile.UserID)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to updateOrders")
 	}
 
 	_, err = tx.Exec(w.commands["updateDealsSupplier"], profile.Certificates, profile.UserID)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to updateDealsSupplier")
 	}
 
 	_, err = tx.Exec(w.commands["updateDealsConsumer"], profile.Certificates, profile.UserID)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to updateDealsConsumer")
-	}
-
-	if err := tx.Commit(); err != nil {
-		return errors.Wrap(err, "transaction commit failed")
 	}
 
 	return nil
