@@ -5,8 +5,10 @@ import (
 	"math/big"
 	"math/rand"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/mitchellh/mapstructure"
 	"github.com/sonm-io/core/proto"
+	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
 
@@ -115,7 +117,7 @@ func order() *sonm.Order {
 	order := &sonm.Order{
 		OrderType:      sonm.OrderType_BID,
 		OrderStatus:    sonm.OrderStatus_ORDER_ACTIVE,
-		CounterpartyID: "0x0",
+		CounterpartyID: pb.NewEthAddress(common.HexToAddress("0x0")),
 		Duration:       3600 + uint64(rand.Int63n(3600)),
 		Price:          sonm.NewBigIntFromInt(1000 + rand.Int63n(1000)),
 		Netflags:       sonm.NetflagsToUint([3]bool{true, true, (rand.Int() % 2) == 0}),

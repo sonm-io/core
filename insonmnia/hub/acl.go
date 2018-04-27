@@ -65,10 +65,10 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 	log.G(ctx).Debug("found allowed wallet for a deal",
 		zap.Stringer("deal", dealID),
 		zap.String("wallet", peerWallet),
-		zap.String("allowedWallet", allowedWallet),
+		zap.String("allowedWallet", allowedWallet.Unwrap().Hex()),
 	)
 
-	if allowedWallet != peerWallet {
+	if allowedWallet.Unwrap().Hex() != peerWallet {
 		return status.Errorf(codes.Unauthenticated, "wallet mismatch: %s", peerWallet)
 	}
 

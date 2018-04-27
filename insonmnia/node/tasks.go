@@ -36,7 +36,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.EthAddress) (*pb.TaskListRe
 
 	// get all accepted deals, because only on the accepted deals client can start the payloads.
 	activeDeals, err := t.remotes.dwh.GetDeals(ctx, &pb.DealsRequest{
-		ConsumerID: crypto.PubkeyToAddress(t.remotes.key.PublicKey).Hex(),
+		ConsumerID: pb.NewEthAddress(crypto.PubkeyToAddress(t.remotes.key.PublicKey)),
 		Status:     pb.DealStatus_DEAL_ACCEPTED,
 	})
 	if err != nil {
@@ -54,10 +54,10 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.EthAddress) (*pb.TaskListRe
 }
 
 func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.Deal) {
-	hub, cc, err := t.getHubClientByEthAddr(ctx, deal.GetSupplierID())
+	hub, cc, err := t.getHubClientByEthAddr(ctx, deal.GetSupplierID().Unwrap().String())
 	if err != nil {
 		log.G(t.ctx).Error("cannot resolve hub address",
-			zap.String("hub_eth", deal.GetSupplierID()),
+			zap.String("hub_eth", deal.GetSupplierID().Unwrap().Hex()),
 			zap.Error(err))
 		return
 	}
@@ -70,7 +70,7 @@ func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.Ta
 	}
 
 	for _, v := range taskList.GetInfo() {
-		tasks[deal.GetSupplierID()] = v
+		tasks[deal.GetSupplierID().Unwrap().Hex()] = v
 	}
 }
 
@@ -295,7 +295,7 @@ func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (*hubClie
 		return nil, nil, err
 	}
 
-	return t.getHubClientByEthAddr(ctx, dealInfo.GetSupplierID())
+	return t.getHubClientByEthAddr(ctx, dealInfo.GetSupplierID().Unwrap().Hex())
 }
 
 func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (*hubClient, io.Closer, error) {

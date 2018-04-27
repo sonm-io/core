@@ -3,6 +3,7 @@ package commands
 import (
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/cmd/cli/config"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
@@ -26,8 +27,8 @@ func TestDealInfoWithZeroDuration(t *testing.T) {
 	deal := &pb.Deal{
 		Status:     pb.DealStatus_DEAL_CLOSED,
 		Id:         "1488",
-		ConsumerID: "0x111",
-		SupplierID: "0x222",
+		ConsumerID: pb.NewEthAddress(common.HexToAddress("0x111")),
+		SupplierID: pb.NewEthAddress(common.HexToAddress("0x222")),
 		Price:      pb.NewBigIntFromInt(1e18),
 		StartTime:  &pb.Timestamp{Seconds: 0},
 		EndTime:    &pb.Timestamp{Seconds: 0},

@@ -12,6 +12,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
@@ -29,7 +30,7 @@ func makeHubWithOrder(t *testing.T, ctx context.Context, buyerId string, dealId 
 	return &Hub{
 		ctx: ctx,
 		worker: &miner.Miner{
-			Deals: map[structs.DealID]*structs.DealMeta{dealId: {Deal: &sonm.Deal{ConsumerID: buyerId}}},
+			Deals: map[structs.DealID]*structs.DealMeta{dealId: {Deal: &sonm.Deal{ConsumerID: pb.NewEthAddress(common.HexToAddress(buyerId))}}},
 		},
 	}
 }

@@ -102,7 +102,7 @@ var taskStartCmd = &cobra.Command{
 
 		deal := &pb.Deal{
 			Id:         dealID,
-			ConsumerID: util.PubKeyToAddr(sessionKey.PublicKey).Hex(),
+			ConsumerID: pb.NewEthAddress(util.PubKeyToAddr(sessionKey.PublicKey)),
 		}
 
 		volumes := map[string]*pb.Volume{}

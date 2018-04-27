@@ -13,7 +13,7 @@ type dealsAPI struct {
 }
 
 func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, error) {
-	addr := crypto.PubkeyToAddress(d.remotes.key.PublicKey).Hex()
+	addr := pb.NewEthAddress(crypto.PubkeyToAddress(d.remotes.key.PublicKey))
 	filter := &pb.DealsRequest{
 		Status: pb.DealStatus_DEAL_ACCEPTED,
 		Limit:  req.GetCount(),
@@ -25,7 +25,7 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, err
 		return nil, err
 	}
 
-	filter.SupplierID = ""
+	filter.SupplierID = nil
 	filter.ConsumerID = addr
 	dealsByConsumer, err := d.remotes.dwh.GetDeals(ctx, filter)
 	if err != nil {
