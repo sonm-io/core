@@ -83,21 +83,21 @@ var approveTokenCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		currentAllowance, err := bch.AllowanceOf(ctx, crypto.PubkeyToAddress(sessionKey.PublicKey).String(), market.SNMTAddress)
+		currentAllowance, err := bch.AllowanceOf(ctx, crypto.PubkeyToAddress(sessionKey.PublicKey).String(), market.SNMAddress)
 		if err != nil {
 			showError(cmd, "Cannot get allowance ", err)
 			os.Exit(1)
 		}
 
 		if currentAllowance.Cmp(zero) != 0 {
-			_, err = bch.Approve(ctx, sessionKey, market.SNMTAddress, zero)
+			_, err = bch.Approve(ctx, sessionKey, market.SNMAddress, zero)
 			if err != nil {
 				showError(cmd, "Cannot set approved value to zero", err)
 				os.Exit(1)
 			}
 		}
 
-		tx, err := bch.Approve(ctx, sessionKey, market.SNMTAddress, amount)
+		tx, err := bch.Approve(ctx, sessionKey, market.SNMAddress, amount)
 		if err != nil {
 			showError(cmd, "Cannot approve tokens", err)
 			os.Exit(1)
