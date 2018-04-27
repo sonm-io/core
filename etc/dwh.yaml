@@ -4,7 +4,7 @@ http_address: ":15022"
 
 storage:
   driver: "sqlite3"
-  endpoint: "target/dwh.db"
+  endpoint: "/var/lib/sonm/dwh.db"
 
 # blockchain-specific settings.
 ethereum:
