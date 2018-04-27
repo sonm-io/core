@@ -41,6 +41,12 @@ func WithEthEndpoint(s string) Option {
 	}
 }
 
+func WithSidechainEndpoint(s string) Option {
+	return func(o *options) {
+		o.apiSidechainEndpoint = s
+	}
+}
+
 func WithTimeout(d time.Duration) Option {
 	return func(o *options) {
 		o.logParsePeriod = d

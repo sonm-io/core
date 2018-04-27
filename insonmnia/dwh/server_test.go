@@ -517,6 +517,7 @@ func TestDWH_monitor(t *testing.T) {
 		controller           = gomock.NewController(t)
 		mockBlock            = bch.NewMockAPI(controller)
 		mockMarket           = bch.NewMockMarketAPI(controller)
+		mockProfiles         = bch.NewMockProfileRegistryAPI(controller)
 		commonID             = big.NewInt(0xDEADBEEF)
 		commonEventTS uint64 = 5
 	)
@@ -575,7 +576,7 @@ func TestDWH_monitor(t *testing.T) {
 		Id:    "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
 		Level: 3,
 	}
-	mockBlock.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)
+	mockProfiles.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)
 
 	certificate := &pb.Certificate{
 		ValidatorID:   "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
@@ -584,10 +585,11 @@ func TestDWH_monitor(t *testing.T) {
 		IdentityLevel: 1,
 		Value:         []byte("User Name"),
 	}
-	mockBlock.EXPECT().GetCertificate(gomock.Any(), gomock.Any()).AnyTimes().Return(
+	mockProfiles.EXPECT().GetCertificate(gomock.Any(), gomock.Any()).AnyTimes().Return(
 		certificate, nil)
 
 	mockBlock.EXPECT().Market().AnyTimes().Return(mockMarket)
+	mockBlock.EXPECT().ProfileRegistry().AnyTimes().Return(mockProfiles)
 
 	monitorDWH.blockchain = mockBlock
 

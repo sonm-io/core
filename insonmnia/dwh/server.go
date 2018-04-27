@@ -1523,7 +1523,7 @@ func (w *DWH) onRemovedFromBlacklist(removerID, removeeID string) error {
 }
 
 func (w *DWH) onValidatorCreated(validatorID common.Address) error {
-	validator, err := w.blockchain.GetValidator(w.ctx, validatorID)
+	validator, err := w.blockchain.ProfileRegistry().GetValidator(w.ctx, validatorID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get validator `%s`", validatorID.String())
 	}
@@ -1537,7 +1537,7 @@ func (w *DWH) onValidatorCreated(validatorID common.Address) error {
 }
 
 func (w *DWH) onValidatorDeleted(validatorID common.Address) error {
-	validator, err := w.blockchain.GetValidator(w.ctx, validatorID)
+	validator, err := w.blockchain.ProfileRegistry().GetValidator(w.ctx, validatorID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get validator `%s`", validatorID.String())
 	}
@@ -1551,7 +1551,7 @@ func (w *DWH) onValidatorDeleted(validatorID common.Address) error {
 }
 
 func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
-	attr, err := w.blockchain.GetCertificate(w.ctx, certificateID)
+	attr, err := w.blockchain.ProfileRegistry().GetCertificate(w.ctx, certificateID)
 	if err != nil {
 		return errors.Wrap(err, "failed to GetAttr")
 	}
