@@ -1,13 +1,10 @@
 package commands
 
 import (
-	"math/big"
 	"os"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/blockchain"
-	"github.com/sonm-io/core/blockchain/market"
-	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -56,53 +53,13 @@ var getBalanceCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		printBalanceInfo(cmd, balance)
-	},
-}
-
-var approveTokenCmd = &cobra.Command{
-	Use:    "approve <amount>",
-	Short:  "Approve tokens (ERC20)",
-	PreRun: loadKeyStoreWrapper,
-	Args:   cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
-		var zero = big.NewInt(0)
-
-		bch, err := blockchain.NewAPI()
+		balanceSidechain, err := bch.SideToken().BalanceOf(ctx, addr)
 		if err != nil {
-			showError(cmd, "Cannot create blockchain connection", err)
+			showError(cmd, "Cannot get tokens", err)
 			os.Exit(1)
 		}
 
-		amount, err := util.StringToEtherPrice(args[0])
-		if err != nil {
-			showError(cmd, "Invalid parameter", err)
-			os.Exit(1)
-		}
-
-		ctx, cancel := newTimeoutContext()
-		defer cancel()
-
-		currentAllowance, err := bch.SideToken().AllowanceOf(ctx, crypto.PubkeyToAddress(sessionKey.PublicKey).String(), market.MarketAddress)
-		if err != nil {
-			showError(cmd, "Cannot get allowance ", err)
-			os.Exit(1)
-		}
-
-		if currentAllowance.Cmp(zero) != 0 {
-			_, err = bch.SideToken().Approve(ctx, sessionKey, market.MarketAddress, zero)
-			if err != nil {
-				showError(cmd, "Cannot set approved value to zero", err)
-				os.Exit(1)
-			}
-		}
-
-		tx, err := bch.SideToken().Approve(ctx, sessionKey, market.MarketAddress, amount)
-		if err != nil {
-			showError(cmd, "Cannot approve tokens", err)
-			os.Exit(1)
-		}
-
-		printTransactionInfo(cmd, tx)
+		printBalanceInfo(cmd, "Live", balance)
+		printBalanceInfo(cmd, "Sidechain", balanceSidechain)
 	},
 }
