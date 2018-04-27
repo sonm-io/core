@@ -177,7 +177,7 @@ message Profile {
     string Country = 4;
     bool IsCorporation = 5;
     bool IsProfessional = 6;
-    bytes Certificates = 7;
+    string Certificates = 7;
     uint64 activeAsks = 8;
     uint64 activeBids = 9;
     bool isBlacklisted = 10;
