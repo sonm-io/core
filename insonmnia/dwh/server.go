@@ -1551,7 +1551,7 @@ func (w *DWH) onValidatorDeleted(validatorID common.Address) error {
 }
 
 func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
-	attr, err := w.blockchain.ProfileRegistry().GetCertificate(w.ctx, certificateID)
+	cert, err := w.blockchain.ProfileRegistry().GetCertificate(w.ctx, certificateID)
 
 	if err != nil {
 		return errors.Wrap(err, "failed to GetAttr")
