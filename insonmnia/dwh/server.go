@@ -311,10 +311,10 @@ func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 	if request.Type > 0 {
 		filters = append(filters, newFilter("Type", eq, request.Type, "AND"))
 	}
-	if request.AuthorID > "0" {
+	if request.AuthorID != nil && request.AuthorID.Unwrap().Hex() > "0x0" {
 		filters = append(filters, newFilter("AuthorID", eq, request.AuthorID, "AND"))
 	}
-	if request.CounterpartyID > "0" {
+	if request.CounterpartyID != nil && request.CounterpartyID.Unwrap().Hex() > "0x0" {
 		filters = append(filters, newFilter("CounterpartyID", eq, request.CounterpartyID, "AND"))
 	}
 	if request.Duration != nil {
@@ -385,6 +385,8 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 		return nil, status.Error(codes.Internal, "failed to GetMatchingOrders (no matching order)")
 	}
 
+	fmt.Printf(">>>>>>>>>>> %+v\n", *order)
+
 	var (
 		filters      []*filter
 		orderType    pb.OrderType
@@ -415,7 +417,7 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	} else {
 		filters = append(filters, newFilter("Duration", eq, order.Order.Duration, "AND"))
 	}
-	if order.Order.CounterpartyID > "0" {
+	if order.Order.CounterpartyID > "0x0" {
 		filters = append(filters, newFilter("AuthorID", eq, order.Order.CounterpartyID, "AND"))
 	}
 	counterpartyFilter := newFilter("CounterpartyID", eq, "", "OR")

@@ -86,8 +86,8 @@ message OrdersRequest {
     string dealID = 1;
     OrderType type = 2;
     OrderStatus status = 3;
-    string authorID = 4;
-    string counterpartyID = 5;
+    EthAddress authorID = 4;
+    EthAddress counterpartyID = 5;
     MaxMinUint64 duration = 6;
     MaxMinBig price = 9;
     CmpUint64 netflags = 11;
