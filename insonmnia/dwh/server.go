@@ -1420,7 +1420,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 	}
 
 	// If order was updated, but no deal is associated with it, delete the order.
-	if order.DealID != nil && order.DealID.Unwrap().String() <= "0" {
+	if order.DealID != nil && order.DealID.IsZero() {
 		tx, err := w.db.Begin()
 		if err != nil {
 			return errors.Wrap(err, "failed to begin transaction")
