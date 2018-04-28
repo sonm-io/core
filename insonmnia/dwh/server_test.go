@@ -564,7 +564,7 @@ func TestDWH_monitor(t *testing.T) {
 	mockMarket.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(order, nil)
 
 	changeRequest := &pb.DealChangeRequest{
-		Id:          "0",
+		Id:          pb.NewBigIntFromInt(0),
 		DealID:      pb.NewBigInt(commonID),
 		RequestType: pb.OrderType_ASK,
 		Duration:    10020,
@@ -809,7 +809,7 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Test that after a second ASK DealChangeRequest was created, the new one was kept and the old one was deleted.
-	changeRequest.Id = "1"
+	changeRequest.Id = pb.NewBigIntFromInt(1)
 	changeRequest.Duration = 10021
 	if err := monitorDWH.onDealChangeRequestSent(commonEventTS, big.NewInt(1)); err != nil {
 		t.Error(err)
@@ -823,13 +823,13 @@ func TestDWH_monitor(t *testing.T) {
 			t.Errorf("Expected %d, got %d (DealChangeRequest.Duration)", 10021, changeRequest.Duration)
 		}
 	}
-	if _, err := getDealChangeRequest(monitorDWH, "0"); err == nil {
+	if _, err := getDealChangeRequest(monitorDWH, pb.NewBigIntFromInt(0)); err == nil {
 		t.Error("getDealChangeRequest returned a DealChangeRequest that should have been deleted")
 		return
 	}
 
 	// Test that when a BID DealChangeRequest was created, it was kept (and nothing was deleted).
-	changeRequest.Id = "2"
+	changeRequest.Id = pb.NewBigIntFromInt(2)
 	changeRequest.Duration = 10022
 	changeRequest.RequestType = pb.OrderType_BID
 	if err := monitorDWH.onDealChangeRequestSent(commonEventTS, big.NewInt(2)); err != nil {
@@ -844,19 +844,19 @@ func TestDWH_monitor(t *testing.T) {
 			t.Errorf("Expected %d, got %d (DealChangeRequest.Duration)", 10022, changeRequest.Duration)
 		}
 	}
-	if _, err := getDealChangeRequest(monitorDWH, "1"); err != nil {
+	if _, err := getDealChangeRequest(monitorDWH, pb.NewBigIntFromInt(1)); err != nil {
 		t.Errorf("DealChangeRequest of type ASK was deleted after a BID DealChangeRequest creation: %s", err)
 		return
 	}
 
 	// Test that when a DealChangeRequest is updated to any status but REJECTED, it is deleted.
-	changeRequest.Id = "1"
+	changeRequest.Id = pb.NewBigIntFromInt(1)
 	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_ACCEPTED
 	if err := monitorDWH.onDealChangeRequestUpdated(commonEventTS, big.NewInt(1)); err != nil {
 		t.Error(err)
 		return
 	}
-	if _, err := getDealChangeRequest(monitorDWH, "1"); err == nil {
+	if _, err := getDealChangeRequest(monitorDWH, pb.NewBigIntFromInt(1)); err == nil {
 		t.Error("DealChangeRequest which status was changed to ACCEPTED was not deleted")
 		return
 	}
@@ -882,13 +882,13 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Test that when a DealChangeRequest is updated to REJECTED, it is kept.
-	changeRequest.Id = "2"
+	changeRequest.Id = pb.NewBigIntFromInt(2)
 	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_REJECTED
 	if err := monitorDWH.onDealChangeRequestUpdated(commonEventTS, big.NewInt(2)); err != nil {
 		t.Error(err)
 		return
 	}
-	if _, err := getDealChangeRequest(monitorDWH, "2"); err != nil {
+	if _, err := getDealChangeRequest(monitorDWH, pb.NewBigIntFromInt(2)); err != nil {
 		t.Error("DealChangeRequest which status was changed to REJECTED was deleted")
 		return
 	}
@@ -1047,8 +1047,8 @@ func TestDWH_monitor(t *testing.T) {
 	}
 }
 
-func getDealChangeRequest(w *DWH, changeRequestID string) (*pb.DealChangeRequest, error) {
-	rows, err := w.db.Query("SELECT * FROM DealChangeRequests WHERE Id=?", changeRequestID)
+func getDealChangeRequest(w *DWH, changeRequestID *pb.BigInt) (*pb.DealChangeRequest, error) {
+	rows, err := w.db.Query("SELECT * FROM DealChangeRequests WHERE Id=?", changeRequestID.Unwrap().String())
 	if err != nil {
 		return nil, errors.Errorf("query failed: %s", err)
 	}
@@ -1242,7 +1242,7 @@ func setupTestDB(w *DWH) error {
 		}
 
 		_, err = w.db.Exec(w.commands["insertDealChangeRequest"],
-			fmt.Sprintf("changeRequest_%d", i), 0, 0, 0, 0, 0, "40400")
+			fmt.Sprintf("5050%d", i), 0, 0, 0, 0, 0, "40400")
 		if err != nil {
 			return err
 		}

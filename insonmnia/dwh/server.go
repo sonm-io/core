@@ -1155,20 +1155,22 @@ func (w *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 	}
 
 	for _, expiredChangeRequest := range expiredChangeRequests {
-		if _, err := tx.Exec(w.commands["deleteDealChangeRequest"], expiredChangeRequest.Id); err != nil {
+		_, err := tx.Exec(w.commands["deleteDealChangeRequest"], expiredChangeRequest.Id.Unwrap().String())
+		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
 
 			return errors.Wrap(err, "failed to deleteDealChangeRequest")
 		} else {
-			w.logger.Warn("deleted expired DealChangeRequest", zap.String("id", expiredChangeRequest.Id))
+			w.logger.Warn("deleted expired DealChangeRequest",
+				zap.String("id", expiredChangeRequest.Id.Unwrap().String()))
 		}
 	}
 
 	_, err = tx.Exec(
 		w.commands["insertDealChangeRequest"],
-		changeRequest.Id,
+		changeRequest.Id.Unwrap().String(),
 		eventTS,
 		changeRequest.RequestType,
 		changeRequest.Duration,
@@ -1202,10 +1204,10 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 		_, err := w.db.Exec(
 			w.commands["updateDealChangeRequest"],
 			changeRequest.Status,
-			changeRequest.Id,
+			changeRequest.Id.Unwrap().String(),
 		)
 		if err != nil {
-			return errors.Wrapf(err, "failed to update DealChangeRequest %s", changeRequest.Id)
+			return errors.Wrapf(err, "failed to update DealChangeRequest %s", changeRequest.Id.Unwrap().String())
 		}
 	case pb.ChangeRequestStatus_REQUEST_ACCEPTED:
 		deal, err := w.getDealDetails(w.ctx, changeRequest.DealID)
@@ -1245,22 +1247,22 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 			return errors.Wrap(err, "failed to insertDealCondition")
 		}
 
-		_, err = tx.Exec(w.commands["deleteDealChangeRequest"], changeRequest.Id)
+		_, err = tx.Exec(w.commands["deleteDealChangeRequest"], changeRequest.Id.Unwrap().String())
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
 
-			return errors.Wrapf(err, "failed to delete DealChangeRequest %s", changeRequest.Id)
+			return errors.Wrapf(err, "failed to delete DealChangeRequest %s", changeRequest.Id.Unwrap().String())
 		}
 
 		if err := tx.Commit(); err != nil {
 			return errors.Wrap(err, "transaction commit failed")
 		}
 	default:
-		_, err := w.db.Exec(w.commands["deleteDealChangeRequest"], changeRequest.Id)
+		_, err := w.db.Exec(w.commands["deleteDealChangeRequest"], changeRequest.Id.Unwrap().String())
 		if err != nil {
-			return errors.Wrapf(err, "failed to delete DealChangeRequest %s", changeRequest.Id)
+			return errors.Wrapf(err, "failed to delete DealChangeRequest %s", changeRequest.Id.Unwrap().String())
 		}
 	}
 
@@ -1892,8 +1894,13 @@ func (w *DWH) decodeDealChangeRequest(rows *sql.Rows) (*pb.DealChangeRequest, er
 		return nil, errors.Wrap(err, "failed to NewBigIntFromString (ID)")
 	}
 
+	bigChangeRequestID, err := pb.NewBigIntFromString(changeRequestID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to NewBigIntFromString (ChangeRequestID)")
+	}
+
 	return &pb.DealChangeRequest{
-		Id:          changeRequestID,
+		Id:          bigChangeRequestID,
 		DealID:      bigDealID,
 		RequestType: pb.OrderType(requestType),
 		Duration:    duration,

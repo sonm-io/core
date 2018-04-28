@@ -209,7 +209,7 @@ message DealChangeRequestsReply {
 }
 
 message DealChangeRequest {
-    string id = 1;
+    BigInt id = 1;
     BigInt dealID = 2;
     OrderType requestType = 3;
     uint64 duration = 4;
