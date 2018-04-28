@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/util"
@@ -20,6 +21,14 @@ var (
 )
 
 func PrivateKey(cfg EthereumConfig) *ecdsa.PrivateKey {
+	if cfg.AccountType == "random" {
+		privateKey, err := crypto.GenerateKey()
+		if err != nil {
+			panic(err)
+		}
+		return privateKey
+	}
+
 	privateKeyOnce.Do(func() {
 		ethConfig := accounts.EthConfig{
 			Keystore:   cfg.AccountPath,

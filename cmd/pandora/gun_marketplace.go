@@ -21,7 +21,7 @@ type marketplaceExt struct {
 func NewMarketplaceGun(cfg MarketplaceExtConfig) (Gun, error) {
 	privateKey := PrivateKey(cfg.Ethereum)
 
-	market, err := blockchain.NewAPI(blockchain.WithEthEndpoint(cfg.Ethereum.Endpoint), blockchain.WithGasPrice(0))
+	market, err := blockchain.NewAPI(blockchain.WithSidechainEndpoint(cfg.Ethereum.Endpoint), blockchain.WithGasPrice(0))
 	if err != nil {
 		return nil, err
 	}
