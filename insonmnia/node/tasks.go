@@ -299,7 +299,7 @@ func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (*hubClie
 }
 
 func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (*hubClient, io.Closer, error) {
-	return t.remotes.hubCreator(common.StringToAddress(eth), "")
+	return t.remotes.hubCreator(common.HexToAddress(eth), "")
 }
 
 type streamMeta struct {
