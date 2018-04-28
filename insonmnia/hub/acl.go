@@ -9,6 +9,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
+	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -81,13 +82,25 @@ func newFieldDealExtractor() DealExtractor {
 	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
 		requestValue := reflect.Indirect(reflect.ValueOf(request))
 		deal := reflect.Indirect(requestValue.FieldByName("Deal"))
+		if !deal.IsValid() {
+			return "", errNoDealFieldFound
+		}
 
-		v, ok := deal.Interface().(sonm.Deal)
+		if deal.Type().Kind() != reflect.Struct {
+			return "", errInvalidDealField
+		}
+
+		dealIdValue := reflect.Indirect(deal).FieldByName("Id")
+		if !dealIdValue.IsValid() {
+			return "", errInvalidDealField
+		}
+
+		dealID, ok := dealIdValue.Interface().(*pb.BigInt)
 		if !ok {
 			return "", errInvalidDealField
 		}
 
-		return structs.DealID(v.Id.Unwrap().String()), nil
+		return structs.DealID(dealID.Unwrap().String()), nil
 	}
 }
 

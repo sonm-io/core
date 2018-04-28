@@ -22,7 +22,7 @@ func NewStartTaskRequest(request *sonm.StartTaskRequest) (*StartTaskRequest, err
 		return nil, errDealRequired
 	}
 
-	if deal.GetId().Unwrap().String() < "0" {
+	if deal.GetId().IsZero() {
 		return nil, errDealIdRequired
 	}
 

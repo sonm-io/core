@@ -73,7 +73,7 @@ func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (m *EthAddress) IsZero() bool {
-	return NewBigInt(m.Unwrap().Big()).IsZero()
+	return m.Unwrap().Big().BitLen() == 0
 }
 
 func NewEthAddress(addr common.Address) *EthAddress {
