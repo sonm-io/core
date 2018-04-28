@@ -59,13 +59,14 @@ It has these top-level messages:
 	DWHWorker
 	ProfilesRequest
 	ProfilesReply
-	BlacklistRequest
 	Profile
+	BlacklistRequest
 	BlacklistReply
 	ValidatorsRequest
 	ValidatorsReply
 	Validator
 	DealChangeRequestsReply
+	DealChangeRequest
 	WorkersRequest
 	WorkersReply
 	Certificate
@@ -73,7 +74,6 @@ It has these top-level messages:
 	MaxMinUint64
 	MaxMinBig
 	CmpUint64
-	DealChangeRequest
 	BlacklistQuery
 	StartTaskRequest
 	HubJoinNetworkRequest

@@ -936,7 +936,7 @@ func (m *Miner) loadDeals() error {
 
 	m.mu.Lock()
 	for _, deal := range deals {
-		m.Deals[structs.DealID(deal.GetId())] = structs.NewDealMeta(deal)
+		m.Deals[structs.DealID(deal.GetId().Unwrap().String())] = structs.NewDealMeta(deal)
 	}
 	m.mu.Unlock()
 

@@ -111,7 +111,7 @@ var marketCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		printID(cmd, created.GetId())
+		printID(cmd, created.GetId().Unwrap().String())
 	},
 }
 

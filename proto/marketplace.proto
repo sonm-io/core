@@ -62,13 +62,13 @@ message Benchmarks {
 }
 
 message Deal {
-    string id = 1;
+    BigInt id = 1;
     Benchmarks benchmarks = 2;
-    string supplierID = 3;
-    string consumerID = 4;
-    string masterID = 5;
-    string askID = 6;
-    string bidID = 7;
+    EthAddress supplierID = 3;
+    EthAddress consumerID = 4;
+    EthAddress masterID = 5;
+    BigInt askID = 6;
+    BigInt bidID = 7;
     uint64 duration = 8;
     BigInt price = 9;
     Timestamp startTime = 10;
@@ -80,12 +80,12 @@ message Deal {
 }
 
 message Order {
-    string id = 1;
-    string dealID = 2;
+    BigInt id = 1;
+    BigInt dealID = 2;
     OrderType orderType = 3;
     OrderStatus orderStatus = 4;
-    string authorID = 5;
-    string counterpartyID = 6;
+    EthAddress authorID = 5;
+    EthAddress counterpartyID = 6;
     uint64 duration = 7;
     BigInt price = 8;
     uint64 netflags = 9;

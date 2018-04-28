@@ -10,6 +10,7 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/proto"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
@@ -35,11 +36,7 @@ func NewMatcher(cfg *Config) Matcher {
 }
 
 func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*sonm.Deal, error) {
-	id, err := util.ParseBigInt(order.GetId())
-	if err != nil {
-		return nil, err
-	}
-
+	id := order.GetId().Unwrap()
 	tk := util.NewImmediateTicker(m.cfg.PollDelay)
 	defer tk.Stop()
 
@@ -49,13 +46,13 @@ func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*so
 			return nil, ctx.Err()
 		case <-tk.C:
 			// 1. check if order is actual
-			ctxlog.G(ctx).Info("check that order exists", zap.String("id", order.GetId()))
+			ctxlog.G(ctx).Info("check that order exists", zap.String("id", order.GetId().Unwrap().String()))
 			if err := m.checkIfOrderExists(ctx, id); err != nil {
 				return nil, err
 			}
 
 			// 2. get matching orders from dwh
-			ctxlog.G(ctx).Info("search for matching order via DWH", zap.String("id", order.GetId()))
+			ctxlog.G(ctx).Info("search for matching order via DWH", zap.String("id", order.GetId().Unwrap().String()))
 			matchingOrders, err := m.getMatchingOrders(ctx, id)
 			if err != nil {
 				return nil, err
@@ -69,7 +66,8 @@ func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*so
 				}
 
 				// 4. try to open deal
-				ctxlog.G(ctx).Info("opening deal", zap.String("bid", bid.GetId()), zap.String("ask", ask.GetId()))
+				ctxlog.G(ctx).Info("opening deal", zap.String("bid", bid.GetId().Unwrap().String()),
+					zap.String("ask", ask.GetId().Unwrap().String()))
 				deal, err := m.openDeal(ctx, bid, ask)
 				if err == nil {
 					return deal, nil
@@ -78,8 +76,8 @@ func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*so
 				// 5. if deal is not created - wait for timeout and goto 1
 				ctxlog.G(ctx).Warn("cannot open deal",
 					zap.Error(err),
-					zap.String("bid", bid.GetId()),
-					zap.String("ask", ask.GetId()))
+					zap.String("bid", bid.GetId().Unwrap().String()),
+					zap.String("ask", ask.GetId().Unwrap().String()))
 			}
 		}
 	}
@@ -100,7 +98,7 @@ func (m *matcher) checkIfOrderExists(ctx context.Context, id *big.Int) error {
 
 func (m *matcher) getMatchingOrders(ctx context.Context, id *big.Int) ([]*sonm.Order, error) {
 	dwhReply, err := m.cfg.DWH.GetMatchingOrders(ctx, &sonm.MatchingOrdersRequest{
-		Id:    &sonm.ID{Id: id.String()}, // TODO: this typecast is awkward. #1 :(
+		Id:    pb.NewBigInt(id),
 		Limit: m.cfg.QueryLimit,
 	})
 
@@ -109,25 +107,16 @@ func (m *matcher) getMatchingOrders(ctx context.Context, id *big.Int) ([]*sonm.O
 	}
 
 	orders := make([]*sonm.Order, len(dwhReply.GetOrders()))
-	for _, ord := range dwhReply.GetOrders() {
-		orders = append(orders, ord.GetOrder())
+	for idx, ord := range dwhReply.GetOrders() {
+		orders[idx] = ord.GetOrder()
 	}
 
 	return orders, nil
 }
 
 func (m *matcher) openDeal(ctx context.Context, bid, ask *sonm.Order) (*sonm.Deal, error) {
-	// TODO: this typecast is awkward. #2 :(
-	askID, err := util.ParseBigInt(ask.GetId())
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: this typecast is awkward. #3 :(
-	bidID, err := util.ParseBigInt(bid.GetId())
-	if err != nil {
-		return nil, err
-	}
+	askID := ask.GetId().Unwrap()
+	bidID := bid.GetId().Unwrap()
 
 	select {
 	case <-ctx.Done():

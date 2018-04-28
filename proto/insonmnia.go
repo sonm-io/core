@@ -72,6 +72,18 @@ func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+func (m *EthAddress) IsZero() bool {
+	if m == nil {
+		return true
+	}
+
+	return m.Unwrap().Big().BitLen() == 0
+}
+
+func NewEthAddress(addr common.Address) *EthAddress {
+	return &EthAddress{Address: addr.Bytes()}
+}
+
 func (m *DataSize) Unwrap() datasize.ByteSize {
 	return datasize.NewByteSize(m.Bytes)
 }
