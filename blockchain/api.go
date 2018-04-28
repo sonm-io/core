@@ -442,7 +442,7 @@ func (api *ProfileRegistry) GetValidator(ctx context.Context, validatorID common
 	}
 
 	return &pb.Validator{
-		Id:    validatorID.String(),
+		Id:    pb.NewEthAddress(validatorID),
 		Level: uint64(level),
 	}, nil
 }

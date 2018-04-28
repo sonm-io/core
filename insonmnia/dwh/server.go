@@ -1528,9 +1528,9 @@ func (w *DWH) onValidatorCreated(validatorID common.Address) error {
 		return errors.Wrapf(err, "failed to get validator `%s`", validatorID.String())
 	}
 
-	_, err = w.db.Exec(w.commands["insertValidator"], validator.Id, validator.Level)
+	_, err = w.db.Exec(w.commands["insertValidator"], validator.Id.Unwrap().Hex(), validator.Level)
 	if err != nil {
-		return errors.Wrap(err, "failed to insert Validator")
+		return errors.Wrap(err, "failed to insertValidator")
 	}
 
 	return nil
@@ -1542,9 +1542,9 @@ func (w *DWH) onValidatorDeleted(validatorID common.Address) error {
 		return errors.Wrapf(err, "failed to get validator `%s`", validatorID.String())
 	}
 
-	_, err = w.db.Exec(w.commands["updateValidator"], validator.Level, validator.Id)
+	_, err = w.db.Exec(w.commands["updateValidator"], validator.Level, validator.Id.Unwrap().Hex())
 	if err != nil {
-		return errors.Wrap(err, "failed to update Validator")
+		return errors.Wrap(err, "failed to updateValidator")
 	}
 
 	return nil
@@ -2139,7 +2139,7 @@ func (w *DWH) decodeValidator(rows *sql.Rows) (*pb.Validator, error) {
 	}
 
 	return &pb.Validator{
-		Id:    validatorID,
+		Id:    pb.NewEthAddress(common.HexToAddress(validatorID)),
 		Level: level,
 	}, nil
 }

@@ -574,7 +574,7 @@ func TestDWH_monitor(t *testing.T) {
 	mockMarket.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
 
 	validator := &pb.Validator{
-		Id:    common.HexToAddress("0xC").Hex(),
+		Id:    pb.NewEthAddress(common.HexToAddress("0xC")),
 		Level: 3,
 	}
 	mockProfiles.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)

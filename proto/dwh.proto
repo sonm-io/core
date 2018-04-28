@@ -200,7 +200,7 @@ message ValidatorsReply {
 }
 
 message Validator {
-    string id = 1;
+    EthAddress id = 1;
     uint64 level = 2;
 }
 
