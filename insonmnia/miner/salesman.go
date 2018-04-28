@@ -175,7 +175,7 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) {
 	}
 
 	//TODO: proper structs
-	if len(order.DealID) != 0 {
+	if len(order.DealID) != 0 && order.DealID != "0" {
 		dealID, set := big.NewInt(0).SetString(order.DealID, 0)
 		if !set {
 			m.log.Warnf("could not parse order id from %s - %s", order.DealID, err)
@@ -185,7 +185,7 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) {
 
 		deal, err := m.eth.Market().GetDealInfo(ctx, dealID)
 		if err != nil {
-			m.log.Warnf("could not get deal info from market - %s", err)
+			m.log.Warnf("could not get deal info for ID %s from market - %s", dealID.String(), err)
 			// TODO: log, what else can we do?
 			return
 		}
