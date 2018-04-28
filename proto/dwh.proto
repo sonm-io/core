@@ -83,7 +83,7 @@ message DealConditionsReply {
 }
 
 message OrdersRequest {
-    string dealID = 1;
+    BigInt dealID = 1;
     OrderType type = 2;
     OrderStatus status = 3;
     EthAddress authorID = 4;

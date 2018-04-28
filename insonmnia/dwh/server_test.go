@@ -212,7 +212,7 @@ func TestDWH_GetOrders(t *testing.T) {
 	{
 		request := &pb.OrdersRequest{
 			Type:   pb.OrderType_ANY,
-			DealID: "deal_id_5",
+			DealID: pb.NewBigIntFromInt(10105),
 		}
 		reply, err := globalDWH.getOrders(context.Background(), request)
 
@@ -324,7 +324,7 @@ func TestDWH_GetOrderDetails(t *testing.T) {
 	if reply.Id != "ask_id_5" {
 		t.Errorf("Expected %s, got %s (Id)", "ask_id_5", reply.Id)
 	}
-	if reply.DealID != "deal_id_5" {
+	if reply.DealID != "10105" {
 		t.Errorf("Expected %s, got %s (DealID)", "deal_id_5", reply.DealID)
 	}
 	if reply.OrderType != 2 {
@@ -1171,7 +1171,7 @@ func setupTestDB(w *DWH) error {
 			w.commands["insertOrder"],
 			fmt.Sprintf("ask_id_%d", i),
 			12345, // CreatedTS
-			fmt.Sprintf("deal_id_%d", i),
+			fmt.Sprintf("1010%d", i),
 			uint64(pb.OrderType_ASK),
 			uint64(pb.OrderStatus_ORDER_ACTIVE),
 			common.HexToAddress("0xA").Hex(), // AuthorID
@@ -1208,7 +1208,7 @@ func setupTestDB(w *DWH) error {
 			w.commands["insertOrder"],
 			fmt.Sprintf("bid_id_%d", i),
 			12345, // CreatedTS
-			fmt.Sprintf("deal_id_%d", i),
+			fmt.Sprintf("1010%d", i),
 			uint64(pb.OrderType_BID),
 			uint64(pb.OrderStatus_ORDER_ACTIVE),
 			common.HexToAddress("0xB").Hex(), // AuthorID

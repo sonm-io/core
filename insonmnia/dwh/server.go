@@ -84,7 +84,7 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, erro
 
 func (w *DWH) Serve() error {
 	if w.cfg.Blockchain != nil {
-		bch, err := blockchain.NewAPI(blockchain.WithEthEndpoint(w.cfg.Blockchain.EthEndpoint))
+		bch, err := blockchain.NewAPI(blockchain.WithSidechainEndpoint(w.cfg.Blockchain.EthEndpoint))
 		if err != nil {
 			return errors.Wrap(err, "failed to create NewAPI")
 		}
@@ -305,8 +305,8 @@ func (w *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWHOrdersReply, error) {
 	var filters []*filter
 	filters = append(filters, newFilter("Status", eq, pb.OrderStatus_ORDER_ACTIVE, "AND"))
-	if request.DealID > "0" {
-		filters = append(filters, newFilter("DealID", eq, request.DealID, "AND"))
+	if request.DealID != nil && request.DealID.Unwrap().String() > "0" {
+		filters = append(filters, newFilter("DealID", eq, request.DealID.Unwrap().String(), "AND"))
 	}
 	if request.Type > 0 {
 		filters = append(filters, newFilter("Type", eq, request.Type, "AND"))
