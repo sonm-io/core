@@ -25,7 +25,7 @@ message SortingOption {
 
 service DWH {
     rpc GetDeals(DealsRequest) returns (DWHDealsReply) {}
-    rpc GetDealDetails(ID) returns (DWHDeal) {}
+    rpc GetDealDetails(BigInt) returns (DWHDeal) {}
     rpc GetDealConditions(DealConditionsRequest) returns (DealConditionsReply) {}
     rpc GetOrders(OrdersRequest) returns (DWHOrdersReply) {}
     rpc GetMatchingOrders(MatchingOrdersRequest) returns (DWHOrdersReply) {}
@@ -34,7 +34,7 @@ service DWH {
     rpc GetProfileInfo(EthAddress) returns (Profile) {}
     rpc GetBlacklist(BlacklistRequest) returns (BlacklistReply) {}
     rpc GetValidators(ValidatorsRequest) returns (ValidatorsReply) {}
-    rpc GetDealChangeRequests(ID) returns (DealChangeRequestsReply) {}
+    rpc GetDealChangeRequests(BigInt) returns (DealChangeRequestsReply) {}
     rpc GetWorkers(WorkersRequest) returns (WorkersReply) {}
 }
 
@@ -72,7 +72,7 @@ message DWHDeal {
 }
 
 message DealConditionsRequest {
-    string dealID = 1;
+    BigInt dealID = 1;
     uint64 limit = 2;
     uint64 offset = 3;
     repeated SortingOption sortings = 4;
@@ -208,6 +208,15 @@ message DealChangeRequestsReply {
     repeated DealChangeRequest requests = 1;
 }
 
+message DealChangeRequest {
+    string id = 1;
+    BigInt dealID = 2;
+    OrderType requestType = 3;
+    uint64 duration = 4;
+    BigInt price = 5;
+    ChangeRequestStatus status = 6;
+}
+
 message WorkersRequest {
     string MasterID = 1;
     uint64 limit = 2;
@@ -254,15 +263,6 @@ message MaxMinBig {
 message CmpUint64 {
     uint64 value = 1;
     CmpOp operator = 2;
-}
-
-message DealChangeRequest {
-    string id = 1;
-    string dealID = 2;
-    OrderType requestType = 3;
-    uint64 duration = 4;
-    BigInt price = 5;
-    ChangeRequestStatus status = 6;
 }
 
 message BlacklistQuery {

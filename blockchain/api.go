@@ -255,7 +255,7 @@ func (api *BasicMarketAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*p
 	}
 
 	return &pb.Deal{
-		Id:             dealID.String(),
+		Id:             pb.NewBigInt(dealID),
 		Benchmarks:     benchmarks,
 		SupplierID:     pb.NewEthAddress(deal1.SupplierID),
 		ConsumerID:     pb.NewEthAddress(deal1.ConsumerID),
@@ -408,7 +408,7 @@ func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, dealID 
 	}
 
 	return &pb.DealChangeRequest{
-		DealID:      changeRequest.DealID.String(),
+		DealID:      pb.NewBigInt(changeRequest.DealID),
 		RequestType: pb.OrderType(changeRequest.RequestType),
 		Duration:    changeRequest.Duration.Uint64(),
 		Price:       pb.NewBigInt(changeRequest.Price),

@@ -226,15 +226,15 @@ func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 	return &pb.DWHDealsReply{Deals: deals}, nil
 }
 
-func (w *DWH) GetDealDetails(ctx context.Context, request *pb.ID) (*pb.DWHDeal, error) {
+func (w *DWH) GetDealDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHDeal, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
 	return w.getDealDetails(ctx, request)
 }
 
-func (w *DWH) getDealDetails(ctx context.Context, request *pb.ID) (*pb.DWHDeal, error) {
-	rows, err := w.db.Query(w.commands["selectDealByID"], request.Id)
+func (w *DWH) getDealDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHDeal, error) {
+	rows, err := w.db.Query(w.commands["selectDealByID"], request.Unwrap().String())
 	if err != nil {
 		w.logger.Error("failed to selectDealByID", zap.Error(err), zap.Any("request", request))
 		return nil, status.Error(codes.Internal, "failed to GetDealDetails")
@@ -262,7 +262,7 @@ func (w *DWH) getDealConditions(ctx context.Context, request *pb.DealConditionsR
 		request.Sortings = []*pb.SortingOption{{Field: "rowid", Order: pb.SortingOrder_Desc}}
 	}
 
-	filters = append(filters, newFilter("DealID", eq, request.DealID, "AND"))
+	filters = append(filters, newFilter("DealID", eq, request.DealID.Unwrap().String(), "AND"))
 	rows, _, err := runQuery(w.db, &queryOpts{
 		table:     "DealConditions",
 		filters:   filters,
@@ -718,15 +718,15 @@ func (w *DWH) getValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 	return &pb.ValidatorsReply{Validators: out}, nil
 }
 
-func (w *DWH) GetDealChangeRequests(ctx context.Context, request *pb.ID) (*pb.DealChangeRequestsReply, error) {
+func (w *DWH) GetDealChangeRequests(ctx context.Context, request *pb.BigInt) (*pb.DealChangeRequestsReply, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
 	return w.getDealChangeRequests(ctx, request)
 }
 
-func (w *DWH) getDealChangeRequests(ctx context.Context, request *pb.ID) (*pb.DealChangeRequestsReply, error) {
-	rows, err := w.db.Query(w.commands["selectDealChangeRequestsByID"], request.Id)
+func (w *DWH) getDealChangeRequests(ctx context.Context, request *pb.BigInt) (*pb.DealChangeRequestsReply, error) {
+	rows, err := w.db.Query(w.commands["selectDealChangeRequestsByID"], request.Unwrap().String())
 	if err != nil {
 		w.logger.Error("failed to selectDealChangeRequestsByID", zap.Error(err), zap.Any("request", request))
 		return nil, status.Error(codes.Internal, "failed to GetDealChangeRequests")
@@ -933,7 +933,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 	}
 
 	var hasActiveChangeRequests bool
-	if _, err := w.getDealChangeRequests(w.ctx, &pb.ID{Id: deal.Id}); err == nil {
+	if _, err := w.getDealChangeRequests(w.ctx, deal.Id); err == nil {
 		hasActiveChangeRequests = true
 	}
 
@@ -944,7 +944,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 
 	_, err = tx.Exec(
 		w.commands["insertDeal"],
-		deal.Id,
+		deal.Id.Unwrap().String(),
 		deal.SupplierID.Unwrap().Hex(),
 		deal.ConsumerID.Unwrap().Hex(),
 		deal.MasterID.Unwrap().Hex(),
@@ -995,7 +995,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		deal.StartTime.Seconds,
 		0,
 		deal.TotalPayout.PaddedString(),
-		deal.Id,
+		deal.Id.Unwrap().String(),
 	)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
@@ -1024,10 +1024,10 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to begin transaction")
 		}
 
-		_, err = tx.Exec(w.commands["deleteDeal"], deal.Id)
+		_, err = tx.Exec(w.commands["deleteDeal"], deal.Id.Unwrap().String())
 		if err != nil {
 			w.logger.Info("failed to delete closed Deal (possibly old log entry)", zap.Error(err),
-				zap.String("deal_id", deal.Id))
+				zap.String("deal_id", deal.Id.Unwrap().String()))
 
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1103,7 +1103,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 		deal.BlockedBalance.PaddedString(),
 		deal.TotalPayout.PaddedString(),
 		deal.LastBillTS.Seconds,
-		deal.Id,
+		deal.Id.Unwrap().String(),
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to insert into Deals")
@@ -1127,7 +1127,7 @@ func (w *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 	// Sanity check: if more than 1 CR of one type is created for a Deal, we delete old CRs.
 	rows, err := w.db.Query(
 		w.commands["selectDealChangeRequests"],
-		changeRequest.DealID,
+		changeRequest.DealID.Unwrap().String(),
 		changeRequest.RequestType,
 		changeRequest.Status,
 	)
@@ -1174,7 +1174,7 @@ func (w *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 		changeRequest.Duration,
 		changeRequest.Price.PaddedString(),
 		changeRequest.Status,
-		changeRequest.DealID,
+		changeRequest.DealID.Unwrap().String(),
 	)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
@@ -1208,7 +1208,7 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 			return errors.Wrapf(err, "failed to update DealChangeRequest %s", changeRequest.Id)
 		}
 	case pb.ChangeRequestStatus_REQUEST_ACCEPTED:
-		deal, err := w.getDealDetails(w.ctx, &pb.ID{Id: changeRequest.DealID})
+		deal, err := w.getDealDetails(w.ctx, changeRequest.DealID)
 		if err != nil {
 			return errors.Wrap(err, "failed to getDealDetails")
 		}
@@ -1235,7 +1235,7 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 			eventTS,
 			0,
 			"0",
-			deal.GetDeal().Id,
+			deal.GetDeal().Id.Unwrap().String(),
 		)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
@@ -1268,7 +1268,7 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 }
 
 func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
-	dealConditionsReply, err := w.getDealConditions(w.ctx, &pb.DealConditionsRequest{DealID: dealID.String()})
+	dealConditionsReply, err := w.getDealConditions(w.ctx, &pb.DealConditionsRequest{DealID: pb.NewBigInt(dealID)})
 	if err != nil {
 		return errors.Wrap(err, "failed to GetDealConditions (last)")
 	}
@@ -1801,6 +1801,11 @@ func (w *DWH) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 	bigTotalPayout := new(big.Int)
 	bigTotalPayout.SetString(totalPayout, 10)
 
+	bigID, err := pb.NewBigIntFromString(id)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to NewBigIntFromString (ID)")
+	}
+
 	bigAskID, err := pb.NewBigIntFromString(askID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to NewBigIntFromString (askID)")
@@ -1813,7 +1818,7 @@ func (w *DWH) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 
 	return &pb.DWHDeal{
 		Deal: &pb.Deal{
-			Id:             id,
+			Id:             bigID,
 			SupplierID:     pb.NewEthAddress(common.HexToAddress(supplierID)),
 			ConsumerID:     pb.NewEthAddress(common.HexToAddress(consumerID)),
 			MasterID:       pb.NewEthAddress(common.HexToAddress(masterID)),
@@ -1877,10 +1882,14 @@ func (w *DWH) decodeDealChangeRequest(rows *sql.Rows) (*pb.DealChangeRequest, er
 	}
 	bigPrice := new(big.Int)
 	bigPrice.SetString(price, 10)
+	bigDealID, err := pb.NewBigIntFromString(dealID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to NewBigIntFromString (ID)")
+	}
 
 	return &pb.DealChangeRequest{
 		Id:          changeRequestID,
-		DealID:      dealID,
+		DealID:      bigDealID,
 		RequestType: pb.OrderType(requestType),
 		Duration:    duration,
 		Price:       pb.NewBigInt(bigPrice),
@@ -2256,7 +2265,7 @@ func (w *DWH) updateLastKnownBlockTS(blockNumber int64) error {
 	return nil
 }
 
-func (w *DWH) updateDealConditionEndTime(tx *sql.Tx, dealID string, eventTS uint64) error {
+func (w *DWH) updateDealConditionEndTime(tx *sql.Tx, dealID *pb.BigInt, eventTS uint64) error {
 	dealConditionsReply, err := w.getDealConditions(w.ctx, &pb.DealConditionsRequest{DealID: dealID})
 	if err != nil {
 		return errors.Wrap(err, "failed to getDealConditions")

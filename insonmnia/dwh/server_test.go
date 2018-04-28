@@ -153,15 +153,15 @@ func TestDWH_GetDealDetails(t *testing.T) {
 	globalDWH.mu.Lock()
 	defer globalDWH.mu.Unlock()
 
-	deal, err := globalDWH.getDealDetails(context.Background(), &pb.ID{Id: "id_5"})
+	deal, err := globalDWH.getDealDetails(context.Background(), pb.NewBigIntFromInt(40405))
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	reply := deal.GetDeal()
-	if reply.Id != "id_5" {
-		t.Errorf("Expected %s, got %s (Id)", "id_5", reply.Id)
+	if reply.Id.Unwrap().String() != "40405" {
+		t.Errorf("Expected %s, got %s (Id)", "40405", reply.Id.Unwrap().String())
 	}
 	if reply.SupplierID.Unwrap().Hex() != common.HexToAddress("0x15").Hex() {
 		t.Errorf("Expected %s, got %s (SupplierID)", common.HexToAddress("0x15").Hex(), reply.SupplierID)
@@ -357,7 +357,7 @@ func TestDWH_GetDealChangeRequests(t *testing.T) {
 	globalDWH.mu.Lock()
 	defer globalDWH.mu.Unlock()
 
-	reply, err := globalDWH.getDealChangeRequests(context.Background(), &pb.ID{Id: "id_0"})
+	reply, err := globalDWH.getDealChangeRequests(context.Background(), pb.NewBigIntFromInt(40400))
 	if err != nil {
 		t.Error(err)
 		return
@@ -527,7 +527,7 @@ func TestDWH_monitor(t *testing.T) {
 	require.NoError(t, err)
 
 	deal := &pb.Deal{
-		Id:             commonID.String(),
+		Id:             pb.NewBigInt(commonID),
 		Benchmarks:     benchmarks,
 		SupplierID:     pb.NewEthAddress(common.HexToAddress("0xAA")),
 		ConsumerID:     pb.NewEthAddress(common.HexToAddress("0xBB")),
@@ -565,7 +565,7 @@ func TestDWH_monitor(t *testing.T) {
 
 	changeRequest := &pb.DealChangeRequest{
 		Id:          "0",
-		DealID:      commonID.String(),
+		DealID:      pb.NewBigInt(commonID),
 		RequestType: pb.OrderType_ASK,
 		Duration:    10020,
 		Price:       pb.NewBigInt(big.NewInt(20010)),
@@ -614,7 +614,7 @@ func TestDWH_monitor(t *testing.T) {
 		return
 	}
 	// Firstly, check that a deal was created.
-	if deal, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+	if deal, err := monitorDWH.getDealDetails(context.Background(), pb.NewBigInt(commonID)); err != nil {
 		t.Errorf("Failed to GetDealDetails: %s", err)
 		return
 	} else {
@@ -624,7 +624,7 @@ func TestDWH_monitor(t *testing.T) {
 	}
 	// Secondly, check that a DealCondition was created.
 	if dealConditionsReply, err := monitorDWH.getDealConditions(
-		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
+		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: pb.NewBigInt(commonID)}); err != nil {
 		t.Errorf("Failed to GetDealConditions: %s", err)
 		return
 	} else {
@@ -760,7 +760,7 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Check that profile updates resulted in orders updates.
-	if deal, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+	if deal, err := monitorDWH.getDealDetails(context.Background(), pb.NewBigInt(commonID)); err != nil {
 		t.Errorf("Failed to GetDealDetails: %s", err)
 		return
 	} else {
@@ -785,7 +785,7 @@ func TestDWH_monitor(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if deal, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+	if deal, err := monitorDWH.getDealDetails(context.Background(), pb.NewBigInt(commonID)); err != nil {
 		t.Errorf("Failed to GetDealDetails: %s", err)
 		return
 	} else {
@@ -862,7 +862,7 @@ func TestDWH_monitor(t *testing.T) {
 	}
 	// Also test that a new DealCondition was created, and the old one was updated.
 	if dealConditionsReply, err := monitorDWH.getDealConditions(
-		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
+		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: pb.NewBigInt(commonID)}); err != nil {
 		t.Errorf("Failed to GetDealConditions: %s", err)
 		return
 	} else {
@@ -899,7 +899,7 @@ func TestDWH_monitor(t *testing.T) {
 		return
 	}
 	if dealConditionsReply, err := monitorDWH.getDealConditions(
-		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
+		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: pb.NewBigInt(commonID)}); err != nil {
 		t.Errorf("Failed to GetDealDetails: %s", err)
 		return
 	} else {
@@ -934,12 +934,12 @@ func TestDWH_monitor(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if _, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err == nil {
+	if _, err := monitorDWH.getDealDetails(context.Background(), pb.NewBigInt(commonID)); err == nil {
 		t.Errorf("Deal was not deleted after status changing to CLOSED")
 		return
 	}
 	if dealConditions, err := monitorDWH.getDealConditions(
-		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
+		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: pb.NewBigInt(commonID)}); err != nil {
 		t.Errorf("Failed to GetDealConditions: %s", err)
 		return
 	} else {
@@ -1130,7 +1130,7 @@ func setupTestDB(w *DWH) error {
 	for i := 0; i < 10; i++ {
 		_, err := w.db.Exec(
 			w.commands["insertDeal"],
-			fmt.Sprintf("id_%d", i),
+			fmt.Sprintf("4040%d", i),
 			common.HexToAddress(fmt.Sprintf("0x1%d", i)).Hex(), // Supplier
 			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(), // Consumer
 			common.HexToAddress(fmt.Sprintf("0x3%d", i)).Hex(), // Master
@@ -1242,7 +1242,7 @@ func setupTestDB(w *DWH) error {
 		}
 
 		_, err = w.db.Exec(w.commands["insertDealChangeRequest"],
-			fmt.Sprintf("changeRequest_%d", i), 0, 0, 0, 0, 0, "id_0")
+			fmt.Sprintf("changeRequest_%d", i), 0, 0, 0, 0, 0, "40400")
 		if err != nil {
 			return err
 		}

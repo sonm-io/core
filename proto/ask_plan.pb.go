@@ -66,6 +66,7 @@ It has these top-level messages:
 	ValidatorsReply
 	Validator
 	DealChangeRequestsReply
+	DealChangeRequest
 	WorkersRequest
 	WorkersReply
 	Certificate
@@ -73,7 +74,6 @@ It has these top-level messages:
 	MaxMinUint64
 	MaxMinBig
 	CmpUint64
-	DealChangeRequest
 	BlacklistQuery
 	StartTaskRequest
 	HubJoinNetworkRequest

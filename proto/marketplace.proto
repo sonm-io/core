@@ -62,7 +62,7 @@ message Benchmarks {
 }
 
 message Deal {
-    string id = 1;
+    BigInt id = 1;
     Benchmarks benchmarks = 2;
     EthAddress supplierID = 3;
     EthAddress consumerID = 4;
