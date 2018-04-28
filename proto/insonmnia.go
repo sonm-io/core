@@ -55,7 +55,10 @@ func (m *EthAddress) Unwrap() common.Address {
 }
 
 func (m *EthAddress) MarshalYAML() (interface{}, error) {
-	return m.Unwrap().Hex(), nil
+	if m != nil {
+		return m.Unwrap().Hex(), nil
+	}
+	return nil, nil
 }
 
 func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
