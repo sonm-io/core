@@ -86,3 +86,7 @@ func (m *BigInt) ToPriceString() string {
 func (m *BigInt) PaddedString() string {
 	return util.BigIntToPaddedString(m.Unwrap())
 }
+
+func (m *BigInt) NotNull() bool {
+	return m.Unwrap().String() > "0"
+}

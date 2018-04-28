@@ -166,10 +166,10 @@ func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 	if request.MasterID != nil && request.MasterID.NotNull() {
 		filters = append(filters, newFilter("MasterID", eq, request.MasterID.Unwrap().Hex(), "AND"))
 	}
-	if request.AskID != nil && request.AskID.Unwrap().String() > "0" {
+	if request.AskID != nil && request.AskID.NotNull() {
 		filters = append(filters, newFilter("AskID", eq, request.AskID, "AND"))
 	}
-	if request.BidID != nil && request.BidID.Unwrap().String() > "0" {
+	if request.BidID != nil && request.BidID.NotNull() {
 		filters = append(filters, newFilter("BidID", eq, request.BidID, "AND"))
 	}
 	if request.Duration != nil {
@@ -305,7 +305,7 @@ func (w *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWHOrdersReply, error) {
 	var filters []*filter
 	filters = append(filters, newFilter("Status", eq, pb.OrderStatus_ORDER_ACTIVE, "AND"))
-	if request.DealID != nil && request.DealID.Unwrap().String() > "0" {
+	if request.DealID != nil && request.DealID.NotNull() {
 		filters = append(filters, newFilter("DealID", eq, request.DealID.Unwrap().String(), "AND"))
 	}
 	if request.Type > 0 {
