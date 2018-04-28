@@ -357,7 +357,7 @@ func (api *BasicMarketAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (
 
 	return &pb.Order{
 		Id:             pb.NewBigInt(orderID),
-		DealID:         order2.DealID.String(),
+		DealID:         pb.NewBigInt(order2.DealID),
 		OrderType:      pb.OrderType(order1.OrderType),
 		OrderStatus:    pb.OrderStatus(order2.OrderStatus),
 		AuthorID:       pb.NewEthAddress(order1.Author),

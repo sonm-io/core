@@ -324,7 +324,7 @@ func TestDWH_GetOrderDetails(t *testing.T) {
 	if reply.Id.Unwrap().String() != "20205" {
 		t.Errorf("Expected %s, got %s (Id)", "20205", reply.Id.Unwrap().String())
 	}
-	if reply.DealID != "10105" {
+	if reply.DealID.Unwrap().String() != "10105" {
 		t.Errorf("Expected %s, got %s (DealID)", "10105", reply.DealID)
 	}
 	if reply.OrderType != 2 {
@@ -547,7 +547,7 @@ func TestDWH_monitor(t *testing.T) {
 
 	order := &pb.Order{
 		Id:             pb.NewBigInt(commonID),
-		DealID:         "",
+		DealID:         pb.NewBigIntFromInt(0),
 		OrderType:      pb.OrderType_ASK,
 		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
 		AuthorID:       pb.NewEthAddress(common.HexToAddress("0xD")),

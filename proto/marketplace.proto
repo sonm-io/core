@@ -81,7 +81,7 @@ message Deal {
 
 message Order {
     BigInt id = 1;
-    string dealID = 2;
+    BigInt dealID = 2;
     OrderType orderType = 3;
     OrderStatus orderStatus = 4;
     EthAddress authorID = 5;

@@ -1358,11 +1358,16 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		}
 	}
 
+	var dealID string
+	if order.DealID != nil {
+		dealID = order.DealID.Unwrap().String()
+	}
+
 	_, err = tx.Exec(
 		w.commands["insertOrder"],
 		order.Id.Unwrap().String(),
 		eventTS,
-		order.DealID,
+		dealID,
 		uint64(order.OrderType),
 		uint64(order.OrderStatus),
 		order.AuthorID.Unwrap().Hex(),
@@ -1413,7 +1418,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 	}
 
 	// If order was updated, but no deal is associated with it, delete the order.
-	if order.DealID <= "0" {
+	if order.DealID != nil && order.DealID.Unwrap().String() <= "0" {
 		tx, err := w.db.Begin()
 		if err != nil {
 			return errors.Wrap(err, "failed to begin transaction")
@@ -1973,12 +1978,18 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 
 	bigID, err := pb.NewBigIntFromString(id)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to NewBigIntFromString")
+		return nil, errors.Wrap(err, "failed to NewBigIntFromString (ID)")
 	}
+
+	bigDealID, err := pb.NewBigIntFromString(dealID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to NewBigIntFromString (DealID)")
+	}
+
 	return &pb.DWHOrder{
 		Order: &pb.Order{
 			Id:             bigID,
-			DealID:         dealID,
+			DealID:         bigDealID,
 			OrderType:      pb.OrderType(orderType),
 			OrderStatus:    pb.OrderStatus(status),
 			AuthorID:       pb.NewEthAddress(common.HexToAddress(author)),
