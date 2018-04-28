@@ -475,15 +475,15 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	return &pb.DWHOrdersReply{Orders: orders}, nil
 }
 
-func (w *DWH) GetOrderDetails(ctx context.Context, request *pb.ID) (*pb.DWHOrder, error) {
+func (w *DWH) GetOrderDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHOrder, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
 	return w.getOrderDetails(ctx, request)
 }
 
-func (w *DWH) getOrderDetails(ctx context.Context, request *pb.ID) (*pb.DWHOrder, error) {
-	rows, err := w.db.Query(w.commands["selectOrderByID"], request.Id)
+func (w *DWH) getOrderDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHOrder, error) {
+	rows, err := w.db.Query(w.commands["selectOrderByID"], request.Unwrap().String())
 	if err != nil {
 		w.logger.Error("failed to selectOrderByID", zap.Error(err), zap.Any("request", request))
 		return nil, status.Error(codes.Internal, "failed to GetOrderDetails")
@@ -922,12 +922,12 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		return errors.Wrapf(err, "failed to GetDealInfo")
 	}
 
-	ask, err := w.getOrderDetails(w.ctx, &pb.ID{Id: deal.AskID})
+	ask, err := w.getOrderDetails(w.ctx, deal.AskID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to getOrderDetails (Ask)")
 	}
 
-	bid, err := w.getOrderDetails(w.ctx, &pb.ID{Id: deal.BidID})
+	bid, err := w.getOrderDetails(w.ctx, deal.BidID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to getOrderDetails (Bid)")
 	}
@@ -948,8 +948,8 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		deal.SupplierID.Unwrap().Hex(),
 		deal.ConsumerID.Unwrap().Hex(),
 		deal.MasterID.Unwrap().Hex(),
-		deal.AskID,
-		deal.BidID,
+		deal.AskID.Unwrap().String(),
+		deal.BidID.Unwrap().String(),
 		deal.Duration,
 		deal.Price.PaddedString(),
 		deal.StartTime.Seconds,
@@ -1036,7 +1036,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return nil
 		}
 
-		if _, err := tx.Exec(w.commands["deleteOrder"], deal.AskID); err != nil {
+		if _, err := tx.Exec(w.commands["deleteOrder"], deal.AskID.Unwrap().String()); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1044,7 +1044,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to deleteOrder")
 		}
 
-		if _, err := tx.Exec(w.commands["deleteOrder"], deal.BidID); err != nil {
+		if _, err := tx.Exec(w.commands["deleteOrder"], deal.BidID.Unwrap().String()); err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
@@ -1066,7 +1066,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
 
-			return errors.Wrapf(err, "failed to updateProfileStats (OrderID: `%s`)", deal.AskID)
+			return errors.Wrapf(err, "failed to updateProfileStats (OrderID: `%s`)", deal.AskID.Unwrap().String())
 		}
 
 		bidProfile, err := w.getProfileInfo(w.ctx, deal.ConsumerID, false)
@@ -1083,7 +1083,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
 
-			return errors.Wrapf(err, "failed to updateProfileStats (OrderID: `%s`)", deal.BidID)
+			return errors.Wrapf(err, "failed to updateProfileStats (OrderID: `%s`)", deal.BidID.Unwrap().String())
 		}
 
 		if err := tx.Commit(); err != nil {
@@ -1360,7 +1360,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 
 	_, err = tx.Exec(
 		w.commands["insertOrder"],
-		order.Id,
+		order.Id.Unwrap().String(),
 		eventTS,
 		order.DealID,
 		uint64(order.OrderType),
@@ -1801,14 +1801,24 @@ func (w *DWH) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 	bigTotalPayout := new(big.Int)
 	bigTotalPayout.SetString(totalPayout, 10)
 
+	bigAskID, err := pb.NewBigIntFromString(askID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to NewBigIntFromString (askID)")
+	}
+
+	bigBidID, err := pb.NewBigIntFromString(bidID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to NewBigIntFromString (bidID)")
+	}
+
 	return &pb.DWHDeal{
 		Deal: &pb.Deal{
 			Id:             id,
 			SupplierID:     pb.NewEthAddress(common.HexToAddress(supplierID)),
 			ConsumerID:     pb.NewEthAddress(common.HexToAddress(consumerID)),
 			MasterID:       pb.NewEthAddress(common.HexToAddress(masterID)),
-			AskID:          askID,
-			BidID:          bidID,
+			AskID:          bigAskID,
+			BidID:          bigBidID,
 			Price:          pb.NewBigInt(bigPrice),
 			Duration:       duration,
 			StartTime:      &pb.Timestamp{Seconds: startTime},
@@ -1952,9 +1962,13 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 	bigFrozenSum := new(big.Int)
 	bigFrozenSum.SetString(frozenSum, 10)
 
+	bigID, err := pb.NewBigIntFromString(id)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to NewBigIntFromString")
+	}
 	return &pb.DWHOrder{
 		Order: &pb.Order{
-			Id:             id,
+			Id:             bigID,
 			DealID:         dealID,
 			OrderType:      pb.OrderType(orderType),
 			OrderStatus:    pb.OrderStatus(status),

@@ -67,8 +67,8 @@ message Deal {
     EthAddress supplierID = 3;
     EthAddress consumerID = 4;
     EthAddress masterID = 5;
-    string askID = 6;
-    string bidID = 7;
+    BigInt askID = 6;
+    BigInt bidID = 7;
     uint64 duration = 8;
     BigInt price = 9;
     Timestamp startTime = 10;
@@ -80,7 +80,7 @@ message Deal {
 }
 
 message Order {
-    string id = 1;
+    BigInt id = 1;
     string dealID = 2;
     OrderType orderType = 3;
     OrderStatus orderStatus = 4;

@@ -172,11 +172,11 @@ func TestDWH_GetDealDetails(t *testing.T) {
 	if reply.MasterID.Unwrap().Hex() != common.HexToAddress("0x35").Hex() {
 		t.Errorf("Expected %s, got %s (MasterID)", common.HexToAddress("0x35").Hex(), reply.MasterID)
 	}
-	if reply.AskID != "ask_id_5" {
-		t.Errorf("Expected %s, got %s (AskID)", "ask_id_5", reply.AskID)
+	if reply.AskID.Unwrap().String() != "20205" {
+		t.Errorf("Expected %s, got %s (AskID)", "20205", reply.AskID.Unwrap().String())
 	}
-	if reply.BidID != "bid_id_5" {
-		t.Errorf("Expected %s, got %s (BidID)", "bid_id_5", reply.AskID)
+	if reply.BidID.Unwrap().String() != "30305" {
+		t.Errorf("Expected %s, got %s (BidID)", "30305", reply.AskID.Unwrap().String())
 	}
 	if reply.Duration != uint64(10015) {
 		t.Errorf("Expected %d, got %d (Duration)", 10015, reply.Duration)
@@ -296,7 +296,7 @@ func TestDWH_GetMatchingOrders(t *testing.T) {
 	defer globalDWH.mu.Unlock()
 
 	request := &pb.MatchingOrdersRequest{
-		Id: &pb.ID{Id: "ask_id_5"},
+		Id: pb.NewBigIntFromInt(20205),
 	}
 	reply, err := globalDWH.getMatchingOrders(context.Background(), request)
 	if err != nil {
@@ -314,15 +314,15 @@ func TestDWH_GetOrderDetails(t *testing.T) {
 	globalDWH.mu.Lock()
 	defer globalDWH.mu.Unlock()
 
-	order, err := globalDWH.getOrderDetails(context.Background(), &pb.ID{Id: "ask_id_5"})
+	order, err := globalDWH.getOrderDetails(context.Background(), pb.NewBigIntFromInt(20205))
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	reply := order.GetOrder()
-	if reply.Id != "ask_id_5" {
-		t.Errorf("Expected %s, got %s (Id)", "ask_id_5", reply.Id)
+	if reply.Id.Unwrap().String() != "20205" {
+		t.Errorf("Expected %s, got %s (Id)", "20205", reply.Id.Unwrap().String())
 	}
 	if reply.DealID != "10105" {
 		t.Errorf("Expected %s, got %s (DealID)", "10105", reply.DealID)
@@ -532,8 +532,8 @@ func TestDWH_monitor(t *testing.T) {
 		SupplierID:     pb.NewEthAddress(common.HexToAddress("0xAA")),
 		ConsumerID:     pb.NewEthAddress(common.HexToAddress("0xBB")),
 		MasterID:       pb.NewEthAddress(common.HexToAddress("0xCC")),
-		AskID:          "ask_id_5",
-		BidID:          "bid_id_5",
+		AskID:          pb.NewBigIntFromInt(20205),
+		BidID:          pb.NewBigIntFromInt(30305),
 		Duration:       10020,
 		Price:          pb.NewBigInt(big.NewInt(20010)),
 		StartTime:      &pb.Timestamp{Seconds: 30010},
@@ -546,7 +546,7 @@ func TestDWH_monitor(t *testing.T) {
 	mockMarket.EXPECT().GetDealInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(deal, nil)
 
 	order := &pb.Order{
-		Id:             commonID.String(),
+		Id:             pb.NewBigInt(commonID),
 		DealID:         "",
 		OrderType:      pb.OrderType_ASK,
 		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
@@ -599,7 +599,7 @@ func TestDWH_monitor(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if order, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+	if order, err := monitorDWH.getOrderDetails(context.Background(), pb.NewBigInt(commonID)); err != nil {
 		t.Errorf("Failed to GetOrderDetails: %s", err)
 		return
 	} else {
@@ -748,7 +748,7 @@ func TestDWH_monitor(t *testing.T) {
 		}
 	}
 	// Check that profile updates resulted in orders updates.
-	dwhOrder, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()})
+	dwhOrder, err := monitorDWH.getOrderDetails(context.Background(), pb.NewBigInt(commonID))
 	if err != nil {
 		t.Errorf("failed to getOrderDetails (`%s`): %s", commonID.String(), err)
 		return
@@ -774,7 +774,7 @@ func TestDWH_monitor(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if _, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()}); err == nil {
+	if _, err := monitorDWH.getOrderDetails(context.Background(), pb.NewBigInt(commonID)); err == nil {
 		t.Error("GetOrderDetails returned an order that should have been deleted")
 		return
 	}
@@ -1134,8 +1134,8 @@ func setupTestDB(w *DWH) error {
 			common.HexToAddress(fmt.Sprintf("0x1%d", i)).Hex(), // Supplier
 			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(), // Consumer
 			common.HexToAddress(fmt.Sprintf("0x3%d", i)).Hex(), // Master
-			fmt.Sprintf("ask_id_%d", i),
-			fmt.Sprintf("bid_id_%d", i),
+			fmt.Sprintf("2020%d", i),
+			fmt.Sprintf("3030%d", i),
 			10010+i, // Duration
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			30010+i, // StartTime
@@ -1169,7 +1169,7 @@ func setupTestDB(w *DWH) error {
 
 		_, err = w.db.Exec(
 			w.commands["insertOrder"],
-			fmt.Sprintf("ask_id_%d", i),
+			fmt.Sprintf("2020%d", i),
 			12345, // CreatedTS
 			fmt.Sprintf("1010%d", i),
 			uint64(pb.OrderType_ASK),
@@ -1206,7 +1206,7 @@ func setupTestDB(w *DWH) error {
 
 		_, err = w.db.Exec(
 			w.commands["insertOrder"],
-			fmt.Sprintf("bid_id_%d", i),
+			fmt.Sprintf("3030%d", i),
 			12345, // CreatedTS
 			fmt.Sprintf("1010%d", i),
 			uint64(pb.OrderType_BID),

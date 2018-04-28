@@ -29,7 +29,7 @@ service DWH {
     rpc GetDealConditions(DealConditionsRequest) returns (DealConditionsReply) {}
     rpc GetOrders(OrdersRequest) returns (DWHOrdersReply) {}
     rpc GetMatchingOrders(MatchingOrdersRequest) returns (DWHOrdersReply) {}
-    rpc GetOrderDetails(ID) returns (DWHOrder) {}
+    rpc GetOrderDetails(BigInt) returns (DWHOrder) {}
     rpc GetProfiles(ProfilesRequest) returns (ProfilesReply) {}
     rpc GetProfileInfo(EthAddress) returns (Profile) {}
     rpc GetBlacklist(BlacklistRequest) returns (BlacklistReply) {}
@@ -99,7 +99,7 @@ message OrdersRequest {
 }
 
 message MatchingOrdersRequest {
-    ID id = 1;
+    BigInt id = 1;
     uint64 limit = 2;
     uint64 offset = 3;
 }

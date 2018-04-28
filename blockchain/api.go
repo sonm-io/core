@@ -260,8 +260,8 @@ func (api *BasicMarketAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*p
 		SupplierID:     pb.NewEthAddress(deal1.SupplierID),
 		ConsumerID:     pb.NewEthAddress(deal1.ConsumerID),
 		MasterID:       pb.NewEthAddress(deal1.MasterID),
-		AskID:          deal1.AskID.String(),
-		BidID:          deal1.BidID.String(),
+		AskID:          pb.NewBigInt(deal1.AskID),
+		BidID:          pb.NewBigInt(deal1.BidID),
 		Duration:       deal2.Duration.Uint64(),
 		Price:          pb.NewBigInt(deal2.Price),
 		StartTime:      &pb.Timestamp{Seconds: deal1.StartTime.Int64()},
@@ -356,7 +356,7 @@ func (api *BasicMarketAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (
 	}
 
 	return &pb.Order{
-		Id:             orderID.String(),
+		Id:             pb.NewBigInt(orderID),
 		DealID:         order2.DealID.String(),
 		OrderType:      pb.OrderType(order1.OrderType),
 		OrderStatus:    pb.OrderStatus(order2.OrderStatus),
