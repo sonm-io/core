@@ -73,6 +73,10 @@ func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (m *EthAddress) IsZero() bool {
+	if m == nil {
+		return true
+	}
+
 	return m.Unwrap().Big().BitLen() == 0
 }
 
