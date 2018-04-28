@@ -759,7 +759,7 @@ func (w *DWH) GetWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 
 func (w *DWH) getWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.WorkersReply, error) {
 	var filters []*filter
-	if request.MasterID > "0" {
+	if request.MasterID != nil && request.MasterID.Unwrap().Hex() > "0x0" {
 		filters = append(filters, newFilter("Level", eq, request.MasterID, "AND"))
 	}
 	rows, _, err := runQuery(w.db, &queryOpts{

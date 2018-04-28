@@ -218,7 +218,7 @@ message DealChangeRequest {
 }
 
 message WorkersRequest {
-    string MasterID = 1;
+    EthAddress MasterID = 1;
     uint64 limit = 2;
     uint64 offset = 3;
 }
