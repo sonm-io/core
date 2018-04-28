@@ -10,15 +10,16 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/proto"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func mockDWH(ctrl *gomock.Controller, t sonm.OrderType) sonm.DWHClient {
 	orders := []*sonm.DWHOrder{
-		{Order: &sonm.Order{OrderType: t, Id: "111", Price: sonm.NewBigIntFromInt(111)}},
-		{Order: &sonm.Order{OrderType: t, Id: "222", Price: sonm.NewBigIntFromInt(222)}},
-		{Order: &sonm.Order{OrderType: t, Id: "333", Price: sonm.NewBigIntFromInt(333)}},
+		{Order: &sonm.Order{OrderType: t, Id: pb.NewBigIntFromInt(111), Price: sonm.NewBigIntFromInt(111)}},
+		{Order: &sonm.Order{OrderType: t, Id: pb.NewBigIntFromInt(222), Price: sonm.NewBigIntFromInt(222)}},
+		{Order: &sonm.Order{OrderType: t, Id: pb.NewBigIntFromInt(333), Price: sonm.NewBigIntFromInt(333)}},
 	}
 
 	dwh := sonm.NewMockDWHClient(ctrl)
@@ -59,7 +60,7 @@ func TestMatcher(t *testing.T) {
 	})
 
 	target := &sonm.Order{
-		Id:        "1",
+		Id:        pb.NewBigIntFromInt(1),
 		OrderType: sonm.OrderType_BID,
 	}
 
@@ -91,7 +92,7 @@ func TestMatcherFailedByTimeout(t *testing.T) {
 	})
 
 	target := &sonm.Order{
-		Id:        "1",
+		Id:        pb.NewBigIntFromInt(1),
 		OrderType: sonm.OrderType_ASK,
 	}
 
