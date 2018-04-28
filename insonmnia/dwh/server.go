@@ -166,10 +166,10 @@ func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 	if request.MasterID != nil && request.MasterID.Unwrap().Hex() > "0x0" {
 		filters = append(filters, newFilter("MasterID", eq, request.MasterID.Unwrap().Hex(), "AND"))
 	}
-	if request.AskID > "0" {
+	if request.AskID != nil && request.AskID.Unwrap().String() > "0" {
 		filters = append(filters, newFilter("AskID", eq, request.AskID, "AND"))
 	}
-	if request.BidID > "0" {
+	if request.BidID != nil && request.BidID.Unwrap().String() > "0" {
 		filters = append(filters, newFilter("BidID", eq, request.BidID, "AND"))
 	}
 	if request.Duration != nil {

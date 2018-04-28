@@ -325,7 +325,7 @@ func TestDWH_GetOrderDetails(t *testing.T) {
 		t.Errorf("Expected %s, got %s (Id)", "ask_id_5", reply.Id)
 	}
 	if reply.DealID != "10105" {
-		t.Errorf("Expected %s, got %s (DealID)", "deal_id_5", reply.DealID)
+		t.Errorf("Expected %s, got %s (DealID)", "10105", reply.DealID)
 	}
 	if reply.OrderType != 2 {
 		t.Errorf("Expected %d, got %d (Type)", 2, reply.OrderType)

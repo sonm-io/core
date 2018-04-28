@@ -43,8 +43,8 @@ message DealsRequest {
     EthAddress supplierID = 2;
     EthAddress consumerID = 3;
     EthAddress masterID = 4;
-    string askID = 5;
-    string bidID = 6;
+    BigInt askID = 5;
+    BigInt bidID = 6;
     MaxMinUint64 duration = 7;
     MaxMinBig price = 8;
     CmpUint64 netflags = 9;
