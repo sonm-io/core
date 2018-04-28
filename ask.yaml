@@ -15,10 +15,10 @@ resources:
 #  storage:
 #    size: 10GB
   gpu:
-    indexes: [3, 5]
+#    indexes: [3, 5]
   network:
-    throughputin: 20 bit/s
-    throughputout: 20 bit/s
+    throughputin: 0 bit/s
+    throughputout: 0 bit/s
     overlay: true
     outbound: true
     incoming: false

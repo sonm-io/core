@@ -187,6 +187,9 @@ type GPUHasher interface {
 }
 
 func (m *AskPlanGPU) Normalize(hasher GPUHasher) error {
+	if m == nil {
+		return nil
+	}
 	hashes, err := hasher.HashGPU(m.Indexes)
 	if err != nil {
 		return err
@@ -197,6 +200,9 @@ func (m *AskPlanGPU) Normalize(hasher GPUHasher) error {
 }
 
 func (m *AskPlanGPU) Normalized() bool {
+	if m == nil {
+		return true
+	}
 	return len(m.Indexes) == 0
 }
 

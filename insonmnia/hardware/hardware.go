@@ -1,11 +1,13 @@
 package hardware
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
 
 	"github.com/cnf/structhash"
+	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/ram"
 	"github.com/sonm-io/core/proto"
@@ -98,14 +100,14 @@ func (h *Hardware) AskPlanResources() *sonm.AskPlanResources {
 	return result
 }
 
-func insertBench(to []uint64, bench *sonm.Benchmark, proportion float64) error {
+func insertBench(to []uint64, bench *sonm.Benchmark, proportion float64) ([]uint64, error) {
 	fmt.Println("PIDOR")
 	for len(to) <= int(bench.ID) {
 		to = append(to, uint64(0))
 	}
 	if bench.SplittingAlgorithm == sonm.SplittingAlgorithm_NONE {
 		if to[bench.ID] != 0 {
-			return fmt.Errorf("duplicate benchmark with id %d and type none", bench.ID)
+			return nil, fmt.Errorf("duplicate benchmark with id %d and type none", bench.ID)
 		}
 		to[bench.ID] = bench.GetResult()
 	} else if bench.SplittingAlgorithm == sonm.SplittingAlgorithm_PROPORTIONAL {
@@ -119,29 +121,29 @@ func insertBench(to []uint64, bench *sonm.Benchmark, proportion float64) error {
 			to[bench.ID] = bench.Result
 		}
 	}
-	return nil
+	return to, nil
 }
 
 func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*sonm.Benchmarks, error) {
 	if !resources.GPU.Normalized() {
 		return nil, errors.New("passed resources are not normalized, call resources.GPU.Normalize(hardware) first")
 	}
+	var err error
+	benchmarks := make([]uint64, sonm.MinNumBenchmarks)
 
-	benchmarks := []uint64{}
-
-	for _, bench := range h.CPU.Benchmarks {
-		proportion := float64(resources.CPU.CorePercents) / float64(h.CPU.Device.Cores) / 100
-		if err := insertBench(benchmarks, bench, proportion); err != nil {
-			return nil, err
-		}
-	}
+	//for _, bench := range h.CPU.GetBenchmarks() {
+	//	proportion := float64(resources.GetCPU().GetCorePercents()) / float64(h.CPU.GetDevice().GetCores()) / 100
+	//	if benchmarks, err = insertBench(benchmarks, bench, proportion); err != nil {
+	//		return nil, err
+	//	}
+	//}
 
 	proportions := []float64{}
 	hwBenches := []map[uint64]*sonm.Benchmark{}
-	for _, hash := range resources.GPU.Hashes {
+	for _, hash := range resources.GetGPU().GetHashes() {
 		found := false
 		for _, gpu := range h.GPU {
-			if gpu.Device.GetHash() == hash {
+			if gpu.GetDevice().GetHash() == hash {
 				hwBenches = append(hwBenches, gpu.Benchmarks)
 				proportions = append(proportions, 1.0)
 				found = true
@@ -154,11 +156,13 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 	}
 
 	hwBenches = append(hwBenches,
-		h.Storage.Benchmarks,
-		h.RAM.Benchmarks,
+		h.CPU.GetBenchmarks(),
+		h.Storage.GetBenchmarks(),
+		h.RAM.GetBenchmarks(),
 		h.Network.GetBenchmarksIn(),
 		h.Network.GetBenchmarksOut())
 	proportions = append(proportions,
+		float64(resources.GetCPU().GetCorePercents())/float64(h.CPU.GetDevice().GetCores())/100,
 		float64(resources.GetStorage().GetSize().GetBytes())/float64(h.Storage.GetDevice().GetBytesAvailable()),
 		float64(resources.GetRAM().GetSize().GetBytes())/float64(h.RAM.GetDevice().GetAvailable()),
 		float64(resources.GetNetwork().GetThroughputIn().GetBitsPerSecond())/float64(h.Network.GetIn()),
@@ -166,11 +170,14 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 
 	for idx, benchMap := range hwBenches {
 		for _, bench := range benchMap {
-			if err := insertBench(benchmarks, bench, proportions[idx]); err != nil {
+			if benchmarks, err = insertBench(benchmarks, bench, proportions[idx]); err != nil {
 				return nil, err
 			}
 		}
 	}
+
+	fmt.Println("WTF????????????????")
+	ctxlog.S(context.Background()).Infof("%v", benchmarks)
 
 	return sonm.NewBenchmarks(benchmarks)
 }

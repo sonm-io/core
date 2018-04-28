@@ -79,6 +79,10 @@ func (m *Salesman) AskPlans() map[string]*sonm.AskPlan {
 func (m *Salesman) CreateAskPlan(askPlan *sonm.AskPlan) (string, error) {
 	id := uuid.New()
 	askPlan.ID = id
+	if err := askPlan.GetResources().GetGPU().Normalize(m.hardware); err != nil {
+		return "", err
+	}
+
 	if err := m.resources.Consume(askPlan); err != nil {
 		return "", err
 	}
@@ -94,10 +98,13 @@ func (m *Salesman) RemoveAskPlan(planID string) error {
 	m.tickLock.Lock()
 	defer m.tickLock.Unlock()
 	ask, err := m.state.AskPlan(planID)
-	if !ask.DealID.IsZero() {
+	if err != nil {
+		return err
+	}
+	if !ask.GetDealID().IsZero() {
 		return fmt.Errorf("ask plan %s is bound to deal %s", ask.ID, ask.DealID.String())
 	}
-	if !ask.OrderID.IsZero() {
+	if !ask.GetOrderID().IsZero() {
 		// background context is used  here because we need to get reply from blockchain
 		err = <-m.eth.Market().CancelOrder(context.Background(), m.ethkey, ask.OrderID.Unwrap())
 		if err != nil {

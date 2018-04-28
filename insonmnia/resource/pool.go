@@ -121,7 +121,10 @@ type pool struct {
 }
 
 func newPool(resources *sonm.AskPlanResources) *pool {
-	return &pool{all: resources}
+	return &pool{
+		all:  resources,
+		used: map[string]*sonm.AskPlanResources{},
+	}
 }
 
 func (p *pool) getFree() (*sonm.AskPlanResources, error) {

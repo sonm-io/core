@@ -24,6 +24,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/util"
+	"gopkg.in/yaml.v2"
 
 	// todo: drop alias
 	bm "github.com/sonm-io/core/insonmnia/benchmarks"
@@ -181,16 +182,6 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		}
 	}
 
-	//TODO: this is racy, because of post initialization of hardware via benchmarks
-	resources := resource.NewScheduler(o.ctx, hardwareInfo)
-
-	salesman, err := NewSalesman(o.ctx, o.storage, resources, hardwareInfo, o.eth, o.key)
-	if err != nil {
-		return nil, err
-	}
-
-	salesman.Run(o.ctx)
-
 	m = &Miner{
 		ctx:    o.ctx,
 		cfg:    cfg,
@@ -200,8 +191,8 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		plugins: plugins,
 
 		hardware:  hardwareInfo,
-		resources: resources,
-		salesman:  salesman,
+		resources: nil,
+		salesman:  nil,
 		publicIPs: o.publicIPs,
 
 		containers:  make(map[string]*ContainerInfo),
@@ -220,6 +211,21 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	if err := m.loadExternalState(); err != nil {
 		return nil, err
 	}
+
+	if err := m.RunBenchmarks(); err != nil {
+		return nil, err
+	}
+
+	//TODO: this is racy, because of post initialization of hardware via benchmarks
+	m.resources = resource.NewScheduler(o.ctx, m.hardware)
+
+	salesman, err := NewSalesman(o.ctx, o.storage, m.resources, m.hardware, o.eth, o.key)
+	if err != nil {
+		return nil, err
+	}
+	m.salesman = salesman
+
+	m.salesman.Run(o.ctx)
 
 	return m, nil
 }
@@ -701,6 +707,9 @@ func (m *Miner) RunBenchmarks() error {
 		return err
 	}
 
+	log.S(context.Background()).Errorf("WTF??????")
+	PIDOR, _ := yaml.Marshal(m.hardware)
+	fmt.Println(string(PIDOR))
 	if err := m.state.SetHardwareWithBenchmarks(m.hardware); err != nil {
 		return err
 	}
