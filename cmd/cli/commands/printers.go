@@ -325,7 +325,7 @@ func printDealDetails(cmd *cobra.Command, deals *pb.DealInfoReply) {
 	}
 }
 
-func printBalanceInfo(cmd *cobra.Command, value *big.Int) {
+func printBalanceInfo(cmd *cobra.Command, network string, value *big.Int) {
 	s := pb.NewBigInt(value).ToPriceString()
 
 	if !isSimpleFormat() {
@@ -333,5 +333,5 @@ func printBalanceInfo(cmd *cobra.Command, value *big.Int) {
 		return
 	}
 
-	cmd.Printf("Balance is %s SNM\r\n", s)
+	cmd.Printf("Balance at %s is %s SNM\r\n", network, s)
 }
