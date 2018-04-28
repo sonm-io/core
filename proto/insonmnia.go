@@ -72,8 +72,8 @@ func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
-func (m *EthAddress) NotNull() bool {
-	return m.Unwrap().Hex() > "0x0"
+func (m *EthAddress) IsZero() bool {
+	return NewBigInt(m.Unwrap().Big()).IsZero()
 }
 
 func NewEthAddress(addr common.Address) *EthAddress {

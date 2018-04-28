@@ -1042,7 +1042,7 @@ func TestDWH_monitor(t *testing.T) {
 		return
 	} else {
 		if len(repl.Addresses) > 0 {
-			t.Errorf("GetBlacklist returned a blacklist that should have been deleted: %s", err)
+			t.Errorf("GetBlacklist returned a blacklist that should have been deleted: %+v", repl.Addresses)
 		}
 	}
 }
