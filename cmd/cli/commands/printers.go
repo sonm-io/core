@@ -277,7 +277,7 @@ func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 
 		cmd.Printf("ID:       %s\r\n", deal.GetId())
 		cmd.Printf("Status:   %s\r\n", deal.GetStatus())
-		cmd.Printf("Duraton:  %s\r\n", dealDuration.String())
+		cmd.Printf("Duration:  %s\r\n", dealDuration.String())
 		cmd.Printf("Price:    %s (%s SNM/sec)\r\n", deal.GetPrice().ToPriceString(), ppsBig.ToPriceString())
 		cmd.Printf("Consumer: %s\r\n", deal.GetConsumerID())
 		cmd.Printf("Supplier: %s\r\n", deal.GetSupplierID())

@@ -75,7 +75,7 @@ func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.Ta
 }
 
 func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
-	hub, cc, err := t.getHubClientForDeal(ctx, req.Deal.GetId())
+	hub, cc, err := t.getHubClientForDeal(ctx, req.Deal.GetId().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}

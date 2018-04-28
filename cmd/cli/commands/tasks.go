@@ -100,8 +100,14 @@ var taskStartCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		bigDealID, err := pb.NewBigIntFromString(dealID)
+		if err != nil {
+			showError(cmd, "Cannot parse deal ID", err)
+			os.Exit(1)
+		}
+
 		deal := &pb.Deal{
-			Id:         dealID,
+			Id:         bigDealID,
 			ConsumerID: pb.NewEthAddress(util.PubKeyToAddr(sessionKey.PublicKey)),
 		}
 

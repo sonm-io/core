@@ -68,7 +68,7 @@ func TestMatcher(t *testing.T) {
 	defer cancel()
 
 	go func() {
-		dealChan <- blockchain.DealOrError{Deal: &sonm.Deal{Id: "123"}, Err: nil}
+		dealChan <- blockchain.DealOrError{Deal: &sonm.Deal{Id: pb.NewBigIntFromInt(123)}, Err: nil}
 	}()
 
 	deal, err := m.CreateDealByOrder(ctx, target)

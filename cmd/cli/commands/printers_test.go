@@ -26,7 +26,7 @@ func TestJsonOutputForOrder(t *testing.T) {
 func TestDealInfoWithZeroDuration(t *testing.T) {
 	deal := &pb.Deal{
 		Status:     pb.DealStatus_DEAL_CLOSED,
-		Id:         "1488",
+		Id:         pb.NewBigIntFromInt(1488),
 		ConsumerID: pb.NewEthAddress(common.HexToAddress("0x111")),
 		SupplierID: pb.NewEthAddress(common.HexToAddress("0x222")),
 		Price:      pb.NewBigIntFromInt(1e18),
@@ -37,5 +37,5 @@ func TestDealInfoWithZeroDuration(t *testing.T) {
 	buf := initRootCmd(t, "", config.OutputModeSimple)
 	printDealInfo(rootCmd, deal)
 
-	assert.Contains(t, buf.String(), "Duraton:  0s")
+	assert.Contains(t, buf.String(), "Duration:  0s")
 }
