@@ -81,10 +81,10 @@ func (h *Hardware) SetNetworkIncoming(IPs []string) {
 }
 
 func (h *Hardware) AskPlanResources() *sonm.AskPlanResources {
-	result := sonm.AskPlanResources{}
+	result := sonm.NewEmptyAskPlanResources()
 	result.CPU.CorePercents = uint64(h.CPU.GetDevice().GetCores()) * 100
 	result.RAM.Size.Bytes = h.RAM.Device.Available
-	result.Storage.Size.Bytes = h.Storage.Device.BytesAvailable
+	result.Storage.Size.Bytes = h.Storage.GetDevice().GetBytesAvailable()
 	for _, gpu := range h.GPU {
 		result.GPU.Hashes = append(result.GPU.Hashes, gpu.Device.Hash)
 	}
@@ -95,10 +95,11 @@ func (h *Hardware) AskPlanResources() *sonm.AskPlanResources {
 	//TODO: Make network device use DataSizeRate
 	result.Network.ThroughputIn.BitsPerSecond = h.Network.GetIn()
 	result.Network.ThroughputOut.BitsPerSecond = h.Network.GetOut()
-	return &result
+	return result
 }
 
 func insertBench(to []uint64, bench *sonm.Benchmark, proportion float64) error {
+	fmt.Println("PIDOR")
 	for len(to) <= int(bench.ID) {
 		to = append(to, uint64(0))
 	}
@@ -158,10 +159,10 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 		h.Network.GetBenchmarksIn(),
 		h.Network.GetBenchmarksOut())
 	proportions = append(proportions,
-		float64(resources.GetStorage().GetSize().GetBytes())/float64(h.Storage.Device.BytesAvailable),
-		float64(resources.GetRAM().GetSize().GetBytes())/float64(h.RAM.Device.Available),
-		float64(resources.GetNetwork().GetThroughputIn().GetBitsPerSecond())/float64(h.Network.In),
-		float64(resources.GetNetwork().GetThroughputOut().GetBitsPerSecond())/float64(h.Network.Out))
+		float64(resources.GetStorage().GetSize().GetBytes())/float64(h.Storage.GetDevice().GetBytesAvailable()),
+		float64(resources.GetRAM().GetSize().GetBytes())/float64(h.RAM.GetDevice().GetAvailable()),
+		float64(resources.GetNetwork().GetThroughputIn().GetBitsPerSecond())/float64(h.Network.GetIn()),
+		float64(resources.GetNetwork().GetThroughputOut().GetBitsPerSecond())/float64(h.Network.GetOut()))
 
 	for idx, benchMap := range hwBenches {
 		for _, bench := range benchMap {

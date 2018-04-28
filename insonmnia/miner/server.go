@@ -181,6 +181,16 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		}
 	}
 
+	//TODO: this is racy, because of post initialization of hardware via benchmarks
+	resources := resource.NewScheduler(o.ctx, hardwareInfo)
+
+	salesman, err := NewSalesman(o.ctx, o.storage, resources, hardwareInfo, o.eth, o.key)
+	if err != nil {
+		return nil, err
+	}
+
+	salesman.Run(o.ctx)
+
 	m = &Miner{
 		ctx:    o.ctx,
 		cfg:    cfg,
@@ -190,7 +200,8 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		plugins: plugins,
 
 		hardware:  hardwareInfo,
-		resources: resource.NewScheduler(hardwareInfo),
+		resources: resources,
+		salesman:  salesman,
 		publicIPs: o.publicIPs,
 
 		containers:  make(map[string]*ContainerInfo),

@@ -1,4 +1,4 @@
-endpoint: "[::]:14099"
+endpoint: ":14099"
 
 logging:
   # The desired logging level.

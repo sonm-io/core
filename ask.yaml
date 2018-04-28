@@ -12,13 +12,13 @@ resources:
     cores: 1.5
   ram:
     size: 2GB
-  storage:
-    size: 10GB
+#  storage:
+#    size: 10GB
   gpu:
     indexes: [3, 5]
   network:
-    throughputin: 25 Mbit/s
-    throughputout: 40 Mbit/s
+    throughputin: 20 bit/s
+    throughputout: 20 bit/s
     overlay: true
     outbound: true
-    incoming: true
+    incoming: false

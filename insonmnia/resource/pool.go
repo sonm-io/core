@@ -1,13 +1,17 @@
 package resource
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"github.com/mohae/deepcopy"
+	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/proto"
+	"go.uber.org/zap"
+	"gopkg.in/yaml.v2"
 )
 
 type Scheduler struct {
@@ -17,12 +21,18 @@ type Scheduler struct {
 	taskToAskPlan map[string]string
 	askPlanPools  map[string]*pool
 	parentCGroups map[string]cgroups.CGroup
+	log           *zap.SugaredLogger
 }
 
-func NewScheduler(hardware *hardware.Hardware) *Scheduler {
+func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
+	resources := hardware.AskPlanResources()
+	log := ctxlog.S(ctx).With("source", "resource_scheduler")
+	readableResources, _ := yaml.Marshal(resources)
+	readableHardware, _ := yaml.Marshal(hardware)
+	log.Debugf("constructing scheduler with hardware:\n%s\ninitial resources:\n%s", string(readableHardware), string(readableResources))
 	return &Scheduler{
 		OS:            hardware,
-		pool:          newPool(hardware.AskPlanResources()),
+		pool:          newPool(resources),
 		taskToAskPlan: map[string]string{},
 		askPlanPools:  map[string]*pool{},
 		parentCGroups: map[string]cgroups.CGroup{},
@@ -122,7 +132,10 @@ func (p *pool) getFree() (*sonm.AskPlanResources, error) {
 	}
 	err = res.Sub(usage)
 	if err != nil {
-		return &sonm.AskPlanResources{}, fmt.Errorf("resource pool inconsistency found - used resources are greater than available for scheduling(%s)", err)
+		pool, _ := yaml.Marshal(res)
+		use, _ := yaml.Marshal(usage)
+		return &sonm.AskPlanResources{}, fmt.Errorf("resource pool inconsistency found - used resources are greater than available for scheduling(%s). pool - %s, used - %s",
+			err, pool, use)
 	}
 	return res, nil
 }

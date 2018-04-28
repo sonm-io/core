@@ -111,6 +111,7 @@ func New(cfg *miner.Config, opts ...Option) (*Hub, error) {
 
 	wl := NewWhitelist(ctx, &cfg.Whitelist)
 
+	//TODO: Should be refactored
 	if err := defaults.worker.RunBenchmarks(); err != nil {
 		defaults.worker.Close()
 		return nil, err

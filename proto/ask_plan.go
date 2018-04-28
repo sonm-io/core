@@ -14,7 +14,10 @@ const (
 )
 
 func (c *AskPlanCPU) MarshalYAML() (interface{}, error) {
-	return map[string]float64{"cores": float64(c.CorePercents) / 100.}, nil
+	if c == nil {
+		return nil, nil
+	}
+	return map[string]float64{"cores": float64(c.GetCorePercents()) / 100.}, nil
 }
 
 func (c *AskPlanCPU) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -46,36 +49,89 @@ func (m *AskPlan) Validate() error {
 	return m.GetResources().GetGPU().Validate()
 }
 
+func NewEmptyAskPlanResources() *AskPlanResources {
+	res := &AskPlanResources{}
+	res.InitNilWithZero()
+	return res
+}
+
+func (m *AskPlanResources) InitNilWithZero() {
+	if m.CPU == nil {
+		m.CPU = &AskPlanCPU{}
+	}
+	if m.RAM == nil {
+		m.RAM = &AskPlanRAM{}
+	}
+	if m.RAM.Size == nil {
+		m.RAM.Size = &DataSize{}
+	}
+	if m.Storage == nil {
+		m.Storage = &AskPlanStorage{}
+	}
+	if m.Storage.Size == nil {
+		m.Storage.Size = &DataSize{}
+	}
+	if m.GPU == nil {
+		m.GPU = &AskPlanGPU{}
+	}
+	if m.GPU.Hashes == nil {
+		m.GPU.Hashes = []string{}
+	}
+	if m.GPU.Indexes == nil {
+		m.GPU.Indexes = []uint64{}
+	}
+	if m.Network == nil {
+		m.Network = &AskPlanNetwork{}
+	}
+	if m.Network.ThroughputOut == nil {
+		m.Network.ThroughputOut = &DataSizeRate{}
+	}
+	if m.Network.ThroughputIn == nil {
+		m.Network.ThroughputIn = &DataSizeRate{}
+	}
+}
+
 func (m *AskPlanResources) Add(resources *AskPlanResources) error {
-	if err := m.GPU.Add(resources.GPU); err != nil {
+	m.InitNilWithZero()
+	if err := m.GetGPU().Add(resources.GetGPU()); err != nil {
 		return err
 	}
-	m.CPU.CorePercents += resources.CPU.CorePercents
-	m.RAM.Size.Bytes += resources.RAM.Size.Bytes
-	m.Storage.Size.Bytes += resources.Storage.Size.Bytes
-	m.Network.Incoming = m.Network.Incoming && resources.Network.Incoming
-	m.Network.Outbound = m.Network.Outbound && resources.Network.Outbound
-	m.Network.Overlay = m.Network.Overlay && resources.Network.Overlay
-	m.Network.ThroughputIn.BitsPerSecond += resources.Network.ThroughputIn.BitsPerSecond
-	m.Network.ThroughputOut.BitsPerSecond += resources.Network.ThroughputOut.BitsPerSecond
+	m.CPU.CorePercents += resources.GetCPU().CorePercents
+	m.RAM.Size.Bytes += resources.GetRAM().GetSize().GetBytes()
+	m.Storage.Size.Bytes += resources.GetStorage().GetSize().GetBytes()
+	m.Network.Incoming = m.GetNetwork().GetIncoming() && resources.GetNetwork().GetIncoming()
+	m.Network.Outbound = m.GetNetwork().GetOutbound() && resources.GetNetwork().GetOutbound()
+	m.Network.Overlay = m.GetNetwork().GetOverlay() && resources.GetNetwork().GetOverlay()
+	m.Network.ThroughputIn.BitsPerSecond += resources.GetNetwork().GetThroughputIn().GetBitsPerSecond()
+	m.Network.ThroughputOut.BitsPerSecond += resources.GetNetwork().GetThroughputOut().GetBitsPerSecond()
 	return nil
 }
 
 func (m *AskPlanResources) Sub(resources *AskPlanResources) error {
+	m.InitNilWithZero()
 	if ok, desc := m.Contains(resources); !ok {
 		return errors.New(desc)
 	}
-	m.CPU.CorePercents -= resources.CPU.CorePercents
-	m.RAM.Size.Bytes -= resources.RAM.Size.Bytes
-	m.Storage.Size.Bytes -= resources.Storage.Size.Bytes
-	m.GPU.Sub(resources.GPU)
-	m.Network.ThroughputIn.BitsPerSecond -= resources.Network.ThroughputIn.BitsPerSecond
-	m.Network.ThroughputOut.BitsPerSecond -= resources.Network.ThroughputOut.BitsPerSecond
+	m.CPU.CorePercents -= resources.GetCPU().GetCorePercents()
+	m.RAM.Size.Bytes -= resources.GetRAM().GetSize().GetBytes()
+	m.Storage.Size.Bytes -= resources.GetStorage().GetSize().GetBytes()
+	m.GPU.Sub(resources.GetGPU())
+	m.Network.ThroughputIn.BitsPerSecond -= resources.GetNetwork().GetThroughputIn().GetBitsPerSecond()
+	m.Network.ThroughputOut.BitsPerSecond -= resources.GetNetwork().GetThroughputOut().GetBitsPerSecond()
 	return nil
 }
 
 func (m *AskPlanResources) ToHostConfigResources(cgroupParent string) container.Resources {
-	panic("implement me")
+	//TODO: check and discuss
+	return container.Resources{
+		CPUShares: int64(m.GetCPU().GetCorePercents()),
+		Memory:    int64(m.GetRAM().GetSize().GetBytes()),
+		//TODO: Do we need to specify this?
+		NanoCPUs:     int64(m.GetCPU().GetCorePercents() * 10e9 / 100),
+		CgroupParent: cgroupParent,
+		DiskQuota:    int64(m.GetStorage().GetSize().GetBytes()),
+	}
+
 }
 
 func (m *AskPlanResources) ToCgroupResources() *specs.LinuxResources {
@@ -83,35 +139,37 @@ func (m *AskPlanResources) ToCgroupResources() *specs.LinuxResources {
 }
 
 func converseImplication(lhs, rhs bool) bool {
-	return lhs && !rhs
+	return lhs || !rhs
 }
 
 func (m *AskPlanResources) Contains(resources *AskPlanResources) (result bool, detailedDescription string) {
-	if m.CPU.CorePercents >= resources.CPU.CorePercents {
-		return false, "not enough CPU"
+	if m.GetCPU().GetCorePercents() < resources.GetCPU().GetCorePercents() {
+		return false, fmt.Sprintf("not enough CPU, required %d core percents, available %d core percents",
+			resources.GetCPU().GetCorePercents(), m.GetCPU().GetCorePercents())
 	}
-	if m.RAM.Size.Bytes >= resources.RAM.Size.Bytes {
-		return false, "not enough RAM"
+	if m.GetRAM().GetSize().GetBytes() < resources.GetRAM().GetSize().GetBytes() {
+		return false, fmt.Sprintf("not enough RAM, required %s, available %s",
+			resources.GetRAM().GetSize().Unwrap().HumanReadable(), m.GetRAM().GetSize().Unwrap().HumanReadable())
 	}
-	if m.Storage.Size.Bytes >= resources.Storage.Size.Bytes {
+	if m.GetStorage().GetSize().GetBytes() < resources.GetStorage().GetSize().GetBytes() {
 		return false, "not enough Storage"
 	}
-	if m.GPU.Contains(resources.GPU) {
+	if !m.GetGPU().Contains(resources.GetGPU()) {
 		return false, "specified GPU is occupied"
 	}
-	if converseImplication(m.Network.Incoming, resources.Network.Incoming) {
+	if !converseImplication(m.GetNetwork().GetIncoming(), resources.GetNetwork().GetIncoming()) {
 		return false, "incoming traffic is prohibited"
 	}
-	if converseImplication(m.Network.Outbound, resources.Network.Outbound) {
+	if !converseImplication(m.GetNetwork().GetOutbound(), resources.GetNetwork().GetOutbound()) {
 		return false, "outbound traffic is prohibited"
 	}
-	if converseImplication(m.Network.Overlay, resources.Network.Overlay) {
+	if !converseImplication(m.GetNetwork().GetOverlay(), resources.GetNetwork().GetOverlay()) {
 		return false, "overlay traffic is prohibited"
 	}
-	if m.Network.ThroughputIn.BitsPerSecond >= resources.Network.ThroughputIn.BitsPerSecond {
+	if m.GetNetwork().GetThroughputIn().GetBitsPerSecond() < resources.GetNetwork().GetThroughputIn().GetBitsPerSecond() {
 		return false, "incoming traffic limit exceeded"
 	}
-	if m.Network.ThroughputOut.BitsPerSecond >= resources.Network.ThroughputOut.BitsPerSecond {
+	if m.GetNetwork().GetThroughputOut().GetBitsPerSecond() < resources.GetNetwork().GetThroughputOut().GetBitsPerSecond() {
 		return false, "incoming traffic limit exceeded"
 	}
 	return true, ""
@@ -168,6 +226,12 @@ func (m *AskPlanGPU) Sub(other *AskPlanGPU) error {
 }
 
 func (m *AskPlanGPU) Contains(other *AskPlanGPU) bool {
+	if other == nil {
+		return true
+	}
+	if m == nil {
+		return false
+	}
 	result := m.deviceSet()
 	for _, dev := range other.GetHashes() {
 		if _, ok := result[dev]; !ok {

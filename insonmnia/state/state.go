@@ -129,7 +129,14 @@ func (s *Storage) SaveAskPlan(askPlan *pb.AskPlan) error {
 }
 
 func (s *Storage) AskPlan(planID string) (*pb.AskPlan, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
+	askPlan, ok := s.data.AskPlans[planID]
+	if !ok {
+		return nil, errors.New("specified ask-plan does not exist")
+	}
+	return askPlan, nil
 }
 
 func (s *Storage) RemoveAskPlan(planID string) (*pb.AskPlan, error) {

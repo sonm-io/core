@@ -84,6 +84,9 @@ func NewEthAddress(addr common.Address) *EthAddress {
 }
 
 func (m *DataSize) Unwrap() datasize.ByteSize {
+	if m == nil {
+		return datasize.ByteSize{}
+	}
 	return datasize.NewByteSize(m.Bytes)
 }
 
