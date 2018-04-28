@@ -157,13 +157,13 @@ func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 	if request.Status > 0 {
 		filters = append(filters, newFilter("Status", eq, request.Status, "AND"))
 	}
-	if request.SupplierID != nil && request.SupplierID.Unwrap().Hex() > "0x0" {
+	if request.SupplierID != nil && request.SupplierID.NotNull() {
 		filters = append(filters, newFilter("SupplierID", eq, request.SupplierID.Unwrap().Hex(), "AND"))
 	}
-	if request.ConsumerID != nil && request.ConsumerID.Unwrap().Hex() > "0x0" {
+	if request.ConsumerID != nil && request.ConsumerID.NotNull() {
 		filters = append(filters, newFilter("ConsumerID", eq, request.ConsumerID.Unwrap().Hex(), "AND"))
 	}
-	if request.MasterID != nil && request.MasterID.Unwrap().Hex() > "0x0" {
+	if request.MasterID != nil && request.MasterID.NotNull() {
 		filters = append(filters, newFilter("MasterID", eq, request.MasterID.Unwrap().Hex(), "AND"))
 	}
 	if request.AskID != nil && request.AskID.Unwrap().String() > "0" {
@@ -311,10 +311,10 @@ func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 	if request.Type > 0 {
 		filters = append(filters, newFilter("Type", eq, request.Type, "AND"))
 	}
-	if request.AuthorID != nil && request.AuthorID.Unwrap().Hex() > "0x0" {
+	if request.AuthorID != nil && request.AuthorID.NotNull() {
 		filters = append(filters, newFilter("AuthorID", eq, request.AuthorID.Unwrap().Hex(), "AND"))
 	}
-	if request.CounterpartyID != nil && request.CounterpartyID.Unwrap().Hex() > "0x0" {
+	if request.CounterpartyID != nil && request.CounterpartyID.NotNull() {
 		filters = append(filters, newFilter("CounterpartyID", eq, request.CounterpartyID.Unwrap().Hex(), "AND"))
 	}
 	if request.Duration != nil {
@@ -415,7 +415,7 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	} else {
 		filters = append(filters, newFilter("Duration", eq, order.Order.Duration, "AND"))
 	}
-	if order.Order.CounterpartyID.Unwrap().Hex() > "0x0" {
+	if order.Order.CounterpartyID != nil && order.Order.CounterpartyID.NotNull() {
 		filters = append(filters, newFilter("AuthorID", eq, order.Order.CounterpartyID.Unwrap().Hex(), "AND"))
 	}
 	counterpartyFilter := newFilter("CounterpartyID", eq, "", "OR")
@@ -632,7 +632,7 @@ func (w *DWH) GetBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 
 func (w *DWH) getBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
 	var filters []*filter
-	if request.OwnerID.Unwrap().Hex() > "0x0" {
+	if request.OwnerID.NotNull() {
 		filters = append(filters, newFilter("AdderID", eq, request.OwnerID.Unwrap().Hex(), "AND"))
 	}
 	rows, _, err := runQuery(w.db, &queryOpts{
@@ -759,7 +759,7 @@ func (w *DWH) GetWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 
 func (w *DWH) getWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.WorkersReply, error) {
 	var filters []*filter
-	if request.MasterID != nil && request.MasterID.Unwrap().Hex() > "0x0" {
+	if request.MasterID != nil && request.MasterID.NotNull() {
 		filters = append(filters, newFilter("Level", eq, request.MasterID, "AND"))
 	}
 	rows, _, err := runQuery(w.db, &queryOpts{
