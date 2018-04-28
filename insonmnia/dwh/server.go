@@ -946,12 +946,12 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 
 	_, err = tx.Exec(
 		w.commands["insertDeal"],
-		deal.Id,
-		deal.SupplierID,
-		deal.ConsumerID,
-		deal.MasterID,
-		deal.AskID,
-		deal.BidID,
+		deal.Id.Unwrap().String(),
+		deal.SupplierID.Unwrap().Hex(),
+		deal.ConsumerID.Unwrap().Hex(),
+		deal.MasterID.Unwrap().Hex(),
+		deal.AskID.Unwrap().String(),
+		deal.BidID.Unwrap().String(),
 		deal.Duration,
 		deal.Price.PaddedString(),
 		deal.StartTime.Seconds,
@@ -989,15 +989,15 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 
 	_, err = tx.Exec(
 		w.commands["insertDealCondition"],
-		deal.SupplierID,
-		deal.ConsumerID,
-		deal.MasterID,
+		deal.SupplierID.Unwrap().Hex(),
+		deal.ConsumerID.Unwrap().Hex(),
+		deal.MasterID.Unwrap().Hex(),
 		deal.Duration,
 		deal.Price.PaddedString(),
 		deal.StartTime.Seconds,
 		0,
 		deal.TotalPayout.PaddedString(),
-		deal.Id,
+		deal.Id.Unwrap().String(),
 	)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
