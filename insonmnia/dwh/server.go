@@ -2049,6 +2049,10 @@ func (w *DWH) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, error) {
 	bigPrice.SetString(price, 10)
 	bigTotalPayout := new(big.Int)
 	bigTotalPayout.SetString(totalPayout, 10)
+	bigDealID, err := pb.NewBigIntFromString(dealID)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to NewBigIntFromString (DealID)")
+	}
 
 	return &pb.DealCondition{
 		Id:          rowid,
@@ -2060,7 +2064,7 @@ func (w *DWH) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, error) {
 		StartTime:   &pb.Timestamp{Seconds: startTime},
 		EndTime:     &pb.Timestamp{Seconds: endTime},
 		TotalPayout: pb.NewBigInt(bigTotalPayout),
-		DealID:      dealID,
+		DealID:      bigDealID,
 	}, nil
 }
 

@@ -128,7 +128,7 @@ message DealCondition {
     Timestamp startTime = 7;
     Timestamp endTime = 8;
     BigInt totalPayout = 9;
-    string dealID = 10;
+    BigInt dealID = 10;
 }
 
 message DWHWorker {
