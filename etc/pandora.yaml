@@ -59,7 +59,8 @@ pools:
           orders:
             - Type: 0
             - Type: 2
-              AuthorID: 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD
+              AuthorID:
+                EthAddress: 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD
     result:
       type: phout
       destination: ./target/sonm_dwh_out.log
