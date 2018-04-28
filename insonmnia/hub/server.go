@@ -29,7 +29,8 @@ import (
 )
 
 const (
-	hubAPIPrefix = "/sonm.WorkerManagement/"
+	workerAPIPrefix = "/sonm.WorkerManagement/"
+	taskAPIPrefix   = "/sonm.Hub/"
 )
 
 var (
@@ -39,13 +40,13 @@ var (
 	// and Hub's wallet equality.
 	// The wallet is passed as peer metadata.
 	workerManagementMethods = []string{
-		"Status",
-		"Tasks",
-		"Devices",
-		"FreeDevices",
-		"AskPlans",
-		"CreateAskPlan",
-		"RemoveAskPlan",
+		workerAPIPrefix + "Status",
+		workerAPIPrefix + "Tasks",
+		workerAPIPrefix + "Devices",
+		workerAPIPrefix + "FreeDevices",
+		workerAPIPrefix + "AskPlans",
+		workerAPIPrefix + "CreateAskPlan",
+		workerAPIPrefix + "RemoveAskPlan",
 	}
 )
 
@@ -133,22 +134,23 @@ func New(cfg *miner.Config, opts ...Option) (*Hub, error) {
 
 	authorization := auth.NewEventAuthorization(h.ctx,
 		auth.WithLog(log.G(ctx)),
-		auth.WithEventPrefix(hubAPIPrefix),
+		// Note: need to refactor auth router to support multiple prefixes for methods.
+		// auth.WithEventPrefix(hubAPIPrefix),
 		auth.Allow(workerManagementMethods...).With(auth.NewTransportAuthorization(h.ethAddr)),
 
-		auth.Allow("TaskStatus").With(newMultiAuth(
+		auth.Allow(taskAPIPrefix+"TaskStatus").With(newMultiAuth(
 			auth.NewTransportAuthorization(h.ethAddr),
 			newDealAuthorization(ctx, h, newFromTaskDealExtractor(h)),
 		)),
-		auth.Allow("StopTask").With(newDealAuthorization(ctx, h, newFromTaskDealExtractor(h))),
-		auth.Allow("JoinNetwork").With(newDealAuthorization(ctx, h, newFromNamedTaskDealExtractor(h, "TaskID"))),
-		auth.Allow("StartTask").With(newDealAuthorization(ctx, h, newFieldDealExtractor())),
-		auth.Allow("TaskLogs").With(newDealAuthorization(ctx, h, newFromTaskDealExtractor(h))),
-		auth.Allow("PushTask").With(newDealAuthorization(ctx, h, newContextDealExtractor())),
-		auth.Allow("PullTask").With(newDealAuthorization(ctx, h, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
+		auth.Allow(taskAPIPrefix+"StopTask").With(newDealAuthorization(ctx, h, newFromTaskDealExtractor(h))),
+		auth.Allow(taskAPIPrefix+"JoinNetwork").With(newDealAuthorization(ctx, h, newFromNamedTaskDealExtractor(h, "TaskID"))),
+		auth.Allow(taskAPIPrefix+"StartTask").With(newDealAuthorization(ctx, h, newFieldDealExtractor())),
+		auth.Allow(taskAPIPrefix+"TaskLogs").With(newDealAuthorization(ctx, h, newFromTaskDealExtractor(h))),
+		auth.Allow(taskAPIPrefix+"PushTask").With(newDealAuthorization(ctx, h, newContextDealExtractor())),
+		auth.Allow(taskAPIPrefix+"PullTask").With(newDealAuthorization(ctx, h, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
 			return structs.DealID(request.(*pb.PullTaskRequest).DealId), nil
 		}))),
-		auth.Allow("GetDealInfo").With(newDealAuthorization(ctx, h, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
+		auth.Allow(taskAPIPrefix+"GetDealInfo").With(newDealAuthorization(ctx, h, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
 			return structs.DealID(request.(*pb.ID).GetId()), nil
 		}))),
 		auth.WithFallback(auth.NewDenyAuthorization()),
@@ -212,7 +214,7 @@ func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, erro
 
 func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 	log.G(h.ctx).Info("handling PushTask request")
-	if err := h.eventAuthorization.Authorize(stream.Context(), auth.Event(hubAPIPrefix+"PushTask"), nil); err != nil {
+	if err := h.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PushTask"), nil); err != nil {
 		return err
 	}
 
@@ -228,7 +230,7 @@ func (h *Hub) PushTask(stream pb.Hub_PushTaskServer) error {
 func (h *Hub) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer) error {
 	log.G(h.ctx).Info("handling PullTask request", zap.Any("request", request))
 
-	if err := h.eventAuthorization.Authorize(stream.Context(), auth.Event(hubAPIPrefix+"PullTask"), request); err != nil {
+	if err := h.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PullTask"), request); err != nil {
 		return err
 	}
 
@@ -356,7 +358,7 @@ func (h *Hub) TaskStatus(ctx context.Context, request *pb.ID) (*pb.TaskStatusRep
 
 func (h *Hub) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer) error {
 	log.G(h.ctx).Info("handling TaskLogs request", zap.Any("request", request))
-	if err := h.eventAuthorization.Authorize(server.Context(), auth.Event(hubAPIPrefix+"TaskLogs"), request); err != nil {
+	if err := h.eventAuthorization.Authorize(server.Context(), auth.Event(taskAPIPrefix+"TaskLogs"), request); err != nil {
 		return err
 	}
 

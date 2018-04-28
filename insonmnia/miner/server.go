@@ -194,6 +194,7 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 
 		containers:  make(map[string]*ContainerInfo),
 		nameMapping: make(map[string]string),
+		Deals:       make(map[structs.DealID]*structs.DealMeta),
 
 		controlGroup:  cgroup,
 		cGroupManager: cGroupManager,
