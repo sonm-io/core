@@ -297,7 +297,7 @@ func (api *BasicMarketAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey
 		big.NewInt(int64(order.Duration)),
 		fixedNetflags,
 		uint8(order.IdentityLevel),
-		common.StringToAddress(order.Blacklist),
+		common.HexToAddress(order.Blacklist),
 		fixedTag,
 		order.GetBenchmarks().ToArray(),
 	)
