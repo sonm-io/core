@@ -333,51 +333,51 @@ func setupSQLite(w *DWH) error {
 	}
 
 	for column := range DealsColumns {
-		if err := createIndex(db, sqliteCreateIndex, "Deals", column); err != nil {
+		if err = createIndex(db, sqliteCreateIndex, "Deals", column); err != nil {
 			return err
 		}
 	}
 
 	for _, column := range []string{"Id", "DealID", "RequestType", "Status"} {
-		if err := createIndex(db, sqliteCreateIndex, "DealChangeRequests", column); err != nil {
+		if err = createIndex(db, sqliteCreateIndex, "DealChangeRequests", column); err != nil {
 			return err
 		}
 	}
 
 	for column := range DealConditionsColumns {
-		if err := createIndex(db, sqliteCreateIndex, "DealConditions", column); err != nil {
+		if err = createIndex(db, sqliteCreateIndex, "DealConditions", column); err != nil {
 			return err
 		}
 	}
 
 	for column := range OrdersColumns {
-		if err := createIndex(db, sqliteCreateIndex, "Orders", column); err != nil {
+		if err = createIndex(db, sqliteCreateIndex, "Orders", column); err != nil {
 			return err
 		}
 	}
 
 	for _, column := range []string{"MasterID", "WorkerID"} {
-		if err := createIndex(db, sqliteCreateIndex, "Workers", column); err != nil {
+		if err = createIndex(db, sqliteCreateIndex, "Workers", column); err != nil {
 			return err
 		}
 	}
 
 	for _, column := range []string{"AdderID", "AddeeID"} {
-		if err := createIndex(db, sqliteCreateIndex, "Blacklists", column); err != nil {
+		if err = createIndex(db, sqliteCreateIndex, "Blacklists", column); err != nil {
 			return err
 		}
 	}
 
-	if err := createIndex(db, sqliteCreateIndex, "Validators", "Id"); err != nil {
+	if err = createIndex(db, sqliteCreateIndex, "Validators", "Id"); err != nil {
 		return err
 	}
 
-	if err := createIndex(db, sqliteCreateIndex, "Certificates", "OwnerID"); err != nil {
+	if err = createIndex(db, sqliteCreateIndex, "Certificates", "OwnerID"); err != nil {
 		return err
 	}
 
 	for column := range ProfilesColumns {
-		if err := createIndex(db, sqliteCreateIndex, "Profiles", column); err != nil {
+		if err = createIndex(db, sqliteCreateIndex, "Profiles", column); err != nil {
 			return err
 		}
 	}
