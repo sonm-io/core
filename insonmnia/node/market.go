@@ -19,7 +19,7 @@ func (m *marketAPI) GetOrders(ctx context.Context, req *pb.Count) (*pb.GetOrders
 	filter := &pb.OrdersRequest{
 		Type:     pb.OrderType_BID,
 		Status:   pb.OrderStatus_ORDER_ACTIVE,
-		AuthorID: crypto.PubkeyToAddress(m.remotes.key.PublicKey).Hex(),
+		AuthorID: pb.NewEthAddress(crypto.PubkeyToAddress(m.remotes.key.PublicKey)),
 		Limit:    req.GetCount(),
 	}
 
@@ -68,11 +68,6 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 		return nil, err
 	}
 
-	var counterparty string
-	if req.CounterpartyID != nil {
-		counterparty = req.GetCounterpartyID().Unwrap().Hex()
-	}
-
 	var blacklist string
 	if req.GetBlacklist() != nil {
 		blacklist = req.GetBlacklist().Unwrap().Hex()
@@ -81,8 +76,8 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 	order := &pb.Order{
 		OrderType:      pb.OrderType_BID,
 		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
-		AuthorID:       crypto.PubkeyToAddress(m.remotes.key.PublicKey).Hex(),
-		CounterpartyID: counterparty,
+		AuthorID:       pb.NewEthAddress(crypto.PubkeyToAddress(m.remotes.key.PublicKey)),
+		CounterpartyID: req.GetCounterpartyID(),
 		Duration:       uint64(req.GetDuration().Unwrap().Seconds()),
 		Price:          req.GetPrice().GetPerSecond(),
 		Netflags: pb.NetflagsToUint([3]bool{

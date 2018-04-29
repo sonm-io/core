@@ -55,7 +55,10 @@ func (m *EthAddress) Unwrap() common.Address {
 }
 
 func (m *EthAddress) MarshalYAML() (interface{}, error) {
-	return m.Unwrap().Hex(), nil
+	if m != nil {
+		return m.Unwrap().Hex(), nil
+	}
+	return nil, nil
 }
 
 func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -70,6 +73,18 @@ func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	m.Address = common.HexToAddress(v).Bytes()
 	return nil
+}
+
+func (m *EthAddress) IsZero() bool {
+	if m == nil {
+		return true
+	}
+
+	return m.Unwrap().Big().BitLen() == 0
+}
+
+func NewEthAddress(addr common.Address) *EthAddress {
+	return &EthAddress{Address: addr.Bytes()}
 }
 
 func (m *DataSize) Unwrap() datasize.ByteSize {

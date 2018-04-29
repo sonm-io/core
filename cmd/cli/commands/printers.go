@@ -277,7 +277,7 @@ func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 
 		cmd.Printf("ID:       %s\r\n", deal.GetId())
 		cmd.Printf("Status:   %s\r\n", deal.GetStatus())
-		cmd.Printf("Duraton:  %s\r\n", dealDuration.String())
+		cmd.Printf("Duration:  %s\r\n", dealDuration.String())
 		cmd.Printf("Price:    %s (%s SNM/sec)\r\n", deal.GetPrice().ToPriceString(), ppsBig.ToPriceString())
 		cmd.Printf("Consumer: %s\r\n", deal.GetConsumerID())
 		cmd.Printf("Supplier: %s\r\n", deal.GetSupplierID())
@@ -325,7 +325,7 @@ func printDealDetails(cmd *cobra.Command, deals *pb.DealInfoReply) {
 	}
 }
 
-func printBalanceInfo(cmd *cobra.Command, value *big.Int) {
+func printBalanceInfo(cmd *cobra.Command, network string, value *big.Int) {
 	s := pb.NewBigInt(value).ToPriceString()
 
 	if !isSimpleFormat() {
@@ -333,5 +333,5 @@ func printBalanceInfo(cmd *cobra.Command, value *big.Int) {
 		return
 	}
 
-	cmd.Printf("Balance is %s SNM\r\n", s)
+	cmd.Printf("Balance at %s is %s SNM\r\n", network, s)
 }

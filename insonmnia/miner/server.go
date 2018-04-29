@@ -194,6 +194,7 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 
 		containers:  make(map[string]*ContainerInfo),
 		nameMapping: make(map[string]string),
+		Deals:       make(map[structs.DealID]*structs.DealMeta),
 
 		controlGroup:  cgroup,
 		cGroupManager: cGroupManager,
@@ -936,7 +937,7 @@ func (m *Miner) loadDeals() error {
 
 	m.mu.Lock()
 	for _, deal := range deals {
-		m.Deals[structs.DealID(deal.GetId())] = structs.NewDealMeta(deal)
+		m.Deals[structs.DealID(deal.GetId().Unwrap().String())] = structs.NewDealMeta(deal)
 	}
 	m.mu.Unlock()
 

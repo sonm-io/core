@@ -12,6 +12,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
+	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap/zapcore"
@@ -29,7 +30,7 @@ func makeHubWithOrder(t *testing.T, ctx context.Context, buyerId string, dealId 
 	return &Hub{
 		ctx: ctx,
 		worker: &miner.Miner{
-			Deals: map[structs.DealID]*structs.DealMeta{dealId: {Deal: &sonm.Deal{ConsumerID: buyerId}}},
+			Deals: map[structs.DealID]*structs.DealMeta{dealId: {Deal: &sonm.Deal{ConsumerID: pb.NewEthAddress(common.HexToAddress(buyerId))}}},
 		},
 	}
 }
@@ -37,14 +38,14 @@ func makeHubWithOrder(t *testing.T, ctx context.Context, buyerId string, dealId 
 func TestFieldDealMetaData(t *testing.T) {
 	request := &sonm.StartTaskRequest{
 		Deal: &sonm.Deal{
-			Id: "0x42",
+			Id: pb.NewBigIntFromInt(66),
 		},
 	}
 
 	md := newFieldDealExtractor()
 	dealID, err := md(context.Background(), request)
 	require.NoError(t, err)
-	assert.Equal(t, structs.DealID("0x42"), dealID)
+	assert.Equal(t, structs.DealID("66"), dealID)
 }
 
 func TestFieldDealMetaDataErrorsOnInvalidType(t *testing.T) {
@@ -52,7 +53,7 @@ func TestFieldDealMetaDataErrorsOnInvalidType(t *testing.T) {
 		Deal string
 	}
 	request := &Request{
-		Deal: "0x42",
+		Deal: "66",
 	}
 
 	md := newFieldDealExtractor()
@@ -82,13 +83,13 @@ func TestFieldDealMetaDataErrorsOnInvalidInnerType(t *testing.T) {
 
 func TestContextDealMetaData(t *testing.T) {
 	ctx := metadata.NewIncomingContext(context.Background(), metadata.MD(map[string][]string{
-		"deal": {"0x42"},
+		"deal": {"66"},
 	}))
 
 	md := newContextDealExtractor()
 	dealID, err := md(ctx, nil)
 	require.NoError(t, err)
-	assert.Equal(t, structs.DealID("0x42"), dealID)
+	assert.Equal(t, structs.DealID("66"), dealID)
 }
 
 func TestDealAuthorization(t *testing.T) {
@@ -98,12 +99,12 @@ func TestDealAuthorization(t *testing.T) {
 
 	request := &sonm.StartTaskRequest{
 		Deal: &sonm.Deal{
-			Id: "0x42",
+			Id: pb.NewBigIntFromInt(66),
 		},
 	}
 
 	md := newFieldDealExtractor()
-	authorization := newDealAuthorization(ctx, makeHubWithOrder(t, ctx, addr.Hex(), "0x42"), md)
+	authorization := newDealAuthorization(ctx, makeHubWithOrder(t, ctx, addr.Hex(), "66"), md)
 
 	require.NoError(t, authorization.Authorize(ctx, request))
 }
@@ -115,12 +116,12 @@ func TestDealAuthorizationErrors(t *testing.T) {
 
 	request := &sonm.StartTaskRequest{
 		Deal: &sonm.Deal{
-			Id: "0x42",
+			Id: pb.NewBigIntFromInt(66),
 		},
 	}
 
 	md := newFieldDealExtractor()
-	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, ctx, "0x100500", "0x42"), md)
+	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, ctx, "0x100500", "66"), md)
 
 	require.Error(t, au.Authorize(ctx, request))
 }
@@ -136,12 +137,12 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 
 	request := &sonm.StartTaskRequest{
 		Deal: &sonm.Deal{
-			Id: "0x42",
+			Id: pb.NewBigIntFromInt(66),
 		},
 	}
 
 	md := newFieldDealExtractor()
-	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, ctx, "0x100500", "0x42"), md)
+	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, ctx, "0x100500", "66"), md)
 
 	require.Error(t, au.Authorize(ctx, request))
 }

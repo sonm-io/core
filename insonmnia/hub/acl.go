@@ -5,15 +5,15 @@ import (
 	"errors"
 	"reflect"
 
+	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
+	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
-
-	log "github.com/noxiouz/zapctx/ctxlog"
 )
 
 var (
@@ -60,7 +60,7 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 		return err
 	}
 
-	allowedWallet := meta.Deal.GetConsumerID()
+	allowedWallet := meta.Deal.GetConsumerID().Unwrap().String()
 
 	log.G(ctx).Debug("found allowed wallet for a deal",
 		zap.Stringer("deal", dealID),
@@ -90,16 +90,17 @@ func newFieldDealExtractor() DealExtractor {
 			return "", errInvalidDealField
 		}
 
-		dealId := reflect.Indirect(deal).FieldByName("Id")
-		if !dealId.IsValid() {
+		dealIdValue := reflect.Indirect(deal).FieldByName("Id")
+		if !dealIdValue.IsValid() {
 			return "", errInvalidDealField
 		}
 
-		if dealId.Type().Kind() != reflect.String {
+		dealID, ok := dealIdValue.Interface().(*pb.BigInt)
+		if !ok {
 			return "", errInvalidDealField
 		}
 
-		return structs.DealID(dealId.String()), nil
+		return structs.DealID(dealID.Unwrap().String()), nil
 	}
 }
 

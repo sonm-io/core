@@ -20,8 +20,7 @@ pools:
       # Ethereum target settings.
       ethereum:
         endpoint: http://92.53.70.228:8545
-        account_path: ./keys
-        account_pass: any
+        account_type: random
     ammo:
       type: sonm
       limit: 100000
@@ -29,6 +28,7 @@ pools:
       detail:
         - type: sonm.marketplace.GetOrderInfo
           order_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        - type: sonm.marketplace.PlaceOrder
     result:
       type: phout
       destination: ./target/sonm_marketplace_out.log
@@ -59,7 +59,8 @@ pools:
           orders:
             - Type: 0
             - Type: 2
-              AuthorID: 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD
+              AuthorID:
+                EthAddress: 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD
     result:
       type: phout
       destination: ./target/sonm_dwh_out.log

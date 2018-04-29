@@ -35,6 +35,7 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		fmt.Println(err)
 		os.Remove(testDBPath)
+		os.Remove(testMonitorDBPath)
 		os.Exit(1)
 	}
 
@@ -80,7 +81,7 @@ func TestDWH_GetDeals(t *testing.T) {
 	{
 		request := &pb.DealsRequest{
 			Status:     pb.DealStatus_DEAL_UNKNOWN,
-			SupplierID: "supplier_5",
+			SupplierID: pb.NewEthAddress(common.HexToAddress("0x15")),
 		}
 		reply, err := globalDWH.getDeals(context.Background(), request)
 
@@ -94,9 +95,9 @@ func TestDWH_GetDeals(t *testing.T) {
 			return
 		}
 
-		if reply.Deals[0].GetDeal().SupplierID != "supplier_5" {
-			t.Errorf("Request `%+v` failed, expected %d, got %d (SupplierID)",
-				request, 10015, reply.Deals[0].GetDeal().Duration)
+		if reply.Deals[0].GetDeal().SupplierID.Unwrap().Hex() != common.HexToAddress("0x15").Hex() {
+			t.Errorf("Request `%+v` failed, expected %s, got %s (SupplierID)",
+				request, common.HexToAddress("0x15").Hex(), reply.Deals[0].GetDeal().SupplierID)
 			return
 		}
 	}
@@ -152,30 +153,30 @@ func TestDWH_GetDealDetails(t *testing.T) {
 	globalDWH.mu.Lock()
 	defer globalDWH.mu.Unlock()
 
-	deal, err := globalDWH.getDealDetails(context.Background(), &pb.ID{Id: "id_5"})
+	deal, err := globalDWH.getDealDetails(context.Background(), pb.NewBigIntFromInt(40405))
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	reply := deal.GetDeal()
-	if reply.Id != "id_5" {
-		t.Errorf("Expected %s, got %s (Id)", "id_5", reply.Id)
+	if reply.Id.Unwrap().String() != "40405" {
+		t.Errorf("Expected %s, got %s (Id)", "40405", reply.Id.Unwrap().String())
 	}
-	if reply.SupplierID != "supplier_5" {
-		t.Errorf("Expected %s, got %s (SupplierID)", "supplier_5", reply.SupplierID)
+	if reply.SupplierID.Unwrap().Hex() != common.HexToAddress("0x15").Hex() {
+		t.Errorf("Expected %s, got %s (SupplierID)", common.HexToAddress("0x15").Hex(), reply.SupplierID)
 	}
-	if reply.ConsumerID != "consumer_5" {
-		t.Errorf("Expected %s, got %s (ConsumerID)", "consumer_5", reply.ConsumerID)
+	if reply.ConsumerID.Unwrap().Hex() != common.HexToAddress("0x25").Hex() {
+		t.Errorf("Expected %s, got %s (ConsumerID)", common.HexToAddress("0x25").Hex(), reply.ConsumerID)
 	}
-	if reply.MasterID != "master_5" {
-		t.Errorf("Expected %s, got %s (MasterID)", "master_5", reply.MasterID)
+	if reply.MasterID.Unwrap().Hex() != common.HexToAddress("0x35").Hex() {
+		t.Errorf("Expected %s, got %s (MasterID)", common.HexToAddress("0x35").Hex(), reply.MasterID)
 	}
-	if reply.AskID != "ask_id_5" {
-		t.Errorf("Expected %s, got %s (AskID)", "ask_id_5", reply.AskID)
+	if reply.AskID.Unwrap().String() != "20205" {
+		t.Errorf("Expected %s, got %s (AskID)", "20205", reply.AskID.Unwrap().String())
 	}
-	if reply.BidID != "bid_id_5" {
-		t.Errorf("Expected %s, got %s (BidID)", "bid_id_5", reply.AskID)
+	if reply.BidID.Unwrap().String() != "30305" {
+		t.Errorf("Expected %s, got %s (BidID)", "30305", reply.AskID.Unwrap().String())
 	}
 	if reply.Duration != uint64(10015) {
 		t.Errorf("Expected %d, got %d (Duration)", 10015, reply.Duration)
@@ -211,7 +212,7 @@ func TestDWH_GetOrders(t *testing.T) {
 	{
 		request := &pb.OrdersRequest{
 			Type:   pb.OrderType_ANY,
-			DealID: "deal_id_5",
+			DealID: pb.NewBigIntFromInt(10105),
 		}
 		reply, err := globalDWH.getOrders(context.Background(), request)
 
@@ -225,9 +226,9 @@ func TestDWH_GetOrders(t *testing.T) {
 			return
 		}
 
-		if reply.Orders[0].GetOrder().AuthorID != "ask_author" {
+		if reply.Orders[0].GetOrder().AuthorID.Unwrap().Hex() != common.HexToAddress("0xA").Hex() {
 			t.Errorf("Request `%+v` failed, expected %s, got %s (AuthorID)",
-				request, "ask_author", reply.Orders[0].GetOrder().AuthorID)
+				request, common.HexToAddress("0xA").Hex(), reply.Orders[0].GetOrder().AuthorID)
 			return
 		}
 	}
@@ -295,7 +296,7 @@ func TestDWH_GetMatchingOrders(t *testing.T) {
 	defer globalDWH.mu.Unlock()
 
 	request := &pb.MatchingOrdersRequest{
-		Id: &pb.ID{Id: "ask_id_5"},
+		Id: pb.NewBigIntFromInt(20205),
 	}
 	reply, err := globalDWH.getMatchingOrders(context.Background(), request)
 	if err != nil {
@@ -313,27 +314,27 @@ func TestDWH_GetOrderDetails(t *testing.T) {
 	globalDWH.mu.Lock()
 	defer globalDWH.mu.Unlock()
 
-	order, err := globalDWH.getOrderDetails(context.Background(), &pb.ID{Id: "ask_id_5"})
+	order, err := globalDWH.getOrderDetails(context.Background(), pb.NewBigIntFromInt(20205))
 	if err != nil {
 		t.Error(err)
 		return
 	}
 
 	reply := order.GetOrder()
-	if reply.Id != "ask_id_5" {
-		t.Errorf("Expected %s, got %s (Id)", "ask_id_5", reply.Id)
+	if reply.Id.Unwrap().String() != "20205" {
+		t.Errorf("Expected %s, got %s (Id)", "20205", reply.Id.Unwrap().String())
 	}
-	if reply.DealID != "deal_id_5" {
-		t.Errorf("Expected %s, got %s (DealID)", "deal_id_5", reply.DealID)
+	if reply.DealID.Unwrap().String() != "10105" {
+		t.Errorf("Expected %s, got %s (DealID)", "10105", reply.DealID)
 	}
 	if reply.OrderType != 2 {
 		t.Errorf("Expected %d, got %d (Type)", 2, reply.OrderType)
 	}
-	if reply.AuthorID != "ask_author" {
-		t.Errorf("Expected %s, got %s (AuthorID)", "ask_author", reply.AuthorID)
+	if reply.AuthorID.Unwrap().Hex() != common.HexToAddress("0xA").Hex() {
+		t.Errorf("Expected %s, got %s (AuthorID)", common.HexToAddress("0xA").Hex(), reply.AuthorID)
 	}
-	if reply.CounterpartyID != "bid_author" {
-		t.Errorf("Expected %s, got %s (CounterpartyID)", "bid_author", reply.CounterpartyID)
+	if reply.CounterpartyID.Unwrap().Hex() != common.HexToAddress("0xB").Hex() {
+		t.Errorf("Expected %s, got %s (CounterpartyID)", common.HexToAddress("0xB").Hex(), reply.CounterpartyID)
 	}
 	if reply.Duration != uint64(10015) {
 		t.Errorf("Expected %d, got %d (Duration)", 10015, reply.Duration)
@@ -356,7 +357,7 @@ func TestDWH_GetDealChangeRequests(t *testing.T) {
 	globalDWH.mu.Lock()
 	defer globalDWH.mu.Unlock()
 
-	reply, err := globalDWH.getDealChangeRequests(context.Background(), &pb.ID{Id: "id_0"})
+	reply, err := globalDWH.getDealChangeRequests(context.Background(), pb.NewBigIntFromInt(40400))
 	if err != nil {
 		t.Error(err)
 		return
@@ -391,8 +392,8 @@ func TestDWH_GetProfiles(t *testing.T) {
 		return
 	}
 
-	if reply.Profiles[0].UserID != "test_profile_0" {
-		t.Errorf("Expected %s, got %s (Profile.UserID)", "test_profile_0", reply.Profiles[0].UserID)
+	if reply.Profiles[0].UserID.Unwrap().Hex() != common.HexToAddress("0x20").Hex() {
+		t.Errorf("Expected %s, got %s (Profile.UserID)", common.HexToAddress("0x20").Hex(), reply.Profiles[0].UserID.Unwrap().Hex())
 		return
 	}
 
@@ -415,8 +416,8 @@ func TestDWH_GetProfiles(t *testing.T) {
 		return
 	}
 
-	if reply.Profiles[0].UserID != "test_profile_9" {
-		t.Errorf("Expected %s, got %s (Profile.UserID)", "test_profile_9", reply.Profiles[0].UserID)
+	if reply.Profiles[0].UserID.Unwrap().Hex() != common.HexToAddress("0x29").Hex() {
+		t.Errorf("Expected %s, got %s (Profile.UserID)", common.HexToAddress("0x29").Hex(), reply.Profiles[0].UserID.Unwrap().Hex())
 		return
 	}
 
@@ -443,18 +444,18 @@ func TestDWH_GetProfiles(t *testing.T) {
 		return
 	}
 
-	if reply.Profiles[0].UserID != "test_profile_0" {
-		t.Errorf("Expected %s, got %s (Profile.UserID)", "test_profile_0", reply.Profiles[0].UserID)
+	if reply.Profiles[0].UserID.Unwrap().Hex() != common.HexToAddress("0x20").Hex() {
+		t.Errorf("Expected %s, got %s (Profile.UserID)", common.HexToAddress("0x20").Hex(), reply.Profiles[0].UserID.Unwrap().Hex())
 		return
 	}
-	if reply.Profiles[4].UserID != "test_profile_8" {
-		t.Errorf("Expected %s, got %s (Profile.UserID)", "test_profile_8", reply.Profiles[4].UserID)
+	if reply.Profiles[4].UserID.Unwrap().Hex() != common.HexToAddress("0x28").Hex() {
+		t.Errorf("Expected %s, got %s (Profile.UserID)", common.HexToAddress("0x28").Hex(), reply.Profiles[4].UserID.Unwrap().Hex())
 		return
 	}
 
 	reply, err = globalDWH.getProfiles(globalDWH.ctx, &pb.ProfilesRequest{
 		BlacklistQuery: &pb.BlacklistQuery{
-			OwnerID: "blacklisting_user",
+			OwnerID: pb.NewEthAddress(common.HexToAddress("0xE")),
 			Option:  pb.BlacklistOption_OnlyMatching,
 		},
 	})
@@ -470,7 +471,7 @@ func TestDWH_GetProfiles(t *testing.T) {
 
 	reply, err = globalDWH.getProfiles(globalDWH.ctx, &pb.ProfilesRequest{
 		BlacklistQuery: &pb.BlacklistQuery{
-			OwnerID: "blacklisting_user",
+			OwnerID: pb.NewEthAddress(common.HexToAddress("0xE")),
 			Option:  pb.BlacklistOption_WithoutMatching,
 		},
 	})
@@ -486,7 +487,7 @@ func TestDWH_GetProfiles(t *testing.T) {
 
 	reply, err = globalDWH.getProfiles(globalDWH.ctx, &pb.ProfilesRequest{
 		BlacklistQuery: &pb.BlacklistQuery{
-			OwnerID: "blacklisting_user",
+			OwnerID: pb.NewEthAddress(common.HexToAddress("0xE")),
 			Option:  pb.BlacklistOption_IncludeAndMark,
 		},
 	})
@@ -526,13 +527,13 @@ func TestDWH_monitor(t *testing.T) {
 	require.NoError(t, err)
 
 	deal := &pb.Deal{
-		Id:             commonID.String(),
+		Id:             pb.NewBigInt(commonID),
 		Benchmarks:     benchmarks,
-		SupplierID:     "supplier_id",
-		ConsumerID:     "consumer_id",
-		MasterID:       "master_id",
-		AskID:          "ask_id_5",
-		BidID:          "bid_id_5",
+		SupplierID:     pb.NewEthAddress(common.HexToAddress("0xAA")),
+		ConsumerID:     pb.NewEthAddress(common.HexToAddress("0xBB")),
+		MasterID:       pb.NewEthAddress(common.HexToAddress("0xCC")),
+		AskID:          pb.NewBigIntFromInt(20205),
+		BidID:          pb.NewBigIntFromInt(30305),
 		Duration:       10020,
 		Price:          pb.NewBigInt(big.NewInt(20010)),
 		StartTime:      &pb.Timestamp{Seconds: 30010},
@@ -545,12 +546,12 @@ func TestDWH_monitor(t *testing.T) {
 	mockMarket.EXPECT().GetDealInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(deal, nil)
 
 	order := &pb.Order{
-		Id:             commonID.String(),
-		DealID:         "",
+		Id:             pb.NewBigInt(commonID),
+		DealID:         pb.NewBigIntFromInt(0),
 		OrderType:      pb.OrderType_ASK,
 		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
-		AuthorID:       "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE",
-		CounterpartyID: "counterparty_id",
+		AuthorID:       pb.NewEthAddress(common.HexToAddress("0xD")),
+		CounterpartyID: pb.NewEthAddress(common.HexToAddress("0x0")),
 		Duration:       10020,
 		Price:          pb.NewBigInt(big.NewInt(20010)),
 		Netflags:       7,
@@ -563,8 +564,8 @@ func TestDWH_monitor(t *testing.T) {
 	mockMarket.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(order, nil)
 
 	changeRequest := &pb.DealChangeRequest{
-		Id:          "0",
-		DealID:      commonID.String(),
+		Id:          pb.NewBigIntFromInt(0),
+		DealID:      pb.NewBigInt(commonID),
 		RequestType: pb.OrderType_ASK,
 		Duration:    10020,
 		Price:       pb.NewBigInt(big.NewInt(20010)),
@@ -573,14 +574,14 @@ func TestDWH_monitor(t *testing.T) {
 	mockMarket.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
 
 	validator := &pb.Validator{
-		Id:    "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
+		Id:    pb.NewEthAddress(common.HexToAddress("0xC")),
 		Level: 3,
 	}
 	mockProfiles.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)
 
 	certificate := &pb.Certificate{
-		ValidatorID:   "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
-		OwnerID:       "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE",
+		ValidatorID:   pb.NewEthAddress(common.HexToAddress("0xC")),
+		OwnerID:       pb.NewEthAddress(common.HexToAddress("0xD")),
 		Attribute:     CertificateName,
 		IdentityLevel: 1,
 		Value:         []byte("User Name"),
@@ -598,7 +599,7 @@ func TestDWH_monitor(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if order, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+	if order, err := monitorDWH.getOrderDetails(context.Background(), pb.NewBigInt(commonID)); err != nil {
 		t.Errorf("Failed to GetOrderDetails: %s", err)
 		return
 	} else {
@@ -613,7 +614,7 @@ func TestDWH_monitor(t *testing.T) {
 		return
 	}
 	// Firstly, check that a deal was created.
-	if deal, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+	if deal, err := monitorDWH.getDealDetails(context.Background(), pb.NewBigInt(commonID)); err != nil {
 		t.Errorf("Failed to GetDealDetails: %s", err)
 		return
 	} else {
@@ -623,7 +624,7 @@ func TestDWH_monitor(t *testing.T) {
 	}
 	// Secondly, check that a DealCondition was created.
 	if dealConditionsReply, err := monitorDWH.getDealConditions(
-		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
+		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: pb.NewBigInt(commonID)}); err != nil {
 		t.Errorf("Failed to GetDealConditions: %s", err)
 		return
 	} else {
@@ -634,7 +635,7 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Test that a Validator entry is added after ValidatorCreated event.
-	if err := monitorDWH.onValidatorCreated(common.HexToAddress("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD")); err != nil {
+	if err := monitorDWH.onValidatorCreated(common.HexToAddress(common.HexToAddress("0xC").Hex())); err != nil {
 		t.Error(err)
 		return
 	}
@@ -654,7 +655,7 @@ func TestDWH_monitor(t *testing.T) {
 
 	validator.Level = 0
 	// Test that a Validator entry is updated after ValidatorDeleted event.
-	if err := monitorDWH.onValidatorDeleted(common.HexToAddress("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD")); err != nil {
+	if err := monitorDWH.onValidatorDeleted(common.HexToAddress(common.HexToAddress("0xC").Hex())); err != nil {
 		t.Error(err)
 		return
 	}
@@ -747,7 +748,7 @@ func TestDWH_monitor(t *testing.T) {
 		}
 	}
 	// Check that profile updates resulted in orders updates.
-	dwhOrder, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()})
+	dwhOrder, err := monitorDWH.getOrderDetails(context.Background(), pb.NewBigInt(commonID))
 	if err != nil {
 		t.Errorf("failed to getOrderDetails (`%s`): %s", commonID.String(), err)
 		return
@@ -759,7 +760,7 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Check that profile updates resulted in orders updates.
-	if deal, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+	if deal, err := monitorDWH.getDealDetails(context.Background(), pb.NewBigInt(commonID)); err != nil {
 		t.Errorf("Failed to GetDealDetails: %s", err)
 		return
 	} else {
@@ -773,7 +774,7 @@ func TestDWH_monitor(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if _, err := monitorDWH.getOrderDetails(context.Background(), &pb.ID{Id: commonID.String()}); err == nil {
+	if _, err := monitorDWH.getOrderDetails(context.Background(), pb.NewBigInt(commonID)); err == nil {
 		t.Error("GetOrderDetails returned an order that should have been deleted")
 		return
 	}
@@ -784,7 +785,7 @@ func TestDWH_monitor(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if deal, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err != nil {
+	if deal, err := monitorDWH.getDealDetails(context.Background(), pb.NewBigInt(commonID)); err != nil {
 		t.Errorf("Failed to GetDealDetails: %s", err)
 		return
 	} else {
@@ -808,7 +809,7 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Test that after a second ASK DealChangeRequest was created, the new one was kept and the old one was deleted.
-	changeRequest.Id = "1"
+	changeRequest.Id = pb.NewBigIntFromInt(1)
 	changeRequest.Duration = 10021
 	if err := monitorDWH.onDealChangeRequestSent(commonEventTS, big.NewInt(1)); err != nil {
 		t.Error(err)
@@ -822,13 +823,13 @@ func TestDWH_monitor(t *testing.T) {
 			t.Errorf("Expected %d, got %d (DealChangeRequest.Duration)", 10021, changeRequest.Duration)
 		}
 	}
-	if _, err := getDealChangeRequest(monitorDWH, "0"); err == nil {
+	if _, err := getDealChangeRequest(monitorDWH, pb.NewBigIntFromInt(0)); err == nil {
 		t.Error("getDealChangeRequest returned a DealChangeRequest that should have been deleted")
 		return
 	}
 
 	// Test that when a BID DealChangeRequest was created, it was kept (and nothing was deleted).
-	changeRequest.Id = "2"
+	changeRequest.Id = pb.NewBigIntFromInt(2)
 	changeRequest.Duration = 10022
 	changeRequest.RequestType = pb.OrderType_BID
 	if err := monitorDWH.onDealChangeRequestSent(commonEventTS, big.NewInt(2)); err != nil {
@@ -843,25 +844,25 @@ func TestDWH_monitor(t *testing.T) {
 			t.Errorf("Expected %d, got %d (DealChangeRequest.Duration)", 10022, changeRequest.Duration)
 		}
 	}
-	if _, err := getDealChangeRequest(monitorDWH, "1"); err != nil {
+	if _, err := getDealChangeRequest(monitorDWH, pb.NewBigIntFromInt(1)); err != nil {
 		t.Errorf("DealChangeRequest of type ASK was deleted after a BID DealChangeRequest creation: %s", err)
 		return
 	}
 
 	// Test that when a DealChangeRequest is updated to any status but REJECTED, it is deleted.
-	changeRequest.Id = "1"
+	changeRequest.Id = pb.NewBigIntFromInt(1)
 	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_ACCEPTED
 	if err := monitorDWH.onDealChangeRequestUpdated(commonEventTS, big.NewInt(1)); err != nil {
 		t.Error(err)
 		return
 	}
-	if _, err := getDealChangeRequest(monitorDWH, "1"); err == nil {
+	if _, err := getDealChangeRequest(monitorDWH, pb.NewBigIntFromInt(1)); err == nil {
 		t.Error("DealChangeRequest which status was changed to ACCEPTED was not deleted")
 		return
 	}
 	// Also test that a new DealCondition was created, and the old one was updated.
 	if dealConditionsReply, err := monitorDWH.getDealConditions(
-		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
+		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: pb.NewBigInt(commonID)}); err != nil {
 		t.Errorf("Failed to GetDealConditions: %s", err)
 		return
 	} else {
@@ -881,13 +882,13 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Test that when a DealChangeRequest is updated to REJECTED, it is kept.
-	changeRequest.Id = "2"
+	changeRequest.Id = pb.NewBigIntFromInt(2)
 	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_REJECTED
 	if err := monitorDWH.onDealChangeRequestUpdated(commonEventTS, big.NewInt(2)); err != nil {
 		t.Error(err)
 		return
 	}
-	if _, err := getDealChangeRequest(monitorDWH, "2"); err != nil {
+	if _, err := getDealChangeRequest(monitorDWH, pb.NewBigIntFromInt(2)); err != nil {
 		t.Error("DealChangeRequest which status was changed to REJECTED was deleted")
 		return
 	}
@@ -898,7 +899,7 @@ func TestDWH_monitor(t *testing.T) {
 		return
 	}
 	if dealConditionsReply, err := monitorDWH.getDealConditions(
-		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
+		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: pb.NewBigInt(commonID)}); err != nil {
 		t.Errorf("Failed to GetDealDetails: %s", err)
 		return
 	} else {
@@ -933,12 +934,12 @@ func TestDWH_monitor(t *testing.T) {
 		t.Error(err)
 		return
 	}
-	if _, err := monitorDWH.getDealDetails(context.Background(), &pb.ID{Id: commonID.String()}); err == nil {
+	if _, err := monitorDWH.getDealDetails(context.Background(), pb.NewBigInt(commonID)); err == nil {
 		t.Errorf("Deal was not deleted after status changing to CLOSED")
 		return
 	}
 	if dealConditions, err := monitorDWH.getDealConditions(
-		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: commonID.String()}); err != nil {
+		monitorDWH.ctx, &pb.DealConditionsRequest{DealID: pb.NewBigInt(commonID)}); err != nil {
 		t.Errorf("Failed to GetDealConditions: %s", err)
 		return
 	} else {
@@ -948,7 +949,7 @@ func TestDWH_monitor(t *testing.T) {
 		}
 	}
 
-	if profile, err := monitorDWH.getProfileInfo(monitorDWH.ctx, &pb.ID{Id: "consumer_id"}, true); err != nil {
+	if profile, err := monitorDWH.getProfileInfo(monitorDWH.ctx, pb.NewEthAddress(common.HexToAddress("0xBB")), true); err != nil {
 		t.Errorf("Failed to GetProfileInfo: %s", err)
 		return
 	} else {
@@ -959,8 +960,8 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Test that a worker is added after a WorkerAnnounced event.
-	if err := monitorDWH.onWorkerAnnounced("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
-		"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE"); err != nil {
+	if err := monitorDWH.onWorkerAnnounced(common.HexToAddress("0xC").Hex(),
+		common.HexToAddress("0xD").Hex()); err != nil {
 		t.Error(err)
 		return
 	}
@@ -978,8 +979,8 @@ func TestDWH_monitor(t *testing.T) {
 		}
 	}
 	// Test that a worker is confirmed after a WorkerConfirmed event.
-	if err := monitorDWH.onWorkerConfirmed("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
-		"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE"); err != nil {
+	if err := monitorDWH.onWorkerConfirmed(common.HexToAddress("0xC").Hex(),
+		common.HexToAddress("0xD").Hex()); err != nil {
 		t.Error(err)
 		return
 	}
@@ -997,8 +998,8 @@ func TestDWH_monitor(t *testing.T) {
 		}
 	}
 	// Test that a worker is deleted after a WorkerRemoved event.
-	if err := monitorDWH.onWorkerRemoved("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
-		"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE"); err != nil {
+	if err := monitorDWH.onWorkerRemoved(common.HexToAddress("0xC").Hex(),
+		common.HexToAddress("0xD").Hex()); err != nil {
 		t.Error(err)
 		return
 	}
@@ -1013,41 +1014,41 @@ func TestDWH_monitor(t *testing.T) {
 	}
 
 	// Test that a Blacklist entry is added after AddedToBlacklist event.
-	if err := monitorDWH.onAddedToBlacklist("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
-		"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE"); err != nil {
+	if err := monitorDWH.onAddedToBlacklist(common.HexToAddress("0xC").Hex(),
+		common.HexToAddress("0xD").Hex()); err != nil {
 		t.Error(err)
 		return
 	}
 	if blacklistReply, err := monitorDWH.getBlacklist(
-		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"}); err != nil {
+		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
 		t.Errorf("Failed to GetBlacklist: %s", err)
 		return
 	} else {
-		if blacklistReply.OwnerID != "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD" {
+		if blacklistReply.OwnerID.Unwrap().Hex() != common.HexToAddress("0xC").Hex() {
 			t.Errorf("(AddedToBlacklist) Expected %s, got %s (BlacklistReply.AdderID)",
-				"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD", blacklistReply.OwnerID)
+				common.HexToAddress("0xC").Hex(), blacklistReply.OwnerID)
 		}
 	}
 
 	// Test that a Blacklist entry is deleted after RemovedFromBlacklist event.
-	if err := monitorDWH.onRemovedFromBlacklist("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD",
-		"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FE"); err != nil {
+	if err := monitorDWH.onRemovedFromBlacklist(common.HexToAddress("0xC").Hex(),
+		common.HexToAddress("0xD").Hex()); err != nil {
 		t.Error(err)
 		return
 	}
 	if repl, err := monitorDWH.getBlacklist(
-		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: "0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"}); err != nil {
+		monitorDWH.ctx, &pb.BlacklistRequest{OwnerID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
 		t.Error(err)
 		return
 	} else {
 		if len(repl.Addresses) > 0 {
-			t.Errorf("GetBlacklist returned a blacklist that should have been deleted: %s", err)
+			t.Errorf("GetBlacklist returned a blacklist that should have been deleted: %+v", repl.Addresses)
 		}
 	}
 }
 
-func getDealChangeRequest(w *DWH, changeRequestID string) (*pb.DealChangeRequest, error) {
-	rows, err := w.db.Query("SELECT * FROM DealChangeRequests WHERE Id=?", changeRequestID)
+func getDealChangeRequest(w *DWH, changeRequestID *pb.BigInt) (*pb.DealChangeRequest, error) {
+	rows, err := w.db.Query("SELECT * FROM DealChangeRequests WHERE Id=?", changeRequestID.Unwrap().String())
 	if err != nil {
 		return nil, errors.Errorf("query failed: %s", err)
 	}
@@ -1122,19 +1123,19 @@ func setupTestDB(w *DWH) error {
 	}
 
 	var certs = []*pb.Certificate{
-		{OwnerID: "consumer_id", Value: []byte("Consumer"), Attribute: CertificateName},
+		{OwnerID: pb.NewEthAddress(common.HexToAddress("0xBB")), Value: []byte("Consumer"), Attribute: CertificateName},
 	}
 	byteCerts, _ := json.Marshal(certs)
 
 	for i := 0; i < 10; i++ {
 		_, err := w.db.Exec(
 			w.commands["insertDeal"],
-			fmt.Sprintf("id_%d", i),
-			fmt.Sprintf("supplier_%d", i),
-			fmt.Sprintf("consumer_%d", i),
-			fmt.Sprintf("master_%d", i),
-			fmt.Sprintf("ask_id_%d", i),
-			fmt.Sprintf("bid_id_%d", i),
+			fmt.Sprintf("4040%d", i),
+			common.HexToAddress(fmt.Sprintf("0x1%d", i)).Hex(), // Supplier
+			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(), // Consumer
+			common.HexToAddress(fmt.Sprintf("0x3%d", i)).Hex(), // Master
+			fmt.Sprintf("2020%d", i),
+			fmt.Sprintf("3030%d", i),
 			10010+i, // Duration
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			30010+i, // StartTime
@@ -1168,13 +1169,13 @@ func setupTestDB(w *DWH) error {
 
 		_, err = w.db.Exec(
 			w.commands["insertOrder"],
-			fmt.Sprintf("ask_id_%d", i),
+			fmt.Sprintf("2020%d", i),
 			12345, // CreatedTS
-			fmt.Sprintf("deal_id_%d", i),
+			fmt.Sprintf("1010%d", i),
 			uint64(pb.OrderType_ASK),
 			uint64(pb.OrderStatus_ORDER_ACTIVE),
-			"ask_author", // AuthorID
-			"bid_author", // CounterpartyID
+			common.HexToAddress("0xA").Hex(), // AuthorID
+			common.HexToAddress("0xB").Hex(), // CounterpartyID
 			10010+i,
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			7, // Netflags
@@ -1205,14 +1206,14 @@ func setupTestDB(w *DWH) error {
 
 		_, err = w.db.Exec(
 			w.commands["insertOrder"],
-			fmt.Sprintf("bid_id_%d", i),
+			fmt.Sprintf("3030%d", i),
 			12345, // CreatedTS
-			fmt.Sprintf("deal_id_%d", i),
+			fmt.Sprintf("1010%d", i),
 			uint64(pb.OrderType_BID),
 			uint64(pb.OrderStatus_ORDER_ACTIVE),
-			"bid_author", // AuthorID
-			"ask_author", // CounterpartyID
-			10010-i,      // Duration
+			common.HexToAddress("0xB").Hex(), // AuthorID
+			common.HexToAddress("0xA").Hex(), // CounterpartyID
+			10010-i,                          // Duration
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			5, // Netflags
 			uint64(pb.IdentityLevel_ANONYMOUS),
@@ -1241,7 +1242,7 @@ func setupTestDB(w *DWH) error {
 		}
 
 		_, err = w.db.Exec(w.commands["insertDealChangeRequest"],
-			fmt.Sprintf("changeRequest_%d", i), 0, 0, 0, 0, 0, "id_0")
+			fmt.Sprintf("5050%d", i), 0, 0, 0, 0, 0, "40400")
 		if err != nil {
 			return err
 		}
@@ -1253,25 +1254,25 @@ func setupTestDB(w *DWH) error {
 			identityLevel = 1
 		}
 		_, err = w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			fmt.Sprintf("test_profile_%d", i), identityLevel, "sortedProfile", "", 0, 0, []byte{}, 0, 0)
+			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(), identityLevel, "sortedProfile", "", 0, 0, []byte{}, 0, 0)
 		if err != nil {
 			return err
 		}
 	}
 
 	_, err := w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		fmt.Sprintf("consumer_id"), 3, "Consumer", "", 0, 0, byteCerts, 10, 10)
+		fmt.Sprintf(common.HexToAddress("0xBB").Hex()), 3, "Consumer", "", 0, 0, byteCerts, 10, 10)
 	if err != nil {
 		return err
 	}
 
 	_, err = w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		fmt.Sprintf("supplier_id"), 3, "Supplier", "", 0, 0, byteCerts, 10, 10)
+		fmt.Sprintf(common.HexToAddress("0xAA").Hex()), 3, "Supplier", "", 0, 0, byteCerts, 10, 10)
 	if err != nil {
 		return err
 	}
 
-	_, err = w.db.Exec("INSERT INTO Blacklists VALUES (?, ?)", "blacklisting_user", "consumer_id")
+	_, err = w.db.Exec("INSERT INTO Blacklists VALUES (?, ?)", common.HexToAddress("0xE").Hex(), common.HexToAddress("0xBB").Hex())
 	if err != nil {
 		return err
 	}

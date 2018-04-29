@@ -25,26 +25,26 @@ message SortingOption {
 
 service DWH {
     rpc GetDeals(DealsRequest) returns (DWHDealsReply) {}
-    rpc GetDealDetails(ID) returns (DWHDeal) {}
+    rpc GetDealDetails(BigInt) returns (DWHDeal) {}
     rpc GetDealConditions(DealConditionsRequest) returns (DealConditionsReply) {}
     rpc GetOrders(OrdersRequest) returns (DWHOrdersReply) {}
     rpc GetMatchingOrders(MatchingOrdersRequest) returns (DWHOrdersReply) {}
-    rpc GetOrderDetails(ID) returns (DWHOrder) {}
+    rpc GetOrderDetails(BigInt) returns (DWHOrder) {}
     rpc GetProfiles(ProfilesRequest) returns (ProfilesReply) {}
-    rpc GetProfileInfo(ID) returns (Profile) {}
+    rpc GetProfileInfo(EthAddress) returns (Profile) {}
     rpc GetBlacklist(BlacklistRequest) returns (BlacklistReply) {}
     rpc GetValidators(ValidatorsRequest) returns (ValidatorsReply) {}
-    rpc GetDealChangeRequests(ID) returns (DealChangeRequestsReply) {}
+    rpc GetDealChangeRequests(BigInt) returns (DealChangeRequestsReply) {}
     rpc GetWorkers(WorkersRequest) returns (WorkersReply) {}
 }
 
 message DealsRequest {
     DealStatus status = 1;
-    string supplierID = 2;
-    string consumerID = 3;
-    string masterID = 4;
-    string askID = 5;
-    string bidID = 6;
+    EthAddress supplierID = 2;
+    EthAddress consumerID = 3;
+    EthAddress masterID = 4;
+    BigInt askID = 5;
+    BigInt bidID = 6;
     MaxMinUint64 duration = 7;
     MaxMinBig price = 8;
     CmpUint64 netflags = 9;
@@ -72,7 +72,7 @@ message DWHDeal {
 }
 
 message DealConditionsRequest {
-    string dealID = 1;
+    BigInt dealID = 1;
     uint64 limit = 2;
     uint64 offset = 3;
     repeated SortingOption sortings = 4;
@@ -83,11 +83,11 @@ message DealConditionsReply {
 }
 
 message OrdersRequest {
-    string dealID = 1;
+    BigInt dealID = 1;
     OrderType type = 2;
     OrderStatus status = 3;
-    string authorID = 4;
-    string counterpartyID = 5;
+    EthAddress authorID = 4;
+    EthAddress counterpartyID = 5;
     MaxMinUint64 duration = 6;
     MaxMinBig price = 9;
     CmpUint64 netflags = 11;
@@ -99,7 +99,7 @@ message OrdersRequest {
 }
 
 message MatchingOrdersRequest {
-    ID id = 1;
+    BigInt id = 1;
     uint64 limit = 2;
     uint64 offset = 3;
 }
@@ -120,20 +120,20 @@ message DWHOrder {
 
 message DealCondition {
     uint64 id = 1;
-    string supplierID = 2;
-    string consumerID = 3;
-    string masterID = 4;
+    EthAddress supplierID = 2;
+    EthAddress consumerID = 3;
+    EthAddress masterID = 4;
     uint64 duration = 5;
     BigInt price = 6;
     Timestamp startTime = 7;
     Timestamp endTime = 8;
     BigInt totalPayout = 9;
-    string dealID = 10;
+    BigInt dealID = 10;
 }
 
 message DWHWorker {
-    string masterID = 1;
-    string slaveID = 2;
+    EthAddress masterID = 1;
+    EthAddress slaveID = 2;
     bool confirmed = 3;
 }
 
@@ -164,14 +164,8 @@ message ProfilesReply {
     repeated Profile profiles = 1;
 }
 
-message BlacklistRequest {
-    string ownerID = 1;
-    uint64 limit = 2;
-    uint64 offset = 3;
-}
-
 message Profile {
-    string UserID = 1;
+    EthAddress UserID = 1;
     uint64 IdentityLevel = 2;
     string Name = 3;
     string Country = 4;
@@ -183,8 +177,14 @@ message Profile {
     bool isBlacklisted = 10;
 }
 
+message BlacklistRequest {
+    EthAddress ownerID = 1;
+    uint64 limit = 2;
+    uint64 offset = 3;
+}
+
 message BlacklistReply {
-    string ownerID = 1;
+    EthAddress ownerID = 1;
     repeated string addresses = 2;
 }
 
@@ -200,7 +200,7 @@ message ValidatorsReply {
 }
 
 message Validator {
-    string id = 1;
+    EthAddress id = 1;
     uint64 level = 2;
 }
 
@@ -208,8 +208,17 @@ message DealChangeRequestsReply {
     repeated DealChangeRequest requests = 1;
 }
 
+message DealChangeRequest {
+    BigInt id = 1;
+    BigInt dealID = 2;
+    OrderType requestType = 3;
+    uint64 duration = 4;
+    BigInt price = 5;
+    ChangeRequestStatus status = 6;
+}
+
 message WorkersRequest {
-    string MasterID = 1;
+    EthAddress MasterID = 1;
     uint64 limit = 2;
     uint64 offset = 3;
 }
@@ -219,8 +228,8 @@ message WorkersReply {
 }
 
 message Certificate {
-    string ownerID = 1;
-    string validatorID = 2;
+    EthAddress ownerID = 1;
+    EthAddress validatorID = 2;
     uint64 attribute = 3;
     uint64 identityLevel = 4;
     bytes value = 5;
@@ -256,16 +265,7 @@ message CmpUint64 {
     CmpOp operator = 2;
 }
 
-message DealChangeRequest {
-    string id = 1;
-    string dealID = 2;
-    OrderType requestType = 3;
-    uint64 duration = 4;
-    BigInt price = 5;
-    ChangeRequestStatus status = 6;
-}
-
 message BlacklistQuery {
-    string ownerID = 1;
+    EthAddress ownerID = 1;
     BlacklistOption option = 2;
 }
