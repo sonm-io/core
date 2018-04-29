@@ -1,10 +1,5 @@
 package dwh
 
-import (
-	"github.com/pkg/errors"
-	pb "github.com/sonm-io/core/proto"
-)
-
 const (
 	CertificateName           = 1102
 	CertificateCountry        = 1303
@@ -18,12 +13,11 @@ var (
 	}
 )
 
-func CheckBenchmarks(benches *pb.Benchmarks) error {
-	for idx, bench := range benches.Values {
-		if bench >= MaxBenchmark {
-			return errors.Errorf("benchmark %d is greater that %d", idx, MaxBenchmark)
-		}
+func stringSliceToSet(in []string) map[string]bool {
+	out := map[string]bool{}
+	for _, value := range in {
+		out[value] = true
 	}
 
-	return nil
+	return out
 }

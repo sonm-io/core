@@ -11,6 +11,7 @@ import (
 
 var (
 	sqliteSetupCommands = map[string]string{
+		// Incomplete, modified during setup.
 		"createTableDeals": `
 	CREATE TABLE IF NOT EXISTS Deals (
 		Id						TEXT UNIQUE NOT NULL,
@@ -32,20 +33,7 @@ var (
 		BidIdentityLevel		INTEGER NOT NULL,
 		SupplierCertificates    BLOB NOT NULL,
 		ConsumerCertificates    BLOB NOT NULL,
-		ActiveChangeRequest     INTEGER NOT NULL,
-		CPUSysbenchMulti		INTEGER NOT NULL,
-		CPUSysbenchOne			INTEGER NOT NULL,
-		CPUCores				INTEGER NOT NULL,
-		RAMSize					INTEGER NOT NULL,
-		StorageSize				INTEGER NOT NULL,
-		NetTrafficIn			INTEGER NOT NULL,
-		NetTrafficOut			INTEGER NOT NULL,
-		GPUCount				INTEGER NOT NULL,
-		GPUMem					INTEGER NOT NULL,
-		GPUEthHashrate			INTEGER NOT NULL,
-		GPUCashHashrate			INTEGER NOT NULL,
-		GPURedshift				INTEGER NOT NULL
-	)`,
+		ActiveChangeRequest     INTEGER NOT NULL`,
 		"createTableDealConditions": `
 	CREATE TABLE IF NOT EXISTS DealConditions (
 		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -79,6 +67,7 @@ var (
 		DealID						TEXT NOT NULL,
 		FOREIGN KEY (DealID)		REFERENCES Deals(Id) ON DELETE CASCADE
 	)`,
+		// Incomplete, modified during setup.
 		"createTableOrders": `
 	CREATE TABLE IF NOT EXISTS Orders (
 		Id						TEXT UNIQUE NOT NULL,
@@ -98,20 +87,7 @@ var (
 		CreatorIdentityLevel	INTEGER NOT NULL,
 		CreatorName				TEXT NOT NULL,
 		CreatorCountry			TEXT NOT NULL,
-		CreatorCertificates		BLOB NOT NULL,
-		CPUSysbenchMulti		INTEGER NOT NULL,
-		CPUSysbenchOne			INTEGER NOT NULL,
-		CPUCores				INTEGER NOT NULL,
-		RAMSize					INTEGER NOT NULL,
-		StorageSize				INTEGER NOT NULL,
-		NetTrafficIn			INTEGER NOT NULL,
-		NetTrafficOut			INTEGER NOT NULL,
-		GPUCount				INTEGER NOT NULL,
-		GPUMem					INTEGER NOT NULL,
-		GPUEthHashrate			INTEGER NOT NULL,
-		GPUCashHashrate			INTEGER NOT NULL,
-		GPURedshift				INTEGER NOT NULL
-		)`,
+		CreatorCertificates		BLOB NOT NULL`,
 		"createTableWorkers": `
 	CREATE TABLE IF NOT EXISTS Workers (
 		MasterID					TEXT NOT NULL,
@@ -161,15 +137,14 @@ var (
 	}
 	sqliteCreateIndex = "CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)"
 	sqliteCommands    = map[string]string{
-		"insertDeal":                   `INSERT INTO Deals VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		"updateDeal":                   `UPDATE Deals SET Duration=?, Price=?, StartTime=?, EndTime=?, Status=?, BlockedBalance=?, TotalPayout=?, LastBillTS=? WHERE Id=?`,
 		"updateDealsSupplier":          `UPDATE Deals SET SupplierCertificates=? WHERE SupplierID=?`,
 		"updateDealsConsumer":          `UPDATE Deals SET ConsumerCertificates=? WHERE ConsumerID=?`,
 		"updateDealPayout":             `UPDATE Deals SET TotalPayout = ? WHERE Id = ?`,
-		"selectDealByID":               `SELECT * FROM Deals WHERE id=?`,
+		"selectDealByID":               `SELECT *%sFROM Deals WHERE id=?`,
 		"deleteDeal":                   `DELETE FROM Deals WHERE Id=?`,
-		"insertOrder":                  `INSERT INTO Orders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		"selectOrderByID":              `SELECT * FROM Orders WHERE id=?`,
+		"selectOrderByID":              `SELECT %s FROM Orders WHERE id=?`,
+		"updateOrderStatus":            `UPDATE Orders SET Status=? WHERE Id=?`,
 		"updateOrders":                 `UPDATE Orders SET CreatorIdentityLevel=?, CreatorName=?, CreatorCountry=?, CreatorCertificates=? WHERE AuthorID=?`,
 		"deleteOrder":                  `DELETE FROM Orders WHERE Id=?`,
 		"insertDealChangeRequest":      `INSERT INTO DealChangeRequests VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -191,7 +166,7 @@ var (
 		"updateValidator":              `UPDATE Validators SET Level=? WHERE Id=?`,
 		"insertCertificate":            `INSERT INTO Certificates VALUES (?, ?, ?, ?, ?)`,
 		"selectCertificates":           `SELECT * FROM Certificates WHERE OwnerID=?`,
-		"insertProfileUserID":          `INSERT INTO Profiles VALUES (NULL, ?, 0, "", "", 0, 0, "", ?, ?)`,
+		"insertProfileUserID":          `INSERT INTO Profiles VALUES (NULL, ?, 0, "", "", 0, 0, ?, ?, ?)`,
 		"selectProfileByID":            `SELECT * FROM Profiles WHERE UserID=?`,
 		"profileNotInBlacklist":        `AND UserID NOT IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
 		"profileInBlacklist":           `AND UserID IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
@@ -214,65 +189,18 @@ func setupSQLite(w *DWH) error {
 		}
 	}()
 
+	finalizeColumnsOnce.Do(func() { finalizeTableColumns(w.numBenchmarks) })
+	finalizeCommandsOnce.Do(func() { setupCommandsSQLite(w.numBenchmarks) })
+
 	_, err = db.Exec("PRAGMA foreign_keys=ON")
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable foreign key support (%s)", w.cfg.Storage.Backend)
 	}
-
 	for _, cmdName := range orderedSetupCommands {
 		_, err = db.Exec(sqliteSetupCommands[cmdName])
 		if err != nil {
-			return errors.Wrapf(err, "failed to %s (%s)", cmdName, w.cfg.Storage.Backend)
-		}
-	}
-
-	for column := range DealsColumns {
-		if err = createIndex(db, sqliteCreateIndex, "Deals", column); err != nil {
-			return err
-		}
-	}
-
-	for _, column := range []string{"Id", "DealID", "RequestType", "Status"} {
-		if err = createIndex(db, sqliteCreateIndex, "DealChangeRequests", column); err != nil {
-			return err
-		}
-	}
-
-	for column := range DealConditionsColumns {
-		if err = createIndex(db, sqliteCreateIndex, "DealConditions", column); err != nil {
-			return err
-		}
-	}
-
-	for column := range OrdersColumns {
-		if err = createIndex(db, sqliteCreateIndex, "Orders", column); err != nil {
-			return err
-		}
-	}
-
-	for _, column := range []string{"MasterID", "WorkerID"} {
-		if err = createIndex(db, sqliteCreateIndex, "Workers", column); err != nil {
-			return err
-		}
-	}
-
-	for _, column := range []string{"AdderID", "AddeeID"} {
-		if err = createIndex(db, sqliteCreateIndex, "Blacklists", column); err != nil {
-			return err
-		}
-	}
-
-	if err = createIndex(db, sqliteCreateIndex, "Validators", "Id"); err != nil {
-		return err
-	}
-
-	if err = createIndex(db, sqliteCreateIndex, "Certificates", "OwnerID"); err != nil {
-		return err
-	}
-
-	for column := range ProfilesColumns {
-		if err = createIndex(db, sqliteCreateIndex, "Profiles", column); err != nil {
-			return err
+			return errors.Wrapf(err, "failed to %s [%s] (%s)", cmdName, sqliteSetupCommands[cmdName],
+				w.cfg.Storage.Backend)
 		}
 	}
 
@@ -280,12 +208,122 @@ func setupSQLite(w *DWH) error {
 	w.commands = sqliteCommands
 	w.runQuery = runQuerySQLite
 
+	if w.cfg.ColdStart != nil {
+		go coldStart(w, buildIndicesSQLite)
+	} else {
+		if err := buildIndicesSQLite(w); err != nil {
+			return errors.Wrap(err, "failed to buildIndicesSQLite")
+		}
+	}
+
+	return nil
+}
+
+func setupCommandsSQLite(numBenchmarks int) {
+	benchmarkColumns := make([]string, NumMaxBenchmarks)
+	for benchmarkID := 0; benchmarkID < NumMaxBenchmarks; benchmarkID++ {
+		benchmarkColumns[benchmarkID] = fmt.Sprintf("%s INTEGER DEFAULT 0", getBenchmarkColumn(uint64(benchmarkID)))
+	}
+	sqliteSetupCommands["createTableDeals"] = strings.Join(
+		append([]string{sqliteSetupCommands["createTableDeals"]}, benchmarkColumns...), ",\n") + ")"
+	sqliteSetupCommands["createTableOrders"] = strings.Join(
+		append([]string{sqliteSetupCommands["createTableOrders"]}, benchmarkColumns...), ",\n") + ")"
+
+	// Construct placeholders for Deals.
+	dealPlaceholders := ""
+	for i := 0; i < NumDealColumns; i++ {
+		dealPlaceholders += "?, "
+	}
+	for i := NumDealColumns; i < NumDealColumns+numBenchmarks; i++ {
+		if i == numBenchmarks+NumDealColumns-1 {
+			dealPlaceholders += "?"
+		} else {
+			dealPlaceholders += "?, "
+		}
+	}
+	dealColumnsString := strings.Join(DealColumns, ", ")
+	sqliteCommands["insertDeal"] = fmt.Sprintf("INSERT INTO Deals(%s) VALUES (%s)", dealColumnsString, dealPlaceholders)
+	sqliteCommands["selectDealByID"] = fmt.Sprintf(sqliteCommands["selectDealByID"], dealColumnsString)
+
+	// Construct placeholders for Orders.
+	orderPlaceholders := ""
+	for i := 0; i < NumOrderColumns; i++ {
+		orderPlaceholders += "?, "
+	}
+	for i := NumOrderColumns; i < NumOrderColumns+numBenchmarks; i++ {
+		if i == numBenchmarks+NumOrderColumns-1 {
+			orderPlaceholders += "?"
+		} else {
+			orderPlaceholders += "?, "
+		}
+	}
+	orderColumnsString := strings.Join(OrderColumns, ", ")
+	sqliteCommands["insertOrder"] = fmt.Sprintf("INSERT INTO Orders(%s) VALUES (%s)", orderColumnsString, orderPlaceholders)
+	sqliteCommands["selectOrderByID"] = fmt.Sprintf(sqliteCommands["selectOrderByID"], orderColumnsString)
+}
+
+func buildIndicesSQLite(w *DWH) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	var err error
+	for column := range DealColumnsSet {
+		if err = createIndex(w.db, sqliteCreateIndex, "Deals", column); err != nil {
+			return err
+		}
+	}
+	for _, column := range []string{"Id", "DealID", "RequestType", "Status"} {
+		if err = createIndex(w.db, sqliteCreateIndex, "DealChangeRequests", column); err != nil {
+			return err
+		}
+	}
+	for column := range DealConditionColumnsSet {
+		if err = createIndex(w.db, sqliteCreateIndex, "DealConditions", column); err != nil {
+			return err
+		}
+	}
+	for column := range OrderColumnsSet {
+		if err = createIndex(w.db, sqliteCreateIndex, "Orders", column); err != nil {
+			return err
+		}
+	}
+	for _, column := range []string{"MasterID", "WorkerID"} {
+		if err = createIndex(w.db, sqliteCreateIndex, "Workers", column); err != nil {
+			return err
+		}
+	}
+	for _, column := range []string{"AdderID", "AddeeID"} {
+		if err = createIndex(w.db, sqliteCreateIndex, "Blacklists", column); err != nil {
+			return err
+		}
+	}
+	if err = createIndex(w.db, sqliteCreateIndex, "Validators", "Id"); err != nil {
+		return err
+	}
+	if err = createIndex(w.db, sqliteCreateIndex, "Certificates", "OwnerID"); err != nil {
+		return err
+	}
+	for column := range ProfilesColumnsSet {
+		if err = createIndex(w.db, sqliteCreateIndex, "Profiles", column); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
 func runQuerySQLite(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error) {
+	var columns string
+	switch opts.table {
+	case "Deals":
+		columns = strings.Join(DealColumns, ", ")
+	case "Orders":
+		columns = strings.Join(OrderColumns, ", ")
+	default:
+		columns = "*"
+	}
 	var (
-		query      = fmt.Sprintf("SELECT * FROM %s %s", opts.table, opts.selectAs)
+		query      = fmt.Sprintf("SELECT %s FROM %s %s", columns, opts.table, opts.selectAs)
 		countQuery = fmt.Sprintf("SELECT count(*) FROM %s %s", opts.table, opts.selectAs)
 		conditions []string
 		values     []interface{}

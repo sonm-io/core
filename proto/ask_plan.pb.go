@@ -70,7 +70,6 @@ It has these top-level messages:
 	WorkersRequest
 	WorkersReply
 	Certificate
-	DWHBenchmarkConditions
 	MaxMinUint64
 	MaxMinBig
 	MaxMinTimestamp

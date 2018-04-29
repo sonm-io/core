@@ -38,19 +38,20 @@ const (
 )
 
 type DWH struct {
-	mu          sync.RWMutex
-	ctx         context.Context
-	cfg         *Config
-	cancel      context.CancelFunc
-	grpc        *grpc.Server
-	http        *rest.Server
-	logger      *zap.Logger
-	db          *sql.DB
-	creds       credentials.TransportCredentials
-	certRotator util.HitlessCertRotator
-	blockchain  blockchain.API
-	commands    map[string]string
-	runQuery    QueryRunner
+	mu            sync.RWMutex
+	ctx           context.Context
+	cfg           *Config
+	cancel        context.CancelFunc
+	grpc          *grpc.Server
+	http          *rest.Server
+	logger        *zap.Logger
+	db            *sql.DB
+	creds         credentials.TransportCredentials
+	certRotator   util.HitlessCertRotator
+	blockchain    blockchain.API
+	commands      map[string]string
+	runQuery      QueryRunner
+	numBenchmarks int
 }
 
 func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, error) {
@@ -61,6 +62,19 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, erro
 		cfg:    cfg,
 		logger: log.GetLogger(ctx),
 	}
+
+	bch, err := blockchain.NewAPI(blockchain.WithConfig(w.cfg.Blockchain))
+	if err != nil {
+		cancel()
+		return nil, errors.Wrap(err, "failed to create NewAPI")
+	}
+	w.blockchain = bch
+
+	numBenchmarks, err := bch.Market().GetNumBenchmarks(ctx)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to GetNumBenchmarks")
+	}
+	w.numBenchmarks = numBenchmarks
 
 	setupDB, ok := setupDBCallbacks[cfg.Storage.Backend]
 	if !ok {
@@ -90,19 +104,14 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, erro
 }
 
 func (w *DWH) Serve() error {
+	w.logger.Info("starting with backend", zap.String("backend", w.cfg.Storage.Backend),
+		zap.String("endpoint", w.cfg.Storage.Endpoint))
+
 	if w.cfg.Blockchain != nil {
-		bch, err := blockchain.NewAPI(blockchain.WithConfig(w.cfg.Blockchain))
-		if err != nil {
-			return errors.Wrap(err, "failed to create NewAPI")
-		}
-		w.blockchain = bch
 		go w.monitorBlockchain()
 	} else {
 		w.logger.Info("monitoring disabled")
 	}
-
-	w.logger.Info("starting with backend", zap.String("backend", w.cfg.Storage.Backend),
-		zap.String("endpoint", w.cfg.Storage.Endpoint))
 
 	wg := errgroup.Group{}
 	wg.Go(w.serveGRPC)
@@ -213,7 +222,7 @@ func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 	rows, count, err := w.runQuery(w.db, &queryOpts{
 		table:     "Deals",
 		filters:   filters,
-		sortings:  filterSortings(request.Sortings, DealsColumns),
+		sortings:  filterSortings(request.Sortings, DealsColumnsSet),
 		offset:    request.Offset,
 		limit:     request.Limit,
 		withCount: request.WithCount,
@@ -255,7 +264,7 @@ func (w *DWH) getDealDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHDe
 
 	if ok := rows.Next(); !ok {
 		w.logger.Error("deal not found", zap.Any("request", request))
-		return nil, status.Error(codes.Internal, "failed to GetDealDetails")
+		return nil, status.Error(codes.NotFound, "failed to GetDealDetails")
 	}
 
 	return w.decodeDeal(rows)
@@ -364,7 +373,7 @@ func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 	rows, count, err := w.runQuery(w.db, &queryOpts{
 		table:     "Orders",
 		filters:   filters,
-		sortings:  filterSortings(request.Sortings, OrdersColumns),
+		sortings:  filterSortings(request.Sortings, OrdersColumnsSet),
 		offset:    request.Offset,
 		limit:     request.Limit,
 		withCount: request.WithCount,
@@ -428,7 +437,6 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 		benchOp = lte
 		sortingOrder = pb.SortingOrder_Desc
 	}
-
 	filters = append(filters, newFilter("Type", eq, orderType, "AND"))
 	filters = append(filters, newFilter("Status", eq, pb.OrderStatus_ORDER_ACTIVE, "AND"))
 	filters = append(filters, newFilter("Price", priceOp, order.Order.Price.PaddedString(), "AND"))
@@ -440,7 +448,7 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	if order.Order.CounterpartyID != nil && !order.Order.CounterpartyID.IsZero() {
 		filters = append(filters, newFilter("AuthorID", eq, order.Order.CounterpartyID.Unwrap().Hex(), "AND"))
 	}
-	counterpartyFilter := newFilter("CounterpartyID", eq, "", "OR")
+	counterpartyFilter := newFilter("CounterpartyID", eq, common.Address{}.Hex(), "OR")
 	counterpartyFilter.OpenBracket = true
 	filters = append(filters, counterpartyFilter)
 	counterpartyFilter = newFilter("CounterpartyID", eq, order.Order.AuthorID.Unwrap().Hex(), "AND")
@@ -453,25 +461,15 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	}
 	filters = append(filters, newFilter("IdentityLevel", gte, order.Order.IdentityLevel, "AND"))
 	filters = append(filters, newFilter("CreatorIdentityLevel", lte, order.CreatorIdentityLevel, "AND"))
-	filters = append(filters, newFilter("CPUSysbenchMulti", benchOp, order.Order.Benchmarks.CPUSysbenchMulti(), "AND"))
-	filters = append(filters, newFilter("CPUSysbenchOne", benchOp, order.Order.Benchmarks.CPUSysbenchOne(), "AND"))
-	filters = append(filters, newFilter("CPUCores", benchOp, order.Order.Benchmarks.CPUCores(), "AND"))
-	filters = append(filters, newFilter("RAMSize", benchOp, order.Order.Benchmarks.RAMSize(), "AND"))
-	filters = append(filters, newFilter("StorageSize", benchOp, order.Order.Benchmarks.StorageSize(), "AND"))
-	filters = append(filters, newFilter("NetTrafficIn", benchOp, order.Order.Benchmarks.NetTrafficIn(), "AND"))
-	filters = append(filters, newFilter("NetTrafficOut", benchOp, order.Order.Benchmarks.NetTrafficOut(), "AND"))
-	filters = append(filters, newFilter("GPUCount", benchOp, order.Order.Benchmarks.GPUCount(), "AND"))
-	filters = append(filters, newFilter("GPUMem", benchOp, order.Order.Benchmarks.GPUMem(), "AND"))
-	filters = append(filters, newFilter("GPUEthHashrate", benchOp, order.Order.Benchmarks.GPUEthHashrate(), "AND"))
-	filters = append(filters, newFilter("GPUCashHashrate", benchOp, order.Order.Benchmarks.GPUCashHashrate(), "AND"))
-	filters = append(filters, newFilter("GPURedshift", benchOp, order.Order.Benchmarks.GPURedshift(), "AND"))
-
-	rows, count, err := w.runQuery(w.db, &queryOpts{
-		table:     "Orders",
-		filters:   filters,
-		sortings:  []*pb.SortingOption{{Field: "Price", Order: sortingOrder}},
-		offset:    request.Offset,
-		limit:     request.Limit,
+	for benchID, benchValue := range order.Order.Benchmarks.Values {
+		filters = append(filters, newFilter(getBenchmarkColumn(uint64(benchID)), benchOp, benchValue, "AND"))
+	}
+	rows, _, err := w.runQuery(w.db, &queryOpts{
+		table:    "Orders",
+		filters:  filters,
+		sortings: []*pb.SortingOption{{Field: "Price", Order: sortingOrder}},
+		offset:   request.Offset,
+		limit:    request.Limit,
 		withCount: request.WithCount,
 	})
 	if err != nil {
@@ -515,7 +513,7 @@ func (w *DWH) getOrderDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHO
 
 	if !rows.Next() {
 		w.logger.Error("order not found", zap.Error(rows.Err()), zap.Any("request", request))
-		return nil, status.Error(codes.Internal, "failed to GetOrderDetails")
+		return nil, status.Error(codes.NotFound, "failed to GetOrderDetails")
 	}
 
 	return w.decodeOrder(rows)
@@ -545,11 +543,11 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 	}
 
 	opts := &queryOpts{
-		table:     "Profiles",
-		filters:   filters,
-		sortings:  filterSortings(request.Sortings, ProfilesColumns),
-		offset:    request.Offset,
-		limit:     request.Limit,
+		table:    "Profiles",
+		filters:  filters,
+		sortings: filterSortings(request.Sortings, ProfilesColumnsSet),
+		offset:   request.Offset,
+		limit:    request.Limit,
 		withCount: request.WithCount,
 	}
 	if request.BlacklistQuery != nil && request.BlacklistQuery.OwnerID != nil {
@@ -630,7 +628,7 @@ func (w *DWH) getProfileInfo(ctx context.Context, request *pb.EthAddress, logErr
 		if logErrors {
 			w.logger.Error("profile not found", zap.Error(rows.Err()), zap.Any("request", request))
 		}
-		return nil, status.Error(codes.Internal, "failed to GetProfileInfo")
+		return nil, status.Error(codes.NotFound, "failed to GetProfileInfo")
 	}
 
 	return w.decodeProfile(rows)
@@ -646,7 +644,7 @@ func (w *DWH) getProfileInfoTx(tx *sql.Tx, request *pb.EthAddress) (*pb.Profile,
 
 	if !rows.Next() {
 		w.logger.Error("profile not found", zap.Error(rows.Err()), zap.Any("request", request))
-		return nil, status.Error(codes.Internal, "failed to GetProfileInfo")
+		return nil, status.Error(codes.NotFound, "failed to GetProfileInfo")
 	}
 
 	return w.decodeProfile(rows)
@@ -994,7 +992,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
 
-	if err := CheckBenchmarks(deal.Benchmarks); err != nil {
+	if err := w.checkBenchmarks(deal.Benchmarks); err != nil {
 		if err := tx.Rollback(); err != nil {
 			w.logger.Error("transaction rollback failed", zap.Error(err))
 		}
@@ -1002,8 +1000,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		return err
 	}
 
-	_, err = tx.Exec(
-		w.commands["insertDeal"],
+	allColumns := []interface{}{
 		deal.Id.Unwrap().String(),
 		deal.SupplierID.Unwrap().Hex(),
 		deal.ConsumerID.Unwrap().Hex(),
@@ -1024,19 +1021,11 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		ask.CreatorCertificates,
 		bid.CreatorCertificates,
 		hasActiveChangeRequests,
-		deal.Benchmarks.CPUSysbenchMulti(),
-		deal.Benchmarks.CPUSysbenchOne(),
-		deal.Benchmarks.CPUCores(),
-		deal.Benchmarks.RAMSize(),
-		deal.Benchmarks.StorageSize(),
-		deal.Benchmarks.NetTrafficIn(),
-		deal.Benchmarks.NetTrafficOut(),
-		deal.Benchmarks.GPUCount(),
-		deal.Benchmarks.GPUMem(),
-		deal.Benchmarks.GPUEthHashrate(),
-		deal.Benchmarks.GPUCashHashrate(),
-		deal.Benchmarks.GPURedshift(),
-	)
+	}
+	for benchID := 0; benchID < w.numBenchmarks; benchID++ {
+		allColumns = append(allColumns, deal.Benchmarks.Values[benchID])
+	}
+	_, err = tx.Exec(w.commands["insertDeal"], allColumns...)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1436,11 +1425,6 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		return errors.Wrapf(err, "failed to GetOrderInfo")
 	}
 
-	if order.OrderStatus == pb.OrderStatus_ORDER_INACTIVE && order.DealID.IsZero() {
-		w.logger.Info("skipping inactive order", zap.String("order_id", order.Id.Unwrap().String()))
-		return nil
-	}
-
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -1457,7 +1441,9 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		} else {
 			bidOrders = 1
 		}
-		_, err = tx.Exec(w.commands["insertProfileUserID"], order.AuthorID.Unwrap().Hex(), askOrders, bidOrders)
+		certificates, _ := json.Marshal([]*pb.Certificate{})
+		_, err = tx.Exec(w.commands["insertProfileUserID"], order.AuthorID.Unwrap().Hex(), certificates, askOrders,
+			bidOrders)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1465,10 +1451,9 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 
 			return errors.Wrap(err, "failed to insertProfileUserID")
 		}
-
 		profile = &pb.Profile{
 			UserID:       order.AuthorID,
-			Certificates: "",
+			Certificates: string(certificates),
 		}
 	} else {
 		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID.Unwrap().Hex(), profile, 1); err != nil {
@@ -1480,11 +1465,20 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		}
 	}
 
+	if order.OrderStatus == pb.OrderStatus_ORDER_INACTIVE && order.DealID.IsZero() {
+		if err := tx.Commit(); err != nil {
+			return errors.Wrap(err, "transaction commit failed")
+		}
+
+		w.logger.Info("skipping inactive order", zap.String("order_id", order.Id.Unwrap().String()))
+		return nil
+	}
+
 	if order.DealID == nil {
 		order.DealID = pb.NewBigIntFromInt(0)
 	}
 
-	if err := CheckBenchmarks(order.Benchmarks); err != nil {
+	if err := w.checkBenchmarks(order.Benchmarks); err != nil {
 		if err := tx.Rollback(); err != nil {
 			w.logger.Error("transaction rollback failed", zap.Error(err))
 		}
@@ -1492,8 +1486,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		return err
 	}
 
-	_, err = tx.Exec(
-		w.commands["insertOrder"],
+	allColumns := []interface{}{
 		order.Id.Unwrap().String(),
 		eventTS,
 		order.DealID.Unwrap().String(),
@@ -1512,19 +1505,12 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		profile.Name,
 		profile.Country,
 		[]byte(profile.Certificates),
-		order.Benchmarks.CPUSysbenchMulti(),
-		order.Benchmarks.CPUSysbenchOne(),
-		order.Benchmarks.CPUCores(),
-		order.Benchmarks.RAMSize(),
-		order.Benchmarks.StorageSize(),
-		order.Benchmarks.NetTrafficIn(),
-		order.Benchmarks.NetTrafficOut(),
-		order.Benchmarks.GPUCount(),
-		order.Benchmarks.GPUMem(),
-		order.Benchmarks.GPUEthHashrate(),
-		order.Benchmarks.GPUCashHashrate(),
-		order.Benchmarks.GPURedshift(),
-	)
+	}
+	for benchID := 0; benchID < w.numBenchmarks; benchID++ {
+		allColumns = append(allColumns, order.Benchmarks.Values[benchID])
+	}
+
+	_, err = tx.Exec(w.commands["insertOrder"], allColumns...)
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1591,6 +1577,12 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 
 		if err := tx.Commit(); err != nil {
 			return errors.Wrap(err, "transaction commit failed")
+		}
+	} else {
+		// Otherwise update order status.
+		_, err := w.db.Exec(w.commands["updateOrderStatus"], order.OrderStatus, order.Id.Unwrap().String())
+		if err != nil {
+			return errors.Wrap(err, "failed to updateOrderStatus (possibly old log entry)")
 		}
 	}
 
@@ -1766,8 +1758,9 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 
 func (w *DWH) updateProfile(tx *sql.Tx, certificate *pb.Certificate) error {
 	// Create a Profile entry if it doesn't exist yet.
+	certBytes, _ := json.Marshal([]*pb.Certificate{})
 	if _, err := w.getProfileInfo(w.ctx, certificate.OwnerID, false); err != nil {
-		_, err = tx.Exec(w.commands["insertProfileUserID"], certificate.OwnerID.Unwrap().Hex(), 0, 0)
+		_, err = tx.Exec(w.commands["insertProfileUserID"], certificate.OwnerID.Unwrap().Hex(), certBytes, 0, 0)
 		if err != nil {
 			return errors.Wrap(err, "failed to insertProfileUserID")
 		}
@@ -1888,95 +1881,82 @@ func (w *DWH) updateProfileStats(tx *sql.Tx, orderType pb.OrderType, authorID st
 
 func (w *DWH) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 	var (
-		id                   string
-		supplierID           string
-		consumerID           string
-		masterID             string
-		askID                string
-		bidID                string
-		price                string
-		duration             uint64
-		startTime            int64
-		endTime              int64
-		status               uint64
-		blockedBalance       string
-		totalPayout          string
-		lastBillTS           int64
-		netflags             uint64
-		askIdentityLevel     uint64
-		bidIdentityLevel     uint64
-		supplierCertificates []byte
-		consumerCertificates []byte
-		activeChangeRequest  bool
-		cpuSysbenchMulti     uint64
-		cpuSysbenchOne       uint64
-		cpuCores             uint64
-		ramSize              uint64
-		storageSize          uint64
-		netTrafficIn         uint64
-		netTrafficOut        uint64
-		gpuCount             uint64
-		gpuMem               uint64
-		gpuEthHashrate       uint64
-		gpuCashHashrate      uint64
-		gpuRedshift          uint64
+		id                   = new(string)
+		supplierID           = new(string)
+		consumerID           = new(string)
+		masterID             = new(string)
+		askID                = new(string)
+		bidID                = new(string)
+		duration             = new(uint64)
+		price                = new(string)
+		startTime            = new(int64)
+		endTime              = new(int64)
+		status               = new(uint64)
+		blockedBalance       = new(string)
+		totalPayout          = new(string)
+		lastBillTS           = new(int64)
+		netflags             = new(uint64)
+		askIdentityLevel     = new(uint64)
+		bidIdentityLevel     = new(uint64)
+		supplierCertificates = &[]byte{}
+		consumerCertificates = &[]byte{}
+		activeChangeRequest  = new(bool)
 	)
-	if err := rows.Scan(
-		&id,
-		&supplierID,
-		&consumerID,
-		&masterID,
-		&askID,
-		&bidID,
-		&duration,
-		&price,
-		&startTime,
-		&endTime,
-		&status,
-		&blockedBalance,
-		&totalPayout,
-		&lastBillTS,
-		&netflags,
-		&askIdentityLevel,
-		&bidIdentityLevel,
-		&supplierCertificates,
-		&consumerCertificates,
-		&activeChangeRequest,
-		&cpuSysbenchMulti,
-		&cpuSysbenchOne,
-		&cpuCores,
-		&ramSize,
-		&storageSize,
-		&netTrafficIn,
-		&netTrafficOut,
-		&gpuCount,
-		&gpuMem,
-		&gpuEthHashrate,
-		&gpuCashHashrate,
-		&gpuRedshift,
-	); err != nil {
+	allFields := []interface{}{
+		id,
+		supplierID,
+		consumerID,
+		masterID,
+		askID,
+		bidID,
+		duration,
+		price,
+		startTime,
+		endTime,
+		status,
+		blockedBalance,
+		totalPayout,
+		lastBillTS,
+		netflags,
+		askIdentityLevel,
+		bidIdentityLevel,
+		supplierCertificates,
+		consumerCertificates,
+		activeChangeRequest,
+	}
+	benchmarks := make([]*uint64, w.numBenchmarks)
+	for benchID := range benchmarks {
+		benchmarks[benchID] = new(uint64)
+		allFields = append(allFields, benchmarks[benchID])
+	}
+	if err := rows.Scan(allFields...); err != nil {
 		w.logger.Error("failed to scan deal row", zap.Error(err))
 		return nil, err
 	}
 
-	bigPrice := new(big.Int)
-	bigPrice.SetString(price, 10)
-	bigBlockedBalance := new(big.Int)
-	bigBlockedBalance.SetString(blockedBalance, 10)
-	bigTotalPayout := new(big.Int)
-	bigTotalPayout.SetString(totalPayout, 10)
+	benchmarksUint64 := make([]uint64, w.numBenchmarks)
+	for benchID, benchValue := range benchmarks {
+		benchmarksUint64[benchID] = *benchValue
+	}
 
-	bigID, err := pb.NewBigIntFromString(id)
+	bigPrice := new(big.Int)
+	bigPrice.SetString(*price, 10)
+	bigBlockedBalance := new(big.Int)
+	bigBlockedBalance.SetString(*blockedBalance, 10)
+	bigTotalPayout := new(big.Int)
+	bigTotalPayout.SetString(*totalPayout, 10)
+
+	bigID, err := pb.NewBigIntFromString(*id)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to NewBigIntFromString (ID)")
 	}
 
-	bigAskID, err := pb.NewBigIntFromString(askID)
+	bigAskID, err := pb.NewBigIntFromString(*askID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to NewBigIntFromString (askID)")
 	}
 
-	bigBidID, err := pb.NewBigIntFromString(bidID)
+	bigBidID, err := pb.NewBigIntFromString(*bidID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to NewBigIntFromString (bidID)")
 	}
@@ -1984,42 +1964,27 @@ func (w *DWH) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 	return &pb.DWHDeal{
 		Deal: &pb.Deal{
 			Id:             bigID,
-			SupplierID:     pb.NewEthAddress(common.HexToAddress(supplierID)),
-			ConsumerID:     pb.NewEthAddress(common.HexToAddress(consumerID)),
-			MasterID:       pb.NewEthAddress(common.HexToAddress(masterID)),
+			SupplierID:     pb.NewEthAddress(common.HexToAddress(*supplierID)),
+			ConsumerID:     pb.NewEthAddress(common.HexToAddress(*consumerID)),
+			MasterID:       pb.NewEthAddress(common.HexToAddress(*masterID)),
 			AskID:          bigAskID,
 			BidID:          bigBidID,
 			Price:          pb.NewBigInt(bigPrice),
-			Duration:       duration,
-			StartTime:      &pb.Timestamp{Seconds: startTime},
-			EndTime:        &pb.Timestamp{Seconds: endTime},
-			Status:         pb.DealStatus(status),
+			Duration:       *duration,
+			StartTime:      &pb.Timestamp{Seconds: *startTime},
+			EndTime:        &pb.Timestamp{Seconds: *endTime},
+			Status:         pb.DealStatus(*status),
 			BlockedBalance: pb.NewBigInt(bigBlockedBalance),
 			TotalPayout:    pb.NewBigInt(bigTotalPayout),
-			LastBillTS:     &pb.Timestamp{Seconds: lastBillTS},
-			Benchmarks: &pb.Benchmarks{
-				Values: []uint64{
-					cpuSysbenchMulti,
-					cpuSysbenchOne,
-					cpuCores,
-					ramSize,
-					storageSize,
-					netTrafficIn,
-					netTrafficOut,
-					gpuCount,
-					gpuMem,
-					gpuEthHashrate,
-					gpuCashHashrate,
-					gpuRedshift,
-				},
-			},
+			LastBillTS:     &pb.Timestamp{Seconds: *lastBillTS},
+			Benchmarks:     &pb.Benchmarks{Values: benchmarksUint64},
 		},
-		Netflags:             netflags,
-		AskIdentityLevel:     askIdentityLevel,
-		BidIdentityLevel:     bidIdentityLevel,
-		SupplierCertificates: supplierCertificates,
-		ConsumerCertificates: consumerCertificates,
-		ActiveChangeRequest:  activeChangeRequest,
+		Netflags:             *netflags,
+		AskIdentityLevel:     *askIdentityLevel,
+		BidIdentityLevel:     *bidIdentityLevel,
+		SupplierCertificates: *supplierCertificates,
+		ConsumerCertificates: *consumerCertificates,
+		ActiveChangeRequest:  *activeChangeRequest,
 	}, nil
 }
 
@@ -2069,86 +2034,71 @@ func (w *DWH) decodeDealChangeRequest(rows *sql.Rows) (*pb.DealChangeRequest, er
 
 func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 	var (
-		id                   string
-		createdTS            uint64
-		dealID               string
-		orderType            uint64
-		status               uint64
-		author               string
-		counterAgent         string
-		price                string
-		duration             uint64
-		netflags             uint64
-		identityLevel        uint64
-		blacklist            string
-		tag                  []byte
-		frozenSum            string
-		creatorIdentityLevel uint64
-		creatorName          string
-		creatorCountry       string
-		creatorCertificates  []byte
-		cpuSysbenchMulti     uint64
-		cpuSysbenchOne       uint64
-		cpuCores             uint64
-		ramSize              uint64
-		storageSize          uint64
-		netTrafficIn         uint64
-		netTrafficOut        uint64
-		gpuCount             uint64
-		gpuMem               uint64
-		gpuEthHashrate       uint64
-		gpuCashHashrate      uint64
-		gpuRedshift          uint64
+		id                   = new(string)
+		createdTS            = new(uint64)
+		dealID               = new(string)
+		orderType            = new(uint64)
+		orderStatus          = new(uint64)
+		author               = new(string)
+		counterAgent         = new(string)
+		duration             = new(uint64)
+		price                = new(string)
+		netflags             = new(uint64)
+		identityLevel        = new(uint64)
+		blacklist            = new(string)
+		tag                  = &[]byte{}
+		frozenSum            = new(string)
+		creatorIdentityLevel = new(uint64)
+		creatorName          = new(string)
+		creatorCountry       = new(string)
+		creatorCertificates  = &[]byte{}
 	)
-	if err := rows.Scan(
-		&id,
-		&createdTS,
-		&dealID,
-		&orderType,
-		&status,
-		&author,
-		&counterAgent,
-		&duration,
-		&price,
-		&netflags,
-		&identityLevel,
-		&blacklist,
-		&tag,
-		&frozenSum,
-		&creatorIdentityLevel,
-		&creatorName,
-		&creatorCountry,
-		&creatorCertificates,
-		&cpuSysbenchMulti,
-		&cpuSysbenchOne,
-		&cpuCores,
-		&ramSize,
-		&storageSize,
-		&netTrafficIn,
-		&netTrafficOut,
-		&gpuCount,
-		&gpuMem,
-		&gpuEthHashrate,
-		&gpuCashHashrate,
-		&gpuRedshift,
-	); err != nil {
+	allFields := []interface{}{
+		id,
+		createdTS,
+		dealID,
+		orderType,
+		orderStatus,
+		author,
+		counterAgent,
+		duration,
+		price,
+		netflags,
+		identityLevel,
+		blacklist,
+		tag,
+		frozenSum,
+		creatorIdentityLevel,
+		creatorName,
+		creatorCountry,
+		creatorCertificates,
+	}
+	benchmarks := make([]*uint64, w.numBenchmarks)
+	for benchID := range benchmarks {
+		benchmarks[benchID] = new(uint64)
+		allFields = append(allFields, benchmarks[benchID])
+	}
+	if err := rows.Scan(allFields...); err != nil {
 		w.logger.Error("failed to scan order row", zap.Error(err))
 		return nil, err
 	}
-
-	bigPrice, err := pb.NewBigIntFromString(price)
+	benchmarksUint64 := make([]uint64, w.numBenchmarks)
+	for benchID, benchValue := range benchmarks {
+		benchmarksUint64[benchID] = *benchValue
+	}
+	bigPrice, err := pb.NewBigIntFromString(*price)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to NewBigIntFromString (Price)")
 	}
-	bigFrozenSum, err := pb.NewBigIntFromString(frozenSum)
+	bigFrozenSum, err := pb.NewBigIntFromString(*frozenSum)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to NewBigIntFromString (FrozenSum)")
 	}
-	bigID, err := pb.NewBigIntFromString(id)
+	bigID, err := pb.NewBigIntFromString(*id)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to NewBigIntFromString (ID)")
 	}
-	bigDealID, err := pb.NewBigIntFromString(dealID)
+	bigDealID, err := pb.NewBigIntFromString(*dealID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to NewBigIntFromString (DealID)")
 	}
@@ -2157,40 +2107,24 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 		Order: &pb.Order{
 			Id:             bigID,
 			DealID:         bigDealID,
-			OrderType:      pb.OrderType(orderType),
-			OrderStatus:    pb.OrderStatus(status),
-			AuthorID:       pb.NewEthAddress(common.HexToAddress(author)),
-			CounterpartyID: pb.NewEthAddress(common.HexToAddress(counterAgent)),
-			Duration:       duration,
+			OrderType:      pb.OrderType(*orderType),
+			OrderStatus:    pb.OrderStatus(*orderStatus),
+			AuthorID:       pb.NewEthAddress(common.HexToAddress(*author)),
+			CounterpartyID: pb.NewEthAddress(common.HexToAddress(*counterAgent)),
+			Duration:       *duration,
 			Price:          bigPrice,
-			Netflags:       netflags,
-			IdentityLevel:  pb.IdentityLevel(identityLevel),
-			Blacklist:      blacklist,
-			Tag:            tag,
+			Netflags:       *netflags,
+			IdentityLevel:  pb.IdentityLevel(*identityLevel),
+			Blacklist:      *blacklist,
+			Tag:            *tag,
 			FrozenSum:      bigFrozenSum,
-			Benchmarks: &pb.Benchmarks{
-				Values: []uint64{
-					cpuSysbenchMulti,
-					cpuSysbenchOne,
-					cpuCores,
-					ramSize,
-					storageSize,
-					netTrafficIn,
-					netTrafficOut,
-					gpuCount,
-					gpuMem,
-					gpuEthHashrate,
-					gpuCashHashrate,
-					gpuRedshift,
-				},
-			},
+			Benchmarks:     &pb.Benchmarks{Values: benchmarksUint64},
 		},
-
-		CreatedTS:            &pb.Timestamp{Seconds: int64(createdTS)},
-		CreatorIdentityLevel: creatorIdentityLevel,
-		CreatorName:          creatorName,
-		CreatorCountry:       creatorCountry,
-		CreatorCertificates:  creatorCertificates,
+		CreatedTS:            &pb.Timestamp{Seconds: int64(*createdTS)},
+		CreatorIdentityLevel: *creatorIdentityLevel,
+		CreatorName:          *creatorName,
+		CreatorCountry:       *creatorCountry,
+		CreatorCertificates:  *creatorCertificates,
 	}, nil
 }
 
@@ -2341,78 +2275,14 @@ func (w *DWH) decodeWorker(rows *sql.Rows) (*pb.DWHWorker, error) {
 	}, nil
 }
 
-func (w *DWH) addBenchmarksConditions(benches *pb.DWHBenchmarkConditions, filters *[]*filter) {
-	if benches.CPUSysbenchMulti != nil {
-		if benches.CPUSysbenchMulti.Max > 0 {
-			*filters = append(*filters, newFilter("CPUSysbenchMulti", lte, benches.CPUSysbenchMulti.Max, "AND"))
+func (w *DWH) addBenchmarksConditions(benches map[uint64]*pb.MaxMinUint64, filters *[]*filter) {
+	for benchID, condition := range benches {
+		if condition.Max > 0 {
+			*filters = append(*filters, newFilter(getBenchmarkColumn(benchID), lte, condition.Max, "AND"))
 		}
-		*filters = append(*filters, newFilter("CPUSysbenchMulti", gte, benches.CPUSysbenchMulti.Min, "AND"))
-	}
-	if benches.CPUSysbenchOne != nil {
-		if benches.CPUSysbenchOne.Max > 0 {
-			*filters = append(*filters, newFilter("CPUSysbenchOne", lte, benches.CPUSysbenchOne.Max, "AND"))
+		if condition.Min > 0 {
+			*filters = append(*filters, newFilter(getBenchmarkColumn(benchID), gte, condition.Max, "AND"))
 		}
-		*filters = append(*filters, newFilter("CPUSysbenchOne", gte, benches.CPUSysbenchOne.Min, "AND"))
-	}
-	if benches.CPUCores != nil {
-		if benches.CPUCores.Max > 0 {
-			*filters = append(*filters, newFilter("CPUCores", lte, benches.CPUCores.Max, "AND"))
-		}
-		*filters = append(*filters, newFilter("CPUCores", gte, benches.CPUCores.Min, "AND"))
-	}
-	if benches.RAMSize != nil {
-		if benches.RAMSize.Max > 0 {
-			*filters = append(*filters, newFilter("RAMSize", lte, benches.RAMSize.Max, "AND"))
-		}
-		*filters = append(*filters, newFilter("RAMSize", gte, benches.RAMSize.Min, "AND"))
-	}
-	if benches.StorageSize != nil {
-		if benches.StorageSize.Max > 0 {
-			*filters = append(*filters, newFilter("StorageSize", lte, benches.StorageSize.Max, "AND"))
-		}
-		*filters = append(*filters, newFilter("StorageSize", gte, benches.StorageSize.Min, "AND"))
-	}
-	if benches.NetTrafficIn != nil {
-		if benches.NetTrafficIn.Max > 0 {
-			*filters = append(*filters, newFilter("NetTrafficIn", lte, benches.NetTrafficIn.Max, "AND"))
-		}
-		*filters = append(*filters, newFilter("NetTrafficIn", gte, benches.NetTrafficIn.Min, "AND"))
-	}
-	if benches.NetTrafficOut != nil {
-		if benches.NetTrafficOut.Max > 0 {
-			*filters = append(*filters, newFilter("NetTrafficOut", lte, benches.NetTrafficOut.Max, "AND"))
-		}
-		*filters = append(*filters, newFilter("NetTrafficOut", gte, benches.NetTrafficOut.Min, "AND"))
-	}
-	if benches.GPUCount != nil {
-		if benches.GPUCount.Max > 0 {
-			*filters = append(*filters, newFilter("GPUCount", lte, benches.GPUCount.Max, "AND"))
-		}
-		*filters = append(*filters, newFilter("GPUCount", gte, benches.GPUCount.Min, "AND"))
-	}
-	if benches.GPUMem != nil {
-		if benches.GPUMem.Max > 0 {
-			*filters = append(*filters, newFilter("GPUMem", lte, benches.GPUMem.Max, "AND"))
-		}
-		*filters = append(*filters, newFilter("GPUMem", gte, benches.GPUMem.Min, "AND"))
-	}
-	if benches.GPUEthHashrate != nil {
-		if benches.GPUEthHashrate.Max > 0 {
-			*filters = append(*filters, newFilter("GPUEthHashrate", lte, benches.GPUEthHashrate.Max, "AND"))
-		}
-		*filters = append(*filters, newFilter("GPUEthHashrate", gte, benches.GPUEthHashrate.Min, "AND"))
-	}
-	if benches.GPUCashHashrate != nil {
-		if benches.GPUCashHashrate.Max > 0 {
-			*filters = append(*filters, newFilter("GPUCashHashrate", lte, benches.GPUCashHashrate.Max, "AND"))
-		}
-		*filters = append(*filters, newFilter("GPUCashHashrate", gte, benches.GPUCashHashrate.Min, "AND"))
-	}
-	if benches.GPURedshift != nil {
-		if benches.GPURedshift.Max > 0 {
-			*filters = append(*filters, newFilter("GPURedshift", lte, benches.GPURedshift.Max, "AND"))
-		}
-		*filters = append(*filters, newFilter("GPURedshift", gte, benches.GPURedshift.Min, "AND"))
 	}
 }
 
@@ -2470,6 +2340,20 @@ func (w *DWH) updateDealConditionEndTime(tx *sql.Tx, dealID *pb.BigInt, eventTS 
 
 	if _, err := tx.Exec(w.commands["updateDealConditionEndTime"], eventTS, dealCondition.Id); err != nil {
 		return errors.Wrap(err, "failed to update DealCondition")
+	}
+
+	return nil
+}
+
+func (w *DWH) checkBenchmarks(benches *pb.Benchmarks) error {
+	if len(benches.Values) != w.numBenchmarks {
+		return errors.Errorf("expected %d benchmarks, got %d", w.numBenchmarks, len(benches.Values))
+	}
+
+	for idx, bench := range benches.Values {
+		if bench >= MaxBenchmark {
+			return errors.Errorf("benchmark %d is greater that %d", idx, MaxBenchmark)
+		}
 	}
 
 	return nil

@@ -16,6 +16,7 @@ type Config struct {
 	Storage           *storageConfig     `yaml:"storage" required:"true"`
 	Blockchain        *blockchain.Config `yaml:"blockchain"`
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14004"`
+	ColdStart         *ColdStartConfig   `yaml:"cold_start"`
 }
 
 type storageConfig struct {
@@ -25,6 +26,10 @@ type storageConfig struct {
 
 type LoggingConfig struct {
 	Level *logging.Level `required:"true" default:"warn"`
+}
+
+type ColdStartConfig struct {
+	UpToBlock int64 `yaml:"up_to_block"`
 }
 
 func NewConfig(path string) (*Config, error) {
