@@ -264,17 +264,16 @@ func (w *DWH) GetDealConditions(ctx context.Context, request *pb.DealConditionsR
 func (w *DWH) getDealConditions(ctx context.Context, request *pb.DealConditionsRequest) (*pb.DealConditionsReply, error) {
 	var filters []*filter
 	if len(request.Sortings) < 1 {
-		request.Sortings = []*pb.SortingOption{{Field: "rowid", Order: pb.SortingOrder_Desc}}
+		request.Sortings = []*pb.SortingOption{{Field: "Id", Order: pb.SortingOrder_Desc}}
 	}
 
 	filters = append(filters, newFilter("DealID", eq, request.DealID.Unwrap().String(), "AND"))
 	rows, _, err := runQuery(w.db, &queryOpts{
-		table:     "DealConditions",
-		filters:   filters,
-		sortings:  request.Sortings,
-		offset:    request.Offset,
-		limit:     request.Limit,
-		withRowid: true,
+		table:    "DealConditions",
+		filters:  filters,
+		sortings: request.Sortings,
+		offset:   request.Offset,
+		limit:    request.Limit,
 	})
 	if err != nil {
 		w.logger.Error("failed to runQuery", zap.Error(err), zap.Any("request", request))
@@ -648,7 +647,7 @@ func (w *DWH) getBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 	rows, _, err := runQuery(w.db, &queryOpts{
 		table:    "Blacklists",
 		filters:  filters,
-		sortings: []*pb.SortingOption{{Field: "rowid", Order: pb.SortingOrder_Desc}},
+		sortings: []*pb.SortingOption{},
 		offset:   request.Offset,
 		limit:    request.Limit,
 	})
@@ -776,7 +775,7 @@ func (w *DWH) getWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 	rows, _, err := runQuery(w.db, &queryOpts{
 		table:    "Workers",
 		filters:  filters,
-		sortings: []*pb.SortingOption{{Field: "rowid", Order: pb.SortingOrder_Desc}},
+		sortings: []*pb.SortingOption{},
 		offset:   request.Offset,
 		limit:    request.Limit,
 	})
@@ -830,6 +829,8 @@ func (w *DWH) watchMarketEvents() error {
 		}
 		lastKnownBlock = 0
 	}
+
+	w.logger.Info("starting from block", zap.Int64("block_number", lastKnownBlock))
 
 	dealEvents, err := w.blockchain.Events().GetEvents(w.ctx, big.NewInt(lastKnownBlock))
 	if err != nil {
@@ -998,6 +999,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 
 	_, err = tx.Exec(
 		w.commands["insertDealCondition"],
+		nil,
 		deal.SupplierID.Unwrap().Hex(),
 		deal.ConsumerID.Unwrap().Hex(),
 		deal.MasterID.Unwrap().Hex(),
@@ -1240,6 +1242,7 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 		}
 		_, err = tx.Exec(
 			w.commands["insertDealCondition"],
+			nil,
 			deal.GetDeal().SupplierID.Unwrap().Hex(),
 			deal.GetDeal().ConsumerID.Unwrap().Hex(),
 			deal.GetDeal().MasterID.Unwrap().Hex(),
@@ -1348,7 +1351,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		} else {
 			bidOrders = 1
 		}
-		_, err = tx.Exec(w.commands["insertProfileUserID"], order.AuthorID.Unwrap().Hex(), askOrders, bidOrders)
+		_, err = tx.Exec(w.commands["insertProfileUserID"], nil, order.AuthorID.Unwrap().Hex(), askOrders, bidOrders)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1620,7 +1623,7 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 func (w *DWH) updateProfile(tx *sql.Tx, certificate *pb.Certificate) error {
 	// Create a Profile entry if it doesn't exist yet.
 	if _, err := w.getProfileInfo(w.ctx, certificate.OwnerID, false); err != nil {
-		_, err = tx.Exec(w.commands["insertProfileUserID"], certificate.OwnerID, 0, 0)
+		_, err = tx.Exec(w.commands["insertProfileUserID"], nil, certificate.OwnerID.Unwrap().Hex(), 0, 0)
 		if err != nil {
 			return errors.Wrap(err, "failed to insertProfileUserID")
 		}
@@ -2047,7 +2050,7 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 
 func (w *DWH) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, error) {
 	var (
-		rowid       uint64
+		id          uint64
 		supplierID  string
 		consumerID  string
 		masterID    string
@@ -2059,7 +2062,7 @@ func (w *DWH) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, error) {
 		dealID      string
 	)
 	if err := rows.Scan(
-		&rowid,
+		&id,
 		&supplierID,
 		&consumerID,
 		&masterID,
@@ -2084,7 +2087,7 @@ func (w *DWH) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, error) {
 	}
 
 	return &pb.DealCondition{
-		Id:          rowid,
+		Id:          id,
 		SupplierID:  pb.NewEthAddress(common.HexToAddress(supplierID)),
 		ConsumerID:  pb.NewEthAddress(common.HexToAddress(consumerID)),
 		MasterID:    pb.NewEthAddress(common.HexToAddress(masterID)),
@@ -2120,6 +2123,7 @@ func (w *DWH) decodeCertificate(rows *sql.Rows) (*pb.Certificate, error) {
 
 func (w *DWH) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 	var (
+		id             uint64
 		userID         string
 		identityLevel  uint64
 		name           string
@@ -2131,6 +2135,7 @@ func (w *DWH) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 		activeBids     uint64
 	)
 	if err := rows.Scan(
+		&id,
 		&userID,
 		&identityLevel,
 		&name,
