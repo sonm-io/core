@@ -554,6 +554,7 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 		w.logger.Error("failed to runQuery", zap.Error(err), zap.Any("request", request))
 		return nil, status.Error(codes.Internal, "failed to GetProfiles")
 	}
+	defer rows.Close()
 
 	var out []*pb.Profile
 	for rows.Next() {
@@ -563,6 +564,10 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 		} else {
 			out = append(out, profile)
 		}
+	}
+	if err := rows.Err(); err != nil {
+		w.logger.Error("failed to fetch profiles from db", zap.Error(err), zap.Any("request", request))
+		return nil, status.Error(codes.Internal, "failed to GetProfiles")
 	}
 
 	if request.BlacklistQuery != nil && request.BlacklistQuery.Option == pb.BlacklistOption_IncludeAndMark {
@@ -736,6 +741,7 @@ func (w *DWH) getDealChangeRequests(ctx context.Context, request *pb.BigInt) (*p
 		w.logger.Error("failed to selectDealChangeRequestsByID", zap.Error(err), zap.Any("request", request))
 		return nil, status.Error(codes.Internal, "failed to GetDealChangeRequests")
 	}
+	defer rows.Close()
 
 	var out []*pb.DealChangeRequest
 	for rows.Next() {
