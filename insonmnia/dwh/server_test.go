@@ -1255,20 +1255,20 @@ func setupTestDB(w *DWH) error {
 		} else {
 			identityLevel = 1
 		}
-		_, err = w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", nil,
+		_, err = w.db.Exec("INSERT INTO Profiles VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(), identityLevel, "sortedProfile", "", 0, 0, []byte{}, 0, 0)
 		if err != nil {
 			return err
 		}
 	}
 
-	_, err := w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", nil,
+	_, err := w.db.Exec("INSERT INTO Profiles VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		fmt.Sprintf(common.HexToAddress("0xBB").Hex()), 3, "Consumer", "", 0, 0, byteCerts, 10, 10)
 	if err != nil {
 		return err
 	}
 
-	_, err = w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", nil,
+	_, err = w.db.Exec("INSERT INTO Profiles VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
 		fmt.Sprintf(common.HexToAddress("0xAA").Hex()), 3, "Supplier", "", 0, 0, byteCerts, 10, 10)
 	if err != nil {
 		return err
