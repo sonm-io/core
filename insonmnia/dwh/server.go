@@ -63,15 +63,19 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, erro
 
 	setupDB, ok := setupDBCallbacks[cfg.Storage.Backend]
 	if !ok {
+		cancel()
 		return nil, errors.Errorf("unsupported backend: %s", cfg.Storage.Backend)
 	}
 
 	if err := setupDB(w); err != nil {
+		cancel()
 		return nil, errors.Wrap(err, "failed to setupDB")
 	}
 
 	certRotator, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
 	if err != nil {
+		w.db.Close()
+		cancel()
 		return nil, err
 	}
 
@@ -108,6 +112,7 @@ func (w *DWH) Stop() {
 	defer w.mu.Unlock()
 
 	w.cancel()
+	w.db.Close()
 	w.grpc.Stop()
 	w.http.Close()
 }
