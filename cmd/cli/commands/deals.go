@@ -3,6 +3,7 @@ package commands
 import (
 	"os"
 
+	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
@@ -18,6 +19,7 @@ func init() {
 	nodeDealsRootCmd.AddCommand(
 		dealsListCmd,
 		dealsStatusCmd,
+		dealsOpenCmd,
 		dealsFinishCmd,
 	)
 }
@@ -81,6 +83,45 @@ var dealsStatusCmd = &cobra.Command{
 		}
 
 		printDealDetails(cmd, reply)
+	},
+}
+
+var dealsOpenCmd = &cobra.Command{
+	Use:    "open <ask_id> <bid_id>",
+	Short:  "open deal with given orders",
+	Args:   cobra.MinimumNArgs(2),
+	PreRun: loadKeyStoreWrapper,
+	Run: func(cmd *cobra.Command, args []string) {
+		cmd.Println(`WARN: this command exists only for debugging purposes and may be removed in future.`)
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		askID, err := util.ParseBigInt(args[0])
+		if err != nil {
+			// do not wraps error with human-readable text, the error text is self-explainable.
+			showError(cmd, err.Error(), nil)
+			os.Exit(1)
+		}
+
+		bidID, err := util.ParseBigInt(args[1])
+		if err != nil {
+			showError(cmd, err.Error(), nil)
+			os.Exit(1)
+		}
+
+		eth, err := blockchain.NewAPI()
+		if err != nil {
+			showError(cmd, "Cannot create blockchain connection", err)
+			os.Exit(1)
+		}
+
+		dealOrErr := <-eth.Market().OpenDeal(ctx, sessionKey, askID, bidID)
+		if dealOrErr.Err != nil {
+			showError(cmd, "Cannot open deal", dealOrErr.Err)
+			os.Exit(1)
+		}
+
+		printID(cmd, dealOrErr.Deal.GetId().Unwrap().String())
 	},
 }
 

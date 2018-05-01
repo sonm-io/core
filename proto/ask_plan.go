@@ -3,8 +3,8 @@ package sonm
 import "errors"
 
 const (
-	minRamSize    = 4 * 1024 * 1024
-	minCPUPercent = 1
+	MinCPUPercent = 1
+	MinRamSize    = 4 * 1 << 20
 )
 
 func (c *AskPlanCPU) MarshalYAML() (interface{}, error) {
@@ -29,11 +29,11 @@ func (c *AskPlanCPU) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (m *AskPlan) Validate() error {
-	if m.GetResources().GetCPU().GetCorePercents() < minCPUPercent {
+	if m.GetResources().GetCPU().GetCorePercents() < MinCPUPercent {
 		return errors.New("CPU count is too low")
 	}
 
-	if m.GetResources().GetRAM().GetSize().GetBytes() < minRamSize {
+	if m.GetResources().GetRAM().GetSize().GetBytes() < MinRamSize {
 		return errors.New("RAM size is too low")
 	}
 

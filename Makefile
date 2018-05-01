@@ -29,6 +29,7 @@ RENDEZVOUS=${TARGETDIR}/sonmrendezvous_$(OS_ARCH)
 RELAY=${TARGETDIR}/sonmrelay_$(OS_ARCH)
 LSGPU=${TARGETDIR}/lsgpu_$(OS_ARCH)
 PANDORA=${TARGETDIR}/pandora_$(OS_ARCH)
+OPTIMUS=${TARGETDIR}/optimus_$(OS_ARCH)
 
 TAGS=nocgo
 
@@ -107,9 +108,13 @@ build/pandora_linux:
 	@echo "+ $@"
 	GOOS=linux ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${TARGETDIR}/pandora_linux_x86_64 ${GOCMD}/pandora
 
+build/optimus:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${OPTIMUS} ${GOCMD}/optimus
+
 build/insomnia: build/worker build/cli build/node
 
-build/aux: build/relay build/rv build/dwh build/pandora
+build/aux: build/relay build/rv build/dwh build/pandora build/optimus
 
 build: build/insomnia build/aux
 
@@ -144,7 +149,8 @@ mock: build_mockgen
 	mockgen -package miner -destination insonmnia/miner/overseer_mock.go -source insonmnia/miner/overseer.go
 	mockgen -package task_config -destination cmd/cli/task_config/config_mock.go  -source cmd/cli/task_config/config.go
 	mockgen -package accounts -destination accounts/keys_mock.go  -source accounts/keys.go
-	mockgen -package benchmarks -destination insonmnia/benchmarks/benchmarks_mock.go  -source insonmnia/benchmarks/benchmarks.go
+	mockgen -package benchmarks -destination insonmnia/benchmarks/benchmarks_mock.go -source insonmnia/benchmarks/benchmarks.go
+	mockgen -package benchmarks -destination insonmnia/benchmarks/mapping_mock.go -source insonmnia/benchmarks/mapping.go
 	mockgen -package blockchain -destination blockchain/api_mock.go  -source blockchain/api.go
 	mockgen -package sonm -destination proto/marketplace_mock.go  -source proto/marketplace.pb.go
 	mockgen -package sonm -destination proto/dwh_mock.go  -source proto/dwh.pb.go
