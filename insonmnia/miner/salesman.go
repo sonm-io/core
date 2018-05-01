@@ -173,11 +173,35 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 }
 
 func (m *Salesman) restoreState() error {
+	askPlans := m.state.AskPlans()
+	for _, plan := range askPlans {
+		m.resources.Consume(plan)
+	}
+	//TODO: restore tasks
 	return nil
 }
 
 func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) {
-	panic("implement me")
+	m.log.Infof("checking deal %s for ask plan %s and order %s",
+		plan.DealID.Unwrap().String(), plan.GetOrderID().Unwrap().String(), plan.ID)
+	deal, err := m.eth.Market().GetDealInfo(ctx, plan.GetDealID().Unwrap())
+	if err != nil {
+		m.log.Warnf("could not get deal info for order %s, ask %s - %s",
+			plan.GetOrderID().Unwrap().String(), plan.ID, err)
+		// TODO: log, what else can we do?
+		return
+	}
+
+	if deal.Status == sonm.DealStatus_DEAL_CLOSED {
+		err = m.resources.Release(plan.ID)
+		if err != nil {
+			m.log.Warnf("could not release resources for deal %s, order %s, ask %s - %s",
+				plan.DealID.Unwrap().String(), plan.OrderID.Unwrap().String(), plan.ID, err)
+		}
+		plan.DealID = nil
+		plan.OrderID = nil
+		m.state.SaveAskPlan(plan)
+	}
 }
 
 func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) {
@@ -190,7 +214,6 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) {
 		return
 	}
 
-	//TODO: proper structs
 	if !order.DealID.IsZero() {
 		deal, err := m.eth.Market().GetDealInfo(ctx, order.DealID.Unwrap())
 		if err != nil {
