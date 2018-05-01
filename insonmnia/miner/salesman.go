@@ -5,7 +5,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"math/big"
 	"sync"
 	"time"
 
@@ -26,6 +25,7 @@ type Salesman struct {
 	resources *resource.Scheduler
 	hardware  *hardware.Hardware
 	eth       blockchain.API
+	dwh       sonm.DWHClient
 	ethkey    *ecdsa.PrivateKey
 
 	log      *zap.SugaredLogger
@@ -39,6 +39,7 @@ func NewSalesman(
 	resources *resource.Scheduler,
 	hardware *hardware.Hardware,
 	eth blockchain.API,
+	dwh sonm.DWHClient,
 	ethkey *ecdsa.PrivateKey,
 ) (*Salesman, error) {
 	if state == nil {
@@ -56,6 +57,7 @@ func NewSalesman(
 	if ethkey == nil {
 		return nil, errors.New("ethereum private key is required for salesman")
 	}
+	if
 	return &Salesman{
 		state:     state,
 		resources: resources,
@@ -175,25 +177,18 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) {
 	}
 
 	//TODO: proper structs
-	if len(order.DealID) != 0 && order.DealID != "0" {
-		dealID, set := big.NewInt(0).SetString(order.DealID, 0)
-		if !set {
-			m.log.Warnf("could not parse order id from %s - %s", order.DealID, err)
-			// TODO: log, what else can we do?
-			return
-		}
-
-		deal, err := m.eth.Market().GetDealInfo(ctx, dealID)
+	if !order.DealID.IsZero() {
+		deal, err := m.eth.Market().GetDealInfo(ctx, order.DealID.Unwrap())
 		if err != nil {
-			m.log.Warnf("could not get deal info for ID %s from market - %s", dealID.String(), err)
+			m.log.Warnf("could not get deal info for ID %s from market - %s", order.DealID.Unwrap().String(), err)
 			// TODO: log, what else can we do?
 			return
 		}
 
-		plan.DealID = sonm.NewBigInt(dealID)
+		plan.DealID = order.DealID
 		m.dealChan <- deal
 		if err := m.state.SaveAskPlan(plan); err != nil {
-			m.log.Warnf("could not get save ask plan with deal %s - %s", dealID.String(), err)
+			m.log.Warnf("could not get save ask plan with deal %s - %s", order.DealID.Unwrap().String(), err)
 			// TODO: log, what else can we do?
 			return
 		}
@@ -210,8 +205,8 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) {
 	order := &sonm.Order{
 		OrderType:      sonm.OrderType_ASK,
 		OrderStatus:    sonm.OrderStatus_ORDER_ACTIVE,
-		AuthorID:       crypto.PubkeyToAddress(m.ethkey.PublicKey).Hex(),
-		CounterpartyID: plan.GetCounterparty().Unwrap().Hex(),
+		AuthorID:       sonm.NewEthAddress(crypto.PubkeyToAddress(m.ethkey.PublicKey)),
+		CounterpartyID: plan.GetCounterparty(),
 		Duration:       uint64(plan.GetDuration().Unwrap().Seconds()),
 		Price:          plan.GetPrice().GetPerSecond(),
 		//TODO:refactor NetFlags in separqate PR
@@ -227,13 +222,7 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) {
 		// TODO: log, what else can we do?
 		return
 	}
-	orderId, set := big.NewInt(0).SetString(ordOrErr.Order.Id, 0)
-	if !set {
-		m.log.Warnf("could not parse order id string %s to big.Int - %s", ordOrErr.Order.Id, err)
-		// TODO: log, what else can we do?
-		return
-	}
-	plan.OrderID = sonm.NewBigInt(orderId)
+	plan.OrderID = ordOrErr.Order.Id
 	if err := m.state.SaveAskPlan(plan); err != nil {
 		m.log.Warnf("could not save ask plan %s in storage - %s", plan.ID, err)
 		// TODO: log, what else can we do?

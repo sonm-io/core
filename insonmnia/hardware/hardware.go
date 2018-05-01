@@ -101,7 +101,6 @@ func (h *Hardware) AskPlanResources() *sonm.AskPlanResources {
 }
 
 func insertBench(to []uint64, bench *sonm.Benchmark, proportion float64) ([]uint64, error) {
-	fmt.Println("PIDOR")
 	for len(to) <= int(bench.ID) {
 		to = append(to, uint64(0))
 	}
@@ -130,13 +129,6 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 	}
 	var err error
 	benchmarks := make([]uint64, sonm.MinNumBenchmarks)
-
-	//for _, bench := range h.CPU.GetBenchmarks() {
-	//	proportion := float64(resources.GetCPU().GetCorePercents()) / float64(h.CPU.GetDevice().GetCores()) / 100
-	//	if benchmarks, err = insertBench(benchmarks, bench, proportion); err != nil {
-	//		return nil, err
-	//	}
-	//}
 
 	proportions := []float64{}
 	hwBenches := []map[uint64]*sonm.Benchmark{}
@@ -176,7 +168,6 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 		}
 	}
 
-	fmt.Println("WTF????????????????")
 	ctxlog.S(context.Background()).Infof("%v", benchmarks)
 
 	return sonm.NewBenchmarks(benchmarks)
