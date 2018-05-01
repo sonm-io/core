@@ -149,6 +149,18 @@
 			"revisionTime": "2017-03-23T22:30:13Z"
 		},
 		{
+			"checksumSHA1": "77oxR9PO1m93oS7tw/f70399PVA=",
+			"path": "github.com/cdipaolo/goml/base",
+			"revision": "e2d8def04c9a19893aba223c21899c77089651ee",
+			"revisionTime": "2016-10-30T20:48:43Z"
+		},
+		{
+			"checksumSHA1": "Xz6XePZp7b2o7IWhegfNunL5wxg=",
+			"path": "github.com/cdipaolo/goml/linear",
+			"revision": "e2d8def04c9a19893aba223c21899c77089651ee",
+			"revisionTime": "2016-10-30T20:48:43Z"
+		},
+		{
 			"checksumSHA1": "P5K4CjghK/BoaRKoZ8bUMbRC5N4=",
 			"path": "github.com/cnf/structhash",
 			"revision": "7710f1f78fb9c581deeeab57ecfb7978901b36bc",
@@ -1206,6 +1218,12 @@
 			"path": "github.com/modern-go/reflect2",
 			"revision": "05fbef0ca5da472bbf96c9322b84a53edc03c9fd",
 			"revisionTime": "2018-03-20T13:32:07Z"
+		},
+		{
+			"checksumSHA1": "+/E1N8iDaHig2Gk4Y6Lhj1lKGco=",
+			"path": "github.com/montanaflynn/stats",
+			"revision": "1bf9dbcd8cbe1fdb75add3785b1d4a9a646269ab",
+			"revisionTime": "2017-12-01T20:20:39Z"
 		},
 		{
 			"checksumSHA1": "FrYbQUcjOMUZQwdG8OXxTaVYl8Q=",
