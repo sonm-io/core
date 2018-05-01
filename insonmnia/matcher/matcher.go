@@ -55,8 +55,10 @@ func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*so
 			ctxlog.G(ctx).Info("search for matching order via DWH", zap.String("id", order.GetId().Unwrap().String()))
 			matchingOrders, err := m.getMatchingOrders(ctx, id)
 			if err != nil {
+				ctxlog.S(ctx).Debugf("failed to get matching orders from DWH - %s", err)
 				return nil, err
 			}
+			ctxlog.S(ctx).Debugf("got %d matching orders", len(matchingOrders))
 
 			// 3. iterate over sorted orders
 			for _, dealWithMe := range matchingOrders {

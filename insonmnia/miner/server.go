@@ -20,10 +20,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/cgroups"
-	"github.com/sonm-io/core/insonmnia/dwh"
+	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"gopkg.in/yaml.v2"
 
 	// todo: drop alias
@@ -54,7 +55,7 @@ type Miner struct {
 	ethkey    *ecdsa.PrivateKey
 	publicIPs []string
 	eth       blockchain.API
-	dwh       dwh.MockDWH
+	dwh       pb.DWHClient
 
 	// One-to-one mapping between container IDs and userland task names.
 	//
@@ -125,7 +126,16 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	if o.dwh == nil {
-		o.dwh = dwh.NewDumbDWH(o.ctx)
+		_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), o.key)
+		if err != nil {
+			return nil, err
+		}
+		transportCredentials := util.NewTLS(TLSConfig)
+		cc, err := xgrpc.NewClient(o.ctx, cfg.DWHEndpoint, transportCredentials)
+		if err != nil {
+			return nil, err
+		}
+		o.dwh = pb.NewDWHClient(cc)
 	}
 
 	cgName := ""
@@ -216,10 +226,20 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		return nil, err
 	}
 
+	matcher := matcher.NewMatcher(&matcher.Config{
+		Key: m.ethkey,
+		//TODO: make configurable
+		PollDelay: time.Second * 5,
+		DWH:       m.dwh,
+		Eth:       m.eth,
+		//TODO: make configurable
+		QueryLimit: 100,
+	})
+
 	//TODO: this is racy, because of post initialization of hardware via benchmarks
 	m.resources = resource.NewScheduler(o.ctx, m.hardware)
 
-	salesman, err := NewSalesman(o.ctx, o.storage, m.resources, m.hardware, o.eth, o.key)
+	salesman, err := NewSalesman(o.ctx, o.storage, m.resources, m.hardware, o.eth, matcher, o.key)
 	if err != nil {
 		return nil, err
 	}
@@ -920,24 +940,25 @@ func (m *Miner) loadExternalState() error {
 	return nil
 }
 
+//TODO: fix me
 func (m *Miner) loadDeals() error {
-	log.G(m.ctx).Debug("loading opened deals")
-
-	filter := dwh.DealsFilter{
-		Author: util.PubKeyToAddr(m.ethkey.PublicKey),
-	}
-
-	deals, err := m.dwh.GetDeals(m.ctx, filter)
-	if err != nil {
-		return err
-	}
-
-	m.mu.Lock()
-	for _, deal := range deals {
-		m.Deals[structs.DealID(deal.GetId().Unwrap().String())] = structs.NewDealMeta(deal)
-	}
-	m.mu.Unlock()
-
+	//log.G(m.ctx).Debug("loading opened deals")
+	//
+	//filter := dwh.DealsFilter{
+	//	Author: util.PubKeyToAddr(m.ethkey.PublicKey),
+	//}
+	//
+	//deals, err := m.dwh.GetDeals(m.ctx, filter)
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//m.mu.Lock()
+	//for _, deal := range deals {
+	//	m.Deals[structs.DealID(deal.GetId().Unwrap().String())] = structs.NewDealMeta(deal)
+	//}
+	//m.mu.Unlock()
+	//
 	return nil
 }
 

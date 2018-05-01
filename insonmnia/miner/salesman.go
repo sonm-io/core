@@ -13,6 +13,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/hardware"
+	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/proto"
@@ -28,6 +29,7 @@ type Salesman struct {
 	dwh       sonm.DWHClient
 	ethkey    *ecdsa.PrivateKey
 
+	matcher  matcher.Matcher
 	log      *zap.SugaredLogger
 	dealChan chan *sonm.Deal
 	tickLock sync.Mutex
@@ -39,7 +41,7 @@ func NewSalesman(
 	resources *resource.Scheduler,
 	hardware *hardware.Hardware,
 	eth blockchain.API,
-	dwh sonm.DWHClient,
+	matcher matcher.Matcher,
 	ethkey *ecdsa.PrivateKey,
 ) (*Salesman, error) {
 	if state == nil {
@@ -57,12 +59,16 @@ func NewSalesman(
 	if ethkey == nil {
 		return nil, errors.New("ethereum private key is required for salesman")
 	}
-	if
+	if matcher == nil {
+		return nil, errors.New("matcher is required for salesman")
+	}
+
 	return &Salesman{
 		state:     state,
 		resources: resources,
 		hardware:  hardware,
 		eth:       eth,
+		matcher:   matcher,
 		ethkey:    ethkey,
 		log:       ctxlog.S(ctx).With("source", "salesman"),
 		dealChan:  make(chan *sonm.Deal, 1),
@@ -162,7 +168,6 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 }
 
 func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) {
-	m.log.Infof("checking deal %s for ask plan %s", plan.GetDealID().Unwrap().String(), plan.ID)
 	panic("implement me")
 }
 
@@ -227,5 +232,39 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) {
 		m.log.Warnf("could not save ask plan %s in storage - %s", plan.ID, err)
 		// TODO: log, what else can we do?
 		return
+	}
+	go m.waitForDeal(ctx, ordOrErr.Order)
+}
+
+func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) {
+	// TODO: make configurable
+	ticker := util.NewImmediateTicker(time.Second * 10)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			//TODO: we also need to do it on worker start
+			fmt.Println("WTF")
+			deal, err := m.matcher.CreateDealByOrder(ctx, order)
+			fmt.Println("WTF?????????????????")
+			if err != nil {
+				m.log.Warnf("could not wait for deal on order %s - %s", order.Id.Unwrap().String(), err)
+				order, err := m.eth.Market().GetOrderInfo(ctx, order.Id.Unwrap())
+				if err != nil {
+					m.log.Warnf("could not get order info for order %s - %s", order.Id.Unwrap().String(), err)
+					continue
+				}
+
+				if order.GetOrderStatus() != sonm.OrderStatus_ORDER_ACTIVE {
+					return
+				}
+				continue
+			}
+			m.log.Infof("created deal %s for order %s", deal.Id.Unwrap().String(), order.Id.Unwrap().String())
+			order.DealID = deal.Id
+			m.dealChan <- deal
+			return
+		}
 	}
 }
