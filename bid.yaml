@@ -1,24 +1,28 @@
 duration: 8h
 price: 2.5 SNM/h
 
+# optional - restricts buying resources only from specified address
 #counterpartyid: 0x8125721c2413d99a33e351e1f6bb4e56b6b61567
-#blacklist: 0x8125721c2413d99a33e351e1f6bb4e56b6b61234
+
+blacklist: 0x8125721c2413d99a33e351e1f6bb4e56b6b61234
+
+# identity level of the counterparty. Can be "anonymous", "pseudonymous" and "identified"
 identity: pseudonymous
 
 tag: my-app
 
 resources:
   network:
-    overlay: false
-    outbound: false
-    incoming: false
+    overlay: true
+    outbound: true
+    incoming: true
   benchmarks:
     ram-size: 1000000
     cpu-cores: 1
-    cpu-sysbench-single: 100
-    cpu-sysbench-multi: 4000
-    net-download: 0
-    net-upload: 0
-    gpu-count: 0
-    #gpu-mem: 4096000000
-    #gpu-eth-hashrate: 25
+    cpu-sysbench-single: 800
+    cpu-sysbench-multi: 1000
+    net-download: 12000
+    net-upload: 5000
+    gpu-count: 1
+    gpu-mem: 4096000000
+    gpu-eth-hashrate: 25

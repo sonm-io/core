@@ -178,6 +178,8 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	// apply info about GPUs, expose to logs
 	plugins.ApplyHardwareInfo(hardwareInfo)
 	hardwareInfo.SetNetworkIncoming(o.publicIPs)
+	//TODO: configurable?
+	hardwareInfo.Network.Outbound = true
 
 	log.G(o.ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
 

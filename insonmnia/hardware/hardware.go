@@ -90,8 +90,7 @@ func (h *Hardware) AskPlanResources() *sonm.AskPlanResources {
 	for _, gpu := range h.GPU {
 		result.GPU.Hashes = append(result.GPU.Hashes, gpu.Device.Hash)
 	}
-	//TODO: Looks like this should be fixed
-	result.Network.Outbound = true
+	result.Network.Outbound = h.Network.Outbound
 	result.Network.Overlay = h.Network.Overlay
 	result.Network.Incoming = h.Network.Incoming
 	//TODO: Make network device use DataSizeRate

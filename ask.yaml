@@ -17,8 +17,8 @@ resources:
   gpu:
     indexes: [3, 5]
   network:
-    throughputin: 1 Mbit/s
-    throughputout: 1 Mbit/s
+    throughputin: 25 Mbit/s
+    throughputout: 40 Mbit/s
     overlay: true
     outbound: true
-    incoming: false
+    incoming: true

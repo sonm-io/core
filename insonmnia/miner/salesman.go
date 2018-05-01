@@ -63,7 +63,7 @@ func NewSalesman(
 		return nil, errors.New("matcher is required for salesman")
 	}
 
-	return &Salesman{
+	s := &Salesman{
 		state:     state,
 		resources: resources,
 		hardware:  hardware,
@@ -72,7 +72,12 @@ func NewSalesman(
 		ethkey:    ethkey,
 		log:       ctxlog.S(ctx).With("source", "salesman"),
 		dealChan:  make(chan *sonm.Deal, 1),
-	}, nil
+	}
+
+	if err := s.restoreState(); err != nil {
+		return nil, err
+	}
+	return s, nil
 }
 
 func (m *Salesman) Run(ctx context.Context) chan *sonm.Deal {
@@ -167,6 +172,10 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 	}
 }
 
+func (m *Salesman) restoreState() error {
+	return nil
+}
+
 func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) {
 	panic("implement me")
 }
@@ -245,9 +254,7 @@ func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) {
 			return
 		case <-ticker.C:
 			//TODO: we also need to do it on worker start
-			fmt.Println("WTF")
 			deal, err := m.matcher.CreateDealByOrder(ctx, order)
-			fmt.Println("WTF?????????????????")
 			if err != nil {
 				m.log.Warnf("could not wait for deal on order %s - %s", order.Id.Unwrap().String(), err)
 				order, err := m.eth.Market().GetOrderInfo(ctx, order.Id.Unwrap())
