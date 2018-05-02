@@ -692,7 +692,9 @@ func TestDWH_monitor(t *testing.T) {
 				"User Name", certificateAttrs[0].Value)
 		}
 	}
-	if profilesReply, err := monitorDWH.getProfiles(monitorDWH.ctx, &pb.ProfilesRequest{}); err != nil {
+	if profilesReply, err := monitorDWH.getProfiles(monitorDWH.ctx, &pb.ProfilesRequest{
+		Sortings: []*pb.SortingOption{{Field: "Id", Order: pb.SortingOrder_Asc}},
+	}); err != nil {
 		t.Errorf("Failed to getProfiles: %s", err)
 		return
 	} else {
@@ -872,11 +874,11 @@ func TestDWH_monitor(t *testing.T) {
 		}
 		conditions := dealConditionsReply.Conditions
 		if conditions[1].EndTime.Seconds != 5 {
-			t.Errorf("Expected %d, got %d (DealCondition.EndTime)", 5, conditions[0].EndTime.Seconds)
+			t.Errorf("Expected %d, got %d (DealCondition.EndTime)", 5, conditions[1].EndTime.Seconds)
 			return
 		}
 		if conditions[0].StartTime.Seconds != 5 {
-			t.Errorf("Expected %d, got %d (DealCondition.StartTime)", 5, conditions[1].StartTime.Seconds)
+			t.Errorf("Expected %d, got %d (DealCondition.StartTime)", 5, conditions[0].StartTime.Seconds)
 			return
 		}
 	}
@@ -1253,20 +1255,20 @@ func setupTestDB(w *DWH) error {
 		} else {
 			identityLevel = 1
 		}
-		_, err = w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+		_, err = w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", nil,
 			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(), identityLevel, "sortedProfile", "", 0, 0, []byte{}, 0, 0)
 		if err != nil {
 			return err
 		}
 	}
 
-	_, err := w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+	_, err := w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", nil,
 		fmt.Sprintf(common.HexToAddress("0xBB").Hex()), 3, "Consumer", "", 0, 0, byteCerts, 10, 10)
 	if err != nil {
 		return err
 	}
 
-	_, err = w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+	_, err = w.db.Exec("INSERT INTO Profiles VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", nil,
 		fmt.Sprintf(common.HexToAddress("0xAA").Hex()), 3, "Supplier", "", 0, 0, byteCerts, 10, 10)
 	if err != nil {
 		return err
