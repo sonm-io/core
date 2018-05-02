@@ -26,7 +26,6 @@ type dwhConfig struct {
 }
 
 type matcherConfig struct {
-	Disabled   bool          `yaml:"disabled" default:"false"`
 	PollDelay  time.Duration `yaml:"poll_delay" default:"30s"`
 	QueryLimit uint64        `yaml:"query_limit" default:"10"`
 }
@@ -41,7 +40,7 @@ type Config struct {
 	DWH               dwhConfig          `yaml:"dwh"`
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14003"`
 	Benchmarks        benchmarks.Config  `yaml:"benchmarks"`
-	Matcher           matcherConfig      `yaml:"matcher"`
+	Matcher           *matcherConfig     `yaml:"matcher"`
 }
 
 // NewConfig loads localNode config from given .yaml file

@@ -99,7 +99,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 	}
 
 	var orderMatcher matcher.Matcher
-	if !cfg.Matcher.Disabled {
+	if cfg.Matcher != nil {
 		orderMatcher = matcher.NewMatcher(&matcher.Config{
 			Key:        key,
 			DWH:        dwh,
@@ -246,7 +246,6 @@ func (n *Node) InterceptStreamRequest(srv interface{}, ss grpc.ServerStream, inf
 
 // Serve binds gRPC services and start it
 func (n *Node) Serve() error {
-	// todo: how to deal with background processing into brave new blockchain world?
 	wg := errgroup.Group{}
 	wg.Go(n.ServeHttp)
 	wg.Go(n.ServeGRPC)
