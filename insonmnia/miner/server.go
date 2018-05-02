@@ -221,10 +221,6 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		dwh:           o.dwh,
 	}
 
-	if err := m.loadExternalState(); err != nil {
-		return nil, err
-	}
-
 	if err := m.RunBenchmarks(); err != nil {
 		return nil, err
 	}
@@ -887,27 +883,6 @@ func (m *Miner) GetDealByID(id structs.DealID) (*structs.DealMeta, error) {
 	}
 
 	return deal, nil
-}
-
-// loadExternalState loads external state into in-mem storage
-// (from blockchain, DWH, etc...). Must be called before
-// boltdb state is loaded.
-func (m *Miner) loadExternalState() error {
-	log.G(m.ctx).Debug("loading initial state from external sources")
-	if err := m.loadDeals(); err != nil {
-		return err
-	}
-
-	//if err := m.syncAskPlans(); err != nil {
-	//	return err
-	//}
-
-	return nil
-}
-
-//TODO: fix me
-func (m *Miner) loadDeals() error {
-	return nil
 }
 
 // todo: make the `miner.Init() error` method to kickstart all initial jobs for the Worker instance.

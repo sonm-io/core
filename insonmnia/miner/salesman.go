@@ -217,6 +217,7 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 
 func (m *Salesman) restoreState() error {
 	askPlans := m.state.AskPlans()
+	//TODO:  check if we do not lack resources after restart
 	for _, plan := range askPlans {
 		m.resources.Consume(plan)
 	}
