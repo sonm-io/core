@@ -135,7 +135,13 @@ func (m *AskPlanResources) ToHostConfigResources(cgroupParent string) container.
 }
 
 func (m *AskPlanResources) ToCgroupResources() *specs.LinuxResources {
-	panic("implement me")
+	//TODO: Is it enough?
+	maxMemory := int64(m.GetRAM().GetSize().GetBytes())
+	return &specs.LinuxResources{
+		Memory: &specs.LinuxMemory{
+			Limit: &maxMemory,
+		},
+	}
 }
 
 func converseImplication(lhs, rhs bool) bool {

@@ -9,6 +9,7 @@ import (
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
+	"github.com/mohae/deepcopy"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	pb "github.com/sonm-io/core/proto"
@@ -136,7 +137,8 @@ func (s *Storage) AskPlan(planID string) (*pb.AskPlan, error) {
 	if !ok {
 		return nil, errors.New("specified ask-plan does not exist")
 	}
-	return askPlan, nil
+	copy := deepcopy.Copy(askPlan).(*pb.AskPlan)
+	return copy, nil
 }
 
 func (s *Storage) RemoveAskPlan(planID string) (*pb.AskPlan, error) {

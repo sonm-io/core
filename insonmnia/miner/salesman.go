@@ -12,6 +12,7 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/resource"
@@ -22,17 +23,21 @@ import (
 )
 
 type Salesman struct {
-	state     *state.Storage
-	resources *resource.Scheduler
-	hardware  *hardware.Hardware
-	eth       blockchain.API
-	dwh       sonm.DWHClient
-	ethkey    *ecdsa.PrivateKey
+	state         *state.Storage
+	resources     *resource.Scheduler
+	hardware      *hardware.Hardware
+	eth           blockchain.API
+	dwh           sonm.DWHClient
+	controlGroup  cgroups.CGroup
+	cGroupManager cgroups.CGroupManager
+	ethkey        *ecdsa.PrivateKey
+
+	askPlanCGroups map[string]cgroups.CGroup
 
 	matcher  matcher.Matcher
 	log      *zap.SugaredLogger
 	dealChan chan *sonm.Deal
-	tickLock sync.Mutex
+	mu       sync.Mutex
 }
 
 func NewSalesman(
@@ -85,6 +90,10 @@ func (m *Salesman) Run(ctx context.Context) chan *sonm.Deal {
 	return m.dealChan
 }
 
+func (m *Salesman) AskPlan(planID string) (*sonm.AskPlan, error) {
+	return m.state.AskPlan(planID)
+}
+
 func (m *Salesman) AskPlans() map[string]*sonm.AskPlan {
 	return m.state.AskPlans()
 }
@@ -96,26 +105,56 @@ func (m *Salesman) CreateAskPlan(askPlan *sonm.AskPlan) (string, error) {
 		return "", err
 	}
 
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if err := m.createCGroup(askPlan); err != nil {
+		return "", err
+	}
+
 	if err := m.resources.Consume(askPlan); err != nil {
+		m.dropCGroup(askPlan.ID)
 		return "", err
 	}
 
 	if err := m.state.SaveAskPlan(askPlan); err != nil {
+		m.dropCGroup(askPlan.ID)
 		m.resources.Release(askPlan.ID)
 		return "", err
 	}
 	return id, nil
 }
 
+func (m *Salesman) createCGroup(plan *sonm.AskPlan) error {
+	cgroupResources := plan.GetResources().ToCgroupResources()
+	cgroup, err := m.cGroupManager.Attach(plan.ID, cgroupResources)
+	if err != nil {
+		return err
+	}
+	m.askPlanCGroups[plan.ID] = cgroup
+	return nil
+}
+
+func (m *Salesman) dropCGroup(planID string) error {
+	cgroup, ok := m.askPlanCGroups[planID]
+	if !ok {
+		return fmt.Errorf("cgroup for ask plan %s not found, probably no such plan", planID)
+	}
+	err := cgroup.Delete()
+	if err != nil {
+		return fmt.Errorf("could not drop cgroup %s for ask plan %s - %s", cgroup.Suffix(), planID, err)
+	}
+	delete(m.askPlanCGroups, planID)
+	return nil
+}
+
 func (m *Salesman) RemoveAskPlan(planID string) error {
-	m.tickLock.Lock()
-	defer m.tickLock.Unlock()
 	ask, err := m.state.AskPlan(planID)
 	if err != nil {
 		return err
 	}
 	if !ask.GetDealID().IsZero() {
-		return fmt.Errorf("ask plan %s is bound to deal %s", ask.ID, ask.DealID.String())
+		return fmt.Errorf("ask plan %s is bound to deal %s", ask.ID, ask.DealID.Unwrap().String())
 	}
 	if !ask.GetOrderID().IsZero() {
 		// background context is used  here because we need to get reply from blockchain
@@ -128,7 +167,12 @@ func (m *Salesman) RemoveAskPlan(planID string) error {
 	if err != nil {
 		return err
 	}
-	return m.resources.Release(planID)
+	if err = m.resources.Release(planID); err != nil {
+		return err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.dropCGroup(planID)
 }
 
 func (m *Salesman) AskPlanByDeal(dealID string) (*sonm.AskPlan, error) {
@@ -156,8 +200,6 @@ func (m *Salesman) syncRoutine(ctx context.Context) {
 
 func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 	m.log.Debugf("syncing salesman with blockchain")
-	m.tickLock.Lock()
-	defer m.tickLock.Unlock()
 	plans := m.state.AskPlans()
 	for _, plan := range plans {
 		orderId := plan.GetOrderID()
@@ -182,8 +224,8 @@ func (m *Salesman) restoreState() error {
 }
 
 func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) {
-	m.log.Infof("checking deal %s for ask plan %s and order %s",
-		plan.DealID.Unwrap().String(), plan.GetOrderID().Unwrap().String(), plan.ID)
+	m.log.Debugf("checking deal %s for ask plan %s and order %s",
+		plan.DealID.Unwrap().String(), plan.ID, plan.GetOrderID().Unwrap().String())
 	deal, err := m.eth.Market().GetDealInfo(ctx, plan.GetDealID().Unwrap())
 	if err != nil {
 		m.log.Warnf("could not get deal info for order %s, ask %s - %s",
@@ -221,9 +263,10 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) {
 			// TODO: log, what else can we do?
 			return
 		}
+		m.dealChan <- deal
 
 		plan.DealID = order.DealID
-		m.dealChan <- deal
+
 		if err := m.state.SaveAskPlan(plan); err != nil {
 			m.log.Warnf("could not get save ask plan with deal %s - %s", order.DealID.Unwrap().String(), err)
 			// TODO: log, what else can we do?
