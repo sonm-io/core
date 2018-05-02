@@ -253,41 +253,6 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	return m, nil
 }
 
-//type resourceHandle interface {
-//	// Commit marks the handle that the resources consumed should not be
-//	// released.
-//	commit()
-//	// Release releases consumed resources.
-//	// Useful in conjunction with defer.
-//	release()
-//}
-
-// NilResourceHandle is a resource handle that does nothing.
-//type nilResourceHandle struct{}
-
-//func (h *nilResourceHandle) commit() {}
-
-//func (h *nilResourceHandle) release() {}
-
-//type ownedResourceHandle struct {
-//	miner     *Miner
-//	usage     pb.AskPlanResources
-//	committed bool
-//}
-
-//func (h *ownedResourceHandle) commit() {
-//	h.committed = true
-//}
-
-//func (h *ownedResourceHandle) release() {
-//	if h.committed {
-//		return
-//	}
-//
-//	h.miner.resources.Release(&h.usage)
-//	h.committed = true
-//}
-
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -942,30 +907,8 @@ func (m *Miner) loadExternalState() error {
 
 //TODO: fix me
 func (m *Miner) loadDeals() error {
-	//log.G(m.ctx).Debug("loading opened deals")
-	//
-	//filter := dwh.DealsFilter{
-	//	Author: util.PubKeyToAddr(m.ethkey.PublicKey),
-	//}
-	//
-	//deals, err := m.dwh.GetDeals(m.ctx, filter)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//m.mu.Lock()
-	//for _, deal := range deals {
-	//	m.Deals[structs.DealID(deal.GetId().Unwrap().String())] = structs.NewDealMeta(deal)
-	//}
-	//m.mu.Unlock()
-	//
 	return nil
 }
-
-//func (m *Miner) syncAskPlans() error {
-//	log.G(m.ctx).Debug("synchronizing ask-plans with remote marketplace")
-//	return nil
-//}
 
 // todo: make the `miner.Init() error` method to kickstart all initial jobs for the Worker instance.
 // (state loading, benchmarking, market sync).

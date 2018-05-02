@@ -89,12 +89,11 @@ func (d *Description) FormatEnv() []string {
 
 // ContainerInfo is a brief information about containers
 type ContainerInfo struct {
-	status    *pb.TaskStatusReply
-	ID        string
-	ImageName string
-	StartAt   time.Time
-	Ports     nat.PortMap
-	//Resources    resource.Resources
+	status       *pb.TaskStatusReply
+	ID           string
+	ImageName    string
+	StartAt      time.Time
+	Ports        nat.PortMap
 	PublicKey    ssh.PublicKey
 	Cgroup       string
 	CgroupParent string
@@ -470,32 +469,15 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		return
 	}
 
-	//var cpuCount int
-	//if description.Resources.NanoCPUs > 0 {
-	//	cpuCount = int(description.Resources.NanoCPUs / 1000000000)
-	//} else if description.Resources.CPUQuota > 0 && description.Resources.CPUPeriod > 0 {
-	//	cpuCount = int(description.Resources.CPUQuota / description.Resources.CPUPeriod)
-	//} else if description.Resources.CPUCount > 0 {
-	//	cpuCount = int(description.Resources.CPUCount)
-	//} else {
-	//	cpuCount = 1
-	//}
-
-	//var gpuCount = 0
-	//if description.IsGPURequired() {
-	//	gpuCount = -1
-	//}
-
 	var networkIDs []string
 	for k := range cjson.NetworkSettings.Networks {
 		networkIDs = append(networkIDs, k)
 	}
 
 	cinfo = ContainerInfo{
-		status: &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
-		ID:     cjson.ID,
-		Ports:  cjson.NetworkSettings.Ports,
-		//Resources:    resource.NewResources(cpuCount, description.Resources.Memory, gpuCount),
+		status:       &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
+		ID:           cjson.ID,
+		Ports:        cjson.NetworkSettings.Ports,
 		Cgroup:       string(cjson.HostConfig.Cgroup),
 		CgroupParent: string(cjson.HostConfig.CgroupParent),
 		NetworkIDs:   networkIDs,
