@@ -61,7 +61,7 @@ func (h *Hardware) Hash() string {
 }
 
 func (m *Hardware) HashGPU(indexes []uint64) ([]string, error) {
-	hashes := []string{}
+	hashes := make([]string, 0, len(indexes))
 	for _, idx := range indexes {
 		if idx >= uint64(len(m.GPU)) {
 			return nil, fmt.Errorf("invalid GPU index %d", idx)

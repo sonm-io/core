@@ -53,7 +53,7 @@ func run() error {
 		return fmt.Errorf("failed to create state storage: %s", err)
 	}
 
-	w, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithStateStorage(storage))
+	w, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithStateStorage(storage), miner.WithCreds(credentials))
 	if err != nil {
 		return fmt.Errorf("failed to create Worker instance: %s", err)
 	}

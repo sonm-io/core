@@ -105,14 +105,15 @@ func (m *Scheduler) ReleaseTask(taskID string) error {
 	}
 	pool, ok := m.askPlanPools[askPlanID]
 	if !ok {
-		return fmt.Errorf("could not consume resources for task - ask Plan with id %s not found", askPlanID)
+		return fmt.Errorf("could not release resources for task - ask Plan with id %s not found", askPlanID)
 	}
 
 	err := pool.release(taskID)
-	if err == nil {
-		delete(m.taskToAskPlan, taskID)
+	if err != nil {
+		return err
 	}
-	return err
+	delete(m.taskToAskPlan, taskID)
+	return nil
 }
 
 type pool struct {

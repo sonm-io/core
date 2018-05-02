@@ -85,7 +85,7 @@ func NewSalesman(
 	return s, nil
 }
 
-func (m *Salesman) Run(ctx context.Context) chan *sonm.Deal {
+func (m *Salesman) Run(ctx context.Context) chan<- *sonm.Deal {
 	go m.syncRoutine(ctx)
 	return m.dealChan
 }
@@ -188,6 +188,7 @@ func (m *Salesman) AskPlanByDeal(dealID string) (*sonm.AskPlan, error) {
 func (m *Salesman) syncRoutine(ctx context.Context) {
 	m.log.Debugf("starting sync routine")
 	ticker := util.NewImmediateTicker(time.Second)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ticker.C:
@@ -314,6 +315,7 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) {
 func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) {
 	// TODO: make configurable
 	ticker := util.NewImmediateTicker(time.Second * 10)
+	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():

@@ -25,7 +25,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
-	"gopkg.in/yaml.v2"
 
 	// todo: drop alias
 	bm "github.com/sonm-io/core/insonmnia/benchmarks"
@@ -126,12 +125,14 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	if o.dwh == nil {
-		_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), o.key)
-		if err != nil {
-			return nil, err
+		if o.creds == nil {
+			_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), o.key)
+			if err != nil {
+				return nil, err
+			}
+			o.creds = util.NewTLS(TLSConfig)
 		}
-		transportCredentials := util.NewTLS(TLSConfig)
-		cc, err := xgrpc.NewClient(o.ctx, cfg.DWHEndpoint, transportCredentials)
+		cc, err := xgrpc.NewClient(o.ctx, cfg.DWHEndpoint, o.creds)
 		if err != nil {
 			return nil, err
 		}
@@ -453,11 +454,6 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err := m.resources.ConsumeTask(ask.ID, request.Id, request.Resources); err != nil {
 		return nil, fmt.Errorf("could not start task - %s", err)
 	}
-	defer func() {
-		if err != nil {
-			m.resources.ReleaseTask(request.Id)
-		}
-	}()
 
 	// This can be canceled by using "resourceHandle.commit()".
 	//defer resourceHandle.release()
@@ -466,6 +462,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	for _, spec := range request.Container.Mounts {
 		mount, err := volume.NewMount(spec)
 		if err != nil {
+			m.resources.ReleaseTask(request.Id)
 			return nil, err
 		}
 		mounts = append(mounts, mount)
@@ -475,6 +472,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to parse networking specification", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to parse networking specification - %s", err)
 	}
 	var d = Description{
@@ -500,6 +498,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err := m.ovs.Spool(ctx, d); err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
@@ -509,6 +508,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 	containerInfo.PublicKey = publicKey
@@ -533,6 +533,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 			hostPort := portBinding.HostPort
 			hostPortInt, err := nat.ParsePort(hostPort)
 			if err != nil {
+				m.resources.ReleaseTask(request.Id)
 				return nil, err
 			}
 
@@ -729,9 +730,6 @@ func (m *Miner) RunBenchmarks() error {
 		return err
 	}
 
-	log.S(context.Background()).Errorf("WTF??????")
-	PIDOR, _ := yaml.Marshal(m.hardware)
-	fmt.Println(string(PIDOR))
 	if err := m.state.SetHardwareWithBenchmarks(m.hardware); err != nil {
 		return err
 	}

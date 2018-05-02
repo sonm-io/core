@@ -10,6 +10,7 @@ import (
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/credentials"
 )
 
 type options struct {
@@ -22,6 +23,7 @@ type options struct {
 	storage   *state.Storage
 	eth       blockchain.API
 	dwh       sonm.DWHClient
+	creds     credentials.TransportCredentials
 }
 
 func (o *options) setupNetworkOptions(cfg *Config) error {
@@ -97,5 +99,11 @@ func WithETH(e blockchain.API) Option {
 func WithDWH(d sonm.DWHClient) Option {
 	return func(o *options) {
 		o.dwh = d
+	}
+}
+
+func WithCreds(creds credentials.TransportCredentials) Option {
+	return func(o *options) {
+		o.creds = creds
 	}
 }
