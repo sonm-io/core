@@ -28,6 +28,19 @@ var (
 	setupDBCallbacks = map[string]func(*DWH) error{
 		"sqlite3": setupSQLite,
 	}
+	orderedSetupCommands = []string{
+		"createTableDeals",
+		"createTableDealConditions",
+		"createTableDealPayments",
+		"createTableChangeRequests",
+		"createTableOrders",
+		"createTableWorkers",
+		"createTableBlacklists",
+		"createTableValidators",
+		"createTableCertificates",
+		"createTableProfiles",
+		"createTableMisc",
+	}
 )
 
 var (
@@ -98,6 +111,7 @@ var (
 		"GPURedshift":          true,
 	}
 	DealConditionsColumns = map[string]bool{
+		"Id":          true,
 		"SupplierID":  true,
 		"ConsumerID":  true,
 		"MasterID":    true,
@@ -109,6 +123,7 @@ var (
 		"DealID":      true,
 	}
 	ProfilesColumns = map[string]bool{
+		"Id":             true,
 		"UserID":         true,
 		"IdentityLevel":  true,
 		"Name":           true,
@@ -158,6 +173,7 @@ var (
 	)`,
 		"createTableDealConditions": `
 	CREATE TABLE IF NOT EXISTS DealConditions (
+		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
 		SupplierID					TEXT NOT NULL,
 		ConsumerID					TEXT NOT NULL,
 		MasterID					TEXT NOT NULL,
@@ -219,8 +235,7 @@ var (
 		GPUMem					INTEGER NOT NULL,
 		GPUEthHashrate			INTEGER NOT NULL,
 		GPUCashHashrate			INTEGER NOT NULL,
-		GPURedshift				INTEGER NOT NULL,
-		FOREIGN KEY(Id)			REFERENCES Orders(Id) ON DELETE CASCADE
+		GPURedshift				INTEGER NOT NULL
 		)`,
 		"createTableWorkers": `
 	CREATE TABLE IF NOT EXISTS Workers (
@@ -252,6 +267,7 @@ var (
 	)`,
 		"createTableProfiles": `
 	CREATE TABLE IF NOT EXISTS Profiles (
+		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
 		UserID						TEXT UNIQUE NOT NULL,
 		IdentityLevel				INTEGER NOT NULL,
 		Name						TEXT NOT NULL,
@@ -284,9 +300,9 @@ var (
 		"selectDealChangeRequestsByID": `SELECT * FROM DealChangeRequests WHERE DealID=?`,
 		"deleteDealChangeRequest":      `DELETE FROM DealChangeRequests WHERE Id=?`,
 		"updateDealChangeRequest":      `UPDATE DealChangeRequests SET Status=? WHERE Id=?`,
-		"insertDealCondition":          `INSERT OR IGNORE INTO DealConditions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		"updateDealConditionPayout":    `UPDATE DealConditions SET TotalPayout=? WHERE rowid=?`,
-		"updateDealConditionEndTime":   `UPDATE DealConditions SET EndTime=? WHERE rowid=?`,
+		"insertDealCondition":          `INSERT OR IGNORE INTO DealConditions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		"updateDealConditionPayout":    `UPDATE DealConditions SET TotalPayout=? WHERE Id=?`,
+		"updateDealConditionEndTime":   `UPDATE DealConditions SET EndTime=? WHERE Id=?`,
 		"insertDealPayment":            `INSERT OR IGNORE INTO DealPayments VALUES (?, ?, ?)`,
 		"insertWorker":                 `INSERT OR IGNORE INTO Workers VALUES (?, ?, ?)`,
 		"updateWorker":                 `UPDATE Workers SET Confirmed=? WHERE MasterID=? AND WorkerID=?`,
@@ -298,13 +314,13 @@ var (
 		"updateValidator":              `UPDATE Validators SET Level=? WHERE Id=?`,
 		"insertCertificate":            `INSERT OR IGNORE INTO Certificates VALUES (?, ?, ?, ?, ?)`,
 		"selectCertificates":           `SELECT * FROM Certificates WHERE OwnerID=?`,
-		"insertProfileUserID":          `INSERT INTO Profiles VALUES (?, 0, "", "", 0, 0, "", ?, ?)`,
+		"insertProfileUserID":          `INSERT INTO Profiles VALUES (?, ?, 0, "", "", 0, 0, "", ?, ?)`,
 		"selectProfileByID":            `SELECT * FROM Profiles WHERE UserID=?`,
 		"profileNotInBlacklist":        `AND UserID NOT IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
 		"profileInBlacklist":           `AND UserID IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
 		"updateProfile":                `UPDATE Profiles SET %s=? WHERE UserID=?`,
 		"selectLastKnownBlock":         `SELECT * FROM Misc`,
-		"updateLastKnownBlock":         `INSERT OR REPLACE INTO Misc (rowid, LastKnownBlock) VALUES (1, ?)`,
+		"updateLastKnownBlock":         `UPDATE Misc Set LastKnownBlock=?`,
 	}
 )
 
@@ -325,8 +341,8 @@ func setupSQLite(w *DWH) error {
 		return errors.Wrapf(err, "failed to enable foreign key support (%s)", w.cfg.Storage.Backend)
 	}
 
-	for cmdName, cmd := range sqliteSetupCommands {
-		_, err = db.Exec(cmd)
+	for _, cmdName := range orderedSetupCommands {
+		_, err = db.Exec(sqliteSetupCommands[cmdName])
 		if err != nil {
 			return errors.Wrapf(err, "failed to %s (%s)", cmdName, w.cfg.Storage.Backend)
 		}
@@ -382,6 +398,11 @@ func setupSQLite(w *DWH) error {
 		}
 	}
 
+	_, err = db.Exec("INSERT INTO Misc VALUES (0)")
+	if err != nil {
+		return err
+	}
+
 	w.db = db
 	w.commands = sqliteCommands
 
@@ -428,19 +449,13 @@ type queryOpts struct {
 	sortings     []*pb.SortingOption
 	offset       uint64
 	limit        uint64
-	withRowid    bool
 	customFilter *customFilter
 	selectAs     string
 }
 
 func runQuery(db *sql.DB, opts *queryOpts) (*sql.Rows, string, error) {
-	var query string
-	if opts.withRowid {
-		query = fmt.Sprintf("SELECT rowid, * FROM %s %s", opts.table, opts.selectAs)
-	} else {
-		query = fmt.Sprintf("SELECT * FROM %s %s", opts.table, opts.selectAs)
-	}
 	var (
+		query      = fmt.Sprintf("SELECT * FROM %s %s", opts.table, opts.selectAs)
 		conditions []string
 		values     []interface{}
 	)
@@ -510,10 +525,6 @@ func filterSortings(sortings []*pb.SortingOption, columns map[string]bool) (out 
 		if columns[sorting.Field] {
 			out = append(out, sorting)
 		}
-	}
-
-	if len(out) < 1 {
-		out = append(out, &pb.SortingOption{Field: "rowid", Order: pb.SortingOrder_Asc})
 	}
 
 	return out
