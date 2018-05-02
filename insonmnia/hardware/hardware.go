@@ -1,13 +1,11 @@
 package hardware
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net"
 
 	"github.com/cnf/structhash"
-	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/ram"
 	"github.com/sonm-io/core/proto"
@@ -166,8 +164,6 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 			}
 		}
 	}
-
-	ctxlog.S(context.Background()).Infof("%v", benchmarks)
 
 	return sonm.NewBenchmarks(benchmarks)
 }
