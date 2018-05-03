@@ -381,9 +381,10 @@ func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {
 
 			if err != nil {
 				m.log.Warnf("could not wait for deal on order %s - %s", order.Id.Unwrap().String(), err)
-				order, err := m.eth.Market().GetOrderInfo(ctx, order.Id.Unwrap())
+				id := order.Id.Unwrap()
+				order, err := m.eth.Market().GetOrderInfo(ctx, id)
 				if err != nil {
-					m.log.Warnf("could not get order info for order %s - %s", order.Id.Unwrap().String(), err)
+					m.log.Warnf("could not get order info for order %s - %s", id.String(), err)
 					continue
 				}
 
