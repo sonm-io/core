@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 func TestNewBigInt(t *testing.T) {
@@ -28,6 +29,26 @@ func TestNewBigIntFromString(t *testing.T) {
 func TestBigIntString(t *testing.T) {
 	price := NewBigInt(big.NewInt(42000000002))
 	assert.Equal(t, "42000000002", price.Unwrap().String())
+}
+
+func TestBigInt_MarshalYaml(t *testing.T) {
+	intVal, _ := big.NewInt(0).SetString("42", 10)
+	in := map[string]*BigInt{
+		"test": NewBigInt(intVal),
+	}
+
+	in2 := map[string]BigInt{
+		"test": *NewBigInt(intVal),
+	}
+
+	text, err := yaml.Marshal(&in)
+	assert.NoError(t, err)
+
+	text2, err := yaml.Marshal(&in2)
+	assert.NoError(t, err)
+
+	assert.Equal(t, text, text2)
+	assert.Equal(t, `test: "42"`+"\n", string(text))
 }
 
 func TestBigIntMarshalJSON(t *testing.T) {
