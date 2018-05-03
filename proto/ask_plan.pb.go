@@ -121,6 +121,7 @@ It has these top-level messages:
 	Addr
 	SocketAddr
 	JoinNetworkRequest
+	TaskListRequest
 	DealsReply
 	Worker
 	WorkerListReply

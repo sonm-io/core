@@ -1,5 +1,6 @@
 syntax = "proto3";
 
+import "bigint.proto";
 import "container.proto";
 import "hub.proto";
 import "insonmnia.proto";
@@ -15,7 +16,7 @@ package sonm;
 // to manage tasks running into the SONM network
 service TaskManagement {
     // List produces a list of all tasks running on different SONM nodes
-    rpc List(EthAddress) returns (TaskListReply) {}
+    rpc List(TaskListRequest) returns (TaskListReply) {}
     // PushTask pushes image to Worker
     rpc PushTask(stream Chunk) returns (stream Progress) {}
     // Start starts a task on given resource
@@ -35,6 +36,10 @@ service TaskManagement {
 message JoinNetworkRequest {
     TaskID taskID = 1;
     string NetworkID = 2;
+}
+
+message TaskListRequest {
+    BigInt dealID = 1;
 }
 
 // DealManagement describe a bunch of methods

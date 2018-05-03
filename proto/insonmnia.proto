@@ -15,8 +15,7 @@ message ID {
 message TaskID {
     // Id is task ID itself
     string id = 1;
-    // HubID is ID of hub on which task if running
-    string hubAddr = 2;
+    BigInt dealID = 2;
 }
 
 message Count {
@@ -107,7 +106,7 @@ message TaskLogsRequest {
     bool Follow = 5;
     string Tail = 6;
     bool Details = 7;
-    string hubAddr = 8;
+    BigInt dealID = 8;
 }
 
 message TaskLogsChunk {
