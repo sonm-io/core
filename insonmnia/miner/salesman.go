@@ -301,7 +301,7 @@ func (m *Salesman) registerOrder(order *sonm.Order) {
 }
 
 func (m *Salesman) registerDeal(deal *sonm.Deal) {
-	id := deal.Id.Unwrap().String()
+	id := deal.GetId().Unwrap().String()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if deal.Status == sonm.DealStatus_DEAL_ACCEPTED {
@@ -378,7 +378,7 @@ func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {
 		case <-ticker.C:
 			//TODO: we also need to do it on worker start
 			deal, err := m.matcher.CreateDealByOrder(ctx, order)
-			m.registerDeal(deal)
+
 			if err != nil {
 				m.log.Warnf("could not wait for deal on order %s - %s", order.Id.Unwrap().String(), err)
 				order, err := m.eth.Market().GetOrderInfo(ctx, order.Id.Unwrap())
@@ -392,6 +392,7 @@ func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {
 				}
 				continue
 			}
+			m.registerDeal(deal)
 			m.log.Infof("created deal %s for order %s", deal.Id.Unwrap().String(), order.Id.Unwrap().String())
 			order.DealID = deal.Id
 			return nil
