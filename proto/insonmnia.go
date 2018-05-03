@@ -1,7 +1,6 @@
 package sonm
 
 import (
-	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -54,25 +53,19 @@ func (m *EthAddress) Unwrap() common.Address {
 	return common.BytesToAddress(m.Address)
 }
 
-func (m *EthAddress) MarshalYAML() (interface{}, error) {
-	if m != nil {
-		return m.Unwrap().Hex(), nil
-	}
-	return nil, nil
+func (m *EthAddress) MarshalText() ([]byte, error) {
+	return []byte(m.Unwrap().Hex()), nil
 }
 
-func (m *EthAddress) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var v string
-	if err := unmarshal(&v); err != nil {
-		return err
-	}
-
+func (m *EthAddress) UnmarshalText(text []byte) error {
+	v := string(text)
 	if !common.IsHexAddress(v) {
-		return errors.New("invalid ethereum address format")
+		return fmt.Errorf("invalid ethereum address format \"%s\"", v)
 	}
 
 	m.Address = common.HexToAddress(v).Bytes()
 	return nil
+
 }
 
 func (m *EthAddress) IsZero() bool {
