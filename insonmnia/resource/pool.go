@@ -51,10 +51,6 @@ func (m *Scheduler) GetFree() (*sonm.AskPlanResources, error) {
 	return m.pool.getFree()
 }
 
-func (m *Scheduler) CGroup(askPlanID string) (cgroups.CGroup, error) {
-	panic("implement me")
-}
-
 func (m *Scheduler) PollConsume(askPlan *sonm.AskPlan) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -68,14 +64,14 @@ func (m *Scheduler) PollConsume(askPlan *sonm.AskPlan) error {
 func (m *Scheduler) Consume(askPlan *sonm.AskPlan) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
+	m.askPlanPools[askPlan.ID] = newPool(askPlan.Resources)
 	return m.pool.consume(askPlan.ID, askPlan.Resources)
 }
 
 func (m *Scheduler) ConsumeTask(askPlanID string, taskID string, resources *sonm.AskPlanResources) error {
 	copy := &sonm.AskPlanResources{
-		GPU:     deepcopy.Copy(resources.GPU).(*sonm.AskPlanGPU),
-		Storage: deepcopy.Copy(resources.Storage).(*sonm.AskPlanStorage),
+		GPU:     deepcopy.Copy(resources.GetGPU()).(*sonm.AskPlanGPU),
+		Storage: deepcopy.Copy(resources.GetStorage()).(*sonm.AskPlanStorage),
 	}
 
 	m.mu.Lock()
@@ -93,6 +89,7 @@ func (m *Scheduler) ConsumeTask(askPlanID string, taskID string, resources *sonm
 func (m *Scheduler) Release(askPlanID string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	delete(m.askPlanPools, askPlanID)
 	return m.pool.release(askPlanID)
 }
 

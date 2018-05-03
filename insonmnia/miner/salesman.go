@@ -27,18 +27,16 @@ type Salesman struct {
 	resources     *resource.Scheduler
 	hardware      *hardware.Hardware
 	eth           blockchain.API
-	dwh           sonm.DWHClient
-	controlGroup  cgroups.CGroup
 	cGroupManager cgroups.CGroupManager
+	matcher       matcher.Matcher
 	ethkey        *ecdsa.PrivateKey
 
 	askPlanCGroups map[string]cgroups.CGroup
 	deals          map[string]*sonm.Deal
 	orders         map[string]*sonm.Order
 
-	matcher matcher.Matcher
-	log     *zap.SugaredLogger
-	mu      sync.Mutex
+	log *zap.SugaredLogger
+	mu  sync.Mutex
 }
 
 func NewSalesman(
@@ -47,6 +45,7 @@ func NewSalesman(
 	resources *resource.Scheduler,
 	hardware *hardware.Hardware,
 	eth blockchain.API,
+	cGroupManager cgroups.CGroupManager,
 	matcher matcher.Matcher,
 	ethkey *ecdsa.PrivateKey,
 ) (*Salesman, error) {
@@ -68,15 +67,22 @@ func NewSalesman(
 	if matcher == nil {
 		return nil, errors.New("matcher is required for salesman")
 	}
+	if cGroupManager == nil {
+		return nil, errors.New("cGroup manager is required for salesman")
+	}
 
 	s := &Salesman{
-		state:     state,
-		resources: resources,
-		hardware:  hardware,
-		eth:       eth,
-		matcher:   matcher,
-		ethkey:    ethkey,
-		log:       ctxlog.S(ctx).With("source", "salesman"),
+		state:          state,
+		resources:      resources,
+		hardware:       hardware,
+		eth:            eth,
+		cGroupManager:  cGroupManager,
+		matcher:        matcher,
+		ethkey:         ethkey,
+		askPlanCGroups: map[string]cgroups.CGroup{},
+		deals:          map[string]*sonm.Deal{},
+		orders:         map[string]*sonm.Order{},
+		log:            ctxlog.S(ctx).With("source", "salesman"),
 	}
 
 	if err := s.restoreState(); err != nil {
@@ -151,10 +157,10 @@ func (m *Salesman) RemoveAskPlan(planID string) error {
 	return m.dropCGroup(planID)
 }
 
-func (m *Salesman) AskPlanByDeal(dealID string) (*sonm.AskPlan, error) {
+func (m *Salesman) AskPlanByDeal(dealID *sonm.BigInt) (*sonm.AskPlan, error) {
 	plans := m.state.AskPlans()
 	for _, plan := range plans {
-		if plan.DealID.String() == dealID {
+		if plan.DealID.Cmp(dealID) == 0 {
 			return plan, nil
 		}
 	}
@@ -171,6 +177,16 @@ func (m *Salesman) Deal(dealID *sonm.BigInt) (*sonm.Deal, error) {
 		return nil, fmt.Errorf(" deal not found by %s", id)
 	}
 	return deal, nil
+}
+
+func (m *Salesman) CGroup(planID string) (cgroups.CGroup, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	cGroup, ok := m.askPlanCGroups[planID]
+	if !ok {
+		return nil, fmt.Errorf("cgroup for ask plan %s not found, probably no such plan", planID)
+	}
+	return cGroup, nil
 }
 
 func (m *Salesman) syncRoutine(ctx context.Context) {
@@ -213,7 +229,16 @@ func (m *Salesman) restoreState() error {
 	askPlans := m.state.AskPlans()
 	//TODO:  check if we do not lack resources after restart
 	for _, plan := range askPlans {
-		m.resources.Consume(plan)
+		if err := m.resources.Consume(plan); err != nil {
+			m.log.Warnf("dropping ask plan due to resource changes")
+			//Ignore error here, as resources that were not consumed can not be released.
+			m.RemoveAskPlan(plan.ID)
+		} else {
+			if err := m.createCGroup(plan); err != nil {
+				m.log.Warnf("can not create cgroup for ask plan %s - %s", plan.ID, err)
+				return err
+			}
+		}
 	}
 	//TODO: restore tasks
 	return nil

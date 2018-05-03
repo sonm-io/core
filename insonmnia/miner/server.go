@@ -238,7 +238,7 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	//TODO: this is racy, because of post initialization of hardware via benchmarks
 	m.resources = resource.NewScheduler(o.ctx, m.hardware)
 
-	salesman, err := NewSalesman(o.ctx, o.storage, m.resources, m.hardware, o.eth, matcher, o.key)
+	salesman, err := NewSalesman(o.ctx, o.storage, m.resources, m.hardware, o.eth, m.cGroupManager, matcher, o.key)
 	if err != nil {
 		return nil, err
 	}
@@ -396,12 +396,16 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		return nil, fmt.Errorf("container field is required")
 	}
 
-	ask, err := m.salesman.AskPlanByDeal(request.DealID)
+	dealID, err := pb.NewBigIntFromString(request.DealID)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse deal id as big int - %s", err)
+	}
+	ask, err := m.salesman.AskPlanByDeal(dealID)
 	if err != nil {
 		return nil, err
 	}
 
-	cgroup, err := m.resources.CGroup(ask.ID)
+	cgroup, err := m.salesman.CGroup(ask.ID)
 	if err != nil {
 		return nil, err
 	}
