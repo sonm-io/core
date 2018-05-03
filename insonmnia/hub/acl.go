@@ -31,14 +31,18 @@ type DealExtractor func(ctx context.Context, request interface{}) (structs.DealI
 type dealAuthorization struct {
 	ctx       context.Context
 	extractor DealExtractor
-	hub       *Hub
+	supplier  DealInfoSupplier
+}
+
+type DealInfoSupplier interface {
+	GetDealInfo(ctx context.Context, id *sonm.ID) (*pb.DealInfoReply, error)
 }
 
 // todo: do not accept Hub as param, use some interface that have DealInfo method.
-func newDealAuthorization(ctx context.Context, hub *Hub, extractor DealExtractor) auth.Authorization {
+func newDealAuthorization(ctx context.Context, supplier DealInfoSupplier, extractor DealExtractor) auth.Authorization {
 	return &dealAuthorization{
 		ctx:       ctx,
-		hub:       hub,
+		supplier:  supplier,
 		extractor: extractor,
 	}
 }
@@ -55,7 +59,7 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 	}
 
 	peerWallet := wallet.Hex()
-	meta, err := d.hub.GetDealInfo(ctx, &sonm.ID{Id: dealID.String()})
+	meta, err := d.supplier.GetDealInfo(ctx, &sonm.ID{Id: dealID.String()})
 	if err != nil {
 		return err
 	}

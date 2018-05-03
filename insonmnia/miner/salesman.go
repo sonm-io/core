@@ -33,11 +33,12 @@ type Salesman struct {
 	ethkey        *ecdsa.PrivateKey
 
 	askPlanCGroups map[string]cgroups.CGroup
+	deals          map[string]*sonm.Deal
+	orders         map[string]*sonm.Order
 
-	matcher  matcher.Matcher
-	log      *zap.SugaredLogger
-	dealChan chan *sonm.Deal
-	mu       sync.Mutex
+	matcher matcher.Matcher
+	log     *zap.SugaredLogger
+	mu      sync.Mutex
 }
 
 func NewSalesman(
@@ -76,7 +77,6 @@ func NewSalesman(
 		matcher:   matcher,
 		ethkey:    ethkey,
 		log:       ctxlog.S(ctx).With("source", "salesman"),
-		dealChan:  make(chan *sonm.Deal, 1),
 	}
 
 	if err := s.restoreState(); err != nil {
@@ -85,9 +85,8 @@ func NewSalesman(
 	return s, nil
 }
 
-func (m *Salesman) Run(ctx context.Context) chan<- *sonm.Deal {
+func (m *Salesman) Run(ctx context.Context) {
 	go m.syncRoutine(ctx)
-	return m.dealChan
 }
 
 func (m *Salesman) AskPlan(planID string) (*sonm.AskPlan, error) {
@@ -125,28 +124,6 @@ func (m *Salesman) CreateAskPlan(askPlan *sonm.AskPlan) (string, error) {
 	return id, nil
 }
 
-func (m *Salesman) createCGroup(plan *sonm.AskPlan) error {
-	cgroupResources := plan.GetResources().ToCgroupResources()
-	cgroup, err := m.cGroupManager.Attach(plan.ID, cgroupResources)
-	if err != nil {
-		return err
-	}
-	m.askPlanCGroups[plan.ID] = cgroup
-	return nil
-}
-
-func (m *Salesman) dropCGroup(planID string) error {
-	cgroup, ok := m.askPlanCGroups[planID]
-	if !ok {
-		return fmt.Errorf("cgroup for ask plan %s not found, probably no such plan", planID)
-	}
-	delete(m.askPlanCGroups, planID)
-	if err := cgroup.Delete(); err != nil {
-		return fmt.Errorf("could not drop cgroup %s for ask plan %s - %s", cgroup.Suffix(), planID, err)
-	}
-	return nil
-}
-
 func (m *Salesman) RemoveAskPlan(planID string) error {
 	ask, err := m.state.AskPlan(planID)
 	if err != nil {
@@ -182,6 +159,18 @@ func (m *Salesman) AskPlanByDeal(dealID string) (*sonm.AskPlan, error) {
 		}
 	}
 	return nil, fmt.Errorf("ask plan for deal id %s is not found", dealID)
+}
+
+func (m *Salesman) Deal(dealID *sonm.BigInt) (*sonm.Deal, error) {
+	id := dealID.Unwrap().String()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	deal, ok := m.deals[id]
+	if !ok {
+		return nil, fmt.Errorf(" deal not found by %s", id)
+	}
+	return deal, nil
 }
 
 func (m *Salesman) syncRoutine(ctx context.Context) {
@@ -230,6 +219,28 @@ func (m *Salesman) restoreState() error {
 	return nil
 }
 
+func (m *Salesman) createCGroup(plan *sonm.AskPlan) error {
+	cgroupResources := plan.GetResources().ToCgroupResources()
+	cgroup, err := m.cGroupManager.Attach(plan.ID, cgroupResources)
+	if err != nil {
+		return err
+	}
+	m.askPlanCGroups[plan.ID] = cgroup
+	return nil
+}
+
+func (m *Salesman) dropCGroup(planID string) error {
+	cgroup, ok := m.askPlanCGroups[planID]
+	if !ok {
+		return fmt.Errorf("cgroup for ask plan %s not found, probably no such plan", planID)
+	}
+	delete(m.askPlanCGroups, planID)
+	if err := cgroup.Delete(); err != nil {
+		return fmt.Errorf("could not drop cgroup %s for ask plan %s - %s", cgroup.Suffix(), planID, err)
+	}
+	return nil
+}
+
 func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) error {
 	m.log.Debugf("checking deal %s for ask plan %s and order %s",
 		plan.DealID.Unwrap().String(), plan.ID, plan.GetOrderID().Unwrap().String())
@@ -238,6 +249,7 @@ func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) error {
 		return fmt.Errorf("could not get deal info for order %s, ask %s - %s",
 			plan.GetOrderID().Unwrap().String(), plan.ID, err)
 	}
+	m.registerDeal(deal)
 
 	if deal.Status == sonm.DealStatus_DEAL_CLOSED {
 		err = m.resources.Release(plan.ID)
@@ -252,6 +264,28 @@ func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) error {
 	return nil
 }
 
+func (m *Salesman) registerOrder(order *sonm.Order) {
+	id := order.Id.Unwrap().String()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if !order.DealID.IsZero() || order.OrderStatus == sonm.OrderStatus_ORDER_ACTIVE {
+		m.orders[id] = order
+	} else {
+		delete(m.orders, id)
+	}
+}
+
+func (m *Salesman) registerDeal(deal *sonm.Deal) {
+	id := deal.Id.Unwrap().String()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if deal.Status == sonm.DealStatus_DEAL_ACCEPTED {
+		m.deals[id] = deal
+	} else {
+		delete(m.deals, id)
+	}
+}
+
 func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	//TODO: validate deal that it is ours
 	m.log.Infof("checking order %s for ask plan %s", plan.GetOrderID().Unwrap().String(), plan.ID)
@@ -260,18 +294,18 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 		return fmt.Errorf("could not get order info for order %s - %s", plan.GetOrderID().Unwrap().String(), err)
 	}
 
-	if !order.DealID.IsZero() {
-		deal, err := m.eth.Market().GetDealInfo(ctx, order.DealID.Unwrap())
-		if err != nil {
-			return fmt.Errorf("could not get deal info for ID %s from market - %s", order.DealID.Unwrap().String(), err)
-		}
-		m.dealChan <- deal
+	m.registerOrder(order)
 
+	if !order.DealID.IsZero() {
 		plan.DealID = order.DealID
 
 		if err := m.state.SaveAskPlan(plan); err != nil {
 			return fmt.Errorf("could not get save ask plan with deal %s - %s", order.DealID.Unwrap().String(), err)
 		}
+		return m.checkDeal(ctx, plan)
+	} else if order.OrderStatus != sonm.OrderStatus_ORDER_ACTIVE {
+		plan.OrderID = nil
+		m.state.SaveAskPlan(plan)
 	}
 	return nil
 }
@@ -319,6 +353,7 @@ func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {
 		case <-ticker.C:
 			//TODO: we also need to do it on worker start
 			deal, err := m.matcher.CreateDealByOrder(ctx, order)
+			m.registerDeal(deal)
 			if err != nil {
 				m.log.Warnf("could not wait for deal on order %s - %s", order.Id.Unwrap().String(), err)
 				order, err := m.eth.Market().GetOrderInfo(ctx, order.Id.Unwrap())
@@ -334,7 +369,6 @@ func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {
 			}
 			m.log.Infof("created deal %s for order %s", deal.Id.Unwrap().String(), order.Id.Unwrap().String())
 			order.DealID = deal.Id
-			m.dealChan <- deal
 			return nil
 		}
 	}

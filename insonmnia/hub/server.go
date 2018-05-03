@@ -327,19 +327,11 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 func (h *Hub) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
 	log.G(h.ctx).Info("handling GetDealInfo request")
 
-	deal, err := h.worker.GetDealByID(structs.DealID(id.GetId()))
+	dealID, err := pb.NewBigIntFromString(id.Id)
 	if err != nil {
 		return nil, err
 	}
-
-	//TODO: return Tasks
-	reply := &pb.DealInfoReply{
-		Deal:     deal.Deal,
-		BidOrder: deal.BidOrder,
-		AskOrder: deal.AskOrder,
-	}
-
-	return reply, nil
+	return h.worker.GetDealInfo(dealID)
 }
 
 func (h *Hub) Tasks(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {

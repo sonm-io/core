@@ -83,7 +83,7 @@ type Miner struct {
 	// In-mem state, can be safety reloaded
 	// from the external sources.
 	// Must be protected by `mu` mutex.
-	Deals map[structs.DealID]*structs.DealMeta
+	//Deals map[structs.DealID]*structs.DealMeta
 }
 
 func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
@@ -210,7 +210,7 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 
 		containers:  make(map[string]*ContainerInfo),
 		nameMapping: make(map[string]string),
-		Deals:       make(map[structs.DealID]*structs.DealMeta),
+		//Deals:       make(map[structs.DealID]*structs.DealMeta),
 
 		controlGroup:  cgroup,
 		cGroupManager: cGroupManager,
@@ -873,16 +873,20 @@ func (m *Miner) RemoveAskPlan(ctx context.Context, id string) error {
 	return m.salesman.RemoveAskPlan(id)
 }
 
-func (m *Miner) GetDealByID(id structs.DealID) (*structs.DealMeta, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	deal, ok := m.Deals[id]
-	if !ok {
-		return nil, fmt.Errorf("deal with id=%s does not found", id)
+func (m *Miner) GetDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
+	deal, err := m.salesman.Deal(dealID)
+	if err != nil {
+		return nil, err
 	}
-
-	return deal, nil
+	//TODO: why do we need BidOrder and AskOrder inside this reply?
+	//TODO: Tasks info
+	return &pb.DealInfoReply{
+		Deal:      deal,
+		BidOrder:  nil,
+		AskOrder:  nil,
+		Running:   nil,
+		Completed: nil,
+	}, nil
 }
 
 // todo: make the `miner.Init() error` method to kickstart all initial jobs for the Worker instance.

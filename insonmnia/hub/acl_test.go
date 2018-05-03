@@ -9,7 +9,6 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/logging"
-	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 	pb "github.com/sonm-io/core/proto"
@@ -26,11 +25,23 @@ func testCtx() context.Context {
 	return log.WithLogger(context.Background(), logger)
 }
 
-func makeHubWithOrder(t *testing.T, ctx context.Context, buyerId string, dealId structs.DealID) *Hub {
-	return &Hub{
-		ctx: ctx,
-		worker: &miner.Miner{
-			Deals: map[structs.DealID]*structs.DealMeta{dealId: {Deal: &sonm.Deal{ConsumerID: pb.NewEthAddress(common.HexToAddress(buyerId))}}},
+type testDealInfoSupplier struct {
+	Deal *pb.Deal
+}
+
+func (m *testDealInfoSupplier) GetDealInfo(ctx context.Context, id *sonm.ID) (*pb.DealInfoReply, error) {
+	return &pb.DealInfoReply{
+		Deal: m.Deal,
+	}, nil
+}
+
+func makeDealInfoSupplier(t *testing.T, buyerId string, dealID string) DealInfoSupplier {
+	id, err := pb.NewBigIntFromString(dealID)
+	require.NoError(t, err)
+	return &testDealInfoSupplier{
+		Deal: &sonm.Deal{
+			Id:         id,
+			ConsumerID: pb.NewEthAddress(common.HexToAddress(buyerId)),
 		},
 	}
 }
@@ -104,7 +115,7 @@ func TestDealAuthorization(t *testing.T) {
 	}
 
 	md := newFieldDealExtractor()
-	authorization := newDealAuthorization(ctx, makeHubWithOrder(t, ctx, addr.Hex(), "66"), md)
+	authorization := newDealAuthorization(ctx, makeDealInfoSupplier(t, addr.Hex(), "66"), md)
 
 	require.NoError(t, authorization.Authorize(ctx, request))
 }
@@ -121,7 +132,7 @@ func TestDealAuthorizationErrors(t *testing.T) {
 	}
 
 	md := newFieldDealExtractor()
-	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, ctx, "0x100500", "66"), md)
+	au := newDealAuthorization(context.Background(), makeDealInfoSupplier(t, "0x100500", "66"), md)
 
 	require.Error(t, au.Authorize(ctx, request))
 }
@@ -142,7 +153,7 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 	}
 
 	md := newFieldDealExtractor()
-	au := newDealAuthorization(context.Background(), makeHubWithOrder(t, ctx, "0x100500", "66"), md)
+	au := newDealAuthorization(context.Background(), makeDealInfoSupplier(t, "0x100500", "66"), md)
 
 	require.Error(t, au.Authorize(ctx, request))
 }
