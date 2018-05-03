@@ -82,7 +82,7 @@ var dealsStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		printDealDetails(cmd, reply)
+		printDealInfo(cmd, reply.GetDeal())
 	},
 }
 
