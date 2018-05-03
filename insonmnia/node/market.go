@@ -81,9 +81,9 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 		Duration:       uint64(req.GetDuration().Unwrap().Seconds()),
 		Price:          req.GetPrice().GetPerSecond(),
 		Netflags: pb.NetflagsToUint([3]bool{
-			req.Resources.Network.Incoming,
-			req.Resources.Network.Outbound,
 			req.Resources.Network.Overlay,
+			req.Resources.Network.Outbound,
+			req.Resources.Network.Incoming,
 		}),
 		IdentityLevel: req.GetIdentity(),
 		Blacklist:     blacklist,
