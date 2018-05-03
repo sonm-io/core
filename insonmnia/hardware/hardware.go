@@ -101,18 +101,19 @@ func insertBench(to []uint64, bench *sonm.Benchmark, proportion float64) ([]uint
 	for len(to) <= int(bench.ID) {
 		to = append(to, uint64(0))
 	}
-	if bench.SplittingAlgorithm == sonm.SplittingAlgorithm_NONE {
+	switch bench.SplittingAlgorithm {
+	case sonm.SplittingAlgorithm_NONE:
 		if to[bench.ID] != 0 {
 			return nil, fmt.Errorf("duplicate benchmark with id %d and type none", bench.ID)
 		}
 		to[bench.ID] = bench.GetResult()
-	} else if bench.SplittingAlgorithm == sonm.SplittingAlgorithm_PROPORTIONAL {
+	case sonm.SplittingAlgorithm_PROPORTIONAL:
 		to[bench.ID] += uint64(float64(bench.Result) * proportion)
-	} else if bench.SplittingAlgorithm == sonm.SplittingAlgorithm_MAX {
+	case sonm.SplittingAlgorithm_MAX:
 		if bench.Result > to[bench.ID] {
 			to[bench.ID] = bench.Result
 		}
-	} else if bench.SplittingAlgorithm == sonm.SplittingAlgorithm_MIN {
+	case sonm.SplittingAlgorithm_MIN:
 		if bench.Result < to[bench.ID] {
 			to[bench.ID] = bench.Result
 		}

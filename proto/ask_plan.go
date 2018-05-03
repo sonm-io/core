@@ -124,12 +124,9 @@ func (m *AskPlanResources) Sub(resources *AskPlanResources) error {
 func (m *AskPlanResources) ToHostConfigResources(cgroupParent string) container.Resources {
 	//TODO: check and discuss
 	return container.Resources{
-		CPUShares: int64(m.GetCPU().GetCorePercents()),
-		Memory:    int64(m.GetRAM().GetSize().GetBytes()),
-		//TODO: Do we need to specify this?
+		Memory:       int64(m.GetRAM().GetSize().GetBytes()),
 		NanoCPUs:     int64(m.GetCPU().GetCorePercents() * 10e9 / 100),
 		CgroupParent: cgroupParent,
-		DiskQuota:    int64(m.GetStorage().GetSize().GetBytes()),
 	}
 
 }

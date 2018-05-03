@@ -90,8 +90,15 @@ func (bl *benchmarkList) readResults(ctx context.Context, reader io.ReadCloser) 
 		return fmt.Errorf("cannot decode JSON response: %v", err)
 	}
 
-	bl.byID = make([]*pb.Benchmark, len(data))
+	var max uint64
 	for _, bench := range data {
+		if bench.ID > max {
+			max = bench.ID
+		}
+	}
+	bl.byID = make([]*pb.Benchmark, max)
+	for _, bench := range data {
+
 		if bench.ID >= uint64(len(bl.byID)) {
 			return fmt.Errorf("malformed benchmarks list json, have %d items, but found ID %d", len(bl.byID), bench.ID)
 		}

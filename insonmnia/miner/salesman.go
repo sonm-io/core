@@ -140,11 +140,10 @@ func (m *Salesman) dropCGroup(planID string) error {
 	if !ok {
 		return fmt.Errorf("cgroup for ask plan %s not found, probably no such plan", planID)
 	}
-	err := cgroup.Delete()
-	if err != nil {
+	delete(m.askPlanCGroups, planID)
+	if err := cgroup.Delete(); err != nil {
 		return fmt.Errorf("could not drop cgroup %s for ask plan %s - %s", cgroup.Suffix(), planID, err)
 	}
-	delete(m.askPlanCGroups, planID)
 	return nil
 }
 
@@ -206,11 +205,17 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 		orderId := plan.GetOrderID()
 		dealId := plan.GetDealID()
 		if !dealId.IsZero() {
-			m.checkDeal(ctx, plan)
+			if err := m.checkDeal(ctx, plan); err != nil {
+				m.log.Warnf("could not check deal %s for plan %s - %s", dealId.Unwrap().String(), plan.ID, err)
+			}
 		} else if !orderId.IsZero() {
-			m.checkOrder(ctx, plan)
-		} else if dealId.IsZero() && orderId.IsZero() {
-			m.placeOrder(ctx, plan)
+			if err := m.checkOrder(ctx, plan); err != nil {
+				m.log.Warnf("could not check order %s for plan %s - %s", dealId.Unwrap().String(), plan.ID, err)
+			}
+		} else {
+			if err := m.placeOrder(ctx, plan); err != nil {
+				m.log.Warnf("could not place order for plan %s - %s", plan.ID, err)
+			}
 		}
 	}
 }
@@ -225,15 +230,13 @@ func (m *Salesman) restoreState() error {
 	return nil
 }
 
-func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) {
+func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) error {
 	m.log.Debugf("checking deal %s for ask plan %s and order %s",
 		plan.DealID.Unwrap().String(), plan.ID, plan.GetOrderID().Unwrap().String())
 	deal, err := m.eth.Market().GetDealInfo(ctx, plan.GetDealID().Unwrap())
 	if err != nil {
-		m.log.Warnf("could not get deal info for order %s, ask %s - %s",
+		return fmt.Errorf("could not get deal info for order %s, ask %s - %s",
 			plan.GetOrderID().Unwrap().String(), plan.ID, err)
-		// TODO: log, what else can we do?
-		return
 	}
 
 	if deal.Status == sonm.DealStatus_DEAL_CLOSED {
@@ -244,44 +247,39 @@ func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) {
 		}
 		plan.DealID = nil
 		plan.OrderID = nil
-		m.state.SaveAskPlan(plan)
+		return m.state.SaveAskPlan(plan)
 	}
+	return nil
 }
 
-func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) {
+func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	//TODO: validate deal that it is ours
 	m.log.Infof("checking order %s for ask plan %s", plan.GetOrderID().Unwrap().String(), plan.ID)
 	order, err := m.eth.Market().GetOrderInfo(ctx, plan.GetOrderID().Unwrap())
 	if err != nil {
-		m.log.Warnf("could not get order info for order %s - %s", plan.GetOrderID().Unwrap().String(), err)
-		// TODO: log, what else can we do?
-		return
+		return fmt.Errorf("could not get order info for order %s - %s", plan.GetOrderID().Unwrap().String(), err)
 	}
 
 	if !order.DealID.IsZero() {
 		deal, err := m.eth.Market().GetDealInfo(ctx, order.DealID.Unwrap())
 		if err != nil {
-			m.log.Warnf("could not get deal info for ID %s from market - %s", order.DealID.Unwrap().String(), err)
-			// TODO: log, what else can we do?
-			return
+			return fmt.Errorf("could not get deal info for ID %s from market - %s", order.DealID.Unwrap().String(), err)
 		}
 		m.dealChan <- deal
 
 		plan.DealID = order.DealID
 
 		if err := m.state.SaveAskPlan(plan); err != nil {
-			m.log.Warnf("could not get save ask plan with deal %s - %s", order.DealID.Unwrap().String(), err)
-			// TODO: log, what else can we do?
-			return
+			return fmt.Errorf("could not get save ask plan with deal %s - %s", order.DealID.Unwrap().String(), err)
 		}
 	}
+	return nil
 }
 
-func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) {
+func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	benchmarks, err := m.hardware.ResourcesToBenchmarks(plan.GetResources())
 	if err != nil {
-		m.log.Warnf("could not get benchmarks for ask plan %s - %s", plan.ID, err)
-		return
+		return fmt.Errorf("could not get benchmarks for ask plan %s - %s", plan.ID, err)
 	}
 	net := m.hardware.Network
 	order := &sonm.Order{
@@ -292,7 +290,7 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) {
 		Duration:       uint64(plan.GetDuration().Unwrap().Seconds()),
 		Price:          plan.GetPrice().GetPerSecond(),
 		//TODO:refactor NetFlags in separqate PR
-		Netflags:      sonm.NetflagsToUint([3]bool{net.GetOverlay(), true, net.Incoming}),
+		Netflags:      sonm.NetflagsToUint([3]bool{net.GetOverlay(), net.GetOutbound(), net.GetIncoming()}),
 		IdentityLevel: plan.GetIdentity(),
 		Blacklist:     plan.GetBlacklist().Unwrap().Hex(),
 		Tag:           plan.GetTag(),
@@ -300,27 +298,24 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) {
 	}
 	ordOrErr := <-m.eth.Market().PlaceOrder(ctx, m.ethkey, order)
 	if ordOrErr.Err != nil {
-		m.log.Warnf("could not place order on market for plan %s - %s", plan.ID, err)
-		// TODO: log, what else can we do?
-		return
+		return fmt.Errorf("could not place order on market for plan %s - %s", plan.ID, err)
 	}
 	plan.OrderID = ordOrErr.Order.Id
 	if err := m.state.SaveAskPlan(plan); err != nil {
-		m.log.Warnf("could not save ask plan %s in storage - %s", plan.ID, err)
-		// TODO: log, what else can we do?
-		return
+		return fmt.Errorf("could not save ask plan %s in storage - %s", plan.ID, err)
 	}
 	go m.waitForDeal(ctx, ordOrErr.Order)
+	return nil
 }
 
-func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) {
+func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {
 	// TODO: make configurable
 	ticker := util.NewImmediateTicker(time.Second * 10)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-			return
+			return nil
 		case <-ticker.C:
 			//TODO: we also need to do it on worker start
 			deal, err := m.matcher.CreateDealByOrder(ctx, order)
@@ -333,14 +328,14 @@ func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) {
 				}
 
 				if order.GetOrderStatus() != sonm.OrderStatus_ORDER_ACTIVE {
-					return
+					return nil
 				}
 				continue
 			}
 			m.log.Infof("created deal %s for order %s", deal.Id.Unwrap().String(), order.Id.Unwrap().String())
 			order.DealID = deal.Id
 			m.dealChan <- deal
-			return
+			return nil
 		}
 	}
 }
