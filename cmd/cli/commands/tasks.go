@@ -5,10 +5,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"math/big"
 	"os"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/gosuri/uiprogress"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -48,7 +48,7 @@ var taskRootCmd = &cobra.Command{
 }
 
 var taskListCmd = &cobra.Command{
-	Use:    "list [hub_addr]",
+	Use:    "list [deal_id]",
 	Short:  "Show active tasks",
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -61,12 +61,16 @@ var taskListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		var hubID common.Address
+		var dealID *big.Int
 		if len(args) > 0 {
-			hubID = common.StringToAddress(args[0])
+			dealID, err = util.ParseBigInt(args[0])
+			if err != nil {
+				showError(cmd, err.Error(), nil)
+				os.Exit(1)
+			}
 		}
 
-		list, err := node.List(ctx, &pb.EthAddress{Address: hubID.Bytes()})
+		list, err := node.List(ctx, &pb.TaskListRequest{DealID: pb.NewBigInt(dealID)})
 		if err != nil {
 			showError(cmd, "Cannot get task list", err)
 			os.Exit(1)
@@ -155,7 +159,7 @@ var taskStartCmd = &cobra.Command{
 }
 
 var taskStatusCmd = &cobra.Command{
-	Use:    "status <hub_addr> <task_id>",
+	Use:    "status <deal_id> <task_id>",
 	Short:  "Show task status",
 	Args:   cobra.MinimumNArgs(2),
 	PreRun: loadKeyStoreIfRequired,
@@ -169,11 +173,16 @@ var taskStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		hubAddr := args[0]
+		dealID, err := util.ParseBigInt(args[0])
+		if err != nil {
+			showError(cmd, err.Error(), nil)
+			os.Exit(1)
+		}
+
 		taskID := args[1]
 		req := &pb.TaskID{
-			Id:      taskID,
-			HubAddr: hubAddr,
+			Id:     taskID,
+			DealID: pb.NewBigInt(dealID),
 		}
 
 		status, err := node.Status(ctx, req)
@@ -187,7 +196,7 @@ var taskStatusCmd = &cobra.Command{
 }
 
 var taskJoinNetworkCmd = &cobra.Command{
-	Use:    "join <hub_addr> <task_id> <network_id>",
+	Use:    "join <deal_id> <task_id> <network_id>",
 	Short:  "Provide network specs for joining to specified task's specific network",
 	Args:   cobra.MinimumNArgs(3),
 	PreRun: loadKeyStoreIfRequired,
@@ -201,13 +210,18 @@ var taskJoinNetworkCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		hubAddr := args[0]
+		dealID, err := util.ParseBigInt(args[0])
+		if err != nil {
+			showError(cmd, err.Error(), nil)
+			os.Exit(1)
+		}
+
 		taskID := args[1]
 		netID := args[2]
 		spec, err := node.JoinNetwork(ctx, &pb.JoinNetworkRequest{
 			TaskID: &pb.TaskID{
-				Id:      taskID,
-				HubAddr: hubAddr,
+				Id:     taskID,
+				DealID: pb.NewBigInt(dealID),
 			},
 			NetworkID: netID,
 		})
@@ -221,7 +235,7 @@ var taskJoinNetworkCmd = &cobra.Command{
 }
 
 var taskLogsCmd = &cobra.Command{
-	Use:    "logs <hub_addr> <task_id>",
+	Use:    "logs <deal_id> <task_id>",
 	Short:  "Retrieve task logs",
 	Args:   cobra.MinimumNArgs(2),
 	PreRun: loadKeyStoreIfRequired,
@@ -235,11 +249,15 @@ var taskLogsCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		hubAddr := args[0]
-		taskID := args[1]
+		dealID, err := util.ParseBigInt(args[0])
+		if err != nil {
+			showError(cmd, err.Error(), nil)
+			os.Exit(1)
+		}
+
 		req := &pb.TaskLogsRequest{
-			Id:            taskID,
-			HubAddr:       hubAddr,
+			Id:            args[1],
+			DealID:        pb.NewBigInt(dealID),
 			Since:         since,
 			AddTimestamps: addTimestamps,
 			Follow:        follow,
@@ -272,7 +290,7 @@ var taskLogsCmd = &cobra.Command{
 }
 
 var taskStopCmd = &cobra.Command{
-	Use:    "stop <hub_addr> <task_id>",
+	Use:    "stop <deal_id> <task_id>",
 	Short:  "Stop task",
 	Args:   cobra.MinimumNArgs(2),
 	PreRun: loadKeyStoreIfRequired,
@@ -286,14 +304,18 @@ var taskStopCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		hubAddr := args[0]
-		taskID := args[1]
-		req := &pb.TaskID{
-			Id:      taskID,
-			HubAddr: hubAddr,
-		}
-		_, err = node.Stop(ctx, req)
+		dealID, err := util.ParseBigInt(args[0])
 		if err != nil {
+			showError(cmd, err.Error(), nil)
+			os.Exit(1)
+		}
+
+		req := &pb.TaskID{
+			Id:     args[1],
+			DealID: pb.NewBigInt(dealID),
+		}
+
+		if _, err := node.Stop(ctx, req); err != nil {
 			showError(cmd, "Cannot stop status", err)
 			os.Exit(1)
 		}

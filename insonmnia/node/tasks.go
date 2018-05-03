@@ -21,16 +21,16 @@ type tasksAPI struct {
 	remotes *remoteOptions
 }
 
-func (t *tasksAPI) List(ctx context.Context, req *pb.EthAddress) (*pb.TaskListReply, error) {
-	// has hubID, can perform direct request
-	if len(req.Address) > 0 {
-		log.G(t.ctx).Info("has HubAddr, performing direct request")
-		hubClient, cc, err := t.getHubClientByEthAddr(ctx, req.Unwrap().Hex())
+func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskListReply, error) {
+	if req.GetDealID() != nil && !req.GetDealID().IsZero() {
+		log.G(t.ctx).Info("dealID is provided in request, performing direct request",
+			zap.String("dealID", req.GetDealID().Unwrap().String()))
+
+		hubClient, cc, err := t.getHubClientForDeal(ctx, req.GetDealID().Unwrap().String())
 		if err != nil {
 			return nil, err
 		}
 		defer cc.Close()
-
 		return hubClient.Tasks(ctx, &pb.Empty{})
 	}
 
@@ -90,7 +90,7 @@ func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.Sta
 }
 
 func (t *tasksAPI) JoinNetwork(ctx context.Context, request *pb.JoinNetworkRequest) (*pb.NetworkSpec, error) {
-	hub, cc, err := t.getHubClientByEthAddr(ctx, request.TaskID.HubAddr)
+	hub, cc, err := t.getHubClientForDeal(ctx, request.GetTaskID().GetDealID().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func (t *tasksAPI) JoinNetwork(ctx context.Context, request *pb.JoinNetworkReque
 }
 
 func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusReply, error) {
-	hubClient, cc, err := t.getHubClientByEthAddr(ctx, id.HubAddr)
+	hubClient, cc, err := t.getHubClientForDeal(ctx, id.GetDealID().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
@@ -118,9 +118,7 @@ func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusRep
 }
 
 func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServer) error {
-	log.G(t.ctx).Info("handling Logs request", zap.Any("request", req))
-
-	hubClient, cc, err := t.getHubClientByEthAddr(srv.Context(), req.HubAddr)
+	hubClient, cc, err := t.getHubClientForDeal(srv.Context(), req.GetDealID().Unwrap().String())
 	if err != nil {
 		return err
 	}
@@ -149,7 +147,7 @@ func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServe
 }
 
 func (t *tasksAPI) Stop(ctx context.Context, id *pb.TaskID) (*pb.Empty, error) {
-	hubClient, cc, err := t.getHubClientByEthAddr(ctx, id.HubAddr)
+	hubClient, cc, err := t.getHubClientForDeal(ctx, id.GetDealID().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
