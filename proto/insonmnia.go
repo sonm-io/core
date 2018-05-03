@@ -53,7 +53,7 @@ func (m *EthAddress) Unwrap() common.Address {
 	return common.BytesToAddress(m.Address)
 }
 
-func (m *EthAddress) MarshalText() ([]byte, error) {
+func (m EthAddress) MarshalText() ([]byte, error) {
 	return []byte(m.Unwrap().Hex()), nil
 }
 

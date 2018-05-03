@@ -54,6 +54,26 @@ func TestEthAddress_MarshalText(t *testing.T) {
 		"JSON marshaller")
 }
 
+func TestEthAddress_MarshalTextByValue(t *testing.T) {
+	in := struct {
+		Addr EthAddress `yaml:"addr" json:"addr"`
+	}{}
+
+	tmp := NewEthAddress(common.HexToAddress("0x123"))
+	in.Addr = *tmp
+
+	ya, err := yaml.Marshal(in)
+	require.NoError(t, err)
+
+	assert.Equal(t, "addr: \"0x0000000000000000000000000000000000000123\"\n", string(ya),
+		"YAML marshaller")
+
+	js, err := json.Marshal(in)
+	require.NoError(t, err)
+	assert.Equal(t, `{"addr":"0x0000000000000000000000000000000000000123"}`, string(js),
+		"JSON marshaller")
+}
+
 func TestEthAddress_UnmarshalText(t *testing.T) {
 	in := []byte(`{"addr":"0x1234567891011121314151617181920212223242"}`)
 	recv := struct {
