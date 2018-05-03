@@ -126,9 +126,9 @@ func getRandomIP(occupied map[IP4]struct{}, ipNet *net.IPNet) (IP4, error) {
 }
 
 func randomIP(ipNet *net.IPNet, addrBits int) IP4 {
-	var r int
+	var r uint32
 	for {
-		r = rand.Intn(1 << uint(addrBits))
+		r = uint32(rand.Int31n(1 << uint(addrBits)))
 		if (r&0xff) != 0xff && r != 0 {
 			break
 		}
