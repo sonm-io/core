@@ -176,6 +176,7 @@ type hashableRAM struct {
 type hashableNetworkCapabilities struct {
 	Overlay  bool `json:"overlay"`
 	Incoming bool `json:"incoming"`
+	Outbound bool `json:"outbound"`
 }
 
 // DeviceMapping maps hardware capabilities to device description, hashing-friendly
@@ -207,8 +208,9 @@ func (h *Hardware) devicesMap() *DeviceMapping {
 		NetworkOut: h.Network.Out,
 		Storage:    h.Storage.Device,
 		NetworkCaps: hashableNetworkCapabilities{
-			Incoming: h.Network.Incoming,
 			Overlay:  h.Network.Overlay,
+			Incoming: h.Network.Incoming,
+			Outbound: h.Network.Outbound,
 		},
 	}
 }
