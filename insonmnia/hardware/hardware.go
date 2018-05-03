@@ -3,6 +3,7 @@ package hardware
 import (
 	"errors"
 	"fmt"
+	"math"
 	"net"
 
 	"github.com/cnf/structhash"
@@ -98,6 +99,9 @@ func (h *Hardware) AskPlanResources() *sonm.AskPlanResources {
 }
 
 func insertBench(to []uint64, bench *sonm.Benchmark, proportion float64) ([]uint64, error) {
+	if math.IsNaN(proportion) || math.IsInf(proportion, 0) {
+		proportion = 0.0
+	}
 	for len(to) <= int(bench.ID) {
 		to = append(to, uint64(0))
 	}
