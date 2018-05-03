@@ -96,7 +96,7 @@ func (bl *benchmarkList) readResults(ctx context.Context, reader io.ReadCloser) 
 			max = bench.ID
 		}
 	}
-	bl.byID = make([]*pb.Benchmark, max)
+	bl.byID = make([]*pb.Benchmark, max+1)
 	for _, bench := range data {
 
 		if bench.ID >= uint64(len(bl.byID)) {
