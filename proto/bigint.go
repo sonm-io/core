@@ -52,10 +52,7 @@ func (m *BigInt) Cmp(other *BigInt) int {
 	return m.Unwrap().Cmp(other.Unwrap())
 }
 
-func (m *BigInt) MarshalText() (text []byte, err error) {
-	if m == nil {
-		return []byte("0"), nil
-	}
+func (m BigInt) MarshalText() (text []byte, err error) {
 	return []byte(m.Unwrap().String()), nil
 }
 
