@@ -9,10 +9,9 @@ import (
 	"math/big"
 	"net"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
-
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -890,9 +889,6 @@ func (w *DWH) runEventWorker(wg *sync.WaitGroup, workerID int, events chan *bloc
 }
 
 func (w *DWH) processEvent(event *blockchain.Event) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
 	switch value := event.Data.(type) {
 	case *blockchain.DealOpenedData:
 		return w.onDealOpened(value.ID)
@@ -954,6 +950,9 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to GetDealInfo")
 	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
 	ask, err := w.getOrderDetails(w.ctx, deal.AskID)
 	if err != nil {
@@ -1059,6 +1058,9 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 		return errors.Wrapf(err, "failed to GetDealInfo")
 	}
 
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	if deal.Status == pb.DealStatus_DEAL_CLOSED {
 		tx, err := w.db.Begin()
 		if err != nil {
@@ -1159,6 +1161,9 @@ func (w *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 		return err
 	}
 
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	if changeRequest.Status != pb.ChangeRequestStatus_REQUEST_CREATED {
 		w.logger.Info("onDealChangeRequest event points to DealChangeRequest with .Status != Created",
 			zap.String("actual_status", pb.ChangeRequestStatus_name[int32(changeRequest.Status)]))
@@ -1239,6 +1244,9 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 	if err != nil {
 		return err
 	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
 	switch changeRequest.Status {
 	case pb.ChangeRequestStatus_REQUEST_REJECTED:
@@ -1365,6 +1373,9 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		return errors.Wrapf(err, "failed to GetOrderInfo")
 	}
 
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	tx, err := w.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "failed to begin transaction")
@@ -1467,6 +1478,9 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 		return errors.Wrap(err, "failed to GetOrderInfo")
 	}
 
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	// If order was updated, but no deal is associated with it, delete the order.
 	if order.DealID != nil && order.DealID.IsZero() {
 		tx, err := w.db.Begin()
@@ -1511,6 +1525,9 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 }
 
 func (w *DWH) onWorkerAnnounced(masterID, slaveID string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	_, err := w.db.Exec(
 		w.commands["insertWorker"],
 		masterID,
@@ -1525,6 +1542,9 @@ func (w *DWH) onWorkerAnnounced(masterID, slaveID string) error {
 }
 
 func (w *DWH) onWorkerConfirmed(masterID, slaveID string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	_, err := w.db.Exec(
 		w.commands["updateWorker"],
 		true,
@@ -1539,6 +1559,9 @@ func (w *DWH) onWorkerConfirmed(masterID, slaveID string) error {
 }
 
 func (w *DWH) onWorkerRemoved(masterID, slaveID string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	_, err := w.db.Exec(
 		w.commands["deleteWorker"],
 		masterID,
@@ -1552,6 +1575,9 @@ func (w *DWH) onWorkerRemoved(masterID, slaveID string) error {
 }
 
 func (w *DWH) onAddedToBlacklist(adderID, addeeID string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	_, err := w.db.Exec(
 		w.commands["insertBlacklistEntry"],
 		adderID,
@@ -1565,6 +1591,9 @@ func (w *DWH) onAddedToBlacklist(adderID, addeeID string) error {
 }
 
 func (w *DWH) onRemovedFromBlacklist(removerID, removeeID string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	_, err := w.db.Exec(
 		w.commands["deleteBlacklistEntry"],
 		removerID,
@@ -1583,6 +1612,9 @@ func (w *DWH) onValidatorCreated(validatorID common.Address) error {
 		return errors.Wrapf(err, "failed to get validator `%s`", validatorID.String())
 	}
 
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	_, err = w.db.Exec(w.commands["insertValidator"], validator.Id.Unwrap().Hex(), validator.Level)
 	if err != nil {
 		return errors.Wrap(err, "failed to insertValidator")
@@ -1597,6 +1629,9 @@ func (w *DWH) onValidatorDeleted(validatorID common.Address) error {
 		return errors.Wrapf(err, "failed to get validator `%s`", validatorID.String())
 	}
 
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	_, err = w.db.Exec(w.commands["updateValidator"], validator.Level, validator.Id.Unwrap().Hex())
 	if err != nil {
 		return errors.Wrap(err, "failed to updateValidator")
@@ -1610,6 +1645,9 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to GetCertificate")
 	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
 
 	tx, err := w.db.Begin()
 	if err != nil {
