@@ -51,11 +51,11 @@ func (m *AskPlan) Validate() error {
 
 func NewEmptyAskPlanResources() *AskPlanResources {
 	res := &AskPlanResources{}
-	res.InitNilWithZero()
+	res.initNilWithZero()
 	return res
 }
 
-func (m *AskPlanResources) InitNilWithZero() {
+func (m *AskPlanResources) initNilWithZero() {
 	if m.CPU == nil {
 		m.CPU = &AskPlanCPU{}
 	}
@@ -92,7 +92,7 @@ func (m *AskPlanResources) InitNilWithZero() {
 }
 
 func (m *AskPlanResources) Add(resources *AskPlanResources) error {
-	m.InitNilWithZero()
+	m.initNilWithZero()
 	if err := m.GetGPU().Add(resources.GetGPU()); err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func (m *AskPlanResources) Add(resources *AskPlanResources) error {
 }
 
 func (m *AskPlanResources) Sub(resources *AskPlanResources) error {
-	m.InitNilWithZero()
+	m.initNilWithZero()
 	if ok, desc := m.Contains(resources); !ok {
 		return errors.New(desc)
 	}
