@@ -69,7 +69,7 @@ func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
 		return nil, err
 	}
 
-	if _, err = d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, bigID, false); err != nil {
+	if err = <-d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, bigID, false); err != nil {
 		return nil, err
 	}
 

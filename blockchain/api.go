@@ -41,7 +41,7 @@ type EventsAPI interface {
 
 type MarketAPI interface {
 	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) chan DealOrError
-	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (*types.Transaction, error)
+	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) chan error
 	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error)
 	GetDealsAmount(ctx context.Context) (*big.Int, error)
 	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) chan OrderOrError
@@ -233,9 +233,26 @@ func (api *BasicMarketAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, 
 	ch <- DealOrError{deal, err}
 }
 
-func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) (*types.Transaction, error) {
+func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) chan error {
+	ch := make(chan error, 0)
+	go api.closeDeal(ctx, key, dealID, blacklisted, ch)
+	return ch
+}
+
+func (api *BasicMarketAPI) closeDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool, ch chan error) {
 	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
-	return api.marketContract.CloseDeal(opts, dealID, blacklisted)
+	tx, err := api.marketContract.CloseDeal(opts, dealID, blacklisted)
+	if err != nil {
+		ch <- err
+		return
+	}
+
+	_, err = waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.DealUpdatedTopic)
+	if err != nil {
+		ch <- err
+		return
+	}
+	ch <- nil
 }
 
 func (api *BasicMarketAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error) {
