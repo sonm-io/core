@@ -1138,6 +1138,18 @@
 			"revisionTime": "2018-04-24T00:46:23Z"
 		},
 		{
+			"checksumSHA1": "F7vsuKOVSMnFSi90odRxfhBEBeA=",
+			"path": "github.com/lib/pq",
+			"revision": "d34b9ff171c21ad295489235aec8b6626023cd04",
+			"revisionTime": "2018-03-27T07:18:24Z"
+		},
+		{
+			"checksumSHA1": "AU3fA8Sm33Vj9PBoRPSeYfxLRuE=",
+			"path": "github.com/lib/pq/oid",
+			"revision": "d34b9ff171c21ad295489235aec8b6626023cd04",
+			"revisionTime": "2018-03-27T07:18:24Z"
+		},
+		{
 			"checksumSHA1": "werI1dw2MgXO9lW7XDBcpgnT0g8=",
 			"path": "github.com/libp2p/go-reuseport",
 			"revision": "5f99154da15f232dd930262ecfaa44baa20bd2f8",
