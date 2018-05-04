@@ -35,6 +35,8 @@ const (
 	eventRetryTime = time.Second * 10
 )
 
+var poolFilters = newFiltersPool()
+
 type DWH struct {
 	mu          sync.RWMutex
 	ctx         context.Context
@@ -158,7 +160,9 @@ func (w *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 }
 
 func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDealsReply, error) {
-	var filters []*filter
+	filters := poolFilters.Get()
+	defer poolFilters.Put(filters)
+
 	if request.Status > 0 {
 		filters = append(filters, newFilter("Status", eq, request.Status, "AND"))
 	}
@@ -262,7 +266,9 @@ func (w *DWH) GetDealConditions(ctx context.Context, request *pb.DealConditionsR
 }
 
 func (w *DWH) getDealConditions(ctx context.Context, request *pb.DealConditionsRequest) (*pb.DealConditionsReply, error) {
-	var filters []*filter
+	filters := poolFilters.Get()
+	defer poolFilters.Put(filters)
+
 	if len(request.Sortings) < 1 {
 		request.Sortings = []*pb.SortingOption{{Field: "Id", Order: pb.SortingOrder_Desc}}
 	}
@@ -307,7 +313,9 @@ func (w *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 }
 
 func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWHOrdersReply, error) {
-	var filters []*filter
+	filters := poolFilters.Get()
+	defer poolFilters.Put(filters)
+
 	filters = append(filters, newFilter("Status", eq, pb.OrderStatus_ORDER_ACTIVE, "AND"))
 	if request.DealID != nil && !request.DealID.IsZero() {
 		filters = append(filters, newFilter("DealID", eq, request.DealID.Unwrap().String(), "AND"))
@@ -390,7 +398,6 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	}
 
 	var (
-		filters      []*filter
 		orderType    pb.OrderType
 		priceOp      string
 		durationOp   string
@@ -410,6 +417,8 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 		benchOp = lte
 		sortingOrder = pb.SortingOrder_Desc
 	}
+	filters := poolFilters.Get()
+	defer poolFilters.Put(filters)
 
 	filters = append(filters, newFilter("Type", eq, orderType, "AND"))
 	filters = append(filters, newFilter("Status", eq, pb.OrderStatus_ORDER_ACTIVE, "AND"))
@@ -510,7 +519,9 @@ func (w *DWH) GetProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 }
 
 func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb.ProfilesReply, error) {
-	var filters []*filter
+	filters := poolFilters.Get()
+	defer poolFilters.Put(filters)
+
 	switch request.Role {
 	case pb.ProfileRole_Supplier:
 		filters = append(filters, newFilter("ActiveAsks", gte, 0, "AND"))
@@ -640,7 +651,9 @@ func (w *DWH) GetBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 }
 
 func (w *DWH) getBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
-	var filters []*filter
+	filters := poolFilters.Get()
+	defer poolFilters.Put(filters)
+
 	if request.OwnerID != nil && !request.OwnerID.IsZero() {
 		filters = append(filters, newFilter("AdderID", eq, request.OwnerID.Unwrap().Hex(), "AND"))
 	}
@@ -690,7 +703,9 @@ func (w *DWH) GetValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 }
 
 func (w *DWH) getValidators(ctx context.Context, request *pb.ValidatorsRequest) (*pb.ValidatorsReply, error) {
-	var filters []*filter
+	filters := poolFilters.Get()
+	defer poolFilters.Put(filters)
+
 	if request.ValidatorLevel != nil {
 		level := request.ValidatorLevel
 		filters = append(filters, newFilter("Level", opsTranslator[level.Operator], level.Value, "AND"))
@@ -768,7 +783,9 @@ func (w *DWH) GetWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 }
 
 func (w *DWH) getWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.WorkersReply, error) {
-	var filters []*filter
+	filters := poolFilters.Get()
+	defer poolFilters.Put(filters)
+
 	if request.MasterID != nil && !request.MasterID.IsZero() {
 		filters = append(filters, newFilter("Level", eq, request.MasterID, "AND"))
 	}
