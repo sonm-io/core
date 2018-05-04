@@ -40,15 +40,15 @@ type EventsAPI interface {
 }
 
 type MarketAPI interface {
-	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) chan DealOrError
-	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) chan error
+	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) <-chan DealOrError
+	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) <-chan error
 	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error)
 	GetDealsAmount(ctx context.Context) (*big.Int, error)
-	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) chan OrderOrError
-	CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) chan error
+	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) <-chan OrderOrError
+	CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) <-chan error
 	GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Order, error)
 	GetOrdersAmount(ctx context.Context) (*big.Int, error)
-	Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) (*types.Transaction, error)
+	Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) <-chan error
 	RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) (*types.Transaction, error)
 	ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (*types.Transaction, error)
 	RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) (*types.Transaction, error)
@@ -209,7 +209,7 @@ func NewBasicMarket(client *ethclient.Client, address common.Address, gasPrice i
 	}, nil
 }
 
-func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) chan DealOrError {
+func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) <-chan DealOrError {
 	ch := make(chan DealOrError, 0)
 	go api.openDeal(ctx, key, askID, bidID, ch)
 	return ch
@@ -233,7 +233,7 @@ func (api *BasicMarketAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, 
 	ch <- DealOrError{deal, err}
 }
 
-func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) chan error {
+func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) <-chan error {
 	ch := make(chan error, 0)
 	go api.closeDeal(ctx, key, dealID, blacklisted, ch)
 	return ch
@@ -294,7 +294,7 @@ func (api *BasicMarketAPI) GetDealsAmount(ctx context.Context) (*big.Int, error)
 	return api.marketContract.GetDealsAmount(getCallOptions(ctx))
 }
 
-func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) chan OrderOrError {
+func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) <-chan OrderOrError {
 	ch := make(chan OrderOrError, 0)
 	go api.placeOrder(ctx, key, order, ch)
 	return ch
@@ -333,7 +333,7 @@ func (api *BasicMarketAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey
 	ch <- OrderOrError{orderInfo, err}
 }
 
-func (api *BasicMarketAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) chan error {
+func (api *BasicMarketAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) <-chan error {
 	ch := make(chan error, 0)
 	go api.cancelOrder(ctx, key, id, ch)
 	return ch
@@ -394,9 +394,25 @@ func (api *BasicMarketAPI) GetOrdersAmount(ctx context.Context) (*big.Int, error
 	return api.marketContract.GetOrdersAmount(getCallOptions(ctx))
 }
 
-func (api *BasicMarketAPI) Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) (*types.Transaction, error) {
+func (api *BasicMarketAPI) Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) <-chan error {
+	ch := make(chan error, 0)
+	go api.bill(ctx, key, dealID, ch)
+	return ch
+}
+
+func (api *BasicMarketAPI) bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, ch chan error) {
 	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
-	return api.marketContract.Bill(opts, dealID)
+	tx, err := api.marketContract.Bill(opts, dealID)
+	if err != nil {
+		ch <- err
+		return
+	}
+
+	if _, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.BilledTopic); err != nil {
+		ch <- err
+		return
+	}
+	ch <- nil
 }
 
 func (api *BasicMarketAPI) RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) (*types.Transaction, error) {
