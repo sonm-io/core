@@ -4,6 +4,8 @@ import (
 	"errors"
 	"math/big"
 	"sort"
+
+	pb "github.com/sonm-io/core/proto"
 )
 
 type WeightedOrder struct {
@@ -52,9 +54,8 @@ func (m *regressionClassifier) Classify(orders []*MarketOrder) ([]WeightedOrder,
 		if err != nil {
 			return nil, err
 		}
-
 		distance := normalizer.Denormalize(normalizedPrice) - expectation[i]
-
+		orders[i].CreatedTS = &pb.Timestamp{}
 		weightedOrders = append(weightedOrders, WeightedOrder{
 			Order:    orders[i],
 			Distance: distance,
@@ -156,7 +157,7 @@ func (m *regressionClassifier) RecalculateWeights(orders []WeightedOrder) {
 
 	now := float64(m.clock().Unix())
 	for _, order := range orders {
-		order.Weight = order.Weight * m.sigmoid(now-float64(order.Order.CreatedTS))
+		order.Weight = order.Weight * m.sigmoid(now-float64(order.Order.CreatedTS.Seconds))
 	}
 }
 

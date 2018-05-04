@@ -73,6 +73,7 @@ It has these top-level messages:
 	DWHBenchmarkConditions
 	MaxMinUint64
 	MaxMinBig
+	MaxMinTimestamp
 	CmpUint64
 	BlacklistQuery
 	StartTaskRequest

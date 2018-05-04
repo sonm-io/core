@@ -93,9 +93,10 @@ message OrdersRequest {
     CmpUint64 netflags = 11;
     IdentityLevel creatorIdentityLevel = 12;
     DWHBenchmarkConditions benchmarks = 13;
-    uint64 limit = 14;
-    uint64 offset = 15;
-    repeated SortingOption sortings = 16;
+    MaxMinTimestamp createdTS = 14;
+    uint64 limit = 15;
+    uint64 offset = 16;
+    repeated SortingOption sortings = 17;
 }
 
 message MatchingOrdersRequest {
@@ -115,7 +116,7 @@ message DWHOrder {
     string creatorName = 3;
     string creatorCountry = 4;
     bytes creatorCertificates = 5;
-    uint64 CreatedTS = 6;
+    Timestamp CreatedTS = 6;
 }
 
 message DealCondition {
@@ -258,6 +259,11 @@ message MaxMinUint64 {
 message MaxMinBig {
     BigInt max = 1;
     BigInt min = 2;
+}
+
+message MaxMinTimestamp {
+    Timestamp max = 1;
+    Timestamp min = 2;
 }
 
 message CmpUint64 {
