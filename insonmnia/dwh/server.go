@@ -347,6 +347,15 @@ func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 	if request.CreatorIdentityLevel > 0 {
 		filters = append(filters, newFilter("CreatorIdentityLevel", gte, request.CreatorIdentityLevel, "AND"))
 	}
+	if request.CreatedTS != nil {
+		createdTS := request.CreatedTS
+		if createdTS.Max != nil && createdTS.Max.Seconds > 0 {
+			filters = append(filters, newFilter("CreatedTS", lte, createdTS.Max.Seconds, "AND"))
+		}
+		if createdTS.Min != nil && createdTS.Min.Seconds > 0 {
+			filters = append(filters, newFilter("CreatedTS", gte, createdTS.Min.Seconds, "AND"))
+		}
+	}
 	if request.Benchmarks != nil {
 		w.addBenchmarksConditions(request.Benchmarks, &filters)
 	}
@@ -2113,7 +2122,7 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 			},
 		},
 
-		CreatedTS:            createdTS,
+		CreatedTS:            &pb.Timestamp{Seconds: int64(createdTS)},
 		CreatorIdentityLevel: creatorIdentityLevel,
 		CreatorName:          creatorName,
 		CreatorCountry:       creatorCountry,
