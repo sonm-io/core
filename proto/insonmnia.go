@@ -50,6 +50,9 @@ func (m *Duration) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (m *EthAddress) Unwrap() common.Address {
+	if m == nil {
+		return common.Address{}
+	}
 	return common.BytesToAddress(m.Address)
 }
 
