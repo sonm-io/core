@@ -893,6 +893,14 @@ func (m *Miner) GetDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 	}, nil
 }
 
+func (m *Miner) AskPlanByTaskID(taskID string) (*pb.AskPlan, error) {
+	planID, err := m.resources.AskPlanIDByTaskID(taskID)
+	if err != nil {
+		return nil, err
+	}
+	return m.salesman.AskPlan(planID)
+}
+
 // todo: make the `miner.Init() error` method to kickstart all initial jobs for the Worker instance.
 // (state loading, benchmarking, market sync).
 

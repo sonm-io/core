@@ -39,6 +39,17 @@ func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
 	}
 }
 
+//TODO: rework needed — looks like it should not be here
+func (m *Scheduler) AskPlanIDByTaskID(taskID string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	askID, ok := m.taskToAskPlan[taskID]
+	if !ok {
+		return "", fmt.Errorf("ask plan for task %s is not found", taskID)
+	}
+	return askID, nil
+}
+
 func (m *Scheduler) GetUsage() (*sonm.AskPlanResources, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

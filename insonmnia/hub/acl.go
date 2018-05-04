@@ -9,7 +9,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
-	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -35,7 +34,7 @@ type dealAuthorization struct {
 }
 
 type DealInfoSupplier interface {
-	GetDealInfo(ctx context.Context, id *sonm.ID) (*pb.DealInfoReply, error)
+	GetDealInfo(ctx context.Context, id *sonm.ID) (*sonm.DealInfoReply, error)
 }
 
 // todo: do not accept Hub as param, use some interface that have DealInfo method.
@@ -99,7 +98,7 @@ func newFieldDealExtractor() DealExtractor {
 			return "", errInvalidDealField
 		}
 
-		dealID, ok := dealIdValue.Interface().(*pb.BigInt)
+		dealID, ok := dealIdValue.Interface().(*sonm.BigInt)
 		if !ok {
 			return "", errInvalidDealField
 		}
@@ -151,8 +150,15 @@ func newFromNamedTaskDealExtractor(hub *Hub, name string) DealExtractor {
 			return "", status.Errorf(codes.NotFound, "task %s not found", taskID.String())
 		}
 
-		// todo: extract dealID associated with task.
-		panic("fix this auth method")
+		askPlan, err := hub.worker.AskPlanByTaskID(taskID.Interface().(string))
+		if err != nil {
+			return "", status.Errorf(codes.NotFound, "ask plan for task %s not found - %s", taskID.String(), err)
+		}
+		if askPlan.GetDealID().IsZero() {
+			return "", status.Errorf(codes.NotFound, "deal for ask plan %s, task %s not found, probably it has been ended",
+				askPlan.GetID(), taskID.String())
+		}
+		return structs.DealID(askPlan.GetDealID().Unwrap().String()), nil
 	}
 }
 
