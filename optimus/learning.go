@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"sort"
 
-	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/proto"
 )
 
 type WeightedOrder struct {
@@ -54,8 +54,10 @@ func (m *regressionClassifier) Classify(orders []*MarketOrder) ([]WeightedOrder,
 		if err != nil {
 			return nil, err
 		}
+
 		distance := normalizer.Denormalize(normalizedPrice) - expectation[i]
-		orders[i].CreatedTS = &pb.Timestamp{}
+
+		orders[i].CreatedTS = &sonm.Timestamp{}
 		weightedOrders = append(weightedOrders, WeightedOrder{
 			Order:    orders[i],
 			Distance: distance,
