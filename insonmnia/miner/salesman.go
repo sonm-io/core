@@ -215,16 +215,18 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 	for _, plan := range plans {
 		orderId := plan.GetOrderID()
 		dealId := plan.GetDealID()
+		//TODO: Drop hardcode
+		ctxWithTimeout, _ := context.WithTimeout(ctx, time.Second*180)
 		if !dealId.IsZero() {
-			if err := m.checkDeal(ctx, plan); err != nil {
+			if err := m.checkDeal(ctxWithTimeout, plan); err != nil {
 				m.log.Warnf("could not check deal %s for plan %s - %s", dealId.Unwrap().String(), plan.ID, err)
 			}
 		} else if !orderId.IsZero() {
-			if err := m.checkOrder(ctx, plan); err != nil {
-				m.log.Warnf("could not check order %s for plan %s - %s", dealId.Unwrap().String(), plan.ID, err)
+			if err := m.checkOrder(ctxWithTimeout, plan); err != nil {
+				m.log.Warnf("could not check order %s for plan %s - %s", orderId.Unwrap().String(), plan.ID, err)
 			}
 		} else {
-			if err := m.placeOrder(ctx, plan); err != nil {
+			if err := m.placeOrder(ctxWithTimeout, plan); err != nil {
 				m.log.Warnf("could not place order for plan %s - %s", plan.ID, err)
 			}
 		}
@@ -401,7 +403,7 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	}
 	ordOrErr := <-m.eth.Market().PlaceOrder(ctx, m.ethkey, order)
 	if ordOrErr.Err != nil {
-		return fmt.Errorf("could not place order on market for plan %s - %s", plan.ID, err)
+		return fmt.Errorf("could not place order on bc market - %s", ordOrErr.Err)
 	}
 	plan.OrderID = ordOrErr.Order.Id
 	if err := m.state.SaveAskPlan(plan); err != nil {
