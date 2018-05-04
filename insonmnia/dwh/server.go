@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"strings"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	_ "github.com/mattn/go-sqlite3"
@@ -32,7 +34,8 @@ import (
 )
 
 const (
-	eventRetryTime = time.Second * 10
+	eventRetryTime = time.Second * 3
+	numWorkers     = 40
 )
 
 type DWH struct {
@@ -48,6 +51,7 @@ type DWH struct {
 	certRotator util.HitlessCertRotator
 	blockchain  blockchain.API
 	commands    map[string]string
+	runQuery    QueryRunner
 }
 
 func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, error) {
@@ -97,6 +101,9 @@ func (w *DWH) Serve() error {
 	} else {
 		w.logger.Info("monitoring disabled")
 	}
+
+	w.logger.Info("starting with backend", zap.String("backend", w.cfg.Storage.Backend),
+		zap.String("endpoint", w.cfg.Storage.Endpoint))
 
 	wg := errgroup.Group{}
 	wg.Go(w.serveGRPC)
@@ -204,7 +211,7 @@ func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 		w.addBenchmarksConditions(request.Benchmarks, &filters)
 	}
 
-	rows, _, err := runQuery(w.db, &queryOpts{
+	rows, _, err := w.runQuery(w.db, &queryOpts{
 		table:    "Deals",
 		filters:  filters,
 		sortings: filterSortings(request.Sortings, DealsColumns),
@@ -268,7 +275,7 @@ func (w *DWH) getDealConditions(ctx context.Context, request *pb.DealConditionsR
 	}
 
 	filters = append(filters, newFilter("DealID", eq, request.DealID.Unwrap().String(), "AND"))
-	rows, _, err := runQuery(w.db, &queryOpts{
+	rows, _, err := w.runQuery(w.db, &queryOpts{
 		table:    "DealConditions",
 		filters:  filters,
 		sortings: request.Sortings,
@@ -353,7 +360,7 @@ func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 	if request.Benchmarks != nil {
 		w.addBenchmarksConditions(request.Benchmarks, &filters)
 	}
-	rows, _, err := runQuery(w.db, &queryOpts{
+	rows, _, err := w.runQuery(w.db, &queryOpts{
 		table:    "Orders",
 		filters:  filters,
 		sortings: filterSortings(request.Sortings, OrdersColumns),
@@ -457,7 +464,7 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	filters = append(filters, newFilter("GPUCashHashrate", benchOp, order.Order.Benchmarks.GPUCashHashrate(), "AND"))
 	filters = append(filters, newFilter("GPURedshift", benchOp, order.Order.Benchmarks.GPURedshift(), "AND"))
 
-	rows, _, err := runQuery(w.db, &queryOpts{
+	rows, _, err := w.runQuery(w.db, &queryOpts{
 		table:    "Orders",
 		filters:  filters,
 		sortings: []*pb.SortingOption{{Field: "Price", Order: sortingOrder}},
@@ -541,7 +548,7 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 		offset:   request.Offset,
 		limit:    request.Limit,
 	}
-	if request.BlacklistQuery != nil {
+	if request.BlacklistQuery != nil && request.BlacklistQuery.OwnerID != nil {
 		opts.selectAs = "AS p"
 		switch request.BlacklistQuery.Option {
 		case pb.BlacklistOption_WithoutMatching:
@@ -557,7 +564,7 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 		}
 	}
 
-	rows, _, err := runQuery(w.db, opts)
+	rows, _, err := w.runQuery(w.db, opts)
 	if err != nil {
 		w.logger.Error("failed to runQuery", zap.Error(err), zap.Any("request", request))
 		return nil, status.Error(codes.Internal, "failed to GetProfiles")
@@ -653,7 +660,7 @@ func (w *DWH) getBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 	if request.OwnerID != nil && !request.OwnerID.IsZero() {
 		filters = append(filters, newFilter("AdderID", eq, request.OwnerID.Unwrap().Hex(), "AND"))
 	}
-	rows, _, err := runQuery(w.db, &queryOpts{
+	rows, _, err := w.runQuery(w.db, &queryOpts{
 		table:    "Blacklists",
 		filters:  filters,
 		sortings: []*pb.SortingOption{},
@@ -704,7 +711,7 @@ func (w *DWH) getValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 		level := request.ValidatorLevel
 		filters = append(filters, newFilter("Level", opsTranslator[level.Operator], level.Value, "AND"))
 	}
-	rows, _, err := runQuery(w.db, &queryOpts{
+	rows, _, err := w.runQuery(w.db, &queryOpts{
 		table:    "Validators",
 		filters:  filters,
 		sortings: request.Sortings,
@@ -781,7 +788,7 @@ func (w *DWH) getWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 	if request.MasterID != nil && !request.MasterID.IsZero() {
 		filters = append(filters, newFilter("Level", eq, request.MasterID, "AND"))
 	}
-	rows, _, err := runQuery(w.db, &queryOpts{
+	rows, _, err := w.runQuery(w.db, &queryOpts{
 		table:    "Workers",
 		filters:  filters,
 		sortings: []*pb.SortingOption{},
@@ -833,7 +840,7 @@ func (w *DWH) monitorBlockchain() error {
 func (w *DWH) watchMarketEvents() error {
 	lastKnownBlock, err := w.getLastKnownBlockTS()
 	if err != nil {
-		if err := w.updateLastKnownBlockTS(0); err != nil {
+		if err := w.insertLastKnownBlockTS(0); err != nil {
 			return err
 		}
 		lastKnownBlock = 0
@@ -841,39 +848,52 @@ func (w *DWH) watchMarketEvents() error {
 
 	w.logger.Info("starting from block", zap.Int64("block_number", lastKnownBlock))
 
-	dealEvents, err := w.blockchain.Events().GetEvents(w.ctx, big.NewInt(lastKnownBlock))
+	events, err := w.blockchain.Events().GetEvents(w.ctx, big.NewInt(lastKnownBlock))
 	if err != nil {
 		return err
 	}
 
+	wg := &sync.WaitGroup{}
+	for workerID := 0; workerID < numWorkers; workerID++ {
+		wg.Add(1)
+		go w.runEventWorker(wg, workerID, events)
+	}
+	wg.Wait()
+
+	return nil
+}
+
+func (w *DWH) runEventWorker(wg *sync.WaitGroup, workerID int, events chan *blockchain.Event) {
+	defer wg.Done()
 	for {
 		select {
 		case <-w.ctx.Done():
-			w.logger.Info("context cancelled (watchMarketEvents)")
-			return nil
-		case event, ok := <-dealEvents:
+			w.logger.Info("context cancelled (watchMarketEvents)", zap.Int("worker_id", workerID))
+			return
+		case event, ok := <-events:
 			if !ok {
-				return errors.New("events channel closed")
+				w.logger.Info("events channel closed", zap.Int("worker_id", workerID))
+				return
 			}
-
 			if err := w.updateLastKnownBlockTS(int64(event.BlockNumber)); err != nil {
 				w.logger.Error("failed to updateLastKnownBlock", zap.Error(err),
-					zap.Uint64("block_number", event.BlockNumber))
+					zap.Uint64("block_number", event.BlockNumber), zap.Int("worker_id", workerID))
 			}
-
 			// Events in the same block can come in arbitrary order. If two events have to be processed
 			// in a specific order (e.g., OrderPlaced > DealOpened), we need to retry if the order is
 			// messed up.
 			if err := w.processEvent(event); err != nil {
+				if strings.Contains(err.Error(), "constraint") {
+					continue
+				}
 				w.logger.Error("failed to processEvent, retrying", zap.Error(err),
 					zap.Uint64("block_number", event.BlockNumber),
-					zap.String("event_type", reflect.TypeOf(event.Data).String()))
-
-				go w.retryEvent(event)
+					zap.String("event_type", reflect.TypeOf(event.Data).String()),
+					zap.Any("event_data", event.Data), zap.Int("worker_id", workerID))
+				w.retryEvent(event)
 			}
-
-			w.logger.Info("processed event", zap.String("event_type", reflect.TypeOf(event.Data).String()),
-				zap.Any("event_data", event.Data))
+			w.logger.Debug("processed event", zap.String("event_type", reflect.TypeOf(event.Data).String()),
+				zap.Any("event_data", event.Data), zap.Int("worker_id", workerID))
 		}
 	}
 }
@@ -932,7 +952,8 @@ func (w *DWH) retryEvent(event *blockchain.Event) {
 		if err := w.processEvent(event); err != nil {
 			w.logger.Error("failed to retry processEvent", zap.Error(err),
 				zap.Uint64("block_number", event.BlockNumber),
-				zap.String("event_type", reflect.TypeOf(event.Data).Name()))
+				zap.String("event_type", reflect.TypeOf(event.Data).String()),
+				zap.Any("event_data", event.Data))
 		}
 	}
 }
@@ -961,6 +982,14 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 	tx, err := w.db.Begin()
 	if err != nil {
 		return errors.Wrap(err, "failed to begin transaction")
+	}
+
+	if err := CheckBenchmarks(deal.Benchmarks); err != nil {
+		if err := tx.Rollback(); err != nil {
+			w.logger.Error("transaction rollback failed", zap.Error(err))
+		}
+
+		return err
 	}
 
 	_, err = tx.Exec(
@@ -1008,7 +1037,6 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 
 	_, err = tx.Exec(
 		w.commands["insertDealCondition"],
-		nil,
 		deal.SupplierID.Unwrap().Hex(),
 		deal.ConsumerID.Unwrap().Hex(),
 		deal.MasterID.Unwrap().Hex(),
@@ -1251,7 +1279,6 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 		}
 		_, err = tx.Exec(
 			w.commands["insertDealCondition"],
-			nil,
 			deal.GetDeal().SupplierID.Unwrap().Hex(),
 			deal.GetDeal().ConsumerID.Unwrap().Hex(),
 			deal.GetDeal().MasterID.Unwrap().Hex(),
@@ -1360,7 +1387,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		} else {
 			bidOrders = 1
 		}
-		_, err = tx.Exec(w.commands["insertProfileUserID"], nil, order.AuthorID.Unwrap().Hex(), askOrders, bidOrders)
+		_, err = tx.Exec(w.commands["insertProfileUserID"], order.AuthorID.Unwrap().Hex(), askOrders, bidOrders)
 		if err != nil {
 			if err := tx.Rollback(); err != nil {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1383,16 +1410,23 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		}
 	}
 
-	var dealID string
-	if order.DealID != nil {
-		dealID = order.DealID.Unwrap().String()
+	if order.DealID == nil {
+		order.DealID = pb.NewBigIntFromInt(0)
+	}
+
+	if err := CheckBenchmarks(order.Benchmarks); err != nil {
+		if err := tx.Rollback(); err != nil {
+			w.logger.Error("transaction rollback failed", zap.Error(err))
+		}
+
+		return err
 	}
 
 	_, err = tx.Exec(
 		w.commands["insertOrder"],
 		order.Id.Unwrap().String(),
 		eventTS,
-		dealID,
+		order.DealID.Unwrap().String(),
 		uint64(order.OrderType),
 		uint64(order.OrderStatus),
 		order.AuthorID.Unwrap().Hex(),
@@ -1474,7 +1508,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 				w.logger.Error("transaction rollback failed", zap.Error(err))
 			}
 
-			return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", order.AuthorID)
+			return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", order.AuthorID.Unwrap().String())
 		}
 
 		if err := tx.Commit(); err != nil {
@@ -1581,10 +1615,9 @@ func (w *DWH) onValidatorDeleted(validatorID common.Address) error {
 }
 
 func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
-	cert, err := w.blockchain.ProfileRegistry().GetCertificate(w.ctx, certificateID)
-
+	certificate, err := w.blockchain.ProfileRegistry().GetCertificate(w.ctx, certificateID)
 	if err != nil {
-		return errors.Wrap(err, "failed to GetAttr")
+		return errors.Wrap(err, "failed to GetCertificate")
 	}
 
 	tx, err := w.db.Begin()
@@ -1593,11 +1626,11 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 	}
 
 	_, err = tx.Exec(w.commands["insertCertificate"],
-		cert.OwnerID.Unwrap().Hex(),
-		cert.Attribute,
-		(cert.Attribute/uint64(math.Pow(10, 2)))%10,
-		cert.Value,
-		cert.ValidatorID.Unwrap().Hex())
+		certificate.OwnerID.Unwrap().Hex(),
+		certificate.Attribute,
+		(certificate.Attribute/uint64(math.Pow(10, 2)))%10,
+		certificate.Value,
+		certificate.ValidatorID.Unwrap().Hex())
 	if err != nil {
 		if err := tx.Rollback(); err != nil {
 			w.logger.Error("transaction rollback failed", zap.Error(err))
@@ -1606,7 +1639,7 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 		return errors.Wrap(err, "failed to insertCertificate")
 	}
 
-	if err := w.updateProfile(tx, cert); err != nil {
+	if err := w.updateProfile(tx, certificate); err != nil {
 		if err := tx.Rollback(); err != nil {
 			w.logger.Error("transaction rollback failed", zap.Error(err))
 		}
@@ -1614,7 +1647,7 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 		return errors.Wrap(err, "failed to updateProfile")
 	}
 
-	if err := w.updateEntitiesByProfile(tx, cert); err != nil {
+	if err := w.updateEntitiesByProfile(tx, certificate); err != nil {
 		if err := tx.Rollback(); err != nil {
 			w.logger.Error("transaction rollback failed", zap.Error(err))
 		}
@@ -1632,7 +1665,7 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 func (w *DWH) updateProfile(tx *sql.Tx, certificate *pb.Certificate) error {
 	// Create a Profile entry if it doesn't exist yet.
 	if _, err := w.getProfileInfo(w.ctx, certificate.OwnerID, false); err != nil {
-		_, err = tx.Exec(w.commands["insertProfileUserID"], nil, certificate.OwnerID.Unwrap().Hex(), 0, 0)
+		_, err = tx.Exec(w.commands["insertProfileUserID"], certificate.OwnerID.Unwrap().Hex(), 0, 0)
 		if err != nil {
 			return errors.Wrap(err, "failed to insertProfileUserID")
 		}
@@ -1711,12 +1744,12 @@ func (w *DWH) updateEntitiesByProfile(tx *sql.Tx, certificate *pb.Certificate) e
 		return errors.Wrap(err, "failed to updateOrders")
 	}
 
-	_, err = tx.Exec(w.commands["updateDealsSupplier"], profile.Certificates, profile.UserID.Unwrap().Hex())
+	_, err = tx.Exec(w.commands["updateDealsSupplier"], []byte(profile.Certificates), profile.UserID.Unwrap().Hex())
 	if err != nil {
 		return errors.Wrap(err, "failed to updateDealsSupplier")
 	}
 
-	_, err = tx.Exec(w.commands["updateDealsConsumer"], profile.Certificates, profile.UserID.Unwrap().Hex())
+	_, err = tx.Exec(w.commands["updateDealsConsumer"], []byte(profile.Certificates), profile.UserID.Unwrap().Hex())
 	if err != nil {
 		return errors.Wrap(err, "failed to updateDealsConsumer")
 	}
@@ -2001,16 +2034,18 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 		return nil, err
 	}
 
-	bigPrice := new(big.Int)
-	bigPrice.SetString(price, 10)
-	bigFrozenSum := new(big.Int)
-	bigFrozenSum.SetString(frozenSum, 10)
-
+	bigPrice, err := pb.NewBigIntFromString(price)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to NewBigIntFromString (Price)")
+	}
+	bigFrozenSum, err := pb.NewBigIntFromString(frozenSum)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to NewBigIntFromString (FrozenSum)")
+	}
 	bigID, err := pb.NewBigIntFromString(id)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to NewBigIntFromString (ID)")
 	}
-
 	bigDealID, err := pb.NewBigIntFromString(dealID)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to NewBigIntFromString (DealID)")
@@ -2025,12 +2060,12 @@ func (w *DWH) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 			AuthorID:       pb.NewEthAddress(common.HexToAddress(author)),
 			CounterpartyID: pb.NewEthAddress(common.HexToAddress(counterAgent)),
 			Duration:       duration,
-			Price:          pb.NewBigInt(bigPrice),
+			Price:          bigPrice,
 			Netflags:       netflags,
 			IdentityLevel:  pb.IdentityLevel(identityLevel),
 			Blacklist:      blacklist,
 			Tag:            tag,
-			FrozenSum:      pb.NewBigInt(bigFrozenSum),
+			FrozenSum:      bigFrozenSum,
 			Benchmarks: &pb.Benchmarks{
 				Values: []uint64{
 					cpuSysbenchMulti,
@@ -2306,6 +2341,17 @@ func (w *DWH) updateLastKnownBlockTS(blockNumber int64) error {
 	defer w.mu.Unlock()
 
 	if _, err := w.db.Exec(w.commands["updateLastKnownBlock"], blockNumber); err != nil {
+		return errors.Wrap(err, "failed to updateLastKnownBlock")
+	}
+
+	return nil
+}
+
+func (w *DWH) insertLastKnownBlockTS(blockNumber int64) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if _, err := w.db.Exec(w.commands["insertLastKnownBlock"], blockNumber); err != nil {
 		return errors.Wrap(err, "failed to updateLastKnownBlock")
 	}
 
