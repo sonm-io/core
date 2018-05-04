@@ -308,7 +308,7 @@ func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 
 		cmd.Printf("Start at:     %s\r\n", start.Format(time.RFC3339))
 		cmd.Printf("End at:       %s\r\n", end.Format(time.RFC3339))
-		if !lastBill.IsZero() { // fixme: this check is not working o_O
+		if lastBill.Unix() > 0 {
 			cmd.Printf("Last bill:    %s\r\n", lastBill.Format(time.RFC3339))
 		}
 	} else {
