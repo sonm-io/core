@@ -3,7 +3,6 @@ package miner
 import (
 	"context"
 	"crypto/ecdsa"
-	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -11,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware"
@@ -38,6 +38,12 @@ type Salesman struct {
 	log *zap.SugaredLogger
 	mu  sync.Mutex
 }
+
+//TODO: make configurable
+const (
+	regularDealBillPeriod = time.Second * 3600
+	spotDealBillPeriod    = time.Second * 3600 * 24
+)
 
 func NewSalesman(
 	ctx context.Context,
@@ -285,6 +291,45 @@ func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) error {
 		plan.DealID = nil
 		plan.OrderID = nil
 		return m.state.SaveAskPlan(plan)
+	} else {
+		errBill := m.maybeBillDeal(ctx, deal)
+		errClose := m.maybeCloseDeal(ctx, deal)
+		if errBill != nil && errClose != nil {
+			return fmt.Errorf("could not bill deal - %s, and close deal - %s", errBill, errClose)
+		}
+		if errBill != nil {
+			return fmt.Errorf("could not bill deal - %s", errBill)
+		}
+		if errClose != nil {
+			return fmt.Errorf("could not close deal - %s", errClose)
+		}
+	}
+	return nil
+}
+
+func (m *Salesman) maybeBillDeal(ctx context.Context, deal *sonm.Deal) error {
+	start := deal.StartTime.Unix()
+	var billPeriod time.Duration
+	if deal.GetDuration() == 0 {
+		billPeriod = spotDealBillPeriod
+	} else {
+		billPeriod = regularDealBillPeriod
+	}
+
+	if time.Now().Sub(start) > billPeriod {
+		//TODO: fix ETH API and this
+		m.eth.Market().Bill(ctx, m.ethkey, deal.GetId().Unwrap())
+		return nil
+	}
+	return nil
+}
+
+func (m *Salesman) maybeCloseDeal(ctx context.Context, deal *sonm.Deal) error {
+	if deal.GetDuration() != 0 {
+		endTime := deal.GetStartTime().Unix().Add(time.Second * time.Duration(deal.GetDuration()))
+		if time.Now().After(endTime) {
+			m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), false)
+		}
 	}
 	return nil
 }
