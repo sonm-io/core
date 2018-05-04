@@ -216,7 +216,7 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 		orderId := plan.GetOrderID()
 		dealId := plan.GetDealID()
 		//TODO: Drop hardcode
-		ctxWithTimeout, _ := context.WithTimeout(ctx, time.Second*180)
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Second*180)
 		if !dealId.IsZero() {
 			if err := m.checkDeal(ctxWithTimeout, plan); err != nil {
 				m.log.Warnf("could not check deal %s for plan %s - %s", dealId.Unwrap().String(), plan.ID, err)
@@ -230,6 +230,7 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 				m.log.Warnf("could not place order for plan %s - %s", plan.ID, err)
 			}
 		}
+		cancel()
 	}
 }
 
