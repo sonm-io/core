@@ -5,6 +5,7 @@ import (
 	"log"
 	"math/rand"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/blockchain/market"
@@ -55,8 +56,8 @@ func main() {
 	order := &sonm.Order{
 		OrderType:      sonm.OrderType_BID,
 		OrderStatus:    sonm.OrderStatus_ORDER_ACTIVE,
-		AuthorID:       crypto.PubkeyToAddress(prv.PublicKey).Hex(),
-		CounterpartyID: "0x0",
+		AuthorID:       sonm.NewEthAddress(crypto.PubkeyToAddress(prv.PublicKey)),
+		CounterpartyID: sonm.NewEthAddress(common.HexToAddress("0x0")),
 		Duration:       3600 - 50 + (rand.Uint64() % 100),
 		Price:          price,
 		Netflags:       sonm.NetflagsToUint([3]bool{true, true, (rand.Int() % 2) == 0}),
@@ -78,8 +79,8 @@ func main() {
 		return
 	}
 
-	log.Println(res.Order.Id)
-	ordId, err := util.ParseBigInt(res.Order.Id)
+	log.Println(res.Order.Id.Unwrap().String())
+	ordId, err := util.ParseBigInt(res.Order.Id.Unwrap().String())
 	if err != nil {
 		log.Fatalln("Cannot cast")
 		return
