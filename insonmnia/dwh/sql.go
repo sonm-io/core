@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	MaxLimit = 80
+	MaxLimit = 200
 )
 
 const (

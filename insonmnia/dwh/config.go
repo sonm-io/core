@@ -27,7 +27,7 @@ type blockchainConfig struct {
 }
 
 type LoggingConfig struct {
-	Level *logging.Level `required:"true" default:"info"`
+	Level logging.Level `required:"true" default:"debug"`
 }
 
 func NewConfig(path string) (*Config, error) {

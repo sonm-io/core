@@ -8,7 +8,7 @@ import (
 const (
 	CertificateName           = 1102
 	CertificateCountry        = 1303
-	MaxBenchmark       uint64 = 9223372036854775808
+	MaxBenchmark       uint64 = 1 << 63
 )
 
 var (
