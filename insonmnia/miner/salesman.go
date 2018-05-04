@@ -318,8 +318,7 @@ func (m *Salesman) maybeBillDeal(ctx context.Context, deal *sonm.Deal) error {
 
 	if time.Now().Sub(start) > billPeriod {
 		//TODO: fix ETH API and this
-		m.eth.Market().Bill(ctx, m.ethkey, deal.GetId().Unwrap())
-		return nil
+		return <-m.eth.Market().Bill(ctx, m.ethkey, deal.GetId().Unwrap())
 	}
 	return nil
 }
@@ -328,7 +327,7 @@ func (m *Salesman) maybeCloseDeal(ctx context.Context, deal *sonm.Deal) error {
 	if deal.GetDuration() != 0 {
 		endTime := deal.GetStartTime().Unix().Add(time.Second * time.Duration(deal.GetDuration()))
 		if time.Now().After(endTime) {
-			m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), false)
+			return <-m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), false)
 		}
 	}
 	return nil
