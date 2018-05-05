@@ -91,7 +91,7 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, erro
 
 func (w *DWH) Serve() error {
 	if w.cfg.Blockchain != nil {
-		bch, err := blockchain.NewAPI(blockchain.WithSidechainEndpoint(w.cfg.Blockchain.EthEndpoint))
+		bch, err := blockchain.NewAPI(blockchain.WithConfig(w.cfg.Blockchain))
 		if err != nil {
 			return errors.Wrap(err, "failed to create NewAPI")
 		}

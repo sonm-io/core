@@ -47,6 +47,15 @@ func WithSidechainEndpoint(s string) Option {
 	}
 }
 
+func WithConfig(cfg *Config) Option {
+	return func(o *options) {
+		if cfg != nil {
+			o.apiEndpoint = cfg.Endpoint.String()
+			o.apiSidechainEndpoint = cfg.SidechainEndpoint.String()
+		}
+	}
+}
+
 func WithTimeout(d time.Duration) Option {
 	return func(o *options) {
 		o.logParsePeriod = d

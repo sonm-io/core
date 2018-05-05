@@ -4,6 +4,7 @@ import (
 	"github.com/jinzhu/configor"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
@@ -32,6 +33,7 @@ type Config struct {
 	Endpoint          string              `yaml:"endpoint" required:"true"`
 	Logging           logging.Config      `yaml:"logging"`
 	Resources         *ResourcesConfig    `yaml:"resources" required:"false" `
+	Blockchain        *blockchain.Config  `yaml:"blockchain"`
 	Eth               accounts.EthConfig  `yaml:"ethereum"`
 	NPP               npp.Config          `yaml:"npp"`
 	SSH               *SSHConfig          `yaml:"ssh" required:"false" `
