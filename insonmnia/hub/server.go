@@ -112,6 +112,7 @@ func New(cfg *miner.Config, opts ...Option) (*Hub, error) {
 	wl := NewWhitelist(ctx, &cfg.Whitelist)
 
 	if err := defaults.worker.RunBenchmarks(); err != nil {
+		defaults.worker.Close()
 		return nil, err
 	}
 
