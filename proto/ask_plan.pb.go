@@ -87,6 +87,7 @@ It has these top-level messages:
 	DealInfoReply
 	Empty
 	ID
+	EthID
 	TaskID
 	Count
 	CPUUsage
