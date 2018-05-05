@@ -24,6 +24,7 @@ const (
 
 	BenchIDEnvParamName = "SONM_BENCHMARK_ID"
 	CPUCountBenchParam  = "SONM_CPU_COUNT"
+	GPUVendorParam      = "SONM_GPU_TYPE"
 )
 
 type BenchList interface {

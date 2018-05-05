@@ -774,8 +774,11 @@ func (m *Miner) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) er
 			} else if len(bench.GetImage()) != 0 {
 				d := getDescriptionForBenchmark(bench)
 				d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
+
 				if gpuDevices != nil {
-					d.GPUDevices = []gpu.GPUID{gpu.GPUID(gpuDevices[idx].GetID())}
+					gpuDev := gpuDevices[idx]
+					d.Env[bm.GPUVendorParam] = gpuDev.VendorType().String()
+					d.GPUDevices = []gpu.GPUID{gpu.GPUID(gpuDev.GetID())}
 				}
 				res, err := m.execBenchmarkContainer(bench, d)
 				if err != nil {
