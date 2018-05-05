@@ -4,6 +4,7 @@ import (
 	"github.com/jinzhu/configor"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/logging"
 )
 
@@ -13,17 +14,13 @@ type Config struct {
 	HTTPListenAddr    string             `yaml:"http_address" default:"127.0.0.1:15022"`
 	Eth               accounts.EthConfig `yaml:"ethereum" required:"true"`
 	Storage           *storageConfig     `yaml:"storage" required:"true"`
-	Blockchain        *blockchainConfig  `yaml:"blockchain"`
+	Blockchain        *blockchain.Config `yaml:"blockchain"`
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14004"`
 }
 
 type storageConfig struct {
 	Backend  string `required:"true" yaml:"driver"`
 	Endpoint string `required:"true" yaml:"endpoint"`
-}
-
-type blockchainConfig struct {
-	EthEndpoint string `required:"true" yaml:"eth_endpoint"`
 }
 
 type LoggingConfig struct {

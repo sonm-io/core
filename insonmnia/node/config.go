@@ -3,6 +3,7 @@ package node
 import (
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/npp"
@@ -26,6 +27,7 @@ type Config struct {
 	Node              nodeConfig         `yaml:"node"`
 	NPP               npp.Config         `yaml:"npp"`
 	Log               logging.Config     `yaml:"log"`
+	Blockchain        *blockchain.Config `yaml:"blockchain"`
 	Eth               accounts.EthConfig `yaml:"ethereum" required:"false"`
 	Hub               hubConfig          `yaml:"hub" required:"false"`
 	DWH               dwhConfig          `yaml:"dwh"`
