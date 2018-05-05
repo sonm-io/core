@@ -84,7 +84,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		return nil, err
 	}
 
-	eth, err := blockchain.NewAPI()
+	eth, err := blockchain.NewAPI(blockchain.WithConfig(cfg.Blockchain))
 	if err != nil {
 		return nil, err
 	}

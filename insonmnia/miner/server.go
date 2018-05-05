@@ -107,7 +107,7 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	if o.eth == nil {
-		eth, err := blockchain.NewAPI()
+		eth, err := blockchain.NewAPI(blockchain.WithConfig(cfg.Blockchain))
 		if err != nil {
 			return nil, err
 		}
