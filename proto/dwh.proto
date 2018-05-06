@@ -31,7 +31,7 @@ service DWH {
     rpc GetMatchingOrders(MatchingOrdersRequest) returns (DWHOrdersReply) {}
     rpc GetOrderDetails(BigInt) returns (DWHOrder) {}
     rpc GetProfiles(ProfilesRequest) returns (ProfilesReply) {}
-    rpc GetProfileInfo(EthAddress) returns (Profile) {}
+    rpc GetProfileInfo(EthID) returns (Profile) {}
     rpc GetBlacklist(BlacklistRequest) returns (BlacklistReply) {}
     rpc GetValidators(ValidatorsRequest) returns (ValidatorsReply) {}
     rpc GetDealChangeRequests(BigInt) returns (DealChangeRequestsReply) {}
