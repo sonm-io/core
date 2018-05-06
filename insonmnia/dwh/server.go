@@ -606,11 +606,11 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 	return &pb.ProfilesReply{Profiles: out}, nil
 }
 
-func (w *DWH) GetProfileInfo(ctx context.Context, request *pb.EthAddress) (*pb.Profile, error) {
+func (w *DWH) GetProfileInfo(ctx context.Context, request *pb.EthID) (*pb.Profile, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	return w.getProfileInfo(ctx, request, true)
+	return w.getProfileInfo(ctx, request.GetId(), true)
 }
 
 func (w *DWH) getProfileInfo(ctx context.Context, request *pb.EthAddress, logErrors bool) (*pb.Profile, error) {

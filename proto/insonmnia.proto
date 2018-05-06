@@ -12,6 +12,10 @@ message ID {
     string id = 1;
 }
 
+message EthID {
+    EthAddress id = 1;
+}
+
 message TaskID {
     // Id is task ID itself
     string id = 1;
