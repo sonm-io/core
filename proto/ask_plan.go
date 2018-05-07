@@ -99,7 +99,7 @@ func (m *AskPlanResources) Add(resources *AskPlanResources) error {
 	if err := m.GetGPU().Add(resources.GetGPU()); err != nil {
 		return err
 	}
-	m.CPU.CorePercents += resources.GetCPU().CorePercents
+	m.CPU.CorePercents += resources.GetCPU().GetCorePercents()
 	m.RAM.Size.Bytes += resources.GetRAM().GetSize().GetBytes()
 	m.Storage.Size.Bytes += resources.GetStorage().GetSize().GetBytes()
 	m.Network.Incoming = m.GetNetwork().GetIncoming() && resources.GetNetwork().GetIncoming()

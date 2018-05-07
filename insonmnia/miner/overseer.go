@@ -10,7 +10,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/miner/volume"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -37,9 +36,8 @@ type Description struct {
 	Image         string
 	Auth          string
 	RestartPolicy container.RestartPolicy
-	ParentCGroup  cgroups.CGroup
 	Resources     *pb.AskPlanResources
-	cGroupParent  string
+	CGroupParent  string
 	Cmd           []string
 	Env           map[string]string
 	TaskId        string

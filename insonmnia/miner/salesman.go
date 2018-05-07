@@ -98,6 +98,19 @@ func NewSalesman(
 }
 
 func (m *Salesman) Run(ctx context.Context) {
+	askPlans := m.state.AskPlans()
+	for _, plan := range askPlans {
+		orderID := plan.GetOrderID()
+		dealID := plan.GetDealID()
+		if dealID.IsZero() && !orderID.IsZero() {
+			order, err := m.eth.Market().GetOrderInfo(ctx, orderID.Unwrap())
+			if err != nil {
+				m.log.Warnf("failed to get order info for order %s, stopping waiting for deal - %s", orderID.Unwrap().String(), err)
+				continue
+			}
+			go m.waitForDeal(ctx, order)
+		}
+	}
 	go m.syncRoutine(ctx)
 }
 
@@ -412,11 +425,13 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	if err := m.state.SaveAskPlan(plan); err != nil {
 		return fmt.Errorf("could not save ask plan %s in storage - %s", plan.ID, err)
 	}
+	m.log.Infof("placed order %s on blockchain", plan.OrderID.Unwrap().String())
 	go m.waitForDeal(ctx, ordOrErr.Order)
 	return nil
 }
 
 func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {
+	m.log.Infof("waiting for deal for %s", order.GetId().Unwrap().String())
 	// TODO: make configurable
 	ticker := util.NewImmediateTicker(time.Second * 10)
 	defer ticker.Stop()

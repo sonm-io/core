@@ -139,8 +139,8 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		o.dwh = pb.NewDWHClient(cc)
 	}
 
-	cgName := ""
-	var cgRes *specs.LinuxResources
+	cgName := "sonm-worker-parent"
+	cgRes := &specs.LinuxResources{}
 	if cfg.Resources != nil {
 		cgName = cfg.Resources.Cgroup
 		cgRes = cfg.Resources.Resources
@@ -156,13 +156,12 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		return nil, err
 	}
 
+	hardwareInfo.RAM.Device.Available = hardwareInfo.RAM.Device.Total
 	// check if memory is limited into cgroup
 	if s, err := cgroup.Stats(); err == nil {
-		if s.MemoryLimit < hardwareInfo.RAM.Device.Total {
+		if s.MemoryLimit != 0 && s.MemoryLimit < hardwareInfo.RAM.Device.Total {
 			hardwareInfo.RAM.Device.Available = s.MemoryLimit
 		}
-	} else {
-		hardwareInfo.RAM.Device.Available = hardwareInfo.RAM.Device.Total
 	}
 
 	if err := o.setupNetworkOptions(cfg); err != nil {
@@ -445,7 +444,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Registry:      request.Container.Registry,
 		Auth:          request.Container.Auth,
 		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
-		ParentCGroup:  cgroup,
+		CGroupParent:  cgroup.Suffix(),
 		Resources:     request.Resources,
 		DealId:        request.GetDealID(),
 		TaskId:        request.Id,
