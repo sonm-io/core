@@ -125,6 +125,7 @@ type Node struct {
 	deals  pb.DealManagementServer
 	tasks  pb.TaskManagementServer
 	master pb.MasterManagementServer
+	token  pb.TokenManagementServer
 }
 
 // New creates new Local Node instance
@@ -162,6 +163,8 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 
 	masterMgmt := newMasterManagementAPI(opts)
 
+	tokenMgmt := newTokenManagementAPI(opts)
+
 	grpcServerOpts := []xgrpc.ServerOption{
 		xgrpc.DefaultTraceInterceptor(),
 		xgrpc.UnaryServerInterceptor(hub.(*hubAPI).intercept),
@@ -191,6 +194,9 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 	pb.RegisterMasterManagementServer(srv, masterMgmt)
 	log.G(ctx).Info("master keys service registered")
 
+	pb.RegisterTokenManagementServer(srv, tokenMgmt)
+	log.G(ctx).Info("token management service registered")
+
 	grpc_prometheus.Register(srv)
 
 	return &Node{
@@ -204,6 +210,7 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 		deals:   deals,
 		tasks:   tasks,
 		master:  masterMgmt,
+		token:   tokenMgmt,
 	}, nil
 }
 
@@ -311,6 +318,10 @@ func (n *Node) serveHttp() error {
 		return err
 	}
 	err = srv.RegisterService((*pb.MasterManagementServer)(nil), n.master)
+	if err != nil {
+		return err
+	}
+	err = srv.RegisterService((*pb.TokenManagementServer)(nil), n.token)
 	if err != nil {
 		return err
 	}
