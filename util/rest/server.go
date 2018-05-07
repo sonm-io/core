@@ -10,10 +10,9 @@ import (
 	"reflect"
 	"strings"
 
-	"golang.org/x/net/context"
-
 	"github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
+	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )
@@ -200,7 +199,7 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		rw.WriteHeader(http.StatusInternalServerError)
+		rw.WriteHeader(HTTPStatusFromError(err))
 		rw.Write([]byte(err.Error()))
 	} else {
 		data, err := json.Marshal(result)
