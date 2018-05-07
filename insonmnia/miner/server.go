@@ -805,7 +805,7 @@ func (m *Miner) execBenchmarkContainerWithResults(d Description) (map[string]*bm
 	stderrBuf := bytes.Buffer{}
 	select {
 	case s := <-statusChan:
-		if s >= pb.TaskStatusReply_FINISHED {
+		if s == pb.TaskStatusReply_FINISHED || s == pb.TaskStatusReply_BROKEN {
 			if _, err := stdcopy.StdCopy(&stdoutBuf, &stderrBuf, reader); err != nil {
 				return nil, fmt.Errorf("cannot read logs into buffer: %v", err)
 			}
