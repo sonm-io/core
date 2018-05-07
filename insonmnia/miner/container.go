@@ -90,6 +90,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	if len(resp.Warnings) > 0 {
 		log.G(ctx).Warn("ContainerCreate finished with warnings", zap.Strings("warnings", resp.Warnings))
 	}
+	log.S(ctx).Debugf("created container %s for task %s, with host config %s", resp.ID, d.ID(), hostConfig)
 
 	return &cont, nil
 }

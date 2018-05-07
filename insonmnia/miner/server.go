@@ -749,7 +749,8 @@ func (m *Miner) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) er
 			} else if bench.GetID() == bm.RamSize {
 				bench.Result = m.hardware.RAM.Device.Total
 			} else if bench.GetID() == bm.GPUCount {
-				bench.Result = uint64(len(m.hardware.GPU))
+				//GPU count is always 1 for each GPU device.
+				bench.Result = uint64(1)
 			} else if bench.GetID() == bm.GPUMem {
 				bench.Result = gpuDevices[idx].Memory
 			} else if len(bench.GetImage()) != 0 {

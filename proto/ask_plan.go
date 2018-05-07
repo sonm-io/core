@@ -9,6 +9,9 @@ import (
 )
 
 const (
+	// The CPU CFS scheduler period in nanoseconds. Used alongside CPU quota.
+	defaultCPUPeriod = uint64(100000)
+
 	MinCPUPercent = 1
 	MinRamSize    = 4 * 1 << 20
 )
@@ -134,11 +137,24 @@ func (m *AskPlanResources) ToHostConfigResources(cgroupParent string) container.
 func (m *AskPlanResources) ToCgroupResources() *specs.LinuxResources {
 	//TODO: Is it enough?
 	maxMemory := int64(m.GetRAM().GetSize().GetBytes())
+	quota := m.CPUQuota()
+	period := defaultCPUPeriod
 	return &specs.LinuxResources{
+		CPU: &specs.LinuxCPU{
+			Quota:  &quota,
+			Period: &period,
+		},
 		Memory: &specs.LinuxMemory{
 			Limit: &maxMemory,
 		},
 	}
+}
+
+func (m *AskPlanResources) CPUQuota() int64 {
+	if m == nil {
+		return 0
+	}
+	return int64(defaultCPUPeriod) * int64(m.GetCPU().GetCorePercents()) / 100
 }
 
 func converseImplication(lhs, rhs bool) bool {

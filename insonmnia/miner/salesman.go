@@ -259,6 +259,7 @@ func (m *Salesman) createCGroup(plan *sonm.AskPlan) error {
 	if err != nil {
 		return err
 	}
+	m.log.Infof("created cgroup %s for ask plan %s", cgroup.Suffix(), plan.ID)
 	m.askPlanCGroups[plan.ID] = cgroup
 	return nil
 }
@@ -387,7 +388,8 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	if err != nil {
 		return fmt.Errorf("could not get benchmarks for ask plan %s - %s", plan.ID, err)
 	}
-	net := m.hardware.Network
+
+	net := plan.GetResources().GetNetwork()
 	order := &sonm.Order{
 		OrderType:      sonm.OrderType_ASK,
 		OrderStatus:    sonm.OrderStatus_ORDER_ACTIVE,
