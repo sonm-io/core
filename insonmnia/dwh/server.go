@@ -1382,6 +1382,11 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		return errors.Wrapf(err, "failed to GetOrderInfo")
 	}
 
+	if order.OrderStatus == pb.OrderStatus_ORDER_INACTIVE && order.DealID.IsZero() {
+		w.logger.Info("skipping inactive order", zap.String("order_id", order.Id.Unwrap().String()))
+		return nil
+	}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
@@ -1487,11 +1492,16 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 		return errors.Wrap(err, "failed to GetOrderInfo")
 	}
 
+	if order.OrderStatus == pb.OrderStatus_ORDER_INACTIVE && order.DealID.IsZero() {
+		w.logger.Info("skipping inactive order", zap.String("order_id", order.Id.Unwrap().String()))
+		return nil
+	}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
 	// If order was updated, but no deal is associated with it, delete the order.
-	if order.DealID != nil && order.DealID.IsZero() {
+	if order.DealID.IsZero() {
 		tx, err := w.db.Begin()
 		if err != nil {
 			return errors.Wrap(err, "failed to begin transaction")
