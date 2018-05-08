@@ -51,10 +51,17 @@ service DealManagement {
     rpc Status(ID) returns (DealInfoReply) {}
     // Finish finishes a deal with given ID
     rpc Finish(ID) returns (Empty) {}
+    // Open tries to open deal between two orders
+    rpc Open(OpenDealRequest) returns (Deal) {}
 }
 
 message DealsReply {
     repeated Deal deal = 1;
+}
+
+message OpenDealRequest {
+    BigInt bidID = 1;
+    BigInt askID = 2;
 }
 
 // todo: implement this as part of Node API
@@ -80,4 +87,17 @@ message Worker {
 
 message WorkerListReply {
     repeated Worker workers = 1;
+}
+
+service TokenManagement {
+    // TestTokens increases balance for some amount of test tokens
+    // into live-chian ethereum network.
+    rpc TestTokens(Empty) returns (Empty) {}
+    // Balance provide account balance for live- and side- chains.
+    rpc Balance(Empty) returns (BalanceReply) {}
+}
+
+message BalanceReply {
+    BigInt liveBalance = 1;
+    BigInt sideBalance = 2;
 }

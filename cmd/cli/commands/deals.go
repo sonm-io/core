@@ -3,7 +3,6 @@ package commands
 import (
 	"os"
 
-	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
@@ -109,19 +108,23 @@ var dealsOpenCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		eth, err := blockchain.NewAPI()
+		deals, err := newDealsClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create blockchain connection", err)
 			os.Exit(1)
 		}
 
-		dealOrErr := <-eth.Market().OpenDeal(ctx, sessionKey, askID, bidID)
-		if dealOrErr.Err != nil {
-			showError(cmd, "Cannot open deal", dealOrErr.Err)
+		deal, err := deals.Open(ctx, &pb.OpenDealRequest{
+			BidID: pb.NewBigInt(bidID),
+			AskID: pb.NewBigInt(askID),
+		})
+
+		if err != nil {
+			showError(cmd, "Cannot open deal", err)
 			os.Exit(1)
 		}
 
-		printID(cmd, dealOrErr.Deal.GetId().Unwrap().String())
+		printID(cmd, deal.GetId().Unwrap().String())
 	},
 }
 

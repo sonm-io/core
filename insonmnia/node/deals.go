@@ -76,6 +76,15 @@ func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
+func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal, error) {
+	dealOrErr := <-d.remotes.eth.Market().OpenDeal(ctx, d.remotes.key, req.GetAskID().Unwrap(), req.GetBidID().Unwrap())
+	if dealOrErr.Err != nil {
+		return nil, dealOrErr.Err
+	}
+
+	return dealOrErr.Deal, nil
+}
+
 func newDealsAPI(opts *remoteOptions) (pb.DealManagementServer, error) {
 	return &dealsAPI{
 		remotes: opts,

@@ -3,8 +3,7 @@ package commands
 import (
 	"os"
 
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
 
@@ -13,22 +12,21 @@ var getTokenCmd = &cobra.Command{
 	Short:  "Get SONM test tokens (ERC20)",
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
-		bch, err := blockchain.NewAPI()
-		if err != nil {
-			showError(cmd, "Cannot create blockchain connection", err)
-			os.Exit(1)
-		}
-
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		tx, err := bch.TestToken().GetTokens(ctx, sessionKey)
+		token, err := newTokenManagementClient(ctx)
 		if err != nil {
+			showError(cmd, "Cannot create client connection", err)
+			os.Exit(1)
+		}
+
+		if _, err := token.TestTokens(ctx, &sonm.Empty{}); err != nil {
 			showError(cmd, "Cannot get tokens", err)
 			os.Exit(1)
 		}
 
-		printTransactionInfo(cmd, tx)
+		showOk(cmd)
 	},
 }
 
@@ -37,29 +35,22 @@ var getBalanceCmd = &cobra.Command{
 	Short:  "Show SONM token balance (ERC20)",
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
-		bch, err := blockchain.NewAPI()
-		if err != nil {
-			showError(cmd, "Cannot create blockchain connection", err)
-			os.Exit(1)
-		}
-
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		addr := crypto.PubkeyToAddress(sessionKey.PublicKey).Hex()
-		balance, err := bch.LiveToken().BalanceOf(ctx, addr)
+		token, err := newTokenManagementClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot get tokens", err)
+			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
-		balanceSidechain, err := bch.SideToken().BalanceOf(ctx, addr)
+		balance, err := token.Balance(ctx, &sonm.Empty{})
 		if err != nil {
-			showError(cmd, "Cannot get tokens", err)
+			showError(cmd, "Cannot load balance", err)
 			os.Exit(1)
 		}
 
-		printBalanceInfo(cmd, "Live", balance)
-		printBalanceInfo(cmd, "Sidechain", balanceSidechain)
+		printBalanceInfo(cmd, "Live", balance.LiveBalance.Unwrap())
+		printBalanceInfo(cmd, "Sidechain", balance.SideBalance.Unwrap())
 	},
 }
