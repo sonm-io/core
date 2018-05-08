@@ -239,6 +239,9 @@ func (m *AskPlanGPU) Add(other *AskPlanGPU) error {
 }
 
 func (m *AskPlanGPU) Sub(other *AskPlanGPU) error {
+	if !m.Normalized() || !other.Normalized() {
+		return errors.New("can not subtract gpu resources - not normalized")
+	}
 	if !m.Contains(other) {
 		return errors.New("can not subtract gpu resources - minuend is less than subtrahend")
 	}
