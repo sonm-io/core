@@ -37,6 +37,9 @@ func NewBigIntFromString(s string) (*BigInt, error) {
 // Unwrap returns the current price as *big.Int.
 func (m *BigInt) Unwrap() *big.Int {
 	v := new(big.Int)
+	if m == nil {
+		return v
+	}
 	v.SetBytes(m.Abs)
 	if m.Neg {
 		v.Neg(v)

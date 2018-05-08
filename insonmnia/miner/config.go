@@ -43,6 +43,7 @@ type Config struct {
 	Benchmarks        benchmarks.Config   `yaml:"benchmarks"`
 	Whitelist         WhitelistConfig     `yaml:"whitelist"`
 	MetricsListenAddr string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14000"`
+	DWHEndpoint       string              `yaml:"dwh" default:"127.0.0.1:15021"`
 }
 
 // NewConfig creates a new Miner config from the specified YAML file.

@@ -54,6 +54,7 @@ message StartTaskRequest {
     Deal deal = 1;
     // Container describes container settings.
     Container container = 2;
+    AskPlanResources resources = 3;
 }
 
 message HubJoinNetworkRequest {
@@ -107,4 +108,26 @@ message DealInfoReply {
     StatusMapReply running = 4;
     // List of completed tasks.
     StatusMapReply completed = 5;
+}
+
+message TaskStatusReply {
+    enum Status {
+        UNKNOWN = 0;
+        SPOOLING = 1;
+        SPAWNING = 2;
+        RUNNING = 3;
+        FINISHED = 4;
+        BROKEN = 5;
+    }
+    Status status = 1;
+    string imageName = 2;
+    string ports = 3;
+    uint64 uptime = 4;
+    ResourceUsage usage = 5;
+    AskPlanResources allocatedResources = 6;
+    string minerID = 7;
+}
+
+message StatusMapReply {
+    map<string, TaskStatusReply> statuses = 1;
 }

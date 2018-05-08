@@ -15,6 +15,7 @@ import (
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -29,6 +30,8 @@ func main() {
 
 func run() error {
 	ctx := context.Background()
+	waiter, ctx := errgroup.WithContext(ctx)
+	ctx, cancel := context.WithCancel(ctx)
 	cfg, err := miner.NewConfig(configFlag)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %s", err)
@@ -53,7 +56,7 @@ func run() error {
 		return fmt.Errorf("failed to create state storage: %s", err)
 	}
 
-	w, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithStateStorage(storage))
+	w, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithStateStorage(storage), miner.WithCreds(credentials))
 	if err != nil {
 		return fmt.Errorf("failed to create Worker instance: %s", err)
 	}
@@ -64,18 +67,23 @@ func run() error {
 		return fmt.Errorf("failed to create new Hub: %s", err)
 	}
 
-	go func() {
+	waiter.Go(func() error {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		<-c
+		cancel()
+		//TODO: get rid of it - use context for closing down
 		h.Close()
-	}()
+		return nil
+	})
 
+	//TODO: fixme dangling goroutine
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
 
 	if err = h.Serve(); err != nil {
 		log.G(ctx).Error("Server stop", zap.Error(err))
 	}
+	waiter.Wait()
 
 	return nil
 }

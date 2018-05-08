@@ -1,14 +1,26 @@
 package sonm
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+
+	"github.com/docker/docker/api/types/container"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+)
 
 const (
+	// The CPU CFS scheduler period in nanoseconds. Used alongside CPU quota.
+	defaultCPUPeriod = uint64(100000)
+
 	MinCPUPercent = 1
 	MinRamSize    = 4 * 1 << 20
 )
 
 func (c *AskPlanCPU) MarshalYAML() (interface{}, error) {
-	return map[string]float64{"cores": float64(c.CorePercents) / 100.}, nil
+	if c == nil {
+		return nil, nil
+	}
+	return map[string]float64{"cores": float64(c.GetCorePercents()) / 100.}, nil
 }
 
 func (c *AskPlanCPU) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -37,9 +49,234 @@ func (m *AskPlan) Validate() error {
 		return errors.New("RAM size is too low")
 	}
 
-	if len(m.GetResources().GetGPU().GetHashes()) > 0 && len(m.GetResources().GetGPU().GetIndexes()) > 0 {
-		return errors.New("cannot set GPUs using both hashes and IDs")
+	return m.GetResources().GetGPU().Validate()
+}
+
+func NewEmptyAskPlanResources() *AskPlanResources {
+	res := &AskPlanResources{}
+	res.initNilWithZero()
+	return res
+}
+
+func (m *AskPlanResources) initNilWithZero() {
+	if m.CPU == nil {
+		m.CPU = &AskPlanCPU{}
+	}
+	if m.RAM == nil {
+		m.RAM = &AskPlanRAM{}
+	}
+	if m.RAM.Size == nil {
+		m.RAM.Size = &DataSize{}
+	}
+	if m.Storage == nil {
+		m.Storage = &AskPlanStorage{}
+	}
+	if m.Storage.Size == nil {
+		m.Storage.Size = &DataSize{}
+	}
+	if m.GPU == nil {
+		m.GPU = &AskPlanGPU{}
+	}
+	if m.GPU.Hashes == nil {
+		m.GPU.Hashes = []string{}
+	}
+	if m.GPU.Indexes == nil {
+		m.GPU.Indexes = []uint64{}
+	}
+	if m.Network == nil {
+		m.Network = &AskPlanNetwork{}
+	}
+	if m.Network.ThroughputOut == nil {
+		m.Network.ThroughputOut = &DataSizeRate{}
+	}
+	if m.Network.ThroughputIn == nil {
+		m.Network.ThroughputIn = &DataSizeRate{}
+	}
+}
+
+func (m *AskPlanResources) Add(resources *AskPlanResources) error {
+	m.initNilWithZero()
+	if err := m.GetGPU().Add(resources.GetGPU()); err != nil {
+		return err
+	}
+	m.CPU.CorePercents += resources.GetCPU().GetCorePercents()
+	m.RAM.Size.Bytes += resources.GetRAM().GetSize().GetBytes()
+	m.Storage.Size.Bytes += resources.GetStorage().GetSize().GetBytes()
+	m.Network.Incoming = m.GetNetwork().GetIncoming() && resources.GetNetwork().GetIncoming()
+	m.Network.Outbound = m.GetNetwork().GetOutbound() && resources.GetNetwork().GetOutbound()
+	m.Network.Overlay = m.GetNetwork().GetOverlay() && resources.GetNetwork().GetOverlay()
+	m.Network.ThroughputIn.BitsPerSecond += resources.GetNetwork().GetThroughputIn().GetBitsPerSecond()
+	m.Network.ThroughputOut.BitsPerSecond += resources.GetNetwork().GetThroughputOut().GetBitsPerSecond()
+	return nil
+}
+
+func (m *AskPlanResources) Sub(resources *AskPlanResources) error {
+	m.initNilWithZero()
+	if ok, desc := m.Contains(resources); !ok {
+		return errors.New(desc)
+	}
+	m.CPU.CorePercents -= resources.GetCPU().GetCorePercents()
+	m.RAM.Size.Bytes -= resources.GetRAM().GetSize().GetBytes()
+	m.Storage.Size.Bytes -= resources.GetStorage().GetSize().GetBytes()
+	m.GPU.Sub(resources.GetGPU())
+	m.Network.ThroughputIn.BitsPerSecond -= resources.GetNetwork().GetThroughputIn().GetBitsPerSecond()
+	m.Network.ThroughputOut.BitsPerSecond -= resources.GetNetwork().GetThroughputOut().GetBitsPerSecond()
+	return nil
+}
+
+func (m *AskPlanResources) ToHostConfigResources(cgroupParent string) container.Resources {
+	//TODO: check and discuss
+	return container.Resources{
+		Memory:       int64(m.GetRAM().GetSize().GetBytes()),
+		NanoCPUs:     int64(m.GetCPU().GetCorePercents() * 1e9 / 100),
+		CgroupParent: cgroupParent,
 	}
 
+}
+
+func (m *AskPlanResources) ToCgroupResources() *specs.LinuxResources {
+	//TODO: Is it enough?
+	maxMemory := int64(m.GetRAM().GetSize().GetBytes())
+	quota := m.CPUQuota()
+	period := defaultCPUPeriod
+	return &specs.LinuxResources{
+		CPU: &specs.LinuxCPU{
+			Quota:  &quota,
+			Period: &period,
+		},
+		Memory: &specs.LinuxMemory{
+			Limit: &maxMemory,
+		},
+	}
+}
+
+func (m *AskPlanResources) CPUQuota() int64 {
+	if m == nil {
+		return 0
+	}
+	return int64(defaultCPUPeriod) * int64(m.GetCPU().GetCorePercents()) / 100
+}
+
+func converseImplication(lhs, rhs bool) bool {
+	return lhs || !rhs
+}
+
+func (m *AskPlanResources) Contains(resources *AskPlanResources) (result bool, detailedDescription string) {
+	if m.GetCPU().GetCorePercents() < resources.GetCPU().GetCorePercents() {
+		return false, fmt.Sprintf("not enough CPU, required %d core percents, available %d core percents",
+			resources.GetCPU().GetCorePercents(), m.GetCPU().GetCorePercents())
+	}
+	if m.GetRAM().GetSize().GetBytes() < resources.GetRAM().GetSize().GetBytes() {
+		return false, fmt.Sprintf("not enough RAM, required %s, available %s",
+			resources.GetRAM().GetSize().Unwrap().HumanReadable(), m.GetRAM().GetSize().Unwrap().HumanReadable())
+	}
+	if m.GetStorage().GetSize().GetBytes() < resources.GetStorage().GetSize().GetBytes() {
+		return false, "not enough Storage"
+	}
+	if !m.GetGPU().Contains(resources.GetGPU()) {
+		return false, "specified GPU is occupied"
+	}
+	if !converseImplication(m.GetNetwork().GetIncoming(), resources.GetNetwork().GetIncoming()) {
+		return false, "incoming traffic is prohibited"
+	}
+	if !converseImplication(m.GetNetwork().GetOutbound(), resources.GetNetwork().GetOutbound()) {
+		return false, "outbound traffic is prohibited"
+	}
+	if !converseImplication(m.GetNetwork().GetOverlay(), resources.GetNetwork().GetOverlay()) {
+		return false, "overlay traffic is prohibited"
+	}
+	if m.GetNetwork().GetThroughputIn().GetBitsPerSecond() < resources.GetNetwork().GetThroughputIn().GetBitsPerSecond() {
+		return false, "incoming traffic limit exceeded"
+	}
+	if m.GetNetwork().GetThroughputOut().GetBitsPerSecond() < resources.GetNetwork().GetThroughputOut().GetBitsPerSecond() {
+		return false, "incoming traffic limit exceeded"
+	}
+	return true, ""
+}
+
+func (m *AskPlanGPU) Validate() error {
+	if len(m.GetHashes()) > 0 && len(m.GetIndexes()) > 0 {
+		return errors.New("cannot set GPUs using both hashes and IDs")
+	}
 	return nil
+}
+
+type GPUHasher interface {
+	HashGPU(indexes []uint64) (hashes []string, err error)
+}
+
+func (m *AskPlanGPU) Normalize(hasher GPUHasher) error {
+	if m == nil {
+		return nil
+	}
+	hashes, err := hasher.HashGPU(m.Indexes)
+	if err != nil {
+		return err
+	}
+	m.Indexes = []uint64{}
+	m.Hashes = hashes
+	return nil
+}
+
+func (m *AskPlanGPU) Normalized() bool {
+	if m == nil {
+		return true
+	}
+	return len(m.Indexes) == 0
+}
+
+func (m *AskPlanGPU) Add(other *AskPlanGPU) error {
+	// Fuck go
+	result := m.deviceSet()
+	for _, dev := range other.GetHashes() {
+		if _, ok := result[dev]; ok {
+			return fmt.Errorf("could not add up overlapping AskPlanGPU, %s is present in both", dev)
+		}
+		result[dev] = struct{}{}
+	}
+	m.restoreFromSet(result)
+	return nil
+}
+
+func (m *AskPlanGPU) Sub(other *AskPlanGPU) error {
+	if !m.Contains(other) {
+		return errors.New("can not subtract gpu resources - minuend is less than subtrahend")
+	}
+	result := m.deviceSet()
+	for _, dev := range other.GetHashes() {
+		delete(result, dev)
+	}
+	m.restoreFromSet(result)
+	return nil
+}
+
+func (m *AskPlanGPU) Contains(other *AskPlanGPU) bool {
+	if other == nil {
+		return true
+	}
+	if m == nil {
+		return false
+	}
+	result := m.deviceSet()
+	for _, dev := range other.GetHashes() {
+		if _, ok := result[dev]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func (m *AskPlanGPU) deviceSet() map[string]struct{} {
+	result := map[string]struct{}{}
+	for _, dev := range m.GetHashes() {
+		result[dev] = struct{}{}
+	}
+	return result
+}
+
+func (m *AskPlanGPU) restoreFromSet(from map[string]struct{}) {
+	m.Hashes = make([]string, 0, len(from))
+	for dev := range from {
+		m.Hashes = append(m.GetHashes(), dev)
+	}
 }

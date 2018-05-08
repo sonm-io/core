@@ -25,17 +25,16 @@ func (c *cgroup) Stats() (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
+	if cgStat.Memory == nil {
+		return &Stats{MemoryLimit: 0}, nil
+	}
 
 	return &Stats{MemoryLimit: cgStat.Memory.HierarchicalMemoryLimit}, nil
 }
 
 func (c *cgroup) New(name string, resources *specs.LinuxResources) (CGroup, error) {
-	control, err := c.Cgroup.New(name, resources)
-	if err != nil {
-		return nil, err
-	}
-
-	return &cgroup{control, filepath.Join(c.suffix, name)}, nil
+	newPath := filepath.Join(c.suffix, name)
+	return newCGroup(newPath, resources)
 }
 
 func (c *cgroup) Suffix() string {
@@ -72,8 +71,7 @@ func (r *Resources) SetYAML(tag string, value interface{}) bool {
 	return true
 }
 
-func initializeControlGroup(name string, resources *specs.LinuxResources) (CGroup, error) {
-	// Cook or update parent cgroup for all containers we spawn.
+func newCGroup(name string, resources *specs.LinuxResources) (CGroup, error) {
 	cgroupPath := cgroups.StaticPath(name)
 	control, err := cgroups.Load(cgroups.V1, cgroupPath)
 
@@ -83,10 +81,10 @@ func initializeControlGroup(name string, resources *specs.LinuxResources) (CGrou
 		// Create an empty cgroup, we update it later.
 		control, err = cgroups.New(cgroups.V1, cgroupPath, &specs.LinuxResources{})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create parent cgroup %s: %v", name, err)
+			return nil, fmt.Errorf("failed to create cgroup %s: %v", name, err)
 		}
 	default:
-		return nil, fmt.Errorf("failed to load parent cgroup %s: %v", name, err)
+		return nil, fmt.Errorf("failed to load cgroup %s: %v", name, err)
 	}
 
 	if resources == nil {
@@ -94,8 +92,12 @@ func initializeControlGroup(name string, resources *specs.LinuxResources) (CGrou
 	}
 
 	if err = control.Update(resources); err != nil {
-		return nil, fmt.Errorf("failed to set resource limit on parent cgroup %s: %v", name, err)
+		return nil, fmt.Errorf("failed to set resource limit on cgroup %s: %v", name, err)
 	}
 
 	return &cgroup{control, name}, nil
+}
+
+func initializeControlGroup(name string, resources *specs.LinuxResources) (CGroup, error) {
+	return newCGroup("/"+name, resources)
 }

@@ -1,116 +1,195 @@
 package resource
 
 import (
-	"errors"
+	"context"
+	"fmt"
 	"sync"
 
+	"github.com/mohae/deepcopy"
+	"github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware"
+	"github.com/sonm-io/core/proto"
+	"go.uber.org/zap"
+	"gopkg.in/yaml.v2"
 )
 
-var (
-	ErrNotEnoughCPU    = errors.New("not enough CPU available")
-	ErrNotEnoughMemory = errors.New("not enough memory available")
-	ErrNotEnoughGPU    = errors.New("not enough GPU available")
-)
-
-type Resources struct {
-	NumCPUs int
-	Memory  int64
-	// NumGPUs shows the number of GPUs required for a task.
-	// A value of -1 means that a task consumes all of available GPU devices.
-	NumGPUs int
+type Scheduler struct {
+	OS            *hardware.Hardware
+	mu            sync.Mutex
+	pool          *pool
+	taskToAskPlan map[string]string
+	askPlanPools  map[string]*pool
+	parentCGroups map[string]cgroups.CGroup
+	log           *zap.SugaredLogger
 }
 
-func NewResources(numCPUs int, memory int64, numGPUs int) Resources {
-	return Resources{
-		NumCPUs: numCPUs,
-		Memory:  memory,
-		NumGPUs: numGPUs,
+func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
+	resources := hardware.AskPlanResources()
+	log := ctxlog.S(ctx).With("source", "resource_scheduler")
+	readableResources, _ := yaml.Marshal(resources)
+	readableHardware, _ := yaml.Marshal(hardware)
+	log.Debugf("constructing scheduler with hardware:\n%s\ninitial resources:\n%s", string(readableHardware), string(readableResources))
+	return &Scheduler{
+		OS:            hardware,
+		pool:          newPool(resources),
+		taskToAskPlan: map[string]string{},
+		askPlanPools:  map[string]*pool{},
+		parentCGroups: map[string]cgroups.CGroup{},
 	}
 }
 
-type Pool struct {
-	OS    *hardware.Hardware
-	mu    sync.Mutex
-	usage Resources
-}
-
-func NewPool(hardware *hardware.Hardware) *Pool {
-	return &Pool{
-		OS:    hardware,
-		usage: Resources{},
+//TODO: rework needed — looks like it should not be here
+func (m *Scheduler) AskPlanIDByTaskID(taskID string) (string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	askID, ok := m.taskToAskPlan[taskID]
+	if !ok {
+		return "", fmt.Errorf("ask plan for task %s is not found", taskID)
 	}
+	return askID, nil
 }
 
-func (p *Pool) GetUsage() Resources {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (m *Scheduler) GetUsage() (*sonm.AskPlanResources, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.pool.getUsage()
+}
 
-	return p.usage
+func (m *Scheduler) GetFree() (*sonm.AskPlanResources, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.pool.getFree()
+}
+
+func (m *Scheduler) PollConsume(askPlan *sonm.AskPlan) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return m.pool.pollConsume(askPlan.Resources)
 }
 
 // Consume tries to consume the specified resource usage from the pool.
 //
 // Does nothing on error.
-func (p *Pool) Consume(usage *Resources) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	return p.consume(usage)
+func (m *Scheduler) Consume(askPlan *sonm.AskPlan) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.askPlanPools[askPlan.ID] = newPool(askPlan.Resources)
+	return m.pool.consume(askPlan.ID, askPlan.Resources)
 }
 
-func (p *Pool) consume(usage *Resources) error {
-	if err := p.pollConsume(usage); err != nil {
+func (m *Scheduler) ConsumeTask(askPlanID string, taskID string, resources *sonm.AskPlanResources) error {
+	copy := &sonm.AskPlanResources{
+		GPU:     deepcopy.Copy(resources.GetGPU()).(*sonm.AskPlanGPU),
+		Storage: deepcopy.Copy(resources.GetStorage()).(*sonm.AskPlanStorage),
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.taskToAskPlan[taskID] = askPlanID
+	pool, ok := m.askPlanPools[askPlanID]
+	if !ok {
+		return fmt.Errorf("could not consume resources for task - ask Plan with id %s not found", askPlanID)
+	}
+
+	return pool.consume(taskID, copy)
+}
+
+func (m *Scheduler) Release(askPlanID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.askPlanPools, askPlanID)
+	return m.pool.release(askPlanID)
+}
+
+func (m *Scheduler) ReleaseTask(taskID string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	askPlanID, ok := m.taskToAskPlan[taskID]
+	if !ok {
+		return fmt.Errorf("could not find corresponding ask plan id for task %s", taskID)
+	}
+	pool, ok := m.askPlanPools[askPlanID]
+	if !ok {
+		return fmt.Errorf("could not release resources for task - ask Plan with id %s not found", askPlanID)
+	}
+
+	err := pool.release(taskID)
+	if err != nil {
 		return err
 	}
-
-	p.usage.NumCPUs += usage.NumCPUs
-	p.usage.Memory += usage.Memory
-	if usage.NumGPUs == -1 {
-		p.usage.NumGPUs = len(p.OS.GPU)
-	} else {
-		p.usage.NumGPUs += usage.NumGPUs
-	}
-
+	delete(m.taskToAskPlan, taskID)
 	return nil
 }
 
-func (p *Pool) PollConsume(usage *Resources) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	return p.pollConsume(usage)
+type pool struct {
+	all  *sonm.AskPlanResources
+	used map[string]*sonm.AskPlanResources
 }
 
-func (p *Pool) pollConsume(usage *Resources) error {
-	if usage.NumGPUs == -1 {
-		usage.NumGPUs = len(p.OS.GPU)
+func newPool(resources *sonm.AskPlanResources) *pool {
+	return &pool{
+		all:  resources,
+		used: map[string]*sonm.AskPlanResources{},
 	}
+}
 
-	free := NewResources(
-		p.OS.LogicalCPUCount()-p.usage.NumCPUs,
-		int64(p.OS.RAM.Device.Available)-p.usage.Memory,
-		len(p.OS.GPU)-p.usage.NumGPUs,
-	)
+func (p *pool) getFree() (*sonm.AskPlanResources, error) {
+	res := deepcopy.Copy(p.all).(*sonm.AskPlanResources)
+	usage, err := p.getUsage()
+	if err != nil {
+		return nil, err
+	}
+	err = res.Sub(usage)
+	if err != nil {
+		pool, _ := yaml.Marshal(res)
+		use, _ := yaml.Marshal(usage)
+		return &sonm.AskPlanResources{}, fmt.Errorf("resource pool inconsistency found - used resources are greater than available for scheduling(%s). pool - %s, used - %s",
+			err, pool, use)
+	}
+	return res, nil
+}
 
-	if usage.NumCPUs > free.NumCPUs {
-		return ErrNotEnoughCPU
+func (p *pool) getUsage() (*sonm.AskPlanResources, error) {
+	sum := &sonm.AskPlanResources{}
+	for _, askPlan := range p.used {
+		if err := sum.Add(askPlan); err != nil {
+			return nil, err
+		}
 	}
-	if usage.Memory > free.Memory {
-		return ErrNotEnoughMemory
-	}
-	if usage.NumGPUs > free.NumGPUs {
-		return ErrNotEnoughGPU
-	}
+	return sum, nil
+}
 
+func (p *pool) pollConsume(resources *sonm.AskPlanResources) error {
+	available, err := p.getFree()
+	if err != nil {
+		return err
+	}
+	err = available.Sub(resources)
+	if err != nil {
+		return fmt.Errorf("not enough resources - %s", err)
+	}
 	return nil
 }
 
-func (p *Pool) Release(usage *Resources) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+func (p *pool) consume(ID string, resources *sonm.AskPlanResources) error {
+	if err := p.pollConsume(resources); err != nil {
+		return err
+	}
+	if _, ok := p.used[ID]; ok {
+		return fmt.Errorf("resources with ID %s has been already consumed", ID)
+	}
 
-	p.usage.NumCPUs -= usage.NumCPUs
-	p.usage.Memory -= usage.Memory
-	p.usage.NumGPUs -= usage.NumGPUs
+	p.used[ID] = resources
+	return nil
+}
+
+func (p *pool) release(ID string) error {
+	if _, ok := p.used[ID]; !ok {
+		return fmt.Errorf("could not release resource with ID %s from pool - no such resource", ID)
+	}
+	delete(p.used, ID)
+	return nil
 }

@@ -72,9 +72,10 @@ message Network {
     uint64 out = 2;
     bool overlay = 3;
     bool incoming = 4;
+    bool outbound = 5;
 
-    map<uint64, Benchmark> benchmarksIn = 5;
-    map<uint64, Benchmark> benchmarksOut = 6;
+    map<uint64, Benchmark> benchmarksIn = 6;
+    map<uint64, Benchmark> benchmarksOut = 7;
 }
 
 message StorageDevice {

@@ -20,10 +20,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/cgroups"
-	"github.com/sonm-io/core/insonmnia/dwh"
+	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 
 	// todo: drop alias
 	bm "github.com/sonm-io/core/insonmnia/benchmarks"
@@ -48,11 +49,12 @@ type Miner struct {
 	ovs       Overseer
 	plugins   *plugin.Repository
 	hardware  *hardware.Hardware
-	resources *resource.Pool
+	salesman  *Salesman
+	resources *resource.Scheduler
 	ethkey    *ecdsa.PrivateKey
 	publicIPs []string
 	eth       blockchain.API
-	dwh       dwh.MockDWH
+	dwh       pb.DWHClient
 
 	// One-to-one mapping between container IDs and userland task names.
 	//
@@ -81,7 +83,7 @@ type Miner struct {
 	// In-mem state, can be safety reloaded
 	// from the external sources.
 	// Must be protected by `mu` mutex.
-	Deals map[structs.DealID]*structs.DealMeta
+	//Deals map[structs.DealID]*structs.DealMeta
 }
 
 func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
@@ -123,11 +125,22 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	if o.dwh == nil {
-		o.dwh = dwh.NewDumbDWH(o.ctx)
+		if o.creds == nil {
+			_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), o.key)
+			if err != nil {
+				return nil, err
+			}
+			o.creds = util.NewTLS(TLSConfig)
+		}
+		cc, err := xgrpc.NewClient(o.ctx, cfg.DWHEndpoint, o.creds)
+		if err != nil {
+			return nil, err
+		}
+		o.dwh = pb.NewDWHClient(cc)
 	}
 
-	cgName := ""
-	var cgRes *specs.LinuxResources
+	cgName := "sonm-worker-parent"
+	cgRes := &specs.LinuxResources{}
 	if cfg.Resources != nil {
 		cgName = cfg.Resources.Cgroup
 		cgRes = cfg.Resources.Resources
@@ -143,13 +156,12 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		return nil, err
 	}
 
+	hardwareInfo.RAM.Device.Available = hardwareInfo.RAM.Device.Total
 	// check if memory is limited into cgroup
 	if s, err := cgroup.Stats(); err == nil {
-		if s.MemoryLimit < hardwareInfo.RAM.Device.Total {
+		if s.MemoryLimit != 0 && s.MemoryLimit < hardwareInfo.RAM.Device.Total {
 			hardwareInfo.RAM.Device.Available = s.MemoryLimit
 		}
-	} else {
-		hardwareInfo.RAM.Device.Available = hardwareInfo.RAM.Device.Total
 	}
 
 	if err := o.setupNetworkOptions(cfg); err != nil {
@@ -166,6 +178,8 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	// apply info about GPUs, expose to logs
 	plugins.ApplyHardwareInfo(hardwareInfo)
 	hardwareInfo.SetNetworkIncoming(o.publicIPs)
+	//TODO: configurable?
+	hardwareInfo.Network.Outbound = true
 
 	log.G(o.ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
 
@@ -189,12 +203,13 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		plugins: plugins,
 
 		hardware:  hardwareInfo,
-		resources: resource.NewPool(hardwareInfo),
+		resources: nil,
+		salesman:  nil,
 		publicIPs: o.publicIPs,
 
 		containers:  make(map[string]*ContainerInfo),
 		nameMapping: make(map[string]string),
-		Deals:       make(map[structs.DealID]*structs.DealMeta),
+		//Deals:       make(map[structs.DealID]*structs.DealMeta),
 
 		controlGroup:  cgroup,
 		cGroupManager: cGroupManager,
@@ -205,46 +220,32 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		dwh:           o.dwh,
 	}
 
-	if err := m.loadExternalState(); err != nil {
+	if err := m.RunBenchmarks(); err != nil {
 		return nil, err
 	}
 
-	return m, nil
-}
+	matcher := matcher.NewMatcher(&matcher.Config{
+		Key: m.ethkey,
+		//TODO: make configurable
+		PollDelay: time.Second * 5,
+		DWH:       m.dwh,
+		Eth:       m.eth,
+		//TODO: make configurable
+		QueryLimit: 100,
+	})
 
-type resourceHandle interface {
-	// Commit marks the handle that the resources consumed should not be
-	// released.
-	commit()
-	// Release releases consumed resources.
-	// Useful in conjunction with defer.
-	release()
-}
+	//TODO: this is racy, because of post initialization of hardware via benchmarks
+	m.resources = resource.NewScheduler(o.ctx, m.hardware)
 
-// NilResourceHandle is a resource handle that does nothing.
-type nilResourceHandle struct{}
-
-func (h *nilResourceHandle) commit() {}
-
-func (h *nilResourceHandle) release() {}
-
-type ownedResourceHandle struct {
-	miner     *Miner
-	usage     resource.Resources
-	committed bool
-}
-
-func (h *ownedResourceHandle) commit() {
-	h.committed = true
-}
-
-func (h *ownedResourceHandle) release() {
-	if h.committed {
-		return
+	salesman, err := NewSalesman(o.ctx, o.storage, m.resources, m.hardware, o.eth, m.cGroupManager, matcher, o.key)
+	if err != nil {
+		return nil, err
 	}
+	m.salesman = salesman
 
-	h.miner.resources.Release(&h.usage)
-	h.committed = true
+	m.salesman.Run(o.ctx)
+
+	return m, nil
 }
 
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
@@ -389,17 +390,21 @@ func (m *Miner) Save(request *pb.SaveRequest, stream pb.Hub_PullTaskServer) erro
 func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
 
-	// TODO(sshaman1101): check for deals existence in a right way;
-	// Note: orderID is dealID;
-	if _, err := m.GetDealByID(structs.DealID(request.GetOrderId())); err != nil {
-		return nil, err
-	}
-
+	//TODO: move to validate()
 	if request.GetContainer() == nil {
 		return nil, fmt.Errorf("container field is required")
 	}
 
-	resources, err := structs.NewTaskResources(request.GetResources())
+	dealID, err := pb.NewBigIntFromString(request.DealID)
+	if err != nil {
+		return nil, fmt.Errorf("could not parse deal id as big int - %s", err)
+	}
+	ask, err := m.salesman.AskPlanByDeal(dealID)
+	if err != nil {
+		return nil, err
+	}
+
+	cgroup, err := m.salesman.CGroup(ask.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -409,18 +414,19 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
 
-	cGroup, resourceHandle, err := m.consume(request.GetOrderId(), resources)
-	if err != nil {
-		return nil, status.Errorf(codes.ResourceExhausted, "failed to start %v", err)
+	//TODO: generate ID
+	if err := m.resources.ConsumeTask(ask.ID, request.Id, request.Resources); err != nil {
+		return nil, fmt.Errorf("could not start task - %s", err)
 	}
 
 	// This can be canceled by using "resourceHandle.commit()".
-	defer resourceHandle.release()
+	//defer resourceHandle.release()
 
 	mounts := make([]volume.Mount, 0)
 	for _, spec := range request.Container.Mounts {
 		mount, err := volume.NewMount(spec)
 		if err != nil {
+			m.resources.ReleaseTask(request.Id)
 			return nil, err
 		}
 		mounts = append(mounts, mount)
@@ -430,6 +436,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to parse networking specification", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to parse networking specification - %s", err)
 	}
 	var d = Description{
@@ -437,8 +444,9 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		Registry:      request.Container.Registry,
 		Auth:          request.Container.Auth,
 		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
-		Resources:     resources.ToContainerResources(cGroup.Suffix()),
-		DealId:        request.GetOrderId(),
+		CGroupParent:  cgroup.Suffix(),
+		Resources:     request.Resources,
+		DealId:        request.GetDealID(),
 		TaskId:        request.Id,
 		CommitOnStop:  request.Container.CommitOnStop,
 		Env:           request.Container.Env,
@@ -454,6 +462,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err := m.ovs.Spool(ctx, d); err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
@@ -463,6 +472,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 	containerInfo.PublicKey = publicKey
@@ -487,6 +497,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 			hostPort := portBinding.HostPort
 			hostPortInt, err := nat.ParsePort(hostPort)
 			if err != nil {
+				m.resources.ReleaseTask(request.Id)
 				return nil, err
 			}
 
@@ -509,33 +520,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 
 	go m.listenForStatus(statusListener, request.Id)
 
-	resourceHandle.commit()
-
 	return &reply, nil
-}
-
-func (m *Miner) consume(orderId string, resources *structs.TaskResources) (cgroups.CGroup, resourceHandle, error) {
-	cgroup, err := m.cGroupManager.Attach(orderId, resources.ToCgroupResources())
-	if err != nil && err != cgroups.ErrCgroupAlreadyExists {
-		return nil, nil, err
-	}
-
-	if err != cgroups.ErrCgroupAlreadyExists {
-		return cgroup, &nilResourceHandle{}, nil
-	}
-
-	usage := resources.ToUsage()
-	if err := m.resources.Consume(&usage); err != nil {
-		return nil, nil, err
-	}
-
-	handle := &ownedResourceHandle{
-		miner:     m,
-		usage:     usage,
-		committed: false,
-	}
-
-	return cgroup, handle, nil
 }
 
 // Stop request forces to kill container
@@ -560,7 +545,7 @@ func (m *Miner) Stop(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	}
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
-	m.resources.Release(&containerInfo.Resources)
+	m.resources.ReleaseTask(request.Id)
 
 	return &pb.Empty{}, nil
 }
@@ -655,13 +640,8 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 		Ports:     string(portsStr),
 		Uptime:    uint64(time.Now().Sub(info.StartAt).Nanoseconds()),
 		Usage:     metric.Marshal(),
-		AvailableResources: &pb.AvailableResources{
-			NumCPUs:      int64(info.Resources.NumCPUs),
-			NumGPUs:      int64(info.Resources.NumGPUs),
-			Memory:       uint64(info.Resources.Memory),
-			Cgroup:       info.ID,
-			CgroupParent: info.CgroupParent,
-		},
+		//TODO: Fill
+		AllocatedResources: nil,
 	}
 
 	return reply, nil
@@ -768,7 +748,8 @@ func (m *Miner) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) er
 			} else if bench.GetID() == bm.RamSize {
 				bench.Result = m.hardware.RAM.Device.Total
 			} else if bench.GetID() == bm.GPUCount {
-				bench.Result = uint64(len(m.hardware.GPU))
+				//GPU count is always 1 for each GPU device.
+				bench.Result = uint64(1)
 			} else if bench.GetID() == bm.GPUMem {
 				bench.Result = gpuDevices[idx].Memory
 			} else if len(bench.GetImage()) != 0 {
@@ -879,77 +860,45 @@ func getDescriptionForBenchmark(b *pb.Benchmark) Description {
 
 func (m *Miner) AskPlans(ctx context.Context) (*pb.AskPlansReply, error) {
 	log.G(m.ctx).Info("handling AskPlans request")
-	return &pb.AskPlansReply{AskPlans: m.state.AskPlans()}, nil
+	return &pb.AskPlansReply{AskPlans: m.salesman.AskPlans()}, nil
 }
 
-func (m *Miner) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (string, error) {
-	log.G(m.ctx).Info("handling CreateAskPlan request", zap.Any("request", request))
-
-	return m.state.CreateAskPlan(request)
+func (m *Miner) CreateAskPlan(ctx context.Context, askPlan *pb.AskPlan) (string, error) {
+	log.G(m.ctx).Info("handling CreateAskPlan request", zap.Any("request", askPlan))
+	if len(askPlan.GetID()) != 0 || !askPlan.GetOrderID().IsZero() || !askPlan.GetDealID().IsZero() {
+		return "", errors.New("creating ask plans with predefined id, order_id or deal_id are not supported")
+	}
+	return m.salesman.CreateAskPlan(askPlan)
 }
 
 func (m *Miner) RemoveAskPlan(ctx context.Context, id string) error {
 	log.G(m.ctx).Info("handling RemoveAskPlan request", zap.String("id", id))
 
-	if err := m.state.RemoveAskPlan(id); err != nil {
-		return err
-	}
-
-	return nil
+	return m.salesman.RemoveAskPlan(id)
 }
 
-func (m *Miner) GetDealByID(id structs.DealID) (*structs.DealMeta, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	deal, ok := m.Deals[id]
-	if !ok {
-		return nil, fmt.Errorf("deal with id=%s does not found", id)
-	}
-
-	return deal, nil
-}
-
-// loadExternalState loads external state into in-mem storage
-// (from blockchain, DWH, etc...). Must be called before
-// boltdb state is loaded.
-func (m *Miner) loadExternalState() error {
-	log.G(m.ctx).Debug("loading initial state from external sources")
-	if err := m.loadDeals(); err != nil {
-		return err
-	}
-
-	if err := m.syncAskPlans(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (m *Miner) loadDeals() error {
-	log.G(m.ctx).Debug("loading opened deals")
-
-	filter := dwh.DealsFilter{
-		Author: util.PubKeyToAddr(m.ethkey.PublicKey),
-	}
-
-	deals, err := m.dwh.GetDeals(m.ctx, filter)
+func (m *Miner) GetDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
+	deal, err := m.salesman.Deal(dealID)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
-	m.mu.Lock()
-	for _, deal := range deals {
-		m.Deals[structs.DealID(deal.GetId().Unwrap().String())] = structs.NewDealMeta(deal)
-	}
-	m.mu.Unlock()
-
-	return nil
+	//TODO: why do we need BidOrder and AskOrder inside this reply?
+	//TODO: Tasks info
+	return &pb.DealInfoReply{
+		Deal:      deal,
+		BidOrder:  nil,
+		AskOrder:  nil,
+		Running:   nil,
+		Completed: nil,
+	}, nil
 }
 
-func (m *Miner) syncAskPlans() error {
-	log.G(m.ctx).Debug("synchronizing ask-plans with remote marketplace")
-	return nil
+func (m *Miner) AskPlanByTaskID(taskID string) (*pb.AskPlan, error) {
+	planID, err := m.resources.AskPlanIDByTaskID(taskID)
+	if err != nil {
+		return nil, err
+	}
+	return m.salesman.AskPlan(planID)
 }
 
 // todo: make the `miner.Init() error` method to kickstart all initial jobs for the Worker instance.
@@ -961,6 +910,6 @@ func (m *Miner) Close() {
 
 	m.ssh.Close()
 	m.ovs.Close()
-	m.controlGroup.Delete()
+	m.salesman.Close()
 	m.plugins.Close()
 }

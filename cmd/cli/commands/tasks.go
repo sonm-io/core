@@ -146,6 +146,7 @@ var taskStartCmd = &cobra.Command{
 				Mounts:        taskDef.Mounts(),
 				Networks:      networks,
 			},
+			Resources: taskDef.GetResources(),
 		}
 
 		reply, err := node.Start(ctx, req)

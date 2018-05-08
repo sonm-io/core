@@ -111,11 +111,6 @@ func New(cfg *miner.Config, opts ...Option) (*Hub, error) {
 
 	wl := NewWhitelist(ctx, &cfg.Whitelist)
 
-	if err := defaults.worker.RunBenchmarks(); err != nil {
-		defaults.worker.Close()
-		return nil, err
-	}
-
 	h := &Hub{
 		cfg:          cfg,
 		ctx:          ctx,
@@ -291,13 +286,14 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 	container.Image = reference.Path(ref)
 
 	startRequest := &pb.MinerStartRequest{
-		OrderId:   request.GetDealId(), // TODO: WTF?
+		DealID:    request.GetDealId(),
 		Id:        taskID,
 		Container: container,
 		RestartPolicy: &pb.ContainerRestartPolicy{
 			Name:              "",
 			MaximumRetryCount: 0,
 		},
+		Resources: request.Resources,
 	}
 
 	response, err := h.worker.Start(ctx, startRequest)
@@ -332,19 +328,11 @@ func (h *Hub) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 func (h *Hub) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
 	log.G(h.ctx).Info("handling GetDealInfo request")
 
-	deal, err := h.worker.GetDealByID(structs.DealID(id.GetId()))
+	dealID, err := pb.NewBigIntFromString(id.Id)
 	if err != nil {
 		return nil, err
 	}
-
-	//TODO: return Tasks
-	reply := &pb.DealInfoReply{
-		Deal:     deal.Deal,
-		BidOrder: deal.BidOrder,
-		AskOrder: deal.AskOrder,
-	}
-
-	return reply, nil
+	return h.worker.GetDealInfo(dealID)
 }
 
 func (h *Hub) Tasks(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
