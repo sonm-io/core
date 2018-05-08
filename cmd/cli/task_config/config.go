@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/jinzhu/configor"
-	"github.com/sonm-io/core/proto"
+	sonm "github.com/sonm-io/core/proto"
 )
 
 // TaskConfig describe how to start task (docker image) on Miner
