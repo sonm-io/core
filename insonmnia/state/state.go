@@ -3,24 +3,20 @@ package state
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"sync"
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
-	"github.com/mohae/deepcopy"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/hardware"
-	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
 
 type stateJSON struct {
-	AskPlans   map[string]*pb.AskPlan `json:"ask_plans"`
-	Benchmarks map[uint64]bool        `json:"benchmarks"`
-	Hardware   *hardware.Hardware     `json:"hardware"`
-	HwHash     string                 `json:"hw_hash"`
+	Benchmarks map[uint64]bool    `json:"benchmarks"`
+	Hardware   *hardware.Hardware `json:"hardware"`
+	HwHash     string             `json:"hw_hash"`
 }
 
 type Storage struct {
@@ -29,6 +25,11 @@ type Storage struct {
 
 	store store.Store
 	data  *stateJSON
+}
+
+type KeyedStorage struct {
+	key     string
+	storage *Storage
 }
 
 type StorageConfig struct {
@@ -49,7 +50,6 @@ func makeStore(ctx context.Context, cfg *StorageConfig) (store.Store, error) {
 
 func newEmptyState() *stateJSON {
 	return &stateJSON{
-		AskPlans:   make(map[string]*pb.AskPlan, 0),
 		Benchmarks: make(map[uint64]bool),
 		Hardware:   new(hardware.Hardware),
 	}
@@ -72,6 +72,10 @@ func NewState(ctx context.Context, cfg *StorageConfig) (*Storage, error) {
 	}
 
 	return out, nil
+}
+
+func NewKeyedStorage(key string, storage *Storage) *KeyedStorage {
+	return &KeyedStorage{key, storage}
 }
 
 func (s *Storage) dump() error {
@@ -100,59 +104,6 @@ func (s *Storage) loadInitial() error {
 	}
 
 	return s.dump()
-}
-
-func (s *Storage) AskPlans() map[string]*pb.AskPlan {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	result := make(map[string]*pb.AskPlan)
-	for id, plan := range s.data.AskPlans {
-		result[id] = plan
-	}
-
-	return result
-}
-
-func (s *Storage) SaveAskPlan(askPlan *pb.AskPlan) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if len(askPlan.GetID()) == 0 {
-		return errors.New("could not create ask plan  - missing id")
-	}
-	s.data.AskPlans[askPlan.ID] = askPlan
-	if err := s.dump(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (s *Storage) AskPlan(planID string) (*pb.AskPlan, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	askPlan, ok := s.data.AskPlans[planID]
-	if !ok {
-		return nil, errors.New("specified ask-plan does not exist")
-	}
-	copy := deepcopy.Copy(askPlan).(*pb.AskPlan)
-	return copy, nil
-}
-
-func (s *Storage) RemoveAskPlan(planID string) (*pb.AskPlan, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	askPlan, ok := s.data.AskPlans[planID]
-	if !ok {
-		return nil, errors.New("specified ask-plan does not exist")
-	}
-
-	delete(s.data.AskPlans, planID)
-	err := s.dump()
-	return askPlan, err
 }
 
 func (s *Storage) PassedBenchmarks() map[uint64]bool {
@@ -198,4 +149,35 @@ func (s *Storage) SetHardwareWithBenchmarks(hw *hardware.Hardware) error {
 
 	s.data.Hardware = hw
 	return s.dump()
+}
+
+func (s *Storage) Save(key string, value interface{}) error {
+	bin, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	return s.store.Put(key, bin, &store.WriteOptions{})
+}
+
+func (s *Storage) Load(key string, value interface{}) error {
+	kv, err := s.store.Get(key)
+	if err != nil && err != store.ErrKeyNotFound {
+		return err
+	}
+
+	if kv != nil {
+		// unmarshal existing state
+		if err := json.Unmarshal(kv.Value, value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *KeyedStorage) Save(value interface{}) error {
+	return m.storage.Save(m.key, value)
+}
+
+func (m *KeyedStorage) Load(value interface{}) error {
+	return m.storage.Load(m.key, value)
 }

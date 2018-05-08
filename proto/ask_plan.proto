@@ -40,6 +40,10 @@ message AskPlanResources {
 }
 
 message AskPlan {
+    enum Status {
+        ACTIVE = 0;
+        PENDING_DELETION = 1;
+    }
     string ID = 1;
     BigInt orderID = 2;
     BigInt dealID = 3;
@@ -50,4 +54,5 @@ message AskPlan {
     IdentityLevel identity = 8;
     bytes tag = 9;
     AskPlanResources resources = 10;
+    Status status = 11;
 }

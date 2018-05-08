@@ -189,7 +189,7 @@ func (m *AskPlanResources) Contains(resources *AskPlanResources) (result bool, d
 		return false, "incoming traffic limit exceeded"
 	}
 	if m.GetNetwork().GetThroughputOut().GetBitsPerSecond() < resources.GetNetwork().GetThroughputOut().GetBitsPerSecond() {
-		return false, "incoming traffic limit exceeded"
+		return false, "outbound traffic limit exceeded"
 	}
 	return true, ""
 }

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/mohae/deepcopy"
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
@@ -23,14 +24,15 @@ import (
 )
 
 type Salesman struct {
-	state         *state.Storage
-	resources     *resource.Scheduler
-	hardware      *hardware.Hardware
-	eth           blockchain.API
-	cGroupManager cgroups.CGroupManager
-	matcher       matcher.Matcher
-	ethkey        *ecdsa.PrivateKey
+	askPlanStorage *state.KeyedStorage
+	resources      *resource.Scheduler
+	hardware       *hardware.Hardware
+	eth            blockchain.API
+	cGroupManager  cgroups.CGroupManager
+	matcher        matcher.Matcher
+	ethkey         *ecdsa.PrivateKey
 
+	askPlans       map[string]*sonm.AskPlan
 	askPlanCGroups map[string]cgroups.CGroup
 	deals          map[string]*sonm.Deal
 	orders         map[string]*sonm.Order
@@ -47,7 +49,7 @@ const (
 
 func NewSalesman(
 	ctx context.Context,
-	state *state.Storage,
+	storage *state.Storage,
 	resources *resource.Scheduler,
 	hardware *hardware.Hardware,
 	eth blockchain.API,
@@ -55,7 +57,7 @@ func NewSalesman(
 	matcher matcher.Matcher,
 	ethkey *ecdsa.PrivateKey,
 ) (*Salesman, error) {
-	if state == nil {
+	if storage == nil {
 		return nil, errors.New("storage is required for salesman")
 	}
 	if resources == nil {
@@ -78,7 +80,7 @@ func NewSalesman(
 	}
 
 	s := &Salesman{
-		state:          state,
+		askPlanStorage: state.NewKeyedStorage("ask_plans", storage),
 		resources:      resources,
 		hardware:       hardware,
 		eth:            eth,
@@ -100,8 +102,9 @@ func NewSalesman(
 func (m *Salesman) Close() {}
 
 func (m *Salesman) Run(ctx context.Context) {
-	askPlans := m.state.AskPlans()
-	for _, plan := range askPlans {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, plan := range m.askPlans {
 		orderID := plan.GetOrderID()
 		dealID := plan.GetDealID()
 		if dealID.IsZero() && !orderID.IsZero() {
@@ -117,11 +120,21 @@ func (m *Salesman) Run(ctx context.Context) {
 }
 
 func (m *Salesman) AskPlan(planID string) (*sonm.AskPlan, error) {
-	return m.state.AskPlan(planID)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	askPlan, ok := m.askPlans[planID]
+	if !ok {
+		return nil, errors.New("specified ask-plan does not exist")
+	}
+	copy := deepcopy.Copy(askPlan).(*sonm.AskPlan)
+	return copy, nil
 }
 
 func (m *Salesman) AskPlans() map[string]*sonm.AskPlan {
-	return m.state.AskPlans()
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return deepcopy.Copy(m.askPlans).(map[string]*sonm.AskPlan)
 }
 
 func (m *Salesman) CreateAskPlan(askPlan *sonm.AskPlan) (string, error) {
@@ -143,7 +156,8 @@ func (m *Salesman) CreateAskPlan(askPlan *sonm.AskPlan) (string, error) {
 		return "", err
 	}
 
-	if err := m.state.SaveAskPlan(askPlan); err != nil {
+	m.askPlans[askPlan.ID] = askPlan
+	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
 		m.dropCGroup(askPlan.ID)
 		m.resources.Release(askPlan.ID)
 		return "", err
@@ -152,37 +166,74 @@ func (m *Salesman) CreateAskPlan(askPlan *sonm.AskPlan) (string, error) {
 }
 
 func (m *Salesman) RemoveAskPlan(planID string) error {
-	ask, err := m.state.AskPlan(planID)
-	if err != nil {
-		return err
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	ask, ok := m.askPlans[planID]
+	if !ok {
+		return fmt.Errorf("no such plan %s", planID)
 	}
-	if !ask.GetDealID().IsZero() {
-		return fmt.Errorf("ask plan %s is bound to deal %s", ask.ID, ask.DealID.Unwrap().String())
+
+	ask.Status = sonm.AskPlan_PENDING_DELETION
+	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
+		return fmt.Errorf("could not mark ask plan %s with active deal %s for deletion - %s",
+			planID, ask.GetDealID().Unwrap().String(), err)
 	}
-	if !ask.GetOrderID().IsZero() {
-		// background context is used  here because we need to get reply from blockchain
-		err = <-m.eth.Market().CancelOrder(context.Background(), m.ethkey, ask.OrderID.Unwrap())
+	return nil
+}
+
+func (m *Salesman) shutdownAskPlan(ctx context.Context, plan *sonm.AskPlan) error {
+	if !plan.GetDealID().IsZero() {
+		dealInfo, err := m.eth.Market().GetDealInfo(ctx, plan.GetDealID().Unwrap())
 		if err != nil {
-			return fmt.Errorf("could not cancel market order - %s", err)
+			return err
+		}
+		if dealInfo.Status == sonm.DealStatus_DEAL_ACCEPTED {
+			if dealInfo.GetDuration() == 0 {
+				if err := <-m.eth.Market().CloseDeal(ctx, m.ethkey, plan.GetDealID().Unwrap(), false); err != nil {
+					return err
+				}
+			} else {
+				return fmt.Errorf("ask plan %s is still bound to deal %s", plan.ID, plan.GetDealID().Unwrap().String())
+			}
 		}
 	}
-	_, err = m.state.RemoveAskPlan(planID)
-	if err != nil {
-		return err
-	}
-	if err = m.resources.Release(planID); err != nil {
-		return err
+
+	if plan.GetDealID().IsZero() && !plan.GetOrderID().IsZero() {
+		orderInfo, err := m.eth.Market().GetOrderInfo(ctx, plan.GetOrderID().Unwrap())
+		if err != nil {
+			return err
+		}
+		if !orderInfo.DealID.IsZero() {
+			return fmt.Errorf("order was bound to deal")
+		}
+		if orderInfo.OrderStatus == sonm.OrderStatus_ORDER_ACTIVE {
+			if err := <-m.eth.Market().CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
+				return err
+			}
+		}
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.dropCGroup(planID)
+
+	if err := m.resources.Release(plan.ID); err != nil {
+		// We can not handle this error, because it is persistent so just log it and skip
+		m.log.Errorf("inconsistency found - could not release resources from pool - %s", err)
+	}
+
+	delete(m.askPlans, plan.ID)
+	m.askPlanStorage.Save(m.askPlans)
+	return m.dropCGroup(plan.ID)
+
 }
 
 func (m *Salesman) AskPlanByDeal(dealID *sonm.BigInt) (*sonm.AskPlan, error) {
-	plans := m.state.AskPlans()
-	for _, plan := range plans {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for _, plan := range m.askPlans {
 		if plan.DealID.Cmp(dealID) == 0 {
-			return plan, nil
+			return deepcopy.Copy(plan).(*sonm.AskPlan), nil
 		}
 	}
 	return nil, fmt.Errorf("ask plan for deal id %s is not found", dealID)
@@ -226,13 +277,17 @@ func (m *Salesman) syncRoutine(ctx context.Context) {
 
 func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 	m.log.Debugf("syncing salesman with blockchain")
-	plans := m.state.AskPlans()
+	plans := m.AskPlans()
 	for _, plan := range plans {
 		orderId := plan.GetOrderID()
 		dealId := plan.GetDealID()
 		//TODO: Drop hardcode
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Second*180)
-		if !dealId.IsZero() {
+		if plan.Status == sonm.AskPlan_PENDING_DELETION {
+			if err := m.shutdownAskPlan(ctx, plan); err != nil {
+				m.log.Warnf("could not shutdown ask plan %s - %s", plan.ID, err)
+			}
+		} else if !dealId.IsZero() {
 			if err := m.checkDeal(ctxWithTimeout, plan); err != nil {
 				m.log.Warnf("could not check deal %s for plan %s - %s", dealId.Unwrap().String(), plan.ID, err)
 			}
@@ -241,8 +296,11 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 				m.log.Warnf("could not check order %s for plan %s - %s", orderId.Unwrap().String(), plan.ID, err)
 			}
 		} else {
-			if err := m.placeOrder(ctxWithTimeout, plan); err != nil {
+			order, err := m.placeOrder(ctxWithTimeout, plan)
+			if err != nil {
 				m.log.Warnf("could not place order for plan %s - %s", plan.ID, err)
+			} else {
+				go m.waitForDeal(ctx, order)
 			}
 		}
 		cancel()
@@ -250,9 +308,12 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 }
 
 func (m *Salesman) restoreState() error {
-	askPlans := m.state.AskPlans()
+	m.askPlans = map[string]*sonm.AskPlan{}
+	if err := m.askPlanStorage.Load(&m.askPlans); err != nil {
+		return fmt.Errorf("could not restore salesman state - %s", err)
+	}
 	//TODO:  check if we do not lack resources after restart
-	for _, plan := range askPlans {
+	for _, plan := range m.askPlans {
 		if err := m.resources.Consume(plan); err != nil {
 			m.log.Warnf("dropping ask plan due to resource changes")
 			//Ignore error here, as resources that were not consumed can not be released.
@@ -292,24 +353,23 @@ func (m *Salesman) dropCGroup(planID string) error {
 }
 
 func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) error {
-	m.log.Debugf("checking deal %s for ask plan %s and order %s",
-		plan.DealID.Unwrap().String(), plan.ID, plan.GetOrderID().Unwrap().String())
-	deal, err := m.eth.Market().GetDealInfo(ctx, plan.GetDealID().Unwrap())
+	dealID := plan.DealID.Unwrap()
+	dealStr := dealID.String()
+	orderID := plan.GetOrderID().Unwrap()
+	orderStr := orderID.String()
+
+	m.log.Debugf("checking deal %s for ask plan %s and order %s", dealStr, plan.ID, orderStr)
+	deal, err := m.eth.Market().GetDealInfo(ctx, dealID)
 	if err != nil {
-		return fmt.Errorf("could not get deal info for order %s, ask %s - %s",
-			plan.GetOrderID().Unwrap().String(), plan.ID, err)
+		return fmt.Errorf("could not get deal info for order %s, ask %s - %s", orderStr, plan.ID, err)
 	}
 	m.registerDeal(deal)
 
 	if deal.Status == sonm.DealStatus_DEAL_CLOSED {
-		err = m.resources.Release(plan.ID)
-		if err != nil {
-			m.log.Warnf("could not release resources for deal %s, order %s, ask %s - %s",
-				plan.DealID.Unwrap().String(), plan.OrderID.Unwrap().String(), plan.ID, err)
+		if err := m.assignOrder(plan.ID, nil); err != nil {
+			return err
 		}
-		plan.DealID = nil
-		plan.OrderID = nil
-		return m.state.SaveAskPlan(plan)
+		return m.assignDeal(plan.ID, nil)
 	} else {
 		errBill := m.maybeBillDeal(ctx, deal)
 		errClose := m.maybeCloseDeal(ctx, deal)
@@ -374,6 +434,28 @@ func (m *Salesman) registerDeal(deal *sonm.Deal) {
 	}
 }
 
+func (m *Salesman) assignDeal(planID string, dealID *sonm.BigInt) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	plan, ok := m.askPlans[planID]
+	if !ok {
+		return fmt.Errorf("could not assign deal %s to plan %s - no such plan", dealID.Unwrap().String(), planID)
+	}
+	plan.DealID = dealID
+	return m.askPlanStorage.Save(m.askPlans)
+}
+
+func (m *Salesman) assignOrder(planID string, orderID *sonm.BigInt) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	plan, ok := m.askPlans[planID]
+	if !ok {
+		return fmt.Errorf("could not assign order %s to plan %s - no such plan", orderID.Unwrap().String(), planID)
+	}
+	plan.OrderID = orderID
+	return m.askPlanStorage.Save(m.askPlans)
+}
+
 func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	//TODO: validate deal that it is ours
 	m.log.Infof("checking order %s for ask plan %s", plan.GetOrderID().Unwrap().String(), plan.ID)
@@ -386,22 +468,20 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 
 	if !order.DealID.IsZero() {
 		plan.DealID = order.DealID
-
-		if err := m.state.SaveAskPlan(plan); err != nil {
-			return fmt.Errorf("could not get save ask plan with deal %s - %s", order.DealID.Unwrap().String(), err)
+		if err := m.assignDeal(plan.ID, order.DealID); err != nil {
+			return err
 		}
 		return m.checkDeal(ctx, plan)
 	} else if order.OrderStatus != sonm.OrderStatus_ORDER_ACTIVE {
-		plan.OrderID = nil
-		m.state.SaveAskPlan(plan)
+		return m.assignOrder(plan.ID, nil)
 	}
 	return nil
 }
 
-func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) error {
+func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) (*sonm.Order, error) {
 	benchmarks, err := m.hardware.ResourcesToBenchmarks(plan.GetResources())
 	if err != nil {
-		return fmt.Errorf("could not get benchmarks for ask plan %s - %s", plan.ID, err)
+		return nil, fmt.Errorf("could not get benchmarks for ask plan %s - %s", plan.ID, err)
 	}
 
 	net := plan.GetResources().GetNetwork()
@@ -421,15 +501,13 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	}
 	ordOrErr := <-m.eth.Market().PlaceOrder(ctx, m.ethkey, order)
 	if ordOrErr.Err != nil {
-		return fmt.Errorf("could not place order on bc market - %s", ordOrErr.Err)
+		return nil, fmt.Errorf("could not place order on bc market - %s", ordOrErr.Err)
 	}
-	plan.OrderID = ordOrErr.Order.Id
-	if err := m.state.SaveAskPlan(plan); err != nil {
-		return fmt.Errorf("could not save ask plan %s in storage - %s", plan.ID, err)
+	if err := m.assignOrder(plan.ID, ordOrErr.Order.GetId()); err != nil {
+		return nil, err
 	}
 	m.log.Infof("placed order %s on blockchain", plan.OrderID.Unwrap().String())
-	go m.waitForDeal(ctx, ordOrErr.Order)
-	return nil
+	return ordOrErr.Order, nil
 }
 
 func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {
