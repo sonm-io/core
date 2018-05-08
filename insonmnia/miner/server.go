@@ -414,6 +414,14 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
 
+	err = request.GetResources().GetGPU().Normalize(m.hardware)
+	if err != nil {
+		log.G(ctx).Error("could not normalize GPU resources", zap.Error(err))
+		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.resources.ReleaseTask(request.Id)
+		return nil, status.Errorf(codes.Internal, "could not normalize GPU resources - %s", err)
+	}
+
 	//TODO: generate ID
 	if err := m.resources.ConsumeTask(ask.ID, request.Id, request.Resources); err != nil {
 		return nil, fmt.Errorf("could not start task - %s", err)
@@ -438,13 +446,6 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
 		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to parse networking specification - %s", err)
-	}
-	err = request.GetResources().GetGPU().Normalize(m.hardware)
-	if err != nil {
-		log.G(ctx).Error("could not normalize GPU resources", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		m.resources.ReleaseTask(request.Id)
-		return nil, status.Errorf(codes.Internal, "could not normalize GPU resources - %s", err)
 	}
 	gpuids, err := m.hardware.GPUIDs(request.GetResources().GetGPU())
 	if err != nil {
