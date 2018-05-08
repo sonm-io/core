@@ -125,8 +125,10 @@ It has these top-level messages:
 	JoinNetworkRequest
 	TaskListRequest
 	DealsReply
+	OpenDealRequest
 	Worker
 	WorkerListReply
+	BalanceReply
 	HandshakeRequest
 	DiscoverResponse
 	HandshakeResponse

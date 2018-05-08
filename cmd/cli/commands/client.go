@@ -58,3 +58,12 @@ func newTaskClient(ctx context.Context) (pb.TaskManagementClient, error) {
 
 	return pb.NewTaskManagementClient(cc), nil
 }
+
+func newTokenManagementClient(ctx context.Context) (pb.TokenManagementClient, error) {
+	cc, err := newClientConn(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return pb.NewTokenManagementClient(cc), nil
+}
