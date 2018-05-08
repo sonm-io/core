@@ -55,9 +55,17 @@ func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*so
 			ctxlog.G(ctx).Info("search for matching order via DWH", zap.String("id", order.GetId().Unwrap().String()))
 			matchingOrders, err := m.getMatchingOrders(ctx, id)
 			if err != nil {
+				// dwh failure is not critical, we must survive it
 				ctxlog.S(ctx).Debugf("failed to get matching orders from DWH - %s", err)
-				return nil, err
+				continue
+
 			}
+
+			if len(matchingOrders) == 0 {
+				ctxlog.G(ctx).Debug("no matching orders found")
+				continue
+			}
+
 			ctxlog.S(ctx).Debugf("got %d matching orders", len(matchingOrders))
 
 			// 3. iterate over sorted orders
@@ -141,4 +149,15 @@ func (m *matcher) reorderOrders(one, two *sonm.Order) (bid, ask *sonm.Order, err
 	}
 
 	return
+}
+
+type disabledMatcher struct{}
+
+// NewDisabledMatcher return `Matcher` interface implementation that does nothing.
+func NewDisabledMatcher() Matcher {
+	return &disabledMatcher{}
+}
+
+func (disabledMatcher) CreateDealByOrder(context.Context, *sonm.Order) (*sonm.Deal, error) {
+	return nil, errors.New("matcher disabled")
 }

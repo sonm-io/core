@@ -16,6 +16,7 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
+	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/npp"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -47,6 +48,7 @@ type remoteOptions struct {
 	blockchainTimeout time.Duration
 	nppDialer         *npp.Dialer
 	benchList         benchmarks.BenchList
+	orderMatcher      matcher.Matcher
 }
 
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
@@ -84,6 +86,8 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		return nil, err
 	}
 
+	dwh := pb.NewDWHClient(dwhCC)
+
 	eth, err := blockchain.NewAPI(blockchain.WithConfig(cfg.Blockchain))
 	if err != nil {
 		return nil, err
@@ -94,17 +98,31 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		return nil, err
 	}
 
+	var orderMatcher matcher.Matcher
+	if cfg.Matcher != nil {
+		orderMatcher = matcher.NewMatcher(&matcher.Config{
+			Key:        key,
+			DWH:        dwh,
+			Eth:        eth,
+			PollDelay:  cfg.Matcher.PollDelay,
+			QueryLimit: cfg.Matcher.QueryLimit,
+		})
+	} else {
+		orderMatcher = matcher.NewDisabledMatcher()
+	}
+
 	return &remoteOptions{
 		ctx:               ctx,
 		key:               key,
 		conf:              cfg,
 		creds:             credentials,
 		eth:               eth,
-		dwh:               pb.NewDWHClient(dwhCC),
+		dwh:               dwh,
 		blockchainTimeout: 180 * time.Second,
 		hubCreator:        hubFactory,
 		nppDialer:         nppDialer,
 		benchList:         benchList,
+		orderMatcher:      orderMatcher,
 	}, nil
 }
 
@@ -228,7 +246,6 @@ func (n *Node) InterceptStreamRequest(srv interface{}, ss grpc.ServerStream, inf
 
 // Serve binds gRPC services and start it
 func (n *Node) Serve() error {
-	// todo: how to deal with background processing into brave new blockchain world?
 	wg := errgroup.Group{}
 	wg.Go(n.ServeHttp)
 	wg.Go(n.ServeGRPC)

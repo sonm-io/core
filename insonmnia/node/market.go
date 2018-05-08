@@ -4,8 +4,10 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
 
@@ -92,7 +94,23 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 	}
 
 	ordOrErr := <-m.remotes.eth.Market().PlaceOrder(ctx, m.remotes.key, order)
-	return ordOrErr.Order, ordOrErr.Err
+	if ordOrErr.Err != nil {
+		return nil, ordOrErr.Err
+	}
+
+	go func() {
+		deal, err := m.remotes.orderMatcher.CreateDealByOrder(m.remotes.ctx, ordOrErr.Order)
+		if err != nil {
+			ctxlog.G(m.remotes.ctx).Warn("cannot open deal", zap.Error(err))
+			return
+		}
+
+		ctxlog.G(m.remotes.ctx).Info("opened deal for order",
+			zap.String("orderID", ordOrErr.Order.Id.Unwrap().String()),
+			zap.String("dealID", deal.Id.Unwrap().String()))
+	}()
+
+	return ordOrErr.Order, nil
 }
 
 func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, error) {

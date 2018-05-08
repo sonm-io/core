@@ -26,6 +26,13 @@ dwh:
   # marketplace gRPC endpoint, required
   endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:15021"
 
+# Matcher settings.
+# Matcher is routine that catches created BID orders and try to
+# open deal with most profitable ASK order that fits resource requirements.
+matcher:
+  poll_delay: 30s
+  query_limit: 10
+
 benchmarks:
   # URL to download benchmark list, use `file://` schema to load file from a filesystem.
   url: "https://raw.githubusercontent.com/sonm-io/allowed-list/master/benchmarks_list.json"
