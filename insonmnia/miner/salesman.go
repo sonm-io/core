@@ -183,9 +183,6 @@ func (m *Salesman) RemoveAskPlan(planID string) error {
 }
 
 func (m *Salesman) shutdownAskPlan(ctx context.Context, plan *sonm.AskPlan) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	if !plan.GetDealID().IsZero() {
 		dealInfo, err := m.eth.Market().GetDealInfo(ctx, plan.GetDealID().Unwrap())
 		if err != nil {
@@ -202,7 +199,7 @@ func (m *Salesman) shutdownAskPlan(ctx context.Context, plan *sonm.AskPlan) erro
 		}
 	}
 
-	if !plan.GetOrderID().IsZero() {
+	if plan.GetDealID().IsZero() && !plan.GetOrderID().IsZero() {
 		orderInfo, err := m.eth.Market().GetOrderInfo(ctx, plan.GetOrderID().Unwrap())
 		if err != nil {
 			return err
@@ -299,8 +296,11 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 				m.log.Warnf("could not check order %s for plan %s - %s", orderId.Unwrap().String(), plan.ID, err)
 			}
 		} else {
-			if err := m.placeOrder(ctxWithTimeout, plan); err != nil {
+			order, err := m.placeOrder(ctxWithTimeout, plan)
+			if err != nil {
 				m.log.Warnf("could not place order for plan %s - %s", plan.ID, err)
+			} else {
+				go m.waitForDeal(ctx, order)
 			}
 		}
 		cancel()
@@ -309,7 +309,7 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 
 func (m *Salesman) restoreState() error {
 	m.askPlans = map[string]*sonm.AskPlan{}
-	if err := m.askPlanStorage.Load(m.askPlans); err != nil {
+	if err := m.askPlanStorage.Load(&m.askPlans); err != nil {
 		return fmt.Errorf("could not restore salesman state - %s", err)
 	}
 	//TODO:  check if we do not lack resources after restart
@@ -478,10 +478,10 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	return nil
 }
 
-func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) error {
+func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) (*sonm.Order, error) {
 	benchmarks, err := m.hardware.ResourcesToBenchmarks(plan.GetResources())
 	if err != nil {
-		return fmt.Errorf("could not get benchmarks for ask plan %s - %s", plan.ID, err)
+		return nil, fmt.Errorf("could not get benchmarks for ask plan %s - %s", plan.ID, err)
 	}
 
 	net := plan.GetResources().GetNetwork()
@@ -501,14 +501,13 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	}
 	ordOrErr := <-m.eth.Market().PlaceOrder(ctx, m.ethkey, order)
 	if ordOrErr.Err != nil {
-		return fmt.Errorf("could not place order on bc market - %s", ordOrErr.Err)
+		return nil, fmt.Errorf("could not place order on bc market - %s", ordOrErr.Err)
 	}
 	if err := m.assignOrder(plan.ID, ordOrErr.Order.GetId()); err != nil {
-		return err
+		return nil, err
 	}
 	m.log.Infof("placed order %s on blockchain", plan.OrderID.Unwrap().String())
-	go m.waitForDeal(ctx, ordOrErr.Order)
-	return nil
+	return ordOrErr.Order, nil
 }
 
 func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {
