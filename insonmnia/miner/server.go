@@ -789,7 +789,12 @@ func (m *Miner) execBenchmarkContainerWithResults(d Description) (map[string]*bm
 		return nil, fmt.Errorf("cannot start container with benchmark: %v", err)
 	}
 
-	logOpts := types.ContainerLogsOptions{ShowStdout: true}
+	logOpts := types.ContainerLogsOptions{
+		ShowStdout: true,
+		Follow:     true,
+		Since:      strconv.FormatInt(time.Now().Unix(), 10),
+	}
+
 	reader, err := m.ovs.Logs(m.ctx, statusReply.ID, logOpts)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create container log reader: %v", err)
@@ -798,19 +803,17 @@ func (m *Miner) execBenchmarkContainerWithResults(d Description) (map[string]*bm
 
 	stdoutBuf := bytes.Buffer{}
 	stderrBuf := bytes.Buffer{}
-	_, err = stdcopy.StdCopy(&stdoutBuf, &stderrBuf, reader)
-	if err != nil {
-		return nil, fmt.Errorf("cannot read logs into buffer: %v", err)
+
+	s := <-statusChan
+	if s == pb.TaskStatusReply_FINISHED || s == pb.TaskStatusReply_BROKEN {
+		if _, err := stdcopy.StdCopy(&stdoutBuf, &stderrBuf, reader); err != nil {
+			return nil, fmt.Errorf("cannot read logs into buffer: %v", err)
+		}
 	}
 
 	resultsMap, err := parseBenchmarkResult(stdoutBuf.Bytes())
 	if err != nil {
 		return nil, fmt.Errorf("cannot parse benchmark result: %v", err)
-	}
-
-	<-statusChan
-	if err := m.ovs.Stop(m.ctx, statusReply.ID); err != nil {
-		log.G(m.ctx).Warn("cannot stop benchmark container", zap.Error(err))
 	}
 
 	return resultsMap, nil
