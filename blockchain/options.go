@@ -4,7 +4,7 @@ import "time"
 
 const (
 	defaultEthEndpoint       = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
-	defaultSidechainEndpoint = "https://private-dev.sonm.io"
+	defaultSidechainEndpoint = "https://sidechain-dev.sonm.com"
 	defaultGasPrice          = 20000000000 // 20 Gwei
 	defaultGasPriceSidechain = 0
 )
