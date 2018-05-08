@@ -512,7 +512,7 @@ func (w *DWH) getOrderDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHO
 	defer rows.Close()
 
 	if !rows.Next() {
-		w.logger.Error("order not found", zap.Error(rows.Err()), zap.Any("request", request))
+		w.logger.Info("order not found", zap.Error(rows.Err()), zap.Any("request", request))
 		return nil, status.Error(codes.NotFound, "failed to GetOrderDetails")
 	}
 
