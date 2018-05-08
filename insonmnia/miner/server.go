@@ -439,6 +439,20 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to parse networking specification - %s", err)
 	}
+	err = request.GetResources().GetGPU().Normalize(m.hardware)
+	if err != nil {
+		log.G(ctx).Error("could not normalize GPU resources", zap.Error(err))
+		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.resources.ReleaseTask(request.Id)
+		return nil, status.Errorf(codes.Internal, "could not normalize GPU resources - %s", err)
+	}
+	gpuids, err := m.hardware.GPUIDs(request.GetResources().GetGPU())
+	if err != nil {
+		log.G(ctx).Error("failed to fetch GPU IDs ", zap.Error(err))
+		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.resources.ReleaseTask(request.Id)
+		return nil, status.Errorf(codes.Internal, "failed to fetch GPU IDs - %s", err)
+	}
 	var d = Description{
 		Image:         request.Container.Image,
 		Registry:      request.Container.Registry,
@@ -449,6 +463,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		DealId:        request.GetDealID(),
 		TaskId:        request.Id,
 		CommitOnStop:  request.Container.CommitOnStop,
+		GPUDevices:    gpuids,
 		Env:           request.Container.Env,
 		volumes:       request.Container.Volumes,
 		mounts:        mounts,

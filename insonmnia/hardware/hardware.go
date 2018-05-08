@@ -9,6 +9,7 @@ import (
 	"github.com/cnf/structhash"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/ram"
+	"github.com/sonm-io/core/insonmnia/miner/gpu"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 )
@@ -70,6 +71,30 @@ func (m *Hardware) HashGPU(indexes []uint64) ([]string, error) {
 		hashes = append(hashes, m.GPU[idx].Device.Hash)
 	}
 	return hashes, nil
+}
+
+func (m *Hardware) GPUIDs(gpuResources *sonm.AskPlanGPU) ([]gpu.GPUID, error) {
+	if gpuResources == nil {
+		return nil, nil
+	}
+	if !gpuResources.Normalized() {
+		return nil, fmt.Errorf("GPU devices are not normalized")
+	}
+	result := make([]gpu.GPUID, 0, len(gpuResources.Hashes))
+	for _, hash := range gpuResources.Hashes {
+		set := false
+		for _, gpuDevice := range m.GPU {
+			if gpuDevice.GetDevice().GetHash() == hash {
+				set = true
+				result = append(result, gpu.GPUID(gpuDevice.GetDevice().GetID()))
+				break
+			}
+		}
+		if set == false {
+			return nil, fmt.Errorf("could not find id for gpu hash %s", hash)
+		}
+	}
+	return result, nil
 }
 
 func (h *Hardware) SetNetworkIncoming(IPs []string) {
