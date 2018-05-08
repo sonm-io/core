@@ -1,3 +1,166 @@
+sonm-core (0.4.0-alpha1) UNRELEASED; urgency=low
+
+  * Added: NAT punching.
+    This adds the full NAT Punching Protocol implementation, allowing to
+    connect Hub and its clients, including workers, even if they are located under
+    a single or several NATs.
+    Also this commit adds a Rendezvous server, which acts as an intermediate
+    metadata exchange point.
+    NPP is a protocol aimed to achieve mutual address resolution for both client
+    and server. This is especially useful where there is no guarantee
+    that both peers are reachable directly, i.e. behind a NAT for example.
+    The protocol allows for servers to publish their private network addresses
+    while resolving their real remove address. This information is saved under
+    some ID until a connection held and heartbeat frames transmitted.
+    When a client wants to perform a connection it goes to this server, informs
+    about its own private network addresses and starting from this point a
+    rendezvous can be achieved.
+    Both client and server are informed about remote peers public and private
+    addresses and they may perform several attempts to create an actual p2p
+    connection.
+    By trying to connect to private addresses they can reach each other if and
+    only if they're both in the same LAN or VLAN.
+    If a peer doesn't have private address, the connection is almost guaranteed
+    to be established directly from the private peer to the public one.
+    If both of them are located under different NATs, a TCP punching attempt can
+    be performed.
+    At last, when there is no hope, for example in the case of Symmetric NAT, a
+    special relay server can be used to forward the traffic.
+    Servers should publish all of possibly reachable endpoints for all protocols
+    they support. Its Ethereum ID is determined automatically through our peer
+    authentication mechanism.
+    Clients should specify the desired protocol and ID for resolution. For both
+    server and client their public endpoint is determined automatically.
+    Currently only TCP connection establishment is supported.
+    The implementation requires the underlying TCP/IP stack to support
+    SO_REUSEADDR and SO_REUSEPORT options, because for successful NAT
+    traversal it's crucial to reuse the same src ip:port to be routed
+    through the same external ip:port each time.
+    Thus, the minimum linux kernel version is 3.9. About other platforms
+    it's unclear.
+    The other hack is the simultaneous TCP open, which unfortunately requires
+    tons of fds allocated on each connect attempt, so prepare to enlarge your
+    open files limits.
+  * Added: overlay networks support for containers using tinc and/or L2TP.
+  * Added: tinc overlay driver (#512).
+    The tinc is a Virtual Private Network daemon that uses tunnelling and
+    encryption to create a secure private network between hosts on the Internet.
+    This addition allows to configure overlay network for containers
+  * Added: docker l2tp driver (#490).
+    This addition allows to configure overlay L2TP network for containers,
+    forcing them to join to the specified VPN.
+  * Added: allow worker to manage single GPUs (#491).
+    This includes adding GPU Tuner that collects and keep info about available GPUs
+    and related DRI devices. We use DRI device representation, related /sys/class parsers
+    for device discovering, PCI bus ID extractor.
+    The tuner now can bind devices into the container by their IDs.
+    Also added `lsgpu` tool for GPU fast-checking on a various systems.
+  * Added: allow to obtain peers by ethereum id (#507).
+  * Added: feat: NPP Relay server.
+    This introduces the Relay server as a part of NPP. Also it extends the NPP library to work
+    with it transparently like with a typical TCP socket.
+    The Relay server is a last resort tool used to penetrate the NAT in case of
+    over-paranoid network configurations, such as Symmetrical NAT or manual iptables
+    hacks. When NPP gives up it acts as a third-party server which transports TCP
+    traffic in the userland.
+    Briefly what it allows - is to establish a TCP connection between two hosts with
+    private IP addresses.
+    There are several components in the Relay server, which allows to unite several
+    servers into the single cluster, performing client-side load-balancing with the
+    help of servers.
+    After discovering the proper Relay endpoint a HANDSHAKE message is sent to
+    publish the server. Internally an ETH address provided is verified using
+    asymmetrical cryptography based on secp256k1 curves.
+    At the other side the peer client performs almost the same steps, instead of its
+    own ETH address it specifies the target ETH address the client wants to connect.
+    When at least two peers are discovered the relaying process starts by simply
+    copying all the TCP payload without inspection. Thus, an authentication between
+    two peers is still required to keep the traffic encrypted and avoid MITM attack.
+    Several Relays can be united in a single cluster by specifying several endpoints
+    of other members in the cluster the user want to join. Internally a SWIM
+    protocol is used for fast members discovering and convergence. An optional
+    message encryption and members authentication can be specified for security
+    reasons.
+    Relay servers obviously require to be hosted on machines with public IP address.
+    However additionally an announce endpoint can be specified to host Relay servers
+    under the NAT, but with configured PMP or other stuff that allows to forward
+    incoming traffic to the private network.
+  * Added: build deb-package for Rendezvous and Relay (#533).
+  * Added: REST interface for node (#535).
+    Flexible REST interface build on top of gRPC services reflection.
+  * Added: worker's benchmarks (#530).
+    This adds able to measure Worker's performance by executing
+    a bunch of benchmarks. Some of the benchmarks are present as statically-coded
+    functions that can simply pick-up a value from system (how many bytes of RAM
+    or CPU cores count). More complex measurement is implemented as Docker-containers
+    which must return a JSON string with the results.  It allows implementing
+    some amount of custom logic for each hardware group.
+    To keep the Worker's state, the boltdb was added as a simple storage.
+  * Added: read memory limit from CGroup (#549).
+    Previously we used total amount RAM on the host system as an available memory for scheduling.
+    But resources for containers may be limited by a parent CGroup settings.
+    This changes how available memory amount is measured.
+    The lesser value of `total RAM on host, a limit set for CGroup` is used.
+  * Added: collect memory amount for GPU devices (#556)
+    This adds able to obtain memory size for GPU devices. Discovered values uses as metrics for
+    the `mem-gpu` benchmark.
+  * Added: new blockchain API (#569).
+  * Added: feat: auto request/response validation (#585)
+    This commit activates gRPC request/response auto-validation by injecting an interceptor.
+    Those requests/responses that require validation can optionally implement an
+    implicit `Validate() error` function that will be called before request starts being processed
+    and before response passed to the gRPC internals.
+  * Added: show devices with benchmarks (#575).
+    This improves device list shown to Worker's owner. The list includes new device
+    groups (network, storage). Also, benchmarks results for every device group is shown.
+  * Added: ask-plan protobuf entity (#583).
+    This introduces new AskPlan entity to be used in worker for placing ask orders on market.
+    Intended to use instead of slot.
+  * Added: ability to join networks using JoinNetwork command (#599).
+  * Added: CLI command to show current balance (#608).
+  * Added: show network capabilities into worker's devices (#611).
+  * Added: DWH (#548). DWH is a traditional abbreviation for Data Warehouse.
+    Typically, it is a component that can receive data from various sources, store it, generate
+    additional data slices (built from obtained data), and submit this data to external consumers.
+    In SONM environment, the DWH is a node that keeps a copy of the data that has passed through
+    the Sidechain and provides fast access mechanisms to this data in a convenient way for the end
+    user (client applications and other SONM platform infrastructure components).
+  * Added: create order from `bid.yaml` (#607).
+    This adds able to read BID orders from the yaml spec and place them on Marketplace.
+  * Added: deal matcher.
+  * Added: ETH load testing tools.
+  * Added: autosell bot.
+    This bot acts as a separate application and attaches to a specified workers, managing them
+    by scanning available resources and trying to sell them using marketplace scanning with
+    minor help of machine learning.
+  * Changed: update configs and binaries location (#504).
+    Now we keep all configs into `etc` directory, while all binaries are now located in
+    the `target` directory.
+    Now deb package with node creates the `sonm` user account on install, node runs under that
+    user.
+    Also added OS type and arch into target binary name.
+  * Changed: integrate hub into miner (#527).
+    Previously hub was used for the following reasons: providing access for workers
+    without public IP; resource scheduling between workers; account association for
+    large installations
+    Currently NPP Allows us to work without public IP's, resource scheduling will be
+    done on per machine basis with help of blockchain and account integration will be
+    done via smart contract, so there is no reason to leave hub as an entity.
+  * Changed: merge worker and hub configs (#577).
+  * Changed: drop CLI interactors (#518).
+  * Changed: drop cluster (#560)
+    The `Cluster` entity was removed from the Hub, now `state` operates with
+    the `libkv.Storage` itself.
+  * Changed: complete Locator extermination (#568).
+  * Changed: update go-ethereum api to v.1.8.2 (#601).
+  * Changed: improve order and deal printers (#684).
+  * Changed: use dealID to detect corresponding worker when using task API (#686).
+    This drops supporting for hub address parameter into task API. Now we're using dealID as
+    counterpart identifier to resolve addresses and perform requests.
+  * Changed: configurable blockchain endpoints (#697).
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 04 May 2018 12:57:02 +0300
+
 sonm-core (0.3.3) unstable; urgency=low
 
   * Fixed: better logging for ask-plan processing (#469).
