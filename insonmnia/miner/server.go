@@ -911,6 +911,5 @@ func (m *Miner) Close() {
 	m.ssh.Close()
 	m.ovs.Close()
 	m.salesman.Close()
-	m.controlGroup.Delete()
 	m.plugins.Close()
 }
