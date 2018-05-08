@@ -25,6 +25,9 @@ func (c *cgroup) Stats() (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
+	if cgStat.Memory == nil {
+		return &Stats{MemoryLimit: 0}, nil
+	}
 
 	return &Stats{MemoryLimit: cgStat.Memory.HierarchicalMemoryLimit}, nil
 }
@@ -90,12 +93,12 @@ func initializeControlGroup(name string, resources *specs.LinuxResources) (CGrou
 	}
 
 	if resources == nil {
-		return &cgroup{control, name}, nil
+		return &cgroup{control, "/" + name}, nil
 	}
 
 	if err = control.Update(resources); err != nil {
 		return nil, fmt.Errorf("failed to set resource limit on parent cgroup %s: %v", name, err)
 	}
 
-	return &cgroup{control, name}, nil
+	return &cgroup{control, "/" + name}, nil
 }

@@ -97,6 +97,8 @@ func NewSalesman(
 	return s, nil
 }
 
+func (m *Salesman) Close() {}
+
 func (m *Salesman) Run(ctx context.Context) {
 	askPlans := m.state.AskPlans()
 	for _, plan := range askPlans {

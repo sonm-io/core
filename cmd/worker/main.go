@@ -76,6 +76,7 @@ func run() error {
 	if err = h.Serve(); err != nil {
 		log.G(ctx).Error("Server stop", zap.Error(err))
 	}
+	h.Close()
 
 	return nil
 }

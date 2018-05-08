@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/jinzhu/configor"
+	"github.com/sonm-io/core/proto"
 )
 
 // TaskConfig describe how to start task (docker image) on Miner
@@ -22,6 +23,7 @@ type TaskConfig interface {
 	Volumes() map[string]volume
 	Mounts() []string
 	Networks() []network
+	GetResources() *sonm.AskPlanResources
 }
 
 type container struct {
@@ -54,8 +56,9 @@ type registry struct {
 }
 
 type task struct {
-	Container container `yaml:"container,flow" required:"true"`
-	Registry  *registry `yaml:"registry,flow" required:"false"`
+	Container container              `yaml:"container,flow" required:"true"`
+	Registry  *registry              `yaml:"registry,flow" required:"false"`
+	Resources *sonm.AskPlanResources `yaml:"resources,flow"`
 }
 
 type YamlConfig struct {
@@ -108,6 +111,10 @@ func (yc *YamlConfig) Mounts() []string {
 
 func (yc *YamlConfig) Networks() []network {
 	return yc.Task.Container.Networks
+}
+
+func (yc *YamlConfig) GetResources() *sonm.AskPlanResources {
+	return yc.Task.Resources
 }
 
 func LoadConfig(path string) (TaskConfig, error) {

@@ -293,6 +293,7 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 			Name:              "",
 			MaximumRetryCount: 0,
 		},
+		Resources: request.Resources,
 	}
 
 	response, err := h.worker.Start(ctx, startRequest)
@@ -405,11 +406,11 @@ func (h *Hub) listenAPI() error {
 
 // Close disposes all resources attached to the Hub
 func (h *Hub) Close() {
-	h.cancel()
 	h.externalGrpc.Stop()
 	if h.certRotator != nil {
 		h.certRotator.Close()
 	}
 	h.worker.Close()
+	h.cancel()
 	h.waiter.Wait()
 }

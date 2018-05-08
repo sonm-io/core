@@ -128,7 +128,7 @@ func (m *AskPlanResources) ToHostConfigResources(cgroupParent string) container.
 	//TODO: check and discuss
 	return container.Resources{
 		Memory:       int64(m.GetRAM().GetSize().GetBytes()),
-		NanoCPUs:     int64(m.GetCPU().GetCorePercents() * 10e9 / 100),
+		NanoCPUs:     int64(m.GetCPU().GetCorePercents() * 1e9 / 100),
 		CgroupParent: cgroupParent,
 	}
 
