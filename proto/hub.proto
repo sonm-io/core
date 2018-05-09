@@ -102,12 +102,13 @@ message PullTaskRequest {
 
 message DealInfoReply {
     Deal deal = 1;
-    Order bidOrder = 2;
-    Order askOrder = 3;
     // List of currently running tasks.
-    StatusMapReply running = 4;
+    StatusMapReply running = 2;
     // List of completed tasks.
-    StatusMapReply completed = 5;
+    StatusMapReply completed = 3;
+    // Resources is a real resources (cores, ram bytes, GPU devices, etc)
+    // allocated on a worker for this deal.
+    AskPlanResources resources =  4;
 }
 
 message TaskStatusReply {
@@ -125,6 +126,7 @@ message TaskStatusReply {
     uint64 uptime = 4;
     ResourceUsage usage = 5;
     AskPlanResources allocatedResources = 6;
+    // Deprecated: TODO: minerID is meaningless
     string minerID = 7;
 }
 

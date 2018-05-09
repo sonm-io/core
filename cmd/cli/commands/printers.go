@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/docker/go-connections/nat"
@@ -278,7 +279,7 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 		}
 
 		for _, deal := range deals {
-			printDealInfo(cmd, deal)
+			printDealInfo(cmd, &pb.DealInfoReply{Deal: deal})
 			cmd.Println()
 		}
 	} else {
@@ -287,8 +288,9 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 
 }
 
-func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
+func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply) {
 	if isSimpleFormat() {
+		deal := info.GetDeal()
 		start := deal.StartTime.Unix()
 		end := deal.EndTime.Unix()
 		dealDuration := end.Sub(start)
@@ -310,8 +312,41 @@ func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 		if lastBill.Unix() > 0 {
 			cmd.Printf("Last bill:    %s\r\n", lastBill.Format(time.RFC3339))
 		}
+
+		if info.Resources != nil {
+			cmd.Println("Resources:")
+
+			cpuCores := float64(info.Resources.CPU.CorePercents) / 100.0
+			ram := info.Resources.RAM.Size.Unwrap().HumanReadable()
+
+			cmd.Printf("  CPU:     %.2f cores\n", cpuCores)
+			cmd.Printf("  RAM:     %s\n", ram)
+			if len(info.Resources.GPU.Hashes) > 0 {
+				cmd.Printf("  GPUs:    %v\n", strings.Join(info.Resources.GPU.Hashes, ", "))
+			}
+			cmd.Printf("  Storage: %v\n", info.Resources.Storage.Size.Unwrap().HumanReadable())
+			cmd.Println("  Network:")
+			cmd.Printf("    Overlay:  %v\n", info.Resources.Network.Overlay)
+			cmd.Printf("    Outbound: %v\n", info.Resources.Network.Outbound)
+			cmd.Printf("    Incoming: %v\n", info.Resources.Network.Incoming)
+
+		}
+
+		if info.Running != nil && len(info.Running.Statuses) > 0 {
+			cmd.Println("Running tasks:")
+			for id, task := range info.Running.Statuses {
+				cmd.Printf("  %s: %s %s\n", id, task.Status.String(), task.ImageName)
+			}
+		}
+
+		if info.Completed != nil && len(info.Completed.Statuses) > 0 {
+			cmd.Println("Finished tasks:")
+			for id, task := range info.Completed.Statuses {
+				cmd.Printf("  %s: %s %s\n", id, task.Status.String(), task.ImageName)
+			}
+		}
 	} else {
-		showJSON(cmd, deal)
+		showJSON(cmd, info)
 	}
 }
 

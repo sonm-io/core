@@ -2,6 +2,7 @@ package node
 
 import (
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
@@ -55,9 +56,19 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, er
 		return nil, err
 	}
 
-	reply := &pb.DealInfoReply{
-		// TODO(sshaman1101): need to find a way to extract deal details from related Worker.
-		Deal: deal,
+	reply := &pb.DealInfoReply{Deal: deal}
+
+	// try to extract extra info for deal
+	dealID := deal.GetId().Unwrap().String()
+	hub, closer, err := d.remotes.getHubClientByEthAddr(ctx, deal.GetSupplierID().Unwrap().Hex())
+	if err == nil {
+		ctxlog.G(d.remotes.ctx).Debug("try to obtain deal info from the worker")
+		defer closer.Close()
+		info, err := hub.GetDealInfo(ctx, &pb.ID{Id: dealID})
+		if err == nil {
+			return info, nil
+		}
+
 	}
 
 	return reply, nil

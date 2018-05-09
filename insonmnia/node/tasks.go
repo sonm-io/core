@@ -4,11 +4,9 @@ import (
 	"io"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
@@ -26,7 +24,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 		log.G(t.ctx).Info("dealID is provided in request, performing direct request",
 			zap.String("dealID", req.GetDealID().Unwrap().String()))
 
-		hubClient, cc, err := t.getHubClientForDeal(ctx, req.GetDealID().Unwrap().String())
+		hubClient, cc, err := t.remotes.getHubClientForDeal(ctx, req.GetDealID().Unwrap().String())
 		if err != nil {
 			return nil, err
 		}
@@ -54,7 +52,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 }
 
 func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.Deal) {
-	hub, cc, err := t.getHubClientByEthAddr(ctx, deal.GetSupplierID().Unwrap().Hex())
+	hub, cc, err := t.remotes.getHubClientByEthAddr(ctx, deal.GetSupplierID().Unwrap().Hex())
 	if err != nil {
 		log.G(t.ctx).Error("cannot resolve hub address",
 			zap.String("hub_eth", deal.GetSupplierID().Unwrap().Hex()),
@@ -75,7 +73,7 @@ func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.Ta
 }
 
 func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
-	hub, cc, err := t.getHubClientForDeal(ctx, req.Deal.GetId().Unwrap().String())
+	hub, cc, err := t.remotes.getHubClientForDeal(ctx, req.Deal.GetId().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +88,7 @@ func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.Sta
 }
 
 func (t *tasksAPI) JoinNetwork(ctx context.Context, request *pb.JoinNetworkRequest) (*pb.NetworkSpec, error) {
-	hub, cc, err := t.getHubClientForDeal(ctx, request.GetTaskID().GetDealID().Unwrap().String())
+	hub, cc, err := t.remotes.getHubClientForDeal(ctx, request.GetTaskID().GetDealID().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +106,7 @@ func (t *tasksAPI) JoinNetwork(ctx context.Context, request *pb.JoinNetworkReque
 }
 
 func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusReply, error) {
-	hubClient, cc, err := t.getHubClientForDeal(ctx, id.GetDealID().Unwrap().String())
+	hubClient, cc, err := t.remotes.getHubClientForDeal(ctx, id.GetDealID().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
@@ -118,7 +116,7 @@ func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusRep
 }
 
 func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServer) error {
-	hubClient, cc, err := t.getHubClientForDeal(srv.Context(), req.GetDealID().Unwrap().String())
+	hubClient, cc, err := t.remotes.getHubClientForDeal(srv.Context(), req.GetDealID().Unwrap().String())
 	if err != nil {
 		return err
 	}
@@ -147,7 +145,7 @@ func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServe
 }
 
 func (t *tasksAPI) Stop(ctx context.Context, id *pb.TaskID) (*pb.Empty, error) {
-	hubClient, cc, err := t.getHubClientForDeal(ctx, id.GetDealID().Unwrap().String())
+	hubClient, cc, err := t.remotes.getHubClientForDeal(ctx, id.GetDealID().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +162,7 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 
 	log.G(t.ctx).Info("handling PushTask request", zap.String("deal_id", meta.dealID))
 
-	hub, cc, err := t.getHubClientForDeal(meta.ctx, meta.dealID)
+	hub, cc, err := t.remotes.getHubClientForDeal(meta.ctx, meta.dealID)
 	if err != nil {
 		return err
 	}
@@ -242,7 +240,7 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 
 func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullTaskServer) error {
 	ctx := context.Background()
-	hub, cc, err := t.getHubClientForDeal(ctx, req.GetDealId())
+	hub, cc, err := t.remotes.getHubClientForDeal(ctx, req.GetDealId())
 	if err != nil {
 		return err
 	}
@@ -280,24 +278,6 @@ func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullT
 			}
 		}
 	}
-}
-
-func (t *tasksAPI) getHubClientForDeal(ctx context.Context, id string) (*hubClient, io.Closer, error) {
-	bigID, err := util.ParseBigInt(id)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	dealInfo, err := t.remotes.eth.Market().GetDealInfo(ctx, bigID)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return t.getHubClientByEthAddr(ctx, dealInfo.GetSupplierID().Unwrap().Hex())
-}
-
-func (t *tasksAPI) getHubClientByEthAddr(ctx context.Context, eth string) (*hubClient, io.Closer, error) {
-	return t.remotes.hubCreator(common.HexToAddress(eth), "")
 }
 
 type streamMeta struct {
