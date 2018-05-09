@@ -37,6 +37,8 @@ func NewMatcher(cfg *Config) Matcher {
 
 func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*sonm.Deal, error) {
 	id := order.GetId().Unwrap()
+	ctxlog.G(ctx).Debug("starting matcher", zap.String("orderID", id.String()))
+
 	tk := util.NewImmediateTicker(m.cfg.PollDelay)
 	defer tk.Stop()
 
@@ -45,28 +47,21 @@ func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*so
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		case <-tk.C:
-			// 1. check if order is actual
-			ctxlog.G(ctx).Info("check that order exists", zap.String("id", order.GetId().Unwrap().String()))
 			if err := m.checkIfOrderExists(ctx, id); err != nil {
 				return nil, err
 			}
 
-			// 2. get matching orders from dwh
-			ctxlog.G(ctx).Info("search for matching order via DWH", zap.String("id", order.GetId().Unwrap().String()))
 			matchingOrders, err := m.getMatchingOrders(ctx, id)
 			if err != nil {
 				// dwh failure is not critical, we must survive it
-				ctxlog.S(ctx).Debugf("failed to get matching orders from DWH - %s", err)
+				ctxlog.S(ctx).Debugf("failed to get matching orders from DWH: %s", err)
 				continue
 
 			}
 
 			if len(matchingOrders) == 0 {
-				ctxlog.G(ctx).Debug("no matching orders found")
 				continue
 			}
-
-			ctxlog.S(ctx).Debugf("got %d matching orders", len(matchingOrders))
 
 			// 3. iterate over sorted orders
 			for _, dealWithMe := range matchingOrders {
@@ -76,10 +71,12 @@ func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*so
 				}
 
 				// 4. try to open deal
-				ctxlog.G(ctx).Info("opening deal", zap.String("bid", bid.GetId().Unwrap().String()),
-					zap.String("ask", ask.GetId().Unwrap().String()))
 				deal, err := m.openDeal(ctx, bid, ask)
 				if err == nil {
+					ctxlog.G(ctx).Debug("deal is opened",
+						zap.String("bid", bid.GetId().Unwrap().String()),
+						zap.String("ask", ask.GetId().Unwrap().String()),
+						zap.String("deal", deal.GetId().Unwrap().String()))
 					return deal, nil
 				}
 
@@ -100,7 +97,7 @@ func (m *matcher) checkIfOrderExists(ctx context.Context, id *big.Int) error {
 	}
 
 	if order.GetOrderStatus() != sonm.OrderStatus_ORDER_ACTIVE {
-		return errors.New("order is not active")
+		return errors.New("unable to match inactive order")
 	}
 
 	return nil
