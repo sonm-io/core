@@ -111,6 +111,9 @@ func (m *DataSize) MarshalYAML() (interface{}, error) {
 }
 
 func (m *DataSizeRate) Unwrap() datasize.BitRate {
+	if m == nil {
+		return datasize.BitRate{}
+	}
 	return datasize.NewBitRate(m.BitsPerSecond)
 }
 

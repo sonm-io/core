@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
+	"github.com/hashicorp/go-multierror"
 	"github.com/mohae/deepcopy"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -79,11 +80,6 @@ type Miner struct {
 	// external and in-mem storage
 	state         *state.Storage
 	benchmarkList bm.BenchList
-
-	// In-mem state, can be safety reloaded
-	// from the external sources.
-	// Must be protected by `mu` mutex.
-	//Deals map[structs.DealID]*structs.DealMeta
 }
 
 func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
@@ -209,7 +205,6 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 
 		containers:  make(map[string]*ContainerInfo),
 		nameMapping: make(map[string]string),
-		//Deals:       make(map[structs.DealID]*structs.DealMeta),
 
 		controlGroup:  cgroup,
 		cGroupManager: cGroupManager,
@@ -243,9 +238,46 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	}
 	m.salesman = salesman
 
-	m.salesman.Run(o.ctx)
+	ch := m.salesman.Run(o.ctx)
+	go m.listenDeals(ch)
 
 	return m, nil
+}
+
+func (m *Miner) listenDeals(dealsCh <-chan *pb.Deal) {
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case deal := <-dealsCh:
+			if deal.Status == pb.DealStatus_DEAL_CLOSED {
+				if err := m.cancelDealTasks(deal); err != nil {
+					log.S(m.ctx).Warnf("could not stop tasks for closed deal %s - %s", deal.GetId().Unwrap().String(), err)
+				}
+			}
+		}
+	}
+}
+
+func (m *Miner) cancelDealTasks(deal *pb.Deal) error {
+	dealID := deal.GetId().Unwrap().String()
+	var toDelete []string
+
+	m.mu.Lock()
+	for _, container := range m.containers {
+		if container.DealID == dealID {
+			toDelete = append(toDelete, container.ID)
+		}
+	}
+	m.mu.Unlock()
+
+	var result error
+	for _, containerID := range toDelete {
+		if err := m.ovs.Stop(m.ctx, containerID); err != nil {
+			result = multierror.Append(result, err)
+		}
+	}
+	return result
 }
 
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
@@ -315,7 +347,7 @@ func (m *Miner) setStatus(status *pb.TaskStatusReply, id string) {
 		m.containers[id] = &ContainerInfo{}
 	}
 
-	m.containers[id].status = status
+	m.containers[id].status = status.GetStatus()
 	if status.Status == pb.TaskStatusReply_BROKEN || status.Status == pb.TaskStatusReply_FINISHED {
 		go m.scheduleStatusPurge(id)
 	}
@@ -500,6 +532,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	containerInfo.PublicKey = publicKey
 	containerInfo.StartAt = time.Now()
 	containerInfo.ImageName = d.Image
+	containerInfo.DealID = dealID.Unwrap().String()
 
 	var reply = pb.MinerStartReply{
 		Container:  containerInfo.ID,
@@ -578,7 +611,7 @@ func (m *Miner) CollectTasksStatuses() map[string]*pb.TaskStatusReply {
 	defer m.mu.Unlock()
 
 	for id, info := range m.containers {
-		result[id] = info.status
+		result[id] = info.IntoProto()
 	}
 	return result
 }
@@ -643,7 +676,7 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 
 	var metric ContainerMetrics
 	// If a container has been stoped, ovs.Info has no metrics for such container
-	if info.status.Status == pb.TaskStatusReply_RUNNING {
+	if info.status == pb.TaskStatusReply_RUNNING {
 		metrics, err := m.ovs.Info(ctx)
 		if err != nil {
 			return nil, status.Errorf(codes.Internal, "cannot get container metrics: %s", err.Error())
@@ -655,16 +688,9 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 		}
 	}
 
-	portsStr, _ := json.Marshal(info.Ports)
-	reply := &pb.TaskStatusReply{
-		Status:    info.status.Status,
-		ImageName: info.ImageName,
-		Ports:     string(portsStr),
-		Uptime:    uint64(time.Now().Sub(info.StartAt).Nanoseconds()),
-		Usage:     metric.Marshal(),
-		//TODO: Fill
-		AllocatedResources: nil,
-	}
+	reply := info.IntoProto()
+	reply.Usage = metric.Marshal()
+	// todo: fill `reply.AllocatedResources` field.
 
 	return reply, nil
 }
@@ -907,14 +933,45 @@ func (m *Miner) GetDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 	if err != nil {
 		return nil, err
 	}
-	//TODO: why do we need BidOrder and AskOrder inside this reply?
-	//TODO: Tasks info
+
+	ask, err := m.salesman.AskPlanByDeal(dealID)
+	if err != nil {
+		return nil, err
+	}
+	resources := ask.GetResources()
+
+	running := &pb.StatusMapReply{
+		Statuses: map[string]*pb.TaskStatusReply{},
+	}
+
+	completed := &pb.StatusMapReply{
+		Statuses: map[string]*pb.TaskStatusReply{},
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for id, c := range m.containers {
+		// task is ours
+		if c.DealID == dealID.Unwrap().String() {
+			task := c.IntoProto()
+
+			// task is running or preparing to start
+			if c.status == pb.TaskStatusReply_SPOOLING ||
+				c.status == pb.TaskStatusReply_SPAWNING ||
+				c.status == pb.TaskStatusReply_RUNNING {
+				running.Statuses[id] = task
+			} else {
+				completed.Statuses[id] = task
+			}
+		}
+	}
+
 	return &pb.DealInfoReply{
 		Deal:      deal,
-		BidOrder:  nil,
-		AskOrder:  nil,
-		Running:   nil,
-		Completed: nil,
+		Running:   running,
+		Completed: completed,
+		Resources: resources,
 	}, nil
 }
 
