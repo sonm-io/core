@@ -900,9 +900,7 @@ func (m *Miner) GetDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
+	resources := ask.GetResources()
 
 	running := &pb.StatusMapReply{
 		Statuses: map[string]*pb.TaskStatusReply{},
@@ -911,6 +909,9 @@ func (m *Miner) GetDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 	completed := &pb.StatusMapReply{
 		Statuses: map[string]*pb.TaskStatusReply{},
 	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	for id, c := range m.containers {
 		// task is ours
@@ -932,7 +933,7 @@ func (m *Miner) GetDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 		Deal:      deal,
 		Running:   running,
 		Completed: completed,
-		Resources: ask.GetResources(),
+		Resources: resources,
 	}, nil
 }
 

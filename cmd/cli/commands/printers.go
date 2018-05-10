@@ -316,19 +316,19 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply) {
 		if info.Resources != nil {
 			cmd.Println("Resources:")
 
-			cpuCores := float64(info.Resources.CPU.CorePercents) / 100.0
-			ram := info.Resources.RAM.Size.Unwrap().HumanReadable()
+			cpuCores := float64(info.GetResources().GetCPU().GetCorePercents()) / 100.0
+			ram := info.GetResources().GetRAM().GetSize().Unwrap().HumanReadable()
 
 			cmd.Printf("  CPU:     %.2f cores\n", cpuCores)
 			cmd.Printf("  RAM:     %s\n", ram)
-			if len(info.Resources.GPU.Hashes) > 0 {
-				cmd.Printf("  GPUs:    %v\n", strings.Join(info.Resources.GPU.Hashes, ", "))
+			if len(info.GetResources().GetGPU().GetHashes()) > 0 {
+				cmd.Printf("  GPUs:    %v\n", strings.Join(info.GetResources().GetGPU().GetHashes(), ", "))
 			}
-			cmd.Printf("  Storage: %v\n", info.Resources.Storage.Size.Unwrap().HumanReadable())
+			cmd.Printf("  Storage: %v\n", info.GetResources().GetStorage().GetSize().Unwrap().HumanReadable())
 			cmd.Println("  Network:")
-			cmd.Printf("    Overlay:  %v\n", info.Resources.Network.Overlay)
-			cmd.Printf("    Outbound: %v\n", info.Resources.Network.Outbound)
-			cmd.Printf("    Incoming: %v\n", info.Resources.Network.Incoming)
+			cmd.Printf("    Overlay:  %v\n", info.GetResources().GetNetwork().GetOverlay())
+			cmd.Printf("    Outbound: %v\n", info.GetResources().GetNetwork().GetOutbound())
+			cmd.Printf("    Incoming: %v\n", info.GetResources().GetNetwork().GetIncoming())
 
 		}
 
