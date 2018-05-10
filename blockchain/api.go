@@ -20,6 +20,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	NumCurrentBenchmarks = 12
+)
+
 type API interface {
 	ProfileRegistry() ProfileRegistryAPI
 	Events() EventsAPI
@@ -453,7 +457,7 @@ func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, dealID 
 }
 
 func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (int, error) {
-	return 12, nil
+	return NumCurrentBenchmarks, nil
 }
 
 type ProfileRegistry struct {
