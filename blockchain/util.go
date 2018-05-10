@@ -69,11 +69,14 @@ func parseTransactionLogs(ctx context.Context, client *ethclient.Client, tx *typ
 		if len(l.Topics) < 1 {
 			return nil, errors.New("transaction topics is malformed")
 		}
-
 		receivedTopic := l.Topics[0]
 		topicCmp := bytes.Compare(receivedTopic.Bytes(), topic.Bytes())
-		if topicCmp == 0 && len(l.Topics) > 1 {
-			return l.Topics[1].Big(), nil
+		if topicCmp == 0 {
+			if len(l.Topics) > 1 {
+				return l.Topics[1].Big(), nil
+			}
+			// TODO(sokel): similar log processing is incorrect
+			return big.NewInt(0), nil
 		}
 	}
 
