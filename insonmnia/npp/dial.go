@@ -7,6 +7,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/auth"
 )
 
@@ -19,7 +20,7 @@ type Dialer struct {
 	ctx context.Context
 
 	puncherNew func() (NATPuncher, error)
-	relayNew   func() (net.Conn, error)
+	relayDial  func(target common.Address) (net.Conn, error)
 }
 
 // NewDialer constructs a new dialer that is aware of NAT Punching Protocol.
@@ -35,7 +36,7 @@ func NewDialer(ctx context.Context, options ...Option) (*Dialer, error) {
 	return &Dialer{
 		ctx:        ctx,
 		puncherNew: opts.puncherNew,
-		relayNew:   opts.relayNew,
+		relayDial:  opts.relayDial,
 	}, nil
 }
 
@@ -67,13 +68,13 @@ func (m *Dialer) Dial(addr auth.Addr) (net.Conn, error) {
 
 	select {
 	case conn := <-channel:
-		if conn.err != nil && m.relayNew != nil {
-			return m.relayNew()
+		if conn.err != nil && m.relayDial != nil {
+			return m.relayDial(ethAddr)
 		} else {
 			return conn.unwrap()
 		}
 	case <-ctx.Done():
-		return m.relayNew()
+		return m.relayDial(ethAddr)
 	}
 }
 
