@@ -51,6 +51,24 @@ type remoteOptions struct {
 	orderMatcher      matcher.Matcher
 }
 
+func (re *remoteOptions) getHubClientForDeal(ctx context.Context, id string) (*hubClient, io.Closer, error) {
+	bigID, err := util.ParseBigInt(id)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	dealInfo, err := re.eth.Market().GetDealInfo(ctx, bigID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return re.getHubClientByEthAddr(ctx, dealInfo.GetSupplierID().Unwrap().Hex())
+}
+
+func (re *remoteOptions) getHubClientByEthAddr(ctx context.Context, eth string) (*hubClient, io.Closer, error) {
+	return re.hubCreator(common.HexToAddress(eth), "")
+}
+
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
 	nppDialerOptions := []npp.Option{
 		npp.WithRendezvous(cfg.NPP.Rendezvous.Endpoints, credentials),

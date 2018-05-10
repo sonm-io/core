@@ -87,7 +87,7 @@ func (d *Description) FormatEnv() []string {
 
 // ContainerInfo is a brief information about containers
 type ContainerInfo struct {
-	status       *pb.TaskStatusReply
+	status       pb.TaskStatusReply_Status
 	ID           string
 	ImageName    string
 	StartAt      time.Time
@@ -96,6 +96,20 @@ type ContainerInfo struct {
 	Cgroup       string
 	CgroupParent string
 	NetworkIDs   []string
+	DealID       string
+}
+
+func (c *ContainerInfo) IntoProto() *pb.TaskStatusReply {
+	ports, _ := json.Marshal(c.Ports)
+	return &pb.TaskStatusReply{
+		Status:             c.status,
+		ImageName:          c.ImageName,
+		Ports:              string(ports),
+		Uptime:             uint64(time.Now().Sub(c.StartAt).Nanoseconds()),
+		Usage:              nil,
+		AllocatedResources: nil,
+		MinerID:            "",
+	}
 }
 
 // ContainerMetrics are metrics collected from Docker about running containers
@@ -473,7 +487,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 	}
 
 	cinfo = ContainerInfo{
-		status:       &pb.TaskStatusReply{Status: pb.TaskStatusReply_RUNNING},
+		status:       pb.TaskStatusReply_RUNNING,
 		ID:           cjson.ID,
 		Ports:        cjson.NetworkSettings.Ports,
 		Cgroup:       string(cjson.HostConfig.Cgroup),

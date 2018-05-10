@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/docker/go-connections/nat"
@@ -278,7 +279,7 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 		}
 
 		for _, deal := range deals {
-			printDealInfo(cmd, deal)
+			printDealInfo(cmd, &pb.DealInfoReply{Deal: deal})
 			cmd.Println()
 		}
 	} else {
@@ -287,8 +288,9 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 
 }
 
-func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
+func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply) {
 	if isSimpleFormat() {
+		deal := info.GetDeal()
 		start := deal.StartTime.Unix()
 		end := deal.EndTime.Unix()
 		dealDuration := end.Sub(start)
@@ -310,8 +312,41 @@ func printDealInfo(cmd *cobra.Command, deal *pb.Deal) {
 		if lastBill.Unix() > 0 {
 			cmd.Printf("Last bill:    %s\r\n", lastBill.Format(time.RFC3339))
 		}
+
+		if info.Resources != nil {
+			cmd.Println("Resources:")
+
+			cpuCores := float64(info.GetResources().GetCPU().GetCorePercents()) / 100.0
+			ram := info.GetResources().GetRAM().GetSize().Unwrap().HumanReadable()
+
+			cmd.Printf("  CPU:     %.2f cores\n", cpuCores)
+			cmd.Printf("  RAM:     %s\n", ram)
+			if len(info.GetResources().GetGPU().GetHashes()) > 0 {
+				cmd.Printf("  GPUs:    %v\n", strings.Join(info.GetResources().GetGPU().GetHashes(), ", "))
+			}
+			cmd.Printf("  Storage: %v\n", info.GetResources().GetStorage().GetSize().Unwrap().HumanReadable())
+			cmd.Println("  Network:")
+			cmd.Printf("    Overlay:  %v\n", info.GetResources().GetNetwork().GetOverlay())
+			cmd.Printf("    Outbound: %v\n", info.GetResources().GetNetwork().GetOutbound())
+			cmd.Printf("    Incoming: %v\n", info.GetResources().GetNetwork().GetIncoming())
+
+		}
+
+		if info.Running != nil && len(info.Running.Statuses) > 0 {
+			cmd.Println("Running tasks:")
+			for id, task := range info.Running.Statuses {
+				cmd.Printf("  %s: %s %s\n", id, task.Status.String(), task.ImageName)
+			}
+		}
+
+		if info.Completed != nil && len(info.Completed.Statuses) > 0 {
+			cmd.Println("Finished tasks:")
+			for id, task := range info.Completed.Statuses {
+				cmd.Printf("  %s: %s %s\n", id, task.Status.String(), task.ImageName)
+			}
+		}
 	} else {
-		showJSON(cmd, deal)
+		showJSON(cmd, info)
 	}
 }
 
