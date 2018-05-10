@@ -413,6 +413,12 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
+	if request.GetResources() == nil {
+		request.Resources = &pb.AskPlanResources{}
+	}
+	if request.GetResources().GetGPU() == nil {
+		request.Resources.GPU = ask.Resources.GPU
+	}
 
 	err = request.GetResources().GetGPU().Normalize(m.hardware)
 	if err != nil {
