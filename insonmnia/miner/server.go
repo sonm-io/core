@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
+	"github.com/hashicorp/go-multierror"
 	"github.com/mohae/deepcopy"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -237,9 +238,46 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	}
 	m.salesman = salesman
 
-	m.salesman.Run(o.ctx)
+	ch := m.salesman.Run(o.ctx)
+	go m.listenDeals(ch)
 
 	return m, nil
+}
+
+func (m *Miner) listenDeals(dealsCh <-chan *pb.Deal) {
+	for {
+		select {
+		case <-m.ctx.Done():
+			return
+		case deal := <-dealsCh:
+			if deal.Status == pb.DealStatus_DEAL_CLOSED {
+				if err := m.cancelDealTasks(deal); err != nil {
+					log.S(m.ctx).Warnf("could not stop tasks for closed deal %s - %s", deal.GetId().Unwrap().String(), err)
+				}
+			}
+		}
+	}
+}
+
+func (m *Miner) cancelDealTasks(deal *pb.Deal) error {
+	dealID := deal.GetId().Unwrap().String()
+	var toDelete []string
+
+	m.mu.Lock()
+	for _, container := range m.containers {
+		if container.DealID == dealID {
+			toDelete = append(toDelete, container.ID)
+		}
+	}
+	m.mu.Unlock()
+
+	var result error
+	for _, containerID := range toDelete {
+		if err := m.ovs.Stop(m.ctx, containerID); err != nil {
+			result = multierror.Append(result, err)
+		}
+	}
+	return result
 }
 
 func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
