@@ -206,8 +206,11 @@ type GPUHasher interface {
 }
 
 func (m *AskPlanGPU) Normalize(hasher GPUHasher) error {
-	if m == nil {
+	if m == nil || m.Normalized() {
 		return nil
+	}
+	if err := m.Validate(); err != nil {
+		return err
 	}
 	hashes, err := hasher.HashGPU(m.Indexes)
 	if err != nil {
