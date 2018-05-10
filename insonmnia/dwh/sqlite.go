@@ -282,9 +282,10 @@ func setupSQLite(w *DWH) error {
 	return nil
 }
 
-func runQuerySQLite(db *sql.DB, opts *queryOpts) (*sql.Rows, string, error) {
+func runQuerySQLite(db *sql.DB, opts *queryOpts) (*sql.Rows, int64, error) {
 	var (
 		query      = fmt.Sprintf("SELECT * FROM %s %s", opts.table, opts.selectAs)
+		countQuery = fmt.Sprintf("SELECT count(*) FROM %s %s", opts.table, opts.selectAs)
 		conditions []string
 		values     []interface{}
 	)
@@ -310,6 +311,7 @@ func runQuerySQLite(db *sql.DB, opts *queryOpts) (*sql.Rows, string, error) {
 		}
 
 		query += " WHERE " + strings.Join(conditions, " ")
+		countQuery += " WHERE " + strings.Join(conditions, " ")
 	}
 
 	if opts.limit > MaxLimit || opts.limit == 0 {
@@ -330,11 +332,21 @@ func runQuerySQLite(db *sql.DB, opts *queryOpts) (*sql.Rows, string, error) {
 		query += fmt.Sprintf(" OFFSET %d", opts.offset)
 	}
 	query += ";"
+	countQuery += ";"
+
+	var count int64
+	countRows, err := db.Query(countQuery, values...)
+	if err != nil {
+		return nil, -1, errors.Wrapf(err, "count query `%s` failed", countQuery)
+	}
+	for countRows.Next() {
+		countRows.Scan(&count)
+	}
 
 	rows, err := db.Query(query, values...)
 	if err != nil {
-		return nil, query, errors.Wrapf(err, "query `%s` failed", query)
+		return nil, -1, errors.Wrapf(err, "query `%s` failed", query)
 	}
 
-	return rows, query, nil
+	return rows, count, nil
 }

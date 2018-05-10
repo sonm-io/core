@@ -210,7 +210,7 @@ func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 		w.addBenchmarksConditions(request.Benchmarks, &filters)
 	}
 
-	rows, _, err := w.runQuery(w.db, &queryOpts{
+	rows, count, err := w.runQuery(w.db, &queryOpts{
 		table:    "Deals",
 		filters:  filters,
 		sortings: filterSortings(request.Sortings, DealsColumns),
@@ -234,7 +234,7 @@ func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 		deals = append(deals, deal)
 	}
 
-	return &pb.DWHDealsReply{Deals: deals}, nil
+	return &pb.DWHDealsReply{Deals: deals, Count: count}, nil
 }
 
 func (w *DWH) GetDealDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHDeal, error) {
@@ -359,7 +359,7 @@ func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 	if request.Benchmarks != nil {
 		w.addBenchmarksConditions(request.Benchmarks, &filters)
 	}
-	rows, _, err := w.runQuery(w.db, &queryOpts{
+	rows, count, err := w.runQuery(w.db, &queryOpts{
 		table:    "Orders",
 		filters:  filters,
 		sortings: filterSortings(request.Sortings, OrdersColumns),
@@ -387,7 +387,7 @@ func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 		return nil, status.Error(codes.Internal, "failed to GetOrders")
 	}
 
-	return &pb.DWHOrdersReply{Orders: orders}, nil
+	return &pb.DWHOrdersReply{Orders: orders, Count: count}, nil
 }
 
 func (w *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersRequest) (*pb.DWHOrdersReply, error) {
@@ -463,7 +463,7 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	filters = append(filters, newFilter("GPUCashHashrate", benchOp, order.Order.Benchmarks.GPUCashHashrate(), "AND"))
 	filters = append(filters, newFilter("GPURedshift", benchOp, order.Order.Benchmarks.GPURedshift(), "AND"))
 
-	rows, _, err := w.runQuery(w.db, &queryOpts{
+	rows, count, err := w.runQuery(w.db, &queryOpts{
 		table:    "Orders",
 		filters:  filters,
 		sortings: []*pb.SortingOption{{Field: "Price", Order: sortingOrder}},
@@ -491,7 +491,7 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 		return nil, status.Error(codes.Internal, "failed to GetMatchingOrders")
 	}
 
-	return &pb.DWHOrdersReply{Orders: orders}, nil
+	return &pb.DWHOrdersReply{Orders: orders, Count: count}, nil
 }
 
 func (w *DWH) GetOrderDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHOrder, error) {
@@ -563,7 +563,7 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 		}
 	}
 
-	rows, _, err := w.runQuery(w.db, opts)
+	rows, count, err := w.runQuery(w.db, opts)
 	if err != nil {
 		w.logger.Error("failed to runQuery", zap.Error(err), zap.Any("request", request))
 		return nil, status.Error(codes.Internal, "failed to GetProfiles")
@@ -603,7 +603,7 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 		}
 	}
 
-	return &pb.ProfilesReply{Profiles: out}, nil
+	return &pb.ProfilesReply{Profiles: out, Count: count}, nil
 }
 
 func (w *DWH) GetProfileInfo(ctx context.Context, request *pb.EthID) (*pb.Profile, error) {
@@ -659,7 +659,7 @@ func (w *DWH) getBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 	if request.OwnerID != nil && !request.OwnerID.IsZero() {
 		filters = append(filters, newFilter("AdderID", eq, request.OwnerID.Unwrap().Hex(), "AND"))
 	}
-	rows, _, err := w.runQuery(w.db, &queryOpts{
+	rows, count, err := w.runQuery(w.db, &queryOpts{
 		table:    "Blacklists",
 		filters:  filters,
 		sortings: []*pb.SortingOption{},
@@ -694,6 +694,7 @@ func (w *DWH) getBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 	return &pb.BlacklistReply{
 		OwnerID:   request.OwnerID,
 		Addresses: addees,
+		Count:     count,
 	}, nil
 }
 
@@ -710,7 +711,7 @@ func (w *DWH) getValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 		level := request.ValidatorLevel
 		filters = append(filters, newFilter("Level", opsTranslator[level.Operator], level.Value, "AND"))
 	}
-	rows, _, err := w.runQuery(w.db, &queryOpts{
+	rows, count, err := w.runQuery(w.db, &queryOpts{
 		table:    "Validators",
 		filters:  filters,
 		sortings: request.Sortings,
@@ -739,7 +740,7 @@ func (w *DWH) getValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 		return nil, status.Error(codes.Internal, "failed to GetValidators")
 	}
 
-	return &pb.ValidatorsReply{Validators: out}, nil
+	return &pb.ValidatorsReply{Validators: out, Count: count}, nil
 }
 
 func (w *DWH) GetDealChangeRequests(ctx context.Context, request *pb.BigInt) (*pb.DealChangeRequestsReply, error) {
@@ -787,7 +788,7 @@ func (w *DWH) getWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 	if request.MasterID != nil && !request.MasterID.IsZero() {
 		filters = append(filters, newFilter("Level", eq, request.MasterID, "AND"))
 	}
-	rows, _, err := w.runQuery(w.db, &queryOpts{
+	rows, count, err := w.runQuery(w.db, &queryOpts{
 		table:    "Workers",
 		filters:  filters,
 		sortings: []*pb.SortingOption{},
@@ -817,6 +818,7 @@ func (w *DWH) getWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 
 	return &pb.WorkersReply{
 		Workers: out,
+		Count:   count,
 	}, nil
 }
 

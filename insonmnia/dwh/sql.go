@@ -200,4 +200,4 @@ func filterSortings(sortings []*pb.SortingOption, columns map[string]bool) (out 
 	return out
 }
 
-type QueryRunner func(db *sql.DB, opts *queryOpts) (*sql.Rows, string, error)
+type QueryRunner func(db *sql.DB, opts *queryOpts) (*sql.Rows, int64, error)
