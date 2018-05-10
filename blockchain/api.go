@@ -696,22 +696,27 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 					api.logger.Info("no logs, skipping")
 					continue
 				}
-				fromBlock = big.NewInt(int64(logs[numLogs-1].BlockNumber))
 
-				var eventTS uint64
-				for _, log := range logs {
-					logBlockNumber := big.NewInt(int64(log.BlockNumber))
-					if lastBlockNumber.Cmp(logBlockNumber) != 0 {
-						lastBlockNumber = logBlockNumber
-						block, err := api.client.BlockByNumber(context.Background(), lastBlockNumber)
-						if err != nil {
-							api.logger.Warn("failed to get event timestamp", zap.Error(err),
-								zap.Uint64("blockNumber", lastBlockNumber.Uint64()))
+				lastLogBlockNumber := big.NewInt(int64(logs[numLogs-1].BlockNumber))
+				// Only send logs if there were new blocks.
+				if lastLogBlockNumber.Cmp(fromBlock) != 0 {
+					var eventTS uint64
+					for _, log := range logs {
+						logBlockNumber := big.NewInt(int64(log.BlockNumber))
+						if lastBlockNumber.Cmp(logBlockNumber) != 0 {
+							lastBlockNumber = logBlockNumber
+							block, err := api.client.BlockByNumber(context.Background(), lastBlockNumber)
+							if err != nil {
+								api.logger.Warn("failed to get event timestamp", zap.Error(err),
+									zap.Uint64("blockNumber", lastBlockNumber.Uint64()))
+							}
+							eventTS = block.Time().Uint64()
 						}
-						eventTS = block.Time().Uint64()
+						api.processLog(log, eventTS, out)
 					}
-					api.processLog(log, eventTS, out)
 				}
+
+				fromBlock = lastLogBlockNumber
 			}
 		}
 	}()
