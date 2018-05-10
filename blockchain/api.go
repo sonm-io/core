@@ -40,6 +40,7 @@ type API interface {
 type ProfileRegistryAPI interface {
 	GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error)
 	GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error)
+	CreateCertificate(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address, certificateType *big.Int, value []byte) (*types.Transaction, error)
 }
 
 type EventsAPI interface {
@@ -61,7 +62,7 @@ type MarketAPI interface {
 	RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) (*types.Transaction, error)
 	GetMaster(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (common.Address, error)
 	GetDealChangeRequestInfo(ctx context.Context, dealID *big.Int) (*pb.DealChangeRequest, error)
-	GetNumBenchmarks(ctx context.Context) (int, error)
+	GetNumBenchmarks(ctx context.Context) (*big.Int, error)
 }
 
 type BlacklistAPI interface {
@@ -103,7 +104,6 @@ type SimpleGatekeeperAPI interface {
 
 type OracleUSDAPI interface {
 	SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error)
-
 	GetCurrentPrice(ctx context.Context) (*big.Int, error)
 }
 
@@ -181,7 +181,7 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
-	oracle, err := NewBasicOracleUSDAPI(clientSidechain, market.OracleUsdAddr(), defaults.gasPrice)
+	oracle, err := NewBasicOracleUSDAPI(clientSidechain, market.OracleUsdAddr(), defaults.gasPriceSidechain)
 	if err != nil {
 		return nil, err
 	}
@@ -501,8 +501,8 @@ func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, dealID 
 	}, nil
 }
 
-func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (int, error) {
-	return NumCurrentBenchmarks, nil
+func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (*big.Int, error) {
+	return api.marketContract.GetBenchmarksQuantity(getCallOptions(ctx))
 }
 
 type BasicProfileRegistryAPI struct {
@@ -548,6 +548,11 @@ func (api *BasicProfileRegistryAPI) GetCertificate(ctx context.Context, certific
 		Attribute:   attribute.Uint64(),
 		Value:       value,
 	}, nil
+}
+
+func (api *BasicProfileRegistryAPI) CreateCertificate(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address, certificateType *big.Int, value []byte) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	return api.profileRegistryContract.CreateCertificate(opts, owner, certificateType, value)
 }
 
 type BasicBlacklistAPI struct {

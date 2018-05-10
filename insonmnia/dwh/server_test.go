@@ -569,7 +569,7 @@ func TestDWH_monitor(t *testing.T) {
 		Status:      pb.ChangeRequestStatus_REQUEST_CREATED,
 	}
 	mockMarket.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
-	mockMarket.EXPECT().GetNumBenchmarks(gomock.Any()).AnyTimes().Return(12, nil)
+	mockMarket.EXPECT().GetNumBenchmarks(gomock.Any()).AnyTimes().Return(big.NewInt(12), nil)
 	validator := &pb.Validator{
 		Id:    pb.NewEthAddress(common.HexToAddress("0xC")),
 		Level: 3,

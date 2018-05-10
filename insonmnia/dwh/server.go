@@ -74,7 +74,8 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, erro
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to GetNumBenchmarks")
 	}
-	w.numBenchmarks = numBenchmarks
+
+	w.numBenchmarks = int(numBenchmarks.Int64())
 
 	setupDB, ok := setupDBCallbacks[cfg.Storage.Backend]
 	if !ok {
