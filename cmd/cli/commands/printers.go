@@ -3,7 +3,6 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
-	"math/big"
 	"time"
 
 	"github.com/docker/go-connections/nat"
@@ -353,13 +352,17 @@ func printDealDetails(cmd *cobra.Command, deals *pb.DealInfoReply) {
 	}
 }
 
-func printBalanceInfo(cmd *cobra.Command, network string, value *big.Int) {
-	s := pb.NewBigInt(value).ToPriceString()
+func printBalanceInfo(cmd *cobra.Command, reply *pb.BalanceReply) {
+	side := reply.GetSideBalance().ToPriceString()
+	live := reply.GetLiveBalance().ToPriceString()
 
-	if !isSimpleFormat() {
-		showJSON(cmd, map[string]string{"balance": s})
-		return
+	if isSimpleFormat() {
+		cmd.Printf("On Ethereum: %s SNM\n", live)
+		cmd.Printf("On SONM:     %s SNM\n", side)
+	} else {
+		showJSON(cmd, map[string]map[string]string{"balance": {
+			"ethereum": live,
+			"sonm":     side,
+		}})
 	}
-
-	cmd.Printf("Balance at %s is %s SNM\r\n", network, s)
 }

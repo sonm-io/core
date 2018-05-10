@@ -50,7 +50,6 @@ var getBalanceCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		printBalanceInfo(cmd, "Live", balance.LiveBalance.Unwrap())
-		printBalanceInfo(cmd, "Sidechain", balance.SideBalance.Unwrap())
+		printBalanceInfo(cmd, balance)
 	},
 }
