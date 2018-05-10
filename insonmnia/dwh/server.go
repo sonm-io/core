@@ -1328,6 +1328,9 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 }
 
 func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	dealConditionsReply, err := w.getDealConditions(w.ctx, &pb.DealConditionsRequest{DealID: pb.NewBigInt(dealID)})
 	if err != nil {
 		return errors.Wrap(err, "failed to GetDealConditions (last)")
@@ -1356,7 +1359,31 @@ func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 			w.logger.Error("transaction rollback failed", zap.Error(err))
 		}
 
-		return errors.Wrap(err, "failed to update DealCondition")
+		return errors.Wrap(err, "failed to updateDealConditionPayout")
+	}
+
+	deal, err := w.getDealDetails(w.ctx, dealCondition.DealID)
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			w.logger.Error("transaction rollback failed", zap.Error(err))
+		}
+
+		return errors.Wrap(err, "failed to getDealDetails")
+	}
+
+	newDealTotalPayout := big.NewInt(0)
+	newDealTotalPayout.Add(deal.Deal.TotalPayout.Unwrap(), payedAmount)
+	_, err = tx.Exec(
+		w.commands["updateDealPayout"],
+		util.BigIntToPaddedString(newDealTotalPayout),
+		dealCondition.DealID.Unwrap().String(),
+	)
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			w.logger.Error("transaction rollback failed", zap.Error(err))
+		}
+
+		return errors.Wrap(err, "failed to updateDealPayout")
 	}
 
 	_, err = tx.Exec(w.commands["insertDealPayment"], eventTS, util.BigIntToPaddedString(payedAmount),

@@ -165,6 +165,7 @@ var (
 		"updateDeal":                   `UPDATE Deals SET Duration=?, Price=?, StartTime=?, EndTime=?, Status=?, BlockedBalance=?, TotalPayout=?, LastBillTS=? WHERE Id=?`,
 		"updateDealsSupplier":          `UPDATE Deals SET SupplierCertificates=? WHERE SupplierID=?`,
 		"updateDealsConsumer":          `UPDATE Deals SET ConsumerCertificates=? WHERE ConsumerID=?`,
+		"updateDealPayout":             `UPDATE Deals SET TotalPayout = ? WHERE Id = ?`,
 		"selectDealByID":               `SELECT * FROM Deals WHERE id=?`,
 		"deleteDeal":                   `DELETE FROM Deals WHERE Id=?`,
 		"insertOrder":                  `INSERT INTO Orders VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
