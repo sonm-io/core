@@ -37,8 +37,9 @@ type Salesman struct {
 	deals          map[string]*sonm.Deal
 	orders         map[string]*sonm.Order
 
-	log *zap.SugaredLogger
-	mu  sync.Mutex
+	dealsCh chan *sonm.Deal
+	log     *zap.SugaredLogger
+	mu      sync.Mutex
 }
 
 //TODO: make configurable
@@ -90,6 +91,7 @@ func NewSalesman(
 		askPlanCGroups: map[string]cgroups.CGroup{},
 		deals:          map[string]*sonm.Deal{},
 		orders:         map[string]*sonm.Order{},
+		dealsCh:        make(chan *sonm.Deal, 100),
 		log:            ctxlog.S(ctx).With("source", "salesman"),
 	}
 
@@ -101,7 +103,7 @@ func NewSalesman(
 
 func (m *Salesman) Close() {}
 
-func (m *Salesman) Run(ctx context.Context) {
+func (m *Salesman) Run(ctx context.Context) <-chan *sonm.Deal {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, plan := range m.askPlans {
@@ -117,6 +119,7 @@ func (m *Salesman) Run(ctx context.Context) {
 		}
 	}
 	go m.syncRoutine(ctx)
+	return m.dealsCh
 }
 
 func (m *Salesman) AskPlan(planID string) (*sonm.AskPlan, error) {
@@ -424,6 +427,8 @@ func (m *Salesman) registerOrder(order *sonm.Order) {
 }
 
 func (m *Salesman) registerDeal(deal *sonm.Deal) {
+	// Always send deal in case it was closed or changed via change request or smth.
+	m.dealsCh <- deal
 	id := deal.GetId().Unwrap().String()
 	m.mu.Lock()
 	defer m.mu.Unlock()
