@@ -20,6 +20,10 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	NumCurrentBenchmarks = 12
+)
+
 type API interface {
 	ProfileRegistry() ProfileRegistryAPI
 	Events() EventsAPI
@@ -54,6 +58,7 @@ type MarketAPI interface {
 	RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) (*types.Transaction, error)
 	GetMaster(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (common.Address, error)
 	GetDealChangeRequestInfo(ctx context.Context, dealID *big.Int) (*pb.DealChangeRequest, error)
+	GetNumBenchmarks(ctx context.Context) (int, error)
 }
 
 type BlacklistAPI interface {
@@ -447,6 +452,10 @@ func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, dealID 
 		Price:       pb.NewBigInt(changeRequest.Price),
 		Status:      pb.ChangeRequestStatus(changeRequest.Status),
 	}, nil
+}
+
+func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (int, error) {
+	return NumCurrentBenchmarks, nil
 }
 
 type ProfileRegistry struct {
