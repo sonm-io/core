@@ -54,10 +54,12 @@ message DealsRequest {
     uint64 limit = 13;
     uint64 offset = 14;
     repeated SortingOption sortings = 15;
+    bool withCount = 16;
 }
 
 message DWHDealsReply {
     repeated DWHDeal deals = 1;
+    uint64 count = 2;
 }
 
 message DWHDeal {
@@ -76,10 +78,12 @@ message DealConditionsRequest {
     uint64 limit = 2;
     uint64 offset = 3;
     repeated SortingOption sortings = 4;
+    bool withCount = 5;
 }
 
 message DealConditionsReply {
     repeated DealCondition conditions = 1;
+    uint64 count = 2;
 }
 
 message OrdersRequest {
@@ -97,16 +101,19 @@ message OrdersRequest {
     uint64 limit = 15;
     uint64 offset = 16;
     repeated SortingOption sortings = 17;
+    bool withCount = 18;
 }
 
 message MatchingOrdersRequest {
     BigInt id = 1;
     uint64 limit = 2;
     uint64 offset = 3;
+    bool withCount = 4;
 }
 
 message DWHOrdersReply {
     repeated DWHOrder orders = 1;
+    uint64 count = 2;
 }
 
 message DWHOrder {
@@ -159,10 +166,12 @@ message ProfilesRequest {
     uint64 limit = 6;
     uint64 offset = 7;
     repeated SortingOption sortings = 8;
+    bool withCount = 9;
 }
 
 message ProfilesReply {
     repeated Profile profiles = 1;
+    uint64 count = 2;
 }
 
 message Profile {
@@ -182,11 +191,13 @@ message BlacklistRequest {
     EthAddress ownerID = 1;
     uint64 limit = 2;
     uint64 offset = 3;
+    bool withCount = 4;
 }
 
 message BlacklistReply {
     EthAddress ownerID = 1;
     repeated string addresses = 2;
+    uint64 count = 3;
 }
 
 message ValidatorsRequest {
@@ -194,10 +205,12 @@ message ValidatorsRequest {
     uint64 limit = 2;
     uint64 offset = 3;
     repeated SortingOption sortings = 4;
+    bool withCount = 5;
 }
 
 message ValidatorsReply {
     repeated Validator validators = 1;
+    uint64 count = 2;
 }
 
 message Validator {
@@ -222,10 +235,12 @@ message WorkersRequest {
     EthAddress MasterID = 1;
     uint64 limit = 2;
     uint64 offset = 3;
+    bool withCount = 4;
 }
 
 message WorkersReply {
     repeated DWHWorker workers = 1;
+    uint64 count = 2;
 }
 
 message Certificate {
