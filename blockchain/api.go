@@ -32,6 +32,9 @@ type API interface {
 	LiveToken() TokenAPI
 	SideToken() TokenAPI
 	TestToken() TestTokenAPI
+	LiveGatekeeper() SimpleGatekeeperAPI
+	SideGatekeeper() SimpleGatekeeperAPI
+	OracleUSD() OracleUSDAPI
 }
 
 type ProfileRegistryAPI interface {
@@ -93,6 +96,17 @@ type TestTokenAPI interface {
 	GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error)
 }
 
+type SimpleGatekeeperAPI interface {
+	PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) <-chan error
+	Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value, txNumber *big.Int) <-chan error
+}
+
+type OracleUSDAPI interface {
+	SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error)
+
+	GetCurrentPrice(ctx context.Context) (*big.Int, error)
+}
+
 type BasicAPI struct {
 	market          MarketAPI
 	liveToken       TokenAPI
@@ -101,6 +115,9 @@ type BasicAPI struct {
 	blacklist       BlacklistAPI
 	profileRegistry ProfileRegistryAPI
 	events          EventsAPI
+	liveGatekeeper  SimpleGatekeeperAPI
+	sideGatekeeper  SimpleGatekeeperAPI
+	oracle          OracleUSDAPI
 }
 
 func NewAPI(opts ...Option) (API, error) {
@@ -124,6 +141,11 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
+	liveGate, err := NewBasicSimpleGatekeeperAPI(client, market.GatekeeperLiveAddr(), defaults.gasPrice, defaults.logParsePeriod)
+	if err != nil {
+		return nil, err
+	}
+
 	clientSidechain, err := initEthClient(defaults.apiSidechainEndpoint)
 	if err != nil {
 		return nil, err
@@ -139,7 +161,7 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
-	profileRegistry, err := NewProfileRegistry(clientSidechain, market.ProfileRegistryAddr(), defaults.gasPriceSidechain)
+	profileRegistry, err := NewBasicProfileRegistry(clientSidechain, market.ProfileRegistryAddr(), defaults.gasPriceSidechain)
 	if err != nil {
 		return nil, err
 	}
@@ -154,6 +176,16 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
+	sideGate, err := NewBasicSimpleGatekeeperAPI(clientSidechain, market.GatekeeperSidechainAddr(), defaults.gasPrice, defaults.logParsePeriod)
+	if err != nil {
+		return nil, err
+	}
+
+	oracle, err := NewBasicOracleUSDAPI(clientSidechain, market.OracleUsdAddr(), defaults.gasPrice)
+	if err != nil {
+		return nil, err
+	}
+
 	return &BasicAPI{
 		market:          marketApi,
 		blacklist:       blacklist,
@@ -162,6 +194,9 @@ func NewAPI(opts ...Option) (API, error) {
 		sideToken:       sideToken,
 		testToken:       testToken,
 		events:          events,
+		liveGatekeeper:  liveGate,
+		sideGatekeeper:  sideGate,
+		oracle:          oracle,
 	}, nil
 }
 
@@ -191,6 +226,18 @@ func (api *BasicAPI) ProfileRegistry() ProfileRegistryAPI {
 
 func (api *BasicAPI) Events() EventsAPI {
 	return api.events
+}
+
+func (api *BasicAPI) LiveGatekeeper() SimpleGatekeeperAPI {
+	return api.liveGatekeeper
+}
+
+func (api *BasicAPI) SideGatekeeper() SimpleGatekeeperAPI {
+	return api.sideGatekeeper
+}
+
+func (api *BasicAPI) OracleUSD() OracleUSDAPI {
+	return api.oracle
 }
 
 type BasicMarketAPI struct {
@@ -458,26 +505,26 @@ func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (int, error) {
 	return NumCurrentBenchmarks, nil
 }
 
-type ProfileRegistry struct {
+type BasicProfileRegistryAPI struct {
 	client                  *ethclient.Client
 	profileRegistryContract *marketAPI.ProfileRegistry
 	gasPrice                int64
 }
 
-func NewProfileRegistry(client *ethclient.Client, address common.Address, gasPrice int64) (ProfileRegistryAPI, error) {
+func NewBasicProfileRegistry(client *ethclient.Client, address common.Address, gasPrice int64) (ProfileRegistryAPI, error) {
 	profileRegistryContract, err := marketAPI.NewProfileRegistry(address, client)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ProfileRegistry{
+	return &BasicProfileRegistryAPI{
 		client:                  client,
 		profileRegistryContract: profileRegistryContract,
 		gasPrice:                gasPrice,
 	}, nil
 }
 
-func (api *ProfileRegistry) GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error) {
+func (api *BasicProfileRegistryAPI) GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error) {
 	level, err := api.profileRegistryContract.GetValidatorLevel(getCallOptions(ctx), validatorID)
 	if err != nil {
 		return nil, err
@@ -489,7 +536,7 @@ func (api *ProfileRegistry) GetValidator(ctx context.Context, validatorID common
 	}, nil
 }
 
-func (api *ProfileRegistry) GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error) {
+func (api *BasicProfileRegistryAPI) GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error) {
 	validatorID, ownerID, attribute, value, err := api.profileRegistryContract.GetCertificate(getCallOptions(ctx), certificateID)
 	if err != nil {
 		return nil, err
@@ -551,7 +598,7 @@ func (api *BasicBlacklistAPI) SetMarketAddress(ctx context.Context, key *ecdsa.P
 	return api.blacklistContract.SetMarketAddress(opts, market)
 }
 
-type StandardTokenApi struct {
+type StandardTokenAPI struct {
 	client        *ethclient.Client
 	tokenContract *marketAPI.StandardToken
 	gasPrice      int64
@@ -563,37 +610,37 @@ func NewStandardToken(client *ethclient.Client, address common.Address, gasPrice
 		return nil, err
 	}
 
-	return &StandardTokenApi{
+	return &StandardTokenAPI{
 		client:        client,
 		tokenContract: tokenContract,
 		gasPrice:      gasPrice,
 	}, nil
 }
 
-func (api *StandardTokenApi) BalanceOf(ctx context.Context, address string) (*big.Int, error) {
+func (api *StandardTokenAPI) BalanceOf(ctx context.Context, address string) (*big.Int, error) {
 	return api.tokenContract.BalanceOf(getCallOptions(ctx), common.HexToAddress(address))
 }
 
-func (api *StandardTokenApi) AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error) {
+func (api *StandardTokenAPI) AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error) {
 	return api.tokenContract.Allowance(getCallOptions(ctx), common.HexToAddress(from), common.HexToAddress(to))
 }
 
-func (api *StandardTokenApi) Approve(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
+func (api *StandardTokenAPI) Approve(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
 	opts := getTxOpts(ctx, key, defaultGasLimit, api.gasPrice)
 	return api.tokenContract.Approve(opts, common.HexToAddress(to), amount)
 }
 
-func (api *StandardTokenApi) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
+func (api *StandardTokenAPI) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
 	opts := getTxOpts(ctx, key, defaultGasLimit, api.gasPrice)
 	return api.tokenContract.Transfer(opts, common.HexToAddress(to), amount)
 }
 
-func (api *StandardTokenApi) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (*types.Transaction, error) {
+func (api *StandardTokenAPI) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (*types.Transaction, error) {
 	opts := getTxOpts(ctx, key, defaultGasLimit, api.gasPrice)
 	return api.tokenContract.TransferFrom(opts, common.HexToAddress(from), common.HexToAddress(to), amount)
 }
 
-func (api *StandardTokenApi) TotalSupply(ctx context.Context) (*big.Int, error) {
+func (api *StandardTokenAPI) TotalSupply(ctx context.Context) (*big.Int, error) {
 	return api.tokenContract.TotalSupply(getCallOptions(ctx))
 }
 
@@ -890,4 +937,96 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			BlockNumber: log.BlockNumber,
 		}
 	}
+}
+
+type BasicSimpleGatekeeperAPI struct {
+	client             *ethclient.Client
+	gatekeeperContract *marketAPI.Gatekeeper
+	gasPrice           int64
+	logParsePeriod     time.Duration
+}
+
+func NewBasicSimpleGatekeeperAPI(client *ethclient.Client, address common.Address, gasPrice int64, logParsePeriod time.Duration) (SimpleGatekeeperAPI, error) {
+	gatekeeperContract, err := marketAPI.NewGatekeeper(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicSimpleGatekeeperAPI{
+		gatekeeperContract: gatekeeperContract,
+		gasPrice:           gasPrice,
+		client:             client,
+		logParsePeriod:     logParsePeriod,
+	}, nil
+}
+
+func (api *BasicSimpleGatekeeperAPI) PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) <-chan error {
+	ch := make(chan error, 0)
+	go api.payin(ctx, key, value, ch)
+	return ch
+}
+
+func (api *BasicSimpleGatekeeperAPI) payin(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int, ch chan<- error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	tx, err := api.gatekeeperContract.PayIn(opts, value)
+	if err != nil {
+		ch <- err
+		return
+	}
+
+	if _, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.PayInTopic); err != nil {
+		ch <- err
+		return
+	}
+	ch <- nil
+}
+
+func (api *BasicSimpleGatekeeperAPI) Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value, txNumber *big.Int) <-chan error {
+	ch := make(chan error, 0)
+	go api.payout(ctx, key, to, value, txNumber, ch)
+	return ch
+}
+
+func (api *BasicSimpleGatekeeperAPI) payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value, txNumber *big.Int, ch chan<- error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	tx, err := api.gatekeeperContract.Payout(opts, to, value, txNumber)
+	if err != nil {
+		ch <- err
+		return
+	}
+
+	if _, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.PayOutTopic); err != nil {
+		ch <- err
+		return
+	}
+	ch <- nil
+}
+
+type BasicOracleUSDAPI struct {
+	client         *ethclient.Client
+	oracleContract *marketAPI.OracleUSD
+	gasPrice       int64
+	logParsePeriod time.Duration
+}
+
+func NewBasicOracleUSDAPI(client *ethclient.Client, address common.Address, gasPrice int64) (OracleUSDAPI, error) {
+	oracleContract, err := marketAPI.NewOracleUSD(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicOracleUSDAPI{
+		oracleContract: oracleContract,
+		gasPrice:       gasPrice,
+		client:         client,
+	}, nil
+}
+
+func (api *BasicOracleUSDAPI) SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	return api.oracleContract.SetCurrentPrice(opts, price)
+}
+
+func (api *BasicOracleUSDAPI) GetCurrentPrice(ctx context.Context) (*big.Int, error) {
+	return api.oracleContract.GetCurrentPrice(getCallOptions(ctx))
 }
