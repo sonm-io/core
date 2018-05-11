@@ -94,7 +94,6 @@ type TestTokenAPI interface {
 }
 
 type BasicAPI struct {
-	client          *ethclient.Client
 	market          MarketAPI
 	liveToken       TokenAPI
 	sideToken       TokenAPI
@@ -156,7 +155,6 @@ func NewAPI(opts ...Option) (API, error) {
 	}
 
 	return &BasicAPI{
-		client:          client,
 		market:          marketApi,
 		blacklist:       blacklist,
 		profileRegistry: profileRegistry,
