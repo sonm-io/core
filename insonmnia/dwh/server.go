@@ -1395,10 +1395,6 @@ func (w *DWH) updateLastDealConditionPayout(tx *sql.Tx, dealCondition *pb.DealCo
 func (w *DWH) updateDealPayout(tx *sql.Tx, dealID, payedAmount *big.Int) error {
 	deal, err := w.getDealDetails(w.ctx, pb.NewBigInt(dealID))
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to getDealDetails")
 	}
 
@@ -1409,10 +1405,6 @@ func (w *DWH) updateDealPayout(tx *sql.Tx, dealID, payedAmount *big.Int) error {
 		dealID.String(),
 	)
 	if err != nil {
-		if err := tx.Rollback(); err != nil {
-			w.logger.Error("transaction rollback failed", zap.Error(err))
-		}
-
 		return errors.Wrap(err, "failed to updateDealPayout")
 	}
 
