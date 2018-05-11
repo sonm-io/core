@@ -528,16 +528,16 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 	var filters []*filter
 	switch request.Role {
 	case pb.ProfileRole_Supplier:
-		filters = append(filters, newFilter("ActiveAsks", gte, 0, "AND"))
+		filters = append(filters, newFilter("ActiveAsks", gte, 1, "AND"))
 	case pb.ProfileRole_Consumer:
-		filters = append(filters, newFilter("ActiveBids", gte, 0, "AND"))
+		filters = append(filters, newFilter("ActiveBids", gte, 1, "AND"))
 	}
 	filters = append(filters, newFilter("IdentityLevel", gte, request.IdentityLevel, "AND"))
 	if len(request.Country) > 0 {
 		filters = append(filters, newFilter("Country", eq, request.Country, "AND"))
 	}
 	if len(request.Name) > 0 {
-		filters = append(filters, newFilter("Name", eq, request.Name, "AND"))
+		filters = append(filters, newFilter("Name", "LIKE", request.Name, "AND"))
 	}
 
 	opts := &queryOpts{
@@ -893,7 +893,8 @@ func (w *DWH) runEventWorker(wg *sync.WaitGroup, workerID int, events chan *bloc
 					zap.Any("event_data", event.Data), zap.Int("worker_id", workerID))
 				w.retryEvent(event)
 			}
-			w.logger.Debug("processed event", zap.String("event_type", reflect.TypeOf(event.Data).String()),
+			w.logger.Debug("processed event", zap.Uint64("block_number", event.BlockNumber),
+				zap.String("event_type", reflect.TypeOf(event.Data).String()),
 				zap.Any("event_data", event.Data), zap.Int("worker_id", workerID))
 		}
 	}

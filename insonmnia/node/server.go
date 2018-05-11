@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
@@ -72,7 +71,7 @@ func (re *remoteOptions) getHubClientByEthAddr(ctx context.Context, eth string) 
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
 	nppDialerOptions := []npp.Option{
 		npp.WithRendezvous(cfg.NPP.Rendezvous.Endpoints, credentials),
-		npp.WithRelayClient(cfg.NPP.Relay.Endpoints, crypto.PubkeyToAddress(key.PublicKey)),
+		npp.WithRelayClient(cfg.NPP.Relay.Endpoints),
 	}
 	nppDialer, err := npp.NewDialer(ctx, nppDialerOptions...)
 	if err != nil {

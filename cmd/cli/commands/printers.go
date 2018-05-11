@@ -193,7 +193,7 @@ func printOrdersList(cmd *cobra.Command, orders []*pb.Order) {
 
 		cmd.Println("        ID | type |        total price       |   duration ")
 		for _, order := range orders {
-			cmd.Printf("%10s | %4s | %20s SNM | %10s\r\n",
+			cmd.Printf("%10s | %4s | %20s USD | %10s\r\n",
 				order.GetId().Unwrap().String(),
 				order.OrderType.String(),
 				order.TotalPrice(),
@@ -210,7 +210,7 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 		cmd.Printf("Type:            %s\r\n", order.OrderType.String())
 		cmd.Printf("Status:          %s\r\n", order.OrderStatus.String())
 		cmd.Printf("Duration:        %s\r\n", (time.Duration(order.GetDuration()) * time.Second).String())
-		cmd.Printf("Total price:     %s SNM (%s SNM/sec)\r\n", order.TotalPrice(), order.Price.ToPriceString())
+		cmd.Printf("Total price:     %s USD (%s USD/sec)\r\n", order.TotalPrice(), order.Price.ToPriceString())
 
 		cmd.Printf("Author ID:       %s\r\n", order.GetAuthorID().Unwrap().Hex())
 		if order.GetCounterpartyID() != nil {
@@ -236,7 +236,7 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 		cmd.Printf("  GPU Mem              %d\r\n", b.GPUMem())
 		cmd.Printf("  GPU Eth hashrate     %d\r\n", b.GPUEthHashrate())
 		cmd.Printf("  GPU Cash hashrate    %d\r\n", b.GPUCashHashrate())
-		cmd.Printf("  GPU Redshift         %d\r\n", b.GPUCashHashrate())
+		cmd.Printf("  GPU Redshift         %d\r\n", b.GPURedshift())
 	} else {
 		showJSON(cmd, order)
 	}
@@ -301,7 +301,7 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply) {
 		cmd.Printf("BID ID:       %s\r\n", deal.GetBidID().Unwrap().String())
 		cmd.Printf("Status:       %s\r\n", deal.GetStatus())
 		cmd.Printf("Duration:     %s\r\n", dealDuration.String())
-		cmd.Printf("Price:        %s SNM (%s SNM/sec)\r\n", deal.TotalPrice(), deal.GetPrice().ToPriceString())
+		cmd.Printf("Price:        %s USD (%s USD/sec)\r\n", deal.TotalPrice(), deal.GetPrice().ToPriceString())
 		cmd.Printf("Total payout: %s SNM\r\n", deal.GetTotalPayout().Unwrap().String())
 
 		cmd.Printf("Consumer ID:  %s\r\n", deal.GetConsumerID().Unwrap().Hex())

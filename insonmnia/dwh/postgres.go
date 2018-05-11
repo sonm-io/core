@@ -286,7 +286,7 @@ func runQueryPostgres(db *sql.DB, opts *queryOpts) (*sql.Rows, int64, error) {
 		if filter.OpenBracket {
 			condition += "("
 		}
-		condition += fmt.Sprintf("%s%s$%d", filter.Field, filter.CmpOperator, numFilters)
+		condition += fmt.Sprintf("%s %s $%d", filter.Field, filter.CmpOperator, numFilters)
 		if filter.CloseBracket {
 			condition += ")"
 		}
