@@ -3,7 +3,6 @@ package dwh
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"time"
 
 	"sync"
@@ -198,13 +197,13 @@ func getBenchmarkColumn(id uint64) string {
 type setupIndices func(w *DWH) error
 
 func coldStart(w *DWH, setupIndicesCb setupIndices) {
-	if w.cfg.ColdStart.UpToBlock < 1 {
-		w.logger.Info("UpToBlock < 1, creating indices right now")
+	if w.cfg.ColdStart.UpToBlock == 0 {
+		w.logger.Info("UpToBlock == 0, creating indices right now")
 		if err := setupIndicesCb(w); err != nil {
-			w.logger.Error("failed to setupIndicesCb", zap.Error(err))
-			os.Exit(1)
+			w.logger.Error("failed to setupIndicesCb, exiting", zap.Error(err))
+			w.Stop()
+			return
 		}
-		return
 	}
 	w.logger.Info("creating indices after block", zap.Uint64("block_number", w.cfg.ColdStart.UpToBlock))
 	ticker := time.NewTicker(time.Second * 5)
