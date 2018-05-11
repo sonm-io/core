@@ -537,7 +537,7 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 		filters = append(filters, newFilter("Country", eq, request.Country, "AND"))
 	}
 	if len(request.Name) > 0 {
-		filters = append(filters, newFilter("Name", eq, request.Name, "AND"))
+		filters = append(filters, newFilter("Name", "LIKE", request.Name, "AND"))
 	}
 
 	opts := &queryOpts{
