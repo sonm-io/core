@@ -455,7 +455,14 @@ func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, dealID 
 }
 
 func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (int, error) {
-	return NumCurrentBenchmarks, nil
+	num, err := api.marketContract.GetBenchmarksQuantity(getCallOptions(ctx))
+	if err != nil {
+		return 0, err
+	}
+	if !num.IsInt64() {
+		return 0, errors.New("benchmarks quantity overflows int64")
+	}
+	return int(num.Int64()), nil
 }
 
 type ProfileRegistry struct {
