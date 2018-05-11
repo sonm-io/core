@@ -29,6 +29,3 @@ logging:
   level: "info"
 
 enable_rest: true
-
-cold_start:
-  up_to_block: 0
