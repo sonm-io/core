@@ -665,9 +665,9 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 
 	go func() {
 		var (
-			fromBlock       = fromBlockInitial
-			lastBlockNumber = fromBlockInitial
-			tk              = time.NewTicker(time.Second)
+			lastLogBlockNumber = fromBlockInitial.Uint64()
+			fromBlock          = fromBlockInitial.Uint64()
+			tk                 = time.NewTicker(time.Second)
 		)
 		for {
 			select {
@@ -676,7 +676,7 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 			case <-tk.C:
 				logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
 					Topics:    topics,
-					FromBlock: fromBlock,
+					FromBlock: big.NewInt(0).SetUint64(fromBlock),
 					Addresses: []common.Address{
 						market.MarketAddr(),
 						market.BlacklistAddr(),
@@ -687,7 +687,7 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 				if err != nil {
 					out <- &Event{
 						Data:        &ErrorData{Err: errors.Wrap(err, "failed to FilterLogs")},
-						BlockNumber: fromBlock.Uint64(),
+						BlockNumber: fromBlock,
 					}
 				}
 
@@ -697,29 +697,31 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 					continue
 				}
 
-				lastLogBlockNumber := big.NewInt(int64(logs[numLogs-1].BlockNumber))
-				// Only send logs if there were new blocks.
-				if lastLogBlockNumber.Cmp(fromBlock) != 0 {
-					var eventTS uint64
-					for _, log := range logs {
-						logBlockNumber := big.NewInt(int64(log.BlockNumber))
-						if lastBlockNumber.Cmp(logBlockNumber) != 0 {
-							lastBlockNumber = logBlockNumber
-							block, err := api.client.BlockByNumber(context.Background(), lastBlockNumber)
-							if err != nil {
-								api.logger.Warn("failed to get event timestamp", zap.Error(err),
-									zap.Uint64("blockNumber", lastBlockNumber.Uint64()))
-							}
+				var eventTS uint64
+				for _, log := range logs {
+					// Skip logs from the last seen block.
+					if log.BlockNumber == fromBlock {
+						continue
+					}
+					// Update eventTS if we've got a new block.
+					if lastLogBlockNumber != log.BlockNumber {
+						lastLogBlockNumber = log.BlockNumber
+						block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(lastLogBlockNumber))
+						if err != nil {
+							api.logger.Warn("failed to get event timestamp", zap.Error(err),
+								zap.Uint64("blockNumber", lastLogBlockNumber))
+						} else {
 							eventTS = block.Time().Uint64()
 						}
-						api.processLog(log, eventTS, out)
 					}
+					api.processLog(log, eventTS, out)
 				}
 
-				fromBlock = lastLogBlockNumber
+				fromBlock = logs[numLogs-1].BlockNumber
 			}
 		}
 	}()
+
 	return out, nil
 }
 
