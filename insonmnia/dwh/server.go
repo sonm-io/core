@@ -222,7 +222,7 @@ func (w *DWH) getDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 	rows, count, err := w.runQuery(w.db, &queryOpts{
 		table:     "Deals",
 		filters:   filters,
-		sortings:  filterSortings(request.Sortings, DealsColumnsSet),
+		sortings:  filterSortings(request.Sortings, DealColumnsSet),
 		offset:    request.Offset,
 		limit:     request.Limit,
 		withCount: request.WithCount,
@@ -373,7 +373,7 @@ func (w *DWH) getOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 	rows, count, err := w.runQuery(w.db, &queryOpts{
 		table:     "Orders",
 		filters:   filters,
-		sortings:  filterSortings(request.Sortings, OrdersColumnsSet),
+		sortings:  filterSortings(request.Sortings, OrderColumnsSet),
 		offset:    request.Offset,
 		limit:     request.Limit,
 		withCount: request.WithCount,
@@ -464,12 +464,12 @@ func (w *DWH) getMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 	for benchID, benchValue := range order.Order.Benchmarks.Values {
 		filters = append(filters, newFilter(getBenchmarkColumn(uint64(benchID)), benchOp, benchValue, "AND"))
 	}
-	rows, _, err := w.runQuery(w.db, &queryOpts{
-		table:    "Orders",
-		filters:  filters,
-		sortings: []*pb.SortingOption{{Field: "Price", Order: sortingOrder}},
-		offset:   request.Offset,
-		limit:    request.Limit,
+	rows, count, err := w.runQuery(w.db, &queryOpts{
+		table:     "Orders",
+		filters:   filters,
+		sortings:  []*pb.SortingOption{{Field: "Price", Order: sortingOrder}},
+		offset:    request.Offset,
+		limit:     request.Limit,
 		withCount: request.WithCount,
 	})
 	if err != nil {
@@ -543,11 +543,11 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 	}
 
 	opts := &queryOpts{
-		table:    "Profiles",
-		filters:  filters,
-		sortings: filterSortings(request.Sortings, ProfilesColumnsSet),
-		offset:   request.Offset,
-		limit:    request.Limit,
+		table:     "Profiles",
+		filters:   filters,
+		sortings:  filterSortings(request.Sortings, ProfilesColumnsSet),
+		offset:    request.Offset,
+		limit:     request.Limit,
 		withCount: request.WithCount,
 	}
 	if request.BlacklistQuery != nil && request.BlacklistQuery.OwnerID != nil {
