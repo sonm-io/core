@@ -91,7 +91,6 @@ var dealsOpenCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(2),
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Println(`WARN: this command exists only for debugging purposes and may be removed in future.`)
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
