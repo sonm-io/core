@@ -29,7 +29,7 @@ type LoggingConfig struct {
 }
 
 type ColdStartConfig struct {
-	UpToBlock int64 `yaml:"up_to_block"`
+	UpToBlock uint64 `yaml:"up_to_block"`
 }
 
 func NewConfig(path string) (*Config, error) {

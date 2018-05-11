@@ -68,7 +68,7 @@ func getTestDWH(dbPath string) (*DWH, error) {
 		cfg:           cfg,
 		logger:        log.GetLogger(ctx),
 		commands:      sqliteCommands,
-		numBenchmarks: 12,
+		numBenchmarks: bch.NumCurrentBenchmarks,
 	}
 
 	return w, setupTestDB(w)

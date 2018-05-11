@@ -206,28 +206,27 @@ func coldStart(w *DWH, setupIndicesCb setupIndices) {
 		}
 		return
 	}
-	w.logger.Info("creating indices after block", zap.Int64("block_number", w.cfg.ColdStart.UpToBlock))
+	w.logger.Info("creating indices after block", zap.Uint64("block_number", w.cfg.ColdStart.UpToBlock))
 	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 	for {
-		<-ticker.C
-		lastBlock, err := w.getLastKnownBlockTS()
-		if err != nil {
-			w.logger.Info("failed to getLastKnownBlockTS, creating indices right now")
-			if err := setupIndicesCb(w); err != nil {
-				w.logger.Error("failed to setupIndicesCb", zap.Error(err))
-				os.Exit(1)
-			}
+		select {
+		case <-w.ctx.Done():
+			w.logger.Info("stopped coldStart routine")
 			return
-		}
-		w.logger.Info("current block (waiting to create indices)", zap.Int64("block_number", lastBlock))
-		if lastBlock >= w.cfg.ColdStart.UpToBlock {
-			w.logger.Info("creating indices")
-			if err := setupIndicesCb(w); err != nil {
-				w.logger.Error("failed to setupIndicesCb", zap.Error(err))
-				os.Exit(1)
+		case <-ticker.C:
+			lastBlock, err := w.getLastKnownBlockTS()
+			if err != nil {
+				w.logger.Info("failed to getLastKnownBlockTS (coldStart)")
+				continue
 			}
-			return
+			w.logger.Info("current block (waiting to create indices)", zap.Uint64("block_number", lastBlock))
+			if lastBlock >= w.cfg.ColdStart.UpToBlock {
+				w.logger.Info("creating indices")
+				if err := setupIndicesCb(w); err != nil {
+					w.logger.Error("failed to setupIndicesCb (coldStart)", zap.Error(err))
+				}
+			}
 		}
 	}
 }

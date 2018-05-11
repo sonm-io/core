@@ -853,9 +853,9 @@ func (w *DWH) watchMarketEvents() error {
 		lastKnownBlock = 0
 	}
 
-	w.logger.Info("starting from block", zap.Int64("block_number", lastKnownBlock))
+	w.logger.Info("starting from block", zap.Uint64("block_number", lastKnownBlock))
 
-	events, err := w.blockchain.Events().GetEvents(w.ctx, big.NewInt(lastKnownBlock))
+	events, err := w.blockchain.Events().GetEvents(w.ctx, big.NewInt(0).SetUint64(lastKnownBlock))
 	if err != nil {
 		return err
 	}
@@ -2286,23 +2286,23 @@ func (w *DWH) addBenchmarksConditions(benches map[uint64]*pb.MaxMinUint64, filte
 	}
 }
 
-func (w *DWH) getLastKnownBlockTS() (int64, error) {
+func (w *DWH) getLastKnownBlockTS() (uint64, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
 	rows, err := w.db.Query(w.commands["selectLastKnownBlock"])
 	if err != nil {
-		return -1, errors.Wrap(err, "failed to selectLastKnownBlock")
+		return 0, errors.Wrap(err, "failed to selectLastKnownBlock")
 	}
 	defer rows.Close()
 
 	if ok := rows.Next(); !ok {
-		return -1, errors.New("selectLastKnownBlock: no entries")
+		return 0, errors.New("selectLastKnownBlock: no entries")
 	}
 
-	var lastKnownBlock int64
+	var lastKnownBlock uint64
 	if err := rows.Scan(&lastKnownBlock); err != nil {
-		return -1, errors.Wrapf(err, "failed to parse last known block number")
+		return 0, errors.Wrapf(err, "failed to parse last known block number")
 	}
 
 	return lastKnownBlock, nil
