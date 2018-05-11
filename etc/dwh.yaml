@@ -21,11 +21,11 @@ ethereum:
 blockchain:
   # Local geth node (recommended for performance).
   sidechain_endpoint: "http://localhost:8545"
-  # sidechain_endpoint: "https://private-dev.sonm.io"
+  # sidechain_endpoint: "https://sidechain-dev.sonm.com"
 
 logging:
   # The desired logging level.
   # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
-  level: "warn"
+  level: "info"
 
 enable_rest: true

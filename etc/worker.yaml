@@ -53,7 +53,7 @@ store:
 
 benchmarks:
   # URL to download benchmark list, use `file://` schema to load file from a filesystem.
-  url: "https://raw.githubusercontent.com/sonm-io/allowed-list/master/benchmarks_list.json"
+  url: "https://raw.githubusercontent.com/sonm-io/benchmarks-list/master/list.json"
 
 whitelist:
   # URL to downloads list of allowed containers.

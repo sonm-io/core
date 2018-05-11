@@ -3,15 +3,20 @@ package dwh
 import (
 	"database/sql"
 	"fmt"
+	"time"
+
+	"sync"
 
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto"
+	"go.uber.org/zap"
 )
 
 const (
-	MaxLimit = 200
+	MaxLimit         = 200
+	NumMaxBenchmarks = 100
 )
 
 const (
@@ -43,76 +48,58 @@ var (
 		"createTableProfiles",
 		"createTableMisc",
 	}
+	finalizeColumnsOnce  = &sync.Once{}
+	finalizeCommandsOnce = &sync.Once{}
 )
 
 var (
-	OrdersColumns = map[string]bool{
-		"Id":                   true,
-		"CreatedTS":            true,
-		"DealID":               true,
-		"Type":                 true,
-		"Status":               true,
-		"AuthorID":             true,
-		"CounterpartyID":       true,
-		"Duration":             true,
-		"Price":                true,
-		"Netflags":             true,
-		"IdentityLevel":        true,
-		"Blacklist":            true,
-		"Tag":                  true,
-		"FrozenSum":            true,
-		"CreatorIdentityLevel": true,
-		"CreatorName":          true,
-		"CreatorCountry":       true,
-		"CreatorCertificates":  true,
-		"CPUSysbenchMulti":     true,
-		"CPUSysbenchOne":       true,
-		"CPUCores":             true,
-		"RAMSize":              true,
-		"StorageSize":          true,
-		"NetTrafficIn":         true,
-		"NetTrafficOut":        true,
-		"GPUCount":             true,
-		"GPUMem":               true,
-		"GPUEthHashrate":       true,
-		"GPUCashHashrate":      true,
-		"GPURedshift":          true,
+	DealColumns = []string{
+		"Id",
+		"SupplierID",
+		"ConsumerID",
+		"MasterID",
+		"AskID",
+		"BidID",
+		"Duration",
+		"Price",
+		"StartTime",
+		"EndTime",
+		"Status",
+		"BlockedBalance",
+		"TotalPayout",
+		"LastBillTS",
+		"Netflags",
+		"AskIdentityLevel",
+		"BidIdentityLevel",
+		"SupplierCertificates",
+		"ConsumerCertificates",
+		"ActiveChangeRequest",
 	}
-	DealsColumns = map[string]bool{
-		"Id":                   true,
-		"SupplierID":           true,
-		"ConsumerID":           true,
-		"MasterID":             true,
-		"AskID":                true,
-		"BidID":                true,
-		"Duration":             true,
-		"Price":                true,
-		"StartTime":            true,
-		"EndTime":              true,
-		"Status":               true,
-		"BlockedBalance":       true,
-		"TotalPayout":          true,
-		"LastBillTS":           true,
-		"Netflags":             true,
-		"AskIdentityLevel":     true,
-		"BidIdentityLevel":     true,
-		"SupplierCertificates": true,
-		"ConsumerCertificates": true,
-		"ActiveChangeRequest":  true,
-		"CPUSysbenchMulti":     true,
-		"CPUSysbenchOne":       true,
-		"CPUCores":             true,
-		"RAMSize":              true,
-		"StorageSize":          true,
-		"NetTrafficIn":         true,
-		"NetTrafficOut":        true,
-		"GPUCount":             true,
-		"GPUMem":               true,
-		"GPUEthHashrate":       true,
-		"GPUCashHashrate":      true,
-		"GPURedshift":          true,
+	DealColumnsSet = stringSliceToSet(DealColumns)
+	NumDealColumns = len(DealColumns)
+	OrderColumns   = []string{
+		"Id",
+		"CreatedTS",
+		"DealID",
+		"Type",
+		"Status",
+		"AuthorID",
+		"CounterpartyID",
+		"Duration",
+		"Price",
+		"Netflags",
+		"IdentityLevel",
+		"Blacklist",
+		"Tag",
+		"FrozenSum",
+		"CreatorIdentityLevel",
+		"CreatorName",
+		"CreatorCountry",
+		"CreatorCertificates",
 	}
-	DealConditionsColumns = map[string]bool{
+	OrderColumnsSet         = stringSliceToSet(OrderColumns)
+	NumOrderColumns         = len(OrderColumns)
+	DealConditionColumnsSet = map[string]bool{
 		"Id":          true,
 		"SupplierID":  true,
 		"ConsumerID":  true,
@@ -124,7 +111,7 @@ var (
 		"TotalPayout": true,
 		"DealID":      true,
 	}
-	ProfilesColumns = map[string]bool{
+	ProfilesColumnsSet = map[string]bool{
 		"Id":             true,
 		"UserID":         true,
 		"IdentityLevel":  true,
@@ -202,3 +189,58 @@ func filterSortings(sortings []*pb.SortingOption, columns map[string]bool) (out 
 }
 
 type QueryRunner func(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error)
+
+func getBenchmarkColumn(id uint64) string {
+	return fmt.Sprintf("Benchmark%d", id)
+}
+
+type setupIndices func(w *DWH) error
+
+func coldStart(w *DWH, setupIndicesCb setupIndices) {
+	if w.cfg.ColdStart.UpToBlock == 0 {
+		w.logger.Info("UpToBlock == 0, creating indices right now")
+		if err := setupIndicesCb(w); err != nil {
+			w.logger.Error("failed to setupIndicesCb, exiting", zap.Error(err))
+			w.Stop()
+		} else {
+			w.logger.Info("successfully created indices")
+		}
+
+		return
+	}
+	w.logger.Info("creating indices after block", zap.Uint64("block_number", w.cfg.ColdStart.UpToBlock))
+	ticker := time.NewTicker(time.Second * 5)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-w.ctx.Done():
+			w.logger.Info("stopped coldStart routine")
+			return
+		case <-ticker.C:
+			lastBlock, err := w.getLastKnownBlockTS()
+			if err != nil {
+				w.logger.Info("failed to getLastKnownBlockTS (coldStart), retrying")
+				continue
+			}
+			w.logger.Info("current block (waiting to create indices)", zap.Uint64("block_number", lastBlock))
+			if lastBlock >= w.cfg.ColdStart.UpToBlock {
+				w.logger.Info("creating indices")
+				if err := setupIndicesCb(w); err != nil {
+					w.logger.Error("failed to setupIndicesCb (coldStart), retrying", zap.Error(err))
+					continue
+				}
+				w.logger.Info("successfully created indices")
+				return
+			}
+		}
+	}
+}
+
+func finalizeTableColumns(numBenchmarks int) {
+	for benchmarkID := 0; benchmarkID < numBenchmarks; benchmarkID++ {
+		DealColumns = append(DealColumns, getBenchmarkColumn(uint64(benchmarkID)))
+		DealColumnsSet[getBenchmarkColumn(uint64(benchmarkID))] = true
+		OrderColumns = append(OrderColumns, getBenchmarkColumn(uint64(benchmarkID)))
+		OrderColumnsSet[getBenchmarkColumn(uint64(benchmarkID))] = true
+	}
+}

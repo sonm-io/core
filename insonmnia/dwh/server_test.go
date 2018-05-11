@@ -64,10 +64,11 @@ func getTestDWH(dbPath string) (*DWH, error) {
 		}
 	)
 	w := &DWH{
-		ctx:      ctx,
-		cfg:      cfg,
-		logger:   log.GetLogger(ctx),
-		commands: sqliteCommands,
+		ctx:           ctx,
+		cfg:           cfg,
+		logger:        log.GetLogger(ctx),
+		commands:      sqliteCommands,
+		numBenchmarks: bch.NumCurrentBenchmarks,
 	}
 
 	return w, setupTestDB(w)
@@ -239,11 +240,7 @@ func TestDWH_GetOrders(t *testing.T) {
 			Duration: &pb.MaxMinUint64{
 				Min: 10015,
 			},
-			Benchmarks: &pb.DWHBenchmarkConditions{
-				CPUSysbenchMulti: &pb.MaxMinUint64{
-					Min: 15,
-				},
-			},
+			Benchmarks: map[uint64]*pb.MaxMinUint64{0: {Min: 15}},
 		}
 		reply, err := globalDWH.getOrders(context.Background(), request)
 
@@ -572,7 +569,7 @@ func TestDWH_monitor(t *testing.T) {
 		Status:      pb.ChangeRequestStatus_REQUEST_CREATED,
 	}
 	mockMarket.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
-
+	mockMarket.EXPECT().GetNumBenchmarks(gomock.Any()).AnyTimes().Return(12, nil)
 	validator := &pb.Validator{
 		Id:    pb.NewEthAddress(common.HexToAddress("0xC")),
 		Level: 3,
@@ -1117,9 +1114,6 @@ type dealPayment struct {
 }
 
 func setupTestDB(w *DWH) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
 	if err := setupSQLite(w); err != nil {
 		return err
 	}
@@ -1166,7 +1160,7 @@ func setupTestDB(w *DWH) error {
 			120,
 		)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to insertDeal")
 		}
 
 		_, err = w.db.Exec(
