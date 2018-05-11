@@ -161,6 +161,7 @@ var (
 		"updateDeal":                   `UPDATE Deals SET Duration = $1, Price = $2, StartTime = $3, EndTime = $4, Status = $5, BlockedBalance = $6, TotalPayout = $7, LastBillTS = $7 WHERE Id = $8`,
 		"updateDealsSupplier":          `UPDATE Deals SET SupplierCertificates = $1 WHERE SupplierID = $2`,
 		"updateDealsConsumer":          `UPDATE Deals SET ConsumerCertificates = $1 WHERE ConsumerID = $2`,
+		"updateDealPayout":             `UPDATE Deals SET TotalPayout = $1 WHERE Id = $2`,
 		"selectDealByID":               `SELECT * FROM Deals WHERE id = $1`,
 		"deleteDeal":                   `DELETE FROM Deals WHERE Id = $1`,
 		"insertOrder":                  `INSERT INTO Orders VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)`,
@@ -285,7 +286,7 @@ func runQueryPostgres(db *sql.DB, opts *queryOpts) (*sql.Rows, string, error) {
 		if filter.OpenBracket {
 			condition += "("
 		}
-		condition += fmt.Sprintf("%s%s$%d", filter.Field, filter.CmpOperator, numFilters)
+		condition += fmt.Sprintf("%s %s $%d", filter.Field, filter.CmpOperator, numFilters)
 		if filter.CloseBracket {
 			condition += ")"
 		}

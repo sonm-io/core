@@ -127,6 +127,6 @@ func TestBigInt_ToPriceString(t *testing.T) {
 		bint, _ := big.NewFloat(tt.in).Int(nil)
 		v := NewBigInt(bint)
 		out := v.ToPriceString()
-		assert.Equal(t, tt.out, out, fmt.Sprintf("expect %v == %s SNM (result is \"%s\")", tt.in, tt.out, out))
+		assert.Equal(t, tt.out, out, fmt.Sprintf("expect %v == %s USD (result is \"%s\")", tt.in, tt.out, out))
 	}
 }

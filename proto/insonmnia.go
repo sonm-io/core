@@ -14,8 +14,8 @@ import (
 var bigEther = big.NewFloat(params.Ether).SetPrec(256)
 
 var priceSuffixes = map[string]big.Float{
-	"SNM/s": *bigEther,
-	"SNM/h": *big.NewFloat(0).SetPrec(256).Quo(bigEther, big.NewFloat(3600)),
+	"USD/s": *bigEther,
+	"USD/h": *big.NewFloat(0).SetPrec(256).Quo(bigEther, big.NewFloat(3600)),
 }
 
 var possiblePriceSuffixxes = func() string {
@@ -143,7 +143,7 @@ func (m *Price) MarshalYAML() (interface{}, error) {
 	div.Quo(div, big.NewFloat(3600.))
 
 	r := big.NewFloat(0).Quo(v, div)
-	return r.Text('g', 10) + " SNM/h", nil
+	return r.Text('g', 10) + " USD/h", nil
 }
 
 func (m *Price) UnmarshalYAML(unmarshal func(interface{}) error) error {

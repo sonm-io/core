@@ -18,11 +18,11 @@ func TestConvertToPrice(t *testing.T) {
 		expected *big.Int
 	}{
 		{
-			in:       "100 SNM/s",
+			in:       "100 USD/s",
 			expected: big.NewInt(0).Mul(big.NewInt(params.Ether), big.NewInt(100)),
 		},
 		{
-			in:       "2 SNM/h",
+			in:       "2 USD/h",
 			expected: big.NewInt(0).Quo(big.NewInt(params.Ether), big.NewInt(1800)),
 		},
 	}
