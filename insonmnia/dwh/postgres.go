@@ -274,9 +274,10 @@ func setupPostgres(w *DWH) error {
 	return nil
 }
 
-func runQueryPostgres(db *sql.DB, opts *queryOpts) (*sql.Rows, string, error) {
+func runQueryPostgres(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error) {
 	var (
 		query      = fmt.Sprintf("SELECT * FROM %s %s", opts.table, opts.selectAs)
+		countQuery = fmt.Sprintf("SELECT count(*) FROM %s %s", opts.table, opts.selectAs)
 		conditions []string
 		values     []interface{}
 		numFilters = 1
@@ -305,6 +306,7 @@ func runQueryPostgres(db *sql.DB, opts *queryOpts) (*sql.Rows, string, error) {
 		}
 
 		query += " WHERE " + strings.Join(conditions, " ")
+		countQuery += " WHERE " + strings.Join(conditions, " ")
 	}
 
 	if opts.limit > MaxLimit || opts.limit == 0 {
@@ -325,11 +327,23 @@ func runQueryPostgres(db *sql.DB, opts *queryOpts) (*sql.Rows, string, error) {
 		query += fmt.Sprintf(" OFFSET %d", opts.offset)
 	}
 	query += ";"
+	countQuery += ";"
+
+	var count uint64
+	if opts.withCount {
+		countRows, err := db.Query(countQuery, values...)
+		if err != nil {
+			return nil, 0, errors.Wrapf(err, "count query `%s` failed", countQuery)
+		}
+		for countRows.Next() {
+			countRows.Scan(&count)
+		}
+	}
 
 	rows, err := db.Query(query, values...)
 	if err != nil {
-		return nil, query, errors.Wrapf(err, "query `%s` failed", query)
+		return nil, 0, errors.Wrapf(err, "query `%s` failed", query)
 	}
 
-	return rows, query, nil
+	return rows, count, nil
 }
