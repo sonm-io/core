@@ -294,7 +294,7 @@ func runQuerySQLite(db *sql.DB, opts *queryOpts) (*sql.Rows, string, error) {
 		if filter.OpenBracket {
 			condition += "("
 		}
-		condition += fmt.Sprintf("%s%s?", filter.Field, filter.CmpOperator)
+		condition += fmt.Sprintf("%s %s ?", filter.Field, filter.CmpOperator)
 		if filter.CloseBracket {
 			condition += ")"
 		}
