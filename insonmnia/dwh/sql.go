@@ -178,6 +178,7 @@ type queryOpts struct {
 	limit        uint64
 	customFilter *customFilter
 	selectAs     string
+	withCount    bool
 }
 
 func createIndex(db *sql.DB, command, table, column string) error {
@@ -200,4 +201,4 @@ func filterSortings(sortings []*pb.SortingOption, columns map[string]bool) (out 
 	return out
 }
 
-type QueryRunner func(db *sql.DB, opts *queryOpts) (*sql.Rows, int64, error)
+type QueryRunner func(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error)
