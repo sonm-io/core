@@ -236,7 +236,7 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 		cmd.Printf("  GPU Mem              %d\r\n", b.GPUMem())
 		cmd.Printf("  GPU Eth hashrate     %d\r\n", b.GPUEthHashrate())
 		cmd.Printf("  GPU Cash hashrate    %d\r\n", b.GPUCashHashrate())
-		cmd.Printf("  GPU Redshift         %d\r\n", b.GPUCashHashrate())
+		cmd.Printf("  GPU Redshift         %d\r\n", b.GPURedshift())
 	} else {
 		showJSON(cmd, order)
 	}
