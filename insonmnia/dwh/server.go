@@ -891,7 +891,8 @@ func (w *DWH) runEventWorker(wg *sync.WaitGroup, workerID int, events chan *bloc
 					zap.Any("event_data", event.Data), zap.Int("worker_id", workerID))
 				w.retryEvent(event)
 			}
-			w.logger.Debug("processed event", zap.String("event_type", reflect.TypeOf(event.Data).String()),
+			w.logger.Debug("processed event", zap.Uint64("block_number", event.BlockNumber),
+				zap.String("event_type", reflect.TypeOf(event.Data).String()),
 				zap.Any("event_data", event.Data), zap.Int("worker_id", workerID))
 		}
 	}
