@@ -141,7 +141,7 @@ var (
 		"updateDealsSupplier":          `UPDATE Deals SET SupplierCertificates=? WHERE SupplierID=?`,
 		"updateDealsConsumer":          `UPDATE Deals SET ConsumerCertificates=? WHERE ConsumerID=?`,
 		"updateDealPayout":             `UPDATE Deals SET TotalPayout = ? WHERE Id = ?`,
-		"selectDealByID":               `SELECT *%sFROM Deals WHERE id=?`,
+		"selectDealByID":               `SELECT %s FROM Deals WHERE id=?`,
 		"deleteDeal":                   `DELETE FROM Deals WHERE Id=?`,
 		"selectOrderByID":              `SELECT %s FROM Orders WHERE id=?`,
 		"updateOrderStatus":            `UPDATE Orders SET Status=? WHERE Id=?`,
