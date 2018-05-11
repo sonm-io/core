@@ -3,12 +3,14 @@ package matcher
 import (
 	"context"
 	"crypto/ecdsa"
-	"errors"
 	"math/big"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/noxiouz/zapctx/ctxlog"
+	errors "github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/proto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -19,6 +21,13 @@ type Matcher interface {
 	CreateDealByOrder(ctx context.Context, order *sonm.Order) (*sonm.Deal, error)
 }
 
+// YAMLConfig is embeddable config that can be integrated with
+// another component's config.
+type YAMLConfig struct {
+	PollDelay  time.Duration `yaml:"poll_delay"`
+	QueryLimit uint64        `yaml:"query_limit"`
+}
+
 type Config struct {
 	Key        *ecdsa.PrivateKey
 	PollDelay  time.Duration
@@ -27,12 +36,39 @@ type Config struct {
 	QueryLimit uint64
 }
 
+func (c *Config) validate() error {
+	err := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+
+	if c.QueryLimit == 0 {
+		c.QueryLimit = dwh.MaxLimit
+	}
+
+	if c.Key == nil {
+		err = multierror.Append(err, errors.New("private key is required"))
+	}
+	if c.PollDelay < time.Second {
+		err = multierror.Append(err, errors.New("poll delay is too small"))
+	}
+	if c.DWH == nil {
+		err = multierror.Append(err, errors.New("DWH client is required"))
+	}
+	if c.Eth == nil {
+		err = multierror.Append(err, errors.New("blockchain market client is required"))
+	}
+
+	return err.ErrorOrNil()
+}
+
 type matcher struct {
 	cfg *Config
 }
 
-func NewMatcher(cfg *Config) Matcher {
-	return &matcher{cfg: cfg}
+func NewMatcher(cfg *Config) (Matcher, error) {
+	if err := cfg.validate(); err != nil {
+		return nil, errors.Wrap(err, "invalid matcher config")
+	}
+
+	return &matcher{cfg: cfg}, nil
 }
 
 func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*sonm.Deal, error) {

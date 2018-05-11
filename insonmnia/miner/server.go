@@ -113,13 +113,6 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 		o.eth = eth
 	}
 
-	if o.benchList == nil {
-		o.benchList, err = bm.NewBenchmarksList(o.ctx, cfg.Benchmarks)
-		if err != nil {
-			return nil, err
-		}
-	}
-
 	if o.dwh == nil {
 		if o.creds == nil {
 			_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), o.key)
@@ -133,6 +126,25 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 			return nil, err
 		}
 		o.dwh = pb.NewDWHClient(cc)
+	}
+
+	matcher, err := matcher.NewMatcher(&matcher.Config{
+		Key:        o.key,
+		DWH:        o.dwh,
+		Eth:        o.eth,
+		PollDelay:  cfg.Matcher.PollDelay,
+		QueryLimit: cfg.Matcher.QueryLimit,
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	if o.benchList == nil {
+		o.benchList, err = bm.NewBenchmarksList(o.ctx, cfg.Benchmarks)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	cgName := "sonm-worker-parent"
@@ -218,16 +230,6 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	if err := m.RunBenchmarks(); err != nil {
 		return nil, err
 	}
-
-	matcher := matcher.NewMatcher(&matcher.Config{
-		Key: m.ethkey,
-		//TODO: make configurable
-		PollDelay: time.Second * 5,
-		DWH:       m.dwh,
-		Eth:       m.eth,
-		//TODO: make configurable
-		QueryLimit: 100,
-	})
 
 	//TODO: this is racy, because of post initialization of hardware via benchmarks
 	m.resources = resource.NewScheduler(o.ctx, m.hardware)

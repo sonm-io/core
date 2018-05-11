@@ -12,12 +12,14 @@ import (
 	"os/user"
 	"runtime"
 	"strconv"
+	"strings"
 
 	"context"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/hashicorp/go-multierror"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -206,4 +208,15 @@ func BigIntToPaddedString(x *big.Int) string {
 	}
 
 	return string(padding) + raw
+}
+
+func MultierrFormat() multierror.ErrorFormatFunc {
+	return func(errs []error) string {
+		var s []string
+		for _, e := range errs {
+			s = append(s, e.Error())
+		}
+
+		return strings.Join(s, ", ")
+	}
 }
