@@ -1,11 +1,12 @@
 package node
 
 import (
+	"fmt"
 	"io"
 	"strconv"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -20,35 +21,31 @@ type tasksAPI struct {
 }
 
 func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskListReply, error) {
-	if req.GetDealID() != nil && !req.GetDealID().IsZero() {
-		log.G(t.ctx).Info("dealID is provided in request, performing direct request",
-			zap.String("dealID", req.GetDealID().Unwrap().String()))
-
-		hubClient, cc, err := t.remotes.getHubClientForDeal(ctx, req.GetDealID().Unwrap().String())
-		if err != nil {
-			return nil, err
-		}
-		defer cc.Close()
-		return hubClient.Tasks(ctx, &pb.Empty{})
+	if req.GetDealID() == nil || req.GetDealID().IsZero() {
+		return nil, errors.New("deal ID is required for listing tasks")
 	}
+	log.G(t.ctx).Info("dealID is provided in request, performing direct request",
+		zap.String("dealID", req.GetDealID().Unwrap().String()))
 
-	// get all accepted deals, because only on the accepted deals client can start the payloads.
-	activeDeals, err := t.remotes.dwh.GetDeals(ctx, &pb.DealsRequest{
-		ConsumerID: pb.NewEthAddress(crypto.PubkeyToAddress(t.remotes.key.PublicKey)),
-		Status:     pb.DealStatus_DEAL_ACCEPTED,
-	})
+	hubClient, cc, err := t.remotes.getHubClientForDeal(ctx, req.GetDealID().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
-
-	log.G(t.ctx).Info("found some active deals", zap.Int("count", len(activeDeals.GetDeals())))
-
-	tasks := make(map[string]*pb.TaskStatusReply)
-	for _, deal := range activeDeals.GetDeals() {
-		t.getSupplierTasks(ctx, tasks, deal.GetDeal())
+	defer cc.Close()
+	deal, err := hubClient.GetDealInfo(ctx, &pb.ID{Id: req.GetDealID().Unwrap().String()})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get deal info for deal %s - %s", req.GetDealID().Unwrap().String(), err)
 	}
-
-	return &pb.TaskListReply{Info: tasks}, nil
+	reply := &pb.TaskListReply{
+		Info: map[string]*pb.TaskStatusReply{},
+	}
+	for id, task := range deal.Completed.Statuses {
+		reply.Info[id] = task
+	}
+	for id, task := range deal.Running.Statuses {
+		reply.Info[id] = task
+	}
+	return reply, nil
 }
 
 func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.Deal) {
