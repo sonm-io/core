@@ -53,7 +53,7 @@ type Listener struct {
 	puncherNew func() (NATPuncher, error)
 	nppChannel chan connTuple
 
-	relayNew     func() (net.Conn, error)
+	relayListen  func() (net.Conn, error)
 	relayChannel chan connTuple
 
 	minBackoffInterval time.Duration
@@ -88,7 +88,7 @@ func NewListener(ctx context.Context, addr string, options ...Option) (net.Liste
 		puncherNew:      opts.puncherNew,
 		nppChannel:      make(chan connTuple, opts.nppBacklog),
 
-		relayNew:     opts.relayNew,
+		relayListen:  opts.relayListen,
 		relayChannel: make(chan connTuple, opts.nppBacklog),
 
 		minBackoffInterval: 500 * time.Millisecond,
@@ -153,7 +153,7 @@ func (m *Listener) listenPuncher(ctx context.Context) error {
 }
 
 func (m *Listener) listenRelay(ctx context.Context) error {
-	if m.relayNew == nil {
+	if m.relayListen == nil {
 		return nil
 	}
 
@@ -171,7 +171,7 @@ func (m *Listener) listenRelay(ctx context.Context) error {
 
 		m.log.Debug("connecting using relay")
 
-		conn, err := m.relayNew()
+		conn, err := m.relayListen()
 		if err != nil {
 			m.log.Warn("failed to relay", zap.Error(err))
 			if timeout < m.maxBackoffInterval {

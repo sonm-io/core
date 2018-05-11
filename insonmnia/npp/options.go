@@ -18,12 +18,13 @@ import (
 type Option func(o *options) error
 
 type options struct {
-	ctx        context.Context
-	log        *zap.Logger
-	puncher    NATPuncher
-	puncherNew func() (NATPuncher, error)
-	nppBacklog int
-	relayNew   func() (net.Conn, error)
+	ctx         context.Context
+	log         *zap.Logger
+	puncher     NATPuncher
+	puncherNew  func() (NATPuncher, error)
+	nppBacklog  int
+	relayListen func() (net.Conn, error)
+	relayDial   func(target common.Address) (net.Conn, error)
 }
 
 func newOptions(ctx context.Context) *options {
@@ -85,7 +86,7 @@ func WithRelay(addrs []netutil.TCPAddr, key *ecdsa.PrivateKey) Option {
 			return err
 		}
 
-		o.relayNew = func() (net.Conn, error) {
+		o.relayListen = func() (net.Conn, error) {
 			for _, addr := range addrs {
 				conn, err := relay.Listen(&addr, signedAddr)
 				if err == nil {
@@ -100,9 +101,9 @@ func WithRelay(addrs []netutil.TCPAddr, key *ecdsa.PrivateKey) Option {
 	}
 }
 
-func WithRelayClient(addrs []netutil.TCPAddr, target common.Address) Option {
+func WithRelayClient(addrs []netutil.TCPAddr) Option {
 	return func(o *options) error {
-		o.relayNew = func() (net.Conn, error) {
+		o.relayDial = func(target common.Address) (net.Conn, error) {
 			for _, addr := range addrs {
 				conn, err := relay.Dial(&addr, target, "")
 				if err == nil {
