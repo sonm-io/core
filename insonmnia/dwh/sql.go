@@ -202,8 +202,11 @@ func coldStart(w *DWH, setupIndicesCb setupIndices) {
 		if err := setupIndicesCb(w); err != nil {
 			w.logger.Error("failed to setupIndicesCb, exiting", zap.Error(err))
 			w.Stop()
-			return
+		} else {
+			w.logger.Info("successfully created indices")
 		}
+
+		return
 	}
 	w.logger.Info("creating indices after block", zap.Uint64("block_number", w.cfg.ColdStart.UpToBlock))
 	ticker := time.NewTicker(time.Second * 5)
@@ -216,15 +219,18 @@ func coldStart(w *DWH, setupIndicesCb setupIndices) {
 		case <-ticker.C:
 			lastBlock, err := w.getLastKnownBlockTS()
 			if err != nil {
-				w.logger.Info("failed to getLastKnownBlockTS (coldStart)")
+				w.logger.Info("failed to getLastKnownBlockTS (coldStart), retrying")
 				continue
 			}
 			w.logger.Info("current block (waiting to create indices)", zap.Uint64("block_number", lastBlock))
 			if lastBlock >= w.cfg.ColdStart.UpToBlock {
 				w.logger.Info("creating indices")
 				if err := setupIndicesCb(w); err != nil {
-					w.logger.Error("failed to setupIndicesCb (coldStart)", zap.Error(err))
+					w.logger.Error("failed to setupIndicesCb (coldStart), retrying", zap.Error(err))
+					continue
 				}
+				w.logger.Info("successfully created indices")
+				return
 			}
 		}
 	}
