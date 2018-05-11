@@ -528,9 +528,9 @@ func (w *DWH) getProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 	var filters []*filter
 	switch request.Role {
 	case pb.ProfileRole_Supplier:
-		filters = append(filters, newFilter("ActiveAsks", gte, 0, "AND"))
+		filters = append(filters, newFilter("ActiveAsks", gte, 1, "AND"))
 	case pb.ProfileRole_Consumer:
-		filters = append(filters, newFilter("ActiveBids", gte, 0, "AND"))
+		filters = append(filters, newFilter("ActiveBids", gte, 1, "AND"))
 	}
 	filters = append(filters, newFilter("IdentityLevel", gte, request.IdentityLevel, "AND"))
 	if len(request.Country) > 0 {
