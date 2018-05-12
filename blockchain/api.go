@@ -20,10 +20,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	NumCurrentBenchmarks = 12
-)
-
 type API interface {
 	ProfileRegistry() ProfileRegistryAPI
 	Events() EventsAPI
@@ -59,7 +55,7 @@ type MarketAPI interface {
 	RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) (*types.Transaction, error)
 	GetMaster(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (common.Address, error)
 	GetDealChangeRequestInfo(ctx context.Context, dealID *big.Int) (*pb.DealChangeRequest, error)
-	GetNumBenchmarks(ctx context.Context) (int, error)
+	GetNumBenchmarks(ctx context.Context) (uint64, error)
 }
 
 type BlacklistAPI interface {
@@ -474,15 +470,15 @@ func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, dealID 
 	}, nil
 }
 
-func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (int, error) {
+func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (uint64, error) {
 	num, err := api.marketContract.GetBenchmarksQuantity(getCallOptions(ctx))
 	if err != nil {
 		return 0, err
 	}
-	if !num.IsInt64() {
+	if !num.IsUint64() {
 		return 0, errors.New("benchmarks quantity overflows int64")
 	}
-	return int(num.Int64()), nil
+	return num.Uint64(), nil
 }
 
 type ProfileRegistry struct {
@@ -694,6 +690,7 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 			market.ValidatorCreatedTopic,
 			market.ValidatorDeletedTopic,
 			market.CertificateCreatedTopic,
+			market.NumBenchmarksUpdatedTopic,
 		}
 		out = make(chan *Event, 128)
 	)
@@ -911,6 +908,13 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			return
 		}
 		sendData(&CertificateCreatedData{ID: id})
+	case market.NumBenchmarksUpdatedTopic:
+		numBenchmarks, err := extractBig(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&NumBenchmarksUpdatedData{NewNum: numBenchmarks})
 	default:
 		out <- &Event{
 			Data:        &ErrorData{Err: errors.New("unknown topic"), Topic: topic.String()},

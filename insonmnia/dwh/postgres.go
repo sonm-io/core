@@ -9,9 +9,100 @@ import (
 	pb "github.com/sonm-io/core/proto"
 )
 
-var (
-	postgresSetupCommands = map[string]string{
-		"createTableDeals": `
+func setupPostgres(w *DWH) error {
+	db, err := sql.Open(w.cfg.Storage.Backend, w.cfg.Storage.Endpoint)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err != nil {
+			db.Close()
+		}
+	}()
+
+	var (
+		tInfo         = newTablesInfo(w.numBenchmarks)
+		commands      = newPostgresCommands(tInfo, w.numBenchmarks)
+		setupCommands = newPostgresSetupCommands()
+	)
+	if err = setupCommands.SetupTables(db); err != nil {
+		return errors.Wrap(err, "failed to setup tables")
+	}
+
+	w.db = db
+	w.commands = commands
+	w.tablesInfo = tInfo
+	w.queryRunner = newPostgresQueryRunner(db, tInfo)
+
+	if w.cfg.ColdStart != nil {
+		go coldStart(w, setupCommands.CreateIndices)
+	} else {
+		if err := setupCommands.CreateIndices(db, tInfo); err != nil {
+			return errors.Wrap(err, "failed to CreateIndices")
+		}
+	}
+
+	return nil
+}
+
+func newPostgresCommands(tInfo *tablesInfo, numBenchmarks uint64) *SQLCommands {
+	commands := &SQLCommands{
+		insertDeal:                   `INSERT INTO Deals(%s) VALUES (%s)`,
+		updateDeal:                   `UPDATE Deals SET Duration = $1, Price = $2, StartTime = $3, EndTime = $4, Status = $5, BlockedBalance = $6, TotalPayout = $7, LastBillTS = $7 WHERE Id = $8`,
+		updateDealsSupplier:          `UPDATE Deals SET SupplierCertificates = $1 WHERE SupplierID = $2`,
+		updateDealsConsumer:          `UPDATE Deals SET ConsumerCertificates = $1 WHERE ConsumerID = $2`,
+		updateDealPayout:             `UPDATE Deals SET TotalPayout = $1 WHERE Id = $2`,
+		selectDealByID:               `SELECT %s FROM Deals WHERE id = $1`,
+		deleteDeal:                   `DELETE FROM Deals WHERE Id = $1`,
+		insertOrder:                  `INSERT INTO Orders(%s) VALUES (%s)`,
+		selectOrderByID:              `SELECT %s FROM Orders WHERE id = $1`,
+		updateOrders:                 `UPDATE Orders SET CreatorIdentityLevel = $1, CreatorName = $2, CreatorCountry = $3, CreatorCertificates = $4 WHERE AuthorID = $5`,
+		updateOrderStatus:            `UPDATE Orders SET Status = $1 WHERE Id = $2`,
+		deleteOrder:                  `DELETE FROM Orders WHERE Id = $1`,
+		insertDealChangeRequest:      `INSERT INTO DealChangeRequests VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		selectDealChangeRequests:     `SELECT * FROM DealChangeRequests WHERE DealID = $1 AND RequestType = $2 AND Status = $3`,
+		selectDealChangeRequestsByID: `SELECT * FROM DealChangeRequests WHERE DealID = $1`,
+		deleteDealChangeRequest:      `DELETE FROM DealChangeRequests WHERE Id = $1`,
+		updateDealChangeRequest:      `UPDATE DealChangeRequests SET Status = $1 WHERE Id = $2`,
+		insertDealCondition:          `INSERT INTO DealConditions(SupplierID, ConsumerID, MasterID, Duration, Price, StartTime, EndTime, TotalPayout, DealID) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+		updateDealConditionPayout:    `UPDATE DealConditions SET TotalPayout = $1 WHERE Id = $2`,
+		updateDealConditionEndTime:   `UPDATE DealConditions SET EndTime = $1 WHERE Id = $2`,
+		insertDealPayment:            `INSERT INTO DealPayments VALUES ($1, $2, $3)`,
+		insertWorker:                 `INSERT INTO Workers VALUES ($1, $2, $3)`,
+		updateWorker:                 `UPDATE Workers SET Confirmed = $1 WHERE MasterID = $2 AND WorkerID = $3`,
+		deleteWorker:                 `DELETE FROM Workers WHERE MasterID = $1 AND WorkerID = $2`,
+		insertBlacklistEntry:         `INSERT INTO Blacklists VALUES ($1, $2)`,
+		selectBlacklists:             `SELECT * FROM Blacklists WHERE AdderID = $1`,
+		deleteBlacklistEntry:         `DELETE FROM Blacklists WHERE AdderID = $1 AND AddeeID = $2`,
+		insertValidator:              `INSERT INTO Validators VALUES ($1, $2)`,
+		updateValidator:              `UPDATE Validators SET Level = $1 WHERE Id = $2`,
+		insertCertificate:            `INSERT INTO Certificates VALUES ($1, $2, $3, $4, $5)`,
+		selectCertificates:           `SELECT * FROM Certificates WHERE OwnerID = $1`,
+		insertProfileUserID:          `INSERT INTO Profiles (UserID, IdentityLevel, Name, Country, IsCorporation, IsProfessional, Certificates, ActiveAsks, ActiveBids ) VALUES ($1, 0, '', '', FALSE, FALSE, $2, $3, $4)`,
+		selectProfileByID:            `SELECT * FROM Profiles WHERE UserID = $1`,
+		profileNotInBlacklist:        `AND UserID NOT IN (SELECT AddeeID FROM Blacklists WHERE AdderID = $ AND AddeeID = p.UserID)`,
+		profileInBlacklist:           `AND UserID IN (SELECT AddeeID FROM Blacklists WHERE AdderID = $ AND AddeeID = p.UserID)`,
+		updateProfile:                `UPDATE Profiles SET %s = $1 WHERE UserID = $2`,
+		selectLastKnownBlock:         `SELECT LastKnownBlock FROM Misc WHERE Id = 1`,
+		insertLastKnownBlock:         `INSERT INTO Misc(LastKnownBlock) VALUES ($1)`,
+		updateLastKnownBlock:         `UPDATE Misc SET LastKnownBlock = $1 WHERE Id = 1`,
+	}
+
+	format := func(argID uint64, lastArg bool) string {
+		if lastArg {
+			return fmt.Sprintf("$%d", argID)
+		}
+		return fmt.Sprintf("$%d, ", argID)
+	}
+	commands.Finalize(numBenchmarks, tInfo, format)
+
+	return commands
+}
+
+func newPostgresSetupCommands() *SQLSetupCommands {
+	setupCommands := &SQLSetupCommands{
+		createTableDeals: `
 	CREATE TABLE IF NOT EXISTS Deals (
 		Id						TEXT UNIQUE NOT NULL,
 		SupplierID				TEXT NOT NULL,
@@ -33,7 +124,7 @@ var (
 		SupplierCertificates    BYTEA NOT NULL,
 		ConsumerCertificates    BYTEA NOT NULL,
 		ActiveChangeRequest     BOOLEAN NOT NULL`,
-		"createTableDealConditions": `
+		createTableDealConditions: `
 	CREATE TABLE IF NOT EXISTS DealConditions (
 		Id							BIGSERIAL PRIMARY KEY,
 		SupplierID					TEXT NOT NULL,
@@ -46,14 +137,14 @@ var (
 		TotalPayout					TEXT NOT NULL,
 		DealID						TEXT NOT NULL REFERENCES Deals(Id) ON DELETE CASCADE
 	)`,
-		"createTableDealPayments": `
+		createTableDealPayments: `
 	CREATE TABLE IF NOT EXISTS DealPayments (
 		BillTS						INTEGER NOT NULL,
 		PaidAmount					TEXT NOT NULL,
 		DealID						TEXT NOT NULL REFERENCES Deals(Id) ON DELETE CASCADE,
 		UNIQUE						(BillTS, PaidAmount, DealID)
 	)`,
-		"createTableChangeRequests": `
+		createTableChangeRequests: `
 	CREATE TABLE IF NOT EXISTS DealChangeRequests (
 		Id 							TEXT UNIQUE NOT NULL,
 		CreatedTS					INTEGER NOT NULL,
@@ -63,7 +154,7 @@ var (
 		Status						INTEGER NOT NULL,
 		DealID						TEXT NOT NULL REFERENCES Deals(Id) ON DELETE CASCADE
 	)`,
-		"createTableOrders": `
+		createTableOrders: `
 	CREATE TABLE IF NOT EXISTS Orders (
 		Id						TEXT UNIQUE NOT NULL,
 		CreatedTS				INTEGER NOT NULL,
@@ -83,25 +174,25 @@ var (
 		CreatorName				TEXT NOT NULL,
 		CreatorCountry			TEXT NOT NULL,
 		CreatorCertificates		BYTEA NOT NULL`,
-		"createTableWorkers": `
+		createTableWorkers: `
 	CREATE TABLE IF NOT EXISTS Workers (
 		MasterID					TEXT NOT NULL,
 		WorkerID					TEXT NOT NULL,
 		Confirmed					INTEGER NOT NULL,
 		UNIQUE						(MasterID, WorkerID)
 	)`,
-		"createTableBlacklists": `
+		createTableBlacklists: `
 	CREATE TABLE IF NOT EXISTS Blacklists (
 		AdderID						TEXT NOT NULL,
 		AddeeID						TEXT NOT NULL,
 		UNIQUE						(AdderID, AddeeID)
 	)`,
-		"createTableValidators": `
+		createTableValidators: `
 	CREATE TABLE IF NOT EXISTS Validators (
 		Id							TEXT UNIQUE NOT NULL,
 		Level						INTEGER NOT NULL
 	)`,
-		"createTableCertificates": `
+		createTableCertificates: `
 	CREATE TABLE IF NOT EXISTS Certificates (
 		OwnerID						TEXT NOT NULL,
 		Attribute					INTEGER NOT NULL,
@@ -110,7 +201,7 @@ var (
 		ValidatorID					TEXT NOT NULL REFERENCES Validators(Id) ON DELETE CASCADE,
 		UNIQUE						(OwnerID, ValidatorID, Attribute, Value)
 	)`,
-		"createTableProfiles": `
+		createTableProfiles: `
 	CREATE TABLE IF NOT EXISTS Profiles (
 		Id							BIGSERIAL PRIMARY KEY,
 		UserID						TEXT UNIQUE NOT NULL,
@@ -123,191 +214,37 @@ var (
 		ActiveAsks					INTEGER NOT NULL,
 		ActiveBids					INTEGER NOT NULL
 	)`,
-		"createTableMisc": `
+		createTableMisc: `
 	CREATE TABLE IF NOT EXISTS Misc (
 		Id							BIGSERIAL PRIMARY KEY,
 		LastKnownBlock				INTEGER NOT NULL
 	)`,
+		createIndex: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
 	}
-	postgresCreateIndex = "CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)"
-	postgresCommands    = map[string]string{
-		"updateDeal":                   `UPDATE Deals SET Duration = $1, Price = $2, StartTime = $3, EndTime = $4, Status = $5, BlockedBalance = $6, TotalPayout = $7, LastBillTS = $7 WHERE Id = $8`,
-		"updateDealsSupplier":          `UPDATE Deals SET SupplierCertificates = $1 WHERE SupplierID = $2`,
-		"updateDealsConsumer":          `UPDATE Deals SET ConsumerCertificates = $1 WHERE ConsumerID = $2`,
-		"updateDealPayout":             `UPDATE Deals SET TotalPayout = $1 WHERE Id = $2`,
-		"selectDealByID":               `SELECT %s FROM Deals WHERE id = $1`,
-		"deleteDeal":                   `DELETE FROM Deals WHERE Id = $1`,
-		"selectOrderByID":              `SELECT %s FROM Orders WHERE id = $1`,
-		"updateOrders":                 `UPDATE Orders SET CreatorIdentityLevel = $1, CreatorName = $2, CreatorCountry = $3, CreatorCertificates = $4 WHERE AuthorID = $5`,
-		"updateOrderStatus":            `UPDATE Orders SET Status = $1 WHERE Id = $2`,
-		"deleteOrder":                  `DELETE FROM Orders WHERE Id = $1`,
-		"insertDealChangeRequest":      `INSERT INTO DealChangeRequests VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-		"selectDealChangeRequests":     `SELECT * FROM DealChangeRequests WHERE DealID = $1 AND RequestType = $2 AND Status = $3`,
-		"selectDealChangeRequestsByID": `SELECT * FROM DealChangeRequests WHERE DealID = $1`,
-		"deleteDealChangeRequest":      `DELETE FROM DealChangeRequests WHERE Id = $1`,
-		"updateDealChangeRequest":      `UPDATE DealChangeRequests SET Status = $1 WHERE Id = $2`,
-		"insertDealCondition":          `INSERT INTO DealConditions(SupplierID, ConsumerID, MasterID, Duration, Price, StartTime, EndTime, TotalPayout, DealID) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		"updateDealConditionPayout":    `UPDATE DealConditions SET TotalPayout = $1 WHERE Id = $2`,
-		"updateDealConditionEndTime":   `UPDATE DealConditions SET EndTime = $1 WHERE Id = $2`,
-		"insertDealPayment":            `INSERT INTO DealPayments VALUES ($1, $2, $3)`,
-		"insertWorker":                 `INSERT INTO Workers VALUES ($1, $2, $3)`,
-		"updateWorker":                 `UPDATE Workers SET Confirmed = $1 WHERE MasterID = $2 AND WorkerID = $3`,
-		"deleteWorker":                 `DELETE FROM Workers WHERE MasterID = $1 AND WorkerID = $2`,
-		"insertBlacklistEntry":         `INSERT INTO Blacklists VALUES ($1, $2)`,
-		"selectBlacklists":             `SELECT * FROM Blacklists WHERE AdderID = $1`,
-		"deleteBlacklistEntry":         `DELETE FROM Blacklists WHERE AdderID = $1 AND AddeeID = $2`,
-		"insertValidator":              `INSERT INTO Validators VALUES ($1, $2)`,
-		"updateValidator":              `UPDATE Validators SET Level = $1 WHERE Id = $2`,
-		"insertCertificate":            `INSERT INTO Certificates VALUES ($1, $2, $3, $4, $5)`,
-		"selectCertificates":           `SELECT * FROM Certificates WHERE OwnerID = $1`,
-		"insertProfileUserID":          `INSERT INTO Profiles (UserID, IdentityLevel, Name, Country, IsCorporation, IsProfessional, Certificates, ActiveAsks, ActiveBids ) VALUES ($1, 0, '', '', FALSE, FALSE, $2, $3, $4)`,
-		"selectProfileByID":            `SELECT * FROM Profiles WHERE UserID = $1`,
-		"profileNotInBlacklist":        `AND UserID NOT IN (SELECT AddeeID FROM Blacklists WHERE AdderID = $ AND AddeeID = p.UserID)`,
-		"profileInBlacklist":           `AND UserID IN (SELECT AddeeID FROM Blacklists WHERE AdderID = $ AND AddeeID = p.UserID)`,
-		"updateProfile":                `UPDATE Profiles SET %s = $1 WHERE UserID = $2`,
-		"selectLastKnownBlock":         `SELECT LastKnownBlock FROM Misc WHERE Id = 1`,
-		"insertLastKnownBlock":         `INSERT INTO Misc(LastKnownBlock) VALUES ($1)`,
-		"updateLastKnownBlock":         `UPDATE Misc SET LastKnownBlock = $1 WHERE Id = 1`,
-	}
-)
+	setupCommands.Finalize("BIGINT DEFAULT 0")
 
-func setupPostgres(w *DWH) error {
-	db, err := sql.Open(w.cfg.Storage.Backend, w.cfg.Storage.Endpoint)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		if err != nil {
-			db.Close()
-		}
-	}()
-
-	finalizeColumnsOnce.Do(func() { finalizeTableColumns(w.numBenchmarks) })
-	finalizeCommandsOnce.Do(func() { finalizeCommandsPostgres(w.numBenchmarks) })
-
-	for _, cmdName := range orderedSetupCommands {
-		_, err = db.Exec(postgresSetupCommands[cmdName])
-		if err != nil {
-			return errors.Wrapf(err, "failed to %s (%s)", cmdName, w.cfg.Storage.Backend)
-		}
-	}
-
-	w.db = db
-	w.commands = postgresCommands
-	w.runQuery = runQueryPostgres
-
-	if w.cfg.ColdStart != nil {
-		go coldStart(w, buildIndicesPostgres)
-	} else {
-		if err := buildIndicesPostgres(w); err != nil {
-			return errors.Wrap(err, "failed to buildIndicesPostgres")
-		}
-	}
-
-	return nil
+	return setupCommands
 }
 
-func finalizeCommandsPostgres(numBenchmarks int) {
-	benchmarkColumns := make([]string, numBenchmarks)
-	for benchmarkID := 0; benchmarkID < numBenchmarks; benchmarkID++ {
-		benchmarkColumns[benchmarkID] = fmt.Sprintf("%s BIGINT NOT NULL", getBenchmarkColumn(uint64(benchmarkID)))
-	}
-	postgresSetupCommands["createTableDeals"] = strings.Join(
-		append([]string{postgresSetupCommands["createTableDeals"]}, benchmarkColumns...), ",\n") + ")"
-	postgresSetupCommands["createTableOrders"] = strings.Join(
-		append([]string{postgresSetupCommands["createTableOrders"]}, benchmarkColumns...), ",\n") + ")"
-
-	// Construct placeholders for Deals.
-	dealPlaceholders := ""
-	for i := 0; i < NumDealColumns; i++ {
-		dealPlaceholders += fmt.Sprintf("$%d, ", i+1)
-	}
-	for i := NumDealColumns; i < NumDealColumns+numBenchmarks; i++ {
-		if i == numBenchmarks+NumDealColumns-1 {
-			dealPlaceholders += fmt.Sprintf("$%d", i+1)
-		} else {
-			dealPlaceholders += fmt.Sprintf("$%d, ", i+1)
-		}
-	}
-	dealColumnsString := strings.Join(DealColumns, ", ")
-	postgresCommands["insertDeal"] = fmt.Sprintf("INSERT INTO Deals(%s) VALUES (%s)", dealColumnsString, dealPlaceholders)
-	postgresCommands["selectDealByID"] = fmt.Sprintf(postgresCommands["selectDealByID"], dealColumnsString)
-
-	// Construct placeholders for Orders.
-	orderPlaceholders := ""
-	for i := 0; i < NumOrderColumns; i++ {
-		orderPlaceholders += fmt.Sprintf("$%d, ", i+1)
-	}
-	for i := NumOrderColumns; i < NumOrderColumns+numBenchmarks; i++ {
-		if i == numBenchmarks+NumOrderColumns-1 {
-			orderPlaceholders += fmt.Sprintf("$%d", i+1)
-		} else {
-			orderPlaceholders += fmt.Sprintf("$%d, ", i+1)
-		}
-	}
-	orderColumnsString := strings.Join(OrderColumns, ", ")
-	postgresCommands["insertOrder"] = fmt.Sprintf("INSERT INTO Orders(%s) VALUES (%s)", orderColumnsString, orderPlaceholders)
-	postgresCommands["selectOrderByID"] = fmt.Sprintf(postgresCommands["selectOrderByID"], orderColumnsString)
+type postgresQueryRunner struct {
+	db         *sql.DB
+	tablesInfo *tablesInfo
 }
 
-func buildIndicesPostgres(w *DWH) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	var err error
-	for idx := 0; idx < NumDealColumns+w.numBenchmarks; idx++ {
-		if err = createIndex(w.db, postgresCreateIndex, "Deals", DealColumns[idx]); err != nil {
-			return err
-		}
+func newPostgresQueryRunner(db *sql.DB, tInfo *tablesInfo) QueryRunner {
+	return &postgresQueryRunner{
+		db:         db,
+		tablesInfo: tInfo,
 	}
-	for _, column := range []string{"Id", "DealID", "RequestType", "Status"} {
-		if err = createIndex(w.db, postgresCreateIndex, "DealChangeRequests", column); err != nil {
-			return err
-		}
-	}
-	for column := range DealConditionColumnsSet {
-		if err = createIndex(w.db, postgresCreateIndex, "DealConditions", column); err != nil {
-			return err
-		}
-	}
-	for idx := 0; idx < NumOrderColumns+w.numBenchmarks; idx++ {
-		if err = createIndex(w.db, postgresCreateIndex, "Orders", OrderColumns[idx]); err != nil {
-			return err
-		}
-	}
-	for _, column := range []string{"MasterID", "WorkerID"} {
-		if err = createIndex(w.db, postgresCreateIndex, "Workers", column); err != nil {
-			return err
-		}
-	}
-	for _, column := range []string{"AdderID", "AddeeID"} {
-		if err = createIndex(w.db, postgresCreateIndex, "Blacklists", column); err != nil {
-			return err
-		}
-	}
-	if err = createIndex(w.db, postgresCreateIndex, "Validators", "Id"); err != nil {
-		return err
-	}
-	if err = createIndex(w.db, postgresCreateIndex, "Certificates", "OwnerID"); err != nil {
-		return err
-	}
-	for column := range ProfilesColumnsSet {
-		if err = createIndex(w.db, postgresCreateIndex, "Profiles", column); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
-func runQueryPostgres(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error) {
+func (r *postgresQueryRunner) Run(opts *queryOpts) (*sql.Rows, uint64, error) {
 	var columns string
 	switch opts.table {
 	case "Deals":
-		columns = strings.Join(DealColumns, ", ")
+		columns = strings.Join(r.tablesInfo.DealColumns, ", ")
 	case "Orders":
-		columns = strings.Join(OrderColumns, ", ")
+		columns = strings.Join(r.tablesInfo.OrderColumns, ", ")
 	default:
 		columns = "*"
 	}
@@ -366,7 +303,7 @@ func runQueryPostgres(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error) {
 
 	var count uint64
 	if opts.withCount {
-		countRows, err := db.Query(countQuery, values...)
+		countRows, err := r.db.Query(countQuery, values...)
 		if err != nil {
 			return nil, 0, errors.Wrapf(err, "count query `%s` failed", countQuery)
 		}
@@ -375,7 +312,7 @@ func runQueryPostgres(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error) {
 		}
 	}
 
-	rows, err := db.Query(query, values...)
+	rows, err := r.db.Query(query, values...)
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "query `%s` failed", query)
 	}

@@ -94,3 +94,7 @@ type ValidatorDeletedData struct {
 type CertificateCreatedData struct {
 	ID *big.Int
 }
+
+type NumBenchmarksUpdatedData struct {
+	NewNum *big.Int
+}
