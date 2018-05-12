@@ -1880,7 +1880,25 @@ func (w *DWH) updateProfileStats(tx *sql.Tx, orderType pb.OrderType, authorID st
 
 func (w *DWH) onNumBenchmarksUpdated(numBenchmarks *big.Int) error {
 	if !numBenchmarks.IsInt64() {
+		return errors.New("benchmarks quantity overflows int64")
+	}
 
+	if numBenchmarks.Uint64() > NumMaxBenchmarks {
+		return errors.New("market number of benchmarks is greater than NumMaxBenchmarks")
+	}
+
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.numBenchmarks = numBenchmarks.Uint64()
+
+	setupDB, ok := setupDBCallbacks[w.cfg.Storage.Backend]
+	if !ok {
+		return errors.Errorf("unsupported backend: %s", w.cfg.Storage.Backend)
+	}
+
+	if err := setupDB(w); err != nil {
+		return errors.Wrap(err, "failed setupDB after a NumBenchmarksUpdated event")
 	}
 
 	return nil

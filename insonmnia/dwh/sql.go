@@ -76,7 +76,7 @@ var (
 		"ActiveChangeRequest",
 	}
 	DealColumnsSet = stringSliceToSet(DealColumns)
-	NumDealColumns = len(DealColumns)
+	NumDealColumns = uint64(len(DealColumns))
 	OrderColumns   = []string{
 		"Id",
 		"CreatedTS",
@@ -98,7 +98,7 @@ var (
 		"CreatorCertificates",
 	}
 	OrderColumnsSet         = stringSliceToSet(OrderColumns)
-	NumOrderColumns         = len(OrderColumns)
+	NumOrderColumns         = uint64(len(OrderColumns))
 	DealConditionColumnsSet = map[string]bool{
 		"Id":          true,
 		"SupplierID":  true,
@@ -236,8 +236,8 @@ func coldStart(w *DWH, setupIndicesCb setupIndices) {
 	}
 }
 
-func finalizeTableColumns(numBenchmarks int) {
-	for benchmarkID := 0; benchmarkID < numBenchmarks; benchmarkID++ {
+func finalizeTableColumns(numBenchmarks uint64) {
+	for benchmarkID := uint64(0); benchmarkID < numBenchmarks; benchmarkID++ {
 		DealColumns = append(DealColumns, getBenchmarkColumn(uint64(benchmarkID)))
 		DealColumnsSet[getBenchmarkColumn(uint64(benchmarkID))] = true
 		OrderColumns = append(OrderColumns, getBenchmarkColumn(uint64(benchmarkID)))

@@ -183,8 +183,8 @@ func setupPostgres(w *DWH) error {
 		}
 	}()
 
-	finalizeColumnsOnce.Do(func() { finalizeTableColumns(w.numBenchmarks) })
-	finalizeCommandsOnce.Do(func() { finalizeCommandsPostgres(w.numBenchmarks) })
+	finalizeTableColumns(w.numBenchmarks)
+	finalizeCommandsPostgres(w.numBenchmarks)
 
 	for _, cmdName := range orderedSetupCommands {
 		_, err = db.Exec(postgresSetupCommands[cmdName])
@@ -208,9 +208,9 @@ func setupPostgres(w *DWH) error {
 	return nil
 }
 
-func finalizeCommandsPostgres(numBenchmarks int) {
+func finalizeCommandsPostgres(numBenchmarks uint64) {
 	benchmarkColumns := make([]string, numBenchmarks)
-	for benchmarkID := 0; benchmarkID < numBenchmarks; benchmarkID++ {
+	for benchmarkID := uint64(0); benchmarkID < numBenchmarks; benchmarkID++ {
 		benchmarkColumns[benchmarkID] = fmt.Sprintf("%s BIGINT NOT NULL", getBenchmarkColumn(uint64(benchmarkID)))
 	}
 	postgresSetupCommands["createTableDeals"] = strings.Join(
@@ -220,7 +220,7 @@ func finalizeCommandsPostgres(numBenchmarks int) {
 
 	// Construct placeholders for Deals.
 	dealPlaceholders := ""
-	for i := 0; i < NumDealColumns; i++ {
+	for i := uint64(0); i < NumDealColumns; i++ {
 		dealPlaceholders += fmt.Sprintf("$%d, ", i+1)
 	}
 	for i := NumDealColumns; i < NumDealColumns+numBenchmarks; i++ {
@@ -236,7 +236,7 @@ func finalizeCommandsPostgres(numBenchmarks int) {
 
 	// Construct placeholders for Orders.
 	orderPlaceholders := ""
-	for i := 0; i < NumOrderColumns; i++ {
+	for i := uint64(0); i < NumOrderColumns; i++ {
 		orderPlaceholders += fmt.Sprintf("$%d, ", i+1)
 	}
 	for i := NumOrderColumns; i < NumOrderColumns+numBenchmarks; i++ {
@@ -256,7 +256,7 @@ func buildIndicesPostgres(w *DWH) error {
 	defer w.mu.Unlock()
 
 	var err error
-	for idx := 0; idx < NumDealColumns+w.numBenchmarks; idx++ {
+	for idx := uint64(0); idx < NumDealColumns+w.numBenchmarks; idx++ {
 		if err = createIndex(w.db, postgresCreateIndex, "Deals", DealColumns[idx]); err != nil {
 			return err
 		}
@@ -271,7 +271,7 @@ func buildIndicesPostgres(w *DWH) error {
 			return err
 		}
 	}
-	for idx := 0; idx < NumOrderColumns+w.numBenchmarks; idx++ {
+	for idx := uint64(0); idx < NumOrderColumns+w.numBenchmarks; idx++ {
 		if err = createIndex(w.db, postgresCreateIndex, "Orders", OrderColumns[idx]); err != nil {
 			return err
 		}
