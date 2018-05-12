@@ -74,6 +74,11 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, erro
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to GetNumBenchmarks")
 	}
+
+	if numBenchmarks >= NumMaxBenchmarks {
+		return nil, errors.New("market number of benchmarks is greater than NumMaxBenchmarks")
+	}
+
 	w.numBenchmarks = numBenchmarks
 
 	setupDB, ok := setupDBCallbacks[cfg.Storage.Backend]
