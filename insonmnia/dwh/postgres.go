@@ -221,15 +221,7 @@ func newPostgresSetupCommands() *SQLSetupCommands {
 	)`,
 		createIndex: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
 	}
-
-	benchmarkColumns := make([]string, NumMaxBenchmarks)
-	for benchmarkID := uint64(0); benchmarkID < NumMaxBenchmarks; benchmarkID++ {
-		benchmarkColumns[benchmarkID] = fmt.Sprintf("%s BIGINT NOT NULL", getBenchmarkColumn(uint64(benchmarkID)))
-	}
-	setupCommands.createTableDeals = strings.Join(
-		append([]string{setupCommands.createTableDeals}, benchmarkColumns...), ",\n") + ")"
-	setupCommands.createTableOrders = strings.Join(
-		append([]string{setupCommands.createTableOrders}, benchmarkColumns...), ",\n") + ")"
+	setupCommands.Finalize("BIGINT DEFAULT 0")
 
 	return setupCommands
 }

@@ -119,7 +119,6 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"IsProfessional",
 		"Certificates",
 	}
-
 	out := &tablesInfo{
 		DealColumns:             dealColumns,
 		DealColumnsSet:          stringSliceToSet(dealColumns),
@@ -130,7 +129,6 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		DealConditionColumnsSet: stringSliceToSet(dealConditionColumns),
 		ProfileColumnsSet:       stringSliceToSet(profileColumns),
 	}
-
 	for benchmarkID := uint64(0); benchmarkID < numBenchmarks; benchmarkID++ {
 		out.DealColumns = append(out.DealColumns, getBenchmarkColumn(uint64(benchmarkID)))
 		out.DealColumnsSet[getBenchmarkColumn(uint64(benchmarkID))] = true
@@ -230,6 +228,17 @@ type SQLSetupCommands struct {
 	createTableProfiles       string
 	createTableMisc           string
 	createIndex               string
+}
+
+func (c *SQLSetupCommands) Finalize(benchmarkType string) {
+	benchmarkColumns := make([]string, NumMaxBenchmarks)
+	for benchmarkID := uint64(0); benchmarkID < NumMaxBenchmarks; benchmarkID++ {
+		benchmarkColumns[benchmarkID] = fmt.Sprintf("%s %s", getBenchmarkColumn(uint64(benchmarkID)), benchmarkType)
+	}
+	c.createTableDeals = strings.Join(
+		append([]string{c.createTableDeals}, benchmarkColumns...), ",\n") + ")"
+	c.createTableOrders = strings.Join(
+		append([]string{c.createTableOrders}, benchmarkColumns...), ",\n") + ")"
 }
 
 func (c *SQLSetupCommands) SetupTables(db *sql.DB) error {
