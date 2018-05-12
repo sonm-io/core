@@ -32,20 +32,7 @@ var (
 		BidIdentityLevel		INTEGER NOT NULL,
 		SupplierCertificates    BYTEA NOT NULL,
 		ConsumerCertificates    BYTEA NOT NULL,
-		ActiveChangeRequest     BOOLEAN NOT NULL,
-		CPUSysbenchMulti		BIGINT NOT NULL,
-		CPUSysbenchOne			BIGINT NOT NULL,
-		CPUCores				BIGINT NOT NULL,
-		RAMSize					BIGINT NOT NULL,
-		StorageSize				BIGINT NOT NULL,
-		NetTrafficIn			BIGINT NOT NULL,
-		NetTrafficOut			BIGINT NOT NULL,
-		GPUCount				BIGINT NOT NULL,
-		GPUMem					BIGINT NOT NULL,
-		GPUEthHashrate			BIGINT NOT NULL,
-		GPUCashHashrate			BIGINT NOT NULL,
-		GPURedshift				BIGINT NOT NULL
-	)`,
+		ActiveChangeRequest     BOOLEAN NOT NULL`,
 		"createTableDealConditions": `
 	CREATE TABLE IF NOT EXISTS DealConditions (
 		Id							BIGSERIAL PRIMARY KEY,
@@ -95,20 +82,7 @@ var (
 		CreatorIdentityLevel	INTEGER NOT NULL,
 		CreatorName				TEXT NOT NULL,
 		CreatorCountry			TEXT NOT NULL,
-		CreatorCertificates		BYTEA NOT NULL,
-		CPUSysbenchMulti		BIGINT NOT NULL,
-		CPUSysbenchOne			BIGINT NOT NULL,
-		CPUCores				BIGINT NOT NULL,
-		RAMSize					BIGINT NOT NULL,
-		StorageSize				BIGINT NOT NULL,
-		NetTrafficIn			BIGINT NOT NULL,
-		NetTrafficOut			BIGINT NOT NULL,
-		GPUCount				BIGINT NOT NULL,
-		GPUMem					BIGINT NOT NULL,
-		GPUEthHashrate			BIGINT NOT NULL,
-		GPUCashHashrate			BIGINT NOT NULL,
-		GPURedshift				BIGINT NOT NULL
-		)`,
+		CreatorCertificates		BYTEA NOT NULL`,
 		"createTableWorkers": `
 	CREATE TABLE IF NOT EXISTS Workers (
 		MasterID					TEXT NOT NULL,
@@ -157,16 +131,15 @@ var (
 	}
 	postgresCreateIndex = "CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)"
 	postgresCommands    = map[string]string{
-		"insertDeal":                   `INSERT INTO Deals VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)`,
 		"updateDeal":                   `UPDATE Deals SET Duration = $1, Price = $2, StartTime = $3, EndTime = $4, Status = $5, BlockedBalance = $6, TotalPayout = $7, LastBillTS = $7 WHERE Id = $8`,
 		"updateDealsSupplier":          `UPDATE Deals SET SupplierCertificates = $1 WHERE SupplierID = $2`,
 		"updateDealsConsumer":          `UPDATE Deals SET ConsumerCertificates = $1 WHERE ConsumerID = $2`,
 		"updateDealPayout":             `UPDATE Deals SET TotalPayout = $1 WHERE Id = $2`,
-		"selectDealByID":               `SELECT * FROM Deals WHERE id = $1`,
+		"selectDealByID":               `SELECT %s FROM Deals WHERE id = $1`,
 		"deleteDeal":                   `DELETE FROM Deals WHERE Id = $1`,
-		"insertOrder":                  `INSERT INTO Orders VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)`,
-		"selectOrderByID":              `SELECT * FROM Orders WHERE id = $1`,
+		"selectOrderByID":              `SELECT %s FROM Orders WHERE id = $1`,
 		"updateOrders":                 `UPDATE Orders SET CreatorIdentityLevel = $1, CreatorName = $2, CreatorCountry = $3, CreatorCertificates = $4 WHERE AuthorID = $5`,
+		"updateOrderStatus":            `UPDATE Orders SET Status = $1 WHERE Id = $2`,
 		"deleteOrder":                  `DELETE FROM Orders WHERE Id = $1`,
 		"insertDealChangeRequest":      `INSERT INTO DealChangeRequests VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		"selectDealChangeRequests":     `SELECT * FROM DealChangeRequests WHERE DealID = $1 AND RequestType = $2 AND Status = $3`,
@@ -187,7 +160,7 @@ var (
 		"updateValidator":              `UPDATE Validators SET Level = $1 WHERE Id = $2`,
 		"insertCertificate":            `INSERT INTO Certificates VALUES ($1, $2, $3, $4, $5)`,
 		"selectCertificates":           `SELECT * FROM Certificates WHERE OwnerID = $1`,
-		"insertProfileUserID":          `INSERT INTO Profiles (UserID, IdentityLevel, Name, Country, IsCorporation, IsProfessional, Certificates, ActiveAsks, ActiveBids ) VALUES ($1, 0, '', '', FALSE, FALSE, E'\\000', $2, $3)`,
+		"insertProfileUserID":          `INSERT INTO Profiles (UserID, IdentityLevel, Name, Country, IsCorporation, IsProfessional, Certificates, ActiveAsks, ActiveBids ) VALUES ($1, 0, '', '', FALSE, FALSE, $2, $3, $4)`,
 		"selectProfileByID":            `SELECT * FROM Profiles WHERE UserID = $1`,
 		"profileNotInBlacklist":        `AND UserID NOT IN (SELECT AddeeID FROM Blacklists WHERE AdderID = $ AND AddeeID = p.UserID)`,
 		"profileInBlacklist":           `AND UserID IN (SELECT AddeeID FROM Blacklists WHERE AdderID = $ AND AddeeID = p.UserID)`,
@@ -210,6 +183,9 @@ func setupPostgres(w *DWH) error {
 		}
 	}()
 
+	finalizeColumnsOnce.Do(func() { finalizeTableColumns(w.numBenchmarks) })
+	finalizeCommandsOnce.Do(func() { finalizeCommandsPostgres(w.numBenchmarks) })
+
 	for _, cmdName := range orderedSetupCommands {
 		_, err = db.Exec(postgresSetupCommands[cmdName])
 		if err != nil {
@@ -217,66 +193,126 @@ func setupPostgres(w *DWH) error {
 		}
 	}
 
-	for column := range DealsColumns {
-		if err = createIndex(db, postgresCreateIndex, "Deals", column); err != nil {
-			return err
-		}
-	}
-
-	for _, column := range []string{"Id", "DealID", "RequestType", "Status"} {
-		if err = createIndex(db, postgresCreateIndex, "DealChangeRequests", column); err != nil {
-			return err
-		}
-	}
-
-	for column := range DealConditionsColumns {
-		if err = createIndex(db, postgresCreateIndex, "DealConditions", column); err != nil {
-			return err
-		}
-	}
-
-	for column := range OrdersColumns {
-		if err = createIndex(db, postgresCreateIndex, "Orders", column); err != nil {
-			return err
-		}
-	}
-
-	for _, column := range []string{"MasterID", "WorkerID"} {
-		if err = createIndex(db, postgresCreateIndex, "Workers", column); err != nil {
-			return err
-		}
-	}
-
-	for _, column := range []string{"AdderID", "AddeeID"} {
-		if err = createIndex(db, postgresCreateIndex, "Blacklists", column); err != nil {
-			return err
-		}
-	}
-
-	if err = createIndex(db, postgresCreateIndex, "Validators", "Id"); err != nil {
-		return err
-	}
-
-	if err = createIndex(db, postgresCreateIndex, "Certificates", "OwnerID"); err != nil {
-		return err
-	}
-
-	for column := range ProfilesColumns {
-		if err = createIndex(db, postgresCreateIndex, "Profiles", column); err != nil {
-			return err
-		}
-	}
-
 	w.db = db
 	w.commands = postgresCommands
 	w.runQuery = runQueryPostgres
+
+	if w.cfg.ColdStart != nil {
+		go coldStart(w, buildIndicesPostgres)
+	} else {
+		if err := buildIndicesPostgres(w); err != nil {
+			return errors.Wrap(err, "failed to buildIndicesPostgres")
+		}
+	}
+
+	return nil
+}
+
+func finalizeCommandsPostgres(numBenchmarks int) {
+	benchmarkColumns := make([]string, numBenchmarks)
+	for benchmarkID := 0; benchmarkID < numBenchmarks; benchmarkID++ {
+		benchmarkColumns[benchmarkID] = fmt.Sprintf("%s BIGINT NOT NULL", getBenchmarkColumn(uint64(benchmarkID)))
+	}
+	postgresSetupCommands["createTableDeals"] = strings.Join(
+		append([]string{postgresSetupCommands["createTableDeals"]}, benchmarkColumns...), ",\n") + ")"
+	postgresSetupCommands["createTableOrders"] = strings.Join(
+		append([]string{postgresSetupCommands["createTableOrders"]}, benchmarkColumns...), ",\n") + ")"
+
+	// Construct placeholders for Deals.
+	dealPlaceholders := ""
+	for i := 0; i < NumDealColumns; i++ {
+		dealPlaceholders += fmt.Sprintf("$%d, ", i+1)
+	}
+	for i := NumDealColumns; i < NumDealColumns+numBenchmarks; i++ {
+		if i == numBenchmarks+NumDealColumns-1 {
+			dealPlaceholders += fmt.Sprintf("$%d", i+1)
+		} else {
+			dealPlaceholders += fmt.Sprintf("$%d, ", i+1)
+		}
+	}
+	dealColumnsString := strings.Join(DealColumns, ", ")
+	postgresCommands["insertDeal"] = fmt.Sprintf("INSERT INTO Deals(%s) VALUES (%s)", dealColumnsString, dealPlaceholders)
+	postgresCommands["selectDealByID"] = fmt.Sprintf(postgresCommands["selectDealByID"], dealColumnsString)
+
+	// Construct placeholders for Orders.
+	orderPlaceholders := ""
+	for i := 0; i < NumOrderColumns; i++ {
+		orderPlaceholders += fmt.Sprintf("$%d, ", i+1)
+	}
+	for i := NumOrderColumns; i < NumOrderColumns+numBenchmarks; i++ {
+		if i == numBenchmarks+NumOrderColumns-1 {
+			orderPlaceholders += fmt.Sprintf("$%d", i+1)
+		} else {
+			orderPlaceholders += fmt.Sprintf("$%d, ", i+1)
+		}
+	}
+	orderColumnsString := strings.Join(OrderColumns, ", ")
+	postgresCommands["insertOrder"] = fmt.Sprintf("INSERT INTO Orders(%s) VALUES (%s)", orderColumnsString, orderPlaceholders)
+	postgresCommands["selectOrderByID"] = fmt.Sprintf(postgresCommands["selectOrderByID"], orderColumnsString)
+}
+
+func buildIndicesPostgres(w *DWH) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	var err error
+	for idx := 0; idx < NumDealColumns+w.numBenchmarks; idx++ {
+		if err = createIndex(w.db, postgresCreateIndex, "Deals", DealColumns[idx]); err != nil {
+			return err
+		}
+	}
+	for _, column := range []string{"Id", "DealID", "RequestType", "Status"} {
+		if err = createIndex(w.db, postgresCreateIndex, "DealChangeRequests", column); err != nil {
+			return err
+		}
+	}
+	for column := range DealConditionColumnsSet {
+		if err = createIndex(w.db, postgresCreateIndex, "DealConditions", column); err != nil {
+			return err
+		}
+	}
+	for idx := 0; idx < NumOrderColumns+w.numBenchmarks; idx++ {
+		if err = createIndex(w.db, postgresCreateIndex, "Orders", OrderColumns[idx]); err != nil {
+			return err
+		}
+	}
+	for _, column := range []string{"MasterID", "WorkerID"} {
+		if err = createIndex(w.db, postgresCreateIndex, "Workers", column); err != nil {
+			return err
+		}
+	}
+	for _, column := range []string{"AdderID", "AddeeID"} {
+		if err = createIndex(w.db, postgresCreateIndex, "Blacklists", column); err != nil {
+			return err
+		}
+	}
+	if err = createIndex(w.db, postgresCreateIndex, "Validators", "Id"); err != nil {
+		return err
+	}
+	if err = createIndex(w.db, postgresCreateIndex, "Certificates", "OwnerID"); err != nil {
+		return err
+	}
+	for column := range ProfilesColumnsSet {
+		if err = createIndex(w.db, postgresCreateIndex, "Profiles", column); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
 func runQueryPostgres(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error) {
+	var columns string
+	switch opts.table {
+	case "Deals":
+		columns = strings.Join(DealColumns, ", ")
+	case "Orders":
+		columns = strings.Join(OrderColumns, ", ")
+	default:
+		columns = "*"
+	}
 	var (
-		query      = fmt.Sprintf("SELECT * FROM %s %s", opts.table, opts.selectAs)
+		query      = fmt.Sprintf("SELECT %s FROM %s %s", columns, opts.table, opts.selectAs)
 		countQuery = fmt.Sprintf("SELECT count(*) FROM %s %s", opts.table, opts.selectAs)
 		conditions []string
 		values     []interface{}
@@ -304,7 +340,6 @@ func runQueryPostgres(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error) {
 			conditions = append(conditions, clause)
 			values = append(values, opts.customFilter.values...)
 		}
-
 		query += " WHERE " + strings.Join(conditions, " ")
 		countQuery += " WHERE " + strings.Join(conditions, " ")
 	}
