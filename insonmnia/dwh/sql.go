@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"sync"
-
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
@@ -35,25 +33,27 @@ var (
 		"sqlite3":  setupSQLite,
 		"postgres": setupPostgres,
 	}
-	orderedSetupCommands = []string{
-		"createTableDeals",
-		"createTableDealConditions",
-		"createTableDealPayments",
-		"createTableChangeRequests",
-		"createTableOrders",
-		"createTableWorkers",
-		"createTableBlacklists",
-		"createTableValidators",
-		"createTableCertificates",
-		"createTableProfiles",
-		"createTableMisc",
-	}
-	finalizeColumnsOnce  = &sync.Once{}
-	finalizeCommandsOnce = &sync.Once{}
 )
 
-var (
-	DealColumns = []string{
+type QueryRunner interface {
+	Run(opts *queryOpts) (*sql.Rows, uint64, error)
+}
+
+type setupIndices func(w *DWH) error
+
+type tablesInfo struct {
+	DealColumns             []string
+	DealColumnsSet          map[string]bool
+	NumDealColumns          uint64
+	OrderColumns            []string
+	OrderColumnsSet         map[string]bool
+	NumOrderColumns         uint64
+	ProfileColumnsSet       map[string]bool
+	DealConditionColumnsSet map[string]bool
+}
+
+func newTablesInfo(numBenchmarks uint64) *tablesInfo {
+	dealColumns := []string{
 		"Id",
 		"SupplierID",
 		"ConsumerID",
@@ -75,9 +75,7 @@ var (
 		"ConsumerCertificates",
 		"ActiveChangeRequest",
 	}
-	DealColumnsSet = stringSliceToSet(DealColumns)
-	NumDealColumns = uint64(len(DealColumns))
-	OrderColumns   = []string{
+	orderColumns := []string{
 		"Id",
 		"CreatedTS",
 		"DealID",
@@ -97,31 +95,164 @@ var (
 		"CreatorCountry",
 		"CreatorCertificates",
 	}
-	OrderColumnsSet         = stringSliceToSet(OrderColumns)
-	NumOrderColumns         = uint64(len(OrderColumns))
-	DealConditionColumnsSet = map[string]bool{
-		"Id":          true,
-		"SupplierID":  true,
-		"ConsumerID":  true,
-		"MasterID":    true,
-		"Duration":    true,
-		"Price":       true,
-		"StartTime":   true,
-		"EndTime":     true,
-		"TotalPayout": true,
-		"DealID":      true,
+	dealConditionColumns := []string{
+		"Id",
+		"SupplierID",
+		"ConsumerID",
+		"MasterID",
+		"Duration",
+		"Price",
+		"StartTime",
+		"EndTime",
+		"TotalPayout",
+		"DealID",
 	}
-	ProfilesColumnsSet = map[string]bool{
-		"Id":             true,
-		"UserID":         true,
-		"IdentityLevel":  true,
-		"Name":           true,
-		"Country":        true,
-		"IsCorporation":  true,
-		"IsProfessional": true,
-		"Certificates":   true,
+	profileColumns := []string{
+		"Id",
+		"UserID",
+		"IdentityLevel",
+		"Name",
+		"Country",
+		"IsCorporation",
+		"IsProfessional",
+		"Certificates",
 	}
-)
+
+	out := &tablesInfo{
+		DealColumns:             dealColumns,
+		DealColumnsSet:          stringSliceToSet(dealColumns),
+		NumDealColumns:          uint64(len(dealColumns)),
+		OrderColumns:            orderColumns,
+		OrderColumnsSet:         stringSliceToSet(orderColumns),
+		NumOrderColumns:         uint64(len(orderColumns)),
+		DealConditionColumnsSet: stringSliceToSet(dealConditionColumns),
+		ProfileColumnsSet:       stringSliceToSet(profileColumns),
+	}
+
+	for benchmarkID := uint64(0); benchmarkID < numBenchmarks; benchmarkID++ {
+		out.DealColumns = append(out.DealColumns, getBenchmarkColumn(uint64(benchmarkID)))
+		out.DealColumnsSet[getBenchmarkColumn(uint64(benchmarkID))] = true
+		out.OrderColumns = append(out.OrderColumns, getBenchmarkColumn(uint64(benchmarkID)))
+		out.OrderColumnsSet[getBenchmarkColumn(uint64(benchmarkID))] = true
+	}
+
+	return out
+}
+
+type SQLCommands struct {
+	insertDeal                   string
+	updateDeal                   string
+	updateDealsSupplier          string
+	updateDealsConsumer          string
+	updateDealPayout             string
+	selectDealByID               string
+	deleteDeal                   string
+	insertOrder                  string
+	selectOrderByID              string
+	updateOrderStatus            string
+	updateOrders                 string
+	deleteOrder                  string
+	insertDealChangeRequest      string
+	selectDealChangeRequests     string
+	selectDealChangeRequestsByID string
+	deleteDealChangeRequest      string
+	updateDealChangeRequest      string
+	insertDealCondition          string
+	updateDealConditionPayout    string
+	updateDealConditionEndTime   string
+	insertDealPayment            string
+	insertWorker                 string
+	updateWorker                 string
+	deleteWorker                 string
+	insertBlacklistEntry         string
+	selectBlacklists             string
+	deleteBlacklistEntry         string
+	insertValidator              string
+	updateValidator              string
+	insertCertificate            string
+	selectCertificates           string
+	insertProfileUserID          string
+	selectProfileByID            string
+	profileNotInBlacklist        string
+	profileInBlacklist           string
+	updateProfile                string
+	selectLastKnownBlock         string
+	insertLastKnownBlock         string
+	updateLastKnownBlock         string
+}
+
+type SQLSetupCommands struct {
+	createTableDeals          string
+	createTableDealConditions string
+	createTableDealPayments   string
+	createTableChangeRequests string
+	createTableOrders         string
+	createTableWorkers        string
+	createTableBlacklists     string
+	createTableValidators     string
+	createTableCertificates   string
+	createTableProfiles       string
+	createTableMisc           string
+}
+
+func (c *SQLSetupCommands) Exec(db *sql.DB) error {
+	_, err := db.Exec(c.createTableDeals)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s", c.createTableDeals)
+	}
+
+	_, err = db.Exec(c.createTableDealConditions)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s", c.createTableDealConditions)
+	}
+
+	_, err = db.Exec(c.createTableDealPayments)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s", c.createTableDealPayments)
+	}
+
+	_, err = db.Exec(c.createTableChangeRequests)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s", c.createTableChangeRequests)
+	}
+
+	_, err = db.Exec(c.createTableOrders)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s", c.createTableOrders)
+	}
+
+	_, err = db.Exec(c.createTableWorkers)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s", c.createTableWorkers)
+	}
+
+	_, err = db.Exec(c.createTableBlacklists)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s", c.createTableBlacklists)
+	}
+
+	_, err = db.Exec(c.createTableValidators)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s", c.createTableValidators)
+	}
+
+	_, err = db.Exec(c.createTableCertificates)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s", c.createTableCertificates)
+	}
+
+	_, err = db.Exec(c.createTableProfiles)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s", c.createTableProfiles)
+	}
+
+	_, err = db.Exec(c.createTableMisc)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s", c.createTableMisc)
+	}
+
+	return nil
+}
 
 type filter struct {
 	Field        string
@@ -188,14 +319,6 @@ func filterSortings(sortings []*pb.SortingOption, columns map[string]bool) (out 
 	return out
 }
 
-type QueryRunner func(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error)
-
-func getBenchmarkColumn(id uint64) string {
-	return fmt.Sprintf("Benchmark%d", id)
-}
-
-type setupIndices func(w *DWH) error
-
 func coldStart(w *DWH, setupIndicesCb setupIndices) {
 	if w.cfg.ColdStart.UpToBlock == 0 {
 		w.logger.Info("UpToBlock == 0, creating indices right now")
@@ -233,14 +356,5 @@ func coldStart(w *DWH, setupIndicesCb setupIndices) {
 				return
 			}
 		}
-	}
-}
-
-func finalizeTableColumns(numBenchmarks uint64) {
-	for benchmarkID := uint64(0); benchmarkID < numBenchmarks; benchmarkID++ {
-		DealColumns = append(DealColumns, getBenchmarkColumn(uint64(benchmarkID)))
-		DealColumnsSet[getBenchmarkColumn(uint64(benchmarkID))] = true
-		OrderColumns = append(OrderColumns, getBenchmarkColumn(uint64(benchmarkID)))
-		OrderColumnsSet[getBenchmarkColumn(uint64(benchmarkID))] = true
 	}
 }

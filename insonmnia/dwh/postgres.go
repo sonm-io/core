@@ -195,7 +195,7 @@ func setupPostgres(w *DWH) error {
 
 	w.db = db
 	w.commands = postgresCommands
-	w.runQuery = runQueryPostgres
+	w.queryRunner = runQueryPostgres
 
 	if w.cfg.ColdStart != nil {
 		go coldStart(w, buildIndicesPostgres)
