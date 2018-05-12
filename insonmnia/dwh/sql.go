@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"strings"
+
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
@@ -179,6 +181,40 @@ type SQLCommands struct {
 	selectLastKnownBlock         string
 	insertLastKnownBlock         string
 	updateLastKnownBlock         string
+}
+
+func (c *SQLCommands) Finalize(numBenchmarks uint64, tInfo *tablesInfo, formatArg func(argID uint64, lastArg bool) string) {
+	// Construct placeholders for Deals.
+	dealPlaceholders := ""
+	for i := uint64(0); i < tInfo.NumDealColumns; i++ {
+		dealPlaceholders += formatArg(i, false)
+	}
+	for i := tInfo.NumDealColumns; i < tInfo.NumDealColumns+numBenchmarks; i++ {
+		if i == numBenchmarks+tInfo.NumDealColumns-1 {
+			dealPlaceholders += formatArg(i, true)
+		} else {
+			dealPlaceholders += formatArg(i, false)
+		}
+	}
+	dealColumnsString := strings.Join(tInfo.DealColumns, ", ")
+	c.insertDeal = fmt.Sprintf(c.insertDeal, dealColumnsString, dealPlaceholders)
+	c.selectDealByID = fmt.Sprintf(c.selectDealByID, dealColumnsString)
+
+	// Construct placeholders for Orders.
+	orderPlaceholders := ""
+	for i := uint64(0); i < tInfo.NumOrderColumns; i++ {
+		orderPlaceholders += formatArg(i, false)
+	}
+	for i := tInfo.NumOrderColumns; i < tInfo.NumOrderColumns+numBenchmarks; i++ {
+		if i == numBenchmarks+tInfo.NumOrderColumns-1 {
+			orderPlaceholders += formatArg(i, true)
+		} else {
+			orderPlaceholders += formatArg(i, false)
+		}
+	}
+	orderColumnsString := strings.Join(tInfo.OrderColumns, ", ")
+	c.insertOrder = fmt.Sprintf(c.insertOrder, orderColumnsString, orderPlaceholders)
+	c.selectOrderByID = fmt.Sprintf(c.selectOrderByID, orderColumnsString)
 }
 
 type SQLSetupCommands struct {

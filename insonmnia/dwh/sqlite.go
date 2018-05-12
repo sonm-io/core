@@ -94,37 +94,13 @@ func newSQLiteCommands(tInfo *tablesInfo, numBenchmarks uint64) *SQLCommands {
 		updateLastKnownBlock:         `UPDATE Misc Set LastKnownBlock=? WHERE Id=1`,
 	}
 
-	// Construct placeholders for Deals.
-	dealPlaceholders := ""
-	for i := uint64(0); i < tInfo.NumDealColumns; i++ {
-		dealPlaceholders += "?, "
-	}
-	for i := tInfo.NumDealColumns; i < tInfo.NumDealColumns+numBenchmarks; i++ {
-		if i == numBenchmarks+tInfo.NumDealColumns-1 {
-			dealPlaceholders += "?"
-		} else {
-			dealPlaceholders += "?, "
+	format := func(_ uint64, lastArg bool) string {
+		if lastArg {
+			return "?"
 		}
+		return "?, "
 	}
-	dealColumnsString := strings.Join(tInfo.DealColumns, ", ")
-	commands.insertDeal = fmt.Sprintf(commands.insertDeal, dealColumnsString, dealPlaceholders)
-	commands.selectDealByID = fmt.Sprintf(commands.selectDealByID, dealColumnsString)
-
-	// Construct placeholders for Orders.
-	orderPlaceholders := ""
-	for i := uint64(0); i < tInfo.NumOrderColumns; i++ {
-		orderPlaceholders += "?, "
-	}
-	for i := tInfo.NumOrderColumns; i < tInfo.NumOrderColumns+numBenchmarks; i++ {
-		if i == numBenchmarks+tInfo.NumOrderColumns-1 {
-			orderPlaceholders += "?"
-		} else {
-			orderPlaceholders += "?, "
-		}
-	}
-	orderColumnsString := strings.Join(tInfo.OrderColumns, ", ")
-	commands.insertOrder = fmt.Sprintf(commands.insertOrder, orderColumnsString, orderPlaceholders)
-	commands.selectOrderByID = fmt.Sprintf(commands.selectOrderByID, orderColumnsString)
+	commands.Finalize(numBenchmarks, tInfo, format)
 
 	return commands
 }

@@ -89,37 +89,13 @@ func newPostgresCommands(tInfo *tablesInfo, numBenchmarks uint64) *SQLCommands {
 		updateLastKnownBlock:         `UPDATE Misc SET LastKnownBlock = $1 WHERE Id = 1`,
 	}
 
-	// Construct placeholders for Deals.
-	dealPlaceholders := ""
-	for i := uint64(0); i < tInfo.NumDealColumns; i++ {
-		dealPlaceholders += fmt.Sprintf("$%d, ", i+1)
-	}
-	for i := tInfo.NumDealColumns; i < tInfo.NumDealColumns+numBenchmarks; i++ {
-		if i == numBenchmarks+tInfo.NumDealColumns-1 {
-			dealPlaceholders += fmt.Sprintf("$%d", i+1)
-		} else {
-			dealPlaceholders += fmt.Sprintf("$%d, ", i+1)
+	format := func(argID uint64, lastArg bool) string {
+		if lastArg {
+			return fmt.Sprintf("$%d", argID)
 		}
+		return fmt.Sprintf("$%d, ", argID)
 	}
-	dealColumnsString := strings.Join(tInfo.DealColumns, ", ")
-	commands.insertDeal = fmt.Sprintf(commands.insertDeal, dealColumnsString, dealPlaceholders)
-	commands.selectDealByID = fmt.Sprintf(commands.selectDealByID, dealColumnsString)
-
-	// Construct placeholders for Orders.
-	orderPlaceholders := ""
-	for i := uint64(0); i < tInfo.NumOrderColumns; i++ {
-		orderPlaceholders += fmt.Sprintf("$%d, ", i+1)
-	}
-	for i := tInfo.NumOrderColumns; i < tInfo.NumOrderColumns+numBenchmarks; i++ {
-		if i == numBenchmarks+tInfo.NumOrderColumns-1 {
-			orderPlaceholders += fmt.Sprintf("$%d", i+1)
-		} else {
-			orderPlaceholders += fmt.Sprintf("$%d, ", i+1)
-		}
-	}
-	orderColumnsString := strings.Join(tInfo.OrderColumns, ", ")
-	commands.insertOrder = fmt.Sprintf(commands.insertOrder, orderColumnsString, orderPlaceholders)
-	commands.selectOrderByID = fmt.Sprintf(commands.selectOrderByID, orderColumnsString)
+	commands.Finalize(numBenchmarks, tInfo, format)
 
 	return commands
 }
