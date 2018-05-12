@@ -2,7 +2,6 @@ package dwh
 
 import (
 	"github.com/jinzhu/configor"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/logging"
@@ -17,6 +16,7 @@ type Config struct {
 	Blockchain        *blockchain.Config `yaml:"blockchain"`
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14004"`
 	ColdStart         *ColdStartConfig   `yaml:"cold_start"`
+	NumWorkers        int                `yaml:"num_workers" default:"16"`
 }
 
 type storageConfig struct {
@@ -41,10 +41,6 @@ func NewConfig(path string) (*Config, error) {
 	err := configor.Load(cfg, path)
 	if err != nil {
 		return nil, err
-	}
-
-	if _, ok := setupDBCallbacks[cfg.Storage.Backend]; !ok {
-		return nil, errors.Errorf("backend `%s` is not supported", cfg.Storage.Backend)
 	}
 
 	return cfg, nil
