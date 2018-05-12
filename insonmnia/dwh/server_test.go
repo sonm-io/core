@@ -16,7 +16,6 @@ import (
 	bch "github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 const (
@@ -67,8 +66,7 @@ func getTestDWH(dbPath string) (*DWH, error) {
 		ctx:           ctx,
 		cfg:           cfg,
 		logger:        log.GetLogger(ctx),
-		commands:      sqliteCommands,
-		numBenchmarks: bch.NumCurrentBenchmarks,
+		numBenchmarks: 12,
 	}
 
 	return w, setupTestDB(w)
@@ -569,7 +567,7 @@ func TestDWH_monitor(t *testing.T) {
 		Status:      pb.ChangeRequestStatus_REQUEST_CREATED,
 	}
 	mockMarket.EXPECT().GetDealChangeRequestInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(changeRequest, nil)
-	mockMarket.EXPECT().GetNumBenchmarks(gomock.Any()).AnyTimes().Return(12, nil)
+	mockMarket.EXPECT().GetNumBenchmarks(gomock.Any()).AnyTimes().Return(uint64(12), nil)
 	validator := &pb.Validator{
 		Id:    pb.NewEthAddress(common.HexToAddress("0xC")),
 		Level: 3,
@@ -1125,7 +1123,7 @@ func setupTestDB(w *DWH) error {
 
 	for i := 0; i < 10; i++ {
 		_, err := w.db.Exec(
-			w.commands["insertDeal"],
+			w.commands.insertDeal,
 			fmt.Sprintf("4040%d", i),
 			common.HexToAddress(fmt.Sprintf("0x1%d", i)).Hex(), // Supplier
 			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(), // Consumer
@@ -1164,7 +1162,7 @@ func setupTestDB(w *DWH) error {
 		}
 
 		_, err = w.db.Exec(
-			w.commands["insertOrder"],
+			w.commands.insertOrder,
 			fmt.Sprintf("2020%d", i),
 			12345, // CreatedTS
 			fmt.Sprintf("1010%d", i),
@@ -1201,7 +1199,7 @@ func setupTestDB(w *DWH) error {
 		}
 
 		_, err = w.db.Exec(
-			w.commands["insertOrder"],
+			w.commands.insertOrder,
 			fmt.Sprintf("3030%d", i),
 			12345, // CreatedTS
 			fmt.Sprintf("1010%d", i),
@@ -1237,7 +1235,7 @@ func setupTestDB(w *DWH) error {
 			return err
 		}
 
-		_, err = w.db.Exec(w.commands["insertDealChangeRequest"],
+		_, err = w.db.Exec(w.commands.insertDealChangeRequest,
 			fmt.Sprintf("5050%d", i), 0, 0, 0, 0, 0, "40400")
 		if err != nil {
 			return err
@@ -1271,11 +1269,6 @@ func setupTestDB(w *DWH) error {
 	_, err = w.db.Exec("INSERT INTO Blacklists VALUES (?, ?)", common.HexToAddress("0xE").Hex(), common.HexToAddress("0xBB").Hex())
 	if err != nil {
 		return err
-	}
-
-	if _, err := w.db.Exec(w.commands["updateLastKnownBlockSQLite"], 0); err != nil {
-		w.logger.Error("failed to updateLastKnownBlockSQLite", zap.Error(err),
-			zap.Uint64("block_number", 0))
 	}
 
 	return nil

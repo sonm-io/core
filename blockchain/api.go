@@ -20,10 +20,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	NumCurrentBenchmarks = 12
-)
-
 type API interface {
 	ProfileRegistry() ProfileRegistryAPI
 	Events() EventsAPI

@@ -27,19 +27,21 @@ func setupSQLite(w *DWH) error {
 
 	var (
 		tInfo         = newTablesInfo(w.numBenchmarks)
-		commands      = newSqliteCommands(tInfo, w.numBenchmarks)
+		commands      = newSQLiteCommands(tInfo, w.numBenchmarks)
 		setupCommands = newSQLiteSetupCommands()
 	)
 	_, err = db.Exec("PRAGMA foreign_keys=ON")
 	if err != nil {
 		return errors.Wrapf(err, "failed to enable foreign key support (%s)", w.cfg.Storage.Backend)
 	}
-	if err = setupCommands.Exec(w.db); err != nil {
+
+	if err = setupCommands.Exec(db); err != nil {
 		return errors.Wrap(err, "failed to setup tables")
 	}
 
 	w.db = db
 	w.commands = commands
+	w.tablesInfo = tInfo
 	w.queryRunner = newSQLiteQueryRunner(db, tInfo)
 
 	if w.cfg.ColdStart != nil {
@@ -53,7 +55,7 @@ func setupSQLite(w *DWH) error {
 	return nil
 }
 
-func newSqliteCommands(tInfo *tablesInfo, numBenchmarks uint64) *SQLCommands {
+func newSQLiteCommands(tInfo *tablesInfo, numBenchmarks uint64) *SQLCommands {
 	commands := &SQLCommands{
 		insertDeal:                   `INSERT INTO Deals(%s) VALUES (%s)`,
 		updateDeal:                   `UPDATE Deals SET Duration=?, Price=?, StartTime=?, EndTime=?, Status=?, BlockedBalance=?, TotalPayout=?, LastBillTS=? WHERE Id=?`,
