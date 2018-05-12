@@ -9,10 +9,6 @@ import (
 	pb "github.com/sonm-io/core/proto"
 )
 
-var (
-	postgresCreateIndex = "CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)"
-)
-
 func setupPostgres(w *DWH) error {
 	db, err := sql.Open(w.cfg.Storage.Backend, w.cfg.Storage.Endpoint)
 	if err != nil {
@@ -30,7 +26,7 @@ func setupPostgres(w *DWH) error {
 		commands      = newPostgresCommands(tInfo, w.numBenchmarks)
 		setupCommands = newPostgresSetupCommands()
 	)
-	if err = setupCommands.Exec(db); err != nil {
+	if err = setupCommands.SetupTables(db); err != nil {
 		return errors.Wrap(err, "failed to setup tables")
 	}
 
@@ -40,10 +36,10 @@ func setupPostgres(w *DWH) error {
 	w.queryRunner = newPostgresQueryRunner(db, tInfo)
 
 	if w.cfg.ColdStart != nil {
-		go coldStart(w, buildIndicesPostgres)
+		go coldStart(w, setupCommands.CreateIndices)
 	} else {
-		if err := buildIndicesPostgres(w); err != nil {
-			return errors.Wrap(err, "failed to buildIndicesPostgres")
+		if err := setupCommands.CreateIndices(db, tInfo); err != nil {
+			return errors.Wrap(err, "failed to CreateIndices")
 		}
 	}
 
@@ -247,6 +243,7 @@ func newPostgresSetupCommands() *SQLSetupCommands {
 		Id							BIGSERIAL PRIMARY KEY,
 		LastKnownBlock				INTEGER NOT NULL
 	)`,
+		createIndex: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
 	}
 
 	benchmarkColumns := make([]string, NumMaxBenchmarks)
@@ -259,56 +256,6 @@ func newPostgresSetupCommands() *SQLSetupCommands {
 		append([]string{setupCommands.createTableOrders}, benchmarkColumns...), ",\n") + ")"
 
 	return setupCommands
-}
-
-func buildIndicesPostgres(w *DWH) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	var err error
-	for idx := uint64(0); idx < w.tablesInfo.NumDealColumns+w.numBenchmarks; idx++ {
-		if err = createIndex(w.db, postgresCreateIndex, "Deals", w.tablesInfo.DealColumns[idx]); err != nil {
-			return err
-		}
-	}
-	for _, column := range []string{"Id", "DealID", "RequestType", "Status"} {
-		if err = createIndex(w.db, postgresCreateIndex, "DealChangeRequests", column); err != nil {
-			return err
-		}
-	}
-	for column := range w.tablesInfo.DealConditionColumnsSet {
-		if err = createIndex(w.db, postgresCreateIndex, "DealConditions", column); err != nil {
-			return err
-		}
-	}
-	for idx := uint64(0); idx < w.tablesInfo.NumOrderColumns+w.numBenchmarks; idx++ {
-		if err = createIndex(w.db, postgresCreateIndex, "Orders", w.tablesInfo.OrderColumns[idx]); err != nil {
-			return err
-		}
-	}
-	for _, column := range []string{"MasterID", "WorkerID"} {
-		if err = createIndex(w.db, postgresCreateIndex, "Workers", column); err != nil {
-			return err
-		}
-	}
-	for _, column := range []string{"AdderID", "AddeeID"} {
-		if err = createIndex(w.db, postgresCreateIndex, "Blacklists", column); err != nil {
-			return err
-		}
-	}
-	if err = createIndex(w.db, postgresCreateIndex, "Validators", "Id"); err != nil {
-		return err
-	}
-	if err = createIndex(w.db, postgresCreateIndex, "Certificates", "OwnerID"); err != nil {
-		return err
-	}
-	for column := range w.tablesInfo.ProfileColumnsSet {
-		if err = createIndex(w.db, postgresCreateIndex, "Profiles", column); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 type postgresQueryRunner struct {

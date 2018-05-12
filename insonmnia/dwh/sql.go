@@ -39,7 +39,7 @@ type QueryRunner interface {
 	Run(opts *queryOpts) (*sql.Rows, uint64, error)
 }
 
-type setupIndices func(w *DWH) error
+type createIndices func(db *sql.DB, tInfo *tablesInfo) error
 
 type tablesInfo struct {
 	DealColumns             []string
@@ -193,9 +193,10 @@ type SQLSetupCommands struct {
 	createTableCertificates   string
 	createTableProfiles       string
 	createTableMisc           string
+	createIndex               string
 }
 
-func (c *SQLSetupCommands) Exec(db *sql.DB) error {
+func (c *SQLSetupCommands) SetupTables(db *sql.DB) error {
 	_, err := db.Exec(c.createTableDeals)
 	if err != nil {
 		return errors.Wrapf(err, "failed to %s", c.createTableDeals)
@@ -249,6 +250,53 @@ func (c *SQLSetupCommands) Exec(db *sql.DB) error {
 	_, err = db.Exec(c.createTableMisc)
 	if err != nil {
 		return errors.Wrapf(err, "failed to %s", c.createTableMisc)
+	}
+
+	return nil
+}
+
+func (c *SQLSetupCommands) CreateIndices(db *sql.DB, tInfo *tablesInfo) error {
+	var err error
+	for column := range tInfo.DealColumnsSet {
+		if err = createIndex(db, c.createIndex, "Deals", column); err != nil {
+			return err
+		}
+	}
+	for _, column := range []string{"Id", "DealID", "RequestType", "Status"} {
+		if err = createIndex(db, c.createIndex, "DealChangeRequests", column); err != nil {
+			return err
+		}
+	}
+	for column := range tInfo.DealConditionColumnsSet {
+		if err = createIndex(db, c.createIndex, "DealConditions", column); err != nil {
+			return err
+		}
+	}
+	for column := range tInfo.OrderColumnsSet {
+		if err = createIndex(db, c.createIndex, "Orders", column); err != nil {
+			return err
+		}
+	}
+	for _, column := range []string{"MasterID", "WorkerID"} {
+		if err = createIndex(db, c.createIndex, "Workers", column); err != nil {
+			return err
+		}
+	}
+	for _, column := range []string{"AdderID", "AddeeID"} {
+		if err = createIndex(db, c.createIndex, "Blacklists", column); err != nil {
+			return err
+		}
+	}
+	if err = createIndex(db, c.createIndex, "Validators", "Id"); err != nil {
+		return err
+	}
+	if err = createIndex(db, c.createIndex, "Certificates", "OwnerID"); err != nil {
+		return err
+	}
+	for column := range tInfo.ProfileColumnsSet {
+		if err = createIndex(db, c.createIndex, "Profiles", column); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -319,10 +367,10 @@ func filterSortings(sortings []*pb.SortingOption, columns map[string]bool) (out 
 	return out
 }
 
-func coldStart(w *DWH, setupIndicesCb setupIndices) {
+func coldStart(w *DWH, setupIndicesCb createIndices) {
 	if w.cfg.ColdStart.UpToBlock == 0 {
 		w.logger.Info("UpToBlock == 0, creating indices right now")
-		if err := setupIndicesCb(w); err != nil {
+		if err := setupIndicesCb(w.db, w.tablesInfo); err != nil {
 			w.logger.Error("failed to setupIndicesCb, exiting", zap.Error(err))
 			w.Stop()
 		} else {
@@ -348,7 +396,7 @@ func coldStart(w *DWH, setupIndicesCb setupIndices) {
 			w.logger.Info("current block (waiting to create indices)", zap.Uint64("block_number", lastBlock))
 			if lastBlock >= w.cfg.ColdStart.UpToBlock {
 				w.logger.Info("creating indices")
-				if err := setupIndicesCb(w); err != nil {
+				if err := setupIndicesCb(w.db, w.tablesInfo); err != nil {
 					w.logger.Error("failed to setupIndicesCb (coldStart), retrying", zap.Error(err))
 					continue
 				}

@@ -9,10 +9,6 @@ import (
 	pb "github.com/sonm-io/core/proto"
 )
 
-var (
-	sqliteCreateIndex = "CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)"
-)
-
 func setupSQLite(w *DWH) error {
 	db, err := sql.Open(w.cfg.Storage.Backend, w.cfg.Storage.Endpoint)
 	if err != nil {
@@ -35,7 +31,7 @@ func setupSQLite(w *DWH) error {
 		return errors.Wrapf(err, "failed to enable foreign key support (%s)", w.cfg.Storage.Backend)
 	}
 
-	if err = setupCommands.Exec(db); err != nil {
+	if err = setupCommands.SetupTables(db); err != nil {
 		return errors.Wrap(err, "failed to setup tables")
 	}
 
@@ -45,10 +41,10 @@ func setupSQLite(w *DWH) error {
 	w.queryRunner = newSQLiteQueryRunner(db, tInfo)
 
 	if w.cfg.ColdStart != nil {
-		go coldStart(w, buildIndicesSQLite)
+		go coldStart(w, setupCommands.CreateIndices)
 	} else {
-		if err := buildIndicesSQLite(w); err != nil {
-			return errors.Wrap(err, "failed to buildIndicesSQLite")
+		if err := setupCommands.CreateIndices(db, tInfo); err != nil {
+			return errors.Wrap(err, "failed to CreateIndices")
 		}
 	}
 
@@ -258,6 +254,7 @@ func newSQLiteSetupCommands() *SQLSetupCommands {
 		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
 		LastKnownBlock				INTEGER NOT NULL
 	)`,
+		createIndex: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
 	}
 
 	benchmarkColumns := make([]string, NumMaxBenchmarks)
@@ -270,56 +267,6 @@ func newSQLiteSetupCommands() *SQLSetupCommands {
 		append([]string{setupCommands.createTableOrders}, benchmarkColumns...), ",\n") + ")"
 
 	return setupCommands
-}
-
-func buildIndicesSQLite(w *DWH) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	var err error
-	for column := range w.tablesInfo.DealColumnsSet {
-		if err = createIndex(w.db, sqliteCreateIndex, "Deals", column); err != nil {
-			return err
-		}
-	}
-	for _, column := range []string{"Id", "DealID", "RequestType", "Status"} {
-		if err = createIndex(w.db, sqliteCreateIndex, "DealChangeRequests", column); err != nil {
-			return err
-		}
-	}
-	for column := range w.tablesInfo.DealConditionColumnsSet {
-		if err = createIndex(w.db, sqliteCreateIndex, "DealConditions", column); err != nil {
-			return err
-		}
-	}
-	for column := range w.tablesInfo.OrderColumnsSet {
-		if err = createIndex(w.db, sqliteCreateIndex, "Orders", column); err != nil {
-			return err
-		}
-	}
-	for _, column := range []string{"MasterID", "WorkerID"} {
-		if err = createIndex(w.db, sqliteCreateIndex, "Workers", column); err != nil {
-			return err
-		}
-	}
-	for _, column := range []string{"AdderID", "AddeeID"} {
-		if err = createIndex(w.db, sqliteCreateIndex, "Blacklists", column); err != nil {
-			return err
-		}
-	}
-	if err = createIndex(w.db, sqliteCreateIndex, "Validators", "Id"); err != nil {
-		return err
-	}
-	if err = createIndex(w.db, sqliteCreateIndex, "Certificates", "OwnerID"); err != nil {
-		return err
-	}
-	for column := range w.tablesInfo.ProfileColumnsSet {
-		if err = createIndex(w.db, sqliteCreateIndex, "Profiles", column); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }
 
 type sqliteQueryRunner struct {
