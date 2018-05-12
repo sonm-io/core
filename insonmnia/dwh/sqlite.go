@@ -189,8 +189,8 @@ func setupSQLite(w *DWH) error {
 		}
 	}()
 
-	finalizeColumnsOnce.Do(func() { finalizeTableColumns(w.numBenchmarks) })
-	finalizeCommandsOnce.Do(func() { setupCommandsSQLite(w.numBenchmarks) })
+	finalizeTableColumns(w.numBenchmarks)
+	setupCommandsSQLite(w.numBenchmarks)
 
 	_, err = db.Exec("PRAGMA foreign_keys=ON")
 	if err != nil {
@@ -219,7 +219,7 @@ func setupSQLite(w *DWH) error {
 	return nil
 }
 
-func setupCommandsSQLite(numBenchmarks int) {
+func setupCommandsSQLite(numBenchmarks uint64) {
 	benchmarkColumns := make([]string, NumMaxBenchmarks)
 	for benchmarkID := 0; benchmarkID < NumMaxBenchmarks; benchmarkID++ {
 		benchmarkColumns[benchmarkID] = fmt.Sprintf("%s INTEGER DEFAULT 0", getBenchmarkColumn(uint64(benchmarkID)))
@@ -231,7 +231,7 @@ func setupCommandsSQLite(numBenchmarks int) {
 
 	// Construct placeholders for Deals.
 	dealPlaceholders := ""
-	for i := 0; i < NumDealColumns; i++ {
+	for i := uint64(0); i < NumDealColumns; i++ {
 		dealPlaceholders += "?, "
 	}
 	for i := NumDealColumns; i < NumDealColumns+numBenchmarks; i++ {
@@ -247,7 +247,7 @@ func setupCommandsSQLite(numBenchmarks int) {
 
 	// Construct placeholders for Orders.
 	orderPlaceholders := ""
-	for i := 0; i < NumOrderColumns; i++ {
+	for i := uint64(0); i < NumOrderColumns; i++ {
 		orderPlaceholders += "?, "
 	}
 	for i := NumOrderColumns; i < NumOrderColumns+numBenchmarks; i++ {
