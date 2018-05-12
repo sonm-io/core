@@ -32,6 +32,7 @@ type API interface {
 	LiveToken() TokenAPI
 	SideToken() TokenAPI
 	TestToken() TestTokenAPI
+	OracleUSD() OracleAPI
 }
 
 type ProfileRegistryAPI interface {
@@ -93,6 +94,14 @@ type TestTokenAPI interface {
 	GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error)
 }
 
+// OracleAPI manage price relation between some currency and SNM token
+type OracleAPI interface {
+	// SetCurrentPrice sets current price relation between some currency and SONM token
+	SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error)
+	// GetCurrentPrice returns current price relation between some currency and SONM token
+	GetCurrentPrice(ctx context.Context) (*big.Int, error)
+}
+
 type BasicAPI struct {
 	market          MarketAPI
 	liveToken       TokenAPI
@@ -101,6 +110,7 @@ type BasicAPI struct {
 	blacklist       BlacklistAPI
 	profileRegistry ProfileRegistryAPI
 	events          EventsAPI
+	oracle          OracleAPI
 }
 
 func NewAPI(opts ...Option) (API, error) {
@@ -154,6 +164,11 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
+	oracle, err := NewOracleUSDAPI(market.OracleUsdAddr(), clientSidechain, defaults.gasPriceSidechain)
+	if err != nil {
+		return nil, err
+	}
+
 	return &BasicAPI{
 		market:          marketApi,
 		blacklist:       blacklist,
@@ -162,6 +177,7 @@ func NewAPI(opts ...Option) (API, error) {
 		sideToken:       sideToken,
 		testToken:       testToken,
 		events:          events,
+		oracle:          oracle,
 	}, nil
 }
 
@@ -191,6 +207,10 @@ func (api *BasicAPI) ProfileRegistry() ProfileRegistryAPI {
 
 func (api *BasicAPI) Events() EventsAPI {
 	return api.events
+}
+
+func (api *BasicAPI) OracleUSD() OracleAPI {
+	return api.oracle
 }
 
 type BasicMarketAPI struct {
@@ -890,4 +910,33 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			BlockNumber: log.BlockNumber,
 		}
 	}
+}
+
+type OracleUSDAPI struct {
+	client         *ethclient.Client
+	oracleContract *marketAPI.OracleUSD
+	gasPrice       int64
+}
+
+func NewOracleUSDAPI(address common.Address, client *ethclient.Client, gasPrice int64) (OracleAPI, error) {
+	oracleContract, err := marketAPI.NewOracleUSD(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &OracleUSDAPI{
+		client:         client,
+		oracleContract: oracleContract,
+		gasPrice:       gasPrice,
+	}, nil
+
+}
+
+func (api *OracleUSDAPI) SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	return api.oracleContract.SetCurrentPrice(opts, price)
+}
+
+func (api *OracleUSDAPI) GetCurrentPrice(ctx context.Context) (*big.Int, error) {
+	return api.oracleContract.GetCurrentPrice(getCallOptions(ctx))
 }
