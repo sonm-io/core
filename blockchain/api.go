@@ -694,6 +694,7 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 			market.ValidatorCreatedTopic,
 			market.ValidatorDeletedTopic,
 			market.CertificateCreatedTopic,
+			market.NumBenchmarksUpdatedTopic,
 		}
 		out = make(chan *Event, 128)
 	)
@@ -911,6 +912,13 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			return
 		}
 		sendData(&CertificateCreatedData{ID: id})
+	case market.NumBenchmarksUpdatedTopic:
+		numBenchmarks, err := extractBig(log, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&NumBenchmarksUpdatedData{NewNum: numBenchmarks})
 	default:
 		out <- &Event{
 			Data:        &ErrorData{Err: errors.New("unknown topic"), Topic: topic.String()},

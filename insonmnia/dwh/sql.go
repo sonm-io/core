@@ -16,7 +16,7 @@ import (
 
 const (
 	MaxLimit         = 200
-	NumMaxBenchmarks = 100
+	NumMaxBenchmarks = 128
 )
 
 const (

@@ -51,7 +51,7 @@ type DWH struct {
 	blockchain    blockchain.API
 	commands      map[string]string
 	runQuery      QueryRunner
-	numBenchmarks int
+	numBenchmarks uint64
 }
 
 func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, error) {
@@ -79,7 +79,7 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, erro
 		return nil, errors.New("market number of benchmarks is greater than NumMaxBenchmarks")
 	}
 
-	w.numBenchmarks = numBenchmarks
+	w.numBenchmarks = uint64(numBenchmarks)
 
 	setupDB, ok := setupDBCallbacks[cfg.Storage.Backend]
 	if !ok {
@@ -943,6 +943,8 @@ func (w *DWH) processEvent(event *blockchain.Event) error {
 		return w.onValidatorDeleted(value.ID)
 	case *blockchain.CertificateCreatedData:
 		return w.onCertificateCreated(value.ID)
+	case *blockchain.NumBenchmarksUpdatedData:
+		return w.onNumBenchmarksUpdated(value.NewNum)
 	case *blockchain.ErrorData:
 		w.logger.Warn("received error from events channel", zap.Error(value.Err), zap.String("topic", value.Topic))
 	}
@@ -1027,7 +1029,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		bid.CreatorCertificates,
 		hasActiveChangeRequests,
 	}
-	for benchID := 0; benchID < w.numBenchmarks; benchID++ {
+	for benchID := uint64(0); benchID < w.numBenchmarks; benchID++ {
 		allColumns = append(allColumns, deal.Benchmarks.Values[benchID])
 	}
 	_, err = tx.Exec(w.commands["insertDeal"], allColumns...)
@@ -1503,7 +1505,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		profile.Country,
 		[]byte(profile.Certificates),
 	}
-	for benchID := 0; benchID < w.numBenchmarks; benchID++ {
+	for benchID := uint64(0); benchID < w.numBenchmarks; benchID++ {
 		allColumns = append(allColumns, order.Benchmarks.Values[benchID])
 	}
 
@@ -1871,6 +1873,14 @@ func (w *DWH) updateProfileStats(tx *sql.Tx, orderType pb.OrderType, authorID st
 	_, err := tx.Exec(cmd, value, authorID)
 	if err != nil {
 		return errors.Wrap(err, "failed to updateProfile")
+	}
+
+	return nil
+}
+
+func (w *DWH) onNumBenchmarksUpdated(numBenchmarks *big.Int) error {
+	if !numBenchmarks.IsInt64() {
+
 	}
 
 	return nil
@@ -2343,7 +2353,7 @@ func (w *DWH) updateDealConditionEndTime(tx *sql.Tx, dealID *pb.BigInt, eventTS 
 }
 
 func (w *DWH) checkBenchmarks(benches *pb.Benchmarks) error {
-	if len(benches.Values) != w.numBenchmarks {
+	if uint64(len(benches.Values)) != w.numBenchmarks {
 		return errors.Errorf("expected %d benchmarks, got %d", w.numBenchmarks, len(benches.Values))
 	}
 
