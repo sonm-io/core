@@ -1529,11 +1529,6 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 		return errors.Wrap(err, "failed to GetOrderInfo")
 	}
 
-	if order.OrderStatus == pb.OrderStatus_ORDER_INACTIVE && order.DealID.IsZero() {
-		w.logger.Info("skipping inactive order", zap.String("order_id", order.Id.Unwrap().String()))
-		return nil
-	}
-
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
