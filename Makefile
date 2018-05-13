@@ -43,15 +43,6 @@ ifeq ($(GPU_SUPPORT),true)
     CGO_LDFLAGS_ALLOW='-Wl,--unresolved-symbols=ignore-in-object-files'
 endif
 
-
-ifeq ($(OS),linux)
-SED=sed -i 's/github\.com\/sonm-io\/core\/vendor\///g' insonmnia/dealer/hub_mock.go
-endif
-
-ifeq ($(OS),darwin)
-SED=sed -i "" 's/github\.com\/sonm-io\/core\/vendor\///g' insonmnia/dealer/hub_mock.go
-endif
-
 LDFLAGS = -X main.appVersion=$(FULL_VER)
 
 .PHONY: fmt vet test
