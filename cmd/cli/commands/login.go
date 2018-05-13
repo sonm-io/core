@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
@@ -34,16 +35,19 @@ var accountsListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Show Ethereum accounts list",
 	Run: func(cmd *cobra.Command, _ []string) {
-		defaultAddr := getDefaultKey("/Users/alex/.sonm")
-
-		// TODO(sshaman1101): use `cfg.KeyStore()`
-		dir := "/Users/alex/.sonm/test_keystore"
-		ks := keystore.NewKeyStore(dir, keystore.LightScryptN, keystore.LightScryptP)
+		defaultAddr := getDefaultAccount()
+		ks := keystore.NewKeyStore(cfg.KeyStore(), keystore.LightScryptN, keystore.LightScryptP)
 
 		// TODO(sshaman1101): make if JSON-friendly
 		if len(ks.Accounts()) == 0 {
 			cmd.Println("keystore is empty")
 			return
+		}
+
+		if len(ks.Accounts()) == 1 {
+			// we have only one account, to be backward compatible set
+			// this acc as default.
+			setDefaultKey(ks.Accounts()[0].Address)
 		}
 
 		for idx, acc := range ks.Accounts() {
@@ -67,12 +71,10 @@ var accountsCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// TODO(sshaman1101): unhardcode path
-		dir := "/Users/alex/.sonm/test_keystore"
-		ks := keystore.NewKeyStore(dir, keystore.LightScryptN, keystore.LightScryptP)
-
+		ks := keystore.NewKeyStore(cfg.KeyStore(), keystore.LightScryptN, keystore.LightScryptP)
 		// set key as default key it is first key in storage
 		setDefault := len(ks.Accounts()) == 0
+
 		acc, err := ks.NewAccount(pass)
 		if err != nil {
 			showError(cmd, "Cannot create account", err)
@@ -80,7 +82,7 @@ var accountsCreateCmd = &cobra.Command{
 		}
 
 		if setDefault {
-			setDefaultKey("/Users/alex/.sonm", acc.Address)
+			setDefaultKey(acc.Address)
 		}
 
 		// todo: JSON-friendly
@@ -95,7 +97,7 @@ var accountsImportCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		keyPath := args[0]
 
-		if !util.FileExists(keyPath) {
+		if !util.DirectoryExists(keyPath) {
 			showError(cmd, "File not exists", nil)
 			os.Exit(1)
 		}
@@ -113,9 +115,7 @@ var accountsImportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		dir := "/Users/alex/.sonm/test_keystore"
-		ks := keystore.NewKeyStore(dir, keystore.LightScryptN, keystore.LightScryptP)
-
+		ks := keystore.NewKeyStore(cfg.KeyStore(), keystore.LightScryptN, keystore.LightScryptP)
 		acc, err := ks.Import(keyData, pass, pass)
 		if err != nil {
 			showError(cmd, "Cannot import account", err)
@@ -123,7 +123,7 @@ var accountsImportCmd = &cobra.Command{
 		}
 
 		if setImportAccountAsDefault {
-			setDefaultKey("/Users/alex/.sonm", acc.Address)
+			setDefaultKey(acc.Address)
 		}
 
 		// TODO(sshaman1101): json-friendly
@@ -142,13 +142,10 @@ var accountsSetDefaultCmd = &cobra.Command{
 		}
 
 		addr := common.HexToAddress(args[0])
-
-		// TODO(sshaman1101): unhardcode path
-		dir := "/Users/alex/.sonm/test_keystore"
-		ks := keystore.NewKeyStore(dir, keystore.LightScryptN, keystore.LightScryptP)
+		ks := keystore.NewKeyStore(cfg.KeyStore(), keystore.LightScryptN, keystore.LightScryptP)
 		for _, acc := range ks.Accounts() {
 			if acc.Address.Big().Cmp(addr.Big()) == 0 {
-				setDefaultKey("/Users/alex/.sonm", acc.Address)
+				setDefaultKey(acc.Address)
 				cmd.Printf("Using \"%s\" as default account\n", acc.Address.Hex())
 				return
 			}
@@ -159,9 +156,15 @@ var accountsSetDefaultCmd = &cobra.Command{
 	},
 }
 
-func getDefaultKey(p string) common.Address {
+func getDefaultAccount() common.Address {
+	p, err := config.GetDefaultConfigDir()
+	if err != nil {
+		fmt.Printf(" >>> cannot get default config dir: %v\n", err)
+		return common.Address{}
+	}
+
 	stateFile := path.Join(p, "context")
-	if !util.FileExists(stateFile) {
+	if !util.DirectoryExists(stateFile) {
 		fmt.Printf(" >>> context file not exists\n")
 		return common.Address{}
 	}
@@ -180,7 +183,13 @@ func getDefaultKey(p string) common.Address {
 	return common.HexToAddress(string(data))
 }
 
-func setDefaultKey(p string, addr common.Address) {
+func setDefaultKey(addr common.Address) {
+	p, err := config.GetDefaultConfigDir()
+	if err != nil {
+		fmt.Printf(" >>> cannot get default config dir: %v\n", err)
+		return
+	}
+
 	stateFile := path.Join(p, "context")
 	fmt.Printf(" >>> writing state to %s\n", stateFile)
 	if err := ioutil.WriteFile(stateFile, []byte(addr.Hex()), 0600); err != nil {
