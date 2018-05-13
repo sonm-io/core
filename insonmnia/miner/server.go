@@ -351,6 +351,7 @@ func (m *Miner) setStatus(status *pb.TaskStatusReply, id string) {
 
 	m.containers[id].status = status.GetStatus()
 	if status.Status == pb.TaskStatusReply_BROKEN || status.Status == pb.TaskStatusReply_FINISHED {
+		m.resources.ReleaseTask(id)
 		go m.scheduleStatusPurge(id)
 	}
 }
@@ -458,7 +459,6 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("could not normalize GPU resources", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "could not normalize GPU resources - %s", err)
 	}
 
@@ -484,14 +484,12 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to parse networking specification", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to parse networking specification - %s", err)
 	}
 	gpuids, err := m.hardware.GPUIDs(request.GetResources().GetGPU())
 	if err != nil {
 		log.G(ctx).Error("failed to fetch GPU IDs ", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to fetch GPU IDs - %s", err)
 	}
 	var d = Description{
@@ -518,7 +516,6 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err := m.ovs.Spool(ctx, d); err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
@@ -528,7 +525,6 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		m.resources.ReleaseTask(request.Id)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 	containerInfo.PublicKey = publicKey
@@ -602,7 +598,6 @@ func (m *Miner) Stop(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	}
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
-	m.resources.ReleaseTask(request.Id)
 
 	return &pb.Empty{}, nil
 }

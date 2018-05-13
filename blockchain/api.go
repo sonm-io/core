@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -32,6 +33,7 @@ type API interface {
 	LiveToken() TokenAPI
 	SideToken() TokenAPI
 	TestToken() TestTokenAPI
+	OracleUSD() OracleAPI
 }
 
 type ProfileRegistryAPI interface {
@@ -93,6 +95,14 @@ type TestTokenAPI interface {
 	GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error)
 }
 
+// OracleAPI manage price relation between some currency and SNM token
+type OracleAPI interface {
+	// SetCurrentPrice sets current price relation between some currency and SONM token
+	SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error)
+	// GetCurrentPrice returns current price relation between some currency and SONM token
+	GetCurrentPrice(ctx context.Context) (*big.Int, error)
+}
+
 type BasicAPI struct {
 	market          MarketAPI
 	liveToken       TokenAPI
@@ -101,6 +111,7 @@ type BasicAPI struct {
 	blacklist       BlacklistAPI
 	profileRegistry ProfileRegistryAPI
 	events          EventsAPI
+	oracle          OracleAPI
 }
 
 func NewAPI(opts ...Option) (API, error) {
@@ -154,6 +165,11 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
+	oracle, err := NewOracleUSDAPI(market.OracleUsdAddr(), clientSidechain, defaults.gasPriceSidechain)
+	if err != nil {
+		return nil, err
+	}
+
 	return &BasicAPI{
 		market:          marketApi,
 		blacklist:       blacklist,
@@ -162,6 +178,7 @@ func NewAPI(opts ...Option) (API, error) {
 		sideToken:       sideToken,
 		testToken:       testToken,
 		events:          events,
+		oracle:          oracle,
 	}, nil
 }
 
@@ -191,6 +208,10 @@ func (api *BasicAPI) ProfileRegistry() ProfileRegistryAPI {
 
 func (api *BasicAPI) Events() EventsAPI {
 	return api.events
+}
+
+func (api *BasicAPI) OracleUSD() OracleAPI {
+	return api.oracle
 }
 
 type BasicMarketAPI struct {
@@ -264,6 +285,12 @@ func (api *BasicMarketAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*p
 	deal1, err := api.marketContract.GetDealInfo(getCallOptions(ctx), dealID)
 	if err != nil {
 		return nil, err
+	}
+
+	noAsk := deal1.AskID.Cmp(big.NewInt(0)) == 0
+	noBid := deal1.BidID.Cmp(big.NewInt(0)) == 0
+	if noAsk && noBid {
+		return nil, fmt.Errorf("no deal with id = %s", dealID.String())
 	}
 
 	deal2, err := api.marketContract.GetDealParams(getCallOptions(ctx), dealID)
@@ -365,6 +392,13 @@ func (api *BasicMarketAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (
 		return nil, err
 	}
 
+	noAuthor := order1.Author.Big().Cmp(big.NewInt(0)) == 0
+	noType := pb.OrderType(order1.OrderType) == pb.OrderType_ANY
+
+	if noAuthor && noType {
+		return nil, fmt.Errorf("no order with id = %s", orderID.String())
+	}
+
 	order2, err := api.marketContract.GetOrderParams(getCallOptions(ctx), orderID)
 	if err != nil {
 		return nil, err
@@ -455,7 +489,14 @@ func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, dealID 
 }
 
 func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (int, error) {
-	return NumCurrentBenchmarks, nil
+	num, err := api.marketContract.GetBenchmarksQuantity(getCallOptions(ctx))
+	if err != nil {
+		return 0, err
+	}
+	if !num.IsInt64() {
+		return 0, errors.New("benchmarks quantity overflows int64")
+	}
+	return int(num.Int64()), nil
 }
 
 type ProfileRegistry struct {
@@ -890,4 +931,33 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			BlockNumber: log.BlockNumber,
 		}
 	}
+}
+
+type OracleUSDAPI struct {
+	client         *ethclient.Client
+	oracleContract *marketAPI.OracleUSD
+	gasPrice       int64
+}
+
+func NewOracleUSDAPI(address common.Address, client *ethclient.Client, gasPrice int64) (OracleAPI, error) {
+	oracleContract, err := marketAPI.NewOracleUSD(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &OracleUSDAPI{
+		client:         client,
+		oracleContract: oracleContract,
+		gasPrice:       gasPrice,
+	}, nil
+
+}
+
+func (api *OracleUSDAPI) SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	return api.oracleContract.SetCurrentPrice(opts, price)
+}
+
+func (api *OracleUSDAPI) GetCurrentPrice(ctx context.Context) (*big.Int, error) {
+	return api.oracleContract.GetCurrentPrice(getCallOptions(ctx))
 }

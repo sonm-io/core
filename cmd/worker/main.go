@@ -25,7 +25,7 @@ var (
 )
 
 func main() {
-	cmd.NewCmd("hub", appVersion, &configFlag, &versionFlag, run).Execute()
+	cmd.NewCmd("worker", appVersion, &configFlag, &versionFlag, run).Execute()
 }
 
 func run() error {

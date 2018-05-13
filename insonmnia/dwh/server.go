@@ -74,6 +74,11 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, erro
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to GetNumBenchmarks")
 	}
+
+	if numBenchmarks >= NumMaxBenchmarks {
+		return nil, errors.New("market number of benchmarks is greater than NumMaxBenchmarks")
+	}
+
 	w.numBenchmarks = numBenchmarks
 
 	setupDB, ok := setupDBCallbacks[cfg.Storage.Backend]
@@ -1522,11 +1527,6 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 	order, err := w.blockchain.Market().GetOrderInfo(w.ctx, orderID)
 	if err != nil {
 		return errors.Wrap(err, "failed to GetOrderInfo")
-	}
-
-	if order.OrderStatus == pb.OrderStatus_ORDER_INACTIVE && order.DealID.IsZero() {
-		w.logger.Info("skipping inactive order", zap.String("order_id", order.Id.Unwrap().String()))
-		return nil
 	}
 
 	w.mu.Lock()
