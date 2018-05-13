@@ -144,6 +144,7 @@ var accountsSetDefaultCmd = &cobra.Command{
 		addr := common.HexToAddress(args[0])
 		ks := keystore.NewKeyStore(cfg.KeyStore(), keystore.LightScryptN, keystore.LightScryptP)
 		for _, acc := range ks.Accounts() {
+			// use ks.HasAddress()
 			if acc.Address.Big().Cmp(addr.Big()) == 0 {
 				setDefaultKey(acc.Address)
 				cmd.Printf("Using \"%s\" as default account\n", acc.Address.Hex())

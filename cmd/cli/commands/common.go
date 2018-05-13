@@ -4,10 +4,12 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"encoding/json"
+	"fmt"
+	"io/ioutil"
 	"os"
 	"time"
 
-	"github.com/sonm-io/core/accounts"
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util"
@@ -144,25 +146,43 @@ func isSimpleFormat() bool {
 // Function loads and opens keystore. Also, storing opened key in "sessionKey" var
 // to be able to reuse it into cli during one session.
 func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
-	ko, err := accounts.DefaultKeyOpener(accounts.NewSilentPrinter(), cfg.KeyStore(), cfg.PassPhrase())
-	if err != nil {
-		showError(cmd, err.Error(), nil)
+	ks := keystore.NewKeyStore(cfg.KeyStore(), keystore.LightScryptN, keystore.LightScryptP)
+	if len(ks.Accounts()) == 0 {
+		showError(cmd, fmt.Sprintf("keystore at \"%s\" have no accounts", cfg.KeyStore()), nil)
 		os.Exit(1)
 	}
 
-	_, err = ko.OpenKeystore()
+	keyPath := ""
+	if len(ks.Accounts()) > 0 {
+		defaultAcc := getDefaultAccount()
+		for _, acc := range ks.Accounts() {
+			if acc.Address.Big().Cmp(defaultAcc.Big()) == 0 {
+				keyPath = acc.URL.Path
+				break
+			}
+		}
+
+		if keyPath == "" {
+			// key still not found, use first available
+			keyPath = ks.Accounts()[0].URL.Path
+		}
+	}
+
+	fmt.Printf(" >>> using %s as key path\n", keyPath)
+
+	file, err := ioutil.ReadFile(keyPath)
 	if err != nil {
-		showError(cmd, err.Error(), nil)
+		showError(cmd, "Cannot open account", err)
 		os.Exit(1)
 	}
 
-	key, err := ko.GetKey()
+	key, err := keystore.DecryptKey(file, cfg.PassPhrase())
 	if err != nil {
-		showError(cmd, err.Error(), nil)
+		showError(cmd, "Cannot decrypt key", err)
 		os.Exit(1)
 	}
 
-	sessionKey = key
+	sessionKey = key.PrivateKey
 
 	// If an insecure flag is set - we do not require TLS auth.
 	// But we still need to load keys from a store, somewhere keys are used
