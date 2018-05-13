@@ -117,13 +117,17 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 
 	var orderMatcher matcher.Matcher
 	if cfg.Matcher != nil {
-		orderMatcher = matcher.NewMatcher(&matcher.Config{
+		orderMatcher, err = matcher.NewMatcher(&matcher.Config{
 			Key:        key,
 			DWH:        dwh,
 			Eth:        eth,
 			PollDelay:  cfg.Matcher.PollDelay,
 			QueryLimit: cfg.Matcher.QueryLimit,
 		})
+
+		if err != nil {
+			return nil, err
+		}
 	} else {
 		orderMatcher = matcher.NewDisabledMatcher()
 	}

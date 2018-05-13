@@ -51,13 +51,15 @@ func TestMatcher(t *testing.T) {
 	key, _ := crypto.GenerateKey()
 	eth, dealChan := mockEth(ctrl)
 
-	m := NewMatcher(&Config{
+	m, err := NewMatcher(&Config{
 		Key:        key,
 		PollDelay:  time.Second,
 		QueryLimit: 10,
 		DWH:        mockDWH(ctrl, sonm.OrderType_ASK),
 		Eth:        eth,
 	})
+
+	require.NoError(t, err)
 
 	target := &sonm.Order{
 		Id:        pb.NewBigIntFromInt(1),
@@ -83,7 +85,7 @@ func TestMatcherFailedByTimeout(t *testing.T) {
 	key, _ := crypto.GenerateKey()
 	eth, dealChan := mockEth(ctrl)
 
-	m := NewMatcher(&Config{
+	m, err := NewMatcher(&Config{
 		Key:        key,
 		PollDelay:  time.Second,
 		QueryLimit: 10,
@@ -91,6 +93,7 @@ func TestMatcherFailedByTimeout(t *testing.T) {
 		Eth:        eth,
 	})
 
+	require.NoError(t, err)
 	target := &sonm.Order{
 		Id:        pb.NewBigIntFromInt(1),
 		OrderType: sonm.OrderType_ASK,
@@ -106,7 +109,18 @@ func TestMatcherFailedByTimeout(t *testing.T) {
 		}
 	}()
 
-	_, err := m.CreateDealByOrder(ctx, target)
+	_, err = m.CreateDealByOrder(ctx, target)
 	require.Error(t, err)
 	assert.EqualError(t, err, "context deadline exceeded")
+}
+
+func TestMatcherConfigValidate(t *testing.T) {
+	_, err := NewMatcher(&Config{
+		PollDelay: 0,
+		Key:       nil,
+		DWH:       nil,
+		Eth:       nil,
+	})
+
+	require.Error(t, err)
 }
