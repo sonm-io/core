@@ -7,6 +7,7 @@ import (
 
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // Runner func starts service wrapper by Cobra command.
@@ -15,7 +16,10 @@ type Runner func() error
 func NewCmd(name, appVersion string, cfg *string, version *bool, run Runner) *cobra.Command {
 	c := &cobra.Command{
 		Use: appName(name),
-		Run: func(_ *cobra.Command, _ []string) {
+		PreRunE: func(cmd *cobra.Command, args []string) error {
+			return checkRequiredFlags(cmd.PersistentFlags())
+		},
+		Run: func(cmd *cobra.Command, args []string) {
 			if version != nil && *version {
 				fmt.Println(versionString(name, appVersion))
 				return
@@ -29,8 +33,10 @@ func NewCmd(name, appVersion string, cfg *string, version *bool, run Runner) *co
 	}
 
 	c.SetOutput(os.Stdout)
-	c.PersistentFlags().StringVar(cfg, "config", configName(name), configFlagHelp(name))
+	c.PersistentFlags().StringVar(cfg, "config", "", configFlagHelp(name))
 	c.PersistentFlags().BoolVar(version, "version", false, versionFlagHelp(name))
+
+	c.MarkPersistentFlagRequired("config")
 
 	return c
 }
@@ -47,12 +53,8 @@ func appName(name string) string {
 	return "sonm" + name
 }
 
-func configName(name string) string {
-	return name + ".yaml"
-}
-
 func configFlagHelp(name string) string {
-	return fmt.Sprintf("Path to the %s config file", name)
+	return fmt.Sprintf("Path to the %s config file (required)", name)
 }
 
 func versionFlagHelp(name string) string {
@@ -61,4 +63,29 @@ func versionFlagHelp(name string) string {
 
 func versionString(name, appVersion string) string {
 	return fmt.Sprintf("%s %s (%s)", name, appVersion, util.GetPlatformName())
+}
+
+func checkRequiredFlags(flags *pflag.FlagSet) error {
+	requiredError := false
+	flagName := ""
+
+	flags.VisitAll(func(flag *pflag.Flag) {
+		requiredAnnotation := flag.Annotations[cobra.BashCompOneRequiredFlag]
+		if len(requiredAnnotation) == 0 {
+			return
+		}
+
+		flagRequired := requiredAnnotation[0] == "true"
+
+		if flagRequired && !flag.Changed {
+			requiredError = true
+			flagName = flag.Name
+		}
+	})
+
+	if requiredError {
+		return fmt.Errorf("required flag `%s` has not been set", flagName)
+	}
+
+	return nil
 }
