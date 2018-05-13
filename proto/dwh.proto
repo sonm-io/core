@@ -50,7 +50,7 @@ message DealsRequest {
     CmpUint64 netflags = 9;
     IdentityLevel askIdentityLevel = 10;
     IdentityLevel bidIdentityLevel = 11;
-    DWHBenchmarkConditions benchmarks = 12;
+    map<uint64, MaxMinUint64> benchmarks = 12;
     uint64 limit = 13;
     uint64 offset = 14;
     repeated SortingOption sortings = 15;
@@ -96,7 +96,7 @@ message OrdersRequest {
     MaxMinBig price = 9;
     CmpUint64 netflags = 11;
     IdentityLevel creatorIdentityLevel = 12;
-    DWHBenchmarkConditions benchmarks = 13;
+    map<uint64, MaxMinUint64> benchmarks = 13;
     MaxMinTimestamp createdTS = 14;
     uint64 limit = 15;
     uint64 offset = 16;
@@ -249,21 +249,6 @@ message Certificate {
     uint64 attribute = 3;
     uint64 identityLevel = 4;
     bytes value = 5;
-}
-
-message DWHBenchmarkConditions {
-    MaxMinUint64 CPUSysbenchMulti = 1;
-    MaxMinUint64 CPUSysbenchOne = 2;
-    MaxMinUint64 CPUCores = 3;
-    MaxMinUint64 RAMSize = 4;
-    MaxMinUint64 StorageSize = 5;
-    MaxMinUint64 NetTrafficIn = 6;
-    MaxMinUint64 NetTrafficOut = 7;
-    MaxMinUint64 GPUCount = 8;
-    MaxMinUint64 GPUMem = 9;
-    MaxMinUint64 GPUEthHashrate = 10;
-    MaxMinUint64 GPUCashHashrate = 11;
-    MaxMinUint64 GPURedshift = 12;
 }
 
 message MaxMinUint64 {
