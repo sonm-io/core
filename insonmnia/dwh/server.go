@@ -1109,40 +1109,6 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 			return errors.Wrap(err, "failed to deleteOrder")
 		}
 
-		askProfile, err := w.getProfileInfo(w.ctx, deal.SupplierID, false)
-		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				w.logger.Warn("transaction rollback failed", zap.Error(err))
-			}
-
-			return errors.Wrap(err, "failed to getProfileInfo")
-		}
-
-		if err := w.updateProfileStats(tx, pb.OrderType_ASK, deal.SupplierID.Unwrap().Hex(), askProfile, -1); err != nil {
-			if err := tx.Rollback(); err != nil {
-				w.logger.Warn("transaction rollback failed", zap.Error(err))
-			}
-
-			return errors.Wrapf(err, "failed to updateProfileStats (OrderID: `%s`)", deal.AskID.Unwrap().String())
-		}
-
-		bidProfile, err := w.getProfileInfo(w.ctx, deal.ConsumerID, false)
-		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				w.logger.Warn("transaction rollback failed", zap.Error(err))
-			}
-
-			return errors.Wrap(err, "failed to getProfileInfo")
-		}
-
-		if err := w.updateProfileStats(tx, pb.OrderType_BID, deal.ConsumerID.Unwrap().Hex(), bidProfile, -1); err != nil {
-			if err := tx.Rollback(); err != nil {
-				w.logger.Warn("transaction rollback failed", zap.Error(err))
-			}
-
-			return errors.Wrapf(err, "failed to updateProfileStats (OrderID: `%s`)", deal.BidID.Unwrap().String())
-		}
-
 		if err := tx.Commit(); err != nil {
 			return errors.Wrap(err, "transaction commit failed")
 		}
@@ -1532,13 +1498,13 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
+	tx, err := w.db.Begin()
+	if err != nil {
+		return errors.Wrap(err, "failed to begin transaction")
+	}
+
 	// If order was updated, but no deal is associated with it, delete the order.
 	if order.DealID.IsZero() {
-		tx, err := w.db.Begin()
-		if err != nil {
-			return errors.Wrap(err, "failed to begin transaction")
-		}
-
 		if _, err := tx.Exec(w.commands["deleteOrder"], orderID.String()); err != nil {
 			w.logger.Info("failed to delete Order (possibly old log entry)", zap.Error(err),
 				zap.String("order_id", orderID.String()))
@@ -1549,33 +1515,37 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 
 			return nil
 		}
-
-		profile, err := w.getProfileInfo(w.ctx, order.AuthorID, false)
-		if err != nil {
-			if err := tx.Rollback(); err != nil {
-				w.logger.Warn("transaction rollback failed", zap.Error(err))
-			}
-
-			return errors.Wrapf(err, "failed to getProfileInfo (AuthorID: `%s`)", order.AuthorID)
-		}
-
-		if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID.Unwrap().Hex(), profile, -1); err != nil {
-			if err := tx.Rollback(); err != nil {
-				w.logger.Warn("transaction rollback failed", zap.Error(err))
-			}
-
-			return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", order.AuthorID.Unwrap().String())
-		}
-
-		if err := tx.Commit(); err != nil {
-			return errors.Wrap(err, "transaction commit failed")
-		}
 	} else {
 		// Otherwise update order status.
-		_, err := w.db.Exec(w.commands["updateOrderStatus"], order.OrderStatus, order.Id.Unwrap().String())
+		_, err := tx.Exec(w.commands["updateOrderStatus"], order.OrderStatus, order.Id.Unwrap().String())
 		if err != nil {
+			if err := tx.Rollback(); err != nil {
+				w.logger.Warn("transaction rollback failed", zap.Error(err))
+			}
+
 			return errors.Wrap(err, "failed to updateOrderStatus (possibly old log entry)")
 		}
+	}
+
+	profile, err := w.getProfileInfo(w.ctx, order.AuthorID, false)
+	if err != nil {
+		if err := tx.Rollback(); err != nil {
+			w.logger.Warn("transaction rollback failed", zap.Error(err))
+		}
+
+		return errors.Wrapf(err, "failed to getProfileInfo (AuthorID: `%s`)", order.AuthorID)
+	}
+
+	if err := w.updateProfileStats(tx, order.OrderType, order.AuthorID.Unwrap().Hex(), profile, -1); err != nil {
+		if err := tx.Rollback(); err != nil {
+			w.logger.Warn("transaction rollback failed", zap.Error(err))
+		}
+
+		return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", order.AuthorID.Unwrap().String())
+	}
+
+	if err := tx.Commit(); err != nil {
+		return errors.Wrap(err, "transaction commit failed")
 	}
 
 	return nil
