@@ -13,7 +13,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var setImportAccountAsDefault bool
+
 func init() {
+	accountsImportCmd.PersistentFlags().BoolVar(&setImportAccountAsDefault, "as-default",
+		false, "Set imported account as default")
 	accountsRootCmd.AddCommand(
 		accountsListCmd,
 		accountsCreateCmd,
@@ -116,6 +120,10 @@ var accountsImportCmd = &cobra.Command{
 		if err != nil {
 			showError(cmd, "Cannot import account", err)
 			os.Exit(1)
+		}
+
+		if setImportAccountAsDefault {
+			setDefaultKey("/Users/alex/.sonm", acc.Address)
 		}
 
 		// TODO(sshaman1101): json-friendly
