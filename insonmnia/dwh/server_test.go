@@ -948,16 +948,6 @@ func TestDWH_monitor(t *testing.T) {
 		}
 	}
 
-	if profile, err := monitorDWH.getProfileInfo(monitorDWH.ctx, pb.NewEthAddress(common.HexToAddress("0xBB")), true); err != nil {
-		t.Errorf("Failed to GetProfileInfo: %s", err)
-		return
-	} else {
-		if profile.ActiveBids != 9 {
-			t.Errorf("(DealUpdated) Expected 9 ActiveBids, got %d", profile.ActiveBids)
-			return
-		}
-	}
-
 	// Test that a worker is added after a WorkerAnnounced event.
 	if err := monitorDWH.onWorkerAnnounced(common.HexToAddress("0xC").Hex(),
 		common.HexToAddress("0xD").Hex()); err != nil {
