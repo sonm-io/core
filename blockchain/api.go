@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 	"math/big"
 	"strings"
 	"time"
@@ -286,6 +287,12 @@ func (api *BasicMarketAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*p
 		return nil, err
 	}
 
+	noAsk := deal1.AskID.Cmp(big.NewInt(0)) == 0
+	noBid := deal1.BidID.Cmp(big.NewInt(0)) == 0
+	if noAsk && noBid {
+		return nil, fmt.Errorf("no deal with id = %s", dealID.String())
+	}
+
 	deal2, err := api.marketContract.GetDealParams(getCallOptions(ctx), dealID)
 	if err != nil {
 		return nil, err
@@ -383,6 +390,13 @@ func (api *BasicMarketAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (
 	order1, err := api.marketContract.GetOrderInfo(getCallOptions(ctx), orderID)
 	if err != nil {
 		return nil, err
+	}
+
+	noAuthor := order1.Author.Big().Cmp(big.NewInt(0)) == 0
+	noType := pb.OrderType(order1.OrderType) == pb.OrderType_ANY
+
+	if noAuthor && noType {
+		return nil, fmt.Errorf("no order with id = %s", orderID.String())
 	}
 
 	order2, err := api.marketContract.GetOrderParams(getCallOptions(ctx), orderID)
