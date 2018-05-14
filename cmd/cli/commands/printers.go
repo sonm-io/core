@@ -291,7 +291,6 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply) {
 	if isSimpleFormat() {
 		deal := info.GetDeal()
-		isSpot := deal.GetDuration() == 0
 		isClosed := deal.GetStatus() == pb.DealStatus_DEAL_CLOSED
 		start := deal.StartTime.Unix()
 		end := deal.EndTime.Unix()
@@ -302,7 +301,7 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply) {
 		cmd.Printf("ASK ID:       %s\r\n", deal.GetAskID().Unwrap().String())
 		cmd.Printf("BID ID:       %s\r\n", deal.GetBidID().Unwrap().String())
 		cmd.Printf("Status:       %s\r\n", deal.GetStatus())
-		if isSpot {
+		if deal.IsSpot() {
 			// for active spot deal we can show only pricePerSecond
 			cmd.Printf("Price:        %s USD/sec\r\n", deal.GetPrice().ToPriceString())
 			if isClosed {
