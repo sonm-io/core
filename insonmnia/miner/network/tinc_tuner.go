@@ -26,6 +26,7 @@ type TincTuner struct {
 }
 
 type TincCleaner struct {
+	ctx       context.Context
 	networkID string
 	client    *client.Client
 }
@@ -82,7 +83,7 @@ func (t *TincTuner) runDriver(ctx context.Context) error {
 
 	go func() {
 		<-ctx.Done()
-		log.G(context.Background()).Info("stopping tinc socket listener")
+		log.G(ctx).Info("stopping tinc socket listener")
 		netListener.Close()
 		ipamListener.Close()
 	}()
@@ -97,8 +98,7 @@ func (t *TincTuner) runDriver(ctx context.Context) error {
 	return nil
 }
 
-//TODO: pass context from outside
-func (t *TincTuner) Tune(net structs.Network, hostConfig *container.HostConfig, config *network.NetworkingConfig) (Cleanup, error) {
+func (t *TincTuner) Tune(ctx context.Context, net structs.Network, hostConfig *container.HostConfig, config *network.NetworkingConfig) (Cleanup, error) {
 	tincNet, err := t.netDriver.InsertTincNetwork(net, hostConfig.Resources.CgroupParent)
 	if err != nil {
 		return nil, err
@@ -119,9 +119,9 @@ func (t *TincTuner) Tune(net structs.Network, hostConfig *container.HostConfig, 
 		Options: opts,
 	}
 
-	response, err := t.client.NetworkCreate(context.Background(), net.ID(), createOpts)
+	response, err := t.client.NetworkCreate(ctx, net.ID(), createOpts)
 	if err != nil {
-		log.G(context.Background()).Warn("failed to create tinc network", zap.Error(err))
+		log.G(ctx).Warn("failed to create tinc network", zap.Error(err))
 		return nil, err
 	}
 	//t.netDriver.RegisterNetworkMapping(response.ID, net.ID())
@@ -138,6 +138,7 @@ func (t *TincTuner) Tune(net structs.Network, hostConfig *container.HostConfig, 
 	}
 
 	return &TincCleaner{
+		ctx:       ctx,
 		client:    t.client,
 		networkID: response.ID,
 	}, nil
@@ -154,11 +155,11 @@ func (t *TincTuner) GenerateInvitation(ID string) (structs.Network, error) {
 func (t *TincCleaner) Close() (err error) {
 	timeout := time.Millisecond * 100
 	for i := 0; i < 10; i++ {
-		err = t.client.NetworkRemove(context.Background(), t.networkID)
+		err = t.client.NetworkRemove(t.ctx, t.networkID)
 		if err == nil {
 			return
 		}
-		log.S(context.Background()).Warnf("failed to remove network, retrying after %s", timeout)
+		log.S(t.ctx).Warnf("failed to remove network, retrying after %s", timeout)
 		timeout = timeout * 2
 		if timeout > time.Second*2 {
 			timeout = time.Second * 2

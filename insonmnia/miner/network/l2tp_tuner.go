@@ -70,7 +70,7 @@ func (t *L2TPTuner) Run(ctx context.Context) error {
 	syscall.Unlink(t.cfg.NetSocketPath)
 	netListener, err := net.Listen("unix", t.cfg.NetSocketPath)
 	if err != nil {
-		log.G(context.Background()).Error("Failed to listen", zap.Error(err))
+		log.G(ctx).Error("Failed to listen", zap.Error(err))
 		return err
 	}
 
@@ -79,7 +79,7 @@ func (t *L2TPTuner) Run(ctx context.Context) error {
 	syscall.Unlink(t.cfg.IPAMSocketPath)
 	ipamListener, err := net.Listen("unix", t.cfg.IPAMSocketPath)
 	if err != nil {
-		log.G(context.Background()).Error("Failed to listen", zap.Error(err))
+		log.G(ctx).Error("Failed to listen", zap.Error(err))
 		return err
 	}
 
@@ -87,7 +87,7 @@ func (t *L2TPTuner) Run(ctx context.Context) error {
 
 	go func() {
 		<-ctx.Done()
-		log.G(context.Background()).Info("stopping l2tp socket listener")
+		log.G(ctx).Info("stopping l2tp socket listener")
 		netListener.Close()
 		ipamListener.Close()
 	}()
@@ -95,22 +95,22 @@ func (t *L2TPTuner) Run(ctx context.Context) error {
 	go func() {
 		log.G(ctx).Info("l2tp ipam driver has been initialized")
 		if err := ipamHandler.Serve(ipamListener); err != nil {
-			log.G(context.Background()).Error("IPAM driver failed", zap.Error(err))
+			log.G(ctx).Error("IPAM driver failed", zap.Error(err))
 		}
 	}()
 
 	go func() {
 		log.G(ctx).Info("l2tp network driver has been initialized")
 		if err := netHandler.Serve(netListener); err != nil {
-			log.G(context.Background()).Error("Network driver failed", zap.Error(err))
+			log.G(ctx).Error("Network driver failed", zap.Error(err))
 		}
 	}()
 
 	return nil
 }
 
-func (t *L2TPTuner) Tune(net structs.Network, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
-	log.G(context.Background()).Info("tuning l2tp")
+func (t *L2TPTuner) Tune(ctx context.Context, net structs.Network, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
+	log.G(ctx).Info("tuning l2tp")
 	configPath, err := t.writeConfig(net.ID(), net.NetworkOptions())
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (t *L2TPTuner) Tune(net structs.Network, hostCfg *container.HostConfig, net
 		IPAM:    &network.IPAM{Driver: "l2tp_ipam", Options: driverOpts},
 	}
 
-	response, err := t.cli.NetworkCreate(context.Background(), net.ID(), createOpts)
+	response, err := t.cli.NetworkCreate(ctx, net.ID(), createOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -138,6 +138,7 @@ func (t *L2TPTuner) Tune(net structs.Network, hostCfg *container.HostConfig, net
 	}
 
 	return &L2TPCleaner{
+		ctx:        ctx,
 		cli:        t.cli,
 		networkID:  response.ID,
 		configPath: configPath,
@@ -156,13 +157,15 @@ func (t *L2TPTuner) writeConfig(netID string, opts map[string]string) (string, e
 }
 
 type L2TPCleaner struct {
+	ctx        context.Context
 	cli        *client.Client
 	networkID  string
 	configPath string
 }
 
 func (t *L2TPCleaner) Close() error {
-	if err := t.cli.NetworkRemove(context.Background(), t.networkID); err != nil {
+	log.G(t.ctx).Info("closing l2tp driver")
+	if err := t.cli.NetworkRemove(t.ctx, t.networkID); err != nil {
 		return err
 	}
 
