@@ -1,6 +1,8 @@
 package node
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
@@ -23,14 +25,14 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, err
 	filter.SupplierID = addr
 	dealsBySupplier, err := d.remotes.dwh.GetDeals(ctx, filter)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get deals from DWH - %s", err)
 	}
 
 	filter.SupplierID = nil
 	filter.ConsumerID = addr
 	dealsByConsumer, err := d.remotes.dwh.GetDeals(ctx, filter)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get deals from DWH - %s", err)
 	}
 
 	reply := &pb.DealsReply{Deal: []*pb.Deal{}}
@@ -53,7 +55,7 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, er
 
 	deal, err := d.remotes.eth.Market().GetDealInfo(ctx, bigID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get deal info from blockchain - %s", err)
 	}
 
 	reply := &pb.DealInfoReply{Deal: deal}
@@ -81,7 +83,7 @@ func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
 	}
 
 	if err = <-d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, bigID, false); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not close deal in blockchain - %s", err)
 	}
 
 	return &pb.Empty{}, nil
@@ -90,7 +92,7 @@ func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
 func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal, error) {
 	dealOrErr := <-d.remotes.eth.Market().OpenDeal(ctx, d.remotes.key, req.GetAskID().Unwrap(), req.GetBidID().Unwrap())
 	if dealOrErr.Err != nil {
-		return nil, dealOrErr.Err
+		return nil, fmt.Errorf("could not open deal in blockchain - %s", dealOrErr.Err)
 	}
 
 	return dealOrErr.Deal, nil
