@@ -98,6 +98,18 @@ func (m *Benchmarks) GPURedshift() uint64 {
 	return m.Get(11)
 }
 
+func (m *Deal) GetTypeName() string {
+	if m.IsSpot() {
+		return "Spot"
+	} else {
+		return "Forward"
+	}
+}
+
+func (m *Deal) IsSpot() bool {
+	return m.GetDuration() == 0
+}
+
 func (m *Order) TotalPrice() string {
 	return formatPriceString(m.GetPrice(), m.GetDuration())
 }

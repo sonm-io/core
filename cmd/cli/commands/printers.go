@@ -291,23 +291,39 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply) {
 	if isSimpleFormat() {
 		deal := info.GetDeal()
+		isClosed := deal.GetStatus() == pb.DealStatus_DEAL_CLOSED
 		start := deal.StartTime.Unix()
 		end := deal.EndTime.Unix()
 		dealDuration := end.Sub(start)
 		lastBill := deal.GetLastBillTS().Unix()
 
-		cmd.Printf("ID:           %s\r\n", deal.GetId())
+		cmd.Printf("ID:           %s (%s deal)\r\n", deal.GetId(), deal.GetTypeName())
 		cmd.Printf("ASK ID:       %s\r\n", deal.GetAskID().Unwrap().String())
 		cmd.Printf("BID ID:       %s\r\n", deal.GetBidID().Unwrap().String())
 		cmd.Printf("Status:       %s\r\n", deal.GetStatus())
-		cmd.Printf("Duration:     %s\r\n", dealDuration.String())
-		cmd.Printf("Price:        %s USD (%s USD/sec)\r\n", deal.TotalPrice(), deal.GetPrice().ToPriceString())
+		if deal.IsSpot() {
+			// for active spot deal we can show only pricePerSecond
+			cmd.Printf("Price:        %s USD/sec\r\n", deal.GetPrice().ToPriceString())
+			if isClosed {
+				// for closed deal we also can *calculate* total duration
+				cmd.Printf("Duration:     %s\r\n", dealDuration.String())
+			}
+		} else {
+			// for non-spot deal we can show duration, total price and pricePerSecond
+			cmd.Printf("Price:        %s USD (%s USD/sec)\r\n", deal.TotalPrice(), deal.GetPrice().ToPriceString())
+			cmd.Printf("Duration:     %s\r\n", dealDuration.String())
+		}
+
 		cmd.Printf("Total payout: %s SNM\r\n", deal.GetTotalPayout().ToPriceString())
 		cmd.Printf("Consumer ID:  %s\r\n", deal.GetConsumerID().Unwrap().Hex())
 		cmd.Printf("Supplier ID:  %s\r\n", deal.GetSupplierID().Unwrap().Hex())
 
 		cmd.Printf("Start at:     %s\r\n", start.Format(time.RFC3339))
-		cmd.Printf("End at:       %s\r\n", end.Format(time.RFC3339))
+		if isClosed {
+			// correct endTime exists for any closed deal.
+			cmd.Printf("End at:       %s\r\n", start.Add(dealDuration).Format(time.RFC3339))
+		}
+
 		if lastBill.Unix() > 0 {
 			cmd.Printf("Last bill:    %s\r\n", lastBill.Format(time.RFC3339))
 		}
