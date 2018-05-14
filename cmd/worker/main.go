@@ -56,6 +56,17 @@ func run() error {
 		return fmt.Errorf("failed to create state storage: %s", err)
 	}
 
+	waiter.Go(func() error {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		<-c
+
+		log.G(ctx).Info("closing worker by interrupt signal")
+		cancel()
+
+		return nil
+	})
+
 	w, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithStateStorage(storage), miner.WithCreds(credentials))
 	if err != nil {
 		return fmt.Errorf("failed to create Worker instance: %s", err)
@@ -66,16 +77,6 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("failed to create new Hub: %s", err)
 	}
-
-	waiter.Go(func() error {
-		c := make(chan os.Signal, 1)
-		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		<-c
-		cancel()
-		//TODO: get rid of it - use context for closing down
-		h.Close()
-		return nil
-	})
 
 	//TODO: fixme dangling goroutine
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)

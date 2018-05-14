@@ -188,7 +188,11 @@ func (h *Hub) Serve() error {
 	h.grpcListener = grpcL
 
 	h.waiter.Go(h.listenAPI)
-
+	h.waiter.Go(func() error {
+		<-h.ctx.Done()
+		h.Close()
+		return nil
+	})
 	h.waiter.Wait()
 
 	return nil
@@ -406,11 +410,11 @@ func (h *Hub) listenAPI() error {
 
 // Close disposes all resources attached to the Hub
 func (h *Hub) Close() {
-	h.cancel()
+	log.G(h.ctx).Info("closing hub")
+
 	h.externalGrpc.Stop()
 	if h.certRotator != nil {
 		h.certRotator.Close()
 	}
 	h.worker.Close()
-	h.waiter.Wait()
 }
