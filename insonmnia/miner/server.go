@@ -115,6 +115,7 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 
 	if o.dwh == nil {
 		if o.creds == nil {
+			// todo: use o.ctx
 			_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), o.key)
 			if err != nil {
 				return nil, err
@@ -228,6 +229,7 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	}
 
 	if err := m.RunBenchmarks(); err != nil {
+		m.Close()
 		return nil, err
 	}
 
@@ -849,11 +851,15 @@ func (m *Miner) execBenchmarkContainerWithResults(d Description) (map[string]*bm
 	stdoutBuf := bytes.Buffer{}
 	stderrBuf := bytes.Buffer{}
 
-	s := <-statusChan
-	if s == pb.TaskStatusReply_FINISHED || s == pb.TaskStatusReply_BROKEN {
-		if _, err := stdcopy.StdCopy(&stdoutBuf, &stderrBuf, reader); err != nil {
-			return nil, fmt.Errorf("cannot read logs into buffer: %v", err)
+	select {
+	case s := <-statusChan:
+		if s == pb.TaskStatusReply_FINISHED || s == pb.TaskStatusReply_BROKEN {
+			if _, err := stdcopy.StdCopy(&stdoutBuf, &stderrBuf, reader); err != nil {
+				return nil, fmt.Errorf("cannot read logs into buffer: %v", err)
+			}
 		}
+	case <-m.ctx.Done():
+		return nil, m.ctx.Err()
 	}
 
 	resultsMap, err := parseBenchmarkResult(stdoutBuf.Bytes())
@@ -983,9 +989,9 @@ func (m *Miner) AskPlanByTaskID(taskID string) (*pb.AskPlan, error) {
 // todo: make the `miner.Init() error` method to kickstart all initial jobs for the Worker instance.
 // (state loading, benchmarking, market sync).
 
-// Close disposes all resources related to the Miner
+// Close disposes all resources related to the Worker
 func (m *Miner) Close() {
-	log.G(m.ctx).Info("closing miner")
+	log.G(m.ctx).Info("closing worker")
 
 	m.ssh.Close()
 	m.ovs.Close()
