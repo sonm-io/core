@@ -55,7 +55,7 @@ func (m *TCPAddr) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	tcpAddr, err := net.ResolveTCPAddr("tcp", addr)
 	if err != nil {
-		return fmt.Errorf("cannot convert `%s` into a TCP address - %s", addr, err)
+		return fmt.Errorf("cannot convert `%s` into a TCP address: %s", addr, err)
 	}
 
 	m.TCPAddr = *tcpAddr

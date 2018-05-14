@@ -53,17 +53,17 @@ type remoteOptions struct {
 func (re *remoteOptions) getHubClientForDeal(ctx context.Context, id string) (*hubClient, io.Closer, error) {
 	bigID, err := util.ParseBigInt(id)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not parse deal id %s to BigInt - %s", id, err)
+		return nil, nil, fmt.Errorf("could not parse deal id %s to BigInt: %s", id, err)
 	}
 
 	dealInfo, err := re.eth.Market().GetDealInfo(ctx, bigID)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not get deal info for deal %s from blockchain - %s", id, err)
+		return nil, nil, fmt.Errorf("could not get deal info for deal %s from blockchain: %s", id, err)
 	}
 
 	client, closer, err := re.getHubClientByEthAddr(ctx, dealInfo.GetSupplierID().Unwrap().Hex())
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not get worker client for deal %s by eth address %s - %s",
+		return nil, nil, fmt.Errorf("could not get worker client for deal %s by eth address %s: %s",
 			id, dealInfo.GetSupplierID().Unwrap().Hex(), err)
 	}
 	return client, closer, nil
@@ -292,7 +292,7 @@ func (n *Node) ServeGRPC() error {
 				return err
 			})
 		} else {
-			log.S(n.ctx).Warnf("cannot create %s listener - %s", netFam, err)
+			log.S(n.ctx).Warnf("cannot create %s listener: %s", netFam, err)
 		}
 		return err
 	}

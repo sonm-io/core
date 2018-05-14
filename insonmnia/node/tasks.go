@@ -35,7 +35,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 	defer cc.Close()
 	deal, err := hubClient.GetDealInfo(ctx, &pb.ID{Id: req.GetDealID().Unwrap().String()})
 	if err != nil {
-		return nil, fmt.Errorf("failed to get deal info for deal %s - %s", dealID, err)
+		return nil, fmt.Errorf("failed to get deal info for deal %s: %s", dealID, err)
 	}
 	reply := &pb.TaskListReply{
 		Info: map[string]*pb.TaskStatusReply{},
@@ -81,7 +81,7 @@ func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.Sta
 
 	reply, err := hub.StartTask(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start task on worker - %s", err)
+		return nil, fmt.Errorf("failed to start task on worker: %s", err)
 	}
 
 	return reply, nil
@@ -100,7 +100,7 @@ func (t *tasksAPI) JoinNetwork(ctx context.Context, request *pb.JoinNetworkReque
 		NetworkID: request.NetworkID,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to join network on worker - %s", err)
+		return nil, fmt.Errorf("failed to join network on worker: %s", err)
 	}
 
 	return reply, nil
@@ -125,7 +125,7 @@ func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServe
 
 	logClient, err := hubClient.TaskLogs(srv.Context(), req)
 	if err != nil {
-		return fmt.Errorf("failed to fetch logs from worker - %s", err)
+		return fmt.Errorf("failed to fetch logs from worker: %s", err)
 	}
 
 	for {
@@ -135,12 +135,12 @@ func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServe
 		}
 
 		if err != nil {
-			return fmt.Errorf("failure during receiving logs from worker - %s", err)
+			return fmt.Errorf("failure during receiving logs from worker: %s", err)
 		}
 
 		err = srv.Send(buffer)
 		if err != nil {
-			return fmt.Errorf("failed to send log chunk request to worker - %s", err)
+			return fmt.Errorf("failed to send log chunk request to worker: %s", err)
 		}
 	}
 }
@@ -171,7 +171,7 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 
 	hubStream, err := hub.PushTask(meta.ctx)
 	if err != nil {
-		return fmt.Errorf("failed to start task push server on worker - %s", err)
+		return fmt.Errorf("failed to start task push server on worker: %s", err)
 	}
 
 	bytesCommitted := int64(0)
@@ -187,20 +187,20 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 					clientCompleted = true
 				} else {
 					log.G(t.ctx).Debug("recieved push error", zap.Error(err))
-					return fmt.Errorf("failed to receive image chunk from client - %s", err)
+					return fmt.Errorf("failed to receive image chunk from client: %s", err)
 				}
 			}
 
 			if chunk == nil {
 				log.G(t.ctx).Debug("closing worker stream")
 				if err := hubStream.CloseSend(); err != nil {
-					return fmt.Errorf("failed to send closing frame to worker - %s", err)
+					return fmt.Errorf("failed to send closing frame to worker: %s", err)
 				}
 			} else {
 				bytesRemaining = len(chunk.Chunk)
 				if err := hubStream.Send(chunk); err != nil {
 					log.G(t.ctx).Debug("failed to send chunk to worker", zap.Error(err))
-					return fmt.Errorf("failed to send chunk to worker - %s", err)
+					return fmt.Errorf("failed to send chunk to worker: %s", err)
 				}
 				log.G(t.ctx).Debug("sent chunk to worker")
 			}
@@ -220,7 +220,7 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 					}
 				} else {
 					log.G(t.ctx).Debug("received error from worker", zap.Error(err))
-					return fmt.Errorf("failed to receive meta info from worker - %s", err)
+					return fmt.Errorf("failed to receive meta info from worker: %s", err)
 				}
 			}
 
@@ -229,7 +229,7 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 
 			if err := clientStream.Send(progress); err != nil {
 				log.G(t.ctx).Debug("failed to send meta to client", zap.Error(err))
-				return fmt.Errorf("failed to send meta to client - %s", err)
+				return fmt.Errorf("failed to send meta to client: %s", err)
 			}
 
 			if bytesRemaining == 0 {
@@ -249,17 +249,17 @@ func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullT
 
 	pullClient, err := hub.PullTask(ctx, req)
 	if err != nil {
-		return fmt.Errorf("failed to start task pull server on worker - %s", err)
+		return fmt.Errorf("failed to start task pull server on worker: %s", err)
 	}
 
 	header, err := pullClient.Header()
 	if err != nil {
-		return fmt.Errorf("failed to receive meta from worker - %s", err)
+		return fmt.Errorf("failed to receive meta from worker: %s", err)
 	}
 
 	err = srv.SetHeader(header)
 	if err != nil {
-		return fmt.Errorf("failed to set meta for client - %s", err)
+		return fmt.Errorf("failed to set meta for client: %s", err)
 	}
 
 	for {
@@ -269,13 +269,13 @@ func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullT
 		}
 
 		if err != nil {
-			return fmt.Errorf("failed to receive chunk from worker - %s", err)
+			return fmt.Errorf("failed to receive chunk from worker: %s", err)
 		}
 
 		if buffer != nil {
 			err = srv.Send(buffer)
 			if err != nil {
-				return fmt.Errorf("failed to send meta to client - %s", err)
+				return fmt.Errorf("failed to send meta to client: %s", err)
 			}
 		}
 	}

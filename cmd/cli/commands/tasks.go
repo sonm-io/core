@@ -52,11 +52,11 @@ var taskRootCmd = &cobra.Command{
 func getActiveDealIDs(ctx context.Context) ([]*big.Int, error) {
 	dealCli, err := newDealsClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot connect to Node - %s", err)
+		return nil, fmt.Errorf("cannot connect to Node: %s", err)
 	}
 	deals, err := dealCli.List(ctx, &pb.Count{Count: 0})
 	if err != nil {
-		return nil, fmt.Errorf("cannot fetch deals list - %s", err)
+		return nil, fmt.Errorf("cannot fetch deals list: %s", err)
 	}
 	dealIDs := make([]*big.Int, 0, len(deals.Deal))
 	for _, deal := range deals.Deal {

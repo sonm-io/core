@@ -169,7 +169,7 @@ func (p *pool) pollConsume(resources *sonm.AskPlanResources) error {
 	}
 	err = available.Sub(resources)
 	if err != nil {
-		return fmt.Errorf("not enough resources - %s", err)
+		return fmt.Errorf("not enough resources: %s", err)
 	}
 	return nil
 }

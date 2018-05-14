@@ -139,14 +139,14 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 
 	decodedReader, err := s.decoder.DecodeBody(r)
 	if err != nil {
-		s.log.Errorf("could not decode body - %s", err)
+		s.log.Errorf("could not decode body: %s", err)
 		rw.WriteHeader(http.StatusBadRequest)
-		rw.Write([]byte(fmt.Sprintf("could not decode body - %s", err)))
+		rw.Write([]byte(fmt.Sprintf("could not decode body: %s", err)))
 		return
 	}
 	rw, err = s.encoder.Encode(rw)
 	if err != nil {
-		s.log.Errorf("could not encode response writer - %s", err)
+		s.log.Errorf("could not encode response writer: %s", err)
 		return
 	}
 	body, _ := ioutil.ReadAll(decodedReader)
@@ -160,9 +160,9 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	requestValue := reflect.New(method.messageType)
 	err = json.Unmarshal(body, requestValue.Interface())
 	if err != nil {
-		s.log.Errorf("could not unmarshal body - %s", err)
+		s.log.Errorf("could not unmarshal body: %s", err)
 		rw.WriteHeader(http.StatusInternalServerError)
-		rw.Write([]byte(fmt.Sprintf("could not unmarshal body - %s", err)))
+		rw.Write([]byte(fmt.Sprintf("could not unmarshal body: %s", err)))
 		return
 	}
 

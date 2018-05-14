@@ -170,7 +170,7 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 			}
 		}
 		if !found {
-			return nil, fmt.Errorf("unknown hash in passed resources - %s", hash)
+			return nil, fmt.Errorf("unknown hash in passed resources: %s", hash)
 		}
 	}
 

@@ -94,12 +94,12 @@ func (t *TincNetworkState) InsertTincNetwork(n structs.Network, cgroupParent str
 	netConfig := &network.NetworkingConfig{}
 	resp, err := t.cli.ContainerCreate(t.ctx, containerConfig, hostConfig, netConfig, "")
 	if err != nil {
-		t.logger.Errorf("failed to create tinc container - %s", err)
+		t.logger.Errorf("failed to create tinc container: %s", err)
 		return nil, err
 	}
 	err = t.cli.ContainerStart(t.ctx, resp.ID, types.ContainerStartOptions{})
 	if err != nil {
-		t.logger.Errorf("failed to start tinc container - %s", err)
+		t.logger.Errorf("failed to start tinc container: %s", err)
 		return nil, err
 	}
 	log.S(t.ctx).Infof("started container %s", resp.ID)
@@ -189,7 +189,7 @@ func (t *TincNetworkState) load() (err error) {
 			t.logger.Errorf("could not load tinc network state - %s; erasing key", err)
 			delErr := t.storage.Delete("state")
 			if delErr != nil {
-				t.logger.Errorf("could not cleanup storage for tinc network - %s", delErr)
+				t.logger.Errorf("could not cleanup storage for tinc network: %s", delErr)
 			}
 		}
 	}()
@@ -219,7 +219,7 @@ func (t *TincNetworkState) sync() error {
 	var err error
 	defer func() {
 		if err != nil {
-			t.logger.Errorf("could not sync network state - %s", err)
+			t.logger.Errorf("could not sync network state: %s", err)
 		}
 	}()
 
