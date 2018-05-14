@@ -5,6 +5,7 @@ import "capabilities.proto";
 import "container.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
+import "miner.proto";
 
 package sonm;
 
@@ -64,9 +65,8 @@ message HubJoinNetworkRequest {
 
 message StartTaskReply {
     string id = 1;
-    repeated string endpoint = 2;
-    string hubAddr = 3;
-    repeated string networkIDs = 4;
+    map<string, Endpoints> portMap = 2;
+    repeated string networkIDs = 3;
 }
 
 message HubStatusReply {
@@ -122,12 +122,10 @@ message TaskStatusReply {
     }
     Status status = 1;
     string imageName = 2;
-    string ports = 3;
+    map<string, Endpoints> portMap = 3;
     uint64 uptime = 4;
     ResourceUsage usage = 5;
     AskPlanResources allocatedResources = 6;
-    // Deprecated: TODO: minerID is meaningless
-    string minerID = 7;
 }
 
 message StatusMapReply {

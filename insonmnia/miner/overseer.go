@@ -100,15 +100,25 @@ type ContainerInfo struct {
 }
 
 func (c *ContainerInfo) IntoProto() *pb.TaskStatusReply {
-	ports, _ := json.Marshal(c.Ports)
+	ports := make(map[string]*pb.Endpoints)
+	for hostPort, binding := range c.Ports {
+		addr := make([]*pb.SocketAddr, len(binding))
+		for _, bind := range binding {
+			if port, err := strconv.ParseUint(bind.HostPort, 10, 32); err == nil {
+				addr = append(addr, &pb.SocketAddr{Addr: bind.HostIP, Port: uint32(port)})
+			}
+		}
+
+		ports[string(hostPort)] = &pb.Endpoints{Endpoints: addr}
+	}
+
 	return &pb.TaskStatusReply{
 		Status:             c.status,
 		ImageName:          c.ImageName,
-		Ports:              string(ports),
+		PortMap:            ports,
 		Uptime:             uint64(time.Now().Sub(c.StartAt).Nanoseconds()),
 		Usage:              nil,
 		AllocatedResources: nil,
-		MinerID:            "",
 	}
 }
 

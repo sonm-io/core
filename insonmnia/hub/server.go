@@ -307,8 +307,8 @@ func (h *Hub) startTask(ctx context.Context, request *structs.StartTaskRequest) 
 
 	reply := &pb.StartTaskReply{
 		Id:         taskID,
-		HubAddr:    h.ethAddr.Hex(),
 		NetworkIDs: response.NetworkIDs,
+		PortMap:    response.GetPortMap(),
 	}
 
 	return reply, nil
