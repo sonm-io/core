@@ -123,29 +123,44 @@ func (h *Hardware) AskPlanResources() *sonm.AskPlanResources {
 	return result
 }
 
-func insertBench(to []uint64, bench *sonm.Benchmark, proportion float64) ([]uint64, error) {
+func value(v *uint64) uint64 {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
+
+func insertBench(to []*uint64, bench *sonm.Benchmark, proportion float64) ([]*uint64, error) {
 	if math.IsNaN(proportion) || math.IsInf(proportion, 0) {
 		proportion = 0.0
 	}
 	for len(to) <= int(bench.ID) {
-		to = append(to, uint64(0))
+		to = append(to, nil)
 	}
+	result := bench.GetResult()
+	prevVal := to[bench.ID]
 	switch bench.SplittingAlgorithm {
 	case sonm.SplittingAlgorithm_NONE:
-		if to[bench.ID] != 0 {
+		if prevVal != nil {
 			return nil, fmt.Errorf("duplicate benchmark with id %d and type none", bench.ID)
 		}
-		to[bench.ID] = bench.GetResult()
+		to[bench.ID] = &result
 	case sonm.SplittingAlgorithm_PROPORTIONAL:
-		to[bench.ID] += uint64(float64(bench.Result) * proportion)
+		result = value(prevVal) + uint64(float64(bench.Result)*proportion)
+		to[bench.ID] = &result
 	case sonm.SplittingAlgorithm_MAX:
-		if bench.Result > to[bench.ID] {
-			to[bench.ID] = bench.Result
+		if result >= value(prevVal) {
+			to[bench.ID] = &result
 		}
 	case sonm.SplittingAlgorithm_MIN:
-		if bench.Result < to[bench.ID] {
-			to[bench.ID] = bench.Result
+		if prevVal == nil {
+			to[bench.ID] = &result
+		} else {
+			if result < *prevVal {
+				to[bench.ID] = &result
+			}
 		}
+
 	}
 	return to, nil
 }
@@ -155,7 +170,7 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 		return nil, errors.New("passed resources are not normalized, call resources.GPU.Normalize(hardware) first")
 	}
 	var err error
-	benchmarks := make([]uint64, sonm.MinNumBenchmarks)
+	benchmarks := make([]*uint64, sonm.MinNumBenchmarks)
 
 	proportions := []float64{}
 	hwBenches := []map[uint64]*sonm.Benchmark{}
@@ -195,7 +210,11 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 		}
 	}
 
-	return sonm.NewBenchmarks(benchmarks)
+	resultBenchmarks := make([]uint64, len(benchmarks))
+	for k, v := range benchmarks {
+		resultBenchmarks[k] = value(v)
+	}
+	return sonm.NewBenchmarks(resultBenchmarks)
 }
 
 type hashableRAM struct {
