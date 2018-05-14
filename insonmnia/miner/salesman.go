@@ -374,8 +374,8 @@ func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) error {
 		}
 		return m.assignDeal(plan.ID, nil)
 	} else {
-		errBill := m.maybeBillDeal(ctx, deal)
 		errClose := m.maybeCloseDeal(ctx, deal)
+		errBill := m.maybeBillDeal(ctx, deal)
 		if errBill != nil && errClose != nil {
 			return fmt.Errorf("could not bill deal - %s, and close deal - %s", errBill, errClose)
 		}
