@@ -279,13 +279,13 @@ func (r *Repository) Close() error {
 	errs := make([]error, 0)
 	for ty, vol := range r.volumes {
 		if err := vol.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("%s - %s", ty, err))
+			errs = append(errs, fmt.Errorf("%s: %s", ty, err))
 		}
 	}
 
 	for ty, g := range r.gpuTuners {
 		if err := g.Close(); err != nil {
-			errs = append(errs, fmt.Errorf("%s - %s", ty.String(), err))
+			errs = append(errs, fmt.Errorf("%s: %s", ty.String(), err))
 		}
 	}
 
