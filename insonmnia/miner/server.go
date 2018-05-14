@@ -256,7 +256,7 @@ func (m *Miner) listenDeals(dealsCh <-chan *pb.Deal) {
 		case deal := <-dealsCh:
 			if deal.Status == pb.DealStatus_DEAL_CLOSED {
 				if err := m.cancelDealTasks(deal); err != nil {
-					log.S(m.ctx).Warnf("could not stop tasks for closed deal %s - %s", deal.GetId().Unwrap().String(), err)
+					log.S(m.ctx).Warnf("could not stop tasks for closed deal %s: %s", deal.GetId().Unwrap().String(), err)
 				}
 			}
 		}
@@ -434,7 +434,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 
 	dealID, err := pb.NewBigIntFromString(request.DealID)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse deal id as big int - %s", err)
+		return nil, fmt.Errorf("could not parse deal id as big int: %s", err)
 	}
 	ask, err := m.salesman.AskPlanByDeal(dealID)
 	if err != nil {
@@ -461,12 +461,12 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("could not normalize GPU resources", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		return nil, status.Errorf(codes.Internal, "could not normalize GPU resources - %s", err)
+		return nil, status.Errorf(codes.Internal, "could not normalize GPU resources: %s", err)
 	}
 
 	//TODO: generate ID
 	if err := m.resources.ConsumeTask(ask.ID, request.Id, request.Resources); err != nil {
-		return nil, fmt.Errorf("could not start task - %s", err)
+		return nil, fmt.Errorf("could not start task: %s", err)
 	}
 
 	// This can be canceled by using "resourceHandle.commit()".
@@ -486,13 +486,13 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 	if err != nil {
 		log.G(ctx).Error("failed to parse networking specification", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		return nil, status.Errorf(codes.Internal, "failed to parse networking specification - %s", err)
+		return nil, status.Errorf(codes.Internal, "failed to parse networking specification: %s", err)
 	}
 	gpuids, err := m.hardware.GPUIDs(request.GetResources().GetGPU())
 	if err != nil {
 		log.G(ctx).Error("failed to fetch GPU IDs ", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
-		return nil, status.Errorf(codes.Internal, "failed to fetch GPU IDs - %s", err)
+		return nil, status.Errorf(codes.Internal, "failed to fetch GPU IDs: %s", err)
 	}
 	var d = Description{
 		Image:         request.Container.Image,

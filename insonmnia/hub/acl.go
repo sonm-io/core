@@ -152,7 +152,7 @@ func newFromNamedTaskDealExtractor(hub *Hub, name string) DealExtractor {
 
 		askPlan, err := hub.worker.AskPlanByTaskID(taskID.Interface().(string))
 		if err != nil {
-			return "", status.Errorf(codes.NotFound, "ask plan for task %s not found - %s", taskID.String(), err)
+			return "", status.Errorf(codes.NotFound, "ask plan for task %s not found: %s", taskID.String(), err)
 		}
 		if askPlan.GetDealID().IsZero() {
 			return "", status.Errorf(codes.NotFound, "deal for ask plan %s, task %s not found, probably it has been ended",

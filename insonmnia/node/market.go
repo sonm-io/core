@@ -27,7 +27,7 @@ func (m *marketAPI) GetOrders(ctx context.Context, req *pb.Count) (*pb.GetOrders
 
 	orders, err := m.remotes.dwh.GetOrders(ctx, filter)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get orders from DWH: %s", err)
 	}
 
 	reply := &pb.GetOrdersReply{Orders: []*pb.Order{}}
@@ -41,7 +41,7 @@ func (m *marketAPI) GetOrders(ctx context.Context, req *pb.Count) (*pb.GetOrders
 func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, error) {
 	id, err := util.ParseBigInt(req.GetId())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get parse order id %s to BigInt: %s", req.Id, err)
 	}
 
 	return m.remotes.eth.Market().GetOrderInfo(ctx, id)
@@ -67,7 +67,7 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 
 	benchStruct, err := pb.NewBenchmarks(benchmarksValues)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not parse becnhmark values: %s", err)
 	}
 
 	var blacklist string
@@ -95,7 +95,7 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 
 	ordOrErr := <-m.remotes.eth.Market().PlaceOrder(ctx, m.remotes.key, order)
 	if ordOrErr.Err != nil {
-		return nil, ordOrErr.Err
+		return nil, fmt.Errorf("could not place order on blockchain: %s", ordOrErr.Err)
 	}
 
 	go func() {
@@ -116,11 +116,11 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
 	id, err := util.ParseBigInt(req.GetId())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get parse order id %s to BigInt: %s", req.Id, err)
 	}
 
 	if err := <-m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get cancel order %s on blockchain: %s", req.Id, err)
 	}
 
 	return &pb.Empty{}, nil
