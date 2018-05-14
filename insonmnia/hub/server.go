@@ -206,7 +206,7 @@ func (h *Hub) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, erro
 		Platform:  util.GetPlatformName(),
 		Version:   h.version,
 		EthAddr:   util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
-		TaskCount: uint32(len(h.worker.CollectTasksStatuses())),
+		TaskCount: uint32(len(h.worker.CollectTasksStatuses(pb.TaskStatusReply_RUNNING))),
 	}
 
 	return reply, nil
