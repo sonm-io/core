@@ -3,11 +3,13 @@ package commands
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"math/big"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/gosuri/uiprogress"
 	"github.com/sonm-io/core/cmd/cli/task_config"
@@ -47,6 +49,22 @@ var taskRootCmd = &cobra.Command{
 	Short: "Tasks management",
 }
 
+func getActiveDealIDs(ctx context.Context) ([]*big.Int, error) {
+	dealCli, err := newDealsClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("cannot connect to Node - %s", err)
+	}
+	deals, err := dealCli.List(ctx, &pb.Count{Count: 0})
+	if err != nil {
+		return nil, fmt.Errorf("cannot fetch deals list - %s", err)
+	}
+	dealIDs := make([]*big.Int, 0, len(deals.Deal))
+	for _, deal := range deals.Deal {
+		dealIDs = append(dealIDs, deal.GetId().Unwrap())
+	}
+	return dealIDs, nil
+}
+
 var taskListCmd = &cobra.Command{
 	Use:    "list [deal_id]",
 	Short:  "Show active tasks",
@@ -61,22 +79,38 @@ var taskListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		var dealID *big.Int
+		var dealIDs []*big.Int
 		if len(args) > 0 {
-			dealID, err = util.ParseBigInt(args[0])
+			dealID, err := util.ParseBigInt(args[0])
+			if err != nil {
+				showError(cmd, err.Error(), nil)
+				os.Exit(1)
+			}
+			dealIDs = append(dealIDs, dealID)
+		} else {
+			if !isSimpleFormat() {
+				showError(cmd, "listing task for all deals is prohibited in JSON mode", nil)
+				os.Exit(1)
+			}
+			cmd.Printf("fetching deals ...\n")
+			dealIDs, err = getActiveDealIDs(ctx)
 			if err != nil {
 				showError(cmd, err.Error(), nil)
 				os.Exit(1)
 			}
 		}
 
-		list, err := node.List(ctx, &pb.TaskListRequest{DealID: pb.NewBigInt(dealID)})
-		if err != nil {
-			showError(cmd, "Cannot get task list", err)
-			os.Exit(1)
+		for k, dealID := range dealIDs {
+			timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*10)
+			cmd.Printf("Deal %s (%d/%d):\n", dealID.String(), k+1, len(dealIDs))
+			list, err := node.List(timeoutCtx, &pb.TaskListRequest{DealID: pb.NewBigInt(dealID)})
+			if err != nil {
+				showError(cmd, "Cannot get task list for deal", err)
+			} else {
+				printNodeTaskStatus(cmd, list.GetInfo())
+			}
+			cancel()
 		}
-
-		printNodeTaskStatus(cmd, list.Info)
 	},
 }
 
