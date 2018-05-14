@@ -311,8 +311,8 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply) {
 			}
 		} else {
 			// for non-spot deal we can show duration, total price and pricePerSecond
-			cmd.Printf("Duration:     %s\r\n", dealDuration.String())
 			cmd.Printf("Price:        %s USD (%s USD/sec)\r\n", deal.TotalPrice(), deal.GetPrice().ToPriceString())
+			cmd.Printf("Duration:     %s\r\n", dealDuration.String())
 		}
 
 		cmd.Printf("Total payout: %s SNM\r\n", deal.GetTotalPayout().ToPriceString())
@@ -320,9 +320,9 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply) {
 		cmd.Printf("Supplier ID:  %s\r\n", deal.GetSupplierID().Unwrap().Hex())
 
 		cmd.Printf("Start at:     %s\r\n", start.Format(time.RFC3339))
-		if isClosed || !isSpot {
-			// correct endTime exists for any closed deal and non-spot deal in any status.
-			cmd.Printf("End at:       %s\r\n", end.Format(time.RFC3339))
+		if isClosed {
+			// correct endTime exists for any closed deal.
+			cmd.Printf("End at:       %s\r\n", start.Add(dealDuration).Format(time.RFC3339))
 		}
 
 		if lastBill.Unix() > 0 {
