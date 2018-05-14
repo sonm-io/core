@@ -13,6 +13,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/miner/volume"
 	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
 
 	"github.com/docker/docker/api/types"
@@ -102,14 +103,14 @@ type ContainerInfo struct {
 func (c *ContainerInfo) IntoProto() *pb.TaskStatusReply {
 	ports := make(map[string]*pb.Endpoints)
 	for hostPort, binding := range c.Ports {
-		addr := make([]*pb.SocketAddr, len(binding))
+		addrs := make([]*pb.SocketAddr, len(binding))
 		for _, bind := range binding {
-			if port, err := strconv.ParseUint(bind.HostPort, 10, 32); err == nil {
-				addr = append(addr, &pb.SocketAddr{Addr: bind.HostIP, Port: uint32(port)})
+			if port, err := netutil.ExtractPort(bind.HostPort); err == nil {
+				addrs = append(addrs, &pb.SocketAddr{Addr: bind.HostIP, Port: uint32(port)})
 			}
 		}
 
-		ports[string(hostPort)] = &pb.Endpoints{Endpoints: addr}
+		ports[string(hostPort)] = &pb.Endpoints{Endpoints: addrs}
 	}
 
 	return &pb.TaskStatusReply{
