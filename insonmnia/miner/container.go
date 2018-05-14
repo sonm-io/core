@@ -71,7 +71,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 
 	networkingConfig := network.NetworkingConfig{}
 
-	cleanup, err := tuners.Tune(&d, &hostConfig, &networkingConfig)
+	cleanup, err := tuners.Tune(ctx, &d, &hostConfig, &networkingConfig)
 	if err != nil {
 		log.G(ctx).Error("failed to tune container", zap.Error(err))
 		return nil, err

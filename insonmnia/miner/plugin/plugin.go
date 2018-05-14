@@ -131,8 +131,8 @@ func EmptyRepository() *Repository {
 }
 
 // Tune creates all plugin bound required for the given provider with further host config tuning.
-func (r *Repository) Tune(provider Provider, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
-	log.G(context.Background()).Info("tuning container")
+func (r *Repository) Tune(ctx context.Context, provider Provider, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
+	log.G(ctx).Info("tuning container")
 	// Do not specify GPU type right now,
 	// just check that GPU is required
 	if provider.IsGPURequired() {
@@ -141,13 +141,13 @@ func (r *Repository) Tune(provider Provider, hostCfg *container.HostConfig, netC
 		}
 	}
 	cleanup := newNestedCleanup()
-	c, err := r.TuneVolumes(provider, hostCfg)
+	c, err := r.TuneVolumes(ctx, provider, hostCfg)
 	if err != nil {
 		return nil, err
 	}
 	cleanup.Add(c)
 
-	c, err = r.TuneNetworks(provider, hostCfg, netCfg)
+	c, err = r.TuneNetworks(ctx, provider, hostCfg, netCfg)
 	if err != nil {
 		cleanup.Close()
 		return nil, err
@@ -198,7 +198,7 @@ func (r *Repository) TuneGPU(provider GPUProvider, cfg *container.HostConfig) er
 
 // TuneVolumes creates volumes required for the given provider with further
 // host config tuning with mount settings.
-func (r *Repository) TuneVolumes(provider VolumeProvider, cfg *container.HostConfig) (Cleanup, error) {
+func (r *Repository) TuneVolumes(ctx context.Context, provider VolumeProvider, cfg *container.HostConfig) (Cleanup, error) {
 	cleanup := newNestedCleanup()
 
 	for volumeName, options := range provider.Volumes() {
@@ -246,8 +246,8 @@ func (r *Repository) TuneVolumes(provider VolumeProvider, cfg *container.HostCon
 	return &cleanup, nil
 }
 
-func (r *Repository) TuneNetworks(provider NetworkProvider, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
-	log.G(context.Background()).Info("tuning networks")
+func (r *Repository) TuneNetworks(ctx context.Context, provider NetworkProvider, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
+	log.G(ctx).Info("tuning networks")
 	cleanup := newNestedCleanup()
 	networks := provider.Networks()
 	for _, net := range networks {
@@ -256,7 +256,7 @@ func (r *Repository) TuneNetworks(provider NetworkProvider, hostCfg *container.H
 			cleanup.Close()
 			return nil, fmt.Errorf("network driver not supported: %s", net.NetworkType())
 		}
-		c, err := tuner.Tune(net, hostCfg, netCfg)
+		c, err := tuner.Tune(ctx, net, hostCfg, netCfg)
 		if err != nil {
 			cleanup.Close()
 			return nil, err
