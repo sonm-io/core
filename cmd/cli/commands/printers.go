@@ -298,7 +298,7 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply) {
 		dealDuration := end.Sub(start)
 		lastBill := deal.GetLastBillTS().Unix()
 
-		cmd.Printf("ID:           %s\r\n", deal.GetId())
+		cmd.Printf("ID:           %s (%s deal)\r\n", deal.GetId(), deal.GetTypeName())
 		cmd.Printf("ASK ID:       %s\r\n", deal.GetAskID().Unwrap().String())
 		cmd.Printf("BID ID:       %s\r\n", deal.GetBidID().Unwrap().String())
 		cmd.Printf("Status:       %s\r\n", deal.GetStatus())
