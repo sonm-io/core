@@ -17,14 +17,13 @@ func NewCmd(name, appVersion string, cfg *string, version *bool, run Runner) *co
 	c := &cobra.Command{
 		Use: appName(name),
 		PreRunE: func(cmd *cobra.Command, args []string) error {
+			if version != nil && *version {
+				fmt.Println(versionString(name, appVersion))
+				os.Exit(0)
+			}
 			return checkRequiredFlags(cmd.PersistentFlags())
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			if version != nil && *version {
-				fmt.Println(versionString(name, appVersion))
-				return
-			}
-
 			if err := run(); err != nil {
 				fmt.Println(capitalize(err.Error()))
 				os.Exit(1)
