@@ -64,6 +64,9 @@ matcher:
   poll_delay: 10s
   query_limit: 100
 
+dwh:
+  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:15021"
+
 plugins:
   socket_dir: /run/docker/plugins
 

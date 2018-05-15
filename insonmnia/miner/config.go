@@ -6,6 +6,7 @@ import (
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
+	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
@@ -44,8 +45,8 @@ type Config struct {
 	Benchmarks        benchmarks.Config   `yaml:"benchmarks"`
 	Whitelist         WhitelistConfig     `yaml:"whitelist"`
 	MetricsListenAddr string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14000"`
-	DWHEndpoint       string              `yaml:"dwh" default:"127.0.0.1:15021"`
-	Matcher           matcher.YAMLConfig  `yaml:"matcher"`
+	DWH               dwh.YAMLConfig      `yaml:"dwh"`
+	Matcher           *matcher.YAMLConfig `yaml:"matcher"`
 }
 
 // NewConfig creates a new Miner config from the specified YAML file.

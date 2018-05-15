@@ -122,23 +122,27 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 			}
 			o.creds = util.NewTLS(TLSConfig)
 		}
-		cc, err := xgrpc.NewClient(o.ctx, cfg.DWHEndpoint, o.creds)
+		cc, err := xgrpc.NewClient(o.ctx, cfg.DWH.Endpoint, o.creds)
 		if err != nil {
 			return nil, err
 		}
 		o.dwh = pb.NewDWHClient(cc)
 	}
 
-	matcher, err := matcher.NewMatcher(&matcher.Config{
-		Key:        o.key,
-		DWH:        o.dwh,
-		Eth:        o.eth,
-		PollDelay:  cfg.Matcher.PollDelay,
-		QueryLimit: cfg.Matcher.QueryLimit,
-	})
-
-	if err != nil {
-		return nil, err
+	var orderMatcher matcher.Matcher
+	if cfg.Matcher != nil {
+		orderMatcher, err = matcher.NewMatcher(&matcher.Config{
+			Key:        o.key,
+			DWH:        o.dwh,
+			Eth:        o.eth,
+			PollDelay:  cfg.Matcher.PollDelay,
+			QueryLimit: cfg.Matcher.QueryLimit,
+		})
+		if err != nil {
+			return nil, errors.Wrap(err, "cannot create matcher")
+		}
+	} else {
+		orderMatcher = matcher.NewDisabledMatcher()
 	}
 
 	if o.benchList == nil {
@@ -236,7 +240,7 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	//TODO: this is racy, because of post initialization of hardware via benchmarks
 	m.resources = resource.NewScheduler(o.ctx, m.hardware)
 
-	salesman, err := NewSalesman(o.ctx, o.storage, m.resources, m.hardware, o.eth, m.cGroupManager, matcher, o.key)
+	salesman, err := NewSalesman(o.ctx, o.storage, m.resources, m.hardware, o.eth, m.cGroupManager, orderMatcher, o.key)
 	if err != nil {
 		return nil, err
 	}
