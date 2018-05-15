@@ -116,6 +116,6 @@ message BidOrder {
     IdentityLevel identity = 5;
     string tag = 6;
 
-    EthAddress CounterpartyID = 7;
+    EthAddress Counterparty = 7;
     BidResources resources = 8;
 }

@@ -79,7 +79,7 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 		OrderType:      pb.OrderType_BID,
 		OrderStatus:    pb.OrderStatus_ORDER_ACTIVE,
 		AuthorID:       pb.NewEthAddress(crypto.PubkeyToAddress(m.remotes.key.PublicKey)),
-		CounterpartyID: req.GetCounterpartyID(),
+		CounterpartyID: req.GetCounterparty(),
 		Duration:       uint64(req.GetDuration().Unwrap().Seconds()),
 		Price:          req.GetPrice().GetPerSecond(),
 		Netflags: pb.NetflagsToUint([3]bool{
