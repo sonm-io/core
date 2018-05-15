@@ -123,41 +123,57 @@ func (h *Hardware) AskPlanResources() *sonm.AskPlanResources {
 	return result
 }
 
-func value(v *uint64) uint64 {
-	if v == nil {
-		return 0
-	}
-	return *v
+type benchValue struct {
+	isSet bool
+	value uint64
 }
 
-func insertBench(to []*uint64, bench *sonm.Benchmark, proportion float64) ([]*uint64, error) {
+func (m *benchValue) Set(value uint64) {
+	m.value = value
+	m.isSet = true
+}
+
+func (m *benchValue) Add(value uint64) {
+	m.value += value
+	m.isSet = true
+}
+
+func (m *benchValue) IsSet() bool {
+	return m.isSet
+}
+
+func (m *benchValue) Value() uint64 {
+	return m.value
+}
+
+func insertBench(to []benchValue, bench *sonm.Benchmark, proportion float64) ([]benchValue, error) {
 	if math.IsNaN(proportion) || math.IsInf(proportion, 0) {
 		proportion = 0.0
 	}
-	for len(to) <= int(bench.ID) {
-		to = append(to, nil)
+	id := bench.GetID()
+	for len(to) <= int(id) {
+		to = append(to, benchValue{})
 	}
+
 	result := bench.GetResult()
-	prevVal := to[bench.ID]
 	switch bench.SplittingAlgorithm {
 	case sonm.SplittingAlgorithm_NONE:
-		if prevVal != nil {
+		if to[id].IsSet() {
 			return nil, fmt.Errorf("duplicate benchmark with id %d and type none", bench.ID)
 		}
-		to[bench.ID] = &result
+		to[id].Set(result)
 	case sonm.SplittingAlgorithm_PROPORTIONAL:
-		result = value(prevVal) + uint64(float64(bench.Result)*proportion)
-		to[bench.ID] = &result
+		to[id].Add(uint64(float64(result) * proportion))
 	case sonm.SplittingAlgorithm_MAX:
-		if result >= value(prevVal) {
-			to[bench.ID] = &result
+		if result >= to[id].Value() {
+			to[id].Set(result)
 		}
 	case sonm.SplittingAlgorithm_MIN:
-		if prevVal == nil {
-			to[bench.ID] = &result
+		if !to[id].IsSet() {
+			to[id].Set(result)
 		} else {
-			if result < *prevVal {
-				to[bench.ID] = &result
+			if result < to[id].Value() {
+				to[id].Set(result)
 			}
 		}
 
@@ -170,7 +186,7 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 		return nil, errors.New("passed resources are not normalized, call resources.GPU.Normalize(hardware) first")
 	}
 	var err error
-	benchmarks := make([]*uint64, sonm.MinNumBenchmarks)
+	benchmarks := make([]benchValue, sonm.MinNumBenchmarks)
 
 	proportions := []float64{}
 	hwBenches := []map[uint64]*sonm.Benchmark{}
@@ -212,7 +228,7 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 
 	resultBenchmarks := make([]uint64, len(benchmarks))
 	for k, v := range benchmarks {
-		resultBenchmarks[k] = value(v)
+		resultBenchmarks[k] = v.Value()
 	}
 	return sonm.NewBenchmarks(resultBenchmarks)
 }
