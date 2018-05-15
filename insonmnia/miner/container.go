@@ -64,9 +64,8 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		LogConfig:       container.LogConfig{Type: "json-file", Config: logOpts},
 		PublishAllPorts: true,
 		RestartPolicy:   d.RestartPolicy,
-		// NOTE: we perform cleanup after commit manually
-		AutoRemove: false,
-		Resources:  d.Resources.ToHostConfigResources(d.CGroupParent),
+		AutoRemove:      d.autoremove,
+		Resources:       d.Resources.ToHostConfigResources(d.CGroupParent),
 	}
 
 	networkingConfig := network.NetworkingConfig{}
