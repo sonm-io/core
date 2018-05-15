@@ -914,7 +914,8 @@ func parseBenchmarkResult(data []byte) (map[string]*bm.ResultJSON, error) {
 
 func getDescriptionForBenchmark(b *pb.Benchmark) Description {
 	return Description{
-		Image: b.GetImage(),
+		autoremove: true,
+		Image:      b.GetImage(),
 		Env: map[string]string{
 			bm.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
 		},
