@@ -604,13 +604,22 @@ func (m *Miner) Stop(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
-func (m *Miner) CollectTasksStatuses() map[string]*pb.TaskStatusReply {
+func (m *Miner) CollectTasksStatuses(statuses ...pb.TaskStatusReply_Status) map[string]*pb.TaskStatusReply {
 	result := map[string]*pb.TaskStatusReply{}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	for id, info := range m.containers {
-		result[id] = info.IntoProto()
+		if len(statuses) > 0 {
+			for _, s := range statuses {
+				if s == info.status {
+					result[id] = info.IntoProto()
+					break
+				}
+			}
+		} else {
+			result[id] = info.IntoProto()
+		}
 	}
 	return result
 }
