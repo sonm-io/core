@@ -13,6 +13,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/miner/volume"
 	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
 
 	"github.com/docker/docker/api/types"
@@ -99,16 +100,30 @@ type ContainerInfo struct {
 	DealID       string
 }
 
-func (c *ContainerInfo) IntoProto() *pb.TaskStatusReply {
-	ports, _ := json.Marshal(c.Ports)
+func (c *ContainerInfo) IntoProto(ctx context.Context) *pb.TaskStatusReply {
+	ports := make(map[string]*pb.Endpoints)
+	for hostPort, binding := range c.Ports {
+		addrs := make([]*pb.SocketAddr, len(binding))
+		for _, bind := range binding {
+			port, err := netutil.ExtractPort(bind.HostPort)
+			if err != nil {
+				log.G(ctx).Warn("cannot parse port from nat.PortMap",
+					zap.Error(err), zap.String("value", bind.HostPort))
+				continue
+			}
+			addrs = append(addrs, &pb.SocketAddr{Addr: bind.HostIP, Port: uint32(port)})
+		}
+
+		ports[string(hostPort)] = &pb.Endpoints{Endpoints: addrs}
+	}
+
 	return &pb.TaskStatusReply{
 		Status:             c.status,
 		ImageName:          c.ImageName,
-		Ports:              string(ports),
+		PortMap:            ports,
 		Uptime:             uint64(time.Now().Sub(c.StartAt).Nanoseconds()),
 		Usage:              nil,
 		AllocatedResources: nil,
-		MinerID:            "",
 	}
 }
 

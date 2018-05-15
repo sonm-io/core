@@ -613,12 +613,12 @@ func (m *Miner) CollectTasksStatuses(statuses ...pb.TaskStatusReply_Status) map[
 		if len(statuses) > 0 {
 			for _, s := range statuses {
 				if s == info.status {
-					result[id] = info.IntoProto()
+					result[id] = info.IntoProto(m.ctx)
 					break
 				}
 			}
 		} else {
-			result[id] = info.IntoProto()
+			result[id] = info.IntoProto(m.ctx)
 		}
 	}
 	return result
@@ -696,7 +696,7 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 		}
 	}
 
-	reply := info.IntoProto()
+	reply := info.IntoProto(m.ctx)
 	reply.Usage = metric.Marshal()
 	// todo: fill `reply.AllocatedResources` field.
 
@@ -966,7 +966,7 @@ func (m *Miner) GetDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 	for id, c := range m.containers {
 		// task is ours
 		if c.DealID == dealID.Unwrap().String() {
-			task := c.IntoProto()
+			task := c.IntoProto(m.ctx)
 
 			// task is running or preparing to start
 			if c.status == pb.TaskStatusReply_SPOOLING ||

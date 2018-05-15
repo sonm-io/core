@@ -1,12 +1,10 @@
 package commands
 
 import (
-	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/core/types"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -17,14 +15,7 @@ import (
 
 func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusReply) {
 	if isSimpleFormat() {
-		portsParsedOK := false
-		ports := nat.PortMap{}
-		if len(taskStatus.GetPorts()) > 0 {
-			err := json.Unmarshal([]byte(taskStatus.GetPorts()), &ports)
-			portsParsedOK = err == nil
-		}
-
-		cmd.Printf("Task %s (on %s):\r\n", id, taskStatus.MinerID)
+		cmd.Printf("Task %s:\r\n", id)
 		cmd.Printf("  Image:  %s\r\n", taskStatus.GetImageName())
 		cmd.Printf("  Status: %s\r\n", taskStatus.GetStatus().String())
 		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.GetUptime()).String())
@@ -45,21 +36,20 @@ func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusRep
 			}
 		}
 
-		if portsParsedOK && len(ports) > 0 {
+		if len(taskStatus.GetPortMap()) > 0 {
 			cmd.Printf("  Ports:\r\n")
-			for containerPort, portBindings := range ports {
-				for _, portBinding := range portBindings {
-					cmd.Printf("    %s: %s:%s\r\n", containerPort, portBinding.HostIP, portBinding.HostPort)
+			for containerPort, portBindings := range taskStatus.GetPortMap() {
+				for _, portBinding := range portBindings.GetEndpoints() {
+					cmd.Printf("    %s: %s:%d\r\n", containerPort, portBinding.GetAddr(), portBinding.GetPort())
 				}
 			}
 		}
 	} else {
 		v := map[string]interface{}{
 			"id":     id,
-			"worker": taskStatus.MinerID,
 			"status": taskStatus.Status.String(),
 			"image":  taskStatus.GetImageName(),
-			"ports":  taskStatus.GetPorts(),
+			"ports":  taskStatus.GetPortMap(),
 			"uptime": fmt.Sprintf("%d", time.Duration(taskStatus.GetUptime())),
 		}
 		if taskStatus.GetUsage() != nil {
@@ -375,13 +365,16 @@ func printID(cmd *cobra.Command, id string) {
 
 func printTaskStart(cmd *cobra.Command, start *pb.StartTaskReply) {
 	if isSimpleFormat() {
-		cmd.Printf("Task ID:      %s\r\n", start.Id)
-		cmd.Printf("Hub Address:  %s\r\n", start.HubAddr)
-		for _, end := range start.GetEndpoint() {
-			cmd.Printf("  Endpoint:    %s\r\n", end)
+		cmd.Printf("Task ID:    %s\r\n", start.Id)
+
+		for containerPort, portBindings := range start.GetPortMap() {
+			for _, portBinding := range portBindings.GetEndpoints() {
+				cmd.Printf("  Endpoint: %s: %s:%d\r\n", containerPort, portBinding.GetAddr(), portBinding.GetPort())
+			}
 		}
+
 		for _, end := range start.GetNetworkIDs() {
-			cmd.Printf("  Network:    %s\r\n", end)
+			cmd.Printf("  Network:  %s\r\n", end)
 		}
 	} else {
 		showJSON(cmd, start)
