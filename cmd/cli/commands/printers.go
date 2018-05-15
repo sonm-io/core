@@ -15,7 +15,7 @@ import (
 
 func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusReply) {
 	if isSimpleFormat() {
-		cmd.Printf("Task %s:\r\n", id)
+		cmd.Printf("ID: %s\r\n", id)
 		cmd.Printf("  Image:  %s\r\n", taskStatus.GetImageName())
 		cmd.Printf("  Status: %s\r\n", taskStatus.GetStatus().String())
 		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.GetUptime()).String())
@@ -74,12 +74,7 @@ func printNetworkSpec(cmd *cobra.Command, spec *pb.NetworkSpec) {
 func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskStatusReply) {
 	if isSimpleFormat() {
 		for id, task := range tasksMap {
-			i := 1
-			up := time.Duration(task.GetUptime())
-
-			cmd.Printf("  %d) %s \r\n     %s  %s (up: %v)\r\n",
-				i, id, task.GetImageName(), task.GetStatus().String(), up.String())
-			i++
+			printTaskStatus(cmd, id, task)
 		}
 	} else {
 		showJSON(cmd, tasksMap)
