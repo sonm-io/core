@@ -5,6 +5,7 @@ import (
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
+	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/npp"
@@ -20,10 +21,6 @@ type hubConfig struct {
 	Endpoint string `required:"false" yaml:"endpoint"`
 }
 
-type dwhConfig struct {
-	Endpoint string `required:"false" yaml:"endpoint"`
-}
-
 type Config struct {
 	Node              nodeConfig          `yaml:"node"`
 	NPP               npp.Config          `yaml:"npp"`
@@ -31,7 +28,7 @@ type Config struct {
 	Blockchain        *blockchain.Config  `yaml:"blockchain"`
 	Eth               accounts.EthConfig  `yaml:"ethereum" required:"false"`
 	Hub               hubConfig           `yaml:"hub" required:"false"`
-	DWH               dwhConfig           `yaml:"dwh"`
+	DWH               dwh.YAMLConfig      `yaml:"dwh"`
 	MetricsListenAddr string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14003"`
 	Benchmarks        benchmarks.Config   `yaml:"benchmarks"`
 	Matcher           *matcher.YAMLConfig `yaml:"matcher"`

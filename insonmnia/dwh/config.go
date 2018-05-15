@@ -32,6 +32,10 @@ type ColdStartConfig struct {
 	UpToBlock uint64 `yaml:"up_to_block"`
 }
 
+type YAMLConfig struct {
+	Endpoint string `yaml:"endpoint" required:"false"`
+}
+
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
 	err := configor.Load(cfg, path)

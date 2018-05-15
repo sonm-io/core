@@ -24,8 +24,8 @@ type Matcher interface {
 // YAMLConfig is embeddable config that can be integrated with
 // another component's config.
 type YAMLConfig struct {
-	PollDelay  time.Duration `yaml:"poll_delay"`
-	QueryLimit uint64        `yaml:"query_limit"`
+	PollDelay  time.Duration `yaml:"poll_delay" default:"30s"`
+	QueryLimit uint64        `yaml:"query_limit" default:"50"`
 }
 
 type Config struct {
