@@ -123,29 +123,60 @@ func (h *Hardware) AskPlanResources() *sonm.AskPlanResources {
 	return result
 }
 
-func insertBench(to []uint64, bench *sonm.Benchmark, proportion float64) ([]uint64, error) {
+type benchValue struct {
+	isSet bool
+	value uint64
+}
+
+func (m *benchValue) Set(value uint64) {
+	m.value = value
+	m.isSet = true
+}
+
+func (m *benchValue) Add(value uint64) {
+	m.value += value
+	m.isSet = true
+}
+
+func (m *benchValue) IsSet() bool {
+	return m.isSet
+}
+
+func (m *benchValue) Value() uint64 {
+	return m.value
+}
+
+func insertBench(to []benchValue, bench *sonm.Benchmark, proportion float64) ([]benchValue, error) {
 	if math.IsNaN(proportion) || math.IsInf(proportion, 0) {
 		proportion = 0.0
 	}
-	for len(to) <= int(bench.ID) {
-		to = append(to, uint64(0))
+	id := bench.GetID()
+	for len(to) <= int(id) {
+		to = append(to, benchValue{})
 	}
+
+	result := bench.GetResult()
 	switch bench.SplittingAlgorithm {
 	case sonm.SplittingAlgorithm_NONE:
-		if to[bench.ID] != 0 {
+		if to[id].IsSet() {
 			return nil, fmt.Errorf("duplicate benchmark with id %d and type none", bench.ID)
 		}
-		to[bench.ID] = bench.GetResult()
+		to[id].Set(result)
 	case sonm.SplittingAlgorithm_PROPORTIONAL:
-		to[bench.ID] += uint64(float64(bench.Result) * proportion)
+		to[id].Add(uint64(float64(result) * proportion))
 	case sonm.SplittingAlgorithm_MAX:
-		if bench.Result > to[bench.ID] {
-			to[bench.ID] = bench.Result
+		if result >= to[id].Value() {
+			to[id].Set(result)
 		}
 	case sonm.SplittingAlgorithm_MIN:
-		if bench.Result < to[bench.ID] {
-			to[bench.ID] = bench.Result
+		if !to[id].IsSet() {
+			to[id].Set(result)
+		} else {
+			if result < to[id].Value() {
+				to[id].Set(result)
+			}
 		}
+
 	}
 	return to, nil
 }
@@ -155,7 +186,7 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 		return nil, errors.New("passed resources are not normalized, call resources.GPU.Normalize(hardware) first")
 	}
 	var err error
-	benchmarks := make([]uint64, sonm.MinNumBenchmarks)
+	benchmarks := make([]benchValue, sonm.MinNumBenchmarks)
 
 	proportions := []float64{}
 	hwBenches := []map[uint64]*sonm.Benchmark{}
@@ -195,7 +226,11 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 		}
 	}
 
-	return sonm.NewBenchmarks(benchmarks)
+	resultBenchmarks := make([]uint64, len(benchmarks))
+	for k, v := range benchmarks {
+		resultBenchmarks[k] = v.Value()
+	}
+	return sonm.NewBenchmarks(resultBenchmarks)
 }
 
 type hashableRAM struct {
