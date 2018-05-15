@@ -44,6 +44,7 @@ type Description struct {
 	TaskId        string
 	DealId        string
 	CommitOnStop  bool
+	autoremove    bool
 
 	GPUDevices []gpu.GPUID
 
