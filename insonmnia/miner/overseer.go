@@ -100,14 +100,18 @@ type ContainerInfo struct {
 	DealID       string
 }
 
-func (c *ContainerInfo) IntoProto() *pb.TaskStatusReply {
+func (c *ContainerInfo) IntoProto(ctx context.Context) *pb.TaskStatusReply {
 	ports := make(map[string]*pb.Endpoints)
 	for hostPort, binding := range c.Ports {
 		addrs := make([]*pb.SocketAddr, len(binding))
 		for _, bind := range binding {
-			if port, err := netutil.ExtractPort(bind.HostPort); err == nil {
-				addrs = append(addrs, &pb.SocketAddr{Addr: bind.HostIP, Port: uint32(port)})
+			port, err := netutil.ExtractPort(bind.HostPort)
+			if err != nil {
+				log.G(ctx).Warn("cannot parse port from nat.PortMap",
+					zap.Error(err), zap.String("value", bind.HostPort))
+				continue
 			}
+			addrs = append(addrs, &pb.SocketAddr{Addr: bind.HostIP, Port: uint32(port)})
 		}
 
 		ports[string(hostPort)] = &pb.Endpoints{Endpoints: addrs}
