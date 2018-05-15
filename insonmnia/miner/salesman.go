@@ -44,8 +44,8 @@ type Salesman struct {
 
 //TODO: make configurable
 const (
-	regularDealBillPeriod = time.Second * 3600
-	spotDealBillPeriod    = time.Second * 3600 * 24
+	regularDealBillPeriod = time.Second * 3600 * 24
+	spotDealBillPeriod    = time.Second * 3600
 )
 
 func NewSalesman(
@@ -185,7 +185,8 @@ func (m *Salesman) RemoveAskPlan(planID string) error {
 	return nil
 }
 
-func (m *Salesman) shutdownAskPlan(ctx context.Context, plan *sonm.AskPlan) error {
+func (m *Salesman) maybeShutdownAskPlan(ctx context.Context, plan *sonm.AskPlan) error {
+	m.log.Debugf("trying to shut down ask plan %s", plan.GetID())
 	if !plan.GetDealID().IsZero() {
 		dealInfo, err := m.eth.Market().GetDealInfo(ctx, plan.GetDealID().Unwrap())
 		if err != nil {
@@ -193,27 +194,22 @@ func (m *Salesman) shutdownAskPlan(ctx context.Context, plan *sonm.AskPlan) erro
 		}
 		if dealInfo.Status == sonm.DealStatus_DEAL_ACCEPTED {
 			if dealInfo.GetDuration() == 0 {
+				m.log.Infof("closing spot deal %s for ask plan %s", dealInfo.GetId(), plan.GetID())
 				if err := <-m.eth.Market().CloseDeal(ctx, m.ethkey, plan.GetDealID().Unwrap(), false); err != nil {
 					return err
 				}
 			} else {
-				return fmt.Errorf("ask plan %s is still bound to deal %s", plan.ID, plan.GetDealID().Unwrap().String())
+				m.log.Debugf("ask plan %s is still bound to deal %s, checking deal", plan.ID, plan.GetDealID().Unwrap().String())
+				// It's not the error - we just need to wait for deal to finish
+				return m.checkDeal(ctx, plan, dealInfo)
 			}
 		}
 	}
 
 	if plan.GetDealID().IsZero() && !plan.GetOrderID().IsZero() {
-		orderInfo, err := m.eth.Market().GetOrderInfo(ctx, plan.GetOrderID().Unwrap())
-		if err != nil {
-			return err
-		}
-		if !orderInfo.DealID.IsZero() {
-			return fmt.Errorf("order was bound to deal")
-		}
-		if orderInfo.OrderStatus == sonm.OrderStatus_ORDER_ACTIVE {
-			if err := <-m.eth.Market().CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
-				return err
-			}
+		if err := <-m.eth.Market().CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
+			m.log.Infof("could not cancel order - %s, checking order to update info", err)
+			return m.checkOrder(ctx, plan)
 		}
 	}
 	m.mu.Lock()
@@ -287,11 +283,11 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 		//TODO: Drop hardcode
 		ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Second*180)
 		if plan.Status == sonm.AskPlan_PENDING_DELETION {
-			if err := m.shutdownAskPlan(ctx, plan); err != nil {
+			if err := m.maybeShutdownAskPlan(ctxWithTimeout, plan); err != nil {
 				m.log.Warnf("could not shutdown ask plan %s: %s", plan.ID, err)
 			}
 		} else if !dealId.IsZero() {
-			if err := m.checkDeal(ctxWithTimeout, plan); err != nil {
+			if err := m.loadCheckDeal(ctxWithTimeout, plan); err != nil {
 				m.log.Warnf("could not check deal %s for plan %s: %s", dealId.Unwrap().String(), plan.ID, err)
 			}
 		} else if !orderId.IsZero() {
@@ -322,6 +318,7 @@ func (m *Salesman) restoreState() error {
 			//Ignore error here, as resources that were not consumed can not be released.
 			m.RemoveAskPlan(plan.ID)
 		} else {
+			m.log.Debugf("consumed resource for ask plan %s", plan.GetID())
 			if err := m.createCGroup(plan); err != nil {
 				m.log.Warnf("can not create cgroup for ask plan %s: %s", plan.ID, err)
 				return err
@@ -352,27 +349,35 @@ func (m *Salesman) dropCGroup(planID string) error {
 	if err := cgroup.Delete(); err != nil {
 		return fmt.Errorf("could not drop cgroup %s for ask plan %s: %s", cgroup.Suffix(), planID, err)
 	}
+	m.log.Debugf("dropped cgroup for ask plan %s", planID)
 	return nil
 }
 
-func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan) error {
+func (m *Salesman) loadCheckDeal(ctx context.Context, plan *sonm.AskPlan) error {
 	dealID := plan.DealID.Unwrap()
-	dealStr := dealID.String()
-	orderID := plan.GetOrderID().Unwrap()
-	orderStr := orderID.String()
 
-	m.log.Debugf("checking deal %s for ask plan %s and order %s", dealStr, plan.ID, orderStr)
 	deal, err := m.eth.Market().GetDealInfo(ctx, dealID)
 	if err != nil {
-		return fmt.Errorf("could not get deal info for order %s, ask %s: %s", orderStr, plan.ID, err)
+		return fmt.Errorf("could not get deal info for ask plan  %s: %s", plan.ID, err)
 	}
+	return m.checkDeal(ctx, plan, deal)
+
+}
+
+func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan, deal *sonm.Deal) error {
+	m.log.Debugf("checking deal %s for ask plan %s", deal.GetId().Unwrap().String(), plan.GetID())
+
 	m.registerDeal(deal)
 
 	if deal.Status == sonm.DealStatus_DEAL_CLOSED {
 		if err := m.assignOrder(plan.ID, nil); err != nil {
-			return err
+			return fmt.Errorf("failed to cleanup order from ask plan %s: %s", plan.GetID(), err)
 		}
-		return m.assignDeal(plan.ID, nil)
+		if err := m.assignDeal(plan.ID, nil); err != nil {
+			return fmt.Errorf("failed to cleanup deal from ask plan %s: %s", plan.GetID(), err)
+		}
+		m.log.Debugf("succesefully removed closed deal %s from ask plan %s", deal.GetId().Unwrap().String(), plan.GetID())
+		return nil
 	} else {
 		errClose := m.maybeCloseDeal(ctx, deal)
 		errBill := m.maybeBillDeal(ctx, deal)
@@ -399,8 +404,10 @@ func (m *Salesman) maybeBillDeal(ctx context.Context, deal *sonm.Deal) error {
 	}
 
 	if time.Now().Sub(start) > billPeriod {
-		//TODO: fix ETH API and this
-		return <-m.eth.Market().Bill(ctx, m.ethkey, deal.GetId().Unwrap())
+		if err := <-m.eth.Market().Bill(ctx, m.ethkey, deal.GetId().Unwrap()); err != nil {
+			return err
+		}
+		m.log.Infof("billed deal %s", deal.GetId().Unwrap().String())
 	}
 	return nil
 }
@@ -409,7 +416,10 @@ func (m *Salesman) maybeCloseDeal(ctx context.Context, deal *sonm.Deal) error {
 	if deal.GetDuration() != 0 {
 		endTime := deal.GetStartTime().Unix().Add(time.Second * time.Duration(deal.GetDuration()))
 		if time.Now().After(endTime) {
-			return <-m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), false)
+			if err := <-m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), false); err != nil {
+				return err
+			}
+			m.log.Infof("closed expired deal %s", deal.GetId().Unwrap().String())
 		}
 	}
 	return nil
@@ -419,10 +429,17 @@ func (m *Salesman) registerOrder(order *sonm.Order) {
 	id := order.Id.Unwrap().String()
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	_, has := m.orders[id]
 	if !order.DealID.IsZero() || order.OrderStatus == sonm.OrderStatus_ORDER_ACTIVE {
-		m.orders[id] = order
+		if !has {
+			m.orders[id] = order
+			m.log.Info("registered order %s", order.GetId().Unwrap().String())
+		}
 	} else {
-		delete(m.orders, id)
+		if has {
+			delete(m.orders, id)
+			m.log.Info("unregistered order %s", order.GetId().Unwrap().String())
+		}
 	}
 }
 
@@ -432,10 +449,17 @@ func (m *Salesman) registerDeal(deal *sonm.Deal) {
 	id := deal.GetId().Unwrap().String()
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	_, has := m.deals[id]
 	if deal.Status == sonm.DealStatus_DEAL_ACCEPTED {
-		m.deals[id] = deal
+		if !has {
+			m.deals[id] = deal
+			m.log.Info("registered deal %s", deal.GetId().Unwrap().String())
+		}
 	} else {
-		delete(m.deals, id)
+		if has {
+			delete(m.deals, id)
+			m.log.Info("unregistered deal %s", deal.GetId().Unwrap().String())
+		}
 	}
 }
 
@@ -447,7 +471,11 @@ func (m *Salesman) assignDeal(planID string, dealID *sonm.BigInt) error {
 		return fmt.Errorf("could not assign deal %s to plan %s: no such plan", dealID.Unwrap().String(), planID)
 	}
 	plan.DealID = dealID
-	return m.askPlanStorage.Save(m.askPlans)
+	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
+		return err
+	}
+	m.log.Info("assigned deal %s to plan %s", dealID.Unwrap().String(), planID)
+	return nil
 }
 
 func (m *Salesman) assignOrder(planID string, orderID *sonm.BigInt) error {
@@ -458,7 +486,11 @@ func (m *Salesman) assignOrder(planID string, orderID *sonm.BigInt) error {
 		return fmt.Errorf("could not assign order %s to plan %s: no such plan", orderID.Unwrap().String(), planID)
 	}
 	plan.OrderID = orderID
-	return m.askPlanStorage.Save(m.askPlans)
+	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
+		return err
+	}
+	m.log.Info("assigned order %s to plan %s", orderID.Unwrap().String(), planID)
+	return nil
 }
 
 func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
@@ -476,7 +508,7 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 		if err := m.assignDeal(plan.ID, order.DealID); err != nil {
 			return err
 		}
-		return m.checkDeal(ctx, plan)
+		return m.loadCheckDeal(ctx, plan)
 	} else if order.OrderStatus != sonm.OrderStatus_ORDER_ACTIVE {
 		return m.assignOrder(plan.ID, nil)
 	}
