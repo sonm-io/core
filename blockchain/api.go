@@ -61,7 +61,7 @@ type MarketAPI interface {
 type BlacklistAPI interface {
 	Check(ctx context.Context, who, whom common.Address) (bool, error)
 	Add(ctx context.Context, key *ecdsa.PrivateKey, who, whom common.Address) (*types.Transaction, error)
-	Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) (*types.Transaction, error)
+	Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) <-chan error
 	AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error)
 	RemoveMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error)
 	SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey, market common.Address) (*types.Transaction, error)
@@ -140,7 +140,7 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
-	blacklist, err := NewBasicBlacklist(clientSidechain, market.BlacklistAddr(), defaults.gasPriceSidechain)
+	blacklist, err := NewBasicBlacklist(customClientSidechain, market.BlacklistAddr(), defaults.gasPriceSidechain, defaults.logParsePeriod)
 	if err != nil {
 		return nil, err
 	}
@@ -160,6 +160,7 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
+	// fixme: wtf? context.Background for logger?
 	events, err := NewEventsAPI(clientSidechain, ctxlog.GetLogger(context.Background()))
 	if err != nil {
 		return nil, err
@@ -620,12 +621,13 @@ func (api *ProfileRegistry) GetCertificate(ctx context.Context, certificateID *b
 }
 
 type BasicBlacklistAPI struct {
-	client            EthereumClientBackend
+	client            CustomEthereumClient
 	blacklistContract *marketAPI.Blacklist
 	gasPrice          int64
+	logParsePeriod    time.Duration
 }
 
-func NewBasicBlacklist(client EthereumClientBackend, address common.Address, gasPrice int64) (BlacklistAPI, error) {
+func NewBasicBlacklist(client CustomEthereumClient, address common.Address, gasPrice int64, logParsePeriod time.Duration) (BlacklistAPI, error) {
 	blacklistContract, err := marketAPI.NewBlacklist(address, client)
 	if err != nil {
 		return nil, err
@@ -635,6 +637,7 @@ func NewBasicBlacklist(client EthereumClientBackend, address common.Address, gas
 		client:            client,
 		blacklistContract: blacklistContract,
 		gasPrice:          gasPrice,
+		logParsePeriod:    logParsePeriod,
 	}, nil
 }
 
@@ -647,9 +650,32 @@ func (api *BasicBlacklistAPI) Add(ctx context.Context, key *ecdsa.PrivateKey, wh
 	return api.blacklistContract.Add(opts, who, whom)
 }
 
-func (api *BasicBlacklistAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) (*types.Transaction, error) {
+func (api *BasicBlacklistAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) <-chan error {
+	ch := make(chan error)
+	go api.remove(ctx, key, whom, ch)
+	return ch
+}
+
+func (api *BasicBlacklistAPI) remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address, ch chan<- error) {
 	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
-	return api.blacklistContract.Remove(opts, whom)
+	tx, err := api.blacklistContract.Remove(opts, whom)
+	if err != nil {
+		ch <- err
+		return
+	}
+
+	rec, err := WaitTransactionReceipt(ctx, api.client, defaultBlockConfirmations, api.logParsePeriod, tx)
+	if err != nil {
+		ch <- err
+		return
+	}
+
+	if _, err := FindLogByTopic(rec, market.RemovedFromBlacklistTopic); err != nil {
+		ch <- err
+		return
+	}
+
+	ch <- nil
 }
 
 func (api *BasicBlacklistAPI) AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error) {
