@@ -43,17 +43,17 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		return "?, "
 	}
 
-	commands := &sqlStorage{
+	store := &sqlStorage{
 		commands: &sqlCommands{
-			insertDeal:                   `INSERT INTO Deals(%s) VALUES (%s)`,
+			insertDeal:                   makeInsertDealQuery(`INSERT INTO Deals(%s) VALUES (%s)`, formatCb, numBenchmarks, tInfo),
 			updateDeal:                   `UPDATE Deals SET Duration=?, Price=?, StartTime=?, EndTime=?, Status=?, BlockedBalance=?, TotalPayout=?, LastBillTS=? WHERE Id=?`,
 			updateDealsSupplier:          `UPDATE Deals SET SupplierCertificates=? WHERE SupplierID=?`,
 			updateDealsConsumer:          `UPDATE Deals SET ConsumerCertificates=? WHERE ConsumerID=?`,
 			updateDealPayout:             `UPDATE Deals SET TotalPayout = ? WHERE Id = ?`,
-			selectDealByID:               `SELECT %s FROM Deals WHERE id=?`,
+			selectDealByID:               makeSelectDealByIDQuery(`SELECT %s FROM Deals WHERE id=?`, tInfo),
 			deleteDeal:                   `DELETE FROM Deals WHERE Id=?`,
-			insertOrder:                  `INSERT INTO Orders(%s) VALUES (%s)`,
-			selectOrderByID:              `SELECT %s FROM Orders WHERE id=?`,
+			insertOrder:                  makeInsertOrderQuery(`INSERT INTO Orders(%s) VALUES (%s)`, formatCb, numBenchmarks, tInfo),
+			selectOrderByID:              makeSelectOrderByIDQuery(`SELECT %s FROM Orders WHERE id=?`, tInfo),
 			updateOrderStatus:            `UPDATE Orders SET Status=? WHERE Id=?`,
 			updateOrders:                 `UPDATE Orders SET CreatorIdentityLevel=?, CreatorName=?, CreatorCountry=?, CreatorCertificates=? WHERE AuthorID=?`,
 			deleteOrder:                  `DELETE FROM Orders WHERE Id=?`,
@@ -87,7 +87,7 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		},
 		setupCommands: &sqlSetupCommands{
 			// Incomplete, modified during setup.
-			createTableDeals: `
+			createTableDeals: makeTableWithBenchmarks(`
 	CREATE TABLE IF NOT EXISTS Deals (
 		Id						TEXT UNIQUE NOT NULL,
 		SupplierID				TEXT NOT NULL,
@@ -108,7 +108,7 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		BidIdentityLevel		INTEGER NOT NULL,
 		SupplierCertificates    BLOB NOT NULL,
 		ConsumerCertificates    BLOB NOT NULL,
-		ActiveChangeRequest     INTEGER NOT NULL`,
+		ActiveChangeRequest     INTEGER NOT NULL`, `INTEGER DEFAULT 0`),
 			createTableDealConditions: `
 	CREATE TABLE IF NOT EXISTS DealConditions (
 		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -143,7 +143,7 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		FOREIGN KEY (DealID)		REFERENCES Deals(Id) ON DELETE CASCADE
 	)`,
 			// Incomplete, modified during setup.
-			createTableOrders: `
+			createTableOrders: makeTableWithBenchmarks(`
 	CREATE TABLE IF NOT EXISTS Orders (
 		Id						TEXT UNIQUE NOT NULL,
 		CreatedTS				INTEGER NOT NULL,
@@ -162,7 +162,7 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		CreatorIdentityLevel	INTEGER NOT NULL,
 		CreatorName				TEXT NOT NULL,
 		CreatorCountry			TEXT NOT NULL,
-		CreatorCertificates		BLOB NOT NULL`,
+		CreatorCertificates		BLOB NOT NULL`, `INTEGER DEFAULT 0`),
 			createTableWorkers: `
 	CREATE TABLE IF NOT EXISTS Workers (
 		MasterID					TEXT NOT NULL,
@@ -212,14 +212,13 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 			createIndexCmd: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
 			tablesInfo:     tInfo,
 		},
-		numBenchmarks:  numBenchmarks,
-		queryRunner:    newSQLiteQueryRunner(tInfo),
-		tablesInfo:     tInfo,
-		formatCb:       formatCb,
-		benchmarksType: `INTEGER DEFAULT 0`,
+		numBenchmarks: numBenchmarks,
+		queryRunner:   newSQLiteQueryRunner(tInfo),
+		tablesInfo:    tInfo,
+		formatCb:      formatCb,
 	}
 
-	return commands
+	return store
 }
 
 type sqliteQueryRunner struct {

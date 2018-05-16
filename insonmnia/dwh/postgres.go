@@ -38,15 +38,15 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 	}
 	commands := &sqlStorage{
 		commands: &sqlCommands{
-			insertDeal:                   `INSERT INTO Deals(%s) VALUES (%s)`,
+			insertDeal:                   makeInsertDealQuery(`INSERT INTO Deals(%s) VALUES (%s)`, formatCb, numBenchmarks, tInfo),
 			updateDeal:                   `UPDATE Deals SET Duration = $1, Price = $2, StartTime = $3, EndTime = $4, Status = $5, BlockedBalance = $6, TotalPayout = $7, LastBillTS = $7 WHERE Id = $8`,
 			updateDealsSupplier:          `UPDATE Deals SET SupplierCertificates = $1 WHERE SupplierID = $2`,
 			updateDealsConsumer:          `UPDATE Deals SET ConsumerCertificates = $1 WHERE ConsumerID = $2`,
 			updateDealPayout:             `UPDATE Deals SET TotalPayout = $1 WHERE Id = $2`,
-			selectDealByID:               `SELECT %s FROM Deals WHERE id = $1`,
+			selectDealByID:               makeSelectDealByIDQuery(`SELECT %s FROM Deals WHERE id = $1`, tInfo),
 			deleteDeal:                   `DELETE FROM Deals WHERE Id = $1`,
-			insertOrder:                  `INSERT INTO Orders(%s) VALUES (%s)`,
-			selectOrderByID:              `SELECT %s FROM Orders WHERE id = $1`,
+			insertOrder:                  makeInsertOrderQuery(`INSERT INTO Orders(%s) VALUES (%s)`, formatCb, numBenchmarks, tInfo),
+			selectOrderByID:              makeSelectOrderByIDQuery(`SELECT %s FROM Orders WHERE id = $1`, tInfo),
 			updateOrders:                 `UPDATE Orders SET CreatorIdentityLevel = $1, CreatorName = $2, CreatorCountry = $3, CreatorCertificates = $4 WHERE AuthorID = $5`,
 			updateOrderStatus:            `UPDATE Orders SET Status = $1 WHERE Id = $2`,
 			deleteOrder:                  `DELETE FROM Orders WHERE Id = $1`,
@@ -79,7 +79,7 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 			updateLastKnownBlock:         `UPDATE Misc SET LastKnownBlock = $1 WHERE Id = 1`,
 		},
 		setupCommands: &sqlSetupCommands{
-			createTableDeals: `
+			createTableDeals: makeTableWithBenchmarks(`
 	CREATE TABLE IF NOT EXISTS Deals (
 		Id						TEXT UNIQUE NOT NULL,
 		SupplierID				TEXT NOT NULL,
@@ -100,7 +100,7 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		BidIdentityLevel		INTEGER NOT NULL,
 		SupplierCertificates    BYTEA NOT NULL,
 		ConsumerCertificates    BYTEA NOT NULL,
-		ActiveChangeRequest     BOOLEAN NOT NULL`,
+		ActiveChangeRequest     BOOLEAN NOT NULL`, `BIGINT DEFAULT 0`),
 			createTableDealConditions: `
 	CREATE TABLE IF NOT EXISTS DealConditions (
 		Id							BIGSERIAL PRIMARY KEY,
@@ -131,7 +131,7 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		Status						INTEGER NOT NULL,
 		DealID						TEXT NOT NULL REFERENCES Deals(Id) ON DELETE CASCADE
 	)`,
-			createTableOrders: `
+			createTableOrders: makeTableWithBenchmarks(`
 	CREATE TABLE IF NOT EXISTS Orders (
 		Id						TEXT UNIQUE NOT NULL,
 		CreatedTS				INTEGER NOT NULL,
@@ -150,7 +150,7 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		CreatorIdentityLevel	INTEGER NOT NULL,
 		CreatorName				TEXT NOT NULL,
 		CreatorCountry			TEXT NOT NULL,
-		CreatorCertificates		BYTEA NOT NULL`,
+		CreatorCertificates		BYTEA NOT NULL`, `BIGINT DEFAULT 0`),
 			createTableWorkers: `
 	CREATE TABLE IF NOT EXISTS Workers (
 		MasterID					TEXT NOT NULL,
@@ -199,11 +199,10 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 			createIndexCmd: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
 			tablesInfo:     tInfo,
 		},
-		numBenchmarks:  numBenchmarks,
-		queryRunner:    newPostgresQueryRunner(tInfo),
-		tablesInfo:     tInfo,
-		formatCb:       formatCb,
-		benchmarksType: `BIGINT DEFAULT 0`,
+		numBenchmarks: numBenchmarks,
+		queryRunner:   newPostgresQueryRunner(tInfo),
+		tablesInfo:    tInfo,
+		formatCb:      formatCb,
 	}
 
 	return commands

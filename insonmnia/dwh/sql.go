@@ -33,19 +33,15 @@ var (
 )
 
 type sqlStorage struct {
-	commands       *sqlCommands
-	setupCommands  *sqlSetupCommands
-	numBenchmarks  uint64
-	queryRunner    queryRunner
-	tablesInfo     *tablesInfo
-	formatCb       formatArg
-	benchmarksType string
+	commands      *sqlCommands
+	setupCommands *sqlSetupCommands
+	numBenchmarks uint64
+	queryRunner   queryRunner
+	tablesInfo    *tablesInfo
+	formatCb      formatArg
 }
 
 func (c *sqlStorage) Setup(db *sql.DB) error {
-	c.commands.finalize(c.tablesInfo, c.numBenchmarks, c.formatCb)
-	c.setupCommands.finalize(c.benchmarksType)
-
 	return c.setupCommands.setupTables(db)
 }
 
@@ -1346,41 +1342,6 @@ type sqlCommands struct {
 	updateLastKnownBlock         string
 }
 
-// finalizes updates commands based on current number of benchmarks.
-func (c *sqlCommands) finalize(tInfo *tablesInfo, numBenchmarks uint64, formatCb formatArg) {
-	// Construct placeholders for Deals.
-	dealPlaceholders := ""
-	for i := uint64(0); i < tInfo.NumDealColumns; i++ {
-		dealPlaceholders += formatCb(i, false)
-	}
-	for i := tInfo.NumDealColumns; i < tInfo.NumDealColumns+numBenchmarks; i++ {
-		if i == numBenchmarks+tInfo.NumDealColumns-1 {
-			dealPlaceholders += formatCb(i, true)
-		} else {
-			dealPlaceholders += formatCb(i, false)
-		}
-	}
-	dealColumnsString := strings.Join(tInfo.DealColumns, ", ")
-	c.insertDeal = fmt.Sprintf(c.insertDeal, dealColumnsString, dealPlaceholders)
-	c.selectDealByID = fmt.Sprintf(c.selectDealByID, dealColumnsString)
-
-	// Construct placeholders for Orders.
-	orderPlaceholders := ""
-	for i := uint64(0); i < tInfo.NumOrderColumns; i++ {
-		orderPlaceholders += formatCb(i, false)
-	}
-	for i := tInfo.NumOrderColumns; i < tInfo.NumOrderColumns+numBenchmarks; i++ {
-		if i == numBenchmarks+tInfo.NumOrderColumns-1 {
-			orderPlaceholders += formatCb(i, true)
-		} else {
-			orderPlaceholders += formatCb(i, false)
-		}
-	}
-	orderColumnsString := strings.Join(tInfo.OrderColumns, ", ")
-	c.insertOrder = fmt.Sprintf(c.insertOrder, orderColumnsString, orderPlaceholders)
-	c.selectOrderByID = fmt.Sprintf(c.selectOrderByID, orderColumnsString)
-}
-
 type sqlSetupCommands struct {
 	createTableDeals          string
 	createTableDealConditions string
@@ -1395,18 +1356,6 @@ type sqlSetupCommands struct {
 	createTableMisc           string
 	createIndexCmd            string
 	tablesInfo                *tablesInfo
-}
-
-// finalizes updates commands based on NumMaxBenchmarks.
-func (c *sqlSetupCommands) finalize(benchmarkType string) {
-	benchmarkColumns := make([]string, NumMaxBenchmarks)
-	for benchmarkID := uint64(0); benchmarkID < NumMaxBenchmarks; benchmarkID++ {
-		benchmarkColumns[benchmarkID] = fmt.Sprintf("%s %s", getBenchmarkColumn(uint64(benchmarkID)), benchmarkType)
-	}
-	c.createTableDeals = strings.Join(
-		append([]string{c.createTableDeals}, benchmarkColumns...), ",\n") + ")"
-	c.createTableOrders = strings.Join(
-		append([]string{c.createTableOrders}, benchmarkColumns...), ",\n") + ")"
 }
 
 func (c *sqlSetupCommands) setupTables(db *sql.DB) error {
@@ -1676,4 +1625,50 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 	}
 
 	return out
+}
+
+func makeInsertDealQuery(format string, formatCb formatArg, numBenchmarks uint64, tInfo *tablesInfo) string {
+	dealPlaceholders := ""
+	for i := uint64(0); i < tInfo.NumDealColumns; i++ {
+		dealPlaceholders += formatCb(i, false)
+	}
+	for i := tInfo.NumDealColumns; i < tInfo.NumDealColumns+numBenchmarks; i++ {
+		if i == numBenchmarks+tInfo.NumDealColumns-1 {
+			dealPlaceholders += formatCb(i, true)
+		} else {
+			dealPlaceholders += formatCb(i, false)
+		}
+	}
+	return fmt.Sprintf(format, strings.Join(tInfo.DealColumns, ", "), dealPlaceholders)
+}
+
+func makeSelectDealByIDQuery(format string, tInfo *tablesInfo) string {
+	return fmt.Sprintf(format, strings.Join(tInfo.DealColumns, ", "))
+}
+
+func makeInsertOrderQuery(format string, formatCb formatArg, numBenchmarks uint64, tInfo *tablesInfo) string {
+	orderPlaceholders := ""
+	for i := uint64(0); i < tInfo.NumOrderColumns; i++ {
+		orderPlaceholders += formatCb(i, false)
+	}
+	for i := tInfo.NumOrderColumns; i < tInfo.NumOrderColumns+numBenchmarks; i++ {
+		if i == numBenchmarks+tInfo.NumOrderColumns-1 {
+			orderPlaceholders += formatCb(i, true)
+		} else {
+			orderPlaceholders += formatCb(i, false)
+		}
+	}
+	return fmt.Sprintf(format, strings.Join(tInfo.OrderColumns, ", "), orderPlaceholders)
+}
+
+func makeSelectOrderByIDQuery(format string, tInfo *tablesInfo) string {
+	return fmt.Sprintf(format, strings.Join(tInfo.OrderColumns, ", "))
+}
+
+func makeTableWithBenchmarks(format, benchmarkType string) string {
+	benchmarkColumns := make([]string, NumMaxBenchmarks)
+	for benchmarkID := uint64(0); benchmarkID < NumMaxBenchmarks; benchmarkID++ {
+		benchmarkColumns[benchmarkID] = fmt.Sprintf("%s %s", getBenchmarkColumn(uint64(benchmarkID)), benchmarkType)
+	}
+	return strings.Join(append([]string{format}, benchmarkColumns...), ",\n") + ")"
 }
