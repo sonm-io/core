@@ -36,7 +36,7 @@ type Config struct {
 
 type YAMLConfig struct {
 	RegularBillPeriod    time.Duration `yaml:"regular_deal_bill_period" default:"24h"`
-	SpotBillPeriod       time.Duration `yaml:"regular_deal_bill_period" default:"24h"`
+	SpotBillPeriod       time.Duration `yaml:"spot_deal_bill_period" default:"1h"`
 	SyncStepTimeout      time.Duration `yaml:"sync_step_timeout" default:"2m"`
 	SyncInterval         time.Duration `yaml:"sync_interval" default:"10s"`
 	MatcherRetryInterval time.Duration `yaml:"matcher_retry_interval" default:"10s"`
