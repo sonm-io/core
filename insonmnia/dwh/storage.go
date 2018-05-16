@@ -11,7 +11,6 @@ import (
 )
 
 type storage interface {
-	Setup(db *sql.DB) error
 	Optimize(db *sql.DB) error
 	InsertDeal(conn queryConn, deal *pb.Deal) error
 	UpdateDeal(conn queryConn, deal *pb.Deal) error

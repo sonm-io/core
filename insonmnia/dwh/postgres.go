@@ -13,11 +13,12 @@ func (w *DWH) setupPostgres(db *sql.DB, numBenchmarks uint64) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	w.storage = newPostgresStorage(newTablesInfo(numBenchmarks), numBenchmarks)
-	if err := w.storage.Setup(db); err != nil {
+	store := newPostgresStorage(newTablesInfo(numBenchmarks), numBenchmarks)
+	if err := store.Setup(db); err != nil {
 		return errors.Wrap(err, "failed to setup store")
 	}
 
+	w.storage = store
 	if w.cfg.ColdStart != nil {
 		go w.coldStart()
 	} else {

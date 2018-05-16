@@ -19,11 +19,12 @@ func (w *DWH) setupSQLite(db *sql.DB, numBenchmarks uint64) error {
 		return errors.Wrapf(err, "failed to enable foreign key support (%s)", w.cfg.Storage.Backend)
 	}
 
-	w.storage = newSQLiteStorage(newTablesInfo(numBenchmarks), numBenchmarks)
-	if err := w.storage.Setup(db); err != nil {
+	store := newSQLiteStorage(newTablesInfo(numBenchmarks), numBenchmarks)
+	if err := store.Setup(db); err != nil {
 		return errors.Wrap(err, "failed to setup store")
 	}
 
+	w.storage = store
 	if w.cfg.ColdStart != nil {
 		go w.coldStart()
 	} else {

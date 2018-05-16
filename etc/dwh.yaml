@@ -26,6 +26,6 @@ blockchain:
 logging:
   # The desired logging level.
   # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
-  level: "info"
+  level: "debug"
 
 enable_rest: true
