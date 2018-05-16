@@ -123,6 +123,13 @@ func (w *DWH) Serve() error {
 		w.logger.Info("monitoring disabled")
 	}
 
+	if w.cfg.ColdStart != nil {
+		if err := w.coldStart(); err != nil {
+			w.logger.Warn("failed to coldStart", zap.Error(err))
+			return errors.Wrap(err, "failed to coldStart")
+		}
+	}
+
 	wg := errgroup.Group{}
 	wg.Go(w.serveGRPC)
 	wg.Go(w.serveHTTP)
@@ -1033,44 +1040,50 @@ func (w *DWH) updateProfileStats(conn queryConn, order *pb.Order, profile *pb.Pr
 	return nil
 }
 
-// coldStart waits till last seen block number gets to `w.cfg.ColdStart.UpToBlock` and then tries to optimize DB.
-func (w *DWH) coldStart() {
+// coldStart waits till last seen block number gets to `w.cfg.ColdStart.UpToBlock` and then tries to create indices.
+func (w *DWH) coldStart() error {
 	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 
+	var retries = 5
 	for {
 		select {
 		case <-w.ctx.Done():
 			w.logger.Info("stopped coldStart routine")
-			return
+			return nil
 		case <-ticker.C:
-			if err := w.coldOptimizeTS(); err == nil {
-				w.logger.Info("successfully created indices")
-				return
+			targetBlockReached, err := w.maybeCreateIndices()
+			if err != nil {
+				if retries == 0 {
+					w.logger.Warn("failed to CreateIndices, exiting")
+					return err
+				}
+				retries--
+				w.logger.Warn("failed to CreateIndices, retrying", zap.Int("retries_left", retries))
+			}
+			if targetBlockReached {
+				w.logger.Info("CreateIndices success")
+				return nil
 			}
 		}
 	}
 }
 
-func (w *DWH) coldOptimizeTS() error {
+func (w *DWH) maybeCreateIndices() (targetBlockReached bool, err error) {
 	lastBlock, err := w.getLastKnownBlock()
 	if err != nil {
-		return err
+		return false, err
 	}
 
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	w.logger.Info("current block (waiting to optimize)", zap.Uint64("block_number", lastBlock))
-
+	w.logger.Info("current block (waiting to CreateIndices)", zap.Uint64("block_number", lastBlock))
 	if lastBlock >= w.cfg.ColdStart.UpToBlock {
-		if err := w.storage.Optimize(w.db); err != nil {
-			return err
+		if err := w.storage.CreateIndices(w.db); err != nil {
+			return false, err
 		}
-		return nil
+		return true, nil
 	}
 
-	return errors.New("still waiting")
+	return false, nil
 }
 
 func (w *DWH) addBenchmarksConditions(benches map[uint64]*pb.MaxMinUint64, filters *[]*filter) {

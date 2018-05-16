@@ -45,7 +45,7 @@ func (c *sqlStorage) Setup(db *sql.DB) error {
 	return c.setupCommands.setupTables(db)
 }
 
-func (c *sqlStorage) Optimize(db *sql.DB) error {
+func (c *sqlStorage) CreateIndices(db *sql.DB) error {
 	return c.setupCommands.createIndices(db)
 }
 

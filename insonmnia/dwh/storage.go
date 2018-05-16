@@ -11,7 +11,7 @@ import (
 )
 
 type storage interface {
-	Optimize(db *sql.DB) error
+	CreateIndices(db *sql.DB) error
 	InsertDeal(conn queryConn, deal *pb.Deal) error
 	UpdateDeal(conn queryConn, deal *pb.Deal) error
 	UpdateDealsSupplier(conn queryConn, profile *pb.Profile) error

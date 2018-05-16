@@ -25,13 +25,6 @@ func (w *DWH) setupSQLite(db *sql.DB, numBenchmarks uint64) error {
 	}
 
 	w.storage = store
-	if w.cfg.ColdStart != nil {
-		go w.coldStart()
-	} else {
-		if err := w.storage.Optimize(db); err != nil {
-			return errors.Wrap(err, "failed to Optimize")
-		}
-	}
 
 	return nil
 }
