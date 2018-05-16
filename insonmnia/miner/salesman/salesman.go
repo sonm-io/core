@@ -18,6 +18,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
 
@@ -239,15 +240,14 @@ func (m *Salesman) CGroup(planID string) (cgroups.CGroup, error) {
 
 func (m *Salesman) syncRoutine(ctx context.Context) {
 	m.log.Debugf("starting sync routine")
+	ticker := util.NewImmediateTicker(m.config.SyncInterval)
+	defer ticker.Stop()
 	for {
-		m.syncWithBlockchain(ctx)
-		timer := time.NewTimer(m.config.SyncInterval)
 		select {
+		case <-ticker.C:
+			m.syncWithBlockchain(ctx)
 		case <-ctx.Done():
-			timer.Stop()
 			return
-		case <-timer.C:
-			timer.Stop()
 		}
 	}
 }
@@ -525,32 +525,34 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) (*sonm.Or
 
 func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {
 	m.log.Infof("waiting for deal for %s", order.GetId().Unwrap().String())
+	ticker := util.NewImmediateTicker(m.config.MatcherRetryInterval)
+	defer ticker.Stop()
 	for {
-		deal, err := m.matcher.CreateDealByOrder(ctx, order)
-		if err == nil {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-ticker.C:
+			//TODO: we also need to do it on worker start
+			deal, err := m.matcher.CreateDealByOrder(ctx, order)
+
+			if err != nil {
+				m.log.Warnf("could not wait for deal on order %s: %s", order.Id.Unwrap().String(), err)
+				id := order.Id.Unwrap()
+				order, err := m.eth.Market().GetOrderInfo(ctx, id)
+				if err != nil {
+					m.log.Warnf("could not get order info for order %s: %s", id.String(), err)
+					continue
+				}
+
+				if order.GetOrderStatus() != sonm.OrderStatus_ORDER_ACTIVE {
+					return nil
+				}
+				continue
+			}
 			m.registerDeal(deal)
 			m.log.Infof("created deal %s for order %s", deal.Id.Unwrap().String(), order.Id.Unwrap().String())
 			order.DealID = deal.Id
 			return nil
-		}
-		m.log.Warnf("could not wait for deal on order %s: %s", order.Id.Unwrap().String(), err)
-		id := order.Id.Unwrap()
-		order, err := m.eth.Market().GetOrderInfo(ctx, id)
-		if err == nil {
-			if order.GetOrderStatus() != sonm.OrderStatus_ORDER_ACTIVE {
-				return nil
-			}
-		} else {
-			m.log.Warnf("could not get order info for order %s: %s", id.String(), err)
-		}
-
-		timer := time.NewTimer(m.config.MatcherRetryInterval)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			return ctx.Err()
-		case <-timer.C:
-			timer.Stop()
 		}
 	}
 }
