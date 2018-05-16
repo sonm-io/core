@@ -123,6 +123,7 @@ It has these top-level messages:
 	SocketAddr
 	JoinNetworkRequest
 	TaskListRequest
+	DealFinishRequest
 	DealsReply
 	OpenDealRequest
 	Worker

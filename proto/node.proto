@@ -50,9 +50,14 @@ service DealManagement {
     // Status produces a detailed info about deal with given ID.
     rpc Status(ID) returns (DealInfoReply) {}
     // Finish finishes a deal with given ID
-    rpc Finish(ID) returns (Empty) {}
+    rpc Finish(DealFinishRequest) returns (Empty) {}
     // Open tries to open deal between two orders
     rpc Open(OpenDealRequest) returns (Deal) {}
+}
+
+message DealFinishRequest {
+    BigInt id = 1;
+    bool addToBlacklist = 2;
 }
 
 message DealsReply {

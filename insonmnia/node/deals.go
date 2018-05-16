@@ -76,13 +76,8 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, er
 	return reply, nil
 }
 
-func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
-	bigID, err := util.ParseBigInt(id.GetId())
-	if err != nil {
-		return nil, err
-	}
-
-	if err = <-d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, bigID, false); err != nil {
+func (d *dealsAPI) Finish(ctx context.Context, req *pb.DealFinishRequest) (*pb.Empty, error) {
+	if err := <-d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, req.GetId().Unwrap(), req.GetAddToBlacklist()); err != nil {
 		return nil, fmt.Errorf("could not close deal in blockchain: %s", err)
 	}
 

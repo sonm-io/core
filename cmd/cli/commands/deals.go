@@ -10,10 +10,12 @@ import (
 
 var (
 	dealsSearchCount uint64
+	addToBlacklist   bool
 )
 
 func init() {
 	dealsListCmd.PersistentFlags().Uint64Var(&dealsSearchCount, "limit", 10, "Deals count to show")
+	dealsFinishCmd.PersistentFlags().BoolVar(&addToBlacklist, "blacklist", false, "Add counterparty to blacklist")
 
 	nodeDealsRootCmd.AddCommand(
 		dealsListCmd,
@@ -142,14 +144,16 @@ var dealsFinishCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		id := args[0]
-		_, err = util.ParseBigInt(id)
+		id, err := util.ParseBigInt(args[0])
 		if err != nil {
 			showError(cmd, "Cannot convert arg to number", err)
 			os.Exit(1)
 		}
 
-		_, err = dealer.Finish(ctx, &pb.ID{Id: id})
+		_, err = dealer.Finish(ctx, &pb.DealFinishRequest{
+			Id:             pb.NewBigInt(id),
+			AddToBlacklist: addToBlacklist,
+		})
 		if err != nil {
 			showError(cmd, "Cannot finish deal", err)
 			os.Exit(1)
