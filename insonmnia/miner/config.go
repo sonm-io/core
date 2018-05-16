@@ -10,6 +10,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
+	"github.com/sonm-io/core/insonmnia/miner/salesman"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/state"
 )
@@ -47,6 +48,7 @@ type Config struct {
 	MetricsListenAddr string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14000"`
 	DWH               dwh.YAMLConfig      `yaml:"dwh"`
 	Matcher           *matcher.YAMLConfig `yaml:"matcher"`
+	Salesman          salesman.YAMLConfig `yaml:"salesman"`
 }
 
 // NewConfig creates a new Miner config from the specified YAML file.
