@@ -1,4 +1,4 @@
-package miner
+package salesman
 
 import (
 	"context"
@@ -9,7 +9,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mohae/deepcopy"
-	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
@@ -23,14 +22,29 @@ import (
 	"go.uber.org/zap"
 )
 
+type Config struct {
+	Logger        zap.SugaredLogger
+	Storage       *state.Storage
+	Resources     *resource.Scheduler
+	Hardware      *hardware.Hardware
+	Eth           blockchain.API
+	CGroupManager cgroups.CGroupManager
+	Matcher       matcher.Matcher
+	Ethkey        *ecdsa.PrivateKey
+	Config        YAMLConfig
+}
+
+type YAMLConfig struct {
+	RegularBillPeriod    time.Duration `yaml:"regular_deal_bill_period" default:"24h"`
+	SpotBillPeriod       time.Duration `yaml:"spot_deal_bill_period" default:"1h"`
+	SyncStepTimeout      time.Duration `yaml:"sync_step_timeout" default:"2m"`
+	SyncInterval         time.Duration `yaml:"sync_interval" default:"10s"`
+	MatcherRetryInterval time.Duration `yaml:"matcher_retry_interval" default:"10s"`
+}
+
 type Salesman struct {
+	*options
 	askPlanStorage *state.KeyedStorage
-	resources      *resource.Scheduler
-	hardware       *hardware.Hardware
-	eth            blockchain.API
-	cGroupManager  cgroups.CGroupManager
-	matcher        matcher.Matcher
-	ethkey         *ecdsa.PrivateKey
 
 	askPlans       map[string]*sonm.AskPlan
 	askPlanCGroups map[string]cgroups.CGroup
@@ -38,61 +52,25 @@ type Salesman struct {
 	orders         map[string]*sonm.Order
 
 	dealsCh chan *sonm.Deal
-	log     *zap.SugaredLogger
 	mu      sync.Mutex
 }
 
-//TODO: make configurable
-const (
-	regularDealBillPeriod = time.Second * 3600 * 24
-	spotDealBillPeriod    = time.Second * 3600
-)
-
-func NewSalesman(
-	ctx context.Context,
-	storage *state.Storage,
-	resources *resource.Scheduler,
-	hardware *hardware.Hardware,
-	eth blockchain.API,
-	cGroupManager cgroups.CGroupManager,
-	matcher matcher.Matcher,
-	ethkey *ecdsa.PrivateKey,
-) (*Salesman, error) {
-	if storage == nil {
-		return nil, errors.New("storage is required for salesman")
+func NewSalesman(opts ...Option) (*Salesman, error) {
+	o := &options{}
+	for _, opt := range opts {
+		opt(o)
 	}
-	if resources == nil {
-		return nil, errors.New("resource scheduler is required for salesman")
-	}
-	if hardware == nil {
-		return nil, errors.New("hardware is required for salesman")
-	}
-	if eth == nil {
-		return nil, errors.New("blockchain API is required for salesman")
-	}
-	if ethkey == nil {
-		return nil, errors.New("ethereum private key is required for salesman")
-	}
-	if matcher == nil {
-		return nil, errors.New("matcher is required for salesman")
-	}
-	if cGroupManager == nil {
-		return nil, errors.New("cGroup manager is required for salesman")
+	if err := o.Validate(); err != nil {
+		return nil, err
 	}
 
 	s := &Salesman{
-		askPlanStorage: state.NewKeyedStorage("ask_plans", storage),
-		resources:      resources,
-		hardware:       hardware,
-		eth:            eth,
-		cGroupManager:  cGroupManager,
-		matcher:        matcher,
-		ethkey:         ethkey,
+		options:        o,
+		askPlanStorage: state.NewKeyedStorage("ask_plans", o.storage),
 		askPlanCGroups: map[string]cgroups.CGroup{},
 		deals:          map[string]*sonm.Deal{},
 		orders:         map[string]*sonm.Order{},
 		dealsCh:        make(chan *sonm.Deal, 100),
-		log:            ctxlog.S(ctx).With("source", "salesman"),
 	}
 
 	if err := s.restoreState(); err != nil {
@@ -262,7 +240,7 @@ func (m *Salesman) CGroup(planID string) (cgroups.CGroup, error) {
 
 func (m *Salesman) syncRoutine(ctx context.Context) {
 	m.log.Debugf("starting sync routine")
-	ticker := util.NewImmediateTicker(time.Second)
+	ticker := util.NewImmediateTicker(m.config.SyncInterval)
 	defer ticker.Stop()
 	for {
 		select {
@@ -280,8 +258,7 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 	for _, plan := range plans {
 		orderId := plan.GetOrderID()
 		dealId := plan.GetDealID()
-		//TODO: Drop hardcode
-		ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Second*180)
+		ctxWithTimeout, cancel := context.WithTimeout(ctx, m.config.SyncStepTimeout)
 		if plan.Status == sonm.AskPlan_PENDING_DELETION {
 			if err := m.maybeShutdownAskPlan(ctxWithTimeout, plan); err != nil {
 				m.log.Warnf("could not shutdown ask plan %s: %s", plan.ID, err)
@@ -311,7 +288,6 @@ func (m *Salesman) restoreState() error {
 	if err := m.askPlanStorage.Load(&m.askPlans); err != nil {
 		return fmt.Errorf("could not restore salesman state: %s", err)
 	}
-	//TODO:  check if we do not lack resources after restart
 	for _, plan := range m.askPlans {
 		if err := m.resources.Consume(plan); err != nil {
 			m.log.Warnf("dropping ask plan due to resource changes")
@@ -397,10 +373,10 @@ func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan, deal *sonm
 func (m *Salesman) maybeBillDeal(ctx context.Context, deal *sonm.Deal) error {
 	start := deal.StartTime.Unix()
 	var billPeriod time.Duration
-	if deal.GetDuration() == 0 {
-		billPeriod = spotDealBillPeriod
+	if deal.IsSpot() {
+		billPeriod = m.config.SpotBillPeriod
 	} else {
-		billPeriod = regularDealBillPeriod
+		billPeriod = m.config.RegularBillPeriod
 	}
 
 	if time.Now().Sub(start) > billPeriod {
@@ -495,7 +471,7 @@ func (m *Salesman) assignOrder(planID string, orderID *sonm.BigInt) error {
 
 func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	//TODO: validate deal that it is ours
-	m.log.Infof("checking order %s for ask plan %s", plan.GetOrderID().Unwrap().String(), plan.ID)
+	m.log.Debugf("checking order %s for ask plan %s", plan.GetOrderID().Unwrap().String(), plan.ID)
 	order, err := m.eth.Market().GetOrderInfo(ctx, plan.GetOrderID().Unwrap())
 	if err != nil {
 		return fmt.Errorf("could not get order info for order %s: %s", plan.GetOrderID().Unwrap().String(), err)
@@ -549,8 +525,7 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) (*sonm.Or
 
 func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {
 	m.log.Infof("waiting for deal for %s", order.GetId().Unwrap().String())
-	// TODO: make configurable
-	ticker := util.NewImmediateTicker(time.Second * 10)
+	ticker := util.NewImmediateTicker(m.config.MatcherRetryInterval)
 	defer ticker.Stop()
 	for {
 		select {

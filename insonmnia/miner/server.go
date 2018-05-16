@@ -23,6 +23,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
+	"github.com/sonm-io/core/insonmnia/miner/salesman"
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -50,7 +51,7 @@ type Miner struct {
 	ovs       Overseer
 	plugins   *plugin.Repository
 	hardware  *hardware.Hardware
-	salesman  *Salesman
+	salesman  *salesman.Salesman
 	resources *resource.Scheduler
 	ethkey    *ecdsa.PrivateKey
 	publicIPs []string
@@ -240,7 +241,17 @@ func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
 	//TODO: this is racy, because of post initialization of hardware via benchmarks
 	m.resources = resource.NewScheduler(o.ctx, m.hardware)
 
-	salesman, err := NewSalesman(o.ctx, o.storage, m.resources, m.hardware, o.eth, m.cGroupManager, orderMatcher, o.key)
+	salesman, err := salesman.NewSalesman(
+		salesman.WithLogger(log.S(o.ctx).With("source", "salesman")),
+		salesman.WithStorage(o.storage),
+		salesman.WithResources(m.resources),
+		salesman.WithHardware(m.hardware),
+		salesman.WithEth(o.eth),
+		salesman.WithCGroupManager(m.cGroupManager),
+		salesman.WithMatcher(orderMatcher),
+		salesman.WithEthkey(o.key),
+		salesman.WithConfig(&m.cfg.Salesman),
+	)
 	if err != nil {
 		return nil, err
 	}
