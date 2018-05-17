@@ -16,7 +16,7 @@ type storage interface {
 	UpdateDeal(conn queryConn, deal *pb.Deal) error
 	UpdateDealsSupplier(conn queryConn, profile *pb.Profile) error
 	UpdateDealsConsumer(conn queryConn, profile *pb.Profile) error
-	UpdateDealPayout(conn queryConn, dealID *big.Int, payout *big.Int) error
+	UpdateDealPayout(conn queryConn, dealID, payout *big.Int, billTS uint64) error
 	DeleteDeal(conn queryConn, dealID *big.Int) error
 	GetDealByID(conn queryConn, dealID *big.Int) (*pb.DWHDeal, error)
 	GetDeals(conn queryConn, request *pb.DealsRequest) ([]*pb.DWHDeal, uint64, error)

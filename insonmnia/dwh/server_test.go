@@ -541,7 +541,7 @@ func TestDWH_monitor(t *testing.T) {
 		Status:         pb.DealStatus_DEAL_ACCEPTED,
 		BlockedBalance: pb.NewBigInt(big.NewInt(50010)),
 		TotalPayout:    pb.NewBigInt(big.NewInt(0)),
-		LastBillTS:     &pb.Timestamp{Seconds: 70010},
+		LastBillTS:     &pb.Timestamp{Seconds: int64(commonEventTS)},
 	}
 	mockMarket.EXPECT().GetDealInfo(gomock.Any(), gomock.Any()).AnyTimes().Return(deal, nil)
 	order := &pb.Order{
@@ -802,7 +802,6 @@ func testOrderUpdated(order *pb.Order, commonID *big.Int) error {
 	// Check that if order is updated, it is deleted. Order should be deleted because its DealID is not set
 	// (this means that is has become inactive due to a cancellation and not a match).
 	order.OrderStatus = pb.OrderStatus_ORDER_INACTIVE
-	fmt.Println(order.OrderStatus, order.DealID)
 	if err := monitorDWH.onOrderUpdated(commonID); err != nil {
 		return errors.Wrap(err, "onOrderUpdated failed")
 	}
@@ -911,8 +910,18 @@ func testDealChangeRequestSentAccepted(changeRequest *pb.DealChangeRequest, comm
 }
 
 func testBilled(commonEventTS uint64, commonID *big.Int) error {
+	deal, err := monitorDWH.storage.GetDealByID(newSimpleConn(monitorDWH.db), commonID)
+	if err != nil {
+		return errors.Wrap(err, "GetDealByID failed")
+	}
+
+	if deal.Deal.LastBillTS.Seconds != int64(commonEventTS) {
+		return errors.Errorf("unexpected LastBillTS (%d)", deal.Deal.LastBillTS)
+	}
+
 	// Check that after a Billed event last DealCondition.Payout is updated.
-	if err := monitorDWH.onBilled(commonEventTS, commonID, big.NewInt(10)); err != nil {
+	newBillTS := commonEventTS + 1
+	if err := monitorDWH.onBilled(newBillTS, commonID, big.NewInt(10)); err != nil {
 		return errors.Wrap(err, "onBilled failed")
 	}
 	if dealConditions, _, err := monitorDWH.storage.GetDealConditions(
@@ -939,6 +948,17 @@ func testBilled(commonEventTS uint64, commonID *big.Int) error {
 				"10", dealPayments[0].PaidAmount)
 		}
 	}
+
+	updatedDeal, err := monitorDWH.storage.GetDealByID(newSimpleConn(monitorDWH.db), commonID)
+	if err != nil {
+		return errors.Wrap(err, "GetDealByID failed")
+	}
+
+	if updatedDeal.Deal.LastBillTS.Seconds != int64(newBillTS) {
+		return errors.Errorf("(Billed) Expected %d, got %d (Deal.LastBillTS)",
+			newBillTS, updatedDeal.Deal.LastBillTS.Seconds)
+	}
+
 	return nil
 }
 
