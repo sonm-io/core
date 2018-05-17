@@ -43,7 +43,7 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 			updateDeal:                   `UPDATE Deals SET Duration=?, Price=?, StartTime=?, EndTime=?, Status=?, BlockedBalance=?, TotalPayout=?, LastBillTS=? WHERE Id=?`,
 			updateDealsSupplier:          `UPDATE Deals SET SupplierCertificates=? WHERE SupplierID=?`,
 			updateDealsConsumer:          `UPDATE Deals SET ConsumerCertificates=? WHERE ConsumerID=?`,
-			updateDealPayout:             `UPDATE Deals SET TotalPayout = ? WHERE Id = ?`,
+			updateDealPayout:             `UPDATE Deals SET TotalPayout = ?, LastBillTS = ? WHERE Id = ?`,
 			selectDealByID:               makeSelectDealByIDQuery(`SELECT %s FROM Deals WHERE id=?`, tInfo),
 			deleteDeal:                   `DELETE FROM Deals WHERE Id=?`,
 			insertOrder:                  makeInsertOrderQuery(`INSERT INTO Orders(%s) VALUES (%s)`, formatCb, numBenchmarks, tInfo),

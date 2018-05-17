@@ -655,6 +655,10 @@ func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 	}
 	defer conn.Finish()
 
+	if err := w.updateDealPayout(conn, dealID, payedAmount, eventTS); err != nil {
+		return errors.Wrap(err, "failed to updateDealPayout")
+	}
+
 	dealConditions, _, err := w.storage.GetDealConditions(conn, &pb.DealConditionsRequest{DealID: pb.NewBigInt(dealID)})
 	if err != nil {
 		return errors.Wrap(err, "failed to GetDealConditions (last)")
@@ -670,10 +674,6 @@ func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 		return errors.Wrap(err, "failed to UpdateDealConditionPayout")
 	}
 
-	if err := w.updateDealPayout(conn, dealID, payedAmount); err != nil {
-		return errors.Wrap(err, "failed to updateDealPayout")
-	}
-
 	err = w.storage.InsertDealPayment(conn, &pb.DealPayment{
 		DealID:      pb.NewBigInt(dealID),
 		PayedAmount: pb.NewBigInt(payedAmount),
@@ -686,14 +686,14 @@ func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 	return nil
 }
 
-func (w *DWH) updateDealPayout(conn queryConn, dealID, payedAmount *big.Int) error {
+func (w *DWH) updateDealPayout(conn queryConn, dealID, payedAmount *big.Int, billTS uint64) error {
 	deal, err := w.storage.GetDealByID(conn, dealID)
 	if err != nil {
 		return errors.Wrap(err, "failed to storage.GetDealByID")
 	}
 
 	newDealTotalPayout := big.NewInt(0).Add(deal.Deal.TotalPayout.Unwrap(), payedAmount)
-	err = w.storage.UpdateDealPayout(conn, dealID, newDealTotalPayout)
+	err = w.storage.UpdateDealPayout(conn, dealID, newDealTotalPayout, billTS)
 	if err != nil {
 		return errors.Wrap(err, "failed to updateDealPayout")
 	}
