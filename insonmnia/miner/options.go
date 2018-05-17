@@ -67,6 +67,10 @@ func (m *options) SetupDefaults() error {
 		return err
 	}
 
+	if err := m.setupPlugins(); err != nil {
+		return err
+	}
+
 	if err := m.setupCreds(); err != nil {
 		return err
 	}
@@ -113,12 +117,25 @@ func (m *options) setupBlockchainAPI() error {
 	return nil
 }
 
+func (m *options) setupPlugins() error {
+	plugins, err := plugin.NewRepository(m.ctx, m.cfg.Plugins)
+	if err != nil {
+		return err
+	}
+	m.plugins = plugins
+	return nil
+}
+
 func (m *options) setupCreds() error {
 	if m.creds == nil {
-		_, TLSConfig, err := util.NewHitlessCertRotator(m.ctx, m.key)
+		if m.certRotator != nil {
+			return errors.New("have certificate rotator in options, but do not have credentials")
+		}
+		certRotator, TLSConfig, err := util.NewHitlessCertRotator(m.ctx, m.key)
 		if err != nil {
 			return err
 		}
+		m.certRotator = certRotator
 		m.creds = util.NewTLS(TLSConfig)
 	}
 	return nil
@@ -223,6 +240,12 @@ func (m *options) setupOverseer() error {
 }
 
 type Option func(*options)
+
+func WithConfig(cfg *Config) Option {
+	return func(opts *options) {
+		opts.cfg = cfg
+	}
+}
 
 func WithContext(ctx context.Context) Option {
 	return func(opts *options) {

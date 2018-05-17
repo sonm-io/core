@@ -44,12 +44,6 @@ func run() error {
 		return fmt.Errorf("failed to load private key: %s", err)
 	}
 
-	certRotator, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
-	if err != nil {
-		return fmt.Errorf("failed to create certificate rotator: %s", err)
-	}
-	credentials := util.NewTLS(TLSConfig)
-
 	storage, err := state.NewState(ctx, &cfg.Storage)
 	if err != nil {
 		return fmt.Errorf("failed to create state storage: %s", err)
@@ -66,8 +60,8 @@ func run() error {
 		return nil
 	})
 
-	w, err := miner.NewMiner(cfg, miner.WithContext(ctx), miner.WithKey(key), miner.WithStateStorage(storage),
-		miner.WithVersion(appVersion), miner.WithCreds(credentials), miner.WithCertRotator(certRotator))
+	w, err := miner.NewMiner(miner.WithConfig(cfg), miner.WithContext(ctx), miner.WithKey(key), miner.WithStateStorage(storage),
+		miner.WithVersion(appVersion))
 	if err != nil {
 		return fmt.Errorf("failed to create Worker instance: %s", err)
 	}

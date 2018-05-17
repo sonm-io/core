@@ -97,7 +97,7 @@ type Miner struct {
 	grpcListener  net.Listener
 }
 
-func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
+func NewMiner(opts ...Option) (m *Miner, err error) {
 	o := &options{}
 	for _, opt := range opts {
 		opt(o)
@@ -1198,13 +1198,21 @@ func (m *Miner) AskPlanByTaskID(taskID string) (*pb.AskPlan, error) {
 func (m *Miner) Close() {
 	log.G(m.ctx).Info("closing worker")
 
-	// TODO: fixme - check for nil
-	m.ssh.Close()
-	m.ovs.Close()
-	m.salesman.Close()
-	m.plugins.Close()
-
-	m.externalGrpc.Stop()
+	if m.ssh != nil {
+		m.ssh.Close()
+	}
+	if m.ovs != nil {
+		m.ovs.Close()
+	}
+	if m.salesman != nil {
+		m.salesman.Close()
+	}
+	if m.plugins != nil {
+		m.plugins.Close()
+	}
+	if m.externalGrpc != nil {
+		m.externalGrpc.Stop()
+	}
 	if m.certRotator != nil {
 		m.certRotator.Close()
 	}
