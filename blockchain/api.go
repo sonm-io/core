@@ -21,10 +21,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	NumCurrentBenchmarks = 12
-)
-
 type API interface {
 	ProfileRegistry() ProfileRegistryAPI
 	Events() EventsAPI
@@ -60,7 +56,7 @@ type MarketAPI interface {
 	RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) (*types.Transaction, error)
 	GetMaster(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (common.Address, error)
 	GetDealChangeRequestInfo(ctx context.Context, dealID *big.Int) (*pb.DealChangeRequest, error)
-	GetNumBenchmarks(ctx context.Context) (int, error)
+	GetNumBenchmarks(ctx context.Context) (uint64, error)
 }
 
 type BlacklistAPI interface {
@@ -488,15 +484,15 @@ func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, dealID 
 	}, nil
 }
 
-func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (int, error) {
+func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (uint64, error) {
 	num, err := api.marketContract.GetBenchmarksQuantity(getCallOptions(ctx))
 	if err != nil {
 		return 0, err
 	}
-	if !num.IsInt64() {
+	if !num.IsUint64() {
 		return 0, errors.New("benchmarks quantity overflows int64")
 	}
-	return int(num.Int64()), nil
+	return num.Uint64(), nil
 }
 
 type ProfileRegistry struct {

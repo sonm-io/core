@@ -1,5 +1,7 @@
 package dwh
 
+import "fmt"
+
 const (
 	CertificateName           = 1102
 	CertificateCountry        = 1303
@@ -20,4 +22,8 @@ func stringSliceToSet(in []string) map[string]bool {
 	}
 
 	return out
+}
+
+func getBenchmarkColumn(id uint64) string {
+	return fmt.Sprintf("Benchmark%d", id)
 }

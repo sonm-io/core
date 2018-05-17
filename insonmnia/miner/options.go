@@ -3,34 +3,204 @@ package miner
 import (
 	"crypto/ecdsa"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
+	"github.com/sonm-io/core/insonmnia/matcher"
+	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/credentials"
 )
 
 type options struct {
-	ctx       context.Context
-	ovs       Overseer
-	ssh       SSH
-	key       *ecdsa.PrivateKey
-	publicIPs []string
-	benchList benchmarks.BenchList
-	storage   *state.Storage
-	eth       blockchain.API
-	dwh       sonm.DWHClient
-	creds     credentials.TransportCredentials
+	version     string
+	cfg         *Config
+	ctx         context.Context
+	ovs         Overseer
+	ssh         SSH
+	key         *ecdsa.PrivateKey
+	publicIPs   []string
+	benchmarks  benchmarks.BenchList
+	storage     *state.Storage
+	eth         blockchain.API
+	dwh         sonm.DWHClient
+	creds       credentials.TransportCredentials
+	certRotator util.HitlessCertRotator
+	plugins     *plugin.Repository
+	whitelist   Whitelist
+	matcher     matcher.Matcher
 }
 
-func (o *options) setupNetworkOptions(cfg *Config) error {
+func (m *options) validate() error {
+	err := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+
+	if m.cfg == nil {
+		err = multierror.Append(err, errors.New("config is mandatory for Miner options"))
+	}
+
+	if m.key == nil {
+		err = multierror.Append(err, errors.New("private key is mandatory for Miner options"))
+	}
+
+	if m.storage == nil {
+		err = multierror.Append(err, errors.New("state storage is mandatory"))
+	}
+
+	return err.ErrorOrNil()
+}
+
+func (m *options) SetupDefaults() error {
+	if err := m.validate(); err != nil {
+		return err
+	}
+
+	if m.ctx == nil {
+		m.ctx = context.Background()
+	}
+
+	if err := m.setupBlockchainAPI(); err != nil {
+		return err
+	}
+
+	if err := m.setupPlugins(); err != nil {
+		return err
+	}
+
+	if err := m.setupCreds(); err != nil {
+		return err
+	}
+
+	if err := m.setupDWH(); err != nil {
+		return err
+	}
+
+	if err := m.setupWhitelist(); err != nil {
+		return err
+	}
+
+	if err := m.setupMatcher(); err != nil {
+		return err
+	}
+
+	if err := m.setupBenchmarks(); err != nil {
+		return err
+	}
+
+	if err := m.setupNetworkOptions(); err != nil {
+		return err
+	}
+
+	if err := m.setupSSH(); err != nil {
+		return err
+	}
+
+	if err := m.setupOverseer(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *options) setupBlockchainAPI() error {
+	if m.eth == nil {
+		eth, err := blockchain.NewAPI(blockchain.WithConfig(m.cfg.Blockchain))
+		if err != nil {
+			return err
+		}
+		m.eth = eth
+	}
+	return nil
+}
+
+func (m *options) setupPlugins() error {
+	plugins, err := plugin.NewRepository(m.ctx, m.cfg.Plugins)
+	if err != nil {
+		return err
+	}
+	m.plugins = plugins
+	return nil
+}
+
+func (m *options) setupCreds() error {
+	if m.creds == nil {
+		if m.certRotator != nil {
+			return errors.New("have certificate rotator in options, but do not have credentials")
+		}
+		certRotator, TLSConfig, err := util.NewHitlessCertRotator(m.ctx, m.key)
+		if err != nil {
+			return err
+		}
+		m.certRotator = certRotator
+		m.creds = util.NewTLS(TLSConfig)
+	}
+	return nil
+}
+
+func (m *options) setupDWH() error {
+	if m.dwh == nil {
+		cc, err := xgrpc.NewClient(m.ctx, m.cfg.DWH.Endpoint, m.creds)
+		if err != nil {
+			return err
+		}
+		m.dwh = sonm.NewDWHClient(cc)
+	}
+	return nil
+}
+
+func (m *options) setupWhitelist() error {
+	if m.whitelist == nil {
+		cfg := m.cfg.Whitelist
+		if len(cfg.PrivilegedAddresses) == 0 {
+			cfg.PrivilegedAddresses = append(cfg.PrivilegedAddresses, util.PubKeyToAddr(m.key.PublicKey).Hex())
+		}
+
+		m.whitelist = NewWhitelist(m.ctx, &cfg)
+	}
+	return nil
+}
+
+func (m *options) setupMatcher() error {
+	if m.matcher == nil {
+		if m.cfg.Matcher != nil {
+			matcher, err := matcher.NewMatcher(&matcher.Config{
+				Key:        m.key,
+				DWH:        m.dwh,
+				Eth:        m.eth,
+				PollDelay:  m.cfg.Matcher.PollDelay,
+				QueryLimit: m.cfg.Matcher.QueryLimit,
+			})
+			if err != nil {
+				return errors.Wrap(err, "cannot create matcher")
+			}
+			m.matcher = matcher
+		} else {
+			m.matcher = matcher.NewDisabledMatcher()
+		}
+	}
+	return nil
+}
+
+func (m *options) setupBenchmarks() error {
+	if m.benchmarks == nil {
+		benchList, err := benchmarks.NewBenchmarksList(m.ctx, m.cfg.Benchmarks)
+		if err != nil {
+			return err
+		}
+		m.benchmarks = benchList
+	}
+	return nil
+}
+
+func (m *options) setupNetworkOptions() error {
 	// Use public IPs from config (if provided).
-	pubIPs := cfg.PublicIPs
+	pubIPs := m.cfg.PublicIPs
 	if len(pubIPs) > 0 {
-		o.publicIPs = SortedIPs(pubIPs)
+		m.publicIPs = SortedIPs(pubIPs)
 		return nil
 	}
 
@@ -44,14 +214,38 @@ func (o *options) setupNetworkOptions(cfg *Config) error {
 		pubIPs = append(pubIPs, ip.String())
 	}
 	if len(pubIPs) > 0 {
-		o.publicIPs = SortedIPs(pubIPs)
+		m.publicIPs = SortedIPs(pubIPs)
 		return nil
 	}
 
 	return errors.New("failed to get public IPs")
 }
 
+func (m *options) setupSSH() error {
+	if m.ssh == nil {
+		m.ssh = nilSSH{}
+	}
+	return nil
+}
+
+func (m *options) setupOverseer() error {
+	if m.ovs == nil {
+		ovs, err := NewOverseer(m.ctx, m.plugins)
+		if err != nil {
+			return err
+		}
+		m.ovs = ovs
+	}
+	return nil
+}
+
 type Option func(*options)
+
+func WithConfig(cfg *Config) Option {
+	return func(opts *options) {
+		opts.cfg = cfg
+	}
+}
 
 func WithContext(ctx context.Context) Option {
 	return func(opts *options) {
@@ -79,7 +273,7 @@ func WithKey(key *ecdsa.PrivateKey) Option {
 
 func WithBenchmarkList(list benchmarks.BenchList) Option {
 	return func(opts *options) {
-		opts.benchList = list
+		opts.benchmarks = list
 	}
 
 }
@@ -105,5 +299,35 @@ func WithDWH(d sonm.DWHClient) Option {
 func WithCreds(creds credentials.TransportCredentials) Option {
 	return func(o *options) {
 		o.creds = creds
+	}
+}
+
+func WithVersion(v string) Option {
+	return func(o *options) {
+		o.version = v
+	}
+}
+
+func WithCertRotator(certRotator util.HitlessCertRotator) Option {
+	return func(o *options) {
+		o.certRotator = certRotator
+	}
+}
+
+func WithPlugins(plugins *plugin.Repository) Option {
+	return func(o *options) {
+		o.plugins = plugins
+	}
+}
+
+func WithWhitelist(whitelist Whitelist) Option {
+	return func(o *options) {
+		o.whitelist = whitelist
+	}
+}
+
+func WithMatcher(matcher matcher.Matcher) Option {
+	return func(o *options) {
+		o.matcher = matcher
 	}
 }
