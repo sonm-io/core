@@ -95,21 +95,25 @@ func NewListener(ctx context.Context, addr string, options ...Option) (net.Liste
 		maxBackoffInterval: 8000 * time.Millisecond,
 	}
 
-	go m.listen()
+	go m.listen(ctx)
 	go m.listenPuncher(ctx)
 	go m.listenRelay(ctx)
 
 	return m, nil
 }
 
-func (m *Listener) listen() error {
-	defer m.log.Info("finished listening")
-
+func (m *Listener) listen(ctx context.Context) {
 	for {
 		conn, err := m.listener.Accept()
-		m.listenerChannel <- connTuple{conn, err}
+		select {
+		case m.listenerChannel <- connTuple{conn, err}:
+		case <-ctx.Done():
+			m.log.Info("finished listening due to cancellation", zap.Error(ctx.Err()))
+			return
+		}
 		if err != nil {
-			return err
+			m.log.Info("finished listening on Accept error", zap.Error(err))
+			return
 		}
 	}
 }
