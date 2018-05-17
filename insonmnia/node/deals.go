@@ -48,7 +48,7 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, err
 }
 
 func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
-	bigID, err := util.ParseBigInt(id.Id)
+	bigID, err := util.ParseBigInt(id.GetId())
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +77,7 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, er
 }
 
 func (d *dealsAPI) Finish(ctx context.Context, id *pb.ID) (*pb.Empty, error) {
-	bigID, err := util.ParseBigInt(id.Id)
+	bigID, err := util.ParseBigInt(id.GetId())
 	if err != nil {
 		return nil, err
 	}
