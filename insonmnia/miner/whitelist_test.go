@@ -1,4 +1,4 @@
-package hub
+package miner
 
 import (
 	"context"
