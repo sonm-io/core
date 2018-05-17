@@ -481,7 +481,7 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 	}
 
 	if deal.Status == pb.DealStatus_DEAL_CLOSED {
-		w.logger.Info("skipping inactive deal", zap.String("order_id", dealID.String()))
+		w.logger.Info("skipping inactive deal", zap.String("deal_id", dealID.String()))
 		return nil
 	}
 
