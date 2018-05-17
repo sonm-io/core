@@ -67,6 +67,7 @@ It has these top-level messages:
 	Validator
 	DealChangeRequestsReply
 	DealChangeRequest
+	DealPayment
 	WorkersRequest
 	WorkersReply
 	Certificate

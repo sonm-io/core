@@ -9,10 +9,79 @@ import (
 	pb "github.com/sonm-io/core/proto"
 )
 
-var (
-	sqliteSetupCommands = map[string]string{
-		// Incomplete, modified during setup.
-		"createTableDeals": `
+func (w *DWH) setupSQLite(db *sql.DB, numBenchmarks uint64) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	_, err := db.Exec(`PRAGMA foreign_keys=ON`)
+	if err != nil {
+		db.Close()
+		return errors.Wrapf(err, "failed to enable foreign key support (%s)", w.cfg.Storage.Backend)
+	}
+
+	store := newSQLiteStorage(newTablesInfo(numBenchmarks), numBenchmarks)
+	if err := store.Setup(db); err != nil {
+		return errors.Wrap(err, "failed to setup store")
+	}
+
+	w.storage = store
+
+	return nil
+}
+
+func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
+	formatCb := func(_ uint64, lastArg bool) string {
+		if lastArg {
+			return "?"
+		}
+		return "?, "
+	}
+
+	store := &sqlStorage{
+		commands: &sqlCommands{
+			insertDeal:                   makeInsertDealQuery(`INSERT INTO Deals(%s) VALUES (%s)`, formatCb, numBenchmarks, tInfo),
+			updateDeal:                   `UPDATE Deals SET Duration=?, Price=?, StartTime=?, EndTime=?, Status=?, BlockedBalance=?, TotalPayout=?, LastBillTS=? WHERE Id=?`,
+			updateDealsSupplier:          `UPDATE Deals SET SupplierCertificates=? WHERE SupplierID=?`,
+			updateDealsConsumer:          `UPDATE Deals SET ConsumerCertificates=? WHERE ConsumerID=?`,
+			updateDealPayout:             `UPDATE Deals SET TotalPayout = ? WHERE Id = ?`,
+			selectDealByID:               makeSelectDealByIDQuery(`SELECT %s FROM Deals WHERE id=?`, tInfo),
+			deleteDeal:                   `DELETE FROM Deals WHERE Id=?`,
+			insertOrder:                  makeInsertOrderQuery(`INSERT INTO Orders(%s) VALUES (%s)`, formatCb, numBenchmarks, tInfo),
+			selectOrderByID:              makeSelectOrderByIDQuery(`SELECT %s FROM Orders WHERE id=?`, tInfo),
+			updateOrderStatus:            `UPDATE Orders SET Status=? WHERE Id=?`,
+			updateOrders:                 `UPDATE Orders SET CreatorIdentityLevel=?, CreatorName=?, CreatorCountry=?, CreatorCertificates=? WHERE AuthorID=?`,
+			deleteOrder:                  `DELETE FROM Orders WHERE Id=?`,
+			insertDealChangeRequest:      `INSERT INTO DealChangeRequests VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			selectDealChangeRequests:     `SELECT * FROM DealChangeRequests WHERE DealID=? AND RequestType=? AND Status=?`,
+			selectDealChangeRequestsByID: `SELECT * FROM DealChangeRequests WHERE DealID=?`,
+			deleteDealChangeRequest:      `DELETE FROM DealChangeRequests WHERE Id=?`,
+			updateDealChangeRequest:      `UPDATE DealChangeRequests SET Status=? WHERE Id=?`,
+			insertDealCondition:          `INSERT INTO DealConditions VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			updateDealConditionPayout:    `UPDATE DealConditions SET TotalPayout=? WHERE Id=?`,
+			updateDealConditionEndTime:   `UPDATE DealConditions SET EndTime=? WHERE Id=?`,
+			insertDealPayment:            `INSERT INTO DealPayments VALUES (?, ?, ?)`,
+			insertWorker:                 `INSERT INTO Workers VALUES (?, ?, ?)`,
+			updateWorker:                 `UPDATE Workers SET Confirmed=? WHERE MasterID=? AND WorkerID=?`,
+			deleteWorker:                 `DELETE FROM Workers WHERE MasterID=? AND WorkerID=?`,
+			insertBlacklistEntry:         `INSERT INTO Blacklists VALUES (?, ?)`,
+			selectBlacklists:             `SELECT * FROM Blacklists WHERE AdderID=?`,
+			deleteBlacklistEntry:         `DELETE FROM Blacklists WHERE AdderID=? AND AddeeID=?`,
+			insertValidator:              `INSERT INTO Validators VALUES (?, ?)`,
+			updateValidator:              `UPDATE Validators SET Level=? WHERE Id=?`,
+			insertCertificate:            `INSERT INTO Certificates VALUES (?, ?, ?, ?, ?)`,
+			selectCertificates:           `SELECT * FROM Certificates WHERE OwnerID=?`,
+			insertProfileUserID:          `INSERT INTO Profiles VALUES (NULL, ?, 0, "", "", 0, 0, ?, ?, ?)`,
+			selectProfileByID:            `SELECT * FROM Profiles WHERE UserID=?`,
+			profileNotInBlacklist:        `AND UserID NOT IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
+			profileInBlacklist:           `AND UserID IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
+			updateProfile:                `UPDATE Profiles SET %s=? WHERE UserID=?`,
+			selectLastKnownBlock:         `SELECT LastKnownBlock FROM Misc WHERE Id=1`,
+			insertLastKnownBlock:         `INSERT INTO Misc VALUES (NULL, ?)`,
+			updateLastKnownBlock:         `UPDATE Misc Set LastKnownBlock=? WHERE Id=1`,
+		},
+		setupCommands: &sqlSetupCommands{
+			// Incomplete, modified during setup.
+			createTableDeals: makeTableWithBenchmarks(`
 	CREATE TABLE IF NOT EXISTS Deals (
 		Id						TEXT UNIQUE NOT NULL,
 		SupplierID				TEXT NOT NULL,
@@ -33,8 +102,8 @@ var (
 		BidIdentityLevel		INTEGER NOT NULL,
 		SupplierCertificates    BLOB NOT NULL,
 		ConsumerCertificates    BLOB NOT NULL,
-		ActiveChangeRequest     INTEGER NOT NULL`,
-		"createTableDealConditions": `
+		ActiveChangeRequest     INTEGER NOT NULL`, `INTEGER DEFAULT 0`),
+			createTableDealConditions: `
 	CREATE TABLE IF NOT EXISTS DealConditions (
 		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
 		SupplierID					TEXT NOT NULL,
@@ -48,7 +117,7 @@ var (
 		DealID						TEXT NOT NULL,
 		FOREIGN KEY (DealID)		REFERENCES Deals(Id) ON DELETE CASCADE
 	)`,
-		"createTableDealPayments": `
+			createTableDealPayments: `
 	CREATE TABLE IF NOT EXISTS DealPayments (
 		BillTS						INTEGER NOT NULL,
 		PaidAmount					TEXT NOT NULL,
@@ -56,7 +125,7 @@ var (
 		UNIQUE						(BillTS, PaidAmount, DealID),
 		FOREIGN KEY (DealID) 		REFERENCES Deals(Id) ON DELETE CASCADE
 	)`,
-		"createTableChangeRequests": `
+			createTableChangeRequests: `
 	CREATE TABLE IF NOT EXISTS DealChangeRequests (
 		Id 							TEXT UNIQUE NOT NULL,
 		CreatedTS					INTEGER NOT NULL,
@@ -67,8 +136,8 @@ var (
 		DealID						TEXT NOT NULL,
 		FOREIGN KEY (DealID)		REFERENCES Deals(Id) ON DELETE CASCADE
 	)`,
-		// Incomplete, modified during setup.
-		"createTableOrders": `
+			// Incomplete, modified during setup.
+			createTableOrders: makeTableWithBenchmarks(`
 	CREATE TABLE IF NOT EXISTS Orders (
 		Id						TEXT UNIQUE NOT NULL,
 		CreatedTS				INTEGER NOT NULL,
@@ -87,26 +156,26 @@ var (
 		CreatorIdentityLevel	INTEGER NOT NULL,
 		CreatorName				TEXT NOT NULL,
 		CreatorCountry			TEXT NOT NULL,
-		CreatorCertificates		BLOB NOT NULL`,
-		"createTableWorkers": `
+		CreatorCertificates		BLOB NOT NULL`, `INTEGER DEFAULT 0`),
+			createTableWorkers: `
 	CREATE TABLE IF NOT EXISTS Workers (
 		MasterID					TEXT NOT NULL,
 		WorkerID					TEXT NOT NULL,
 		Confirmed					INTEGER NOT NULL,
 		UNIQUE						(MasterID, WorkerID)
 	)`,
-		"createTableBlacklists": `
+			createTableBlacklists: `
 	CREATE TABLE IF NOT EXISTS Blacklists (
 		AdderID						TEXT NOT NULL,
 		AddeeID						TEXT NOT NULL,
 		UNIQUE						(AdderID, AddeeID)
 	)`,
-		"createTableValidators": `
+			createTableValidators: `
 	CREATE TABLE IF NOT EXISTS Validators (
 		Id							TEXT UNIQUE NOT NULL,
 		Level						INTEGER NOT NULL
 	)`,
-		"createTableCertificates": `
+			createTableCertificates: `
 	CREATE TABLE IF NOT EXISTS Certificates (
 		OwnerID						TEXT NOT NULL,
 		Attribute					INTEGER NOT NULL,
@@ -116,7 +185,7 @@ var (
 		UNIQUE						(OwnerID, ValidatorID, Attribute, Value),
 		FOREIGN KEY (ValidatorID)	REFERENCES Validators(Id) ON DELETE CASCADE
 	)`,
-		"createTableProfiles": `
+			createTableProfiles: `
 	CREATE TABLE IF NOT EXISTS Profiles (
 		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
 		UserID						TEXT UNIQUE NOT NULL,
@@ -129,196 +198,38 @@ var (
 		ActiveAsks					INTEGER NOT NULL,
 		ActiveBids					INTEGER NOT NULL
 	)`,
-		"createTableMisc": `
+			createTableMisc: `
 	CREATE TABLE IF NOT EXISTS Misc (
 		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
 		LastKnownBlock				INTEGER NOT NULL
 	)`,
-	}
-	sqliteCreateIndex = "CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)"
-	sqliteCommands    = map[string]string{
-		"updateDeal":                   `UPDATE Deals SET Duration=?, Price=?, StartTime=?, EndTime=?, Status=?, BlockedBalance=?, TotalPayout=?, LastBillTS=? WHERE Id=?`,
-		"updateDealsSupplier":          `UPDATE Deals SET SupplierCertificates=? WHERE SupplierID=?`,
-		"updateDealsConsumer":          `UPDATE Deals SET ConsumerCertificates=? WHERE ConsumerID=?`,
-		"updateDealPayout":             `UPDATE Deals SET TotalPayout = ? WHERE Id = ?`,
-		"selectDealByID":               `SELECT %s FROM Deals WHERE id=?`,
-		"deleteDeal":                   `DELETE FROM Deals WHERE Id=?`,
-		"selectOrderByID":              `SELECT %s FROM Orders WHERE id=?`,
-		"updateOrderStatus":            `UPDATE Orders SET Status=? WHERE Id=?`,
-		"updateOrders":                 `UPDATE Orders SET CreatorIdentityLevel=?, CreatorName=?, CreatorCountry=?, CreatorCertificates=? WHERE AuthorID=?`,
-		"deleteOrder":                  `DELETE FROM Orders WHERE Id=?`,
-		"insertDealChangeRequest":      `INSERT INTO DealChangeRequests VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		"selectDealChangeRequests":     `SELECT * FROM DealChangeRequests WHERE DealID=? AND RequestType=? AND Status=?`,
-		"selectDealChangeRequestsByID": `SELECT * FROM DealChangeRequests WHERE DealID=?`,
-		"deleteDealChangeRequest":      `DELETE FROM DealChangeRequests WHERE Id=?`,
-		"updateDealChangeRequest":      `UPDATE DealChangeRequests SET Status=? WHERE Id=?`,
-		"insertDealCondition":          `INSERT INTO DealConditions VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		"updateDealConditionPayout":    `UPDATE DealConditions SET TotalPayout=? WHERE Id=?`,
-		"updateDealConditionEndTime":   `UPDATE DealConditions SET EndTime=? WHERE Id=?`,
-		"insertDealPayment":            `INSERT INTO DealPayments VALUES (?, ?, ?)`,
-		"insertWorker":                 `INSERT INTO Workers VALUES (?, ?, ?)`,
-		"updateWorker":                 `UPDATE Workers SET Confirmed=? WHERE MasterID=? AND WorkerID=?`,
-		"deleteWorker":                 `DELETE FROM Workers WHERE MasterID=? AND WorkerID=?`,
-		"insertBlacklistEntry":         `INSERT INTO Blacklists VALUES (?, ?)`,
-		"selectBlacklists":             `SELECT * FROM Blacklists WHERE AdderID=?`,
-		"deleteBlacklistEntry":         `DELETE FROM Blacklists WHERE AdderID=? AND AddeeID=?`,
-		"insertValidator":              `INSERT INTO Validators VALUES (?, ?)`,
-		"updateValidator":              `UPDATE Validators SET Level=? WHERE Id=?`,
-		"insertCertificate":            `INSERT INTO Certificates VALUES (?, ?, ?, ?, ?)`,
-		"selectCertificates":           `SELECT * FROM Certificates WHERE OwnerID=?`,
-		"insertProfileUserID":          `INSERT INTO Profiles VALUES (NULL, ?, 0, "", "", 0, 0, ?, ?, ?)`,
-		"selectProfileByID":            `SELECT * FROM Profiles WHERE UserID=?`,
-		"profileNotInBlacklist":        `AND UserID NOT IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
-		"profileInBlacklist":           `AND UserID IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
-		"updateProfile":                `UPDATE Profiles SET %s=? WHERE UserID=?`,
-		"selectLastKnownBlock":         `SELECT LastKnownBlock FROM Misc WHERE Id=1`,
-		"insertLastKnownBlock":         `INSERT INTO Misc VALUES (NULL, ?)`,
-		"updateLastKnownBlock":         `UPDATE Misc Set LastKnownBlock=? WHERE Id=1`,
-	}
-)
-
-func setupSQLite(w *DWH) error {
-	db, err := sql.Open(w.cfg.Storage.Backend, w.cfg.Storage.Endpoint)
-	if err != nil {
-		return err
+			createIndexCmd: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
+			tablesInfo:     tInfo,
+		},
+		numBenchmarks: numBenchmarks,
+		queryRunner:   newSQLiteQueryRunner(tInfo),
+		tablesInfo:    tInfo,
+		formatCb:      formatCb,
 	}
 
-	defer func() {
-		if err != nil {
-			db.Close()
-		}
-	}()
-
-	finalizeColumnsOnce.Do(func() { finalizeTableColumns(w.numBenchmarks) })
-	finalizeCommandsOnce.Do(func() { setupCommandsSQLite(w.numBenchmarks) })
-
-	_, err = db.Exec("PRAGMA foreign_keys=ON")
-	if err != nil {
-		return errors.Wrapf(err, "failed to enable foreign key support (%s)", w.cfg.Storage.Backend)
-	}
-	for _, cmdName := range orderedSetupCommands {
-		_, err = db.Exec(sqliteSetupCommands[cmdName])
-		if err != nil {
-			return errors.Wrapf(err, "failed to %s [%s] (%s)", cmdName, sqliteSetupCommands[cmdName],
-				w.cfg.Storage.Backend)
-		}
-	}
-
-	w.db = db
-	w.commands = sqliteCommands
-	w.runQuery = runQuerySQLite
-
-	if w.cfg.ColdStart != nil {
-		go coldStart(w, buildIndicesSQLite)
-	} else {
-		if err := buildIndicesSQLite(w); err != nil {
-			return errors.Wrap(err, "failed to buildIndicesSQLite")
-		}
-	}
-
-	return nil
+	return store
 }
 
-func setupCommandsSQLite(numBenchmarks int) {
-	benchmarkColumns := make([]string, NumMaxBenchmarks)
-	for benchmarkID := 0; benchmarkID < NumMaxBenchmarks; benchmarkID++ {
-		benchmarkColumns[benchmarkID] = fmt.Sprintf("%s INTEGER DEFAULT 0", getBenchmarkColumn(uint64(benchmarkID)))
-	}
-	sqliteSetupCommands["createTableDeals"] = strings.Join(
-		append([]string{sqliteSetupCommands["createTableDeals"]}, benchmarkColumns...), ",\n") + ")"
-	sqliteSetupCommands["createTableOrders"] = strings.Join(
-		append([]string{sqliteSetupCommands["createTableOrders"]}, benchmarkColumns...), ",\n") + ")"
-
-	// Construct placeholders for Deals.
-	dealPlaceholders := ""
-	for i := 0; i < NumDealColumns; i++ {
-		dealPlaceholders += "?, "
-	}
-	for i := NumDealColumns; i < NumDealColumns+numBenchmarks; i++ {
-		if i == numBenchmarks+NumDealColumns-1 {
-			dealPlaceholders += "?"
-		} else {
-			dealPlaceholders += "?, "
-		}
-	}
-	dealColumnsString := strings.Join(DealColumns, ", ")
-	sqliteCommands["insertDeal"] = fmt.Sprintf("INSERT INTO Deals(%s) VALUES (%s)", dealColumnsString, dealPlaceholders)
-	sqliteCommands["selectDealByID"] = fmt.Sprintf(sqliteCommands["selectDealByID"], dealColumnsString)
-
-	// Construct placeholders for Orders.
-	orderPlaceholders := ""
-	for i := 0; i < NumOrderColumns; i++ {
-		orderPlaceholders += "?, "
-	}
-	for i := NumOrderColumns; i < NumOrderColumns+numBenchmarks; i++ {
-		if i == numBenchmarks+NumOrderColumns-1 {
-			orderPlaceholders += "?"
-		} else {
-			orderPlaceholders += "?, "
-		}
-	}
-	orderColumnsString := strings.Join(OrderColumns, ", ")
-	sqliteCommands["insertOrder"] = fmt.Sprintf("INSERT INTO Orders(%s) VALUES (%s)", orderColumnsString, orderPlaceholders)
-	sqliteCommands["selectOrderByID"] = fmt.Sprintf(sqliteCommands["selectOrderByID"], orderColumnsString)
+type sqliteQueryRunner struct {
+	tablesInfo *tablesInfo
 }
 
-func buildIndicesSQLite(w *DWH) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	var err error
-	for column := range DealColumnsSet {
-		if err = createIndex(w.db, sqliteCreateIndex, "Deals", column); err != nil {
-			return err
-		}
-	}
-	for _, column := range []string{"Id", "DealID", "RequestType", "Status"} {
-		if err = createIndex(w.db, sqliteCreateIndex, "DealChangeRequests", column); err != nil {
-			return err
-		}
-	}
-	for column := range DealConditionColumnsSet {
-		if err = createIndex(w.db, sqliteCreateIndex, "DealConditions", column); err != nil {
-			return err
-		}
-	}
-	for column := range OrderColumnsSet {
-		if err = createIndex(w.db, sqliteCreateIndex, "Orders", column); err != nil {
-			return err
-		}
-	}
-	for _, column := range []string{"MasterID", "WorkerID"} {
-		if err = createIndex(w.db, sqliteCreateIndex, "Workers", column); err != nil {
-			return err
-		}
-	}
-	for _, column := range []string{"AdderID", "AddeeID"} {
-		if err = createIndex(w.db, sqliteCreateIndex, "Blacklists", column); err != nil {
-			return err
-		}
-	}
-	if err = createIndex(w.db, sqliteCreateIndex, "Validators", "Id"); err != nil {
-		return err
-	}
-	if err = createIndex(w.db, sqliteCreateIndex, "Certificates", "OwnerID"); err != nil {
-		return err
-	}
-	for column := range ProfilesColumnsSet {
-		if err = createIndex(w.db, sqliteCreateIndex, "Profiles", column); err != nil {
-			return err
-		}
-	}
-
-	return nil
+func newSQLiteQueryRunner(tInfo *tablesInfo) queryRunner {
+	return &sqliteQueryRunner{tablesInfo: tInfo}
 }
 
-func runQuerySQLite(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error) {
+func (r *sqliteQueryRunner) Run(conn queryConn, opts *queryOpts) (*sql.Rows, uint64, error) {
 	var columns string
 	switch opts.table {
 	case "Deals":
-		columns = strings.Join(DealColumns, ", ")
+		columns = strings.Join(r.tablesInfo.DealColumns, ", ")
 	case "Orders":
-		columns = strings.Join(OrderColumns, ", ")
+		columns = strings.Join(r.tablesInfo.OrderColumns, ", ")
 	default:
 		columns = "*"
 	}
@@ -375,7 +286,7 @@ func runQuerySQLite(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error) {
 
 	var count uint64
 	if opts.withCount {
-		countRows, err := db.Query(countQuery, values...)
+		countRows, err := conn.Query(countQuery, values...)
 		if err != nil {
 			return nil, 0, errors.Wrapf(err, "count query `%s` failed", countQuery)
 		}
@@ -384,7 +295,7 @@ func runQuerySQLite(db *sql.DB, opts *queryOpts) (*sql.Rows, uint64, error) {
 		}
 	}
 
-	rows, err := db.Query(query, values...)
+	rows, err := conn.Query(query, values...)
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "query `%s` failed", query)
 	}
