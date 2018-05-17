@@ -2,61 +2,77 @@ package miner
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mohae/deepcopy"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pborman/uuid"
 	"github.com/pkg/errors"
-	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/cgroups"
-	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/miner/gpu"
 	"github.com/sonm-io/core/insonmnia/miner/salesman"
-	"github.com/sonm-io/core/insonmnia/state"
+	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
 
 	// todo: drop alias
 	bm "github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/hardware"
-	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/miner/volume"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 )
 
+const (
+	workerAPIPrefix = "/sonm.WorkerManagement/"
+	taskAPIPrefix   = "/sonm.Hub/"
+)
+
+var (
+	workerManagementMethods = []string{
+		workerAPIPrefix + "Status",
+		workerAPIPrefix + "Tasks",
+		workerAPIPrefix + "Devices",
+		workerAPIPrefix + "FreeDevices",
+		workerAPIPrefix + "AskPlans",
+		workerAPIPrefix + "CreateAskPlan",
+		workerAPIPrefix + "RemoveAskPlan",
+	}
+)
+
 // Miner holds information about jobs, make orders to Observer and communicates with Hub
 type Miner struct {
-	ctx       context.Context
-	cfg       *Config
+	*options
+
 	mu        sync.Mutex
-	ovs       Overseer
-	plugins   *plugin.Repository
 	hardware  *hardware.Hardware
-	salesman  *salesman.Salesman
 	resources *resource.Scheduler
-	ethkey    *ecdsa.PrivateKey
-	publicIPs []string
-	eth       blockchain.API
-	dwh       pb.DWHClient
+	salesman  *salesman.Salesman
+
+	eventAuthorization *auth.AuthRouter
 
 	// One-to-one mapping between container IDs and userland task names.
 	//
@@ -76,191 +92,181 @@ type Miner struct {
 
 	controlGroup  cgroups.CGroup
 	cGroupManager cgroups.CGroupManager
-	ssh           SSH
-
-	// external and in-mem storage
-	state         *state.Storage
-	benchmarkList bm.BenchList
+	externalGrpc  *grpc.Server
+	startTime     time.Time
+	grpcListener  net.Listener
 }
 
-func NewMiner(cfg *Config, opts ...Option) (m *Miner, err error) {
+func NewMiner(opts ...Option) (m *Miner, err error) {
 	o := &options{}
 	for _, opt := range opts {
 		opt(o)
 	}
 
-	if cfg == nil {
-		return nil, errors.New("config is mandatory for MinerBuilder")
+	m = &Miner{
+		options:     o,
+		containers:  make(map[string]*ContainerInfo),
+		nameMapping: make(map[string]string),
 	}
 
-	if o.key == nil {
-		return nil, errors.New("private key is mandatory")
-	}
-
-	if o.storage == nil {
-		return nil, errors.New("state storage is mandatory")
-	}
-
-	if o.ctx == nil {
-		o.ctx = context.Background()
-	}
-
-	if o.eth == nil {
-		eth, err := blockchain.NewAPI(blockchain.WithConfig(cfg.Blockchain))
-		if err != nil {
-			return nil, err
-		}
-
-		o.eth = eth
-	}
-
-	if o.dwh == nil {
-		if o.creds == nil {
-			// todo: use o.ctx
-			_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), o.key)
-			if err != nil {
-				return nil, err
-			}
-			o.creds = util.NewTLS(TLSConfig)
-		}
-		cc, err := xgrpc.NewClient(o.ctx, cfg.DWH.Endpoint, o.creds)
-		if err != nil {
-			return nil, err
-		}
-		o.dwh = pb.NewDWHClient(cc)
-	}
-
-	var orderMatcher matcher.Matcher
-	if cfg.Matcher != nil {
-		orderMatcher, err = matcher.NewMatcher(&matcher.Config{
-			Key:        o.key,
-			DWH:        o.dwh,
-			Eth:        o.eth,
-			PollDelay:  cfg.Matcher.PollDelay,
-			QueryLimit: cfg.Matcher.QueryLimit,
-		})
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot create matcher")
-		}
-	} else {
-		orderMatcher = matcher.NewDisabledMatcher()
-	}
-
-	if o.benchList == nil {
-		o.benchList, err = bm.NewBenchmarksList(o.ctx, cfg.Benchmarks)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	cgName := "sonm-worker-parent"
-	cgRes := &specs.LinuxResources{}
-	if cfg.Resources != nil {
-		cgName = cfg.Resources.Cgroup
-		cgRes = cfg.Resources.Resources
-	}
-
-	cgroup, cGroupManager, err := cgroups.NewCgroupManager(cgName, cgRes)
-	if err != nil {
+	if err := m.SetupDefaults(); err != nil {
+		m.Close()
 		return nil, err
 	}
 
+	if err := m.setupAuthorization(); err != nil {
+		m.Close()
+		return nil, err
+	}
+
+	if err := m.setupControlGroup(); err != nil {
+		m.Close()
+		return nil, err
+	}
+
+	if err := m.setupHardware(); err != nil {
+		m.Close()
+		return nil, err
+	}
+
+	if err := m.runBenchmarks(); err != nil {
+		m.Close()
+		return nil, err
+	}
+
+	if err := m.setupResources(); err != nil {
+		m.Close()
+		return nil, err
+	}
+
+	if err := m.setupSalesman(); err != nil {
+		m.Close()
+		return nil, err
+	}
+
+	if err := m.setupServer(); err != nil {
+		m.Close()
+		return nil, err
+	}
+
+	return m, nil
+}
+
+// Serve starts handling incoming API gRPC request and communicates
+// with miners
+func (m *Miner) Serve() error {
+	m.startTime = time.Now()
+
+	grpcL, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
+		npp.WithRendezvous(m.cfg.NPP.Rendezvous.Endpoints, m.creds),
+		npp.WithRelay(m.cfg.NPP.Relay.Endpoints, m.key),
+		npp.WithLogger(log.G(m.ctx)),
+	)
+	if err != nil {
+		log.G(m.ctx).Error("failed to listen", zap.String("address", m.cfg.Endpoint), zap.Error(err))
+		return err
+	}
+	log.G(m.ctx).Info("listening for gRPC API connections", zap.Stringer("address", grpcL.Addr()))
+	m.grpcListener = grpcL
+
+	err = m.listenAPI()
+	m.Close()
+
+	return err
+}
+
+func (m *Miner) listenAPI() error {
+	for {
+		select {
+		case <-m.ctx.Done():
+			return m.ctx.Err()
+		default:
+		}
+
+		if err := m.externalGrpc.Serve(m.grpcListener); err != nil {
+			if _, ok := err.(npp.TransportError); ok {
+				timer := time.NewTimer(1 * time.Second)
+				select {
+				case <-m.ctx.Done():
+				case <-timer.C:
+				}
+				timer.Stop()
+			}
+		}
+	}
+}
+
+func (m *Miner) ethAddr() common.Address {
+	return util.PubKeyToAddr(m.key.PublicKey)
+}
+
+func (m *Miner) setupAuthorization() error {
+	authorization := auth.NewEventAuthorization(m.ctx,
+		auth.WithLog(log.G(m.ctx)),
+		// Note: need to refactor auth router to support multiple prefixes for methods.
+		// auth.WithEventPrefix(hubAPIPrefix),
+		auth.Allow(workerManagementMethods...).With(auth.NewTransportAuthorization(m.ethAddr())),
+
+		auth.Allow(taskAPIPrefix+"TaskStatus").With(newMultiAuth(
+			auth.NewTransportAuthorization(m.ethAddr()),
+			newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m)),
+		)),
+		auth.Allow(taskAPIPrefix+"StopTask").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
+		auth.Allow(taskAPIPrefix+"JoinNetwork").With(newDealAuthorization(m.ctx, m, newFromNamedTaskDealExtractor(m, "TaskID"))),
+		auth.Allow(taskAPIPrefix+"StartTask").With(newDealAuthorization(m.ctx, m, newFieldDealExtractor())),
+		auth.Allow(taskAPIPrefix+"TaskLogs").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
+		auth.Allow(taskAPIPrefix+"PushTask").With(newDealAuthorization(m.ctx, m, newContextDealExtractor())),
+		auth.Allow(taskAPIPrefix+"PullTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
+			return structs.DealID(request.(*pb.PullTaskRequest).DealId), nil
+		}))),
+		auth.Allow(taskAPIPrefix+"GetDealInfo").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
+			return structs.DealID(request.(*pb.ID).GetId()), nil
+		}))),
+		auth.WithFallback(auth.NewDenyAuthorization()),
+	)
+
+	m.eventAuthorization = authorization
+	return nil
+}
+
+func (m *Miner) setupControlGroup() error {
+	cgName := "sonm-worker-parent"
+	cgResources := &specs.LinuxResources{}
+	if m.cfg.Resources != nil {
+		cgName = m.cfg.Resources.Cgroup
+		cgResources = m.cfg.Resources.Resources
+	}
+
+	cgroup, cGroupManager, err := cgroups.NewCgroupManager(cgName, cgResources)
+	if err != nil {
+		return err
+	}
+	m.controlGroup = cgroup
+	m.cGroupManager = cGroupManager
+	return nil
+}
+
+func (m *Miner) setupHardware() error {
+	// TODO: Do all the stuff inside hardware ctor
 	hardwareInfo, err := hardware.NewHardware()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	hardwareInfo.RAM.Device.Available = hardwareInfo.RAM.Device.Total
 	// check if memory is limited into cgroup
-	if s, err := cgroup.Stats(); err == nil {
+	if s, err := m.controlGroup.Stats(); err == nil {
 		if s.MemoryLimit != 0 && s.MemoryLimit < hardwareInfo.RAM.Device.Total {
 			hardwareInfo.RAM.Device.Available = s.MemoryLimit
 		}
 	}
 
-	if err := o.setupNetworkOptions(cfg); err != nil {
-		return nil, errors.Wrap(err, "failed to set up network options")
-	}
-
-	log.G(o.ctx).Info("discovered public IPs", zap.Any("public IPs", o.publicIPs))
-
-	plugins, err := plugin.NewRepository(o.ctx, cfg.Plugins)
-	if err != nil {
-		return nil, err
-	}
-
 	// apply info about GPUs, expose to logs
-	plugins.ApplyHardwareInfo(hardwareInfo)
-	hardwareInfo.SetNetworkIncoming(o.publicIPs)
+	m.plugins.ApplyHardwareInfo(hardwareInfo)
+	hardwareInfo.SetNetworkIncoming(m.publicIPs)
 	//TODO: configurable?
 	hardwareInfo.Network.Outbound = true
-
-	log.G(o.ctx).Info("collected hardware info", zap.Any("hw", hardwareInfo))
-
-	if o.ssh == nil {
-		o.ssh = nilSSH{}
-	}
-
-	if o.ovs == nil {
-		o.ovs, err = NewOverseer(o.ctx, plugins)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	m = &Miner{
-		ctx:    o.ctx,
-		cfg:    cfg,
-		ovs:    o.ovs,
-		ethkey: o.key,
-
-		plugins: plugins,
-
-		hardware:  hardwareInfo,
-		resources: nil,
-		salesman:  nil,
-		publicIPs: o.publicIPs,
-
-		containers:  make(map[string]*ContainerInfo),
-		nameMapping: make(map[string]string),
-
-		controlGroup:  cgroup,
-		cGroupManager: cGroupManager,
-		ssh:           o.ssh,
-		state:         o.storage,
-		benchmarkList: o.benchList,
-		eth:           o.eth,
-		dwh:           o.dwh,
-	}
-
-	if err := m.RunBenchmarks(); err != nil {
-		m.Close()
-		return nil, err
-	}
-
-	//TODO: this is racy, because of post initialization of hardware via benchmarks
-	m.resources = resource.NewScheduler(o.ctx, m.hardware)
-
-	salesman, err := salesman.NewSalesman(
-		salesman.WithLogger(log.S(o.ctx).With("source", "salesman")),
-		salesman.WithStorage(o.storage),
-		salesman.WithResources(m.resources),
-		salesman.WithHardware(m.hardware),
-		salesman.WithEth(o.eth),
-		salesman.WithCGroupManager(m.cGroupManager),
-		salesman.WithMatcher(orderMatcher),
-		salesman.WithEthkey(o.key),
-		salesman.WithConfig(&m.cfg.Salesman),
-	)
-	if err != nil {
-		return nil, err
-	}
-	m.salesman = salesman
-
-	ch := m.salesman.Run(o.ctx)
-	go m.listenDeals(ch)
-
-	return m, nil
+	m.hardware = hardwareInfo
+	return nil
 }
 
 func (m *Miner) listenDeals(dealsCh <-chan *pb.Deal) {
@@ -332,16 +338,29 @@ func (m *Miner) deleteTaskMapping(id string) {
 	delete(m.nameMapping, id)
 }
 
-// Hardware returns Worker's hardware capabilities
-func (m *Miner) Hardware() *hardware.Hardware {
-	return m.hardware
+func (m *Miner) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
+	return m.hardware.IntoProto(), nil
+}
+
+// Status returns internal hub statistic
+func (m *Miner) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, error) {
+	uptime := uint64(time.Now().Sub(m.startTime).Seconds())
+	reply := &pb.HubStatusReply{
+		Uptime:    uptime,
+		Platform:  util.GetPlatformName(),
+		Version:   m.version,
+		EthAddr:   m.ethAddr().Hex(),
+		TaskCount: uint32(len(m.CollectTasksStatuses(pb.TaskStatusReply_RUNNING))),
+	}
+
+	return reply, nil
 }
 
 // FreeDevice provides information about unallocated resources
 // that can be turned into ask-plans.
-func (m *Miner) FreeDevice() *hardware.Hardware {
+func (m *Miner) FreeDevices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
 	// todo: this is stub, wait for Resource manager impl to use real data.
-	return m.hardware
+	return m.hardware.IntoProto(), nil
 }
 
 func (m *Miner) scheduleStatusPurge(id string) {
@@ -395,8 +414,17 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 	return restartPolicy
 }
 
-func (m *Miner) Load(stream pb.Hub_PushTaskServer) error {
-	log.G(m.ctx).Info("handling Load request")
+func (m *Miner) PushTask(stream pb.Hub_PushTaskServer) error {
+	log.G(m.ctx).Info("handling PushTask request")
+	if err := m.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PushTask"), nil); err != nil {
+		return err
+	}
+
+	request, err := structs.NewImagePush(stream)
+	if err != nil {
+		return err
+	}
+	log.G(m.ctx).Info("pushing image", zap.Int64("size", request.ImageSize()))
 
 	result, err := m.ovs.Load(stream.Context(), newChunkReader(stream))
 	if err != nil {
@@ -408,10 +436,37 @@ func (m *Miner) Load(stream pb.Hub_PushTaskServer) error {
 	return nil
 }
 
-func (m *Miner) Save(request *pb.SaveRequest, stream pb.Hub_PullTaskServer) error {
-	log.G(m.ctx).Info("handling Save request", zap.Any("request", request))
+func (m *Miner) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer) error {
+	log.G(m.ctx).Info("handling PullTask request", zap.Any("request", request))
 
-	info, rd, err := m.ovs.Save(stream.Context(), request.ImageID)
+	if err := m.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PullTask"), request); err != nil {
+		return err
+	}
+
+	ctx := log.WithLogger(m.ctx, log.G(m.ctx).With(zap.String("request", "pull task"), zap.String("id", uuid.New())))
+
+	task, err := m.TaskStatus(ctx, &pb.ID{Id: request.GetTaskId()})
+	if err != nil {
+		log.G(m.ctx).Warn("could not fetch task history by deal", zap.Error(err))
+		return err
+	}
+
+	named, err := reference.ParseNormalizedNamed(task.GetImageName())
+	if err != nil {
+		log.G(m.ctx).Warn("could not parse image to reference", zap.Error(err), zap.String("image", task.GetImageName()))
+		return err
+	}
+
+	tagged, err := reference.WithTag(named, fmt.Sprintf("%s_%s", request.GetDealId(), request.GetTaskId()))
+	if err != nil {
+		log.G(m.ctx).Warn("could not tag image", zap.Error(err), zap.String("image", task.GetImageName()))
+		return err
+	}
+	imageID := tagged.String()
+
+	log.G(ctx).Debug("pulling image", zap.String("imageID", imageID))
+
+	info, rd, err := m.ovs.Save(stream.Context(), imageID)
 	if err != nil {
 		return err
 	}
@@ -438,8 +493,63 @@ func (m *Miner) Save(request *pb.SaveRequest, stream pb.Hub_PullTaskServer) erro
 	return nil
 }
 
+func (m *Miner) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
+	log.G(m.ctx).Info("handling StartTask request", zap.Any("request", request))
+
+	// TODO: get rid of this wrapper - just add validate method
+	taskRequest, err := structs.NewStartTaskRequest(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return m.startTask(ctx, taskRequest)
+}
+
+func (m *Miner) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.StartTaskReply, error) {
+	allowed, ref, err := m.whitelist.Allowed(ctx, request.Container.Registry, request.Container.Image, request.Container.Auth)
+	if err != nil {
+		return nil, err
+	}
+
+	if !allowed {
+		return nil, status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
+	}
+
+	// TODO(sshaman1101): REFACTOR:   only check for whitelist there,
+	// TODO(sshaman1101): REFACTOR:   move all deals and tasks related code into the Worker.
+
+	taskID := uuid.New()
+	container := request.Container
+	container.Registry = reference.Domain(ref)
+	container.Image = reference.Path(ref)
+
+	startRequest := &pb.MinerStartRequest{
+		DealID:    request.GetDealId(),
+		Id:        taskID,
+		Container: container,
+		RestartPolicy: &pb.ContainerRestartPolicy{
+			Name:              "",
+			MaximumRetryCount: 0,
+		},
+		Resources: request.Resources,
+	}
+
+	response, err := m.startImpl(ctx, startRequest)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
+	}
+
+	reply := &pb.StartTaskReply{
+		Id:         taskID,
+		NetworkIDs: response.NetworkIDs,
+		PortMap:    response.GetPortMap(),
+	}
+
+	return reply, nil
+}
+
 // Start request from Hub makes Miner start a container
-func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
+func (m *Miner) startImpl(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
 
 	//TODO: move to validate()
@@ -594,7 +704,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 }
 
 // Stop request forces to kill container
-func (m *Miner) Stop(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
+func (m *Miner) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(ctx).Info("handling Stop request", zap.Any("req", request))
 
 	m.mu.Lock()
@@ -619,6 +729,11 @@ func (m *Miner) Stop(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
+func (m *Miner) Tasks(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
+	log.G(m.ctx).Info("handling Tasks request")
+	return &pb.TaskListReply{Info: m.CollectTasksStatuses()}, nil
+}
+
 func (m *Miner) CollectTasksStatuses(statuses ...pb.TaskStatusReply_Status) map[string]*pb.TaskStatusReply {
 	result := map[string]*pb.TaskStatusReply{}
 	m.mu.Lock()
@@ -641,6 +756,10 @@ func (m *Miner) CollectTasksStatuses(statuses ...pb.TaskStatusReply_Status) map[
 
 // TaskLogs returns logs from container
 func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer) error {
+	log.G(m.ctx).Info("handling TaskLogs request", zap.Any("request", request))
+	if err := m.eventAuthorization.Authorize(server.Context(), auth.Event(taskAPIPrefix+"TaskLogs"), request); err != nil {
+		return err
+	}
 	log.G(m.ctx).Info("handling TaskLogs request", zap.Any("request", request))
 	cid, ok := m.getContainerIdByTaskId(request.Id)
 	if !ok {
@@ -676,8 +795,8 @@ func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServ
 }
 
 //TODO: proper request
-func (m *Miner) JoinNetwork(ctx context.Context, req *pb.ID) (*pb.NetworkSpec, error) {
-	spec, err := m.plugins.JoinNetwork(req.Id)
+func (m *Miner) JoinNetwork(ctx context.Context, request *pb.HubJoinNetworkRequest) (*pb.NetworkSpec, error) {
+	spec, err := m.plugins.JoinNetwork(request.NetworkID)
 	if err != nil {
 		return nil, err
 	}
@@ -689,7 +808,7 @@ func (m *Miner) JoinNetwork(ctx context.Context, req *pb.ID) (*pb.NetworkSpec, e
 	}, nil
 }
 
-func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusReply, error) {
+func (m *Miner) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusReply, error) {
 	log.G(m.ctx).Info("starting TaskDetails status server")
 
 	info, ok := m.GetContainerInfo(req.GetId())
@@ -723,17 +842,17 @@ func (m *Miner) RunSSH() error {
 }
 
 // RunBenchmarks perform benchmarking of Worker's resources.
-func (m *Miner) RunBenchmarks() error {
-	savedHardware := m.state.HardwareHash()
+func (m *Miner) runBenchmarks() error {
+	savedHardware := m.storage.HardwareHash()
 	exitingHardware := m.hardware.Hash()
 
 	log.G(m.ctx).Debug("hardware hashes",
 		zap.String("saved", savedHardware),
 		zap.String("exiting", exitingHardware))
 
-	savedBenchmarks := m.state.PassedBenchmarks()
+	savedBenchmarks := m.storage.PassedBenchmarks()
 	//TODO(@antmat): use plain list of benchmarks when it will be available (via following PR)
-	requiredBenchmarks := m.benchmarkList.MapByDeviceType()
+	requiredBenchmarks := m.benchmarks.MapByDeviceType()
 
 	hwHashesMatched := exitingHardware == savedHardware
 	benchMatched := m.isBenchmarkListMatches(requiredBenchmarks, savedBenchmarks)
@@ -745,7 +864,7 @@ func (m *Miner) RunBenchmarks() error {
 	if benchMatched && hwHashesMatched {
 		log.G(m.ctx).Debug("benchmarks list is matched, hardware is not changed, skip benchmarking this worker")
 		// return back previously measured results for hardware
-		m.hardware = m.state.HardwareWithBenchmarks()
+		m.hardware = m.storage.HardwareWithBenchmarks()
 		return nil
 	}
 
@@ -761,15 +880,58 @@ func (m *Miner) RunBenchmarks() error {
 		}
 	}
 
-	if err := m.state.SetPassedBenchmarks(passedBenchmarks); err != nil {
+	if err := m.storage.SetPassedBenchmarks(passedBenchmarks); err != nil {
 		return err
 	}
 
-	if err := m.state.SetHardwareWithBenchmarks(m.hardware); err != nil {
+	if err := m.storage.SetHardwareWithBenchmarks(m.hardware); err != nil {
 		return err
 	}
 
-	return m.state.SetHardwareHash(m.hardware.Hash())
+	return m.storage.SetHardwareHash(m.hardware.Hash())
+}
+
+func (m *Miner) setupResources() error {
+	m.resources = resource.NewScheduler(m.ctx, m.hardware)
+	return nil
+}
+
+func (m *Miner) setupSalesman() error {
+	salesman, err := salesman.NewSalesman(
+		salesman.WithLogger(log.S(m.ctx).With("source", "salesman")),
+		salesman.WithStorage(m.storage),
+		salesman.WithResources(m.resources),
+		salesman.WithHardware(m.hardware),
+		salesman.WithEth(m.eth),
+		salesman.WithCGroupManager(m.cGroupManager),
+		salesman.WithMatcher(m.matcher),
+		salesman.WithEthkey(m.key),
+		salesman.WithConfig(&m.cfg.Salesman),
+	)
+	if err != nil {
+		return err
+	}
+	m.salesman = salesman
+
+	ch := m.salesman.Run(m.ctx)
+	go m.listenDeals(ch)
+	return nil
+}
+
+func (m *Miner) setupServer() error {
+	logger := log.GetLogger(m.ctx)
+	grpcServer := xgrpc.NewServer(logger,
+		xgrpc.Credentials(m.creds),
+		xgrpc.DefaultTraceInterceptor(),
+		xgrpc.AuthorizationInterceptor(m.eventAuthorization),
+		xgrpc.VerifyInterceptor(),
+	)
+	m.externalGrpc = grpcServer
+
+	pb.RegisterHubServer(grpcServer, m)
+	pb.RegisterWorkerManagementServer(grpcServer, m)
+	grpc_prometheus.Register(grpcServer)
+	return nil
 }
 
 // isBenchmarkListMatches checks if already passed benchmarks is matches required benchmarks list.
@@ -937,26 +1099,44 @@ func getDescriptionForBenchmark(b *pb.Benchmark) Description {
 	}
 }
 
-func (m *Miner) AskPlans(ctx context.Context) (*pb.AskPlansReply, error) {
+func (m *Miner) AskPlans(ctx context.Context, _ *pb.Empty) (*pb.AskPlansReply, error) {
 	log.G(m.ctx).Info("handling AskPlans request")
 	return &pb.AskPlansReply{AskPlans: m.salesman.AskPlans()}, nil
 }
 
-func (m *Miner) CreateAskPlan(ctx context.Context, askPlan *pb.AskPlan) (string, error) {
-	log.G(m.ctx).Info("handling CreateAskPlan request", zap.Any("request", askPlan))
-	if len(askPlan.GetID()) != 0 || !askPlan.GetOrderID().IsZero() || !askPlan.GetDealID().IsZero() {
-		return "", errors.New("creating ask plans with predefined id, order_id or deal_id are not supported")
+func (m *Miner) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (*pb.ID, error) {
+	log.G(m.ctx).Info("handling CreateAskPlan request", zap.Any("request", request))
+	if len(request.GetID()) != 0 || !request.GetOrderID().IsZero() || !request.GetDealID().IsZero() {
+		return nil, errors.New("creating ask plans with predefined id, order_id or deal_id are not supported")
 	}
-	return m.salesman.CreateAskPlan(askPlan)
+	id, err := m.salesman.CreateAskPlan(request)
+	if err != nil {
+		return nil, err
+	}
+
+	return &pb.ID{Id: id}, nil
 }
 
-func (m *Miner) RemoveAskPlan(ctx context.Context, id string) error {
-	log.G(m.ctx).Info("handling RemoveAskPlan request", zap.String("id", id))
+func (m *Miner) RemoveAskPlan(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
+	log.G(m.ctx).Info("handling RemoveAskPlan request", zap.String("id", request.GetId()))
 
-	return m.salesman.RemoveAskPlan(id)
+	if err := m.salesman.RemoveAskPlan(request.GetId()); err != nil {
+		return nil, err
+	}
+	return &pb.Empty{}, nil
 }
 
-func (m *Miner) GetDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
+func (m *Miner) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
+	log.G(m.ctx).Info("handling GetDealInfo request")
+
+	dealID, err := pb.NewBigIntFromString(id.Id)
+	if err != nil {
+		return nil, err
+	}
+	return m.getDealInfo(dealID)
+}
+
+func (m *Miner) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 	deal, err := m.salesman.Deal(dealID)
 	if err != nil {
 		return nil, err
@@ -1018,8 +1198,22 @@ func (m *Miner) AskPlanByTaskID(taskID string) (*pb.AskPlan, error) {
 func (m *Miner) Close() {
 	log.G(m.ctx).Info("closing worker")
 
-	m.ssh.Close()
-	m.ovs.Close()
-	m.salesman.Close()
-	m.plugins.Close()
+	if m.ssh != nil {
+		m.ssh.Close()
+	}
+	if m.ovs != nil {
+		m.ovs.Close()
+	}
+	if m.salesman != nil {
+		m.salesman.Close()
+	}
+	if m.plugins != nil {
+		m.plugins.Close()
+	}
+	if m.externalGrpc != nil {
+		m.externalGrpc.Stop()
+	}
+	if m.certRotator != nil {
+		m.certRotator.Close()
+	}
 }
