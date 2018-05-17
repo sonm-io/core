@@ -32,7 +32,6 @@ import (
 
 const (
 	eventRetryTime = time.Second * 3
-	numWorkers     = 16
 )
 
 type DWH struct {
@@ -372,7 +371,7 @@ func (w *DWH) watchMarketEvents() error {
 	}
 
 	wg := &sync.WaitGroup{}
-	for workerID := 0; workerID < numWorkers; workerID++ {
+	for workerID := 0; workerID < w.cfg.NumWorkers; workerID++ {
 		wg.Add(1)
 		go w.runEventWorker(wg, workerID, events)
 	}
