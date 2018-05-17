@@ -2,6 +2,7 @@ package dwh
 
 import (
 	"github.com/jinzhu/configor"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/logging"
@@ -41,6 +42,10 @@ func NewConfig(path string) (*Config, error) {
 	err := configor.Load(cfg, path)
 	if err != nil {
 		return nil, err
+	}
+
+	if cfg.NumWorkers < 1 {
+		return nil, errors.New("at least one worker must be specified")
 	}
 
 	return cfg, nil
