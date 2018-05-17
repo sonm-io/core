@@ -41,7 +41,7 @@ func (m *marketAPI) GetOrders(ctx context.Context, req *pb.Count) (*pb.GetOrders
 func (m *marketAPI) GetOrderByID(ctx context.Context, req *pb.ID) (*pb.Order, error) {
 	id, err := util.ParseBigInt(req.GetId())
 	if err != nil {
-		return nil, fmt.Errorf("could not get parse order id %s to BigInt: %s", req.Id, err)
+		return nil, fmt.Errorf("could not get parse order id %s to BigInt: %s", req.GetId(), err)
 	}
 
 	return m.remotes.eth.Market().GetOrderInfo(ctx, id)
@@ -83,9 +83,9 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 		Duration:       uint64(req.GetDuration().Unwrap().Seconds()),
 		Price:          req.GetPrice().GetPerSecond(),
 		Netflags: pb.NetflagsToUint([3]bool{
-			req.Resources.Network.Overlay,
-			req.Resources.Network.Outbound,
-			req.Resources.Network.Incoming,
+			req.GetResources().GetNetwork().GetOverlay(),
+			req.GetResources().GetNetwork().GetOutbound(),
+			req.GetResources().GetNetwork().GetIncoming(),
 		}),
 		IdentityLevel: req.GetIdentity(),
 		Blacklist:     blacklist,
@@ -116,11 +116,11 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
 	id, err := util.ParseBigInt(req.GetId())
 	if err != nil {
-		return nil, fmt.Errorf("could not get parse order id %s to BigInt: %s", req.Id, err)
+		return nil, fmt.Errorf("could not get parse order id %s to BigInt: %s", req.GetId(), err)
 	}
 
 	if err := <-m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id); err != nil {
-		return nil, fmt.Errorf("could not get cancel order %s on blockchain: %s", req.Id, err)
+		return nil, fmt.Errorf("could not get cancel order %s on blockchain: %s", req.GetId(), err)
 	}
 
 	return &pb.Empty{}, nil

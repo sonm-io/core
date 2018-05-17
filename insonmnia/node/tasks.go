@@ -87,8 +87,8 @@ func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.Sta
 	return reply, nil
 }
 
-func (t *tasksAPI) JoinNetwork(ctx context.Context, request *pb.JoinNetworkRequest) (*pb.NetworkSpec, error) {
-	dealID := request.GetTaskID().GetDealID().Unwrap().String()
+func (t *tasksAPI) JoinNetwork(ctx context.Context, req *pb.JoinNetworkRequest) (*pb.NetworkSpec, error) {
+	dealID := req.GetTaskID().GetDealID().Unwrap().String()
 	hub, cc, err := t.remotes.getHubClientForDeal(ctx, dealID)
 	if err != nil {
 		return nil, err
@@ -96,8 +96,8 @@ func (t *tasksAPI) JoinNetwork(ctx context.Context, request *pb.JoinNetworkReque
 	defer cc.Close()
 
 	reply, err := hub.JoinNetwork(ctx, &pb.HubJoinNetworkRequest{
-		TaskID:    request.TaskID.Id,
-		NetworkID: request.NetworkID,
+		TaskID:    req.GetTaskID().GetId(),
+		NetworkID: req.GetNetworkID(),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to join network on worker: %s", err)
@@ -113,7 +113,7 @@ func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusRep
 	}
 	defer cc.Close()
 
-	return hubClient.TaskStatus(ctx, &pb.ID{Id: id.Id})
+	return hubClient.TaskStatus(ctx, &pb.ID{Id: id.GetId()})
 }
 
 func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServer) error {
@@ -152,7 +152,7 @@ func (t *tasksAPI) Stop(ctx context.Context, id *pb.TaskID) (*pb.Empty, error) {
 	}
 	defer cc.Close()
 
-	return hubClient.StopTask(ctx, &pb.ID{Id: id.Id})
+	return hubClient.StopTask(ctx, &pb.ID{Id: id.GetId()})
 }
 
 func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error {
