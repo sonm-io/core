@@ -1,19 +1,30 @@
 package miner
 
 import (
+	"context"
+	"crypto/ecdsa"
 	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
-	_ = setupTestResponder()
+	_    = setupTestResponder()
+	key  = getTestKey()
+	addr = util.PubKeyToAddr(key.PublicKey)
 )
+
+func getTestKey() *ecdsa.PrivateKey {
+	k, _ := ethcrypto.GenerateKey()
+	return k
+}
 
 func setupTestResponder() *httptest.Server {
 	ts := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -44,6 +55,9 @@ func TestTransformEnvVars(t *testing.T) {
 
 func TestCollectTasksStatuses(t *testing.T) {
 	m := Miner{
+		options: &options{
+			ctx: context.Background(),
+		},
 		containers: map[string]*ContainerInfo{
 			"aaa1": {status: pb.TaskStatusReply_UNKNOWN},
 			"aaa2": {status: pb.TaskStatusReply_UNKNOWN},

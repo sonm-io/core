@@ -1,4 +1,4 @@
-package hub
+package miner
 
 import (
 	"context"
@@ -128,12 +128,12 @@ func newContextDealExtractor() DealExtractor {
 // NewFromTaskDealExtractor constructs a deal id extractor that requires the
 // specified request to have "Id" field, which is the task id.
 // This task id is used to extract current deal id from the Hub.
-func newFromTaskDealExtractor(hub *Hub) DealExtractor {
-	return newFromNamedTaskDealExtractor(hub, "Id")
+func newFromTaskDealExtractor(worker *Miner) DealExtractor {
+	return newFromNamedTaskDealExtractor(worker, "Id")
 }
 
 // todo: do not accept Hub as param, use some interface that have TaskStatus method.
-func newFromNamedTaskDealExtractor(hub *Hub, name string) DealExtractor {
+func newFromNamedTaskDealExtractor(worker *Miner, name string) DealExtractor {
 	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
 		requestValue := reflect.Indirect(reflect.ValueOf(request))
 		taskID := reflect.Indirect(requestValue.FieldByName(name))
@@ -145,12 +145,12 @@ func newFromNamedTaskDealExtractor(hub *Hub, name string) DealExtractor {
 			return "", errInvalidTaskField
 		}
 
-		_, err := hub.TaskStatus(ctx, &sonm.ID{Id: taskID.String()})
+		_, err := worker.TaskStatus(ctx, &sonm.ID{Id: taskID.String()})
 		if err != nil {
 			return "", status.Errorf(codes.NotFound, "task %s not found", taskID.String())
 		}
 
-		askPlan, err := hub.worker.AskPlanByTaskID(taskID.Interface().(string))
+		askPlan, err := worker.AskPlanByTaskID(taskID.Interface().(string))
 		if err != nil {
 			return "", status.Errorf(codes.NotFound, "ask plan for task %s not found: %s", taskID.String(), err)
 		}
