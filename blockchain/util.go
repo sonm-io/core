@@ -39,23 +39,23 @@ func getCallOptions(ctx context.Context) *bind.CallOpts {
 	}
 }
 
-func extractAddress(log types.Log, pos int) (common.Address, error) {
-	if len(log.Topics) < pos {
+func extractAddress(topics []common.Hash, pos int) (common.Address, error) {
+	if len(topics) < pos {
 		return common.Address{}, errors.New("topic index out of range")
 	}
 
-	return common.HexToAddress(log.Topics[pos].Hex()), nil
+	return common.HexToAddress(topics[pos].Hex()), nil
 }
 
-func extractBig(log types.Log, pos int) (*big.Int, error) {
-	if len(log.Topics) < pos {
+func extractBig(topics []common.Hash, pos int) (*big.Int, error) {
+	if len(topics) < pos {
 		return nil, errors.New("topic index out of range")
 	}
 
-	return log.Topics[pos].Big(), nil
+	return topics[pos].Big(), nil
 }
 
-func parseTransactionLogs(ctx context.Context, client *ethclient.Client, tx *types.Transaction, topic common.Hash) (*big.Int, error) {
+func findLogByTopic(ctx context.Context, client *ethclient.Client, tx *types.Transaction, topic common.Hash) (*types.Log, error) {
 	txReceipt, err := client.TransactionReceipt(ctx, tx.Hash())
 	if err != nil {
 		return nil, err
@@ -72,11 +72,7 @@ func parseTransactionLogs(ctx context.Context, client *ethclient.Client, tx *typ
 		receivedTopic := l.Topics[0]
 		topicCmp := bytes.Compare(receivedTopic.Bytes(), topic.Bytes())
 		if topicCmp == 0 {
-			if len(l.Topics) > 1 {
-				return l.Topics[1].Big(), nil
-			}
-			// TODO(sokel): similar log processing is incorrect
-			return big.NewInt(0), nil
+			return l, nil
 		}
 	}
 
@@ -84,14 +80,14 @@ func parseTransactionLogs(ctx context.Context, client *ethclient.Client, tx *typ
 	return nil, fmt.Errorf("cannot find topic \"%s\"in transaction", topic.Hex())
 }
 
-func waitForTransactionResult(ctx context.Context, client *ethclient.Client, logParsePeriod time.Duration, tx *types.Transaction, topic common.Hash) (*big.Int, error) {
+func waitForTransactionResult(ctx context.Context, client *ethclient.Client, logParsePeriod time.Duration, tx *types.Transaction, topic common.Hash) (*types.Log, error) {
 	tk := util.NewImmediateTicker(logParsePeriod)
 	defer tk.Stop()
 
 	for {
 		select {
 		case <-tk.C:
-			id, err := parseTransactionLogs(ctx, client, tx, topic)
+			log, err := findLogByTopic(ctx, client, tx, topic)
 			if err != nil {
 				if err == ethereum.NotFound {
 					break
@@ -99,7 +95,7 @@ func waitForTransactionResult(ctx context.Context, client *ethclient.Client, log
 				return nil, err
 			}
 
-			return id, err
+			return log, err
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}

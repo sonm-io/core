@@ -245,7 +245,13 @@ func (api *BasicMarketAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, 
 		return
 	}
 
-	id, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.DealOpenedTopic)
+	log, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.DealOpenedTopic)
+	if err != nil {
+		ch <- DealOrError{nil, err}
+		return
+	}
+
+	id, err := extractBig(log.Topics, 1)
 	if err != nil {
 		ch <- DealOrError{nil, err}
 		return
@@ -352,11 +358,18 @@ func (api *BasicMarketAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey
 		return
 	}
 
-	id, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.OrderPlacedTopic)
+	log, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.OrderPlacedTopic)
 	if err != nil {
 		ch <- OrderOrError{nil, err}
 		return
 	}
+
+	id, err := extractBig(log.Topics, 1)
+	if err != nil {
+		ch <- OrderOrError{nil, err}
+		return
+	}
+
 	orderInfo, err := api.GetOrderInfo(ctx, id)
 	ch <- OrderOrError{orderInfo, err}
 }
@@ -792,28 +805,28 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 	var topic = log.Topics[0]
 	switch topic {
 	case market.DealOpenedTopic:
-		id, err := extractBig(log, 1)
+		id, err := extractBig(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&DealOpenedData{ID: id})
 	case market.DealUpdatedTopic:
-		id, err := extractBig(log, 1)
+		id, err := extractBig(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&DealUpdatedData{ID: id})
 	case market.DealChangeRequestSentTopic:
-		id, err := extractBig(log, 1)
+		id, err := extractBig(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&DealChangeRequestSentData{ID: id})
 	case market.DealChangeRequestUpdatedTopic:
-		id, err := extractBig(log, 1)
+		id, err := extractBig(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
@@ -827,88 +840,88 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 		}
 		sendData(billedData)
 	case market.OrderPlacedTopic:
-		id, err := extractBig(log, 1)
+		id, err := extractBig(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&OrderPlacedData{ID: id})
 	case market.OrderUpdatedTopic:
-		id, err := extractBig(log, 1)
+		id, err := extractBig(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&OrderUpdatedData{ID: id})
 	case market.WorkerAnnouncedTopic:
-		slaveID, err := extractAddress(log, 1)
+		slaveID, err := extractAddress(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		masterID, err := extractAddress(log, 2)
+		masterID, err := extractAddress(log.Topics, 2)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&WorkerAnnouncedData{SlaveID: slaveID, MasterID: masterID})
 	case market.WorkerConfirmedTopic:
-		slaveID, err := extractAddress(log, 1)
+		slaveID, err := extractAddress(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		masterID, err := extractAddress(log, 2)
+		masterID, err := extractAddress(log.Topics, 2)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&WorkerConfirmedData{SlaveID: slaveID, MasterID: masterID})
 	case market.WorkerRemovedTopic:
-		slaveID, err := extractAddress(log, 1)
+		slaveID, err := extractAddress(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		masterID, err := extractAddress(log, 2)
+		masterID, err := extractAddress(log.Topics, 2)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&WorkerRemovedData{SlaveID: slaveID, MasterID: masterID})
 	case market.AddedToBlacklistTopic:
-		adderID, err := extractAddress(log, 1)
+		adderID, err := extractAddress(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		addeeID, err := extractAddress(log, 2)
+		addeeID, err := extractAddress(log.Topics, 2)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&AddedToBlacklistData{AdderID: adderID, AddeeID: addeeID})
 	case market.RemovedFromBlacklistTopic:
-		removerID, err := extractAddress(log, 1)
+		removerID, err := extractAddress(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		removeeID, err := extractAddress(log, 2)
+		removeeID, err := extractAddress(log.Topics, 2)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&RemovedFromBlacklistData{RemoverID: removerID, RemoveeID: removeeID})
 	case market.ValidatorCreatedTopic:
-		id, err := extractAddress(log, 1)
+		id, err := extractAddress(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
 		sendData(&ValidatorCreatedData{ID: id})
 	case market.ValidatorDeletedTopic:
-		id, err := extractAddress(log, 1)
+		id, err := extractAddress(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
