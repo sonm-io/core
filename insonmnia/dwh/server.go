@@ -480,6 +480,11 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		return errors.Wrapf(err, "failed to GetDealInfo")
 	}
 
+	if deal.Status == pb.DealStatus_DEAL_CLOSED {
+		w.logger.Info("skipping inactive deal", zap.String("order_id", dealID.String()))
+		return nil
+	}
+
 	if err := w.checkBenchmarks(deal.Benchmarks); err != nil {
 		return err
 	}
