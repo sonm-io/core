@@ -118,8 +118,8 @@ func (c *sqlStorage) UpdateDealsConsumer(conn queryConn, profile *pb.Profile) er
 	return err
 }
 
-func (c *sqlStorage) UpdateDealPayout(conn queryConn, dealID *big.Int, payout *big.Int) error {
-	_, err := conn.Exec(c.commands.updateDealPayout, util.BigIntToPaddedString(payout), dealID.String())
+func (c *sqlStorage) UpdateDealPayout(conn queryConn, dealID, payout *big.Int, billTS uint64) error {
+	_, err := conn.Exec(c.commands.updateDealPayout, util.BigIntToPaddedString(payout), billTS, dealID.String())
 	return err
 }
 
