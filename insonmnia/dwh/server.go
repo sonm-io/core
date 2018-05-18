@@ -1221,7 +1221,7 @@ func (w *DWH) checkBenchmarks(benches *pb.Benchmarks) error {
 func (w *DWH) delayedRemoveID(id *big.Int, entity string) {
 	t := time.NewTimer(time.Second * 5)
 	<-t.C
-	w.logger.Debug("removing stale entity from cache", zap.String("entity", entity))
+	w.logger.Debug("removing stale entity from cache", zap.String("entity", entity), zap.String("id", id.String()))
 	if err := w.storage.RemoveID(newSimpleConn(w.db), id, entity); err != nil {
 		w.logger.Warn("failed to RemoveID", zap.Error(err), zap.String("id", id.String()),
 			zap.String("entity", entity))

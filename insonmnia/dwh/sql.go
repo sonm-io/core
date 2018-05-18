@@ -1381,7 +1381,7 @@ type sqlSetupCommands struct {
 	createTableCertificates   string
 	createTableProfiles       string
 	createTableMisc           string
-	createTableIDs            string
+	createTableStaleIDs       string
 	createIndexCmd            string
 	tablesInfo                *tablesInfo
 }
@@ -1437,9 +1437,9 @@ func (c *sqlSetupCommands) setupTables(db *sql.DB) error {
 		return errors.Wrapf(err, "failed to %s", c.createTableProfiles)
 	}
 
-	_, err = db.Exec(c.createTableIDs)
+	_, err = db.Exec(c.createTableStaleIDs)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableIDs)
+		return errors.Wrapf(err, "failed to %s", c.createTableStaleIDs)
 	}
 
 	_, err = db.Exec(c.createTableMisc)
@@ -1493,7 +1493,7 @@ func (c *sqlSetupCommands) createIndices(db *sql.DB) error {
 			return err
 		}
 	}
-	if err = c.createIndex(db, c.createIndexCmd, "IDs", "Id"); err != nil {
+	if err = c.createIndex(db, c.createIndexCmd, "StaleIDs", "Id"); err != nil {
 		return err
 	}
 
