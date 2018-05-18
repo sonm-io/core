@@ -71,6 +71,9 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 			selectLastKnownBlock:         `SELECT LastKnownBlock FROM Misc WHERE Id = 1`,
 			insertLastKnownBlock:         `INSERT INTO Misc(LastKnownBlock) VALUES ($1)`,
 			updateLastKnownBlock:         `UPDATE Misc SET LastKnownBlock = $1 WHERE Id = 1`,
+			storeID:                      `INSERT INTO IDs VALUES ($1)`,
+			removeID:                     `DELETE FROM IDs WHERE Id = $1`,
+			checkID:                      `SELECT * FROM IDs WHERE Id = $1`,
 		},
 		setupCommands: &sqlSetupCommands{
 			createTableDeals: makeTableWithBenchmarks(`
@@ -189,6 +192,10 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 	CREATE TABLE IF NOT EXISTS Misc (
 		Id							BIGSERIAL PRIMARY KEY,
 		LastKnownBlock				INTEGER NOT NULL
+	)`,
+			createTableIDs: `
+	CREATE TABLE IF NOT EXISTS IDs (
+		Id 							TEXT NOT NULL
 	)`,
 			createIndexCmd: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
 			tablesInfo:     tInfo,

@@ -479,20 +479,23 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 		return errors.Wrapf(err, "failed to GetDealInfo")
 	}
 
+	conn, err := newTxConn(w.db, w.logger)
+	if err != nil {
+		return errors.Wrap(err, "failed to begin transaction")
+	}
+	defer conn.Finish()
+
 	if deal.Status == pb.DealStatus_DEAL_CLOSED {
-		w.logger.Info("skipping inactive deal", zap.String("deal_id", dealID.String()))
+		if err := w.storage.StoreID(newSimpleConn(w.db), dealID, "Deal"); err != nil {
+			return errors.Wrap(err, "failed to StoreID")
+		}
+		w.logger.Debug("skipping inactive deal", zap.String("deal_id", dealID.String()))
 		return nil
 	}
 
 	if err := w.checkBenchmarks(deal.Benchmarks); err != nil {
 		return err
 	}
-
-	conn, err := newTxConn(w.db, w.logger)
-	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
-	}
-	defer conn.Finish()
 
 	err = w.storage.InsertDeal(conn, deal)
 	if err != nil {
@@ -531,6 +534,16 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 	}
 	defer conn.Finish()
 
+	// If deal is known to be stale:
+	if ok, err := w.storage.CheckID(conn, dealID, "Deal"); err != nil {
+		return errors.Wrap(err, "failed to CheckID")
+	} else {
+		if ok {
+			go w.delayedRemoveID(dealID, "Deal")
+			return nil
+		}
+	}
+
 	if deal.Status == pb.DealStatus_DEAL_CLOSED {
 		err = w.storage.DeleteDeal(conn, deal.Id.Unwrap())
 		if err != nil {
@@ -564,6 +577,16 @@ func (w *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 		return errors.Wrap(err, "failed to begin transaction")
 	}
 	defer conn.Finish()
+
+	// If deal is known to be stale, skip.
+	if ok, err := w.storage.CheckID(conn, changeRequest.DealID.Unwrap(), "Deal"); err != nil {
+		return errors.Wrap(err, "failed to CheckID")
+	} else {
+		if ok {
+			w.logger.Debug("skipping DealChangeRequestSent event for inactive deal")
+			return nil
+		}
+	}
 
 	if changeRequest.Status != pb.ChangeRequestStatus_REQUEST_CREATED {
 		w.logger.Info("onDealChangeRequest event points to DealChangeRequest with .Status != Created",
@@ -606,6 +629,16 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 		return errors.Wrap(err, "failed to begin transaction")
 	}
 	defer conn.Finish()
+
+	// If deal is known to be stale, skip.
+	if ok, err := w.storage.CheckID(conn, changeRequest.DealID.Unwrap(), "Deal"); err != nil {
+		return errors.Wrap(err, "failed to CheckID")
+	} else {
+		if ok {
+			w.logger.Debug("skipping DealChangeRequestUpdated event for inactive deal")
+			return nil
+		}
+	}
 
 	switch changeRequest.Status {
 	case pb.ChangeRequestStatus_REQUEST_REJECTED:
@@ -660,6 +693,16 @@ func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 	}
 	defer conn.Finish()
 
+	// If deal is known to be stale, skip.
+	if ok, err := w.storage.CheckID(conn, dealID, "Deal"); err != nil {
+		return errors.Wrap(err, "failed to CheckID")
+	} else {
+		if ok {
+			w.logger.Debug("skipping Billed event for inactive deal")
+			return nil
+		}
+	}
+
 	if err := w.updateDealPayout(conn, dealID, payedAmount, eventTS); err != nil {
 		return errors.Wrap(err, "failed to updateDealPayout")
 	}
@@ -694,7 +737,7 @@ func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 func (w *DWH) updateDealPayout(conn queryConn, dealID, payedAmount *big.Int, billTS uint64) error {
 	deal, err := w.storage.GetDealByID(conn, dealID)
 	if err != nil {
-		return errors.Wrap(err, "failed to storage.GetDealByID")
+		return errors.Wrap(err, "failed to GetDealByID")
 	}
 
 	newDealTotalPayout := big.NewInt(0).Add(deal.Deal.TotalPayout.Unwrap(), payedAmount)
@@ -717,6 +760,14 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
 	defer conn.Finish()
+
+	if order.OrderStatus == pb.OrderStatus_ORDER_INACTIVE && order.DealID.IsZero() {
+		if err := w.storage.StoreID(conn, orderID, "Order"); err != nil {
+			return errors.Wrap(err, "failed to StoreID")
+		}
+		w.logger.Debug("skipping inactive order", zap.String("order_id", orderID.String()))
+		return nil
+	}
 
 	profile, err := w.storage.GetProfileByID(conn, order.AuthorID.Unwrap())
 	if err != nil {
@@ -741,11 +792,6 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		if err := w.updateProfileStats(conn, order, profile, 1); err != nil {
 			return errors.Wrap(err, "failed to updateProfileStats")
 		}
-	}
-
-	if order.OrderStatus == pb.OrderStatus_ORDER_INACTIVE && order.DealID.IsZero() {
-		w.logger.Info("skipping inactive order", zap.String("order_id", order.Id.Unwrap().String()))
-		return nil
 	}
 
 	if order.DealID == nil {
@@ -797,6 +843,17 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 		return errors.Wrap(err, "failed to begin transaction")
 	}
 	defer conn.Finish()
+
+	// If the order was known to be inactive, delete it from the list of inactive entities
+	// and skip.
+	if ok, err := w.storage.CheckID(conn, orderID, "Order"); err != nil {
+		return errors.Wrap(err, "failed to CheckID")
+	} else {
+		if ok {
+			go w.delayedRemoveID(orderID, "Order")
+			return nil
+		}
+	}
 
 	// If order was updated, but no deal is associated with it, delete the order.
 	if order.DealID.IsZero() {
@@ -1156,4 +1213,18 @@ func (w *DWH) checkBenchmarks(benches *pb.Benchmarks) error {
 	}
 
 	return nil
+}
+
+// delayedRemoveID is necessary because events order in one block is messed up, so you can have
+// a Billed event coming after DealUpdated (== deal is closed) event, and Billed will fail to find the
+// already deleted deal. This will result in an annoying error.
+func (w *DWH) delayedRemoveID(id *big.Int, entity string) {
+	t := time.NewTimer(time.Second * 5)
+	<-t.C
+	w.logger.Debug("removing stale entity from cache", zap.String("entity", entity))
+	if err := w.storage.RemoveID(newSimpleConn(w.db), id, entity); err != nil {
+		w.logger.Warn("failed to RemoveID", zap.Error(err), zap.String("id", id.String()),
+			zap.String("entity", entity))
+	}
+	t.Stop()
 }

@@ -56,6 +56,9 @@ type storage interface {
 	GetLastKnownBlock(conn queryConn) (uint64, error)
 	InsertLastKnownBlock(conn queryConn, blockNumber int64) error
 	UpdateLastKnownBlock(conn queryConn, blockNumber int64) error
+	StoreID(conn queryConn, id *big.Int, entity string) error
+	RemoveID(conn queryConn, id *big.Int, entity string) error
+	CheckID(conn queryConn, id *big.Int, entity string) (bool, error)
 }
 
 type queryConn interface {
