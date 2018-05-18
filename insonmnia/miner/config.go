@@ -1,6 +1,7 @@
 package miner
 
 import (
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jinzhu/configor"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sonm-io/core/accounts"
@@ -49,6 +50,7 @@ type Config struct {
 	DWH               dwh.YAMLConfig      `yaml:"dwh"`
 	Matcher           *matcher.YAMLConfig `yaml:"matcher"`
 	Salesman          salesman.YAMLConfig `yaml:"salesman"`
+	Master            *common.Address     `yaml:"master"`
 }
 
 // NewConfig creates a new Miner config from the specified YAML file.

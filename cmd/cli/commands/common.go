@@ -56,7 +56,7 @@ func init() {
 	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "Disable TLS for connection")
 
 	rootCmd.AddCommand(workerMgmtCmd, marketRootCmd, nodeDealsRootCmd, taskRootCmd)
-	rootCmd.AddCommand(loginCmd, getTokenCmd, getBalanceCmd, versionCmd, autoCompleteCmd)
+	rootCmd.AddCommand(loginCmd, getTokenCmd, getBalanceCmd, versionCmd, autoCompleteCmd, masterRootCmd)
 }
 
 // Root configure and return root command

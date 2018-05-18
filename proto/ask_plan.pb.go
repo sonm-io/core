@@ -126,7 +126,7 @@ It has these top-level messages:
 	DealFinishRequest
 	DealsReply
 	OpenDealRequest
-	Worker
+	WorkerRemoveRequest
 	WorkerListReply
 	BalanceReply
 	HandshakeRequest
