@@ -492,7 +492,7 @@ func (api *BasicMarketAPI) ConfirmWorker(ctx context.Context, key *ecdsa.Private
 
 func (api *BasicMarketAPI) confirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address, ch chan error) {
 	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
-	tx, err := api.marketContract.RegisterWorker(opts, slave)
+	tx, err := api.marketContract.ConfirmWorker(opts, slave)
 	if err != nil {
 		ch <- err
 		return

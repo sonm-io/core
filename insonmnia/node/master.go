@@ -1,6 +1,8 @@
 package node
 
 import (
+	"fmt"
+
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
@@ -24,7 +26,7 @@ func (m *masterMgmtAPI) WorkersList(ctx context.Context, address *sonm.EthAddres
 	//TODO: pagination
 	reply, err := m.remotes.dwh.GetWorkers(ctx, &sonm.WorkersRequest{MasterID: address})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not get dependant worker list from DWH: %s", err)
 	}
 	return &sonm.WorkerListReply{
 		Workers: reply.Workers,
@@ -35,7 +37,7 @@ func (m *masterMgmtAPI) WorkerConfirm(ctx context.Context, address *sonm.EthAddr
 	ctxlog.G(m.ctx).Info("handling WorkersConfirm request")
 	err := <-m.remotes.eth.Market().ConfirmWorker(ctx, m.remotes.key, address.Unwrap())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not confirm dependant worker in blockchain: %s", err)
 	}
 	return &sonm.Empty{}, nil
 }
@@ -44,7 +46,7 @@ func (m *masterMgmtAPI) WorkerRemove(ctx context.Context, request *sonm.WorkerRe
 	ctxlog.G(m.ctx).Info("handling WorkersRemove request")
 	err := <-m.remotes.eth.Market().RemoveWorker(ctx, m.remotes.key, request.GetMaster().Unwrap(), request.GetWorker().Unwrap())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("could not remove dependant worker from blockchain: %s", err)
 	}
 	return &sonm.Empty{}, nil
 }

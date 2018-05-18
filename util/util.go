@@ -220,3 +220,10 @@ func MultierrFormat() multierror.ErrorFormatFunc {
 		return strings.Join(s, ", ")
 	}
 }
+
+func HexToAddress(hex string) (common.Address, error) {
+	if !common.IsHexAddress(hex) {
+		return common.Address{}, fmt.Errorf("invalid address %s specified for parsing", hex)
+	}
+	return common.HexToAddress(hex), nil
+}

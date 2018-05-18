@@ -187,6 +187,7 @@ func (m *Miner) waitMasterApproved() error {
 	if m.cfg.Master == nil {
 		return nil
 	}
+	log.S(m.ctx).Info("waiting for master approval...")
 	selfAddr := m.ethAddr().Hex()
 	expectedMaster := m.cfg.Master.Hex()
 	ticker := util.NewImmediateTicker(time.Second)
@@ -201,7 +202,7 @@ func (m *Miner) waitMasterApproved() error {
 			}
 			curMaster := addr.Hex()
 			if curMaster == selfAddr {
-				// waiting for approve
+				log.S(m.ctx).Info("still no approval, continue waiting")
 				continue
 			}
 			if curMaster != expectedMaster {
@@ -238,12 +239,14 @@ func (m *Miner) ethAddr() common.Address {
 }
 
 func (m *Miner) setupMaster() error {
-	if m.cfg.Matcher != nil {
+	if m.cfg.Master != nil {
+		log.S(m.ctx).Info("checking current master")
 		addr, err := m.eth.Market().GetMaster(m.ctx, m.ethAddr())
 		if err != nil {
 			return err
 		}
 		if addr.Big().Cmp(m.ethAddr().Big()) == 0 {
+			log.S(m.ctx).Infof("master is not set, sending request to %s", m.cfg.Master.Hex())
 			err = <-m.eth.Market().RegisterWorker(m.ctx, m.key, *m.cfg.Master)
 			if err != nil {
 				return err

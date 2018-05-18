@@ -32,8 +32,13 @@ var masterListCmd = &cobra.Command{
 		defer cancel()
 
 		var master common.Address
+		var err error
 		if len(args) > 0 {
-			master = common.HexToAddress(args[0])
+			master, err = util.HexToAddress(args[0])
+			if err != nil {
+				showError(cmd, "invalid address specified", err)
+				os.Exit(1)
+			}
 		} else {
 			master = util.PubKeyToAddr(sessionKey.PublicKey)
 		}
@@ -56,9 +61,10 @@ var masterListCmd = &cobra.Command{
 }
 
 var masterConfirmCmd = &cobra.Command{
-	Use:   "confirm <worker_eth>",
-	Short: "Confirm pending Worker's registration request",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "confirm <worker_eth>",
+	Short:  "Confirm pending Worker's registration request",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
@@ -69,7 +75,12 @@ var masterConfirmCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		worker := pb.NewEthAddress(common.HexToAddress(args[0]))
+		addr, err := util.HexToAddress(args[0])
+		if err != nil {
+			showError(cmd, "invalid address specified", err)
+			os.Exit(1)
+		}
+		worker := pb.NewEthAddress(addr)
 		_, err = mm.WorkerConfirm(ctx, worker)
 		if err != nil {
 			showError(cmd, "Cannot approve Worker's request", err)
@@ -109,7 +120,11 @@ var masterRemoveWorkerCmd = &cobra.Command{
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		master := util.PubKeyToAddr(sessionKey.PublicKey)
-		worker := common.HexToAddress(args[0])
+		worker, err := util.HexToAddress(args[0])
+		if err != nil {
+			showError(cmd, "invalid address specified", err)
+			os.Exit(1)
+		}
 		masterRemove(cmd, master, worker)
 	},
 }
@@ -121,7 +136,11 @@ var masterRemoveMasterCmd = &cobra.Command{
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		worker := util.PubKeyToAddr(sessionKey.PublicKey)
-		master := common.HexToAddress(args[0])
+		master, err := util.HexToAddress(args[0])
+		if err != nil {
+			showError(cmd, "invalid address specified", err)
+			os.Exit(1)
+		}
 		masterRemove(cmd, master, worker)
 	},
 }
