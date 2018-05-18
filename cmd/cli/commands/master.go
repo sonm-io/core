@@ -3,7 +3,9 @@ package commands
 import (
 	"os"
 
+	"github.com/ethereum/go-ethereum/common"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -11,7 +13,8 @@ func init() {
 	masterRootCmd.AddCommand(
 		masterListCmd,
 		masterConfirmCmd,
-		masterRemoveCmd,
+		masterRemoveWorkerCmd,
+		masterRemoveMasterCmd,
 	)
 }
 
@@ -21,11 +24,19 @@ var masterRootCmd = &cobra.Command{
 }
 
 var masterListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Show known worker's addresses",
-	Run: func(cmd *cobra.Command, _ []string) {
+	Use:    "list [master_eth]",
+	Short:  "Show known worker's addresses",
+	PreRun: loadKeyStoreIfRequired,
+	Run: func(cmd *cobra.Command, args []string) {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
+
+		var master common.Address
+		if len(args) > 0 {
+			master = common.HexToAddress(args[0])
+		} else {
+			master = util.PubKeyToAddr(sessionKey.PublicKey)
+		}
 
 		mm, err := newMasterManagementClient(ctx)
 		if err != nil {
@@ -33,7 +44,7 @@ var masterListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		list, err := mm.WorkersList(ctx, &pb.Empty{})
+		list, err := mm.WorkersList(ctx, pb.NewEthAddress(master))
 		if err != nil {
 			showError(cmd, "Cannot get workers list", err)
 			os.Exit(1)
@@ -58,8 +69,8 @@ var masterConfirmCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		worker := args[0]
-		_, err = mm.WorkerConfirm(ctx, &pb.ID{Id: worker})
+		worker := pb.NewEthAddress(common.HexToAddress(args[0]))
+		_, err = mm.WorkerConfirm(ctx, worker)
 		if err != nil {
 			showError(cmd, "Cannot approve Worker's request", err)
 			os.Exit(1)
@@ -69,27 +80,48 @@ var masterConfirmCmd = &cobra.Command{
 	},
 }
 
-var masterRemoveCmd = &cobra.Command{
-	Use:   "remove <worker_eth>",
-	Short: "Remove registered worker",
-	Args:  cobra.MinimumNArgs(1),
+func masterRemove(cmd *cobra.Command, master common.Address, worker common.Address) {
+	ctx, cancel := newTimeoutContext()
+	defer cancel()
+
+	mm, err := newMasterManagementClient(ctx)
+	if err != nil {
+		showError(cmd, "Cannot create client connection", err)
+		os.Exit(1)
+	}
+
+	_, err = mm.WorkerRemove(ctx, &pb.WorkerRemoveRequest{
+		Master: pb.NewEthAddress(master),
+		Worker: pb.NewEthAddress(worker),
+	})
+	if err != nil {
+		showError(cmd, "Cannot drop master - worker relationship", err)
+		os.Exit(1)
+	}
+
+	showOk(cmd)
+}
+
+var masterRemoveWorkerCmd = &cobra.Command{
+	Use:    "remove_worker <worker_eth>",
+	Short:  "Remove registered worker",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := newTimeoutContext()
-		defer cancel()
+		master := util.PubKeyToAddr(sessionKey.PublicKey)
+		worker := common.HexToAddress(args[0])
+		masterRemove(cmd, master, worker)
+	},
+}
 
-		mm, err := newMasterManagementClient(ctx)
-		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
-		}
-
-		worker := args[0]
-		_, err = mm.WorkerRemove(ctx, &pb.ID{Id: worker})
-		if err != nil {
-			showError(cmd, "Cannot remove registered worker", err)
-			os.Exit(1)
-		}
-
-		showOk(cmd)
+var masterRemoveMasterCmd = &cobra.Command{
+	Use:    "remove_master <master_eth>",
+	Short:  "Remove self from specified master",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreIfRequired,
+	Run: func(cmd *cobra.Command, args []string) {
+		worker := util.PubKeyToAddr(sessionKey.PublicKey)
+		master := common.HexToAddress(args[0])
+		masterRemove(cmd, master, worker)
 	},
 }

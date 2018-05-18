@@ -4,8 +4,6 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type masterMgmtAPI struct {
@@ -21,17 +19,32 @@ func newMasterManagementAPI(opts *remoteOptions) sonm.MasterManagementServer {
 	}
 }
 
-func (m *masterMgmtAPI) WorkersList(context.Context, *sonm.Empty) (*sonm.WorkerListReply, error) {
+func (m *masterMgmtAPI) WorkersList(ctx context.Context, address *sonm.EthAddress) (*sonm.WorkerListReply, error) {
 	ctxlog.G(m.ctx).Info("handling WorkersList request")
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+	//TODO: pagination
+	reply, err := m.remotes.dwh.GetWorkers(ctx, &sonm.WorkersRequest{MasterID: address})
+	if err != nil {
+		return nil, err
+	}
+	return &sonm.WorkerListReply{
+		Workers: reply.Workers,
+	}, nil
 }
 
-func (m *masterMgmtAPI) WorkerConfirm(context.Context, *sonm.ID) (*sonm.Empty, error) {
+func (m *masterMgmtAPI) WorkerConfirm(ctx context.Context, address *sonm.EthAddress) (*sonm.Empty, error) {
 	ctxlog.G(m.ctx).Info("handling WorkersConfirm request")
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+	err := <-m.remotes.eth.Market().ConfirmWorker(ctx, m.remotes.key, address.Unwrap())
+	if err != nil {
+		return nil, err
+	}
+	return &sonm.Empty{}, nil
 }
 
-func (m *masterMgmtAPI) WorkerRemove(context.Context, *sonm.ID) (*sonm.Empty, error) {
+func (m *masterMgmtAPI) WorkerRemove(ctx context.Context, request *sonm.WorkerRemoveRequest) (*sonm.Empty, error) {
 	ctxlog.G(m.ctx).Info("handling WorkersRemove request")
-	return nil, status.Error(codes.Unimplemented, "unimplemented")
+	err := <-m.remotes.eth.Market().RemoveWorker(ctx, m.remotes.key, request.GetMaster().Unwrap(), request.GetWorker().Unwrap())
+	if err != nil {
+		return nil, err
+	}
+	return &sonm.Empty{}, nil
 }

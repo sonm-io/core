@@ -51,10 +51,10 @@ type MarketAPI interface {
 	GetOrderInfo(ctx context.Context, orderID *big.Int) (*pb.Order, error)
 	GetOrdersAmount(ctx context.Context) (*big.Int, error)
 	Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) <-chan error
-	RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) (*types.Transaction, error)
-	ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (*types.Transaction, error)
-	RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) (*types.Transaction, error)
-	GetMaster(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (common.Address, error)
+	RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) <-chan error
+	ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) <-chan error
+	RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) <-chan error
+	GetMaster(ctx context.Context, slave common.Address) (common.Address, error)
 	GetDealChangeRequestInfo(ctx context.Context, dealID *big.Int) (*pb.DealChangeRequest, error)
 	GetNumBenchmarks(ctx context.Context) (uint64, error)
 }
@@ -463,22 +463,70 @@ func (api *BasicMarketAPI) bill(ctx context.Context, key *ecdsa.PrivateKey, deal
 	ch <- nil
 }
 
-func (api *BasicMarketAPI) RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
-	return api.marketContract.RegisterWorker(opts, master)
+func (api *BasicMarketAPI) RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) <-chan error {
+	ch := make(chan error, 0)
+	go api.registerWorker(ctx, key, master, ch)
+	return ch
 }
 
-func (api *BasicMarketAPI) ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (*types.Transaction, error) {
+func (api *BasicMarketAPI) registerWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address, ch chan error) {
 	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
-	return api.marketContract.RegisterWorker(opts, slave)
+	tx, err := api.marketContract.RegisterWorker(opts, master)
+	if err != nil {
+		ch <- err
+		return
+	}
+
+	if _, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.WorkerAnnouncedTopic); err != nil {
+		ch <- err
+		return
+	}
+	ch <- nil
 }
 
-func (api *BasicMarketAPI) RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
-	return api.marketContract.RemoveWorker(opts, master, slave)
+func (api *BasicMarketAPI) ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) <-chan error {
+	ch := make(chan error, 0)
+	go api.confirmWorker(ctx, key, slave, ch)
+	return ch
 }
 
-func (api *BasicMarketAPI) GetMaster(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) (common.Address, error) {
+func (api *BasicMarketAPI) confirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address, ch chan error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	tx, err := api.marketContract.RegisterWorker(opts, slave)
+	if err != nil {
+		ch <- err
+		return
+	}
+
+	if _, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.WorkerConfirmedTopic); err != nil {
+		ch <- err
+		return
+	}
+	ch <- nil
+}
+
+func (api *BasicMarketAPI) RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) <-chan error {
+	ch := make(chan error, 0)
+	go api.removeWorker(ctx, key, master, slave, ch)
+	return ch
+}
+
+func (api *BasicMarketAPI) removeWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address, ch chan error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
+	tx, err := api.marketContract.RemoveWorker(opts, master, slave)
+	if err != nil {
+		ch <- err
+		return
+	}
+
+	if _, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.WorkerRemovedTopic); err != nil {
+		ch <- err
+		return
+	}
+	ch <- nil
+}
+
+func (api *BasicMarketAPI) GetMaster(ctx context.Context, slave common.Address) (common.Address, error) {
 	return api.marketContract.GetMaster(getCallOptions(ctx), slave)
 }
 
