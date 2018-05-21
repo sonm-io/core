@@ -372,45 +372,40 @@ func (w *DWH) watchMarketEvents() (err error) {
 		return err
 	}
 
-	wg := &sync.WaitGroup{}
+	jobs := make(chan *blockchain.Event)
 	for workerID := 0; workerID < w.cfg.NumWorkers; workerID++ {
-		wg.Add(1)
-		go w.runEventWorker(wg, workerID, events)
+		go w.runEventWorker(workerID, jobs)
 	}
-	wg.Wait()
+
+	for {
+		select {
+		case <-w.ctx.Done():
+			w.logger.Info("context cancelled (watchMarketEvents)")
+			return
+		case event, ok := <-events:
+			if !ok {
+				close(jobs)
+				return errors.New("events channel closed")
+			}
+
+			w.processBlockBoundary(event)
+			jobs <- event
+		}
+	}
 
 	return nil
 }
 
-func (w *DWH) runEventWorker(wg *sync.WaitGroup, workerID int, events chan *blockchain.Event) {
-	defer wg.Done()
+func (w *DWH) runEventWorker(workerID int, events chan *blockchain.Event) {
 	for {
 		select {
 		case <-w.ctx.Done():
-			w.logger.Info("context cancelled (watchMarketEvents)", zap.Int("worker_id", workerID))
+			w.logger.Info("context cancelled (worker)", zap.Int("worker_id", workerID))
 			return
 		case event, ok := <-events:
 			if !ok {
 				w.logger.Info("events channel closed", zap.Int("worker_id", workerID))
 				return
-			}
-
-			w.mu.Lock()
-			if w.lastKnownBlock != event.BlockNumber {
-				for _, cb := range w.blockEndCallbacks {
-					if err := cb(); err != nil {
-						w.logger.Warn("failed to execute cb after block end", zap.Error(err),
-							zap.Int("worker_id", workerID))
-					}
-				}
-				w.blockEndCallbacks = w.blockEndCallbacks[:0]
-			}
-			w.lastKnownBlock = event.BlockNumber
-			w.mu.Unlock()
-
-			if err := w.updateLastKnownBlock(int64(event.BlockNumber)); err != nil {
-				w.logger.Warn("failed to updateLastKnownBlock", zap.Error(err),
-					zap.Uint64("block_number", event.BlockNumber), zap.Int("worker_id", workerID))
 			}
 			// Events in the same block can come in arbitrary order. If two events have to be processed
 			// in a specific order (e.g., OrderPlaced > DealOpened), we need to retry if the order is
@@ -1245,4 +1240,25 @@ func (w *DWH) addBlockEndCallback(cb func() error) {
 	defer w.mu.Unlock()
 
 	w.blockEndCallbacks = append(w.blockEndCallbacks, cb)
+}
+
+func (w *DWH) processBlockBoundary(event *blockchain.Event) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.lastKnownBlock != event.BlockNumber {
+		go func() {
+			for _, cb := range w.blockEndCallbacks[:] {
+				if err := cb(); err != nil {
+					w.logger.Warn("failed to execute cb after block end", zap.Error(err))
+				}
+			}
+		}()
+		w.blockEndCallbacks = w.blockEndCallbacks[:0]
+		w.lastKnownBlock = event.BlockNumber
+		if err := w.updateLastKnownBlock(int64(event.BlockNumber)); err != nil {
+			w.logger.Warn("failed to updateLastKnownBlock", zap.Error(err),
+				zap.Uint64("block_number", event.BlockNumber))
+		}
+	}
 }
