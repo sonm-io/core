@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"net"
 	"reflect"
-	"strings"
 	"sync"
 	"time"
 
@@ -408,9 +407,6 @@ func (w *DWH) runEventWorker(workerID int, events chan *blockchain.Event) {
 				return
 			}
 			if err := w.processEvent(event); err != nil {
-				if strings.Contains(err.Error(), "constraint") {
-					continue
-				}
 				w.logger.Warn("failed to processEvent, retrying", zap.Error(err),
 					zap.Uint64("block_number", event.BlockNumber),
 					zap.String("event_type", reflect.TypeOf(event.Data).String()),
@@ -1244,13 +1240,13 @@ func (w *DWH) processBlockBoundary(event *blockchain.Event) {
 	defer w.mu.Unlock()
 
 	if w.lastKnownBlock != event.BlockNumber {
-		go func() {
-			for _, cb := range w.blockEndCallbacks[:] {
+		go func(callbacks []func() error) {
+			for _, cb := range callbacks {
 				if err := cb(); err != nil {
 					w.logger.Warn("failed to execute cb after block end", zap.Error(err))
 				}
 			}
-		}()
+		}(w.blockEndCallbacks[:])
 		w.blockEndCallbacks = w.blockEndCallbacks[:0]
 		w.lastKnownBlock = event.BlockNumber
 		if err := w.updateLastKnownBlock(int64(event.BlockNumber)); err != nil {
