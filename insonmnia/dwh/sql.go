@@ -822,7 +822,7 @@ func (c *sqlStorage) GetValidators(conn queryConn, request *pb.ValidatorsRequest
 func (c *sqlStorage) GetWorkers(conn queryConn, request *pb.WorkersRequest) ([]*pb.DWHWorker, uint64, error) {
 	var filters []*filter
 	if !request.MasterID.IsZero() {
-		filters = append(filters, newFilter("Level", eq, request.MasterID, "AND"))
+		filters = append(filters, newFilter("MasterID", eq, request.MasterID.Unwrap().String(), "AND"))
 	}
 	rows, count, err := c.queryRunner.Run(conn, &queryOpts{
 		table:     "Workers",

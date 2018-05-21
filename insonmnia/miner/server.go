@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"strconv"
 	"sync"
 	"time"
@@ -94,7 +93,6 @@ type Miner struct {
 	cGroupManager cgroups.CGroupManager
 	externalGrpc  *grpc.Server
 	startTime     time.Time
-	grpcListener  net.Listener
 }
 
 func NewMiner(opts ...Option) (m *Miner, err error) {
@@ -110,6 +108,11 @@ func NewMiner(opts ...Option) (m *Miner, err error) {
 	}
 
 	if err := m.SetupDefaults(); err != nil {
+		m.Close()
+		return nil, err
+	}
+
+	if err := m.setupMaster(); err != nil {
 		m.Close()
 		return nil, err
 	}
@@ -156,8 +159,11 @@ func NewMiner(opts ...Option) (m *Miner, err error) {
 // with miners
 func (m *Miner) Serve() error {
 	m.startTime = time.Now()
+	if err := m.waitMasterApproved(); err != nil {
+		return err
+	}
 
-	grpcL, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
+	listener, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
 		npp.WithRendezvous(m.cfg.NPP.Rendezvous.Endpoints, m.creds),
 		npp.WithRelay(m.cfg.NPP.Relay.Endpoints, m.key),
 		npp.WithLogger(log.G(m.ctx)),
@@ -166,38 +172,63 @@ func (m *Miner) Serve() error {
 		log.G(m.ctx).Error("failed to listen", zap.String("address", m.cfg.Endpoint), zap.Error(err))
 		return err
 	}
-	log.G(m.ctx).Info("listening for gRPC API connections", zap.Stringer("address", grpcL.Addr()))
-	m.grpcListener = grpcL
-
-	err = m.listenAPI()
+	log.G(m.ctx).Info("listening for gRPC API connections", zap.Stringer("address", listener.Addr()))
+	err = m.externalGrpc.Serve(listener)
 	m.Close()
 
 	return err
 }
 
-func (m *Miner) listenAPI() error {
+func (m *Miner) waitMasterApproved() error {
+	if m.cfg.Master == nil {
+		return nil
+	}
+	log.S(m.ctx).Info("waiting for master approval...")
+	selfAddr := m.ethAddr().Hex()
+	expectedMaster := m.cfg.Master.Hex()
+	ticker := util.NewImmediateTicker(time.Second)
 	for {
 		select {
 		case <-m.ctx.Done():
 			return m.ctx.Err()
-		default:
-		}
-
-		if err := m.externalGrpc.Serve(m.grpcListener); err != nil {
-			if _, ok := err.(npp.TransportError); ok {
-				timer := time.NewTimer(1 * time.Second)
-				select {
-				case <-m.ctx.Done():
-				case <-timer.C:
-				}
-				timer.Stop()
+		case <-ticker.C:
+			addr, err := m.eth.Market().GetMaster(m.ctx, m.ethAddr())
+			if err != nil {
+				log.S(m.ctx).Warnf("failed to get master: %s, retrying...", err)
 			}
+			curMaster := addr.Hex()
+			if curMaster == selfAddr {
+				log.S(m.ctx).Info("still no approval, continue waiting")
+				continue
+			}
+			if curMaster != expectedMaster {
+				return fmt.Errorf("received unexpected master %s", curMaster)
+			}
+			return nil
 		}
 	}
 }
 
 func (m *Miner) ethAddr() common.Address {
 	return util.PubKeyToAddr(m.key.PublicKey)
+}
+
+func (m *Miner) setupMaster() error {
+	if m.cfg.Master != nil {
+		log.S(m.ctx).Info("checking current master")
+		addr, err := m.eth.Market().GetMaster(m.ctx, m.ethAddr())
+		if err != nil {
+			return err
+		}
+		if addr.Big().Cmp(m.ethAddr().Big()) == 0 {
+			log.S(m.ctx).Infof("master is not set, sending request to %s", m.cfg.Master.Hex())
+			err = <-m.eth.Market().RegisterWorker(m.ctx, m.key, *m.cfg.Master)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (m *Miner) setupAuthorization() error {

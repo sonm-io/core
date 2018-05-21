@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "bigint.proto";
 import "container.proto";
+import "dwh.proto";
 import "hub.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
@@ -73,25 +74,20 @@ message OpenDealRequest {
 service MasterManagement {
     // WorkersList returns worker's list for current master address.
     // List includes already registred workers and pending unapproved requests.
-    rpc WorkersList(Empty) returns (WorkerListReply) {}
+    rpc WorkersList(EthAddress) returns (WorkerListReply) {}
     // WorkerConfirm (as master) confirms incoming request for given Worker address.
-    rpc WorkerConfirm(ID) returns (Empty) {}
+    rpc WorkerConfirm(EthAddress) returns (Empty) {}
     // WorkerRemove (as master) unbinds given Worker address from Master address.
-    rpc WorkerRemove(ID) returns (Empty) {}
+    rpc WorkerRemove(WorkerRemoveRequest) returns (Empty) {}
 }
 
-enum WorkerRelationshipStatus {
-    RELATION_UNAPPROVED = 0;
-    RELATION_APPROVED = 1;
-}
-
-message Worker {
-    string ID = 1;
-    WorkerRelationshipStatus status = 2;
+message WorkerRemoveRequest {
+    EthAddress master = 1;
+    EthAddress worker = 2;
 }
 
 message WorkerListReply {
-    repeated Worker workers = 1;
+    repeated DWHWorker workers = 1;
 }
 
 service TokenManagement {

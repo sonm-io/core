@@ -23,6 +23,7 @@ func deleteTestConfigFile() {
 func TestLoadConfig(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
+master: "0xfa5c7c6a1505d3930e4d30dd1fac5fbe7ba0c469"
 endpoint: "127.0.0.5:15010"
 metrics_listen_addr: "127.0.0.1:14123"
 public_ip_addrs: ["12.34.56.78", "1.2.3.4"]
@@ -73,6 +74,7 @@ whitelist:
 	assert.Equal(t, "http://localhost.dev/blist.json", conf.Benchmarks.URL)
 	assert.Equal(t, "http://localhost.dev/wlist.json", conf.Whitelist.Url)
 	assert.Equal(t, true, *conf.Whitelist.Enabled)
+	assert.Equal(t, "0xFa5c7C6a1505d3930e4D30Dd1faC5Fbe7ba0C469", conf.Master.Hex())
 }
 
 func TestConfigPlugins(t *testing.T) {

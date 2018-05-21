@@ -25,12 +25,12 @@ func (m *connTuple) Error() error {
 	return m.err
 }
 
-func (m *connTuple) IsTransportError() bool {
+func (m *connTuple) IsRendezvousError() bool {
 	if m.err == nil {
 		return false
 	}
 
-	_, ok := m.err.(TransportError)
+	_, ok := m.err.(*rendezvousError)
 	return ok
 }
 
@@ -219,7 +219,9 @@ func (m *Listener) Accept() (net.Conn, error) {
 			return conn.unwrap()
 		case conn := <-m.nppChannel:
 			m.log.Info("received NPP peer", zap.Any("conn", conn), zap.Error(conn.err))
-			if conn.IsTransportError() {
+			// In case of any rendezvous errors it's better to reconnect.
+			// Just in case.
+			if conn.IsRendezvousError() {
 				m.puncher.Close()
 				m.puncher = nil
 			} else {
