@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/auth"
@@ -18,19 +19,23 @@ import (
 type Option func(o *options) error
 
 type options struct {
-	ctx         context.Context
-	log         *zap.Logger
-	puncher     NATPuncher
-	puncherNew  func() (NATPuncher, error)
-	nppBacklog  int
-	relayListen func() (net.Conn, error)
-	relayDial   func(target common.Address) (net.Conn, error)
+	ctx                   context.Context
+	log                   *zap.Logger
+	puncher               NATPuncher
+	puncherNew            func() (NATPuncher, error)
+	nppBacklog            int
+	nppMinBackoffInterval time.Duration
+	nppMaxBackoffInterval time.Duration
+	relayListen           func() (net.Conn, error)
+	relayDial             func(target common.Address) (net.Conn, error)
 }
 
 func newOptions(ctx context.Context) *options {
 	return &options{
-		ctx:        ctx,
-		nppBacklog: 128,
+		ctx:                   ctx,
+		nppBacklog:            128,
+		nppMinBackoffInterval: 500 * time.Millisecond,
+		nppMaxBackoffInterval: 8000 * time.Millisecond,
 	}
 }
 
@@ -71,6 +76,15 @@ func WithLogger(log *zap.Logger) Option {
 func WithNPPBacklog(backlog int) Option {
 	return func(o *options) error {
 		o.nppBacklog = backlog
+		return nil
+	}
+}
+
+// WithNPPBackoff is an option that specifies NPP timeouts.
+func WithNPPBackoff(min, max time.Duration) Option {
+	return func(o *options) error {
+		o.nppMinBackoffInterval = min
+		o.nppMaxBackoffInterval = max
 		return nil
 	}
 }

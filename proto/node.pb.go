@@ -33,7 +33,7 @@ type JoinNetworkRequest struct {
 func (m *JoinNetworkRequest) Reset()                    { *m = JoinNetworkRequest{} }
 func (m *JoinNetworkRequest) String() string            { return proto.CompactTextString(m) }
 func (*JoinNetworkRequest) ProtoMessage()               {}
-func (*JoinNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{0} }
+func (*JoinNetworkRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{0} }
 
 func (m *JoinNetworkRequest) GetTaskID() *TaskID {
 	if m != nil {
@@ -56,7 +56,7 @@ type TaskListRequest struct {
 func (m *TaskListRequest) Reset()                    { *m = TaskListRequest{} }
 func (m *TaskListRequest) String() string            { return proto.CompactTextString(m) }
 func (*TaskListRequest) ProtoMessage()               {}
-func (*TaskListRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{1} }
+func (*TaskListRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{1} }
 
 func (m *TaskListRequest) GetDealID() *BigInt {
 	if m != nil {
@@ -73,7 +73,7 @@ type DealFinishRequest struct {
 func (m *DealFinishRequest) Reset()                    { *m = DealFinishRequest{} }
 func (m *DealFinishRequest) String() string            { return proto.CompactTextString(m) }
 func (*DealFinishRequest) ProtoMessage()               {}
-func (*DealFinishRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{2} }
+func (*DealFinishRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{2} }
 
 func (m *DealFinishRequest) GetId() *BigInt {
 	if m != nil {
@@ -96,7 +96,7 @@ type DealsReply struct {
 func (m *DealsReply) Reset()                    { *m = DealsReply{} }
 func (m *DealsReply) String() string            { return proto.CompactTextString(m) }
 func (*DealsReply) ProtoMessage()               {}
-func (*DealsReply) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{3} }
+func (*DealsReply) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{3} }
 
 func (m *DealsReply) GetDeal() []*Deal {
 	if m != nil {
@@ -113,7 +113,7 @@ type OpenDealRequest struct {
 func (m *OpenDealRequest) Reset()                    { *m = OpenDealRequest{} }
 func (m *OpenDealRequest) String() string            { return proto.CompactTextString(m) }
 func (*OpenDealRequest) ProtoMessage()               {}
-func (*OpenDealRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{4} }
+func (*OpenDealRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{4} }
 
 func (m *OpenDealRequest) GetBidID() *BigInt {
 	if m != nil {
@@ -137,7 +137,7 @@ type WorkerRemoveRequest struct {
 func (m *WorkerRemoveRequest) Reset()                    { *m = WorkerRemoveRequest{} }
 func (m *WorkerRemoveRequest) String() string            { return proto.CompactTextString(m) }
 func (*WorkerRemoveRequest) ProtoMessage()               {}
-func (*WorkerRemoveRequest) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{5} }
+func (*WorkerRemoveRequest) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{5} }
 
 func (m *WorkerRemoveRequest) GetMaster() *EthAddress {
 	if m != nil {
@@ -160,7 +160,7 @@ type WorkerListReply struct {
 func (m *WorkerListReply) Reset()                    { *m = WorkerListReply{} }
 func (m *WorkerListReply) String() string            { return proto.CompactTextString(m) }
 func (*WorkerListReply) ProtoMessage()               {}
-func (*WorkerListReply) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{6} }
+func (*WorkerListReply) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{6} }
 
 func (m *WorkerListReply) GetWorkers() []*DWHWorker {
 	if m != nil {
@@ -177,7 +177,7 @@ type BalanceReply struct {
 func (m *BalanceReply) Reset()                    { *m = BalanceReply{} }
 func (m *BalanceReply) String() string            { return proto.CompactTextString(m) }
 func (*BalanceReply) ProtoMessage()               {}
-func (*BalanceReply) Descriptor() ([]byte, []int) { return fileDescriptor12, []int{7} }
+func (*BalanceReply) Descriptor() ([]byte, []int) { return fileDescriptor11, []int{7} }
 
 func (m *BalanceReply) GetLiveBalance() *BigInt {
 	if m != nil {
@@ -1436,9 +1436,9 @@ func init() {
 
 // End grpccmd
 
-func init() { proto.RegisterFile("node.proto", fileDescriptor12) }
+func init() { proto.RegisterFile("node.proto", fileDescriptor11) }
 
-var fileDescriptor12 = []byte{
+var fileDescriptor11 = []byte{
 	// 731 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x55, 0x4d, 0x4f, 0x1b, 0x3b,
 	0x14, 0xcd, 0x84, 0x10, 0xe0, 0x26, 0x2f, 0x01, 0xf3, 0xde, 0x6b, 0x3a, 0x42, 0x15, 0x9a, 0x56,
