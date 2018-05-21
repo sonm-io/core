@@ -3,7 +3,6 @@ package accounts
 import (
 	"crypto/ecdsa"
 	"io/ioutil"
-	"path"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -12,22 +11,16 @@ import (
 	"github.com/sonm-io/core/util"
 )
 
-const (
-	defaultStateFileName = "defaults"
-)
-
 type KeystoreConfig struct {
-	KeyDir      string
-	StateFile   string
-	PassPhrases map[string]string
+	KeyDir      string            `yaml:"key_store" required:"true"`
+	StateFile   string            `yaml:"state_file"`
+	PassPhrases map[string]string `yaml:"pass_phrases"`
 }
 
 type multiKeystore struct {
-	keysDir     string
-	stateDir    string
-	keyStore    *keystore.KeyStore
-	passReader  PassPhraser
-	knownPasses map[string]string
+	cfg        *KeystoreConfig
+	keyStore   *keystore.KeyStore
+	passReader PassPhraser
 }
 
 func NewMultiKeystore(cfg *KeystoreConfig, pf PassPhraser) (*multiKeystore, error) {
@@ -37,28 +30,19 @@ func NewMultiKeystore(cfg *KeystoreConfig, pf PassPhraser) (*multiKeystore, erro
 		keystore.LightScryptP,
 	)
 
-	if cfg.StateFile == "" {
-		home, err := util.GetUserHomeDir()
-		if err != nil {
-			return nil, errors.Wrap(err, "cannot get user's home dir")
-		}
-
-		cfg.StateFile = path.Join(home, ".sonm")
-	}
-
 	return &multiKeystore{
-		knownPasses: cfg.PassPhrases,
-		keysDir:     cfg.KeyDir,
-		stateDir:    cfg.StateFile,
-		keyStore:    ks,
-		passReader:  pf,
+		cfg:        cfg,
+		keyStore:   ks,
+		passReader: pf,
 	}, nil
 }
 
+// List returns list of accounts addresses into keystore
 func (m *multiKeystore) List() ([]accounts.Account, error) {
 	return m.keyStore.Accounts(), nil
 }
 
+// Generate creates new key into keystore
 func (m *multiKeystore) Generate() (*ecdsa.PrivateKey, error) {
 	pass, err := m.passReader.GetPassPhrase()
 	if err != nil {
@@ -78,6 +62,7 @@ func (m *multiKeystore) Generate() (*ecdsa.PrivateKey, error) {
 	return m.readAccount(acc)
 }
 
+// GetKeyByAddress loads and decrypts key form keystore (if present)
 func (m *multiKeystore) GetKeyByAddress(addr common.Address) (*ecdsa.PrivateKey, error) {
 	for _, acc := range m.keyStore.Accounts() {
 		if acc.Address.Big().Cmp(addr.Big()) == 0 {
@@ -88,6 +73,7 @@ func (m *multiKeystore) GetKeyByAddress(addr common.Address) (*ecdsa.PrivateKey,
 	return nil, errors.New("cannot find given address into keystore")
 }
 
+// GetDefault returns default key for the keystore
 func (m *multiKeystore) GetDefault() (*ecdsa.PrivateKey, error) {
 	if len(m.keyStore.Accounts()) == 0 {
 		return nil, errors.New("no accounts present into keystore")
@@ -99,19 +85,17 @@ func (m *multiKeystore) GetDefault() (*ecdsa.PrivateKey, error) {
 		return nil, errors.Wrap(err, "cannot load default key")
 	}
 
-	if !m.keyStore.HasAddress(defaultAddr) {
-		return nil, errors.New("default address was read but not present into keystore")
-	}
-
 	return m.GetKeyByAddress(defaultAddr)
 }
 
+// SetDefault marks key as default for keystore
 func (m *multiKeystore) SetDefault(addr common.Address) {
 	m.setDefaultAccount(addr)
 }
 
+// Import imports exiting key file into keystore
 func (m *multiKeystore) Import(path string) (common.Address, error) {
-	if !util.DirectoryExists(path) {
+	if !util.FileExists(path) {
 		return common.Address{}, errors.New("key file does not exists")
 	}
 
@@ -140,7 +124,7 @@ func (m *multiKeystore) readAccount(acc accounts.Account) (*ecdsa.PrivateKey, er
 	}
 
 	var pass string
-	pass, ok := m.knownPasses[acc.Address.Hex()]
+	pass, ok := m.cfg.PassPhrases[acc.Address.Hex()]
 	if !ok {
 		pass, err = m.passReader.GetPassPhrase()
 		if err != nil {
@@ -157,24 +141,23 @@ func (m *multiKeystore) readAccount(acc accounts.Account) (*ecdsa.PrivateKey, er
 }
 
 func (m *multiKeystore) getDefaultAddress() (common.Address, error) {
-	stateFile := path.Join(m.stateDir, defaultStateFileName)
-	if !util.DirectoryExists(stateFile) {
+	if !util.FileExists(m.cfg.StateFile) {
 		return common.Address{}, errors.New("cannot find keystore's state")
 	}
 
-	data, err := ioutil.ReadFile(stateFile)
+	data, err := ioutil.ReadFile(m.cfg.StateFile)
 	if err != nil {
 		return common.Address{}, errors.New("cannot read state file")
 	}
 
-	if !common.IsHexAddress(string(data)) {
-		return common.Address{}, errors.New("keystore's state data is malformed")
+	addr, err := util.HexToAddress(string(data))
+	if err != nil {
+		return common.Address{}, err
 	}
 
-	return common.HexToAddress(string(data)), nil
+	return addr, nil
 }
 
 func (m *multiKeystore) setDefaultAccount(addr common.Address) {
-	stateFile := path.Join(m.stateDir, defaultStateFileName)
-	ioutil.WriteFile(stateFile, []byte(addr.Hex()), 0600)
+	ioutil.WriteFile(m.cfg.StateFile, []byte(addr.Hex()), 0600)
 }

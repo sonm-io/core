@@ -2,6 +2,7 @@ package accounts
 
 import (
 	"os"
+	"path"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -17,7 +18,7 @@ func TestGenerateFirst(t *testing.T) {
 	k, err := NewMultiKeystore(
 		&KeystoreConfig{
 			KeyDir:      testKeystoreDir,
-			StateFile:   os.TempDir(),
+			StateFile:   path.Join(os.TempDir(), "state"),
 			PassPhrases: nil,
 		},
 		NewStaticPassPhraser("test"),
@@ -49,7 +50,7 @@ func TestSetDefault(t *testing.T) {
 	k, err := NewMultiKeystore(
 		&KeystoreConfig{
 			KeyDir:      testKeystoreDir,
-			StateFile:   os.TempDir(),
+			StateFile:   path.Join(os.TempDir(), "state"),
 			PassPhrases: nil,
 		},
 		NewStaticPassPhraser("test"),
@@ -86,7 +87,7 @@ func TestAlreadyKnownPasswords(t *testing.T) {
 	k, err := NewMultiKeystore(
 		&KeystoreConfig{
 			KeyDir:      testKeystoreDir,
-			StateFile:   os.TempDir(),
+			StateFile:   path.Join(os.TempDir(), "state"),
 			PassPhrases: map[string]string{},
 		},
 		NewStaticPassPhraser("test"),
@@ -109,7 +110,7 @@ func TestAlreadyKnownPasswords(t *testing.T) {
 	anotherK, err := NewMultiKeystore(
 		&KeystoreConfig{
 			KeyDir:    testKeystoreDir,
-			StateFile: os.TempDir(),
+			StateFile: path.Join(os.TempDir(), "state"),
 			PassPhrases: map[string]string{
 				addr1.Hex(): "test",
 				addr2.Hex(): "test",
@@ -139,7 +140,7 @@ func TestImportKey(t *testing.T) {
 	k, err := NewMultiKeystore(
 		&KeystoreConfig{
 			KeyDir:      testKeystoreDir,
-			StateFile:   os.TempDir(),
+			StateFile:   path.Join(os.TempDir(), "state"),
 			PassPhrases: map[string]string{},
 		},
 		pf,
@@ -161,7 +162,7 @@ func TestImportKey(t *testing.T) {
 	newKS, err := NewMultiKeystore(
 		&KeystoreConfig{
 			KeyDir:      testKeystoreDir,
-			StateFile:   os.TempDir(),
+			StateFile:   path.Join(os.TempDir(), "state"),
 			PassPhrases: map[string]string{},
 		},
 		pf,
