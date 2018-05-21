@@ -407,9 +407,6 @@ func (w *DWH) runEventWorker(workerID int, events chan *blockchain.Event) {
 				w.logger.Info("events channel closed", zap.Int("worker_id", workerID))
 				return
 			}
-			// Events in the same block can come in arbitrary order. If two events have to be processed
-			// in a specific order (e.g., OrderPlaced > DealOpened), we need to retry if the order is
-			// messed up.
 			if err := w.processEvent(event); err != nil {
 				if strings.Contains(err.Error(), "constraint") {
 					continue
