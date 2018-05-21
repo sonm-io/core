@@ -535,10 +535,6 @@ func (m *Miner) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*p
 		return nil, err
 	}
 
-	return m.startTask(ctx, taskRequest)
-}
-
-func (m *Miner) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.StartTaskReply, error) {
 	allowed, ref, err := m.whitelist.Allowed(ctx, request.Container.Registry, request.Container.Image, request.Container.Auth)
 	if err != nil {
 		return nil, err
@@ -551,46 +547,25 @@ func (m *Miner) startTask(ctx context.Context, request *structs.StartTaskRequest
 	// TODO(sshaman1101): REFACTOR:   only check for whitelist there,
 	// TODO(sshaman1101): REFACTOR:   move all deals and tasks related code into the Worker.
 
-	taskID := uuid.New()
 	container := request.Container
 	container.Registry = reference.Domain(ref)
 	container.Image = reference.Path(ref)
 
-	startRequest := &pb.MinerStartRequest{
-		DealID:    request.GetDealId(),
-		Id:        taskID,
-		Container: container,
-		RestartPolicy: &pb.ContainerRestartPolicy{
-			Name:              "",
-			MaximumRetryCount: 0,
-		},
-		Resources: request.Resources,
-	}
-
-	response, err := m.startImpl(ctx, startRequest)
-	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to start %v", err)
-	}
-
-	reply := &pb.StartTaskReply{
-		Id:         taskID,
-		NetworkIDs: response.NetworkIDs,
-		PortMap:    response.GetPortMap(),
-	}
-
-	return reply, nil
+	return m.startTask(ctx, taskRequest)
 }
 
 // Start request from Hub makes Miner start a container
-func (m *Miner) startImpl(ctx context.Context, request *pb.MinerStartRequest) (*pb.MinerStartReply, error) {
+func (m *Miner) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
+
+	taskID := uuid.New()
 
 	//TODO: move to validate()
 	if request.GetContainer() == nil {
 		return nil, fmt.Errorf("container field is required")
 	}
 
-	dealID, err := pb.NewBigIntFromString(request.DealID)
+	dealID, err := pb.NewBigIntFromString(request.GetDealId())
 	if err != nil {
 		return nil, fmt.Errorf("could not parse deal id as big int: %s", err)
 	}
@@ -618,12 +593,12 @@ func (m *Miner) startImpl(ctx context.Context, request *pb.MinerStartRequest) (*
 	err = request.GetResources().GetGPU().Normalize(m.hardware)
 	if err != nil {
 		log.G(ctx).Error("could not normalize GPU resources", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "could not normalize GPU resources: %s", err)
 	}
 
 	//TODO: generate ID
-	if err := m.resources.ConsumeTask(ask.ID, request.Id, request.Resources); err != nil {
+	if err := m.resources.ConsumeTask(ask.ID, taskID, request.Resources); err != nil {
 		return nil, fmt.Errorf("could not start task: %s", err)
 	}
 
@@ -634,7 +609,7 @@ func (m *Miner) startImpl(ctx context.Context, request *pb.MinerStartRequest) (*
 	for _, spec := range request.Container.Mounts {
 		mount, err := volume.NewMount(spec)
 		if err != nil {
-			m.resources.ReleaseTask(request.Id)
+			m.resources.ReleaseTask(taskID)
 			return nil, err
 		}
 		mounts = append(mounts, mount)
@@ -643,24 +618,24 @@ func (m *Miner) startImpl(ctx context.Context, request *pb.MinerStartRequest) (*
 	networks, err := structs.NewNetworkSpecs(request.Container.Networks)
 	if err != nil {
 		log.G(ctx).Error("failed to parse networking specification", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to parse networking specification: %s", err)
 	}
 	gpuids, err := m.hardware.GPUIDs(request.GetResources().GetGPU())
 	if err != nil {
 		log.G(ctx).Error("failed to fetch GPU IDs ", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to fetch GPU IDs: %s", err)
 	}
 	var d = Description{
 		Image:         request.Container.Image,
 		Registry:      request.Container.Registry,
 		Auth:          request.Container.Auth,
-		RestartPolicy: transformRestartPolicy(request.RestartPolicy),
+		RestartPolicy: transformRestartPolicy(nil),
 		CGroupParent:  cgroup.Suffix(),
 		Resources:     request.Resources,
-		DealId:        request.GetDealID(),
-		TaskId:        request.Id,
+		DealId:        request.GetDealId(),
+		TaskId:        taskID,
 		CommitOnStop:  request.Container.CommitOnStop,
 		GPUDevices:    gpuids,
 		Env:           request.Container.Env,
@@ -671,20 +646,20 @@ func (m *Miner) startImpl(ctx context.Context, request *pb.MinerStartRequest) (*
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
 
-	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, request.Id)
+	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPOOLING}, taskID)
 	log.G(m.ctx).Info("spooling an image")
 	if err := m.ovs.Spool(ctx, d); err != nil {
 		log.G(ctx).Error("failed to Spool an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to Spool %v", err)
 	}
 
-	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPAWNING}, request.Id)
+	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPAWNING}, taskID)
 	log.G(ctx).Info("spawning an image")
 	statusListener, containerInfo, err := m.ovs.Start(m.ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
-		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, request.Id)
+		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
 	containerInfo.PublicKey = publicKey
@@ -692,8 +667,8 @@ func (m *Miner) startImpl(ctx context.Context, request *pb.MinerStartRequest) (*
 	containerInfo.ImageName = d.Image
 	containerInfo.DealID = dealID.Unwrap().String()
 
-	var reply = pb.MinerStartReply{
-		Container:  containerInfo.ID,
+	var reply = pb.StartTaskReply{
+		Id:         taskID,
 		PortMap:    make(map[string]*pb.Endpoints, 0),
 		NetworkIDs: containerInfo.NetworkIDs,
 	}
@@ -710,7 +685,7 @@ func (m *Miner) startImpl(ctx context.Context, request *pb.MinerStartRequest) (*
 			hostPort := portBinding.HostPort
 			hostPortInt, err := nat.ParsePort(hostPort)
 			if err != nil {
-				m.resources.ReleaseTask(request.Id)
+				m.resources.ReleaseTask(taskID)
 				return nil, err
 			}
 
@@ -729,9 +704,9 @@ func (m *Miner) startImpl(ctx context.Context, request *pb.MinerStartRequest) (*
 		reply.PortMap[string(internalPort)] = &pb.Endpoints{Endpoints: socketAddrs}
 	}
 
-	m.saveContainerInfo(request.Id, containerInfo)
+	m.saveContainerInfo(taskID, containerInfo)
 
-	go m.listenForStatus(statusListener, request.Id)
+	go m.listenForStatus(statusListener, taskID)
 
 	return &reply, nil
 }

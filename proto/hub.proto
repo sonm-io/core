@@ -5,7 +5,7 @@ import "capabilities.proto";
 import "container.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
-import "miner.proto";
+import "net.proto";
 
 package sonm;
 
