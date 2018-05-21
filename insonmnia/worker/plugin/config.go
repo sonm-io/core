@@ -1,6 +1,6 @@
 package plugin
 
-import "github.com/sonm-io/core/insonmnia/miner/network"
+import "github.com/sonm-io/core/insonmnia/worker/network"
 
 type Config struct {
 	SocketDir string        `yaml:"socket_dir" default:"/run/docker/plugins"`

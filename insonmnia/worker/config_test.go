@@ -1,4 +1,4 @@
-package miner
+package worker
 
 import (
 	"io/ioutil"
@@ -9,15 +9,15 @@ import (
 )
 
 const (
-	testMinerConfigPath = "test_miner.yaml"
+	testWorkerConfigPath = "test_worker.yaml"
 )
 
 func createTestConfigFile(body string) error {
-	return ioutil.WriteFile(testMinerConfigPath, []byte(body), 0600)
+	return ioutil.WriteFile(testWorkerConfigPath, []byte(body), 0600)
 }
 
 func deleteTestConfigFile() {
-	os.Remove(testMinerConfigPath)
+	os.Remove(testWorkerConfigPath)
 }
 
 func TestLoadConfig(t *testing.T) {
@@ -50,7 +50,7 @@ whitelist:
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
 
-	conf, err := NewConfig(testMinerConfigPath)
+	conf, err := NewConfig(testWorkerConfigPath)
 	assert.Nil(t, err)
 
 	assert.Equal(t, "127.0.0.5:15010", conf.Endpoint)
@@ -105,7 +105,7 @@ plugins:
 	err := createTestConfigFile(raw)
 	assert.Nil(t, err)
 
-	conf, err := NewConfig(testMinerConfigPath)
+	conf, err := NewConfig(testWorkerConfigPath)
 	assert.Nil(t, err)
 
 	assert.Equal(t, "/tmp/run/test-plugins", conf.Plugins.SocketDir)

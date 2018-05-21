@@ -8,10 +8,10 @@ import (
 	"github.com/docker/docker/api/types/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/hardware"
-	"github.com/sonm-io/core/insonmnia/miner/gpu"
-	minet "github.com/sonm-io/core/insonmnia/miner/network"
-	"github.com/sonm-io/core/insonmnia/miner/volume"
 	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/insonmnia/worker/gpu"
+	minet "github.com/sonm-io/core/insonmnia/worker/network"
+	"github.com/sonm-io/core/insonmnia/worker/volume"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )

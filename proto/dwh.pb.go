@@ -47,7 +47,7 @@ var CmpOp_value = map[string]int32{
 func (x CmpOp) String() string {
 	return proto.EnumName(CmpOp_name, int32(x))
 }
-func (CmpOp) EnumDescriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
+func (CmpOp) EnumDescriptor() ([]byte, []int) { return fileDescriptor5, []int{0} }
 
 type SortingOrder int32
 
@@ -68,7 +68,7 @@ var SortingOrder_value = map[string]int32{
 func (x SortingOrder) String() string {
 	return proto.EnumName(SortingOrder_name, int32(x))
 }
-func (SortingOrder) EnumDescriptor() ([]byte, []int) { return fileDescriptor6, []int{1} }
+func (SortingOrder) EnumDescriptor() ([]byte, []int) { return fileDescriptor5, []int{1} }
 
 type ProfileRole int32
 
@@ -92,7 +92,7 @@ var ProfileRole_value = map[string]int32{
 func (x ProfileRole) String() string {
 	return proto.EnumName(ProfileRole_name, int32(x))
 }
-func (ProfileRole) EnumDescriptor() ([]byte, []int) { return fileDescriptor6, []int{2} }
+func (ProfileRole) EnumDescriptor() ([]byte, []int) { return fileDescriptor5, []int{2} }
 
 type BlacklistOption int32
 
@@ -116,7 +116,7 @@ var BlacklistOption_value = map[string]int32{
 func (x BlacklistOption) String() string {
 	return proto.EnumName(BlacklistOption_name, int32(x))
 }
-func (BlacklistOption) EnumDescriptor() ([]byte, []int) { return fileDescriptor6, []int{3} }
+func (BlacklistOption) EnumDescriptor() ([]byte, []int) { return fileDescriptor5, []int{3} }
 
 type SortingOption struct {
 	Field string       `protobuf:"bytes,1,opt,name=field" json:"field,omitempty"`
@@ -126,7 +126,7 @@ type SortingOption struct {
 func (m *SortingOption) Reset()                    { *m = SortingOption{} }
 func (m *SortingOption) String() string            { return proto.CompactTextString(m) }
 func (*SortingOption) ProtoMessage()               {}
-func (*SortingOption) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
+func (*SortingOption) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{0} }
 
 func (m *SortingOption) GetField() string {
 	if m != nil {
@@ -164,7 +164,7 @@ type DealsRequest struct {
 func (m *DealsRequest) Reset()                    { *m = DealsRequest{} }
 func (m *DealsRequest) String() string            { return proto.CompactTextString(m) }
 func (*DealsRequest) ProtoMessage()               {}
-func (*DealsRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{1} }
+func (*DealsRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{1} }
 
 func (m *DealsRequest) GetStatus() DealStatus {
 	if m != nil {
@@ -286,7 +286,7 @@ type DWHDealsReply struct {
 func (m *DWHDealsReply) Reset()                    { *m = DWHDealsReply{} }
 func (m *DWHDealsReply) String() string            { return proto.CompactTextString(m) }
 func (*DWHDealsReply) ProtoMessage()               {}
-func (*DWHDealsReply) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{2} }
+func (*DWHDealsReply) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{2} }
 
 func (m *DWHDealsReply) GetDeals() []*DWHDeal {
 	if m != nil {
@@ -315,7 +315,7 @@ type DWHDeal struct {
 func (m *DWHDeal) Reset()                    { *m = DWHDeal{} }
 func (m *DWHDeal) String() string            { return proto.CompactTextString(m) }
 func (*DWHDeal) ProtoMessage()               {}
-func (*DWHDeal) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{3} }
+func (*DWHDeal) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{3} }
 
 func (m *DWHDeal) GetDeal() *Deal {
 	if m != nil {
@@ -377,7 +377,7 @@ type DealConditionsRequest struct {
 func (m *DealConditionsRequest) Reset()                    { *m = DealConditionsRequest{} }
 func (m *DealConditionsRequest) String() string            { return proto.CompactTextString(m) }
 func (*DealConditionsRequest) ProtoMessage()               {}
-func (*DealConditionsRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{4} }
+func (*DealConditionsRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{4} }
 
 func (m *DealConditionsRequest) GetDealID() *BigInt {
 	if m != nil {
@@ -422,7 +422,7 @@ type DealConditionsReply struct {
 func (m *DealConditionsReply) Reset()                    { *m = DealConditionsReply{} }
 func (m *DealConditionsReply) String() string            { return proto.CompactTextString(m) }
 func (*DealConditionsReply) ProtoMessage()               {}
-func (*DealConditionsReply) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{5} }
+func (*DealConditionsReply) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{5} }
 
 func (m *DealConditionsReply) GetConditions() []*DealCondition {
 	if m != nil {
@@ -459,7 +459,7 @@ type OrdersRequest struct {
 func (m *OrdersRequest) Reset()                    { *m = OrdersRequest{} }
 func (m *OrdersRequest) String() string            { return proto.CompactTextString(m) }
 func (*OrdersRequest) ProtoMessage()               {}
-func (*OrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{6} }
+func (*OrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{6} }
 
 func (m *OrdersRequest) GetDealID() *BigInt {
 	if m != nil {
@@ -576,7 +576,7 @@ type MatchingOrdersRequest struct {
 func (m *MatchingOrdersRequest) Reset()                    { *m = MatchingOrdersRequest{} }
 func (m *MatchingOrdersRequest) String() string            { return proto.CompactTextString(m) }
 func (*MatchingOrdersRequest) ProtoMessage()               {}
-func (*MatchingOrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{7} }
+func (*MatchingOrdersRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{7} }
 
 func (m *MatchingOrdersRequest) GetId() *BigInt {
 	if m != nil {
@@ -614,7 +614,7 @@ type DWHOrdersReply struct {
 func (m *DWHOrdersReply) Reset()                    { *m = DWHOrdersReply{} }
 func (m *DWHOrdersReply) String() string            { return proto.CompactTextString(m) }
 func (*DWHOrdersReply) ProtoMessage()               {}
-func (*DWHOrdersReply) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{8} }
+func (*DWHOrdersReply) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{8} }
 
 func (m *DWHOrdersReply) GetOrders() []*DWHOrder {
 	if m != nil {
@@ -642,7 +642,7 @@ type DWHOrder struct {
 func (m *DWHOrder) Reset()                    { *m = DWHOrder{} }
 func (m *DWHOrder) String() string            { return proto.CompactTextString(m) }
 func (*DWHOrder) ProtoMessage()               {}
-func (*DWHOrder) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{9} }
+func (*DWHOrder) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{9} }
 
 func (m *DWHOrder) GetOrder() *Order {
 	if m != nil {
@@ -702,7 +702,7 @@ type DealCondition struct {
 func (m *DealCondition) Reset()                    { *m = DealCondition{} }
 func (m *DealCondition) String() string            { return proto.CompactTextString(m) }
 func (*DealCondition) ProtoMessage()               {}
-func (*DealCondition) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{10} }
+func (*DealCondition) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{10} }
 
 func (m *DealCondition) GetId() uint64 {
 	if m != nil {
@@ -783,7 +783,7 @@ type DWHWorker struct {
 func (m *DWHWorker) Reset()                    { *m = DWHWorker{} }
 func (m *DWHWorker) String() string            { return proto.CompactTextString(m) }
 func (*DWHWorker) ProtoMessage()               {}
-func (*DWHWorker) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{11} }
+func (*DWHWorker) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{11} }
 
 func (m *DWHWorker) GetMasterID() *EthAddress {
 	if m != nil {
@@ -821,7 +821,7 @@ type ProfilesRequest struct {
 func (m *ProfilesRequest) Reset()                    { *m = ProfilesRequest{} }
 func (m *ProfilesRequest) String() string            { return proto.CompactTextString(m) }
 func (*ProfilesRequest) ProtoMessage()               {}
-func (*ProfilesRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{12} }
+func (*ProfilesRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{12} }
 
 func (m *ProfilesRequest) GetRole() ProfileRole {
 	if m != nil {
@@ -894,7 +894,7 @@ type ProfilesReply struct {
 func (m *ProfilesReply) Reset()                    { *m = ProfilesReply{} }
 func (m *ProfilesReply) String() string            { return proto.CompactTextString(m) }
 func (*ProfilesReply) ProtoMessage()               {}
-func (*ProfilesReply) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{13} }
+func (*ProfilesReply) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{13} }
 
 func (m *ProfilesReply) GetProfiles() []*Profile {
 	if m != nil {
@@ -926,7 +926,7 @@ type Profile struct {
 func (m *Profile) Reset()                    { *m = Profile{} }
 func (m *Profile) String() string            { return proto.CompactTextString(m) }
 func (*Profile) ProtoMessage()               {}
-func (*Profile) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{14} }
+func (*Profile) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{14} }
 
 func (m *Profile) GetUserID() *EthAddress {
 	if m != nil {
@@ -1008,7 +1008,7 @@ type BlacklistRequest struct {
 func (m *BlacklistRequest) Reset()                    { *m = BlacklistRequest{} }
 func (m *BlacklistRequest) String() string            { return proto.CompactTextString(m) }
 func (*BlacklistRequest) ProtoMessage()               {}
-func (*BlacklistRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{15} }
+func (*BlacklistRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{15} }
 
 func (m *BlacklistRequest) GetOwnerID() *EthAddress {
 	if m != nil {
@@ -1047,7 +1047,7 @@ type BlacklistReply struct {
 func (m *BlacklistReply) Reset()                    { *m = BlacklistReply{} }
 func (m *BlacklistReply) String() string            { return proto.CompactTextString(m) }
 func (*BlacklistReply) ProtoMessage()               {}
-func (*BlacklistReply) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{16} }
+func (*BlacklistReply) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{16} }
 
 func (m *BlacklistReply) GetOwnerID() *EthAddress {
 	if m != nil {
@@ -1081,7 +1081,7 @@ type ValidatorsRequest struct {
 func (m *ValidatorsRequest) Reset()                    { *m = ValidatorsRequest{} }
 func (m *ValidatorsRequest) String() string            { return proto.CompactTextString(m) }
 func (*ValidatorsRequest) ProtoMessage()               {}
-func (*ValidatorsRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{17} }
+func (*ValidatorsRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{17} }
 
 func (m *ValidatorsRequest) GetValidatorLevel() *CmpUint64 {
 	if m != nil {
@@ -1126,7 +1126,7 @@ type ValidatorsReply struct {
 func (m *ValidatorsReply) Reset()                    { *m = ValidatorsReply{} }
 func (m *ValidatorsReply) String() string            { return proto.CompactTextString(m) }
 func (*ValidatorsReply) ProtoMessage()               {}
-func (*ValidatorsReply) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{18} }
+func (*ValidatorsReply) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{18} }
 
 func (m *ValidatorsReply) GetValidators() []*Validator {
 	if m != nil {
@@ -1150,7 +1150,7 @@ type Validator struct {
 func (m *Validator) Reset()                    { *m = Validator{} }
 func (m *Validator) String() string            { return proto.CompactTextString(m) }
 func (*Validator) ProtoMessage()               {}
-func (*Validator) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{19} }
+func (*Validator) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{19} }
 
 func (m *Validator) GetId() *EthAddress {
 	if m != nil {
@@ -1173,7 +1173,7 @@ type DealChangeRequestsReply struct {
 func (m *DealChangeRequestsReply) Reset()                    { *m = DealChangeRequestsReply{} }
 func (m *DealChangeRequestsReply) String() string            { return proto.CompactTextString(m) }
 func (*DealChangeRequestsReply) ProtoMessage()               {}
-func (*DealChangeRequestsReply) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{20} }
+func (*DealChangeRequestsReply) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{20} }
 
 func (m *DealChangeRequestsReply) GetRequests() []*DealChangeRequest {
 	if m != nil {
@@ -1195,7 +1195,7 @@ type DealChangeRequest struct {
 func (m *DealChangeRequest) Reset()                    { *m = DealChangeRequest{} }
 func (m *DealChangeRequest) String() string            { return proto.CompactTextString(m) }
 func (*DealChangeRequest) ProtoMessage()               {}
-func (*DealChangeRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{21} }
+func (*DealChangeRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{21} }
 
 func (m *DealChangeRequest) GetId() *BigInt {
 	if m != nil {
@@ -1255,7 +1255,7 @@ type DealPayment struct {
 func (m *DealPayment) Reset()                    { *m = DealPayment{} }
 func (m *DealPayment) String() string            { return proto.CompactTextString(m) }
 func (*DealPayment) ProtoMessage()               {}
-func (*DealPayment) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{22} }
+func (*DealPayment) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{22} }
 
 func (m *DealPayment) GetDealID() *BigInt {
 	if m != nil {
@@ -1288,7 +1288,7 @@ type WorkersRequest struct {
 func (m *WorkersRequest) Reset()                    { *m = WorkersRequest{} }
 func (m *WorkersRequest) String() string            { return proto.CompactTextString(m) }
 func (*WorkersRequest) ProtoMessage()               {}
-func (*WorkersRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{23} }
+func (*WorkersRequest) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{23} }
 
 func (m *WorkersRequest) GetMasterID() *EthAddress {
 	if m != nil {
@@ -1326,7 +1326,7 @@ type WorkersReply struct {
 func (m *WorkersReply) Reset()                    { *m = WorkersReply{} }
 func (m *WorkersReply) String() string            { return proto.CompactTextString(m) }
 func (*WorkersReply) ProtoMessage()               {}
-func (*WorkersReply) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{24} }
+func (*WorkersReply) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{24} }
 
 func (m *WorkersReply) GetWorkers() []*DWHWorker {
 	if m != nil {
@@ -1353,7 +1353,7 @@ type Certificate struct {
 func (m *Certificate) Reset()                    { *m = Certificate{} }
 func (m *Certificate) String() string            { return proto.CompactTextString(m) }
 func (*Certificate) ProtoMessage()               {}
-func (*Certificate) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{25} }
+func (*Certificate) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{25} }
 
 func (m *Certificate) GetOwnerID() *EthAddress {
 	if m != nil {
@@ -1398,7 +1398,7 @@ type MaxMinUint64 struct {
 func (m *MaxMinUint64) Reset()                    { *m = MaxMinUint64{} }
 func (m *MaxMinUint64) String() string            { return proto.CompactTextString(m) }
 func (*MaxMinUint64) ProtoMessage()               {}
-func (*MaxMinUint64) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{26} }
+func (*MaxMinUint64) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{26} }
 
 func (m *MaxMinUint64) GetMax() uint64 {
 	if m != nil {
@@ -1422,7 +1422,7 @@ type MaxMinBig struct {
 func (m *MaxMinBig) Reset()                    { *m = MaxMinBig{} }
 func (m *MaxMinBig) String() string            { return proto.CompactTextString(m) }
 func (*MaxMinBig) ProtoMessage()               {}
-func (*MaxMinBig) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{27} }
+func (*MaxMinBig) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{27} }
 
 func (m *MaxMinBig) GetMax() *BigInt {
 	if m != nil {
@@ -1446,7 +1446,7 @@ type MaxMinTimestamp struct {
 func (m *MaxMinTimestamp) Reset()                    { *m = MaxMinTimestamp{} }
 func (m *MaxMinTimestamp) String() string            { return proto.CompactTextString(m) }
 func (*MaxMinTimestamp) ProtoMessage()               {}
-func (*MaxMinTimestamp) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{28} }
+func (*MaxMinTimestamp) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{28} }
 
 func (m *MaxMinTimestamp) GetMax() *Timestamp {
 	if m != nil {
@@ -1470,7 +1470,7 @@ type CmpUint64 struct {
 func (m *CmpUint64) Reset()                    { *m = CmpUint64{} }
 func (m *CmpUint64) String() string            { return proto.CompactTextString(m) }
 func (*CmpUint64) ProtoMessage()               {}
-func (*CmpUint64) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{29} }
+func (*CmpUint64) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{29} }
 
 func (m *CmpUint64) GetValue() uint64 {
 	if m != nil {
@@ -1494,7 +1494,7 @@ type BlacklistQuery struct {
 func (m *BlacklistQuery) Reset()                    { *m = BlacklistQuery{} }
 func (m *BlacklistQuery) String() string            { return proto.CompactTextString(m) }
 func (*BlacklistQuery) ProtoMessage()               {}
-func (*BlacklistQuery) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{30} }
+func (*BlacklistQuery) Descriptor() ([]byte, []int) { return fileDescriptor5, []int{30} }
 
 func (m *BlacklistQuery) GetOwnerID() *EthAddress {
 	if m != nil {
@@ -2253,9 +2253,9 @@ func init() {
 
 // End grpccmd
 
-func init() { proto.RegisterFile("dwh.proto", fileDescriptor6) }
+func init() { proto.RegisterFile("dwh.proto", fileDescriptor5) }
 
-var fileDescriptor6 = []byte{
+var fileDescriptor5 = []byte{
 	// 2163 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x59, 0xcd, 0x72, 0xdb, 0xc8,
 	0x11, 0x26, 0xf8, 0x0b, 0x36, 0x7f, 0x35, 0x92, 0xd6, 0x5c, 0xc6, 0x71, 0x49, 0xf0, 0xee, 0x46,

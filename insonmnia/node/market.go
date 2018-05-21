@@ -12,9 +12,9 @@ import (
 )
 
 type marketAPI struct {
-	remotes    *remoteOptions
-	ctx        context.Context
-	hubCreator hubClientCreator
+	remotes       *remoteOptions
+	ctx           context.Context
+	workerCreator workerClientCreator
 }
 
 func (m *marketAPI) GetOrders(ctx context.Context, req *pb.Count) (*pb.GetOrdersReply, error) {
@@ -128,8 +128,8 @@ func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, err
 
 func newMarketAPI(opts *remoteOptions) (pb.MarketServer, error) {
 	return &marketAPI{
-		remotes:    opts,
-		ctx:        opts.ctx,
-		hubCreator: opts.hubCreator,
+		remotes:       opts,
+		ctx:           opts.ctx,
+		workerCreator: opts.workerCreator,
 	}, nil
 }

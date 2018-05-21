@@ -28,12 +28,12 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 		zap.String("dealID", req.GetDealID().Unwrap().String()))
 
 	dealID := req.GetDealID().Unwrap().String()
-	hubClient, cc, err := t.remotes.getHubClientForDeal(ctx, dealID)
+	workerClient, cc, err := t.remotes.getWorkerClientForDeal(ctx, dealID)
 	if err != nil {
 		return nil, err
 	}
 	defer cc.Close()
-	deal, err := hubClient.GetDealInfo(ctx, &pb.ID{Id: req.GetDealID().Unwrap().String()})
+	deal, err := workerClient.GetDealInfo(ctx, &pb.ID{Id: req.GetDealID().Unwrap().String()})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get deal info for deal %s: %s", dealID, err)
 	}
@@ -51,16 +51,16 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 
 func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.Deal) {
 	dealID := deal.GetSupplierID().Unwrap().Hex()
-	hub, cc, err := t.remotes.getHubClientByEthAddr(ctx, dealID)
+	worker, cc, err := t.remotes.getWorkerClientByEthAddr(ctx, dealID)
 	if err != nil {
 		log.G(t.ctx).Error("cannot resolve worker address",
-			zap.String("hub_eth", dealID),
+			zap.String("deal_id", dealID),
 			zap.Error(err))
 		return
 	}
 	defer cc.Close()
 
-	taskList, err := hub.Tasks(ctx, &pb.Empty{})
+	taskList, err := worker.Tasks(ctx, &pb.Empty{})
 	if err != nil {
 		log.G(t.ctx).Error("failed to retrieve tasks from the worker", zap.Error(err))
 		return
@@ -73,13 +73,13 @@ func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.Ta
 
 func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	dealID := req.Deal.GetId().Unwrap().String()
-	hub, cc, err := t.remotes.getHubClientForDeal(ctx, dealID)
+	worker, cc, err := t.remotes.getWorkerClientForDeal(ctx, dealID)
 	if err != nil {
 		return nil, err
 	}
 	defer cc.Close()
 
-	reply, err := hub.StartTask(ctx, req)
+	reply, err := worker.StartTask(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start task on worker: %s", err)
 	}
@@ -89,13 +89,13 @@ func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.Sta
 
 func (t *tasksAPI) JoinNetwork(ctx context.Context, req *pb.JoinNetworkRequest) (*pb.NetworkSpec, error) {
 	dealID := req.GetTaskID().GetDealID().Unwrap().String()
-	hub, cc, err := t.remotes.getHubClientForDeal(ctx, dealID)
+	worker, cc, err := t.remotes.getWorkerClientForDeal(ctx, dealID)
 	if err != nil {
 		return nil, err
 	}
 	defer cc.Close()
 
-	reply, err := hub.JoinNetwork(ctx, &pb.HubJoinNetworkRequest{
+	reply, err := worker.JoinNetwork(ctx, &pb.WorkerJoinNetworkRequest{
 		TaskID:    req.GetTaskID().GetId(),
 		NetworkID: req.GetNetworkID(),
 	})
@@ -107,23 +107,23 @@ func (t *tasksAPI) JoinNetwork(ctx context.Context, req *pb.JoinNetworkRequest) 
 }
 
 func (t *tasksAPI) Status(ctx context.Context, id *pb.TaskID) (*pb.TaskStatusReply, error) {
-	hubClient, cc, err := t.remotes.getHubClientForDeal(ctx, id.GetDealID().Unwrap().String())
+	workerClient, cc, err := t.remotes.getWorkerClientForDeal(ctx, id.GetDealID().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
 	defer cc.Close()
 
-	return hubClient.TaskStatus(ctx, &pb.ID{Id: id.GetId()})
+	return workerClient.TaskStatus(ctx, &pb.ID{Id: id.GetId()})
 }
 
 func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServer) error {
-	hubClient, cc, err := t.remotes.getHubClientForDeal(srv.Context(), req.GetDealID().Unwrap().String())
+	workerClient, cc, err := t.remotes.getWorkerClientForDeal(srv.Context(), req.GetDealID().Unwrap().String())
 	if err != nil {
 		return err
 	}
 	defer cc.Close()
 
-	logClient, err := hubClient.TaskLogs(srv.Context(), req)
+	logClient, err := workerClient.TaskLogs(srv.Context(), req)
 	if err != nil {
 		return fmt.Errorf("failed to fetch logs from worker: %s", err)
 	}
@@ -146,13 +146,13 @@ func (t *tasksAPI) Logs(req *pb.TaskLogsRequest, srv pb.TaskManagement_LogsServe
 }
 
 func (t *tasksAPI) Stop(ctx context.Context, id *pb.TaskID) (*pb.Empty, error) {
-	hubClient, cc, err := t.remotes.getHubClientForDeal(ctx, id.GetDealID().Unwrap().String())
+	workerClient, cc, err := t.remotes.getWorkerClientForDeal(ctx, id.GetDealID().Unwrap().String())
 	if err != nil {
 		return nil, err
 	}
 	defer cc.Close()
 
-	return hubClient.StopTask(ctx, &pb.ID{Id: id.GetId()})
+	return workerClient.StopTask(ctx, &pb.ID{Id: id.GetId()})
 }
 
 func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error {
@@ -163,13 +163,13 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 
 	log.G(t.ctx).Info("handling PushTask request", zap.String("deal_id", meta.dealID))
 
-	hub, cc, err := t.remotes.getHubClientForDeal(meta.ctx, meta.dealID)
+	workerClient, cc, err := t.remotes.getWorkerClientForDeal(meta.ctx, meta.dealID)
 	if err != nil {
 		return err
 	}
 	defer cc.Close()
 
-	hubStream, err := hub.PushTask(meta.ctx)
+	workerStream, err := workerClient.PushTask(meta.ctx)
 	if err != nil {
 		return fmt.Errorf("failed to start task push server on worker: %s", err)
 	}
@@ -193,12 +193,12 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 
 			if chunk == nil {
 				log.G(t.ctx).Debug("closing worker stream")
-				if err := hubStream.CloseSend(); err != nil {
+				if err := workerStream.CloseSend(); err != nil {
 					return fmt.Errorf("failed to send closing frame to worker: %s", err)
 				}
 			} else {
 				bytesRemaining = len(chunk.Chunk)
-				if err := hubStream.Send(chunk); err != nil {
+				if err := workerStream.Send(chunk); err != nil {
 					log.G(t.ctx).Debug("failed to send chunk to worker", zap.Error(err))
 					return fmt.Errorf("failed to send chunk to worker: %s", err)
 				}
@@ -207,12 +207,12 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 		}
 
 		for {
-			progress, err := hubStream.Recv()
+			progress, err := workerStream.Recv()
 			if err != nil {
 				if err == io.EOF {
 					log.G(t.ctx).Debug("received last chunk from worker")
 					if bytesCommitted == meta.fileSize {
-						clientStream.SetTrailer(hubStream.Trailer())
+						clientStream.SetTrailer(workerStream.Trailer())
 						return nil
 					} else {
 						log.G(t.ctx).Debug("worker closed its stream without committing all bytes")
@@ -241,13 +241,13 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 
 func (t *tasksAPI) PullTask(req *pb.PullTaskRequest, srv pb.TaskManagement_PullTaskServer) error {
 	ctx := context.Background()
-	hub, cc, err := t.remotes.getHubClientForDeal(ctx, req.GetDealId())
+	worker, cc, err := t.remotes.getWorkerClientForDeal(ctx, req.GetDealId())
 	if err != nil {
 		return err
 	}
 	defer cc.Close()
 
-	pullClient, err := hub.PullTask(ctx, req)
+	pullClient, err := worker.PullTask(ctx, req)
 	if err != nil {
 		return fmt.Errorf("failed to start task pull server on worker: %s", err)
 	}

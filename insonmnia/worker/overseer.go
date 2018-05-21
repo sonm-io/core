@@ -1,4 +1,4 @@
-package miner
+package worker
 
 import (
 	"context"
@@ -10,9 +10,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sonm-io/core/insonmnia/miner/plugin"
-	"github.com/sonm-io/core/insonmnia/miner/volume"
 	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/insonmnia/worker/plugin"
+	"github.com/sonm-io/core/insonmnia/worker/volume"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
 
@@ -23,7 +23,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/insonmnia/miner/gpu"
+	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	pb "github.com/sonm-io/core/proto"
 )
 
@@ -161,7 +161,7 @@ func (m *ContainerMetrics) Marshal() *pb.ResourceUsage {
 
 type ExecConnection types.HijackedResponse
 
-// Overseer watches all miner's applications.
+// Overseer watches all worker's applications.
 type Overseer interface {
 	// Load loads an image from the specified reader to the Docker.
 	Load(ctx context.Context, rd io.Reader) (imageLoadStatus, error)
