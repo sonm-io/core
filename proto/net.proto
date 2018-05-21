@@ -14,3 +14,7 @@ message SocketAddr {
     // Actually an `uint16` here. Protobuf is so clear and handy.
     uint32 port = 2;
 }
+
+message Endpoints {
+    repeated SocketAddr endpoints = 1;
+}
