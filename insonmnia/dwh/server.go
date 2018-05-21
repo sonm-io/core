@@ -356,7 +356,8 @@ func (w *DWH) monitorBlockchain() error {
 	}
 }
 
-func (w *DWH) watchMarketEvents() (err error) {
+func (w *DWH) watchMarketEvents() error {
+	var err error
 	w.lastKnownBlock, err = w.getLastKnownBlock()
 	if err != nil {
 		if err := w.insertLastKnownBlock(0); err != nil {
@@ -380,7 +381,7 @@ func (w *DWH) watchMarketEvents() (err error) {
 		select {
 		case <-w.ctx.Done():
 			w.logger.Info("context cancelled (watchMarketEvents)")
-			return
+			return nil
 		case event, ok := <-events:
 			if !ok {
 				close(jobs)
