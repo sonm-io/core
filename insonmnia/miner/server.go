@@ -164,6 +164,8 @@ func (m *Miner) Serve() error {
 	}
 
 	listener, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
+		npp.WithNPPBacklog(m.cfg.NPP.Backlog),
+		npp.WithNPPBackoff(m.cfg.NPP.MinBackoffInterval, m.cfg.NPP.MaxBackoffInterval),
 		npp.WithRendezvous(m.cfg.NPP.Rendezvous.Endpoints, m.creds),
 		npp.WithRelay(m.cfg.NPP.Relay.Endpoints, m.key),
 		npp.WithLogger(log.G(m.ctx)),
