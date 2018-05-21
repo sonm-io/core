@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"strconv"
 	"sync"
 	"time"
@@ -94,7 +93,6 @@ type Miner struct {
 	cGroupManager cgroups.CGroupManager
 	externalGrpc  *grpc.Server
 	startTime     time.Time
-	grpcListener  net.Listener
 }
 
 func NewMiner(opts ...Option) (m *Miner, err error) {
@@ -165,7 +163,7 @@ func (m *Miner) Serve() error {
 		return err
 	}
 
-	grpcL, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
+	listener, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
 		npp.WithRendezvous(m.cfg.NPP.Rendezvous.Endpoints, m.creds),
 		npp.WithRelay(m.cfg.NPP.Relay.Endpoints, m.key),
 		npp.WithLogger(log.G(m.ctx)),
@@ -174,10 +172,8 @@ func (m *Miner) Serve() error {
 		log.G(m.ctx).Error("failed to listen", zap.String("address", m.cfg.Endpoint), zap.Error(err))
 		return err
 	}
-	log.G(m.ctx).Info("listening for gRPC API connections", zap.Stringer("address", grpcL.Addr()))
-	m.grpcListener = grpcL
-
-	err = m.listenAPI()
+	log.G(m.ctx).Info("listening for gRPC API connections", zap.Stringer("address", listener.Addr()))
+	err = m.externalGrpc.Serve(listener)
 	m.Close()
 
 	return err
@@ -209,27 +205,6 @@ func (m *Miner) waitMasterApproved() error {
 				return fmt.Errorf("received unexpected master %s", curMaster)
 			}
 			return nil
-		}
-	}
-}
-
-func (m *Miner) listenAPI() error {
-	for {
-		select {
-		case <-m.ctx.Done():
-			return m.ctx.Err()
-		default:
-		}
-
-		if err := m.externalGrpc.Serve(m.grpcListener); err != nil {
-			if _, ok := err.(npp.TransportError); ok {
-				timer := time.NewTimer(1 * time.Second)
-				select {
-				case <-m.ctx.Done():
-				case <-timer.C:
-				}
-				timer.Stop()
-			}
 		}
 	}
 }
