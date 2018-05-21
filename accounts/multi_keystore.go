@@ -3,6 +3,8 @@ package accounts
 import (
 	"crypto/ecdsa"
 	"io/ioutil"
+	"os"
+	"path"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
@@ -13,8 +15,15 @@ import (
 
 type KeystoreConfig struct {
 	KeyDir      string            `yaml:"key_store" required:"true"`
-	StateFile   string            `yaml:"state_file"`
 	PassPhrases map[string]string `yaml:"pass_phrases"`
+}
+
+func (cfg *KeystoreConfig) getStateFileDir() string {
+	return path.Join(cfg.KeyDir, "state")
+}
+
+func (cfg *KeystoreConfig) getStateFilePath() string {
+	return path.Join(cfg.getStateFileDir(), "data")
 }
 
 type multiKeystore struct {
@@ -56,7 +65,9 @@ func (m *multiKeystore) Generate() (*ecdsa.PrivateKey, error) {
 
 	if len(m.keyStore.Accounts()) == 1 {
 		// this is the first account,
-		m.setDefaultAccount(acc.Address)
+		if err := m.setDefaultAccount(acc.Address); err != nil {
+			return nil, err
+		}
 	}
 
 	return m.readAccount(acc)
@@ -89,8 +100,8 @@ func (m *multiKeystore) GetDefault() (*ecdsa.PrivateKey, error) {
 }
 
 // SetDefault marks key as default for keystore
-func (m *multiKeystore) SetDefault(addr common.Address) {
-	m.setDefaultAccount(addr)
+func (m *multiKeystore) SetDefault(addr common.Address) error {
+	return m.setDefaultAccount(addr)
 }
 
 // Import imports exiting key file into keystore
@@ -141,11 +152,11 @@ func (m *multiKeystore) readAccount(acc accounts.Account) (*ecdsa.PrivateKey, er
 }
 
 func (m *multiKeystore) getDefaultAddress() (common.Address, error) {
-	if !util.FileExists(m.cfg.StateFile) {
+	if !util.FileExists(m.cfg.getStateFilePath()) {
 		return common.Address{}, errors.New("cannot find keystore's state")
 	}
 
-	data, err := ioutil.ReadFile(m.cfg.StateFile)
+	data, err := ioutil.ReadFile(m.cfg.getStateFilePath())
 	if err != nil {
 		return common.Address{}, errors.New("cannot read state file")
 	}
@@ -158,6 +169,16 @@ func (m *multiKeystore) getDefaultAddress() (common.Address, error) {
 	return addr, nil
 }
 
-func (m *multiKeystore) setDefaultAccount(addr common.Address) {
-	ioutil.WriteFile(m.cfg.StateFile, []byte(addr.Hex()), 0600)
+func (m *multiKeystore) setDefaultAccount(addr common.Address) error {
+	if !util.FileExists(m.cfg.getStateFileDir()) {
+		if err := os.MkdirAll(m.cfg.getStateFileDir(), 0700); err != nil {
+			return errors.WithMessage(err, "cannot create dir for state")
+		}
+	}
+
+	if err := ioutil.WriteFile(m.cfg.getStateFilePath(), []byte(addr.Hex()), 0600); err != nil {
+		return errors.WithMessage(err, "cannot write state to file")
+	}
+
+	return nil
 }
