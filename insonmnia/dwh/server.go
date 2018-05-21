@@ -35,19 +35,21 @@ const (
 )
 
 type DWH struct {
-	mu            sync.RWMutex
-	ctx           context.Context
-	cfg           *Config
-	cancel        context.CancelFunc
-	grpc          *grpc.Server
-	http          *rest.Server
-	logger        *zap.Logger
-	db            *sql.DB
-	creds         credentials.TransportCredentials
-	certRotator   util.HitlessCertRotator
-	blockchain    blockchain.API
-	storage       storage
-	numBenchmarks uint64
+	mu                sync.RWMutex
+	ctx               context.Context
+	cfg               *Config
+	cancel            context.CancelFunc
+	grpc              *grpc.Server
+	http              *rest.Server
+	logger            *zap.Logger
+	db                *sql.DB
+	creds             credentials.TransportCredentials
+	certRotator       util.HitlessCertRotator
+	blockchain        blockchain.API
+	storage           storage
+	numBenchmarks     uint64
+	blockEndCallbacks []func() error
+	lastKnownBlock    uint64
 }
 
 func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, error) {
@@ -355,17 +357,17 @@ func (w *DWH) monitorBlockchain() error {
 	}
 }
 
-func (w *DWH) watchMarketEvents() error {
-	lastKnownBlock, err := w.getLastKnownBlock()
+func (w *DWH) watchMarketEvents() (err error) {
+	w.lastKnownBlock, err = w.getLastKnownBlock()
 	if err != nil {
 		if err := w.insertLastKnownBlock(0); err != nil {
 			return err
 		}
-		lastKnownBlock = 0
+		w.lastKnownBlock = 0
 	}
 
-	w.logger.Info("starting from block", zap.Uint64("block_number", lastKnownBlock))
-	events, err := w.blockchain.Events().GetEvents(w.ctx, big.NewInt(0).SetUint64(lastKnownBlock))
+	w.logger.Info("starting from block", zap.Uint64("block_number", w.lastKnownBlock))
+	events, err := w.blockchain.Events().GetEvents(w.ctx, big.NewInt(0).SetUint64(w.lastKnownBlock))
 	if err != nil {
 		return err
 	}
@@ -392,6 +394,20 @@ func (w *DWH) runEventWorker(wg *sync.WaitGroup, workerID int, events chan *bloc
 				w.logger.Info("events channel closed", zap.Int("worker_id", workerID))
 				return
 			}
+
+			w.mu.Lock()
+			if w.lastKnownBlock != event.BlockNumber {
+				for _, cb := range w.blockEndCallbacks {
+					if err := cb(); err != nil {
+						w.logger.Warn("failed to execute cb after block end", zap.Error(err),
+							zap.Int("worker_id", workerID))
+					}
+				}
+				w.blockEndCallbacks = w.blockEndCallbacks[:0]
+			}
+			w.lastKnownBlock = event.BlockNumber
+			w.mu.Unlock()
+
 			if err := w.updateLastKnownBlock(int64(event.BlockNumber)); err != nil {
 				w.logger.Warn("failed to updateLastKnownBlock", zap.Error(err),
 					zap.Uint64("block_number", event.BlockNumber), zap.Int("worker_id", workerID))
@@ -539,7 +555,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 		return errors.Wrap(err, "failed to CheckID")
 	} else {
 		if ok {
-			go w.delayedRemoveID(dealID, "Deal")
+			w.addBlockEndCallback(func() error { return w.removeEntityID(dealID, "Deal") })
 			return nil
 		}
 	}
@@ -850,7 +866,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 		return errors.Wrap(err, "failed to CheckID")
 	} else {
 		if ok {
-			go w.delayedRemoveID(orderID, "Order")
+			go w.removeEntityID(orderID, "Order")
 			return nil
 		}
 	}
@@ -1215,16 +1231,22 @@ func (w *DWH) checkBenchmarks(benches *pb.Benchmarks) error {
 	return nil
 }
 
-// delayedRemoveID is necessary because events order in one block is messed up, so you can have
-// a Billed event coming after DealUpdated (== deal is closed) event, and Billed will fail to find the
-// already deleted deal. This will result in an annoying error.
-func (w *DWH) delayedRemoveID(id *big.Int, entity string) {
-	t := time.NewTimer(time.Second * 5)
-	<-t.C
+func (w *DWH) removeEntityID(id *big.Int, entity string) error {
 	w.logger.Debug("removing stale entity from cache", zap.String("entity", entity), zap.String("id", id.String()))
 	if err := w.storage.RemoveID(newSimpleConn(w.db), id, entity); err != nil {
-		w.logger.Warn("failed to RemoveID", zap.Error(err), zap.String("id", id.String()),
-			zap.String("entity", entity))
+		return errors.Wrapf(err, "failed to RemoveID (%s %s)", entity, id.String())
 	}
-	t.Stop()
+
+	return nil
+}
+
+func (w *DWH) executeBlockEndCallbacks() {
+
+}
+
+func (w *DWH) addBlockEndCallback(cb func() error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.blockEndCallbacks = append(w.blockEndCallbacks, cb)
 }
