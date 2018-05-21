@@ -391,8 +391,6 @@ func (w *DWH) watchMarketEvents() (err error) {
 			jobs <- event
 		}
 	}
-
-	return nil
 }
 
 func (w *DWH) runEventWorker(workerID int, events chan *blockchain.Event) {
