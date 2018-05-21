@@ -91,8 +91,8 @@ func NewListener(ctx context.Context, addr string, options ...Option) (net.Liste
 		relayListen:  opts.relayListen,
 		relayChannel: make(chan connTuple, opts.nppBacklog),
 
-		minBackoffInterval: 500 * time.Millisecond,
-		maxBackoffInterval: 8000 * time.Millisecond,
+		minBackoffInterval: opts.nppMinBackoffInterval,
+		maxBackoffInterval: opts.nppMaxBackoffInterval,
 	}
 
 	go m.listen(ctx)
