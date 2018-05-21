@@ -44,7 +44,6 @@ It has these top-level messages:
 	Storage
 	NetworkSpec
 	Container
-	DeprecatedDeal
 	SortingOption
 	DealsRequest
 	DWHDealsReply
