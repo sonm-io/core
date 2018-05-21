@@ -37,7 +37,7 @@ type DealInfoSupplier interface {
 	GetDealInfo(ctx context.Context, id *sonm.ID) (*sonm.DealInfoReply, error)
 }
 
-// todo: do not accept Hub as param, use some interface that have DealInfo method.
+// todo: do not accept Worker as param, use some interface that have DealInfo method.
 func newDealAuthorization(ctx context.Context, supplier DealInfoSupplier, extractor DealExtractor) auth.Authorization {
 	return &dealAuthorization{
 		ctx:       ctx,
@@ -127,12 +127,12 @@ func newContextDealExtractor() DealExtractor {
 
 // NewFromTaskDealExtractor constructs a deal id extractor that requires the
 // specified request to have "Id" field, which is the task id.
-// This task id is used to extract current deal id from the Hub.
+// This task id is used to extract current deal id from the Worker.
 func newFromTaskDealExtractor(worker *Miner) DealExtractor {
 	return newFromNamedTaskDealExtractor(worker, "Id")
 }
 
-// todo: do not accept Hub as param, use some interface that have TaskStatus method.
+// todo: do not accept Worker as param, use some interface that have TaskStatus method.
 func newFromNamedTaskDealExtractor(worker *Miner, name string) DealExtractor {
 	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
 		requestValue := reflect.Indirect(reflect.ValueOf(request))

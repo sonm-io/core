@@ -47,7 +47,7 @@ import (
 
 const (
 	workerAPIPrefix = "/sonm.WorkerManagement/"
-	taskAPIPrefix   = "/sonm.Hub/"
+	taskAPIPrefix   = "/sonm.Worker/"
 )
 
 var (
@@ -62,7 +62,7 @@ var (
 	}
 )
 
-// Miner holds information about jobs, make orders to Observer and communicates with Hub
+// Miner holds information about jobs, make orders to Observer and communicates with Worker
 type Miner struct {
 	*options
 
@@ -375,10 +375,10 @@ func (m *Miner) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesRepl
 	return m.hardware.IntoProto(), nil
 }
 
-// Status returns internal hub statistic
-func (m *Miner) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, error) {
+// Status returns internal worker statistic
+func (m *Miner) Status(ctx context.Context, _ *pb.Empty) (*pb.StatusReply, error) {
 	uptime := uint64(time.Now().Sub(m.startTime).Seconds())
-	reply := &pb.HubStatusReply{
+	reply := &pb.StatusReply{
 		Uptime:    uptime,
 		Platform:  util.GetPlatformName(),
 		Version:   m.version,
@@ -447,7 +447,7 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 	return restartPolicy
 }
 
-func (m *Miner) PushTask(stream pb.Hub_PushTaskServer) error {
+func (m *Miner) PushTask(stream pb.Worker_PushTaskServer) error {
 	log.G(m.ctx).Info("handling PushTask request")
 	if err := m.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PushTask"), nil); err != nil {
 		return err
@@ -469,7 +469,7 @@ func (m *Miner) PushTask(stream pb.Hub_PushTaskServer) error {
 	return nil
 }
 
-func (m *Miner) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer) error {
+func (m *Miner) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTaskServer) error {
 	log.G(m.ctx).Info("handling PullTask request", zap.Any("request", request))
 
 	if err := m.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PullTask"), request); err != nil {
@@ -554,7 +554,7 @@ func (m *Miner) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*p
 	return m.startTask(ctx, taskRequest)
 }
 
-// Start request from Hub makes Miner start a container
+// Start request makes Worker start a container
 func (m *Miner) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
 
@@ -763,7 +763,7 @@ func (m *Miner) CollectTasksStatuses(statuses ...pb.TaskStatusReply_Status) map[
 }
 
 // TaskLogs returns logs from container
-func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer) error {
+func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Worker_TaskLogsServer) error {
 	log.G(m.ctx).Info("handling TaskLogs request", zap.Any("request", request))
 	if err := m.eventAuthorization.Authorize(server.Context(), auth.Event(taskAPIPrefix+"TaskLogs"), request); err != nil {
 		return err
@@ -803,7 +803,7 @@ func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServ
 }
 
 //TODO: proper request
-func (m *Miner) JoinNetwork(ctx context.Context, request *pb.HubJoinNetworkRequest) (*pb.NetworkSpec, error) {
+func (m *Miner) JoinNetwork(ctx context.Context, request *pb.WorkerJoinNetworkRequest) (*pb.NetworkSpec, error) {
 	spec, err := m.plugins.JoinNetwork(request.NetworkID)
 	if err != nil {
 		return nil, err
@@ -936,7 +936,7 @@ func (m *Miner) setupServer() error {
 	)
 	m.externalGrpc = grpcServer
 
-	pb.RegisterHubServer(grpcServer, m)
+	pb.RegisterWorkerServer(grpcServer, m)
 	pb.RegisterWorkerManagementServer(grpcServer, m)
 	grpc_prometheus.Register(grpcServer)
 	return nil

@@ -12,16 +12,16 @@ package sonm;
 // WorkerManagement describe a bunch of methods to manage Worker instance.
 // Must be called by Worker's owner.
 service WorkerManagement {
-    // Status produse a detailed info about Hub
-    rpc Status (Empty) returns (HubStatusReply) {}
+    // Status produse a detailed info about worker
+    rpc Status (Empty) returns (StatusReply) {}
     // Devices provides detailed information about device
     // and show benchmark results.
-    rpc Devices(Empty) returns (DevicesReply) {}
+    rpc Devices (Empty) returns (DevicesReply) {}
     // FreeDevices provides information about unallocated resources
     // that can be turned into ask-plans.
-    rpc FreeDevices(Empty) returns (DevicesReply) {}
-    // Tasks produces a list of all running tasks on the Hub
-    rpc Tasks(Empty) returns (TaskListReply) {}
+    rpc FreeDevices (Empty) returns (DevicesReply) {}
+    // Tasks produces a list of all running tasks on the worker
+    rpc Tasks (Empty) returns (TaskListReply) {}
     // AskPlans allows to obtain previously assigned Ask Plans from for a given worker.
     rpc AskPlans(Empty) returns (AskPlansReply) {}
     // CreateAskPlan allows to create rules
@@ -32,7 +32,7 @@ service WorkerManagement {
     rpc RemoveAskPlan(ID) returns (Empty) {}
 }
 
-service Hub {
+service Worker {
     /// Task Management section
 
     rpc PushTask(stream Chunk) returns (stream Progress) {}
@@ -41,7 +41,7 @@ service Hub {
     rpc StartTask(StartTaskRequest) returns (StartTaskReply) {}
     rpc StopTask(ID) returns (Empty) {}
     rpc TaskStatus(ID) returns (TaskStatusReply) {}
-    rpc JoinNetwork(HubJoinNetworkRequest) returns (NetworkSpec) {}
+    rpc JoinNetwork(WorkerJoinNetworkRequest) returns (NetworkSpec) {}
 
     rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
 
@@ -58,7 +58,7 @@ message StartTaskRequest {
     AskPlanResources resources = 3;
 }
 
-message HubJoinNetworkRequest {
+message WorkerJoinNetworkRequest {
     string taskID = 1;
     string networkID = 2;
 }
@@ -69,7 +69,7 @@ message StartTaskReply {
     repeated string networkIDs = 3;
 }
 
-message HubStatusReply {
+message StatusReply {
     uint64 uptime = 1;
     string version = 2;
     string platform = 3;

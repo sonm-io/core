@@ -28,7 +28,6 @@ _testmain.go
 coverage*
 !.ci/coverage.sh
 
-sonmhub
 sonmcli
 sonmcli_win32.exe
 sonmworker

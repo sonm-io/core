@@ -15,13 +15,13 @@ var workerDevicesCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		hub, err := newWorkerManagementClient(ctx)
+		worker, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
-		devices, err := hub.Devices(ctx, &pb.Empty{})
+		devices, err := worker.Devices(ctx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get devices list", err)
 			os.Exit(1)

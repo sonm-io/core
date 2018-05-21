@@ -14,8 +14,8 @@
  
  The following custom metrics have been added:
  
- * `sonm_deals_current` -- a gauge that keeps track of current deals (only registered by Hub);
- * `sonm_tasks_current` -- a gauge that keeps track of current tasks (only registered by Hub);
+ * `sonm_deals_current` -- a gauge that keeps track of current deals (only registered by Worker);
+ * `sonm_tasks_current` -- a gauge that keeps track of current tasks (only registered by Worker);
  * `grpc_server_connections_current` -- a gauge that keeps track of current server connections.
  
  N.B.: you may have difficulties running this guide on a non-Linux host, consider using a VM if needed.

@@ -1,6 +1,6 @@
 # An endpoint for client connections using cli
 # allowed format is "ip:port" to bind Worker to given IP address
-# or ":port" to bind Hub to all available IPs
+# or ":port" to bind Worker to all available IPs
 endpoint: ":15010"
 
 # blockchain-specific settings.

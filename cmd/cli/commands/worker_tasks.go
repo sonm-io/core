@@ -15,13 +15,13 @@ var workerTasksCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		hub, err := newWorkerManagementClient(ctx)
+		worker, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
-		list, err := hub.Tasks(ctx, &pb.Empty{})
+		list, err := worker.Tasks(ctx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get task list", err)
 			os.Exit(1)
