@@ -15,7 +15,6 @@ It is generated from these files:
 	hub.proto
 	insonmnia.proto
 	marketplace.proto
-	miner.proto
 	net.proto
 	node.proto
 	relay.proto
@@ -113,13 +112,9 @@ It has these top-level messages:
 	BidNetwork
 	BidResources
 	BidOrder
-	MinerStartRequest
-	MinerStartReply
-	TaskInfo
-	Endpoints
-	SaveRequest
 	Addr
 	SocketAddr
+	Endpoints
 	JoinNetworkRequest
 	TaskListRequest
 	DealFinishRequest
