@@ -542,7 +542,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 		return errors.Wrap(err, "failed to CheckStaleID")
 	} else {
 		if ok {
-			w.addBlockEndCallback(func() error { return w.removeEntityID(dealID, "Deal") })
+			w.addBlockEndCallback(func() error { return w.removeStaleEntityID(dealID, "Deal") })
 			return nil
 		}
 	}
@@ -853,7 +853,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 		return errors.Wrap(err, "failed to CheckStaleID")
 	} else {
 		if ok {
-			w.removeEntityID(orderID, "Order")
+			w.removeStaleEntityID(orderID, "Order")
 			return nil
 		}
 	}
@@ -1218,7 +1218,7 @@ func (w *DWH) checkBenchmarks(benches *pb.Benchmarks) error {
 	return nil
 }
 
-func (w *DWH) removeEntityID(id *big.Int, entity string) error {
+func (w *DWH) removeStaleEntityID(id *big.Int, entity string) error {
 	w.logger.Debug("removing stale entity from cache", zap.String("entity", entity), zap.String("id", id.String()))
 	if err := w.storage.RemoveStaleID(newSimpleConn(w.db), id, entity); err != nil {
 		return errors.Wrapf(err, "failed to RemoveStaleID (%s %s)", entity, id.String())
