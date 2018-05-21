@@ -888,17 +888,17 @@ func (c *sqlStorage) UpdateLastKnownBlock(conn queryConn, blockNumber int64) err
 }
 
 func (c *sqlStorage) StoreStaleID(conn queryConn, id *big.Int, entity string) error {
-	_, err := conn.Exec(c.commands.storeID, fmt.Sprintf("%s_%s", entity, id.String()))
+	_, err := conn.Exec(c.commands.storeStaleID, fmt.Sprintf("%s_%s", entity, id.String()))
 	return err
 }
 
 func (c *sqlStorage) RemoveStaleID(conn queryConn, id *big.Int, entity string) error {
-	_, err := conn.Exec(c.commands.removeID, fmt.Sprintf("%s_%s", entity, id.String()))
+	_, err := conn.Exec(c.commands.removeStaleID, fmt.Sprintf("%s_%s", entity, id.String()))
 	return err
 }
 
 func (c *sqlStorage) CheckStaleID(conn queryConn, id *big.Int, entity string) (bool, error) {
-	rows, err := conn.Query(c.commands.checkID, fmt.Sprintf("%s_%s", entity, id.String()))
+	rows, err := conn.Query(c.commands.checkStaleID, fmt.Sprintf("%s_%s", entity, id.String()))
 	if err != nil {
 		return false, err
 	}
@@ -1364,9 +1364,9 @@ type sqlCommands struct {
 	selectLastKnownBlock         string
 	insertLastKnownBlock         string
 	updateLastKnownBlock         string
-	storeID                      string
-	removeID                     string
-	checkID                      string
+	storeStaleID                 string
+	removeStaleID                string
+	checkStaleID                 string
 }
 
 type sqlSetupCommands struct {
