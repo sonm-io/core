@@ -1240,10 +1240,6 @@ func (w *DWH) removeEntityID(id *big.Int, entity string) error {
 	return nil
 }
 
-func (w *DWH) executeBlockEndCallbacks() {
-
-}
-
 func (w *DWH) addBlockEndCallback(cb func() error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
