@@ -62,8 +62,8 @@ func PubKeyToAddr(key ecdsa.PublicKey) common.Address {
 	return crypto.PubkeyToAddress(key)
 }
 
-// DirectoryExists returns true if the given directory exists
-func DirectoryExists(p string) bool {
+// FileExists returns true if the given directory or file exists
+func FileExists(p string) bool {
 	if _, err := os.Stat(p); err != nil {
 		return !os.IsNotExist(err)
 	}

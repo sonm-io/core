@@ -16,7 +16,6 @@ import (
 const (
 	OutputModeSimple = "simple"
 	OutputModeJSON   = "json"
-	homeConfigDir    = ".sonm"
 	configName       = "cli.yaml"
 )
 
@@ -90,13 +89,13 @@ func (cc *Config) fillWithDefaults() {
 	cc.OutFormat = OutputModeSimple
 }
 
-func getDefaultConfigDir() (string, error) {
+func GetDefaultConfigDir() (string, error) {
 	currentUser, err := user.Current()
 	if err != nil {
 		return "", err
 	}
 
-	dir := path.Join(currentUser.HomeDir, homeConfigDir)
+	dir := path.Join(currentUser.HomeDir, accounts.HomeConfigDir)
 	return dir, nil
 }
 
@@ -107,7 +106,7 @@ func getConfigPath(p ...string) (string, error) {
 	if len(p) > 0 && p[0] != "" {
 		cfgPath = p[0]
 	} else {
-		cfgPath, err = getDefaultConfigDir()
+		cfgPath, err = GetDefaultConfigDir()
 		if err != nil {
 			return "", err
 		}

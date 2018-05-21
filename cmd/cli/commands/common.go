@@ -2,7 +2,6 @@ package commands
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/json"
 	"os"
 	"time"
@@ -34,6 +33,7 @@ var (
 	outputModeFlag  string
 	timeoutFlag     = 60 * time.Second
 	insecureFlag    bool
+	keystoreFlag    string
 
 	// logging flag vars
 	logType       string
@@ -44,9 +44,9 @@ var (
 	details       bool
 
 	// session-related vars
-	cfg        *config.Config
-	sessionKey *ecdsa.PrivateKey = nil
-	creds      credentials.TransportCredentials
+	cfg      *config.Config
+	creds    credentials.TransportCredentials
+	keystore *accounts.MultiKeystore
 )
 
 func init() {
@@ -54,6 +54,7 @@ func init() {
 	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
 	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "Disable TLS for connection")
+	rootCmd.PersistentFlags().StringVar(&keystoreFlag, "keystore", "", "Keystore dir")
 
 	rootCmd.AddCommand(workerMgmtCmd, orderRootCmd, dealRootCmd, taskRootCmd)
 	rootCmd.AddCommand(loginCmd, tokenRootCmd, versionCmd, autoCompleteCmd, masterRootCmd)
@@ -139,35 +140,54 @@ func isSimpleFormat() bool {
 	return true
 }
 
+func keystorePath() string {
+	var err error
+	p := rootCmd.Flag("keystore").Value.String()
+	// flag overrides config
+	if p == "" {
+		p = cfg.Eth.Keystore
+		// config overrides defaults ~/.sonm/
+		if p == "" {
+			p, err = accounts.GetDefaultKeyStoreDir()
+			if err != nil {
+				showError(rootCmd, "cannot obtain default keystore dir", err)
+				os.Exit(1)
+			}
+		}
+	}
+
+	return p
+}
+
+func initKeystore() (*accounts.MultiKeystore, error) {
+	return accounts.NewMultiKeystore(&accounts.KeystoreConfig{
+		KeyDir:      keystorePath(),
+		PassPhrases: make(map[string]string),
+	}, accounts.NewInteractivePassPhraser())
+}
+
 // loadKeyStoreWrapper implemented to match cobra.Command.PreRun signature.
 //
 // Function loads and opens keystore. Also, storing opened key in "sessionKey" var
 // to be able to reuse it into cli during one session.
 func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
-	ko, err := accounts.DefaultKeyOpener(accounts.NewSilentPrinter(), cfg.KeyStore(), cfg.PassPhrase())
+	var err error
+	keystore, err = initKeystore()
 	if err != nil {
-		showError(cmd, err.Error(), nil)
+		showError(cmd, "Cannot init keystore", err)
 		os.Exit(1)
 	}
-
-	_, err = ko.OpenKeystore()
-	if err != nil {
-		showError(cmd, err.Error(), nil)
-		os.Exit(1)
-	}
-
-	key, err := ko.GetKey()
-	if err != nil {
-		showError(cmd, err.Error(), nil)
-		os.Exit(1)
-	}
-
-	sessionKey = key
 
 	// If an insecure flag is set - we do not require TLS auth.
 	// But we still need to load keys from a store, somewhere keys are used
 	// to sign blockchain transactions, or something like that.
 	if !insecureFlag {
+		sessionKey, err := keystore.GetDefault()
+		if err != nil {
+			showError(cmd, "cannot read default key from keystore", err)
+			os.Exit(1)
+		}
+
 		_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), sessionKey)
 		if err != nil {
 			showError(cmd, err.Error(), nil)

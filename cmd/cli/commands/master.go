@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
@@ -40,7 +41,11 @@ var masterListCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		} else {
-			master = util.PubKeyToAddr(sessionKey.PublicKey)
+			key, err := keystore.GetDefault()
+			if err != nil {
+				showError(cmd, "Cannot read default key", err)
+			}
+			master = util.PubKeyToAddr(key.PublicKey)
 		}
 
 		mm, err := newMasterManagementClient(ctx)
@@ -119,13 +124,17 @@ var masterRemoveWorkerCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		master := util.PubKeyToAddr(sessionKey.PublicKey)
+		master, err := keystore.GetDefault()
+		if err != nil {
+			showError(cmd, "Cannot read default key", err)
+		}
+
 		worker, err := util.HexToAddress(args[0])
 		if err != nil {
 			showError(cmd, "invalid address specified", err)
 			os.Exit(1)
 		}
-		masterRemove(cmd, master, worker)
+		masterRemove(cmd, crypto.PubkeyToAddress(master.PublicKey), worker)
 	},
 }
 
@@ -135,12 +144,16 @@ var masterRemoveMasterCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		worker := util.PubKeyToAddr(sessionKey.PublicKey)
+		worker, err := keystore.GetDefault()
+		if err != nil {
+			showError(cmd, "Cannot read default key", err)
+		}
+
 		master, err := util.HexToAddress(args[0])
 		if err != nil {
 			showError(cmd, "invalid address specified", err)
 			os.Exit(1)
 		}
-		masterRemove(cmd, master, worker)
+		masterRemove(cmd, master, crypto.PubkeyToAddress(worker.PublicKey))
 	},
 }
