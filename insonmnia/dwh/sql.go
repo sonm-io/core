@@ -887,17 +887,17 @@ func (c *sqlStorage) UpdateLastKnownBlock(conn queryConn, blockNumber int64) err
 	return err
 }
 
-func (c *sqlStorage) StoreID(conn queryConn, id *big.Int, entity string) error {
+func (c *sqlStorage) StoreStaleID(conn queryConn, id *big.Int, entity string) error {
 	_, err := conn.Exec(c.commands.storeID, fmt.Sprintf("%s_%s", entity, id.String()))
 	return err
 }
 
-func (c *sqlStorage) RemoveID(conn queryConn, id *big.Int, entity string) error {
+func (c *sqlStorage) RemoveStaleID(conn queryConn, id *big.Int, entity string) error {
 	_, err := conn.Exec(c.commands.removeID, fmt.Sprintf("%s_%s", entity, id.String()))
 	return err
 }
 
-func (c *sqlStorage) CheckID(conn queryConn, id *big.Int, entity string) (bool, error) {
+func (c *sqlStorage) CheckStaleID(conn queryConn, id *big.Int, entity string) (bool, error) {
 	rows, err := conn.Query(c.commands.checkID, fmt.Sprintf("%s_%s", entity, id.String()))
 	if err != nil {
 		return false, err

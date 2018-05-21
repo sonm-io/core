@@ -489,8 +489,8 @@ func (w *DWH) onDealOpened(dealID *big.Int) error {
 	defer conn.Finish()
 
 	if deal.Status == pb.DealStatus_DEAL_CLOSED {
-		if err := w.storage.StoreID(newSimpleConn(w.db), dealID, "Deal"); err != nil {
-			return errors.Wrap(err, "failed to StoreID")
+		if err := w.storage.StoreStaleID(newSimpleConn(w.db), dealID, "Deal"); err != nil {
+			return errors.Wrap(err, "failed to StoreStaleID")
 		}
 		w.logger.Debug("skipping inactive deal", zap.String("deal_id", dealID.String()))
 		return nil
@@ -538,8 +538,8 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 	defer conn.Finish()
 
 	// If deal is known to be stale:
-	if ok, err := w.storage.CheckID(conn, dealID, "Deal"); err != nil {
-		return errors.Wrap(err, "failed to CheckID")
+	if ok, err := w.storage.CheckStaleID(conn, dealID, "Deal"); err != nil {
+		return errors.Wrap(err, "failed to CheckStaleID")
 	} else {
 		if ok {
 			w.addBlockEndCallback(func() error { return w.removeEntityID(dealID, "Deal") })
@@ -582,8 +582,8 @@ func (w *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 	defer conn.Finish()
 
 	// If deal is known to be stale, skip.
-	if ok, err := w.storage.CheckID(conn, changeRequest.DealID.Unwrap(), "Deal"); err != nil {
-		return errors.Wrap(err, "failed to CheckID")
+	if ok, err := w.storage.CheckStaleID(conn, changeRequest.DealID.Unwrap(), "Deal"); err != nil {
+		return errors.Wrap(err, "failed to CheckStaleID")
 	} else {
 		if ok {
 			w.logger.Debug("skipping DealChangeRequestSent event for inactive deal")
@@ -634,8 +634,8 @@ func (w *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 	defer conn.Finish()
 
 	// If deal is known to be stale, skip.
-	if ok, err := w.storage.CheckID(conn, changeRequest.DealID.Unwrap(), "Deal"); err != nil {
-		return errors.Wrap(err, "failed to CheckID")
+	if ok, err := w.storage.CheckStaleID(conn, changeRequest.DealID.Unwrap(), "Deal"); err != nil {
+		return errors.Wrap(err, "failed to CheckStaleID")
 	} else {
 		if ok {
 			w.logger.Debug("skipping DealChangeRequestUpdated event for inactive deal")
@@ -697,8 +697,8 @@ func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 	defer conn.Finish()
 
 	// If deal is known to be stale, skip.
-	if ok, err := w.storage.CheckID(conn, dealID, "Deal"); err != nil {
-		return errors.Wrap(err, "failed to CheckID")
+	if ok, err := w.storage.CheckStaleID(conn, dealID, "Deal"); err != nil {
+		return errors.Wrap(err, "failed to CheckStaleID")
 	} else {
 		if ok {
 			w.logger.Debug("skipping Billed event for inactive deal")
@@ -765,8 +765,8 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 	defer conn.Finish()
 
 	if order.OrderStatus == pb.OrderStatus_ORDER_INACTIVE && order.DealID.IsZero() {
-		if err := w.storage.StoreID(conn, orderID, "Order"); err != nil {
-			return errors.Wrap(err, "failed to StoreID")
+		if err := w.storage.StoreStaleID(conn, orderID, "Order"); err != nil {
+			return errors.Wrap(err, "failed to StoreStaleID")
 		}
 		w.logger.Debug("skipping inactive order", zap.String("order_id", orderID.String()))
 		return nil
@@ -849,8 +849,8 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 
 	// If the order was known to be inactive, delete it from the list of inactive entities
 	// and skip.
-	if ok, err := w.storage.CheckID(conn, orderID, "Order"); err != nil {
-		return errors.Wrap(err, "failed to CheckID")
+	if ok, err := w.storage.CheckStaleID(conn, orderID, "Order"); err != nil {
+		return errors.Wrap(err, "failed to CheckStaleID")
 	} else {
 		if ok {
 			w.removeEntityID(orderID, "Order")
@@ -1220,8 +1220,8 @@ func (w *DWH) checkBenchmarks(benches *pb.Benchmarks) error {
 
 func (w *DWH) removeEntityID(id *big.Int, entity string) error {
 	w.logger.Debug("removing stale entity from cache", zap.String("entity", entity), zap.String("id", id.String()))
-	if err := w.storage.RemoveID(newSimpleConn(w.db), id, entity); err != nil {
-		return errors.Wrapf(err, "failed to RemoveID (%s %s)", entity, id.String())
+	if err := w.storage.RemoveStaleID(newSimpleConn(w.db), id, entity); err != nil {
+		return errors.Wrapf(err, "failed to RemoveStaleID (%s %s)", entity, id.String())
 	}
 
 	return nil
