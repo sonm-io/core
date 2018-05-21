@@ -17,7 +17,7 @@ type nodeConfig struct {
 	AllowInsecureConnection bool   `yaml:"allow_insecure_connection" default:"false"`
 }
 
-type hubConfig struct {
+type workerConfig struct {
 	Endpoint string `required:"false" yaml:"endpoint"`
 }
 
@@ -27,7 +27,7 @@ type Config struct {
 	Log               logging.Config      `yaml:"log"`
 	Blockchain        *blockchain.Config  `yaml:"blockchain"`
 	Eth               accounts.EthConfig  `yaml:"ethereum" required:"false"`
-	Hub               hubConfig           `yaml:"hub" required:"false"`
+	Worker            workerConfig        `yaml:"worker" required:"false"`
 	DWH               dwh.YAMLConfig      `yaml:"dwh"`
 	MetricsListenAddr string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14003"`
 	Benchmarks        benchmarks.Config   `yaml:"benchmarks"`

@@ -3,7 +3,7 @@ package plugin
 import (
 	"fmt"
 
-	"github.com/sonm-io/core/insonmnia/miner/volume"
+	"github.com/sonm-io/core/insonmnia/worker/volume"
 )
 
 // Cleanup describes an interface for resource freeing.

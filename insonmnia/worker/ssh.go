@@ -1,4 +1,4 @@
-package miner
+package worker
 
 import (
 	"io"
@@ -26,18 +26,18 @@ func (nilSSH) Run() error {
 func (nilSSH) Close() {}
 
 type sshServer struct {
-	miner          *Miner
+	worker         *Worker
 	laddr          string
 	privateKeyPath string
 	listener       net.Listener
 	server         *ssh.Server
 }
 
-func NewSSH(miner *Miner, config *SSHConfig) (SSH, error) {
+func NewSSH(worker *Worker, config *SSHConfig) (SSH, error) {
 	ret := sshServer{
 		laddr:          config.BindEndpoint,
 		privateKeyPath: config.PrivateKeyPath,
-		miner:          miner,
+		worker:         worker,
 	}
 	return &ret, nil
 }
@@ -66,18 +66,18 @@ func (s *sshServer) Run() error {
 }
 
 func (s *sshServer) verify(ctx ssh.Context, key ssh.PublicKey) bool {
-	cinfo, ok := s.miner.GetContainerInfo(ctx.User())
+	cinfo, ok := s.worker.GetContainerInfo(ctx.User())
 	if !ok {
 		return false
 	}
-	log.G(s.miner.ctx).Info("verifying public key")
+	log.G(s.worker.ctx).Info("verifying public key")
 	return ssh.KeysEqual(cinfo.PublicKey, key)
 }
 
 func (s *sshServer) onSession(session ssh.Session) {
 	status := s.process(session)
 	session.Exit(status)
-	log.G(s.miner.ctx).Info("finished processing ssh session", zap.Int("status", status))
+	log.G(s.worker.ctx).Info("finished processing ssh session", zap.Int("status", status))
 }
 
 func (s *sshServer) process(session ssh.Session) (status int) {
@@ -88,14 +88,14 @@ func (s *sshServer) process(session ssh.Session) (status int) {
 	if len(cmd) == 0 {
 		cmd = append(cmd, "login", "-f", "root")
 	}
-	cid, ok := s.miner.getContainerIdByTaskId(session.User())
+	cid, ok := s.worker.getContainerIdByTaskId(session.User())
 	if !ok {
 		msg := "could not find container by task " + string(session.User()+"\n")
 		session.Write([]byte(msg))
-		log.G(s.miner.ctx).Warn(msg)
+		log.G(s.worker.ctx).Warn(msg)
 		return
 	}
-	stream, err := s.miner.ovs.Exec(s.miner.ctx, cid, cmd, session.Environ(), isTty, wCh)
+	stream, err := s.worker.ovs.Exec(s.worker.ctx, cid, cmd, session.Environ(), isTty, wCh)
 	if err != nil {
 		session.Write([]byte(err.Error()))
 		return
@@ -122,14 +122,14 @@ func (s *sshServer) process(session ssh.Session) (status int) {
 	if err != nil {
 		status = 0
 	} else {
-		log.G(s.miner.ctx).Warn("io error during ssh session:", zap.Error(err))
+		log.G(s.worker.ctx).Warn("io error during ssh session:", zap.Error(err))
 	}
 	return
 }
 
 func (s *sshServer) Close() {
 	if s.server != nil {
-		log.G(s.miner.ctx).Info("closing ssh server")
+		log.G(s.worker.ctx).Info("closing ssh server")
 		s.server.Close()
 	}
 }

@@ -137,7 +137,7 @@ build_mockgen:
 	cd ./vendor/github.com/golang/mock/mockgen/ && go install
 
 mock: build_mockgen
-	mockgen -package miner -destination insonmnia/miner/overseer_mock.go -source insonmnia/miner/overseer.go
+	mockgen -package worker -destination insonmnia/worker/overseer_mock.go -source insonmnia/worker/overseer.go
 	mockgen -package task_config -destination cmd/cli/task_config/config_mock.go  -source cmd/cli/task_config/config.go
 	mockgen -package accounts -destination accounts/keys_mock.go  -source accounts/keys.go
 	mockgen -package benchmarks -destination insonmnia/benchmarks/benchmarks_mock.go -source insonmnia/benchmarks/benchmarks.go

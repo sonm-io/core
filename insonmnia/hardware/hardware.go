@@ -9,7 +9,7 @@ import (
 	"github.com/cnf/structhash"
 	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/hardware/ram"
-	"github.com/sonm-io/core/insonmnia/miner/gpu"
+	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 )

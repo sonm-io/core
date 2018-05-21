@@ -1,4 +1,4 @@
-package miner
+package worker
 
 import (
 	"archive/tar"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-	"github.com/sonm-io/core/insonmnia/miner/plugin"
+	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 

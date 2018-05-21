@@ -1,4 +1,4 @@
-package miner
+package worker
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/sonm-io/core/insonmnia/miner/plugin"
+	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"go.uber.org/zap"
 
 	"github.com/docker/distribution/reference"

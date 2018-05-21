@@ -29,13 +29,13 @@ var askPlanListCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		hub, err := newWorkerManagementClient(ctx)
+		worker, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
-		asks, err := hub.AskPlans(ctx, &pb.Empty{})
+		asks, err := worker.AskPlans(ctx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get Ask Orders from Worker", err)
 			os.Exit(1)
@@ -54,7 +54,7 @@ var askPlanCreateCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		hub, err := newWorkerManagementClient(ctx)
+		worker, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
@@ -68,7 +68,7 @@ var askPlanCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		id, err := hub.CreateAskPlan(ctx, plan)
+		id, err := worker.CreateAskPlan(ctx, plan)
 		if err != nil {
 			showError(cmd, "Cannot create new AskOrder", err)
 			os.Exit(1)

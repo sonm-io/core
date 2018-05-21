@@ -50,10 +50,10 @@ ethereum:
   # passphrase for keystore
   pass_phrase: "any"
 
-# Hub management settings.
-# Set this if you have your own Hub and want to manage it.
-hub:
-  # endpoint is Hub's monitoring gRPC endpoint for client connections.
+# Worker management settings.
+# Set this if you have your own Worker and want to manage it.
+worker:
+  # endpoint is Worker's gRPC endpoint for client connections.
   endpoint: "127.0.0.1:15010"
 
 metrics_listen_addr: "127.0.0.1:14003"

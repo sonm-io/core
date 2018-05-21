@@ -15,20 +15,20 @@ import (
 	"google.golang.org/grpc"
 )
 
-type hubAPI struct {
+type workerAPI struct {
 	pb.WorkerManagementServer
 	remotes *remoteOptions
 	ctx     context.Context
 }
 
-func (h *hubAPI) getClient() (pb.WorkerManagementClient, io.Closer, error) {
+func (h *workerAPI) getClient() (pb.WorkerManagementClient, io.Closer, error) {
 	ethAddr := crypto.PubkeyToAddress(h.remotes.key.PublicKey)
-	netAddr := h.remotes.conf.Hub.Endpoint
+	netAddr := h.remotes.conf.Worker.Endpoint
 
-	return h.remotes.hubCreator(ethAddr, netAddr)
+	return h.remotes.workerCreator(ethAddr, netAddr)
 }
 
-func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	methodName := util.ExtractMethod(info.FullMethod)
 
 	log.S(h.ctx).Infof("handling %s request", methodName)
@@ -38,13 +38,13 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 		return handler(ctx, req)
 	}
 
-	if h.remotes.conf.Hub.Endpoint == "" {
-		return nil, errors.New("hub endpoint is not configured, please check Node settings")
+	if h.remotes.conf.Worker.Endpoint == "" {
+		return nil, errors.New("worker endpoint is not configured, please check Node settings")
 	}
 
 	cli, cc, err := h.getClient()
 	if err != nil {
-		return nil, fmt.Errorf("cannot connect to hub at %s, please check Node settings: %s", h.remotes.conf.Hub.Endpoint, err.Error())
+		return nil, fmt.Errorf("cannot connect to worker at %s, please check Node settings: %s", h.remotes.conf.Worker.Endpoint, err.Error())
 	}
 	defer cc.Close()
 
@@ -61,8 +61,8 @@ func (h *hubAPI) intercept(ctx context.Context, req interface{}, info *grpc.Unar
 	return values[0].Interface(), err
 }
 
-func newHubAPI(opts *remoteOptions) pb.WorkerManagementServer {
-	return &hubAPI{
+func newWorkerAPI(opts *remoteOptions) pb.WorkerManagementServer {
+	return &workerAPI{
 		remotes: opts,
 		ctx:     opts.ctx,
 	}

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/sonm-io/core/insonmnia/miner/gpu"
+	"github.com/sonm-io/core/insonmnia/worker/gpu"
 )
 
 var appVersion string

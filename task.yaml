@@ -3,7 +3,7 @@ task:
   container:
     # Add ability to pull container back
     commit_on_stop: true
-    # image name to start on miner, required param
+    # image name to start on worker, required param
     name: httpd:latest
     # env variables that will be passed to container on start
     env:
@@ -27,7 +27,7 @@ task:
 #      - cifs:/opt:rw
 #   # custom registry settings, optional section
 #   registry:
-#     # if not empty, Miner will use given registry to pull an image from, optional param
+#     # if not empty, Worker will use given registry to pull an image from, optional param
 #     name: registry.user.io
 #     # registry username, optional param
 #     user: name

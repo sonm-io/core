@@ -10,7 +10,7 @@ import (
 	sonm "github.com/sonm-io/core/proto"
 )
 
-// TaskConfig describe how to start task (docker image) on Miner
+// TaskConfig describe how to start task (docker image) on Worker
 type TaskConfig interface {
 	GetImageName() string
 	GetSSHKey() string

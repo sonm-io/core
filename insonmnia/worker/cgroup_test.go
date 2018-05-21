@@ -1,4 +1,4 @@
-package miner
+package worker
 
 import (
 	"testing"
@@ -26,7 +26,7 @@ logging:
 	err := createTestConfigFile(raw)
 	assertions.NoError(err)
 
-	conf, err := NewConfig(testMinerConfigPath)
+	conf, err := NewConfig(testWorkerConfigPath)
 	assertions.NoError(err)
 
 	res := conf.Resources

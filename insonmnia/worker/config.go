@@ -1,4 +1,4 @@
-package miner
+package worker
 
 import (
 	"github.com/ethereum/go-ethereum/common"
@@ -10,10 +10,10 @@ import (
 	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/matcher"
-	"github.com/sonm-io/core/insonmnia/miner/plugin"
-	"github.com/sonm-io/core/insonmnia/miner/salesman"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/state"
+	"github.com/sonm-io/core/insonmnia/worker/plugin"
+	"github.com/sonm-io/core/insonmnia/worker/salesman"
 )
 
 type SSHConfig struct {
@@ -53,7 +53,7 @@ type Config struct {
 	Master            *common.Address     `yaml:"master"`
 }
 
-// NewConfig creates a new Miner config from the specified YAML file.
+// NewConfig creates a new Worker config from the specified YAML file.
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
 

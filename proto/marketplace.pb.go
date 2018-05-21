@@ -47,7 +47,7 @@ var OrderType_value = map[string]int32{
 func (x OrderType) String() string {
 	return proto.EnumName(OrderType_name, int32(x))
 }
-func (OrderType) EnumDescriptor() ([]byte, []int) { return fileDescriptor9, []int{0} }
+func (OrderType) EnumDescriptor() ([]byte, []int) { return fileDescriptor7, []int{0} }
 
 type OrderStatus int32
 
@@ -71,7 +71,7 @@ var OrderStatus_value = map[string]int32{
 func (x OrderStatus) String() string {
 	return proto.EnumName(OrderStatus_name, int32(x))
 }
-func (OrderStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor9, []int{1} }
+func (OrderStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor7, []int{1} }
 
 type IdentityLevel int32
 
@@ -95,7 +95,7 @@ var IdentityLevel_value = map[string]int32{
 func (x IdentityLevel) String() string {
 	return proto.EnumName(IdentityLevel_name, int32(x))
 }
-func (IdentityLevel) EnumDescriptor() ([]byte, []int) { return fileDescriptor9, []int{2} }
+func (IdentityLevel) EnumDescriptor() ([]byte, []int) { return fileDescriptor7, []int{2} }
 
 type DealStatus int32
 
@@ -119,7 +119,7 @@ var DealStatus_value = map[string]int32{
 func (x DealStatus) String() string {
 	return proto.EnumName(DealStatus_name, int32(x))
 }
-func (DealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor9, []int{3} }
+func (DealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor7, []int{3} }
 
 type ChangeRequestStatus int32
 
@@ -149,7 +149,7 @@ var ChangeRequestStatus_value = map[string]int32{
 func (x ChangeRequestStatus) String() string {
 	return proto.EnumName(ChangeRequestStatus_name, int32(x))
 }
-func (ChangeRequestStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor9, []int{4} }
+func (ChangeRequestStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor7, []int{4} }
 
 type GetOrdersReply struct {
 	Orders []*Order `protobuf:"bytes,1,rep,name=orders" json:"orders,omitempty"`
@@ -158,7 +158,7 @@ type GetOrdersReply struct {
 func (m *GetOrdersReply) Reset()                    { *m = GetOrdersReply{} }
 func (m *GetOrdersReply) String() string            { return proto.CompactTextString(m) }
 func (*GetOrdersReply) ProtoMessage()               {}
-func (*GetOrdersReply) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{0} }
+func (*GetOrdersReply) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{0} }
 
 func (m *GetOrdersReply) GetOrders() []*Order {
 	if m != nil {
@@ -174,7 +174,7 @@ type Benchmarks struct {
 func (m *Benchmarks) Reset()                    { *m = Benchmarks{} }
 func (m *Benchmarks) String() string            { return proto.CompactTextString(m) }
 func (*Benchmarks) ProtoMessage()               {}
-func (*Benchmarks) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{1} }
+func (*Benchmarks) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{1} }
 
 func (m *Benchmarks) GetValues() []uint64 {
 	if m != nil {
@@ -204,7 +204,7 @@ type Deal struct {
 func (m *Deal) Reset()                    { *m = Deal{} }
 func (m *Deal) String() string            { return proto.CompactTextString(m) }
 func (*Deal) ProtoMessage()               {}
-func (*Deal) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{2} }
+func (*Deal) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{2} }
 
 func (m *Deal) GetId() *BigInt {
 	if m != nil {
@@ -331,7 +331,7 @@ type Order struct {
 func (m *Order) Reset()                    { *m = Order{} }
 func (m *Order) String() string            { return proto.CompactTextString(m) }
 func (*Order) ProtoMessage()               {}
-func (*Order) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{3} }
+func (*Order) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{3} }
 
 func (m *Order) GetId() *BigInt {
 	if m != nil {
@@ -440,7 +440,7 @@ type BidNetwork struct {
 func (m *BidNetwork) Reset()                    { *m = BidNetwork{} }
 func (m *BidNetwork) String() string            { return proto.CompactTextString(m) }
 func (*BidNetwork) ProtoMessage()               {}
-func (*BidNetwork) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{4} }
+func (*BidNetwork) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{4} }
 
 func (m *BidNetwork) GetOverlay() bool {
 	if m != nil {
@@ -471,7 +471,7 @@ type BidResources struct {
 func (m *BidResources) Reset()                    { *m = BidResources{} }
 func (m *BidResources) String() string            { return proto.CompactTextString(m) }
 func (*BidResources) ProtoMessage()               {}
-func (*BidResources) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{5} }
+func (*BidResources) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{5} }
 
 func (m *BidResources) GetNetwork() *BidNetwork {
 	if m != nil {
@@ -501,7 +501,7 @@ type BidOrder struct {
 func (m *BidOrder) Reset()                    { *m = BidOrder{} }
 func (m *BidOrder) String() string            { return proto.CompactTextString(m) }
 func (*BidOrder) ProtoMessage()               {}
-func (*BidOrder) Descriptor() ([]byte, []int) { return fileDescriptor9, []int{6} }
+func (*BidOrder) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{6} }
 
 func (m *BidOrder) GetID() string {
 	if m != nil {
@@ -863,9 +863,9 @@ func init() {
 
 // End grpccmd
 
-func init() { proto.RegisterFile("marketplace.proto", fileDescriptor9) }
+func init() { proto.RegisterFile("marketplace.proto", fileDescriptor7) }
 
-var fileDescriptor9 = []byte{
+var fileDescriptor7 = []byte{
 	// 1111 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x56, 0xdf, 0x8f, 0xdb, 0x44,
 	0x10, 0x8e, 0x73, 0xb9, 0xfc, 0x98, 0x24, 0x4e, 0x6e, 0xef, 0x84, 0xac, 0xa8, 0x0f, 0x87, 0xa9,

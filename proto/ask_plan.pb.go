@@ -10,9 +10,7 @@ It is generated from these files:
 	bigint.proto
 	capabilities.proto
 	container.proto
-	deal.proto
 	dwh.proto
-	hub.proto
 	insonmnia.proto
 	marketplace.proto
 	net.proto
@@ -21,6 +19,7 @@ It is generated from these files:
 	rendezvous.proto
 	timestamp.proto
 	volume.proto
+	worker.proto
 
 It has these top-level messages:
 	AskPlanCPU
@@ -74,17 +73,6 @@ It has these top-level messages:
 	MaxMinTimestamp
 	CmpUint64
 	BlacklistQuery
-	StartTaskRequest
-	HubJoinNetworkRequest
-	StartTaskReply
-	HubStatusReply
-	AskPlansReply
-	TaskListReply
-	DevicesReply
-	PullTaskRequest
-	DealInfoReply
-	TaskStatusReply
-	StatusMapReply
 	Empty
 	ID
 	EthID
@@ -137,6 +125,17 @@ It has these top-level messages:
 	ResolveMetaReply
 	Timestamp
 	Volume
+	StartTaskRequest
+	WorkerJoinNetworkRequest
+	StartTaskReply
+	StatusReply
+	AskPlansReply
+	TaskListReply
+	DevicesReply
+	PullTaskRequest
+	DealInfoReply
+	TaskStatusReply
+	StatusMapReply
 */
 package sonm
 

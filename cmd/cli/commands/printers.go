@@ -81,7 +81,7 @@ func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskStatusR
 	}
 }
 
-func printHubStatus(cmd *cobra.Command, stat *pb.HubStatusReply) {
+func printWorkerStatus(cmd *cobra.Command, stat *pb.StatusReply) {
 	if isSimpleFormat() {
 		cmd.Printf("Uptime:             %s\r\n", (time.Second * time.Duration(stat.GetUptime())).String())
 		cmd.Printf("Version:            %s %s\r\n", stat.GetVersion(), stat.GetPlatform())
