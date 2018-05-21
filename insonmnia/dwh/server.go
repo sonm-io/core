@@ -866,7 +866,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 		return errors.Wrap(err, "failed to CheckID")
 	} else {
 		if ok {
-			go w.removeEntityID(orderID, "Order")
+			w.removeEntityID(orderID, "Order")
 			return nil
 		}
 	}
