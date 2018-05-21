@@ -12,7 +12,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain/market"
@@ -136,12 +135,17 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
+	customClientSidechain, err := initCustomEthClient(defaults.apiSidechainEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
 	blacklist, err := NewBasicBlacklist(clientSidechain, market.BlacklistAddr(), defaults.gasPriceSidechain)
 	if err != nil {
 		return nil, err
 	}
 
-	marketApi, err := NewBasicMarket(clientSidechain, market.MarketAddr(), defaults.gasPriceSidechain, defaults.logParsePeriod)
+	marketApi, err := NewBasicMarket(customClientSidechain, market.MarketAddr(), defaults.gasPriceSidechain, defaults.logParsePeriod, defaults.blockConfirmations)
 	if err != nil {
 		return nil, err
 	}
@@ -211,23 +215,25 @@ func (api *BasicAPI) OracleUSD() OracleAPI {
 }
 
 type BasicMarketAPI struct {
-	client         *ethclient.Client
-	marketContract *marketAPI.Market
-	gasPrice       int64
-	logParsePeriod time.Duration
+	client             CustomEthereumClient
+	marketContract     *marketAPI.Market
+	gasPrice           int64
+	logParsePeriod     time.Duration
+	blockConfirmations int64
 }
 
-func NewBasicMarket(client *ethclient.Client, address common.Address, gasPrice int64, logParsePeriod time.Duration) (MarketAPI, error) {
+func NewBasicMarket(client CustomEthereumClient, address common.Address, gasPrice int64, logParsePeriod time.Duration, blockConfirmations int64) (MarketAPI, error) {
 	marketContract, err := marketAPI.NewMarket(address, client)
 	if err != nil {
 		return nil, err
 	}
 
 	return &BasicMarketAPI{
-		client:         client,
-		marketContract: marketContract,
-		gasPrice:       gasPrice,
-		logParsePeriod: logParsePeriod,
+		client:             client,
+		marketContract:     marketContract,
+		gasPrice:           gasPrice,
+		logParsePeriod:     logParsePeriod,
+		blockConfirmations: blockConfirmations,
 	}, nil
 }
 
@@ -245,13 +251,14 @@ func (api *BasicMarketAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, 
 		return
 	}
 
-	log, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.DealOpenedTopic)
+	receipt, err := WaitTransactionReceipt(ctx, api.client, api.blockConfirmations, api.logParsePeriod, tx)
 	if err != nil {
 		ch <- DealOrError{nil, err}
 		return
 	}
 
-	id, err := extractBig(log.Topics, 1)
+	logs, err := FindLogByTopic(receipt, market.DealOpenedTopic)
+	id, err := extractBig(logs.Topics, 1)
 	if err != nil {
 		ch <- DealOrError{nil, err}
 		return
@@ -352,19 +359,19 @@ func (api *BasicMarketAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey
 		fixedTag,
 		order.GetBenchmarks().ToArray(),
 	)
-
 	if err != nil {
 		ch <- OrderOrError{nil, err}
 		return
 	}
 
-	log, err := waitForTransactionResult(ctx, api.client, api.logParsePeriod, tx, market.OrderPlacedTopic)
+	receipt, err := WaitTransactionReceipt(ctx, api.client, api.blockConfirmations, api.logParsePeriod, tx)
 	if err != nil {
 		ch <- OrderOrError{nil, err}
 		return
 	}
 
-	id, err := extractBig(log.Topics, 1)
+	logs, err := FindLogByTopic(receipt, market.OrderPlacedTopic)
+	id, err := extractBig(logs.Topics, 1)
 	if err != nil {
 		ch <- OrderOrError{nil, err}
 		return
@@ -557,12 +564,12 @@ func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (uint64, error)
 }
 
 type ProfileRegistry struct {
-	client                  *ethclient.Client
+	client                  EthereumClientBackend
 	profileRegistryContract *marketAPI.ProfileRegistry
 	gasPrice                int64
 }
 
-func NewProfileRegistry(client *ethclient.Client, address common.Address, gasPrice int64) (ProfileRegistryAPI, error) {
+func NewProfileRegistry(client EthereumClientBackend, address common.Address, gasPrice int64) (ProfileRegistryAPI, error) {
 	profileRegistryContract, err := marketAPI.NewProfileRegistry(address, client)
 	if err != nil {
 		return nil, err
@@ -602,12 +609,12 @@ func (api *ProfileRegistry) GetCertificate(ctx context.Context, certificateID *b
 }
 
 type BasicBlacklistAPI struct {
-	client            *ethclient.Client
+	client            EthereumClientBackend
 	blacklistContract *marketAPI.Blacklist
 	gasPrice          int64
 }
 
-func NewBasicBlacklist(client *ethclient.Client, address common.Address, gasPrice int64) (BlacklistAPI, error) {
+func NewBasicBlacklist(client EthereumClientBackend, address common.Address, gasPrice int64) (BlacklistAPI, error) {
 	blacklistContract, err := marketAPI.NewBlacklist(address, client)
 	if err != nil {
 		return nil, err
@@ -650,12 +657,12 @@ func (api *BasicBlacklistAPI) SetMarketAddress(ctx context.Context, key *ecdsa.P
 }
 
 type StandardTokenApi struct {
-	client        *ethclient.Client
+	client        EthereumClientBackend
 	tokenContract *marketAPI.StandardToken
 	gasPrice      int64
 }
 
-func NewStandardToken(client *ethclient.Client, address common.Address, gasPrice int64) (TokenAPI, error) {
+func NewStandardToken(client EthereumClientBackend, address common.Address, gasPrice int64) (TokenAPI, error) {
 	tokenContract, err := marketAPI.NewStandardToken(address, client)
 	if err != nil {
 		return nil, err
@@ -696,12 +703,12 @@ func (api *StandardTokenApi) TotalSupply(ctx context.Context) (*big.Int, error) 
 }
 
 type TestTokenApi struct {
-	client        *ethclient.Client
+	client        EthereumClientBackend
 	tokenContract *marketAPI.SNMTToken
 	gasPrice      int64
 }
 
-func NewTestToken(client *ethclient.Client, address common.Address, gasPrice int64) (TestTokenAPI, error) {
+func NewTestToken(client EthereumClientBackend, address common.Address, gasPrice int64) (TestTokenAPI, error) {
 	tokenContract, err := marketAPI.NewSNMTToken(address, client)
 	if err != nil {
 		return nil, err
@@ -720,13 +727,13 @@ func (api *TestTokenApi) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (
 }
 
 type BasicEventsAPI struct {
-	client      *ethclient.Client
+	client      EthereumClientBackend
 	logger      *zap.Logger
 	marketABI   abi.ABI
 	profilesABI abi.ABI
 }
 
-func NewEventsAPI(client *ethclient.Client, logger *zap.Logger) (EventsAPI, error) {
+func NewEventsAPI(client EthereumClientBackend, logger *zap.Logger) (EventsAPI, error) {
 	marketABI, err := abi.JSON(strings.NewReader(marketAPI.MarketABI))
 	if err != nil {
 		return nil, err
@@ -991,12 +998,12 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 }
 
 type OracleUSDAPI struct {
-	client         *ethclient.Client
+	client         EthereumClientBackend
 	oracleContract *marketAPI.OracleUSD
 	gasPrice       int64
 }
 
-func NewOracleUSDAPI(address common.Address, client *ethclient.Client, gasPrice int64) (OracleAPI, error) {
+func NewOracleUSDAPI(address common.Address, client EthereumClientBackend, gasPrice int64) (OracleAPI, error) {
 	oracleContract, err := marketAPI.NewOracleUSD(address, client)
 	if err != nil {
 		return nil, err

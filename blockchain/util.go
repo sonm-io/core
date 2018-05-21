@@ -23,13 +23,12 @@ const (
 	defaultGasLimitForSidechain = 2000000
 )
 
-func initEthClient(endpoint string) (*ethclient.Client, error) {
-	ethClient, err := ethclient.Dial(endpoint)
-	if err != nil {
-		return nil, err
-	}
+func initEthClient(endpoint string) (EthereumClientBackend, error) {
+	return ethclient.Dial(endpoint)
+}
 
-	return ethClient, nil
+func initCustomEthClient(endpoint string) (CustomEthereumClient, error) {
+	return NewClient(endpoint)
 }
 
 func getCallOptions(ctx context.Context) *bind.CallOpts {
@@ -55,12 +54,7 @@ func extractBig(topics []common.Hash, pos int) (*big.Int, error) {
 	return topics[pos].Big(), nil
 }
 
-func findLogByTopic(ctx context.Context, client *ethclient.Client, tx *types.Transaction, topic common.Hash) (*types.Log, error) {
-	txReceipt, err := client.TransactionReceipt(ctx, tx.Hash())
-	if err != nil {
-		return nil, err
-	}
-
+func FindLogByTopic(txReceipt *Receipt, topic common.Hash) (*types.Log, error) {
 	if txReceipt.Status != types.ReceiptStatusSuccessful {
 		return nil, errors.New("transaction failed")
 	}
@@ -80,22 +74,60 @@ func findLogByTopic(ctx context.Context, client *ethclient.Client, tx *types.Tra
 	return nil, fmt.Errorf("cannot find topic \"%s\"in transaction", topic.Hex())
 }
 
-func waitForTransactionResult(ctx context.Context, client *ethclient.Client, logParsePeriod time.Duration, tx *types.Transaction, topic common.Hash) (*types.Log, error) {
+func waitForTransactionResult(ctx context.Context, client EthereumClientBackend, logParsePeriod time.Duration, tx *types.Transaction, topic common.Hash) (*types.Log, error) {
 	tk := util.NewImmediateTicker(logParsePeriod)
 	defer tk.Stop()
 
 	for {
 		select {
 		case <-tk.C:
-			log, err := findLogByTopic(ctx, client, tx, topic)
+			var err error
+			tmpRec := &Receipt{}
+			tmpRec.Receipt, err = client.TransactionReceipt(ctx, tx.Hash())
 			if err != nil {
 				if err == ethereum.NotFound {
 					break
 				}
 				return nil, err
 			}
+			logs, err := FindLogByTopic(tmpRec, topic)
+			if err != nil {
+				return nil, err
+			}
 
-			return log, err
+			return logs, err
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
+	}
+}
+
+func WaitTransactionReceipt(ctx context.Context, client CustomEthereumClient, confirmations int64, logParsePeriod time.Duration, tx *types.Transaction) (*Receipt, error) {
+	tk := util.NewImmediateTicker(logParsePeriod)
+	defer tk.Stop()
+
+	for {
+		select {
+		case <-tk.C:
+			blockNumber, err := client.GetLastBlock(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			txReceipt, err := client.GetTransactionReceipt(ctx, tx.Hash())
+			if err != nil {
+				if err == ethereum.NotFound {
+					break
+				}
+				return nil, err
+			}
+			confirmBlock := blockNumber
+			txBlock := common.HexToHash(txReceipt.BlockNumber).Big()
+			txBlock.Add(big.NewInt(confirmations), txBlock)
+			if confirmBlock.Cmp(txBlock) < 0 {
+				break
+			}
+			return txReceipt, nil
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		}
@@ -107,5 +139,6 @@ func getTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit uint64, gasP
 	opts.Context = ctx
 	opts.GasLimit = gasLimit
 	opts.GasPrice = big.NewInt(gasPrice)
+
 	return opts
 }

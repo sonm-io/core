@@ -85,6 +85,8 @@ func main() {
 		log.Fatalln("Cannot cast")
 		return
 	}
+	log.Println("Canceling")
+
 	err = <-api.Market().CancelOrder(context.Background(), prv, ordId)
 
 	if err != nil {

@@ -3,10 +3,11 @@ package blockchain
 import "time"
 
 const (
-	defaultEthEndpoint       = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
-	defaultSidechainEndpoint = "https://sidechain-dev.sonm.com"
-	defaultGasPrice          = 20000000000 // 20 Gwei
-	defaultGasPriceSidechain = 0
+	defaultEthEndpoint        = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
+	defaultSidechainEndpoint  = "https://sidechain-dev.sonm.com"
+	defaultGasPrice           = 20000000000 // 20 Gwei
+	defaultGasPriceSidechain  = 0
+	defaultBlockConfirmations = 5
 )
 
 type options struct {
@@ -15,6 +16,7 @@ type options struct {
 	apiEndpoint          string
 	apiSidechainEndpoint string
 	logParsePeriod       time.Duration
+	blockConfirmations   int64
 }
 
 func defaultOptions() *options {
@@ -24,6 +26,7 @@ func defaultOptions() *options {
 		apiEndpoint:          defaultEthEndpoint,
 		apiSidechainEndpoint: defaultSidechainEndpoint,
 		logParsePeriod:       time.Second,
+		blockConfirmations:   defaultBlockConfirmations,
 	}
 }
 
@@ -59,5 +62,11 @@ func WithConfig(cfg *Config) Option {
 func WithTimeout(d time.Duration) Option {
 	return func(o *options) {
 		o.logParsePeriod = d
+	}
+}
+
+func WithBlockConfirmations(c int64) Option {
+	return func(o *options) {
+		o.blockConfirmations = c
 	}
 }
