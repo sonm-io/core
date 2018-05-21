@@ -409,12 +409,12 @@ func (m *Salesman) registerOrder(order *sonm.Order) {
 	if !order.DealID.IsZero() || order.OrderStatus == sonm.OrderStatus_ORDER_ACTIVE {
 		if !has {
 			m.orders[id] = order
-			m.log.Info("registered order %s", order.GetId().Unwrap().String())
+			m.log.Infof("registered order %s", order.GetId().Unwrap().String())
 		}
 	} else {
 		if has {
 			delete(m.orders, id)
-			m.log.Info("unregistered order %s", order.GetId().Unwrap().String())
+			m.log.Infof("unregistered order %s", order.GetId().Unwrap().String())
 		}
 	}
 }
@@ -429,12 +429,12 @@ func (m *Salesman) registerDeal(deal *sonm.Deal) {
 	if deal.Status == sonm.DealStatus_DEAL_ACCEPTED {
 		if !has {
 			m.deals[id] = deal
-			m.log.Info("registered deal %s", deal.GetId().Unwrap().String())
+			m.log.Infof("registered deal %s", deal.GetId().Unwrap().String())
 		}
 	} else {
 		if has {
 			delete(m.deals, id)
-			m.log.Info("unregistered deal %s", deal.GetId().Unwrap().String())
+			m.log.Infof("unregistered deal %s", deal.GetId().Unwrap().String())
 		}
 	}
 }
@@ -450,7 +450,7 @@ func (m *Salesman) assignDeal(planID string, dealID *sonm.BigInt) error {
 	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
 		return err
 	}
-	m.log.Info("assigned deal %s to plan %s", dealID.Unwrap().String(), planID)
+	m.log.Infof("assigned deal %s to plan %s", dealID.Unwrap().String(), planID)
 	return nil
 }
 
@@ -465,7 +465,7 @@ func (m *Salesman) assignOrder(planID string, orderID *sonm.BigInt) error {
 	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
 		return err
 	}
-	m.log.Info("assigned order %s to plan %s", orderID.Unwrap().String(), planID)
+	m.log.Infof("assigned order %s to plan %s", orderID.Unwrap().String(), planID)
 	return nil
 }
 
