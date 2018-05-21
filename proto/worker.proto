@@ -37,7 +37,7 @@ service Worker {
 
     rpc PushTask(stream Chunk) returns (stream Progress) {}
     rpc PullTask(PullTaskRequest) returns (stream Chunk) {}
-    // StartTask schedules the task associcated with a deal on some miner.
+    // StartTask schedules the task associcated with a deal.
     rpc StartTask(StartTaskRequest) returns (StartTaskReply) {}
     rpc StopTask(ID) returns (Empty) {}
     rpc TaskStatus(ID) returns (TaskStatusReply) {}

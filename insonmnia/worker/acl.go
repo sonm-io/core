@@ -1,4 +1,4 @@
-package miner
+package worker
 
 import (
 	"context"
@@ -128,12 +128,12 @@ func newContextDealExtractor() DealExtractor {
 // NewFromTaskDealExtractor constructs a deal id extractor that requires the
 // specified request to have "Id" field, which is the task id.
 // This task id is used to extract current deal id from the Worker.
-func newFromTaskDealExtractor(worker *Miner) DealExtractor {
+func newFromTaskDealExtractor(worker *Worker) DealExtractor {
 	return newFromNamedTaskDealExtractor(worker, "Id")
 }
 
 // todo: do not accept Worker as param, use some interface that have TaskStatus method.
-func newFromNamedTaskDealExtractor(worker *Miner, name string) DealExtractor {
+func newFromNamedTaskDealExtractor(worker *Worker, name string) DealExtractor {
 	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
 		requestValue := reflect.Indirect(reflect.ValueOf(request))
 		taskID := reflect.Indirect(requestValue.FieldByName(name))

@@ -745,7 +745,7 @@ var _WorkerManagement_serviceDesc = grpc.ServiceDesc{
 type WorkerClient interface {
 	PushTask(ctx context.Context, opts ...grpc.CallOption) (Worker_PushTaskClient, error)
 	PullTask(ctx context.Context, in *PullTaskRequest, opts ...grpc.CallOption) (Worker_PullTaskClient, error)
-	// StartTask schedules the task associcated with a deal on some miner.
+	// StartTask schedules the task associcated with a deal.
 	StartTask(ctx context.Context, in *StartTaskRequest, opts ...grpc.CallOption) (*StartTaskReply, error)
 	StopTask(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Empty, error)
 	TaskStatus(ctx context.Context, in *ID, opts ...grpc.CallOption) (*TaskStatusReply, error)
@@ -908,7 +908,7 @@ func (c *workerClient) GetDealInfo(ctx context.Context, in *ID, opts ...grpc.Cal
 type WorkerServer interface {
 	PushTask(Worker_PushTaskServer) error
 	PullTask(*PullTaskRequest, Worker_PullTaskServer) error
-	// StartTask schedules the task associcated with a deal on some miner.
+	// StartTask schedules the task associcated with a deal.
 	StartTask(context.Context, *StartTaskRequest) (*StartTaskReply, error)
 	StopTask(context.Context, *ID) (*Empty, error)
 	TaskStatus(context.Context, *ID) (*TaskStatusReply, error)

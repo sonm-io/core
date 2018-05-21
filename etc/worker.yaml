@@ -38,7 +38,7 @@ npp:
 #    network:
 #      classID: 1048577
 
-# A list of IPs that can be used to reach the miner, optional param. If not provided, miner's interfaces will
+# A list of IPs that can be used to reach the worker, optional param. If not provided, worker's interfaces will
 # be scanned for such IPs (if there's no firewall settings).
 # Ignored if firewall settings are not null.
 # public_ip_addrs: ["12.34.56.78", "1.2.3.4"]

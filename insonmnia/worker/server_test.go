@@ -1,4 +1,4 @@
-package miner
+package worker
 
 import (
 	"context"
@@ -54,7 +54,7 @@ func TestTransformEnvVars(t *testing.T) {
 }
 
 func TestCollectTasksStatuses(t *testing.T) {
-	m := Miner{
+	m := Worker{
 		options: &options{
 			ctx: context.Background(),
 		},

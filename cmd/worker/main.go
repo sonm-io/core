@@ -9,8 +9,8 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
-	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/state"
+	"github.com/sonm-io/core/insonmnia/worker"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -31,7 +31,7 @@ func run() error {
 	ctx := context.Background()
 	waiter, ctx := errgroup.WithContext(ctx)
 	ctx, cancel := context.WithCancel(ctx)
-	cfg, err := miner.NewConfig(configFlag)
+	cfg, err := worker.NewConfig(configFlag)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %s", err)
 	}
@@ -60,8 +60,8 @@ func run() error {
 		return nil
 	})
 
-	w, err := miner.NewMiner(miner.WithConfig(cfg), miner.WithContext(ctx), miner.WithKey(key), miner.WithStateStorage(storage),
-		miner.WithVersion(appVersion))
+	w, err := worker.NewWorker(worker.WithConfig(cfg), worker.WithContext(ctx), worker.WithKey(key), worker.WithStateStorage(storage),
+		worker.WithVersion(appVersion))
 	if err != nil {
 		return fmt.Errorf("failed to create Worker instance: %s", err)
 	}
