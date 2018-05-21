@@ -9,7 +9,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-// options for building hub instance
+// options for building rest-server instance
 type options struct {
 	ctx         context.Context
 	listeners   []net.Listener

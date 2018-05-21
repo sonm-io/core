@@ -28,7 +28,6 @@ _testmain.go
 coverage*
 !.ci/coverage.sh
 
-sonmhub
 sonmcli
 sonmcli_win32.exe
 sonmworker
@@ -41,12 +40,6 @@ lsgpu
 target/
 release/
 .idea/
-
-fusrodah/examples/bootnode/main
-fusrodah/examples/fusrodah/main
-fusrodah/examples/hub/main
-fusrodah/examples/miner/main
-fusrodah/examples/fusrodah_direct/main
 
 # test artifacts
 metrics/config_test.json

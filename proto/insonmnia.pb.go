@@ -34,7 +34,7 @@ var TaskLogsRequest_Type_value = map[string]int32{
 func (x TaskLogsRequest_Type) String() string {
 	return proto.EnumName(TaskLogsRequest_Type_name, int32(x))
 }
-func (TaskLogsRequest_Type) EnumDescriptor() ([]byte, []int) { return fileDescriptor8, []int{10, 0} }
+func (TaskLogsRequest_Type) EnumDescriptor() ([]byte, []int) { return fileDescriptor6, []int{10, 0} }
 
 type Empty struct {
 }
@@ -42,7 +42,7 @@ type Empty struct {
 func (m *Empty) Reset()                    { *m = Empty{} }
 func (m *Empty) String() string            { return proto.CompactTextString(m) }
 func (*Empty) ProtoMessage()               {}
-func (*Empty) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{0} }
+func (*Empty) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{0} }
 
 type ID struct {
 	Id string `protobuf:"bytes,1,opt,name=id" json:"id,omitempty"`
@@ -51,7 +51,7 @@ type ID struct {
 func (m *ID) Reset()                    { *m = ID{} }
 func (m *ID) String() string            { return proto.CompactTextString(m) }
 func (*ID) ProtoMessage()               {}
-func (*ID) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{1} }
+func (*ID) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{1} }
 
 func (m *ID) GetId() string {
 	if m != nil {
@@ -67,7 +67,7 @@ type EthID struct {
 func (m *EthID) Reset()                    { *m = EthID{} }
 func (m *EthID) String() string            { return proto.CompactTextString(m) }
 func (*EthID) ProtoMessage()               {}
-func (*EthID) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{2} }
+func (*EthID) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{2} }
 
 func (m *EthID) GetId() *EthAddress {
 	if m != nil {
@@ -85,7 +85,7 @@ type TaskID struct {
 func (m *TaskID) Reset()                    { *m = TaskID{} }
 func (m *TaskID) String() string            { return proto.CompactTextString(m) }
 func (*TaskID) ProtoMessage()               {}
-func (*TaskID) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{3} }
+func (*TaskID) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{3} }
 
 func (m *TaskID) GetId() string {
 	if m != nil {
@@ -108,7 +108,7 @@ type Count struct {
 func (m *Count) Reset()                    { *m = Count{} }
 func (m *Count) String() string            { return proto.CompactTextString(m) }
 func (*Count) ProtoMessage()               {}
-func (*Count) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{4} }
+func (*Count) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{4} }
 
 func (m *Count) GetCount() uint64 {
 	if m != nil {
@@ -124,7 +124,7 @@ type CPUUsage struct {
 func (m *CPUUsage) Reset()                    { *m = CPUUsage{} }
 func (m *CPUUsage) String() string            { return proto.CompactTextString(m) }
 func (*CPUUsage) ProtoMessage()               {}
-func (*CPUUsage) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{5} }
+func (*CPUUsage) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{5} }
 
 func (m *CPUUsage) GetTotal() uint64 {
 	if m != nil {
@@ -140,7 +140,7 @@ type MemoryUsage struct {
 func (m *MemoryUsage) Reset()                    { *m = MemoryUsage{} }
 func (m *MemoryUsage) String() string            { return proto.CompactTextString(m) }
 func (*MemoryUsage) ProtoMessage()               {}
-func (*MemoryUsage) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{6} }
+func (*MemoryUsage) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{6} }
 
 func (m *MemoryUsage) GetMaxUsage() uint64 {
 	if m != nil {
@@ -163,7 +163,7 @@ type NetworkUsage struct {
 func (m *NetworkUsage) Reset()                    { *m = NetworkUsage{} }
 func (m *NetworkUsage) String() string            { return proto.CompactTextString(m) }
 func (*NetworkUsage) ProtoMessage()               {}
-func (*NetworkUsage) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{7} }
+func (*NetworkUsage) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{7} }
 
 func (m *NetworkUsage) GetTxBytes() uint64 {
 	if m != nil {
@@ -230,7 +230,7 @@ type ResourceUsage struct {
 func (m *ResourceUsage) Reset()                    { *m = ResourceUsage{} }
 func (m *ResourceUsage) String() string            { return proto.CompactTextString(m) }
 func (*ResourceUsage) ProtoMessage()               {}
-func (*ResourceUsage) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{8} }
+func (*ResourceUsage) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{8} }
 
 func (m *ResourceUsage) GetCpu() *CPUUsage {
 	if m != nil {
@@ -261,7 +261,7 @@ type ContainerRestartPolicy struct {
 func (m *ContainerRestartPolicy) Reset()                    { *m = ContainerRestartPolicy{} }
 func (m *ContainerRestartPolicy) String() string            { return proto.CompactTextString(m) }
 func (*ContainerRestartPolicy) ProtoMessage()               {}
-func (*ContainerRestartPolicy) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{9} }
+func (*ContainerRestartPolicy) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{9} }
 
 func (m *ContainerRestartPolicy) GetName() string {
 	if m != nil {
@@ -291,7 +291,7 @@ type TaskLogsRequest struct {
 func (m *TaskLogsRequest) Reset()                    { *m = TaskLogsRequest{} }
 func (m *TaskLogsRequest) String() string            { return proto.CompactTextString(m) }
 func (*TaskLogsRequest) ProtoMessage()               {}
-func (*TaskLogsRequest) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{10} }
+func (*TaskLogsRequest) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{10} }
 
 func (m *TaskLogsRequest) GetType() TaskLogsRequest_Type {
 	if m != nil {
@@ -356,7 +356,7 @@ type TaskLogsChunk struct {
 func (m *TaskLogsChunk) Reset()                    { *m = TaskLogsChunk{} }
 func (m *TaskLogsChunk) String() string            { return proto.CompactTextString(m) }
 func (*TaskLogsChunk) ProtoMessage()               {}
-func (*TaskLogsChunk) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{11} }
+func (*TaskLogsChunk) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{11} }
 
 func (m *TaskLogsChunk) GetData() []byte {
 	if m != nil {
@@ -375,7 +375,7 @@ type TaskResourceRequirements struct {
 func (m *TaskResourceRequirements) Reset()                    { *m = TaskResourceRequirements{} }
 func (m *TaskResourceRequirements) String() string            { return proto.CompactTextString(m) }
 func (*TaskResourceRequirements) ProtoMessage()               {}
-func (*TaskResourceRequirements) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{12} }
+func (*TaskResourceRequirements) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{12} }
 
 func (m *TaskResourceRequirements) GetCPUCores() uint64 {
 	if m != nil {
@@ -398,7 +398,7 @@ type Chunk struct {
 func (m *Chunk) Reset()                    { *m = Chunk{} }
 func (m *Chunk) String() string            { return proto.CompactTextString(m) }
 func (*Chunk) ProtoMessage()               {}
-func (*Chunk) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{13} }
+func (*Chunk) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{13} }
 
 func (m *Chunk) GetChunk() []byte {
 	if m != nil {
@@ -414,7 +414,7 @@ type Progress struct {
 func (m *Progress) Reset()                    { *m = Progress{} }
 func (m *Progress) String() string            { return proto.CompactTextString(m) }
 func (*Progress) ProtoMessage()               {}
-func (*Progress) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{14} }
+func (*Progress) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{14} }
 
 func (m *Progress) GetSize() int64 {
 	if m != nil {
@@ -430,7 +430,7 @@ type Duration struct {
 func (m *Duration) Reset()                    { *m = Duration{} }
 func (m *Duration) String() string            { return proto.CompactTextString(m) }
 func (*Duration) ProtoMessage()               {}
-func (*Duration) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{15} }
+func (*Duration) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{15} }
 
 func (m *Duration) GetNanoseconds() int64 {
 	if m != nil {
@@ -446,7 +446,7 @@ type EthAddress struct {
 func (m *EthAddress) Reset()                    { *m = EthAddress{} }
 func (m *EthAddress) String() string            { return proto.CompactTextString(m) }
 func (*EthAddress) ProtoMessage()               {}
-func (*EthAddress) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{16} }
+func (*EthAddress) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{16} }
 
 func (m *EthAddress) GetAddress() []byte {
 	if m != nil {
@@ -462,7 +462,7 @@ type DataSize struct {
 func (m *DataSize) Reset()                    { *m = DataSize{} }
 func (m *DataSize) String() string            { return proto.CompactTextString(m) }
 func (*DataSize) ProtoMessage()               {}
-func (*DataSize) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{17} }
+func (*DataSize) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{17} }
 
 func (m *DataSize) GetBytes() uint64 {
 	if m != nil {
@@ -478,7 +478,7 @@ type DataSizeRate struct {
 func (m *DataSizeRate) Reset()                    { *m = DataSizeRate{} }
 func (m *DataSizeRate) String() string            { return proto.CompactTextString(m) }
 func (*DataSizeRate) ProtoMessage()               {}
-func (*DataSizeRate) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{18} }
+func (*DataSizeRate) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{18} }
 
 func (m *DataSizeRate) GetBitsPerSecond() uint64 {
 	if m != nil {
@@ -494,7 +494,7 @@ type Price struct {
 func (m *Price) Reset()                    { *m = Price{} }
 func (m *Price) String() string            { return proto.CompactTextString(m) }
 func (*Price) ProtoMessage()               {}
-func (*Price) Descriptor() ([]byte, []int) { return fileDescriptor8, []int{19} }
+func (*Price) Descriptor() ([]byte, []int) { return fileDescriptor6, []int{19} }
 
 func (m *Price) GetPerSecond() *BigInt {
 	if m != nil {
@@ -527,9 +527,9 @@ func init() {
 	proto.RegisterEnum("sonm.TaskLogsRequest_Type", TaskLogsRequest_Type_name, TaskLogsRequest_Type_value)
 }
 
-func init() { proto.RegisterFile("insonmnia.proto", fileDescriptor8) }
+func init() { proto.RegisterFile("insonmnia.proto", fileDescriptor6) }
 
-var fileDescriptor8 = []byte{
+var fileDescriptor6 = []byte{
 	// 806 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x54, 0xcb, 0x6e, 0x1b, 0x37,
 	0x14, 0xad, 0x46, 0x0f, 0x8f, 0xae, 0x65, 0x5b, 0x21, 0x8c, 0x40, 0x10, 0xda, 0x42, 0x60, 0x83,

@@ -3,9 +3,9 @@ syntax = "proto3";
 import "bigint.proto";
 import "container.proto";
 import "dwh.proto";
-import "hub.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
+import "worker.proto";
 
 package sonm;
 

@@ -62,11 +62,11 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, er
 
 	// try to extract extra info for deal
 	dealID := deal.GetId().Unwrap().String()
-	hub, closer, err := d.remotes.getHubClientByEthAddr(ctx, deal.GetSupplierID().Unwrap().Hex())
+	worker, closer, err := d.remotes.getWorkerClientByEthAddr(ctx, deal.GetSupplierID().Unwrap().Hex())
 	if err == nil {
 		ctxlog.G(d.remotes.ctx).Debug("try to obtain deal info from the worker")
 		defer closer.Close()
-		info, err := hub.GetDealInfo(ctx, &pb.ID{Id: dealID})
+		info, err := worker.GetDealInfo(ctx, &pb.ID{Id: dealID})
 		if err == nil {
 			return info, nil
 		}

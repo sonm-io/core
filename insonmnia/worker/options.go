@@ -1,4 +1,4 @@
-package miner
+package worker
 
 import (
 	"crypto/ecdsa"
@@ -8,8 +8,8 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/matcher"
-	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/state"
+	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -40,11 +40,11 @@ func (m *options) validate() error {
 	err := &multierror.Error{ErrorFormat: util.MultierrFormat()}
 
 	if m.cfg == nil {
-		err = multierror.Append(err, errors.New("config is mandatory for Miner options"))
+		err = multierror.Append(err, errors.New("config is mandatory for Worker options"))
 	}
 
 	if m.key == nil {
-		err = multierror.Append(err, errors.New("private key is mandatory for Miner options"))
+		err = multierror.Append(err, errors.New("private key is mandatory for Worker options"))
 	}
 
 	if m.storage == nil {

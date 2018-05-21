@@ -1,4 +1,4 @@
-package miner
+package worker
 
 import (
 	"bytes"
@@ -24,18 +24,18 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/cgroups"
-	"github.com/sonm-io/core/insonmnia/miner/gpu"
-	"github.com/sonm-io/core/insonmnia/miner/salesman"
 	"github.com/sonm-io/core/insonmnia/npp"
+	"github.com/sonm-io/core/insonmnia/worker/gpu"
+	"github.com/sonm-io/core/insonmnia/worker/salesman"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
 
 	// todo: drop alias
 	bm "github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/hardware"
-	"github.com/sonm-io/core/insonmnia/miner/volume"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/insonmnia/worker/volume"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -47,7 +47,7 @@ import (
 
 const (
 	workerAPIPrefix = "/sonm.WorkerManagement/"
-	taskAPIPrefix   = "/sonm.Hub/"
+	taskAPIPrefix   = "/sonm.Worker/"
 )
 
 var (
@@ -62,8 +62,8 @@ var (
 	}
 )
 
-// Miner holds information about jobs, make orders to Observer and communicates with Hub
-type Miner struct {
+// Worker holds information about jobs, make orders to Observer and communicates with Worker
+type Worker struct {
 	*options
 
 	mu        sync.Mutex
@@ -95,13 +95,13 @@ type Miner struct {
 	startTime     time.Time
 }
 
-func NewMiner(opts ...Option) (m *Miner, err error) {
+func NewWorker(opts ...Option) (m *Worker, err error) {
 	o := &options{}
 	for _, opt := range opts {
 		opt(o)
 	}
 
-	m = &Miner{
+	m = &Worker{
 		options:     o,
 		containers:  make(map[string]*ContainerInfo),
 		nameMapping: make(map[string]string),
@@ -155,9 +155,8 @@ func NewMiner(opts ...Option) (m *Miner, err error) {
 	return m, nil
 }
 
-// Serve starts handling incoming API gRPC request and communicates
-// with miners
-func (m *Miner) Serve() error {
+// Serve starts handling incoming API gRPC requests
+func (m *Worker) Serve() error {
 	m.startTime = time.Now()
 	if err := m.waitMasterApproved(); err != nil {
 		return err
@@ -181,7 +180,7 @@ func (m *Miner) Serve() error {
 	return err
 }
 
-func (m *Miner) waitMasterApproved() error {
+func (m *Worker) waitMasterApproved() error {
 	if m.cfg.Master == nil {
 		return nil
 	}
@@ -211,11 +210,11 @@ func (m *Miner) waitMasterApproved() error {
 	}
 }
 
-func (m *Miner) ethAddr() common.Address {
+func (m *Worker) ethAddr() common.Address {
 	return util.PubKeyToAddr(m.key.PublicKey)
 }
 
-func (m *Miner) setupMaster() error {
+func (m *Worker) setupMaster() error {
 	if m.cfg.Master != nil {
 		log.S(m.ctx).Info("checking current master")
 		addr, err := m.eth.Market().GetMaster(m.ctx, m.ethAddr())
@@ -233,7 +232,7 @@ func (m *Miner) setupMaster() error {
 	return nil
 }
 
-func (m *Miner) setupAuthorization() error {
+func (m *Worker) setupAuthorization() error {
 	authorization := auth.NewEventAuthorization(m.ctx,
 		auth.WithLog(log.G(m.ctx)),
 		// Note: need to refactor auth router to support multiple prefixes for methods.
@@ -262,7 +261,7 @@ func (m *Miner) setupAuthorization() error {
 	return nil
 }
 
-func (m *Miner) setupControlGroup() error {
+func (m *Worker) setupControlGroup() error {
 	cgName := "sonm-worker-parent"
 	cgResources := &specs.LinuxResources{}
 	if m.cfg.Resources != nil {
@@ -279,7 +278,7 @@ func (m *Miner) setupControlGroup() error {
 	return nil
 }
 
-func (m *Miner) setupHardware() error {
+func (m *Worker) setupHardware() error {
 	// TODO: Do all the stuff inside hardware ctor
 	hardwareInfo, err := hardware.NewHardware()
 	if err != nil {
@@ -302,7 +301,7 @@ func (m *Miner) setupHardware() error {
 	return nil
 }
 
-func (m *Miner) listenDeals(dealsCh <-chan *pb.Deal) {
+func (m *Worker) listenDeals(dealsCh <-chan *pb.Deal) {
 	for {
 		select {
 		case <-m.ctx.Done():
@@ -317,7 +316,7 @@ func (m *Miner) listenDeals(dealsCh <-chan *pb.Deal) {
 	}
 }
 
-func (m *Miner) cancelDealTasks(deal *pb.Deal) error {
+func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 	dealID := deal.GetId().Unwrap().String()
 	var toDelete []string
 
@@ -338,7 +337,7 @@ func (m *Miner) cancelDealTasks(deal *pb.Deal) error {
 	return result
 }
 
-func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
+func (m *Worker) saveContainerInfo(id string, info ContainerInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -346,14 +345,14 @@ func (m *Miner) saveContainerInfo(id string, info ContainerInfo) {
 	m.containers[id] = &info
 }
 
-func (m *Miner) GetContainerInfo(id string) (*ContainerInfo, bool) {
+func (m *Worker) GetContainerInfo(id string) (*ContainerInfo, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	info, ok := m.containers[id]
 	return info, ok
 }
 
-func (m *Miner) getContainerIdByTaskId(id string) (string, bool) {
+func (m *Worker) getContainerIdByTaskId(id string) (string, bool) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -364,21 +363,21 @@ func (m *Miner) getContainerIdByTaskId(id string) (string, bool) {
 	return "", ok
 }
 
-func (m *Miner) deleteTaskMapping(id string) {
+func (m *Worker) deleteTaskMapping(id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	delete(m.nameMapping, id)
 }
 
-func (m *Miner) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
+func (m *Worker) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
 	return m.hardware.IntoProto(), nil
 }
 
-// Status returns internal hub statistic
-func (m *Miner) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, error) {
+// Status returns internal worker statistic
+func (m *Worker) Status(ctx context.Context, _ *pb.Empty) (*pb.StatusReply, error) {
 	uptime := uint64(time.Now().Sub(m.startTime).Seconds())
-	reply := &pb.HubStatusReply{
+	reply := &pb.StatusReply{
 		Uptime:    uptime,
 		Platform:  util.GetPlatformName(),
 		Version:   m.version,
@@ -391,12 +390,12 @@ func (m *Miner) Status(ctx context.Context, _ *pb.Empty) (*pb.HubStatusReply, er
 
 // FreeDevice provides information about unallocated resources
 // that can be turned into ask-plans.
-func (m *Miner) FreeDevices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
+func (m *Worker) FreeDevices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
 	// todo: this is stub, wait for Resource manager impl to use real data.
 	return m.hardware.IntoProto(), nil
 }
 
-func (m *Miner) scheduleStatusPurge(id string) {
+func (m *Worker) scheduleStatusPurge(id string) {
 	t := time.NewTimer(time.Second * 3600)
 	defer t.Stop()
 	select {
@@ -409,7 +408,7 @@ func (m *Miner) scheduleStatusPurge(id string) {
 	}
 }
 
-func (m *Miner) setStatus(status *pb.TaskStatusReply, id string) {
+func (m *Worker) setStatus(status *pb.TaskStatusReply, id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -425,7 +424,7 @@ func (m *Miner) setStatus(status *pb.TaskStatusReply, id string) {
 	}
 }
 
-func (m *Miner) listenForStatus(statusListener chan pb.TaskStatusReply_Status, id string) {
+func (m *Worker) listenForStatus(statusListener chan pb.TaskStatusReply_Status, id string) {
 	select {
 	case newStatus, ok := <-statusListener:
 		if !ok {
@@ -447,7 +446,7 @@ func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolic
 	return restartPolicy
 }
 
-func (m *Miner) PushTask(stream pb.Hub_PushTaskServer) error {
+func (m *Worker) PushTask(stream pb.Worker_PushTaskServer) error {
 	log.G(m.ctx).Info("handling PushTask request")
 	if err := m.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PushTask"), nil); err != nil {
 		return err
@@ -469,7 +468,7 @@ func (m *Miner) PushTask(stream pb.Hub_PushTaskServer) error {
 	return nil
 }
 
-func (m *Miner) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServer) error {
+func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTaskServer) error {
 	log.G(m.ctx).Info("handling PullTask request", zap.Any("request", request))
 
 	if err := m.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PullTask"), request); err != nil {
@@ -526,7 +525,7 @@ func (m *Miner) PullTask(request *pb.PullTaskRequest, stream pb.Hub_PullTaskServ
 	return nil
 }
 
-func (m *Miner) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
+func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(m.ctx).Info("handling StartTask request", zap.Any("request", request))
 
 	// TODO: get rid of this wrapper - just add validate method
@@ -554,8 +553,8 @@ func (m *Miner) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*p
 	return m.startTask(ctx, taskRequest)
 }
 
-// Start request from Hub makes Miner start a container
-func (m *Miner) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.StartTaskReply, error) {
+// Start request makes Worker start a container
+func (m *Worker) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
 
 	taskID := uuid.New()
@@ -712,7 +711,7 @@ func (m *Miner) startTask(ctx context.Context, request *structs.StartTaskRequest
 }
 
 // Stop request forces to kill container
-func (m *Miner) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
+func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(ctx).Info("handling Stop request", zap.Any("req", request))
 
 	m.mu.Lock()
@@ -737,12 +736,12 @@ func (m *Miner) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error)
 	return &pb.Empty{}, nil
 }
 
-func (m *Miner) Tasks(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
+func (m *Worker) Tasks(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
 	log.G(m.ctx).Info("handling Tasks request")
 	return &pb.TaskListReply{Info: m.CollectTasksStatuses()}, nil
 }
 
-func (m *Miner) CollectTasksStatuses(statuses ...pb.TaskStatusReply_Status) map[string]*pb.TaskStatusReply {
+func (m *Worker) CollectTasksStatuses(statuses ...pb.TaskStatusReply_Status) map[string]*pb.TaskStatusReply {
 	result := map[string]*pb.TaskStatusReply{}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -763,7 +762,7 @@ func (m *Miner) CollectTasksStatuses(statuses ...pb.TaskStatusReply_Status) map[
 }
 
 // TaskLogs returns logs from container
-func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServer) error {
+func (m *Worker) TaskLogs(request *pb.TaskLogsRequest, server pb.Worker_TaskLogsServer) error {
 	log.G(m.ctx).Info("handling TaskLogs request", zap.Any("request", request))
 	if err := m.eventAuthorization.Authorize(server.Context(), auth.Event(taskAPIPrefix+"TaskLogs"), request); err != nil {
 		return err
@@ -803,7 +802,7 @@ func (m *Miner) TaskLogs(request *pb.TaskLogsRequest, server pb.Hub_TaskLogsServ
 }
 
 //TODO: proper request
-func (m *Miner) JoinNetwork(ctx context.Context, request *pb.HubJoinNetworkRequest) (*pb.NetworkSpec, error) {
+func (m *Worker) JoinNetwork(ctx context.Context, request *pb.WorkerJoinNetworkRequest) (*pb.NetworkSpec, error) {
 	spec, err := m.plugins.JoinNetwork(request.NetworkID)
 	if err != nil {
 		return nil, err
@@ -816,7 +815,7 @@ func (m *Miner) JoinNetwork(ctx context.Context, request *pb.HubJoinNetworkReque
 	}, nil
 }
 
-func (m *Miner) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusReply, error) {
+func (m *Worker) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusReply, error) {
 	log.G(m.ctx).Info("starting TaskDetails status server")
 
 	info, ok := m.GetContainerInfo(req.GetId())
@@ -845,12 +844,12 @@ func (m *Miner) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusReply
 	return reply, nil
 }
 
-func (m *Miner) RunSSH() error {
+func (m *Worker) RunSSH() error {
 	return m.ssh.Run()
 }
 
 // RunBenchmarks perform benchmarking of Worker's resources.
-func (m *Miner) runBenchmarks() error {
+func (m *Worker) runBenchmarks() error {
 	savedHardware := m.storage.HardwareHash()
 	exitingHardware := m.hardware.Hash()
 
@@ -899,12 +898,12 @@ func (m *Miner) runBenchmarks() error {
 	return m.storage.SetHardwareHash(m.hardware.Hash())
 }
 
-func (m *Miner) setupResources() error {
+func (m *Worker) setupResources() error {
 	m.resources = resource.NewScheduler(m.ctx, m.hardware)
 	return nil
 }
 
-func (m *Miner) setupSalesman() error {
+func (m *Worker) setupSalesman() error {
 	salesman, err := salesman.NewSalesman(
 		salesman.WithLogger(log.S(m.ctx).With("source", "salesman")),
 		salesman.WithStorage(m.storage),
@@ -926,7 +925,7 @@ func (m *Miner) setupSalesman() error {
 	return nil
 }
 
-func (m *Miner) setupServer() error {
+func (m *Worker) setupServer() error {
 	logger := log.GetLogger(m.ctx)
 	grpcServer := xgrpc.NewServer(logger,
 		xgrpc.Credentials(m.creds),
@@ -936,7 +935,7 @@ func (m *Miner) setupServer() error {
 	)
 	m.externalGrpc = grpcServer
 
-	pb.RegisterHubServer(grpcServer, m)
+	pb.RegisterWorkerServer(grpcServer, m)
 	pb.RegisterWorkerManagementServer(grpcServer, m)
 	grpc_prometheus.Register(grpcServer)
 	return nil
@@ -945,7 +944,7 @@ func (m *Miner) setupServer() error {
 // isBenchmarkListMatches checks if already passed benchmarks is matches required benchmarks list.
 //
 // todo: test me
-func (m *Miner) isBenchmarkListMatches(required map[pb.DeviceType][]*pb.Benchmark, exiting map[uint64]bool) bool {
+func (m *Worker) isBenchmarkListMatches(required map[pb.DeviceType][]*pb.Benchmark, exiting map[uint64]bool) bool {
 	for _, benchs := range required {
 		for _, bench := range benchs {
 			if _, ok := exiting[bench.ID]; !ok {
@@ -959,7 +958,7 @@ func (m *Miner) isBenchmarkListMatches(required map[pb.DeviceType][]*pb.Benchmar
 
 // runBenchmarkGroup executes group of benchmarks for given device type (CPU, GPU, Network, etc...).
 // The results must be attached to worker's hardware capabilities inside this function (by magic).
-func (m *Miner) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) error {
+func (m *Worker) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) error {
 	var hwBenches []map[uint64]*pb.Benchmark
 	var gpuDevices []*pb.GPUDevice
 	switch dev {
@@ -1019,7 +1018,7 @@ func (m *Miner) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) er
 
 // execBenchmarkContainerWithResults executes benchmark as docker image,
 // returns JSON output with measured values.
-func (m *Miner) execBenchmarkContainerWithResults(d Description) (map[string]*bm.ResultJSON, error) {
+func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*bm.ResultJSON, error) {
 	err := m.ovs.Spool(m.ctx, d)
 	if err != nil {
 		return nil, err
@@ -1064,7 +1063,7 @@ func (m *Miner) execBenchmarkContainerWithResults(d Description) (map[string]*bm
 	return resultsMap, nil
 }
 
-func (m *Miner) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*bm.ResultJSON, error) {
+func (m *Worker) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*bm.ResultJSON, error) {
 	log.G(m.ctx).Debug("starting containered benchmark", zap.Any("benchmark", ben))
 	res, err := m.execBenchmarkContainerWithResults(des)
 	if err != nil {
@@ -1107,12 +1106,12 @@ func getDescriptionForBenchmark(b *pb.Benchmark) Description {
 	}
 }
 
-func (m *Miner) AskPlans(ctx context.Context, _ *pb.Empty) (*pb.AskPlansReply, error) {
+func (m *Worker) AskPlans(ctx context.Context, _ *pb.Empty) (*pb.AskPlansReply, error) {
 	log.G(m.ctx).Info("handling AskPlans request")
 	return &pb.AskPlansReply{AskPlans: m.salesman.AskPlans()}, nil
 }
 
-func (m *Miner) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (*pb.ID, error) {
+func (m *Worker) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (*pb.ID, error) {
 	log.G(m.ctx).Info("handling CreateAskPlan request", zap.Any("request", request))
 	if len(request.GetID()) != 0 || !request.GetOrderID().IsZero() || !request.GetDealID().IsZero() {
 		return nil, errors.New("creating ask plans with predefined id, order_id or deal_id are not supported")
@@ -1125,7 +1124,7 @@ func (m *Miner) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (*pb.ID,
 	return &pb.ID{Id: id}, nil
 }
 
-func (m *Miner) RemoveAskPlan(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
+func (m *Worker) RemoveAskPlan(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
 	log.G(m.ctx).Info("handling RemoveAskPlan request", zap.String("id", request.GetId()))
 
 	if err := m.salesman.RemoveAskPlan(request.GetId()); err != nil {
@@ -1134,7 +1133,7 @@ func (m *Miner) RemoveAskPlan(ctx context.Context, request *pb.ID) (*pb.Empty, e
 	return &pb.Empty{}, nil
 }
 
-func (m *Miner) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
+func (m *Worker) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
 	log.G(m.ctx).Info("handling GetDealInfo request")
 
 	dealID, err := pb.NewBigIntFromString(id.Id)
@@ -1144,7 +1143,7 @@ func (m *Miner) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, 
 	return m.getDealInfo(dealID)
 }
 
-func (m *Miner) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
+func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 	deal, err := m.salesman.Deal(dealID)
 	if err != nil {
 		return nil, err
@@ -1191,7 +1190,7 @@ func (m *Miner) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 	}, nil
 }
 
-func (m *Miner) AskPlanByTaskID(taskID string) (*pb.AskPlan, error) {
+func (m *Worker) AskPlanByTaskID(taskID string) (*pb.AskPlan, error) {
 	planID, err := m.resources.AskPlanIDByTaskID(taskID)
 	if err != nil {
 		return nil, err
@@ -1199,11 +1198,11 @@ func (m *Miner) AskPlanByTaskID(taskID string) (*pb.AskPlan, error) {
 	return m.salesman.AskPlan(planID)
 }
 
-// todo: make the `miner.Init() error` method to kickstart all initial jobs for the Worker instance.
+// todo: make the `worker.Init() error` method to kickstart all initial jobs for the Worker instance.
 // (state loading, benchmarking, market sync).
 
 // Close disposes all resources related to the Worker
-func (m *Miner) Close() {
+func (m *Worker) Close() {
 	log.G(m.ctx).Info("closing worker")
 
 	if m.ssh != nil {

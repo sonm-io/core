@@ -28,10 +28,10 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-type hubClientCreator func(ethAddr common.Address, netAddr string) (*hubClient, io.Closer, error)
+type workerClientCreator func(ethAddr common.Address, netAddr string) (*workerClient, io.Closer, error)
 
-type hubClient struct {
-	pb.HubClient
+type workerClient struct {
+	pb.WorkerClient
 	pb.WorkerManagementClient
 }
 
@@ -43,14 +43,14 @@ type remoteOptions struct {
 	creds             credentials.TransportCredentials
 	eth               blockchain.API
 	dwh               pb.DWHClient
-	hubCreator        hubClientCreator
+	workerCreator     workerClientCreator
 	blockchainTimeout time.Duration
 	nppDialer         *npp.Dialer
 	benchList         benchmarks.BenchList
 	orderMatcher      matcher.Matcher
 }
 
-func (re *remoteOptions) getHubClientForDeal(ctx context.Context, id string) (*hubClient, io.Closer, error) {
+func (re *remoteOptions) getWorkerClientForDeal(ctx context.Context, id string) (*workerClient, io.Closer, error) {
 	bigID, err := util.ParseBigInt(id)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not parse deal id %s to BigInt: %s", id, err)
@@ -61,7 +61,7 @@ func (re *remoteOptions) getHubClientForDeal(ctx context.Context, id string) (*h
 		return nil, nil, fmt.Errorf("could not get deal info for deal %s from blockchain: %s", id, err)
 	}
 
-	client, closer, err := re.getHubClientByEthAddr(ctx, dealInfo.GetSupplierID().Unwrap().Hex())
+	client, closer, err := re.getWorkerClientByEthAddr(ctx, dealInfo.GetSupplierID().Unwrap().Hex())
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not get worker client for deal %s by eth address %s: %s",
 			id, dealInfo.GetSupplierID().Unwrap().Hex(), err)
@@ -69,8 +69,8 @@ func (re *remoteOptions) getHubClientForDeal(ctx context.Context, id string) (*h
 	return client, closer, nil
 }
 
-func (re *remoteOptions) getHubClientByEthAddr(ctx context.Context, eth string) (*hubClient, io.Closer, error) {
-	return re.hubCreator(common.HexToAddress(eth), "")
+func (re *remoteOptions) getWorkerClientByEthAddr(ctx context.Context, eth string) (*workerClient, io.Closer, error) {
+	return re.workerCreator(common.HexToAddress(eth), "")
 }
 
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
@@ -83,7 +83,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		return nil, err
 	}
 
-	hubFactory := func(ethAddr common.Address, netAddr string) (*hubClient, io.Closer, error) {
+	workerFactory := func(ethAddr common.Address, netAddr string) (*workerClient, io.Closer, error) {
 		addr := auth.NewAddrRaw(ethAddr, netAddr)
 		conn, err := nppDialer.Dial(addr)
 		if err != nil {
@@ -95,8 +95,8 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 			return nil, nil, err
 		}
 
-		m := &hubClient{
-			pb.NewHubClient(cc),
+		m := &workerClient{
+			pb.NewWorkerClient(cc),
 			pb.NewWorkerManagementClient(cc),
 		}
 
@@ -145,7 +145,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		eth:               eth,
 		dwh:               dwh,
 		blockchainTimeout: 180 * time.Second,
-		hubCreator:        hubFactory,
+		workerCreator:     workerFactory,
 		nppDialer:         nppDialer,
 		benchList:         benchList,
 		orderMatcher:      orderMatcher,
@@ -164,7 +164,7 @@ type Node struct {
 	srv     *grpc.Server
 
 	// services, responsible for request handling
-	hub    pb.WorkerManagementServer
+	worker pb.WorkerManagementServer
 	market pb.MarketServer
 	deals  pb.DealManagementServer
 	tasks  pb.TaskManagementServer
@@ -174,7 +174,7 @@ type Node struct {
 
 // New creates new Local Node instance
 // also method starts internal gRPC client connections
-// to the external services like Market and Hub
+// to the external services like Market and Worker
 func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	_, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
@@ -188,7 +188,7 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 		return nil, err
 	}
 
-	hub := newHubAPI(opts)
+	worker := newWorkerAPI(opts)
 
 	market, err := newMarketAPI(opts)
 	if err != nil {
@@ -211,7 +211,7 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 
 	grpcServerOpts := []xgrpc.ServerOption{
 		xgrpc.DefaultTraceInterceptor(),
-		xgrpc.UnaryServerInterceptor(hub.(*hubAPI).intercept),
+		xgrpc.UnaryServerInterceptor(worker.(*workerAPI).intercept),
 		xgrpc.VerifyInterceptor(),
 	}
 
@@ -223,8 +223,8 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 
 	srv := xgrpc.NewServer(log.GetLogger(ctx), grpcServerOpts...)
 
-	pb.RegisterWorkerManagementServer(srv, hub)
-	log.G(ctx).Info("hub service registered", zap.String("endpt", config.Hub.Endpoint))
+	pb.RegisterWorkerManagementServer(srv, worker)
+	log.G(ctx).Info("worker service registered", zap.String("endpt", config.Worker.Endpoint))
 
 	pb.RegisterMarketServer(srv, market)
 	log.G(ctx).Info("market service registered")
@@ -249,7 +249,7 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 		ctx:     ctx,
 		cancel:  cancel,
 		srv:     srv,
-		hub:     hub,
+		worker:  worker,
 		market:  market,
 		deals:   deals,
 		tasks:   tasks,
@@ -323,7 +323,7 @@ func (n *Node) serveHttp() error {
 		return err
 	}
 
-	options := []rest.Option{rest.WithContext(n.ctx), rest.WithDecoder(decenc), rest.WithEncoder(decenc), rest.WithInterceptor(n.hub.(*hubAPI).intercept)}
+	options := []rest.Option{rest.WithContext(n.ctx), rest.WithDecoder(decenc), rest.WithEncoder(decenc), rest.WithInterceptor(n.worker.(*workerAPI).intercept)}
 
 	lis6, err := net.Listen("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.Node.HttpBindPort))
 	if err == nil {
@@ -344,7 +344,7 @@ func (n *Node) serveHttp() error {
 	if err != nil {
 		return err
 	}
-	err = srv.RegisterService((*pb.WorkerManagementServer)(nil), n.hub)
+	err = srv.RegisterService((*pb.WorkerManagementServer)(nil), n.worker)
 	if err != nil {
 		return err
 	}

@@ -10,7 +10,7 @@ import (
 )
 
 type ImagePush struct {
-	sonm.Hub_PushTaskServer
+	sonm.Worker_PushTaskServer
 
 	dealId    string
 	imageSize int64
@@ -39,7 +39,7 @@ func RequireHeaderInt64(md metadata.MD, name string) (int64, error) {
 	return valueInt64, nil
 }
 
-func NewImagePush(stream sonm.Hub_PushTaskServer) (*ImagePush, error) {
+func NewImagePush(stream sonm.Worker_PushTaskServer) (*ImagePush, error) {
 	md, ok := metadata.FromIncomingContext(stream.Context())
 	if !ok {
 		return nil, status.Errorf(codes.InvalidArgument, "metadata required")

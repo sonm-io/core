@@ -30,18 +30,18 @@ var workerStatusCmd = &cobra.Command{
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		hub, err := newWorkerManagementClient(ctx)
+		worker, err := newWorkerManagementClient(ctx)
 		if err != nil {
 			showError(cmd, "Cannot create client connection", err)
 			os.Exit(1)
 		}
 
-		status, err := hub.Status(ctx, &pb.Empty{})
+		status, err := worker.Status(ctx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get worker status", err)
 			os.Exit(1)
 		}
 
-		printHubStatus(cmd, status)
+		printWorkerStatus(cmd, status)
 	},
 }
