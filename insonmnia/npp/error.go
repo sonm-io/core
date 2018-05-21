@@ -1,9 +1,15 @@
 package npp
 
-// TransportError is an error that is returned when the underlying gRPC
-// transport is broken.
-type TransportError struct {
+type rendezvousError struct {
 	error
+}
+
+func newRendezvousError(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	return &rendezvousError{err}
 }
 
 type relayError struct {

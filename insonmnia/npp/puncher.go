@@ -126,8 +126,8 @@ func (m *natPuncher) AcceptContext(ctx context.Context) (net.Conn, error) {
 
 	addrs, err := m.publish(ctx)
 	if err != nil {
-		m.log.Error("failed to publish itself on the rendezvous", zap.Error(err))
-		return nil, TransportError{err}
+		m.log.Warn("failed to publish itself on the rendezvous", zap.Error(err))
+		return nil, newRendezvousError(err)
 	}
 
 	m.log.Info("received remote peer endpoints", zap.Any("addrs", addrs))
@@ -140,10 +140,9 @@ func (m *natPuncher) AcceptContext(ctx context.Context) (net.Conn, error) {
 	// be the champion, while others die in agony. Life is cruel.
 	conn, err := m.punch(ctx, addrs)
 	if err != nil {
-		return nil, err
+		return nil, newRendezvousError(err)
 	}
 
-	// TODO: At last when there is no hope, use relay server.
 	return conn, nil
 }
 
