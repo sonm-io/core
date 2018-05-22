@@ -52,7 +52,9 @@ type MarketAPI interface {
 	ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) <-chan error
 	RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) <-chan error
 	GetMaster(ctx context.Context, slave common.Address) (common.Address, error)
-	GetDealChangeRequestInfo(ctx context.Context, dealID *big.Int) (*pb.DealChangeRequest, error)
+	GetDealChangeRequestInfo(ctx context.Context, id *big.Int) (*pb.DealChangeRequest, error)
+	CreateChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, request *pb.DealChangeRequest) (*big.Int, error)
+	CancelChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error
 	GetNumBenchmarks(ctx context.Context) (uint64, error)
 }
 
@@ -546,6 +548,42 @@ func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, changeR
 		Price:       pb.NewBigInt(changeRequest.Price),
 		Status:      pb.ChangeRequestStatus(changeRequest.Status),
 	}, nil
+}
+
+func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, req *pb.DealChangeRequest) (*big.Int, error) {
+	duration := big.NewInt(int64(req.GetDuration()))
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	tx, err := api.marketContract.CreateChangeRequest(opts, req.GetDealID().Unwrap(), req.GetPrice().Unwrap(), duration)
+	if err != nil {
+		return nil, err
+	}
+
+	log, err := waitForTransactionResult(ctx, api.client, api.opts.logParsePeriod, tx, market.DealChangeRequestSentTopic)
+	if err != nil {
+		return nil, err
+	}
+
+	id, err := extractBig(log.Topics, 1)
+	if err != nil {
+		return nil, errors.WithMessage(err, "cannot extract change request id from transaction logs")
+	}
+
+	return id, nil
+}
+
+func (api *BasicMarketAPI) CancelChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	tx, err := api.marketContract.CancelChangeRequest(opts, id)
+	if err != nil {
+		return err
+	}
+
+	_, err = WaitTransactionReceipt(ctx, api.client, defaultBlockConfirmations, api.opts.logParsePeriod, tx)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (uint64, error) {
