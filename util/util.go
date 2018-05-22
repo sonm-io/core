@@ -23,6 +23,7 @@ import (
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"gopkg.in/yaml.v2"
 )
 
@@ -226,4 +227,8 @@ func HexToAddress(hex string) (common.Address, error) {
 		return common.Address{}, fmt.Errorf("invalid address %s specified for parsing", hex)
 	}
 	return common.HexToAddress(hex), nil
+}
+
+func LaconicError(err error) zapcore.Field {
+	return zap.String("error", err.Error())
 }
