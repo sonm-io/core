@@ -78,6 +78,9 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 			selectLastKnownBlock:         `SELECT LastKnownBlock FROM Misc WHERE Id=1`,
 			insertLastKnownBlock:         `INSERT INTO Misc VALUES (NULL, ?)`,
 			updateLastKnownBlock:         `UPDATE Misc Set LastKnownBlock=? WHERE Id=1`,
+			storeStaleID:                 `INSERT INTO StaleIDs VALUES (?)`,
+			removeStaleID:                `DELETE FROM StaleIDs WHERE Id = ?`,
+			checkStaleID:                 `SELECT * FROM StaleIDs WHERE Id = ?`,
 		},
 		setupCommands: &sqlSetupCommands{
 			// Incomplete, modified during setup.
@@ -197,6 +200,10 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		Certificates				BLOB NOT NULL,
 		ActiveAsks					INTEGER NOT NULL,
 		ActiveBids					INTEGER NOT NULL
+	)`,
+			createTableStaleIDs: `
+	CREATE TABLE IF NOT EXISTS StaleIDs (
+		Id 							TEXT NOT NULL
 	)`,
 			createTableMisc: `
 	CREATE TABLE IF NOT EXISTS Misc (
