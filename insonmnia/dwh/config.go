@@ -17,7 +17,7 @@ type Config struct {
 	Blockchain        *blockchain.Config `yaml:"blockchain"`
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14004"`
 	ColdStart         *ColdStartConfig   `yaml:"cold_start"`
-	NumWorkers        int                `yaml:"num_workers" default:"16"`
+	NumWorkers        int                `yaml:"num_workers" default:"64"`
 }
 
 type storageConfig struct {
