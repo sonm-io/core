@@ -21,7 +21,6 @@ import (
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"
-	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
@@ -224,7 +223,7 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 	srv := xgrpc.NewServer(log.GetLogger(ctx), grpcServerOpts...)
 
 	pb.RegisterWorkerManagementServer(srv, worker)
-	log.G(ctx).Info("worker service registered", zap.String("endpt", config.Worker.Endpoint))
+	log.G(ctx).Info("worker service registered")
 
 	pb.RegisterMarketServer(srv, market)
 	log.G(ctx).Info("market service registered")

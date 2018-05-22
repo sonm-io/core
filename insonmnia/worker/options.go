@@ -3,6 +3,7 @@ package worker
 import (
 	"crypto/ecdsa"
 
+	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
@@ -43,10 +44,6 @@ func (m *options) validate() error {
 		err = multierror.Append(err, errors.New("config is mandatory for Worker options"))
 	}
 
-	if m.key == nil {
-		err = multierror.Append(err, errors.New("private key is mandatory for Worker options"))
-	}
-
 	if m.storage == nil {
 		err = multierror.Append(err, errors.New("state storage is mandatory"))
 	}
@@ -61,6 +58,10 @@ func (m *options) SetupDefaults() error {
 
 	if m.ctx == nil {
 		m.ctx = context.Background()
+	}
+
+	if err := m.setupKey(); err != nil {
+		return err
 	}
 
 	if err := m.setupBlockchainAPI(); err != nil {
@@ -103,6 +104,33 @@ func (m *options) SetupDefaults() error {
 		return err
 	}
 
+	return nil
+}
+
+func (m *options) setupKey() error {
+	if m.key == nil {
+		var data []byte
+		err := m.storage.Load("ethpkey", &data)
+		if err != nil {
+			return err
+		}
+		if data == nil {
+			key, err := ethcrypto.GenerateKey()
+			if err != nil {
+				return err
+			}
+			if err := m.storage.Save("ethpkey", ethcrypto.FromECDSA(key)); err != nil {
+				return err
+			}
+			m.key = key
+		} else {
+			key, err := ethcrypto.ToECDSA(data)
+			if err != nil {
+				return err
+			}
+			m.key = key
+		}
+	}
 	return nil
 }
 

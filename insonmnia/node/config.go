@@ -17,17 +17,12 @@ type nodeConfig struct {
 	AllowInsecureConnection bool   `yaml:"allow_insecure_connection" default:"false"`
 }
 
-type workerConfig struct {
-	Endpoint string `required:"false" yaml:"endpoint"`
-}
-
 type Config struct {
 	Node              nodeConfig          `yaml:"node"`
 	NPP               npp.Config          `yaml:"npp"`
 	Log               logging.Config      `yaml:"log"`
 	Blockchain        *blockchain.Config  `yaml:"blockchain"`
 	Eth               accounts.EthConfig  `yaml:"ethereum" required:"false"`
-	Worker            workerConfig        `yaml:"worker" required:"false"`
 	DWH               dwh.YAMLConfig      `yaml:"dwh"`
 	MetricsListenAddr string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14003"`
 	Benchmarks        benchmarks.Config   `yaml:"benchmarks"`

@@ -6,6 +6,7 @@ import (
 	"os/user"
 	"path"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"gopkg.in/yaml.v2"
@@ -20,9 +21,11 @@ const (
 
 // cliConfig implements Config interface
 type Config struct {
-	Eth       accounts.EthConfig `yaml:"ethereum"`
-	OutFormat string             `required:"false" default:"" yaml:"output_format"`
-	path      string
+	Eth           accounts.EthConfig `yaml:"ethereum"`
+	OutFormat     string             `required:"false" default:"" yaml:"output_format"`
+	WorkerEthAddr *common.Address    `yaml:"worker_eth_addr"`
+	WorkerNetAddr string             `yaml:"worker_net_addr"`
+	path          string
 }
 
 func NewConfig(p ...string) (*Config, error) {

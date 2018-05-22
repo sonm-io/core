@@ -184,8 +184,8 @@ func (m *Worker) waitMasterApproved() error {
 	if m.cfg.Master == nil {
 		return nil
 	}
-	log.S(m.ctx).Info("waiting for master approval...")
 	selfAddr := m.ethAddr().Hex()
+	log.S(m.ctx).Infof("waiting for master %s approval for address %s", m.cfg.Master.Hex(), selfAddr)
 	expectedMaster := m.cfg.Master.Hex()
 	ticker := util.NewImmediateTicker(time.Second)
 	for {
@@ -233,14 +233,23 @@ func (m *Worker) setupMaster() error {
 }
 
 func (m *Worker) setupAuthorization() error {
+	var managementAuth auth.Authorization
+	if m.cfg.Master != nil {
+		managementAuth = newMultiAuth(
+			auth.NewTransportAuthorization(m.ethAddr()),
+			auth.NewTransportAuthorization(*m.cfg.Master))
+	} else {
+		managementAuth = auth.NewTransportAuthorization(m.ethAddr())
+	}
+
 	authorization := auth.NewEventAuthorization(m.ctx,
 		auth.WithLog(log.G(m.ctx)),
 		// Note: need to refactor auth router to support multiple prefixes for methods.
 		// auth.WithEventPrefix(hubAPIPrefix),
-		auth.Allow(workerManagementMethods...).With(auth.NewTransportAuthorization(m.ethAddr())),
+		auth.Allow(workerManagementMethods...).With(managementAuth),
 
 		auth.Allow(taskAPIPrefix+"TaskStatus").With(newMultiAuth(
-			auth.NewTransportAuthorization(m.ethAddr()),
+			managementAuth,
 			newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m)),
 		)),
 		auth.Allow(taskAPIPrefix+"StopTask").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
