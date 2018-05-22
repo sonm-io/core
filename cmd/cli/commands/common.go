@@ -55,8 +55,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
 	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "Disable TLS for connection")
 
-	rootCmd.AddCommand(workerMgmtCmd, marketRootCmd, nodeDealsRootCmd, taskRootCmd)
-	rootCmd.AddCommand(loginCmd, getTokenCmd, getBalanceCmd, versionCmd, autoCompleteCmd, masterRootCmd)
+	rootCmd.AddCommand(workerMgmtCmd, orderRootCmd, dealRootCmd, taskRootCmd)
+	rootCmd.AddCommand(loginCmd, tokenRootCmd, versionCmd, autoCompleteCmd, masterRootCmd)
 }
 
 // Root configure and return root command

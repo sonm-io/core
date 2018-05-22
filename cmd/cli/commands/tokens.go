@@ -7,7 +7,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var getTokenCmd = &cobra.Command{
+func init() {
+	tokenRootCmd.AddCommand(
+		tokenGetCmd,
+		tokenBalanceCmd,
+	)
+}
+
+var tokenRootCmd = &cobra.Command{
+	Use:   "token",
+	Short: "Manage tokens",
+}
+
+var tokenGetCmd = &cobra.Command{
 	Use:    "get",
 	Short:  "Get SONM test tokens (ERC20)",
 	PreRun: loadKeyStoreWrapper,
@@ -30,7 +42,7 @@ var getTokenCmd = &cobra.Command{
 	},
 }
 
-var getBalanceCmd = &cobra.Command{
+var tokenBalanceCmd = &cobra.Command{
 	Use:    "balance",
 	Short:  "Show SONM token balance (ERC20)",
 	PreRun: loadKeyStoreWrapper,

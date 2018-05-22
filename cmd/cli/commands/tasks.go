@@ -45,7 +45,7 @@ func init() {
 var taskPullOutput string
 
 var taskRootCmd = &cobra.Command{
-	Use:   "tasks",
+	Use:   "task",
 	Short: "Tasks management",
 }
 

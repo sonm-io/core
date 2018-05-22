@@ -13,22 +13,22 @@ var (
 )
 
 func init() {
-	marketSearchCmd.PersistentFlags().Uint64Var(&ordersSearchLimit, "limit", 10, "Orders count to show")
+	orderListCmd.PersistentFlags().Uint64Var(&ordersSearchLimit, "limit", 10, "Orders count to show")
 
-	marketRootCmd.AddCommand(
-		marketSearchCmd,
-		marketShowCmd,
-		marketCreateCmd,
-		marketCancelCmd,
+	orderRootCmd.AddCommand(
+		orderListCmd,
+		orderStatusCmd,
+		orderCreateCmd,
+		orderCancelCmd,
 	)
 }
 
-var marketRootCmd = &cobra.Command{
-	Use:   "market",
-	Short: "Interact with Marketplace",
+var orderRootCmd = &cobra.Command{
+	Use:   "order",
+	Short: "Manage orders",
 }
 
-var marketSearchCmd = &cobra.Command{
+var orderListCmd = &cobra.Command{
 	Use:    "list",
 	Short:  "Show your active orders",
 	PreRun: loadKeyStoreIfRequired,
@@ -53,9 +53,9 @@ var marketSearchCmd = &cobra.Command{
 	},
 }
 
-var marketShowCmd = &cobra.Command{
-	Use:    "show <order_id>",
-	Short:  "Show order details",
+var orderStatusCmd = &cobra.Command{
+	Use:    "status <order_id>",
+	Short:  "Show order stats",
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -79,10 +79,7 @@ var marketShowCmd = &cobra.Command{
 	},
 }
 
-// Note: here is no processing method at all, we need to move matching code
-// into the separated package, and then reinvent processing from scratch.
-
-var marketCreateCmd = &cobra.Command{
+var orderCreateCmd = &cobra.Command{
 	Use:    "create <bid.yaml>",
 	Short:  "Place new Bid order on Marketplace",
 	Args:   cobra.MinimumNArgs(1),
@@ -115,7 +112,7 @@ var marketCreateCmd = &cobra.Command{
 	},
 }
 
-var marketCancelCmd = &cobra.Command{
+var orderCancelCmd = &cobra.Command{
 	Use:    "cancel <order_id>",
 	Short:  "Cancel order on Marketplace",
 	Args:   cobra.MinimumNArgs(1),
