@@ -6,9 +6,9 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/auth"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
@@ -22,40 +22,28 @@ type workerAPI struct {
 	ctx     context.Context
 }
 
-func (h *workerAPI) getWorkerEthAddr(ctx context.Context) (common.Address, error) {
+func (h *workerAPI) getWorkerAddr(ctx context.Context) (*auth.Addr, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
-		return crypto.PubkeyToAddress(h.remotes.key.PublicKey), nil
+		addr := auth.NewAddrRaw(crypto.PubkeyToAddress(h.remotes.key.PublicKey), "")
+		return &addr, nil
 	}
-	ctxAddrs, ok := md["x_worker_eth_addr"]
+	ctxAddrs, ok := md[util.WorkerAddressHeader]
 	if !ok || len(ctxAddrs) == 0 {
-		return crypto.PubkeyToAddress(h.remotes.key.PublicKey), nil
+		addr := auth.NewAddrRaw(crypto.PubkeyToAddress(h.remotes.key.PublicKey), "")
+		return &addr, nil
 	}
-	return util.HexToAddress(ctxAddrs[0])
-}
-
-func getWorkerNetAddr(ctx context.Context) string {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return ""
-	}
-	ctxAddrs, ok := md["x_worker_net_addr"]
-	if !ok || len(ctxAddrs) == 0 {
-		return ""
-	}
-	return ctxAddrs[0]
+	return auth.NewAddr(ctxAddrs[0])
 }
 
 func (h *workerAPI) getClient(ctx context.Context) (pb.WorkerManagementClient, io.Closer, error) {
-	ethAddr, err := h.getWorkerEthAddr(ctx)
+	addr, err := h.getWorkerAddr(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	netAddr := getWorkerNetAddr(ctx)
-
-	log.S(h.ctx).Debugf("connecting to worker on %s@%s", ethAddr.Hex(), netAddr)
-	return h.remotes.workerCreator(ethAddr, netAddr)
+	log.S(h.ctx).Debugf("connecting to worker on %s", addr.String())
+	return h.remotes.workerCreator(addr)
 }
 
 func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {

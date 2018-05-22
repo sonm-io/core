@@ -1,14 +1,15 @@
 package config
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"os/user"
 	"path"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"gopkg.in/yaml.v2"
 )
 
@@ -21,11 +22,10 @@ const (
 
 // cliConfig implements Config interface
 type Config struct {
-	Eth           accounts.EthConfig `yaml:"ethereum"`
-	OutFormat     string             `required:"false" default:"" yaml:"output_format"`
-	WorkerEthAddr *common.Address    `yaml:"worker_eth_addr"`
-	WorkerNetAddr string             `yaml:"worker_net_addr"`
-	path          string
+	Eth        accounts.EthConfig `yaml:"ethereum"`
+	OutFormat  string             `required:"false" default:"" yaml:"output_format"`
+	WorkerAddr string             `yaml:"worker_eth_addr"`
+	path       string
 }
 
 func NewConfig(p ...string) (*Config, error) {
@@ -50,7 +50,20 @@ func NewConfig(p ...string) (*Config, error) {
 		return nil, err
 	}
 
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
+}
+
+func (cc *Config) Validate() error {
+	if len(cc.WorkerAddr) > 0 {
+		if _, err := auth.NewAddr(cc.WorkerAddr); err != nil {
+			return fmt.Errorf("could not parse worker address: %s", err)
+		}
+	}
+	return nil
 }
 
 func (cc *Config) Save() error {

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/metadata"
 )
@@ -19,8 +20,7 @@ func workerPreRun(cmd *cobra.Command, args []string) {
 	loadKeyStoreIfRequired(cmd, args)
 	workerCtx, workerCancel = newTimeoutContext()
 	md := metadata.MD{
-		"x_worker_eth_addr": []string{cfg.WorkerEthAddr.Hex()},
-		"x_worker_net_addr": []string{cfg.WorkerNetAddr},
+		util.WorkerAddressHeader: []string{cfg.WorkerAddr},
 	}
 	workerCtx = metadata.NewOutgoingContext(workerCtx, md)
 	var err error
