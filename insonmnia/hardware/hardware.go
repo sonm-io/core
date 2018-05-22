@@ -170,7 +170,7 @@ func insertBench(to map[uint64]*sonm.Benchmark, bench *sonm.Benchmark, proportio
 			target.Result = bench.Result
 		}
 	case sonm.SplittingAlgorithm_MIN:
-		if wasSet && bench.Result < target.Result {
+		if bench.Result < target.Result {
 			target.Result = bench.Result
 		}
 	}
