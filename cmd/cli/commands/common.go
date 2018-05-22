@@ -44,7 +44,7 @@ var (
 	details       bool
 
 	// session-related vars
-	cfg        config.Config
+	cfg        *config.Config
 	sessionKey *ecdsa.PrivateKey = nil
 	creds      credentials.TransportCredentials
 )
@@ -60,7 +60,7 @@ func init() {
 }
 
 // Root configure and return root command
-func Root(appVersion string, c config.Config) *cobra.Command {
+func Root(appVersion string, c *config.Config) *cobra.Command {
 	version = appVersion
 	cfg = c
 

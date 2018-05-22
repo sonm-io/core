@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/stretchr/testify/assert"
 )
@@ -13,8 +12,9 @@ import (
 func initRootCmd(t *testing.T, ver, outFormat string) *bytes.Buffer {
 	buf := new(bytes.Buffer)
 
-	cfg := config.NewMockConfig(gomock.NewController(t))
-	cfg.EXPECT().OutputFormat().AnyTimes().Return(outFormat)
+	cfg := &config.Config{
+		OutFormat: outFormat,
+	}
 
 	Root(ver, cfg)
 
