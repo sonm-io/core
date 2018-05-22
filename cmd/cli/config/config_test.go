@@ -79,8 +79,7 @@ func TestConfigCannotRead(t *testing.T) {
 }
 
 func TestGetConfigPath(t *testing.T) {
-	cfg := &cliConfig{}
-	p, err := cfg.getConfigPath("/tmp")
+	p, err := getConfigPath("/tmp")
 
 	require.NoError(t, err)
 	assert.Equal(t, "/tmp/cli.yaml", p)
