@@ -147,7 +147,7 @@ func (m *benchValue) Value() uint64 {
 	return m.value
 }
 
-func appendBenchmark(to map[uint64]*sonm.Benchmark, bench *sonm.Benchmark, proportion float64) {
+func insertBench(to map[uint64]*sonm.Benchmark, bench *sonm.Benchmark, proportion float64) {
 	if math.IsNaN(proportion) || math.IsInf(proportion, 0) {
 		proportion = 0.0
 	}
@@ -194,7 +194,11 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 	return sonm.NewBenchmarks(resultBenchmarks)
 }
 
-func (h *Hardware) LimitTo(resources *sonm.AskPlanResources) *Hardware {
+// This one is very similar to ResourcesToBenchmarkMap
+// except it stores corresponding benchmarks in corresponding devices.
+// This can not be simply reused due to MIN splitting algorithm (e.g. GPU mem - in this case it is stored separately)
+// TODO: find a way to refactor all this shit.
+func (h *Hardware) LimitTo(resources *sonm.AskPlanResources) (*Hardware, error) {
 	hardware := &Hardware{
 		CPU: &sonm.CPU{Device: h.CPU.Device, Benchmarks: map[uint64]*sonm.Benchmark{}},
 		GPU: []*sonm.GPU{},
@@ -213,7 +217,48 @@ func (h *Hardware) LimitTo(resources *sonm.AskPlanResources) *Hardware {
 		hardware.GPU = append(hardware.GPU, &sonm.GPU{Device: gpu.Device, Benchmarks: map[uint64]*sonm.Benchmark{}})
 	}
 
-	benchMap := 
+	for _, hash := range resources.GetGPU().GetHashes() {
+		found := false
+		for idx, gpu := range h.GPU {
+			if gpu.GetDevice().GetHash() == hash {
+				for _, bench := range gpu.GetBenchmarks() {
+					insertBench(hardware.GPU[idx].Benchmarks, bench, 1.0)
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("unknown hash in passed resources: %s", hash)
+		}
+	}
+
+	proportion := float64(resources.GetCPU().GetCorePercents()) / float64(h.CPU.GetDevice().GetCores()) / 100
+	for _, bench := range h.CPU.GetBenchmarks() {
+		insertBench(hardware.CPU.Benchmarks, bench, proportion)
+	}
+
+	proportion = float64(resources.GetStorage().GetSize().GetBytes()) / float64(h.Storage.GetDevice().GetBytesAvailable())
+	for _, bench := range h.Storage.GetBenchmarks() {
+		insertBench(hardware.Storage.Benchmarks, bench, proportion)
+	}
+
+	proportion = float64(resources.GetRAM().GetSize().GetBytes()) / float64(h.RAM.GetDevice().GetAvailable())
+	for _, bench := range h.RAM.GetBenchmarks() {
+		insertBench(hardware.RAM.Benchmarks, bench, proportion)
+	}
+
+	proportion = float64(resources.GetNetwork().GetThroughputIn().GetBitsPerSecond()) / float64(h.Network.GetIn())
+	for _, bench := range h.Network.GetBenchmarksIn() {
+		insertBench(hardware.Network.BenchmarksIn, bench, proportion)
+	}
+
+	proportion = float64(resources.GetNetwork().GetThroughputOut().GetBitsPerSecond()) / float64(h.Network.GetOut())
+	for _, bench := range h.Network.GetBenchmarksOut() {
+		insertBench(hardware.Network.BenchmarksOut, bench, proportion)
+	}
+
+	return hardware, nil
 }
 
 func (h *Hardware) ResourcesToBenchmarkMap(resources *sonm.AskPlanResources) (benchmarks map[uint64]*sonm.Benchmark, err error) {
@@ -235,7 +280,7 @@ func (h *Hardware) ResourcesToBenchmarkMap(resources *sonm.AskPlanResources) (be
 		for _, gpu := range h.GPU {
 			if gpu.GetDevice().GetHash() == hash {
 				for _, bench := range gpu.GetBenchmarks() {
-					appendBenchmark(benchmarks, bench, 1.0)
+					insertBench(benchmarks, bench, 1.0)
 				}
 				found = true
 				break
@@ -248,27 +293,27 @@ func (h *Hardware) ResourcesToBenchmarkMap(resources *sonm.AskPlanResources) (be
 
 	proportion := float64(resources.GetCPU().GetCorePercents()) / float64(h.CPU.GetDevice().GetCores()) / 100
 	for _, bench := range h.CPU.GetBenchmarks() {
-		appendBenchmark(benchmarks, bench, proportion)
+		insertBench(benchmarks, bench, proportion)
 	}
 
 	proportion = float64(resources.GetStorage().GetSize().GetBytes()) / float64(h.Storage.GetDevice().GetBytesAvailable())
 	for _, bench := range h.Storage.GetBenchmarks() {
-		appendBenchmark(benchmarks, bench, proportion)
+		insertBench(benchmarks, bench, proportion)
 	}
 
 	proportion = float64(resources.GetRAM().GetSize().GetBytes()) / float64(h.RAM.GetDevice().GetAvailable())
 	for _, bench := range h.RAM.GetBenchmarks() {
-		appendBenchmark(benchmarks, bench, proportion)
+		insertBench(benchmarks, bench, proportion)
 	}
 
 	proportion = float64(resources.GetNetwork().GetThroughputIn().GetBitsPerSecond()) / float64(h.Network.GetIn())
 	for _, bench := range h.Network.GetBenchmarksIn() {
-		appendBenchmark(benchmarks, bench, proportion)
+		insertBench(benchmarks, bench, proportion)
 	}
 
 	proportion = float64(resources.GetNetwork().GetThroughputOut().GetBitsPerSecond()) / float64(h.Network.GetOut())
 	for _, bench := range h.Network.GetBenchmarksOut() {
-		appendBenchmark(benchmarks, bench, proportion)
+		insertBench(benchmarks, bench, proportion)
 	}
 
 	return benchmarks, nil

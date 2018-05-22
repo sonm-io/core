@@ -392,14 +392,16 @@ func (m *Worker) Status(ctx context.Context, _ *pb.Empty) (*pb.StatusReply, erro
 // that can be turned into ask-plans.
 // TODO: Looks like DevicesReply is not really suitable here
 func (m *Worker) FreeDevices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
-	hardware := deepcopy.Copy(m.hardware).(*hardware.Hardware)
 	resources, err := m.resources.GetFree()
 	if err != nil {
 		return nil, err
 	}
-	benches := hardware.ResourcesToBenchmarks(resources)
+	hardware, err := m.hardware.LimitTo(resources)
+	if err != nil {
+		return nil, err
+	}
 
-	return m.hardware.IntoProto(), nil
+	return hardware.IntoProto(), nil
 }
 
 func (m *Worker) scheduleStatusPurge(id string) {
