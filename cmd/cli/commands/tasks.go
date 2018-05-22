@@ -120,7 +120,7 @@ var taskStartCmd = &cobra.Command{
 	PreRun: loadKeyStoreWrapper,
 	Args:   cobra.MinimumNArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := newTimeoutContext()
+		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		node, err := newTaskClient(ctx)
