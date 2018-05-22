@@ -12,7 +12,10 @@ import (
 	"github.com/sonm-io/core/util"
 )
 
-const defaultKeystorePath = ".sonm/keystore/"
+const (
+	HomeConfigDir       = ".sonm"
+	DefaultKeystorePath = "keystore"
+)
 
 var (
 	errNoKeystoreDir = errors.New("keystore directory does not exist")
@@ -62,7 +65,7 @@ func (o *defaultKeyOpener) OpenKeystore() (bool, error) {
 		}
 	}()
 
-	if !util.DirectoryExists(o.keyDirPath) {
+	if !util.FileExists(o.keyDirPath) {
 		return false, errNoKeystoreDir
 	}
 
@@ -198,7 +201,7 @@ func DefaultKeyOpener(p Printer, keyDir, passPhrase string) (KeyOpener, error) {
 	var err error
 	// use default key store dir if not specified in config
 	if keyDir == "" {
-		keyDir, err = getDefaultKeyStorePath()
+		keyDir, err = GetDefaultKeyStoreDir()
 		if err != nil {
 			return nil, err
 		}
@@ -206,7 +209,7 @@ func DefaultKeyOpener(p Printer, keyDir, passPhrase string) (KeyOpener, error) {
 
 	p.Printf("Using %s as KeyStore directory\r\n", keyDir)
 
-	if !util.DirectoryExists(keyDir) {
+	if !util.FileExists(keyDir) {
 		p.Printf("KeyStore directory does not exist, try to create it...\r\n")
 		err = os.MkdirAll(keyDir, 0700)
 		if err != nil {
@@ -226,16 +229,17 @@ func DefaultKeyOpener(p Printer, keyDir, passPhrase string) (KeyOpener, error) {
 	return ko, nil
 }
 
-func getDefaultKeyStorePath() (string, error) {
+func GetDefaultKeyStoreDir() (string, error) {
 	home, err := util.GetUserHomeDir()
 	if err != nil {
 		return "", err
 	}
 
-	keyDir := path.Join(home, defaultKeystorePath)
+	keyDir := path.Join(home, HomeConfigDir, DefaultKeystorePath)
 	return keyDir, nil
 }
 
+// todo: move this code onto (c *EthConfig) LoadKey(options ...Option)
 func LoadKeys(keystore, passphrase string, options ...Option) (*ecdsa.PrivateKey, error) {
 	opts := newOptions()
 	for _, o := range options {

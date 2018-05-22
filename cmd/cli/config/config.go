@@ -12,7 +12,6 @@ import (
 const (
 	OutputModeSimple = "simple"
 	OutputModeJSON   = "json"
-	homeConfigDir    = ".sonm"
 	configName       = "cli.yaml"
 )
 
@@ -38,16 +37,21 @@ func (cc *cliConfig) PassPhrase() string {
 }
 
 func (cc *cliConfig) KeyStore() string {
+	if cc.Eth.Keystore == "" {
+		d, _ := accounts.GetDefaultKeyStoreDir()
+		return d
+	}
+
 	return cc.Eth.Keystore
 }
 
-func (cc *cliConfig) getDefaultConfigDir() (string, error) {
+func GetDefaultConfigDir() (string, error) {
 	currentUser, err := user.Current()
 	if err != nil {
 		return "", err
 	}
 
-	dir := path.Join(currentUser.HomeDir, homeConfigDir)
+	dir := path.Join(currentUser.HomeDir, accounts.HomeConfigDir)
 	return dir, nil
 }
 
@@ -58,7 +62,7 @@ func (cc *cliConfig) getConfigPath(p ...string) (string, error) {
 	if len(p) > 0 && p[0] != "" {
 		cfgPath = p[0]
 	} else {
-		cfgPath, err = cc.getDefaultConfigDir()
+		cfgPath, err = GetDefaultConfigDir()
 		if err != nil {
 			return "", err
 		}
