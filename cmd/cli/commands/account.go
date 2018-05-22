@@ -1,16 +1,10 @@
 package commands
 
 import (
-	"fmt"
-	"io/ioutil"
 	"os"
-	"path"
 
-	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/sonm-io/core/accounts"
-	"github.com/sonm-io/core/cmd/cli/config"
-	"github.com/sonm-io/core/util"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/spf13/cobra"
 )
 
@@ -32,25 +26,26 @@ var accountsRootCmd = &cobra.Command{
 }
 
 var accountsListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Show Ethereum accounts list",
+	Use:    "list",
+	Short:  "Show Ethereum accounts list",
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, _ []string) {
-		defaultAddr := getDefaultAccount()
-		ks := keystore.NewKeyStore(cfg.KeyStore(), keystore.LightScryptN, keystore.LightScryptP)
+		accounts, err := keystore.List()
+		if err != nil {
+			showError(cmd, "cannot obtain accounts list", err)
+			os.Exit(1)
+		}
 
-		// TODO(sshaman1101): make if JSON-friendly
-		if len(ks.Accounts()) == 0 {
+		if len(accounts) == 0 {
 			cmd.Println("keystore is empty")
 			return
 		}
 
-		if len(ks.Accounts()) == 1 {
-			// we have only one account, to be backward compatible set
-			// this acc as default.
-			setDefaultKey(ks.Accounts()[0].Address)
-		}
+		// todo: JSON-friendly
+		defaultKey, _ := keystore.GetDefault()
+		defaultAddr := crypto.PubkeyToAddress(defaultKey.PublicKey)
 
-		for idx, acc := range ks.Accounts() {
+		for idx, acc := range accounts {
 			prefix := "  "
 			if acc.Address.Big().Cmp(defaultAddr.Big()) == 0 {
 				prefix = "* "
@@ -61,80 +56,47 @@ var accountsListCmd = &cobra.Command{
 }
 
 var accountsCreateCmd = &cobra.Command{
-	Use:   "create",
-	Short: "Create new Ethereum account",
+	Use:    "create",
+	Short:  "Create new Ethereum account",
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, _ []string) {
-		pf := accounts.NewInteractivePassPhraser()
-		pass, err := pf.GetPassPhrase()
-		if err != nil {
-			showError(cmd, "Cannot read pass phrase", err)
-			os.Exit(1)
-		}
-
-		ks := keystore.NewKeyStore(cfg.KeyStore(), keystore.LightScryptN, keystore.LightScryptP)
-		// set key as default key it is first key in storage
-		setDefault := len(ks.Accounts()) == 0
-
-		acc, err := ks.NewAccount(pass)
+		key, err := keystore.Generate()
 		if err != nil {
 			showError(cmd, "Cannot create account", err)
 			os.Exit(1)
 		}
 
-		if setDefault {
-			setDefaultKey(acc.Address)
-		}
-
 		// todo: JSON-friendly
-		cmd.Printf("New account address = %s\r\n", acc.Address.Hex())
+		cmd.Printf("New account address = %s\r\n", crypto.PubkeyToAddress(key.PublicKey).Hex())
 	},
 }
 
 var accountsImportCmd = &cobra.Command{
-	Use:   "import <key.json>",
-	Short: "Import exiting Ethereum account",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "import <key.json>",
+	Short:  "Import exiting Ethereum account",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		keyPath := args[0]
-
-		if !util.DirectoryExists(keyPath) {
-			showError(cmd, "File not exists", nil)
-			os.Exit(1)
-		}
-
-		keyData, err := ioutil.ReadFile(keyPath)
-		if err != nil {
-			showError(cmd, "Cannot read key file", err)
-			os.Exit(1)
-		}
-
-		pf := accounts.NewInteractivePassPhraser()
-		pass, err := pf.GetPassPhrase()
-		if err != nil {
-			showError(cmd, "Cannot read pass phrase", err)
-			os.Exit(1)
-		}
-
-		ks := keystore.NewKeyStore(cfg.KeyStore(), keystore.LightScryptN, keystore.LightScryptP)
-		acc, err := ks.Import(keyData, pass, pass)
+		addr, err := keystore.Import(args[0])
 		if err != nil {
 			showError(cmd, "Cannot import account", err)
 			os.Exit(1)
 		}
 
 		if setImportAccountAsDefault {
-			setDefaultKey(acc.Address)
+			keystore.SetDefault(addr)
 		}
 
 		// TODO(sshaman1101): json-friendly
-		cmd.Printf("Successfully imported account \"%s\"\n", acc.Address.Hex())
+		cmd.Printf("Successfully imported account \"%s\"\n", addr.Hex())
 	},
 }
 
 var accountsSetDefaultCmd = &cobra.Command{
-	Use:   "set-default <addr>",
-	Short: "Set default account for keystore",
-	Args:  cobra.MinimumNArgs(1),
+	Use:    "set-default <addr>",
+	Short:  "Set default account for keystore",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		if !common.IsHexAddress(args[0]) {
 			showError(cmd, "Given parameter is not an Ethereum address", nil)
@@ -142,58 +104,12 @@ var accountsSetDefaultCmd = &cobra.Command{
 		}
 
 		addr := common.HexToAddress(args[0])
-		ks := keystore.NewKeyStore(cfg.KeyStore(), keystore.LightScryptN, keystore.LightScryptP)
-		for _, acc := range ks.Accounts() {
-			// use ks.HasAddress()
-			if acc.Address.Big().Cmp(addr.Big()) == 0 {
-				setDefaultKey(acc.Address)
-				cmd.Printf("Using \"%s\" as default account\n", acc.Address.Hex())
-				return
-			}
+		if err := keystore.SetDefault(addr); err != nil {
+			showError(cmd, "Cannot set default address", nil)
+			os.Exit(1)
 		}
 
-		showError(cmd, "Given address does not exists in keystore", nil)
-		os.Exit(1)
+		// todo: JSON?
+		cmd.Printf("Using \"%s\" as default account\n", addr.Hex())
 	},
-}
-
-func getDefaultAccount() common.Address {
-	p, err := config.GetDefaultConfigDir()
-	if err != nil {
-		fmt.Printf(" >>> cannot get default config dir: %v\n", err)
-		return common.Address{}
-	}
-
-	stateFile := path.Join(p, "context")
-	if !util.DirectoryExists(stateFile) {
-		fmt.Printf(" >>> context file not exists\n")
-		return common.Address{}
-	}
-
-	data, err := ioutil.ReadFile(stateFile)
-	if err != nil {
-		fmt.Printf(" >>> cannot read file: %v\n", err)
-		return common.Address{}
-	}
-
-	if !common.IsHexAddress(string(data)) {
-		fmt.Printf(" >>> value is not CommonAddress \n")
-		return common.Address{}
-	}
-
-	return common.HexToAddress(string(data))
-}
-
-func setDefaultKey(addr common.Address) {
-	p, err := config.GetDefaultConfigDir()
-	if err != nil {
-		fmt.Printf(" >>> cannot get default config dir: %v\n", err)
-		return
-	}
-
-	stateFile := path.Join(p, "context")
-	fmt.Printf(" >>> writing state to %s\n", stateFile)
-	if err := ioutil.WriteFile(stateFile, []byte(addr.Hex()), 0600); err != nil {
-		fmt.Printf(" >>> cannot write state %v\n", err)
-	}
 }

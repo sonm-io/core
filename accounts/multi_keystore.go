@@ -26,20 +26,20 @@ func (cfg *KeystoreConfig) getStateFilePath() string {
 	return path.Join(cfg.getStateFileDir(), "data")
 }
 
-type multiKeystore struct {
+type MultiKeystore struct {
 	cfg        *KeystoreConfig
 	keyStore   *keystore.KeyStore
 	passReader PassPhraser
 }
 
-func NewMultiKeystore(cfg *KeystoreConfig, pf PassPhraser) (*multiKeystore, error) {
+func NewMultiKeystore(cfg *KeystoreConfig, pf PassPhraser) (*MultiKeystore, error) {
 	ks := keystore.NewKeyStore(
 		cfg.KeyDir,
 		keystore.LightScryptN,
 		keystore.LightScryptP,
 	)
 
-	return &multiKeystore{
+	return &MultiKeystore{
 		cfg:        cfg,
 		keyStore:   ks,
 		passReader: pf,
@@ -47,12 +47,12 @@ func NewMultiKeystore(cfg *KeystoreConfig, pf PassPhraser) (*multiKeystore, erro
 }
 
 // List returns list of accounts addresses into keystore
-func (m *multiKeystore) List() ([]accounts.Account, error) {
+func (m *MultiKeystore) List() ([]accounts.Account, error) {
 	return m.keyStore.Accounts(), nil
 }
 
 // Generate creates new key into keystore
-func (m *multiKeystore) Generate() (*ecdsa.PrivateKey, error) {
+func (m *MultiKeystore) Generate() (*ecdsa.PrivateKey, error) {
 	pass, err := m.passReader.GetPassPhrase()
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot read pass phrase")
@@ -74,7 +74,7 @@ func (m *multiKeystore) Generate() (*ecdsa.PrivateKey, error) {
 }
 
 // GetKeyByAddress loads and decrypts key form keystore (if present)
-func (m *multiKeystore) GetKeyByAddress(addr common.Address) (*ecdsa.PrivateKey, error) {
+func (m *MultiKeystore) GetKeyByAddress(addr common.Address) (*ecdsa.PrivateKey, error) {
 	for _, acc := range m.keyStore.Accounts() {
 		if acc.Address.Big().Cmp(addr.Big()) == 0 {
 			return m.readAccount(acc)
@@ -85,7 +85,7 @@ func (m *multiKeystore) GetKeyByAddress(addr common.Address) (*ecdsa.PrivateKey,
 }
 
 // GetDefault returns default key for the keystore
-func (m *multiKeystore) GetDefault() (*ecdsa.PrivateKey, error) {
+func (m *MultiKeystore) GetDefault() (*ecdsa.PrivateKey, error) {
 	if len(m.keyStore.Accounts()) == 0 {
 		return nil, errors.New("no accounts present into keystore")
 	}
@@ -100,12 +100,12 @@ func (m *multiKeystore) GetDefault() (*ecdsa.PrivateKey, error) {
 }
 
 // SetDefault marks key as default for keystore
-func (m *multiKeystore) SetDefault(addr common.Address) error {
+func (m *MultiKeystore) SetDefault(addr common.Address) error {
 	return m.setDefaultAccount(addr)
 }
 
 // Import imports exiting key file into keystore
-func (m *multiKeystore) Import(path string) (common.Address, error) {
+func (m *MultiKeystore) Import(path string) (common.Address, error) {
 	if !util.FileExists(path) {
 		return common.Address{}, errors.New("key file does not exists")
 	}
@@ -128,7 +128,7 @@ func (m *multiKeystore) Import(path string) (common.Address, error) {
 	return acc.Address, nil
 }
 
-func (m *multiKeystore) readAccount(acc accounts.Account) (*ecdsa.PrivateKey, error) {
+func (m *MultiKeystore) readAccount(acc accounts.Account) (*ecdsa.PrivateKey, error) {
 	file, err := ioutil.ReadFile(acc.URL.Path)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot open account file")
@@ -151,7 +151,7 @@ func (m *multiKeystore) readAccount(acc accounts.Account) (*ecdsa.PrivateKey, er
 	return key.PrivateKey, nil
 }
 
-func (m *multiKeystore) getDefaultAddress() (common.Address, error) {
+func (m *MultiKeystore) getDefaultAddress() (common.Address, error) {
 	if !util.FileExists(m.cfg.getStateFilePath()) {
 		return common.Address{}, errors.New("cannot find keystore's state")
 	}
@@ -169,7 +169,7 @@ func (m *multiKeystore) getDefaultAddress() (common.Address, error) {
 	return addr, nil
 }
 
-func (m *multiKeystore) setDefaultAccount(addr common.Address) error {
+func (m *MultiKeystore) setDefaultAccount(addr common.Address) error {
 	if !util.FileExists(m.cfg.getStateFileDir()) {
 		if err := os.MkdirAll(m.cfg.getStateFileDir(), 0700); err != nil {
 			return errors.WithMessage(err, "cannot create dir for state")

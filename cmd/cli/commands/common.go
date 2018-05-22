@@ -2,14 +2,12 @@ package commands
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"time"
 
-	"github.com/ethereum/go-ethereum/accounts/keystore"
+	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util"
@@ -36,6 +34,7 @@ var (
 	outputModeFlag  string
 	timeoutFlag     = 60 * time.Second
 	insecureFlag    bool
+	keystoreFlag    string
 
 	// logging flag vars
 	logType       string
@@ -46,9 +45,10 @@ var (
 	details       bool
 
 	// session-related vars
-	cfg        config.Config
-	sessionKey *ecdsa.PrivateKey = nil
-	creds      credentials.TransportCredentials
+	cfg config.Config
+	// sessionKey *ecdsa.PrivateKey = nil // todo: remove, use keystore instead
+	creds    credentials.TransportCredentials
+	keystore *accounts.MultiKeystore
 )
 
 func init() {
@@ -56,6 +56,7 @@ func init() {
 	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
 	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "Disable TLS for connection")
+	rootCmd.PersistentFlags().StringVar(&keystoreFlag, "keystore", "", "Keystore dir")
 
 	rootCmd.AddCommand(workerMgmtCmd, marketRootCmd, nodeDealsRootCmd, taskRootCmd)
 	rootCmd.AddCommand(accountsRootCmd, getTokenCmd, getBalanceCmd, versionCmd, autoCompleteCmd, masterRootCmd)
@@ -141,48 +142,43 @@ func isSimpleFormat() bool {
 	return true
 }
 
+func keystorePath() string {
+	var err error
+	p := rootCmd.Flag("keystore").Value.String()
+	if p == "" {
+		// TODO(sshaman1101): check that this really works as expected
+		p, err = accounts.GetDefaultKeyStoreDir()
+		if err != nil {
+			showError(rootCmd, "cannot obtain default keystore dir", err)
+			os.Exit(1)
+		}
+	}
+
+	fmt.Printf("  >>> keystore path = %s\n", p)
+	return p
+}
+
 // loadKeyStoreWrapper implemented to match cobra.Command.PreRun signature.
 //
 // Function loads and opens keystore. Also, storing opened key in "sessionKey" var
 // to be able to reuse it into cli during one session.
 func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
-	ks := keystore.NewKeyStore(cfg.KeyStore(), keystore.LightScryptN, keystore.LightScryptP)
-	if len(ks.Accounts()) == 0 {
-		showError(cmd, fmt.Sprintf("keystore at \"%s\" have no accounts", cfg.KeyStore()), nil)
-		os.Exit(1)
-	}
+	var err error
+	keystore, err = accounts.NewMultiKeystore(&accounts.KeystoreConfig{
+		KeyDir:      keystorePath(),
+		PassPhrases: nil,
+	}, accounts.NewInteractivePassPhraser())
 
-	keyPath := ""
-	if len(ks.Accounts()) > 0 {
-		defaultAcc := getDefaultAccount()
-		for _, acc := range ks.Accounts() {
-			if acc.Address.Big().Cmp(defaultAcc.Big()) == 0 {
-				keyPath = acc.URL.Path
-				break
-			}
-		}
-
-		if keyPath == "" {
-			// key still not found, use first available
-			keyPath = ks.Accounts()[0].URL.Path
-		}
-	}
-
-	fmt.Printf(" >>> using %s as key path\n", keyPath)
-
-	file, err := ioutil.ReadFile(keyPath)
 	if err != nil {
-		showError(cmd, "Cannot open account", err)
+		showError(cmd, "cannot create keystore instance", err)
 		os.Exit(1)
 	}
 
-	key, err := keystore.DecryptKey(file, cfg.PassPhrase())
+	sessionKey, err := keystore.GetDefault()
 	if err != nil {
-		showError(cmd, "Cannot decrypt key", err)
+		showError(cmd, "cannot read default key, use `accounts create` or `accounts import`", err)
 		os.Exit(1)
 	}
-
-	sessionKey = key.PrivateKey
 
 	// If an insecure flag is set - we do not require TLS auth.
 	// But we still need to load keys from a store, somewhere keys are used
