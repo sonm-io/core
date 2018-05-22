@@ -887,6 +887,30 @@ func (c *sqlStorage) UpdateLastKnownBlock(conn queryConn, blockNumber int64) err
 	return err
 }
 
+func (c *sqlStorage) StoreStaleID(conn queryConn, id *big.Int, entity string) error {
+	_, err := conn.Exec(c.commands.storeStaleID, fmt.Sprintf("%s_%s", entity, id.String()))
+	return err
+}
+
+func (c *sqlStorage) RemoveStaleID(conn queryConn, id *big.Int, entity string) error {
+	_, err := conn.Exec(c.commands.removeStaleID, fmt.Sprintf("%s_%s", entity, id.String()))
+	return err
+}
+
+func (c *sqlStorage) CheckStaleID(conn queryConn, id *big.Int, entity string) (bool, error) {
+	rows, err := conn.Query(c.commands.checkStaleID, fmt.Sprintf("%s_%s", entity, id.String()))
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return false, nil
+	}
+
+	return true, nil
+}
+
 func (c *sqlStorage) addBenchmarksConditions(benches map[uint64]*pb.MaxMinUint64, filters *[]*filter) {
 	for benchID, condition := range benches {
 		if condition.Max > 0 {
@@ -1340,6 +1364,9 @@ type sqlCommands struct {
 	selectLastKnownBlock         string
 	insertLastKnownBlock         string
 	updateLastKnownBlock         string
+	storeStaleID                 string
+	removeStaleID                string
+	checkStaleID                 string
 }
 
 type sqlSetupCommands struct {
@@ -1354,6 +1381,7 @@ type sqlSetupCommands struct {
 	createTableCertificates   string
 	createTableProfiles       string
 	createTableMisc           string
+	createTableStaleIDs       string
 	createIndexCmd            string
 	tablesInfo                *tablesInfo
 }
@@ -1409,6 +1437,11 @@ func (c *sqlSetupCommands) setupTables(db *sql.DB) error {
 		return errors.Wrapf(err, "failed to %s", c.createTableProfiles)
 	}
 
+	_, err = db.Exec(c.createTableStaleIDs)
+	if err != nil {
+		return errors.Wrapf(err, "failed to %s", c.createTableStaleIDs)
+	}
+
 	_, err = db.Exec(c.createTableMisc)
 	if err != nil {
 		return errors.Wrapf(err, "failed to %s", c.createTableMisc)
@@ -1459,6 +1492,9 @@ func (c *sqlSetupCommands) createIndices(db *sql.DB) error {
 		if err = c.createIndex(db, c.createIndexCmd, "Profiles", column); err != nil {
 			return err
 		}
+	}
+	if err = c.createIndex(db, c.createIndexCmd, "StaleIDs", "Id"); err != nil {
+		return err
 	}
 
 	return nil
