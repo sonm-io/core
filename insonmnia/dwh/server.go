@@ -125,7 +125,7 @@ func (w *DWH) Serve() error {
 
 	if w.cfg.ColdStart != nil {
 		if err := w.coldStart(); err != nil {
-			w.logger.Warn("failed to coldStart", zap.Error(err))
+			w.logger.Warn("failed to coldStart", util.LaconicError(err))
 			return errors.Wrap(err, "failed to coldStart")
 		}
 	}
@@ -186,7 +186,7 @@ func (w *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 
 	deals, count, err := w.storage.GetDeals(conn, request)
 	if err != nil {
-		w.logger.Warn("failed to GetDeals", zap.Error(err), zap.Any("request", *request))
+		w.logger.Warn("failed to GetDeals", util.LaconicError(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDeals")
 	}
 
@@ -199,7 +199,7 @@ func (w *DWH) GetDealDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHDe
 
 	out, err := w.storage.GetDealByID(conn, request.Unwrap())
 	if err != nil {
-		w.logger.Warn("failed to GetDealDetails", zap.Error(err), zap.Any("request", *request))
+		w.logger.Warn("failed to GetDealDetails", util.LaconicError(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDealDetails")
 	}
 
@@ -212,7 +212,7 @@ func (w *DWH) GetDealConditions(ctx context.Context, request *pb.DealConditionsR
 
 	dealConditions, count, err := w.storage.GetDealConditions(conn, request)
 	if err != nil {
-		w.logger.Warn("failed to GetDealConditions", zap.Error(err), zap.Any("request", *request))
+		w.logger.Warn("failed to GetDealConditions", util.LaconicError(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDealConditions")
 	}
 
@@ -225,7 +225,7 @@ func (w *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 
 	orders, count, err := w.storage.GetOrders(conn, request)
 	if err != nil {
-		w.logger.Warn("failed to GetOrders", zap.Error(err), zap.Any("request", *request))
+		w.logger.Warn("failed to GetOrders", util.LaconicError(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetOrders")
 	}
 
@@ -238,7 +238,7 @@ func (w *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 
 	orders, count, err := w.storage.GetMatchingOrders(conn, request)
 	if err != nil {
-		w.logger.Warn("failed to GetMatchingOrders", zap.Error(err), zap.Any("request", *request))
+		w.logger.Warn("failed to GetMatchingOrders", util.LaconicError(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetMatchingOrders")
 	}
 
@@ -251,7 +251,7 @@ func (w *DWH) GetOrderDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHO
 
 	out, err := w.storage.GetOrderByID(conn, request.Unwrap())
 	if err != nil {
-		w.logger.Warn("failed to GetOrderDetails", zap.Error(err), zap.Any("request", *request))
+		w.logger.Warn("failed to GetOrderDetails", util.LaconicError(err), zap.Any("request", *request))
 		return nil, errors.Wrap(err, "failed to GetOrderDetails")
 	}
 
@@ -264,7 +264,7 @@ func (w *DWH) GetProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 
 	profiles, count, err := w.storage.GetProfiles(conn, request)
 	if err != nil {
-		w.logger.Warn("failed to GetProfiles", zap.Error(err), zap.Any("request", *request))
+		w.logger.Warn("failed to GetProfiles", util.LaconicError(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetProfiles")
 	}
 
@@ -277,7 +277,7 @@ func (w *DWH) GetProfileInfo(ctx context.Context, request *pb.EthID) (*pb.Profil
 
 	out, err := w.storage.GetProfileByID(conn, request.GetId().Unwrap())
 	if err != nil {
-		w.logger.Warn("failed to GetProfileInfo", zap.Error(err), zap.Any("request", *request))
+		w.logger.Warn("failed to GetProfileInfo", util.LaconicError(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetProfileInfo")
 	}
 
@@ -290,7 +290,7 @@ func (w *DWH) GetBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 
 	out, err := w.storage.GetBlacklist(conn, request)
 	if err != nil {
-		w.logger.Warn("failed to GetBlacklist", zap.Error(err), zap.Any("request", *request))
+		w.logger.Warn("failed to GetBlacklist", util.LaconicError(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetBlacklist")
 	}
 
@@ -303,7 +303,7 @@ func (w *DWH) GetValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 
 	validators, count, err := w.storage.GetValidators(conn, request)
 	if err != nil {
-		w.logger.Warn("failed to GetValidators", zap.Error(err), zap.Any("request", *request))
+		w.logger.Warn("failed to GetValidators", util.LaconicError(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetValidators")
 	}
 
@@ -316,7 +316,7 @@ func (w *DWH) GetDealChangeRequests(ctx context.Context, request *pb.BigInt) (*p
 
 	out, err := w.getDealChangeRequests(conn, request)
 	if err != nil {
-		w.logger.Error("failed to GetDealChangeRequests", zap.Error(err), zap.Any("request", *request))
+		w.logger.Error("failed to GetDealChangeRequests", util.LaconicError(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDealChangeRequests")
 	}
 
@@ -333,7 +333,7 @@ func (w *DWH) GetWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 
 	workers, count, err := w.storage.GetWorkers(conn, request)
 	if err != nil {
-		w.logger.Error("failed to GetWorkers", zap.Error(err), zap.Any("request", *request))
+		w.logger.Error("failed to GetWorkers", util.LaconicError(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetWorkers")
 	}
 
@@ -350,7 +350,7 @@ func (w *DWH) monitorBlockchain() error {
 			return nil
 		default:
 			if err := w.watchMarketEvents(); err != nil {
-				w.logger.Warn("failed to watch market events, retrying", zap.Error(err))
+				w.logger.Warn("failed to watch market events, retrying", util.LaconicError(err))
 			}
 		}
 	}
@@ -406,7 +406,7 @@ func (w *DWH) runEventWorker(workerID int, events chan *blockchain.Event) {
 				return
 			}
 			if err := w.processEvent(event); err != nil {
-				w.logger.Warn("failed to processEvent, retrying", zap.Error(err),
+				w.logger.Warn("failed to processEvent, retrying", util.LaconicError(err),
 					zap.Uint64("block_number", event.BlockNumber),
 					zap.String("event_type", reflect.TypeOf(event.Data).String()),
 					zap.Any("event_data", event.Data), zap.Int("worker_id", workerID))
@@ -468,7 +468,7 @@ func (w *DWH) retryEvent(event *blockchain.Event) {
 		return
 	case <-timer.C:
 		if err := w.processEvent(event); err != nil {
-			w.logger.Warn("failed to retry processEvent", zap.Error(err),
+			w.logger.Warn("failed to retry processEvent", util.LaconicError(err),
 				zap.Uint64("block_number", event.BlockNumber),
 				zap.String("event_type", reflect.TypeOf(event.Data).String()),
 				zap.Any("event_data", event.Data))
@@ -861,7 +861,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 	// If order was updated, but no deal is associated with it, delete the order.
 	if order.DealID.IsZero() {
 		if err := w.storage.DeleteOrder(conn, orderID); err != nil {
-			w.logger.Info("failed to delete Order (possibly old log entry)", zap.Error(err),
+			w.logger.Info("failed to delete Order (possibly old log entry)", util.LaconicError(err),
 				zap.String("order_id", orderID.String()))
 		}
 	} else {
@@ -1242,14 +1242,14 @@ func (w *DWH) processBlockBoundary(event *blockchain.Event) {
 		go func(callbacks []func() error) {
 			for _, cb := range callbacks {
 				if err := cb(); err != nil {
-					w.logger.Warn("failed to execute cb after block end", zap.Error(err))
+					w.logger.Warn("failed to execute cb after block end", util.LaconicError(err))
 				}
 			}
 		}(w.blockEndCallbacks[:])
 		w.blockEndCallbacks = w.blockEndCallbacks[:0]
 		w.lastKnownBlock = event.BlockNumber
 		if err := w.updateLastKnownBlock(int64(event.BlockNumber)); err != nil {
-			w.logger.Warn("failed to updateLastKnownBlock", zap.Error(err),
+			w.logger.Warn("failed to updateLastKnownBlock", util.LaconicError(err),
 				zap.Uint64("block_number", event.BlockNumber))
 		}
 	}
