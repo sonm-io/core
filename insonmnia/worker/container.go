@@ -164,19 +164,20 @@ func (c *containerDescriptor) Kill() (err error) {
 	return nil
 }
 
-func (c *containerDescriptor) remove() {
-	containerRemove(c.ctx, c.client, c.ID)
+func (c *containerDescriptor) Remove() error {
+	return containerRemove(c.ctx, c.client, c.ID)
 }
 
 func (c *containerDescriptor) Cleanup() error {
 	return c.cleanup.Close()
 }
 
-func containerRemove(ctx context.Context, client client.APIClient, id string) {
+func containerRemove(ctx context.Context, client client.APIClient, id string) error {
 	removeOpts := types.ContainerRemoveOptions{}
 	if err := client.ContainerRemove(ctx, id, removeOpts); err != nil {
-		log.G(ctx).Error("failed to remove the container", zap.String("id", id), zap.Error(err))
+		return fmt.Errorf("failed to remove the container %s: %s", id, err)
 	}
+	return nil
 }
 
 func (c *containerDescriptor) upload() error {

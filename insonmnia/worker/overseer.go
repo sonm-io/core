@@ -185,6 +185,9 @@ type Overseer interface {
 	// Stop terminates the container.
 	Stop(ctx context.Context, containerID string) error
 
+	// Remove purges the container from fs.
+	Remove(ctx context.Context, containerID string) error
+
 	// Info returns runtime statistics collected from all running containers.
 	//
 	// Depending on the implementation this can be cached.
@@ -543,6 +546,16 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 	}
 
 	return descriptor.Kill()
+}
+
+func (o *overseer) Remove(ctx context.Context, containerID string) error {
+	o.mu.Lock()
+	descriptor, dok := o.containers[containerID]
+	if !dok {
+		return fmt.Errorf("no such container %s", containerID)
+	}
+	return descriptor.Remove()
+
 }
 
 func (o *overseer) Logs(ctx context.Context, id string, opts types.ContainerLogsOptions) (io.ReadCloser, error) {

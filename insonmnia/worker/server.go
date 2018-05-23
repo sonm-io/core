@@ -327,23 +327,28 @@ func (m *Worker) listenDeals(dealsCh <-chan *pb.Deal) {
 
 func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 	dealID := deal.GetId().Unwrap().String()
-	var toDelete []string
+	var toDelete []*ContainerInfo
 
 	m.mu.Lock()
 	for _, container := range m.containers {
 		if container.DealID == dealID {
-			toDelete = append(toDelete, container.ID)
+			toDelete = append(toDelete, container)
 		}
 	}
 	m.mu.Unlock()
 
-	var result error
-	for _, containerID := range toDelete {
-		if err := m.ovs.Stop(m.ctx, containerID); err != nil {
+	result := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	for _, container := range toDelete {
+		if container.status == pb.TaskStatusReply_RUNNING {
+			if err := m.ovs.Stop(m.ctx, container.ID); err != nil {
+				result = multierror.Append(result, err)
+			}
+		}
+		if err := m.ovs.Remove(m.ctx, container.ID); err != nil {
 			result = multierror.Append(result, err)
 		}
 	}
-	return result
+	return result.ErrorOrNil()
 }
 
 func (m *Worker) saveContainerInfo(id string, info ContainerInfo) {
@@ -413,19 +418,6 @@ func (m *Worker) FreeDevices(ctx context.Context, request *pb.Empty) (*pb.Device
 	return hardware.IntoProto(), nil
 }
 
-func (m *Worker) scheduleStatusPurge(id string) {
-	t := time.NewTimer(time.Second * 3600)
-	defer t.Stop()
-	select {
-	case <-t.C:
-		m.mu.Lock()
-		delete(m.containers, id)
-		m.mu.Unlock()
-	case <-m.ctx.Done():
-		return
-	}
-}
-
 func (m *Worker) setStatus(status *pb.TaskStatusReply, id string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -438,7 +430,6 @@ func (m *Worker) setStatus(status *pb.TaskStatusReply, id string) {
 	m.containers[id].status = status.GetStatus()
 	if status.Status == pb.TaskStatusReply_BROKEN || status.Status == pb.TaskStatusReply_FINISHED {
 		m.resources.ReleaseTask(id)
-		go m.scheduleStatusPurge(id)
 	}
 }
 
