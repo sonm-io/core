@@ -1,0 +1,10 @@
+build/
+node_modules/
+.idea/
+package-lock.json
+nohup.out
+coverageEnv/
+coverage/
+coverage.json
+scTopics
+allFiredEvents
