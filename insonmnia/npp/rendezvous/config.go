@@ -3,6 +3,7 @@ package rendezvous
 import (
 	"crypto/ecdsa"
 	"net"
+	"time"
 
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
@@ -46,5 +47,7 @@ func NewServerConfig(path string) (*ServerConfig, error) {
 }
 
 type Config struct {
-	Endpoints []auth.Addr
+	Endpoints             []auth.Addr   `yaml:"endpoints"`
+	MaxConnectionAttempts int           `yaml:"max_connection_attempts" default:"5"`
+	Timeout               time.Duration `yaml:"timeout" default:"1s"`
 }
