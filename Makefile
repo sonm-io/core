@@ -47,7 +47,7 @@ LDFLAGS = -X main.appVersion=$(FULL_VER)
 
 .PHONY: fmt vet test
 
-all: mock vet fmt build test
+all: mock vet fmt build test contracts
 
 build/worker:
 	@echo "+ $@"
@@ -126,6 +126,16 @@ fmt:
 test: mock
 	@echo "+ $@"
 	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor|blockchain')
+
+contracts:
+	@$(MAKE) -C blockchain/source all
+
+test_contracts:
+	@echo "+ $@"
+	@$(MAKE) -C blockchain/source test
+
+lint_contracts:
+	@$(MAKE) -C blockchain/source lint
 
 grpc:
 	@echo "+ $@"
