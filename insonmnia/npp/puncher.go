@@ -11,14 +11,10 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/libp2p/go-reuseport"
 	"github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
-)
-
-const (
-	maxConnectAttempts = 5
-	maxConnectTimeout  = 10 * time.Second
 )
 
 // NATPuncher describes an interface of NAT Punching Protocol.
@@ -59,7 +55,7 @@ type natPuncher struct {
 	timeout     time.Duration
 }
 
-func newNATPuncher(ctx context.Context, client *rendezvousClient) (NATPuncher, error) {
+func newNATPuncher(ctx context.Context, cfg rendezvous.Config, client *rendezvousClient) (NATPuncher, error) {
 	// It's important here to reuse the Rendezvous client local address for
 	// successful NAT penetration in the case of cone NAT.
 	listener, err := reuseport.Listen(protocol, client.LocalAddr().String())
@@ -76,8 +72,8 @@ func newNATPuncher(ctx context.Context, client *rendezvousClient) (NATPuncher, e
 		listenerChannel: channel,
 		listener:        listener,
 
-		maxAttempts: maxConnectAttempts,
-		timeout:     maxConnectTimeout,
+		maxAttempts: cfg.MaxConnectionAttempts,
+		timeout:     cfg.Timeout,
 	}
 
 	go m.listen()

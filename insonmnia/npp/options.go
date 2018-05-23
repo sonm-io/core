@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/npp/relay"
+	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials"
@@ -44,17 +44,17 @@ func newOptions(ctx context.Context) *options {
 // Without this option no intermediate server will be used for obtaining
 // peer's endpoints and the entire connection establishment process will fall
 // back to the old good plain TCP connection.
-func WithRendezvous(addrs []auth.Addr, credentials credentials.TransportCredentials) Option {
+func WithRendezvous(cfg rendezvous.Config, credentials credentials.TransportCredentials) Option {
 	return func(o *options) error {
 		o.puncherNew = func() (NATPuncher, error) {
-			for _, addr := range addrs {
+			for _, addr := range cfg.Endpoints {
 				client, err := newRendezvousClient(o.ctx, addr, credentials)
 				if err == nil {
-					return newNATPuncher(o.ctx, client)
+					return newNATPuncher(o.ctx, cfg, client)
 				}
 			}
 
-			return nil, fmt.Errorf("failed to connect to %+v", addrs)
+			return nil, fmt.Errorf("failed to connect to %+v", cfg.Endpoints)
 		}
 
 		return nil
