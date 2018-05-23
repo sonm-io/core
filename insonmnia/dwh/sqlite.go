@@ -70,7 +70,7 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 			updateValidator:              `UPDATE Validators SET Level=? WHERE Id=?`,
 			insertCertificate:            `INSERT INTO Certificates VALUES (?, ?, ?, ?, ?)`,
 			selectCertificates:           `SELECT * FROM Certificates WHERE OwnerID=?`,
-			insertProfileUserID:          `INSERT INTO Profiles VALUES (NULL, ?, 0, "", "", 0, 0, ?, ?, ?)`,
+			insertProfileUserID:          `INSERT OR IGNORE INTO Profiles VALUES (NULL, ?, 0, "", "", 0, 0, ?, ?, ?)`,
 			selectProfileByID:            `SELECT * FROM Profiles WHERE UserID=?`,
 			profileNotInBlacklist:        `AND UserID NOT IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
 			profileInBlacklist:           `AND UserID IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
@@ -185,7 +185,6 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		AttributeLevel				INTEGER NOT NULL,
 		Value						BLOB NOT NULL,
 		ValidatorID					TEXT NOT NULL,
-		UNIQUE						(OwnerID, ValidatorID, Attribute, Value),
 		FOREIGN KEY (ValidatorID)	REFERENCES Validators(Id) ON DELETE CASCADE
 	)`,
 			createTableProfiles: `

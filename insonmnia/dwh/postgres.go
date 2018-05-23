@@ -63,7 +63,7 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 			updateValidator:              `UPDATE Validators SET Level = $1 WHERE Id = $2`,
 			insertCertificate:            `INSERT INTO Certificates VALUES ($1, $2, $3, $4, $5)`,
 			selectCertificates:           `SELECT * FROM Certificates WHERE OwnerID = $1`,
-			insertProfileUserID:          `INSERT INTO Profiles (UserID, IdentityLevel, Name, Country, IsCorporation, IsProfessional, Certificates, ActiveAsks, ActiveBids ) VALUES ($1, 0, '', '', FALSE, FALSE, $2, $3, $4)`,
+			insertProfileUserID:          `INSERT INTO Profiles (UserID, IdentityLevel, Name, Country, IsCorporation, IsProfessional, Certificates, ActiveAsks, ActiveBids ) VALUES ($1, 0, '', '', FALSE, FALSE, $2, $3, $4) ON CONFLICT (UserID) DO NOTHING`,
 			selectProfileByID:            `SELECT * FROM Profiles WHERE UserID = $1`,
 			profileNotInBlacklist:        `AND UserID NOT IN (SELECT AddeeID FROM Blacklists WHERE AdderID = $ AND AddeeID = p.UserID)`,
 			profileInBlacklist:           `AND UserID IN (SELECT AddeeID FROM Blacklists WHERE AdderID = $ AND AddeeID = p.UserID)`,
@@ -172,8 +172,7 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		Attribute					INTEGER NOT NULL,
 		AttributeLevel				INTEGER NOT NULL,
 		Value						BYTEA NOT NULL,
-		ValidatorID					TEXT NOT NULL REFERENCES Validators(Id) ON DELETE CASCADE,
-		UNIQUE						(OwnerID, ValidatorID, Attribute, Value)
+		ValidatorID					TEXT NOT NULL REFERENCES Validators(Id) ON DELETE CASCADE
 	)`,
 			createTableProfiles: `
 	CREATE TABLE IF NOT EXISTS Profiles (
