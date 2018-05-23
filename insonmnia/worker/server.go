@@ -330,21 +330,17 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 	var toDelete []*ContainerInfo
 
 	m.mu.Lock()
-	for _, container := range m.containers {
+	for key, container := range m.containers {
 		if container.DealID == dealID {
 			toDelete = append(toDelete, container)
+			delete(m.containers, key)
 		}
 	}
 	m.mu.Unlock()
 
 	result := &multierror.Error{ErrorFormat: util.MultierrFormat()}
 	for _, container := range toDelete {
-		if container.status == pb.TaskStatusReply_RUNNING {
-			if err := m.ovs.Stop(m.ctx, container.ID); err != nil {
-				result = multierror.Append(result, err)
-			}
-		}
-		if err := m.ovs.Remove(m.ctx, container.ID); err != nil {
+		if err := m.ovs.OnDealFinish(m.ctx, container.ID); err != nil {
 			result = multierror.Append(result, err)
 		}
 	}

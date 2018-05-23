@@ -6,7 +6,9 @@ import (
 	"io"
 	"path/filepath"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 
 	"github.com/docker/distribution/reference"
@@ -24,9 +26,10 @@ type containerDescriptor struct {
 
 	client *client.Client
 
-	ID          string
-	description Description
-	stats       types.StatsJSON
+	ID              string
+	CommitedImageID string
+	description     Description
+	stats           types.StatsJSON
 
 	cleanup plugin.Cleanup
 }
@@ -165,7 +168,17 @@ func (c *containerDescriptor) Kill() (err error) {
 }
 
 func (c *containerDescriptor) Remove() error {
-	return containerRemove(c.ctx, c.client, c.ID)
+	log.G(c.ctx).Info("remove the container", zap.String("id", c.ID))
+	result := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	if err := containerRemove(c.ctx, c.client, c.ID); err != nil {
+		result = multierror.Append(result, err)
+	}
+	if len(c.CommitedImageID) != 0 {
+		if err := imageRemove(c.ctx, c.client, c.CommitedImageID); err != nil {
+			result = multierror.Append(result, err)
+		}
+	}
+	return result.ErrorOrNil()
 }
 
 func (c *containerDescriptor) Cleanup() error {
@@ -177,6 +190,16 @@ func containerRemove(ctx context.Context, client client.APIClient, id string) er
 	if err := client.ContainerRemove(ctx, id, removeOpts); err != nil {
 		return fmt.Errorf("failed to remove the container %s: %s", id, err)
 	}
+	log.S(ctx).Infof("removed container %s", id)
+	return nil
+}
+
+func imageRemove(ctx context.Context, client client.APIClient, id string) error {
+	removeOpts := types.ImageRemoveOptions{}
+	if _, err := client.ImageRemove(ctx, id, removeOpts); err != nil {
+		return fmt.Errorf("failed to remove the commited image %s: %s", id, err)
+	}
+	log.S(ctx).Infof("removed image %s", id)
 	return nil
 }
 
@@ -186,6 +209,7 @@ func (c *containerDescriptor) upload() error {
 	if err != nil {
 		return err
 	}
+	c.CommitedImageID = resp.ID
 	log.G(c.ctx).Info("committed container", zap.String("id", c.ID), zap.String("newId", resp.ID))
 
 	image := filepath.Join(c.description.Registry, c.description.Image)

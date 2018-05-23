@@ -10,9 +10,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/go-multierror"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 
 	"github.com/docker/docker/api/types"
@@ -185,8 +187,8 @@ type Overseer interface {
 	// Stop terminates the container.
 	Stop(ctx context.Context, containerID string) error
 
-	// Remove purges the container from fs.
-	Remove(ctx context.Context, containerID string) error
+	// Makes all cleanup related to closed deal
+	OnDealFinish(ctx context.Context, containerID string) error
 
 	// Info returns runtime statistics collected from all running containers.
 	//
@@ -295,7 +297,8 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 				o.mu.Lock()
 				c, containerFound := o.containers[id]
 				s, statusFound := o.statuses[id]
-				delete(o.containers, id)
+				// We intentionally do not delete container from the map to save history for deal.
+				// It will be removed from that map after deal finishes and corresponding container would be deleted
 				delete(o.statuses, id)
 				o.mu.Unlock()
 
@@ -309,19 +312,17 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 					s <- pb.TaskStatusReply_BROKEN
 					close(s)
 				}
-				go func() {
-					if c.description.CommitOnStop {
-						log.G(ctx).Info("trying to upload container")
-						err := c.upload()
-						if err != nil {
-							log.G(ctx).Error("failed to commit container", zap.String("id", id), zap.Error(err))
-						}
+				if c.description.CommitOnStop {
+					log.G(ctx).Info("trying to upload container")
+					err := c.upload()
+					if err != nil {
+						log.G(ctx).Error("failed to commit container", zap.String("id", id), zap.Error(err))
 					}
-					if err := c.Cleanup(); err != nil {
-						log.G(ctx).Error("failed to clean up container", zap.String("id", id), zap.Error(err))
-					}
-					c.cancel()
-				}()
+				}
+				if err := c.Cleanup(); err != nil {
+					log.G(ctx).Error("failed to clean up container", zap.String("id", id), zap.Error(err))
+				}
+				c.cancel()
 			default:
 				log.G(ctx).Warn("received unknown event", zap.String("status", message.Status))
 			}
@@ -548,14 +549,33 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 	return descriptor.Kill()
 }
 
-func (o *overseer) Remove(ctx context.Context, containerID string) error {
+func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 	o.mu.Lock()
-	descriptor, dok := o.containers[containerID]
-	if !dok {
-		return fmt.Errorf("no such container %s", containerID)
+	defer o.mu.Unlock()
+	descriptor, ok := o.containers[containerID]
+	delete(o.containers, containerID)
+	status, sok := o.statuses[containerID]
+	delete(o.statuses, containerID)
+	if sok {
+		close(status)
 	}
-	return descriptor.Remove()
-
+	if !ok {
+		return fmt.Errorf("unknown container %s", containerID)
+	}
+	result := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	if err := descriptor.Kill(); err != nil {
+		result = multierror.Append(result, err)
+	}
+	//This is needed in case container is uploaded into external registry
+	if descriptor.description.CommitOnStop {
+		if err := descriptor.upload(); err != nil {
+			result = multierror.Append(result, err)
+		}
+	}
+	if err := descriptor.Remove(); err != nil {
+		result = multierror.Append(result, err)
+	}
+	return result.ErrorOrNil()
 }
 
 func (o *overseer) Logs(ctx context.Context, id string, opts types.ContainerLogsOptions) (io.ReadCloser, error) {
