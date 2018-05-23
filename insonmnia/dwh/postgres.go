@@ -68,6 +68,7 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 			profileNotInBlacklist:        `AND UserID NOT IN (SELECT AddeeID FROM Blacklists WHERE AdderID = $ AND AddeeID = p.UserID)`,
 			profileInBlacklist:           `AND UserID IN (SELECT AddeeID FROM Blacklists WHERE AdderID = $ AND AddeeID = p.UserID)`,
 			updateProfile:                `UPDATE Profiles SET %s = $1 WHERE UserID = $2`,
+			updateProfileStats:           `UPDATE Profiles SET %s = %s + $1 WHERE UserID = $2`,
 			selectLastKnownBlock:         `SELECT LastKnownBlock FROM Misc WHERE Id = 1`,
 			insertLastKnownBlock:         `INSERT INTO Misc(LastKnownBlock) VALUES ($1)`,
 			updateLastKnownBlock:         `UPDATE Misc SET LastKnownBlock = $1 WHERE Id = 1`,

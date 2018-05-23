@@ -75,6 +75,7 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 			profileNotInBlacklist:        `AND UserID NOT IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
 			profileInBlacklist:           `AND UserID IN (SELECT AddeeID FROM Blacklists WHERE AdderID=? AND AddeeID = p.UserID)`,
 			updateProfile:                `UPDATE Profiles SET %s=? WHERE UserID=?`,
+			updateProfileStats:           `UPDATE Profiles SET %s=%s+? WHERE UserID=?`,
 			selectLastKnownBlock:         `SELECT LastKnownBlock FROM Misc WHERE Id=1`,
 			insertLastKnownBlock:         `INSERT INTO Misc VALUES (NULL, ?)`,
 			updateLastKnownBlock:         `UPDATE Misc Set LastKnownBlock=? WHERE Id=1`,
