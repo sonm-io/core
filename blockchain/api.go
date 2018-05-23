@@ -547,13 +547,14 @@ func (api *BasicMarketAPI) GetMaster(ctx context.Context, slave common.Address) 
 	return api.marketContract.GetMaster(getCallOptions(ctx), slave)
 }
 
-func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, dealID *big.Int) (*pb.DealChangeRequest, error) {
-	changeRequest, err := api.marketContract.GetChangeRequestInfo(getCallOptions(ctx), dealID)
+func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, changeRequestID *big.Int) (*pb.DealChangeRequest, error) {
+	changeRequest, err := api.marketContract.GetChangeRequestInfo(getCallOptions(ctx), changeRequestID)
 	if err != nil {
 		return nil, err
 	}
 
 	return &pb.DealChangeRequest{
+		Id:          pb.NewBigInt(changeRequestID),
 		DealID:      pb.NewBigInt(changeRequest.DealID),
 		RequestType: pb.OrderType(changeRequest.RequestType),
 		Duration:    changeRequest.Duration.Uint64(),
