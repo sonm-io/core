@@ -49,28 +49,6 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 	return reply, nil
 }
 
-func (t *tasksAPI) getSupplierTasks(ctx context.Context, tasks map[string]*pb.TaskStatusReply, deal *pb.Deal) {
-	dealID := deal.GetSupplierID().Unwrap().Hex()
-	worker, cc, err := t.remotes.getWorkerClientByEthAddr(ctx, dealID)
-	if err != nil {
-		log.G(t.ctx).Error("cannot resolve worker address",
-			zap.String("deal_id", dealID),
-			zap.Error(err))
-		return
-	}
-	defer cc.Close()
-
-	taskList, err := worker.Tasks(ctx, &pb.Empty{})
-	if err != nil {
-		log.G(t.ctx).Error("failed to retrieve tasks from the worker", zap.Error(err))
-		return
-	}
-
-	for _, v := range taskList.GetInfo() {
-		tasks[deal.GetSupplierID().Unwrap().Hex()] = v
-	}
-}
-
 func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	dealID := req.Deal.GetId().Unwrap().String()
 	worker, cc, err := t.remotes.getWorkerClientForDeal(ctx, dealID)
