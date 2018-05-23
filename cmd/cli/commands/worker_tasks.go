@@ -12,16 +12,7 @@ var workerTasksCmd = &cobra.Command{
 	Short:  "Show tasks running on Worker",
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := newTimeoutContext()
-		defer cancel()
-
-		worker, err := newWorkerManagementClient(ctx)
-		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
-		}
-
-		list, err := worker.Tasks(ctx, &pb.Empty{})
+		list, err := worker.Tasks(workerCtx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get task list", err)
 			os.Exit(1)

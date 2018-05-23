@@ -12,16 +12,7 @@ var workerDevicesCmd = &cobra.Command{
 	Short:  "Show Worker's hardware",
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := newTimeoutContext()
-		defer cancel()
-
-		worker, err := newWorkerManagementClient(ctx)
-		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
-		}
-
-		devices, err := worker.Devices(ctx, &pb.Empty{})
+		devices, err := worker.Devices(workerCtx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get devices list", err)
 			os.Exit(1)

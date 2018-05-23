@@ -22,20 +22,10 @@ var askPlansRootCmd = &cobra.Command{
 }
 
 var askPlanListCmd = &cobra.Command{
-	Use:    "list",
-	Short:  "Show current ask plans",
-	PreRun: loadKeyStoreIfRequired,
+	Use:   "list",
+	Short: "Show current ask plans",
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := newTimeoutContext()
-		defer cancel()
-
-		worker, err := newWorkerManagementClient(ctx)
-		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
-		}
-
-		asks, err := worker.AskPlans(ctx, &pb.Empty{})
+		asks, err := worker.AskPlans(workerCtx, &pb.Empty{})
 		if err != nil {
 			showError(cmd, "Cannot get Ask Orders from Worker", err)
 			os.Exit(1)
@@ -46,20 +36,10 @@ var askPlanListCmd = &cobra.Command{
 }
 
 var askPlanCreateCmd = &cobra.Command{
-	Use:    "create <ask_plan.yaml>",
-	Short:  "Create new plan",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreIfRequired,
+	Use:   "create <ask_plan.yaml>",
+	Short: "Create new plan",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := newTimeoutContext()
-		defer cancel()
-
-		worker, err := newWorkerManagementClient(ctx)
-		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
-		}
-
 		planPath := args[0]
 		plan := &pb.AskPlan{}
 
@@ -68,7 +48,7 @@ var askPlanCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		id, err := worker.CreateAskPlan(ctx, plan)
+		id, err := worker.CreateAskPlan(workerCtx, plan)
 		if err != nil {
 			showError(cmd, "Cannot create new AskOrder", err)
 			os.Exit(1)
@@ -79,22 +59,12 @@ var askPlanCreateCmd = &cobra.Command{
 }
 
 var askPlanRemoveCmd = &cobra.Command{
-	Use:    "remove <order_id>",
-	Short:  "Remove plan by",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreIfRequired,
+	Use:   "remove <order_id>",
+	Short: "Remove plan by",
+	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := newTimeoutContext()
-		defer cancel()
-
-		hub, err := newWorkerManagementClient(ctx)
-		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
-		}
-
 		ID := args[0]
-		_, err = hub.RemoveAskPlan(ctx, &pb.ID{Id: ID})
+		_, err := worker.RemoveAskPlan(workerCtx, &pb.ID{Id: ID})
 		if err != nil {
 			showError(cmd, "Cannot remove AskOrder", err)
 			os.Exit(1)

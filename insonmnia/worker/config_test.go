@@ -28,10 +28,6 @@ endpoint: "127.0.0.5:15010"
 metrics_listen_addr: "127.0.0.1:14123"
 public_ip_addrs: ["12.34.56.78", "1.2.3.4"]
 
-ethereum:
-  key_store: "./my-keys/"
-  pass_phrase: "testme"
-
 npp:
   rendezvous:
     endpoints:
@@ -57,9 +53,6 @@ whitelist:
 	assert.Equal(t, "127.0.0.1:14123", conf.MetricsListenAddr)
 	assert.Contains(t, conf.PublicIPs, "12.34.56.78")
 	assert.Contains(t, conf.PublicIPs, "1.2.3.4")
-
-	assert.Equal(t, "./my-keys/", conf.Eth.Keystore)
-	assert.Equal(t, "testme", conf.Eth.Passphrase)
 
 	assert.Len(t, conf.NPP.Rendezvous.Endpoints, 1)
 	assert.Contains(t, conf.NPP.Rendezvous.Endpoints[0].String(),
