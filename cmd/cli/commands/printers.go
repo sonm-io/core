@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ethereum/go-ethereum/core/types"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/datasize"
@@ -142,30 +141,6 @@ func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
 		printBenchmarkGroup(cmd, dev.GetStorage().GetBenchmarks())
 	} else {
 		showJSON(cmd, dev)
-	}
-}
-
-func printTransactionInfo(cmd *cobra.Command, tx *types.Transaction) {
-	if isSimpleFormat() {
-		cmd.Printf("Hash:      %s\r\n", tx.Hash().String())
-		cmd.Printf("Value:     %s\r\n", tx.Value().String())
-		cmd.Printf("To:        %s\r\n", tx.To().String())
-		cmd.Printf("Cost:      %s\r\n", tx.Cost().String())
-		cmd.Printf("Gas:       %d\r\n", tx.Gas())
-		cmd.Printf("Gas price: %s\r\n", tx.GasPrice().String())
-	} else {
-		showJSON(cmd, convertTransactionInfo(tx))
-	}
-}
-
-func convertTransactionInfo(tx *types.Transaction) map[string]interface{} {
-	return map[string]interface{}{
-		"hash":      tx.Hash().String(),
-		"value":     tx.Value().String(),
-		"to":        tx.To().String(),
-		"cost":      tx.Cost().String(),
-		"gas":       tx.Gas(),
-		"gas_price": tx.GasPrice().String(),
 	}
 }
 
@@ -373,20 +348,6 @@ func printTaskStart(cmd *cobra.Command, start *pb.StartTaskReply) {
 		}
 	} else {
 		showJSON(cmd, start)
-	}
-}
-
-func printDealDetails(cmd *cobra.Command, deals *pb.DealInfoReply) {
-	if !isSimpleFormat() {
-		showJSON(cmd, deals)
-		return
-	} else {
-		out, err := yaml.Marshal(deals)
-		if err != nil {
-			showError(cmd, "could not marshall ask plans", err)
-		} else {
-			cmd.Println(string(out))
-		}
 	}
 }
 
