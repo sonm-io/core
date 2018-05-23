@@ -12,6 +12,27 @@ import (
 	"go.uber.org/zap"
 )
 
+type connSource int
+
+func (m connSource) String() string {
+	switch m {
+	case sourceDirectConnection:
+		return "direct"
+	case sourceNPPConnection:
+		return "NPP"
+	case sourceRelayedConnection:
+		return "relay"
+	default:
+		return "unknown source"
+	}
+}
+
+const (
+	sourceDirectConnection connSource = iota
+	sourceNPPConnection
+	sourceRelayedConnection
+)
+
 type connTuple struct {
 	net.Conn
 	err error
@@ -38,13 +59,18 @@ func (m *connTuple) unwrap() (net.Conn, error) {
 	return m.Conn, m.err
 }
 
+func (m *connTuple) unwrapWithSource(source connSource) (net.Conn, connSource, error) {
+	return m.Conn, source, m.err
+}
+
 // Listener specifies a net.Listener wrapper that is aware of NAT Punching
 // Protocol and can switch to it when it's required to establish a connection.
 //
 // Options are: rendezvous server, private IPs usage, relay server(s) if any.
 type Listener struct {
-	ctx context.Context
-	log *zap.Logger
+	ctx     context.Context
+	metrics *metrics
+	log     *zap.Logger
 
 	listener        net.Listener
 	listenerChannel chan connTuple
@@ -63,7 +89,7 @@ type Listener struct {
 // NewListener constructs a new NPP listener that will listen the specified
 // network address with TCP protocol, switching to the NPP when there is no
 // pending connections available.
-func NewListener(ctx context.Context, addr string, options ...Option) (net.Listener, error) {
+func NewListener(ctx context.Context, addr string, options ...Option) (*Listener, error) {
 	opts := newOptions(ctx)
 
 	for _, o := range options {
@@ -81,6 +107,7 @@ func NewListener(ctx context.Context, addr string, options ...Option) (net.Liste
 
 	m := &Listener{
 		ctx:             ctx,
+		metrics:         newMetrics(),
 		log:             opts.log,
 		listenerChannel: channel,
 		listener:        listener,
@@ -106,7 +133,7 @@ func (m *Listener) listen(ctx context.Context) {
 	for {
 		conn, err := m.listener.Accept()
 		select {
-		case m.listenerChannel <- connTuple{conn, err}:
+		case m.listenerChannel <- newConnTuple(conn, err):
 		case <-ctx.Done():
 			m.log.Info("finished listening due to cancellation", zap.Error(ctx.Err()))
 			return
@@ -200,12 +227,36 @@ func (m *Listener) listenRelay(ctx context.Context) error {
 // punching mechanism work. This can consume a meaningful amount of file
 // descriptors, so be prepared to enlarge your limits.
 func (m *Listener) Accept() (net.Conn, error) {
+	conn, source, err := m.accept()
+	if err != nil {
+		m.log.Warn("failed to accepted peer", zap.Error(err))
+		return nil, err
+	}
+
+	m.log.Info("accepted peer", zap.Stringer("source", source), zap.Stringer("remote", conn.RemoteAddr()))
+
+	switch source {
+	case sourceDirectConnection:
+		m.metrics.NumConnectionsDirect.Inc()
+	case sourceNPPConnection:
+		m.metrics.NumConnectionsNAT.Inc()
+	case sourceRelayedConnection:
+		m.metrics.NumConnectionsRelay.Inc()
+	default:
+		return nil, fmt.Errorf("unknown connection source")
+	}
+
+	return conn, nil
+}
+
+// Note: this function only listens for multiple channels and transforms the
+// result from a single-value to multiple values, due to weird Go type system.
+func (m *Listener) accept() (net.Conn, connSource, error) {
 	// Act as a listener if there is no puncher specified.
 	// Check for acceptor listenerChannel, if there is a connection - return immediately.
 	select {
 	case conn := <-m.listenerChannel:
-		m.log.Info("received acceptor peer", zap.Any("conn", conn))
-		return conn.unwrap()
+		return conn.unwrapWithSource(sourceDirectConnection)
 	default:
 	}
 
@@ -213,23 +264,20 @@ func (m *Listener) Accept() (net.Conn, error) {
 	for {
 		select {
 		case <-m.ctx.Done():
-			return nil, m.ctx.Err()
+			return nil, connSource(0), m.ctx.Err()
 		case conn := <-m.listenerChannel:
-			m.log.Info("received acceptor peer", zap.Any("conn", conn), zap.Error(conn.err))
-			return conn.unwrap()
+			return conn.unwrapWithSource(sourceDirectConnection)
 		case conn := <-m.nppChannel:
-			m.log.Info("received NPP peer", zap.Any("conn", conn), zap.Error(conn.err))
 			// In case of any rendezvous errors it's better to reconnect.
 			// Just in case.
 			if conn.IsRendezvousError() {
 				m.puncher.Close()
 				m.puncher = nil
 			} else {
-				return conn.unwrap()
+				return conn.unwrapWithSource(sourceNPPConnection)
 			}
 		case conn := <-m.relayChannel:
-			m.log.Info("received relay peer", zap.Any("conn", conn), zap.Error(conn.err))
-			return conn.unwrap()
+			return conn.unwrapWithSource(sourceRelayedConnection)
 		}
 	}
 }
@@ -255,4 +303,18 @@ func (m *Listener) Close() error {
 
 func (m *Listener) Addr() net.Addr {
 	return m.listener.Addr()
+}
+
+func (m *Listener) Metrics() ListenerMetrics {
+	var rendezvousAddr net.Addr
+	if m.puncher != nil {
+		rendezvousAddr = m.puncher.RemoteAddr()
+	}
+
+	return ListenerMetrics{
+		RendezvousAddr:       rendezvousAddr,
+		NumConnectionsDirect: m.metrics.NumConnectionsDirect.Load(),
+		NumConnectionsNAT:    m.metrics.NumConnectionsNAT.Load(),
+		NumConnectionsRelay:  m.metrics.NumConnectionsRelay.Load(),
+	}
 }

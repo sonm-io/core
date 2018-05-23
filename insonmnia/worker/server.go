@@ -91,6 +91,7 @@ type Worker struct {
 
 	controlGroup  cgroups.CGroup
 	cGroupManager cgroups.CGroupManager
+	listener      *npp.Listener
 	externalGrpc  *grpc.Server
 	startTime     time.Time
 }
@@ -173,6 +174,8 @@ func (m *Worker) Serve() error {
 		log.G(m.ctx).Error("failed to listen", zap.String("address", m.cfg.Endpoint), zap.Error(err))
 		return err
 	}
+	m.listener = listener
+
 	log.G(m.ctx).Info("listening for gRPC API connections", zap.Stringer("address", listener.Addr()))
 	err = m.externalGrpc.Serve(listener)
 	m.Close()
@@ -386,12 +389,20 @@ func (m *Worker) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesRep
 // Status returns internal worker statistic
 func (m *Worker) Status(ctx context.Context, _ *pb.Empty) (*pb.StatusReply, error) {
 	uptime := uint64(time.Now().Sub(m.startTime).Seconds())
+
+	rendezvousStatus := "not connected"
+	nppMetrics := m.listener.Metrics()
+	if nppMetrics.RendezvousAddr != nil {
+		rendezvousStatus = nppMetrics.RendezvousAddr.String()
+	}
+
 	reply := &pb.StatusReply{
-		Uptime:    uptime,
-		Platform:  util.GetPlatformName(),
-		Version:   m.version,
-		EthAddr:   m.ethAddr().Hex(),
-		TaskCount: uint32(len(m.CollectTasksStatuses(pb.TaskStatusReply_RUNNING))),
+		Uptime:           uptime,
+		Platform:         util.GetPlatformName(),
+		Version:          m.version,
+		EthAddr:          m.ethAddr().Hex(),
+		TaskCount:        uint32(len(m.CollectTasksStatuses(pb.TaskStatusReply_RUNNING))),
+		RendezvousStatus: rendezvousStatus,
 	}
 
 	return reply, nil
