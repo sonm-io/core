@@ -858,6 +858,11 @@ func (c *sqlStorage) UpdateProfile(conn queryConn, userID common.Address, field 
 	return err
 }
 
+func (c *sqlStorage) UpdateProfileStats(conn queryConn, userID common.Address, field string, value interface{}) error {
+	_, err := conn.Exec(fmt.Sprintf(c.commands.updateProfileStats, field, field), value, userID.Hex())
+	return err
+}
+
 func (c *sqlStorage) GetLastKnownBlock(conn queryConn) (uint64, error) {
 	rows, err := conn.Query(c.commands.selectLastKnownBlock)
 	if err != nil {
@@ -1361,6 +1366,7 @@ type sqlCommands struct {
 	profileNotInBlacklist        string
 	profileInBlacklist           string
 	updateProfile                string
+	updateProfileStats           string
 	selectLastKnownBlock         string
 	insertLastKnownBlock         string
 	updateLastKnownBlock         string

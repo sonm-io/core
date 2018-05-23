@@ -53,6 +53,7 @@ type storage interface {
 	GetValidators(conn queryConn, request *pb.ValidatorsRequest) ([]*pb.Validator, uint64, error)
 	GetWorkers(conn queryConn, request *pb.WorkersRequest) ([]*pb.DWHWorker, uint64, error)
 	UpdateProfile(conn queryConn, userID common.Address, field string, value interface{}) error
+	UpdateProfileStats(conn queryConn, userID common.Address, field string, value interface{}) error
 	GetLastKnownBlock(conn queryConn) (uint64, error)
 	InsertLastKnownBlock(conn queryConn, blockNumber int64) error
 	UpdateLastKnownBlock(conn queryConn, blockNumber int64) error
