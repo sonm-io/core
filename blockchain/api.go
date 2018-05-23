@@ -258,6 +258,11 @@ func (api *BasicMarketAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, 
 	}
 
 	logs, err := FindLogByTopic(receipt, market.DealOpenedTopic)
+	if err != nil {
+		ch <- DealOrError{nil, err}
+		return
+	}
+
 	id, err := extractBig(logs.Topics, 1)
 	if err != nil {
 		ch <- DealOrError{nil, err}
@@ -371,6 +376,11 @@ func (api *BasicMarketAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey
 	}
 
 	logs, err := FindLogByTopic(receipt, market.OrderPlacedTopic)
+	if err != nil {
+		ch <- OrderOrError{nil, err}
+		return
+	}
+
 	id, err := extractBig(logs.Topics, 1)
 	if err != nil {
 		ch <- OrderOrError{nil, err}

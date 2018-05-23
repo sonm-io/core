@@ -774,25 +774,10 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 
 	profile, err := w.storage.GetProfileByID(conn, order.AuthorID.Unwrap())
 	if err != nil {
-		var askOrders, bidOrders uint64 = 0, 0
-		if order.OrderType == pb.OrderType_ASK {
-			askOrders = 1
-		} else {
-			bidOrders = 1
-		}
 		certificates, _ := json.Marshal([]*pb.Certificate{})
-		profile = &pb.Profile{
-			UserID:       order.AuthorID,
-			Certificates: string(certificates),
-			ActiveAsks:   askOrders,
-			ActiveBids:   bidOrders,
-		}
-		err = w.storage.InsertProfileUserID(conn, profile)
-		if err != nil {
-			return errors.Wrap(err, "failed to insertProfileUserID")
-		}
+		profile = &pb.Profile{UserID: order.AuthorID, Certificates: string(certificates)}
 	} else {
-		if err := w.updateProfileStats(conn, order, profile, 1); err != nil {
+		if err := w.updateProfileStats(conn, order, 1); err != nil {
 			return errors.Wrap(err, "failed to updateProfileStats")
 		}
 	}
@@ -872,12 +857,7 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 		}
 	}
 
-	profile, err := w.storage.GetProfileByID(conn, order.AuthorID.Unwrap())
-	if err != nil {
-		return errors.Wrapf(err, "failed to getProfileInfo (AuthorID: `%s`)", order.AuthorID)
-	}
-
-	if err := w.updateProfileStats(conn, order, profile, -1); err != nil {
+	if err := w.updateProfileStats(conn, order, -1); err != nil {
 		return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", order.AuthorID.Unwrap().String())
 	}
 
@@ -999,18 +979,15 @@ func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
 }
 
 func (w *DWH) updateProfile(conn queryConn, certificate *pb.Certificate) error {
-	// Create a Profile entry if it doesn't exist yet.
 	certBytes, _ := json.Marshal([]*pb.Certificate{})
-	if _, err := w.storage.GetProfileByID(conn, certificate.OwnerID.Unwrap()); err != nil {
-		err = w.storage.InsertProfileUserID(conn, &pb.Profile{
-			UserID:       certificate.OwnerID,
-			Certificates: string(certBytes),
-			ActiveAsks:   0,
-			ActiveBids:   0,
-		})
-		if err != nil {
-			return errors.Wrap(err, "failed to insertProfileUserID")
-		}
+	err := w.storage.InsertProfileUserID(conn, &pb.Profile{
+		UserID:       certificate.OwnerID,
+		Certificates: string(certBytes),
+		ActiveAsks:   0,
+		ActiveBids:   0,
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to insertProfileUserID")
 	}
 
 	// Update distinct Profile columns.
@@ -1076,29 +1053,16 @@ func (w *DWH) updateEntitiesByProfile(conn queryConn, certificate *pb.Certificat
 	return nil
 }
 
-func (w *DWH) updateProfileStats(conn queryConn, order *pb.Order, profile *pb.Profile, update int) error {
-	var (
-		field string
-		value int
-	)
+func (w *DWH) updateProfileStats(conn queryConn, order *pb.Order, update int) error {
+	var field string
 	if order.OrderType == pb.OrderType_ASK {
-		updateResult := int(profile.ActiveAsks) + update
-		if updateResult < 0 {
-			return errors.Errorf("updateProfileStats resulted in a negative Asks value (UserID: `%s`)",
-				order.AuthorID.Unwrap().Hex())
-		}
-		field, value = "ActiveAsks", updateResult
+		field = "ActiveAsks"
 	} else {
-		updateResult := int(profile.ActiveBids) + update
-		if updateResult < 0 {
-			return errors.Errorf("updateProfileStats resulted in a negative Bids value (UserID: `%s`)",
-				order.AuthorID.Unwrap().Hex())
-		}
-		field, value = "ActiveBids", updateResult
+		field = "ActiveBids"
 	}
 
-	if err := w.storage.UpdateProfile(conn, order.AuthorID.Unwrap(), field, value); err != nil {
-		return errors.Wrap(err, "failed to updateProfile")
+	if err := w.storage.UpdateProfileStats(conn, order.AuthorID.Unwrap(), field, update); err != nil {
+		return errors.Wrap(err, "failed to UpdateProfileStats")
 	}
 
 	return nil
