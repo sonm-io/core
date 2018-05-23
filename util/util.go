@@ -1,10 +1,10 @@
 package util
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"math/big"
 	"net"
 	"net/http"
@@ -14,8 +14,6 @@ import (
 	"strconv"
 	"strings"
 
-	"context"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
@@ -24,29 +22,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"gopkg.in/yaml.v2"
 )
 
 const (
 	FormattedBigIntLength = 80
 )
-
-// GetLocalIP find local non-loopback ip addr
-func GetLocalIP() string {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return ""
-	}
-	for _, address := range addrs {
-		// check the address type and if it is not a loopback the display it
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String()
-			}
-		}
-	}
-	return ""
-}
 
 func GetUserHomeDir() (homeDir string, err error) {
 	usr, err := user.Current()
@@ -78,26 +58,8 @@ func GetPlatformName() string {
 	return fmt.Sprintf("%s/%s/%s", runtime.GOOS, runtime.GOARCH, runtime.Version())
 }
 
-func PubKeyToString(key ecdsa.PublicKey) string {
-	return fmt.Sprintf("%x", crypto.FromECDSAPub(&key))
-}
-
 func PubKeyToAddr(key ecdsa.PublicKey) common.Address {
 	return crypto.PubkeyToAddress(key)
-}
-
-func LoadYamlFile(from string, to interface{}) error {
-	buf, err := ioutil.ReadFile(from)
-	if err != nil {
-		return err
-	}
-
-	err = yaml.Unmarshal(buf, to)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // DirectoryExists returns true if the given directory exists
