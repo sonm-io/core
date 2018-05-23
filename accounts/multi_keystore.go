@@ -181,7 +181,7 @@ func (m *MultiKeystore) readKeyFile(path string, pass string) (*ecdsa.PrivateKey
 }
 
 func (m *MultiKeystore) setDefaultAccount(addr common.Address) error {
-	if !util.FileExists(m.cfg.getStateFileDir()) {
+	if !util.DirectoryExists(m.cfg.getStateFileDir()) {
 		if err := os.MkdirAll(m.cfg.getStateFileDir(), 0700); err != nil {
 			return errors.WithMessage(err, "cannot create dir for state")
 		}
