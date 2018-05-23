@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"reflect"
@@ -9,10 +8,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/auth"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 )
 
 type workerAPI struct {
@@ -21,11 +22,31 @@ type workerAPI struct {
 	ctx     context.Context
 }
 
-func (h *workerAPI) getClient() (pb.WorkerManagementClient, io.Closer, error) {
-	ethAddr := crypto.PubkeyToAddress(h.remotes.key.PublicKey)
-	netAddr := h.remotes.conf.Worker.Endpoint
+func (h *workerAPI) getWorkerAddr(ctx context.Context) (*auth.Addr, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		addr := auth.NewAddrRaw(crypto.PubkeyToAddress(h.remotes.key.PublicKey), "")
+		return &addr, nil
+	}
+	ctxAddrs, ok := md[util.WorkerAddressHeader]
+	if !ok {
+		addr := auth.NewAddrRaw(crypto.PubkeyToAddress(h.remotes.key.PublicKey), "")
+		return &addr, nil
+	}
+	if len(ctxAddrs) != 1 {
+		return nil, fmt.Errorf("worker address key in metadata has %d headers (exactly one required)", len(ctxAddrs))
+	}
+	return auth.NewAddr(ctxAddrs[0])
+}
 
-	return h.remotes.workerCreator(ethAddr, netAddr)
+func (h *workerAPI) getClient(ctx context.Context) (pb.WorkerManagementClient, io.Closer, error) {
+	addr, err := h.getWorkerAddr(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	log.S(h.ctx).Debugf("connecting to worker on %s", addr.String())
+	return h.remotes.workerCreator(addr)
 }
 
 func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
@@ -38,13 +59,9 @@ func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.U
 		return handler(ctx, req)
 	}
 
-	if h.remotes.conf.Worker.Endpoint == "" {
-		return nil, errors.New("worker endpoint is not configured, please check Node settings")
-	}
-
-	cli, cc, err := h.getClient()
+	cli, cc, err := h.getClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot connect to worker at %s, please check Node settings: %s", h.remotes.conf.Worker.Endpoint, err.Error())
+		return nil, fmt.Errorf("cannot connect to worker: %s", err)
 	}
 	defer cc.Close()
 

@@ -39,11 +39,6 @@ func run() error {
 	logger := logging.BuildLogger(cfg.Logging.LogLevel())
 	ctx = log.WithLogger(ctx, logger)
 
-	key, err := cfg.Eth.LoadKey()
-	if err != nil {
-		return fmt.Errorf("failed to load private key: %s", err)
-	}
-
 	storage, err := state.NewState(ctx, &cfg.Storage)
 	if err != nil {
 		return fmt.Errorf("failed to create state storage: %s", err)
@@ -60,7 +55,7 @@ func run() error {
 		return nil
 	})
 
-	w, err := worker.NewWorker(worker.WithConfig(cfg), worker.WithContext(ctx), worker.WithKey(key), worker.WithStateStorage(storage),
+	w, err := worker.NewWorker(worker.WithConfig(cfg), worker.WithContext(ctx), worker.WithStateStorage(storage),
 		worker.WithVersion(appVersion))
 	if err != nil {
 		return fmt.Errorf("failed to create Worker instance: %s", err)
