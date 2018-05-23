@@ -17,6 +17,7 @@ import (
 	"github.com/sonm-io/core/blockchain/market"
 	marketAPI "github.com/sonm-io/core/blockchain/market/api"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
 
@@ -352,6 +353,55 @@ func (api *BasicMarketAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey
 	fixedNetflags := pb.UintToNetflags(order.Netflags)
 	var fixedTag [32]byte
 	copy(fixedTag[:], order.Tag[:])
+
+	expectedBenchmarksQuantity, err := api.marketContract.GetBenchmarksQuantity(getCallOptions(ctx))
+	if err != nil {
+		ch <- OrderOrError{nil, err}
+		return
+	}
+
+	benchmarks := order.GetBenchmarks().ToArray()
+	benchmarksQuantity := int64(len(benchmarks))
+	if benchmarksQuantity != expectedBenchmarksQuantity.Int64() {
+		err = fmt.Errorf("benchmarks length mismatched: %d, expected %d", benchmarksQuantity, expectedBenchmarksQuantity.Int64())
+		ch <- OrderOrError{nil, err}
+		return
+	}
+
+	if order.OrderType == pb.OrderType_BID {
+		token, err := NewStandardToken(api.client, market.SNMSidechainAddr(), api.gasPrice)
+		if err != nil {
+			ch <- OrderOrError{nil, err}
+			return
+		}
+
+		balance, err := token.BalanceOf(ctx, util.PubKeyToAddr(key.PublicKey).Hex())
+		if err != nil {
+			ch <- OrderOrError{nil, err}
+			return
+		}
+
+		oracle, err := NewOracleUSDAPI(market.OracleUsdAddr(), api.client, api.gasPrice)
+		if err != nil {
+			ch <- OrderOrError{nil, err}
+			return
+		}
+
+		snmRate, err := oracle.GetCurrentPrice(ctx)
+		if err != nil {
+			ch <- OrderOrError{nil, err}
+			return
+		}
+
+		price := big.NewInt(0).Mul(balance, snmRate)
+		price = balance.Mul(price, big.NewInt(int64(order.Duration)))
+
+		if balance.Cmp(price) < 0 {
+			err = fmt.Errorf("lack of balance for place bid order: %d, expected %d", price, balance)
+			ch <- OrderOrError{nil, err}
+			return
+		}
+	}
 
 	tx, err := api.marketContract.PlaceOrder(opts,
 		uint8(order.OrderType),
