@@ -191,13 +191,13 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 	if err != nil {
 		return nil, err
 	}
-	var maxId uint64
+	var maxId uint64 = sonm.MinNumBenchmarks
 	for id := range benchMap {
 		if id > maxId {
 			maxId = id
 		}
 	}
-	resultBenchmarks := make([]uint64, maxId)
+	resultBenchmarks := make([]uint64, maxId+1)
 	for k, v := range benchMap {
 		resultBenchmarks[k] = v.GetResult()
 	}
