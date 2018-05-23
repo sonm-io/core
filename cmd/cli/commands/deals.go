@@ -14,23 +14,23 @@ var (
 )
 
 func init() {
-	dealsListCmd.PersistentFlags().Uint64Var(&dealsSearchCount, "limit", 10, "Deals count to show")
-	dealsFinishCmd.PersistentFlags().BoolVar(&addToBlacklist, "blacklist", false, "Add counterparty to blacklist")
+	dealListCmd.PersistentFlags().Uint64Var(&dealsSearchCount, "limit", 10, "Deals count to show")
+	dealCloseCmd.PersistentFlags().BoolVar(&addToBlacklist, "blacklist", false, "Add counterparty to blacklist")
 
-	nodeDealsRootCmd.AddCommand(
-		dealsListCmd,
-		dealsStatusCmd,
-		dealsOpenCmd,
-		dealsFinishCmd,
+	dealRootCmd.AddCommand(
+		dealListCmd,
+		dealStatusCmd,
+		dealOpenCmd,
+		dealCloseCmd,
 	)
 }
 
-var nodeDealsRootCmd = &cobra.Command{
-	Use:   "deals",
+var dealRootCmd = &cobra.Command{
+	Use:   "deal",
 	Short: "Manage deals",
 }
 
-var dealsListCmd = &cobra.Command{
+var dealListCmd = &cobra.Command{
 	Use:    "list",
 	Short:  "Show your active deals",
 	PreRun: loadKeyStoreWrapper,
@@ -55,9 +55,9 @@ var dealsListCmd = &cobra.Command{
 	},
 }
 
-var dealsStatusCmd = &cobra.Command{
+var dealStatusCmd = &cobra.Command{
 	Use:    "status <deal_id>",
-	Short:  "show deal status",
+	Short:  "Show deal status",
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -87,9 +87,9 @@ var dealsStatusCmd = &cobra.Command{
 	},
 }
 
-var dealsOpenCmd = &cobra.Command{
+var dealOpenCmd = &cobra.Command{
 	Use:    "open <ask_id> <bid_id>",
-	Short:  "open deal with given orders",
+	Short:  "Open deal with given orders",
 	Args:   cobra.MinimumNArgs(2),
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -129,9 +129,9 @@ var dealsOpenCmd = &cobra.Command{
 	},
 }
 
-var dealsFinishCmd = &cobra.Command{
-	Use:    "finish <deal_id>",
-	Short:  "finish deal",
+var dealCloseCmd = &cobra.Command{
+	Use:    "close <deal_id>",
+	Short:  "Close given deal",
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
