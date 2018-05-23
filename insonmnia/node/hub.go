@@ -29,9 +29,12 @@ func (h *workerAPI) getWorkerAddr(ctx context.Context) (*auth.Addr, error) {
 		return &addr, nil
 	}
 	ctxAddrs, ok := md[util.WorkerAddressHeader]
-	if !ok || len(ctxAddrs) == 0 {
+	if !ok {
 		addr := auth.NewAddrRaw(crypto.PubkeyToAddress(h.remotes.key.PublicKey), "")
 		return &addr, nil
+	}
+	if len(ctxAddrs) != 1 {
+		return nil, fmt.Errorf("worker address key in metadata has %d headers (exactly one required)", len(ctxAddrs))
 	}
 	return auth.NewAddr(ctxAddrs[0])
 }

@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	WorkerAddressHeader = "x_worker_eth_addr"
+	WorkerAddressHeader = "x-worker-eth-addr"
 )
 
 func ExtractMethod(fullMethod string) string {

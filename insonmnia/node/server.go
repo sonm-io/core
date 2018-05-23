@@ -91,12 +91,12 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		if err != nil {
 			return nil, nil, err
 		}
-		eth, err := addr.ETH()
+		ethAddr, err := addr.ETH()
 		if err != nil {
 			return nil, nil, err
 		}
 
-		cc, err := xgrpc.NewClient(ctx, "-", auth.NewWalletAuthenticator(credentials, eth), xgrpc.WithConn(conn))
+		cc, err := xgrpc.NewClient(ctx, "-", auth.NewWalletAuthenticator(credentials, ethAddr), xgrpc.WithConn(conn))
 		if err != nil {
 			return nil, nil, err
 		}

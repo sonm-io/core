@@ -3,7 +3,7 @@ package worker
 import (
 	"crypto/ecdsa"
 
-	ethcrypto "github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
@@ -16,6 +16,10 @@ import (
 	"github.com/sonm-io/core/util/xgrpc"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/credentials"
+)
+
+const (
+	ethereumPrivateKeyKey = "ethereum_private_key"
 )
 
 type options struct {
@@ -110,21 +114,21 @@ func (m *options) SetupDefaults() error {
 func (m *options) setupKey() error {
 	if m.key == nil {
 		var data []byte
-		err := m.storage.Load("ethpkey", &data)
+		err := m.storage.Load(ethereumPrivateKeyKey, &data)
 		if err != nil {
 			return err
 		}
 		if data == nil {
-			key, err := ethcrypto.GenerateKey()
+			key, err := crypto.GenerateKey()
 			if err != nil {
 				return err
 			}
-			if err := m.storage.Save("ethpkey", ethcrypto.FromECDSA(key)); err != nil {
+			if err := m.storage.Save(ethereumPrivateKeyKey, crypto.FromECDSA(key)); err != nil {
 				return err
 			}
 			m.key = key
 		} else {
-			key, err := ethcrypto.ToECDSA(data)
+			key, err := crypto.ToECDSA(data)
 			if err != nil {
 				return err
 			}
