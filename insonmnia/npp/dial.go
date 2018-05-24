@@ -93,7 +93,7 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 	select {
 	case conn := <-channel:
 		return conn.unwrap()
-	case <-nppCtx.Done():
+	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
 }
