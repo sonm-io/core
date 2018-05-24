@@ -102,3 +102,10 @@ message BalanceReply {
     BigInt liveBalance = 1;
     BigInt sideBalance = 2;
 }
+
+service Blacklist {
+    // List addresses into given blacklist
+    rpc List(EthAddress) returns (BlacklistReply) {}
+    // Remove removes given address from blacklist
+    rpc Remove(EthAddress) returns (Empty) {}
+}
