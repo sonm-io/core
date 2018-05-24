@@ -26,7 +26,7 @@ func (b *blacklistAPI) List(ctx context.Context, addr *sonm.EthAddress) (*sonm.B
 
 func (b *blacklistAPI) Remove(ctx context.Context, addr *sonm.EthAddress) (*sonm.Empty, error) {
 	if err := b.remotes.eth.Blacklist().Remove(ctx, b.remotes.key, addr.Unwrap()); err != nil {
-		return nil, errors.Wrap(err, "cannot remove address from blacklist")
+		return nil, errors.WithMessage(err, "cannot remove address from blacklist")
 	}
 
 	return &sonm.Empty{}, nil
