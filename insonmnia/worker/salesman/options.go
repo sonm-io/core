@@ -4,14 +4,13 @@ import (
 	"crypto/ecdsa"
 	"errors"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/state"
-	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 )
 
@@ -74,7 +73,7 @@ func WithConfig(config *YAMLConfig) Option {
 	}
 }
 func (m *options) Validate() error {
-	err := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	err := multierror.NewMultiError()
 
 	if m.log == nil {
 		err = multierror.Append(err, errors.New("WithLogger option is required"))

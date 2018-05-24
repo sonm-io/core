@@ -6,7 +6,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
@@ -15,6 +14,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xgrpc"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/credentials"
@@ -45,7 +45,7 @@ type options struct {
 }
 
 func (m *options) validate() error {
-	err := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	err := multierror.NewMultiError()
 
 	if m.cfg == nil {
 		err = multierror.Append(err, errors.New("config is mandatory for Worker options"))

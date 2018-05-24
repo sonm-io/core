@@ -6,14 +6,14 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/noxiouz/zapctx/ctxlog"
-	errors "github.com/pkg/errors"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/proto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 )
 
@@ -37,7 +37,7 @@ type Config struct {
 }
 
 func (c *Config) validate() error {
-	err := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	err := multierror.NewMultiError()
 
 	if c.QueryLimit == 0 {
 		c.QueryLimit = dwh.MaxLimit
