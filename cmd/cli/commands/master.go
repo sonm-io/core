@@ -44,6 +44,7 @@ var masterListCmd = &cobra.Command{
 			key, err := keystore.GetDefault()
 			if err != nil {
 				showError(cmd, "Cannot read default key", err)
+				os.Exit(1)
 			}
 			master = util.PubKeyToAddr(key.PublicKey)
 		}
@@ -127,6 +128,7 @@ var masterRemoveWorkerCmd = &cobra.Command{
 		master, err := keystore.GetDefault()
 		if err != nil {
 			showError(cmd, "Cannot read default key", err)
+			os.Exit(1)
 		}
 
 		worker, err := util.HexToAddress(args[0])
@@ -147,6 +149,7 @@ var masterRemoveMasterCmd = &cobra.Command{
 		worker, err := keystore.GetDefault()
 		if err != nil {
 			showError(cmd, "Cannot read default key", err)
+			os.Exit(1)
 		}
 
 		master, err := util.HexToAddress(args[0])
