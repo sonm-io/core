@@ -214,11 +214,13 @@ func (h *Hardware) LimitTo(resources *sonm.AskPlanResources) (*Hardware, error) 
 		GPU: []*sonm.GPU{},
 		RAM: &sonm.RAM{Device: h.RAM.Device, Benchmarks: map[uint64]*sonm.Benchmark{}},
 		Network: &sonm.Network{
-			In:       h.Network.In,
-			Out:      h.Network.Out,
-			Overlay:  h.Network.Overlay,
-			Incoming: h.Network.Incoming,
-			Outbound: h.Network.Outbound,
+			In:            h.Network.In,
+			Out:           h.Network.Out,
+			Overlay:       h.Network.Overlay,
+			Incoming:      h.Network.Incoming,
+			Outbound:      h.Network.Outbound,
+			BenchmarksIn:  map[uint64]*sonm.Benchmark{},
+			BenchmarksOut: map[uint64]*sonm.Benchmark{},
 		},
 		Storage: &sonm.Storage{Device: h.Storage.Device, Benchmarks: map[uint64]*sonm.Benchmark{}},
 	}
