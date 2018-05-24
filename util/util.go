@@ -62,12 +62,23 @@ func PubKeyToAddr(key ecdsa.PublicKey) common.Address {
 	return crypto.PubkeyToAddress(key)
 }
 
+func FileExists(p string) bool {
+	f, err := os.Stat(p)
+	if err != nil {
+		return !os.IsNotExist(err) && !f.IsDir()
+	}
+
+	return !f.IsDir()
+}
+
 // DirectoryExists returns true if the given directory exists
 func DirectoryExists(p string) bool {
-	if _, err := os.Stat(p); err != nil {
-		return !os.IsNotExist(err)
+	f, err := os.Stat(p)
+	if err != nil {
+		return false
 	}
-	return true
+
+	return f.IsDir()
 }
 
 // ParseBigInt parses the given string and converts it to *big.Int

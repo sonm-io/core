@@ -144,9 +144,15 @@ var taskStartCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		key, err := keystore.GetDefault()
+		if err != nil {
+			showError(cmd, "Cannot read default key", err)
+			os.Exit(1)
+		}
+
 		deal := &pb.Deal{
 			Id:         bigDealID,
-			ConsumerID: pb.NewEthAddress(util.PubKeyToAddr(sessionKey.PublicKey)),
+			ConsumerID: pb.NewEthAddress(util.PubKeyToAddr(key.PublicKey)),
 		}
 
 		volumes := map[string]*pb.Volume{}
