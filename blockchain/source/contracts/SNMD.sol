@@ -32,7 +32,7 @@ contract SNMD is StandardToken, Ownable {
     //overrided for market
     function transferFrom(address _from, address _to, uint256 _value) public returns (bool) {
         if(markets[_to] == true){
-            require(market != address(0));
+            require(_to != address(0));
             require(markets[msg.sender] == true);
             require(_value <= balances[_from]);
 
