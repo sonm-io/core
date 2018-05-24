@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"encoding/json"
 	"os"
 	"time"
@@ -48,6 +49,15 @@ var (
 	creds    credentials.TransportCredentials
 	keystore *accounts.MultiKeystore
 )
+
+func getDefaultKeyOrDie() *ecdsa.PrivateKey {
+	key, err := keystore.GetDefault()
+	if err != nil {
+		showError(rootCmd, "cannot read default key from keystore", err)
+		os.Exit(1)
+	}
+	return key
+}
 
 func init() {
 	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "localhost:15030", "node endpoint")
@@ -182,11 +192,7 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 	// But we still need to load keys from a store, somewhere keys are used
 	// to sign blockchain transactions, or something like that.
 	if !insecureFlag {
-		sessionKey, err := keystore.GetDefault()
-		if err != nil {
-			showError(cmd, "cannot read default key from keystore", err)
-			os.Exit(1)
-		}
+		sessionKey := getDefaultKeyOrDie()
 
 		_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), sessionKey)
 		if err != nil {
