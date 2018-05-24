@@ -33,6 +33,12 @@ contract('OracleUSD', async function (accounts) {
             assert.equal(tx.logs[0].args.price, testPrice);
         });
 
+        describe('when new price lower or equal 0', function () {
+            it('should revert', async function () {
+                await assertRevert(oracle.setCurrentPrice(0, { from: owner }));
+            });
+        });
+
         describe('when not owner want to set new price', function () {
             it('should revert', async function () {
                 await assertRevert(oracle.setCurrentPrice(testPrice, { from: stranger }));
