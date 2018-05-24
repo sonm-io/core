@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
 
 import "zeppelin-solidity/contracts/token/ERC20/StandardToken.sol";
@@ -9,9 +9,9 @@ contract SNMD is StandardToken, Ownable {
 
     using SafeMath for uint256;
 
-    string public name = "SONM token";
+    string public name = "SONM Develompent token";
 
-    string public symbol = "SNM";
+    string public symbol = "SNMD";
 
     uint public decimals = 18;
 
@@ -19,7 +19,7 @@ contract SNMD is StandardToken, Ownable {
 
     uint totalSupply_ = 444 * 1e6 * 1e18;
 
-    function SNMD() public{
+    constuctor() public{
         owner = msg.sender;
 
         balances[msg.sender] = totalSupply_;
