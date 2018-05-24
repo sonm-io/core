@@ -205,6 +205,10 @@ func (m *workerControl) Execute(ctx context.Context) {
 	// Filter orders to have only orders that are subset of ours.
 	matchedOrders := make([]WeightedOrder, 0, len(orders))
 	for _, order := range orders {
+		if order.Order.Order.OrderType != sonm.OrderType_BID {
+			continue
+		}
+
 		// TODO: Consider into action `order.Order.Netflags`.
 		if workerBenchmarks.Contains(order.Order.Order.Benchmarks) {
 			matchedOrders = append(matchedOrders, order)
