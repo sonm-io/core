@@ -30,6 +30,8 @@ service WorkerManagement {
     // RemoveAskPlan allows to remove rules
     // for creating Ask orders on Marketplace
     rpc RemoveAskPlan(ID) returns (Empty) {}
+    // PurgeAskPlans removes all ask-plans
+    rpc PurgeAskPlans(Empty) returns (Empty) {}
 }
 
 service Worker {
