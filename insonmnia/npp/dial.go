@@ -62,30 +62,39 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	nppCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	channel := make(chan connTuple)
+	nppChannel := make(chan connTuple)
 
 	go func() {
 		puncher, err := m.puncherNew()
 		if err != nil {
-			channel <- newConnTuple(nil, err)
+			nppChannel <- newConnTuple(nil, err)
 			return
 		}
 
-		channel <- newConnTuple(puncher.Dial(ethAddr))
+		nppChannel <- newConnTuple(puncher.Dial(ethAddr))
+	}()
+
+	select {
+	case conn := <-nppChannel:
+		if conn.err == nil || m.relayDial == nil {
+			return conn.unwrap()
+		}
+	case <-nppCtx.Done():
+	}
+
+	channel := make(chan connTuple)
+	go func() {
+		channel <- newConnTuple(m.relayDial(ethAddr))
 	}()
 
 	select {
 	case conn := <-channel:
-		if conn.err != nil && m.relayDial != nil {
-			return m.relayDial(ethAddr)
-		} else {
-			return conn.unwrap()
-		}
-	case <-ctx.Done():
-		return m.relayDial(ethAddr)
+		return conn.unwrap()
+	case <-nppCtx.Done():
+		return nil, ctx.Err()
 	}
 }
 
