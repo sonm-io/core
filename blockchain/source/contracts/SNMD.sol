@@ -19,7 +19,7 @@ contract SNMD is StandardToken, Ownable {
 
     uint totalSupply_ = 444 * 1e6 * 1e18;
 
-    constuctor() public{
+    constructor() public{
         owner = msg.sender;
 
         balances[msg.sender] = totalSupply_;
