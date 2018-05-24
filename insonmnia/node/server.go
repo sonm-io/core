@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
@@ -36,17 +35,13 @@ type workerClient struct {
 
 // remoteOptions describe options related to remove gRPC services
 type remoteOptions struct {
-	ctx               context.Context
-	key               *ecdsa.PrivateKey
-	conf              *Config
-	creds             credentials.TransportCredentials
-	eth               blockchain.API
-	dwh               pb.DWHClient
-	workerCreator     workerClientCreator
-	blockchainTimeout time.Duration
-	nppDialer         *npp.Dialer
-	benchList         benchmarks.BenchList
-	orderMatcher      matcher.Matcher
+	ctx           context.Context
+	key           *ecdsa.PrivateKey
+	eth           blockchain.API
+	dwh           pb.DWHClient
+	workerCreator workerClientCreator
+	benchList     benchmarks.BenchList
+	orderMatcher  matcher.Matcher
 }
 
 func (re *remoteOptions) getWorkerClientForDeal(ctx context.Context, id string) (*workerClient, io.Closer, error) {
@@ -144,17 +139,13 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 	}
 
 	return &remoteOptions{
-		ctx:               ctx,
-		key:               key,
-		conf:              cfg,
-		creds:             credentials,
-		eth:               eth,
-		dwh:               dwh,
-		blockchainTimeout: 180 * time.Second,
-		workerCreator:     workerFactory,
-		nppDialer:         nppDialer,
-		benchList:         benchList,
-		orderMatcher:      orderMatcher,
+		ctx:           ctx,
+		key:           key,
+		eth:           eth,
+		dwh:           dwh,
+		workerCreator: workerFactory,
+		benchList:     benchList,
+		orderMatcher:  orderMatcher,
 	}, nil
 }
 
