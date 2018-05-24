@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
@@ -62,15 +63,18 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, er
 
 	// try to extract extra info for deal
 	dealID := deal.GetId().Unwrap().String()
-	worker, closer, err := d.remotes.getWorkerClientByEthAddr(ctx, deal.GetSupplierID().Unwrap().Hex())
+	workerCtx, workerCtxCancel := context.WithTimeout(ctx, 10*time.Second)
+	defer workerCtxCancel()
+
+	worker, closer, err := d.remotes.getWorkerClientByEthAddr(workerCtx, deal.GetSupplierID().Unwrap().Hex())
 	if err == nil {
 		ctxlog.G(d.remotes.ctx).Debug("try to obtain deal info from the worker")
 		defer closer.Close()
-		info, err := worker.GetDealInfo(ctx, &pb.ID{Id: dealID})
+
+		info, err := worker.GetDealInfo(workerCtx, &pb.ID{Id: dealID})
 		if err == nil {
 			return info, nil
 		}
-
 	}
 
 	return reply, nil

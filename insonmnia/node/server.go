@@ -27,7 +27,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-type workerClientCreator func(addr *auth.Addr) (*workerClient, io.Closer, error)
+type workerClientCreator func(ctx context.Context, addr *auth.Addr) (*workerClient, io.Closer, error)
 
 type workerClient struct {
 	pb.WorkerClient
@@ -70,7 +70,7 @@ func (re *remoteOptions) getWorkerClientForDeal(ctx context.Context, id string) 
 
 func (re *remoteOptions) getWorkerClientByEthAddr(ctx context.Context, eth string) (*workerClient, io.Closer, error) {
 	addr := auth.NewAddrRaw(common.HexToAddress(eth), "")
-	return re.workerCreator(&addr)
+	return re.workerCreator(ctx, &addr)
 }
 
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
@@ -83,11 +83,11 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		return nil, err
 	}
 
-	workerFactory := func(addr *auth.Addr) (*workerClient, io.Closer, error) {
+	workerFactory := func(ctx context.Context, addr *auth.Addr) (*workerClient, io.Closer, error) {
 		if addr == nil {
 			return nil, nil, fmt.Errorf("no address specified to dial worker")
 		}
-		conn, err := nppDialer.Dial(*addr)
+		conn, err := nppDialer.DialContext(ctx, *addr)
 		if err != nil {
 			return nil, nil, err
 		}

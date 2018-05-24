@@ -46,7 +46,7 @@ func (h *workerAPI) getClient(ctx context.Context) (pb.WorkerManagementClient, i
 	}
 
 	log.S(h.ctx).Debugf("connecting to worker on %s", addr.String())
-	return h.remotes.workerCreator(addr)
+	return h.remotes.workerCreator(ctx, addr)
 }
 
 func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
