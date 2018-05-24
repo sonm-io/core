@@ -82,21 +82,21 @@ func NewSalesman(opts ...Option) (*Salesman, error) {
 func (m *Salesman) Close() {}
 
 func (m *Salesman) Run(ctx context.Context) <-chan *sonm.Deal {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	for _, plan := range m.askPlans {
-		orderID := plan.GetOrderID()
-		dealID := plan.GetDealID()
-		if dealID.IsZero() && !orderID.IsZero() {
-			order, err := m.eth.Market().GetOrderInfo(ctx, orderID.Unwrap())
-			if err != nil {
-				m.log.Warnf("failed to get order info for order %s, stopping waiting for deal: %s", orderID.Unwrap().String(), err)
-				continue
+	go func() {
+		for _, plan := range m.askPlans {
+			orderID := plan.GetOrderID()
+			dealID := plan.GetDealID()
+			if dealID.IsZero() && !orderID.IsZero() {
+				order, err := m.eth.Market().GetOrderInfo(ctx, orderID.Unwrap())
+				if err != nil {
+					m.log.Warnf("failed to get order info for order %s, stopping waiting for deal: %s", orderID.Unwrap().String(), err)
+					continue
+				}
+				go m.waitForDeal(ctx, order)
 			}
-			go m.waitForDeal(ctx, order)
 		}
-	}
-	go m.syncRoutine(ctx)
+		go m.syncRoutine(ctx)
+	}()
 	return m.dealsCh
 }
 
