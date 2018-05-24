@@ -42,7 +42,18 @@ func NewDialer(ctx context.Context, options ...Option) (*Dialer, error) {
 
 // Dial dials the given verified address using NPP.
 func (m *Dialer) Dial(addr auth.Addr) (net.Conn, error) {
-	if conn := m.dialDirect(addr); conn != nil {
+	return m.DialContext(context.Background(), addr)
+}
+
+// DialContext connects to the given verified address using NPP and the
+// provided context.
+//
+// The provided Context must be non-nil. If the context expires before
+// the connection is complete, an error is returned. Once successfully
+// connected, any expiration of the context will not affect the
+// connection.
+func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, error) {
+	if conn := m.dialDirect(ctx, addr); conn != nil {
 		return conn, nil
 	}
 
@@ -51,7 +62,7 @@ func (m *Dialer) Dial(addr auth.Addr) (net.Conn, error) {
 		return nil, err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	channel := make(chan connTuple)
@@ -78,10 +89,11 @@ func (m *Dialer) Dial(addr auth.Addr) (net.Conn, error) {
 	}
 }
 
-func (m *Dialer) dialDirect(addr auth.Addr) net.Conn {
+func (m *Dialer) dialDirect(ctx context.Context, addr auth.Addr) net.Conn {
 	netAddr, err := addr.Addr()
 	if err == nil {
-		conn, err := net.Dial("tcp", netAddr)
+		dialer := net.Dialer{}
+		conn, err := dialer.DialContext(ctx, "tcp", netAddr)
 		if err == nil {
 			return conn
 		}
