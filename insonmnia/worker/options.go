@@ -149,7 +149,7 @@ func (m *options) exportKey() error {
 		return err
 	}
 	ks := keystore.NewKeyStore(exportKeystorePath, keystore.LightScryptN, keystore.LightScryptP)
-	if !ks.HasAddress(util.PubKeyToAddr(m.key.PublicKey)) {
+	if !ks.HasAddress(crypto.PubkeyToAddress(m.key.PublicKey)) {
 		_, err := ks.ImportECDSA(m.key, "sonm")
 		return err
 	}
@@ -206,7 +206,7 @@ func (m *options) setupWhitelist() error {
 	if m.whitelist == nil {
 		cfg := m.cfg.Whitelist
 		if len(cfg.PrivilegedAddresses) == 0 {
-			cfg.PrivilegedAddresses = append(cfg.PrivilegedAddresses, util.PubKeyToAddr(m.key.PublicKey).Hex())
+			cfg.PrivilegedAddresses = append(cfg.PrivilegedAddresses, crypto.PubkeyToAddress(m.key.PublicKey).Hex())
 		}
 
 		m.whitelist = NewWhitelist(m.ctx, &cfg)
