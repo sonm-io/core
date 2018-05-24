@@ -1157,7 +1157,7 @@ func (m *Worker) RemoveAskPlan(ctx context.Context, request *pb.ID) (*pb.Empty, 
 func (m *Worker) PurgeAskPlans(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 	plans := m.salesman.AskPlans()
 
-	result := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	result := multierror.NewMultiError()
 	for id := range plans {
 		err := m.salesman.RemoveAskPlan(id)
 		result = multierror.Append(result, err)
