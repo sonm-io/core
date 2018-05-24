@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -937,18 +936,6 @@ func testBilled(commonEventTS uint64, commonID *big.Int) error {
 				"10", conditions[0].TotalPayout.Unwrap().String())
 		}
 	}
-	if dealPayments, err := getDealPayments(monitorDWH); err != nil {
-		return errors.Errorf("Failed to GetDealDetails: %s", err)
-	} else {
-		if len(dealPayments) != 1 {
-			return errors.Errorf("(Billed) Expected 1 DealPayment, got %d", len(dealPayments))
-		}
-		if !strings.HasSuffix(dealPayments[0].PaidAmount, "10") {
-			return errors.Errorf("(Billed) Expected %s, got %s (DealPayment.PaidAmount)",
-				"10", dealPayments[0].PaidAmount)
-		}
-	}
-
 	updatedDeal, err := monitorDWH.storage.GetDealByID(newSimpleConn(monitorDWH.db), commonID)
 	if err != nil {
 		return errors.Wrap(err, "GetDealByID failed")
@@ -1076,34 +1063,6 @@ func getDealChangeRequest(w *DWH, changeRequestID *pb.BigInt) (*pb.DealChangeReq
 	return globalDWH.storage.(*sqlStorage).decodeDealChangeRequest(rows)
 }
 
-func getDealPayments(w *DWH) ([]*dealPayment, error) {
-	rows, err := w.db.Query("SELECT * FROM DealPayments")
-	if err != nil {
-		return nil, errors.Errorf("query failed: %s", err)
-	}
-	defer rows.Close()
-
-	var out []*dealPayment
-	for rows.Next() {
-		var (
-			billedTS   uint64
-			paidAmount string
-			dealID     string
-		)
-		if err := rows.Scan(&billedTS, &paidAmount, &dealID); err != nil {
-			return nil, err
-		} else {
-			out = append(out, &dealPayment{
-				BilledTS:   billedTS,
-				PaidAmount: paidAmount,
-				DealID:     dealID,
-			})
-		}
-	}
-
-	return out, nil
-}
-
 func getCertificates(w *DWH) ([]*pb.Certificate, error) {
 	rows, err := w.db.Query("SELECT * FROM Certificates")
 	if err != nil {
@@ -1139,9 +1098,20 @@ func setupTestDB(w *DWH) error {
 	}
 	byteCerts, _ := json.Marshal(certs)
 
+	insertDeal := `INSERT INTO Deals(Id, SupplierID, ConsumerID, MasterID, AskID, BidID, Duration, Price, StartTime,
+		EndTime, Status, BlockedBalance, TotalPayout, LastBillTS, Netflags, AskIdentityLevel, BidIdentityLevel,
+		SupplierCertificates, ConsumerCertificates, ActiveChangeRequest, Benchmark0, Benchmark1, Benchmark2,
+		Benchmark3, Benchmark4, Benchmark5, Benchmark6, Benchmark7, Benchmark8, Benchmark9, Benchmark10, Benchmark11)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	insertOrder := `INSERT INTO Orders(Id, CreatedTS, DealID, Type, Status, AuthorID, CounterpartyID, Duration,
+		Price, Netflags, IdentityLevel, Blacklist, Tag, FrozenSum, CreatorIdentityLevel, CreatorName, CreatorCountry,
+		CreatorCertificates, Benchmark0, Benchmark1, Benchmark2, Benchmark3, Benchmark4, Benchmark5, Benchmark6,
+		Benchmark7, Benchmark8, Benchmark9, Benchmark10, Benchmark11) VALUES
+		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+	insertDealChangeRequest := `INSERT INTO DealChangeRequests VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	for i := 0; i < 10; i++ {
 		_, err := w.db.Exec(
-			w.storage.(*sqlStorage).commands.insertDeal,
+			insertDeal,
 			fmt.Sprintf("4040%d", i),
 			common.HexToAddress(fmt.Sprintf("0x1%d", i)).Hex(), // Supplier
 			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(), // Consumer
@@ -1180,7 +1150,7 @@ func setupTestDB(w *DWH) error {
 		}
 
 		_, err = w.db.Exec(
-			w.storage.(*sqlStorage).commands.insertOrder,
+			insertOrder,
 			fmt.Sprintf("2020%d", i),
 			12345, // CreatedTS
 			fmt.Sprintf("1010%d", i),
@@ -1217,7 +1187,7 @@ func setupTestDB(w *DWH) error {
 		}
 
 		_, err = w.db.Exec(
-			w.storage.(*sqlStorage).commands.insertOrder,
+			insertOrder,
 			fmt.Sprintf("3030%d", i),
 			12345, // CreatedTS
 			fmt.Sprintf("1010%d", i),
@@ -1253,7 +1223,7 @@ func setupTestDB(w *DWH) error {
 			return err
 		}
 
-		_, err = w.db.Exec(w.storage.(*sqlStorage).commands.insertDealChangeRequest,
+		_, err = w.db.Exec(insertDealChangeRequest,
 			fmt.Sprintf("5050%d", i), 0, 0, 0, 0, 0, "40400")
 		if err != nil {
 			return err
