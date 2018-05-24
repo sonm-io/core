@@ -153,7 +153,7 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 	CREATE TABLE IF NOT EXISTS Workers (
 		MasterID					TEXT NOT NULL,
 		WorkerID					TEXT NOT NULL,
-		Confirmed					INTEGER NOT NULL,
+		Confirmed					BOOLEAN NOT NULL,
 		UNIQUE						(MasterID, WorkerID)
 	)`,
 			createTableBlacklists: `
