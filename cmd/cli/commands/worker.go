@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
@@ -19,6 +20,10 @@ var (
 func workerPreRun(cmd *cobra.Command, args []string) {
 	loadKeyStoreIfRequired(cmd, args)
 	workerCtx, workerCancel = newTimeoutContext()
+	workerAddr := cfg.WorkerAddr
+	if len(workerAddr) == 0 {
+		workerAddr = crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Hex()
+	}
 	md := metadata.MD{
 		util.WorkerAddressHeader: []string{cfg.WorkerAddr},
 	}
@@ -43,6 +48,7 @@ func init() {
 		askPlansRootCmd,
 		workerTasksCmd,
 		workerDevicesCmd,
+		workerSwitchCmd,
 	)
 }
 
@@ -64,5 +70,23 @@ var workerStatusCmd = &cobra.Command{
 		}
 
 		printWorkerStatus(cmd, status)
+	},
+}
+
+var workerSwitchCmd = &cobra.Command{
+	Use:   "switch <eth_addr>",
+	Short: "Switch current worker to specified addr",
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		addr, err := util.HexToAddress(args[0])
+		if err != nil {
+			showError(cmd, "Invalid address specified", err)
+			os.Exit(1)
+		}
+		cfg.WorkerAddr = addr.Hex()
+		if err := cfg.Save(); err != nil {
+			showError(cmd, "Failed to save worker address", err)
+			os.Exit(1)
+		}
 	},
 }
