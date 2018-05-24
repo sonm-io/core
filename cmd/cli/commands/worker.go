@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -49,6 +50,7 @@ func init() {
 		workerTasksCmd,
 		workerDevicesCmd,
 		workerSwitchCmd,
+		workerCurrentCmd,
 	)
 }
 
@@ -87,6 +89,21 @@ var workerSwitchCmd = &cobra.Command{
 		if err := cfg.Save(); err != nil {
 			showError(cmd, "Failed to save worker address", err)
 			os.Exit(1)
+		}
+	},
+}
+
+var workerCurrentCmd = &cobra.Command{
+	Use:   "current",
+	Short: "Show current worker's addr",
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(cfg.WorkerAddr) == 0 {
+			addr := crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey)
+			cmd.Printf("current worker is not set, using cli's addr %s\n", addr.Hex())
+		} else if !common.IsHexAddress(cfg.WorkerAddr) {
+			cmd.Printf("current worker(%s) is invalid\n", cfg.WorkerAddr)
+		} else {
+			cmd.Printf("current worker is %s\n", cfg.WorkerAddr)
 		}
 	},
 }
