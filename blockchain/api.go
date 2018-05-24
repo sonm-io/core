@@ -61,7 +61,7 @@ type MarketAPI interface {
 type BlacklistAPI interface {
 	Check(ctx context.Context, who, whom common.Address) (bool, error)
 	Add(ctx context.Context, key *ecdsa.PrivateKey, who, whom common.Address) (*types.Transaction, error)
-	Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) <-chan error
+	Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) error
 	AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error)
 	RemoveMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error)
 	SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey, market common.Address) (*types.Transaction, error)
@@ -650,32 +650,23 @@ func (api *BasicBlacklistAPI) Add(ctx context.Context, key *ecdsa.PrivateKey, wh
 	return api.blacklistContract.Add(opts, who, whom)
 }
 
-func (api *BasicBlacklistAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) <-chan error {
-	ch := make(chan error)
-	go api.remove(ctx, key, whom, ch)
-	return ch
-}
-
-func (api *BasicBlacklistAPI) remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address, ch chan<- error) {
+func (api *BasicBlacklistAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) error {
 	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.gasPrice)
 	tx, err := api.blacklistContract.Remove(opts, whom)
 	if err != nil {
-		ch <- err
-		return
+		return err
 	}
 
 	rec, err := WaitTransactionReceipt(ctx, api.client, defaultBlockConfirmations, api.logParsePeriod, tx)
 	if err != nil {
-		ch <- err
-		return
+		return err
 	}
 
 	if _, err := FindLogByTopic(rec, market.RemovedFromBlacklistTopic); err != nil {
-		ch <- err
-		return
+		return err
 	}
 
-	ch <- nil
+	return nil
 }
 
 func (api *BasicBlacklistAPI) AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error) {
