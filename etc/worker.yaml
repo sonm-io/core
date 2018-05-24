@@ -1,3 +1,8 @@
+# Admin key is a key that allows to use worker management API without
+# configuring master key.
+# Useful for development and/or debugging.
+admin: 0x000000000000000000000000000000000000000f
+
 # An endpoint for client connections using cli
 # allowed format is "ip:port" to bind Worker to given IP address
 # or ":port" to bind Worker to all available IPs

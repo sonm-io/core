@@ -236,14 +236,17 @@ func (m *Worker) setupMaster() error {
 }
 
 func (m *Worker) setupAuthorization() error {
-	var managementAuth auth.Authorization
-	if m.cfg.Master != nil {
-		managementAuth = newMultiAuth(
-			auth.NewTransportAuthorization(m.ethAddr()),
-			auth.NewTransportAuthorization(*m.cfg.Master))
-	} else {
-		managementAuth = auth.NewTransportAuthorization(m.ethAddr())
+	managementAuthOptions := []auth.Authorization{
+		auth.NewTransportAuthorization(m.ethAddr()),
 	}
+	if m.cfg.Master != nil {
+		managementAuthOptions = append(managementAuthOptions, auth.NewTransportAuthorization(*m.cfg.Master))
+	}
+	if m.cfg.Admin != nil {
+		managementAuthOptions = append(managementAuthOptions, auth.NewTransportAuthorization(*m.cfg.Admin))
+	}
+
+	managementAuth := newMultiAuth(managementAuthOptions...)
 
 	authorization := auth.NewEventAuthorization(m.ctx,
 		auth.WithLog(log.G(m.ctx)),

@@ -49,6 +49,7 @@ type Config struct {
 	Matcher           *matcher.YAMLConfig `yaml:"matcher"`
 	Salesman          salesman.YAMLConfig `yaml:"salesman"`
 	Master            *common.Address     `yaml:"master"`
+	Admin             *common.Address     `yaml:"admin"`
 }
 
 // NewConfig creates a new Worker config from the specified YAML file.
