@@ -10,6 +10,16 @@ message Registry {
     string serverAddress = 3;
 }
 
+// ContainerRestartPolicy represents the restart policies of the container.
+message ContainerRestartPolicy {
+    // Name can be either "always" to always restart or "on-failure" to restart
+    // only when the container exit code is non-zero. If on-failure is used,
+    // MaximumRetryCount controls the number of times to retry before giving up.
+    // The default is not to restart.
+    string name = 1;
+    uint32 maximumRetryCount = 2;
+}
+
 message NetworkSpec {
     string type = 1;
     map<string, string> options = 2;
@@ -36,4 +46,6 @@ message Container {
     repeated string mounts = 6;
 
     repeated NetworkSpec networks = 7;
+    // ContainerRestartPolicy describes.
+    ContainerRestartPolicy restartPolicy = 8;
 }

@@ -51,13 +51,6 @@ message ResourceUsage {
     map<string, NetworkUsage> network = 3;
 }
 
-
-
-message ContainerRestartPolicy {
-    string name = 1;
-    uint32 maximumRetryCount = 2;
-}
-
 message TaskLogsRequest {
     enum Type {
         STDOUT = 0;

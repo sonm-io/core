@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 )
 
 func (m *Registry) Auth() string {
@@ -27,6 +28,16 @@ func (m *Registry) authConfig() types.AuthConfig {
 		Password:      m.GetPassword(),
 		ServerAddress: m.GetServerAddress(),
 	}
+}
+
+func (m *ContainerRestartPolicy) Unwrap() container.RestartPolicy {
+	restartPolicy := container.RestartPolicy{}
+	if m != nil {
+		restartPolicy.Name = m.Name
+		restartPolicy.MaximumRetryCount = int(m.MaximumRetryCount)
+	}
+
+	return restartPolicy
 }
 
 func (m *Container) Validate() error {
