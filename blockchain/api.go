@@ -140,7 +140,8 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
-	blacklist, err := NewBasicBlacklist(customClientSidechain, market.BlacklistAddr(), defaults.gasPriceSidechain, defaults.logParsePeriod)
+	blacklist, err := NewBasicBlacklist(customClientSidechain, market.BlacklistAddr(), defaults.logParsePeriod,
+		defaults.gasPriceSidechain, defaults.blockConfirmations)
 	if err != nil {
 		return nil, err
 	}
@@ -621,23 +622,25 @@ func (api *ProfileRegistry) GetCertificate(ctx context.Context, certificateID *b
 }
 
 type BasicBlacklistAPI struct {
-	client            CustomEthereumClient
-	blacklistContract *marketAPI.Blacklist
-	gasPrice          int64
-	logParsePeriod    time.Duration
+	client             CustomEthereumClient
+	blacklistContract  *marketAPI.Blacklist
+	gasPrice           int64
+	logParsePeriod     time.Duration
+	blockConfirmations int64
 }
 
-func NewBasicBlacklist(client CustomEthereumClient, address common.Address, gasPrice int64, logParsePeriod time.Duration) (BlacklistAPI, error) {
+func NewBasicBlacklist(client CustomEthereumClient, address common.Address, logParsePeriod time.Duration, gasPrice, blockConfirmations int64) (BlacklistAPI, error) {
 	blacklistContract, err := marketAPI.NewBlacklist(address, client)
 	if err != nil {
 		return nil, err
 	}
 
 	return &BasicBlacklistAPI{
-		client:            client,
-		blacklistContract: blacklistContract,
-		gasPrice:          gasPrice,
-		logParsePeriod:    logParsePeriod,
+		client:             client,
+		blacklistContract:  blacklistContract,
+		gasPrice:           gasPrice,
+		logParsePeriod:     logParsePeriod,
+		blockConfirmations: blockConfirmations,
 	}, nil
 }
 
@@ -657,7 +660,7 @@ func (api *BasicBlacklistAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey,
 		return err
 	}
 
-	rec, err := WaitTransactionReceipt(ctx, api.client, defaultBlockConfirmations, api.logParsePeriod, tx)
+	rec, err := WaitTransactionReceipt(ctx, api.client, api.blockConfirmations, api.logParsePeriod, tx)
 	if err != nil {
 		return err
 	}
