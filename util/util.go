@@ -63,10 +63,12 @@ func PubKeyToAddr(key ecdsa.PublicKey) common.Address {
 }
 
 func FileExists(p string) bool {
-	if _, err := os.Stat(p); err != nil {
-		return !os.IsNotExist(err)
+	f, err := os.Stat(p)
+	if err != nil {
+		return !os.IsNotExist(err) && !f.IsDir()
 	}
-	return true
+
+	return !f.IsDir()
 }
 
 // DirectoryExists returns true if the given directory exists
