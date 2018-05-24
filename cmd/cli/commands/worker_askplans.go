@@ -13,6 +13,7 @@ func init() {
 		askPlanListCmd,
 		askPlanCreateCmd,
 		askPlanRemoveCmd,
+		askPlanPurgeCmd,
 	)
 }
 
@@ -67,6 +68,20 @@ var askPlanRemoveCmd = &cobra.Command{
 		_, err := worker.RemoveAskPlan(workerCtx, &pb.ID{Id: ID})
 		if err != nil {
 			showError(cmd, "Cannot remove AskOrder", err)
+			os.Exit(1)
+		}
+
+		showOk(cmd)
+	},
+}
+
+var askPlanPurgeCmd = &cobra.Command{
+	Use:   "purge",
+	Short: "Purge all exiting ask-plans on worker",
+	Run: func(cmd *cobra.Command, args []string) {
+		_, err := worker.PurgeAskPlans(workerCtx, &pb.Empty{})
+		if err != nil {
+			showError(cmd, "Cannot purge ask plans", err)
 			os.Exit(1)
 		}
 

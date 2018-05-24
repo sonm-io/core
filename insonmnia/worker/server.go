@@ -59,6 +59,7 @@ var (
 		workerAPIPrefix + "AskPlans",
 		workerAPIPrefix + "CreateAskPlan",
 		workerAPIPrefix + "RemoveAskPlan",
+		workerAPIPrefix + "PurgeAskPlans",
 	}
 )
 
@@ -1163,6 +1164,22 @@ func (m *Worker) RemoveAskPlan(ctx context.Context, request *pb.ID) (*pb.Empty, 
 	if err := m.salesman.RemoveAskPlan(request.GetId()); err != nil {
 		return nil, err
 	}
+	return &pb.Empty{}, nil
+}
+
+func (m *Worker) PurgeAskPlans(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
+	plans := m.salesman.AskPlans()
+
+	result := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	for id := range plans {
+		err := m.salesman.RemoveAskPlan(id)
+		result = multierror.Append(result, err)
+	}
+
+	if result.ErrorOrNil() != nil {
+		return nil, result.ErrorOrNil()
+	}
+
 	return &pb.Empty{}, nil
 }
 
