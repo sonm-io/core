@@ -41,11 +41,7 @@ var masterListCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		} else {
-			key, err := keystore.GetDefault()
-			if err != nil {
-				showError(cmd, "Cannot read default key", err)
-				os.Exit(1)
-			}
+			key := getDefaultKeyOrDie()
 			master = util.PubKeyToAddr(key.PublicKey)
 		}
 
@@ -125,11 +121,7 @@ var masterRemoveWorkerCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		master, err := keystore.GetDefault()
-		if err != nil {
-			showError(cmd, "Cannot read default key", err)
-			os.Exit(1)
-		}
+		master := getDefaultKeyOrDie()
 
 		worker, err := util.HexToAddress(args[0])
 		if err != nil {
@@ -146,11 +138,7 @@ var masterRemoveMasterCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		worker, err := keystore.GetDefault()
-		if err != nil {
-			showError(cmd, "Cannot read default key", err)
-			os.Exit(1)
-		}
+		worker := getDefaultKeyOrDie()
 
 		master, err := util.HexToAddress(args[0])
 		if err != nil {

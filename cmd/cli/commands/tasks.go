@@ -144,11 +144,7 @@ var taskStartCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		key, err := keystore.GetDefault()
-		if err != nil {
-			showError(cmd, "Cannot read default key", err)
-			os.Exit(1)
-		}
+		key := getDefaultKeyOrDie()
 
 		deal := &pb.Deal{
 			Id:         bigDealID,
