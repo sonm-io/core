@@ -42,7 +42,7 @@ var masterListCmd = &cobra.Command{
 			}
 		} else {
 			key := getDefaultKeyOrDie()
-			master = util.PubKeyToAddr(key.PublicKey)
+			master = crypto.PubkeyToAddress(key.PublicKey)
 		}
 
 		mm, err := newMasterManagementClient(ctx)

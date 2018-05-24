@@ -5,7 +5,7 @@ import (
 	"net"
 	"strconv"
 
-	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/netutil"
 )
 
 func NewAddr(addr net.Addr) (*Addr, error) {
@@ -53,7 +53,7 @@ func NewSocketAddr(endpoint string) (*SocketAddr, error) {
 
 // IsPrivate returns true if this address can't be reached from the Internet directly.
 func (m *SocketAddr) IsPrivate() bool {
-	return util.IsPrivateIP(net.ParseIP(m.Addr))
+	return netutil.IsPrivateIP(net.ParseIP(m.Addr))
 }
 
 func (m *SocketAddr) IntoTCP() (net.Addr, error) {

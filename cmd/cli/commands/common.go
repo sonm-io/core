@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/sonm-io/core/insonmnia/auth"
@@ -200,7 +201,7 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 			os.Exit(1)
 		}
 
-		creds = auth.NewWalletAuthenticator(util.NewTLS(TLSConfig), util.PubKeyToAddr(sessionKey.PublicKey))
+		creds = auth.NewWalletAuthenticator(util.NewTLS(TLSConfig), crypto.PubkeyToAddress(sessionKey.PublicKey))
 	}
 }
 

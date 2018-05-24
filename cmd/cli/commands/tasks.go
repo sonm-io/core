@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gosuri/uiprogress"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -148,7 +149,7 @@ var taskStartCmd = &cobra.Command{
 
 		deal := &pb.Deal{
 			Id:         bigDealID,
-			ConsumerID: pb.NewEthAddress(util.PubKeyToAddr(key.PublicKey)),
+			ConsumerID: pb.NewEthAddress(crypto.PubkeyToAddress(key.PublicKey)),
 		}
 
 		volumes := map[string]*pb.Volume{}
