@@ -1447,6 +1447,12 @@
 			"revisionTime": "2017-06-14T20:35:40Z"
 		},
 		{
+			"checksumSHA1": "tbK3sXh4YByrM0FWofDWEhP7+0M=",
+			"path": "github.com/sevlyar/retag",
+			"revision": "de3f0096c81e55b0dfa0384a6d8c6ecd4e8c518e",
+			"revisionTime": "2017-12-12T08:44:44Z"
+		},
+		{
 			"checksumSHA1": "T2ThCk35wXAZGh37nrgA07199dA=",
 			"path": "github.com/shirou/gopsutil/cpu",
 			"revision": "3aa2ffab12a1852644f6d33cd782f877272bf305",
