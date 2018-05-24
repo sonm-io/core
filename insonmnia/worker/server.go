@@ -16,7 +16,6 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/hashicorp/go-multierror"
 	"github.com/mohae/deepcopy"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -28,6 +27,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xgrpc"
 
 	// todo: drop alias
@@ -346,7 +346,7 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 	}
 	m.mu.Unlock()
 
-	result := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	result := multierror.NewMultiError()
 	for _, container := range toDelete {
 		if err := m.ovs.OnDealFinish(m.ctx, container.ID); err != nil {
 			result = multierror.Append(result, err)
@@ -1157,7 +1157,7 @@ func (m *Worker) RemoveAskPlan(ctx context.Context, request *pb.ID) (*pb.Empty, 
 func (m *Worker) PurgeAskPlans(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 	plans := m.salesman.AskPlans()
 
-	result := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	result := multierror.NewMultiError()
 	for id := range plans {
 		err := m.salesman.RemoveAskPlan(id)
 		result = multierror.Append(result, err)
