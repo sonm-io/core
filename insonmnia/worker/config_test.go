@@ -74,7 +74,7 @@ func TestConfigPlugins(t *testing.T) {
 	defer deleteTestConfigFile()
 	raw := `
 endpoint: "127.0.0.5:15010"
-
+master: 0x0000000000000000000000000000000000000001
 plugins:
   socket_dir: /tmp/run/test-plugins
   volume:

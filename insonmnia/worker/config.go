@@ -32,6 +32,10 @@ type WhitelistConfig struct {
 	RefreshPeriod       uint     `yaml:"refresh_period" default:"60"`
 }
 
+type DevConfig struct {
+	DisableMasterApproval bool `yaml:"disable_master_approval"`
+}
+
 type Config struct {
 	Endpoint          string              `yaml:"endpoint" required:"true"`
 	Logging           logging.Config      `yaml:"logging"`
@@ -48,7 +52,8 @@ type Config struct {
 	DWH               dwh.YAMLConfig      `yaml:"dwh"`
 	Matcher           *matcher.YAMLConfig `yaml:"matcher"`
 	Salesman          salesman.YAMLConfig `yaml:"salesman"`
-	Master            *common.Address     `yaml:"master"`
+	Master            common.Address      `yaml:"master" required:"true"`
+	Development       *DevConfig          `yaml:"development"`
 	Admin             *common.Address     `yaml:"admin"`
 }
 

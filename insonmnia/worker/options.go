@@ -2,7 +2,9 @@ package worker
 
 import (
 	"crypto/ecdsa"
+	"os"
 
+	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hashicorp/go-multierror"
 	"github.com/pkg/errors"
@@ -20,6 +22,7 @@ import (
 
 const (
 	ethereumPrivateKeyKey = "ethereum_private_key"
+	exportKeystorePath    = "/var/lib/sonm/worker_keystore"
 )
 
 type options struct {
@@ -134,6 +137,21 @@ func (m *options) setupKey() error {
 			}
 			m.key = key
 		}
+	}
+	if err := m.exportKey(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (m *options) exportKey() error {
+	if err := os.MkdirAll(exportKeystorePath, 0600); err != nil {
+		return err
+	}
+	ks := keystore.NewKeyStore(exportKeystorePath, keystore.LightScryptN, keystore.LightScryptP)
+	if !ks.HasAddress(util.PubKeyToAddr(m.key.PublicKey)) {
+		_, err := ks.ImportECDSA(m.key, "sonm")
+		return err
 	}
 	return nil
 }
