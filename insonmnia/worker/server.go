@@ -184,7 +184,7 @@ func (m *Worker) Serve() error {
 }
 
 func (m *Worker) waitMasterApproved() error {
-	if m.cfg.Master == nil {
+	if m.cfg.Development != nil && m.cfg.Development.DisableMasterApproval {
 		return nil
 	}
 	selfAddr := m.ethAddr().Hex()
@@ -218,30 +218,31 @@ func (m *Worker) ethAddr() common.Address {
 }
 
 func (m *Worker) setupMaster() error {
-	if m.cfg.Master != nil {
-		log.S(m.ctx).Info("checking current master")
-		addr, err := m.eth.Market().GetMaster(m.ctx, m.ethAddr())
+	if m.cfg.Development != nil && m.cfg.Development.DisableMasterApproval {
+		return nil
+	}
+	log.S(m.ctx).Info("checking current master")
+	addr, err := m.eth.Market().GetMaster(m.ctx, m.ethAddr())
+	if err != nil {
+		return err
+	}
+	if addr.Big().Cmp(m.ethAddr().Big()) == 0 {
+		log.S(m.ctx).Infof("master is not set, sending request to %s", m.cfg.Master.Hex())
+		err = <-m.eth.Market().RegisterWorker(m.ctx, m.key, m.cfg.Master)
 		if err != nil {
 			return err
 		}
-		if addr.Big().Cmp(m.ethAddr().Big()) == 0 {
-			log.S(m.ctx).Infof("master is not set, sending request to %s", m.cfg.Master.Hex())
-			err = <-m.eth.Market().RegisterWorker(m.ctx, m.key, *m.cfg.Master)
-			if err != nil {
-				return err
-			}
-		}
 	}
+
 	return nil
 }
 
 func (m *Worker) setupAuthorization() error {
 	managementAuthOptions := []auth.Authorization{
 		auth.NewTransportAuthorization(m.ethAddr()),
+		auth.NewTransportAuthorization(m.cfg.Master),
 	}
-	if m.cfg.Master != nil {
-		managementAuthOptions = append(managementAuthOptions, auth.NewTransportAuthorization(*m.cfg.Master))
-	}
+
 	if m.cfg.Admin != nil {
 		managementAuthOptions = append(managementAuthOptions, auth.NewTransportAuthorization(*m.cfg.Admin))
 	}

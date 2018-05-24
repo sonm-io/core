@@ -10,6 +10,7 @@ func TestParseResources(t *testing.T) {
 	assertions := assert.New(t)
 	defer deleteTestConfigFile()
 	raw := `
+master: 0x0000000000000000000000000000000000000001
 endpoint: ":0"
 resources:
   cgroup: insonmnia
