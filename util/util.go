@@ -2,7 +2,6 @@ package util
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"math/big"
@@ -15,7 +14,6 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/hashicorp/go-multierror"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -56,10 +54,6 @@ func ParseEndpointPort(s string) (string, error) {
 
 func GetPlatformName() string {
 	return fmt.Sprintf("%s/%s/%s", runtime.GOOS, runtime.GOARCH, runtime.Version())
-}
-
-func PubKeyToAddr(key ecdsa.PublicKey) common.Address {
-	return crypto.PubkeyToAddress(key)
 }
 
 func FileExists(p string) bool {

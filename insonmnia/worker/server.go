@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/hashicorp/go-multierror"
 	"github.com/mohae/deepcopy"
@@ -214,7 +215,7 @@ func (m *Worker) waitMasterApproved() error {
 }
 
 func (m *Worker) ethAddr() common.Address {
-	return util.PubKeyToAddr(m.key.PublicKey)
+	return crypto.PubkeyToAddress(m.key.PublicKey)
 }
 
 func (m *Worker) setupMaster() error {

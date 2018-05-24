@@ -11,14 +11,13 @@ import (
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
 	"github.com/stretchr/testify/assert"
 )
 
 var (
 	_    = setupTestResponder()
 	key  = getTestKey()
-	addr = util.PubKeyToAddr(key.PublicKey)
+	addr = ethcrypto.PubkeyToAddress(key.PublicKey)
 )
 
 func getTestKey() *ecdsa.PrivateKey {
