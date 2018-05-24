@@ -555,7 +555,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		return nil, err
 	}
 
-	allowed, ref, err := m.whitelist.Allowed(ctx, request.Container.Registry, request.Container.Image, request.Container.Auth)
+	allowed, ref, err := m.whitelist.Allowed(ctx, request.Registry.GetServerAddress(), request.Container.Image, request.Registry.Auth())
 	if err != nil {
 		return nil, err
 	}
@@ -567,9 +567,8 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	// TODO(sshaman1101): REFACTOR:   only check for whitelist there,
 	// TODO(sshaman1101): REFACTOR:   move all deals and tasks related code into the Worker.
 
-	container := request.Container
-	container.Registry = reference.Domain(ref)
-	container.Image = reference.Path(ref)
+	request.Registry.ServerAddress = reference.Domain(ref)
+	request.Container.Image = reference.Path(ref)
 
 	return m.startTask(ctx, taskRequest)
 }
@@ -599,7 +598,7 @@ func (m *Worker) startTask(ctx context.Context, request *structs.StartTaskReques
 		return nil, err
 	}
 
-	publicKey, err := parsePublicKey(request.Container.PublicKeyData)
+	publicKey, err := parsePublicKey(request.Container.SshKey)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
@@ -649,8 +648,8 @@ func (m *Worker) startTask(ctx context.Context, request *structs.StartTaskReques
 	}
 	var d = Description{
 		Image:         request.Container.Image,
-		Registry:      request.Container.Registry,
-		Auth:          request.Container.Auth,
+		Registry:      request.Registry.ServerAddress,
+		Auth:          request.Registry.Auth(),
 		RestartPolicy: transformRestartPolicy(nil),
 		CGroupParent:  cgroup.Suffix(),
 		Resources:     request.Resources,

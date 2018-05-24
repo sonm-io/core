@@ -4,6 +4,12 @@ import "volume.proto";
 
 package sonm;
 
+message Registry {
+    string username = 1;
+    string password = 2;
+    string serverAddress = 3;
+}
+
 message NetworkSpec {
     string type = 1;
     map<string, string> options = 2;
@@ -14,25 +20,20 @@ message NetworkSpec {
 message Container {
     // Image describes a Docker image name. Required.
     string image = 1;
-    // Registry describes Docker registry.
-    string registry = 2;
-    // Auth describes authentication info used for registry.
-    string auth = 3;
     // SSH public key used to attach to the container.
-    string publicKeyData = 4;
+    string sshKey = 2;
     // CommitOnStop points whether a container should commit when stopped.
     // Committed containers can be fetched later while there is an active
     // deal.
-    bool commitOnStop = 5;
+    bool commitOnStop = 3;
     // Env describes environment variables forwarded into the container.
-    map<string, string> env = 7;
+    map<string, string> env = 4;
     // Volumes describes network volumes that are used to be mounted inside
     // the container.
     // Mapping from the volume type (cifs, nfs, etc.) to its settings.
-    map<string, Volume> volumes = 8;
+    map<string, Volume> volumes = 5;
     // Mounts describes mount points from the volume name to the container.
-    // TODO: Dragons nearby - beware of injection attacks.
-    repeated string mounts = 9;
+    repeated string mounts = 6;
 
-    repeated NetworkSpec networks = 10;
+    repeated NetworkSpec networks = 7;
 }

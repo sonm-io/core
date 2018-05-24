@@ -40,6 +40,7 @@ It has these top-level messages:
 	Network
 	StorageDevice
 	Storage
+	Registry
 	NetworkSpec
 	Container
 	SortingOption

@@ -57,7 +57,8 @@ message StartTaskRequest {
     Deal deal = 1;
     // Container describes container settings.
     Container container = 2;
-    AskPlanResources resources = 3;
+    Registry registry = 3;
+    AskPlanResources resources = 4;
 }
 
 message WorkerJoinNetworkRequest {

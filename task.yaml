@@ -1,35 +1,34 @@
-task:
-  # docker image settings, required section
-  container:
-    # Add ability to pull container back
-    commit_on_stop: true
-    # image name to start on worker, required param
-    name: httpd:latest
-    # env variables that will be passed to container on start
-    env:
-      param1: value1
-      param2: value2
-      param3: value3
-#    networks:
-#      - type: tinc
-#        subnet: "10.20.30.0/24"
-#    volumes:
-#      cifs:
-#        type: cifs
-#        options:
-#          share: samba-host.ru/share
-#          username: username
-#          password: password
-#          security: ntlm
-#          vers: 3.0
-#    mounts:
-#      - cifs:/mnt:rw
-#      - cifs:/opt:rw
-#   # custom registry settings, optional section
-#   registry:
-#     # if not empty, Worker will use given registry to pull an image from, optional param
-#     name: registry.user.io
-#     # registry username, optional param
-#     user: name
-#     # registry password, optional param
-#     password: secret
+# docker image settings, required section
+container:
+  # Image name to start on worker, required param.
+  image: httpd:latest
+  # Env variables that will be passed to container on start.
+  env:
+    param1: value1
+    param2: value2
+    param3: value3
+  # Add ability to pull container back.
+  commit_on_stop: true
+#  networks:
+#    - type: tinc
+#      subnet: "10.20.30.0/24"
+#  volumes:
+#    cifs:
+#      type: cifs
+#      options:
+#        share: samba-host.ru/share
+#        username: username
+#        password: password
+#        security: ntlm
+#        vers: 3.0
+#  mounts:
+#    - cifs:/mnt:rw
+#    - cifs:/opt:rw
+# # custom registry settings, optional section
+# registry:
+#   # if not empty, Worker will use given registry to pull an image from, optional param
+#   server_address: registry.user.io
+#   # registry username, optional param
+#   username: name
+#   # registry password, optional param
+#   password: secret
