@@ -6,9 +6,8 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
-	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 
 	"github.com/docker/distribution/reference"
@@ -169,7 +168,7 @@ func (c *containerDescriptor) Kill() (err error) {
 
 func (c *containerDescriptor) Remove() error {
 	log.G(c.ctx).Info("remove the container", zap.String("id", c.ID))
-	result := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	result := multierror.NewMultiError()
 	if err := containerRemove(c.ctx, c.client, c.ID); err != nil {
 		result = multierror.Append(result, err)
 	}
