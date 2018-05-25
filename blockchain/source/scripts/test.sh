@@ -16,7 +16,7 @@ cleanup() {
 if [ "$SOLIDITY_COVERAGE" = true ]; then
   testrpc_port=8555
 else
-  testrpc_port=8545
+  testrpc_port=8535
 fi
 
 testrpc_running() {
@@ -41,7 +41,7 @@ start_testrpc() {
   if [ "$SOLIDITY_COVERAGE" = true ]; then
     node_modules/.bin/testrpc-sc --gasLimit 0xfffffffffff --port "$testrpc_port" "${accounts[@]}" > /dev/null &
   else
-    node_modules/.bin/testrpc --gasLimit 0xfffffffffff "${accounts[@]}" > /dev/null &
+    node_modules/.bin/testrpc --gasLimit 0xfffffffffff --port "$testrpc_port" "${accounts[@]}" > /dev/null &
   fi
 
   testrpc_pid=$!
