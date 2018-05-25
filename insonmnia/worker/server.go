@@ -539,9 +539,9 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(m.ctx).Info("handling StartTask request", zap.Any("request", request))
 
-	settings := request.GetSettings()
-	registry := settings.GetRegistry()
-	image := settings.GetContainer().GetImage()
+	spec := request.GetSpec()
+	registry := spec.GetRegistry()
+	image := spec.GetContainer().GetImage()
 	allowed, ref, err := m.whitelist.Allowed(ctx, registry.GetServerAddress(), image, registry.Auth())
 	if err != nil {
 		return nil, err
@@ -551,8 +551,8 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		return nil, status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
 	}
 
-	request.Settings.Registry.ServerAddress = reference.Domain(ref)
-	request.Settings.Container.Image = reference.Path(ref)
+	request.Spec.Registry.ServerAddress = reference.Domain(ref)
+	request.Spec.Container.Image = reference.Path(ref)
 
 	return m.startTask(ctx, request)
 }
@@ -561,7 +561,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
 
-	settings := request.Settings
+	spec := request.Spec
 	taskID := uuid.New()
 
 	dealID := request.GetDealID()
@@ -575,18 +575,18 @@ func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		return nil, err
 	}
 
-	publicKey, err := parsePublicKey(settings.Container.SshKey)
+	publicKey, err := parsePublicKey(spec.Container.SshKey)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
-	if settings.GetResources() == nil {
-		settings.Resources = &pb.AskPlanResources{}
+	if spec.GetResources() == nil {
+		spec.Resources = &pb.AskPlanResources{}
 	}
-	if settings.GetResources().GetGPU() == nil {
-		settings.Resources.GPU = ask.Resources.GPU
+	if spec.GetResources().GetGPU() == nil {
+		spec.Resources.GPU = ask.Resources.GPU
 	}
 
-	err = settings.GetResources().GetGPU().Normalize(m.hardware)
+	err = spec.GetResources().GetGPU().Normalize(m.hardware)
 	if err != nil {
 		log.G(ctx).Error("could not normalize GPU resources", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
@@ -594,7 +594,7 @@ func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 
 	//TODO: generate ID
-	if err := m.resources.ConsumeTask(ask.ID, taskID, settings.Resources); err != nil {
+	if err := m.resources.ConsumeTask(ask.ID, taskID, spec.Resources); err != nil {
 		return nil, fmt.Errorf("could not start task: %s", err)
 	}
 
@@ -602,7 +602,7 @@ func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	//defer resourceHandle.release()
 
 	mounts := make([]volume.Mount, 0)
-	for _, spec := range settings.Container.Mounts {
+	for _, spec := range spec.Container.Mounts {
 		mount, err := volume.NewMount(spec)
 		if err != nil {
 			m.resources.ReleaseTask(taskID)
@@ -611,31 +611,31 @@ func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		mounts = append(mounts, mount)
 	}
 
-	networks, err := structs.NewNetworkSpecs(settings.Container.Networks)
+	networks, err := structs.NewNetworkSpecs(spec.Container.Networks)
 	if err != nil {
 		log.G(ctx).Error("failed to parse networking specification", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to parse networking specification: %s", err)
 	}
-	gpuids, err := m.hardware.GPUIDs(settings.GetResources().GetGPU())
+	gpuids, err := m.hardware.GPUIDs(spec.GetResources().GetGPU())
 	if err != nil {
 		log.G(ctx).Error("failed to fetch GPU IDs ", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to fetch GPU IDs: %s", err)
 	}
 	var d = Description{
-		Image:         settings.Container.Image,
-		Registry:      settings.Registry.ServerAddress,
-		Auth:          settings.Registry.Auth(),
-		RestartPolicy: settings.Container.RestartPolicy.Unwrap(),
+		Image:         spec.Container.Image,
+		Registry:      spec.Registry.ServerAddress,
+		Auth:          spec.Registry.Auth(),
+		RestartPolicy: spec.Container.RestartPolicy.Unwrap(),
 		CGroupParent:  cgroup.Suffix(),
-		Resources:     settings.Resources,
+		Resources:     spec.Resources,
 		DealId:        request.GetDealID().Unwrap().String(),
 		TaskId:        taskID,
-		CommitOnStop:  settings.Container.CommitOnStop,
+		CommitOnStop:  spec.Container.CommitOnStop,
 		GPUDevices:    gpuids,
-		Env:           settings.Container.Env,
-		volumes:       settings.Container.Volumes,
+		Env:           spec.Container.Env,
+		volumes:       spec.Container.Volumes,
 		mounts:        mounts,
 		networks:      networks,
 	}

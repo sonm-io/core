@@ -132,7 +132,7 @@ var taskStartCmd = &cobra.Command{
 		dealID := args[0]
 		taskFile := args[1]
 
-		settings, err := task_config.LoadConfig(taskFile)
+		spec, err := task_config.LoadConfig(taskFile)
 		if err != nil {
 			showError(cmd, "Cannot load task definition", err)
 			os.Exit(1)
@@ -145,8 +145,8 @@ var taskStartCmd = &cobra.Command{
 		}
 
 		request := &pb.StartTaskRequest{
-			DealID:   bigDealID,
-			Settings: settings,
+			DealID: bigDealID,
+			Spec:   spec,
 		}
 
 		reply, err := node.Start(ctx, request)

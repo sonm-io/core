@@ -188,9 +188,9 @@ func (m *StartTaskRequest) Validate() error {
 	if m.GetDealID().IsZero() {
 		return errors.New("non-zero deal id is required for start task request")
 	}
-	return m.GetSettings().Validate()
+	return m.GetSpec().Validate()
 }
 
-func (m *TaskSettings) Validate() error {
+func (m *TaskSpec) Validate() error {
 	return m.GetContainer().Validate()
 }

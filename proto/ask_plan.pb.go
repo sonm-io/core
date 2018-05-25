@@ -125,7 +125,7 @@ It has these top-level messages:
 	ResolveMetaReply
 	Timestamp
 	Volume
-	TaskSettings
+	TaskSpec
 	StartTaskRequest
 	WorkerJoinNetworkRequest
 	StartTaskReply

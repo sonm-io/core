@@ -52,7 +52,7 @@ service Worker {
     rpc GetDealInfo(ID) returns (DealInfoReply) {}
 }
 
-message TaskSettings {
+message TaskSpec {
     Container container = 1;
     Registry registry = 2;
     AskPlanResources resources = 3;
@@ -62,7 +62,7 @@ message StartTaskRequest {
     // Deal points to the deal associated with workers where the task should be
     // started.
     BigInt dealID = 1;
-    TaskSettings settings = 2;
+    TaskSpec spec = 2;
     // Container describes container settings.
 }
 
