@@ -7,8 +7,8 @@ import (
 	"github.com/sonm-io/core/util/config"
 )
 
-func LoadConfig(path string) (*sonm.StartTaskRequest, error) {
-	cfg := &sonm.StartTaskRequest{}
+func LoadConfig(path string) (*sonm.TaskSettings, error) {
+	cfg := &sonm.TaskSettings{}
 	cfgView := retag.Convert(cfg, config.SnakeCaseTagger("yaml"))
 
 	err := configor.Load(cfgView, path)

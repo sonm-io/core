@@ -1,6 +1,7 @@
 package sonm
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -184,5 +185,12 @@ func (m *Price) LoadFromString(v string) error {
 }
 
 func (m *StartTaskRequest) Validate() error {
+	if m.GetDealID().IsZero() {
+		return errors.New("non-zero deal id is required for start task request")
+	}
+	return m.GetSettings().Validate()
+}
+
+func (m *TaskSettings) Validate() error {
 	return m.GetContainer().Validate()
 }

@@ -86,7 +86,6 @@ It has these top-level messages:
 	ResourceUsage
 	TaskLogsRequest
 	TaskLogsChunk
-	TaskResourceRequirements
 	Chunk
 	Progress
 	Duration
@@ -126,6 +125,7 @@ It has these top-level messages:
 	ResolveMetaReply
 	Timestamp
 	Volume
+	TaskSettings
 	StartTaskRequest
 	WorkerJoinNetworkRequest
 	StartTaskReply

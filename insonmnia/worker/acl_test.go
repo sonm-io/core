@@ -48,12 +48,10 @@ func makeDealInfoSupplier(t *testing.T, buyerId string, dealID string) DealInfoS
 
 func TestFieldDealMetaData(t *testing.T) {
 	request := &sonm.StartTaskRequest{
-		Deal: &sonm.Deal{
-			Id: pb.NewBigIntFromInt(66),
-		},
+		DealID: pb.NewBigIntFromInt(66),
 	}
 
-	md := newFieldDealExtractor()
+	md := newCustomFieldDealExtractor("DealID")
 	dealID, err := md(context.Background(), request)
 	require.NoError(t, err)
 	assert.Equal(t, structs.DealID("66"), dealID)
@@ -109,12 +107,10 @@ func TestDealAuthorization(t *testing.T) {
 	})
 
 	request := &sonm.StartTaskRequest{
-		Deal: &sonm.Deal{
-			Id: pb.NewBigIntFromInt(66),
-		},
+		DealID: pb.NewBigIntFromInt(66),
 	}
 
-	md := newFieldDealExtractor()
+	md := newCustomFieldDealExtractor("DealID")
 	authorization := newDealAuthorization(ctx, makeDealInfoSupplier(t, addr.Hex(), "66"), md)
 
 	require.NoError(t, authorization.Authorize(ctx, request))
@@ -126,9 +122,7 @@ func TestDealAuthorizationErrors(t *testing.T) {
 	})
 
 	request := &sonm.StartTaskRequest{
-		Deal: &sonm.Deal{
-			Id: pb.NewBigIntFromInt(66),
-		},
+		DealID: pb.NewBigIntFromInt(66),
 	}
 
 	md := newFieldDealExtractor()
@@ -147,9 +141,7 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 	}))
 
 	request := &sonm.StartTaskRequest{
-		Deal: &sonm.Deal{
-			Id: pb.NewBigIntFromInt(66),
-		},
+		DealID: pb.NewBigIntFromInt(66),
 	}
 
 	md := newFieldDealExtractor()

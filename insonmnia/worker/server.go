@@ -262,7 +262,7 @@ func (m *Worker) setupAuthorization() error {
 		)),
 		auth.Allow(taskAPIPrefix+"StopTask").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
 		auth.Allow(taskAPIPrefix+"JoinNetwork").With(newDealAuthorization(m.ctx, m, newFromNamedTaskDealExtractor(m, "TaskID"))),
-		auth.Allow(taskAPIPrefix+"StartTask").With(newDealAuthorization(m.ctx, m, newFieldDealExtractor())),
+		auth.Allow(taskAPIPrefix+"StartTask").With(newDealAuthorization(m.ctx, m, newCustomFieldDealExtractor("DealID"))),
 		auth.Allow(taskAPIPrefix+"TaskLogs").With(newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m))),
 		auth.Allow(taskAPIPrefix+"PushTask").With(newDealAuthorization(m.ctx, m, newContextDealExtractor())),
 		auth.Allow(taskAPIPrefix+"PullTask").With(newDealAuthorization(m.ctx, m, newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
@@ -539,13 +539,10 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(m.ctx).Info("handling StartTask request", zap.Any("request", request))
 
-	// TODO: get rid of this wrapper - just add validate method
-	taskRequest, err := structs.NewStartTaskRequest(request)
-	if err != nil {
-		return nil, err
-	}
-
-	allowed, ref, err := m.whitelist.Allowed(ctx, request.Registry.GetServerAddress(), request.Container.Image, request.Registry.Auth())
+	settings := request.GetSettings()
+	registry := settings.GetRegistry()
+	image := settings.GetContainer().GetImage()
+	allowed, ref, err := m.whitelist.Allowed(ctx, registry.GetServerAddress(), image, registry.Auth())
 	if err != nil {
 		return nil, err
 	}
@@ -554,30 +551,20 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		return nil, status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
 	}
 
-	// TODO(sshaman1101): REFACTOR:   only check for whitelist there,
-	// TODO(sshaman1101): REFACTOR:   move all deals and tasks related code into the Worker.
+	request.Settings.Registry.ServerAddress = reference.Domain(ref)
+	request.Settings.Container.Image = reference.Path(ref)
 
-	request.Registry.ServerAddress = reference.Domain(ref)
-	request.Container.Image = reference.Path(ref)
-
-	return m.startTask(ctx, taskRequest)
+	return m.startTask(ctx, request)
 }
 
 // Start request makes Worker start a container
-func (m *Worker) startTask(ctx context.Context, request *structs.StartTaskRequest) (*pb.StartTaskReply, error) {
+func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
 
+	settings := request.Settings
 	taskID := uuid.New()
 
-	//TODO: move to validate()
-	if request.GetContainer() == nil {
-		return nil, fmt.Errorf("container field is required")
-	}
-
-	dealID, err := pb.NewBigIntFromString(request.GetDealId())
-	if err != nil {
-		return nil, fmt.Errorf("could not parse deal id as big int: %s", err)
-	}
+	dealID := request.GetDealID()
 	ask, err := m.salesman.AskPlanByDeal(dealID)
 	if err != nil {
 		return nil, err
@@ -588,18 +575,18 @@ func (m *Worker) startTask(ctx context.Context, request *structs.StartTaskReques
 		return nil, err
 	}
 
-	publicKey, err := parsePublicKey(request.Container.SshKey)
+	publicKey, err := parsePublicKey(settings.Container.SshKey)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
-	if request.GetResources() == nil {
-		request.Resources = &pb.AskPlanResources{}
+	if settings.GetResources() == nil {
+		settings.Resources = &pb.AskPlanResources{}
 	}
-	if request.GetResources().GetGPU() == nil {
-		request.Resources.GPU = ask.Resources.GPU
+	if settings.GetResources().GetGPU() == nil {
+		settings.Resources.GPU = ask.Resources.GPU
 	}
 
-	err = request.GetResources().GetGPU().Normalize(m.hardware)
+	err = settings.GetResources().GetGPU().Normalize(m.hardware)
 	if err != nil {
 		log.G(ctx).Error("could not normalize GPU resources", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
@@ -607,7 +594,7 @@ func (m *Worker) startTask(ctx context.Context, request *structs.StartTaskReques
 	}
 
 	//TODO: generate ID
-	if err := m.resources.ConsumeTask(ask.ID, taskID, request.Resources); err != nil {
+	if err := m.resources.ConsumeTask(ask.ID, taskID, settings.Resources); err != nil {
 		return nil, fmt.Errorf("could not start task: %s", err)
 	}
 
@@ -615,7 +602,7 @@ func (m *Worker) startTask(ctx context.Context, request *structs.StartTaskReques
 	//defer resourceHandle.release()
 
 	mounts := make([]volume.Mount, 0)
-	for _, spec := range request.Container.Mounts {
+	for _, spec := range settings.Container.Mounts {
 		mount, err := volume.NewMount(spec)
 		if err != nil {
 			m.resources.ReleaseTask(taskID)
@@ -624,31 +611,31 @@ func (m *Worker) startTask(ctx context.Context, request *structs.StartTaskReques
 		mounts = append(mounts, mount)
 	}
 
-	networks, err := structs.NewNetworkSpecs(request.Container.Networks)
+	networks, err := structs.NewNetworkSpecs(settings.Container.Networks)
 	if err != nil {
 		log.G(ctx).Error("failed to parse networking specification", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to parse networking specification: %s", err)
 	}
-	gpuids, err := m.hardware.GPUIDs(request.GetResources().GetGPU())
+	gpuids, err := m.hardware.GPUIDs(settings.GetResources().GetGPU())
 	if err != nil {
 		log.G(ctx).Error("failed to fetch GPU IDs ", zap.Error(err))
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to fetch GPU IDs: %s", err)
 	}
 	var d = Description{
-		Image:         request.Container.Image,
-		Registry:      request.Registry.ServerAddress,
-		Auth:          request.Registry.Auth(),
-		RestartPolicy: request.Container.RestartPolicy.Unwrap(),
+		Image:         settings.Container.Image,
+		Registry:      settings.Registry.ServerAddress,
+		Auth:          settings.Registry.Auth(),
+		RestartPolicy: settings.Container.RestartPolicy.Unwrap(),
 		CGroupParent:  cgroup.Suffix(),
-		Resources:     request.Resources,
-		DealId:        request.GetDealId(),
+		Resources:     settings.Resources,
+		DealId:        request.GetDealID().Unwrap().String(),
 		TaskId:        taskID,
-		CommitOnStop:  request.Container.CommitOnStop,
+		CommitOnStop:  settings.Container.CommitOnStop,
 		GPUDevices:    gpuids,
-		Env:           request.Container.Env,
-		volumes:       request.Container.Volumes,
+		Env:           settings.Container.Env,
+		volumes:       settings.Container.Volumes,
 		mounts:        mounts,
 		networks:      networks,
 	}

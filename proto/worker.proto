@@ -3,6 +3,7 @@ syntax = "proto3";
 import "ask_plan.proto";
 import "capabilities.proto";
 import "container.proto";
+import "bigint.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
 import "net.proto";
@@ -51,14 +52,18 @@ service Worker {
     rpc GetDealInfo(ID) returns (DealInfoReply) {}
 }
 
+message TaskSettings {
+    Container container = 1;
+    Registry registry = 2;
+    AskPlanResources resources = 3;
+}
+
 message StartTaskRequest {
     // Deal points to the deal associated with workers where the task should be
     // started.
-    Deal deal = 1;
+    BigInt dealID = 1;
+    TaskSettings settings = 2;
     // Container describes container settings.
-    Container container = 2;
-    Registry registry = 3;
-    AskPlanResources resources = 4;
 }
 
 message WorkerJoinNetworkRequest {
