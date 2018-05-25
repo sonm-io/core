@@ -171,19 +171,19 @@ func (ma *magicAuthorizer) Authorize(ctx context.Context, request interface{}) e
 }
 
 func TestMultiAuth(t *testing.T) {
-	mul := newMultiAuth(&magicAuthorizer{ok: true}, &magicAuthorizer{ok: true}, &magicAuthorizer{ok: true})
+	mul := newAnyOfAuth(&magicAuthorizer{ok: true}, &magicAuthorizer{ok: true}, &magicAuthorizer{ok: true})
 	err := mul.Authorize(context.Background(), nil)
 	assert.NoError(t, err)
 
-	mul = newMultiAuth(&magicAuthorizer{ok: false}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: true})
+	mul = newAnyOfAuth(&magicAuthorizer{ok: false}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: true})
 	err = mul.Authorize(context.Background(), nil)
 	assert.NoError(t, err)
 
-	mul = newMultiAuth(&magicAuthorizer{ok: true}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: false})
+	mul = newAnyOfAuth(&magicAuthorizer{ok: true}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: false})
 	err = mul.Authorize(context.Background(), nil)
 	assert.NoError(t, err)
 
-	mul = newMultiAuth(&magicAuthorizer{ok: false}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: false})
+	mul = newAnyOfAuth(&magicAuthorizer{ok: false}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: false})
 
 	err = mul.Authorize(context.Background(), nil)
 	assert.Error(t, err)

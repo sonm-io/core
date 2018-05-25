@@ -248,7 +248,7 @@ func (m *Worker) setupAuthorization() error {
 		managementAuthOptions = append(managementAuthOptions, auth.NewTransportAuthorization(*m.cfg.Admin))
 	}
 
-	managementAuth := newMultiAuth(managementAuthOptions...)
+	managementAuth := newAnyOfAuth(managementAuthOptions...)
 
 	authorization := auth.NewEventAuthorization(m.ctx,
 		auth.WithLog(log.G(m.ctx)),
@@ -256,7 +256,7 @@ func (m *Worker) setupAuthorization() error {
 		// auth.WithEventPrefix(hubAPIPrefix),
 		auth.Allow(workerManagementMethods...).With(managementAuth),
 
-		auth.Allow(taskAPIPrefix+"TaskStatus").With(newMultiAuth(
+		auth.Allow(taskAPIPrefix+"TaskStatus").With(newAnyOfAuth(
 			managementAuth,
 			newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m)),
 		)),

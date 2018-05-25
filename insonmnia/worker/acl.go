@@ -174,11 +174,11 @@ func newCustomDealExtractor(fn func(ctx context.Context, request interface{}) (s
 	}
 }
 
-type multiAuth struct {
+type anyOfAuth struct {
 	authorizers []auth.Authorization
 }
 
-func (a *multiAuth) Authorize(ctx context.Context, request interface{}) error {
+func (a *anyOfAuth) Authorize(ctx context.Context, request interface{}) error {
 	for _, au := range a.authorizers {
 		if err := au.Authorize(ctx, request); err == nil {
 			return nil
@@ -188,6 +188,6 @@ func (a *multiAuth) Authorize(ctx context.Context, request interface{}) error {
 	return errors.New("all of required auth methods is failed")
 }
 
-func newMultiAuth(a ...auth.Authorization) auth.Authorization {
-	return &multiAuth{authorizers: a}
+func newAnyOfAuth(a ...auth.Authorization) auth.Authorization {
+	return &anyOfAuth{authorizers: a}
 }
