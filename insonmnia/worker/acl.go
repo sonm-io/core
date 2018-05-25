@@ -2,13 +2,13 @@ package worker
 
 import (
 	"context"
-	"errors"
 	"reflect"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -179,13 +179,17 @@ type anyOfAuth struct {
 }
 
 func (a *anyOfAuth) Authorize(ctx context.Context, request interface{}) error {
+	errs := multierror.NewMultiError()
 	for _, au := range a.authorizers {
-		if err := au.Authorize(ctx, request); err == nil {
+		switch err := au.Authorize(ctx, request); err {
+		case nil:
 			return nil
+		default:
+			errs = multierror.AppendUnique(errs, err)
 		}
 	}
 
-	return errors.New("all of required auth methods is failed")
+	return status.Error(codes.Unauthenticated, errs.Error())
 }
 
 func newAnyOfAuth(a ...auth.Authorization) auth.Authorization {
