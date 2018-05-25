@@ -13,7 +13,7 @@ module.exports = {
     networks: {
         development: {
             host: 'localhost',
-            port: 8545,
+            port: 8535,
             network_id: '*', // eslint-disable-line camelcase
         },
         rinkeby: {
@@ -29,7 +29,7 @@ module.exports = {
             gasPrice: 0x01,
         },
         private: {
-            provider: new PrivateKeyProvider(privateKey, privateEndpoint),
+            provider: () => new PrivateKeyProvider(privateKey, privateEndpoint),
             network_id: '444', // eslint-disable-line camelcase
         },
     },
