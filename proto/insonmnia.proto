@@ -71,13 +71,6 @@ message TaskLogsChunk {
     bytes data = 1;
 }
 
-message TaskResourceRequirements {
-    // CPUCores specifies the number of CPU cores required.
-    uint64 CPUCores = 1;
-    // MaxMemory specifies the maximum memory in bytes required.
-    int64 maxMemory = 2;
-}
-
 message Chunk {
     bytes chunk = 1;
 }

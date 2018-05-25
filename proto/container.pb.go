@@ -131,7 +131,7 @@ type Container struct {
 	// Mounts describes mount points from the volume name to the container.
 	Mounts   []string       `protobuf:"bytes,6,rep,name=mounts" json:"mounts,omitempty"`
 	Networks []*NetworkSpec `protobuf:"bytes,7,rep,name=networks" json:"networks,omitempty"`
-	// ContainerRestartPolicy describes.
+	// ContainerRestartPolicy describes the restart policies of the container.
 	RestartPolicy *ContainerRestartPolicy `protobuf:"bytes,8,opt,name=restartPolicy" json:"restartPolicy,omitempty"`
 }
 
