@@ -11,12 +11,11 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/hashicorp/go-multierror"
 	"github.com/mohae/deepcopy"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -28,6 +27,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xgrpc"
 
 	// todo: drop alias
@@ -215,7 +215,7 @@ func (m *Worker) waitMasterApproved() error {
 }
 
 func (m *Worker) ethAddr() common.Address {
-	return util.PubKeyToAddr(m.key.PublicKey)
+	return crypto.PubkeyToAddress(m.key.PublicKey)
 }
 
 func (m *Worker) setupMaster() error {
@@ -248,7 +248,7 @@ func (m *Worker) setupAuthorization() error {
 		managementAuthOptions = append(managementAuthOptions, auth.NewTransportAuthorization(*m.cfg.Admin))
 	}
 
-	managementAuth := newMultiAuth(managementAuthOptions...)
+	managementAuth := newAnyOfAuth(managementAuthOptions...)
 
 	authorization := auth.NewEventAuthorization(m.ctx,
 		auth.WithLog(log.G(m.ctx)),
@@ -256,7 +256,7 @@ func (m *Worker) setupAuthorization() error {
 		// auth.WithEventPrefix(hubAPIPrefix),
 		auth.Allow(workerManagementMethods...).With(managementAuth),
 
-		auth.Allow(taskAPIPrefix+"TaskStatus").With(newMultiAuth(
+		auth.Allow(taskAPIPrefix+"TaskStatus").With(newAnyOfAuth(
 			managementAuth,
 			newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m)),
 		)),
@@ -346,7 +346,7 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 	}
 	m.mu.Unlock()
 
-	result := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	result := multierror.NewMultiError()
 	for _, container := range toDelete {
 		if err := m.ovs.OnDealFinish(m.ctx, container.ID); err != nil {
 			result = multierror.Append(result, err)
@@ -457,16 +457,6 @@ func (m *Worker) listenForStatus(statusListener chan pb.TaskStatusReply_Status, 
 	}
 }
 
-func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolicy {
-	var restartPolicy = container.RestartPolicy{}
-	if p != nil {
-		restartPolicy.Name = p.Name
-		restartPolicy.MaximumRetryCount = int(p.MaximumRetryCount)
-	}
-
-	return restartPolicy
-}
-
 func (m *Worker) PushTask(stream pb.Worker_PushTaskServer) error {
 	log.G(m.ctx).Info("handling PushTask request")
 	if err := m.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PushTask"), nil); err != nil {
@@ -555,7 +545,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		return nil, err
 	}
 
-	allowed, ref, err := m.whitelist.Allowed(ctx, request.Container.Registry, request.Container.Image, request.Container.Auth)
+	allowed, ref, err := m.whitelist.Allowed(ctx, request.Registry.GetServerAddress(), request.Container.Image, request.Registry.Auth())
 	if err != nil {
 		return nil, err
 	}
@@ -567,9 +557,8 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	// TODO(sshaman1101): REFACTOR:   only check for whitelist there,
 	// TODO(sshaman1101): REFACTOR:   move all deals and tasks related code into the Worker.
 
-	container := request.Container
-	container.Registry = reference.Domain(ref)
-	container.Image = reference.Path(ref)
+	request.Registry.ServerAddress = reference.Domain(ref)
+	request.Container.Image = reference.Path(ref)
 
 	return m.startTask(ctx, taskRequest)
 }
@@ -599,7 +588,7 @@ func (m *Worker) startTask(ctx context.Context, request *structs.StartTaskReques
 		return nil, err
 	}
 
-	publicKey, err := parsePublicKey(request.Container.PublicKeyData)
+	publicKey, err := parsePublicKey(request.Container.SshKey)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
@@ -649,9 +638,9 @@ func (m *Worker) startTask(ctx context.Context, request *structs.StartTaskReques
 	}
 	var d = Description{
 		Image:         request.Container.Image,
-		Registry:      request.Container.Registry,
-		Auth:          request.Container.Auth,
-		RestartPolicy: transformRestartPolicy(nil),
+		Registry:      request.Registry.ServerAddress,
+		Auth:          request.Registry.Auth(),
+		RestartPolicy: request.Container.RestartPolicy.Unwrap(),
 		CGroupParent:  cgroup.Suffix(),
 		Resources:     request.Resources,
 		DealId:        request.GetDealId(),
@@ -1157,7 +1146,7 @@ func (m *Worker) RemoveAskPlan(ctx context.Context, request *pb.ID) (*pb.Empty, 
 func (m *Worker) PurgeAskPlans(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 	plans := m.salesman.AskPlans()
 
-	result := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	result := multierror.NewMultiError()
 	for id := range plans {
 		err := m.salesman.RemoveAskPlan(id)
 		result = multierror.Append(result, err)

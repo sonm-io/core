@@ -365,3 +365,19 @@ func printBalanceInfo(cmd *cobra.Command, reply *pb.BalanceReply) {
 		}})
 	}
 }
+
+func printBlacklist(cmd *cobra.Command, list *pb.BlacklistReply) {
+	if isSimpleFormat() {
+		if len(list.GetAddresses()) == 0 {
+			cmd.Println("Blacklist is empty")
+			return
+		}
+
+		cmd.Println("Blacklisted addresses:")
+		for _, addr := range list.GetAddresses() {
+			cmd.Printf("  %s\n", addr)
+		}
+	} else {
+		showJSON(cmd, list)
+	}
+}

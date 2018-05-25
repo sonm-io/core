@@ -161,12 +161,13 @@ type Node struct {
 	srv     *grpc.Server
 
 	// services, responsible for request handling
-	worker pb.WorkerManagementServer
-	market pb.MarketServer
-	deals  pb.DealManagementServer
-	tasks  pb.TaskManagementServer
-	master pb.MasterManagementServer
-	token  pb.TokenManagementServer
+	worker    pb.WorkerManagementServer
+	market    pb.MarketServer
+	deals     pb.DealManagementServer
+	tasks     pb.TaskManagementServer
+	master    pb.MasterManagementServer
+	token     pb.TokenManagementServer
+	blacklist pb.BlacklistServer
 }
 
 // New creates new Local Node instance
@@ -203,8 +204,8 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 	}
 
 	masterMgmt := newMasterManagementAPI(opts)
-
 	tokenMgmt := newTokenManagementAPI(opts)
+	blacklist := newBlacklistAPI(opts)
 
 	grpcServerOpts := []xgrpc.ServerOption{
 		xgrpc.DefaultTraceInterceptor(),
@@ -238,20 +239,24 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 	pb.RegisterTokenManagementServer(srv, tokenMgmt)
 	log.G(ctx).Info("token management service registered")
 
+	pb.RegisterBlacklistServer(srv, blacklist)
+	log.G(ctx).Info("blacklist management service registered")
+
 	grpc_prometheus.Register(srv)
 
 	return &Node{
-		privKey: key,
-		cfg:     config,
-		ctx:     ctx,
-		cancel:  cancel,
-		srv:     srv,
-		worker:  worker,
-		market:  market,
-		deals:   deals,
-		tasks:   tasks,
-		master:  masterMgmt,
-		token:   tokenMgmt,
+		privKey:   key,
+		cfg:       config,
+		ctx:       ctx,
+		cancel:    cancel,
+		srv:       srv,
+		worker:    worker,
+		market:    market,
+		deals:     deals,
+		tasks:     tasks,
+		master:    masterMgmt,
+		token:     tokenMgmt,
+		blacklist: blacklist,
 	}, nil
 }
 
@@ -362,6 +367,10 @@ func (n *Node) serveHttp() error {
 		return err
 	}
 	err = srv.RegisterService((*pb.TokenManagementServer)(nil), n.token)
+	if err != nil {
+		return err
+	}
+	err = srv.RegisterService((*pb.BlacklistServer)(nil), n.blacklist)
 	if err != nil {
 		return err
 	}

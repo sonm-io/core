@@ -12,7 +12,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/hardware/ram"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/netutil"
 )
 
 // Hardware accumulates the finest hardware information about system the worker
@@ -100,7 +100,7 @@ func (m *Hardware) GPUIDs(gpuResources *sonm.AskPlanGPU) ([]gpu.GPUID, error) {
 
 func (h *Hardware) SetNetworkIncoming(IPs []string) {
 	for _, ip := range IPs {
-		if !util.IsPrivateIP(net.ParseIP(ip)) {
+		if !netutil.IsPrivateIP(net.ParseIP(ip)) {
 			h.Network.Incoming = true
 			break
 		}

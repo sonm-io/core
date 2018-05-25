@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/netutil"
 )
 
 // BackoffTimer implementation
@@ -77,7 +77,7 @@ type sortableIPs []net.IP
 func (s sortableIPs) Len() int      { return len(s) }
 func (s sortableIPs) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 func (s sortableIPs) Less(i, j int) bool {
-	iIsPrivate, jIsPrivate := util.IsPrivateIP(s[i]), util.IsPrivateIP(s[j])
+	iIsPrivate, jIsPrivate := netutil.IsPrivateIP(s[i]), netutil.IsPrivateIP(s[j])
 	if iIsPrivate && !jIsPrivate {
 		return false
 	}

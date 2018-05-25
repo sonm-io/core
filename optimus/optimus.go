@@ -81,13 +81,15 @@ func (m *Optimus) Run(ctx context.Context) error {
 	wg := errgroup.Group{}
 	wg.Go(func() error { return newManagedWatcher(ordersControl, m.cfg.Marketplace.Interval).Run(ctx) })
 
+	loader := benchmarks.NewLoader(m.cfg.Benchmarks.URL)
+
 	for _, addr := range m.cfg.Workers {
 		worker, err := newWorker(ctx, addr)
 		if err != nil {
 			return err
 		}
 
-		control, err := newWorkerControl(addr, worker, ordersSet, m.log)
+		control, err := newWorkerControl(addr, worker, ordersSet, loader, m.log)
 		if err != nil {
 			return err
 		}
@@ -153,12 +155,13 @@ func (m *ordersControl) Execute(ctx context.Context) {
 }
 
 type workerControl struct {
-	worker    sonm.WorkerManagementClient
-	ordersSet *ordersSet
-	log       *zap.SugaredLogger
+	worker          sonm.WorkerManagementClient
+	benchmarkLoader benchmarks.Loader
+	ordersSet       *ordersSet
+	log             *zap.SugaredLogger
 }
 
-func newWorkerControl(addr auth.Addr, worker sonm.WorkerManagementClient, orders *ordersSet, log *zap.SugaredLogger) (*workerControl, error) {
+func newWorkerControl(addr auth.Addr, worker sonm.WorkerManagementClient, orders *ordersSet, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
 	m := &workerControl{
 		worker:    worker,
 		ordersSet: orders,
@@ -217,9 +220,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 
 	m.log.Infof("found %d/%d matching orders", len(matchedOrders), len(orders))
 
-	// TODO: Hardcode.
-	loader := benchmarks.NewLoader("https://raw.githubusercontent.com/sonm-io/allowed-list/master/benchmarks_list.json")
-	mapping, err := loader.Load(ctx)
+	mapping, err := m.benchmarkLoader.Load(ctx)
 	if err != nil {
 		m.log.Warnw("failed to load benchmarks", zap.Error(err))
 		return

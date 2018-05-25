@@ -40,6 +40,8 @@ It has these top-level messages:
 	Network
 	StorageDevice
 	Storage
+	Registry
+	ContainerRestartPolicy
 	NetworkSpec
 	Container
 	SortingOption
@@ -82,7 +84,6 @@ It has these top-level messages:
 	MemoryUsage
 	NetworkUsage
 	ResourceUsage
-	ContainerRestartPolicy
 	TaskLogsRequest
 	TaskLogsChunk
 	TaskResourceRequirements

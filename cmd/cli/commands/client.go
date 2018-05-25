@@ -67,3 +67,12 @@ func newTokenManagementClient(ctx context.Context) (pb.TokenManagementClient, er
 
 	return pb.NewTokenManagementClient(cc), nil
 }
+
+func newBlacklistClient(ctx context.Context) (pb.BlacklistClient, error) {
+	cc, err := newClientConn(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return pb.NewBlacklistClient(cc), nil
+}

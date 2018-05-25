@@ -182,3 +182,7 @@ func (m *Price) LoadFromString(v string) error {
 
 	return nil
 }
+
+func (m *StartTaskRequest) Validate() error {
+	return m.GetContainer().Validate()
+}

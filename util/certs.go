@@ -164,7 +164,7 @@ func GenerateCert(ethpriv *ecdsa.PrivateKey, validPeriod time.Duration) (cert []
 	}
 	issuerCommonName.WriteString(base32.StdEncoding.EncodeToString(signature.Serialize()))
 
-	dnsName := PubKeyToAddr(ethpriv.PublicKey)
+	dnsName := ethcrypto.PubkeyToAddress(ethpriv.PublicKey)
 	template := &x509.Certificate{
 		SerialNumber: big.NewInt(100),
 		Subject: pkix.Name{

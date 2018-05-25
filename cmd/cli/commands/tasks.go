@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gosuri/uiprogress"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -132,7 +133,7 @@ var taskStartCmd = &cobra.Command{
 		dealID := args[0]
 		taskFile := args[1]
 
-		taskDef, err := task_config.LoadConfig(taskFile)
+		request, err := task_config.LoadConfig(taskFile)
 		if err != nil {
 			showError(cmd, "Cannot load task definition", err)
 			os.Exit(1)
@@ -146,46 +147,12 @@ var taskStartCmd = &cobra.Command{
 
 		key := getDefaultKeyOrDie()
 
-		deal := &pb.Deal{
+		request.Deal = &pb.Deal{
 			Id:         bigDealID,
-			ConsumerID: pb.NewEthAddress(util.PubKeyToAddr(key.PublicKey)),
+			ConsumerID: pb.NewEthAddress(crypto.PubkeyToAddress(key.PublicKey)),
 		}
 
-		volumes := map[string]*pb.Volume{}
-		for name, v := range taskDef.Volumes() {
-			volumes[name] = &pb.Volume{
-				Driver:   v.Type,
-				Settings: v.Options,
-			}
-		}
-
-		networks := make([]*pb.NetworkSpec, 0)
-		for _, net := range taskDef.Networks() {
-			networks = append(networks, &pb.NetworkSpec{
-				Type:    net.Type,
-				Options: net.Options,
-				Subnet:  net.Subnet,
-				Addr:    net.Addr,
-			})
-		}
-
-		var req = &pb.StartTaskRequest{
-			Deal: deal,
-			Container: &pb.Container{
-				Image:         taskDef.GetImageName(),
-				Registry:      taskDef.GetRegistryName(),
-				Auth:          taskDef.GetRegistryAuth(),
-				PublicKeyData: taskDef.GetSSHKey(),
-				Env:           taskDef.GetEnvVars(),
-				CommitOnStop:  taskDef.GetCommitOnStop(),
-				Volumes:       volumes,
-				Mounts:        taskDef.Mounts(),
-				Networks:      networks,
-			},
-			Resources: taskDef.GetResources(),
-		}
-
-		reply, err := node.Start(ctx, req)
+		reply, err := node.Start(ctx, request)
 		if err != nil {
 			showError(cmd, "Cannot start task", err)
 			os.Exit(1)

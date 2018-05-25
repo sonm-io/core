@@ -208,15 +208,15 @@ func (r *Repository) TuneVolumes(ctx context.Context, provider VolumeProvider, c
 			continue
 		}
 
-		driver, ok := r.volumes[options.Driver]
+		driver, ok := r.volumes[options.Type]
 		if !ok {
 			cleanup.Close()
-			return nil, fmt.Errorf("volume driver not supported: %s", options.Driver)
+			return nil, fmt.Errorf("volume driver not supported: %s", options.Type)
 		}
 
 		id := fmt.Sprintf("%s/%s", provider.ID(), volumeName)
 
-		v, err := driver.CreateVolume(id, options.Settings)
+		v, err := driver.CreateVolume(id, options.Options)
 		if err != nil {
 			cleanup.Close()
 			return nil, err

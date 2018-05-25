@@ -8,6 +8,7 @@ import (
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
 )
 
@@ -15,6 +16,7 @@ type Config struct {
 	PrivateKey   privateKey `yaml:"ethereum" json:"-"`
 	Logging      logging.Config
 	Workers      []auth.Addr
+	Benchmarks   benchmarks.Config `yaml:"benchmarks"`
 	Marketplace  marketplaceConfig
 	Optimization optimizationConfig
 }
