@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/common"
@@ -458,16 +457,6 @@ func (m *Worker) listenForStatus(statusListener chan pb.TaskStatusReply_Status, 
 	}
 }
 
-func transformRestartPolicy(p *pb.ContainerRestartPolicy) container.RestartPolicy {
-	var restartPolicy = container.RestartPolicy{}
-	if p != nil {
-		restartPolicy.Name = p.Name
-		restartPolicy.MaximumRetryCount = int(p.MaximumRetryCount)
-	}
-
-	return restartPolicy
-}
-
 func (m *Worker) PushTask(stream pb.Worker_PushTaskServer) error {
 	log.G(m.ctx).Info("handling PushTask request")
 	if err := m.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PushTask"), nil); err != nil {
@@ -651,7 +640,7 @@ func (m *Worker) startTask(ctx context.Context, request *structs.StartTaskReques
 		Image:         request.Container.Image,
 		Registry:      request.Registry.ServerAddress,
 		Auth:          request.Registry.Auth(),
-		RestartPolicy: transformRestartPolicy(nil),
+		RestartPolicy: request.Container.RestartPolicy.Unwrap(),
 		CGroupParent:  cgroup.Suffix(),
 		Resources:     request.Resources,
 		DealId:        request.GetDealId(),
