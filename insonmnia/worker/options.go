@@ -15,6 +15,7 @@ import (
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/multierror"
+	"github.com/sonm-io/core/util/netutil"
 	"github.com/sonm-io/core/util/xgrpc"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/credentials"
@@ -149,7 +150,7 @@ func (m *options) exportKey() error {
 		return err
 	}
 	ks := keystore.NewKeyStore(exportKeystorePath, keystore.LightScryptN, keystore.LightScryptP)
-	if !ks.HasAddress(util.PubKeyToAddr(m.key.PublicKey)) {
+	if !ks.HasAddress(crypto.PubkeyToAddress(m.key.PublicKey)) {
 		_, err := ks.ImportECDSA(m.key, "sonm")
 		return err
 	}
@@ -206,7 +207,7 @@ func (m *options) setupWhitelist() error {
 	if m.whitelist == nil {
 		cfg := m.cfg.Whitelist
 		if len(cfg.PrivilegedAddresses) == 0 {
-			cfg.PrivilegedAddresses = append(cfg.PrivilegedAddresses, util.PubKeyToAddr(m.key.PublicKey).Hex())
+			cfg.PrivilegedAddresses = append(cfg.PrivilegedAddresses, crypto.PubkeyToAddress(m.key.PublicKey).Hex())
 		}
 
 		m.whitelist = NewWhitelist(m.ctx, &cfg)
@@ -255,7 +256,7 @@ func (m *options) setupNetworkOptions() error {
 	}
 
 	// Scan interfaces if there's no config and no NAT.
-	systemIPs, err := util.GetAvailableIPs()
+	systemIPs, err := netutil.GetAvailableIPs()
 	if err != nil {
 		return err
 	}
