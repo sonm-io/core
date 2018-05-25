@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
@@ -160,12 +161,17 @@ func (m *Price) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (m *Price) LoadFromString(v string) error {
-	parts := strings.FieldsFunc(v, func(c rune) bool {
-		return c == ' '
+	delimAt := strings.IndexFunc(v, func(c rune) bool {
+		return unicode.IsLetter(c)
 	})
 
-	if len(parts) != 2 {
+	if delimAt < 0 {
 		return fmt.Errorf("could not load price - %s can not be split to numeric and dimension parts", v)
+	}
+
+	parts := []string{
+		strings.TrimSpace(v[:delimAt]),
+		strings.TrimSpace(v[delimAt:]),
 	}
 
 	dimensionMultiplier, ok := priceSuffixes[parts[1]]
