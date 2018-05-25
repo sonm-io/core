@@ -51,7 +51,22 @@ var (
 )
 
 func getDefaultKeyOrDie() *ecdsa.PrivateKey {
-	key, err := keystore.GetDefault()
+	defaultAddr, err := keystore.GetDefaultAddress()
+	if err != nil {
+		showError(rootCmd, "cannot read default address from keystore", err)
+		os.Exit(1)
+	}
+
+	var pass = cfg.Eth.Passphrase
+	if pass == "" {
+		pass, err = accounts.NewInteractivePassPhraser().GetPassPhrase()
+		if err != nil {
+			showError(rootCmd, "cannot read pass phrase", err)
+			os.Exit(1)
+		}
+	}
+
+	key, err := keystore.GetKeyWithPass(defaultAddr, pass)
 	if err != nil {
 		showError(rootCmd, "cannot read default key from keystore", err)
 		os.Exit(1)
