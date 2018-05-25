@@ -78,59 +78,6 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 	return nil
 }
 
-// NewCustomFieldDealExtractor constructs a deal id extractor which extracts deal ID
-// from specified field
-// Extraction is performed using reflection.
-func newCustomFieldDealExtractor(field string) DealExtractor {
-	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
-		requestValue := reflect.Indirect(reflect.ValueOf(request))
-		dealIDValue := requestValue.FieldByName(field)
-		if !dealIDValue.IsValid() {
-			return "", errNoDealFieldFound
-		}
-
-		if reflect.Indirect(dealIDValue).Type().Kind() != reflect.Struct {
-			return "", errInvalidDealField
-		}
-
-		dealID, ok := dealIDValue.Interface().(*sonm.BigInt)
-		if !ok {
-			return "", errInvalidDealField
-		}
-
-		return structs.DealID(dealID.Unwrap().String()), nil
-	}
-}
-
-// NewFieldDealExtractor constructs a deal id extractor that requires the
-// specified request to have "sonm.Deal" field.
-// Extraction is performed using reflection.
-func newFieldDealExtractor() DealExtractor {
-	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
-		requestValue := reflect.Indirect(reflect.ValueOf(request))
-		deal := reflect.Indirect(requestValue.FieldByName("Deal"))
-		if !deal.IsValid() {
-			return "", errNoDealFieldFound
-		}
-
-		if deal.Type().Kind() != reflect.Struct {
-			return "", errInvalidDealField
-		}
-
-		dealIdValue := reflect.Indirect(deal).FieldByName("Id")
-		if !dealIdValue.IsValid() {
-			return "", errInvalidDealField
-		}
-
-		dealID, ok := dealIdValue.Interface().(*sonm.BigInt)
-		if !ok {
-			return "", errInvalidDealField
-		}
-
-		return structs.DealID(dealID.Unwrap().String()), nil
-	}
-}
-
 // NewContextDealExtractor constructs a deal id extractor that requires the
 // specified context to have "deal" metadata.
 func newContextDealExtractor() DealExtractor {
