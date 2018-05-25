@@ -46,6 +46,6 @@ message Container {
     repeated string mounts = 6;
 
     repeated NetworkSpec networks = 7;
-    // ContainerRestartPolicy describes.
+    // ContainerRestartPolicy describes the restart policies of the container.
     ContainerRestartPolicy restartPolicy = 8;
 }
