@@ -53,6 +53,7 @@ service Worker {
 }
 
 message TaskSpec {
+    // Container describes container settings.
     Container container = 1;
     Registry registry = 2;
     AskPlanResources resources = 3;
@@ -63,7 +64,6 @@ message StartTaskRequest {
     // started.
     BigInt dealID = 1;
     TaskSpec spec = 2;
-    // Container describes container settings.
 }
 
 message WorkerJoinNetworkRequest {
