@@ -25,13 +25,17 @@ func TestConvertToPrice(t *testing.T) {
 			in:       "2 USD/h",
 			expected: big.NewInt(0).Quo(big.NewInt(params.Ether), big.NewInt(1800)),
 		},
+		{
+			in:       "12USD/s",
+			expected: big.NewInt(0).Mul(big.NewInt(params.Ether), big.NewInt(12)),
+		},
 	}
 
 	for _, tt := range tests {
 		pr := Price{}
 		err := pr.LoadFromString(tt.in)
 		require.NoError(t, err)
-		assert.Equal(t, tt.expected, pr.PerSecond.Unwrap())
+		assert.Equal(t, tt.expected, pr.PerSecond.Unwrap(), tt.in)
 	}
 }
 

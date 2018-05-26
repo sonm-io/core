@@ -46,52 +46,6 @@ func makeDealInfoSupplier(t *testing.T, buyerId string, dealID string) DealInfoS
 	}
 }
 
-func TestFieldDealMetaData(t *testing.T) {
-	request := &sonm.StartTaskRequest{
-		Deal: &sonm.Deal{
-			Id: pb.NewBigIntFromInt(66),
-		},
-	}
-
-	md := newFieldDealExtractor()
-	dealID, err := md(context.Background(), request)
-	require.NoError(t, err)
-	assert.Equal(t, structs.DealID("66"), dealID)
-}
-
-func TestFieldDealMetaDataErrorsOnInvalidType(t *testing.T) {
-	type Request struct {
-		Deal string
-	}
-	request := &Request{
-		Deal: "66",
-	}
-
-	md := newFieldDealExtractor()
-	dealID, err := md(context.Background(), request)
-	assert.Error(t, err)
-	assert.Equal(t, structs.DealID(""), dealID)
-}
-
-func TestFieldDealMetaDataErrorsOnInvalidInnerType(t *testing.T) {
-	type Deal struct {
-		Id int
-	}
-	type Request struct {
-		Deal *Deal
-	}
-	request := &Request{
-		Deal: &Deal{
-			Id: 42,
-		},
-	}
-
-	md := newFieldDealExtractor()
-	dealID, err := md(context.Background(), request)
-	assert.Error(t, err)
-	assert.Equal(t, structs.DealID(""), dealID)
-}
-
 func TestContextDealMetaData(t *testing.T) {
 	ctx := metadata.NewIncomingContext(context.Background(), metadata.MD(map[string][]string{
 		"deal": {"66"},
@@ -103,19 +57,23 @@ func TestContextDealMetaData(t *testing.T) {
 	assert.Equal(t, structs.DealID("66"), dealID)
 }
 
+func startTaskDealExtractor() DealExtractor {
+	return newRequestDealExtractor(func(request interface{}) (structs.DealID, error) {
+		return structs.DealID(request.(*pb.StartTaskRequest).GetDealID().Unwrap().String()), nil
+	})
+}
+
 func TestDealAuthorization(t *testing.T) {
 	ctx := peer.NewContext(testCtx(), &peer.Peer{
 		AuthInfo: auth.EthAuthInfo{TLS: credentials.TLSInfo{}, Wallet: addr},
 	})
 
 	request := &sonm.StartTaskRequest{
-		Deal: &sonm.Deal{
-			Id: pb.NewBigIntFromInt(66),
-		},
+		DealID: pb.NewBigIntFromInt(66),
 	}
 
-	md := newFieldDealExtractor()
-	authorization := newDealAuthorization(ctx, makeDealInfoSupplier(t, addr.Hex(), "66"), md)
+	extractor := startTaskDealExtractor()
+	authorization := newDealAuthorization(ctx, makeDealInfoSupplier(t, addr.Hex(), "66"), extractor)
 
 	require.NoError(t, authorization.Authorize(ctx, request))
 }
@@ -126,13 +84,11 @@ func TestDealAuthorizationErrors(t *testing.T) {
 	})
 
 	request := &sonm.StartTaskRequest{
-		Deal: &sonm.Deal{
-			Id: pb.NewBigIntFromInt(66),
-		},
+		DealID: pb.NewBigIntFromInt(66),
 	}
 
-	md := newFieldDealExtractor()
-	au := newDealAuthorization(context.Background(), makeDealInfoSupplier(t, "0x100500", "66"), md)
+	extractor := startTaskDealExtractor()
+	au := newDealAuthorization(context.Background(), makeDealInfoSupplier(t, "0x100500", "66"), extractor)
 
 	require.Error(t, au.Authorize(ctx, request))
 }
@@ -147,13 +103,11 @@ func TestDealAuthorizationErrorsOnInvalidWallet(t *testing.T) {
 	}))
 
 	request := &sonm.StartTaskRequest{
-		Deal: &sonm.Deal{
-			Id: pb.NewBigIntFromInt(66),
-		},
+		DealID: pb.NewBigIntFromInt(66),
 	}
 
-	md := newFieldDealExtractor()
-	au := newDealAuthorization(context.Background(), makeDealInfoSupplier(t, "0x100500", "66"), md)
+	extractor := startTaskDealExtractor()
+	au := newDealAuthorization(context.Background(), makeDealInfoSupplier(t, "0x100500", "66"), extractor)
 
 	require.Error(t, au.Authorize(ctx, request))
 }
@@ -171,19 +125,19 @@ func (ma *magicAuthorizer) Authorize(ctx context.Context, request interface{}) e
 }
 
 func TestMultiAuth(t *testing.T) {
-	mul := newMultiAuth(&magicAuthorizer{ok: true}, &magicAuthorizer{ok: true}, &magicAuthorizer{ok: true})
+	mul := newAnyOfAuth(&magicAuthorizer{ok: true}, &magicAuthorizer{ok: true}, &magicAuthorizer{ok: true})
 	err := mul.Authorize(context.Background(), nil)
 	assert.NoError(t, err)
 
-	mul = newMultiAuth(&magicAuthorizer{ok: false}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: true})
+	mul = newAnyOfAuth(&magicAuthorizer{ok: false}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: true})
 	err = mul.Authorize(context.Background(), nil)
 	assert.NoError(t, err)
 
-	mul = newMultiAuth(&magicAuthorizer{ok: true}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: false})
+	mul = newAnyOfAuth(&magicAuthorizer{ok: true}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: false})
 	err = mul.Authorize(context.Background(), nil)
 	assert.NoError(t, err)
 
-	mul = newMultiAuth(&magicAuthorizer{ok: false}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: false})
+	mul = newAnyOfAuth(&magicAuthorizer{ok: false}, &magicAuthorizer{ok: false}, &magicAuthorizer{ok: false})
 
 	err = mul.Authorize(context.Background(), nil)
 	assert.Error(t, err)

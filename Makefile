@@ -47,7 +47,7 @@ LDFLAGS = -X main.appVersion=$(FULL_VER)
 
 .PHONY: fmt vet test
 
-all: mock vet fmt build test contracts
+all: node_modules mock vet fmt build test lint_contracts test_contracts
 
 build/worker:
 	@echo "+ $@"
@@ -136,6 +136,9 @@ test_contracts:
 
 lint_contracts:
 	@$(MAKE) -C blockchain/source lint
+
+node_modules:
+	@$(MAKE) -C blockchain/source node_modules
 
 grpc:
 	@echo "+ $@"

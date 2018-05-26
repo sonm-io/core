@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gosuri/uiprogress"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -133,7 +132,7 @@ var taskStartCmd = &cobra.Command{
 		dealID := args[0]
 		taskFile := args[1]
 
-		request, err := task_config.LoadConfig(taskFile)
+		spec, err := task_config.LoadConfig(taskFile)
 		if err != nil {
 			showError(cmd, "Cannot load task definition", err)
 			os.Exit(1)
@@ -145,11 +144,9 @@ var taskStartCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		key := getDefaultKeyOrDie()
-
-		request.Deal = &pb.Deal{
-			Id:         bigDealID,
-			ConsumerID: pb.NewEthAddress(crypto.PubkeyToAddress(key.PublicKey)),
+		request := &pb.StartTaskRequest{
+			DealID: bigDealID,
+			Spec:   spec,
 		}
 
 		reply, err := node.Start(ctx, request)
