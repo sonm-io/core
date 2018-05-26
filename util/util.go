@@ -2,22 +2,16 @@ package util
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"math/big"
-	"net"
 	"net/http"
 	"os"
 	"os/user"
 	"runtime"
-	"strconv"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/hashicorp/go-multierror"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
@@ -36,30 +30,8 @@ func GetUserHomeDir() (homeDir string, err error) {
 	return usr.HomeDir, nil
 }
 
-func ParseEndpointPort(s string) (string, error) {
-	_, port, err := net.SplitHostPort(s)
-	if err != nil {
-		return "", err
-	}
-
-	intPort, err := strconv.Atoi(port)
-	if err != nil {
-		return "", err
-	}
-
-	if intPort < 1 || intPort > 65535 {
-		return "", errors.New("invalid port value")
-	}
-
-	return port, nil
-}
-
 func GetPlatformName() string {
 	return fmt.Sprintf("%s/%s/%s", runtime.GOOS, runtime.GOARCH, runtime.Version())
-}
-
-func PubKeyToAddr(key ecdsa.PublicKey) common.Address {
-	return crypto.PubkeyToAddress(key)
 }
 
 func FileExists(p string) bool {
@@ -113,59 +85,6 @@ func StringToEtherPrice(s string) (*big.Int, error) {
 	return v, nil
 }
 
-func GetAvailableIPs() (availableIPs []net.IP, err error) {
-	ifaces, err := net.Interfaces()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, i := range ifaces {
-		addrs, err := i.Addrs()
-		if err != nil {
-			return nil, err
-		}
-		for _, addr := range addrs {
-			var ip net.IP
-			switch v := addr.(type) {
-			case *net.IPNet:
-				ip = v.IP
-			case *net.IPAddr:
-				ip = v.IP
-			}
-			if ip != nil && ip.IsGlobalUnicast() {
-				availableIPs = append(availableIPs, ip)
-			}
-		}
-	}
-	if len(availableIPs) == 0 {
-		return nil, errors.New("could not determine a single unicast addr, check networking")
-	}
-
-	return availableIPs, nil
-}
-
-func IsPrivateIP(ip net.IP) bool {
-	return isPrivateIPv4(ip) || isPrivateIPv6(ip)
-}
-
-func isPrivateIPv4(ip net.IP) bool {
-	_, private24BitBlock, _ := net.ParseCIDR("10.0.0.0/8")
-	_, private20BitBlock, _ := net.ParseCIDR("172.16.0.0/12")
-	_, private16BitBlock, _ := net.ParseCIDR("192.168.0.0/16")
-	return private24BitBlock.Contains(ip) ||
-		private20BitBlock.Contains(ip) ||
-		private16BitBlock.Contains(ip) ||
-		ip.IsLoopback() ||
-		ip.IsLinkLocalUnicast() ||
-		ip.IsLinkLocalMulticast()
-}
-
-func isPrivateIPv6(ip net.IP) bool {
-	_, block, _ := net.ParseCIDR("fc00::/7")
-
-	return block.Contains(ip) || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
-}
-
 func StartPrometheus(ctx context.Context, listenAddr string) {
 	log.GetLogger(ctx).Info(
 		"starting metrics server", zap.String("metrics_addr", listenAddr))
@@ -182,17 +101,6 @@ func BigIntToPaddedString(x *big.Int) string {
 	}
 
 	return string(padding) + raw
-}
-
-func MultierrFormat() multierror.ErrorFormatFunc {
-	return func(errs []error) string {
-		var s []string
-		for _, e := range errs {
-			s = append(s, e.Error())
-		}
-
-		return strings.Join(s, ", ")
-	}
 }
 
 func HexToAddress(hex string) (common.Address, error) {

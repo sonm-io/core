@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/libp2p/go-reuseport"
-	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/netutil"
 )
 
@@ -51,7 +50,7 @@ func privateAddrs(addr net.Addr) ([]net.Addr, error) {
 	// For unspecified bind addresses, actual address set has to be resolved.
 	// In other words, unspecified means every available (but still private)
 	// address for the host.
-	ips, err := util.GetAvailableIPs()
+	ips, err := netutil.GetAvailableIPs()
 	if err != nil {
 		return nil, err
 	}

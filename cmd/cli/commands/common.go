@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/sonm-io/core/insonmnia/auth"
@@ -51,7 +52,22 @@ var (
 )
 
 func getDefaultKeyOrDie() *ecdsa.PrivateKey {
-	key, err := keystore.GetDefault()
+	defaultAddr, err := keystore.GetDefaultAddress()
+	if err != nil {
+		showError(rootCmd, "cannot read default address from keystore", err)
+		os.Exit(1)
+	}
+
+	var pass = cfg.Eth.Passphrase
+	if pass == "" {
+		pass, err = accounts.NewInteractivePassPhraser().GetPassPhrase()
+		if err != nil {
+			showError(rootCmd, "cannot read pass phrase", err)
+			os.Exit(1)
+		}
+	}
+
+	key, err := keystore.GetKeyWithPass(defaultAddr, pass)
 	if err != nil {
 		showError(rootCmd, "cannot read default key from keystore", err)
 		os.Exit(1)
@@ -200,7 +216,7 @@ func loadKeyStoreWrapper(cmd *cobra.Command, _ []string) {
 			os.Exit(1)
 		}
 
-		creds = auth.NewWalletAuthenticator(util.NewTLS(TLSConfig), util.PubKeyToAddr(sessionKey.PublicKey))
+		creds = auth.NewWalletAuthenticator(util.NewTLS(TLSConfig), crypto.PubkeyToAddress(sessionKey.PublicKey))
 	}
 }
 

@@ -67,6 +67,11 @@ func (m *MultiKeystore) Generate() (*ecdsa.PrivateKey, error) {
 		return nil, errors.Wrap(err, "cannot read pass phrase")
 	}
 
+	return m.GenerateWithPassword(pass)
+}
+
+// GenerateWithPassword generates new key with given pass-phrase
+func (m *MultiKeystore) GenerateWithPassword(pass string) (*ecdsa.PrivateKey, error) {
 	acc, err := m.keyStore.NewAccount(pass)
 	if err != nil {
 		return nil, err

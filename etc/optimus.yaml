@@ -15,6 +15,10 @@ workers:
  - 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@[::1]:15010
  # TODO: Support multiple timeouts per each worker. How?
 
+benchmarks:
+  # URL to download benchmark list, use `file://` schema to load file from a filesystem.
+  url: "https://raw.githubusercontent.com/sonm-io/benchmarks-list/master/list.json"
+
 # Marketplace polling settings.
 marketplace:
   # Interval of periodic current orders fetching from the marketplace.

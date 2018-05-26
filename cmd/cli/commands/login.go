@@ -62,13 +62,16 @@ var loginCmd = &cobra.Command{
 			if len(ls) == 0 {
 				// generate new key
 				cmd.Println("Keystore is empty, generating new key...")
-				newKey, err := ks.Generate()
+				// ask for password for default key
+				pass, err := accounts.NewInteractivePassPhraser().GetPassPhrase()
+				newKey, err := ks.GenerateWithPassword(pass)
 				if err != nil {
 					showError(cmd, "Cannot generate new key", err)
 					os.Exit(1)
 				}
-
 				cmd.Printf("Generated key %s set as default\r\n", crypto.PubkeyToAddress(newKey.PublicKey).Hex())
+				cfg.Eth.Passphrase = pass
+				cfg.Save()
 				return
 			}
 

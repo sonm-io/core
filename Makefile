@@ -47,7 +47,7 @@ LDFLAGS = -X main.appVersion=$(FULL_VER)
 
 .PHONY: fmt vet test
 
-all: mock vet fmt build test contracts
+all: node_modules mock vet fmt build test lint_contracts test_contracts
 
 build/worker:
 	@echo "+ $@"
@@ -137,6 +137,9 @@ test_contracts:
 lint_contracts:
 	@$(MAKE) -C blockchain/source lint
 
+node_modules:
+	@$(MAKE) -C blockchain/source node_modules
+
 grpc:
 	@echo "+ $@"
 	@if ! which protoc > /dev/null; then echo "protoc protobuf compiler required for build"; exit 1; fi;
@@ -148,7 +151,6 @@ build_mockgen:
 
 mock: build_mockgen
 	mockgen -package worker -destination insonmnia/worker/overseer_mock.go -source insonmnia/worker/overseer.go
-	mockgen -package task_config -destination cmd/cli/task_config/config_mock.go  -source cmd/cli/task_config/config.go
 	mockgen -package accounts -destination accounts/keys_mock.go  -source accounts/keys.go
 	mockgen -package benchmarks -destination insonmnia/benchmarks/benchmarks_mock.go -source insonmnia/benchmarks/benchmarks.go
 	mockgen -package benchmarks -destination insonmnia/benchmarks/mapping_mock.go -source insonmnia/benchmarks/mapping.go

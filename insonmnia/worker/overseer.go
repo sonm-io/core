@@ -10,11 +10,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
-	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 
 	"github.com/docker/docker/api/types"
@@ -562,7 +561,7 @@ func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 	if !ok {
 		return fmt.Errorf("unknown container %s", containerID)
 	}
-	result := &multierror.Error{ErrorFormat: util.MultierrFormat()}
+	result := multierror.NewMultiError()
 	if err := descriptor.Kill(); err != nil {
 		result = multierror.Append(result, err)
 	}

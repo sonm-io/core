@@ -13,7 +13,7 @@ module.exports = {
     networks: {
         development: {
             host: 'localhost',
-            port: 8545,
+            port: 8535,
             network_id: '*', // eslint-disable-line camelcase
         },
         rinkeby: {
