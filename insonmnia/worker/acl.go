@@ -2,13 +2,13 @@ package worker
 
 import (
 	"context"
-	"errors"
 	"reflect"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -76,35 +76,6 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 	}
 
 	return nil
-}
-
-// NewFieldDealExtractor constructs a deal id extractor that requires the
-// specified request to have "sonm.Deal" field.
-// Extraction is performed using reflection.
-func newFieldDealExtractor() DealExtractor {
-	return func(ctx context.Context, request interface{}) (structs.DealID, error) {
-		requestValue := reflect.Indirect(reflect.ValueOf(request))
-		deal := reflect.Indirect(requestValue.FieldByName("Deal"))
-		if !deal.IsValid() {
-			return "", errNoDealFieldFound
-		}
-
-		if deal.Type().Kind() != reflect.Struct {
-			return "", errInvalidDealField
-		}
-
-		dealIdValue := reflect.Indirect(deal).FieldByName("Id")
-		if !dealIdValue.IsValid() {
-			return "", errInvalidDealField
-		}
-
-		dealID, ok := dealIdValue.Interface().(*sonm.BigInt)
-		if !ok {
-			return "", errInvalidDealField
-		}
-
-		return structs.DealID(dealID.Unwrap().String()), nil
-	}
 }
 
 // NewContextDealExtractor constructs a deal id extractor that requires the
@@ -179,13 +150,17 @@ type anyOfAuth struct {
 }
 
 func (a *anyOfAuth) Authorize(ctx context.Context, request interface{}) error {
+	errs := multierror.NewMultiError()
 	for _, au := range a.authorizers {
-		if err := au.Authorize(ctx, request); err == nil {
+		switch err := au.Authorize(ctx, request); err {
+		case nil:
 			return nil
+		default:
+			errs = multierror.AppendUnique(errs, err)
 		}
 	}
 
-	return errors.New("all of required auth methods is failed")
+	return status.Error(codes.Unauthenticated, errs.Error())
 }
 
 func newAnyOfAuth(a ...auth.Authorization) auth.Authorization {

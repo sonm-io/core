@@ -50,7 +50,7 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 }
 
 func (t *tasksAPI) Start(ctx context.Context, req *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
-	dealID := req.Deal.GetId().Unwrap().String()
+	dealID := req.GetDealID().Unwrap().String()
 	worker, cc, err := t.remotes.getWorkerClientForDeal(ctx, dealID)
 	if err != nil {
 		return nil, err
