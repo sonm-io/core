@@ -3,70 +3,94 @@ package blockchain
 import "time"
 
 const (
-	defaultEthEndpoint        = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
+	defaultLivechainEndpoint  = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
 	defaultSidechainEndpoint  = "https://sidechain-dev.sonm.com"
-	defaultGasPrice           = 20000000000 // 20 Gwei
-	defaultGasPriceSidechain  = 0
+	defaultLivechainGasPrice  = 20000000000 // 20 Gwei
+	defaultSidechainGasPrice  = 0
 	defaultBlockConfirmations = 5
+	defaultLogParsePeriod     = time.Second
 )
 
+// chainOpts describes common options
+// for almost any geth-node connection
+// (live Eth network, rinkeby, SONM sidechain
+// or local geth-node for testing).
+type chainOpts struct {
+	gasPrice           int64
+	endpoint           string
+	logParsePeriod     time.Duration
+	blockConfirmations int64
+}
+
+func (c *chainOpts) newClient() (CustomEthereumClient, error) {
+	return NewClient(c.endpoint)
+}
+
 type options struct {
-	gasPrice             int64
-	gasPriceSidechain    int64
-	apiEndpoint          string
-	apiSidechainEndpoint string
-	logParsePeriod       time.Duration
-	blockConfirmations   int64
+	livechain *chainOpts
+	sidechain *chainOpts
 }
 
 func defaultOptions() *options {
 	return &options{
-		gasPrice:             defaultGasPrice,
-		gasPriceSidechain:    defaultGasPriceSidechain,
-		apiEndpoint:          defaultEthEndpoint,
-		apiSidechainEndpoint: defaultSidechainEndpoint,
-		logParsePeriod:       time.Second,
-		blockConfirmations:   defaultBlockConfirmations,
+		livechain: &chainOpts{
+			gasPrice:       defaultLivechainGasPrice,
+			endpoint:       defaultLivechainEndpoint,
+			logParsePeriod: defaultLogParsePeriod,
+		},
+		sidechain: &chainOpts{
+			gasPrice:           defaultSidechainGasPrice,
+			endpoint:           defaultSidechainEndpoint,
+			logParsePeriod:     defaultLogParsePeriod,
+			blockConfirmations: defaultBlockConfirmations,
+		},
 	}
 }
 
 type Option func(options *options)
 
-func WithGasPrice(p int64) Option {
+func WithLivechainGasPrice(p int64) Option {
 	return func(o *options) {
-		o.gasPrice = p
+		o.livechain.gasPrice = p
 	}
 }
 
-func WithEthEndpoint(s string) Option {
+func WithSidechainGasPrice(p int64) Option {
 	return func(o *options) {
-		o.apiEndpoint = s
+		o.sidechain.gasPrice = p
+	}
+}
+
+func WithLivechainEndpoint(s string) Option {
+	return func(o *options) {
+		o.livechain.endpoint = s
 	}
 }
 
 func WithSidechainEndpoint(s string) Option {
 	return func(o *options) {
-		o.apiSidechainEndpoint = s
+		o.sidechain.endpoint = s
 	}
 }
 
 func WithConfig(cfg *Config) Option {
 	return func(o *options) {
 		if cfg != nil {
-			o.apiEndpoint = cfg.Endpoint.String()
-			o.apiSidechainEndpoint = cfg.SidechainEndpoint.String()
+			o.livechain.endpoint = cfg.Endpoint.String()
+			o.sidechain.endpoint = cfg.SidechainEndpoint.String()
 		}
 	}
 }
 
 func WithTimeout(d time.Duration) Option {
 	return func(o *options) {
-		o.logParsePeriod = d
+		o.livechain.logParsePeriod = d
+		o.sidechain.logParsePeriod = d
 	}
 }
 
 func WithBlockConfirmations(c int64) Option {
 	return func(o *options) {
-		o.blockConfirmations = c
+		o.sidechain.blockConfirmations = c
 	}
 }
