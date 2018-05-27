@@ -146,7 +146,7 @@ func (m *options) setupKey() error {
 }
 
 func (m *options) exportKey() error {
-	if err := os.MkdirAll(exportKeystorePath, 0600); err != nil {
+	if err := os.MkdirAll(exportKeystorePath, 0700); err != nil {
 		return err
 	}
 	ks := keystore.NewKeyStore(exportKeystorePath, keystore.LightScryptN, keystore.LightScryptP)
