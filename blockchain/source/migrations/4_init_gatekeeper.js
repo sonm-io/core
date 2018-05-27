@@ -11,6 +11,7 @@ module.exports = function (deployer, network) {
                 console.log(err);
             });
     } else if (network === 'rinkeby') {
+        // we do not transfer token to simple gatekeeper at rinkeby anytime
     } else {
         SNM.deployed()
             .then(function (res) {
