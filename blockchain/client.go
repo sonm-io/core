@@ -2,6 +2,8 @@ package blockchain
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum"
@@ -12,9 +14,38 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+// Receipt extends go-ethereum/core/types/Receipt struct with BlockNumber
 type Receipt struct {
 	*types.Receipt
 	BlockNumber string
+}
+
+// UnmarshalJSON implement json/Unmarshaler interface (stdlib)
+// As far as ethereum Receipt has it's own unmarshaller blockNumber of our custom Receipt was never been unmarshalled.
+// Introduced UnmarshallJSON method overrides this behaviour.
+func (r *Receipt) UnmarshalJSON(input []byte) error {
+	// call parent unmarshal
+	err := r.Receipt.UnmarshalJSON(input)
+	if err != nil {
+		return err
+	}
+
+	// define pure structure for clearly casting
+	type rec struct {
+		BlockNumber string `json:"BlockNumber"`
+	}
+	var dec rec
+	if err := json.Unmarshal(input, &dec); err != nil {
+		return err
+	}
+
+	if dec.BlockNumber == "" {
+		return fmt.Errorf("unmarshaled block number is empty")
+	}
+
+	// assign decoded values
+	r.BlockNumber = dec.BlockNumber
+	return nil
 }
 
 // EthereumClientBackend release all methods to execute interaction with Ethereum Blockchain
