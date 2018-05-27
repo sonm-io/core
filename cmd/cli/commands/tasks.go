@@ -404,7 +404,7 @@ var taskPullCmd = &cobra.Command{
 					receivedSize = true
 				}
 
-				n, err := io.Copy(wr, bytes.NewReader(chunk.Chunk))
+				n, err := io.Copy(wr, bytes.NewReader(chunk.Data))
 				if err != nil {
 					showError(cmd, "Cannot write to file", err)
 					os.Exit(1)
@@ -507,7 +507,7 @@ var taskPushCmd = &cobra.Command{
 
 				if n > 0 {
 					bytesRemaining = int64(n)
-					client.Send(&pb.Chunk{Chunk: buf[:n]})
+					client.Send(&pb.Chunk{Data: buf[:n]})
 				}
 			}
 

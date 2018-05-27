@@ -27,7 +27,7 @@ service TaskManagement {
     // Status produces a task status by their ID
     rpc Status(TaskID) returns (TaskStatusReply) {}
     // Logs retrieves a task log (stdin/stderr) from given task
-    rpc Logs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
+    rpc Logs(TaskLogsRequest) returns (stream Chunk) {}
     // Stop stops a task by their ID
     rpc Stop(TaskID) returns (Empty) {}
     // PullTask pulls task image back

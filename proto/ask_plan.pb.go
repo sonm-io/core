@@ -85,7 +85,6 @@ It has these top-level messages:
 	NetworkUsage
 	ResourceUsage
 	TaskLogsRequest
-	TaskLogsChunk
 	Chunk
 	Progress
 	Duration

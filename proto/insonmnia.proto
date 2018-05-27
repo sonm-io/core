@@ -67,12 +67,8 @@ message TaskLogsRequest {
     BigInt dealID = 8;
 }
 
-message TaskLogsChunk {
-    bytes data = 1;
-}
-
 message Chunk {
-    bytes chunk = 1;
+    bytes data = 1;
 }
 
 message Progress {

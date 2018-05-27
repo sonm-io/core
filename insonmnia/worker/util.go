@@ -122,7 +122,7 @@ func (r *chunkReader) Read(p []byte) (n int, err error) {
 			return 0, io.EOF
 		}
 
-		r.buf = chunk.Chunk
+		r.buf = chunk.Data
 	}
 
 	size := copy(p, r.buf)

@@ -175,7 +175,7 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 					return fmt.Errorf("failed to send closing frame to worker: %s", err)
 				}
 			} else {
-				bytesRemaining = len(chunk.Chunk)
+				bytesRemaining = len(chunk.Data)
 				if err := workerStream.Send(chunk); err != nil {
 					log.G(t.ctx).Debug("failed to send chunk to worker", zap.Error(err))
 					return fmt.Errorf("failed to send chunk to worker: %s", err)

@@ -46,7 +46,7 @@ service Worker {
     rpc TaskStatus(ID) returns (TaskStatusReply) {}
     rpc JoinNetwork(WorkerJoinNetworkRequest) returns (NetworkSpec) {}
 
-    rpc TaskLogs(TaskLogsRequest) returns (stream TaskLogsChunk) {}
+    rpc TaskLogs(TaskLogsRequest) returns (stream Chunk) {}
 
     // Note: currently used for testing pusposes.
     rpc GetDealInfo(ID) returns (DealInfoReply) {}
