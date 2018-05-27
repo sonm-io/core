@@ -37,13 +37,10 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 	if err != nil {
 		return nil, fmt.Errorf("failed to get deal info for deal %s: %s", dealID, err)
 	}
-	reply := &pb.TaskListReply{
-		Info: map[string]*pb.TaskStatusReply{},
-	}
-	for id, task := range deal.Completed.Statuses {
-		reply.Info[id] = task
-	}
-	for id, task := range deal.Running.Statuses {
+
+	// merge maps of running and completed tasks
+	reply := &pb.TaskListReply{Info: deal.Completed}
+	for id, task := range deal.Running {
 		reply.Info[id] = task
 	}
 	return reply, nil
