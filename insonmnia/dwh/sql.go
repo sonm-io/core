@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/ethereum/go-ethereum/common"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -33,12 +34,10 @@ var (
 )
 
 type sqlStorage struct {
-	commands      *sqlCommands
 	setupCommands *sqlSetupCommands
 	numBenchmarks uint64
-	queryRunner   queryRunner
 	tablesInfo    *tablesInfo
-	formatCb      formatArg
+	builder       func() squirrel.StatementBuilderType
 }
 
 func (c *sqlStorage) Setup(db *sql.DB) error {
@@ -61,10 +60,10 @@ func (c *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 	}
 
 	var hasActiveChangeRequests bool
-	if _, err := c.GetDealChangeRequestsByID(conn, deal.Id.Unwrap()); err == nil {
+	if _, err := c.GetDealChangeRequestsByDealID(conn, deal.Id.Unwrap()); err == nil {
 		hasActiveChangeRequests = true
 	}
-	allColumns := []interface{}{
+	values := []interface{}{
 		deal.Id.Unwrap().String(),
 		deal.SupplierID.Unwrap().Hex(),
 		deal.ConsumerID.Unwrap().Hex(),
@@ -87,49 +86,70 @@ func (c *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 		hasActiveChangeRequests,
 	}
 	for benchID := uint64(0); benchID < c.numBenchmarks; benchID++ {
-		allColumns = append(allColumns, deal.Benchmarks.Values[benchID])
+		values = append(values, deal.Benchmarks.Values[benchID])
 	}
-	_, err = conn.Exec(c.commands.insertDeal, allColumns...)
+
+	query, args, _ := c.builder().Insert("Deals").
+		Columns(c.tablesInfo.DealColumns...).
+		Values(values...).
+		ToSql()
+	_, err = conn.Exec(query, args...)
 
 	return err
 }
 
 func (c *sqlStorage) UpdateDeal(conn queryConn, deal *pb.Deal) error {
-	_, err := conn.Exec(c.commands.updateDeal,
-		deal.Duration,
-		deal.Price.PaddedString(),
-		deal.StartTime.Seconds,
-		deal.EndTime.Seconds,
-		uint64(deal.Status),
-		deal.BlockedBalance.PaddedString(),
-		deal.TotalPayout.PaddedString(),
-		deal.LastBillTS.Seconds,
-		deal.Id.Unwrap().String())
+	query, args, _ := c.builder().Update("Deals").SetMap(map[string]interface{}{
+		"Duration":       deal.Duration,
+		"Price":          deal.Price.PaddedString(),
+		"StartTime":      deal.StartTime.Seconds,
+		"EndTime":        deal.EndTime.Seconds,
+		"Status":         uint64(deal.Status),
+		"BlockedBalance": deal.BlockedBalance.PaddedString(),
+		"TotalPayout":    deal.TotalPayout.PaddedString(),
+		"LastBillTS":     deal.LastBillTS.Seconds,
+	}).Where("Id = ?", deal.Id.Unwrap().String()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) UpdateDealsSupplier(conn queryConn, profile *pb.Profile) error {
-	_, err := conn.Exec(c.commands.updateDealsSupplier, []byte(profile.Certificates), profile.UserID.Unwrap().Hex())
+	query, args, _ := c.builder().Update("Deals").SetMap(map[string]interface{}{
+		"SupplierCertificates": []byte(profile.Certificates),
+	}).Where("SupplierID = ?", profile.UserID.Unwrap().Hex()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) UpdateDealsConsumer(conn queryConn, profile *pb.Profile) error {
-	_, err := conn.Exec(c.commands.updateDealsConsumer, []byte(profile.Certificates), profile.UserID.Unwrap().Hex())
+	query, args, _ := c.builder().Update("Deals").SetMap(map[string]interface{}{
+		"ConsumerCertificates": []byte(profile.Certificates),
+	}).Where("ConsumerID = ?", profile.UserID.Unwrap().Hex()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) UpdateDealPayout(conn queryConn, dealID, payout *big.Int, billTS uint64) error {
-	_, err := conn.Exec(c.commands.updateDealPayout, util.BigIntToPaddedString(payout), billTS, dealID.String())
+	query, args, _ := c.builder().Update("Deals").SetMap(map[string]interface{}{
+		"TotalPayout": util.BigIntToPaddedString(payout),
+		"LastBillTS":  billTS,
+	}).Where("Id = ?", dealID.String()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) DeleteDeal(conn queryConn, dealID *big.Int) error {
-	_, err := conn.Exec(c.commands.deleteDeal, dealID.String())
+	query, args, _ := c.builder().Delete("Deals").Where("Id = ?", dealID.String()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) GetDealByID(conn queryConn, dealID *big.Int) (*pb.DWHDeal, error) {
-	rows, err := conn.Query(c.commands.selectDealByID, dealID.String())
+	query, args, _ := c.builder().Select(c.tablesInfo.DealColumns...).
+		From("Deals").
+		Where("Id = ?", dealID.String()).
+		ToSql()
+	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to GetDealDetails")
 	}
@@ -142,64 +162,63 @@ func (c *sqlStorage) GetDealByID(conn queryConn, dealID *big.Int) (*pb.DWHDeal, 
 	return c.decodeDeal(rows)
 }
 
-func (c *sqlStorage) GetDeals(conn queryConn, request *pb.DealsRequest) ([]*pb.DWHDeal, uint64, error) {
-	var filters []*filter
-	if request.Status > 0 {
-		filters = append(filters, newFilter("Status", eq, request.Status, "AND"))
+func (c *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal, uint64, error) {
+	builder := c.builder().Select("*").From("Deals")
+
+	if r.Status > 0 {
+		builder = builder.Where("Status = ?", r.Status)
 	}
-	if !request.SupplierID.IsZero() {
-		filters = append(filters, newFilter("SupplierID", eq, request.SupplierID.Unwrap().Hex(), "AND"))
+	if !r.SupplierID.IsZero() {
+		builder = builder.Where("SupplierID = ?", r.SupplierID.Unwrap().Hex())
 	}
-	if !request.ConsumerID.IsZero() {
-		filters = append(filters, newFilter("ConsumerID", eq, request.ConsumerID.Unwrap().Hex(), "AND"))
+	if !r.ConsumerID.IsZero() {
+		builder = builder.Where("ConsumerID = ?", r.ConsumerID.Unwrap().Hex())
 	}
-	if !request.MasterID.IsZero() {
-		filters = append(filters, newFilter("MasterID", eq, request.MasterID.Unwrap().Hex(), "AND"))
+	if !r.MasterID.IsZero() {
+		builder = builder.Where("MasterID = ?", r.MasterID.Unwrap().Hex())
 	}
-	if !request.AskID.IsZero() {
-		filters = append(filters, newFilter("AskID", eq, request.AskID, "AND"))
+	if !r.AskID.IsZero() {
+		builder = builder.Where("AskID = ?", r.AskID)
 	}
-	if !request.BidID.IsZero() {
-		filters = append(filters, newFilter("BidID", eq, request.BidID, "AND"))
+	if !r.BidID.IsZero() {
+		builder = builder.Where("BidID = ?", r.BidID)
 	}
-	if request.Duration != nil {
-		if request.Duration.Max > 0 {
-			filters = append(filters, newFilter("Duration", lte, request.Duration.Max, "AND"))
+	if r.Duration != nil {
+		if r.Duration.Max > 0 {
+			builder = builder.Where("Duration <= ?", r.Duration.Max)
 		}
-		filters = append(filters, newFilter("Duration", gte, request.Duration.Min, "AND"))
+		builder = builder.Where("Duration >= ?", r.Duration.Min)
 	}
-	if request.Price != nil {
-		if request.Price.Max != nil {
-			filters = append(filters, newFilter("Price", lte, request.Price.Max.PaddedString(), "AND"))
+	if r.Price != nil {
+		if r.Price.Max != nil {
+			builder = builder.Where("Price <= ?", r.Price.Max.PaddedString())
 		}
-		if request.Price.Min != nil {
-			filters = append(filters, newFilter("Price", gte, request.Price.Min.PaddedString(), "AND"))
+		if r.Price.Min != nil {
+			builder = builder.Where("Price >= ?", r.Price.Min.PaddedString())
 		}
 	}
-	if request.Netflags != nil && request.Netflags.Value > 0 {
-		filters = append(filters, newNetflagsFilter(request.Netflags.Operator, request.Netflags.Value))
+	if r.Netflags != nil && r.Netflags.Value > 0 {
+		builder = c.newNetflagsWhere(builder, r.Netflags.Operator, r.Netflags.Value)
 	}
-	if request.AskIdentityLevel > 0 {
-		filters = append(filters, newFilter("AskIdentityLevel", gte, request.AskIdentityLevel, "AND"))
+	if r.AskIdentityLevel > 0 {
+		builder = builder.Where("AskIdentityLevel >= ?", r.AskIdentityLevel)
 	}
-	if request.BidIdentityLevel > 0 {
-		filters = append(filters, newFilter("BidIdentityLevel", gte, request.BidIdentityLevel, "AND"))
+	if r.BidIdentityLevel > 0 {
+		builder = builder.Where("BidIdentityLevel >= ?", r.BidIdentityLevel)
 	}
-	if request.Benchmarks != nil {
-		c.addBenchmarksConditions(request.Benchmarks, &filters)
+	if r.Benchmarks != nil {
+		builder = c.addBenchmarksConditionsWhere(builder, r.Benchmarks)
 	}
-	rows, count, err := c.queryRunner.Run(conn, &queryOpts{
-		table:     "Deals",
-		filters:   filters,
-		sortings:  c.filterSortings(request.Sortings, c.tablesInfo.DealColumnsSet),
-		offset:    request.Offset,
-		limit:     request.Limit,
-		withCount: request.WithCount,
-	})
+	if r.Offset > 0 {
+		builder = builder.Offset(r.Offset)
+	}
+
+	builder = c.builderWithSortings(builder, r.Sortings)
+	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := c.runQuery(conn, strings.Join(c.tablesInfo.DealColumns, ", "), r.WithCount, query, args...)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to run query")
+		return nil, 0, errors.Wrap(err, "failed to runQuery")
 	}
-	defer rows.Close()
 
 	var deals []*pb.DWHDeal
 	for rows.Next() {
@@ -214,21 +233,14 @@ func (c *sqlStorage) GetDeals(conn queryConn, request *pb.DealsRequest) ([]*pb.D
 	return deals, count, nil
 }
 
-func (c *sqlStorage) GetDealConditions(conn queryConn, request *pb.DealConditionsRequest) ([]*pb.DealCondition, uint64, error) {
-	var filters []*filter
-	if len(request.Sortings) < 1 {
-		request.Sortings = []*pb.SortingOption{{Field: "Id", Order: pb.SortingOrder_Desc}}
+func (c *sqlStorage) GetDealConditions(conn queryConn, r *pb.DealConditionsRequest) ([]*pb.DealCondition, uint64, error) {
+	builder := c.builder().Select("*").From("DealConditions")
+	builder = builder.Where("DealID = ?", r.DealID.Unwrap().String())
+	if len(r.Sortings) == 0 {
+		builder = c.builderWithSortings(builder, []*pb.SortingOption{{Field: "Id", Order: pb.SortingOrder_Desc}})
 	}
-
-	filters = append(filters, newFilter("DealID", eq, request.DealID.Unwrap().String(), "AND"))
-	rows, count, err := c.queryRunner.Run(conn, &queryOpts{
-		table:     "DealConditions",
-		filters:   filters,
-		sortings:  request.Sortings,
-		offset:    request.Offset,
-		limit:     request.Limit,
-		withCount: request.WithCount,
-	})
+	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := c.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to run query")
 	}
@@ -251,7 +263,7 @@ func (c *sqlStorage) GetDealConditions(conn queryConn, request *pb.DealCondition
 }
 
 func (c *sqlStorage) InsertOrder(conn queryConn, order *pb.DWHOrder) error {
-	allColumns := []interface{}{
+	values := []interface{}{
 		order.GetOrder().Id.Unwrap().String(),
 		order.CreatedTS.Seconds,
 		order.GetOrder().DealID.Unwrap().String(),
@@ -272,35 +284,42 @@ func (c *sqlStorage) InsertOrder(conn queryConn, order *pb.DWHOrder) error {
 		[]byte(order.CreatorCertificates),
 	}
 	for benchID := uint64(0); benchID < c.numBenchmarks; benchID++ {
-		allColumns = append(allColumns, order.GetOrder().Benchmarks.Values[benchID])
+		values = append(values, order.GetOrder().Benchmarks.Values[benchID])
 	}
-
-	_, err := conn.Exec(c.commands.insertOrder, allColumns...)
+	query, args, _ := c.builder().Insert("Orders").Columns(c.tablesInfo.OrderColumns...).Values(values...).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) UpdateOrderStatus(conn queryConn, orderID *big.Int, status pb.OrderStatus) error {
-	_, err := conn.Exec(c.commands.updateOrderStatus, status, orderID.String())
+	query, args, _ := c.builder().Update("Orders").Set("Status", status).Where("Id = ?", orderID.String()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) UpdateOrders(conn queryConn, profile *pb.Profile) error {
-	_, err := conn.Exec(c.commands.updateOrders,
-		profile.IdentityLevel,
-		profile.Name,
-		profile.Country,
-		profile.Certificates,
-		profile.UserID.Unwrap().Hex())
+	query, args, _ := c.builder().Update("Orders").SetMap(map[string]interface{}{
+		"CreatorIdentityLevel": profile.IdentityLevel,
+		"CreatorName":          profile.Name,
+		"CreatorCountry":       profile.Country,
+		"CreatorCertificates":  profile.Certificates,
+	}).Where("AuthorId = ?", profile.UserID.Unwrap().Hex()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) DeleteOrder(conn queryConn, orderID *big.Int) error {
-	_, err := conn.Exec(c.commands.deleteOrder, orderID.String())
+	query, args, _ := c.builder().Delete("Orders").Where("Id = ?", orderID.String()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) GetOrderByID(conn queryConn, orderID *big.Int) (*pb.DWHOrder, error) {
-	rows, err := conn.Query(c.commands.selectOrderByID, orderID.String())
+	query, args, _ := c.builder().Select(c.tablesInfo.OrderColumns...).
+		From("Orders").
+		Where("Id = ?", orderID.String()).
+		ToSql()
+	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to selectOrderByID")
 	}
@@ -313,61 +332,56 @@ func (c *sqlStorage) GetOrderByID(conn queryConn, orderID *big.Int) (*pb.DWHOrde
 	return c.decodeOrder(rows)
 }
 
-func (c *sqlStorage) GetOrders(conn queryConn, request *pb.OrdersRequest) ([]*pb.DWHOrder, uint64, error) {
-	var filters []*filter
-	filters = append(filters, newFilter("Status", eq, pb.OrderStatus_ORDER_ACTIVE, "AND"))
-	if !request.DealID.IsZero() {
-		filters = append(filters, newFilter("DealID", eq, request.DealID.Unwrap().String(), "AND"))
+func (c *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOrder, uint64, error) {
+	builder := c.builder().Select("*").From("Orders").
+		Where("Status = ?", pb.OrderStatus_ORDER_ACTIVE)
+	if !r.DealID.IsZero() {
+		builder = builder.Where("DealID = ?", r.DealID.Unwrap().String())
 	}
-	if request.Type > 0 {
-		filters = append(filters, newFilter("Type", eq, request.Type, "AND"))
+	if r.Type > 0 {
+		builder = builder.Where("Type = ?", r.Type)
 	}
-	if !request.AuthorID.IsZero() {
-		filters = append(filters, newFilter("AuthorID", eq, request.AuthorID.Unwrap().Hex(), "AND"))
+	if !r.AuthorID.IsZero() {
+		builder = builder.Where("AuthorID = ?", r.AuthorID.Unwrap().Hex())
 	}
-	if !request.CounterpartyID.IsZero() {
-		filters = append(filters, newFilter("CounterpartyID", eq, request.CounterpartyID.Unwrap().Hex(), "AND"))
+	if !r.CounterpartyID.IsZero() {
+		builder = builder.Where("CounterpartyID = ?", r.CounterpartyID.Unwrap().Hex())
 	}
-	if request.Duration != nil {
-		if request.Duration.Max > 0 {
-			filters = append(filters, newFilter("Duration", lte, request.Duration.Max, "AND"))
+	if r.Duration != nil {
+		if r.Duration.Max > 0 {
+			builder = builder.Where("Duration <= ?", r.Duration.Max)
 		}
-		filters = append(filters, newFilter("Duration", gte, request.Duration.Min, "AND"))
+		builder = builder.Where("Duration >= ?", r.Duration.Min)
 	}
-	if request.Price != nil {
-		if request.Price.Max != nil {
-			filters = append(filters, newFilter("Price", lte, request.Price.Max.PaddedString(), "AND"))
+	if r.Price != nil {
+		if r.Price.Max != nil {
+			builder = builder.Where("Price <= ?", r.Price.Max.PaddedString())
 		}
-		if request.Price.Min != nil {
-			filters = append(filters, newFilter("Price", gte, request.Price.Min.PaddedString(), "AND"))
+		if r.Price.Min != nil {
+			builder = builder.Where("Price >= ?", r.Price.Min.PaddedString())
 		}
 	}
-	if request.Netflags != nil && request.Netflags.Value > 0 {
-		filters = append(filters, newNetflagsFilter(request.Netflags.Operator, request.Netflags.Value))
+	if r.Netflags != nil && r.Netflags.Value > 0 {
+		builder = c.newNetflagsWhere(builder, r.Netflags.Operator, r.Netflags.Value)
 	}
-	if request.CreatorIdentityLevel > 0 {
-		filters = append(filters, newFilter("CreatorIdentityLevel", gte, request.CreatorIdentityLevel, "AND"))
+	if r.CreatorIdentityLevel > 0 {
+		builder = builder.Where("CreatorIdentityLevel >= ?", r.CreatorIdentityLevel)
 	}
-	if request.CreatedTS != nil {
-		createdTS := request.CreatedTS
+	if r.CreatedTS != nil {
+		createdTS := r.CreatedTS
 		if createdTS.Max != nil && createdTS.Max.Seconds > 0 {
-			filters = append(filters, newFilter("CreatedTS", lte, createdTS.Max.Seconds, "AND"))
+			builder = builder.Where("CreatedTS <= ?", createdTS.Max.Seconds)
 		}
 		if createdTS.Min != nil && createdTS.Min.Seconds > 0 {
-			filters = append(filters, newFilter("CreatedTS", gte, createdTS.Min.Seconds, "AND"))
+			builder = builder.Where("CreatedTS >= ?", createdTS.Min.Seconds)
 		}
 	}
-	if request.Benchmarks != nil {
-		c.addBenchmarksConditions(request.Benchmarks, &filters)
+	if r.Benchmarks != nil {
+		builder = c.addBenchmarksConditionsWhere(builder, r.Benchmarks)
 	}
-	rows, count, err := c.queryRunner.Run(conn, &queryOpts{
-		table:     "Orders",
-		filters:   filters,
-		sortings:  c.filterSortings(request.Sortings, c.tablesInfo.OrderColumnsSet),
-		offset:    request.Offset,
-		limit:     request.Limit,
-		withCount: request.WithCount,
-	})
+	builder = c.builderWithSortings(builder, r.Sortings)
+	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := c.runQuery(conn, strings.Join(c.tablesInfo.OrderColumns, ", "), r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to run query")
 	}
@@ -389,14 +403,14 @@ func (c *sqlStorage) GetOrders(conn queryConn, request *pb.OrdersRequest) ([]*pb
 	return orders, count, nil
 }
 
-func (c *sqlStorage) GetMatchingOrders(conn queryConn, request *pb.MatchingOrdersRequest) ([]*pb.DWHOrder, uint64, error) {
-	order, err := c.GetOrderByID(conn, request.Id.Unwrap())
+func (c *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersRequest) ([]*pb.DWHOrder, uint64, error) {
+	order, err := c.GetOrderByID(conn, r.Id.Unwrap())
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to GetOrderByID")
 	}
 
+	builder := c.builder().Select("*").From("Orders")
 	var (
-		filters      []*filter
 		orderType    pb.OrderType
 		priceOp      string
 		durationOp   string
@@ -416,41 +430,33 @@ func (c *sqlStorage) GetMatchingOrders(conn queryConn, request *pb.MatchingOrder
 		benchOp = lte
 		sortingOrder = pb.SortingOrder_Desc
 	}
-	filters = append(filters, newFilter("Type", eq, orderType, "AND"))
-	filters = append(filters, newFilter("Status", eq, pb.OrderStatus_ORDER_ACTIVE, "AND"))
-	filters = append(filters, newFilter("Price", priceOp, order.Order.Price.PaddedString(), "AND"))
+	builder = builder.Where("Type = ?", orderType).
+		Where("Status = ?", pb.OrderStatus_ORDER_ACTIVE).
+		Where(fmt.Sprintf("Price %s ?", priceOp), order.Order.Price.PaddedString())
 	if order.Order.Duration > 0 {
-		filters = append(filters, newFilter("Duration", durationOp, order.Order.Duration, "AND"))
+		builder = builder.Where(fmt.Sprintf("Duration %s ?", durationOp), order.Order.Duration)
 	} else {
-		filters = append(filters, newFilter("Duration", eq, order.Order.Duration, "AND"))
+		builder = builder.Where("Duration = ?", order.Order.Duration)
 	}
 	if !order.Order.CounterpartyID.IsZero() {
-		filters = append(filters, newFilter("AuthorID", eq, order.Order.CounterpartyID.Unwrap().Hex(), "AND"))
+		builder = builder.Where("AuthorID = ?", order.Order.CounterpartyID.Unwrap().Hex())
 	}
-	counterpartyFilter := newFilter("CounterpartyID", eq, common.Address{}.Hex(), "OR")
-	counterpartyFilter.OpenBracket = true
-	filters = append(filters, counterpartyFilter)
-	counterpartyFilter = newFilter("CounterpartyID", eq, order.Order.AuthorID.Unwrap().Hex(), "AND")
-	counterpartyFilter.CloseBracket = true
-	filters = append(filters, counterpartyFilter)
-	if order.Order.OrderType == pb.OrderType_BID {
-		filters = append(filters, newNetflagsFilter(pb.CmpOp_GTE, order.Order.Netflags))
-	} else {
-		filters = append(filters, newNetflagsFilter(pb.CmpOp_LTE, order.Order.Netflags))
-	}
-	filters = append(filters, newFilter("IdentityLevel", gte, order.Order.IdentityLevel, "AND"))
-	filters = append(filters, newFilter("CreatorIdentityLevel", lte, order.CreatorIdentityLevel, "AND"))
-	for benchID, benchValue := range order.Order.Benchmarks.Values {
-		filters = append(filters, newFilter(getBenchmarkColumn(uint64(benchID)), benchOp, benchValue, "AND"))
-	}
-	rows, count, err := c.queryRunner.Run(conn, &queryOpts{
-		table:     "Orders",
-		filters:   filters,
-		sortings:  []*pb.SortingOption{{Field: "Price", Order: sortingOrder}},
-		offset:    request.Offset,
-		limit:     request.Limit,
-		withCount: request.WithCount,
+	builder = builder.Where(squirrel.Eq{
+		"CounterpartyID": []string{common.Address{}.Hex(), order.Order.AuthorID.Unwrap().Hex()},
 	})
+	if order.Order.OrderType == pb.OrderType_BID {
+		builder = c.newNetflagsWhere(builder, pb.CmpOp_GTE, order.Order.Netflags)
+	} else {
+		builder = c.newNetflagsWhere(builder, pb.CmpOp_LTE, order.Order.Netflags)
+	}
+	builder = builder.Where("IdentityLevel >= ?", order.Order.IdentityLevel).
+		Where("CreatorIdentityLevel <= ?", order.CreatorIdentityLevel)
+	for benchID, benchValue := range order.Order.Benchmarks.Values {
+		builder = builder.Where(fmt.Sprintf("%s %s ?", getBenchmarkColumn(uint64(benchID)), benchOp), benchValue)
+	}
+	builder = c.builderWithSortings(builder, []*pb.SortingOption{{Field: "Price", Order: sortingOrder}})
+	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := c.runQuery(conn, strings.Join(c.tablesInfo.OrderColumns, ", "), r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to run Query")
 	}
@@ -472,47 +478,43 @@ func (c *sqlStorage) GetMatchingOrders(conn queryConn, request *pb.MatchingOrder
 	return orders, count, nil
 }
 
-func (c *sqlStorage) GetProfiles(conn queryConn, request *pb.ProfilesRequest) ([]*pb.Profile, uint64, error) {
-	var filters []*filter
-	switch request.Role {
+func (c *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.Profile, uint64, error) {
+	builder := c.builder().Select("*").From("Profiles AS p")
+	switch r.Role {
 	case pb.ProfileRole_Supplier:
-		filters = append(filters, newFilter("ActiveAsks", gte, 1, "AND"))
+		builder = builder.Where("ActiveAsks >= 1")
 	case pb.ProfileRole_Consumer:
-		filters = append(filters, newFilter("ActiveBids", gte, 1, "AND"))
+		builder = builder.Where("ActiveBids >= 1")
 	}
-	filters = append(filters, newFilter("IdentityLevel", gte, request.IdentityLevel, "AND"))
-	if len(request.Country) > 0 {
-		filters = append(filters, newFilter("Country", eq, request.Country, "AND"))
+	builder = builder.Where("IdentityLevel >= ?", r.IdentityLevel)
+	if len(r.Country) > 0 {
+		builder = builder.Where("Country = ?", r.Country)
 	}
-	if len(request.Name) > 0 {
-		filters = append(filters, newFilter("Name", "LIKE", request.Name, "AND"))
+	if len(r.Name) > 0 {
+		builder = builder.Where("Name LIKE ?", r.Name)
 	}
-
-	opts := &queryOpts{
-		table:     "Profiles",
-		filters:   filters,
-		sortings:  c.filterSortings(request.Sortings, c.tablesInfo.ProfileColumnsSet),
-		offset:    request.Offset,
-		limit:     request.Limit,
-		withCount: request.WithCount,
-	}
-	if request.BlacklistQuery != nil && request.BlacklistQuery.OwnerID != nil {
-		opts.selectAs = "AS p"
-		switch request.BlacklistQuery.Option {
-		case pb.BlacklistOption_WithoutMatching:
-			opts.customFilter = &customFilter{
-				clause: c.commands.profileNotInBlacklist,
-				values: []interface{}{request.BlacklistQuery.OwnerID.Unwrap().Hex()},
-			}
-		case pb.BlacklistOption_OnlyMatching:
-			opts.customFilter = &customFilter{
-				clause: c.commands.profileInBlacklist,
-				values: []interface{}{request.BlacklistQuery.OwnerID.Unwrap().Hex()},
+	if r.BlacklistQuery != nil && !r.BlacklistQuery.OwnerID.IsZero() {
+		ownerBuilder := c.builder().Select("AddeeID").From("Blacklists").
+			Where("AdderID = ?", r.BlacklistQuery.OwnerID.Unwrap().Hex()).Where("AddeeID = p.UserID")
+		ownerQuery, _, _ := ownerBuilder.ToSql()
+		if r.BlacklistQuery != nil && r.BlacklistQuery.OwnerID != nil {
+			switch r.BlacklistQuery.Option {
+			case pb.BlacklistOption_WithoutMatching:
+				builder = builder.Where(fmt.Sprintf("UserID NOT IN (%s)", ownerQuery))
+			case pb.BlacklistOption_OnlyMatching:
+				builder = builder.Where(fmt.Sprintf("UserID IN (%s)", ownerQuery))
 			}
 		}
+
+	}
+	builder = c.builderWithSortings(builder, r.Sortings)
+	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+
+	if r.BlacklistQuery != nil && !r.BlacklistQuery.OwnerID.IsZero() {
+		args = append(args, r.BlacklistQuery.OwnerID.Unwrap().Hex())
 	}
 
-	rows, count, err := c.queryRunner.Run(conn, opts)
+	rows, count, err := c.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to run query")
 	}
@@ -530,8 +532,8 @@ func (c *sqlStorage) GetProfiles(conn queryConn, request *pb.ProfilesRequest) ([
 		return nil, 0, errors.Wrap(err, "rows error")
 	}
 
-	if request.BlacklistQuery != nil && request.BlacklistQuery.Option == pb.BlacklistOption_IncludeAndMark {
-		blacklistReply, err := c.GetBlacklist(conn, &pb.BlacklistRequest{OwnerID: request.BlacklistQuery.OwnerID})
+	if r.BlacklistQuery != nil && r.BlacklistQuery.Option == pb.BlacklistOption_IncludeAndMark {
+		blacklistReply, err := c.GetBlacklist(conn, &pb.BlacklistRequest{OwnerID: r.BlacklistQuery.OwnerID})
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "failed to")
 		}
@@ -540,7 +542,6 @@ func (c *sqlStorage) GetProfiles(conn queryConn, request *pb.ProfilesRequest) ([
 		for _, blacklistedAddr := range blacklistReply.Addresses {
 			blacklistedAddrs[blacklistedAddr] = true
 		}
-
 		for _, profile := range out {
 			if blacklistedAddrs[profile.UserID.Unwrap().Hex()] {
 				profile.IsBlacklisted = true
@@ -552,32 +553,40 @@ func (c *sqlStorage) GetProfiles(conn queryConn, request *pb.ProfilesRequest) ([
 }
 
 func (c *sqlStorage) InsertDealChangeRequest(conn queryConn, changeRequest *pb.DealChangeRequest) error {
-	_, err := conn.Exec(c.commands.insertDealChangeRequest,
-		changeRequest.Id.Unwrap().String(),
-		changeRequest.CreatedTS.Seconds,
-		changeRequest.RequestType,
-		changeRequest.Duration,
-		changeRequest.Price.PaddedString(),
-		changeRequest.Status,
-		changeRequest.DealID.Unwrap().String())
+	query, args, _ := c.builder().Insert("DealChangeRequests").
+		Columns(c.tablesInfo.DealChangeRequestColumns...).
+		Values(
+			changeRequest.Id.Unwrap().String(),
+			changeRequest.CreatedTS.Seconds,
+			changeRequest.RequestType,
+			changeRequest.Duration,
+			changeRequest.Price.PaddedString(),
+			changeRequest.Status,
+			changeRequest.DealID.Unwrap().String(),
+		).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) UpdateDealChangeRequest(conn queryConn, changeRequest *pb.DealChangeRequest) error {
-	_, err := conn.Exec(c.commands.updateDealChangeRequest, changeRequest.Status, changeRequest.Id.Unwrap().String())
+	query, args, _ := c.builder().Update("DealChangeRequests").Set("Status", changeRequest.Status).
+		Where("Id = ?", changeRequest.Id.Unwrap().String()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) DeleteDealChangeRequest(conn queryConn, changeRequestID *big.Int) error {
-	_, err := conn.Exec(c.commands.deleteDealChangeRequest, changeRequestID.String())
+	query, args, _ := c.builder().Delete("DealChangeRequests").Where("Id = ?", changeRequestID.String()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) GetDealChangeRequests(conn queryConn, changeRequest *pb.DealChangeRequest) ([]*pb.DealChangeRequest, error) {
-	rows, err := conn.Query(c.commands.selectDealChangeRequests,
-		changeRequest.DealID.Unwrap().String(),
-		changeRequest.RequestType,
-		changeRequest.Status)
+	query, args, _ := c.builder().Select(c.tablesInfo.DealChangeRequestColumns...).
+		From("DealChangeRequests").Where("DealID = ?", changeRequest.DealID.Unwrap().String()).
+		Where("RequestType = ?", changeRequest.RequestType).
+		Where("Status = ?", changeRequest.Status).ToSql()
+	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to selectDealChangeRequests")
 	}
@@ -599,8 +608,12 @@ func (c *sqlStorage) GetDealChangeRequests(conn queryConn, changeRequest *pb.Dea
 	return out, nil
 }
 
-func (c *sqlStorage) GetDealChangeRequestsByID(conn queryConn, changeRequestID *big.Int) ([]*pb.DealChangeRequest, error) {
-	rows, err := conn.Query(c.commands.selectDealChangeRequestsByID, changeRequestID.String())
+func (c *sqlStorage) GetDealChangeRequestsByDealID(conn queryConn, changeRequestID *big.Int) ([]*pb.DealChangeRequest, error) {
+	query, args, _ := c.builder().Select(c.tablesInfo.DealChangeRequestColumns...).
+		From("DealChangeRequests").
+		Where("DealID = ?", changeRequestID.String()).
+		ToSql()
+	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to selectDealChangeRequests")
 	}
@@ -623,73 +636,78 @@ func (c *sqlStorage) GetDealChangeRequestsByID(conn queryConn, changeRequestID *
 }
 
 func (c *sqlStorage) InsertDealCondition(conn queryConn, condition *pb.DealCondition) error {
-	_, err := conn.Exec(c.commands.insertDealCondition,
-		condition.SupplierID.Unwrap().Hex(),
-		condition.ConsumerID.Unwrap().Hex(),
-		condition.MasterID.Unwrap().Hex(),
-		condition.Duration,
-		condition.Price.PaddedString(),
-		condition.StartTime.Seconds,
-		condition.EndTime.Seconds,
-		condition.TotalPayout.PaddedString(),
-		condition.DealID.Unwrap().String())
+	query, args, err := c.builder().Insert("DealConditions").Columns(c.tablesInfo.DealConditionColumns[1:]...).
+		Values(
+			condition.SupplierID.Unwrap().Hex(),
+			condition.ConsumerID.Unwrap().Hex(),
+			condition.MasterID.Unwrap().Hex(),
+			condition.Duration,
+			condition.Price.PaddedString(),
+			condition.StartTime.Seconds,
+			condition.EndTime.Seconds,
+			condition.TotalPayout.PaddedString(),
+			condition.DealID.Unwrap().String(),
+		).ToSql()
+	_, err = conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) UpdateDealConditionPayout(conn queryConn, dealConditionID uint64, payout *big.Int) error {
-	_, err := conn.Exec(c.commands.updateDealConditionPayout, util.BigIntToPaddedString(payout), dealConditionID)
+	query, args, err := c.builder().Update("DealConditions").Set("TotalPayout", util.BigIntToPaddedString(payout)).
+		Where("Id = ?", dealConditionID).ToSql()
+	_, err = conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) UpdateDealConditionEndTime(conn queryConn, dealConditionID, eventTS uint64) error {
-	_, err := conn.Exec(c.commands.updateDealConditionEndTime, eventTS, dealConditionID)
+	query, args, err := c.builder().Update("DealConditions").Set("EndTime", eventTS).
+		Where("Id = ?", dealConditionID).ToSql()
+	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) InsertDealPayment(conn queryConn, payment *pb.DealPayment) error {
-	_, err := conn.Exec(c.commands.insertDealPayment, payment.PaymentTS.Seconds, payment.PayedAmount.PaddedString(),
-		payment.DealID.Unwrap().String())
+func (c *sqlStorage) InsertWorker(conn queryConn, masterID, workerID string) error {
+	query, args, err := c.builder().Insert("Workers").Values(masterID, workerID, false).ToSql()
+	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) InsertWorker(conn queryConn, masterID, slaveID string) error {
-	_, err := conn.Exec(c.commands.insertWorker, masterID, slaveID, false)
+func (c *sqlStorage) UpdateWorker(conn queryConn, masterID, workerID string) error {
+	query, args, err := c.builder().Update("Workers").Set("Confirmed", true).Where("MasterID = ?", masterID).
+		Where("WorkerID = ?", workerID).ToSql()
+	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) UpdateWorker(conn queryConn, masterID, slaveID string) error {
-	_, err := conn.Exec(c.commands.updateWorker, true, masterID, slaveID)
-	return err
-}
-
-func (c *sqlStorage) DeleteWorker(conn queryConn, masterID, slaveID string) error {
-	_, err := conn.Exec(c.commands.deleteWorker, masterID, slaveID)
+func (c *sqlStorage) DeleteWorker(conn queryConn, masterID, workerID string) error {
+	query, args, err := c.builder().Delete("Workers").Where("MasterID = ?", masterID).
+		Where("WorkerID = ?", workerID).ToSql()
+	_, err = conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) InsertBlacklistEntry(conn queryConn, adderID, addeeID string) error {
-	_, err := conn.Exec(c.commands.insertBlacklistEntry, adderID, addeeID)
+	query, args, err := c.builder().Insert("Blacklists").Values(adderID, addeeID).ToSql()
+	_, err = conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) DeleteBlacklistEntry(conn queryConn, removerID, removeeID string) error {
-	_, err := conn.Exec(c.commands.deleteBlacklistEntry, removerID, removeeID)
+	query, args, err := c.builder().Delete("Blacklists").Where("AdderID = ?", removerID).
+		Where("AddeeID = ?", removeeID).ToSql()
+	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) GetBlacklist(conn queryConn, request *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
-	var filters []*filter
-	if !request.OwnerID.IsZero() {
-		filters = append(filters, newFilter("AdderID", eq, request.OwnerID.Unwrap().Hex(), "AND"))
+func (c *sqlStorage) GetBlacklist(conn queryConn, r *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
+	builder := c.builder().Select("*").From("Blacklists")
+
+	if !r.OwnerID.IsZero() {
+		builder = builder.Where("AdderID = ?", r.OwnerID.Unwrap().Hex())
 	}
-	rows, count, err := c.queryRunner.Run(conn, &queryOpts{
-		table:     "Blacklists",
-		filters:   filters,
-		sortings:  []*pb.SortingOption{},
-		offset:    request.Offset,
-		limit:     request.Limit,
-		withCount: request.WithCount,
-	})
+	builder = c.builderWithSortings(builder, []*pb.SortingOption{})
+	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := c.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to run query")
 	}
@@ -713,34 +731,40 @@ func (c *sqlStorage) GetBlacklist(conn queryConn, request *pb.BlacklistRequest) 
 	}
 
 	return &pb.BlacklistReply{
-		OwnerID:   request.OwnerID,
+		OwnerID:   r.OwnerID,
 		Addresses: addees,
 		Count:     count,
 	}, nil
 }
 
 func (c *sqlStorage) InsertValidator(conn queryConn, validator *pb.Validator) error {
-	_, err := conn.Exec(c.commands.insertValidator, validator.Id.Unwrap().Hex(), validator.Level)
+	query, args, _ := c.builder().Insert("Validators").Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) UpdateValidator(conn queryConn, validator *pb.Validator) error {
-	_, err := conn.Exec(c.commands.updateValidator, validator.Level, validator.Id.Unwrap().Hex())
+	query, args, _ := c.builder().Update("Validators").Set("Level", validator.Level).
+		Where("Id = ?", validator.Id.Unwrap().Hex()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) InsertCertificate(conn queryConn, certificate *pb.Certificate) error {
-	_, err := conn.Exec(c.commands.insertCertificate,
+	query, args, _ := c.builder().Insert("Certificates").Values(
 		certificate.OwnerID.Unwrap().Hex(),
 		certificate.Attribute,
 		(certificate.Attribute/uint64(100))%10,
 		certificate.Value,
-		certificate.ValidatorID.Unwrap().Hex())
+		certificate.ValidatorID.Unwrap().Hex(),
+	).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) GetCertificates(conn queryConn, ownerID common.Address) ([]*pb.Certificate, error) {
-	rows, err := conn.Query(c.commands.selectCertificates, ownerID.Hex())
+	query, args, _ := c.builder().Select("*").From("Certificates").Where("OwnerID = ?", ownerID.Hex()).ToSql()
+	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to getCertificatesByUseID")
 	}
@@ -764,13 +788,31 @@ func (c *sqlStorage) GetCertificates(conn queryConn, ownerID common.Address) ([]
 }
 
 func (c *sqlStorage) InsertProfileUserID(conn queryConn, profile *pb.Profile) error {
-	_, err := conn.Exec(c.commands.insertProfileUserID,
-		profile.UserID.Unwrap().Hex(), profile.Certificates, profile.ActiveAsks, profile.ActiveBids)
+	query, args, _ := c.builder().Select("Id").From("Profiles").Where("UserID = ?", profile.UserID.Unwrap().Hex()).ToSql()
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return errors.Wrap(err, "failed to check if profile exists")
+	}
+	defer rows.Close()
+	if rows.Next() {
+		// Profile already exists.
+		return nil
+	}
+
+	query, args, _ = c.builder().Insert("Profiles").Columns(c.tablesInfo.ProfileColumns[1:]...).Values(
+		profile.UserID.Unwrap().Hex(),
+		0, "", "", false, false,
+		profile.Certificates,
+		profile.ActiveAsks,
+		profile.ActiveBids,
+	).ToSql()
+	_, err = conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) GetProfileByID(conn queryConn, userID common.Address) (*pb.Profile, error) {
-	rows, err := conn.Query(c.commands.selectProfileByID, userID.Hex())
+	query, args, _ := c.builder().Select("*").From("Profiles").Where("UserID = ?", userID.Hex()).ToSql()
+	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to selectProfileByID")
 	}
@@ -783,20 +825,15 @@ func (c *sqlStorage) GetProfileByID(conn queryConn, userID common.Address) (*pb.
 	return c.decodeProfile(rows)
 }
 
-func (c *sqlStorage) GetValidators(conn queryConn, request *pb.ValidatorsRequest) ([]*pb.Validator, uint64, error) {
-	var filters []*filter
-	if request.ValidatorLevel != nil {
-		level := request.ValidatorLevel
-		filters = append(filters, newFilter("Level", opsTranslator[level.Operator], level.Value, "AND"))
+func (c *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*pb.Validator, uint64, error) {
+	builder := c.builder().Select("*").From("Validators")
+	if r.ValidatorLevel != nil {
+		level := r.ValidatorLevel
+		builder = builder.Where(fmt.Sprintf("Level %s ?", opsTranslator[level.Operator]), level.Value)
 	}
-	rows, count, err := c.queryRunner.Run(conn, &queryOpts{
-		table:     "Validators",
-		filters:   filters,
-		sortings:  request.Sortings,
-		offset:    request.Offset,
-		limit:     request.Limit,
-		withCount: request.WithCount,
-	})
+	builder = c.builderWithSortings(builder, r.Sortings)
+	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := c.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to run query")
 	}
@@ -808,7 +845,6 @@ func (c *sqlStorage) GetValidators(conn queryConn, request *pb.ValidatorsRequest
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "failed to decodeValidator")
 		}
-
 		out = append(out, validator)
 	}
 
@@ -819,19 +855,14 @@ func (c *sqlStorage) GetValidators(conn queryConn, request *pb.ValidatorsRequest
 	return out, count, nil
 }
 
-func (c *sqlStorage) GetWorkers(conn queryConn, request *pb.WorkersRequest) ([]*pb.DWHWorker, uint64, error) {
-	var filters []*filter
-	if !request.MasterID.IsZero() {
-		filters = append(filters, newFilter("MasterID", eq, request.MasterID.Unwrap().String(), "AND"))
+func (c *sqlStorage) GetWorkers(conn queryConn, r *pb.WorkersRequest) ([]*pb.DWHWorker, uint64, error) {
+	builder := c.builder().Select("*").From("Workers")
+	if !r.MasterID.IsZero() {
+		builder = builder.Where("MasterID = ?", r.MasterID.Unwrap().String())
 	}
-	rows, count, err := c.queryRunner.Run(conn, &queryOpts{
-		table:     "Workers",
-		filters:   filters,
-		sortings:  []*pb.SortingOption{},
-		offset:    request.Offset,
-		limit:     request.Limit,
-		withCount: request.WithCount,
-	})
+	builder = c.builderWithSortings(builder, []*pb.SortingOption{})
+	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := c.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to run query")
 	}
@@ -854,17 +885,22 @@ func (c *sqlStorage) GetWorkers(conn queryConn, request *pb.WorkersRequest) ([]*
 }
 
 func (c *sqlStorage) UpdateProfile(conn queryConn, userID common.Address, field string, value interface{}) error {
-	_, err := conn.Exec(fmt.Sprintf(c.commands.updateProfile, field), value, userID.Hex())
+	query, args, _ := c.builder().Update("Profiles").Set(field, value).Where("UserID = ?", userID.Hex()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) UpdateProfileStats(conn queryConn, userID common.Address, field string, value interface{}) error {
-	_, err := conn.Exec(fmt.Sprintf(c.commands.updateProfileStats, field, field), value, userID.Hex())
+func (c *sqlStorage) UpdateProfileStats(conn queryConn, userID common.Address, field string, value int) error {
+	query, args, _ := c.builder().Update("Profiles").
+		Set(field, squirrel.Expr(fmt.Sprintf("%s + %d", field, value))).
+		Where("UserID = ?", userID.Hex()).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) GetLastKnownBlock(conn queryConn) (uint64, error) {
-	rows, err := conn.Query(c.commands.selectLastKnownBlock)
+	query, _, _ := c.builder().Select("LastKnownBlock").From("Misc").Where("Id = 1").ToSql()
+	rows, err := conn.Query(query)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to selectLastKnownBlock")
 	}
@@ -883,27 +919,33 @@ func (c *sqlStorage) GetLastKnownBlock(conn queryConn) (uint64, error) {
 }
 
 func (c *sqlStorage) InsertLastKnownBlock(conn queryConn, blockNumber int64) error {
-	_, err := conn.Exec(c.commands.insertLastKnownBlock, blockNumber)
+	query, args, _ := c.builder().Insert("Misc").Columns("LastKnownBlock").Values(blockNumber).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) UpdateLastKnownBlock(conn queryConn, blockNumber int64) error {
-	_, err := conn.Exec(c.commands.updateLastKnownBlock, blockNumber)
+	query, args, _ := c.builder().Update("Misc").Set("LastKnownBlock", blockNumber).Where("Id = 1").ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) StoreStaleID(conn queryConn, id *big.Int, entity string) error {
-	_, err := conn.Exec(c.commands.storeStaleID, fmt.Sprintf("%s_%s", entity, id.String()))
+	query, args, _ := c.builder().Insert("StaleIDs").Values(fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) RemoveStaleID(conn queryConn, id *big.Int, entity string) error {
-	_, err := conn.Exec(c.commands.removeStaleID, fmt.Sprintf("%s_%s", entity, id.String()))
+	query, args, _ := c.builder().Delete("StaleIDs").Where("Id = ?", fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
 func (c *sqlStorage) CheckStaleID(conn queryConn, id *big.Int, entity string) (bool, error) {
-	rows, err := conn.Query(c.commands.checkStaleID, fmt.Sprintf("%s_%s", entity, id.String()))
+	query, args, _ := c.builder().Select("*").From("StaleIDs").
+		Where("Id = ?", fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
+	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return false, err
 	}
@@ -916,15 +958,17 @@ func (c *sqlStorage) CheckStaleID(conn queryConn, id *big.Int, entity string) (b
 	return true, nil
 }
 
-func (c *sqlStorage) addBenchmarksConditions(benches map[uint64]*pb.MaxMinUint64, filters *[]*filter) {
+func (c *sqlStorage) addBenchmarksConditionsWhere(builder squirrel.SelectBuilder, benches map[uint64]*pb.MaxMinUint64) squirrel.SelectBuilder {
 	for benchID, condition := range benches {
 		if condition.Max > 0 {
-			*filters = append(*filters, newFilter(getBenchmarkColumn(benchID), lte, condition.Max, "AND"))
+			builder = builder.Where(fmt.Sprintf("%s <= ?", getBenchmarkColumn(benchID)), condition.Max)
 		}
 		if condition.Min > 0 {
-			*filters = append(*filters, newFilter(getBenchmarkColumn(benchID), gte, condition.Max, "AND"))
+			builder = builder.Where(fmt.Sprintf("%s >= ?", getBenchmarkColumn(benchID)), condition.Min)
 		}
 	}
+
+	return builder
 }
 
 func (c *sqlStorage) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
@@ -1329,52 +1373,6 @@ func (c *sqlStorage) filterSortings(sortings []*pb.SortingOption, columns map[st
 	return out
 }
 
-type sqlCommands struct {
-	insertDeal                   string
-	updateDeal                   string
-	updateDealsSupplier          string
-	updateDealsConsumer          string
-	updateDealPayout             string
-	deleteDeal                   string
-	selectDealByID               string
-	insertOrder                  string
-	updateOrderStatus            string
-	updateOrders                 string
-	deleteOrder                  string
-	selectOrderByID              string
-	insertDealChangeRequest      string
-	updateDealChangeRequest      string
-	deleteDealChangeRequest      string
-	selectDealChangeRequests     string
-	selectDealChangeRequestsByID string
-	insertDealCondition          string
-	updateDealConditionPayout    string
-	updateDealConditionEndTime   string
-	insertDealPayment            string
-	insertWorker                 string
-	updateWorker                 string
-	deleteWorker                 string
-	insertBlacklistEntry         string
-	selectBlacklists             string
-	deleteBlacklistEntry         string
-	insertValidator              string
-	updateValidator              string
-	insertCertificate            string
-	selectCertificates           string
-	insertProfileUserID          string
-	selectProfileByID            string
-	profileNotInBlacklist        string
-	profileInBlacklist           string
-	updateProfile                string
-	updateProfileStats           string
-	selectLastKnownBlock         string
-	insertLastKnownBlock         string
-	updateLastKnownBlock         string
-	storeStaleID                 string
-	removeStaleID                string
-	checkStaleID                 string
-}
-
 type sqlSetupCommands struct {
 	createTableDeals          string
 	createTableDealConditions string
@@ -1458,7 +1456,7 @@ func (c *sqlSetupCommands) setupTables(db *sql.DB) error {
 
 func (c *sqlSetupCommands) createIndices(db *sql.DB) error {
 	var err error
-	for column := range c.tablesInfo.DealColumnsSet {
+	for _, column := range c.tablesInfo.DealColumns {
 		if err = c.createIndex(db, c.createIndexCmd, "Deals", column); err != nil {
 			return err
 		}
@@ -1468,12 +1466,12 @@ func (c *sqlSetupCommands) createIndices(db *sql.DB) error {
 			return err
 		}
 	}
-	for column := range c.tablesInfo.DealConditionColumnsSet {
+	for _, column := range c.tablesInfo.DealConditionColumns {
 		if err = c.createIndex(db, c.createIndexCmd, "DealConditions", column); err != nil {
 			return err
 		}
 	}
-	for column := range c.tablesInfo.OrderColumnsSet {
+	for _, column := range c.tablesInfo.OrderColumns {
 		if err = c.createIndex(db, c.createIndexCmd, "Orders", column); err != nil {
 			return err
 		}
@@ -1494,7 +1492,7 @@ func (c *sqlSetupCommands) createIndices(db *sql.DB) error {
 	if err = c.createIndex(db, c.createIndexCmd, "Certificates", "OwnerID"); err != nil {
 		return err
 	}
-	for column := range c.tablesInfo.ProfileColumnsSet {
+	for _, column := range c.tablesInfo.ProfileColumns {
 		if err = c.createIndex(db, c.createIndexCmd, "Profiles", column); err != nil {
 			return err
 		}
@@ -1516,72 +1514,71 @@ func (c *sqlSetupCommands) createIndex(db *sql.DB, command, table, column string
 	return nil
 }
 
-type customFilter struct {
-	clause string
-	values []interface{}
-}
-
-type filter struct {
-	Field        string
-	CmpOperator  string
-	BoolOperator string
-	OpenBracket  bool
-	CloseBracket bool
-	Value        interface{}
-}
-
-func newFilter(field string, cmpOperator string, value interface{}, boolOperator string) *filter {
-	return &filter{
-		Field:        field,
-		CmpOperator:  cmpOperator,
-		BoolOperator: boolOperator,
-		Value:        value,
+func (c *sqlStorage) builderWithOffsetLimit(builder squirrel.SelectBuilder, limit, offset uint64) squirrel.SelectBuilder {
+	if limit > 0 {
+		builder = builder.Limit(limit)
 	}
+	if offset > 0 {
+		builder = builder.Offset(offset)
+	}
+
+	return builder
 }
 
-func newNetflagsFilter(operator pb.CmpOp, value uint64) *filter {
+func (c *sqlStorage) builderWithSortings(builder squirrel.SelectBuilder, sortings []*pb.SortingOption) squirrel.SelectBuilder {
+	var sortsFlat []string
+	for _, sort := range sortings {
+		sortsFlat = append(sortsFlat, fmt.Sprintf("%s %s", sort.Field, pb.SortingOrder_name[int32(sort.Order)]))
+	}
+	builder = builder.OrderBy(sortsFlat...)
+
+	return builder
+}
+
+func (c *sqlStorage) newNetflagsWhere(builder squirrel.SelectBuilder, operator pb.CmpOp, value uint64) squirrel.SelectBuilder {
 	switch operator {
 	case pb.CmpOp_GTE:
-		return newFilter("Netflags", fmt.Sprintf(" | ~%d = ", value), -1, "AND")
+		return builder.Where("Netflags | ~ ? = -1", value)
 	case pb.CmpOp_LTE:
-		return newFilter("", fmt.Sprintf("%d | ~Netflags = ", value), -1, "AND")
+		return builder.Where("? | ~Netflags = -1", value)
 	default:
-		return newFilter("Netflags", eq, value, "AND")
+		return builder.Where("Netflags = ?", value)
 	}
 }
 
-// queryRunner implements DB-specific querying using queryOpts.
-type queryRunner interface {
-	// Run must return the obtained rows, a count of all rows that can be obtained (if queryOpts.withCount
-	// is set to `true`) and an error. If queryOpts.withCount is `false`, 0 count is returned.
-	Run(tx queryConn, opts *queryOpts) (*sql.Rows, uint64, error)
-}
+func (c *sqlStorage) runQuery(conn queryConn, columns string, withCount bool, query string, args ...interface{}) (*sql.Rows, uint64, error) {
+	dataQuery := strings.Replace(query, "*", columns, 1)
+	rows, err := conn.Query(dataQuery, args...)
+	if err != nil {
+		return nil, 0, errors.Wrapf(err, "data query `%s` failed", dataQuery)
+	}
 
-type queryOpts struct {
-	table        string
-	filters      []*filter
-	sortings     []*pb.SortingOption
-	offset       uint64
-	limit        uint64
-	customFilter *customFilter
-	selectAs     string
-	withCount    bool
-}
+	var count uint64
+	if withCount {
+		var countQuery = strings.Replace(query, "*", "count(*)", 1)
+		countRows, err := conn.Query(countQuery, args...)
+		if err != nil {
+			return nil, 0, errors.Wrapf(err, "count query `%s` failed", countQuery)
+		}
+		defer countRows.Close()
 
-// formatArg is a callback that inserts an SQL placeholder into query (e.g., ? for SQLIte of $1, $2, etc.
-// for Postgres).
-type formatArg func(argID uint64, lastArg bool) string
+		for countRows.Next() {
+			countRows.Scan(&count)
+		}
+	}
+
+	return rows, count, nil
+}
 
 // tablesInfo is used to get static column names for tables with variable columns set (i.e., with benchmarks).
 type tablesInfo struct {
-	DealColumns             []string
-	DealColumnsSet          map[string]bool
-	NumDealColumns          uint64
-	OrderColumns            []string
-	OrderColumnsSet         map[string]bool
-	NumOrderColumns         uint64
-	ProfileColumnsSet       map[string]bool
-	DealConditionColumnsSet map[string]bool
+	DealColumns              []string
+	NumDealColumns           uint64
+	OrderColumns             []string
+	NumOrderColumns          uint64
+	DealConditionColumns     []string
+	DealChangeRequestColumns []string
+	ProfileColumns           []string
 }
 
 func newTablesInfo(numBenchmarks uint64) *tablesInfo {
@@ -1627,6 +1624,15 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"CreatorCountry",
 		"CreatorCertificates",
 	}
+	dealChangeRequestColumns := []string{
+		"Id",
+		"CreatedTS",
+		"RequestType",
+		"Duration",
+		"Price",
+		"Status",
+		"DealID",
+	}
 	dealConditionColumns := []string{
 		"Id",
 		"SupplierID",
@@ -1648,63 +1654,24 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"IsCorporation",
 		"IsProfessional",
 		"Certificates",
+		"ActiveAsks",
+		"ActiveBids",
 	}
 	out := &tablesInfo{
-		DealColumns:             dealColumns,
-		DealColumnsSet:          stringSliceToSet(dealColumns),
-		NumDealColumns:          uint64(len(dealColumns)),
-		OrderColumns:            orderColumns,
-		OrderColumnsSet:         stringSliceToSet(orderColumns),
-		NumOrderColumns:         uint64(len(orderColumns)),
-		DealConditionColumnsSet: stringSliceToSet(dealConditionColumns),
-		ProfileColumnsSet:       stringSliceToSet(profileColumns),
+		DealColumns:              dealColumns,
+		NumDealColumns:           uint64(len(dealColumns)),
+		OrderColumns:             orderColumns,
+		NumOrderColumns:          uint64(len(orderColumns)),
+		DealChangeRequestColumns: dealChangeRequestColumns,
+		DealConditionColumns:     dealConditionColumns,
+		ProfileColumns:           profileColumns,
 	}
 	for benchmarkID := uint64(0); benchmarkID < numBenchmarks; benchmarkID++ {
 		out.DealColumns = append(out.DealColumns, getBenchmarkColumn(uint64(benchmarkID)))
-		out.DealColumnsSet[getBenchmarkColumn(uint64(benchmarkID))] = true
 		out.OrderColumns = append(out.OrderColumns, getBenchmarkColumn(uint64(benchmarkID)))
-		out.OrderColumnsSet[getBenchmarkColumn(uint64(benchmarkID))] = true
 	}
 
 	return out
-}
-
-func makeInsertDealQuery(format string, formatCb formatArg, numBenchmarks uint64, tInfo *tablesInfo) string {
-	dealPlaceholders := ""
-	for i := uint64(0); i < tInfo.NumDealColumns; i++ {
-		dealPlaceholders += formatCb(i, false)
-	}
-	for i := tInfo.NumDealColumns; i < tInfo.NumDealColumns+numBenchmarks; i++ {
-		if i == numBenchmarks+tInfo.NumDealColumns-1 {
-			dealPlaceholders += formatCb(i, true)
-		} else {
-			dealPlaceholders += formatCb(i, false)
-		}
-	}
-	return fmt.Sprintf(format, strings.Join(tInfo.DealColumns, ", "), dealPlaceholders)
-}
-
-func makeSelectDealByIDQuery(format string, tInfo *tablesInfo) string {
-	return fmt.Sprintf(format, strings.Join(tInfo.DealColumns, ", "))
-}
-
-func makeInsertOrderQuery(format string, formatCb formatArg, numBenchmarks uint64, tInfo *tablesInfo) string {
-	orderPlaceholders := ""
-	for i := uint64(0); i < tInfo.NumOrderColumns; i++ {
-		orderPlaceholders += formatCb(i, false)
-	}
-	for i := tInfo.NumOrderColumns; i < tInfo.NumOrderColumns+numBenchmarks; i++ {
-		if i == numBenchmarks+tInfo.NumOrderColumns-1 {
-			orderPlaceholders += formatCb(i, true)
-		} else {
-			orderPlaceholders += formatCb(i, false)
-		}
-	}
-	return fmt.Sprintf(format, strings.Join(tInfo.OrderColumns, ", "), orderPlaceholders)
-}
-
-func makeSelectOrderByIDQuery(format string, tInfo *tablesInfo) string {
-	return fmt.Sprintf(format, strings.Join(tInfo.OrderColumns, ", "))
 }
 
 func makeTableWithBenchmarks(format, benchmarkType string) string {

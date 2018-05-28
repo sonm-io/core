@@ -43,6 +43,12 @@
 			"revisionTime": "2018-01-28T06:46:39Z"
 		},
 		{
+			"checksumSHA1": "SEWHtp6LFg0zD7ZEojzgOVYBx4E=",
+			"path": "github.com/Masterminds/squirrel",
+			"revision": "e13dbacee404686afd0acf2d44b8d34869605e03",
+			"revisionTime": "2015-03-02T16:50:45Z"
+		},
+		{
 			"checksumSHA1": "AzjRkOQtVBTwIw4RJLTygFhJs3s=",
 			"origin": "github.com/docker/docker/vendor/github.com/Microsoft/go-winio",
 			"path": "github.com/Microsoft/go-winio",
@@ -1136,6 +1142,18 @@
 			"path": "github.com/json-iterator/go",
 			"revision": "2ddf6d758266fcb080a4f9e054b9f292c85e6798",
 			"revisionTime": "2018-04-24T00:46:23Z"
+		},
+		{
+			"checksumSHA1": "QKo3rVez8D7fh1w60CPZkxtc1qw=",
+			"path": "github.com/lann/builder",
+			"revision": "1b87b36280d04fe7882d1512bf038ea2967ad534",
+			"revisionTime": "2018-02-16T23:43:17Z"
+		},
+		{
+			"checksumSHA1": "nR871nUQ6KxGoDR+TdgQhGUqcHI=",
+			"path": "github.com/lann/ps",
+			"revision": "62de8c46ede02a7675c4c79c84883eb164cb71e3",
+			"revisionTime": "2015-08-10T15:23:59Z"
 		},
 		{
 			"checksumSHA1": "F7vsuKOVSMnFSi90odRxfhBEBeA=",

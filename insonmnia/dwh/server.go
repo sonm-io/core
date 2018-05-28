@@ -324,7 +324,7 @@ func (w *DWH) GetDealChangeRequests(ctx context.Context, request *pb.BigInt) (*p
 }
 
 func (w *DWH) getDealChangeRequests(conn queryConn, request *pb.BigInt) ([]*pb.DealChangeRequest, error) {
-	return w.storage.GetDealChangeRequestsByID(conn, request.Unwrap())
+	return w.storage.GetDealChangeRequestsByDealID(conn, request.Unwrap())
 }
 
 func (w *DWH) GetWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.WorkersReply, error) {
@@ -725,11 +725,6 @@ func (w *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 		return errors.Wrap(err, "failed to UpdateDealConditionPayout")
 	}
 
-	err = w.storage.InsertDealPayment(conn, &pb.DealPayment{
-		DealID:      pb.NewBigInt(dealID),
-		PayedAmount: pb.NewBigInt(payedAmount),
-		PaymentTS:   &pb.Timestamp{Seconds: int64(eventTS)},
-	})
 	if err != nil {
 		return errors.Wrap(err, "insertDealPayment failed")
 	}
@@ -1112,17 +1107,6 @@ func (w *DWH) maybeCreateIndices() (targetBlockReached bool, err error) {
 	}
 
 	return false, nil
-}
-
-func (w *DWH) addBenchmarksConditions(benches map[uint64]*pb.MaxMinUint64, filters *[]*filter) {
-	for benchID, condition := range benches {
-		if condition.Max > 0 {
-			*filters = append(*filters, newFilter(getBenchmarkColumn(benchID), lte, condition.Max, "AND"))
-		}
-		if condition.Min > 0 {
-			*filters = append(*filters, newFilter(getBenchmarkColumn(benchID), gte, condition.Max, "AND"))
-		}
-	}
 }
 
 func (w *DWH) getLastKnownBlock() (uint64, error) {
