@@ -40,9 +40,10 @@ type options struct {
 func defaultOptions() *options {
 	return &options{
 		livechain: &chainOpts{
-			gasPrice:       defaultLivechainGasPrice,
-			endpoint:       defaultLivechainEndpoint,
-			logParsePeriod: defaultLogParsePeriod,
+			gasPrice:           defaultLivechainGasPrice,
+			endpoint:           defaultLivechainEndpoint,
+			logParsePeriod:     defaultLogParsePeriod,
+			blockConfirmations: defaultBlockConfirmations,
 		},
 		sidechain: &chainOpts{
 			gasPrice:           defaultSidechainGasPrice,
