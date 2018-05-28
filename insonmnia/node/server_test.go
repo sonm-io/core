@@ -10,9 +10,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/dwh"
-	"github.com/sonm-io/core/insonmnia/npp"
-	"github.com/sonm-io/core/insonmnia/npp/relay"
-	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/netutil"
@@ -24,9 +21,6 @@ import (
 )
 
 func newTestNode(t *testing.T, key *ecdsa.PrivateKey) *Node {
-	rvAddr, err := auth.NewAddr("3f46ed4f779fd378f630d8cd996796c69a7738d2@127.0.0.1:12345")
-	require.NoError(t, err)
-
 	relayAddr := netutil.TCPAddr{}
 	relayAddr.TCPAddr = net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 12345}
 
@@ -36,14 +30,6 @@ func newTestNode(t *testing.T, key *ecdsa.PrivateKey) *Node {
 			HttpBindPort:            0,
 			BindPort:                0,
 			AllowInsecureConnection: false,
-		},
-		NPP: npp.Config{
-			Rendezvous: rendezvous.Config{
-				Endpoints: []auth.Addr{*rvAddr},
-			},
-			Relay: relay.Config{
-				Endpoints: []netutil.TCPAddr{relayAddr},
-			},
 		},
 		DWH: dwh.YAMLConfig{
 			Endpoint: "3f46ed4f779fd378f630d8cd996796c69a7738d2@127.0.0.1:12345",
