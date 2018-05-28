@@ -530,7 +530,7 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 				return err
 			}
 		}
-		if err := stream.Send(&pb.Chunk{Chunk: buf[:n]}); err != nil {
+		if err := stream.Send(&pb.Chunk{Data: buf[:n]}); err != nil {
 			return err
 		}
 	}
@@ -789,7 +789,7 @@ func (m *Worker) TaskLogs(request *pb.TaskLogsRequest, server pb.Worker_TaskLogs
 	for {
 		readCnt, err := reader.Read(buffer)
 		if readCnt != 0 {
-			server.Send(&pb.TaskLogsChunk{Data: buffer[:readCnt]})
+			server.Send(&pb.Chunk{Data: buffer[:readCnt]})
 		}
 		if err == io.EOF {
 			return nil
