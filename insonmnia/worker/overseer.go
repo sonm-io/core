@@ -89,12 +89,7 @@ func (d *Description) FormatEnv() []string {
 }
 
 func (d *Description) Expose() (nat.PortSet, nat.PortMap, error) {
-	portSet, portBinding, err := nat.ParsePortSpecs(d.expose)
-	if err != nil {
-		return nat.PortSet{}, nat.PortMap{}, err
-	}
-
-	return portSet, portBinding, nil
+	return nat.ParsePortSpecs(d.expose)
 }
 
 // ContainerInfo is a brief information about containers

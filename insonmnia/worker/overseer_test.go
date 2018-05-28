@@ -135,14 +135,15 @@ func TestOvsSpawn(t *testing.T) {
 }
 
 func TestExpose(t *testing.T) {
-	portMap, portBinding, err := nat.ParsePortSpecs([]string{"81:80", "443:443", "8.8.8.8:53:10053"})
+	portMap, portBinding, err := nat.ParsePortSpecs([]string{"81:80", "443:443", "8.8.8.8:53:10053", "22"})
 
 	require.NoError(t, err)
 
-	assert.Equal(t, map[nat.Port]struct{}{"80/tcp": {}, "443/tcp": {}, "10053/tcp": {}}, portMap)
+	assert.Equal(t, map[nat.Port]struct{}{"80/tcp": {}, "443/tcp": {}, "10053/tcp": {}, "22/tcp": {}}, portMap)
 	assert.Equal(t, map[nat.Port][]nat.PortBinding{
 		"80/tcp":    {{"", "81"}},
 		"443/tcp":   {{"", "443"}},
 		"10053/tcp": {{"8.8.8.8", "53"}},
+		"22/tcp":    {{"", ""}},
 	}, portBinding)
 }
