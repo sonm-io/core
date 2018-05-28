@@ -106,40 +106,40 @@ var workerCurrentCmd = &cobra.Command{
 	Short: "Show current worker's addr",
 	Run: func(cmd *cobra.Command, args []string) {
 		type Result struct {
-			address     string
-			err         error
-			description string
+			Address     string `json:"address,omitempty"`
+			Error       error  `json:"error,omitempty"`
+			Description string `json:"description,omitempty"`
 		}
 
 		result := func() Result {
 			result := Result{}
 			if len(cfg.WorkerAddr) == 0 {
-				result.description = "current worker is not set, using cli's addr"
-				result.address = crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Hex()
+				result.Description = "current worker is not set, using cli's addr"
+				result.Address = crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Hex()
 				return result
 			}
 			addr, err := auth.NewAddr(cfg.WorkerAddr)
 			if err != nil {
-				result.err = err
-				result.description = fmt.Sprintf("current worker(%s) is invalid", cfg.WorkerAddr)
+				result.Error = err
+				result.Description = fmt.Sprintf("current worker(%s) is invalid", cfg.WorkerAddr)
 				return result
 			}
 			if _, err := addr.ETH(); err != nil {
-				result.err = errors.New("could not parse eth component of the auth addr - it's malformed or missing")
-				result.description = fmt.Sprintf("current worker(%s) is invalid", cfg.WorkerAddr)
+				result.Error = errors.New("could not parse eth component of the auth addr - it's malformed or missing")
+				result.Description = fmt.Sprintf("current worker(%s) is invalid", cfg.WorkerAddr)
 				return result
 			}
-			result.description = "current worker is"
-			result.address = addr.String()
+			result.Description = "current worker is"
+			result.Address = addr.String()
 			return result
 		}()
 
-		if result.err != nil {
-			showError(cmd, result.description, result.err)
+		if result.Error != nil {
+			showError(cmd, result.Description, result.Error)
 			os.Exit(1)
 		}
 		if isSimpleFormat() {
-			cmd.Printf("%s %s\n", result.description, result.address)
+			cmd.Printf("%s %s\n", result.Description, result.Address)
 		} else {
 			showJSON(cmd, result)
 		}
