@@ -207,7 +207,7 @@ type BasicMarketAPI struct {
 }
 
 func NewBasicMarket(address common.Address, opts *chainOpts) (MarketAPI, error) {
-	client, err := opts.newClient()
+	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -568,7 +568,7 @@ type ProfileRegistry struct {
 }
 
 func NewProfileRegistry(address common.Address, opts *chainOpts) (ProfileRegistryAPI, error) {
-	client, err := opts.newClient()
+	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -618,7 +618,7 @@ type BasicBlacklistAPI struct {
 }
 
 func NewBasicBlacklist(address common.Address, opts *chainOpts) (BlacklistAPI, error) {
-	client, err := opts.newClient()
+	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -685,7 +685,7 @@ type StandardTokenApi struct {
 }
 
 func NewStandardToken(address common.Address, opts *chainOpts) (TokenAPI, error) {
-	client, err := opts.newClient()
+	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -736,7 +736,7 @@ type TestTokenApi struct {
 }
 
 func NewTestToken(address common.Address, opts *chainOpts) (TestTokenAPI, error) {
-	client, err := opts.newClient()
+	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -766,7 +766,7 @@ type BasicEventsAPI struct {
 }
 
 func NewEventsAPI(opts *chainOpts, logger *zap.Logger) (EventsAPI, error) {
-	client, err := opts.newClient()
+	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
 	}
@@ -1041,7 +1041,7 @@ type OracleUSDAPI struct {
 }
 
 func NewOracleUSDAPI(address common.Address, opts *chainOpts) (OracleAPI, error) {
-	client, err := opts.newClient()
+	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
 	}

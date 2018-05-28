@@ -12,7 +12,7 @@ const (
 )
 
 // chainOpts describes common options
-// for almost any geth-node connection
+// for almost any geth-node connection using JSON-RPC
 // (live Eth network, rinkeby, SONM sidechain
 // or local geth-node for testing).
 type chainOpts struct {
@@ -20,10 +20,16 @@ type chainOpts struct {
 	endpoint           string
 	logParsePeriod     time.Duration
 	blockConfirmations int64
+	client             CustomEthereumClient
 }
 
-func (c *chainOpts) newClient() (CustomEthereumClient, error) {
-	return NewClient(c.endpoint)
+func (c *chainOpts) getClient() (CustomEthereumClient, error) {
+	var err error
+	if c.client == nil {
+		c.client, err = NewClient(c.endpoint)
+	}
+
+	return c.client, err
 }
 
 type options struct {
@@ -92,5 +98,17 @@ func WithTimeout(d time.Duration) Option {
 func WithBlockConfirmations(c int64) Option {
 	return func(o *options) {
 		o.sidechain.blockConfirmations = c
+	}
+}
+
+func WithSidechainClient(c CustomEthereumClient) Option {
+	return func(o *options) {
+		o.sidechain.client = c
+	}
+}
+
+func WithLivechainClient(c CustomEthereumClient) Option {
+	return func(o *options) {
+		o.livechain.client = c
 	}
 }
