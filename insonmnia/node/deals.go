@@ -30,7 +30,7 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, err
 	}
 
 	filter.SupplierID = nil
-	filter.ConsumerID = addr
+	filter.MasterID = addr
 	dealsByConsumer, err := d.remotes.dwh.GetDeals(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("could not get deals from DWH: %s", err)
