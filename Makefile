@@ -29,7 +29,7 @@ RENDEZVOUS=${TARGETDIR}/sonmrendezvous_$(OS_ARCH)
 RELAY=${TARGETDIR}/sonmrelay_$(OS_ARCH)
 LSGPU=${TARGETDIR}/lsgpu_$(OS_ARCH)
 PANDORA=${TARGETDIR}/pandora_$(OS_ARCH)
-OPTIMUS=${TARGETDIR}/optimus_$(OS_ARCH)
+OPTIMUS=${TARGETDIR}/sonmoptimus_$(OS_ARCH)
 
 TAGS=nocgo
 

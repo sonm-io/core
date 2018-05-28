@@ -51,3 +51,10 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: DWH caches actual data from blockchain
  The DWH service communicates with Geth node and
  caches event data into the local database.
+
+Package: sonm-optimus
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Optimus an the auto-sell bot
+ The Optimus able to analyze market and
+ create Ask-orders in a most profitable way.
