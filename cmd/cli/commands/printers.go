@@ -167,6 +167,9 @@ func printOrdersList(cmd *cobra.Command, orders []*pb.Order) {
 func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 	if isSimpleFormat() {
 		cmd.Printf("ID:              %s\r\n", order.Id)
+		if !order.GetDealID().IsZero() {
+			cmd.Printf("Deal ID:         %s\r\n", order.GetDealID().Unwrap().String())
+		}
 		cmd.Printf("Type:            %s\r\n", order.OrderType.String())
 		cmd.Printf("Status:          %s\r\n", order.OrderStatus.String())
 		cmd.Printf("Duration:        %s\r\n", (time.Duration(order.GetDuration()) * time.Second).String())
