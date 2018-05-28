@@ -371,7 +371,11 @@ func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan, deal *sonm
 }
 
 func (m *Salesman) maybeBillDeal(ctx context.Context, deal *sonm.Deal) error {
-	start := deal.StartTime.Unix()
+	startTime := deal.GetStartTime().Unix()
+	billTime := deal.GetLastBillTS().Unix()
+	if billTime.Before(startTime) {
+		billTime = startTime
+	}
 	var billPeriod time.Duration
 	if deal.IsSpot() {
 		billPeriod = m.config.SpotBillPeriod
@@ -379,7 +383,7 @@ func (m *Salesman) maybeBillDeal(ctx context.Context, deal *sonm.Deal) error {
 		billPeriod = m.config.RegularBillPeriod
 	}
 
-	if time.Now().Sub(start) > billPeriod {
+	if time.Now().Sub(billTime) > billPeriod {
 		if err := <-m.eth.Market().Bill(ctx, m.ethkey, deal.GetId().Unwrap()); err != nil {
 			return err
 		}
