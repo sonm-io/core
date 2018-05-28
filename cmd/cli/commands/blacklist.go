@@ -64,6 +64,7 @@ var blacklistRemoveCmd = &cobra.Command{
 	Use:    "remove <addr>",
 	Short:  "Remove given address from your blacklist",
 	PreRun: loadKeyStoreIfRequired,
+	Args:   cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
