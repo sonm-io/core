@@ -58,3 +58,6 @@ blockchain/build
 vendor/github.com/golang/mock/mockgen/mockgen
 
 token.txt
+
+keys/state/
+
