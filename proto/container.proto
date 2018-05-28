@@ -48,4 +48,6 @@ message Container {
     repeated NetworkSpec networks = 7;
     // ContainerRestartPolicy describes the restart policies of the container.
     ContainerRestartPolicy restartPolicy = 8;
+    // Expose controls how container ports are exposed.
+    repeated string expose = 10;
 }

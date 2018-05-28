@@ -44,11 +44,21 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		description: d,
 	}
 
+	exposedPorts, portBindings, err := d.Expose()
+	if err != nil {
+		log.G(ctx).Error("failed to parse `expose` section", zap.Error(err))
+		return nil, err
+	}
+
+	log.G(ctx).Debug("exposing ports", zap.Any("portBindings", portBindings))
+
 	// NOTE: command to launch must be specified via ENTRYPOINT and CMD in Dockerfile
 	var config = container.Config{
 		AttachStdin:  false,
 		AttachStdout: false,
 		AttachStderr: false,
+
+		ExposedPorts: exposedPorts,
 
 		Image: filepath.Join(d.Registry, d.Image),
 		// TODO: set actual name
@@ -65,6 +75,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	var hostConfig = container.HostConfig{
 		LogConfig:       container.LogConfig{Type: "json-file", Config: logOpts},
 		PublishAllPorts: true,
+		PortBindings:    portBindings,
 		RestartPolicy:   d.RestartPolicy,
 		AutoRemove:      d.autoremove,
 		Resources:       d.Resources.ToHostConfigResources(d.CGroupParent),

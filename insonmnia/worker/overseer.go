@@ -52,6 +52,7 @@ type Description struct {
 	mounts  []volume.Mount
 
 	networks []structs.Network
+	expose   []string
 }
 
 func (d *Description) ID() string {
@@ -85,6 +86,15 @@ func (d *Description) FormatEnv() []string {
 	}
 
 	return vars
+}
+
+func (d *Description) Expose() (nat.PortSet, nat.PortMap, error) {
+	portSet, portBinding, err := nat.ParsePortSpecs(d.expose)
+	if err != nil {
+		return nat.PortSet{}, nat.PortMap{}, err
+	}
+
+	return portSet, portBinding, nil
 }
 
 // ContainerInfo is a brief information about containers
