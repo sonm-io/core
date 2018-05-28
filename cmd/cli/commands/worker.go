@@ -2,11 +2,11 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/auth"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
