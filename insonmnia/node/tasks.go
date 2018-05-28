@@ -161,10 +161,10 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 			chunk, err := clientStream.Recv()
 			if err != nil {
 				if err == io.EOF {
-					log.G(t.ctx).Debug("recieved last push chunk")
+					log.G(t.ctx).Debug("received last push chunk")
 					clientCompleted = true
 				} else {
-					log.G(t.ctx).Debug("recieved push error", zap.Error(err))
+					log.G(t.ctx).Debug("received push error", zap.Error(err))
 					return fmt.Errorf("failed to receive image chunk from client: %s", err)
 				}
 			}
