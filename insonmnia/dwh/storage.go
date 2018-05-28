@@ -33,11 +33,10 @@ type storage interface {
 	UpdateDealChangeRequest(conn queryConn, changeRequest *pb.DealChangeRequest) error
 	DeleteDealChangeRequest(conn queryConn, changeRequestID *big.Int) error
 	GetDealChangeRequests(conn queryConn, changeRequest *pb.DealChangeRequest) ([]*pb.DealChangeRequest, error)
-	GetDealChangeRequestsByID(conn queryConn, changeRequestID *big.Int) ([]*pb.DealChangeRequest, error)
+	GetDealChangeRequestsByDealID(conn queryConn, changeRequestID *big.Int) ([]*pb.DealChangeRequest, error)
 	InsertDealCondition(conn queryConn, condition *pb.DealCondition) error
 	UpdateDealConditionPayout(conn queryConn, dealConditionID uint64, payout *big.Int) error
 	UpdateDealConditionEndTime(conn queryConn, dealConditionID, eventTS uint64) error
-	InsertDealPayment(conn queryConn, payment *pb.DealPayment) error
 	InsertWorker(conn queryConn, masterID, slaveID string) error
 	UpdateWorker(conn queryConn, masterID, slaveID string) error
 	DeleteWorker(conn queryConn, masterID, slaveID string) error
@@ -53,7 +52,7 @@ type storage interface {
 	GetValidators(conn queryConn, request *pb.ValidatorsRequest) ([]*pb.Validator, uint64, error)
 	GetWorkers(conn queryConn, request *pb.WorkersRequest) ([]*pb.DWHWorker, uint64, error)
 	UpdateProfile(conn queryConn, userID common.Address, field string, value interface{}) error
-	UpdateProfileStats(conn queryConn, userID common.Address, field string, value interface{}) error
+	UpdateProfileStats(conn queryConn, userID common.Address, field string, value int) error
 	GetLastKnownBlock(conn queryConn) (uint64, error)
 	InsertLastKnownBlock(conn queryConn, blockNumber int64) error
 	UpdateLastKnownBlock(conn queryConn, blockNumber int64) error
