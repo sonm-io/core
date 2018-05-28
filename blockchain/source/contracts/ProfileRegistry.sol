@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
 
 contract ProfileRegistry {
@@ -36,7 +36,7 @@ contract ProfileRegistry {
 
     mapping(address => mapping(uint256 => uint)) certificateCount;
 
-    function ProfileRegistry() public {
+    constructor() public {
         validators[msg.sender] = - 1;
     }
 
