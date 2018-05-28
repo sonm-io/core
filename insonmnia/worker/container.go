@@ -196,7 +196,7 @@ func containerRemove(ctx context.Context, client client.APIClient, id string) er
 func imageRemove(ctx context.Context, client client.APIClient, id string) error {
 	removeOpts := types.ImageRemoveOptions{}
 	if _, err := client.ImageRemove(ctx, id, removeOpts); err != nil {
-		return fmt.Errorf("failed to remove the commited image %s: %s", id, err)
+		return fmt.Errorf("failed to remove the committed image %s: %s", id, err)
 	}
 	log.S(ctx).Infof("removed image %s", id)
 	return nil
