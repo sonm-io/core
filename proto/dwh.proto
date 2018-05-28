@@ -95,7 +95,7 @@ message OrdersRequest {
     MaxMinUint64 duration = 6;
     MaxMinBig price = 9;
     CmpUint64 netflags = 11;
-    IdentityLevel creatorIdentityLevel = 12;
+    repeated IdentityLevel creatorIdentityLevel = 12;
     map<uint64, MaxMinUint64> benchmarks = 13;
     MaxMinTimestamp createdTS = 14;
     uint64 limit = 15;
@@ -160,7 +160,7 @@ enum BlacklistOption {
 message ProfilesRequest {
     ProfileRole role = 1;
     IdentityLevel identityLevel = 2;
-    string country = 3;
+    repeated string country = 3;
     string name = 4;
     BlacklistQuery blacklistQuery = 5;
     uint64 limit = 6;

@@ -59,6 +59,7 @@ func (x TaskStatusReply_Status) String() string {
 func (TaskStatusReply_Status) EnumDescriptor() ([]byte, []int) { return fileDescriptor14, []int{10, 0} }
 
 type TaskSpec struct {
+	// Container describes container settings.
 	Container *Container        `protobuf:"bytes,1,opt,name=container" json:"container,omitempty"`
 	Registry  *Registry         `protobuf:"bytes,2,opt,name=registry" json:"registry,omitempty"`
 	Resources *AskPlanResources `protobuf:"bytes,3,opt,name=resources" json:"resources,omitempty"`
