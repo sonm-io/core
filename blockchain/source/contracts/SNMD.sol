@@ -9,7 +9,7 @@ contract SNMD is StandardToken, Ownable {
 
     using SafeMath for uint256;
 
-    string public name = "SONM Develompent token";
+    string public name = "SONM Development token";
 
     string public symbol = "SNMD";
 
