@@ -136,7 +136,6 @@ It has these top-level messages:
 	PullTaskRequest
 	DealInfoReply
 	TaskStatusReply
-	StatusMapReply
 */
 package sonm
 

@@ -310,16 +310,16 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply) {
 
 		}
 
-		if info.Running != nil && len(info.Running.Statuses) > 0 {
+		if info.Running != nil && len(info.Running) > 0 {
 			cmd.Println("Running tasks:")
-			for id, task := range info.Running.Statuses {
+			for id, task := range info.Running {
 				cmd.Printf("  %s: %s %s\n", id, task.Status.String(), task.ImageName)
 			}
 		}
 
-		if info.Completed != nil && len(info.Completed.Statuses) > 0 {
+		if info.Completed != nil && len(info.Completed) > 0 {
 			cmd.Println("Finished tasks:")
-			for id, task := range info.Completed.Statuses {
+			for id, task := range info.Completed {
 				cmd.Printf("  %s: %s %s\n", id, task.Status.String(), task.ImageName)
 			}
 		}

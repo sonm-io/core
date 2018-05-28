@@ -111,9 +111,9 @@ message PullTaskRequest {
 message DealInfoReply {
     Deal deal = 1;
     // List of currently running tasks.
-    StatusMapReply running = 2;
+    map<string, TaskStatusReply> running = 2;
     // List of completed tasks.
-    StatusMapReply completed = 3;
+    map<string, TaskStatusReply> completed = 3;
     // Resources is a real resources (cores, ram bytes, GPU devices, etc)
     // allocated on a worker for this deal.
     AskPlanResources resources =  4;
@@ -136,6 +136,3 @@ message TaskStatusReply {
     AskPlanResources allocatedResources = 6;
 }
 
-message StatusMapReply {
-    map<string, TaskStatusReply> statuses = 1;
-}

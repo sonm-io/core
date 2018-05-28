@@ -1170,13 +1170,8 @@ func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 	}
 	resources := ask.GetResources()
 
-	running := &pb.StatusMapReply{
-		Statuses: map[string]*pb.TaskStatusReply{},
-	}
-
-	completed := &pb.StatusMapReply{
-		Statuses: map[string]*pb.TaskStatusReply{},
-	}
+	running := map[string]*pb.TaskStatusReply{}
+	completed := map[string]*pb.TaskStatusReply{}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -1190,9 +1185,9 @@ func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 			if c.status == pb.TaskStatusReply_SPOOLING ||
 				c.status == pb.TaskStatusReply_SPAWNING ||
 				c.status == pb.TaskStatusReply_RUNNING {
-				running.Statuses[id] = task
+				running[id] = task
 			} else {
-				completed.Statuses[id] = task
+				completed[id] = task
 			}
 		}
 	}
