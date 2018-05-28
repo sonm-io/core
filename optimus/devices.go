@@ -188,10 +188,22 @@ func (m *DeviceManager) Consume(benchmarks sonm.Benchmarks) (*sonm.AskPlanResour
 		return nil, err
 	}
 
+	storage, err := m.consumeStorage(benchmarks.ToArray())
+	if err != nil {
+		return nil, err
+	}
+
+	network, err := m.consumeNetwork(benchmarks.ToArray())
+	if err != nil {
+		return nil, err
+	}
+
 	plan := &sonm.AskPlanResources{
-		CPU: cpu,
-		RAM: ram,
-		GPU: gpu,
+		CPU:     cpu,
+		RAM:     ram,
+		GPU:     gpu,
+		Storage: storage,
+		Network: network,
 	}
 
 	return plan, nil
