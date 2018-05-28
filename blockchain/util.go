@@ -109,7 +109,7 @@ func WaitTransactionReceipt(ctx context.Context, client CustomEthereumClient, co
 	for {
 		select {
 		case <-tk.C:
-			blockNumber, err := client.GetLastBlock(ctx)
+			lastBlock, err := client.GetLastBlock(ctx)
 			if err != nil {
 				return nil, err
 			}
@@ -121,12 +121,11 @@ func WaitTransactionReceipt(ctx context.Context, client CustomEthereumClient, co
 				}
 				return nil, err
 			}
-			confirmBlock := blockNumber
-			txBlock := common.HexToHash(txReceipt.BlockNumber).Big()
-			txBlock.Add(big.NewInt(confirmations), txBlock)
-			if confirmBlock.Cmp(txBlock) < 0 {
+
+			if lastBlock.Int64() < txReceipt.BlockNumber+confirmations {
 				break
 			}
+
 			return txReceipt, nil
 		case <-ctx.Done():
 			return nil, ctx.Err()

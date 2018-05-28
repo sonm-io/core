@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -14,15 +15,16 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-// Receipt extends go-ethereum/core/types/Receipt struct with BlockNumber
+// Receipt extends transaction receipt
+// with block number on which this transaction
+// was mined.
 type Receipt struct {
 	*types.Receipt
-	BlockNumber string
+	BlockNumber int64
 }
 
-// UnmarshalJSON implement json/Unmarshaler interface (stdlib)
-// As far as ethereum Receipt has it's own unmarshaller blockNumber of our custom Receipt was never been unmarshalled.
-// Introduced UnmarshallJSON method overrides this behaviour.
+// UnmarshalJSON calls parent unmarshaller for Receipt and
+// also unmarshall block number and associate it with the struct.
 func (r *Receipt) UnmarshalJSON(input []byte) error {
 	// call parent unmarshal
 	err := r.Receipt.UnmarshalJSON(input)
@@ -30,11 +32,12 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 		return err
 	}
 
-	// define pure structure for clearly casting
-	type rec struct {
+	// define temporary struct to unmarshall block number
+	type blockNumber struct {
 		BlockNumber string `json:"BlockNumber"`
 	}
-	var dec rec
+
+	var dec blockNumber
 	if err := json.Unmarshal(input, &dec); err != nil {
 		return err
 	}
@@ -43,8 +46,12 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 		return fmt.Errorf("unmarshaled block number is empty")
 	}
 
-	// assign decoded values
-	r.BlockNumber = dec.BlockNumber
+	v, err := strconv.ParseInt(dec.BlockNumber, 16, 64)
+	if err != nil {
+		return err
+	}
+
+	r.BlockNumber = v
 	return nil
 }
 
