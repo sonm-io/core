@@ -11,3 +11,7 @@ func (m *GPUDevice) FillHashID() {
 	m.Hash = ""
 	m.Hash = fmt.Sprintf("%x", structhash.Md5(*m, 1))
 }
+
+func (m *Network) Netflags() uint64 {
+	return NetflagsToUint([3]bool{m.Overlay, m.Outbound, m.Incoming})
+}
