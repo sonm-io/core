@@ -14,6 +14,7 @@ override_dh_auto_build:
 	mv target/sonmrendezvous_linux_x86_64 target/sonmrendezvous
 	mv target/sonmrelay_linux_x86_64 target/sonmrelay
 	mv target/sonmdwh_linux_x86_64 target/sonmdwh
+	mv target/sonmoptimus_linux_x86_64 target/sonmoptimus
 
 	./target/sonmcli completion bash > sonmcli.bash-completion
 
@@ -27,10 +28,12 @@ override_dh_auto_install:
 	install -m644 etc/rendezvous.yaml $(DEB_DESTDIR)etc/sonm/rendezvous-default.yaml
 	install -m644 etc/relay.yaml $(DEB_DESTDIR)etc/sonm/relay-default.yaml
 	install -m644 etc/dwh.yaml $(DEB_DESTDIR)etc/sonm/dwh-default.yaml
+	install -m644 etc/optimus.yaml $(DEB_DESTDIR)etc/sonm/optimus-default.yaml
 
 override_dh_systemd_start:
 	echo "Not running dh_systemd_start"
 
 override_dh_auto_clean:
 	rm -rf etc/sonm/
+	rm -f sonmcli.bash-completion
 	dh_auto_clean
