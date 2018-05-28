@@ -292,9 +292,9 @@ func (n *Node) ServeGRPC() error {
 	serve := func(netFam, laddr string) error {
 		lis, err := net.Listen(netFam, laddr)
 		if err == nil {
+			n.listeners = append(n.listeners, lis)
 			log.S(n.ctx).Infof("starting node %s listener on %s", netFam, lis.Addr().String())
 			wg.Go(func() error {
-				n.listeners = append(n.listeners, lis)
 				err := n.srv.Serve(lis)
 				n.Close()
 				return err
