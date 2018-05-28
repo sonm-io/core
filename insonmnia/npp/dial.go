@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
 )
 
@@ -105,6 +106,8 @@ func (m *Dialer) dialDirect(ctx context.Context, addr auth.Addr) net.Conn {
 		conn, err := dialer.DialContext(ctx, "tcp", netAddr)
 		if err == nil {
 			return conn
+		} else {
+			ctxlog.S(m.ctx).Warnf("failed to dial directly to %s: %s", netAddr, err)
 		}
 	}
 
