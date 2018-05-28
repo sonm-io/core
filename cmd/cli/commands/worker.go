@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/ethereum/go-ethereum/crypto"
@@ -81,7 +82,6 @@ var workerSwitchCmd = &cobra.Command{
 	Short: "Switch current worker to specified addr",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-
 		addr, err := auth.NewAddr(args[0])
 		if err != nil {
 			showError(cmd, "Invalid address specified", err)
@@ -97,6 +97,7 @@ var workerSwitchCmd = &cobra.Command{
 			showError(cmd, "Failed to save worker address", err)
 			os.Exit(1)
 		}
+		showOk(cmd)
 	},
 }
 
@@ -104,18 +105,44 @@ var workerCurrentCmd = &cobra.Command{
 	Use:   "current",
 	Short: "Show current worker's addr",
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(cfg.WorkerAddr) == 0 {
-			addr := crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey)
-			cmd.Printf("current worker is not set, using cli's addr %s\n", addr.Hex())
-		} else {
+		type Result struct {
+			address     string
+			err         error
+			description string
+		}
+
+		result := func() Result {
+			result := Result{}
+			if len(cfg.WorkerAddr) == 0 {
+				result.description = "current worker is not set, using cli's addr"
+				result.address = crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Hex()
+				return result
+			}
 			addr, err := auth.NewAddr(cfg.WorkerAddr)
 			if err != nil {
-				cmd.Printf("current worker(%s) is invalid\n", cfg.WorkerAddr)
-			} else if _, err := addr.ETH(); err != nil {
-				cmd.Printf("current worker(%s) is invalid\n", cfg.WorkerAddr)
-			} else {
-				cmd.Printf("current worker is %s\n", cfg.WorkerAddr)
+				result.err = err
+				result.description = fmt.Sprintf("current worker(%s) is invalid", cfg.WorkerAddr)
+				return result
 			}
+			if _, err := addr.ETH(); err != nil {
+				result.err = errors.New("could not parse eth component of the auth addr - it's malformed or missing")
+				result.description = fmt.Sprintf("current worker(%s) is invalid", cfg.WorkerAddr)
+				return result
+			}
+			result.description = "current worker is"
+			result.address = addr.String()
+			return result
+		}()
+
+		if result.err != nil {
+			showError(cmd, result.description, result.err)
+			os.Exit(1)
 		}
+		if isSimpleFormat() {
+			cmd.Printf("%s %s\n", result.description, result.address)
+		} else {
+			showJSON(cmd, result)
+		}
+
 	},
 }
