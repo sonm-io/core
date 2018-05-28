@@ -158,8 +158,9 @@ type Node struct {
 	privKey *ecdsa.PrivateKey
 
 	// servers for processing requests
-	httpSrv *rest.Server
-	srv     *grpc.Server
+	httpSrv   *rest.Server
+	srv       *grpc.Server
+	listeners []net.Listener
 
 	// services, responsible for request handling
 	worker    pb.WorkerManagementServer
@@ -293,6 +294,7 @@ func (n *Node) ServeGRPC() error {
 		if err == nil {
 			log.S(n.ctx).Infof("starting node %s listener on %s", netFam, lis.Addr().String())
 			wg.Go(func() error {
+				n.listeners = append(n.listeners, lis)
 				err := n.srv.Serve(lis)
 				n.Close()
 				return err
