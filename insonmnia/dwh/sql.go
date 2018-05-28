@@ -364,8 +364,8 @@ func (c *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 	if r.Netflags != nil && r.Netflags.Value > 0 {
 		builder = c.newNetflagsWhere(builder, r.Netflags.Operator, r.Netflags.Value)
 	}
-	if r.CreatorIdentityLevel > 0 {
-		builder = builder.Where("CreatorIdentityLevel >= ?", r.CreatorIdentityLevel)
+	if len(r.CreatorIdentityLevel) > 0 {
+		builder = builder.Where(squirrel.Eq{"CreatorIdentityLevel": r.CreatorIdentityLevel})
 	}
 	if r.CreatedTS != nil {
 		createdTS := r.CreatedTS
@@ -488,7 +488,7 @@ func (c *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 	}
 	builder = builder.Where("IdentityLevel >= ?", r.IdentityLevel)
 	if len(r.Country) > 0 {
-		builder = builder.Where("Country = ?", r.Country)
+		builder = builder.Where(squirrel.Eq{"Country": r.Country})
 	}
 	if len(r.Name) > 0 {
 		builder = builder.Where("Name LIKE ?", r.Name)
@@ -505,7 +505,6 @@ func (c *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 				builder = builder.Where(fmt.Sprintf("UserID IN (%s)", ownerQuery))
 			}
 		}
-
 	}
 	builder = c.builderWithSortings(builder, r.Sortings)
 	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
