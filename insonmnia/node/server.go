@@ -9,6 +9,7 @@ import (
 	"net"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
@@ -214,7 +215,10 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 	}
 
 	if !config.Node.AllowInsecureConnection {
-		grpcServerOpts = append(grpcServerOpts, xgrpc.Credentials(remoteCreds))
+		grpcServerOpts = append(
+			grpcServerOpts,
+			xgrpc.Credentials(auth.NewWalletAuthenticator(remoteCreds, crypto.PubkeyToAddress(key.PublicKey))),
+		)
 	} else {
 		log.G(ctx).Warn("using insecure grpc connection")
 	}

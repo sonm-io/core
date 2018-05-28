@@ -212,7 +212,16 @@ func (m *workerControl) Execute(ctx context.Context) {
 			continue
 		}
 
-		// TODO: Consider into action `order.Order.Netflags`.
+		if order.Order.Order.HasOverlayNetwork() && !devices.Network.Overlay {
+			continue
+		}
+		if order.Order.Order.HasOutboundNetwork() && !devices.Network.Outbound {
+			continue
+		}
+		if order.Order.Order.HasIncomingNetwork() && !devices.Network.Incoming {
+			continue
+		}
+
 		if workerBenchmarks.Contains(order.Order.Order.Benchmarks) {
 			matchedOrders = append(matchedOrders, order)
 		}
@@ -252,6 +261,10 @@ func (m *workerControl) Execute(ctx context.Context) {
 			m.log.Warnw("failed to consume order", zap.Error(err))
 			return
 		}
+
+		plan.Network.Overlay = order.Order.Order.HasOverlayNetwork()
+		plan.Network.Outbound = order.Order.Order.HasOutboundNetwork()
+		plan.Network.Incoming = order.Order.Order.HasIncomingNetwork()
 
 		plans = append(plans, &sonm.AskPlan{
 			Price:     &sonm.Price{PerSecond: order.Order.Order.Price},
