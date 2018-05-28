@@ -1,9 +1,10 @@
 var SimpleGatekeeper = artifacts.require('./SimpleGatekeeper.sol');
 var SNM = artifacts.require('./SNM.sol');
+var SNMD = artifacts.require('./SNMD.sol');
 
 module.exports = function (deployer, network) {
     if (network === 'private') {
-        SNM.deployed()
+        SNMD.deployed()
             .then(function (res) {
                 res.transfer(SimpleGatekeeper.address, 444 * 1e6 * 1e18, { gasPrice: 0 });
             })
