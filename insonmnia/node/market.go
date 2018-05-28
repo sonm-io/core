@@ -67,7 +67,7 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 
 	benchStruct, err := pb.NewBenchmarks(benchmarksValues)
 	if err != nil {
-		return nil, fmt.Errorf("could not parse becnhmark values: %s", err)
+		return nil, fmt.Errorf("could not parse benchmark values: %s", err)
 	}
 
 	var blacklist string
