@@ -2,10 +2,12 @@ package commands
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"os"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/sonm-io/core/insonmnia/auth"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
@@ -80,16 +82,22 @@ var workerSwitchCmd = &cobra.Command{
 	Short: "Switch current worker to specified addr",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		addr, err := util.HexToAddress(args[0])
+		addr, err := auth.NewAddr(args[0])
 		if err != nil {
 			showError(cmd, "Invalid address specified", err)
 			os.Exit(1)
 		}
-		cfg.WorkerAddr = addr.Hex()
+		if _, err := addr.ETH(); err != nil {
+			err = errors.New("could not parse eth component of the auth addr - it's malformed or missing")
+			showError(cmd, "Invalid address specified", err)
+			os.Exit(1)
+		}
+		cfg.WorkerAddr = addr.String()
 		if err := cfg.Save(); err != nil {
 			showError(cmd, "Failed to save worker address", err)
 			os.Exit(1)
 		}
+		showOk(cmd)
 	},
 }
 
@@ -97,13 +105,44 @@ var workerCurrentCmd = &cobra.Command{
 	Use:   "current",
 	Short: "Show current worker's addr",
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(cfg.WorkerAddr) == 0 {
-			addr := crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey)
-			cmd.Printf("current worker is not set, using cli's addr %s\n", addr.Hex())
-		} else if !common.IsHexAddress(cfg.WorkerAddr) {
-			cmd.Printf("current worker(%s) is invalid\n", cfg.WorkerAddr)
-		} else {
-			cmd.Printf("current worker is %s\n", cfg.WorkerAddr)
+		type Result struct {
+			Address     string `json:"address,omitempty"`
+			Error       error  `json:"error,omitempty"`
+			Description string `json:"description,omitempty"`
 		}
+
+		result := func() Result {
+			result := Result{}
+			if len(cfg.WorkerAddr) == 0 {
+				result.Description = "current worker is not set, using cli's addr"
+				result.Address = crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Hex()
+				return result
+			}
+			addr, err := auth.NewAddr(cfg.WorkerAddr)
+			if err != nil {
+				result.Error = err
+				result.Description = fmt.Sprintf("current worker(%s) is invalid", cfg.WorkerAddr)
+				return result
+			}
+			if _, err := addr.ETH(); err != nil {
+				result.Error = errors.New("could not parse eth component of the auth addr - it's malformed or missing")
+				result.Description = fmt.Sprintf("current worker(%s) is invalid", cfg.WorkerAddr)
+				return result
+			}
+			result.Description = "current worker is"
+			result.Address = addr.String()
+			return result
+		}()
+
+		if result.Error != nil {
+			showError(cmd, result.Description, result.Error)
+			os.Exit(1)
+		}
+		if isSimpleFormat() {
+			cmd.Printf("%s %s\n", result.Description, result.Address)
+		} else {
+			showJSON(cmd, result)
+		}
+
 	},
 }
