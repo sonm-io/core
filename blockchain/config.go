@@ -22,7 +22,7 @@ func (m *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	}
 
 	if len(cfg.Endpoint) == 0 {
-		cfg.Endpoint = defaultEthEndpoint
+		cfg.Endpoint = defaultLivechainEndpoint
 	}
 
 	if len(cfg.SidechainEndpoint) == 0 {

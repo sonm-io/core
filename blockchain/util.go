@@ -15,21 +15,12 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 const (
 	defaultGasLimit             = 500000
 	defaultGasLimitForSidechain = 2000000
 )
-
-func initEthClient(endpoint string) (EthereumClientBackend, error) {
-	return ethclient.Dial(endpoint)
-}
-
-func initCustomEthClient(endpoint string) (CustomEthereumClient, error) {
-	return NewClient(endpoint)
-}
 
 func getCallOptions(ctx context.Context) *bind.CallOpts {
 	return &bind.CallOpts{
