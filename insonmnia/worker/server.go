@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/cgroups"
+	"github.com/sonm-io/core/insonmnia/hardware/disk"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
@@ -999,6 +1000,12 @@ func (m *Worker) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) e
 				bench.Result = uint64(1)
 			} else if bench.GetID() == bm.GPUMem {
 				bench.Result = gpuDevices[idx].Memory
+			} else if bench.GetID() == bm.StorageSize {
+				freeDiskSpace, err := disk.FreeDiskSpace(m.ctx)
+				if err != nil {
+					return err
+				}
+				bench.Result = freeDiskSpace
 			} else if len(bench.GetImage()) != 0 {
 				d := getDescriptionForBenchmark(bench)
 				d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
