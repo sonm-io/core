@@ -380,13 +380,14 @@ func (h *Hardware) devicesMap() *DeviceMapping {
 		GPUs = append(GPUs, dev.Device)
 	}
 
+	// We intentionally use zero values for net and storage as it is not really hardware
 	return &DeviceMapping{
 		CPU:        h.CPU.Device,
 		GPU:        GPUs,
 		RAM:        hashableRAM{Available: h.RAM.Device.Available},
-		NetworkIn:  h.Network.In,
-		NetworkOut: h.Network.Out,
-		Storage:    h.Storage.Device,
+		NetworkIn:  0,
+		NetworkOut: 0,
+		Storage:    &sonm.StorageDevice{0},
 		NetworkCaps: hashableNetworkCapabilities{
 			Overlay:  h.Network.Overlay,
 			Incoming: h.Network.Incoming,
