@@ -33,7 +33,7 @@ type containerDescriptor struct {
 }
 
 func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
-	log.G(ctx).Info("start container with application")
+	log.S(ctx).Infof("start container with application, reference %s", d.Reference.String())
 
 	ctx, cancel := context.WithCancel(ctx)
 	cont := containerDescriptor{
