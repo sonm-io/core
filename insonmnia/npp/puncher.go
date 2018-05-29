@@ -101,6 +101,7 @@ func (m *natPuncher) Dial(addr common.Address) (net.Conn, error) {
 func (m *natPuncher) DialContext(ctx context.Context, addr common.Address) (net.Conn, error) {
 	addrs, err := m.resolve(ctx, addr)
 	if err != nil {
+		m.log.Warn("failed to resolve remote peer via rendezvous", zap.Stringer("remote_peer", addr), zap.Error(err))
 		return nil, err
 	}
 

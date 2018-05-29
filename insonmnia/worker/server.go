@@ -625,6 +625,14 @@ func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to fetch GPU IDs: %s", err)
 	}
+
+	if len(spec.GetContainer().GetExpose()) > 0 {
+		if !ask.GetResources().GetNetwork().GetIncoming() {
+			m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
+			return nil, fmt.Errorf("incoming network is required due to explicit `expose` settings, but not allowed for `%s` deal", dealID.Unwrap())
+		}
+	}
+
 	var d = Description{
 		Image:         spec.Container.Image,
 		Registry:      spec.Registry.ServerAddress,
