@@ -2,7 +2,10 @@ package blockchain
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"math/big"
+	"strconv"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -12,9 +15,44 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
+// Receipt extends transaction receipt
+// with block number on which this transaction
+// was mined.
 type Receipt struct {
 	*types.Receipt
-	BlockNumber string
+	BlockNumber int64
+}
+
+// UnmarshalJSON calls parent unmarshaller for Receipt and
+// also unmarshall block number and associate it with the struct.
+func (r *Receipt) UnmarshalJSON(input []byte) error {
+	// call parent unmarshal
+	err := r.Receipt.UnmarshalJSON(input)
+	if err != nil {
+		return err
+	}
+
+	// define temporary struct to unmarshall block number
+	type blockNumber struct {
+		BlockNumber string `json:"BlockNumber"`
+	}
+
+	var dec blockNumber
+	if err := json.Unmarshal(input, &dec); err != nil {
+		return err
+	}
+
+	if dec.BlockNumber == "" {
+		return fmt.Errorf("unmarshaled block number is empty")
+	}
+
+	v, err := strconv.ParseInt(dec.BlockNumber, 16, 64)
+	if err != nil {
+		return err
+	}
+
+	r.BlockNumber = v
+	return nil
 }
 
 // EthereumClientBackend release all methods to execute interaction with Ethereum Blockchain
