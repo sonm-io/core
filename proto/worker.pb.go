@@ -345,10 +345,8 @@ type DealInfoReply struct {
 	Deal *Deal `protobuf:"bytes,1,opt,name=deal" json:"deal,omitempty"`
 	// List of currently running tasks.
 	Running map[string]*TaskStatusReply `protobuf:"bytes,2,rep,name=running" json:"running,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	//     StatusMapReply running = 2;
 	// List of completed tasks.
 	Completed map[string]*TaskStatusReply `protobuf:"bytes,3,rep,name=completed" json:"completed,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
-	// StatusMapReply completed = 3;
 	// Resources is a real resources (cores, ram bytes, GPU devices, etc)
 	// allocated on a worker for this deal.
 	Resources *AskPlanResources `protobuf:"bytes,4,opt,name=resources" json:"resources,omitempty"`

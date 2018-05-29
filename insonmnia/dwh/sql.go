@@ -344,8 +344,12 @@ func (c *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 	if !r.AuthorID.IsZero() {
 		builder = builder.Where("AuthorID = ?", r.AuthorID.Unwrap().Hex())
 	}
-	if !r.CounterpartyID.IsZero() {
-		builder = builder.Where("CounterpartyID = ?", r.CounterpartyID.Unwrap().Hex())
+	if len(r.CounterpartyID) > 0 {
+		var ids []string
+		for _, id := range r.CounterpartyID {
+			ids = append(ids, id.Unwrap().Hex())
+		}
+		builder = builder.Where(squirrel.Eq{"CounterpartyID": ids})
 	}
 	if r.Duration != nil {
 		if r.Duration.Max > 0 {
