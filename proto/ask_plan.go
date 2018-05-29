@@ -102,9 +102,9 @@ func (m *AskPlanResources) Add(resources *AskPlanResources) error {
 	m.CPU.CorePercents += resources.GetCPU().GetCorePercents()
 	m.RAM.Size.Bytes += resources.GetRAM().GetSize().GetBytes()
 	m.Storage.Size.Bytes += resources.GetStorage().GetSize().GetBytes()
-	m.Network.Incoming = m.GetNetwork().GetIncoming() && resources.GetNetwork().GetIncoming()
-	m.Network.Outbound = m.GetNetwork().GetOutbound() && resources.GetNetwork().GetOutbound()
-	m.Network.Overlay = m.GetNetwork().GetOverlay() && resources.GetNetwork().GetOverlay()
+	m.Network.Incoming = m.GetNetwork().GetIncoming() || resources.GetNetwork().GetIncoming()
+	m.Network.Outbound = m.GetNetwork().GetOutbound() || resources.GetNetwork().GetOutbound()
+	m.Network.Overlay = m.GetNetwork().GetOverlay() || resources.GetNetwork().GetOverlay()
 	m.Network.ThroughputIn.BitsPerSecond += resources.GetNetwork().GetThroughputIn().GetBitsPerSecond()
 	m.Network.ThroughputOut.BitsPerSecond += resources.GetNetwork().GetThroughputOut().GetBitsPerSecond()
 	return nil
@@ -121,6 +121,9 @@ func (m *AskPlanResources) Sub(resources *AskPlanResources) error {
 	m.GPU.Sub(resources.GetGPU())
 	m.Network.ThroughputIn.BitsPerSecond -= resources.GetNetwork().GetThroughputIn().GetBitsPerSecond()
 	m.Network.ThroughputOut.BitsPerSecond -= resources.GetNetwork().GetThroughputOut().GetBitsPerSecond()
+	if m.Network.Incoming && resources.GetNetwork().GetIncoming() {
+		m.Network.Incoming = false
+	}
 	return nil
 }
 
