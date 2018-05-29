@@ -12,8 +12,9 @@ const (
 	// The CPU CFS scheduler period in nanoseconds. Used alongside CPU quota.
 	defaultCPUPeriod = uint64(100000)
 
-	MinCPUPercent = 1
-	MinRamSize    = 4 * 1 << 20
+	MinCPUPercent  = 1
+	MinRamSize     = 4 * 1 << 20
+	MinStorageSize = 64 * 1 << 20
 )
 
 func (c *AskPlanCPU) MarshalYAML() (interface{}, error) {
@@ -47,6 +48,10 @@ func (m *AskPlan) Validate() error {
 
 	if m.GetResources().GetRAM().GetSize().GetBytes() < MinRamSize {
 		return errors.New("RAM size is too low")
+	}
+
+	if m.GetResources().GetStorage().GetSize().GetBytes() < MinStorageSize {
+		return errors.New("storage size is too low")
 	}
 
 	return m.GetResources().GetGPU().Validate()
