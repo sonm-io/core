@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHardwareHash(t *testing.T) {
+func getTestHardware(t *testing.T) *Hardware {
 	x, err := NewHardware()
 	require.NoError(t, err)
 
@@ -26,7 +26,11 @@ func TestHardwareHash(t *testing.T) {
 		Device:     &sonm.GPUDevice{ID: "1234", Memory: 123546},
 		Benchmarks: make(map[uint64]*sonm.Benchmark),
 	})
+	return x
+}
 
+func TestHardwareHash(t *testing.T) {
+	x := getTestHardware(t)
 	hash1 := x.Hash()
 	assert.NotEmpty(t, hash1)
 
@@ -41,4 +45,39 @@ func TestHardwareHash(t *testing.T) {
 	hash2 := x.Hash()
 	assert.NotEmpty(t, hash2)
 	assert.Equal(t, hash1, hash2)
+}
+
+func TestHardwareLimitTo(t *testing.T) {
+	hardware := getTestHardware(t)
+	hardware.CPU.Benchmarks[0] = &sonm.Benchmark{
+		ID:                 0,
+		SplittingAlgorithm: sonm.SplittingAlgorithm_MAX,
+		Result:             100,
+	}
+	hardware.CPU.Benchmarks[1] = &sonm.Benchmark{
+		ID:                 1,
+		SplittingAlgorithm: sonm.SplittingAlgorithm_MIN,
+		Result:             100,
+	}
+	hardware.CPU.Benchmarks[2] = &sonm.Benchmark{
+		ID:                 2,
+		SplittingAlgorithm: sonm.SplittingAlgorithm_NONE,
+		Result:             100,
+	}
+	hardware.CPU.Benchmarks[3] = &sonm.Benchmark{
+		ID:                 3,
+		SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL,
+		Result:             100,
+	}
+
+	resources := &sonm.AskPlanResources{
+		CPU: &sonm.AskPlanCPU{150},
+	}
+	limitedHardware, err := hardware.LimitTo(resources)
+	require.NoError(t, err)
+	require.Equal(t, limitedHardware.CPU.Benchmarks[0].Result, uint64(100))
+	require.Equal(t, limitedHardware.CPU.Benchmarks[1].Result, uint64(100))
+	require.Equal(t, limitedHardware.CPU.Benchmarks[2].Result, uint64(100))
+	//150 core percents out of total 200
+	require.Equal(t, limitedHardware.CPU.Benchmarks[3].Result, uint64(75))
 }
