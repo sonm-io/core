@@ -544,7 +544,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	spec := request.GetSpec()
 	registry := spec.GetRegistry()
 	image := spec.GetContainer().GetImage()
-	allowed, ref, err := m.whitelist.Allowed(ctx, registry.GetServerAddress(), image, registry.Auth())
+	allowed, reference, err := m.whitelist.Allowed(ctx, image, registry.Auth())
 	if err != nil {
 		return nil, err
 	}
@@ -553,17 +553,6 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		return nil, status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
 	}
 
-	request.Spec.Registry.ServerAddress = reference.Domain(ref)
-	request.Spec.Container.Image = reference.Path(ref)
-
-	return m.startTask(ctx, request)
-}
-
-// Start request makes Worker start a container
-func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
-	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
-
-	spec := request.Spec
 	taskID := uuid.New()
 
 	dealID := request.GetDealID()
@@ -634,8 +623,7 @@ func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 
 	var d = Description{
-		Image:         spec.Container.Image,
-		Registry:      spec.Registry.ServerAddress,
+		Reference:     reference,
 		Auth:          spec.Registry.Auth(),
 		RestartPolicy: spec.Container.RestartPolicy.Unwrap(),
 		CGroupParent:  cgroup.Suffix(),
@@ -670,7 +658,7 @@ func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 	containerInfo.PublicKey = publicKey
 	containerInfo.StartAt = time.Now()
-	containerInfo.ImageName = d.Image
+	containerInfo.ImageName = reference.String()
 	containerInfo.DealID = dealID.Unwrap().String()
 
 	var reply = pb.StartTaskReply{
@@ -1000,7 +988,10 @@ func (m *Worker) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) e
 			} else if bench.GetID() == bm.GPUMem {
 				bench.Result = gpuDevices[idx].Memory
 			} else if len(bench.GetImage()) != 0 {
-				d := getDescriptionForBenchmark(bench)
+				d, err := getDescriptionForBenchmark(bench)
+				if err != nil {
+					return fmt.Errorf("could not create description for benchmark: %s", err)
+				}
 				d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
 
 				if gpuDevices != nil {
@@ -1103,14 +1094,18 @@ func parseBenchmarkResult(data []byte) (map[string]*bm.ResultJSON, error) {
 	return v.Results, nil
 }
 
-func getDescriptionForBenchmark(b *pb.Benchmark) Description {
+func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
+	reference, err := reference.ParseNormalizedNamed(b.GetImage())
+	if err != nil {
+		return Description{}, err
+	}
 	return Description{
 		autoremove: true,
-		Image:      b.GetImage(),
+		Reference:  reference,
 		Env: map[string]string{
 			bm.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
 		},
-	}
+	}, nil
 }
 
 func (m *Worker) AskPlans(ctx context.Context, _ *pb.Empty) (*pb.AskPlansReply, error) {
