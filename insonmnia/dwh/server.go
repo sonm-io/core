@@ -29,10 +29,6 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-const (
-	eventRetryTime = time.Second * 3
-)
-
 type DWH struct {
 	mu                sync.RWMutex
 	ctx               context.Context
@@ -372,51 +368,90 @@ func (w *DWH) watchMarketEvents() error {
 		return err
 	}
 
-	jobs := make(chan *blockchain.Event)
-	for workerID := 0; workerID < w.cfg.NumWorkers; workerID++ {
-		go w.runEventWorker(workerID, jobs)
-	}
+	var (
+		eventsCount int
+		dispatcher  = newEventDispatcher(w.logger)
+		tk          = time.NewTicker(time.Millisecond * 500)
+	)
+	defer tk.Stop()
 
+	// Store events by their type, run events of each type in parallel after a timeout
+	// or after a certain number of events is accumulated.
 	for {
 		select {
 		case <-w.ctx.Done():
 			w.logger.Info("context cancelled (watchMarketEvents)")
 			return nil
+		case <-tk.C:
+			w.processEvents(dispatcher)
+			eventsCount, dispatcher = 0, newEventDispatcher(w.logger)
 		case event, ok := <-events:
 			if !ok {
-				close(jobs)
 				return errors.New("events channel closed")
 			}
-
 			w.processBlockBoundary(event)
-			jobs <- event
+			dispatcher.Add(event)
+			if eventsCount < w.cfg.NumWorkers {
+				eventsCount++
+			} else {
+				w.processEvents(dispatcher)
+				eventsCount, dispatcher = 0, newEventDispatcher(w.logger)
+			}
 		}
 	}
 }
 
-func (w *DWH) runEventWorker(workerID int, events chan *blockchain.Event) {
-	for {
-		select {
-		case <-w.ctx.Done():
-			w.logger.Info("context cancelled (worker)", zap.Int("worker_id", workerID))
-			return
-		case event, ok := <-events:
-			if !ok {
-				w.logger.Info("events channel closed", zap.Int("worker_id", workerID))
-				return
+func (w *DWH) processEvents(dispatcher *eventsDispatcher) {
+	w.processEventsGroup(dispatcher.ValidatorsCreated)
+	w.processEventsGroup(dispatcher.CertificatesCreated)
+	w.processEventsGroup(dispatcher.OrdersOpened)
+	w.processEventsGroup(dispatcher.DealsOpened)
+	w.processEventsGroup(dispatcher.DealChangeRequestsSent)
+	w.processEventsGroup(dispatcher.Billed)
+	w.processEventsGroup(dispatcher.DealChangeRequestsUpdated)
+	w.processEventsGroup(dispatcher.OrdersClosed)
+	w.processEventsGroup(dispatcher.DealsClosed)
+	w.processEventsGroup(dispatcher.ValidatorsDeleted)
+	w.processEventsGroup(dispatcher.AddedToBlacklist)
+	w.processEventsGroup(dispatcher.RemovedFromBlacklist)
+	w.processEventsGroup(dispatcher.WorkersAnnounced)
+	w.processEventsGroup(dispatcher.WorkersConfirmed)
+	w.processEventsGroup(dispatcher.WorkersRemoved)
+	w.processEventsGroup(dispatcher.Other)
+}
+
+func (w *DWH) processEventsGroup(events []*blockchain.Event) {
+	wg := &sync.WaitGroup{}
+	for _, event := range events {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, event *blockchain.Event) {
+			defer wg.Done()
+			var (
+				err        error
+				numRetries = 60
+			)
+			for numRetries > 0 {
+				if err = w.processEvent(event); err != nil {
+					w.logger.Warn("failed to processEvent, retrying", util.LaconicError(err),
+						zap.Uint64("block_number", event.BlockNumber),
+						zap.String("event_type", reflect.TypeOf(event.Data).String()),
+						zap.Any("event_data", event.Data))
+				} else {
+					w.logger.Debug("processed event", zap.Uint64("block_number", event.BlockNumber),
+						zap.String("event_type", reflect.TypeOf(event.Data).String()),
+						zap.Any("event_data", event.Data))
+					return
+				}
+				numRetries--
+				time.Sleep(time.Second)
 			}
-			if err := w.processEvent(event); err != nil {
-				w.logger.Warn("failed to processEvent, retrying", util.LaconicError(err),
-					zap.Uint64("block_number", event.BlockNumber),
-					zap.String("event_type", reflect.TypeOf(event.Data).String()),
-					zap.Any("event_data", event.Data), zap.Int("worker_id", workerID))
-				w.retryEvent(event)
-			}
-			w.logger.Debug("processed event", zap.Uint64("block_number", event.BlockNumber),
+			w.logger.Warn("failed to processEvent, STATE IS INCONSISTENT", util.LaconicError(err),
+				zap.Uint64("block_number", event.BlockNumber),
 				zap.String("event_type", reflect.TypeOf(event.Data).String()),
-				zap.Any("event_data", event.Data), zap.Int("worker_id", workerID))
-		}
+				zap.Any("event_data", event.Data))
+		}(wg, event)
 	}
+	wg.Wait()
 }
 
 func (w *DWH) processEvent(event *blockchain.Event) error {
@@ -451,29 +486,9 @@ func (w *DWH) processEvent(event *blockchain.Event) error {
 		return w.onValidatorDeleted(value.ID)
 	case *blockchain.CertificateCreatedData:
 		return w.onCertificateCreated(value.ID)
-	case *blockchain.ErrorData:
-		w.logger.Warn("received error from events channel", zap.Error(value.Err), zap.String("topic", value.Topic))
 	}
 
 	return nil
-}
-
-func (w *DWH) retryEvent(event *blockchain.Event) {
-	timer := time.NewTimer(eventRetryTime)
-	select {
-	case <-w.ctx.Done():
-		w.logger.Info("context cancelled while retrying event",
-			zap.Uint64("block_number", event.BlockNumber),
-			zap.String("event_type", reflect.TypeOf(event.Data).String()))
-		return
-	case <-timer.C:
-		if err := w.processEvent(event); err != nil {
-			w.logger.Warn("failed to retry processEvent", util.LaconicError(err),
-				zap.Uint64("block_number", event.BlockNumber),
-				zap.String("event_type", reflect.TypeOf(event.Data).String()),
-				zap.Any("event_data", event.Data))
-		}
-	}
 }
 
 func (w *DWH) onDealOpened(dealID *big.Int) error {
@@ -542,7 +557,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 		return errors.Wrap(err, "failed to CheckStaleID")
 	} else {
 		if ok {
-			w.addBlockEndCallback(func() error { return w.removeStaleEntityID(dealID, "Deal") })
+			w.removeStaleEntityID(dealID, "Deal")
 			return nil
 		}
 	}
@@ -552,6 +567,7 @@ func (w *DWH) onDealUpdated(dealID *big.Int) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to delete deal (possibly old log entry)")
 		}
+
 		if err := w.storage.DeleteOrder(conn, deal.AskID.Unwrap()); err != nil {
 			return errors.Wrap(err, "failed to deleteOrder")
 		}
@@ -615,7 +631,7 @@ func (w *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 
 	changeRequest.CreatedTS = &pb.Timestamp{Seconds: int64(eventTS)}
 	if err := w.storage.InsertDealChangeRequest(conn, changeRequest); err != nil {
-		return errors.Wrap(err, "failed to insertDealChangeRequest")
+		return errors.Wrapf(err, "failed to InsertDealChangeRequest (%s)", changeRequest.Id.Unwrap().String())
 	}
 
 	return err
@@ -860,8 +876,20 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 }
 
 func (w *DWH) onWorkerAnnounced(masterID, slaveID string) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	conn := newSimpleConn(w.db)
 	defer conn.Finish()
+
+	if ok, err := w.storage.CheckWorkerExists(conn, masterID, slaveID); err != nil {
+		return errors.Wrap(err, "failed to CheckWorker")
+	} else {
+		if ok {
+			// Worker already exists, skipping.
+			return nil
+		}
+	}
 
 	if err := w.storage.InsertWorker(conn, masterID, slaveID); err != nil {
 		return errors.Wrap(err, "onWorkerAnnounced failed")
@@ -947,6 +975,9 @@ func (w *DWH) onValidatorDeleted(validatorID common.Address) error {
 }
 
 func (w *DWH) onCertificateCreated(certificateID *big.Int) error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
 	certificate, err := w.blockchain.ProfileRegistry().GetCertificate(w.ctx, certificateID)
 	if err != nil {
 		return errors.Wrap(err, "failed to GetCertificate")
@@ -1175,30 +1206,78 @@ func (w *DWH) removeStaleEntityID(id *big.Int, entity string) error {
 	return nil
 }
 
-func (w *DWH) addBlockEndCallback(cb func() error) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	w.blockEndCallbacks = append(w.blockEndCallbacks, cb)
+func (w *DWH) processBlockBoundary(event *blockchain.Event) {
+	if w.lastKnownBlock != event.BlockNumber {
+		w.lastKnownBlock = event.BlockNumber
+		for {
+			if err := w.updateLastKnownBlock(int64(event.BlockNumber)); err != nil {
+				w.logger.Warn("failed to updateLastKnownBlock", util.LaconicError(err))
+			} else {
+				return
+			}
+		}
+	}
 }
 
-func (w *DWH) processBlockBoundary(event *blockchain.Event) {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+type eventsDispatcher struct {
+	logger                    *zap.Logger
+	ValidatorsCreated         []*blockchain.Event
+	CertificatesCreated       []*blockchain.Event
+	OrdersOpened              []*blockchain.Event
+	DealsOpened               []*blockchain.Event
+	DealChangeRequestsSent    []*blockchain.Event
+	DealChangeRequestsUpdated []*blockchain.Event
+	Billed                    []*blockchain.Event
+	OrdersClosed              []*blockchain.Event
+	DealsClosed               []*blockchain.Event
+	ValidatorsDeleted         []*blockchain.Event
+	AddedToBlacklist          []*blockchain.Event
+	RemovedFromBlacklist      []*blockchain.Event
+	WorkersAnnounced          []*blockchain.Event
+	WorkersConfirmed          []*blockchain.Event
+	WorkersRemoved            []*blockchain.Event
+	Other                     []*blockchain.Event
+}
 
-	if w.lastKnownBlock != event.BlockNumber {
-		go func(callbacks []func() error) {
-			for _, cb := range callbacks {
-				if err := cb(); err != nil {
-					w.logger.Warn("failed to execute cb after block end", util.LaconicError(err))
-				}
-			}
-		}(w.blockEndCallbacks[:])
-		w.blockEndCallbacks = w.blockEndCallbacks[:0]
-		w.lastKnownBlock = event.BlockNumber
-		if err := w.updateLastKnownBlock(int64(event.BlockNumber)); err != nil {
-			w.logger.Warn("failed to updateLastKnownBlock", util.LaconicError(err),
-				zap.Uint64("block_number", event.BlockNumber))
-		}
+func newEventDispatcher(logger *zap.Logger) *eventsDispatcher {
+	return &eventsDispatcher{logger: logger}
+}
+
+func (m *eventsDispatcher) Add(event *blockchain.Event) {
+	switch data := event.Data.(type) {
+	case *blockchain.ValidatorCreatedData:
+		m.ValidatorsCreated = append(m.ValidatorsCreated, event)
+	case *blockchain.ValidatorDeletedData:
+		m.ValidatorsDeleted = append(m.ValidatorsDeleted, event)
+	case *blockchain.CertificateCreatedData:
+		m.CertificatesCreated = append(m.CertificatesCreated, event)
+	case *blockchain.DealOpenedData:
+		m.DealsOpened = append(m.DealsOpened, event)
+	case *blockchain.DealUpdatedData:
+		m.DealsClosed = append(m.DealsClosed, event)
+	case *blockchain.OrderPlacedData:
+		m.OrdersOpened = append(m.OrdersOpened, event)
+	case *blockchain.OrderUpdatedData:
+		m.OrdersClosed = append(m.OrdersClosed, event)
+	case *blockchain.DealChangeRequestSentData:
+		m.DealChangeRequestsSent = append(m.DealChangeRequestsSent, event)
+	case *blockchain.DealChangeRequestUpdatedData:
+		m.DealChangeRequestsUpdated = append(m.DealChangeRequestsUpdated, event)
+	case *blockchain.BilledData:
+		m.Billed = append(m.Billed, event)
+	case *blockchain.AddedToBlacklistData:
+		m.AddedToBlacklist = append(m.AddedToBlacklist, event)
+	case *blockchain.RemovedFromBlacklistData:
+		m.RemovedFromBlacklist = append(m.RemovedFromBlacklist, event)
+	case *blockchain.WorkerAnnouncedData:
+		m.WorkersAnnounced = append(m.WorkersAnnounced, event)
+	case *blockchain.WorkerConfirmedData:
+		m.WorkersConfirmed = append(m.WorkersConfirmed, event)
+	case *blockchain.WorkerRemovedData:
+		m.WorkersRemoved = append(m.WorkersRemoved, event)
+	case *blockchain.ErrorData:
+		m.logger.Warn("received error from events channel", zap.Error(data.Err), zap.String("topic", data.Topic))
+	default:
+		m.Other = append(m.Other, event)
 	}
 }
