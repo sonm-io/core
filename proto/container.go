@@ -24,9 +24,8 @@ func (m *Registry) Auth() string {
 
 func (m *Registry) authConfig() types.AuthConfig {
 	return types.AuthConfig{
-		Username:      m.GetUsername(),
-		Password:      m.GetPassword(),
-		ServerAddress: m.GetServerAddress(),
+		Username: m.GetUsername(),
+		Password: m.GetPassword(),
 	}
 }
 
