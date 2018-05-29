@@ -5,11 +5,9 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/noxiouz/zapctx/ctxlog"
@@ -759,10 +757,8 @@ func (api *TestTokenApi) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (
 }
 
 type BasicEventsAPI struct {
-	client      EthereumClientBackend
-	logger      *zap.Logger
-	marketABI   abi.ABI
-	profilesABI abi.ABI
+	client EthereumClientBackend
+	logger *zap.Logger
 }
 
 func NewEventsAPI(opts *chainOpts, logger *zap.Logger) (EventsAPI, error) {
@@ -771,21 +767,9 @@ func NewEventsAPI(opts *chainOpts, logger *zap.Logger) (EventsAPI, error) {
 		return nil, err
 	}
 
-	marketABI, err := abi.JSON(strings.NewReader(marketAPI.MarketABI))
-	if err != nil {
-		return nil, err
-	}
-
-	profilesABI, err := abi.JSON(strings.NewReader(marketAPI.ProfileRegistryABI))
-	if err != nil {
-		return nil, err
-	}
-
 	return &BasicEventsAPI{
-		client:      client,
-		logger:      logger,
-		marketABI:   marketABI,
-		profilesABI: profilesABI,
+		client: client,
+		logger: logger,
 	}, nil
 }
 
@@ -925,12 +909,17 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 		}
 		sendData(&DealChangeRequestUpdatedData{ID: id})
 	case market.BilledTopic:
-		var billedData = &BilledData{}
-		if err := api.marketABI.Unpack(billedData, "Billed", log.Data); err != nil {
+		id, err := extractBig(log.Topics, 1)
+		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		sendData(billedData)
+		paidAmount, err := extractBig(log.Topics, 2)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&BilledData{DealID: id, PaidAmount: paidAmount})
 	case market.OrderPlacedTopic:
 		id, err := extractBig(log.Topics, 1)
 		if err != nil {
@@ -1020,8 +1009,8 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 		}
 		sendData(&ValidatorDeletedData{ID: id})
 	case market.CertificateCreatedTopic:
-		var id = big.NewInt(0)
-		if err := api.profilesABI.Unpack(&id, "CertificateCreated", log.Data); err != nil {
+		id, err := extractBig(log.Topics, 1)
+		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}

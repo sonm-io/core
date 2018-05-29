@@ -165,10 +165,12 @@ func insertBench(to map[uint64]*sonm.Benchmark, bench *sonm.Benchmark, proportio
 	_, wasSet := to[id]
 	if !wasSet {
 		to[id] = deepcopy.Copy(bench).(*sonm.Benchmark)
+		to[id].Result = 0
 	}
 	target := to[id]
 	switch bench.SplittingAlgorithm {
 	case sonm.SplittingAlgorithm_NONE:
+		to[id].Result = bench.GetResult()
 		if wasSet {
 			return fmt.Errorf("duplicate benchmark with id %d and splitting algorithm none", bench.ID)
 		}
@@ -179,8 +181,12 @@ func insertBench(to map[uint64]*sonm.Benchmark, bench *sonm.Benchmark, proportio
 			target.Result = bench.Result
 		}
 	case sonm.SplittingAlgorithm_MIN:
-		if bench.Result < target.Result {
-			target.Result = bench.Result
+		if !wasSet {
+			target.Result = bench.GetResult()
+		} else {
+			if bench.Result < target.GetResult() {
+				target.Result = bench.Result
+			}
 		}
 	}
 	return nil
