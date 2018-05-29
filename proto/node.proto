@@ -54,6 +54,14 @@ service DealManagement {
     rpc Finish(DealFinishRequest) returns (Empty) {}
     // Open tries to open deal between two orders
     rpc Open(OpenDealRequest) returns (Deal) {}
+    // ChangeRequestsList return change requests for given deal
+    rpc ChangeRequestsList(BigInt) returns (DealChangeRequestsReply) {}
+    // CreateChangeRequest creates new change request for deal
+    rpc CreateChangeRequest(DealChangeRequest) returns (BigInt) {}
+    // ApproveChangeRequest approves change request by their ID
+    rpc ApproveChangeRequest(BigInt) returns (Empty) {}
+    // CancelChangeRequest removes pending change request
+    rpc CancelChangeRequest(BigInt) returns (Empty) {}
 }
 
 message DealFinishRequest {
