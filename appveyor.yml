@@ -22,8 +22,8 @@ build_script:
   - c:\MinGW\bin\mingw32-make.exe build/node_win32
 
 artifacts:
-  - path: sonmcli_win32.exe
+  - path: target/sonmcli_win32.exe
     name: CLI
 
-  - path: sonmnode_win32.exe
+  - path: target/sonmnode_win32.exe
     name: Node

@@ -81,11 +81,11 @@ build/lsgpu:
 
 build/cli_win32:
 	@echo "+ $@"
-	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${CLI}_win32.exe ${GOCMD}/cli
+	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${TARGETDIR}/sonmcli_win32.exe ${GOCMD}/cli
 
 build/node_win32:
 	@echo "+ $@"
-	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${LOCAL_NODE}_win32.exe ${GOCMD}/node
+	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${TARGETDIR}/sonmnode_win32.exe ${GOCMD}/node
 
 build/autocli:
 	@echo "+ $@"
