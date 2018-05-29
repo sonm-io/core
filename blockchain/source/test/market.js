@@ -260,14 +260,13 @@ contract('Market', async function (accounts) {
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
-            { from: consumer });;
+            { from: consumer }); ;
         await increaseTime(2);
-        assert.equal(stateBefore.to
         let ordersAmount = await market.GetOrdersAmount();
         ordersAmount = ordersAmount.toNumber(10);
         let stateBefore = await market.GetDealsAmount();
         var deal = await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: consumer });
-        let stateAfter = await market.GetDealsAmount()Number(10) + 1, stateAfter.toNumber(10));
+        stateAfter = await market.GetDealsAmount().toNumber(10);
     });
 
     it('test BlockedBalance: forward', async function () {
@@ -280,13 +279,12 @@ contract('Market', async function (accounts) {
 
     it('test USD price changing ', async function () {
         let price = await oracle.setCurrentPrice(2000000000000, { from: accounts[0] });
-    });(master, { from: supplier });
-    });
+    }); (master, { from: supplier });
+});
 
-    it('test ConfirmWorker', async function () {
-
+it('test ConfirmWorker', async function () {
     it('test RegisterWorker', async function () {
-        const reg = await market.RegisterWorker
+        const reg = await market.RegisterWorker;
         let stateBefore = await market.GetMaster(supplier);
         let conf = await market.ConfirmWorker(supplier, { from: master });
         let stateAfter = await market.GetMaster(supplier);

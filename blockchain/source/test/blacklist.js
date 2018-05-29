@@ -15,9 +15,9 @@ contract('Blacklist', async function (accounts) {
 
     const owner = accounts[0];
     const creeper = accounts[1];
-    const test_master = accounts[2];
-    const test_blacklister = accounts[3];
-    const test_blacklisted = accounts[3];
+    const testMaster = accounts[2];
+    const testBlacklister = accounts[3];
+    const testBlacklisted = accounts[3];
     const master = accounts[5];
 
     before(async function () {
@@ -47,11 +47,11 @@ contract('Blacklist', async function (accounts) {
         // TODO: implement this after market is done!
         console.warn('TODO: implement this after market is done!');
 
-        await assertRevert(blacklist.Add(test_blacklister, test_blacklisted, { from: creeper }));
+        await assertRevert(blacklist.Add(testBlacklister, testBlacklisted, { from: creeper }));
 
         await blacklist.SetMarketAddress(master, { from: owner });
 
-        await blacklist.Add(test_blacklister, test_blacklisted, { from: master });
+        await blacklist.Add(testBlacklister, testBlacklisted, { from: master });
     });
 
     it('test SetMarketAddress', async function () {
@@ -65,9 +65,9 @@ contract('Blacklist', async function (accounts) {
         let marketAddressInBlacklist = await blacklist.market.call();
 
         assert.notEqual(marketAddressInBlacklist, '0x0');
-        await blacklist.Add(test_blacklister, test_blacklisted, { from: master });
+        await blacklist.Add(testBlacklister, testBlacklisted, { from: master });
 
-        let check = await blacklist.Check(test_blacklister, test_blacklisted);
+        let check = await blacklist.Check(testBlacklister, testBlacklisted);
         assert(check);
     });
 
@@ -75,22 +75,22 @@ contract('Blacklist', async function (accounts) {
         let marketAddressInBlacklist = await blacklist.market.call();
         assert.notEqual(marketAddressInBlacklist, '0x0');
 
-        await blacklist.Remove(test_blacklisted, { from: test_blacklister });
+        await blacklist.Remove(testBlacklisted, { from: testBlacklister });
 
-        let check = await blacklist.Check(test_blacklister, test_blacklisted);
+        let check = await blacklist.Check(testBlacklister, testBlacklisted);
         assert(!check);
 
-        await assertRevert(blacklist.Remove(test_blacklisted, { from: test_blacklister }));
+        await assertRevert(blacklist.Remove(testBlacklisted, { from: testBlacklister }));
     });
 
     it('test AddMaster', async function () {
-        await blacklist.AddMaster(test_master, { from: owner });
+        await blacklist.AddMaster(testMaster, { from: owner });
 
-        await assertRevert(blacklist.AddMaster(test_master, { from: owner }));
+        await assertRevert(blacklist.AddMaster(testMaster, { from: owner }));
     });
 
     it('test RemoveMaster', async function () {
-        await blacklist.RemoveMaster(test_master, { from: owner });
-        await assertRevert(blacklist.RemoveMaster(test_master, { from: owner }));
+        await blacklist.RemoveMaster(testMaster, { from: owner });
+        await assertRevert(blacklist.RemoveMaster(testMaster, { from: owner }));
     });
 });
