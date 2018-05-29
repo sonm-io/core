@@ -29,7 +29,7 @@ module.exports = {
             gasPrice: 0x01,
         },
         private: {
-            provider: new PrivateKeyProvider(privateKey, privateEndpoint),
+            provider: () => new PrivateKeyProvider(privateKey, privateEndpoint),
             network_id: '444', // eslint-disable-line camelcase
         },
     },

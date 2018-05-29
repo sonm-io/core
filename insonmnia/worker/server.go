@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/cgroups"
+	"github.com/sonm-io/core/insonmnia/hardware/disk"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
@@ -74,18 +75,6 @@ type Worker struct {
 
 	eventAuthorization *auth.AuthRouter
 
-	// One-to-one mapping between container IDs and userland task names.
-	//
-	// The overseer operates with containers in terms of their ID, which does not change even during auto-restart.
-	// However some requests pass an application (or task) name, which is more meaningful for user. To be able to
-	// transform between these two identifiers this map exists.
-	//
-	// WARNING: This must be protected using `mu`.
-	//
-	// fixme: only write and delete on this struct, looks like we can
-	// safety removes them.
-	nameMapping map[string]string
-
 	// Maps StartRequest's IDs to containers' IDs
 	// TODO: It's doubtful that we should keep this map here instead in the Overseer.
 	containers map[string]*ContainerInfo
@@ -104,9 +93,8 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 	}
 
 	m = &Worker{
-		options:     o,
-		containers:  make(map[string]*ContainerInfo),
-		nameMapping: make(map[string]string),
+		options:    o,
+		containers: make(map[string]*ContainerInfo),
 	}
 
 	if err := m.SetupDefaults(); err != nil {
@@ -361,7 +349,6 @@ func (m *Worker) saveContainerInfo(id string, info ContainerInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.nameMapping[info.ID] = id
 	m.containers[id] = &info
 }
 
@@ -381,13 +368,6 @@ func (m *Worker) getContainerIdByTaskId(id string) (string, bool) {
 		return info.ID, ok
 	}
 	return "", ok
-}
-
-func (m *Worker) deleteTaskMapping(id string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	delete(m.nameMapping, id)
 }
 
 func (m *Worker) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
@@ -713,8 +693,6 @@ func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error
 	containerInfo, ok := m.containers[request.Id]
 	m.mu.Unlock()
 
-	m.deleteTaskMapping(request.Id)
-
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no job with id %s", request.Id)
 	}
@@ -987,6 +965,12 @@ func (m *Worker) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) e
 				bench.Result = uint64(1)
 			} else if bench.GetID() == bm.GPUMem {
 				bench.Result = gpuDevices[idx].Memory
+			} else if bench.GetID() == bm.StorageSize {
+				freeDiskSpace, err := disk.FreeDiskSpace(m.ctx)
+				if err != nil {
+					return err
+				}
+				bench.Result = freeDiskSpace
 			} else if len(bench.GetImage()) != 0 {
 				d, err := getDescriptionForBenchmark(bench)
 				if err != nil {

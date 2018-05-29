@@ -39,7 +39,7 @@ func TestDealInfoWithZeroDuration(t *testing.T) {
 	}
 
 	buf := initRootCmd(t, "", config.OutputModeSimple)
-	printDealInfo(rootCmd, &pb.DealInfoReply{Deal: deal})
+	printDealInfo(rootCmd, &pb.DealInfoReply{Deal: deal}, nil)
 
 	assert.Contains(t, buf.String(), "Duration:     0s")
 }
