@@ -33,6 +33,7 @@ type options struct {
 func newOptions(ctx context.Context) *options {
 	return &options{
 		ctx:                   ctx,
+		log:                   zap.NewNop(),
 		nppBacklog:            128,
 		nppMinBackoffInterval: 500 * time.Millisecond,
 		nppMaxBackoffInterval: 8000 * time.Millisecond,
