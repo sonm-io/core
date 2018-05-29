@@ -51,6 +51,7 @@ func init() {
 		askPlansRootCmd,
 		workerTasksCmd,
 		workerDevicesCmd,
+		workerFreeDevicesCmd,
 		workerSwitchCmd,
 		workerCurrentCmd,
 	)
