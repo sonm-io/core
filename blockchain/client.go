@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"strconv"
 
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -46,12 +45,8 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 		return fmt.Errorf("unmarshaled block number is empty")
 	}
 
-	v, err := strconv.ParseInt(dec.BlockNumber, 16, 64)
-	if err != nil {
-		return err
-	}
-
-	r.BlockNumber = v
+	v := big.NewInt(0).SetBytes(common.FromHex(dec.BlockNumber))
+	r.BlockNumber = v.Int64()
 	return nil
 }
 
