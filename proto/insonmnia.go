@@ -70,7 +70,6 @@ func (m *EthAddress) UnmarshalText(text []byte) error {
 
 	m.Address = common.HexToAddress(v).Bytes()
 	return nil
-
 }
 
 func (m *EthAddress) IsZero() bool {
