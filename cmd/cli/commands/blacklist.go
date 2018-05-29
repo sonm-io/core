@@ -35,12 +35,7 @@ var blacklistListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		key, err := keystore.GetDefault()
-		if err != nil {
-			showError(cmd, "Cannot read default key", err)
-			os.Exit(1)
-		}
-
+		key := getDefaultKeyOrDie()
 		ownerAddr := crypto.PubkeyToAddress(key.PublicKey)
 		if len(args) > 0 {
 			ownerAddr, err = util.HexToAddress(args[0])
