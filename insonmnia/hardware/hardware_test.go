@@ -71,7 +71,7 @@ func TestHardwareLimitTo(t *testing.T) {
 	}
 
 	resources := &sonm.AskPlanResources{
-		CPU: &sonm.AskPlanCPU{150},
+		CPU: &sonm.AskPlanCPU{CorePercents: 150},
 	}
 	limitedHardware, err := hardware.LimitTo(resources)
 	require.NoError(t, err)

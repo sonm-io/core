@@ -141,9 +141,9 @@ func TestExpose(t *testing.T) {
 
 	assert.Equal(t, map[nat.Port]struct{}{"80/tcp": {}, "443/tcp": {}, "10053/tcp": {}, "22/tcp": {}}, portMap)
 	assert.Equal(t, map[nat.Port][]nat.PortBinding{
-		"80/tcp":    {{"", "81"}},
-		"443/tcp":   {{"", "443"}},
-		"10053/tcp": {{"8.8.8.8", "53"}},
-		"22/tcp":    {{"", ""}},
+		"80/tcp":    {{HostIP: "", HostPort: "81"}},
+		"443/tcp":   {{HostIP: "", HostPort: "443"}},
+		"10053/tcp": {{HostIP: "8.8.8.8", HostPort: "53"}},
+		"22/tcp":    {{HostIP: "", HostPort: ""}},
 	}, portBinding)
 }
