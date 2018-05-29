@@ -845,6 +845,7 @@ func (m *Worker) runBenchmarks() error {
 		log.G(m.ctx).Debug("benchmarks list is matched, hardware is not changed, skip benchmarking this worker")
 		// return back previously measured results for hardware
 		m.hardware = m.storage.HardwareWithBenchmarks()
+		m.hardware.SetDevicesFromBenches()
 		return nil
 	}
 
@@ -859,6 +860,7 @@ func (m *Worker) runBenchmarks() error {
 			passedBenchmarks[b.GetID()] = true
 		}
 	}
+	m.hardware.SetDevicesFromBenches()
 
 	if err := m.storage.SetPassedBenchmarks(passedBenchmarks); err != nil {
 		return err

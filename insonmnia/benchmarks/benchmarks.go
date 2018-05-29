@@ -19,6 +19,8 @@ const (
 	CPUCores    = 2
 	RamSize     = 3
 	StorageSize = 4
+	NetworkIn   = 5
+	NetworkOut  = 6
 	GPUCount    = 7
 	GPUMem      = 8
 
