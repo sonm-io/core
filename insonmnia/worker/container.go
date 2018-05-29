@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
 
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/util/multierror"
@@ -34,7 +33,7 @@ type containerDescriptor struct {
 }
 
 func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
-	log.G(ctx).Info("start container with application")
+	log.S(ctx).Infof("start container with application, reference %s", d.Reference.String())
 
 	ctx, cancel := context.WithCancel(ctx)
 	cont := containerDescriptor{
@@ -60,7 +59,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 
 		ExposedPorts: exposedPorts,
 
-		Image: filepath.Join(d.Registry, d.Image),
+		Image: d.Reference.String(),
 		// TODO: set actual name
 		Labels:  map[string]string{overseerTag: ""},
 		Env:     d.FormatEnv(),
@@ -222,16 +221,9 @@ func (c *containerDescriptor) upload() error {
 	c.CommitedImageID = resp.ID
 	log.G(c.ctx).Info("committed container", zap.String("id", c.ID), zap.String("newId", resp.ID))
 
-	image := filepath.Join(c.description.Registry, c.description.Image)
-	named, err := reference.ParseNormalizedNamed(image)
-	if err != nil {
-		log.G(c.ctx).Error("failed to parse", zap.String("image", image), zap.Error(err))
-		return err
-	}
-
 	tag := fmt.Sprintf("%s_%s", c.description.DealId, c.description.TaskId)
 
-	newImg, err := reference.WithTag(named, tag)
+	newImg, err := reference.WithTag(reference.TrimNamed(c.description.Reference), tag)
 	if err != nil {
 		log.G(c.ctx).Error("failed to add tag", zap.String("id", resp.ID), zap.Error(err))
 		return err

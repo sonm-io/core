@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"path/filepath"
 	"sync"
 	"time"
 
@@ -21,7 +20,7 @@ import (
 )
 
 type Whitelist interface {
-	Allowed(ctx context.Context, registry string, image string, auth string) (bool, reference.Named, error)
+	Allowed(ctx context.Context, reference string, auth string) (bool, reference.Named, error)
 }
 
 func NewWhitelist(ctx context.Context, config *WhitelistConfig) Whitelist {
@@ -122,9 +121,8 @@ func (w *whitelist) digestAllowed(name string, digest string) (bool, error) {
 	return false, nil
 }
 
-func (w *whitelist) Allowed(ctx context.Context, registry string, image string, authority string) (bool, reference.Named, error) {
-	fullName := filepath.Join(registry, image)
-	ref, err := reference.ParseNormalizedNamed(fullName)
+func (w *whitelist) Allowed(ctx context.Context, referenceStr string, authority string) (bool, reference.Named, error) {
+	ref, err := reference.ParseNormalizedNamed(referenceStr)
 	if err != nil {
 		return false, nil, err
 	}
@@ -155,7 +153,7 @@ func (w *whitelist) Allowed(ctx context.Context, registry string, image string, 
 	}
 	defer dockerClient.Close()
 
-	inspection, err := dockerClient.DistributionInspect(ctx, image, authority)
+	inspection, err := dockerClient.DistributionInspect(ctx, referenceStr, authority)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "could not perform DistributionInspect")
 	}
@@ -174,9 +172,8 @@ func (w *whitelist) Allowed(ctx context.Context, registry string, image string, 
 type disabledWhitelist struct {
 }
 
-func (w *disabledWhitelist) Allowed(ctx context.Context, registry string, image string, auth string) (bool, reference.Named, error) {
-	fullName := filepath.Join(registry, image)
-	ref, err := reference.ParseNormalizedNamed(fullName)
+func (w *disabledWhitelist) Allowed(ctx context.Context, referenceStr string, auth string) (bool, reference.Named, error) {
+	ref, err := reference.ParseNormalizedNamed(referenceStr)
 	if err != nil {
 		return false, nil, err
 	}
