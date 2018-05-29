@@ -34,7 +34,7 @@ container:
         username: username
         password: password
         security: ntlm
-        vers: 3.0
+        vers: 3.1
     otherType:
       type: ipfs
   mounts:
@@ -64,7 +64,7 @@ registry:
 	assert.Equal(t, "username", volumes["mysmb"].Options["username"])
 	assert.Equal(t, "password", volumes["mysmb"].Options["password"])
 	assert.Equal(t, "ntlm", volumes["mysmb"].Options["security"])
-	assert.Equal(t, "3.0", volumes["mysmb"].Options["vers"])
+	assert.Equal(t, "3.1", volumes["mysmb"].Options["vers"])
 
 	assert.Equal(t, "ipfs", volumes["otherType"].Type)
 
@@ -83,12 +83,6 @@ container:
   image: user/image:v1
   command: /myapp -param=1
   ssh_key: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQD
-resources:
-  CPU: 1
-  CPU_type: i5
-  GPU: true
-  GPU_type: nv1080it
-  RAM: 10240kb
 `)
 	defer deleteTestConfigFile()
 
@@ -176,4 +170,21 @@ container:
 
 	assert.Equal(t, "value1", env["key1"])
 	assert.Equal(t, "value2", env["key2"])
+}
+
+func TestTaskConfigResources(t *testing.T) {
+	createTestConfigFile(`
+container:
+  image: user/image:v1
+resources:
+  ram:
+    size: 30MB
+`)
+	defer deleteTestConfigFile()
+
+	cfg, err := LoadConfig(testCfgPath)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	assert.Equal(t, uint64(30e6), cfg.GetResources().GetRAM().GetSize().GetBytes())
 }
