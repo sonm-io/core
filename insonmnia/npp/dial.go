@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"go.uber.org/zap"
 )
 
 // Dialer represents an NPP dialer.
@@ -18,6 +19,7 @@ import (
 // is done via NAT Punching Protocol.
 type Dialer struct {
 	ctx context.Context
+	log *zap.Logger
 
 	puncherNew func() (NATPuncher, error)
 	relayDial  func(target common.Address) (net.Conn, error)
@@ -35,6 +37,7 @@ func NewDialer(ctx context.Context, options ...Option) (*Dialer, error) {
 
 	return &Dialer{
 		ctx:        ctx,
+		log:        opts.log,
 		puncherNew: opts.puncherNew,
 		relayDial:  opts.relayDial,
 	}, nil
@@ -79,6 +82,9 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 
 	select {
 	case conn := <-nppChannel:
+		if conn.err != nil {
+			m.log.Warn("failed to dial via rendezvous", zap.Error(err))
+		}
 		if conn.err == nil || m.relayDial == nil {
 			return conn.unwrap()
 		}
@@ -106,6 +112,8 @@ func (m *Dialer) dialDirect(ctx context.Context, addr auth.Addr) net.Conn {
 		if err == nil {
 			return conn
 		}
+
+		m.log.Warn("failed to dial directly", zap.Error(err), zap.String("remote_peer", netAddr))
 	}
 
 	return nil

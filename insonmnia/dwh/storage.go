@@ -37,6 +37,7 @@ type storage interface {
 	InsertDealCondition(conn queryConn, condition *pb.DealCondition) error
 	UpdateDealConditionPayout(conn queryConn, dealConditionID uint64, payout *big.Int) error
 	UpdateDealConditionEndTime(conn queryConn, dealConditionID, eventTS uint64) error
+	CheckWorkerExists(conn queryConn, masterID, workerID string) (bool, error)
 	InsertWorker(conn queryConn, masterID, slaveID string) error
 	UpdateWorker(conn queryConn, masterID, slaveID string) error
 	DeleteWorker(conn queryConn, masterID, slaveID string) error
