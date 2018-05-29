@@ -91,7 +91,10 @@ message OrdersRequest {
     OrderType type = 2;
     OrderStatus status = 3;
     EthAddress authorID = 4;
-    EthAddress counterpartyID = 5;
+    // No values passed returns all orders, empty address (common.Address{}.Hex()) returns orders
+    // with CounterpartyID not set. To get a list of all orders that suit you, pass an empty address
+    // and your own address.
+    repeated EthAddress counterpartyID = 5;
     MaxMinUint64 duration = 6;
     MaxMinBig price = 9;
     CmpUint64 netflags = 11;
