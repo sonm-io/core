@@ -24,13 +24,13 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, err
 		Limit:  req.GetCount(),
 	}
 
-	filter.SupplierID = addr
+	filter.ConsumerID = addr
 	dealsBySupplier, err := d.remotes.dwh.GetDeals(ctx, filter)
 	if err != nil {
 		return nil, fmt.Errorf("could not get deals from DWH: %s", err)
 	}
 
-	filter.SupplierID = nil
+	filter.ConsumerID = nil
 	filter.MasterID = addr
 	dealsByConsumer, err := d.remotes.dwh.GetDeals(ctx, filter)
 	if err != nil {
