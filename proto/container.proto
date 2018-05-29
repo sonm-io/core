@@ -7,7 +7,6 @@ package sonm;
 message Registry {
     string username = 1;
     string password = 2;
-    string serverAddress = 3;
 }
 
 // ContainerRestartPolicy represents the restart policies of the container.

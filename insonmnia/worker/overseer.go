@@ -5,11 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
@@ -33,8 +33,7 @@ const dieEvent = "die"
 // Description for a target application.
 // TODO: Drop duplication (sonm.Container)
 type Description struct {
-	Registry      string
-	Image         string
+	Reference     reference.Named
 	Auth          string
 	RestartPolicy container.RestartPolicy
 	Resources     *pb.AskPlanResources
@@ -458,8 +457,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 		RegistryAuth: d.Auth,
 	}
 
-	refStr := filepath.Join(d.Registry, d.Image)
-
+	refStr := d.Reference.String()
 	body, err := o.client.ImagePull(ctx, refStr, options)
 	if err != nil {
 		log.G(ctx).Error("ImagePull failed", zap.String("ref", refStr), zap.Error(err))

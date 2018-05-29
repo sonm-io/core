@@ -44,7 +44,6 @@ container:
 registry: 
   username: name
   password: secret
-  server_address: registry.user.dev
 `)
 	defer deleteTestConfigFile()
 
@@ -74,7 +73,6 @@ registry:
 
 	assert.Equal(t, "name", cfg.Registry.Username)
 	assert.Equal(t, "secret", cfg.Registry.Password)
-	assert.Equal(t, "registry.user.dev", cfg.Registry.ServerAddress)
 }
 
 func TestTaskNoRegistry(t *testing.T) {
@@ -89,8 +87,6 @@ container:
 	cfg, err := LoadConfig(testCfgPath)
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
-
-	assert.Equal(t, "", cfg.Registry.GetServerAddress())
 }
 
 func TestTaskMinimal(t *testing.T) {
@@ -107,7 +103,6 @@ container:
 	assert.Equal(t, "user/image:v1", cfg.Container.Image)
 
 	assert.Equal(t, "", cfg.Container.SshKey)
-	assert.Equal(t, "", cfg.Registry.GetServerAddress())
 }
 
 func TestImageNameRequired(t *testing.T) {

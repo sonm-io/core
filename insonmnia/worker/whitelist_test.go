@@ -28,12 +28,12 @@ func TestWhitelistSuperuser(t *testing.T) {
 	}
 
 	ctx := walletCtx(addr)
-	allowed, _, err := w.Allowed(ctx, "docker.io", "hello-world", "")
+	allowed, _, err := w.Allowed(ctx, "docker.io/hello-world", "")
 	assert.NoError(t, err)
 	assert.True(t, allowed)
 
 	w.superusers = map[string]struct{}{}
-	allowed, _, err = w.Allowed(ctx, "docker.io", "hello-world", "")
+	allowed, _, err = w.Allowed(ctx, "docker.io/hello-world", "")
 	assert.False(t, allowed)
 }
 
@@ -51,7 +51,7 @@ func TestWhitelistAllowed(t *testing.T) {
 	reader := strings.NewReader(data)
 	w := whitelist{}
 	w.fillFromJsonReader(ctx, reader)
-	allowed, _, err := w.Allowed(ctx, "", "sonm/eth-claymore@sha256:b5f9a9e47fa319607ed339789ef6692d4937ae5910b86e0ab929d035849e491e", "")
+	allowed, _, err := w.Allowed(ctx, "sonm/eth-claymore@sha256:b5f9a9e47fa319607ed339789ef6692d4937ae5910b86e0ab929d035849e491e", "")
 	assert.True(t, allowed)
 	assert.NoError(t, err)
 }
