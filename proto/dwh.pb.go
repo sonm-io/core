@@ -439,10 +439,13 @@ func (m *DealConditionsReply) GetCount() uint64 {
 }
 
 type OrdersRequest struct {
-	DealID               *BigInt                  `protobuf:"bytes,1,opt,name=dealID" json:"dealID,omitempty"`
-	Type                 OrderType                `protobuf:"varint,2,opt,name=type,enum=sonm.OrderType" json:"type,omitempty"`
-	Status               OrderStatus              `protobuf:"varint,3,opt,name=status,enum=sonm.OrderStatus" json:"status,omitempty"`
-	AuthorID             *EthAddress              `protobuf:"bytes,4,opt,name=authorID" json:"authorID,omitempty"`
+	DealID   *BigInt     `protobuf:"bytes,1,opt,name=dealID" json:"dealID,omitempty"`
+	Type     OrderType   `protobuf:"varint,2,opt,name=type,enum=sonm.OrderType" json:"type,omitempty"`
+	Status   OrderStatus `protobuf:"varint,3,opt,name=status,enum=sonm.OrderStatus" json:"status,omitempty"`
+	AuthorID *EthAddress `protobuf:"bytes,4,opt,name=authorID" json:"authorID,omitempty"`
+	// No values passed returns all orders, empty address (common.Address{}.Hex()) returns orders
+	// with CounterpartyID not set. To get a list of all orders that suit you, pass an empty address
+	// and your own address.
 	CounterpartyID       []*EthAddress            `protobuf:"bytes,5,rep,name=counterpartyID" json:"counterpartyID,omitempty"`
 	Duration             *MaxMinUint64            `protobuf:"bytes,6,opt,name=duration" json:"duration,omitempty"`
 	Price                *MaxMinBig               `protobuf:"bytes,9,opt,name=price" json:"price,omitempty"`
