@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestName(t *testing.T) {
+func TestParseBlockNumberWithout0x(t *testing.T) {
 	raw := []byte(`{
 "BlockNumber": "ff",
 "cumulativeGasUsed": "0x1",
@@ -26,4 +26,24 @@ func TestName(t *testing.T) {
 	err := rec.UnmarshalJSON(raw)
 	require.NoError(t, err)
 	assert.Equal(t, int64(255), rec.BlockNumber)
+}
+
+func TestParseBlockNumberWith0x(t *testing.T) {
+	raw := []byte(`{
+"BlockNumber": "0xaa",
+"cumulativeGasUsed": "0x1",
+"gasUsed": "0x2",
+"logs": [],
+"transactionHash": "0xcccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+"contractAddress": "0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+"logsBloom": "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+}`)
+
+	rec := &Receipt{
+		Receipt:     &types.Receipt{},
+		BlockNumber: 0,
+	}
+	err := rec.UnmarshalJSON(raw)
+	require.NoError(t, err)
+	assert.Equal(t, int64(170), rec.BlockNumber)
 }
