@@ -9,7 +9,7 @@ import (
 
 func init() {
 	tokenRootCmd.AddCommand(
-		tokenGetCmd,
+		// tokenGetCmd,
 		tokenBalanceCmd,
 	)
 }

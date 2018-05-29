@@ -23,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/cgroups"
+	"github.com/sonm-io/core/insonmnia/hardware/disk"
 	"github.com/sonm-io/core/insonmnia/npp"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
@@ -74,18 +75,6 @@ type Worker struct {
 
 	eventAuthorization *auth.AuthRouter
 
-	// One-to-one mapping between container IDs and userland task names.
-	//
-	// The overseer operates with containers in terms of their ID, which does not change even during auto-restart.
-	// However some requests pass an application (or task) name, which is more meaningful for user. To be able to
-	// transform between these two identifiers this map exists.
-	//
-	// WARNING: This must be protected using `mu`.
-	//
-	// fixme: only write and delete on this struct, looks like we can
-	// safety removes them.
-	nameMapping map[string]string
-
 	// Maps StartRequest's IDs to containers' IDs
 	// TODO: It's doubtful that we should keep this map here instead in the Overseer.
 	containers map[string]*ContainerInfo
@@ -104,9 +93,8 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 	}
 
 	m = &Worker{
-		options:     o,
-		containers:  make(map[string]*ContainerInfo),
-		nameMapping: make(map[string]string),
+		options:    o,
+		containers: make(map[string]*ContainerInfo),
 	}
 
 	if err := m.SetupDefaults(); err != nil {
@@ -361,7 +349,6 @@ func (m *Worker) saveContainerInfo(id string, info ContainerInfo) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.nameMapping[info.ID] = id
 	m.containers[id] = &info
 }
 
@@ -381,13 +368,6 @@ func (m *Worker) getContainerIdByTaskId(id string) (string, bool) {
 		return info.ID, ok
 	}
 	return "", ok
-}
-
-func (m *Worker) deleteTaskMapping(id string) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	delete(m.nameMapping, id)
 }
 
 func (m *Worker) Devices(ctx context.Context, request *pb.Empty) (*pb.DevicesReply, error) {
@@ -544,7 +524,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	spec := request.GetSpec()
 	registry := spec.GetRegistry()
 	image := spec.GetContainer().GetImage()
-	allowed, ref, err := m.whitelist.Allowed(ctx, registry.GetServerAddress(), image, registry.Auth())
+	allowed, reference, err := m.whitelist.Allowed(ctx, image, registry.Auth())
 	if err != nil {
 		return nil, err
 	}
@@ -553,17 +533,6 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		return nil, status.Errorf(codes.PermissionDenied, "specified image is forbidden to run")
 	}
 
-	request.Spec.Registry.ServerAddress = reference.Domain(ref)
-	request.Spec.Container.Image = reference.Path(ref)
-
-	return m.startTask(ctx, request)
-}
-
-// Start request makes Worker start a container
-func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
-	log.G(m.ctx).Info("handling Start request", zap.Any("request", request))
-
-	spec := request.Spec
 	taskID := uuid.New()
 
 	dealID := request.GetDealID()
@@ -634,8 +603,7 @@ func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 
 	var d = Description{
-		Image:         spec.Container.Image,
-		Registry:      spec.Registry.ServerAddress,
+		Reference:     reference,
 		Auth:          spec.Registry.Auth(),
 		RestartPolicy: spec.Container.RestartPolicy.Unwrap(),
 		CGroupParent:  cgroup.Suffix(),
@@ -661,7 +629,7 @@ func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_SPAWNING}, taskID)
-	log.G(ctx).Info("spawning an image")
+	log.G(m.ctx).Info("spawning an image")
 	statusListener, containerInfo, err := m.ovs.Start(m.ctx, d)
 	if err != nil {
 		log.G(ctx).Error("failed to spawn an image", zap.Error(err))
@@ -670,7 +638,7 @@ func (m *Worker) startTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 	containerInfo.PublicKey = publicKey
 	containerInfo.StartAt = time.Now()
-	containerInfo.ImageName = d.Image
+	containerInfo.ImageName = reference.String()
 	containerInfo.DealID = dealID.Unwrap().String()
 
 	var reply = pb.StartTaskReply{
@@ -724,8 +692,6 @@ func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error
 	m.mu.Lock()
 	containerInfo, ok := m.containers[request.Id]
 	m.mu.Unlock()
-
-	m.deleteTaskMapping(request.Id)
 
 	if !ok {
 		return nil, status.Errorf(codes.NotFound, "no job with id %s", request.Id)
@@ -999,8 +965,17 @@ func (m *Worker) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) e
 				bench.Result = uint64(1)
 			} else if bench.GetID() == bm.GPUMem {
 				bench.Result = gpuDevices[idx].Memory
+			} else if bench.GetID() == bm.StorageSize {
+				freeDiskSpace, err := disk.FreeDiskSpace(m.ctx)
+				if err != nil {
+					return err
+				}
+				bench.Result = freeDiskSpace
 			} else if len(bench.GetImage()) != 0 {
-				d := getDescriptionForBenchmark(bench)
+				d, err := getDescriptionForBenchmark(bench)
+				if err != nil {
+					return fmt.Errorf("could not create description for benchmark: %s", err)
+				}
 				d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
 
 				if gpuDevices != nil {
@@ -1103,14 +1078,18 @@ func parseBenchmarkResult(data []byte) (map[string]*bm.ResultJSON, error) {
 	return v.Results, nil
 }
 
-func getDescriptionForBenchmark(b *pb.Benchmark) Description {
+func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
+	reference, err := reference.ParseNormalizedNamed(b.GetImage())
+	if err != nil {
+		return Description{}, err
+	}
 	return Description{
 		autoremove: true,
-		Image:      b.GetImage(),
+		Reference:  reference,
 		Env: map[string]string{
 			bm.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
 		},
-	}
+	}, nil
 }
 
 func (m *Worker) AskPlans(ctx context.Context, _ *pb.Empty) (*pb.AskPlansReply, error) {

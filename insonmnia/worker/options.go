@@ -208,6 +208,10 @@ func (m *options) setupWhitelist() error {
 		cfg := m.cfg.Whitelist
 		if len(cfg.PrivilegedAddresses) == 0 {
 			cfg.PrivilegedAddresses = append(cfg.PrivilegedAddresses, crypto.PubkeyToAddress(m.key.PublicKey).Hex())
+			cfg.PrivilegedAddresses = append(cfg.PrivilegedAddresses, m.cfg.Master.Hex())
+			if m.cfg.Admin != nil {
+				cfg.PrivilegedAddresses = append(cfg.PrivilegedAddresses, m.cfg.Admin.Hex())
+			}
 		}
 
 		m.whitelist = NewWhitelist(m.ctx, &cfg)
