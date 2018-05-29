@@ -51,12 +51,12 @@ func (c *sqlStorage) CreateIndices(db *sql.DB) error {
 func (c *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 	ask, err := c.GetOrderByID(conn, deal.AskID.Unwrap())
 	if err != nil {
-		return errors.Wrapf(err, "failed to getOrderDetails (Ask)")
+		return errors.Wrapf(err, "failed to getOrderDetails (Ask, `%s`)", deal.GetAskID().Unwrap().String())
 	}
 
 	bid, err := c.GetOrderByID(conn, deal.BidID.Unwrap())
 	if err != nil {
-		return errors.Wrapf(err, "failed to getOrderDetails (Bid)")
+		return errors.Wrapf(err, "failed to getOrderDetails (Ask, `%s`)", deal.GetBidID().Unwrap().String())
 	}
 
 	var hasActiveChangeRequests bool
@@ -663,6 +663,17 @@ func (c *sqlStorage) UpdateDealConditionEndTime(conn queryConn, dealConditionID,
 		Where("Id = ?", dealConditionID).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
+}
+
+func (c *sqlStorage) CheckWorkerExists(conn queryConn, masterID, workerID string) (bool, error) {
+	query, args, _ := c.builder().Select("MasterID").From("Workers").
+		Where("MasterID = ?", masterID).Where("WorkerID = ?", workerID).ToSql()
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to run CheckWorker query")
+	}
+	defer rows.Close()
+	return rows.Next(), nil
 }
 
 func (c *sqlStorage) InsertWorker(conn queryConn, masterID, workerID string) error {
