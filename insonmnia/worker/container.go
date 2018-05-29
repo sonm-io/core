@@ -223,7 +223,7 @@ func (c *containerDescriptor) upload() error {
 
 	tag := fmt.Sprintf("%s_%s", c.description.DealId, c.description.TaskId)
 
-	newImg, err := reference.WithTag(c.description.Reference, tag)
+	newImg, err := reference.WithTag(reference.TrimNamed(c.description.Reference), tag)
 	if err != nil {
 		log.G(c.ctx).Error("failed to add tag", zap.String("id", resp.ID), zap.Error(err))
 		return err
