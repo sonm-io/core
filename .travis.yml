@@ -15,6 +15,7 @@ services:
     - "docker"
 
 before_install:
+  - sudo apt-get update
   - sudo apt-get install debhelper devscripts dh-systemd ocl-icd-opencl-dev -y
 
 install:
