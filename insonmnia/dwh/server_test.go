@@ -1114,11 +1114,11 @@ func setupTestDB(w *DWH) error {
 		SupplierCertificates, ConsumerCertificates, ActiveChangeRequest, Benchmark0, Benchmark1, Benchmark2,
 		Benchmark3, Benchmark4, Benchmark5, Benchmark6, Benchmark7, Benchmark8, Benchmark9, Benchmark10, Benchmark11)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	insertOrder := `INSERT INTO Orders(Id, CreatedTS, DealID, Type, Status, AuthorID, CounterpartyID, Duration,
+	insertOrder := `INSERT INTO Orders(Id, MasterID, CreatedTS, DealID, Type, Status, AuthorID, CounterpartyID, Duration,
 		Price, Netflags, IdentityLevel, Blacklist, Tag, FrozenSum, CreatorIdentityLevel, CreatorName, CreatorCountry,
 		CreatorCertificates, Benchmark0, Benchmark1, Benchmark2, Benchmark3, Benchmark4, Benchmark5, Benchmark6,
 		Benchmark7, Benchmark8, Benchmark9, Benchmark10, Benchmark11) VALUES
-		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
 	insertDealChangeRequest := `INSERT INTO DealChangeRequests VALUES ($1, $2, $3, $4, $5, $6, $7)`
 	for i := 0; i < 10; i++ {
 		_, err := w.db.Exec(
@@ -1163,6 +1163,7 @@ func setupTestDB(w *DWH) error {
 		_, err = w.db.Exec(
 			insertOrder,
 			fmt.Sprintf("2020%d", i),
+			common.HexToAddress(fmt.Sprintf("0x9%d", i)).Hex(), // Master
 			12345, // CreatedTS
 			fmt.Sprintf("1010%d", i),
 			uint64(pb.OrderType_ASK),
@@ -1200,6 +1201,7 @@ func setupTestDB(w *DWH) error {
 		_, err = w.db.Exec(
 			insertOrder,
 			fmt.Sprintf("3030%d", i),
+			common.HexToAddress(fmt.Sprintf("0x9%d", i)).Hex(), // Master
 			12345, // CreatedTS
 			fmt.Sprintf("1010%d", i),
 			uint64(pb.OrderType_BID),

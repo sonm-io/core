@@ -127,6 +127,7 @@ message DWHOrder {
     string creatorCountry = 4;
     bytes creatorCertificates = 5;
     Timestamp CreatedTS = 6;
+    EthAddress masterID = 7;
 }
 
 message DealCondition {

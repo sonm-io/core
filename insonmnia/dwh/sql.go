@@ -266,6 +266,7 @@ func (c *sqlStorage) GetDealConditions(conn queryConn, r *pb.DealConditionsReque
 func (c *sqlStorage) InsertOrder(conn queryConn, order *pb.DWHOrder) error {
 	values := []interface{}{
 		order.GetOrder().Id.Unwrap().String(),
+		order.MasterID.Unwrap().String(),
 		order.CreatedTS.Seconds,
 		order.GetOrder().DealID.Unwrap().String(),
 		uint64(order.GetOrder().OrderType),
@@ -1166,6 +1167,7 @@ func (c *sqlStorage) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, err
 func (c *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 	var (
 		id                   = new(string)
+		masterID             = new(string)
 		createdTS            = new(uint64)
 		dealID               = new(string)
 		orderType            = new(uint64)
@@ -1186,6 +1188,7 @@ func (c *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 	)
 	allFields := []interface{}{
 		id,
+		masterID,
 		createdTS,
 		dealID,
 		orderType,
@@ -1255,6 +1258,7 @@ func (c *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 		CreatorName:          *creatorName,
 		CreatorCountry:       *creatorCountry,
 		CreatorCertificates:  *creatorCertificates,
+		MasterID:             pb.NewEthAddress(common.HexToAddress(*masterID)),
 	}, nil
 }
 
@@ -1640,6 +1644,7 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 	}
 	orderColumns := []string{
 		"Id",
+		"MasterID",
 		"CreatedTS",
 		"DealID",
 		"Type",

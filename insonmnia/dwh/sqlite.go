@@ -90,6 +90,7 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 			createTableOrders: makeTableWithBenchmarks(`
 	CREATE TABLE IF NOT EXISTS Orders (
 		Id						TEXT UNIQUE NOT NULL,
+		MasterID				TEXT NOT NULL,
 		CreatedTS				INTEGER NOT NULL,
 		DealID					TEXT NOT NULL,
 		Type					INTEGER NOT NULL,
