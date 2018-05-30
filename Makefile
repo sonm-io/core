@@ -130,16 +130,6 @@ test: mock
 contracts:
 	@$(MAKE) -C blockchain/source all
 
-test_contracts:
-	@echo "+ $@"
-	@$(MAKE) -C blockchain/source test
-
-lint_contracts:
-	@$(MAKE) -C blockchain/source lint
-
-node_modules:
-	@$(MAKE) -C blockchain/source node_modules
-
 grpc:
 	@echo "+ $@"
 	@if ! which protoc > /dev/null; then echo "protoc protobuf compiler required for build"; exit 1; fi;
