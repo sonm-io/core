@@ -387,7 +387,7 @@ func (h *Hardware) devicesMap() *DeviceMapping {
 		RAM:        hashableRAM{Available: h.RAM.Device.Available},
 		NetworkIn:  0,
 		NetworkOut: 0,
-		Storage:    &sonm.StorageDevice{0},
+		Storage:    &sonm.StorageDevice{BytesAvailable: 0},
 		NetworkCaps: hashableNetworkCapabilities{
 			Overlay:  h.Network.Overlay,
 			Incoming: h.Network.Incoming,
