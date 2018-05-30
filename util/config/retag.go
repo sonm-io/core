@@ -60,3 +60,16 @@ func toSnakeCase(src string) string {
 func isDelimiter(ch rune) bool {
 	return ch == '-' || ch == '_' || unicode.IsSpace(ch)
 }
+
+func SnakeToLower(m map[interface{}]interface{}) {
+	for k, v := range m {
+		if k, ok := k.(string); ok {
+			k = strings.ToLower(k)
+			k = strings.Replace(k, "_", "", -1)
+			m[k] = v
+		}
+		if v, ok := v.(map[interface{}]interface{}); ok {
+			SnakeToLower(v)
+		}
+	}
+}

@@ -1,18 +1,15 @@
 package task_config
 
 import (
-	"github.com/jinzhu/configor"
-	"github.com/sevlyar/retag"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/config"
 )
 
 func LoadConfig(path string) (*sonm.TaskSpec, error) {
+	// Manual renaming from snake_case to lowercase fields here to be able to
+	// load them directly in the protobuf.
 	cfg := &sonm.TaskSpec{}
-	cfgView := retag.Convert(cfg, config.SnakeCaseTagger("yaml"))
-
-	err := configor.Load(cfgView, path)
-	if err != nil {
+	if err := config.LoadWith(cfg, path, config.SnakeToLower); err != nil {
 		return nil, err
 	}
 
