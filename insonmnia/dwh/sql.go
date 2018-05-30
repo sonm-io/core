@@ -713,7 +713,7 @@ func (c *sqlStorage) GetMasterByWorker(conn queryConn, slaveID common.Address) (
 		return common.Address{}, errors.New("no rows returned")
 	}
 	rows.Scan(&masterID)
-	return common.StringToAddress(masterID), nil
+	return common.HexToAddress(masterID), nil
 }
 
 func (c *sqlStorage) InsertBlacklistEntry(conn queryConn, adderID, addeeID string) error {
