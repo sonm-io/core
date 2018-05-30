@@ -783,12 +783,25 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		return nil
 	}
 
-	profile, err := w.storage.GetProfileByID(conn, order.AuthorID.Unwrap())
+	var userID common.Address
+	if order.OrderType == pb.OrderType_ASK {
+		// For Ask orders, try to get this Author's masterID, use AuthorID if not found.
+		userID, err = w.storage.GetMasterByWorker(conn, order.GetAuthorID().Unwrap())
+		if err != nil {
+			w.logger.Warn("failed to GetMasterByWorker", util.LaconicError(err),
+				zap.String("author_id", order.GetAuthorID().Unwrap().Hex()))
+			userID = order.GetAuthorID().Unwrap()
+		}
+	} else {
+		userID = order.GetAuthorID().Unwrap()
+	}
+
+	profile, err := w.storage.GetProfileByID(conn, userID)
 	if err != nil {
 		certificates, _ := json.Marshal([]*pb.Certificate{})
 		profile = &pb.Profile{UserID: order.AuthorID, Certificates: string(certificates)}
 	} else {
-		if err := w.updateProfileStats(conn, order, 1); err != nil {
+		if err := w.updateProfileStats(conn, order.OrderType, userID, 1); err != nil {
 			return errors.Wrap(err, "failed to updateProfileStats")
 		}
 	}
@@ -807,6 +820,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		CreatorName:          profile.Name,
 		CreatorCountry:       profile.Country,
 		CreatorCertificates:  []byte(profile.Certificates),
+		MasterID:             pb.NewEthAddress(userID),
 		Order: &pb.Order{
 			Id:             order.Id,
 			DealID:         order.DealID,
@@ -832,7 +846,7 @@ func (w *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 }
 
 func (w *DWH) onOrderUpdated(orderID *big.Int) error {
-	order, err := w.blockchain.Market().GetOrderInfo(w.ctx, orderID)
+	marketOrder, err := w.blockchain.Market().GetOrderInfo(w.ctx, orderID)
 	if err != nil {
 		return errors.Wrap(err, "failed to GetOrderInfo")
 	}
@@ -854,22 +868,36 @@ func (w *DWH) onOrderUpdated(orderID *big.Int) error {
 		}
 	}
 
+	var userID common.Address
+	if marketOrder.OrderType == pb.OrderType_ASK {
+		// A situation is possible when user places an Ask order without specifying her `MasterID` (and we take
+		// `AuthorID` for `MasterID`), and afterwards the user *does* specify her master. To avoid inconsistency,
+		// we always use the user ID that was chosen in `onOrderPlaced` (i.e., the one that is already stored in DB).
+		dwhOrder, err := w.storage.GetOrderByID(conn, marketOrder.GetId().Unwrap())
+		if err != nil {
+			return errors.Wrap(err, "failed to GetOrderByID")
+		}
+		userID = dwhOrder.GetMasterID().Unwrap()
+	} else {
+		userID = marketOrder.GetAuthorID().Unwrap()
+	}
+
 	// If order was updated, but no deal is associated with it, delete the order.
-	if order.DealID.IsZero() {
+	if marketOrder.DealID.IsZero() {
 		if err := w.storage.DeleteOrder(conn, orderID); err != nil {
 			w.logger.Info("failed to delete Order (possibly old log entry)", util.LaconicError(err),
 				zap.String("order_id", orderID.String()))
 		}
 	} else {
 		// Otherwise update order status.
-		err := w.storage.UpdateOrderStatus(conn, order.Id.Unwrap(), order.OrderStatus)
+		err := w.storage.UpdateOrderStatus(conn, marketOrder.Id.Unwrap(), marketOrder.OrderStatus)
 		if err != nil {
 			return errors.Wrap(err, "failed to updateOrderStatus (possibly old log entry)")
 		}
 	}
 
-	if err := w.updateProfileStats(conn, order, -1); err != nil {
-		return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", order.AuthorID.Unwrap().String())
+	if err := w.updateProfileStats(conn, marketOrder.OrderType, userID, -1); err != nil {
+		return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", marketOrder.AuthorID.Unwrap().String())
 	}
 
 	return nil
@@ -1079,25 +1107,15 @@ func (w *DWH) updateEntitiesByProfile(conn queryConn, certificate *pb.Certificat
 	return nil
 }
 
-func (w *DWH) updateProfileStats(conn queryConn, order *pb.Order, update int) error {
-	var (
-		err     error
-		field   string
-		address common.Address
-	)
-	if order.OrderType == pb.OrderType_ASK {
+func (w *DWH) updateProfileStats(conn queryConn, orderType pb.OrderType, userID common.Address, update int) error {
+	var field string
+	if orderType == pb.OrderType_ASK {
 		field = "ActiveAsks"
-		address, err = w.storage.GetMasterByWorker(conn, order.GetAuthorID().Unwrap())
-		if err != nil {
-			w.logger.Warn("failed to GetMasterByWorker", util.LaconicError(err),
-				zap.String("author_id", order.GetAuthorID().Unwrap().Hex()))
-			address = order.GetAuthorID().Unwrap()
-		}
 	} else {
-		field, address = "ActiveBids", order.GetAuthorID().Unwrap()
+		field = "ActiveBids"
 	}
 
-	if err = w.storage.UpdateProfileStats(conn, address, field, update); err != nil {
+	if err := w.storage.UpdateProfileStats(conn, userID, field, update); err != nil {
 		return errors.Wrap(err, "failed to UpdateProfileStats")
 	}
 
