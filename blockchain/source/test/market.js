@@ -1,8 +1,7 @@
 import increaseTime from './helpers/increaseTime';
-
 import assertRevert from './helpers/assertRevert';
 
-const SNM = artifacts.require('./SNM.sol');
+const SNMD = artifacts.require('./SNMD.sol');
 const Market = artifacts.require('./Market.sol');
 const OracleUSD = artifacts.require('./OracleUSD.sol');
 const Blacklist = artifacts.require('./Blacklist.sol');
@@ -14,12 +13,6 @@ const ORDER_TYPE = {
     ASK: 2,
 };
 
-const ORDER_STATUS = {
-    UNKNOWN: 0,
-    INACTIVE: 1,
-    ACTIVE: 2,
-};
-
 const IdentityLevel = {
     UNKNOWN: 0,
     ANONIMOUS: 1,
@@ -27,51 +20,50 @@ const IdentityLevel = {
     IDENTIFIED: 3,
 };
 
-function delay (time) {
-    return new Promise(resolve => setTimeout(done, time));
-}
-
 contract('Market', async function (accounts) {
-    var market;
-    var token;
-    var oracle;
-    var blacklist;
-    var supplier = accounts[1];
-    var consumer = accounts[2];
-    var master = accounts[3];
-    var special_consumer = accounts[4];
-    var special_consumer2 = accounts[5];
-    var blacklisted_supplier = accounts[6];
+    let market;
+    let token;
+    let oracle;
+    let blacklist;
+    let profileRegistry;
+    let supplier = accounts[1];
+    let consumer = accounts[2];
+    let master = accounts[3];
+    let specialConsumer = accounts[4];
+    let specialConsumer2 = accounts[5];
+    let blacklistedSupplier = accounts[6];
 
     let benchmarks = [40, 21, 2, 256, 160, 1000, 1000, 6, 3, 1200, 1860000, 3000];
-    let test_price = 1e15;
-    let test_duration = 90000;
+    let testPrice = 1e15;
+    let testDuration = 90000;
 
     before(async function () {
-        token = await SNM.deployed();
-        market = await Market.deployed();
-        oracle = await OracleUSD.deployed();
-        blacklist = await Blacklist.deployed();
+        token = await SNMD.new();
+        oracle = await OracleUSD.new();
         await oracle.setCurrentPrice(1e18);
+        blacklist = await Blacklist.new();
+        profileRegistry = await ProfileRegistry.new();
+        market = await Market.new(token.address, blacklist.address, oracle.address, profileRegistry.address, 12);
+        await token.AddMarket(market.address);
 
         await token.transfer(consumer, 1000000 * 1e18, { from: accounts[0] });
         await token.transfer(supplier, 1000000 * 1e18, { from: accounts[0] });
-        await token.transfer(special_consumer, 3600, { from: accounts[0] });
-        await token.transfer(special_consumer2, 3605, { from: accounts[0] });
+        await token.transfer(specialConsumer, 3600, { from: accounts[0] });
+        await token.transfer(specialConsumer2, 3605, { from: accounts[0] });
     });
 
     it('test balances', async function () {
-        let supplierBalance = await token.balanceOf.call(supplier);
-        let consumerBalance = await token.balanceOf.call(consumer);
+        await token.balanceOf.call(supplier);
+        await token.balanceOf.call(consumer);
     });
 
     it('test CreateOrder forward ask', async function () {
         let stateBefore = await market.GetOrdersAmount();
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
-            test_duration, // duration
-            test_price, // price
+            testDuration, // duration
+            testPrice, // price
             [0, 0, 0], // netflags
             IdentityLevel.ANONIMOUS, // identity level
             0x0, // blacklist
@@ -80,17 +72,18 @@ contract('Market', async function (accounts) {
             { from: supplier });
         let stateAfter = await market.GetOrdersAmount();
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
+        // TODO: get this order and match params
     });
 
     it('test CreateOrder forward bid', async function () {
         // TODO: test above normal deal
         let stateBefore = await market.GetOrdersAmount();
         let balanceBefore = await token.balanceOf(consumer);
-        const bid = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
-            test_duration, // duration
-            test_price, // price
+            testDuration, // duration
+            testPrice, // price
             [0, 0, 0], // netflags
             IdentityLevel.ANONIMOUS, // identity level
             0x0, // blacklist
@@ -101,7 +94,7 @@ contract('Market', async function (accounts) {
         let stateAfter = await market.GetOrdersAmount();
         let balanceAfter = await token.balanceOf(consumer);
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
-        assert.equal(balanceBefore.toNumber(10) - 86400 * test_price, balanceAfter.toNumber(10));
+        assert.equal(balanceBefore.toNumber(10) - 86400 * testPrice, balanceAfter.toNumber(10));
         // TODO: get this order and match params
         // TODO: get balance and check block for 1 day
 
@@ -113,13 +106,14 @@ contract('Market', async function (accounts) {
         // TODO: get this order and match params
         // TODO: get balance and check block for 1 hour
     });
+
     it('test CreateOrder spot ask', async function () {
         let stateBefore = await market.GetOrdersAmount();
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
             0, // duration
-            test_price, // price
+            testPrice, // price
             [0, 0, 0], // netflags
             IdentityLevel.ANONIMOUS, // identity level
             0x0, // blacklist
@@ -132,18 +126,18 @@ contract('Market', async function (accounts) {
     });
 
     it(' test makret balance', async function () {
-        let a = await token.balanceOf(market.address);
+        await token.balanceOf(market.address);
     });
 
     it('test CreateOrder spot bid', async function () {
         let stateBefore = await market.GetOrdersAmount();
         let balanceBefore = await token.balanceOf(consumer);
         // TODO: test above normal deal
-        const bid = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
             0, // duration
-            test_price, // price
+            testPrice, // price
             [0, 0, 0], // netflags
             IdentityLevel.ANONIMOUS, // identity level
             0x0, // blacklist
@@ -153,24 +147,23 @@ contract('Market', async function (accounts) {
         let stateAfter = await market.GetOrdersAmount();
         let balanceAfter = await token.balanceOf(consumer);
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
-        assert.equal(balanceBefore.toNumber(10) - 3600 * test_price, balanceAfter.toNumber(10));
-        // assert.equal(expetedState, realState);
+        assert.equal(balanceBefore.toNumber(10) - 3600 * testPrice, balanceAfter.toNumber(10));
     });
 
     it('test CancelOrder: cancel ask order', async function () {
         // TODO: success case - cancel ask order
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
-            test_duration, // duration
-            test_price, // price
+            testDuration, // duration
+            testPrice, // price
             [0, 0, 0], // netflags
             IdentityLevel.ANONIMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
             { from: supplier });
-        let cancled = await market.CancelOrder(5, { from: supplier });
+        await market.CancelOrder(5, { from: supplier });
 
         // TODO: verify order = inactive
         // TODO: verify token not(!) transfered
@@ -183,18 +176,18 @@ contract('Market', async function (accounts) {
 
     it('test CancelOrder: cancel bid order', async function () {
         // TODO: success case - cancel bid order
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
-            test_duration, // duration
-            test_price, // price
+            testDuration, // duration
+            testPrice, // price
             [0, 0, 0], // netflags
             IdentityLevel.ANONIMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
             { from: consumer });
-        let cancled = await market.CancelOrder(6, { from: consumer });
+        await market.CancelOrder(6, { from: consumer });
     });
 
     it('test CancelOrder: error case 1', async function () {
@@ -204,11 +197,11 @@ contract('Market', async function (accounts) {
 
     it('test CancelOrder: error case 2', async function () {
         // error case - foreign address of sender
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
-            test_duration, // duration
-            test_price, // price
+            testDuration, // duration
+            testPrice, // price
             [0, 0, 0], // netflags
             IdentityLevel.ANONIMOUS, // identity level
             0x0, // blacklist
@@ -225,20 +218,20 @@ contract('Market', async function (accounts) {
 
     it('test OpenDeal forward', async function () {
         let stateBefore = await market.GetDealsAmount();
-        var deal = await market.OpenDeal(1, 2, { from: consumer });
+        await market.OpenDeal(1, 2, { from: consumer });
         let stateAfter = await market.GetDealsAmount();
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
     });
 
     it('test OpenDeal: spot', async function () {
         let stateBefore = await market.GetDealsAmount();
-        var deal = await market.OpenDeal(3, 4, { from: master });
+        await market.OpenDeal(3, 4, { from: master });
         let stateAfter = await market.GetDealsAmount();
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
     });
 
     it('test OpenDeal:closing after ending', async function () {
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
             1, // duration
@@ -250,7 +243,7 @@ contract('Market', async function (accounts) {
             benchmarks, // benchmarks
             { from: supplier });
 
-        const bid = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
             1, // duration
@@ -260,64 +253,66 @@ contract('Market', async function (accounts) {
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
-            { from: consumer }); ;
-        await increaseTime(2);
+            { from: consumer });
         let ordersAmount = await market.GetOrdersAmount();
         ordersAmount = ordersAmount.toNumber(10);
         let stateBefore = await market.GetDealsAmount();
-        var deal = await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: consumer });
-        stateAfter = await market.GetDealsAmount().toNumber(10);
+        await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: consumer });
+        let stateAfter = await market.GetDealsAmount();
+        await increaseTime(2);
+        assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
     });
 
     it('test BlockedBalance: forward', async function () {
         let rate = (await oracle.getCurrentPrice()).toNumber(10);
-        let shouldBlocked = test_price * 86400 * rate / 1e18;
+        let shouldBlocked = testPrice * 86400 * rate / 1e18;
         let deal = await market.GetDealParams(1);
         let nowBlocked = deal[4].toNumber(10); // we do not cast getters as as struct
         assert.equal(shouldBlocked, nowBlocked);
     });
 
     it('test USD price changing ', async function () {
-        let price = await oracle.setCurrentPrice(2000000000000, { from: accounts[0] });
-    }); (master, { from: supplier });
-});
+        await oracle.setCurrentPrice(2000000000000, { from: accounts[0] });
+    });
 
-it('test ConfirmWorker', async function () {
     it('test RegisterWorker', async function () {
-        const reg = await market.RegisterWorker;
+        await market.RegisterWorker(master, { from: supplier });
+    });
+
+    it('test ConfirmWorker', async function () {
         let stateBefore = await market.GetMaster(supplier);
-        let conf = await market.ConfirmWorker(supplier, { from: master });
+        await market.ConfirmWorker(supplier, { from: master });
         let stateAfter = await market.GetMaster(supplier);
-        assert.ok(stateBefore != stateAfter && stateAfter == master);
+        assert.ok(stateBefore !== stateAfter && stateAfter === master);
     });
 
     it('test RemoveWorker', async function () {
-        let rem = await market.RemoveWorker(supplier, master, { from: master });
+        await market.RemoveWorker(supplier, master, { from: master });
         let check = await market.GetMaster(supplier);
         assert.equal(check, supplier);
     });
 
     it('test GetDealInfo', async function () {
-        let getInfo = await market.GetDealInfo(2);
+        await market.GetDealInfo(2);
     });
 
     it('test GetDealParams', async function () {
-        let getParams = await market.GetDealParams(1);
+        await market.GetDealParams(1);
     });
 
     it('test GetOrderInfo', async function () {
-        let getInfo = await market.GetOrderInfo(2);
+        await market.GetOrderInfo(2);
     });
 
     it('test GetOrderParams', async function () {
-        let getParams = await market.GetOrderParams(2);
+        await market.GetOrderParams(2);
     });
 
     it('test Bill: spot', async function () {
         let deal = await market.GetDealParams(2);
         let lastBillTS = deal[6];
         await increaseTime(2);
-        var bil = await market.Bill(2, { from: supplier });
+        await market.Bill(2, { from: supplier });
         let dealAfter = await market.GetDealParams(2);
         let lastBillAfter = dealAfter[6];
         assert.ok(lastBillTS.toNumber(10) < lastBillAfter.toNumber(10));
@@ -327,7 +322,7 @@ it('test ConfirmWorker', async function () {
         let deal = await market.GetDealParams(1);
         let lastBillTS = deal[6];
         await increaseTime(2);
-        var bil = await market.Bill(1, { from: supplier });
+        await market.Bill(1, { from: supplier });
         let dealAfter = await market.GetDealParams(1);
         let lastBillAfter = dealAfter[6];
         assert.ok(lastBillTS.toNumber(10) < lastBillAfter.toNumber(10));
@@ -338,7 +333,7 @@ it('test ConfirmWorker', async function () {
         let deal = await market.GetDealParams(1);
         let lastBillTS = deal[6];
         await increaseTime(2);
-        var bil = await market.Bill(1, { from: supplier });
+        await market.Bill(1, { from: supplier });
         let dealAfter = await market.GetDealParams(1);
         let lastBillAfter = dealAfter[6];
         assert.ok(lastBillTS.toNumber(10) < lastBillAfter.toNumber(10));
@@ -347,7 +342,7 @@ it('test ConfirmWorker', async function () {
 
     it('test CreateChangeRequest for cancel: ask', async function () {
         let stateBefore = await market.GetChangeRequestsAmount();
-        let cr = await market.CreateChangeRequest(1, 3, 100000, { from: supplier });
+        await market.CreateChangeRequest(1, 3, 100000, { from: supplier });
         let stateAfter = await market.GetChangeRequestsAmount();
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
     });
@@ -355,14 +350,14 @@ it('test ConfirmWorker', async function () {
     it('test CancelChangeRequest after creation: ask', async function () {
         let lastCR = (await market.GetChangeRequestsAmount()).toNumber(10);
         let stateBefore = await market.GetChangeRequestInfo(lastCR);
-        let cancel = await market.CancelChangeRequest(lastCR, { from: supplier });
+        await market.CancelChangeRequest(lastCR, { from: supplier });
         let stateAfter = await market.GetChangeRequestInfo(lastCR);
-        assert.ok(stateBefore[4] != stateAfter[4]);
+        assert.ok(stateBefore[4] !== stateAfter[4]);
     });
 
     it('test CreateChangeRequest for cancel: bid', async function () {
         let stateBefore = await market.GetChangeRequestsAmount();
-        let cr = await market.CreateChangeRequest(1, 3, 100000, { from: consumer });
+        await market.CreateChangeRequest(1, 3, 100000, { from: consumer });
         let stateAfter = await market.GetChangeRequestsAmount();
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
     });
@@ -370,14 +365,14 @@ it('test ConfirmWorker', async function () {
     it('test CancelChangeRequest after creation: bid', async function () {
         let lastCR = (await market.GetChangeRequestsAmount()).toNumber(10);
         let stateBefore = await market.GetChangeRequestInfo(lastCR);
-        let cancel = await market.CancelChangeRequest(lastCR, { from: consumer });
+        await market.CancelChangeRequest(lastCR, { from: consumer });
         let stateAfter = await market.GetChangeRequestInfo(lastCR);
-        assert.ok(stateBefore[4] != stateAfter[4]);
+        assert.ok(stateBefore[4] !== stateAfter[4]);
     });
 
     it('test CreateChangeRequest for rejecting: bid', async function () {
         let stateBefore = await market.GetChangeRequestsAmount();
-        let cr = await market.CreateChangeRequest(3, 3, 100000, { from: consumer });
+        await market.CreateChangeRequest(3, 3, 100000, { from: consumer });
         let stateAfter = await market.GetChangeRequestsAmount();
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
     });
@@ -385,14 +380,14 @@ it('test ConfirmWorker', async function () {
     it('test CancelChangeRequest rejecting: ask', async function () {
         let lastCR = await market.GetChangeRequestsAmount();
         let stateBefore = await market.GetChangeRequestInfo(lastCR.toNumber(10));
-        let cancel = await market.CancelChangeRequest(lastCR.toNumber(10), { from: supplier });
+        await market.CancelChangeRequest(lastCR.toNumber(10), { from: supplier });
         let stateAfter = await market.GetChangeRequestInfo(lastCR.toNumber(10));
-        assert.ok(stateBefore[4] != stateAfter[4]);
+        assert.ok(stateBefore[4] !== stateAfter[4]);
     });
 
     it('test CreateChangeRequest for rejecting: ask', async function () {
         let stateBefore = await market.GetChangeRequestsAmount();
-        let cr = await market.CreateChangeRequest(3, 3, 100000, { from: supplier });
+        await market.CreateChangeRequest(3, 3, 100000, { from: supplier });
         let stateAfter = await market.GetChangeRequestsAmount();
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
     });
@@ -400,30 +395,30 @@ it('test ConfirmWorker', async function () {
     it('test CancelChangeRequest rejecting: bid', async function () {
         let lastCR = await market.GetChangeRequestsAmount();
         let stateBefore = await market.GetChangeRequestInfo(lastCR.toNumber(10));
-        let cancel = await market.CancelChangeRequest(lastCR.toNumber(10), { from: consumer });
+        await market.CancelChangeRequest(lastCR.toNumber(10), { from: consumer });
         let stateAfter = await market.GetChangeRequestInfo(lastCR.toNumber(10));
-        assert.ok(stateBefore[4] != stateAfter[4]);
+        assert.ok(stateBefore[4] !== stateAfter[4]);
     });
 
     it('test CreateChangeRequest for spot deal: ask', async function () {
-        let cr = await market.CreateChangeRequest(2, 2, 0, { from: supplier });
+        await market.CreateChangeRequest(2, 2, 0, { from: supplier });
     });
 
     it('test CreateChangeRequest for spot deal: bid', async function () {
         await increaseTime(2);
-        let cr = await market.CreateChangeRequest(2, 2, 0, { from: consumer });
+        await market.CreateChangeRequest(2, 2, 0, { from: consumer });
         let newState = await market.GetDealParams(2);
         let newPrice = newState[1].toNumber(10);
         assert.equal(2, newPrice);
     });
 
     it('test CreateChangeRequest for forward deal: bid', async function () {
-        let cr = await market.CreateChangeRequest(1, 2, 2999, { from: consumer });
+        await market.CreateChangeRequest(1, 2, 2999, { from: consumer });
     });
 
     it('test CreateChangeRequest for forward deal: ask', async function () {
         await increaseTime(2);
-        let cr = await market.CreateChangeRequest(1, 2, 3000, { from: supplier });
+        await market.CreateChangeRequest(1, 2, 3000, { from: supplier });
         let newState = await market.GetDealParams(1);
         let newPrice = newState[1].toNumber(10);
         let newDuration = newState[0].toNumber(10);
@@ -435,7 +430,7 @@ it('test ConfirmWorker', async function () {
         let stateBefore = await market.GetDealParams(1);
         let oldPrice = stateBefore[1].toNumber(10);
         let oldDuration = stateBefore[0].toNumber(10);
-        let cr = await market.CreateChangeRequest(1, 3, oldDuration, { from: consumer });
+        await market.CreateChangeRequest(1, 3, oldDuration, { from: consumer });
         let newState = await market.GetDealParams(1);
         let newPrice = newState[1].toNumber(10);
         let newDuration = newState[0].toNumber(10);
@@ -443,22 +438,8 @@ it('test ConfirmWorker', async function () {
         assert.equal(oldDuration, newDuration);
     });
 
-    // it('test CreateChangeRequest for forward deal  + close is cause of out of funds: automatch ask', async function () {
-    //     await increaseTime(2);
-    //     let stateBefore = await market.GetDealParams(1);
-    //     let oldPrice = stateBefore[1].toNumber(10);
-    //     let oldDuration = stateBefore[0].toNumber(10);
-    //     let cr = await market.CreateChangeRequest(1, 1, oldDuration, {from: supplier});
-    //     let newState = await market.GetDealParams(1);
-    //     let newPrice = newState[1].toNumber(10);
-    //     let newDuration = newState[0].toNumber(10);
-    //     assert.ok(oldPrice > newPrice);
-    //     assert.equal(oldDuration, newDuration);
-    //     // here deal closes
-    // });
-
     it('test re-OpenDeal forward: close it with blacklist', async function () {
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
             5, // duration
@@ -470,7 +451,7 @@ it('test ConfirmWorker', async function () {
             benchmarks, // benchmarks
             { from: supplier });
 
-        const bid = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
             4, // duration
@@ -484,7 +465,7 @@ it('test ConfirmWorker', async function () {
         let ordersAmount = await market.GetOrdersAmount();
         ordersAmount = ordersAmount.toNumber(10);
         let stateBefore = await market.GetDealsAmount();
-        var deal = await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: consumer });
+        await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: consumer });
         let stateAfter = await market.GetDealsAmount();
         await increaseTime(2);
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
@@ -492,7 +473,7 @@ it('test ConfirmWorker', async function () {
 
     it('test CloseDeal spot: close it when paid amount > blocked balance, not enough money', async function () {
         await oracle.setCurrentPrice(1e12);
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
             0, // duration
@@ -504,7 +485,7 @@ it('test ConfirmWorker', async function () {
             benchmarks, // benchmarks
             { from: supplier });
 
-        const bid = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
             0, // duration
@@ -514,12 +495,12 @@ it('test ConfirmWorker', async function () {
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
-            { from: special_consumer });
+            { from: specialConsumer });
         let ordersAmount = await market.GetOrdersAmount();
         ordersAmount = ordersAmount.toNumber(10);
         let stateBefore = await market.GetDealsAmount();
-        await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: special_consumer });
-        var dealId = (await market.GetDealsAmount()).toNumber(10);
+        await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: specialConsumer });
+        let dealId = (await market.GetDealsAmount()).toNumber(10);
 
         let stateAfterOpen = await market.GetDealParams(dealId);
         let stateAfter = await market.GetDealsAmount();
@@ -528,19 +509,19 @@ it('test ConfirmWorker', async function () {
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
 
         await oracle.setCurrentPrice(1e18);
-        let close = await market.CloseDeal(dealId, false, { from: special_consumer });
+        await market.CloseDeal(dealId, false, { from: specialConsumer });
         let stateAfterClose = await market.GetDealParams(dealId);
         assert.equal(stateAfterClose[3].toNumber(10), 2);
-        assert.equal(stateAfterClose[4].toNumber(10), 0);// balance
-        assert.equal(stateAfterClose[5].toNumber(10), 3600);// payout
+        assert.equal(stateAfterClose[4].toNumber(10), 0); // balance
+        assert.equal(stateAfterClose[5].toNumber(10), 3600); // payout
         assert.equal(stateAfterOpen[3].toNumber(10), 1);
-        assert.equal(stateAfterOpen[4].toNumber(10), 3600);// balance
-        assert.equal(stateAfterOpen[5].toNumber(10), 0);// payout
+        assert.equal(stateAfterOpen[4].toNumber(10), 3600); // balance
+        assert.equal(stateAfterOpen[5].toNumber(10), 0); // payout
     });
 
     it('test CloseDeal spot: close it when paid amount > blocked balance', async function () {
         await oracle.setCurrentPrice(1e12);
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
             0, // duration
@@ -552,7 +533,7 @@ it('test ConfirmWorker', async function () {
             benchmarks, // benchmarks
             { from: supplier });
 
-        const bid = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
             0, // duration
@@ -576,21 +557,21 @@ it('test ConfirmWorker', async function () {
 
         await oracle.setCurrentPrice(1e18);
 
-        let close = await market.CloseDeal(dealId, false, { from: consumer });
+        await market.CloseDeal(dealId, false, { from: consumer });
         let stateAfterClose = await market.GetDealParams(dealId);
         let infoAfterClose = await market.GetDealInfo(dealId);
         let dealTime = stateAfterClose[2].toNumber(10) - infoAfterClose[6].toNumber(10);
         assert.equal(stateAfterClose[3].toNumber(10), 2);
-        assert.equal(stateAfterClose[4].toNumber(10), 3600000000);// balance
-        assert.equal(stateAfterClose[5].toNumber(10), dealTime * 1e18 * 1e6 / 1e18);// payout
+        assert.equal(stateAfterClose[4].toNumber(10), 3600000000); // balance
+        assert.equal(stateAfterClose[5].toNumber(10), dealTime * 1e18 * 1e6 / 1e18); // payout
         assert.equal(stateAfterOpen[3].toNumber(10), 1);
-        assert.equal(stateAfterOpen[4].toNumber(10), 3600);// balance
-        assert.equal(stateAfterOpen[5].toNumber(10), 0);// payout
+        assert.equal(stateAfterOpen[4].toNumber(10), 3600); // balance
+        assert.equal(stateAfterOpen[5].toNumber(10), 0); // payout
     });
 
     it('test create deal from spot BID and forward ASK and close with blacklist', async function () {
         await oracle.setCurrentPrice(1e12);
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
             36000, // duration
@@ -600,9 +581,9 @@ it('test ConfirmWorker', async function () {
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
-            { from: blacklisted_supplier });
+            { from: blacklistedSupplier });
 
-        const bid = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
             0, // duration
@@ -620,20 +601,20 @@ it('test ConfirmWorker', async function () {
         let dealId = (await market.GetDealsAmount()).toNumber(10);
 
         let stateAfter = await market.GetDealsAmount();
-        let stateAfterOpen = await market.GetDealParams(dealId);
+        await market.GetDealParams(dealId);
         await increaseTime(2);
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
 
         await oracle.setCurrentPrice(1e18);
 
-        let close = await market.CloseDeal(dealId, true, { from: consumer });
-        let blacklisted = await blacklist.Check(consumer, blacklisted_supplier);
+        await market.CloseDeal(dealId, true, { from: consumer });
+        let blacklisted = await blacklist.Check(consumer, blacklistedSupplier);
         assert.ok(blacklisted);
     });
 
     it('test create deal from spot BID and forward ASK with blacklisted supplier', async function () {
         await oracle.setCurrentPrice(1e12);
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
             36000, // duration
@@ -643,9 +624,9 @@ it('test ConfirmWorker', async function () {
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
-            { from: blacklisted_supplier });
+            { from: blacklistedSupplier });
 
-        const bid = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
             0, // duration
@@ -665,14 +646,14 @@ it('test ConfirmWorker', async function () {
         let stateBefore = await market.GetDealParams(4);
         let oldPrice = stateBefore[1].toNumber(10);
         let oldDuration = stateBefore[0].toNumber(10);
-        let cr = await market.CreateChangeRequest(4, 2, 100, { from: supplier });
+        await market.CreateChangeRequest(4, 2, 100, { from: supplier });
         let newState = await market.GetDealParams(4);
         let newPrice = newState[1].toNumber(10);
         let newDuration = newState[0].toNumber(10);
-        assert.ok(newPrice == oldPrice);
-        assert.ok(newDuration == oldDuration);
+        assert.ok(newPrice === oldPrice);
+        assert.ok(newDuration === oldDuration);
         let a = (await market.GetChangeRequestsAmount()).toNumber(10);
-        let crInfo = await market.GetChangeRequestInfo(a);
+        await market.GetChangeRequestInfo(a);
     });
 
     it('test CreateChangeRequest for forward deal: fullcheck bid', async function () {
@@ -680,7 +661,7 @@ it('test ConfirmWorker', async function () {
         let stateBefore = await market.GetDealParams(4);
         let oldPrice = stateBefore[1].toNumber(10);
         let oldDuration = stateBefore[0].toNumber(10);
-        let cr = await market.CreateChangeRequest(4, 3, 99, { from: consumer });
+        await market.CreateChangeRequest(4, 3, 99, { from: consumer });
         let newState = await market.GetDealParams(4);
         let newPrice = newState[1].toNumber(10);
         let newDuration = newState[0].toNumber(10);
@@ -690,35 +671,35 @@ it('test ConfirmWorker', async function () {
 
     it('test Bill delayed I: spot', async function () {
         await increaseTime(2);
-        var bil = await market.Bill(2, { from: supplier });
+        await market.Bill(2, { from: supplier });
     });
 
     it('test Bill delayed II: spot', async function () {
         await increaseTime(2);
-        var bil = await market.Bill(2, { from: supplier });
+        await market.Bill(2, { from: supplier });
     });
 
     it('test CloseDeal: spot w/o blacklist', async function () {
-        let close = await market.CloseDeal(2, false, { from: supplier });
+        await market.CloseDeal(2, false, { from: supplier });
         let stateAfter = await market.GetDealParams(2);
         assert.equal(stateAfter[3].toNumber(10), 2);
     });
 
     it('test CloseDeal: closing after ending', async function () {
-        let close = await market.CloseDeal(3, false, { from: supplier });
+        await market.CloseDeal(3, false, { from: supplier });
         let stateAfter = await market.GetDealParams(3);
         assert.equal(stateAfter[3].toNumber(10), 2);
     });
 
     it('test CloseDeal: forward w blacklist', async function () {
-        let close = await market.CloseDeal(4, true, { from: consumer });
+        await market.CloseDeal(4, true, { from: consumer });
         let stateAfter = await market.GetDealParams(4);
         assert.equal(stateAfter[3].toNumber(10), 2);
     });
 
     it('test Bill spot: close it when next period sum > consumer balance', async function () {
         await oracle.setCurrentPrice(1e12);
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
             0, // duration
@@ -730,7 +711,7 @@ it('test ConfirmWorker', async function () {
             benchmarks, // benchmarks
             { from: supplier });
 
-        const bid = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
             0, // duration
@@ -740,50 +721,49 @@ it('test ConfirmWorker', async function () {
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
-            { from: special_consumer2 });
+            { from: specialConsumer2 });
         let ordersAmount = await market.GetOrdersAmount();
         ordersAmount = ordersAmount.toNumber(10);
         let stateBefore = await market.GetDealsAmount();
-        await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: special_consumer2 });
+        await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: specialConsumer2 });
         let dealId = (await market.GetDealsAmount()).toNumber(10);
 
         let stateAfter = await market.GetDealsAmount();
-        let stateAfterOpen = await market.GetDealParams(dealId);
+        await market.GetDealParams(dealId);
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
-        // await oracle.setCurrentPrice(2e12);
+
         increaseTime(3600);
-        let close = await market.Bill(dealId, { from: special_consumer2 });
+        await market.Bill(dealId, { from: specialConsumer2 });
         let stateAfterClose = await market.GetDealParams(dealId);
-        let infoAfterClose = await market.GetDealInfo(dealId);
-        let dealTime = stateAfterClose[2].toNumber(10) - infoAfterClose[6].toNumber(10);
+        await market.GetDealInfo(dealId);
         assert.equal(stateAfterClose[3].toNumber(10), 2);
         await oracle.setCurrentPrice(1e18);
     });
 
     it('test Set new blacklist', async function () {
         let newBL = await Blacklist.new();
-        let stateAfter = await market.SetBlacklistAddress(newBL.address);
+        await market.SetBlacklistAddress(newBL.address);
     });
 
     it('test Set new pr', async function () {
         let newPR = await ProfileRegistry.new();
-        let stateAfter = await market.SetProfileRegistryAddress(newPR.address);
+        await market.SetProfileRegistryAddress(newPR.address);
     });
 
     it('test Set new oracle', async function () {
         let newOracle = await OracleUSD.new();
-        let rate = await newOracle.setCurrentPrice(20000000000000);
-        let stateAfter = await market.SetOracleAddress(newOracle.address);
+        await newOracle.setCurrentPrice(20000000000000);
+        await market.SetOracleAddress(newOracle.address);
     });
 
     it('test QuickBuy', async function () {
         let stateBefore = await market.GetOrdersAmount();
         let dealsBefore = await market.GetDealsAmount();
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
-            test_duration, // duration
-            test_price, // price
+            testDuration, // duration
+            testPrice, // price
             [0, 0, 0], // netflags
             IdentityLevel.ANONIMOUS, // identity level
             0x0, // blacklist
@@ -793,13 +773,13 @@ it('test ConfirmWorker', async function () {
         let stateAfter = await market.GetOrdersAmount();
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
 
-        let quick = await market.QuickBuy(stateAfter, { from: consumer });
+        await market.QuickBuy(stateAfter, { from: consumer });
         let dealsAfter = await market.GetDealsAmount();
         assert.equal(dealsBefore.toNumber(10) + 1, dealsAfter.toNumber(10));
     });
 
     it('test re-OpenDeal forward: close it with blacklist', async function () {
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
             3600, // duration
@@ -811,7 +791,7 @@ it('test ConfirmWorker', async function () {
             benchmarks, // benchmarks
             { from: consumer });
 
-        const bid = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
             3600, // duration
@@ -824,15 +804,14 @@ it('test ConfirmWorker', async function () {
             { from: consumer });
         let ordersAmount = await market.GetOrdersAmount();
         ordersAmount = ordersAmount.toNumber(10);
-        let stateBefore = await market.GetDealsAmount();
-        var deal = await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: consumer });
+        await market.GetDealsAmount();
+        await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: consumer });
         let stateAfter = await market.GetDealsAmount();
-        let close = await market.CloseDeal(stateAfter.toNumber(10), false, { from: consumer });
-        // await increaseTime(2);assert.equal(stateBefore.toNumber(10) + 1 , stateAfter.toNumber(10));
+        await market.CloseDeal(stateAfter.toNumber(10), false, { from: consumer });
     });
 
     it('test OpenDeal forward: close it after ending', async function () {
-        const ask = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
             '0x0', // counter_party
             3600, // duration
@@ -844,7 +823,7 @@ it('test ConfirmWorker', async function () {
             benchmarks, // benchmarks
             { from: consumer });
 
-        const bid = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
             3600, // duration
@@ -857,19 +836,18 @@ it('test ConfirmWorker', async function () {
             { from: consumer });
         let ordersAmount = await market.GetOrdersAmount();
         ordersAmount = ordersAmount.toNumber(10);
-        let stateBefore = await market.GetDealsAmount();
-        var deal = await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: consumer });
+        await market.GetDealsAmount();
+        await market.OpenDeal(ordersAmount - 1, ordersAmount, { from: consumer });
         let stateAfter = await market.GetDealsAmount();
         await increaseTime(2);
-        let close = await market.CloseDeal(stateAfter.toNumber(10), false, { from: consumer });
-        // await increaseTime(2);assert.equal(stateBefore.toNumber(10) + 1 , stateAfter.toNumber(10));
+        await market.CloseDeal(stateAfter.toNumber(10), false, { from: consumer });
     });
 
     it('test CreateOrder forward bid duration 2 hours', async function () {
         await oracle.setCurrentPrice(1e18, { from: accounts[0] });
         let stateBefore = await market.GetOrdersAmount();
         let balanceBefore = await token.balanceOf(consumer);
-        const bid = await market.PlaceOrder(
+        await market.PlaceOrder(
             ORDER_TYPE.BID, // type
             '0x0', // counter_party
             7200, // duration
@@ -888,11 +866,11 @@ it('test ConfirmWorker', async function () {
     });
 
     it('test UpdateBenchmarks', async function () {
-        const bench = await market.SetBenchmarksQuantity(20);
+        await market.SetBenchmarksQuantity(20);
         assert.equal((await market.GetBenchmarksQuantity()).toNumber(10), 20);
     });
 
-    it('test SetProfileRegistryAddress: bug while we can cast any contract as valid (for example i cast token as a Profile Registry)', async function () {
+    it('test SetProfileRegistryAddress: bug while we can cast any contract as valid (for example i cast token as a Profile Registry)', async function () { // eslint-disable-line max-len
         await market.SetProfileRegistryAddress(token.address);
     });
 });
