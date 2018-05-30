@@ -163,9 +163,10 @@ type workerControl struct {
 
 func newWorkerControl(addr auth.Addr, worker sonm.WorkerManagementClient, orders *ordersSet, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
 	m := &workerControl{
-		worker:    worker,
-		ordersSet: orders,
-		log:       log.With(zap.Stringer("addr", addr)),
+		worker:          worker,
+		benchmarkLoader: benchmarkLoader,
+		ordersSet:       orders,
+		log:             log.With(zap.Stringer("addr", addr)),
 	}
 
 	return m, nil
