@@ -238,7 +238,7 @@ contract Market is Ownable {
 
         PlaceOrder(
             OrderType.ORDER_BID,
-            ask.author,
+            GetMaster(ask.author),
             ask.duration,
             ask.price,
             ask.netflags,
