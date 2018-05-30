@@ -45,6 +45,7 @@ contract('Market', async function (accounts) {
         profileRegistry = await ProfileRegistry.new();
         market = await Market.new(token.address, blacklist.address, oracle.address, profileRegistry.address, 12);
         await token.AddMarket(market.address);
+        await blacklist.SetMarketAddress(market.address);
 
         await token.transfer(consumer, 1000000 * 1e18, { from: accounts[0] });
         await token.transfer(supplier, 1000000 * 1e18, { from: accounts[0] });
