@@ -779,6 +779,30 @@ contract('Market', async function (accounts) {
         assert.equal(dealsBefore.toNumber(10) + 1, dealsAfter.toNumber(10));
     });
 
+    it('test QuickBuy w master', async function () {
+        await market.RegisterWorker(master, { from: supplier });
+        await market.ConfirmWorker(supplier, { from: master });
+        let stateBefore = await market.GetOrdersAmount();
+        let dealsBefore = await market.GetDealsAmount();
+        await market.PlaceOrder(
+            ORDER_TYPE.ASK, // type
+            '0x0', // counter_party
+            testDuration, // duration
+            testPrice, // price
+            [0, 0, 0], // netflags
+            IdentityLevel.ANONIMOUS, // identity level
+            0x0, // blacklist
+            '00000', // tag
+            benchmarks, // benchmarks
+            { from: supplier });
+        let stateAfter = await market.GetOrdersAmount();
+        assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
+
+        await market.QuickBuy(stateAfter, { from: consumer });
+        let dealsAfter = await market.GetDealsAmount();
+        assert.equal(dealsBefore.toNumber(10) + 1, dealsAfter.toNumber(10));
+    });
+
     it('test re-OpenDeal forward: close it with blacklist', async function () {
         await market.PlaceOrder(
             ORDER_TYPE.ASK, // type
