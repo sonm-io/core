@@ -147,6 +147,8 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 
 // Serve starts handling incoming API gRPC requests
 func (m *Worker) Serve() error {
+	defer m.Close()
+
 	m.startTime = time.Now()
 	if err := m.waitMasterApproved(); err != nil {
 		return err
@@ -167,7 +169,6 @@ func (m *Worker) Serve() error {
 
 	log.G(m.ctx).Info("listening for gRPC API connections", zap.Stringer("address", listener.Addr()))
 	err = m.externalGrpc.Serve(listener)
-	m.Close()
 
 	return err
 }
