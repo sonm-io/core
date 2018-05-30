@@ -41,6 +41,7 @@ type storage interface {
 	InsertWorker(conn queryConn, masterID, slaveID string) error
 	UpdateWorker(conn queryConn, masterID, slaveID string) error
 	DeleteWorker(conn queryConn, masterID, slaveID string) error
+	GetMasterByWorker(conn queryConn, slaveID common.Address) (common.Address, error)
 	InsertBlacklistEntry(conn queryConn, adderID, addeeID string) error
 	DeleteBlacklistEntry(conn queryConn, removerID, removeeID string) error
 	GetBlacklist(conn queryConn, request *pb.BlacklistRequest) (*pb.BlacklistReply, error)

@@ -701,6 +701,21 @@ func (c *sqlStorage) DeleteWorker(conn queryConn, masterID, workerID string) err
 	return err
 }
 
+func (c *sqlStorage) GetMasterByWorker(conn queryConn, slaveID common.Address) (common.Address, error) {
+	query, args, _ := c.builder().Select("MasterID").From("Workers").Where("WorkerID = ?", slaveID.Hex()).ToSql()
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return common.Address{}, errors.Wrap(err, "failed to selectMasterByWorker")
+	}
+	defer rows.Close()
+	var masterID string
+	if !rows.Next() {
+		return common.Address{}, errors.New("no rows returned")
+	}
+	rows.Scan(&masterID)
+	return common.StringToAddress(masterID), nil
+}
+
 func (c *sqlStorage) InsertBlacklistEntry(conn queryConn, adderID, addeeID string) error {
 	query, args, err := c.builder().Insert("Blacklists").Values(adderID, addeeID).ToSql()
 	_, err = conn.Exec(query, args...)
