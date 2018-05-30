@@ -6,7 +6,10 @@ Description=SONM Optimus
 EnvironmentFile=/etc/default/sonm-optimus
 Type=simple
 ExecStart=/usr/bin/sonmoptimus --config=${CONFIG_PATH}
+
 Restart=on-failure
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 
 [Install]

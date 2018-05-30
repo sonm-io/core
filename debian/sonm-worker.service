@@ -6,7 +6,10 @@ Description=SONM Worker
 EnvironmentFile=/etc/default/sonm-worker
 Type=simple
 ExecStart=/usr/bin/sonmworker --config=${CONFIG_PATH}
+
 Restart=on-failure
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 
 [Install]
