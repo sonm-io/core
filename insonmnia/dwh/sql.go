@@ -1570,6 +1570,7 @@ func (c *sqlStorage) runQuery(conn queryConn, columns string, withCount bool, qu
 	var count uint64
 	if withCount {
 		var countQuery = strings.Replace(query, "*", "count(*)", 1)
+		countQuery = strings.Split(countQuery, "ORDER BY")[0]
 		countRows, err := conn.Query(countQuery, args...)
 		if err != nil {
 			return nil, 0, errors.Wrapf(err, "count query `%s` failed", countQuery)
