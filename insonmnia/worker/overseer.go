@@ -317,7 +317,7 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 				}
 				if c.description.CommitOnStop {
 					log.G(ctx).Info("trying to upload container")
-					err := c.upload()
+					err := c.upload(ctx)
 					if err != nil {
 						log.G(ctx).Error("failed to commit container", zap.String("id", id), zap.Error(err))
 					}
@@ -325,7 +325,6 @@ func (o *overseer) handleStreamingEvents(ctx context.Context, sinceUnix int64, f
 				if err := c.Cleanup(); err != nil {
 					log.G(ctx).Error("failed to clean up container", zap.String("id", id), zap.Error(err))
 				}
-				c.cancel()
 			default:
 				log.G(ctx).Warn("received unknown event", zap.String("status", message.Status))
 			}
@@ -492,7 +491,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 	o.statuses[pr.ID] = status
 	o.mu.Unlock()
 
-	if err = pr.startContainer(); err != nil {
+	if err = pr.startContainer(ctx); err != nil {
 		return
 	}
 
@@ -527,7 +526,7 @@ func (o *overseer) Exec(ctx context.Context, id string, cmd []string, env []stri
 		err = fmt.Errorf("no such container %s", id)
 		return
 	}
-	ret, err = descriptor.execCommand(cmd, env, isTty, wCh)
+	ret, err = descriptor.execCommand(ctx, cmd, env, isTty, wCh)
 	return
 }
 
@@ -548,7 +547,7 @@ func (o *overseer) Stop(ctx context.Context, containerid string) error {
 		return fmt.Errorf("no such container %s", containerid)
 	}
 
-	return descriptor.Kill()
+	return descriptor.Kill(ctx)
 }
 
 func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
@@ -565,16 +564,16 @@ func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 		return fmt.Errorf("unknown container %s", containerID)
 	}
 	result := multierror.NewMultiError()
-	if err := descriptor.Kill(); err != nil {
+	if err := descriptor.Kill(ctx); err != nil {
 		result = multierror.Append(result, err)
 	}
 	//This is needed in case container is uploaded into external registry
 	if descriptor.description.CommitOnStop {
-		if err := descriptor.upload(); err != nil {
+		if err := descriptor.upload(ctx); err != nil {
 			result = multierror.Append(result, err)
 		}
 	}
-	if err := descriptor.Remove(); err != nil {
+	if err := descriptor.Remove(ctx); err != nil {
 		result = multierror.Append(result, err)
 	}
 	return result.ErrorOrNil()
