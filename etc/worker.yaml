@@ -19,7 +19,7 @@ master: 0x0000000000000000000000000000000000000001
 npp:
   rendezvous:
     endpoints:
-      - 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:14099
+      - 0x1243742340d5504d88af3360036ec9019b933164@127.0.0.1:14099
   relay:
     endpoints:
       - 127.0.0.1:12240
@@ -69,7 +69,7 @@ matcher:
   query_limit: 100
 
 dwh:
-  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@dwh-testnet.sonm.com:15021"
+  endpoint: "0x3f46ed4f779fd378f630d8cd996796c69a7738d2@dwh-testnet.sonm.com:15021"
 
 plugins:
   socket_dir: /run/docker/plugins

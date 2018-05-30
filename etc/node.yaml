@@ -11,7 +11,7 @@ npp:
     #
     # Must be in ETHAddress@Host:Port format.
     endpoints:
-      - 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@rendezvous-testnet.sonm.com:14099
+      - 0x1243742340d5504d88af3360036ec9019b933164@rendezvous-testnet.sonm.com:14099
   # Relay settings.
   relay:
     # Known relay endpoints.
@@ -24,7 +24,7 @@ npp:
 # DWH service settings
 dwh:
   # marketplace gRPC endpoint, required
-  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@dwh-testnet.sonm.com:15021"
+  endpoint: "0x3f46ed4f779fd378f630d8cd996796c69a7738d2@dwh-testnet.sonm.com:15021"
 
 # Matcher settings.
 # Matcher is routine that catches created BID orders and try to
