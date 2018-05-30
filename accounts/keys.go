@@ -9,6 +9,7 @@ import (
 	"path"
 
 	"github.com/howeyc/gopass"
+	"github.com/mitchellh/go-homedir"
 	"github.com/sonm-io/core/util"
 )
 
@@ -199,7 +200,12 @@ func NewSilentPrinter() Printer { return new(silentPrinter) }
 // retrieve pass-phrase interactively
 func DefaultKeyOpener(p Printer, keyDir, passPhrase string) (KeyOpener, error) {
 	var err error
-	// use default key store dir if not specified in config
+	keyDir, err = homedir.Expand(keyDir)
+	if err != nil {
+		return nil, err
+	}
+
+	// Use default key store dir if not specified in config.
 	if keyDir == "" {
 		keyDir, err = GetDefaultKeyStoreDir()
 		if err != nil {
