@@ -708,14 +708,14 @@ func (c *sqlStorage) GetMasterByWorker(conn queryConn, slaveID common.Address) (
 		return common.Address{}, errors.Wrap(err, "failed to selectMasterByWorker")
 	}
 	defer rows.Close()
-	var sMasterID string
+	var masterID string
 	if !rows.Next() {
 		return common.Address{}, errors.New("no rows returned")
 	}
-	if err := rows.Scan(&sMasterID); err != nil {
+	if err := rows.Scan(&masterID); err != nil {
 		return common.Address{}, errors.Wrap(err, "failed to scan MasterID row")
 	}
-	return util.HexToAddress(sMasterID)
+	return util.HexToAddress(masterID)
 }
 
 func (c *sqlStorage) InsertBlacklistEntry(conn queryConn, adderID, addeeID string) error {
