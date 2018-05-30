@@ -129,10 +129,25 @@ sonm-core (0.4.0-alpha1) UNRELEASED; urgency=low
     This adds able to read BID orders from the yaml spec and place them on Marketplace.
   * Added: deal matcher.
   * Added: ETH load testing tools.
+  * Added: master-worker relationships (#775).
+  * Added: ability to save cli config (#790).
+  * Added: worker admin (#807).
+    This commit allows to specify admin ETH key for a worker to be able
+    to have access to worker management tools.
   * Added: autosell bot.
     This bot acts as a separate application and attaches to a specified workers, managing them
     by scanning available resources and trying to sell them using marketplace scanning with
     minor help of machine learning.
+  * Added: introduce multi-keystore (#785)
+    This adds a keystore implementation which can operate on multiple ethereum keys.
+  * Added: add oracle contract (#808).
+  * Added: CLI can now purge all ask-plans (#818).
+  * Added: manage blacklists from Node (#766).
+  * Added: container restart policy (#830).
+  * Added: able to parse USD price without space (#834).
+  * Added: multi-market token (#825).
+  * Added: manually allow to expose container ports (#850).
+  * Added: collect disk space info (#880).
   * Changed: update configs and binaries location (#504).
     Now we keep all configs into `etc` directory, while all binaries are now located in
     the `target` directory.
@@ -158,6 +173,12 @@ sonm-core (0.4.0-alpha1) UNRELEASED; urgency=low
     This drops supporting for hub address parameter into task API. Now we're using dealID as
     counterpart identifier to resolve addresses and perform requests.
   * Changed: configurable blockchain endpoints (#697).
+  * Changed: extend deal info with tasks and resources (#712).
+  * Changed: now smart-contracts are located in this repository.
+  * Changed: CLI now always requires --config flag (#744).
+  * Changed: make CLI commands more consistent (#786).
+    This changes CLI sub-commands semantic to follow the "entity-action" commands style.
+    Also, using non-plural words for commands names.
 
  -- Evgeny Safronov <division494@gmail.com>  Fri, 04 May 2018 12:57:02 +0300
 
