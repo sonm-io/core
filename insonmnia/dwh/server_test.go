@@ -620,9 +620,6 @@ func TestDWH_monitor(t *testing.T) {
 	if err != nil {
 		t.Error("failed to delete worker (additional)")
 	}
-	if err != nil {
-		t.Error("failed to insert worker")
-	}
 	if err := testDealUpdated(deal, commonID); err != nil {
 		t.Errorf("testDealUpdated: %s", err)
 		return
