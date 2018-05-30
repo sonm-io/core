@@ -24,7 +24,7 @@ marketplace:
   # Interval of periodic current orders fetching from the marketplace.
   interval: 30s
   # DWH endpoint.
-  endpoint: 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@5.178.85.52:15021
+  endpoint: 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@dwh-testnet.sonm.com:15021
 
 # Optimization engine settings.
 optimization:
