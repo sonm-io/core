@@ -19,10 +19,10 @@ master: 0x0000000000000000000000000000000000000001
 npp:
   rendezvous:
     endpoints:
-      - 0x1243742340d5504d88af3360036ec9019b933164@127.0.0.1:14099
+      - 0x1243742340d5504d88af3360036ec9019b933164@rendezvous-testnet.sonm.com:14099
   relay:
     endpoints:
-      - 127.0.0.1:12240
+      - relay-testnet.sonm.com:12240
 
 #  Resources section is available only on Linux
 #  If configured, all tasks will share this pool of resources.
