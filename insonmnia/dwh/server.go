@@ -402,6 +402,8 @@ func (w *DWH) watchMarketEvents() error {
 }
 
 func (w *DWH) processEvents(dispatcher *eventsDispatcher) {
+	w.processEventsGroup(dispatcher.WorkersAnnounced)
+	w.processEventsGroup(dispatcher.WorkersConfirmed)
 	w.processEventsGroup(dispatcher.ValidatorsCreated)
 	w.processEventsGroup(dispatcher.CertificatesCreated)
 	w.processEventsGroup(dispatcher.OrdersOpened)
@@ -414,8 +416,6 @@ func (w *DWH) processEvents(dispatcher *eventsDispatcher) {
 	w.processEventsGroup(dispatcher.ValidatorsDeleted)
 	w.processEventsGroup(dispatcher.AddedToBlacklist)
 	w.processEventsGroup(dispatcher.RemovedFromBlacklist)
-	w.processEventsGroup(dispatcher.WorkersAnnounced)
-	w.processEventsGroup(dispatcher.WorkersConfirmed)
 	w.processEventsGroup(dispatcher.WorkersRemoved)
 	w.processEventsGroup(dispatcher.Other)
 }
@@ -1080,14 +1080,24 @@ func (w *DWH) updateEntitiesByProfile(conn queryConn, certificate *pb.Certificat
 }
 
 func (w *DWH) updateProfileStats(conn queryConn, order *pb.Order, update int) error {
-	var field string
+	var (
+		err     error
+		field   string
+		address common.Address
+	)
 	if order.OrderType == pb.OrderType_ASK {
 		field = "ActiveAsks"
+		address, err = w.storage.GetMasterByWorker(conn, order.GetAuthorID().Unwrap())
+		if err != nil {
+			w.logger.Warn("failed to GetMasterByWorker", util.LaconicError(err),
+				zap.String("author_id", order.GetAuthorID().Unwrap().Hex()))
+			address = order.GetAuthorID().Unwrap()
+		}
 	} else {
-		field = "ActiveBids"
+		field, address = "ActiveBids", order.GetAuthorID().Unwrap()
 	}
 
-	if err := w.storage.UpdateProfileStats(conn, order.AuthorID.Unwrap(), field, update); err != nil {
+	if err = w.storage.UpdateProfileStats(conn, address, field, update); err != nil {
 		return errors.Wrap(err, "failed to UpdateProfileStats")
 	}
 

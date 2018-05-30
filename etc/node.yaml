@@ -11,7 +11,7 @@ npp:
     #
     # Must be in ETHAddress@Host:Port format.
     endpoints:
-      - 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:14099
+      - 0x1243742340d5504d88af3360036ec9019b933164@rendezvous-testnet.sonm.com:14099
   # Relay settings.
   relay:
     # Known relay endpoints.
@@ -19,12 +19,12 @@ npp:
     # The format is Host:Port.
     # Can be omitted, meaning that relaying is disabled.
     endpoints:
-      - 127.0.0.1:12240
+      - relay-testnet.sonm.com:12240
 
 # DWH service settings
 dwh:
   # marketplace gRPC endpoint, required
-  endpoint: "8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:15021"
+  endpoint: "0x3f46ed4f779fd378f630d8cd996796c69a7738d2@dwh-testnet.sonm.com:15021"
 
 # Matcher settings.
 # Matcher is routine that catches created BID orders and try to
@@ -49,11 +49,5 @@ ethereum:
   key_store: "./keys"
   # passphrase for keystore
   pass_phrase: "any"
-
-# Worker management settings.
-# Set this if you have your own Worker and want to manage it.
-worker:
-  # endpoint is Worker's gRPC endpoint for client connections.
-  endpoint: "127.0.0.1:15010"
 
 metrics_listen_addr: "127.0.0.1:14003"
