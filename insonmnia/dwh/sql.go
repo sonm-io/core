@@ -219,6 +219,7 @@ func (c *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to runQuery")
 	}
+	defer rows.Close()
 
 	var deals []*pb.DWHDeal
 	for rows.Next() {
@@ -782,6 +783,7 @@ func (c *sqlStorage) GetCertificates(conn queryConn, ownerID common.Address) ([]
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to getCertificatesByUseID")
 	}
+	defer rows.Close()
 
 	var (
 		certificates     []*pb.Certificate
@@ -1552,7 +1554,7 @@ func (c *sqlStorage) builderWithSortings(builder squirrel.SelectBuilder, sorting
 func (c *sqlStorage) newNetflagsWhere(builder squirrel.SelectBuilder, operator pb.CmpOp, value uint64) squirrel.SelectBuilder {
 	switch operator {
 	case pb.CmpOp_GTE:
-		return builder.Where("Netflags | ~ ? = -1", value)
+		return builder.Where("Netflags | ~ CAST (? as int) = -1", value)
 	case pb.CmpOp_LTE:
 		return builder.Where("? | ~Netflags = -1", value)
 	default:

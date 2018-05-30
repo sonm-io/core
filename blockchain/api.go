@@ -298,6 +298,9 @@ func (api *BasicMarketAPI) GetDealInfo(ctx context.Context, dealID *big.Int) (*p
 	if err != nil {
 		return nil, err
 	}
+	if deal2.Status == 0 {
+		return nil, fmt.Errorf("deal fetching inconsistency for deal %s", dealID.String())
+	}
 
 	benchmarks, err := pb.NewBenchmarks(deal1.Benchmarks)
 	if err != nil {
@@ -415,6 +418,9 @@ func (api *BasicMarketAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (
 	order2, err := api.marketContract.GetOrderParams(getCallOptions(ctx), orderID)
 	if err != nil {
 		return nil, err
+	}
+	if order2.OrderStatus == 0 {
+		return nil, fmt.Errorf("order fetching inconsistency for order %s", orderID.String())
 	}
 
 	netflags := pb.NetflagsToUint(order1.Netflags)

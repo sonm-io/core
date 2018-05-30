@@ -24,7 +24,7 @@ const (
 
 func getCallOptions(ctx context.Context) *bind.CallOpts {
 	return &bind.CallOpts{
-		Pending: true,
+		Pending: false,
 		Context: ctx,
 	}
 }

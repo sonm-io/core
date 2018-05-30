@@ -19,10 +19,8 @@ import (
 )
 
 type containerDescriptor struct {
-	ctx    context.Context
-	cancel context.CancelFunc
-
 	client *client.Client
+	log    *zap.SugaredLogger
 
 	ID              string
 	CommitedImageID string
@@ -35,10 +33,7 @@ type containerDescriptor struct {
 func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
 	log.S(ctx).Infof("start container with application, reference %s", d.Reference.String())
 
-	ctx, cancel := context.WithCancel(ctx)
 	cont := containerDescriptor{
-		ctx:         ctx,
-		cancel:      cancel,
 		client:      dockerClient,
 		description: d,
 	}
@@ -96,7 +91,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		return nil, err
 	}
 	cont.ID = resp.ID
-	cont.ctx = log.WithLogger(cont.ctx, log.G(ctx).With(zap.String("id", cont.ID)))
+	cont.log = log.S(ctx).With(zap.String("container_id", cont.ID))
 	cont.cleanup = cleanup
 	if len(resp.Warnings) > 0 {
 		log.G(ctx).Warn("ContainerCreate finished with warnings", zap.Strings("warnings", resp.Warnings))
@@ -105,17 +100,16 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	return &cont, nil
 }
 
-func (c *containerDescriptor) startContainer() error {
+func (c *containerDescriptor) startContainer(ctx context.Context) error {
 	var options types.ContainerStartOptions
-	if err := c.client.ContainerStart(c.ctx, c.ID, options); err != nil {
-		log.G(c.ctx).Warn("ContainerStart finished with error", zap.Error(err))
-		c.cancel()
+	if err := c.client.ContainerStart(ctx, c.ID, options); err != nil {
+		c.log.Warn("ContainerStart finished with error", zap.Error(err))
 		return err
 	}
 	return nil
 }
 
-func (c *containerDescriptor) execCommand(cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (conn types.HijackedResponse, err error) {
+func (c *containerDescriptor) execCommand(ctx context.Context, cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (conn types.HijackedResponse, err error) {
 	cfg := types.ExecConfig{
 		User:         "root",
 		Tty:          isTty,
@@ -127,22 +121,22 @@ func (c *containerDescriptor) execCommand(cmd []string, env []string, isTty bool
 		Env:          env,
 	}
 
-	log.G(c.ctx).Info("attaching command", zap.Any("config", cfg))
+	c.log.With(zap.Any("config", cfg)).Info("attaching command")
 
-	execId, err := c.client.ContainerExecCreate(c.ctx, c.ID, cfg)
+	execId, err := c.client.ContainerExecCreate(ctx, c.ID, cfg)
 	if err != nil {
-		log.G(c.ctx).Warn("ContainerExecCreate finished with error", zap.Error(err))
+		c.log.Warnf("ContainerExecCreate finished with error: %s", err)
 		return
 	}
 
-	conn, err = c.client.ContainerExecAttach(c.ctx, execId.ID, cfg)
+	conn, err = c.client.ContainerExecAttach(ctx, execId.ID, cfg)
 	if err != nil {
-		log.G(c.ctx).Warn("ContainerExecAttach finished with error", zap.Error(err))
+		c.log.Warn("ContainerExecAttach finished with error: %s", err)
 	}
 
-	err = c.client.ContainerExecStart(c.ctx, execId.ID, types.ExecStartCheck{Detach: false, Tty: true})
+	err = c.client.ContainerExecStart(ctx, execId.ID, types.ExecStartCheck{Detach: false, Tty: true})
 	if err != nil {
-		log.G(c.ctx).Warn("ContainerExecStart finished with error", zap.Error(err))
+		c.log.Warn("ContainerExecStart finished with error: %s", err)
 		return
 	}
 	go func() {
@@ -152,44 +146,45 @@ func (c *containerDescriptor) execCommand(cmd []string, env []string, isTty bool
 				if !ok {
 					return
 				}
-				log.G(c.ctx).Info("resizing tty", zap.Int("height", w.Height), zap.Int("width", w.Width))
-				err = c.client.ContainerExecResize(c.ctx, execId.ID, types.ResizeOptions{Height: uint(w.Height), Width: uint(w.Width)})
+				c.log.Info("resizing tty to %dx%d", w.Height, w.Width)
+				err = c.client.ContainerExecResize(ctx, execId.ID, types.ResizeOptions{Height: uint(w.Height), Width: uint(w.Width)})
 				if err != nil {
-					log.G(c.ctx).Warn("ContainerExecResize finished with error", zap.Error(err))
+					log.G(ctx).Warn("ContainerExecResize finished with error", zap.Error(err))
 				}
-			case <-c.ctx.Done():
+			case <-ctx.Done():
 				return
 			}
 		}
 	}()
 
-	log.G(c.ctx).Info("attached command to container")
+	c.log.Info("attached command to container")
 	return
 }
 
-func (c *containerDescriptor) Kill() (err error) {
-	log.G(c.ctx).Info("kill the container", zap.String("id", c.ID))
-	if err = c.client.ContainerKill(context.Background(), c.ID, "SIGKILL"); err != nil {
-		log.G(c.ctx).Error("failed to send SIGKILL to the container", zap.String("id", c.ID), zap.Error(err))
+func (c *containerDescriptor) Kill(ctx context.Context) (err error) {
+	c.log.Info("kill the container")
+	if err = c.client.ContainerKill(ctx, c.ID, "SIGKILL"); err != nil {
+		c.log.Error("failed to send SIGKILL to the container: %s", err)
 		return err
 	}
 	return nil
 }
 
-func (c *containerDescriptor) Remove() error {
-	log.G(c.ctx).Info("remove the container", zap.String("id", c.ID))
+func (c *containerDescriptor) Remove(ctx context.Context) error {
+	c.log.Info("remove the container")
 	result := multierror.NewMultiError()
-	if err := containerRemove(c.ctx, c.client, c.ID); err != nil {
+	if err := containerRemove(ctx, c.client, c.ID); err != nil {
 		result = multierror.Append(result, err)
 	}
 	if len(c.CommitedImageID) != 0 {
-		if err := imageRemove(c.ctx, c.client, c.CommitedImageID); err != nil {
+		if err := imageRemove(ctx, c.client, c.CommitedImageID); err != nil {
 			result = multierror.Append(result, err)
 		}
 	}
 	return result.ErrorOrNil()
 }
 
+//TODO: pass context
 func (c *containerDescriptor) Cleanup() error {
 	return c.cleanup.Close()
 }
@@ -212,27 +207,28 @@ func imageRemove(ctx context.Context, client client.APIClient, id string) error 
 	return nil
 }
 
-func (c *containerDescriptor) upload() error {
-	opts := types.ContainerCommitOptions{}
-	resp, err := c.client.ContainerCommit(c.ctx, c.ID, opts)
-	if err != nil {
-		return err
+func (c *containerDescriptor) upload(ctx context.Context) error {
+	if len(c.CommitedImageID) == 0 {
+		opts := types.ContainerCommitOptions{}
+		resp, err := c.client.ContainerCommit(ctx, c.ID, opts)
+		if err != nil {
+			return err
+		}
+		c.CommitedImageID = resp.ID
+		c.log.Infof("committed container with new id %s", resp.ID)
 	}
-	c.CommitedImageID = resp.ID
-	log.G(c.ctx).Info("committed container", zap.String("id", c.ID), zap.String("newId", resp.ID))
-
 	tag := fmt.Sprintf("%s_%s", c.description.DealId, c.description.TaskId)
 
 	newImg, err := reference.WithTag(reference.TrimNamed(c.description.Reference), tag)
 	if err != nil {
-		log.G(c.ctx).Error("failed to add tag", zap.String("id", resp.ID), zap.Error(err))
+		c.log.Errorf("failed to add tag: %s", err)
 		return err
 	}
 
-	log.G(c.ctx).Info("tagging image", zap.String("from", resp.ID), zap.Stringer("to", newImg))
-	err = c.client.ImageTag(c.ctx, resp.ID, newImg.String())
+	c.log.Infof("tagging image %s from %s", newImg.String(), c.CommitedImageID)
+	err = c.client.ImageTag(ctx, c.CommitedImageID, newImg.String())
 	if err != nil {
-		log.G(c.ctx).Error("failed to tag image", zap.String("id", resp.ID), zap.Any("name", newImg), zap.Error(err))
+		c.log.Errorf("failed to tag image: %s", err)
 		return err
 	}
 
@@ -240,10 +236,10 @@ func (c *containerDescriptor) upload() error {
 		RegistryAuth: c.description.Auth,
 	}
 
-	log.G(c.ctx).Info("pushing image", zap.Any("name", newImg))
-	reader, err := c.client.ImagePush(c.ctx, newImg.String(), options)
+	c.log.Infof("pushing image %s", newImg)
+	reader, err := c.client.ImagePush(ctx, newImg.String(), options)
 	if err != nil {
-		log.G(c.ctx).Error("failed to push image", zap.Any("name", newImg), zap.Error(err))
+		c.log.Error("failed to push image: %s", err)
 		return err
 	}
 	defer reader.Close()
@@ -251,7 +247,7 @@ func (c *containerDescriptor) upload() error {
 	for {
 		readCnt, err := reader.Read(buffer)
 		if readCnt != 0 {
-			log.G(c.ctx).Info(string(buffer[:readCnt]))
+			c.log.Info(string(buffer[:readCnt]))
 		}
 		if err == io.EOF {
 			return nil

@@ -6,12 +6,12 @@ package api
 import (
 	"strings"
 
-	ethereum "github.com/sonm-io/go-ethereum"
-	"github.com/sonm-io/go-ethereum/accounts/abi"
-	"github.com/sonm-io/go-ethereum/accounts/abi/bind"
-	"github.com/sonm-io/go-ethereum/common"
-	"github.com/sonm-io/go-ethereum/core/types"
-	"github.com/sonm-io/go-ethereum/event"
+	ethereum "github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/event"
 )
 
 // OwnableABI is the input ABI used to generate the binding from.

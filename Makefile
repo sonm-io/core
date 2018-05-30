@@ -1,5 +1,5 @@
 #!/usr/bin/env make
-VER = v0.3.3
+VER = v0.4.0
 BUILD = $(shell git rev-parse --short HEAD)
 FULL_VER = $(VER)-$(BUILD)
 
@@ -59,13 +59,13 @@ build/dwh:
 
 build/rv:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -o ${RENDEZVOUS} ${GOCMD}/rv
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${RENDEZVOUS} ${GOCMD}/rv
 
 build/rendezvous: build/rv
 
 build/relay:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -o ${RELAY} ${GOCMD}/relay
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${RELAY} ${GOCMD}/relay
 
 build/cli:
 	@echo "+ $@"
@@ -81,11 +81,11 @@ build/lsgpu:
 
 build/cli_win32:
 	@echo "+ $@"
-	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${CLI}_win32.exe ${GOCMD}/cli
+	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${TARGETDIR}/sonmcli_win32.exe ${GOCMD}/cli
 
 build/node_win32:
 	@echo "+ $@"
-	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${LOCAL_NODE}_win32.exe ${GOCMD}/node
+	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${TARGETDIR}/sonmnode_win32.exe ${GOCMD}/node
 
 build/autocli:
 	@echo "+ $@"
