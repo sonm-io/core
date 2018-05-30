@@ -39,10 +39,18 @@ func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskL
 	}
 
 	// merge maps of running and completed tasks
-	reply := &pb.TaskListReply{Info: deal.Completed}
+	reply := &pb.TaskListReply{
+		Info: make(map[string]*pb.TaskStatusReply),
+	}
+
+	for id, task := range deal.Completed {
+		reply.Info[id] = task
+	}
+
 	for id, task := range deal.Running {
 		reply.Info[id] = task
 	}
+
 	return reply, nil
 }
 
