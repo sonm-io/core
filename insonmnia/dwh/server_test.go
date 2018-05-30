@@ -589,6 +589,12 @@ func TestDWH_monitor(t *testing.T) {
 
 	monitorDWH.blockchain = mockBlock
 
+	err = monitorDWH.storage.InsertWorker(newSimpleConn(monitorDWH.db), common.Address{}.Hex(),
+		"0x000000000000000000000000000000000000000d")
+	if err != nil {
+		t.Error("failed to insert worker (additional)")
+	}
+
 	if err := testOrderPlaced(commonEventTS, commonID); err != nil {
 		t.Errorf("testOrderPlaced: %s", err)
 		return
@@ -608,6 +614,11 @@ func TestDWH_monitor(t *testing.T) {
 	if err := testOrderUpdated(order, commonID); err != nil {
 		t.Errorf("testOrderUpdated: %s", err)
 		return
+	}
+	err = monitorDWH.storage.DeleteWorker(newSimpleConn(monitorDWH.db), common.Address{}.Hex(),
+		"0x000000000000000000000000000000000000000d")
+	if err != nil {
+		t.Error("failed to delete worker (additional)")
 	}
 	if err := testDealUpdated(deal, commonID); err != nil {
 		t.Errorf("testDealUpdated: %s", err)
