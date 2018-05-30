@@ -6,7 +6,10 @@ Description=SONM DWH
 EnvironmentFile=/etc/default/sonm-dwh
 Type=simple
 ExecStart=/usr/bin/sonmdwh --config=${CONFIG_PATH}
+
 Restart=on-failure
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 
 [Install]
