@@ -1,4 +1,0 @@
-[submodule "blockchain/market"]
-	path = blockchain/market
-	url = https://github.com/sonm-io/market.git
-	branch = master
