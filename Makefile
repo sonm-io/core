@@ -47,7 +47,7 @@ LDFLAGS = -X main.appVersion=$(FULL_VER)
 
 .PHONY: fmt vet test
 
-all: mock vet fmt build test
+all: node_modules mock vet fmt build test lint_contracts test_contracts
 
 build/worker:
 	@echo "+ $@"
