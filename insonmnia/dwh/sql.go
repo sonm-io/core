@@ -712,7 +712,9 @@ func (c *sqlStorage) GetMasterByWorker(conn queryConn, slaveID common.Address) (
 	if !rows.Next() {
 		return common.Address{}, errors.New("no rows returned")
 	}
-	rows.Scan(&sMasterID)
+	if err := rows.Scan(&sMasterID); err != nil {
+		return common.Address{}, errors.Wrap(err, "failed to scan MasterID row")
+	}
 	return util.HexToAddress(sMasterID)
 }
 
