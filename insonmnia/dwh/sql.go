@@ -40,27 +40,27 @@ type sqlStorage struct {
 	builder       func() squirrel.StatementBuilderType
 }
 
-func (c *sqlStorage) Setup(db *sql.DB) error {
-	return c.setupCommands.setupTables(db)
+func (m *sqlStorage) Setup(db *sql.DB) error {
+	return m.setupCommands.setupTables(db)
 }
 
-func (c *sqlStorage) CreateIndices(db *sql.DB) error {
-	return c.setupCommands.createIndices(db)
+func (m *sqlStorage) CreateIndices(db *sql.DB) error {
+	return m.setupCommands.createIndices(db)
 }
 
-func (c *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
-	ask, err := c.GetOrderByID(conn, deal.AskID.Unwrap())
+func (m *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
+	ask, err := m.GetOrderByID(conn, deal.AskID.Unwrap())
 	if err != nil {
 		return errors.Wrapf(err, "failed to getOrderDetails (Ask, `%s`)", deal.GetAskID().Unwrap().String())
 	}
 
-	bid, err := c.GetOrderByID(conn, deal.BidID.Unwrap())
+	bid, err := m.GetOrderByID(conn, deal.BidID.Unwrap())
 	if err != nil {
 		return errors.Wrapf(err, "failed to getOrderDetails (Ask, `%s`)", deal.GetBidID().Unwrap().String())
 	}
 
 	var hasActiveChangeRequests bool
-	if _, err := c.GetDealChangeRequestsByDealID(conn, deal.Id.Unwrap()); err == nil {
+	if _, err := m.GetDealChangeRequestsByDealID(conn, deal.Id.Unwrap()); err == nil {
 		hasActiveChangeRequests = true
 	}
 	values := []interface{}{
@@ -85,12 +85,12 @@ func (c *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 		bid.CreatorCertificates,
 		hasActiveChangeRequests,
 	}
-	for benchID := uint64(0); benchID < c.numBenchmarks; benchID++ {
+	for benchID := uint64(0); benchID < m.numBenchmarks; benchID++ {
 		values = append(values, deal.Benchmarks.Values[benchID])
 	}
 
-	query, args, _ := c.builder().Insert("Deals").
-		Columns(c.tablesInfo.DealColumns...).
+	query, args, _ := m.builder().Insert("Deals").
+		Columns(m.tablesInfo.DealColumns...).
 		Values(values...).
 		ToSql()
 	_, err = conn.Exec(query, args...)
@@ -98,8 +98,8 @@ func (c *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 	return err
 }
 
-func (c *sqlStorage) UpdateDeal(conn queryConn, deal *pb.Deal) error {
-	query, args, _ := c.builder().Update("Deals").SetMap(map[string]interface{}{
+func (m *sqlStorage) UpdateDeal(conn queryConn, deal *pb.Deal) error {
+	query, args, _ := m.builder().Update("Deals").SetMap(map[string]interface{}{
 		"Duration":       deal.Duration,
 		"Price":          deal.Price.PaddedString(),
 		"StartTime":      deal.StartTime.Seconds,
@@ -113,24 +113,24 @@ func (c *sqlStorage) UpdateDeal(conn queryConn, deal *pb.Deal) error {
 	return err
 }
 
-func (c *sqlStorage) UpdateDealsSupplier(conn queryConn, profile *pb.Profile) error {
-	query, args, _ := c.builder().Update("Deals").SetMap(map[string]interface{}{
+func (m *sqlStorage) UpdateDealsSupplier(conn queryConn, profile *pb.Profile) error {
+	query, args, _ := m.builder().Update("Deals").SetMap(map[string]interface{}{
 		"SupplierCertificates": []byte(profile.Certificates),
 	}).Where("SupplierID = ?", profile.UserID.Unwrap().Hex()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) UpdateDealsConsumer(conn queryConn, profile *pb.Profile) error {
-	query, args, _ := c.builder().Update("Deals").SetMap(map[string]interface{}{
+func (m *sqlStorage) UpdateDealsConsumer(conn queryConn, profile *pb.Profile) error {
+	query, args, _ := m.builder().Update("Deals").SetMap(map[string]interface{}{
 		"ConsumerCertificates": []byte(profile.Certificates),
 	}).Where("ConsumerID = ?", profile.UserID.Unwrap().Hex()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) UpdateDealPayout(conn queryConn, dealID, payout *big.Int, billTS uint64) error {
-	query, args, _ := c.builder().Update("Deals").SetMap(map[string]interface{}{
+func (m *sqlStorage) UpdateDealPayout(conn queryConn, dealID, payout *big.Int, billTS uint64) error {
+	query, args, _ := m.builder().Update("Deals").SetMap(map[string]interface{}{
 		"TotalPayout": util.BigIntToPaddedString(payout),
 		"LastBillTS":  billTS,
 	}).Where("Id = ?", dealID.String()).ToSql()
@@ -138,14 +138,14 @@ func (c *sqlStorage) UpdateDealPayout(conn queryConn, dealID, payout *big.Int, b
 	return err
 }
 
-func (c *sqlStorage) DeleteDeal(conn queryConn, dealID *big.Int) error {
-	query, args, _ := c.builder().Delete("Deals").Where("Id = ?", dealID.String()).ToSql()
+func (m *sqlStorage) DeleteDeal(conn queryConn, dealID *big.Int) error {
+	query, args, _ := m.builder().Delete("Deals").Where("Id = ?", dealID.String()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) GetDealByID(conn queryConn, dealID *big.Int) (*pb.DWHDeal, error) {
-	query, args, _ := c.builder().Select(c.tablesInfo.DealColumns...).
+func (m *sqlStorage) GetDealByID(conn queryConn, dealID *big.Int) (*pb.DWHDeal, error) {
+	query, args, _ := m.builder().Select(m.tablesInfo.DealColumns...).
 		From("Deals").
 		Where("Id = ?", dealID.String()).
 		ToSql()
@@ -159,11 +159,11 @@ func (c *sqlStorage) GetDealByID(conn queryConn, dealID *big.Int) (*pb.DWHDeal, 
 		return nil, errors.New("no rows returned")
 	}
 
-	return c.decodeDeal(rows)
+	return m.decodeDeal(rows)
 }
 
-func (c *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal, uint64, error) {
-	builder := c.builder().Select("*").From("Deals")
+func (m *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal, uint64, error) {
+	builder := m.builder().Select("*").From("Deals")
 
 	if r.Status > 0 {
 		builder = builder.Where("Status = ?", r.Status)
@@ -198,7 +198,7 @@ func (c *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal
 		}
 	}
 	if r.Netflags != nil && r.Netflags.Value > 0 {
-		builder = c.newNetflagsWhere(builder, r.Netflags.Operator, r.Netflags.Value)
+		builder = m.newNetflagsWhere(builder, r.Netflags.Operator, r.Netflags.Value)
 	}
 	if r.AskIdentityLevel > 0 {
 		builder = builder.Where("AskIdentityLevel >= ?", r.AskIdentityLevel)
@@ -207,15 +207,15 @@ func (c *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal
 		builder = builder.Where("BidIdentityLevel >= ?", r.BidIdentityLevel)
 	}
 	if r.Benchmarks != nil {
-		builder = c.addBenchmarksConditionsWhere(builder, r.Benchmarks)
+		builder = m.addBenchmarksConditionsWhere(builder, r.Benchmarks)
 	}
 	if r.Offset > 0 {
 		builder = builder.Offset(r.Offset)
 	}
 
-	builder = c.builderWithSortings(builder, r.Sortings)
-	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
-	rows, count, err := c.runQuery(conn, strings.Join(c.tablesInfo.DealColumns, ", "), r.WithCount, query, args...)
+	builder = m.builderWithSortings(builder, r.Sortings)
+	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.DealColumns, ", "), r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to runQuery")
 	}
@@ -223,7 +223,7 @@ func (c *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal
 
 	var deals []*pb.DWHDeal
 	for rows.Next() {
-		deal, err := c.decodeDeal(rows)
+		deal, err := m.decodeDeal(rows)
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "failed to decodeDeal")
 		}
@@ -234,14 +234,14 @@ func (c *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal
 	return deals, count, nil
 }
 
-func (c *sqlStorage) GetDealConditions(conn queryConn, r *pb.DealConditionsRequest) ([]*pb.DealCondition, uint64, error) {
-	builder := c.builder().Select("*").From("DealConditions")
+func (m *sqlStorage) GetDealConditions(conn queryConn, r *pb.DealConditionsRequest) ([]*pb.DealCondition, uint64, error) {
+	builder := m.builder().Select("*").From("DealConditions")
 	builder = builder.Where("DealID = ?", r.DealID.Unwrap().String())
 	if len(r.Sortings) == 0 {
-		builder = c.builderWithSortings(builder, []*pb.SortingOption{{Field: "Id", Order: pb.SortingOrder_Desc}})
+		builder = m.builderWithSortings(builder, []*pb.SortingOption{{Field: "Id", Order: pb.SortingOrder_Desc}})
 	}
-	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
-	rows, count, err := c.runQuery(conn, "*", r.WithCount, query, args...)
+	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to run query")
 	}
@@ -249,7 +249,7 @@ func (c *sqlStorage) GetDealConditions(conn queryConn, r *pb.DealConditionsReque
 
 	var out []*pb.DealCondition
 	for rows.Next() {
-		dealCondition, err := c.decodeDealCondition(rows)
+		dealCondition, err := m.decodeDealCondition(rows)
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "failed to decodeDealCondition")
 		}
@@ -263,7 +263,7 @@ func (c *sqlStorage) GetDealConditions(conn queryConn, r *pb.DealConditionsReque
 	return out, count, nil
 }
 
-func (c *sqlStorage) InsertOrder(conn queryConn, order *pb.DWHOrder) error {
+func (m *sqlStorage) InsertOrder(conn queryConn, order *pb.DWHOrder) error {
 	values := []interface{}{
 		order.GetOrder().Id.Unwrap().String(),
 		order.MasterID.Unwrap().String(),
@@ -285,22 +285,22 @@ func (c *sqlStorage) InsertOrder(conn queryConn, order *pb.DWHOrder) error {
 		order.CreatorCountry,
 		[]byte(order.CreatorCertificates),
 	}
-	for benchID := uint64(0); benchID < c.numBenchmarks; benchID++ {
+	for benchID := uint64(0); benchID < m.numBenchmarks; benchID++ {
 		values = append(values, order.GetOrder().Benchmarks.Values[benchID])
 	}
-	query, args, _ := c.builder().Insert("Orders").Columns(c.tablesInfo.OrderColumns...).Values(values...).ToSql()
+	query, args, _ := m.builder().Insert("Orders").Columns(m.tablesInfo.OrderColumns...).Values(values...).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) UpdateOrderStatus(conn queryConn, orderID *big.Int, status pb.OrderStatus) error {
-	query, args, _ := c.builder().Update("Orders").Set("Status", status).Where("Id = ?", orderID.String()).ToSql()
+func (m *sqlStorage) UpdateOrderStatus(conn queryConn, orderID *big.Int, status pb.OrderStatus) error {
+	query, args, _ := m.builder().Update("Orders").Set("Status", status).Where("Id = ?", orderID.String()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) UpdateOrders(conn queryConn, profile *pb.Profile) error {
-	query, args, _ := c.builder().Update("Orders").SetMap(map[string]interface{}{
+func (m *sqlStorage) UpdateOrders(conn queryConn, profile *pb.Profile) error {
+	query, args, _ := m.builder().Update("Orders").SetMap(map[string]interface{}{
 		"CreatorIdentityLevel": profile.IdentityLevel,
 		"CreatorName":          profile.Name,
 		"CreatorCountry":       profile.Country,
@@ -310,14 +310,14 @@ func (c *sqlStorage) UpdateOrders(conn queryConn, profile *pb.Profile) error {
 	return err
 }
 
-func (c *sqlStorage) DeleteOrder(conn queryConn, orderID *big.Int) error {
-	query, args, _ := c.builder().Delete("Orders").Where("Id = ?", orderID.String()).ToSql()
+func (m *sqlStorage) DeleteOrder(conn queryConn, orderID *big.Int) error {
+	query, args, _ := m.builder().Delete("Orders").Where("Id = ?", orderID.String()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) GetOrderByID(conn queryConn, orderID *big.Int) (*pb.DWHOrder, error) {
-	query, args, _ := c.builder().Select(c.tablesInfo.OrderColumns...).
+func (m *sqlStorage) GetOrderByID(conn queryConn, orderID *big.Int) (*pb.DWHOrder, error) {
+	query, args, _ := m.builder().Select(m.tablesInfo.OrderColumns...).
 		From("Orders").
 		Where("Id = ?", orderID.String()).
 		ToSql()
@@ -331,11 +331,11 @@ func (c *sqlStorage) GetOrderByID(conn queryConn, orderID *big.Int) (*pb.DWHOrde
 		return nil, errors.New("no rows returned")
 	}
 
-	return c.decodeOrder(rows)
+	return m.decodeOrder(rows)
 }
 
-func (c *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOrder, uint64, error) {
-	builder := c.builder().Select("*").From("Orders").
+func (m *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOrder, uint64, error) {
+	builder := m.builder().Select("*").From("Orders").
 		Where("Status = ?", pb.OrderStatus_ORDER_ACTIVE)
 	if !r.DealID.IsZero() {
 		builder = builder.Where("DealID = ?", r.DealID.Unwrap().String())
@@ -368,7 +368,7 @@ func (c *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 		}
 	}
 	if r.Netflags != nil && r.Netflags.Value > 0 {
-		builder = c.newNetflagsWhere(builder, r.Netflags.Operator, r.Netflags.Value)
+		builder = m.newNetflagsWhere(builder, r.Netflags.Operator, r.Netflags.Value)
 	}
 	if len(r.CreatorIdentityLevel) > 0 {
 		builder = builder.Where(squirrel.Eq{"CreatorIdentityLevel": r.CreatorIdentityLevel})
@@ -383,11 +383,11 @@ func (c *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 		}
 	}
 	if r.Benchmarks != nil {
-		builder = c.addBenchmarksConditionsWhere(builder, r.Benchmarks)
+		builder = m.addBenchmarksConditionsWhere(builder, r.Benchmarks)
 	}
-	builder = c.builderWithSortings(builder, r.Sortings)
-	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
-	rows, count, err := c.runQuery(conn, strings.Join(c.tablesInfo.OrderColumns, ", "), r.WithCount, query, args...)
+	builder = m.builderWithSortings(builder, r.Sortings)
+	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.OrderColumns, ", "), r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to run query")
 	}
@@ -395,7 +395,7 @@ func (c *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 
 	var orders []*pb.DWHOrder
 	for rows.Next() {
-		order, err := c.decodeOrder(rows)
+		order, err := m.decodeOrder(rows)
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "failed to decodeOrder")
 		}
@@ -409,13 +409,13 @@ func (c *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 	return orders, count, nil
 }
 
-func (c *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersRequest) ([]*pb.DWHOrder, uint64, error) {
-	order, err := c.GetOrderByID(conn, r.Id.Unwrap())
+func (m *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersRequest) ([]*pb.DWHOrder, uint64, error) {
+	order, err := m.GetOrderByID(conn, r.Id.Unwrap())
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to GetOrderByID")
 	}
 
-	builder := c.builder().Select("*").From("Orders")
+	builder := m.builder().Select("*").From("Orders")
 	var (
 		orderType    pb.OrderType
 		priceOp      string
@@ -451,18 +451,18 @@ func (c *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersReque
 		"CounterpartyID": []string{common.Address{}.Hex(), order.Order.AuthorID.Unwrap().Hex()},
 	})
 	if order.Order.OrderType == pb.OrderType_BID {
-		builder = c.newNetflagsWhere(builder, pb.CmpOp_GTE, order.Order.Netflags)
+		builder = m.newNetflagsWhere(builder, pb.CmpOp_GTE, order.Order.Netflags)
 	} else {
-		builder = c.newNetflagsWhere(builder, pb.CmpOp_LTE, order.Order.Netflags)
+		builder = m.newNetflagsWhere(builder, pb.CmpOp_LTE, order.Order.Netflags)
 	}
 	builder = builder.Where("IdentityLevel >= ?", order.Order.IdentityLevel).
 		Where("CreatorIdentityLevel <= ?", order.CreatorIdentityLevel)
 	for benchID, benchValue := range order.Order.Benchmarks.Values {
 		builder = builder.Where(fmt.Sprintf("%s %s ?", getBenchmarkColumn(uint64(benchID)), benchOp), benchValue)
 	}
-	builder = c.builderWithSortings(builder, []*pb.SortingOption{{Field: "Price", Order: sortingOrder}})
-	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
-	rows, count, err := c.runQuery(conn, strings.Join(c.tablesInfo.OrderColumns, ", "), r.WithCount, query, args...)
+	builder = m.builderWithSortings(builder, []*pb.SortingOption{{Field: "Price", Order: sortingOrder}})
+	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.OrderColumns, ", "), r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to run Query")
 	}
@@ -470,7 +470,7 @@ func (c *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersReque
 
 	var orders []*pb.DWHOrder
 	for rows.Next() {
-		order, err := c.decodeOrder(rows)
+		order, err := m.decodeOrder(rows)
 		if err != nil {
 			return nil, 0, status.Error(codes.Internal, "failed to GetMatchingOrders")
 		}
@@ -484,8 +484,8 @@ func (c *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersReque
 	return orders, count, nil
 }
 
-func (c *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.Profile, uint64, error) {
-	builder := c.builder().Select("*").From("Profiles AS p")
+func (m *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.Profile, uint64, error) {
+	builder := m.builder().Select("*").From("Profiles AS p")
 	switch r.Role {
 	case pb.ProfileRole_Supplier:
 		builder = builder.Where("ActiveAsks >= 1")
@@ -500,7 +500,7 @@ func (c *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 		builder = builder.Where("Name LIKE ?", r.Name)
 	}
 	if r.BlacklistQuery != nil && !r.BlacklistQuery.OwnerID.IsZero() {
-		ownerBuilder := c.builder().Select("AddeeID").From("Blacklists").
+		ownerBuilder := m.builder().Select("AddeeID").From("Blacklists").
 			Where("AdderID = ?", r.BlacklistQuery.OwnerID.Unwrap().Hex()).Where("AddeeID = p.UserID")
 		ownerQuery, _, _ := ownerBuilder.ToSql()
 		if r.BlacklistQuery != nil && r.BlacklistQuery.OwnerID != nil {
@@ -512,14 +512,14 @@ func (c *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 			}
 		}
 	}
-	builder = c.builderWithSortings(builder, r.Sortings)
-	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	builder = m.builderWithSortings(builder, r.Sortings)
+	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 
 	if r.BlacklistQuery != nil && !r.BlacklistQuery.OwnerID.IsZero() {
 		args = append(args, r.BlacklistQuery.OwnerID.Unwrap().Hex())
 	}
 
-	rows, count, err := c.runQuery(conn, "*", r.WithCount, query, args...)
+	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to run query")
 	}
@@ -527,7 +527,7 @@ func (c *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 
 	var out []*pb.Profile
 	for rows.Next() {
-		if profile, err := c.decodeProfile(rows); err != nil {
+		if profile, err := m.decodeProfile(rows); err != nil {
 			return nil, 0, errors.Wrap(err, "failed to decodeProfile")
 		} else {
 			out = append(out, profile)
@@ -538,7 +538,7 @@ func (c *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 	}
 
 	if r.BlacklistQuery != nil && r.BlacklistQuery.Option == pb.BlacklistOption_IncludeAndMark {
-		blacklistReply, err := c.GetBlacklist(conn, &pb.BlacklistRequest{OwnerID: r.BlacklistQuery.OwnerID})
+		blacklistReply, err := m.GetBlacklist(conn, &pb.BlacklistRequest{OwnerID: r.BlacklistQuery.OwnerID})
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "failed to")
 		}
@@ -557,9 +557,9 @@ func (c *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 	return out, count, nil
 }
 
-func (c *sqlStorage) InsertDealChangeRequest(conn queryConn, changeRequest *pb.DealChangeRequest) error {
-	query, args, _ := c.builder().Insert("DealChangeRequests").
-		Columns(c.tablesInfo.DealChangeRequestColumns...).
+func (m *sqlStorage) InsertDealChangeRequest(conn queryConn, changeRequest *pb.DealChangeRequest) error {
+	query, args, _ := m.builder().Insert("DealChangeRequests").
+		Columns(m.tablesInfo.DealChangeRequestColumns...).
 		Values(
 			changeRequest.Id.Unwrap().String(),
 			changeRequest.CreatedTS.Seconds,
@@ -573,21 +573,21 @@ func (c *sqlStorage) InsertDealChangeRequest(conn queryConn, changeRequest *pb.D
 	return err
 }
 
-func (c *sqlStorage) UpdateDealChangeRequest(conn queryConn, changeRequest *pb.DealChangeRequest) error {
-	query, args, _ := c.builder().Update("DealChangeRequests").Set("Status", changeRequest.Status).
+func (m *sqlStorage) UpdateDealChangeRequest(conn queryConn, changeRequest *pb.DealChangeRequest) error {
+	query, args, _ := m.builder().Update("DealChangeRequests").Set("Status", changeRequest.Status).
 		Where("Id = ?", changeRequest.Id.Unwrap().String()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) DeleteDealChangeRequest(conn queryConn, changeRequestID *big.Int) error {
-	query, args, _ := c.builder().Delete("DealChangeRequests").Where("Id = ?", changeRequestID.String()).ToSql()
+func (m *sqlStorage) DeleteDealChangeRequest(conn queryConn, changeRequestID *big.Int) error {
+	query, args, _ := m.builder().Delete("DealChangeRequests").Where("Id = ?", changeRequestID.String()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) GetDealChangeRequests(conn queryConn, changeRequest *pb.DealChangeRequest) ([]*pb.DealChangeRequest, error) {
-	query, args, _ := c.builder().Select(c.tablesInfo.DealChangeRequestColumns...).
+func (m *sqlStorage) GetDealChangeRequests(conn queryConn, changeRequest *pb.DealChangeRequest) ([]*pb.DealChangeRequest, error) {
+	query, args, _ := m.builder().Select(m.tablesInfo.DealChangeRequestColumns...).
 		From("DealChangeRequests").Where("DealID = ?", changeRequest.DealID.Unwrap().String()).
 		Where("RequestType = ?", changeRequest.RequestType).
 		Where("Status = ?", changeRequest.Status).ToSql()
@@ -599,7 +599,7 @@ func (c *sqlStorage) GetDealChangeRequests(conn queryConn, changeRequest *pb.Dea
 
 	var out []*pb.DealChangeRequest
 	for rows.Next() {
-		changeRequest, err := c.decodeDealChangeRequest(rows)
+		changeRequest, err := m.decodeDealChangeRequest(rows)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to decodeDealChangeRequest")
 		}
@@ -613,8 +613,8 @@ func (c *sqlStorage) GetDealChangeRequests(conn queryConn, changeRequest *pb.Dea
 	return out, nil
 }
 
-func (c *sqlStorage) GetDealChangeRequestsByDealID(conn queryConn, changeRequestID *big.Int) ([]*pb.DealChangeRequest, error) {
-	query, args, _ := c.builder().Select(c.tablesInfo.DealChangeRequestColumns...).
+func (m *sqlStorage) GetDealChangeRequestsByDealID(conn queryConn, changeRequestID *big.Int) ([]*pb.DealChangeRequest, error) {
+	query, args, _ := m.builder().Select(m.tablesInfo.DealChangeRequestColumns...).
 		From("DealChangeRequests").
 		Where("DealID = ?", changeRequestID.String()).
 		ToSql()
@@ -626,7 +626,7 @@ func (c *sqlStorage) GetDealChangeRequestsByDealID(conn queryConn, changeRequest
 
 	var out []*pb.DealChangeRequest
 	for rows.Next() {
-		changeRequest, err := c.decodeDealChangeRequest(rows)
+		changeRequest, err := m.decodeDealChangeRequest(rows)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to decodeDealChangeRequest")
 		}
@@ -640,8 +640,8 @@ func (c *sqlStorage) GetDealChangeRequestsByDealID(conn queryConn, changeRequest
 	return out, nil
 }
 
-func (c *sqlStorage) InsertDealCondition(conn queryConn, condition *pb.DealCondition) error {
-	query, args, err := c.builder().Insert("DealConditions").Columns(c.tablesInfo.DealConditionColumns[1:]...).
+func (m *sqlStorage) InsertDealCondition(conn queryConn, condition *pb.DealCondition) error {
+	query, args, err := m.builder().Insert("DealConditions").Columns(m.tablesInfo.DealConditionColumns[1:]...).
 		Values(
 			condition.SupplierID.Unwrap().Hex(),
 			condition.ConsumerID.Unwrap().Hex(),
@@ -657,22 +657,22 @@ func (c *sqlStorage) InsertDealCondition(conn queryConn, condition *pb.DealCondi
 	return err
 }
 
-func (c *sqlStorage) UpdateDealConditionPayout(conn queryConn, dealConditionID uint64, payout *big.Int) error {
-	query, args, err := c.builder().Update("DealConditions").Set("TotalPayout", util.BigIntToPaddedString(payout)).
+func (m *sqlStorage) UpdateDealConditionPayout(conn queryConn, dealConditionID uint64, payout *big.Int) error {
+	query, args, err := m.builder().Update("DealConditions").Set("TotalPayout", util.BigIntToPaddedString(payout)).
 		Where("Id = ?", dealConditionID).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) UpdateDealConditionEndTime(conn queryConn, dealConditionID, eventTS uint64) error {
-	query, args, err := c.builder().Update("DealConditions").Set("EndTime", eventTS).
+func (m *sqlStorage) UpdateDealConditionEndTime(conn queryConn, dealConditionID, eventTS uint64) error {
+	query, args, err := m.builder().Update("DealConditions").Set("EndTime", eventTS).
 		Where("Id = ?", dealConditionID).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) CheckWorkerExists(conn queryConn, masterID, workerID string) (bool, error) {
-	query, args, _ := c.builder().Select("MasterID").From("Workers").
+func (m *sqlStorage) CheckWorkerExists(conn queryConn, masterID, workerID string) (bool, error) {
+	query, args, _ := m.builder().Select("MasterID").From("Workers").
 		Where("MasterID = ?", masterID).Where("WorkerID = ?", workerID).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
@@ -682,28 +682,28 @@ func (c *sqlStorage) CheckWorkerExists(conn queryConn, masterID, workerID string
 	return rows.Next(), nil
 }
 
-func (c *sqlStorage) InsertWorker(conn queryConn, masterID, workerID string) error {
-	query, args, err := c.builder().Insert("Workers").Values(masterID, workerID, false).ToSql()
+func (m *sqlStorage) InsertWorker(conn queryConn, masterID, workerID string) error {
+	query, args, err := m.builder().Insert("Workers").Values(masterID, workerID, false).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) UpdateWorker(conn queryConn, masterID, workerID string) error {
-	query, args, err := c.builder().Update("Workers").Set("Confirmed", true).Where("MasterID = ?", masterID).
+func (m *sqlStorage) UpdateWorker(conn queryConn, masterID, workerID string) error {
+	query, args, err := m.builder().Update("Workers").Set("Confirmed", true).Where("MasterID = ?", masterID).
 		Where("WorkerID = ?", workerID).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) DeleteWorker(conn queryConn, masterID, workerID string) error {
-	query, args, err := c.builder().Delete("Workers").Where("MasterID = ?", masterID).
+func (m *sqlStorage) DeleteWorker(conn queryConn, masterID, workerID string) error {
+	query, args, err := m.builder().Delete("Workers").Where("MasterID = ?", masterID).
 		Where("WorkerID = ?", workerID).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) GetMasterByWorker(conn queryConn, slaveID common.Address) (common.Address, error) {
-	query, args, _ := c.builder().Select("MasterID").From("Workers").Where("WorkerID = ?", slaveID.Hex()).ToSql()
+func (m *sqlStorage) GetMasterByWorker(conn queryConn, slaveID common.Address) (common.Address, error) {
+	query, args, _ := m.builder().Select("MasterID").From("Workers").Where("WorkerID = ?", slaveID.Hex()).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return common.Address{}, errors.Wrap(err, "failed to selectMasterByWorker")
@@ -719,28 +719,28 @@ func (c *sqlStorage) GetMasterByWorker(conn queryConn, slaveID common.Address) (
 	return util.HexToAddress(masterID)
 }
 
-func (c *sqlStorage) InsertBlacklistEntry(conn queryConn, adderID, addeeID string) error {
-	query, args, err := c.builder().Insert("Blacklists").Values(adderID, addeeID).ToSql()
+func (m *sqlStorage) InsertBlacklistEntry(conn queryConn, adderID, addeeID string) error {
+	query, args, err := m.builder().Insert("Blacklists").Values(adderID, addeeID).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) DeleteBlacklistEntry(conn queryConn, removerID, removeeID string) error {
-	query, args, err := c.builder().Delete("Blacklists").Where("AdderID = ?", removerID).
+func (m *sqlStorage) DeleteBlacklistEntry(conn queryConn, removerID, removeeID string) error {
+	query, args, err := m.builder().Delete("Blacklists").Where("AdderID = ?", removerID).
 		Where("AddeeID = ?", removeeID).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) GetBlacklist(conn queryConn, r *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
-	builder := c.builder().Select("*").From("Blacklists")
+func (m *sqlStorage) GetBlacklist(conn queryConn, r *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
+	builder := m.builder().Select("*").From("Blacklists")
 
 	if !r.OwnerID.IsZero() {
 		builder = builder.Where("AdderID = ?", r.OwnerID.Unwrap().Hex())
 	}
-	builder = c.builderWithSortings(builder, []*pb.SortingOption{})
-	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
-	rows, count, err := c.runQuery(conn, "*", r.WithCount, query, args...)
+	builder = m.builderWithSortings(builder, []*pb.SortingOption{})
+	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to run query")
 	}
@@ -770,21 +770,21 @@ func (c *sqlStorage) GetBlacklist(conn queryConn, r *pb.BlacklistRequest) (*pb.B
 	}, nil
 }
 
-func (c *sqlStorage) InsertValidator(conn queryConn, validator *pb.Validator) error {
-	query, args, _ := c.builder().Insert("Validators").Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
+func (m *sqlStorage) InsertValidator(conn queryConn, validator *pb.Validator) error {
+	query, args, _ := m.builder().Insert("Validators").Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) UpdateValidator(conn queryConn, validator *pb.Validator) error {
-	query, args, _ := c.builder().Update("Validators").Set("Level", validator.Level).
+func (m *sqlStorage) UpdateValidator(conn queryConn, validator *pb.Validator) error {
+	query, args, _ := m.builder().Update("Validators").Set("Level", validator.Level).
 		Where("Id = ?", validator.Id.Unwrap().Hex()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) InsertCertificate(conn queryConn, certificate *pb.Certificate) error {
-	query, args, _ := c.builder().Insert("Certificates").Values(
+func (m *sqlStorage) InsertCertificate(conn queryConn, certificate *pb.Certificate) error {
+	query, args, _ := m.builder().Insert("Certificates").Values(
 		certificate.OwnerID.Unwrap().Hex(),
 		certificate.Attribute,
 		(certificate.Attribute/uint64(100))%10,
@@ -795,8 +795,8 @@ func (c *sqlStorage) InsertCertificate(conn queryConn, certificate *pb.Certifica
 	return err
 }
 
-func (c *sqlStorage) GetCertificates(conn queryConn, ownerID common.Address) ([]*pb.Certificate, error) {
-	query, args, _ := c.builder().Select("*").From("Certificates").Where("OwnerID = ?", ownerID.Hex()).ToSql()
+func (m *sqlStorage) GetCertificates(conn queryConn, ownerID common.Address) ([]*pb.Certificate, error) {
+	query, args, _ := m.builder().Select("*").From("Certificates").Where("OwnerID = ?", ownerID.Hex()).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to getCertificatesByUseID")
@@ -808,7 +808,7 @@ func (c *sqlStorage) GetCertificates(conn queryConn, ownerID common.Address) ([]
 		maxIdentityLevel uint64
 	)
 	for rows.Next() {
-		if certificate, err := c.decodeCertificate(rows); err != nil {
+		if certificate, err := m.decodeCertificate(rows); err != nil {
 			return nil, errors.Wrap(err, "failed to decodeCertificate")
 		} else {
 			certificates = append(certificates, certificate)
@@ -821,8 +821,8 @@ func (c *sqlStorage) GetCertificates(conn queryConn, ownerID common.Address) ([]
 	return certificates, nil
 }
 
-func (c *sqlStorage) InsertProfileUserID(conn queryConn, profile *pb.Profile) error {
-	query, args, _ := c.builder().Select("Id").From("Profiles").Where("UserID = ?", profile.UserID.Unwrap().Hex()).ToSql()
+func (m *sqlStorage) InsertProfileUserID(conn queryConn, profile *pb.Profile) error {
+	query, args, _ := m.builder().Select("Id").From("Profiles").Where("UserID = ?", profile.UserID.Unwrap().Hex()).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return errors.Wrap(err, "failed to check if profile exists")
@@ -833,7 +833,7 @@ func (c *sqlStorage) InsertProfileUserID(conn queryConn, profile *pb.Profile) er
 		return nil
 	}
 
-	query, args, _ = c.builder().Insert("Profiles").Columns(c.tablesInfo.ProfileColumns[1:]...).Values(
+	query, args, _ = m.builder().Insert("Profiles").Columns(m.tablesInfo.ProfileColumns[1:]...).Values(
 		profile.UserID.Unwrap().Hex(),
 		0, "", "", false, false,
 		profile.Certificates,
@@ -844,8 +844,8 @@ func (c *sqlStorage) InsertProfileUserID(conn queryConn, profile *pb.Profile) er
 	return err
 }
 
-func (c *sqlStorage) GetProfileByID(conn queryConn, userID common.Address) (*pb.Profile, error) {
-	query, args, _ := c.builder().Select("*").From("Profiles").Where("UserID = ?", userID.Hex()).ToSql()
+func (m *sqlStorage) GetProfileByID(conn queryConn, userID common.Address) (*pb.Profile, error) {
+	query, args, _ := m.builder().Select("*").From("Profiles").Where("UserID = ?", userID.Hex()).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to selectProfileByID")
@@ -856,18 +856,18 @@ func (c *sqlStorage) GetProfileByID(conn queryConn, userID common.Address) (*pb.
 		return nil, errors.New("no rows returned")
 	}
 
-	return c.decodeProfile(rows)
+	return m.decodeProfile(rows)
 }
 
-func (c *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*pb.Validator, uint64, error) {
-	builder := c.builder().Select("*").From("Validators")
+func (m *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*pb.Validator, uint64, error) {
+	builder := m.builder().Select("*").From("Validators")
 	if r.ValidatorLevel != nil {
 		level := r.ValidatorLevel
 		builder = builder.Where(fmt.Sprintf("Level %s ?", opsTranslator[level.Operator]), level.Value)
 	}
-	builder = c.builderWithSortings(builder, r.Sortings)
-	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
-	rows, count, err := c.runQuery(conn, "*", r.WithCount, query, args...)
+	builder = m.builderWithSortings(builder, r.Sortings)
+	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to run query")
 	}
@@ -875,7 +875,7 @@ func (c *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*
 
 	var out []*pb.Validator
 	for rows.Next() {
-		validator, err := c.decodeValidator(rows)
+		validator, err := m.decodeValidator(rows)
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "failed to decodeValidator")
 		}
@@ -889,14 +889,14 @@ func (c *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*
 	return out, count, nil
 }
 
-func (c *sqlStorage) GetWorkers(conn queryConn, r *pb.WorkersRequest) ([]*pb.DWHWorker, uint64, error) {
-	builder := c.builder().Select("*").From("Workers")
+func (m *sqlStorage) GetWorkers(conn queryConn, r *pb.WorkersRequest) ([]*pb.DWHWorker, uint64, error) {
+	builder := m.builder().Select("*").From("Workers")
 	if !r.MasterID.IsZero() {
 		builder = builder.Where("MasterID = ?", r.MasterID.Unwrap().String())
 	}
-	builder = c.builderWithSortings(builder, []*pb.SortingOption{})
-	query, args, _ := c.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
-	rows, count, err := c.runQuery(conn, "*", r.WithCount, query, args...)
+	builder = m.builderWithSortings(builder, []*pb.SortingOption{})
+	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
+	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
 		return nil, 0, errors.Wrap(err, "failed to run query")
 	}
@@ -904,7 +904,7 @@ func (c *sqlStorage) GetWorkers(conn queryConn, r *pb.WorkersRequest) ([]*pb.DWH
 
 	var out []*pb.DWHWorker
 	for rows.Next() {
-		worker, err := c.decodeWorker(rows)
+		worker, err := m.decodeWorker(rows)
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "failed to decodeWorker")
 		}
@@ -918,22 +918,22 @@ func (c *sqlStorage) GetWorkers(conn queryConn, r *pb.WorkersRequest) ([]*pb.DWH
 	return out, count, nil
 }
 
-func (c *sqlStorage) UpdateProfile(conn queryConn, userID common.Address, field string, value interface{}) error {
-	query, args, _ := c.builder().Update("Profiles").Set(field, value).Where("UserID = ?", userID.Hex()).ToSql()
+func (m *sqlStorage) UpdateProfile(conn queryConn, userID common.Address, field string, value interface{}) error {
+	query, args, _ := m.builder().Update("Profiles").Set(field, value).Where("UserID = ?", userID.Hex()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) UpdateProfileStats(conn queryConn, userID common.Address, field string, value int) error {
-	query, args, _ := c.builder().Update("Profiles").
+func (m *sqlStorage) UpdateProfileStats(conn queryConn, userID common.Address, field string, value int) error {
+	query, args, _ := m.builder().Update("Profiles").
 		Set(field, squirrel.Expr(fmt.Sprintf("%s + %d", field, value))).
 		Where("UserID = ?", userID.Hex()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) GetLastKnownBlock(conn queryConn) (uint64, error) {
-	query, _, _ := c.builder().Select("LastKnownBlock").From("Misc").Where("Id = 1").ToSql()
+func (m *sqlStorage) GetLastKnownBlock(conn queryConn) (uint64, error) {
+	query, _, _ := m.builder().Select("LastKnownBlock").From("Misc").Where("Id = 1").ToSql()
 	rows, err := conn.Query(query)
 	if err != nil {
 		return 0, errors.Wrap(err, "failed to selectLastKnownBlock")
@@ -952,32 +952,32 @@ func (c *sqlStorage) GetLastKnownBlock(conn queryConn) (uint64, error) {
 	return lastKnownBlock, nil
 }
 
-func (c *sqlStorage) InsertLastKnownBlock(conn queryConn, blockNumber int64) error {
-	query, args, _ := c.builder().Insert("Misc").Columns("LastKnownBlock").Values(blockNumber).ToSql()
+func (m *sqlStorage) InsertLastKnownBlock(conn queryConn, blockNumber int64) error {
+	query, args, _ := m.builder().Insert("Misc").Columns("LastKnownBlock").Values(blockNumber).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) UpdateLastKnownBlock(conn queryConn, blockNumber int64) error {
-	query, args, _ := c.builder().Update("Misc").Set("LastKnownBlock", blockNumber).Where("Id = 1").ToSql()
+func (m *sqlStorage) UpdateLastKnownBlock(conn queryConn, blockNumber int64) error {
+	query, args, _ := m.builder().Update("Misc").Set("LastKnownBlock", blockNumber).Where("Id = 1").ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) StoreStaleID(conn queryConn, id *big.Int, entity string) error {
-	query, args, _ := c.builder().Insert("StaleIDs").Values(fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
+func (m *sqlStorage) StoreStaleID(conn queryConn, id *big.Int, entity string) error {
+	query, args, _ := m.builder().Insert("StaleIDs").Values(fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) RemoveStaleID(conn queryConn, id *big.Int, entity string) error {
-	query, args, _ := c.builder().Delete("StaleIDs").Where("Id = ?", fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
+func (m *sqlStorage) RemoveStaleID(conn queryConn, id *big.Int, entity string) error {
+	query, args, _ := m.builder().Delete("StaleIDs").Where("Id = ?", fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
 
-func (c *sqlStorage) CheckStaleID(conn queryConn, id *big.Int, entity string) (bool, error) {
-	query, args, _ := c.builder().Select("*").From("StaleIDs").
+func (m *sqlStorage) CheckStaleID(conn queryConn, id *big.Int, entity string) (bool, error) {
+	query, args, _ := m.builder().Select("*").From("StaleIDs").
 		Where("Id = ?", fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
@@ -992,7 +992,7 @@ func (c *sqlStorage) CheckStaleID(conn queryConn, id *big.Int, entity string) (b
 	return true, nil
 }
 
-func (c *sqlStorage) addBenchmarksConditionsWhere(builder squirrel.SelectBuilder, benches map[uint64]*pb.MaxMinUint64) squirrel.SelectBuilder {
+func (m *sqlStorage) addBenchmarksConditionsWhere(builder squirrel.SelectBuilder, benches map[uint64]*pb.MaxMinUint64) squirrel.SelectBuilder {
 	for benchID, condition := range benches {
 		if condition.Max > 0 {
 			builder = builder.Where(fmt.Sprintf("%s <= ?", getBenchmarkColumn(benchID)), condition.Max)
@@ -1005,7 +1005,7 @@ func (c *sqlStorage) addBenchmarksConditionsWhere(builder squirrel.SelectBuilder
 	return builder
 }
 
-func (c *sqlStorage) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
+func (m *sqlStorage) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 	var (
 		id                   = new(string)
 		supplierID           = new(string)
@@ -1050,7 +1050,7 @@ func (c *sqlStorage) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 		consumerCertificates,
 		activeChangeRequest,
 	}
-	benchmarks := make([]*uint64, c.numBenchmarks)
+	benchmarks := make([]*uint64, m.numBenchmarks)
 	for benchID := range benchmarks {
 		benchmarks[benchID] = new(uint64)
 		allFields = append(allFields, benchmarks[benchID])
@@ -1059,7 +1059,7 @@ func (c *sqlStorage) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 		return nil, errors.Wrap(err, "failed to scan Deal row")
 	}
 
-	benchmarksUint64 := make([]uint64, c.numBenchmarks)
+	benchmarksUint64 := make([]uint64, m.numBenchmarks)
 	for benchID, benchValue := range benchmarks {
 		benchmarksUint64[benchID] = *benchValue
 	}
@@ -1113,7 +1113,7 @@ func (c *sqlStorage) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 	}, nil
 }
 
-func (c *sqlStorage) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, error) {
+func (m *sqlStorage) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, error) {
 	var (
 		id          uint64
 		supplierID  string
@@ -1164,7 +1164,7 @@ func (c *sqlStorage) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, err
 	}, nil
 }
 
-func (c *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
+func (m *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 	var (
 		id                   = new(string)
 		masterID             = new(string)
@@ -1207,7 +1207,7 @@ func (c *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 		creatorCountry,
 		creatorCertificates,
 	}
-	benchmarks := make([]*uint64, c.numBenchmarks)
+	benchmarks := make([]*uint64, m.numBenchmarks)
 	for benchID := range benchmarks {
 		benchmarks[benchID] = new(uint64)
 		allFields = append(allFields, benchmarks[benchID])
@@ -1215,7 +1215,7 @@ func (c *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 	if err := rows.Scan(allFields...); err != nil {
 		return nil, errors.Wrap(err, "failed to scan Order row")
 	}
-	benchmarksUint64 := make([]uint64, c.numBenchmarks)
+	benchmarksUint64 := make([]uint64, m.numBenchmarks)
 	for benchID, benchValue := range benchmarks {
 		benchmarksUint64[benchID] = *benchValue
 	}
@@ -1262,7 +1262,7 @@ func (c *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 	}, nil
 }
 
-func (c *sqlStorage) decodeDealChangeRequest(rows *sql.Rows) (*pb.DealChangeRequest, error) {
+func (m *sqlStorage) decodeDealChangeRequest(rows *sql.Rows) (*pb.DealChangeRequest, error) {
 	var (
 		changeRequestID     string
 		createdTS           uint64
@@ -1306,7 +1306,7 @@ func (c *sqlStorage) decodeDealChangeRequest(rows *sql.Rows) (*pb.DealChangeRequ
 	}, nil
 }
 
-func (c *sqlStorage) decodeCertificate(rows *sql.Rows) (*pb.Certificate, error) {
+func (m *sqlStorage) decodeCertificate(rows *sql.Rows) (*pb.Certificate, error) {
 	var (
 		ownerID       string
 		attribute     uint64
@@ -1327,7 +1327,7 @@ func (c *sqlStorage) decodeCertificate(rows *sql.Rows) (*pb.Certificate, error) 
 	}
 }
 
-func (c *sqlStorage) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
+func (m *sqlStorage) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 	var (
 		id             uint64
 		userID         string
@@ -1368,7 +1368,7 @@ func (c *sqlStorage) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 	}, nil
 }
 
-func (c *sqlStorage) decodeValidator(rows *sql.Rows) (*pb.Validator, error) {
+func (m *sqlStorage) decodeValidator(rows *sql.Rows) (*pb.Validator, error) {
 	var (
 		validatorID string
 		level       uint64
@@ -1383,7 +1383,7 @@ func (c *sqlStorage) decodeValidator(rows *sql.Rows) (*pb.Validator, error) {
 	}, nil
 }
 
-func (c *sqlStorage) decodeWorker(rows *sql.Rows) (*pb.DWHWorker, error) {
+func (m *sqlStorage) decodeWorker(rows *sql.Rows) (*pb.DWHWorker, error) {
 	var (
 		masterID  string
 		slaveID   string
@@ -1400,7 +1400,7 @@ func (c *sqlStorage) decodeWorker(rows *sql.Rows) (*pb.DWHWorker, error) {
 	}, nil
 }
 
-func (c *sqlStorage) filterSortings(sortings []*pb.SortingOption, columns map[string]bool) (out []*pb.SortingOption) {
+func (m *sqlStorage) filterSortings(sortings []*pb.SortingOption, columns map[string]bool) (out []*pb.SortingOption) {
 	for _, sorting := range sortings {
 		if columns[sorting.Field] {
 			out = append(out, sorting)
@@ -1551,7 +1551,7 @@ func (c *sqlSetupCommands) createIndex(db *sql.DB, command, table, column string
 	return nil
 }
 
-func (c *sqlStorage) builderWithOffsetLimit(builder squirrel.SelectBuilder, limit, offset uint64) squirrel.SelectBuilder {
+func (m *sqlStorage) builderWithOffsetLimit(builder squirrel.SelectBuilder, limit, offset uint64) squirrel.SelectBuilder {
 	if limit > 0 {
 		builder = builder.Limit(limit)
 	}
@@ -1562,7 +1562,7 @@ func (c *sqlStorage) builderWithOffsetLimit(builder squirrel.SelectBuilder, limi
 	return builder
 }
 
-func (c *sqlStorage) builderWithSortings(builder squirrel.SelectBuilder, sortings []*pb.SortingOption) squirrel.SelectBuilder {
+func (m *sqlStorage) builderWithSortings(builder squirrel.SelectBuilder, sortings []*pb.SortingOption) squirrel.SelectBuilder {
 	var sortsFlat []string
 	for _, sort := range sortings {
 		sortsFlat = append(sortsFlat, fmt.Sprintf("%s %s", sort.Field, pb.SortingOrder_name[int32(sort.Order)]))
@@ -1572,7 +1572,7 @@ func (c *sqlStorage) builderWithSortings(builder squirrel.SelectBuilder, sorting
 	return builder
 }
 
-func (c *sqlStorage) newNetflagsWhere(builder squirrel.SelectBuilder, operator pb.CmpOp, value uint64) squirrel.SelectBuilder {
+func (m *sqlStorage) newNetflagsWhere(builder squirrel.SelectBuilder, operator pb.CmpOp, value uint64) squirrel.SelectBuilder {
 	switch operator {
 	case pb.CmpOp_GTE:
 		return builder.Where("Netflags | ~ CAST (? as int) = -1", value)
@@ -1583,7 +1583,7 @@ func (c *sqlStorage) newNetflagsWhere(builder squirrel.SelectBuilder, operator p
 	}
 }
 
-func (c *sqlStorage) runQuery(conn queryConn, columns string, withCount bool, query string, args ...interface{}) (*sql.Rows, uint64, error) {
+func (m *sqlStorage) runQuery(conn queryConn, columns string, withCount bool, query string, args ...interface{}) (*sql.Rows, uint64, error) {
 	dataQuery := strings.Replace(query, "*", columns, 1)
 	rows, err := conn.Query(dataQuery, args...)
 	if err != nil {

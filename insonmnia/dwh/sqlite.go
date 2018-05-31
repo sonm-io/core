@@ -7,14 +7,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (w *DWH) setupSQLite(db *sql.DB, numBenchmarks uint64) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (m *DWH) setupSQLite(db *sql.DB, numBenchmarks uint64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	_, err := db.Exec(`PRAGMA foreign_keys=ON`)
 	if err != nil {
 		db.Close()
-		return errors.Wrapf(err, "failed to enable foreign key support (%s)", w.cfg.Storage.Backend)
+		return errors.Wrapf(err, "failed to enable foreign key support (%s)", m.cfg.Storage.Backend)
 	}
 
 	store := newSQLiteStorage(newTablesInfo(numBenchmarks), numBenchmarks)
@@ -22,7 +22,7 @@ func (w *DWH) setupSQLite(db *sql.DB, numBenchmarks uint64) error {
 		return errors.Wrap(err, "failed to setup store")
 	}
 
-	w.storage = store
+	m.storage = store
 
 	return nil
 }
