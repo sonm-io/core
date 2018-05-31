@@ -54,17 +54,17 @@ type BilledData struct {
 }
 
 type WorkerAnnouncedData struct {
-	SlaveID  common.Address
+	WorkerID common.Address
 	MasterID common.Address
 }
 
 type WorkerConfirmedData struct {
-	SlaveID  common.Address
+	WorkerID common.Address
 	MasterID common.Address
 }
 
 type WorkerRemovedData struct {
-	SlaveID  common.Address
+	WorkerID common.Address
 	MasterID common.Address
 }
 

@@ -830,7 +830,6 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 			market.BilledTopic,
 			market.WorkerAnnouncedTopic,
 			market.WorkerConfirmedTopic,
-			market.WorkerConfirmedTopic,
 			market.WorkerRemovedTopic,
 			market.AddedToBlacklistTopic,
 			market.RemovedFromBlacklistTopic,
@@ -989,7 +988,7 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			sendErr(out, err, topic)
 			return
 		}
-		sendData(&WorkerAnnouncedData{SlaveID: slaveID, MasterID: masterID})
+		sendData(&WorkerAnnouncedData{WorkerID: slaveID, MasterID: masterID})
 	case market.WorkerConfirmedTopic:
 		slaveID, err := extractAddress(log.Topics, 1)
 		if err != nil {
@@ -1001,7 +1000,7 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			sendErr(out, err, topic)
 			return
 		}
-		sendData(&WorkerConfirmedData{SlaveID: slaveID, MasterID: masterID})
+		sendData(&WorkerConfirmedData{WorkerID: slaveID, MasterID: masterID})
 	case market.WorkerRemovedTopic:
 		slaveID, err := extractAddress(log.Topics, 1)
 		if err != nil {
@@ -1013,7 +1012,7 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			sendErr(out, err, topic)
 			return
 		}
-		sendData(&WorkerRemovedData{SlaveID: slaveID, MasterID: masterID})
+		sendData(&WorkerRemovedData{WorkerID: slaveID, MasterID: masterID})
 	case market.AddedToBlacklistTopic:
 		adderID, err := extractAddress(log.Topics, 1)
 		if err != nil {
