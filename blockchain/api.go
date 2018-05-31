@@ -604,7 +604,7 @@ func (api *BasicMarketAPI) GetNumBenchmarks(ctx context.Context) (uint64, error)
 }
 
 type ProfileRegistry struct {
-	client                  EthereumClientBackend
+	client                  CustomEthereumClient
 	profileRegistryContract *marketAPI.ProfileRegistry
 	opts                    *chainOpts
 }
@@ -721,7 +721,7 @@ func (api *BasicBlacklistAPI) SetMarketAddress(ctx context.Context, key *ecdsa.P
 }
 
 type StandardTokenApi struct {
-	client        EthereumClientBackend
+	client        CustomEthereumClient
 	tokenContract *marketAPI.StandardToken
 	opts          *chainOpts
 }
@@ -772,7 +772,7 @@ func (api *StandardTokenApi) TotalSupply(ctx context.Context) (*big.Int, error) 
 }
 
 type TestTokenApi struct {
-	client        EthereumClientBackend
+	client        CustomEthereumClient
 	tokenContract *marketAPI.SNMTToken
 	opts          *chainOpts
 }
@@ -801,7 +801,7 @@ func (api *TestTokenApi) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (
 }
 
 type BasicEventsAPI struct {
-	client EthereumClientBackend
+	client CustomEthereumClient
 	logger *zap.Logger
 }
 
@@ -1067,7 +1067,7 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 }
 
 type OracleUSDAPI struct {
-	client         EthereumClientBackend
+	client         CustomEthereumClient
 	oracleContract *marketAPI.OracleUSD
 	opts           *chainOpts
 }
