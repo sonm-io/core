@@ -671,9 +671,9 @@ func (m *sqlStorage) UpdateDealConditionEndTime(conn queryConn, dealConditionID,
 	return err
 }
 
-func (m *sqlStorage) CheckWorkerExists(conn queryConn, masterID, workerID string) (bool, error) {
+func (m *sqlStorage) CheckWorkerExists(conn queryConn, masterID, workerID common.Address) (bool, error) {
 	query, args, _ := m.builder().Select("MasterID").From("Workers").
-		Where("MasterID = ?", masterID).Where("WorkerID = ?", workerID).ToSql()
+		Where("MasterID = ?", masterID.Hex()).Where("WorkerID = ?", workerID.Hex()).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to run CheckWorker query")
@@ -682,22 +682,22 @@ func (m *sqlStorage) CheckWorkerExists(conn queryConn, masterID, workerID string
 	return rows.Next(), nil
 }
 
-func (m *sqlStorage) InsertWorker(conn queryConn, masterID, workerID string) error {
-	query, args, err := m.builder().Insert("Workers").Values(masterID, workerID, false).ToSql()
+func (m *sqlStorage) InsertWorker(conn queryConn, masterID, workerID common.Address) error {
+	query, args, err := m.builder().Insert("Workers").Values(masterID.Hex(), workerID.Hex(), false).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (m *sqlStorage) UpdateWorker(conn queryConn, masterID, workerID string) error {
-	query, args, err := m.builder().Update("Workers").Set("Confirmed", true).Where("MasterID = ?", masterID).
-		Where("WorkerID = ?", workerID).ToSql()
+func (m *sqlStorage) UpdateWorker(conn queryConn, masterID, workerID common.Address) error {
+	query, args, err := m.builder().Update("Workers").Set("Confirmed", true).Where("MasterID = ?", masterID.Hex()).
+		Where("WorkerID = ?", workerID.Hex()).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (m *sqlStorage) DeleteWorker(conn queryConn, masterID, workerID string) error {
-	query, args, err := m.builder().Delete("Workers").Where("MasterID = ?", masterID).
-		Where("WorkerID = ?", workerID).ToSql()
+func (m *sqlStorage) DeleteWorker(conn queryConn, masterID, workerID common.Address) error {
+	query, args, err := m.builder().Delete("Workers").Where("MasterID = ?", masterID.Hex()).
+		Where("WorkerID = ?", workerID.Hex()).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
@@ -719,15 +719,15 @@ func (m *sqlStorage) GetMasterByWorker(conn queryConn, slaveID common.Address) (
 	return util.HexToAddress(masterID)
 }
 
-func (m *sqlStorage) InsertBlacklistEntry(conn queryConn, adderID, addeeID string) error {
-	query, args, err := m.builder().Insert("Blacklists").Values(adderID, addeeID).ToSql()
+func (m *sqlStorage) InsertBlacklistEntry(conn queryConn, adderID, addeeID common.Address) error {
+	query, args, err := m.builder().Insert("Blacklists").Values(adderID.Hex(), addeeID.Hex()).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (m *sqlStorage) DeleteBlacklistEntry(conn queryConn, removerID, removeeID string) error {
-	query, args, err := m.builder().Delete("Blacklists").Where("AdderID = ?", removerID).
-		Where("AddeeID = ?", removeeID).ToSql()
+func (m *sqlStorage) DeleteBlacklistEntry(conn queryConn, removerID, removeeID common.Address) error {
+	query, args, err := m.builder().Delete("Blacklists").Where("AdderID = ?", removerID.Hex()).
+		Where("AddeeID = ?", removeeID.Hex()).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
