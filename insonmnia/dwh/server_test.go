@@ -1061,7 +1061,9 @@ func testBlacklistAddedRemoved() error {
 }
 
 func getDealChangeRequest(w *DWH, changeRequestID *pb.BigInt) (*pb.DealChangeRequest, error) {
-	rows, err := w.db.Query("SELECT * FROM DealChangeRequests WHERE Id=?", changeRequestID.Unwrap().String())
+	storage := w.storage.(*sqlStorage)
+	rows, err := storage.builder().Select("*").From("DealChangeRequests").
+		Where("Id = ?", changeRequestID.Unwrap().String()).RunWith(w.db).Query()
 	if err != nil {
 		return nil, errors.Errorf("query failed: %s", err)
 	}
@@ -1075,7 +1077,8 @@ func getDealChangeRequest(w *DWH, changeRequestID *pb.BigInt) (*pb.DealChangeReq
 }
 
 func getCertificates(w *DWH) ([]*pb.Certificate, error) {
-	rows, err := w.db.Query("SELECT * FROM Certificates")
+	storage := w.storage.(*sqlStorage)
+	rows, err := storage.builder().Select("*").From("Certificates").RunWith(w.db).Query()
 	if err != nil {
 		return nil, errors.Errorf("query failed: %s", err)
 	}
@@ -1093,12 +1096,6 @@ func getCertificates(w *DWH) ([]*pb.Certificate, error) {
 	return out, nil
 }
 
-type dealPayment struct {
-	BilledTS   uint64
-	PaidAmount string
-	DealID     string
-}
-
 func setupTestDB(w *DWH) error {
 	if err := w.setupSQLite(w.db, 12); err != nil {
 		return err
@@ -1108,60 +1105,52 @@ func setupTestDB(w *DWH) error {
 		{OwnerID: pb.NewEthAddress(common.HexToAddress("0xBB")), Value: []byte("Consumer"), Attribute: CertificateName},
 	}
 	byteCerts, _ := json.Marshal(certs)
-
-	insertDeal := `INSERT INTO Deals(Id, SupplierID, ConsumerID, MasterID, AskID, BidID, Duration, Price, StartTime,
-		EndTime, Status, BlockedBalance, TotalPayout, LastBillTS, Netflags, AskIdentityLevel, BidIdentityLevel,
-		SupplierCertificates, ConsumerCertificates, ActiveChangeRequest, Benchmark0, Benchmark1, Benchmark2,
-		Benchmark3, Benchmark4, Benchmark5, Benchmark6, Benchmark7, Benchmark8, Benchmark9, Benchmark10, Benchmark11)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	insertOrder := `INSERT INTO Orders(Id, MasterID, CreatedTS, DealID, Type, Status, AuthorID, CounterpartyID, Duration,
-		Price, Netflags, IdentityLevel, Blacklist, Tag, FrozenSum, CreatorIdentityLevel, CreatorName, CreatorCountry,
-		CreatorCertificates, Benchmark0, Benchmark1, Benchmark2, Benchmark3, Benchmark4, Benchmark5, Benchmark6,
-		Benchmark7, Benchmark8, Benchmark9, Benchmark10, Benchmark11) VALUES
-		(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-	insertDealChangeRequest := `INSERT INTO DealChangeRequests VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	storage := w.storage.(*sqlStorage)
 	for i := 0; i < 10; i++ {
-		_, err := w.db.Exec(
-			insertDeal,
-			fmt.Sprintf("4040%d", i),
-			common.HexToAddress(fmt.Sprintf("0x1%d", i)).Hex(), // Supplier
-			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(), // Consumer
-			common.HexToAddress(fmt.Sprintf("0x3%d", i)).Hex(), // Master
-			fmt.Sprintf("2020%d", i),
-			fmt.Sprintf("3030%d", i),
-			10010+i, // Duration
-			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
-			30010+i, // StartTime
-			40010+i, // EndTime
-			uint64(pb.DealStatus_DEAL_ACCEPTED),
-			pb.NewBigIntFromInt(50010+int64(i)).PaddedString(), // BlockedBalance
-			pb.NewBigIntFromInt(60010+int64(i)).PaddedString(), // TotalPayout
-			70010+i,   // LastBillTS
-			5,         // Netflags
-			3,         // AskIdentityLevel
-			4,         // BidIdentityLevel
-			byteCerts, // SupplierCertificates
-			byteCerts, // ConsumerCertificates
-			true,
-			10, // CPUSysbenchMulti
-			20,
-			30,
-			40,
-			50,
-			60,
-			70,
-			80,
-			90,
-			100, // GPUEthHashrate
-			110,
-			120,
-		)
+		insertDeal, args, _ := storage.builder().Insert("Deals").
+			Columns(storage.tablesInfo.DealColumns...).
+			Values(
+				fmt.Sprintf("4040%d", i),
+				common.HexToAddress(fmt.Sprintf("0x1%d", i)).Hex(), // Supplier
+				common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(), // Consumer
+				common.HexToAddress(fmt.Sprintf("0x3%d", i)).Hex(), // Master
+				fmt.Sprintf("2020%d", i),
+				fmt.Sprintf("3030%d", i),
+				10010+i, // Duration
+				pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
+				30010+i, // StartTime
+				40010+i, // EndTime
+				uint64(pb.DealStatus_DEAL_ACCEPTED),
+				pb.NewBigIntFromInt(50010+int64(i)).PaddedString(), // BlockedBalance
+				pb.NewBigIntFromInt(60010+int64(i)).PaddedString(), // TotalPayout
+				70010+i,   // LastBillTS
+				5,         // Netflags
+				3,         // AskIdentityLevel
+				4,         // BidIdentityLevel
+				byteCerts, // SupplierCertificates
+				byteCerts, // ConsumerCertificates
+				true,
+				10, // CPUSysbenchMulti
+				20,
+				30,
+				40,
+				50,
+				60,
+				70,
+				80,
+				90,
+				100, // GPUEthHashrate
+				110,
+				120,
+			).ToSql()
+
+		_, err := w.db.Exec(insertDeal, args...)
 		if err != nil {
 			return errors.Wrap(err, "failed to insertDeal")
 		}
 
-		_, err = w.db.Exec(
-			insertOrder,
+		_, err = storage.builder().Insert("Orders").
+			Columns(storage.tablesInfo.OrderColumns...).Values(
 			fmt.Sprintf("2020%d", i),
 			common.HexToAddress(fmt.Sprintf("0x9%d", i)).Hex(), // Master
 			12345, // CreatedTS
@@ -1193,13 +1182,13 @@ func setupTestDB(w *DWH) error {
 			100+i,
 			110+i,
 			120+i,
-		)
+		).RunWith(w.db).Exec()
 		if err != nil {
 			return err
 		}
 
-		_, err = w.db.Exec(
-			insertOrder,
+		_, err = storage.builder().Insert("Orders").
+			Columns(storage.tablesInfo.OrderColumns...).Values(
 			fmt.Sprintf("3030%d", i),
 			common.HexToAddress(fmt.Sprintf("0x9%d", i)).Hex(), // Master
 			12345, // CreatedTS
@@ -1231,13 +1220,13 @@ func setupTestDB(w *DWH) error {
 			100-i,
 			110-i,
 			120-i,
-		)
+		).RunWith(w.db).Exec()
 		if err != nil {
 			return err
 		}
 
-		_, err = w.db.Exec(insertDealChangeRequest,
-			fmt.Sprintf("5050%d", i), 0, 0, 0, 0, 0, "40400")
+		_, err = storage.builder().Insert("DealChangeRequests").
+			Values(fmt.Sprintf("5050%d", i), 0, 0, 0, 0, 0, "40400").RunWith(w.db).Exec()
 		if err != nil {
 			return err
 		}
@@ -1248,26 +1237,56 @@ func setupTestDB(w *DWH) error {
 		} else {
 			identityLevel = 1
 		}
-		_, err = w.db.Exec("INSERT INTO Profiles VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(), identityLevel, "sortedProfile", "", 0, 0, []byte{}, 0, 0)
+		_, err = storage.builder().Insert("Profiles").Columns(storage.tablesInfo.ProfileColumns[1:]...).Values(
+			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(),
+			identityLevel,
+			"sortedProfile",
+			"",
+			0,
+			0,
+			[]byte{},
+			0,
+			0,
+		).RunWith(w.db).Exec()
 		if err != nil {
 			return err
 		}
 	}
 
-	_, err := w.db.Exec("INSERT INTO Profiles VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		fmt.Sprintf(common.HexToAddress("0xBB").Hex()), 3, "Consumer", "", 0, 0, byteCerts, 10, 10)
+	_, err := storage.builder().Insert("Profiles").Columns(storage.tablesInfo.ProfileColumns[1:]...).Values(
+		fmt.Sprintf(common.HexToAddress("0xBB").Hex()),
+		3,
+		"Consumer",
+		"",
+		0,
+		0,
+		byteCerts,
+		10,
+		10,
+	).RunWith(w.db).Exec()
 	if err != nil {
 		return err
 	}
 
-	_, err = w.db.Exec("INSERT INTO Profiles VALUES (NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-		fmt.Sprintf(common.HexToAddress("0xAA").Hex()), 3, "Supplier", "", 0, 0, byteCerts, 10, 10)
+	_, err = storage.builder().Insert("Profiles").Columns(storage.tablesInfo.ProfileColumns[1:]...).Values(
+		fmt.Sprintf(common.HexToAddress("0xAA").Hex()),
+		3,
+		"Supplier",
+		"",
+		0,
+		0,
+		byteCerts,
+		10,
+		10,
+	).RunWith(w.db).Exec()
 	if err != nil {
 		return err
 	}
 
-	_, err = w.db.Exec("INSERT INTO Blacklists VALUES (?, ?)", common.HexToAddress("0xE").Hex(), common.HexToAddress("0xBB").Hex())
+	_, err = storage.builder().Insert("Blacklists").Values(
+		common.HexToAddress("0xE").Hex(),
+		common.HexToAddress("0xBB").Hex(),
+	).RunWith(w.db).Exec()
 	if err != nil {
 		return err
 	}
