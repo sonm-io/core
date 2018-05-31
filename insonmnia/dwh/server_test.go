@@ -589,8 +589,8 @@ func TestDWH_monitor(t *testing.T) {
 
 	monitorDWH.blockchain = mockBlock
 
-	err = monitorDWH.storage.InsertWorker(newSimpleConn(monitorDWH.db), common.Address{}.Hex(),
-		"0x000000000000000000000000000000000000000d")
+	err = monitorDWH.storage.InsertWorker(newSimpleConn(monitorDWH.db), common.Address{},
+		common.HexToAddress("0x000000000000000000000000000000000000000d"))
 	if err != nil {
 		t.Error("failed to insert worker (additional)")
 	}
@@ -615,8 +615,8 @@ func TestDWH_monitor(t *testing.T) {
 		t.Errorf("testOrderUpdated: %s", err)
 		return
 	}
-	err = monitorDWH.storage.DeleteWorker(newSimpleConn(monitorDWH.db), common.Address{}.Hex(),
-		"0x000000000000000000000000000000000000000d")
+	err = monitorDWH.storage.DeleteWorker(newSimpleConn(monitorDWH.db), common.Address{},
+		common.HexToAddress("0x000000000000000000000000000000000000000d"))
 	if err != nil {
 		t.Error("failed to delete worker (additional)")
 	}
@@ -983,8 +983,7 @@ func testDealClosed(deal *pb.Deal, commonID *big.Int) error {
 
 func testWorkerAnnouncedConfirmedRemoved() error {
 	// Check that a worker is added after a WorkerAnnounced event.
-	if err := monitorDWH.onWorkerAnnounced(common.HexToAddress("0xC").Hex(),
-		common.HexToAddress("0xD").Hex()); err != nil {
+	if err := monitorDWH.onWorkerAnnounced(common.HexToAddress("0xC"), common.HexToAddress("0xD")); err != nil {
 		return errors.Wrap(err, "onWorkerAnnounced failed")
 	}
 	if workers, _, err := monitorDWH.storage.GetWorkers(newSimpleConn(monitorDWH.db), &pb.WorkersRequest{}); err != nil {
@@ -999,8 +998,7 @@ func testWorkerAnnouncedConfirmedRemoved() error {
 		}
 	}
 	// Check that a worker is confirmed after a WorkerConfirmed event.
-	if err := monitorDWH.onWorkerConfirmed(common.HexToAddress("0xC").Hex(),
-		common.HexToAddress("0xD").Hex()); err != nil {
+	if err := monitorDWH.onWorkerConfirmed(common.HexToAddress("0xC"), common.HexToAddress("0xD")); err != nil {
 		return errors.Wrap(err, "onWorkerConfirmed failed")
 	}
 	if workers, _, err := monitorDWH.storage.GetWorkers(newSimpleConn(monitorDWH.db), &pb.WorkersRequest{}); err != nil {
@@ -1015,8 +1013,7 @@ func testWorkerAnnouncedConfirmedRemoved() error {
 		}
 	}
 	// Check that a worker is deleted after a WorkerRemoved event.
-	if err := monitorDWH.onWorkerRemoved(common.HexToAddress("0xC").Hex(),
-		common.HexToAddress("0xD").Hex()); err != nil {
+	if err := monitorDWH.onWorkerRemoved(common.HexToAddress("0xC"), common.HexToAddress("0xD")); err != nil {
 		return errors.Wrap(err, "onWorkerRemoved failed")
 	}
 	if workers, _, err := monitorDWH.storage.GetWorkers(newSimpleConn(monitorDWH.db), &pb.WorkersRequest{}); err != nil {
@@ -1031,8 +1028,7 @@ func testWorkerAnnouncedConfirmedRemoved() error {
 
 func testBlacklistAddedRemoved() error {
 	// Check that a Blacklist entry is added after AddedToBlacklist event.
-	if err := monitorDWH.onAddedToBlacklist(common.HexToAddress("0xC").Hex(),
-		common.HexToAddress("0xD").Hex()); err != nil {
+	if err := monitorDWH.onAddedToBlacklist(common.HexToAddress("0xC"), common.HexToAddress("0xD")); err != nil {
 		return errors.Wrap(err, "onAddedToBlacklist failed")
 	}
 	if blacklistReply, err := monitorDWH.storage.GetBlacklist(
@@ -1045,8 +1041,7 @@ func testBlacklistAddedRemoved() error {
 		}
 	}
 	// Check that a Blacklist entry is deleted after RemovedFromBlacklist event.
-	if err := monitorDWH.onRemovedFromBlacklist(common.HexToAddress("0xC").Hex(),
-		common.HexToAddress("0xD").Hex()); err != nil {
+	if err := monitorDWH.onRemovedFromBlacklist(common.HexToAddress("0xC"), common.HexToAddress("0xD")); err != nil {
 		return errors.Wrap(err, "onRemovedFromBlacklist failed")
 	}
 	if repl, err := monitorDWH.storage.GetBlacklist(
@@ -1091,12 +1086,6 @@ func getCertificates(w *DWH) ([]*pb.Certificate, error) {
 	}
 
 	return out, nil
-}
-
-type dealPayment struct {
-	BilledTS   uint64
-	PaidAmount string
-	DealID     string
 }
 
 func setupTestDB(w *DWH) error {

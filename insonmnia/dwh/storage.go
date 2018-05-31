@@ -37,13 +37,13 @@ type storage interface {
 	InsertDealCondition(conn queryConn, condition *pb.DealCondition) error
 	UpdateDealConditionPayout(conn queryConn, dealConditionID uint64, payout *big.Int) error
 	UpdateDealConditionEndTime(conn queryConn, dealConditionID, eventTS uint64) error
-	CheckWorkerExists(conn queryConn, masterID, workerID string) (bool, error)
-	InsertWorker(conn queryConn, masterID, slaveID string) error
-	UpdateWorker(conn queryConn, masterID, slaveID string) error
-	DeleteWorker(conn queryConn, masterID, slaveID string) error
-	GetMasterByWorker(conn queryConn, slaveID common.Address) (common.Address, error)
-	InsertBlacklistEntry(conn queryConn, adderID, addeeID string) error
-	DeleteBlacklistEntry(conn queryConn, removerID, removeeID string) error
+	CheckWorkerExists(conn queryConn, masterID, workerID common.Address) (bool, error)
+	InsertWorker(conn queryConn, masterID, workerID common.Address) error
+	UpdateWorker(conn queryConn, masterID, workerID common.Address) error
+	DeleteWorker(conn queryConn, masterID, workerID common.Address) error
+	GetMasterByWorker(conn queryConn, workerID common.Address) (common.Address, error)
+	InsertBlacklistEntry(conn queryConn, adderID, addeeID common.Address) error
+	DeleteBlacklistEntry(conn queryConn, removerID, removeeID common.Address) error
 	GetBlacklist(conn queryConn, request *pb.BlacklistRequest) (*pb.BlacklistReply, error)
 	InsertValidator(conn queryConn, validator *pb.Validator) error
 	UpdateValidator(conn queryConn, validator *pb.Validator) error

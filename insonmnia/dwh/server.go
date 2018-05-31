@@ -471,15 +471,15 @@ func (m *DWH) processEvent(event *blockchain.Event) error {
 	case *blockchain.BilledData:
 		return m.onBilled(event.TS, value.DealID, value.PaidAmount)
 	case *blockchain.WorkerAnnouncedData:
-		return m.onWorkerAnnounced(value.MasterID.Hex(), value.SlaveID.Hex())
+		return m.onWorkerAnnounced(value.MasterID, value.WorkerID)
 	case *blockchain.WorkerConfirmedData:
-		return m.onWorkerConfirmed(value.MasterID.Hex(), value.SlaveID.Hex())
+		return m.onWorkerConfirmed(value.MasterID, value.WorkerID)
 	case *blockchain.WorkerRemovedData:
-		return m.onWorkerRemoved(value.MasterID.Hex(), value.SlaveID.Hex())
+		return m.onWorkerRemoved(value.MasterID, value.WorkerID)
 	case *blockchain.AddedToBlacklistData:
-		return m.onAddedToBlacklist(value.AdderID.Hex(), value.AddeeID.Hex())
+		return m.onAddedToBlacklist(value.AdderID, value.AddeeID)
 	case *blockchain.RemovedFromBlacklistData:
-		m.onRemovedFromBlacklist(value.RemoverID.Hex(), value.RemoveeID.Hex())
+		m.onRemovedFromBlacklist(value.RemoverID, value.RemoveeID)
 	case *blockchain.ValidatorCreatedData:
 		return m.onValidatorCreated(value.ID)
 	case *blockchain.ValidatorDeletedData:
@@ -903,7 +903,7 @@ func (m *DWH) onOrderUpdated(orderID *big.Int) error {
 	return nil
 }
 
-func (m *DWH) onWorkerAnnounced(masterID, slaveID string) error {
+func (m *DWH) onWorkerAnnounced(masterID, slaveID common.Address) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -926,7 +926,7 @@ func (m *DWH) onWorkerAnnounced(masterID, slaveID string) error {
 	return nil
 }
 
-func (m *DWH) onWorkerConfirmed(masterID, slaveID string) error {
+func (m *DWH) onWorkerConfirmed(masterID, slaveID common.Address) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -937,7 +937,7 @@ func (m *DWH) onWorkerConfirmed(masterID, slaveID string) error {
 	return nil
 }
 
-func (m *DWH) onWorkerRemoved(masterID, slaveID string) error {
+func (m *DWH) onWorkerRemoved(masterID, slaveID common.Address) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -948,7 +948,7 @@ func (m *DWH) onWorkerRemoved(masterID, slaveID string) error {
 	return nil
 }
 
-func (m *DWH) onAddedToBlacklist(adderID, addeeID string) error {
+func (m *DWH) onAddedToBlacklist(adderID, addeeID common.Address) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -959,7 +959,7 @@ func (m *DWH) onAddedToBlacklist(adderID, addeeID string) error {
 	return nil
 }
 
-func (m *DWH) onRemovedFromBlacklist(removerID, removeeID string) error {
+func (m *DWH) onRemovedFromBlacklist(removerID, removeeID common.Address) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
