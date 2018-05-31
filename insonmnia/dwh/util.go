@@ -15,15 +15,6 @@ var (
 	}
 )
 
-func stringSliceToSet(in []string) map[string]bool {
-	out := map[string]bool{}
-	for _, value := range in {
-		out[value] = true
-	}
-
-	return out
-}
-
 func getBenchmarkColumn(id uint64) string {
 	return fmt.Sprintf("Benchmark%d", id)
 }

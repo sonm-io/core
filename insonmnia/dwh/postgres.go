@@ -7,16 +7,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (w *DWH) setupPostgres(db *sql.DB, numBenchmarks uint64) error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
+func (m *DWH) setupPostgres(db *sql.DB, numBenchmarks uint64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	store := newPostgresStorage(newTablesInfo(numBenchmarks), numBenchmarks)
 	if err := store.Setup(db); err != nil {
 		return errors.Wrap(err, "failed to setup store")
 	}
 
-	w.storage = store
+	m.storage = store
 
 	return nil
 }
