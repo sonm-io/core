@@ -209,8 +209,12 @@ func (m *natPuncher) punch(ctx context.Context, addrs *sonm.RendezvousReply) (ne
 	channel := make(chan connTuple, 1)
 	go m.doPunch(ctx, addrs, channel)
 
-	conn := <-channel
-	return conn.unwrap()
+	select {
+	case conn := <-channel:
+		return conn.unwrap()
+	case conn := <-m.listenerChannel:
+		return conn.unwrap()
+	}
 }
 
 func (m *natPuncher) doPunch(ctx context.Context, addrs *sonm.RendezvousReply, channel chan<- connTuple) {
