@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
 
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
@@ -146,7 +146,7 @@ contract Market is Ownable {
 
    // INIT
 
-    function Market(address _token, address _blacklist, address _oracle, address _profileRegistry, uint _benchmarksQuantity) public {
+    constructor(address _token, address _blacklist, address _oracle, address _profileRegistry, uint _benchmarksQuantity) public {
         token = SNM(_token);
         bl = Blacklist(_blacklist);
         oracle = OracleUSD(_oracle);
@@ -209,7 +209,7 @@ contract Market is Ownable {
             0
         );
 
-        OrderPlaced(orderId);
+        emit OrderPlaced(orderId);
         return orderId;
     }
 
@@ -222,13 +222,13 @@ contract Market is Ownable {
         require(token.transfer(msg.sender, orders[orderID].frozenSum));
         orders[orderID].orderStatus = OrderStatus.ORDER_INACTIVE;
 
-        OrderUpdated(orderID);
+        emit OrderUpdated(orderID);
         return true;
     }
 
 
     function QuickBuy(uint askID) public {
-        var ask = orders[askID];
+        Order memory ask = orders[askID];
         require(ask.orderType == OrderType.ORDER_ASK);
         require(ask.orderStatus == OrderStatus.ORDER_ACTIVE);
 
@@ -254,8 +254,8 @@ contract Market is Ownable {
     // Deal functions
 
     function OpenDeal(uint _askID, uint _bidID) public {
-        Order ask = orders[_askID];
-        Order bid = orders[_bidID];
+        Order memory ask = orders[_askID];
+        Order memory bid = orders[_bidID];
 
         require(ask.orderStatus == OrderStatus.ORDER_ACTIVE && bid.orderStatus == OrderStatus.ORDER_ACTIVE);
         require((ask.counterparty == 0x0 || ask.counterparty == GetMaster(bid.author)) && (bid.counterparty == 0x0 || bid.counterparty == GetMaster(ask.author)));
@@ -286,8 +286,8 @@ contract Market is Ownable {
         orders[_askID].dealID = dealAmount;
         orders[_bidID].dealID = dealAmount;
 
-        OrderUpdated(_askID);
-        OrderUpdated(_bidID);
+        emit OrderUpdated(_askID);
+        emit OrderUpdated(_bidID);
 
         uint startTime = block.timestamp;
         uint endTime = 0;
@@ -300,7 +300,7 @@ contract Market is Ownable {
 
         uint blockedBalance = bid.frozenSum;
         deals[dealAmount] = Deal(ask.benchmarks, ask.author, bid.author, master, _askID, _bidID, bid.duration, ask.price, startTime, endTime, DealStatus.STATUS_ACCEPTED, blockedBalance, 0, block.timestamp);
-        DealOpened(dealAmount);
+        emit DealOpened(dealAmount);
     }
 
     function CloseDeal(uint dealID, bool blacklisted) public returns (bool){
@@ -325,7 +325,7 @@ contract Market is Ownable {
     function Bill(uint dealID) public returns (bool){
         require(deals[dealID].status == DealStatus.STATUS_ACCEPTED);
         require(msg.sender == deals[dealID].supplierID || msg.sender == deals[dealID].consumerID || msg.sender == deals[dealID].masterID);
-        var deal = deals[dealID];
+        Deal memory deal = deals[dealID];
 
         uint paidAmount;
 
@@ -343,7 +343,7 @@ contract Market is Ownable {
                 require(token.transferFrom(deal.consumerID, this, paidAmount - deal.blockedBalance));
                 deals[dealID].blockedBalance = deals[dealID].blockedBalance.add(paidAmount - deal.blockedBalance);
             } else {
-                Billed(dealID, deals[dealID].blockedBalance);
+                emit Billed(dealID, deals[dealID].blockedBalance);
                 InternalCloseDeal(dealID);
                 require(token.transfer(deal.masterID, deal.blockedBalance));
                 deals[dealID].lastBillTS = block.timestamp;
@@ -356,7 +356,7 @@ contract Market is Ownable {
         deals[dealID].blockedBalance = deals[dealID].blockedBalance.sub(paidAmount);
         deals[dealID].totalPayout = deals[dealID].totalPayout.add(paidAmount);
         deals[dealID].lastBillTS = block.timestamp;
-        Billed(dealID, paidAmount);
+        emit Billed(dealID, paidAmount);
 
         uint nextPeriod;
 
@@ -383,7 +383,7 @@ contract Market is Ownable {
                 require(token.transferFrom(deal.consumerID, this, nextPeriodSum));
                 deals[dealID].blockedBalance = deals[dealID].blockedBalance.add(nextPeriodSum);
             } else {
-                Billed(dealID, deal.blockedBalance);
+                emit Billed(dealID, deal.blockedBalance);
                 InternalCloseDeal(dealID);
                 require(token.transfer(deal.masterID, deal.blockedBalance));
                 deals[dealID].blockedBalance = 0;
@@ -412,20 +412,20 @@ contract Market is Ownable {
         }
 
         requests[requestsAmount] = ChangeRequest(dealID, requestType, newPrice, newDuration, RequestStatus.REQUEST_CREATED);
-        DealChangeRequestSet(requestsAmount);
+        emit DealChangeRequestSet(requestsAmount);
 
         if (requestType == OrderType.ORDER_BID) {
-            DealChangeRequestUpdated(actualRequests[dealID][1]);
+            emit DealChangeRequestUpdated(actualRequests[dealID][1]);
             requests[actualRequests[dealID][1]].status = RequestStatus.REQUEST_CANCELED;
             actualRequests[dealID][1] = requestsAmount;
-            var matchingRequest = requests[actualRequests[dealID][0]];
+            ChangeRequest memory matchingRequest = requests[actualRequests[dealID][0]];
 
             if (newDuration == deals[dealID].duration && newPrice > deals[dealID].price) {
                 requests[requestsAmount].status = RequestStatus.REQUEST_ACCEPTED;
                 Bill(dealID);
                 deals[dealID].price = newPrice;
                 actualRequests[dealID][1] = 0;
-                DealChangeRequestUpdated(requestsAmount);
+                emit DealChangeRequestUpdated(requestsAmount);
             } else if (matchingRequest.status == RequestStatus.REQUEST_CREATED && matchingRequest.duration >= newDuration && matchingRequest.price <= newPrice) {
                 requests[requestsAmount].status = RequestStatus.REQUEST_ACCEPTED;
                 requests[actualRequests[dealID][0]].status = RequestStatus.REQUEST_ACCEPTED;
@@ -434,19 +434,19 @@ contract Market is Ownable {
                 Bill(dealID);
                 deals[dealID].price = matchingRequest.price;
                 deals[dealID].duration = newDuration;
-                DealChangeRequestUpdated(requestsAmount);
-                DealChangeRequestUpdated(actualRequests[dealID][0]);
+                emit DealChangeRequestUpdated(requestsAmount);
+                emit DealChangeRequestUpdated(actualRequests[dealID][0]);
             } else {
                 return requestsAmount;
             }
 
             requests[actualRequests[dealID][1]].status = RequestStatus.REQUEST_CANCELED;
-            DealChangeRequestUpdated(actualRequests[dealID][1]);
+            emit DealChangeRequestUpdated(actualRequests[dealID][1]);
             actualRequests[dealID][1] = requestsAmount;
         }
 
         if (requestType == OrderType.ORDER_ASK) {
-            DealChangeRequestUpdated(actualRequests[dealID][0]);
+            emit DealChangeRequestUpdated(actualRequests[dealID][0]);
             requests[actualRequests[dealID][0]].status = RequestStatus.REQUEST_CANCELED;
             actualRequests[dealID][0] = requestsAmount;
             matchingRequest = requests[actualRequests[dealID][1]];
@@ -456,7 +456,7 @@ contract Market is Ownable {
                 Bill(dealID);
                 deals[dealID].price = newPrice;
                 actualRequests[dealID][0] = 0;
-                DealChangeRequestUpdated(requestsAmount);
+                emit DealChangeRequestUpdated(requestsAmount);
             } else if (matchingRequest.status == RequestStatus.REQUEST_CREATED && matchingRequest.duration <= newDuration && matchingRequest.price >= newPrice) {
                 requests[requestsAmount].status = RequestStatus.REQUEST_ACCEPTED;
                 actualRequests[dealID][0] = 0;
@@ -464,8 +464,8 @@ contract Market is Ownable {
                 Bill(dealID);
                 deals[dealID].price = newPrice;
                 deals[dealID].duration = matchingRequest.duration;
-                DealChangeRequestUpdated(requestsAmount);
-                DealChangeRequestUpdated(actualRequests[dealID][1]);
+                emit DealChangeRequestUpdated(requestsAmount);
+                emit DealChangeRequestUpdated(actualRequests[dealID][1]);
             } else  {
                 return requestsAmount;
             }
@@ -478,7 +478,7 @@ contract Market is Ownable {
 
 
     function CancelChangeRequest(uint changeRequestID) public returns (bool) {
-        var request = requests[changeRequestID];
+        ChangeRequest memory request = requests[changeRequestID];
         require(msg.sender == deals[request.dealID].supplierID || msg.sender == deals[request.dealID].masterID || msg.sender == deals[request.dealID].consumerID);
         require(request.status != RequestStatus.REQUEST_ACCEPTED);
 
@@ -489,7 +489,7 @@ contract Market is Ownable {
                 requests[changeRequestID].status = RequestStatus.REQUEST_CANCELED;
             }
             actualRequests[request.dealID][0] = 0;
-            DealChangeRequestUpdated(changeRequestID);
+            emit DealChangeRequestUpdated(changeRequestID);
         }
 
         if (request.requestType == OrderType.ORDER_BID) {
@@ -499,7 +499,7 @@ contract Market is Ownable {
                 requests[changeRequestID].status = RequestStatus.REQUEST_REJECTED;
             }
             actualRequests[request.dealID][1] = 0;
-            DealChangeRequestUpdated(changeRequestID);
+            emit DealChangeRequestUpdated(changeRequestID);
         }
 
 
@@ -514,7 +514,7 @@ contract Market is Ownable {
         require(isMaster[msg.sender] == false);
         require(GetMaster(_master) == _master);
         masterRequest[_master][msg.sender] = true;
-        WorkerAnnounced(msg.sender, _master);
+        emit WorkerAnnounced(msg.sender, _master);
         return true;
     }
 
@@ -523,14 +523,14 @@ contract Market is Ownable {
         masterOf[_worker] = msg.sender;
         isMaster[msg.sender] = true;
         delete masterRequest[msg.sender][_worker];
-        WorkerConfirmed(_worker, msg.sender);
+        emit WorkerConfirmed(_worker, msg.sender);
         return true;
     }
 
     function RemoveWorker(address _worker, address _master) public returns (bool) {
         require(GetMaster(_worker) == _master && (msg.sender == _worker || msg.sender == _master));
         delete masterOf[_worker];
-        WorkerRemoved(_worker, _master);
+        emit WorkerRemoved(_worker, _master);
         return true;
     }
 
@@ -674,7 +674,7 @@ contract Market is Ownable {
     }
 
     function CalculatePayment(uint _price, uint _period) internal view returns (uint) {
-        var rate = oracle.getCurrentPrice();
+        uint rate = oracle.getCurrentPrice();
         return rate.mul(_price).mul(_period).div(1e18);
     }
 
@@ -692,7 +692,7 @@ contract Market is Ownable {
             require(msg.sender == deals[dealID].consumerID || msg.sender == deals[dealID].supplierID || msg.sender == deals[dealID].masterID);
             deals[dealID].status = DealStatus.STATUS_CLOSED;
             deals[dealID].endTime = block.timestamp;
-            DealUpdated(dealID);
+            emit DealUpdated(dealID);
         }
     }
 
@@ -714,7 +714,7 @@ contract Market is Ownable {
 
     function SetBenchmarksQuantity(uint _newQuantity) onlyOwner public returns (bool) {
         require(_newQuantity > benchmarksQuantity);
-        NumBenchmarksUpdated(_newQuantity);
+        emit NumBenchmarksUpdated(_newQuantity);
         benchmarksQuantity = _newQuantity;
         return true;
     }
