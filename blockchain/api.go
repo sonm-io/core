@@ -29,8 +29,14 @@ type API interface {
 }
 
 type ProfileRegistryAPI interface {
+	AddValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address, level int8) (*types.Transaction, error)
+	RemoveValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address) (*types.Transaction, error)
 	GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error)
+	CreateCertificate(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address, attributeType *big.Int, value []byte) (*types.Transaction, error)
+	RemoveCertificate(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
 	GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error)
+	GetAttributeCount(ctx context.Context, owner common.Address, attributeType *big.Int) (*big.Int, error)
+	GetAttributeValue(ctx context.Context, owner common.Address, attributeType *big.Int) ([]byte, error)
 }
 
 type EventsAPI interface {
@@ -630,6 +636,34 @@ func NewProfileRegistry(address common.Address, opts *chainOpts) (ProfileRegistr
 		profileRegistryContract: profileRegistryContract,
 		opts: opts,
 	}, nil
+}
+
+func (api *ProfileRegistry) CreateCertificate(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address, attributeType *big.Int, value []byte) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	return api.profileRegistryContract.CreateCertificate(opts, owner, attributeType, value)
+}
+
+func (api *ProfileRegistry) RemoveCertificate(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	return api.profileRegistryContract.RemoveCertificate(opts, id)
+}
+
+func (api *ProfileRegistry) AddValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address, level int8) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	return api.profileRegistryContract.AddValidator(opts, validator, level)
+}
+
+func (api *ProfileRegistry) RemoveValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	return api.profileRegistryContract.RemoveValidator(opts, validator)
+}
+
+func (api *ProfileRegistry) GetAttributeCount(ctx context.Context, owner common.Address, attributeType *big.Int) (*big.Int, error) {
+	return api.profileRegistryContract.GetAttributeCount(getCallOptions(ctx), owner, attributeType)
+}
+
+func (api *ProfileRegistry) GetAttributeValue(ctx context.Context, owner common.Address, attributeType *big.Int) ([]byte, error) {
+	return api.profileRegistryContract.GetAttributeValue(getCallOptions(ctx), owner, attributeType)
 }
 
 func (api *ProfileRegistry) GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error) {
