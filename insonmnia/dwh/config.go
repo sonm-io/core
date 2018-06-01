@@ -14,7 +14,7 @@ type Config struct {
 	HTTPListenAddr    string             `yaml:"http_address" default:"127.0.0.1:15022"`
 	Eth               accounts.EthConfig `yaml:"ethereum" required:"true"`
 	Storage           *storageConfig     `yaml:"storage" required:"true"`
-	Blockchain        *blockchain.Config `yaml:"blockchain"`
+	Blockchain        *blockchain.Config `yaml:"blockchain" required:"true"`
 	MetricsListenAddr string             `yaml:"metrics_listen_addr" default:"127.0.0.1:14004"`
 	ColdStart         bool               `yaml:"cold_start"`
 	NumWorkers        int                `yaml:"num_workers" default:"64"`

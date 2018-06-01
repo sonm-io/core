@@ -30,21 +30,21 @@ import (
 )
 
 type DWH struct {
-	mu                sync.RWMutex
-	ctx               context.Context
-	cfg               *Config
-	cancel            context.CancelFunc
-	grpc              *grpc.Server
-	http              *rest.Server
-	logger            *zap.Logger
-	db                *sql.DB
-	creds             credentials.TransportCredentials
-	certRotator       util.HitlessCertRotator
-	blockchain        blockchain.API
-	storage           storage
-	numBenchmarks     uint64
-	blockEndCallbacks []func() error
-	lastKnownBlock    uint64
+	mu             sync.RWMutex
+	ctx            context.Context
+	cfg            *Config
+	key            *ecdsa.PrivateKey
+	cancel         context.CancelFunc
+	grpc           *grpc.Server
+	http           *rest.Server
+	logger         *zap.Logger
+	db             *sql.DB
+	creds          credentials.TransportCredentials
+	certRotator    util.HitlessCertRotator
+	blockchain     blockchain.API
+	storage        storage
+	numBenchmarks  uint64
+	lastKnownBlock uint64
 }
 
 func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, error) {
@@ -53,75 +53,38 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, erro
 		ctx:    ctx,
 		cancel: cancel,
 		cfg:    cfg,
+		key:    key,
 		logger: log.GetLogger(ctx),
 	}
-
-	bch, err := blockchain.NewAPI(blockchain.WithConfig(w.cfg.Blockchain))
-	if err != nil {
-		cancel()
-		return nil, errors.Wrap(err, "failed to create NewAPI")
-	}
-	w.blockchain = bch
-
-	numBenchmarks, err := bch.Market().GetNumBenchmarks(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to GetNumBenchmarks")
-	}
-
-	if numBenchmarks >= NumMaxBenchmarks {
-		return nil, errors.New("market number of benchmarks is greater than NumMaxBenchmarks")
-	}
-
-	w.numBenchmarks = numBenchmarks
-
-	w.db, err = sql.Open(w.cfg.Storage.Backend, w.cfg.Storage.Endpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	switch w.cfg.Storage.Backend {
-	case "sqlite3":
-		err = w.setupSQLite(w.db, numBenchmarks)
-	case "postgres":
-		err = w.setupPostgres(w.db, numBenchmarks)
-	default:
-		err = errors.Errorf("unsupported backend: %s", cfg.Storage.Backend)
-	}
-	if err != nil {
-		w.db.Close()
-		cancel()
-		return nil, err
-	}
-
-	certRotator, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
-	if err != nil {
-		w.db.Close()
-		cancel()
-		return nil, err
-	}
-
-	w.certRotator = certRotator
-	w.creds = util.NewTLS(TLSConfig)
-	w.grpc = xgrpc.NewServer(w.logger, xgrpc.Credentials(w.creds), xgrpc.DefaultTraceInterceptor())
-	pb.RegisterDWHServer(w.grpc, w)
-	grpc_prometheus.Register(w.grpc)
-
 	return w, nil
 }
 
 func (m *DWH) Serve() error {
 	m.logger.Info("starting with backend", zap.String("backend", m.cfg.Storage.Backend),
 		zap.String("endpoint", m.cfg.Storage.Endpoint))
-
-	if m.cfg.Blockchain != nil {
-		go m.monitorBlockchain()
-	} else {
-		m.logger.Info("monitoring disabled")
+	var err error
+	m.db, err = sql.Open(m.cfg.Storage.Backend, m.cfg.Storage.Endpoint)
+	if err != nil {
+		m.Stop()
+		return err
 	}
 
+	bch, err := blockchain.NewAPI(blockchain.WithConfig(m.cfg.Blockchain))
+	if err != nil {
+		m.Stop()
+		return errors.Wrap(err, "failed to create NewAPI")
+	}
+	m.blockchain = bch
+
+	if err := m.setupDB(); err != nil {
+		m.Stop()
+		return errors.WithMessage(err, "failed to setupDB")
+	}
+
+	go m.monitorBlockchain()
 	if m.cfg.ColdStart {
 		if err := m.coldStart(); err != nil {
-			m.logger.Warn("failed to coldStart", util.LaconicError(err))
+			m.Stop()
 			return errors.Wrap(err, "failed to coldStart")
 		}
 	}
@@ -137,42 +100,105 @@ func (m *DWH) Stop() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.cancel()
-	m.db.Close()
-	m.grpc.Stop()
-	m.http.Close()
+	if m.cancel != nil {
+		m.cancel()
+	}
+	if m.db != nil {
+		m.db.Close()
+	}
+	if m.grpc != nil {
+		m.grpc.Stop()
+	}
+	if m.http != nil {
+		m.http.Close()
+	}
+}
+
+func (m *DWH) setupDB() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	numBenchmarks, err := m.blockchain.Market().GetNumBenchmarks(m.ctx)
+	if err != nil {
+		m.Stop()
+		return errors.Wrap(err, "failed to GetNumBenchmarks")
+	}
+	if numBenchmarks >= NumMaxBenchmarks {
+		m.Stop()
+		return errors.New("market number of benchmarks is greater than NumMaxBenchmarks")
+	}
+
+	var storage *sqlStorage
+	switch m.cfg.Storage.Backend {
+	case "sqlite3":
+		_, err := m.db.Exec(`PRAGMA foreign_keys=ON`)
+		if err != nil {
+			return errors.Wrapf(err, "failed to enable foreign key support (%s)", m.cfg.Storage.Backend)
+		}
+		storage = newSQLiteStorage(numBenchmarks)
+	case "postgres":
+		storage = newPostgresStorage(numBenchmarks)
+	default:
+		return errors.Errorf("unsupported backend: %s", m.cfg.Storage.Backend)
+	}
+
+	if err := storage.Setup(m.db); err != nil {
+		return errors.Wrap(err, "failed to setup storage")
+	}
+
+	m.numBenchmarks = numBenchmarks
+	m.storage = storage
+	return nil
 }
 
 func (m *DWH) serveGRPC() error {
+	m.mu.Lock()
+	certRotator, TLSConfig, err := util.NewHitlessCertRotator(m.ctx, m.key)
+	if err != nil {
+		m.mu.Unlock()
+		return err
+	}
+
+	m.certRotator = certRotator
+	m.creds = util.NewTLS(TLSConfig)
+	m.grpc = xgrpc.NewServer(m.logger, xgrpc.Credentials(m.creds), xgrpc.DefaultTraceInterceptor())
+	pb.RegisterDWHServer(m.grpc, m)
+	grpc_prometheus.Register(m.grpc)
+
 	lis, err := net.Listen("tcp", m.cfg.GRPCListenAddr)
 	if err != nil {
+		m.mu.Unlock()
 		return errors.Wrapf(err, "failed to listen on %s", m.cfg.GRPCListenAddr)
 	}
 
+	m.mu.Unlock()
 	return m.grpc.Serve(lis)
 }
 
 func (m *DWH) serveHTTP() error {
+	m.mu.Lock()
 	options := []rest.Option{rest.WithContext(m.ctx)}
 	lis, err := net.Listen("tcp", m.cfg.HTTPListenAddr)
 	if err != nil {
-		log.S(m.ctx).Info("failed to create http listener")
-		return err
+		m.mu.Unlock()
+		return errors.WithMessage(err, "failed to create http listener")
 	}
 
 	options = append(options, rest.WithListener(lis))
 	srv, err := rest.NewServer(options...)
 	if err != nil {
-		return errors.Wrap(err, "failed to create rest server")
+		m.mu.Unlock()
+		return errors.WithMessage(err, "failed to create rest server")
 	}
 
 	err = srv.RegisterService((*pb.DWHServer)(nil), m)
 	if err != nil {
-		return errors.Wrap(err, "failed to RegisterService")
+		m.mu.Unlock()
+		return errors.WithMessage(err, "failed to RegisterService")
 	}
 
 	m.http = srv
-
+	m.mu.Unlock()
 	return srv.Serve()
 }
 
