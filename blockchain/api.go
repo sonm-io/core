@@ -114,12 +114,12 @@ func NewAPI(opts ...Option) (API, error) {
 		o(defaults)
 	}
 
-	liveToken, err := NewStandardToken(SNMAddr(), defaults.livechain)
+	liveToken, err := NewStandardToken(SNMAddr(), defaults.masterchain)
 	if err != nil {
 		return nil, err
 	}
 
-	testToken, err := NewTestToken(SNMAddr(), defaults.livechain)
+	testToken, err := NewTestToken(SNMAddr(), defaults.masterchain)
 	if err != nil {
 		return nil, err
 	}
