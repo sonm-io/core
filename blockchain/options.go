@@ -3,12 +3,12 @@ package blockchain
 import "time"
 
 const (
-	defaultLivechainEndpoint  = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
-	defaultSidechainEndpoint  = "https://sidechain-dev.sonm.com"
-	defaultLivechainGasPrice  = 20000000000 // 20 Gwei
-	defaultSidechainGasPrice  = 0
-	defaultBlockConfirmations = 5
-	defaultLogParsePeriod     = time.Second
+	defaultMasterchainEndpoint = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
+	defaultSidechainEndpoint   = "https://sidechain-dev.sonm.com"
+	defaultMasterchainGasPrice = 20000000000 // 20 Gwei
+	defaultSidechainGasPrice   = 0
+	defaultBlockConfirmations  = 5
+	defaultLogParsePeriod      = time.Second
 )
 
 // chainOpts describes common options
@@ -33,15 +33,15 @@ func (c *chainOpts) getClient() (CustomEthereumClient, error) {
 }
 
 type options struct {
-	livechain *chainOpts
-	sidechain *chainOpts
+	masterchain *chainOpts
+	sidechain   *chainOpts
 }
 
 func defaultOptions() *options {
 	return &options{
-		livechain: &chainOpts{
-			gasPrice:           defaultLivechainGasPrice,
-			endpoint:           defaultLivechainEndpoint,
+		masterchain: &chainOpts{
+			gasPrice:           defaultMasterchainGasPrice,
+			endpoint:           defaultMasterchainEndpoint,
 			logParsePeriod:     defaultLogParsePeriod,
 			blockConfirmations: defaultBlockConfirmations,
 		},
@@ -56,9 +56,9 @@ func defaultOptions() *options {
 
 type Option func(options *options)
 
-func WithLivechainGasPrice(p int64) Option {
+func WithMasterchainGasPrice(p int64) Option {
 	return func(o *options) {
-		o.livechain.gasPrice = p
+		o.masterchain.gasPrice = p
 	}
 }
 
@@ -68,9 +68,9 @@ func WithSidechainGasPrice(p int64) Option {
 	}
 }
 
-func WithLivechainEndpoint(s string) Option {
+func WithMasterchainEndpoint(s string) Option {
 	return func(o *options) {
-		o.livechain.endpoint = s
+		o.masterchain.endpoint = s
 	}
 }
 
@@ -83,7 +83,7 @@ func WithSidechainEndpoint(s string) Option {
 func WithConfig(cfg *Config) Option {
 	return func(o *options) {
 		if cfg != nil {
-			o.livechain.endpoint = cfg.Endpoint.String()
+			o.masterchain.endpoint = cfg.Endpoint.String()
 			o.sidechain.endpoint = cfg.SidechainEndpoint.String()
 		}
 	}
@@ -91,7 +91,7 @@ func WithConfig(cfg *Config) Option {
 
 func WithTimeout(d time.Duration) Option {
 	return func(o *options) {
-		o.livechain.logParsePeriod = d
+		o.masterchain.logParsePeriod = d
 		o.sidechain.logParsePeriod = d
 	}
 }
@@ -108,8 +108,8 @@ func WithSidechainClient(c CustomEthereumClient) Option {
 	}
 }
 
-func WithLivechainClient(c CustomEthereumClient) Option {
+func WithMasterchainClient(c CustomEthereumClient) Option {
 	return func(o *options) {
-		o.livechain.client = c
+		o.masterchain.client = c
 	}
 }
