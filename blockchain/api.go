@@ -71,13 +71,13 @@ type BlacklistAPI interface {
 // standard description with placed: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
 type TokenAPI interface {
 	// Approve - add allowance from caller to other contract to spend tokens
-	Approve(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error)
+	Approve(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error)
 	// Transfer token from caller
-	Transfer(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error)
+	Transfer(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error)
 	// TransferFrom fallback function for contracts to transfer you allowance
-	TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (*types.Transaction, error)
+	TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from common.Address, to common.Address, amount *big.Int) (*types.Transaction, error)
 	// BalanceOf returns balance of given address
-	BalanceOf(ctx context.Context, address string) (*big.Int, error)
+	BalanceOf(ctx context.Context, address common.Address) (*big.Int, error)
 	// AllowanceOf returns allowance of given address to spender account
 	AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error)
 	// TotalSupply - all amount of emitted token
@@ -115,12 +115,12 @@ func NewAPI(opts ...Option) (API, error) {
 		o(defaults)
 	}
 
-	liveToken, err := NewStandardToken(SNMAddr(), defaults.livechain)
+	liveToken, err := NewStandardToken(SNMAddr(), defaults.masterchain)
 	if err != nil {
 		return nil, err
 	}
 
-	testToken, err := NewTestToken(SNMAddr(), defaults.livechain)
+	testToken, err := NewTestToken(SNMAddr(), defaults.masterchain)
 	if err != nil {
 		return nil, err
 	}
@@ -749,27 +749,27 @@ func NewStandardToken(address common.Address, opts *chainOpts) (TokenAPI, error)
 	}, nil
 }
 
-func (api *StandardTokenApi) BalanceOf(ctx context.Context, address string) (*big.Int, error) {
-	return api.tokenContract.BalanceOf(getCallOptions(ctx), common.HexToAddress(address))
+func (api *StandardTokenApi) BalanceOf(ctx context.Context, address common.Address) (*big.Int, error) {
+	return api.tokenContract.BalanceOf(getCallOptions(ctx), address)
 }
 
 func (api *StandardTokenApi) AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error) {
 	return api.tokenContract.Allowance(getCallOptions(ctx), common.HexToAddress(from), common.HexToAddress(to))
 }
 
-func (api *StandardTokenApi) Approve(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
+func (api *StandardTokenApi) Approve(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error) {
 	opts := getTxOpts(ctx, key, defaultGasLimit, api.opts.gasPrice)
-	return api.tokenContract.Approve(opts, common.HexToAddress(to), amount)
+	return api.tokenContract.Approve(opts, to, amount)
 }
 
-func (api *StandardTokenApi) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to string, amount *big.Int) (*types.Transaction, error) {
+func (api *StandardTokenApi) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error) {
 	opts := getTxOpts(ctx, key, defaultGasLimit, api.opts.gasPrice)
-	return api.tokenContract.Transfer(opts, common.HexToAddress(to), amount)
+	return api.tokenContract.Transfer(opts, to, amount)
 }
 
-func (api *StandardTokenApi) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from string, to string, amount *big.Int) (*types.Transaction, error) {
+func (api *StandardTokenApi) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from common.Address, to common.Address, amount *big.Int) (*types.Transaction, error) {
 	opts := getTxOpts(ctx, key, defaultGasLimit, api.opts.gasPrice)
-	return api.tokenContract.TransferFrom(opts, common.HexToAddress(from), common.HexToAddress(to), amount)
+	return api.tokenContract.TransferFrom(opts, from, to, amount)
 }
 
 func (api *StandardTokenApi) TotalSupply(ctx context.Context) (*big.Int, error) {
