@@ -38,6 +38,7 @@ type EventsAPI interface {
 }
 
 type MarketAPI interface {
+	QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int) (*types.Transaction, error)
 	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) <-chan DealOrError
 	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) <-chan error
 	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error)
@@ -221,6 +222,11 @@ func NewBasicMarket(address common.Address, opts *chainOpts) (MarketAPI, error) 
 		marketContract: marketContract,
 		opts:           opts,
 	}, nil
+}
+
+func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	return api.marketContract.QuickBuy(opts, askId)
 }
 
 func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) <-chan DealOrError {
