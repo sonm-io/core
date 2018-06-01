@@ -20,7 +20,7 @@ func (t *tokenAPI) TestTokens(ctx context.Context, _ *sonm.Empty) (*sonm.Empty, 
 }
 
 func (t *tokenAPI) Balance(ctx context.Context, _ *sonm.Empty) (*sonm.BalanceReply, error) {
-	addr := crypto.PubkeyToAddress(t.remotes.key.PublicKey).Hex()
+	addr := crypto.PubkeyToAddress(t.remotes.key.PublicKey)
 
 	live, err := t.remotes.eth.LiveToken().BalanceOf(ctx, addr)
 	if err != nil {
