@@ -57,8 +57,7 @@ var masterListCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// todo: create printer
-		showJSON(cmd, list)
+		printWorkersList(cmd, list)
 	},
 }
 
