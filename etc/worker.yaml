@@ -77,6 +77,8 @@ plugins:
 #  gpus:
 #    nvidia: {}
 #    radeon: {}
+#    fake:
+#      device_count: 4
 
   volume:
     root: /var/lib/docker-volumes
