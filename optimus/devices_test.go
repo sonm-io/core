@@ -411,6 +411,33 @@ func TestConsumeStorage(t *testing.T) {
 	assert.Equal(t, uint64(1000e6), devices.Storage.Benchmarks[4].Result)
 }
 
+func TestConsumeStorageLowerBound(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.Storage.Device.BytesAvailable = 1e9
+	devices.Storage.Benchmarks = map[uint64]*sonm.Benchmark{
+		4: {
+			Result: 1e9,
+		},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := [12]uint64{0, 0, 0, 0, 10}
+	plan, err := manager.consumeStorage(benchmark[:])
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+
+	assert.Equal(t, uint64(64*1<<20), plan.Size.Bytes)
+
+	assert.Equal(t, uint64(1e9-64*1<<20), manager.freeBenchmarks[4])
+	assert.Equal(t, uint64(1000e6), devices.Storage.Benchmarks[4].Result)
+}
+
 func TestConsumeNetwork(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.Network.In = 100e6
