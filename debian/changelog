@@ -1,3 +1,30 @@
+sonm-core (0.4.0-alpha2) unstable; urgency=low
+
+  * Added: unimplemented methods of profiles in smart contracts (#923).
+  * Added: debug worker via pprof on demand (#928).
+  * BREAKING: DWH now saves MasterID field for orders (#912).
+    You should recreate your DWH tables if you use your custom installation.
+  * BREAKING: simplify tokens api (#920).
+    Now the tokens api uses common.Address instead of string.
+    It should help with the common string-to-address casting problem.
+  * Changed: use custom Ethereum client everywhere in out internal API (#916).
+    This allows to obtain the last block number and the receipt of mined
+    transaction.
+  * Fixed: incorrect work of QuickBuy smart contract function - wrong
+    counterparty was used (#906).
+  * Fixed: expand ~ ($HOME) while creating accounts (#907).
+  * Fixed: worker defaults in the config are now more relevant (#908).
+  * Fixed: Optimus should no longer crash when the training set is degenerated (#911).
+  * Fixed: NPP puncher should now properly extract incoming connections (#918).
+    This fixes infinite connection hanging from Node to Worker.
+  * Fixed: save keystore path if overridden by flag (#924).
+    Previously when using `sonmcli login --keystore` with no keys in it, a new keystore
+    was created with saving its password as a default. But the path itself was not saved.
+    This change fixes that issue.
+  * Fixed: limit minimum storage bound in Optimus (#926).
+
+ -- Evgeny Safronov <division494@gmail.com>  Sun, 03 Jun 2018 22:17:06 +0300
+
 sonm-core (0.4.0-alpha1) unstable; urgency=low
 
   * Added: NAT punching.
@@ -180,7 +207,7 @@ sonm-core (0.4.0-alpha1) unstable; urgency=low
     This changes CLI sub-commands semantic to follow the "entity-action" commands style.
     Also, using non-plural words for commands names.
 
- -- Evgeny Safronov <division494@gmail.com>  Fri, 04 May 2018 12:57:02 +0300
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 30 May 2018 12:57:02 +0300
 
 sonm-core (0.3.3) unstable; urgency=low
 
