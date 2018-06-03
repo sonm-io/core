@@ -28,6 +28,7 @@ import (
 )
 
 const overseerTag = "sonm.overseer"
+const dealIDTag = "sonm.dealid"
 const dieEvent = "die"
 
 // Description for a target application.
