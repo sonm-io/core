@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gosuri/uiprogress"
-	"github.com/moby/moby/pkg/stdcopy"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
