@@ -26,6 +26,8 @@ type API interface {
 	SideToken() TokenAPI
 	TestToken() TestTokenAPI
 	OracleUSD() OracleAPI
+	MasterchainGate() SimpleGatekeeperAPI
+	SidechainGate() SimpleGatekeeperAPI
 }
 
 type ProfileRegistryAPI interface {
@@ -41,6 +43,7 @@ type ProfileRegistryAPI interface {
 
 type EventsAPI interface {
 	GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error)
+	GetLastBlock(ctx context.Context) (uint64, error)
 }
 
 type MarketAPI interface {
@@ -85,7 +88,7 @@ type TokenAPI interface {
 	// BalanceOf returns balance of given address
 	BalanceOf(ctx context.Context, address common.Address) (*big.Int, error)
 	// AllowanceOf returns allowance of given address to spender account
-	AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error)
+	AllowanceOf(ctx context.Context, from, to common.Address) (*big.Int, error)
 	// TotalSupply - all amount of emitted token
 	TotalSupply(ctx context.Context) (*big.Int, error)
 }
@@ -104,6 +107,20 @@ type OracleAPI interface {
 	GetCurrentPrice(ctx context.Context) (*big.Int, error)
 }
 
+// SimpleGatekeeperAPI facade to interact with deposit/withdraw functions through gates
+type SimpleGatekeeperAPI interface {
+	// PayIn grab sender tokens and signal gate to transfer it to mirrored chain.
+	// On Masterchain ally as `Deposit`
+	// On Sidecain ally as `Withdraw`
+	PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) (*types.Transaction, error)
+	// PayOut release payout transaction from mirrored chain.
+	// Accessible only by owner.
+	Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error)
+	// Kill calls contract to suicide, all ether and tokens funds transfer to owner.
+	// Accessible only by owner.
+	Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error)
+}
+
 type BasicAPI struct {
 	market          MarketAPI
 	liveToken       TokenAPI
@@ -113,6 +130,8 @@ type BasicAPI struct {
 	profileRegistry ProfileRegistryAPI
 	events          EventsAPI
 	oracle          OracleAPI
+	masterchainGate SimpleGatekeeperAPI
+	sidechainGate   SimpleGatekeeperAPI
 }
 
 func NewAPI(opts ...Option) (API, error) {
@@ -122,6 +141,11 @@ func NewAPI(opts ...Option) (API, error) {
 	}
 
 	liveToken, err := NewStandardToken(SNMAddr(), defaults.masterchain)
+	if err != nil {
+		return nil, err
+	}
+
+	masterchainGate, err := NewSimpleGatekeeper(GatekeeperLiveAddr(), defaults.masterchain)
 	if err != nil {
 		return nil, err
 	}
@@ -162,6 +186,11 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
+	sidechainGate, err := NewSimpleGatekeeper(GatekeeperSidechainAddr(), defaults.sidechain)
+	if err != nil {
+		return nil, err
+	}
+
 	return &BasicAPI{
 		market:          marketApi,
 		blacklist:       blacklist,
@@ -171,6 +200,8 @@ func NewAPI(opts ...Option) (API, error) {
 		testToken:       testToken,
 		events:          events,
 		oracle:          oracle,
+		masterchainGate: masterchainGate,
+		sidechainGate:   sidechainGate,
 	}, nil
 }
 
@@ -204,6 +235,14 @@ func (api *BasicAPI) Events() EventsAPI {
 
 func (api *BasicAPI) OracleUSD() OracleAPI {
 	return api.oracle
+}
+
+func (api *BasicAPI) MasterchainGate() SimpleGatekeeperAPI {
+	return api.masterchainGate
+}
+
+func (api *BasicAPI) SidechainGate() SimpleGatekeeperAPI {
+	return api.sidechainGate
 }
 
 type BasicMarketAPI struct {
@@ -787,8 +826,8 @@ func (api *StandardTokenApi) BalanceOf(ctx context.Context, address common.Addre
 	return api.tokenContract.BalanceOf(getCallOptions(ctx), address)
 }
 
-func (api *StandardTokenApi) AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error) {
-	return api.tokenContract.Allowance(getCallOptions(ctx), common.HexToAddress(from), common.HexToAddress(to))
+func (api *StandardTokenApi) AllowanceOf(ctx context.Context, from, to common.Address) (*big.Int, error) {
+	return api.tokenContract.Allowance(getCallOptions(ctx), from, to)
 }
 
 func (api *StandardTokenApi) Approve(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error) {
@@ -854,6 +893,18 @@ func NewEventsAPI(opts *chainOpts, logger *zap.Logger) (EventsAPI, error) {
 		client: client,
 		logger: logger,
 	}, nil
+}
+
+func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
+	block, err := api.client.GetLastBlock(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if block.IsUint64() {
+		return block.Uint64(), nil
+	} else {
+		return 0, errors.New("block number overflows uint64")
+	}
 }
 
 func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error) {
@@ -1138,4 +1189,43 @@ func (api *OracleUSDAPI) SetCurrentPrice(ctx context.Context, key *ecdsa.Private
 
 func (api *OracleUSDAPI) GetCurrentPrice(ctx context.Context) (*big.Int, error) {
 	return api.oracleContract.GetCurrentPrice(getCallOptions(ctx))
+}
+
+type BasicSimpleGatekeeper struct {
+	client   CustomEthereumClient
+	contract *marketAPI.SimpleGatekeeper
+	opts     *chainOpts
+}
+
+func NewSimpleGatekeeper(address common.Address, opts *chainOpts) (SimpleGatekeeperAPI, error) {
+	client, err := opts.getClient()
+	if err != nil {
+		return nil, err
+	}
+
+	contract, err := marketAPI.NewSimpleGatekeeper(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicSimpleGatekeeper{
+		client:   client,
+		contract: contract,
+		opts:     opts,
+	}, nil
+}
+
+func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	return api.contract.PayIn(opts, value)
+}
+
+func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	return api.contract.Payout(opts, to, value, txNumber)
+}
+
+func (api *BasicSimpleGatekeeper) Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
+	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	return api.contract.Kill(opts)
 }
