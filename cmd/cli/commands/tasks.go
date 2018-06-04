@@ -9,9 +9,11 @@ import (
 	"math/big"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gosuri/uiprogress"
+	"github.com/moby/moby/pkg/stdcopy"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
 	pb "github.com/sonm-io/core/proto"
@@ -27,6 +29,7 @@ func init() {
 	taskLogsCmd.Flags().BoolVar(&follow, followFlag, false, "Stream logs continuously")
 	taskLogsCmd.Flags().StringVar(&tail, tailFlag, "50", "Number of lines to show from the end of the logs")
 	taskLogsCmd.Flags().BoolVar(&details, detailsFlag, false, "Show extra details provided to logs")
+	taskLogsCmd.Flags().BoolVar(&prependStream, prependStreamFlag, false, "Show stream (stderr or stdout) for each line of logs")
 
 	taskPullCmd.Flags().StringVar(&taskPullOutput, "output", "", "file to output")
 
@@ -235,6 +238,53 @@ var taskJoinNetworkCmd = &cobra.Command{
 	},
 }
 
+type logWriter struct {
+	writer io.Writer
+	prefix string
+}
+
+func (m *logWriter) Write(p []byte) (n int, err error) {
+	if len(m.prefix) > 0 {
+		if _, err := m.writer.Write([]byte(m.prefix)); err != nil {
+			return 0, err
+		}
+	}
+	return m.writer.Write(p)
+}
+
+type logReader struct {
+	cli      pb.TaskManagement_LogsClient
+	buf      bytes.Buffer
+	finished bool
+}
+
+func (m *logReader) Read(p []byte) (n int, err error) {
+	for len(p) > m.buf.Len() && !m.finished {
+		chunk, err := m.cli.Recv()
+		if err == io.EOF {
+			m.finished = true
+		} else if err != nil {
+			return 0, err
+		}
+		if chunk != nil && chunk.Data != nil {
+			m.buf.Write(chunk.Data)
+		}
+	}
+	return m.buf.Read(p)
+}
+
+func parseType(logType string) (pb.TaskLogsRequest_Type, error) {
+	if len(logType) == 0 {
+		return pb.TaskLogsRequest_BOTH, nil
+	}
+	key := strings.ToUpper(logType)
+	t, ok := pb.TaskLogsRequest_Type_value[key]
+	if !ok {
+		return pb.TaskLogsRequest_Type(0), fmt.Errorf("invalid log type %s", logType)
+	}
+	return pb.TaskLogsRequest_Type(t), nil
+}
+
 var taskLogsCmd = &cobra.Command{
 	Use:    "logs <deal_id> <task_id>",
 	Short:  "Retrieve task logs",
@@ -255,8 +305,14 @@ var taskLogsCmd = &cobra.Command{
 			showError(cmd, err.Error(), nil)
 			os.Exit(1)
 		}
+		logType, err := parseType(logType)
+		if err != nil {
+			showError(cmd, "failed to parse log type", err)
+			os.Exit(1)
+		}
 
 		req := &pb.TaskLogsRequest{
+			Type:          logType,
 			Id:            args[1],
 			DealID:        pb.NewBigInt(dealID),
 			Since:         since,
@@ -272,20 +328,17 @@ var taskLogsCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		for {
-			chunk, err := logClient.Recv()
-			if err == io.EOF {
-				return
-			}
-
-			if err != nil {
-				if err != nil {
-					showError(cmd, "Cannot fetch log chunk", err)
-					os.Exit(1)
-				}
-			}
-
-			cmd.Print(string(chunk.Data))
+		reader := logReader{cli: logClient}
+		stdout := cmd.OutOrStdout()
+		stderr := cmd.OutOrStderr()
+		if prependStream {
+			stdout = &logWriter{stdout, "[STDOUT] "}
+			stderr = &logWriter{stderr, "[STDERR] "}
+		}
+		_, err = stdcopy.StdCopy(stdout, stderr, &reader)
+		if err != nil {
+			showError(cmd, "failed to read logs", err)
+			os.Exit(1)
 		}
 	},
 }
