@@ -24,6 +24,7 @@ const (
 	followFlag        = "follow"
 	tailFlag          = "tail"
 	detailsFlag       = "detailed"
+	prependStreamFlag = "source"
 )
 
 var (
@@ -44,6 +45,7 @@ var (
 	follow        bool
 	tail          string
 	details       bool
+	prependStream bool
 
 	// session-related vars
 	cfg      *config.Config

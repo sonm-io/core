@@ -92,6 +92,7 @@ func (t *TincNetworkState) InsertTincNetwork(n structs.Network, cgroupParent str
 		AutoRemove: true,
 	}
 	netConfig := &network.NetworkingConfig{}
+
 	resp, err := t.cli.ContainerCreate(t.ctx, containerConfig, hostConfig, netConfig, "")
 	if err != nil {
 		t.logger.Errorf("failed to create tinc container: %s", err)
