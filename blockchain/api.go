@@ -43,6 +43,7 @@ type ProfileRegistryAPI interface {
 
 type EventsAPI interface {
 	GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error)
+	GetLastBlock(ctx context.Context) (uint64, error)
 }
 
 type MarketAPI interface {
@@ -892,6 +893,18 @@ func NewEventsAPI(opts *chainOpts, logger *zap.Logger) (EventsAPI, error) {
 		client: client,
 		logger: logger,
 	}, nil
+}
+
+func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
+	block, err := api.client.GetLastBlock(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if block.IsUint64() {
+		return block.Uint64(), nil
+	} else {
+		return 0, errors.New("block number overflows uint64")
+	}
 }
 
 func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error) {
