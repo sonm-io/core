@@ -394,3 +394,37 @@ func printBlacklist(cmd *cobra.Command, list *pb.BlacklistReply) {
 		showJSON(cmd, list)
 	}
 }
+
+func printWorkersList(cmd *cobra.Command, list *pb.WorkerListReply) {
+	if isSimpleFormat() {
+		if len(list.GetWorkers()) == 0 {
+			cmd.Println("No workers for current master")
+			return
+		}
+
+		var confirmed, notConfirmed []*pb.DWHWorker
+		for _, w := range list.GetWorkers() {
+			if w.GetConfirmed() {
+				confirmed = append(confirmed, w)
+			} else {
+				notConfirmed = append(notConfirmed, w)
+			}
+		}
+
+		if len(confirmed) > 0 {
+			cmd.Println("Confirmed workers:")
+			for _, w := range confirmed {
+				cmd.Printf("  %s\n", w.SlaveID.Unwrap().Hex())
+			}
+		}
+
+		if len(notConfirmed) > 0 {
+			cmd.Println("Waiting for confirmation:")
+			for _, w := range notConfirmed {
+				cmd.Printf("  %s\n", w.SlaveID.Unwrap().Hex())
+			}
+		}
+	} else {
+		showJSON(cmd, list)
+	}
+}

@@ -119,7 +119,7 @@ func (m *DWH) Serve() error {
 		m.logger.Info("monitoring disabled")
 	}
 
-	if m.cfg.ColdStart != nil {
+	if m.cfg.ColdStart {
 		if err := m.coldStart(); err != nil {
 			m.logger.Warn("failed to coldStart", util.LaconicError(err))
 			return errors.Wrap(err, "failed to coldStart")
@@ -1127,6 +1127,10 @@ func (m *DWH) coldStart() error {
 	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 
+	targetBlock, err := m.blockchain.Events().GetLastBlock(m.ctx)
+	if err != nil {
+		return errors.WithMessage(err, "failed to GetLastBlock")
+	}
 	var retries = 5
 	for {
 		select {
@@ -1134,7 +1138,7 @@ func (m *DWH) coldStart() error {
 			m.logger.Info("stopped coldStart routine")
 			return nil
 		case <-ticker.C:
-			targetBlockReached, err := m.maybeCreateIndices()
+			targetBlockReached, err := m.maybeCreateIndices(targetBlock)
 			if err != nil {
 				if retries == 0 {
 					m.logger.Warn("failed to CreateIndices, exiting")
@@ -1151,14 +1155,14 @@ func (m *DWH) coldStart() error {
 	}
 }
 
-func (m *DWH) maybeCreateIndices() (targetBlockReached bool, err error) {
+func (m *DWH) maybeCreateIndices(targetBlock uint64) (targetBlockReached bool, err error) {
 	lastBlock, err := m.getLastKnownBlock()
 	if err != nil {
 		return false, err
 	}
 
 	m.logger.Info("current block (waiting to CreateIndices)", zap.Uint64("block_number", lastBlock))
-	if lastBlock >= m.cfg.ColdStart.UpToBlock {
+	if lastBlock >= targetBlock {
 		if err := m.storage.CreateIndices(m.db); err != nil {
 			return false, err
 		}
