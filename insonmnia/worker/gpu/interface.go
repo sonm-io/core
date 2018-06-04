@@ -30,6 +30,8 @@ func New(ctx context.Context, gpuType pb.GPUVendorType, opts ...Option) (Tuner, 
 		return newRadeonTuner(ctx, opts...)
 	case pb.GPUVendorType_NVIDIA:
 		return newNvidiaTuner(ctx, opts...)
+	case pb.GPUVendorType_FAKE:
+		return newFakeTuner(ctx, opts...)
 	default:
 		log.G(ctx).Debug("cannot detect gpu type, use nil tuner", zap.Int32("given_type", int32(gpuType)))
 		return NilTuner{}, nil

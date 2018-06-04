@@ -8,6 +8,7 @@ enum GPUVendorType {
     GPU_UNKNOWN = 0;
     NVIDIA = 1;
     RADEON = 2;
+    FAKE = 99;
 }
 
 message CPUDevice {
