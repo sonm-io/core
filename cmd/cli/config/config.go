@@ -70,6 +70,7 @@ func (cc *Config) Save() error {
 	if err != nil {
 		return err
 	}
+
 	return ioutil.WriteFile(cc.path, data, os.FileMode(0600))
 }
 

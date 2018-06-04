@@ -11,13 +11,16 @@ import (
 
 var loginCmd = &cobra.Command{
 	Use:   "login [addr]",
-	Short: "Open or generate Etherum keys",
+	Short: "Open or generate Ethereum keys",
 	Run: func(cmd *cobra.Command, args []string) {
 		ks, err := initKeystore()
 		if err != nil {
 			showError(cmd, "Cannot init keystore", err)
 			os.Exit(1)
 		}
+
+		keydir := keystorePath()
+		cmd.Printf("Keystore path: %s\n", keydir)
 
 		if len(args) > 0 { // have a key
 			if len(ks.List()) == 0 {
@@ -54,6 +57,7 @@ var loginCmd = &cobra.Command{
 			}
 
 			cfg.Eth.Passphrase = pass
+			cfg.Eth.Keystore = keydir
 			cfg.Save()
 
 			cmd.Printf("Set \"%s\" as default keystore address\r\n", addr.Hex())
@@ -69,8 +73,10 @@ var loginCmd = &cobra.Command{
 					showError(cmd, "Cannot generate new key", err)
 					os.Exit(1)
 				}
+
 				cmd.Printf("Generated key %s set as default\r\n", crypto.PubkeyToAddress(newKey.PublicKey).Hex())
 				cfg.Eth.Passphrase = pass
+				cfg.Eth.Keystore = keydir
 				cfg.Save()
 				return
 			}

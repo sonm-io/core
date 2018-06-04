@@ -89,7 +89,9 @@ type storageConsumer struct {
 }
 
 func (m *storageConsumer) LowerBound() []float64 {
-	return []float64{}
+	return []float64{
+		float64(sonm.MinStorageSize) / float64(m.dev.Device.BytesAvailable),
+	}
 }
 
 func (m *storageConsumer) DeviceType() sonm.DeviceType {
