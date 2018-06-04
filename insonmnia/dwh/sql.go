@@ -344,7 +344,7 @@ func (m *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 		builder = builder.Where("Type = ?", r.Type)
 	}
 	if !r.AuthorID.IsZero() {
-		builder = builder.Where("AuthorID = ?", r.AuthorID.Unwrap().Hex())
+		builder = builder.Where("AuthorID LIKE ?", r.AuthorID.Unwrap().Hex())
 	}
 	if len(r.CounterpartyID) > 0 {
 		var ids []string
