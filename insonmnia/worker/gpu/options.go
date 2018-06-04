@@ -21,6 +21,7 @@ type tunerOptions struct {
 	VolumeDriverName string `mapstructure:"driver_name"`
 	DriverVersion    string `mapstructure:"driver_version"`
 	VolumePath       string `mapstructure:"volume_path"`
+	DeviceCount      int    `mapstructure:"device_count"`
 	SocketPath       string `mapstructure:"-"`
 	libsMountPoint   string `mapstructure:"-"`
 }
@@ -36,7 +37,7 @@ func WithSocketDir(dir string) Option {
 
 func WithOptions(raw map[string]string) Option {
 	return func(opts *tunerOptions) {
-		mapstructure.Decode(raw, &opts)
+		mapstructure.WeakDecode(&raw, opts)
 	}
 }
 
@@ -57,6 +58,12 @@ func radeonDefaultOptions() *tunerOptions {
 		libsMountPoint:   radeonLibsMountPoint,
 		VolumePath:       fmt.Sprintf("/var/lib/%s/volumes", radeonVolumeDriver),
 		SocketPath:       fmt.Sprintf("/run/docker/plugins/%s.sock", radeonVolumeDriver),
+	}
+}
+
+func fakeDefaultOptions() *tunerOptions {
+	return &tunerOptions{
+		DeviceCount: 1,
 	}
 }
 
