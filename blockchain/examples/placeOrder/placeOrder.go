@@ -8,7 +8,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/blockchain"
-	"github.com/sonm-io/core/blockchain/market"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 )
@@ -30,7 +29,7 @@ func main() {
 		return
 	}
 
-	balance, err := api.SideToken().BalanceOf(context.Background(), crypto.PubkeyToAddress(prv.PublicKey).String())
+	balance, err := api.SideToken().BalanceOf(context.Background(), crypto.PubkeyToAddress(prv.PublicKey))
 	if err != nil {
 		log.Fatalln(err)
 		return
@@ -38,7 +37,7 @@ func main() {
 
 	log.Println("Balance: ", balance)
 
-	allowance, err := api.SideToken().AllowanceOf(context.Background(), crypto.PubkeyToAddress(prv.PublicKey).String(), market.MarketAddr().String())
+	allowance, err := api.SideToken().AllowanceOf(context.Background(), crypto.PubkeyToAddress(prv.PublicKey), blockchain.MarketAddr())
 	if err != nil {
 		log.Fatalln(err)
 		return
