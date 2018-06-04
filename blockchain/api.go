@@ -86,7 +86,7 @@ type TokenAPI interface {
 	// BalanceOf returns balance of given address
 	BalanceOf(ctx context.Context, address common.Address) (*big.Int, error)
 	// AllowanceOf returns allowance of given address to spender account
-	AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error)
+	AllowanceOf(ctx context.Context, from, to common.Address) (*big.Int, error)
 	// TotalSupply - all amount of emitted token
 	TotalSupply(ctx context.Context) (*big.Int, error)
 }
@@ -788,8 +788,8 @@ func (api *StandardTokenApi) BalanceOf(ctx context.Context, address common.Addre
 	return api.tokenContract.BalanceOf(getCallOptions(ctx), address)
 }
 
-func (api *StandardTokenApi) AllowanceOf(ctx context.Context, from string, to string) (*big.Int, error) {
-	return api.tokenContract.Allowance(getCallOptions(ctx), common.HexToAddress(from), common.HexToAddress(to))
+func (api *StandardTokenApi) AllowanceOf(ctx context.Context, from, to common.Address) (*big.Int, error) {
+	return api.tokenContract.Allowance(getCallOptions(ctx), from, to)
 }
 
 func (api *StandardTokenApi) Approve(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error) {
