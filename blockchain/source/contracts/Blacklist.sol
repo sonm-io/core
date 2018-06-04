@@ -1,4 +1,4 @@
-pragma solidity ^0.4.21;
+pragma solidity ^0.4.23;
 
 
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
@@ -22,7 +22,7 @@ contract Blacklist is Ownable {
 
     address public market = 0x0;
 
-    function Blacklist() public {
+    constructor() public {
         owner = msg.sender;
     }
 
@@ -32,14 +32,14 @@ contract Blacklist is Ownable {
 
     function Add(address _who, address _whom) external OnlyMarket returns (bool) {
         blacklisted[_who][_whom] = true;
-        AddedToBlacklist(_who, _whom);
+        emit AddedToBlacklist(_who, _whom);
         return true;
     }
 
     function Remove(address _whom) public returns (bool) {
         require(blacklisted[msg.sender][_whom] == true);
         blacklisted[msg.sender][_whom] = false;
-        RemovedFromBlacklist(msg.sender, _whom);
+        emit RemovedFromBlacklist(msg.sender, _whom);
         return true;
     }
 

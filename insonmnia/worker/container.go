@@ -56,7 +56,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 
 		Image: d.Reference.String(),
 		// TODO: set actual name
-		Labels:  map[string]string{overseerTag: ""},
+		Labels:  map[string]string{overseerTag: "", dealIDTag: d.DealId},
 		Env:     d.FormatEnv(),
 		Volumes: make(map[string]struct{}),
 	}

@@ -28,6 +28,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xgrpc"
 
@@ -914,6 +915,11 @@ func (m *Worker) setupServer() error {
 	pb.RegisterWorkerServer(grpcServer, m)
 	pb.RegisterWorkerManagementServer(grpcServer, m)
 	grpc_prometheus.Register(grpcServer)
+
+	if m.cfg.Debug != nil {
+		go debug.ServePProf(m.ctx, *m.cfg.Debug, log.G(m.ctx))
+	}
+
 	return nil
 }
 

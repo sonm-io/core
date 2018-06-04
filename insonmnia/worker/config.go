@@ -13,6 +13,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
+	"github.com/sonm-io/core/util/debug"
 )
 
 type SSHConfig struct {
@@ -55,6 +56,7 @@ type Config struct {
 	Master            common.Address      `yaml:"master" required:"true"`
 	Development       *DevConfig          `yaml:"development"`
 	Admin             *common.Address     `yaml:"admin"`
+	Debug             *debug.Config       `yaml:"debug"`
 }
 
 // NewConfig creates a new Worker config from the specified YAML file.
