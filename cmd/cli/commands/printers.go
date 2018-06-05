@@ -66,7 +66,7 @@ func printNetworkSpec(cmd *cobra.Command, spec *pb.NetworkSpec) {
 	if err != nil {
 		cmd.Printf("%s", err)
 	} else {
-		cmd.Print(out)
+		cmd.Print(string(out))
 	}
 }
 
