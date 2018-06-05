@@ -1,4 +1,4 @@
-version: 0.2.2.{build}
+version: 0.4.0.{build}
 
 platform: x86
 
@@ -18,12 +18,16 @@ install:
 
 build_script:
   - git submodule update --init --recursive
-  - c:\MinGW\bin\mingw32-make.exe build/cli_win32
-  - c:\MinGW\bin\mingw32-make.exe build/node_win32
+  - c:\MinGW\bin\mingw32-make.exe build/cli
+  - c:\MinGW\bin\mingw32-make.exe build/node
+  - c:\MinGW\bin\mingw32-make.exe build/optimus
 
 artifacts:
-  - path: target/sonmcli_win32.exe
+  - path: target/sonmcli_windows_386.exe
     name: CLI
 
-  - path: target/sonmnode_win32.exe
+  - path: target/sonmnode_windows_386.exe
     name: Node
+
+  - path: target/sonmoptimus_windows_386.exe
+    name: Optimus
