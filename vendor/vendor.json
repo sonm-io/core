@@ -1655,6 +1655,24 @@
 			"revisionTime": "2017-11-14T20:44:01Z"
 		},
 		{
+			"checksumSHA1": "sZaLgMMf+AKwGE8mMvwdDCpHsQA=",
+			"path": "github.com/vishvananda/netlink",
+			"revision": "7c0b5944a3036fc8dc9f4cbf2f5c76dedd29af8b",
+			"revisionTime": "2018-04-08T13:56:38Z"
+		},
+		{
+			"checksumSHA1": "wN69Ln5aaBlq9NHYjowdyOAhbTQ=",
+			"path": "github.com/vishvananda/netlink/nl",
+			"revision": "7c0b5944a3036fc8dc9f4cbf2f5c76dedd29af8b",
+			"revisionTime": "2018-04-08T13:56:38Z"
+		},
+		{
+			"checksumSHA1": "qf37dJzNS2iXycH62ukEw+cleZY=",
+			"path": "github.com/vishvananda/netns",
+			"revision": "be1fbeda19366dea804f00efff2dd73a1642fdcc",
+			"revisionTime": "2017-11-10T22:28:10Z"
+		},
+		{
 			"checksumSHA1": "BtK7hL0GNjhCUpNR/JD+9QY0ioo=",
 			"path": "github.com/whyrusleeping/go-logging",
 			"revision": "0457bb6b88fc1973573aaf6b5145d8d3ae972390",
