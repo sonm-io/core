@@ -75,7 +75,7 @@ func (re *remoteOptions) getWorkerClientByEthAddr(ctx context.Context, eth strin
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
 	nppDialerOptions := []npp.Option{
 		npp.WithRendezvous(cfg.NPP.Rendezvous, credentials),
-		npp.WithRelayClient(cfg.NPP.Relay.Endpoints),
+		npp.WithRelayClient(cfg.NPP.Relay.Endpoints, log.G(ctx)),
 		npp.WithLogger(log.G(ctx)),
 	}
 	nppDialer, err := npp.NewDialer(ctx, nppDialerOptions...)
