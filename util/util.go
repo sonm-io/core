@@ -34,23 +34,34 @@ func GetPlatformName() string {
 	return fmt.Sprintf("%s/%s/%s", runtime.GOOS, runtime.GOARCH, runtime.Version())
 }
 
-func FileExists(p string) bool {
+func FileExists(p string) error {
 	f, err := os.Stat(p)
 	if err != nil {
-		return !os.IsNotExist(err) && !f.IsDir()
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%s does not exist", p)
+		}
+		return fmt.Errorf("failed to access %s: %s", p, err)
 	}
-
-	return !f.IsDir()
+	if f.IsDir() {
+		return fmt.Errorf("%s is directory", p)
+	}
+	return nil
 }
 
 // DirectoryExists returns true if the given directory exists
-func DirectoryExists(p string) bool {
+func DirectoryExists(p string) error {
 	f, err := os.Stat(p)
 	if err != nil {
-		return false
+		if os.IsNotExist(err) {
+			return fmt.Errorf("%s does not exist", p)
+		}
+		return fmt.Errorf("failed to access %s: %s", p, err)
 	}
 
-	return f.IsDir()
+	if !f.IsDir() {
+		return fmt.Errorf("%s is not a directory", p)
+	}
+	return nil
 }
 
 // ParseBigInt parses the given string and converts it to *big.Int

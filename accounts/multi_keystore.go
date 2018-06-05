@@ -2,6 +2,7 @@ package accounts
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -130,8 +131,9 @@ func (m *MultiKeystore) SetDefault(addr common.Address) error {
 }
 
 func (m *MultiKeystore) GetDefaultAddress() (common.Address, error) {
-	if !util.FileExists(m.cfg.getStateFilePath()) {
-		return common.Address{}, errors.New("cannot find keystore's state")
+	err := util.FileExists(m.cfg.getStateFilePath())
+	if err != nil {
+		return common.Address{}, fmt.Errorf("failed to access keystore's state: %s", err)
 	}
 
 	data, err := ioutil.ReadFile(m.cfg.getStateFilePath())
@@ -186,7 +188,7 @@ func (m *MultiKeystore) readKeyFile(path string, pass string) (*ecdsa.PrivateKey
 }
 
 func (m *MultiKeystore) setDefaultAccount(addr common.Address) error {
-	if !util.DirectoryExists(m.cfg.getStateFileDir()) {
+	if err := util.DirectoryExists(m.cfg.getStateFileDir()); err != nil {
 		if err := os.MkdirAll(m.cfg.getStateFileDir(), 0700); err != nil {
 			return errors.WithMessage(err, "cannot create dir for state")
 		}

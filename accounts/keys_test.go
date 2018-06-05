@@ -46,7 +46,7 @@ func TestNewKeyOpener_NoDir(t *testing.T) {
 	K := NewKeyOpener(testKeyStorePath, pf)
 
 	_, err := K.OpenKeystore()
-	assert.EqualError(t, err, errNoKeystoreDir.Error(), "Must not be opened with non-existent dir")
+	assert.Errorf(t, err, "Must not be opened with non-existent dir")
 }
 
 func TestNewKeyOpener_GetKey(t *testing.T) {

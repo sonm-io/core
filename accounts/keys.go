@@ -66,8 +66,8 @@ func (o *defaultKeyOpener) OpenKeystore() (bool, error) {
 		}
 	}()
 
-	if !util.DirectoryExists(o.keyDirPath) {
-		return false, errNoKeystoreDir
+	if err := util.DirectoryExists(o.keyDirPath); err != nil {
+		return false, err
 	}
 
 	passPhrase, err := o.pf.GetPassPhrase()
@@ -215,7 +215,7 @@ func DefaultKeyOpener(p Printer, keyDir, passPhrase string) (KeyOpener, error) {
 
 	p.Printf("Using %s as KeyStore directory\r\n", keyDir)
 
-	if !util.DirectoryExists(keyDir) {
+	if err := util.DirectoryExists(keyDir); err != nil {
 		p.Printf("KeyStore directory does not exist, try to create it...\r\n")
 		err = os.MkdirAll(keyDir, 0700)
 		if err != nil {
