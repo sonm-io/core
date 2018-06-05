@@ -107,7 +107,8 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		CreatorIdentityLevel	INTEGER NOT NULL,
 		CreatorName				TEXT NOT NULL,
 		CreatorCountry			TEXT NOT NULL,
-		CreatorCertificates		BLOB NOT NULL`, `INTEGER DEFAULT 0`),
+		CreatorCertificates		BLOB NOT NULL,
+		CreatedByKnownUser		INTEGER NOT NULL`, `INTEGER DEFAULT 0`),
 			createTableWorkers: `
 	CREATE TABLE IF NOT EXISTS Workers (
 		MasterID					TEXT NOT NULL,

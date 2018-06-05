@@ -284,6 +284,7 @@ func (m *sqlStorage) InsertOrder(conn queryConn, order *pb.DWHOrder) error {
 		order.CreatorName,
 		order.CreatorCountry,
 		[]byte(order.CreatorCertificates),
+		order.CreatedByKnownUser,
 	}
 	for benchID := uint64(0); benchID < m.numBenchmarks; benchID++ {
 		values = append(values, order.GetOrder().Benchmarks.Values[benchID])
@@ -1209,6 +1210,7 @@ func (m *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 		creatorName          = new(string)
 		creatorCountry       = new(string)
 		creatorCertificates  = &[]byte{}
+		byKnownUser          = new(bool)
 	)
 	allFields := []interface{}{
 		id,
@@ -1230,6 +1232,7 @@ func (m *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 		creatorName,
 		creatorCountry,
 		creatorCertificates,
+		byKnownUser,
 	}
 	benchmarks := make([]*uint64, m.numBenchmarks)
 	for benchID := range benchmarks {
@@ -1283,6 +1286,7 @@ func (m *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 		CreatorCountry:       *creatorCountry,
 		CreatorCertificates:  *creatorCertificates,
 		MasterID:             pb.NewEthAddress(common.HexToAddress(*masterID)),
+		CreatedByKnownUser:   *byKnownUser,
 	}, nil
 }
 
@@ -1686,6 +1690,7 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"CreatorName",
 		"CreatorCountry",
 		"CreatorCertificates",
+		"CreatedByKnownUser",
 	}
 	dealChangeRequestColumns := []string{
 		"Id",

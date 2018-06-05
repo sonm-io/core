@@ -1138,7 +1138,7 @@ func setupTestDB(w *DWH) error {
 
 		_, err := w.db.Exec(insertDeal, args...)
 		if err != nil {
-			return errors.Wrap(err, "failed to insertDeal")
+			return errors.Wrap(err, "failed to insert deal")
 		}
 
 		// Create 10 ASK orders.
@@ -1163,6 +1163,7 @@ func setupTestDB(w *DWH) error {
 			"CreatorName",
 			"CreatorCountry",
 			byteCerts, // CreatorCertificates
+			true,      // CreatedByKnownUser
 			10+i,
 			20+i,
 			30+i,
@@ -1177,7 +1178,7 @@ func setupTestDB(w *DWH) error {
 			120+i,
 		).RunWith(w.db).Exec()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to insert ASK order")
 		}
 
 		// Create 10 BID orders.
@@ -1202,6 +1203,7 @@ func setupTestDB(w *DWH) error {
 			"CreatorName",
 			"CreatorCountry",
 			byteCerts, // CreatorCertificates
+			true,      // CreatedByKnownUser
 			10-i,
 			20-i,
 			30-i,
@@ -1216,7 +1218,7 @@ func setupTestDB(w *DWH) error {
 			120-i,
 		).RunWith(w.db).Exec()
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to insert BID order")
 		}
 
 		_, err = storage.builder().Insert("DealChangeRequests").
@@ -1316,6 +1318,7 @@ func setupTestDB(w *DWH) error {
 		"CreatorName",
 		"CreatorCountry",
 		byteCerts, // CreatorCertificates
+		true,      // CreatedByKnownUser
 		0,
 		0,
 		0,

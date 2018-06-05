@@ -796,8 +796,10 @@ func (m *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		userID = order.GetAuthorID().Unwrap()
 	}
 
+	var createdByKnownUser = true
 	profile, err := m.storage.GetProfileByID(conn, userID)
 	if err != nil {
+		createdByKnownUser = false
 		certificates, _ := json.Marshal([]*pb.Certificate{})
 		profile = &pb.Profile{UserID: order.AuthorID, Certificates: string(certificates)}
 	} else {
@@ -821,6 +823,7 @@ func (m *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		CreatorCountry:       profile.Country,
 		CreatorCertificates:  []byte(profile.Certificates),
 		MasterID:             pb.NewEthAddress(userID),
+		CreatedByKnownUser:   createdByKnownUser,
 		Order: &pb.Order{
 			Id:             order.Id,
 			DealID:         order.DealID,
@@ -868,15 +871,15 @@ func (m *DWH) onOrderUpdated(orderID *big.Int) error {
 		}
 	}
 
+	// A situation is possible when user places an Ask order without specifying her `MasterID` (and we take
+	// `AuthorID` for `MasterID`), and afterwards the user *does* specify her master. To avoid inconsistency,
+	// we always use the user ID that was chosen in `onOrderPlaced` (i.e., the one that is already stored in DB).
+	dwhOrder, err := m.storage.GetOrderByID(conn, marketOrder.GetId().Unwrap())
+	if err != nil {
+		return errors.Wrap(err, "failed to GetOrderByID")
+	}
 	var userID common.Address
 	if marketOrder.OrderType == pb.OrderType_ASK {
-		// A situation is possible when user places an Ask order without specifying her `MasterID` (and we take
-		// `AuthorID` for `MasterID`), and afterwards the user *does* specify her master. To avoid inconsistency,
-		// we always use the user ID that was chosen in `onOrderPlaced` (i.e., the one that is already stored in DB).
-		dwhOrder, err := m.storage.GetOrderByID(conn, marketOrder.GetId().Unwrap())
-		if err != nil {
-			return errors.Wrap(err, "failed to GetOrderByID")
-		}
 		userID = dwhOrder.GetMasterID().Unwrap()
 	} else {
 		userID = marketOrder.GetAuthorID().Unwrap()
@@ -896,8 +899,10 @@ func (m *DWH) onOrderUpdated(orderID *big.Int) error {
 		}
 	}
 
-	if err := m.updateProfileStats(conn, marketOrder.OrderType, userID, -1); err != nil {
-		return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", marketOrder.AuthorID.Unwrap().String())
+	if dwhOrder.CreatedByKnownUser {
+		if err := m.updateProfileStats(conn, marketOrder.OrderType, userID, -1); err != nil {
+			return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", marketOrder.AuthorID.Unwrap().String())
+		}
 	}
 
 	return nil

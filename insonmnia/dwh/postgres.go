@@ -96,7 +96,8 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		CreatorIdentityLevel	INTEGER NOT NULL,
 		CreatorName				TEXT NOT NULL,
 		CreatorCountry			TEXT NOT NULL,
-		CreatorCertificates		BYTEA NOT NULL`, `BIGINT DEFAULT 0`),
+		CreatorCertificates		BYTEA NOT NULL,
+		CreatedByKnownUser		BOOLEAN NOT NULL`, `BIGINT DEFAULT 0`),
 			createTableWorkers: `
 	CREATE TABLE IF NOT EXISTS Workers (
 		MasterID					TEXT NOT NULL,
