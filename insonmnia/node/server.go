@@ -55,6 +55,9 @@ func (re *remoteOptions) getWorkerClientForDeal(ctx context.Context, id string) 
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not get deal info for deal %s from blockchain: %s", id, err)
 	}
+	if dealInfo.Status == pb.DealStatus_DEAL_CLOSED {
+		return nil, nil, fmt.Errorf("deal %s is closed", id)
+	}
 
 	client, closer, err := re.getWorkerClientByEthAddr(ctx, dealInfo.GetSupplierID().Unwrap().Hex())
 	if err != nil {
