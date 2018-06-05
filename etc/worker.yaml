@@ -53,7 +53,7 @@ logging:
   level: debug
 
 store:
-  path: "/var/lib/sonm/worker.boltdb"
+  endpoint: "/var/lib/sonm/worker.boltdb"
 
 benchmarks:
   # URL to download benchmark list, use `file://` schema to load file from a filesystem.
