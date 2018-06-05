@@ -170,6 +170,9 @@ func (m *Salesman) maybeShutdownAskPlan(ctx context.Context, plan *sonm.AskPlan)
 		if err != nil {
 			return err
 		}
+		if err := m.checkDeal(ctx, plan, dealInfo); err != nil {
+			return err
+		}
 		if dealInfo.Status == sonm.DealStatus_DEAL_ACCEPTED {
 			if dealInfo.GetDuration() == 0 {
 				m.log.Infof("closing spot deal %s for ask plan %s", dealInfo.GetId(), plan.GetID())
@@ -178,8 +181,7 @@ func (m *Salesman) maybeShutdownAskPlan(ctx context.Context, plan *sonm.AskPlan)
 				}
 			} else {
 				m.log.Debugf("ask plan %s is still bound to deal %s, checking deal", plan.ID, plan.GetDealID().Unwrap().String())
-				// It's not the error - we just need to wait for deal to finish
-				return m.checkDeal(ctx, plan, dealInfo)
+				return nil
 			}
 		}
 	}
