@@ -5,7 +5,6 @@ import (
 	"context"
 	"net"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -63,8 +62,7 @@ func (t *TincNetwork) Start(ctx context.Context, addr string) error {
 }
 
 func (t *TincNetwork) Shutdown(ctx context.Context) error {
-	timeout := time.Second * 120
-	t.cli.ContainerStop(ctx, t.TincContainerID, &timeout)
+	t.cli.ContainerKill(ctx, t.TincContainerID, "SIGKILL")
 	return nil
 }
 

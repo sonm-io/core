@@ -574,6 +574,9 @@ func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 			result = multierror.Append(result, err)
 		}
 	}
+	if err := descriptor.Cleanup(); err != nil {
+		result = multierror.Append(result, err)
+	}
 	if err := descriptor.Remove(ctx); err != nil {
 		result = multierror.Append(result, err)
 	}
