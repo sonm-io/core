@@ -415,7 +415,7 @@ func (m *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersReque
 		return nil, 0, errors.Wrap(err, "failed to GetOrderByID")
 	}
 
-	builder := m.builder().Select("*").From("Orders")
+	builder := m.builder().Select("*").From("Orders AS o")
 	var (
 		orderType    pb.OrderType
 		priceOp      string
@@ -461,6 +461,28 @@ func (m *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersReque
 		builder = builder.Where(fmt.Sprintf("%s %s ?", getBenchmarkColumn(uint64(benchID)), benchOp), benchValue)
 	}
 	builder = m.builderWithSortings(builder, []*pb.SortingOption{{Field: "Price", Order: sortingOrder}})
+
+	// Filter orders that:
+	// 	1. have our Master/Author in their Master/Author/Blacklist blacklist,
+	//	2. whose Master/Author is in our Master/Author/Blacklist blacklist.
+	var (
+		masterID    = order.MasterID.Unwrap().Hex()
+		authorID    = order.GetOrder().AuthorID.Unwrap().Hex()
+		blacklistID = order.GetOrder().GetBlacklist()
+	)
+	blacklistsQuery := m.builder().Select("*").Prefix("NOT EXISTS (").Suffix(")").From("Blacklists AS b").
+		Where(squirrel.Or{
+			squirrel.And{
+				squirrel.Expr("b.AdderID IN (o.MasterID, o.AuthorID, o.Blacklist)"),
+				squirrel.Eq{"b.AddeeID": []string{masterID, authorID}},
+			},
+			squirrel.And{
+				squirrel.Eq{"b.AdderID": []string{masterID, authorID, blacklistID}},
+				squirrel.Expr("b.AddeeID IN (o.MasterID, o.AuthorID)"),
+			},
+		})
+	builder = builder.Where(blacklistsQuery)
+
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.OrderColumns, ", "), r.WithCount, query, args...)
 	if err != nil {

@@ -334,9 +334,6 @@ func TestDWH_GetOrderDetails(t *testing.T) {
 	if reply.AuthorID.Unwrap().Hex() != common.HexToAddress("0xA").Hex() {
 		t.Errorf("Expected %s, got %s (AuthorID)", common.HexToAddress("0xA").Hex(), reply.AuthorID)
 	}
-	if reply.CounterpartyID.Unwrap().Hex() != common.HexToAddress("0xB").Hex() {
-		t.Errorf("Expected %s, got %s (CounterpartyID)", common.HexToAddress("0xB").Hex(), reply.CounterpartyID)
-	}
 	if reply.Duration != uint64(10015) {
 		t.Errorf("Expected %d, got %d (Duration)", 10015, reply.Duration)
 	}
@@ -1144,6 +1141,7 @@ func setupTestDB(w *DWH) error {
 			return errors.Wrap(err, "failed to insertDeal")
 		}
 
+		// Create 10 ASK orders.
 		_, err = storage.builder().Insert("Orders").
 			Columns(storage.tablesInfo.OrderColumns...).Values(
 			fmt.Sprintf("2020%d", i),
@@ -1153,7 +1151,7 @@ func setupTestDB(w *DWH) error {
 			uint64(pb.OrderType_ASK),
 			uint64(pb.OrderStatus_ORDER_ACTIVE),
 			common.HexToAddress("0xA").Hex(), // AuthorID
-			common.HexToAddress("0xB").Hex(), // CounterpartyID
+			common.Address{}.Hex(),           // CounterpartyID
 			10010+i,
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			7, // Netflags
@@ -1182,6 +1180,7 @@ func setupTestDB(w *DWH) error {
 			return err
 		}
 
+		// Create 10 BID orders.
 		_, err = storage.builder().Insert("Orders").
 			Columns(storage.tablesInfo.OrderColumns...).Values(
 			fmt.Sprintf("3030%d", i),
@@ -1191,7 +1190,7 @@ func setupTestDB(w *DWH) error {
 			uint64(pb.OrderType_BID),
 			uint64(pb.OrderStatus_ORDER_ACTIVE),
 			common.HexToAddress("0xB").Hex(), // AuthorID
-			common.HexToAddress("0xA").Hex(), // CounterpartyID
+			common.Address{}.Hex(),           // CounterpartyID
 			10010-i,                          // Duration
 			pb.NewBigIntFromInt(20010+int64(i)).PaddedString(), // Price
 			5, // Netflags
@@ -1248,6 +1247,7 @@ func setupTestDB(w *DWH) error {
 		}
 	}
 
+	// Create a couple of profiles for TestDWH_monitor entities.
 	_, err := storage.builder().Insert("Profiles").Columns(storage.tablesInfo.ProfileColumns[1:]...).Values(
 		fmt.Sprintf(common.HexToAddress("0xBB").Hex()),
 		3,
@@ -1262,7 +1262,6 @@ func setupTestDB(w *DWH) error {
 	if err != nil {
 		return err
 	}
-
 	_, err = storage.builder().Insert("Profiles").Columns(storage.tablesInfo.ProfileColumns[1:]...).Values(
 		fmt.Sprintf(common.HexToAddress("0xAA").Hex()),
 		3,
@@ -1277,10 +1276,58 @@ func setupTestDB(w *DWH) error {
 	if err != nil {
 		return err
 	}
-
+	// Blacklist 0xBB for 0xE for TestDWH_GetProfiles.
 	_, err = storage.builder().Insert("Blacklists").Values(
 		common.HexToAddress("0xE").Hex(),
 		common.HexToAddress("0xBB").Hex(),
+	).RunWith(w.db).Exec()
+	if err != nil {
+		return err
+	}
+
+	// Add a BID order that will be matched by any of the ASK orders added above and
+	// blacklist this BID order's Author for the author of all ASK orders. Then in
+	// TestDWH_GetMatchingOrders we shouldn't get this order.
+	_, err = storage.builder().Insert("Blacklists").Values(
+		common.HexToAddress("0xA").Hex(),
+		common.HexToAddress("0xCC").Hex(),
+	).RunWith(w.db).Exec()
+	if err != nil {
+		return err
+	}
+	_, err = storage.builder().Insert("Orders").
+		Columns(storage.tablesInfo.OrderColumns...).Values(
+		fmt.Sprintf("3050%d", 0),
+		common.HexToAddress(fmt.Sprintf("0x9%d", 0)).Hex(), // Master
+		12345, // CreatedTS
+		fmt.Sprintf("1010%d", 0),
+		uint64(pb.OrderType_BID),
+		uint64(pb.OrderStatus_ORDER_ACTIVE),
+		common.HexToAddress("0xCC").Hex(), // AuthorID
+		common.HexToAddress("0xA").Hex(),  // CounterpartyID
+		10, // Duration
+		pb.NewBigIntFromInt(30010+int64(0)).PaddedString(), // Price
+		5, // Netflags
+		uint64(pb.IdentityLevel_ANONYMOUS),
+		fmt.Sprintf("blacklist_%d", 0),
+		[]byte{1, 2, 3},                       // Tag
+		fmt.Sprintf("3001%d", 0),              // FrozenSum
+		uint64(pb.IdentityLevel_PSEUDONYMOUS), // CreatorIdentityLevel
+		"CreatorName",
+		"CreatorCountry",
+		byteCerts, // CreatorCertificates
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
+		0,
 	).RunWith(w.db).Exec()
 	if err != nil {
 		return err
