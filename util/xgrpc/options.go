@@ -19,7 +19,9 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 type ServerOption func(options *options)
@@ -202,7 +204,7 @@ func verifyUnaryInterceptor() grpc.UnaryServerInterceptor {
 			Validate() error
 		}); ok {
 			if err := v.Validate(); err != nil {
-				return err
+				return status.Error(codes.InvalidArgument, err.Error())
 			}
 		}
 
