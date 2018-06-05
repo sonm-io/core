@@ -55,6 +55,9 @@ func (re *remoteOptions) getWorkerClientForDeal(ctx context.Context, id string) 
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not get deal info for deal %s from blockchain: %s", id, err)
 	}
+	if dealInfo.Status == pb.DealStatus_DEAL_CLOSED {
+		return nil, nil, fmt.Errorf("deal %s is closed", id)
+	}
 
 	client, closer, err := re.getWorkerClientByEthAddr(ctx, dealInfo.GetSupplierID().Unwrap().Hex())
 	if err != nil {
@@ -73,6 +76,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 	nppDialerOptions := []npp.Option{
 		npp.WithRendezvous(cfg.NPP.Rendezvous, credentials),
 		npp.WithRelayClient(cfg.NPP.Relay.Endpoints),
+		npp.WithLogger(log.G(ctx)),
 	}
 	nppDialer, err := npp.NewDialer(ctx, nppDialerOptions...)
 	if err != nil {

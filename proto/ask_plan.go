@@ -213,6 +213,22 @@ type GPUHasher interface {
 	HashGPU(indexes []uint64) (hashes []string, err error)
 }
 
+type AskPlanHasher struct {
+	*AskPlanResources
+}
+
+func (m *AskPlanHasher) HashGPU(indexes []uint64) ([]string, error) {
+	askPlanHashes := m.GetGPU().GetHashes()
+	resultHashes := make([]string, 0, len(indexes))
+	for _, idx := range indexes {
+		if idx >= uint64(len(askPlanHashes)) {
+			return nil, fmt.Errorf("invalid GPU index %d", idx)
+		}
+		resultHashes = append(resultHashes, askPlanHashes[idx])
+	}
+	return resultHashes, nil
+}
+
 func (m *AskPlanGPU) Normalize(hasher GPUHasher) error {
 	if m == nil || m.Normalized() {
 		return nil

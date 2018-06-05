@@ -1,49 +1,65 @@
 #!/usr/bin/env make
-VER = v0.4.0
+
+# Version of the entire package. Do not forget to update this when it's time
+# to bump the version.
+VERSION = v0.4.0
+
+# Build tag. Useful to distinguish between same-version builds, but from
+# different commits.
 BUILD = $(shell git rev-parse --short HEAD)
-FULL_VER = $(VER)-$(BUILD)
 
-GOCMD=./cmd
-ifeq ($(GO), )
-    GO=go
+# Full version includes both semantic version and git ref.
+FULL_VERSION = $(VERSION)-$(BUILD)
+
+# NOTE: variables defined with := in GNU make are expanded when they are
+# defined rather than when they are used.
+GOCMD := ./cmd
+
+# NOTE: variables defined with ?= sets the default value, which can be
+# overriden using env.
+GO ?= go
+GOPATH ?= $(shell ls -d ~/go)
+
+TARGETDIR := target
+INSTALLDIR := ${GOPATH}/bin/
+
+HOSTOS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
+HOSTARCH := $(shell uname -m)
+
+GOOS ?= ${HOSTOS}
+GOARCH ?= ${HOSTARCH}
+
+# Set the execution extension for Windows.
+ifeq (${GOOS},windows)
+    EXE := .exe
 endif
 
-ifeq ($(GOPATH), )
-    GOPATH=$(shell ls -d ~/go)
-endif
+OS_ARCH := $(GOOS)_$(GOARCH)$(EXE)
 
-INSTALLDIR=${GOPATH}/bin/
+WORKER     := ${TARGETDIR}/sonmworker_$(OS_ARCH)
+NODE       := ${TARGETDIR}/sonmnode_$(OS_ARCH)
+CLI        := ${TARGETDIR}/sonmcli_$(OS_ARCH)
+AUTOCLI    := ${TARGETDIR}/autocli_$(OS_ARCH)
+DWH        := ${TARGETDIR}/sonmdwh_$(OS_ARCH)
+RENDEZVOUS := ${TARGETDIR}/sonmrendezvous_$(OS_ARCH)
+RELAY      := ${TARGETDIR}/sonmrelay_$(OS_ARCH)
+OPTIMUS    := ${TARGETDIR}/sonmoptimus_$(OS_ARCH)
+LSGPU      := ${TARGETDIR}/lsgpu_$(OS_ARCH)
+PANDORA    := ${TARGETDIR}/pandora_$(OS_ARCH)
 
+TAGS = nocgo
 
-TARGETDIR=target
-ARCH := $(shell uname -m)
-OS := $(shell uname -s | tr '[:upper:]' '[:lower:]')
-OS_ARCH := $(OS)_$(ARCH)
-
-WORKER=${TARGETDIR}/sonmworker_$(OS_ARCH)
-CLI=${TARGETDIR}/sonmcli_$(OS_ARCH)
-LOCAL_NODE=${TARGETDIR}/sonmnode_$(OS_ARCH)
-AUTOCLI=${TARGETDIR}/autocli_$(OS_ARCH)
-DWH=${TARGETDIR}/sonmdwh_$(OS_ARCH)
-RENDEZVOUS=${TARGETDIR}/sonmrendezvous_$(OS_ARCH)
-RELAY=${TARGETDIR}/sonmrelay_$(OS_ARCH)
-LSGPU=${TARGETDIR}/lsgpu_$(OS_ARCH)
-PANDORA=${TARGETDIR}/pandora_$(OS_ARCH)
-OPTIMUS=${TARGETDIR}/sonmoptimus_$(OS_ARCH)
-
-TAGS=nocgo
-
-GPU_SUPPORT?=false
+GPU_SUPPORT ?= false
 ifeq ($(GPU_SUPPORT),true)
-    GPU_TAGS=cl
-    # required for build nvidia-docker libs with NVML included via cgo
-    NV_CGO=vendor/github.com/sshaman1101/nvidia-docker/build
-    CGO_LDFLAGS=-L$(shell pwd)/${NV_CGO}/lib
-    CGO_CFLAGS=-I$(shell pwd)/${NV_CGO}/include
-    CGO_LDFLAGS_ALLOW='-Wl,--unresolved-symbols=ignore-in-object-files'
+    GPU_TAGS := cl
+    # Required for build nvidia-docker libs with NVML included via cgo.
+    NV_CGO            := vendor/github.com/sshaman1101/nvidia-docker/build
+    CGO_LDFLAGS       := -L$(shell pwd)/${NV_CGO}/lib
+    CGO_CFLAGS        := -I$(shell pwd)/${NV_CGO}/include
+    CGO_LDFLAGS_ALLOW := '-Wl,--unresolved-symbols=ignore-in-object-files'
 endif
 
-LDFLAGS = -X main.appVersion=$(FULL_VER)
+LDFLAGS = -X main.appVersion=$(FULL_VERSION)
 
 .PHONY: fmt vet test
 
@@ -73,19 +89,11 @@ build/cli:
 
 build/node:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${LOCAL_NODE} ${GOCMD}/node
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${NODE} ${GOCMD}/node
 
 build/lsgpu:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${LSGPU} ${GOCMD}/lsgpu
-
-build/cli_win32:
-	@echo "+ $@"
-	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${TARGETDIR}/sonmcli_win32.exe ${GOCMD}/cli
-
-build/node_win32:
-	@echo "+ $@"
-	GOOS=windows GOARCH=386 ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS).win32" -o ${TARGETDIR}/sonmnode_win32.exe ${GOCMD}/node
 
 build/autocli:
 	@echo "+ $@"
@@ -94,10 +102,6 @@ build/autocli:
 build/pandora:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${PANDORA} ${GOCMD}/pandora
-
-build/pandora_linux:
-	@echo "+ $@"
-	GOOS=linux ${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${TARGETDIR}/pandora_linux_x86_64 ${GOCMD}/pandora
 
 build/optimus:
 	@echo "+ $@"
@@ -112,7 +116,7 @@ build: build/insomnia build/aux
 install: all
 	@echo "+ $@"
 	mkdir -p ${INSTALLDIR}
-	cp ${WORKER} ${CLI} ${LOCAL_NODE} ${INSTALLDIR}
+	cp ${WORKER} ${CLI} ${NODE} ${INSTALLDIR}
 
 vet:
 	@echo "+ $@"
@@ -149,7 +153,7 @@ mock: build_mockgen
 	mockgen -package sonm -destination proto/dwh_mock.go  -source proto/dwh.pb.go
 
 clean:
-	rm -f ${WORKER} ${CLI} ${LOCAL_NODE} ${AUTOCLI} ${RENDEZVOUS}
+	rm -f ${WORKER} ${CLI} ${NODE} ${AUTOCLI} ${RENDEZVOUS}
 	find . -name "*_mock.go" | xargs rm -f
 
 deb:
