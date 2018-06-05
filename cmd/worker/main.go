@@ -47,9 +47,12 @@ func run() error {
 	waiter.Go(func() error {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
-		<-c
+		select {
+		case <-c:
+			log.G(ctx).Info("closing worker by interrupt signal")
+		case <-ctx.Done():
+		}
 
-		log.G(ctx).Info("closing worker by interrupt signal")
 		cancel()
 
 		return nil
@@ -65,7 +68,8 @@ func run() error {
 	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
 
 	if err = w.Serve(); err != nil {
-		log.G(ctx).Error("Server stop", zap.Error(err))
+		cancel()
+		log.G(ctx).Error("server stop", zap.Error(err))
 	}
 	waiter.Wait()
 
