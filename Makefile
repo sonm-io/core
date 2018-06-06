@@ -59,7 +59,10 @@ ifeq ($(GPU_SUPPORT),true)
     CGO_LDFLAGS_ALLOW := '-Wl,--unresolved-symbols=ignore-in-object-files'
 endif
 
-LDFLAGS = -X main.appVersion=$(FULL_VERSION)
+LDFLAGS := -X main.appVersion=$(FULL_VERSION)
+GCFLAGS := all=-trimpath=${GOPATH}/src
+ASMFLAGS := all=-trimpath=${GOPATH}/src
+ALLFLAGS = -ldflags="-s ${LDFLAGS}" -gcflags="${GCFLAGS}" -asmflags="${ASMFLAGS}"
 
 .PHONY: fmt vet test
 
@@ -67,45 +70,45 @@ all: mock vet fmt build test
 
 build/worker:
 	@echo "+ $@"
-	CGO_LDFLAGS_ALLOW=${CGO_LDFLAGS_ALLOW} CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s $(LDFLAGS)" -o ${WORKER} ${GOCMD}/worker
+	CGO_LDFLAGS_ALLOW=${CGO_LDFLAGS_ALLOW} CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS)" ${ALLFLAGS} -o ${WORKER} ${GOCMD}/worker
 
 build/dwh:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${DWH} ${GOCMD}/dwh
+	${GO} build -tags "$(TAGS)" ${ALLFLAGS} -o ${DWH} ${GOCMD}/dwh
 
 build/rv:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${RENDEZVOUS} ${GOCMD}/rv
+	${GO} build -tags "$(TAGS)" ${ALLFLAGS} -o ${RENDEZVOUS} ${GOCMD}/rv
 
 build/rendezvous: build/rv
 
 build/relay:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${RELAY} ${GOCMD}/relay
+	${GO} build -tags "$(TAGS)" ${ALLFLAGS} -o ${RELAY} ${GOCMD}/relay
 
 build/cli:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${CLI} ${GOCMD}/cli
+	${GO} build -tags "$(TAGS)" ${ALLFLAGS} -o ${CLI} ${GOCMD}/cli
 
 build/node:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${NODE} ${GOCMD}/node
+	${GO} build -tags "$(TAGS)" ${ALLFLAGS} -o ${NODE} ${GOCMD}/node
 
 build/lsgpu:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${LSGPU} ${GOCMD}/lsgpu
+	${GO} build -tags "$(TAGS)" ${ALLFLAGS} -o ${LSGPU} ${GOCMD}/lsgpu
 
 build/autocli:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${AUTOCLI} ${GOCMD}/autocli
+	${GO} build -tags "$(TAGS)" ${ALLFLAGS} -o ${AUTOCLI} ${GOCMD}/autocli
 
 build/pandora:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${PANDORA} ${GOCMD}/pandora
+	${GO} build -tags "$(TAGS)" ${ALLFLAGS} -o ${PANDORA} ${GOCMD}/pandora
 
 build/optimus:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${OPTIMUS} ${GOCMD}/optimus
+	${GO} build -tags "$(TAGS)" ${ALLFLAGS} -o ${OPTIMUS} ${GOCMD}/optimus
 
 build/insomnia: build/worker build/cli build/node
 
