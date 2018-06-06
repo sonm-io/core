@@ -60,8 +60,8 @@ ifeq ($(GPU_SUPPORT),true)
 endif
 
 LDFLAGS := -X main.appVersion=$(FULL_VERSION)
-GCFLAGS := all=-trimpath=${GOPATH}/src
-ASMFLAGS := all=-trimpath=${GOPATH}/src
+GCFLAGS := all=-trimpath=${GOPATH}
+ASMFLAGS := all=-trimpath=${GOPATH}
 ALLFLAGS = -ldflags="-s ${LDFLAGS}" -gcflags="${GCFLAGS}" -asmflags="${ASMFLAGS}"
 
 .PHONY: fmt vet test
