@@ -68,7 +68,7 @@ var loginCmd = &cobra.Command{
 				cmd.Println("Keystore is empty, generating new key...")
 				// ask for password for default key
 				pass, err := accounts.NewInteractivePassPhraser().GetPassPhrase()
-				newKey, err := ks.GenerateWithPassword(pass)
+				newKey, err := ks.Generate()
 				if err != nil {
 					showError(cmd, "Cannot generate new key", err)
 					os.Exit(1)

@@ -50,7 +50,7 @@ var (
 	// session-related vars
 	cfg      *config.Config
 	creds    credentials.TransportCredentials
-	keystore *accounts.MultiKeystore
+	keystore *accounts.Keystore
 )
 
 func getDefaultKeyOrDie() *ecdsa.PrivateKey {
@@ -187,7 +187,7 @@ func keystorePath() string {
 	return p
 }
 
-func initKeystore() (*accounts.MultiKeystore, error) {
+func initKeystore() (*accounts.Keystore, error) {
 	return accounts.NewMultiKeystore(&accounts.KeystoreConfig{
 		KeyDir:      keystorePath(),
 		PassPhrases: make(map[string]string),

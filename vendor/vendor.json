@@ -191,6 +191,12 @@
 			"revisionTime": "2017-06-09T14:46:27Z"
 		},
 		{
+			"checksumSHA1": "vvFDcA+qQlBPrJjKEYQCHVBS9xQ=",
+			"path": "github.com/danieljoos/wincred",
+			"revision": "412b574fb496839b312a75fba146bd32a89001cf",
+			"revisionTime": "2017-04-09T18:24:07Z"
+		},
+		{
 			"checksumSHA1": "CSPbwbyzqA6sfORicn4HFtIhF/c=",
 			"path": "github.com/davecgh/go-spew/spew",
 			"revision": "8991bc29aa16c548c550c7ff78260e27b9ab7c73",
@@ -1877,6 +1883,18 @@
 			"revisionTime": "2018-03-20T07:52:06Z",
 			"version": "=v0.1.3",
 			"versionExact": "v0.1.3"
+		},
+		{
+			"checksumSHA1": "//vnPN1cVjTt4sbL9/dylf2IGAE=",
+			"path": "github.com/zalando/go-keyring",
+			"revision": "6d81c293b3fbc8a9b1bcf4bc9c167c2e1d1f52cf",
+			"revisionTime": "2018-02-21T09:33:47Z"
+		},
+		{
+			"checksumSHA1": "dlRNDcRZgdOQV1hIcSSUgHakqaE=",
+			"path": "github.com/zalando/go-keyring/secret_service",
+			"revision": "6d81c293b3fbc8a9b1bcf4bc9c167c2e1d1f52cf",
+			"revisionTime": "2018-02-21T09:33:47Z"
 		},
 		{
 			"checksumSHA1": "3IdEHJfBkeEE8guKA2tcA8Fv6eg=",
