@@ -37,6 +37,10 @@ func NewSignedAddr(key *ecdsa.PrivateKey) (SignedETHAddr, error) {
 	return m, nil
 }
 
+func (m *SignedETHAddr) Addr() common.Address {
+	return m.addr
+}
+
 func newDiscover(addr common.Address) *sonm.HandshakeRequest {
 	return &sonm.HandshakeRequest{
 		PeerType: sonm.PeerType_DISCOVER,

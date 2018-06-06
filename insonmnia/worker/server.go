@@ -159,7 +159,7 @@ func (m *Worker) Serve() error {
 		npp.WithNPPBacklog(m.cfg.NPP.Backlog),
 		npp.WithNPPBackoff(m.cfg.NPP.MinBackoffInterval, m.cfg.NPP.MaxBackoffInterval),
 		npp.WithRendezvous(m.cfg.NPP.Rendezvous, m.creds),
-		npp.WithRelay(m.cfg.NPP.Relay.Endpoints, m.key),
+		npp.WithRelay(m.cfg.NPP.Relay.Endpoints, m.key, log.G(m.ctx)),
 		npp.WithLogger(log.G(m.ctx)),
 	)
 	if err != nil {

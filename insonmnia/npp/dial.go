@@ -56,6 +56,9 @@ func (m *Dialer) Dial(addr auth.Addr) (net.Conn, error) {
 // connected, any expiration of the context will not affect the
 // connection.
 func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, error) {
+	log := m.log.With(zap.Stringer("remote_addr", addr))
+	log.Debug("connecting to remote peer")
+
 	if conn := m.dialDirect(ctx, addr); conn != nil {
 		return conn, nil
 	}
@@ -65,7 +68,10 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 		return nil, err
 	}
 
-	nppCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	timeout := 5 * time.Second
+	log.Debug("connecting using NPP", zap.Duration("timeout", timeout))
+
+	nppCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	nppChannel := make(chan connTuple)
@@ -82,15 +88,23 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 
 	select {
 	case conn := <-nppChannel:
-		if conn.err != nil {
-			m.log.Warn("failed to dial via rendezvous", zap.Error(err))
+		err := conn.Error()
+		if err == nil {
+			log.Debug("successfully connected using NPP", zap.Stringer("remote_peer", conn.RemoteAddr()))
+			return conn.unwrap()
 		}
-		if conn.err == nil || m.relayDial == nil {
+
+		log.Warn("failed to connect using NPP", zap.Error(err))
+
+		if m.relayDial == nil {
+			log.Debug("no relay configured - returning error", zap.Error(err))
 			return conn.unwrap()
 		}
 	case <-nppCtx.Done():
+		log.Warn("failed to connect using NPP", zap.Error(ctx.Err()))
 	}
 
+	log.Debug("connecting using Relay")
 	channel := make(chan connTuple)
 	go func() {
 		channel <- newConnTuple(m.relayDial(ethAddr))
@@ -98,25 +112,40 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 
 	select {
 	case conn := <-channel:
+		err := conn.Error()
+		if err == nil {
+			log.Debug("successfully connected using Relay", zap.Stringer("remote_peer", conn.RemoteAddr()))
+		} else {
+			log.Warn("failed to connect using Relay", zap.Error(err))
+		}
+
 		return conn.unwrap()
 	case <-ctx.Done():
+		log.Warn("failed to connect using Relay", zap.Error(ctx.Err()))
 		return nil, ctx.Err()
 	}
 }
 
+// Note, that this method acts as an optimization.
 func (m *Dialer) dialDirect(ctx context.Context, addr auth.Addr) net.Conn {
-	netAddr, err := addr.Addr()
-	if err == nil {
-		dialer := net.Dialer{}
-		conn, err := dialer.DialContext(ctx, "tcp", netAddr)
-		if err == nil {
-			return conn
-		}
+	log := m.log.With(zap.Stringer("remote_addr", addr))
+	log.Debug("connecting using direct TCP")
 
-		m.log.Warn("failed to dial directly", zap.Error(err), zap.String("remote_peer", netAddr))
+	netAddr, err := addr.Addr()
+	if err != nil {
+		log.Debug("failed to connect using direct TCP", zap.Error(err))
+		return nil
 	}
 
-	return nil
+	dial := net.Dialer{}
+	conn, err := dial.DialContext(ctx, "tcp", netAddr)
+	if err != nil {
+		log.Debug("failed to connect using direct TCP", zap.Error(err))
+		return nil
+	}
+
+	log.Debug("successfully connected using direct TCP")
+	return conn
 }
 
 // Close closes the dialer.
