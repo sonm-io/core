@@ -88,13 +88,13 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 
 	select {
 	case conn := <-nppChannel:
-		switch err := conn.err; err {
-		case nil:
+		err := conn.Error()
+		if err == nil {
 			log.Debug("successfully connected using NPP", zap.Stringer("remote_peer", conn.RemoteAddr()))
 			return conn.unwrap()
-		default:
-			log.Warn("failed to connect using NPP", zap.Error(err))
 		}
+
+		log.Warn("failed to connect using NPP", zap.Error(err))
 
 		if m.relayDial == nil {
 			log.Debug("no relay configured - returning error", zap.Error(err))
@@ -112,10 +112,10 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 
 	select {
 	case conn := <-channel:
-		switch err := conn.err; err {
-		case nil:
+		err := conn.Error()
+		if err == nil {
 			log.Debug("successfully connected using Relay", zap.Stringer("remote_peer", conn.RemoteAddr()))
-		default:
+		} else {
 			log.Warn("failed to connect using Relay", zap.Error(err))
 		}
 
