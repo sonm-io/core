@@ -1147,6 +1147,20 @@ func (m *Worker) PurgeAskPlans(ctx context.Context, _ *pb.Empty) (*pb.Empty, err
 	return &pb.Empty{}, nil
 }
 
+func (m *Worker) ScheduleMaintainance(ctx context.Context, timestamp *pb.Timestamp) (*pb.Empty, error) {
+	if err := m.salesman.ScheduleMaintainance(timestamp.Unix()); err != nil {
+		return nil, err
+	}
+	return &pb.Empty{}, nil
+}
+
+func (m *Worker) NextMaintainance(ctx context.Context, _ *pb.Empty) (*pb.Timestamp, error) {
+	ts := m.salesman.NextMaintainance()
+	return &pb.Timestamp{
+		Seconds: ts.Unix(),
+	}, nil
+}
+
 func (m *Worker) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
 	log.G(m.ctx).Info("handling GetDealInfo request")
 

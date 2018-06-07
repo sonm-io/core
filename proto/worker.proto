@@ -1,12 +1,13 @@
 syntax = "proto3";
 
 import "ask_plan.proto";
+import "bigint.proto";
 import "capabilities.proto";
 import "container.proto";
-import "bigint.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
 import "net.proto";
+import "timestamp.proto";
 
 package sonm;
 
@@ -33,6 +34,10 @@ service WorkerManagement {
     rpc RemoveAskPlan(ID) returns (Empty) {}
     // PurgeAskPlans removes all ask-plans
     rpc PurgeAskPlans(Empty) returns (Empty) {}
+    // Schedule maintainance for worker: it will attempt to close all deals till that time point
+    rpc ScheduleMaintainance(Timestamp) returns (Empty) {}
+    // Get next planned maintainance
+    rpc NextMaintainance(Empty) returns (Timestamp) {}
 }
 
 service Worker {
