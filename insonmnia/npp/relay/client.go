@@ -7,6 +7,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
 	"github.com/sonm-io/core/proto"
+	"go.uber.org/zap"
 )
 
 // Dial communicates with the relay server waiting for other server peer to
@@ -14,19 +15,35 @@ import (
 //
 // All network traffic will be transported through that server.
 func Dial(addr net.Addr, targetAddr common.Address, uuid string) (net.Conn, error) {
-	client, err := newClient(addr)
+	return DialWithLog(addr, targetAddr, uuid, zap.NewNop())
+}
+
+// DialWithLog does the same as Dial, but with logging.
+func DialWithLog(addr net.Addr, targetAddr common.Address, uuid string, log *zap.Logger) (net.Conn, error) {
+	client, err := newClient(addr, log)
 	if err != nil {
 		return nil, err
 	}
 
 	defer client.Close()
 
+	log = log.With(zap.Stringer("addr", targetAddr))
+	log.Debug("discovering meeting point on the Continuum")
+
 	member, err := client.discover(targetAddr)
 	if err != nil {
+		log.Warn("failed to discover meeting point on the Continuum", zap.Error(err))
 		return nil, err
 	}
 
-	return member.dial(targetAddr, uuid)
+	log.Debug("connecting to remote meeting point on the Continuum", zap.Stringer("remote_addr", member.conn.RemoteAddr()))
+	conn, err := member.dial(targetAddr, uuid)
+	if err != nil {
+		log.Warn("failed to connect to remote meeting point on the Continuum", zap.Error(err))
+		return nil, err
+	}
+
+	return conn, err
 }
 
 // Listen publishes itself to the relay server waiting for other client peer
@@ -34,32 +51,54 @@ func Dial(addr net.Addr, targetAddr common.Address, uuid string) (net.Conn, erro
 //
 // All network traffic will be transported through that server.
 func Listen(addr net.Addr, publishAddr SignedETHAddr) (net.Conn, error) {
-	client, err := newClient(addr)
+	return ListenWithLog(addr, publishAddr, zap.NewNop())
+}
+
+// ListenWithLog does the same as Listen, but with logging.
+func ListenWithLog(addr net.Addr, publishAddr SignedETHAddr, log *zap.Logger) (net.Conn, error) {
+	client, err := newClient(addr, log)
 	if err != nil {
 		return nil, err
 	}
 	defer client.Close()
 
+	log = log.With(zap.Stringer("addr", publishAddr.Addr()))
+	log.Debug("discovering meeting point on the Continuum")
+
 	member, err := client.discover(publishAddr.addr)
 	if err != nil {
+		log.Warn("failed to discover meeting point on the Continuum", zap.Error(err))
 		return nil, err
 	}
 
-	return member.accept(publishAddr)
+	log.Debug("listening for connections on remote meeting point on the Continuum", zap.Stringer("remote_addr", member.conn.RemoteAddr()))
+	conn, err := member.accept(publishAddr)
+	if err != nil {
+		log.Warn("failed to accept connection on remote meeting point on the Continuum", zap.Error(err))
+		return nil, err
+	}
+
+	return conn, err
 }
 
 type client struct {
 	conn net.Conn
+	log  *zap.Logger
 }
 
-func newClient(addr net.Addr) (*client, error) {
+func newClient(addr net.Addr, log *zap.Logger) (*client, error) {
+	log = log.With(zap.Stringer("remote_addr", addr))
+	log.Debug("connecting to the Relay")
+
 	conn, err := net.Dial("tcp", addr.String())
 	if err != nil {
+		log.Warn("failed to connect to the Relay", zap.Error(err))
 		return nil, err
 	}
 
 	m := &client{
 		conn: conn,
+		log:  log,
 	}
 
 	return m, nil
@@ -80,7 +119,7 @@ func (m *client) discover(peer common.Address) (*client, error) {
 		return nil, err
 	}
 
-	return newClient(addr)
+	return newClient(addr, m.log)
 }
 
 func (m *client) dial(targetAddr common.Address, uuid string) (net.Conn, error) {

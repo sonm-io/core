@@ -28,18 +28,33 @@ func (m connSource) String() string {
 }
 
 const (
-	sourceDirectConnection connSource = iota
+	sourceError connSource = iota
+	sourceDirectConnection
 	sourceNPPConnection
 	sourceRelayedConnection
 )
 
 type connTuple struct {
-	net.Conn
-	err error
+	conn net.Conn
+	err  error
 }
 
 func newConnTuple(conn net.Conn, err error) connTuple {
 	return connTuple{conn, err}
+}
+
+func (m *connTuple) RemoteAddr() net.Addr {
+	if m == nil || m.conn == nil {
+		return nil
+	}
+	return m.conn.RemoteAddr()
+}
+
+func (m *connTuple) Close() error {
+	if m == nil || m.conn == nil {
+		return nil
+	}
+	return m.conn.Close()
 }
 
 func (m *connTuple) Error() error {
@@ -56,11 +71,11 @@ func (m *connTuple) IsRendezvousError() bool {
 }
 
 func (m *connTuple) unwrap() (net.Conn, error) {
-	return m.Conn, m.err
+	return m.conn, m.err
 }
 
 func (m *connTuple) unwrapWithSource(source connSource) (net.Conn, connSource, error) {
-	return m.Conn, source, m.err
+	return m.conn, source, m.err
 }
 
 // Listener specifies a net.Listener wrapper that is aware of NAT Punching
@@ -150,6 +165,8 @@ func (m *Listener) listenPuncher(ctx context.Context) error {
 		return nil
 	}
 
+	defer m.log.Info("finished listening NPP")
+
 	timeout := m.minBackoffInterval
 	for {
 		timer := time.NewTimer(timeout)
@@ -187,6 +204,8 @@ func (m *Listener) listenRelay(ctx context.Context) error {
 	if m.relayListen == nil {
 		return nil
 	}
+
+	defer m.log.Info("finished listening Relay")
 
 	timeout := m.minBackoffInterval
 
@@ -229,7 +248,7 @@ func (m *Listener) listenRelay(ctx context.Context) error {
 func (m *Listener) Accept() (net.Conn, error) {
 	conn, source, err := m.accept()
 	if err != nil {
-		m.log.Warn("failed to accepted peer", zap.Error(err))
+		m.log.Warn("failed to accept peer", zap.Error(err))
 		return nil, err
 	}
 
@@ -264,7 +283,7 @@ func (m *Listener) accept() (net.Conn, connSource, error) {
 	for {
 		select {
 		case <-m.ctx.Done():
-			return nil, connSource(0), m.ctx.Err()
+			return nil, sourceError, m.ctx.Err()
 		case conn := <-m.listenerChannel:
 			return conn.unwrapWithSource(sourceDirectConnection)
 		case conn := <-m.nppChannel:

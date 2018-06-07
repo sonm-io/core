@@ -725,7 +725,9 @@ func (m *sqlStorage) DeleteWorker(conn queryConn, masterID, workerID common.Addr
 }
 
 func (m *sqlStorage) GetMasterByWorker(conn queryConn, slaveID common.Address) (common.Address, error) {
-	query, args, _ := m.builder().Select("MasterID").From("Workers").Where("WorkerID = ?", slaveID.Hex()).ToSql()
+	query, args, _ := m.builder().Select("MasterID").From("Workers").
+		Where("WorkerID = ?", slaveID.Hex()).
+		Where("Confirmed = ?", true).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return common.Address{}, errors.Wrap(err, "failed to selectMasterByWorker")

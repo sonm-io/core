@@ -94,7 +94,7 @@ func WithNPPBackoff(min, max time.Duration) Option {
 //
 // Without this option no intermediate server will be used for relaying
 // TCP.
-func WithRelay(addrs []netutil.TCPAddr, key *ecdsa.PrivateKey) Option {
+func WithRelay(addrs []netutil.TCPAddr, key *ecdsa.PrivateKey, log *zap.Logger) Option {
 	return func(o *options) error {
 		signedAddr, err := relay.NewSignedAddr(key)
 		if err != nil {
@@ -103,7 +103,7 @@ func WithRelay(addrs []netutil.TCPAddr, key *ecdsa.PrivateKey) Option {
 
 		o.relayListen = func() (net.Conn, error) {
 			for _, addr := range addrs {
-				conn, err := relay.Listen(&addr, signedAddr)
+				conn, err := relay.ListenWithLog(&addr, signedAddr, log)
 				if err == nil {
 					return conn, nil
 				}
@@ -116,11 +116,11 @@ func WithRelay(addrs []netutil.TCPAddr, key *ecdsa.PrivateKey) Option {
 	}
 }
 
-func WithRelayClient(addrs []netutil.TCPAddr) Option {
+func WithRelayClient(addrs []netutil.TCPAddr, log *zap.Logger) Option {
 	return func(o *options) error {
 		o.relayDial = func(target common.Address) (net.Conn, error) {
 			for _, addr := range addrs {
-				conn, err := relay.Dial(&addr, target, "")
+				conn, err := relay.DialWithLog(&addr, target, "", log)
 				if err == nil {
 					return conn, nil
 				}

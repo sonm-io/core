@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -13,6 +14,7 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
 )
@@ -84,8 +86,9 @@ func newNATPuncher(ctx context.Context, cfg rendezvous.Config, client *rendezvou
 func (m *natPuncher) listen() error {
 	for {
 		conn, err := m.listener.Accept()
-		m.listenerChannel <- connTuple{conn, err}
+		m.listenerChannel <- newConnTuple(conn, err)
 		if err != nil {
+			m.log.Error("failed to listen NPP", zap.Error(err))
 			return err
 		}
 	}
@@ -101,7 +104,7 @@ func (m *natPuncher) Dial(addr common.Address) (net.Conn, error) {
 func (m *natPuncher) DialContext(ctx context.Context, addr common.Address) (net.Conn, error) {
 	addrs, err := m.resolve(ctx, addr)
 	if err != nil {
-		m.log.Warn("failed to resolve remote peer via rendezvous", zap.Stringer("remote_peer", addr), zap.Error(err))
+		m.log.Warn("failed to resolve remote peer using rendezvous", zap.Stringer("remote_addr", addr), zap.Error(err))
 		return nil, err
 	}
 
@@ -127,7 +130,7 @@ func (m *natPuncher) AcceptContext(ctx context.Context) (net.Conn, error) {
 		return nil, newRendezvousError(err)
 	}
 
-	m.log.Info("received remote peer endpoints", zap.Any("addrs", addrs))
+	m.log.Info("received remote peer endpoints", zap.Any("addrs", *addrs))
 
 	ctx, cancel := context.WithTimeout(ctx, m.timeout)
 	defer cancel()
@@ -218,47 +221,60 @@ func (m *natPuncher) punch(ctx context.Context, addrs *sonm.RendezvousReply) (ne
 }
 
 func (m *natPuncher) doPunch(ctx context.Context, addrs *sonm.RendezvousReply, channel chan<- connTuple) {
-	m.log.Debug("punching", zap.Any("addrs", addrs))
+	m.log.Debug("punching", zap.Any("addrs", *addrs))
 
 	pending := make(chan connTuple, 1+len(addrs.PrivateAddrs))
+	wg := sync.WaitGroup{}
+	wg.Add(len(addrs.PrivateAddrs))
 
 	if addrs.PublicAddr.IsValid() {
+		wg.Add(1)
+
 		go func() {
+			defer wg.Done()
+
 			conn, err := m.punchAddr(ctx, addrs.PublicAddr)
-			m.log.Info("using NAT", zap.Any("addr", addrs.PublicAddr), zap.Error(err))
+			m.log.Debug("received NPP NAT connection candidate", zap.Any("remote_addr", *addrs.PublicAddr), zap.Error(err))
 			pending <- newConnTuple(conn, err)
 		}()
 	}
 
 	for _, addr := range addrs.PrivateAddrs {
 		go func(addr *sonm.Addr) {
+			defer wg.Done()
+
 			conn, err := m.punchAddr(ctx, addr)
-			m.log.Info("using private address", zap.Any("addr", addr), zap.Error(err))
+			m.log.Debug("received NPP internet connection candidate", zap.Any("remote_addr", *addr), zap.Error(err))
 			pending <- newConnTuple(conn, err)
 		}(addr)
 	}
 
-	var errs []error
+	go func() {
+		wg.Wait()
+		close(pending)
+	}()
+
 	var peer net.Conn
-	for i := 0; i < 1+len(addrs.PrivateAddrs); i++ {
-		conn := <-pending
+	var errs = multierror.NewMultiError()
+	for conn := range pending {
+		m.log.Debug("received NPP connection candidate", zap.Any("remote_addr", conn.RemoteAddr()), zap.Error(conn.err))
 
 		if conn.Error() != nil {
-			m.log.Info("failed to punch", zap.Error(conn.Error()))
-			errs = append(errs, conn.Error())
+			errs = multierror.AppendUnique(errs, conn.Error())
 			continue
 		}
 
 		if peer != nil {
 			conn.Close()
 		} else {
-			peer = conn
+			peer = conn.conn
+			// Do not return here - still need to close possibly successful connections.
 			channel <- newConnTuple(peer, nil)
 		}
 	}
 
 	if peer == nil {
-		channel <- newConnTuple(nil, fmt.Errorf("failed to punch the network: all attempts has failed - %+v", errs))
+		channel <- newConnTuple(nil, fmt.Errorf("failed to punch the network using NPP: all attempts has failed - %s", errs.Error()))
 	}
 }
 
@@ -269,15 +285,17 @@ func (m *natPuncher) punchAddr(ctx context.Context, addr *sonm.Addr) (net.Conn, 
 	}
 
 	var conn net.Conn
+	var errs = multierror.NewMultiError()
 	for i := 0; i < m.maxAttempts; i++ {
 		conn, err = DialContext(ctx, protocol, m.client.LocalAddr().String(), peerAddr.String())
 		if err == nil {
 			return conn, nil
 		}
-		m.log.Debug("failed to punch", zap.Error(err), zap.Int("attempt", i), zap.Stringer("peer_addr", peerAddr))
+
+		errs = multierror.AppendUnique(errs, err)
 	}
 
-	return nil, fmt.Errorf("failed to connect: %s", err)
+	return nil, errs
 }
 
 func (m *natPuncher) RemoteAddr() net.Addr {
