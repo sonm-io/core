@@ -774,7 +774,7 @@ contract('Market', async function (accounts) {
         let stateAfter = await market.GetOrdersAmount();
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
 
-        await market.QuickBuy(stateAfter, { from: consumer });
+        await market.QuickBuy(stateAfter, 10, { from: consumer });
         let dealsAfter = await market.GetDealsAmount();
         assert.equal(dealsBefore.toNumber(10) + 1, dealsAfter.toNumber(10));
     });
@@ -798,7 +798,7 @@ contract('Market', async function (accounts) {
         let stateAfter = await market.GetOrdersAmount();
         assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
 
-        await market.QuickBuy(stateAfter, { from: consumer });
+        await market.QuickBuy(stateAfter, 10, { from: consumer });
         let dealsAfter = await market.GetDealsAmount();
         assert.equal(dealsBefore.toNumber(10) + 1, dealsAfter.toNumber(10));
     });

@@ -227,11 +227,12 @@ contract Market is Ownable {
     }
 
 
-    function QuickBuy(uint askID) public {
+    function QuickBuy(uint askID, uint buyoutDuration) public {
         Order memory ask = orders[askID];
         require(ask.orderType == OrderType.ORDER_ASK);
         require(ask.orderStatus == OrderStatus.ORDER_ACTIVE);
 
+        require(ask.duration >= buyoutDuration);
         require(pr.CheckProfileLevel(msg.sender, uint(ask.identityLevel)));
         require(bl.Check(msg.sender, GetMaster(ask.author)) == false && bl.Check(ask.author, msg.sender) == false);
         require(bl.Check(ask.blacklist, msg.sender) == false);
@@ -239,7 +240,7 @@ contract Market is Ownable {
         PlaceOrder(
             OrderType.ORDER_BID,
             GetMaster(ask.author),
-            ask.duration,
+            buyoutDuration,
             ask.price,
             ask.netflags,
             IdentityLevel.ANONIMOUS,
