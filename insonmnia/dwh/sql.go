@@ -346,6 +346,9 @@ func (m *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 	if !r.AuthorID.IsZero() {
 		builder = builder.Where("AuthorID LIKE ?", r.AuthorID.Unwrap().Hex())
 	}
+	if !r.MasterID.IsZero() {
+		builder = builder.Where("MasterID LIKE ?", r.MasterID.Unwrap().Hex())
+	}
 	if len(r.CounterpartyID) > 0 {
 		var ids []string
 		for _, id := range r.CounterpartyID {
@@ -1609,27 +1612,38 @@ func (m *sqlStorage) newNetflagsWhere(builder squirrel.SelectBuilder, operator p
 
 func (m *sqlStorage) runQuery(conn queryConn, columns string, withCount bool, query string, args ...interface{}) (*sql.Rows, uint64, error) {
 	dataQuery := strings.Replace(query, "*", columns, 1)
+	var count uint64
+	var err error
+	if withCount {
+		count, err = m.getCount(conn, query, args...)
+		if err != nil {
+			return nil, 0, errors.WithMessage(err, "failed to getCount")
+		}
+	}
+
 	rows, err := conn.Query(dataQuery, args...)
 	if err != nil {
 		return nil, 0, errors.Wrapf(err, "data query `%s` failed", dataQuery)
 	}
 
-	var count uint64
-	if withCount {
-		var countQuery = strings.Replace(query, "*", "count(*)", 1)
-		countQuery = strings.Split(countQuery, "ORDER BY")[0]
-		countRows, err := conn.Query(countQuery, args...)
-		if err != nil {
-			return nil, 0, errors.Wrapf(err, "count query `%s` failed", countQuery)
-		}
-		defer countRows.Close()
+	return rows, count, nil
+}
 
-		for countRows.Next() {
-			countRows.Scan(&count)
-		}
+func (m *sqlStorage) getCount(conn queryConn, query string, args ...interface{}) (uint64, error) {
+	var count uint64
+	var countQuery = strings.Replace(query, "*", "count(*)", 1)
+	countQuery = strings.Split(countQuery, "ORDER BY")[0]
+	countRows, err := conn.Query(countQuery, args...)
+	if err != nil {
+		return 0, errors.Wrapf(err, "count query `%s` failed", countQuery)
+	}
+	defer countRows.Close()
+
+	for countRows.Next() {
+		countRows.Scan(&count)
 	}
 
-	return rows, count, nil
+	return count, nil
 }
 
 // tablesInfo is used to get static column names for tables with variable columns set (i.e., with benchmarks).
