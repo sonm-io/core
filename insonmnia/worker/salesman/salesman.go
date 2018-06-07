@@ -376,7 +376,6 @@ func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan, deal *sonm
 		}
 		return multi.ErrorOrNil()
 	}
-	return nil
 }
 
 func (m *Salesman) maybeBillDeal(ctx context.Context, deal *sonm.Deal) error {
