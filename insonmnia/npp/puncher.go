@@ -130,7 +130,7 @@ func (m *natPuncher) AcceptContext(ctx context.Context) (net.Conn, error) {
 		return nil, newRendezvousError(err)
 	}
 
-	m.log.Info("received remote peer endpoints", zap.Any("addrs", addrs))
+	m.log.Info("received remote peer endpoints", zap.Any("addrs", *addrs))
 
 	ctx, cancel := context.WithTimeout(ctx, m.timeout)
 	defer cancel()
@@ -234,7 +234,7 @@ func (m *natPuncher) doPunch(ctx context.Context, addrs *sonm.RendezvousReply, c
 			defer wg.Done()
 
 			conn, err := m.punchAddr(ctx, addrs.PublicAddr)
-			m.log.Debug("received NAT", zap.Any("remote_addr", *addrs.PublicAddr), zap.Error(err))
+			m.log.Debug("received NPP NAT connection candidate", zap.Any("remote_addr", *addrs.PublicAddr), zap.Error(err))
 			pending <- newConnTuple(conn, err)
 		}()
 	}
@@ -244,7 +244,7 @@ func (m *natPuncher) doPunch(ctx context.Context, addrs *sonm.RendezvousReply, c
 			defer wg.Done()
 
 			conn, err := m.punchAddr(ctx, addr)
-			m.log.Debug("using private address", zap.Any("remote_addr", *addr), zap.Error(err))
+			m.log.Debug("received NPP internet connection candidate", zap.Any("remote_addr", *addr), zap.Error(err))
 			pending <- newConnTuple(conn, err)
 		}(addr)
 	}
