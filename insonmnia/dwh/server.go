@@ -76,9 +76,9 @@ func (m *DWH) Serve() error {
 	}
 	m.blockchain = bch
 
-	if err := m.setupDB(); err != nil {
+	if err := m.setupDBts(); err != nil {
 		m.Stop()
-		return errors.WithMessage(err, "failed to setupDB")
+		return errors.WithMessage(err, "failed to setupDBts")
 	}
 
 	go m.monitorBlockchain()
@@ -100,6 +100,10 @@ func (m *DWH) Stop() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	m.stop()
+}
+
+func (m *DWH) stop() {
 	if m.cancel != nil {
 		m.cancel()
 	}
@@ -114,17 +118,17 @@ func (m *DWH) Stop() {
 	}
 }
 
-func (m *DWH) setupDB() error {
+func (m *DWH) setupDBts() error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	numBenchmarks, err := m.blockchain.Market().GetNumBenchmarks(m.ctx)
 	if err != nil {
-		m.Stop()
+		m.stop()
 		return errors.Wrap(err, "failed to GetNumBenchmarks")
 	}
 	if numBenchmarks >= NumMaxBenchmarks {
-		m.Stop()
+		m.stop()
 		return errors.New("market number of benchmarks is greater than NumMaxBenchmarks")
 	}
 

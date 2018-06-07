@@ -1094,7 +1094,7 @@ func getCertificates(w *DWH) ([]*pb.Certificate, error) {
 }
 
 func setupTestDB(w *DWH) error {
-	if err := w.setupDB(); err != nil {
+	if err := w.setupDBts(); err != nil {
 		return err
 	}
 
