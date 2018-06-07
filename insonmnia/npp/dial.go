@@ -101,7 +101,7 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 			return conn.unwrap()
 		}
 	case <-nppCtx.Done():
-		log.Warn("failed to connect using NPP", zap.Error(ctx.Err()))
+		log.Warn("failed to connect using NPP", zap.Error(nppCtx.Err()))
 	}
 
 	log.Debug("connecting using Relay")
