@@ -108,6 +108,7 @@ func (m *Salesman) Run(ctx context.Context) <-chan *sonm.Deal {
 }
 
 func (m *Salesman) ScheduleMaintainance(timePoint time.Time) error {
+	m.log.Infof("Scheduling next maintainance at %s", timePoint.String())
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.nextMaintainance = timePoint
@@ -197,7 +198,6 @@ func (m *Salesman) maybeShutdownAskPlan(ctx context.Context, plan *sonm.AskPlan)
 		if err := m.eth.Market().CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
 			return fmt.Errorf("could not cancel order: %s", err)
 		}
-		return nil
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -276,7 +276,7 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 			if err := m.checkOrder(ctxWithTimeout, plan); err != nil {
 				m.log.Warnf("could not check order %s for plan %s: %s", orderId.Unwrap().String(), plan.ID, err)
 			}
-		} else {
+		} else if plan.GetStatus() != sonm.AskPlan_PENDING_DELETION {
 			order, err := m.placeOrder(ctxWithTimeout, plan)
 			if err != nil {
 				m.log.Warnf("could not place order for plan %s: %s", plan.ID, err)
@@ -309,8 +309,8 @@ func (m *Salesman) restoreState() error {
 			}
 		}
 	}
-	if err := m.storage.Load("next_maintainance", m.nextMaintainance); err != nil {
-		return fmt.Errorf("failed to load nex maintainance: %s", err)
+	if err := m.storage.Load("next_maintainance", &m.nextMaintainance); err != nil {
+		return fmt.Errorf("failed to load next maintainance: %s", err)
 	}
 	//TODO: restore tasks
 	return nil
@@ -427,6 +427,7 @@ func (m *Salesman) maybeCloseDeal(ctx context.Context, plan *sonm.AskPlan, deal 
 		if err := m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), false); err != nil {
 			return err
 		}
+
 		m.log.Infof("closed deal %s", deal.GetId().Unwrap().String())
 	}
 	return nil
@@ -536,22 +537,23 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 		return fmt.Errorf("could not register order %s: %s", plan.GetOrderID().Unwrap().String(), err)
 	}
 
-	maintainanceTime := m.NextMaintainance()
-	// we add some "gap" here to be ready for maintainance slightly before it occurs
-	now := time.Now()
-	orderEndTime := now.Add(time.Second * time.Duration(order.Duration))
-	if orderEndTime.After(maintainanceTime) {
-		if err := m.eth.Market().CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
-			return fmt.Errorf("could not cancel order for maintainance - %s", err)
-		}
-		return m.unregisterOrder(order.GetId().Unwrap().String())
-	}
-
 	if !order.DealID.IsZero() {
 		plan.DealID = order.DealID
 		return m.loadCheckDeal(ctx, plan)
 	} else if order.OrderStatus != sonm.OrderStatus_ORDER_ACTIVE {
 		return m.unregisterOrder(plan.ID)
+	} else {
+		maintainanceTime := m.NextMaintainance()
+		// we add some "gap" here to be ready for maintainance slightly before it occurs
+
+		now := time.Now()
+		orderEndTime := now.Add(time.Second * time.Duration(order.Duration))
+		if orderEndTime.After(maintainanceTime) {
+			if err := m.eth.Market().CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
+				return fmt.Errorf("could not cancel order for maintainance - %s", err)
+			}
+			return m.unregisterOrder(plan.ID)
+		}
 	}
 	return nil
 }
@@ -563,7 +565,7 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) (*sonm.Or
 	}
 	maintainanceTime := m.NextMaintainance()
 	// we add some "gap" here to be ready for maintainance slightly before it occurs
-	clearTime := maintainanceTime.Add(maintainanceGap)
+	clearTime := maintainanceTime.Add(-maintainanceGap)
 	now := time.Now()
 	if now.After(clearTime) {
 		return nil, fmt.Errorf("faiiled to place order: maintainance is scheduled at %s", maintainanceTime.String())
@@ -576,7 +578,7 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) (*sonm.Or
 			return nil, fmt.Errorf("faiiled to place order: maintainance is scheduled at %s", maintainanceTime.String())
 		}
 		m.log.Infof("reducing order duration from %d to %d due to maintainance at %s",
-			plan.GetDuration().Unwrap().Seconds(), duration.Seconds(), clearTime.String())
+			uint64(plan.GetDuration().Unwrap().Seconds()), uint64(duration.Seconds()), clearTime.String())
 	}
 
 	net := plan.GetResources().GetNetwork()
