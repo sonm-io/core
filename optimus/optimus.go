@@ -269,7 +269,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 
 		plans = append(plans, &sonm.AskPlan{
 			Price:     &sonm.Price{PerSecond: order.Order.Order.Price},
-			Duration:  &sonm.Duration{Nanoseconds: int64(order.Order.Order.Duration)},
+			Duration:  &sonm.Duration{Nanoseconds: 1e9 * int64(order.Order.Order.Duration)},
 			Resources: plan,
 		})
 	}
