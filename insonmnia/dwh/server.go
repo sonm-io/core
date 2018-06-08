@@ -421,9 +421,8 @@ func (m *DWH) watchMarketEvents() error {
 			}
 			m.processBlockBoundary(event)
 			dispatcher.Add(event)
-			if eventsCount < m.cfg.NumWorkers {
-				eventsCount++
-			} else {
+			eventsCount++
+			if eventsCount >= m.cfg.NumWorkers {
 				m.processEvents(dispatcher)
 				eventsCount, dispatcher = 0, newEventDispatcher(m.logger)
 			}
@@ -831,8 +830,10 @@ func (m *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		certificates, _ := json.Marshal([]*pb.Certificate{})
 		profile = &pb.Profile{UserID: order.AuthorID, Certificates: string(certificates)}
 	} else {
-		if err := m.updateProfileStats(conn, order.OrderType, userID, 1); err != nil {
-			return errors.Wrap(err, "failed to updateProfileStats")
+		if order.OrderStatus == pb.OrderStatus_ORDER_ACTIVE {
+			if err := m.updateProfileStats(conn, order.OrderType, userID, 1); err != nil {
+				return errors.Wrap(err, "failed to updateProfileStats")
+			}
 		}
 	}
 
@@ -898,15 +899,16 @@ func (m *DWH) onOrderUpdated(orderID *big.Int) error {
 		}
 	}
 
+	// A situation is possible when user places an Ask order without specifying her `MasterID` (and we take
+	// `AuthorID` for `MasterID`), and afterwards the user *does* specify her master. To avoid inconsistency,
+	// we always use the user ID that was chosen in `onOrderPlaced` (i.e., the one that is already stored in DB).
+	dwhOrder, err := m.storage.GetOrderByID(conn, marketOrder.GetId().Unwrap())
+	if err != nil {
+		return errors.Wrap(err, "failed to GetOrderByID")
+	}
+
 	var userID common.Address
 	if marketOrder.OrderType == pb.OrderType_ASK {
-		// A situation is possible when user places an Ask order without specifying her `MasterID` (and we take
-		// `AuthorID` for `MasterID`), and afterwards the user *does* specify her master. To avoid inconsistency,
-		// we always use the user ID that was chosen in `onOrderPlaced` (i.e., the one that is already stored in DB).
-		dwhOrder, err := m.storage.GetOrderByID(conn, marketOrder.GetId().Unwrap())
-		if err != nil {
-			return errors.Wrap(err, "failed to GetOrderByID")
-		}
 		userID = dwhOrder.GetMasterID().Unwrap()
 	} else {
 		userID = marketOrder.GetAuthorID().Unwrap()
@@ -926,8 +928,10 @@ func (m *DWH) onOrderUpdated(orderID *big.Int) error {
 		}
 	}
 
-	if err := m.updateProfileStats(conn, marketOrder.OrderType, userID, -1); err != nil {
-		return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", marketOrder.AuthorID.Unwrap().String())
+	if dwhOrder.GetOrder().OrderStatus == pb.OrderStatus_ORDER_ACTIVE {
+		if err := m.updateProfileStats(conn, marketOrder.OrderType, userID, -1); err != nil {
+			return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", marketOrder.AuthorID.Unwrap().String())
+		}
 	}
 
 	return nil
@@ -1063,12 +1067,28 @@ func (m *DWH) onCertificateCreated(certificateID *big.Int) error {
 }
 
 func (m *DWH) updateProfile(conn queryConn, certificate *pb.Certificate) error {
+	_, activeAsks, err := m.storage.GetOrders(conn, &pb.OrdersRequest{
+		Type:      pb.OrderType_ASK,
+		MasterID:  certificate.OwnerID,
+		WithCount: true})
+	if err != nil {
+		return errors.WithMessage(err, "failed to get active ASKs count")
+	}
+
+	_, activeBids, err := m.storage.GetOrders(conn, &pb.OrdersRequest{
+		Type:      pb.OrderType_BID,
+		MasterID:  certificate.OwnerID,
+		WithCount: true})
+	if err != nil {
+		return errors.WithMessage(err, "failed to get active BIDs count")
+	}
+
 	certBytes, _ := json.Marshal([]*pb.Certificate{})
-	err := m.storage.InsertProfileUserID(conn, &pb.Profile{
+	err = m.storage.InsertProfileUserID(conn, &pb.Profile{
 		UserID:       certificate.OwnerID,
 		Certificates: string(certBytes),
-		ActiveAsks:   0,
-		ActiveBids:   0,
+		ActiveAsks:   activeAsks,
+		ActiveBids:   activeBids,
 	})
 	if err != nil {
 		return errors.Wrap(err, "failed to insertProfileUserID")
