@@ -295,7 +295,7 @@ func (m *natPuncher) punchAddr(ctx context.Context, addr *sonm.Addr) (net.Conn, 
 		errs = multierror.AppendUnique(errs, err)
 	}
 
-	return nil, errs
+	return nil, errs.ErrorOrNil()
 }
 
 func (m *natPuncher) RemoteAddr() net.Addr {
