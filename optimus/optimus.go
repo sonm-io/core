@@ -213,13 +213,13 @@ func (m *workerControl) Execute(ctx context.Context) {
 			continue
 		}
 
-		if order.Order.Order.HasOverlayNetwork() && !devices.Network.Overlay {
+		if order.Order.Order.GetNetflags().GetOverlay() && !devices.Network.GetNetFlags().GetOverlay() {
 			continue
 		}
-		if order.Order.Order.HasOutboundNetwork() && !devices.Network.Outbound {
+		if order.Order.Order.GetNetflags().GetOutbound() && !devices.Network.GetNetFlags().GetOutbound() {
 			continue
 		}
-		if order.Order.Order.HasIncomingNetwork() && !devices.Network.Incoming {
+		if order.Order.Order.GetNetflags().GetIncoming() && !devices.GetNetwork().GetNetFlags().GetIncoming() {
 			continue
 		}
 
@@ -263,9 +263,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 			return
 		}
 
-		plan.Network.Overlay = order.Order.Order.HasOverlayNetwork()
-		plan.Network.Outbound = order.Order.Order.HasOutboundNetwork()
-		plan.Network.Incoming = order.Order.Order.HasIncomingNetwork()
+		plan.Network.NetFlags = order.Order.Order.GetNetflags()
 
 		plans = append(plans, &sonm.AskPlan{
 			Price:     &sonm.Price{PerSecond: order.Order.Order.Price},

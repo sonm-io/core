@@ -78,7 +78,7 @@ func (m *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 		deal.BlockedBalance.PaddedString(),
 		deal.TotalPayout.PaddedString(),
 		deal.LastBillTS.Seconds,
-		ask.GetOrder().Netflags,
+		ask.GetOrder().GetNetflags().GetFlags(),
 		ask.GetOrder().IdentityLevel,
 		bid.GetOrder().IdentityLevel,
 		ask.CreatorCertificates,
@@ -275,7 +275,7 @@ func (m *sqlStorage) InsertOrder(conn queryConn, order *pb.DWHOrder) error {
 		order.GetOrder().CounterpartyID.Unwrap().Hex(),
 		order.GetOrder().Duration,
 		order.GetOrder().Price.PaddedString(),
-		order.GetOrder().Netflags,
+		order.GetOrder().GetNetflags().GetFlags(),
 		uint64(order.GetOrder().IdentityLevel),
 		order.GetOrder().Blacklist,
 		order.GetOrder().Tag,
@@ -454,9 +454,9 @@ func (m *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersReque
 		"CounterpartyID": []string{common.Address{}.Hex(), order.Order.AuthorID.Unwrap().Hex()},
 	})
 	if order.Order.OrderType == pb.OrderType_BID {
-		builder = m.newNetflagsWhere(builder, pb.CmpOp_GTE, order.Order.Netflags)
+		builder = m.newNetflagsWhere(builder, pb.CmpOp_GTE, order.Order.GetNetflags().GetFlags())
 	} else {
-		builder = m.newNetflagsWhere(builder, pb.CmpOp_LTE, order.Order.Netflags)
+		builder = m.newNetflagsWhere(builder, pb.CmpOp_LTE, order.Order.GetNetflags().GetFlags())
 	}
 	builder = builder.Where("IdentityLevel >= ?", order.Order.IdentityLevel).
 		Where("CreatorIdentityLevel <= ?", order.CreatorIdentityLevel)
@@ -1273,7 +1273,7 @@ func (m *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 			CounterpartyID: pb.NewEthAddress(common.HexToAddress(*counterAgent)),
 			Duration:       *duration,
 			Price:          bigPrice,
-			Netflags:       *netflags,
+			Netflags:       &pb.NetFlags{Flags: *netflags},
 			IdentityLevel:  pb.IdentityLevel(*identityLevel),
 			Blacklist:      *blacklist,
 			Tag:            *tag,

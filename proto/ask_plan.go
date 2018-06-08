@@ -89,7 +89,9 @@ func (m *AskPlanResources) initNilWithZero() {
 		m.GPU.Indexes = []uint64{}
 	}
 	if m.Network == nil {
-		m.Network = &AskPlanNetwork{}
+		m.Network = &AskPlanNetwork{
+			NetFlags: &NetFlags{},
+		}
 	}
 	if m.Network.ThroughputOut == nil {
 		m.Network.ThroughputOut = &DataSizeRate{}
@@ -107,9 +109,7 @@ func (m *AskPlanResources) Add(resources *AskPlanResources) error {
 	m.CPU.CorePercents += resources.GetCPU().GetCorePercents()
 	m.RAM.Size.Bytes += resources.GetRAM().GetSize().GetBytes()
 	m.Storage.Size.Bytes += resources.GetStorage().GetSize().GetBytes()
-	m.Network.Incoming = m.GetNetwork().GetIncoming() || resources.GetNetwork().GetIncoming()
-	m.Network.Outbound = m.GetNetwork().GetOutbound() || resources.GetNetwork().GetOutbound()
-	m.Network.Overlay = m.GetNetwork().GetOverlay() || resources.GetNetwork().GetOverlay()
+	m.Network.NetFlags.Flags |= resources.GetNetwork().GetNetFlags().GetFlags()
 	m.Network.ThroughputIn.BitsPerSecond += resources.GetNetwork().GetThroughputIn().GetBitsPerSecond()
 	m.Network.ThroughputOut.BitsPerSecond += resources.GetNetwork().GetThroughputOut().GetBitsPerSecond()
 	return nil
@@ -126,8 +126,8 @@ func (m *AskPlanResources) Sub(resources *AskPlanResources) error {
 	m.GPU.Sub(resources.GetGPU())
 	m.Network.ThroughputIn.BitsPerSecond -= resources.GetNetwork().GetThroughputIn().GetBitsPerSecond()
 	m.Network.ThroughputOut.BitsPerSecond -= resources.GetNetwork().GetThroughputOut().GetBitsPerSecond()
-	if m.Network.Incoming && resources.GetNetwork().GetIncoming() {
-		m.Network.Incoming = false
+	if m.Network.NetFlags.GetIncoming() && resources.GetNetwork().GetNetFlags().GetIncoming() {
+		m.Network.NetFlags.SetIncoming(false)
 	}
 	return nil
 }
@@ -165,10 +165,6 @@ func (m *AskPlanResources) CPUQuota() int64 {
 	return int64(defaultCPUPeriod) * int64(m.GetCPU().GetCorePercents()) / 100
 }
 
-func converseImplication(lhs, rhs bool) bool {
-	return lhs || !rhs
-}
-
 func (m *AskPlanResources) Contains(resources *AskPlanResources) (result bool, detailedDescription string) {
 	if m.GetCPU().GetCorePercents() < resources.GetCPU().GetCorePercents() {
 		return false, fmt.Sprintf("not enough CPU, required %d core percents, available %d core percents",
@@ -184,14 +180,8 @@ func (m *AskPlanResources) Contains(resources *AskPlanResources) (result bool, d
 	if !m.GetGPU().Contains(resources.GetGPU()) {
 		return false, "specified GPU is occupied"
 	}
-	if !converseImplication(m.GetNetwork().GetIncoming(), resources.GetNetwork().GetIncoming()) {
-		return false, "incoming traffic is prohibited"
-	}
-	if !converseImplication(m.GetNetwork().GetOutbound(), resources.GetNetwork().GetOutbound()) {
-		return false, "outbound traffic is prohibited"
-	}
-	if !converseImplication(m.GetNetwork().GetOverlay(), resources.GetNetwork().GetOverlay()) {
-		return false, "overlay traffic is prohibited"
+	if !m.GetNetwork().GetNetFlags().ConverseImplication(resources.GetNetwork().GetNetFlags()) {
+		return false, "net flags are not satisfied"
 	}
 	if m.GetNetwork().GetThroughputIn().GetBitsPerSecond() < resources.GetNetwork().GetThroughputIn().GetBitsPerSecond() {
 		return false, "incoming traffic limit exceeded"
@@ -309,4 +299,29 @@ func (m *AskPlanGPU) restoreFromSet(from map[string]struct{}) {
 	for dev := range from {
 		m.Hashes = append(m.GetHashes(), dev)
 	}
+}
+
+func (m *AskPlanNetwork) UnmarshalYAML(unmarshal func(interface{}) error) error {
+
+	type Impl struct {
+		ThroughputIn  *DataSizeRate
+		ThroughputOut *DataSizeRate
+		Overlay       bool
+		Outbound      bool
+		Incoming      bool
+	}
+	impl := &Impl{}
+
+	if err := unmarshal(impl); err != nil {
+		return err
+	}
+
+	m.ThroughputIn = impl.ThroughputIn
+	m.ThroughputOut = impl.ThroughputOut
+	m.NetFlags = &NetFlags{}
+	m.NetFlags.SetOverlay(impl.Overlay)
+	m.NetFlags.SetOutbound(impl.Outbound)
+	m.NetFlags.SetIncoming(impl.Incoming)
+
+	return nil
 }

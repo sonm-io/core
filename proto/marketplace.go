@@ -11,10 +11,6 @@ import (
 const (
 	MinNumBenchmarks = 12
 	MinDealDuration  = time.Minute * 10
-
-	networkOverlay  = 0x1
-	networkOutbound = 0x2
-	networkIncoming = 0x4
 )
 
 func (m *IdentityLevel) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -126,16 +122,4 @@ func formatPriceString(price *BigInt, duration uint64) string {
 	d := big.NewInt(int64(duration))
 	p := big.NewInt(0).Mul(price.Unwrap(), d)
 	return NewBigInt(p).ToPriceString()
-}
-
-func (m *Order) HasOverlayNetwork() bool {
-	return m.GetNetflags()&networkOverlay != 0
-}
-
-func (m *Order) HasOutboundNetwork() bool {
-	return m.GetNetflags()&networkOutbound != 0
-}
-
-func (m *Order) HasIncomingNetwork() bool {
-	return m.GetNetflags()&networkIncoming != 0
 }

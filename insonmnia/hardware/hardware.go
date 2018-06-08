@@ -36,6 +36,7 @@ func NewHardware() (*Hardware, error) {
 		Network: &sonm.Network{
 			BenchmarksIn:  make(map[uint64]*sonm.Benchmark),
 			BenchmarksOut: make(map[uint64]*sonm.Benchmark),
+			NetFlags:      &sonm.NetFlags{},
 		},
 		Storage: &sonm.Storage{Device: &sonm.StorageDevice{}, Benchmarks: make(map[uint64]*sonm.Benchmark)},
 	}
@@ -102,7 +103,7 @@ func (m *Hardware) GPUIDs(gpuResources *sonm.AskPlanGPU) ([]gpu.GPUID, error) {
 func (h *Hardware) SetNetworkIncoming(IPs []string) {
 	for _, ip := range IPs {
 		if !netutil.IsPrivateIP(net.ParseIP(ip)) {
-			h.Network.Incoming = true
+			h.Network.NetFlags.SetIncoming(true)
 			break
 		}
 	}
@@ -116,9 +117,7 @@ func (h *Hardware) AskPlanResources() *sonm.AskPlanResources {
 	for _, gpu := range h.GPU {
 		result.GPU.Hashes = append(result.GPU.Hashes, gpu.Device.Hash)
 	}
-	result.Network.Outbound = h.Network.Outbound
-	result.Network.Overlay = h.Network.Overlay
-	result.Network.Incoming = h.Network.Incoming
+	result.Network.NetFlags = h.Network.NetFlags
 	//TODO: Make network device use DataSizeRate
 	result.Network.ThroughputIn.BitsPerSecond = h.Network.GetIn()
 	result.Network.ThroughputOut.BitsPerSecond = h.Network.GetOut()
@@ -233,6 +232,9 @@ func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*son
 // This can not be simply reused due to MIN splitting algorithm (e.g. GPU mem - in this case it is stored separately)
 // TODO: find a way to refactor all this shit.
 func (h *Hardware) LimitTo(resources *sonm.AskPlanResources) (*Hardware, error) {
+	if !h.Network.NetFlags.ConverseImplication(resources.GetNetwork().GetNetFlags()) {
+		return nil, fmt.Errorf("provided resources netfalgs do not match")
+	}
 	hardware := &Hardware{
 		CPU: &sonm.CPU{Device: h.CPU.Device, Benchmarks: map[uint64]*sonm.Benchmark{}},
 		GPU: []*sonm.GPU{},
@@ -240,9 +242,7 @@ func (h *Hardware) LimitTo(resources *sonm.AskPlanResources) (*Hardware, error) 
 		Network: &sonm.Network{
 			In:            h.Network.In,
 			Out:           h.Network.Out,
-			Overlay:       h.Network.Overlay,
-			Incoming:      h.Network.Incoming,
-			Outbound:      h.Network.Outbound,
+			NetFlags:      resources.GetNetwork().GetNetFlags(),
 			BenchmarksIn:  map[uint64]*sonm.Benchmark{},
 			BenchmarksOut: map[uint64]*sonm.Benchmark{},
 		},
@@ -353,21 +353,15 @@ type hashableRAM struct {
 	Available uint64 `json:"available"`
 }
 
-type hashableNetworkCapabilities struct {
-	Overlay  bool `json:"overlay"`
-	Incoming bool `json:"incoming"`
-	Outbound bool `json:"outbound"`
-}
-
 // DeviceMapping maps hardware capabilities to device description, hashing-friendly
 type DeviceMapping struct {
-	CPU         *sonm.CPUDevice             `json:"cpu"`
-	GPU         []*sonm.GPUDevice           `json:"gpu"`
-	RAM         hashableRAM                 `json:"ram"`
-	NetworkIn   uint64                      `json:"network_in"`
-	NetworkOut  uint64                      `json:"network_out"`
-	Storage     *sonm.StorageDevice         `json:"storage"`
-	NetworkCaps hashableNetworkCapabilities `json:"network_caps"`
+	CPU        *sonm.CPUDevice     `json:"cpu"`
+	GPU        []*sonm.GPUDevice   `json:"gpu"`
+	RAM        hashableRAM         `json:"ram"`
+	NetworkIn  uint64              `json:"network_in"`
+	NetworkOut uint64              `json:"network_out"`
+	Storage    *sonm.StorageDevice `json:"storage"`
+	NetFlags   *sonm.NetFlags      `json:"netflags"`
 }
 
 func (dm *DeviceMapping) Hash() string {
@@ -388,10 +382,6 @@ func (h *Hardware) devicesMap() *DeviceMapping {
 		NetworkIn:  0,
 		NetworkOut: 0,
 		Storage:    &sonm.StorageDevice{BytesAvailable: 0},
-		NetworkCaps: hashableNetworkCapabilities{
-			Overlay:  h.Network.Overlay,
-			Incoming: h.Network.Incoming,
-			Outbound: h.Network.Outbound,
-		},
+		NetFlags:   &sonm.NetFlags{Flags: h.Network.NetFlags.GetFlags()},
 	}
 }
