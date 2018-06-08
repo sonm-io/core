@@ -599,6 +599,12 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 
 	spec := request.GetSpec()
 	publicKey, err := parsePublicKey(spec.GetContainer().GetSshKey())
+
+	network, err := m.salesman.Network(ask.ID)
+	if err != nil {
+		return nil, err
+	}
+
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
@@ -665,6 +671,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		TaskId:       taskID,
 		GPUDevices:   gpuids,
 		mounts:       mounts,
+		network:      network,
 		networks:     networks,
 	}
 

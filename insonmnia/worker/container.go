@@ -94,7 +94,14 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		Resources:       d.Resources.ToHostConfigResources(d.CGroupParent),
 	}
 
-	networkingConfig := network.NetworkingConfig{}
+	networkingConfig := network.NetworkingConfig{
+		EndpointsConfig: map[string]*network.EndpointSettings{},
+	}
+	if d.network != nil {
+		networkingConfig.EndpointsConfig[d.network.Name] = &network.EndpointSettings{
+			NetworkID: d.network.ID,
+		}
+	}
 
 	cleanup, err := tuners.Tune(ctx, &d, &hostConfig, &networkingConfig)
 	if err != nil {
