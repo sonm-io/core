@@ -105,6 +105,7 @@ message OrdersRequest {
     uint64 offset = 16;
     repeated SortingOption sortings = 17;
     bool withCount = 18;
+    EthAddress masterID = 19;
 }
 
 message MatchingOrdersRequest {
