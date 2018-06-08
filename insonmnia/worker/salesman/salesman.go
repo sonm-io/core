@@ -17,6 +17,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/resource"
 	"github.com/sonm-io/core/insonmnia/state"
+	"github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/multierror"
@@ -51,10 +52,13 @@ type Salesman struct {
 	*options
 	askPlanStorage *state.KeyedStorage
 
-	askPlans       map[string]*sonm.AskPlan
-	askPlanCGroups map[string]cgroups.CGroup
-	deals          map[string]*sonm.Deal
-	orders         map[string]*sonm.Order
+	askPlans        map[string]*sonm.AskPlan
+	askPlanCGroups  map[string]cgroups.CGroup
+	askPlanNetworks map[string]*network.Network
+	deals           map[string]*sonm.Deal
+	orders          map[string]*sonm.Order
+
+	networkManager *network.NetworkManager
 
 	nextMaintenance time.Time
 	dealsCh         chan *sonm.Deal
@@ -71,13 +75,23 @@ func NewSalesman(opts ...Option) (*Salesman, error) {
 	}
 
 	askPlansKey := o.eth.ContractRegistry().MarketAddress().Hex() + "/ask_plans"
+
+	networkManager, err := network.NewNetworkManagerWithConfig(network.NetworkManagerConfig{
+		Log: o.log,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	s := &Salesman{
 		options:         o,
 		askPlanStorage:  state.NewKeyedStorage(askPlansKey, o.storage),
 		askPlanCGroups:  map[string]cgroups.CGroup{},
+		askPlanNetworks: map[string]*network.Network{},
 		deals:           map[string]*sonm.Deal{},
 		orders:          map[string]*sonm.Order{},
 		nextMaintenance: time.Now().Add(defaultMaintenancePeriod),
+		networkManager:  networkManager,
 		dealsCh:         make(chan *sonm.Deal, 100),
 	}
 
@@ -87,7 +101,9 @@ func NewSalesman(opts ...Option) (*Salesman, error) {
 	return s, nil
 }
 
-func (m *Salesman) Close() {}
+func (m *Salesman) Close() error {
+	return m.networkManager.Close()
+}
 
 func (m *Salesman) Run(ctx context.Context) <-chan *sonm.Deal {
 	go func() {
@@ -175,13 +191,20 @@ func (m *Salesman) CreateAskPlan(askPlan *sonm.AskPlan) (string, error) {
 		return "", err
 	}
 
+	if err := m.createNetwork(askPlan); err != nil {
+		m.dropCGroup(askPlan.ID)
+		return "", err
+	}
+
 	if err := m.resources.Consume(askPlan); err != nil {
+		m.dropNetwork(askPlan.ID)
 		m.dropCGroup(askPlan.ID)
 		return "", err
 	}
 
 	m.askPlans[askPlan.ID] = askPlan
 	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
+		m.dropNetwork(askPlan.ID)
 		m.dropCGroup(askPlan.ID)
 		m.resources.Release(askPlan.ID)
 		return "", err
@@ -231,6 +254,9 @@ func (m *Salesman) maybeShutdownAskPlan(ctx context.Context, plan *sonm.AskPlan)
 
 	delete(m.askPlans, plan.ID)
 	m.askPlanStorage.Save(m.askPlans)
+	if err := m.dropNetwork(plan.ID); err != nil {
+		m.log.Warnw("failed to remove network", zap.Error(err))
+	}
 	return m.dropCGroup(plan.ID)
 
 }
@@ -267,6 +293,17 @@ func (m *Salesman) CGroup(planID string) (cgroups.CGroup, error) {
 		return nil, fmt.Errorf("cgroup for ask plan %s not found, probably no such plan", planID)
 	}
 	return cGroup, nil
+}
+
+func (m *Salesman) Network(planID string) (*network.Network, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	net, ok := m.askPlanNetworks[planID]
+	if !ok {
+		return nil, fmt.Errorf("network for ask plan %s not found, probably no such plan", planID)
+	}
+	return net, nil
 }
 
 func (m *Salesman) syncRoutine(ctx context.Context) {
@@ -318,6 +355,14 @@ func (m *Salesman) restoreState() error {
 	if _, err := m.askPlanStorage.Load(&m.askPlans); err != nil {
 		return fmt.Errorf("could not restore salesman state: %s", err)
 	}
+
+	pruneReply, err := m.networkManager.Prune(context.Background(), &network.PruneRequest{})
+	if err != nil {
+		m.log.Warnw("failed to prune unused networks", zap.Error(err))
+		return err
+	}
+	m.log.Infow("removed no longer used networks", zap.Any("networks", *pruneReply))
+
 	for _, plan := range m.askPlans {
 		if err := m.resources.Consume(plan); err != nil {
 			m.log.Warnf("dropping ask plan due to resource changes")
@@ -327,6 +372,11 @@ func (m *Salesman) restoreState() error {
 			m.log.Debugf("consumed resource for ask plan %s", plan.GetID())
 			if err := m.createCGroup(plan); err != nil {
 				m.log.Warnf("can not create cgroup for ask plan %s: %s", plan.ID, err)
+				return err
+			}
+
+			if err := m.createNetwork(plan); err != nil {
+				m.log.Warnf("failed to restore network for ask plan %s: %s", plan.ID, err)
 				return err
 			}
 		}
@@ -359,6 +409,38 @@ func (m *Salesman) dropCGroup(planID string) error {
 		return fmt.Errorf("could not drop cgroup %s for ask plan %s: %s", cgroup.Suffix(), planID, err)
 	}
 	m.log.Debugf("dropped cgroup for ask plan %s", planID)
+	return nil
+}
+
+func (m *Salesman) createNetwork(plan *sonm.AskPlan) error {
+	net, err := m.networkManager.CreateNetwork(context.Background(), &network.CreateNetworkRequest{
+		ID:               plan.ID,
+		RateLimitIngress: plan.GetResources().GetNetwork().GetThroughputIn().GetBitsPerSecond(),
+		RateLimitEgress:  plan.GetResources().GetNetwork().GetThroughputOut().GetBitsPerSecond(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create network - more detailed information can be found in worker logs")
+	}
+
+	m.log.Infof("created network %s for ask plan %s", net.Name, plan.ID)
+	m.askPlanNetworks[plan.ID] = net
+
+	return nil
+}
+
+func (m *Salesman) dropNetwork(planID string) error {
+	net, ok := m.askPlanNetworks[planID]
+	if !ok {
+		return fmt.Errorf("network not found")
+	}
+
+	delete(m.askPlanNetworks, planID)
+
+	if err := m.networkManager.RemoveNetwork(net); err != nil {
+		return err
+	}
+
+	m.log.Infof("dropped network for ask plan %s", planID)
 	return nil
 }
 
