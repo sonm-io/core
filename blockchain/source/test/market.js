@@ -905,7 +905,7 @@ contract('Market', async function (accounts) {
             IdentityLevel.ANONIMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
-            benchmarks, // benchmarks
+            [88, 222], // benchmarks
             { from: consumer });
 
         let stateAfter = await market.GetOrdersAmount();
@@ -917,6 +917,31 @@ contract('Market', async function (accounts) {
     it('test UpdateBenchmarks', async function () {
         await market.SetBenchmarksQuantity(20);
         assert.equal((await market.GetBenchmarksQuantity()).toNumber(10), 20);
+    });
+
+    it('test CreateOrder with num benchmarks < current benchmarks', async function () {
+        let stateBefore = await market.GetOrdersAmount();
+        let dealsBefore = await market.GetDealsAmount();
+        await market.PlaceOrder(
+            ORDER_TYPE.ASK, // type
+            '0x0', // counter_party
+            3600, // duration
+            1, // price
+            [0, 0, 0], // netflags
+            IdentityLevel.ANONIMOUS, // identity level
+            0x0, // blacklist
+            '00000', // tag
+            benchmarks, // benchmarks
+            { from: supplier });
+
+        let stateAfter = await market.GetOrdersAmount();
+        assert.equal(stateBefore.toNumber(10) + 1, stateAfter.toNumber(10));
+        await market.QuickBuy(stateAfter, 10, { from: consumer });
+        let dealsAfter = await market.GetDealsAmount();
+        assert.equal(dealsBefore.toNumber(10) + 1, dealsAfter.toNumber(10));
+        let deal = await market.GetDealInfo(dealsAfter.toNumber(10));
+        let dealBenchmarks = deal[0];
+        assert.equal(dealBenchmarks.length, (await market.GetBenchmarksQuantity()).toNumber(10));
     });
 
     it('test SetProfileRegistryAddress: bug while we can cast any contract as valid (for example i cast token as a Profile Registry)', async function () { // eslint-disable-line max-len
