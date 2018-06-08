@@ -177,9 +177,9 @@ contract Market is Ownable {
         uint64[] _benchmarks
     ) public returns (uint){
 
-        require(_benchmarks.length == benchmarksQuantity);
+        require(_benchmarks.length <= benchmarksQuantity);
 
-        for(uint i = 0; i < benchmarksQuantity; i++){
+        for(uint i = 0; i < _benchmarks.length; i++){
             require(_benchmarks[i] < maxBenchmarkValue);
         }
 
@@ -287,6 +287,14 @@ contract Market is Ownable {
             // implementation: when bid contains requirement, ask necessary needs to have this
             // if ask have this one - pass
             require(!bid.netflags[i] || ask.netflags[i]);
+        }
+
+        if(ask.benchmarks.length < benchmarksQuantity){
+            ask.benchmarks = ResizeBenchmarks(ask.benchmarks);
+        }
+
+        if(bid.benchmarks.length < benchmarksQuantity){
+            bid.benchmarks = ResizeBenchmarks(bid.benchmarks);
         }
 
         for (i = 0; i < ask.benchmarks.length; i++) {
@@ -711,6 +719,14 @@ contract Market is Ownable {
             deals[dealID].endTime = block.timestamp;
             emit DealUpdated(dealID);
         }
+    }
+
+    function ResizeBenchmarks(uint64[] _benchmarks) internal view returns (uint64[]) {
+        uint64[] memory benchmarks = new uint64[](benchmarksQuantity);
+        for(uint i = 0; i < _benchmarks.length; i++){
+            benchmarks[i] = _benchmarks[i];
+        }
+        return benchmarks;
     }
 
     function SetProfileRegistryAddress(address _newPR) onlyOwner public returns (bool) {
