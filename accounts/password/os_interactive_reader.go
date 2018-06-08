@@ -16,12 +16,14 @@ const (
 type InteractiveOSPasswordReader struct {
 	reader gopass.FdReader
 	writer io.Writer
+	cli    *InteractiveCliPasswordReader
 }
 
 func NewInteractiveOSPasswordReader(reader gopass.FdReader, writer io.Writer) *InteractiveOSPasswordReader {
 	return &InteractiveOSPasswordReader{
 		reader: reader,
 		writer: writer,
+		cli:    NewInteractiveCliPasswordReader(reader, writer, false),
 	}
 }
 
@@ -33,7 +35,12 @@ func (m *InteractiveOSPasswordReader) ReadPassword(address common.Address) (stri
 	secret, err := keyring.Get(sonmServicePrefix+address.Hex(), user.Username)
 	if err != nil {
 		if err == keyring.ErrNotFound {
-			return m.readFromCli(address, user)
+			pw, err := m.cli.ReadPassword(address)
+			if err != nil {
+				return "", err
+			}
+			keyring.Set(sonmServicePrefix+address.Hex(), user.Username, string(pw))
+			return string(pw), nil
 		}
 		return "", err
 	}
@@ -46,15 +53,4 @@ func (m *InteractiveOSPasswordReader) ForgetPassword(address common.Address) err
 		return err
 	}
 	return keyring.Delete(sonmServicePrefix+address.Hex(), user.Username)
-}
-
-func (m *InteractiveOSPasswordReader) readFromCli(address common.Address, user *user.User) (string, error) {
-	pw, err := gopass.GetPasswdPrompt("\r\nKey passphrase: ", false, m.reader, m.writer)
-	if err != nil {
-		return "", err
-	}
-
-	keyring.Set(sonmServicePrefix+address.Hex(), user.Username, string(pw))
-
-	return string(pw), nil
 }

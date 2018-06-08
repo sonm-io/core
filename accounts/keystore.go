@@ -13,6 +13,7 @@ import (
 
 type Keystore struct {
 	keyStore   *keystore.KeyStore
+	path       string
 	passReader PasswordReader
 	selector   DefaultSelector
 }
@@ -22,9 +23,9 @@ type PasswordReader interface {
 }
 
 type DefaultSelector interface {
-	HasDefault(keystore Keystore) bool
-	GetDefault(keystore Keystore) (common.Address, error)
-	SetDefault(keystore Keystore, address common.Address) error
+	HasDefault(keystore *Keystore) bool
+	GetDefault(keystore *Keystore) (common.Address, error)
+	SetDefault(keystore *Keystore, address common.Address) error
 }
 
 func NewKeystore(path string, passReader PasswordReader, selector DefaultSelector) (*Keystore, error) {
@@ -36,25 +37,20 @@ func NewKeystore(path string, passReader PasswordReader, selector DefaultSelecto
 
 	m := &Keystore{
 		keyStore:   ks,
+		path:       path,
 		passReader: passReader,
+		selector:   selector,
 	}
-
-	// We have only one account, mark it as default
-	// for current keystore instance.
-	accs := ks.Accounts()
-	if len(accs) == 1 {
-		if err := m.selector.SetDefault(accs[0].Address); err != nil {
-			return nil, err
-		}
-
-	}
-
 	return m, nil
 }
 
 // List returns list of accounts addresses into keystore
 func (m *Keystore) List() []accounts.Account {
 	return m.keyStore.Accounts()
+}
+
+func (m *Keystore) Path() string {
+	return m.path
 }
 
 // Generate creates new key into keystore
@@ -82,11 +78,12 @@ func (m *Keystore) GetKeyByAddress(addr common.Address) (*ecdsa.PrivateKey, erro
 
 // GetDefault returns default key for the keystore
 func (m *Keystore) GetDefault() (*ecdsa.PrivateKey, error) {
+
 	if len(m.keyStore.Accounts()) == 0 {
 		return nil, errors.New("no accounts present into keystore")
 	}
 
-	defaultAddr, err := m.selector.GetDefault()
+	defaultAddr, err := m.selector.GetDefault(m)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot load default key")
 	}
