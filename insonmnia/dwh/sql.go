@@ -797,9 +797,25 @@ func (m *sqlStorage) GetBlacklist(conn queryConn, r *pb.BlacklistRequest) (*pb.B
 	}, nil
 }
 
-func (m *sqlStorage) InsertValidator(conn queryConn, validator *pb.Validator) error {
-	query, args, _ := m.builder().Insert("Validators").Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
-	_, err := conn.Exec(query, args...)
+func (m *sqlStorage) InsertOrUpdateValidator(conn queryConn, validator *pb.Validator) error {
+	// Validators are never deleted, so it's O.K. to check in a non-atomic way.
+	query, args, _ := m.builder().Select("*").From("Validators").Where("Id = ?", validator.GetId().Unwrap().Hex()).
+		ToSql()
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return errors.WithMessage(err, "failed to check if Validator exists")
+	}
+	defer rows.Close()
+
+	// Update if exists.
+	if rows.Next() {
+		// rows.Close is idempotent.
+		rows.Close()
+		return m.UpdateValidator(conn, validator)
+	}
+
+	query, args, _ = m.builder().Insert("Validators").Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
+	_, err = conn.Exec(query, args...)
 	return err
 }
 
