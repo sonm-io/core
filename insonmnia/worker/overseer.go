@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
 	"github.com/sonm-io/core/util/multierror"
@@ -46,6 +47,7 @@ type Description struct {
 
 	mounts []volume.Mount
 
+	network  *network.Network
 	networks []*structs.NetworkSpec
 }
 

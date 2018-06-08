@@ -61,6 +61,17 @@ ifeq ($(GPU_SUPPORT),true)
     CGO_LDFLAGS_ALLOW := '-Wl,--unresolved-symbols=ignore-in-object-files'
 endif
 
+# This can be set to "false" to enable cross-compilation on non-linux planforms for linux.
+ifeq (${GOOS},linux)
+    WITH_NL ?= true
+else
+    WITH_NL ?= false
+endif
+
+ifeq ($(WITH_NL),true)
+    NL_TAGS := nl
+endif
+
 LDFLAGS = -X main.appVersion=$(FULL_VERSION)
 
 .PHONY: fmt vet test
@@ -69,7 +80,13 @@ all: mock vet fmt build test
 
 build/worker:
 	@echo "+ $@"
-	CGO_LDFLAGS_ALLOW=${CGO_LDFLAGS_ALLOW} CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS)" -ldflags "-s $(LDFLAGS)" -o ${WORKER} ${GOCMD}/worker
+    ifneq (${GOOS},linux)
+        ifeq (${WITH_NL},true)
+			@echo "ERROR: Building with netlink support on non-linux platforms is not allowed"
+			@exit 1
+        endif
+    endif
+	CGO_LDFLAGS_ALLOW=${CGO_LDFLAGS_ALLOW} CGO_LDFLAGS=${CGO_LDFLAGS} CGO_CFLAGS=${CGO_CFLAGS} ${GO} build -tags "$(TAGS) $(GPU_TAGS) ${NL_TAGS}" -ldflags "-s $(LDFLAGS)" -o ${WORKER} ${GOCMD}/worker
 
 build/dwh:
 	@echo "+ $@"

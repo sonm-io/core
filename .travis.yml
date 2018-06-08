@@ -1,4 +1,4 @@
-dist: trusty
+dist: xenial
 sudo: "required"
 
 language: "go"
@@ -17,7 +17,7 @@ services:
 
 before_install:
   - sudo apt-get update
-  - sudo apt-get install debhelper devscripts dh-systemd ocl-icd-opencl-dev -y
+  - sudo apt-get install debhelper devscripts fakeroot dh-systemd ocl-icd-opencl-dev libnl-3-dev libnl-route-3-dev -y
 
 install:
   - git submodule update
