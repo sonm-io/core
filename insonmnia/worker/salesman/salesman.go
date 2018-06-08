@@ -23,9 +23,9 @@ import (
 	"go.uber.org/zap"
 )
 
-const defaultMaintainancePeriod = time.Hour * 24 * 365 * 100
+const defaultMaintenancePeriod = time.Hour * 24 * 365 * 100
 
-const maintainanceGap = time.Minute * 10
+const maintenanceGap = time.Minute * 10
 
 type Config struct {
 	Logger        zap.SugaredLogger
@@ -56,9 +56,9 @@ type Salesman struct {
 	deals          map[string]*sonm.Deal
 	orders         map[string]*sonm.Order
 
-	nextMaintainance time.Time
-	dealsCh          chan *sonm.Deal
-	mu               sync.Mutex
+	nextMaintenance time.Time
+	dealsCh         chan *sonm.Deal
+	mu              sync.Mutex
 }
 
 func NewSalesman(opts ...Option) (*Salesman, error) {
@@ -71,13 +71,13 @@ func NewSalesman(opts ...Option) (*Salesman, error) {
 	}
 
 	s := &Salesman{
-		options:          o,
-		askPlanStorage:   state.NewKeyedStorage("ask_plans", o.storage),
-		askPlanCGroups:   map[string]cgroups.CGroup{},
-		deals:            map[string]*sonm.Deal{},
-		orders:           map[string]*sonm.Order{},
-		nextMaintainance: time.Now().Add(defaultMaintainancePeriod),
-		dealsCh:          make(chan *sonm.Deal, 100),
+		options:         o,
+		askPlanStorage:  state.NewKeyedStorage("ask_plans", o.storage),
+		askPlanCGroups:  map[string]cgroups.CGroup{},
+		deals:           map[string]*sonm.Deal{},
+		orders:          map[string]*sonm.Order{},
+		nextMaintenance: time.Now().Add(defaultMaintenancePeriod),
+		dealsCh:         make(chan *sonm.Deal, 100),
 	}
 
 	if err := s.restoreState(); err != nil {
@@ -107,18 +107,18 @@ func (m *Salesman) Run(ctx context.Context) <-chan *sonm.Deal {
 	return m.dealsCh
 }
 
-func (m *Salesman) ScheduleMaintainance(timePoint time.Time) error {
-	m.log.Infof("Scheduling next maintainance at %s", timePoint.String())
+func (m *Salesman) ScheduleMaintenance(timePoint time.Time) error {
+	m.log.Infof("Scheduling next maintenance at %s", timePoint.String())
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.nextMaintainance = timePoint
-	return m.storage.Save("next_maintainance", m.nextMaintainance)
+	m.nextMaintenance = timePoint
+	return m.storage.Save("next_maintenance", m.nextMaintenance)
 }
 
-func (m *Salesman) NextMaintainance() time.Time {
+func (m *Salesman) NextMaintenance() time.Time {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.nextMaintainance
+	return m.nextMaintenance
 }
 
 func (m *Salesman) AskPlan(planID string) (*sonm.AskPlan, error) {
@@ -309,8 +309,8 @@ func (m *Salesman) restoreState() error {
 			}
 		}
 	}
-	if err := m.storage.Load("next_maintainance", &m.nextMaintainance); err != nil {
-		return fmt.Errorf("failed to load next maintainance: %s", err)
+	if err := m.storage.Load("next_maintenance", &m.nextMaintenance); err != nil {
+		return fmt.Errorf("failed to load next maintenance: %s", err)
 	}
 	//TODO: restore tasks
 	return nil
@@ -410,9 +410,7 @@ func (m *Salesman) shouldCloseDeal(ctx context.Context, plan *sonm.AskPlan, deal
 		if plan.Status == sonm.AskPlan_PENDING_DELETION {
 			return true
 		}
-		maintainanceTime := m.NextMaintainance()
-		now := time.Now()
-		if now.After(maintainanceTime) {
+		if time.Now().After(m.NextMaintenance()) {
 			return true
 		}
 	}
@@ -433,7 +431,6 @@ func (m *Salesman) maybeCloseDeal(ctx context.Context, plan *sonm.AskPlan, deal 
 }
 
 func (m *Salesman) unregisterOrder(planID string) error {
-	uuid.New()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	plan, ok := m.askPlans[planID]
@@ -542,14 +539,11 @@ func (m *Salesman) checkOrder(ctx context.Context, plan *sonm.AskPlan) error {
 	} else if order.OrderStatus != sonm.OrderStatus_ORDER_ACTIVE {
 		return m.unregisterOrder(plan.ID)
 	} else {
-		maintainanceTime := m.NextMaintainance()
-		// we add some "gap" here to be ready for maintainance slightly before it occurs
-
-		now := time.Now()
-		orderEndTime := now.Add(time.Second * time.Duration(order.Duration))
-		if orderEndTime.After(maintainanceTime) {
+		maintenanceTime := m.NextMaintenance()
+		orderEndTime := time.Now().Add(time.Second * time.Duration(order.Duration))
+		if orderEndTime.After(maintenanceTime) {
 			if err := m.eth.Market().CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
-				return fmt.Errorf("could not cancel order for maintainance - %s", err)
+				return fmt.Errorf("could not cancel order for maintenance - %s", err)
 			}
 			return m.unregisterOrder(plan.ID)
 		}
@@ -562,21 +556,21 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) (*sonm.Or
 	if err != nil {
 		return nil, fmt.Errorf("could not get benchmarks for ask plan %s: %s", plan.ID, err)
 	}
-	maintainanceTime := m.NextMaintainance()
-	// we add some "gap" here to be ready for maintainance slightly before it occurs
-	clearTime := maintainanceTime.Add(-maintainanceGap)
+	maintenanceTime := m.NextMaintenance()
+	// we add some "gap" here to be ready for maintenance slightly before it occurs
+	clearTime := maintenanceTime.Add(-maintenanceGap)
 	now := time.Now()
 	if now.After(clearTime) {
-		return nil, fmt.Errorf("faiiled to place order: maintainance is scheduled at %s", maintainanceTime.String())
+		return nil, fmt.Errorf("faiiled to place order: maintenance is scheduled at %s", maintenanceTime.String())
 	}
 	duration := plan.GetDuration().Unwrap()
 	if duration != 0 && now.Add(duration).After(clearTime) {
 		duration = clearTime.Sub(now)
 		//rare case but still possible
 		if uint64(duration) == 0 {
-			return nil, fmt.Errorf("faiiled to place order: maintainance is scheduled at %s", maintainanceTime.String())
+			return nil, fmt.Errorf("faiiled to place order: maintenance is scheduled at %s", maintenanceTime.String())
 		}
-		m.log.Infof("reducing order duration from %d to %d due to maintainance at %s",
+		m.log.Infof("reducing order duration from %d to %d due to maintenance at %s",
 			uint64(plan.GetDuration().Unwrap().Seconds()), uint64(duration.Seconds()), clearTime.String())
 	}
 

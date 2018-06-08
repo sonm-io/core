@@ -62,8 +62,8 @@ var (
 		workerAPIPrefix + "CreateAskPlan",
 		workerAPIPrefix + "RemoveAskPlan",
 		workerAPIPrefix + "PurgeAskPlans",
-		workerAPIPrefix + "ScheduleMaintainance",
-		workerAPIPrefix + "NextMaintainance",
+		workerAPIPrefix + "ScheduleMaintenance",
+		workerAPIPrefix + "NextMaintenance",
 	}
 )
 
@@ -1149,15 +1149,15 @@ func (m *Worker) PurgeAskPlans(ctx context.Context, _ *pb.Empty) (*pb.Empty, err
 	return &pb.Empty{}, nil
 }
 
-func (m *Worker) ScheduleMaintainance(ctx context.Context, timestamp *pb.Timestamp) (*pb.Empty, error) {
-	if err := m.salesman.ScheduleMaintainance(timestamp.Unix()); err != nil {
+func (m *Worker) ScheduleMaintenance(ctx context.Context, timestamp *pb.Timestamp) (*pb.Empty, error) {
+	if err := m.salesman.ScheduleMaintenance(timestamp.Unix()); err != nil {
 		return nil, err
 	}
 	return &pb.Empty{}, nil
 }
 
-func (m *Worker) NextMaintainance(ctx context.Context, _ *pb.Empty) (*pb.Timestamp, error) {
-	ts := m.salesman.NextMaintainance()
+func (m *Worker) NextMaintenance(ctx context.Context, _ *pb.Empty) (*pb.Timestamp, error) {
+	ts := m.salesman.NextMaintenance()
 	return &pb.Timestamp{
 		Seconds: ts.Unix(),
 	}, nil

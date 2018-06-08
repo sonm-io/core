@@ -55,8 +55,8 @@ func init() {
 		workerFreeDevicesCmd,
 		workerSwitchCmd,
 		workerCurrentCmd,
-		workerScheduleMaintainanceCmd,
-		workerNextMaintainanceCmd,
+		workerScheduleMaintenanceCmd,
+		workerNextMaintenanceCmd,
 	)
 }
 
@@ -105,15 +105,14 @@ var workerSwitchCmd = &cobra.Command{
 	},
 }
 
-var workerScheduleMaintainanceCmd = &cobra.Command{
-	Use:   "maintainance <at or after>",
+var workerScheduleMaintenanceCmd = &cobra.Command{
+	Use:   "maintenance <at or after>",
 	Short: "Schedule worker maintanance",
 	Args:  cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		var timePoint time.Time
 		timeData := []byte(args[0])
 		if err := timePoint.UnmarshalText(timeData); err != nil {
-
 			duration, err := time.ParseDuration(args[0])
 			if err != nil {
 				showError(cmd, "Invalid time point or duration specified", err)
@@ -123,21 +122,21 @@ var workerScheduleMaintainanceCmd = &cobra.Command{
 			timePoint = timePoint.Add(duration)
 		}
 
-		if _, err := worker.ScheduleMaintainance(workerCtx, &pb.Timestamp{Seconds: timePoint.Unix()}); err != nil {
-			showError(cmd, "failed to schedule maintainance", err)
+		if _, err := worker.ScheduleMaintenance(workerCtx, &pb.Timestamp{Seconds: timePoint.Unix()}); err != nil {
+			showError(cmd, "failed to schedule maintenance", err)
 			os.Exit(1)
 		}
 		showOk(cmd)
 	},
 }
 
-var workerNextMaintainanceCmd = &cobra.Command{
-	Use:   "next-maintainance",
-	Short: "Print next scheduled maintainance",
+var workerNextMaintenanceCmd = &cobra.Command{
+	Use:   "next-maintenance",
+	Short: "Print next scheduled maintenance",
 	Run: func(cmd *cobra.Command, args []string) {
-		next, err := worker.NextMaintainance(workerCtx, &pb.Empty{})
+		next, err := worker.NextMaintenance(workerCtx, &pb.Empty{})
 		if err != nil {
-			showError(cmd, "failed to get next maintainance", err)
+			showError(cmd, "failed to get next maintenance", err)
 			os.Exit(1)
 		}
 		if isSimpleFormat() {

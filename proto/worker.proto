@@ -34,10 +34,10 @@ service WorkerManagement {
     rpc RemoveAskPlan(ID) returns (Empty) {}
     // PurgeAskPlans removes all ask-plans
     rpc PurgeAskPlans(Empty) returns (Empty) {}
-    // Schedule maintainance for worker: it will attempt to close all deals till that time point
-    rpc ScheduleMaintainance(Timestamp) returns (Empty) {}
-    // Get next planned maintainance
-    rpc NextMaintainance(Empty) returns (Timestamp) {}
+    // Schedule maintenance for worker: it will attempt to close all deals till that time point
+    rpc ScheduleMaintenance(Timestamp) returns (Empty) {}
+    // Get next planned maintenance
+    rpc NextMaintenance(Empty) returns (Timestamp) {}
 }
 
 service Worker {
