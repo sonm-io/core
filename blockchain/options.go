@@ -1,6 +1,13 @@
 package blockchain
 
-import "time"
+import (
+	"context"
+	"crypto/ecdsa"
+	"math/big"
+	"time"
+
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+)
 
 const (
 	defaultMasterchainEndpoint = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
@@ -30,6 +37,16 @@ func (c *chainOpts) getClient() (CustomEthereumClient, error) {
 	}
 
 	return c.client, err
+}
+
+// getTxOpts returns options for transaction execution specified to chain
+func (c *chainOpts) getTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit uint64) *bind.TransactOpts {
+	opts := bind.NewKeyedTransactor(key)
+	opts.Context = ctx
+	opts.GasLimit = gasLimit
+	opts.GasPrice = big.NewInt(c.gasPrice)
+
+	return opts
 }
 
 type options struct {
