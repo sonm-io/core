@@ -68,25 +68,25 @@ func main() {
 		},
 	}
 
-	res := <-api.Market().PlaceOrder(
+	res, err := api.Market().PlaceOrder(
 		context.Background(),
 		prv,
 		order,
 	)
-	if res.Err != nil {
-		log.Fatalln(res.Err.Error())
+	if err != nil {
+		log.Fatalln(err.Error())
 		return
 	}
 
-	log.Println(res.Order.Id.Unwrap().String())
-	ordId, err := util.ParseBigInt(res.Order.Id.Unwrap().String())
+	log.Println(res.Id.Unwrap().String())
+	ordId, err := util.ParseBigInt(res.Id.Unwrap().String())
 	if err != nil {
 		log.Fatalln("Cannot cast")
 		return
 	}
 	log.Println("Canceling")
 
-	err = <-api.Market().CancelOrder(context.Background(), prv, ordId)
+	err = api.Market().CancelOrder(context.Background(), prv, ordId)
 
 	if err != nil {
 		log.Fatalln(err)

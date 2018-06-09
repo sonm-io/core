@@ -3,20 +3,8 @@ package blockchain
 import (
 	"math/big"
 
-	pb "github.com/sonm-io/core/proto"
-
 	"github.com/ethereum/go-ethereum/common"
 )
-
-type DealOrError struct {
-	Deal *pb.Deal
-	Err  error
-}
-
-type OrderOrError struct {
-	Order *pb.Order
-	Err   error
-}
 
 type Event struct {
 	Data        interface{}
