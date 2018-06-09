@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/proto"
@@ -83,13 +85,28 @@ func (m *Optimus) Run(ctx context.Context) error {
 
 	loader := benchmarks.NewLoader(m.cfg.Benchmarks.URL)
 
+	market, err := blockchain.NewAPI()
+	if err != nil {
+		return err
+	}
+
 	for _, addr := range m.cfg.Workers {
+		ethAddr, err := addr.ETH()
+		if err != nil {
+			return err
+		}
+
+		masterAddr, err := market.Market().GetMaster(ctx, ethAddr)
+		if err != nil {
+			return err
+		}
+
 		worker, err := newWorker(ctx, addr)
 		if err != nil {
 			return err
 		}
 
-		control, err := newWorkerControl(addr, worker, ordersSet, loader, m.log)
+		control, err := newWorkerControl(ethAddr, masterAddr, worker, ordersSet, loader, m.log)
 		if err != nil {
 			return err
 		}
@@ -155,14 +172,18 @@ func (m *ordersControl) Execute(ctx context.Context) {
 }
 
 type workerControl struct {
+	addr            common.Address
+	masterAddr      common.Address
 	worker          sonm.WorkerManagementClient
 	benchmarkLoader benchmarks.Loader
 	ordersSet       *ordersSet
 	log             *zap.SugaredLogger
 }
 
-func newWorkerControl(addr auth.Addr, worker sonm.WorkerManagementClient, orders *ordersSet, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
+func newWorkerControl(addr, masterAddr common.Address, worker sonm.WorkerManagementClient, orders *ordersSet, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
 	m := &workerControl{
+		addr:            addr,
+		masterAddr:      masterAddr,
 		worker:          worker,
 		benchmarkLoader: benchmarkLoader,
 		ordersSet:       orders,
@@ -226,6 +247,12 @@ func (m *workerControl) Execute(ctx context.Context) {
 			continue
 		}
 		if order.Order.Order.HasIncomingNetwork() && !devices.Network.Incoming {
+			continue
+		}
+
+		// Ignore filled with counterparty orders that are not created for us.
+		counterpartyID := order.Order.Order.CounterpartyID.Unwrap()
+		if !(counterpartyID == common.Address{} || counterpartyID == m.addr || counterpartyID == m.masterAddr) {
 			continue
 		}
 
