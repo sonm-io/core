@@ -77,7 +77,7 @@ contract Market is Ownable {
         address counterparty;
         uint duration;
         uint256 price;
-        bool[3] netflags;
+        bool[] netflags;
         IdentityLevel identityLevel;
         address blacklist;
         bytes32 tag;
@@ -112,6 +112,7 @@ contract Market is Ownable {
     event WorkerRemoved(address indexed worker, address indexed master);
 
     event NumBenchmarksUpdated(uint indexed newNum);
+    event NumNetflagsUpdated(uint indexed newNum);
 
     // due postgres/sqlite couldn't work w uint64
     uint constant  maxBenchmarkValue  = 2 ** 63;
@@ -135,6 +136,9 @@ contract Market is Ownable {
     // current length of benchmarks array (12)
     uint benchmarksQuantity;
 
+    // same as for benchmarks
+    uint netflagsQuantity;
+
     mapping(uint => Order) public orders;
 
     mapping(uint => Deal) public deals;
@@ -153,12 +157,13 @@ contract Market is Ownable {
 
    // INIT
 
-    constructor(address _token, address _blacklist, address _oracle, address _profileRegistry, uint _benchmarksQuantity) public {
+    constructor(address _token, address _blacklist, address _oracle, address _profileRegistry, uint _benchmarksQuantity, uint _netflagsQuantity) public {
         token = SNM(_token);
         bl = Blacklist(_blacklist);
         oracle = OracleUSD(_oracle);
         pr = ProfileRegistry(_profileRegistry);
         benchmarksQuantity = _benchmarksQuantity;
+        netflagsQuantity = _netflagsQuantity;
     }
 
     // EXTERNAL
@@ -170,13 +175,14 @@ contract Market is Ownable {
         address _id_counterparty,
         uint _duration,
         uint _price,
-        bool[3] _netflags,
+        bool[] _netflags,
         IdentityLevel _identityLevel,
         address _blacklist,
         bytes32 _tag,
         uint64[] _benchmarks
     ) public returns (uint){
 
+        require(_netflags.length <= netflagsQuantity);
         require(_benchmarks.length <= benchmarksQuantity);
 
         for(uint i = 0; i < _benchmarks.length; i++){
@@ -283,7 +289,15 @@ contract Market is Ownable {
         require(pr.CheckProfileLevel(bid.author, uint(ask.identityLevel)));
         require(pr.CheckProfileLevel(ask.author, uint(bid.identityLevel)));
 
-        for (uint i = 0; i < 3; i++) {
+        if (ask.netflags.length < netflagsQuantity){
+            ask.netflags = ResizeNetflags(ask.netflags);
+        }
+
+        if (bid.netflags.length < netflagsQuantity){
+            bid.netflags = ResizeNetflags(ask.netflags);
+        }
+
+        for (uint i = 0; i < ask.netflags.length; i++) {
             // implementation: when bid contains requirement, ask necessary needs to have this
             // if ask have this one - pass
             require(!bid.netflags[i] || ask.netflags[i]);
@@ -565,7 +579,7 @@ contract Market is Ownable {
         address counterparty,
         uint duration,
         uint price,
-        bool[3] netflags,
+        bool[] netflags,
         IdentityLevel identityLevel,
         address blacklist,
         bytes32 tag,
@@ -685,6 +699,10 @@ contract Market is Ownable {
     function GetBenchmarksQuantity() public view returns (uint) {
         return benchmarksQuantity;
     }
+
+    function GetNetflagsQuantity() public view returns (uint) {
+        return netflagsQuantity;
+    }
     // INTERNAL
 
     function IsSpot(uint dealID) internal view returns (bool){
@@ -729,6 +747,15 @@ contract Market is Ownable {
         return benchmarks;
     }
 
+    function ResizeNetflags(bool[] _netflags) internal view returns (bool[]) {
+        bool[] memory netflags = new bool[](netflagsQuantity);
+        for(uint i = 0; i < _netflags.length; i++){
+            netflags[i] = _netflags[i];
+        }
+        return netflags;
+    }
+    // SETTERS
+
     function SetProfileRegistryAddress(address _newPR) onlyOwner public returns (bool) {
         pr = ProfileRegistry(_newPR);
         return true;
@@ -749,6 +776,13 @@ contract Market is Ownable {
         require(_newQuantity > benchmarksQuantity);
         emit NumBenchmarksUpdated(_newQuantity);
         benchmarksQuantity = _newQuantity;
+        return true;
+    }
+
+    function SetNetflagsQuantity(uint _newQuantity) onlyOwner public returns (bool) {
+        require(_newQuantity > netflagsQuantity);
+        emit NumNetflagsUpdated(_newQuantity);
+        netflagsQuantity = _newQuantity;
         return true;
     }
 }
