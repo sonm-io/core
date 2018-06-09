@@ -559,7 +559,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		spec.Resources.GPU = ask.Resources.GPU
 	}
 
-	hasher := &pb.AskPlanHasher{ask.GetResources()}
+	hasher := &pb.AskPlanHasher{AskPlanResources: ask.GetResources()}
 	err = spec.GetResources().GetGPU().Normalize(hasher)
 	if err != nil {
 		log.G(ctx).Error("could not normalize GPU resources", zap.Error(err))

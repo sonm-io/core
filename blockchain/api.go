@@ -288,13 +288,7 @@ func (api *BasicMarketAPI) openDeal(ctx context.Context, key *ecdsa.PrivateKey, 
 		return
 	}
 
-	receipt, err := WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx)
-	if err != nil {
-		ch <- DealOrError{nil, err}
-		return
-	}
-
-	logs, err := FindLogByTopic(receipt, DealOpenedTopic)
+	logs, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, DealOpenedTopic)
 	if err != nil {
 		ch <- DealOrError{nil, err}
 		return
@@ -324,11 +318,11 @@ func (api *BasicMarketAPI) closeDeal(ctx context.Context, key *ecdsa.PrivateKey,
 		return
 	}
 
-	_, err = waitForTransactionResult(ctx, api.client, api.opts.logParsePeriod, tx, DealUpdatedTopic)
-	if err != nil {
+	if _, err = WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, DealUpdatedTopic); err != nil {
 		ch <- err
 		return
 	}
+
 	ch <- nil
 }
 
@@ -409,13 +403,7 @@ func (api *BasicMarketAPI) placeOrder(ctx context.Context, key *ecdsa.PrivateKey
 		return
 	}
 
-	receipt, err := WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx)
-	if err != nil {
-		ch <- OrderOrError{nil, err}
-		return
-	}
-
-	logs, err := FindLogByTopic(receipt, OrderPlacedTopic)
+	logs, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, OrderPlacedTopic)
 	if err != nil {
 		ch <- OrderOrError{nil, err}
 		return
@@ -445,7 +433,7 @@ func (api *BasicMarketAPI) cancelOrder(ctx context.Context, key *ecdsa.PrivateKe
 		return
 	}
 
-	if _, err := waitForTransactionResult(ctx, api.client, api.opts.logParsePeriod, tx, OrderUpdatedTopic); err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, OrderUpdatedTopic); err != nil {
 		ch <- err
 		return
 	}
@@ -516,7 +504,7 @@ func (api *BasicMarketAPI) bill(ctx context.Context, key *ecdsa.PrivateKey, deal
 		return
 	}
 
-	if _, err := waitForTransactionResult(ctx, api.client, api.opts.logParsePeriod, tx, BilledTopic); err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, BilledTopic); err != nil {
 		ch <- err
 		return
 	}
@@ -537,7 +525,7 @@ func (api *BasicMarketAPI) registerWorker(ctx context.Context, key *ecdsa.Privat
 		return
 	}
 
-	if _, err := waitForTransactionResult(ctx, api.client, api.opts.logParsePeriod, tx, WorkerAnnouncedTopic); err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, WorkerAnnouncedTopic); err != nil {
 		ch <- err
 		return
 	}
@@ -558,7 +546,7 @@ func (api *BasicMarketAPI) confirmWorker(ctx context.Context, key *ecdsa.Private
 		return
 	}
 
-	if _, err := waitForTransactionResult(ctx, api.client, api.opts.logParsePeriod, tx, WorkerConfirmedTopic); err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, WorkerConfirmedTopic); err != nil {
 		ch <- err
 		return
 	}
@@ -579,7 +567,7 @@ func (api *BasicMarketAPI) removeWorker(ctx context.Context, key *ecdsa.PrivateK
 		return
 	}
 
-	if _, err := waitForTransactionResult(ctx, api.client, api.opts.logParsePeriod, tx, WorkerRemovedTopic); err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, WorkerRemovedTopic); err != nil {
 		ch <- err
 		return
 	}
@@ -614,12 +602,12 @@ func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.P
 		return nil, err
 	}
 
-	log, err := waitForTransactionResult(ctx, api.client, api.opts.logParsePeriod, tx, DealChangeRequestSentTopic)
+	logs, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, DealChangeRequestSentTopic)
 	if err != nil {
 		return nil, err
 	}
 
-	id, err := extractBig(log.Topics, 1)
+	id, err := extractBig(logs.Topics, 1)
 	if err != nil {
 		return nil, errors.WithMessage(err, "cannot extract change request id from transaction logs")
 	}
@@ -634,8 +622,7 @@ func (api *BasicMarketAPI) CancelChangeRequest(ctx context.Context, key *ecdsa.P
 		return err
 	}
 
-	_, err = WaitTransactionReceipt(ctx, api.client, defaultBlockConfirmations, api.opts.logParsePeriod, tx)
-	if err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, DealChangeRequestUpdatedTopic); err != nil {
 		return err
 	}
 
@@ -771,12 +758,7 @@ func (api *BasicBlacklistAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey,
 		return err
 	}
 
-	rec, err := WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx)
-	if err != nil {
-		return err
-	}
-
-	if _, err := FindLogByTopic(rec, RemovedFromBlacklistTopic); err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, RemovedFromBlacklistTopic); err != nil {
 		return err
 	}
 

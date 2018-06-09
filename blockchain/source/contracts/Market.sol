@@ -46,6 +46,13 @@ contract Market is Ownable {
         REQUEST_ACCEPTED
     }
 
+    enum BlacklistPerson {
+        BLACKLIST_NOBODY,
+        BLACKLIST_WORKER,
+        BLACKLIST_MASTER
+    }
+
+
     struct Deal {
         uint64[] benchmarks;
         address supplierID;
@@ -170,9 +177,9 @@ contract Market is Ownable {
         uint64[] _benchmarks
     ) public returns (uint){
 
-        require(_benchmarks.length == benchmarksQuantity);
+        require(_benchmarks.length <= benchmarksQuantity);
 
-        for(uint i = 0; i < benchmarksQuantity; i++){
+        for(uint i = 0; i < _benchmarks.length; i++){
             require(_benchmarks[i] < maxBenchmarkValue);
         }
 
@@ -184,7 +191,7 @@ contract Market is Ownable {
             } else if (_duration < 1 days) {
                 lockedSum = CalculatePayment(_price, _duration);
             } else {
-                lockedSum = CalculatePayment(_price , 1 days);
+                lockedSum = CalculatePayment(_price, 1 days);
             }
             // this line contains err.
             require(token.transferFrom(msg.sender, this, lockedSum));
@@ -262,8 +269,14 @@ contract Market is Ownable {
         require((ask.counterparty == 0x0 || ask.counterparty == GetMaster(bid.author)) && (bid.counterparty == 0x0 || bid.counterparty == GetMaster(ask.author)));
         require(ask.orderType == OrderType.ORDER_ASK);
         require(bid.orderType == OrderType.ORDER_BID);
-        require(bl.Check(bid.blacklist, GetMaster(ask.author)) == false && bl.Check(ask.blacklist, bid.author) == false);
-        require(bl.Check(bid.author, GetMaster(ask.author)) == false && bl.Check(ask.author, bid.author) == false);
+        require(
+            bl.Check(bid.blacklist, GetMaster(ask.author)) == false
+            && bl.Check(bid.blacklist, ask.author) == false
+            && bl.Check(bid.author, GetMaster(ask.author)) == false
+            && bl.Check(bid.author, ask.author) == false
+            && bl.Check(ask.blacklist, bid.author) == false
+            && bl.Check(GetMaster(ask.author), bid.author) == false
+            && bl.Check(ask.author, bid.author) == false);
         require(ask.price <= bid.price);
         require(ask.duration >= bid.duration);
         // profile level check
@@ -274,6 +287,14 @@ contract Market is Ownable {
             // implementation: when bid contains requirement, ask necessary needs to have this
             // if ask have this one - pass
             require(!bid.netflags[i] || ask.netflags[i]);
+        }
+
+        if(ask.benchmarks.length < benchmarksQuantity){
+            ask.benchmarks = ResizeBenchmarks(ask.benchmarks);
+        }
+
+        if(bid.benchmarks.length < benchmarksQuantity){
+            bid.benchmarks = ResizeBenchmarks(bid.benchmarks);
         }
 
         for (i = 0; i < ask.benchmarks.length; i++) {
@@ -304,7 +325,7 @@ contract Market is Ownable {
         emit DealOpened(dealAmount);
     }
 
-    function CloseDeal(uint dealID, bool blacklisted) public returns (bool){
+    function CloseDeal(uint dealID, BlacklistPerson blacklisted) public returns (bool){
         require((deals[dealID].status == DealStatus.STATUS_ACCEPTED));
         require(msg.sender == deals[dealID].supplierID || msg.sender == deals[dealID].consumerID || msg.sender == deals[dealID].masterID);
 
@@ -679,10 +700,13 @@ contract Market is Ownable {
         return rate.mul(_price).mul(_period).div(1e18);
     }
 
-    function AddToBlacklist(uint dealID, bool blacklisted) internal {
-        if (msg.sender == deals[dealID].consumerID && blacklisted == true) {
+    function AddToBlacklist(uint dealID, BlacklistPerson role) internal {
+        // only consumer can blacklist
+        require(msg.sender == deals[dealID].consumerID || role == BlacklistPerson.BLACKLIST_NOBODY);
+        if (role == BlacklistPerson.BLACKLIST_WORKER){
+            bl.Add(deals[dealID].consumerID, deals[dealID].supplierID);
+        } else if (role == BlacklistPerson.BLACKLIST_MASTER)
             bl.Add(deals[dealID].consumerID, deals[dealID].masterID);
-        }
     }
 
     function InternalCloseDeal(uint dealID) internal {
@@ -695,6 +719,14 @@ contract Market is Ownable {
             deals[dealID].endTime = block.timestamp;
             emit DealUpdated(dealID);
         }
+    }
+
+    function ResizeBenchmarks(uint64[] _benchmarks) internal view returns (uint64[]) {
+        uint64[] memory benchmarks = new uint64[](benchmarksQuantity);
+        for(uint i = 0; i < _benchmarks.length; i++){
+            benchmarks[i] = _benchmarks[i];
+        }
+        return benchmarks;
     }
 
     function SetProfileRegistryAddress(address _newPR) onlyOwner public returns (bool) {
