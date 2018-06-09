@@ -56,7 +56,7 @@ func (m *cpuConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *cpuConsumer) Result(criteria float64) interface{} {
-	return &sonm.AskPlanCPU{CorePercents: uint64(100.0 * criteria * float64(m.cpu.Device.Cores))}
+	return &sonm.AskPlanCPU{CorePercents: uint64(math.Ceil(100.0 * criteria * float64(m.cpu.Device.Cores)))}
 }
 
 type ramConsumer struct {
@@ -104,7 +104,7 @@ func (m *storageConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *storageConsumer) Result(criteria float64) interface{} {
-	return &sonm.AskPlanStorage{Size: &sonm.DataSize{Bytes: uint64(criteria * float64(m.dev.Device.BytesAvailable))}}
+	return &sonm.AskPlanStorage{Size: &sonm.DataSize{Bytes: uint64(math.Ceil(criteria * float64(m.dev.Device.BytesAvailable)))}}
 }
 
 type networkInConsumer struct {
@@ -126,7 +126,7 @@ func (m *networkInConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *networkInConsumer) Result(criteria float64) interface{} {
-	return &sonm.DataSizeRate{BitsPerSecond: uint64(criteria * float64(m.dev.In))}
+	return &sonm.DataSizeRate{BitsPerSecond: uint64(math.Ceil(criteria * float64(m.dev.In)))}
 }
 
 type networkOutConsumer struct {
@@ -148,7 +148,7 @@ func (m *networkOutConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *networkOutConsumer) Result(criteria float64) interface{} {
-	return &sonm.DataSizeRate{BitsPerSecond: uint64(criteria * float64(m.dev.Out))}
+	return &sonm.DataSizeRate{BitsPerSecond: uint64(math.Ceil(criteria * float64(m.dev.Out)))}
 }
 
 type DeviceManager struct {

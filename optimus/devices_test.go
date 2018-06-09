@@ -503,3 +503,76 @@ func TestConsumeRAMMin(t *testing.T) {
 	assert.Equal(t, uint64(16349238095-sonm.MinRamSize), manager.freeBenchmarks[3])
 	assert.Equal(t, uint64(16754622464), devices.RAM.Benchmarks[3].Result)
 }
+
+func TestConsumeOrder(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.CPU.Device.Cores = 4
+	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
+		0: {Result: 5680},
+		1: {Result: 1526},
+		2: {Result: 4},
+	}
+	devices.RAM.Device.Total = 16754622464
+	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
+		3: {
+			Result: 16754622464,
+		},
+	}
+	devices.Network.In = 7143572
+	devices.Network.Out = 59053206
+	devices.Network.BenchmarksIn = map[uint64]*sonm.Benchmark{
+		5: {Result: 7143572},
+	}
+	devices.Network.BenchmarksOut = map[uint64]*sonm.Benchmark{
+		6: {Result: 59053206},
+	}
+
+	freeDevices := newEmptyDevicesReply()
+	freeDevices.CPU.Device.Cores = 4
+	freeDevices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
+		0: {Result: 5183},
+		1: {Result: 1526},
+		2: {Result: 4},
+	}
+	freeDevices.RAM.Device.Total = 16754622464
+	freeDevices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
+		3: {
+			Result: 16333650944,
+		},
+	}
+	freeDevices.Network.In = 7143572
+	freeDevices.Network.Out = 59053206
+	freeDevices.Network.BenchmarksIn = map[uint64]*sonm.Benchmark{
+		5: {Result: 6143573},
+	}
+	freeDevices.Network.BenchmarksOut = map[uint64]*sonm.Benchmark{
+		6: {Result: 58053206},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, freeDevices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := [12]uint64{80, 80, 1, 4000000, 0, 1, 1}
+	{
+		plan, err := manager.consumeCPU(benchmark[:])
+		require.NoError(t, err)
+		require.NotNil(t, plan)
+
+		assert.Equal(t, uint64(6), plan.CorePercents)
+
+		assert.Equal(t, uint64(5183-80), manager.freeBenchmarks[0])
+		assert.Equal(t, uint64(5680), devices.CPU.Benchmarks[0].Result)
+	}
+	{
+		plan, err := manager.consumeNetwork(benchmark[:])
+		require.NoError(t, err)
+		require.NotNil(t, plan)
+
+		assert.Equal(t, uint64(1), plan.ThroughputIn.BitsPerSecond)
+		assert.Equal(t, uint64(1), plan.ThroughputOut.BitsPerSecond)
+	}
+}
