@@ -110,7 +110,7 @@ func TestConsumeCPU(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
 
-	manager, err := newDeviceManager(devices, newMappingMock(controller))
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
@@ -137,7 +137,7 @@ func TestConsumeCPUTwoCores(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
 
-	manager, err := newDeviceManager(devices, newMappingMock(controller))
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
@@ -164,7 +164,7 @@ func TestConsumeCPULowerBound(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
 
-	manager, err := newDeviceManager(devices, newMappingMock(controller))
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
@@ -191,7 +191,7 @@ func TestConsumeRAM(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
 
-	manager, err := newDeviceManager(devices, newMappingMock(controller))
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
@@ -224,7 +224,7 @@ func TestConsumeGPU(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
 
-	manager, err := newDeviceManager(devices, newMappingMock(controller))
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
@@ -266,7 +266,7 @@ func TestConsumeOneOfTwoGPU(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
 
-	manager, err := newDeviceManager(devices, newMappingMock(controller))
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
@@ -308,7 +308,7 @@ func TestConsumeTwoOfTwoGPU(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
 
-	manager, err := newDeviceManager(devices, newMappingMock(controller))
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
@@ -370,7 +370,7 @@ func TestConsumeTwoOfFourGPU(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
 
-	manager, err := newDeviceManager(devices, newMappingMock(controller))
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
@@ -396,7 +396,7 @@ func TestConsumeStorage(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
 
-	manager, err := newDeviceManager(devices, newMappingMock(controller))
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
@@ -423,7 +423,7 @@ func TestConsumeStorageLowerBound(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
 
-	manager, err := newDeviceManager(devices, newMappingMock(controller))
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
@@ -452,7 +452,7 @@ func TestConsumeNetwork(t *testing.T) {
 	controller := gomock.NewController(t)
 	defer controller.Finish()
 
-	manager, err := newDeviceManager(devices, newMappingMock(controller))
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
@@ -466,4 +466,40 @@ func TestConsumeNetwork(t *testing.T) {
 
 	assert.Equal(t, uint64(95e6), manager.freeBenchmarks[5])
 	assert.Equal(t, uint64(10e6), manager.freeBenchmarks[6])
+}
+
+func TestConsumeRAMMin(t *testing.T) {
+	// DEV-718
+	devices := newEmptyDevicesReply()
+	devices.RAM.Device.Total = 16754622464
+	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
+		3: {
+			Result: 16754622464,
+		},
+	}
+
+	freeDevices := newEmptyDevicesReply()
+	freeDevices.RAM.Device.Total = 16754622464
+	freeDevices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
+		3: {
+			Result: 16349238095,
+		},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, freeDevices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := [12]uint64{0, 0, 0, 0}
+	ramPlan, err := manager.consumeRAM(benchmark[:])
+	require.NoError(t, err)
+	require.NotNil(t, ramPlan)
+
+	assert.Equal(t, uint64(sonm.MinRamSize), ramPlan.Size.Bytes)
+
+	assert.Equal(t, uint64(16349238095-sonm.MinRamSize), manager.freeBenchmarks[3])
+	assert.Equal(t, uint64(16754622464), devices.RAM.Benchmarks[3].Result)
 }
