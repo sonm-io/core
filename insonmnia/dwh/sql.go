@@ -560,7 +560,7 @@ func (m *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 	}
 
 	if r.BlacklistQuery != nil && r.BlacklistQuery.Option == pb.BlacklistOption_IncludeAndMark {
-		blacklistReply, err := m.GetBlacklist(conn, &pb.BlacklistRequest{OwnerID: r.BlacklistQuery.OwnerID})
+		blacklistReply, err := m.GetBlacklist(conn, &pb.BlacklistRequest{UserID: r.BlacklistQuery.OwnerID})
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "failed to")
 		}
@@ -759,8 +759,8 @@ func (m *sqlStorage) DeleteBlacklistEntry(conn queryConn, removerID, removeeID c
 func (m *sqlStorage) GetBlacklist(conn queryConn, r *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
 	builder := m.builder().Select("*").From("Blacklists")
 
-	if !r.OwnerID.IsZero() {
-		builder = builder.Where("AdderID = ?", r.OwnerID.Unwrap().Hex())
+	if !r.UserID.IsZero() {
+		builder = builder.Where("AdderID = ?", r.UserID.Unwrap().Hex())
 	}
 	builder = m.builderWithSortings(builder, []*pb.SortingOption{})
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
@@ -788,9 +788,45 @@ func (m *sqlStorage) GetBlacklist(conn queryConn, r *pb.BlacklistRequest) (*pb.B
 	}
 
 	return &pb.BlacklistReply{
-		OwnerID:   r.OwnerID,
+		OwnerID:   r.UserID,
 		Addresses: addees,
 		Count:     count,
+	}, nil
+}
+
+func (m *sqlStorage) GetBlacklistsContainingUser(conn queryConn, r *pb.BlacklistRequest) (*pb.BlacklistsContainingUserReply, error) {
+	if r.UserID.IsZero() {
+		return nil, errors.New("UserID must be specified")
+	}
+	query, args, _ := m.builder().Select("AdderID").From("Blacklists").
+		Where("AddeeID = ?", r.UserID.Unwrap().Hex()).ToSql()
+	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to run query")
+	}
+	defer rows.Close()
+
+	var adders []*pb.EthAddress
+	for rows.Next() {
+		var adderID string
+		if err := rows.Scan(&adderID); err != nil {
+			return nil, errors.Wrap(err, "failed to scan BlacklistAddress row")
+		}
+
+		ethAddress, err := util.HexToAddress(adderID)
+		if err != nil {
+			return nil, errors.Errorf("failed to use `%s` as EthAddress", adderID)
+		}
+		adders = append(adders, pb.NewEthAddress(ethAddress))
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "rows error")
+	}
+
+	return &pb.BlacklistsContainingUserReply{
+		Blacklists: adders,
+		Count:      count,
 	}, nil
 }
 

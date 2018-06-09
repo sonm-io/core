@@ -33,6 +33,7 @@ service DWH {
     rpc GetProfiles(ProfilesRequest) returns (ProfilesReply) {}
     rpc GetProfileInfo(EthID) returns (Profile) {}
     rpc GetBlacklist(BlacklistRequest) returns (BlacklistReply) {}
+    rpc GetBlacklistsContainingUser(BlacklistRequest) returns (BlacklistsContainingUserReply) {}
     rpc GetValidators(ValidatorsRequest) returns (ValidatorsReply) {}
     rpc GetDealChangeRequests(BigInt) returns (DealChangeRequestsReply) {}
     rpc GetWorkers(WorkersRequest) returns (WorkersReply) {}
@@ -195,7 +196,7 @@ message Profile {
 }
 
 message BlacklistRequest {
-    EthAddress ownerID = 1;
+    EthAddress userID = 1;
     uint64 limit = 2;
     uint64 offset = 3;
     bool withCount = 4;
@@ -205,6 +206,11 @@ message BlacklistReply {
     EthAddress ownerID = 1;
     repeated string addresses = 2;
     uint64 count = 3;
+}
+
+message BlacklistsContainingUserReply {
+    repeated EthAddress blacklists = 1;
+    uint64 count = 2;
 }
 
 message ValidatorsRequest {

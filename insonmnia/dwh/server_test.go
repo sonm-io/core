@@ -1034,7 +1034,7 @@ func testBlacklistAddedRemoved() error {
 		return errors.Wrap(err, "onAddedToBlacklist failed")
 	}
 	if blacklistReply, err := monitorDWH.storage.GetBlacklist(
-		newSimpleConn(monitorDWH.db), &pb.BlacklistRequest{OwnerID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
+		newSimpleConn(monitorDWH.db), &pb.BlacklistRequest{UserID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
 		return errors.Wrap(err, "getBlacklist failed")
 	} else {
 		if blacklistReply.OwnerID.Unwrap().Hex() != common.HexToAddress("0xC").Hex() {
@@ -1047,7 +1047,7 @@ func testBlacklistAddedRemoved() error {
 		return errors.Wrap(err, "onRemovedFromBlacklist failed")
 	}
 	if repl, err := monitorDWH.storage.GetBlacklist(
-		newSimpleConn(monitorDWH.db), &pb.BlacklistRequest{OwnerID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
+		newSimpleConn(monitorDWH.db), &pb.BlacklistRequest{UserID: pb.NewEthAddress(common.HexToAddress("0xC"))}); err != nil {
 		return errors.Wrap(err, "getBlacklist (2) failed")
 	} else {
 		if len(repl.Addresses) > 0 {
