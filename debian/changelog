@@ -1,3 +1,61 @@
+sonm-core (0.4.0-alpha3) unstable; urgency=low
+
+  * Added: quick buy with duration (#957).
+  * Changed: pretty-print workers list (#921).
+  * Changed: cold-start auto block number in DWH (#930).
+    This change makes use of CustomEthereumClient's GetLastBlock() method to
+    automatically determine when to build indices in cold start mode.
+  * Changed: use blacklists in GetMatchingOrders in DWH (#939).
+  * Changed: map gRPC validation error into HTTP invalid argument in REST
+    bindings (#952).
+  * Changed: attempt to log everything in NPP (#953).
+    More logs while connecting using NPP, log details in the Puncher, log
+    addresses and protobuf messages as JSON instead of <"\unreadable strings\">.
+    NPP errors now filter duplicate error messages, while attempting to punch
+    a NAT.
+    Also some typos fixed.
+  * Changed: extend blacklisting feature (#955).
+    Now you can blacklist both master and worker.
+  * Fixed: proper logs processing on CLI side (#936).
+    This includes proper parsing of hijacked binary logs, restore `type` flag
+    functionality and ability to prepend stdout and stderr with corresponding
+    prefixes.
+  * Fixed: use ask-plan hashing instead of hardware hashing.
+    Now we use indexes from ask-plan to determine gpu hash instead of hardware.
+    This allows to use GPU indexes as they appear in ask-plan rather than in
+    hardware.
+  * Fixed: wrong store key in worker config (#941).
+  * Fixed: proper format in NetworkSpec printer (#943).
+  * Fixed: proper container cleanup on finished deal (#944).
+    Fixed a situation when worker did not get deal notification when ask-plan
+    was scheduled for deletion.
+    Also now worker uses SIGKILL with no regret for tinc as it does not respond
+    to ContainerStop anyway.
+    This all results in a proper cleanup of the deal containers and resources
+    release.
+  * Fixed: initialize logger in NPP (#948).
+  * Fixed: do not hang on Serve error (#947).
+  * Fixed: do not try to use closed deals in Node (#945).
+  * Fixed: Node should no longer segfault while working with keystore (#942).
+  * Fixed: possible infinite hanging while punching multiple private addresses.
+  * Fixed: convert duration to nanoseconds in Optimus (#958).
+    Optimus should no longer create ask plans with duration more than one second.
+  * Fixed: profile stats and updates in DWH.
+    This fixes a bug that happens in the following situation:
+      - An order is created for an unknown profile (i.e., AuthorID/MasterID has
+        no certificates), so ActiveAsks/ActiveBids is not incremented for that
+        profile.
+      - A profile is created for that order's AuthorID/MasterID.
+      - Order's status changes to INACTIVE, we decrement the already known
+        AuthorID/MasterID profile's ActiveAsks/ActiveBids and get a negative
+        value.
+    The fix goes as follows: when creating a new profile, we count active asks
+    and bids and store the new profile with relevant data.
+  * Fixed: insert-or-update-validators in DWH (#965).
+  * Fixed: GetMatchingOrders Blacklists and CounterpartyID in DWH (#967).
+
+ -- Evgeny Safronov <division494@gmail.com>  Fri, 08 Jun 2018 23:27:48 +0300
+
 sonm-core (0.4.0-alpha2) unstable; urgency=low
 
   * Added: unimplemented methods of profiles in smart contracts (#923).

@@ -983,7 +983,7 @@ func (m *DWH) onValidatorCreated(validatorID common.Address) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
-	if err := m.storage.InsertValidator(conn, validator); err != nil {
+	if err := m.storage.InsertOrUpdateValidator(conn, validator); err != nil {
 		return errors.Wrap(err, "failed to insertValidator")
 	}
 
@@ -1000,7 +1000,7 @@ func (m *DWH) onValidatorDeleted(validatorID common.Address) error {
 	defer conn.Finish()
 
 	if err := m.storage.UpdateValidator(conn, validator); err != nil {
-		return errors.Wrap(err, "failed to updateValidator")
+		return errors.Wrap(err, "failed to InsertOrUpdateValidator")
 	}
 
 	return nil

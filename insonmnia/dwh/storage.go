@@ -45,7 +45,7 @@ type storage interface {
 	InsertBlacklistEntry(conn queryConn, adderID, addeeID common.Address) error
 	DeleteBlacklistEntry(conn queryConn, removerID, removeeID common.Address) error
 	GetBlacklist(conn queryConn, request *pb.BlacklistRequest) (*pb.BlacklistReply, error)
-	InsertValidator(conn queryConn, validator *pb.Validator) error
+	InsertOrUpdateValidator(conn queryConn, validator *pb.Validator) error
 	UpdateValidator(conn queryConn, validator *pb.Validator) error
 	InsertCertificate(conn queryConn, certificate *pb.Certificate) error
 	GetCertificates(conn queryConn, ownerID common.Address) ([]*pb.Certificate, error)
