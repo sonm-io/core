@@ -219,7 +219,7 @@ func (m *Worker) setupMaster() error {
 	}
 	if addr.Big().Cmp(m.ethAddr().Big()) == 0 {
 		log.S(m.ctx).Infof("master is not set, sending request to %s", m.cfg.Master.Hex())
-		err = <-m.eth.Market().RegisterWorker(m.ctx, m.key, m.cfg.Master)
+		err = m.eth.Market().RegisterWorker(m.ctx, m.key, m.cfg.Master)
 		if err != nil {
 			return err
 		}

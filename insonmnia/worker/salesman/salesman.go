@@ -176,7 +176,7 @@ func (m *Salesman) maybeShutdownAskPlan(ctx context.Context, plan *sonm.AskPlan)
 		if dealInfo.Status == sonm.DealStatus_DEAL_ACCEPTED {
 			if dealInfo.GetDuration() == 0 {
 				m.log.Infof("closing spot deal %s for ask plan %s", dealInfo.GetId(), plan.GetID())
-				if err := <-m.eth.Market().CloseDeal(ctx, m.ethkey, plan.GetDealID().Unwrap(), false); err != nil {
+				if err := m.eth.Market().CloseDeal(ctx, m.ethkey, plan.GetDealID().Unwrap(), false); err != nil {
 					return err
 				}
 			} else {
@@ -187,7 +187,7 @@ func (m *Salesman) maybeShutdownAskPlan(ctx context.Context, plan *sonm.AskPlan)
 	}
 
 	if plan.GetDealID().IsZero() && !plan.GetOrderID().IsZero() {
-		if err := <-m.eth.Market().CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
+		if err := m.eth.Market().CancelOrder(ctx, m.ethkey, plan.GetOrderID().Unwrap()); err != nil {
 			m.log.Infof("could not cancel order - %s, checking order to update info", err)
 			return m.checkOrder(ctx, plan)
 		}
@@ -386,7 +386,7 @@ func (m *Salesman) maybeBillDeal(ctx context.Context, deal *sonm.Deal) error {
 	}
 
 	if time.Now().Sub(billTime) > billPeriod {
-		if err := <-m.eth.Market().Bill(ctx, m.ethkey, deal.GetId().Unwrap()); err != nil {
+		if err := m.eth.Market().Bill(ctx, m.ethkey, deal.GetId().Unwrap()); err != nil {
 			return err
 		}
 		m.log.Infof("billed deal %s", deal.GetId().Unwrap().String())
@@ -398,7 +398,7 @@ func (m *Salesman) maybeCloseDeal(ctx context.Context, deal *sonm.Deal) error {
 	if deal.GetDuration() != 0 {
 		endTime := deal.GetStartTime().Unix().Add(time.Second * time.Duration(deal.GetDuration()))
 		if time.Now().After(endTime) {
-			if err := <-m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), false); err != nil {
+			if err := m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), false); err != nil {
 				return err
 			}
 			m.log.Infof("closed expired deal %s", deal.GetId().Unwrap().String())
@@ -518,15 +518,15 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) (*sonm.Or
 		Tag:           plan.GetTag(),
 		Benchmarks:    benchmarks,
 	}
-	ordOrErr := <-m.eth.Market().PlaceOrder(ctx, m.ethkey, order)
-	if ordOrErr.Err != nil {
-		return nil, fmt.Errorf("could not place order on bc market: %s", ordOrErr.Err)
+	order, err = m.eth.Market().PlaceOrder(ctx, m.ethkey, order)
+	if err != nil {
+		return nil, fmt.Errorf("could not place order on bc market: %s", err)
 	}
-	if err := m.assignOrder(plan.ID, ordOrErr.Order.GetId()); err != nil {
+	if err := m.assignOrder(plan.ID, order.GetId()); err != nil {
 		return nil, err
 	}
 	m.log.Infof("placed order %s on blockchain", plan.OrderID.Unwrap().String())
-	return ordOrErr.Order, nil
+	return order, nil
 }
 
 func (m *Salesman) waitForDeal(ctx context.Context, order *sonm.Order) error {

@@ -43,7 +43,7 @@ contract('Market', async function (accounts) {
         await oracle.setCurrentPrice(1e18);
         blacklist = await Blacklist.new();
         profileRegistry = await ProfileRegistry.new();
-        market = await Market.new(token.address, blacklist.address, oracle.address, profileRegistry.address, 12);
+        market = await Market.new(token.address, blacklist.address, oracle.address, profileRegistry.address, 12, 3);
         await token.AddMarket(market.address);
         await blacklist.SetMarketAddress(market.address);
 
@@ -914,12 +914,17 @@ contract('Market', async function (accounts) {
         assert.equal(balanceBefore.toNumber(10) - 7200 * 1e3, balanceAfter.toNumber(10));
     });
 
-    it('test UpdateBenchmarks', async function () {
+    it('test Update Benchmarks', async function () {
         await market.SetBenchmarksQuantity(20);
         assert.equal((await market.GetBenchmarksQuantity()).toNumber(10), 20);
     });
 
-    it('test CreateOrder with num benchmarks < current benchmarks', async function () {
+    it('test Update netflags', async function () {
+        await market.SetNetflagsQuantity(4);
+        assert.equal((await market.GetNetflagsQuantity()).toNumber(10), 4);
+    });
+
+    it('test CreateOrder with num benchmarks & netflags < current supported', async function () {
         let stateBefore = await market.GetOrdersAmount();
         let dealsBefore = await market.GetDealsAmount();
         await market.PlaceOrder(
@@ -927,7 +932,7 @@ contract('Market', async function (accounts) {
             '0x0', // counter_party
             3600, // duration
             1, // price
-            [0, 0, 0], // netflags
+            [0, 1], // netflags
             IdentityLevel.ANONIMOUS, // identity level
             0x0, // blacklist
             '00000', // tag

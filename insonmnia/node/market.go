@@ -93,24 +93,24 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 		Benchmarks:    benchStruct,
 	}
 
-	ordOrErr := <-m.remotes.eth.Market().PlaceOrder(ctx, m.remotes.key, order)
-	if ordOrErr.Err != nil {
-		return nil, fmt.Errorf("could not place order on blockchain: %s", ordOrErr.Err)
+	order, err = m.remotes.eth.Market().PlaceOrder(ctx, m.remotes.key, order)
+	if err != nil {
+		return nil, fmt.Errorf("could not place order on blockchain: %s", err)
 	}
 
 	go func() {
-		deal, err := m.remotes.orderMatcher.CreateDealByOrder(m.remotes.ctx, ordOrErr.Order)
+		deal, err := m.remotes.orderMatcher.CreateDealByOrder(m.remotes.ctx, order)
 		if err != nil {
 			ctxlog.G(m.remotes.ctx).Warn("cannot open deal", zap.Error(err))
 			return
 		}
 
 		ctxlog.G(m.remotes.ctx).Info("opened deal for order",
-			zap.String("orderID", ordOrErr.Order.Id.Unwrap().String()),
+			zap.String("orderID", order.Id.Unwrap().String()),
 			zap.String("dealID", deal.Id.Unwrap().String()))
 	}()
 
-	return ordOrErr.Order, nil
+	return order, nil
 }
 
 func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, error) {
@@ -119,7 +119,7 @@ func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, err
 		return nil, fmt.Errorf("could not get parse order id %s to BigInt: %s", req.GetId(), err)
 	}
 
-	if err := <-m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id); err != nil {
+	if err := m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id); err != nil {
 		return nil, fmt.Errorf("could not get cancel order %s on blockchain: %s", req.GetId(), err)
 	}
 

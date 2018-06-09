@@ -182,23 +182,29 @@ func (m *workerControl) OnShutdown() {
 
 func (m *workerControl) Execute(ctx context.Context) {
 	m.log.Debugf("pulling worker devices")
-	devices, err := m.worker.FreeDevices(ctx, &sonm.Empty{})
+	devices, err := m.worker.Devices(ctx, &sonm.Empty{})
 	if err != nil {
 		m.log.Warnw("failed to pull worker devices", zap.Error(err))
 		return
 	}
 
-	m.log.Debugw("successfully pulled worker devices", zap.Any("devices", *devices))
+	freeDevices, err := m.worker.FreeDevices(ctx, &sonm.Empty{})
+	if err != nil {
+		m.log.Warnw("failed to pull free worker devices", zap.Error(err))
+		return
+	}
 
-	// Convert worker devices into benchmarks set.
-	bm := newBenchmarksFromDevices(devices)
-	workerBenchmarks, err := sonm.NewBenchmarks(bm[:])
+	m.log.Debugw("successfully pulled worker devices", zap.Any("devices", *devices), zap.Any("freeDevices", *freeDevices))
+
+	// Convert worker free devices into benchmarks set.
+	bm := newBenchmarksFromDevices(freeDevices)
+	freeWorkerBenchmarks, err := sonm.NewBenchmarks(bm[:])
 	if err != nil {
 		m.log.Warnw("failed to collect worker benchmarks", zap.Error(err))
 		return
 	}
 
-	m.log.Infof("worker benchmarks: %s", strings.Join(strings.Fields(fmt.Sprintf("%v", workerBenchmarks)), ", "))
+	m.log.Infof("worker benchmarks: %s", strings.Join(strings.Fields(fmt.Sprintf("%v", freeWorkerBenchmarks)), ", "))
 
 	orders := m.ordersSet.Get()
 	if len(orders) == 0 {
@@ -223,7 +229,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 			continue
 		}
 
-		if workerBenchmarks.Contains(order.Order.Order.Benchmarks) {
+		if freeWorkerBenchmarks.Contains(order.Order.Order.Benchmarks) {
 			matchedOrders = append(matchedOrders, order)
 		}
 	}
@@ -236,7 +242,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 		return
 	}
 
-	deviceManager, err := newDeviceManager(devices, mapping)
+	deviceManager, err := newDeviceManager(devices, freeDevices, mapping)
 	if err != nil {
 		m.log.Warnw("failed to construct device manager", zap.Error(err))
 		return
@@ -246,7 +252,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 	var plans []*sonm.AskPlan
 	exhaustedCounter := 0
 	for _, order := range matchedOrders {
-		m.log.Debugw("trying", zap.Any("order", *order.Order.Order))
+		m.log.Debugw("trying to combine order into resources pool", zap.Any("order", *order.Order.Order))
 		// TODO: Hardcode. Not the best approach.
 		if exhaustedCounter >= 100 {
 			break
@@ -274,7 +280,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 		})
 	}
 
-	m.log.Infof("cut selling plans: %v", plans)
+	m.log.Infof("cut the following selling plans: %v", plans)
 
 	// Tell worker to create sell plans.
 	for _, plan := range plans {

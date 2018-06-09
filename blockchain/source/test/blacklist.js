@@ -26,7 +26,7 @@ contract('Blacklist', async function (accounts) {
         oracle = await OracleUSD.new();
         pr = await ProfileRegistry.new();
         await blacklist.AddMaster(master, { from: owner });
-        market = await Market.new(token.address, blacklist.address, oracle.address, pr.address, 12);
+        market = await Market.new(token.address, blacklist.address, oracle.address, pr.address, 12, 3);
     });
 
     it('test ACL', async function () {

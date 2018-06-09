@@ -14,6 +14,6 @@ module.exports = function (deployer, network) {
             12, // benchmarks quantity
             { gasPrice: 0 });
     } else {
-        deployer.deploy(Market, SNM.address, Blacklist.address, OracleUSD.address, ProfileRegistry.address, 12);
+        deployer.deploy(Market, SNM.address, Blacklist.address, OracleUSD.address, ProfileRegistry.address, 12, 3);
     }
 };
