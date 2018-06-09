@@ -51,8 +51,7 @@ func TestNetFlags_FromBoolSlice(t *testing.T) {
 	slice[1] = true
 	slice[2] = true
 
-	netFlags := &NetFlags{}
-	require.Equal(t, netFlags.FromBoolSlice(slice).Flags, uint64(6))
+	require.Equal(t, NetFlagsFromBoolSlice(slice).Flags, uint64(6))
 }
 
 func TestNetFlags_GetFlags(t *testing.T) {
@@ -114,5 +113,5 @@ func TestNetFlags_ConverseImplication(t *testing.T) {
 func TestNetFlagsMirror(t *testing.T) {
 	flags := &NetFlags{uint64(6)}
 	flagsSlice := flags.ToBoolSlice()
-	require.Equal(t, flags.FromBoolSlice(flagsSlice), flags)
+	require.Equal(t, NetFlagsFromBoolSlice(flagsSlice), flags)
 }

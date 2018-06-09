@@ -477,8 +477,7 @@ func (api *BasicMarketAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (
 		return nil, fmt.Errorf("order fetching inconsistency for order %s", orderID.String())
 	}
 
-	netflags := &pb.NetFlags{}
-	netflags.FromBoolSlice(order1.Netflags[:])
+	netflags := pb.NetFlagsFromBoolSlice(order1.Netflags[:])
 
 	benchmarks, err := pb.NewBenchmarks(order1.Benchmarks)
 	if err != nil {

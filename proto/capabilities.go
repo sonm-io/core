@@ -39,17 +39,14 @@ func (m *NetFlags) ToBoolSlice() []bool {
 	return result
 }
 
-func (m *NetFlags) FromBoolSlice(from []bool) *NetFlags {
-	if m == nil {
-		panic("setting bool slice to nil net flags is not allowed")
-	}
-	m.Flags = 0
+func NetFlagsFromBoolSlice(from []bool) *NetFlags {
+	var flags uint64
 	for idx, val := range from {
 		if val {
-			m.Flags |= (1 << uint(idx))
+			flags |= (1 << uint(idx))
 		}
 	}
-	return m
+	return &NetFlags{Flags: flags}
 }
 
 func (m *NetFlags) GetIncoming() bool {
