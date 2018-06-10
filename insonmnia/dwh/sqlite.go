@@ -1,34 +1,12 @@
 package dwh
 
 import (
-	"database/sql"
-
 	"github.com/Masterminds/squirrel"
-	"github.com/pkg/errors"
 )
 
-func (m *DWH) setupSQLite(db *sql.DB, numBenchmarks uint64) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	_, err := db.Exec(`PRAGMA foreign_keys=ON`)
-	if err != nil {
-		db.Close()
-		return errors.Wrapf(err, "failed to enable foreign key support (%s)", m.cfg.Storage.Backend)
-	}
-
-	store := newSQLiteStorage(newTablesInfo(numBenchmarks), numBenchmarks)
-	if err := store.Setup(db); err != nil {
-		return errors.Wrap(err, "failed to setup store")
-	}
-
-	m.storage = store
-
-	return nil
-}
-
-func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
-	store := &sqlStorage{
+func newSQLiteStorage(numBenchmarks uint64) *sqlStorage {
+	tInfo := newTablesInfo(numBenchmarks)
+	storage := &sqlStorage{
 		setupCommands: &sqlSetupCommands{
 			// Incomplete, modified during setup.
 			createTableDeals: makeTableWithBenchmarks(`
@@ -167,5 +145,5 @@ func newSQLiteStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		},
 	}
 
-	return store
+	return storage
 }
