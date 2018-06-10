@@ -28,28 +28,19 @@ func mockDWH(ctrl *gomock.Controller, t sonm.OrderType) sonm.DWHClient {
 	return dwh
 }
 
-func mockEth(ctrl *gomock.Controller) (blockchain.API, chan blockchain.DealOrError) {
-	api := blockchain.NewMockAPI(ctrl)
-
-	ch := make(chan blockchain.DealOrError)
-
-	marketApi := blockchain.NewMockMarketAPI(ctrl)
-	marketApi.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().
-		Return(&sonm.Order{OrderStatus: sonm.OrderStatus_ORDER_ACTIVE}, nil)
-	marketApi.EXPECT().OpenDeal(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
-		Return(ch)
-
-	api.EXPECT().Market().AnyTimes().Return(marketApi)
-
-	return api, ch
-}
-
 func TestMatcher(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	key, _ := crypto.GenerateKey()
-	eth, dealChan := mockEth(ctrl)
+
+	eth := blockchain.NewMockAPI(ctrl)
+	marketApi := blockchain.NewMockMarketAPI(ctrl)
+	marketApi.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(&sonm.Order{OrderStatus: sonm.OrderStatus_ORDER_ACTIVE}, nil)
+	marketApi.EXPECT().OpenDeal(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		Return(&sonm.Deal{Id: pb.NewBigIntFromInt(123)}, nil)
+	eth.EXPECT().Market().AnyTimes().Return(marketApi)
 
 	m, err := NewMatcher(&Config{
 		Key:        key,
@@ -69,10 +60,6 @@ func TestMatcher(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	go func() {
-		dealChan <- blockchain.DealOrError{Deal: &sonm.Deal{Id: pb.NewBigIntFromInt(123)}, Err: nil}
-	}()
-
 	deal, err := m.CreateDealByOrder(ctx, target)
 	require.NoError(t, err)
 	require.NotNil(t, deal)
@@ -83,7 +70,14 @@ func TestMatcherFailedByTimeout(t *testing.T) {
 	defer ctrl.Finish()
 
 	key, _ := crypto.GenerateKey()
-	eth, dealChan := mockEth(ctrl)
+
+	eth := blockchain.NewMockAPI(ctrl)
+	marketApi := blockchain.NewMockMarketAPI(ctrl)
+	marketApi.EXPECT().GetOrderInfo(gomock.Any(), gomock.Any()).AnyTimes().
+		Return(&sonm.Order{OrderStatus: sonm.OrderStatus_ORDER_ACTIVE}, nil)
+	marketApi.EXPECT().OpenDeal(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).AnyTimes().
+		Return(nil, fmt.Errorf("TEST: cannot create order"))
+	eth.EXPECT().Market().AnyTimes().Return(marketApi)
 
 	m, err := NewMatcher(&Config{
 		Key:        key,
@@ -99,15 +93,8 @@ func TestMatcherFailedByTimeout(t *testing.T) {
 		OrderType: sonm.OrderType_ASK,
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancel()
-
-	go func() {
-		for i := 0; i < 5; i++ {
-			time.Sleep(time.Second)
-			dealChan <- blockchain.DealOrError{Deal: nil, Err: fmt.Errorf("TEST_%d: cannot create order", i)}
-		}
-	}()
 
 	_, err = m.CreateDealByOrder(ctx, target)
 	require.Error(t, err)

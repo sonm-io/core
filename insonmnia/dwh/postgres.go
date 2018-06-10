@@ -1,28 +1,12 @@
 package dwh
 
 import (
-	"database/sql"
-
 	"github.com/Masterminds/squirrel"
-	"github.com/pkg/errors"
 )
 
-func (m *DWH) setupPostgres(db *sql.DB, numBenchmarks uint64) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	store := newPostgresStorage(newTablesInfo(numBenchmarks), numBenchmarks)
-	if err := store.Setup(db); err != nil {
-		return errors.Wrap(err, "failed to setup store")
-	}
-
-	m.storage = store
-
-	return nil
-}
-
-func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
-	commands := &sqlStorage{
+func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
+	tInfo := newTablesInfo(numBenchmarks)
+	storage := &sqlStorage{
 		setupCommands: &sqlSetupCommands{
 			createTableDeals: makeTableWithBenchmarks(`
 	CREATE TABLE IF NOT EXISTS Deals (
@@ -155,5 +139,5 @@ func newPostgresStorage(tInfo *tablesInfo, numBenchmarks uint64) *sqlStorage {
 		},
 	}
 
-	return commands
+	return storage
 }

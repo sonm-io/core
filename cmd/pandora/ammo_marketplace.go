@@ -81,12 +81,12 @@ func (m *OrderPlaceAmmo) Type() AmmoType {
 
 func (m *OrderPlaceAmmo) Execute(ctx context.Context, ext interface{}) error {
 	mExt := ext.(*marketplaceExt)
-	orderOrError := <-mExt.market.PlaceOrder(ctx, mExt.privateKey, order())
-	if orderOrError.Err != nil {
-		return orderOrError.Err
+	order, err := mExt.market.PlaceOrder(ctx, mExt.privateKey, order())
+	if err != nil {
+		return err
 	}
 
-	mExt.log.Debug("OK", zap.String("ammo", "PlaceOrder"), zap.Any("order", *orderOrError.Order))
+	mExt.log.Debug("OK", zap.String("ammo", "PlaceOrder"), zap.Any("order", *order))
 
 	return nil
 }

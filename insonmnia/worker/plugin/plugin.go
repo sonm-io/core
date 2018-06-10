@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -166,7 +167,9 @@ func (r *Repository) collectGPUDevices() []*sonm.GPUDevice {
 	for _, tun := range r.gpuTuners {
 		devs = append(devs, tun.Devices()...)
 	}
-
+	sort.Slice(devs, func(i, j int) bool {
+		return devs[i].GetID() < devs[j].GetID()
+	})
 	return devs
 }
 

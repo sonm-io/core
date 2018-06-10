@@ -61,7 +61,12 @@ func getTestDWH(dbPath string) (*DWH, error) {
 				Endpoint: dbPath,
 			},
 		}
+		controller     = gomock.NewController(&testing.T{})
+		mockBlockchain = bch.NewMockAPI(controller)
+		mockMarket     = bch.NewMockMarketAPI(controller)
 	)
+	mockMarket.EXPECT().GetNumBenchmarks(gomock.Any()).AnyTimes().Return(uint64(12), nil)
+	mockBlockchain.EXPECT().Market().AnyTimes().Return(mockMarket)
 
 	db, err := sql.Open(cfg.Storage.Backend, cfg.Storage.Endpoint)
 	if err != nil {
@@ -69,11 +74,11 @@ func getTestDWH(dbPath string) (*DWH, error) {
 	}
 
 	w := &DWH{
-		ctx:           ctx,
-		cfg:           cfg,
-		db:            db,
-		logger:        log.GetLogger(ctx),
-		numBenchmarks: 12,
+		blockchain: mockBlockchain,
+		ctx:        ctx,
+		cfg:        cfg,
+		db:         db,
+		logger:     log.GetLogger(ctx),
 	}
 
 	return w, setupTestDB(w)
@@ -1089,7 +1094,7 @@ func getCertificates(w *DWH) ([]*pb.Certificate, error) {
 }
 
 func setupTestDB(w *DWH) error {
-	if err := w.setupSQLite(w.db, 12); err != nil {
+	if err := w.setupDBts(); err != nil {
 		return err
 	}
 

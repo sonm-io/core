@@ -56,7 +56,7 @@ func (m *cpuConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *cpuConsumer) Result(criteria float64) interface{} {
-	return &sonm.AskPlanCPU{CorePercents: uint64(100.0 * criteria * float64(m.cpu.Device.Cores))}
+	return &sonm.AskPlanCPU{CorePercents: uint64(math.Ceil(100.0 * criteria * float64(m.cpu.Device.Cores)))}
 }
 
 type ramConsumer struct {
@@ -80,7 +80,7 @@ func (m *ramConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *ramConsumer) Result(criteria float64) interface{} {
-	return &sonm.AskPlanRAM{Size: &sonm.DataSize{Bytes: uint64(criteria * float64(m.ram.Device.Total))}}
+	return &sonm.AskPlanRAM{Size: &sonm.DataSize{Bytes: uint64(math.Ceil(criteria * float64(m.ram.Device.Total)))}}
 }
 
 type storageConsumer struct {
@@ -104,7 +104,7 @@ func (m *storageConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *storageConsumer) Result(criteria float64) interface{} {
-	return &sonm.AskPlanStorage{Size: &sonm.DataSize{Bytes: uint64(criteria * float64(m.dev.Device.BytesAvailable))}}
+	return &sonm.AskPlanStorage{Size: &sonm.DataSize{Bytes: uint64(math.Ceil(criteria * float64(m.dev.Device.BytesAvailable)))}}
 }
 
 type networkInConsumer struct {
@@ -126,7 +126,7 @@ func (m *networkInConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *networkInConsumer) Result(criteria float64) interface{} {
-	return &sonm.DataSizeRate{BitsPerSecond: uint64(criteria * float64(m.dev.In))}
+	return &sonm.DataSizeRate{BitsPerSecond: uint64(math.Ceil(criteria * float64(m.dev.In)))}
 }
 
 type networkOutConsumer struct {
@@ -148,7 +148,7 @@ func (m *networkOutConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *networkOutConsumer) Result(criteria float64) interface{} {
-	return &sonm.DataSizeRate{BitsPerSecond: uint64(criteria * float64(m.dev.Out))}
+	return &sonm.DataSizeRate{BitsPerSecond: uint64(math.Ceil(criteria * float64(m.dev.Out)))}
 }
 
 type DeviceManager struct {
@@ -158,7 +158,7 @@ type DeviceManager struct {
 	freeBenchmarks [sonm.MinNumBenchmarks]uint64
 }
 
-func newDeviceManager(devices *sonm.DevicesReply, mapping benchmarks.Mapping) (*DeviceManager, error) {
+func newDeviceManager(devices *sonm.DevicesReply, freeDevices *sonm.DevicesReply, mapping benchmarks.Mapping) (*DeviceManager, error) {
 	// TODO: ???
 	//if v, ok := devices.CPU.Benchmarks[CPUSysbenchMultiID]; !ok || v.Result == 0 {
 	//	return nil, errors.New("no CPU detected")
@@ -167,8 +167,8 @@ func newDeviceManager(devices *sonm.DevicesReply, mapping benchmarks.Mapping) (*
 	m := &DeviceManager{
 		devices:        devices,
 		mapping:        mapping,
-		freeGPUs:       append([]*sonm.GPU{}, devices.GPUs...),
-		freeBenchmarks: newBenchmarksFromDevices(devices),
+		freeGPUs:       append([]*sonm.GPU{}, freeDevices.GPUs...),
+		freeBenchmarks: newBenchmarksFromDevices(freeDevices),
 	}
 
 	return m, nil
@@ -306,7 +306,7 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 
 	for id := range m.freeBenchmarks {
 		if benchmarkResult, ok := filter(id); ok {
-			if m.freeBenchmarks[id] < uint64(value*float64(benchmarkResult)) {
+			if m.freeBenchmarks[id] < uint64(math.Ceil(value*float64(benchmarkResult))) {
 				return 0, errExhausted
 			}
 		}
@@ -314,7 +314,7 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 
 	for id := range m.freeBenchmarks {
 		if benchmarkResult, ok := filter(id); ok {
-			m.freeBenchmarks[id] -= uint64(value * float64(benchmarkResult))
+			m.freeBenchmarks[id] -= uint64(math.Ceil(value * float64(benchmarkResult)))
 		}
 	}
 

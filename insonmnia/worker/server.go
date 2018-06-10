@@ -219,7 +219,7 @@ func (m *Worker) setupMaster() error {
 	}
 	if addr.Big().Cmp(m.ethAddr().Big()) == 0 {
 		log.S(m.ctx).Infof("master is not set, sending request to %s", m.cfg.Master.Hex())
-		err = <-m.eth.Market().RegisterWorker(m.ctx, m.key, m.cfg.Master)
+		err = m.eth.Market().RegisterWorker(m.ctx, m.key, m.cfg.Master)
 		if err != nil {
 			return err
 		}
@@ -559,7 +559,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		spec.Resources.GPU = ask.Resources.GPU
 	}
 
-	hasher := &pb.AskPlanHasher{ask.GetResources()}
+	hasher := &pb.AskPlanHasher{AskPlanResources: ask.GetResources()}
 	err = spec.GetResources().GetGPU().Normalize(hasher)
 	if err != nil {
 		log.G(ctx).Error("could not normalize GPU resources", zap.Error(err))

@@ -160,13 +160,8 @@ func (m *matcher) getMatchingOrders(ctx context.Context, id *big.Int) ([]*sonm.O
 func (m *matcher) openDeal(ctx context.Context, bid, ask *sonm.Order) (*sonm.Deal, error) {
 	askID := ask.GetId().Unwrap()
 	bidID := bid.GetId().Unwrap()
-
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case res := <-m.cfg.Eth.Market().OpenDeal(ctx, m.cfg.Key, askID, bidID):
-		return res.Deal, res.Err
-	}
+	deal, err := m.cfg.Eth.Market().OpenDeal(ctx, m.cfg.Key, askID, bidID)
+	return deal, err
 }
 
 func (m *matcher) reorderOrders(one, two *sonm.Order) (bid, ask *sonm.Order, err error) {

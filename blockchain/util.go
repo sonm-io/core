@@ -45,6 +45,25 @@ func extractBig(topics []common.Hash, pos int) (*big.Int, error) {
 	return topics[pos].Big(), nil
 }
 
+// WaitTxAndExtractLog await transaction mining and extract log contains for given topic
+// this func is composition of FindLogByTopic and WaitTransactionReceipt
+func WaitTxAndExtractLog(ctx context.Context, client CustomEthereumClient, confirmations int64, logParsePeriod time.Duration, tx *types.Transaction, topic common.Hash) (*types.Log, error) {
+	receipt, err := WaitTransactionReceipt(ctx, client, confirmations, logParsePeriod, tx)
+	if err != nil {
+		return nil, err
+	}
+
+	txLog, err := FindLogByTopic(receipt, topic)
+	if err != nil {
+		return nil, err
+	}
+
+	return txLog, nil
+}
+
+// FindLogByTopic safety search log in transaction receipt
+// return error if transaction failed
+// return error if topic doesn't contain in receipt
 func FindLogByTopic(txReceipt *Receipt, topic common.Hash) (*types.Log, error) {
 	if txReceipt.Status != types.ReceiptStatusSuccessful {
 		return nil, errors.New("transaction failed")
@@ -55,44 +74,17 @@ func FindLogByTopic(txReceipt *Receipt, topic common.Hash) (*types.Log, error) {
 			return nil, errors.New("transaction topics is malformed")
 		}
 		receivedTopic := l.Topics[0]
-		topicCmp := bytes.Compare(receivedTopic.Bytes(), topic.Bytes())
-		if topicCmp == 0 {
+		if bytes.Compare(receivedTopic.Bytes(), topic.Bytes()) == 0 {
 			return l, nil
 		}
 	}
 
 	// TODO(sshaman1101): not so user-friendly message leaved for debugging, remove before releasing.
-	return nil, fmt.Errorf("cannot find topic \"%s\"in transaction", topic.Hex())
+	return nil, fmt.Errorf("cannot find topic \"%s\"in transaction receipt", topic.Hex())
 }
 
-func waitForTransactionResult(ctx context.Context, client EthereumClientBackend, logParsePeriod time.Duration, tx *types.Transaction, topic common.Hash) (*types.Log, error) {
-	tk := util.NewImmediateTicker(logParsePeriod)
-	defer tk.Stop()
-
-	for {
-		select {
-		case <-tk.C:
-			var err error
-			tmpRec := &Receipt{}
-			tmpRec.Receipt, err = client.TransactionReceipt(ctx, tx.Hash())
-			if err != nil {
-				if err == ethereum.NotFound {
-					break
-				}
-				return nil, err
-			}
-			logs, err := FindLogByTopic(tmpRec, topic)
-			if err != nil {
-				return nil, err
-			}
-
-			return logs, err
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-	}
-}
-
+// WaitTransactionReceipt await transaction with confirmations
+// returns Receipt of completed transaction
 func WaitTransactionReceipt(ctx context.Context, client CustomEthereumClient, confirmations int64, logParsePeriod time.Duration, tx *types.Transaction) (*Receipt, error) {
 	tk := util.NewImmediateTicker(logParsePeriod)
 	defer tk.Stop()

@@ -442,16 +442,18 @@ func (m *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersReque
 	builder = builder.Where("Type = ?", orderType).
 		Where("Status = ?", pb.OrderStatus_ORDER_ACTIVE).
 		Where(fmt.Sprintf("Price %s ?", priceOp), order.Order.Price.PaddedString())
-	if order.Order.Duration > 0 {
-		builder = builder.Where(fmt.Sprintf("Duration %s ?", durationOp), order.Order.Duration)
-	} else {
-		builder = builder.Where("Duration = ?", order.Order.Duration)
-	}
+	builder = builder.Where(fmt.Sprintf("Duration %s ?", durationOp), order.Order.Duration)
 	if !order.Order.CounterpartyID.IsZero() {
-		builder = builder.Where("AuthorID = ?", order.Order.CounterpartyID.Unwrap().Hex())
+		builder = builder.Where(squirrel.Or{
+			squirrel.Eq{"AuthorID": order.Order.CounterpartyID.Unwrap().Hex()},
+			squirrel.Eq{"MasterID": order.Order.CounterpartyID.Unwrap().Hex()},
+		})
 	}
 	builder = builder.Where(squirrel.Eq{
-		"CounterpartyID": []string{common.Address{}.Hex(), order.Order.AuthorID.Unwrap().Hex()},
+		"CounterpartyID": []string{
+			common.Address{}.Hex(),
+			order.Order.AuthorID.Unwrap().Hex(),
+			order.MasterID.Unwrap().Hex()},
 	})
 	if order.Order.OrderType == pb.OrderType_BID {
 		builder = m.newNetflagsWhere(builder, pb.CmpOp_GTE, order.Order.GetNetflags().GetFlags())
@@ -468,23 +470,19 @@ func (m *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersReque
 	// Filter orders that:
 	// 	1. have our Master/Author in their Master/Author/Blacklist blacklist,
 	//	2. whose Master/Author is in our Master/Author/Blacklist blacklist.
+	//
+	// TODO: I've found no way to write this embedded query using squirrel;
+	// just writing a `blacklistQuery` and using it as `builder = builder.Where(blacklistQuery)`
+	// doesn't work for PostgreSQL because subquery arguments are counted from $1.
 	var (
 		masterID    = order.MasterID.Unwrap().Hex()
 		authorID    = order.GetOrder().AuthorID.Unwrap().Hex()
 		blacklistID = order.GetOrder().GetBlacklist()
 	)
-	blacklistsQuery := m.builder().Select("*").Prefix("NOT EXISTS (").Suffix(")").From("Blacklists AS b").
-		Where(squirrel.Or{
-			squirrel.And{
-				squirrel.Expr("b.AdderID IN (o.MasterID, o.AuthorID, o.Blacklist)"),
-				squirrel.Eq{"b.AddeeID": []string{masterID, authorID}},
-			},
-			squirrel.And{
-				squirrel.Eq{"b.AdderID": []string{masterID, authorID, blacklistID}},
-				squirrel.Expr("b.AddeeID IN (o.MasterID, o.AuthorID)"),
-			},
-		})
-	builder = builder.Where(blacklistsQuery)
+	builder = builder.Where(`NOT EXISTS (SELECT * FROM Blacklists AS b WHERE (
+		(b.AdderID IN (o.MasterID, o.AuthorID, o.Blacklist) AND b.AddeeID IN (?, ?)) OR
+		(b.AdderID IN (?, ?, ?) AND b.AddeeID IN (o.MasterID, o.AuthorID))))`,
+		masterID, authorID, masterID, authorID, blacklistID)
 
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.OrderColumns, ", "), r.WithCount, query, args...)
@@ -797,9 +795,25 @@ func (m *sqlStorage) GetBlacklist(conn queryConn, r *pb.BlacklistRequest) (*pb.B
 	}, nil
 }
 
-func (m *sqlStorage) InsertValidator(conn queryConn, validator *pb.Validator) error {
-	query, args, _ := m.builder().Insert("Validators").Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
-	_, err := conn.Exec(query, args...)
+func (m *sqlStorage) InsertOrUpdateValidator(conn queryConn, validator *pb.Validator) error {
+	// Validators are never deleted, so it's O.K. to check in a non-atomic way.
+	query, args, _ := m.builder().Select("*").From("Validators").Where("Id = ?", validator.GetId().Unwrap().Hex()).
+		ToSql()
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return errors.WithMessage(err, "failed to check if Validator exists")
+	}
+	defer rows.Close()
+
+	// Update if exists.
+	if rows.Next() {
+		// rows.Close is idempotent.
+		rows.Close()
+		return m.UpdateValidator(conn, validator)
+	}
+
+	query, args, _ = m.builder().Insert("Validators").Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
+	_, err = conn.Exec(query, args...)
 	return err
 }
 
