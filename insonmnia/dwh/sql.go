@@ -335,7 +335,7 @@ func (m *sqlStorage) GetOrderByID(conn queryConn, orderID *big.Int) (*pb.DWHOrde
 }
 
 func (m *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOrder, uint64, error) {
-	builder := m.builder().Select("*").From("Orders").
+	builder := m.builder().Select("*").From("Orders AS o").
 		Where("Status = ?", pb.OrderStatus_ORDER_ACTIVE)
 	if !r.DealID.IsZero() {
 		builder = builder.Where("DealID = ?", r.DealID.Unwrap().String())
@@ -388,6 +388,15 @@ func (m *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 	if r.Benchmarks != nil {
 		builder = m.addBenchmarksConditionsWhere(builder, r.Benchmarks)
 	}
+
+	if len(r.SenderIDs) > 0 {
+		var senderIDs []string
+		for _, id := range r.SenderIDs {
+			senderIDs = append(senderIDs, id.Unwrap().Hex())
+		}
+		builder = m.builderWithBlacklistFilters(builder, senderIDs, senderIDs)
+	}
+
 	builder = m.builderWithSortings(builder, r.Sortings)
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.OrderColumns, ", "), r.WithCount, query, args...)
@@ -466,23 +475,13 @@ func (m *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersReque
 		builder = builder.Where(fmt.Sprintf("%s %s ?", getBenchmarkColumn(uint64(benchID)), benchOp), benchValue)
 	}
 	builder = m.builderWithSortings(builder, []*pb.SortingOption{{Field: "Price", Order: sortingOrder}})
-
-	// Filter orders that:
-	// 	1. have our Master/Author in their Master/Author/Blacklist blacklist,
-	//	2. whose Master/Author is in our Master/Author/Blacklist blacklist.
-	//
-	// TODO: I've found no way to write this embedded query using squirrel;
-	// just writing a `blacklistQuery` and using it as `builder = builder.Where(blacklistQuery)`
-	// doesn't work for PostgreSQL because subquery arguments are counted from $1.
 	var (
 		masterID    = order.MasterID.Unwrap().Hex()
 		authorID    = order.GetOrder().AuthorID.Unwrap().Hex()
 		blacklistID = order.GetOrder().GetBlacklist()
 	)
-	builder = builder.Where(`NOT EXISTS (SELECT * FROM Blacklists AS b WHERE (
-		(b.AdderID IN (o.MasterID, o.AuthorID, o.Blacklist) AND b.AddeeID IN (?, ?)) OR
-		(b.AdderID IN (?, ?, ?) AND b.AddeeID IN (o.MasterID, o.AuthorID))))`,
-		masterID, authorID, masterID, authorID, blacklistID)
+	builder = m.builderWithBlacklistFilters(builder, []string{masterID, authorID},
+		[]string{masterID, authorID, blacklistID})
 
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.OrderColumns, ", "), r.WithCount, query, args...)
@@ -1044,6 +1043,24 @@ func (m *sqlStorage) addBenchmarksConditionsWhere(builder squirrel.SelectBuilder
 	}
 
 	return builder
+}
+
+// builderWithBlacklistFilters filters orders that:
+// 	1. have our Master/Author in their Master/Author/Blacklist blacklist,
+//	2. whose Master/Author is in our Master/Author/Blacklist blacklist.
+func (m *sqlStorage) builderWithBlacklistFilters(builder squirrel.SelectBuilder, addees, adders []string) squirrel.SelectBuilder {
+	blacklistsQuery := m.builder().Select("*").Prefix("NOT EXISTS (").Suffix(")").From("Blacklists AS b").
+		Where(squirrel.Or{
+			squirrel.And{
+				squirrel.Expr("b.AdderID IN (o.MasterID, o.AuthorID, o.Blacklist)"),
+				squirrel.Eq{"b.AddeeID": addees},
+			},
+			squirrel.And{
+				squirrel.Eq{"b.AdderID": adders},
+				squirrel.Expr("b.AddeeID IN (o.MasterID, o.AuthorID)"),
+			},
+		})
+	return builder.Where(blacklistsQuery)
 }
 
 func (m *sqlStorage) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
