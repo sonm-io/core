@@ -161,10 +161,10 @@ func (c *containerDescriptor) execCommand(ctx context.Context, cmd []string, env
 	return
 }
 
-func (c *containerDescriptor) Kill(ctx context.Context) (err error) {
+func (c *containerDescriptor) Kill(ctx context.Context) error {
 	c.log.Info("kill the container")
-	if err = c.client.ContainerKill(ctx, c.ID, "SIGKILL"); err != nil {
-		c.log.Error("failed to send SIGKILL to the container: %s", err)
+	if err := c.client.ContainerKill(ctx, c.ID, "SIGKILL"); err != nil {
+		c.log.Warnf("failed to send SIGKILL to the container: %s", err)
 		return err
 	}
 	return nil

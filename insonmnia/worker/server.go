@@ -1053,6 +1053,7 @@ func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*b
 		return nil, fmt.Errorf("cannot parse benchmark result: %v", err)
 	}
 
+	m.ovs.OnDealFinish(m.ctx, statusReply.ID)
 	return resultsMap, nil
 }
 
