@@ -179,7 +179,7 @@ func (m *Worker) waitMasterApproved() error {
 		return nil
 	}
 	selfAddr := m.ethAddr().Hex()
-	log.S(m.ctx).Infof("waiting for master %s approval for address %s", m.cfg.Master.Hex(), selfAddr)
+	log.S(m.ctx).Infof("waiting approval for %s from master %s", selfAddr, m.cfg.Master.Hex())
 	expectedMaster := m.cfg.Master.Hex()
 	ticker := util.NewImmediateTicker(time.Second)
 	for {
@@ -193,7 +193,7 @@ func (m *Worker) waitMasterApproved() error {
 			}
 			curMaster := addr.Hex()
 			if curMaster == selfAddr {
-				log.S(m.ctx).Info("still no approval, continue waiting")
+				log.S(m.ctx).Infof("still no approval for %s from %s, continue waiting", m.ethAddr().Hex(), m.cfg.Master)
 				continue
 			}
 			if curMaster != expectedMaster {
@@ -218,7 +218,8 @@ func (m *Worker) setupMaster() error {
 		return err
 	}
 	if addr.Big().Cmp(m.ethAddr().Big()) == 0 {
-		log.S(m.ctx).Infof("master is not set, sending request to %s", m.cfg.Master.Hex())
+		log.S(m.ctx).Infof("master is not confirmed or not set, sending request from %s to %s",
+			m.ethAddr().Hex(), m.cfg.Master.Hex())
 		err = m.eth.Market().RegisterWorker(m.ctx, m.key, m.cfg.Master)
 		if err != nil {
 			return err
