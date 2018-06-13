@@ -82,16 +82,16 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 		CounterpartyID: req.GetCounterparty(),
 		Duration:       uint64(req.GetDuration().Unwrap().Seconds()),
 		Price:          req.GetPrice().GetPerSecond(),
-		Netflags: pb.NetflagsToUint([3]bool{
-			req.GetResources().GetNetwork().GetOverlay(),
-			req.GetResources().GetNetwork().GetOutbound(),
-			req.GetResources().GetNetwork().GetIncoming(),
-		}),
-		IdentityLevel: req.GetIdentity(),
-		Blacklist:     blacklist,
-		Tag:           []byte(req.GetTag()),
-		Benchmarks:    benchStruct,
+		Netflags:       &pb.NetFlags{},
+		IdentityLevel:  req.GetIdentity(),
+		Blacklist:      blacklist,
+		Tag:            []byte(req.GetTag()),
+		Benchmarks:     benchStruct,
 	}
+	net := req.GetResources().GetNetwork()
+	order.Netflags.SetOverlay(net.GetOverlay())
+	order.Netflags.SetIncoming(net.GetIncoming())
+	order.Netflags.SetOutbound(net.GetOutbound())
 
 	order, err = m.remotes.eth.Market().PlaceOrder(ctx, m.remotes.key, order)
 	if err != nil {

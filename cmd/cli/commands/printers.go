@@ -123,8 +123,8 @@ func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
 		netIn := datasize.NewBitRate(dev.GetNetwork().GetIn()).HumanReadable()
 		netOut := datasize.NewBitRate(dev.GetNetwork().GetOut()).HumanReadable()
 		cmd.Println("Network:")
-		cmd.Printf("  Incoming: %v\r\n", dev.GetNetwork().GetIncoming())
-		cmd.Printf("  Overlay:  %v\r\n", dev.GetNetwork().GetOverlay())
+		cmd.Printf("  Incoming: %v\r\n", dev.GetNetwork().GetNetFlags().GetIncoming())
+		cmd.Printf("  Overlay:  %v\r\n", dev.GetNetwork().GetNetFlags().GetOverlay())
 		cmd.Printf("  In:       %s\r\n", netIn)
 		cmd.Printf("  Out:      %s\r\n", netOut)
 
@@ -180,11 +180,10 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 			cmd.Printf("Counterparty ID: %s\r\n", order.GetCounterpartyID().Unwrap().Hex())
 		}
 
-		flags := pb.UintToNetflags(order.GetNetflags())
 		cmd.Println("Net:")
-		cmd.Printf("  Overlay:  %v\r\n", flags[0])
-		cmd.Printf("  Outbound: %v\r\n", flags[1])
-		cmd.Printf("  Incoming: %v\r\n", flags[2])
+		cmd.Printf("  Overlay:  %v\r\n", order.GetNetflags().GetOverlay())
+		cmd.Printf("  Outbound: %v\r\n", order.GetNetflags().GetOutbound())
+		cmd.Printf("  Incoming: %v\r\n", order.GetNetflags().GetIncoming())
 
 		b := order.GetBenchmarks()
 		cmd.Println("Benchmarks:")
@@ -314,9 +313,9 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealC
 			}
 			cmd.Printf("  Storage: %v\n", info.GetResources().GetStorage().GetSize().Unwrap().HumanReadable())
 			cmd.Println("  Network:")
-			cmd.Printf("    Overlay:  %v\n", info.GetResources().GetNetwork().GetOverlay())
-			cmd.Printf("    Outbound: %v\n", info.GetResources().GetNetwork().GetOutbound())
-			cmd.Printf("    Incoming: %v\n", info.GetResources().GetNetwork().GetIncoming())
+			cmd.Printf("    Overlay:  %v\n", info.GetResources().GetNetwork().GetNetFlags().GetOverlay())
+			cmd.Printf("    Outbound: %v\n", info.GetResources().GetNetwork().GetNetFlags().GetOutbound())
+			cmd.Printf("    Incoming: %v\n", info.GetResources().GetNetwork().GetNetFlags().GetIncoming())
 
 		}
 

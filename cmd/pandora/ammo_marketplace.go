@@ -120,7 +120,7 @@ func order() *sonm.Order {
 		CounterpartyID: pb.NewEthAddress(common.HexToAddress("0x0")),
 		Duration:       3600 + uint64(rand.Int63n(3600)),
 		Price:          sonm.NewBigIntFromInt(1000 + rand.Int63n(1000)),
-		Netflags:       sonm.NetflagsToUint([3]bool{true, true, (rand.Int() % 2) == 0}),
+		Netflags:       &sonm.NetFlags{},
 		IdentityLevel:  sonm.IdentityLevel_ANONYMOUS,
 		Blacklist:      "0x0",
 		Tag:            []byte("00000"),
@@ -141,6 +141,9 @@ func order() *sonm.Order {
 			},
 		},
 	}
+	order.Netflags.SetOverlay(true)
+	order.Netflags.SetIncoming(true)
+	order.Netflags.SetOutbound(rand.Int()%2 == 0)
 
 	return order
 }

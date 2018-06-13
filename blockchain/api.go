@@ -359,7 +359,11 @@ func (api *BasicMarketAPI) GetDealsAmount(ctx context.Context) (*big.Int, error)
 func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) (*pb.Order, error) {
 	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
 
-	fixedNetflags := pb.UintToNetflags(order.Netflags)
+	//TODO: Make netflags dynamic
+	fixedNetflags := [pb.MinNetFlagsCount]bool{}
+	netFlags := order.Netflags.ToBoolSlice()
+	copy(fixedNetflags[:], netFlags[0:pb.MinNetFlagsCount])
+
 	var fixedTag [32]byte
 	copy(fixedTag[:], order.Tag[:])
 
@@ -426,7 +430,7 @@ func (api *BasicMarketAPI) GetOrderInfo(ctx context.Context, orderID *big.Int) (
 		return nil, fmt.Errorf("order fetching inconsistency for order %s", orderID.String())
 	}
 
-	netflags := pb.NetflagsToUint(order1.Netflags)
+	netflags := pb.NetFlagsFromBoolSlice(order1.Netflags[:])
 
 	benchmarks, err := pb.NewBenchmarks(order1.Benchmarks)
 	if err != nil {

@@ -183,7 +183,7 @@ func (r *Repository) ApplyHardwareInfo(hw *hardware.Hardware) {
 		})
 	}
 
-	hw.Network.Overlay = len(r.networkTuners) > 0
+	hw.Network.NetFlags.SetOverlay(len(r.networkTuners) > 0)
 }
 
 // TuneGPU creates GPU bound required for the given provider with further
