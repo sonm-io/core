@@ -193,7 +193,7 @@ func (m *Worker) waitMasterApproved() error {
 			}
 			curMaster := addr.Hex()
 			if curMaster == selfAddr {
-				log.S(m.ctx).Infof("still no approval for %s from %s, continue waiting", m.ethAddr().Hex(), m.cfg.Master)
+				log.S(m.ctx).Infof("still no approval for %s from %s, continue waiting", m.ethAddr().Hex(), m.cfg.Master.Hex())
 				continue
 			}
 			if curMaster != expectedMaster {
