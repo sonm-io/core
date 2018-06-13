@@ -225,7 +225,7 @@ func (m *Salesman) Deal(dealID *sonm.BigInt) (*sonm.Deal, error) {
 
 	deal, ok := m.deals[id]
 	if !ok {
-		return nil, fmt.Errorf(" deal not found by %s", id)
+		return nil, fmt.Errorf("deal not found by %s", id)
 	}
 	return deal, nil
 }
@@ -433,13 +433,14 @@ func (m *Salesman) registerDeal(deal *sonm.Deal) {
 	defer m.mu.Unlock()
 	_, has := m.deals[id]
 	if deal.Status == sonm.DealStatus_DEAL_ACCEPTED {
+		// Update it in any case, because deal change requests could be sent
+		m.deals[id] = deal
 		if !has {
-			m.deals[id] = deal
 			m.log.Infof("registered deal %s", deal.GetId().Unwrap().String())
 		}
 	} else {
+		delete(m.deals, id)
 		if has {
-			delete(m.deals, id)
 			m.log.Infof("unregistered deal %s", deal.GetId().Unwrap().String())
 		}
 	}
