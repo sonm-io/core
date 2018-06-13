@@ -270,12 +270,12 @@ func NewBasicMarket(address common.Address, opts *chainOpts) (MarketAPI, error) 
 }
 
 func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.marketContract.QuickBuy(opts, askId)
 }
 
 func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) (*pb.Deal, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	tx, err := api.marketContract.OpenDeal(opts, askID, bidID)
 	if err != nil {
 		return nil, err
@@ -295,7 +295,7 @@ func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, 
 }
 
 func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) error {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	tx, err := api.marketContract.CloseDeal(opts, dealID, blacklisted)
 	if err != nil {
 		return err
@@ -357,7 +357,7 @@ func (api *BasicMarketAPI) GetDealsAmount(ctx context.Context) (*big.Int, error)
 }
 
 func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) (*pb.Order, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 
 	//TODO: Make netflags dynamic
 	fixedNetflags := [pb.MinNetFlagsCount]bool{}
@@ -396,7 +396,7 @@ func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey
 }
 
 func (api *BasicMarketAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	tx, err := api.marketContract.CancelOrder(opts, id)
 	if err != nil {
 		return err
@@ -460,7 +460,7 @@ func (api *BasicMarketAPI) GetOrdersAmount(ctx context.Context) (*big.Int, error
 }
 
 func (api *BasicMarketAPI) Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) error {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	tx, err := api.marketContract.Bill(opts, dealID)
 	if err != nil {
 		return err
@@ -474,7 +474,7 @@ func (api *BasicMarketAPI) Bill(ctx context.Context, key *ecdsa.PrivateKey, deal
 }
 
 func (api *BasicMarketAPI) RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) error {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	tx, err := api.marketContract.RegisterWorker(opts, master)
 	if err != nil {
 		return err
@@ -488,7 +488,7 @@ func (api *BasicMarketAPI) RegisterWorker(ctx context.Context, key *ecdsa.Privat
 }
 
 func (api *BasicMarketAPI) ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) error {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	tx, err := api.marketContract.ConfirmWorker(opts, slave)
 	if err != nil {
 		return err
@@ -502,7 +502,7 @@ func (api *BasicMarketAPI) ConfirmWorker(ctx context.Context, key *ecdsa.Private
 }
 
 func (api *BasicMarketAPI) RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) error {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	tx, err := api.marketContract.RemoveWorker(opts, master, slave)
 	if err != nil {
 		return err
@@ -537,7 +537,7 @@ func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, changeR
 
 func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, req *pb.DealChangeRequest) (*big.Int, error) {
 	duration := big.NewInt(int64(req.GetDuration()))
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	tx, err := api.marketContract.CreateChangeRequest(opts, req.GetDealID().Unwrap(), req.GetPrice().Unwrap(), duration)
 	if err != nil {
 		return nil, err
@@ -557,7 +557,7 @@ func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.P
 }
 
 func (api *BasicMarketAPI) CancelChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	tx, err := api.marketContract.CancelChangeRequest(opts, id)
 	if err != nil {
 		return err
@@ -606,22 +606,22 @@ func NewProfileRegistry(address common.Address, opts *chainOpts) (ProfileRegistr
 }
 
 func (api *ProfileRegistry) CreateCertificate(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address, attributeType *big.Int, value []byte) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.profileRegistryContract.CreateCertificate(opts, owner, attributeType, value)
 }
 
 func (api *ProfileRegistry) RemoveCertificate(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.profileRegistryContract.RemoveCertificate(opts, id)
 }
 
 func (api *ProfileRegistry) AddValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address, level int8) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.profileRegistryContract.AddValidator(opts, validator, level)
 }
 
 func (api *ProfileRegistry) RemoveValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.profileRegistryContract.RemoveValidator(opts, validator)
 }
 
@@ -688,12 +688,12 @@ func (api *BasicBlacklistAPI) Check(ctx context.Context, who, whom common.Addres
 }
 
 func (api *BasicBlacklistAPI) Add(ctx context.Context, key *ecdsa.PrivateKey, who, whom common.Address) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.blacklistContract.Add(opts, who, whom)
 }
 
 func (api *BasicBlacklistAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) error {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	tx, err := api.blacklistContract.Remove(opts, whom)
 	if err != nil {
 		return err
@@ -707,17 +707,17 @@ func (api *BasicBlacklistAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey,
 }
 
 func (api *BasicBlacklistAPI) AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.blacklistContract.AddMaster(opts, root)
 }
 
 func (api *BasicBlacklistAPI) RemoveMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.blacklistContract.RemoveMaster(opts, root)
 }
 
 func (api *BasicBlacklistAPI) SetMarketAddress(ctx context.Context, key *ecdsa.PrivateKey, market common.Address) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.blacklistContract.SetMarketAddress(opts, market)
 }
 
@@ -754,17 +754,17 @@ func (api *StandardTokenApi) AllowanceOf(ctx context.Context, from, to common.Ad
 }
 
 func (api *StandardTokenApi) Approve(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimit, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimit)
 	return api.tokenContract.Approve(opts, to, amount)
 }
 
 func (api *StandardTokenApi) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimit, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimit)
 	return api.tokenContract.Transfer(opts, to, amount)
 }
 
 func (api *StandardTokenApi) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from common.Address, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimit, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimit)
 	return api.tokenContract.TransferFrom(opts, from, to, amount)
 }
 
@@ -797,7 +797,7 @@ func NewTestToken(address common.Address, opts *chainOpts) (TestTokenAPI, error)
 }
 
 func (api *TestTokenApi) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimit, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimit)
 	return api.tokenContract.GetTokens(opts)
 }
 
@@ -1106,7 +1106,7 @@ func NewOracleUSDAPI(address common.Address, opts *chainOpts) (OracleAPI, error)
 }
 
 func (api *OracleUSDAPI) SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.oracleContract.SetCurrentPrice(opts, price)
 }
 
@@ -1139,16 +1139,16 @@ func NewSimpleGatekeeper(address common.Address, opts *chainOpts) (SimpleGatekee
 }
 
 func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.contract.PayIn(opts, value)
 }
 
 func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.contract.Payout(opts, to, value, txNumber)
 }
 
 func (api *BasicSimpleGatekeeper) Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
-	opts := getTxOpts(ctx, key, defaultGasLimitForSidechain, api.opts.gasPrice)
+	opts := api.opts.getTxOpts(ctx, key, defaultGasLimitForSidechain)
 	return api.contract.Kill(opts)
 }

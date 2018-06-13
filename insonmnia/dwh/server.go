@@ -700,9 +700,16 @@ func (m *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 			return errors.Wrap(err, "failed to storage.GetDealByID")
 		}
 
+		deal.Deal.Duration = changeRequest.Duration
+		deal.Deal.Price = changeRequest.Price
+		if err := m.storage.UpdateDeal(conn, deal.Deal); err != nil {
+			return errors.WithMessage(err, "failed to UpdateDeal")
+		}
+
 		if err := m.updateDealConditionEndTime(conn, deal.GetDeal().Id, eventTS); err != nil {
 			return errors.Wrap(err, "failed to updateDealConditionEndTime")
 		}
+
 		err = m.storage.InsertDealCondition(conn,
 			&pb.DealCondition{
 				SupplierID:  deal.GetDeal().SupplierID,
