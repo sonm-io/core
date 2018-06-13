@@ -68,15 +68,17 @@ message GPU {
     map<uint64, Benchmark> benchmarks = 2;
 }
 
+message NetFlags {
+    uint64 flags =1;
+}
+
 message Network {
     uint64 in = 1;
     uint64 out = 2;
-    bool overlay = 3;
-    bool incoming = 4;
-    bool outbound = 5;
+    NetFlags netFlags = 3;
 
-    map<uint64, Benchmark> benchmarksIn = 6;
-    map<uint64, Benchmark> benchmarksOut = 7;
+    map<uint64, Benchmark> benchmarksIn = 4;
+    map<uint64, Benchmark> benchmarksOut = 5;
 }
 
 message StorageDevice {

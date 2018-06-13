@@ -305,7 +305,7 @@ func (m *Worker) setupHardware() error {
 	m.plugins.ApplyHardwareInfo(hardwareInfo)
 	hardwareInfo.SetNetworkIncoming(m.publicIPs)
 	//TODO: configurable?
-	hardwareInfo.Network.Outbound = true
+	hardwareInfo.Network.NetFlags.SetOutbound(true)
 	m.hardware = hardwareInfo
 	return nil
 }
@@ -599,7 +599,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 
 	if len(spec.GetContainer().GetExpose()) > 0 {
-		if !ask.GetResources().GetNetwork().GetIncoming() {
+		if !ask.GetResources().GetNetwork().GetNetFlags().GetIncoming() {
 			m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 			return nil, fmt.Errorf("incoming network is required due to explicit `expose` settings, but not allowed for `%s` deal", dealID.Unwrap())
 		}

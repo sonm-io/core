@@ -512,7 +512,7 @@ func (m *Salesman) placeOrder(ctx context.Context, plan *sonm.AskPlan) (*sonm.Or
 		Duration:       uint64(plan.GetDuration().Unwrap().Seconds()),
 		Price:          plan.GetPrice().GetPerSecond(),
 		//TODO:refactor NetFlags in separqate PR
-		Netflags:      sonm.NetflagsToUint([3]bool{net.GetOverlay(), net.GetOutbound(), net.GetIncoming()}),
+		Netflags:      net.GetNetFlags(),
 		IdentityLevel: plan.GetIdentity(),
 		Blacklist:     plan.GetBlacklist().Unwrap().Hex(),
 		Tag:           plan.GetTag(),

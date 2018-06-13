@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "bigint.proto";
+import "capabilities.proto";
 import "insonmnia.proto";
 import "timestamp.proto";
 
@@ -88,7 +89,7 @@ message Order {
     EthAddress counterpartyID = 6;
     uint64 duration = 7;
     BigInt price = 8;
-    uint64 netflags = 9;
+    NetFlags netflags = 9;
     IdentityLevel identityLevel = 10;
     string blacklist = 11;
     bytes tag = 12;

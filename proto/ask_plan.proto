@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "bigint.proto";
+import "capabilities.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
 
@@ -26,9 +27,7 @@ message AskPlanStorage {
 message AskPlanNetwork {
     DataSizeRate throughputIn = 1;
     DataSizeRate throughputOut = 2;
-    bool overlay = 3;
-    bool outbound = 4;
-    bool incoming = 5;
+    NetFlags netFlags = 3;
 }
 
 message AskPlanResources {
