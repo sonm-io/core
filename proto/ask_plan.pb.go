@@ -62,6 +62,7 @@ It has these top-level messages:
 	Profile
 	BlacklistRequest
 	BlacklistReply
+	BlacklistsContainingUserReply
 	ValidatorsRequest
 	ValidatorsReply
 	Validator
