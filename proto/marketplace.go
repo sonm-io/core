@@ -36,6 +36,15 @@ func (m *BidOrder) Validate() error {
 	return nil
 }
 
+func (m *Benchmarks) GetNValues(targetSize uint64) []uint64 {
+	out := make([]uint64, targetSize)
+	if m != nil {
+		copy(out, m.Values)
+	}
+
+	return out
+}
+
 func (m *Benchmarks) Validate() error {
 	if len(m.Values) < MinNumBenchmarks {
 		return fmt.Errorf("expected at least %d benchmarks, got %d", MinNumBenchmarks, len(m.Values))

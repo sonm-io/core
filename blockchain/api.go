@@ -850,6 +850,7 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 			ValidatorCreatedTopic,
 			ValidatorDeletedTopic,
 			CertificateCreatedTopic,
+			NumBenchmarksUpdatedTopic,
 		}
 		out = make(chan *Event, 128)
 	)
@@ -1072,6 +1073,17 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			return
 		}
 		sendData(&CertificateCreatedData{ID: id})
+	case NumBenchmarksUpdatedTopic:
+		numBenchmarksBig, err := extractBig(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		if !numBenchmarksBig.IsUint64() {
+			sendErr(out, errors.New("num benchmarks can not be used as uint64"), topic)
+			return
+		}
+		sendData(&NumBenchmarksUpdatedData{NumBenchmarks: numBenchmarksBig.Uint64()})
 	default:
 		out <- &Event{
 			Data:        &ErrorData{Err: errors.New("unknown topic"), Topic: topic.String()},
