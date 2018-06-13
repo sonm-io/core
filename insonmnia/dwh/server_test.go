@@ -345,8 +345,8 @@ func TestDWH_GetOrderDetails(t *testing.T) {
 	if reply.Price.Unwrap().String() != "20015" {
 		t.Errorf("Expected %s, got %s (Price)", "20015", reply.Price.Unwrap().String())
 	}
-	if reply.Netflags != 7 {
-		t.Errorf("Expected %d, got %d (Netflags)", 7, reply.Netflags)
+	if reply.GetNetflags().GetFlags() != 7 {
+		t.Errorf("Expected %d, got %d (Netflags)", 7, reply.GetNetflags().GetFlags())
 	}
 	if reply.Blacklist != "blacklist_5" {
 		t.Errorf("Expected %s, got %s (Blacklist)", "blacklist_5", reply.Blacklist)
@@ -554,7 +554,7 @@ func TestDWH_monitor(t *testing.T) {
 		CounterpartyID: pb.NewEthAddress(common.HexToAddress("0x0")),
 		Duration:       10020,
 		Price:          pb.NewBigInt(big.NewInt(20010)),
-		Netflags:       7,
+		Netflags:       &pb.NetFlags{Flags: uint64(7)},
 		IdentityLevel:  pb.IdentityLevel_ANONYMOUS,
 		Blacklist:      "blacklist",
 		Tag:            []byte{0, 1},
