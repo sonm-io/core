@@ -106,6 +106,8 @@ message OrdersRequest {
     repeated SortingOption sortings = 17;
     bool withCount = 18;
     EthAddress masterID = 19;
+    // IDs associated with sender.
+    repeated EthAddress senderIDs = 20;
 }
 
 message MatchingOrdersRequest {

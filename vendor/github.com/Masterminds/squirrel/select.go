@@ -4,18 +4,19 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"github.com/lann/builder"
 	"strings"
+
+	"github.com/lann/builder"
 )
 
 type selectData struct {
 	PlaceholderFormat PlaceholderFormat
 	RunWith           BaseRunner
 	Prefixes          exprs
-	Distinct          bool
+	Options           []string
 	Columns           []Sqlizer
-	From              string
-	Joins             []string
+	From              Sqlizer
+	Joins             []Sqlizer
 	WhereParts        []Sqlizer
 	GroupBys          []string
 	HavingParts       []Sqlizer
@@ -51,6 +52,20 @@ func (d *selectData) QueryRow() RowScanner {
 }
 
 func (d *selectData) ToSql() (sqlStr string, args []interface{}, err error) {
+	sqlStr, args, err = d.toSql()
+	if err != nil {
+		return
+	}
+
+	sqlStr, err = d.PlaceholderFormat.ReplacePlaceholders(sqlStr)
+	return
+}
+
+func (d *selectData) toSqlRaw() (sqlStr string, args []interface{}, err error) {
+	return d.toSql()
+}
+
+func (d *selectData) toSql() (sqlStr string, args []interface{}, err error) {
 	if len(d.Columns) == 0 {
 		err = fmt.Errorf("select statements must have at least one result column")
 		return
@@ -65,8 +80,9 @@ func (d *selectData) ToSql() (sqlStr string, args []interface{}, err error) {
 
 	sql.WriteString("SELECT ")
 
-	if d.Distinct {
-		sql.WriteString("DISTINCT ")
+	if len(d.Options) > 0 {
+		sql.WriteString(strings.Join(d.Options, " "))
+		sql.WriteString(" ")
 	}
 
 	if len(d.Columns) > 0 {
@@ -76,14 +92,20 @@ func (d *selectData) ToSql() (sqlStr string, args []interface{}, err error) {
 		}
 	}
 
-	if len(d.From) > 0 {
+	if d.From != nil {
 		sql.WriteString(" FROM ")
-		sql.WriteString(d.From)
+		args, err = appendToSql([]Sqlizer{d.From}, sql, "", args)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(d.Joins) > 0 {
 		sql.WriteString(" ")
-		sql.WriteString(strings.Join(d.Joins, " "))
+		args, err = appendToSql(d.Joins, sql, " ", args)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(d.WhereParts) > 0 {
@@ -127,7 +149,7 @@ func (d *selectData) ToSql() (sqlStr string, args []interface{}, err error) {
 		args, _ = d.Suffixes.AppendToSql(sql, " ", args)
 	}
 
-	sqlStr, err = d.PlaceholderFormat.ReplacePlaceholders(sql.String())
+	sqlStr = sql.String()
 	return
 }
 
@@ -186,6 +208,11 @@ func (b SelectBuilder) ToSql() (string, []interface{}, error) {
 	return data.ToSql()
 }
 
+func (b SelectBuilder) toSqlRaw() (string, []interface{}, error) {
+	data := builder.GetStruct(b).(selectData)
+	return data.toSqlRaw()
+}
+
 // Prefix adds an expression to the beginning of the query
 func (b SelectBuilder) Prefix(sql string, args ...interface{}) SelectBuilder {
 	return builder.Append(b, "Prefixes", Expr(sql, args...)).(SelectBuilder)
@@ -193,7 +220,12 @@ func (b SelectBuilder) Prefix(sql string, args ...interface{}) SelectBuilder {
 
 // Distinct adds a DISTINCT clause to the query.
 func (b SelectBuilder) Distinct() SelectBuilder {
-	return builder.Set(b, "Distinct", true).(SelectBuilder)
+	return b.Options("DISTINCT")
+}
+
+// Options adds select option to the query
+func (b SelectBuilder) Options(options ...string) SelectBuilder {
+	return builder.Extend(b, "Options", options).(SelectBuilder)
 }
 
 // Columns adds result columns to the query.
@@ -215,27 +247,32 @@ func (b SelectBuilder) Column(column interface{}, args ...interface{}) SelectBui
 
 // From sets the FROM clause of the query.
 func (b SelectBuilder) From(from string) SelectBuilder {
-	return builder.Set(b, "From", from).(SelectBuilder)
+	return builder.Set(b, "From", newPart(from)).(SelectBuilder)
+}
+
+// FromSelect sets a subquery into the FROM clause of the query.
+func (b SelectBuilder) FromSelect(from SelectBuilder, alias string) SelectBuilder {
+	return builder.Set(b, "From", Alias(from, alias)).(SelectBuilder)
 }
 
 // JoinClause adds a join clause to the query.
-func (b SelectBuilder) JoinClause(join string) SelectBuilder {
-	return builder.Append(b, "Joins", join).(SelectBuilder)
+func (b SelectBuilder) JoinClause(pred interface{}, args ...interface{}) SelectBuilder {
+	return builder.Append(b, "Joins", newPart(pred, args...)).(SelectBuilder)
 }
 
 // Join adds a JOIN clause to the query.
-func (b SelectBuilder) Join(join string) SelectBuilder {
-	return b.JoinClause("JOIN " + join)
+func (b SelectBuilder) Join(join string, rest ...interface{}) SelectBuilder {
+	return b.JoinClause("JOIN "+join, rest...)
 }
 
 // LeftJoin adds a LEFT JOIN clause to the query.
-func (b SelectBuilder) LeftJoin(join string) SelectBuilder {
-	return b.JoinClause("LEFT JOIN " + join)
+func (b SelectBuilder) LeftJoin(join string, rest ...interface{}) SelectBuilder {
+	return b.JoinClause("LEFT JOIN "+join, rest...)
 }
 
 // RightJoin adds a RIGHT JOIN clause to the query.
-func (b SelectBuilder) RightJoin(join string) SelectBuilder {
-	return b.JoinClause("RIGHT JOIN " + join)
+func (b SelectBuilder) RightJoin(join string, rest ...interface{}) SelectBuilder {
+	return b.JoinClause("RIGHT JOIN "+join, rest...)
 }
 
 // Where adds an expression to the WHERE clause of the query.
