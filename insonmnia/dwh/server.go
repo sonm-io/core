@@ -323,6 +323,19 @@ func (m *DWH) GetBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 	return out, nil
 }
 
+func (m *DWH) GetBlacklistsContainingUser(ctx context.Context, r *pb.BlacklistRequest) (*pb.BlacklistsContainingUserReply, error) {
+	conn := newSimpleConn(m.db)
+	defer conn.Finish()
+
+	out, err := m.storage.GetBlacklistsContainingUser(conn, r)
+	if err != nil {
+		m.logger.Warn("failed to GetBlacklistsContainingUser", util.LaconicError(err), zap.Any("request", *r))
+		return nil, status.Error(codes.NotFound, "failed to GetBlacklist")
+	}
+
+	return out, nil
+}
+
 func (m *DWH) GetValidators(ctx context.Context, request *pb.ValidatorsRequest) (*pb.ValidatorsReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()

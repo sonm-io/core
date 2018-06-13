@@ -20,7 +20,7 @@ func (b *blacklistAPI) List(ctx context.Context, addr *sonm.EthAddress) (*sonm.B
 		return nil, errors.New("cannot get blacklist for empty address")
 	}
 
-	req := &sonm.BlacklistRequest{OwnerID: addr}
+	req := &sonm.BlacklistRequest{UserID: addr}
 	return b.remotes.dwh.GetBlacklist(ctx, req)
 }
 
