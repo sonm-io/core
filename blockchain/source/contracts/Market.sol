@@ -203,7 +203,7 @@ contract Market is Ownable {
             require(token.transferFrom(msg.sender, this, lockedSum));
         }
 
-        ordersAmount += 1;
+        ordersAmount = ordersAmount.add(1);
         uint256 orderId = ordersAmount;
 
         orders[orderId] = Order(
@@ -315,7 +315,7 @@ contract Market is Ownable {
             require(ask.benchmarks[i] >= bid.benchmarks[i]);
         }
 
-        dealAmount = dealAmount + 1;
+        dealAmount = dealAmount.add(1);
         address master = GetMaster(ask.author);
         orders[_askID].orderStatus = OrderStatus.ORDER_INACTIVE;
         orders[_bidID].orderStatus = OrderStatus.ORDER_INACTIVE;
@@ -331,7 +331,7 @@ contract Market is Ownable {
 
         // if deal is normal
         if (ask.duration != 0) {
-            endTime = startTime + bid.duration;
+            endTime = startTime.add(bid.duration);
         }
 
         uint blockedBalance = bid.frozenSum;
@@ -343,7 +343,7 @@ contract Market is Ownable {
         require((deals[dealID].status == DealStatus.STATUS_ACCEPTED));
         require(msg.sender == deals[dealID].supplierID || msg.sender == deals[dealID].consumerID || msg.sender == deals[dealID].masterID);
 
-        if (block.timestamp <= deals[dealID].startTime + deals[dealID].duration) {
+        if (block.timestamp <= deals[dealID].startTime.add(deals[dealID].duration)) {
             // after endTime
             require(deals[dealID].consumerID == msg.sender);
         }
@@ -369,15 +369,15 @@ contract Market is Ownable {
             //means we already billed deal after endTime
             return true;
         } else if (!IsSpot(dealID) && block.timestamp > deal.endTime && deal.lastBillTS < deal.endTime) {
-            paidAmount = CalculatePayment(deal.price, deal.endTime - deal.lastBillTS);
+            paidAmount = CalculatePayment(deal.price, deal.endTime.sub(deal.lastBillTS));
         } else {
-            paidAmount = CalculatePayment(deal.price, block.timestamp - deal.lastBillTS);
+            paidAmount = CalculatePayment(deal.price, block.timestamp.sub(deal.lastBillTS));
         }
 
         if (paidAmount > deal.blockedBalance) {
-            if (token.balanceOf(deal.consumerID) >= paidAmount - deal.blockedBalance) {
-                require(token.transferFrom(deal.consumerID, this, paidAmount - deal.blockedBalance));
-                deals[dealID].blockedBalance = deals[dealID].blockedBalance.add(paidAmount - deal.blockedBalance);
+            if (token.balanceOf(deal.consumerID) >= paidAmount.sub(deal.blockedBalance)) {
+                require(token.transferFrom(deal.consumerID, this, paidAmount.sub(deal.blockedBalance)));
+                deals[dealID].blockedBalance = deals[dealID].blockedBalance.add(paidAmount.sub(deal.blockedBalance));
             } else {
                 emit Billed(dealID, deals[dealID].blockedBalance);
                 InternalCloseDeal(dealID);
@@ -405,8 +405,8 @@ contract Market is Ownable {
         } else {
             if (block.timestamp > deal.endTime) {
                 return true; //we don't reserve funds for next period
-            } else if (deal.endTime - block.timestamp < 1 days) {
-                nextPeriod = deal.endTime - block.timestamp;
+            } else if (deal.endTime.sub(block.timestamp) < 1 days) {
+                nextPeriod = deal.endTime.sub(block.timestamp);
             } else
                 nextPeriod = 1 days;
         }
@@ -437,7 +437,7 @@ contract Market is Ownable {
             require(newDuration == 0);
         }
 
-        requestsAmount += 1;
+        requestsAmount = requestsAmount.add(1);
 
         OrderType requestType;
 
@@ -508,7 +508,7 @@ contract Market is Ownable {
 
         }
 
-        deals[dealID].endTime = deals[dealID].startTime + deals[dealID].duration;
+        deals[dealID].endTime = deals[dealID].startTime.add(deals[dealID].duration);
         return requestsAmount;
     }
 
