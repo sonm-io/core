@@ -6,14 +6,14 @@ endpoint: ":15010"
 # Admin key is a key that allows to use worker management API without
 # configuring master key.
 # Useful for development and/or debugging.
-admin: 0x000000000000000000000000000000000000000f
+# admin: 0x000000000000000000000000000000000000000f
 
 # Master key is a key that receives all payments for deals
 # This worker should be confirmed by master via sonmcli master confirm,
 # it's eth addr can be found in logs.
 # Private key is also exported in /var/lib/sonm/worker_keystore with "sonm" passphrase
 # This option is required.
-master: 0x0000000000000000000000000000000000000001
+# master: 0x0000000000000000000000000000000000000001
 
 # NAT punching settings.
 npp:
