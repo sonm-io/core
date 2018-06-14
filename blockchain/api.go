@@ -120,7 +120,7 @@ type SimpleGatekeeperAPI interface {
 	// PayIn grab sender tokens and signal gate to transfer it to mirrored chain.
 	// On Masterchain ally as `Deposit`
 	// On Sidecain ally as `Withdraw`
-	PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) (*types.Transaction, error)
+	PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) error
 	// Payout release payout transaction from mirrored chain.
 	// Accessible only by owner.
 	Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error)
@@ -1207,9 +1207,18 @@ func NewSimpleGatekeeper(address common.Address, opts *chainOpts) (SimpleGatekee
 	}, nil
 }
 
-func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) (*types.Transaction, error) {
+func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	return api.contract.PayIn(opts, value)
+	tx, err := api.contract.PayIn(opts, value)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayInTopic); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error) {
