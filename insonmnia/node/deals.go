@@ -98,6 +98,15 @@ func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal,
 	return deal, nil
 }
 
+func (d *dealsAPI) QuickBuy(ctx context.Context, askID *pb.ID) (*pb.Deal, error) {
+	id, err := util.ParseBigInt(askID.GetId())
+	if err != nil {
+		return nil, err
+	}
+
+	return d.remotes.eth.Market().QuickBuy(ctx, d.remotes.key, id)
+}
+
 func (d *dealsAPI) ChangeRequestsList(ctx context.Context, id *pb.BigInt) (*pb.DealChangeRequestsReply, error) {
 	return d.remotes.dwh.GetDealChangeRequests(ctx, id)
 }

@@ -28,6 +28,7 @@ func init() {
 		dealListCmd,
 		dealStatusCmd,
 		dealOpenCmd,
+		dealQuickBuyCmd,
 		dealCloseCmd,
 		changeRequestsRoot,
 	)
@@ -135,6 +136,37 @@ var dealOpenCmd = &cobra.Command{
 		}
 
 		printID(cmd, deal.GetId().Unwrap().String())
+	},
+}
+
+var dealQuickBuyCmd = &cobra.Command{
+	Use:    "quick-buy <ask_id>",
+	Short:  "Copy given ASK order with BID type and open a deal with this orders",
+	Args:   cobra.MinimumNArgs(1),
+	PreRun: loadKeyStoreWrapper,
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		deals, err := newDealsClient(ctx)
+		if err != nil {
+			showError(cmd, "Cannot create client connection", err)
+			os.Exit(1)
+		}
+
+		_, err = util.ParseBigInt(args[0])
+		if err != nil {
+			showError(cmd, err.Error(), nil)
+			os.Exit(1)
+		}
+
+		deal, err := deals.QuickBuy(ctx, &pb.ID{Id: args[0]})
+		if err != nil {
+			showError(cmd, "Cannot perform quick buy on given order", err)
+			os.Exit(1)
+		}
+
+		printDealInfo(cmd, &pb.DealInfoReply{Deal: deal}, nil)
 	},
 }
 

@@ -62,6 +62,9 @@ service DealManagement {
     rpc ApproveChangeRequest(BigInt) returns (Empty) {}
     // CancelChangeRequest removes pending change request
     rpc CancelChangeRequest(BigInt) returns (Empty) {}
+    // QuickBuy places BID order with the same parameters as given ASK order have,
+    // then opens deal with this two orders.
+    rpc QuickBuy(ID) returns (Deal) {}
 }
 
 message DealFinishRequest {
