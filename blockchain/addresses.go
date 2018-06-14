@@ -13,7 +13,7 @@ const ProfileRegistryAddress string = "0x1b3a50ee228b040e1b00ef7e7f99058be268440
 
 const OracleUsdAddress string = "0x1f995e52dcbec7c0d00d45b8b1bf43b29dd12b5b"
 
-const GatekeeperLiveAddress string = "0xbc29310be3693949094ce452b11829dbccca7d49"
+const GatekeeperMasterchainAddress string = "0xbc29310be3693949094ce452b11829dbccca7d49"
 
 const GatekeeperSidechainAddress string = "0x9414922e778a0038058e9ea786e9474a89ad1ec0"
 
@@ -48,6 +48,6 @@ func GatekeeperSidechainAddr() common.Address {
 	return common.HexToAddress(GatekeeperSidechainAddress)
 }
 
-func GatekeeperLiveAddr() common.Address {
-	return common.HexToAddress(GatekeeperLiveAddress)
+func GatekeeperMasterchainAddr() common.Address {
+	return common.HexToAddress(GatekeeperMasterchainAddress)
 }
