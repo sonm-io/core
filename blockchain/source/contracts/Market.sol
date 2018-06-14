@@ -246,7 +246,7 @@ contract Market is Ownable {
         require(ask.orderStatus == OrderStatus.ORDER_ACTIVE);
 
         require(ask.duration >= buyoutDuration);
-        require(pr.CheckProfileLevel(msg.sender, uint(ask.identityLevel)));
+        require(pr.GetProfileLevel(msg.sender) >= uint(ask.identityLevel));
         require(bl.Check(msg.sender, GetMaster(ask.author)) == false && bl.Check(ask.author, msg.sender) == false);
         require(bl.Check(ask.blacklist, msg.sender) == false);
 
@@ -286,8 +286,8 @@ contract Market is Ownable {
         require(ask.price <= bid.price);
         require(ask.duration >= bid.duration);
         // profile level check
-        require(pr.CheckProfileLevel(bid.author, uint(ask.identityLevel)));
-        require(pr.CheckProfileLevel(ask.author, uint(bid.identityLevel)));
+        require(pr.GetProfileLevel(bid.author) >= uint(ask.identityLevel));
+        require(pr.GetProfileLevel(ask.author) >= uint(bid.identityLevel));
 
         if (ask.netflags.length < netflagsQuantity){
             ask.netflags = ResizeNetflags(ask.netflags);
