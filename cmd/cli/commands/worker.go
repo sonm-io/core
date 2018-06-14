@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
@@ -54,6 +55,8 @@ func init() {
 		workerFreeDevicesCmd,
 		workerSwitchCmd,
 		workerCurrentCmd,
+		workerScheduleMaintenanceCmd,
+		workerNextMaintenanceCmd,
 	)
 }
 
@@ -99,6 +102,48 @@ var workerSwitchCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		showOk(cmd)
+	},
+}
+
+var workerScheduleMaintenanceCmd = &cobra.Command{
+	Use:   "maintenance <at or after>",
+	Short: "Schedule worker maintanance",
+	Args:  cobra.MinimumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		var timePoint time.Time
+		timeData := []byte(args[0])
+		if err := timePoint.UnmarshalText(timeData); err != nil {
+			duration, err := time.ParseDuration(args[0])
+			if err != nil {
+				showError(cmd, "Invalid time point or duration specified", err)
+				os.Exit(1)
+			}
+			timePoint = time.Now()
+			timePoint = timePoint.Add(duration)
+		}
+
+		if _, err := worker.ScheduleMaintenance(workerCtx, &pb.Timestamp{Seconds: timePoint.Unix()}); err != nil {
+			showError(cmd, "failed to schedule maintenance", err)
+			os.Exit(1)
+		}
+		showOk(cmd)
+	},
+}
+
+var workerNextMaintenanceCmd = &cobra.Command{
+	Use:   "next-maintenance",
+	Short: "Print next scheduled maintenance",
+	Run: func(cmd *cobra.Command, args []string) {
+		next, err := worker.NextMaintenance(workerCtx, &pb.Empty{})
+		if err != nil {
+			showError(cmd, "failed to get next maintenance", err)
+			os.Exit(1)
+		}
+		if isSimpleFormat() {
+			cmd.Println(next.Unix().String())
+		} else {
+			showJSON(cmd, next.Unix())
+		}
 	},
 }
 
