@@ -14,10 +14,10 @@ const ORDER_TYPE = {
 };
 
 const IdentityLevel = {
-    UNKNOWN: 0,
-    ANONIMOUS: 1,
-    PSEUDOANONIMOUS: 2,
-    IDENTIFIED: 3,
+    ANONIMOUS: 0,
+    IDENTIFIED: 1,
+    REGISTERED: 2,
+    PROFESSIONAL: 3,
 };
 
 contract('Market', async function (accounts) {

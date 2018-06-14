@@ -520,66 +520,17 @@ contract('ProfileRegistry', async function (accounts) {
             await registry.CreateCertificate(master, 1401, 'value', { from: validatorLvl4 });
         });
 
-        describe('when trying to check >4 lvl ', function () {
-            it('should return false', async function () {
-                let result = await registry.CheckProfileLevel.call(master, 5);
-                assert.equal(result, false);
-            });
-        });
-
-        describe('when trying to check 4 lvl and certificate exist', function () {
-            it('should return true', async function () {
-                let result = await registry.CheckProfileLevel.call(master, 4);
-                assert.equal(result, true);
-            });
-        });
-
-        describe('when trying to check 4 lvl and certificate doesnt exist', function () {
-            it('should return false', async function () {
-                let result = await registry.CheckProfileLevel.call(creeper, 4);
-                assert.equal(result, false);
-            });
-        });
-
         describe('when trying to check 3 lvl and certificate exist', function () {
-            it('should returns true', async function () {
-                let result = await registry.CheckProfileLevel.call(master, 3);
-                assert.equal(result, true);
+            it('should return 4 (PROFESSIONAL)', async function () {
+                let result = await registry.GetProfileLevel(master);
+                assert.equal(result.toNumber(10), 4);
             });
         });
 
-        describe('when trying to check 3 lvl and certificate doesnt exist', function () {
-            it('should return false', async function () {
-                let result = await registry.CheckProfileLevel.call(creeper, 3);
-                assert.equal(result, false);
-            });
-        });
-
-        describe('when trying to check 2 lvl and certificate exist', function () {
-            it('should return true', async function () {
-                let result = await registry.CheckProfileLevel.call(master, 2);
-                assert.equal(result, true);
-            });
-        });
-
-        describe('when trying to check 2 lvl and certificate doesnt exist', function () {
-            it('should returns false', async function () {
-                let result = await registry.CheckProfileLevel.call(creeper, 3);
-                assert.equal(result, false);
-            });
-        });
-
-        describe('when trying to check 1 lvl', function () {
-            it('should return true', async function () {
-                let result = await registry.CheckProfileLevel.call(master, 1);
-                assert.equal(result, true);
-            });
-        });
-
-        describe('when trying to check 0 lvl', function () {
-            it('should return true', async function () {
-                let result = await registry.CheckProfileLevel.call(master, 0);
-                assert.equal(result, true);
+        describe('when trying to check certificate doesnt exist', function () {
+            it('should return 1 (ANONIMOUS)', async function () {
+                let result = await registry.GetProfileLevel.call(creeper);
+                assert.equal(result.toNumber(10), 1);
             });
         });
     });
