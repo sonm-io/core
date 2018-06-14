@@ -79,20 +79,19 @@ var dealStatusCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		id := args[0]
-		bigID, err := util.ParseBigInt(id)
+		id, err := pb.NewBigIntFromString(args[0])
 		if err != nil {
 			showError(cmd, "Cannot convert arg to number", err)
 			os.Exit(1)
 		}
 
-		reply, err := dealer.Status(ctx, &pb.ID{Id: id})
+		reply, err := dealer.Status(ctx, id)
 		if err != nil {
 			showError(cmd, "Cannot get deal info", err)
 			os.Exit(1)
 		}
 
-		changeRequests, _ := dealer.ChangeRequestsList(ctx, pb.NewBigInt(bigID))
+		changeRequests, _ := dealer.ChangeRequestsList(ctx, id)
 		printDealInfo(cmd, reply, changeRequests)
 	},
 }
@@ -154,13 +153,13 @@ var dealQuickBuyCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		_, err = util.ParseBigInt(args[0])
+		id, err := pb.NewBigIntFromString(args[0])
 		if err != nil {
-			showError(cmd, err.Error(), nil)
+			showError(cmd, "Cannot convert arg to number", err)
 			os.Exit(1)
 		}
 
-		deal, err := deals.QuickBuy(ctx, &pb.ID{Id: args[0]})
+		deal, err := deals.QuickBuy(ctx, id)
 		if err != nil {
 			showError(cmd, "Cannot perform quick buy on given order", err)
 			os.Exit(1)
