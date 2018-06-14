@@ -16,6 +16,8 @@ const (
 	defaultSidechainGasPrice   = 0
 	defaultBlockConfirmations  = 5
 	defaultLogParsePeriod      = time.Second
+	defaultMasterchainGasLimit = 500000
+	defaultSidechainGasLimit   = 2000000
 )
 
 // chainOpts describes common options
@@ -24,6 +26,7 @@ const (
 // or local geth-node for testing).
 type chainOpts struct {
 	gasPrice           int64
+	gasLimit           uint64
 	endpoint           string
 	logParsePeriod     time.Duration
 	blockConfirmations int64
@@ -58,12 +61,14 @@ func defaultOptions() *options {
 	return &options{
 		masterchain: &chainOpts{
 			gasPrice:           defaultMasterchainGasPrice,
+			gasLimit:           defaultMasterchainGasLimit,
 			endpoint:           defaultMasterchainEndpoint,
 			logParsePeriod:     defaultLogParsePeriod,
 			blockConfirmations: defaultBlockConfirmations,
 		},
 		sidechain: &chainOpts{
 			gasPrice:           defaultSidechainGasPrice,
+			gasLimit:           defaultSidechainGasLimit,
 			endpoint:           defaultSidechainEndpoint,
 			logParsePeriod:     defaultLogParsePeriod,
 			blockConfirmations: defaultBlockConfirmations,
