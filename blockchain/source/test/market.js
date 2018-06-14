@@ -14,10 +14,10 @@ const ORDER_TYPE = {
 };
 
 const IdentityLevel = {
-    ANONIMOUS: 0,
-    IDENTIFIED: 1,
+    ANONYMOUS: 1,
     REGISTERED: 2,
-    PROFESSIONAL: 3,
+    IDENTIFIED: 3,
+    PROFESSIONAL: 4,
 };
 
 contract('Market', async function (accounts) {
@@ -66,7 +66,7 @@ contract('Market', async function (accounts) {
             testDuration, // duration
             testPrice, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -86,7 +86,7 @@ contract('Market', async function (accounts) {
             testDuration, // duration
             testPrice, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -116,7 +116,7 @@ contract('Market', async function (accounts) {
             0, // duration
             testPrice, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -140,7 +140,7 @@ contract('Market', async function (accounts) {
             0, // duration
             testPrice, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -159,7 +159,7 @@ contract('Market', async function (accounts) {
             testDuration, // duration
             testPrice, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -183,7 +183,7 @@ contract('Market', async function (accounts) {
             testDuration, // duration
             testPrice, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -204,7 +204,7 @@ contract('Market', async function (accounts) {
             testDuration, // duration
             testPrice, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -238,7 +238,7 @@ contract('Market', async function (accounts) {
             1, // duration
             1, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -250,7 +250,7 @@ contract('Market', async function (accounts) {
             1, // duration
             1, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -446,7 +446,7 @@ contract('Market', async function (accounts) {
             5, // duration
             1, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -458,7 +458,7 @@ contract('Market', async function (accounts) {
             4, // duration
             1, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -480,7 +480,7 @@ contract('Market', async function (accounts) {
             0, // duration
             1e6, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -492,7 +492,7 @@ contract('Market', async function (accounts) {
             0, // duration
             1e6, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -528,7 +528,7 @@ contract('Market', async function (accounts) {
             0, // duration
             1e6, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -540,7 +540,7 @@ contract('Market', async function (accounts) {
             0, // duration
             1e6, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -578,7 +578,7 @@ contract('Market', async function (accounts) {
             36000, // duration
             1e6, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -590,7 +590,7 @@ contract('Market', async function (accounts) {
             0, // duration
             1e6, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -621,7 +621,7 @@ contract('Market', async function (accounts) {
             36000, // duration
             1e6, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -633,7 +633,7 @@ contract('Market', async function (accounts) {
             0, // duration
             1e6, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -706,7 +706,7 @@ contract('Market', async function (accounts) {
             0, // duration
             1e6, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -718,7 +718,7 @@ contract('Market', async function (accounts) {
             0, // duration
             1e6, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -768,7 +768,7 @@ contract('Market', async function (accounts) {
             testDuration, // duration
             testPrice, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -792,7 +792,7 @@ contract('Market', async function (accounts) {
             testDuration, // duration
             testPrice, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -812,7 +812,7 @@ contract('Market', async function (accounts) {
             3600, // duration
             10, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -824,7 +824,7 @@ contract('Market', async function (accounts) {
             3600, // duration
             10, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -845,7 +845,7 @@ contract('Market', async function (accounts) {
             3600, // duration
             10, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -866,7 +866,7 @@ contract('Market', async function (accounts) {
             3600, // duration
             10, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -878,7 +878,7 @@ contract('Market', async function (accounts) {
             3600, // duration
             10, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks
@@ -902,7 +902,7 @@ contract('Market', async function (accounts) {
             7200, // duration
             1e5, // price
             [0, 0, 0], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             [88, 222], // benchmarks
@@ -933,7 +933,7 @@ contract('Market', async function (accounts) {
             3600, // duration
             1, // price
             [0, 1], // netflags
-            IdentityLevel.ANONIMOUS, // identity level
+            IdentityLevel.ANONYMOUS, // identity level
             0x0, // blacklist
             '00000', // tag
             benchmarks, // benchmarks

@@ -8,13 +8,13 @@ contract ProfileRegistry {
         _;
     }
 
-    uint constant ANONIMOUS = 1;
-
-    uint constant IDENTIFIED = 2;
-
-    uint constant REGISTERED = 3;
-
-    uint constant PROFESSIONAL = 4;
+    enum IdentityLevel {
+        UNKNOWN,
+        ANONYMOUS,
+        REGISTERED,
+        IDENTIFIED,
+        PROFESSIONAL
+    }
 
     struct Certificate {
         address from;
@@ -122,15 +122,15 @@ contract ProfileRegistry {
         return certificateCount[_owner][_type];
     }
 
-    function GetProfileLevel(address _owner) view public returns (uint){
+    function GetProfileLevel(address _owner) view public returns (IdentityLevel){
         if (GetAttributeValue(_owner, 1401).length > 0) {
-            return PROFESSIONAL;
+            return IdentityLevel.PROFESSIONAL;
         } else if (GetAttributeValue(_owner, 1301).length > 0) {
-            return REGISTERED;
+            return IdentityLevel.IDENTIFIED;
         } else if (GetAttributeValue(_owner, 1201).length > 0) {
-            return IDENTIFIED;
+            return IdentityLevel.REGISTERED;
         } else {
-            return ANONIMOUS;
+            return IdentityLevel.ANONYMOUS;
         }
     }
 }

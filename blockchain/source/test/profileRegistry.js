@@ -528,7 +528,7 @@ contract('ProfileRegistry', async function (accounts) {
         });
 
         describe('when trying to check certificate doesnt exist', function () {
-            it('should return 1 (ANONIMOUS)', async function () {
+            it('should return 1 (ANONYMOUS)', async function () {
                 let result = await registry.GetProfileLevel.call(creeper);
                 assert.equal(result.toNumber(10), 1);
             });

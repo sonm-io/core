@@ -31,13 +31,6 @@ contract Market is Ownable {
         ORDER_ACTIVE
     }
 
-    enum IdentityLevel {
-        ANONIMOUS,
-        REGISTRED,
-        IDENTIFIED,
-        PROFESSIONAL
-    }
-
     enum RequestStatus {
         REQUEST_UNKNOWN,
         REQUEST_CREATED,
@@ -78,7 +71,7 @@ contract Market is Ownable {
         uint duration;
         uint256 price;
         bool[] netflags;
-        IdentityLevel identityLevel;
+        ProfileRegistry.IdentityLevel identityLevel;
         address blacklist;
         bytes32 tag;
         uint64[] benchmarks;
@@ -176,12 +169,13 @@ contract Market is Ownable {
         uint _duration,
         uint _price,
         bool[] _netflags,
-        IdentityLevel _identityLevel,
+        ProfileRegistry.IdentityLevel _identityLevel,
         address _blacklist,
         bytes32 _tag,
         uint64[] _benchmarks
     ) public returns (uint){
 
+        require(_identityLevel >= ProfileRegistry.IdentityLevel.ANONYMOUS);
         require(_netflags.length <= netflagsQuantity);
         require(_benchmarks.length <= benchmarksQuantity);
 
@@ -246,7 +240,7 @@ contract Market is Ownable {
         require(ask.orderStatus == OrderStatus.ORDER_ACTIVE);
 
         require(ask.duration >= buyoutDuration);
-        require(pr.GetProfileLevel(msg.sender) >= uint(ask.identityLevel));
+        require(pr.GetProfileLevel(msg.sender) >= ask.identityLevel);
         require(bl.Check(msg.sender, GetMaster(ask.author)) == false && bl.Check(ask.author, msg.sender) == false);
         require(bl.Check(ask.blacklist, msg.sender) == false);
 
@@ -256,7 +250,7 @@ contract Market is Ownable {
             buyoutDuration,
             ask.price,
             ask.netflags,
-            IdentityLevel.ANONIMOUS,
+            ProfileRegistry.IdentityLevel.ANONYMOUS,
             address(0),
             bytes32(0),
             ask.benchmarks);
@@ -286,8 +280,8 @@ contract Market is Ownable {
         require(ask.price <= bid.price);
         require(ask.duration >= bid.duration);
         // profile level check
-        require(pr.GetProfileLevel(bid.author) >= uint(ask.identityLevel));
-        require(pr.GetProfileLevel(ask.author) >= uint(bid.identityLevel));
+        require(pr.GetProfileLevel(bid.author)>= ask.identityLevel);
+        require(pr.GetProfileLevel(ask.author) >= bid.identityLevel);
 
         if (ask.netflags.length < netflagsQuantity){
             ask.netflags = ResizeNetflags(ask.netflags);
@@ -580,7 +574,7 @@ contract Market is Ownable {
         uint duration,
         uint price,
         bool[] netflags,
-        IdentityLevel identityLevel,
+        ProfileRegistry.IdentityLevel identityLevel,
         address blacklist,
         bytes32 tag,
         uint64[] benchmarks,
