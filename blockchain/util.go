@@ -16,6 +16,11 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 )
 
+const (
+	defaultGasLimit             = 500000
+	defaultGasLimitForSidechain = 2000000
+)
+
 func getCallOptions(ctx context.Context) *bind.CallOpts {
 	return &bind.CallOpts{
 		Pending: false,
