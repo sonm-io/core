@@ -50,7 +50,7 @@ func (m *cpuConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *cpuConsumer) Result(criteria Rational) interface{} {
-	return &sonm.AskPlanCPU{CorePercents: uint64(math.Ceil(criteria.Mul(100).Mul(uint64(m.cpu.Device.Cores)).Float64()))}
+	return &sonm.AskPlanCPU{CorePercents: criteria.Mul(100).Mul(uint64(m.cpu.Device.Cores)).Uint64Ceil()}
 }
 
 type ramConsumer struct {
@@ -74,7 +74,7 @@ func (m *ramConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *ramConsumer) Result(criteria Rational) interface{} {
-	return &sonm.AskPlanRAM{Size: &sonm.DataSize{Bytes: uint64(math.Ceil(criteria.Mul(m.ram.Device.Total).Float64()))}}
+	return &sonm.AskPlanRAM{Size: &sonm.DataSize{Bytes: criteria.Mul(m.ram.Device.Total).Uint64Ceil()}}
 }
 
 type storageConsumer struct {
@@ -98,7 +98,7 @@ func (m *storageConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *storageConsumer) Result(criteria Rational) interface{} {
-	return &sonm.AskPlanStorage{Size: &sonm.DataSize{Bytes: uint64(math.Ceil(criteria.Mul(m.dev.Device.BytesAvailable).Float64()))}}
+	return &sonm.AskPlanStorage{Size: &sonm.DataSize{Bytes: criteria.Mul(m.dev.Device.BytesAvailable).Uint64Ceil()}}
 }
 
 type networkInConsumer struct {
@@ -120,7 +120,7 @@ func (m *networkInConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *networkInConsumer) Result(criteria Rational) interface{} {
-	return &sonm.DataSizeRate{BitsPerSecond: uint64(math.Ceil(criteria.Mul(m.dev.In).Float64()))}
+	return &sonm.DataSizeRate{BitsPerSecond: criteria.Mul(m.dev.In).Uint64Ceil()}
 }
 
 type networkOutConsumer struct {
@@ -142,7 +142,7 @@ func (m *networkOutConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 }
 
 func (m *networkOutConsumer) Result(criteria Rational) interface{} {
-	return &sonm.DataSizeRate{BitsPerSecond: uint64(math.Ceil(criteria.Mul(m.dev.Out).Float64()))}
+	return &sonm.DataSizeRate{BitsPerSecond: criteria.Mul(m.dev.Out).Uint64Ceil()}
 }
 
 type DeviceManager struct {
@@ -295,7 +295,7 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 
 	for id := range m.freeBenchmarks {
 		if benchmarkResult, ok := filter(id); ok {
-			if m.freeBenchmarks[id] < uint64(math.Ceil(value.Mul(benchmarkResult).Float64())) {
+			if m.freeBenchmarks[id] < value.Mul(benchmarkResult).Uint64Ceil() {
 				return 0, errExhausted
 			}
 		}
@@ -303,7 +303,7 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 
 	for id := range m.freeBenchmarks {
 		if benchmarkResult, ok := filter(id); ok {
-			m.freeBenchmarks[id] -= uint64(math.Ceil(value.Mul(benchmarkResult).Float64()))
+			m.freeBenchmarks[id] -= value.Mul(benchmarkResult).Uint64Ceil()
 		}
 	}
 

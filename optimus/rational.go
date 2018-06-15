@@ -2,6 +2,7 @@ package optimus
 
 import (
 	"errors"
+	"math"
 	"math/big"
 )
 
@@ -30,6 +31,10 @@ func (m Rational) Div(v uint64) Rational {
 func (m Rational) Float64() float64 {
 	r, _ := m.v.Float64()
 	return r
+}
+
+func (m Rational) Uint64Ceil() uint64 {
+	return uint64(math.Ceil(m.Float64()))
 }
 
 func (m Rational) Cmp(other Rational) int {
