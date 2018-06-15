@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/Masterminds/squirrel"
+	sq "github.com/Masterminds/squirrel"
 	"github.com/ethereum/go-ethereum/common"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
@@ -37,7 +37,7 @@ type sqlStorage struct {
 	setupCommands *sqlSetupCommands
 	numBenchmarks uint64
 	tablesInfo    *tablesInfo
-	builder       func() squirrel.StatementBuilderType
+	builder       func() sq.StatementBuilderType
 }
 
 func (m *sqlStorage) Setup(db *sql.DB) error {
@@ -202,7 +202,7 @@ func (m *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal
 		}
 	}
 	if r.Netflags != nil && r.Netflags.Value > 0 {
-		builder = m.newNetflagsWhere(builder, r.Netflags.Operator, r.Netflags.Value)
+		builder = m.builderWithNetflagsFilter(builder, r.Netflags.Operator, r.Netflags.Value)
 	}
 	if r.AskIdentityLevel > 0 {
 		builder = builder.Where("AskIdentityLevel >= ?", r.AskIdentityLevel)
@@ -211,7 +211,7 @@ func (m *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal
 		builder = builder.Where("BidIdentityLevel >= ?", r.BidIdentityLevel)
 	}
 	if r.Benchmarks != nil {
-		builder = m.addBenchmarksConditionsWhere(builder, r.Benchmarks)
+		builder = m.builderWithBenchmarkFilters(builder, r.Benchmarks)
 	}
 	if r.Offset > 0 {
 		builder = builder.Offset(r.Offset)
@@ -362,7 +362,7 @@ func (m *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 		for _, id := range r.CounterpartyID {
 			ids = append(ids, id.Unwrap().Hex())
 		}
-		builder = builder.Where(squirrel.Eq{"CounterpartyID": ids})
+		builder = builder.Where(sq.Eq{"CounterpartyID": ids})
 	}
 	if r.Duration != nil {
 		if r.Duration.Max > 0 {
@@ -379,10 +379,10 @@ func (m *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 		}
 	}
 	if r.Netflags != nil && r.Netflags.Value > 0 {
-		builder = m.newNetflagsWhere(builder, r.Netflags.Operator, r.Netflags.Value)
+		builder = m.builderWithNetflagsFilter(builder, r.Netflags.Operator, r.Netflags.Value)
 	}
 	if len(r.CreatorIdentityLevel) > 0 {
-		builder = builder.Where(squirrel.Eq{"CreatorIdentityLevel": r.CreatorIdentityLevel})
+		builder = builder.Where(sq.Eq{"CreatorIdentityLevel": r.CreatorIdentityLevel})
 	}
 	if r.CreatedTS != nil {
 		createdTS := r.CreatedTS
@@ -394,7 +394,7 @@ func (m *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 		}
 	}
 	if r.Benchmarks != nil {
-		builder = m.addBenchmarksConditionsWhere(builder, r.Benchmarks)
+		builder = m.builderWithBenchmarkFilters(builder, r.Benchmarks)
 	}
 
 	if len(r.SenderIDs) > 0 {
@@ -461,21 +461,21 @@ func (m *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersReque
 		Where(fmt.Sprintf("Price %s ?", priceOp), order.Order.Price.PaddedString())
 	builder = builder.Where(fmt.Sprintf("Duration %s ?", durationOp), order.Order.Duration)
 	if !order.Order.CounterpartyID.IsZero() {
-		builder = builder.Where(squirrel.Or{
-			squirrel.Eq{"AuthorID": order.Order.CounterpartyID.Unwrap().Hex()},
-			squirrel.Eq{"MasterID": order.Order.CounterpartyID.Unwrap().Hex()},
+		builder = builder.Where(sq.Or{
+			sq.Eq{"AuthorID": order.Order.CounterpartyID.Unwrap().Hex()},
+			sq.Eq{"MasterID": order.Order.CounterpartyID.Unwrap().Hex()},
 		})
 	}
-	builder = builder.Where(squirrel.Eq{
+	builder = builder.Where(sq.Eq{
 		"CounterpartyID": []string{
 			common.Address{}.Hex(),
 			order.Order.AuthorID.Unwrap().Hex(),
 			order.MasterID.Unwrap().Hex()},
 	})
 	if order.Order.OrderType == pb.OrderType_BID {
-		builder = m.newNetflagsWhere(builder, pb.CmpOp_GTE, order.Order.GetNetflags().GetFlags())
+		builder = m.builderWithNetflagsFilter(builder, pb.CmpOp_GTE, order.Order.GetNetflags().GetFlags())
 	} else {
-		builder = m.newNetflagsWhere(builder, pb.CmpOp_LTE, order.Order.GetNetflags().GetFlags())
+		builder = m.builderWithNetflagsFilter(builder, pb.CmpOp_LTE, order.Order.GetNetflags().GetFlags())
 	}
 	builder = builder.Where("IdentityLevel >= ?", order.Order.IdentityLevel).
 		Where("CreatorIdentityLevel <= ?", order.CreatorIdentityLevel)
@@ -524,7 +524,7 @@ func (m *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 	}
 	builder = builder.Where("IdentityLevel >= ?", r.IdentityLevel)
 	if len(r.Country) > 0 {
-		builder = builder.Where(squirrel.Eq{"Country": r.Country})
+		builder = builder.Where(sq.Eq{"Country": r.Country})
 	}
 	if len(r.Name) > 0 {
 		builder = builder.Where("Name LIKE ?", r.Name)
@@ -1010,7 +1010,7 @@ func (m *sqlStorage) UpdateProfile(conn queryConn, userID common.Address, field 
 
 func (m *sqlStorage) UpdateProfileStats(conn queryConn, userID common.Address, field string, value int) error {
 	query, args, _ := m.builder().Update("Profiles").
-		Set(field, squirrel.Expr(fmt.Sprintf("%s + %d", field, value))).
+		Set(field, sq.Expr(fmt.Sprintf("%s + %d", field, value))).
 		Where("UserID = ?", userID.Hex()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
@@ -1076,7 +1076,7 @@ func (m *sqlStorage) CheckStaleID(conn queryConn, id *big.Int, entity string) (b
 	return true, nil
 }
 
-func (m *sqlStorage) addBenchmarksConditionsWhere(builder squirrel.SelectBuilder, benches map[uint64]*pb.MaxMinUint64) squirrel.SelectBuilder {
+func (m *sqlStorage) builderWithBenchmarkFilters(builder sq.SelectBuilder, benches map[uint64]*pb.MaxMinUint64) sq.SelectBuilder {
 	for benchID, condition := range benches {
 		if condition.Max > 0 {
 			builder = builder.Where(fmt.Sprintf("%s <= ?", getBenchmarkColumn(benchID)), condition.Max)
@@ -1092,19 +1092,87 @@ func (m *sqlStorage) addBenchmarksConditionsWhere(builder squirrel.SelectBuilder
 // builderWithBlacklistFilters filters orders that:
 // 	1. have our Master/Author in their Master/Author/Blacklist blacklist,
 //	2. whose Master/Author is in our Master/Author/Blacklist blacklist.
-func (m *sqlStorage) builderWithBlacklistFilters(builder squirrel.SelectBuilder, addees, adders []string) squirrel.SelectBuilder {
+func (m *sqlStorage) builderWithBlacklistFilters(builder sq.SelectBuilder, addees, adders []string) sq.SelectBuilder {
 	blacklistsQuery := m.builder().Select("*").Prefix("NOT EXISTS (").Suffix(")").From("Blacklists AS b").
-		Where(squirrel.Or{
-			squirrel.And{
-				squirrel.Expr("b.AdderID IN (o.MasterID, o.AuthorID, o.Blacklist)"),
-				squirrel.Eq{"b.AddeeID": addees},
+		Where(sq.Or{
+			sq.And{
+				sq.Expr("b.AdderID IN (o.MasterID, o.AuthorID, o.Blacklist)"),
+				sq.Eq{"b.AddeeID": addees},
 			},
-			squirrel.And{
-				squirrel.Eq{"b.AdderID": adders},
-				squirrel.Expr("b.AddeeID IN (o.MasterID, o.AuthorID)"),
+			sq.And{
+				sq.Eq{"b.AdderID": adders},
+				sq.Expr("b.AddeeID IN (o.MasterID, o.AuthorID)"),
 			},
 		})
 	return builder.Where(blacklistsQuery)
+}
+
+func (m *sqlStorage) builderWithOffsetLimit(builder sq.SelectBuilder, limit, offset uint64) sq.SelectBuilder {
+	if limit > 0 {
+		builder = builder.Limit(limit)
+	}
+	if offset > 0 {
+		builder = builder.Offset(offset)
+	}
+
+	return builder
+}
+
+func (m *sqlStorage) builderWithSortings(builder sq.SelectBuilder, sortings []*pb.SortingOption) sq.SelectBuilder {
+	var sortsFlat []string
+	for _, sort := range sortings {
+		sortsFlat = append(sortsFlat, fmt.Sprintf("%s %s", sort.Field, pb.SortingOrder_name[int32(sort.Order)]))
+	}
+	builder = builder.OrderBy(sortsFlat...)
+
+	return builder
+}
+
+func (m *sqlStorage) builderWithNetflagsFilter(builder sq.SelectBuilder, operator pb.CmpOp, value uint64) sq.SelectBuilder {
+	switch operator {
+	case pb.CmpOp_GTE:
+		return builder.Where("Netflags | ~ CAST (? as int) = -1", value)
+	case pb.CmpOp_LTE:
+		return builder.Where("? | ~Netflags = -1", value)
+	default:
+		return builder.Where("Netflags = ?", value)
+	}
+}
+
+func (m *sqlStorage) runQuery(conn queryConn, columns string, withCount bool, query string, args ...interface{}) (*sql.Rows, uint64, error) {
+	dataQuery := strings.Replace(query, "*", columns, 1)
+	var count uint64
+	var err error
+	if withCount {
+		count, err = m.getCount(conn, query, args...)
+		if err != nil {
+			return nil, 0, errors.WithMessage(err, "failed to getCount")
+		}
+	}
+
+	rows, err := conn.Query(dataQuery, args...)
+	if err != nil {
+		return nil, 0, errors.Wrapf(err, "data query `%s` failed", dataQuery)
+	}
+
+	return rows, count, nil
+}
+
+func (m *sqlStorage) getCount(conn queryConn, query string, args ...interface{}) (uint64, error) {
+	var count uint64
+	var countQuery = strings.Replace(query, "*", "count(*)", 1)
+	countQuery = strings.Split(countQuery, "ORDER BY")[0]
+	countRows, err := conn.Query(countQuery, args...)
+	if err != nil {
+		return 0, errors.Wrapf(err, "count query `%s` failed", countQuery)
+	}
+	defer countRows.Close()
+
+	for countRows.Next() {
+		countRows.Scan(&count)
+	}
+
+	return count, nil
 }
 
 func (m *sqlStorage) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
@@ -1651,74 +1719,6 @@ func (c *sqlSetupCommands) createIndex(db *sql.DB, command, table, column string
 	}
 
 	return nil
-}
-
-func (m *sqlStorage) builderWithOffsetLimit(builder squirrel.SelectBuilder, limit, offset uint64) squirrel.SelectBuilder {
-	if limit > 0 {
-		builder = builder.Limit(limit)
-	}
-	if offset > 0 {
-		builder = builder.Offset(offset)
-	}
-
-	return builder
-}
-
-func (m *sqlStorage) builderWithSortings(builder squirrel.SelectBuilder, sortings []*pb.SortingOption) squirrel.SelectBuilder {
-	var sortsFlat []string
-	for _, sort := range sortings {
-		sortsFlat = append(sortsFlat, fmt.Sprintf("%s %s", sort.Field, pb.SortingOrder_name[int32(sort.Order)]))
-	}
-	builder = builder.OrderBy(sortsFlat...)
-
-	return builder
-}
-
-func (m *sqlStorage) newNetflagsWhere(builder squirrel.SelectBuilder, operator pb.CmpOp, value uint64) squirrel.SelectBuilder {
-	switch operator {
-	case pb.CmpOp_GTE:
-		return builder.Where("Netflags | ~ CAST (? as int) = -1", value)
-	case pb.CmpOp_LTE:
-		return builder.Where("? | ~Netflags = -1", value)
-	default:
-		return builder.Where("Netflags = ?", value)
-	}
-}
-
-func (m *sqlStorage) runQuery(conn queryConn, columns string, withCount bool, query string, args ...interface{}) (*sql.Rows, uint64, error) {
-	dataQuery := strings.Replace(query, "*", columns, 1)
-	var count uint64
-	var err error
-	if withCount {
-		count, err = m.getCount(conn, query, args...)
-		if err != nil {
-			return nil, 0, errors.WithMessage(err, "failed to getCount")
-		}
-	}
-
-	rows, err := conn.Query(dataQuery, args...)
-	if err != nil {
-		return nil, 0, errors.Wrapf(err, "data query `%s` failed", dataQuery)
-	}
-
-	return rows, count, nil
-}
-
-func (m *sqlStorage) getCount(conn queryConn, query string, args ...interface{}) (uint64, error) {
-	var count uint64
-	var countQuery = strings.Replace(query, "*", "count(*)", 1)
-	countQuery = strings.Split(countQuery, "ORDER BY")[0]
-	countRows, err := conn.Query(countQuery, args...)
-	if err != nil {
-		return 0, errors.Wrapf(err, "count query `%s` failed", countQuery)
-	}
-	defer countRows.Close()
-
-	for countRows.Next() {
-		countRows.Scan(&count)
-	}
-
-	return count, nil
 }
 
 // tablesInfo is used to get static column names for tables with variable columns set (i.e., with benchmarks).
