@@ -85,8 +85,12 @@ func (m *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 		bid.CreatorCertificates,
 		hasActiveChangeRequests,
 	}
-	for benchID := uint64(0); benchID < m.numBenchmarks; benchID++ {
-		values = append(values, deal.Benchmarks.Values[benchID])
+	benchmarks := deal.GetBenchmarks().GetNValues(m.numBenchmarks)
+	for idx, benchmarkValue := range benchmarks {
+		if benchmarkValue >= MaxBenchmark {
+			return errors.Errorf("Deal benchmark %d is greater than %d", idx, MaxBenchmark)
+		}
+		values = append(values, benchmarkValue)
 	}
 
 	query, args, _ := m.builder().Insert("Deals").
@@ -151,7 +155,7 @@ func (m *sqlStorage) GetDealByID(conn queryConn, dealID *big.Int) (*pb.DWHDeal, 
 		ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to GetDealDetails")
+		return nil, errors.Wrap(err, "failed to GetDealByID")
 	}
 	defer rows.Close()
 
@@ -285,8 +289,12 @@ func (m *sqlStorage) InsertOrder(conn queryConn, order *pb.DWHOrder) error {
 		order.CreatorCountry,
 		[]byte(order.CreatorCertificates),
 	}
-	for benchID := uint64(0); benchID < m.numBenchmarks; benchID++ {
-		values = append(values, order.GetOrder().Benchmarks.Values[benchID])
+	benchmarks := order.GetOrder().GetBenchmarks().GetNValues(m.numBenchmarks)
+	for idx, benchmarkValue := range benchmarks {
+		if benchmarkValue >= MaxBenchmark {
+			return errors.Errorf("Order benchmark %d is greater than %d", idx, MaxBenchmark)
+		}
+		values = append(values, benchmarkValue)
 	}
 	query, args, _ := m.builder().Insert("Orders").Columns(m.tablesInfo.OrderColumns...).Values(values...).ToSql()
 	_, err := conn.Exec(query, args...)

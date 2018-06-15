@@ -43,7 +43,6 @@ type DWH struct {
 	certRotator    util.HitlessCertRotator
 	blockchain     blockchain.API
 	storage        storage
-	numBenchmarks  uint64
 	lastKnownBlock uint64
 }
 
@@ -76,9 +75,9 @@ func (m *DWH) Serve() error {
 	}
 	m.blockchain = bch
 
-	if err := m.setupDBts(); err != nil {
+	if err := m.setupDB(); err != nil {
 		m.Stop()
-		return errors.WithMessage(err, "failed to setupDBts")
+		return errors.WithMessage(err, "failed to setupDB")
 	}
 
 	go m.monitorBlockchain()
@@ -86,6 +85,10 @@ func (m *DWH) Serve() error {
 		if err := m.coldStart(); err != nil {
 			m.Stop()
 			return errors.Wrap(err, "failed to coldStart")
+		}
+	} else {
+		if err := m.storage.CreateIndices(m.db); err != nil {
+			return errors.WithMessage(err, "failed to CreateIndices (Serve)")
 		}
 	}
 
@@ -118,10 +121,7 @@ func (m *DWH) stop() {
 	}
 }
 
-func (m *DWH) setupDBts() error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
+func (m *DWH) setupDB() error {
 	numBenchmarks, err := m.blockchain.Market().GetNumBenchmarks(m.ctx)
 	if err != nil {
 		m.stop()
@@ -150,7 +150,6 @@ func (m *DWH) setupDBts() error {
 		return errors.Wrap(err, "failed to setup storage")
 	}
 
-	m.numBenchmarks = numBenchmarks
 	m.storage = storage
 	return nil
 }
@@ -165,7 +164,12 @@ func (m *DWH) serveGRPC() error {
 
 	m.certRotator = certRotator
 	m.creds = util.NewTLS(TLSConfig)
-	m.grpc = xgrpc.NewServer(m.logger, xgrpc.Credentials(m.creds), xgrpc.DefaultTraceInterceptor())
+	m.grpc = xgrpc.NewServer(
+		m.logger,
+		xgrpc.Credentials(m.creds),
+		xgrpc.DefaultTraceInterceptor(),
+		xgrpc.UnaryServerInterceptor(m.unaryInterceptor),
+	)
 	pb.RegisterDWHServer(m.grpc, m)
 	grpc_prometheus.Register(m.grpc)
 
@@ -177,6 +181,15 @@ func (m *DWH) serveGRPC() error {
 
 	m.mu.Unlock()
 	return m.grpc.Serve(lis)
+}
+
+// unaryInterceptor RLocks DWH for all incoming requests. This is needed because some events (e.g.,
+// NumBenchmarksUpdated) can alter `m.storage` state.
+func (m *DWH) unaryInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler) (resp interface{}, err error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return handler(ctx, req)
 }
 
 func (m *DWH) serveHTTP() error {
@@ -444,6 +457,7 @@ func (m *DWH) watchMarketEvents() error {
 }
 
 func (m *DWH) processEvents(dispatcher *eventsDispatcher) {
+	m.processEventsGroup(dispatcher.NumBenchmarksUpdated)
 	m.processEventsGroup(dispatcher.WorkersAnnounced)
 	m.processEventsGroup(dispatcher.WorkersConfirmed)
 	m.processEventsGroup(dispatcher.ValidatorsCreated)
@@ -498,6 +512,8 @@ func (m *DWH) processEventsGroup(events []*blockchain.Event) {
 
 func (m *DWH) processEvent(event *blockchain.Event) error {
 	switch value := event.Data.(type) {
+	case *blockchain.NumBenchmarksUpdatedData:
+		return m.onNumBenchmarksUpdated(value.NumBenchmarks)
 	case *blockchain.DealOpenedData:
 		return m.onDealOpened(value.ID)
 	case *blockchain.DealUpdatedData:
@@ -533,6 +549,21 @@ func (m *DWH) processEvent(event *blockchain.Event) error {
 	return nil
 }
 
+func (m *DWH) onNumBenchmarksUpdated(newNumBenchmarks uint64) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if err := m.setupDB(); err != nil {
+		return errors.WithMessage(err, "failed to setupDB after NumBenchmarksUpdated event")
+	}
+
+	if err := m.storage.CreateIndices(m.db); err != nil {
+		return errors.WithMessage(err, "failed to CreateIndices (onNumBenchmarksUpdated)")
+	}
+
+	return nil
+}
+
 func (m *DWH) onDealOpened(dealID *big.Int) error {
 	deal, err := m.blockchain.Market().GetDealInfo(m.ctx, dealID)
 	if err != nil {
@@ -551,10 +582,6 @@ func (m *DWH) onDealOpened(dealID *big.Int) error {
 		}
 		m.logger.Debug("skipping inactive deal", zap.String("deal_id", dealID.String()))
 		return nil
-	}
-
-	if err := m.checkBenchmarks(deal.Benchmarks); err != nil {
-		return err
 	}
 
 	err = m.storage.InsertDeal(conn, deal)
@@ -859,10 +886,6 @@ func (m *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 
 	if order.DealID == nil {
 		order.DealID = pb.NewBigIntFromInt(0)
-	}
-
-	if err := m.checkBenchmarks(order.Benchmarks); err != nil {
-		return err
 	}
 
 	err = m.storage.InsertOrder(conn, &pb.DWHOrder{
@@ -1285,20 +1308,6 @@ func (m *DWH) updateDealConditionEndTime(conn queryConn, dealID *pb.BigInt, even
 	return nil
 }
 
-func (m *DWH) checkBenchmarks(benches *pb.Benchmarks) error {
-	if uint64(len(benches.Values)) != m.numBenchmarks {
-		return errors.Errorf("expected %d benchmarks, got %d", m.numBenchmarks, len(benches.Values))
-	}
-
-	for idx, bench := range benches.Values {
-		if bench >= MaxBenchmark {
-			return errors.Errorf("benchmark %d is greater that %d", idx, MaxBenchmark)
-		}
-	}
-
-	return nil
-}
-
 func (m *DWH) removeStaleEntityID(id *big.Int, entity string) error {
 	m.logger.Debug("removing stale entity from cache", zap.String("entity", entity), zap.String("id", id.String()))
 	if err := m.storage.RemoveStaleID(newSimpleConn(m.db), id, entity); err != nil {
@@ -1323,6 +1332,7 @@ func (m *DWH) processBlockBoundary(event *blockchain.Event) {
 
 type eventsDispatcher struct {
 	logger                    *zap.Logger
+	NumBenchmarksUpdated      []*blockchain.Event
 	ValidatorsCreated         []*blockchain.Event
 	CertificatesCreated       []*blockchain.Event
 	OrdersOpened              []*blockchain.Event
@@ -1347,6 +1357,8 @@ func newEventDispatcher(logger *zap.Logger) *eventsDispatcher {
 
 func (m *eventsDispatcher) Add(event *blockchain.Event) {
 	switch data := event.Data.(type) {
+	case *blockchain.NumBenchmarksUpdatedData:
+		m.NumBenchmarksUpdated = append(m.NumBenchmarksUpdated, event)
 	case *blockchain.ValidatorCreatedData:
 		m.ValidatorsCreated = append(m.ValidatorsCreated, event)
 	case *blockchain.ValidatorDeletedData:
