@@ -13,23 +13,23 @@ type Config struct {
 
 func (m *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var cfg struct {
-		Endpoint          string `yaml:"endpoint"`
-		SidechainEndpoint string `yaml:"sidechain_endpoint"`
+		MasterchainEndpoint string `yaml:"endpoint"`
+		SidechainEndpoint   string `yaml:"sidechain_endpoint"`
 	}
 
 	if err := unmarshal(&cfg); err != nil {
 		return err
 	}
 
-	if len(cfg.Endpoint) == 0 {
-		cfg.Endpoint = defaultMasterchainEndpoint
+	if len(cfg.MasterchainEndpoint) == 0 {
+		cfg.MasterchainEndpoint = defaultMasterchainEndpoint
 	}
 
 	if len(cfg.SidechainEndpoint) == 0 {
 		cfg.SidechainEndpoint = defaultSidechainEndpoint
 	}
 
-	endpoint, err := url.Parse(cfg.Endpoint)
+	endpoint, err := url.Parse(cfg.MasterchainEndpoint)
 	if err != nil {
 		return err
 	}
