@@ -415,7 +415,7 @@ contract Market is Ownable {
             } else {
                 emit Billed(dealID, deal.blockedBalance);
                 InternalCloseDeal(dealID);
-                require(token.transfer(deal.masterID, deal.blockedBalance));
+                require(token.transfer(deal.consumerID, deals[dealID].blockedBalance));
                 deals[dealID].blockedBalance = 0;
                 return true;
             }
@@ -459,13 +459,13 @@ contract Market is Ownable {
             } else if (matchingRequest.status == RequestStatus.REQUEST_CREATED && matchingRequest.duration >= newDuration && matchingRequest.price <= newPrice) {
                 requests[requestsAmount].status = RequestStatus.REQUEST_ACCEPTED;
                 requests[actualRequests[dealID][0]].status = RequestStatus.REQUEST_ACCEPTED;
+                emit DealChangeRequestUpdated(actualRequests[dealID][0]);
                 actualRequests[dealID][0] = 0;
                 actualRequests[dealID][1] = 0;
                 Bill(dealID);
                 deals[dealID].price = matchingRequest.price;
                 deals[dealID].duration = newDuration;
                 emit DealChangeRequestUpdated(requestsAmount);
-                emit DealChangeRequestUpdated(actualRequests[dealID][0]);
             } else {
                 return requestsAmount;
             }
@@ -489,13 +489,13 @@ contract Market is Ownable {
                 emit DealChangeRequestUpdated(requestsAmount);
             } else if (matchingRequest.status == RequestStatus.REQUEST_CREATED && matchingRequest.duration <= newDuration && matchingRequest.price >= newPrice) {
                 requests[requestsAmount].status = RequestStatus.REQUEST_ACCEPTED;
+                emit DealChangeRequestUpdated(actualRequests[dealID][1]);
                 actualRequests[dealID][0] = 0;
                 actualRequests[dealID][1] = 0;
                 Bill(dealID);
                 deals[dealID].price = newPrice;
                 deals[dealID].duration = matchingRequest.duration;
                 emit DealChangeRequestUpdated(requestsAmount);
-                emit DealChangeRequestUpdated(actualRequests[dealID][1]);
             } else  {
                 return requestsAmount;
             }
