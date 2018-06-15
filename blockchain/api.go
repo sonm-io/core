@@ -47,7 +47,7 @@ type EventsAPI interface {
 }
 
 type MarketAPI interface {
-	QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int) (*types.Transaction, error)
+	QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int) (*pb.Deal, error)
 	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) (*pb.Deal, error)
 	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) error
 	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error)
@@ -269,9 +269,14 @@ func NewBasicMarket(address common.Address, opts *chainOpts) (MarketAPI, error) 
 	}, nil
 }
 
-func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int) (*types.Transaction, error) {
+func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int) (*pb.Deal, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	return api.marketContract.QuickBuy(opts, askId)
+	tx, err := api.marketContract.QuickBuy(opts, askId)
+	if err != nil {
+		return nil, err
+	}
+
+	return api.extractOpenDealData(ctx, tx)
 }
 
 func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) (*pb.Deal, error) {
@@ -281,6 +286,10 @@ func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, 
 		return nil, err
 	}
 
+	return api.extractOpenDealData(ctx, tx)
+}
+
+func (api *BasicMarketAPI) extractOpenDealData(ctx context.Context, tx *types.Transaction) (*pb.Deal, error) {
 	logs, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, DealOpenedTopic)
 	if err != nil {
 		return nil, err

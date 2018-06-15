@@ -46,13 +46,6 @@ func NewMultiKeystore(cfg *KeystoreConfig, pf PassPhraser) (*MultiKeystore, erro
 		passReader: pf,
 	}
 
-	// We have only one account, mark it as default
-	// for current keystore instance.
-	accs := ks.Accounts()
-	if len(accs) == 1 {
-		m.SetDefault(accs[0].Address)
-	}
-
 	return m, nil
 }
 
