@@ -7,14 +7,8 @@ import (
 	"errors"
 	"math"
 
-	"github.com/montanaflynn/stats"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/proto"
-)
-
-const (
-	minCores = sonm.MinCPUPercent * 0.01
-	minRAM   = sonm.MinRamSize
 )
 
 var (
@@ -22,11 +16,11 @@ var (
 )
 
 type Consumer interface {
-	LowerBound() []float64
+	LowerBound() []Rational
 	DeviceType() sonm.DeviceType
 	DeviceBenchmark(id int) (*sonm.Benchmark, bool)
 	SplittingAlgorithm() sonm.SplittingAlgorithm
-	Result(criteria float64) interface{}
+	Result(criteria Rational) interface{}
 }
 
 type consumer struct{}
@@ -40,9 +34,9 @@ type cpuConsumer struct {
 	cpu *sonm.CPU
 }
 
-func (m *cpuConsumer) LowerBound() []float64 {
-	return []float64{
-		minCores / float64(m.cpu.Device.Cores),
+func (m *cpuConsumer) LowerBound() []Rational {
+	return []Rational{
+		NewRational(sonm.MinCPUPercent, uint64(m.cpu.Device.Cores)).Div(100),
 	}
 }
 
@@ -55,8 +49,8 @@ func (m *cpuConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 	return benchmark, ok
 }
 
-func (m *cpuConsumer) Result(criteria float64) interface{} {
-	return &sonm.AskPlanCPU{CorePercents: uint64(math.Ceil(100.0 * criteria * float64(m.cpu.Device.Cores)))}
+func (m *cpuConsumer) Result(criteria Rational) interface{} {
+	return &sonm.AskPlanCPU{CorePercents: uint64(math.Ceil(criteria.Mul(100).Mul(uint64(m.cpu.Device.Cores)).Float64()))}
 }
 
 type ramConsumer struct {
@@ -64,9 +58,9 @@ type ramConsumer struct {
 	ram *sonm.RAM
 }
 
-func (m *ramConsumer) LowerBound() []float64 {
-	return []float64{
-		float64(minRAM) / float64(m.ram.Device.Total),
+func (m *ramConsumer) LowerBound() []Rational {
+	return []Rational{
+		NewRational(sonm.MinRamSize, m.ram.Device.Total),
 	}
 }
 
@@ -79,8 +73,8 @@ func (m *ramConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 	return benchmark, ok
 }
 
-func (m *ramConsumer) Result(criteria float64) interface{} {
-	return &sonm.AskPlanRAM{Size: &sonm.DataSize{Bytes: uint64(math.Ceil(criteria * float64(m.ram.Device.Total)))}}
+func (m *ramConsumer) Result(criteria Rational) interface{} {
+	return &sonm.AskPlanRAM{Size: &sonm.DataSize{Bytes: uint64(math.Ceil(criteria.Mul(m.ram.Device.Total).Float64()))}}
 }
 
 type storageConsumer struct {
@@ -88,9 +82,9 @@ type storageConsumer struct {
 	dev *sonm.Storage
 }
 
-func (m *storageConsumer) LowerBound() []float64 {
-	return []float64{
-		float64(sonm.MinStorageSize) / float64(m.dev.Device.BytesAvailable),
+func (m *storageConsumer) LowerBound() []Rational {
+	return []Rational{
+		NewRational(sonm.MinStorageSize, m.dev.Device.BytesAvailable),
 	}
 }
 
@@ -103,8 +97,8 @@ func (m *storageConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 	return benchmark, ok
 }
 
-func (m *storageConsumer) Result(criteria float64) interface{} {
-	return &sonm.AskPlanStorage{Size: &sonm.DataSize{Bytes: uint64(math.Ceil(criteria * float64(m.dev.Device.BytesAvailable)))}}
+func (m *storageConsumer) Result(criteria Rational) interface{} {
+	return &sonm.AskPlanStorage{Size: &sonm.DataSize{Bytes: uint64(math.Ceil(criteria.Mul(m.dev.Device.BytesAvailable).Float64()))}}
 }
 
 type networkInConsumer struct {
@@ -112,8 +106,8 @@ type networkInConsumer struct {
 	dev *sonm.Network
 }
 
-func (m *networkInConsumer) LowerBound() []float64 {
-	return []float64{}
+func (m *networkInConsumer) LowerBound() []Rational {
+	return []Rational{}
 }
 
 func (m *networkInConsumer) DeviceType() sonm.DeviceType {
@@ -125,8 +119,8 @@ func (m *networkInConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 	return benchmark, ok
 }
 
-func (m *networkInConsumer) Result(criteria float64) interface{} {
-	return &sonm.DataSizeRate{BitsPerSecond: uint64(math.Ceil(criteria * float64(m.dev.In)))}
+func (m *networkInConsumer) Result(criteria Rational) interface{} {
+	return &sonm.DataSizeRate{BitsPerSecond: uint64(math.Ceil(criteria.Mul(m.dev.In).Float64()))}
 }
 
 type networkOutConsumer struct {
@@ -134,8 +128,8 @@ type networkOutConsumer struct {
 	dev *sonm.Network
 }
 
-func (m *networkOutConsumer) LowerBound() []float64 {
-	return []float64{}
+func (m *networkOutConsumer) LowerBound() []Rational {
+	return []Rational{}
 }
 
 func (m *networkOutConsumer) DeviceType() sonm.DeviceType {
@@ -147,8 +141,8 @@ func (m *networkOutConsumer) DeviceBenchmark(id int) (*sonm.Benchmark, bool) {
 	return benchmark, ok
 }
 
-func (m *networkOutConsumer) Result(criteria float64) interface{} {
-	return &sonm.DataSizeRate{BitsPerSecond: uint64(math.Ceil(criteria * float64(m.dev.Out)))}
+func (m *networkOutConsumer) Result(criteria Rational) interface{} {
+	return &sonm.DataSizeRate{BitsPerSecond: uint64(math.Ceil(criteria.Mul(m.dev.Out).Float64()))}
 }
 
 type DeviceManager struct {
@@ -159,11 +153,6 @@ type DeviceManager struct {
 }
 
 func newDeviceManager(devices *sonm.DevicesReply, freeDevices *sonm.DevicesReply, mapping benchmarks.Mapping) (*DeviceManager, error) {
-	// TODO: ???
-	//if v, ok := devices.CPU.Benchmarks[CPUSysbenchMultiID]; !ok || v.Result == 0 {
-	//	return nil, errors.New("no CPU detected")
-	//}
-
 	m := &DeviceManager{
 		devices:        devices,
 		mapping:        mapping,
@@ -295,18 +284,18 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 
 	for id, value := range benchmarks {
 		if benchmarkResult, ok := filter(id); ok {
-			values = append(values, float64(value)/float64(benchmarkResult))
+			values = append(values, NewRational(value, benchmarkResult))
 		}
 	}
 
-	value, err := stats.Max(values)
+	value, err := Max(values)
 	if err != nil {
 		return 0, err
 	}
 
 	for id := range m.freeBenchmarks {
 		if benchmarkResult, ok := filter(id); ok {
-			if m.freeBenchmarks[id] < uint64(math.Ceil(value*float64(benchmarkResult))) {
+			if m.freeBenchmarks[id] < uint64(math.Ceil(value.Mul(benchmarkResult).Float64())) {
 				return 0, errExhausted
 			}
 		}
@@ -314,7 +303,7 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 
 	for id := range m.freeBenchmarks {
 		if benchmarkResult, ok := filter(id); ok {
-			m.freeBenchmarks[id] -= uint64(math.Ceil(value * float64(benchmarkResult)))
+			m.freeBenchmarks[id] -= uint64(math.Ceil(value.Mul(benchmarkResult).Float64()))
 		}
 	}
 
