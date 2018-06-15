@@ -343,14 +343,14 @@ contract Market is Ownable {
         }
 
         AddToBlacklist(dealID, blacklisted);
-        InteralBill(dealID);
+        InternalBill(dealID);
         InternalCloseDeal(dealID);
         RefundRemainingFunds(dealID);
         return true;
     }
 
     function Bill(uint dealID) public returns (bool){
-        InteralBill(dealID);
+        InternalBill(dealID);
         ReserveNextPeriodFunds(dealID);
         return true;
     }
@@ -633,7 +633,7 @@ contract Market is Ownable {
     }
     // INTERNAL
 
-    function InteralBill(uint dealID) internal returns (bool){
+    function InternalBill(uint dealID) internal returns (bool){
         require(deals[dealID].status == DealStatus.STATUS_ACCEPTED);
         require(msg.sender == deals[dealID].supplierID || msg.sender == deals[dealID].consumerID || msg.sender == deals[dealID].masterID);
         Deal memory deal = deals[dealID];
@@ -702,7 +702,6 @@ contract Market is Ownable {
                 emit Billed(dealID, deals[dealID].blockedBalance);
                 InternalCloseDeal(dealID);
                 RefundRemainingFunds(dealID);
-                deals[dealID].blockedBalance = 0;
                 return true;
             }
         }
@@ -712,6 +711,7 @@ contract Market is Ownable {
     function RefundRemainingFunds(uint dealID) internal returns (bool){
         if (deals[dealID].blockedBalance != 0){
             token.transfer(deals[dealID].consumerID, deals[dealID].blockedBalance);
+            deals[dealID].blockedBalance = 0;
         }
         return true;
     }
