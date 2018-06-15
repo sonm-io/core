@@ -305,7 +305,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 		})
 	}
 
-	m.log.Infof("cut the following selling plans: %v", plans)
+	m.log.Infow("successfully cut the following selling plans", zap.Any("plans", plans))
 
 	// Tell worker to create sell plans.
 	for _, plan := range plans {
