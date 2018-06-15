@@ -869,6 +869,7 @@ func (m *sqlStorage) UpdateValidator(conn queryConn, validator *pb.Validator) er
 
 func (m *sqlStorage) InsertCertificate(conn queryConn, certificate *pb.Certificate) error {
 	query, args, _ := m.builder().Insert("Certificates").Values(
+		certificate.GetId().Unwrap().String(),
 		certificate.OwnerID.Unwrap().Hex(),
 		certificate.Attribute,
 		(certificate.Attribute/uint64(100))%10,
@@ -1478,16 +1479,23 @@ func (m *sqlStorage) decodeDealChangeRequest(rows *sql.Rows) (*pb.DealChangeRequ
 
 func (m *sqlStorage) decodeCertificate(rows *sql.Rows) (*pb.Certificate, error) {
 	var (
+		id            string
 		ownerID       string
 		attribute     uint64
 		identityLevel uint64
 		value         []byte
 		validatorID   string
 	)
-	if err := rows.Scan(&ownerID, &attribute, &identityLevel, &value, &validatorID); err != nil {
+	if err := rows.Scan(&id, &ownerID, &attribute, &identityLevel, &value, &validatorID); err != nil {
 		return nil, errors.Wrap(err, "failed to decode Certificate")
 	} else {
+		bigID, err := pb.NewBigIntFromString(id)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse certificate id")
+		}
+
 		return &pb.Certificate{
+			Id:            bigID,
 			OwnerID:       pb.NewEthAddress(common.HexToAddress(ownerID)),
 			Attribute:     attribute,
 			IdentityLevel: identityLevel,
