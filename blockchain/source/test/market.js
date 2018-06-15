@@ -563,7 +563,7 @@ contract('Market', async function (accounts) {
         let infoAfterClose = await market.GetDealInfo(dealId);
         let dealTime = stateAfterClose[2].toNumber(10) - infoAfterClose[6].toNumber(10);
         assert.equal(stateAfterClose[3].toNumber(10), 2);
-        assert.equal(stateAfterClose[4].toNumber(10), 3600000000); // balance
+        assert.equal(stateAfterClose[4].toNumber(10), 0); // balance
         assert.equal(stateAfterClose[5].toNumber(10), dealTime * 1e18 * 1e6 / 1e18); // payout
         assert.equal(stateAfterOpen[3].toNumber(10), 1);
         assert.equal(stateAfterOpen[4].toNumber(10), 3600); // balance
