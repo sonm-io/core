@@ -174,6 +174,7 @@ type Node struct {
 	master    pb.MasterManagementServer
 	token     pb.TokenManagementServer
 	blacklist pb.BlacklistServer
+	profile   pb.ProfilesServer
 }
 
 // New creates new Local Node instance
@@ -212,6 +213,7 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 	masterMgmt := newMasterManagementAPI(opts)
 	tokenMgmt := newTokenManagementAPI(opts)
 	blacklist := newBlacklistAPI(opts)
+	profile := newProfileAPI(opts)
 
 	grpcServerOpts := []xgrpc.ServerOption{
 		xgrpc.DefaultTraceInterceptor(),
@@ -251,6 +253,9 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 	pb.RegisterBlacklistServer(srv, blacklist)
 	log.G(ctx).Info("blacklist management service registered")
 
+	pb.RegisterProfilesServer(srv, profile)
+	log.G(ctx).Info("profile management service registered")
+
 	grpc_prometheus.Register(srv)
 
 	return &Node{
@@ -266,6 +271,7 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 		master:    masterMgmt,
 		token:     tokenMgmt,
 		blacklist: blacklist,
+		profile:   profile,
 	}, nil
 }
 
@@ -381,6 +387,10 @@ func (n *Node) serveHttp() error {
 		return err
 	}
 	err = srv.RegisterService((*pb.BlacklistServer)(nil), n.blacklist)
+	if err != nil {
+		return err
+	}
+	err = srv.RegisterService((*pb.ProfilesServer)(nil), n.profile)
 	if err != nil {
 		return err
 	}

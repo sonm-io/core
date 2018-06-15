@@ -120,3 +120,13 @@ service Blacklist {
     // Remove removes given address from blacklist
     rpc Remove(EthAddress) returns (Empty) {}
 }
+
+service Profiles {
+    // List allows searching for profiles
+    rpc List(ProfilesRequest) returns (ProfilesReply) {}
+    // Status shows detailed info about given profile
+    rpc Status(EthID) returns (Profile) {}
+    // RemoveAttribute allows to remove profile attributes
+    // for the user's own profile
+    rpc RemoveAttribute(BigInt) returns (Empty) {}
+}

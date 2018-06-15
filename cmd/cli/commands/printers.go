@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
@@ -425,5 +426,32 @@ func printWorkersList(cmd *cobra.Command, list *pb.WorkerListReply) {
 		}
 	} else {
 		showJSON(cmd, list)
+	}
+}
+
+func printProfileInfo(cmd *cobra.Command, p *pb.Profile) {
+	if isSimpleFormat() {
+		level := pb.IdentityLevel(int32(p.GetIdentityLevel()))
+		cmd.Printf("User ID: %s (%s)\r\n", p.GetUserID().Unwrap().Hex(), level.String())
+		if len(p.GetName()) > 0 {
+			cmd.Printf("Name: %s\r\n", p.GetName())
+		}
+		if len(p.GetCountry()) > 0 {
+			cmd.Printf("Country:  %s\r\n", p.GetCountry())
+		}
+		cmd.Printf("Active orders: %d Bids, %d Asks\r\n", p.GetActiveBids(), p.GetActiveAsks())
+
+		if len(p.GetCertificates()) > 0 {
+			var certs []*pb.Certificate
+			if err := json.Unmarshal([]byte(p.GetCertificates()), &certs); err == nil {
+				cmd.Println("  Certificates:")
+				for _, cert := range certs {
+					cmd.Printf("    %s) %s: %s\r\n", cert.GetId().Unwrap().String(), cert.GetAttributeName(), string(cert.Value))
+				}
+			}
+		}
+
+	} else {
+		showJSON(cmd, p)
 	}
 }
