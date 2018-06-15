@@ -35,14 +35,6 @@ var loginCmd = &cobra.Command{
 				os.Exit(1)
 			}
 
-			if err := ks.SetDefault(addr); err != nil {
-				cmd.Printf("Given address is not present into keystore.\r\nAvailable addresses:\r\n")
-				for _, addr := range ks.List() {
-					cmd.Println(addr.Address.Hex())
-				}
-				return
-			}
-
 			// ask for password for default key
 			pass, err := accounts.NewInteractivePassPhraser().GetPassPhrase()
 			if err != nil {
@@ -50,10 +42,19 @@ var loginCmd = &cobra.Command{
 				os.Exit(1)
 			}
 
-			// try to decrypt default key with given pass
+			// try to decrypt default key with given pass phrase
 			if _, err := ks.GetKeyWithPass(addr, pass); err != nil {
 				showError(cmd, "Cannot decrypt default key with given pass", err)
 				os.Exit(1)
+			}
+
+			// mark key as default if we can decrypt it with given pass phrase
+			if err := ks.SetDefault(addr); err != nil {
+				cmd.Printf("Given address is not present in keystore.\r\nAvailable addresses:\r\n")
+				for _, addr := range ks.List() {
+					cmd.Println(addr.Address.Hex())
+				}
+				return
 			}
 
 			cfg.Eth.Passphrase = pass

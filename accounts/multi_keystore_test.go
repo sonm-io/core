@@ -123,35 +123,3 @@ func TestAlreadyKnownPasswords(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, res3, key3)
 }
-
-func TestFirstDefault(t *testing.T) {
-	tmp, err := NewMultiKeystore(
-		&KeystoreConfig{
-			KeyDir:      testKeystoreDir,
-			PassPhrases: map[string]string{},
-		},
-		NewStaticPassPhraser("test"),
-	)
-	require.NoError(t, err)
-	defer func() { os.RemoveAll(testKeystoreDir) }()
-
-	key, err := tmp.Generate()
-	require.NoError(t, err)
-	err = os.RemoveAll(tmp.cfg.getStateFileDir())
-	require.NoError(t, err)
-
-	k, err := NewMultiKeystore(
-		&KeystoreConfig{
-			KeyDir:      testKeystoreDir,
-			PassPhrases: map[string]string{},
-		},
-		NewStaticPassPhraser("test"),
-	)
-	require.NoError(t, err)
-
-	defaultKey, err := k.GetDefault()
-	require.NoError(t, err)
-
-	assert.Equal(t, crypto.PubkeyToAddress(defaultKey.PublicKey).Hex(), crypto.PubkeyToAddress(key.PublicKey).Hex())
-	assert.Equal(t, defaultKey, key)
-}

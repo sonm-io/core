@@ -8,7 +8,6 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
 )
 
@@ -49,13 +48,8 @@ func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, err
 	return reply, nil
 }
 
-func (d *dealsAPI) Status(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
-	bigID, err := util.ParseBigInt(id.GetId())
-	if err != nil {
-		return nil, err
-	}
-
-	deal, err := d.remotes.eth.Market().GetDealInfo(ctx, bigID)
+func (d *dealsAPI) Status(ctx context.Context, id *pb.BigInt) (*pb.DealInfoReply, error) {
+	deal, err := d.remotes.eth.Market().GetDealInfo(ctx, id.Unwrap())
 	if err != nil {
 		return nil, fmt.Errorf("could not get deal info from blockchain: %s", err)
 	}
@@ -96,6 +90,10 @@ func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal,
 	}
 
 	return deal, nil
+}
+
+func (d *dealsAPI) QuickBuy(ctx context.Context, askID *pb.BigInt) (*pb.Deal, error) {
+	return d.remotes.eth.Market().QuickBuy(ctx, d.remotes.key, askID.Unwrap())
 }
 
 func (d *dealsAPI) ChangeRequestsList(ctx context.Context, id *pb.BigInt) (*pb.DealChangeRequestsReply, error) {

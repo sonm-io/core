@@ -29,7 +29,7 @@ func main() {
 		return
 	}
 
-	balance, err := api.SideToken().BalanceOf(context.Background(), crypto.PubkeyToAddress(prv.PublicKey))
+	balance, err := api.SidechainToken().BalanceOf(context.Background(), crypto.PubkeyToAddress(prv.PublicKey))
 	if err != nil {
 		log.Fatalln(err)
 		return
@@ -37,7 +37,7 @@ func main() {
 
 	log.Println("Balance: ", balance)
 
-	allowance, err := api.SideToken().AllowanceOf(context.Background(), crypto.PubkeyToAddress(prv.PublicKey), blockchain.MarketAddr())
+	allowance, err := api.SidechainToken().AllowanceOf(context.Background(), crypto.PubkeyToAddress(prv.PublicKey), blockchain.MarketAddr())
 	if err != nil {
 		log.Fatalln(err)
 		return
