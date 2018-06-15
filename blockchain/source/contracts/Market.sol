@@ -343,85 +343,19 @@ contract Market is Ownable {
         }
 
         AddToBlacklist(dealID, blacklisted);
-        Bill(dealID);
+        InteralBill(dealID);
         InternalCloseDeal(dealID);
-
-        if (deals[dealID].blockedBalance > 0) {
-            require(token.transfer(deals[dealID].consumerID, deals[dealID].blockedBalance));
-        }
+        RefundRemainingFunds(dealID);
         return true;
     }
 
     function Bill(uint dealID) public returns (bool){
-        require(deals[dealID].status == DealStatus.STATUS_ACCEPTED);
-        require(msg.sender == deals[dealID].supplierID || msg.sender == deals[dealID].consumerID || msg.sender == deals[dealID].masterID);
-        Deal memory deal = deals[dealID];
-
-        uint paidAmount;
-
-        if (!IsSpot(dealID) && deal.lastBillTS >= deal.endTime) {
-            //means we already billed deal after endTime
-            return true;
-        } else if (!IsSpot(dealID) && block.timestamp > deal.endTime && deal.lastBillTS < deal.endTime) {
-            paidAmount = CalculatePayment(deal.price, deal.endTime.sub(deal.lastBillTS));
-        } else {
-            paidAmount = CalculatePayment(deal.price, block.timestamp.sub(deal.lastBillTS));
-        }
-
-        if (paidAmount > deal.blockedBalance) {
-            if (token.balanceOf(deal.consumerID) >= paidAmount.sub(deal.blockedBalance)) {
-                require(token.transferFrom(deal.consumerID, this, paidAmount.sub(deal.blockedBalance)));
-                deals[dealID].blockedBalance = deals[dealID].blockedBalance.add(paidAmount.sub(deal.blockedBalance));
-            } else {
-                emit Billed(dealID, deals[dealID].blockedBalance);
-                InternalCloseDeal(dealID);
-                require(token.transfer(deal.masterID, deal.blockedBalance));
-                deals[dealID].lastBillTS = block.timestamp;
-                deals[dealID].totalPayout = deals[dealID].totalPayout.add(deal.blockedBalance);
-                deals[dealID].blockedBalance = 0;
-                return true;
-            }
-        }
-        require(token.transfer(deal.masterID, paidAmount));
-        deals[dealID].blockedBalance = deals[dealID].blockedBalance.sub(paidAmount);
-        deals[dealID].totalPayout = deals[dealID].totalPayout.add(paidAmount);
-        deals[dealID].lastBillTS = block.timestamp;
-        emit Billed(dealID, paidAmount);
-
-        uint nextPeriod;
-
-        if (IsSpot(dealID)){
-            if (deal.status == DealStatus.STATUS_CLOSED) {
-                return true;
-            } else {
-                nextPeriod = 1 hours;
-            }
-        } else {
-            if (block.timestamp > deal.endTime) {
-                return true; //we don't reserve funds for next period
-            } else if (deal.endTime.sub(block.timestamp) < 1 days) {
-                nextPeriod = deal.endTime.sub(block.timestamp);
-            } else
-                nextPeriod = 1 days;
-        }
-
-
-        if (CalculatePayment(deal.price, nextPeriod) > deals[dealID].blockedBalance){
-            uint nextPeriodSum = CalculatePayment(deal.price, nextPeriod).sub(deals[dealID].blockedBalance);
-
-            if (token.balanceOf(deal.consumerID) >= nextPeriodSum) {
-                require(token.transferFrom(deal.consumerID, this, nextPeriodSum));
-                deals[dealID].blockedBalance = deals[dealID].blockedBalance.add(nextPeriodSum);
-            } else {
-                emit Billed(dealID, deal.blockedBalance);
-                InternalCloseDeal(dealID);
-                require(token.transfer(deal.consumerID, deals[dealID].blockedBalance));
-                deals[dealID].blockedBalance = 0;
-                return true;
-            }
-        }
+        InteralBill(dealID);
+        ReserveNextPeriodFunds(dealID);
         return true;
     }
+
+
 
     function CreateChangeRequest(uint dealID, uint newPrice, uint newDuration) public returns (uint changeRequestID) {
         require(msg.sender == deals[dealID].consumerID || msg.sender == deals[dealID].masterID || msg.sender == deals[dealID].supplierID);
@@ -698,6 +632,89 @@ contract Market is Ownable {
         return netflagsQuantity;
     }
     // INTERNAL
+
+    function InteralBill(uint dealID) internal returns (bool){
+        require(deals[dealID].status == DealStatus.STATUS_ACCEPTED);
+        require(msg.sender == deals[dealID].supplierID || msg.sender == deals[dealID].consumerID || msg.sender == deals[dealID].masterID);
+        Deal memory deal = deals[dealID];
+
+        uint paidAmount;
+
+        if (!IsSpot(dealID) && deal.lastBillTS >= deal.endTime) {
+            //means we already billed deal after endTime
+            return true;
+        } else if (!IsSpot(dealID) && block.timestamp > deal.endTime && deal.lastBillTS < deal.endTime) {
+            paidAmount = CalculatePayment(deal.price, deal.endTime.sub(deal.lastBillTS));
+        } else {
+            paidAmount = CalculatePayment(deal.price, block.timestamp.sub(deal.lastBillTS));
+        }
+
+        if (paidAmount > deal.blockedBalance) {
+            if (token.balanceOf(deal.consumerID) >= paidAmount.sub(deal.blockedBalance)) {
+                require(token.transferFrom(deal.consumerID, this, paidAmount.sub(deal.blockedBalance)));
+                deals[dealID].blockedBalance = deals[dealID].blockedBalance.add(paidAmount.sub(deal.blockedBalance));
+            } else {
+                emit Billed(dealID, deals[dealID].blockedBalance);
+                InternalCloseDeal(dealID);
+                require(token.transfer(deal.masterID, deal.blockedBalance));
+                deals[dealID].lastBillTS = block.timestamp;
+                deals[dealID].totalPayout = deals[dealID].totalPayout.add(deal.blockedBalance);
+                deals[dealID].blockedBalance = 0;
+                return true;
+            }
+        }
+        require(token.transfer(deal.masterID, paidAmount));
+        deals[dealID].blockedBalance = deals[dealID].blockedBalance.sub(paidAmount);
+        deals[dealID].totalPayout = deals[dealID].totalPayout.add(paidAmount);
+        deals[dealID].lastBillTS = block.timestamp;
+        emit Billed(dealID, paidAmount);
+        return true;
+
+    }
+
+    function ReserveNextPeriodFunds(uint dealID) internal returns (bool) {
+        uint nextPeriod;
+        Deal memory deal = deals[dealID];
+
+        if (IsSpot(dealID)){
+            if (deal.status == DealStatus.STATUS_CLOSED) {
+                return true;
+            } else {
+                nextPeriod = 1 hours;
+            }
+        } else {
+            if (block.timestamp > deal.endTime) {
+                return true; //we don't reserve funds for next period
+            } else if (deal.endTime.sub(block.timestamp) < 1 days) {
+                nextPeriod = deal.endTime.sub(block.timestamp);
+            } else
+                nextPeriod = 1 days;
+        }
+
+
+        if (CalculatePayment(deal.price, nextPeriod) > deals[dealID].blockedBalance){
+            uint nextPeriodSum = CalculatePayment(deal.price, nextPeriod).sub(deals[dealID].blockedBalance);
+
+            if (token.balanceOf(deal.consumerID) >= nextPeriodSum) {
+                require(token.transferFrom(deal.consumerID, this, nextPeriodSum));
+                deals[dealID].blockedBalance = deals[dealID].blockedBalance.add(nextPeriodSum);
+            } else {
+                emit Billed(dealID, deals[dealID].blockedBalance);
+                InternalCloseDeal(dealID);
+                RefundRemainingFunds(dealID);
+                deals[dealID].blockedBalance = 0;
+                return true;
+            }
+        }
+        return true;
+    }
+
+    function RefundRemainingFunds(uint dealID) internal returns (bool){
+        if (deals[dealID].blockedBalance != 0){
+            token.transfer(deals[dealID].consumerID, deals[dealID].blockedBalance);
+        }
+        return true;
+    }
 
     function IsSpot(uint dealID) internal view returns (bool){
         if (deals[dealID].duration == 0){
