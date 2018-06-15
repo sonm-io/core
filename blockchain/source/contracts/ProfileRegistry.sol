@@ -8,6 +8,14 @@ contract ProfileRegistry {
         _;
     }
 
+    enum IdentityLevel {
+        UNKNOWN,
+        ANONYMOUS,
+        REGISTERED,
+        IDENTIFIED,
+        PROFESSIONAL
+    }
+
     struct Certificate {
         address from;
 
@@ -114,16 +122,15 @@ contract ProfileRegistry {
         return certificateCount[_owner][_type];
     }
 
-    function CheckProfileLevel(address _owner, uint _levelRequired) view public returns (bool){
-        if (_levelRequired > 4) {
-            return false;
-        } else if (_levelRequired == 4) {
-            return keccak256(GetAttributeValue(_owner, 1401)) != keccak256("");
-        } else if (_levelRequired == 3) {
-            return keccak256(GetAttributeValue(_owner, 1301)) != keccak256("");
-        } else if (_levelRequired == 2) {
-            return keccak256(GetAttributeValue(_owner, 1201)) != keccak256("");
+    function GetProfileLevel(address _owner) view public returns (IdentityLevel){
+        if (GetAttributeValue(_owner, 1401).length > 0) {
+            return IdentityLevel.PROFESSIONAL;
+        } else if (GetAttributeValue(_owner, 1301).length > 0) {
+            return IdentityLevel.IDENTIFIED;
+        } else if (GetAttributeValue(_owner, 1201).length > 0) {
+            return IdentityLevel.REGISTERED;
+        } else {
+            return IdentityLevel.ANONYMOUS;
         }
-        return true;
     }
 }

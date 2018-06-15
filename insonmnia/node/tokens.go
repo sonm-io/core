@@ -22,12 +22,12 @@ func (t *tokenAPI) TestTokens(ctx context.Context, _ *sonm.Empty) (*sonm.Empty, 
 func (t *tokenAPI) Balance(ctx context.Context, _ *sonm.Empty) (*sonm.BalanceReply, error) {
 	addr := crypto.PubkeyToAddress(t.remotes.key.PublicKey)
 
-	live, err := t.remotes.eth.LiveToken().BalanceOf(ctx, addr)
+	live, err := t.remotes.eth.MasterchainToken().BalanceOf(ctx, addr)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot get live token balance")
 	}
 
-	side, err := t.remotes.eth.SideToken().BalanceOf(ctx, addr)
+	side, err := t.remotes.eth.SidechainToken().BalanceOf(ctx, addr)
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot get side token balance")
 	}

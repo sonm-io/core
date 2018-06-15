@@ -22,8 +22,8 @@ type API interface {
 	Events() EventsAPI
 	Market() MarketAPI
 	Blacklist() BlacklistAPI
-	LiveToken() TokenAPI
-	SideToken() TokenAPI
+	MasterchainToken() TokenAPI
+	SidechainToken() TokenAPI
 	TestToken() TestTokenAPI
 	OracleUSD() OracleAPI
 	MasterchainGate() SimpleGatekeeperAPI
@@ -122,16 +122,16 @@ type SimpleGatekeeperAPI interface {
 }
 
 type BasicAPI struct {
-	market          MarketAPI
-	liveToken       TokenAPI
-	sideToken       TokenAPI
-	testToken       TestTokenAPI
-	blacklist       BlacklistAPI
-	profileRegistry ProfileRegistryAPI
-	events          EventsAPI
-	oracle          OracleAPI
-	masterchainGate SimpleGatekeeperAPI
-	sidechainGate   SimpleGatekeeperAPI
+	market           MarketAPI
+	masterchainToken TokenAPI
+	sidechainToken   TokenAPI
+	testToken        TestTokenAPI
+	blacklist        BlacklistAPI
+	profileRegistry  ProfileRegistryAPI
+	events           EventsAPI
+	oracle           OracleAPI
+	masterchainGate  SimpleGatekeeperAPI
+	sidechainGate    SimpleGatekeeperAPI
 }
 
 func NewAPI(opts ...Option) (API, error) {
@@ -140,12 +140,12 @@ func NewAPI(opts ...Option) (API, error) {
 		o(defaults)
 	}
 
-	liveToken, err := NewStandardToken(SNMAddr(), defaults.masterchain)
+	masterchainToken, err := NewStandardToken(MasterchainSNMAddr(), defaults.masterchain)
 	if err != nil {
 		return nil, err
 	}
 
-	testToken, err := NewTestToken(SNMAddr(), defaults.masterchain)
+	testToken, err := NewTestToken(MasterchainSNMAddr(), defaults.masterchain)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +165,7 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
-	sideToken, err := NewStandardToken(SNMSidechainAddr(), defaults.sidechain)
+	sidechainToken, err := NewStandardToken(SidechainSNMAddr(), defaults.sidechain)
 	if err != nil {
 		return nil, err
 	}
@@ -192,16 +192,16 @@ func NewAPI(opts ...Option) (API, error) {
 	}
 
 	return &BasicAPI{
-		market:          marketApi,
-		blacklist:       blacklist,
-		profileRegistry: profileRegistry,
-		liveToken:       liveToken,
-		sideToken:       sideToken,
-		testToken:       testToken,
-		events:          events,
-		oracle:          oracle,
-		masterchainGate: masterchainGate,
-		sidechainGate:   sidechainGate,
+		market:           marketApi,
+		blacklist:        blacklist,
+		profileRegistry:  profileRegistry,
+		masterchainToken: masterchainToken,
+		sidechainToken:   sidechainToken,
+		testToken:        testToken,
+		events:           events,
+		oracle:           oracle,
+		masterchainGate:  masterchainGate,
+		sidechainGate:    sidechainGate,
 	}, nil
 }
 
@@ -209,12 +209,12 @@ func (api *BasicAPI) Market() MarketAPI {
 	return api.market
 }
 
-func (api *BasicAPI) LiveToken() TokenAPI {
-	return api.liveToken
+func (api *BasicAPI) MasterchainToken() TokenAPI {
+	return api.masterchainToken
 }
 
-func (api *BasicAPI) SideToken() TokenAPI {
-	return api.sideToken
+func (api *BasicAPI) SidechainToken() TokenAPI {
+	return api.sidechainToken
 }
 
 func (api *BasicAPI) TestToken() TestTokenAPI {
