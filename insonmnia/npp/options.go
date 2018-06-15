@@ -47,6 +47,10 @@ func newOptions(ctx context.Context) *options {
 // back to the old good plain TCP connection.
 func WithRendezvous(cfg rendezvous.Config, credentials credentials.TransportCredentials) Option {
 	return func(o *options) error {
+		if len(cfg.Endpoints) == 0 {
+			return nil
+		}
+
 		o.puncherNew = func() (NATPuncher, error) {
 			for _, addr := range cfg.Endpoints {
 				client, err := newRendezvousClient(o.ctx, addr, credentials)
