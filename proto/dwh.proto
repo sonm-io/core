@@ -269,6 +269,7 @@ message Certificate {
     uint64 attribute = 3;
     uint64 identityLevel = 4;
     bytes value = 5;
+    BigInt id = 6;
 }
 
 message MaxMinUint64 {

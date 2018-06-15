@@ -661,6 +661,7 @@ func (api *ProfileRegistry) GetCertificate(ctx context.Context, certificateID *b
 	}
 
 	return &pb.Certificate{
+		Id:          pb.NewBigInt(certificateID),
 		ValidatorID: pb.NewEthAddress(validatorID),
 		OwnerID:     pb.NewEthAddress(ownerID),
 		Attribute:   attribute.Uint64(),
