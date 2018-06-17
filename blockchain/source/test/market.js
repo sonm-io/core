@@ -432,7 +432,6 @@ contract('Market', async (accounts) => {
             let consumerBalanceAfter = await token.balanceOf(consumer);
             let masterBalanceAfter = await token.balanceOf(master);
             let marketBalanceAfter = await token.balanceOf(market.address);
-
             let dealParamsAfter = await market.GetDealParams(presetMasterFwdDealId);
 
             let lastBillTSAfter = dealParamsAfter[DealParams.lastBillTs];
