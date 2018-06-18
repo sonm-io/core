@@ -415,25 +415,16 @@ func (o *overseer) collectStats() {
 }
 
 func (o *overseer) Load(ctx context.Context, rd io.Reader) (imageLoadStatus, error) {
-	source := types.ImageImportSource{
-		Source:     rd,
-		SourceName: "-",
-	}
+	response, err := o.client.ImageLoad(ctx, rd, true)
 
-	options := types.ImageImportOptions{
-		Tag:     "",
-		Message: "",
-	}
-
-	response, err := o.client.ImageImport(ctx, source, "", options)
 	if err != nil {
 		log.G(o.ctx).Error("failed to load an image", zap.Error(err))
 		return imageLoadStatus{}, err
 	}
 
-	defer response.Close()
+	defer response.Body.Close()
 
-	return decodeImageLoad(response)
+	return decodeImageLoad(response.Body)
 }
 
 func (o *overseer) Save(ctx context.Context, imageID string) (types.ImageInspect, io.ReadCloser, error) {
