@@ -91,6 +91,14 @@ type TokenAPI interface {
 	AllowanceOf(ctx context.Context, from, to common.Address) (*big.Int, error)
 	// TotalSupply - all amount of emitted token
 	TotalSupply(ctx context.Context) (*big.Int, error)
+	// IncreaseApproval increase the amount of tokens that an owner allowed to a spender
+	// approve should be called when current allowance = 0. To increment
+	// allowed value is better to use this function to avoid 2 calls (and wait until the first transaction is mined)
+	IncreaseApproval(ctx context.Context, key *ecdsa.PrivateKey, spender common.Address, value *big.Int) error
+	// DecreaseApproval - decrease the amount of tokens that an owner allowed to a spender
+	// approve should be called when current allowance = 0. To decrement
+	// allowed value is better to use this function to avoid 2 calls (and wait until the first transaction is mined)
+	DecreaseApproval(ctx context.Context, key *ecdsa.PrivateKey, spender common.Address, value *big.Int) error
 }
 
 type TestTokenAPI interface {
@@ -368,7 +376,7 @@ func (api *BasicMarketAPI) GetDealsAmount(ctx context.Context) (*big.Int, error)
 func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) (*pb.Order, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 
-	//TODO: Make netflags dynamic
+	// TODO: Make netflags dynamic
 	fixedNetflags := [pb.MinNetFlagsCount]bool{}
 	netFlags := order.Netflags.ToBoolSlice()
 	copy(fixedNetflags[:], netFlags[0:pb.MinNetFlagsCount])
@@ -753,6 +761,42 @@ func NewStandardToken(address common.Address, opts *chainOpts) (TokenAPI, error)
 		tokenContract: tokenContract,
 		opts:          opts,
 	}, nil
+}
+
+func (api *StandardTokenApi) IncreaseApproval(ctx context.Context, key *ecdsa.PrivateKey, spender common.Address, value *big.Int) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.tokenContract.IncreaseApproval(opts, spender, value)
+	if err != nil {
+		return err
+	}
+
+	receipt, err := WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx)
+	if err != nil {
+		return err
+	}
+
+	if receipt.Status == types.ReceiptStatusFailed {
+		return fmt.Errorf("transaction failed: %s", err)
+	}
+	return nil
+}
+
+func (api *StandardTokenApi) DecreaseApproval(ctx context.Context, key *ecdsa.PrivateKey, spender common.Address, value *big.Int) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.tokenContract.DecreaseApproval(opts, spender, value)
+	if err != nil {
+		return err
+	}
+
+	receipt, err := WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx)
+	if err != nil {
+		return err
+	}
+
+	if receipt.Status == types.ReceiptStatusFailed {
+		return fmt.Errorf("transaction failed: %s", err)
+	}
+	return nil
 }
 
 func (api *StandardTokenApi) BalanceOf(ctx context.Context, address common.Address) (*big.Int, error) {

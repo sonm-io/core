@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
+	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials"
@@ -119,14 +120,18 @@ func WithRelay(addrs []netutil.TCPAddr, key *ecdsa.PrivateKey, log *zap.Logger) 
 func WithRelayClient(addrs []netutil.TCPAddr, log *zap.Logger) Option {
 	return func(o *options) error {
 		o.relayDial = func(target common.Address) (net.Conn, error) {
+			errs := multierror.NewMultiError()
+
 			for _, addr := range addrs {
 				conn, err := relay.DialWithLog(&addr, target, "", log)
 				if err == nil {
 					return conn, nil
 				}
+
+				errs = multierror.AppendUnique(errs, err)
 			}
 
-			return nil, fmt.Errorf("failed to connect to %+v", addrs)
+			return nil, fmt.Errorf("failed to connect to %+v: %s", addrs, errs.Error())
 		}
 
 		return nil
