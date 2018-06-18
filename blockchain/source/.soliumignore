@@ -1,3 +1,4 @@
 node_modules/*
 contracts/Migrations.sol
 zeppelin-solidity/contracts/*
+contracts/SNMMasterchain.sol
