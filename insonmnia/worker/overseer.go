@@ -34,7 +34,7 @@ const dieEvent = "die"
 // Description for a target application.
 // TODO: Drop duplication (sonm.Container)
 type Description struct {
-	Reference     reference.Named
+	Reference     reference.Reference
 	Auth          string
 	RestartPolicy container.RestartPolicy
 	Resources     *pb.AskPlanResources

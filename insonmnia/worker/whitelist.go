@@ -20,7 +20,7 @@ import (
 )
 
 type Whitelist interface {
-	Allowed(ctx context.Context, reference string, auth string) (bool, reference.Named, error)
+	Allowed(ctx context.Context, reference string, auth string) (bool, reference.Reference, error)
 }
 
 func NewWhitelist(ctx context.Context, config *WhitelistConfig) Whitelist {
@@ -121,8 +121,8 @@ func (w *whitelist) digestAllowed(name string, digest string) (bool, error) {
 	return false, nil
 }
 
-func (w *whitelist) Allowed(ctx context.Context, referenceStr string, authority string) (bool, reference.Named, error) {
-	ref, err := reference.ParseNormalizedNamed(referenceStr)
+func (w *whitelist) Allowed(ctx context.Context, referenceStr string, authority string) (bool, reference.Reference, error) {
+	ref, err := reference.Parse(referenceStr)
 	if err != nil {
 		return false, nil, err
 	}
@@ -142,8 +142,11 @@ func (w *whitelist) Allowed(ctx context.Context, referenceStr string, authority 
 		if err != nil {
 			return false, nil, err
 		}
+		if _, ok := ref.(reference.Named); !ok {
+			return false, nil, errors.New("can not check whitelist for unnamed reference")
+		}
 
-		allowed, err := w.digestAllowed(ref.Name(), (string)(digestedRef.Digest()))
+		allowed, err := w.digestAllowed(ref.(reference.Named).Name(), (string)(digestedRef.Digest()))
 
 		return allowed, ref, err
 	}
@@ -158,13 +161,13 @@ func (w *whitelist) Allowed(ctx context.Context, referenceStr string, authority 
 		return false, nil, errors.Wrap(err, "could not perform DistributionInspect")
 	}
 
-	ref, err = reference.ParseNormalizedNamed(ref.String() + "@" + (string)(inspection.Descriptor.Digest))
+	ref, err = reference.WithDigest(ref.(reference.Named), inspection.Descriptor.Digest)
 	if err != nil {
 		// This should never happen
 		panic("logical error - can not append digest and parse")
 	}
 
-	allowed, err := w.digestAllowed(ref.Name(), (string)(inspection.Descriptor.Digest))
+	allowed, err := w.digestAllowed(ref.(reference.Named).Name(), (string)(inspection.Descriptor.Digest))
 
 	return allowed, ref, err
 }
@@ -172,8 +175,8 @@ func (w *whitelist) Allowed(ctx context.Context, referenceStr string, authority 
 type disabledWhitelist struct {
 }
 
-func (w *disabledWhitelist) Allowed(ctx context.Context, referenceStr string, auth string) (bool, reference.Named, error) {
-	ref, err := reference.ParseNormalizedNamed(referenceStr)
+func (w *disabledWhitelist) Allowed(ctx context.Context, referenceStr string, auth string) (bool, reference.Reference, error) {
+	ref, err := reference.Parse(referenceStr)
 	if err != nil {
 		return false, nil, err
 	}
