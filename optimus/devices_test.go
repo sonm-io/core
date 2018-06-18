@@ -576,3 +576,66 @@ func TestConsumeOrder(t *testing.T) {
 		assert.Equal(t, uint64(1), plan.ThroughputOut.BitsPerSecond)
 	}
 }
+
+func TestConsumeOrderDEV000(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.CPU.Device.Cores = 1
+	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
+		0: {Result: 817},
+		1: {Result: 1315},
+		2: {Result: 1},
+	}
+	devices.RAM.Device.Total = 1033342976
+	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
+		3: {
+			Result: 16754622464,
+		},
+	}
+	devices.Network.In = 58801113
+	devices.Network.Out = 20966499
+	devices.Network.BenchmarksIn = map[uint64]*sonm.Benchmark{
+		5: {Result: 58801113},
+	}
+	devices.Network.BenchmarksOut = map[uint64]*sonm.Benchmark{
+		6: {Result: 20966499},
+	}
+
+	freeDevices := newEmptyDevicesReply()
+	freeDevices.CPU.Device.Cores = 1
+	freeDevices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
+		0: {Result: 817},
+		1: {Result: 1315},
+		2: {Result: 1},
+	}
+	freeDevices.RAM.Device.Total = 1033342976
+	freeDevices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
+		3: {
+			Result: 16333650944,
+		},
+	}
+	freeDevices.Network.In = 58801113
+	freeDevices.Network.Out = 20966499
+	freeDevices.Network.BenchmarksIn = map[uint64]*sonm.Benchmark{
+		5: {Result: 58801113},
+	}
+	freeDevices.Network.BenchmarksOut = map[uint64]*sonm.Benchmark{
+		6: {Result: 20966499},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, freeDevices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := [12]uint64{400, 0, 1, 256000000, 0, 1000000, 1000000}
+	{
+		plan, err := manager.consumeNetwork(benchmark[:])
+		require.NoError(t, err)
+		require.NotNil(t, plan)
+
+		assert.Equal(t, uint64(1000000), plan.ThroughputIn.BitsPerSecond)
+		assert.Equal(t, uint64(1000000), plan.ThroughputOut.BitsPerSecond)
+	}
+}
