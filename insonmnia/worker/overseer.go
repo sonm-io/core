@@ -34,7 +34,7 @@ const dieEvent = "die"
 // Description for a target application.
 // TODO: Drop duplication (sonm.Container)
 type Description struct {
-	Reference     reference.Named
+	Reference     reference.Reference
 	Auth          string
 	RestartPolicy container.RestartPolicy
 	Resources     *pb.AskPlanResources
@@ -443,12 +443,24 @@ func (o *overseer) Save(ctx context.Context, imageID string) (types.ImageInspect
 
 func (o *overseer) Spool(ctx context.Context, d Description) error {
 	log.G(ctx).Info("pull the application image")
+	// TODO: maybe add sonm labels to make filtration easier
+	summaries, err := o.client.ImageList(ctx, types.ImageListOptions{})
+	if err != nil {
+		return err
+	}
+	refStr := d.Reference.String()
+	for _, summary := range summaries {
+		log.S(ctx).With(zap.Any("sum", summary)).Infof("image %s, ref %s", summary.ID, refStr)
+		if summary.ID == refStr {
+			log.S(ctx).Infof("application image %s is already present", d.Reference.String())
+			return nil
+		}
+	}
 	options := types.ImagePullOptions{
 		All:          false,
 		RegistryAuth: d.Auth,
 	}
 
-	refStr := d.Reference.String()
 	body, err := o.client.ImagePull(ctx, refStr, options)
 	if err != nil {
 		log.G(ctx).Error("ImagePull failed", zap.String("ref", refStr), zap.Error(err))
