@@ -26,11 +26,13 @@ import { Ask } from './helpers/ask';
 import { Bid } from './helpers/bid';
 import { checkBenchmarks, checkOrderStatus, getDealIdFromOrder, getDealInfoFromOrder } from './helpers/common';
 
-const SNMD = artifacts.require('./SNMD.sol');
+const SNM = artifacts.require('./SNM.sol');
 const Market = artifacts.require('./Market.sol');
 const OracleUSD = artifacts.require('./OracleUSD.sol');
 const Blacklist = artifacts.require('./Blacklist.sol');
 const ProfileRegistry = artifacts.require('./ProfileRegistry.sol');
+
+const ONE_MILLION_TOKEN = 1e6 * 1e18;
 
 contract('Market', async (accounts) => {
     let market;
@@ -50,7 +52,7 @@ contract('Market', async (accounts) => {
     let supplierWithMaster = accounts[10];
 
     before(async () => {
-        token = await SNMD.new();
+        token = await SNM.new();
         oracle = await OracleUSD.new();
         await oracle.setCurrentPrice(oraclePrice);
         blacklist = await Blacklist.new();
@@ -63,13 +65,17 @@ contract('Market', async (accounts) => {
             benchmarkQuantity,
             netflagsQuantity,
         );
-        await token.AddMarket(market.address);
         await blacklist.SetMarketAddress(market.address);
 
         await token.transfer(consumer, oraclePrice / 1e7, { from: accounts[0] });
         await token.transfer(supplier, oraclePrice / 1e7, { from: accounts[0] });
         await token.transfer(specialConsumer, 7200, { from: accounts[0] });
         await token.transfer(specialConsumer2, 3605, { from: accounts[0] });
+
+        await token.approve(market.address, ONE_MILLION_TOKEN, { from: consumer });
+        await token.approve(market.address, ONE_MILLION_TOKEN, { from: supplier });
+        await token.approve(market.address, ONE_MILLION_TOKEN, { from: specialConsumer });
+        await token.approve(market.address, ONE_MILLION_TOKEN, { from: specialConsumer2 });
     });
 
     it('Check balances', async () => {
@@ -665,7 +671,7 @@ contract('Market', async (accounts) => {
                     presetSpotDealId,
                     testPrice,
                     80000,
-                    { from: consumer })
+                    { from: consumer }),
             );
         });
 
