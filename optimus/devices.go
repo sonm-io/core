@@ -159,11 +159,6 @@ type DeviceManager struct {
 }
 
 func newDeviceManager(devices *sonm.DevicesReply, freeDevices *sonm.DevicesReply, mapping benchmarks.Mapping) (*DeviceManager, error) {
-	// TODO: ???
-	//if v, ok := devices.CPU.Benchmarks[CPUSysbenchMultiID]; !ok || v.Result == 0 {
-	//	return nil, errors.New("no CPU detected")
-	//}
-
 	m := &DeviceManager{
 		devices:        devices,
 		mapping:        mapping,
