@@ -444,13 +444,12 @@ func (o *overseer) Save(ctx context.Context, imageID string) (types.ImageInspect
 func (o *overseer) Spool(ctx context.Context, d Description) error {
 	log.G(ctx).Info("pull the application image")
 	// TODO: maybe add sonm labels to make filtration easier
-	summaries, err := o.client.ImageList(ctx, types.ImageListOptions{})
+	summaries, err := o.client.ImageList(ctx, types.ImageListOptions{All: true})
 	if err != nil {
 		return err
 	}
 	refStr := d.Reference.String()
 	for _, summary := range summaries {
-		log.S(ctx).With(zap.Any("sum", summary)).Infof("image %s, ref %s", summary.ID, refStr)
 		if summary.ID == refStr {
 			log.S(ctx).Infof("application image %s is already present", d.Reference.String())
 			return nil
