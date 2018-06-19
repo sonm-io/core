@@ -35,7 +35,7 @@ type ProfileRegistryAPI interface {
 	RemoveValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address) (*types.Transaction, error)
 	GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error)
 	CreateCertificate(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address, attributeType *big.Int, value []byte) (*types.Transaction, error)
-	RemoveCertificate(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error)
+	RemoveCertificate(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error
 	GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error)
 	GetAttributeCount(ctx context.Context, owner common.Address, attributeType *big.Int) (*big.Int, error)
 	GetAttributeValue(ctx context.Context, owner common.Address, attributeType *big.Int) ([]byte, error)
@@ -627,9 +627,17 @@ func (api *ProfileRegistry) CreateCertificate(ctx context.Context, key *ecdsa.Pr
 	return api.profileRegistryContract.CreateCertificate(opts, owner, attributeType, value)
 }
 
-func (api *ProfileRegistry) RemoveCertificate(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) (*types.Transaction, error) {
+func (api *ProfileRegistry) RemoveCertificate(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	return api.profileRegistryContract.RemoveCertificate(opts, id)
+	tx, err := api.profileRegistryContract.RemoveCertificate(opts, id)
+	if err != nil {
+		return err
+	}
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, CertificateUpdatedTopic); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (api *ProfileRegistry) AddValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address, level int8) (*types.Transaction, error) {

@@ -76,3 +76,12 @@ func newBlacklistClient(ctx context.Context) (pb.BlacklistClient, error) {
 
 	return pb.NewBlacklistClient(cc), nil
 }
+
+func newProfilesClient(ctx context.Context) (pb.ProfilesClient, error) {
+	cc, err := newClientConn(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return pb.NewProfilesClient(cc), nil
+}
