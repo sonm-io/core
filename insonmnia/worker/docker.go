@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
+	"strings"
 )
 
 type imageLoadStatus struct {
-	Status string `json:"status"`
+	Id string `json:"stream"`
 }
 
 func decodeImageLoad(rd io.Reader) (imageLoadStatus, error) {
@@ -15,11 +16,12 @@ func decodeImageLoad(rd io.Reader) (imageLoadStatus, error) {
 	if err != nil {
 		return imageLoadStatus{}, err
 	}
-
 	var status imageLoadStatus
 	if err := json.Unmarshal([]byte(result), &status); err != nil {
 		return imageLoadStatus{}, err
 	}
+	status.Id = strings.Replace(status.Id, "Loaded image ID: ", "", -1)
+	status.Id = strings.Trim(status.Id, "\n")
 
 	return status, nil
 }

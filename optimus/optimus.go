@@ -34,7 +34,7 @@ type Optimus struct {
 func NewOptimus(cfg Config, log *zap.Logger) (*Optimus, error) {
 	m := &Optimus{
 		cfg: cfg,
-		log: log.Sugar(),
+		log: log.With(zap.String("source", "optimus")).Sugar(),
 	}
 
 	m.log.Debugw("configuring Optimus", zap.Any("config", cfg))
@@ -225,7 +225,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 		return
 	}
 
-	m.log.Infof("worker benchmarks: %s", strings.Join(strings.Fields(fmt.Sprintf("%v", freeWorkerBenchmarks)), ", "))
+	m.log.Infof("worker benchmarks: %v", strings.Join(strings.Fields(fmt.Sprintf("%v", freeWorkerBenchmarks.ToArray())), ", "))
 
 	orders := m.ordersSet.Get()
 	if len(orders) == 0 {
@@ -240,13 +240,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 			continue
 		}
 
-		if order.Order.Order.GetNetflags().GetOverlay() && !devices.Network.GetNetFlags().GetOverlay() {
-			continue
-		}
-		if order.Order.Order.GetNetflags().GetOutbound() && !devices.Network.GetNetFlags().GetOutbound() {
-			continue
-		}
-		if order.Order.Order.GetNetflags().GetIncoming() && !devices.GetNetwork().GetNetFlags().GetIncoming() {
+		if !devices.GetNetwork().GetNetFlags().ConverseImplication(order.Order.Order.GetNetflags()) {
 			continue
 		}
 
