@@ -1,12 +1,16 @@
 package commands
 
 import (
+	"os"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/cmd/cli/config"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJsonOutputForOrder(t *testing.T) {
@@ -24,6 +28,22 @@ func TestJsonOutputForOrder(t *testing.T) {
 }
 
 func TestDealInfoWithZeroDuration(t *testing.T) {
+	keydir := os.TempDir()
+	defer os.Remove(keydir)
+
+	var err error
+	keystore, err = accounts.NewMultiKeystore(&accounts.KeystoreConfig{
+		KeyDir:      keydir,
+		PassPhrases: make(map[string]string),
+	}, accounts.NewStaticPassPhraser("test"))
+	require.NoError(t, err)
+
+	generatedKey, err := keystore.GenerateWithPassword("test")
+	require.NoError(t, err)
+
+	err = keystore.SetDefault(crypto.PubkeyToAddress(generatedKey.PublicKey))
+	require.NoError(t, err)
+
 	deal := &pb.Deal{
 		Status:      pb.DealStatus_DEAL_CLOSED,
 		Id:          pb.NewBigIntFromInt(1488),
@@ -39,6 +59,8 @@ func TestDealInfoWithZeroDuration(t *testing.T) {
 	}
 
 	buf := initRootCmd(t, "", config.OutputModeSimple)
+	cfg = &config.Config{Eth: accounts.EthConfig{Passphrase: "test"}}
+
 	printDealInfo(rootCmd, &pb.DealInfoReply{Deal: deal}, nil)
 
 	assert.Contains(t, buf.String(), "Duration:     0s")

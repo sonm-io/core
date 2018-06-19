@@ -85,7 +85,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&keystoreFlag, "keystore", "", "Keystore dir")
 
 	rootCmd.AddCommand(workerMgmtCmd, orderRootCmd, dealRootCmd, taskRootCmd, blacklistRootCmd)
-	rootCmd.AddCommand(loginCmd, tokenRootCmd, versionCmd, autoCompleteCmd, masterRootCmd)
+	rootCmd.AddCommand(loginCmd, tokenRootCmd, versionCmd, autoCompleteCmd, masterRootCmd, profileRootCmd)
 }
 
 // Root configure and return root command
