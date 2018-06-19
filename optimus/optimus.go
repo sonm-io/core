@@ -34,7 +34,7 @@ type Optimus struct {
 func NewOptimus(cfg Config, log *zap.Logger) (*Optimus, error) {
 	m := &Optimus{
 		cfg: cfg,
-		log: log.Sugar(),
+		log: log.With(zap.String("source", "optimus")).Sugar(),
 	}
 
 	m.log.Debugw("configuring Optimus", zap.Any("config", cfg))
@@ -225,7 +225,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 		return
 	}
 
-	m.log.Infof("worker benchmarks: %s", strings.Join(strings.Fields(fmt.Sprintf("%v", freeWorkerBenchmarks)), ", "))
+	m.log.Infof("worker benchmarks: %v", strings.Join(strings.Fields(fmt.Sprintf("%v", freeWorkerBenchmarks.ToArray())), ", "))
 
 	orders := m.ordersSet.Get()
 	if len(orders) == 0 {
@@ -305,7 +305,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 		})
 	}
 
-	m.log.Infof("cut the following selling plans: %v", plans)
+	m.log.Infow("successfully cut the following selling plans", zap.Any("plans", plans))
 
 	// Tell worker to create sell plans.
 	for _, plan := range plans {

@@ -101,6 +101,7 @@ func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
 	)`,
 			createTableCertificates: `
 	CREATE TABLE IF NOT EXISTS Certificates (
+		Id						    TEXT NOT NULL,
 		OwnerID						TEXT NOT NULL,
 		Attribute					INTEGER NOT NULL,
 		AttributeLevel				INTEGER NOT NULL,

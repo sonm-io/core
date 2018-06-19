@@ -568,13 +568,13 @@ var taskPushCmd = &cobra.Command{
 				progress, err := client.Recv()
 				if err == io.EOF {
 					if bytesCommitted == fileInfo.Size() {
-						status, ok := client.Trailer()["status"]
-						if !ok {
+						id, ok := client.Trailer()["id"]
+						if !ok || len(id) == 0 {
 							showError(cmd, "No status returned", nil)
 							os.Exit(1)
 						}
 
-						showJSON(cmd, map[string]interface{}{"status": status})
+						showJSON(cmd, map[string]interface{}{"id": id[0]})
 						return
 					}
 				}
