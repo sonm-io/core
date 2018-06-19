@@ -18,7 +18,7 @@ var (
 
 func init() {
 	dealListCmd.PersistentFlags().Uint64Var(&dealsSearchCount, "limit", 10, "Deals count to show")
-	dealCloseCmd.PersistentFlags().StringVar(&blacklistTypeStr, "blacklist", "none", "Whom to add to blacklist (worker, master or neither)")
+	dealCloseCmd.PersistentFlags().StringVar(&blacklistTypeStr, "blacklist", "none", "Whom to add to blacklist (`worker`, `master` or `none`). Defaults to `none`")
 	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewDurationFlag, "new-duration", "", "Propose new duration for a deal")
 	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewPriceFlag, "new-price", "", "Propose new price for a deal")
 
@@ -164,7 +164,7 @@ var dealQuickBuyCmd = &cobra.Command{
 		}
 
 		req := &pb.QuickBuyRequest{
-			AskId: id,
+			AskID: id,
 		}
 		if len(args) >= 2 {
 			duration, err := time.ParseDuration(args[1])

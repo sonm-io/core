@@ -12,7 +12,7 @@ module.exports = function (deployer, network) {
             '0x1f995e52dcbec7c0d00d45b8b1bf43b29dd12b5b', // Oracle address
             '0xacfe1a688649fe9798b44a76b906fdca6e584a8d', // ProfileRegistry address
             12, // benchmarks quantity
-            3,
+            3, // netflags quantity
             { gasPrice: 0 });
     } else {
         deployer.deploy(Market, SNM.address, Blacklist.address, OracleUSD.address, ProfileRegistry.address, 12, 3);

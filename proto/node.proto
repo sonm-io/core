@@ -68,7 +68,7 @@ service DealManagement {
 }
 
 message QuickBuyRequest {
-    BigInt askId = 1;
+    BigInt askID = 1;
     Duration duration = 2;
 }
 
