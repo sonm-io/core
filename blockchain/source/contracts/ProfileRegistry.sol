@@ -38,10 +38,6 @@ contract ProfileRegistry is Ownable, Pausable {
 
     event CertificateUpdated(uint indexed id);
 
-    event ProfileRegistryHasBeenFrozen();
-
-    bool isContractFrozen = false;
-
     uint256 certificatesCount = 0;
 
     mapping(address => int8) public validators;

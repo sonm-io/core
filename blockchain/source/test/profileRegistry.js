@@ -603,7 +603,7 @@ contract('ProfileRegistry', async function (accounts) {
                 await registry.pause();
             });
 
-            it('remove validator and spend `ValidatorDeleted` event', async function () {
+            it('should revert', async function () {
                 await assertRevert(registry.RemoveValidator(testValidator, { from: owner }));
             });
         });

@@ -108,9 +108,6 @@ contract Market is Ownable, Pausable {
     event NumBenchmarksUpdated(uint indexed newNum);
     event NumNetflagsUpdated(uint indexed newNum);
 
-    event MarketHasBeenFrozen();
-
-
     // VARS
 
     uint constant MAX_BENCHMARKS_VALUE = 2 ** 63;
@@ -134,8 +131,6 @@ contract Market is Ownable, Pausable {
 
     // current length of netflags
     uint netflagsQuantity;
-
-    bool public isContractFrozen = false;
 
     mapping(uint => Order) public orders;
 
@@ -785,12 +780,6 @@ contract Market is Ownable, Pausable {
         require(_newQuantity > netflagsQuantity);
         emit NumNetflagsUpdated(_newQuantity);
         netflagsQuantity = _newQuantity;
-        return true;
-    }
-
-    function FreezeMarket() onlyOwner public returns (bool) {
-        isContractFrozen = true;
-        emit MarketHasBeenFrozen();
         return true;
     }
 }
