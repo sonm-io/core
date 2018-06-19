@@ -402,7 +402,7 @@ func (m *AskPlan) GetIdentity() IdentityLevel {
 	if m != nil {
 		return m.Identity
 	}
-	return IdentityLevel_ANONYMOUS
+	return IdentityLevel_UNKNOWN
 }
 
 func (m *AskPlan) GetTag() []byte {

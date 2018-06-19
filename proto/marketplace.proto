@@ -41,9 +41,11 @@ enum OrderStatus {
 }
 
 enum IdentityLevel {
-    ANONYMOUS = 0;
-    PSEUDONYMOUS = 1;
-    IDENTIFIED = 2;
+    UNKNOWN = 0;
+    ANONYMOUS = 1;
+    REGISTERED = 2;
+    IDENTIFIED = 3;
+    PROFESSIONAL = 4;
 }
 
 enum DealStatus {
