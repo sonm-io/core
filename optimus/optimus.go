@@ -225,7 +225,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 		return
 	}
 
-	m.log.Infof("worker benchmarks: %s", strings.Join(strings.Fields(fmt.Sprintf("%v", freeWorkerBenchmarks)), ", "))
+	m.log.Infof("worker benchmarks: %v", strings.Join(strings.Fields(fmt.Sprintf("%v", freeWorkerBenchmarks.ToArray())), ", "))
 
 	orders := m.ordersSet.Get()
 	if len(orders) == 0 {
