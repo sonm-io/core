@@ -34,7 +34,7 @@ type Optimus struct {
 func NewOptimus(cfg Config, log *zap.Logger) (*Optimus, error) {
 	m := &Optimus{
 		cfg: cfg,
-		log: log.Sugar(),
+		log: log.With(zap.String("source", "optimus")).Sugar(),
 	}
 
 	m.log.Debugw("configuring Optimus", zap.Any("config", cfg))
