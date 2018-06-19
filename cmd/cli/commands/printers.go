@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/datasize"
@@ -299,6 +300,14 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealC
 					time.Second*time.Duration(req.GetDuration()),
 					req.GetPrice().ToPriceString())
 			}
+		}
+
+		noWorkerRespond := info.GetResources() == nil && info.GetRunning() == nil && info.GetCompleted() == nil
+		iamConsumer := crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Big().Cmp(deal.GetConsumerID().Unwrap().Big()) == 0
+
+		if noWorkerRespond && iamConsumer {
+			// seems like worker is offline, notify user about it
+			cmd.Println("WARN: Seems like worker is offline: no respond for the resources and tasks request.")
 		}
 
 		if info.Resources != nil {
