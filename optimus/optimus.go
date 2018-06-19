@@ -240,13 +240,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 			continue
 		}
 
-		if order.Order.Order.GetNetflags().GetOverlay() && !devices.Network.GetNetFlags().GetOverlay() {
-			continue
-		}
-		if order.Order.Order.GetNetflags().GetOutbound() && !devices.Network.GetNetFlags().GetOutbound() {
-			continue
-		}
-		if order.Order.Order.GetNetflags().GetIncoming() && !devices.GetNetwork().GetNetFlags().GetIncoming() {
+		if !devices.GetNetwork().GetNetFlags().ConverseImplication(order.Order.Order.GetNetflags()) {
 			continue
 		}
 
