@@ -9,6 +9,16 @@ if (process.env.PRV_KEY !== undefined) {
 }
 let privateEndpoint = 'https://sidechain-dev.sonm.com';
 
+let mochaConfig = {};
+if (process.env.BUILD_TYPE === 'CI') {
+    mochaConfig = {
+        reporter: 'mocha-junit-reporter',
+        reporterOptions: {
+            mochaFile: 'result.xml',
+        },
+    };
+}
+
 module.exports = {
     networks: {
         development: {
@@ -39,4 +49,5 @@ module.exports = {
             runs: 200,
         },
     },
+    mocha: mochaConfig,
 };

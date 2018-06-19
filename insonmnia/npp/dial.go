@@ -71,37 +71,39 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 	timeout := 5 * time.Second
 	log.Debug("connecting using NPP", zap.Duration("timeout", timeout))
 
-	nppCtx, cancel := context.WithTimeout(ctx, timeout)
-	defer cancel()
+	if m.puncherNew != nil {
+		nppCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
 
-	nppChannel := make(chan connTuple)
+		nppChannel := make(chan connTuple)
 
-	go func() {
-		puncher, err := m.puncherNew()
-		if err != nil {
-			nppChannel <- newConnTuple(nil, err)
-			return
+		go func() {
+			puncher, err := m.puncherNew()
+			if err != nil {
+				nppChannel <- newConnTuple(nil, err)
+				return
+			}
+
+			nppChannel <- newConnTuple(puncher.Dial(ethAddr))
+		}()
+
+		select {
+		case conn := <-nppChannel:
+			err := conn.Error()
+			if err == nil {
+				log.Debug("successfully connected using NPP", zap.Stringer("remote_peer", conn.RemoteAddr()))
+				return conn.unwrap()
+			}
+
+			log.Warn("failed to connect using NPP", zap.Error(err))
+
+			if m.relayDial == nil {
+				log.Debug("no relay configured - returning error", zap.Error(err))
+				return conn.unwrap()
+			}
+		case <-nppCtx.Done():
+			log.Warn("failed to connect using NPP", zap.Error(nppCtx.Err()))
 		}
-
-		nppChannel <- newConnTuple(puncher.Dial(ethAddr))
-	}()
-
-	select {
-	case conn := <-nppChannel:
-		err := conn.Error()
-		if err == nil {
-			log.Debug("successfully connected using NPP", zap.Stringer("remote_peer", conn.RemoteAddr()))
-			return conn.unwrap()
-		}
-
-		log.Warn("failed to connect using NPP", zap.Error(err))
-
-		if m.relayDial == nil {
-			log.Debug("no relay configured - returning error", zap.Error(err))
-			return conn.unwrap()
-		}
-	case <-nppCtx.Done():
-		log.Warn("failed to connect using NPP", zap.Error(nppCtx.Err()))
 	}
 
 	log.Debug("connecting using Relay")

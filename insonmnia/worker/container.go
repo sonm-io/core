@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
@@ -219,7 +220,11 @@ func (c *containerDescriptor) upload(ctx context.Context) error {
 	}
 	tag := fmt.Sprintf("%s_%s", c.description.DealId, c.description.TaskId)
 
-	newImg, err := reference.WithTag(reference.TrimNamed(c.description.Reference), tag)
+	ref := c.description.Reference
+	if _, ok := ref.(reference.Named); !ok {
+		return errors.New("can not upload image without name")
+	}
+	newImg, err := reference.WithTag(reference.TrimNamed(c.description.Reference.(reference.Named)), tag)
 	if err != nil {
 		c.log.Errorf("failed to add tag: %s", err)
 		return err

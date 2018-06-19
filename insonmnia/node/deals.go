@@ -114,6 +114,14 @@ func (d *dealsAPI) CreateChangeRequest(ctx context.Context, req *pb.DealChangeRe
 		return nil, errors.New("deal is not related to current user")
 	}
 
+	if req.Duration == 0 {
+		req.Duration = deal.GetDuration()
+	}
+
+	if req.Price == nil {
+		req.Price = deal.GetPrice()
+	}
+
 	id, err := d.remotes.eth.Market().CreateChangeRequest(ctx, d.remotes.key, req)
 	if err != nil {
 		return nil, errors.WithMessage(err, "cannot create change request")
