@@ -20,6 +20,7 @@ func init() {
 		orderStatusCmd,
 		orderCreateCmd,
 		orderCancelCmd,
+		orderPurgeCmd,
 	)
 }
 
@@ -131,6 +132,29 @@ var orderCancelCmd = &cobra.Command{
 		_, err = market.CancelOrder(ctx, &pb.ID{Id: orderID})
 		if err != nil {
 			showError(cmd, "Cannot cancel order on Marketplace", err)
+			os.Exit(1)
+		}
+
+		showOk(cmd)
+	},
+}
+
+var orderPurgeCmd = &cobra.Command{
+	Use:    "purge",
+	Short:  "Remove all your orders from Marketplace",
+	PreRun: loadKeyStoreIfRequired,
+	Run: func(cmd *cobra.Command, _ []string) {
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		market, err := newMarketClient(ctx)
+		if err != nil {
+			showError(cmd, "Cannot create client connection", err)
+			os.Exit(1)
+		}
+
+		if _, err := market.Purge(ctx, &pb.Empty{}); err != nil {
+			showError(cmd, "Cannot purge orders", err)
 			os.Exit(1)
 		}
 
