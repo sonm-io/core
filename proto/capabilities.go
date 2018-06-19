@@ -98,5 +98,5 @@ func (m *NetFlags) SetOverlay(value bool) *NetFlags {
 }
 
 func (m *NetFlags) ConverseImplication(cmp *NetFlags) bool {
-	return m.Flags|^cmp.GetFlags() == 1<<64-1
+	return m.GetFlags()|^cmp.GetFlags() == 1<<64-1
 }

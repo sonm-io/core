@@ -5,8 +5,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/dwh"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
@@ -121,6 +124,34 @@ func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, err
 
 	if err := m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id); err != nil {
 		return nil, fmt.Errorf("could not get cancel order %s on blockchain: %s", req.GetId(), err)
+	}
+
+	return &pb.Empty{}, nil
+}
+
+func (m *marketAPI) Purge(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
+	orders, err := m.remotes.dwh.GetOrders(ctx, &pb.OrdersRequest{
+		Type:     pb.OrderType_BID,
+		Status:   pb.OrderStatus_ORDER_ACTIVE,
+		AuthorID: pb.NewEthAddress(crypto.PubkeyToAddress(m.remotes.key.PublicKey)),
+		Limit:    dwh.MaxLimit,
+	})
+
+	if err != nil {
+		return nil, errors.WithMessage(err, "cannot get orders from dwh")
+	}
+
+	merr := multierror.NewMultiError()
+	for _, order := range orders.Orders {
+		id := order.GetOrder().GetId().Unwrap()
+		ctxlog.G(m.remotes.ctx).Debug("cancelling order", zap.String("id", id.String()))
+		if err := m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id); err != nil {
+			multierror.Append(merr, fmt.Errorf("cannot cancel order with id %s: %v", id.String(), err))
+		}
+	}
+
+	if len(merr.WrappedErrors()) > 0 {
+		return nil, merr.ErrorOrNil()
 	}
 
 	return &pb.Empty{}, nil
