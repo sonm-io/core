@@ -56,6 +56,9 @@ message DealsRequest {
     uint64 offset = 14;
     repeated SortingOption sortings = 15;
     bool withCount = 16;
+    // If provided, supplierID, consumerID, and masterID fields are ignored.
+    // Any of the above IDs must match the provided value.
+    EthAddress anyUserID = 17;
 }
 
 message DWHDealsReply {
