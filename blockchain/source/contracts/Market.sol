@@ -109,8 +109,6 @@ contract Market is Ownable {
 
     event MarketHasBeenFrozen();
 
-    // due postgres/sqlite couldn't work w uint64
-    uint constant  maxBenchmarkValue  = 2 ** 63;
 
     // VARS
 
