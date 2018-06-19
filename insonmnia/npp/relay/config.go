@@ -9,18 +9,10 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/insonmnia/npp/cluster"
 	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/netutil"
 )
-
-// ClusterConfig represents a cluster membership config.
-type ClusterConfig struct {
-	Name      string
-	Endpoint  string
-	Announce  string
-	SecretKey string `yaml:"secret_key" json:"-"`
-	Members   []string
-}
 
 type MonitorConfig struct {
 	Endpoint   string
@@ -34,7 +26,7 @@ type monitorConfig struct {
 
 type serverConfig struct {
 	Addr    netutil.TCPAddr `yaml:"endpoint" required:"true"`
-	Cluster ClusterConfig   `yaml:"cluster"`
+	Cluster cluster.Config  `yaml:"cluster"`
 	Logging logging.Config  `yaml:"logging"`
 	Monitor monitorConfig   `yaml:"monitoring"`
 	Debug   *debug.Config   `yaml:"debug"`
@@ -43,7 +35,7 @@ type serverConfig struct {
 // ServerConfig describes the complete relay server configuration.
 type ServerConfig struct {
 	Addr    netutil.TCPAddr
-	Cluster ClusterConfig
+	Cluster cluster.Config
 	Logging logging.Config
 	Monitor MonitorConfig
 	Debug   *debug.Config

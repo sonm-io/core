@@ -9,6 +9,7 @@ import (
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/insonmnia/npp/cluster"
 	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/netutil"
 )
@@ -19,6 +20,7 @@ type ServerConfig struct {
 	Addr       net.Addr
 	PrivateKey *ecdsa.PrivateKey
 	Logging    logging.Config
+	Cluster    cluster.Config `yaml:"cluster"`
 	Debug      *debug.Config
 }
 
@@ -26,6 +28,7 @@ type serverConfig struct {
 	Addr    netutil.TCPAddr    `yaml:"endpoint" required:"true"`
 	Eth     accounts.EthConfig `yaml:"ethereum"`
 	Logging logging.Config     `yaml:"logging"`
+	Cluster cluster.Config     `yaml:"cluster"`
 	Debug   *debug.Config      `yaml:"debug"`
 }
 
@@ -46,6 +49,7 @@ func NewServerConfig(path string) (*ServerConfig, error) {
 		Addr:       &cfg.Addr,
 		PrivateKey: privateKey,
 		Logging:    cfg.Logging,
+		Cluster:    cfg.Cluster,
 		Debug:      cfg.Debug,
 	}, nil
 }

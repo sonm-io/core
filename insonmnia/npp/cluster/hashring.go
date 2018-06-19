@@ -8,7 +8,7 @@
 // 4. [v| | | |x| | |K| |v|x| | |v|U|x| ]
 // 5. [v| | | | | | |K| |v| | | |v|U| | ]
 //
-// 1. Initial continuum.
+// 1. Initial Continuum.
 // 2. After inserting node "x".
 // 3. Discovering both key "K" and "U" results in "x".
 // 4. After inserting another node "v" discovering result of key "U" left the
@@ -18,7 +18,7 @@
 // automatically, since leaving from the group usually means that the node is
 // shutting down.
 
-package relay
+package cluster
 
 import (
 	"sync"
@@ -27,21 +27,21 @@ import (
 	"github.com/sonm-io/core/insonmnia/npp/nppc"
 )
 
-type continuum struct {
+type Continuum struct {
 	mu        sync.RWMutex
 	continuum *hashring.HashRing
 	tracking  map[nppc.ResourceID]string
 }
 
-func newContinuum() *continuum {
-	return &continuum{
+func NewContinuum() *Continuum {
+	return &Continuum{
 		continuum: hashring.New([]string{}),
 	}
 }
 
-// Add adds a new weighted node into the continuum, returning list of ETH
+// Add adds a new weighted node into the Continuum, returning list of ETH
 // addresses that are need to be rescheduled.
-func (m *continuum) Add(node string, weight int) []nppc.ResourceID {
+func (m *Continuum) Add(node string, weight int) []nppc.ResourceID {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -52,9 +52,9 @@ func (m *continuum) Add(node string, weight int) []nppc.ResourceID {
 
 // Track starts tracking the given address.
 //
-// When a new node is inserted into the continuum the Add method returns the
+// When a new node is inserted into the Continuum the Add method returns the
 // list of addresses that must be rescheduled.
-func (m *continuum) Track(addr nppc.ResourceID) {
+func (m *Continuum) Track(addr nppc.ResourceID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -67,7 +67,7 @@ func (m *continuum) Track(addr nppc.ResourceID) {
 }
 
 // StopServerTracking stops tracking the given server connection described by ID.
-func (m *continuum) StopServerTracking(addr nppc.ResourceID) {
+func (m *Continuum) StopServerTracking(addr nppc.ResourceID) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -75,7 +75,7 @@ func (m *continuum) StopServerTracking(addr nppc.ResourceID) {
 }
 
 // Remove removes the specified node from the continuum
-func (m *continuum) Remove(node string) []nppc.ResourceID {
+func (m *Continuum) Remove(node string) []nppc.ResourceID {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -84,7 +84,7 @@ func (m *continuum) Remove(node string) []nppc.ResourceID {
 	return m.scanTrackingChanges()
 }
 
-func (m *continuum) scanTrackingChanges() []nppc.ResourceID {
+func (m *Continuum) scanTrackingChanges() []nppc.ResourceID {
 	addrs := make([]nppc.ResourceID, 0)
 	tracking := make(map[nppc.ResourceID]string, 0)
 
@@ -102,7 +102,7 @@ func (m *continuum) scanTrackingChanges() []nppc.ResourceID {
 }
 
 // Get returns a node that will serve the specified ETH address.
-func (m *continuum) Get(addr nppc.ResourceID) (string, bool) {
+func (m *Continuum) Get(addr nppc.ResourceID) (string, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.continuum.GetNode(addr.String())

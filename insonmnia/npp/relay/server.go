@@ -59,7 +59,6 @@ package relay
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"math/rand"
@@ -71,6 +70,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/memberlist"
 	"github.com/pborman/uuid"
+	"github.com/sonm-io/core/insonmnia/npp/cluster"
 	"github.com/sonm-io/core/insonmnia/npp/nppc"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/debug"
@@ -253,7 +253,7 @@ type server struct {
 
 	meetingRoom *meetingRoom
 
-	continuum *continuum
+	continuum *cluster.Continuum
 
 	handshakeTimeout time.Duration
 	waitTimeout      time.Duration
@@ -310,7 +310,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 
 		meetingRoom: newMeetingRoom(opts.log),
 
-		continuum: newContinuum(),
+		continuum: cluster.NewContinuum(),
 
 		handshakeTimeout: 30 * time.Second,
 		waitTimeout:      24 * time.Hour,
@@ -321,7 +321,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		log: opts.log.Sugar(),
 	}
 
-	if err := m.initCluster(cfg.Cluster); err != nil {
+	if m.cluster, err = cluster.NewCluster(cfg.Cluster, m, m.log.Desugar()); err != nil {
 		return nil, err
 	}
 
@@ -331,49 +331,6 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 	}
 
 	return m, nil
-}
-
-func (m *server) initCluster(cfg ClusterConfig) error {
-	key, err := hex.DecodeString(cfg.SecretKey)
-	if err != nil {
-		return err
-	}
-
-	keyring, err := memberlist.NewKeyring([][]byte{}, key)
-	if err != nil {
-		return err
-	}
-
-	addr, port, err := netutil.SplitHostPort(cfg.Endpoint)
-	if err != nil {
-		return err
-	}
-
-	config := memberlist.DefaultWANConfig()
-	config.Name = cfg.Name
-	config.BindAddr = addr.String()
-	config.BindPort = int(port)
-
-	if len(cfg.Announce) > 0 {
-		announceAddr, announcePort, err := netutil.SplitHostPort(cfg.Announce)
-		if err != nil {
-			return err
-		}
-
-		config.AdvertiseAddr = announceAddr.String()
-		config.AdvertisePort = int(announcePort)
-	}
-	config.Events = m
-	config.Keyring = keyring
-	config.LogOutput = newLogAdapter(m.log.Desugar())
-	config.ProbeInterval = time.Second
-
-	m.cluster, err = memberlist.Create(config)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // Serve starts the relay TCP server.

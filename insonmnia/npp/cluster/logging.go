@@ -6,7 +6,7 @@
 // all datetime formatting is truncated, because it anyway be replaced with
 // Zap one.
 
-package relay
+package cluster
 
 import (
 	"io"

@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "insonmnia.proto";
+import "relay.proto";
 import "net.proto";
 
 package sonm;
@@ -21,6 +22,7 @@ service Rendezvous {
     rpc Publish(PublishRequest) returns (RendezvousReply) {}
     // Info returns server's internal state.
     rpc Info(Empty) returns (RendezvousState) {}
+    rpc Discover(HandshakeRequest) returns (DiscoverResponse) {}
 }
 
 // ConnectRequest describres a connection request to a remote target, possibly
