@@ -76,7 +76,7 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.BigInt) (*pb.DealInfoReply
 }
 
 func (d *dealsAPI) Finish(ctx context.Context, req *pb.DealFinishRequest) (*pb.Empty, error) {
-	if err := d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, req.GetId().Unwrap(), req.GetAddToBlacklist()); err != nil {
+	if err := d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, req.GetId().Unwrap(), req.GetBlacklistType()); err != nil {
 		return nil, fmt.Errorf("could not close deal in blockchain: %s", err)
 	}
 
@@ -92,8 +92,18 @@ func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal,
 	return deal, nil
 }
 
-func (d *dealsAPI) QuickBuy(ctx context.Context, askID *pb.BigInt) (*pb.Deal, error) {
-	return d.remotes.eth.Market().QuickBuy(ctx, d.remotes.key, askID.Unwrap())
+func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.Deal, error) {
+	var duration uint64
+	if req.Duration == nil {
+		ask, err := d.remotes.eth.Market().GetOrderInfo(ctx, req.GetAskId().Unwrap())
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch ask order for duration lookup: %s", err)
+		}
+		duration = ask.Duration
+	} else {
+		duration = uint64(req.GetDuration().Unwrap().Seconds())
+	}
+	return d.remotes.eth.Market().QuickBuy(ctx, d.remotes.key, req.GetAskId().Unwrap(), duration)
 }
 
 func (d *dealsAPI) ChangeRequestsList(ctx context.Context, id *pb.BigInt) (*pb.DealChangeRequestsReply, error) {

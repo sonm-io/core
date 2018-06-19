@@ -107,6 +107,7 @@ It has these top-level messages:
 	Endpoints
 	JoinNetworkRequest
 	TaskListRequest
+	QuickBuyRequest
 	DealFinishRequest
 	DealsReply
 	OpenDealRequest

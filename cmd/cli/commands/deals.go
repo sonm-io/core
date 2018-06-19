@@ -11,14 +11,14 @@ import (
 
 var (
 	dealsSearchCount  uint64
-	addToBlacklist    bool
+	blacklistTypeStr  string
 	crNewDurationFlag string
 	crNewPriceFlag    string
 )
 
 func init() {
 	dealListCmd.PersistentFlags().Uint64Var(&dealsSearchCount, "limit", 10, "Deals count to show")
-	dealCloseCmd.PersistentFlags().BoolVar(&addToBlacklist, "blacklist", false, "Add counterparty to blacklist")
+	dealCloseCmd.PersistentFlags().StringVar(&blacklistTypeStr, "blacklist", "none", "Whom to add to blacklist (worker, master or neither)")
 	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewDurationFlag, "new-duration", "", "Propose new duration for a deal")
 	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewPriceFlag, "new-price", "", "Propose new price for a deal")
 
@@ -143,8 +143,8 @@ var dealOpenCmd = &cobra.Command{
 }
 
 var dealQuickBuyCmd = &cobra.Command{
-	Use:    "quick-buy <ask_id>",
-	Short:  "Copy given ASK order with BID type and open a deal with this orders",
+	Use:    "quick-buy <ask_id> [duration]",
+	Short:  "Instantly open deal with provided ask order id and optional duration (should be less or equal comparing to ask order)",
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreWrapper,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -163,7 +163,20 @@ var dealQuickBuyCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		deal, err := deals.QuickBuy(ctx, id)
+		req := &pb.QuickBuyRequest{
+			AskId: id,
+		}
+		if len(args) >= 2 {
+			duration, err := time.ParseDuration(args[1])
+			if err != nil {
+				showError(cmd, "Cannot parse specified duration", err)
+				os.Exit(1)
+			}
+			req.Duration = &pb.Duration{
+				Nanoseconds: duration.Nanoseconds(),
+			}
+		}
+		deal, err := deals.QuickBuy(ctx, req)
 		if err != nil {
 			showError(cmd, "Cannot perform quick buy on given order", err)
 			os.Exit(1)
@@ -181,6 +194,18 @@ var dealCloseCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
+		var blacklistType pb.BlacklistType
+		switch blacklistTypeStr {
+		case "none":
+			blacklistType = pb.BlacklistType_BLACKLIST_NOBODY
+		case "worker":
+			blacklistType = pb.BlacklistType_BLACKLIST_WORKER
+		case "master":
+			blacklistType = pb.BlacklistType_BLACKLIST_MASTER
+		default:
+			showError(cmd, "Cannot parse `blacklist` argumet, allowed values are `none`, `worker` and `master`", nil)
+			os.Exit(1)
+		}
 
 		dealer, err := newDealsClient(ctx)
 		if err != nil {
@@ -195,8 +220,8 @@ var dealCloseCmd = &cobra.Command{
 		}
 
 		_, err = dealer.Finish(ctx, &pb.DealFinishRequest{
-			Id:             pb.NewBigInt(id),
-			AddToBlacklist: addToBlacklist,
+			Id:            pb.NewBigInt(id),
+			BlacklistType: blacklistType,
 		})
 		if err != nil {
 			showError(cmd, "Cannot finish deal", err)

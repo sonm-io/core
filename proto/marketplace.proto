@@ -60,6 +60,12 @@ enum ChangeRequestStatus {
     REQUEST_ACCEPTED = 4;
 }
 
+enum BlacklistType {
+    BLACKLIST_NOBODY = 0;
+    BLACKLIST_WORKER = 1;
+    BLACKLIST_MASTER = 2;
+}
+
 message Benchmarks {
     repeated uint64 values = 1;
 }
