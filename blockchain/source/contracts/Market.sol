@@ -107,6 +107,11 @@ contract Market is Ownable {
     event NumBenchmarksUpdated(uint indexed newNum);
     event NumNetflagsUpdated(uint indexed newNum);
 
+    event MarketHasBeenFrozen();
+
+    // due postgres/sqlite couldn't work w uint64
+    uint constant  maxBenchmarkValue  = 2 ** 63;
+
     // VARS
 
     uint constant MAX_BENCHMARKS_VALUE = 2 ** 63;
@@ -130,6 +135,8 @@ contract Market is Ownable {
 
     // current length of netflags
     uint netflagsQuantity;
+
+    bool public isContractFrozen = false;
 
     mapping(uint => Order) public orders;
 
@@ -172,7 +179,8 @@ contract Market is Ownable {
         address _blacklist,
         bytes32 _tag,
         uint64[] _benchmarks
-    ) public returns (uint){
+    ) unfreezed public returns (uint){
+
         require(_identityLevel >= ProfileRegistry.IdentityLevel.ANONYMOUS);
         require(_netflags.length <= netflagsQuantity);
         require(_benchmarks.length <= benchmarksQuantity);
@@ -256,7 +264,7 @@ contract Market is Ownable {
 
     // Deal functions
 
-    function OpenDeal(uint _askID, uint _bidID) public {
+    function OpenDeal(uint _askID, uint _bidID) unfreezed public {
         Order memory ask = orders[_askID];
         Order memory bid = orders[_bidID];
 
@@ -779,5 +787,17 @@ contract Market is Ownable {
         emit NumNetflagsUpdated(_newQuantity);
         netflagsQuantity = _newQuantity;
         return true;
+    }
+
+    function FreezeMarket() onlyOwner public returns (bool) {
+        isContractFrozen = true;
+        emit MarketHasBeenFrozen();
+        return true;
+    }
+    //MODIFIERS
+
+    modifier unfreezed() {
+        require(isContractFrozen == false);
+        _;
     }
 }
