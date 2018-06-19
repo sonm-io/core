@@ -42,7 +42,7 @@ func (t *tokenAPI) Balance(ctx context.Context, _ *sonm.Empty) (*sonm.BalanceRep
 }
 
 func (t *tokenAPI) Deposit(ctx context.Context, amount *sonm.BigInt) (*sonm.Empty, error) {
-	if err := t.remotes.eth.MasterchainToken().IncreaseApproval(ctx, t.remotes.key, blockchain.GatekeeperMasterchainAddr(), amount.Unwrap()); err != nil {
+	if err := t.remotes.eth.MasterchainToken().ApproveAtLeast(ctx, t.remotes.key, blockchain.GatekeeperMasterchainAddr(), amount.Unwrap()); err != nil {
 		return nil, fmt.Errorf("cannot change allowance: %s", err)
 	}
 
