@@ -57,7 +57,9 @@ func (m *regressionClassifier) Classify(orders []*MarketOrder) ([]WeightedOrder,
 
 		distance := normalizer.Denormalize(normalizedPrice) - expectation[i]
 
-		orders[i].CreatedTS = &sonm.Timestamp{}
+		if orders[i].CreatedTS == nil {
+			orders[i].CreatedTS = &sonm.Timestamp{}
+		}
 		weightedOrders = append(weightedOrders, WeightedOrder{
 			Order:    orders[i],
 			Distance: distance,
