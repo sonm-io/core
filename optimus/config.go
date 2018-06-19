@@ -75,7 +75,7 @@ func (m *newClassifier) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	case "regression":
 		cfg := struct {
 			Model   newModel
-			Sigmoid sigmoidConfig
+			Sigmoid sigmoidConfig `yaml:"logistic"`
 		}{}
 
 		if err := unmarshal(&cfg); err != nil {
