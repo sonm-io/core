@@ -1,8 +1,11 @@
 pragma solidity ^0.4.23;
 
-import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
-contract ProfileRegistry is Ownable {
+import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "zeppelin-solidity/contracts/lifecycle/Pausable.sol";
+
+
+contract ProfileRegistry is Ownable, Pausable {
 
     modifier onlySonm(){
         require(GetValidatorLevel(msg.sender) == - 1);
@@ -50,10 +53,11 @@ contract ProfileRegistry is Ownable {
     mapping(address => mapping(uint256 => uint)) certificateCount;
 
     constructor() public {
+        owner = msg.sender;
         validators[msg.sender] = - 1;
     }
 
-    function AddValidator(address _validator, int8 _level) onlySonm unfreezed public returns (address){
+    function AddValidator(address _validator, int8 _level) onlySonm whenNotPaused public returns (address){
         require(_level > 0);
         require(GetValidatorLevel(_validator) == 0);
         validators[_validator] = _level;
@@ -61,7 +65,7 @@ contract ProfileRegistry is Ownable {
         return _validator;
     }
 
-    function RemoveValidator(address _validator) onlySonm unfreezed public returns (address){
+    function RemoveValidator(address _validator) onlySonm whenNotPaused public returns (address){
         require(GetValidatorLevel(_validator) > 0);
         validators[_validator] = 0;
         emit ValidatorDeleted(_validator);
@@ -72,7 +76,7 @@ contract ProfileRegistry is Ownable {
         return validators[_validator];
     }
 
-    function CreateCertificate(address _owner, uint256 _type, bytes _value) unfreezed public {
+    function CreateCertificate(address _owner, uint256 _type, bytes _value) whenNotPaused public {
         //Check validator level
         if (_type >= 1100) {
             int8 attributeLevel = int8(_type / 100 % 10);
@@ -101,7 +105,7 @@ contract ProfileRegistry is Ownable {
         emit CertificateCreated(certificatesCount);
     }
 
-    function RemoveCertificate(uint256 _id) unfreezed public {
+    function RemoveCertificate(uint256 _id) whenNotPaused public {
         Certificate memory crt = certificates[_id];
 
         require(crt.to == msg.sender || crt.from == msg.sender || GetValidatorLevel(msg.sender) == -1);
@@ -139,26 +143,14 @@ contract ProfileRegistry is Ownable {
         }
     }
 
-    function AddSonmRights(address _newSonm) onlyOwner public returns (bool) {
-        validators[_newSonm] = -1;
+    function AddSonmValidator(address _validator) onlyOwner public returns (bool) {
+        validators[_validator] = -1;
         return true;
     }
 
-    function RemoveSonmRights(address _oldSonm) onlyOwner public returns (bool) {
-        require(GetValidatorLevel(_oldSonm) == -1);
-        validators[_oldSonm] = 0;
+    function RemoveSonmValidator(address _validator) onlyOwner public returns (bool) {
+        require(GetValidatorLevel(_validator) == -1);
+        validators[_validator] = 0;
         return true;
-    }
-
-    function FreezeProfileRegistry() onlyOwner public returns (bool) {
-        isContractFrozen = true;
-        emit ProfileRegistryHasBeenFrozen();
-        return true;
-    }
-    //MODIFIERS
-
-    modifier unfreezed() {
-        require(isContractFrozen == false);
-        _;
     }
 }
