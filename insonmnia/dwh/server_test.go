@@ -252,7 +252,6 @@ func TestDWH_GetOrders(t *testing.T) {
 			Benchmarks: map[uint64]*pb.MaxMinUint64{0: {Min: 15}},
 		}
 		orders, _, err := globalDWH.storage.GetOrders(newSimpleConn(globalDWH.db), request)
-
 		if err != nil {
 			t.Errorf("Request `%+v` failed: %s", request, err)
 			return

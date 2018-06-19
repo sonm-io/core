@@ -10,13 +10,17 @@ import (
 )
 
 var (
-	dealsSearchCount uint64
-	addToBlacklist   bool
+	dealsSearchCount  uint64
+	addToBlacklist    bool
+	crNewDurationFlag string
+	crNewPriceFlag    string
 )
 
 func init() {
 	dealListCmd.PersistentFlags().Uint64Var(&dealsSearchCount, "limit", 10, "Deals count to show")
 	dealCloseCmd.PersistentFlags().BoolVar(&addToBlacklist, "blacklist", false, "Add counterparty to blacklist")
+	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewDurationFlag, "new-duration", "", "Propose new duration for a deal")
+	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewPriceFlag, "new-price", "", "Propose new price for a deal")
 
 	changeRequestsRoot.AddCommand(
 		changeRequestCreateCmd,
@@ -208,11 +212,11 @@ var changeRequestsRoot = &cobra.Command{
 }
 
 var changeRequestCreateCmd = &cobra.Command{
-	Use: "create <deal_id> <new_duration> <new_price_usd>",
+	Use: "create <deal_id>",
 	// space is added to align `usage` and `example` output into cobra's help message
-	Example: "  sonmcli deal change-request create 123 10h 0.3USD/h",
+	Example: "  sonmcli deal change-request create 123 --new-duration=10h --new-price=0.3USD/h",
 	Short:   "Request changes for given deal",
-	Args:    cobra.RangeArgs(3, 4),
+	Args:    cobra.MinimumNArgs(1),
 	PreRun:  loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
 		ctx, cancel := newTimeoutContext()
@@ -230,28 +234,37 @@ var changeRequestCreateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		duration, err := time.ParseDuration(args[1])
-		if err != nil {
-			showError(cmd, "Cannot convert arg to duration", err)
+		durationRaw := cmd.Flag("new-duration").Value.String()
+		priceRaw := cmd.Flag("new-price").Value.String()
+
+		// check that at least one flag is present
+		if len(durationRaw) == 0 && len(priceRaw) == 0 {
+			showError(cmd, "Please specify at least one flag: --new-duration or --new-price", nil)
 			os.Exit(1)
 		}
 
-		priceRaw := args[2]
-		// price set with space, like `10 USD`
-		if len(args) == 4 {
-			priceRaw = args[2] + args[3]
+		var newPrice = &pb.Price{}
+		var newDuration time.Duration
+
+		if len(durationRaw) > 0 {
+			newDuration, err = time.ParseDuration(durationRaw)
+			if err != nil {
+				showError(cmd, "Cannot convert flag value to duration", err)
+				os.Exit(1)
+			}
 		}
 
-		p := &pb.Price{}
-		if err := p.LoadFromString(priceRaw); err != nil {
-			showError(cmd, "Cannot convert arg to price", err)
-			os.Exit(1)
+		if len(priceRaw) > 0 {
+			if err := newPrice.LoadFromString(priceRaw); err != nil {
+				showError(cmd, "Cannot convert flag value to price", err)
+				os.Exit(1)
+			}
 		}
 
 		req := &pb.DealChangeRequest{
 			DealID:   pb.NewBigInt(id),
-			Duration: uint64(duration.Seconds()),
-			Price:    p.GetPerSecond(),
+			Duration: uint64(newDuration.Seconds()),
+			Price:    newPrice.GetPerSecond(),
 		}
 
 		crid, err := dealer.CreateChangeRequest(ctx, req)

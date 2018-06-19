@@ -7,6 +7,7 @@ import "./Blacklist.sol";
 import "./OracleUSD.sol";
 import "./ProfileRegistry.sol";
 
+
 contract Market is Ownable {
 
     using SafeMath for uint256;
@@ -44,7 +45,6 @@ contract Market is Ownable {
         BLACKLIST_WORKER,
         BLACKLIST_MASTER
     }
-
 
     struct Deal {
         uint64[] benchmarks;
@@ -107,10 +107,9 @@ contract Market is Ownable {
     event NumBenchmarksUpdated(uint indexed newNum);
     event NumNetflagsUpdated(uint indexed newNum);
 
-    // due postgres/sqlite couldn't work w uint64
-    uint constant  maxBenchmarkValue  = 2 ** 63;
-
     // VARS
+
+    uint constant MAX_BENCHMARKS_VALUE = 2 ** 63;
 
     SNM token;
 
@@ -126,10 +125,10 @@ contract Market is Ownable {
 
     uint requestsAmount = 0;
 
-    // current length of benchmarks array (12)
+    // current length of benchmarks
     uint benchmarksQuantity;
 
-    // same as for benchmarks
+    // current length of netflags
     uint netflagsQuantity;
 
     mapping(uint => Order) public orders;
@@ -148,7 +147,7 @@ contract Market is Ownable {
 
     mapping(address => mapping(address => bool)) masterRequest;
 
-   // INIT
+    // INIT
 
     constructor(address _token, address _blacklist, address _oracle, address _profileRegistry, uint _benchmarksQuantity, uint _netflagsQuantity) public {
         token = SNM(_token);
@@ -174,16 +173,15 @@ contract Market is Ownable {
         bytes32 _tag,
         uint64[] _benchmarks
     ) public returns (uint){
-
         require(_identityLevel >= ProfileRegistry.IdentityLevel.ANONYMOUS);
         require(_netflags.length <= netflagsQuantity);
         require(_benchmarks.length <= benchmarksQuantity);
 
-        for(uint i = 0; i < _benchmarks.length; i++){
-            require(_benchmarks[i] < maxBenchmarkValue);
+        for (uint i = 0; i < _benchmarks.length; i++) {
+            require(_benchmarks[i] < MAX_BENCHMARKS_VALUE);
         }
 
-        uint lockedSum;
+        uint lockedSum = 0;
 
         if (_orderType == OrderType.ORDER_BID) {
             if (_duration == 0) {
@@ -225,14 +223,12 @@ contract Market is Ownable {
         require(orders[orderID].orderStatus == OrderStatus.ORDER_ACTIVE);
         require(orders[orderID].author == msg.sender);
 
-
         require(token.transfer(msg.sender, orders[orderID].frozenSum));
         orders[orderID].orderStatus = OrderStatus.ORDER_INACTIVE;
 
         emit OrderUpdated(orderID);
         return true;
     }
-
 
     function QuickBuy(uint askID, uint buyoutDuration) public {
         Order memory ask = orders[askID];
@@ -256,7 +252,6 @@ contract Market is Ownable {
             ask.benchmarks);
 
         OpenDeal(askID, GetOrdersAmount());
-
     }
 
     // Deal functions
@@ -280,14 +275,14 @@ contract Market is Ownable {
         require(ask.price <= bid.price);
         require(ask.duration >= bid.duration);
         // profile level check
-        require(pr.GetProfileLevel(bid.author)>= ask.identityLevel);
+        require(pr.GetProfileLevel(bid.author) >= ask.identityLevel);
         require(pr.GetProfileLevel(ask.author) >= bid.identityLevel);
 
-        if (ask.netflags.length < netflagsQuantity){
+        if (ask.netflags.length < netflagsQuantity) {
             ask.netflags = ResizeNetflags(ask.netflags);
         }
 
-        if (bid.netflags.length < netflagsQuantity){
+        if (bid.netflags.length < netflagsQuantity) {
             bid.netflags = ResizeNetflags(ask.netflags);
         }
 
@@ -297,11 +292,11 @@ contract Market is Ownable {
             require(!bid.netflags[i] || ask.netflags[i]);
         }
 
-        if(ask.benchmarks.length < benchmarksQuantity){
+        if (ask.benchmarks.length < benchmarksQuantity) {
             ask.benchmarks = ResizeBenchmarks(ask.benchmarks);
         }
 
-        if(bid.benchmarks.length < benchmarksQuantity){
+        if (bid.benchmarks.length < benchmarksQuantity) {
             bid.benchmarks = ResizeBenchmarks(bid.benchmarks);
         }
 
@@ -327,7 +322,6 @@ contract Market is Ownable {
         if (ask.duration != 0) {
             endTime = startTime.add(bid.duration);
         }
-
         uint blockedBalance = bid.frozenSum;
         deals[dealAmount] = Deal(ask.benchmarks, ask.author, bid.author, master, _askID, _bidID, bid.duration, ask.price, startTime, endTime, DealStatus.STATUS_ACCEPTED, blockedBalance, 0, block.timestamp);
         emit DealOpened(dealAmount);
@@ -341,85 +335,16 @@ contract Market is Ownable {
             // after endTime
             require(deals[dealID].consumerID == msg.sender);
         }
-
         AddToBlacklist(dealID, blacklisted);
-        Bill(dealID);
+        InternalBill(dealID);
         InternalCloseDeal(dealID);
-
-        if (deals[dealID].blockedBalance > 0) {
-            require(token.transfer(deals[dealID].consumerID, deals[dealID].blockedBalance));
-        }
+        RefundRemainingFunds(dealID);
         return true;
     }
 
     function Bill(uint dealID) public returns (bool){
-        require(deals[dealID].status == DealStatus.STATUS_ACCEPTED);
-        require(msg.sender == deals[dealID].supplierID || msg.sender == deals[dealID].consumerID || msg.sender == deals[dealID].masterID);
-        Deal memory deal = deals[dealID];
-
-        uint paidAmount;
-
-        if (!IsSpot(dealID) && deal.lastBillTS >= deal.endTime) {
-            //means we already billed deal after endTime
-            return true;
-        } else if (!IsSpot(dealID) && block.timestamp > deal.endTime && deal.lastBillTS < deal.endTime) {
-            paidAmount = CalculatePayment(deal.price, deal.endTime.sub(deal.lastBillTS));
-        } else {
-            paidAmount = CalculatePayment(deal.price, block.timestamp.sub(deal.lastBillTS));
-        }
-
-        if (paidAmount > deal.blockedBalance) {
-            if (token.balanceOf(deal.consumerID) >= paidAmount.sub(deal.blockedBalance)) {
-                require(token.transferFrom(deal.consumerID, this, paidAmount.sub(deal.blockedBalance)));
-                deals[dealID].blockedBalance = deals[dealID].blockedBalance.add(paidAmount.sub(deal.blockedBalance));
-            } else {
-                emit Billed(dealID, deals[dealID].blockedBalance);
-                InternalCloseDeal(dealID);
-                require(token.transfer(deal.masterID, deal.blockedBalance));
-                deals[dealID].lastBillTS = block.timestamp;
-                deals[dealID].totalPayout = deals[dealID].totalPayout.add(deal.blockedBalance);
-                deals[dealID].blockedBalance = 0;
-                return true;
-            }
-        }
-        require(token.transfer(deal.masterID, paidAmount));
-        deals[dealID].blockedBalance = deals[dealID].blockedBalance.sub(paidAmount);
-        deals[dealID].totalPayout = deals[dealID].totalPayout.add(paidAmount);
-        deals[dealID].lastBillTS = block.timestamp;
-        emit Billed(dealID, paidAmount);
-
-        uint nextPeriod;
-
-        if (IsSpot(dealID)){
-            if (deal.status == DealStatus.STATUS_CLOSED) {
-                return true;
-            } else {
-                nextPeriod = 1 hours;
-            }
-        } else {
-            if (block.timestamp > deal.endTime) {
-                return true; //we don't reserve funds for next period
-            } else if (deal.endTime.sub(block.timestamp) < 1 days) {
-                nextPeriod = deal.endTime.sub(block.timestamp);
-            } else
-                nextPeriod = 1 days;
-        }
-
-
-        if (CalculatePayment(deal.price, nextPeriod) > deals[dealID].blockedBalance){
-            uint nextPeriodSum = CalculatePayment(deal.price, nextPeriod).sub(deals[dealID].blockedBalance);
-
-            if (token.balanceOf(deal.consumerID) >= nextPeriodSum) {
-                require(token.transferFrom(deal.consumerID, this, nextPeriodSum));
-                deals[dealID].blockedBalance = deals[dealID].blockedBalance.add(nextPeriodSum);
-            } else {
-                emit Billed(dealID, deal.blockedBalance);
-                InternalCloseDeal(dealID);
-                require(token.transfer(deal.consumerID, deals[dealID].blockedBalance));
-                deals[dealID].blockedBalance = 0;
-                return true;
-            }
-        }
+        InternalBill(dealID);
+        ReserveNextPeriodFunds(dealID);
         return true;
     }
 
@@ -496,16 +421,14 @@ contract Market is Ownable {
                 deals[dealID].price = newPrice;
                 deals[dealID].duration = matchingRequest.duration;
                 emit DealChangeRequestUpdated(requestsAmount);
-            } else  {
+            } else {
                 return requestsAmount;
             }
-
         }
 
         deals[dealID].endTime = deals[dealID].startTime.add(deals[dealID].duration);
         return requestsAmount;
     }
-
 
     function CancelChangeRequest(uint changeRequestID) public returns (bool) {
         ChangeRequest memory request = requests[changeRequestID];
@@ -513,7 +436,7 @@ contract Market is Ownable {
         require(request.status != RequestStatus.REQUEST_ACCEPTED);
 
         if (request.requestType == OrderType.ORDER_ASK) {
-            if(msg.sender == deals[request.dealID].consumerID){
+            if (msg.sender == deals[request.dealID].consumerID) {
                 requests[changeRequestID].status = RequestStatus.REQUEST_REJECTED;
             } else {
                 requests[changeRequestID].status = RequestStatus.REQUEST_CANCELED;
@@ -523,7 +446,7 @@ contract Market is Ownable {
         }
 
         if (request.requestType == OrderType.ORDER_BID) {
-            if(msg.sender == deals[request.dealID].consumerID){
+            if (msg.sender == deals[request.dealID].consumerID) {
                 requests[changeRequestID].status = RequestStatus.REQUEST_CANCELED;
             } else {
                 requests[changeRequestID].status = RequestStatus.REQUEST_REJECTED;
@@ -531,11 +454,8 @@ contract Market is Ownable {
             actualRequests[request.dealID][1] = 0;
             emit DealChangeRequestUpdated(changeRequestID);
         }
-
-
         return true;
     }
-
 
     // Master-worker functions
 
@@ -641,7 +561,6 @@ contract Market is Ownable {
         uint totalPayout,
         uint lastBillTS
     ){
-        //Deal memory deal = deals[dealID];
         return (
         deals[dealID].duration,
         deals[dealID].price,
@@ -697,14 +616,95 @@ contract Market is Ownable {
     function GetNetflagsQuantity() public view returns (uint) {
         return netflagsQuantity;
     }
+
+
     // INTERNAL
 
-    function IsSpot(uint dealID) internal view returns (bool){
-        if (deals[dealID].duration == 0){
+    function InternalBill(uint dealID) internal returns (bool){
+        require(deals[dealID].status == DealStatus.STATUS_ACCEPTED);
+        require(msg.sender == deals[dealID].supplierID || msg.sender == deals[dealID].consumerID || msg.sender == deals[dealID].masterID);
+        Deal memory deal = deals[dealID];
+
+        uint paidAmount;
+
+        if (!IsSpot(dealID) && deal.lastBillTS >= deal.endTime) {
+            // means we already billed deal after endTime
             return true;
+        } else if (!IsSpot(dealID) && block.timestamp > deal.endTime && deal.lastBillTS < deal.endTime) {
+            paidAmount = CalculatePayment(deal.price, deal.endTime.sub(deal.lastBillTS));
         } else {
-            return false;
+            paidAmount = CalculatePayment(deal.price, block.timestamp.sub(deal.lastBillTS));
         }
+
+        if (paidAmount > deal.blockedBalance) {
+            if (token.balanceOf(deal.consumerID) >= paidAmount.sub(deal.blockedBalance)) {
+                require(token.transferFrom(deal.consumerID, this, paidAmount.sub(deal.blockedBalance)));
+                deals[dealID].blockedBalance = deals[dealID].blockedBalance.add(paidAmount.sub(deal.blockedBalance));
+            } else {
+                emit Billed(dealID, deals[dealID].blockedBalance);
+                InternalCloseDeal(dealID);
+                require(token.transfer(deal.masterID, deal.blockedBalance));
+                deals[dealID].lastBillTS = block.timestamp;
+                deals[dealID].totalPayout = deals[dealID].totalPayout.add(deal.blockedBalance);
+                deals[dealID].blockedBalance = 0;
+                return true;
+            }
+        }
+        require(token.transfer(deal.masterID, paidAmount));
+        deals[dealID].blockedBalance = deals[dealID].blockedBalance.sub(paidAmount);
+        deals[dealID].totalPayout = deals[dealID].totalPayout.add(paidAmount);
+        deals[dealID].lastBillTS = block.timestamp;
+        emit Billed(dealID, paidAmount);
+        return true;
+    }
+
+    function ReserveNextPeriodFunds(uint dealID) internal returns (bool) {
+        uint nextPeriod;
+        Deal memory deal = deals[dealID];
+
+        if (IsSpot(dealID)) {
+            if (deal.status == DealStatus.STATUS_CLOSED) {
+                return true;
+            }
+            nextPeriod = 1 hours;
+        } else {
+            if (block.timestamp > deal.endTime) {
+                // we don't reserve funds for next period
+                return true;
+            }
+            if (deal.endTime.sub(block.timestamp) < 1 days) {
+                nextPeriod = deal.endTime.sub(block.timestamp);
+            } else {
+                nextPeriod = 1 days;
+            }
+        }
+
+        if (CalculatePayment(deal.price, nextPeriod) > deals[dealID].blockedBalance) {
+            uint nextPeriodSum = CalculatePayment(deal.price, nextPeriod).sub(deals[dealID].blockedBalance);
+
+            if (token.balanceOf(deal.consumerID) >= nextPeriodSum) {
+                require(token.transferFrom(deal.consumerID, this, nextPeriodSum));
+                deals[dealID].blockedBalance = deals[dealID].blockedBalance.add(nextPeriodSum);
+            } else {
+                emit Billed(dealID, deals[dealID].blockedBalance);
+                InternalCloseDeal(dealID);
+                RefundRemainingFunds(dealID);
+                return true;
+            }
+        }
+        return true;
+    }
+
+    function RefundRemainingFunds(uint dealID) internal returns (bool){
+        if (deals[dealID].blockedBalance != 0) {
+            token.transfer(deals[dealID].consumerID, deals[dealID].blockedBalance);
+            deals[dealID].blockedBalance = 0;
+        }
+        return true;
+    }
+
+    function IsSpot(uint dealID) internal view returns (bool){
+        return deals[dealID].duration == 0;
     }
 
     function CalculatePayment(uint _price, uint _period) internal view returns (uint) {
@@ -715,27 +715,27 @@ contract Market is Ownable {
     function AddToBlacklist(uint dealID, BlacklistPerson role) internal {
         // only consumer can blacklist
         require(msg.sender == deals[dealID].consumerID || role == BlacklistPerson.BLACKLIST_NOBODY);
-        if (role == BlacklistPerson.BLACKLIST_WORKER){
+        if (role == BlacklistPerson.BLACKLIST_WORKER) {
             bl.Add(deals[dealID].consumerID, deals[dealID].supplierID);
-        } else if (role == BlacklistPerson.BLACKLIST_MASTER)
+        } else if (role == BlacklistPerson.BLACKLIST_MASTER) {
             bl.Add(deals[dealID].consumerID, deals[dealID].masterID);
+        }
     }
 
     function InternalCloseDeal(uint dealID) internal {
-        if (deals[dealID].status == DealStatus.STATUS_CLOSED){
+        if (deals[dealID].status == DealStatus.STATUS_CLOSED) {
             return;
-        } else {
-            require((deals[dealID].status == DealStatus.STATUS_ACCEPTED));
-            require(msg.sender == deals[dealID].consumerID || msg.sender == deals[dealID].supplierID || msg.sender == deals[dealID].masterID);
-            deals[dealID].status = DealStatus.STATUS_CLOSED;
-            deals[dealID].endTime = block.timestamp;
-            emit DealUpdated(dealID);
         }
+        require((deals[dealID].status == DealStatus.STATUS_ACCEPTED));
+        require(msg.sender == deals[dealID].consumerID || msg.sender == deals[dealID].supplierID || msg.sender == deals[dealID].masterID);
+        deals[dealID].status = DealStatus.STATUS_CLOSED;
+        deals[dealID].endTime = block.timestamp;
+        emit DealUpdated(dealID);
     }
 
     function ResizeBenchmarks(uint64[] _benchmarks) internal view returns (uint64[]) {
         uint64[] memory benchmarks = new uint64[](benchmarksQuantity);
-        for(uint i = 0; i < _benchmarks.length; i++){
+        for (uint i = 0; i < _benchmarks.length; i++) {
             benchmarks[i] = _benchmarks[i];
         }
         return benchmarks;
@@ -743,11 +743,12 @@ contract Market is Ownable {
 
     function ResizeNetflags(bool[] _netflags) internal view returns (bool[]) {
         bool[] memory netflags = new bool[](netflagsQuantity);
-        for(uint i = 0; i < _netflags.length; i++){
+        for (uint i = 0; i < _netflags.length; i++) {
             netflags[i] = _netflags[i];
         }
         return netflags;
     }
+
     // SETTERS
 
     function SetProfileRegistryAddress(address _newPR) onlyOwner public returns (bool) {
@@ -760,7 +761,7 @@ contract Market is Ownable {
         return true;
     }
 
-    function SetOracleAddress (address _newOracle) onlyOwner public returns (bool) {
+    function SetOracleAddress(address _newOracle) onlyOwner public returns (bool) {
         require(OracleUSD(_newOracle).getCurrentPrice() != 0);
         oracle = OracleUSD(_newOracle);
         return true;

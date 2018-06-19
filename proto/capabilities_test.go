@@ -43,7 +43,6 @@ func TestNetFlags_ToBoolSlice(t *testing.T) {
 	slice[1] = true
 	slice[2] = true
 	require.Equal(t, netFlags.ToBoolSlice(), slice)
-
 }
 
 func TestNetFlags_FromBoolSlice(t *testing.T) {
@@ -108,6 +107,20 @@ func TestNetFlags_ConverseImplication(t *testing.T) {
 		rhs := &NetFlags{Flags: test.rhs}
 		require.Equal(t, lhs.ConverseImplication(rhs), test.result)
 	}
+}
+func TestNetFlags_NilConverseImplication(t *testing.T) {
+	var lhs, rhs *NetFlags
+	require.NotPanics(t, func() {
+		lhs.ConverseImplication(rhs)
+	})
+	require.Equal(t, lhs.ConverseImplication(rhs), true)
+	lhs = &NetFlags{Flags: 0}
+	require.NotPanics(t, func() {
+		lhs.ConverseImplication(rhs)
+		rhs.ConverseImplication(lhs)
+	})
+	require.Equal(t, lhs.ConverseImplication(rhs), true)
+	require.Equal(t, rhs.ConverseImplication(lhs), true)
 }
 
 func TestNetFlagsMirror(t *testing.T) {
