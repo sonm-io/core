@@ -1,6 +1,8 @@
 package node
 
 import (
+	"fmt"
+
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
@@ -41,7 +43,7 @@ func (t *tokenAPI) Balance(ctx context.Context, _ *sonm.Empty) (*sonm.BalanceRep
 
 func (t *tokenAPI) Deposit(ctx context.Context, amount *sonm.BigInt) (*sonm.Empty, error) {
 	if err := t.remotes.eth.MasterchainToken().IncreaseApproval(ctx, t.remotes.key, blockchain.GatekeeperMasterchainAddr(), amount.Unwrap()); err != nil {
-		return nil, errors.WithMessage(err, "cannot change allowance")
+		return nil, fmt.Errorf("cannot change allowance: %s", err)
 	}
 
 	if err := t.remotes.eth.MasterchainGate().PayIn(ctx, t.remotes.key, amount.Unwrap()); err != nil {
@@ -53,7 +55,7 @@ func (t *tokenAPI) Deposit(ctx context.Context, amount *sonm.BigInt) (*sonm.Empt
 
 func (t *tokenAPI) Withdraw(ctx context.Context, amount *sonm.BigInt) (*sonm.Empty, error) {
 	if err := t.remotes.eth.SidechainToken().IncreaseApproval(ctx, t.remotes.key, blockchain.GatekeeperSidechainAddr(), amount.Unwrap()); err != nil {
-		return nil, errors.WithMessage(err, "cannot change allowance")
+		return nil, fmt.Errorf("cannot change allowance: %s", err)
 	}
 
 	if err := t.remotes.eth.SidechainGate().PayIn(ctx, t.remotes.key, amount.Unwrap()); err != nil {
