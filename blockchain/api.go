@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	marketAPI "github.com/sonm-io/core/blockchain/source/api"
@@ -79,8 +80,14 @@ type BlacklistAPI interface {
 // TokenAPI is a go implementation of ERC20-compatibility token with full functionality high-level interface
 // standard description with placed: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-20-token-standard.md
 type TokenAPI interface {
-	// Approve - add allowance from caller to other contract to spend tokens
-	Approve(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error)
+	// Approve allows managing some amount of your tokens by given address.
+	// Note that setting an allowance value is prohibited if current allowance value is non-zero.
+	// This behavior will persist until migrate our token to the ERC827 standard.
+	// You're forced to reset current allowance value for your address, then set a new value.
+	// This method performs resetting an old allowance value and setting a new one.
+	Approve(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) error
+	// ApproveAtLeast acts as Approve, but change allowance only if it less than required.
+	ApproveAtLeast(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) error
 	// Transfer token from caller
 	Transfer(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error)
 	// TransferFrom fallback function for contracts to transfer you allowance
@@ -120,7 +127,7 @@ type SimpleGatekeeperAPI interface {
 	// PayIn grab sender tokens and signal gate to transfer it to mirrored chain.
 	// On Masterchain ally as `Deposit`
 	// On Sidecain ally as `Withdraw`
-	PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) (*types.Transaction, error)
+	PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) error
 	// Payout release payout transaction from mirrored chain.
 	// Accessible only by owner.
 	Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error)
@@ -810,9 +817,54 @@ func (api *StandardTokenApi) AllowanceOf(ctx context.Context, from, to common.Ad
 	return api.tokenContract.Allowance(getCallOptions(ctx), from, to)
 }
 
-func (api *StandardTokenApi) Approve(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error) {
+func (api *StandardTokenApi) ApproveAtLeast(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) error {
+	curAmount, err := api.AllowanceOf(ctx, crypto.PubkeyToAddress(key.PublicKey), to)
+	if err != nil {
+		return err
+	}
+	if curAmount.Cmp(amount) >= 0 {
+		return nil
+	}
+	return api.approve(ctx, key, to, amount, curAmount)
+}
+
+func (api *StandardTokenApi) Approve(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) error {
+	curAmount, err := api.AllowanceOf(ctx, crypto.PubkeyToAddress(key.PublicKey), to)
+	if err != nil {
+		return err
+	}
+	return api.approve(ctx, key, to, amount, curAmount)
+}
+
+func (api *StandardTokenApi) approve(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int, curAmount *big.Int) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	return api.tokenContract.Approve(opts, to, amount)
+	if curAmount.Cmp(big.NewInt(0)) != 0 {
+		tx, err := api.tokenContract.Approve(opts, to, big.NewInt(0))
+		if err != nil {
+			return err
+		}
+		if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, ApprovalTopic); err != nil {
+			return err
+		}
+	}
+
+	// want to set a new zero value, but we just reset
+	// allowance value to zero. Nothing to do there.
+	if amount.Cmp(big.NewInt(0)) == 0 {
+		return nil
+	}
+
+	// set new allowance value
+	tx, err := api.tokenContract.Approve(opts, to, amount)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, ApprovalTopic); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (api *StandardTokenApi) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error) {
@@ -1207,9 +1259,18 @@ func NewSimpleGatekeeper(address common.Address, opts *chainOpts) (SimpleGatekee
 	}, nil
 }
 
-func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) (*types.Transaction, error) {
+func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	return api.contract.PayIn(opts, value)
+	tx, err := api.contract.PayIn(opts, value)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayInTopic); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error) {
