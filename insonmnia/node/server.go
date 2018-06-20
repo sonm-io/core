@@ -17,6 +17,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/npp"
+	"github.com/sonm-io/core/insonmnia/npp/relay"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/rest"
@@ -75,7 +76,7 @@ func (re *remoteOptions) getWorkerClientByEthAddr(ctx context.Context, eth strin
 func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
 	nppDialerOptions := []npp.Option{
 		npp.WithRendezvous(cfg.NPP.Rendezvous, credentials),
-		npp.WithRelayClient(cfg.NPP.Relay.Endpoints, log.G(ctx)),
+		npp.WithRelayDialer(&relay.Dialer{Addrs: cfg.NPP.Relay.Endpoints, Log: log.G(ctx)}),
 		npp.WithLogger(log.G(ctx)),
 	}
 	nppDialer, err := npp.NewDialer(ctx, nppDialerOptions...)
