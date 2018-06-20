@@ -14,10 +14,10 @@ ethereum: &ethereum
 # Map of workers this bot manages defined by its trusted endpoints with their
 # settings.
 workers:
- 0xccBe701e568577983E90968161ABB391759D589e@[::1]:15010:
-   # Epoch is an interval of scanning worker's free resources and selling them
-   # by cutting ask plans.
-   epoch: 5s
+  0xccBe701e568577983E90968161ABB391759D589e@[::1]:15010:
+    # Epoch is an interval of scanning worker's free resources and selling them
+    # by cutting ask plans.
+    epoch: 5s
 
 benchmarks:
   # URL to download benchmark list, use `file://` schema to load file from a filesystem.

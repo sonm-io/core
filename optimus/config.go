@@ -15,13 +15,13 @@ import (
 type Config struct {
 	PrivateKey   privateKey `yaml:"ethereum" json:"-"`
 	Logging      logging.Config
-	Workers      map[auth.Addr]WorkerConfig `yaml:"workers"`
+	Workers      map[auth.Addr]workerConfig `yaml:"workers"`
 	Benchmarks   benchmarks.Config          `yaml:"benchmarks"`
 	Marketplace  marketplaceConfig
 	Optimization optimizationConfig
 }
 
-type WorkerConfig struct {
+type workerConfig struct {
 	Epoch time.Duration `yaml:"epoch"`
 }
 

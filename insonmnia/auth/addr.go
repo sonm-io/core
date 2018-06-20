@@ -80,6 +80,10 @@ func (m Addr) String() string {
 	return m.netAddr
 }
 
+func (m Addr) MarshalText() ([]byte, error) {
+	return []byte(m.String()), nil
+}
+
 func (m *Addr) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var addr string
 	if err := unmarshal(&addr); err != nil {
