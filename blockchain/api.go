@@ -165,22 +165,22 @@ func NewAPI(opts ...Option) (API, error) {
 		return nil, err
 	}
 
+	sidechainToken, err := NewStandardToken(SidechainSNMAddr(), defaults.sidechain)
+	if err != nil {
+		return nil, err
+	}
+
 	blacklist, err := NewBasicBlacklist(BlacklistAddr(), defaults.sidechain)
 	if err != nil {
 		return nil, err
 	}
 
-	marketApi, err := NewBasicMarket(MarketAddr(), defaults.sidechain)
+	marketApi, err := NewBasicMarket(MarketAddr(), sidechainToken, defaults.sidechain)
 	if err != nil {
 		return nil, err
 	}
 
 	profileRegistry, err := NewProfileRegistry(ProfileRegistryAddr(), defaults.sidechain)
-	if err != nil {
-		return nil, err
-	}
-
-	sidechainToken, err := NewStandardToken(SidechainSNMAddr(), defaults.sidechain)
 	if err != nil {
 		return nil, err
 	}
@@ -262,11 +262,12 @@ func (api *BasicAPI) SidechainGate() SimpleGatekeeperAPI {
 
 type BasicMarketAPI struct {
 	client         CustomEthereumClient
+	token          TokenAPI
 	marketContract *marketAPI.Market
 	opts           *chainOpts
 }
 
-func NewBasicMarket(address common.Address, opts *chainOpts) (MarketAPI, error) {
+func NewBasicMarket(address common.Address, token TokenAPI, opts *chainOpts) (MarketAPI, error) {
 	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
@@ -279,12 +280,33 @@ func NewBasicMarket(address common.Address, opts *chainOpts) (MarketAPI, error) 
 
 	return &BasicMarketAPI{
 		client:         client,
+		token:          token,
 		marketContract: marketContract,
 		opts:           opts,
 	}, nil
 }
 
+func (api *BasicMarketAPI) checkAllowance(ctx context.Context, key *ecdsa.PrivateKey) error {
+	maxAllowance := big.NewInt(1)
+	maxAllowance = maxAllowance.Lsh(maxAllowance, 256)
+	maxAllowance = maxAllowance.Sub(maxAllowance, big.NewInt(1))
+	minAllowance := big.NewInt(0).Div(maxAllowance, big.NewInt(2))
+	curAllowance, err := api.token.AllowanceOf(ctx, crypto.PubkeyToAddress(key.PublicKey), MarketAddr())
+	if err != nil {
+		return fmt.Errorf("failed to get allowance: %s", err)
+	}
+	if curAllowance.Cmp(minAllowance) < 0 {
+		if err := api.token.Approve(ctx, key, MarketAddr(), maxAllowance); err != nil {
+			return fmt.Errorf("failed to set allowance: %s", err)
+		}
+	}
+	return nil
+}
+
 func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int, duration uint64) (*pb.Deal, error) {
+	if err := api.checkAllowance(ctx, key); err != nil {
+		return nil, err
+	}
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 	tx, err := api.marketContract.QuickBuy(opts, askId, big.NewInt(0).SetUint64(duration))
 	if err != nil {
@@ -319,6 +341,9 @@ func (api *BasicMarketAPI) extractOpenDealData(ctx context.Context, tx *types.Tr
 }
 
 func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklistType pb.BlacklistType) error {
+	if err := api.checkAllowance(ctx, key); err != nil {
+		return err
+	}
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 	tx, err := api.marketContract.CloseDeal(opts, dealID, uint8(blacklistType))
 	if err != nil {
@@ -381,6 +406,9 @@ func (api *BasicMarketAPI) GetDealsAmount(ctx context.Context) (*big.Int, error)
 }
 
 func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) (*pb.Order, error) {
+	if err := api.checkAllowance(ctx, key); err != nil {
+		return nil, err
+	}
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 
 	var fixedTag [32]byte
@@ -479,6 +507,9 @@ func (api *BasicMarketAPI) GetOrdersAmount(ctx context.Context) (*big.Int, error
 }
 
 func (api *BasicMarketAPI) Bill(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int) error {
+	if err := api.checkAllowance(ctx, key); err != nil {
+		return err
+	}
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 	tx, err := api.marketContract.Bill(opts, dealID)
 	if err != nil {
@@ -555,6 +586,9 @@ func (api *BasicMarketAPI) GetDealChangeRequestInfo(ctx context.Context, changeR
 }
 
 func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, req *pb.DealChangeRequest) (*big.Int, error) {
+	if err := api.checkAllowance(ctx, key); err != nil {
+		return nil, err
+	}
 	duration := big.NewInt(int64(req.GetDuration()))
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 	tx, err := api.marketContract.CreateChangeRequest(opts, req.GetDealID().Unwrap(), req.GetPrice().Unwrap(), duration)
