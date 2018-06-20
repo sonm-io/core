@@ -538,7 +538,7 @@ func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) 
 	if err != nil {
 		return false, nil, err
 	}
-	if level <= pb.IdentityLevel_ANONYMOUS {
+	if level <= pb.IdentityLevel_REGISTERED {
 		return m.whitelist.Allowed(ctx, reference, spec.GetRegistry().Auth())
 	}
 
