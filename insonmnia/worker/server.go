@@ -25,6 +25,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware/disk"
 	"github.com/sonm-io/core/insonmnia/npp"
+	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
 	"github.com/sonm-io/core/util"
@@ -157,11 +158,16 @@ func (m *Worker) Serve() error {
 		return err
 	}
 
+	relayListener, err := relay.NewListener(m.cfg.NPP.Relay.Endpoints, m.key, log.G(m.ctx))
+	if err != nil {
+		return err
+	}
+
 	listener, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
 		npp.WithNPPBacklog(m.cfg.NPP.Backlog),
 		npp.WithNPPBackoff(m.cfg.NPP.MinBackoffInterval, m.cfg.NPP.MaxBackoffInterval),
 		npp.WithRendezvous(m.cfg.NPP.Rendezvous, m.creds),
-		npp.WithRelay(m.cfg.NPP.Relay.Endpoints, m.key, log.G(m.ctx)),
+		npp.WithRelayListener(relayListener),
 		npp.WithLogger(log.G(m.ctx)),
 	)
 	if err != nil {

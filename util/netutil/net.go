@@ -115,3 +115,27 @@ func isPrivateIPv6(ip net.IP) bool {
 
 	return block.Contains(ip) || ip.IsLoopback() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast()
 }
+
+func LookupTCPHostPort(hostport string) ([]net.Addr, error) {
+	host, port, err := net.SplitHostPort(hostport)
+	if err != nil {
+		return nil, err
+	}
+
+	addrs, err := net.LookupHost(host)
+	if err != nil {
+		return nil, err
+	}
+
+	netAddrs := make([]net.Addr, len(addrs))
+	for id, addr := range addrs {
+		tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%s", addr, port))
+		if err != nil {
+			return nil, err
+		}
+
+		netAddrs[id] = tcpAddr
+	}
+
+	return netAddrs, nil
+}
