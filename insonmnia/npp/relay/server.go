@@ -60,6 +60,7 @@ package relay
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"math/rand"
 	"net"
@@ -473,6 +474,20 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 
 	id := ConnID(uuid.New())
 	addr := common.BytesToAddress(handshake.Addr)
+
+	targetAddr, ok := m.continuum.Get(addr)
+	if !ok {
+		return errInvalidHandshake(errors.New("failed to get node by address"))
+	}
+
+	// Peer might have got a no longer valid node address while discovery.
+	if targetAddr != m.cfg.Addr.String() {
+		return errWrongNode()
+	}
+
+	if err := handshake.Validate(); err != nil {
+		return errInvalidHandshake(err)
+	}
 
 	// We support both multiple servers and clients.
 	switch handshake.PeerType {

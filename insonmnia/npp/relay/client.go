@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/netutil"
@@ -19,12 +20,12 @@ import (
 // establish a relayed TCP connection.
 //
 // All network traffic will be transported through that server.
-func Dial(addr net.Addr, targetAddr common.Address, uuid string) (net.Conn, error) {
-	return DialWithLog(addr, targetAddr, uuid, zap.NewNop())
+func Dial(addr net.Addr, targetAddr common.Address, uuid string, numRetries uint64) (net.Conn, error) {
+	return DialWithLog(addr, targetAddr, uuid, zap.NewNop(), numRetries)
 }
 
 // DialWithLog does the same as Dial, but with logging.
-func DialWithLog(addr net.Addr, targetAddr common.Address, uuid string, log *zap.Logger) (net.Conn, error) {
+func DialWithLog(addr net.Addr, targetAddr common.Address, uuid string, log *zap.Logger, numRetries uint64) (net.Conn, error) {
 	client, err := newClient(addr, log)
 	if err != nil {
 		return nil, err
@@ -35,20 +36,29 @@ func DialWithLog(addr net.Addr, targetAddr common.Address, uuid string, log *zap
 	log = log.With(zap.Stringer("addr", targetAddr))
 	log.Debug("discovering meeting point on the Continuum")
 
-	member, err := client.discover(targetAddr)
-	if err != nil {
-		log.Warn("failed to discover meeting point on the Continuum", zap.Error(err))
-		return nil, err
+	numRetries++
+	for numRetries > 0 {
+		member, err := client.discover(targetAddr)
+		if err != nil {
+			log.Warn("failed to discover meeting point on the Continuum", zap.Error(err))
+			return nil, err
+		}
+
+		log.Debug("connecting to remote meeting point on the Continuum", zap.Stringer("remote_addr", member.conn.RemoteAddr()))
+		conn, err := member.dial(targetAddr, uuid)
+		if err == nil {
+			return conn, nil
+		}
+
+		if verboseErr, ok := err.(*protocolError); ok && verboseErr.code == ErrWrongNode {
+			numRetries--
+		} else {
+			log.Warn("failed to connect to remote meeting point on the Continuum", zap.Error(err))
+			return nil, err
+		}
 	}
 
-	log.Debug("connecting to remote meeting point on the Continuum", zap.Stringer("remote_addr", member.conn.RemoteAddr()))
-	conn, err := member.dial(targetAddr, uuid)
-	if err != nil {
-		log.Warn("failed to connect to remote meeting point on the Continuum", zap.Error(err))
-		return nil, err
-	}
-
-	return conn, err
+	return nil, errors.New("failed to dial remote")
 }
 
 // Listen publishes itself to the relay server waiting for other client peer
@@ -173,8 +183,9 @@ func (m *client) Close() error {
 // dynamic DNS addition/removal. Thus, a single Relay endpoint as a hostname
 // should fit the best.
 type Dialer struct {
-	Addrs []string
-	Log   *zap.Logger
+	Addrs      []string
+	Log        *zap.Logger
+	NumRetries uint64
 }
 
 // Dial mimics "net.Dial" and connects to a remote endpoint using Relay server.
@@ -196,7 +207,7 @@ func (m *Dialer) Dial(target common.Address) (net.Conn, error) {
 		m.Log.Debug("successfully resolved Relay addr", zap.String("addr", addr), zap.Any("resolved", addrs))
 
 		for _, addr := range addrs {
-			conn, err := DialWithLog(addr, target, "", m.Log)
+			conn, err := DialWithLog(addr, target, "", m.Log, m.NumRetries)
 			if err == nil {
 				return conn, nil
 			}

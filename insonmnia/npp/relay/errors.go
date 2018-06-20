@@ -11,6 +11,7 @@ const (
 	ErrUnknownPeerType
 	ErrTimeout
 	ErrNoPeer
+	ErrWrongNode
 )
 
 type protocolError struct {
@@ -43,4 +44,8 @@ func errTimeout() error {
 
 func errNoPeer() error {
 	return newProtocolError(ErrNoPeer, fmt.Errorf("no peer found"))
+}
+
+func errWrongNode() error {
+	return newProtocolError(ErrWrongNode, fmt.Errorf("peer connected to wrong node"))
 }
