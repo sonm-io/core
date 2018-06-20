@@ -15,10 +15,14 @@ import (
 type Config struct {
 	PrivateKey   privateKey `yaml:"ethereum" json:"-"`
 	Logging      logging.Config
-	Workers      []auth.Addr
-	Benchmarks   benchmarks.Config `yaml:"benchmarks"`
+	Workers      map[auth.Addr]WorkerConfig `yaml:"workers"`
+	Benchmarks   benchmarks.Config          `yaml:"benchmarks"`
 	Marketplace  marketplaceConfig
 	Optimization optimizationConfig
+}
+
+type WorkerConfig struct {
+	Epoch time.Duration `yaml:"epoch"`
 }
 
 func LoadConfig(path string) (*Config, error) {
