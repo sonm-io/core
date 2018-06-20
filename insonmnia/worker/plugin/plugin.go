@@ -7,11 +7,13 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	minet "github.com/sonm-io/core/insonmnia/worker/network"
+	"github.com/sonm-io/core/insonmnia/worker/storagequota"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
@@ -28,6 +30,7 @@ type Provider interface {
 	GPUProvider
 	VolumeProvider
 	NetworkProvider
+	StorageQuotaProvider
 }
 
 // GPUProvider describes an interface for applying GPU settings to the
@@ -53,15 +56,21 @@ type VolumeProvider interface {
 	Network() (string, string)
 }
 
+type StorageQuotaProvider interface {
+	QuotaInBytes() uint64
+	QuotaID() string
+}
+
 type NetworkProvider interface {
 	Networks() []*structs.NetworkSpec
 }
 
 // Repository describes a place where all SONM plugins for Docker live.
 type Repository struct {
-	volumes       map[string]volume.VolumeDriver
-	gpuTuners     map[sonm.GPUVendorType]gpu.Tuner
-	networkTuners map[string]minet.Tuner
+	volumes           map[string]volume.VolumeDriver
+	gpuTuners         map[sonm.GPUVendorType]gpu.Tuner
+	networkTuners     map[string]minet.Tuner
+	storageQuotaTuner storagequota.StorageQuotaTuner
 }
 
 // NewRepository constructs a new repository for SONM plugins from the
@@ -305,6 +314,25 @@ func (r *Repository) GetVolumeCleaner(ctx context.Context, provider VolumeProvid
 	}
 
 	return &cleanup, nil
+}
+
+func (r *Repository) PostCreationTune(ctx context.Context, dockerClient *client.Client, provider Provider, cleanup Cleanup, ID string) (Cleanup, error) {
+	// NOTE: move it to r.TuneStorageQuota
+	if r.storageQuotaTuner == nil || provider.QuotaInBytes() == 0 {
+		return cleanup, nil
+	}
+	nCleanup := newNestedCleanup()
+	nCleanup.Add(cleanup)
+	cleanup, err := r.TuneStorageQuota(ctx, dockerClient, provider, ID)
+	if err != nil {
+		return nil, err
+	}
+	nCleanup.Add(cleanup)
+	return &nCleanup, nil
+}
+
+func (r *Repository) TuneStorageQuota(ctx context.Context, dockerClient *client.Client, provider StorageQuotaProvider, ID string) (Cleanup, error) {
+	return r.storageQuotaTuner.SetQuota(ctx, dockerClient, ID, provider.QuotaID(), provider.QuotaInBytes())
 }
 
 func (r *Repository) TuneNetworks(ctx context.Context, provider NetworkProvider, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {

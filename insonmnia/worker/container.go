@@ -119,6 +119,11 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	if err != nil {
 		return nil, err
 	}
+
+	cleanup, err = tuners.PostCreationTune(ctx, &d, cleanup, resp.ID)
+	if err != nil {
+		return nil, err
+	}
 	cont.ID = resp.ID
 	cont.log = log.S(ctx).With(zap.String("container_id", cont.ID))
 	cont.cleanup = cleanup
