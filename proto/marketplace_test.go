@@ -13,11 +13,11 @@ func TestName(t *testing.T) {
 		Level IdentityLevel
 	}{}
 
-	input := []byte(`level: pseudonymous`)
+	input := []byte(`level: registered`)
 	err := yaml.Unmarshal(input, &into)
 
 	require.NoError(t, err)
-	assert.Equal(t, IdentityLevel_PSEUDONYMOUS, into.Level)
+	assert.Equal(t, IdentityLevel_REGISTERED, into.Level)
 }
 
 func TestBidOrderValidate(t *testing.T) {

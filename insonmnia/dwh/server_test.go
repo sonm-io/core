@@ -1163,7 +1163,7 @@ func setupTestDB(w *DWH) error {
 			fmt.Sprintf("blacklist_%d", i),
 			[]byte{1, 2, 3},          // Tag
 			fmt.Sprintf("3001%d", i), // FrozenSum
-			uint64(pb.IdentityLevel_PSEUDONYMOUS),
+			uint64(pb.IdentityLevel_REGISTERED),
 			"CreatorName",
 			"CreatorCountry",
 			byteCerts, // CreatorCertificates
@@ -1200,9 +1200,9 @@ func setupTestDB(w *DWH) error {
 			5, // Netflags
 			uint64(pb.IdentityLevel_ANONYMOUS),
 			fmt.Sprintf("blacklist_%d", i),
-			[]byte{1, 2, 3},                       // Tag
-			fmt.Sprintf("3001%d", i),              // FrozenSum
-			uint64(pb.IdentityLevel_PSEUDONYMOUS), // CreatorIdentityLevel
+			[]byte{1, 2, 3},                     // Tag
+			fmt.Sprintf("3001%d", i),            // FrozenSum
+			uint64(pb.IdentityLevel_REGISTERED), // CreatorIdentityLevel
 			"CreatorName",
 			"CreatorCountry",
 			byteCerts, // CreatorCertificates
@@ -1314,9 +1314,9 @@ func setupTestDB(w *DWH) error {
 		5, // Netflags
 		uint64(pb.IdentityLevel_ANONYMOUS),
 		fmt.Sprintf("blacklist_%d", 0),
-		[]byte{1, 2, 3},                       // Tag
-		fmt.Sprintf("3001%d", 0),              // FrozenSum
-		uint64(pb.IdentityLevel_PSEUDONYMOUS), // CreatorIdentityLevel
+		[]byte{1, 2, 3},                     // Tag
+		fmt.Sprintf("3001%d", 0),            // FrozenSum
+		uint64(pb.IdentityLevel_REGISTERED), // CreatorIdentityLevel
 		"CreatorName",
 		"CreatorCountry",
 		byteCerts, // CreatorCertificates

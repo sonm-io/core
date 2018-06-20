@@ -54,13 +54,11 @@ func main() {
 
 	order := &sonm.Order{
 		OrderType:      sonm.OrderType_BID,
-		OrderStatus:    sonm.OrderStatus_ORDER_ACTIVE,
-		AuthorID:       sonm.NewEthAddress(crypto.PubkeyToAddress(prv.PublicKey)),
 		CounterpartyID: sonm.NewEthAddress(common.HexToAddress("0x0")),
 		Duration:       3600 - 50 + (rand.Uint64() % 100),
 		Price:          price,
-		Netflags:       sonm.NetflagsToUint([3]bool{true, true, (rand.Int() % 2) == 0}),
-		IdentityLevel:  sonm.IdentityLevel_ANONYMOUS,
+		Netflags:       sonm.NetFlagsFromBoolSlice([]bool{true, true, true}),
+		IdentityLevel:  1,
 		Blacklist:      "0x0",
 		Tag:            []byte("00000"),
 		Benchmarks: &sonm.Benchmarks{

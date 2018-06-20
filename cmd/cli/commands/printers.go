@@ -174,6 +174,10 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 		}
 		cmd.Printf("Type:            %s\r\n", order.OrderType.String())
 		cmd.Printf("Status:          %s\r\n", order.OrderStatus.String())
+		if len(order.GetTag()) > 0 {
+			cmd.Printf("Tag:             %s\r\n", string(order.GetTag()))
+		}
+
 		cmd.Printf("Duration:        %s\r\n", (time.Duration(order.GetDuration()) * time.Second).String())
 		cmd.Printf("Total price:     %s USD (%s USD/sec)\r\n", order.TotalPrice(), order.Price.ToPriceString())
 
