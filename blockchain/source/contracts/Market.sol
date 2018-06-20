@@ -782,4 +782,9 @@ contract Market is Ownable, Pausable {
         netflagsQuantity = _newQuantity;
         return true;
     }
+
+    function KillMarket() onlyOwner public {
+        token.transfer(owner, token.balanceOf(address(this)));
+        selfdestruct(owner);
+    }
 }
