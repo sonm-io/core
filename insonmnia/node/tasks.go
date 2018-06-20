@@ -1,11 +1,11 @@
 package node
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
 
-	"errors"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"

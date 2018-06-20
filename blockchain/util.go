@@ -3,11 +3,11 @@ package blockchain
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
 
-	"errors"
 	"github.com/ethereum/go-ethereum"
 	"github.com/sonm-io/core/util"
 
