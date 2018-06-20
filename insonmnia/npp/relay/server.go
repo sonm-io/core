@@ -632,7 +632,12 @@ func (m *server) NotifyUpdate(node *memberlist.Node) {
 }
 
 func (m *server) formatEndpoint(ip net.IP) string {
-	return fmt.Sprintf("%s:%d", ip.String(), m.port)
+	addr := net.TCPAddr{
+		IP:   ip,
+		Port: int(m.port),
+	}
+
+	return addr.String()
 }
 
 func mpsc() (chan<- net.Conn, <-chan net.Conn) {
