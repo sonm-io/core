@@ -41,9 +41,11 @@ enum OrderStatus {
 }
 
 enum IdentityLevel {
-    ANONYMOUS = 0;
-    PSEUDONYMOUS = 1;
-    IDENTIFIED = 2;
+    UNKNOWN = 0;
+    ANONYMOUS = 1;
+    REGISTERED = 2;
+    IDENTIFIED = 3;
+    PROFESSIONAL = 4;
 }
 
 enum DealStatus {
@@ -58,6 +60,12 @@ enum ChangeRequestStatus {
     REQUEST_CANCELED = 2;
     REQUEST_REJECTED = 3;
     REQUEST_ACCEPTED = 4;
+}
+
+enum BlacklistType {
+    BLACKLIST_NOBODY = 0;
+    BLACKLIST_WORKER = 1;
+    BLACKLIST_MASTER = 2;
 }
 
 message Benchmarks {

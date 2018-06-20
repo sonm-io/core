@@ -17,6 +17,7 @@ duration: 8h
 price: 23.73 USD/h
 
 blacklist: 0x8125721c2413d99a33e351e1f6bb4e56b6b633fd
+identity: anonymous
 
 resources:
   cpu:
