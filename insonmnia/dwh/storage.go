@@ -2,10 +2,10 @@ package dwh
 
 import (
 	"database/sql"
+	"fmt"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
@@ -111,7 +111,7 @@ func (t *txConn) Exec(query string, args ...interface{}) (sql.Result, error) {
 	result, err := t.tx.Exec(query, args...)
 	if err != nil {
 		t.hasErrors = true
-		return nil, errors.Wrapf(err, "failed to exec %s", query)
+		return nil, fmt.Errorf("failed to exec %s: %v", query, err)
 	}
 	return result, nil
 }
@@ -120,7 +120,7 @@ func (t *txConn) Query(query string, args ...interface{}) (*sql.Rows, error) {
 	rows, err := t.tx.Query(query, args...)
 	if err != nil {
 		t.hasErrors = true
-		return nil, errors.Wrapf(err, "failed to run %s", query)
+		return nil, fmt.Errorf("failed to run %s: %v", query, err)
 	}
 	return rows, nil
 }

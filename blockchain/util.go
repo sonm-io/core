@@ -7,8 +7,8 @@ import (
 	"math/big"
 	"time"
 
+	"errors"
 	"github.com/ethereum/go-ethereum"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/util"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"

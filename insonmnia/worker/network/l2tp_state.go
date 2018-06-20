@@ -5,14 +5,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-
 	"sync"
 
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -72,7 +70,7 @@ func (s *l2tpState) sync() (err error) {
 
 func (s *l2tpState) AddNetwork(netID string, netInfo *l2tpNetwork) error {
 	if _, ok := s.Aliases[netID]; ok {
-		return errors.Errorf("network already exists: %s", netID)
+		return fmt.Errorf("network already exists: %s", netID)
 	}
 
 	s.Aliases[netID] = netID
@@ -83,7 +81,7 @@ func (s *l2tpState) AddNetwork(netID string, netInfo *l2tpNetwork) error {
 
 func (s *l2tpState) AddNetworkAlias(netID, alias string) error {
 	if _, ok := s.Aliases[netID]; !ok {
-		return errors.Errorf("network not found: %s", netID)
+		return fmt.Errorf("network not found: %s", netID)
 	}
 
 	s.Aliases[alias] = netID
@@ -94,7 +92,7 @@ func (s *l2tpState) AddNetworkAlias(netID, alias string) error {
 func (s *l2tpState) RemoveNetwork(netID string) error {
 	translatedID, ok := s.Aliases[netID]
 	if !ok {
-		return errors.Errorf("network not found: %s", netID)
+		return fmt.Errorf("network not found: %s", netID)
 	}
 
 	delete(s.Networks, translatedID)
@@ -111,14 +109,14 @@ func (s *l2tpState) RemoveNetwork(netID string) error {
 func (s *l2tpState) GetNetwork(netID string) (*l2tpNetwork, error) {
 	translatedID, ok := s.Aliases[netID]
 	if !ok {
-		return nil, errors.Errorf("network not found: %s", netID)
+		return nil, fmt.Errorf("network not found: %s", netID)
 	}
 
 	if netInfo, ok := s.Networks[translatedID]; ok {
 		return netInfo, nil
 	}
 
-	return nil, errors.Errorf("network not found: %s", netID)
+	return nil, fmt.Errorf("network not found: %s", netID)
 }
 
 type l2tpNetwork struct {

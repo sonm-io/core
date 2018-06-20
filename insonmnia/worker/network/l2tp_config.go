@@ -1,6 +1,8 @@
 package network
 
 import (
+	"errors"
+	"fmt"
 	"net"
 
 	"crypto/md5"
@@ -9,7 +11,6 @@ import (
 	"github.com/docker/go-plugins-helpers/ipam"
 	"github.com/docker/go-plugins-helpers/network"
 	"github.com/jinzhu/configor"
-	"github.com/pkg/errors"
 )
 
 type L2TPConfig struct {
@@ -50,11 +51,11 @@ func (o *l2tpNetworkConfig) PoolID() string {
 
 func (o *l2tpNetworkConfig) validate() error {
 	if ip := net.ParseIP(o.LNSAddr); ip == nil {
-		return errors.Errorf("failed to parse lns_addr `%s` to IP", o.LNSAddr)
+		return fmt.Errorf("failed to parse lns_addr `%s` to IP", o.LNSAddr)
 	}
 
 	if _, _, err := net.ParseCIDR(o.Subnet); err != nil {
-		return errors.Wrapf(err, "failed to parse Subnet `%s` to CIDR", o.Subnet)
+		return fmt.Errorf("failed to parse Subnet `%s` to CIDR: %v", o.Subnet, err)
 	}
 
 	return nil

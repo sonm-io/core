@@ -3,12 +3,13 @@ package network
 import (
 	"bytes"
 	"context"
+	"errors"
+	"fmt"
 	"net"
 	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/pkg/errors"
 )
 
 // A comparable type for v4 address
@@ -161,7 +162,7 @@ func (t *TincNetwork) runCommandWithOutput(ctx context.Context, name string, arg
 	}
 
 	if inspect.ExitCode != 0 {
-		return stdout, stderr, errors.Errorf("failed to execute command %s %s, exit code %d, stdout - %s, stderr - %s", name, arg, inspect.ExitCode, stdout, stderr)
+		return stdout, stderr, fmt.Errorf("failed to execute command %s %s, exit code %d, stdout - %s, stderr - %s", name, arg, inspect.ExitCode, stdout, stderr)
 	} else {
 		t.logger.Debugf("finished command - %s %s, stdout - %s, stderr - %s", name, arg, stdout, stderr)
 		return stdout, stderr, err

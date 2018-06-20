@@ -1,8 +1,9 @@
 package dwh
 
 import (
+	"errors"
+
 	"github.com/jinzhu/configor"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/logging"

@@ -2,11 +2,12 @@ package worker
 
 import (
 	"crypto/ecdsa"
+	"errors"
+	"fmt"
 	"os"
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/matcher"
@@ -230,7 +231,7 @@ func (m *options) setupMatcher() error {
 				QueryLimit: m.cfg.Matcher.QueryLimit,
 			})
 			if err != nil {
-				return errors.Wrap(err, "cannot create matcher")
+				return fmt.Errorf("cannot create matcher: %v", err)
 			}
 			m.matcher = matcher
 		} else {

@@ -2,13 +2,9 @@ package worker
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
-
-	"github.com/pkg/errors"
-	"github.com/sonm-io/core/insonmnia/worker/plugin"
-	"github.com/sonm-io/core/util/multierror"
-	"go.uber.org/zap"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -17,6 +13,9 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/worker/plugin"
+	"github.com/sonm-io/core/util/multierror"
+	"go.uber.org/zap"
 )
 
 type containerDescriptor struct {

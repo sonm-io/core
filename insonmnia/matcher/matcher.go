@@ -3,11 +3,12 @@ package matcher
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
+	"fmt"
 	"math/big"
 	"time"
 
 	"github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/proto"
@@ -65,7 +66,7 @@ type matcher struct {
 
 func NewMatcher(cfg *Config) (Matcher, error) {
 	if err := cfg.validate(); err != nil {
-		return nil, errors.Wrap(err, "invalid matcher config")
+		return nil, fmt.Errorf("invalid matcher config: %v", err)
 	}
 
 	return &matcher{cfg: cfg}, nil

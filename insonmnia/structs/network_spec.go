@@ -1,10 +1,10 @@
 package structs
 
 import (
+	"errors"
 	"strings"
 
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/proto"
 )
 
