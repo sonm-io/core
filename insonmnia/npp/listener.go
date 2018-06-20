@@ -9,6 +9,7 @@ import (
 	"net"
 	"time"
 
+	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"go.uber.org/zap"
 )
 
@@ -94,8 +95,8 @@ type Listener struct {
 	puncherNew func() (NATPuncher, error)
 	nppChannel chan connTuple
 
-	relayListen  func() (net.Conn, error)
-	relayChannel chan connTuple
+	relayListener *relay.Listener
+	relayChannel  chan connTuple
 
 	minBackoffInterval time.Duration
 	maxBackoffInterval time.Duration
@@ -130,8 +131,8 @@ func NewListener(ctx context.Context, addr string, options ...Option) (*Listener
 		puncherNew:      opts.puncherNew,
 		nppChannel:      make(chan connTuple, opts.nppBacklog),
 
-		relayListen:  opts.relayListen,
-		relayChannel: make(chan connTuple, opts.nppBacklog),
+		relayListener: opts.relayListener,
+		relayChannel:  make(chan connTuple, opts.nppBacklog),
 
 		minBackoffInterval: opts.nppMinBackoffInterval,
 		maxBackoffInterval: opts.nppMaxBackoffInterval,
@@ -201,7 +202,7 @@ func (m *Listener) listenPuncher(ctx context.Context) error {
 }
 
 func (m *Listener) listenRelay(ctx context.Context) error {
-	if m.relayListen == nil {
+	if m.relayListener == nil {
 		return nil
 	}
 
@@ -221,7 +222,7 @@ func (m *Listener) listenRelay(ctx context.Context) error {
 
 		m.log.Debug("connecting using relay")
 
-		conn, err := m.relayListen()
+		conn, err := m.relayListener.Accept()
 		if err != nil {
 			m.log.Warn("failed to relay", zap.Error(err))
 			if timeout < m.maxBackoffInterval {

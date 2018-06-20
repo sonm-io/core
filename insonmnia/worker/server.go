@@ -25,6 +25,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware/disk"
 	"github.com/sonm-io/core/insonmnia/npp"
+	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"github.com/sonm-io/core/insonmnia/worker/gpu"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
 	"github.com/sonm-io/core/util"
@@ -157,11 +158,16 @@ func (m *Worker) Serve() error {
 		return err
 	}
 
+	relayListener, err := relay.NewListener(m.cfg.NPP.Relay.Endpoints, m.key, log.G(m.ctx))
+	if err != nil {
+		return err
+	}
+
 	listener, err := npp.NewListener(m.ctx, m.cfg.Endpoint,
 		npp.WithNPPBacklog(m.cfg.NPP.Backlog),
 		npp.WithNPPBackoff(m.cfg.NPP.MinBackoffInterval, m.cfg.NPP.MaxBackoffInterval),
 		npp.WithRendezvous(m.cfg.NPP.Rendezvous, m.creds),
-		npp.WithRelay(m.cfg.NPP.Relay.Endpoints, m.key, log.G(m.ctx)),
+		npp.WithRelayListener(relayListener),
 		npp.WithLogger(log.G(m.ctx)),
 	)
 	if err != nil {
@@ -523,13 +529,32 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 	return nil
 }
 
+func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) (bool, reference.Reference, error) {
+	spec := request.GetSpec()
+	reference, err := reference.Parse(spec.GetContainer().GetImage())
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to parse reference: %s", err)
+	}
+
+	deal, err := m.salesman.Deal(request.GetDealID())
+	if err != nil {
+		return false, nil, err
+	}
+	level, err := m.eth.ProfileRegistry().GetProfileLevel(ctx, deal.GetConsumerID().Unwrap())
+	if err != nil {
+		return false, nil, err
+	}
+	if level <= pb.IdentityLevel_REGISTERED {
+		return m.whitelist.Allowed(ctx, reference, spec.GetRegistry().Auth())
+	}
+
+	return true, reference, nil
+}
+
 func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(m.ctx).Info("handling StartTask request", zap.Any("request", request))
 
-	spec := request.GetSpec()
-	registry := spec.GetRegistry()
-	image := spec.GetContainer().GetImage()
-	allowed, reference, err := m.whitelist.Allowed(ctx, image, registry.Auth())
+	allowed, reference, err := m.taskAllowed(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -551,7 +576,8 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		return nil, err
 	}
 
-	publicKey, err := parsePublicKey(spec.Container.SshKey)
+	spec := request.GetSpec()
+	publicKey, err := parsePublicKey(spec.GetContainer().GetSshKey())
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}

@@ -7,8 +7,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"go.uber.org/zap"
 )
 
@@ -21,8 +21,8 @@ type Dialer struct {
 	ctx context.Context
 	log *zap.Logger
 
-	puncherNew func() (NATPuncher, error)
-	relayDial  func(target common.Address) (net.Conn, error)
+	puncherNew  func() (NATPuncher, error)
+	relayDialer *relay.Dialer
 }
 
 // NewDialer constructs a new dialer that is aware of NAT Punching Protocol.
@@ -36,10 +36,10 @@ func NewDialer(ctx context.Context, options ...Option) (*Dialer, error) {
 	}
 
 	return &Dialer{
-		ctx:        ctx,
-		log:        opts.log,
-		puncherNew: opts.puncherNew,
-		relayDial:  opts.relayDial,
+		ctx:         ctx,
+		log:         opts.log,
+		puncherNew:  opts.puncherNew,
+		relayDialer: opts.relayDialer,
 	}, nil
 }
 
@@ -97,7 +97,7 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 
 			log.Warn("failed to connect using NPP", zap.Error(err))
 
-			if m.relayDial == nil {
+			if m.relayDialer == nil {
 				log.Debug("no relay configured - returning error", zap.Error(err))
 				return conn.unwrap()
 			}
@@ -109,7 +109,7 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 	log.Debug("connecting using Relay")
 	channel := make(chan connTuple)
 	go func() {
-		channel <- newConnTuple(m.relayDial(ethAddr))
+		channel <- newConnTuple(m.relayDialer.Dial(ethAddr))
 	}()
 
 	select {
