@@ -20,7 +20,7 @@ import (
 )
 
 type Whitelist interface {
-	Allowed(ctx context.Context, reference string, auth string) (bool, reference.Reference, error)
+	Allowed(ctx context.Context, ref reference.Reference, auth string) (bool, reference.Reference, error)
 }
 
 func NewWhitelist(ctx context.Context, config *WhitelistConfig) Whitelist {
@@ -121,12 +121,7 @@ func (w *whitelist) digestAllowed(name string, digest string) (bool, error) {
 	return false, nil
 }
 
-func (w *whitelist) Allowed(ctx context.Context, referenceStr string, authority string) (bool, reference.Reference, error) {
-	ref, err := reference.Parse(referenceStr)
-	if err != nil {
-		return false, nil, err
-	}
-
+func (w *whitelist) Allowed(ctx context.Context, ref reference.Reference, authority string) (bool, reference.Reference, error) {
 	wallet, err := auth.ExtractWalletFromContext(ctx)
 	if err != nil {
 		log.G(ctx).Warn("could not extract wallet from context", zap.Error(err))
@@ -156,7 +151,7 @@ func (w *whitelist) Allowed(ctx context.Context, referenceStr string, authority 
 	}
 	defer dockerClient.Close()
 
-	inspection, err := dockerClient.DistributionInspect(ctx, referenceStr, authority)
+	inspection, err := dockerClient.DistributionInspect(ctx, ref.String(), authority)
 	if err != nil {
 		return false, nil, errors.Wrap(err, "could not perform DistributionInspect")
 	}
@@ -175,11 +170,6 @@ func (w *whitelist) Allowed(ctx context.Context, referenceStr string, authority 
 type disabledWhitelist struct {
 }
 
-func (w *disabledWhitelist) Allowed(ctx context.Context, referenceStr string, auth string) (bool, reference.Reference, error) {
-	ref, err := reference.Parse(referenceStr)
-	if err != nil {
-		return false, nil, err
-	}
-
+func (w *disabledWhitelist) Allowed(ctx context.Context, ref reference.Reference, auth string) (bool, reference.Reference, error) {
 	return true, ref, nil
 }

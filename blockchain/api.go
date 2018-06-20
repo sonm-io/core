@@ -39,6 +39,7 @@ type ProfileRegistryAPI interface {
 	GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error)
 	GetAttributeCount(ctx context.Context, owner common.Address, attributeType *big.Int) (*big.Int, error)
 	GetAttributeValue(ctx context.Context, owner common.Address, attributeType *big.Int) ([]byte, error)
+	GetProfileLevel(ctx context.Context, owner common.Address) (pb.IdentityLevel, error)
 }
 
 type EventsAPI interface {
@@ -651,6 +652,14 @@ func (api *ProfileRegistry) GetAttributeCount(ctx context.Context, owner common.
 
 func (api *ProfileRegistry) GetAttributeValue(ctx context.Context, owner common.Address, attributeType *big.Int) ([]byte, error) {
 	return api.profileRegistryContract.GetAttributeValue(getCallOptions(ctx), owner, attributeType)
+}
+
+func (api *ProfileRegistry) GetProfileLevel(ctx context.Context, owner common.Address) (pb.IdentityLevel, error) {
+	lev, err := api.profileRegistryContract.GetProfileLevel(getCallOptions(ctx), owner)
+	if err != nil {
+		return pb.IdentityLevel_UNKNOWN, fmt.Errorf("failed to get profile level: %s", err)
+	}
+	return pb.IdentityLevel(lev), err
 }
 
 func (api *ProfileRegistry) GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error) {
