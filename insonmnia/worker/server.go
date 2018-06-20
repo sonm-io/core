@@ -529,13 +529,32 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 	return nil
 }
 
+func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) (bool, reference.Reference, error) {
+	spec := request.GetSpec()
+	reference, err := reference.Parse(spec.GetContainer().GetImage())
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to parse reference: %s", err)
+	}
+
+	deal, err := m.salesman.Deal(request.GetDealID())
+	if err != nil {
+		return false, nil, err
+	}
+	level, err := m.eth.ProfileRegistry().GetProfileLevel(ctx, deal.GetConsumerID().Unwrap())
+	if err != nil {
+		return false, nil, err
+	}
+	if level <= pb.IdentityLevel_REGISTERED {
+		return m.whitelist.Allowed(ctx, reference, spec.GetRegistry().Auth())
+	}
+
+	return true, reference, nil
+}
+
 func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
 	log.G(m.ctx).Info("handling StartTask request", zap.Any("request", request))
 
-	spec := request.GetSpec()
-	registry := spec.GetRegistry()
-	image := spec.GetContainer().GetImage()
-	allowed, reference, err := m.whitelist.Allowed(ctx, image, registry.Auth())
+	allowed, reference, err := m.taskAllowed(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -557,7 +576,8 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		return nil, err
 	}
 
-	publicKey, err := parsePublicKey(spec.Container.SshKey)
+	spec := request.GetSpec()
+	publicKey, err := parsePublicKey(spec.GetContainer().GetSshKey())
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid public key provided %v", err)
 	}
