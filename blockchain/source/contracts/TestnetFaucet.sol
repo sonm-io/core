@@ -8,8 +8,8 @@ import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 contract TestnetFaucet is Ownable {
     SNMMasterchain token;
 
-    constructor(address _token) public{
-        token = SNMMasterchain(_token);
+    constructor() public{
+        token = new SNMMasterchain(address(this));
         owner = msg.sender;
         token.defrost();
     }
