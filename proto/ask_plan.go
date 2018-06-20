@@ -42,6 +42,9 @@ func (c *AskPlanCPU) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (m *AskPlan) Validate() error {
+	if m.GetIdentity() == IdentityLevel_UNKNOWN {
+		return errors.New("identity level is required and should not be 0")
+	}
 	if m.GetResources().GetCPU().GetCorePercents() < MinCPUPercent {
 		return errors.New("CPU count is too low")
 	}

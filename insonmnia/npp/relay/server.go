@@ -355,7 +355,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		continuum: newContinuum(),
 
 		handshakeTimeout: 30 * time.Second,
-		waitTimeout:      60 * time.Second,
+		waitTimeout:      24 * time.Hour,
 
 		metrics:           metrics,
 		newMeetingHandler: newMeetingHandler,
@@ -516,16 +516,17 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		return errInvalidHandshake(err)
 	}
 
-	timer := time.NewTimer(m.waitTimeout)
-	defer timer.Stop()
-
-	tx, rx := mpsc()
 	id := ConnID(uuid.New())
 	addr := common.BytesToAddress(handshake.Addr)
 
 	// We support both multiple servers and clients.
 	switch handshake.PeerType {
 	case sonm.PeerType_SERVER:
+		tx, rx := mpsc()
+
+		timer := time.NewTimer(m.waitTimeout)
+		defer timer.Stop()
+
 		// Need to check whether there is a clients awaits us. If so - select
 		// a random one and relay.
 		// Otherwise put ourselves into a meeting map.
@@ -562,25 +563,15 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		}
 
 		if targetPeer != nil {
-			tx <- targetPeer.conn
-		} else {
-			m.meetingRoom.PutClient(addr, id, conn, tx)
-		}
-
-		select {
-		case serverConn, ok := <-rx:
-			if ok {
-				if err := sendOk(conn); err != nil {
-					return err
-				}
-				if err := sendOk(serverConn); err != nil {
-					return err
-				}
-				return m.newMeetingHandler(addr).Relay(ctx, serverConn, conn)
+			if err := sendOk(conn); err != nil {
+				return err
 			}
-		case <-timer.C:
-			m.meetingRoom.PopClient(addr, id)
-			return errTimeout()
+			if err := sendOk(targetPeer.conn); err != nil {
+				return err
+			}
+			return m.newMeetingHandler(addr).Relay(ctx, targetPeer.conn, conn)
+		} else {
+			return errNoPeer()
 		}
 	default:
 		return errUnknownType(handshake.PeerType)
@@ -641,7 +632,12 @@ func (m *server) NotifyUpdate(node *memberlist.Node) {
 }
 
 func (m *server) formatEndpoint(ip net.IP) string {
-	return fmt.Sprintf("%s:%d", ip.String(), m.port)
+	addr := net.TCPAddr{
+		IP:   ip,
+		Port: int(m.port),
+	}
+
+	return addr.String()
 }
 
 func mpsc() (chan<- net.Conn, <-chan net.Conn) {

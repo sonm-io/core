@@ -5,6 +5,7 @@ blacklist: 0x8125721c2413d99a33e351e1f6bb4e56b6b633fd
 
 # optional - restricts selling resources only to specified address
 # counterparty: 0x8125721c2413d99a33e351e1f6bb4e56b6b61567
+identity: anonymous
 
 resources:
   cpu:

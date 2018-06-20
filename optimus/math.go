@@ -1,6 +1,8 @@
 package optimus
 
-import "math"
+import (
+	"math"
+)
 
 type sigmoid func(x float64) float64
 
@@ -11,6 +13,6 @@ type sigmoidConfig struct {
 
 func newSigmoid(cfg sigmoidConfig) sigmoid {
 	return func(x float64) float64 {
-		return 1 - (1 / math.Exp(-cfg.Alpha*(x-cfg.Delta)/cfg.Delta))
+		return 1 - (1 / (1 + math.Exp(-cfg.Alpha*(x-cfg.Delta)/cfg.Delta)))
 	}
 }

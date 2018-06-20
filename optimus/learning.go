@@ -2,21 +2,73 @@ package optimus
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"math/big"
 	"sort"
+)
 
-	"github.com/sonm-io/core/proto"
+const (
+	priceMultiplier = 1e-18
 )
 
 type WeightedOrder struct {
-	Order    *MarketOrder
+	// Order is an initial market order.
+	Order *MarketOrder
+	// PredictedPrice is a order price, that is calculated during scanning and
+	// analysing the market.
+	PredictedPrice float64
+	// Distance represents the difference between denormalized order price and
+	// the market predicted price.
 	Distance float64
-	Weight   float64
+	// Weight represents some specific order weight.
+	//
+	// It fits in [0; 1] range and is used to reduce an order attractiveness
+	// if it has been laying on the market for a long time without being sold.
+	Weight float64
+}
+
+type OrderPredictor struct {
+	predictor   TrainedModel
+	normalizer  Normalizer
+	normalizers []Normalizer
+}
+
+func (m *OrderPredictor) PredictPrice(order *MarketOrder) (float64, error) {
+	benchmarks := order.GetOrder().GetBenchmarks().ToArray()
+	if len(benchmarks) != len(m.normalizers) {
+		return math.NaN(), fmt.Errorf("number of benchmarks have changed")
+	}
+
+	vec := make([]float64, 0, len(benchmarks))
+	for id, benchmark := range benchmarks {
+		// Skip this benchmark for degenerated normalizers.
+		if m.normalizers[id] == nil {
+			continue
+		}
+		vec = append(vec, m.normalizers[id].Normalize(float64(benchmark)))
+	}
+
+	price, err := m.predictor.Predict(vec)
+	if err != nil {
+		return math.NaN(), err
+	}
+
+	return m.normalizer.Denormalize(price) * priceMultiplier, nil
+}
+
+// OrderClassification is a struct that is returned after market orders
+// classification. Contains weighted orders for some epoch and is able to
+// predict some order's market price.
+type OrderClassification struct {
+	WeightedOrders []WeightedOrder
+	Predictor      *OrderPredictor
 }
 
 // TODO: Docs.
 type OrderClassifier interface {
 	Classify(orders []*MarketOrder) ([]WeightedOrder, error)
+	ClassifyExt(orders []*MarketOrder) (*OrderClassification, error)
 }
 
 type regressionClassifier struct {
@@ -34,11 +86,19 @@ func newRegressionClassifier(newModel newModel, sigmoid sigmoid, clock Clock) Or
 }
 
 func (m *regressionClassifier) Classify(orders []*MarketOrder) ([]WeightedOrder, error) {
+	classification, err := m.ClassifyExt(orders)
+	if err != nil {
+		return nil, err
+	}
+	return classification.WeightedOrders, nil
+}
+
+func (m *regressionClassifier) ClassifyExt(orders []*MarketOrder) (*OrderClassification, error) {
 	trainingSet := m.TrainingSet(orders)
 	expectation := m.Expectation(orders)
 	expectationN := append([]float64{}, expectation...)
 
-	normalizer, err := m.Normalize(&trainingSet, expectationN)
+	trainingSetNormalizers, expectationNormalizer, err := m.Normalize(&trainingSet, expectationN)
 	if err != nil {
 		return nil, err
 	}
@@ -55,21 +115,33 @@ func (m *regressionClassifier) Classify(orders []*MarketOrder) ([]WeightedOrder,
 			return nil, err
 		}
 
-		distance := normalizer.Denormalize(normalizedPrice) - expectation[i]
+		price := expectationNormalizer.Denormalize(normalizedPrice)
+		distance := price - expectation[i]
 
-		orders[i].CreatedTS = &sonm.Timestamp{}
 		weightedOrders = append(weightedOrders, WeightedOrder{
-			Order:    orders[i],
-			Distance: distance,
+			Order:          orders[i],
+			PredictedPrice: math.Max(0.0, price*priceMultiplier),
+			Distance:       distance,
+			Weight:         1.0,
 		})
 	}
 
-	m.RecalculateWeights(weightedOrders)
+	if err := m.RecalculateWeights(weightedOrders); err != nil {
+		return nil, err
+	}
+
 	SortOrders(weightedOrders)
 
-	// TODO: Also we can predict worker's price.
+	orderClassification := &OrderClassification{
+		WeightedOrders: weightedOrders,
+		Predictor: &OrderPredictor{
+			predictor:   predictor,
+			normalizer:  expectationNormalizer,
+			normalizers: trainingSetNormalizers,
+		},
+	}
 
-	return weightedOrders, nil
+	return orderClassification, nil
 }
 
 func (m *regressionClassifier) TrainingSet(orders []*MarketOrder) [][]float64 {
@@ -95,14 +167,18 @@ func (m *regressionClassifier) Expectation(orders []*MarketOrder) []float64 {
 	return expectation
 }
 
-func (m *regressionClassifier) Normalize(trainingSet *[][]float64, expectation []float64) (Normalizer, error) {
+func (m *regressionClassifier) Normalize(trainingSet *[][]float64, expectation []float64) ([]Normalizer, Normalizer, error) {
 	if trainingSet == nil || len(*trainingSet) == 0 {
-		return nil, errors.New("empty training set")
+		return nil, nil, errors.New("empty training set")
 	}
 
 	transposed := transpose(*trainingSet)
 	filtered := transposed[:0]
-	for _, values := range transposed {
+	// Some normalizers can be nil, because of degenerated input. However we
+	// must leave them, because in the future it will be used to normalize
+	// order's benchmarks we want to predict the price for.
+	normalizers := make([]Normalizer, len(transposed))
+	for id, values := range transposed {
 		normalizer, err := newNormalizer(values...)
 		switch err {
 		case nil:
@@ -113,38 +189,63 @@ func (m *regressionClassifier) Normalize(trainingSet *[][]float64, expectation [
 		case ErrDegenerateVector:
 			continue
 		default:
-			return nil, err
+			return nil, nil, err
 		}
 
 		normalizer.NormalizeBatch(values)
+		normalizers[id] = normalizer
 	}
 	*trainingSet = transpose(filtered)
 
 	normalizer, err := newNormalizer(expectation...)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	normalizer.NormalizeBatch(expectation)
 
-	return normalizer, nil
+	return normalizers, normalizer, nil
 }
 
-func (m *regressionClassifier) RecalculateWeights(orders []WeightedOrder) {
+func (m *regressionClassifier) RecalculateWeights(orders []WeightedOrder) error {
+	if len(orders) == 0 {
+		return errors.New("empty input")
+	}
+
 	sumDistance := 0.0
 	for _, order := range orders {
 		sumDistance += order.Distance
 	}
 	meanDistance := sumDistance / float64(len(orders))
 
-	for _, order := range orders {
-		order.Weight = order.Distance + meanDistance
+	for id, order := range orders {
+		orders[id].Weight = order.Distance + meanDistance
 	}
 
-	now := float64(m.clock().Unix())
-	for _, order := range orders {
-		order.Weight = order.Weight * m.sigmoid(now-float64(order.Order.CreatedTS.Seconds))
+	normalizer, err := newNormalizer()
+	if err != nil {
+		return err
 	}
+
+	for id := range orders {
+		normalizer.Add(orders[id].Weight)
+	}
+
+	for id := range orders {
+		orders[id].Weight = normalizer.Normalize(orders[id].Weight)
+	}
+
+	now := m.clock()
+	for id, order := range orders {
+		scale := m.sigmoid(float64(now.Unix() - order.Order.GetCreatedTS().GetSeconds()))
+		if math.IsNaN(scale) {
+			orders[id].Weight = 0.0
+		} else {
+			orders[id].Weight = order.Weight * scale
+		}
+	}
+
+	return nil
 }
 
 func SortOrders(orders []WeightedOrder) {
