@@ -1186,4 +1186,120 @@ contract('Market', async (accounts) => {
             await market.SetOracleAddress(newOracle.address);
         });
     });
+
+    describe('when contract is paused', function () {
+        describe('Pause calling should spend `Paused` event', function () {
+            let tx;
+            it('should pause market', async function () {
+                tx = await market.pause();
+            });
+
+            it('should spend `Pause` event', async function () {
+                await eventInTransaction(tx, 'Pause');
+            });
+
+            after(async function () {
+                await market.unpause();
+            });
+        });
+
+        describe('PlaceOrder', function () {
+            before(async function () {
+                await market.pause();
+            });
+
+            it('should revert', async function () {
+                await assertRevert(Ask({ market, supplier }));
+                await assertRevert(Bid({ market, consumer }));
+            });
+
+            after(async function () {
+                await market.unpause();
+            });
+        });
+
+        describe('QuickBuy', function () {
+            let askId;
+
+            before(async function () {
+                askId = await Ask({ market, supplier });
+                await market.pause();
+            });
+
+            it('should revert', async function () {
+                await assertRevert(market.QuickBuy(askId, 1800, { from: consumer }));
+            });
+
+            after(async function () {
+                await market.unpause();
+            });
+        });
+
+        describe('OpenDeal', function () {
+            let askId;
+            let bidId;
+
+            before(async function () {
+                askId = await Ask({ market, supplier });
+                bidId = await Bid({ market, consumer });
+                await market.pause();
+            });
+
+            it('should revert', async function () {
+                await assertRevert(market.OpenDeal(askId, bidId, { from: consumer }));
+            });
+
+            after(async function () {
+                await market.unpause();
+            });
+        });
+
+        describe('RegisterWorker', function () {
+            before(async function () {
+                await market.pause();
+            });
+
+            it('should revert', async function () {
+                await assertRevert(market.RegisterWorker(master, { from: supplier }));
+            });
+
+            after(async function () {
+                await market.unpause();
+            });
+        });
+
+        describe('ConfirmWorker', function () {
+            before(async function () {
+                await market.RegisterWorker(master, { from: accounts[0] });
+                await market.pause();
+            });
+
+            it('should revert', async function () {
+                await assertRevert(market.ConfirmWorker(supplier, { from: master }));
+            });
+
+            after(async function () {
+                await market.unpause();
+                await market.ConfirmWorker(accounts[0], { from: master });
+                await market.RemoveWorker(accounts[0], master, { from: master });
+            });
+        });
+
+        describe('RemoveWorker', function () {
+            before(async function () {
+                await market.RegisterWorker(master, { from: accounts[0] });
+                await market.ConfirmWorker(accounts[0], { from: master });
+                await market.pause();
+            });
+
+            it('should revert', async function () {
+                await assertRevert(market.RemoveWorker(accounts[0], master, { from: master }));
+            });
+
+            after(async function () {
+                await market.unpause();
+                await market.RemoveWorker(accounts[0], master, { from: master });
+            });
+        });
+    });
 });

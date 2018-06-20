@@ -47,9 +47,9 @@ type EventsAPI interface {
 }
 
 type MarketAPI interface {
-	QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int) (*pb.Deal, error)
+	QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int, duration uint64) (*pb.Deal, error)
 	OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bigID *big.Int) (*pb.Deal, error)
-	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) error
+	CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklistType pb.BlacklistType) error
 	GetDealInfo(ctx context.Context, dealID *big.Int) (*pb.Deal, error)
 	GetDealsAmount(ctx context.Context) (*big.Int, error)
 	PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) (*pb.Order, error)
@@ -277,9 +277,9 @@ func NewBasicMarket(address common.Address, opts *chainOpts) (MarketAPI, error) 
 	}, nil
 }
 
-func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int) (*pb.Deal, error) {
+func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, askId *big.Int, duration uint64) (*pb.Deal, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.marketContract.QuickBuy(opts, askId)
+	tx, err := api.marketContract.QuickBuy(opts, askId, big.NewInt(0).SetUint64(duration))
 	if err != nil {
 		return nil, err
 	}
@@ -311,9 +311,9 @@ func (api *BasicMarketAPI) extractOpenDealData(ctx context.Context, tx *types.Tr
 	return api.GetDealInfo(ctx, id)
 }
 
-func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklisted bool) error {
+func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey, dealID *big.Int, blacklistType pb.BlacklistType) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.marketContract.CloseDeal(opts, dealID, blacklisted)
+	tx, err := api.marketContract.CloseDeal(opts, dealID, uint8(blacklistType))
 	if err != nil {
 		return err
 	}
@@ -376,11 +376,6 @@ func (api *BasicMarketAPI) GetDealsAmount(ctx context.Context) (*big.Int, error)
 func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey, order *pb.Order) (*pb.Order, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 
-	// TODO: Make netflags dynamic
-	fixedNetflags := [pb.MinNetFlagsCount]bool{}
-	netFlags := order.Netflags.ToBoolSlice()
-	copy(fixedNetflags[:], netFlags[0:pb.MinNetFlagsCount])
-
 	var fixedTag [32]byte
 	copy(fixedTag[:], order.Tag[:])
 
@@ -389,7 +384,7 @@ func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey
 		order.CounterpartyID.Unwrap(),
 		big.NewInt(int64(order.Duration)),
 		order.Price.Unwrap(),
-		fixedNetflags,
+		order.Netflags.ToBoolSlice(),
 		uint8(order.IdentityLevel),
 		common.HexToAddress(order.Blacklist),
 		fixedTag,
