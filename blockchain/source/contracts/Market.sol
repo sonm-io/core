@@ -2,13 +2,14 @@ pragma solidity ^0.4.23;
 
 
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "zeppelin-solidity/contracts/lifecycle/Pausable.sol";
 import "./SNM.sol";
 import "./Blacklist.sol";
 import "./OracleUSD.sol";
 import "./ProfileRegistry.sol";
 
 
-contract Market is Ownable {
+contract Market is Ownable, Pausable {
 
     using SafeMath for uint256;
 
@@ -172,7 +173,8 @@ contract Market is Ownable {
         address _blacklist,
         bytes32 _tag,
         uint64[] _benchmarks
-    ) public returns (uint){
+    ) whenNotPaused public returns (uint){
+
         require(_identityLevel >= ProfileRegistry.IdentityLevel.ANONYMOUS);
         require(_netflags.length <= netflagsQuantity);
         require(_benchmarks.length <= benchmarksQuantity);
@@ -230,7 +232,7 @@ contract Market is Ownable {
         return true;
     }
 
-    function QuickBuy(uint askID, uint buyoutDuration) public {
+    function QuickBuy(uint askID, uint buyoutDuration) public whenNotPaused {
         Order memory ask = orders[askID];
         require(ask.orderType == OrderType.ORDER_ASK);
         require(ask.orderStatus == OrderStatus.ORDER_ACTIVE);
@@ -256,7 +258,7 @@ contract Market is Ownable {
 
     // Deal functions
 
-    function OpenDeal(uint _askID, uint _bidID) public {
+    function OpenDeal(uint _askID, uint _bidID) whenNotPaused public {
         Order memory ask = orders[_askID];
         Order memory bid = orders[_bidID];
 
@@ -459,7 +461,7 @@ contract Market is Ownable {
 
     // Master-worker functions
 
-    function RegisterWorker(address _master) public returns (bool) {
+    function RegisterWorker(address _master) public whenNotPaused returns (bool) {
         require(GetMaster(msg.sender) == msg.sender);
         require(isMaster[msg.sender] == false);
         require(GetMaster(_master) == _master);
@@ -468,7 +470,7 @@ contract Market is Ownable {
         return true;
     }
 
-    function ConfirmWorker(address _worker) public returns (bool) {
+    function ConfirmWorker(address _worker) public whenNotPaused returns (bool) {
         require(masterRequest[msg.sender][_worker] == true);
         masterOf[_worker] = msg.sender;
         isMaster[msg.sender] = true;
@@ -477,7 +479,7 @@ contract Market is Ownable {
         return true;
     }
 
-    function RemoveWorker(address _worker, address _master) public returns (bool) {
+    function RemoveWorker(address _worker, address _master) public whenNotPaused returns (bool) {
         require(GetMaster(_worker) == _master && (msg.sender == _worker || msg.sender == _master));
         delete masterOf[_worker];
         emit WorkerRemoved(_worker, _master);

@@ -1,7 +1,11 @@
 pragma solidity ^0.4.23;
 
 
-contract ProfileRegistry {
+import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "zeppelin-solidity/contracts/lifecycle/Pausable.sol";
+
+
+contract ProfileRegistry is Ownable, Pausable {
 
     modifier onlySonm(){
         require(GetValidatorLevel(msg.sender) == - 1);
@@ -45,10 +49,11 @@ contract ProfileRegistry {
     mapping(address => mapping(uint256 => uint)) certificateCount;
 
     constructor() public {
+        owner = msg.sender;
         validators[msg.sender] = - 1;
     }
 
-    function AddValidator(address _validator, int8 _level) onlySonm public returns (address){
+    function AddValidator(address _validator, int8 _level) onlySonm whenNotPaused public returns (address){
         require(_level > 0);
         require(GetValidatorLevel(_validator) == 0);
         validators[_validator] = _level;
@@ -56,7 +61,7 @@ contract ProfileRegistry {
         return _validator;
     }
 
-    function RemoveValidator(address _validator) onlySonm public returns (address){
+    function RemoveValidator(address _validator) onlySonm whenNotPaused public returns (address){
         require(GetValidatorLevel(_validator) > 0);
         validators[_validator] = 0;
         emit ValidatorDeleted(_validator);
@@ -67,7 +72,7 @@ contract ProfileRegistry {
         return validators[_validator];
     }
 
-    function CreateCertificate(address _owner, uint256 _type, bytes _value) public {
+    function CreateCertificate(address _owner, uint256 _type, bytes _value) whenNotPaused public {
         //Check validator level
         if (_type >= 1100) {
             int8 attributeLevel = int8(_type / 100 % 10);
@@ -96,7 +101,7 @@ contract ProfileRegistry {
         emit CertificateCreated(certificatesCount);
     }
 
-    function RemoveCertificate(uint256 _id) public {
+    function RemoveCertificate(uint256 _id) whenNotPaused public {
         Certificate memory crt = certificates[_id];
 
         require(crt.to == msg.sender || crt.from == msg.sender || GetValidatorLevel(msg.sender) == -1);
@@ -132,5 +137,16 @@ contract ProfileRegistry {
         } else {
             return IdentityLevel.ANONYMOUS;
         }
+    }
+
+    function AddSonmValidator(address _validator) onlyOwner public returns (bool) {
+        validators[_validator] = -1;
+        return true;
+    }
+
+    function RemoveSonmValidator(address _validator) onlyOwner public returns (bool) {
+        require(GetValidatorLevel(_validator) == -1);
+        validators[_validator] = 0;
+        return true;
     }
 }

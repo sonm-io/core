@@ -15,6 +15,8 @@ contract('ProfileRegistry', async function (accounts) {
     const validatorLvl3 = accounts[7];
     const validatorLvl4 = accounts[8];
 
+    const specialValidator = accounts[9];
+
     const testLevel = 3;
 
     describe('Defaults', function () {
@@ -531,6 +533,106 @@ contract('ProfileRegistry', async function (accounts) {
             it('should return 1 (ANONYMOUS)', async function () {
                 let result = await registry.GetProfileLevel.call(creeper);
                 assert.equal(result.toNumber(10), 1);
+            });
+        });
+    });
+
+    describe('AddSonmValidator', function () {
+        before(async function () {
+            registry = await ProfileRegistry.new();
+        });
+
+        it('should set new validator with level -1', async function () {
+            await registry.AddSonmValidator(specialValidator, { from: owner });
+            let lvl = (await registry.GetValidatorLevel(specialValidator)).toNumber();
+            assert.equal(lvl, -1);
+        });
+
+        after(async function () {
+            await registry.RemoveSonmValidator(specialValidator, { from: owner });
+        });
+    });
+
+    describe('RemoveSonmValidator', function () {
+        before(async function () {
+            registry = await ProfileRegistry.new();
+
+            await registry.AddSonmValidator(specialValidator, { from: owner });
+        });
+
+        it('should set remove validator with level -1', async function () {
+            await registry.RemoveSonmValidator(specialValidator, { from: owner });
+            let lvl = (await registry.GetValidatorLevel(specialValidator)).toNumber();
+            assert.equal(lvl, 0);
+        });
+    });
+
+    describe('when contract is paused', function () {
+        describe('Pause calling should spend `Paused` event', function () {
+            let tx;
+
+            before(async function () {
+                registry = await ProfileRegistry.new();
+            });
+
+            it('should pause market', async function () {
+                tx = await registry.pause();
+            });
+
+            it('should spend `Pause` event', function () {
+                assert.equal(tx.logs.length, 1);
+                assert.equal(tx.logs[0].event, 'Pause');
+            });
+        });
+
+        describe('AddValidator', function () {
+            before(async function () {
+                registry = await ProfileRegistry.new();
+                await registry.pause();
+            });
+
+            it('should revert', async function () {
+                await assertRevert(registry.AddValidator(testValidator, testLevel, { from: owner }));
+            });
+        });
+
+        describe('RemoveValidator', function () {
+            before(async function () {
+                registry = await ProfileRegistry.new();
+                await registry.AddValidator(testValidator, testLevel, { from: owner });
+                await registry.pause();
+            });
+
+            it('should revert', async function () {
+                await assertRevert(registry.RemoveValidator(testValidator, { from: owner }));
+            });
+        });
+
+        describe('CreateCertificate', function () {
+            before(async function () {
+                registry = await ProfileRegistry.new();
+                await registry.AddValidator(validatorLvl2, 2, { from: owner });
+                await registry.pause();
+            });
+
+            it('should revert', async function () {
+                await assertRevert(registry.CreateCertificate(master, 1002, 'value', { from: master }));
+            });
+        });
+
+        describe('RemoveCertificate', function () {
+            let certId;
+
+            before(async function () {
+                registry = await ProfileRegistry.new();
+                await registry.AddValidator(validatorLvl2, 2, { from: owner });
+                const { logs } = await registry.CreateCertificate(master, 1201, 'value', { from: validatorLvl2 });
+                certId = logs[0].args.id;
+                await registry.pause();
+            });
+
+            it('should revert', async function () {
+                await assertRevert(registry.RemoveCertificate(certId, { from: validatorLvl2 }));
             });
         });
     });
