@@ -176,7 +176,7 @@ func keystorePath() string {
 		p = cfg.Eth.Keystore
 		// config overrides defaults ~/.sonm/
 		if p == "" {
-			p, err = accounts.GetDefaultKeyStoreDir()
+			p, err = util.GetDefaultKeyStoreDir()
 			if err != nil {
 				showError(rootCmd, "cannot obtain default keystore dir", err)
 				os.Exit(1)

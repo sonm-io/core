@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/user"
 	"path"
 
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/util"
 	"gopkg.in/yaml.v2"
 )
 
@@ -90,16 +90,6 @@ func (cc *Config) fillWithDefaults() {
 	cc.OutFormat = OutputModeSimple
 }
 
-func GetDefaultConfigDir() (string, error) {
-	currentUser, err := user.Current()
-	if err != nil {
-		return "", err
-	}
-
-	dir := path.Join(currentUser.HomeDir, accounts.HomeConfigDir)
-	return dir, nil
-}
-
 func getConfigPath(p ...string) (string, error) {
 	var cfgPath string
 	var err error
@@ -107,7 +97,7 @@ func getConfigPath(p ...string) (string, error) {
 	if len(p) > 0 && p[0] != "" {
 		cfgPath = p[0]
 	} else {
-		cfgPath, err = GetDefaultConfigDir()
+		cfgPath, err = util.GetDefaultConfigDir()
 		if err != nil {
 			return "", err
 		}
