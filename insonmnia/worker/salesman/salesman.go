@@ -421,7 +421,7 @@ func (m *Salesman) maybeCloseDeal(ctx context.Context, plan *sonm.AskPlan, deal 
 	if m.shouldCloseDeal(ctx, plan, deal) {
 		// TODO: we will know about closed deal on next iteration for simplicicty,
 		// but maybe we can optimize here.
-		if err := m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), false); err != nil {
+		if err := m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), sonm.BlacklistType_BLACKLIST_NOBODY); err != nil {
 			return err
 		}
 

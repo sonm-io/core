@@ -5,17 +5,18 @@ import (
 	"time"
 )
 
-type ordersSet struct {
-	mu        sync.Mutex
-	orders    []WeightedOrder
+type ordersState struct {
+	mu sync.Mutex
+
+	orders    *OrderClassification
 	updatedAt time.Time
 }
 
-func newOrdersSet() *ordersSet {
-	return &ordersSet{}
+func newOrdersSet() *ordersState {
+	return &ordersState{}
 }
 
-func (m *ordersSet) Set(orders []WeightedOrder) {
+func (m *ordersState) Set(orders *OrderClassification) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -23,14 +24,14 @@ func (m *ordersSet) Set(orders []WeightedOrder) {
 	m.updatedAt = time.Now()
 }
 
-func (m *ordersSet) Get() []WeightedOrder {
+func (m *ordersState) Get() *OrderClassification {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	return m.orders
 }
 
-func (m *ordersSet) UpdatedAt() time.Time {
+func (m *ordersState) UpdatedAt() time.Time {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

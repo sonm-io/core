@@ -125,11 +125,11 @@ func (m *Optimus) Run(ctx context.Context) error {
 type ordersControl struct {
 	scanner    OrderScanner
 	classifier OrderClassifier
-	ordersSet  *ordersSet
+	ordersSet  *ordersState
 	log        *zap.SugaredLogger
 }
 
-func newOrdersControl(scanner OrderScanner, classifier OrderClassifier, orders *ordersSet, log *zap.Logger) (*ordersControl, error) {
+func newOrdersControl(scanner OrderScanner, classifier OrderClassifier, orders *ordersState, log *zap.Logger) (*ordersControl, error) {
 	m := &ordersControl{
 		scanner:    scanner,
 		classifier: classifier,
@@ -161,13 +161,13 @@ func (m *ordersControl) Execute(ctx context.Context) {
 	m.log.Infof("successfully pulled %d orders from the marketplace in %s", len(orders), time.Since(now))
 
 	now = time.Now()
-	weightedOrders, err := m.classifier.Classify(orders)
+	weightedOrders, err := m.classifier.ClassifyExt(orders)
 	if err != nil {
 		m.log.Warnw("failed to classify orders", zap.Error(err))
 		return
 	}
 
-	m.log.Infof("successfully classified %d orders in %s", len(weightedOrders), time.Since(now))
+	m.log.Infof("successfully classified %d orders in %s", len(weightedOrders.WeightedOrders), time.Since(now))
 	m.ordersSet.Set(weightedOrders)
 }
 
@@ -176,11 +176,11 @@ type workerControl struct {
 	masterAddr      common.Address
 	worker          sonm.WorkerManagementClient
 	benchmarkLoader benchmarks.Loader
-	ordersSet       *ordersSet
+	ordersSet       *ordersState
 	log             *zap.SugaredLogger
 }
 
-func newWorkerControl(addr, masterAddr common.Address, worker sonm.WorkerManagementClient, orders *ordersSet, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
+func newWorkerControl(addr, masterAddr common.Address, worker sonm.WorkerManagementClient, orders *ordersState, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
 	m := &workerControl{
 		addr:            addr,
 		masterAddr:      masterAddr,
@@ -227,7 +227,13 @@ func (m *workerControl) Execute(ctx context.Context) {
 
 	m.log.Infof("worker benchmarks: %v", strings.Join(strings.Fields(fmt.Sprintf("%v", freeWorkerBenchmarks.ToArray())), ", "))
 
-	orders := m.ordersSet.Get()
+	ordersClassification := m.ordersSet.Get()
+	if ordersClassification == nil {
+		m.log.Warn("not enough orders to perform optimization")
+		return
+	}
+
+	orders := ordersClassification.WeightedOrders
 	if len(orders) == 0 {
 		m.log.Warn("not enough orders to perform optimization")
 		return
@@ -272,14 +278,21 @@ func (m *workerControl) Execute(ctx context.Context) {
 	// Cut sell plans.
 	var plans []*sonm.AskPlan
 	exhaustedCounter := 0
-	for _, order := range matchedOrders {
-		m.log.Debugw("trying to combine order into resources pool", zap.Any("order", *order.Order.Order))
+	for _, weightedOrder := range matchedOrders {
+		order := weightedOrder.Order.Order
+
+		m.log.Debugw("trying to combine order into resources pool",
+			zap.Any("order", *weightedOrder.Order),
+			zap.Float64("weight", weightedOrder.Weight),
+			zap.String("price", order.Price.ToPriceString()),
+			zap.Float64("predictedPrice", weightedOrder.PredictedPrice),
+		)
 		// TODO: Hardcode. Not the best approach.
 		if exhaustedCounter >= 100 {
 			break
 		}
 
-		plan, err := deviceManager.Consume(*order.Order.Order.Benchmarks)
+		plan, err := deviceManager.Consume(*order.Benchmarks)
 		switch err {
 		case nil:
 		case errExhausted:
@@ -290,11 +303,11 @@ func (m *workerControl) Execute(ctx context.Context) {
 			return
 		}
 
-		plan.Network.NetFlags = order.Order.Order.GetNetflags()
+		plan.Network.NetFlags = order.GetNetflags()
 
 		plans = append(plans, &sonm.AskPlan{
-			Price:     &sonm.Price{PerSecond: order.Order.Order.Price},
-			Duration:  &sonm.Duration{Nanoseconds: 1e9 * int64(order.Order.Order.Duration)},
+			Price:     &sonm.Price{PerSecond: order.Price},
+			Duration:  &sonm.Duration{Nanoseconds: 1e9 * int64(order.Duration)},
 			Resources: plan,
 		})
 	}
@@ -305,7 +318,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 	for _, plan := range plans {
 		id, err := m.worker.CreateAskPlan(ctx, plan)
 		if err != nil {
-			m.log.Warnw("failed to create sell plan", zap.Error(err))
+			m.log.Warnw("failed to create sell plan", zap.Any("plan", *plan), zap.Error(err))
 			continue
 		}
 

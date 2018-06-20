@@ -1,10 +1,12 @@
 package commands
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/datasize"
@@ -172,6 +174,10 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 		}
 		cmd.Printf("Type:            %s\r\n", order.OrderType.String())
 		cmd.Printf("Status:          %s\r\n", order.OrderStatus.String())
+		if len(order.GetTag()) > 0 {
+			cmd.Printf("Tag:             %s\r\n", string(order.GetTag()))
+		}
+
 		cmd.Printf("Duration:        %s\r\n", (time.Duration(order.GetDuration()) * time.Second).String())
 		cmd.Printf("Total price:     %s USD (%s USD/sec)\r\n", order.TotalPrice(), order.Price.ToPriceString())
 
@@ -300,6 +306,14 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealC
 			}
 		}
 
+		noWorkerRespond := info.GetResources() == nil && info.GetRunning() == nil && info.GetCompleted() == nil
+		iamConsumer := crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Big().Cmp(deal.GetConsumerID().Unwrap().Big()) == 0
+
+		if noWorkerRespond && iamConsumer {
+			// seems like worker is offline, notify user about it
+			cmd.Println("WARN: Seems like worker is offline: no respond for the resources and tasks request.")
+		}
+
 		if info.Resources != nil {
 			cmd.Println("Resources:")
 
@@ -425,5 +439,32 @@ func printWorkersList(cmd *cobra.Command, list *pb.WorkerListReply) {
 		}
 	} else {
 		showJSON(cmd, list)
+	}
+}
+
+func printProfileInfo(cmd *cobra.Command, p *pb.Profile) {
+	if isSimpleFormat() {
+		level := pb.IdentityLevel(int32(p.GetIdentityLevel()))
+		cmd.Printf("User ID: %s (%s)\r\n", p.GetUserID().Unwrap().Hex(), level.String())
+		if len(p.GetName()) > 0 {
+			cmd.Printf("Name: %s\r\n", p.GetName())
+		}
+		if len(p.GetCountry()) > 0 {
+			cmd.Printf("Country:  %s\r\n", p.GetCountry())
+		}
+		cmd.Printf("Active orders: %d Bids, %d Asks\r\n", p.GetActiveBids(), p.GetActiveAsks())
+
+		if len(p.GetCertificates()) > 0 {
+			var certs []*pb.Certificate
+			if err := json.Unmarshal([]byte(p.GetCertificates()), &certs); err == nil {
+				cmd.Println("  Certificates:")
+				for _, cert := range certs {
+					cmd.Printf("    %s) %s: %s\r\n", cert.GetId().Unwrap().String(), cert.GetAttributeName(), string(cert.Value))
+				}
+			}
+		}
+
+	} else {
+		showJSON(cmd, p)
 	}
 }

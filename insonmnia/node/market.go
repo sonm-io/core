@@ -58,6 +58,10 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 		return nil, fmt.Errorf("benchmark list too large")
 	}
 
+	if req.GetIdentity() == pb.IdentityLevel_UNKNOWN {
+		return nil, errors.New("identity level is required and should not be 0")
+	}
+
 	benchmarksValues := make([]uint64, len(knownBenchmarks))
 	for code, value := range givenBenchmarks {
 		bench, ok := knownBenchmarks[code]
