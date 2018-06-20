@@ -172,14 +172,22 @@ func (m *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal
 	if r.Status > 0 {
 		builder = builder.Where("Status = ?", r.Status)
 	}
-	if !r.SupplierID.IsZero() {
-		builder = builder.Where("SupplierID = ?", r.SupplierID.Unwrap().Hex())
-	}
-	if !r.ConsumerID.IsZero() {
-		builder = builder.Where("ConsumerID = ?", r.ConsumerID.Unwrap().Hex())
-	}
-	if !r.MasterID.IsZero() {
-		builder = builder.Where("MasterID = ?", r.MasterID.Unwrap().Hex())
+	if !r.GetAnyUserID().IsZero() {
+		builder = builder.Where(sq.Or{
+			sq.Expr("SupplierID = ?", r.GetAnyUserID().Unwrap().Hex()),
+			sq.Expr("ConsumerID = ?", r.GetAnyUserID().Unwrap().Hex()),
+			sq.Expr("MasterID = ?", r.GetAnyUserID().Unwrap().Hex()),
+		})
+	} else {
+		if !r.SupplierID.IsZero() {
+			builder = builder.Where("SupplierID = ?", r.SupplierID.Unwrap().Hex())
+		}
+		if !r.ConsumerID.IsZero() {
+			builder = builder.Where("ConsumerID = ?", r.ConsumerID.Unwrap().Hex())
+		}
+		if !r.MasterID.IsZero() {
+			builder = builder.Where("MasterID = ?", r.MasterID.Unwrap().Hex())
+		}
 	}
 	if !r.AskID.IsZero() {
 		builder = builder.Where("AskID = ?", r.AskID)
