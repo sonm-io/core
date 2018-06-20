@@ -226,7 +226,7 @@ func (m *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 
 	deals, count, err := m.storage.GetDeals(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetDeals", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetDeals", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDeals")
 	}
 
@@ -239,7 +239,7 @@ func (m *DWH) GetDealDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHDe
 
 	out, err := m.storage.GetDealByID(conn, request.Unwrap())
 	if err != nil {
-		m.logger.Warn("failed to GetDealDetails", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetDealDetails", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDealDetails")
 	}
 
@@ -252,7 +252,7 @@ func (m *DWH) GetDealConditions(ctx context.Context, request *pb.DealConditionsR
 
 	dealConditions, count, err := m.storage.GetDealConditions(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetDealConditions", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetDealConditions", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDealConditions")
 	}
 
@@ -265,7 +265,7 @@ func (m *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 
 	orders, count, err := m.storage.GetOrders(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetOrders", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetOrders", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetOrders")
 	}
 
@@ -278,7 +278,7 @@ func (m *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 
 	orders, count, err := m.storage.GetMatchingOrders(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetMatchingOrders", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetMatchingOrders", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetMatchingOrders")
 	}
 
@@ -291,7 +291,7 @@ func (m *DWH) GetOrderDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHO
 
 	out, err := m.storage.GetOrderByID(conn, request.Unwrap())
 	if err != nil {
-		m.logger.Warn("failed to GetOrderDetails", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetOrderDetails", zap.Error(err), zap.Any("request", *request))
 		return nil, fmt.Errorf("failed to GetOrderDetails: %v", err)
 	}
 
@@ -304,7 +304,7 @@ func (m *DWH) GetProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 
 	profiles, count, err := m.storage.GetProfiles(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetProfiles", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetProfiles", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetProfiles")
 	}
 
@@ -317,7 +317,7 @@ func (m *DWH) GetProfileInfo(ctx context.Context, request *pb.EthID) (*pb.Profil
 
 	out, err := m.storage.GetProfileByID(conn, request.GetId().Unwrap())
 	if err != nil {
-		m.logger.Warn("failed to GetProfileInfo", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetProfileInfo", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetProfileInfo")
 	}
 
@@ -330,7 +330,7 @@ func (m *DWH) GetBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 
 	out, err := m.storage.GetBlacklist(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetBlacklist", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetBlacklist", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetBlacklist")
 	}
 
@@ -343,7 +343,7 @@ func (m *DWH) GetBlacklistsContainingUser(ctx context.Context, r *pb.BlacklistRe
 
 	out, err := m.storage.GetBlacklistsContainingUser(conn, r)
 	if err != nil {
-		m.logger.Warn("failed to GetBlacklistsContainingUser", util.LaconicError(err), zap.Any("request", *r))
+		m.logger.Warn("failed to GetBlacklistsContainingUser", zap.Error(err), zap.Any("request", *r))
 		return nil, status.Error(codes.NotFound, "failed to GetBlacklist")
 	}
 
@@ -356,7 +356,7 @@ func (m *DWH) GetValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 
 	validators, count, err := m.storage.GetValidators(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetValidators", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetValidators", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetValidators")
 	}
 
@@ -369,7 +369,7 @@ func (m *DWH) GetDealChangeRequests(ctx context.Context, request *pb.BigInt) (*p
 
 	out, err := m.getDealChangeRequests(conn, request)
 	if err != nil {
-		m.logger.Error("failed to GetDealChangeRequests", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Error("failed to GetDealChangeRequests", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDealChangeRequests")
 	}
 
@@ -386,7 +386,7 @@ func (m *DWH) GetWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 
 	workers, count, err := m.storage.GetWorkers(conn, request)
 	if err != nil {
-		m.logger.Error("failed to GetWorkers", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Error("failed to GetWorkers", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetWorkers")
 	}
 
@@ -403,7 +403,7 @@ func (m *DWH) monitorBlockchain() error {
 			return nil
 		default:
 			if err := m.watchMarketEvents(); err != nil {
-				m.logger.Warn("failed to watch market events, retrying", util.LaconicError(err))
+				m.logger.Warn("failed to watch market events, retrying", zap.Error(err))
 			}
 		}
 	}
@@ -489,7 +489,7 @@ func (m *DWH) processEventsGroup(events []*blockchain.Event) {
 			)
 			for numRetries > 0 {
 				if err = m.processEvent(event); err != nil {
-					m.logger.Warn("failed to processEvent, retrying", util.LaconicError(err),
+					m.logger.Warn("failed to processEvent, retrying", zap.Error(err),
 						zap.Uint64("block_number", event.BlockNumber),
 						zap.String("event_type", reflect.TypeOf(event.Data).String()),
 						zap.Any("event_data", event.Data))
@@ -502,7 +502,7 @@ func (m *DWH) processEventsGroup(events []*blockchain.Event) {
 				numRetries--
 				time.Sleep(time.Second)
 			}
-			m.logger.Warn("failed to processEvent, STATE IS INCONSISTENT", util.LaconicError(err),
+			m.logger.Warn("failed to processEvent, STATE IS INCONSISTENT", zap.Error(err),
 				zap.Uint64("block_number", event.BlockNumber),
 				zap.String("event_type", reflect.TypeOf(event.Data).String()),
 				zap.Any("event_data", event.Data))
@@ -865,7 +865,7 @@ func (m *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		// For Ask orders, try to get this Author's masterID, use AuthorID if not found.
 		userID, err = m.storage.GetMasterByWorker(conn, order.GetAuthorID().Unwrap())
 		if err != nil {
-			m.logger.Warn("failed to GetMasterByWorker", util.LaconicError(err),
+			m.logger.Warn("failed to GetMasterByWorker", zap.Error(err),
 				zap.String("author_id", order.GetAuthorID().Unwrap().Hex()))
 			userID = order.GetAuthorID().Unwrap()
 		}
@@ -961,7 +961,7 @@ func (m *DWH) onOrderUpdated(orderID *big.Int) error {
 	// If order was updated, but no deal is associated with it, delete the order.
 	if marketOrder.DealID.IsZero() {
 		if err := m.storage.DeleteOrder(conn, orderID); err != nil {
-			m.logger.Info("failed to delete Order (possibly old log entry)", util.LaconicError(err),
+			m.logger.Info("failed to delete Order (possibly old log entry)", zap.Error(err),
 				zap.String("order_id", orderID.String()))
 		}
 	} else {
@@ -1323,7 +1323,7 @@ func (m *DWH) processBlockBoundary(event *blockchain.Event) {
 		m.lastKnownBlock = event.BlockNumber
 		for {
 			if err := m.updateLastKnownBlock(int64(event.BlockNumber)); err != nil {
-				m.logger.Warn("failed to updateLastKnownBlock", util.LaconicError(err))
+				m.logger.Warn("failed to updateLastKnownBlock", zap.Error(err))
 			} else {
 				return
 			}
