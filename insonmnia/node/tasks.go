@@ -5,8 +5,8 @@ import (
 	"io"
 	"strconv"
 
+	"errors"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"

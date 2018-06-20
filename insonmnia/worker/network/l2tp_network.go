@@ -2,10 +2,10 @@ package network
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/docker/go-plugins-helpers/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 )
 
@@ -38,14 +38,14 @@ func (d *L2TPNetworkDriver) CreateNetwork(request *network.CreateNetworkRequest)
 	opts, err := parseOptsNetwork(request)
 	if err != nil {
 		d.logger.Errorw("failed to parse options", zap.Error(err))
-		return errors.Wrap(err, "failed to parse options")
+		return fmt.Errorf("failed to parse options: %v", err)
 	}
 
 	n, err := d.GetNetwork(opts.PoolID())
 	if err != nil {
 		d.logger.Errorw("failed to get network", zap.String("pool_id", request.IPv4Data[0].Pool),
 			zap.Error(err))
-		return errors.Wrap(err, "failed to get network")
+		return fmt.Errorf("failed to get network: %v", err)
 	}
 
 	n.ID = request.NetworkID
@@ -66,18 +66,18 @@ func (d *L2TPNetworkDriver) CreateEndpoint(request *network.CreateEndpointReques
 	n, err := d.GetNetwork(request.NetworkID)
 	if err != nil {
 		d.logger.Errorw("failed to get network", zap.Error(err))
-		return nil, errors.Wrap(err, "failed to get network")
+		return nil, fmt.Errorf("failed to get network: %v", err)
 	}
 
 	if n.Endpoint == nil {
 		d.logger.Errorw("network's endpoint is nil", zap.String("network_id", n.ID))
-		return nil, errors.Errorf("network %s endpoint is nil", n.ID)
+		return nil, fmt.Errorf("network %s endpoint is nil", n.ID)
 	}
 
 	if len(n.Endpoint.ID) > 0 {
 		d.logger.Errorw("asked to create second endpoint for network, aborting",
 			zap.String("network_id", n.ID))
-		return nil, errors.Errorf("asked to create second endpoint for network %s, aborting", n.ID)
+		return nil, fmt.Errorf("asked to create second endpoint for network %s, aborting", n.ID)
 	}
 
 	n.Endpoint.ID = request.EndpointID
@@ -95,7 +95,7 @@ func (d *L2TPNetworkDriver) Join(request *network.JoinRequest) (*network.JoinRes
 	if err != nil {
 		d.logger.Errorw("failed to get network", zap.String("pool_id", request.NetworkID),
 			zap.Error(err))
-		return nil, errors.Wrap(err, "failed to get network")
+		return nil, fmt.Errorf("failed to get network: %v", err)
 	}
 
 	d.logger.Infow("joined endpoint", zap.String("pool_id", n.PoolID),
@@ -125,7 +125,7 @@ func (d *L2TPNetworkDriver) EndpointInfo(request *network.InfoRequest) (*network
 	if err != nil {
 		d.logger.Errorw("failed to get network", zap.String("pool_id", request.NetworkID),
 			zap.Error(err))
-		return nil, errors.Wrap(err, "failed to get network")
+		return nil, fmt.Errorf("failed to get network: %v", err)
 	}
 
 	return &network.InfoResponse{

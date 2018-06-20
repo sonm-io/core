@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	marketAPI "github.com/sonm-io/core/blockchain/source/api"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
@@ -569,7 +569,7 @@ func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.P
 
 	id, err := extractBig(logs.Topics, 1)
 	if err != nil {
-		return nil, errors.WithMessage(err, "cannot extract change request id from transaction logs")
+		return nil, fmt.Errorf("cannot extract change request id from transaction logs: %v", err)
 	}
 
 	return id, nil
@@ -988,7 +988,7 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 
 				if err != nil {
 					out <- &Event{
-						Data:        &ErrorData{Err: errors.Wrap(err, "failed to FilterLogs")},
+						Data:        &ErrorData{Err: fmt.Errorf("failed to FilterLogs: %v", err)},
 						BlockNumber: fromBlock,
 					}
 				}

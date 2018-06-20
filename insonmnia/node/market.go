@@ -1,11 +1,11 @@
 package node
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -142,7 +142,7 @@ func (m *marketAPI) Purge(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 	})
 
 	if err != nil {
-		return nil, errors.WithMessage(err, "cannot get orders from dwh")
+		return nil, fmt.Errorf("cannot get orders from dwh: %v", err)
 	}
 
 	merr := multierror.NewMultiError()

@@ -2,11 +2,11 @@ package accounts
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"io/ioutil"
 
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
-	"github.com/pkg/errors"
 )
 
 var (

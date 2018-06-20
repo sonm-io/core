@@ -2,6 +2,7 @@ package accounts
 
 import (
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts"
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/util"
 )
 
@@ -58,7 +58,7 @@ func (m *MultiKeystore) List() []accounts.Account {
 func (m *MultiKeystore) Generate() (*ecdsa.PrivateKey, error) {
 	pass, err := m.passReader.GetPassPhrase()
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot read pass phrase")
+		return nil, fmt.Errorf("cannot read pass phrase: %v", err)
 	}
 
 	return m.GenerateWithPassword(pass)
@@ -108,7 +108,7 @@ func (m *MultiKeystore) GetDefault() (*ecdsa.PrivateKey, error) {
 
 	defaultAddr, err := m.GetDefaultAddress()
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot load default key")
+		return nil, fmt.Errorf("cannot load default key: %v", err)
 	}
 
 	return m.GetKeyByAddress(defaultAddr)
@@ -159,7 +159,7 @@ func (m *MultiKeystore) readAccount(acc accounts.Account) (*ecdsa.PrivateKey, er
 	if !ok {
 		pass, err = m.passReader.GetPassPhrase()
 		if err != nil {
-			return nil, errors.Wrap(err, "cannot read pass phrase")
+			return nil, fmt.Errorf("cannot read pass phrase: %v", err)
 		}
 	}
 
@@ -169,12 +169,12 @@ func (m *MultiKeystore) readAccount(acc accounts.Account) (*ecdsa.PrivateKey, er
 func (m *MultiKeystore) readKeyFile(path string, pass string) (*ecdsa.PrivateKey, error) {
 	file, err := ioutil.ReadFile(path)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot open account file")
+		return nil, fmt.Errorf("cannot open account file: %v", err)
 	}
 
 	key, err := keystore.DecryptKey(file, pass)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot decrypt key with given pass phrase")
+		return nil, fmt.Errorf("cannot decrypt key with given pass phrase: %v", err)
 	}
 
 	return key.PrivateKey, nil
@@ -183,12 +183,12 @@ func (m *MultiKeystore) readKeyFile(path string, pass string) (*ecdsa.PrivateKey
 func (m *MultiKeystore) setDefaultAccount(addr common.Address) error {
 	if err := util.DirectoryExists(m.cfg.getStateFileDir()); err != nil {
 		if err := os.MkdirAll(m.cfg.getStateFileDir(), 0700); err != nil {
-			return errors.WithMessage(err, "cannot create dir for state")
+			return fmt.Errorf("cannot create dir for state: %v", err)
 		}
 	}
 
 	if err := ioutil.WriteFile(m.cfg.getStateFilePath(), []byte(addr.Hex()), 0600); err != nil {
-		return errors.WithMessage(err, "cannot write state to file")
+		return fmt.Errorf("cannot write state to file: %v", err)
 	}
 
 	return nil

@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,7 +14,6 @@ import (
 	dc "github.com/docker/docker/client"
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -89,7 +89,7 @@ func (w *whitelist) fillFromJsonReader(ctx context.Context, jsonReader io.Reader
 	r := make(map[string]WhitelistRecord)
 	err := decoder.Decode(&r)
 	if err != nil {
-		return errors.Wrap(err, "could not decode whitelist data")
+		return fmt.Errorf("could not decode whitelist data: %v", err)
 	}
 
 	w.RecordsMu.Lock()
@@ -158,7 +158,7 @@ func (w *whitelist) Allowed(ctx context.Context, referenceStr string, authority 
 
 	inspection, err := dockerClient.DistributionInspect(ctx, referenceStr, authority)
 	if err != nil {
-		return false, nil, errors.Wrap(err, "could not perform DistributionInspect")
+		return false, nil, fmt.Errorf("could not perform DistributionInspect: %v", err)
 	}
 
 	ref, err = reference.WithDigest(ref.(reference.Named), inspection.Descriptor.Digest)

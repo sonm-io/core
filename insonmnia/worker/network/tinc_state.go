@@ -3,6 +3,8 @@ package network
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net"
 	"sync"
 
@@ -14,7 +16,6 @@ import (
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"go.uber.org/zap"
 )
@@ -131,7 +132,7 @@ func (t *TincNetworkState) netByID(id string) (*TincNetwork, error) {
 	defer t.mu.Unlock()
 	n, ok := t.Networks[id]
 	if !ok {
-		return nil, errors.Errorf("could not find network by id %s", id)
+		return nil, fmt.Errorf("could not find network by id %s", id)
 	}
 	return n, nil
 }
@@ -168,7 +169,7 @@ func (t *TincNetworkState) netByDockerID(id string) (*TincNetwork, error) {
 			return n, nil
 		}
 	}
-	return nil, errors.Errorf("network not found by docker id %s", id)
+	return nil, fmt.Errorf("network not found by docker id %s", id)
 }
 
 func makeStore(ctx context.Context, path string) (store.Store, error) {

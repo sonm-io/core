@@ -1,8 +1,9 @@
 package optimus
 
 import (
+	"errors"
+
 	"github.com/montanaflynn/stats"
-	"github.com/pkg/errors"
 )
 
 var (

@@ -2,6 +2,7 @@ package dwh
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"math/big"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"google.golang.org/grpc/codes"
@@ -51,12 +51,12 @@ func (m *sqlStorage) CreateIndices(db *sql.DB) error {
 func (m *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 	ask, err := m.GetOrderByID(conn, deal.AskID.Unwrap())
 	if err != nil {
-		return errors.Wrapf(err, "failed to getOrderDetails (Ask, `%s`)", deal.GetAskID().Unwrap().String())
+		return fmt.Errorf("failed to getOrderDetails (Ask, `%s`): %v", deal.GetAskID().Unwrap().String(), err)
 	}
 
 	bid, err := m.GetOrderByID(conn, deal.BidID.Unwrap())
 	if err != nil {
-		return errors.Wrapf(err, "failed to getOrderDetails (Ask, `%s`)", deal.GetBidID().Unwrap().String())
+		return fmt.Errorf("failed to getOrderDetails (Ask, `%s`): %v", deal.GetBidID().Unwrap().String(), err)
 	}
 
 	var hasActiveChangeRequests bool
@@ -88,7 +88,7 @@ func (m *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 	benchmarks := deal.GetBenchmarks().GetNValues(m.numBenchmarks)
 	for idx, benchmarkValue := range benchmarks {
 		if benchmarkValue >= MaxBenchmark {
-			return errors.Errorf("Deal benchmark %d is greater than %d", idx, MaxBenchmark)
+			return fmt.Errorf("deal benchmark %d is greater than %d", idx, MaxBenchmark)
 		}
 		values = append(values, benchmarkValue)
 	}
@@ -155,7 +155,7 @@ func (m *sqlStorage) GetDealByID(conn queryConn, dealID *big.Int) (*pb.DWHDeal, 
 		ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to GetDealByID")
+		return nil, fmt.Errorf("failed to GetDealByID: %v", err)
 	}
 	defer rows.Close()
 
@@ -229,7 +229,7 @@ func (m *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.DealColumns, ", "), r.WithCount, query, args...)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to runQuery")
+		return nil, 0, fmt.Errorf("failed to runQuery: %v", err)
 	}
 	defer rows.Close()
 
@@ -237,7 +237,7 @@ func (m *sqlStorage) GetDeals(conn queryConn, r *pb.DealsRequest) ([]*pb.DWHDeal
 	for rows.Next() {
 		deal, err := m.decodeDeal(rows)
 		if err != nil {
-			return nil, 0, errors.Wrap(err, "failed to decodeDeal")
+			return nil, 0, fmt.Errorf("failed to decodeDeal: %v", err)
 		}
 
 		deals = append(deals, deal)
@@ -255,7 +255,7 @@ func (m *sqlStorage) GetDealConditions(conn queryConn, r *pb.DealConditionsReque
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to run query")
+		return nil, 0, fmt.Errorf("failed to run query: %v", err)
 	}
 	defer rows.Close()
 
@@ -263,7 +263,7 @@ func (m *sqlStorage) GetDealConditions(conn queryConn, r *pb.DealConditionsReque
 	for rows.Next() {
 		dealCondition, err := m.decodeDealCondition(rows)
 		if err != nil {
-			return nil, 0, errors.Wrap(err, "failed to decodeDealCondition")
+			return nil, 0, fmt.Errorf("failed to decodeDealCondition: %v", err)
 		}
 		out = append(out, dealCondition)
 	}
@@ -300,7 +300,7 @@ func (m *sqlStorage) InsertOrder(conn queryConn, order *pb.DWHOrder) error {
 	benchmarks := order.GetOrder().GetBenchmarks().GetNValues(m.numBenchmarks)
 	for idx, benchmarkValue := range benchmarks {
 		if benchmarkValue >= MaxBenchmark {
-			return errors.Errorf("Order benchmark %d is greater than %d", idx, MaxBenchmark)
+			return fmt.Errorf("order benchmark %d is greater than %d", idx, MaxBenchmark)
 		}
 		values = append(values, benchmarkValue)
 	}
@@ -339,7 +339,7 @@ func (m *sqlStorage) GetOrderByID(conn queryConn, orderID *big.Int) (*pb.DWHOrde
 		ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to selectOrderByID")
+		return nil, fmt.Errorf("failed to selectOrderByID: %v", err)
 	}
 	defer rows.Close()
 
@@ -417,7 +417,7 @@ func (m *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.OrderColumns, ", "), r.WithCount, query, args...)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to run query")
+		return nil, 0, fmt.Errorf("failed to run query: %v", err)
 	}
 	defer rows.Close()
 
@@ -425,13 +425,13 @@ func (m *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 	for rows.Next() {
 		order, err := m.decodeOrder(rows)
 		if err != nil {
-			return nil, 0, errors.Wrap(err, "failed to decodeOrder")
+			return nil, 0, fmt.Errorf("failed to decodeOrder: %v", err)
 		}
 		orders = append(orders, order)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, 0, errors.Wrap(err, "rows error")
+		return nil, 0, fmt.Errorf("rows error: %v", err)
 	}
 
 	return orders, count, nil
@@ -440,7 +440,7 @@ func (m *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOr
 func (m *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersRequest) ([]*pb.DWHOrder, uint64, error) {
 	order, err := m.GetOrderByID(conn, r.Id.Unwrap())
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to GetOrderByID")
+		return nil, 0, fmt.Errorf("failed to GetOrderByID: %v", err)
 	}
 
 	builder := m.builder().Select("*").From("Orders AS o")
@@ -502,7 +502,7 @@ func (m *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersReque
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, strings.Join(m.tablesInfo.OrderColumns, ", "), r.WithCount, query, args...)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to run Query")
+		return nil, 0, fmt.Errorf("failed to run Query: %v", err)
 	}
 	defer rows.Close()
 
@@ -559,26 +559,26 @@ func (m *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 
 	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to run query")
+		return nil, 0, fmt.Errorf("failed to run query: %v", err)
 	}
 	defer rows.Close()
 
 	var out []*pb.Profile
 	for rows.Next() {
 		if profile, err := m.decodeProfile(rows); err != nil {
-			return nil, 0, errors.Wrap(err, "failed to decodeProfile")
+			return nil, 0, fmt.Errorf("failed to decodeProfile: %v", err)
 		} else {
 			out = append(out, profile)
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, 0, errors.Wrap(err, "rows error")
+		return nil, 0, fmt.Errorf("rows error: %v", err)
 	}
 
 	if r.BlacklistQuery != nil && r.BlacklistQuery.Option == pb.BlacklistOption_IncludeAndMark {
 		blacklistReply, err := m.GetBlacklist(conn, &pb.BlacklistRequest{UserID: r.BlacklistQuery.OwnerID})
 		if err != nil {
-			return nil, 0, errors.Wrap(err, "failed to")
+			return nil, 0, fmt.Errorf("failed to get blacklist: %v", err)
 		}
 
 		var blacklistedAddrs = map[string]bool{}
@@ -631,7 +631,7 @@ func (m *sqlStorage) GetDealChangeRequests(conn queryConn, changeRequest *pb.Dea
 		Where("Status = ?", changeRequest.Status).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to selectDealChangeRequests")
+		return nil, fmt.Errorf("failed to select DealChangeRequests: %v", err)
 	}
 	defer rows.Close()
 
@@ -639,7 +639,7 @@ func (m *sqlStorage) GetDealChangeRequests(conn queryConn, changeRequest *pb.Dea
 	for rows.Next() {
 		changeRequest, err := m.decodeDealChangeRequest(rows)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to decodeDealChangeRequest")
+			return nil, fmt.Errorf("failed to decodeDealChangeRequest: %v", err)
 		}
 		out = append(out, changeRequest)
 	}
@@ -658,7 +658,7 @@ func (m *sqlStorage) GetDealChangeRequestsByDealID(conn queryConn, changeRequest
 		ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to selectDealChangeRequests")
+		return nil, fmt.Errorf("failed to select DealChangeRequestsByID: %v", err)
 	}
 	defer rows.Close()
 
@@ -666,7 +666,7 @@ func (m *sqlStorage) GetDealChangeRequestsByDealID(conn queryConn, changeRequest
 	for rows.Next() {
 		changeRequest, err := m.decodeDealChangeRequest(rows)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to decodeDealChangeRequest")
+			return nil, fmt.Errorf("failed to decodeDealChangeRequest: %v", err)
 		}
 		out = append(out, changeRequest)
 	}
@@ -714,7 +714,7 @@ func (m *sqlStorage) CheckWorkerExists(conn queryConn, masterID, workerID common
 		Where("MasterID = ?", masterID.Hex()).Where("WorkerID = ?", workerID.Hex()).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return false, errors.Wrap(err, "failed to run CheckWorker query")
+		return false, fmt.Errorf("failed to run CheckWorker query: %v", err)
 	}
 	defer rows.Close()
 	return rows.Next(), nil
@@ -746,7 +746,7 @@ func (m *sqlStorage) GetMasterByWorker(conn queryConn, slaveID common.Address) (
 		Where("Confirmed = ?", true).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return common.Address{}, errors.Wrap(err, "failed to selectMasterByWorker")
+		return common.Address{}, fmt.Errorf("failed to GetMasterByWorker: %v", err)
 	}
 	defer rows.Close()
 	var masterID string
@@ -754,7 +754,7 @@ func (m *sqlStorage) GetMasterByWorker(conn queryConn, slaveID common.Address) (
 		return common.Address{}, errors.New("no rows returned")
 	}
 	if err := rows.Scan(&masterID); err != nil {
-		return common.Address{}, errors.Wrap(err, "failed to scan MasterID row")
+		return common.Address{}, fmt.Errorf("failed to scan MasterID row: %v", err)
 	}
 	return util.HexToAddress(masterID)
 }
@@ -782,7 +782,7 @@ func (m *sqlStorage) GetBlacklist(conn queryConn, r *pb.BlacklistRequest) (*pb.B
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to run query")
+		return nil, fmt.Errorf("failed to run query: %v", err)
 	}
 	defer rows.Close()
 
@@ -793,14 +793,14 @@ func (m *sqlStorage) GetBlacklist(conn queryConn, r *pb.BlacklistRequest) (*pb.B
 			addeeID string
 		)
 		if err := rows.Scan(&adderID, &addeeID); err != nil {
-			return nil, errors.Wrap(err, "failed to scan BlacklistAddress row")
+			return nil, fmt.Errorf("failed to scan BlacklistAddress row: %v", err)
 		}
 
 		addees = append(addees, addeeID)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, errors.Wrap(err, "rows error")
+		return nil, fmt.Errorf("rows error: %v", err)
 	}
 
 	return &pb.BlacklistReply{
@@ -818,7 +818,7 @@ func (m *sqlStorage) GetBlacklistsContainingUser(conn queryConn, r *pb.Blacklist
 		Where("AddeeID = ?", r.UserID.Unwrap().Hex()).ToSql()
 	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to run query")
+		return nil, fmt.Errorf("failed to run query: %v", err)
 	}
 	defer rows.Close()
 
@@ -826,18 +826,18 @@ func (m *sqlStorage) GetBlacklistsContainingUser(conn queryConn, r *pb.Blacklist
 	for rows.Next() {
 		var adderID string
 		if err := rows.Scan(&adderID); err != nil {
-			return nil, errors.Wrap(err, "failed to scan BlacklistAddress row")
+			return nil, fmt.Errorf("failed to scan BlacklistAddress row: %v", err)
 		}
 
 		ethAddress, err := util.HexToAddress(adderID)
 		if err != nil {
-			return nil, errors.Errorf("failed to use `%s` as EthAddress", adderID)
+			return nil, fmt.Errorf("failed to use `%s` as EthAddress", adderID)
 		}
 		adders = append(adders, pb.NewEthAddress(ethAddress))
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, errors.Wrap(err, "rows error")
+		return nil, fmt.Errorf("rows error: %v", err)
 	}
 
 	return &pb.BlacklistsContainingUserReply{
@@ -852,7 +852,7 @@ func (m *sqlStorage) InsertOrUpdateValidator(conn queryConn, validator *pb.Valid
 		ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return errors.WithMessage(err, "failed to check if Validator exists")
+		return fmt.Errorf("failed to check if Validator exists: %v", err)
 	}
 	defer rows.Close()
 
@@ -892,7 +892,7 @@ func (m *sqlStorage) GetCertificates(conn queryConn, ownerID common.Address) ([]
 	query, args, _ := m.builder().Select("*").From("Certificates").Where("OwnerID = ?", ownerID.Hex()).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to getCertificatesByUseID")
+		return nil, fmt.Errorf("failed to getCertificatesByUseID: %v", err)
 	}
 	defer rows.Close()
 
@@ -902,7 +902,7 @@ func (m *sqlStorage) GetCertificates(conn queryConn, ownerID common.Address) ([]
 	)
 	for rows.Next() {
 		if certificate, err := m.decodeCertificate(rows); err != nil {
-			return nil, errors.Wrap(err, "failed to decodeCertificate")
+			return nil, fmt.Errorf("failed to decodeCertificate: %v", err)
 		} else {
 			certificates = append(certificates, certificate)
 			if certificate.IdentityLevel > maxIdentityLevel {
@@ -918,7 +918,7 @@ func (m *sqlStorage) InsertProfileUserID(conn queryConn, profile *pb.Profile) er
 	query, args, _ := m.builder().Select("Id").From("Profiles").Where("UserID = ?", profile.UserID.Unwrap().Hex()).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return errors.Wrap(err, "failed to check if profile exists")
+		return fmt.Errorf("failed to check if profile exists: %v", err)
 	}
 	defer rows.Close()
 	if rows.Next() {
@@ -941,7 +941,7 @@ func (m *sqlStorage) GetProfileByID(conn queryConn, userID common.Address) (*pb.
 	query, args, _ := m.builder().Select("*").From("Profiles").Where("UserID = ?", userID.Hex()).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to selectProfileByID")
+		return nil, fmt.Errorf("failed to GettProfileByID: %v", err)
 	}
 	defer rows.Close()
 
@@ -962,7 +962,7 @@ func (m *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to run query")
+		return nil, 0, fmt.Errorf("failed to run query: %v", err)
 	}
 	defer rows.Close()
 
@@ -970,13 +970,13 @@ func (m *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*
 	for rows.Next() {
 		validator, err := m.decodeValidator(rows)
 		if err != nil {
-			return nil, 0, errors.Wrap(err, "failed to decodeValidator")
+			return nil, 0, fmt.Errorf("failed to decodeValidator: %v", err)
 		}
 		out = append(out, validator)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, 0, errors.Wrap(err, "rows error")
+		return nil, 0, fmt.Errorf("rows error: %v", err)
 	}
 
 	return out, count, nil
@@ -991,7 +991,7 @@ func (m *sqlStorage) GetWorkers(conn queryConn, r *pb.WorkersRequest) ([]*pb.DWH
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
-		return nil, 0, errors.Wrap(err, "failed to run query")
+		return nil, 0, fmt.Errorf("failed to run query: %v", err)
 	}
 	defer rows.Close()
 
@@ -999,13 +999,13 @@ func (m *sqlStorage) GetWorkers(conn queryConn, r *pb.WorkersRequest) ([]*pb.DWH
 	for rows.Next() {
 		worker, err := m.decodeWorker(rows)
 		if err != nil {
-			return nil, 0, errors.Wrap(err, "failed to decodeWorker")
+			return nil, 0, fmt.Errorf("failed to decodeWorker: %v", err)
 		}
 		out = append(out, worker)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, 0, errors.Wrap(err, "rows error")
+		return nil, 0, fmt.Errorf("rows error: %v", err)
 	}
 
 	return out, count, nil
@@ -1029,17 +1029,17 @@ func (m *sqlStorage) GetLastKnownBlock(conn queryConn) (uint64, error) {
 	query, _, _ := m.builder().Select("LastKnownBlock").From("Misc").Where("Id = 1").ToSql()
 	rows, err := conn.Query(query)
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to selectLastKnownBlock")
+		return 0, fmt.Errorf("failed to GetLastKnownBlock: %v", err)
 	}
 	defer rows.Close()
 
 	if ok := rows.Next(); !ok {
-		return 0, errors.New("selectLastKnownBlock: no entries")
+		return 0, errors.New("getLastKnownBlock: no entries")
 	}
 
 	var lastKnownBlock uint64
 	if err := rows.Scan(&lastKnownBlock); err != nil {
-		return 0, errors.Wrapf(err, "failed to parse last known block number")
+		return 0, fmt.Errorf("failed to parse last known block number: %v", err)
 	}
 
 	return lastKnownBlock, nil
@@ -1157,13 +1157,13 @@ func (m *sqlStorage) runQuery(conn queryConn, columns string, withCount bool, qu
 	if withCount {
 		count, err = m.getCount(conn, query, args...)
 		if err != nil {
-			return nil, 0, errors.WithMessage(err, "failed to getCount")
+			return nil, 0, fmt.Errorf("failed to getCount: %v", err)
 		}
 	}
 
 	rows, err := conn.Query(dataQuery, args...)
 	if err != nil {
-		return nil, 0, errors.Wrapf(err, "data query `%s` failed", dataQuery)
+		return nil, 0, fmt.Errorf("data query `%s` failed: %v", dataQuery, err)
 	}
 
 	return rows, count, nil
@@ -1175,7 +1175,7 @@ func (m *sqlStorage) getCount(conn queryConn, query string, args ...interface{})
 	countQuery = strings.Split(countQuery, "ORDER BY")[0]
 	countRows, err := conn.Query(countQuery, args...)
 	if err != nil {
-		return 0, errors.Wrapf(err, "count query `%s` failed", countQuery)
+		return 0, fmt.Errorf("count query `%s` failed: %v", countQuery, err)
 	}
 	defer countRows.Close()
 
@@ -1237,7 +1237,7 @@ func (m *sqlStorage) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 		allFields = append(allFields, benchmarks[benchID])
 	}
 	if err := rows.Scan(allFields...); err != nil {
-		return nil, errors.Wrap(err, "failed to scan Deal row")
+		return nil, fmt.Errorf("failed to scan Deal row: %v", err)
 	}
 
 	benchmarksUint64 := make([]uint64, m.numBenchmarks)
@@ -1254,17 +1254,17 @@ func (m *sqlStorage) decodeDeal(rows *sql.Rows) (*pb.DWHDeal, error) {
 
 	bigID, err := pb.NewBigIntFromString(*id)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to NewBigIntFromString (ID)")
+		return nil, fmt.Errorf("failed to NewBigIntFromString (ID): %v", err)
 	}
 
 	bigAskID, err := pb.NewBigIntFromString(*askID)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to NewBigIntFromString (askID)")
+		return nil, fmt.Errorf("failed to NewBigIntFromString (askID): %v", err)
 	}
 
 	bigBidID, err := pb.NewBigIntFromString(*bidID)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to NewBigIntFromString (bidID)")
+		return nil, fmt.Errorf("failed to NewBigIntFromString (bidID): %v", err)
 	}
 
 	return &pb.DWHDeal{
@@ -1319,7 +1319,7 @@ func (m *sqlStorage) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, err
 		&totalPayout,
 		&dealID,
 	); err != nil {
-		return nil, errors.Wrap(err, "failed to scan DealCondition row")
+		return nil, fmt.Errorf("failed to scan DealCondition row: %v", err)
 	}
 
 	bigPrice := new(big.Int)
@@ -1328,7 +1328,7 @@ func (m *sqlStorage) decodeDealCondition(rows *sql.Rows) (*pb.DealCondition, err
 	bigTotalPayout.SetString(totalPayout, 10)
 	bigDealID, err := pb.NewBigIntFromString(dealID)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to NewBigIntFromString (DealID)")
+		return nil, fmt.Errorf("failed to NewBigIntFromString (DealID): %v", err)
 	}
 
 	return &pb.DealCondition{
@@ -1394,7 +1394,7 @@ func (m *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 		allFields = append(allFields, benchmarks[benchID])
 	}
 	if err := rows.Scan(allFields...); err != nil {
-		return nil, errors.Wrap(err, "failed to scan Order row")
+		return nil, fmt.Errorf("failed to scan Order row: %v", err)
 	}
 	benchmarksUint64 := make([]uint64, m.numBenchmarks)
 	for benchID, benchValue := range benchmarks {
@@ -1402,19 +1402,19 @@ func (m *sqlStorage) decodeOrder(rows *sql.Rows) (*pb.DWHOrder, error) {
 	}
 	bigPrice, err := pb.NewBigIntFromString(*price)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to NewBigIntFromString (Price)")
+		return nil, fmt.Errorf("failed to NewBigIntFromString (Price): %v", err)
 	}
 	bigFrozenSum, err := pb.NewBigIntFromString(*frozenSum)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to NewBigIntFromString (FrozenSum)")
+		return nil, fmt.Errorf("failed to NewBigIntFromString (FrozenSum): %v", err)
 	}
 	bigID, err := pb.NewBigIntFromString(*id)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to NewBigIntFromString (ID)")
+		return nil, fmt.Errorf("failed to NewBigIntFromString (ID): %v", err)
 	}
 	bigDealID, err := pb.NewBigIntFromString(*dealID)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to NewBigIntFromString (DealID)")
+		return nil, fmt.Errorf("failed to NewBigIntFromString (DealID): %v", err)
 	}
 
 	return &pb.DWHOrder{
@@ -1463,18 +1463,18 @@ func (m *sqlStorage) decodeDealChangeRequest(rows *sql.Rows) (*pb.DealChangeRequ
 		&dealID,
 	)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to scan DealChangeRequest row")
+		return nil, fmt.Errorf("failed to scan DealChangeRequest row: %v", err)
 	}
 	bigPrice := new(big.Int)
 	bigPrice.SetString(price, 10)
 	bigDealID, err := pb.NewBigIntFromString(dealID)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to NewBigIntFromString (ID)")
+		return nil, fmt.Errorf("failed to NewBigIntFromString (ID): %v", err)
 	}
 
 	bigChangeRequestID, err := pb.NewBigIntFromString(changeRequestID)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to NewBigIntFromString (ChangeRequestID)")
+		return nil, fmt.Errorf("failed to NewBigIntFromString (ChangeRequestID): %v", err)
 	}
 
 	return &pb.DealChangeRequest{
@@ -1497,11 +1497,11 @@ func (m *sqlStorage) decodeCertificate(rows *sql.Rows) (*pb.Certificate, error) 
 		validatorID   string
 	)
 	if err := rows.Scan(&id, &ownerID, &attribute, &identityLevel, &value, &validatorID); err != nil {
-		return nil, errors.Wrap(err, "failed to decode Certificate")
+		return nil, fmt.Errorf("failed to decode Certificate: %v", err)
 	} else {
 		bigID, err := pb.NewBigIntFromString(id)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse certificate id")
+			return nil, fmt.Errorf("failed to parse certificate id: %v", err)
 		}
 
 		return &pb.Certificate{
@@ -1540,7 +1540,7 @@ func (m *sqlStorage) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 		&activeAsks,
 		&activeBids,
 	); err != nil {
-		return nil, errors.Wrap(err, "failed to scan Profile row")
+		return nil, fmt.Errorf("failed to scan Profile row: %v", err)
 	}
 
 	return &pb.Profile{
@@ -1562,7 +1562,7 @@ func (m *sqlStorage) decodeValidator(rows *sql.Rows) (*pb.Validator, error) {
 		level       uint64
 	)
 	if err := rows.Scan(&validatorID, &level); err != nil {
-		return nil, errors.Wrap(err, "failed to scan Validator row")
+		return nil, fmt.Errorf("failed to scan Validator row: %v", err)
 	}
 
 	return &pb.Validator{
@@ -1578,7 +1578,7 @@ func (m *sqlStorage) decodeWorker(rows *sql.Rows) (*pb.DWHWorker, error) {
 		confirmed bool
 	)
 	if err := rows.Scan(&masterID, &slaveID, &confirmed); err != nil {
-		return nil, errors.Wrap(err, "failed to scan Worker row")
+		return nil, fmt.Errorf("failed to scan Worker row: %v", err)
 	}
 
 	return &pb.DWHWorker{
@@ -1618,62 +1618,62 @@ type sqlSetupCommands struct {
 func (c *sqlSetupCommands) setupTables(db *sql.DB) error {
 	_, err := db.Exec(c.createTableDeals)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableDeals)
+		return fmt.Errorf("failed to %s: %v", c.createTableDeals, err)
 	}
 
 	_, err = db.Exec(c.createTableDealConditions)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableDealConditions)
+		return fmt.Errorf("failed to %s: %v", c.createTableDealConditions, err)
 	}
 
 	_, err = db.Exec(c.createTableDealPayments)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableDealPayments)
+		return fmt.Errorf("failed to %s: %v", c.createTableDealPayments, err)
 	}
 
 	_, err = db.Exec(c.createTableChangeRequests)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableChangeRequests)
+		return fmt.Errorf("failed to %s: %v", c.createTableChangeRequests, err)
 	}
 
 	_, err = db.Exec(c.createTableOrders)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableOrders)
+		return fmt.Errorf("failed to %s: %v", c.createTableOrders, err)
 	}
 
 	_, err = db.Exec(c.createTableWorkers)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableWorkers)
+		return fmt.Errorf("failed to %s: %v", c.createTableWorkers, err)
 	}
 
 	_, err = db.Exec(c.createTableBlacklists)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableBlacklists)
+		return fmt.Errorf("failed to %s: %v", c.createTableBlacklists, err)
 	}
 
 	_, err = db.Exec(c.createTableValidators)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableValidators)
+		return fmt.Errorf("failed to %s: %v", c.createTableValidators, err)
 	}
 
 	_, err = db.Exec(c.createTableCertificates)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableCertificates)
+		return fmt.Errorf("failed to %s: %v", c.createTableCertificates, err)
 	}
 
 	_, err = db.Exec(c.createTableProfiles)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableProfiles)
+		return fmt.Errorf("failed to %s: %v", c.createTableProfiles, err)
 	}
 
 	_, err = db.Exec(c.createTableStaleIDs)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableStaleIDs)
+		return fmt.Errorf("failed to %s: %v", c.createTableStaleIDs, err)
 	}
 
 	_, err = db.Exec(c.createTableMisc)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s", c.createTableMisc)
+		return fmt.Errorf("failed to %s: %v", c.createTableMisc, err)
 	}
 
 	return nil
@@ -1733,7 +1733,7 @@ func (c *sqlSetupCommands) createIndex(db *sql.DB, command, table, column string
 	cmd := fmt.Sprintf(command, table, column, table, column)
 	_, err := db.Exec(cmd)
 	if err != nil {
-		return errors.Wrapf(err, "failed to %s (%s)", cmd)
+		return fmt.Errorf("failed to %s (%s): %v", cmd, table, err)
 	}
 
 	return nil

@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"strings"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/docker/go-plugins-helpers/network"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
@@ -143,7 +143,7 @@ func (t *TincNetworkDriver) DeleteEndpoint(request *network.DeleteEndpointReques
 
 	n, ok := t.Networks[request.NetworkID]
 	if !ok {
-		return errors.Errorf("no such network %s", request.NetworkID)
+		return fmt.Errorf("no such network %s", request.NetworkID)
 	}
 	return n.Stop(t.ctx)
 }
@@ -202,7 +202,7 @@ func (t *TincNetworkDriver) GenerateInvitation(NodeID string) (structs.Network, 
 	defer t.mu.Unlock()
 	n, ok := t.Networks[NodeID]
 	if !ok {
-		return nil, errors.Errorf("no such network %s", NodeID)
+		return nil, fmt.Errorf("no such network %s", NodeID)
 	}
 
 	//TODO: Check this
