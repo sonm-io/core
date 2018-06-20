@@ -11,6 +11,7 @@ contract TestnetFaucet is Ownable {
     constructor(address _token) public{
         token = SNMMasterchain(_token);
         owner = msg.sender;
+        token.defrost();
     }
 
     function getTokens() public returns (bool){
