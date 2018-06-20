@@ -3,6 +3,7 @@ package commands
 import (
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -389,6 +390,16 @@ func printBalanceInfo(cmd *cobra.Command, reply *pb.BalanceReply) {
 			"ethereum": live,
 			"sonm":     side,
 		}})
+	}
+}
+
+func printMarketAllowance(cmd *cobra.Command, reply *pb.BigInt) {
+	if isSimpleFormat() {
+		allowance := big.NewFloat(0.0).SetPrec(256).SetInt(reply.Unwrap())
+		allowance = allowance.Quo(allowance, big.NewFloat(1e18))
+		cmd.Printf("%s SNM\n", allowance.Text('g', 4))
+	} else {
+		showJSON(cmd, map[string]string{"allowance": reply.Unwrap().String()})
 	}
 }
 
