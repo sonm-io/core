@@ -6,8 +6,8 @@ price: 2.5 USD/h
 
 blacklist: 0x8125721c2413d99a33e351e1f6bb4e56b6b61234
 
-# identity level of the counterparty. Can be "anonymous", "pseudonymous" and "identified"
-identity: pseudonymous
+# identity level of the counterparty. Can be "anonymous", "registered", "identified" and "professional"
+identity: anonymous
 
 tag: my-app
 

@@ -7,11 +7,12 @@ var ProfileRegistry = artifacts.require('./ProfileRegistry.sol');
 module.exports = function (deployer, network) {
     if (network === 'private') {
         deployer.deploy(Market,
-            '0x5db024c6469634f4b307135cb76e8e6806f007b3', // token address
+            SNM.address, // token address
             Blacklist.address, // Blacklist address
-            OracleUSD.address, // Oracle address
-            '0xcc1cb65bdea124520dbdcc9e82b21b4352e45ad9', // ProfileRegistry address
+            '0x1f995e52dcbec7c0d00d45b8b1bf43b29dd12b5b', // Oracle address
+            ProfileRegistry.address, // ProfileRegistry address
             12, // benchmarks quantity
+            3, // netflags quantity
             { gasPrice: 0 });
     } else {
         deployer.deploy(Market, SNM.address, Blacklist.address, OracleUSD.address, ProfileRegistry.address, 12, 3);

@@ -233,14 +233,14 @@ func (m *DealsRequest) GetAskIdentityLevel() IdentityLevel {
 	if m != nil {
 		return m.AskIdentityLevel
 	}
-	return IdentityLevel_ANONYMOUS
+	return IdentityLevel_UNKNOWN
 }
 
 func (m *DealsRequest) GetBidIdentityLevel() IdentityLevel {
 	if m != nil {
 		return m.BidIdentityLevel
 	}
-	return IdentityLevel_ANONYMOUS
+	return IdentityLevel_UNKNOWN
 }
 
 func (m *DealsRequest) GetBenchmarks() map[uint64]*MaxMinUint64 {
@@ -862,7 +862,7 @@ func (m *ProfilesRequest) GetIdentityLevel() IdentityLevel {
 	if m != nil {
 		return m.IdentityLevel
 	}
-	return IdentityLevel_ANONYMOUS
+	return IdentityLevel_UNKNOWN
 }
 
 func (m *ProfilesRequest) GetCountry() []string {
