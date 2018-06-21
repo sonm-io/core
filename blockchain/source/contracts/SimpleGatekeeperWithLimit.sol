@@ -19,7 +19,7 @@ contract SimpleGatekeeperWithLimit is Ownable {
     }
 
     struct TransactionState {
-        uint256 commitTs;
+        uint256 commitTS;
         bool paid;
         address keeper;
     }
@@ -39,9 +39,9 @@ contract SimpleGatekeeperWithLimit is Ownable {
     event PayoutTx(address indexed from, uint256 indexed txNumber, uint256 indexed value);
     event Suicide(uint block);
 
-    event KeeperChanged(address keeper, uint256 dayLimit);
-    event KeeperFrozen(address keeper);
-    event KeeperUnfrozen(address keeper);
+    event KeeperChanged(address indexed keeper, uint256 indexed dayLimit);
+    event KeeperFrozen(address indexed keeper);
+    event KeeperUnfrozen(address indexed keeper);
 
     function ChangeKeeperLimit(address _keeper, uint256 _limit) public onlyOwner {
         keepers[_keeper].dayLimit = _limit;
@@ -58,7 +58,7 @@ contract SimpleGatekeeperWithLimit is Ownable {
     }
 
     function UnFreezeKeeper(address _keeper) public onlyOwner {
-        require(keepers[msg.sender].dayLimit > 0);
+        require(keepers[_keeper].dayLimit > 0);
         keepers[_keeper].frozen = false;
         emit KeeperUnfrozen(_keeper);
     }
@@ -78,15 +78,15 @@ contract SimpleGatekeeperWithLimit is Ownable {
         // check that transaction is not paid
         require(!paid[txHash].paid);
 
-        if (paid[txHash].commitTs == 0) {
-            // check dayli
+        if (paid[txHash].commitTS == 0) {
+            // check daylimit
             require(underLimit(msg.sender, _value));
-            paid[txHash].commitTs = block.timestamp;
+            paid[txHash].commitTS = block.timestamp;
             paid[txHash].keeper = msg.sender;
             emit CommitTx(_to, _txNumber, _value, block.timestamp);
         } else {
             require(paid[txHash].keeper == msg.sender);
-            require(paid[txHash].commitTs + 1 days >= block.timestamp);
+            require(paid[txHash].commitTS + 1 days >= block.timestamp);
             require(token.transfer(_to, _value));
             paid[txHash].paid = true;
             emit PayoutTx(_to, _txNumber, _value);

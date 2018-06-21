@@ -30,7 +30,7 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
         });
 
         it('should exec', async function () {
-            tx = await gatekeeper.PayIn(testValue, { from: user });
+            tx = await gatekeeper.Payin(testValue, { from: user });
         });
 
         it('should transfer token from user to gatekeeper', async function () {
@@ -43,7 +43,7 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
 
         it('should spend `PayOut` event', function () {
             assert.equal(tx.logs.length, 1);
-            assert.equal(tx.logs[0].event, 'PayInTx');
+            assert.equal(tx.logs[0].event, 'PayinTx');
             assert.equal(tx.logs[0].args.from, user);
             assert.equal(tx.logs[0].args.txNumber, 1);
             assert.equal(tx.logs[0].args.value, testValue);
@@ -57,7 +57,7 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
             });
 
             it('should revert', async function () {
-                await assertRevert(gatekeeper.PayIn(testValue, { from: userWithoutBalance }));
+                await assertRevert(gatekeeper.Payin(testValue, { from: userWithoutBalance }));
             });
         });
 
@@ -69,7 +69,7 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
             });
 
             it('should revert', async function () {
-                await assertRevert(gatekeeper.PayIn(testValue, { from: userWithoutAllowance }));
+                await assertRevert(gatekeeper.Payin(testValue, { from: userWithoutAllowance }));
             });
         });
     });
@@ -108,6 +108,7 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
         });
 
         it('should exec', async function () {
+            await gatekeeper.Payout(user, testValue, 1, { from: highKeeper });
             tx = await gatekeeper.Payout(user, testValue, 1, { from: highKeeper });
         });
 
