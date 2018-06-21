@@ -13,17 +13,17 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	PolicySpotOnly OrderPolicy = iota
+)
+
 type Config struct {
 	PrivateKey   privateKey                 `yaml:"ethereum" json:"-"`
 	Logging      logging.Config             `yaml:"logging"`
 	Workers      map[auth.Addr]workerConfig `yaml:"workers"`
 	Benchmarks   benchmarks.Config          `yaml:"benchmarks"`
 	Marketplace  marketplaceConfig          `yaml:"marketplace"`
-	Optimization optimizationConfig         `yaml:"optimization"`
-}
-
-type workerConfig struct {
-	Epoch time.Duration `yaml:"epoch"`
+	Optimization optimizationConfig
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -34,6 +34,29 @@ func LoadConfig(path string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+type workerConfig struct {
+	Epoch       time.Duration `yaml:"epoch"`
+	OrderPolicy OrderPolicy   `yaml:"order_policy"`
+}
+
+type OrderPolicy int
+
+func (m *OrderPolicy) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var cfg string
+	if err := unmarshal(&cfg); err != nil {
+		return err
+	}
+
+	switch cfg {
+	case "spot_only":
+		*m = PolicySpotOnly
+	default:
+		return fmt.Errorf("unknown order policy: %s", cfg)
+	}
+
+	return nil
 }
 
 type privateKey ecdsa.PrivateKey
