@@ -116,6 +116,8 @@ service TokenManagement {
     rpc Deposit(BigInt) returns (Empty) {}
     // Withdraw transfers funds from sidechain to masterchain
     rpc Withdraw(BigInt) returns (Empty) {}
+    // MarketAllowance returns current allowance for BC market
+    rpc MarketAllowance(Empty) returns (BigInt) {}
 }
 
 message BalanceReply {
