@@ -1,15 +1,15 @@
 pragma solidity ^0.4.23;
 
 
-import "zeppelin-solidity/contracts/token/ERC20/StandardToken.sol";
+import "./SNMMasterchain.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 
-contract SimpleGatekeeperWithLimit is Ownable {
+contract SimpleGatekeeperWithLimitLive is Ownable {
 
     using SafeMath for uint256;
 
-    StandardToken token;
+    SNMMasterchain token;
 
     struct Keeper {
         uint256 dayLimit;
@@ -27,7 +27,7 @@ contract SimpleGatekeeperWithLimit is Ownable {
     mapping(address => Keeper) keepers;
 
     constructor(address _token) public {
-        token = StandardToken(_token);
+        token = SNMMasterchain(_token);
         owner = msg.sender;
     }
 
@@ -64,7 +64,7 @@ contract SimpleGatekeeperWithLimit is Ownable {
     }
 
     function Payin(uint256 _value) public {
-        require(token.transferFrom(msg.sender, this, _value));
+        token.transferFrom(msg.sender, this, _value);
         transactionAmount = transactionAmount + 1;
         emit PayinTx(msg.sender, transactionAmount, _value);
     }
@@ -79,7 +79,7 @@ contract SimpleGatekeeperWithLimit is Ownable {
         require(!paid[txHash].paid);
 
         if (paid[txHash].commitTs == 0) {
-            // check dayli
+            // check day limit to added today transaction
             require(underLimit(msg.sender, _value));
             paid[txHash].commitTs = block.timestamp;
             paid[txHash].keeper = msg.sender;
@@ -87,7 +87,7 @@ contract SimpleGatekeeperWithLimit is Ownable {
         } else {
             require(paid[txHash].keeper == msg.sender);
             require(paid[txHash].commitTs + 1 days >= block.timestamp);
-            require(token.transfer(_to, _value));
+            token.transfer(_to, _value);
             paid[txHash].paid = true;
             emit PayoutTx(_to, _txNumber, _value);
         }
@@ -116,7 +116,7 @@ contract SimpleGatekeeperWithLimit is Ownable {
 
     function kill() public onlyOwner {
         uint balance = token.balanceOf(this);
-        require(token.transfer(owner, balance));
+        token.transfer(owner, balance);
         emit Suicide(block.timestamp);
         // solium-disable-line security/no-block-members
         selfdestruct(owner);
