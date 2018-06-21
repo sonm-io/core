@@ -72,6 +72,7 @@ contract SimpleGatekeeperWithLimitLive is Ownable {
     function Payout(address _to, uint256 _value, uint256 _txNumber) public {
         // check that keeper is not frozen
         require(!keepers[msg.sender].frozen);
+        require(keepers[msg.sender].dayLimit > 0);
 
         bytes32 txHash = keccak256(_to, _txNumber, _value);
 
