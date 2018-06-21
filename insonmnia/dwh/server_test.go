@@ -576,6 +576,7 @@ func TestDWH_monitor(t *testing.T) {
 		Level: 3,
 	}
 	mockProfiles.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)
+	mockProfiles.EXPECT().GetValidatorLevel(gomock.Any(), gomock.Any()).AnyTimes().Return(int8(0), nil)
 	certificate := &pb.Certificate{
 		ValidatorID:   pb.NewEthAddress(common.HexToAddress("0xC")),
 		OwnerID:       pb.NewEthAddress(common.HexToAddress("0xD")),
