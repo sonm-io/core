@@ -75,6 +75,10 @@ func printNetworkSpec(cmd *cobra.Command, spec *pb.NetworkSpec) {
 
 func printNodeTaskStatus(cmd *cobra.Command, tasksMap map[string]*pb.TaskStatusReply) {
 	if isSimpleFormat() {
+		if len(tasksMap) == 0 {
+			cmd.Printf("No active tasks\r\n")
+			return
+		}
 		for id, task := range tasksMap {
 			printTaskStatus(cmd, id, task)
 		}

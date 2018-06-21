@@ -2,16 +2,11 @@ package npp
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
-	"net"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
-	"github.com/sonm-io/core/util/multierror"
-	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials"
 )
@@ -27,8 +22,8 @@ type options struct {
 	nppBacklog            int
 	nppMinBackoffInterval time.Duration
 	nppMaxBackoffInterval time.Duration
-	relayListen           func() (net.Conn, error)
-	relayDial             func(target common.Address) (net.Conn, error)
+	relayListener         *relay.Listener
+	relayDialer           *relay.Dialer
 }
 
 func newOptions(ctx context.Context) *options {
@@ -95,49 +90,27 @@ func WithNPPBackoff(min, max time.Duration) Option {
 	}
 }
 
-// WithRelay is an option that specifies Relay client settings.
+// WithRelayListener is an option that activates Relay fallback on a NPP
+// listener.
 //
 // Without this option no intermediate server will be used for relaying
 // TCP.
-func WithRelay(addrs []netutil.TCPAddr, key *ecdsa.PrivateKey, log *zap.Logger) Option {
+func WithRelayListener(listener *relay.Listener) Option {
 	return func(o *options) error {
-		signedAddr, err := relay.NewSignedAddr(key)
-		if err != nil {
-			return err
-		}
-
-		o.relayListen = func() (net.Conn, error) {
-			for _, addr := range addrs {
-				conn, err := relay.ListenWithLog(&addr, signedAddr, log)
-				if err == nil {
-					return conn, nil
-				}
-			}
-
-			return nil, fmt.Errorf("failed to connect to %+v", addrs)
-		}
-
+		o.relayListener = listener
 		return nil
 	}
 }
 
-func WithRelayClient(addrs []netutil.TCPAddr, log *zap.Logger) Option {
+// WithRelayDialer is an option that activates Relay fallback on a NPP dialer.
+//
+// One or more Relay TCP addresses must be specified in "addrs" argument.
+// Hostname resolution is performed for each of them for environments with
+// dynamic DNS addition/removal. Thus, a single Relay endpoint as a hostname
+// should fit the best.
+func WithRelayDialer(dialer *relay.Dialer) Option {
 	return func(o *options) error {
-		o.relayDial = func(target common.Address) (net.Conn, error) {
-			errs := multierror.NewMultiError()
-
-			for _, addr := range addrs {
-				conn, err := relay.DialWithLog(&addr, target, "", log)
-				if err == nil {
-					return conn, nil
-				}
-
-				errs = multierror.AppendUnique(errs, err)
-			}
-
-			return nil, fmt.Errorf("failed to connect to %+v: %s", addrs, errs.Error())
-		}
-
+		o.relayDialer = dialer
 		return nil
 	}
 }

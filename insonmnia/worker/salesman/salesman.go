@@ -3,6 +3,7 @@ package salesman
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/mohae/deepcopy"
 	"github.com/pborman/uuid"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware"

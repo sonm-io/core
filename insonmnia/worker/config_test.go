@@ -59,7 +59,7 @@ whitelist:
 		"0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:14099")
 
 	assert.Len(t, conf.NPP.Relay.Endpoints, 1)
-	assert.Contains(t, conf.NPP.Relay.Endpoints[0].String(), "2.3.4.5:12345")
+	assert.Contains(t, conf.NPP.Relay.Endpoints[0], "2.3.4.5:12345")
 
 	assert.Equal(t, "/var/lib/sonm/worker.boltdb", conf.Storage.Endpoint)
 	assert.Equal(t, "sonm", conf.Storage.Bucket)

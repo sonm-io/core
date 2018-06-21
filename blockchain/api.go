@@ -3,6 +3,7 @@ package blockchain
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
 	"math/big"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	marketAPI "github.com/sonm-io/core/blockchain/source/api"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
@@ -40,6 +40,7 @@ type ProfileRegistryAPI interface {
 	GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error)
 	GetAttributeCount(ctx context.Context, owner common.Address, attributeType *big.Int) (*big.Int, error)
 	GetAttributeValue(ctx context.Context, owner common.Address, attributeType *big.Int) ([]byte, error)
+	GetProfileLevel(ctx context.Context, owner common.Address) (pb.IdentityLevel, error)
 }
 
 type EventsAPI interface {
@@ -603,7 +604,7 @@ func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.P
 
 	id, err := extractBig(logs.Topics, 1)
 	if err != nil {
-		return nil, errors.WithMessage(err, "cannot extract change request id from transaction logs")
+		return nil, fmt.Errorf("cannot extract change request id from transaction logs: %v", err)
 	}
 
 	return id, nil
@@ -692,6 +693,14 @@ func (api *ProfileRegistry) GetAttributeCount(ctx context.Context, owner common.
 
 func (api *ProfileRegistry) GetAttributeValue(ctx context.Context, owner common.Address, attributeType *big.Int) ([]byte, error) {
 	return api.profileRegistryContract.GetAttributeValue(getCallOptions(ctx), owner, attributeType)
+}
+
+func (api *ProfileRegistry) GetProfileLevel(ctx context.Context, owner common.Address) (pb.IdentityLevel, error) {
+	lev, err := api.profileRegistryContract.GetProfileLevel(getCallOptions(ctx), owner)
+	if err != nil {
+		return pb.IdentityLevel_UNKNOWN, fmt.Errorf("failed to get profile level: %s", err)
+	}
+	return pb.IdentityLevel(lev), err
 }
 
 func (api *ProfileRegistry) GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error) {
@@ -1022,7 +1031,7 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 
 				if err != nil {
 					out <- &Event{
-						Data:        &ErrorData{Err: errors.Wrap(err, "failed to FilterLogs")},
+						Data:        &ErrorData{Err: fmt.Errorf("failed to FilterLogs: %v", err)},
 						BlockNumber: fromBlock,
 					}
 				}

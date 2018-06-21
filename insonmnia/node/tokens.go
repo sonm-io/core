@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/proto"
@@ -28,12 +27,12 @@ func (t *tokenAPI) Balance(ctx context.Context, _ *sonm.Empty) (*sonm.BalanceRep
 
 	live, err := t.remotes.eth.MasterchainToken().BalanceOf(ctx, addr)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot get live token balance")
+		return nil, fmt.Errorf("cannot get live token balance: %v", err)
 	}
 
 	side, err := t.remotes.eth.SidechainToken().BalanceOf(ctx, addr)
 	if err != nil {
-		return nil, errors.Wrap(err, "cannot get side token balance")
+		return nil, fmt.Errorf("cannot get side token balance: %v", err)
 	}
 
 	return &sonm.BalanceReply{

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gosuri/uiprogress"
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -62,8 +63,14 @@ func getActiveDealIDs(ctx context.Context) ([]*big.Int, error) {
 		return nil, fmt.Errorf("cannot fetch deals list: %s", err)
 	}
 	dealIDs := make([]*big.Int, 0, len(deals.Deal))
+	myAddr := crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Big()
+
 	for _, deal := range deals.Deal {
-		dealIDs = append(dealIDs, deal.GetId().Unwrap())
+		// append active deal id only if current user is supplier
+		iamConsumer := deal.GetConsumerID().Unwrap().Big().Cmp(myAddr) == 0
+		if iamConsumer {
+			dealIDs = append(dealIDs, deal.GetId().Unwrap())
+		}
 	}
 	return dealIDs, nil
 }
@@ -101,6 +108,11 @@ var taskListCmd = &cobra.Command{
 				showError(cmd, err.Error(), nil)
 				os.Exit(1)
 			}
+		}
+
+		if len(dealIDs) == 0 {
+			cmd.Println("No active deals found.")
+			return
 		}
 
 		for k, dealID := range dealIDs {

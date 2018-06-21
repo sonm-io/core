@@ -1,12 +1,17 @@
+// This module is responsible for client-side Relay communication.
+
 package relay
 
 import (
+	"crypto/ecdsa"
 	"fmt"
 	"net"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/multierror"
+	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
 )
 
@@ -159,4 +164,103 @@ func (m *client) handshake(message proto.Message) error {
 
 func (m *client) Close() error {
 	return m.conn.Close()
+}
+
+// Dialer is a thing that constructs a new TCP connection using remote Relay
+// server.
+// One or more Relay TCP addresses must be specified in "Addrs" field.
+// Hostname resolution is performed for each of them for environments with
+// dynamic DNS addition/removal. Thus, a single Relay endpoint as a hostname
+// should fit the best.
+type Dialer struct {
+	Addrs []string
+	Log   *zap.Logger
+}
+
+// Dial mimics "net.Dial" and connects to a remote endpoint using Relay server.
+func (m *Dialer) Dial(target common.Address) (net.Conn, error) {
+	m.initLog()
+	m.Log.Debug("connecting to remote Relay server")
+
+	errs := multierror.NewMultiError()
+
+	for _, addr := range m.Addrs {
+		m.Log.Debug("resolving Relay addr", zap.String("addr", addr))
+
+		addrs, err := netutil.LookupTCPHostPort(addr)
+		if err != nil {
+			errs = multierror.AppendUnique(errs, err)
+			continue
+		}
+
+		m.Log.Debug("successfully resolved Relay addr", zap.String("addr", addr), zap.Any("resolved", addrs))
+
+		for _, addr := range addrs {
+			conn, err := DialWithLog(addr, target, "", m.Log)
+			if err == nil {
+				return conn, nil
+			}
+
+			errs = multierror.AppendUnique(errs, err)
+		}
+	}
+
+	return nil, fmt.Errorf("failed to connect to %+v: %s", m.Addrs, errs.Error())
+}
+
+func (m *Dialer) initLog() {
+	if m.Log == nil {
+		m.Log = zap.NewNop()
+	}
+}
+
+// Listener represents client-side TCP listener that will route traffic through
+// Relay server.
+// One or more Relay TCP addresses must be specified in "Addrs" field.
+// Hostname resolution is performed for each of them for environments with
+// dynamic DNS addition/removal.
+type Listener struct {
+	Addrs      []string
+	SignedAddr SignedETHAddr
+	Log        *zap.Logger
+}
+
+func NewListener(addrs []string, key *ecdsa.PrivateKey, log *zap.Logger) (*Listener, error) {
+	signedAddr, err := NewSignedAddr(key)
+	if err != nil {
+		return nil, err
+	}
+
+	m := &Listener{
+		Addrs:      addrs,
+		SignedAddr: signedAddr,
+		Log:        log.With(zap.Any("addrs", addrs)),
+	}
+
+	return m, nil
+}
+
+func (m *Listener) Accept() (net.Conn, error) {
+	m.Log.Debug("connecting to remote Relay server")
+
+	errs := multierror.NewMultiError()
+	for _, addr := range m.Addrs {
+		m.Log.Debug("resolving Relay addr", zap.String("addr", addr))
+		addrs, err := netutil.LookupTCPHostPort(addr)
+		if err != nil {
+			errs = multierror.AppendUnique(errs, err)
+			continue
+		}
+
+		m.Log.Debug("successfully resolved Relay addr", zap.String("addr", addr), zap.Any("resolved", addrs))
+
+		for _, addr := range addrs {
+			conn, err := ListenWithLog(addr, m.SignedAddr, m.Log)
+			if err == nil {
+				return conn, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("failed to connect to %+v: %s", m.Addrs, errs.Error())
 }

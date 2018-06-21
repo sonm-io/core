@@ -1,12 +1,12 @@
 package node
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	pb "github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 )
@@ -134,7 +134,7 @@ func (d *dealsAPI) CreateChangeRequest(ctx context.Context, req *pb.DealChangeRe
 
 	id, err := d.remotes.eth.Market().CreateChangeRequest(ctx, d.remotes.key, req)
 	if err != nil {
-		return nil, errors.WithMessage(err, "cannot create change request")
+		return nil, fmt.Errorf("cannot create change request: %v", err)
 	}
 
 	return pb.NewBigInt(id), nil
@@ -143,7 +143,7 @@ func (d *dealsAPI) CreateChangeRequest(ctx context.Context, req *pb.DealChangeRe
 func (d *dealsAPI) ApproveChangeRequest(ctx context.Context, id *pb.BigInt) (*pb.Empty, error) {
 	req, err := d.remotes.eth.Market().GetDealChangeRequestInfo(ctx, id.Unwrap())
 	if err != nil {
-		return nil, errors.WithMessage(err, "cannot get change request by id")
+		return nil, fmt.Errorf("cannot get change request by id: %v", err)
 	}
 
 	matchingRequest := &pb.DealChangeRequest{
@@ -155,7 +155,7 @@ func (d *dealsAPI) ApproveChangeRequest(ctx context.Context, id *pb.BigInt) (*pb
 
 	_, err = d.remotes.eth.Market().CreateChangeRequest(ctx, d.remotes.key, matchingRequest)
 	if err != nil {
-		return nil, errors.WithMessage(err, "cannot approve change request")
+		return nil, fmt.Errorf("cannot approve change request: %v", err)
 	}
 
 	return &pb.Empty{}, nil

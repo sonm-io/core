@@ -10,10 +10,14 @@ ethereum: &ethereum
   # Passphrase for the keystore.
   pass_phrase: "any"
 
-# List of workers trusted endpoints this bot manages.
+
+# Map of workers this bot manages defined by its trusted endpoints with their
+# settings.
 workers:
- - 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@[::1]:15010
- # TODO: Support multiple timeouts per each worker. How?
+  0xccBe701e568577983E90968161ABB391759D589e@[::1]:15010:
+    # Epoch is an interval of scanning worker's free resources and selling them
+    # by cutting ask plans.
+    epoch: 60s
 
 benchmarks:
   # URL to download benchmark list, use `file://` schema to load file from a filesystem.

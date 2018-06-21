@@ -1,7 +1,7 @@
 package sonm
 
 import (
-	"github.com/pkg/errors"
+	"errors"
 )
 
 func (m *ConnectRequest) Validate() error {

@@ -84,10 +84,7 @@ type meeting struct {
 
 type meetingRoom struct {
 	mu sync.Mutex
-	// We allow multiple clients to be waited for servers.
-	clients map[common.Address]*connPool
-	// Also we allow the opposite: multiple servers can be registered for
-	// fault tolerance.
+	// Multiple servers can be registered for fault tolerance.
 	servers map[common.Address]*connPool
 
 	log *zap.SugaredLogger
@@ -95,20 +92,9 @@ type meetingRoom struct {
 
 func newMeetingRoom(log *zap.Logger) *meetingRoom {
 	return &meetingRoom{
-		clients: map[common.Address]*connPool{},
 		servers: map[common.Address]*connPool{},
 		log:     log.Sugar(),
 	}
-}
-
-func (m *meetingRoom) PopRandomClient(addr common.Address) *meeting {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if clients, ok := m.clients[addr]; ok {
-		return clients.popRandom()
-	}
-	return nil
 }
 
 func (m *meetingRoom) PopRandomServer(addr common.Address) *meeting {
@@ -121,16 +107,6 @@ func (m *meetingRoom) PopRandomServer(addr common.Address) *meeting {
 	return nil
 }
 
-func (m *meetingRoom) PopClient(addr common.Address, id ConnID) *meeting {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if clients, ok := m.clients[addr]; ok {
-		return clients.pop(id)
-	}
-	return nil
-}
-
 func (m *meetingRoom) PopServer(addr common.Address, id ConnID) *meeting {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -139,20 +115,6 @@ func (m *meetingRoom) PopServer(addr common.Address, id ConnID) *meeting {
 		return servers.pop(id)
 	}
 	return nil
-}
-
-func (m *meetingRoom) PutClient(addr common.Address, id ConnID, conn net.Conn, tx chan<- net.Conn) {
-	m.log.Debugf("putting %s client into the meeting map with %s id", addr.String(), id)
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	clients, ok := m.clients[addr]
-	if !ok {
-		clients = newConnPool()
-		m.clients[addr] = clients
-	}
-	clients.put(id, conn, tx)
 }
 
 func (m *meetingRoom) PutServer(addr common.Address, id ConnID, conn net.Conn, tx chan<- net.Conn) {
@@ -177,13 +139,6 @@ func (m *meetingRoom) DiscardConnections(addrs []common.Address) {
 		if ok {
 			for _, server := range servers.candidates {
 				server.conn.Close()
-			}
-		}
-
-		clients, ok := m.clients[addr]
-		if ok {
-			for _, client := range clients.candidates {
-				client.conn.Close()
 			}
 		}
 	}
@@ -527,17 +482,7 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		timer := time.NewTimer(m.waitTimeout)
 		defer timer.Stop()
 
-		// Need to check whether there is a clients awaits us. If so - select
-		// a random one and relay.
-		// Otherwise put ourselves into a meeting map.
-
-		targetPeer := m.meetingRoom.PopRandomClient(addr)
-
-		if targetPeer != nil {
-			tx <- targetPeer.conn
-		} else {
-			m.meetingRoom.PutServer(addr, id, conn, tx)
-		}
+		m.meetingRoom.PutServer(addr, id, conn, tx)
 
 		select {
 		case clientConn, ok := <-rx:

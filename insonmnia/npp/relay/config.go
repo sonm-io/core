@@ -83,5 +83,5 @@ func NewServerConfig(path string) (*ServerConfig, error) {
 //
 // Used as a basic building block for high-level configurations.
 type Config struct {
-	Endpoints []netutil.TCPAddr
+	Endpoints []string
 }

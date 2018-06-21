@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"database/sql"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"math/big"
 	"net"
 	"reflect"
@@ -14,7 +16,6 @@ import (
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -71,24 +72,24 @@ func (m *DWH) Serve() error {
 	bch, err := blockchain.NewAPI(blockchain.WithConfig(m.cfg.Blockchain))
 	if err != nil {
 		m.Stop()
-		return errors.Wrap(err, "failed to create NewAPI")
+		return fmt.Errorf("failed to create NewAPI: %v", err)
 	}
 	m.blockchain = bch
 
 	if err := m.setupDB(); err != nil {
 		m.Stop()
-		return errors.WithMessage(err, "failed to setupDB")
+		return fmt.Errorf("failed to setupDB: %v", err)
 	}
 
 	go m.monitorBlockchain()
 	if m.cfg.ColdStart {
 		if err := m.coldStart(); err != nil {
 			m.Stop()
-			return errors.Wrap(err, "failed to coldStart")
+			return fmt.Errorf("failed to coldStart: %v", err)
 		}
 	} else {
 		if err := m.storage.CreateIndices(m.db); err != nil {
-			return errors.WithMessage(err, "failed to CreateIndices (Serve)")
+			return fmt.Errorf("failed to CreateIndices (Serve): %v", err)
 		}
 	}
 
@@ -125,7 +126,7 @@ func (m *DWH) setupDB() error {
 	numBenchmarks, err := m.blockchain.Market().GetNumBenchmarks(m.ctx)
 	if err != nil {
 		m.stop()
-		return errors.Wrap(err, "failed to GetNumBenchmarks")
+		return fmt.Errorf("failed to GetNumBenchmarks: %v", err)
 	}
 	if numBenchmarks >= NumMaxBenchmarks {
 		m.stop()
@@ -137,17 +138,17 @@ func (m *DWH) setupDB() error {
 	case "sqlite3":
 		_, err := m.db.Exec(`PRAGMA foreign_keys=ON`)
 		if err != nil {
-			return errors.Wrapf(err, "failed to enable foreign key support (%s)", m.cfg.Storage.Backend)
+			return fmt.Errorf("failed to enable foreign key support (%s): %v", m.cfg.Storage.Backend, err)
 		}
 		storage = newSQLiteStorage(numBenchmarks)
 	case "postgres":
 		storage = newPostgresStorage(numBenchmarks)
 	default:
-		return errors.Errorf("unsupported backend: %s", m.cfg.Storage.Backend)
+		return fmt.Errorf("unsupported backend: %s", m.cfg.Storage.Backend)
 	}
 
 	if err := storage.Setup(m.db); err != nil {
-		return errors.Wrap(err, "failed to setup storage")
+		return fmt.Errorf("failed to setup storage: %v", err)
 	}
 
 	m.storage = storage
@@ -176,7 +177,7 @@ func (m *DWH) serveGRPC() error {
 	lis, err := net.Listen("tcp", m.cfg.GRPCListenAddr)
 	if err != nil {
 		m.mu.Unlock()
-		return errors.Wrapf(err, "failed to listen on %s", m.cfg.GRPCListenAddr)
+		return fmt.Errorf("failed to listen on %s: %v", m.cfg.GRPCListenAddr, err)
 	}
 
 	m.mu.Unlock()
@@ -198,20 +199,20 @@ func (m *DWH) serveHTTP() error {
 	lis, err := net.Listen("tcp", m.cfg.HTTPListenAddr)
 	if err != nil {
 		m.mu.Unlock()
-		return errors.WithMessage(err, "failed to create http listener")
+		return fmt.Errorf("failed to create http listener: %v", err)
 	}
 
 	options = append(options, rest.WithListener(lis))
 	srv, err := rest.NewServer(options...)
 	if err != nil {
 		m.mu.Unlock()
-		return errors.WithMessage(err, "failed to create rest server")
+		return fmt.Errorf("failed to create rest server: %v", err)
 	}
 
 	err = srv.RegisterService((*pb.DWHServer)(nil), m)
 	if err != nil {
 		m.mu.Unlock()
-		return errors.WithMessage(err, "failed to RegisterService")
+		return fmt.Errorf("failed to RegisterService: %v", err)
 	}
 
 	m.http = srv
@@ -225,7 +226,7 @@ func (m *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDe
 
 	deals, count, err := m.storage.GetDeals(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetDeals", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetDeals", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDeals")
 	}
 
@@ -238,7 +239,7 @@ func (m *DWH) GetDealDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHDe
 
 	out, err := m.storage.GetDealByID(conn, request.Unwrap())
 	if err != nil {
-		m.logger.Warn("failed to GetDealDetails", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetDealDetails", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDealDetails")
 	}
 
@@ -251,7 +252,7 @@ func (m *DWH) GetDealConditions(ctx context.Context, request *pb.DealConditionsR
 
 	dealConditions, count, err := m.storage.GetDealConditions(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetDealConditions", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetDealConditions", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDealConditions")
 	}
 
@@ -264,7 +265,7 @@ func (m *DWH) GetOrders(ctx context.Context, request *pb.OrdersRequest) (*pb.DWH
 
 	orders, count, err := m.storage.GetOrders(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetOrders", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetOrders", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetOrders")
 	}
 
@@ -277,7 +278,7 @@ func (m *DWH) GetMatchingOrders(ctx context.Context, request *pb.MatchingOrdersR
 
 	orders, count, err := m.storage.GetMatchingOrders(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetMatchingOrders", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetMatchingOrders", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetMatchingOrders")
 	}
 
@@ -290,8 +291,8 @@ func (m *DWH) GetOrderDetails(ctx context.Context, request *pb.BigInt) (*pb.DWHO
 
 	out, err := m.storage.GetOrderByID(conn, request.Unwrap())
 	if err != nil {
-		m.logger.Warn("failed to GetOrderDetails", util.LaconicError(err), zap.Any("request", *request))
-		return nil, errors.Wrap(err, "failed to GetOrderDetails")
+		m.logger.Warn("failed to GetOrderDetails", zap.Error(err), zap.Any("request", *request))
+		return nil, fmt.Errorf("failed to GetOrderDetails: %v", err)
 	}
 
 	return out, nil
@@ -303,7 +304,7 @@ func (m *DWH) GetProfiles(ctx context.Context, request *pb.ProfilesRequest) (*pb
 
 	profiles, count, err := m.storage.GetProfiles(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetProfiles", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetProfiles", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetProfiles")
 	}
 
@@ -316,7 +317,7 @@ func (m *DWH) GetProfileInfo(ctx context.Context, request *pb.EthID) (*pb.Profil
 
 	out, err := m.storage.GetProfileByID(conn, request.GetId().Unwrap())
 	if err != nil {
-		m.logger.Warn("failed to GetProfileInfo", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetProfileInfo", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetProfileInfo")
 	}
 
@@ -329,7 +330,7 @@ func (m *DWH) GetBlacklist(ctx context.Context, request *pb.BlacklistRequest) (*
 
 	out, err := m.storage.GetBlacklist(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetBlacklist", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetBlacklist", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetBlacklist")
 	}
 
@@ -342,7 +343,7 @@ func (m *DWH) GetBlacklistsContainingUser(ctx context.Context, r *pb.BlacklistRe
 
 	out, err := m.storage.GetBlacklistsContainingUser(conn, r)
 	if err != nil {
-		m.logger.Warn("failed to GetBlacklistsContainingUser", util.LaconicError(err), zap.Any("request", *r))
+		m.logger.Warn("failed to GetBlacklistsContainingUser", zap.Error(err), zap.Any("request", *r))
 		return nil, status.Error(codes.NotFound, "failed to GetBlacklist")
 	}
 
@@ -355,7 +356,7 @@ func (m *DWH) GetValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 
 	validators, count, err := m.storage.GetValidators(conn, request)
 	if err != nil {
-		m.logger.Warn("failed to GetValidators", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Warn("failed to GetValidators", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetValidators")
 	}
 
@@ -368,7 +369,7 @@ func (m *DWH) GetDealChangeRequests(ctx context.Context, request *pb.BigInt) (*p
 
 	out, err := m.getDealChangeRequests(conn, request)
 	if err != nil {
-		m.logger.Error("failed to GetDealChangeRequests", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Error("failed to GetDealChangeRequests", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDealChangeRequests")
 	}
 
@@ -385,7 +386,7 @@ func (m *DWH) GetWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.W
 
 	workers, count, err := m.storage.GetWorkers(conn, request)
 	if err != nil {
-		m.logger.Error("failed to GetWorkers", util.LaconicError(err), zap.Any("request", *request))
+		m.logger.Error("failed to GetWorkers", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetWorkers")
 	}
 
@@ -402,7 +403,7 @@ func (m *DWH) monitorBlockchain() error {
 			return nil
 		default:
 			if err := m.watchMarketEvents(); err != nil {
-				m.logger.Warn("failed to watch market events, retrying", util.LaconicError(err))
+				m.logger.Warn("failed to watch market events, retrying", zap.Error(err))
 			}
 		}
 	}
@@ -488,7 +489,7 @@ func (m *DWH) processEventsGroup(events []*blockchain.Event) {
 			)
 			for numRetries > 0 {
 				if err = m.processEvent(event); err != nil {
-					m.logger.Warn("failed to processEvent, retrying", util.LaconicError(err),
+					m.logger.Warn("failed to processEvent, retrying", zap.Error(err),
 						zap.Uint64("block_number", event.BlockNumber),
 						zap.String("event_type", reflect.TypeOf(event.Data).String()),
 						zap.Any("event_data", event.Data))
@@ -501,7 +502,7 @@ func (m *DWH) processEventsGroup(events []*blockchain.Event) {
 				numRetries--
 				time.Sleep(time.Second)
 			}
-			m.logger.Warn("failed to processEvent, STATE IS INCONSISTENT", util.LaconicError(err),
+			m.logger.Warn("failed to processEvent, STATE IS INCONSISTENT", zap.Error(err),
 				zap.Uint64("block_number", event.BlockNumber),
 				zap.String("event_type", reflect.TypeOf(event.Data).String()),
 				zap.Any("event_data", event.Data))
@@ -554,11 +555,11 @@ func (m *DWH) onNumBenchmarksUpdated(newNumBenchmarks uint64) error {
 	defer m.mu.Unlock()
 
 	if err := m.setupDB(); err != nil {
-		return errors.WithMessage(err, "failed to setupDB after NumBenchmarksUpdated event")
+		return fmt.Errorf("failed to setupDB after NumBenchmarksUpdated event: %v", err)
 	}
 
 	if err := m.storage.CreateIndices(m.db); err != nil {
-		return errors.WithMessage(err, "failed to CreateIndices (onNumBenchmarksUpdated)")
+		return fmt.Errorf("failed to CreateIndices (onNumBenchmarksUpdated): %v", err)
 	}
 
 	return nil
@@ -567,18 +568,18 @@ func (m *DWH) onNumBenchmarksUpdated(newNumBenchmarks uint64) error {
 func (m *DWH) onDealOpened(dealID *big.Int) error {
 	deal, err := m.blockchain.Market().GetDealInfo(m.ctx, dealID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to GetDealInfo")
+		return fmt.Errorf("failed to GetDealInfo: %v", err)
 	}
 
 	conn, err := newTxConn(m.db, m.logger)
 	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
+		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer conn.Finish()
 
 	if deal.Status == pb.DealStatus_DEAL_CLOSED {
 		if err := m.storage.StoreStaleID(newSimpleConn(m.db), dealID, "Deal"); err != nil {
-			return errors.Wrap(err, "failed to StoreStaleID")
+			return fmt.Errorf("failed to StoreStaleID: %v", err)
 		}
 		m.logger.Debug("skipping inactive deal", zap.String("deal_id", dealID.String()))
 		return nil
@@ -586,7 +587,7 @@ func (m *DWH) onDealOpened(dealID *big.Int) error {
 
 	err = m.storage.InsertDeal(conn, deal)
 	if err != nil {
-		return errors.Wrapf(err, "failed to insertDeal")
+		return fmt.Errorf("failed to insertDeal: %v", err)
 	}
 
 	err = m.storage.InsertDealCondition(conn,
@@ -603,7 +604,7 @@ func (m *DWH) onDealOpened(dealID *big.Int) error {
 		},
 	)
 	if err != nil {
-		return errors.Wrapf(err, "onDealOpened: failed to insertDealCondition")
+		return fmt.Errorf("onDealOpened: failed to insertDealCondition: %v", err)
 	}
 
 	return nil
@@ -612,18 +613,18 @@ func (m *DWH) onDealOpened(dealID *big.Int) error {
 func (m *DWH) onDealUpdated(dealID *big.Int) error {
 	deal, err := m.blockchain.Market().GetDealInfo(m.ctx, dealID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to GetDealInfo")
+		return fmt.Errorf("failed to GetDealInfo: %v", err)
 	}
 
 	conn, err := newTxConn(m.db, m.logger)
 	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
+		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer conn.Finish()
 
 	// If deal is known to be stale:
 	if ok, err := m.storage.CheckStaleID(conn, dealID, "Deal"); err != nil {
-		return errors.Wrap(err, "failed to CheckStaleID")
+		return fmt.Errorf("failed to CheckStaleID: %v", err)
 	} else {
 		if ok {
 			m.removeStaleEntityID(dealID, "Deal")
@@ -634,21 +635,21 @@ func (m *DWH) onDealUpdated(dealID *big.Int) error {
 	if deal.Status == pb.DealStatus_DEAL_CLOSED {
 		err = m.storage.DeleteDeal(conn, deal.Id.Unwrap())
 		if err != nil {
-			return errors.Wrap(err, "failed to delete deal (possibly old log entry)")
+			return fmt.Errorf("failed to delete deal (possibly old log entry): %v", err)
 		}
 
 		if err := m.storage.DeleteOrder(conn, deal.AskID.Unwrap()); err != nil {
-			return errors.Wrap(err, "failed to deleteOrder")
+			return fmt.Errorf("failed to deleteOrder: %v", err)
 		}
 		if err := m.storage.DeleteOrder(conn, deal.BidID.Unwrap()); err != nil {
-			return errors.Wrap(err, "failed to deleteOrder")
+			return fmt.Errorf("failed to deleteOrder: %v", err)
 		}
 
 		return nil
 	}
 
 	if err := m.storage.UpdateDeal(conn, deal); err != nil {
-		return errors.Wrapf(err, "failed to UpdateDeal")
+		return fmt.Errorf("failed to UpdateDeal: %v", err)
 	}
 
 	return nil
@@ -662,13 +663,13 @@ func (m *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 
 	conn, err := newTxConn(m.db, m.logger)
 	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
+		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer conn.Finish()
 
 	// If deal is known to be stale, skip.
 	if ok, err := m.storage.CheckStaleID(conn, changeRequest.DealID.Unwrap(), "Deal"); err != nil {
-		return errors.Wrap(err, "failed to CheckStaleID")
+		return fmt.Errorf("failed to CheckStaleID: %v", err)
 	} else {
 		if ok {
 			m.logger.Debug("skipping DealChangeRequestSent event for inactive deal")
@@ -691,7 +692,7 @@ func (m *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 	for _, expiredChangeRequest := range expiredChangeRequests {
 		err := m.storage.DeleteDealChangeRequest(conn, expiredChangeRequest.Id.Unwrap())
 		if err != nil {
-			return errors.Wrap(err, "failed to deleteDealChangeRequest")
+			return fmt.Errorf("failed to deleteDealChangeRequest: %v", err)
 		} else {
 			m.logger.Warn("deleted expired DealChangeRequest",
 				zap.String("id", expiredChangeRequest.Id.Unwrap().String()))
@@ -700,7 +701,7 @@ func (m *DWH) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) 
 
 	changeRequest.CreatedTS = &pb.Timestamp{Seconds: int64(eventTS)}
 	if err := m.storage.InsertDealChangeRequest(conn, changeRequest); err != nil {
-		return errors.Wrapf(err, "failed to InsertDealChangeRequest (%s)", changeRequest.Id.Unwrap().String())
+		return fmt.Errorf("failed to InsertDealChangeRequest (%s): %v", changeRequest.Id.Unwrap().String(), err)
 	}
 
 	return err
@@ -714,13 +715,13 @@ func (m *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 
 	conn, err := newTxConn(m.db, m.logger)
 	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
+		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer conn.Finish()
 
 	// If deal is known to be stale, skip.
 	if ok, err := m.storage.CheckStaleID(conn, changeRequest.DealID.Unwrap(), "Deal"); err != nil {
-		return errors.Wrap(err, "failed to CheckStaleID")
+		return fmt.Errorf("failed to CheckStaleID: %v", err)
 	} else {
 		if ok {
 			m.logger.Debug("skipping DealChangeRequestUpdated event for inactive deal")
@@ -732,22 +733,22 @@ func (m *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 	case pb.ChangeRequestStatus_REQUEST_REJECTED:
 		err := m.storage.UpdateDealChangeRequest(conn, changeRequest)
 		if err != nil {
-			return errors.Wrapf(err, "failed to update DealChangeRequest %s", changeRequest.Id.Unwrap().String())
+			return fmt.Errorf("failed to update DealChangeRequest %s: %v", changeRequest.Id.Unwrap().String(), err)
 		}
 	case pb.ChangeRequestStatus_REQUEST_ACCEPTED:
 		deal, err := m.storage.GetDealByID(conn, changeRequest.DealID.Unwrap())
 		if err != nil {
-			return errors.Wrap(err, "failed to storage.GetDealByID")
+			return fmt.Errorf("failed to storage.GetDealByID: %v", err)
 		}
 
 		deal.Deal.Duration = changeRequest.Duration
 		deal.Deal.Price = changeRequest.Price
 		if err := m.storage.UpdateDeal(conn, deal.Deal); err != nil {
-			return errors.WithMessage(err, "failed to UpdateDeal")
+			return fmt.Errorf("failed to UpdateDeal: %v", err)
 		}
 
 		if err := m.updateDealConditionEndTime(conn, deal.GetDeal().Id, eventTS); err != nil {
-			return errors.Wrap(err, "failed to updateDealConditionEndTime")
+			return fmt.Errorf("failed to updateDealConditionEndTime: %v", err)
 		}
 
 		err = m.storage.InsertDealCondition(conn,
@@ -764,17 +765,17 @@ func (m *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 			},
 		)
 		if err != nil {
-			return errors.Wrap(err, "failed to insertDealCondition")
+			return fmt.Errorf("failed to insertDealCondition: %v", err)
 		}
 
 		err = m.storage.DeleteDealChangeRequest(conn, changeRequest.Id.Unwrap())
 		if err != nil {
-			return errors.Wrapf(err, "failed to delete DealChangeRequest %s", changeRequest.Id.Unwrap().String())
+			return fmt.Errorf("failed to delete DealChangeRequest %s: %v", changeRequest.Id.Unwrap().String(), err)
 		}
 	default:
 		err := m.storage.DeleteDealChangeRequest(conn, changeRequest.Id.Unwrap())
 		if err != nil {
-			return errors.Wrapf(err, "failed to delete DealChangeRequest %s", changeRequest.Id.Unwrap().String())
+			return fmt.Errorf("failed to delete DealChangeRequest %s: %v", changeRequest.Id.Unwrap().String(), err)
 		}
 	}
 
@@ -784,13 +785,13 @@ func (m *DWH) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.In
 func (m *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 	conn, err := newTxConn(m.db, m.logger)
 	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
+		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer conn.Finish()
 
 	// If deal is known to be stale, skip.
 	if ok, err := m.storage.CheckStaleID(conn, dealID, "Deal"); err != nil {
-		return errors.Wrap(err, "failed to CheckStaleID")
+		return fmt.Errorf("failed to CheckStaleID: %v", err)
 	} else {
 		if ok {
 			m.logger.Debug("skipping Billed event for inactive deal")
@@ -799,26 +800,26 @@ func (m *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 	}
 
 	if err := m.updateDealPayout(conn, dealID, payedAmount, eventTS); err != nil {
-		return errors.Wrap(err, "failed to updateDealPayout")
+		return fmt.Errorf("failed to updateDealPayout: %v", err)
 	}
 
 	dealConditions, _, err := m.storage.GetDealConditions(conn, &pb.DealConditionsRequest{DealID: pb.NewBigInt(dealID)})
 	if err != nil {
-		return errors.Wrap(err, "failed to GetDealConditions (last)")
+		return fmt.Errorf("failed to GetDealConditions (last): %v", err)
 	}
 
 	if len(dealConditions) < 1 {
-		return errors.Errorf("no deal conditions found for deal `%s`", dealID.String())
+		return fmt.Errorf("no deal conditions found for deal `%s`: %v", dealID.String(), err)
 	}
 
 	err = m.storage.UpdateDealConditionPayout(conn, dealConditions[0].Id,
 		big.NewInt(0).Add(dealConditions[0].TotalPayout.Unwrap(), payedAmount))
 	if err != nil {
-		return errors.Wrap(err, "failed to UpdateDealConditionPayout")
+		return fmt.Errorf("failed to UpdateDealConditionPayout: %v", err)
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "insertDealPayment failed")
+		return fmt.Errorf("insertDealPayment failed: %v", err)
 	}
 
 	return nil
@@ -827,13 +828,13 @@ func (m *DWH) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 func (m *DWH) updateDealPayout(conn queryConn, dealID, payedAmount *big.Int, billTS uint64) error {
 	deal, err := m.storage.GetDealByID(conn, dealID)
 	if err != nil {
-		return errors.Wrap(err, "failed to GetDealByID")
+		return fmt.Errorf("failed to GetDealByID: %v", err)
 	}
 
 	newDealTotalPayout := big.NewInt(0).Add(deal.Deal.TotalPayout.Unwrap(), payedAmount)
 	err = m.storage.UpdateDealPayout(conn, dealID, newDealTotalPayout, billTS)
 	if err != nil {
-		return errors.Wrap(err, "failed to updateDealPayout")
+		return fmt.Errorf("failed to updateDealPayout: %v", err)
 	}
 
 	return nil
@@ -842,18 +843,18 @@ func (m *DWH) updateDealPayout(conn queryConn, dealID, payedAmount *big.Int, bil
 func (m *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 	order, err := m.blockchain.Market().GetOrderInfo(m.ctx, orderID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to GetOrderInfo")
+		return fmt.Errorf("failed to GetOrderInfo: %v", err)
 	}
 
 	conn, err := newTxConn(m.db, m.logger)
 	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
+		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer conn.Finish()
 
 	if order.OrderStatus == pb.OrderStatus_ORDER_INACTIVE && order.DealID.IsZero() {
 		if err := m.storage.StoreStaleID(conn, orderID, "Order"); err != nil {
-			return errors.Wrap(err, "failed to StoreStaleID")
+			return fmt.Errorf("failed to StoreStaleID: %v", err)
 		}
 		m.logger.Debug("skipping inactive order", zap.String("order_id", orderID.String()))
 		return nil
@@ -864,7 +865,7 @@ func (m *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		// For Ask orders, try to get this Author's masterID, use AuthorID if not found.
 		userID, err = m.storage.GetMasterByWorker(conn, order.GetAuthorID().Unwrap())
 		if err != nil {
-			m.logger.Warn("failed to GetMasterByWorker", util.LaconicError(err),
+			m.logger.Warn("failed to GetMasterByWorker", zap.Error(err),
 				zap.String("author_id", order.GetAuthorID().Unwrap().Hex()))
 			userID = order.GetAuthorID().Unwrap()
 		}
@@ -879,7 +880,7 @@ func (m *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 	} else {
 		if order.OrderStatus == pb.OrderStatus_ORDER_ACTIVE {
 			if err := m.updateProfileStats(conn, order.OrderType, userID, 1); err != nil {
-				return errors.Wrap(err, "failed to updateProfileStats")
+				return fmt.Errorf("failed to updateProfileStats: %v", err)
 			}
 		}
 	}
@@ -913,7 +914,7 @@ func (m *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		},
 	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to insertOrder")
+		return fmt.Errorf("failed to insertOrder: %v", err)
 	}
 
 	return nil
@@ -922,19 +923,19 @@ func (m *DWH) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 func (m *DWH) onOrderUpdated(orderID *big.Int) error {
 	marketOrder, err := m.blockchain.Market().GetOrderInfo(m.ctx, orderID)
 	if err != nil {
-		return errors.Wrap(err, "failed to GetOrderInfo")
+		return fmt.Errorf("failed to GetOrderInfo: %v", err)
 	}
 
 	conn, err := newTxConn(m.db, m.logger)
 	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
+		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer conn.Finish()
 
 	// If the order was known to be inactive, delete it from the list of inactive entities
 	// and skip.
 	if ok, err := m.storage.CheckStaleID(conn, orderID, "Order"); err != nil {
-		return errors.Wrap(err, "failed to CheckStaleID")
+		return fmt.Errorf("failed to CheckStaleID: %v", err)
 	} else {
 		if ok {
 			m.removeStaleEntityID(orderID, "Order")
@@ -947,7 +948,7 @@ func (m *DWH) onOrderUpdated(orderID *big.Int) error {
 	// we always use the user ID that was chosen in `onOrderPlaced` (i.e., the one that is already stored in DB).
 	dwhOrder, err := m.storage.GetOrderByID(conn, marketOrder.GetId().Unwrap())
 	if err != nil {
-		return errors.Wrap(err, "failed to GetOrderByID")
+		return fmt.Errorf("failed to GetOrderByID: %v", err)
 	}
 
 	var userID common.Address
@@ -960,20 +961,20 @@ func (m *DWH) onOrderUpdated(orderID *big.Int) error {
 	// If order was updated, but no deal is associated with it, delete the order.
 	if marketOrder.DealID.IsZero() {
 		if err := m.storage.DeleteOrder(conn, orderID); err != nil {
-			m.logger.Info("failed to delete Order (possibly old log entry)", util.LaconicError(err),
+			m.logger.Info("failed to delete Order (possibly old log entry)", zap.Error(err),
 				zap.String("order_id", orderID.String()))
 		}
 	} else {
 		// Otherwise update order status.
 		err := m.storage.UpdateOrderStatus(conn, marketOrder.Id.Unwrap(), marketOrder.OrderStatus)
 		if err != nil {
-			return errors.Wrap(err, "failed to updateOrderStatus (possibly old log entry)")
+			return fmt.Errorf("failed to updateOrderStatus (possibly old log entry): %v", err)
 		}
 	}
 
 	if dwhOrder.GetOrder().OrderStatus == pb.OrderStatus_ORDER_ACTIVE {
 		if err := m.updateProfileStats(conn, marketOrder.OrderType, userID, -1); err != nil {
-			return errors.Wrapf(err, "failed to updateProfileStats (AuthorID: `%s`)", marketOrder.AuthorID.Unwrap().String())
+			return fmt.Errorf("failed to updateProfileStats (AuthorID: `%s`): %v", marketOrder.AuthorID.Unwrap().String(), err)
 		}
 	}
 
@@ -988,7 +989,7 @@ func (m *DWH) onWorkerAnnounced(masterID, slaveID common.Address) error {
 	defer conn.Finish()
 
 	if ok, err := m.storage.CheckWorkerExists(conn, masterID, slaveID); err != nil {
-		return errors.Wrap(err, "failed to CheckWorker")
+		return fmt.Errorf("failed to CheckWorker: %v", err)
 	} else {
 		if ok {
 			// Worker already exists, skipping.
@@ -997,7 +998,7 @@ func (m *DWH) onWorkerAnnounced(masterID, slaveID common.Address) error {
 	}
 
 	if err := m.storage.InsertWorker(conn, masterID, slaveID); err != nil {
-		return errors.Wrap(err, "onWorkerAnnounced failed")
+		return fmt.Errorf("onWorkerAnnounced failed: %v", err)
 	}
 
 	return nil
@@ -1008,7 +1009,7 @@ func (m *DWH) onWorkerConfirmed(masterID, slaveID common.Address) error {
 	defer conn.Finish()
 
 	if err := m.storage.UpdateWorker(conn, masterID, slaveID); err != nil {
-		return errors.Wrap(err, "onWorkerConfirmed failed")
+		return fmt.Errorf("onWorkerConfirmed failed: %v", err)
 	}
 
 	return nil
@@ -1019,7 +1020,7 @@ func (m *DWH) onWorkerRemoved(masterID, slaveID common.Address) error {
 	defer conn.Finish()
 
 	if err := m.storage.DeleteWorker(conn, masterID, slaveID); err != nil {
-		return errors.Wrap(err, "onWorkerRemoved failed")
+		return fmt.Errorf("onWorkerRemoved failed: %v", err)
 	}
 
 	return nil
@@ -1030,7 +1031,7 @@ func (m *DWH) onAddedToBlacklist(adderID, addeeID common.Address) error {
 	defer conn.Finish()
 
 	if err := m.storage.InsertBlacklistEntry(conn, adderID, addeeID); err != nil {
-		return errors.Wrap(err, "onAddedToBlacklist failed")
+		return fmt.Errorf("onAddedToBlacklist failed: %v", err)
 	}
 
 	return nil
@@ -1041,7 +1042,7 @@ func (m *DWH) onRemovedFromBlacklist(removerID, removeeID common.Address) error 
 	defer conn.Finish()
 
 	if err := m.storage.DeleteBlacklistEntry(conn, removerID, removeeID); err != nil {
-		return errors.Wrap(err, "onRemovedFromBlacklist failed")
+		return fmt.Errorf("onRemovedFromBlacklist failed: %v", err)
 	}
 
 	return nil
@@ -1050,14 +1051,14 @@ func (m *DWH) onRemovedFromBlacklist(removerID, removeeID common.Address) error 
 func (m *DWH) onValidatorCreated(validatorID common.Address) error {
 	validator, err := m.blockchain.ProfileRegistry().GetValidator(m.ctx, validatorID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get validator `%s`", validatorID.String())
+		return fmt.Errorf("failed to get validator `%s`: %v", validatorID.String(), err)
 	}
 
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
 	if err := m.storage.InsertOrUpdateValidator(conn, validator); err != nil {
-		return errors.Wrap(err, "failed to insertValidator")
+		return fmt.Errorf("failed to insertValidator: %v", err)
 	}
 
 	return nil
@@ -1066,14 +1067,14 @@ func (m *DWH) onValidatorCreated(validatorID common.Address) error {
 func (m *DWH) onValidatorDeleted(validatorID common.Address) error {
 	validator, err := m.blockchain.ProfileRegistry().GetValidator(m.ctx, validatorID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get validator `%s`", validatorID.String())
+		return fmt.Errorf("failed to get validator `%s`: %v", validatorID.String(), err)
 	}
 
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
 	if err := m.storage.UpdateValidator(conn, validator); err != nil {
-		return errors.Wrap(err, "failed to InsertOrUpdateValidator")
+		return fmt.Errorf("failed to InsertOrUpdateValidator: %v", err)
 	}
 
 	return nil
@@ -1085,25 +1086,25 @@ func (m *DWH) onCertificateCreated(certificateID *big.Int) error {
 
 	certificate, err := m.blockchain.ProfileRegistry().GetCertificate(m.ctx, certificateID)
 	if err != nil {
-		return errors.Wrap(err, "failed to GetCertificate")
+		return fmt.Errorf("failed to GetCertificate: %v", err)
 	}
 
 	conn, err := newTxConn(m.db, m.logger)
 	if err != nil {
-		return errors.Wrap(err, "failed to begin transaction")
+		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer conn.Finish()
 
 	if err = m.storage.InsertCertificate(conn, certificate); err != nil {
-		return errors.Wrap(err, "failed to insertCertificate")
+		return fmt.Errorf("failed to insertCertificate: %v", err)
 	}
 
 	if err := m.updateProfile(conn, certificate); err != nil {
-		return errors.Wrap(err, "failed to updateProfile")
+		return fmt.Errorf("failed to updateProfile: %v", err)
 	}
 
 	if err := m.updateEntitiesByProfile(conn, certificate); err != nil {
-		return errors.Wrap(err, "failed to updateEntitiesByProfile")
+		return fmt.Errorf("failed to updateEntitiesByProfile: %v", err)
 	}
 
 	return nil
@@ -1115,7 +1116,7 @@ func (m *DWH) updateProfile(conn queryConn, certificate *pb.Certificate) error {
 		MasterID:  certificate.OwnerID,
 		WithCount: true})
 	if err != nil {
-		return errors.WithMessage(err, "failed to get active ASKs count")
+		return fmt.Errorf("failed to get active ASKs count: %v", err)
 	}
 
 	_, activeBids, err := m.storage.GetOrders(conn, &pb.OrdersRequest{
@@ -1123,7 +1124,7 @@ func (m *DWH) updateProfile(conn queryConn, certificate *pb.Certificate) error {
 		MasterID:  certificate.OwnerID,
 		WithCount: true})
 	if err != nil {
-		return errors.WithMessage(err, "failed to get active BIDs count")
+		return fmt.Errorf("failed to get active BIDs count: %v", err)
 	}
 
 	certBytes, _ := json.Marshal([]*pb.Certificate{})
@@ -1134,7 +1135,7 @@ func (m *DWH) updateProfile(conn queryConn, certificate *pb.Certificate) error {
 		ActiveBids:   activeBids,
 	})
 	if err != nil {
-		return errors.Wrap(err, "failed to insertProfileUserID")
+		return fmt.Errorf("failed to insertProfileUserID: %v", err)
 	}
 
 	// Update distinct Profile columns.
@@ -1143,19 +1144,19 @@ func (m *DWH) updateProfile(conn queryConn, certificate *pb.Certificate) error {
 		err := m.storage.UpdateProfile(conn, certificate.OwnerID.Unwrap(), attributeToString[certificate.Attribute],
 			string(certificate.Value))
 		if err != nil {
-			return errors.Wrapf(err, "failed to UpdateProfile (%s)", attributeToString[certificate.Attribute])
+			return fmt.Errorf("failed to UpdateProfile (%s): %v err", attributeToString[certificate.Attribute], err)
 		}
 	}
 
 	// Update certificates blob.
 	certificates, err := m.storage.GetCertificates(conn, certificate.OwnerID.Unwrap())
 	if err != nil {
-		return errors.Wrap(err, "failed to GetCertificates")
+		return fmt.Errorf("failed to GetCertificates: %v", err)
 	}
 
 	certificateAttrsBytes, err := json.Marshal(certificates)
 	if err != nil {
-		return errors.Wrap(err, "failed to marshal certificates")
+		return fmt.Errorf("failed to marshal certificates: %v", err)
 	}
 
 	var maxIdentityLevel uint64
@@ -1167,12 +1168,12 @@ func (m *DWH) updateProfile(conn queryConn, certificate *pb.Certificate) error {
 
 	err = m.storage.UpdateProfile(conn, certificate.OwnerID.Unwrap(), "Certificates", certificateAttrsBytes)
 	if err != nil {
-		return errors.Wrap(err, "failed to updateProfileCertificates (Certificates)")
+		return fmt.Errorf("failed to updateProfileCertificates (Certificates): %v", err)
 	}
 
 	err = m.storage.UpdateProfile(conn, certificate.OwnerID.Unwrap(), "IdentityLevel", maxIdentityLevel)
 	if err != nil {
-		return errors.Wrap(err, "failed to updateProfileCertificates (Level)")
+		return fmt.Errorf("failed to updateProfileCertificates (Level): %v", err)
 	}
 
 	return nil
@@ -1181,20 +1182,20 @@ func (m *DWH) updateProfile(conn queryConn, certificate *pb.Certificate) error {
 func (m *DWH) updateEntitiesByProfile(conn queryConn, certificate *pb.Certificate) error {
 	profile, err := m.storage.GetProfileByID(conn, certificate.OwnerID.Unwrap())
 	if err != nil {
-		return errors.Wrap(err, "failed to getProfileInfo")
+		return fmt.Errorf("failed to getProfileInfo: %v", err)
 	}
 
 	if err := m.storage.UpdateOrders(conn, profile); err != nil {
-		return errors.Wrap(err, "failed to updateOrders")
+		return fmt.Errorf("failed to updateOrders: %v", err)
 	}
 
 	if err = m.storage.UpdateDealsSupplier(conn, profile); err != nil {
-		return errors.Wrap(err, "failed to updateDealsSupplier")
+		return fmt.Errorf("failed to updateDealsSupplier: %v", err)
 	}
 
 	err = m.storage.UpdateDealsConsumer(conn, profile)
 	if err != nil {
-		return errors.Wrap(err, "failed to updateDealsConsumer")
+		return fmt.Errorf("failed to updateDealsConsumer: %v", err)
 	}
 
 	return nil
@@ -1209,7 +1210,7 @@ func (m *DWH) updateProfileStats(conn queryConn, orderType pb.OrderType, userID 
 	}
 
 	if err := m.storage.UpdateProfileStats(conn, userID, field, update); err != nil {
-		return errors.Wrap(err, "failed to UpdateProfileStats")
+		return fmt.Errorf("failed to UpdateProfileStats: %v", err)
 	}
 
 	return nil
@@ -1222,7 +1223,7 @@ func (m *DWH) coldStart() error {
 
 	targetBlock, err := m.blockchain.Events().GetLastBlock(m.ctx)
 	if err != nil {
-		return errors.WithMessage(err, "failed to GetLastBlock")
+		return fmt.Errorf("failed to GetLastBlock: %v", err)
 	}
 	var retries = 5
 	for {
@@ -1277,7 +1278,7 @@ func (m *DWH) updateLastKnownBlock(blockNumber int64) error {
 	defer conn.Finish()
 
 	if err := m.storage.UpdateLastKnownBlock(conn, blockNumber); err != nil {
-		return errors.Wrap(err, "failed to updateLastKnownBlock")
+		return fmt.Errorf("failed to updateLastKnownBlock: %v", err)
 	}
 
 	return nil
@@ -1288,7 +1289,7 @@ func (m *DWH) insertLastKnownBlock(blockNumber int64) error {
 	defer conn.Finish()
 
 	if err := m.storage.InsertLastKnownBlock(conn, blockNumber); err != nil {
-		return errors.Wrap(err, "failed to updateLastKnownBlock")
+		return fmt.Errorf("failed to updateLastKnownBlock: %v", err)
 	}
 
 	return nil
@@ -1297,12 +1298,12 @@ func (m *DWH) insertLastKnownBlock(blockNumber int64) error {
 func (m *DWH) updateDealConditionEndTime(conn queryConn, dealID *pb.BigInt, eventTS uint64) error {
 	dealConditions, _, err := m.storage.GetDealConditions(conn, &pb.DealConditionsRequest{DealID: dealID})
 	if err != nil {
-		return errors.Wrap(err, "failed to getDealConditions")
+		return fmt.Errorf("failed to getDealConditions: %v", err)
 	}
 
 	dealCondition := dealConditions[0]
 	if err := m.storage.UpdateDealConditionEndTime(conn, dealCondition.Id, eventTS); err != nil {
-		return errors.Wrap(err, "failed to update DealCondition")
+		return fmt.Errorf("failed to update DealCondition: %v", err)
 	}
 
 	return nil
@@ -1311,7 +1312,7 @@ func (m *DWH) updateDealConditionEndTime(conn queryConn, dealID *pb.BigInt, even
 func (m *DWH) removeStaleEntityID(id *big.Int, entity string) error {
 	m.logger.Debug("removing stale entity from cache", zap.String("entity", entity), zap.String("id", id.String()))
 	if err := m.storage.RemoveStaleID(newSimpleConn(m.db), id, entity); err != nil {
-		return errors.Wrapf(err, "failed to RemoveStaleID (%s %s)", entity, id.String())
+		return fmt.Errorf("failed to RemoveStaleID (%s %s): %v", entity, id.String(), err)
 	}
 
 	return nil
@@ -1322,7 +1323,7 @@ func (m *DWH) processBlockBoundary(event *blockchain.Event) {
 		m.lastKnownBlock = event.BlockNumber
 		for {
 			if err := m.updateLastKnownBlock(int64(event.BlockNumber)); err != nil {
-				m.logger.Warn("failed to updateLastKnownBlock", util.LaconicError(err))
+				m.logger.Warn("failed to updateLastKnownBlock", zap.Error(err))
 			} else {
 				return
 			}

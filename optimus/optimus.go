@@ -90,7 +90,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 		return err
 	}
 
-	for _, addr := range m.cfg.Workers {
+	for addr, cfg := range m.cfg.Workers {
 		ethAddr, err := addr.ETH()
 		if err != nil {
 			return err
@@ -112,7 +112,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 		}
 
 		wg.Go(func() error {
-			return newManagedWatcher(control, 60*time.Second).Run(ctx)
+			return newManagedWatcher(control, cfg.Epoch).Run(ctx)
 		})
 	}
 
