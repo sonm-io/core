@@ -65,7 +65,7 @@ type marketplaceConfig struct {
 
 type optimizationConfig struct {
 	Interval          time.Duration
-	ClassifierFactory classifierFactory `json:"-"`
+	ClassifierFactory classifierFactory `yaml:"classifier" json:"-"`
 }
 
 type classifierFactory func(log *zap.Logger) OrderClassifier
@@ -79,7 +79,7 @@ func newClassifierFactory(cfgUnmarshal func(interface{}) error) (classifierFacto
 	switch ty {
 	case "regression":
 		cfg := struct {
-			ModelFactory modelFactory
+			ModelFactory modelFactory  `yaml:"model"`
 			Sigmoid      sigmoidConfig `yaml:"logistic"`
 		}{}
 
