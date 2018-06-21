@@ -106,7 +106,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 			return err
 		}
 
-		control, err := newWorkerControl(ethAddr, masterAddr, worker, ordersSet, loader, m.log)
+		control, err := newWorkerControl(cfg, ethAddr, masterAddr, worker, ordersSet, loader, m.log)
 		if err != nil {
 			return err
 		}
@@ -172,6 +172,7 @@ func (m *ordersControl) Execute(ctx context.Context) {
 }
 
 type workerControl struct {
+	cfg             workerConfig
 	addr            common.Address
 	masterAddr      common.Address
 	worker          sonm.WorkerManagementClient
@@ -180,8 +181,9 @@ type workerControl struct {
 	log             *zap.SugaredLogger
 }
 
-func newWorkerControl(addr, masterAddr common.Address, worker sonm.WorkerManagementClient, orders *ordersState, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
+func newWorkerControl(cfg workerConfig, addr, masterAddr common.Address, worker sonm.WorkerManagementClient, orders *ordersState, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
 	m := &workerControl{
+		cfg:             cfg,
 		addr:            addr,
 		masterAddr:      masterAddr,
 		worker:          worker,
@@ -244,6 +246,13 @@ func (m *workerControl) Execute(ctx context.Context) {
 	for _, order := range orders {
 		if order.Order.Order.OrderType != sonm.OrderType_BID {
 			continue
+		}
+
+		switch m.cfg.OrderPolicy {
+		case PolicySpotOnly:
+			if order.Order.GetOrder().GetDuration() != 0 {
+				continue
+			}
 		}
 
 		if !devices.GetNetwork().GetNetFlags().ConverseImplication(order.Order.Order.GetNetflags()) {
