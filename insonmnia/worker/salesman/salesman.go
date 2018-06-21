@@ -70,9 +70,10 @@ func NewSalesman(opts ...Option) (*Salesman, error) {
 		return nil, err
 	}
 
+	askPlansKey := blockchain.MarketAddr().Hex() + "/ask_plans"
 	s := &Salesman{
 		options:         o,
-		askPlanStorage:  state.NewKeyedStorage("ask_plans", o.storage),
+		askPlanStorage:  state.NewKeyedStorage(askPlansKey, o.storage),
 		askPlanCGroups:  map[string]cgroups.CGroup{},
 		deals:           map[string]*sonm.Deal{},
 		orders:          map[string]*sonm.Order{},
