@@ -868,7 +868,28 @@ func (m *sqlStorage) InsertOrUpdateValidator(conn queryConn, validator *pb.Valid
 	return err
 }
 
+func (m *sqlStorage) GetValidator(conn queryConn, validatorID common.Address) (*pb.DWHValidator, error) {
+	query, args, _ := m.builder().Select("*").From("Validators").Where("Id = ?", validatorID.Hex()).ToSql()
+	rows, err := conn.Query(query, args)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return nil, errors.New("no rows returned")
+	}
+	return m.decodeValidator(rows)
+}
+
 func (m *sqlStorage) UpdateValidator(conn queryConn, validatorID common.Address, field string, value interface{}) error {
+	if !m.tablesInfo.IsValidatorColumn(field) {
+		// Ignore.
+		return nil
+	}
+
+	if bigValue, ok := value.(*pb.BigInt); ok {
+		value = bigValue.PaddedString()
+	}
 	query, args, _ := m.builder().Update("Validators").Set(field, value).Where("Id = ?", validatorID.Hex()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
@@ -1769,6 +1790,7 @@ type tablesInfo struct {
 	DealConditionColumns     []string
 	DealChangeRequestColumns []string
 	ProfileColumns           []string
+	ValidatorColumns         []string
 }
 
 func newTablesInfo(numBenchmarks uint64) *tablesInfo {
@@ -1848,6 +1870,15 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"ActiveAsks",
 		"ActiveBids",
 	}
+	validatorColumns := []string{
+		"Id",
+		"Level",
+		"Name",
+		"Logo",
+		"KYC_URL",
+		"Description",
+		"KYC_Price",
+	}
 	out := &tablesInfo{
 		DealColumns:              dealColumns,
 		NumDealColumns:           uint64(len(dealColumns)),
@@ -1856,6 +1887,7 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		DealChangeRequestColumns: dealChangeRequestColumns,
 		DealConditionColumns:     dealConditionColumns,
 		ProfileColumns:           profileColumns,
+		ValidatorColumns:         validatorColumns,
 	}
 	for benchmarkID := uint64(0); benchmarkID < numBenchmarks; benchmarkID++ {
 		out.DealColumns = append(out.DealColumns, getBenchmarkColumn(uint64(benchmarkID)))
@@ -1863,6 +1895,15 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 	}
 
 	return out
+}
+
+func (m *tablesInfo) IsValidatorColumn(column string) bool {
+	for _, validatorColumn := range m.ValidatorColumns {
+		if validatorColumn == column {
+			return true
+		}
+	}
+	return false
 }
 
 func makeTableWithBenchmarks(format, benchmarkType string) string {

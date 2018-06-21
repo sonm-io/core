@@ -1090,6 +1090,13 @@ func (m *DWH) onCertificateCreated(certificateID *big.Int) error {
 	}
 	defer conn.Finish()
 
+	// Check if this certificate is assigned to a validator.
+	if _, err := m.storage.GetValidator(conn, certificate.GetOwnerID().Unwrap()); err == nil {
+		// It's a validator.
+		return m.storage.UpdateValidator(
+			conn, certificate.OwnerID.Unwrap(), certificate.GetAttributeNameNormalized(), certificate.GetValue())
+	}
+
 	if err = m.storage.InsertCertificate(conn, certificate); err != nil {
 		return fmt.Errorf("failed to insertCertificate: %v", err)
 	}

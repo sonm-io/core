@@ -48,7 +48,8 @@ type storage interface {
 	GetBlacklistsContainingUser(conn queryConn, request *pb.BlacklistRequest) (*pb.BlacklistsContainingUserReply, error)
 	InsertOrUpdateValidator(conn queryConn, validator *pb.Validator) error
 	DeactivateValidator(conn queryConn, validatorID common.Address) error
-	UpdateValidator(conn queryConn, validatorID common.Address, fields string, value interface{}) error
+	GetValidator(conn queryConn, validatorID common.Address) (*pb.DWHValidator, error)
+	UpdateValidator(conn queryConn, validatorID common.Address, field string, value interface{}) error
 	InsertCertificate(conn queryConn, certificate *pb.Certificate) error
 	GetCertificates(conn queryConn, ownerID common.Address) ([]*pb.Certificate, error)
 	InsertProfileUserID(conn queryConn, profile *pb.Profile) error

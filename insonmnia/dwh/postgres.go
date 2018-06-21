@@ -100,9 +100,9 @@ func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
 		Level						INTEGER NOT NULL,
 		Name						TEXT NOT NULL DEFAULT "",
 		Logo						TEXT NOT NULL DEFAULT "",
-		URL							TEXT NOT NULL DEFAULT "",
+		KYC_URL						TEXT NOT NULL DEFAULT "",
 		Description					TEXT NOT NULL DEFAULT "",
-		Price						BIGINT NOT NULL DEFAULT 0
+		KYC_Price					BIGINT NOT NULL DEFAULT 0
 	)`,
 			createTableCertificates: `
 	CREATE TABLE IF NOT EXISTS Certificates (
