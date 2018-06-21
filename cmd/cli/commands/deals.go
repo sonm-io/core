@@ -134,7 +134,7 @@ var dealOpenCmd = &cobra.Command{
 			return fmt.Errorf("cannot open deal: %v", err)
 		}
 
-		printID(cmd, deal.GetId().Unwrap().String())
+		printID(cmd, deal.GetID().Unwrap().String())
 		return nil
 	},
 }

@@ -61,7 +61,7 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.BigInt) (*pb.DealInfoReply
 
 	// try to extract extra info for deal if current user is consumer
 	if deal.GetConsumerID().Unwrap().Big().Cmp(crypto.PubkeyToAddress(d.remotes.key.PublicKey).Big()) == 0 {
-		dealID := deal.GetId().Unwrap().String()
+		dealID := deal.GetID().Unwrap().String()
 		workerCtx, workerCtxCancel := context.WithTimeout(ctx, 10*time.Second)
 		defer workerCtxCancel()
 
@@ -154,7 +154,7 @@ func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.D
 	}
 	defer closer.Close()
 
-	workerDeal, err := cli.GetDealInfo(ctx, &pb.ID{Id: deal.GetId().Unwrap().String()})
+	workerDeal, err := cli.GetDealInfo(ctx, &pb.ID{Id: deal.GetID().Unwrap().String()})
 	if err != nil {
 		d.log.Debugw("cannot get deal from worker", zap.Error(err))
 		return &pb.DealInfoReply{Deal: deal}, nil

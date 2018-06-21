@@ -236,7 +236,7 @@ func (m *Deal) String() string            { return proto.CompactTextString(m) }
 func (*Deal) ProtoMessage()               {}
 func (*Deal) Descriptor() ([]byte, []int) { return fileDescriptor7, []int{2} }
 
-func (m *Deal) GetId() *BigInt {
+func (m *Deal) GetID() *BigInt {
 	if m != nil {
 		return m.Id
 	}

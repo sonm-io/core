@@ -76,7 +76,7 @@ func getActiveDealIDs(ctx context.Context) ([]*big.Int, error) {
 		// append active deal id only if current user is supplier
 		iamConsumer := deal.GetConsumerID().Unwrap().Big().Cmp(myAddr) == 0
 		if iamConsumer {
-			dealIDs = append(dealIDs, deal.GetId().Unwrap())
+			dealIDs = append(dealIDs, deal.GetID().Unwrap())
 		}
 	}
 	return dealIDs, nil
