@@ -6,6 +6,8 @@ import (
 	"math"
 	"math/big"
 	"sort"
+
+	"go.uber.org/zap"
 )
 
 const (
@@ -72,16 +74,18 @@ type OrderClassifier interface {
 }
 
 type regressionClassifier struct {
-	newModel newModel
-	sigmoid  sigmoid
-	clock    Clock
+	modelFactory modelFactory
+	sigmoid      sigmoid
+	clock        Clock
+	log          *zap.Logger
 }
 
-func newRegressionClassifier(newModel newModel, sigmoid sigmoid, clock Clock) OrderClassifier {
+func newRegressionClassifier(modelFactory modelFactory, sigmoid sigmoid, clock Clock, log *zap.Logger) OrderClassifier {
 	return &regressionClassifier{
-		newModel: newModel,
-		sigmoid:  sigmoid,
-		clock:    clock,
+		modelFactory: modelFactory,
+		sigmoid:      sigmoid,
+		clock:        clock,
+		log:          log,
 	}
 }
 
@@ -103,7 +107,7 @@ func (m *regressionClassifier) ClassifyExt(orders []*MarketOrder) (*OrderClassif
 		return nil, err
 	}
 
-	predictor, err := m.newModel().Train(trainingSet, expectationN)
+	predictor, err := m.modelFactory(m.log).Train(trainingSet, expectationN)
 	if err != nil {
 		return nil, err
 	}
@@ -222,13 +226,14 @@ func (m *regressionClassifier) RecalculateWeights(orders []WeightedOrder) error 
 		orders[id].Weight = order.Distance + meanDistance
 	}
 
-	normalizer, err := newNormalizer()
-	if err != nil {
-		return err
+	weights := make([]float64, len(orders))
+	for id := range orders {
+		weights[id] = orders[id].Weight
 	}
 
-	for id := range orders {
-		normalizer.Add(orders[id].Weight)
+	normalizer, err := newNormalizer(weights...)
+	if err != nil {
+		return err
 	}
 
 	for id := range orders {
