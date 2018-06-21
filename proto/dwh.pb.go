@@ -159,7 +159,9 @@ type DealsRequest struct {
 	Offset           uint64                   `protobuf:"varint,14,opt,name=offset" json:"offset,omitempty"`
 	Sortings         []*SortingOption         `protobuf:"bytes,15,rep,name=sortings" json:"sortings,omitempty"`
 	WithCount        bool                     `protobuf:"varint,16,opt,name=withCount" json:"withCount,omitempty"`
-	AnyUserID        *EthAddress              `protobuf:"bytes,17,opt,name=anyUserID" json:"anyUserID,omitempty"`
+	// If provided, supplierID, consumerID, and masterID fields are ignored.
+	// Any of the above IDs must match the provided value.
+	AnyUserID *EthAddress `protobuf:"bytes,17,opt,name=anyUserID" json:"anyUserID,omitempty"`
 }
 
 func (m *DealsRequest) Reset()                    { *m = DealsRequest{} }

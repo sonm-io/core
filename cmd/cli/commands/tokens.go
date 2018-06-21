@@ -14,6 +14,7 @@ func init() {
 		tokenBalanceCmd,
 		tokenDepositCmd,
 		tokenWithdrawCmd,
+		tokenMarketAllowanceCmd,
 	)
 }
 
@@ -128,5 +129,29 @@ var tokenWithdrawCmd = &cobra.Command{
 		}
 
 		showOk(cmd)
+	},
+}
+
+var tokenMarketAllowanceCmd = &cobra.Command{
+	Use:    "allowance",
+	Short:  "Show current allowance for marketplace on sidechain network",
+	PreRun: loadKeyStoreIfRequired,
+	Run: func(cmd *cobra.Command, args []string) {
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		token, err := newTokenManagementClient(ctx)
+		if err != nil {
+			showError(cmd, "Cannot create client connection", err)
+			os.Exit(1)
+		}
+
+		allowance, err := token.MarketAllowance(ctx, &sonm.Empty{})
+		if err != nil {
+			showError(cmd, "Cannot get allowance", err)
+			os.Exit(1)
+		}
+
+		printMarketAllowance(cmd, allowance)
 	},
 }
