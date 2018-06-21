@@ -5,6 +5,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
 )
@@ -62,6 +63,18 @@ func (t *tokenAPI) Withdraw(ctx context.Context, amount *sonm.BigInt) (*sonm.Emp
 	}
 
 	return &sonm.Empty{}, nil
+}
+
+func (t *tokenAPI) MarketAllowance(ctx context.Context, _ *sonm.Empty) (*sonm.BigInt, error) {
+	addr, err := auth.ExtractWalletFromContext(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to extract eth address from context: %s", err)
+	}
+	allowance, err := t.remotes.eth.SidechainToken().AllowanceOf(ctx, *addr, blockchain.MarketAddr())
+	if err != nil {
+		return nil, fmt.Errorf("failed to get allowance for market: %s", err)
+	}
+	return sonm.NewBigInt(allowance), nil
 }
 
 func newTokenManagementAPI(opts *remoteOptions) sonm.TokenManagementServer {
