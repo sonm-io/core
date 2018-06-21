@@ -856,21 +856,26 @@ func (m *sqlStorage) InsertOrUpdateValidator(conn queryConn, validator *pb.Valid
 	}
 	defer rows.Close()
 
-	// Update if exists.
+	// If this validator exists, it means that it was deactivated.
 	if rows.Next() {
-		// rows.Close is idempotent.
 		rows.Close()
-		return m.UpdateValidator(conn, validator)
+		return m.UpdateValidator(conn, validator.GetId().Unwrap(), "Level", validator.GetLevel())
 	}
 
-	query, args, _ = m.builder().Insert("Validators").Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
+	query, args, _ = m.builder().Insert("Validators").Columns("Id", "Level").
+		Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (m *sqlStorage) UpdateValidator(conn queryConn, validator *pb.Validator) error {
-	query, args, _ := m.builder().Update("Validators").Set("Level", validator.Level).
-		Where("Id = ?", validator.Id.Unwrap().Hex()).ToSql()
+func (m *sqlStorage) UpdateValidator(conn queryConn, validatorID common.Address, field string, value interface{}) error {
+	query, args, _ := m.builder().Update("Validators").Set(field, value).Where("Id = ?", validatorID.Hex()).ToSql()
+	_, err := conn.Exec(query, args...)
+	return err
+}
+
+func (m *sqlStorage) DeactivateValidator(conn queryConn, validatorID common.Address) error {
+	query, args, _ := m.builder().Update("Validators").Set("Level", 0).Where("Id = ?", validatorID.Hex()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
@@ -952,7 +957,7 @@ func (m *sqlStorage) GetProfileByID(conn queryConn, userID common.Address) (*pb.
 	return m.decodeProfile(rows)
 }
 
-func (m *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*pb.Validator, uint64, error) {
+func (m *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*pb.DWHValidator, uint64, error) {
 	builder := m.builder().Select("*").From("Validators")
 	if r.ValidatorLevel != nil {
 		level := r.ValidatorLevel
@@ -966,7 +971,7 @@ func (m *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*
 	}
 	defer rows.Close()
 
-	var out []*pb.Validator
+	var out []*pb.DWHValidator
 	for rows.Next() {
 		validator, err := m.decodeValidator(rows)
 		if err != nil {
@@ -1556,18 +1561,34 @@ func (m *sqlStorage) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 	}, nil
 }
 
-func (m *sqlStorage) decodeValidator(rows *sql.Rows) (*pb.Validator, error) {
+func (m *sqlStorage) decodeValidator(rows *sql.Rows) (*pb.DWHValidator, error) {
 	var (
 		validatorID string
 		level       uint64
+		name        string
+		logo        string
+		url         string
+		description string
+		price       string
 	)
-	if err := rows.Scan(&validatorID, &level); err != nil {
+	if err := rows.Scan(&validatorID, &level, &name, &logo, &url, &description, &price); err != nil {
 		return nil, fmt.Errorf("failed to scan Validator row: %v", err)
 	}
 
-	return &pb.Validator{
-		Id:    pb.NewEthAddress(common.HexToAddress(validatorID)),
-		Level: level,
+	bigPrice, err := pb.NewBigIntFromString(price)
+	if err != nil {
+		return nil, fmt.Errorf("failed to use price as big int: %s", price)
+	}
+	return &pb.DWHValidator{
+		Validator: &pb.Validator{
+			Id:    pb.NewEthAddress(common.HexToAddress(validatorID)),
+			Level: level,
+		},
+		Name:        name,
+		Logo:        logo,
+		Url:         url,
+		Description: description,
+		Price:       bigPrice,
 	}, nil
 }
 

@@ -1065,15 +1065,10 @@ func (m *DWH) onValidatorCreated(validatorID common.Address) error {
 }
 
 func (m *DWH) onValidatorDeleted(validatorID common.Address) error {
-	validator, err := m.blockchain.ProfileRegistry().GetValidator(m.ctx, validatorID)
-	if err != nil {
-		return fmt.Errorf("failed to get validator `%s`: %v", validatorID.String(), err)
-	}
-
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
-	if err := m.storage.UpdateValidator(conn, validator); err != nil {
+	if err := m.storage.DeactivateValidator(conn, validatorID); err != nil {
 		return fmt.Errorf("failed to InsertOrUpdateValidator: %v", err)
 	}
 

@@ -696,9 +696,9 @@ func testValidatorCreatedUpdated(validator *pb.Validator) error {
 		if len(validators) != 1 {
 			return fmt.Errorf("(ValidatorCreated) Expected 1 Validator, got %d", len(validators))
 		}
-		if validators[0].Level != 3 {
+		if validators[0].GetValidator().GetLevel() != 3 {
 			return fmt.Errorf("(ValidatorCreated) Expected %d, got %d (Validator.Level)",
-				3, validators[0].Level)
+				3, validators[0].GetValidator().GetLevel())
 		}
 	}
 	validator.Level = 0
@@ -712,9 +712,9 @@ func testValidatorCreatedUpdated(validator *pb.Validator) error {
 		if len(validators) != 1 {
 			return fmt.Errorf("(ValidatorDeleted) Expected 1 Validator, got %d", len(validators))
 		}
-		if validators[0].Level != 0 {
+		if validators[0].GetValidator().GetLevel() != 0 {
 			return fmt.Errorf("(ValidatorDeleted) Expected %d, got %d (Validator.Level)",
-				0, validators[0].Level)
+				0, validators[0].GetValidator().GetLevel())
 		}
 	}
 	return nil
