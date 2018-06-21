@@ -256,9 +256,19 @@ func (m *workerControl) Execute(ctx context.Context) {
 			continue
 		}
 
-		if freeWorkerBenchmarks.Contains(order.Order.Order.Benchmarks) {
-			matchedOrders = append(matchedOrders, order)
+		if !freeWorkerBenchmarks.Contains(order.Order.Order.Benchmarks) {
+			continue
 		}
+
+		// No more than a single order with incoming network requirement should
+		// be selected.
+		// For this purpose we explicitly disable incoming network if such
+		// order is matched.
+		if order.Order.GetOrder().GetNetflags().GetIncoming() {
+			freeDevices.GetNetwork().GetNetFlags().SetIncoming(false)
+		}
+
+		matchedOrders = append(matchedOrders, order)
 	}
 
 	m.log.Infof("found %d/%d matching orders", len(matchedOrders), len(orders))
