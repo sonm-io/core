@@ -18,6 +18,11 @@ contract SimpleGatekeeperWithLimit is Ownable {
         bool frozen;
     }
 
+    struct TransactionState {
+        uint256 commitTs;
+        bool paid;
+    }
+
     mapping(address => Keeper) keepers;
 
     constructor(address _token) public {
@@ -26,9 +31,10 @@ contract SimpleGatekeeperWithLimit is Ownable {
     }
 
     uint256 public transactionAmount = 0;
-    mapping(bytes32 => bool) public paid;
+    mapping(bytes32 => TransactionState) public paid;
 
-    event PayInTx(address indexed from, uint256 indexed txNumber, uint256 indexed value);
+    event PayinTx(address indexed from, uint256 indexed txNumber, uint256 indexed value);
+    event CommitTx(address indexed from, uint256 indexed txNumber, uint256 indexed value, uint commitTimestamp);
     event PayoutTx(address indexed from, uint256 indexed txNumber, uint256 indexed value);
     event Suicide(uint block);
 
@@ -56,31 +62,32 @@ contract SimpleGatekeeperWithLimit is Ownable {
         emit KeeperUnfrozen(_keeper);
     }
 
-    function PayIn(uint256 _value) public {
+    function Payin(uint256 _value) public {
         require(token.transferFrom(msg.sender, this, _value));
         transactionAmount = transactionAmount + 1;
-        emit PayInTx(msg.sender, transactionAmount, _value);
+        emit PayinTx(msg.sender, transactionAmount, _value);
     }
 
     function Payout(address _to, uint256 _value, uint256 _txNumber) public {
         // check that keeper not frozen
         require(!keepers[msg.sender].frozen);
-        // check day limit
-        require(underLimit(msg.sender, _value));
 
         bytes32 txHash = keccak256(_to, _txNumber, _value);
-        require(!paid[txHash]);
-        require(token.transfer(_to, _value));
-        paid[txHash] = true;
-        emit PayoutTx(_to, _txNumber, _value);
-    }
 
-    function kill() public onlyOwner {
-        uint balance = token.balanceOf(this);
-        require(token.transfer(owner, balance));
-        emit Suicide(block.timestamp);
-        // solium-disable-line security/no-block-members
-        selfdestruct(owner);
+        // check that transaction already paid
+        require(!paid[txHash].paid);
+
+        if (paid[txHash].commitTs == 0) {
+            // check day limit to added today transaction
+            require(underLimit(msg.sender, _value));
+            paid[txHash].commitTs = block.timestamp;
+            emit CommitTx(_to, _txNumber, _value, block.timestamp);
+        } else {
+            require(paid[txHash].commitTs + 1 days >= block.timestamp);
+            require(token.transfer(_to, _value));
+            paid[txHash].paid = true;
+            emit PayoutTx(_to, _txNumber, _value);
+        }
     }
 
     function underLimit(address _keeper, uint256 _value) internal returns (bool) {
@@ -102,6 +109,14 @@ contract SimpleGatekeeperWithLimit is Ownable {
     function today() private view returns (uint256) {
         // solium-disable-next-line security/no-block-members
         return block.timestamp / 1 days;
+    }
+
+    function kill() public onlyOwner {
+        uint balance = token.balanceOf(this);
+        require(token.transfer(owner, balance));
+        emit Suicide(block.timestamp);
+        // solium-disable-line security/no-block-members
+        selfdestruct(owner);
     }
 
 }
