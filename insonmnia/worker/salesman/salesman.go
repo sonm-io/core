@@ -374,7 +374,7 @@ func (m *Salesman) loadCheckDeal(ctx context.Context, plan *sonm.AskPlan) error 
 }
 
 func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan, deal *sonm.Deal) error {
-	m.log.Debugf("checking deal %s for ask plan %s", deal.GetId().Unwrap().String(), plan.GetID())
+	m.log.Debugf("checking deal %s for ask plan %s", deal.GetID().Unwrap().String(), plan.GetID())
 
 	if deal.Status == sonm.DealStatus_DEAL_CLOSED {
 		if err := m.unregisterOrder(plan.ID); err != nil {
@@ -383,7 +383,7 @@ func (m *Salesman) checkDeal(ctx context.Context, plan *sonm.AskPlan, deal *sonm
 		if err := m.unregisterDeal(plan.GetID(), deal); err != nil {
 			return fmt.Errorf("failed to cleanup deal from ask plan %s: %s", plan.GetID(), err)
 		}
-		m.log.Debugf("succesefully removed closed deal %s from ask plan %s", deal.GetId().Unwrap().String(), plan.GetID())
+		m.log.Debugf("succesefully removed closed deal %s from ask plan %s", deal.GetID().Unwrap().String(), plan.GetID())
 		return nil
 	} else {
 		multi := multierror.NewMultiError()
@@ -414,10 +414,10 @@ func (m *Salesman) maybeBillDeal(ctx context.Context, deal *sonm.Deal) error {
 	}
 
 	if time.Now().Sub(billTime) > billPeriod {
-		if err := m.eth.Market().Bill(ctx, m.ethkey, deal.GetId().Unwrap()); err != nil {
+		if err := m.eth.Market().Bill(ctx, m.ethkey, deal.GetID().Unwrap()); err != nil {
 			return err
 		}
-		m.log.Infof("billed deal %s", deal.GetId().Unwrap().String())
+		m.log.Infof("billed deal %s", deal.GetID().Unwrap().String())
 	}
 	return nil
 }
@@ -443,11 +443,11 @@ func (m *Salesman) maybeCloseDeal(ctx context.Context, plan *sonm.AskPlan, deal 
 	if m.shouldCloseDeal(ctx, plan, deal) {
 		// TODO: we will know about closed deal on next iteration for simplicicty,
 		// but maybe we can optimize here.
-		if err := m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetId().Unwrap(), sonm.BlacklistType_BLACKLIST_NOBODY); err != nil {
+		if err := m.eth.Market().CloseDeal(ctx, m.ethkey, deal.GetID().Unwrap(), sonm.BlacklistType_BLACKLIST_NOBODY); err != nil {
 			return err
 		}
 
-		m.log.Infof("closed deal %s", deal.GetId().Unwrap().String())
+		m.log.Infof("closed deal %s", deal.GetID().Unwrap().String())
 	}
 	return nil
 }
@@ -524,23 +524,23 @@ func (m *Salesman) unregisterDeal(planID string, deal *sonm.Deal) error {
 }
 
 func (m *Salesman) registerDeal(planID string, deal *sonm.Deal) error {
-	if deal.GetId().IsZero() {
+	if deal.GetID().IsZero() {
 		return fmt.Errorf("failed to register deal: zero deal id")
 	}
-	dealIDStr := deal.GetId().Unwrap().String()
+	dealIDStr := deal.GetID().Unwrap().String()
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	plan, ok := m.askPlans[planID]
 	if !ok {
 		return fmt.Errorf("could not assign deal %s to plan %s: no such plan", dealIDStr, planID)
 	}
-	if plan.DealID.Cmp(deal.GetId()) != 0 && !plan.DealID.IsZero() {
+	if plan.DealID.Cmp(deal.GetID()) != 0 && !plan.DealID.IsZero() {
 		return fmt.Errorf("attempted to register deal %s for plan %s with deal %s",
 			dealIDStr, planID, plan.DealID.Unwrap().String())
 	}
 	m.dealsCh <- deal
 	m.deals[dealIDStr] = deal
-	plan.DealID = deal.GetId()
+	plan.DealID = deal.GetID()
 	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
 		return err
 	}

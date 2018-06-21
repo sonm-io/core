@@ -113,7 +113,7 @@ func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*so
 					m.cfg.Log.Debugw("deal is opened",
 						zap.String("bid", bid.GetId().Unwrap().String()),
 						zap.String("ask", ask.GetId().Unwrap().String()),
-						zap.String("deal", deal.GetId().Unwrap().String()))
+						zap.String("deal", deal.GetID().Unwrap().String()))
 					return deal, nil
 				}
 

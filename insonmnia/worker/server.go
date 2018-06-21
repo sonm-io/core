@@ -333,7 +333,7 @@ func (m *Worker) listenDeals(dealsCh <-chan *pb.Deal) {
 		case deal := <-dealsCh:
 			if deal.Status == pb.DealStatus_DEAL_CLOSED {
 				if err := m.cancelDealTasks(deal); err != nil {
-					log.S(m.ctx).Warnf("could not stop tasks for closed deal %s: %s", deal.GetId().Unwrap().String(), err)
+					log.S(m.ctx).Warnf("could not stop tasks for closed deal %s: %s", deal.GetID().Unwrap().String(), err)
 				}
 			}
 		}
@@ -341,7 +341,7 @@ func (m *Worker) listenDeals(dealsCh <-chan *pb.Deal) {
 }
 
 func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
-	dealID := deal.GetId().Unwrap().String()
+	dealID := deal.GetID().Unwrap().String()
 	var toDelete []*ContainerInfo
 
 	m.mu.Lock()
