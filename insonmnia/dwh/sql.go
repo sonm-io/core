@@ -856,9 +856,10 @@ func (m *sqlStorage) InsertOrUpdateValidator(conn queryConn, validator *pb.Valid
 	}
 	defer rows.Close()
 
-	// If this validator exists, it means that it was deactivated.
 	if rows.Next() {
 		rows.Close()
+		// If this validator exists, it means that it was deactivated; we re-activate it by setting the current
+		// identity level.
 		return m.UpdateValidator(conn, validator.GetId().Unwrap(), "Level", validator.GetLevel())
 	}
 
@@ -886,7 +887,6 @@ func (m *sqlStorage) UpdateValidator(conn queryConn, validatorID common.Address,
 		// Ignore.
 		return nil
 	}
-
 	if bigValue, ok := value.(*pb.BigInt); ok {
 		value = bigValue.PaddedString()
 	}
@@ -896,6 +896,7 @@ func (m *sqlStorage) UpdateValidator(conn queryConn, validatorID common.Address,
 }
 
 func (m *sqlStorage) DeactivateValidator(conn queryConn, validatorID common.Address) error {
+	// Deactivate validator by setting her identity level to zero.
 	query, args, _ := m.builder().Update("Validators").Set("Level", 0).Where("Id = ?", validatorID.Hex()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err

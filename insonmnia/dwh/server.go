@@ -1091,7 +1091,11 @@ func (m *DWH) onCertificateCreated(certificateID *big.Int) error {
 	defer conn.Finish()
 
 	// Check if this certificate is assigned to a validator.
-	if _, err := m.storage.GetValidator(conn, certificate.GetOwnerID().Unwrap()); err == nil {
+	validatorLevel, err := m.blockchain.ProfileRegistry().GetValidatorLevel(m.ctx, certificate.OwnerID.Unwrap())
+	if err != nil {
+		return fmt.Errorf("failed to GetValidatorLevel: %v", err)
+	}
+	if validatorLevel != 0 {
 		// It's a validator.
 		return m.storage.UpdateValidator(
 			conn, certificate.OwnerID.Unwrap(), certificate.GetAttributeNameNormalized(), certificate.GetValue())
