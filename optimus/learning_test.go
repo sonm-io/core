@@ -9,6 +9,7 @@ import (
 	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestSortDescending(t *testing.T) {
@@ -32,7 +33,7 @@ func TestSortDescending(t *testing.T) {
 }
 
 func TestLearning(t *testing.T) {
-	model := newLLSModel(ModelConfig{
+	model := newLLSModelFactory(llsModelConfig{
 		Alpha:          1e-6,
 		Regularization: 6.0,
 		MaxIterations:  1000,
@@ -118,7 +119,7 @@ func TestLearning(t *testing.T) {
 		})
 	}
 
-	classifier := newRegressionClassifier(model, sigmoid, time.Now)
+	classifier := newRegressionClassifier(model, sigmoid, time.Now, zap.NewNop())
 	weightedOrders, err := classifier.Classify(orders)
 
 	require.NoError(t, err)

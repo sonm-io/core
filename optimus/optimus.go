@@ -75,7 +75,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 		return err
 	}
 
-	ordersControl, err := newOrdersControl(ordersScanner, m.cfg.Optimization.Classifier(), ordersSet, m.log.Desugar())
+	ordersControl, err := newOrdersControl(ordersScanner, m.cfg.Optimization.ClassifierFactory(m.log.Desugar()), ordersSet, m.log.Desugar())
 	if err != nil {
 		return err
 	}
