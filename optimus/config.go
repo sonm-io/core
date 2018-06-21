@@ -65,7 +65,7 @@ type marketplaceConfig struct {
 
 type optimizationConfig struct {
 	Interval          time.Duration
-	ClassifierFactory classifierFactory `json:"-"`
+	ClassifierFactory classifierFactory `yaml:"classifier" required:"true" json:"-"`
 }
 
 type classifierFactory func(log *zap.Logger) OrderClassifier
@@ -79,12 +79,15 @@ func newClassifierFactory(cfgUnmarshal func(interface{}) error) (classifierFacto
 	switch ty {
 	case "regression":
 		cfg := struct {
-			ModelFactory modelFactory
+			ModelFactory modelFactory  `yaml:"model"`
 			Sigmoid      sigmoidConfig `yaml:"logistic"`
 		}{}
 
 		if err := cfgUnmarshal(&cfg); err != nil {
 			return nil, err
+		}
+		if cfg.ModelFactory == nil {
+			return nil, fmt.Errorf("missing required field: `optimization/classifier/model`")
 		}
 
 		sigmoid := newSigmoid(cfg.Sigmoid)
