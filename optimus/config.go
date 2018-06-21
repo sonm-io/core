@@ -10,15 +10,16 @@ import (
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"go.uber.org/zap"
 )
 
 type Config struct {
-	PrivateKey   privateKey `yaml:"ethereum" json:"-"`
-	Logging      logging.Config
+	PrivateKey   privateKey                 `yaml:"ethereum" json:"-"`
+	Logging      logging.Config             `yaml:"logging"`
 	Workers      map[auth.Addr]workerConfig `yaml:"workers"`
 	Benchmarks   benchmarks.Config          `yaml:"benchmarks"`
-	Marketplace  marketplaceConfig
-	Optimization optimizationConfig
+	Marketplace  marketplaceConfig          `yaml:"marketplace"`
+	Optimization optimizationConfig         `yaml:"optimization"`
 }
 
 type workerConfig struct {
@@ -63,37 +64,46 @@ type marketplaceConfig struct {
 }
 
 type optimizationConfig struct {
-	Interval   time.Duration
-	Classifier newClassifier `json:"-"`
+	Interval          time.Duration
+	ClassifierFactory classifierFactory `json:"-"`
 }
 
-type newClassifier func() OrderClassifier
+type classifierFactory func(log *zap.Logger) OrderClassifier
 
-func (m *newClassifier) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	ty, err := typeofInterface(unmarshal)
+func newClassifierFactory(cfgUnmarshal func(interface{}) error) (classifierFactory, error) {
+	ty, err := typeofInterface(cfgUnmarshal)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	switch ty {
 	case "regression":
 		cfg := struct {
-			Model   newModel
-			Sigmoid sigmoidConfig `yaml:"logistic"`
+			ModelFactory modelFactory
+			Sigmoid      sigmoidConfig `yaml:"logistic"`
 		}{}
 
-		if err := unmarshal(&cfg); err != nil {
-			return err
+		if err := cfgUnmarshal(&cfg); err != nil {
+			return nil, err
 		}
 
 		sigmoid := newSigmoid(cfg.Sigmoid)
 
-		*m = func() OrderClassifier {
-			return newRegressionClassifier(cfg.Model, sigmoid, time.Now)
-		}
+		return func(log *zap.Logger) OrderClassifier {
+			return newRegressionClassifier(cfg.ModelFactory, sigmoid, time.Now, log)
+		}, nil
 	default:
-		return fmt.Errorf("unknown classifier: %s", ty)
+		return nil, fmt.Errorf("unknown classifier: %s", ty)
 	}
+}
+
+func (m *classifierFactory) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	factory, err := newClassifierFactory(unmarshal)
+	if err != nil {
+		return err
+	}
+
+	*m = factory
 
 	return nil
 }
