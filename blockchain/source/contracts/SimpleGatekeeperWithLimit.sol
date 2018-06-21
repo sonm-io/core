@@ -15,6 +15,7 @@ contract SimpleGatekeeperWithLimit is Ownable {
         uint256 dayLimit;
         uint256 lastDay;
         uint256 spentToday;
+        bool frozen;
     }
 
     mapping(address => Keeper) keepers;
@@ -32,10 +33,27 @@ contract SimpleGatekeeperWithLimit is Ownable {
     event Suicide(uint block);
 
     event KeeperChanged(address keeper, uint256 dayLimit);
+    event KeeperFrozen(address keeper);
+    event KeeperUnfrozen(address keeper);
 
     function ChangeKeeperLimit(address _keeper, uint256 _limit) public onlyOwner {
         keepers[_keeper].dayLimit = _limit;
         emit KeeperChanged(_keeper, _limit);
+    }
+
+    function FreezeKeeper(address _keeper) public {
+        // check access of sender
+        require(keepers[msg.sender].dayLimit > 0);
+        // check that freezing keeper has limit
+        require(keepers[_keeper].dayLimit > 0);
+        keepers[_keeper].frozen = true;
+        emit KeeperFrozen(_keeper);
+    }
+
+    function UnFreezeKeeper(address _keeper) public onlyOwner {
+        require(keepers[msg.sender].dayLimit > 0);
+        keepers[_keeper].frozen = false;
+        emit KeeperUnfrozen(_keeper);
     }
 
     function PayIn(uint256 _value) public {
@@ -45,7 +63,11 @@ contract SimpleGatekeeperWithLimit is Ownable {
     }
 
     function Payout(address _to, uint256 _value, uint256 _txNumber) public {
+        // check that keeper not frozen
+        require(!keepers[msg.sender].frozen);
+        // check day limit
         require(underLimit(msg.sender, _value));
+
         bytes32 txHash = keccak256(_to, _txNumber, _value);
         require(!paid[txHash]);
         require(token.transfer(_to, _value));
@@ -70,7 +92,7 @@ contract SimpleGatekeeperWithLimit is Ownable {
         // check to see if there's enough left - if so, subtract and return true.
         // overflow protection                    // dailyLimit check
         if (keepers[_keeper].spentToday + _value >= keepers[_keeper].spentToday &&
-            keepers[_keeper].spentToday + _value <= keepers[_keeper].dayLimit) {
+        keepers[_keeper].spentToday + _value <= keepers[_keeper].dayLimit) {
             keepers[_keeper].spentToday += _value;
             return true;
         }
