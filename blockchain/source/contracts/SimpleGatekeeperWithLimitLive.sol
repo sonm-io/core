@@ -26,13 +26,17 @@ contract SimpleGatekeeperWithLimitLive is Ownable {
 
     mapping(address => Keeper) keepers;
 
-    constructor(address _token) public {
+    uint256 public transactionAmount = 0;
+
+    mapping(bytes32 => TransactionState) public paid;
+
+    uint256 freezingTime;
+
+    constructor(address _token, uint256 _freezingTime) public {
         token = SNMMasterchain(_token);
         owner = msg.sender;
+        freezingTime = _freezingTime;
     }
-
-    uint256 public transactionAmount = 0;
-    mapping(bytes32 => TransactionState) public paid;
 
     event PayinTx(address indexed from, uint256 indexed txNumber, uint256 indexed value);
     event CommitTx(address indexed from, uint256 indexed txNumber, uint256 indexed value, uint commitTimestamp);
@@ -87,11 +91,19 @@ contract SimpleGatekeeperWithLimitLive is Ownable {
             emit CommitTx(_to, _txNumber, _value, block.timestamp);
         } else {
             require(paid[txHash].keeper == msg.sender);
-            require(paid[txHash].commitTS + 15 minutes <= block.timestamp);
+            require(paid[txHash].commitTS + freezingTime <= block.timestamp);
             token.transfer(_to, _value);
             paid[txHash].paid = true;
             emit PayoutTx(_to, _txNumber, _value);
         }
+    }
+
+    function SetFreezingTime(uint256 _freezingTime) public onlyOwner {
+        freezingTime = _freezingTime;
+    }
+
+    function GetFreezingTime() view public returns (uint256) {
+        return freezingTime;
     }
 
     function underLimit(address _keeper, uint256 _value) internal returns (bool) {

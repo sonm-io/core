@@ -8,6 +8,7 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
     let owner = accounts[0];
     let user = accounts[1];
     let creeper = accounts[3];
+    const oneDay = 86400;
 
     describe('PayIn', function () {
         let token;
@@ -22,7 +23,7 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
 
         before(async function () {
             token = await SNM.new({ from: owner });
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, { from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, oneDay, { from: owner });
 
             await token.transfer(user, testValue, { from: owner });
             await token.approve(gatekeeper.address, testValue, { from: user });
@@ -95,7 +96,7 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
 
         before(async function () {
             token = await SNM.new({ from: owner });
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, { from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, oneDay, { from: owner });
 
             await token.transfer(gatekeeper.address, testValue, { from: owner });
 
@@ -147,7 +148,7 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
 
         before(async function () {
             token = await SNM.new({ from: owner });
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, { from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, oneDay, { from: owner });
 
             let ownerBalance = (await token.balanceOf(owner)).toNumber();
             await token.transfer(gatekeeper.address, ownerBalance, { from: owner });
@@ -177,7 +178,7 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
         describe('when not owner want to kill contract', function () {
             before(async function () {
                 token = await SNM.new();
-                gatekeeper = await SimpleGatekeeperWithLimit.new(token.address);
+                gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, oneDay);
             });
 
             it('should revert', async function () {
