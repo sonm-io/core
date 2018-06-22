@@ -75,7 +75,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 		return err
 	}
 
-	ordersControl, err := newOrdersControl(ordersScanner, m.cfg.Optimization.Classifier(), ordersSet, m.log.Desugar())
+	ordersControl, err := newOrdersControl(ordersScanner, m.cfg.Optimization.ClassifierFactory(m.log.Desugar()), ordersSet, m.log.Desugar())
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 			return err
 		}
 
-		control, err := newWorkerControl(ethAddr, masterAddr, worker, ordersSet, loader, m.log)
+		control, err := newWorkerControl(cfg, ethAddr, masterAddr, worker, ordersSet, loader, m.log)
 		if err != nil {
 			return err
 		}
@@ -172,6 +172,7 @@ func (m *ordersControl) Execute(ctx context.Context) {
 }
 
 type workerControl struct {
+	cfg             workerConfig
 	addr            common.Address
 	masterAddr      common.Address
 	worker          sonm.WorkerManagementClient
@@ -180,8 +181,9 @@ type workerControl struct {
 	log             *zap.SugaredLogger
 }
 
-func newWorkerControl(addr, masterAddr common.Address, worker sonm.WorkerManagementClient, orders *ordersState, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
+func newWorkerControl(cfg workerConfig, addr, masterAddr common.Address, worker sonm.WorkerManagementClient, orders *ordersState, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
 	m := &workerControl{
+		cfg:             cfg,
 		addr:            addr,
 		masterAddr:      masterAddr,
 		worker:          worker,
@@ -246,7 +248,14 @@ func (m *workerControl) Execute(ctx context.Context) {
 			continue
 		}
 
-		if !devices.GetNetwork().GetNetFlags().ConverseImplication(order.Order.Order.GetNetflags()) {
+		switch m.cfg.OrderPolicy {
+		case PolicySpotOnly:
+			if order.Order.GetOrder().GetDuration() != 0 {
+				continue
+			}
+		}
+
+		if !freeDevices.GetNetwork().GetNetFlags().ConverseImplication(order.Order.Order.GetNetflags()) {
 			continue
 		}
 
@@ -256,9 +265,19 @@ func (m *workerControl) Execute(ctx context.Context) {
 			continue
 		}
 
-		if freeWorkerBenchmarks.Contains(order.Order.Order.Benchmarks) {
-			matchedOrders = append(matchedOrders, order)
+		if !freeWorkerBenchmarks.Contains(order.Order.Order.Benchmarks) {
+			continue
 		}
+
+		// No more than a single order with incoming network requirement should
+		// be selected.
+		// For this purpose we explicitly disable incoming network if such
+		// order is matched.
+		if order.Order.GetOrder().GetNetflags().GetIncoming() {
+			freeDevices.GetNetwork().GetNetFlags().SetIncoming(false)
+		}
+
+		matchedOrders = append(matchedOrders, order)
 	}
 
 	m.log.Infof("found %d/%d matching orders", len(matchedOrders), len(orders))

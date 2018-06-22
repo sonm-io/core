@@ -7,36 +7,15 @@ import (
 
 	"github.com/cdipaolo/goml/base"
 	"github.com/cdipaolo/goml/linear"
+	"go.uber.org/zap"
 )
 
-type ModelConfig struct {
-	Alpha          float64 `yaml:"alpha" default:"1e-3"`
-	Regularization float64 `yaml:"regularization" default:"6.0"`
-	MaxIterations  int     `yaml:"max_iterations" default:"1000"`
-}
-
-func (m *newModel) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	ty, err := typeofInterface(unmarshal)
-	if err != nil {
-		return err
-	}
-
-	switch ty {
-	case "lls":
-		cfg := ModelConfig{}
-		if err := unmarshal(&cfg); err != nil {
-			return err
-		}
-
-		*m = newLLSModel(cfg)
-	default:
-		return fmt.Errorf("unknown model: %s", ty)
-	}
-
-	return nil
-}
-
+// Model represents a ML model that can be trained using provided training set
+// with some expectation.
 type Model interface {
+	// Train runs the training process, returning the trained model on success.
+	// The "trainingSet" argument is a MxN matrix, while "expectation" must be
+	// a M-length vector.
 	Train(trainingSet [][]float64, expectation []float64) (TrainedModel, error)
 }
 
@@ -44,10 +23,47 @@ type TrainedModel interface {
 	Predict(vec []float64) (float64, error)
 }
 
-type newModel func() Model
+type llsModelConfig struct {
+	Alpha          float64 `yaml:"alpha" default:"1e-3"`
+	Regularization float64 `yaml:"regularization" default:"6.0"`
+	MaxIterations  int     `yaml:"max_iterations" default:"1000"`
+}
 
-func newLLSModel(cfg ModelConfig) newModel {
-	return func() Model {
+type modelFactory func(log *zap.Logger) Model
+
+// NewModelFactory constructs a new model factory using provided unmarshaller.
+func newModelFactory(cfgUnmarshal func(interface{}) error) (modelFactory, error) {
+	ty, err := typeofInterface(cfgUnmarshal)
+	if err != nil {
+		return nil, err
+	}
+
+	switch ty {
+	case "lls":
+		cfg := llsModelConfig{}
+		if err := cfgUnmarshal(&cfg); err != nil {
+			return nil, err
+		}
+
+		return newLLSModelFactory(cfg), nil
+	default:
+		return nil, fmt.Errorf("unknown model: %s", ty)
+	}
+}
+
+func (m *modelFactory) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	factory, err := newModelFactory(unmarshal)
+	if err != nil {
+		return err
+	}
+
+	*m = factory
+
+	return nil
+}
+
+func newLLSModelFactory(cfg llsModelConfig) modelFactory {
+	return func(log *zap.Logger) Model {
 		return &llsModel{
 			cfg:    cfg,
 			output: ioutil.Discard,
@@ -56,7 +72,7 @@ func newLLSModel(cfg ModelConfig) newModel {
 }
 
 type llsModel struct {
-	cfg    ModelConfig
+	cfg    llsModelConfig
 	output io.Writer
 }
 

@@ -1,7 +1,7 @@
 *               @sonm-io/Platform
 *.go            @3Hren @antmat @sshaman1101 @oopcode
 /debian         @3Hren @antmat @sshaman1101
-/blockchain/    @Sokel
+/blockchain/    @sonm-io/solidity
 /insonmnia/dwh/ @oopcode
 /cmd/cli/       @sshaman1101
 /cmd/pandora/   @3Hren

@@ -1,10 +1,13 @@
 var SNM = artifacts.require('./SNM.sol');
+var TestnetFaucet = artifacts.require('./TestnetFaucet.sol');
 
 module.exports = function (deployer, network) {
     if (network === 'private') {
         deployer.deploy(SNM, { gasPrice: 0 });
     } else if (network === 'rinkeby') {
-        // test token already deployed at rinkeby to address 0x06bda3cf79946e8b32a0bb6a3daa174b577c55b5
+        deployer.deploy(TestnetFaucet);
+    } else if (network === 'master') {
+        // token already deployed at master to address 0x983f6d60db79ea8ca4eb9968c6aff8cfa04b3c63
     } else {
         deployer.deploy(SNM);
     }

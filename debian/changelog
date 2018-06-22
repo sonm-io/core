@@ -1,3 +1,172 @@
+sonm-core (0.4.0-rc1) unstable; urgency=low
+
+  * Added: Optimus now can filter by counterparty (#977).
+  * Added: DWH orders blacklist filters (#978).
+  * Added: maintenance for worker (#960).
+    This introduces maintenance feature for worker.
+    The `./sonmcli maintenance` accepts time point or duration to set maintenance on worker.
+    The `./sonmcli next-maintenance` show the time of next planned maintenance.
+    All orders durations are being adjusted according to maintenance point.
+    After maintenance point all spot deals are closed and all orders are removed.
+  * Added: quick buy for cli and node (#990).
+    This adds an ability to perform quick buy for given ASK order on market.
+  * Added: increase/decrease approval token functions (#1010).
+  * Added: multi-sig wallet (#1011).
+  * Added: order purge handle for cli and node (#997).
+  * Added: optimus price prediction (#1030).
+    This allows autosell bot to predict its price based on previous learning
+    iteration. It is required for further canceling orders depending on its
+    predicted market price.
+  * Added: profile management for cli and node (#1002).
+  * Added: AnyUserID field for DealsRequest in DWH (#1031).
+    This introduces a new search field to DealsRequest: AnyUserID. If provided,
+    supplierID, consumerID, and masterID fields are ignored.
+    Any of the mentioned IDs must match the provided value.
+  * Added: contracts freezing (#1029).
+  * Added: add deploy list contract (#1035).
+    Smart contract with array of allowed addresses, which may deploy contracts.
+  * Added: deposit-withdraw for node and cli (#986).
+    This adds able to transfer tokens between masterchain and SONM sidechain.
+  * Added: utilize hostname for relay (#1045).
+    This change allows to utilize specifying hostnames as a relay address,
+    increasing stability.
+    Previously such hostname was resolved once at construction time and the
+    relay client tried to connect to the resolved TCP addresses even if some
+    of them are already down.
+    Now each time a client requires new connection hostname resolution occurs.
+    All this allows dynamic addition/removal backends under the DNS.
+    Of course we try to connect to all returned endpoints.
+  * Added: allowance handle for node and cli (#1050).
+  * Added: kill option for market contract (#1049).
+    This implements destroying of contract. It also returns all frozen funds
+    to owner multisig.
+    Needs to prevent funds locking while some bug found if any.
+  * Changed: reworked benchmarks in market (#964).
+    Now we can place orders with any count of benchmarks, but still not more
+    than we support.
+  * Changed: store netflags in dynamic array on market (#971).
+    Now netflags stores in dynamic array. We can update num of netflags without
+    both breaking API and redeploy market.
+  * Changed: DWH startup refactoring (#929).
+    Fixed an minor bug - DWH could crash with segfault after a SIGINT at the
+    very startup.
+  * Changed: better logs in worker, while requesting approve (#980).
+  * BREAKING Changed: implemented GetBlacklistsContainingUser for DWH.
+    This is a BREAKING change.
+  * Changed: get profile level from contracts (#989).
+  * Changed: variable benchmarks in DWH (#984).
+    This allows DWH to track current number of benchmarks on Market and handle
+    changes properly.
+  * Changed: return relay error to the upper layer (#1007).
+    This change allows to see what exactly was wrong when a Relay failed to
+    establish a connection.
+    In conjunction with the #1006 this greatly improves debugging and system
+    reaction.
+  * Changed: create change request with only price or only duration (#1019).
+    Previously, if a user wants to set the new deal price he was forced to
+    explicitly set both params: new price and old duration. This adds able to
+    propose changes to only one param of a deal.
+  * Changed: emulate TCP reaction when using relay (#1006).
+    This change improves reaction for connections established using Relay.
+    For servers there is no reconnections (except every 24 hours), while for
+    clients there an immediate reaction with human-readable error.
+  * Changed: print order's tag if present in order status CLI (#1032).
+  * Changed: show message if worker has no active tasks (#1037).
+  * Changed: implicitly set allowance for market on sidechain (#1042).
+    This hook checks and sets allowance for market to practical infinity on every
+    method call which requires allowance.
+  * Changed: do not apply whitelist to identified consumers (#1040).
+    This takes consumer identity level in concern. If customer has at least
+    IDENTIFIED level whitelist checking doesn't take place.
+  * BREAKING Changed: specify worker settings in Optimus config (#1054).
+    Now it is possible to define some worker specific settings in the autosell
+    bot config.
+    For example now we can specify epoch interval, where the bot scans
+    worker's resources and tries to sell them.
+  * Changed: bind ask plan storage key to market address (#1052).
+  * Changed: spot-only orders for Optimus (#1061).
+    Since now Optimus can sell only for spot deals, with zero duration.
+  * Fixed: unwrap error in puncher (#966).
+  * Fixed: sort GPU to prevent hash changes and re-benchmarking (#963).
+  * Fixed: Optimus should now properly cut minimum RAM (#972).
+    This fixes a bug where a minimum number of some criteria (for example) RAM
+    was too low than the minimum one by one. This is caused by loosing
+    precision while converting to float64 and vice-versa - fixed by ceiling
+    the result.
+    Also found and fixed a bug which caused the Optimus to over-cut celling
+    plans, because of invalid math - I used current benchmarks for calculating
+    relational criteria, while lower bounds are calculated against total
+    devices. Now we use initial benchmarks for this case.
+  * Fixed: ceil everything in Optimus (#974).
+    This applies previous changes to every other data consumer in the autosell
+    bot, so it prevents losing precision while conversing
+    from uint64 -> float -> uint64 while doing math.
+  * Fixed: fix and refactor netflags (#962).
+    This removes odd bool slices conversions in the netflags providing common
+    interface to simple uint64.
+  * Fixed: update deal after DealChangeRequestAccepted in DWH.
+  * Fixed: rework all arithmetic to safe (#979).
+    A common protection from overflow.
+  * Fixed: log master addr as string, not bytes (#982).
+  * Fixed: remove finished benchmark containers from Overseer (#981).
+  * Fixed: update deals constantly to prevent caching stale data (#983).
+  * Fixed: proper cli login behaviour (#992).
+    This fixes two bugs: now we do not mark the key as default if there is
+    only one key is present into keystore.
+    Also now `sonmcli login` asking for pass-phrase, then trying to decrypt key
+    and mark it as default only if decryption was successful.
+  * Fixed: incorrect refund when deal closes in Bill transaction (#991).
+  * Fixed: autosell bot should now properly list cut ask plans (#999).
+  * Fixed: store certificate id in DWH (#1001).
+  * Fixed: allow to search zero benchmarks in DWH (#995).
+  * Fixed: possible segfault while checking netflags for converse implication.
+  * Fixed: proper image load (#1016).
+    This fixes `sonmcli tasks push` handle, by using the proper Docker
+    method (Push instead of Import, which respects multiple layers as the
+    opposite command `docker save` produces).
+    Note that this is a BREAKING change. The CLI must be updated.
+  * Fixed: do not spool existing images (#1017).
+    This fixes a bug when it's impossible to start a previously pushed image
+    without it being in the Docker Registry.
+  * Fixed: do not spam warnings when no rendezvous specified (#1005).
+    This should remove weird warnings like: `failed to construct a puncher {"error": "failed to connect to []"}`.
+  * Fixed: list all images, remove excessive logging (#1018).
+    There is a situation when you push 2 images one based on another. In this
+    case, docker will count the first one as intermediate image and does not
+    include in the listing, this fixes this behavior.
+  * Fixed: properly load sigmoid settings from the config in autosell bot (#1025).
+  * Fixed: proper sigmoid implementation (#1026).
+    Autosell bot should no longer fall into millions of NaNs after calculating
+    relative order weights.
+  * Fixed: do not null order created timestamp (#1027).
+    When DWH was young it was unable to return properly created timestamp, we
+    inited it ourselves.
+    Now times change, but those empty initialization was forgotten and cause
+    strange autosell bot behaviour.
+    This removes such initialization.
+  * Fixed: notify consumer about the worker availability (#1028).
+  * Fixed: make relay IPv6 ready (not really) (#1033).
+    In case of being run on IPv6 it improperly answers to a discover request
+    with address not surrounded with braces.
+  * Fixed: get task list only for consumer's deals (#1024).
+    We have a situation when `sonmcli task list` is called from the supplier (or master) key.
+    At first, to obtain tasks a client needs to load their active deals.
+    And then query a tasks list for each deal. So if you a supplier,
+    you cannot receive the list by the deal because of ACLs is applied.
+    This PR fixes this case by checking that you're a consumer for active deals,
+    otherwise, a client will not use that deal for querying tasks.
+  * Fixed: optimus should now track incoming network (#1053).
+    Previously autosell bot could match more than a single order with incoming
+    network required. Because we do not allow such behaviour it led to
+    multiple errors while trying to create sell plans.
+    This change explicitly disables incoming network after a first matching
+    orders found.
+  * Fixed: invalid netflag filtering in Optimus (#1064).
+    Now Optimus will check for netflags inclusion using free devices instead of
+    just devices.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 20 Jun 2018 13:52:42 +0300
+
 sonm-core (0.4.0-alpha3) unstable; urgency=low
 
   * Added: quick buy with duration (#957).

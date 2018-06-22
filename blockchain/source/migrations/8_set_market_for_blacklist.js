@@ -10,6 +10,8 @@ module.exports = function (deployer, network) {
             .catch(function (err) {
                 console.log(err);
             });
+    } else if (network === 'rinkeby') {
+        // blacklist haven't reason to deploy to rinkeby
     } else {
         Blacklist.deployed()
             .then(function (blacklist) {

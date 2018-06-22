@@ -7,7 +7,10 @@ let privateKey = 'a0000000000000000000000000000000000000000000000000000000000000
 if (process.env.PRV_KEY !== undefined) {
     privateKey = process.env.PRV_KEY;
 }
-let privateEndpoint = 'https://sidechain-dev.sonm.com';
+let masterchainEndpoint = 'https://mainnet.infura.io/';
+let rinkebyEndpoint = 'https://rinkeby.infura.io/';
+let sidechainEndpoint = 'https://sidechain.sonm.com';
+let sidechainDevEndpoint = 'https://sidechain-dev.sonm.com';
 
 let mochaConfig = {};
 if (process.env.BUILD_TYPE === 'CI') {
@@ -26,11 +29,6 @@ module.exports = {
             port: 8535,
             network_id: '*', // eslint-disable-line camelcase
         },
-        rinkeby: {
-            host: 'localhost',
-            port: 8545,
-            network_id: '4', // eslint-disable-line camelcase
-        },
         coverage: {
             host: 'localhost',
             network_id: '*', // eslint-disable-line camelcase
@@ -38,8 +36,22 @@ module.exports = {
             gas: 0xfffffffffff,
             gasPrice: 0x01,
         },
+
+        master: {
+            provider: () => new PrivateKeyProvider(privateKey, masterchainEndpoint),
+            network_id: '1', // eslint-disable-line camelcase
+        },
+        rinkeby: {
+            provider: () => new PrivateKeyProvider(privateKey, rinkebyEndpoint),
+            network_id: '4', // eslint-disable-line camelcase
+        },
+
+        privateLive: {
+            provider: () => new PrivateKeyProvider(privateKey, sidechainEndpoint),
+            network_id: '444', // eslint-disable-line camelcase
+        },
         private: {
-            provider: () => new PrivateKeyProvider(privateKey, privateEndpoint),
+            provider: () => new PrivateKeyProvider(privateKey, sidechainDevEndpoint),
             network_id: '444', // eslint-disable-line camelcase
         },
     },

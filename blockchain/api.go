@@ -18,6 +18,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	txRetryTimes     = 20
+	txRetryDelayTime = 100 * time.Millisecond
+)
+
 type API interface {
 	ProfileRegistry() ProfileRegistryAPI
 	Events() EventsAPI
@@ -288,6 +293,28 @@ func NewBasicMarket(address common.Address, token TokenAPI, opts *chainOpts) (Ma
 	}, nil
 }
 
+func txRetryWrapper(fn func() (*types.Transaction, error)) (*types.Transaction, error) {
+	var err error
+	var tx *types.Transaction
+
+	for i := 0; i < txRetryTimes; i++ {
+		tx, err = fn()
+
+		if err == nil {
+			break
+		} else {
+			if err.Error() != "replacement transaction underpriced" &&
+				err.Error() != "nonce too low" {
+				break
+			} else {
+				time.Sleep(txRetryDelayTime)
+			}
+		}
+	}
+
+	return tx, err
+}
+
 func (api *BasicMarketAPI) checkAllowance(ctx context.Context, key *ecdsa.PrivateKey) error {
 	maxAllowance := big.NewInt(1)
 	maxAllowance = maxAllowance.Lsh(maxAllowance, 256)
@@ -320,7 +347,9 @@ func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, 
 
 func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) (*pb.Deal, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.marketContract.OpenDeal(opts, askID, bidID)
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+		return api.marketContract.OpenDeal(opts, askID, bidID)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -347,7 +376,9 @@ func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey,
 		return err
 	}
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.marketContract.CloseDeal(opts, dealID, uint8(blacklistType))
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+		return api.marketContract.CloseDeal(opts, dealID, uint8(blacklistType))
+	})
 	if err != nil {
 		return err
 	}
@@ -416,17 +447,18 @@ func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey
 	var fixedTag [32]byte
 	copy(fixedTag[:], order.Tag[:])
 
-	tx, err := api.marketContract.PlaceOrder(opts,
-		uint8(order.OrderType),
-		order.CounterpartyID.Unwrap(),
-		big.NewInt(int64(order.Duration)),
-		order.Price.Unwrap(),
-		order.Netflags.ToBoolSlice(),
-		uint8(order.IdentityLevel),
-		common.HexToAddress(order.Blacklist),
-		fixedTag,
-		order.GetBenchmarks().ToArray(),
-	)
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+		return api.marketContract.PlaceOrder(opts,
+			uint8(order.OrderType),
+			order.CounterpartyID.Unwrap(),
+			big.NewInt(int64(order.Duration)),
+			order.Price.Unwrap(),
+			order.Netflags.ToBoolSlice(),
+			uint8(order.IdentityLevel),
+			common.HexToAddress(order.Blacklist),
+			fixedTag,
+			order.GetBenchmarks().ToArray())
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -446,7 +478,9 @@ func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey
 
 func (api *BasicMarketAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.marketContract.CancelOrder(opts, id)
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+		return api.marketContract.CancelOrder(opts, id)
+	})
 	if err != nil {
 		return err
 	}
@@ -513,7 +547,9 @@ func (api *BasicMarketAPI) Bill(ctx context.Context, key *ecdsa.PrivateKey, deal
 		return err
 	}
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.marketContract.Bill(opts, dealID)
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+		return api.marketContract.Bill(opts, dealID)
+	})
 	if err != nil {
 		return err
 	}
@@ -527,7 +563,9 @@ func (api *BasicMarketAPI) Bill(ctx context.Context, key *ecdsa.PrivateKey, deal
 
 func (api *BasicMarketAPI) RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.marketContract.RegisterWorker(opts, master)
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+		return api.marketContract.RegisterWorker(opts, master)
+	})
 	if err != nil {
 		return err
 	}
@@ -541,7 +579,9 @@ func (api *BasicMarketAPI) RegisterWorker(ctx context.Context, key *ecdsa.Privat
 
 func (api *BasicMarketAPI) ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.marketContract.ConfirmWorker(opts, slave)
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+		return api.marketContract.ConfirmWorker(opts, slave)
+	})
 	if err != nil {
 		return err
 	}
@@ -555,7 +595,9 @@ func (api *BasicMarketAPI) ConfirmWorker(ctx context.Context, key *ecdsa.Private
 
 func (api *BasicMarketAPI) RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.marketContract.RemoveWorker(opts, master, slave)
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+		return api.marketContract.RemoveWorker(opts, master, slave)
+	})
 	if err != nil {
 		return err
 	}
@@ -593,7 +635,9 @@ func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.P
 	}
 	duration := big.NewInt(int64(req.GetDuration()))
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.marketContract.CreateChangeRequest(opts, req.GetDealID().Unwrap(), req.GetPrice().Unwrap(), duration)
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+		return api.marketContract.CreateChangeRequest(opts, req.GetDealID().Unwrap(), req.GetPrice().Unwrap(), duration)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -613,7 +657,9 @@ func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.P
 
 func (api *BasicMarketAPI) CancelChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.marketContract.CancelChangeRequest(opts, id)
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+		return api.marketContract.CancelChangeRequest(opts, id)
+	})
 	if err != nil {
 		return err
 	}
@@ -770,7 +816,9 @@ func (api *BasicBlacklistAPI) Add(ctx context.Context, key *ecdsa.PrivateKey, wh
 
 func (api *BasicBlacklistAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey, whom common.Address) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.blacklistContract.Remove(opts, whom)
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+		return api.blacklistContract.Remove(opts, whom)
+	})
 	if err != nil {
 		return err
 	}
