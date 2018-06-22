@@ -16,10 +16,10 @@ import (
 )
 
 // ProfileRegistryABI is the input ABI used to generate the binding from.
-const ProfileRegistryABI = "[{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"certificates\",\"outputs\":[{\"name\":\"from\",\"type\":\"address\"},{\"name\":\"to\",\"type\":\"address\"},{\"name\":\"attributeType\",\"type\":\"uint256\"},{\"name\":\"value\",\"type\":\"bytes\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"validators\",\"outputs\":[{\"name\":\"\",\"type\":\"int8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"validator\",\"type\":\"address\"}],\"name\":\"ValidatorCreated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"validator\",\"type\":\"address\"}],\"name\":\"ValidatorDeleted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"id\",\"type\":\"uint256\"}],\"name\":\"CertificateCreated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"id\",\"type\":\"uint256\"}],\"name\":\"CertificateUpdated\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_validator\",\"type\":\"address\"},{\"name\":\"_level\",\"type\":\"int8\"}],\"name\":\"AddValidator\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_validator\",\"type\":\"address\"}],\"name\":\"RemoveValidator\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_validator\",\"type\":\"address\"}],\"name\":\"GetValidatorLevel\",\"outputs\":[{\"name\":\"\",\"type\":\"int8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_type\",\"type\":\"uint256\"},{\"name\":\"_value\",\"type\":\"bytes\"}],\"name\":\"CreateCertificate\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_id\",\"type\":\"uint256\"}],\"name\":\"RemoveCertificate\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_id\",\"type\":\"uint256\"}],\"name\":\"GetCertificate\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bytes\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_type\",\"type\":\"uint256\"}],\"name\":\"GetAttributeValue\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_type\",\"type\":\"uint256\"}],\"name\":\"GetAttributeCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"GetProfileLevel\",\"outputs\":[{\"name\":\"\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"}]"
+const ProfileRegistryABI = "[{\"constant\":false,\"inputs\":[],\"name\":\"unpause\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"paused\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"name\":\"certificates\",\"outputs\":[{\"name\":\"from\",\"type\":\"address\"},{\"name\":\"to\",\"type\":\"address\"},{\"name\":\"attributeType\",\"type\":\"uint256\"},{\"name\":\"value\",\"type\":\"bytes\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[],\"name\":\"pause\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[],\"name\":\"owner\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"transferOwnership\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"\",\"type\":\"address\"}],\"name\":\"validators\",\"outputs\":[{\"name\":\"\",\"type\":\"int8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"inputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"constructor\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"validator\",\"type\":\"address\"}],\"name\":\"ValidatorCreated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"validator\",\"type\":\"address\"}],\"name\":\"ValidatorDeleted\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"id\",\"type\":\"uint256\"}],\"name\":\"CertificateCreated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"id\",\"type\":\"uint256\"}],\"name\":\"CertificateUpdated\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"Pause\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[],\"name\":\"Unpause\",\"type\":\"event\"},{\"anonymous\":false,\"inputs\":[{\"indexed\":true,\"name\":\"previousOwner\",\"type\":\"address\"},{\"indexed\":true,\"name\":\"newOwner\",\"type\":\"address\"}],\"name\":\"OwnershipTransferred\",\"type\":\"event\"},{\"constant\":false,\"inputs\":[{\"name\":\"_validator\",\"type\":\"address\"},{\"name\":\"_level\",\"type\":\"int8\"}],\"name\":\"AddValidator\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_validator\",\"type\":\"address\"}],\"name\":\"RemoveValidator\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_validator\",\"type\":\"address\"}],\"name\":\"GetValidatorLevel\",\"outputs\":[{\"name\":\"\",\"type\":\"int8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_type\",\"type\":\"uint256\"},{\"name\":\"_value\",\"type\":\"bytes\"}],\"name\":\"CreateCertificate\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_id\",\"type\":\"uint256\"}],\"name\":\"RemoveCertificate\",\"outputs\":[],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_id\",\"type\":\"uint256\"}],\"name\":\"GetCertificate\",\"outputs\":[{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"address\"},{\"name\":\"\",\"type\":\"uint256\"},{\"name\":\"\",\"type\":\"bytes\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_type\",\"type\":\"uint256\"}],\"name\":\"GetAttributeValue\",\"outputs\":[{\"name\":\"\",\"type\":\"bytes\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"},{\"name\":\"_type\",\"type\":\"uint256\"}],\"name\":\"GetAttributeCount\",\"outputs\":[{\"name\":\"\",\"type\":\"uint256\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":true,\"inputs\":[{\"name\":\"_owner\",\"type\":\"address\"}],\"name\":\"GetProfileLevel\",\"outputs\":[{\"name\":\"\",\"type\":\"uint8\"}],\"payable\":false,\"stateMutability\":\"view\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_validator\",\"type\":\"address\"}],\"name\":\"AddSonmValidator\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"},{\"constant\":false,\"inputs\":[{\"name\":\"_validator\",\"type\":\"address\"}],\"name\":\"RemoveSonmValidator\",\"outputs\":[{\"name\":\"\",\"type\":\"bool\"}],\"payable\":false,\"stateMutability\":\"nonpayable\",\"type\":\"function\"}]"
 
 // ProfileRegistryBin is the compiled bytecode used for deploying new contracts.
-const ProfileRegistryBin = `0x60806040526000805534801561001457600080fd5b50336000908152600160205260409020805460ff191660ff179055610ec58061003e6000396000f3006080604052600436106100ad5763ffffffff7c010000000000000000000000000000000000000000000000000000000060003504166274fc3981146100b25780631af60f721461014b57806323eee3e6146101885780632eb4b2a5146101cd5780633e34e129146101e75780636209a633146102b0578063663b3e22146102e65780638997d27a146102fe57806393d7674214610338578063e7bcef44146103a1578063fa52c7d8146103c8575b600080fd5b3480156100be57600080fd5b506100d6600160a060020a03600435166024356103e9565b6040805160208082528351818301528351919283929083019185019080838360005b838110156101105781810151838201526020016100f8565b50505050905090810190601f16801561013d5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b34801561015757600080fd5b5061016c600160a060020a036004351661049d565b60408051600160a060020a039092168252519081900360200190f35b34801561019457600080fd5b506101a9600160a060020a0360043516610520565b604051808260048111156101b957fe5b60ff16815260200191505060405180910390f35b3480156101d957600080fd5b506101e5600435610580565b005b3480156101f357600080fd5b506101ff600435610849565b6040518085600160a060020a0316600160a060020a0316815260200184600160a060020a0316600160a060020a0316815260200183815260200180602001828103825283818151815260200191508051906020019080838360005b8381101561027257818101518382015260200161025a565b50505050905090810190601f16801561029f5780820380516001836020036101000a031916815260200191505b509550505050505060405180910390f35b3480156102bc57600080fd5b506102d4600160a060020a036004351660243561091a565b60408051918252519081900360200190f35b3480156102f257600080fd5b506101ff600435610942565b34801561030a57600080fd5b5061031f600160a060020a0360043516610a01565b60408051600092830b90920b8252519081900360200190f35b34801561034457600080fd5b50604080516020600460443581810135601f81018490048402850184019095528484526101e5948235600160a060020a0316946024803595369594606494920191908190840183828082843750949750610a1e9650505050505050565b3480156103ad57600080fd5b5061016c600160a060020a036004351660243560000b610d2e565b3480156103d457600080fd5b5061031f600160a060020a0360043516610dc4565b600160a060020a038216600090815260036020908152604080832084845282529182902080548351601f60026000196101006001861615020190931692909204918201849004840281018401909452808452606093928301828280156104905780601f1061046557610100808354040283529160200191610490565b820191906000526020600020905b81548152906001019060200180831161047357829003601f168201915b5050505050905092915050565b60006104a833610a01565b60000b6000191415156104ba57600080fd5b60006104c583610a01565b60000b136104d257600080fd5b600160a060020a038216600081815260016020526040808220805460ff19169055517fa7a579573d398d7b67cd7450121bb250bbd060b29eabafdebc3ce0918658635c9190a250805b919050565b60008061052f836105796103e9565b51111561053e5750600461051b565b600061054c836105156103e9565b51111561055b5750600361051b565b6000610569836104b16103e9565b5111156105785750600261051b565b50600161051b565b610588610dd8565b60008281526002602081815260409283902083516080810185528154600160a060020a03908116825260018084015490911682850152828501548287015260038301805487516101009382161593909302600019011695909504601f8101859004850282018501909652858152909491936060860193919290918301828280156106535780601f1061062857610100808354040283529160200191610653565b820191906000526020600020905b81548152906001019060200180831161063657829003601f168201915b505050505081525050905033600160a060020a03168160200151600160a060020a0316148061068b57508051600160a060020a031633145b806106a2575061069a33610a01565b60000b600019145b15156106ad57600080fd5b604051606082015180517fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a4709290819060208401908083835b602083106107045780518252601f1990920191602091820191016106e5565b6001836020036101000a0380198251168184511680821785525050505050509050019150506040518091039020600019161415151561074257600080fd5b60208082018051600160a060020a03908116600090815260048085526040808320818801805185529087528184205486518616855283885282852082518652885282852060001990910190559451909316825284528181209251815291909252205415156107eb57604080516020818101808452600080845285830151600160a060020a031681526003835284812086860151825290925292902090516107e99290610dfe565b505b6040805160208181018084526000808452868152600290925292902090516108199260039092019190610dfe565b5060405182907f9a100d2018161ede6ca34c8007992b09bbffc636a636014a922e4c875041262890600090a25050565b60008181526002602081815260408084208054600180830154838701546003909401805486516101009482161594909402600019011697909704601f810187900487028301870190955284825287968796606096600160a060020a0395861696959093169493919283918301828280156109045780601f106108d957610100808354040283529160200191610904565b820191906000526020600020905b8154815290600101906020018083116108e757829003601f168201915b5050505050905093509350935093509193509193565b600160a060020a03919091166000908152600460209081526040808320938352929052205490565b60026020818152600092835260409283902080546001808301548386015460038501805489516101009582161595909502600019011697909704601f8101879004870284018701909852878352600160a060020a039384169793909116959094919290918301828280156109f75780601f106109cc576101008083540402835291602001916109f7565b820191906000526020600020905b8154815290600101906020018083116109da57829003601f168201915b5050505050905084565b600160a060020a0316600090815260016020526040812054900b90565b60008061044c8410610a5557600a60648504069150610a3c33610a01565b60000b8260000b13151515610a5057600080fd5b610a6a565b600160a060020a0385163314610a6a57600080fd5b60405183517fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470918591819060208401908083835b60208310610abd5780518252601f199092019160209182019101610a9e565b6001836020036101000a03801982511681845116808217855250505050505090500191505060405180910390206000191614151515610afb57600080fd5b5060026103e884041480610c4157600160a060020a03851660009081526004602090815260408083208784529091529020541515610b6a57600160a060020a038516600090815260036020908152604080832087845282529091208451610b6492860190610dfe565b50610c41565b826040518082805190602001908083835b60208310610b9a5780518252601f199092019160209182019101610b7b565b6001836020036101000a038019825116818451168082178552505050505050905001915050604051809103902060001916610bd586866103e9565b6040518082805190602001908083835b60208310610c045780518252601f199092019160209182019101610be5565b6001836020036101000a038019825116818451168082178552505050505050905001915050604051809103902060001916141515610c4157600080fd5b600160a060020a0380861660008181526004602090815260408083208984528252808320805460019081019091558354810180855582516080810184523381528085019687528084018c8152606082018c815292875260028087529490962081518154908a1673ffffffffffffffffffffffffffffffffffffffff1991821617825597519381018054949099169390971692909217909655925190840155925180519193610cf792600385019290910190610dfe565b5050600080546040519092507fb9bb1df26fde5c1295a7ccd167330e5d6cb9df14fe4c3884669a64433cc9e7609190a25050505050565b6000610d3933610a01565b60000b600019141515610d4b57600080fd5b600082810b13610d5a57600080fd5b610d6383610a01565b60000b15610d7057600080fd5b600160a060020a038316600081815260016020526040808220805460ff191660ff87850b16179055517f02db26aafd16e8ecd93c4fa202917d50b1693f30b1594e57f7a432ede944eefc9190a25090919050565b600160205260009081526040812054900b81565b604080516080810182526000808252602082018190529181019190915260608082015290565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f10610e3f57805160ff1916838001178555610e6c565b82800160010185558215610e6c579182015b82811115610e6c578251825591602001919060010190610e51565b50610e78929150610e7c565b5090565b610e9691905b80821115610e785760008155600101610e82565b905600a165627a7a72305820ecf8be9eac07b9a3ff5215935ea42936a9a973181dfdbdd207c7319c201fe9200029`
+const ProfileRegistryBin = `0x60806040526000805460a060020a60ff021916815560015534801561002357600080fd5b5060008054600160a060020a031990811633908117909116811782558152600260205260409020805460ff191660ff179055611279806100646000396000f3006080604052600436106100f95763ffffffff7c0100000000000000000000000000000000000000000000000000000000600035041662707c7581146100fe57806274fc39146101335780630553701a146101cc5780631af60f72146101ed57806323eee3e61461022a5780632eb4b2a51461026f5780633e34e129146102895780633f4ba83a146103525780635c975abb146103675780636209a6331461037c578063663b3e22146103b25780638456cb59146103ca5780638997d27a146103df5780638da5cb5b1461041957806393d767421461042e578063e7bcef4414610497578063f2fde38b146104be578063fa52c7d8146104df575b600080fd5b34801561010a57600080fd5b5061011f600160a060020a0360043516610500565b604080519115158252519081900360200190f35b34801561013f57600080fd5b50610157600160a060020a0360043516602435610544565b6040805160208082528351818301528351919283929083019185019080838360005b83811015610191578181015183820152602001610179565b50505050905090810190601f1680156101be5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b3480156101d857600080fd5b5061011f600160a060020a03600435166105f8565b3480156101f957600080fd5b5061020e600160a060020a0360043516610650565b60408051600160a060020a039092168252519081900360200190f35b34801561023657600080fd5b5061024b600160a060020a03600435166106e6565b6040518082600481111561025b57fe5b60ff16815260200191505060405180910390f35b34801561027b57600080fd5b50610287600435610746565b005b34801561029557600080fd5b506102a1600435610a28565b6040518085600160a060020a0316600160a060020a0316815260200184600160a060020a0316600160a060020a0316815260200183815260200180602001828103825283818151815260200191508051906020019080838360005b838110156103145781810151838201526020016102fc565b50505050905090810190601f1680156103415780820380516001836020036101000a031916815260200191505b509550505050505060405180910390f35b34801561035e57600080fd5b50610287610afa565b34801561037357600080fd5b5061011f610b70565b34801561038857600080fd5b506103a0600160a060020a0360043516602435610b80565b60408051918252519081900360200190f35b3480156103be57600080fd5b506102a1600435610ba8565b3480156103d657600080fd5b50610287610c67565b3480156103eb57600080fd5b50610400600160a060020a0360043516610ce2565b60408051600092830b90920b8252519081900360200190f35b34801561042557600080fd5b5061020e610cff565b34801561043a57600080fd5b50604080516020600460443581810135601f8101849004840285018401909552848452610287948235600160a060020a0316946024803595369594606494920191908190840183828082843750949750610d0e9650505050505050565b3480156104a357600080fd5b5061020e600160a060020a036004351660243560000b611037565b3480156104ca57600080fd5b50610287600160a060020a03600435166110e4565b3480156104eb57600080fd5b50610400600160a060020a0360043516611178565b60008054600160a060020a0316331461051857600080fd5b50600160a060020a0381166000908152600260205260409020805460ff191660ff17905560015b919050565b600160a060020a038216600090815260046020908152604080832084845282529182902080548351601f60026000196101006001861615020190931692909204918201849004840281018401909452808452606093928301828280156105eb5780601f106105c0576101008083540402835291602001916105eb565b820191906000526020600020905b8154815290600101906020018083116105ce57829003601f168201915b5050505050905092915050565b60008054600160a060020a0316331461061057600080fd5b61061982610ce2565b60000b60001914151561062b57600080fd5b50600160a060020a03166000908152600260205260409020805460ff19169055600190565b600061065b33610ce2565b60000b60001914151561066d57600080fd5b60005460a060020a900460ff161561068457600080fd5b600061068f83610ce2565b60000b1361069c57600080fd5b600160a060020a038216600081815260026020526040808220805460ff19169055517fa7a579573d398d7b67cd7450121bb250bbd060b29eabafdebc3ce0918658635c9190a25090565b6000806106f583610579610544565b5111156107045750600461053f565b600061071283610515610544565b5111156107215750600361053f565b600061072f836104b1610544565b51111561073e5750600261053f565b50600161053f565b61074e61118c565b60005460a060020a900460ff161561076557600080fd5b60008281526003602081815260409283902083516080810185528154600160a060020a0390811682526001808401549091168285015260028084015483880152948301805487516101009382161593909302600019011695909504601f8101859004850282018501909652858152909491936060860193919290918301828280156108315780601f1061080657610100808354040283529160200191610831565b820191906000526020600020905b81548152906001019060200180831161081457829003601f168201915b505050505081525050905033600160a060020a03168160200151600160a060020a0316148061086957508051600160a060020a031633145b80610880575061087833610ce2565b60000b600019145b151561088b57600080fd5b604051606082015180517fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a4709290819060208401908083835b602083106108e25780518252601f1990920191602091820191016108c3565b6001836020036101000a0380198251168184511680821785525050505050509050019150506040518091039020600019161415151561092057600080fd5b60208082018051600160a060020a03908116600090815260058085526040808320818801805185529087528184205486518616855283885282852082518652885282852060001990910190559451909316825284528181209251815291909252205415156109c957604080516020818101808452600080845285830151600160a060020a031681526004835284812086860151825290925292902090516109c792906111b2565b505b60408051602081810180845260008084528681526003928390529390932091516109f8939290910191906111b2565b5060405182907f9a100d2018161ede6ca34c8007992b09bbffc636a636014a922e4c875041262890600090a25050565b6000818152600360208181526040808420805460018083015460028085015494909701805486516101009482161594909402600019011697909704601f810187900487028301870190955284825287968796606096600160a060020a039586169695909316949391928391830182828015610ae45780601f10610ab957610100808354040283529160200191610ae4565b820191906000526020600020905b815481529060010190602001808311610ac757829003601f168201915b5050505050905093509350935093509193509193565b600054600160a060020a03163314610b1157600080fd5b60005460a060020a900460ff161515610b2957600080fd5b6000805474ff0000000000000000000000000000000000000000191681556040517f7805862f689e2f13df9f062ff482ad3ad112aca9e0847911ed832e158c525b339190a1565b60005460a060020a900460ff1681565b600160a060020a03919091166000908152600560209081526040808320938352929052205490565b6003602081815260009283526040928390208054600180830154600280850154968501805489516101009582161595909502600019011691909104601f8101879004870284018701909852878352600160a060020a039384169793909116959491929091830182828015610c5d5780601f10610c3257610100808354040283529160200191610c5d565b820191906000526020600020905b815481529060010190602001808311610c4057829003601f168201915b5050505050905084565b600054600160a060020a03163314610c7e57600080fd5b60005460a060020a900460ff1615610c9557600080fd5b6000805474ff0000000000000000000000000000000000000000191660a060020a1781556040517f6985a02210a168e66602d3235cb6db0e70f92b3ba4d376a33c0f3d9434bff6259190a1565b600160a060020a0316600090815260026020526040812054900b90565b600054600160a060020a031681565b60008054819060a060020a900460ff1615610d2857600080fd5b61044c8410610d5c57600a60648504069150610d4333610ce2565b60000b8260000b13151515610d5757600080fd5b610d71565b600160a060020a0385163314610d7157600080fd5b60405183517fc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470918591819060208401908083835b60208310610dc45780518252601f199092019160209182019101610da5565b6001836020036101000a03801982511681845116808217855250505050505090500191505060405180910390206000191614151515610e0257600080fd5b5060026103e884041480610f4857600160a060020a03851660009081526005602090815260408083208784529091529020541515610e7157600160a060020a038516600090815260046020908152604080832087845282529091208451610e6b928601906111b2565b50610f48565b826040518082805190602001908083835b60208310610ea15780518252601f199092019160209182019101610e82565b6001836020036101000a038019825116818451168082178552505050505050905001915050604051809103902060001916610edc8686610544565b6040518082805190602001908083835b60208310610f0b5780518252601f199092019160209182019101610eec565b6001836020036101000a038019825116818451168082178552505050505050905001915050604051809103902060001916141515610f4857600080fd5b600160a060020a0380861660008181526005602090815260408083208984528252808320805460019081019091558054810180825582516080810184523381528085019687528084018c8152606082018c815292875260038087529490962081518154908a1673ffffffffffffffffffffffffffffffffffffffff199182161782559751938101805494909916939097169290921790965592516002850155935180519294610fff939085019291909101906111b2565b50506001546040519091507fb9bb1df26fde5c1295a7ccd167330e5d6cb9df14fe4c3884669a64433cc9e76090600090a25050505050565b600061104233610ce2565b60000b60001914151561105457600080fd5b60005460a060020a900460ff161561106b57600080fd5b600082810b1361107a57600080fd5b61108383610ce2565b60000b1561109057600080fd5b600160a060020a038316600081815260026020526040808220805460ff191660ff87850b16179055517f02db26aafd16e8ecd93c4fa202917d50b1693f30b1594e57f7a432ede944eefc9190a25090919050565b600054600160a060020a031633146110fb57600080fd5b600160a060020a038116151561111057600080fd5b60008054604051600160a060020a03808516939216917f8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e091a36000805473ffffffffffffffffffffffffffffffffffffffff1916600160a060020a0392909216919091179055565b600260205260009081526040812054900b81565b604080516080810182526000808252602082018190529181019190915260608082015290565b828054600181600116156101000203166002900490600052602060002090601f016020900481019282601f106111f357805160ff1916838001178555611220565b82800160010185558215611220579182015b82811115611220578251825591602001919060010190611205565b5061122c929150611230565b5090565b61124a91905b8082111561122c5760008155600101611236565b905600a165627a7a723058201f9d51d003f50ce98384c72e40cbf6d715ca7a9c66fe072819edfc2b251b77690029`
 
 // DeployProfileRegistry deploys a new Ethereum contract, binding an instance of ProfileRegistry to it.
 func DeployProfileRegistry(auth *bind.TransactOpts, backend bind.ContractBackend) (common.Address, *types.Transaction, *ProfileRegistry, error) {
@@ -358,6 +358,58 @@ func (_ProfileRegistry *ProfileRegistryCallerSession) Certificates(arg0 *big.Int
 	return _ProfileRegistry.Contract.Certificates(&_ProfileRegistry.CallOpts, arg0)
 }
 
+// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
+//
+// Solidity: function owner() constant returns(address)
+func (_ProfileRegistry *ProfileRegistryCaller) Owner(opts *bind.CallOpts) (common.Address, error) {
+	var (
+		ret0 = new(common.Address)
+	)
+	out := ret0
+	err := _ProfileRegistry.contract.Call(opts, out, "owner")
+	return *ret0, err
+}
+
+// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
+//
+// Solidity: function owner() constant returns(address)
+func (_ProfileRegistry *ProfileRegistrySession) Owner() (common.Address, error) {
+	return _ProfileRegistry.Contract.Owner(&_ProfileRegistry.CallOpts)
+}
+
+// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
+//
+// Solidity: function owner() constant returns(address)
+func (_ProfileRegistry *ProfileRegistryCallerSession) Owner() (common.Address, error) {
+	return _ProfileRegistry.Contract.Owner(&_ProfileRegistry.CallOpts)
+}
+
+// Paused is a free data retrieval call binding the contract method 0x5c975abb.
+//
+// Solidity: function paused() constant returns(bool)
+func (_ProfileRegistry *ProfileRegistryCaller) Paused(opts *bind.CallOpts) (bool, error) {
+	var (
+		ret0 = new(bool)
+	)
+	out := ret0
+	err := _ProfileRegistry.contract.Call(opts, out, "paused")
+	return *ret0, err
+}
+
+// Paused is a free data retrieval call binding the contract method 0x5c975abb.
+//
+// Solidity: function paused() constant returns(bool)
+func (_ProfileRegistry *ProfileRegistrySession) Paused() (bool, error) {
+	return _ProfileRegistry.Contract.Paused(&_ProfileRegistry.CallOpts)
+}
+
+// Paused is a free data retrieval call binding the contract method 0x5c975abb.
+//
+// Solidity: function paused() constant returns(bool)
+func (_ProfileRegistry *ProfileRegistryCallerSession) Paused() (bool, error) {
+	return _ProfileRegistry.Contract.Paused(&_ProfileRegistry.CallOpts)
+}
+
 // Validators is a free data retrieval call binding the contract method 0xfa52c7d8.
 //
 // Solidity: function validators( address) constant returns(int8)
@@ -382,6 +434,27 @@ func (_ProfileRegistry *ProfileRegistrySession) Validators(arg0 common.Address) 
 // Solidity: function validators( address) constant returns(int8)
 func (_ProfileRegistry *ProfileRegistryCallerSession) Validators(arg0 common.Address) (int8, error) {
 	return _ProfileRegistry.Contract.Validators(&_ProfileRegistry.CallOpts, arg0)
+}
+
+// AddSonmValidator is a paid mutator transaction binding the contract method 0x00707c75.
+//
+// Solidity: function AddSonmValidator(_validator address) returns(bool)
+func (_ProfileRegistry *ProfileRegistryTransactor) AddSonmValidator(opts *bind.TransactOpts, _validator common.Address) (*types.Transaction, error) {
+	return _ProfileRegistry.contract.Transact(opts, "AddSonmValidator", _validator)
+}
+
+// AddSonmValidator is a paid mutator transaction binding the contract method 0x00707c75.
+//
+// Solidity: function AddSonmValidator(_validator address) returns(bool)
+func (_ProfileRegistry *ProfileRegistrySession) AddSonmValidator(_validator common.Address) (*types.Transaction, error) {
+	return _ProfileRegistry.Contract.AddSonmValidator(&_ProfileRegistry.TransactOpts, _validator)
+}
+
+// AddSonmValidator is a paid mutator transaction binding the contract method 0x00707c75.
+//
+// Solidity: function AddSonmValidator(_validator address) returns(bool)
+func (_ProfileRegistry *ProfileRegistryTransactorSession) AddSonmValidator(_validator common.Address) (*types.Transaction, error) {
+	return _ProfileRegistry.Contract.AddSonmValidator(&_ProfileRegistry.TransactOpts, _validator)
 }
 
 // AddValidator is a paid mutator transaction binding the contract method 0xe7bcef44.
@@ -447,6 +520,27 @@ func (_ProfileRegistry *ProfileRegistryTransactorSession) RemoveCertificate(_id 
 	return _ProfileRegistry.Contract.RemoveCertificate(&_ProfileRegistry.TransactOpts, _id)
 }
 
+// RemoveSonmValidator is a paid mutator transaction binding the contract method 0x0553701a.
+//
+// Solidity: function RemoveSonmValidator(_validator address) returns(bool)
+func (_ProfileRegistry *ProfileRegistryTransactor) RemoveSonmValidator(opts *bind.TransactOpts, _validator common.Address) (*types.Transaction, error) {
+	return _ProfileRegistry.contract.Transact(opts, "RemoveSonmValidator", _validator)
+}
+
+// RemoveSonmValidator is a paid mutator transaction binding the contract method 0x0553701a.
+//
+// Solidity: function RemoveSonmValidator(_validator address) returns(bool)
+func (_ProfileRegistry *ProfileRegistrySession) RemoveSonmValidator(_validator common.Address) (*types.Transaction, error) {
+	return _ProfileRegistry.Contract.RemoveSonmValidator(&_ProfileRegistry.TransactOpts, _validator)
+}
+
+// RemoveSonmValidator is a paid mutator transaction binding the contract method 0x0553701a.
+//
+// Solidity: function RemoveSonmValidator(_validator address) returns(bool)
+func (_ProfileRegistry *ProfileRegistryTransactorSession) RemoveSonmValidator(_validator common.Address) (*types.Transaction, error) {
+	return _ProfileRegistry.Contract.RemoveSonmValidator(&_ProfileRegistry.TransactOpts, _validator)
+}
+
 // RemoveValidator is a paid mutator transaction binding the contract method 0x1af60f72.
 //
 // Solidity: function RemoveValidator(_validator address) returns(address)
@@ -466,6 +560,69 @@ func (_ProfileRegistry *ProfileRegistrySession) RemoveValidator(_validator commo
 // Solidity: function RemoveValidator(_validator address) returns(address)
 func (_ProfileRegistry *ProfileRegistryTransactorSession) RemoveValidator(_validator common.Address) (*types.Transaction, error) {
 	return _ProfileRegistry.Contract.RemoveValidator(&_ProfileRegistry.TransactOpts, _validator)
+}
+
+// Pause is a paid mutator transaction binding the contract method 0x8456cb59.
+//
+// Solidity: function pause() returns()
+func (_ProfileRegistry *ProfileRegistryTransactor) Pause(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _ProfileRegistry.contract.Transact(opts, "pause")
+}
+
+// Pause is a paid mutator transaction binding the contract method 0x8456cb59.
+//
+// Solidity: function pause() returns()
+func (_ProfileRegistry *ProfileRegistrySession) Pause() (*types.Transaction, error) {
+	return _ProfileRegistry.Contract.Pause(&_ProfileRegistry.TransactOpts)
+}
+
+// Pause is a paid mutator transaction binding the contract method 0x8456cb59.
+//
+// Solidity: function pause() returns()
+func (_ProfileRegistry *ProfileRegistryTransactorSession) Pause() (*types.Transaction, error) {
+	return _ProfileRegistry.Contract.Pause(&_ProfileRegistry.TransactOpts)
+}
+
+// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+//
+// Solidity: function transferOwnership(newOwner address) returns()
+func (_ProfileRegistry *ProfileRegistryTransactor) TransferOwnership(opts *bind.TransactOpts, newOwner common.Address) (*types.Transaction, error) {
+	return _ProfileRegistry.contract.Transact(opts, "transferOwnership", newOwner)
+}
+
+// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+//
+// Solidity: function transferOwnership(newOwner address) returns()
+func (_ProfileRegistry *ProfileRegistrySession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
+	return _ProfileRegistry.Contract.TransferOwnership(&_ProfileRegistry.TransactOpts, newOwner)
+}
+
+// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+//
+// Solidity: function transferOwnership(newOwner address) returns()
+func (_ProfileRegistry *ProfileRegistryTransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
+	return _ProfileRegistry.Contract.TransferOwnership(&_ProfileRegistry.TransactOpts, newOwner)
+}
+
+// Unpause is a paid mutator transaction binding the contract method 0x3f4ba83a.
+//
+// Solidity: function unpause() returns()
+func (_ProfileRegistry *ProfileRegistryTransactor) Unpause(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _ProfileRegistry.contract.Transact(opts, "unpause")
+}
+
+// Unpause is a paid mutator transaction binding the contract method 0x3f4ba83a.
+//
+// Solidity: function unpause() returns()
+func (_ProfileRegistry *ProfileRegistrySession) Unpause() (*types.Transaction, error) {
+	return _ProfileRegistry.Contract.Unpause(&_ProfileRegistry.TransactOpts)
+}
+
+// Unpause is a paid mutator transaction binding the contract method 0x3f4ba83a.
+//
+// Solidity: function unpause() returns()
+func (_ProfileRegistry *ProfileRegistryTransactorSession) Unpause() (*types.Transaction, error) {
+	return _ProfileRegistry.Contract.Unpause(&_ProfileRegistry.TransactOpts)
 }
 
 // ProfileRegistryCertificateCreatedIterator is returned from FilterCertificateCreated and is used to iterate over the raw logs and unpacked data for CertificateCreated events raised by the ProfileRegistry contract.
@@ -712,6 +869,389 @@ func (_ProfileRegistry *ProfileRegistryFilterer) WatchCertificateUpdated(opts *b
 				// New log arrived, parse the event and forward to the user
 				event := new(ProfileRegistryCertificateUpdated)
 				if err := _ProfileRegistry.contract.UnpackLog(event, "CertificateUpdated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ProfileRegistryOwnershipTransferredIterator is returned from FilterOwnershipTransferred and is used to iterate over the raw logs and unpacked data for OwnershipTransferred events raised by the ProfileRegistry contract.
+type ProfileRegistryOwnershipTransferredIterator struct {
+	Event *ProfileRegistryOwnershipTransferred // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ProfileRegistryOwnershipTransferredIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ProfileRegistryOwnershipTransferred)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ProfileRegistryOwnershipTransferred)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ProfileRegistryOwnershipTransferredIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ProfileRegistryOwnershipTransferredIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ProfileRegistryOwnershipTransferred represents a OwnershipTransferred event raised by the ProfileRegistry contract.
+type ProfileRegistryOwnershipTransferred struct {
+	PreviousOwner common.Address
+	NewOwner      common.Address
+	Raw           types.Log // Blockchain specific contextual infos
+}
+
+// FilterOwnershipTransferred is a free log retrieval operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
+//
+// Solidity: event OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
+func (_ProfileRegistry *ProfileRegistryFilterer) FilterOwnershipTransferred(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*ProfileRegistryOwnershipTransferredIterator, error) {
+
+	var previousOwnerRule []interface{}
+	for _, previousOwnerItem := range previousOwner {
+		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
+	}
+	var newOwnerRule []interface{}
+	for _, newOwnerItem := range newOwner {
+		newOwnerRule = append(newOwnerRule, newOwnerItem)
+	}
+
+	logs, sub, err := _ProfileRegistry.contract.FilterLogs(opts, "OwnershipTransferred", previousOwnerRule, newOwnerRule)
+	if err != nil {
+		return nil, err
+	}
+	return &ProfileRegistryOwnershipTransferredIterator{contract: _ProfileRegistry.contract, event: "OwnershipTransferred", logs: logs, sub: sub}, nil
+}
+
+// WatchOwnershipTransferred is a free log subscription operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
+//
+// Solidity: event OwnershipTransferred(previousOwner indexed address, newOwner indexed address)
+func (_ProfileRegistry *ProfileRegistryFilterer) WatchOwnershipTransferred(opts *bind.WatchOpts, sink chan<- *ProfileRegistryOwnershipTransferred, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
+
+	var previousOwnerRule []interface{}
+	for _, previousOwnerItem := range previousOwner {
+		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
+	}
+	var newOwnerRule []interface{}
+	for _, newOwnerItem := range newOwner {
+		newOwnerRule = append(newOwnerRule, newOwnerItem)
+	}
+
+	logs, sub, err := _ProfileRegistry.contract.WatchLogs(opts, "OwnershipTransferred", previousOwnerRule, newOwnerRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ProfileRegistryOwnershipTransferred)
+				if err := _ProfileRegistry.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ProfileRegistryPauseIterator is returned from FilterPause and is used to iterate over the raw logs and unpacked data for Pause events raised by the ProfileRegistry contract.
+type ProfileRegistryPauseIterator struct {
+	Event *ProfileRegistryPause // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ProfileRegistryPauseIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ProfileRegistryPause)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ProfileRegistryPause)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ProfileRegistryPauseIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ProfileRegistryPauseIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ProfileRegistryPause represents a Pause event raised by the ProfileRegistry contract.
+type ProfileRegistryPause struct {
+	Raw types.Log // Blockchain specific contextual infos
+}
+
+// FilterPause is a free log retrieval operation binding the contract event 0x6985a02210a168e66602d3235cb6db0e70f92b3ba4d376a33c0f3d9434bff625.
+//
+// Solidity: event Pause()
+func (_ProfileRegistry *ProfileRegistryFilterer) FilterPause(opts *bind.FilterOpts) (*ProfileRegistryPauseIterator, error) {
+
+	logs, sub, err := _ProfileRegistry.contract.FilterLogs(opts, "Pause")
+	if err != nil {
+		return nil, err
+	}
+	return &ProfileRegistryPauseIterator{contract: _ProfileRegistry.contract, event: "Pause", logs: logs, sub: sub}, nil
+}
+
+// WatchPause is a free log subscription operation binding the contract event 0x6985a02210a168e66602d3235cb6db0e70f92b3ba4d376a33c0f3d9434bff625.
+//
+// Solidity: event Pause()
+func (_ProfileRegistry *ProfileRegistryFilterer) WatchPause(opts *bind.WatchOpts, sink chan<- *ProfileRegistryPause) (event.Subscription, error) {
+
+	logs, sub, err := _ProfileRegistry.contract.WatchLogs(opts, "Pause")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ProfileRegistryPause)
+				if err := _ProfileRegistry.contract.UnpackLog(event, "Pause", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ProfileRegistryUnpauseIterator is returned from FilterUnpause and is used to iterate over the raw logs and unpacked data for Unpause events raised by the ProfileRegistry contract.
+type ProfileRegistryUnpauseIterator struct {
+	Event *ProfileRegistryUnpause // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *ProfileRegistryUnpauseIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(ProfileRegistryUnpause)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(ProfileRegistryUnpause)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *ProfileRegistryUnpauseIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *ProfileRegistryUnpauseIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// ProfileRegistryUnpause represents a Unpause event raised by the ProfileRegistry contract.
+type ProfileRegistryUnpause struct {
+	Raw types.Log // Blockchain specific contextual infos
+}
+
+// FilterUnpause is a free log retrieval operation binding the contract event 0x7805862f689e2f13df9f062ff482ad3ad112aca9e0847911ed832e158c525b33.
+//
+// Solidity: event Unpause()
+func (_ProfileRegistry *ProfileRegistryFilterer) FilterUnpause(opts *bind.FilterOpts) (*ProfileRegistryUnpauseIterator, error) {
+
+	logs, sub, err := _ProfileRegistry.contract.FilterLogs(opts, "Unpause")
+	if err != nil {
+		return nil, err
+	}
+	return &ProfileRegistryUnpauseIterator{contract: _ProfileRegistry.contract, event: "Unpause", logs: logs, sub: sub}, nil
+}
+
+// WatchUnpause is a free log subscription operation binding the contract event 0x7805862f689e2f13df9f062ff482ad3ad112aca9e0847911ed832e158c525b33.
+//
+// Solidity: event Unpause()
+func (_ProfileRegistry *ProfileRegistryFilterer) WatchUnpause(opts *bind.WatchOpts, sink chan<- *ProfileRegistryUnpause) (event.Subscription, error) {
+
+	logs, sub, err := _ProfileRegistry.contract.WatchLogs(opts, "Unpause")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(ProfileRegistryUnpause)
+				if err := _ProfileRegistry.contract.UnpackLog(event, "Unpause", log); err != nil {
 					return err
 				}
 				event.Raw = log

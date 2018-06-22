@@ -52,6 +52,11 @@ func main() {
 		return
 	}
 
+	if allowance.Cmp(price.Unwrap()) < 0 {
+		log.Fatalln("lack of allowance")
+		return
+	}
+
 	order := &sonm.Order{
 		OrderType:      sonm.OrderType_BID,
 		CounterpartyID: sonm.NewEthAddress(common.HexToAddress("0x0")),
