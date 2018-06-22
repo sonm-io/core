@@ -87,7 +87,7 @@ contract SimpleGatekeeperWithLimitLive is Ownable {
             emit CommitTx(_to, _txNumber, _value, block.timestamp);
         } else {
             require(paid[txHash].keeper == msg.sender);
-            require(paid[txHash].commitTS + 1 days >= block.timestamp);
+            require(paid[txHash].commitTS + 1 days <= block.timestamp);
             token.transfer(_to, _value);
             paid[txHash].paid = true;
             emit PayoutTx(_to, _txNumber, _value);

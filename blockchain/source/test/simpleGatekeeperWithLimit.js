@@ -1,4 +1,5 @@
 import assertRevert from './helpers/assertRevert';
+import increaseTime from './helpers/increaseTime';
 
 const SimpleGatekeeperWithLimit = artifacts.require('./SimpleGatekeeperWithLimit.sol');
 const SNM = artifacts.require('./SNM.sol');
@@ -109,6 +110,7 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
 
         it('should exec', async function () {
             await gatekeeper.Payout(user, testValue, 1, { from: highKeeper });
+            await increaseTime(86500);
             tx = await gatekeeper.Payout(user, testValue, 1, { from: highKeeper });
         });
 
