@@ -36,6 +36,7 @@ type API interface {
 	OracleUSD() OracleAPI
 	MasterchainGate() SimpleGatekeeperAPI
 	SidechainGate() SimpleGatekeeperAPI
+	OracleMultiSig() MultiSigAPI
 	ContractRegistry() ContractRegistry
 }
 
@@ -49,6 +50,7 @@ type ContractRegistry interface {
 	GatekeeperMasterchainAddress() common.Address
 	GatekeeperSidechainAddress() common.Address
 	TestnetFaucetAddress() common.Address
+	OracleUSDMultisig() common.Address
 }
 
 type ProfileRegistryAPI interface {
@@ -148,6 +150,10 @@ type OracleAPI interface {
 	PackSetCurrentPriceTransactionData(price *big.Int) ([]byte, error)
 	// UnpackSetCurrentPriceTransactionData unpack `SetCurrentPrice` method call
 	UnpackSetCurrentPriceTransactionData(data []byte) (*big.Int, error)
+	// GetOwner get owner address
+	GetOwner(ctx context.Context) (common.Address, error)
+	// SetOwner set owner address, owner can change oracle price
+	SetOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address) error
 }
 
 // SimpleGatekeeperAPI facade to interact with deposit/withdraw functions through gates
@@ -195,6 +201,7 @@ type BasicAPI struct {
 	oracle           OracleAPI
 	masterchainGate  SimpleGatekeeperAPI
 	sidechainGate    SimpleGatekeeperAPI
+	oracleMultiSig   MultiSigAPI
 }
 
 func NewAPI(ctx context.Context, opts ...Option) (API, error) {
@@ -317,6 +324,16 @@ func (api *BasicAPI) setupOracle(ctx context.Context) error {
 	return nil
 }
 
+func (api *BasicAPI) setupOracleMultisig(ctx context.Context) error {
+	multiSigAddr := api.contractRegistry.OracleUSDMultisig()
+	oracleMultiSig, err := NewMultiSigAPI(multiSigAddr, api.options.sidechain)
+	if err != nil {
+		return fmt.Errorf("failed to setup oracle: %s", err)
+	}
+	api.oracleMultiSig = oracleMultiSig
+	return nil
+}
+
 func (api *BasicAPI) setupMasterchainGate(ctx context.Context) error {
 	gatekeeperMasterchainAddr := api.contractRegistry.GatekeeperMasterchainAddress()
 	masterchainGate, err := NewSimpleGatekeeper(gatekeeperMasterchainAddr, api.options.masterchain)
@@ -367,6 +384,10 @@ func (api *BasicAPI) Events() EventsAPI {
 
 func (api *BasicAPI) OracleUSD() OracleAPI {
 	return api.oracle
+}
+
+func (api *BasicAPI) OracleMultiSig() MultiSigAPI {
+	return api.oracleMultiSig
 }
 
 func (api *BasicAPI) MasterchainGate() SimpleGatekeeperAPI {
@@ -492,6 +513,11 @@ func (m *BasicContractRegistry) GatekeeperSidechainAddress() common.Address {
 
 func (m *BasicContractRegistry) TestnetFaucetAddress() common.Address {
 	return m.testnetFaucetAddress
+}
+
+func (m *BasicContractRegistry) OracleUSDMultisig() common.Address {
+	// TODO: change this after write to address hash map
+	return common.HexToAddress("0x2c32b25bfebf37397eaf54aafae63898df134e02")
 }
 
 type BasicMarketAPI struct {
@@ -1651,6 +1677,24 @@ func NewOracleUSDAPI(address common.Address, opts *chainOpts) (OracleAPI, error)
 		opts:           opts,
 	}, nil
 
+}
+
+func (api *OracleUSDAPI) GetOwner(ctx context.Context) (common.Address, error) {
+	return api.oracleContract.Owner(getCallOptions(ctx))
+}
+
+func (api *OracleUSDAPI) SetOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.oracleContract.TransferOwnership(opts, owner)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, OwnershipTransferredTopic); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (api *OracleUSDAPI) SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error) {

@@ -1,0 +1,28 @@
+# Logging settings.
+log:
+  # The desired logging level.
+  # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
+  level: debug
+
+# Settings for Ethereum keys
+ethereum:
+  # path to keystore
+  key_store: "./keys/"
+  # passphrase for keystore
+  pass_phrase: "any"
+
+blockchain:
+  # endpoint: "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
+  # sidechain_endpoint: "https://sidechain-dev.sonm.com"
+
+oracle:
+  # In master mode this instance submitting price changing
+  # In slave mode this instance confirm changing
+  isMaster: true
+  # priceUpdatePeriod defines period to update snm/usd price in this oracle instance
+  #priceUpdatePeriod: "15s"
+  # contractUpdatePeriod defines period to update snm/usd price in oracle contract
+  #contractUpdatePeriod: "60s"
+  # Deviation percent define difference of deviation between actual price and confirming price
+  #deviationPercent: 1.0
+

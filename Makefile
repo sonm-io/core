@@ -46,6 +46,7 @@ RELAY      := ${TARGETDIR}/sonmrelay_$(OS_ARCH)
 OPTIMUS    := ${TARGETDIR}/sonmoptimus_$(OS_ARCH)
 LSGPU      := ${TARGETDIR}/lsgpu_$(OS_ARCH)
 PANDORA    := ${TARGETDIR}/pandora_$(OS_ARCH)
+ORACLE     := ${TARGETDIR}/oracle_$(OS_ARCH)
 
 TAGS = nocgo
 
@@ -107,9 +108,13 @@ build/optimus:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${OPTIMUS} ${GOCMD}/optimus
 
+build/oracle:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${ORACLE} ${GOCMD}/oracle
+
 build/insomnia: build/worker build/cli build/node
 
-build/aux: build/relay build/rv build/dwh build/pandora build/optimus
+build/aux: build/relay build/rv build/dwh build/pandora build/optimus build/oracle
 
 build: build/insomnia build/aux
 
