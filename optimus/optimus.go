@@ -255,7 +255,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 			}
 		}
 
-		if !devices.GetNetwork().GetNetFlags().ConverseImplication(order.Order.Order.GetNetflags()) {
+		if !freeDevices.GetNetwork().GetNetFlags().ConverseImplication(order.Order.Order.GetNetflags()) {
 			continue
 		}
 

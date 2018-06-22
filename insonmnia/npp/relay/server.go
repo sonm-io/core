@@ -497,6 +497,7 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		timer := time.NewTimer(m.waitTimeout)
 		defer timer.Stop()
 
+		m.continuum.Track(addr)
 		m.meetingRoom.PutServer(addr, id, conn, tx)
 
 		select {
