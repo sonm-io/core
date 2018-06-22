@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"errors"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -63,8 +65,10 @@ type ProfileRegistryAPI interface {
 }
 
 type EventsAPI interface {
-	GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error)
+	GetEvents(ctx context.Context, filter *EventFilter) (chan *Event, error)
 	GetLastBlock(ctx context.Context) (uint64, error)
+	GetMarketFilter(fromBlock *big.Int) *EventFilter
+	GetMultiSigFilter(addresses []common.Address, fromBlock *big.Int) *EventFilter
 }
 
 type MarketAPI interface {
@@ -140,6 +144,10 @@ type OracleAPI interface {
 	SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error)
 	// GetCurrentPrice returns current price relation between some currency and SONM token
 	GetCurrentPrice(ctx context.Context) (*big.Int, error)
+	// PackSetCurrentPriceTransactionData pack `SetCurrentPrice` method call
+	PackSetCurrentPriceTransactionData(price *big.Int) ([]byte, error)
+	// UnpackSetCurrentPriceTransactionData unpack `SetCurrentPrice` method call
+	UnpackSetCurrentPriceTransactionData(data []byte) (*big.Int, error)
 }
 
 // SimpleGatekeeperAPI facade to interact with deposit/withdraw functions through gates
@@ -154,6 +162,24 @@ type SimpleGatekeeperAPI interface {
 	// Kill calls contract to suicide, all ether and tokens funds transfer to owner.
 	// Accessible only by owner.
 	Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error)
+}
+
+type MultiSigAPI interface {
+	AddOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address) error
+	RemoveOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address) error
+	ReplaceOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address, newOwner common.Address) error
+	ChangeRequirement(ctx context.Context, key *ecdsa.PrivateKey, required *big.Int) error
+	SubmitTransaction(ctx context.Context, key *ecdsa.PrivateKey, destination common.Address, value *big.Int, data []byte) error
+	ConfirmTransaction(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error
+	RevokeConfirmation(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error
+	ExecuteTransaction(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error
+	IsConfirmed(ctx context.Context, transactionId *big.Int) (bool, error)
+	GetConfirmationCount(ctx context.Context, transactionID *big.Int) (*big.Int, error)
+	GetTransactionCount(ctx context.Context, penging bool, executed bool) (*big.Int, error)
+	GetOwners(ctx context.Context) ([]common.Address, error)
+	GetConfirmations(ctx context.Context, transactionID *big.Int) ([]common.Address, error)
+	GetTransactionIDs(ctx context.Context, from *big.Int, to *big.Int, pending bool, executed bool) ([]*big.Int, error)
+	GetTransaction(ctx context.Context, transactionID *big.Int) (*MultiSigTransactionData, error)
 }
 
 type BasicAPI struct {
@@ -1215,6 +1241,12 @@ type BasicEventsAPI struct {
 	logger *zap.Logger
 }
 
+type EventFilter struct {
+	topics    [][]common.Hash
+	addresses []common.Address
+	fromBlock *big.Int
+}
+
 func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger) (EventsAPI, error) {
 	client, err := opts.getClient()
 	if err != nil {
@@ -1228,19 +1260,7 @@ func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger) (EventsAPI, e
 	}, nil
 }
 
-func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
-	block, err := api.client.GetLastBlock(ctx)
-	if err != nil {
-		return 0, err
-	}
-	if block.IsUint64() {
-		return block.Uint64(), nil
-	} else {
-		return 0, errors.New("block number overflows uint64")
-	}
-}
-
-func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error) {
+func (api *BasicEventsAPI) GetMarketFilter(fromBlock *big.Int) *EventFilter {
 	var (
 		topics     [][]common.Hash
 		eventTopic = []common.Hash{
@@ -1262,14 +1282,64 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 			CertificateCreatedTopic,
 			NumBenchmarksUpdatedTopic,
 		}
-		out = make(chan *Event, 128)
 	)
 	topics = append(topics, eventTopic)
 
+	addresses := []common.Address{
+		api.parent.ContractRegistry().MarketAddress(),
+		api.parent.ContractRegistry().BlacklistAddress(),
+		api.parent.ContractRegistry().ProfileRegistryAddress(),
+	}
+
+	return &EventFilter{
+		fromBlock: fromBlock,
+		topics:    topics,
+		addresses: addresses,
+	}
+}
+
+func (api *BasicEventsAPI) GetMultiSigFilter(addresses []common.Address, fromBlock *big.Int) *EventFilter {
+	var (
+		topics     [][]common.Hash
+		eventTopic = []common.Hash{
+			ConfirmationTopic,
+			RevocationTopic,
+			SubmissionTopic,
+			ExecutionTopic,
+			ExecutionFailureTopic,
+			DepositTopic,
+			OwnerAdditionTopic,
+			OwnerRemovalTopic,
+			RequirementChangeTopic,
+		}
+	)
+	topics = append(topics, eventTopic)
+
+	return &EventFilter{
+		fromBlock: fromBlock,
+		topics:    topics,
+		addresses: addresses,
+	}
+}
+
+func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
+	block, err := api.client.GetLastBlock(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if block.IsUint64() {
+		return block.Uint64(), nil
+	} else {
+		return 0, errors.New("block number overflows uint64")
+	}
+}
+
+func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (chan *Event, error) {
+	var out = make(chan *Event, 128)
 	go func() {
 		var (
-			lastLogBlockNumber = fromBlockInitial.Uint64()
-			fromBlock          = fromBlockInitial.Uint64()
+			lastLogBlockNumber = filter.fromBlock.Uint64()
+			fromBlock          = filter.fromBlock.Uint64()
 			tk                 = time.NewTicker(time.Second)
 		)
 		for {
@@ -1279,13 +1349,9 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 				return
 			case <-tk.C:
 				logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
-					Topics:    topics,
+					Topics:    filter.topics,
 					FromBlock: big.NewInt(0).SetUint64(fromBlock),
-					Addresses: []common.Address{
-						api.parent.ContractRegistry().MarketAddress(),
-						api.parent.ContractRegistry().BlacklistAddress(),
-						api.parent.ContractRegistry().ProfileRegistryAddress(),
-					},
+					Addresses: filter.addresses,
 				})
 
 				if err != nil {
@@ -1495,6 +1561,65 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			return
 		}
 		sendData(&NumBenchmarksUpdatedData{NumBenchmarks: numBenchmarksBig.Uint64()})
+	case ConfirmationTopic:
+		sender, err := extractAddress(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		transactionId, err := extractBig(log.Topics, 2)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&ConfirmationData{Sender: sender, TransactionId: transactionId})
+	case RevocationTopic:
+		sender, err := extractAddress(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		transactionId, err := extractBig(log.Topics, 2)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&RevocationData{Sender: sender, TransactionId: transactionId})
+	case SubmissionTopic:
+		transactionId, err := extractBig(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&SubmissionData{TransactionId: transactionId})
+	case ExecutionTopic:
+		transactionId, err := extractBig(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&ExecutionData{TransactionId: transactionId})
+	case ExecutionFailureTopic:
+		transactionId, err := extractBig(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&ExecutionFailureData{TransactionId: transactionId})
+	case OwnerAdditionTopic:
+		sender, err := extractAddress(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&OwnerAdditionData{Owner: sender})
+	case OwnerRemovalTopic:
+		sender, err := extractAddress(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&OwnerAdditionData{Owner: sender})
 	default:
 		out <- &Event{
 			Data:        &ErrorData{Err: errors.New("unknown topic"), Topic: topic.String()},
@@ -1531,6 +1656,31 @@ func NewOracleUSDAPI(address common.Address, opts *chainOpts) (OracleAPI, error)
 func (api *OracleUSDAPI) SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 	return api.oracleContract.SetCurrentPrice(opts, price)
+}
+
+func (api *OracleUSDAPI) PackSetCurrentPriceTransactionData(price *big.Int) ([]byte, error) {
+	oracleABI, err := abi.JSON(bytes.NewBufferString(marketAPI.OracleUSDABI))
+	if err != nil {
+		return nil, err
+	}
+	return oracleABI.Pack("setCurrentPrice", price)
+}
+
+func (api *OracleUSDAPI) UnpackSetCurrentPriceTransactionData(data []byte) (*big.Int, error) {
+	if len(data) == 0 {
+		return nil, fmt.Errorf("data is empty")
+	}
+
+	if len(data) < 36 {
+		return nil, fmt.Errorf("data is malformed")
+	}
+	// Cut method specify byte, keep only parameters data
+	// Method ids are saves at the first 4 bytes of the hash of the
+	// methods string signature. (signature = baz(uint32,string32))
+	params := data[4:]
+
+	price := common.HexToAddress(common.Bytes2Hex(params[:32])).Big()
+	return price, nil
 }
 
 func (api *OracleUSDAPI) GetCurrentPrice(ctx context.Context) (*big.Int, error) {
@@ -1583,4 +1733,163 @@ func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.Private
 func (api *BasicSimpleGatekeeper) Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 	return api.contract.Kill(opts)
+}
+
+type BasicMultiSigAPI struct {
+	client   CustomEthereumClient
+	contract *marketAPI.MultiSigWallet
+	opts     *chainOpts
+	address  common.Address
+}
+
+func NewMultiSigAPI(address common.Address, opts *chainOpts) (MultiSigAPI, error) {
+	client, err := opts.getClient()
+	if err != nil {
+		return nil, err
+	}
+
+	contract, err := marketAPI.NewMultiSigWallet(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicMultiSigAPI{
+		address:  address,
+		client:   client,
+		contract: contract,
+		opts:     opts,
+	}, nil
+}
+
+func (api *BasicMultiSigAPI) AddOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address) error {
+	oracleABI, err := abi.JSON(bytes.NewBufferString(marketAPI.MultiSigWalletABI))
+	if err != nil {
+		return err
+	}
+	data, err := oracleABI.Pack("AddOwner", owner)
+
+	return api.SubmitTransaction(ctx, key, api.address, big.NewInt(0), data)
+}
+
+func (api *BasicMultiSigAPI) RemoveOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address) error {
+	oracleABI, err := abi.JSON(bytes.NewBufferString(marketAPI.MultiSigWalletABI))
+	if err != nil {
+		return err
+	}
+	data, err := oracleABI.Pack("RemoveOwner", owner)
+
+	return api.SubmitTransaction(ctx, key, api.address, big.NewInt(0), data)
+}
+
+func (api *BasicMultiSigAPI) ReplaceOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address, newOwner common.Address) error {
+	oracleABI, err := abi.JSON(bytes.NewBufferString(marketAPI.MultiSigWalletABI))
+	if err != nil {
+		return err
+	}
+	data, err := oracleABI.Pack("ReplaceOwner", owner, newOwner)
+
+	return api.SubmitTransaction(ctx, key, api.address, big.NewInt(0), data)
+}
+
+func (api *BasicMultiSigAPI) ChangeRequirement(ctx context.Context, key *ecdsa.PrivateKey, required *big.Int) error {
+	oracleABI, err := abi.JSON(bytes.NewBufferString(marketAPI.MultiSigWalletABI))
+	if err != nil {
+		return err
+	}
+	data, err := oracleABI.Pack("ChangeRequirement", required)
+
+	return api.SubmitTransaction(ctx, key, api.address, big.NewInt(0), data)
+}
+
+func (api *BasicMultiSigAPI) SubmitTransaction(ctx context.Context, key *ecdsa.PrivateKey, destination common.Address, value *big.Int, data []byte) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.contract.SubmitTransaction(opts, destination, value, data)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, ConfirmationTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *BasicMultiSigAPI) ConfirmTransaction(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.contract.ConfirmTransaction(opts, transactionID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, ConfirmationTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *BasicMultiSigAPI) RevokeConfirmation(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.contract.RevokeConfirmation(opts, transactionID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, RevocationTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *BasicMultiSigAPI) ExecuteTransaction(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.contract.ExecuteTransaction(opts, transactionID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayInTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *BasicMultiSigAPI) IsConfirmed(ctx context.Context, transactionId *big.Int) (bool, error) {
+	return api.contract.IsConfirmed(getCallOptions(ctx), transactionId)
+}
+
+func (api *BasicMultiSigAPI) GetConfirmationCount(ctx context.Context, transactionID *big.Int) (*big.Int, error) {
+	return api.contract.GetConfirmationCount(getCallOptions(ctx), transactionID)
+}
+
+func (api *BasicMultiSigAPI) GetTransactionCount(ctx context.Context, penging bool, executed bool) (*big.Int, error) {
+	return api.contract.GetTransactionCount(getCallOptions(ctx), penging, executed)
+}
+
+func (api *BasicMultiSigAPI) GetOwners(ctx context.Context) ([]common.Address, error) {
+	return api.contract.GetOwners(getCallOptions(ctx))
+}
+
+func (api *BasicMultiSigAPI) GetConfirmations(ctx context.Context, transactionID *big.Int) ([]common.Address, error) {
+	return api.contract.GetConfirmations(getCallOptions(ctx), transactionID)
+}
+
+func (api *BasicMultiSigAPI) GetTransactionIDs(ctx context.Context, from *big.Int, to *big.Int, pending bool, executed bool) ([]*big.Int, error) {
+	return api.contract.GetTransactionIds(getCallOptions(ctx), from, to, pending, executed)
+}
+
+func (api *BasicMultiSigAPI) GetTransaction(ctx context.Context, transactionID *big.Int) (*MultiSigTransactionData, error) {
+	tx, err := api.contract.Transactions(getCallOptions(ctx), transactionID)
+	if err != nil {
+		return nil, err
+	}
+	return &MultiSigTransactionData{
+		To:       tx.Destination,
+		Value:    tx.Value,
+		Data:     tx.Data,
+		Executed: tx.Executed,
+	}, nil
 }
