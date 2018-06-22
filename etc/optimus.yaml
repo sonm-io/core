@@ -48,6 +48,6 @@ optimization:
     # The function has the following definition: 1 - (1 / (1 + exp(-α * (x - ∂) / ∂))).
     # Used to calculate relative order weight, depending on its birth time.
     logistic:
-      alpha: 10.0
-      delta: 43200.0
+      α: 10.0
+      ∂: 43200.0
 
