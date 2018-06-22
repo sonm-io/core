@@ -5,12 +5,13 @@ const SimpleGatekeeperWithLimit = artifacts.require('./SimpleGatekeeperWithLimit
 const SNM = artifacts.require('./SNM.sol');
 
 contract('SimpleGatekeeperWithLimit', async function (accounts) {
+    let owner = accounts[0];
+    let user = accounts[1];
+    let creeper = accounts[3];
+
     describe('PayIn', function () {
         let token;
         let gatekeeper;
-
-        let owner = accounts[0];
-        let user = accounts[1];
 
         let tx;
 
@@ -79,9 +80,6 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
         let token;
         let gatekeeper;
 
-        let owner = accounts[0];
-        let user = accounts[1];
-
         let tx;
 
         let startGatekeeperBalance;
@@ -138,9 +136,6 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
     });
 
     describe('kill', async function () {
-        let owner = accounts[0];
-        let creeper = accounts[3];
-
         let token;
         let gatekeeper;
 

@@ -39,13 +39,13 @@ contract SimpleGatekeeperWithLimitLive is Ownable {
     event PayoutTx(address indexed from, uint256 indexed txNumber, uint256 indexed value);
     event Suicide(uint block);
 
-    event KeeperChanged(address indexed keeper, uint256 indexed dayLimit);
-    event KeeperFrozen(address indexed keeper);
-    event KeeperUnfrozen(address indexed keeper);
+    event LimitChanged(address indexed keeper, uint256 indexed dayLimit);
+    event KeeperFreezed(address indexed keeper);
+    event KeeperUnfreezed(address indexed keeper);
 
     function ChangeKeeperLimit(address _keeper, uint256 _limit) public onlyOwner {
         keepers[_keeper].dayLimit = _limit;
-        emit KeeperChanged(_keeper, _limit);
+        emit LimitChanged(_keeper, _limit);
     }
 
     function FreezeKeeper(address _keeper) public {
@@ -54,13 +54,13 @@ contract SimpleGatekeeperWithLimitLive is Ownable {
         // check that freezing keeper has limit
         require(keepers[_keeper].dayLimit > 0);
         keepers[_keeper].frozen = true;
-        emit KeeperFrozen(_keeper);
+        emit KeeperFreezed(_keeper);
     }
 
-    function UnFreezeKeeper(address _keeper) public onlyOwner {
+    function UnfreezeKeeper(address _keeper) public onlyOwner {
         require(keepers[_keeper].dayLimit > 0);
         keepers[_keeper].frozen = false;
-        emit KeeperUnfrozen(_keeper);
+        emit KeeperUnfreezed(_keeper);
     }
 
     function Payin(uint256 _value) public {
@@ -87,7 +87,7 @@ contract SimpleGatekeeperWithLimitLive is Ownable {
             emit CommitTx(_to, _txNumber, _value, block.timestamp);
         } else {
             require(paid[txHash].keeper == msg.sender);
-            require(paid[txHash].commitTS + 1 days <= block.timestamp);
+            require(paid[txHash].commitTS + 15 minutes <= block.timestamp);
             token.transfer(_to, _value);
             paid[txHash].paid = true;
             emit PayoutTx(_to, _txNumber, _value);
@@ -116,8 +116,7 @@ contract SimpleGatekeeperWithLimitLive is Ownable {
     }
 
     function kill() public onlyOwner {
-        uint balance = token.balanceOf(this);
-        token.transfer(owner, balance);
+        token.transfer(owner, token.balanceOf(address(this)));
         emit Suicide(block.timestamp);
         // solium-disable-line security/no-block-members
         selfdestruct(owner);
