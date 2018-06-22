@@ -22,6 +22,25 @@ sonm-core (0.4.0-rc1) unstable; urgency=low
     This introduces a new search field to DealsRequest: AnyUserID. If provided,
     supplierID, consumerID, and masterID fields are ignored.
     Any of the mentioned IDs must match the provided value.
+  * Added: contracts freezing (#1029).
+  * Added: add deploy list contract (#1035).
+    Smart contract with array of allowed addresses, which may deploy contracts.
+  * Added: deposit-withdraw for node and cli (#986).
+    This adds able to transfer tokens between masterchain and SONM sidechain.
+  * Added: utilize hostname for relay (#1045).
+    This change allows to utilize specifying hostnames as a relay address,
+    increasing stability.
+    Previously such hostname was resolved once at construction time and the
+    relay client tried to connect to the resolved TCP addresses even if some
+    of them are already down.
+    Now each time a client requires new connection hostname resolution occurs.
+    All this allows dynamic addition/removal backends under the DNS.
+    Of course we try to connect to all returned endpoints.
+  * Added: allowance handle for node and cli (#1050).
+  * Added: kill option for market contract (#1049).
+    This implements destroying of contract. It also returns all frozen funds
+    to owner multisig.
+    Needs to prevent funds locking while some bug found if any.
   * Changed: reworked benchmarks in market (#964).
     Now we can place orders with any count of benchmarks, but still not more
     than we support.
@@ -52,6 +71,21 @@ sonm-core (0.4.0-rc1) unstable; urgency=low
     For servers there is no reconnections (except every 24 hours), while for
     clients there an immediate reaction with human-readable error.
   * Changed: print order's tag if present in order status CLI (#1032).
+  * Changed: show message if worker has no active tasks (#1037).
+  * Changed: implicitly set allowance for market on sidechain (#1042).
+    This hook checks and sets allowance for market to practical infinity on every
+    method call which requires allowance.
+  * Changed: do not apply whitelist to identified consumers (#1040).
+    This takes consumer identity level in concern. If customer has at least
+    IDENTIFIED level whitelist checking doesn't take place.
+  * BREAKING Changed: specify worker settings in Optimus config (#1054).
+    Now it is possible to define some worker specific settings in the autosell
+    bot config.
+    For example now we can specify epoch interval, where the bot scans
+    worker's resources and tries to sell them.
+  * Changed: bind ask plan storage key to market address (#1052).
+  * Changed: spot-only orders for Optimus (#1061).
+    Since now Optimus can sell only for spot deals, with zero duration.
   * Fixed: unwrap error in puncher (#966).
   * Fixed: sort GPU to prevent hash changes and re-benchmarking (#963).
   * Fixed: Optimus should now properly cut minimum RAM (#972).
@@ -114,6 +148,22 @@ sonm-core (0.4.0-rc1) unstable; urgency=low
   * Fixed: make relay IPv6 ready (not really) (#1033).
     In case of being run on IPv6 it improperly answers to a discover request
     with address not surrounded with braces.
+  * Fixed: get task list only for consumer's deals (#1024).
+    We have a situation when `sonmcli task list` is called from the supplier (or master) key.
+    At first, to obtain tasks a client needs to load their active deals.
+    And then query a tasks list for each deal. So if you a supplier,
+    you cannot receive the list by the deal because of ACLs is applied.
+    This PR fixes this case by checking that you're a consumer for active deals,
+    otherwise, a client will not use that deal for querying tasks.
+  * Fixed: optimus should now track incoming network (#1053).
+    Previously autosell bot could match more than a single order with incoming
+    network required. Because we do not allow such behaviour it led to
+    multiple errors while trying to create sell plans.
+    This change explicitly disables incoming network after a first matching
+    orders found.
+  * Fixed: invalid netflag filtering in Optimus (#1064).
+    Now Optimus will check for netflags inclusion using free devices instead of
+    just devices.
 
  -- Evgeny Safronov <division494@gmail.com>  Wed, 20 Jun 2018 13:52:42 +0300
 
