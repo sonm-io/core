@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
+
 	"github.com/sonm-io/core/insonmnia/worker/storagequota/btrfs"
 )
 
@@ -25,54 +25,83 @@ type StorageQuotaTuner interface {
 	SetQuota(ctx context.Context, ID string, quotaID string, bytes uint64) (Cleanup, error)
 }
 
-type btrfsQuotaTuner struct{}
-
-func QuotationSupported(dockerInfo types.Info) bool {
-	return dockerInfo.Driver == "btrfs"
+func NewQuotaTuner(info types.Info) (StorageQuotaTuner, error) {
+	switch info.Driver {
+	case "btrfs":
+		return newBtrfsQuotaTuner(info)
+	default:
+		return nil, fmt.Errorf("%s is not supported", info.Driver)
+	}
 }
 
-func (btrfsQuotaTuner) SetQuota(ctx context.Context, dockerClient *client.Client, ID string, quotaID string, bytes uint64) (Cleanup, error) {
+type btrfsQuotaTuner struct {
+	dockerRootDir string
+	subvolumesDir string
+}
+
+type btrfsQuotaCleaner struct {
+	qgroupID         string
+	containerQuotaID string
+	path             string
+}
+
+func (b btrfsQuotaCleaner) Close() error {
+	ctx := context.Background()
+	btrfs.API.QuotaRemove(ctx, b.containerQuotaID, b.qgroupID, b.path)
+	// NOTE: it would not be removed if any subvolume is assigned to this quota
+	btrfs.API.QuotaDestroy(ctx, b.qgroupID, b.path)
+	return nil
+}
+
+func newBtrfsQuotaTuner(info types.Info) (StorageQuotaTuner, error) {
+	if info.Driver != "btrfs" {
+		return nil, fmt.Errorf("%s is not supported", info.Driver)
+	}
+	return btrfsQuotaTuner{
+		dockerRootDir: info.DockerRootDir,
+		subvolumesDir: filepath.Join(info.DockerRootDir, "btrfs/subvolumes"),
+	}, nil
+}
+
+func (b btrfsQuotaTuner) SetQuota(ctx context.Context, ID string, quotaID string, bytes uint64) (Cleanup, error) {
 	// TODO: add ROLLBACK to prevent quota leak
-
-	// Assign
-	info, err := dockerClient.Info(ctx)
+	mountID, err := ioutil.ReadFile(filepath.Join(b.dockerRootDir, "image/btrfs/layerdb/mounts/", ID, "mount-id"))
 	if err != nil {
 		return nil, err
 	}
-	mountID, err := ioutil.ReadFile(filepath.Join(info.DockerRootDir, "image/btrfs/layerdb/mounts/", ID, "mount-id"))
-	if err != nil {
-		return nil, err
-	}
-	subvolumesPath := filepath.Join(info.DockerRootDir, "btrfs/subvolumes")
 	// Enable quota
-	if err = btrfs.API.QuotaEnable(ctx, subvolumesPath); err != nil {
+	if err = btrfs.API.QuotaEnable(ctx, b.subvolumesDir); err != nil {
 		return nil, err
 	}
-	h := fnv.New64a()
+	h := fnv.New32a()
 	io.WriteString(h, quotaID)
-	qgroupID := fmt.Sprintf("0/%d", h.Sum64())
-
+	qgroupID := fmt.Sprintf("1/%d", h.Sum32())
 	// Check if quota exists
-	exists, err := btrfs.API.QuotaExists(ctx, qgroupID, subvolumesPath)
+	exists, err := btrfs.API.QuotaExists(ctx, qgroupID, b.subvolumesDir)
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
 		// Create qgroup
-		if err = btrfs.API.QuotaCreate(ctx, qgroupID, subvolumesPath); err != nil {
+		if err = btrfs.API.QuotaCreate(ctx, qgroupID, b.subvolumesDir); err != nil {
 			return nil, err
 		}
 		// Limit qgroup
-		if err = btrfs.API.QuotaLimit(ctx, bytes, qgroupID, subvolumesPath); err != nil {
+		if err = btrfs.API.QuotaLimit(ctx, bytes, qgroupID, b.subvolumesDir); err != nil {
 			return nil, err
 		}
 	}
-	containerQuotaID, err := btrfs.API.GetQuotaID(ctx, filepath.Join(subvolumesPath, string(mountID)))
+	containerQuotaID, err := btrfs.API.GetQuotaID(ctx, filepath.Join(b.subvolumesDir, string(mountID)))
 	if err != nil {
 		return nil, err
 	}
-	if err = btrfs.API.QuotaAssign(ctx, containerQuotaID, qgroupID, subvolumesPath); err != nil {
+	if err = btrfs.API.QuotaAssign(ctx, containerQuotaID, qgroupID, b.subvolumesDir); err != nil {
 		return nil, err
 	}
-	return nil, fmt.Errorf("NOT IMPLEMENTED")
+	cleaner := btrfsQuotaCleaner{
+		qgroupID:         qgroupID,
+		containerQuotaID: containerQuotaID,
+		path:             b.subvolumesDir,
+	}
+	return cleaner, nil
 }

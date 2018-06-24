@@ -124,7 +124,7 @@ func (btrfsCLI) QuotaLimit(ctx context.Context, sizeInBytes uint64, qgroupID str
 }
 
 func (btrfsCLI) QuotaAssign(ctx context.Context, src string, dst string, path string) error {
-	output, err := exec.CommandContext(ctx, "btrfs", "qgroup", "assign", src, dst, path).Output()
+	output, err := exec.CommandContext(ctx, "btrfs", "qgroup", "assign", "--rescan", src, dst, path).CombinedOutput()
 	if err != nil {
 		log.G(ctx).Error("failed to assign btrfs qgroup", zap.String("src", src), zap.String("dst", dst), zap.Error(err), zap.ByteString("output", output))
 		return err
@@ -133,7 +133,7 @@ func (btrfsCLI) QuotaAssign(ctx context.Context, src string, dst string, path st
 }
 
 func (btrfsCLI) QuotaRemove(ctx context.Context, src string, dst string, path string) error {
-	output, err := exec.CommandContext(ctx, "btrfs", "qgroup", "remove", src, dst, path).Output()
+	output, err := exec.CommandContext(ctx, "btrfs", "qgroup", "remove", src, dst, path).CombinedOutput()
 	if err != nil {
 		log.G(ctx).Error("failed to remove btrfs qgroup", zap.String("src", src), zap.String("dst", dst), zap.Error(err), zap.ByteString("output", output))
 		return err

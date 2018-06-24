@@ -103,7 +103,7 @@ func TestE2E(t *testing.T) {
 		t.Skip("BTRFS_PLAYGROUND_PATH must be set for the test")
 	}
 	if os.Getenv("SUDO_USER") == "" {
-		t.Log("WARNING: root permissions required for that test")
+		t.Skip("WARNING: root permissions required for that test")
 	}
 
 	var b btrfsCLI
