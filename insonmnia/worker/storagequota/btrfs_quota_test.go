@@ -4,6 +4,7 @@ package storagequota
 
 import (
 	"context"
+	"os"
 	"strings"
 	"testing"
 
@@ -15,6 +16,10 @@ import (
 )
 
 func TestBTRFSQuota(t *testing.T) {
+	if os.Getenv("SUDO_USER") == "" {
+		t.Skip("sudo required for the test")
+	}
+
 	ctx := context.Background()
 	require := require.New(t)
 	dclient, err := client.NewEnvClient()

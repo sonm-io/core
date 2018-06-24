@@ -1,3 +1,5 @@
+// +build linux
+
 package storagequota
 
 import (
@@ -9,30 +11,8 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/api/types"
-
 	"github.com/sonm-io/core/insonmnia/worker/storagequota/btrfs"
 )
-
-type QuotaDescription struct {
-	Bytes uint64
-}
-
-type Cleanup interface {
-	Close() error
-}
-
-type StorageQuotaTuner interface {
-	SetQuota(ctx context.Context, ID string, quotaID string, bytes uint64) (Cleanup, error)
-}
-
-func NewQuotaTuner(info types.Info) (StorageQuotaTuner, error) {
-	switch info.Driver {
-	case "btrfs":
-		return newBtrfsQuotaTuner(info)
-	default:
-		return nil, fmt.Errorf("%s is not supported", info.Driver)
-	}
-}
 
 type btrfsQuotaTuner struct {
 	dockerRootDir string

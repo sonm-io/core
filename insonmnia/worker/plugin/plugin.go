@@ -134,6 +134,29 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 		r.networkTuners[l2tpNetwork] = l2tpTuner
 	}
 
+	if storagequota.PlatformSupportsQuota {
+		// NOTE: not sure it's safe to do it here. Please, suggest better place
+		dockerClient, err := client.NewEnvClient()
+		if err != nil {
+			return nil, nil
+		}
+		defer dockerClient.Close()
+
+		info, err := dockerClient.Info(ctx)
+		if err != nil {
+			return nil, err
+		}
+		r.storageQuotaTuner, err = storagequota.NewQuotaTuner(info)
+		switch err.(type) {
+		case nil:
+			// pass
+		case storagequota.ErrDriverNotSupported:
+			log.G(ctx).Warn("storage quota is not supported by curent Docker driver", zap.String("driver", info.Driver))
+		default:
+			return nil, err
+		}
+	}
+
 	return r, nil
 }
 
@@ -316,14 +339,14 @@ func (r *Repository) GetVolumeCleaner(ctx context.Context, provider VolumeProvid
 	return &cleanup, nil
 }
 
-func (r *Repository) PostCreationTune(ctx context.Context, dockerClient *client.Client, provider Provider, cleanup Cleanup, ID string) (Cleanup, error) {
+func (r *Repository) PostCreationTune(ctx context.Context, provider Provider, cleanup Cleanup, ID string) (Cleanup, error) {
 	// NOTE: move it to r.TuneStorageQuota
 	if r.storageQuotaTuner == nil || provider.QuotaInBytes() == 0 {
 		return cleanup, nil
 	}
 	nCleanup := newNestedCleanup()
 	nCleanup.Add(cleanup)
-	cleanup, err := r.TuneStorageQuota(ctx, dockerClient, provider, ID)
+	cleanup, err := r.TuneStorageQuota(ctx, provider, ID)
 	if err != nil {
 		return nil, err
 	}
@@ -331,8 +354,8 @@ func (r *Repository) PostCreationTune(ctx context.Context, dockerClient *client.
 	return &nCleanup, nil
 }
 
-func (r *Repository) TuneStorageQuota(ctx context.Context, dockerClient *client.Client, provider StorageQuotaProvider, ID string) (Cleanup, error) {
-	return r.storageQuotaTuner.SetQuota(ctx, dockerClient, ID, provider.QuotaID(), provider.QuotaInBytes())
+func (r *Repository) TuneStorageQuota(ctx context.Context, provider StorageQuotaProvider, ID string) (Cleanup, error) {
+	return r.storageQuotaTuner.SetQuota(ctx, ID, provider.QuotaID(), provider.QuotaInBytes())
 }
 
 func (r *Repository) TuneNetworks(ctx context.Context, provider NetworkProvider, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
