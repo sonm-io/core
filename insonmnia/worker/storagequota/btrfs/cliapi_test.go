@@ -1,10 +1,18 @@
 package btrfs
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestLookupQuotaInShowOutpout(t *testing.T) {
@@ -59,41 +67,179 @@ qgroupid         rfer         excl     max_rfer     max_excl parent  child
 func TestLookupIDForSubvolumeWithPath(t *testing.T) {
 	assert := assert.New(t)
 	const longBody = `
-ID	gen	top level	path
---	---	---------	----
-323	996	5		btrfs/subvolumes/d727e93c203c5eea60df8067ab0f28cea2fae7127b05ebfc896d12bdf63f8948-init
-324	996 5		btrfs/subvolumes/978e9fbb1281b0000dcbb758a99d3729f5ca39f593f5b5003d7feb041bed983e
-325	1008	5		btrfs/subvolumes/6b6f4ef74a041a82830756c7a1aee62a91548198e2ee7e7cca87e41bd89cf0bf
-326	1010	5		btrfs/subvolumes/570a1e4305f38422dfdcba25e670a04e7a3fc7a8da743b989e1a9469f99d48dc
-327	1012	5		btrfs/subvolumes/b561c990bfaef4d60576dccb9665e092d0b1c158948ff6444ff4a50a4bdc6f27
-328	1014	5		btrfs/subvolumes/40b44d13464dec7edf9cba24f8d0f61373d08488dc3648b7b41b6d7ba0dc5fea
-329	1022	5		btrfs/subvolumes/ef009bb57192c3faba5d5008fec989df4e53ea900e9a165e2992daf7db20f363
-330	1017	5		btrfs/subvolumes/d59d8eb3e1abb19a3920c9e512b0e0a6cdafc000b20eda010eed35403618c55c-init
-331	1018	5		btrfs/subvolumes/d59d8eb3e1abb19a3920c9e512b0e0a6cdafc000b20eda010eed35403618c55c
-332	1023	5		btrfs/subvolumes/538a08e49e3b320630f9524d1897ea76d51c1417417eba4066ff5fe8b2142cf3-init
-333	1023	5		btrfs/subvolumes/538a08e49e3b320630f9524d1897ea76d51c1417417eba4066ff5fe8b2142cf3
+qgroupid         rfer         excl
+--------         ----         ----
+0/270        16.00KiB     16.00KiB
+`
+	const shortBody = `
+qgroupid         rfer         excl
+--------         ----         ----
 `
 	fixtures := []struct {
-		ID            string
-		err           error
-		body          []byte
-		subvolumePath string
+		ID   string
+		err  error
+		body []byte
 	}{
 		{
-			ID:            "331",
-			body:          []byte(longBody),
-			subvolumePath: "btrfs/subvolumes/d59d8eb3e1abb19a3920c9e512b0e0a6cdafc000b20eda010eed35403618c55c",
+			ID:   "0/270",
+			body: []byte(longBody),
 		},
 		{
-			ID:            "",
-			body:          []byte(longBody),
-			err:           errors.New("not found"),
-			subvolumePath: "btrfs/subvolumes/d59d8eb3e1abb19a3920c9e512b0e0a6cdafc000b20eda010eed35403618c",
+			ID:   "",
+			body: []byte(shortBody),
+			err:  errors.New("not found"),
 		},
 	}
 	for _, fixture := range fixtures {
-		ID, err := lookupIDForSubvolumeWithPath(fixture.body, fixture.subvolumePath)
+		ID, err := lookupIDForSubvolumeWithPath(fixture.body)
 		assert.Equal(fixture.ID, ID)
 		assert.Equal(fixture.err, err)
 	}
+}
+
+func TestE2E(t *testing.T) {
+	path := os.Getenv("BTRFS_PLAYGROUND_PATH")
+	if path == "" {
+		t.Skip("BTRFS_PLAYGROUND_PATH must be set for the test")
+	}
+	if os.Getenv("SUDO_USER") == "" {
+		t.Log("WARNING: root permissions required for that test")
+	}
+
+	var b btrfsCLI
+	t.Run(fmt.Sprintf("%T", b), func(t *testing.T) {
+		testE2EOne(t, b, path)
+	})
+}
+
+func testE2EOne(t *testing.T, b btrfsIf, path string) {
+	require := require.New(t)
+	ctx := context.Background()
+
+	require.NoError(b.QuotaEnable(ctx, path))
+	// one more time
+	require.NoError(b.QuotaEnable(ctx, path))
+
+	state, err := getBTRFSState(ctx, path)
+	require.NoError(err)
+	defer func() {
+		postState, postErr := getBTRFSState(ctx, path)
+		require.NoError(postErr)
+		// t.Logf("%s\n%s\n", state, postState)
+		require.Equal(state, postState)
+	}()
+
+	// Create QUOTA
+	var qgroupID = "1/999"
+	exists, err := b.QuotaExists(ctx, qgroupID, path)
+	require.NoError(err)
+	require.False(exists)
+
+	require.NoError(b.QuotaCreate(ctx, qgroupID, path))
+	defer func() {
+		require.NoError(b.QuotaDestroy(ctx, qgroupID, path))
+	}()
+
+	exists, err = b.QuotaExists(ctx, qgroupID, path)
+	require.NoError(err)
+	require.True(exists)
+
+	const Limit = 10 * 1024 * 1024
+	require.NoError(b.QuotaLimit(ctx, Limit, qgroupID, path))
+
+	// Create subvolumes
+	type subvolume struct {
+		path    string
+		quotaID string
+	}
+	var subvolumes = make([]subvolume, 0)
+
+	for _, dir := range []string{"xyz", "abc", "def", "ghi"} {
+		subvolumePath := filepath.Join(path, dir)
+		require.NoError(createSubvolume(ctx, subvolumePath))
+		quotaID, err := b.GetQuotaID(ctx, subvolumePath)
+		require.NoError(err)
+		require.NotEmpty(quotaID)
+		subvolumes = append(subvolumes, subvolume{path: subvolumePath, quotaID: quotaID})
+	}
+
+	defer func() {
+		for _, subvolume := range subvolumes {
+			require.NoError(b.QuotaDestroy(ctx, subvolume.quotaID, subvolume.path))
+			require.NoError(destroySubvolume(ctx, subvolume.path))
+		}
+	}()
+
+	// Assign limit to 3 containers
+	const lastUnassigned = 3
+	for _, subvolume := range subvolumes[:lastUnassigned] {
+		require.NoError(b.QuotaAssign(ctx, subvolume.quotaID, qgroupID, path))
+	}
+
+	devZero, err := os.Open("/dev/zero")
+	require.NoError(err)
+	defer devZero.Close()
+
+	// Write 100 KB to the last subvolume
+	freeFile, err := os.Create(filepath.Join(subvolumes[lastUnassigned].path, "FILE"))
+	require.NoError(err)
+	defer freeFile.Close()
+	_, err = io.CopyN(freeFile, devZero, 10*Limit)
+	require.NoError(err)
+
+	written := int64(0)
+	partToWrite := int64(Limit * 0.8)
+	for j, subvolume := range subvolumes[:lastUnassigned] {
+		f, err := os.Create(filepath.Join(subvolume.path, "QFILE"))
+		switch j {
+		case 0:
+			require.NoError(err)
+			nn, wrErr := io.CopyN(f, devZero, partToWrite)
+			require.NoError(wrErr)
+			require.Equal(nn, partToWrite)
+			written += nn
+			f.Close()
+		case 1:
+			require.NoError(err)
+			nn, wrErr := io.CopyN(f, devZero, partToWrite)
+			require.Error(wrErr)
+			require.True(nn <= Limit-written)
+			written += nn
+			f.Close()
+		default:
+			require.Error(err)
+		}
+	}
+	require.True(written < Limit)
+
+	nn, err := io.CopyN(freeFile, devZero, 10*Limit)
+	require.NoError(err)
+	require.Equal(nn, int64(10*Limit))
+
+	// Write to an empty subvolume again
+	// after cleaning others
+	for j, subvolume := range subvolumes[:lastUnassigned] {
+		switch j {
+		case 0, 1:
+			require.NoError(os.RemoveAll(filepath.Join(subvolume.path, "QFILE")))
+		default:
+			require.NoError(
+				ioutil.WriteFile(filepath.Join(subvolume.path, "QQFILE"), make([]byte, partToWrite), 0x777),
+			)
+		}
+	}
+}
+
+func getBTRFSState(ctx context.Context, path string) ([]byte, error) {
+	return exec.CommandContext(ctx, "btrfs", "qgroup", "show", "-r", "-e", "-c", "-p", path).Output()
+}
+
+func createSubvolume(ctx context.Context, subvolumePath string) error {
+	_, err := exec.CommandContext(ctx, "btrfs", "subvolume", "create", subvolumePath).Output()
+	return err
+}
+
+func destroySubvolume(ctx context.Context, subvolumePath string) error {
+	_, err := exec.CommandContext(ctx, "btrfs", "subvolume", "delete", subvolumePath).Output()
+	return err
 }

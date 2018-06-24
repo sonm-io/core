@@ -5,9 +5,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -70,31 +68,27 @@ func lookupQuotaInShowOutpout(output []byte, qgroupID string) (bool, error) {
 
 func (btrfsCLI) GetQuotaID(ctx context.Context, path string) (string, error) {
 	// btrfs subvolume list -t -o
-	output, err := exec.CommandContext(ctx, "btrfs", "subvolume", "list", "-t", "-o", path).Output()
+	output, err := exec.CommandContext(ctx, "btrfs", "qgroup", "show", "-f", path).Output()
 	if err != nil {
 		log.G(ctx).Error("failed to lookup groupid for a btrfs subvolume", zap.String("path", path), zap.Error(err))
 		return "", err
 	}
-	return lookupIDForSubvolumeWithPath(output, path)
+	return lookupIDForSubvolumeWithPath(output)
 }
 
-func lookupIDForSubvolumeWithPath(output []byte, subvolumePath string) (string, error) {
-	mountIDSuffix := []byte(filepath.Base(subvolumePath))
+func lookupIDForSubvolumeWithPath(output []byte) (string, error) {
 	scanner := bufio.NewScanner(bytes.NewReader(output))
 	foundHeader := false
-	endOfHeaderToken := []byte("--") // next line after ID
+	endOfHeaderToken := []byte("--------")
 	for scanner.Scan() {
 		line := scanner.Bytes()
 		if foundHeader {
-			if bytes.HasSuffix(line, mountIDSuffix) {
-				if pos := bytes.IndexByte(line, '\t'); pos != -1 {
-					return string(line[:pos]), nil
-				}
-				return "", fmt.Errorf("malformed line %s", line)
+			if pos := bytes.IndexByte(line, ' '); pos != -1 {
+				return string(line[:pos]), nil
 			}
-		} else {
-			foundHeader = bytes.HasPrefix(line, endOfHeaderToken)
+			return "", errors.New("malformed format")
 		}
+		foundHeader = bytes.HasPrefix(line, endOfHeaderToken)
 	}
 	if scanner.Err() != nil {
 		return "", scanner.Err()
