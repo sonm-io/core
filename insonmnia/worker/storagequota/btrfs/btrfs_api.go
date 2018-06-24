@@ -134,8 +134,12 @@ func (btrfsCLI) QuotaLimit(ctx context.Context, sizeInBytes uint64, qgroupID str
 }
 
 func (btrfsCLI) QuotaAssign(ctx context.Context, src string, dst string, path string) error {
-	output, err := exec.CommandContext(ctx, "btrfs", "qgroup", "assign", "--rescan", src, dst, path).CombinedOutput()
+	output, err := exec.CommandContext(ctx, "btrfs", "qgroup", "assign", src, dst, path).CombinedOutput()
 	if err != nil {
+		if bytes.HasPrefix(output, []byte("WARNING: quotas may be inconsistent, rescan needed")) {
+			_, err = exec.CommandContext(ctx, "btrfs", "quota", "rescan", "-w", path).Output()
+			return err
+		}
 		log.G(ctx).Error("failed to assign btrfs qgroup", zap.String("src", src), zap.String("dst", dst), zap.Error(err), zap.ByteString("output", output))
 		return err
 	}
