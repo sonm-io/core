@@ -11,7 +11,7 @@ Vcs-Browser: https://github.com/sonm-io/core
 
 Package: sonm-worker
 Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}, libopencl1, btrfs-progs
+Depends: ${shlibs:Depends}, ${misc:Depends}, libopencl1, btrfs-progs | btrfs-tools
 Conflicts: sonm-hub
 Replaces: sonm-hub
 Description: Worker daemon for SONM network

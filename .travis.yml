@@ -17,7 +17,7 @@ services:
 
 before_install:
   - sudo apt-get update
-  - sudo apt-get install debhelper devscripts fakeroot dh-systemd ocl-icd-opencl-dev libnl-3-dev libnl-route-3-dev -y
+  - sudo apt-get install debhelper devscripts fakeroot dh-systemd ocl-icd-opencl-dev libnl-3-dev libnl-route-3-dev btrfs-tools -y
 
 install:
   - git submodule update
@@ -28,7 +28,16 @@ script:
     - |
       case "${BUILD_TYPE}" in
         Tests)
-          make all
+          # make all
+          echo "Launch BTRFS tests"
+          go test -v -c  github.com/sonm-io/core/insonmnia/worker/storagequota/btrfs -o ./btrfs.test
+          LOOP_DEVICE=$(sudo losetup -f)
+          sudo dd if=/dev/zero of=/btrfsfile bs=1024000 count=200
+          sudo losetup $LOOP_DEVICE /btrfsfile
+          sudo mkfs.btrfs /btrfsfile
+          sudo mkdir /btrfsplayground
+          sudo mount -t btrfs $LOOP_DEVICE /btrfsplayground
+          sudo BTRFS_PLAYGROUND_PATH=/btrfsplayground ./btrfs.test -test.v
           ;;
         Contracts)
           make contracts
