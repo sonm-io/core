@@ -214,7 +214,7 @@ func testE2EOne(t *testing.T, b API, path string) {
 	}
 	require.True(written < Limit)
 
-	nn, err := io.CopyN(freeFile, devZero, 2*Limit)
+	nn, err := io.CopyN(freeFile, devZero, 5*Limit)
 	require.NoError(err)
 	require.Equal(nn, int64(2*Limit))
 
@@ -223,7 +223,7 @@ func testE2EOne(t *testing.T, b API, path string) {
 	for j, subvolume := range subvolumes[:lastUnassigned] {
 		switch j {
 		case 0, 1:
-			os.RemoveAll(filepath.Join(subvolume.path, "QFILE"))
+			require.NoError(os.RemoveAll(filepath.Join(subvolume.path, "QFILE")))
 		default:
 			require.NoError(
 				ioutil.WriteFile(filepath.Join(subvolume.path, "QQFILE"), make([]byte, partToWrite), 0x777),
