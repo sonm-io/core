@@ -114,7 +114,7 @@ func TestE2E(t *testing.T) {
 	})
 }
 
-func testE2EOne(t *testing.T, b btrfsIf, path string) {
+func testE2EOne(t *testing.T, b API, path string) {
 	require := require.New(t)
 	ctx := context.Background()
 

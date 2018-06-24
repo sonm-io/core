@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os/exec"
 	"strconv"
 
@@ -14,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type btrfsIf interface {
+type API interface {
 	QuotaEnable(ctx context.Context, path string) error
 	QuotaExists(ctx context.Context, qgroupID string, path string) (bool, error)
 	QuotaCreate(ctx context.Context, qgroupID string, path string) error
@@ -25,7 +26,14 @@ type btrfsIf interface {
 	GetQuotaID(ctx context.Context, path string) (string, error)
 }
 
-var API btrfsIf = btrfsCLI{}
+var _ API = btrfsCLI{}
+
+func NewAPI() (API, error) {
+	if _, err := exec.LookPath("btrfs"); err != nil {
+		return nil, fmt.Errorf("btrfs executable is not found. Install btrfs-progs")
+	}
+	return btrfsCLI{}, nil
+}
 
 type btrfsCLI struct{}
 

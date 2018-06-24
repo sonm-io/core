@@ -38,11 +38,11 @@ func TestBTRFSQuota(t *testing.T) {
 		AttachStderr: false,
 		Tty:          true,
 		Image:        "busybox",
-		Cmd:          strings.Split("dd if=/dev/zero of=/FILE bs=1024 count=101024", " "),
+		Cmd:          strings.Split("dd if=/dev/zero of=/FILE bs=1024 count=10000", " "),
 	}
 
-	imageInspect, _, err := dclient.ImageInspectWithRaw(ctx, "busybox")
-	require.NoError(err)
+	// imageInspect, _, err := dclient.ImageInspectWithRaw(ctx, "busybox")
+	// require.NoError(err)
 
 	hostConfig := &container.HostConfig{}
 	networkingConfig := &network.NetworkingConfig{}
@@ -63,7 +63,7 @@ func TestBTRFSQuota(t *testing.T) {
 		}
 	}()
 
-	limit := uint64(20*1024*1024 + uint64(imageInspect.Size))
+	limit := uint64(20 * 1024 * 1024)
 	for _, name := range []string{"aaa", "bbb", "ccc"} {
 		resp, err := dclient.ContainerCreate(ctx, config, hostConfig, networkingConfig, name)
 		require.NoError(err)
