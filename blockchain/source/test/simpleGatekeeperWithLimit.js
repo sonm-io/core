@@ -1,10 +1,10 @@
 import assertRevert from './helpers/assertRevert';
 import increaseTime from './helpers/increaseTime';
 
-const SimpleGatekeeperWithLimit = artifacts.require('./SimpleGatekeeperWithLimit.sol');
+let SimpleGatekeeperWithLimit = artifacts.require('./SimpleGatekeeperWithLimit.sol');
 const SNM = artifacts.require('./SNM.sol');
 
-contract('SimpleGatekeeperWithLimit', async function (accounts) {
+let simpleGateTests = function (accounts) {
     let owner = accounts[0];
     let user = accounts[1];
     let creeper = accounts[3];
@@ -136,6 +136,30 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
         });
     });
 
+    describe('ChangeKeeperLimit', function () {
+
+    });
+
+    describe('FreezeKeeper', function () {
+
+    });
+
+    describe('UnfreezeKeeper', function () {
+
+    });
+
+    describe('SetFreezingTime', function () {
+
+    });
+
+    describe('GetFreezingTime', function () {
+
+    });
+
+    describe('ChangeKeeperLimit', function () {
+
+    });
+
     describe('kill', async function () {
         let token;
         let gatekeeper;
@@ -186,4 +210,10 @@ contract('SimpleGatekeeperWithLimit', async function (accounts) {
             });
         });
     });
-});
+};
+
+contract('SimpleGatekeeperWithLimit', simpleGateTests);
+
+SimpleGatekeeperWithLimit = artifacts.require('./SimpleGatekeeperWithLimitLive.sol');
+
+contract('SimpleGatekeeperWithLimitLive', simpleGateTests);
