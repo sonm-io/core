@@ -102,7 +102,12 @@ func newSQLiteStorage(numBenchmarks uint64) *sqlStorage {
 			createTableValidators: `
 	CREATE TABLE IF NOT EXISTS Validators (
 		Id							TEXT UNIQUE NOT NULL,
-		Level						INTEGER NOT NULL
+		Level						INTEGER NOT NULL,
+		Name						TEXT NOT NULL DEFAULT "",
+		Logo						TEXT NOT NULL DEFAULT "",
+		URL							TEXT NOT NULL DEFAULT "",
+		Description					TEXT NOT NULL DEFAULT "",
+		Price						INTEGER NOT NULL DEFAULT 0
 	)`,
 			createTableCertificates: `
 	CREATE TABLE IF NOT EXISTS Certificates (

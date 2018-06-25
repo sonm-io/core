@@ -8,13 +8,12 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/blockchain"
-	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
-	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/metadata"
 )
 
 // Watch for current worker's status. Collect its devices.
@@ -46,35 +45,20 @@ func (m *Optimus) Run(ctx context.Context) error {
 	m.log.Info("starting Optimus")
 	defer m.log.Info("Optimus has been stopped")
 
-	certificate, TLSConfig, err := util.NewHitlessCertRotator(ctx, m.cfg.PrivateKey.Unwrap())
+	registry := newRegistry()
+	defer registry.Close()
+
+	dwh, err := registry.NewDWH(ctx, m.cfg.Marketplace.Endpoint, m.cfg.Marketplace.PrivateKey.Unwrap())
 	if err != nil {
 		return err
 	}
-	defer certificate.Close()
 
-	credentials := util.NewTLS(TLSConfig)
-
-	newWorker := func(ctx context.Context, addr auth.Addr) (sonm.WorkerManagementClient, error) {
-		conn, err := xgrpc.NewClient(ctx, addr.String(), credentials)
-		if err != nil {
-			return nil, err
-		}
-
-		return sonm.NewWorkerManagementClient(conn), nil
+	ordersScanner, err := newOrderScanner(dwh)
+	if err != nil {
+		return err
 	}
 
 	ordersSet := newOrdersSet()
-
-	conn, err := xgrpc.NewClient(ctx, m.cfg.Marketplace.Endpoint.String(), credentials)
-	if err != nil {
-		return err
-	}
-
-	ordersScanner, err := newOrderScanner(sonm.NewDWHClient(conn))
-	if err != nil {
-		return err
-	}
-
 	ordersControl, err := newOrdersControl(ordersScanner, m.cfg.Optimization.ClassifierFactory(m.log.Desugar()), ordersSet, m.log.Desugar())
 	if err != nil {
 		return err
@@ -101,7 +85,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 			return err
 		}
 
-		worker, err := newWorker(ctx, addr)
+		worker, err := registry.NewWorkerManagement(ctx, m.cfg.Node.Endpoint, m.cfg.Node.PrivateKey.Unwrap())
 		if err != nil {
 			return err
 		}
@@ -111,8 +95,12 @@ func (m *Optimus) Run(ctx context.Context) error {
 			return err
 		}
 
+		md := metadata.MD{
+			util.WorkerAddressHeader: []string{addr.String()},
+		}
+
 		wg.Go(func() error {
-			return newManagedWatcher(control, cfg.Epoch).Run(ctx)
+			return newManagedWatcher(control, cfg.Epoch).Run(metadata.NewOutgoingContext(ctx, md))
 		})
 	}
 

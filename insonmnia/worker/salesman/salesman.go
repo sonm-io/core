@@ -294,7 +294,7 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 
 func (m *Salesman) restoreState() error {
 	m.askPlans = map[string]*sonm.AskPlan{}
-	if err := m.askPlanStorage.Load(&m.askPlans); err != nil {
+	if _, err := m.askPlanStorage.Load(&m.askPlans); err != nil {
 		return fmt.Errorf("could not restore salesman state: %s", err)
 	}
 	for _, plan := range m.askPlans {
@@ -310,7 +310,7 @@ func (m *Salesman) restoreState() error {
 			}
 		}
 	}
-	if err := m.storage.Load("next_maintenance", &m.nextMaintenance); err != nil {
+	if _, err := m.storage.Load("next_maintenance", &m.nextMaintenance); err != nil {
 		return fmt.Errorf("failed to load next maintenance: %s", err)
 	}
 	//TODO: restore tasks

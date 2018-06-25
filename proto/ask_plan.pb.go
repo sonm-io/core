@@ -65,6 +65,7 @@ It has these top-level messages:
 	BlacklistsContainingUserReply
 	ValidatorsRequest
 	ValidatorsReply
+	DWHValidator
 	Validator
 	DealChangeRequestsReply
 	DealChangeRequest
