@@ -1,8 +1,8 @@
-var SNM = artifacts.require('./SNM.sol');
-var TestnetFaucet = artifacts.require('./TestnetFaucet.sol');
+let SNM = artifacts.require('./SNM.sol');
+let TestnetFaucet = artifacts.require('./TestnetFaucet.sol');
 
 module.exports = function (deployer, network) {
-    if (network === 'private') {
+    if ((network === 'private') || (network === 'privateLive')) {
         deployer.deploy(SNM, { gasPrice: 0 });
     } else if (network === 'rinkeby') {
         deployer.deploy(TestnetFaucet);

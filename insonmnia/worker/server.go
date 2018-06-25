@@ -651,6 +651,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		volumes:       spec.Container.Volumes,
 		mounts:        mounts,
 		networks:      networks,
+		expose:        spec.Container.GetExpose(),
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.

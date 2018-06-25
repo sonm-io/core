@@ -183,3 +183,19 @@ resources:
 
 	assert.Equal(t, uint64(30e6), cfg.GetResources().GetRAM().GetSize().GetBytes())
 }
+
+func TestTaskConfigExpose(t *testing.T) {
+	createTestConfigFile(`
+container:
+  image: user/image:v1
+  expose:
+    - 80:80
+`)
+	defer deleteTestConfigFile()
+
+	cfg, err := LoadConfig(testCfgPath)
+	require.NoError(t, err)
+	require.NotNil(t, cfg)
+
+	assert.Equal(t, []string{"80:80"}, cfg.GetContainer().GetExpose())
+}
