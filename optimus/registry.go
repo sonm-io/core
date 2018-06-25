@@ -26,6 +26,7 @@ type certificate struct {
 type Registry struct {
 	mu           sync.Mutex
 	certificates map[common.Address]*certificate
+	connections  []*grpc.ClientConn
 }
 
 func newRegistry() *Registry {
@@ -81,6 +82,8 @@ func (m *Registry) newClient(ctx context.Context, addr auth.Addr, privateKey *ec
 		return nil, err
 	}
 
+	m.connections = append(m.connections, conn)
+
 	return conn, nil
 }
 
@@ -112,5 +115,9 @@ func (m *Registry) Close() {
 
 	for _, certificate := range m.certificates {
 		certificate.rotator.Close()
+	}
+
+	for _, conn := range m.connections {
+		conn.Close()
 	}
 }
