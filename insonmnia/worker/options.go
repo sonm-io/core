@@ -119,11 +119,11 @@ func (m *options) SetupDefaults() error {
 func (m *options) setupKey() error {
 	if m.key == nil {
 		var data []byte
-		err := m.storage.Load(ethereumPrivateKeyKey, &data)
+		loaded, err := m.storage.Load(ethereumPrivateKeyKey, &data)
 		if err != nil {
 			return err
 		}
-		if data == nil {
+		if !loaded {
 			key, err := crypto.GenerateKey()
 			if err != nil {
 				return err

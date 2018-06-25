@@ -1065,15 +1065,10 @@ func (m *DWH) onValidatorCreated(validatorID common.Address) error {
 }
 
 func (m *DWH) onValidatorDeleted(validatorID common.Address) error {
-	validator, err := m.blockchain.ProfileRegistry().GetValidator(m.ctx, validatorID)
-	if err != nil {
-		return fmt.Errorf("failed to get validator `%s`: %v", validatorID.String(), err)
-	}
-
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
-	if err := m.storage.UpdateValidator(conn, validator); err != nil {
+	if err := m.storage.DeactivateValidator(conn, validatorID); err != nil {
 		return fmt.Errorf("failed to InsertOrUpdateValidator: %v", err)
 	}
 
@@ -1094,6 +1089,17 @@ func (m *DWH) onCertificateCreated(certificateID *big.Int) error {
 		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer conn.Finish()
+
+	// Check if this certificate is assigned to a validator.
+	validatorLevel, err := m.blockchain.ProfileRegistry().GetValidatorLevel(m.ctx, certificate.OwnerID.Unwrap())
+	if err != nil {
+		return fmt.Errorf("failed to GetValidatorLevel: %v", err)
+	}
+	if validatorLevel != 0 {
+		// It's a validator.
+		return m.storage.UpdateValidator(
+			conn, certificate.OwnerID.Unwrap(), certificate.GetAttributeNameNormalized(), certificate.GetValue())
+	}
 
 	if err = m.storage.InsertCertificate(conn, certificate); err != nil {
 		return fmt.Errorf("failed to insertCertificate: %v", err)

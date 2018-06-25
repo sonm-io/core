@@ -100,3 +100,19 @@ func (m *NetFlags) SetOverlay(value bool) *NetFlags {
 func (m *NetFlags) ConverseImplication(cmp *NetFlags) bool {
 	return m.GetFlags()|^cmp.GetFlags() == 1<<64-1
 }
+
+func (m *GPUDevice) StorageKey() string {
+	return "gpu" + m.GetID()
+}
+
+func (m *RAMDevice) HardwareHash() string {
+	return ""
+}
+
+func (m *Network) HardwareHash() string {
+	return ""
+}
+
+func (m *StorageDevice) HardwareHash() string {
+	return ""
+}
