@@ -534,7 +534,7 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 
 func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) (bool, reference.Reference, error) {
 	spec := request.GetSpec()
-	reference, err := reference.Parse(spec.GetContainer().GetImage())
+	reference, err := reference.ParseAnyReference(spec.GetContainer().GetImage())
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to parse reference: %s", err)
 	}
