@@ -3,7 +3,8 @@ logging:
   # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
   level: debug
 
-# Account settings.
+# Global account settings.
+# Used by all components unless overridden.
 ethereum: &ethereum
   # Path to the keystore.
   key_store: "./keys"
@@ -15,6 +16,8 @@ ethereum: &ethereum
 # settings.
 workers:
   0xccBe701e568577983E90968161ABB391759D589e@[::1]:15010:
+    # Account settings.
+    ethereum: *ethereum
     # Epoch is an interval of scanning worker's free resources and selling them
     # by cutting ask plans.
     epoch: 60s
@@ -25,10 +28,12 @@ benchmarks:
 
 # Marketplace polling settings.
 marketplace:
-  # Interval of periodic current orders fetching from the marketplace.
-  interval: 30s
+  # Account settings.
+  ethereum: *ethereum
   # DWH endpoint.
   endpoint: 0x3f46ed4f779fd378f630d8cd996796c69a7738d2@dwh-testnet.sonm.com:15021
+  # Interval of periodic current orders fetching from the marketplace.
+  interval: 30s
 
 # Optimization engine settings.
 optimization:

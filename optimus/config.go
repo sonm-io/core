@@ -37,6 +37,7 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 type workerConfig struct {
+	PrivateKey  privateKey    `yaml:"ethereum" json:"-"`
 	Epoch       time.Duration `yaml:"epoch"`
 	OrderPolicy OrderPolicy   `yaml:"order_policy"`
 }
@@ -82,8 +83,9 @@ func (m *privateKey) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 type marketplaceConfig struct {
-	Interval time.Duration
-	Endpoint auth.Addr
+	PrivateKey privateKey    `yaml:"ethereum"`
+	Endpoint   auth.Addr     `yaml:"endpoint"`
+	Interval   time.Duration `yaml:"interval"`
 }
 
 type optimizationConfig struct {
