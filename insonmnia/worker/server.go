@@ -534,7 +534,7 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 
 func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) (bool, reference.Reference, error) {
 	spec := request.GetSpec()
-	reference, err := reference.Parse(spec.GetContainer().GetImage())
+	reference, err := reference.ParseAnyReference(spec.GetContainer().GetImage())
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to parse reference: %s", err)
 	}
@@ -651,6 +651,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		volumes:       spec.Container.Volumes,
 		mounts:        mounts,
 		networks:      networks,
+		expose:        spec.Container.GetExpose(),
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
