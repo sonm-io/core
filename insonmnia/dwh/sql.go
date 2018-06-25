@@ -848,16 +848,15 @@ func (m *sqlStorage) GetBlacklistsContainingUser(conn queryConn, r *pb.Blacklist
 
 func (m *sqlStorage) InsertOrUpdateValidator(conn queryConn, validator *pb.Validator) error {
 	// Validators are never deleted, so it's O.K. to check in a non-atomic way.
-	query, args, _ := m.builder().Select("*").From("Validators").Where("Id = ?", validator.GetId().Unwrap().Hex()).
+	query, args, _ := m.builder().Select("Id").From("Validators").Where("Id = ?", validator.GetId().Unwrap().Hex()).
 		ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to check if Validator exists: %v", err)
 	}
-	defer rows.Close()
-
-	if rows.Next() {
-		rows.Close()
+	alreadyExists := rows.Next()
+	rows.Close()
+	if alreadyExists {
 		// If this validator exists, it means that it was deactivated; we re-activate it by setting the current
 		// identity level.
 		return m.UpdateValidator(conn, validator.GetId().Unwrap(), "Level", validator.GetLevel())
