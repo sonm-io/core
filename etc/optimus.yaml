@@ -11,10 +11,18 @@ ethereum: &ethereum
   # Passphrase for the keystore.
   pass_phrase: "any"
 
+# Node settings.
+node:
+  # Account settings.
+  ethereum: *ethereum
+  # Node trusted endpoint.
+  endpoint: 0x83A68C0AEaCA382fC42122f125cbDC64d4b43FdD@[::1]:15030
 
 # Map of workers this bot manages defined by its trusted endpoints with their
 # settings.
 workers:
+  # Use worker ETH address here, but the account used must have the proper
+  # access.
   0xccBe701e568577983E90968161ABB391759D589e@[::1]:15010:
     # Account settings.
     ethereum: *ethereum

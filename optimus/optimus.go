@@ -10,8 +10,10 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/metadata"
 )
 
 // Watch for current worker's status. Collect its devices.
@@ -83,10 +85,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 			return err
 		}
 
-		worker, err := registry.NewWorker(ctx, addr, cfg.PrivateKey.Unwrap())
-		if err != nil {
-			return err
-		}
+		worker, err := registry.NewWorkerManagement(ctx, m.cfg.Node.Endpoint, m.cfg.Node.PrivateKey.Unwrap())
 		if err != nil {
 			return err
 		}
@@ -96,8 +95,12 @@ func (m *Optimus) Run(ctx context.Context) error {
 			return err
 		}
 
+		md := metadata.MD{
+			util.WorkerAddressHeader: []string{addr.String()},
+		}
+
 		wg.Go(func() error {
-			return newManagedWatcher(control, cfg.Epoch).Run(ctx)
+			return newManagedWatcher(control, cfg.Epoch).Run(metadata.NewOutgoingContext(ctx, md))
 		})
 	}
 

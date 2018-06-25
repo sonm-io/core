@@ -35,7 +35,7 @@ func newRegistry() *Registry {
 	}
 }
 
-func (m *Registry) NewWorker(ctx context.Context, addr auth.Addr, privateKey *ecdsa.PrivateKey) (sonm.WorkerManagementClient, error) {
+func (m *Registry) NewWorkerManagement(ctx context.Context, addr auth.Addr, privateKey *ecdsa.PrivateKey) (sonm.WorkerManagementClient, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -71,13 +71,13 @@ func (m *Registry) NewMarket(ctx context.Context, addr auth.Addr, privateKey *ec
 	return sonm.NewMarketClient(conn), nil
 }
 
-func (m *Registry) newClient(ctx context.Context, addr auth.Addr, privateKey *ecdsa.PrivateKey) (*grpc.ClientConn, error) {
+func (m *Registry) newClient(ctx context.Context, addr auth.Addr, privateKey *ecdsa.PrivateKey, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	cred, err := m.credentials(ctx, privateKey)
 	if err != nil {
 		return nil, err
 	}
 
-	conn, err := xgrpc.NewClient(ctx, addr.String(), cred)
+	conn, err := xgrpc.NewClient(ctx, addr.String(), cred, opts...)
 	if err != nil {
 		return nil, err
 	}

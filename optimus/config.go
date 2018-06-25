@@ -17,9 +17,15 @@ const (
 	PolicySpotOnly OrderPolicy = iota
 )
 
+type nodeConfig struct {
+	PrivateKey privateKey `yaml:"ethereum" json:"-"`
+	Endpoint   auth.Addr  `yaml:"endpoint"`
+}
+
 type Config struct {
 	PrivateKey   privateKey                 `yaml:"ethereum" json:"-"`
 	Logging      logging.Config             `yaml:"logging"`
+	Node         nodeConfig                 `yaml:"node"`
 	Workers      map[auth.Addr]workerConfig `yaml:"workers"`
 	Benchmarks   benchmarks.Config          `yaml:"benchmarks"`
 	Marketplace  marketplaceConfig          `yaml:"marketplace"`
