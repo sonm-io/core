@@ -17,9 +17,15 @@ const (
 	PolicySpotOnly OrderPolicy = iota
 )
 
+type nodeConfig struct {
+	PrivateKey privateKey `yaml:"ethereum" json:"-"`
+	Endpoint   auth.Addr  `yaml:"endpoint"`
+}
+
 type Config struct {
 	PrivateKey   privateKey                 `yaml:"ethereum" json:"-"`
 	Logging      logging.Config             `yaml:"logging"`
+	Node         nodeConfig                 `yaml:"node"`
 	Workers      map[auth.Addr]workerConfig `yaml:"workers"`
 	Benchmarks   benchmarks.Config          `yaml:"benchmarks"`
 	Marketplace  marketplaceConfig          `yaml:"marketplace"`
@@ -37,6 +43,7 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 type workerConfig struct {
+	PrivateKey  privateKey    `yaml:"ethereum" json:"-"`
 	Epoch       time.Duration `yaml:"epoch"`
 	OrderPolicy OrderPolicy   `yaml:"order_policy"`
 }
@@ -82,8 +89,9 @@ func (m *privateKey) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 type marketplaceConfig struct {
-	Interval time.Duration
-	Endpoint auth.Addr
+	PrivateKey privateKey    `yaml:"ethereum" json:"-"`
+	Endpoint   auth.Addr     `yaml:"endpoint"`
+	Interval   time.Duration `yaml:"interval"`
 }
 
 type optimizationConfig struct {
