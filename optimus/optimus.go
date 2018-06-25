@@ -321,10 +321,6 @@ func (m *workerControl) Execute(ctx context.Context) {
 			continue
 		}
 
-		// TODO: Temp.
-		matchedOrders = append(matchedOrders, order)
-		continue
-
 		switch m.cfg.OrderPolicy {
 		case PolicySpotOnly:
 			if order.Order.GetOrder().GetDuration() != 0 {
@@ -538,24 +534,21 @@ func (m *workerControl) cancelPlans(ctx context.Context, plans map[string]*sonm.
 				return errs
 			}
 
-			found := false
+			foundPending := false
 			for id := range currentPlans.AskPlans {
 				// Continue to wait if there are ask plans left.
 				if _, ok := plans[id]; ok {
-					found = true
+					foundPending = true
 					break
 				}
 			}
 
-			if !found {
-				break
+			if !foundPending {
+				fillRemainingWithErr(nil)
+				return errs
 			}
 		}
 	}
-
-	fillRemainingWithErr(nil)
-
-	return errs
 }
 
 func calculateWorkerPrice(plans []*sonm.AskPlan) *sonm.Price {
