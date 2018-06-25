@@ -83,7 +83,7 @@ func (m *privateKey) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 type marketplaceConfig struct {
-	PrivateKey privateKey    `yaml:"ethereum"`
+	PrivateKey privateKey    `yaml:"ethereum" json:"-"`
 	Endpoint   auth.Addr     `yaml:"endpoint"`
 	Interval   time.Duration `yaml:"interval"`
 }
