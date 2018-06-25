@@ -40,6 +40,7 @@ type ProfileRegistryAPI interface {
 	AddValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address, level int8) (*types.Transaction, error)
 	RemoveValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address) (*types.Transaction, error)
 	GetValidator(ctx context.Context, validatorID common.Address) (*pb.Validator, error)
+	GetValidatorLevel(ctx context.Context, validatorID common.Address) (int8, error)
 	CreateCertificate(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address, attributeType *big.Int, value []byte) (*types.Transaction, error)
 	RemoveCertificate(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error
 	GetCertificate(ctx context.Context, certificateID *big.Int) (*pb.Certificate, error)
@@ -726,6 +727,10 @@ func (api *ProfileRegistry) RemoveCertificate(ctx context.Context, key *ecdsa.Pr
 func (api *ProfileRegistry) AddValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address, level int8) (*types.Transaction, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 	return api.profileRegistryContract.AddValidator(opts, validator, level)
+}
+
+func (api *ProfileRegistry) GetValidatorLevel(ctx context.Context, validatorID common.Address) (int8, error) {
+	return api.profileRegistryContract.GetValidatorLevel(getCallOptions(ctx), validatorID)
 }
 
 func (api *ProfileRegistry) RemoveValidator(ctx context.Context, key *ecdsa.PrivateKey, validator common.Address) (*types.Transaction, error) {
