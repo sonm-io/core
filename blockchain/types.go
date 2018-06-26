@@ -87,6 +87,36 @@ type NumBenchmarksUpdatedData struct {
 	NumBenchmarks uint64
 }
 
+type GateTx struct {
+	// From token transfer sender
+	From common.Address
+	// Number is sequence number of transaction
+	// defines to unique transaction.
+	// That sequence realized in smart contract
+	Number *big.Int
+	// Value of transferring tokens
+	Value *big.Int
+	// BlockNumber timestamp of commitment Payin transaction
+	// used for calculate duration of stay transaction
+	BlockNumber *big.Int
+}
+
+// GateTxState present state of payout transaction
+// used for verify transactions
+type GateTxState struct {
+	CommitTS *big.Int
+	Paid     bool
+	Keeper   common.Address
+}
+
+type Keeper struct {
+	Address    common.Address
+	DayLimit   *big.Int
+	LastDay    *big.Int
+	SpentToday *big.Int
+	Frozen     bool
+}
+
 type MultiSigTransactionData struct {
 	To       common.Address
 	Value    *big.Int
