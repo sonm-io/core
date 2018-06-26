@@ -55,7 +55,7 @@ func (m *metrics) Dump() *sonm.RelayMetrics {
 	return &sonm.RelayMetrics{
 		ConnCurrent: m.ConnCurrent.Load(),
 		Net:         netMetrics,
-		Uptime:      uint64(time.Now().Sub(m.birthTime).Seconds()),
+		Uptime:      uint64(time.Since(m.birthTime).Seconds()),
 	}
 }
 
