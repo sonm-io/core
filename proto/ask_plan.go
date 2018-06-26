@@ -178,10 +178,12 @@ func (m *AskPlanResources) Contains(resources *AskPlanResources) (result bool, d
 			resources.GetRAM().GetSize().Unwrap().HumanReadable(), m.GetRAM().GetSize().Unwrap().HumanReadable())
 	}
 	if m.GetStorage().GetSize().GetBytes() < resources.GetStorage().GetSize().GetBytes() {
-		return false, "not enough Storage"
+		return false, fmt.Sprintf("not enough Storage, has %d bytes, want %s bytes",
+			resources.GetStorage().GetSize().GetBytes(), resources.GetStorage().GetSize().GetBytes())
 	}
 	if !m.GetGPU().Contains(resources.GetGPU()) {
-		return false, "specified GPU is occupied"
+		return false, fmt.Sprintf("specified GPU is occupied, has %v hashes, want %v hashes",
+			m.GetGPU().GetHashes(), resources.GetGPU().GetHashes())
 	}
 	if !m.GetNetwork().GetNetFlags().ConverseImplication(resources.GetNetwork().GetNetFlags()) {
 		return false, "net flags are not satisfied"
