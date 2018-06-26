@@ -17,15 +17,14 @@ const (
 type WeightedOrder struct {
 	// Order is an initial market order.
 	Order *MarketOrder
-	// PredictedPrice is a order price, that is calculated during scanning and
-	// analysing the market.
+	// Price is an order price in USD/s.
+	Price float64
+	// PredictedPrice is a order price in USD/s, that is calculated during
+	// scanning and analysing the market.
 	PredictedPrice float64
-	// Distance represents the difference between denormalized order price and
-	// the market predicted price.
-	Distance float64
 	// Weight represents some specific order weight.
 	//
-	// It fits in [0; 1] range and is used to reduce an order attractiveness
+	// It fits in [0; +Inf] range and is used to reduce an order attractiveness
 	// if it has been laying on the market for a long time without being sold.
 	Weight float64
 	ID     string
@@ -70,33 +69,9 @@ type OrderClassification struct {
 	Clock          Clock
 }
 
-func (m *OrderClassification) RecalculateWeights(orders []WeightedOrder) error {
-	if len(orders) == 0 {
-		return errors.New("empty input")
-	}
-
-	sumDistance := 0.0
-	for _, order := range orders {
-		sumDistance += order.Distance
-	}
-	meanDistance := sumDistance / float64(len(orders))
-
+func (m *OrderClassification) recalculateWeights(orders []WeightedOrder) {
 	for id, order := range orders {
-		orders[id].Weight = order.Distance + meanDistance
-	}
-
-	weights := make([]float64, len(orders))
-	for id := range orders {
-		weights[id] = orders[id].Weight
-	}
-
-	normalizer, err := newNormalizer(weights...)
-	if err != nil {
-		return err
-	}
-
-	for id := range orders {
-		orders[id].Weight = normalizer.Normalize(orders[id].Weight)
+		orders[id].Weight = order.Price / order.PredictedPrice
 	}
 
 	now := m.Clock()
@@ -108,8 +83,11 @@ func (m *OrderClassification) RecalculateWeights(orders []WeightedOrder) error {
 			orders[id].Weight = order.Weight * scale
 		}
 	}
+}
 
-	return nil
+func (m *OrderClassification) RecalculateWeightsAndSort(orders []WeightedOrder) {
+	m.recalculateWeights(orders)
+	SortOrders(orders)
 }
 
 // TODO: Docs.
@@ -165,17 +143,14 @@ func (m *regressionClassifier) ClassifyExt(orders []*MarketOrder) (*OrderClassif
 		}
 
 		price := expectationNormalizer.Denormalize(normalizedPrice)
-		distance := price - expectation[i]
 
 		weightedOrders = append(weightedOrders, WeightedOrder{
 			Order:          orders[i],
-			PredictedPrice: math.Max(0.0, price*priceMultiplier),
-			Distance:       distance,
+			Price:          expectation[i] * priceMultiplier,
+			PredictedPrice: math.Max(priceMultiplier, price*priceMultiplier),
 			Weight:         1.0,
 		})
 	}
-
-	SortOrders(weightedOrders)
 
 	orderClassification := &OrderClassification{
 		WeightedOrders: weightedOrders,
@@ -188,9 +163,7 @@ func (m *regressionClassifier) ClassifyExt(orders []*MarketOrder) (*OrderClassif
 		Clock:   m.clock,
 	}
 
-	if err := orderClassification.RecalculateWeights(weightedOrders); err != nil {
-		return nil, err
-	}
+	orderClassification.RecalculateWeightsAndSort(weightedOrders)
 
 	return orderClassification, nil
 }
