@@ -7,7 +7,6 @@ import (
 
 	"github.com/mohae/deepcopy"
 	"github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
@@ -20,7 +19,6 @@ type Scheduler struct {
 	pool          *pool
 	taskToAskPlan map[string]string
 	askPlanPools  map[string]*pool
-	parentCGroups map[string]cgroups.CGroup
 	log           *zap.SugaredLogger
 }
 
@@ -35,7 +33,6 @@ func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
 		pool:          newPool(resources),
 		taskToAskPlan: map[string]string{},
 		askPlanPools:  map[string]*pool{},
-		parentCGroups: map[string]cgroups.CGroup{},
 	}
 }
 
