@@ -427,15 +427,19 @@ func (m *workerControl) Execute(ctx context.Context) {
 		}
 	}
 
-	// Tell worker to create sell plans.
-	for _, plan := range plans {
-		id, err := m.worker.CreateAskPlan(ctx, plan)
-		if err != nil {
-			m.log.Warnw("failed to create sell plan", zap.Any("plan", *plan), zap.Error(err))
-			continue
-		}
+	if m.cfg.DryRun {
+		m.log.Debug("skipping creating ask-plans, because dry-run mode is active")
+	} else {
+		// Tell worker to create sell plans.
+		for _, plan := range plans {
+			id, err := m.worker.CreateAskPlan(ctx, plan)
+			if err != nil {
+				m.log.Warnw("failed to create sell plan", zap.Any("plan", *plan), zap.Error(err))
+				continue
+			}
 
-		m.log.Infof("created sell plan %s", id.Id)
+			m.log.Infof("created sell plan %s", id.Id)
+		}
 	}
 }
 
