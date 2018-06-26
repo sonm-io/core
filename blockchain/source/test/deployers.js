@@ -1,5 +1,5 @@
+import assertRevert from './helpers/assertRevert';
 const DeployList = artifacts.require('./DeployList.sol');
-import assertRevert from './helpers/assertRevert'
 
 contract('DeployList', async (accounts) => {
     let list;
@@ -39,11 +39,11 @@ contract('DeployList', async (accounts) => {
         });
 
         it('creeper cannot add deployer', async () => {
-            await assertRevert(list.addDeployer(newDeployer, {from: creeper}));
+            await assertRevert(list.addDeployer(newDeployer, { from: creeper }));
         });
 
         it('creeper cannot remove deployer', async () => {
-            await assertRevert(list.addDeployer(newDeployer, {from: creeper}));
+            await assertRevert(list.addDeployer(newDeployer, { from: creeper }));
         });
     });
 });
