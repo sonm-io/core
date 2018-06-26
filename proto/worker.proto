@@ -38,7 +38,7 @@ service WorkerManagement {
     rpc ScheduleMaintenance(Timestamp) returns (Empty) {}
     // Get next planned maintenance
     rpc NextMaintenance(Empty) returns (Timestamp) {}
-    // Get usefull debugging info - scheduler state and salesman state
+    // Get useful debugging info - scheduler state and salesman state
     rpc DebugState(Empty) returns (DebugStateReply) {}
 }
 
