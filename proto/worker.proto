@@ -38,7 +38,7 @@ service WorkerManagement {
     rpc ScheduleMaintenance(Timestamp) returns (Empty) {}
     // Get next planned maintenance
     rpc NextMaintenance(Empty) returns (Timestamp) {}
-
+    // Get usefull debugging info - scheduler state and salesman state
     rpc DebugState(Empty) returns (DebugStateReply) {}
 }
 
@@ -145,19 +145,19 @@ message TaskStatusReply {
 
 message ResourcePool {
     AskPlanResources all = 1;
-	map<string, AskPlanResources> used = 2;
+    map<string, AskPlanResources> used = 2;
 }
 
 message SchedulerData {
-    map<string,string> taskToAskPlan = 1;
+    map<string, string> taskToAskPlan = 1;
     ResourcePool mainPool = 2;
     map<string, ResourcePool> askPlanPools = 3;
 }
 
 message SalesmanData {
-	map<string, string> askPlanCGroups = 2;
-	map<string, Deal> deals = 3;
-	map<string, Order> orders = 4;
+    map<string, string> askPlanCGroups = 2;
+    map<string, Deal> deals = 3;
+    map<string, Order> orders = 4;
 }
 
 message DebugStateReply {

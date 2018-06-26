@@ -54,12 +54,13 @@ func (m *Scheduler) DebugDump() *sonm.SchedulerData {
 	}
 
 	for askID, pool := range m.askPlanPools {
-		reply.AskPlanPools[askID] = &sonm.ResourcePool{
+		resultPool := &sonm.ResourcePool{
 			All:  pool.all,
 			Used: map[string]*sonm.AskPlanResources{},
 		}
+		reply.AskPlanPools[askID] = resultPool
 		for id, res := range pool.used {
-			reply.AskPlanPools[askID].Used[id] = res
+			resultPool.Used[id] = res
 		}
 	}
 

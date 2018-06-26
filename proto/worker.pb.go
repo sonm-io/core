@@ -607,6 +607,7 @@ type WorkerManagementClient interface {
 	ScheduleMaintenance(ctx context.Context, in *Timestamp, opts ...grpc.CallOption) (*Empty, error)
 	// Get next planned maintenance
 	NextMaintenance(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Timestamp, error)
+	// Get usefull debugging info - scheduler state and salesman state
 	DebugState(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*DebugStateReply, error)
 }
 
@@ -744,6 +745,7 @@ type WorkerManagementServer interface {
 	ScheduleMaintenance(context.Context, *Timestamp) (*Empty, error)
 	// Get next planned maintenance
 	NextMaintenance(context.Context, *Empty) (*Timestamp, error)
+	// Get usefull debugging info - scheduler state and salesman state
 	DebugState(context.Context, *Empty) (*DebugStateReply, error)
 }
 

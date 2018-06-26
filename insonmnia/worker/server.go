@@ -68,6 +68,7 @@ var (
 		workerAPIPrefix + "PurgeAskPlans",
 		workerAPIPrefix + "ScheduleMaintenance",
 		workerAPIPrefix + "NextMaintenance",
+		workerAPIPrefix + "DebugState",
 	}
 )
 
