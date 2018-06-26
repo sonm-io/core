@@ -58,6 +58,7 @@ func init() {
 		workerCurrentCmd,
 		workerScheduleMaintenanceCmd,
 		workerNextMaintenanceCmd,
+		workerDebugStateCmd,
 	)
 }
 
