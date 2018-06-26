@@ -44,6 +44,7 @@ DWH        := ${TARGETDIR}/sonmdwh_$(OS_ARCH)
 RENDEZVOUS := ${TARGETDIR}/sonmrendezvous_$(OS_ARCH)
 RELAY      := ${TARGETDIR}/sonmrelay_$(OS_ARCH)
 OPTIMUS    := ${TARGETDIR}/sonmoptimus_$(OS_ARCH)
+GATEKEEPER := ${TARGETDIR}/sonmgatekeeper_$(OS_ARCH)
 LSGPU      := ${TARGETDIR}/lsgpu_$(OS_ARCH)
 PANDORA    := ${TARGETDIR}/pandora_$(OS_ARCH)
 ORACLE     := ${TARGETDIR}/sonmoracle_$(OS_ARCH)
@@ -141,9 +142,14 @@ else
 	@echo "Skipping build of sonmmon for non-linux target"
 endif
 
+build/gatekeeper:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${GATEKEEPER} ${GOCMD}/gatekeeper
+
+
 build/insomnia: build/worker build/cli build/node
 
-build/aux: build/relay build/rv build/dwh build/pandora build/optimus build/oracle build/connor build/sonmmon
+build/aux: build/relay build/rv build/dwh build/pandora build/optimus build/oracle build/connor build/sonmmon build/gatekeeper
 
 build: build/insomnia build/aux
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -195,4 +196,42 @@ func (m *GasPrice) UnmarshalText(text []byte) error {
 	m.Int = big.NewInt(0).Mul(value, unitETH.Int)
 
 	return nil
+}
+
+type PayoutResult int
+
+const (
+	UNKNOWN   PayoutResult = 0
+	Committed PayoutResult = 1
+	Payouted  PayoutResult = 2
+)
+
+type GateTx struct {
+	// From token transfer sender
+	From common.Address
+	// Number is sequence number of transaction
+	// defines to unique transaction.
+	// That sequence realized in smart contract
+	Number *big.Int
+	// Value of transferring tokens
+	Value *big.Int
+	// BlockNumber timestamp of commitment Payin transaction
+	// used for calculate duration of stay transaction
+	BlockNumber uint64
+}
+
+// GateTxState present state of payout transaction
+// used for verify transactions
+type GateTxState struct {
+	CommitTS time.Time
+	Paid     bool
+	Keeper   common.Address
+}
+
+type Keeper struct {
+	Address    common.Address
+	DayLimit   *big.Int
+	LastDay    time.Time
+	SpentToday *big.Int
+	Frozen     bool
 }
