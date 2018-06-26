@@ -1230,6 +1230,13 @@ func (m *Worker) NextMaintenance(ctx context.Context, _ *pb.Empty) (*pb.Timestam
 	}, nil
 }
 
+func (m *Worker) DebugState(ctx context.Context, _ *pb.Empty) (*pb.DebugStateReply, error) {
+	return &pb.DebugStateReply{
+		SchedulerData: m.resources.DebugDump(),
+		SalesmanData:  m.salesman.DebugDump(),
+	}, nil
+}
+
 func (m *Worker) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
 	log.G(m.ctx).Info("handling GetDealInfo request")
 

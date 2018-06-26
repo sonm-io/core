@@ -13,6 +13,7 @@ import (
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/metadata"
+	"gopkg.in/yaml.v1"
 )
 
 var (
@@ -188,6 +189,29 @@ var workerCurrentCmd = &cobra.Command{
 			cmd.Printf("%s %s\n", result.Description, result.Address)
 		} else {
 			showJSON(cmd, result)
+		}
+
+	},
+}
+
+var workerDebugStateCmd = &cobra.Command{
+	Use:   "debug_state",
+	Short: "Provide some usefull worker debugging info",
+	Run: func(cmd *cobra.Command, args []string) {
+		reply, err := worker.DebugState(workerCtx, &pb.Empty{})
+		if err != nil {
+			showError(cmd, "failed to get debug state", err)
+			os.Exit(1)
+		}
+		if isSimpleFormat() {
+			data, err := yaml.Marshal(reply)
+			if err != nil {
+				showError(cmd, "failed to marshal state", err)
+				os.Exit(1)
+			}
+			cmd.Printf("%s\n", string(data))
+		} else {
+			showJSON(cmd, reply)
 		}
 
 	},

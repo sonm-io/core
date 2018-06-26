@@ -140,6 +140,10 @@ It has these top-level messages:
 	PullTaskRequest
 	DealInfoReply
 	TaskStatusReply
+	ResourcePool
+	SchedulerData
+	SalesmanData
+	DebugStateReply
 */
 package sonm
 

@@ -36,6 +36,36 @@ func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
 	}
 }
 
+func (m *Scheduler) DebugDump() *sonm.SchedulerData {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	reply := &sonm.SchedulerData{
+		TaskToAskPlan: deepcopy.Copy(m.taskToAskPlan).(map[string]string),
+		MainPool: &sonm.ResourcePool{
+			All:  m.pool.all,
+			Used: map[string]*sonm.AskPlanResources{},
+		},
+		AskPlanPools: map[string]*sonm.ResourcePool{},
+	}
+
+	for id, res := range m.pool.used {
+		reply.MainPool.Used[id] = res
+	}
+
+	for askID, pool := range m.askPlanPools {
+		reply.AskPlanPools[askID] = &sonm.ResourcePool{
+			All:  pool.all,
+			Used: map[string]*sonm.AskPlanResources{},
+		}
+		for id, res := range pool.used {
+			reply.AskPlanPools[askID].Used[id] = res
+		}
+	}
+
+	return reply
+}
+
 //TODO: rework needed — looks like it should not be here
 func (m *Scheduler) AskPlanIDByTaskID(taskID string) (string, error) {
 	m.mu.Lock()
