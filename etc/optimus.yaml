@@ -44,6 +44,11 @@ workers:
     # If the new set will gain more profit/hour than the specified value
     # some of ask plans will be replaced.
     worker_price_threshold: 10 USD/h
+    # When activated Optimus will not create ask plans, but continues doing
+    # the rest calculations instead. Useful for debugging.
+    # Optional.
+    # Default value is false.
+    # dry_run: true
 
 benchmarks:
   # URL to download benchmark list, use `file://` schema to load file from a filesystem.

@@ -46,6 +46,7 @@ type workerConfig struct {
 	PrivateKey  privateKey    `yaml:"ethereum" json:"-"`
 	Epoch       time.Duration `yaml:"epoch"`
 	OrderPolicy OrderPolicy   `yaml:"order_policy"`
+	DryRun      bool          `yaml:"dry_run" default:"false"`
 }
 
 type OrderPolicy int
