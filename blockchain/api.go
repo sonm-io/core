@@ -9,9 +9,11 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/miguelmota/go-solidity-sha3"
 	"github.com/noxiouz/zapctx/ctxlog"
 	marketAPI "github.com/sonm-io/core/blockchain/source/api"
 	pb "github.com/sonm-io/core/proto"
@@ -65,6 +67,9 @@ type ProfileRegistryAPI interface {
 type EventsAPI interface {
 	GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error)
 	GetLastBlock(ctx context.Context) (uint64, error)
+	// GetBlockTimestamp returns Unix timestamp in UTC timezone.
+	// Useful for identify event emitting time.
+	GetBlockTimestamp(ctx context.Context, blockNumber *big.Int) (uint64, error)
 }
 
 type MarketAPI interface {
@@ -148,12 +153,28 @@ type SimpleGatekeeperAPI interface {
 	// On Masterchain ally as `Deposit`
 	// On Sidecain ally as `Withdraw`
 	PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) error
-	// Payout release payout transaction from mirrored chain.
-	// Accessible only by owner.
-	Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error)
+	// CommitPayout add payout transaction from mirrored chain.
+	// Accessible only for keepers.
+	CommitPayout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) error
+	// Payout release payout transaction.
+	// Payout must be delayed for freezing time.
+	// Accessible only for keeper added transaction previously.
+	Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) error
 	// Kill calls contract to suicide, all ether and tokens funds transfer to owner.
 	// Accessible only by owner.
 	Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error)
+	// FreezeKeeper disallow keeper transferring function
+	FreezeKeeper(ctx context.Context, key *ecdsa.PrivateKey, keeper common.Address) error
+	// GetFreezingTime returns current freezing(quarantine) duration for transferring
+	GetFreezingTime(ctx context.Context) (*big.Int, error)
+	// GetTransactionState returns state of transaction by field
+	GetTransactionState(ctx context.Context, from common.Address, value *big.Int, txNumber *big.Int) (*GateTxState, error)
+	// GetPayinTransactions returns all result of payin successful calls to gatekeeper contract
+	GetPayinTransactions(ctx context.Context) (map[string]*GateTx, error)
+	// GetPayoutTransactions returns all result of payout successful calls to gatekeeper contract
+	GetPayoutTransactions(ctx context.Context) (map[string]*GateTx, error)
+	// GetKeeper returns keeper state with his limit, and token spending status
+	GetKeeper(ctx context.Context, keeper common.Address) (*Keeper, error)
 }
 
 type BasicAPI struct {
@@ -1240,6 +1261,18 @@ func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
 	}
 }
 
+func (api *BasicEventsAPI) GetBlockTimestamp(ctx context.Context, blockNumber *big.Int) (uint64, error) {
+	block, err := api.client.BlockByNumber(ctx, blockNumber)
+	if err != nil {
+		return 0, err
+	}
+	if block.Time().IsUint64() {
+		return block.Time().Uint64(), nil
+	} else {
+		return 0, errors.New("block time overflows uint64")
+	}
+}
+
 func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error) {
 	var (
 		topics     [][]common.Hash
@@ -1539,8 +1572,9 @@ func (api *OracleUSDAPI) GetCurrentPrice(ctx context.Context) (*big.Int, error) 
 
 type BasicSimpleGatekeeper struct {
 	client   CustomEthereumClient
-	contract *marketAPI.SimpleGatekeeper
+	contract *marketAPI.SimpleGatekeeperWithLimit
 	opts     *chainOpts
+	address  common.Address
 }
 
 func NewSimpleGatekeeper(address common.Address, opts *chainOpts) (SimpleGatekeeperAPI, error) {
@@ -1549,7 +1583,7 @@ func NewSimpleGatekeeper(address common.Address, opts *chainOpts) (SimpleGatekee
 		return nil, err
 	}
 
-	contract, err := marketAPI.NewSimpleGatekeeper(address, client)
+	contract, err := marketAPI.NewSimpleGatekeeperWithLimit(address, client)
 	if err != nil {
 		return nil, err
 	}
@@ -1558,24 +1592,65 @@ func NewSimpleGatekeeper(address common.Address, opts *chainOpts) (SimpleGatekee
 		client:   client,
 		contract: contract,
 		opts:     opts,
+		address:  address,
 	}, nil
 }
 
 func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.contract.PayIn(opts, value)
+	tx, err := api.contract.Payin(opts, value)
 	if err != nil {
 		return err
 	}
 
-	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayInTopic); err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayinTopic); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error) {
+func (api *BasicSimpleGatekeeper) GetKeeper(ctx context.Context, keeper common.Address) (*Keeper, error) {
+	k, err := api.contract.Keepers(getCallOptions(ctx), keeper)
+	if err != nil {
+		return nil, err
+	}
+	return &Keeper{
+		Address:    keeper,
+		DayLimit:   k.DayLimit,
+		LastDay:    k.LastDay,
+		SpentToday: k.SpentToday,
+		Frozen:     k.Frozen,
+	}, nil
+}
+
+func (api *BasicSimpleGatekeeper) CommitPayout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) error {
+	tx, err := api.payout(ctx, key, to, value, txNumber)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, CommitTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) error {
+	tx, err := api.payout(ctx, key, to, value, txNumber)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayoutTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *BasicSimpleGatekeeper) payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 	return api.contract.Payout(opts, to, value, txNumber)
 }
@@ -1583,4 +1658,91 @@ func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.Private
 func (api *BasicSimpleGatekeeper) Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 	return api.contract.Kill(opts)
+}
+
+func (api *BasicSimpleGatekeeper) GetPayinTransactions(ctx context.Context) (map[string]*GateTx, error) {
+	logs, err := api.client.FilterLogs(context.Background(), ethereum.FilterQuery{
+		Topics:    [][]common.Hash{{PayinTopic}},
+		Addresses: []common.Address{api.address},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return api.transformTransactionsLogsToMap(logs, PayinTopic), nil
+}
+
+func (api *BasicSimpleGatekeeper) GetPayoutTransactions(ctx context.Context) (map[string]*GateTx, error) {
+	logs, err := api.client.FilterLogs(context.Background(), ethereum.FilterQuery{
+		Topics:    [][]common.Hash{{PayoutTopic}},
+		Addresses: []common.Address{api.address},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return api.transformTransactionsLogsToMap(logs, PayoutTopic), nil
+}
+
+func (api *BasicSimpleGatekeeper) transformTransactionsLogsToMap(logs []types.Log, topic common.Hash) map[string]*GateTx {
+	transactions := make(map[string]*GateTx)
+	for _, l := range logs {
+		if len(l.Topics) < 4 {
+			continue
+		}
+		if l.Topics[0].String() == PayoutTopic.String() {
+			transactions[l.Topics[2].Big().String()] = &GateTx{
+				From:        common.HexToAddress(l.Topics[1].Hex()),
+				Number:      l.Topics[2].Big(),
+				Value:       l.Topics[3].Big(),
+				BlockNumber: big.NewInt(0).SetUint64(l.BlockNumber),
+			}
+		}
+	}
+	return transactions
+}
+
+func (api *BasicSimpleGatekeeper) GetTransactionState(ctx context.Context, from common.Address, value *big.Int, txNumber *big.Int) (*GateTxState, error) {
+	id := api.generateTransactionID(from, value, txNumber)
+	t, err := api.contract.Paid(&bind.CallOpts{Pending: true, Context: ctx}, id)
+	if err != nil {
+		return nil, err
+	}
+	return &GateTxState{
+		CommitTS: t.CommitTS,
+		Paid:     t.Paid,
+		Keeper:   t.Keeper,
+	}, nil
+}
+
+func (api *BasicSimpleGatekeeper) FreezeKeeper(ctx context.Context, key *ecdsa.PrivateKey, keeper common.Address) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.contract.FreezeKeeper(opts, keeper)
+	if err != nil {
+		return err
+	}
+
+	// TODO: search topic
+	_, err = WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// generateTransactionID return identifier of transaction in gatekeeper contract.
+// Transactions identifies by hashed value of tx params (keccak256())
+func (api *BasicSimpleGatekeeper) generateTransactionID(from common.Address, value *big.Int, txNumber *big.Int) [32]byte {
+	// use solsha3 package, because solidity should use unstardated method for packing their types
+	hash := solsha3.SoliditySHA3(
+		solsha3.Address(from),
+		solsha3.Uint256(txNumber),
+		solsha3.Uint256(value),
+	)
+	var r [32]byte
+	copy(r[:], hash)
+	return r
+}
+
+func (api *BasicSimpleGatekeeper) GetFreezingTime(ctx context.Context) (*big.Int, error) {
+	return api.contract.GetFreezingTime(getCallOptions(ctx))
 }

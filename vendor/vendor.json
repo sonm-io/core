@@ -1230,6 +1230,12 @@
 			"revisionTime": "2018-01-25T10:38:03Z"
 		},
 		{
+			"checksumSHA1": "LSkwth/WUvrG+2/oeXmp92++2NU=",
+			"path": "github.com/miguelmota/go-solidity-sha3",
+			"revision": "a291803f3df536596f1332cda4d730883494ef59",
+			"revisionTime": "2018-06-22T09:44:56Z"
+		},
+		{
 			"checksumSHA1": "SvPS4zqZYImMcBu+dLgp6+9eeUo=",
 			"path": "github.com/mitchellh/go-homedir",
 			"revision": "3864e76763d94a6df2f9960b16a20a33da9f9a66",
