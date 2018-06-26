@@ -80,7 +80,7 @@ func (m *privateKey) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	key, err := cfg.LoadKey(accounts.Silent())
+	key, err := cfg.LoadKey()
 	if err != nil {
 		return err
 	}

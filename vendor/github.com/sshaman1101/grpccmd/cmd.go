@@ -149,20 +149,5 @@ func openConfigAndLoadEthKey() (*ecdsa.PrivateKey, error) {
 		return nil, err
 	}
 
-	ko, err := accounts.DefaultKeyOpener(accounts.NewSilentPrinter(), cfg.KeyStore(), cfg.PassPhrase())
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = ko.OpenKeystore()
-	if err != nil {
-		return nil, err
-	}
-
-	key, err := ko.GetKey()
-	if err != nil {
-		return nil, err
-	}
-
-	return key, nil
+	return accounts.OpenSingleKeystore(cfg.KeyStore(), cfg.PassPhrase(), accounts.NewInteractivePassPhraser())
 }

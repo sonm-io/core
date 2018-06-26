@@ -1050,7 +1050,7 @@ func (m *Worker) runBenchmark(bench *pb.Benchmark) error {
 	case pb.DeviceType_DEV_RAM:
 		return m.setBenchmark(bench, m.hardware.RAM.Device, m.hardware.RAM.Benchmarks)
 	case pb.DeviceType_DEV_STORAGE:
-		return m.setBenchmark(bench, m.hardware.Storage.Device, m.hardware.RAM.Benchmarks)
+		return m.setBenchmark(bench, m.hardware.Storage.Device, m.hardware.Storage.Benchmarks)
 	case pb.DeviceType_DEV_NETWORK_IN:
 		return m.setBenchmark(bench, m.hardware.Network, m.hardware.Network.BenchmarksIn)
 	case pb.DeviceType_DEV_NETWORK_OUT:
