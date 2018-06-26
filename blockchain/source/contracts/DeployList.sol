@@ -27,6 +27,7 @@ contract DeployList is Ownable {
                 deployers[i] = deployers[deployers.length - 1];
                 break;
             }
+        deployers.length -= 1;
         emit DeployerRemoved(_deployer);
     }
 
