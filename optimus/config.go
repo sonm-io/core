@@ -10,6 +10,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
 
@@ -43,10 +44,11 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 type workerConfig struct {
-	PrivateKey  privateKey    `yaml:"ethereum" json:"-"`
-	Epoch       time.Duration `yaml:"epoch"`
-	OrderPolicy OrderPolicy   `yaml:"order_policy"`
-	DryRun      bool          `yaml:"dry_run" default:"false"`
+	PrivateKey  privateKey         `yaml:"ethereum" json:"-"`
+	Epoch       time.Duration      `yaml:"epoch"`
+	OrderPolicy OrderPolicy        `yaml:"order_policy"`
+	DryRun      bool               `yaml:"dry_run" default:"false"`
+	Identity    sonm.IdentityLevel `yaml:"identity" required:"true"`
 }
 
 type OrderPolicy int

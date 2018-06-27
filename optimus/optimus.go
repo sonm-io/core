@@ -403,6 +403,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 			ID:        weightedOrder.ID,
 			Price:     &sonm.Price{PerSecond: order.Price},
 			Duration:  &sonm.Duration{Nanoseconds: 1e9 * int64(order.Duration)},
+			Identity:  m.cfg.Identity,
 			Resources: plan,
 		})
 	}
