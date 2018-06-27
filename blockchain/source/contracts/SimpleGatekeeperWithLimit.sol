@@ -51,6 +51,8 @@ contract SimpleGatekeeperWithLimit is Ownable {
     event KeeperFreezed(address indexed keeper);
     event KeeperUnfreezed(address indexed keeper);
 
+    event CommissionChanged(uint256 indexed commission);
+
     function ChangeKeeperLimit(address _keeper, uint256 _limit) public onlyOwner {
         keepers[_keeper].dayLimit = _limit;
         emit LimitChanged(_keeper, _limit);
@@ -114,6 +116,7 @@ contract SimpleGatekeeperWithLimit is Ownable {
 
     function SetCommission(uint256 _commission) public onlyOwner {
         commission = _commission;
+        CommissionChanged(commission);
     }
 
     function GetCommission() view public returns (uint256){
