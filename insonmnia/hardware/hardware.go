@@ -192,7 +192,7 @@ func insertBench(to map[uint64]*sonm.Benchmark, bench *sonm.Benchmark, proportio
 			return fmt.Errorf("duplicate benchmark with id %d and splitting algorithm none", bench.ID)
 		}
 	case sonm.SplittingAlgorithm_PROPORTIONAL:
-		target.Result += uint64(float64(bench.Result) * proportion)
+		target.Result += uint64(math.Ceil(float64(bench.Result) * proportion))
 	case sonm.SplittingAlgorithm_MAX:
 		if bench.Result >= target.Result {
 			target.Result = bench.Result
