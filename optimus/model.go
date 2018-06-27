@@ -46,6 +46,8 @@ func newModelFactory(cfgUnmarshal func(interface{}) error) (modelFactory, error)
 		}
 
 		return newLLSModelFactory(cfg), nil
+	case "nnls":
+		return newSCAKKTModel(), nil
 	default:
 		return nil, fmt.Errorf("unknown model: %s", ty)
 	}
