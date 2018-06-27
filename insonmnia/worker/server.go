@@ -68,6 +68,7 @@ var (
 		workerAPIPrefix + "PurgeAskPlans",
 		workerAPIPrefix + "ScheduleMaintenance",
 		workerAPIPrefix + "NextMaintenance",
+		workerAPIPrefix + "DebugState",
 	}
 )
 
@@ -1227,6 +1228,13 @@ func (m *Worker) NextMaintenance(ctx context.Context, _ *pb.Empty) (*pb.Timestam
 	ts := m.salesman.NextMaintenance()
 	return &pb.Timestamp{
 		Seconds: ts.Unix(),
+	}, nil
+}
+
+func (m *Worker) DebugState(ctx context.Context, _ *pb.Empty) (*pb.DebugStateReply, error) {
+	return &pb.DebugStateReply{
+		SchedulerData: m.resources.DebugDump(),
+		SalesmanData:  m.salesman.DebugDump(),
 	}, nil
 }
 
