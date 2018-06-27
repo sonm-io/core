@@ -24,7 +24,7 @@ contract SimpleGatekeeperWithLimitLive is Ownable {
         address keeper;
     }
 
-    mapping(address => Keeper) keepers;
+    mapping(address => Keeper) public keepers;
 
     uint256 public transactionAmount = 0;
 
