@@ -28,6 +28,8 @@ contract SimpleGatekeeperWithLimit is Ownable {
 
     uint256 public transactionAmount = 0;
 
+    uint256 public commission = 0;
+
     mapping(bytes32 => TransactionState) public paid;
 
     uint256 freezingTime;
@@ -104,6 +106,14 @@ contract SimpleGatekeeperWithLimit is Ownable {
 
     function GetFreezingTime() view public returns (uint256) {
         return freezingTime;
+    }
+
+    function SetCommission(uint256 _commission) public onlyOwner{
+        commission = _commission;
+    }
+
+    function GetCommission() view returns (uint256){
+        return commission;
     }
 
     function underLimit(address _keeper, uint256 _value) internal returns (bool) {
