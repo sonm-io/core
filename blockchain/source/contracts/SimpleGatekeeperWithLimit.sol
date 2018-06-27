@@ -24,9 +24,13 @@ contract SimpleGatekeeperWithLimit is Ownable {
         address keeper;
     }
 
-    mapping(address => Keeper) keepers;
+    mapping(address => Keeper) public keepers;
 
     uint256 public transactionAmount = 0;
+
+    uint256 public commission = 0;
+
+    uint256 public commissionBalance = 0;
 
     mapping(bytes32 => TransactionState) public paid;
 
@@ -46,6 +50,8 @@ contract SimpleGatekeeperWithLimit is Ownable {
     event LimitChanged(address indexed keeper, uint256 indexed dayLimit);
     event KeeperFreezed(address indexed keeper);
     event KeeperUnfreezed(address indexed keeper);
+
+    event CommissionChanged(uint256 indexed commission);
 
     function ChangeKeeperLimit(address _keeper, uint256 _limit) public onlyOwner {
         keepers[_keeper].dayLimit = _limit;
@@ -68,9 +74,11 @@ contract SimpleGatekeeperWithLimit is Ownable {
     }
 
     function Payin(uint256 _value) public {
+        require(_value > commission);
         require(token.transferFrom(msg.sender, this, _value));
         transactionAmount = transactionAmount + 1;
-        emit PayinTx(msg.sender, transactionAmount, _value);
+        commissionBalance = commissionBalance.add(commission);
+        emit PayinTx(msg.sender, transactionAmount,  _value.sub(commission));
     }
 
     function Payout(address _to, uint256 _value, uint256 _txNumber) public {
@@ -104,6 +112,20 @@ contract SimpleGatekeeperWithLimit is Ownable {
 
     function GetFreezingTime() view public returns (uint256) {
         return freezingTime;
+    }
+
+    function SetCommission(uint256 _commission) public onlyOwner {
+        commission = _commission;
+        CommissionChanged(commission);
+    }
+
+    function GetCommission() view public returns (uint256){
+        return commission;
+    }
+
+    function TransferCommission() public onlyOwner {
+        require(token.transfer(owner, commissionBalance));
+        commissionBalance = 0;
     }
 
     function underLimit(address _keeper, uint256 _value) internal returns (bool) {
