@@ -116,7 +116,7 @@ contract SimpleGatekeeperWithLimit is Ownable {
         commission = _commission;
     }
 
-    function GetCommission() view returns (uint256){
+    function GetCommission() view public returns (uint256){
         return commission;
     }
 
