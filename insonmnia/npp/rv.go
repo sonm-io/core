@@ -28,7 +28,7 @@ func newRendezvousClient(ctx context.Context, addr auth.Addr, credentials creden
 	// inopportune moment.
 	dialer := reuseport.Dialer{
 		D: net.Dialer{
-			KeepAlive: tcpKeepAliveInterval,
+			KeepAlive: TcpKeepAliveInterval,
 		},
 	}
 
