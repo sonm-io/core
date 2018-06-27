@@ -31,6 +31,9 @@ message HandshakeRequest {
     // random select.
     // Should be empty for servers.
     string UUID = 4;
+    // Protocol describes the network protocol the peer wants to publish or to
+    // resolve.
+    string protocol = 5;
 }
 
 message DiscoverResponse {
