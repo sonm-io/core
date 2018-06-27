@@ -3,6 +3,7 @@ package hardware
 import (
 	"testing"
 
+	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -80,4 +81,26 @@ func TestHardwareLimitTo(t *testing.T) {
 	require.Equal(t, limitedHardware.CPU.Benchmarks[2].Result, uint64(100))
 	//150 core percents out of total 200
 	require.Equal(t, limitedHardware.CPU.Benchmarks[3].Result, uint64(75))
+}
+
+// Dev-770
+func TestHardware_ResourcesToBenchmarks(t *testing.T) {
+	hardware := getTestHardware(t)
+	hardware.RAM.Device.Available = 8325287936
+	hardware.RAM.Benchmarks[benchmarks.RamSize] = &sonm.Benchmark{
+		ID:                 benchmarks.RamSize,
+		Result:             hardware.RAM.Device.Available,
+		SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL,
+		Type:               sonm.DeviceType_DEV_RAM,
+	}
+	resources := &sonm.AskPlanResources{
+		RAM: &sonm.AskPlanRAM{
+			Size: &sonm.DataSize{
+				Bytes: 4194304,
+			},
+		},
+	}
+	benches, err := hardware.ResourcesToBenchmarks(resources)
+	require.NoError(t, err)
+	require.Equal(t, uint64(4194304), benches.GetValues()[benchmarks.RamSize])
 }
