@@ -8,7 +8,7 @@ var Oracle = artifacts.require('./OracleUSD.sol');
 var DeployList = artifacts.require('./DeployList.sol');
 var AddressHashMap = artifacts.require('./AddressHashMap.sol');
 
-// filled before deploy 
+// filled before deploy
 
 var MSOwners = ['0x34', '0x35'];
 var MSRequired = 1;
@@ -16,26 +16,26 @@ var MSRequired = 1;
 var benchmarksQuantity = 13;
 var netflagsQuantity = 3;
 
-var Deployers = ['0x488']; 
+var Deployers = ['0x488'];
 
 // main part
 
 module.exports = function (deployer, network) {
-	deployer.then(async () => {
+    deployer.then(async () => {
 	    if (network === 'privateLive') {
 	        await deployer.deploy(multiSigMigrations, MSOwners, MSRequired, { gasPrice: 0 });
 	        let multiSigMig = await multiSigMigrations.deployed();
 
 	        await deployer.deploy(ProfileRegistry, { gasPrice: 0 });
 	        let pr = await ProfileRegistry.deployed();
-	        await pr.transferOwnership(multiSigMig.address, { gasPrice: 0});
-	    	await deployer.deploy(Blacklist, { gasPrice: 0});
+	        await pr.transferOwnership(multiSigMig.address, { gasPrice: 0 });
+	    	await deployer.deploy(Blacklist, { gasPrice: 0 });
 	        let bl = await Blacklist.deployed();
 
 	        await deployer.deploy(multiSigOracle, MSOwners, MSRequired, { gasPrice: 0 });
 	    	let multiSigOrac = await multiSigOracle.deployed();
 	        await deployer.deploy(Oracle, { gasPrice: 0 });
-	        let oracle = await Oracle.deployed()
+	        let oracle = await Oracle.deployed();
 	       	oracle.transferOwnership(multiSigOrac.address);
 	        
 	        await deployer.deploy(Market, SNM.address, Blacklist.address, Oracle.address, ProfileRegistry.address, benchmarksQuantity, netflagsQuantity, { gasPrice: 3000000000 });
@@ -51,5 +51,5 @@ module.exports = function (deployer, network) {
 	  		await dl.transferOwnership(multiSigMig.address);
 	  		await ahm.transferOwnership(multiSigMig.address);
 	    }
-	})
+    });
 };

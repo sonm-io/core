@@ -8,12 +8,12 @@ var freezingTime = 30;
 var actualGasPrice = 400;
 
 module.exports = function (deployer, network) {
-	deployer.then(async () => {
+    deployer.then(async () => {
 	    if (network === 'master') {
-	        await deployer.deploy(GateMultisig, MSOwners, MSRequired, { gasPrice: actualGasPrice});
-	        await deployer.deploy(GateKeeperLive, SNMAddress, freezingTime, { gasPrice : actualGasPrice});
+	        await deployer.deploy(GateMultisig, MSOwners, MSRequired, { gasPrice: actualGasPrice });
+	        await deployer.deploy(GateKeeperLive, SNMAddress, freezingTime, { gasPrice: actualGasPrice });
 	        let multisig = await GateMultisig.deployed();
 	        await GateKeeperLive.deployed().tranferOwnership(multisig.address);
 	    }
-	})
+    });
 };
