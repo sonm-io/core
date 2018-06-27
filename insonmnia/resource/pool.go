@@ -151,9 +151,7 @@ func (m *Scheduler) ReleaseTask(taskID string) error {
 	}
 	pool, ok := m.askPlanPools[askPlanID]
 	if !ok {
-		err := fmt.Errorf("failed to release task %s: ask Plan with id %s not found", taskID, askPlanID)
-		m.log.Warn(err.Error())
-		return err
+		return fmt.Errorf("failed to release task %s: ask Plan with id %s not found", taskID, askPlanID)
 	}
 
 	err := pool.release(taskID)
