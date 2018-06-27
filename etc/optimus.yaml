@@ -52,8 +52,7 @@ workers:
     # Identity level specifies which kind of customers this bot allows to work
     # with.
     # Required.
-    # Possible values are: anonymous, registered, identified and
-    # professional.
+    # Possible values are: anonymous, registered, identified and professional.
     identity: anonymous
 
 benchmarks:
