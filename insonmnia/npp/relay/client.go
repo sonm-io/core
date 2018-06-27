@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
@@ -14,6 +15,10 @@ import (
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
+)
+
+const (
+	tcpKeepAliveInterval = 15 * time.Second
 )
 
 // Dial communicates with the relay server waiting for other server peer to
@@ -103,7 +108,7 @@ func newClient(addr net.Addr, log *zap.Logger) (*client, error) {
 	// or the other side was kernel-panicked no FIN/RST will be delivered to
 	// us, which leads to infinite (well, 24-hour) hanging.
 	dialer := net.Dialer{
-		KeepAlive: npp.TcpKeepAliveInterval,
+		KeepAlive: tcpKeepAliveInterval,
 	}
 
 	conn, err := dialer.Dial("tcp", addr.String())

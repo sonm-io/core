@@ -12,7 +12,7 @@ import (
 )
 
 const protocol = "tcp"
-const TcpKeepAliveInterval = 15 * time.Second
+const tcpKeepAliveInterval = 15 * time.Second
 
 type Port uint16
 
