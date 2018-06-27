@@ -587,19 +587,37 @@ func TestGPUStrange(t *testing.T) {
 
 	controller := gomock.NewController(t)
 	defer controller.Finish()
+	{
+		manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+		require.NoError(t, err)
+		require.NotNil(t, manager)
 
-	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
-	require.NoError(t, err)
-	require.NotNil(t, manager)
+		benchmark := sonm.Benchmarks{
+			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 4096000000, 84936696, 0, 0},
+		}
 
-	benchmark := sonm.Benchmarks{
-		Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 4096000000, 84936696, 0, 0},
+		plans, err := manager.Consume(benchmark)
+		require.NoError(t, err)
+		require.NotNil(t, plans)
+
+		assert.True(t, len(plans.GPU.Hashes) > 0)
+		assert.Equal(t, 4, len(plans.GPU.Hashes))
 	}
 
-	plans, err := manager.Consume(benchmark)
-	require.NoError(t, err)
-	require.NotNil(t, plans)
+	{
+		manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+		require.NoError(t, err)
+		require.NotNil(t, manager)
 
-	assert.True(t, len(plans.GPU.Hashes) > 0)
-	assert.Equal(t, 4, len(plans.GPU.Hashes))
+		benchmark := sonm.Benchmarks{
+			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 4096000000, 218587776, 0, 0},
+		}
+
+		plans, err := manager.Consume(benchmark)
+		require.NoError(t, err)
+		require.NotNil(t, plans)
+
+		assert.True(t, len(plans.GPU.Hashes) > 0)
+		assert.Equal(t, 10, len(plans.GPU.Hashes))
+	}
 }
