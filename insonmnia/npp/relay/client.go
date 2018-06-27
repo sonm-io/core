@@ -6,6 +6,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"net"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
@@ -13,6 +14,10 @@ import (
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
+)
+
+const (
+	tcpKeepAliveInterval = 15 * time.Second
 )
 
 // Dial communicates with the relay server waiting for other server peer to
@@ -95,7 +100,17 @@ func newClient(addr net.Addr, log *zap.Logger) (*client, error) {
 	log = log.With(zap.Stringer("remote_addr", addr))
 	log.Debug("connecting to the Relay")
 
-	conn, err := net.Dial("tcp", addr.String())
+	// Setting TCP keepalive is strictly suggested, because in case of mobile
+	// devices the network can be reconfigured multiple times between
+	// connection attempts.
+	// However if the network was silently changed or the connection was lost
+	// or the other side was kernel-panicked no FIN/RST will be delivered to
+	// us, which leads to infinite (well, 24-hour) hanging.
+	dialer := net.Dialer{
+		KeepAlive: tcpKeepAliveInterval,
+	}
+
+	conn, err := dialer.Dial("tcp", addr.String())
 	if err != nil {
 		log.Warn("failed to connect to the Relay", zap.Error(err))
 		return nil, err
