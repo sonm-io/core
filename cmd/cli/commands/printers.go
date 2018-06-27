@@ -252,7 +252,7 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 		}
 
 		for _, deal := range deals {
-			printDealInfo(cmd, &pb.DealInfoReply{Deal: deal}, nil)
+			printDealInfo(cmd, &pb.DealInfoReply{Deal: deal}, nil, true)
 			cmd.Println()
 		}
 	} else {
@@ -261,7 +261,7 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 
 }
 
-func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealChangeRequestsReply) {
+func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealChangeRequestsReply, suppressWarning bool) {
 	if isSimpleFormat() {
 		deal := info.GetDeal()
 		isClosed := deal.GetStatus() == pb.DealStatus_DEAL_CLOSED
@@ -314,7 +314,7 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealC
 		noWorkerRespond := info.GetResources() == nil && info.GetRunning() == nil && info.GetCompleted() == nil
 		iamConsumer := crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Big().Cmp(deal.GetConsumerID().Unwrap().Big()) == 0
 
-		if noWorkerRespond && iamConsumer {
+		if noWorkerRespond && iamConsumer && !suppressWarning {
 			// seems like worker is offline, notify user about it
 			cmd.Println("WARN: Seems like worker is offline: no respond for the resources and tasks request.")
 		}

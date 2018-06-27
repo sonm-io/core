@@ -61,7 +61,7 @@ func TestDealInfoWithZeroDuration(t *testing.T) {
 	buf := initRootCmd(t, "", config.OutputModeSimple)
 	cfg = &config.Config{Eth: accounts.EthConfig{Passphrase: "test"}}
 
-	printDealInfo(rootCmd, &pb.DealInfoReply{Deal: deal}, nil)
+	printDealInfo(rootCmd, &pb.DealInfoReply{Deal: deal}, nil, true)
 
 	assert.Contains(t, buf.String(), "Duration:     0s")
 }
