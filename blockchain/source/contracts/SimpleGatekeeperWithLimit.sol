@@ -110,12 +110,17 @@ contract SimpleGatekeeperWithLimit is Ownable {
         return freezingTime;
     }
 
-    function SetCommission(uint256 _commission) public onlyOwner{
+    function SetCommission(uint256 _commission) public onlyOwner {
         commission = _commission;
     }
 
     function GetCommission() view returns (uint256){
         return commission;
+    }
+
+    function TransferCommission() public onlyOwner {
+        require(token.transfer(owner, commissionBalance));
+        commissionBalance = 0;
     }
 
     function underLimit(address _keeper, uint256 _value) internal returns (bool) {
