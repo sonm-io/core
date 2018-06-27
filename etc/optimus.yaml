@@ -49,6 +49,11 @@ workers:
     # Optional.
     # Default value is false.
     # dry_run: true
+    # Identity level specifies which kind of customers this bot allows to work
+    # with.
+    # Required.
+    # Possible values are: anonymous, registered, identified and professional.
+    identity: anonymous
 
 benchmarks:
   # URL to download benchmark list, use `file://` schema to load file from a filesystem.
