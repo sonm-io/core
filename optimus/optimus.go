@@ -296,22 +296,17 @@ func (m *workerControl) Execute(ctx context.Context) {
 			return
 		}
 
-		predictedPrice = math.Max(0.0, predictedPrice*priceMultiplier)
+		price, _ := new(big.Float).SetInt(marketOrder.Order.Price.Unwrap()).Float64()
 
 		orders = append(orders, WeightedOrder{
 			Order:          marketOrder,
-			PredictedPrice: predictedPrice,
-			Distance:       predictedPrice - float64(order.Price.Unwrap().Uint64()),
+			Price:          price * priceMultiplier,
+			PredictedPrice: math.Max(priceMultiplier, predictedPrice*priceMultiplier),
 			Weight:         1.0,
 			ID:             id,
 		})
 
-		if err := ordersClassification.RecalculateWeights(orders); err != nil {
-			m.log.Warnw("failed to recalculate weights", zap.Error(err))
-			return
-		}
-
-		SortOrders(orders)
+		ordersClassification.RecalculateWeightsAndSort(orders)
 	}
 
 	// Filter orders to have only orders that are subset of ours.
@@ -432,15 +427,19 @@ func (m *workerControl) Execute(ctx context.Context) {
 		}
 	}
 
-	// Tell worker to create sell plans.
-	for _, plan := range plans {
-		id, err := m.worker.CreateAskPlan(ctx, plan)
-		if err != nil {
-			m.log.Warnw("failed to create sell plan", zap.Any("plan", *plan), zap.Error(err))
-			continue
-		}
+	if m.cfg.DryRun {
+		m.log.Debug("skipping creating ask-plans, because dry-run mode is active")
+	} else {
+		// Tell worker to create sell plans.
+		for _, plan := range plans {
+			id, err := m.worker.CreateAskPlan(ctx, plan)
+			if err != nil {
+				m.log.Warnw("failed to create sell plan", zap.Any("plan", *plan), zap.Error(err))
+				continue
+			}
 
-		m.log.Infof("created sell plan %s", id.Id)
+			m.log.Infof("created sell plan %s", id.Id)
+		}
 	}
 }
 
