@@ -30,6 +30,8 @@ contract SimpleGatekeeperWithLimit is Ownable {
 
     uint256 public commission = 0;
 
+    uint256 public commissionBalance = 0;
+
     mapping(bytes32 => TransactionState) public paid;
 
     uint256 freezingTime;
