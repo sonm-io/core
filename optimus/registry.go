@@ -59,18 +59,6 @@ func (m *Registry) NewDWH(ctx context.Context, addr auth.Addr, privateKey *ecdsa
 	return sonm.NewDWHClient(conn), nil
 }
 
-func (m *Registry) NewMarket(ctx context.Context, addr auth.Addr, privateKey *ecdsa.PrivateKey) (sonm.MarketClient, error) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	conn, err := m.newClient(ctx, addr, privateKey)
-	if err != nil {
-		return nil, err
-	}
-
-	return sonm.NewMarketClient(conn), nil
-}
-
 func (m *Registry) newClient(ctx context.Context, addr auth.Addr, privateKey *ecdsa.PrivateKey, opts ...grpc.DialOption) (*grpc.ClientConn, error) {
 	cred, err := m.credentials(ctx, privateKey)
 	if err != nil {

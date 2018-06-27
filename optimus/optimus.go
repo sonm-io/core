@@ -94,12 +94,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 			return err
 		}
 
-		marketClient, err := registry.NewMarket(ctx, addr, cfg.PrivateKey.Unwrap())
-		if err != nil {
-			return err
-		}
-
-		control, err := newWorkerControl(cfg, ethAddr, masterAddr, worker, marketClient, ordersSet, loader, m.log)
+		control, err := newWorkerControl(cfg, ethAddr, masterAddr, worker, market.Market(), ordersSet, loader, m.log)
 		if err != nil {
 			return err
 		}
@@ -173,13 +168,13 @@ type workerControl struct {
 	addr            common.Address
 	masterAddr      common.Address
 	worker          sonm.WorkerManagementClient
-	market          sonm.MarketClient
+	market          blockchain.MarketAPI
 	benchmarkLoader benchmarks.Loader
 	ordersSet       *ordersState
 	log             *zap.SugaredLogger
 }
 
-func newWorkerControl(cfg workerConfig, addr, masterAddr common.Address, worker sonm.WorkerManagementClient, market sonm.MarketClient, orders *ordersState, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
+func newWorkerControl(cfg workerConfig, addr, masterAddr common.Address, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, orders *ordersState, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
 	m := &workerControl{
 		cfg:             cfg,
 		addr:            addr,
@@ -470,7 +465,7 @@ func (m *workerControl) planOrders(ctx context.Context, plans map[string]*sonm.A
 		go func(id string, plan *sonm.AskPlan) {
 			defer wg.Done()
 
-			order, err := m.market.GetOrderByID(ctx, &sonm.ID{Id: plan.OrderID.String()})
+			order, err := m.market.GetOrderInfo(ctx, plan.OrderID.Unwrap())
 			if err != nil {
 				m.log.Warn("failed to get order", zap.String("planId", id), zap.Error(err))
 				return
