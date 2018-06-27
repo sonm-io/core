@@ -886,8 +886,10 @@ func (m *sqlStorage) UpdateValidator(conn queryConn, validatorID common.Address,
 		// Ignore.
 		return nil
 	}
-	if bigValue, ok := value.(*pb.BigInt); ok {
-		value = bigValue.PaddedString()
+	if field == "KYC_Price" {
+		if bytes, ok := value.([]byte); ok {
+			value = pb.NewBigInt(big.NewInt(0).SetBytes(bytes)).PaddedString()
+		}
 	}
 	query, args, _ := m.builder().Update("Validators").Set(field, value).Where("Id = ?", validatorID.Hex()).ToSql()
 	_, err := conn.Exec(query, args...)

@@ -333,6 +333,19 @@ func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.
 					if m.mapping.DeviceType(id) == sonm.DeviceType_DEV_GPU {
 						if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_PROPORTIONAL {
 							if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
+								if benchmark.Result == 0 {
+									if benchmarks[id] == 0 {
+										// Nothing to subtract using this benchmark. Nothing to add to the score.
+										// Still try the rest of benchmarks.
+										continue
+									} else {
+										// The GPU set can't fit the benchmark. Well, possibly can,
+										// but without this GPU.
+										// Anyway the score will be +Inf, so definitely it's not the minimum one.
+										break
+									}
+								}
+
 								if currentBenchmarks[id] > benchmark.Result {
 									currentBenchmarks[id] -= benchmark.Result
 								} else {
