@@ -316,56 +316,71 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 	return consumer.Result(value), nil
 }
 
-func (m *DeviceManager) consumeGPU(count uint64, benchmarks []uint64) (*sonm.AskPlanGPU, error) {
-	if count == 0 {
+func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.AskPlanGPU, error) {
+	if minCount == 0 {
 		return &sonm.AskPlanGPU{}, nil
 	}
 
 	score := float64(math.MaxFloat64)
 	var candidates []*sonm.GPU
-	for _, subset := range m.combinationsGPU(int(count)) {
-		currentScore := 0.0
-		currentBenchmarks := append([]uint64{}, benchmarks...)
+	for k := int(minCount); k <= len(m.devices.GPUs); k++ {
+		for _, subset := range m.combinationsGPU(k) {
+			currentScore := 0.0
+			currentBenchmarks := append([]uint64{}, benchmarks...)
 
-		for _, gpu := range subset {
-			for id := range currentBenchmarks {
-				if m.mapping.DeviceType(id) == sonm.DeviceType_DEV_GPU {
-					if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_PROPORTIONAL {
-						if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
-							if currentBenchmarks[id] > benchmark.Result {
-								currentBenchmarks[id] -= benchmark.Result
-							} else {
-								currentBenchmarks[id] = 0
+			for _, gpu := range subset {
+				for id := range currentBenchmarks {
+					if m.mapping.DeviceType(id) == sonm.DeviceType_DEV_GPU {
+						if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_PROPORTIONAL {
+							if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
+								if benchmark.Result == 0 {
+									if benchmarks[id] == 0 {
+										// Nothing to subtract using this benchmark. Nothing to add to the score.
+										// Still try the rest of benchmarks.
+										continue
+									} else {
+										// The GPU set can't fit the benchmark. Well, possibly can,
+										// but without this GPU.
+										// Anyway the score will be +Inf, so definitely it's not the minimum one.
+										break
+									}
+								}
+
+								if currentBenchmarks[id] > benchmark.Result {
+									currentBenchmarks[id] -= benchmark.Result
+								} else {
+									currentBenchmarks[id] = 0
+								}
+
+								currentScore += math.Pow(math.Max(0, float64(benchmark.Result)-float64(benchmarks[id]))/float64(benchmark.Result), 2)
 							}
-
-							currentScore += math.Pow(math.Max(0, float64(benchmark.Result)-float64(benchmarks[id]))/float64(benchmark.Result), 2)
 						}
 					}
 				}
 			}
-		}
 
-		mismatch := false
-		for id := range currentBenchmarks {
-			if m.mapping.DeviceType(id) == sonm.DeviceType_DEV_GPU {
-				if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_PROPORTIONAL {
-					if currentBenchmarks[id] != 0 {
-						mismatch = true
-						break
+			mismatch := false
+			for id := range currentBenchmarks {
+				if m.mapping.DeviceType(id) == sonm.DeviceType_DEV_GPU {
+					if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_PROPORTIONAL {
+						if currentBenchmarks[id] != 0 {
+							mismatch = true
+							break
+						}
 					}
 				}
 			}
-		}
 
-		if mismatch {
-			continue
-		}
+			if mismatch {
+				continue
+			}
 
-		currentScore = math.Sqrt(currentScore)
+			currentScore = math.Sqrt(currentScore)
 
-		if currentScore < score {
-			score = currentScore
-			candidates = append([]*sonm.GPU{}, subset...)
+			if currentScore < score {
+				score = currentScore
+				candidates = append([]*sonm.GPU{}, subset...)
+			}
 		}
 	}
 

@@ -68,6 +68,7 @@ var (
 		workerAPIPrefix + "PurgeAskPlans",
 		workerAPIPrefix + "ScheduleMaintenance",
 		workerAPIPrefix + "NextMaintenance",
+		workerAPIPrefix + "DebugState",
 	}
 )
 
@@ -534,7 +535,7 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 
 func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) (bool, reference.Reference, error) {
 	spec := request.GetSpec()
-	reference, err := reference.Parse(spec.GetContainer().GetImage())
+	reference, err := reference.ParseAnyReference(spec.GetContainer().GetImage())
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to parse reference: %s", err)
 	}
@@ -651,6 +652,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		volumes:       spec.Container.Volumes,
 		mounts:        mounts,
 		networks:      networks,
+		expose:        spec.Container.GetExpose(),
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
@@ -1049,7 +1051,7 @@ func (m *Worker) runBenchmark(bench *pb.Benchmark) error {
 	case pb.DeviceType_DEV_RAM:
 		return m.setBenchmark(bench, m.hardware.RAM.Device, m.hardware.RAM.Benchmarks)
 	case pb.DeviceType_DEV_STORAGE:
-		return m.setBenchmark(bench, m.hardware.Storage.Device, m.hardware.RAM.Benchmarks)
+		return m.setBenchmark(bench, m.hardware.Storage.Device, m.hardware.Storage.Benchmarks)
 	case pb.DeviceType_DEV_NETWORK_IN:
 		return m.setBenchmark(bench, m.hardware.Network, m.hardware.Network.BenchmarksIn)
 	case pb.DeviceType_DEV_NETWORK_OUT:
@@ -1226,6 +1228,13 @@ func (m *Worker) NextMaintenance(ctx context.Context, _ *pb.Empty) (*pb.Timestam
 	ts := m.salesman.NextMaintenance()
 	return &pb.Timestamp{
 		Seconds: ts.Unix(),
+	}, nil
+}
+
+func (m *Worker) DebugState(ctx context.Context, _ *pb.Empty) (*pb.DebugStateReply, error) {
+	return &pb.DebugStateReply{
+		SchedulerData: m.resources.DebugDump(),
+		SalesmanData:  m.salesman.DebugDump(),
 	}, nil
 }
 

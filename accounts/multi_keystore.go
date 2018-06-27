@@ -97,7 +97,7 @@ func (m *MultiKeystore) GetKeyWithPass(addr common.Address, pass string) (*ecdsa
 		return nil, err
 	}
 
-	return m.readKeyFile(acc.URL.Path, pass)
+	return decryptKeyFile(acc.URL.Path, pass)
 }
 
 // GetDefault returns default key for the keystore
@@ -163,21 +163,7 @@ func (m *MultiKeystore) readAccount(acc accounts.Account) (*ecdsa.PrivateKey, er
 		}
 	}
 
-	return m.readKeyFile(acc.URL.Path, pass)
-}
-
-func (m *MultiKeystore) readKeyFile(path string, pass string) (*ecdsa.PrivateKey, error) {
-	file, err := ioutil.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("cannot open account file: %v", err)
-	}
-
-	key, err := keystore.DecryptKey(file, pass)
-	if err != nil {
-		return nil, fmt.Errorf("cannot decrypt key with given pass phrase: %v", err)
-	}
-
-	return key.PrivateKey, nil
+	return decryptKeyFile(acc.URL.Path, pass)
 }
 
 func (m *MultiKeystore) setDefaultAccount(addr common.Address) error {

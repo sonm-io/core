@@ -28,7 +28,32 @@ workers:
     ethereum: *ethereum
     # Epoch is an interval of scanning worker's free resources and selling them
     # by cutting ask plans.
+    # Also this value is used when it's time to replace non-spot deals to
+    # preliminary calculate whether current ask plans are still profitable.
+    # Optional.
+    # Default value is 60s.
     epoch: 60s
+    # How the bot should filter orders. Possible values are: "spot_only".
+    order_policy: spot_only
+    # Orders that haven't been sold for this interval will be canceled.
+    # Optional.
+    # Default value is 5m.
+    stale_threshold: 5m
+    # Each epoch for both spot and nearly-finished deals Optimus tries to
+    # optimize the next most-profitable ask plan configuration.
+    # If the new set will gain more profit/hour than the specified value
+    # some of ask plans will be replaced.
+    worker_price_threshold: 10 USD/h
+    # When activated Optimus will not create ask plans, but continues doing
+    # the rest calculations instead. Useful for debugging.
+    # Optional.
+    # Default value is false.
+    # dry_run: true
+    # Identity level specifies which kind of customers this bot allows to work
+    # with.
+    # Required.
+    # Possible values are: anonymous, registered, identified and professional.
+    identity: anonymous
 
 benchmarks:
   # URL to download benchmark list, use `file://` schema to load file from a filesystem.
@@ -49,6 +74,9 @@ optimization:
   # Note that the optimization process may be triggered by other external
   # conditions.
   interval: 30s
+  # Orders classification settings.
+  # Optional. By default multidimensional linear regression with non-negative
+  # coefficients model is used.
   classifier:
     type: regression
     model:

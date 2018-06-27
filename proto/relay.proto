@@ -58,6 +58,7 @@ message RelayClusterReply {
 message RelayMetrics {
     uint64 connCurrent = 1;
     map<string, NetMetrics> net = 2;
+    uint64 uptime = 3;
 }
 
 message NetMetrics {

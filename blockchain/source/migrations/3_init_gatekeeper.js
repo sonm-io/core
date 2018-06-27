@@ -1,8 +1,8 @@
-var SimpleGatekeeper = artifacts.require('./SimpleGatekeeper.sol');
-var SNM = artifacts.require('./SNM.sol');
+let SimpleGatekeeper = artifacts.require('./SimpleGatekeeper.sol');
+let SNM = artifacts.require('./SNM.sol');
 
 module.exports = function (deployer, network) {
-    if (network === 'private') {
+    if ((network === 'private') || (network === 'privateLive')) {
         SNM.deployed()
             .then(function (res) {
                 res.transfer(SimpleGatekeeper.address, 444 * 1e6 * 1e18, { gasPrice: 0 });
@@ -10,8 +10,10 @@ module.exports = function (deployer, network) {
             .catch(function (err) {
                 console.log(err);
             });
+    } else if (network === 'master') {
+        // we do not transfer token to gatekeeper at mainnet anytime
     } else if (network === 'rinkeby') {
-        // we do not transfer token to simple gatekeeper at rinkeby anytime
+        // we do not transfer token to gatekeeper at rinkeby anytime
     } else {
         SNM.deployed()
             .then(function (res) {

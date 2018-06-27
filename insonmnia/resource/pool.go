@@ -7,7 +7,6 @@ import (
 
 	"github.com/mohae/deepcopy"
 	"github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/insonmnia/cgroups"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
@@ -20,7 +19,6 @@ type Scheduler struct {
 	pool          *pool
 	taskToAskPlan map[string]string
 	askPlanPools  map[string]*pool
-	parentCGroups map[string]cgroups.CGroup
 	log           *zap.SugaredLogger
 }
 
@@ -35,8 +33,38 @@ func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
 		pool:          newPool(resources),
 		taskToAskPlan: map[string]string{},
 		askPlanPools:  map[string]*pool{},
-		parentCGroups: map[string]cgroups.CGroup{},
 	}
+}
+
+func (m *Scheduler) DebugDump() *sonm.SchedulerData {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	reply := &sonm.SchedulerData{
+		TaskToAskPlan: deepcopy.Copy(m.taskToAskPlan).(map[string]string),
+		MainPool: &sonm.ResourcePool{
+			All:  m.pool.all,
+			Used: map[string]*sonm.AskPlanResources{},
+		},
+		AskPlanPools: map[string]*sonm.ResourcePool{},
+	}
+
+	for id, res := range m.pool.used {
+		reply.MainPool.Used[id] = res
+	}
+
+	for askID, pool := range m.askPlanPools {
+		resultPool := &sonm.ResourcePool{
+			All:  pool.all,
+			Used: map[string]*sonm.AskPlanResources{},
+		}
+		reply.AskPlanPools[askID] = resultPool
+		for id, res := range pool.used {
+			resultPool.Used[id] = res
+		}
+	}
+
+	return reply
 }
 
 //TODO: rework needed — looks like it should not be here

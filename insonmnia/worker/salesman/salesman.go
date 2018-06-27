@@ -108,6 +108,26 @@ func (m *Salesman) Run(ctx context.Context) <-chan *sonm.Deal {
 	return m.dealsCh
 }
 
+func (m *Salesman) DebugDump() *sonm.SalesmanData {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	reply := &sonm.SalesmanData{
+		AskPlanCGroups: map[string]string{},
+		Deals:          map[string]*sonm.Deal{},
+		Orders:         map[string]*sonm.Order{},
+	}
+	for askID, cgroup := range m.askPlanCGroups {
+		reply.AskPlanCGroups[askID] = cgroup.Suffix()
+	}
+	for askID, deal := range m.deals {
+		reply.Deals[askID] = deal
+	}
+	for askID, order := range m.orders {
+		reply.Orders[askID] = order
+	}
+	return reply
+}
+
 func (m *Salesman) ScheduleMaintenance(timePoint time.Time) error {
 	m.log.Infof("Scheduling next maintenance at %s", timePoint.String())
 	m.mu.Lock()
