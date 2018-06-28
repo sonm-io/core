@@ -29,8 +29,8 @@ module.exports = function (deployer, network) {
             await deployer.deploy(GateKeeperLive, SNMMasterchainAddress, freezingTime, { gasPrice: actualGasPrice });
             let multisig = await GateMultisig.deployed();
 
-            // 2.1) add keeper with 10k limit for testing
-            await gk.ChangeKeeperLimit('0xAfA5a3b6675024af5C6D56959eF366d6b1FBa0d4', 10000 * 1e18);
+            // 2.1) add keeper with 100k limit for testing
+            await gk.ChangeKeeperLimit('0xAfA5a3b6675024af5C6D56959eF366d6b1FBa0d4', 100000 * 1e18);
 
             // 3) transfer Live Gatekeeper ownership to `GatekeeperLive` multisig
             await gk.tranferOwnership(multisig.address);
