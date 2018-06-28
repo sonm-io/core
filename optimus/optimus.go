@@ -198,23 +198,26 @@ func (m *workerControl) OnShutdown() {
 }
 
 func (m *workerControl) Execute(ctx context.Context) {
+	if err := m.execute(ctx); err != nil {
+		m.log.Warn(err.Error())
+	}
+}
+
+func (m *workerControl) execute(ctx context.Context) error {
 	ordersClassification := m.ordersSet.Get()
 	if ordersClassification == nil {
-		m.log.Warn("not enough orders to perform optimization")
-		return
+		return fmt.Errorf("not enough orders to perform optimization")
 	}
 
 	orders := ordersClassification.WeightedOrders
 	if len(orders) == 0 {
-		m.log.Warn("not enough orders to perform optimization")
-		return
+		return fmt.Errorf("not enough orders to perform optimization")
 	}
 
 	m.log.Debug("pulling worker plans")
 	currentPlans, err := m.worker.AskPlans(ctx, &sonm.Empty{})
 	if err != nil {
-		m.log.Warnw("failed to pull worker plans", zap.Error(err))
-		return
+		return fmt.Errorf("failed to pull worker plans: %v", err)
 	}
 
 	currentTotalPrice := calculateWorkerPriceMap(currentPlans.AskPlans).GetPerSecond()
@@ -229,8 +232,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 	m.log.Debugf("pulling worker devices")
 	devices, err := m.worker.Devices(ctx, &sonm.Empty{})
 	if err != nil {
-		m.log.Warnw("failed to pull worker devices", zap.Error(err))
-		return
+		return fmt.Errorf("failed to pull worker devices: %v", err)
 	}
 
 	m.log.Debugw("successfully pulled worker devices", zap.Any("devices", *devices))
@@ -249,16 +251,16 @@ func (m *workerControl) Execute(ctx context.Context) {
 		_, ok := cancellationCandidates[id]
 		if !ok {
 			if err := freeResources.Sub(plan.Resources); err != nil {
-				m.log.Warnw("failed to virtualize resource releasing", zap.Error(err))
-				return
+				return fmt.Errorf("failed to virtualize resource releasing: %v", err)
 			}
 		}
 	}
 
 	freeWorkerHardware, err := workerHardware.LimitTo(freeResources)
 	if err != nil {
-		m.log.Warnw("failed to limit virtual free hardware", zap.Error(err))
+		return fmt.Errorf("failed to limit virtual free hardware: %v", err)
 	}
+
 	freeDevices := freeWorkerHardware.IntoProto()
 
 	m.log.Debugw("successfully virtualized worker free devices", zap.Any("devices", *freeDevices))
@@ -267,8 +269,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 	bm := newBenchmarksFromDevices(freeDevices)
 	freeWorkerBenchmarks, err := sonm.NewBenchmarks(bm[:])
 	if err != nil {
-		m.log.Warnw("failed to collect worker benchmarks", zap.Error(err))
-		return
+		return fmt.Errorf("failed to collect worker benchmarks: %v", err)
 	}
 
 	m.log.Infof("worker benchmarks: %v", strings.Join(strings.Fields(fmt.Sprintf("%v", freeWorkerBenchmarks.ToArray())), ", "))
@@ -277,8 +278,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 	// marketplace to be able to track their profitability.
 	cancellationOrders, err := m.planOrders(ctx, cancellationCandidates)
 	if err != nil {
-		m.log.Warnw("failed to collect cancellation orders", zap.Error(err))
-		return
+		return fmt.Errorf("failed to collect cancellation orders: %v", err)
 	}
 
 	for id, order := range cancellationOrders {
@@ -287,8 +287,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 		}
 		predictedPrice, err := ordersClassification.Predictor.PredictPrice(marketOrder)
 		if err != nil {
-			m.log.Warnw("failed to predict cancellation order price", zap.Any("order", *order), zap.Error(err))
-			return
+			return fmt.Errorf("failed to predict cancellation %s order price: %v", order.Id.String(), err)
 		}
 
 		price, _ := new(big.Float).SetInt(marketOrder.Order.Price.Unwrap()).Float64()
@@ -353,19 +352,17 @@ func (m *workerControl) Execute(ctx context.Context) {
 
 	if len(matchedOrders) == 0 {
 		m.log.Infof("no matching orders found")
-		return
+		return nil
 	}
 
 	mapping, err := m.benchmarkLoader.Load(ctx)
 	if err != nil {
-		m.log.Warnw("failed to load benchmarks", zap.Error(err))
-		return
+		return fmt.Errorf("failed to load benchmarks: %v", err)
 	}
 
 	deviceManager, err := newDeviceManager(devices, freeDevices, mapping)
 	if err != nil {
-		m.log.Warnw("failed to construct device manager", zap.Error(err))
-		return
+		return fmt.Errorf("failed to construct device manager: %v", err)
 	}
 
 	// Cut sell plans.
@@ -392,8 +389,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 			exhaustedCounter += 1
 			continue
 		default:
-			m.log.Warnw("failed to consume order", zap.Error(err))
-			return
+			return fmt.Errorf("failed to consume order: %v", err)
 		}
 
 		m.log.Debugw("success")
@@ -453,6 +449,8 @@ func (m *workerControl) Execute(ctx context.Context) {
 			m.log.Infof("created sell plan %s", id.Id)
 		}
 	}
+
+	return nil
 }
 
 func (m *workerControl) cancelStalePlans(plans map[string]*sonm.AskPlan) {
