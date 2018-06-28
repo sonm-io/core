@@ -20,6 +20,10 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
+const (
+	minNumOrders = sonm.MinNumBenchmarks
+)
+
 // Watch for current worker's status. Collect its devices.
 // 	Worker MUST provide its network capabilities somehow.
 // Fetch all bids.
@@ -210,8 +214,8 @@ func (m *workerControl) execute(ctx context.Context) error {
 	}
 
 	orders := ordersClassification.WeightedOrders
-	if len(orders) == 0 {
-		return fmt.Errorf("not enough orders to perform optimization")
+	if len(orders) < minNumOrders {
+		return fmt.Errorf("not enough orders to perform optimization: %d < %d", len(orders), minNumOrders)
 	}
 
 	m.log.Debugf("pulling worker plans")
