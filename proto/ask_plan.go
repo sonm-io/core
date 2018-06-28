@@ -120,8 +120,8 @@ func (m *AskPlanResources) Add(resources *AskPlanResources) error {
 
 func (m *AskPlanResources) Sub(resources *AskPlanResources) error {
 	m.initNilWithZero()
-	if ok, desc := m.Contains(resources); !ok {
-		return errors.New(desc)
+	if err := m.CheckContains(resources); err != nil {
+		return fmt.Errorf("cannot substract resources: %s", err)
 	}
 	m.CPU.CorePercents -= resources.GetCPU().GetCorePercents()
 	m.RAM.Size.Bytes -= resources.GetRAM().GetSize().GetBytes()
@@ -168,36 +168,36 @@ func (m *AskPlanResources) CPUQuota() int64 {
 	return int64(defaultCPUPeriod) * int64(m.GetCPU().GetCorePercents()) / 100
 }
 
-func (m *AskPlanResources) Contains(resources *AskPlanResources) (result bool, detailedDescription string) {
+func (m *AskPlanResources) CheckContains(resources *AskPlanResources) error {
 	if m.GetCPU().GetCorePercents() < resources.GetCPU().GetCorePercents() {
-		return false, fmt.Sprintf("not enough CPU, required %d core percents, available %d core percents",
+		return fmt.Errorf("not enough CPU, required %d core percents, available %d core percents",
 			resources.GetCPU().GetCorePercents(), m.GetCPU().GetCorePercents())
 	}
 	if m.GetRAM().GetSize().GetBytes() < resources.GetRAM().GetSize().GetBytes() {
-		return false, fmt.Sprintf("not enough RAM, required %s, available %s",
+		return fmt.Errorf("not enough RAM, required %s, available %s",
 			resources.GetRAM().GetSize().Unwrap().HumanReadable(), m.GetRAM().GetSize().Unwrap().HumanReadable())
 	}
 	if m.GetStorage().GetSize().GetBytes() < resources.GetStorage().GetSize().GetBytes() {
-		return false, fmt.Sprintf("not enough Storage, required %s, available %s",
+		return fmt.Errorf("not enough Storage, required %s, available %s",
 			resources.GetStorage().GetSize().Unwrap().HumanReadable(), m.GetStorage().GetSize().Unwrap().HumanReadable())
 	}
 	if !m.GetGPU().Contains(resources.GetGPU()) {
-		return false, fmt.Sprintf("specified GPU is occupied, required %v, available %v",
+		return fmt.Errorf("specified GPU is occupied, required %v, available %v",
 			resources.GetGPU().GetHashes(), m.GetGPU().GetHashes())
 	}
 	if !m.GetNetwork().GetNetFlags().ConverseImplication(resources.GetNetwork().GetNetFlags()) {
-		return false, fmt.Sprintf("net flags are not satisfied, required %d, available %d",
+		return fmt.Errorf("net flags are not satisfied, required %d, available %d",
 			resources.GetNetwork().GetNetFlags(), m.GetNetwork().GetNetFlags())
 	}
 	if m.GetNetwork().GetThroughputIn().GetBitsPerSecond() < resources.GetNetwork().GetThroughputIn().GetBitsPerSecond() {
-		return false, fmt.Sprintf("incoming traffic limit exceeded, required %s, available %s",
+		return fmt.Errorf("incoming traffic limit exceeded, required %s, available %s",
 			resources.GetNetwork().GetThroughputIn().Unwrap().HumanReadable(), m.GetNetwork().GetThroughputIn().Unwrap().HumanReadable())
 	}
 	if m.GetNetwork().GetThroughputOut().GetBitsPerSecond() < resources.GetNetwork().GetThroughputOut().GetBitsPerSecond() {
-		return false, fmt.Sprintf("outbound traffic limit exceeded, required %s, available %s",
+		return fmt.Errorf("outbound traffic limit exceeded, required %s, available %s",
 			resources.GetNetwork().GetThroughputOut().Unwrap().HumanReadable(), m.GetNetwork().GetThroughputOut().Unwrap().HumanReadable())
 	}
-	return true, ""
+	return nil
 }
 
 func (m *AskPlanGPU) Validate() error {
