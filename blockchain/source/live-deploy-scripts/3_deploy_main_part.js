@@ -11,7 +11,7 @@ let AddressHashMap = artifacts.require('./AddressHashMap.sol');
 
 // filled before deploy
 let SNMMasterchainAddress = '0x983f6d60db79ea8ca4eb9968c6aff8cfa04b3c63';
-let GatekeeperMasterchainAddress = '';
+let GatekeeperMasterchainAddress = '0x125f1e37a45abf9b9894aefcb03d14d170d1489b';
 
 let MSOwners = [
     '0xdaec8F2cDf27aD3DF5438E5244aE206c5FcF7fCd',
@@ -64,6 +64,9 @@ module.exports = function (deployer, network) {
             await deployer.deploy(Oracle, { gasPrice: 0 });
             let oracle = await Oracle.deployed();
 
+            // set price in Oracle
+            await oracle.setCurrentPrice('6244497036986155008', { gasPrice: 0 });
+
             // Transfer Oracle ownership to `Oracle` multisig
             oracle.transferOwnership(msOracle.address, { gasPrice: 0 });
 
@@ -102,6 +105,8 @@ module.exports = function (deployer, network) {
             await ahm.write('oracleUsdAddress', oracle.address, { gasPrice: 0 });
             await ahm.write('gatekeeperSidechainAddress', gk.address, { gasPrice: 0 });
             await ahm.write('gatekeeperMasterchainAddress', GatekeeperMasterchainAddress, { gasPrice: 0 });
+            await ahm.write('migrationMultSigAddress', multiSigMig.address, { gasPrice: 0 });
+            await ahm.write('oracleMultiSigAddress', multiSigOracle.address, { gasPrice: 0 });
 
             // transfer AddressHashMap ownership to `Migration` multisig
             await ahm.transferOwnership(multiSigMig.address, { gasPrice: 0 });

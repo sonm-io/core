@@ -33,10 +33,10 @@ module.exports = function (deployer, network) {
             let gk = await Gatekeeper.deployed();
 
             // 3) transfer all tokens to Gatekeeper
-            await token.transfer(multiSig.address, 444 * 1e6 * 1e18, { gasPrice: 0 });
+            await token.transfer(gk.address, 444 * 1e6 * 1e18, { gasPrice: 0 });
 
             // 3.1): add keeper with 100k limit for testing
-            await gk.ChangeKeeperLimit('0x1f0dc2f125a2df9e37f32242cc3e34328f096b3c', 100000 * 1e18);
+            await gk.ChangeKeeperLimit('0x1f0dc2f125a2df9e37f32242cc3e34328f096b3c', 100000 * 1e18, { gasPrice: 0 });
 
             // 4) transfer Gatekeeper ownership to `Gatekeeper` multisig
             await gk.transferOwnership(multiSig.address, { gasPrice: 0 });

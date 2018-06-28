@@ -3,13 +3,14 @@ require('babel-polyfill');
 require('dotenv').config();
 let PrivateKeyProvider = require('truffle-privatekey-provider');
 
-let privateKey = 'a000000000000000000000000000000000000000000000000000000000000000'; // for test purposes
+let privateKey = '0000000000000000000000000000000000000000000000000000000000000000';
+
 if (process.env.PRV_KEY !== undefined) {
     privateKey = process.env.PRV_KEY;
 }
 let masterchainEndpoint = 'https://mainnet.infura.io/';
 let rinkebyEndpoint = 'https://rinkeby.infura.io/';
-let sidechainEndpoint = 'https://sidechain.sonm.com';
+let sidechainEndpoint = 'https://sidechain.livenet.sonm.com';
 let sidechainDevEndpoint = 'https://sidechain-dev.sonm.com';
 
 let mochaConfig = {};
