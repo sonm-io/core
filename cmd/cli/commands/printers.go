@@ -15,6 +15,17 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const (
+	printEverything = iota
+	suppressWarnings
+)
+
+type printerFlags int
+
+func (p printerFlags) WarningSuppressed() bool {
+	return int(p)&suppressWarnings == 1
+}
+
 func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusReply) {
 	if isSimpleFormat() {
 		cmd.Printf("ID: %s\r\n", id)
@@ -252,7 +263,7 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 		}
 
 		for _, deal := range deals {
-			printDealInfo(cmd, &pb.DealInfoReply{Deal: deal}, nil)
+			printDealInfo(cmd, &pb.DealInfoReply{Deal: deal}, nil, suppressWarnings)
 			cmd.Println()
 		}
 	} else {
@@ -261,7 +272,7 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 
 }
 
-func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealChangeRequestsReply) {
+func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealChangeRequestsReply, flags printerFlags) {
 	if isSimpleFormat() {
 		deal := info.GetDeal()
 		isClosed := deal.GetStatus() == pb.DealStatus_DEAL_CLOSED
@@ -314,7 +325,7 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealC
 		noWorkerRespond := info.GetResources() == nil && info.GetRunning() == nil && info.GetCompleted() == nil
 		iamConsumer := crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Big().Cmp(deal.GetConsumerID().Unwrap().Big()) == 0
 
-		if noWorkerRespond && iamConsumer {
+		if noWorkerRespond && iamConsumer && !flags.WarningSuppressed() {
 			// seems like worker is offline, notify user about it
 			cmd.Println("WARN: Seems like worker is offline: no respond for the resources and tasks request.")
 		}
