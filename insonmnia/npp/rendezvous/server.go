@@ -37,7 +37,10 @@ import (
 	"net"
 	"sync"
 
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/npp/nppc"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
@@ -111,7 +114,7 @@ type Server struct {
 	resolver resolver
 
 	mu sync.Mutex
-	rv map[string]*meeting
+	rv map[nppc.ResourceID]*meeting
 }
 
 // NewServer constructs a new rendezvous server using specified config and
@@ -137,10 +140,13 @@ func NewServer(cfg ServerConfig, options ...Option) (*Server, error) {
 			xgrpc.VerifyInterceptor(),
 		),
 		resolver: newExternalResolver(""),
-		rv:       map[string]*meeting{},
+		rv:       map[nppc.ResourceID]*meeting{},
 	}
 
-	server.log.Debug("configured authentication settings", zap.Any("credentials", opts.credentials.Info()))
+	server.log.Debug("configured authentication settings",
+		zap.String("addr", crypto.PubkeyToAddress(cfg.PrivateKey.PublicKey).Hex()),
+		zap.Any("credentials", opts.credentials.Info()),
+	)
 
 	sonm.RegisterRendezvousServer(server.server, server)
 	server.log.Debug("registered gRPC server")
@@ -154,9 +160,12 @@ func (m *Server) Resolve(ctx context.Context, request *sonm.ConnectRequest) (*so
 		return nil, errNoPeerInfo()
 	}
 
-	m.log.Info("resolving remote peer", zap.String("id", request.ID))
+	id := nppc.ResourceID{
+		Protocol: request.Protocol,
+		Addr:     common.BytesToAddress(request.ID),
+	}
+	m.log.Info("resolving remote peer", zap.Stringer("id", id))
 
-	id := request.ID
 	peerHandle := NewPeer(*peerInfo, request.PrivateAddrs)
 
 	c, deleter := m.addServerWatch(id, peerHandle)
@@ -167,7 +176,7 @@ func (m *Server) Resolve(ctx context.Context, request *sonm.ConnectRequest) (*so
 		return nil, ctx.Err()
 	case p := <-c:
 		m.log.Info("providing remote server endpoint(s)",
-			zap.String("id", request.ID),
+			zap.Stringer("id", id),
 			zap.Stringer("public_addr", p.Addr),
 			zap.Any("private_addrs", p.privateAddrs),
 		)
@@ -179,14 +188,17 @@ func (m *Server) ResolveAll(ctx context.Context, request *sonm.ID) (*sonm.Resolv
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	meeting, ok := m.rv[request.Id]
-	if !ok {
-		return nil, errPeerNotFound()
+	var ids []string
+	for id, meeting := range m.rv {
+		if id.Addr.Hex() == request.Id {
+			for peerID := range meeting.servers {
+				ids = append(ids, peerID.String())
+			}
+		}
 	}
 
-	var ids []string
-	for id := range meeting.servers {
-		ids = append(ids, id.String())
+	if len(ids) == 0 {
+		return nil, errPeerNotFound()
 	}
 
 	return &sonm.ResolveMetaReply{
@@ -205,9 +217,12 @@ func (m *Server) Publish(ctx context.Context, request *sonm.PublishRequest) (*so
 		return nil, err
 	}
 
-	m.log.Info("publishing remote peer", zap.String("id", ethAddr.String()))
+	id := nppc.ResourceID{
+		Protocol: request.Protocol,
+		Addr:     *ethAddr,
+	}
+	m.log.Info("publishing remote peer", zap.String("id", id.String()))
 
-	id := ethAddr.String()
 	peerHandle := NewPeer(*peerInfo, request.PrivateAddrs)
 
 	c, deleter := m.newClientWatch(id, peerHandle)
@@ -218,7 +233,7 @@ func (m *Server) Publish(ctx context.Context, request *sonm.PublishRequest) (*so
 		return nil, ctx.Err()
 	case p := <-c:
 		m.log.Info("providing remote client endpoint(s)",
-			zap.String("id", ethAddr.String()),
+			zap.Stringer("id", id),
 			zap.Stringer("public_addr", p.Addr),
 			zap.Any("private_addrs", p.privateAddrs),
 		)
@@ -226,7 +241,7 @@ func (m *Server) Publish(ctx context.Context, request *sonm.PublishRequest) (*so
 	}
 }
 
-func (m *Server) addServerWatch(id string, peer Peer) (<-chan Peer, deleter) {
+func (m *Server) addServerWatch(id nppc.ResourceID, peer Peer) (<-chan Peer, deleter) {
 	c := make(chan Peer, 1)
 
 	m.mu.Lock()
@@ -250,7 +265,7 @@ func (m *Server) addServerWatch(id string, peer Peer) (<-chan Peer, deleter) {
 	return c, func() { m.removeServerWatch(id, peer) }
 }
 
-func (m *Server) newClientWatch(id string, peer Peer) (<-chan Peer, deleter) {
+func (m *Server) newClientWatch(id nppc.ResourceID, peer Peer) (<-chan Peer, deleter) {
 	c := make(chan Peer, 1)
 
 	m.mu.Lock()
@@ -273,7 +288,7 @@ func (m *Server) newClientWatch(id string, peer Peer) (<-chan Peer, deleter) {
 	return c, func() { m.removeClientWatch(id, peer) }
 }
 
-func (m *Server) removeClientWatch(id string, peer Peer) {
+func (m *Server) removeClientWatch(id nppc.ResourceID, peer Peer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -285,7 +300,7 @@ func (m *Server) removeClientWatch(id string, peer Peer) {
 	m.maybeCleanMeeting(id, candidates)
 }
 
-func (m *Server) removeServerWatch(id string, peer Peer) {
+func (m *Server) removeServerWatch(id nppc.ResourceID, peer Peer) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -297,7 +312,7 @@ func (m *Server) removeServerWatch(id string, peer Peer) {
 	m.maybeCleanMeeting(id, candidates)
 }
 
-func (m *Server) maybeCleanMeeting(id string, candidates *meeting) {
+func (m *Server) maybeCleanMeeting(id nppc.ResourceID, candidates *meeting) {
 	if candidates == nil {
 		return
 	}
@@ -359,7 +374,7 @@ func (m *Server) Info(ctx context.Context, request *sonm.Empty) (*sonm.Rendezvou
 			servers[serverID.String()] = reply
 		}
 
-		state[id] = &sonm.RendezvousMeeting{
+		state[id.String()] = &sonm.RendezvousMeeting{
 			Servers: servers,
 			Clients: clients,
 		}

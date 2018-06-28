@@ -82,7 +82,9 @@ func (card *DRICard) collectRelatedDevices() error {
 	var devices []string
 	// add found Devices as part of the DRI
 	for _, f := range fi {
-		devices = append(devices, path.Join("/dev/dri/", f.Name()))
+		if f.IsDir() {
+			devices = append(devices, path.Join("/dev/dri/", f.Name()))
+		}
 	}
 
 	card.Devices = devices

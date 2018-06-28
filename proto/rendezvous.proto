@@ -27,7 +27,7 @@ service Rendezvous {
 // located under the NAT.
 message ConnectRequest {
     // ID describes an unique ID of a target. Mainly it's an ETH address.
-    string ID = 1;
+    bytes ID = 1;
     // Protocol describes network protocol the peer wants to resolve.
     string protocol = 2;
     // PrivateAddrs describes source private addresses.
