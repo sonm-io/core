@@ -202,7 +202,7 @@ func NewAPI(ctx context.Context, opts ...Option) (API, error) {
 }
 
 func (api *BasicAPI) setupContractRegistry(ctx context.Context) error {
-	registry, err := NewRegistry(api.options.contractRegistry, api.options.sidechain)
+	registry, err := NewRegistry(ctx, api.options.contractRegistry, api.options.sidechain)
 	if err != nil {
 		return fmt.Errorf("failed to setup contract registry: %s", err)
 	}
@@ -355,7 +355,7 @@ func (api *BasicAPI) ContractRegistry() ContractRegistry {
 	return api.contractRegistry
 }
 
-func NewRegistry(address common.Address, opts *chainOpts) (*BasicContractRegistry, error) {
+func NewRegistry(ctx context.Context, address common.Address, opts *chainOpts) (*BasicContractRegistry, error) {
 	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
@@ -369,7 +369,7 @@ func NewRegistry(address common.Address, opts *chainOpts) (*BasicContractRegistr
 	registry := &BasicContractRegistry{
 		registryContract: contract,
 	}
-	if err := registry.setup(context.TODO()); err != nil {
+	if err := registry.setup(ctx); err != nil {
 		return nil, err
 	}
 	return registry, nil
@@ -427,7 +427,7 @@ func (m *BasicContractRegistry) setup(ctx context.Context) error {
 		if err := m.readContract(ctx, param.key, param.target); err != nil {
 			return err
 		}
-		ctxlog.S(ctx).Infof("fetched %s contract address: %s", param.key, param.target.String())
+		ctxlog.S(ctx).Infof("fetched `%s` contract address: %s", param.key, param.target.String())
 	}
 	return nil
 }
