@@ -923,7 +923,7 @@ func NewProfileRegistry(address common.Address, opts *chainOpts) (ProfileRegistr
 	return &ProfileRegistry{
 		client:                  client,
 		profileRegistryContract: profileRegistryContract,
-		opts:                    opts,
+		opts: opts,
 	}, nil
 }
 
