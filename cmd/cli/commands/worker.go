@@ -51,6 +51,7 @@ func init() {
 	workerMgmtCmd.AddCommand(
 		workerStatusCmd,
 		askPlansRootCmd,
+		benchmarkRootCmd,
 		workerTasksCmd,
 		workerDevicesCmd,
 		workerFreeDevicesCmd,
