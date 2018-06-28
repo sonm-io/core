@@ -1630,7 +1630,7 @@ func (api *BasicSimpleGatekeeper) CommitPayout(ctx context.Context, key *ecdsa.P
 		return err
 	}
 
-	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, CommitTopic); err != nil {
+	if _, err := WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx); err != nil {
 		return err
 	}
 
@@ -1643,7 +1643,7 @@ func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.Private
 		return err
 	}
 
-	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayoutTopic); err != nil {
+	if _, err := WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx); err != nil {
 		return err
 	}
 
@@ -1723,7 +1723,6 @@ func (api *BasicSimpleGatekeeper) FreezeKeeper(ctx context.Context, key *ecdsa.P
 		return err
 	}
 
-	// TODO: search topic
 	_, err = WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx)
 	if err != nil {
 		return err
