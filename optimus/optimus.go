@@ -416,15 +416,15 @@ func (m *workerControl) execute(ctx context.Context) error {
 		zap.String("Σ USD/s", pendingTotalPrice.ToPriceString()),
 	)
 
-	m.log.Debugf("comparing current worker's price %s with pending %s", currentTotalPrice.ToPriceString(), pendingTotalPrice.ToPriceString())
-
 	cancellationCandidates = m.filterCancellationCandidates(plans, currentPlans.AskPlans)
 
 	// Compare total USD/s before and after. Cancel if the diff is more than
 	// the threshold.
-	thresholdUSD := new(big.Int).Div(big.NewInt(1e18), big.NewInt(3600))
+	priceThreshold := m.cfg.PriceThreshold.GetPerSecond()
 	priceDiff := new(big.Int).Sub(pendingTotalPrice.Unwrap(), currentTotalPrice.Unwrap())
-	if new(big.Int).Sub(priceDiff, thresholdUSD).Sign() >= 0 {
+
+	m.log.Debugf("checking whether current worker's price %s exceeds the pending %s by %s", currentTotalPrice.ToPriceString(), pendingTotalPrice.ToPriceString(), priceThreshold.ToPriceString)
+	if new(big.Int).Sub(priceDiff, priceThreshold.Unwrap()).Sign() >= 0 {
 		m.log.Infow("cancelling plans", zap.Any("candidates", cancellationCandidates))
 
 		if err := m.cancelPlans(ctx, cancellationCandidates); err != nil {

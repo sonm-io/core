@@ -33,10 +33,22 @@ type Config struct {
 	Optimization optimizationConfig
 }
 
+func (m *Config) Validate() error {
+	for _, cfg := range m.Workers {
+		if err := cfg.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func LoadConfig(path string) (*Config, error) {
 	cfg := &Config{}
-	err := configor.Load(cfg, path)
-	if err != nil {
+	if err := configor.Load(cfg, path); err != nil {
+		return nil, err
+	}
+
+	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -44,11 +56,20 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 type workerConfig struct {
-	PrivateKey  privateKey         `yaml:"ethereum" json:"-"`
-	Epoch       time.Duration      `yaml:"epoch"`
-	OrderPolicy OrderPolicy        `yaml:"order_policy"`
-	DryRun      bool               `yaml:"dry_run" default:"false"`
-	Identity    sonm.IdentityLevel `yaml:"identity" required:"true"`
+	PrivateKey     privateKey         `yaml:"ethereum" json:"-"`
+	Epoch          time.Duration      `yaml:"epoch"`
+	OrderPolicy    OrderPolicy        `yaml:"order_policy"`
+	DryRun         bool               `yaml:"dry_run" default:"false"`
+	Identity       sonm.IdentityLevel `yaml:"identity" required:"true"`
+	PriceThreshold sonm.Price         `yaml:"price_threshold" required:"true"`
+}
+
+func (m *workerConfig) Validate() error {
+	if m.PriceThreshold.GetPerSecond().Unwrap().Sign() <= 0 {
+		return fmt.Errorf("price threshold must be a positive number")
+	}
+
+	return nil
 }
 
 type OrderPolicy int
