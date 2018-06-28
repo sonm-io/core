@@ -20,8 +20,8 @@ gatekeeper:
   # Allowed values are "debug", "info"
   direction: sidechain
   # Delay used for prevent racing between other gates instances
-  delay: "15s"
+  delay: "1s"
   # Period for checking transaction
-  period: "30s"
+  period: "1m"
   # Period for checking freezing time changing
   # reloadFreezingPeriod: "60m"

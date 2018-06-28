@@ -255,6 +255,8 @@ func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
 
 		// sleeping for freezing time after committing
 		time.Sleep(g.freezingTime)
+	}else{
+		// TODO: check that transaction commited by this keeper
 	}
 
 	err := g.out.Payout(ctx, g.key, tx.From, tx.Value, tx.Number)
