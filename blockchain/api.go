@@ -171,7 +171,7 @@ type BasicAPI struct {
 	sidechainGate    SimpleGatekeeperAPI
 }
 
-func NewAPI(opts ...Option) (API, error) {
+func NewAPI(ctx context.Context, opts ...Option) (API, error) {
 	defaults := defaultOptions()
 	for _, o := range opts {
 		o(defaults)
@@ -194,7 +194,7 @@ func NewAPI(opts ...Option) (API, error) {
 	}
 
 	for _, setupFunc := range setup {
-		if err := setupFunc(context.TODO()); err != nil {
+		if err := setupFunc(ctx); err != nil {
 			return nil, err
 		}
 	}
