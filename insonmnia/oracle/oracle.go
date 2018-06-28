@@ -9,6 +9,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/util"
@@ -27,15 +28,6 @@ type Oracle struct {
 }
 
 func NewOracle(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Oracle, error) {
-	logger := ctxlog.GetLogger(ctx)
-
-	logger.Info("start USD-SNM Oracle",
-		zap.Bool("isMaster", cfg.Oracle.IsMaster),
-		zap.String("account", crypto.PubkeyToAddress(key.PublicKey).String()),
-		zap.String("price update period:", cfg.Oracle.PriceUpdatePeriod.String()),
-		zap.String("contract update period", cfg.Oracle.ContractUpdatePeriod.String()),
-		zap.Float64("deviation percent", cfg.Oracle.Percent))
-
 	bch, err := blockchain.NewAPI(ctx, blockchain.WithConfig(cfg.Blockchain))
 	if err != nil {
 		return nil, err
@@ -93,7 +85,9 @@ func (o *Oracle) listenEventsRoutine(ctx context.Context) error {
 	if o.cfg.Oracle.IsMaster {
 		return nil
 	}
-	events, err := o.bch.Events().GetEvents(ctx, o.bch.Events().GetMultiSigFilter([]common.Address{o.bch.ContractRegistry().OracleUsdAddress()}, big.NewInt(0)))
+	events, err := o.bch.Events().GetEvents(ctx, o.bch.Events().GetMultiSigFilter([]common.Address{
+		o.bch.ContractRegistry().OracleUSDMultisig(),
+	}, big.NewInt(0)))
 
 	if err != nil {
 		return err
@@ -112,6 +106,8 @@ func (o *Oracle) listenEventsRoutine(ctx context.Context) error {
 				o.logger.Debug("new submission found", zap.Any("event", event))
 				if o.transactionValid(ctx, value.TransactionId) {
 					o.confirmChanging(ctx, value.TransactionId)
+				} else {
+					o.logger.Info("failed to confirm transaction, transaction invalid ")
 				}
 			}
 		}
@@ -163,11 +159,11 @@ func (o *Oracle) getPriceForSubmit() (*big.Int, error) {
 		return nil, fmt.Errorf("actual price is not downloaded")
 	}
 
-	if o.actualPrice.Cmp(big.NewInt(1000000000000000)) < 0 {
+	if o.actualPrice.Cmp(big.NewInt(params.Finney)) < 0 {
 		return nil, fmt.Errorf("oracle mustn't automaticly set price lower than 1e15")
 	}
 
-	if o.actualPrice.Cmp(big.NewInt(0).Mul(big.NewInt(100000000000), big.NewInt(10000000000))) > 0 {
+	if o.actualPrice.Cmp(big.NewInt(0).Mul(big.NewInt(params.Ether), big.NewInt(params.Ada))) > 0 {
 		return nil, fmt.Errorf("oracle mustn't automaticly set price greater than 1e21")
 	}
 	return big.NewInt(0).Set(o.actualPrice), nil

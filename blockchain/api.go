@@ -224,6 +224,7 @@ func NewAPI(ctx context.Context, opts ...Option) (API, error) {
 		api.setupOracle,
 		api.setupMasterchainGate,
 		api.setupSidechainGate,
+		api.setupOracleMultisig,
 	}
 
 	for _, setupFunc := range setup {

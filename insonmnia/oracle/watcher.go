@@ -7,9 +7,9 @@ import (
 	"io/ioutil"
 	"math/big"
 	"net/http"
-	"strconv"
 	"time"
 
+	"github.com/ethereum/go-ethereum/params"
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -70,33 +70,40 @@ func (p *PriceWatcher) loadCurrentPrice(ctx context.Context) (*big.Int, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("Download new price", zap.Float64("price", usdPrice))
+	logger.Debug("Download new price", zap.String("price", usdPrice.String()))
 	return p.divideSNM(usdPrice), nil
 }
 
-func (p *PriceWatcher) divideSNM(price float64) *big.Int {
-	return big.NewInt(int64(1 / price * 1e18))
+func (p *PriceWatcher) divideSNM(price *big.Float) *big.Int {
+	snmInOneUsd := big.NewFloat(0).Quo(big.NewFloat(1), price)
+	snmInOneUsd.Mul(snmInOneUsd, big.NewFloat(params.Ether))
+	intPrice, _ := snmInOneUsd.Int(nil)
+	return intPrice
 }
 
-func (p *PriceWatcher) loadSNMPrice(url string) (float64, error) {
+func (p *PriceWatcher) loadSNMPrice(url string) (*big.Float, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	var tickerSnm []*tokenData
 	err = json.Unmarshal(body, &tickerSnm)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if len(tickerSnm) < 1 {
-		return 0, fmt.Errorf("loading ticker is abused")
+		return nil, fmt.Errorf("loading ticker is abused")
 	}
-	return strconv.ParseFloat(tickerSnm[0].PriceUsd, 64)
+	f, _, err := new(big.Float).Parse(tickerSnm[0].PriceUsd, 10)
+	if err != nil {
+		return nil, err
+	}
+	return f, nil
 }
