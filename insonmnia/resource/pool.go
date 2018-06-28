@@ -33,6 +33,7 @@ func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
 		pool:          newPool(resources),
 		taskToAskPlan: map[string]string{},
 		askPlanPools:  map[string]*pool{},
+		log:           log,
 	}
 }
 

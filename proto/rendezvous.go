@@ -1,15 +1,27 @@
 package sonm
 
 import (
-	"errors"
+	"fmt"
 )
+
+const (
+	DefaultNPPProtocol = "tcp"
+)
+
+func (m *PublishRequest) Validate() error {
+	if m.Protocol == "" {
+		m.Protocol = DefaultNPPProtocol
+	}
+
+	return nil
+}
 
 func (m *ConnectRequest) Validate() error {
 	if m.Protocol == "" {
-		m.Protocol = "tcp"
+		m.Protocol = DefaultNPPProtocol
 	}
-	if m.ID == "" {
-		return errors.New("destination ID s required")
+	if len(m.ID) != 20 {
+		return fmt.Errorf("destination ID must have exactly 20 bytes format")
 	}
 
 	return nil

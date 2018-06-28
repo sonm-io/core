@@ -61,6 +61,7 @@ import (
 	"context"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"strings"
@@ -70,6 +71,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/memberlist"
 	"github.com/pborman/uuid"
+	"github.com/sonm-io/core/insonmnia/npp/nppc"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/atomic"
@@ -85,19 +87,19 @@ type meeting struct {
 type meetingRoom struct {
 	mu sync.Mutex
 	// Multiple servers can be registered for fault tolerance.
-	servers map[common.Address]*connPool
+	servers map[nppc.ResourceID]*connPool
 
 	log *zap.SugaredLogger
 }
 
 func newMeetingRoom(log *zap.Logger) *meetingRoom {
 	return &meetingRoom{
-		servers: map[common.Address]*connPool{},
+		servers: map[nppc.ResourceID]*connPool{},
 		log:     log.Sugar(),
 	}
 }
 
-func (m *meetingRoom) PopRandomServer(addr common.Address) *meeting {
+func (m *meetingRoom) PopRandomServer(addr nppc.ResourceID) *meeting {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -107,7 +109,7 @@ func (m *meetingRoom) PopRandomServer(addr common.Address) *meeting {
 	return nil
 }
 
-func (m *meetingRoom) PopServer(addr common.Address, id ConnID) *meeting {
+func (m *meetingRoom) PopServer(addr nppc.ResourceID, id ConnID) *meeting {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -117,7 +119,7 @@ func (m *meetingRoom) PopServer(addr common.Address, id ConnID) *meeting {
 	return nil
 }
 
-func (m *meetingRoom) PutServer(addr common.Address, id ConnID, conn net.Conn, tx chan<- net.Conn) {
+func (m *meetingRoom) PutServer(addr nppc.ResourceID, id ConnID, conn net.Conn, tx chan<- net.Conn) {
 	m.log.Debugf("putting %s server into the meeting map with %s id", addr.String(), id)
 
 	m.mu.Lock()
@@ -131,7 +133,7 @@ func (m *meetingRoom) PutServer(addr common.Address, id ConnID, conn net.Conn, t
 	servers.put(id, conn, tx)
 }
 
-func (m *meetingRoom) DiscardConnections(addrs []common.Address) {
+func (m *meetingRoom) DiscardConnections(addrs []nppc.ResourceID) {
 	for _, addr := range addrs {
 		m.log.Infof("closing connections associated with %s address", addr.String())
 
@@ -256,7 +258,7 @@ type server struct {
 	waitTimeout      time.Duration
 
 	metrics           *metrics
-	newMeetingHandler func(addr common.Address) *meetingHandler
+	newMeetingHandler func(addr nppc.ResourceID) *meetingHandler
 
 	monitoring *monitor
 
@@ -288,7 +290,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 
 	metrics := newMetrics()
 
-	newMeetingHandler := func(addr common.Address) *meetingHandler {
+	newMeetingHandler := func(addr nppc.ResourceID) *meetingHandler {
 		return &meetingHandler{
 			bufferSize: opts.bufferSize,
 
@@ -418,7 +420,9 @@ func (m *server) processConnection(ctx context.Context, conn net.Conn) {
 	defer m.metrics.ConnCurrent.Dec()
 
 	if err := m.processConnectionBlocking(ctx, conn); err != nil {
-		m.log.Warnw("failed to process connection", zap.Error(err))
+		if err != io.EOF {
+			m.log.Warnw("failed to process connection", zap.Error(err))
+		}
 
 		switch e := err.(type) {
 		case *protocolError:
@@ -444,7 +448,11 @@ func (m *server) processConnectionBlocking(ctx context.Context, conn net.Conn) e
 
 	switch handshake.PeerType {
 	case sonm.PeerType_DISCOVER:
-		return m.processDiscover(ctx, conn, common.BytesToAddress(handshake.Addr))
+		addr := nppc.ResourceID{
+			Protocol: handshake.Protocol,
+			Addr:     common.BytesToAddress(handshake.Addr),
+		}
+		return m.processDiscover(ctx, conn, addr)
 	case sonm.PeerType_SERVER, sonm.PeerType_CLIENT:
 		return m.processHandshake(ctx, conn, handshake)
 	default:
@@ -452,7 +460,7 @@ func (m *server) processConnectionBlocking(ctx context.Context, conn net.Conn) e
 	}
 }
 
-func (m *server) processDiscover(ctx context.Context, conn net.Conn, addr common.Address) error {
+func (m *server) processDiscover(ctx context.Context, conn net.Conn, addr nppc.ResourceID) error {
 	m.log.Debugf("processing discover request %s", conn.RemoteAddr())
 
 	targetAddr, ok := m.continuum.Get(addr)
@@ -472,7 +480,10 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 	}
 
 	id := ConnID(uuid.New())
-	addr := common.BytesToAddress(handshake.Addr)
+	addr := nppc.ResourceID{
+		Protocol: handshake.Protocol,
+		Addr:     common.BytesToAddress(handshake.Addr),
+	}
 
 	// We support both multiple servers and clients.
 	switch handshake.PeerType {
@@ -533,6 +544,10 @@ func (m *server) readHandshake(ctx context.Context, conn net.Conn) (*sonm.Handsh
 		handshake := &sonm.HandshakeRequest{}
 		err := recvFrame(conn, handshake)
 		if err == nil {
+			if handshake.Protocol == "" {
+				handshake.Protocol = sonm.DefaultNPPProtocol
+			}
+
 			channel <- handshake
 		} else {
 			channel <- err
