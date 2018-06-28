@@ -7,6 +7,7 @@ import (
 
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
@@ -24,6 +25,7 @@ type nodeConfig struct {
 }
 
 type Config struct {
+	Blockchain   *blockchain.Config         `yaml:"blockchain"`
 	PrivateKey   privateKey                 `yaml:"ethereum" json:"-"`
 	Logging      logging.Config             `yaml:"logging"`
 	Node         nodeConfig                 `yaml:"node"`
