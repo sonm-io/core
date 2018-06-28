@@ -1070,6 +1070,7 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 		for {
 			select {
 			case <-ctx.Done():
+				close(out)
 				return
 			case <-tk.C:
 				logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
