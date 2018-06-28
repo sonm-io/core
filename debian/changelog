@@ -1,3 +1,79 @@
+sonm-core (0.4.0-rc2) unstable; urgency=low
+
+  * Added: gate with daily limit and freeze (#1062).
+  * Added: DWH extended validators (#1063).
+  * Added: ask-plan cancellation in Optimus (#1072).
+    This change activates ask-plan cancellation mechanism in Optimus.
+    It works the following way. Periodically Optimus scans workers it manages
+    and determines whether some ask-plans can be replaced in the nearest
+    future. If so - it calculates virtual free devices and tries to optimize
+    the new orders set (including already existing) to determine which
+    ask-plans are required to be replaced.
+  * Added: dry-run option in Optimus (#1078).
+    When activates Optimus will not create ask plans, but continues doing the
+    rest calculations instead. Useful for debugging.
+  * Added: uptime in Relay metrics (#1086).
+    Now Relay will return its uptime while answering for its metrics handle.
+  * Added: worker debug state (#1084).
+    This PR adds handle to worker to retrieve useful debugging info, e.g.
+    current resource scheduler state and salesman state.
+  * Added: gate commission (#1097).
+  * Changed: flexible benchmarks (#1066).
+    This PR allows worker to perform and cache benchmarks separately for each device
+    and enables parallel benchmarking for GPU.
+  * Changed: decompose components logic in Optimus (#1071).
+    This change allows to create multiple worker clients with different account settings.
+  * Changed: simplify weight formula in Optimus (#1077).
+    Previously a quite complicated motivation was used to calculate order
+    weights. It was hard to understand, and een harder to debug.
+    Now we use a simple predictedPrice/price as a criteria of order's
+    attractiveness.
+  * Changed: more verbose cmd errors in Optimus (#1092).
+  * BREAKING Changed: extend NPP identifier with protocol (#1104).
+    This allows to specify some protocol you want to publish/resolve as the
+    Rendezvous allows. It is required for further NAT traversal extensions.
+    What is changed: not relay protocol allows to specify "protocol" field
+    in order to match between different protocols for the same peer ID.
+    In both Relay and Rendezvous meeting groups are now associated with
+    complex string representation a-la URI.
+    This is the BREAKING change. Both Rendezvous, Worker and Node must be
+    updated. Relay, however, does not need to.
+  * Fixed: Relay server tracking (#1047).
+    This PR fixes a Relay bug: connecting servers weren't track'ed on Handshake.
+  * Fixed: build DRI module on non-unix (#1074).
+  * Fixed: properly forward "expose" section in Worker (#1076).
+    This fixes forgetting "expose" section while forwarding it from start task request to a container.
+    Also a tiny test added to check whether the task config is parsed properly.
+  * Fixed: proper reference parsing (#1075).
+    After this fix Worker will use proper reference parsing to detect digested images.
+  * Fixed: benchmark processing copy paste (#1079).
+  * Fixed: treat GPU count in Optimus as min (#1083).
+    We have a special business crutch, which forced us to treat GPU count
+    benchmark as a maximum allowed number of GPUs to match bid with ask, i.e.
+    if a bid requires for example 2 GPUs a worker can sell either 1 or 2 of
+    any matching its GPUs.
+    This commit inverts this logic to the default marketplace logic. No we
+    treat such benchmark as a minimum required number of GPUs.
+  * Fixed: properly process price for validators (#1085).
+  * Fixed: properly handle zero GPU benchmark (#1088).
+    This fixes a bug where Optimus fails to fit GPU benchmarks with some of
+    them equal zero.
+  * Fixed: deploy list contract (#1080).
+  * Fixed: Optimus will now set identity level (#1091).
+  * Fixed: enable TCP keep-alive for Relay clients (#1095).
+    Setting TCP keepalive is strictly suggested, because in case of mobile
+    devices the network can be reconfigured multiple times between connection
+    attempts.
+    However if the network was silently changed or the connection was lost or
+    the other side was kernel-panicked no FIN/RST will be delivered to us,
+    which leads to infinite (well, 24-hour) hanging.
+  * Fixed: use proper market API in Optimus (#1099).
+    Accidentally we used gRPC API to the DWH instead of blockchain API.
+  * Fixed: benchmark casting precision issue (#1101).
+  * Fixed: skip non-dir files when observing /sys/class/drm (#1106).
+
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 28 Jun 2018 15:14:41 +0300
+
 sonm-core (0.4.0-rc1) unstable; urgency=low
 
   * Added: Optimus now can filter by counterparty (#977).
