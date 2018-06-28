@@ -87,6 +87,13 @@ type NumBenchmarksUpdatedData struct {
 	NumBenchmarks uint64
 }
 
+type PayoutResult int
+
+const (
+	Committed PayoutResult = 1
+	Payouted  PayoutResult = 2
+)
+
 type GateTx struct {
 	// From token transfer sender
 	From common.Address
