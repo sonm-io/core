@@ -73,7 +73,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 
 	loader := benchmarks.NewLoader(m.cfg.Benchmarks.URL)
 
-	market, err := blockchain.NewAPI()
+	market, err := blockchain.NewAPI(ctx)
 	if err != nil {
 		return err
 	}
