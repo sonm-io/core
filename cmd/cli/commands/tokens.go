@@ -1,7 +1,9 @@
 package commands
 
 import (
+	"context"
 	"os"
+	"time"
 
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -76,7 +78,7 @@ var tokenDepositCmd = &cobra.Command{
 	Args:   cobra.MinimumNArgs(1),
 	PreRun: loadKeyStoreIfRequired,
 	Run: func(cmd *cobra.Command, args []string) {
-		ctx, cancel := newTimeoutContext()
+		ctx, cancel := context.WithTimeout(context.Background(), 150*time.Second)
 		defer cancel()
 
 		token, err := newTokenManagementClient(ctx)
