@@ -175,6 +175,17 @@ func (s *Storage) Load(key string, value interface{}) (bool, error) {
 	return false, nil
 }
 
+func (s *Storage) Remove(key string) (bool, error) {
+	err := s.store.Delete(key)
+	if err == store.ErrKeyNotFound {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (m *KeyedStorage) Save(value interface{}) error {
 	return m.storage.Save(m.key, value)
 }
