@@ -307,6 +307,12 @@ func (m *workerControl) Execute(ctx context.Context) {
 	// Filter orders to have only orders that are subset of ours.
 	matchedOrders := make([]WeightedOrder, 0, len(orders))
 	for _, order := range orders {
+		// However do not filter our own orders.
+		if order.ID != "" {
+			matchedOrders = append(matchedOrders, order)
+			continue
+		}
+
 		if order.Order.Order.OrderType != sonm.OrderType_BID {
 			continue
 		}
@@ -404,22 +410,25 @@ func (m *workerControl) Execute(ctx context.Context) {
 	}
 
 	pendingTotalPrice := calculateWorkerPrice(plans).GetPerSecond()
-	m.log.Infow("successfully cut the following selling plans",
+	m.log.Infow("successfully prepared the following selling plans",
 		zap.Any("size", len(plans)),
 		zap.Any("plans", plans),
 		zap.String("Σ USD/s", pendingTotalPrice.ToPriceString()),
 	)
 
+	m.log.Debugf("comparing current worker's price %s with pending %s", currentTotalPrice.ToPriceString(), pendingTotalPrice.ToPriceString())
+
+	cancellationCandidates = m.filterCancellationCandidates(plans, currentPlans.AskPlans)
+
 	// Compare total USD/s before and after. Cancel if the diff is more than
 	// the threshold.
-	priceDiff := big.NewInt(0).Sub(pendingTotalPrice.Unwrap(), currentTotalPrice.Unwrap())
-	if big.NewInt(0).Sub(priceDiff, big.NewInt(10)).Sign() >= 0 {
-		cancellationCandidates = m.filterCancellationCandidates(plans)
-
+	thresholdUSD := new(big.Int).Div(big.NewInt(1e18), big.NewInt(3600))
+	priceDiff := new(big.Int).Sub(pendingTotalPrice.Unwrap(), currentTotalPrice.Unwrap())
+	if new(big.Int).Sub(priceDiff, thresholdUSD).Sign() >= 0 {
 		m.log.Infow("cancelling plans", zap.Any("candidates", cancellationCandidates))
 
 		if err := m.cancelPlans(ctx, cancellationCandidates); err != nil {
-			m.log.Warnw("failed to cancel some plans", zap.Any("err", err))
+			m.log.Infow("cancellation result", zap.Any("err", err))
 		}
 	}
 
@@ -428,6 +437,13 @@ func (m *workerControl) Execute(ctx context.Context) {
 	} else {
 		// Tell worker to create sell plans.
 		for _, plan := range plans {
+			if plan.ID != "" {
+				if _, ok := currentPlans.AskPlans[plan.ID]; ok {
+					m.log.Debugw("skipping ask-plan creation: already exists", zap.Any("plan", *plan))
+					continue
+				}
+			}
+
 			id, err := m.worker.CreateAskPlan(ctx, plan)
 			if err != nil {
 				m.log.Warnw("failed to create sell plan", zap.Any("plan", *plan), zap.Error(err))
@@ -487,10 +503,18 @@ func (m *workerControl) planOrders(ctx context.Context, plans map[string]*sonm.A
 	return orders, nil
 }
 
-func (m *workerControl) filterCancellationCandidates(plans []*sonm.AskPlan) map[string]*sonm.AskPlan {
-	filtered := map[string]*sonm.AskPlan{}
+func (m *workerControl) filterCancellationCandidates(plans []*sonm.AskPlan, currentPlans map[string]*sonm.AskPlan) map[string]*sonm.AskPlan {
+	alivePlans := map[string]*sonm.AskPlan{}
 	for _, plan := range plans {
-		if len(plan.ID) > 0 {
+		if plan.ID != "" {
+			alivePlans[plan.ID] = plan
+		}
+	}
+
+	filtered := map[string]*sonm.AskPlan{}
+	for _, plan := range currentPlans {
+		// Remove ask plan if we won't save it.
+		if _, ok := alivePlans[plan.ID]; !ok {
 			filtered[plan.ID] = plan
 		}
 	}
