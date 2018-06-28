@@ -185,6 +185,8 @@ type SimpleGatekeeperAPI interface {
 	GetPayoutTransactions(ctx context.Context) (map[string]*GateTx, error)
 	// GetKeeper returns keeper state with his limit, and token spending status
 	GetKeeper(ctx context.Context, keeper common.Address) (*Keeper, error)
+	// GetGateTransactionTime returns UTC timestamp of gate transaction
+	GetGateTransactionTime(ctx context.Context, tx *GateTx) (uint64, error)
 }
 
 type MultiSigAPI interface {
@@ -1842,7 +1844,7 @@ func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.Private
 			continue
 		}
 	}
-	return 0, fmt.Errorf("")
+	return UNKNOWN, fmt.Errorf("transaction executed successfuly, but payout's topic not found")
 }
 
 func (api *BasicSimpleGatekeeper) Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
@@ -2018,6 +2020,18 @@ func (api *BasicSimpleGatekeeper) GetPayinTransactions(ctx context.Context) (map
 		return nil, err
 	}
 	return api.transformTransactionsLogsToMap(logs, PayinTopic), nil
+}
+
+func (api *BasicSimpleGatekeeper) GetGateTransactionTime(ctx context.Context, tx *GateTx) (uint64, error) {
+	block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(tx.BlockNumber))
+	if err != nil {
+		return 0, err
+	}
+	if block.Time().IsUint64() {
+		return block.Time().Uint64(), nil
+	} else {
+		return 0, errors.New("block time overflows uint64")
+	}
 }
 
 func (api *BasicSimpleGatekeeper) GetPayoutTransactions(ctx context.Context) (map[string]*GateTx, error) {
