@@ -175,11 +175,6 @@ func (g *Gatekeeper) isNotPaid(ctx context.Context, tx *blockchain.GateTx) bool 
 		g.logger.Debug("err while getting tx data", zap.Error(err))
 		return false
 	}
-
-	g.logger.Debug("transaction state",
-		zap.Any("commitTS", txState.CommitTS),
-		zap.Any("keeper", txState.Keeper),
-		zap.Any("paid", txState.Paid))
 	return !txState.Paid
 }
 
@@ -190,11 +185,6 @@ func (g *Gatekeeper) isCommitted(ctx context.Context, tx *blockchain.GateTx) boo
 		g.logger.Debug("err while getting tx data", zap.Error(err))
 		return false
 	}
-
-	g.logger.Debug("transaction state",
-		zap.Any("commitTS", txState.CommitTS),
-		zap.Any("keeper", txState.Keeper),
-		zap.Any("paid", txState.Paid))
 	return txState.CommitTS.Cmp(big.NewInt(0)) == 0
 }
 
@@ -211,10 +201,6 @@ func (g *Gatekeeper) underLimit(ctx context.Context, tx *blockchain.GateTx) bool
 		return false
 	}
 	if keeper.LastDay.Int64() < int64(time.Now().Day()) {
-		log.Debug("FUCK WITH DAY",
-			zap.Int64("keeper last day", keeper.LastDay.Int64()),
-			zap.Int64("today", int64(time.Now().Day())))
-
 		spentToday = big.NewInt(0)
 	}
 
@@ -251,7 +237,7 @@ func (g *Gatekeeper) processUnpaidTransaction(ctx context.Context, tx *blockchai
 }
 
 func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
-	g.logger.Debug("fix transaction",
+	g.logger.Info("fix transaction",
 		zap.String("from", tx.From.String()),
 		zap.String("value", tx.Value.String()),
 		zap.String("tx number", tx.Number.String()))
@@ -259,10 +245,13 @@ func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
 	if !g.isCommitted(ctx, tx) {
 		err := g.out.CommitPayout(ctx, g.key, tx.From, tx.Value, tx.Number)
 		if err != nil {
-			g.logger.Debug("error while commit", zap.Error(err))
+			g.logger.Error("error while commit", zap.Error(err))
 			return err
 		}
-		g.logger.Debug("transaction committed")
+		g.logger.Info("transaction committed",
+			zap.String("from", tx.From.String()),
+			zap.String("value", tx.Value.String()),
+			zap.String("tx number", tx.Number.String()))
 
 		// sleeping for freezing time after committing
 		time.Sleep(g.freezingTime)
@@ -270,16 +259,18 @@ func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
 
 	err := g.out.Payout(ctx, g.key, tx.From, tx.Value, tx.Number)
 	if err != nil {
-		g.logger.Debug("error while payout", zap.Error(err))
+		g.logger.Error("error while payout", zap.Error(err))
 		return err
 	}
-	g.logger.Debug("transaction payout")
+	g.logger.Debug("transaction payouted",
+		zap.String("from", tx.From.String()),
+		zap.String("value", tx.Value.String()),
+		zap.String("tx number", tx.Number.String()))
 
 	return nil
 }
 
 func (g *Gatekeeper) findScummyTransactions(ctx context.Context, inTxs map[string]*blockchain.GateTx, outTxs map[string]*blockchain.GateTx) {
-	log.Debug("starting verify transactions")
 	for k, tx := range outTxs {
 		_, ok := inTxs[k]
 		if !ok {
@@ -289,12 +280,6 @@ func (g *Gatekeeper) findScummyTransactions(ctx context.Context, inTxs map[strin
 }
 
 func (g *Gatekeeper) freezeScummy(ctx context.Context, tx *blockchain.GateTx) error {
-	g.logger.Debug("found new scum transaction",
-		zap.String("from", tx.From.String()),
-		zap.String("value", tx.Value.String()),
-		zap.String("tx number", tx.Number.String()),
-		zap.String("block number", tx.BlockNumber.String()))
-
 	txState, err := g.out.GetTransactionState(ctx, tx.From, tx.Value, tx.Number)
 	if err != nil {
 		return err
@@ -304,6 +289,19 @@ func (g *Gatekeeper) freezeScummy(ctx context.Context, tx *blockchain.GateTx) er
 	if err != nil {
 		return err
 	}
+
+	g.logger.Info("found new scum transaction",
+		zap.String("from", tx.From.String()),
+		zap.String("value", tx.Value.String()),
+		zap.String("tx number", tx.Number.String()),
+		zap.String("block number", tx.BlockNumber.String()),
+		zap.String("commit timestamp", txState.CommitTS.String()),
+		zap.Bool("paid", txState.Paid),
+		zap.String("keeper address", keeper.Address.String()),
+		zap.String("keeper day limit", keeper.DayLimit.String()),
+		zap.String("keeper day limit", keeper.SpentToday.String()),
+		zap.String("keeper last day ", keeper.LastDay.String()),
+		zap.Bool("keeper frozen", keeper.Frozen))
 
 	if keeper.Frozen {
 		return fmt.Errorf("keeper already frozen")
