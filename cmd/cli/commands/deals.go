@@ -96,7 +96,7 @@ var dealStatusCmd = &cobra.Command{
 		}
 
 		changeRequests, _ := dealer.ChangeRequestsList(ctx, id)
-		printDealInfo(cmd, reply, changeRequests, false)
+		printDealInfo(cmd, reply, changeRequests, printEverything)
 	},
 }
 
@@ -182,7 +182,7 @@ var dealQuickBuyCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		printDealInfo(cmd, deal, nil, false)
+		printDealInfo(cmd, deal, nil, printEverything)
 	},
 }
 
