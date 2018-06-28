@@ -75,7 +75,7 @@ type EventsAPI interface {
 	GetMultiSigFilter(addresses []common.Address, fromBlock *big.Int) *EventFilter
 	// GetBlockTimestamp returns Unix timestamp in UTC timezone.
 	// Useful for identify event emitting time.
-	GetBlockTimestamp(ctx context.Context, blockNumber *big.Int) (uint64, error)
+	GetBlockTimestamp(ctx context.Context, blockNumber uint64) (uint64, error)
 }
 
 type MarketAPI interface {
@@ -1383,16 +1383,17 @@ func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
 	}
 }
 
-func (api *BasicEventsAPI) GetBlockTimestamp(ctx context.Context, blockNumber *big.Int) (uint64, error) {
-	block, err := api.client.BlockByNumber(ctx, blockNumber)
+func (api *BasicEventsAPI) GetBlockTimestamp(ctx context.Context, blockNumber uint64) (uint64, error) {
+	n := big.NewInt(0).SetUint64(blockNumber)
+	block, err := api.client.BlockByNumber(ctx, n)
 	if err != nil {
 		return 0, err
 	}
+
 	if block.Time().IsUint64() {
 		return block.Time().Uint64(), nil
-	} else {
-		return 0, errors.New("block time overflows uint64")
 	}
+	return 0, errors.New("block time overflows uint64")
 }
 
 func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (chan *Event, error) {
@@ -2051,7 +2052,7 @@ func (api *BasicSimpleGatekeeper) transformTransactionsLogsToMap(logs []types.Lo
 				From:        common.HexToAddress(l.Topics[1].Hex()),
 				Number:      l.Topics[2].Big(),
 				Value:       l.Topics[3].Big(),
-				BlockNumber: big.NewInt(0).SetUint64(l.BlockNumber),
+				BlockNumber: l.BlockNumber,
 			}
 		}
 	}
