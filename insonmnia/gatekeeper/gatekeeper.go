@@ -188,6 +188,16 @@ func (g *Gatekeeper) isCommitted(ctx context.Context, tx *blockchain.GateTx) boo
 	return txState.CommitTS.Cmp(big.NewInt(0)) != 0
 }
 
+func (g *Gatekeeper) transactionCommittedByMe(ctx context.Context, tx *blockchain.GateTx) bool {
+	// verify that transaction not payout now
+	txState, err := g.out.GetTransactionState(ctx, tx.From, tx.Value, tx.Number)
+	if err != nil {
+		g.logger.Debug("err while getting tx data", zap.Error(err))
+		return false
+	}
+	return txState.Keeper.String() == crypto.PubkeyToAddress(g.key.PublicKey).String()
+}
+
 func (g *Gatekeeper) underLimit(ctx context.Context, tx *blockchain.GateTx) bool {
 	keeper, err := g.out.GetKeeper(ctx, crypto.PubkeyToAddress(g.key.PublicKey))
 	if err != nil {
@@ -256,8 +266,10 @@ func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
 
 		// sleeping for freezing time after committing
 		time.Sleep(g.freezingTime)
-	}else{
-		// TODO: check that transaction commited by this keeper
+	}
+
+	if !g.transactionCommittedByMe(ctx, tx) {
+		return fmt.Errorf("transaction commited by other gate")
 	}
 
 	_, err := g.out.Payout(ctx, g.key, tx.From, tx.Value, tx.Number)
