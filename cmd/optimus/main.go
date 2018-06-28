@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/optimus"
@@ -25,8 +26,10 @@ func run() error {
 		return fmt.Errorf("failed to parse config: %v", err)
 	}
 
-	ctx := context.Background()
-	bot, err := optimus.NewOptimus(*cfg, logging.BuildLogger(*cfg.Logging.Level))
+	log := logging.BuildLogger(*cfg.Logging.Level)
+
+	ctx := ctxlog.WithLogger(context.Background(), log)
+	bot, err := optimus.NewOptimus(*cfg, log)
 	if err != nil {
 		return fmt.Errorf("failed to create Optimus: %v", err)
 	}
