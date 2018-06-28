@@ -69,6 +69,11 @@ var loginCmd = &cobra.Command{
 				cmd.Println("Keystore is empty, generating new key...")
 				// ask for password for default key
 				pass, err := accounts.NewInteractivePassPhraser().GetPassPhrase()
+				if err != nil {
+					showError(cmd, "Cannot read pass phrase", err)
+					os.Exit(1)
+				}
+
 				newKey, err := ks.GenerateWithPassword(pass)
 				if err != nil {
 					showError(cmd, "Cannot generate new key", err)
@@ -87,6 +92,25 @@ var loginCmd = &cobra.Command{
 				cmd.Printf("No default address for account, select one from list and use `sonmcli login [addr]`\r\n")
 			} else {
 				cmd.Printf("Default key: %s\r\n", defaultAddr.Hex())
+				// try to decrypt default key with pre-defined pass
+				if len(cfg.Eth.Passphrase) == 0 {
+					pass, err := accounts.NewInteractivePassPhraser().GetPassPhrase()
+					if err != nil {
+						showError(cmd, "Cannot read pass phrase", err)
+						os.Exit(1)
+					}
+
+					cfg.Eth.Passphrase = pass
+				}
+
+				_, err = ks.GetKeyWithPass(defaultAddr, cfg.Eth.Passphrase)
+				if err != nil {
+					showError(cmd, "Cannot decrypt default key with given pass", err)
+					os.Exit(1)
+				}
+
+				cfg.Eth.Keystore = keydir
+				cfg.Save()
 			}
 
 			cmd.Println("Keystore contains following keys:")

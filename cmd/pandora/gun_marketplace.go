@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/ecdsa"
 
 	"github.com/sonm-io/core/blockchain"
@@ -21,7 +22,9 @@ type marketplaceExt struct {
 func NewMarketplaceGun(cfg MarketplaceExtConfig) (Gun, error) {
 	privateKey := PrivateKey(cfg.Ethereum)
 
-	market, err := blockchain.NewAPI(blockchain.WithSidechainEndpoint(cfg.Ethereum.Endpoint), blockchain.WithSidechainGasPrice(0))
+	market, err := blockchain.NewAPI(context.Background(),
+		blockchain.WithSidechainEndpoint(cfg.Ethereum.Endpoint),
+		blockchain.WithSidechainGasPrice(0))
 	if err != nil {
 		return nil, err
 	}

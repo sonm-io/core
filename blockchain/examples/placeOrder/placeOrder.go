@@ -23,7 +23,7 @@ func main() {
 		return
 	}
 
-	api, err := blockchain.NewAPI()
+	api, err := blockchain.NewAPI(context.Background())
 	if err != nil {
 		log.Fatalln(err)
 		return
