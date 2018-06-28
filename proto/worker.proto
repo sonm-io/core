@@ -40,6 +40,10 @@ service WorkerManagement {
     rpc NextMaintenance(Empty) returns (Timestamp) {}
     // Get useful debugging info - scheduler state and salesman state
     rpc DebugState(Empty) returns (DebugStateReply) {}
+    // Remove benchmark cached value by specified benchmark ID
+    rpc RemoveBenchmark(NumericID) returns (Empty) {}
+    // Schedule full rebenchmarking on next restart
+    rpc PurgeBenchmarks(Empty) returns (Empty) {}
 }
 
 service Worker {

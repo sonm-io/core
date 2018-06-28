@@ -12,6 +12,10 @@ message ID {
     string id = 1;
 }
 
+message NumericID {
+    uint64 id = 1;
+}
+
 message EthID {
     EthAddress id = 1;
 }

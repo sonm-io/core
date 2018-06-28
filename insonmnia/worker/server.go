@@ -69,6 +69,8 @@ var (
 		workerAPIPrefix + "ScheduleMaintenance",
 		workerAPIPrefix + "NextMaintenance",
 		workerAPIPrefix + "DebugState",
+		workerAPIPrefix + "RemoveBenchmark",
+		workerAPIPrefix + "PurgeBenchmarks",
 	}
 )
 
@@ -976,6 +978,40 @@ func (m *Worker) getCachedValue(bench *pb.Benchmark, device interface{}) (uint64
 	return 0, fmt.Errorf("hardware hashes do not match, current %s, stored %s", hash, storedHash)
 }
 
+func (m *Worker) dropCachedValue(benchID uint64) error {
+	benches := m.benchmarks.ByID()
+	if benchID >= uint64(len(benches)) {
+		return fmt.Errorf("benchmark with id %d not found", benchID)
+	}
+	drop := func(bench *pb.Benchmark, device interface{}) error {
+		_, err := m.storage.Remove(benchKey(bench, device))
+		return err
+	}
+	bench := benches[benchID]
+	switch bench.GetType() {
+	case pb.DeviceType_DEV_CPU:
+		return drop(bench, m.hardware.CPU.Device)
+	case pb.DeviceType_DEV_GPU:
+		multi := multierror.NewMultiError()
+		for _, dev := range m.hardware.GPU {
+			if err := drop(bench, dev.Device); err != nil {
+				multi = multierror.Append(multi, err)
+			}
+		}
+		return multi.ErrorOrNil()
+	case pb.DeviceType_DEV_RAM:
+		return drop(bench, m.hardware.RAM.Device)
+	case pb.DeviceType_DEV_STORAGE:
+		return drop(bench, m.hardware.Storage.Device)
+	case pb.DeviceType_DEV_NETWORK_IN:
+		return drop(bench, m.hardware.Network)
+	case pb.DeviceType_DEV_NETWORK_OUT:
+		return drop(bench, m.hardware.Network)
+	default:
+		return fmt.Errorf("unknown device %d", bench.GetType())
+	}
+}
+
 func (m *Worker) getBenchValue(bench *pb.Benchmark, device interface{}) (uint64, error) {
 	if bench.GetID() == bm.CPUCores {
 		return uint64(m.hardware.CPU.Device.Cores), nil
@@ -1246,6 +1282,25 @@ func (m *Worker) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply,
 		return nil, err
 	}
 	return m.getDealInfo(dealID)
+}
+
+func (m *Worker) RemoveBenchmark(ctx context.Context, id *pb.NumericID) (*pb.Empty, error) {
+	err := m.dropCachedValue(id.Id)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.Empty{}, nil
+}
+
+func (m *Worker) PurgeBenchmarks(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
+	multi := multierror.NewMultiError()
+	benchmarks := m.benchmarks.ByID()
+	for id := range benchmarks {
+		if err := m.dropCachedValue(uint64(id)); err != nil {
+			multi = multierror.Append(multi, err)
+		}
+	}
+	return &pb.Empty{}, multi.ErrorOrNil()
 }
 
 func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
