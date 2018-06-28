@@ -34,6 +34,19 @@ type API interface {
 	OracleUSD() OracleAPI
 	MasterchainGate() SimpleGatekeeperAPI
 	SidechainGate() SimpleGatekeeperAPI
+	ContractRegistry() ContractRegistry
+}
+
+type ContractRegistry interface {
+	SidechainSNMAddress() common.Address
+	MasterchainSNMAddress() common.Address
+	BlacklistAddress() common.Address
+	MarketAddress() common.Address
+	ProfileRegistryAddress() common.Address
+	OracleUsdAddress() common.Address
+	GatekeeperMasterchainAddress() common.Address
+	GatekeeperSidechainAddress() common.Address
+	TestnetFaucetAddress() common.Address
 }
 
 type ProfileRegistryAPI interface {
@@ -144,11 +157,13 @@ type SimpleGatekeeperAPI interface {
 }
 
 type BasicAPI struct {
-	market           MarketAPI
+	options          *options
+	contractRegistry ContractRegistry
 	masterchainToken TokenAPI
 	sidechainToken   TokenAPI
 	testToken        TestTokenAPI
 	blacklist        BlacklistAPI
+	market           MarketAPI
 	profileRegistry  ProfileRegistryAPI
 	events           EventsAPI
 	oracle           OracleAPI
@@ -162,69 +177,138 @@ func NewAPI(opts ...Option) (API, error) {
 		o(defaults)
 	}
 
-	masterchainToken, err := NewStandardToken(MasterchainSNMAddr(), defaults.masterchain)
-	if err != nil {
-		return nil, err
+	api := &BasicAPI{options: defaults}
+
+	setup := []func(ctx context.Context) error{
+		api.setupContractRegistry,
+		api.setupMasterchainToken,
+		api.setupSidechainToken,
+		api.setupTestToken,
+		api.setupBlacklist,
+		api.setupMarket,
+		api.setupProfileRegistry,
+		api.setupEvents,
+		api.setupOracle,
+		api.setupMasterchainGate,
+		api.setupSidechainGate,
 	}
 
-	testToken, err := NewTestToken(MasterchainSNMAddr(), defaults.masterchain)
-	if err != nil {
-		return nil, err
+	for _, setupFunc := range setup {
+		if err := setupFunc(context.TODO()); err != nil {
+			return nil, err
+		}
 	}
+	return api, nil
+}
 
-	sidechainToken, err := NewStandardToken(SidechainSNMAddr(), defaults.sidechain)
+func (api *BasicAPI) setupContractRegistry(ctx context.Context) error {
+	registry, err := NewRegistry(api.options.contractRegistry, api.options.sidechain)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	api.contractRegistry = registry
+	return nil
+}
 
-	blacklist, err := NewBasicBlacklist(BlacklistAddr(), defaults.sidechain)
+func (api *BasicAPI) setupMasterchainToken(ctx context.Context) error {
+	masterchainTokenAddr := api.contractRegistry.MasterchainSNMAddress()
+	masterchainToken, err := NewStandardToken(masterchainTokenAddr, api.options.masterchain)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	api.masterchainToken = masterchainToken
 
-	marketApi, err := NewBasicMarket(MarketAddr(), sidechainToken, defaults.sidechain)
+	return nil
+}
+
+func (api *BasicAPI) setupSidechainToken(ctx context.Context) error {
+	sidechainTokenAddr := api.contractRegistry.SidechainSNMAddress()
+	sidechainToken, err := NewStandardToken(sidechainTokenAddr, api.options.sidechain)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	api.sidechainToken = sidechainToken
 
-	profileRegistry, err := NewProfileRegistry(ProfileRegistryAddr(), defaults.sidechain)
+	return nil
+}
+
+func (api *BasicAPI) setupTestToken(ctx context.Context) error {
+	masterchainTokenAddr := api.contractRegistry.MasterchainSNMAddress()
+	testToken, err := NewTestToken(masterchainTokenAddr, api.options.masterchain)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	api.testToken = testToken
+	return nil
+}
 
-	// fixme: wtf? context.Background for logger?
-	events, err := NewEventsAPI(defaults.sidechain, ctxlog.GetLogger(context.Background()))
+func (api *BasicAPI) setupBlacklist(ctx context.Context) error {
+	blacklistAddr := api.contractRegistry.BlacklistAddress()
+	blacklist, err := NewBasicBlacklist(blacklistAddr, api.options.sidechain)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	api.blacklist = blacklist
+	return nil
+}
 
-	oracle, err := NewOracleUSDAPI(OracleUsdAddr(), defaults.sidechain)
+func (api *BasicAPI) setupMarket(ctx context.Context) error {
+	marketAddr := api.contractRegistry.MarketAddress()
+	market, err := NewBasicMarket(marketAddr, api.sidechainToken, api.options.sidechain)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	api.market = market
+	return nil
+}
 
-	masterchainGate, err := NewSimpleGatekeeper(GatekeeperMasterchainAddr(), defaults.masterchain)
+func (api *BasicAPI) setupProfileRegistry(ctx context.Context) error {
+	profileRegistryAddr := api.contractRegistry.ProfileRegistryAddress()
+	profileRegistry, err := NewProfileRegistry(profileRegistryAddr, api.options.sidechain)
 	if err != nil {
-		return nil, err
+		return err
 	}
+	api.profileRegistry = profileRegistry
+	return nil
+}
 
-	sidechainGate, err := NewSimpleGatekeeper(GatekeeperSidechainAddr(), defaults.sidechain)
+func (api *BasicAPI) setupEvents(ctx context.Context) error {
+	events, err := NewEventsAPI(api, api.options.sidechain, ctxlog.GetLogger(ctx))
 	if err != nil {
-		return nil, err
+		return err
 	}
+	api.events = events
+	return nil
+}
 
-	return &BasicAPI{
-		market:           marketApi,
-		blacklist:        blacklist,
-		profileRegistry:  profileRegistry,
-		masterchainToken: masterchainToken,
-		sidechainToken:   sidechainToken,
-		testToken:        testToken,
-		events:           events,
-		oracle:           oracle,
-		masterchainGate:  masterchainGate,
-		sidechainGate:    sidechainGate,
-	}, nil
+func (api *BasicAPI) setupOracle(ctx context.Context) error {
+	oracleAddr := api.contractRegistry.OracleUsdAddress()
+	oracle, err := NewOracleUSDAPI(oracleAddr, api.options.sidechain)
+	if err != nil {
+		return err
+	}
+	api.oracle = oracle
+	return nil
+}
+
+func (api *BasicAPI) setupMasterchainGate(ctx context.Context) error {
+	gatekeeperMasterchainAddr := api.contractRegistry.GatekeeperMasterchainAddress()
+	masterchainGate, err := NewSimpleGatekeeper(gatekeeperMasterchainAddr, api.options.masterchain)
+	if err != nil {
+		return err
+	}
+	api.masterchainGate = masterchainGate
+	return nil
+}
+
+func (api *BasicAPI) setupSidechainGate(ctx context.Context) error {
+	gatekeeperSidechainAddr := api.contractRegistry.GatekeeperSidechainAddress()
+	sidechainGate, err := NewSimpleGatekeeper(gatekeeperSidechainAddr, api.options.sidechain)
+	if err != nil {
+		return err
+	}
+	api.sidechainGate = sidechainGate
+	return nil
 }
 
 func (api *BasicAPI) Market() MarketAPI {
@@ -267,11 +351,128 @@ func (api *BasicAPI) SidechainGate() SimpleGatekeeperAPI {
 	return api.sidechainGate
 }
 
+func (api *BasicAPI) ContractRegistry() ContractRegistry {
+	return api.contractRegistry
+}
+
+func NewRegistry(address common.Address, opts *chainOpts) (*BasicContractRegistry, error) {
+	client, err := opts.getClient()
+	if err != nil {
+		return nil, err
+	}
+
+	contract, err := marketAPI.NewAddressHashMap(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	registry := &BasicContractRegistry{
+		registryContract: contract,
+	}
+	if err := registry.setup(context.TODO()); err != nil {
+		return nil, err
+	}
+	return registry, nil
+}
+
+type BasicContractRegistry struct {
+	sidechainSNMAddress          common.Address
+	masterchainSNMAddress        common.Address
+	blacklistAddress             common.Address
+	marketAddress                common.Address
+	profileRegistryAddress       common.Address
+	oracleUsdAddress             common.Address
+	gatekeeperMasterchainAddress common.Address
+	gatekeeperSidechainAddress   common.Address
+	testnetFaucetAddress         common.Address
+
+	registryContract *marketAPI.AddressHashMap
+}
+
+func registryKey(key string) [32]byte {
+	if len(key) > 32 {
+		panic("registry key exceeds 32 byte limit")
+	}
+	result := [32]byte{}
+	copy(result[:], key)
+	return result
+}
+
+func (m *BasicContractRegistry) readContract(ctx context.Context, key string, target *common.Address) error {
+	data, err := m.registryContract.Read(getCallOptions(ctx), registryKey(sidechainSNMAddressKey))
+	if err != nil {
+		return err
+	}
+	*target = data
+	return nil
+}
+
+func (m *BasicContractRegistry) setup(ctx context.Context) error {
+	addresses := []struct {
+		key    string
+		target *common.Address
+	}{
+		{sidechainSNMAddressKey, &m.sidechainSNMAddress},
+		{masterchainSNMAddressKey, &m.masterchainSNMAddress},
+		{blacklistAddressKey, &m.blacklistAddress},
+		{marketAddressKey, &m.marketAddress},
+		{profileRegistryAddressKey, &m.profileRegistryAddress},
+		{oracleUsdAddressKey, &m.oracleUsdAddress},
+		{gatekeeperMasterchainAddressKey, &m.gatekeeperMasterchainAddress},
+		{gatekeeperSidechainAddressKey, &m.gatekeeperSidechainAddress},
+		{testnetFaucetAddressKey, &m.testnetFaucetAddress},
+	}
+
+	for _, param := range addresses {
+		if err := m.readContract(ctx, param.key, param.target); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *BasicContractRegistry) SidechainSNMAddress() common.Address {
+	return m.sidechainSNMAddress
+}
+
+func (m *BasicContractRegistry) MasterchainSNMAddress() common.Address {
+	return m.masterchainSNMAddress
+}
+
+func (m *BasicContractRegistry) BlacklistAddress() common.Address {
+	return m.blacklistAddress
+}
+
+func (m *BasicContractRegistry) MarketAddress() common.Address {
+	return m.marketAddress
+}
+
+func (m *BasicContractRegistry) ProfileRegistryAddress() common.Address {
+	return m.profileRegistryAddress
+}
+
+func (m *BasicContractRegistry) OracleUsdAddress() common.Address {
+	return m.oracleUsdAddress
+}
+
+func (m *BasicContractRegistry) GatekeeperMasterchainAddress() common.Address {
+	return m.gatekeeperMasterchainAddress
+}
+
+func (m *BasicContractRegistry) GatekeeperSidechainAddress() common.Address {
+	return m.gatekeeperSidechainAddress
+}
+
+func (m *BasicContractRegistry) TestnetFaucetAddress() common.Address {
+	return m.testnetFaucetAddress
+}
+
 type BasicMarketAPI struct {
-	client         CustomEthereumClient
-	token          TokenAPI
-	marketContract *marketAPI.Market
-	opts           *chainOpts
+	client             CustomEthereumClient
+	token              TokenAPI
+	marketContractAddr common.Address
+	marketContract     *marketAPI.Market
+	opts               *chainOpts
 }
 
 func NewBasicMarket(address common.Address, token TokenAPI, opts *chainOpts) (MarketAPI, error) {
@@ -286,10 +487,11 @@ func NewBasicMarket(address common.Address, token TokenAPI, opts *chainOpts) (Ma
 	}
 
 	return &BasicMarketAPI{
-		client:         client,
-		token:          token,
-		marketContract: marketContract,
-		opts:           opts,
+		client:             client,
+		token:              token,
+		marketContractAddr: address,
+		marketContract:     marketContract,
+		opts:               opts,
 	}, nil
 }
 
@@ -320,12 +522,12 @@ func (api *BasicMarketAPI) checkAllowance(ctx context.Context, key *ecdsa.Privat
 	maxAllowance = maxAllowance.Lsh(maxAllowance, 256)
 	maxAllowance = maxAllowance.Sub(maxAllowance, big.NewInt(1))
 	minAllowance := big.NewInt(0).Div(maxAllowance, big.NewInt(2))
-	curAllowance, err := api.token.AllowanceOf(ctx, crypto.PubkeyToAddress(key.PublicKey), MarketAddr())
+	curAllowance, err := api.token.AllowanceOf(ctx, crypto.PubkeyToAddress(key.PublicKey), api.marketContractAddr)
 	if err != nil {
 		return fmt.Errorf("failed to get allowance: %s", err)
 	}
 	if curAllowance.Cmp(minAllowance) < 0 {
-		if err := api.token.Approve(ctx, key, MarketAddr(), maxAllowance); err != nil {
+		if err := api.token.Approve(ctx, key, api.marketContractAddr, maxAllowance); err != nil {
 			return fmt.Errorf("failed to set allowance: %s", err)
 		}
 	}
@@ -1007,17 +1209,19 @@ func (api *TestTokenApi) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (
 }
 
 type BasicEventsAPI struct {
+	parent API
 	client CustomEthereumClient
 	logger *zap.Logger
 }
 
-func NewEventsAPI(opts *chainOpts, logger *zap.Logger) (EventsAPI, error) {
+func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger) (EventsAPI, error) {
 	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
 	}
 
 	return &BasicEventsAPI{
+		parent: parent,
 		client: client,
 		logger: logger,
 	}, nil
@@ -1076,9 +1280,9 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 					Topics:    topics,
 					FromBlock: big.NewInt(0).SetUint64(fromBlock),
 					Addresses: []common.Address{
-						MarketAddr(),
-						BlacklistAddr(),
-						ProfileRegistryAddr(),
+						api.parent.ContractRegistry().MarketAddress(),
+						api.parent.ContractRegistry().BlacklistAddress(),
+						api.parent.ContractRegistry().ProfileRegistryAddress(),
 					},
 				})
 

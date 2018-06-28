@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
@@ -53,8 +54,9 @@ func (c *chainOpts) getTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLim
 }
 
 type options struct {
-	masterchain *chainOpts
-	sidechain   *chainOpts
+	masterchain      *chainOpts
+	sidechain        *chainOpts
+	contractRegistry common.Address
 }
 
 func defaultOptions() *options {
@@ -133,5 +135,11 @@ func WithSidechainClient(c CustomEthereumClient) Option {
 func WithMasterchainClient(c CustomEthereumClient) Option {
 	return func(o *options) {
 		o.masterchain.client = c
+	}
+}
+
+func WithContractRegistry(address common.Address) Option {
+	return func(o *options) {
+		o.contractRegistry = address
 	}
 }
