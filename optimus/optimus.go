@@ -210,7 +210,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 		return
 	}
 
-	m.log.Debugf("pulling worker plans")
+	m.log.Debug("pulling worker plans")
 	currentPlans, err := m.worker.AskPlans(ctx, &sonm.Empty{})
 	if err != nil {
 		m.log.Warnw("failed to pull worker plans", zap.Error(err))
