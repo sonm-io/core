@@ -26,8 +26,9 @@ func NewDefaultConfig() (*Config, error) {
 	}
 
 	return &Config{
-		Endpoint:          *endpoint,
-		SidechainEndpoint: *sidechainEndpoint,
+		Endpoint:             *endpoint,
+		SidechainEndpoint:    *sidechainEndpoint,
+		ContractRegistryAddr: common.HexToAddress(defaultContractRegistryAddr),
 	}, nil
 }
 
