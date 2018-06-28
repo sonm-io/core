@@ -69,7 +69,7 @@ func (m *DWH) Serve() error {
 		return err
 	}
 
-	bch, err := blockchain.NewAPI(blockchain.WithConfig(m.cfg.Blockchain))
+	bch, err := blockchain.NewAPI(m.ctx, blockchain.WithConfig(m.cfg.Blockchain))
 	if err != nil {
 		m.Stop()
 		return fmt.Errorf("failed to create NewAPI: %v", err)

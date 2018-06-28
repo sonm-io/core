@@ -77,7 +77,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 
 	loader := benchmarks.NewLoader(m.cfg.Benchmarks.URL)
 
-	market, err := blockchain.NewAPI()
+	market, err := blockchain.NewAPI(ctx)
 	if err != nil {
 		return err
 	}
@@ -218,7 +218,7 @@ func (m *workerControl) execute(ctx context.Context) error {
 		return fmt.Errorf("not enough orders to perform optimization: %d < %d", len(orders), minNumOrders)
 	}
 
-	m.log.Debugf("pulling worker plans")
+	m.log.Debug("pulling worker plans")
 	currentPlans, err := m.worker.AskPlans(ctx, &sonm.Empty{})
 	if err != nil {
 		return fmt.Errorf("failed to pull worker plans: %v", err)

@@ -70,7 +70,7 @@ func NewSalesman(opts ...Option) (*Salesman, error) {
 		return nil, err
 	}
 
-	askPlansKey := blockchain.MarketAddr().Hex() + "/ask_plans"
+	askPlansKey := o.eth.ContractRegistry().MarketAddress().Hex() + "/ask_plans"
 	s := &Salesman{
 		options:         o,
 		askPlanStorage:  state.NewKeyedStorage(askPlansKey, o.storage),
