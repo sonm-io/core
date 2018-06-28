@@ -10,9 +10,9 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 )
 
-const(
+const (
 	masterchainDirection = "masterchain"
-	sidechainDirection = "sidechain"
+	sidechainDirection   = "sidechain"
 )
 
 type gatekeeperConfig struct {
@@ -36,7 +36,6 @@ func (c *Config) validate() error {
 	return nil
 }
 
-
 // NewConfig loads localNode config from given .yaml file
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
@@ -46,7 +45,7 @@ func NewConfig(path string) (*Config, error) {
 		return nil, err
 	}
 
-	if err := cfg.validate(); err!= nil {
+	if err := cfg.validate(); err != nil {
 		return nil, err
 	}
 	return cfg, nil
