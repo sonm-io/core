@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -12,31 +13,24 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 type Oracle struct {
-	key *ecdsa.PrivateKey
-	cfg *Config
-
-	logger *zap.Logger
-
-	bch blockchain.API
-
+	key          *ecdsa.PrivateKey
+	cfg          *Config
+	logger       *zap.Logger
+	bch          blockchain.API
 	actualPrice  *big.Int
 	currentPrice *big.Int
+	mu           sync.Mutex
 }
 
 func NewOracle(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Oracle, error) {
 	logger := ctxlog.GetLogger(ctx)
 
-	var mode string
-	if cfg.Oracle.Mode {
-		mode = "master"
-	} else {
-		mode = "slave"
-	}
 	logger.Info("start USD-SNM Oracle",
-		zap.String("mode", mode),
+		zap.Bool("isMaster", cfg.Oracle.IsMaster),
 		zap.String("account", crypto.PubkeyToAddress(key.PublicKey).String()),
 		zap.String("price update period:", cfg.Oracle.PriceUpdatePeriod.String()),
 		zap.String("contract update period", cfg.Oracle.ContractUpdatePeriod.String()),
@@ -48,7 +42,7 @@ func NewOracle(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Oracle
 	}
 
 	return &Oracle{
-		logger:       logger,
+		logger:       ctxlog.GetLogger(ctx),
 		key:          key,
 		cfg:          cfg,
 		bch:          bch,
@@ -57,63 +51,135 @@ func NewOracle(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Oracle
 	}, nil
 }
 
-func (o *Oracle) Serve(ctx context.Context) error {
+func (o *Oracle) watchPriceRoutine(ctx context.Context) error {
 	priceWatcher := NewPriceWatcher(o.cfg.Oracle.PriceUpdatePeriod)
 	dw := priceWatcher.Start(ctx)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case p := <-dw:
+			if p.err != nil {
+				o.logger.Warn("failed to load price", zap.Error(p.err))
+				continue
+			}
+			o.mu.Lock()
+			o.actualPrice = p.price
+			o.mu.Unlock()
+			o.logger.Debug("loaded new price", zap.String("price", p.price.String()))
+		}
+	}
+}
 
+func (o *Oracle) submitPriceRoutine(ctx context.Context) error {
+	if !o.cfg.Oracle.IsMaster {
+		return nil
+	}
 	t := util.NewImmediateTicker(o.cfg.Oracle.ContractUpdatePeriod)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-t.C:
+			if err := o.SetPrice(ctx); err != nil {
+				o.logger.Warn("failed to submit new price", zap.Error(err))
+			}
+		}
+	}
+}
 
+func (o *Oracle) listenEventsRoutine(ctx context.Context) error {
+	if o.cfg.Oracle.IsMaster {
+		return nil
+	}
 	events, err := o.bch.Events().GetEvents(ctx, o.bch.Events().GetMultiSigFilter([]common.Address{o.bch.ContractRegistry().OracleUsdAddress()}, big.NewInt(0)))
+
 	if err != nil {
 		return err
 	}
 
 	for {
 		select {
-		case p := <-dw:
-			if p.err != nil {
-				return p.err
-			}
-			o.actualPrice = p.price
-			o.logger.Debug("loaded new price", zap.String("price", p.price.String()))
-		case <-t.C:
-			currentPrice, err := o.bch.OracleUSD().GetCurrentPrice(ctx)
-			if err != nil {
-				return err
-			}
-			if o.currentPrice.Cmp(currentPrice) != 0 {
-				o.currentPrice = currentPrice
-				o.logger.Debug("current price changed", zap.String("price", o.currentPrice.String()))
-			}
-			// master mode
-			if o.cfg.Oracle.Mode {
-				go o.SetPrice(ctx)
-			}
+		case <-ctx.Done():
+			return ctx.Err()
 		case event, ok := <-events:
 			if !ok {
 				return fmt.Errorf("events chanel closed")
 			}
-			// slave mode
-			if !o.cfg.Oracle.Mode {
-				o.logger.Debug("new submission", zap.Any("event", event))
-				switch value := event.Data.(type) {
-				case *blockchain.SubmissionData:
-					if o.transactionValid(ctx, value.TransactionId) {
-						go o.confirmChanging(ctx, value.TransactionId)
-					}
+			switch value := event.Data.(type) {
+			case *blockchain.SubmissionData:
+				o.logger.Debug("new submission found", zap.Any("event", event))
+				if o.transactionValid(ctx, value.TransactionId) {
+					o.confirmChanging(ctx, value.TransactionId)
 				}
 			}
 		}
 	}
 }
 
-func (o *Oracle) SetPrice(ctx context.Context) error {
+func (o *Oracle) Serve(ctx context.Context) error {
+	o.logger.Info("creating USD-SNM Oracle",
+		zap.Bool("is_master", o.cfg.Oracle.IsMaster),
+		zap.String("account", crypto.PubkeyToAddress(o.key.PublicKey).String()),
+		zap.String("price update period:", o.cfg.Oracle.PriceUpdatePeriod.String()),
+		zap.String("contract update period", o.cfg.Oracle.ContractUpdatePeriod.String()),
+		zap.Float64("deviation percent", o.cfg.Oracle.Percent))
+
+	ctx, cancel := context.WithCancel(ctx)
+
+	errGroup := errgroup.Group{}
+	errGroup.Go(func() error {
+		err := o.watchPriceRoutine(ctx)
+		if err != nil {
+			o.logger.Error("price watching routine failed", zap.Error(err))
+			cancel()
+		}
+		return err
+	})
+	errGroup.Go(func() error {
+		err := o.submitPriceRoutine(ctx)
+		if err != nil {
+			o.logger.Error("price submission routine failed", zap.Error(err))
+			cancel()
+		}
+		return err
+	})
+	errGroup.Go(func() error {
+		err := o.listenEventsRoutine(ctx)
+		if err != nil {
+			o.logger.Error("event listening routine failed", zap.Error(err))
+			cancel()
+		}
+		return err
+	})
+	return errGroup.Wait()
+}
+
+func (o *Oracle) getPriceForSubmit() (*big.Int, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
 	if o.actualPrice == nil {
-		o.logger.Debug("set price dropped, actual price not downloaded")
-		return fmt.Errorf("price is nil")
+		return nil, fmt.Errorf("actual price is not downloaded")
 	}
-	o.logger.Info("submitting new price", zap.String("price", o.actualPrice.String()))
-	data, err := o.bch.OracleUSD().PackSetCurrentPriceTransactionData(o.actualPrice)
+
+	if o.actualPrice.Cmp(big.NewInt(1000000000000000)) < 0 {
+		return nil, fmt.Errorf("oracle mustn't automaticly set price lower than 1e15")
+	}
+
+	if o.actualPrice.Cmp(big.NewInt(0).Mul(big.NewInt(100000000000), big.NewInt(10000000000))) > 0 {
+		return nil, fmt.Errorf("oracle mustn't automaticly set price greater than 1e21")
+	}
+	return big.NewInt(0).Set(o.actualPrice), nil
+}
+
+func (o *Oracle) SetPrice(ctx context.Context) error {
+	price, err := o.getPriceForSubmit()
+	if err != nil {
+		return fmt.Errorf("failed to get price for submission: %s", err)
+	}
+	o.logger.Info("submitting new price", zap.String("price", price.String()))
+	data, err := o.bch.OracleUSD().PackSetCurrentPriceTransactionData(price)
 	if err != nil {
 		return err
 	}
@@ -123,8 +189,11 @@ func (o *Oracle) SetPrice(ctx context.Context) error {
 // checkPrice check that submitted price does not differ more than 1%
 // incapsulate ugly big math to separate function
 func (o *Oracle) checkPrice(price *big.Int) bool {
-	diff := big.NewFloat(0).SetInt(o.actualPrice)
-	diff.Sub(diff, big.NewFloat(0).SetInt(price))
+	o.mu.Lock()
+	defer o.mu.Unlock()
+
+	diff := big.NewInt(0).Set(o.actualPrice)
+	diff.Sub(diff, price)
 	diff.Abs(diff)
 
 	p := big.NewInt(0).Set(o.actualPrice)
@@ -132,10 +201,7 @@ func (o *Oracle) checkPrice(price *big.Int) bool {
 	percent := big.NewFloat(o.cfg.Oracle.Percent)
 	percent.Mul(percent, big.NewFloat(0).SetInt(p))
 
-	if diff.Cmp(percent) == -1 {
-		return true
-	}
-	return false
+	return big.NewFloat(0).SetInt(diff).Cmp(percent) == -1
 }
 
 // transactionValid check transaction parameters

@@ -10,10 +10,10 @@ import (
 )
 
 type oracleConfig struct {
-	Mode                 bool          `yaml:"isMaster" default:"false"`
-	PriceUpdatePeriod    time.Duration `yaml:"priceUpdatePeriod" default:"15s"`
-	ContractUpdatePeriod time.Duration `yaml:"contractUpdatePeriod" default:"15m"`
-	Percent              float64       `yaml:"deviationPercent" required:"1.0"`
+	IsMaster             bool          `yaml:"is_master" default:"false"`
+	PriceUpdatePeriod    time.Duration `yaml:"price_update_period" default:"15s"`
+	ContractUpdatePeriod time.Duration `yaml:"contract_update_period" default:"15m"`
+	Percent              float64       `yaml:"deviation_percent" required:"1.0"`
 }
 
 type Config struct {
@@ -23,7 +23,6 @@ type Config struct {
 	Eth        accounts.EthConfig `yaml:"ethereum" required:"false"`
 }
 
-// NewConfig loads localNode config from given .yaml file
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
 

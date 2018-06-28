@@ -3,6 +3,7 @@ package oracle
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net/http"
@@ -45,6 +46,7 @@ func NewPriceWatcher(parsePeriod time.Duration) *PriceWatcher {
 func (p *PriceWatcher) Start(ctx context.Context) <-chan *PriceData {
 	go func() {
 		t := util.NewImmediateTicker(p.parsePeriod)
+		defer t.Stop()
 
 		for {
 			select {
@@ -64,7 +66,7 @@ func (p *PriceWatcher) Start(ctx context.Context) <-chan *PriceData {
 
 func (p *PriceWatcher) loadCurrentPrice(ctx context.Context) (*big.Int, error) {
 	logger := ctxlog.GetLogger(ctx)
-	usdPrice, err := p.loadSnmPrice(snmPriceTickerURL)
+	usdPrice, err := p.loadSNMPrice(snmPriceTickerURL)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +78,7 @@ func (p *PriceWatcher) divideSNM(price float64) *big.Int {
 	return big.NewInt(int64(1 / price * 1e18))
 }
 
-func (p *PriceWatcher) loadSnmPrice(url string) (float64, error) {
+func (p *PriceWatcher) loadSNMPrice(url string) (float64, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return 0, err
@@ -92,6 +94,9 @@ func (p *PriceWatcher) loadSnmPrice(url string) (float64, error) {
 	err = json.Unmarshal(body, &tickerSnm)
 	if err != nil {
 		return 0, err
+	}
+	if len(tickerSnm) < 1 {
+		return 0, fmt.Errorf("loading ticker is abused")
 	}
 	return strconv.ParseFloat(tickerSnm[0].PriceUsd, 64)
 }

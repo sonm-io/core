@@ -179,7 +179,7 @@ type MultiSigAPI interface {
 	ConfirmTransaction(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error
 	RevokeConfirmation(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error
 	ExecuteTransaction(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error
-	IsConfirmed(ctx context.Context, transactionId *big.Int) (bool, error)
+	IsConfirmed(ctx context.Context, transactionID *big.Int) (bool, error)
 	GetConfirmationCount(ctx context.Context, transactionID *big.Int) (*big.Int, error)
 	GetTransactionCount(ctx context.Context, penging bool, executed bool) (*big.Int, error)
 	GetOwners(ctx context.Context) ([]common.Address, error)
@@ -1593,45 +1593,45 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			sendErr(out, err, topic)
 			return
 		}
-		transactionId, err := extractBig(log.Topics, 2)
+		transactionID, err := extractBig(log.Topics, 2)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		sendData(&ConfirmationData{Sender: sender, TransactionId: transactionId})
+		sendData(&ConfirmationData{Sender: sender, TransactionId: transactionID})
 	case RevocationTopic:
 		sender, err := extractAddress(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		transactionId, err := extractBig(log.Topics, 2)
+		transactionID, err := extractBig(log.Topics, 2)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		sendData(&RevocationData{Sender: sender, TransactionId: transactionId})
+		sendData(&RevocationData{Sender: sender, TransactionId: transactionID})
 	case SubmissionTopic:
-		transactionId, err := extractBig(log.Topics, 1)
+		transactionID, err := extractBig(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		sendData(&SubmissionData{TransactionId: transactionId})
+		sendData(&SubmissionData{TransactionId: transactionID})
 	case ExecutionTopic:
-		transactionId, err := extractBig(log.Topics, 1)
+		transactionID, err := extractBig(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		sendData(&ExecutionData{TransactionId: transactionId})
+		sendData(&ExecutionData{TransactionId: transactionID})
 	case ExecutionFailureTopic:
-		transactionId, err := extractBig(log.Topics, 1)
+		transactionID, err := extractBig(log.Topics, 1)
 		if err != nil {
 			sendErr(out, err, topic)
 			return
 		}
-		sendData(&ExecutionFailureData{TransactionId: transactionId})
+		sendData(&ExecutionFailureData{TransactionId: transactionID})
 	case OwnerAdditionTopic:
 		sender, err := extractAddress(log.Topics, 1)
 		if err != nil {
@@ -1901,8 +1901,8 @@ func (api *BasicMultiSigAPI) ExecuteTransaction(ctx context.Context, key *ecdsa.
 	return nil
 }
 
-func (api *BasicMultiSigAPI) IsConfirmed(ctx context.Context, transactionId *big.Int) (bool, error) {
-	return api.contract.IsConfirmed(getCallOptions(ctx), transactionId)
+func (api *BasicMultiSigAPI) IsConfirmed(ctx context.Context, transactionID *big.Int) (bool, error) {
+	return api.contract.IsConfirmed(getCallOptions(ctx), transactionID)
 }
 
 func (api *BasicMultiSigAPI) GetConfirmationCount(ctx context.Context, transactionID *big.Int) (*big.Int, error) {

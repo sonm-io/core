@@ -18,11 +18,11 @@ blockchain:
 oracle:
   # In master mode this instance submitting price changing
   # In slave mode this instance confirm changing
-  isMaster: true
+  is_master: false
   # priceUpdatePeriod defines period to update snm/usd price in this oracle instance
-  #priceUpdatePeriod: "15s"
+  #price_update_period: "15s"
   # contractUpdatePeriod defines period to update snm/usd price in oracle contract
-  #contractUpdatePeriod: "60s"
+  #contract_update_period: "60s"
   # Deviation percent define difference of deviation between actual price and confirming price
-  #deviationPercent: 1.0
+  #deviation_percent: 1.0
 
