@@ -10,14 +10,15 @@ import (
 )
 
 const (
-	defaultMasterchainEndpoint = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
-	defaultSidechainEndpoint   = "https://sidechain-dev.sonm.com"
-	defaultMasterchainGasPrice = 20000000000 // 20 Gwei
-	defaultSidechainGasPrice   = 0
-	defaultBlockConfirmations  = 5
-	defaultLogParsePeriod      = time.Second
-	defaultMasterchainGasLimit = 500000
-	defaultSidechainGasLimit   = 2000000
+	defaultMasterchainEndpoint           = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
+	defaultSidechainEndpoint             = "https://sidechain-dev.sonm.com"
+	defaultMasterchainGasPrice           = 20000000000 // 20 Gwei
+	defaultSidechainGasPrice             = 0
+	defaultSidechainBlockConfirmations   = 5
+	defaultMasterchainBlockConfirmations = 3
+	defaultLogParsePeriod                = time.Second
+	defaultMasterchainGasLimit           = 500000
+	defaultSidechainGasLimit             = 2000000
 )
 
 // chainOpts describes common options
@@ -64,14 +65,14 @@ func defaultOptions() *options {
 			gasLimit:           defaultMasterchainGasLimit,
 			endpoint:           defaultMasterchainEndpoint,
 			logParsePeriod:     defaultLogParsePeriod,
-			blockConfirmations: defaultBlockConfirmations,
+			blockConfirmations: defaultMasterchainBlockConfirmations,
 		},
 		sidechain: &chainOpts{
 			gasPrice:           defaultSidechainGasPrice,
 			gasLimit:           defaultSidechainGasLimit,
 			endpoint:           defaultSidechainEndpoint,
 			logParsePeriod:     defaultLogParsePeriod,
-			blockConfirmations: defaultBlockConfirmations,
+			blockConfirmations: defaultSidechainBlockConfirmations,
 		},
 	}
 }
