@@ -399,7 +399,7 @@ func registryKey(key string) [32]byte {
 }
 
 func (m *BasicContractRegistry) readContract(ctx context.Context, key string, target *common.Address) error {
-	data, err := m.registryContract.Read(getCallOptions(ctx), registryKey(sidechainSNMAddressKey))
+	data, err := m.registryContract.Read(getCallOptions(ctx), registryKey(key))
 	if err != nil {
 		return err
 	}
@@ -427,6 +427,7 @@ func (m *BasicContractRegistry) setup(ctx context.Context) error {
 		if err := m.readContract(ctx, param.key, param.target); err != nil {
 			return err
 		}
+		ctxlog.S(ctx).Infof("fetched %s contract address: %s", param.key, param.target.String())
 	}
 	return nil
 }
