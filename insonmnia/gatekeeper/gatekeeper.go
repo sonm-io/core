@@ -120,7 +120,7 @@ func (g *Gatekeeper) processTransaction(ctx context.Context) error {
 				zap.String("from", inTx.From.String()),
 				zap.String("value", inTx.Value.String()),
 				zap.String("tx number", inTx.Number.String()),
-				zap.String("block number", inTx.BlockNumber.String()))
+				zap.Uint64("block number", inTx.BlockNumber))
 
 			go g.processUnpaidTransaction(ctx, inTx)
 		}
@@ -156,9 +156,9 @@ func (g *Gatekeeper) checkDelay(ctx context.Context, tx *blockchain.GateTx) bool
 		return false
 	}
 	// cast delay, time of payin tx and now time to uint64
-	payinTime := int64(time.Unix(int64(payinTimestamp), 0).Second())
+	payinTime := int64(payinTimestamp)
 	delay := int64(g.cfg.Gatekeeper.Delay.Seconds())
-	nowTime := int64(time.Now().Second())
+	nowTime := time.Now().UTC().Unix()
 
 	g.logger.Debug("delay check", zap.Int64("delay", payinTime+delay), zap.Int64("nowTime", nowTime))
 	if nowTime >= payinTime+delay {
@@ -185,7 +185,7 @@ func (g *Gatekeeper) isCommitted(ctx context.Context, tx *blockchain.GateTx) boo
 		g.logger.Debug("err while getting tx data", zap.Error(err))
 		return false
 	}
-	return txState.CommitTS.Cmp(big.NewInt(0)) == 0
+	return txState.CommitTS.Cmp(big.NewInt(0)) != 0
 }
 
 func (g *Gatekeeper) underLimit(ctx context.Context, tx *blockchain.GateTx) bool {
@@ -296,7 +296,7 @@ func (g *Gatekeeper) freezeScummy(ctx context.Context, tx *blockchain.GateTx) er
 		zap.String("from", tx.From.String()),
 		zap.String("value", tx.Value.String()),
 		zap.String("tx number", tx.Number.String()),
-		zap.String("block number", tx.BlockNumber.String()),
+		zap.Uint64("block number", tx.BlockNumber),
 		zap.String("commit timestamp", txState.CommitTS.String()),
 		zap.Bool("paid", txState.Paid),
 		zap.String("keeper address", keeper.Address.String()),

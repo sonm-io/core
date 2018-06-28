@@ -98,7 +98,7 @@ type GateTx struct {
 	Value *big.Int
 	// BlockNumber timestamp of commitment Payin transaction
 	// used for calculate duration of stay transaction
-	BlockNumber *big.Int
+	BlockNumber uint64
 }
 
 // GateTxState present state of payout transaction

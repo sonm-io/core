@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"log"
 	"math/big"
 	"time"
 
@@ -69,7 +70,7 @@ type EventsAPI interface {
 	GetLastBlock(ctx context.Context) (uint64, error)
 	// GetBlockTimestamp returns Unix timestamp in UTC timezone.
 	// Useful for identify event emitting time.
-	GetBlockTimestamp(ctx context.Context, blockNumber *big.Int) (uint64, error)
+	GetBlockTimestamp(ctx context.Context, blockNumber uint64) (uint64, error)
 }
 
 type MarketAPI interface {
@@ -926,7 +927,7 @@ func NewProfileRegistry(address common.Address, opts *chainOpts) (ProfileRegistr
 	return &ProfileRegistry{
 		client:                  client,
 		profileRegistryContract: profileRegistryContract,
-		opts: opts,
+		opts:                    opts,
 	}, nil
 }
 
@@ -1261,11 +1262,13 @@ func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
 	}
 }
 
-func (api *BasicEventsAPI) GetBlockTimestamp(ctx context.Context, blockNumber *big.Int) (uint64, error) {
-	block, err := api.client.BlockByNumber(ctx, blockNumber)
+func (api *BasicEventsAPI) GetBlockTimestamp(ctx context.Context, blockNumber uint64) (uint64, error) {
+	block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(blockNumber))
 	if err != nil {
 		return 0, err
 	}
+	log.Println(block.Time())
+	log.Println(block.Number())
 	if block.Time().IsUint64() {
 		return block.Time().Uint64(), nil
 	} else {
@@ -1696,7 +1699,7 @@ func (api *BasicSimpleGatekeeper) transformTransactionsLogsToMap(logs []types.Lo
 				From:        common.HexToAddress(l.Topics[1].Hex()),
 				Number:      l.Topics[2].Big(),
 				Value:       l.Topics[3].Big(),
-				BlockNumber: big.NewInt(0).SetUint64(l.BlockNumber),
+				BlockNumber: l.BlockNumber,
 			}
 		}
 	}
