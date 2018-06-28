@@ -14,6 +14,7 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 )
 
 type Gatekeeper struct {
@@ -32,7 +33,7 @@ type Gatekeeper struct {
 func NewGatekeeper(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Gatekeeper, error) {
 	logger := ctxlog.GetLogger(ctx)
 
-	bch, err := blockchain.NewAPI(blockchain.WithConfig(cfg.Blockchain))
+	bch, err := blockchain.NewAPI(ctx, blockchain.WithConfig(cfg.Blockchain))
 	if err != nil {
 		return nil, err
 	}
@@ -78,22 +79,83 @@ func NewGatekeeper(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Ga
 	}, nil
 }
 
-func (g *Gatekeeper) Serve(ctx context.Context) error {
+func (g *Gatekeeper) freezingTimeRoutine(ctx context.Context) error {
 	// straight load freezing time
-	g.loadFreezeTime(ctx)
+	err := g.loadFreezeTime(ctx)
+	if err != nil {
+		return err
+	}
 
-	t := util.NewImmediateTicker(g.cfg.Gatekeeper.Period)
-
-	freezingTimeLoader := util.NewImmediateTicker(g.cfg.Gatekeeper.ReloadFreezingPeriod)
+	t := util.NewImmediateTicker(g.cfg.Gatekeeper.ReloadFreezingPeriod)
 
 	for {
 		select {
 		case <-t.C:
-			g.processTransaction(ctx)
-		case <-freezingTimeLoader.C:
-			go g.loadFreezeTime(ctx)
+			g.loadFreezeTime(ctx)
 		}
 	}
+}
+
+func (g *Gatekeeper) payoutRoutine(ctx context.Context) error {
+	t := util.NewImmediateTicker(g.cfg.Gatekeeper.Period)
+
+	for {
+		select {
+		case <-t.C:
+			err := g.processTransaction(ctx)
+			if err != nil {
+				g.logger.Warn("failed to process transactions", zap.Error(err))
+			}
+		}
+	}
+}
+
+func (g *Gatekeeper) scummyFinderRoutine(ctx context.Context) error {
+	t := util.NewImmediateTicker(g.cfg.Gatekeeper.Period)
+
+	for {
+		select {
+		case <-t.C:
+			inTxs, outTxs, err := g.loadTransactions(ctx)
+			if err != nil {
+				g.logger.Warn("failed to load transactions", zap.Error(err))
+			}
+
+			g.findScummyTransactions(ctx, inTxs, outTxs)
+		}
+	}
+}
+
+func (g *Gatekeeper) Serve(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+
+	errGroup := errgroup.Group{}
+	errGroup.Go(func() error {
+		err := g.freezingTimeRoutine(ctx)
+		if err != nil {
+			g.logger.Error("freezing time reload routine failed", zap.Error(err))
+			cancel()
+		}
+		return err
+	})
+	errGroup.Go(func() error {
+		err := g.payoutRoutine(ctx)
+		if err != nil {
+			g.logger.Error("payout routine failed", zap.Error(err))
+			cancel()
+		}
+		return err
+	})
+	errGroup.Go(func() error {
+		err := g.scummyFinderRoutine(ctx)
+		if err != nil {
+			g.logger.Error("scummy finder routine failed", zap.Error(err))
+			cancel()
+		}
+		return err
+	})
+
+	return errGroup.Wait()
 }
 
 func (g *Gatekeeper) processTransaction(ctx context.Context) error {
@@ -105,8 +167,6 @@ func (g *Gatekeeper) processTransaction(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
-	g.findScummyTransactions(ctx, inTxs, outTxs)
 
 	// find payin transactions doesn't exists in payout
 	for k, inTx := range inTxs {
