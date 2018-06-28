@@ -43,7 +43,11 @@ workers:
     # optimize the next most-profitable ask plan configuration.
     # If the new set will gain more profit/hour than the specified value
     # some of ask plans will be replaced.
-    worker_price_threshold: 10 USD/h
+    # Zero value is forbidden, because it leads to spot deals being replaced
+    # each epoch.
+    # Required.
+    # Possible dimensions are USD/s, USD/h.
+    price_threshold: 0.1 USD/h
     # When activated Optimus will not create ask plans, but continues doing
     # the rest calculations instead. Useful for debugging.
     # Optional.
