@@ -16,12 +16,12 @@ blockchain:
   # sidechain_endpoint: "https://sidechain-dev.sonm.com"
 
 gatekeeper:
-  # Define direction .
-  # Allowed values are "debug", "info"
+  # Define direction that gatekeeper works
+  # Allowed values are "sidechain", "masterchain"
   direction: sidechain
   # Delay used for prevent racing between other gates instances
   delay: "1s"
   # Period for checking transaction
   period: "1m"
   # Period for checking freezing time changing
-  # reloadFreezingPeriod: "60m"
+  # reload_freezing_period: "60m"

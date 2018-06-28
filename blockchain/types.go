@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -112,7 +113,7 @@ type GateTx struct {
 // GateTxState present state of payout transaction
 // used for verify transactions
 type GateTxState struct {
-	CommitTS *big.Int
+	CommitTS time.Time
 	Paid     bool
 	Keeper   common.Address
 }
@@ -120,7 +121,7 @@ type GateTxState struct {
 type Keeper struct {
 	Address    common.Address
 	DayLimit   *big.Int
-	LastDay    *big.Int
+	LastDay    time.Time
 	SpentToday *big.Int
 	Frozen     bool
 }

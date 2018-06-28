@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -159,7 +158,7 @@ type SimpleGatekeeperAPI interface {
 	// FreezeKeeper disallow keeper transferring function
 	FreezeKeeper(ctx context.Context, key *ecdsa.PrivateKey, keeper common.Address) error
 	// GetFreezingTime returns current freezing(quarantine) duration for transferring
-	GetFreezingTime(ctx context.Context) (*big.Int, error)
+	GetFreezingTime(ctx context.Context) (time.Duration, error)
 	// GetTransactionState returns state of transaction by field
 	GetTransactionState(ctx context.Context, from common.Address, value *big.Int, txNumber *big.Int) (*GateTxState, error)
 	// GetPayinTransactions returns all result of payin successful calls to gatekeeper contract
@@ -169,7 +168,7 @@ type SimpleGatekeeperAPI interface {
 	// GetKeeper returns keeper state with his limit, and token spending status
 	GetKeeper(ctx context.Context, keeper common.Address) (*Keeper, error)
 	// GetGateTransactionTime returns UTC timestamp of gate transaction
-	GetGateTransactionTime(ctx context.Context, tx *GateTx) (uint64, error)
+	GetGateTransactionTime(ctx context.Context, tx *GateTx) (time.Time, error)
 }
 
 type BasicAPI struct {
@@ -1598,10 +1597,14 @@ func (api *BasicSimpleGatekeeper) GetKeeper(ctx context.Context, keeper common.A
 	if err != nil {
 		return nil, err
 	}
+	if !k.LastDay.IsInt64() {
+		fmt.Errorf("last day overflows int64")
+	}
+	lastDay := time.Unix(k.LastDay.Int64(), 0).UTC()
 	return &Keeper{
 		Address:    keeper,
 		DayLimit:   k.DayLimit,
-		LastDay:    k.LastDay,
+		LastDay:    lastDay,
 		SpentToday: k.SpentToday,
 		Frozen:     k.Frozen,
 	}, nil
@@ -1651,16 +1654,15 @@ func (api *BasicSimpleGatekeeper) GetPayinTransactions(ctx context.Context) (map
 	return api.transformTransactionsLogsToMap(logs, PayinTopic), nil
 }
 
-func (api *BasicSimpleGatekeeper) GetGateTransactionTime(ctx context.Context, tx *GateTx) (uint64, error) {
+func (api *BasicSimpleGatekeeper) GetGateTransactionTime(ctx context.Context, tx *GateTx) (time.Time, error) {
 	block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(tx.BlockNumber))
 	if err != nil {
-		return 0, err
+		return time.Time{}, err
 	}
-	if block.Time().IsUint64() {
-		return block.Time().Uint64(), nil
-	} else {
-		return 0, errors.New("block time overflows uint64")
+	if !block.Time().IsInt64() {
+		return time.Time{}, errors.New("block time overflows int64")
 	}
+	return time.Unix(block.Time().Int64(), 0), nil
 }
 
 func (api *BasicSimpleGatekeeper) GetPayoutTransactions(ctx context.Context) (map[string]*GateTx, error) {
@@ -1694,12 +1696,17 @@ func (api *BasicSimpleGatekeeper) transformTransactionsLogsToMap(logs []types.Lo
 
 func (api *BasicSimpleGatekeeper) GetTransactionState(ctx context.Context, from common.Address, value *big.Int, txNumber *big.Int) (*GateTxState, error) {
 	id := api.generateTransactionID(from, value, txNumber)
-	t, err := api.contract.Paid(&bind.CallOpts{Pending: true, Context: ctx}, id)
+	t, err := api.contract.Paid(getCallOptions(ctx), id)
 	if err != nil {
 		return nil, err
 	}
+
+	if !t.CommitTS.IsInt64() {
+		return nil, fmt.Errorf("commitTS overflows int64")
+	}
+
 	return &GateTxState{
-		CommitTS: t.CommitTS,
+		CommitTS: time.Unix(t.CommitTS.Int64(), 0),
 		Paid:     t.Paid,
 		Keeper:   t.Keeper,
 	}, nil
@@ -1734,6 +1741,15 @@ func (api *BasicSimpleGatekeeper) generateTransactionID(from common.Address, val
 	return r
 }
 
-func (api *BasicSimpleGatekeeper) GetFreezingTime(ctx context.Context) (*big.Int, error) {
-	return api.contract.GetFreezingTime(getCallOptions(ctx))
+func (api *BasicSimpleGatekeeper) GetFreezingTime(ctx context.Context) (time.Duration, error) {
+	t, err := api.contract.GetFreezingTime(getCallOptions(ctx))
+	if err != nil {
+		return time.Duration(0), err
+	}
+
+	if t.IsInt64() {
+		return time.Duration(0), fmt.Errorf("freezing time is overflowed int64")
+	}
+	freezingTime := time.Duration(t.Int64()) * time.Second
+	return freezingTime, nil
 }
