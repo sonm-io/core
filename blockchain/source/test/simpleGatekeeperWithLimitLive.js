@@ -2,11 +2,11 @@ import assertRevert from './helpers/assertRevert';
 import increaseTime from './helpers/increaseTime';
 import { eventInTransaction } from './helpers/expectEvent';
 
-let SimpleGatekeeperWithLimit = artifacts.require('./SimpleGatekeeperWithLimit.sol');
+let SimpleGatekeeperWithLimitLive = artifacts.require('./SimpleGatekeeperWithLimitLive.sol');
 const SNM = artifacts.require('./SNM.sol');
 const MultiSig = artifacts.require('./MultiSigWallet.sol');
 
-contract('SimpleGatekeeperWithLimit', (accounts) => {
+contract('SimpleGatekeeperWithLimitLive', (accounts) => {
     let token;
     let gatekeeper;
 
@@ -29,7 +29,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
 
         before(async () => {
             token = await SNM.new({ from: owner });
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, fiveMinute, { from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimitLive.new(token.address, fiveMinute, { from: owner });
 
             await token.transfer(user, testValue, { from: owner });
             await token.approve(gatekeeper.address, testValue, { from: user });
@@ -50,7 +50,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
             assert.equal(startUserBalance, endUserBalance + testValue);
         });
 
-        it('should spend `PayinTx` event', () => {
+        it('should spend `PayOut` event', () => {
             assert.equal(tx.logs.length, 1);
             assert.equal(tx.logs[0].event, 'PayinTx');
             assert.equal(tx.logs[0].args.from, user);
@@ -99,7 +99,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
 
         before(async () => {
             token = await SNM.new({ from: owner });
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, fiveMinute, { from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimitLive.new(token.address, fiveMinute, { from: owner });
 
             await token.transfer(gatekeeper.address, testValue, { from: owner });
 
@@ -124,7 +124,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
             assert.equal(startUserBalance + testValue, endUserBalance);
         });
 
-        it('should spend `PayoutTx` event', () => {
+        it('should spend `PayOut` event', () => {
             assert.equal(tx.logs.length, 1);
             assert.equal(tx.logs[0].event, 'PayoutTx');
             assert.equal(tx.logs[0].args.from, user);
@@ -199,7 +199,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
         let freezedKeeper = accounts[6];
         before(async () => {
             token = await SNM.new({ from: owner });
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, fiveMinute, { from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimitLive.new(token.address, fiveMinute, { from: owner });
             await gatekeeper.ChangeKeeperLimit(keeper, 1, { from: owner });
             await gatekeeper.ChangeKeeperLimit(freezedKeeper, 1, { from: owner });
         });
@@ -229,7 +229,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
         let tx;
         before(async () => {
             token = await SNM.new({ from: owner });
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, fiveMinute, { from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimitLive.new(token.address, fiveMinute, { from: owner });
             await gatekeeper.ChangeKeeperLimit(keeper, 1, { from: owner });
         });
 
@@ -258,7 +258,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
         let newFreezeTime = 1345;
         before(async () => {
             token = await SNM.new({ from: owner });
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, fiveMinute, { from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimitLive.new(token.address, fiveMinute, { from: owner });
         });
 
         it('should changed', async () => {
@@ -282,7 +282,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
 
         before(async () => {
             token = await SNM.new({ from: owner });
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, fiveMinute, { from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimitLive.new(token.address, fiveMinute, { from: owner });
         });
 
         it('should changed', async () => {
@@ -300,59 +300,6 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
         });
     });
 
-    describe('Commission', () => {
-        let gatekeeper;
-
-        let testValue = 200;
-        let commissionValue = 100;
-
-        before(async () => {
-            token = await SNM.new({ from: owner });
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, fiveMinute, { from: owner });
-
-            await token.transfer(user, testValue, { from: owner });
-            await token.approve(gatekeeper.address, testValue, { from: user });
-        });
-
-        it('should get commission value', async () => {
-            let commission = await gatekeeper.GetCommission();
-            assert.equal(commission, 0);
-        });
-
-        it('should set commission value', async () => {
-            await gatekeeper.SetCommission(100, { from: owner });
-            let commission = await gatekeeper.GetCommission();
-            assert.equal(commission, commissionValue);
-        });
-
-        it('should collect commission and spend value - commission', async () => {
-            let tx = await gatekeeper.Payin(testValue, { from: user });
-            let commissionBalance = (await gatekeeper.commissionBalance.call()).toNumber();
-            assert.equal(commissionBalance, commissionValue);
-
-            let event = await eventInTransaction(tx, 'PayinTx');
-            assert.equal(event.value, testValue - commissionValue);
-        });
-
-        it('should transfer commission to owner', async () => {
-            await gatekeeper.TransferCommission();
-            let commissionBalance = (await gatekeeper.commissionBalance.call()).toNumber();
-            assert.equal(commissionBalance, 0);
-        });
-
-        it('should revert if value = commission', async () => {
-            await assertRevert(gatekeeper.Payin(commissionValue, { from: user }));
-        });
-
-        it('should fail if not owner sets commission', async () => {
-            await assertRevert(gatekeeper.SetCommission(100, { from: creeper }));
-        });
-
-        it('should fail if not owner transfers commission', async () => {
-            await assertRevert(gatekeeper.TransferCommission({ from: creeper }));
-        });
-    });
-
     describe('kill', async () => {
         let startOwnerBalance;
         let startGatekeeperBalance;
@@ -362,7 +309,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
 
         before(async () => {
             token = await SNM.new({ from: owner });
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, fiveMinute, { from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimitLive.new(token.address, fiveMinute, { from: owner });
 
             let ownerBalance = (await token.balanceOf(owner)).toNumber();
             await token.transfer(gatekeeper.address, ownerBalance, { from: owner });
@@ -392,7 +339,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
         describe('when not owner want to kill contract', () => {
             before(async () => {
                 token = await SNM.new();
-                gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, fiveMinute);
+                gatekeeper = await SimpleGatekeeperWithLimitLive.new(token.address, fiveMinute);
             });
 
             it('should revert', async () => {
@@ -421,7 +368,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
 
         before(async () => {
             token = await SNM.new({ from: owner });
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, oneMinute, { from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimitLive.new(token.address, oneMinute, { from: owner });
             multisig = await MultiSig.new([owner1, owner2, owner3], 2);
         });
 
@@ -497,7 +444,7 @@ contract('SimpleGatekeeperWithLimit', (accounts) => {
             let startGatekeeperBalance;
             let diff;
 
-            gatekeeper = await SimpleGatekeeperWithLimit.new(token.address, oneMinute, { from: owner });
+            gatekeeper = await SimpleGatekeeperWithLimitLive.new(token.address, oneMinute, { from: owner });
 
             startOwnerBalance = await token.balanceOf(multisig.address);
             startGatekeeperBalance = await token.balanceOf(gatekeeper.address);
