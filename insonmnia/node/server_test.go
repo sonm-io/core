@@ -7,7 +7,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/proto"
@@ -25,6 +27,9 @@ func newTestNode(t *testing.T, key *ecdsa.PrivateKey) *Node {
 	relayAddr.TCPAddr = net.TCPAddr{IP: net.IPv4(127, 0, 0, 1), Port: 12345}
 
 	ctx := context.Background()
+	bchCfg, err := blockchain.NewDefaultConfig()
+	require.NoError(t, err)
+	bchCfg.ContractRegistryAddr = common.HexToAddress("0xaf1ffd7f652be7e9a0854a42b2d3046f853f80f1")
 	nod, err := New(ctx, &Config{
 		Node: nodeConfig{
 			HttpBindPort:            0,
@@ -34,6 +39,7 @@ func newTestNode(t *testing.T, key *ecdsa.PrivateKey) *Node {
 		DWH: dwh.YAMLConfig{
 			Endpoint: "3f46ed4f779fd378f630d8cd996796c69a7738d2@127.0.0.1:12345",
 		},
+		Blockchain: bchCfg,
 	}, key)
 	require.NoError(t, err)
 
