@@ -54,11 +54,7 @@ func main() {
 		}
 	}
 
-	api.MasterchainGate().PayIn(context.TODO(), key, price)
-	api.MasterchainGate().PayIn(context.TODO(), key, price)
-	api.MasterchainGate().PayIn(context.TODO(), key, price)
-	api.MasterchainGate().PayIn(context.TODO(), key, price)
-	api.MasterchainGate().PayIn(context.TODO(), key, price)
+	err = api.MasterchainGate().PayIn(context.TODO(), key, price)
 	if err != nil {
 		log.Fatalln("payin: ", err)
 		return
