@@ -151,7 +151,7 @@ func (g *Gatekeeper) loadTransactions(ctx context.Context) (map[string]*blockcha
 
 // checkDelay verify that tx out of delay
 func (g *Gatekeeper) checkDelay(ctx context.Context, tx *blockchain.GateTx) bool {
-	payinTimestamp, err := g.bch.Events().GetBlockTimestamp(ctx, tx.BlockNumber)
+	payinTimestamp, err := g.in.GetGateTransactionTime(ctx, tx)
 	if err != nil {
 		return false
 	}
@@ -161,7 +161,7 @@ func (g *Gatekeeper) checkDelay(ctx context.Context, tx *blockchain.GateTx) bool
 	nowTime := time.Now().UTC().Unix()
 
 	g.logger.Debug("delay check", zap.Int64("delay", payinTime+delay), zap.Int64("nowTime", nowTime))
-	if nowTime >= payinTime+delay {
+	if nowTime < payinTime+delay {
 		return false
 	}
 	return true
@@ -233,11 +233,10 @@ func (g *Gatekeeper) processUnpaidTransaction(ctx context.Context, tx *blockchai
 		return fmt.Errorf("tx over keeper limit")
 	}
 
-	// TODO: this check not working, because func check unconsistent block number, i know how to fix it
-	// if !g.checkDelay(ctx, tx) {
-	// 	g.logger.Debug("not cover delay check")
-	// 	return fmt.Errorf("not cover delay check")
-	// }
+	if !g.checkDelay(ctx, tx) {
+		g.logger.Debug("not cover delay check")
+		return fmt.Errorf("not cover delay check")
+	}
 
 	if !g.isNotPaid(ctx, tx) {
 		g.logger.Debug("transaction already paid")
@@ -256,7 +255,7 @@ func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
 	if !g.isCommitted(ctx, tx) {
 		_, err := g.out.Payout(ctx, g.key, tx.From, tx.Value, tx.Number)
 		if err != nil {
-			g.logger.Error("error while commit", zap.Error(err))
+			g.logger.Debug("error while commit", zap.Error(err))
 			return err
 		}
 		g.logger.Info("transaction committed",
@@ -274,7 +273,7 @@ func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
 
 	_, err := g.out.Payout(ctx, g.key, tx.From, tx.Value, tx.Number)
 	if err != nil {
-		g.logger.Error("error while payout", zap.Error(err))
+		g.logger.Debug("error while payout", zap.Error(err))
 		return err
 	}
 	g.logger.Debug("transaction payouted",

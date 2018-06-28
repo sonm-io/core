@@ -90,6 +90,7 @@ type NumBenchmarksUpdatedData struct {
 type PayoutResult int
 
 const (
+	UNKNOWN   PayoutResult = 0
 	Committed PayoutResult = 1
 	Payouted  PayoutResult = 2
 )
