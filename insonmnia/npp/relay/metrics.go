@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/insonmnia/npp/nppc"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/atomic"
 )
@@ -13,7 +13,7 @@ type metrics struct {
 	ConnCurrent *atomic.Uint64
 
 	mu  sync.Mutex
-	net map[common.Address]*netMetrics
+	net map[nppc.ResourceID]*netMetrics
 
 	birthTime time.Time
 }
@@ -21,12 +21,12 @@ type metrics struct {
 func newMetrics() *metrics {
 	return &metrics{
 		ConnCurrent: atomic.NewUint64(0),
-		net:         map[common.Address]*netMetrics{},
+		net:         map[nppc.ResourceID]*netMetrics{},
 		birthTime:   time.Now(),
 	}
 }
 
-func (m *metrics) NetMetrics(addr common.Address) *netMetrics {
+func (m *metrics) NetMetrics(addr nppc.ResourceID) *netMetrics {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -46,7 +46,7 @@ func (m *metrics) Dump() *sonm.RelayMetrics {
 	netMetrics := map[string]*sonm.NetMetrics{}
 
 	for addr, metrics := range m.net {
-		netMetrics[addr.Hex()] = &sonm.NetMetrics{
+		netMetrics[addr.String()] = &sonm.NetMetrics{
 			TxBytes: metrics.TxBytes.Load(),
 			RxBytes: metrics.RxBytes.Load(),
 		}

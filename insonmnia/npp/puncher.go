@@ -155,7 +155,7 @@ func (m *natPuncher) resolve(ctx context.Context, addr common.Address) (*sonm.Re
 	request := &sonm.ConnectRequest{
 		Protocol:     protocol,
 		PrivateAddrs: []*sonm.Addr{},
-		ID:           addr.String(),
+		ID:           addr.Bytes(),
 	}
 
 	request.PrivateAddrs, err = convertAddrs(privateAddrs)

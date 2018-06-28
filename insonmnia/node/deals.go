@@ -7,7 +7,9 @@ import (
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/auth"
 	pb "github.com/sonm-io/core/proto"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 )
 
@@ -92,7 +94,7 @@ func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal,
 	return deal, nil
 }
 
-func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.Deal, error) {
+func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.DealInfoReply, error) {
 	var duration uint64
 	if req.Duration == nil {
 		ask, err := d.remotes.eth.Market().GetOrderInfo(ctx, req.GetAskID().Unwrap())
@@ -103,7 +105,32 @@ func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.D
 	} else {
 		duration = uint64(req.GetDuration().Unwrap().Seconds())
 	}
-	return d.remotes.eth.Market().QuickBuy(ctx, d.remotes.key, req.GetAskID().Unwrap(), duration)
+
+	deal, err := d.remotes.eth.Market().QuickBuy(ctx, d.remotes.key, req.GetAskID().Unwrap(), duration)
+	if err != nil {
+		return nil, err
+	}
+
+	supplierAddr, err := auth.NewAddr(deal.GetSupplierID().Unwrap().Hex())
+	if err != nil {
+		ctxlog.G(d.remotes.ctx).Debug("cannot create auth.Addr from supplier addr", zap.Error(err))
+		return &pb.DealInfoReply{Deal: deal}, nil
+	}
+
+	cli, closer, err := d.remotes.workerCreator(ctx, supplierAddr)
+	if err != nil {
+		ctxlog.G(d.remotes.ctx).Debug("cannot create worker client", zap.Error(err))
+		return &pb.DealInfoReply{Deal: deal}, nil
+	}
+	defer closer.Close()
+
+	workerDeal, err := cli.GetDealInfo(ctx, &pb.ID{Id: deal.GetId().Unwrap().String()})
+	if err != nil {
+		ctxlog.G(d.remotes.ctx).Debug("cannot get deal from worker", zap.Error(err))
+		return &pb.DealInfoReply{Deal: deal}, nil
+	}
+
+	return workerDeal, nil
 }
 
 func (d *dealsAPI) ChangeRequestsList(ctx context.Context, id *pb.BigInt) (*pb.DealChangeRequestsReply, error) {
