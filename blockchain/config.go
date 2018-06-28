@@ -14,6 +14,23 @@ type Config struct {
 	ContractRegistryAddr common.Address
 }
 
+func NewDefaultConfig() (*Config, error) {
+	endpoint, err := url.Parse(defaultMasterchainEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	sidechainEndpoint, err := url.Parse(defaultSidechainEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Config{
+		Endpoint:          *endpoint,
+		SidechainEndpoint: *sidechainEndpoint,
+	}, nil
+}
+
 func (m *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var cfg struct {
 		MasterchainEndpoint  string         `yaml:"endpoint"`
