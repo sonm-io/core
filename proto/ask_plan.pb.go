@@ -80,6 +80,7 @@ It has these top-level messages:
 	BlacklistQuery
 	Empty
 	ID
+	NumericID
 	EthID
 	TaskID
 	Count
