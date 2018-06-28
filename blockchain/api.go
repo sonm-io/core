@@ -154,13 +154,9 @@ type SimpleGatekeeperAPI interface {
 	// On Masterchain ally as `Deposit`
 	// On Sidecain ally as `Withdraw`
 	PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) error
-	// CommitPayout add payout transaction from mirrored chain.
-	// Accessible only for keepers.
-	CommitPayout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) error
 	// Payout release payout transaction.
-	// Payout must be delayed for freezing time.
 	// Accessible only for keeper added transaction previously.
-	Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) error
+	Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (PayoutResult, error)
 	// Kill calls contract to suicide, all ether and tokens funds transfer to owner.
 	// Accessible only by owner.
 	Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error)
@@ -1627,38 +1623,32 @@ func (api *BasicSimpleGatekeeper) GetKeeper(ctx context.Context, keeper common.A
 	}, nil
 }
 
-func (api *BasicSimpleGatekeeper) CommitPayout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) error {
-	tx, err := api.payout(ctx, key, to, value, txNumber)
-	if err != nil {
-		return err
-	}
-
-	if _, err := WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) error {
-	tx, err := api.payout(ctx, key, to, value, txNumber)
-	if err != nil {
-		return err
-	}
-
-	if _, err := WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (api *BasicSimpleGatekeeper) payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error) {
+func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (PayoutResult, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 
-	return txRetryWrapper(func() (*types.Transaction, error) {
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
 		return api.contract.Payout(opts, to, value, txNumber)
 	})
+	if err != nil {
+		return 0, err
+	}
+
+	rec, err := WaitTransactionReceipt(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx)
+	if err != nil {
+		return 0, err
+	}
+
+	for _, l := range rec.Logs {
+		switch l.Topics[0] {
+		case CommitTopic:
+			return Committed, nil
+		case PayoutTopic:
+			return Payouted, nil
+		default:
+			continue
+		}
+	}
+	return 0, fmt.Errorf("")
 }
 
 func (api *BasicSimpleGatekeeper) Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
