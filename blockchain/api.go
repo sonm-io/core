@@ -1652,7 +1652,10 @@ func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.Private
 
 func (api *BasicSimpleGatekeeper) payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	return api.contract.Payout(opts, to, value, txNumber)
+
+	return txRetryWrapper(func() (*types.Transaction, error) {
+		return api.contract.Payout(opts, to, value, txNumber)
+	})
 }
 
 func (api *BasicSimpleGatekeeper) Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
@@ -1688,7 +1691,7 @@ func (api *BasicSimpleGatekeeper) transformTransactionsLogsToMap(logs []types.Lo
 		if len(l.Topics) < 4 {
 			continue
 		}
-		if l.Topics[0].String() == PayoutTopic.String() {
+		if l.Topics[0].String() == topic.String() {
 			transactions[l.Topics[2].Big().String()] = &GateTx{
 				From:        common.HexToAddress(l.Topics[1].Hex()),
 				Number:      l.Topics[2].Big(),

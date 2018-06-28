@@ -7,9 +7,9 @@ log:
 # Settings for Ethereum keys
 ethereum:
   # path to keystore
-  key_store: "./keys/"
+  key_store: "./keys/state/gate/k2/"
   # passphrase for keystore
-  pass_phrase: "any"
+  pass_phrase: "111111111"
 
 blockchain:
   # endpoint: "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
@@ -22,6 +22,6 @@ gatekeeper:
   # Delay used for prevent racing between other gates instances
   delay: "15s"
   # Period for checking transaction
-  period: "3m"
+  period: "30s"
   # Period for checking freezing time changing
   # reloadFreezingPeriod: "60m"

@@ -38,11 +38,6 @@ type Gatekeeper struct {
 func NewGatekeeper(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Gatekeeper, error) {
 	logger := ctxlog.GetLogger(ctx)
 
-	logger.Info("start gatekeeper instance",
-		zap.String("direction", cfg.Gatekeeper.Direction),
-		zap.Duration("delay", cfg.Gatekeeper.Delay),
-		zap.String("key", crypto.PubkeyToAddress(key.PublicKey).String()))
-
 	bch, err := blockchain.NewAPI(blockchain.WithConfig(cfg.Blockchain))
 	if err != nil {
 		return nil, err
@@ -57,6 +52,26 @@ func NewGatekeeper(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Ga
 	} else if cfg.Gatekeeper.Direction == "sidechain" {
 		in = bch.MasterchainGate()
 		out = bch.SidechainGate()
+	}
+
+	keeper, err := out.GetKeeper(ctx, crypto.PubkeyToAddress(key.PublicKey))
+	if err != nil {
+		return nil, err
+	}
+
+	logger.Info("start gatekeeper instance",
+		zap.String("direction", cfg.Gatekeeper.Direction),
+		zap.Duration("delay", cfg.Gatekeeper.Delay),
+		zap.String("key", crypto.PubkeyToAddress(key.PublicKey).String()),
+		zap.String("day limit", keeper.DayLimit.String()),
+		zap.String("spent today", keeper.SpentToday.String()))
+
+	if keeper.DayLimit.Cmp(big.NewInt(0)) == 0 {
+		return nil, fmt.Errorf("used key is not keeper")
+	}
+
+	if keeper.Frozen {
+		return nil, fmt.Errorf("keeper with given key is frozen")
 	}
 
 	return &Gatekeeper{
@@ -168,7 +183,60 @@ func (g *Gatekeeper) isNotPaid(ctx context.Context, tx *blockchain.GateTx) bool 
 	return !txState.Paid
 }
 
+func (g *Gatekeeper) isCommitted(ctx context.Context, tx *blockchain.GateTx) bool {
+	// verify that transaction not payout now
+	txState, err := g.out.GetTransactionState(ctx, tx.From, tx.Value, tx.Number)
+	if err != nil {
+		g.logger.Debug("err while getting tx data", zap.Error(err))
+		return false
+	}
+
+	g.logger.Debug("transaction state",
+		zap.Any("commitTS", txState.CommitTS),
+		zap.Any("keeper", txState.Keeper),
+		zap.Any("paid", txState.Paid))
+	return txState.CommitTS.Cmp(big.NewInt(0)) == 0
+}
+
+func (g *Gatekeeper) underLimit(ctx context.Context, tx *blockchain.GateTx) bool {
+	keeper, err := g.out.GetKeeper(ctx, crypto.PubkeyToAddress(g.key.PublicKey))
+	if err != nil {
+		return false
+	}
+
+	spentToday := keeper.SpentToday
+
+	if !keeper.LastDay.IsInt64() {
+		log.Debug("overflowed LastDay value in keeper state")
+		return false
+	}
+	if keeper.LastDay.Int64() < int64(time.Now().Day()) {
+		log.Debug("FUCK WITH DAY",
+			zap.Int64("keeper last day", keeper.LastDay.Int64()),
+			zap.Int64("today", int64(time.Now().Day())))
+
+		spentToday = big.NewInt(0)
+	}
+
+	// keeper.spent_today + tx.value > dayLimit
+	if spentToday.Add(spentToday, tx.Value).Cmp(keeper.DayLimit) == 1 {
+		log.Debug("tx over keper limit",
+			zap.String("spent today", spentToday.String()),
+			zap.String("tx value", tx.Value.String()),
+			zap.String("keeper day limit", keeper.DayLimit.String()),
+			zap.String("spentToday + value", spentToday.Add(spentToday, tx.Value).String()))
+		return false
+	}
+
+	return true
+}
+
 func (g *Gatekeeper) processUnpaidTransaction(ctx context.Context, tx *blockchain.GateTx) error {
+	if !g.underLimit(ctx, tx) {
+		g.logger.Debug("tx over keeper limit")
+		return fmt.Errorf("tx over keeper limit")
+	}
+
 	if !g.checkDelay(ctx, tx) {
 		g.logger.Debug("not cover delay check")
 		return fmt.Errorf("not cover delay check")
@@ -188,18 +256,19 @@ func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
 		zap.String("value", tx.Value.String()),
 		zap.String("tx number", tx.Number.String()))
 
-	err := g.out.CommitPayout(ctx, g.key, tx.From, tx.Value, tx.Number)
-	if err != nil {
-		g.logger.Debug("error while commit", zap.Error(err))
-		return err
+	if !g.isCommitted(ctx, tx) {
+		err := g.out.CommitPayout(ctx, g.key, tx.From, tx.Value, tx.Number)
+		if err != nil {
+			g.logger.Debug("error while commit", zap.Error(err))
+			return err
+		}
+		g.logger.Debug("transaction committed")
+
+		// sleeping for freezing time after committing
+		time.Sleep(g.freezingTime)
 	}
 
-	g.logger.Debug("transaction committed")
-
-	// sleeping for freezing time
-	time.Sleep(g.freezingTime)
-
-	err = g.out.Payout(ctx, g.key, tx.From, tx.Value, tx.Number)
+	err := g.out.Payout(ctx, g.key, tx.From, tx.Value, tx.Number)
 	if err != nil {
 		g.logger.Debug("error while payout", zap.Error(err))
 		return err
