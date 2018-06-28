@@ -17,22 +17,16 @@ import (
 )
 
 type Gatekeeper struct {
-	key *ecdsa.PrivateKey
-	cfg *Config
-
-	logger *zap.Logger
-
-	bch blockchain.API
-
-	in  blockchain.SimpleGatekeeperAPI
-	out blockchain.SimpleGatekeeperAPI
-
+	key          *ecdsa.PrivateKey
+	cfg          *Config
+	logger       *zap.Logger
+	bch          blockchain.API
+	in           blockchain.SimpleGatekeeperAPI
+	out          blockchain.SimpleGatekeeperAPI
 	freezingTime time.Duration
-
-	spentToday *big.Int
-	lastDay    *time.Time
-
-	mu sync.Mutex
+	spentToday   *big.Int
+	lastDay      *time.Time
+	mu           sync.Mutex
 }
 
 func NewGatekeeper(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Gatekeeper, error) {
@@ -46,10 +40,10 @@ func NewGatekeeper(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Ga
 	var in blockchain.SimpleGatekeeperAPI
 	var out blockchain.SimpleGatekeeperAPI
 
-	if cfg.Gatekeeper.Direction == "masterchain" {
+	if cfg.Gatekeeper.Direction == masterchainDirection {
 		in = bch.SidechainGate()
 		out = bch.MasterchainGate()
-	} else if cfg.Gatekeeper.Direction == "sidechain" {
+	} else if cfg.Gatekeeper.Direction == sidechainDirection {
 		in = bch.MasterchainGate()
 		out = bch.SidechainGate()
 	}
@@ -59,13 +53,6 @@ func NewGatekeeper(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Ga
 		return nil, err
 	}
 
-	logger.Info("start gatekeeper instance",
-		zap.String("direction", cfg.Gatekeeper.Direction),
-		zap.Duration("delay", cfg.Gatekeeper.Delay),
-		zap.String("key", crypto.PubkeyToAddress(key.PublicKey).String()),
-		zap.String("day limit", keeper.DayLimit.String()),
-		zap.String("spent today", keeper.SpentToday.String()))
-
 	if keeper.DayLimit.Cmp(big.NewInt(0)) == 0 {
 		return nil, fmt.Errorf("used key is not keeper")
 	}
@@ -73,6 +60,13 @@ func NewGatekeeper(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Ga
 	if keeper.Frozen {
 		return nil, fmt.Errorf("keeper with given key is frozen")
 	}
+
+	logger.Info("start gatekeeper instance",
+		zap.String("direction", cfg.Gatekeeper.Direction),
+		zap.Duration("delay", cfg.Gatekeeper.Delay),
+		zap.String("key", crypto.PubkeyToAddress(key.PublicKey).String()),
+		zap.String("day limit", keeper.DayLimit.String()),
+		zap.String("spent today", keeper.SpentToday.String()))
 
 	return &Gatekeeper{
 		key:    key,
@@ -85,10 +79,10 @@ func NewGatekeeper(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Ga
 }
 
 func (g *Gatekeeper) Serve(ctx context.Context) error {
-	t := util.NewImmediateTicker(g.cfg.Gatekeeper.Period)
-
 	// straight load freezing time
 	g.loadFreezeTime(ctx)
+
+	t := util.NewImmediateTicker(g.cfg.Gatekeeper.Period)
 
 	freezingTimeLoader := util.NewImmediateTicker(g.cfg.Gatekeeper.ReloadFreezingPeriod)
 
@@ -112,6 +106,8 @@ func (g *Gatekeeper) processTransaction(ctx context.Context) error {
 		return err
 	}
 
+	g.findScummyTransactions(ctx, inTxs, outTxs)
+
 	// find payin transactions doesn't exists in payout
 	for k, inTx := range inTxs {
 		_, ok := outTxs[k]
@@ -126,13 +122,11 @@ func (g *Gatekeeper) processTransaction(ctx context.Context) error {
 		}
 	}
 
-	g.findScummyTransactions(ctx, inTxs, outTxs)
 	g.logger.Debug("finish transaction processing")
 	return nil
 }
 
 func (g *Gatekeeper) loadTransactions(ctx context.Context) (map[string]*blockchain.GateTx, map[string]*blockchain.GateTx, error) {
-	var err error
 	inTxs, err := g.in.GetPayinTransactions(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -151,17 +145,16 @@ func (g *Gatekeeper) loadTransactions(ctx context.Context) (map[string]*blockcha
 
 // checkDelay verify that tx out of delay
 func (g *Gatekeeper) checkDelay(ctx context.Context, tx *blockchain.GateTx) bool {
-	payinTimestamp, err := g.in.GetGateTransactionTime(ctx, tx)
+	payinTime, err := g.in.GetGateTransactionTime(ctx, tx)
 	if err != nil {
 		return false
 	}
-	// cast delay, time of payin tx and now time to uint64
-	payinTime := int64(payinTimestamp)
-	delay := int64(g.cfg.Gatekeeper.Delay.Seconds())
-	nowTime := time.Now().UTC().Unix()
 
-	g.logger.Debug("delay check", zap.Int64("delay", payinTime+delay), zap.Int64("nowTime", nowTime))
-	if nowTime < payinTime+delay {
+	g.logger.Debug("delay check",
+		zap.Time("time with delay", payinTime.Add(g.cfg.Gatekeeper.Delay)),
+		zap.Time("nowTime", time.Now().UTC()))
+
+	if !payinTime.Add(g.cfg.Gatekeeper.Delay).After(time.Now().UTC()) {
 		return false
 	}
 	return true
@@ -169,7 +162,6 @@ func (g *Gatekeeper) checkDelay(ctx context.Context, tx *blockchain.GateTx) bool
 
 // checkUnpaid verify that tx paid already
 func (g *Gatekeeper) isNotPaid(ctx context.Context, tx *blockchain.GateTx) bool {
-	// verify that transaction not payout now
 	txState, err := g.out.GetTransactionState(ctx, tx.From, tx.Value, tx.Number)
 	if err != nil {
 		g.logger.Debug("err while getting tx data", zap.Error(err))
@@ -178,18 +170,18 @@ func (g *Gatekeeper) isNotPaid(ctx context.Context, tx *blockchain.GateTx) bool 
 	return !txState.Paid
 }
 
+// verify that transaction is committed already
 func (g *Gatekeeper) isCommitted(ctx context.Context, tx *blockchain.GateTx) bool {
-	// verify that transaction not payout now
 	txState, err := g.out.GetTransactionState(ctx, tx.From, tx.Value, tx.Number)
 	if err != nil {
 		g.logger.Debug("err while getting tx data", zap.Error(err))
 		return false
 	}
-	return txState.CommitTS.Cmp(big.NewInt(0)) != 0
+	return txState.CommitTS.Unix() != 0
 }
 
+// verify that transaction committed by this gate instance
 func (g *Gatekeeper) transactionCommittedByMe(ctx context.Context, tx *blockchain.GateTx) bool {
-	// verify that transaction not payout now
 	txState, err := g.out.GetTransactionState(ctx, tx.From, tx.Value, tx.Number)
 	if err != nil {
 		g.logger.Debug("err while getting tx data", zap.Error(err))
@@ -206,11 +198,7 @@ func (g *Gatekeeper) underLimit(ctx context.Context, tx *blockchain.GateTx) bool
 
 	spentToday := keeper.SpentToday
 
-	if !keeper.LastDay.IsInt64() {
-		log.Debug("overflowed LastDay value in keeper state")
-		return false
-	}
-	if keeper.LastDay.Int64() < int64(time.Now().Day()) {
+	if keeper.LastDay.Day() < time.Now().UTC().Day() {
 		spentToday = big.NewInt(0)
 	}
 
@@ -288,12 +276,12 @@ func (g *Gatekeeper) findScummyTransactions(ctx context.Context, inTxs map[strin
 	for k, tx := range outTxs {
 		_, ok := inTxs[k]
 		if !ok {
-			go g.freezeScummy(ctx, tx)
+			go g.processScummyTx(ctx, tx)
 		}
 	}
 }
 
-func (g *Gatekeeper) freezeScummy(ctx context.Context, tx *blockchain.GateTx) error {
+func (g *Gatekeeper) processScummyTx(ctx context.Context, tx *blockchain.GateTx) error {
 	txState, err := g.out.GetTransactionState(ctx, tx.From, tx.Value, tx.Number)
 	if err != nil {
 		return err
@@ -309,11 +297,11 @@ func (g *Gatekeeper) freezeScummy(ctx context.Context, tx *blockchain.GateTx) er
 		zap.String("value", tx.Value.String()),
 		zap.String("tx number", tx.Number.String()),
 		zap.Uint64("block number", tx.BlockNumber),
-		zap.String("commit timestamp", txState.CommitTS.String()),
+		zap.Time("commit timestamp", txState.CommitTS),
 		zap.Bool("paid", txState.Paid),
 		zap.String("keeper address", keeper.Address.String()),
 		zap.String("keeper day limit", keeper.DayLimit.String()),
-		zap.String("keeper day limit", keeper.SpentToday.String()),
+		zap.String("keeper spent today", keeper.SpentToday.String()),
 		zap.String("keeper last day ", keeper.LastDay.String()),
 		zap.Bool("keeper frozen", keeper.Frozen))
 
@@ -326,26 +314,11 @@ func (g *Gatekeeper) freezeScummy(ctx context.Context, tx *blockchain.GateTx) er
 
 // loadFreezeTime watch current freezing time in contract
 func (g *Gatekeeper) loadFreezeTime(ctx context.Context) error {
-	var freezingTime *big.Int
-	var err error
-
-	freezingTime, err = g.out.GetFreezingTime(ctx)
+	freezingTime, err := g.out.GetFreezingTime(ctx)
 	if err != nil {
 		return err
 	}
-
-	if !freezingTime.IsInt64() {
-		return fmt.Errorf("freezing time is abused")
-	}
-
-	// multiply to second because blockchain operate with time in seconds
-	ft := time.Duration(freezingTime.Int64()) * time.Second
-	if g.freezingTime == ft {
-		return nil
-	}
-	g.freezingTime = ft
-
 	g.logger.Debug("changing freezing time", zap.Duration("freezing time", g.freezingTime))
-
+	g.freezingTime = freezingTime
 	return nil
 }

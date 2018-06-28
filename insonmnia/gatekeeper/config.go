@@ -10,10 +10,15 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 )
 
+const(
+	masterchainDirection = "masterchain"
+	sidechainDirection = "sidechain"
+)
+
 type gatekeeperConfig struct {
 	Delay                time.Duration `yaml:"delay" default:"15s"`
 	Period               time.Duration `yaml:"period" default:"15s"`
-	ReloadFreezingPeriod time.Duration `yaml:"reloadFreezingPeriod" default:"60m"`
+	ReloadFreezingPeriod time.Duration `yaml:"reload_freezing_period" default:"60m"`
 	Direction            string        `yaml:"direction"`
 }
 
@@ -24,6 +29,14 @@ type Config struct {
 	Eth        accounts.EthConfig `yaml:"ethereum" required:"false"`
 }
 
+func (c *Config) validate() error {
+	if c.Gatekeeper.Direction != masterchainDirection && c.Gatekeeper.Direction != sidechainDirection {
+		return fmt.Errorf("direction field must be sidechain or masterchain")
+	}
+	return nil
+}
+
+
 // NewConfig loads localNode config from given .yaml file
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
@@ -33,8 +46,8 @@ func NewConfig(path string) (*Config, error) {
 		return nil, err
 	}
 
-	if cfg.Gatekeeper.Direction != "masterchain" && cfg.Gatekeeper.Direction != "sidechain" {
-		return nil, fmt.Errorf("direction field must be sidechain or masterchain")
+	if err := cfg.validate(); err!= nil {
+		return nil, err
 	}
 	return cfg, nil
 }
