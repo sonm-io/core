@@ -75,6 +75,7 @@ func defaultOptions() *options {
 			logParsePeriod:     defaultLogParsePeriod,
 			blockConfirmations: defaultBlockConfirmations,
 		},
+		contractRegistry: common.HexToAddress(defaultContractRegistryAddr),
 	}
 }
 
@@ -109,6 +110,9 @@ func WithConfig(cfg *Config) Option {
 		if cfg != nil {
 			o.masterchain.endpoint = cfg.Endpoint.String()
 			o.sidechain.endpoint = cfg.SidechainEndpoint.String()
+			if cfg.ContractRegistryAddr.Big().Cmp(big.NewInt(0)) != 0 {
+				o.contractRegistry = cfg.ContractRegistryAddr
+			}
 		}
 	}
 }

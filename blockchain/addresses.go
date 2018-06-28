@@ -1,6 +1,8 @@
 package blockchain
 
 const (
+	defaultContractRegistryAddr = "0xTODO"
+
 	sidechainSNMAddressKey          = "sidechainSNMAddress"
 	masterchainSNMAddressKey        = "masterchainSNMAddress"
 	blacklistAddressKey             = "blacklistAddress"

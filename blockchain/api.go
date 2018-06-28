@@ -204,7 +204,7 @@ func NewAPI(opts ...Option) (API, error) {
 func (api *BasicAPI) setupContractRegistry(ctx context.Context) error {
 	registry, err := NewRegistry(api.options.contractRegistry, api.options.sidechain)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to setup contract registry: %s", err)
 	}
 	api.contractRegistry = registry
 	return nil
@@ -214,7 +214,7 @@ func (api *BasicAPI) setupMasterchainToken(ctx context.Context) error {
 	masterchainTokenAddr := api.contractRegistry.MasterchainSNMAddress()
 	masterchainToken, err := NewStandardToken(masterchainTokenAddr, api.options.masterchain)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to setup masterchain token: %s", err)
 	}
 	api.masterchainToken = masterchainToken
 
@@ -225,7 +225,7 @@ func (api *BasicAPI) setupSidechainToken(ctx context.Context) error {
 	sidechainTokenAddr := api.contractRegistry.SidechainSNMAddress()
 	sidechainToken, err := NewStandardToken(sidechainTokenAddr, api.options.sidechain)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to setup sidechain token: %s", err)
 	}
 	api.sidechainToken = sidechainToken
 
@@ -236,7 +236,7 @@ func (api *BasicAPI) setupTestToken(ctx context.Context) error {
 	masterchainTokenAddr := api.contractRegistry.MasterchainSNMAddress()
 	testToken, err := NewTestToken(masterchainTokenAddr, api.options.masterchain)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to setup test token: %s", err)
 	}
 	api.testToken = testToken
 	return nil
@@ -246,7 +246,7 @@ func (api *BasicAPI) setupBlacklist(ctx context.Context) error {
 	blacklistAddr := api.contractRegistry.BlacklistAddress()
 	blacklist, err := NewBasicBlacklist(blacklistAddr, api.options.sidechain)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to setup blacklist: %s", err)
 	}
 	api.blacklist = blacklist
 	return nil
@@ -256,7 +256,7 @@ func (api *BasicAPI) setupMarket(ctx context.Context) error {
 	marketAddr := api.contractRegistry.MarketAddress()
 	market, err := NewBasicMarket(marketAddr, api.sidechainToken, api.options.sidechain)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to setup market: %s", err)
 	}
 	api.market = market
 	return nil
@@ -266,7 +266,7 @@ func (api *BasicAPI) setupProfileRegistry(ctx context.Context) error {
 	profileRegistryAddr := api.contractRegistry.ProfileRegistryAddress()
 	profileRegistry, err := NewProfileRegistry(profileRegistryAddr, api.options.sidechain)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to setup profile registry: %s", err)
 	}
 	api.profileRegistry = profileRegistry
 	return nil
@@ -275,7 +275,7 @@ func (api *BasicAPI) setupProfileRegistry(ctx context.Context) error {
 func (api *BasicAPI) setupEvents(ctx context.Context) error {
 	events, err := NewEventsAPI(api, api.options.sidechain, ctxlog.GetLogger(ctx))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to setup events: %s", err)
 	}
 	api.events = events
 	return nil
@@ -285,7 +285,7 @@ func (api *BasicAPI) setupOracle(ctx context.Context) error {
 	oracleAddr := api.contractRegistry.OracleUsdAddress()
 	oracle, err := NewOracleUSDAPI(oracleAddr, api.options.sidechain)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to setup oracle: %s", err)
 	}
 	api.oracle = oracle
 	return nil
@@ -295,7 +295,7 @@ func (api *BasicAPI) setupMasterchainGate(ctx context.Context) error {
 	gatekeeperMasterchainAddr := api.contractRegistry.GatekeeperMasterchainAddress()
 	masterchainGate, err := NewSimpleGatekeeper(gatekeeperMasterchainAddr, api.options.masterchain)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to setup masterchain gatekeeper: %s", err)
 	}
 	api.masterchainGate = masterchainGate
 	return nil
@@ -305,7 +305,7 @@ func (api *BasicAPI) setupSidechainGate(ctx context.Context) error {
 	gatekeeperSidechainAddr := api.contractRegistry.GatekeeperSidechainAddress()
 	sidechainGate, err := NewSimpleGatekeeper(gatekeeperSidechainAddr, api.options.sidechain)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to setup sidechain gatekeeper: %s", err)
 	}
 	api.sidechainGate = sidechainGate
 	return nil
