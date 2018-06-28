@@ -26,7 +26,7 @@ let MSOwners = [
 ];
 
 let MSRequired = 5;
-let benchmarksQuantity = 13;
+let benchmarksQuantity = 12;
 let netflagsQuantity = 3;
 
 let Deployers = ['0x7aa5237e0f999a9853a9cc8c56093220142ce48e', '0xd9a43e16e78c86cf7b525c305f8e72723e0fab5e'];
