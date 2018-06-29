@@ -355,6 +355,14 @@ func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.
 								currentScore += math.Pow(math.Max(0, float64(benchmark.Result)-float64(benchmarks[id]))/float64(benchmark.Result), 2)
 							}
 						}
+
+						if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_MIN {
+							if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
+								if currentBenchmarks[id] > benchmark.Result {
+									break
+								}
+							}
+						}
 					}
 				}
 			}
