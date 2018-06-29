@@ -247,6 +247,12 @@ func (g *Gatekeeper) transactionCommittedByMe(ctx context.Context, txState *bloc
 	return txState.Keeper.String() == crypto.PubkeyToAddress(g.key.PublicKey).String()
 }
 
+// verify that transaction committed by this gate instance
+func (g *Gatekeeper) transactionOnQuarantine(ctx context.Context, txState *blockchain.GateTxState) bool {
+	return txState.CommitTS.Add(g.freezingTime).Before(time.Now().UTC())
+}
+
+
 func (g *Gatekeeper) underLimit(ctx context.Context, tx *blockchain.GateTx) bool {
 	keeper, err := g.out.GetKeeper(ctx, crypto.PubkeyToAddress(g.key.PublicKey))
 	if err != nil {
@@ -319,6 +325,10 @@ func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
 
 	if !g.transactionCommittedByMe(ctx, txState) {
 		return fmt.Errorf("transaction commited by other gate")
+	}
+
+	if g.transactionOnQuarantine(ctx, txState){
+		return fmt.Errorf("transaction on quarantine now")
 	}
 
 	_, err = g.out.Payout(ctx, g.key, tx.From, tx.Value, tx.Number)
