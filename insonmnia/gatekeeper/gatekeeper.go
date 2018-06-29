@@ -171,8 +171,6 @@ func (g *Gatekeeper) Serve(ctx context.Context) error {
 }
 
 func (g *Gatekeeper) processTransaction(ctx context.Context) error {
-	g.mu.Lock()
-	defer g.mu.Unlock()
 	g.logger.Debug("start transaction processing")
 
 	inTxs, outTxs, err := g.loadTransactions(ctx)
@@ -386,6 +384,10 @@ func (g *Gatekeeper) loadFreezeTime(ctx context.Context) error {
 		return err
 	}
 	g.logger.Debug("changing freezing time", zap.Duration("freezing time", g.freezingTime))
+
+	g.mu.Lock()
+	defer g.mu.Unlock()
+
 	g.freezingTime = freezingTime
 	return nil
 }
