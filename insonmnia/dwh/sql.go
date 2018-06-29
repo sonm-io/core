@@ -534,8 +534,11 @@ func (m *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 	if len(r.Country) > 0 {
 		builder = builder.Where(sq.Eq{"Country": r.Country})
 	}
-	if len(r.Name) > 0 {
-		builder = builder.Where("lower(Name) LIKE lower(?)", r.Name)
+	if len(r.Identifier) > 0 {
+		builder = builder.Where(sq.Or{
+			sq.Expr("lower(Name) LIKE lower(?)", r.Identifier),
+			sq.Expr("lower(UserID) LIKE lower(?)", r.Identifier),
+		})
 	}
 	if r.BlacklistQuery != nil && !r.BlacklistQuery.OwnerID.IsZero() {
 		ownerBuilder := m.builder().Select("AddeeID").From("Blacklists").

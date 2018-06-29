@@ -172,7 +172,8 @@ message ProfilesRequest {
     ProfileRole role = 1;
     IdentityLevel identityLevel = 2;
     repeated string country = 3;
-    string name = 4;
+    // This value is LIKE-matched against both profile Name and UserID (case insensitive).
+    string identifier = 4;
     BlacklistQuery blacklistQuery = 5;
     uint64 limit = 6;
     uint64 offset = 7;
