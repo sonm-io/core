@@ -91,7 +91,10 @@ func (g *Gatekeeper) freezingTimeRoutine(ctx context.Context) error {
 	for {
 		select {
 		case <-t.C:
-			g.loadFreezeTime(ctx)
+			err = g.loadFreezeTime(ctx)
+			if err != nil {
+				g.logger.Warn("failed to reload freezing time", zap.Error(err))
+			}
 		}
 	}
 }
