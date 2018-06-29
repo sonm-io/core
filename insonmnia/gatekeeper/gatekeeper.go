@@ -87,9 +87,12 @@ func (g *Gatekeeper) freezingTimeRoutine(ctx context.Context) error {
 	}
 
 	t := util.NewImmediateTicker(g.cfg.Gatekeeper.ReloadFreezingPeriod)
+	defer t.Stop()
 
 	for {
 		select {
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-t.C:
 			err = g.loadFreezeTime(ctx)
 			if err != nil {
@@ -101,9 +104,12 @@ func (g *Gatekeeper) freezingTimeRoutine(ctx context.Context) error {
 
 func (g *Gatekeeper) payoutRoutine(ctx context.Context) error {
 	t := util.NewImmediateTicker(g.cfg.Gatekeeper.Period)
+	defer t.Stop()
 
 	for {
 		select {
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-t.C:
 			err := g.processTransaction(ctx)
 			if err != nil {
@@ -115,9 +121,12 @@ func (g *Gatekeeper) payoutRoutine(ctx context.Context) error {
 
 func (g *Gatekeeper) scummyFinderRoutine(ctx context.Context) error {
 	t := util.NewImmediateTicker(g.cfg.Gatekeeper.Period)
+	defer t.Stop()
 
 	for {
 		select {
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-t.C:
 			inTxs, outTxs, err := g.loadTransactions(ctx)
 			if err != nil {
@@ -217,10 +226,7 @@ func (g *Gatekeeper) checkDelay(ctx context.Context, tx *blockchain.GateTx) bool
 		zap.Time("time with delay", payinTime.Add(g.cfg.Gatekeeper.Delay)),
 		zap.Time("nowTime", time.Now().UTC()))
 
-	if !payinTime.Add(g.cfg.Gatekeeper.Delay).After(time.Now().UTC()) {
-		return false
-	}
-	return true
+	return payinTime.Add(g.cfg.Gatekeeper.Delay).After(time.Now().UTC())
 }
 
 // checkUnpaid verify that tx paid already
@@ -234,22 +240,12 @@ func (g *Gatekeeper) isNotPaid(ctx context.Context, tx *blockchain.GateTx) bool 
 }
 
 // verify that transaction is committed already
-func (g *Gatekeeper) isCommitted(ctx context.Context, tx *blockchain.GateTx) bool {
-	txState, err := g.out.GetTransactionState(ctx, tx.From, tx.Value, tx.Number)
-	if err != nil {
-		g.logger.Debug("err while getting tx data", zap.Error(err))
-		return false
-	}
+func (g *Gatekeeper) isCommitted(ctx context.Context, txState *blockchain.GateTxState) bool {
 	return txState.CommitTS.Unix() != 0
 }
 
 // verify that transaction committed by this gate instance
-func (g *Gatekeeper) transactionCommittedByMe(ctx context.Context, tx *blockchain.GateTx) bool {
-	txState, err := g.out.GetTransactionState(ctx, tx.From, tx.Value, tx.Number)
-	if err != nil {
-		g.logger.Debug("err while getting tx data", zap.Error(err))
-		return false
-	}
+func (g *Gatekeeper) transactionCommittedByMe(ctx context.Context, txState *blockchain.GateTxState) bool {
 	return txState.Keeper.String() == crypto.PubkeyToAddress(g.key.PublicKey).String()
 }
 
@@ -303,7 +299,12 @@ func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
 		zap.String("value", tx.Value.String()),
 		zap.String("tx number", tx.Number.String()))
 
-	if !g.isCommitted(ctx, tx) {
+	txState, err := g.out.GetTransactionState(ctx, tx.From, tx.Value, tx.Number)
+	if err != nil {
+		return err
+	}
+
+	if !g.isCommitted(ctx, txState) {
 		_, err := g.out.Payout(ctx, g.key, tx.From, tx.Value, tx.Number)
 		if err != nil {
 			g.logger.Debug("error while commit", zap.Error(err))
@@ -318,11 +319,11 @@ func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
 		time.Sleep(g.freezingTime)
 	}
 
-	if !g.transactionCommittedByMe(ctx, tx) {
+	if !g.transactionCommittedByMe(ctx, txState) {
 		return fmt.Errorf("transaction commited by other gate")
 	}
 
-	_, err := g.out.Payout(ctx, g.key, tx.From, tx.Value, tx.Number)
+	_, err = g.out.Payout(ctx, g.key, tx.From, tx.Value, tx.Number)
 	if err != nil {
 		g.logger.Debug("error while payout", zap.Error(err))
 		return err
@@ -339,7 +340,10 @@ func (g *Gatekeeper) findScummyTransactions(ctx context.Context, inTxs map[strin
 	for k, tx := range outTxs {
 		_, ok := inTxs[k]
 		if !ok {
-			go g.processScummyTx(ctx, tx)
+			err := g.processScummyTx(ctx, tx)
+			if err != nil {
+				log.Warn("failed to process scummy transaction", zap.Error(err))
+			}
 		}
 	}
 }
