@@ -508,6 +508,11 @@ contract('ProfileRegistry', async function (accounts) {
     });
 
     describe('CheckProfileLevel', function () {
+        let secondCertificateId;
+        let thirdCertificateId;
+        let fourthCertificateId;
+        let tx;
+
         before(async function () {
             registry = await ProfileRegistry.new();
 
@@ -517,23 +522,40 @@ contract('ProfileRegistry', async function (accounts) {
             await registry.AddValidator(validatorLvl4, 4, { from: owner });
 
             await registry.CreateCertificate(master, 1102, 'value', { from: validatorLvl1 });
-            await registry.CreateCertificate(master, 1201, 'value', { from: validatorLvl2 });
-            await registry.CreateCertificate(master, 1301, 'value', { from: validatorLvl4 });
-            await registry.CreateCertificate(master, 1401, 'value', { from: validatorLvl4 });
+            tx = await registry.CreateCertificate(master, 1201, 'value', { from: validatorLvl2 });
+            secondCertificateId = tx.logs[0].args.id;
+            tx = await registry.CreateCertificate(master, 1301, 'value', { from: validatorLvl3 });
+            thirdCertificateId = tx.logs[0].args.id;
+            tx = await registry.CreateCertificate(master, 1401, 'value', { from: validatorLvl4 });
+            fourthCertificateId = tx.logs[0].args.id;
         });
 
-        describe('when trying to check 3 lvl and certificate exist', function () {
-            it('should return 4 (PROFESSIONAL)', async function () {
-                let result = await registry.GetProfileLevel(master);
-                assert.equal(result.toNumber(10), 4);
-            });
+        it('check for 4 lvl should return 4 (PROFESSIONAL)', async function () {
+            let result = await registry.GetProfileLevel.call(master);
+            assert.equal(result.toNumber(), 4);
         });
 
-        describe('when trying to check certificate doesnt exist', function () {
-            it('should return 1 (ANONYMOUS)', async function () {
-                let result = await registry.GetProfileLevel.call(creeper);
-                assert.equal(result.toNumber(10), 1);
-            });
+        it('remove lvl, should return 3 (IDENTIFIED)', async function () {
+            await registry.RemoveCertificate(fourthCertificateId, { from: master });
+            let result = await registry.GetProfileLevel.call(master);
+            assert.equal(result.toNumber(), 3);
+        });
+
+        it('remove lvl, should return 2 (REGISTERED)', async function () {
+            await registry.RemoveCertificate(thirdCertificateId, { from: master });
+            let result = await registry.GetProfileLevel.call(master);
+            assert.equal(result.toNumber(), 2);
+        });
+
+        it('remove lvl, should return 1 (ANONYMOUS)', async function () {
+            await registry.RemoveCertificate(secondCertificateId, { from: master });
+            let result = await registry.GetProfileLevel.call(master);
+            assert.equal(result.toNumber(), 1);
+        });
+
+        it('should return 1 (ANONYMOUS) when certificate doesn\'t exists', async function () {
+            let result = await registry.GetProfileLevel.call(creeper);
+            assert.equal(result.toNumber(), 1);
         });
     });
 

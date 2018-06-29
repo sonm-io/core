@@ -21,7 +21,7 @@ import {
 } from './helpers/constants';
 import increaseTime from './helpers/increaseTime';
 import assertRevert from './helpers/assertRevert';
-import { eventInTransaction } from './helpers/expectEvent';
+import { eventInTransaction, allEventsInTransaction } from './helpers/expectEvent';
 import { Ask } from './helpers/ask';
 import { Bid } from './helpers/bid';
 import { checkBenchmarks, checkOrderStatus, getDealIdFromOrder, getDealInfoFromOrder } from './helpers/common';
@@ -252,7 +252,7 @@ contract('Market', async (accounts) => {
             assert.equal(OrderStatus.INACTIVE, askParams[OrderParams.status]);
             assert.equal(OrderStatus.INACTIVE, bidParams[OrderParams.status]);
 
-            let dealId = bidParams[1];
+            let dealId = bidParams[OrderParams.dealId];
             let dealInfo = await market.GetDealInfo(dealId, { from: consumer });
             let dealParams = await market.GetDealParams(dealId, { from: consumer });
             assert.equal(DealStatus.ACCEPTED, dealParams[DealParams.status]);
@@ -279,7 +279,7 @@ contract('Market', async (accounts) => {
             await increaseTime(duration + 1);
 
             let bidParams = await market.GetOrderParams(bidId, { from: consumer });
-            let dealId = bidParams[1];
+            let dealId = bidParams[OrderParams.dealId];
 
             await market.CloseDeal(dealId, BlackListPerson.NOBODY, { from: consumer });
             let dealParams = await market.GetDealParams(dealId, { from: consumer });
@@ -393,7 +393,7 @@ contract('Market', async (accounts) => {
             assert.equal(marketBalanceAfter.toNumber() - marketBalanceBefore.toNumber(), 0);
         });
 
-        it('Billing forward deal', async function () {
+        it('Billing forward deal', async () => {
             let deal = await market.GetDealParams(presetFwdDealId);
             let consumerBalanceBefore = await token.balanceOf(consumer);
             let supplierBalanceBefore = await token.balanceOf(supplier);
@@ -425,7 +425,7 @@ contract('Market', async (accounts) => {
             assert.equal(marketBalanceAfter.toNumber() - marketBalanceBefore.toNumber(), 0);
         });
 
-        it('Billing forward deal, with master', async function () {
+        it('Billing forward deal, with master', async () => {
             let deal = await market.GetDealParams(presetMasterFwdDealId);
             let consumerBalanceBefore = await token.balanceOf(consumer);
             let masterBalanceBefore = await token.balanceOf(master);
@@ -456,6 +456,14 @@ contract('Market', async (accounts) => {
             assert.equal(marketBalanceAfter.toNumber() - marketBalanceBefore.toNumber(), 0);
 
             await market.RemoveWorker(supplierWithMaster, master, { from: master });
+        });
+
+        it('Billing forward deal: not billed if deal.lastBillTS >= deal.endTime', async () => {
+            increaseTime(testDuration);
+            await market.Bill(presetFwdDealId, { from: supplier });
+            let tx = await market.Bill(presetFwdDealId, { from: supplier });
+            let events = allEventsInTransaction(tx);
+            assert.equal(JSON.stringify(events), JSON.stringify({}));
         });
     });
 
@@ -1163,143 +1171,157 @@ contract('Market', async (accounts) => {
         });
     });
 
-    describe('Other tests (setters etc..)', function () {
+    describe('Other tests (setters etc..)', () => {
         it('SetProfileRegistryAddress: bug while we can cast any contract as valid ' +
             '(for example i cast token as a Profile Registry)', async () => {
             await market.SetProfileRegistryAddress(token.address);
             // TODO we need to do something with this. or not
         });
 
-        it('Set new blacklist', async function () {
+        it('Set new blacklist', async () => {
             let newBL = await Blacklist.new();
             await market.SetBlacklistAddress(newBL.address);
         });
 
-        it('Set new pr', async function () {
+        it('Set new pr', async () => {
             let newPR = await ProfileRegistry.new();
             await market.SetProfileRegistryAddress(newPR.address);
         });
 
-        it('Set new oracle', async function () {
+        it('Set new oracle', async () => {
             let newOracle = await OracleUSD.new();
             await newOracle.setCurrentPrice(20000000000000);
             await market.SetOracleAddress(newOracle.address);
         });
     });
 
-    describe('when contract is paused', function () {
-        describe('Pause calling should spend `Paused` event', function () {
+    describe('when contract is paused', () => {
+        describe('Pause calling should spend `Paused` event', () => {
             let tx;
-            it('should pause market', async function () {
+            it('should pause market', async () => {
                 tx = await market.pause();
             });
 
-            it('should spend `Pause` event', async function () {
+            it('should spend `Pause` event', async () => {
                 await eventInTransaction(tx, 'Pause');
             });
 
-            after(async function () {
+            after(async () => {
                 await market.unpause();
             });
         });
 
-        describe('PlaceOrder', function () {
-            before(async function () {
+        describe('PlaceOrder', () => {
+            before(async () => {
                 await market.pause();
             });
 
-            it('should revert', async function () {
+            it('should revert', async () => {
                 await assertRevert(Ask({ market, supplier }));
                 await assertRevert(Bid({ market, consumer }));
             });
 
-            after(async function () {
+            after(async () => {
                 await market.unpause();
             });
         });
 
-        describe('QuickBuy', function () {
+        describe('QuickBuy', () => {
             let askId;
 
-            before(async function () {
+            before(async () => {
                 askId = await Ask({ market, supplier });
                 await market.pause();
             });
 
-            it('should revert', async function () {
+            it('should revert', async () => {
                 await assertRevert(market.QuickBuy(askId, 1800, { from: consumer }));
             });
 
-            after(async function () {
+            after(async () => {
                 await market.unpause();
             });
         });
 
-        describe('OpenDeal', function () {
+        describe('OpenDeal', () => {
             let askId;
             let bidId;
 
-            before(async function () {
+            before(async () => {
                 askId = await Ask({ market, supplier });
                 bidId = await Bid({ market, consumer });
                 await market.pause();
             });
 
-            it('should revert', async function () {
+            it('should revert', async () => {
                 await assertRevert(market.OpenDeal(askId, bidId, { from: consumer }));
             });
 
-            after(async function () {
+            after(async () => {
                 await market.unpause();
             });
         });
 
-        describe('RegisterWorker', function () {
-            before(async function () {
+        describe('RegisterWorker', () => {
+            before(async () => {
                 await market.pause();
             });
 
-            it('should revert', async function () {
+            it('should revert', async () => {
                 await assertRevert(market.RegisterWorker(master, { from: supplier }));
             });
 
-            after(async function () {
+            after(async () => {
                 await market.unpause();
             });
         });
 
-        describe('ConfirmWorker', function () {
-            before(async function () {
+        describe('ConfirmWorker', () => {
+            before(async () => {
                 await market.RegisterWorker(master, { from: accounts[0] });
                 await market.pause();
             });
 
-            it('should revert', async function () {
+            it('should revert', async () => {
                 await assertRevert(market.ConfirmWorker(supplier, { from: master }));
             });
 
-            after(async function () {
+            after(async () => {
                 await market.unpause();
                 await market.ConfirmWorker(accounts[0], { from: master });
                 await market.RemoveWorker(accounts[0], master, { from: master });
             });
         });
 
-        describe('RemoveWorker', function () {
-            before(async function () {
+        describe('RemoveWorker', () => {
+            before(async () => {
                 await market.RegisterWorker(master, { from: accounts[0] });
                 await market.ConfirmWorker(accounts[0], { from: master });
                 await market.pause();
             });
 
-            it('should revert', async function () {
+            it('should revert', async () => {
                 await assertRevert(market.RemoveWorker(accounts[0], master, { from: master }));
             });
 
-            after(async function () {
+            after(async () => {
                 await market.unpause();
                 await market.RemoveWorker(accounts[0], master, { from: master });
             });
+        });
+    });
+
+    describe('kill market', () => {
+        it('should die and transfer all to owner', async () => {
+            let owner = await market.owner.call();
+            let ownerBalanceBefore = await token.balanceOf.call(owner);
+            let marketBalance = await token.balanceOf.call(market.address);
+
+            await market.KillMarket();
+
+            let balanceAfter = await token.balanceOf.call(owner);
+            assert.equal(balanceAfter.toNumber(),
+                ownerBalanceBefore.toNumber() + marketBalance.toNumber());
         });
     });
 });
