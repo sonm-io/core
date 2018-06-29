@@ -141,29 +141,6 @@ func (h *Hardware) SetDevicesFromBenches() {
 	}
 }
 
-type benchValue struct {
-	isSet bool
-	value uint64
-}
-
-func (m *benchValue) Set(value uint64) {
-	m.value = value
-	m.isSet = true
-}
-
-func (m *benchValue) Add(value uint64) {
-	m.value += value
-	m.isSet = true
-}
-
-func (m *benchValue) IsSet() bool {
-	return m.isSet
-}
-
-func (m *benchValue) Value() uint64 {
-	return m.value
-}
-
 func insertBenches(to map[uint64]*sonm.Benchmark, from map[uint64]*sonm.Benchmark, proportion float64) error {
 	for _, bench := range from {
 		if err := insertBench(to, bench, proportion); err != nil {
