@@ -224,7 +224,7 @@ func (g *Gatekeeper) checkDelay(ctx context.Context, tx *blockchain.GateTx) bool
 		zap.Time("time with delay", payinTime.Add(g.cfg.Gatekeeper.Delay)),
 		zap.Time("nowTime", time.Now().UTC()))
 
-	return payinTime.Add(g.cfg.Gatekeeper.Delay).After(time.Now().UTC())
+	return payinTime.Add(g.cfg.Gatekeeper.Delay).Before(time.Now().UTC())
 }
 
 // checkUnpaid verify that tx paid already
