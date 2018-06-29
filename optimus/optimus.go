@@ -423,7 +423,7 @@ func (m *workerControl) execute(ctx context.Context) error {
 	priceThreshold := m.cfg.PriceThreshold.GetPerSecond()
 	priceDiff := new(big.Int).Sub(pendingTotalPrice.Unwrap(), currentTotalPrice.Unwrap())
 
-	m.log.Debugf("checking whether current worker's price %s exceeds the pending %s by %s", currentTotalPrice.ToPriceString(), pendingTotalPrice.ToPriceString(), priceThreshold.ToPriceString)
+	m.log.Debugf("checking whether current worker's price %s exceeds the pending %s by %s", currentTotalPrice.ToPriceString(), pendingTotalPrice.ToPriceString(), priceThreshold.ToPriceString())
 	if new(big.Int).Sub(priceDiff, priceThreshold.Unwrap()).Sign() >= 0 {
 		m.log.Infow("cancelling plans", zap.Any("candidates", cancellationCandidates))
 
