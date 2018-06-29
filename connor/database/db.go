@@ -172,8 +172,15 @@ func (d *Database) UpdateBadGayStatusInPoolDB(id int64, badGuy int64, timeUpdate
 	return nil
 }
 
-func (d *Database) UpdateChangeRequestStatusDealDB(id int64, status sonm.ChangeRequestStatus, timeUpdate time.Time) error {
-	_, err := d.connect.Exec(updateCRStatusDeal, status, id)
+func (d *Database) UpdateChangeRequestStatusDealDB(id int64, status sonm.ChangeRequestStatus, price int64) error {
+	_, err := d.connect.Exec(updateCRStatusDeal, status, price, id)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func (d *Database) ReturnChangeRequestStatusDealDB(id int64, status sonm.ChangeRequestStatus) error {
+	_, err := d.connect.Exec(returnCRStatusDeal, status, id)
 	if err != nil {
 		return err
 	}
@@ -220,10 +227,10 @@ func (d *Database) SetDestroyDealPoolDB(status int64, id int64) error {
 
 func (d *Database) GetCountFromDB() (counts int64, err error) {
 	rows, err := d.connect.Query(getCountFromDb)
-	defer rows.Close()
 	if err != nil {
 		return 0, err
 	}
+	defer rows.Close()
 	for rows.Next() {
 		var count int64
 		err = rows.Scan(&count)
@@ -236,7 +243,6 @@ func (d *Database) GetCountFromDB() (counts int64, err error) {
 }
 func (d *Database) GetLastActualStepFromDb() (float64, error) {
 	rows, err := d.connect.Query(getLastActualStep)
-	defer rows.Close()
 	if err != nil {
 		return 0, err
 	}
@@ -253,11 +259,11 @@ func (d *Database) GetLastActualStepFromDb() (float64, error) {
 }
 func (d *Database) GetOrdersFromDB() ([]*OrderDb, error) {
 	rows, err := d.connect.Query(getOrders)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
 	orders := make([]*OrderDb, 0)
+	defer rows.Close()
 	for rows.Next() {
 		order := new(OrderDb)
 		err := rows.Scan(&order.OrderID, &order.Price, &order.Hashrate, &order.StartTime, &order.ButterflyEffect, &order.ActualStep)
@@ -273,7 +279,6 @@ func (d *Database) GetOrdersFromDB() ([]*OrderDb, error) {
 }
 func (d *Database) GetBlacklistFromDb(failSupplierID string) (string, error) {
 	rows, err := d.connect.Query(getSupplierIDFromBlackList, failSupplierID)
-	defer rows.Close()
 	if err != nil {
 		return "", err
 	}
@@ -291,7 +296,6 @@ func (d *Database) GetBlacklistFromDb(failSupplierID string) (string, error) {
 
 func (d *Database) GetWorkerFromPoolDb(dealID string) (string, error) {
 	rows, err := d.connect.Query(getWorkerIDFromPool, dealID)
-	defer rows.Close()
 	if err != nil {
 		return "", err
 	}
@@ -307,9 +311,25 @@ func (d *Database) GetWorkerFromPoolDb(dealID string) (string, error) {
 	return "already in Pool!", nil
 }
 
+func (d *Database) GetChangeRequestStatus(dealId int64)(int64, error){
+	rows, err := d.connect.Query(getChangeRequestStatus, dealId)
+	if err != nil {
+		return 0, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var changeRequestStatus int64
+		err = rows.Scan(&changeRequestStatus)
+		if err != nil {
+			return 0, err
+		}
+		return changeRequestStatus, nil
+	}
+	return 0, nil
+}
+
 func (d *Database) GetCountFailSupplierFromDb(masterID string) (int64, error) {
 	rows, err := d.connect.Query(getCountSupplierIDFromBlackList, masterID)
-	defer rows.Close()
 	if err != nil {
 		return 0, err
 	}
@@ -327,11 +347,11 @@ func (d *Database) GetCountFailSupplierFromDb(masterID string) (int64, error) {
 
 func (d *Database) GetDealsFromDB() ([]*DealDb, error) {
 	rows, err := d.connect.Query(getDeals)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
 	deals := make([]*DealDb, 0)
+	defer rows.Close()
 	for rows.Next() {
 		deal := new(DealDb)
 		err := rows.Scan(&deal.DealID, &deal.Status, &deal.Price, &deal.AskID, &deal.BidID, &deal.DeployStatus, &deal.ChangeRequestStatus)
@@ -347,11 +367,11 @@ func (d *Database) GetDealsFromDB() ([]*DealDb, error) {
 }
 func (d *Database) GetWorkersFromDB() ([]*PoolDb, error) {
 	rows, err := d.connect.Query(getWorkersFromPool)
-	defer rows.Close()
 	if err != nil {
 		return nil, err
 	}
-	workers := make([]*PoolDb, 0)
+	defer rows.Close()
+	var workers []*PoolDb
 	for rows.Next() {
 		worker := new(PoolDb)
 		err := rows.Scan(&worker.DealID, &worker.PoolID, &worker.WorkerReportedHashrate,

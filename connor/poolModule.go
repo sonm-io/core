@@ -93,10 +93,12 @@ func (p *PoolModule) DefaultPoolHashrateTracking(ctx context.Context, reportedPo
 			continue
 		}
 		iteration := int64(w.Iterations + 1)
+
 		dealInfo, err := p.c.DealClient.Status(ctx, sonm.NewBigIntFromInt(w.DealID))
 		if err != nil {
 			return fmt.Errorf("cannot get deal from market %v\r\n", w.DealID)
 		}
+
 		bidHashrate, err := p.ReturnBidHashrateForDeal(ctx, dealInfo)
 		if err != nil {
 			return err
@@ -111,34 +113,53 @@ func (p *PoolModule) DefaultPoolHashrateTracking(ctx context.Context, reportedPo
 				return err
 			}
 		} else {
-			p.UpdateAvgPoolData(ctx, avgPool, p.c.cfg.PoolAddress.EthPoolAddr+"/1")
+			err := p.UpdateAvgPoolData(ctx, avgPool, p.c.cfg.PoolAddress.EthPoolAddr+"/1");
+			if err != nil {
+				return err
+			}
 			p.c.logger.Info("getting avg pool data for worker", zap.Int64("deal", w.DealID))
 			changeAvgWorker := 100 - ((uint64(w.WorkerAvgHashrate*hashes) * 100) / bidHashrate)
 			if err = p.DetectingDeviation(ctx, changeAvgWorker, w, dealInfo); err != nil {
 				return err
 			}
 		}
-		p.c.db.UpdateIterationPoolDB(iteration, w.DealID)
+		err = p.c.db.UpdateIterationPoolDB(iteration, w.DealID);
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 //Detection of getting a lowered hashrate and sending to a blacklist (create deal finish request).
 func (p *PoolModule) DetectingDeviation(ctx context.Context, changePercentDeviationWorker uint64, worker *database.PoolDb, dealInfo *sonm.DealInfoReply) error {
+
 	if changePercentDeviationWorker >= uint64(p.c.cfg.Sensitivity.WorkerLimitChangePercent) {
 		if worker.BadGuy < numberOfLives {
 			newStatus := worker.BadGuy + 1
-			p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, newStatus, time.Now())
+			err := p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, newStatus, time.Now());
+			if err != nil {
+				return err
+			}
 		} else {
 			if err := p.DestroyDeal(ctx, dealInfo); err != nil {
 				return err
 			}
-			p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, int64(BanStatusWORKERINPOOL), time.Now())
+			err := p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, int64(BanStatusWORKERINPOOL), time.Now());
+			if err != nil {
+				return err
+			}
 			p.c.logger.Info("Destroy deal", zap.String("bad status in pool", dealInfo.Deal.Id.String()))
 		}
 	} else if changePercentDeviationWorker >= 20 {
-		p.DestroyDeal(ctx, dealInfo)
-		p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, int64(BanStatusWORKERINPOOL), time.Now())
+		err := p.DestroyDeal(ctx, dealInfo);
+		if err != nil {
+			return err
+		}
+		err = p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, int64(BanStatusWORKERINPOOL), time.Now());
+		if err != nil {
+			return err
+		}
 		p.c.logger.Info("Destroy deal", zap.String("bad status in pool", dealInfo.Deal.Id.String()))
 	}
 	return nil
@@ -146,7 +167,9 @@ func (p *PoolModule) DetectingDeviation(ctx context.Context, changePercentDeviat
 
 // Update pool data for first hour (use reported hashrate without shares)
 func (p *PoolModule) UpdateRHPoolData(ctx context.Context, poolRHData watchers.PoolWatcher, addr string) error {
-	poolRHData.Update(ctx)
+	if err := poolRHData.Update(ctx); err != nil {
+		return err
+	}
 	dataRH, err := poolRHData.GetData(addr)
 	if err != nil {
 		p.c.logger.Warn("cannot get reported hashrate data", zap.Error(err))
@@ -161,7 +184,10 @@ func (p *PoolModule) UpdateRHPoolData(ctx context.Context, poolRHData watchers.P
 
 // Update pool data for another time (use average hashrate with shares)
 func (p *PoolModule) UpdateAvgPoolData(ctx context.Context, poolAvgData watchers.PoolWatcher, addr string) error {
-	poolAvgData.Update(ctx)
+	if err := poolAvgData.Update(ctx); err != nil {
+		return err
+	}
+
 	dataRH, err := poolAvgData.GetData(addr)
 	if err != nil {
 		p.c.logger.Error("cannot get average pool data", zap.Error(err))
@@ -193,8 +219,15 @@ func (p *PoolModule) DestroyDeal(ctx context.Context, dealInfo *sonm.DealInfoRep
 		p.c.logger.Error("couldn't finish deal", zap.String("deal", dealInfo.Deal.Id.String()), zap.Error(err))
 		return err
 	}
-	p.c.db.SetDestroyDealPoolDB(int64(DeployStatusDESTROYED), dealInfo.Deal.Id.Unwrap().Int64())
-	p.c.db.UpdateBadGayStatusInPoolDB(dealInfo.Deal.Id.Unwrap().Int64(), int64(BanStatusWORKERINPOOL), time.Now())
+	err := p.c.db.SetDestroyDealPoolDB(int64(DeployStatusDESTROYED), dealInfo.Deal.Id.Unwrap().Int64())
+	if err != nil {
+		return err
+	}
+	err = p.c.db.UpdateBadGayStatusInPoolDB(dealInfo.Deal.Id.Unwrap().Int64(), int64(BanStatusWORKERINPOOL), time.Now())
+	if err != nil {
+		return err
+	}
+
 	p.c.logger.Info("destroyed deal", zap.String("deal", dealInfo.Deal.Id.Unwrap().String()))
 	return nil
 }

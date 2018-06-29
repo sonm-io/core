@@ -7,7 +7,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -75,9 +74,6 @@ func NewConnor(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Connor
 	}
 
 	connor.logger = ctxlog.GetLogger(ctx)
-	connor.logger.Info("config",
-		zap.String("eth node address", cfg.Market.Endpoint),
-		zap.String("key", crypto.PubkeyToAddress(key.PublicKey).String()))
 	connor.logger.Info("balance",
 		zap.String("live", balanceReply.GetLiveBalance().Unwrap().String()),
 		zap.String("Side", balanceReply.GetSideBalance().ToPriceString()))
@@ -90,6 +86,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 	defer c.logger.Info("Connor has been stopped")
 
 	c.ClearStart()
+
 	dataUpdate := time.NewTicker(time.Duration(c.cfg.Tickers.DataUpdate) * time.Second)
 	defer dataUpdate.Stop()
 	tradeUpdate := time.NewTicker(time.Duration(c.cfg.Tickers.TradeTicker) * time.Second)
@@ -102,6 +99,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 	reportedPool := watchers.NewPoolWatcher(poolReportedHashRate, []string{c.cfg.PoolAddress.EthPoolAddr})
 	avgPool := watchers.NewPoolWatcher(poolAverageHashRate, []string{c.cfg.PoolAddress.EthPoolAddr + "/1"})
 
+	// straight update of all watchers
 	if err := snm.Update(ctx); err != nil {
 		return fmt.Errorf("cannot update snm data: %v", err)
 	}
@@ -114,7 +112,6 @@ func (c *Connor) Serve(ctx context.Context) error {
 	if err := avgPool.Update(ctx); err != nil {
 		return fmt.Errorf("cannot update avgPool data: %v", err)
 	}
-
 	profitModule := NewProfitableModules(c)
 	poolModule := NewPoolModules(c)
 	traderModule := NewTraderModules(c, poolModule, profitModule)
@@ -123,6 +120,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
 	md := errgroup.Group{}
 	md.Go(func() error {
 		return traderModule.ChargeOrdersOnce(ctx, c.cfg.UsingToken.Token, token, snm, balanceReply)
@@ -133,47 +131,56 @@ func (c *Connor) Serve(ctx context.Context) error {
 		case <-ctx.Done():
 			return fmt.Errorf("context done %v", ctx.Err())
 		case <-dataUpdate.C:
-			if err := snm.Update(ctx); err != nil {
-				return fmt.Errorf(" cannot update SNM data: %v\n", err)
-			}
-			if err := token.Update(ctx); err != nil {
-				return fmt.Errorf("cannot update TOKEN data: %v\n", err)
-			}
-			if err := reportedPool.Update(ctx); err != nil {
-				return fmt.Errorf("cannot update reported pool data: %v\n", err)
-			}
-			if err := avgPool.Update(ctx); err != nil {
-				return fmt.Errorf("cannot update avg pool data: %v\n", err)
-			}
-			go profitModule.CollectTokensMiningProfit(token)
+			md.Go(func() error {
+				return snm.Update(ctx)
+			})
+			md.Go(func() error {
+				return token.Update(ctx)
+			})
+			md.Go(func() error {
+				return reportedPool.Update(ctx)
+			})
+			md.Go(func() error {
+				return avgPool.Update(ctx)
+			})
 		case <-tradeUpdate.C:
-			c.logger.Info("start trade module hashrate tracking!")
+			c.logger.Info("start trade module hashrate tracking")
+
 			err := traderModule.SaveNewActiveDealsIntoDB(ctx)
 			if err != nil {
-				return fmt.Errorf("cannot save active deals : %v\n", err)
+				return fmt.Errorf("cannot save active deals : %v", err)
 			}
+
 			if err := traderModule.UpdateDealsIntoDb(ctx); err != nil {
 				return err
 			}
+
 			_, pricePerSec, err := traderModule.GetPriceForTokenPerSec(token, c.cfg.UsingToken.Token)
 			if err != nil {
-				return fmt.Errorf("cannot get pricePerSec for token per sec %v\r\n", err)
+				return fmt.Errorf("cannot get pricePerSec for token per sec %v", err)
 			}
+
 			actualPrice := traderModule.FloatToBigInt(pricePerSec)
 			if actualPrice == big.NewInt(0) {
-				c.logger.Warn("actual price is 0")
-				return err
+				return fmt.Errorf("actual price is 0")
 			}
+
 			c.logger.Info("new actual price hashes per sec", zap.String("price", sonm.NewBigInt(actualPrice).ToPriceString()))
+
 			dealsDb, err := traderModule.c.db.GetDealsFromDB()
 			if err != nil {
 				return fmt.Errorf("cannot get deals from DB %v\r\n", err)
 			}
+
 			for _, dealDb := range dealsDb {
 				if dealDb.Status != int64(sonm.DealStatus_DEAL_CLOSED) {
 					if dealDb.DeployStatus == int64(DeployStatusNOTDEPLOYED) {
+
 						c.logger.Info("Response to active deals")
-						traderModule.ResponseToActiveDeals(ctx, dealDb, c.cfg.Images.Image)
+
+						if err := traderModule.ResponseToActiveDeals(ctx, dealDb, c.cfg.Images.Image); err != nil {
+							return err
+						}
 					} else if dealDb.DeployStatus == int64(DeployStatusDEPLOYED) && dealDb.ChangeRequestStatus != int64(sonm.ChangeRequestStatus_REQUEST_CREATED) {
 						if err := traderModule.DeployedDealsProfitTrack(ctx, actualPrice, dealDb, c.cfg.Images.Image); err != nil {
 							return err
@@ -195,17 +202,21 @@ func (c *Connor) Serve(ctx context.Context) error {
 				}
 			}
 		case <-poolInit.C:
-			c.logger.Info("start pool module hashrate tracking!")
+			c.logger.Info("start pool module hashrate tracking")
+
 			dealsDb, err := traderModule.c.db.GetDealsFromDB()
 			if err != nil {
 				return fmt.Errorf("cannot get deals from DB %v\r\n", err)
 			}
+
 			for _, dealDb := range dealsDb {
 				if dealDb.DeployStatus == int64(DeployStatusDEPLOYED) {
+
 					dealOnMarket, err := c.DealClient.Status(ctx, sonm.NewBigIntFromInt(dealDb.DealID))
 					if err != nil {
 						return fmt.Errorf("cannot get deal from market %v", dealDb.DealID)
 					}
+
 					if err := poolModule.AddWorkerToPoolDB(ctx, dealOnMarket, c.cfg.PoolAddress.EthPoolAddr); err != nil {
 						return fmt.Errorf("cannot add worker to Db : %v", err)
 					}

@@ -2,6 +2,7 @@ package connor
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"math/big"
 	"time"
@@ -24,25 +25,32 @@ func (p *PoolModule) AdvancedPoolHashrateTracking(ctx context.Context, reportedP
 		p.c.logger.Error("cannot get worker from pool DB", zap.Error(err))
 		return err
 	}
+
 	for _, w := range workers {
 
 		log.Printf("iteration %v", w.Iterations)
 		if w.Iterations == 0 {
 			newIteration := w.Iterations + 1
-			log.Printf("iteration %v", newIteration)
+
 			if err := p.c.db.UpdateIterationPoolDB(newIteration, w.DealID); err != nil {
 				return err
 			}
 			continue
 		}
+		newIteration := w.Iterations + 1
+		if err := p.c.db.UpdateIterationPoolDB(newIteration, w.DealID); err != nil {
+			return err
+		}
 		if w.BadGuy > 5 {
 			continue
 		}
+
 		dealInfo, err := p.c.DealClient.Status(ctx, sonm.NewBigInt(big.NewInt(0).SetInt64(w.DealID)))
 		if err != nil {
 			log.Printf("Cannot get deal from market %v\r\n", w.DealID)
 			return err
 		}
+
 		bidHashrate, err := p.ReturnBidHashrateForDeal(ctx, dealInfo)
 		if err != nil {
 			return err
@@ -50,9 +58,6 @@ func (p *PoolModule) AdvancedPoolHashrateTracking(ctx context.Context, reportedP
 
 		if w.Iterations < numberOfIterationsForH1 {
 			workerReportedHashrate := uint64(w.WorkerReportedHashrate * hashes)
-			if err = p.UpdateRHPoolData(ctx, reportedPool, p.c.cfg.PoolAddress.EthPoolAddr); err != nil {
-				return err
-			}
 			if workerReportedHashrate == 0 {
 				p.c.logger.Info("worker reported hashrate = 0 send to Connor's blacklist",
 					zap.Int64("worker id :", w.DealID),
@@ -64,23 +69,35 @@ func (p *PoolModule) AdvancedPoolHashrateTracking(ctx context.Context, reportedP
 				continue
 			}
 
-			changePercentRHWorker := float64(100 - (float64(workerReportedHashrate*100) / float64(bidHashrate)))
-			log.Printf("change: %v", changePercentRHWorker)
+			if err := p.UpdateRHPoolData(ctx, reportedPool, p.c.cfg.PoolAddress.EthPoolAddr); err != nil {
+				return err
+			}
+
+			//"change low percent": 6.87285223367698 - пример отклонения на пониженный хешрейт
+			changeResponseRHWorker := float64(100 - (float64(workerReportedHashrate*100) / float64(bidHashrate)))
+			if changeResponseRHWorker <= 0 {
+				p.c.logger.Info("change response reported hashrate worker < 0. It's ok.",
+					zap.Int64("worker", w.DealID))
+				continue
+			}
+
 			p.c.logger.Info("worker deviation (reported hashrate data)",
 				zap.Int64("iteration", w.Iterations),
-				zap.Float64("change percent", changePercentRHWorker),
+				zap.Float64("change low percent", changeResponseRHWorker),
 				zap.Uint64("reported worker hashrate", workerReportedHashrate),
 				zap.Uint64("deal hashrate", bidHashrate),
 			)
 
-			if err = p.AdvancedDetectingDeviation(ctx, changePercentRHWorker, w, dealInfo); err != nil {
+			if err := p.AdvancedDetectingDeviation(ctx, changeResponseRHWorker, w, dealInfo); err != nil {
 				return err
 			}
+
 		} else {
 			workerAvgHashrate := uint64(w.WorkerAvgHashrate * hashes)
 			if err = p.UpdateRHPoolData(ctx, reportedPool, p.c.cfg.PoolAddress.EthPoolAddr); err != nil {
 				return err
 			}
+
 			if workerAvgHashrate == 0 {
 				p.c.logger.Info("worker average hashrate = 0 send to Connor's blacklist",
 					zap.Int64("worker id :", w.DealID),
@@ -91,39 +108,52 @@ func (p *PoolModule) AdvancedPoolHashrateTracking(ctx context.Context, reportedP
 				continue
 			}
 
-			p.UpdateAvgPoolData(ctx, avgPool, p.c.cfg.PoolAddress.EthPoolAddr+"/1")
-			changeAvgWorker := float64(100 - (float64(workerAvgHashrate*100) / float64(bidHashrate)))
+			err := p.UpdateAvgPoolData(ctx, avgPool, p.c.cfg.PoolAddress.EthPoolAddr+"/1")
+			if err != nil {
+				return err
+			}
+
+			changeResponseAvgWorker := float64(100 - (float64(workerAvgHashrate*100) / float64(bidHashrate)))
+			if changeResponseAvgWorker <= 0 {
+				p.c.logger.Info("change response reported hashrate worker < 0. It's ok.",
+					zap.Int64("worker", w.DealID))
+				continue
+			}
+
 			p.c.logger.Info("Pool inf :: worker deviation (average data)",
 				zap.Int64("iteration", w.Iterations),
-				zap.Float64("change percent", changeAvgWorker),
+				zap.Float64("change percent", changeResponseAvgWorker),
 				zap.Uint64("reported worker hashrate", workerAvgHashrate),
 				zap.Uint64("deal hashrate", bidHashrate),
 			)
-			if err = p.AdvancedDetectingDeviation(ctx, changeAvgWorker, w, dealInfo); err != nil {
+
+			if err = p.AdvancedDetectingDeviation(ctx, changeResponseAvgWorker, w, dealInfo); err != nil {
 				return err
 			}
 		}
 
-		newIteration := w.Iterations + 1
-		if err := p.c.db.UpdateIterationPoolDB(newIteration, w.DealID); err != nil {
-			return err
-		}
 	}
 	return nil
 }
 
 //Detects the percentage of deviation of the hashrate and save SupplierID (by MasterID) to Connor's blacklist .
 func (p *PoolModule) AdvancedDetectingDeviation(ctx context.Context, changePercentDeviationWorker float64, worker *database.PoolDb, dealInfo *sonm.DealInfoReply) error {
-	if changePercentDeviationWorker <= 100-p.c.cfg.Sensitivity.WorkerLimitChangePercent {
-		p.c.logger.Info("Send to Connor's blacklist")
-		if err := p.SendToConnorBlackList(ctx, dealInfo); err != nil {
-			return err
-		}
-	} else if changePercentDeviationWorker <= 80 {
+
+	if changePercentDeviationWorker >= 20 {
+		p.c.logger.Info("send worker (supplier Id) to Connor's blacklist", zap.Int64("worker", worker.DealID))
 		if err := p.DestroyDeal(ctx, dealInfo); err != nil {
 			return err
 		}
-		p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, int64(BanStatusWORKERINPOOL), time.Now())
+		err := p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, int64(BanStatusWORKERINPOOL), time.Now())
+		if err != nil {
+			return err
+		}
+
+	} else if changePercentDeviationWorker >= p.c.cfg.Sensitivity.WorkerLimitChangePercent {
+		p.c.logger.Info("Send to Connor's blacklist", zap.Int64("worker", worker.DealID))
+		if err := p.SendToConnorBlackList(ctx, dealInfo); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -153,26 +183,41 @@ func (p *PoolModule) SendToConnorBlackList(ctx context.Context, failedDeal *sonm
 			}
 		}
 	}
+
 	amountFailWorkers, err := p.c.db.GetCountFailSupplierFromDb(failedDeal.Deal.MasterID.String())
 	if err != nil {
 		return err
 	}
+	if amountFailWorkers == 0{
+		p.c.logger.Info("amount failed workers is 0")
+		return fmt.Errorf("no failed workers in Blacklist")
+	}
 
 	amountWorkerInList := len(workerList.Workers)
-	clearWorkers := amountFailWorkers + (int64(amountWorkerInList) - amountFailWorkers)
-	log.Printf("clear workers %v", clearWorkers)
+	if amountFailWorkers == 0 {
+		p.c.logger.Info("amount worker in list = 0")
+		return fmt.Errorf("worker list is empty")
+	}
 
-	percentFailWorkers := float64(amountFailWorkers) / float64(clearWorkers)
+	clearWorkers := int64(amountWorkerInList) - amountFailWorkers
 
-	p.c.logger.Info("failed workers in master",
+	percentFailWorkers := float64(amountFailWorkers * 100) / float64(amountWorkerInList)
+
+
+	p.c.logger.Info("Check failed workers in master",
+		zap.String("worker id", failedDeal.Deal.MasterID.String()),
+		zap.String("deal", failedDeal.Deal.Id.String()),
 		zap.Float64("percent failed", percentFailWorkers),
 		zap.Int64("amount failed", amountFailWorkers),
 		zap.Int64("clear workers", clearWorkers),
-		zap.String("deal", failedDeal.Deal.Id.String()),
-		zap.String("worker id", failedDeal.Deal.MasterID.String()),
 	)
 
-	if percentFailWorkers > p.c.cfg.Sensitivity.BadWorkersPercent || percentFailWorkers == 1 {
+	if percentFailWorkers > p.c.cfg.Sensitivity.BadWorkersPercent {
+		p.c.logger.Info("The deal destroyed due to the excessive number of banned workers in master.",
+			zap.String("deal", failedDeal.Deal.Id.Unwrap().String()),
+			zap.Float64("percent failed workers", percentFailWorkers),
+			zap.String("MasterId", failedDeal.Deal.MasterID.String()),
+		)
 		if err := p.DestroyDeal(ctx, failedDeal); err != nil {
 			return err
 		}
