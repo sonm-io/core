@@ -1,0 +1,2 @@
+target/sonmoracle usr/bin
+etc/sonm/oracle-default.yaml
