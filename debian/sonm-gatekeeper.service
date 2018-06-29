@@ -1,0 +1,13 @@
+[Unit]
+Description=SONM Gatekeeper
+
+
+[Service]
+EnvironmentFile=/etc/default/sonm-gatekeeper
+Type=simple
+ExecStart=/usr/bin/sonmgatekeeper --config=${CONFIG_PATH}
+Restart=on-failure
+
+
+[Install]
+WantedBy=multi-user.target

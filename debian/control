@@ -65,3 +65,10 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Oracle change token price
  The Oracle is looking for actual price
  and propose changes to smart-contract at sidechain.
+
+Package: sonm-gatekeeper
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Gatekeeper transmitting tokens between chains
+ The Gatekeeper watch tokens transfer for two chains
+ and perform transactions into mirrored blockchain.
