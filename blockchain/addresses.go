@@ -12,5 +12,5 @@ const (
 	gatekeeperMasterchainAddressKey = "gatekeeperMasterchainAddress"
 	gatekeeperSidechainAddressKey   = "gatekeeperSidechainAddress"
 	testnetFaucetAddressKey         = "testnetFaucetAddress"
-	oracleUSDMultiSigKey            = "oracleUSDMultiSig"
+	oracleMultiSigAddressKey        = "oracleMultiSigAddress"
 )

@@ -50,7 +50,7 @@ type ContractRegistry interface {
 	GatekeeperMasterchainAddress() common.Address
 	GatekeeperSidechainAddress() common.Address
 	TestnetFaucetAddress() common.Address
-	OracleUSDMultisig() common.Address
+	OracleMultiSig() common.Address
 }
 
 type ProfileRegistryAPI interface {
@@ -224,7 +224,7 @@ func NewAPI(ctx context.Context, opts ...Option) (API, error) {
 		api.setupOracle,
 		api.setupMasterchainGate,
 		api.setupSidechainGate,
-		api.setupOracleMultisig,
+		api.setupOracleMultiSig,
 	}
 
 	for _, setupFunc := range setup {
@@ -325,8 +325,8 @@ func (api *BasicAPI) setupOracle(ctx context.Context) error {
 	return nil
 }
 
-func (api *BasicAPI) setupOracleMultisig(ctx context.Context) error {
-	multiSigAddr := api.contractRegistry.OracleUSDMultisig()
+func (api *BasicAPI) setupOracleMultiSig(ctx context.Context) error {
+	multiSigAddr := api.contractRegistry.OracleMultiSig()
 	oracleMultiSig, err := NewMultiSigAPI(multiSigAddr, api.options.sidechain)
 	if err != nil {
 		return fmt.Errorf("failed to setup oracle: %s", err)
@@ -433,6 +433,7 @@ type BasicContractRegistry struct {
 	gatekeeperMasterchainAddress common.Address
 	gatekeeperSidechainAddress   common.Address
 	testnetFaucetAddress         common.Address
+	oracleMultiSigAddress        common.Address
 
 	registryContract *marketAPI.AddressHashMap
 }
@@ -469,6 +470,7 @@ func (m *BasicContractRegistry) setup(ctx context.Context) error {
 		{gatekeeperMasterchainAddressKey, &m.gatekeeperMasterchainAddress},
 		{gatekeeperSidechainAddressKey, &m.gatekeeperSidechainAddress},
 		{testnetFaucetAddressKey, &m.testnetFaucetAddress},
+		{oracleMultiSigAddressKey, &m.oracleMultiSigAddress},
 	}
 
 	for _, param := range addresses {
@@ -516,9 +518,8 @@ func (m *BasicContractRegistry) TestnetFaucetAddress() common.Address {
 	return m.testnetFaucetAddress
 }
 
-func (m *BasicContractRegistry) OracleUSDMultisig() common.Address {
-	// TODO: change this after write to address hash map
-	return common.HexToAddress("0x2c32b25bfebf37397eaf54aafae63898df134e02")
+func (m *BasicContractRegistry) OracleMultiSig() common.Address {
+	return m.oracleMultiSigAddress
 }
 
 type BasicMarketAPI struct {
