@@ -376,7 +376,7 @@ func TestDWH_GetProfiles(t *testing.T) {
 	defer globalDWH.mu.Unlock()
 
 	profiles, _, err := globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), &pb.ProfilesRequest{
-		Name: "sortedProfile",
+		Identifier: "sortedProfile",
 		Sortings: []*pb.SortingOption{
 			{
 				Field: "UserID",
@@ -400,7 +400,7 @@ func TestDWH_GetProfiles(t *testing.T) {
 	}
 
 	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), &pb.ProfilesRequest{
-		Name: "sortedProfile",
+		Identifier: "sortedProfile",
 		Sortings: []*pb.SortingOption{
 			{
 				Field: "UserID",
@@ -424,7 +424,7 @@ func TestDWH_GetProfiles(t *testing.T) {
 	}
 
 	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), &pb.ProfilesRequest{
-		Name: "sortedProfile",
+		Identifier: "sortedProfile",
 		Sortings: []*pb.SortingOption{
 			{
 				Field: "IdentityLevel",
