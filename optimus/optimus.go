@@ -270,11 +270,21 @@ func (m *workerControl) execute(ctx context.Context) error {
 	m.log.Debugw("successfully virtualized worker free devices", zap.Any("devices", *freeDevices))
 
 	// Convert worker free devices into benchmarks set.
-	bm := newBenchmarksFromDevices(freeDevices)
-	freeWorkerBenchmarks, err := sonm.NewBenchmarks(bm[:])
+	freeWorkerBenchmarks, err := freeWorkerHardware.FullBenchmarks()
 	if err != nil {
 		return fmt.Errorf("failed to collect worker benchmarks: %v", err)
 	}
+
+	// TODO: Jesus, what the fuck are we doing?
+	maxGPUMemory := uint64(0)
+	for _, gpu := range freeWorkerHardware.GPU {
+		if v, ok := gpu.GetBenchmarks()[8]; ok {
+			if v.Result > maxGPUMemory {
+				maxGPUMemory = v.Result
+			}
+		}
+	}
+	freeWorkerBenchmarks.Values[8] = maxGPUMemory
 
 	m.log.Infof("worker benchmarks: %v", strings.Join(strings.Fields(fmt.Sprintf("%v", freeWorkerBenchmarks.ToArray())), ", "))
 
@@ -337,7 +347,7 @@ func (m *workerControl) execute(ctx context.Context) error {
 			continue
 		}
 
-		if !freeWorkerBenchmarks.Contains(order.Order.Order.Benchmarks) {
+		if !freeWorkerBenchmarks.Contains(order.Order.Order.Benchmarks) { // TODO: <
 			continue
 		}
 
@@ -424,12 +434,19 @@ func (m *workerControl) execute(ctx context.Context) error {
 	priceDiff := new(big.Int).Sub(pendingTotalPrice.Unwrap(), currentTotalPrice.Unwrap())
 
 	m.log.Debugf("checking whether current worker's price %s exceeds the pending %s by %s", currentTotalPrice.ToPriceString(), pendingTotalPrice.ToPriceString(), priceThreshold.ToPriceString())
-	if new(big.Int).Sub(priceDiff, priceThreshold.Unwrap()).Sign() >= 0 {
+	needCancellation := new(big.Int).Sub(priceDiff, priceThreshold.Unwrap()).Sign() >= 0
+	if needCancellation {
 		m.log.Infow("cancelling plans", zap.Any("candidates", cancellationCandidates))
 
-		if err := m.cancelPlans(ctx, cancellationCandidates); err != nil {
-			m.log.Infow("cancellation result", zap.Any("err", err))
+		if m.cfg.DryRun {
+			m.log.Debug("skipping cancelling ask-plans, because dry-run mode is active")
+		} else {
+			if err := m.cancelPlans(ctx, cancellationCandidates); err != nil {
+				m.log.Infow("cancellation result", zap.Any("err", err))
+			}
 		}
+	} else {
+		// TODO: Get REAL free devices and try to pack orders here (old way).
 	}
 
 	if m.cfg.DryRun {
