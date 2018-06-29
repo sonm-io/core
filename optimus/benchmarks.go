@@ -17,10 +17,6 @@ func newBenchmarksFromDevices(devices *sonm.DevicesReply) [sonm.MinNumBenchmarks
 				switch v.SplittingAlgorithm {
 				case sonm.SplittingAlgorithm_PROPORTIONAL:
 					benchmarks[id] += v.Result
-				case sonm.SplittingAlgorithm_MIN:
-					if benchmarks[id] < v.Result {
-						benchmarks[id] = v.Result
-					}
 				}
 			}
 		}
