@@ -1747,7 +1747,7 @@ func (api *BasicSimpleGatekeeper) GetFreezingTime(ctx context.Context) (time.Dur
 		return time.Duration(0), err
 	}
 
-	if t.IsInt64() {
+	if !t.IsInt64() {
 		return time.Duration(0), fmt.Errorf("freezing time is overflowed int64")
 	}
 	freezingTime := time.Duration(t.Int64()) * time.Second
