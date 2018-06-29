@@ -9,6 +9,7 @@ import (
 
 	"github.com/montanaflynn/stats"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
+	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/proto"
 )
 
@@ -155,15 +156,28 @@ type DeviceManager struct {
 	devices        *sonm.DevicesReply
 	mapping        benchmarks.Mapping
 	freeGPUs       []*sonm.GPU
-	freeBenchmarks [sonm.MinNumBenchmarks]uint64
+	freeBenchmarks []uint64
 }
 
 func newDeviceManager(devices *sonm.DevicesReply, freeDevices *sonm.DevicesReply, mapping benchmarks.Mapping) (*DeviceManager, error) {
+	freeHardware := hardware.Hardware{
+		CPU:     freeDevices.CPU,
+		GPU:     freeDevices.GPUs,
+		RAM:     freeDevices.RAM,
+		Network: freeDevices.Network,
+		Storage: freeDevices.Storage,
+	}
+
+	freeBenchmarks, err := freeHardware.FullBenchmarks()
+	if err != nil {
+		return nil, err
+	}
+
 	m := &DeviceManager{
 		devices:        devices,
 		mapping:        mapping,
 		freeGPUs:       append([]*sonm.GPU{}, freeDevices.GPUs...),
-		freeBenchmarks: newBenchmarksFromDevices(freeDevices),
+		freeBenchmarks: freeBenchmarks.ToArray(), // TODO: <
 	}
 
 	return m, nil

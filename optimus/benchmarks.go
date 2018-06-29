@@ -14,10 +14,7 @@ func newBenchmarksFromDevices(devices *sonm.DevicesReply) [sonm.MinNumBenchmarks
 
 		for _, gpu := range devices.GPUs {
 			if v, ok := gpu.Benchmarks[id]; ok {
-				switch v.SplittingAlgorithm {
-				case sonm.SplittingAlgorithm_PROPORTIONAL:
-					benchmarks[id] += v.Result
-				}
+				benchmarks[id] += v.Result // TODO: HACK! REMOVE! REPLACE WITH WORKER'S STUFF!
 			}
 		}
 
