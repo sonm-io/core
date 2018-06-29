@@ -1735,7 +1735,7 @@ func (api *OracleUSDAPI) GetCurrentPrice(ctx context.Context) (*big.Int, error) 
 
 type BasicSimpleGatekeeper struct {
 	client   CustomEthereumClient
-	contract *marketAPI.SimpleGatekeeper
+	contract *marketAPI.SimpleGatekeeperWithLimit
 	opts     *chainOpts
 }
 
@@ -1745,7 +1745,7 @@ func NewSimpleGatekeeper(address common.Address, opts *chainOpts) (SimpleGatekee
 		return nil, err
 	}
 
-	contract, err := marketAPI.NewSimpleGatekeeper(address, client)
+	contract, err := marketAPI.NewSimpleGatekeeperWithLimit(address, client)
 	if err != nil {
 		return nil, err
 	}
@@ -1759,7 +1759,7 @@ func NewSimpleGatekeeper(address common.Address, opts *chainOpts) (SimpleGatekee
 
 func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) error {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.contract.PayIn(opts, value)
+	tx, err := api.contract.Payin(opts, value)
 	if err != nil {
 		return err
 	}
