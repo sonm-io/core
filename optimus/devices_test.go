@@ -199,6 +199,35 @@ func TestConsumeRAM(t *testing.T) {
 	assert.Equal(t, uint64(1000e6), devices.RAM.Benchmarks[3].Result)
 }
 
+func TestConsumeCPUAndRAMDoNotStealResourcesWhenRAMFailed(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
+		0: {ID: 0, Result: 10000},
+	}
+	devices.RAM.Device.Total = 1e9
+	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
+		3: {ID: 3, Result: 1e9},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := sonm.Benchmarks{
+		Values: []uint64{5000, 0, 0, 1e10},
+	}
+	cpuPlan, err := manager.Consume(benchmark)
+	require.Error(t, err)
+	require.Nil(t, cpuPlan)
+
+	// Note that free benchmarks still have to be full, in case of RAM did not fit.
+	assert.Equal(t, uint64(10000), manager.freeBenchmarks[0])
+	assert.Equal(t, uint64(10000), devices.CPU.Benchmarks[0].Result)
+}
+
 func TestConsumeGPU(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.GPUs = []*sonm.GPU{
