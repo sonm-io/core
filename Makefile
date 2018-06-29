@@ -46,7 +46,7 @@ RELAY      := ${TARGETDIR}/sonmrelay_$(OS_ARCH)
 OPTIMUS    := ${TARGETDIR}/sonmoptimus_$(OS_ARCH)
 LSGPU      := ${TARGETDIR}/lsgpu_$(OS_ARCH)
 PANDORA    := ${TARGETDIR}/pandora_$(OS_ARCH)
-ORACLE     := ${TARGETDIR}/oracle_$(OS_ARCH)
+ORACLE     := ${TARGETDIR}/sonmoracle_$(OS_ARCH)
 
 TAGS = nocgo
 
