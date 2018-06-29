@@ -845,9 +845,10 @@ func (m *DWHWorker) GetConfirmed() bool {
 }
 
 type ProfilesRequest struct {
-	Role           ProfileRole      `protobuf:"varint,1,opt,name=role,enum=sonm.ProfileRole" json:"role,omitempty"`
-	IdentityLevel  IdentityLevel    `protobuf:"varint,2,opt,name=identityLevel,enum=sonm.IdentityLevel" json:"identityLevel,omitempty"`
-	Country        []string         `protobuf:"bytes,3,rep,name=country" json:"country,omitempty"`
+	Role          ProfileRole   `protobuf:"varint,1,opt,name=role,enum=sonm.ProfileRole" json:"role,omitempty"`
+	IdentityLevel IdentityLevel `protobuf:"varint,2,opt,name=identityLevel,enum=sonm.IdentityLevel" json:"identityLevel,omitempty"`
+	Country       []string      `protobuf:"bytes,3,rep,name=country" json:"country,omitempty"`
+	// This value is LIKE-matched against both profile Name and UserID (case insensitive).
 	Name           string           `protobuf:"bytes,4,opt,name=name" json:"name,omitempty"`
 	BlacklistQuery *BlacklistQuery  `protobuf:"bytes,5,opt,name=blacklistQuery" json:"blacklistQuery,omitempty"`
 	Limit          uint64           `protobuf:"varint,6,opt,name=limit" json:"limit,omitempty"`
