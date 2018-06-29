@@ -132,7 +132,6 @@ func (g *Gatekeeper) scummyFinderRoutine(ctx context.Context) error {
 			if err != nil {
 				g.logger.Warn("failed to load transactions", zap.Error(err))
 			}
-
 			g.findScummyTransactions(ctx, inTxs, outTxs)
 		}
 	}
@@ -178,6 +177,8 @@ func (g *Gatekeeper) processTransaction(ctx context.Context) error {
 		return err
 	}
 
+	errG := errgroup.Group{}
+
 	// find payin transactions doesn't exists in payout
 	for k, inTx := range inTxs {
 		_, ok := outTxs[k]
@@ -188,10 +189,13 @@ func (g *Gatekeeper) processTransaction(ctx context.Context) error {
 				zap.String("tx number", inTx.Number.String()),
 				zap.Uint64("block number", inTx.BlockNumber))
 
-			go g.processUnpaidTransaction(ctx, inTx)
+			if err := g.processUnpaidTransaction(ctx, inTx); err != nil {
+				g.logger.Warn("failed to process unpaid transaction", zap.Error(err))
+			}
+			return nil
 		}
 	}
-
+	errG.Wait()
 	g.logger.Debug("finish transaction processing")
 	return nil
 }
@@ -220,9 +224,9 @@ func (g *Gatekeeper) checkDelay(ctx context.Context, tx *blockchain.GateTx) bool
 		return false
 	}
 
-	g.logger.Debug("delay check",
-		zap.Time("time with delay", payinTime.Add(g.cfg.Gatekeeper.Delay)),
-		zap.Time("nowTime", time.Now().UTC()))
+	// g.logger.Debug("delay check",
+	// 	zap.Time("time with delay", payinTime.Add(g.cfg.Gatekeeper.Delay)),
+	// 	zap.Time("nowTime", time.Now().UTC()))
 
 	return payinTime.Add(g.cfg.Gatekeeper.Delay).Before(time.Now().UTC())
 }
@@ -234,6 +238,8 @@ func (g *Gatekeeper) isNotPaid(ctx context.Context, tx *blockchain.GateTx) bool 
 		g.logger.Debug("err while getting tx data", zap.Error(err))
 		return false
 	}
+	g.logger.Debug("tx state in isNotPaid",
+		zap.Bool("paid", txState.Paid))
 	return !txState.Paid
 }
 
@@ -314,8 +320,7 @@ func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
 			zap.String("tx number", tx.Number.String()))
 
 		g.logger.Debug("transaction going to quarantine")
-		// sleeping for freezing time after committing
-		time.Sleep(g.freezingTime)
+		return nil
 	}
 
 	if !g.transactionCommittedByMe(ctx, txState) {
@@ -324,7 +329,8 @@ func (g *Gatekeeper) Payout(ctx context.Context, tx *blockchain.GateTx) error {
 	}
 
 	if !g.transactionOnQuarantine(ctx, txState) {
-		g.logger.Debug("transaction on quarantine now")
+		g.logger.Debug("transaction on quarantine now",
+			zap.Time("commitTS", txState.CommitTS))
 		return fmt.Errorf("transaction on quarantine now")
 	}
 
