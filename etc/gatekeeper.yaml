@@ -1,0 +1,28 @@
+# Logging settings.
+log:
+  # The desired logging level.
+  # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
+  level: debug
+
+# Settings for Ethereum keys
+ethereum:
+  # path to keystore
+  key_store: "./keys/state/gate/k2/"
+  # passphrase for keystore
+  pass_phrase: "111111111"
+
+blockchain:
+  #endpoint: https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb
+  #sidechain_endpoint: https://sidechain-dev.sonm.com
+  #contract_registry: 0xaf1ffd7f652be7e9a0854a42b2d3046f853f80f1
+
+gatekeeper:
+  # Define direction that gatekeeper works
+  # Allowed values are "sidechain", "masterchain"
+  direction: sidechain
+  # Delay used for prevent racing between other gates instances
+  delay: "1s"
+  # Period for checking transaction
+  period: "1m"
+  # Period for checking freezing time changing
+  # reload_freezing_period: "60m"

@@ -1,0 +1,2 @@
+target/sonmgatekeeper usr/bin
+etc/sonm/gatekeeper-default.yaml
