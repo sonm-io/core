@@ -64,7 +64,7 @@ func newMappingMock(controller *gomock.Controller) *benchmarks.MockMapping {
 	m.EXPECT().SplittingAlgorithm(5).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(6).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(7).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
-	m.EXPECT().SplittingAlgorithm(8).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
+	m.EXPECT().SplittingAlgorithm(8).AnyTimes().Return(sonm.SplittingAlgorithm_MIN)
 	m.EXPECT().SplittingAlgorithm(9).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(10).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(11).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
@@ -593,7 +593,7 @@ func TestGPUStrange(t *testing.T) {
 		require.NotNil(t, manager)
 
 		benchmark := sonm.Benchmarks{
-			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 4096000000, 84936696, 0, 0},
+			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 409600000, 84936696, 0, 0},
 		}
 
 		plans, err := manager.Consume(benchmark)
@@ -610,7 +610,7 @@ func TestGPUStrange(t *testing.T) {
 		require.NotNil(t, manager)
 
 		benchmark := sonm.Benchmarks{
-			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 4096000000, 218587776, 0, 0},
+			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 409600000, 218587776, 0, 0},
 		}
 
 		plans, err := manager.Consume(benchmark)
@@ -620,4 +620,44 @@ func TestGPUStrange(t *testing.T) {
 		assert.True(t, len(plans.GPU.Hashes) > 0)
 		assert.Equal(t, 10, len(plans.GPU.Hashes))
 	}
+}
+
+func TestConsumeGPUWithMoreMemoryFails(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.GPUs = []*sonm.GPU{
+		{
+			&sonm.GPUDevice{
+				Hash: "0",
+			},
+			map[uint64]*sonm.Benchmark{
+				8:  {Result: 2.5e9},
+				9:  {Result: 1000},
+				10: {Result: 0},
+				11: {Result: 0},
+			},
+		},
+		{
+			&sonm.GPUDevice{
+				Hash: "1",
+			},
+			map[uint64]*sonm.Benchmark{
+				8:  {Result: 3e9},
+				9:  {Result: 1200},
+				10: {Result: 0},
+				11: {Result: 0},
+			},
+		},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := [12]uint64{0, 0, 0, 0, 0, 0, 0, 0, 3.1e9, 2000, 0, 0}
+	plan, err := manager.consumeGPU(2, benchmark[:])
+	require.Error(t, err)
+	require.Nil(t, plan)
 }
