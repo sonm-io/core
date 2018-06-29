@@ -18,6 +18,10 @@ sonm-core (0.4.0-rc2) unstable; urgency=low
     This PR adds handle to worker to retrieve useful debugging info, e.g.
     current resource scheduler state and salesman state.
   * Added: gate commission (#1097).
+  * Added: feat: contract registry (#1110).
+    This PR replaces static smart contract addresses with contract registry
+    smart contract, which is loaded on start and caches all dependant addresses.
+  * Added: ability to drop benchmark cache (#1115).
   * Changed: flexible benchmarks (#1066).
     This PR allows worker to perform and cache benchmarks separately for each device
     and enables parallel benchmarking for GPU.
@@ -71,6 +75,25 @@ sonm-core (0.4.0-rc2) unstable; urgency=low
     Accidentally we used gRPC API to the DWH instead of blockchain API.
   * Fixed: benchmark casting precision issue (#1101).
   * Fixed: skip non-dir files when observing /sys/class/drm (#1106).
+  * Fixed: proper check for worker availability for the deal (#1102).
+    This commit adds a check that worker is available when the user making
+    deal with `quick-buy` handle.
+    Also, this commit remove a message that warns the user about the worker
+    inaccessibility when showing deal list.
+  * Fixed: case insensitive name search for profiles (DWH) (#1108).
+  * Fixed: cli login must ask for default key's pass (#1100).
+    This commit fixes a bug which can happen in such case:
+    key storage by given path already have a key but the config is empty.
+    Previously, cli marked the first available key as default one without checking a password
+    (user is able to decrypt their key), and also **does not** writes the state into the `cli.yaml`.
+    Now `cli login` asks for a password for the first key (if not provided),
+    and then update `cli.yaml` if decryption is successful.
+  * Fixed: increase timeout for deposits command (#1113).
+    This commit increases timeout for `sonmcli token deposit`
+    method. The average time of command execution is about 100s with
+    a default timeout of 60s. So for a user it looks like that command
+    is always failing.
+  * Fixed: limit min number of orders for optimization in Optimus (#1118).
 
  -- Evgeny Safronov <division494@gmail.com>  Thu, 28 Jun 2018 15:14:41 +0300
 
