@@ -1598,7 +1598,7 @@ func (api *BasicSimpleGatekeeper) GetKeeper(ctx context.Context, keeper common.A
 		return nil, err
 	}
 	if !k.LastDay.IsInt64() {
-		fmt.Errorf("last day overflows int64")
+		return nil, fmt.Errorf("last day overflows int64")
 	}
 	lastDay := time.Unix(k.LastDay.Int64(), 0).UTC()
 	return &Keeper{
