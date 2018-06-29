@@ -3,6 +3,7 @@ package sonm
 import (
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -58,6 +59,16 @@ func (m *AskPlan) Validate() error {
 	}
 
 	return m.GetResources().GetGPU().Validate()
+}
+
+func (m *AskPlan) SaleTime() time.Duration {
+	if !m.GetDealID().IsZero() {
+		return time.Duration(0)
+	}
+	if m.GetOrderID().IsZero() {
+		return time.Duration(0)
+	}
+	return time.Now().Sub(m.GetLastOrderPlacedTime().Unix())
 }
 
 func NewEmptyAskPlanResources() *AskPlanResources {
