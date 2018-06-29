@@ -420,7 +420,7 @@ func (m *DWH) watchMarketEvents() error {
 	}
 
 	m.logger.Info("starting from block", zap.Uint64("block_number", m.lastKnownBlock))
-	events, err := m.blockchain.Events().GetEvents(m.ctx, big.NewInt(0).SetUint64(m.lastKnownBlock))
+	events, err := m.blockchain.Events().GetEvents(m.ctx, m.blockchain.Events().GetMarketFilter(big.NewInt(0).SetUint64(m.lastKnownBlock)))
 	if err != nil {
 		return err
 	}
