@@ -22,7 +22,7 @@ type Hardware struct {
 	CPU     *sonm.CPU     `json:"cpu"`
 	GPU     []*sonm.GPU   `json:"gpu"`
 	RAM     *sonm.RAM     `json:"ram"`
-	Network *sonm.Network `json:"network_in"`
+	Network *sonm.Network `json:"network"`
 	Storage *sonm.Storage `json:"storage"`
 }
 
