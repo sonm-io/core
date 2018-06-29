@@ -184,6 +184,21 @@ func newDeviceManager(devices *sonm.DevicesReply, freeDevices *sonm.DevicesReply
 }
 
 func (m *DeviceManager) Consume(benchmarks sonm.Benchmarks) (*sonm.AskPlanResources, error) {
+	// Transaction-like resource restoring while consuming in case of errors.
+	copyFreeBenchmarks := append([]uint64{}, m.freeBenchmarks...)
+	copyFreeGPUs := append([]*sonm.GPU{}, m.freeGPUs...)
+
+	plan, err := m.consumeBenchmarks(benchmarks)
+	if err != nil {
+		m.freeBenchmarks = append([]uint64{}, copyFreeBenchmarks...)
+		m.freeGPUs = append([]*sonm.GPU{}, copyFreeGPUs...)
+		return nil, err
+	}
+
+	return plan, nil
+}
+
+func (m *DeviceManager) consumeBenchmarks(benchmarks sonm.Benchmarks) (*sonm.AskPlanResources, error) {
 	cpu, err := m.consumeCPU(benchmarks.ToArray())
 	if err != nil {
 		return nil, err
@@ -337,10 +352,27 @@ func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.
 
 	score := float64(math.MaxFloat64)
 	var candidates []*sonm.GPU
+
 	for k := int(minCount); k <= len(m.devices.GPUs); k++ {
+	subsetLoop:
 		for _, subset := range m.combinationsGPU(k) {
 			currentScore := 0.0
 			currentBenchmarks := append([]uint64{}, benchmarks...)
+
+			// Fast filter by GPU memory benchmark.
+			// All GPUs in the subset must have at least(!) the required memory
+			// number.
+			for _, gpu := range subset {
+				for id := range currentBenchmarks {
+					if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_MIN {
+						if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
+							if currentBenchmarks[id] > benchmark.Result {
+								continue subsetLoop
+							}
+						}
+					}
+				}
+			}
 
 			for _, gpu := range subset {
 				for id := range currentBenchmarks {
@@ -367,14 +399,6 @@ func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.
 								}
 
 								currentScore += math.Pow(math.Max(0, float64(benchmark.Result)-float64(benchmarks[id]))/float64(benchmark.Result), 2)
-							}
-						}
-
-						if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_MIN {
-							if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
-								if currentBenchmarks[id] > benchmark.Result {
-									break
-								}
 							}
 						}
 					}
