@@ -209,6 +209,10 @@ func insertBench(to map[uint64]*sonm.Benchmark, bench *sonm.Benchmark, proportio
 	return nil
 }
 
+func (h *Hardware) FullBenchmarks() (*sonm.Benchmarks, error) {
+	return h.ResourcesToBenchmarks(h.AskPlanResources())
+}
+
 func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*sonm.Benchmarks, error) {
 	benchMap, err := h.ResourcesToBenchmarkMap(resources)
 	if err != nil {
