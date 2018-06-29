@@ -1625,6 +1625,10 @@ func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.Private
 		return 0, err
 	}
 
+	if rec.Status != types.ReceiptStatusSuccessful {
+		return 0, fmt.Errorf("transaction failed, txHash: %s", rec.TxHash.String())
+	}
+
 	for _, l := range rec.Logs {
 		switch l.Topics[0] {
 		case CommitTopic:
