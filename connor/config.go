@@ -71,6 +71,7 @@ type typicalBenchmark struct {
 	GpuMem            uint64 `yaml:"gpu_mem"`
 }
 type tickerConfig struct {
+	// TODO: лучше сделать время
 	TradeTicker int64 `yaml:"trade_tickers"`
 	DataUpdate  int64 `yaml:"data_update"`
 	PoolInit    int64 `yaml:"pool_init"`

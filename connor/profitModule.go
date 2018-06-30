@@ -58,17 +58,21 @@ func (p *ProfitableModule) getTokensForProfitCalculation() []*TokenMainData {
 func (p *ProfitableModule) CollectTokensMiningProfit(t watchers.TokenWatcher) ([]*TokenMainData, error) {
 	var tokensForCalc = p.getTokensForProfitCalculation()
 	for _, token := range tokensForCalc {
+
 		tokenData, err := t.GetTokenData(token.Symbol)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get token data %v\r\n", err)
 		}
+
 		hashesPerSecond, divider, ok := p.getHashPowerAndDividerForToken(tokenData.Symbol, tokenData.NetHashPerSec)
 		if !ok {
 			p.c.logger.Info("cannot process tokenData", zap.String("token", tokenData.Symbol))
 			continue
 		}
+
 		netHashesPerSec := int64(tokenData.NetHashPerSec)
-		token.ProfitPerMonthUsd = p.CalculateMiningProfit(tokenData.PriceUSD, hashesPerSecond, float64(netHashesPerSec), tokenData.BlockReward, divider, tokenData.BlockTime)
+
+		token.ProfitPerMonthUsd, err = p.CalculateMiningProfit(tokenData.PriceUSD, hashesPerSecond, float64(netHashesPerSec), tokenData.BlockReward, divider, tokenData.BlockTime)
 		id, err := strconv.Atoi(tokenData.CmcID)
 		if err != nil {
 			return nil, err
@@ -88,14 +92,17 @@ func (p *ProfitableModule) CollectTokensMiningProfit(t watchers.TokenWatcher) ([
 	}
 	return tokensForCalc, nil
 }
-func (p *ProfitableModule) CalculateMiningProfit(usd, hashesPerSecond, netHashesPerSecond, blockReward, div float64, blockTime int64) float64 {
+func (p *ProfitableModule) CalculateMiningProfit(usd, hashesPerSecond, netHashesPerSecond, blockReward, div float64, blockTime int64) (float64, error) {
 	currentHashingPower := hashesPerSecond / div
+	if div == 0 {
+		return 0, fmt.Errorf("the current div is 0")
+	}
 	miningShare := currentHashingPower / (netHashesPerSecond + currentHashingPower)
 	minedPerDay := miningShare * 86400 / float64(blockTime) * blockReward / div
 	powerCostPerDayUSD := (powerConsumption * 24) / 1000 * costPerkWh
 	returnPerDayUSD := (usd*minedPerDay - (usd * minedPerDay * 0.01)) - powerCostPerDayUSD
 	perMonthUSD := float64(returnPerDayUSD * 30)
-	return perMonthUSD
+	return perMonthUSD, nil
 }
 
 //Limit balance for Charge orders. Default value = 0.5

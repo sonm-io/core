@@ -3,6 +3,7 @@ package connor
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
 	"strconv"
 	"time"
@@ -70,10 +71,12 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, symbol string, toke
 		return err
 	}
 	start, destination, step := t.getTokenConfiguration(symbol, t.c.cfg)
+
 	count, err := t.c.db.GetCountFromDB()
 	if err != nil {
 		return fmt.Errorf("cannot get count from database %v", err)
 	}
+
 	if count == 0 {
 		t.c.logger.Info("Save TEST order cause DB is empty!")
 		if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
@@ -81,7 +84,7 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, symbol string, toke
 			Price:           0,
 			Hashrate:        0,
 			StartTime:       time.Time{},
-			ButterflyEffect: 2,
+			ButterflyEffect: 4,
 			ActualStep:      start,
 		}); err != nil {
 			return fmt.Errorf("Cannot save order into DB %v\r\n", err)
@@ -93,9 +96,12 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, symbol string, toke
 		t.c.logger.Error("cannot get profit for tokens", zap.Error(err))
 		return err
 	}
+
 	limitChargeInSNM := t.profit.LimitChargeSNM(balanceReply.GetSideBalance().Unwrap(), t.c.cfg.Sensitivity.PartCharge)
 	limitChargeInSNMClone := big.NewInt(0).Set(limitChargeInSNM)
 	limitChargeInUSD := t.profit.ConvertingToUSDBalance(limitChargeInSNMClone, snm.GetPrice())
+
+	//limiter := 100.0 //сумма цен всех выставленных ордеров
 
 	mhashForToken, err := t.c.db.GetLastActualStepFromDb()
 	if err != nil {
@@ -105,6 +111,9 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, symbol string, toke
 
 	pricePackMhInUSDPerMonth := mhashForToken * (pricePerMonthUSD * t.c.cfg.Sensitivity.MarginAccounting)
 	sumOrdersPerMonth := limitChargeInUSD / pricePackMhInUSDPerMonth
+	if sumOrdersPerMonth == 0 {
+		return err
+	}
 
 	if limitChargeInSNM.Cmp(big.NewInt(0)) <= -1 {
 		t.c.logger.Error("balance SNM is not enough for create orders!", zap.Error(err))
@@ -252,7 +261,7 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, cfg *Config, price *s
 	return nil
 }
 
-func (t *TraderModule) CmpChangeOfPrice(change float64, def float64) (int32, error) {
+func (t *TraderModule) cmpChangeOfPrice(change float64, def float64) (int32, error) {
 	if change >= 100+def {
 		return 1, nil
 	} else if change < 100-def {
@@ -288,7 +297,7 @@ func (t *TraderModule) OrdersProfitTracking(ctx context.Context, cfg *Config, ac
 		sensitivity := t.c.cfg.Sensitivity.OrdersChangePercent
 
 		if changePricePercent > 100+sensitivity {
-			t.c.logger.Info("ORDER HIGH PRICE",
+			t.c.logger.Info("High price ==>  create reinvoice order",
 				zap.String("active orderID", order.Id.Unwrap().String()),
 				zap.String("order price", sonm.NewBigInt(order.Price.Unwrap()).ToPriceString()),
 				zap.String("actual price for pack", sonm.NewBigInt(pricePerSecForPack).ToPriceString()),
@@ -308,7 +317,7 @@ func (t *TraderModule) OrdersProfitTracking(ctx context.Context, cfg *Config, ac
 				return err
 			}
 		} else if changePricePercent < 100-sensitivity {
-			t.c.logger.Info("ORDER LOW PRICE",
+			t.c.logger.Info("Low price ==> create reinvoice order",
 				zap.String("active order id", order.Id.Unwrap().String()),
 				zap.String("order price", sonm.NewBigInt(order.Price.Unwrap()).ToPriceString()),
 				zap.String("actual price for pack", sonm.NewBigInt(pricePerSecForPack).ToPriceString()),
@@ -398,20 +407,32 @@ func (t *TraderModule) DeployedDealsProfitTrack(ctx context.Context, actualPrice
 	changePricePercent, _ := big.NewFloat(0).SetInt64(div.Int64()).Float64()
 	sensitivity := t.c.cfg.Sensitivity.DealsChangePercent
 
+	if actualPriceForPack.IsInt64() == false {
+		return fmt.Errorf("actual price overflows int64")
+	}
+	changeRequestStatus, err := t.c.db.GetChangeRequestStatus(108);
+	if err != nil {
+		return err
+	}
+	if changeRequestStatus == 1 {
+		return nil
+	}
+
 	if changePricePercent > 100+sensitivity {
 		dealChangeRequest, err := t.CreateChangeRequest(ctx, dealOnMarket, actualPriceForPack)
 		if err != nil {
 			return fmt.Errorf("cannot create change request %v\r\n", err)
 		}
-		t.c.logger.Info("create deal change request ",
-			zap.String("high change request::", dealChangeRequest.Unwrap().String()),
+		t.c.logger.Info("High percent ==> create deal change request ",
+			zap.String("high change request", dealChangeRequest.Unwrap().String()),
 			zap.String("active deal id", dealOnMarket.Deal.Id.Unwrap().String()),
 			zap.String("deal price", sonm.NewBigInt(dealPrice).ToPriceString()),
 			zap.String("actual price for pack", sonm.NewBigInt(actualPriceForPack).ToPriceString()),
 			zap.String("actual price per second", sonm.NewBigInt(actualPrice).ToPriceString()),
 			zap.Float64("change percent", changePricePercent),
 			zap.Float64("sensitivity", 100+sensitivity))
-		if err := t.c.db.UpdateChangeRequestStatusDealDB(dealDb.DealID, sonm.ChangeRequestStatus_REQUEST_CREATED, time.Now()); err != nil {
+		log.Printf("new price for deal %v", actualPriceForPack.Int64())
+		if err := t.c.db.UpdateChangeRequestStatusDealDB(dealDb.DealID, sonm.ChangeRequestStatus_REQUEST_CREATED, actualPriceForPack.Int64()); err != nil {
 			return err
 		}
 	} else if changePricePercent < 100-sensitivity {
@@ -419,18 +440,18 @@ func (t *TraderModule) DeployedDealsProfitTrack(ctx context.Context, actualPrice
 		if err != nil {
 			return fmt.Errorf("cannot create change request %v\r\n", err)
 		}
-		t.c.logger.Info("create deal change request ",
-			zap.String("low change request::", dealChangeRequest.Unwrap().String()),
+		t.c.logger.Info("Low price ==> create deal change request ",
+			zap.String("low change request", dealChangeRequest.Unwrap().String()),
 			zap.String("active deal id", dealOnMarket.Deal.Id.Unwrap().String()),
 			zap.String("deal price", sonm.NewBigInt(dealPrice).ToPriceString()),
 			zap.String("actual price for pack", sonm.NewBigInt(actualPriceForPack).ToPriceString()),
 			zap.String("actual price per second", sonm.NewBigInt(actualPrice).ToPriceString()),
 			zap.Float64("change percent", changePricePercent),
 			zap.Float64("sensitivity", 100-sensitivity))
-		go t.GetChangeRequest(ctx, dealOnMarket)
-		if err := t.c.db.UpdateChangeRequestStatusDealDB(dealDb.DealID, sonm.ChangeRequestStatus_REQUEST_CREATED, time.Now()); err != nil {
+		if err := t.c.db.UpdateChangeRequestStatusDealDB(dealDb.DealID, sonm.ChangeRequestStatus_REQUEST_CREATED, actualPriceForPack.Int64()); err != nil {
 			return err
 		}
+		go t.GetChangeRequest(ctx, dealOnMarket) // TODO: wait for the go-routine to finish.
 	}
 	return nil
 }
@@ -452,7 +473,11 @@ func (t *TraderModule) CreateChangeRequest(ctx context.Context, dealOnMarket *so
 }
 
 func (t *TraderModule) GetChangeRequest(ctx context.Context, dealChangeRequest *sonm.DealInfoReply) error {
-	time.Sleep(time.Duration(t.c.cfg.Sensitivity.WaitingTimeCRSec))
+	//time.Sleep(time.Duration(t.c.cfg.Sensitivity.WaitingTimeCRSec))
+	fmt.Printf("wait responce by change request id %v", dealChangeRequest.Deal.Id.Unwrap().Int64())
+
+	time.Sleep(time.Duration(900 * time.Second))
+
 	requestsList, err := t.c.DealClient.ChangeRequestsList(ctx, dealChangeRequest.Deal.Id)
 	if err != nil {
 		return err
@@ -465,6 +490,11 @@ func (t *TraderModule) GetChangeRequest(ctx context.Context, dealChangeRequest *
 				t.c.DealClient.Finish(ctx, &sonm.DealFinishRequest{
 					Id: dealChangeRequest.Deal.Id,
 				})
+				if err := t.c.db.ReturnChangeRequestStatusDealDB(dealChangeRequest.Deal.Id.Unwrap().Int64(), sonm.ChangeRequestStatus_REQUEST_UNKNOWN); err != nil {
+					return err
+				}
+				t.c.logger.Info("worker didn't accepted change request",
+					zap.String("deal", dealChangeRequest.Deal.Id.Unwrap().String()))
 			}
 		}
 	}
@@ -478,22 +508,26 @@ func (t *TraderModule) SaveNewActiveDealsIntoDB(ctx context.Context) error {
 		return fmt.Errorf("Cannot get Deals list %v\r\n", err)
 	}
 	deals := getDeals.Deal
-	if len(deals) > 0 {
-		for _, deal := range deals {
-			if deal.GetStatus() != sonm.DealStatus_DEAL_CLOSED {
-				t.c.db.SaveDealIntoDB(&database.DealDb{
-					DealID:       deal.GetId().Unwrap().Int64(),
-					Status:       int64(deal.GetStatus()),
-					Price:        deal.GetPrice().Unwrap().Int64(),
-					AskID:        deal.GetAskID().Unwrap().Int64(),
-					BidID:        deal.GetBidID().Unwrap().Int64(),
-					DeployStatus: int64(DeployStatusNOTDEPLOYED),
-				})
-			}
-		}
-	} else {
+	if len(deals) < 0 {
 		t.c.logger.Info("No active deals")
+		return nil
 	}
+
+	for _, deal := range deals {
+
+		// todo: странная логика сохранения - сохранять не закрытые сделки
+		if deal.GetStatus() != sonm.DealStatus_DEAL_CLOSED {
+			t.c.db.SaveDealIntoDB(&database.DealDb{
+				DealID:       deal.GetId().Unwrap().Int64(),
+				Status:       int64(deal.GetStatus()),
+				Price:        deal.GetPrice().Unwrap().Int64(),
+				AskID:        deal.GetAskID().Unwrap().Int64(),
+				BidID:        deal.GetBidID().Unwrap().Int64(),
+				DeployStatus: int64(DeployStatusNOTDEPLOYED),
+			})
+		}
+	}
+
 	return nil
 }
 func (t *TraderModule) UpdateDealsIntoDb(ctx context.Context) error {
@@ -542,8 +576,10 @@ func (t *TraderModule) GetBidBenchmarks(bidOrder *sonm.Order) (map[string]uint64
 	return bMap, nil
 }
 func (t *TraderModule) FloatToBigInt(val float64) *big.Int {
-	price := val * params.Ether
-	return big.NewInt(int64(price))
+	realV := big.NewFloat(val)
+	price := realV.Mul(realV, big.NewFloat(params.Ether))
+	v, _ := price.Int(nil)
+	return v
 }
 
 func (t *TraderModule) newBaseBenchmarks() map[string]uint64 {

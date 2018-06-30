@@ -7,23 +7,6 @@ import (
 	"sync"
 )
 
-type ReturningData struct {
-	PoolData        *PoolData
-	PoolWorkersData *ReportedHashrate
-}
-type PoolData struct {
-	Data struct {
-		Account            string `json:"account"`
-		UnconfirmedBalance string `json:"unconfirmed_balance"`
-		Balance            string `json:"balance"`
-		Hashrate           string `json:"hashrate"`
-		AvgHashrate struct {
-			H1  string `json:"h1"`
-			H24 string `json:"h24"`
-		} `json:"avgHashrate"`
-	} `json:"data"`
-}
-
 type ReportedHashrate struct {
 	Status bool     `json:"status"`
 	Data   []RHData `json:"data"`

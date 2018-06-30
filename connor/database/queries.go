@@ -10,7 +10,8 @@ const (
 	updateOrders           = "UPDATE ORDERS SET BUTTERFLY_EFFECT = ?	 WHERE ID = ?"
 	updateDeployStatusDeal = "UPDATE DEALS SET DEPLOY_STATUS = ?	 WHERE ID = ?"
 	updateStatusDeal       = "UPDATE DEALS SET STATUS = ? WHERE ID = ?"
-	updateCRStatusDeal     = "update DEALS set CHANGE_REQUEST_STATUS=? where ID = ?"
+	updateCRStatusDeal     = "UPDATE DEALS SET CHANGE_REQUEST_STATUS=?, PRICE =? where ID = ?"
+	returnCRStatusDeal     = "UPDATE DEALS SET CHANGE_REQUEST_STATUS=? where ID = ?"
 	updateStatusPoolDB     = "UPDATE POOLS SET BAD_GUY = ?, TIME_UPDATE = ? WHERE DEAL_ID = ?"
 	updateReportedHashrate = "UPDATE POOLS SET W_REP_HASH = ?, TIME_UPDATE = ? WHERE DEAL_ID = ?"
 	updateAvgPool          = "UPDATE POOLS SET W_AVG_HASH = ?, TIME_UPDATE = ? WHERE DEAL_ID = ?"
@@ -24,6 +25,7 @@ const (
 	getWorkerIDFromPool             = "SELECT DEAL_ID from POOLS WHERE DEAL_ID = ?"
 	getCountSupplierIDFromBlackList = "SELECT COUNT(FAIL_SUPPLIER_ID) as count from BLACKLIST WHERE MASTER_ID = ?"
 	getLastActualStep               = "SELECT MAX(ACTUAL_STEP) AS max FROM ORDERS WHERE BUTTERFLY_EFFECT = 2"
+	getChangeRequestStatus          = "SELECT CHANGE_REQUEST_STATUS from DEALS WHERE ID = ?"
 
 	getOrders          = "SELECT * FROM ORDERS"
 	getDeals           = "SELECT * FROM DEALS"
