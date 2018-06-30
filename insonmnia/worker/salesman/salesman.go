@@ -163,6 +163,7 @@ func (m *Salesman) AskPlans() map[string]*sonm.AskPlan {
 func (m *Salesman) CreateAskPlan(askPlan *sonm.AskPlan) (string, error) {
 	id := uuid.New()
 	askPlan.ID = id
+	askPlan.CreateTime = sonm.CurrentTimestamp()
 	if err := askPlan.GetResources().GetGPU().Normalize(m.hardware); err != nil {
 		return "", err
 	}
@@ -465,6 +466,10 @@ func (m *Salesman) unregisterOrder(planID string) error {
 	idStr := orderID.Unwrap().String()
 	delete(m.orders, idStr)
 	plan.OrderID = nil
+	plan.LastOrderPlacedTime = nil
+	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
+		return err
+	}
 	m.log.Infof("unregistered order %s", idStr)
 	return nil
 }
@@ -488,6 +493,7 @@ func (m *Salesman) registerOrder(planID string, order *sonm.Order) error {
 			orderIDStr, planID, plan.GetOrderID().Unwrap().String())
 	}
 	plan.OrderID = order.GetId()
+	plan.LastOrderPlacedTime = sonm.CurrentTimestamp()
 	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
 		return err
 	}
