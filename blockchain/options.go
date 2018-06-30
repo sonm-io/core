@@ -19,6 +19,10 @@ const (
 	defaultLogParsePeriod      = time.Second
 	defaultMasterchainGasLimit = 500000
 	defaultSidechainGasLimit   = 2000000
+
+	approveGasLimit = 70000
+	payinGasLimit   = 100000
+	payoutGasLimit  = 100000
 )
 
 // chainOpts describes common options
