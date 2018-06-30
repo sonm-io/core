@@ -101,8 +101,6 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, symbol string, toke
 	limitChargeInSNMClone := big.NewInt(0).Set(limitChargeInSNM)
 	limitChargeInUSD := t.profit.ConvertingToUSDBalance(limitChargeInSNMClone, snm.GetPrice())
 
-	//limiter := 100.0 //сумма цен всех выставленных ордеров
-
 	mhashForToken, err := t.c.db.GetLastActualStepFromDb()
 	if err != nil {
 		t.c.logger.Error("cannot get last actual step from DB", zap.Error(err))
@@ -135,7 +133,9 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, symbol string, toke
 			break
 		}
 		pricePerSecPack := t.FloatToBigInt(mhashForToken * pricePerSecMh)
+
 		zap.String("price", sonm.NewBigInt(pricePerSecPack).ToPriceString())
+
 		mhashForToken, err = t.ChargeOrders(ctx, symbol, pricePerSecPack, step, mhashForToken)
 		if err != nil {
 			return fmt.Errorf("cannot charging market! %v\r\n", err)
@@ -271,6 +271,10 @@ func (t *TraderModule) cmpChangeOfPrice(change float64, def float64) (int32, err
 }
 
 func (t *TraderModule) OrdersProfitTracking(ctx context.Context, cfg *Config, actualPrice *big.Int, orderDb *database.OrderDb) error {
+	if orderDb.OrderID == 0 {
+		return nil
+	}
+
 	order, err := t.c.Market.GetOrderByID(ctx, &sonm.ID{Id: strconv.Itoa(int(orderDb.OrderID))})
 	if err != nil {
 		t.c.logger.Error("cannot get order from market", zap.Int64("order Id", orderDb.OrderID), zap.Error(err))
