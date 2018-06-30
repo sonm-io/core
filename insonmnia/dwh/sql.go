@@ -1611,7 +1611,7 @@ func (m *sqlStorage) decodeValidator(rows *sql.Rows) (*pb.DWHValidator, error) {
 			Level: level,
 		},
 		Name:        name,
-		Logo:        kycIcon,
+		Icon:        kycIcon,
 		Url:         kycURL,
 		Description: description,
 		Price:       bigPrice,
