@@ -218,8 +218,8 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 		cmd.Printf("  Net Upload           %d\r\n", b.NetTrafficOut())
 		cmd.Printf("  GPU Count            %d\r\n", b.GPUCount())
 		cmd.Printf("  GPU Mem              %d\r\n", b.GPUMem())
-		cmd.Printf("  GPU Eth hashrate     %d\r\n", b.GPUEthHashrate())
-		cmd.Printf("  GPU Cash hashrate    %d\r\n", b.GPUCashHashrate())
+		cmd.Printf("  GPU Ethash           %d\r\n", b.GPUEthHashrate())
+		cmd.Printf("  GPU Equihash         %d\r\n", b.GPUCashHashrate())
 		cmd.Printf("  GPU Redshift         %d\r\n", b.GPURedshift())
 	} else {
 		showJSON(cmd, order)
