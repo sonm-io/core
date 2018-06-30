@@ -19,8 +19,8 @@ var (
 
 // Gatekeeper topics
 var (
-	PayInTopic   = common.HexToHash("0x63768eabd21c026cb17439a3c6556436c1b0219c2046875297ad3f4b14e6700f")
-	PayOutTopic  = common.HexToHash("0x731af16374848c2c73a6154fd410cb421138e7db45c5a904e5a475c756faa8d9")
+	PayinTopic   = common.HexToHash("0x14312725abbc46ad798bc078b2663e1fcbace97be0247cd177176f3b4df2538e")
+	PayoutTopic  = common.HexToHash("0x731af16374848c2c73a6154fd410cb421138e7db45c5a904e5a475c756faa8d9")
 	SuicideTopic = common.HexToHash("0xa1ea9b09ea114021983e9ecf71cf2ffddfd80f5cb4f925e5bf24f9bdb5e55fde")
 )
 
