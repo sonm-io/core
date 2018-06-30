@@ -1764,7 +1764,7 @@ func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateK
 		return err
 	}
 
-	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayInTopic); err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayinTopic); err != nil {
 		return err
 	}
 
@@ -1896,7 +1896,7 @@ func (api *BasicMultiSigAPI) ExecuteTransaction(ctx context.Context, key *ecdsa.
 		return err
 	}
 
-	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayInTopic); err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayinTopic); err != nil {
 		return err
 	}
 
