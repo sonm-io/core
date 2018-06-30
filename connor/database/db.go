@@ -90,56 +90,26 @@ func (d *Database) CreateAllTables() error {
 }
 
 func (d *Database) SaveDealIntoDB(deal *DealDb) error {
-	_, err := d.connect.Exec(deals)
-	if err != nil {
-		return err
-	}
-	tx := d.connect.MustBegin()
-	tx.NamedExec(insertDeals, deal)
-	tx.Commit()
-	return nil
+	_, err := d.connect.Exec(insertDeals, deal)
+	return err
 }
 
 func (d *Database) SaveBlacklistIntoDB(blacklistData *BlackListDb) error {
-	_, err := d.connect.Exec(blacklist)
-	if err != nil {
-		return err
-	}
-	tx := d.connect.MustBegin()
-	tx.NamedExec(insertBlackList, blacklistData)
-	tx.Commit()
-	return nil
+	_, err := d.connect.Exec(insertBlackList, blacklistData)
+	return err
 }
 
 func (d *Database) SaveOrderIntoDB(order *OrderDb) error {
-	_, err := d.connect.Exec(orders)
-	if err != nil {
-		return err
-	}
-	tx := d.connect.MustBegin()
-	tx.NamedExec(insertOrders, order)
-	tx.Commit()
-	return nil
+	_, err := d.connect.Exec(insertOrders, order)
+	return err
 }
 func (d *Database) SaveProfitToken(token *TokenDb) error {
-	_, err := d.connect.Exec(tokens)
-	if err != nil {
-		return err
-	}
-	tx := d.connect.MustBegin()
-	tx.NamedExec(insertToken, token)
-	tx.Commit()
-	return nil
+	_, err := d.connect.Exec(insertToken, token)
+	return err
 }
 func (d *Database) SavePoolIntoDB(pool *PoolDb) error {
-	_, err := d.connect.Exec(pools)
-	if err != nil {
-		return err
-	}
-	tx := d.connect.MustBegin()
-	tx.NamedExec(insertPools, pool)
-	tx.Commit()
-	return nil
+	_, err := d.connect.Exec(insertPools, pool)
+	return err
 }
 
 func (d *Database) UpdateDealStatusDb(id int64, status sonm.DealStatus) error {
@@ -263,7 +233,6 @@ func (d *Database) GetOrdersFromDB() ([]*OrderDb, error) {
 		return nil, err
 	}
 	orders := make([]*OrderDb, 0)
-	defer rows.Close()
 	for rows.Next() {
 		order := new(OrderDb)
 		err := rows.Scan(&order.OrderID, &order.Price, &order.Hashrate, &order.StartTime, &order.ButterflyEffect, &order.ActualStep)
