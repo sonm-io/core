@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/proto"
@@ -17,70 +17,69 @@ func init() {
 }
 
 var profileRootCmd = &cobra.Command{
-	Use:   "profile",
-	Short: "Manage profiles",
+	Use:               "profile",
+	Short:             "Manage profiles",
+	PersistentPreRunE: loadKeyStoreIfRequired,
 }
 
 var profileStatusCmd = &cobra.Command{
-	Use:    "status [addr]",
-	Short:  "Show profile details",
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "status [addr]",
+	Short: "Show profile details",
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		addr := crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey)
-		var err error
+		key, err := getDefaultKey()
+		if err != nil {
+			return err
+		}
+
+		addr := crypto.PubkeyToAddress(key.PublicKey)
 		if len(args) > 0 {
 			addr, err = util.HexToAddress(args[0])
 			if err != nil {
-				showError(cmd, "Cannot convert arg to eth address", err)
-				os.Exit(1)
+				return err
 			}
 		}
 
 		client, err := newProfilesClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		profile, err := client.Status(ctx, &sonm.EthID{Id: sonm.NewEthAddress(addr)})
 		if err != nil {
-			showError(cmd, "Cannot get profile info", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot get profile info: %v", err)
 		}
 
 		printProfileInfo(cmd, profile)
+		return nil
 	},
 }
 
 var profileRemoveAttrCmd = &cobra.Command{
-	Use:    "remove-attr <id>",
-	Short:  "Remove attribute form your profile",
-	PreRun: loadKeyStoreIfRequired,
-	Args:   cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "remove-attr <id>",
+	Short: "Remove attribute form your profile",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		id, err := util.ParseBigInt(args[0])
+		id, err := sonm.NewBigIntFromString(args[0])
 		if err != nil {
-			showError(cmd, err.Error(), nil)
-			os.Exit(1)
+			return err
 		}
 
 		client, err := newProfilesClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		if _, err := client.RemoveAttribute(ctx, sonm.NewBigInt(id)); err != nil {
-			showError(cmd, "Cannot remove profile attribue", err)
-			os.Exit(1)
+		if _, err := client.RemoveAttribute(ctx, id); err != nil {
+			return fmt.Errorf("cannot remove profile attribue: %v", err)
 		}
 
 		showOk(cmd)
+		return nil
 	},
 }

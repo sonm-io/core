@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/sonm-io/core/cmd/cli/commands"
 	"github.com/sonm-io/core/cmd/cli/config"
@@ -16,5 +17,9 @@ func main() {
 		return
 	}
 
-	commands.Root(appVersion, cfg).Execute()
+	cmd := commands.Root(appVersion, cfg)
+	if err := cmd.Execute(); err != nil {
+		commands.ShowError(cmd, err.Error(), nil)
+		os.Exit(1)
+	}
 }

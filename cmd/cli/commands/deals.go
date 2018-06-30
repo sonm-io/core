@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"os"
+	"fmt"
 	"time"
 
 	pb "github.com/sonm-io/core/proto"
@@ -39,93 +39,84 @@ func init() {
 }
 
 var dealRootCmd = &cobra.Command{
-	Use:   "deal",
-	Short: "Manage deals",
+	Use:               "deal",
+	Short:             "Manage deals",
+	PersistentPreRunE: loadKeyStoreIfRequired,
 }
 
 var dealListCmd = &cobra.Command{
-	Use:    "list",
-	Short:  "Show your active deals",
-	PreRun: loadKeyStoreWrapper,
-	Run: func(cmd *cobra.Command, _ []string) {
+	Use:   "list",
+	Short: "Show your active deals",
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		dealer, err := newDealsClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		req := &pb.Count{Count: dealsSearchCount}
 		deals, err := dealer.List(ctx, req)
 		if err != nil {
-			showError(cmd, "Cannot get deals list", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot get deals list: %v", err)
 		}
 
 		printDealsList(cmd, deals.GetDeal())
+		return nil
 	},
 }
 
 var dealStatusCmd = &cobra.Command{
-	Use:    "status <deal_id>",
-	Short:  "Show deal status",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "status <deal_id>",
+	Short: "Show deal status",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		dealer, err := newDealsClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		id, err := pb.NewBigIntFromString(args[0])
 		if err != nil {
-			showError(cmd, "Cannot convert arg to number", err)
-			os.Exit(1)
+			return err
 		}
 
 		reply, err := dealer.Status(ctx, id)
 		if err != nil {
-			showError(cmd, "Cannot get deal info", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot get deal info: %v", err)
 		}
 
 		changeRequests, _ := dealer.ChangeRequestsList(ctx, id)
 		printDealInfo(cmd, reply, changeRequests, printEverything)
+		return nil
 	},
 }
 
 var dealOpenCmd = &cobra.Command{
-	Use:    "open <ask_id> <bid_id>",
-	Short:  "Open deal with given orders",
-	Args:   cobra.MinimumNArgs(2),
-	PreRun: loadKeyStoreWrapper,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "open <ask_id> <bid_id>",
+	Short: "Open deal with given orders",
+	Args:  cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		askID, err := util.ParseBigInt(args[0])
 		if err != nil {
-			// do not wraps error with human-readable text, the error text is self-explainable.
-			showError(cmd, err.Error(), nil)
-			os.Exit(1)
+			return err
 		}
 
 		bidID, err := util.ParseBigInt(args[1])
 		if err != nil {
-			showError(cmd, err.Error(), nil)
-			os.Exit(1)
+			return err
 		}
 
 		deals, err := newDealsClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create blockchain connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		deal, err := deals.Open(ctx, &pb.OpenDealRequest{
@@ -134,66 +125,62 @@ var dealOpenCmd = &cobra.Command{
 		})
 
 		if err != nil {
-			showError(cmd, "Cannot open deal", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot open deal: %v", err)
 		}
 
 		printID(cmd, deal.GetId().Unwrap().String())
+		return nil
 	},
 }
 
 var dealQuickBuyCmd = &cobra.Command{
-	Use:    "quick-buy <ask_id> [duration]",
-	Short:  "Instantly open deal with provided ask order id and optional duration (should be less or equal comparing to ask order)",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreWrapper,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "quick-buy <ask_id> [duration]",
+	Short: "Instantly open deal with provided ask order id and optional duration (should be less or equal comparing to ask order)",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		deals, err := newDealsClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		id, err := pb.NewBigIntFromString(args[0])
 		if err != nil {
-			showError(cmd, "Cannot convert arg to number", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot convert arg to number: %v", err)
 		}
 
-		req := &pb.QuickBuyRequest{
-			AskID: id,
-		}
+		req := &pb.QuickBuyRequest{AskID: id}
+
 		if len(args) >= 2 {
 			duration, err := time.ParseDuration(args[1])
 			if err != nil {
-				showError(cmd, "Cannot parse specified duration", err)
-				os.Exit(1)
+				return fmt.Errorf("cannot parse specified duration: %v", err)
 			}
 			req.Duration = &pb.Duration{
 				Nanoseconds: duration.Nanoseconds(),
 			}
 		}
+
 		deal, err := deals.QuickBuy(ctx, req)
 		if err != nil {
-			showError(cmd, "Cannot perform quick buy on given order", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot perform quick buy on given order: %v", err)
 		}
 
 		printDealInfo(cmd, deal, nil, printEverything)
+		return nil
 	},
 }
 
 var dealCloseCmd = &cobra.Command{
-	Use:    "close <deal_id>",
-	Short:  "Close given deal",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "close <deal_id>",
+	Short: "Close given deal",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
+
 		var blacklistType pb.BlacklistType
 		switch blacklistTypeStr {
 		case "none":
@@ -203,31 +190,28 @@ var dealCloseCmd = &cobra.Command{
 		case "master":
 			blacklistType = pb.BlacklistType_BLACKLIST_MASTER
 		default:
-			showError(cmd, "Cannot parse `blacklist` argumet, allowed values are `none`, `worker` and `master`", nil)
-			os.Exit(1)
+			return fmt.Errorf("cannot parse `blacklist` argumet, allowed values are `none`, `worker` and `master`")
 		}
 
 		dealer, err := newDealsClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		id, err := util.ParseBigInt(args[0])
 		if err != nil {
-			showError(cmd, "Cannot convert arg to number", err)
-			os.Exit(1)
+			return err
 		}
 
-		_, err = dealer.Finish(ctx, &pb.DealFinishRequest{
+		if _, err = dealer.Finish(ctx, &pb.DealFinishRequest{
 			Id:            pb.NewBigInt(id),
 			BlacklistType: blacklistType,
-		})
-		if err != nil {
-			showError(cmd, "Cannot finish deal", err)
-			os.Exit(1)
+		}); err != nil {
+			return fmt.Errorf("cannot finosh deal: %v", err)
 		}
+
 		showOk(cmd)
+		return nil
 	},
 }
 
@@ -242,21 +226,18 @@ var changeRequestCreateCmd = &cobra.Command{
 	Example: "  sonmcli deal change-request create 123 --new-duration=10h --new-price=0.3USD/h",
 	Short:   "Request changes for given deal",
 	Args:    cobra.MinimumNArgs(1),
-	PreRun:  loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		dealer, err := newDealsClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		id, err := util.ParseBigInt(args[0])
 		if err != nil {
-			showError(cmd, "Cannot convert arg to id", err)
-			os.Exit(1)
+			return err
 		}
 
 		durationRaw := cmd.Flag("new-duration").Value.String()
@@ -264,8 +245,7 @@ var changeRequestCreateCmd = &cobra.Command{
 
 		// check that at least one flag is present
 		if len(durationRaw) == 0 && len(priceRaw) == 0 {
-			showError(cmd, "Please specify at least one flag: --new-duration or --new-price", nil)
-			os.Exit(1)
+			return fmt.Errorf("please specify at least one flag: --new-duration or --new-price")
 		}
 
 		var newPrice = &pb.Price{}
@@ -274,15 +254,13 @@ var changeRequestCreateCmd = &cobra.Command{
 		if len(durationRaw) > 0 {
 			newDuration, err = time.ParseDuration(durationRaw)
 			if err != nil {
-				showError(cmd, "Cannot convert flag value to duration", err)
-				os.Exit(1)
+				return fmt.Errorf("cannot convert flag value to duration: %v", err)
 			}
 		}
 
 		if len(priceRaw) > 0 {
 			if err := newPrice.LoadFromString(priceRaw); err != nil {
-				showError(cmd, "Cannot convert flag value to price", err)
-				os.Exit(1)
+				return fmt.Errorf("cannot convert flag value to price: %v", err)
 			}
 		}
 
@@ -294,69 +272,64 @@ var changeRequestCreateCmd = &cobra.Command{
 
 		crid, err := dealer.CreateChangeRequest(ctx, req)
 		if err != nil {
-			showError(cmd, "Cannot create change request", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create change request: %v", err)
 		}
 
 		cmd.Printf("Change request ID = %v\n", crid.Unwrap().String())
+		return nil
 	},
 }
 
 var changeRequestApproveCmd = &cobra.Command{
-	Use:    "approve <req_id>",
-	Short:  "Agree to change deal conditions with given change request",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "approve <req_id>",
+	Short: "Agree to change deal conditions with given change request",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		dealer, err := newDealsClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		id, err := util.ParseBigInt(args[0])
 		if err != nil {
-			showError(cmd, "Cannot convert arg to id", err)
-			os.Exit(1)
+			return err
 		}
 
 		if _, err := dealer.ApproveChangeRequest(ctx, pb.NewBigInt(id)); err != nil {
-			showError(cmd, "Cannot approve change request", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot approve change request: %v", err)
 		}
+
 		showOk(cmd)
+		return nil
 	},
 }
 
 var changeRequestCancelCmd = &cobra.Command{
-	Use:    "cancel <req_id>",
-	Short:  "Decline given change request",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "cancel <req_id>",
+	Short: "Decline given change request",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		dealer, err := newDealsClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		id, err := util.ParseBigInt(args[0])
 		if err != nil {
-			showError(cmd, "Cannot convert arg to id", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot convert arg to id: %v", err)
 		}
 
 		if _, err := dealer.CancelChangeRequest(ctx, pb.NewBigInt(id)); err != nil {
-			showError(cmd, "Cannot cancel change request", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot cancel change request: %v", err)
 		}
 
 		showOk(cmd)
+		return nil
 	},
 }
