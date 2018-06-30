@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	EthPool                 = "stratum+tcp://eth-eu1.nanopool.org:9999"
+	ethPool                 = "stratum+tcp://eth-eu1.nanopool.org:9999"
 	numberOfIterationsForH1 = 5
 	numberOfLives           = 5
 )
@@ -37,7 +37,7 @@ const (
 
 func (p *PoolModule) DeployNewContainer(ctx context.Context, cfg *Config, deal *sonm.Deal, image string) (*sonm.StartTaskReply, error) {
 	env := map[string]string{
-		"ETH_POOL": EthPool,
+		"ETH_POOL": ethPool,
 		"WALLET":   cfg.PoolAddress.EthPoolAddr,
 		"WORKER":   deal.Id.String(),
 		"EMAIL":    p.c.cfg.OtherParameters.EmailForPool,
@@ -113,7 +113,7 @@ func (p *PoolModule) DefaultPoolHashrateTracking(ctx context.Context, reportedPo
 				return err
 			}
 		} else {
-			err := p.UpdateAvgPoolData(ctx, avgPool, p.c.cfg.PoolAddress.EthPoolAddr+"/1");
+			err := p.UpdateAvgPoolData(ctx, avgPool, p.c.cfg.PoolAddress.EthPoolAddr+"/1")
 			if err != nil {
 				return err
 			}
@@ -123,7 +123,7 @@ func (p *PoolModule) DefaultPoolHashrateTracking(ctx context.Context, reportedPo
 				return err
 			}
 		}
-		err = p.c.db.UpdateIterationPoolDB(iteration, w.DealID);
+		err = p.c.db.UpdateIterationPoolDB(iteration, w.DealID)
 		if err != nil {
 			return err
 		}
@@ -137,7 +137,7 @@ func (p *PoolModule) DetectingDeviation(ctx context.Context, changePercentDeviat
 	if changePercentDeviationWorker >= uint64(p.c.cfg.Sensitivity.WorkerLimitChangePercent) {
 		if worker.BadGuy < numberOfLives {
 			newStatus := worker.BadGuy + 1
-			err := p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, newStatus, time.Now());
+			err := p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, newStatus, time.Now())
 			if err != nil {
 				return err
 			}
@@ -145,18 +145,18 @@ func (p *PoolModule) DetectingDeviation(ctx context.Context, changePercentDeviat
 			if err := p.DestroyDeal(ctx, dealInfo); err != nil {
 				return err
 			}
-			err := p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, int64(BanStatusWORKERINPOOL), time.Now());
+			err := p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, int64(BanStatusWORKERINPOOL), time.Now())
 			if err != nil {
 				return err
 			}
 			p.c.logger.Info("Destroy deal", zap.String("bad status in pool", dealInfo.Deal.Id.String()))
 		}
 	} else if changePercentDeviationWorker >= 20 {
-		err := p.DestroyDeal(ctx, dealInfo);
+		err := p.DestroyDeal(ctx, dealInfo)
 		if err != nil {
 			return err
 		}
-		err = p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, int64(BanStatusWORKERINPOOL), time.Now());
+		err = p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, int64(BanStatusWORKERINPOOL), time.Now())
 		if err != nil {
 			return err
 		}

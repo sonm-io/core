@@ -188,7 +188,7 @@ func (p *PoolModule) SendToConnorBlackList(ctx context.Context, failedDeal *sonm
 	if err != nil {
 		return err
 	}
-	if amountFailWorkers == 0{
+	if amountFailWorkers == 0 {
 		p.c.logger.Info("amount failed workers is 0")
 		return fmt.Errorf("no failed workers in Blacklist")
 	}
@@ -200,10 +200,7 @@ func (p *PoolModule) SendToConnorBlackList(ctx context.Context, failedDeal *sonm
 	}
 
 	clearWorkers := int64(amountWorkerInList) - amountFailWorkers
-
-	percentFailWorkers := float64(amountFailWorkers * 100) / float64(amountWorkerInList)
-
-
+	percentFailWorkers := float64(amountFailWorkers*100) / float64(amountWorkerInList)
 	p.c.logger.Info("Check failed workers in master",
 		zap.String("worker id", failedDeal.Deal.MasterID.String()),
 		zap.String("deal", failedDeal.Deal.Id.String()),

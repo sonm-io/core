@@ -15,6 +15,6 @@ func TestName(t *testing.T) {
 	fmt.Println(v)
 }
 
-func TestPoolModule_AdvancedPoolHashrateTracking(t *testing.T) {
-	c := &Connor{}
-}
+//func TestPoolModule_AdvancedPoolHashrateTracking(t *testing.T) {
+//	c := &Connor{}
+//}

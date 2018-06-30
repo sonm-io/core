@@ -16,10 +16,9 @@ import (
 )
 
 const (
-	hashes       = 1000000
-	daysPerMonth = 30
-	secsPerDay   = 86400
-
+	hashes           = 1000000
+	daysPerMonth     = 30
+	secsPerDay       = 86400
 	hashingPower     = 1
 	costPerkWh       = 0.0
 	powerConsumption = 0.0
@@ -348,7 +347,7 @@ func (t *TraderModule) OrdersProfitTracking(ctx context.Context, cfg *Config, ac
 	return nil
 }
 
-//Deploy new container + reinvoice order
+// Deploy new container + reinvoice order
 func (t *TraderModule) ResponseToActiveDeals(ctx context.Context, dealDb *database.DealDb, image string) error {
 	dealOnMarket, err := t.c.DealClient.Status(ctx, sonm.NewBigIntFromInt(dealDb.DealID))
 	if err != nil {
@@ -414,7 +413,7 @@ func (t *TraderModule) DeployedDealsProfitTrack(ctx context.Context, actualPrice
 	if actualPriceForPack.IsInt64() == false {
 		return fmt.Errorf("actual price overflows int64")
 	}
-	changeRequestStatus, err := t.c.db.GetChangeRequestStatus(108);
+	changeRequestStatus, err := t.c.db.GetChangeRequestStatus(108)
 	if err != nil {
 		return err
 	}
@@ -486,6 +485,7 @@ func (t *TraderModule) GetChangeRequest(ctx context.Context, dealChangeRequest *
 	if err != nil {
 		return err
 	}
+
 	for _, cr := range requestsList.Requests {
 		if cr.DealID == dealChangeRequest.Deal.Id {
 			if cr.Status == sonm.ChangeRequestStatus_REQUEST_ACCEPTED {

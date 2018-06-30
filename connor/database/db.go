@@ -311,7 +311,7 @@ func (d *Database) GetWorkerFromPoolDb(dealID string) (string, error) {
 	return "already in Pool!", nil
 }
 
-func (d *Database) GetChangeRequestStatus(dealId int64)(int64, error){
+func (d *Database) GetChangeRequestStatus(dealId int64) (int64, error) {
 	rows, err := d.connect.Query(getChangeRequestStatus, dealId)
 	if err != nil {
 		return 0, err
