@@ -1,0 +1,81 @@
+log:
+  # The desired logging level.
+  # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
+  level: debug
+
+market:
+   endpoint: "83820f26c00e7dba7943d1ae394a1dd5e02f6d5d@127.0.0.1:15030"
+
+database:
+  driver: "sqlite3"
+  data_source: "./test.sq3"
+
+ethereum:
+  key_store: "./key"
+  pass_phrase: "any"
+
+pool_accounts:
+  zec_pool_addr: "any"
+  xmr_pool_addr: "any"
+  eth_pool_addr: "any"
+
+using_token:
+  token: "ETH"
+
+# Interval for the distance between placed orders (Mh/s)
+step_for_token:
+  stepETH: 0.1
+  stepZEC: 1
+  stepXMR: 0.01
+
+# Interval for charging ETH orders (Mh/s)
+charge_orders_interval:
+  start: 10
+  destination: 700
+
+# Interval for charging ZEC orders (H/s)
+charge_orders_ZEC_interval:
+  start: 250
+  destination: 9000
+
+# Interval for charging XMR orders (H/s)
+charge_orders_XMR_interval:
+  start: 1500
+  destination: 22200
+
+# Sensitivity to old orders (in days);
+# Budget allocation for components.
+sensitivity:
+  margin_accounting: 0.95
+  part_charge: 0.5
+  part_resale: 0.3
+  part_buffer: 0.2
+  orders_change_percent: 10
+  deals_change_percent: 10
+  worker_limit_change_percent: 5
+  bad_workers_percent: 60
+  waiting_time_change_request: 900
+
+other_parameters:
+  identity_for_bid: "ANONYMOUS"
+  email_for_pool: "any@gmail.com"
+
+# Container for ask app
+images:
+  image: "sonm/eth-claymore:latest"
+
+benchmark:
+    ram_size:            2000000000
+    cpu_cores:           1
+    cpu_sysbench_single: 800
+    cpu_sysbench_multi:  1000
+    net_download:        10000000
+    net_upload:          10000000
+    gpu_count:           1
+    gpu_mem:             3000000000
+
+tickers:
+  trade_tickers: 10
+  data_update: 15 
+  pool_init: 90 
+

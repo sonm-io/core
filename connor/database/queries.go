@@ -24,7 +24,7 @@ const (
 	getSupplierIDFromBlackList      = "SELECT FAIL_SUPPLIER_ID FROM BLACKLIST WHERE FAIL_SUPPLIER_ID = ?"
 	getWorkerIDFromPool             = "SELECT DEAL_ID from POOLS WHERE DEAL_ID = ?"
 	getCountSupplierIDFromBlackList = "SELECT COUNT(FAIL_SUPPLIER_ID) as count from BLACKLIST WHERE MASTER_ID = ?"
-	getLastActualStep               = "SELECT MAX(ACTUAL_STEP) AS max FROM ORDERS WHERE BUTTERFLY_EFFECT = 2"
+	getLastActualStep               = "SELECT MAX(ACTUAL_STEP) AS max FROM ORDERS WHERE BUTTERFLY_EFFECT = 4"
 	getChangeRequestStatus          = "SELECT CHANGE_REQUEST_STATUS from DEALS WHERE ID = ?"
 
 	getOrders          = "SELECT * FROM ORDERS"
