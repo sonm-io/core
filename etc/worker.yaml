@@ -19,10 +19,10 @@ endpoint: ":15010"
 npp:
   rendezvous:
     endpoints:
-      - 0x1243742340d5504d88af3360036ec9019b933164@rendezvous-testnet.sonm.com:14099
+      - 0x5b7d6516fad04e10db726933bcd75447fd7b4b17@rendezvous.livenet.sonm.com:14099
   relay:
     endpoints:
-      - relay-testnet.sonm.com:12240
+      - relay.livenet.sonm.com:12240
 
 #  Resources section is available only on Linux
 #  If configured, all tasks will share this pool of resources.
@@ -69,7 +69,7 @@ matcher:
   query_limit: 100
 
 dwh:
-  endpoint: "0x3f46ed4f779fd378f630d8cd996796c69a7738d2@dwh-testnet.sonm.com:15021"
+  endpoint: "0xadffcac607a0a1b583c489977eae413a62d4bc73@dwh.livenet.sonm.com:15021"
 
 plugins:
   socket_dir: /run/docker/plugins
