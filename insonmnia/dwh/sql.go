@@ -1592,18 +1592,18 @@ func (m *sqlStorage) decodeValidator(rows *sql.Rows) (*pb.DWHValidator, error) {
 		validatorID string
 		level       uint64
 		name        string
-		logo        string
-		url         string
+		kycIcon     string
+		kycURL      string
 		description string
-		price       string
+		kycPrice    string
 	)
-	if err := rows.Scan(&validatorID, &level, &name, &logo, &url, &description, &price); err != nil {
+	if err := rows.Scan(&validatorID, &level, &name, &kycIcon, &kycURL, &description, &kycPrice); err != nil {
 		return nil, fmt.Errorf("failed to scan Validator row: %v", err)
 	}
 
-	bigPrice, err := pb.NewBigIntFromString(price)
+	bigPrice, err := pb.NewBigIntFromString(kycPrice)
 	if err != nil {
-		return nil, fmt.Errorf("failed to use price as big int: %s", price)
+		return nil, fmt.Errorf("failed to use price as big int: %s", kycPrice)
 	}
 	return &pb.DWHValidator{
 		Validator: &pb.Validator{
@@ -1611,8 +1611,8 @@ func (m *sqlStorage) decodeValidator(rows *sql.Rows) (*pb.DWHValidator, error) {
 			Level: level,
 		},
 		Name:        name,
-		Logo:        logo,
-		Url:         url,
+		Logo:        kycIcon,
+		Url:         kycURL,
 		Description: description,
 		Price:       bigPrice,
 	}, nil
@@ -1879,7 +1879,7 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"Id",
 		"Level",
 		"Name",
-		"Logo",
+		"KYC_icon",
 		"KYC_URL",
 		"Description",
 		"KYC_Price",
@@ -2014,7 +2014,7 @@ func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
 		Id							TEXT UNIQUE NOT NULL,
 		Level						INTEGER NOT NULL,
 		Name						TEXT NOT NULL DEFAULT '',
-		Logo						TEXT NOT NULL DEFAULT '',
+		KYC_icon					TEXT NOT NULL DEFAULT '',
 		KYC_URL						TEXT NOT NULL DEFAULT '',
 		Description					TEXT NOT NULL DEFAULT '',
 		KYC_Price					TEXT NOT NULL DEFAULT '0'
@@ -2163,10 +2163,10 @@ func newSQLiteStorage(numBenchmarks uint64) *sqlStorage {
 		Id							TEXT UNIQUE NOT NULL,
 		Level						INTEGER NOT NULL,
 		Name						TEXT NOT NULL DEFAULT '',
-		Logo						TEXT NOT NULL DEFAULT '',
-		URL							TEXT NOT NULL DEFAULT '',
+		KYC_icon					TEXT NOT NULL DEFAULT '',
+		KYC_URL						TEXT NOT NULL DEFAULT '',
 		Description					TEXT NOT NULL DEFAULT '',
-		Price						TEXT NOT NULL DEFAULT '0'
+		KYC_Price					TEXT NOT NULL DEFAULT '0'
 	)`,
 			createTableCertificates: `
 	CREATE TABLE IF NOT EXISTS Certificates (
