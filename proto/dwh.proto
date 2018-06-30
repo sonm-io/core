@@ -233,7 +233,7 @@ message ValidatorsReply {
 message DWHValidator {
     Validator validator = 1;
     string name = 2;
-    string logo = 3;
+    string icon = 3;
     string url = 4;
     string description = 5;
     BigInt price = 6;
