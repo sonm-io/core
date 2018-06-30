@@ -566,6 +566,7 @@ func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 	status, sok := o.statuses[containerID]
 	delete(o.statuses, containerID)
 	if sok {
+		status <- pb.TaskStatusReply_FINISHED
 		close(status)
 	}
 	if !ok {
