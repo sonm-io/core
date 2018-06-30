@@ -61,7 +61,7 @@ func (m *AskPlan) Validate() error {
 	return m.GetResources().GetGPU().Validate()
 }
 
-func (m *AskPlan) SaleTime() time.Duration {
+func (m *AskPlan) UnsoldDuration() time.Duration {
 	if !m.GetDealID().IsZero() {
 		return time.Duration(0)
 	}
