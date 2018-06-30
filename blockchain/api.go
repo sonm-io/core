@@ -1190,7 +1190,7 @@ func (api *StandardTokenApi) Approve(ctx context.Context, key *ecdsa.PrivateKey,
 }
 
 func (api *StandardTokenApi) approve(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int, curAmount *big.Int) error {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, approveGasLimit)
 	if curAmount.Cmp(big.NewInt(0)) != 0 {
 		tx, err := api.tokenContract.Approve(opts, to, big.NewInt(0))
 		if err != nil {
@@ -1758,13 +1758,13 @@ func NewSimpleGatekeeper(address common.Address, opts *chainOpts) (SimpleGatekee
 }
 
 func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) error {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, payinGasLimit)
 	tx, err := api.contract.Payin(opts, value)
 	if err != nil {
 		return err
 	}
 
-	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayInTopic); err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayinTopic); err != nil {
 		return err
 	}
 
@@ -1772,7 +1772,7 @@ func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateK
 }
 
 func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error) {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, payoutGasLimit)
 	return api.contract.Payout(opts, to, value, txNumber)
 }
 
@@ -1896,7 +1896,7 @@ func (api *BasicMultiSigAPI) ExecuteTransaction(ctx context.Context, key *ecdsa.
 		return err
 	}
 
-	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayInTopic); err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayinTopic); err != nil {
 		return err
 	}
 
