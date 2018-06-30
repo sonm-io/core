@@ -224,6 +224,14 @@ func (m *workerControl) execute(ctx context.Context) error {
 		return fmt.Errorf("failed to pull worker plans: %v", err)
 	}
 
+	if size := m.cancelStalePlans(ctx, currentPlans.GetAskPlans()); size != 0 {
+		// Fetch current plans again after cancelling.
+		currentPlans, err = m.worker.AskPlans(ctx, &sonm.Empty{})
+		if err != nil {
+			return fmt.Errorf("failed to pull worker plans: %v", err)
+		}
+	}
+
 	currentTotalPrice := calculateWorkerPriceMap(currentPlans.AskPlans).GetPerSecond()
 	m.log.Debugw("successfully pulled worker plans",
 		zap.Any("plans", *currentPlans),
@@ -474,8 +482,20 @@ func (m *workerControl) execute(ctx context.Context) error {
 	return nil
 }
 
-func (m *workerControl) cancelStalePlans(plans map[string]*sonm.AskPlan) {
-	// Unimplemented.
+func (m *workerControl) cancelStalePlans(ctx context.Context, plans map[string]*sonm.AskPlan) int {
+	victims := map[string]*sonm.AskPlan{}
+	for id, plan := range plans {
+		if plan.UnsoldDuration() >= m.cfg.StaleThreshold {
+			victims[id] = plan
+		}
+	}
+
+	m.log.Infow("cancelling unsold plans", zap.Duration("threshold", m.cfg.StaleThreshold), zap.Any("plans", victims))
+	if err := m.cancelPlans(ctx, victims); err != nil {
+		m.log.Infow("cancellation result", zap.Any("err", err))
+	}
+
+	return len(victims)
 }
 
 func (m *workerControl) collectCancelCandidates(plans map[string]*sonm.AskPlan) map[string]*sonm.AskPlan {
