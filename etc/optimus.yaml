@@ -68,7 +68,7 @@ marketplace:
   # Account settings.
   ethereum: *ethereum
   # DWH endpoint.
-  endpoint: 0x3f46ed4f779fd378f630d8cd996796c69a7738d2@dwh-testnet.sonm.com:15021
+  endpoint: "0xadffcac607a0a1b583c489977eae413a62d4bc73@dwh.livenet.sonm.com:15021"
   # Interval of periodic current orders fetching from the marketplace.
   interval: 30s
 
