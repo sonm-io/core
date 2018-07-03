@@ -85,10 +85,8 @@ func (o *Oracle) listenEventsRoutine(ctx context.Context) error {
 	if o.cfg.Oracle.IsMaster {
 		return nil
 	}
-	events, err := o.bch.Events().GetEvents(ctx, o.bch.Events().GetMultiSigFilter([]common.Address{
-		o.bch.ContractRegistry().OracleMultiSig(),
-	}, big.NewInt(0)))
-
+	events, err := o.bch.Events().GetEvents(ctx, o.bch.Events().GetMultiSigFilter(
+		[]common.Address{o.bch.ContractRegistry().OracleMultiSig()}, big.NewInt(0)))
 	if err != nil {
 		return err
 	}
