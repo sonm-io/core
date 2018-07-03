@@ -9,6 +9,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/netutil"
 )
 
@@ -36,6 +37,7 @@ type serverConfig struct {
 	Cluster ClusterConfig   `yaml:"cluster"`
 	Logging logging.Config  `yaml:"logging"`
 	Monitor monitorConfig   `yaml:"monitoring"`
+	Debug   *debug.Config   `yaml:"debug"`
 }
 
 // ServerConfig describes the complete relay server configuration.
@@ -44,6 +46,7 @@ type ServerConfig struct {
 	Cluster ClusterConfig
 	Logging logging.Config
 	Monitor MonitorConfig
+	Debug   *debug.Config
 }
 
 // NewServerConfig loads a new Relay server config from a file.
@@ -76,6 +79,7 @@ func NewServerConfig(path string) (*ServerConfig, error) {
 			Endpoint:   cfg.Monitor.Endpoint,
 			PrivateKey: privateKey,
 		},
+		Debug: cfg.Debug,
 	}, nil
 }
 

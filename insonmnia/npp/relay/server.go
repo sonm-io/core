@@ -73,6 +73,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/npp/nppc"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -386,6 +387,11 @@ func (m *server) Serve(ctx context.Context) error {
 		// must be stopped explicitly.
 		return m.serveGRPC()
 	})
+	if m.cfg.Debug != nil {
+		wg.Go(func() error {
+			return debug.ServePProf(ctx, *m.cfg.Debug, m.log.Desugar())
+		})
+	}
 
 	<-ctx.Done()
 	m.Close()
