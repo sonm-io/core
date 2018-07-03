@@ -1460,7 +1460,7 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan<- 
 		return
 	}
 
-	sendErr := func(out chan *Event, err error, topic common.Hash) {
+	sendErr := func(out chan<- *Event, err error, topic common.Hash) {
 		out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber, TS: eventTS}
 	}
 
