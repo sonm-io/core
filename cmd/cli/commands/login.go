@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/accounts"
@@ -12,40 +12,38 @@ import (
 var loginCmd = &cobra.Command{
 	Use:   "login [addr]",
 	Short: "Open or generate Ethereum keys",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ks, err := initKeystore()
 		if err != nil {
-			showError(cmd, "Cannot init keystore", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot init keystore: %v", err)
 		}
 
-		keydir := keystorePath()
+		keydir, err := keystorePath()
+		if err != nil {
+			return err
+		}
 		cmd.Printf("Keystore path: %s\n", keydir)
 
 		if len(args) > 0 { // have a key
 			if len(ks.List()) == 0 {
-				showError(cmd, "Cannot switch default address: keystore is empty", nil)
-				os.Exit(1)
+				return fmt.Errorf("cannot switch default address: keystore is empty")
 			}
 
 			// check if valid
 			addr, err := util.HexToAddress(args[0])
 			if err != nil {
-				showError(cmd, err.Error(), nil)
-				os.Exit(1)
+				return err
 			}
 
 			// ask for password for default key
 			pass, err := accounts.NewInteractivePassPhraser().GetPassPhrase()
 			if err != nil {
-				showError(cmd, "Cannot read pass phrase", err)
-				os.Exit(1)
+				return fmt.Errorf("cannot read pass phrase: %v", err)
 			}
 
 			// try to decrypt default key with given pass phrase
 			if _, err := ks.GetKeyWithPass(addr, pass); err != nil {
-				showError(cmd, "Cannot decrypt default key with given pass", err)
-				os.Exit(1)
+				return fmt.Errorf("cannot decrypt default key with given pass: %v", err)
 			}
 
 			// mark key as default if we can decrypt it with given pass phrase
@@ -54,7 +52,7 @@ var loginCmd = &cobra.Command{
 				for _, addr := range ks.List() {
 					cmd.Println(addr.Address.Hex())
 				}
-				return
+				return nil
 			}
 
 			cfg.Eth.Passphrase = pass
@@ -70,21 +68,19 @@ var loginCmd = &cobra.Command{
 				// ask for password for default key
 				pass, err := accounts.NewInteractivePassPhraser().GetPassPhrase()
 				if err != nil {
-					showError(cmd, "Cannot read pass phrase", err)
-					os.Exit(1)
+					return fmt.Errorf("cannot read pass phrase: %v", err)
 				}
 
 				newKey, err := ks.GenerateWithPassword(pass)
 				if err != nil {
-					showError(cmd, "Cannot generate new key", err)
-					os.Exit(1)
+					return fmt.Errorf("cannot generate new key: %v", err)
 				}
 
 				cmd.Printf("Generated key %s set as default\r\n", crypto.PubkeyToAddress(newKey.PublicKey).Hex())
 				cfg.Eth.Passphrase = pass
 				cfg.Eth.Keystore = keydir
 				cfg.Save()
-				return
+				return nil
 			}
 
 			defaultAddr, err := ks.GetDefaultAddress()
@@ -96,8 +92,7 @@ var loginCmd = &cobra.Command{
 				if len(cfg.Eth.Passphrase) == 0 {
 					pass, err := accounts.NewInteractivePassPhraser().GetPassPhrase()
 					if err != nil {
-						showError(cmd, "Cannot read pass phrase", err)
-						os.Exit(1)
+						return fmt.Errorf("Cannot read pass phrase: %v", err)
 					}
 
 					cfg.Eth.Passphrase = pass
@@ -105,8 +100,7 @@ var loginCmd = &cobra.Command{
 
 				_, err = ks.GetKeyWithPass(defaultAddr, cfg.Eth.Passphrase)
 				if err != nil {
-					showError(cmd, "Cannot decrypt default key with given pass", err)
-					os.Exit(1)
+					return fmt.Errorf("cannot decrypt default key with given pass: %v", err)
 				}
 
 				cfg.Eth.Keystore = keydir
@@ -118,5 +112,6 @@ var loginCmd = &cobra.Command{
 				cmd.Printf("  %s\r\n", acc.Address.Hex())
 			}
 		}
+		return nil
 	},
 }
