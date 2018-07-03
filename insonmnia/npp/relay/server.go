@@ -303,7 +303,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		cfg: cfg,
 
 		port:     port,
-		listener: listener,
+		listener: &BackPressureListener{listener, opts.log},
 		cluster:  nil,
 		members:  cfg.Cluster.Members,
 
@@ -376,17 +376,26 @@ func (m *server) initCluster(cfg ClusterConfig) error {
 }
 
 // Serve starts the relay TCP server.
-func (m *server) Serve() error {
-	wg := errgroup.Group{}
-	wg.Go(m.serveTCP)
-	wg.Go(m.serveGRPC)
+func (m *server) Serve(ctx context.Context) error {
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		return m.serveTCP(ctx)
+	})
+	wg.Go(func() error {
+		// GRPC API doesn't allow to forward the context. Hence the server
+		// must be stopped explicitly.
+		return m.serveGRPC()
+	})
+
+	<-ctx.Done()
+	m.Close()
 
 	return wg.Wait()
 }
 
-func (m *server) serveTCP() error {
-	m.log.Infof("running Relay server on %s", m.listener.Addr())
-	defer m.log.Info("Relay server has been stopped")
+func (m *server) serveTCP(ctx context.Context) error {
+	m.log.Infof("running TCP Relay server on %s", m.listener.Addr())
+	defer m.log.Info("TCP Relay server has been stopped")
 
 	nodes, err := m.cluster.Join(m.members)
 	if err != nil {
@@ -395,12 +404,13 @@ func (m *server) serveTCP() error {
 
 	m.log.Infof("joined the cluster of %d nodes", nodes)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	for {
 		conn, err := m.listener.Accept()
 		if err != nil {
+			m.log.Warnf("failed to accept connection: %v", err)
 			return err
 		}
 
