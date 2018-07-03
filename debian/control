@@ -65,3 +65,17 @@ Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Oracle change token price
  The Oracle is looking for actual price
  and propose changes to smart-contract at sidechain.
+
+Package: sonm-consumer
+Architecture: any
+Depends: sonm-cli, sonm-node
+Description: Consumer software pack for SONM Network
+ This package provides cli and node.
+
+Package: sonm-supplier
+Architecture: any
+Depends: sonm-cli, sonm-node, sonm-worker, sonm-optimus
+Description: Supplier software pack for SONM Network
+ This package provides cli, node, worker
+ and optimus bot.
+
