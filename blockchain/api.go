@@ -307,7 +307,7 @@ func (api *BasicAPI) setupProfileRegistry(ctx context.Context) error {
 }
 
 func (api *BasicAPI) setupEvents(ctx context.Context) error {
-	events, err := NewEventsAPI(api, api.options.sidechain, ctxlog.GetLogger(ctx))
+	events, err := NewEventsAPI(api, api.options.sidechain, ctxlog.GetLogger(ctx), api.options.blocksBatchSize)
 	if err != nil {
 		return fmt.Errorf("failed to setup events: %s", err)
 	}
@@ -1267,6 +1267,9 @@ type BasicEventsAPI struct {
 	parent API
 	client CustomEthereumClient
 	logger *zap.Logger
+	// Number of blocks that will be read by FilterLogs() in one batch. This is required
+	// so that we don't run out of memory trying to load all of the logs at once.
+	blocksBatchSize int64
 }
 
 type EventFilter struct {
@@ -1275,16 +1278,17 @@ type EventFilter struct {
 	fromBlock *big.Int
 }
 
-func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger) (EventsAPI, error) {
+func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger, blocksBatchSize int64) (EventsAPI, error) {
 	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
 	}
 
 	return &BasicEventsAPI{
-		parent: parent,
-		client: client,
-		logger: logger,
+		parent:          parent,
+		client:          client,
+		logger:          logger,
+		blocksBatchSize: blocksBatchSize,
 	}, nil
 }
 
@@ -1364,10 +1368,18 @@ func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
 
 func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (chan *Event, error) {
 	var out = make(chan *Event, 128)
+	// Number of blocks already present in blockchain that we will read in batches.
+	lastBlock, err := api.GetLastBlock(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get latest block number: %v", err)
+	}
+
 	go func() {
 		var (
+			blocksLeft         = int64(lastBlock) - filter.fromBlock.Int64()
 			lastLogBlockNumber = filter.fromBlock.Uint64()
 			fromBlock          = filter.fromBlock.Uint64()
+			toBlock            = big.NewInt(0)
 			tk                 = time.NewTicker(time.Second)
 		)
 		for {
@@ -1376,12 +1388,19 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (
 				close(out)
 				return
 			case <-tk.C:
+				if blocksLeft > 0 {
+					toBlock = toBlock.Add(toBlock, big.NewInt(0).SetInt64(api.blocksBatchSize))
+					blocksLeft -= api.blocksBatchSize
+				} else {
+					// Tells the client to read up to latest block.
+					toBlock = nil
+				}
 				logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
 					Topics:    filter.topics,
 					FromBlock: big.NewInt(0).SetUint64(fromBlock),
+					ToBlock:   toBlock,
 					Addresses: filter.addresses,
 				})
-
 				if err != nil {
 					out <- &Event{
 						Data:        &ErrorData{Err: fmt.Errorf("failed to FilterLogs: %v", err)},
@@ -1391,7 +1410,6 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (
 
 				numLogs := len(logs)
 				if numLogs < 1 {
-					api.logger.Info("no logs, skipping")
 					continue
 				}
 
