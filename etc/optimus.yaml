@@ -3,21 +3,61 @@ logging:
   # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
   level: debug
 
-# Account settings.
+# Global account settings.
+# Used by all components unless overridden.
 ethereum: &ethereum
   # Path to the keystore.
   key_store: "./keys"
   # Passphrase for the keystore.
   pass_phrase: "any"
 
+# Node settings.
+node:
+  # Account settings.
+  ethereum: *ethereum
+  # Node trusted endpoint.
+  endpoint: 0x83A68C0AEaCA382fC42122f125cbDC64d4b43FdD@[::1]:15030
 
 # Map of workers this bot manages defined by its trusted endpoints with their
 # settings.
 workers:
+  # Use worker ETH address here, but the account used must have the proper
+  # access.
   0xccBe701e568577983E90968161ABB391759D589e@[::1]:15010:
+    # Account settings.
+    ethereum: *ethereum
     # Epoch is an interval of scanning worker's free resources and selling them
     # by cutting ask plans.
+    # Also this value is used when it's time to replace non-spot deals to
+    # preliminary calculate whether current ask plans are still profitable.
+    # Optional.
+    # Default value is 60s.
     epoch: 60s
+    # How the bot should filter orders. Possible values are: "spot_only".
+    order_policy: spot_only
+    # Orders that haven't been sold for this interval will be canceled.
+    # Optional.
+    # Default value is 5m.
+    stale_threshold: 5m
+    # Each epoch for both spot and nearly-finished deals Optimus tries to
+    # optimize the next most-profitable ask plan configuration.
+    # If the new set will gain more profit/hour than the specified value
+    # some of ask plans will be replaced.
+    # Zero value is forbidden, because it leads to spot deals being replaced
+    # each epoch.
+    # Required.
+    # Possible dimensions are USD/s, USD/h.
+    price_threshold: 0.1 USD/h
+    # When activated Optimus will not create ask plans, but continues doing
+    # the rest calculations instead. Useful for debugging.
+    # Optional.
+    # Default value is false.
+    # dry_run: true
+    # Identity level specifies which kind of customers this bot allows to work
+    # with.
+    # Required.
+    # Possible values are: anonymous, registered, identified and professional.
+    identity: anonymous
 
 benchmarks:
   # URL to download benchmark list, use `file://` schema to load file from a filesystem.
@@ -25,10 +65,12 @@ benchmarks:
 
 # Marketplace polling settings.
 marketplace:
+  # Account settings.
+  ethereum: *ethereum
+  # DWH endpoint.
+  endpoint: "0xadffcac607a0a1b583c489977eae413a62d4bc73@dwh.livenet.sonm.com:15021"
   # Interval of periodic current orders fetching from the marketplace.
   interval: 30s
-  # DWH endpoint.
-  endpoint: 0x3f46ed4f779fd378f630d8cd996796c69a7738d2@dwh-testnet.sonm.com:15021
 
 # Optimization engine settings.
 optimization:
@@ -36,6 +78,9 @@ optimization:
   # Note that the optimization process may be triggered by other external
   # conditions.
   interval: 30s
+  # Orders classification settings.
+  # Optional. By default multidimensional linear regression with non-negative
+  # coefficients model is used.
   classifier:
     type: regression
     model:

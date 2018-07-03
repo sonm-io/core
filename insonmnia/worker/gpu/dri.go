@@ -10,7 +10,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"syscall"
 )
 
 const (
@@ -64,14 +63,10 @@ func NewDRICard(num int, name, path string) (DRICard, error) {
 
 // collectRelatedDevices collects related control and render Devices for card
 func (card *DRICard) collectRelatedDevices() error {
-	stat := syscall.Stat_t{}
-	err := syscall.Stat(card.Path, &stat)
+	major, minor, err := deviceNumber(card.Path)
 	if err != nil {
-		return fmt.Errorf("cannot get device major:minor numbers: %v", err)
+		return err
 	}
-
-	major := uint64(stat.Rdev / 256)
-	minor := uint64(stat.Rdev % 256)
 
 	// query /sys for related DRI Devices
 	sysDevPath := fmt.Sprintf("/sys/dev/char/%d:%d/device/drm/", major, minor)
@@ -87,7 +82,9 @@ func (card *DRICard) collectRelatedDevices() error {
 	var devices []string
 	// add found Devices as part of the DRI
 	for _, f := range fi {
-		devices = append(devices, path.Join("/dev/dri/", f.Name()))
+		if f.IsDir() {
+			devices = append(devices, path.Join("/dev/dri/", f.Name()))
+		}
 	}
 
 	card.Devices = devices

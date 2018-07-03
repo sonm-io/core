@@ -3,15 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
-	"os/signal"
-	"syscall"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/util"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -45,17 +43,19 @@ func start() error {
 		return fmt.Errorf("failed to create Rendezvous server: %s", err)
 	}
 
-	go server.Run()
-	defer server.Stop()
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		return server.Run(ctx)
+	})
+	wg.Go(func() error {
+		return cmd.WaitInterrupted(ctx)
+	})
 
-	waitInterrupted()
+	if err := wg.Wait(); err != nil {
+		log.S(ctx).Infof("rendezvous server is stopped: %v", err)
+	}
+
 	return nil
-}
-
-func waitInterrupted() {
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-	<-sigChan
 }
 
 func main() {

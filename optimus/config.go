@@ -7,9 +7,11 @@ import (
 
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
 
@@ -17,19 +19,38 @@ const (
 	PolicySpotOnly OrderPolicy = iota
 )
 
+type nodeConfig struct {
+	PrivateKey privateKey `yaml:"ethereum" json:"-"`
+	Endpoint   auth.Addr  `yaml:"endpoint"`
+}
+
 type Config struct {
+	Blockchain   *blockchain.Config         `yaml:"blockchain"`
 	PrivateKey   privateKey                 `yaml:"ethereum" json:"-"`
 	Logging      logging.Config             `yaml:"logging"`
+	Node         nodeConfig                 `yaml:"node"`
 	Workers      map[auth.Addr]workerConfig `yaml:"workers"`
 	Benchmarks   benchmarks.Config          `yaml:"benchmarks"`
 	Marketplace  marketplaceConfig          `yaml:"marketplace"`
 	Optimization optimizationConfig
 }
 
+func (m *Config) Validate() error {
+	for _, cfg := range m.Workers {
+		if err := cfg.Validate(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func LoadConfig(path string) (*Config, error) {
 	cfg := &Config{}
-	err := configor.Load(cfg, path)
-	if err != nil {
+	if err := configor.Load(cfg, path); err != nil {
+		return nil, err
+	}
+
+	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 
@@ -37,8 +58,21 @@ func LoadConfig(path string) (*Config, error) {
 }
 
 type workerConfig struct {
-	Epoch       time.Duration `yaml:"epoch"`
-	OrderPolicy OrderPolicy   `yaml:"order_policy"`
+	PrivateKey     privateKey         `yaml:"ethereum" json:"-"`
+	Epoch          time.Duration      `yaml:"epoch"`
+	OrderPolicy    OrderPolicy        `yaml:"order_policy"`
+	DryRun         bool               `yaml:"dry_run" default:"false"`
+	Identity       sonm.IdentityLevel `yaml:"identity" required:"true"`
+	PriceThreshold sonm.Price         `yaml:"price_threshold" required:"true"`
+	StaleThreshold time.Duration      `yaml:"stale_threshold" default:"5m"`
+}
+
+func (m *workerConfig) Validate() error {
+	if m.PriceThreshold.GetPerSecond().Unwrap().Sign() <= 0 {
+		return fmt.Errorf("price threshold must be a positive number")
+	}
+
+	return nil
 }
 
 type OrderPolicy int
@@ -72,7 +106,7 @@ func (m *privateKey) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		return err
 	}
 
-	key, err := cfg.LoadKey(accounts.Silent())
+	key, err := cfg.LoadKey()
 	if err != nil {
 		return err
 	}
@@ -82,8 +116,9 @@ func (m *privateKey) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 type marketplaceConfig struct {
-	Interval time.Duration
-	Endpoint auth.Addr
+	PrivateKey privateKey    `yaml:"ethereum" json:"-"`
+	Endpoint   auth.Addr     `yaml:"endpoint"`
+	Interval   time.Duration `yaml:"interval"`
 }
 
 type optimizationConfig struct {

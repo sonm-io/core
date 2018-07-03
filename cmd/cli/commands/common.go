@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/mitchellh/go-homedir"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/cmd/cli/config"
 	"github.com/sonm-io/core/insonmnia/auth"
@@ -176,7 +177,7 @@ func keystorePath() string {
 		p = cfg.Eth.Keystore
 		// config overrides defaults ~/.sonm/
 		if p == "" {
-			p, err = accounts.GetDefaultKeyStoreDir()
+			p, err = util.GetDefaultKeyStoreDir()
 			if err != nil {
 				showError(rootCmd, "cannot obtain default keystore dir", err)
 				os.Exit(1)
@@ -184,7 +185,13 @@ func keystorePath() string {
 		}
 	}
 
-	return p
+	expanded, err := homedir.Expand(p)
+	if err != nil {
+		showError(rootCmd, "cannot expand given path", err)
+		os.Exit(1)
+	}
+
+	return expanded
 }
 
 func initKeystore() (*accounts.MultiKeystore, error) {

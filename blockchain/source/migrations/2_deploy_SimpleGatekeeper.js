@@ -1,10 +1,12 @@
 let SimpleGatekeeper = artifacts.require('./SimpleGatekeeper.sol');
 let SNM = artifacts.require('./SNM.sol');
-var TestnetFaucet = artifacts.require('./TestnetFaucet.sol');
+let TestnetFaucet = artifacts.require('./TestnetFaucet.sol');
 
 module.exports = function (deployer, network) {
-    if (network === 'private') {
+    if ((network === 'private') || (network === 'privateLive')) {
         deployer.deploy(SimpleGatekeeper, SNM.address, { gasPrice: 0 });
+    } else if (network === 'master') {
+        deployer.deploy(SimpleGatekeeper, '0x983f6d60db79ea8ca4eb9968c6aff8cfa04b3c63');
     } else if (network === 'rinkeby') {
         TestnetFaucet.deployed()
             .then(function (instance) {

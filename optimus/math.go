@@ -7,8 +7,8 @@ import (
 type sigmoid func(x float64) float64
 
 type sigmoidConfig struct {
-	Alpha float64 `yaml:"α" default:"10.0"`
-	Delta float64 `yaml:"∂" default:"43200.0"`
+	Alpha float64 `yaml:"alpha" default:"10.0"`
+	Delta float64 `yaml:"delta" default:"43200.0"`
 }
 
 func newSigmoid(cfg sigmoidConfig) sigmoid {

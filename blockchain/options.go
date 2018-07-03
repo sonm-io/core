@@ -7,17 +7,22 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 const (
-	defaultMasterchainEndpoint = "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
-	defaultSidechainEndpoint   = "https://sidechain-dev.sonm.com"
+	defaultMasterchainEndpoint = "https://mainnet.infura.io/00iTrs5PIy0uGODwcsrb"
+	defaultSidechainEndpoint   = "https://sidechain.livenet.sonm.com/"
 	defaultMasterchainGasPrice = 20000000000 // 20 Gwei
 	defaultSidechainGasPrice   = 0
 	defaultBlockConfirmations  = 5
 	defaultLogParsePeriod      = time.Second
 	defaultMasterchainGasLimit = 500000
 	defaultSidechainGasLimit   = 2000000
+
+	approveGasLimit = 70000
+	payinGasLimit   = 100000
+	payoutGasLimit  = 100000
 )
 
 // chainOpts describes common options
@@ -53,8 +58,9 @@ func (c *chainOpts) getTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLim
 }
 
 type options struct {
-	masterchain *chainOpts
-	sidechain   *chainOpts
+	masterchain      *chainOpts
+	sidechain        *chainOpts
+	contractRegistry common.Address
 }
 
 func defaultOptions() *options {
@@ -73,6 +79,7 @@ func defaultOptions() *options {
 			logParsePeriod:     defaultLogParsePeriod,
 			blockConfirmations: defaultBlockConfirmations,
 		},
+		contractRegistry: common.HexToAddress(defaultContractRegistryAddr),
 	}
 }
 
@@ -107,6 +114,9 @@ func WithConfig(cfg *Config) Option {
 		if cfg != nil {
 			o.masterchain.endpoint = cfg.Endpoint.String()
 			o.sidechain.endpoint = cfg.SidechainEndpoint.String()
+			if cfg.ContractRegistryAddr.Big().Cmp(big.NewInt(0)) != 0 {
+				o.contractRegistry = cfg.ContractRegistryAddr
+			}
 		}
 	}
 }
@@ -133,5 +143,11 @@ func WithSidechainClient(c CustomEthereumClient) Option {
 func WithMasterchainClient(c CustomEthereumClient) Option {
 	return func(o *options) {
 		o.masterchain.client = c
+	}
+}
+
+func WithContractRegistry(address common.Address) Option {
+	return func(o *options) {
+		o.contractRegistry = address
 	}
 }

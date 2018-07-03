@@ -70,7 +70,7 @@ func NewSalesman(opts ...Option) (*Salesman, error) {
 		return nil, err
 	}
 
-	askPlansKey := blockchain.MarketAddr().Hex() + "/ask_plans"
+	askPlansKey := o.eth.ContractRegistry().MarketAddress().Hex() + "/ask_plans"
 	s := &Salesman{
 		options:         o,
 		askPlanStorage:  state.NewKeyedStorage(askPlansKey, o.storage),
@@ -108,6 +108,26 @@ func (m *Salesman) Run(ctx context.Context) <-chan *sonm.Deal {
 	return m.dealsCh
 }
 
+func (m *Salesman) DebugDump() *sonm.SalesmanData {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	reply := &sonm.SalesmanData{
+		AskPlanCGroups: map[string]string{},
+		Deals:          map[string]*sonm.Deal{},
+		Orders:         map[string]*sonm.Order{},
+	}
+	for askID, cgroup := range m.askPlanCGroups {
+		reply.AskPlanCGroups[askID] = cgroup.Suffix()
+	}
+	for askID, deal := range m.deals {
+		reply.Deals[askID] = deal
+	}
+	for askID, order := range m.orders {
+		reply.Orders[askID] = order
+	}
+	return reply
+}
+
 func (m *Salesman) ScheduleMaintenance(timePoint time.Time) error {
 	m.log.Infof("Scheduling next maintenance at %s", timePoint.String())
 	m.mu.Lock()
@@ -143,6 +163,7 @@ func (m *Salesman) AskPlans() map[string]*sonm.AskPlan {
 func (m *Salesman) CreateAskPlan(askPlan *sonm.AskPlan) (string, error) {
 	id := uuid.New()
 	askPlan.ID = id
+	askPlan.CreateTime = sonm.CurrentTimestamp()
 	if err := askPlan.GetResources().GetGPU().Normalize(m.hardware); err != nil {
 		return "", err
 	}
@@ -294,7 +315,7 @@ func (m *Salesman) syncWithBlockchain(ctx context.Context) {
 
 func (m *Salesman) restoreState() error {
 	m.askPlans = map[string]*sonm.AskPlan{}
-	if err := m.askPlanStorage.Load(&m.askPlans); err != nil {
+	if _, err := m.askPlanStorage.Load(&m.askPlans); err != nil {
 		return fmt.Errorf("could not restore salesman state: %s", err)
 	}
 	for _, plan := range m.askPlans {
@@ -310,7 +331,7 @@ func (m *Salesman) restoreState() error {
 			}
 		}
 	}
-	if err := m.storage.Load("next_maintenance", &m.nextMaintenance); err != nil {
+	if _, err := m.storage.Load("next_maintenance", &m.nextMaintenance); err != nil {
 		return fmt.Errorf("failed to load next maintenance: %s", err)
 	}
 	//TODO: restore tasks
@@ -445,6 +466,10 @@ func (m *Salesman) unregisterOrder(planID string) error {
 	idStr := orderID.Unwrap().String()
 	delete(m.orders, idStr)
 	plan.OrderID = nil
+	plan.LastOrderPlacedTime = nil
+	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
+		return err
+	}
 	m.log.Infof("unregistered order %s", idStr)
 	return nil
 }
@@ -468,6 +493,7 @@ func (m *Salesman) registerOrder(planID string, order *sonm.Order) error {
 			orderIDStr, planID, plan.GetOrderID().Unwrap().String())
 	}
 	plan.OrderID = order.GetId()
+	plan.LastOrderPlacedTime = sonm.CurrentTimestamp()
 	if err := m.askPlanStorage.Save(m.askPlans); err != nil {
 		return err
 	}

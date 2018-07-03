@@ -534,8 +534,11 @@ func (m *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 	if len(r.Country) > 0 {
 		builder = builder.Where(sq.Eq{"Country": r.Country})
 	}
-	if len(r.Name) > 0 {
-		builder = builder.Where("Name LIKE ?", r.Name)
+	if len(r.Identifier) > 0 {
+		builder = builder.Where(sq.Or{
+			sq.Expr("lower(Name) LIKE lower(?)", r.Identifier),
+			sq.Expr("lower(UserID) LIKE lower(?)", r.Identifier),
+		})
 	}
 	if r.BlacklistQuery != nil && !r.BlacklistQuery.OwnerID.IsZero() {
 		ownerBuilder := m.builder().Select("AddeeID").From("Blacklists").
@@ -848,29 +851,57 @@ func (m *sqlStorage) GetBlacklistsContainingUser(conn queryConn, r *pb.Blacklist
 
 func (m *sqlStorage) InsertOrUpdateValidator(conn queryConn, validator *pb.Validator) error {
 	// Validators are never deleted, so it's O.K. to check in a non-atomic way.
-	query, args, _ := m.builder().Select("*").From("Validators").Where("Id = ?", validator.GetId().Unwrap().Hex()).
+	query, args, _ := m.builder().Select("Id").From("Validators").Where("Id = ?", validator.GetId().Unwrap().Hex()).
 		ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return fmt.Errorf("failed to check if Validator exists: %v", err)
 	}
-	defer rows.Close()
-
-	// Update if exists.
-	if rows.Next() {
-		// rows.Close is idempotent.
-		rows.Close()
-		return m.UpdateValidator(conn, validator)
+	alreadyExists := rows.Next()
+	rows.Close()
+	if alreadyExists {
+		// If this validator exists, it means that it was deactivated; we re-activate it by setting the current
+		// identity level.
+		return m.UpdateValidator(conn, validator.GetId().Unwrap(), "Level", validator.GetLevel())
 	}
 
-	query, args, _ = m.builder().Insert("Validators").Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
+	query, args, _ = m.builder().Insert("Validators").Columns("Id", "Level").
+		Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
 
-func (m *sqlStorage) UpdateValidator(conn queryConn, validator *pb.Validator) error {
-	query, args, _ := m.builder().Update("Validators").Set("Level", validator.Level).
-		Where("Id = ?", validator.Id.Unwrap().Hex()).ToSql()
+func (m *sqlStorage) GetValidator(conn queryConn, validatorID common.Address) (*pb.DWHValidator, error) {
+	query, args, _ := m.builder().Select("*").From("Validators").Where("Id = ?", validatorID.Hex()).ToSql()
+	rows, err := conn.Query(query, args)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return nil, errors.New("no rows returned")
+	}
+	return m.decodeValidator(rows)
+}
+
+func (m *sqlStorage) UpdateValidator(conn queryConn, validatorID common.Address, field string, value interface{}) error {
+	if !m.tablesInfo.IsValidatorColumn(field) {
+		// Ignore.
+		return nil
+	}
+	if field == "KYC_Price" {
+		if bytes, ok := value.([]byte); ok {
+			value = pb.NewBigInt(big.NewInt(0).SetBytes(bytes)).PaddedString()
+		}
+	}
+	query, args, _ := m.builder().Update("Validators").Set(field, value).Where("Id = ?", validatorID.Hex()).ToSql()
+	_, err := conn.Exec(query, args...)
+	return err
+}
+
+func (m *sqlStorage) DeactivateValidator(conn queryConn, validatorID common.Address) error {
+	// Deactivate validator by setting her identity level to zero.
+	query, args, _ := m.builder().Update("Validators").Set("Level", 0).Where("Id = ?", validatorID.Hex()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
@@ -952,7 +983,7 @@ func (m *sqlStorage) GetProfileByID(conn queryConn, userID common.Address) (*pb.
 	return m.decodeProfile(rows)
 }
 
-func (m *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*pb.Validator, uint64, error) {
+func (m *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*pb.DWHValidator, uint64, error) {
 	builder := m.builder().Select("*").From("Validators")
 	if r.ValidatorLevel != nil {
 		level := r.ValidatorLevel
@@ -966,7 +997,7 @@ func (m *sqlStorage) GetValidators(conn queryConn, r *pb.ValidatorsRequest) ([]*
 	}
 	defer rows.Close()
 
-	var out []*pb.Validator
+	var out []*pb.DWHValidator
 	for rows.Next() {
 		validator, err := m.decodeValidator(rows)
 		if err != nil {
@@ -1556,18 +1587,34 @@ func (m *sqlStorage) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 	}, nil
 }
 
-func (m *sqlStorage) decodeValidator(rows *sql.Rows) (*pb.Validator, error) {
+func (m *sqlStorage) decodeValidator(rows *sql.Rows) (*pb.DWHValidator, error) {
 	var (
 		validatorID string
 		level       uint64
+		name        string
+		kycIcon     string
+		kycURL      string
+		description string
+		kycPrice    string
 	)
-	if err := rows.Scan(&validatorID, &level); err != nil {
+	if err := rows.Scan(&validatorID, &level, &name, &kycIcon, &kycURL, &description, &kycPrice); err != nil {
 		return nil, fmt.Errorf("failed to scan Validator row: %v", err)
 	}
 
-	return &pb.Validator{
-		Id:    pb.NewEthAddress(common.HexToAddress(validatorID)),
-		Level: level,
+	bigPrice, err := pb.NewBigIntFromString(kycPrice)
+	if err != nil {
+		return nil, fmt.Errorf("failed to use price as big int: %s", kycPrice)
+	}
+	return &pb.DWHValidator{
+		Validator: &pb.Validator{
+			Id:    pb.NewEthAddress(common.HexToAddress(validatorID)),
+			Level: level,
+		},
+		Name:        name,
+		Icon:        kycIcon,
+		Url:         kycURL,
+		Description: description,
+		Price:       bigPrice,
 	}, nil
 }
 
@@ -1748,6 +1795,7 @@ type tablesInfo struct {
 	DealConditionColumns     []string
 	DealChangeRequestColumns []string
 	ProfileColumns           []string
+	ValidatorColumns         []string
 }
 
 func newTablesInfo(numBenchmarks uint64) *tablesInfo {
@@ -1827,6 +1875,15 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"ActiveAsks",
 		"ActiveBids",
 	}
+	validatorColumns := []string{
+		"Id",
+		"Level",
+		"Name",
+		"KYC_icon",
+		"KYC_URL",
+		"Description",
+		"KYC_Price",
+	}
 	out := &tablesInfo{
 		DealColumns:              dealColumns,
 		NumDealColumns:           uint64(len(dealColumns)),
@@ -1835,6 +1892,7 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		DealChangeRequestColumns: dealChangeRequestColumns,
 		DealConditionColumns:     dealConditionColumns,
 		ProfileColumns:           profileColumns,
+		ValidatorColumns:         validatorColumns,
 	}
 	for benchmarkID := uint64(0); benchmarkID < numBenchmarks; benchmarkID++ {
 		out.DealColumns = append(out.DealColumns, getBenchmarkColumn(uint64(benchmarkID)))
@@ -1844,10 +1902,313 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 	return out
 }
 
+func (m *tablesInfo) IsValidatorColumn(column string) bool {
+	for _, validatorColumn := range m.ValidatorColumns {
+		if validatorColumn == column {
+			return true
+		}
+	}
+	return false
+}
+
 func makeTableWithBenchmarks(format, benchmarkType string) string {
 	benchmarkColumns := make([]string, NumMaxBenchmarks)
 	for benchmarkID := uint64(0); benchmarkID < NumMaxBenchmarks; benchmarkID++ {
 		benchmarkColumns[benchmarkID] = fmt.Sprintf("%s %s", getBenchmarkColumn(uint64(benchmarkID)), benchmarkType)
 	}
 	return strings.Join(append([]string{format}, benchmarkColumns...), ",\n") + ")"
+}
+
+func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
+	tInfo := newTablesInfo(numBenchmarks)
+	storage := &sqlStorage{
+		setupCommands: &sqlSetupCommands{
+			createTableDeals: makeTableWithBenchmarks(`
+	CREATE TABLE IF NOT EXISTS Deals (
+		Id						TEXT UNIQUE NOT NULL,
+		SupplierID				TEXT NOT NULL,
+		ConsumerID				TEXT NOT NULL,
+		MasterID				TEXT NOT NULL,
+		AskID					TEXT NOT NULL,
+		BidID					TEXT NOT NULL,
+		Duration 				INTEGER NOT NULL,
+		Price					TEXT NOT NULL,
+		StartTime				INTEGER NOT NULL,
+		EndTime					INTEGER NOT NULL,
+		Status					INTEGER NOT NULL,
+		BlockedBalance			TEXT NOT NULL,
+		TotalPayout				TEXT NOT NULL,
+		LastBillTS				INTEGER NOT NULL,
+		Netflags				INTEGER NOT NULL,
+		AskIdentityLevel		INTEGER NOT NULL,
+		BidIdentityLevel		INTEGER NOT NULL,
+		SupplierCertificates    BYTEA NOT NULL,
+		ConsumerCertificates    BYTEA NOT NULL,
+		ActiveChangeRequest     BOOLEAN NOT NULL`, `BIGINT DEFAULT 0`),
+			createTableDealConditions: `
+	CREATE TABLE IF NOT EXISTS DealConditions (
+		Id							BIGSERIAL PRIMARY KEY,
+		SupplierID					TEXT NOT NULL,
+		ConsumerID					TEXT NOT NULL,
+		MasterID					TEXT NOT NULL,
+		Duration 					INTEGER NOT NULL,
+		Price						TEXT NOT NULL,
+		StartTime					INTEGER NOT NULL,
+		EndTime						INTEGER NOT NULL,
+		TotalPayout					TEXT NOT NULL,
+		DealID						TEXT NOT NULL REFERENCES Deals(Id) ON DELETE CASCADE
+	)`,
+			createTableDealPayments: `
+	CREATE TABLE IF NOT EXISTS DealPayments (
+		BillTS						INTEGER NOT NULL,
+		PaidAmount					TEXT NOT NULL,
+		DealID						TEXT NOT NULL REFERENCES Deals(Id) ON DELETE CASCADE,
+		UNIQUE						(BillTS, PaidAmount, DealID)
+	)`,
+			createTableChangeRequests: `
+	CREATE TABLE IF NOT EXISTS DealChangeRequests (
+		Id 							TEXT UNIQUE NOT NULL,
+		CreatedTS					INTEGER NOT NULL,
+		RequestType					TEXT NOT NULL,
+		Duration 					INTEGER NOT NULL,
+		Price						TEXT NOT NULL,
+		Status						INTEGER NOT NULL,
+		DealID						TEXT NOT NULL REFERENCES Deals(Id) ON DELETE CASCADE
+	)`,
+			createTableOrders: makeTableWithBenchmarks(`
+	CREATE TABLE IF NOT EXISTS Orders (
+		Id						TEXT UNIQUE NOT NULL,
+		MasterID				TEXT NOT NULL,
+		CreatedTS				INTEGER NOT NULL,
+		DealID					TEXT NOT NULL,
+		Type					INTEGER NOT NULL,
+		Status					INTEGER NOT NULL,
+		AuthorID				TEXT NOT NULL,
+		CounterpartyID			TEXT NOT NULL,
+		Duration 				BIGINT NOT NULL,
+		Price					TEXT NOT NULL,
+		Netflags				INTEGER NOT NULL,
+		IdentityLevel			INTEGER NOT NULL,
+		Blacklist				TEXT NOT NULL,
+		Tag						BYTEA NOT NULL,
+		FrozenSum				TEXT NOT NULL,
+		CreatorIdentityLevel	INTEGER NOT NULL,
+		CreatorName				TEXT NOT NULL,
+		CreatorCountry			TEXT NOT NULL,
+		CreatorCertificates		BYTEA NOT NULL`, `BIGINT DEFAULT 0`),
+			createTableWorkers: `
+	CREATE TABLE IF NOT EXISTS Workers (
+		MasterID					TEXT NOT NULL,
+		WorkerID					TEXT NOT NULL,
+		Confirmed					BOOLEAN NOT NULL,
+		UNIQUE						(MasterID, WorkerID)
+	)`,
+			createTableBlacklists: `
+	CREATE TABLE IF NOT EXISTS Blacklists (
+		AdderID						TEXT NOT NULL,
+		AddeeID						TEXT NOT NULL,
+		UNIQUE						(AdderID, AddeeID)
+	)`,
+			createTableValidators: `
+	CREATE TABLE IF NOT EXISTS Validators (
+		Id							TEXT UNIQUE NOT NULL,
+		Level						INTEGER NOT NULL,
+		Name						TEXT NOT NULL DEFAULT '',
+		KYC_icon					TEXT NOT NULL DEFAULT '',
+		KYC_URL						TEXT NOT NULL DEFAULT '',
+		Description					TEXT NOT NULL DEFAULT '',
+		KYC_Price					TEXT NOT NULL DEFAULT '0'
+	)`,
+			createTableCertificates: `
+	CREATE TABLE IF NOT EXISTS Certificates (
+		Id						    TEXT NOT NULL,
+		OwnerID						TEXT NOT NULL,
+		Attribute					INTEGER NOT NULL,
+		AttributeLevel				INTEGER NOT NULL,
+		Value						BYTEA NOT NULL,
+		ValidatorID					TEXT NOT NULL REFERENCES Validators(Id) ON DELETE CASCADE
+	)`,
+			createTableProfiles: `
+	CREATE TABLE IF NOT EXISTS Profiles (
+		Id							BIGSERIAL PRIMARY KEY,
+		UserID						TEXT UNIQUE NOT NULL,
+		IdentityLevel				INTEGER NOT NULL,
+		Name						TEXT NOT NULL,
+		Country						TEXT NOT NULL,
+		IsCorporation				BOOLEAN NOT NULL,
+		IsProfessional				BOOLEAN NOT NULL,
+		Certificates				BYTEA NOT NULL,
+		ActiveAsks					INTEGER NOT NULL,
+		ActiveBids					INTEGER NOT NULL
+	)`,
+			createTableMisc: `
+	CREATE TABLE IF NOT EXISTS Misc (
+		Id							BIGSERIAL PRIMARY KEY,
+		LastKnownBlock				INTEGER NOT NULL
+	)`,
+			createTableStaleIDs: `
+	CREATE TABLE IF NOT EXISTS StaleIDs (
+		Id 							TEXT NOT NULL
+	)`,
+			createIndexCmd: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
+			tablesInfo:     tInfo,
+		},
+		numBenchmarks: numBenchmarks,
+		tablesInfo:    tInfo,
+		builder: func() sq.StatementBuilderType {
+			return sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+		},
+	}
+
+	return storage
+}
+
+func newSQLiteStorage(numBenchmarks uint64) *sqlStorage {
+	tInfo := newTablesInfo(numBenchmarks)
+	storage := &sqlStorage{
+		setupCommands: &sqlSetupCommands{
+			// Incomplete, modified during setup.
+			createTableDeals: makeTableWithBenchmarks(`
+	CREATE TABLE IF NOT EXISTS Deals (
+		Id						TEXT UNIQUE NOT NULL,
+		SupplierID				TEXT NOT NULL,
+		ConsumerID				TEXT NOT NULL,
+		MasterID				TEXT NOT NULL,
+		AskID					TEXT NOT NULL,
+		BidID					TEXT NOT NULL,
+		Duration 				INTEGER NOT NULL,
+		Price					TEXT NOT NULL,
+		StartTime				INTEGER NOT NULL,
+		EndTime					INTEGER NOT NULL,
+		Status					INTEGER NOT NULL,
+		BlockedBalance			TEXT NOT NULL,
+		TotalPayout				TEXT NOT NULL,
+		LastBillTS				INTEGER NOT NULL,
+		Netflags				INTEGER NOT NULL,
+		AskIdentityLevel		INTEGER NOT NULL,
+		BidIdentityLevel		INTEGER NOT NULL,
+		SupplierCertificates    BLOB NOT NULL,
+		ConsumerCertificates    BLOB NOT NULL,
+		ActiveChangeRequest     INTEGER NOT NULL`, `INTEGER DEFAULT 0`),
+			createTableDealConditions: `
+	CREATE TABLE IF NOT EXISTS DealConditions (
+		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
+		SupplierID					TEXT NOT NULL,
+		ConsumerID					TEXT NOT NULL,
+		MasterID					TEXT NOT NULL,
+		Duration 					INTEGER NOT NULL,
+		Price						TEXT NOT NULL,
+		StartTime					INTEGER NOT NULL,
+		EndTime						INTEGER NOT NULL,
+		TotalPayout					TEXT NOT NULL,
+		DealID						TEXT NOT NULL,
+		FOREIGN KEY (DealID)		REFERENCES Deals(Id) ON DELETE CASCADE
+	)`,
+			createTableDealPayments: `
+	CREATE TABLE IF NOT EXISTS DealPayments (
+		BillTS						INTEGER NOT NULL,
+		PaidAmount					TEXT NOT NULL,
+		DealID						TEXT NOT NULL,
+		UNIQUE						(BillTS, PaidAmount, DealID),
+		FOREIGN KEY (DealID) 		REFERENCES Deals(Id) ON DELETE CASCADE
+	)`,
+			createTableChangeRequests: `
+	CREATE TABLE IF NOT EXISTS DealChangeRequests (
+		Id 							TEXT UNIQUE NOT NULL,
+		CreatedTS					INTEGER NOT NULL,
+		RequestType					TEXT NOT NULL,
+		Duration 					INTEGER NOT NULL,
+		Price						TEXT NOT NULL,
+		Status						INTEGER NOT NULL,
+		DealID						TEXT NOT NULL,
+		FOREIGN KEY (DealID)		REFERENCES Deals(Id) ON DELETE CASCADE
+	)`,
+			// Incomplete, modified during setup.
+			createTableOrders: makeTableWithBenchmarks(`
+	CREATE TABLE IF NOT EXISTS Orders (
+		Id						TEXT UNIQUE NOT NULL,
+		MasterID				TEXT NOT NULL,
+		CreatedTS				INTEGER NOT NULL,
+		DealID					TEXT NOT NULL,
+		Type					INTEGER NOT NULL,
+		Status					INTEGER NOT NULL,
+		AuthorID				TEXT NOT NULL,
+		CounterpartyID			TEXT NOT NULL,
+		Duration 				INTEGER NOT NULL,
+		Price					TEXT NOT NULL,
+		Netflags				INTEGER NOT NULL,
+		IdentityLevel			INTEGER NOT NULL,
+		Blacklist				TEXT NOT NULL,
+		Tag						BLOB NOT NULL,
+		FrozenSum				TEXT NOT NULL,
+		CreatorIdentityLevel	INTEGER NOT NULL,
+		CreatorName				TEXT NOT NULL,
+		CreatorCountry			TEXT NOT NULL,
+		CreatorCertificates		BLOB NOT NULL`, `INTEGER DEFAULT 0`),
+			createTableWorkers: `
+	CREATE TABLE IF NOT EXISTS Workers (
+		MasterID					TEXT NOT NULL,
+		WorkerID					TEXT NOT NULL,
+		Confirmed					INTEGER NOT NULL,
+		UNIQUE						(MasterID, WorkerID)
+	)`,
+			createTableBlacklists: `
+	CREATE TABLE IF NOT EXISTS Blacklists (
+		AdderID						TEXT NOT NULL,
+		AddeeID						TEXT NOT NULL,
+		UNIQUE						(AdderID, AddeeID)
+	)`,
+			createTableValidators: `
+	CREATE TABLE IF NOT EXISTS Validators (
+		Id							TEXT UNIQUE NOT NULL,
+		Level						INTEGER NOT NULL,
+		Name						TEXT NOT NULL DEFAULT '',
+		KYC_icon					TEXT NOT NULL DEFAULT '',
+		KYC_URL						TEXT NOT NULL DEFAULT '',
+		Description					TEXT NOT NULL DEFAULT '',
+		KYC_Price					TEXT NOT NULL DEFAULT '0'
+	)`,
+			createTableCertificates: `
+	CREATE TABLE IF NOT EXISTS Certificates (
+	    Id						    TEXT NOT NULL, 
+		OwnerID						TEXT NOT NULL,
+		Attribute					INTEGER NOT NULL,
+		AttributeLevel				INTEGER NOT NULL,
+		Value						BLOB NOT NULL,
+		ValidatorID					TEXT NOT NULL,
+		FOREIGN KEY (ValidatorID)	REFERENCES Validators(Id) ON DELETE CASCADE
+	)`,
+			createTableProfiles: `
+	CREATE TABLE IF NOT EXISTS Profiles (
+		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
+		UserID						TEXT UNIQUE NOT NULL,
+		IdentityLevel				INTEGER NOT NULL,
+		Name						TEXT NOT NULL,
+		Country						TEXT NOT NULL,
+		IsCorporation				INTEGER NOT NULL,
+		IsProfessional				INTEGER NOT NULL,
+		Certificates				BLOB NOT NULL,
+		ActiveAsks					INTEGER NOT NULL,
+		ActiveBids					INTEGER NOT NULL
+	)`,
+			createTableStaleIDs: `
+	CREATE TABLE IF NOT EXISTS StaleIDs (
+		Id 							TEXT NOT NULL
+	)`,
+			createTableMisc: `
+	CREATE TABLE IF NOT EXISTS Misc (
+		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
+		LastKnownBlock				INTEGER NOT NULL
+	)`,
+			createIndexCmd: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
+			tablesInfo:     tInfo,
+		},
+		numBenchmarks: numBenchmarks,
+		tablesInfo:    tInfo,
+		builder: func() sq.StatementBuilderType {
+			return sq.StatementBuilder.PlaceholderFormat(sq.Question)
+		},
+	}
+
+	return storage
 }

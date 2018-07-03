@@ -1,6 +1,7 @@
+import assertRevert from './helpers/assertRevert';
 const DeployList = artifacts.require('./DeployList.sol');
 
-contract('DeployList', async function (accounts) {
+contract('DeployList', async (accounts) => {
     let list;
     let owner = accounts[0];
 
@@ -9,33 +10,40 @@ contract('DeployList', async function (accounts) {
     let deployer3 = accounts[4];
 
     let newDeployer = accounts[6];
+    let creeper = accounts[7];
 
-    before(async function () {
+    before(async () => {
         list = await DeployList.new([deployer1, deployer2, deployer3], { from: owner });
     });
 
-    describe('Default', function () {
-        it('should return constructor values', async function () {
+    describe('Default', () => {
+        it('should return constructor values', async () => {
             let addresses = await list.getDeployers();
-            assert.equal(addresses[0], deployer1);
-            assert.equal(addresses[1], deployer2);
-            assert.equal(addresses[2], deployer3);
+            assert.deepEqual(addresses, [deployer1, deployer2, deployer3]);
         });
     });
 
-    describe('AddDeployer', function () {
-        it('should add new element', async function () {
+    describe('Add/Remove deployers', () => {
+        it('should add new deployer', async () => {
             await list.addDeployer(newDeployer);
             let addresses = await list.getDeployers();
+            assert.equal(addresses.length, 4);
             assert.notEqual(addresses.indexOf(newDeployer), -1);
         });
-    });
 
-    describe('RemoveDeployer', function () {
-        it('should remove element', async function () {
+        it('should remove deployer', async () => {
             await list.removeDeployer(deployer1);
             let addresses = await list.getDeployers();
+            assert.equal(addresses.length, 3);
             assert.equal(addresses.indexOf(deployer1), -1);
+        });
+
+        it('creeper cannot add deployer', async () => {
+            await assertRevert(list.addDeployer(newDeployer, { from: creeper }));
+        });
+
+        it('creeper cannot remove deployer', async () => {
+            await assertRevert(list.addDeployer(newDeployer, { from: creeper }));
         });
     });
 });

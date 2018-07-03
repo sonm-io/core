@@ -159,25 +159,37 @@ func (s *Storage) Save(key string, value interface{}) error {
 	return s.store.Put(key, bin, &store.WriteOptions{})
 }
 
-func (s *Storage) Load(key string, value interface{}) error {
+func (s *Storage) Load(key string, value interface{}) (bool, error) {
 	kv, err := s.store.Get(key)
 	if err != nil && err != store.ErrKeyNotFound {
-		return err
+		return false, err
 	}
 
 	if kv != nil {
 		// unmarshal existing state
 		if err := json.Unmarshal(kv.Value, value); err != nil {
-			return err
+			return false, err
 		}
+		return true, nil
 	}
-	return nil
+	return false, nil
+}
+
+func (s *Storage) Remove(key string) (bool, error) {
+	err := s.store.Delete(key)
+	if err == store.ErrKeyNotFound {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (m *KeyedStorage) Save(value interface{}) error {
 	return m.storage.Save(m.key, value)
 }
 
-func (m *KeyedStorage) Load(value interface{}) error {
+func (m *KeyedStorage) Load(value interface{}) (bool, error) {
 	return m.storage.Load(m.key, value)
 }

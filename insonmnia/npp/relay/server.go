@@ -62,6 +62,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"net"
 	"strings"
@@ -71,7 +72,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/hashicorp/memberlist"
 	"github.com/pborman/uuid"
+	"github.com/sonm-io/core/insonmnia/npp/nppc"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -86,19 +89,19 @@ type meeting struct {
 type meetingRoom struct {
 	mu sync.Mutex
 	// Multiple servers can be registered for fault tolerance.
-	servers map[common.Address]*connPool
+	servers map[nppc.ResourceID]*connPool
 
 	log *zap.SugaredLogger
 }
 
 func newMeetingRoom(log *zap.Logger) *meetingRoom {
 	return &meetingRoom{
-		servers: map[common.Address]*connPool{},
+		servers: map[nppc.ResourceID]*connPool{},
 		log:     log.Sugar(),
 	}
 }
 
-func (m *meetingRoom) PopRandomServer(addr common.Address) *meeting {
+func (m *meetingRoom) PopRandomServer(addr nppc.ResourceID) *meeting {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -108,7 +111,7 @@ func (m *meetingRoom) PopRandomServer(addr common.Address) *meeting {
 	return nil
 }
 
-func (m *meetingRoom) PopServer(addr common.Address, id ConnID) *meeting {
+func (m *meetingRoom) PopServer(addr nppc.ResourceID, id ConnID) *meeting {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -118,7 +121,7 @@ func (m *meetingRoom) PopServer(addr common.Address, id ConnID) *meeting {
 	return nil
 }
 
-func (m *meetingRoom) PutServer(addr common.Address, id ConnID, conn net.Conn, tx chan<- net.Conn) {
+func (m *meetingRoom) PutServer(addr nppc.ResourceID, id ConnID, conn net.Conn, tx chan<- net.Conn) {
 	m.log.Debugf("putting %s server into the meeting map with %s id", addr.String(), id)
 
 	m.mu.Lock()
@@ -132,7 +135,7 @@ func (m *meetingRoom) PutServer(addr common.Address, id ConnID, conn net.Conn, t
 	servers.put(id, conn, tx)
 }
 
-func (m *meetingRoom) DiscardConnections(addrs []common.Address) {
+func (m *meetingRoom) DiscardConnections(addrs []nppc.ResourceID) {
 	for _, addr := range addrs {
 		m.log.Infof("closing connections associated with %s address", addr.String())
 
@@ -257,7 +260,7 @@ type server struct {
 	waitTimeout      time.Duration
 
 	metrics           *metrics
-	newMeetingHandler func(addr common.Address) *meetingHandler
+	newMeetingHandler func(addr nppc.ResourceID) *meetingHandler
 
 	monitoring *monitor
 
@@ -289,7 +292,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 
 	metrics := newMetrics()
 
-	newMeetingHandler := func(addr common.Address) *meetingHandler {
+	newMeetingHandler := func(addr nppc.ResourceID) *meetingHandler {
 		return &meetingHandler{
 			bufferSize: opts.bufferSize,
 
@@ -302,7 +305,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		cfg: cfg,
 
 		port:     port,
-		listener: listener,
+		listener: &BackPressureListener{listener, opts.log},
 		cluster:  nil,
 		members:  cfg.Cluster.Members,
 
@@ -375,17 +378,31 @@ func (m *server) initCluster(cfg ClusterConfig) error {
 }
 
 // Serve starts the relay TCP server.
-func (m *server) Serve() error {
-	wg := errgroup.Group{}
-	wg.Go(m.serveTCP)
-	wg.Go(m.serveGRPC)
+func (m *server) Serve(ctx context.Context) error {
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		return m.serveTCP(ctx)
+	})
+	wg.Go(func() error {
+		// GRPC API doesn't allow to forward the context. Hence the server
+		// must be stopped explicitly.
+		return m.serveGRPC()
+	})
+	if m.cfg.Debug != nil {
+		wg.Go(func() error {
+			return debug.ServePProf(ctx, *m.cfg.Debug, m.log.Desugar())
+		})
+	}
+
+	<-ctx.Done()
+	m.Close()
 
 	return wg.Wait()
 }
 
-func (m *server) serveTCP() error {
-	m.log.Infof("running Relay server on %s", m.listener.Addr())
-	defer m.log.Info("Relay server has been stopped")
+func (m *server) serveTCP(ctx context.Context) error {
+	m.log.Infof("running TCP Relay server on %s", m.listener.Addr())
+	defer m.log.Info("TCP Relay server has been stopped")
 
 	nodes, err := m.cluster.Join(m.members)
 	if err != nil {
@@ -394,12 +411,13 @@ func (m *server) serveTCP() error {
 
 	m.log.Infof("joined the cluster of %d nodes", nodes)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	for {
 		conn, err := m.listener.Accept()
 		if err != nil {
+			m.log.Warnf("failed to accept connection: %v", err)
 			return err
 		}
 
@@ -419,7 +437,9 @@ func (m *server) processConnection(ctx context.Context, conn net.Conn) {
 	defer m.metrics.ConnCurrent.Dec()
 
 	if err := m.processConnectionBlocking(ctx, conn); err != nil {
-		m.log.Warnw("failed to process connection", zap.Error(err))
+		if err != io.EOF {
+			m.log.Warnw("failed to process connection", zap.Error(err))
+		}
 
 		switch e := err.(type) {
 		case *protocolError:
@@ -445,7 +465,11 @@ func (m *server) processConnectionBlocking(ctx context.Context, conn net.Conn) e
 
 	switch handshake.PeerType {
 	case sonm.PeerType_DISCOVER:
-		return m.processDiscover(ctx, conn, common.BytesToAddress(handshake.Addr))
+		addr := nppc.ResourceID{
+			Protocol: handshake.Protocol,
+			Addr:     common.BytesToAddress(handshake.Addr),
+		}
+		return m.processDiscover(ctx, conn, addr)
 	case sonm.PeerType_SERVER, sonm.PeerType_CLIENT:
 		return m.processHandshake(ctx, conn, handshake)
 	default:
@@ -453,7 +477,7 @@ func (m *server) processConnectionBlocking(ctx context.Context, conn net.Conn) e
 	}
 }
 
-func (m *server) processDiscover(ctx context.Context, conn net.Conn, addr common.Address) error {
+func (m *server) processDiscover(ctx context.Context, conn net.Conn, addr nppc.ResourceID) error {
 	m.log.Debugf("processing discover request %s", conn.RemoteAddr())
 
 	targetAddr, ok := m.continuum.Get(addr)
@@ -473,7 +497,10 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 	}
 
 	id := ConnID(uuid.New())
-	addr := common.BytesToAddress(handshake.Addr)
+	addr := nppc.ResourceID{
+		Protocol: handshake.Protocol,
+		Addr:     common.BytesToAddress(handshake.Addr),
+	}
 
 	targetAddr, ok := m.continuum.Get(addr)
 	if !ok {
@@ -544,6 +571,10 @@ func (m *server) readHandshake(ctx context.Context, conn net.Conn) (*sonm.Handsh
 		handshake := &sonm.HandshakeRequest{}
 		err := recvFrame(conn, handshake)
 		if err == nil {
+			if handshake.Protocol == "" {
+				handshake.Protocol = sonm.DefaultNPPProtocol
+			}
+
 			channel <- handshake
 		} else {
 			channel <- err

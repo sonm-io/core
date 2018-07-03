@@ -69,7 +69,7 @@ func (m *DWH) Serve() error {
 		return err
 	}
 
-	bch, err := blockchain.NewAPI(blockchain.WithConfig(m.cfg.Blockchain))
+	bch, err := blockchain.NewAPI(m.ctx, blockchain.WithConfig(m.cfg.Blockchain))
 	if err != nil {
 		m.Stop()
 		return fmt.Errorf("failed to create NewAPI: %v", err)
@@ -420,7 +420,7 @@ func (m *DWH) watchMarketEvents() error {
 	}
 
 	m.logger.Info("starting from block", zap.Uint64("block_number", m.lastKnownBlock))
-	events, err := m.blockchain.Events().GetEvents(m.ctx, big.NewInt(0).SetUint64(m.lastKnownBlock))
+	events, err := m.blockchain.Events().GetEvents(m.ctx, m.blockchain.Events().GetMarketFilter(big.NewInt(0).SetUint64(m.lastKnownBlock)))
 	if err != nil {
 		return err
 	}
@@ -458,57 +458,70 @@ func (m *DWH) watchMarketEvents() error {
 }
 
 func (m *DWH) processEvents(dispatcher *eventsDispatcher) {
-	m.processEventsGroup(dispatcher.NumBenchmarksUpdated)
-	m.processEventsGroup(dispatcher.WorkersAnnounced)
-	m.processEventsGroup(dispatcher.WorkersConfirmed)
-	m.processEventsGroup(dispatcher.ValidatorsCreated)
-	m.processEventsGroup(dispatcher.CertificatesCreated)
-	m.processEventsGroup(dispatcher.OrdersOpened)
-	m.processEventsGroup(dispatcher.DealsOpened)
-	m.processEventsGroup(dispatcher.DealChangeRequestsSent)
-	m.processEventsGroup(dispatcher.Billed)
-	m.processEventsGroup(dispatcher.DealChangeRequestsUpdated)
-	m.processEventsGroup(dispatcher.OrdersClosed)
-	m.processEventsGroup(dispatcher.DealsClosed)
-	m.processEventsGroup(dispatcher.ValidatorsDeleted)
-	m.processEventsGroup(dispatcher.AddedToBlacklist)
-	m.processEventsGroup(dispatcher.RemovedFromBlacklist)
-	m.processEventsGroup(dispatcher.WorkersRemoved)
-	m.processEventsGroup(dispatcher.Other)
+	m.processEventsAsync(dispatcher.NumBenchmarksUpdated)
+	m.processEventsAsync(dispatcher.WorkersAnnounced)
+	m.processEventsAsync(dispatcher.WorkersConfirmed)
+	m.processEventsAsync(dispatcher.ValidatorsCreated)
+	// Certificates must be processed in order because they can override each other.
+	m.processEventsSynchronous(dispatcher.CertificatesCreated)
+	m.processEventsAsync(dispatcher.OrdersOpened)
+	m.processEventsAsync(dispatcher.DealsOpened)
+	m.processEventsSynchronous(dispatcher.DealChangeRequestsSent)
+	m.processEventsAsync(dispatcher.Billed)
+	m.processEventsAsync(dispatcher.DealChangeRequestsUpdated)
+	m.processEventsAsync(dispatcher.OrdersClosed)
+	m.processEventsAsync(dispatcher.DealsClosed)
+	m.processEventsAsync(dispatcher.ValidatorsDeleted)
+	m.processEventsAsync(dispatcher.AddedToBlacklist)
+	m.processEventsAsync(dispatcher.RemovedFromBlacklist)
+	m.processEventsAsync(dispatcher.WorkersRemoved)
+	m.processEventsAsync(dispatcher.Other)
 }
 
-func (m *DWH) processEventsGroup(events []*blockchain.Event) {
+func (m *DWH) processEventsSynchronous(events []*blockchain.Event) {
+	for _, event := range events {
+		m.processEventWithRetries(event)
+	}
+}
+
+func (m *DWH) processEventsAsync(events []*blockchain.Event) {
 	wg := &sync.WaitGroup{}
 	for _, event := range events {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, event *blockchain.Event) {
 			defer wg.Done()
-			var (
-				err        error
-				numRetries = 60
-			)
-			for numRetries > 0 {
-				if err = m.processEvent(event); err != nil {
-					m.logger.Warn("failed to processEvent, retrying", zap.Error(err),
-						zap.Uint64("block_number", event.BlockNumber),
-						zap.String("event_type", reflect.TypeOf(event.Data).String()),
-						zap.Any("event_data", event.Data))
-				} else {
-					m.logger.Debug("processed event", zap.Uint64("block_number", event.BlockNumber),
-						zap.String("event_type", reflect.TypeOf(event.Data).String()),
-						zap.Any("event_data", event.Data))
-					return
-				}
-				numRetries--
-				time.Sleep(time.Second)
+			if err := m.processEventWithRetries(event); err != nil {
+				m.logger.Warn("failed to processEvent, STATE IS INCONSISTENT", zap.Error(err),
+					zap.Uint64("block_number", event.BlockNumber),
+					zap.String("event_type", reflect.TypeOf(event.Data).String()),
+					zap.Any("event_data", event.Data))
 			}
-			m.logger.Warn("failed to processEvent, STATE IS INCONSISTENT", zap.Error(err),
-				zap.Uint64("block_number", event.BlockNumber),
-				zap.String("event_type", reflect.TypeOf(event.Data).String()),
-				zap.Any("event_data", event.Data))
 		}(wg, event)
 	}
 	wg.Wait()
+}
+
+func (m *DWH) processEventWithRetries(event *blockchain.Event) error {
+	var (
+		err        error
+		numRetries = 60
+	)
+	for numRetries > 0 {
+		if err = m.processEvent(event); err != nil {
+			m.logger.Warn("failed to processEvent, retrying", zap.Error(err),
+				zap.Uint64("block_number", event.BlockNumber),
+				zap.String("event_type", reflect.TypeOf(event.Data).String()),
+				zap.Any("event_data", event.Data))
+		} else {
+			m.logger.Debug("processed event", zap.Uint64("block_number", event.BlockNumber),
+				zap.String("event_type", reflect.TypeOf(event.Data).String()),
+				zap.Any("event_data", event.Data))
+			return nil
+		}
+		numRetries--
+		time.Sleep(time.Second)
+	}
+	return err
 }
 
 func (m *DWH) processEvent(event *blockchain.Event) error {
@@ -1065,15 +1078,10 @@ func (m *DWH) onValidatorCreated(validatorID common.Address) error {
 }
 
 func (m *DWH) onValidatorDeleted(validatorID common.Address) error {
-	validator, err := m.blockchain.ProfileRegistry().GetValidator(m.ctx, validatorID)
-	if err != nil {
-		return fmt.Errorf("failed to get validator `%s`: %v", validatorID.String(), err)
-	}
-
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
-	if err := m.storage.UpdateValidator(conn, validator); err != nil {
+	if err := m.storage.DeactivateValidator(conn, validatorID); err != nil {
 		return fmt.Errorf("failed to InsertOrUpdateValidator: %v", err)
 	}
 
@@ -1094,6 +1102,17 @@ func (m *DWH) onCertificateCreated(certificateID *big.Int) error {
 		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer conn.Finish()
+
+	// Check if this certificate is assigned to a validator.
+	validatorLevel, err := m.blockchain.ProfileRegistry().GetValidatorLevel(m.ctx, certificate.OwnerID.Unwrap())
+	if err != nil {
+		return fmt.Errorf("failed to GetValidatorLevel: %v", err)
+	}
+	if validatorLevel != 0 {
+		// It's a validator.
+		return m.storage.UpdateValidator(
+			conn, certificate.OwnerID.Unwrap(), certificate.GetAttributeNameNormalized(), certificate.GetValue())
+	}
 
 	if err = m.storage.InsertCertificate(conn, certificate); err != nil {
 		return fmt.Errorf("failed to insertCertificate: %v", err)

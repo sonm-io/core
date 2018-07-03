@@ -2,7 +2,7 @@
 
 # Version of the entire package. Do not forget to update this when it's time
 # to bump the version.
-VERSION = v0.4.0
+VERSION = v0.4.3
 
 # Build tag. Useful to distinguish between same-version builds, but from
 # different commits.
@@ -46,6 +46,7 @@ RELAY      := ${TARGETDIR}/sonmrelay_$(OS_ARCH)
 OPTIMUS    := ${TARGETDIR}/sonmoptimus_$(OS_ARCH)
 LSGPU      := ${TARGETDIR}/lsgpu_$(OS_ARCH)
 PANDORA    := ${TARGETDIR}/pandora_$(OS_ARCH)
+ORACLE     := ${TARGETDIR}/sonmoracle_$(OS_ARCH)
 
 TAGS = nocgo
 
@@ -107,9 +108,13 @@ build/optimus:
 	@echo "+ $@"
 	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${OPTIMUS} ${GOCMD}/optimus
 
+build/oracle:
+	@echo "+ $@"
+	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${ORACLE} ${GOCMD}/oracle
+
 build/insomnia: build/worker build/cli build/node
 
-build/aux: build/relay build/rv build/dwh build/pandora build/optimus
+build/aux: build/relay build/rv build/dwh build/pandora build/optimus build/oracle
 
 build: build/insomnia build/aux
 
@@ -145,7 +150,6 @@ build_mockgen:
 
 mock: build_mockgen
 	mockgen -package worker -destination insonmnia/worker/overseer_mock.go -source insonmnia/worker/overseer.go
-	mockgen -package accounts -destination accounts/keys_mock.go  -source accounts/keys.go
 	mockgen -package benchmarks -destination insonmnia/benchmarks/benchmarks_mock.go -source insonmnia/benchmarks/benchmarks.go
 	mockgen -package benchmarks -destination insonmnia/benchmarks/mapping_mock.go -source insonmnia/benchmarks/mapping.go
 	mockgen -package blockchain -destination blockchain/api_mock.go  -source blockchain/api.go
