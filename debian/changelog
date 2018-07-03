@@ -1,3 +1,19 @@
+sonm-core (0.4.3) unstable; urgency=low
+
+  * Changed: increase ulimit for relay, rv and dwh (#1155).
+  * Changed: enable pprof servers on Rendezvous and Relay (#1156).
+  * Fixed: expand keystore path passed via flags (#1149).
+  * Fixed: process certificate/change request events in order (DWH) (#1150).
+  * Fixed: handle temporary network errors in Relay (#1154).
+    This fixes a bug when Relay server finished accepting new connections
+    when a temporary error occurs, such as EMFILE.
+    Now it will sleep for some period of time, but still interrupting on
+    non-recoverable error. This is the same how gRPC handles this.
+    Also the entire server now will stop on such non-recoverable errors instead
+    of waiting for interruption signal.
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 03 Jul 2018 16:55:19 +0300
+
 sonm-core (0.4.2) unstable; urgency=low
 
   * Fixed: default configs for all published components now should be pointed
