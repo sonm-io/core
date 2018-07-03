@@ -172,7 +172,8 @@ message ProfilesRequest {
     ProfileRole role = 1;
     IdentityLevel identityLevel = 2;
     repeated string country = 3;
-    string name = 4;
+    // This value is LIKE-matched against both profile Name and UserID (case insensitive).
+    string identifier = 4;
     BlacklistQuery blacklistQuery = 5;
     uint64 limit = 6;
     uint64 offset = 7;
@@ -225,8 +226,17 @@ message ValidatorsRequest {
 }
 
 message ValidatorsReply {
-    repeated Validator validators = 1;
+    repeated DWHValidator validators = 1;
     uint64 count = 2;
+}
+
+message DWHValidator {
+    Validator validator = 1;
+    string name = 2;
+    string icon = 3;
+    string url = 4;
+    string description = 5;
+    BigInt price = 6;
 }
 
 message Validator {

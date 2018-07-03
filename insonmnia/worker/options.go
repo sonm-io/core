@@ -119,11 +119,11 @@ func (m *options) SetupDefaults() error {
 func (m *options) setupKey() error {
 	if m.key == nil {
 		var data []byte
-		err := m.storage.Load(ethereumPrivateKeyKey, &data)
+		loaded, err := m.storage.Load(ethereumPrivateKeyKey, &data)
 		if err != nil {
 			return err
 		}
-		if data == nil {
+		if !loaded {
 			key, err := crypto.GenerateKey()
 			if err != nil {
 				return err
@@ -160,7 +160,7 @@ func (m *options) exportKey() error {
 
 func (m *options) setupBlockchainAPI() error {
 	if m.eth == nil {
-		eth, err := blockchain.NewAPI(blockchain.WithConfig(m.cfg.Blockchain))
+		eth, err := blockchain.NewAPI(m.ctx, blockchain.WithConfig(m.cfg.Blockchain))
 		if err != nil {
 			return err
 		}

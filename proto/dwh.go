@@ -1,5 +1,7 @@
 package sonm
 
+import "strings"
+
 func NewBenchmarks(benchmarks []uint64) (*Benchmarks, error) {
 	b := &Benchmarks{
 		Values: make([]uint64, len(benchmarks)),
@@ -52,4 +54,9 @@ func (m *Certificate) GetAttributeName() string {
 	}
 
 	return attrs[m.GetAttribute()]
+}
+
+// GetAttributeNameNormalized returns GetAttributeName with spaces replaced by underscores.
+func (m *Certificate) GetAttributeNameNormalized() string {
+	return strings.Replace(m.GetAttributeName(), " ", "_", -1)
 }

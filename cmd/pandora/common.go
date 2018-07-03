@@ -35,7 +35,7 @@ func PrivateKey(cfg EthereumConfig) *ecdsa.PrivateKey {
 			Passphrase: cfg.AccountPass,
 		}
 
-		privateKey, err := ethConfig.LoadKey(accounts.Silent())
+		privateKey, err := ethConfig.LoadKey()
 		if err != nil {
 			panic(err)
 		}

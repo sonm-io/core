@@ -1,0 +1,13 @@
+[Unit]
+Description=SONM Oracle
+
+
+[Service]
+EnvironmentFile=/etc/default/sonm-oracle
+Type=simple
+ExecStart=/usr/bin/sonmoracle --config=${CONFIG_PATH}
+Restart=on-failure
+
+
+[Install]
+WantedBy=multi-user.target

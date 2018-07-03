@@ -485,21 +485,26 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 	// ( in that case we can access docker client and plugins repo from the Ovs instance. )
 	pr, err := newContainer(ctx, o.client, description, o.plugins)
 	if err != nil {
+		log.S(ctx).Debugf("failed to create container")
 		return
 	}
+	log.S(ctx).Debugf("created container %s", pr.ID)
 
 	o.mu.Lock()
 	o.containers[pr.ID] = pr
-	status = make(chan pb.TaskStatusReply_Status)
+	status = make(chan pb.TaskStatusReply_Status, 1)
 	o.statuses[pr.ID] = status
 	o.mu.Unlock()
 
 	if err = pr.startContainer(ctx); err != nil {
+		log.S(ctx).Warnf("failed to start container %s", pr.ID)
 		return
 	}
+	log.S(ctx).Debugf("started container %s", pr.ID)
 
 	cjson, err := o.client.ContainerInspect(ctx, pr.ID)
 	if err != nil {
+		log.S(ctx).Warnf("failed to inspect container %s", pr.ID)
 		// NOTE: I don't think it can fail
 		return
 	}
@@ -561,6 +566,7 @@ func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 	status, sok := o.statuses[containerID]
 	delete(o.statuses, containerID)
 	if sok {
+		status <- pb.TaskStatusReply_FINISHED
 		close(status)
 	}
 	if !ok {

@@ -117,7 +117,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 
 	dwh := pb.NewDWHClient(dwhCC)
 
-	eth, err := blockchain.NewAPI(blockchain.WithConfig(cfg.Blockchain))
+	eth, err := blockchain.NewAPI(ctx, blockchain.WithConfig(cfg.Blockchain))
 	if err != nil {
 		return nil, err
 	}

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/proto"
 	"golang.org/x/net/context"
@@ -42,7 +41,7 @@ func (t *tokenAPI) Balance(ctx context.Context, _ *sonm.Empty) (*sonm.BalanceRep
 }
 
 func (t *tokenAPI) Deposit(ctx context.Context, amount *sonm.BigInt) (*sonm.Empty, error) {
-	if err := t.remotes.eth.MasterchainToken().ApproveAtLeast(ctx, t.remotes.key, blockchain.GatekeeperMasterchainAddr(), amount.Unwrap()); err != nil {
+	if err := t.remotes.eth.MasterchainToken().ApproveAtLeast(ctx, t.remotes.key, t.remotes.eth.ContractRegistry().GatekeeperMasterchainAddress(), amount.Unwrap()); err != nil {
 		return nil, fmt.Errorf("cannot change allowance: %s", err)
 	}
 
@@ -54,7 +53,7 @@ func (t *tokenAPI) Deposit(ctx context.Context, amount *sonm.BigInt) (*sonm.Empt
 }
 
 func (t *tokenAPI) Withdraw(ctx context.Context, amount *sonm.BigInt) (*sonm.Empty, error) {
-	if err := t.remotes.eth.SidechainToken().IncreaseApproval(ctx, t.remotes.key, blockchain.GatekeeperSidechainAddr(), amount.Unwrap()); err != nil {
+	if err := t.remotes.eth.SidechainToken().IncreaseApproval(ctx, t.remotes.key, t.remotes.eth.ContractRegistry().GatekeeperSidechainAddress(), amount.Unwrap()); err != nil {
 		return nil, fmt.Errorf("cannot change allowance: %s", err)
 	}
 
@@ -70,7 +69,7 @@ func (t *tokenAPI) MarketAllowance(ctx context.Context, _ *sonm.Empty) (*sonm.Bi
 	if err != nil {
 		return nil, fmt.Errorf("failed to extract eth address from context: %s", err)
 	}
-	allowance, err := t.remotes.eth.SidechainToken().AllowanceOf(ctx, *addr, blockchain.MarketAddr())
+	allowance, err := t.remotes.eth.SidechainToken().AllowanceOf(ctx, *addr, t.remotes.eth.ContractRegistry().MarketAddress())
 	if err != nil {
 		return nil, fmt.Errorf("failed to get allowance for market: %s", err)
 	}

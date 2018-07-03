@@ -376,7 +376,7 @@ func TestDWH_GetProfiles(t *testing.T) {
 	defer globalDWH.mu.Unlock()
 
 	profiles, _, err := globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), &pb.ProfilesRequest{
-		Name: "sortedProfile",
+		Identifier: "sortedProfile",
 		Sortings: []*pb.SortingOption{
 			{
 				Field: "UserID",
@@ -400,7 +400,7 @@ func TestDWH_GetProfiles(t *testing.T) {
 	}
 
 	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), &pb.ProfilesRequest{
-		Name: "sortedProfile",
+		Identifier: "sortedProfile",
 		Sortings: []*pb.SortingOption{
 			{
 				Field: "UserID",
@@ -424,7 +424,7 @@ func TestDWH_GetProfiles(t *testing.T) {
 	}
 
 	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), &pb.ProfilesRequest{
-		Name: "sortedProfile",
+		Identifier: "sortedProfile",
 		Sortings: []*pb.SortingOption{
 			{
 				Field: "IdentityLevel",
@@ -576,6 +576,7 @@ func TestDWH_monitor(t *testing.T) {
 		Level: 3,
 	}
 	mockProfiles.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)
+	mockProfiles.EXPECT().GetValidatorLevel(gomock.Any(), gomock.Any()).AnyTimes().Return(int8(0), nil)
 	certificate := &pb.Certificate{
 		ValidatorID:   pb.NewEthAddress(common.HexToAddress("0xC")),
 		OwnerID:       pb.NewEthAddress(common.HexToAddress("0xD")),
@@ -696,9 +697,9 @@ func testValidatorCreatedUpdated(validator *pb.Validator) error {
 		if len(validators) != 1 {
 			return fmt.Errorf("(ValidatorCreated) Expected 1 Validator, got %d", len(validators))
 		}
-		if validators[0].Level != 3 {
+		if validators[0].GetValidator().GetLevel() != 3 {
 			return fmt.Errorf("(ValidatorCreated) Expected %d, got %d (Validator.Level)",
-				3, validators[0].Level)
+				3, validators[0].GetValidator().GetLevel())
 		}
 	}
 	validator.Level = 0
@@ -712,9 +713,9 @@ func testValidatorCreatedUpdated(validator *pb.Validator) error {
 		if len(validators) != 1 {
 			return fmt.Errorf("(ValidatorDeleted) Expected 1 Validator, got %d", len(validators))
 		}
-		if validators[0].Level != 0 {
+		if validators[0].GetValidator().GetLevel() != 0 {
 			return fmt.Errorf("(ValidatorDeleted) Expected %d, got %d (Validator.Level)",
-				0, validators[0].Level)
+				0, validators[0].GetValidator().GetLevel())
 		}
 	}
 	return nil

@@ -2,19 +2,41 @@ package blockchain
 
 import (
 	"net/url"
+
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // Config represents SONM blockchain configuration structure that can act as a
 // building block for more complex configs.
 type Config struct {
-	Endpoint          url.URL
-	SidechainEndpoint url.URL
+	Endpoint             url.URL
+	SidechainEndpoint    url.URL
+	ContractRegistryAddr common.Address
+}
+
+func NewDefaultConfig() (*Config, error) {
+	endpoint, err := url.Parse(defaultMasterchainEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	sidechainEndpoint, err := url.Parse(defaultSidechainEndpoint)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Config{
+		Endpoint:             *endpoint,
+		SidechainEndpoint:    *sidechainEndpoint,
+		ContractRegistryAddr: common.HexToAddress(defaultContractRegistryAddr),
+	}, nil
 }
 
 func (m *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var cfg struct {
-		MasterchainEndpoint string `yaml:"endpoint"`
-		SidechainEndpoint   string `yaml:"sidechain_endpoint"`
+		MasterchainEndpoint  string         `yaml:"endpoint"`
+		SidechainEndpoint    string         `yaml:"sidechain_endpoint"`
+		ContractRegistryAddr common.Address `yaml:"contract_registry"`
 	}
 
 	if err := unmarshal(&cfg); err != nil {
@@ -41,6 +63,7 @@ func (m *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 
 	m.Endpoint = *endpoint
 	m.SidechainEndpoint = *sidechainEndpoint
+	m.ContractRegistryAddr = cfg.ContractRegistryAddr
 
 	return nil
 }

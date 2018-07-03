@@ -6,18 +6,20 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/cnf/structhash"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/gogo/protobuf/proto"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
-	"github.com/mohae/deepcopy"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pborman/uuid"
@@ -32,6 +34,7 @@ import (
 	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xgrpc"
+	"golang.org/x/sync/errgroup"
 
 	// todo: drop alias
 	bm "github.com/sonm-io/core/insonmnia/benchmarks"
@@ -65,6 +68,9 @@ var (
 		workerAPIPrefix + "PurgeAskPlans",
 		workerAPIPrefix + "ScheduleMaintenance",
 		workerAPIPrefix + "NextMaintenance",
+		workerAPIPrefix + "DebugState",
+		workerAPIPrefix + "RemoveBenchmark",
+		workerAPIPrefix + "PurgeBenchmarks",
 	}
 )
 
@@ -531,7 +537,7 @@ func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTask
 
 func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) (bool, reference.Reference, error) {
 	spec := request.GetSpec()
-	reference, err := reference.Parse(spec.GetContainer().GetImage())
+	reference, err := reference.ParseAnyReference(spec.GetContainer().GetImage())
 	if err != nil {
 		return false, nil, fmt.Errorf("failed to parse reference: %s", err)
 	}
@@ -648,6 +654,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		volumes:       spec.Container.Volumes,
 		mounts:        mounts,
 		networks:      networks,
+		expose:        spec.Container.GetExpose(),
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
@@ -855,54 +862,18 @@ func (m *Worker) RunSSH() error {
 
 // RunBenchmarks perform benchmarking of Worker's resources.
 func (m *Worker) runBenchmarks() error {
-	savedHardware := m.storage.HardwareHash()
-	exitingHardware := m.hardware.Hash()
-
-	log.G(m.ctx).Debug("hardware hashes",
-		zap.String("saved", savedHardware),
-		zap.String("exiting", exitingHardware))
-
-	savedBenchmarks := m.storage.PassedBenchmarks()
-	//TODO(@antmat): use plain list of benchmarks when it will be available (via following PR)
-	requiredBenchmarks := m.benchmarks.MapByDeviceType()
-
-	hwHashesMatched := exitingHardware == savedHardware
-	benchMatched := m.isBenchmarkListMatches(requiredBenchmarks, savedBenchmarks)
-
-	log.G(m.ctx).Debug("state matching",
-		zap.Bool("hwHashesMatched", hwHashesMatched),
-		zap.Bool("benchMatched", benchMatched))
-
-	if benchMatched && hwHashesMatched {
-		log.G(m.ctx).Debug("benchmarks list is matched, hardware is not changed, skip benchmarking this worker")
-		// return back previously measured results for hardware
-		m.hardware = m.storage.HardwareWithBenchmarks()
-		m.hardware.SetDevicesFromBenches()
-		return nil
-	}
-
-	passedBenchmarks := map[uint64]bool{}
-	for dev, benches := range requiredBenchmarks {
-		err := m.runBenchmarkGroup(dev, benches)
+	requiredBenchmarks := m.benchmarks.ByID()
+	for _, bench := range requiredBenchmarks {
+		err := m.runBenchmark(bench)
 		if err != nil {
+			log.S(m.ctx).Errorf("failed to process benchmark %s(%d)", bench.GetCode(), bench.GetID())
 			return err
 		}
-
-		for _, b := range benches {
-			passedBenchmarks[b.GetID()] = true
-		}
+		log.S(m.ctx).Debugf("processed benchmark %s(%d)", bench.GetCode(), bench.GetID())
 	}
 	m.hardware.SetDevicesFromBenches()
 
-	if err := m.storage.SetPassedBenchmarks(passedBenchmarks); err != nil {
-		return err
-	}
-
-	if err := m.storage.SetHardwareWithBenchmarks(m.hardware); err != nil {
-		return err
-	}
-
-	return m.storage.SetHardwareHash(m.hardware.Hash())
+	return nil
 }
 
 func (m *Worker) setupResources() error {
@@ -953,86 +924,188 @@ func (m *Worker) setupServer() error {
 	return nil
 }
 
-// isBenchmarkListMatches checks if already passed benchmarks is matches required benchmarks list.
-//
-// todo: test me
-func (m *Worker) isBenchmarkListMatches(required map[pb.DeviceType][]*pb.Benchmark, exiting map[uint64]bool) bool {
-	for _, benchs := range required {
-		for _, bench := range benchs {
-			if _, ok := exiting[bench.ID]; !ok {
-				return false
-			}
-		}
-	}
-
-	return true
+type BenchmarkHasher interface {
+	// Hash of the hardware, empty string means that we need to rebenchmark everytime
+	HardwareHash() string
 }
 
-// runBenchmarkGroup executes group of benchmarks for given device type (CPU, GPU, Network, etc...).
-// The results must be attached to worker's hardware capabilities inside this function (by magic).
-func (m *Worker) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) error {
-	var hwBenches []map[uint64]*pb.Benchmark
-	var gpuDevices []*pb.GPUDevice
-	switch dev {
-	case pb.DeviceType_DEV_CPU:
-		hwBenches = []map[uint64]*pb.Benchmark{m.hardware.CPU.Benchmarks}
-	case pb.DeviceType_DEV_RAM:
-		hwBenches = []map[uint64]*pb.Benchmark{m.hardware.RAM.Benchmarks}
-	case pb.DeviceType_DEV_GPU:
-		for _, gpu := range m.hardware.GPU {
-			hwBenches = append(hwBenches, gpu.Benchmarks)
-			gpuDevices = append(gpuDevices, gpu.Device)
-		}
-	case pb.DeviceType_DEV_NETWORK_IN:
-		hwBenches = []map[uint64]*pb.Benchmark{m.hardware.Network.BenchmarksIn}
-	case pb.DeviceType_DEV_NETWORK_OUT:
-		hwBenches = []map[uint64]*pb.Benchmark{m.hardware.Network.BenchmarksOut}
-	case pb.DeviceType_DEV_STORAGE:
-		hwBenches = []map[uint64]*pb.Benchmark{m.hardware.Storage.Benchmarks}
-	default:
-		return fmt.Errorf("unknown benchmark group \"%s\"", dev.String())
+type DeviceKeyer interface {
+	StorageKey() string
+}
+
+func benchKey(bench *pb.Benchmark, device interface{}) string {
+	return deviceKey(device) + "/benchmarks/" + fmt.Sprintf("%x", structhash.Md5(bench, 1))
+}
+
+func deviceKey(device interface{}) string {
+	if dev, ok := device.(DeviceKeyer); ok {
+		return "hardware/" + dev.StorageKey()
+	} else {
+		return "hardware/" + reflect.TypeOf(device).Elem().Name()
+	}
+}
+
+func (m *Worker) getCachedValue(bench *pb.Benchmark, device interface{}) (uint64, error) {
+	var hash string
+	if dev, ok := device.(BenchmarkHasher); ok {
+		hash = dev.HardwareHash()
+	} else {
+		hash = fmt.Sprintf("%x", structhash.Md5(device, 1))
+	}
+	if hash == "" {
+		return 0, fmt.Errorf("hashing is disabled for device")
 	}
 
-	for _, bench := range benches {
-		for idx, receiver := range hwBenches {
-			if bench.GetID() == bm.CPUCores {
-				bench.Result = uint64(m.hardware.CPU.Device.Cores)
-			} else if bench.GetID() == bm.RamSize {
-				bench.Result = m.hardware.RAM.Device.Total
-			} else if bench.GetID() == bm.GPUCount {
-				//GPU count is always 1 for each GPU device.
-				bench.Result = uint64(1)
-			} else if bench.GetID() == bm.GPUMem {
-				bench.Result = gpuDevices[idx].Memory
-			} else if bench.GetID() == bm.StorageSize {
-				freeDiskSpace, err := disk.FreeDiskSpace(m.ctx)
-				if err != nil {
-					return err
-				}
-				bench.Result = freeDiskSpace
-			} else if len(bench.GetImage()) != 0 {
-				d, err := getDescriptionForBenchmark(bench)
-				if err != nil {
-					return fmt.Errorf("could not create description for benchmark: %s", err)
-				}
-				d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
-
-				if gpuDevices != nil {
-					gpuDev := gpuDevices[idx]
-					d.Env[bm.GPUVendorParam] = gpuDev.VendorType().String()
-					d.GPUDevices = []gpu.GPUID{gpu.GPUID(gpuDev.GetID())}
-				}
-				res, err := m.execBenchmarkContainer(bench, d)
-				if err != nil {
-					return err
-				}
-				bench.Result = res.Result
-			} else {
-				log.S(m.ctx).Warnf("skipping benchmark %s (setting explicitly to 0)", bench.Code)
-				bench.Result = uint64(0)
-			}
-			receiver[bench.GetID()] = deepcopy.Copy(bench).(*pb.Benchmark)
+	var storedHash string
+	loaded, err := m.storage.Load(deviceKey(device), &storedHash)
+	if err != nil {
+		return 0, err
+	}
+	if loaded && hash == storedHash {
+		var storedValue uint64
+		loaded, err := m.storage.Load(benchKey(bench, device), &storedValue)
+		if err != nil {
+			return 0, err
 		}
+		if !loaded {
+			return 0, errors.New("benchmark value not found")
+		}
+		return storedValue, nil
+	}
+	if err := m.storage.Save(deviceKey(device), hash); err != nil {
+		return 0, fmt.Errorf("failed to save hardware hash: %s", err)
+	}
+	return 0, fmt.Errorf("hardware hashes do not match, current %s, stored %s", hash, storedHash)
+}
+
+func (m *Worker) dropCachedValue(benchID uint64) error {
+	benches := m.benchmarks.ByID()
+	if benchID >= uint64(len(benches)) {
+		return fmt.Errorf("benchmark with id %d not found", benchID)
+	}
+	drop := func(bench *pb.Benchmark, device interface{}) error {
+		_, err := m.storage.Remove(benchKey(bench, device))
+		return err
+	}
+	bench := benches[benchID]
+	switch bench.GetType() {
+	case pb.DeviceType_DEV_CPU:
+		return drop(bench, m.hardware.CPU.Device)
+	case pb.DeviceType_DEV_GPU:
+		multi := multierror.NewMultiError()
+		for _, dev := range m.hardware.GPU {
+			if err := drop(bench, dev.Device); err != nil {
+				multi = multierror.Append(multi, err)
+			}
+		}
+		return multi.ErrorOrNil()
+	case pb.DeviceType_DEV_RAM:
+		return drop(bench, m.hardware.RAM.Device)
+	case pb.DeviceType_DEV_STORAGE:
+		return drop(bench, m.hardware.Storage.Device)
+	case pb.DeviceType_DEV_NETWORK_IN:
+		return drop(bench, m.hardware.Network)
+	case pb.DeviceType_DEV_NETWORK_OUT:
+		return drop(bench, m.hardware.Network)
+	default:
+		return fmt.Errorf("unknown device %d", bench.GetType())
+	}
+}
+
+func (m *Worker) getBenchValue(bench *pb.Benchmark, device interface{}) (uint64, error) {
+	if bench.GetID() == bm.CPUCores {
+		return uint64(m.hardware.CPU.Device.Cores), nil
+	}
+	if bench.GetID() == bm.RamSize {
+		return m.hardware.RAM.Device.Total, nil
+	}
+	if bench.GetID() == bm.StorageSize {
+		return disk.FreeDiskSpace(m.ctx)
+	}
+	if bench.GetID() == bm.GPUCount {
+		//GPU count is always 1 for each GPU device.
+		return uint64(1), nil
+	}
+	gpuDevice, isGpu := device.(*pb.GPUDevice)
+	if bench.GetID() == bm.GPUMem {
+		if !isGpu {
+			return uint64(0), fmt.Errorf("invalid device for GPUMem benchmark")
+		}
+		return gpuDevice.GetMemory(), nil
+	}
+
+	val, err := m.getCachedValue(bench, device)
+	if err == nil {
+		log.S(m.ctx).Debugf("using cached benchmark value for benchmark %s(%d) - %d", bench.GetCode(), bench.GetID(), val)
+		return val, nil
+	} else {
+		log.S(m.ctx).Infof("failed to get cached benchmark value for benchmark %s(%d): %s", bench.GetCode(), bench.GetID(), err)
+	}
+
+	if len(bench.GetImage()) != 0 {
+		d, err := getDescriptionForBenchmark(bench)
+		if err != nil {
+			return uint64(0), fmt.Errorf("could not create description for benchmark: %s", err)
+		}
+		d.Env[bm.CPUCountBenchParam] = fmt.Sprintf("%d", m.hardware.CPU.Device.Cores)
+
+		if isGpu {
+			d.Env[bm.GPUVendorParam] = gpuDevice.VendorType().String()
+			d.GPUDevices = []gpu.GPUID{gpu.GPUID(gpuDevice.GetID())}
+		}
+		res, err := m.execBenchmarkContainer(bench, d)
+		if err != nil {
+
+			return uint64(0), err
+		}
+		if err := m.storage.Save(benchKey(bench, device), res.Result); err != nil {
+			log.S(m.ctx).Warnf("failed to save benchmark result in %s", benchKey(bench, device))
+		}
+		return res.Result, nil
+	} else {
+		log.S(m.ctx).Warnf("skipping benchmark %s (setting explicitly to 0)", bench.Code)
+		return uint64(0), nil
+	}
+}
+
+func (m *Worker) setBenchmark(bench *pb.Benchmark, device interface{}, benchMap map[uint64]*pb.Benchmark) error {
+	value, err := m.getBenchValue(bench, device)
+	if err != nil {
+		return err
+	}
+	copy := proto.Clone(bench).(*pb.Benchmark)
+	copy.Result = value
+	benchMap[bench.GetID()] = copy
+	return nil
+}
+
+func (m *Worker) runBenchmark(bench *pb.Benchmark) error {
+	log.S(m.ctx).Debugf("processing benchmark %s(%d)", bench.GetCode(), bench.GetID())
+	switch bench.GetType() {
+	case pb.DeviceType_DEV_CPU:
+		return m.setBenchmark(bench, m.hardware.CPU.Device, m.hardware.CPU.Benchmarks)
+	case pb.DeviceType_DEV_RAM:
+		return m.setBenchmark(bench, m.hardware.RAM.Device, m.hardware.RAM.Benchmarks)
+	case pb.DeviceType_DEV_STORAGE:
+		return m.setBenchmark(bench, m.hardware.Storage.Device, m.hardware.Storage.Benchmarks)
+	case pb.DeviceType_DEV_NETWORK_IN:
+		return m.setBenchmark(bench, m.hardware.Network, m.hardware.Network.BenchmarksIn)
+	case pb.DeviceType_DEV_NETWORK_OUT:
+		return m.setBenchmark(bench, m.hardware.Network, m.hardware.Network.BenchmarksOut)
+	case pb.DeviceType_DEV_GPU:
+		//TODO: use context to prevent useless benchmarking in case of error
+		group := errgroup.Group{}
+		for _, gpu := range m.hardware.GPU {
+			g := gpu
+			group.Go(func() error {
+				return m.setBenchmark(bench, g.Device, g.Benchmarks)
+			})
+		}
+		if err := group.Wait(); err != nil {
+			return err
+		}
+	default:
+		log.S(m.ctx).Warnf("invalid benchmark type %d", bench.GetType())
 	}
 	return nil
 }
@@ -1040,6 +1113,7 @@ func (m *Worker) runBenchmarkGroup(dev pb.DeviceType, benches []*pb.Benchmark) e
 // execBenchmarkContainerWithResults executes benchmark as docker image,
 // returns JSON output with measured values.
 func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*bm.ResultJSON, error) {
+	logTime := time.Now().Add(-time.Minute)
 	err := m.ovs.Spool(m.ctx, d)
 	if err != nil {
 		return nil, err
@@ -1049,40 +1123,45 @@ func (m *Worker) execBenchmarkContainerWithResults(d Description) (map[string]*b
 	if err != nil {
 		return nil, fmt.Errorf("cannot start container with benchmark: %v", err)
 	}
-
-	logOpts := types.ContainerLogsOptions{
-		ShowStdout: true,
-		Follow:     true,
-		Since:      strconv.FormatInt(time.Now().Unix(), 10),
-	}
-
-	reader, err := m.ovs.Logs(m.ctx, statusReply.ID, logOpts)
-	if err != nil {
-		return nil, fmt.Errorf("cannot create container log reader: %v", err)
-	}
-	defer reader.Close()
-
-	stdoutBuf := bytes.Buffer{}
-	stderrBuf := bytes.Buffer{}
+	log.S(m.ctx).Debugf("started benchmark container %s", statusReply.ID)
+	defer m.ovs.OnDealFinish(m.ctx, statusReply.ID)
 
 	select {
 	case s := <-statusChan:
 		if s == pb.TaskStatusReply_FINISHED || s == pb.TaskStatusReply_BROKEN {
+			log.S(m.ctx).Debugf("benchmark container %s finished", statusReply.ID)
+			logOpts := types.ContainerLogsOptions{
+				ShowStdout: true,
+				//ShowStderr: true,
+				Follow: true,
+				Since:  strconv.FormatInt(logTime.Unix(), 10),
+			}
+
+			reader, err := m.ovs.Logs(m.ctx, statusReply.ID, logOpts)
+			if err != nil {
+				return nil, fmt.Errorf("cannot create container log reader for %s: %v", statusReply.ID, err)
+			}
+			log.S(m.ctx).Debugf("requested container %s logs", statusReply.ID)
+			defer reader.Close()
+
+			stdoutBuf := bytes.Buffer{}
+			stderrBuf := bytes.Buffer{}
+
 			if _, err := stdcopy.StdCopy(&stdoutBuf, &stderrBuf, reader); err != nil {
 				return nil, fmt.Errorf("cannot read logs into buffer: %v", err)
 			}
+			resultsMap, err := parseBenchmarkResult(stdoutBuf.Bytes())
+			if err != nil {
+				return nil, fmt.Errorf("cannot parse benchmark result: %v", err)
+			}
+
+			return resultsMap, nil
+		} else {
+			return nil, fmt.Errorf("invalid status %d received", s)
 		}
 	case <-m.ctx.Done():
 		return nil, m.ctx.Err()
 	}
-
-	resultsMap, err := parseBenchmarkResult(stdoutBuf.Bytes())
-	if err != nil {
-		return nil, fmt.Errorf("cannot parse benchmark result: %v", err)
-	}
-
-	m.ovs.OnDealFinish(m.ctx, statusReply.ID)
-	return resultsMap, nil
 }
 
 func (m *Worker) execBenchmarkContainer(ben *pb.Benchmark, des Description) (*bm.ResultJSON, error) {
@@ -1108,7 +1187,7 @@ func parseBenchmarkResult(data []byte) (map[string]*bm.ResultJSON, error) {
 	v := &bm.ContainerBenchmarkResultsJSON{}
 	err := json.Unmarshal(data, &v)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse `%s` to json: %s", string(data), err)
 	}
 
 	if len(v.Results) == 0 {
@@ -1124,8 +1203,7 @@ func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
 		return Description{}, err
 	}
 	return Description{
-		autoremove: true,
-		Reference:  reference,
+		Reference: reference,
 		Env: map[string]string{
 			bm.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
 		},
@@ -1140,7 +1218,10 @@ func (m *Worker) AskPlans(ctx context.Context, _ *pb.Empty) (*pb.AskPlansReply, 
 func (m *Worker) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (*pb.ID, error) {
 	log.G(m.ctx).Info("handling CreateAskPlan request", zap.Any("request", request))
 	if len(request.GetID()) != 0 || !request.GetOrderID().IsZero() || !request.GetDealID().IsZero() {
-		return nil, errors.New("creating ask plans with predefined id, order_id or deal_id are not supported")
+		return nil, errors.New("creating ask plans with predefined id, order_id or deal_id is not supported")
+	}
+	if request.GetCreateTime().Unix().UnixNano() != 0 || request.GetLastOrderPlacedTime().Unix().UnixNano() != 0 {
+		return nil, errors.New("creating ask plans with predefined timestamps is not supported")
 	}
 	id, err := m.salesman.CreateAskPlan(request)
 	if err != nil {
@@ -1189,6 +1270,13 @@ func (m *Worker) NextMaintenance(ctx context.Context, _ *pb.Empty) (*pb.Timestam
 	}, nil
 }
 
+func (m *Worker) DebugState(ctx context.Context, _ *pb.Empty) (*pb.DebugStateReply, error) {
+	return &pb.DebugStateReply{
+		SchedulerData: m.resources.DebugDump(),
+		SalesmanData:  m.salesman.DebugDump(),
+	}, nil
+}
+
 func (m *Worker) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
 	log.G(m.ctx).Info("handling GetDealInfo request")
 
@@ -1197,6 +1285,25 @@ func (m *Worker) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply,
 		return nil, err
 	}
 	return m.getDealInfo(dealID)
+}
+
+func (m *Worker) RemoveBenchmark(ctx context.Context, id *pb.NumericID) (*pb.Empty, error) {
+	err := m.dropCachedValue(id.Id)
+	if err != nil {
+		return nil, err
+	}
+	return &pb.Empty{}, nil
+}
+
+func (m *Worker) PurgeBenchmarks(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
+	multi := multierror.NewMultiError()
+	benchmarks := m.benchmarks.ByID()
+	for id := range benchmarks {
+		if err := m.dropCachedValue(uint64(id)); err != nil {
+			multi = multierror.Append(multi, err)
+		}
+	}
+	return &pb.Empty{}, multi.ErrorOrNil()
 }
 
 func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {

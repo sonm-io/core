@@ -22,7 +22,7 @@ type Hardware struct {
 	CPU     *sonm.CPU     `json:"cpu"`
 	GPU     []*sonm.GPU   `json:"gpu"`
 	RAM     *sonm.RAM     `json:"ram"`
-	Network *sonm.Network `json:"network_in"`
+	Network *sonm.Network `json:"network"`
 	Storage *sonm.Storage `json:"storage"`
 }
 
@@ -141,29 +141,6 @@ func (h *Hardware) SetDevicesFromBenches() {
 	}
 }
 
-type benchValue struct {
-	isSet bool
-	value uint64
-}
-
-func (m *benchValue) Set(value uint64) {
-	m.value = value
-	m.isSet = true
-}
-
-func (m *benchValue) Add(value uint64) {
-	m.value += value
-	m.isSet = true
-}
-
-func (m *benchValue) IsSet() bool {
-	return m.isSet
-}
-
-func (m *benchValue) Value() uint64 {
-	return m.value
-}
-
 func insertBenches(to map[uint64]*sonm.Benchmark, from map[uint64]*sonm.Benchmark, proportion float64) error {
 	for _, bench := range from {
 		if err := insertBench(to, bench, proportion); err != nil {
@@ -192,7 +169,7 @@ func insertBench(to map[uint64]*sonm.Benchmark, bench *sonm.Benchmark, proportio
 			return fmt.Errorf("duplicate benchmark with id %d and splitting algorithm none", bench.ID)
 		}
 	case sonm.SplittingAlgorithm_PROPORTIONAL:
-		target.Result += uint64(float64(bench.Result) * proportion)
+		target.Result += uint64(math.Ceil(float64(bench.Result) * proportion))
 	case sonm.SplittingAlgorithm_MAX:
 		if bench.Result >= target.Result {
 			target.Result = bench.Result
@@ -207,6 +184,10 @@ func insertBench(to map[uint64]*sonm.Benchmark, bench *sonm.Benchmark, proportio
 		}
 	}
 	return nil
+}
+
+func (h *Hardware) FullBenchmarks() (*sonm.Benchmarks, error) {
+	return h.ResourcesToBenchmarks(h.AskPlanResources())
 }
 
 func (h *Hardware) ResourcesToBenchmarks(resources *sonm.AskPlanResources) (*sonm.Benchmarks, error) {

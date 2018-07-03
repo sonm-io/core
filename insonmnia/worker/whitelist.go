@@ -153,7 +153,7 @@ func (w *whitelist) Allowed(ctx context.Context, ref reference.Reference, author
 
 	inspection, err := dockerClient.DistributionInspect(ctx, ref.String(), authority)
 	if err != nil {
-		return false, nil, fmt.Errorf("could not perform DistributionInspect: %v", err)
+		return false, nil, fmt.Errorf("could not perform DistributionInspect for %s: %v", ref.String(), err)
 	}
 
 	ref, err = reference.WithDigest(ref.(reference.Named), inspection.Descriptor.Digest)

@@ -14,6 +14,24 @@ type Normalizer interface {
 	Normalize(x float64) float64
 	NormalizeBatch(x []float64)
 	Denormalize(x float64) float64
+	IsDegenerated() bool
+}
+
+type nilNormalizer struct{}
+
+func (*nilNormalizer) Normalize(x float64) float64 {
+	return x
+}
+
+func (*nilNormalizer) NormalizeBatch(x []float64) {
+}
+
+func (*nilNormalizer) Denormalize(x float64) float64 {
+	return x
+}
+
+func (*nilNormalizer) IsDegenerated() bool {
+	return false
 }
 
 type meanNormalizer struct {
@@ -60,6 +78,10 @@ func (m *meanNormalizer) NormalizeBatch(x []float64) {
 	}
 }
 
+func (m *meanNormalizer) IsDegenerated() bool {
+	return m.scale == 0.0
+}
+
 func (m *meanNormalizer) Denormalize(x float64) float64 {
 	return x*m.scale + m.mean
 }
@@ -71,7 +93,7 @@ type normalizer struct {
 	scale float64
 }
 
-func newNormalizer(vec ...float64) (*normalizer, error) {
+func newNormalizer(vec ...float64) (Normalizer, error) {
 	m := &normalizer{}
 
 	if len(vec) > 0 {

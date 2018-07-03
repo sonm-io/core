@@ -4,6 +4,7 @@ import "bigint.proto";
 import "capabilities.proto";
 import "insonmnia.proto";
 import "marketplace.proto";
+import "timestamp.proto";
 
 package sonm;
 
@@ -54,4 +55,6 @@ message AskPlan {
     bytes tag = 9;
     AskPlanResources resources = 10;
     Status status = 11;
+    Timestamp createTime = 12;
+    Timestamp lastOrderPlacedTime = 13;
 }

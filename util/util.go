@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/user"
+	"path"
 	"runtime"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -19,14 +20,42 @@ import (
 
 const (
 	FormattedBigIntLength = 80
+	HomeConfigDir         = ".sonm"
+	DefaultKeystorePath   = "keystore"
 )
 
+// GetUserHomeDir returns home for current user.
+// e.g: /home/user
 func GetUserHomeDir() (homeDir string, err error) {
 	usr, err := user.Current()
 	if err != nil {
 		return "", err
 	}
 	return usr.HomeDir, nil
+}
+
+// GetDefaultConfigDir returns default user's config dir.
+// e.g: /home/user/.sonm
+func GetDefaultConfigDir() (string, error) {
+	home, err := GetUserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	dir := path.Join(home, HomeConfigDir)
+	return dir, nil
+}
+
+// GetDefaultKeyStoreDir returns default keystore dir for current user.
+// e.g: /home/user/.sonm/keystore
+func GetDefaultKeyStoreDir() (string, error) {
+	cfgDir, err := GetDefaultConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	keyDir := path.Join(cfgDir, DefaultKeystorePath)
+	return keyDir, nil
 }
 
 func GetPlatformName() string {

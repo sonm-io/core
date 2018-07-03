@@ -1,6 +1,7 @@
 package optimus
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -63,7 +64,7 @@ func newMappingMock(controller *gomock.Controller) *benchmarks.MockMapping {
 	m.EXPECT().SplittingAlgorithm(5).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(6).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(7).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
-	m.EXPECT().SplittingAlgorithm(8).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
+	m.EXPECT().SplittingAlgorithm(8).AnyTimes().Return(sonm.SplittingAlgorithm_MIN)
 	m.EXPECT().SplittingAlgorithm(9).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(10).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(11).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
@@ -102,9 +103,7 @@ func newEmptyDevicesReply() *sonm.DevicesReply {
 func TestConsumeCPU(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
-		0: {
-			Result: 10000,
-		},
+		0: {ID: 0, Result: 10000},
 	}
 
 	controller := gomock.NewController(t)
@@ -129,9 +128,7 @@ func TestConsumeCPUTwoCores(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.CPU.Device.Cores = 2
 	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
-		0: {
-			Result: 10000,
-		},
+		0: {ID: 0, Result: 10000},
 	}
 
 	controller := gomock.NewController(t)
@@ -156,9 +153,7 @@ func TestConsumeCPULowerBound(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.CPU.Device.Cores = 2
 	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
-		0: {
-			Result: 10000,
-		},
+		0: {ID: 0, Result: 10000},
 	}
 
 	controller := gomock.NewController(t)
@@ -183,9 +178,7 @@ func TestConsumeRAM(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.RAM.Device.Total = 1e9
 	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
-		3: {
-			Result: 1e9,
-		},
+		3: {ID: 3, Result: 1e9},
 	}
 
 	controller := gomock.NewController(t)
@@ -206,6 +199,35 @@ func TestConsumeRAM(t *testing.T) {
 	assert.Equal(t, uint64(1000e6), devices.RAM.Benchmarks[3].Result)
 }
 
+func TestConsumeCPUAndRAMDoNotStealResourcesWhenRAMFailed(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
+		0: {ID: 0, Result: 10000},
+	}
+	devices.RAM.Device.Total = 1e9
+	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
+		3: {ID: 3, Result: 1e9},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := sonm.Benchmarks{
+		Values: []uint64{5000, 0, 0, 1e10},
+	}
+	cpuPlan, err := manager.Consume(benchmark)
+	require.Error(t, err)
+	require.Nil(t, cpuPlan)
+
+	// Note that free benchmarks still have to be full, in case of RAM did not fit.
+	assert.Equal(t, uint64(10000), manager.freeBenchmarks[0])
+	assert.Equal(t, uint64(10000), devices.CPU.Benchmarks[0].Result)
+}
+
 func TestConsumeGPU(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.GPUs = []*sonm.GPU{
@@ -214,9 +236,9 @@ func TestConsumeGPU(t *testing.T) {
 				Hash: "0",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1200},
-				10: {Result: 1860000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1200},
+				10: {ID: 10, Result: 1860000},
+				11: {ID: 11, Result: 3000},
 			},
 		},
 	}
@@ -246,9 +268,9 @@ func TestConsumeOneOfTwoGPU(t *testing.T) {
 				Hash: "0",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1200},
-				10: {Result: 1860000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 1860000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
@@ -256,9 +278,9 @@ func TestConsumeOneOfTwoGPU(t *testing.T) {
 				Hash: "1",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1100},
-				10: {Result: 110000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1100, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 110000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 	}
@@ -288,9 +310,9 @@ func TestConsumeTwoOfTwoGPU(t *testing.T) {
 				Hash: "0",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1200},
-				10: {Result: 1860000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 1860000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
@@ -298,9 +320,9 @@ func TestConsumeTwoOfTwoGPU(t *testing.T) {
 				Hash: "1",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1100},
-				10: {Result: 110000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1100, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 110000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 	}
@@ -312,7 +334,7 @@ func TestConsumeTwoOfTwoGPU(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, manager)
 
-	benchmark := [12]uint64{0, 0, 0, 0, 0, 0, 0, 0, 0, 1000, 100000, 2900}
+	benchmark := [12]uint64{0, 0, 0, 0, 0, 0, 0, 0, 0, 1000, 100000, 3900}
 	plan, err := manager.consumeGPU(2, benchmark[:])
 	require.NoError(t, err)
 	require.NotNil(t, plan)
@@ -330,9 +352,9 @@ func TestConsumeTwoOfFourGPU(t *testing.T) {
 				Hash: "0",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1000},
-				10: {Result: 100000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 100000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
@@ -340,9 +362,9 @@ func TestConsumeTwoOfFourGPU(t *testing.T) {
 				Hash: "1",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1200},
-				10: {Result: 120000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 120000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
@@ -350,9 +372,9 @@ func TestConsumeTwoOfFourGPU(t *testing.T) {
 				Hash: "2",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1400},
-				10: {Result: 140000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1400, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 140000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
@@ -360,9 +382,9 @@ func TestConsumeTwoOfFourGPU(t *testing.T) {
 				Hash: "3",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1600},
-				10: {Result: 160000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1600, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 160000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 	}
@@ -388,9 +410,7 @@ func TestConsumeStorage(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.Storage.Device.BytesAvailable = 1e9
 	devices.Storage.Benchmarks = map[uint64]*sonm.Benchmark{
-		4: {
-			Result: 1e9,
-		},
+		4: {ID: 4, Result: 1e9},
 	}
 
 	controller := gomock.NewController(t)
@@ -415,9 +435,7 @@ func TestConsumeStorageLowerBound(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.Storage.Device.BytesAvailable = 1e9
 	devices.Storage.Benchmarks = map[uint64]*sonm.Benchmark{
-		4: {
-			Result: 1e9,
-		},
+		4: {ID: 4, Result: 1e9},
 	}
 
 	controller := gomock.NewController(t)
@@ -443,10 +461,10 @@ func TestConsumeNetwork(t *testing.T) {
 	devices.Network.In = 100e6
 	devices.Network.Out = 100e6
 	devices.Network.BenchmarksIn = map[uint64]*sonm.Benchmark{
-		5: {Result: 100e6},
+		5: {ID: 5, Result: 100e6},
 	}
 	devices.Network.BenchmarksOut = map[uint64]*sonm.Benchmark{
-		6: {Result: 100e6},
+		6: {ID: 6, Result: 100e6},
 	}
 
 	controller := gomock.NewController(t)
@@ -473,17 +491,13 @@ func TestConsumeRAMMin(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.RAM.Device.Total = 16754622464
 	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
-		3: {
-			Result: 16754622464,
-		},
+		3: {ID: 3, Result: 16754622464},
 	}
 
 	freeDevices := newEmptyDevicesReply()
 	freeDevices.RAM.Device.Total = 16754622464
 	freeDevices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
-		3: {
-			Result: 16349238095,
-		},
+		3: {ID: 3, Result: 16349238095},
 	}
 
 	controller := gomock.NewController(t)
@@ -508,45 +522,41 @@ func TestConsumeOrder(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.CPU.Device.Cores = 4
 	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
-		0: {Result: 5680},
-		1: {Result: 1526},
-		2: {Result: 4},
+		0: {ID: 0, Result: 5680},
+		1: {ID: 1, Result: 1526},
+		2: {ID: 2, Result: 4},
 	}
 	devices.RAM.Device.Total = 16754622464
 	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
-		3: {
-			Result: 16754622464,
-		},
+		3: {ID: 3, Result: 16754622464},
 	}
 	devices.Network.In = 7143572
 	devices.Network.Out = 59053206
 	devices.Network.BenchmarksIn = map[uint64]*sonm.Benchmark{
-		5: {Result: 7143572},
+		5: {ID: 5, Result: 7143572},
 	}
 	devices.Network.BenchmarksOut = map[uint64]*sonm.Benchmark{
-		6: {Result: 59053206},
+		6: {ID: 6, Result: 59053206},
 	}
 
 	freeDevices := newEmptyDevicesReply()
 	freeDevices.CPU.Device.Cores = 4
 	freeDevices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
-		0: {Result: 5183},
-		1: {Result: 1526},
-		2: {Result: 4},
+		0: {ID: 0, Result: 5183},
+		1: {ID: 1, Result: 1526},
+		2: {ID: 2, Result: 4},
 	}
 	freeDevices.RAM.Device.Total = 16754622464
 	freeDevices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
-		3: {
-			Result: 16333650944,
-		},
+		3: {ID: 3, Result: 16333650944},
 	}
 	freeDevices.Network.In = 7143572
 	freeDevices.Network.Out = 59053206
 	freeDevices.Network.BenchmarksIn = map[uint64]*sonm.Benchmark{
-		5: {Result: 6143573},
+		5: {ID: 5, Result: 6143573},
 	}
 	freeDevices.Network.BenchmarksOut = map[uint64]*sonm.Benchmark{
-		6: {Result: 58053206},
+		6: {ID: 6, Result: 58053206},
 	}
 
 	controller := gomock.NewController(t)
@@ -575,4 +585,88 @@ func TestConsumeOrder(t *testing.T) {
 		assert.Equal(t, uint64(1), plan.ThroughputIn.BitsPerSecond)
 		assert.Equal(t, uint64(1), plan.ThroughputOut.BitsPerSecond)
 	}
+}
+
+func TestGPUStrange(t *testing.T) {
+	devicesJSON := []byte(`{"CPU":{"device":{"modelName":"Intel(R) Celeron(R) CPU G3900 @ 2.80GHz","cores":2,"sockets":2},"benchmarks":{"0":{"code":"cpu-sysbench-multi","type":1,"image":"sonm/cpu-sysbench@sha256:8eeb78e04954c07b2f72f9311ac2f7eb194456a4af77b2c883f99f8949701924","result":2152,"splittingAlgorithm":1},"1":{"ID":1,"code":"cpu-sysbench-single","type":1,"image":"sonm/cpu-sysbench@sha256:8eeb78e04954c07b2f72f9311ac2f7eb194456a4af77b2c883f99f8949701924","result":1102},"2":{"ID":2,"code":"cpu-cores","type":1,"result":2}}},"GPUs":[{"device":{"ID":"0000:01:00.0","vendorID":4318,"vendorName":"Nvidia","deviceID":7044,"deviceName":"GeForce GTX 1060 3GB","majorNumber":226,"Memory":3163553792,"hash":"31eeca4424e123f57afd34b054bfcd82"},"benchmarks":{"10":{"ID":10,"code":"gpu-cash-hashrate","type":2,"image":"sonm/gpu-cash-hashrate@sha256:1b4cd1c8a06fcb15762794e50711c5aeab9779d566c75f57d381cee5cde7dfb1","result":277,"splittingAlgorithm":1},"11":{"ID":11,"code":"gpu-redshift","type":2,"image":"sonm/gpu-redshift@sha256:d2b42c0aea94440a01ed90dc71a675868b1dbaf0db012061842571e4983175cc","result":230,"splittingAlgorithm":1},"7":{"ID":7,"code":"gpu-count","type":2,"result":1,"splittingAlgorithm":1},"8":{"ID":8,"code":"gpu-mem","type":2,"result":3163553792,"splittingAlgorithm":2},"9":{"ID":9,"code":"gpu-eth-hashrate","type":2,"image":"sonm/gpu-eth-hashrate@sha256:71ca369ca67b136adcb52df18ce5cb027a1b3e25d63b47aac35c566ec102921e","result":19971000,"splittingAlgorithm":1}}},{"device":{"ID":"0000:02:00.0","vendorID":4318,"vendorName":"Nvidia","deviceID":7044,"deviceName":"GeForce GTX 1060 3GB","majorNumber":226,"minorNumber":1,"Memory":3165650944,"hash":"f2f2648c5cd8d28a5414d0ee3f0c9f71"},"benchmarks":{"10":{"ID":10,"code":"gpu-cash-hashrate","type":2,"image":"sonm/gpu-cash-hashrate@sha256:1b4cd1c8a06fcb15762794e50711c5aeab9779d566c75f57d381cee5cde7dfb1","splittingAlgorithm":1},"11":{"ID":11,"code":"gpu-redshift","type":2,"image":"sonm/gpu-redshift@sha256:d2b42c0aea94440a01ed90dc71a675868b1dbaf0db012061842571e4983175cc","result":218,"splittingAlgorithm":1},"7":{"ID":7,"code":"gpu-count","type":2,"result":1,"splittingAlgorithm":1},"8":{"ID":8,"code":"gpu-mem","type":2,"result":3165650944,"splittingAlgorithm":2},"9":{"ID":9,"code":"gpu-eth-hashrate","type":2,"image":"sonm/gpu-eth-hashrate@sha256:71ca369ca67b136adcb52df18ce5cb027a1b3e25d63b47aac35c566ec102921e","result":19934000,"splittingAlgorithm":1}}},{"device":{"ID":"0000:03:00.0","vendorID":4318,"vendorName":"Nvidia","deviceID":7044,"deviceName":"GeForce GTX 1060 3GB","majorNumber":226,"minorNumber":2,"Memory":3165650944,"hash":"6dc87bc7fd9ff18832bc621a238074a8"},"benchmarks":{"10":{"ID":10,"code":"gpu-cash-hashrate","type":2,"image":"sonm/gpu-cash-hashrate@sha256:1b4cd1c8a06fcb15762794e50711c5aeab9779d566c75f57d381cee5cde7dfb1","splittingAlgorithm":1},"11":{"ID":11,"code":"gpu-redshift","type":2,"image":"sonm/gpu-redshift@sha256:d2b42c0aea94440a01ed90dc71a675868b1dbaf0db012061842571e4983175cc","result":219,"splittingAlgorithm":1},"7":{"ID":7,"code":"gpu-count","type":2,"result":1,"splittingAlgorithm":1},"8":{"ID":8,"code":"gpu-mem","type":2,"result":3165650944,"splittingAlgorithm":2},"9":{"ID":9,"code":"gpu-eth-hashrate","type":2,"image":"sonm/gpu-eth-hashrate@sha256:71ca369ca67b136adcb52df18ce5cb027a1b3e25d63b47aac35c566ec102921e","result":19956000,"splittingAlgorithm":1}}},{"device":{"ID":"0000:04:00.0","vendorID":4318,"vendorName":"Nvidia","deviceID":7041,"deviceName":"GeForce GTX 1070","majorNumber":226,"minorNumber":3,"Memory":8513388544,"hash":"e3511750709860779362741ebc4dd762"},"benchmarks":{"10":{"ID":10,"code":"gpu-cash-hashrate","type":2,"image":"sonm/gpu-cash-hashrate@sha256:1b4cd1c8a06fcb15762794e50711c5aeab9779d566c75f57d381cee5cde7dfb1","result":432,"splittingAlgorithm":1},"11":{"ID":11,"code":"gpu-redshift","type":2,"image":"sonm/gpu-redshift@sha256:d2b42c0aea94440a01ed90dc71a675868b1dbaf0db012061842571e4983175cc","result":359,"splittingAlgorithm":1},"7":{"ID":7,"code":"gpu-count","type":2,"result":1,"splittingAlgorithm":1},"8":{"ID":8,"code":"gpu-mem","type":2,"result":8513388544,"splittingAlgorithm":2},"9":{"ID":9,"code":"gpu-eth-hashrate","type":2,"image":"sonm/gpu-eth-hashrate@sha256:71ca369ca67b136adcb52df18ce5cb027a1b3e25d63b47aac35c566ec102921e","result":26670000,"splittingAlgorithm":1}}},{"device":{"ID":"0000:05:00.0","vendorID":4318,"vendorName":"Nvidia","deviceID":7044,"deviceName":"GeForce GTX 1060 3GB","majorNumber":226,"minorNumber":4,"Memory":3165650944,"hash":"3ff9bbd7c4fe4d415762df1a7d6772e0"},"benchmarks":{"10":{"ID":10,"code":"gpu-cash-hashrate","type":2,"image":"sonm/gpu-cash-hashrate@sha256:1b4cd1c8a06fcb15762794e50711c5aeab9779d566c75f57d381cee5cde7dfb1","result":277,"splittingAlgorithm":1},"11":{"ID":11,"code":"gpu-redshift","type":2,"image":"sonm/gpu-redshift@sha256:d2b42c0aea94440a01ed90dc71a675868b1dbaf0db012061842571e4983175cc","result":219,"splittingAlgorithm":1},"7":{"ID":7,"code":"gpu-count","type":2,"result":1,"splittingAlgorithm":1},"8":{"ID":8,"code":"gpu-mem","type":2,"result":3165650944,"splittingAlgorithm":2},"9":{"ID":9,"code":"gpu-eth-hashrate","type":2,"image":"sonm/gpu-eth-hashrate@sha256:71ca369ca67b136adcb52df18ce5cb027a1b3e25d63b47aac35c566ec102921e","result":19977000,"splittingAlgorithm":1}}},{"device":{"ID":"0000:09:00.0","vendorID":4318,"vendorName":"Nvidia","deviceID":7044,"deviceName":"GeForce GTX 1060 3GB","majorNumber":226,"minorNumber":5,"Memory":3165650944,"hash":"abc271d0428b54d40fc58960c19f639e"},"benchmarks":{"10":{"ID":10,"code":"gpu-cash-hashrate","type":2,"image":"sonm/gpu-cash-hashrate@sha256:1b4cd1c8a06fcb15762794e50711c5aeab9779d566c75f57d381cee5cde7dfb1","splittingAlgorithm":1},"11":{"ID":11,"code":"gpu-redshift","type":2,"image":"sonm/gpu-redshift@sha256:d2b42c0aea94440a01ed90dc71a675868b1dbaf0db012061842571e4983175cc","result":212,"splittingAlgorithm":1},"7":{"ID":7,"code":"gpu-count","type":2,"result":1,"splittingAlgorithm":1},"8":{"ID":8,"code":"gpu-mem","type":2,"result":3165650944,"splittingAlgorithm":2},"9":{"ID":9,"code":"gpu-eth-hashrate","type":2,"image":"sonm/gpu-eth-hashrate@sha256:71ca369ca67b136adcb52df18ce5cb027a1b3e25d63b47aac35c566ec102921e","result":19945000,"splittingAlgorithm":1}}},{"device":{"ID":"0000:0c:00.0","vendorID":4318,"vendorName":"Nvidia","deviceID":7044,"deviceName":"GeForce GTX 1060 3GB","majorNumber":226,"minorNumber":6,"Memory":3165650944,"hash":"dd9d1ba7ebca0fdaead5e468458b2efe"},"benchmarks":{"10":{"ID":10,"code":"gpu-cash-hashrate","type":2,"image":"sonm/gpu-cash-hashrate@sha256:1b4cd1c8a06fcb15762794e50711c5aeab9779d566c75f57d381cee5cde7dfb1","result":277,"splittingAlgorithm":1},"11":{"ID":11,"code":"gpu-redshift","type":2,"image":"sonm/gpu-redshift@sha256:d2b42c0aea94440a01ed90dc71a675868b1dbaf0db012061842571e4983175cc","result":213,"splittingAlgorithm":1},"7":{"ID":7,"code":"gpu-count","type":2,"result":1,"splittingAlgorithm":1},"8":{"ID":8,"code":"gpu-mem","type":2,"result":3165650944,"splittingAlgorithm":2},"9":{"ID":9,"code":"gpu-eth-hashrate","type":2,"image":"sonm/gpu-eth-hashrate@sha256:71ca369ca67b136adcb52df18ce5cb027a1b3e25d63b47aac35c566ec102921e","result":19941000,"splittingAlgorithm":1}}},{"device":{"ID":"0000:0d:00.0","vendorID":4318,"vendorName":"Nvidia","deviceID":7041,"deviceName":"GeForce GTX 1070","majorNumber":226,"minorNumber":7,"Memory":8513388544,"hash":"f67471db2f2ee68525b8d98d1746f74a"},"benchmarks":{"10":{"ID":10,"code":"gpu-cash-hashrate","type":2,"image":"sonm/gpu-cash-hashrate@sha256:1b4cd1c8a06fcb15762794e50711c5aeab9779d566c75f57d381cee5cde7dfb1","result":431,"splittingAlgorithm":1},"11":{"ID":11,"code":"gpu-redshift","type":2,"image":"sonm/gpu-redshift@sha256:d2b42c0aea94440a01ed90dc71a675868b1dbaf0db012061842571e4983175cc","result":338,"splittingAlgorithm":1},"7":{"ID":7,"code":"gpu-count","type":2,"result":1,"splittingAlgorithm":1},"8":{"ID":8,"code":"gpu-mem","type":2,"result":8513388544,"splittingAlgorithm":2},"9":{"ID":9,"code":"gpu-eth-hashrate","type":2,"image":"sonm/gpu-eth-hashrate@sha256:71ca369ca67b136adcb52df18ce5cb027a1b3e25d63b47aac35c566ec102921e","result":26628000,"splittingAlgorithm":1}}},{"device":{"ID":"0000:0e:00.0","vendorID":4318,"vendorName":"Nvidia","deviceID":7044,"deviceName":"GeForce GTX 1060 3GB","majorNumber":226,"minorNumber":8,"Memory":3165650944,"hash":"ad0c41627a7c152eeff224c99b0e7122"},"benchmarks":{"10":{"ID":10,"code":"gpu-cash-hashrate","type":2,"image":"sonm/gpu-cash-hashrate@sha256:1b4cd1c8a06fcb15762794e50711c5aeab9779d566c75f57d381cee5cde7dfb1","result":276,"splittingAlgorithm":1},"11":{"ID":11,"code":"gpu-redshift","type":2,"image":"sonm/gpu-redshift@sha256:d2b42c0aea94440a01ed90dc71a675868b1dbaf0db012061842571e4983175cc","result":213,"splittingAlgorithm":1},"7":{"ID":7,"code":"gpu-count","type":2,"result":1,"splittingAlgorithm":1},"8":{"ID":8,"code":"gpu-mem","type":2,"result":3165650944,"splittingAlgorithm":2},"9":{"ID":9,"code":"gpu-eth-hashrate","type":2,"image":"sonm/gpu-eth-hashrate@sha256:71ca369ca67b136adcb52df18ce5cb027a1b3e25d63b47aac35c566ec102921e","result":19937000,"splittingAlgorithm":1}}},{"device":{"ID":"0000:0f:00.0","vendorID":4318,"vendorName":"Nvidia","deviceID":7041,"deviceName":"GeForce GTX 1070","majorNumber":226,"minorNumber":9,"Memory":8513388544,"hash":"9480df065b99e4f2af560f9dee7b5c06"},"benchmarks":{"10":{"ID":10,"code":"gpu-cash-hashrate","type":2,"image":"sonm/gpu-cash-hashrate@sha256:1b4cd1c8a06fcb15762794e50711c5aeab9779d566c75f57d381cee5cde7dfb1","result":430,"splittingAlgorithm":1},"11":{"ID":11,"code":"gpu-redshift","type":2,"image":"sonm/gpu-redshift@sha256:d2b42c0aea94440a01ed90dc71a675868b1dbaf0db012061842571e4983175cc","result":334,"splittingAlgorithm":1},"7":{"ID":7,"code":"gpu-count","type":2,"result":1,"splittingAlgorithm":1},"8":{"ID":8,"code":"gpu-mem","type":2,"result":8513388544,"splittingAlgorithm":2},"9":{"ID":9,"code":"gpu-eth-hashrate","type":2,"image":"sonm/gpu-eth-hashrate@sha256:71ca369ca67b136adcb52df18ce5cb027a1b3e25d63b47aac35c566ec102921e","result":26633000,"splittingAlgorithm":1}}}],"RAM":{"device":{"total":8325287936,"available":8325287936},"benchmarks":{"3":{"ID":3,"code":"ram-size","type":3,"result":8325287936,"splittingAlgorithm":1}}},"network":{"in":11993043,"out":13336076,"netFlags":{"flags":7},"benchmarksIn":{"5":{"ID":5,"code":"net-download","type":5,"image":"sonm/net-bandwidth@sha256:e51c367c5ad56c9ea1dbe1497b4acc7d0839be0832d8b77986b931eedc766fc2","result":11993043,"splittingAlgorithm":1}},"benchmarksOut":{"6":{"ID":6,"code":"net-upload","type":6,"image":"sonm/net-bandwidth@sha256:e51c367c5ad56c9ea1dbe1497b4acc7d0839be0832d8b77986b931eedc766fc2","result":13336076,"splittingAlgorithm":1}}},"storage":{"device":{"bytesAvailable":16030248960},"benchmarks":{"4":{"ID":4,"code":"storage-size","type":4,"result":16030248960,"splittingAlgorithm":1}}}}`)
+	devices := newEmptyDevicesReply()
+	err := json.Unmarshal(devicesJSON, devices)
+
+	require.NoError(t, err)
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+	{
+		manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+		require.NoError(t, err)
+		require.NotNil(t, manager)
+
+		benchmark := sonm.Benchmarks{
+			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 409600000, 84936696, 0, 0},
+		}
+
+		plans, err := manager.Consume(benchmark)
+		require.NoError(t, err)
+		require.NotNil(t, plans)
+
+		assert.True(t, len(plans.GPU.Hashes) > 0)
+		assert.Equal(t, 4, len(plans.GPU.Hashes))
+	}
+
+	{
+		manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+		require.NoError(t, err)
+		require.NotNil(t, manager)
+
+		benchmark := sonm.Benchmarks{
+			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 409600000, 218587776, 0, 0},
+		}
+
+		plans, err := manager.Consume(benchmark)
+		require.NoError(t, err)
+		require.NotNil(t, plans)
+
+		assert.True(t, len(plans.GPU.Hashes) > 0)
+		assert.Equal(t, 10, len(plans.GPU.Hashes))
+	}
+}
+
+func TestConsumeGPUWithMoreMemoryFails(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.GPUs = []*sonm.GPU{
+		{
+			&sonm.GPUDevice{
+				Hash: "0",
+			},
+			map[uint64]*sonm.Benchmark{
+				8:  {ID: 8, Result: 2.5e9, SplittingAlgorithm: sonm.SplittingAlgorithm_MIN},
+				9:  {ID: 9, Result: 1000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+			},
+		},
+		{
+			&sonm.GPUDevice{
+				Hash: "1",
+			},
+			map[uint64]*sonm.Benchmark{
+				8:  {ID: 8, Result: 3e9, SplittingAlgorithm: sonm.SplittingAlgorithm_MIN},
+				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+			},
+		},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := [12]uint64{0, 0, 0, 0, 0, 0, 0, 0, 3.1e9, 2000, 0, 0}
+	plan, err := manager.consumeGPU(2, benchmark[:])
+	require.Error(t, err)
+	require.Nil(t, plan)
 }

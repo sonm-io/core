@@ -3,18 +3,25 @@ package optimus
 import (
 	"context"
 	"fmt"
+	"math"
+	"math/big"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/blockchain"
-	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
+	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
-	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc/metadata"
+)
+
+const (
+	minNumOrders = sonm.MinNumBenchmarks
 )
 
 // Watch for current worker's status. Collect its devices.
@@ -46,35 +53,20 @@ func (m *Optimus) Run(ctx context.Context) error {
 	m.log.Info("starting Optimus")
 	defer m.log.Info("Optimus has been stopped")
 
-	certificate, TLSConfig, err := util.NewHitlessCertRotator(ctx, m.cfg.PrivateKey.Unwrap())
+	registry := newRegistry()
+	defer registry.Close()
+
+	dwh, err := registry.NewDWH(ctx, m.cfg.Marketplace.Endpoint, m.cfg.Marketplace.PrivateKey.Unwrap())
 	if err != nil {
 		return err
 	}
-	defer certificate.Close()
 
-	credentials := util.NewTLS(TLSConfig)
-
-	newWorker := func(ctx context.Context, addr auth.Addr) (sonm.WorkerManagementClient, error) {
-		conn, err := xgrpc.NewClient(ctx, addr.String(), credentials)
-		if err != nil {
-			return nil, err
-		}
-
-		return sonm.NewWorkerManagementClient(conn), nil
+	ordersScanner, err := newOrderScanner(dwh)
+	if err != nil {
+		return err
 	}
 
 	ordersSet := newOrdersSet()
-
-	conn, err := xgrpc.NewClient(ctx, m.cfg.Marketplace.Endpoint.String(), credentials)
-	if err != nil {
-		return err
-	}
-
-	ordersScanner, err := newOrderScanner(sonm.NewDWHClient(conn))
-	if err != nil {
-		return err
-	}
-
 	ordersControl, err := newOrdersControl(ordersScanner, m.cfg.Optimization.ClassifierFactory(m.log.Desugar()), ordersSet, m.log.Desugar())
 	if err != nil {
 		return err
@@ -85,7 +77,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 
 	loader := benchmarks.NewLoader(m.cfg.Benchmarks.URL)
 
-	market, err := blockchain.NewAPI()
+	market, err := blockchain.NewAPI(ctx, blockchain.WithConfig(m.cfg.Blockchain))
 	if err != nil {
 		return err
 	}
@@ -101,18 +93,22 @@ func (m *Optimus) Run(ctx context.Context) error {
 			return err
 		}
 
-		worker, err := newWorker(ctx, addr)
+		worker, err := registry.NewWorkerManagement(ctx, m.cfg.Node.Endpoint, m.cfg.Node.PrivateKey.Unwrap())
 		if err != nil {
 			return err
 		}
 
-		control, err := newWorkerControl(cfg, ethAddr, masterAddr, worker, ordersSet, loader, m.log)
+		control, err := newWorkerControl(cfg, ethAddr, masterAddr, worker, market.Market(), ordersSet, loader, m.log)
 		if err != nil {
 			return err
+		}
+
+		md := metadata.MD{
+			util.WorkerAddressHeader: []string{addr.String()},
 		}
 
 		wg.Go(func() error {
-			return newManagedWatcher(control, cfg.Epoch).Run(ctx)
+			return newManagedWatcher(control, cfg.Epoch).Run(metadata.NewOutgoingContext(ctx, md))
 		})
 	}
 
@@ -176,17 +172,19 @@ type workerControl struct {
 	addr            common.Address
 	masterAddr      common.Address
 	worker          sonm.WorkerManagementClient
+	market          blockchain.MarketAPI
 	benchmarkLoader benchmarks.Loader
 	ordersSet       *ordersState
 	log             *zap.SugaredLogger
 }
 
-func newWorkerControl(cfg workerConfig, addr, masterAddr common.Address, worker sonm.WorkerManagementClient, orders *ordersState, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
+func newWorkerControl(cfg workerConfig, addr, masterAddr common.Address, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, orders *ordersState, benchmarkLoader benchmarks.Loader, log *zap.SugaredLogger) (*workerControl, error) {
 	m := &workerControl{
 		cfg:             cfg,
 		addr:            addr,
 		masterAddr:      masterAddr,
 		worker:          worker,
+		market:          market,
 		benchmarkLoader: benchmarkLoader,
 		ordersSet:       orders,
 		log:             log.With(zap.Stringer("addr", addr)),
@@ -204,46 +202,138 @@ func (m *workerControl) OnShutdown() {
 }
 
 func (m *workerControl) Execute(ctx context.Context) {
-	m.log.Debugf("pulling worker devices")
-	devices, err := m.worker.Devices(ctx, &sonm.Empty{})
-	if err != nil {
-		m.log.Warnw("failed to pull worker devices", zap.Error(err))
-		return
+	if err := m.execute(ctx); err != nil {
+		m.log.Warn(err.Error())
 	}
+}
 
-	freeDevices, err := m.worker.FreeDevices(ctx, &sonm.Empty{})
-	if err != nil {
-		m.log.Warnw("failed to pull free worker devices", zap.Error(err))
-		return
-	}
-
-	m.log.Debugw("successfully pulled worker devices", zap.Any("devices", *devices), zap.Any("freeDevices", *freeDevices))
-
-	// Convert worker free devices into benchmarks set.
-	bm := newBenchmarksFromDevices(freeDevices)
-	freeWorkerBenchmarks, err := sonm.NewBenchmarks(bm[:])
-	if err != nil {
-		m.log.Warnw("failed to collect worker benchmarks", zap.Error(err))
-		return
-	}
-
-	m.log.Infof("worker benchmarks: %v", strings.Join(strings.Fields(fmt.Sprintf("%v", freeWorkerBenchmarks.ToArray())), ", "))
-
+func (m *workerControl) execute(ctx context.Context) error {
 	ordersClassification := m.ordersSet.Get()
 	if ordersClassification == nil {
-		m.log.Warn("not enough orders to perform optimization")
-		return
+		return fmt.Errorf("not enough orders to perform optimization")
 	}
 
 	orders := ordersClassification.WeightedOrders
-	if len(orders) == 0 {
-		m.log.Warn("not enough orders to perform optimization")
-		return
+	if len(orders) < minNumOrders {
+		return fmt.Errorf("not enough orders to perform optimization: %d < %d", len(orders), minNumOrders)
+	}
+
+	m.log.Debug("pulling worker plans")
+	currentPlans, err := m.worker.AskPlans(ctx, &sonm.Empty{})
+	if err != nil {
+		return fmt.Errorf("failed to pull worker plans: %v", err)
+	}
+
+	if size := m.cancelStalePlans(ctx, currentPlans.GetAskPlans()); size != 0 {
+		// Fetch current plans again after cancelling.
+		currentPlans, err = m.worker.AskPlans(ctx, &sonm.Empty{})
+		if err != nil {
+			return fmt.Errorf("failed to pull worker plans: %v", err)
+		}
+	}
+
+	currentTotalPrice := calculateWorkerPriceMap(currentPlans.AskPlans).GetPerSecond()
+	m.log.Debugw("successfully pulled worker plans",
+		zap.Any("plans", *currentPlans),
+		zap.String("Σ USD/s", currentTotalPrice.ToPriceString()),
+	)
+
+	cancellationCandidates := m.collectCancelCandidates(currentPlans.AskPlans)
+	m.log.Debugw("cancellation candidates", zap.Any("plans", cancellationCandidates))
+
+	m.log.Debugf("pulling worker devices")
+	devices, err := m.worker.Devices(ctx, &sonm.Empty{})
+	if err != nil {
+		return fmt.Errorf("failed to pull worker devices: %v", err)
+	}
+
+	m.log.Debugw("successfully pulled worker devices", zap.Any("devices", *devices))
+
+	workerHardware := hardware.Hardware{
+		CPU:     devices.CPU,
+		GPU:     devices.GPUs,
+		RAM:     devices.RAM,
+		Network: devices.Network,
+		Storage: devices.Storage,
+	}
+	freeResources := workerHardware.AskPlanResources()
+	// Subtract plans except cancellation candidates. Doing so produces us a
+	// new free(!) devices list.
+	for id, plan := range currentPlans.AskPlans {
+		_, ok := cancellationCandidates[id]
+		if !ok {
+			if err := freeResources.Sub(plan.Resources); err != nil {
+				return fmt.Errorf("failed to virtualize resource releasing: %v", err)
+			}
+		}
+	}
+
+	freeWorkerHardware, err := workerHardware.LimitTo(freeResources)
+	if err != nil {
+		return fmt.Errorf("failed to limit virtual free hardware: %v", err)
+	}
+
+	freeDevices := freeWorkerHardware.IntoProto()
+
+	m.log.Debugw("successfully virtualized worker free devices", zap.Any("devices", *freeDevices))
+
+	// Convert worker free devices into benchmarks set.
+	freeWorkerBenchmarks, err := freeWorkerHardware.FullBenchmarks()
+	if err != nil {
+		return fmt.Errorf("failed to collect worker benchmarks: %v", err)
+	}
+
+	// TODO: Jesus, what the fuck are we doing?
+	maxGPUMemory := uint64(0)
+	for _, gpu := range freeWorkerHardware.GPU {
+		if v, ok := gpu.GetBenchmarks()[8]; ok {
+			if v.Result > maxGPUMemory {
+				maxGPUMemory = v.Result
+			}
+		}
+	}
+	freeWorkerBenchmarks.Values[8] = maxGPUMemory
+
+	m.log.Infof("worker benchmarks: %v", strings.Join(strings.Fields(fmt.Sprintf("%v", freeWorkerBenchmarks.ToArray())), ", "))
+
+	// Here we append cancellation candidate's orders to "orders" from
+	// marketplace to be able to track their profitability.
+	cancellationOrders, err := m.planOrders(ctx, cancellationCandidates)
+	if err != nil {
+		return fmt.Errorf("failed to collect cancellation orders: %v", err)
+	}
+
+	for id, order := range cancellationOrders {
+		marketOrder := &sonm.DWHOrder{
+			Order: order,
+		}
+		predictedPrice, err := ordersClassification.Predictor.PredictPrice(marketOrder)
+		if err != nil {
+			return fmt.Errorf("failed to predict cancellation %s order price: %v", order.Id.String(), err)
+		}
+
+		price, _ := new(big.Float).SetInt(marketOrder.Order.Price.Unwrap()).Float64()
+
+		orders = append(orders, WeightedOrder{
+			Order:          marketOrder,
+			Price:          price * priceMultiplier,
+			PredictedPrice: math.Max(priceMultiplier, predictedPrice*priceMultiplier),
+			Weight:         1.0,
+			ID:             id,
+		})
+
+		ordersClassification.RecalculateWeightsAndSort(orders)
 	}
 
 	// Filter orders to have only orders that are subset of ours.
 	matchedOrders := make([]WeightedOrder, 0, len(orders))
 	for _, order := range orders {
+		// However do not filter our own orders.
+		if order.ID != "" {
+			matchedOrders = append(matchedOrders, order)
+			continue
+		}
+
 		if order.Order.Order.OrderType != sonm.OrderType_BID {
 			continue
 		}
@@ -265,7 +355,7 @@ func (m *workerControl) Execute(ctx context.Context) {
 			continue
 		}
 
-		if !freeWorkerBenchmarks.Contains(order.Order.Order.Benchmarks) {
+		if !freeWorkerBenchmarks.Contains(order.Order.Order.Benchmarks) { // TODO: <
 			continue
 		}
 
@@ -282,16 +372,19 @@ func (m *workerControl) Execute(ctx context.Context) {
 
 	m.log.Infof("found %d/%d matching orders", len(matchedOrders), len(orders))
 
+	if len(matchedOrders) == 0 {
+		m.log.Infof("no matching orders found")
+		return nil
+	}
+
 	mapping, err := m.benchmarkLoader.Load(ctx)
 	if err != nil {
-		m.log.Warnw("failed to load benchmarks", zap.Error(err))
-		return
+		return fmt.Errorf("failed to load benchmarks: %v", err)
 	}
 
 	deviceManager, err := newDeviceManager(devices, freeDevices, mapping)
 	if err != nil {
-		m.log.Warnw("failed to construct device manager", zap.Error(err))
-		return
+		return fmt.Errorf("failed to construct device manager: %v", err)
 	}
 
 	// Cut sell plans.
@@ -318,29 +411,218 @@ func (m *workerControl) Execute(ctx context.Context) {
 			exhaustedCounter += 1
 			continue
 		default:
-			m.log.Warnw("failed to consume order", zap.Error(err))
-			return
+			return fmt.Errorf("failed to consume order: %v", err)
 		}
+
+		m.log.Debugw("success")
 
 		plan.Network.NetFlags = order.GetNetflags()
 
 		plans = append(plans, &sonm.AskPlan{
+			ID:        weightedOrder.ID,
 			Price:     &sonm.Price{PerSecond: order.Price},
 			Duration:  &sonm.Duration{Nanoseconds: 1e9 * int64(order.Duration)},
+			Identity:  m.cfg.Identity,
 			Resources: plan,
 		})
 	}
 
-	m.log.Infow("successfully cut the following selling plans", zap.Any("plans", plans))
+	pendingTotalPrice := calculateWorkerPrice(plans).GetPerSecond()
+	m.log.Infow("successfully prepared the following selling plans",
+		zap.Any("size", len(plans)),
+		zap.Any("plans", plans),
+		zap.String("Σ USD/s", pendingTotalPrice.ToPriceString()),
+	)
 
-	// Tell worker to create sell plans.
-	for _, plan := range plans {
-		id, err := m.worker.CreateAskPlan(ctx, plan)
-		if err != nil {
-			m.log.Warnw("failed to create sell plan", zap.Any("plan", *plan), zap.Error(err))
-			continue
+	cancellationCandidates = m.filterCancellationCandidates(plans, currentPlans.AskPlans)
+
+	// Compare total USD/s before and after. Cancel if the diff is more than
+	// the threshold.
+	priceThreshold := m.cfg.PriceThreshold.GetPerSecond()
+	priceDiff := new(big.Int).Sub(pendingTotalPrice.Unwrap(), currentTotalPrice.Unwrap())
+
+	m.log.Debugf("checking whether current worker's price %s exceeds the pending %s by %s", currentTotalPrice.ToPriceString(), pendingTotalPrice.ToPriceString(), priceThreshold.ToPriceString())
+	needCancellation := new(big.Int).Sub(priceDiff, priceThreshold.Unwrap()).Sign() >= 0
+	if needCancellation {
+		m.log.Infow("cancelling plans", zap.Any("candidates", cancellationCandidates))
+
+		if m.cfg.DryRun {
+			m.log.Debug("skipping cancelling ask-plans, because dry-run mode is active")
+		} else {
+			if err := m.cancelPlans(ctx, cancellationCandidates); err != nil {
+				m.log.Infow("cancellation result", zap.Any("err", err))
+			}
 		}
-
-		m.log.Infof("created sell plan %s", id.Id)
+	} else {
+		// TODO: Get REAL free devices and try to pack orders here (old way).
 	}
+
+	if m.cfg.DryRun {
+		m.log.Debug("skipping creating ask-plans, because dry-run mode is active")
+	} else {
+		// Tell worker to create sell plans.
+		for _, plan := range plans {
+			if plan.ID != "" {
+				if _, ok := currentPlans.AskPlans[plan.ID]; ok {
+					m.log.Debugw("skipping ask-plan creation: already exists", zap.Any("plan", *plan))
+					continue
+				}
+			}
+
+			id, err := m.worker.CreateAskPlan(ctx, plan)
+			if err != nil {
+				m.log.Warnw("failed to create sell plan", zap.Any("plan", *plan), zap.Error(err))
+				continue
+			}
+
+			m.log.Infof("created sell plan %s", id.Id)
+		}
+	}
+
+	return nil
+}
+
+func (m *workerControl) cancelStalePlans(ctx context.Context, plans map[string]*sonm.AskPlan) int {
+	victims := map[string]*sonm.AskPlan{}
+	for id, plan := range plans {
+		if plan.UnsoldDuration() >= m.cfg.StaleThreshold {
+			victims[id] = plan
+		}
+	}
+
+	m.log.Infow("cancelling unsold plans", zap.Duration("threshold", m.cfg.StaleThreshold), zap.Any("plans", victims))
+	if err := m.cancelPlans(ctx, victims); err != nil {
+		m.log.Infow("cancellation result", zap.Any("err", err))
+	}
+
+	return len(victims)
+}
+
+func (m *workerControl) collectCancelCandidates(plans map[string]*sonm.AskPlan) map[string]*sonm.AskPlan {
+	candidates := map[string]*sonm.AskPlan{}
+	for id, plan := range plans {
+		// Currently we can cancel spot orders without regret.
+		if plan.GetDuration().Unwrap() == 0 {
+			candidates[id] = plan
+		}
+	}
+
+	return candidates
+}
+
+func (m *workerControl) planOrders(ctx context.Context, plans map[string]*sonm.AskPlan) (map[string]*sonm.Order, error) {
+	orders := map[string]*sonm.Order{}
+	mu := sync.Mutex{}
+	wg := sync.WaitGroup{}
+	wg.Add(len(plans))
+
+	for id, plan := range plans {
+		go func(id string, plan *sonm.AskPlan) {
+			defer wg.Done()
+
+			order, err := m.market.GetOrderInfo(ctx, plan.OrderID.Unwrap())
+			if err != nil {
+				m.log.Warn("failed to get order", zap.String("planId", id), zap.Error(err))
+				return
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			orders[id] = order
+		}(id, plan)
+	}
+
+	wg.Wait()
+
+	if len(orders) != len(plans) {
+		return nil, fmt.Errorf("failed to collect plan orders")
+	}
+
+	return orders, nil
+}
+
+func (m *workerControl) filterCancellationCandidates(plans []*sonm.AskPlan, currentPlans map[string]*sonm.AskPlan) map[string]*sonm.AskPlan {
+	alivePlans := map[string]*sonm.AskPlan{}
+	for _, plan := range plans {
+		if plan.ID != "" {
+			alivePlans[plan.ID] = plan
+		}
+	}
+
+	filtered := map[string]*sonm.AskPlan{}
+	for _, plan := range currentPlans {
+		// Remove ask plan if we won't save it.
+		if _, ok := alivePlans[plan.ID]; !ok {
+			filtered[plan.ID] = plan
+		}
+	}
+
+	return filtered
+}
+
+func (m *workerControl) cancelPlans(ctx context.Context, plans map[string]*sonm.AskPlan) map[string]error {
+	errs := map[string]error{}
+	for id := range plans {
+		_, err := m.worker.RemoveAskPlan(ctx, &sonm.ID{Id: id})
+		if err != nil {
+			errs[id] = err
+		}
+	}
+
+	fillRemainingWithErr := func(err error) {
+		for id := range plans {
+			if _, ok := errs[id]; !ok {
+				errs[id] = err
+			}
+		}
+	}
+
+	// Wait for ask plans be REALLY removed.
+	timer := time.NewTicker(time.Second)
+	for {
+		select {
+		case <-ctx.Done():
+			fillRemainingWithErr(ctx.Err())
+			return errs
+		case <-timer.C:
+			currentPlans, err := m.worker.AskPlans(ctx, &sonm.Empty{})
+			if err != nil {
+				fillRemainingWithErr(err)
+				return errs
+			}
+
+			foundPending := false
+			for id := range currentPlans.AskPlans {
+				// Continue to wait if there are ask plans left.
+				if _, ok := plans[id]; ok {
+					foundPending = true
+					break
+				}
+			}
+
+			if !foundPending {
+				fillRemainingWithErr(nil)
+				return errs
+			}
+		}
+	}
+}
+
+func calculateWorkerPrice(plans []*sonm.AskPlan) *sonm.Price {
+	sum := big.NewInt(0)
+	for _, plan := range plans {
+		sum.Add(sum, plan.Price.PerSecond.Unwrap())
+	}
+
+	return &sonm.Price{PerSecond: sonm.NewBigInt(sum)}
+}
+
+func calculateWorkerPriceMap(plans map[string]*sonm.AskPlan) *sonm.Price {
+	sum := big.NewInt(0)
+	for _, plan := range plans {
+		sum.Add(sum, plan.Price.PerSecond.Unwrap())
+	}
+
+	return &sonm.Price{PerSecond: sonm.NewBigInt(sum)}
 }
