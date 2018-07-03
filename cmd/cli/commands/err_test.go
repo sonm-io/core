@@ -44,21 +44,21 @@ func TestJsonErrorCustom(t *testing.T) {
 
 func TestShowErrorNilErr(t *testing.T) {
 	buf := initRootCmd(t, "1.2.3", config.OutputModeSimple)
-	showError(rootCmd, "test error", nil)
+	ShowError(rootCmd, "test error", nil)
 	out := buf.String()
 	assert.Equal(t, "[ERR] test error\r\n", out)
 }
 
 func TestShowErrorWithErr(t *testing.T) {
 	buf := initRootCmd(t, "1.2.3", config.OutputModeSimple)
-	showError(rootCmd, "test error", errors.New("internal"))
+	ShowError(rootCmd, "test error", errors.New("internal"))
 	out := buf.String()
 	assert.Equal(t, "[ERR] test error: internal\r\n", out)
 }
 
 func TestShowErrorJsonNilErr(t *testing.T) {
 	buf := initRootCmd(t, "1.2.3", config.OutputModeJSON)
-	showError(rootCmd, "test error", nil)
+	ShowError(rootCmd, "test error", nil)
 	out := buf.String()
 
 	cmdErr, err := stringToCommandError(out)
@@ -69,7 +69,7 @@ func TestShowErrorJsonNilErr(t *testing.T) {
 
 func TestShowErrorJsonWithErr(t *testing.T) {
 	buf := initRootCmd(t, "1.2.3", config.OutputModeJSON)
-	showError(rootCmd, "test error", errors.New("reason"))
+	ShowError(rootCmd, "test error", errors.New("reason"))
 	out := buf.String()
 
 	cmdErr, err := stringToCommandError(out)

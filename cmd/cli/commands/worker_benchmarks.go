@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"os"
+	"fmt"
 	"strconv"
 
 	pb "github.com/sonm-io/core/proto"
@@ -23,13 +23,14 @@ var benchmarkRootCmd = &cobra.Command{
 var workerPurgeBenchmarksCmd = &cobra.Command{
 	Use:   "purge",
 	Short: "Remove all benchmarks from cache to rebenchmark on next worker restart",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		_, err := worker.PurgeBenchmarks(workerCtx, &pb.Empty{})
 		if err != nil {
-			showError(cmd, "failed to purge benchmark cache", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to purge benchmark cache: %v", err)
 		}
+
 		showOk(cmd)
+		return nil
 	},
 }
 
@@ -37,17 +38,17 @@ var workerRemoveBenchmarksCmd = &cobra.Command{
 	Use:   "remove <id>",
 	Short: "Remove specified benchmark from cache to rebenchmark on next worker restart",
 	Args:  cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		id, err := strconv.ParseUint(args[0], 0, 64)
 		if err != nil {
-			showError(cmd, "failed to parse benchmark id", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to parse benchmark id: %v", err)
 		}
-		_, err = worker.RemoveBenchmark(workerCtx, &pb.NumericID{Id: id})
-		if err != nil {
-			showError(cmd, "failed to get debug state", err)
-			os.Exit(1)
+
+		if _, err := worker.RemoveBenchmark(workerCtx, &pb.NumericID{Id: id}); err != nil {
+			return fmt.Errorf("failed to get debug state: %v", err)
 		}
+
 		showOk(cmd)
+		return nil
 	},
 }

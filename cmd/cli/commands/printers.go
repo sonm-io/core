@@ -235,7 +235,7 @@ func printAskList(cmd *cobra.Command, slots *pb.AskPlansReply) {
 		}
 		out, err := yaml.Marshal(plans)
 		if err != nil {
-			showError(cmd, "could not marshall ask plans", err)
+			ShowError(cmd, "could not marshall ask plans", err)
 		} else {
 			cmd.Println(string(out))
 		}
@@ -322,8 +322,14 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealC
 			}
 		}
 
+		key, err := getDefaultKey()
+		if err != nil {
+			cmd.Printf("cannot get default key: %v\r\n", err)
+			return
+		}
+
 		noWorkerRespond := info.GetResources() == nil && info.GetRunning() == nil && info.GetCompleted() == nil
-		iamConsumer := crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Big().Cmp(deal.GetConsumerID().Unwrap().Big()) == 0
+		iamConsumer := crypto.PubkeyToAddress(key.PublicKey).Big().Cmp(deal.GetConsumerID().Unwrap().Big()) == 0
 
 		if noWorkerRespond && iamConsumer && !flags.WarningSuppressed() {
 			// seems like worker is offline, notify user about it

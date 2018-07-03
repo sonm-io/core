@@ -1,23 +1,22 @@
 package commands
 
 import (
-	"os"
+	"fmt"
 
 	pb "github.com/sonm-io/core/proto"
 	"github.com/spf13/cobra"
 )
 
 var workerTasksCmd = &cobra.Command{
-	Use:    "tasks",
-	Short:  "Show tasks running on Worker",
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "tasks",
+	Short: "Show tasks running on Worker",
+	RunE: func(cmd *cobra.Command, args []string) error {
 		list, err := worker.Tasks(workerCtx, &pb.Empty{})
 		if err != nil {
-			showError(cmd, "Cannot get task list", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot get task list: %v", err)
 		}
 
 		printNodeTaskStatus(cmd, list.GetInfo())
+		return nil
 	},
 }

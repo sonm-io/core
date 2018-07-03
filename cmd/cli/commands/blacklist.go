@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/proto"
@@ -17,71 +17,70 @@ func init() {
 }
 
 var blacklistRootCmd = &cobra.Command{
-	Use:   "blacklist",
-	Short: "Manage blacklisted addresses",
+	Use:               "blacklist",
+	Short:             "Manage blacklisted addresses",
+	PersistentPreRunE: loadKeyStoreIfRequired,
 }
 
 var blacklistListCmd = &cobra.Command{
-	Use:    "list [addr]",
-	Short:  "Show blacklist",
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "list [addr]",
+	Short: "Show blacklist",
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		black, err := newBlacklistClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		key := getDefaultKeyOrDie()
+		key, err := getDefaultKey()
+		if err != nil {
+			return err
+		}
+
 		ownerAddr := crypto.PubkeyToAddress(key.PublicKey)
 		if len(args) > 0 {
 			ownerAddr, err = util.HexToAddress(args[0])
 			if err != nil {
-				showError(cmd, err.Error(), nil)
-				os.Exit(1)
+				return err
 			}
 		}
 
 		list, err := black.List(ctx, sonm.NewEthAddress(ownerAddr))
 		if err != nil {
-			showError(cmd, "Cannot get blacklist", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot get blacklist: %v", err)
 		}
 
 		printBlacklist(cmd, list)
+		return nil
 	},
 }
 
 var blacklistRemoveCmd = &cobra.Command{
-	Use:    "remove <addr>",
-	Short:  "Remove given address from your blacklist",
-	PreRun: loadKeyStoreIfRequired,
-	Args:   cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "remove <addr>",
+	Short: "Remove given address from your blacklist",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		black, err := newBlacklistClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		addr, err := util.HexToAddress(args[0])
 		if err != nil {
-			showError(cmd, err.Error(), nil)
-			os.Exit(1)
+			return err
 		}
 
 		_, err = black.Remove(ctx, sonm.NewEthAddress(addr))
 		if err != nil {
-			showError(cmd, "Cannot remove address from blacklist", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot remove address from blacklist: %v", err)
 		}
 
 		showOk(cmd)
+		return nil
 	},
 }

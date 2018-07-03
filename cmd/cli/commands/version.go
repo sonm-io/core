@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -9,8 +10,9 @@ import (
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Show version",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		printVersion(cmd, version)
+		return nil
 	},
 }
 
@@ -18,7 +20,7 @@ var autoCompleteCmd = &cobra.Command{
 	Use:   "completion <bash|zsh>",
 	Short: "Generate shell-completion script",
 	Args:  cobra.MinimumNArgs(1),
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		var err error
 		shell := args[0]
 
@@ -28,13 +30,9 @@ var autoCompleteCmd = &cobra.Command{
 		case "bash":
 			err = rootCmd.GenBashCompletion(os.Stdout)
 		default:
-			showError(cmd, "Unknown shell type", nil)
-			os.Exit(1)
+			err = fmt.Errorf("unknown shell type `%s`", shell)
 		}
 
-		if err != nil {
-			showError(cmd, "Cannot generate completion script", nil)
-			os.Exit(1)
-		}
+		return err
 	},
 }

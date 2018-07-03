@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
@@ -25,139 +25,128 @@ func init() {
 }
 
 var orderRootCmd = &cobra.Command{
-	Use:   "order",
-	Short: "Manage orders",
+	Use:               "order",
+	Short:             "Manage orders",
+	PersistentPreRunE: loadKeyStoreIfRequired,
 }
 
 var orderListCmd = &cobra.Command{
-	Use:    "list",
-	Short:  "Show your active orders",
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "list",
+	Short: "Show your active orders",
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		market, err := newMarketClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("сannot create client connection: %v", err)
 		}
 
 		req := &pb.Count{Count: ordersSearchLimit}
 		reply, err := market.GetOrders(ctx, req)
 		if err != nil {
-			showError(cmd, "Cannot receive orders from marketplace", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot receive orders from marketplace: %v", err)
 		}
 
 		printOrdersList(cmd, reply.Orders)
+		return nil
 	},
 }
 
 var orderStatusCmd = &cobra.Command{
-	Use:    "status <order_id>",
-	Short:  "Show order stats",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "status <order_id>",
+	Short: "Show order stats",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		market, err := newMarketClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		orderID := args[0]
 		order, err := market.GetOrderByID(ctx, &pb.ID{Id: orderID})
 		if err != nil {
-			showError(cmd, "Cannot get order by ID", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot get order by ID: %v", err)
 		}
 
 		printOrderDetails(cmd, order)
+		return nil
 	},
 }
 
 var orderCreateCmd = &cobra.Command{
-	Use:    "create <bid.yaml>",
-	Short:  "Place new Bid order on Marketplace",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "create <bid.yaml>",
+	Short: "Place new Bid order on Marketplace",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		market, err := newMarketClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		path := args[0]
 		bid := &pb.BidOrder{}
-
 		if err := task_config.LoadFromFile(path, bid); err != nil {
-			showError(cmd, "Cannot load order definition", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot load order definition: %v", err)
 		}
 
 		created, err := market.CreateOrder(ctx, bid)
 		if err != nil {
-			showError(cmd, "Cannot create order on marketplace", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create order on marketplace: %v", err)
 		}
 
 		printID(cmd, created.GetId().Unwrap().String())
+		return nil
 	},
 }
 
 var orderCancelCmd = &cobra.Command{
-	Use:    "cancel <order_id>",
-	Short:  "Cancel order on Marketplace",
-	Args:   cobra.MinimumNArgs(1),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "cancel <order_id>",
+	Short: "Cancel order on Marketplace",
+	Args:  cobra.MinimumNArgs(1),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		market, err := newMarketClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		orderID := args[0]
 		_, err = market.CancelOrder(ctx, &pb.ID{Id: orderID})
 		if err != nil {
-			showError(cmd, "Cannot cancel order on Marketplace", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot cancel order on Marketplace: %v", err)
 		}
 
 		showOk(cmd)
+		return nil
 	},
 }
 
 var orderPurgeCmd = &cobra.Command{
-	Use:    "purge",
-	Short:  "Remove all your orders from Marketplace",
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, _ []string) {
+	Use:   "purge",
+	Short: "Remove all your orders from Marketplace",
+	RunE: func(cmd *cobra.Command, _ []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		market, err := newMarketClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create client connection", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		if _, err := market.Purge(ctx, &pb.Empty{}); err != nil {
-			showError(cmd, "Cannot purge orders", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot purge orders: %v", err)
 		}
 
 		showOk(cmd)
+		return nil
 	},
 }
