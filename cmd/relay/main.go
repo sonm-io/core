@@ -33,22 +33,24 @@ func start() error {
 		return fmt.Errorf("failed to construct a Relay server: %s", err)
 	}
 
-	wg, ctx := errgroup.WithContext(ctx)
-	wg.Go(func() error {
-		return server.Serve(ctx)
-	})
-
 	// Passing the context tells about server shutdown if so.
 	//
 	// There are two possible cases here:
 	// - User interrupts the server - then server is closed explicitly and
-	// 	 everything inside is cleared.
+	//   everything inside is cleared.
 	// - Server stops for some reason - then the context is notified about this
-	//	 forcing interruption handler to return.
-	cmd.WaitInterrupted(ctx)
+	//   forcing interruption handler to return.
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		return server.Serve(ctx)
+	})
+	wg.Go(func() error {
+		return cmd.WaitInterrupted(ctx)
+	})
 
-	server.Close()
-	wg.Wait()
+	if err := wg.Wait(); err != nil {
+		log.S(ctx).Infof("Relay server has been stopped: %v", err)
+	}
 
 	return nil
 }

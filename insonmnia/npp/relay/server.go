@@ -387,16 +387,15 @@ func (m *server) Serve(ctx context.Context) error {
 		return m.serveGRPC()
 	})
 
-	if <-ctx.Done(); ctx.Err() != nil {
-		m.Close()
-	}
+	<-ctx.Done()
+	m.Close()
 
 	return wg.Wait()
 }
 
 func (m *server) serveTCP(ctx context.Context) error {
-	m.log.Infof("running Relay server on %s", m.listener.Addr())
-	defer m.log.Info("Relay server has been stopped")
+	m.log.Infof("running TCP Relay server on %s", m.listener.Addr())
+	defer m.log.Info("TCP Relay server has been stopped")
 
 	nodes, err := m.cluster.Join(m.members)
 	if err != nil {
