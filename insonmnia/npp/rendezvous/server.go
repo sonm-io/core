@@ -42,9 +42,11 @@ import (
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/npp/nppc"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
@@ -390,14 +392,28 @@ func (m *Server) Info(ctx context.Context, request *sonm.Empty) (*sonm.Rendezvou
 // or some critical error occurred.
 //
 // Always returns non-nil error.
-func (m *Server) Run() error {
-	listener, err := net.Listen(m.cfg.Addr.Network(), m.cfg.Addr.String())
-	if err != nil {
-		return err
+func (m *Server) Run(ctx context.Context) error {
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		listener, err := net.Listen(m.cfg.Addr.Network(), m.cfg.Addr.String())
+		if err != nil {
+			return err
+		}
+
+		m.log.Info("rendezvous is ready to serve", zap.Stringer("endpoint", listener.Addr()))
+		return m.server.Serve(listener)
+	})
+
+	if m.cfg.Debug != nil {
+		wg.Go(func() error {
+			return debug.ServePProf(ctx, *m.cfg.Debug, m.log)
+		})
 	}
 
-	m.log.Info("rendezvous is ready to serve", zap.Stringer("endpoint", listener.Addr()))
-	return m.server.Serve(listener)
+	<-ctx.Done()
+	m.Stop()
+
+	return wg.Wait()
 }
 
 // Stop stops the server.
