@@ -8,10 +8,9 @@ import (
 )
 
 type Config struct {
-	Rendezvous           rendezvous.Config `yaml:"rendezvous"`
-	Relay                relay.Config      `yaml:"relay"`
-	Backlog              int               `yaml:"backlog" default:"128"`
-	MinBackoffInterval   time.Duration     `yaml:"min_backoff_interval" default:"500ms"`
-	MaxBackoffInterval   time.Duration     `yaml:"max_backoff_interval" default:"8000ms"`
-	NumRelayDialerReties uint64            `yaml:"num_relay_dialer_retries" default:"5"`
+	Rendezvous         rendezvous.Config `yaml:"rendezvous"`
+	Relay              relay.Config      `yaml:"relay"`
+	Backlog            int               `yaml:"backlog" default:"128"`
+	MinBackoffInterval time.Duration     `yaml:"min_backoff_interval" default:"500ms"`
+	MaxBackoffInterval time.Duration     `yaml:"max_backoff_interval" default:"8000ms"`
 }

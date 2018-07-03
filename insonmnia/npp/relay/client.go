@@ -20,12 +20,12 @@ import (
 // establish a relayed TCP connection.
 //
 // All network traffic will be transported through that server.
-func Dial(addr net.Addr, targetAddr common.Address, uuid string, numRetries uint64) (net.Conn, error) {
-	return DialWithLog(addr, targetAddr, uuid, zap.NewNop(), numRetries)
+func Dial(addr net.Addr, targetAddr common.Address, uuid string) (net.Conn, error) {
+	return DialWithLog(addr, targetAddr, uuid, zap.NewNop())
 }
 
 // DialWithLog does the same as Dial, but with logging.
-func DialWithLog(addr net.Addr, targetAddr common.Address, uuid string, log *zap.Logger, numRetries uint64) (net.Conn, error) {
+func DialWithLog(addr net.Addr, targetAddr common.Address, uuid string, log *zap.Logger) (net.Conn, error) {
 	client, err := newClient(addr, log)
 	if err != nil {
 		return nil, err
@@ -36,8 +36,7 @@ func DialWithLog(addr net.Addr, targetAddr common.Address, uuid string, log *zap
 	log = log.With(zap.Stringer("addr", targetAddr))
 	log.Debug("discovering meeting point on the Continuum")
 
-	numRetries++
-	for numRetries > 0 {
+	for numAttempts := 0; numAttempts < 2; numAttempts++ {
 		member, err := client.discover(targetAddr)
 		if err != nil {
 			log.Warn("failed to discover meeting point on the Continuum", zap.Error(err))
@@ -51,7 +50,7 @@ func DialWithLog(addr net.Addr, targetAddr common.Address, uuid string, log *zap
 		}
 
 		if verboseErr, ok := err.(*protocolError); ok && verboseErr.code == ErrWrongNode {
-			numRetries--
+			continue
 		} else {
 			log.Warn("failed to connect to remote meeting point on the Continuum", zap.Error(err))
 			return nil, err
@@ -207,7 +206,7 @@ func (m *Dialer) Dial(target common.Address) (net.Conn, error) {
 		m.Log.Debug("successfully resolved Relay addr", zap.String("addr", addr), zap.Any("resolved", addrs))
 
 		for _, addr := range addrs {
-			conn, err := DialWithLog(addr, target, "", m.Log, m.NumRetries)
+			conn, err := DialWithLog(addr, target, "", m.Log)
 			if err == nil {
 				return conn, nil
 			}
