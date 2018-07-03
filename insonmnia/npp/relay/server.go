@@ -485,10 +485,6 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		return errWrongNode()
 	}
 
-	if err := handshake.Validate(); err != nil {
-		return errInvalidHandshake(err)
-	}
-
 	// We support both multiple servers and clients.
 	switch handshake.PeerType {
 	case sonm.PeerType_SERVER:
