@@ -2,9 +2,8 @@ package npp
 
 import (
 	"context"
-	"net"
-
 	"fmt"
+	"net"
 
 	"github.com/libp2p/go-reuseport"
 	"github.com/sonm-io/core/insonmnia/auth"

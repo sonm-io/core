@@ -1,6 +1,6 @@
 # Note that for the entire cluster it is meant that all of them will listen
 # the same port.
-endpoint: "127.0.0.5:14099"
+endpoint: "[::]:14099"
 
 logging:
   # The desired logging level.
@@ -48,4 +48,4 @@ cluster:
   # The list of IP addresses of members of this cluster to be able to join.
   # Can be empty.
   #  members:
-  #    - 127.0.0.6
+  #    - 127.0.0.1
