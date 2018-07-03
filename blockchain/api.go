@@ -14,15 +14,19 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/mohae/deepcopy"
 	"github.com/noxiouz/zapctx/ctxlog"
 	marketAPI "github.com/sonm-io/core/blockchain/source/api"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
 
 const (
 	txRetryTimes     = 20
 	txRetryDelayTime = 100 * time.Millisecond
+	//TODO: make configurable
+	blockGenPeriod = 4 * time.Second
 )
 
 type API interface {
@@ -1366,82 +1370,87 @@ func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
 	}
 }
 
+func (api *BasicEventsAPI) getEventsTill(ctx context.Context, filter ethereum.FilterQuery, tillBlock *big.Int, receiver chan<- *Event) error {
+	curFilter := deepcopy.Copy(filter).(ethereum.FilterQuery)
+	for {
+		filter.ToBlock.Add(filter.ToBlock, big.NewInt(api.blocksBatchSize))
+		if filter.ToBlock.Cmp(tillBlock) > 0 {
+			filter.ToBlock = tillBlock
+		}
+		logs, err := api.client.FilterLogs(ctx, curFilter)
+		if err != nil {
+			return err
+		}
+		var curBlock uint64
+		var curEventTS uint64
+		for _, log := range logs {
+			if log.BlockNumber > curBlock {
+				curBlock = log.BlockNumber
+				block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(curBlock))
+				if err != nil {
+					// TODO @aplodismerti: This place was changed, previously only log was written and old ts was used, is it right?
+					return fmt.Errorf("failed to get event timestamp for block %d: %s", curBlock, err)
+				}
+				curEventTS = block.Time().Uint64()
+			}
+			api.processLog(log, curEventTS, receiver)
+		}
+		if filter.ToBlock.Cmp(tillBlock) == 0 {
+			return nil
+		} else {
+			filter.FromBlock.Add(filter.ToBlock, big.NewInt(1))
+		}
+	}
+}
+
 func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (chan *Event, error) {
 	var out = make(chan *Event, 128)
-	// Number of blocks already present in blockchain that we will read in batches.
-	lastBlock, err := api.GetLastBlock(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get latest block number: %v", err)
+	writeErrAndClose := func(err error) {
+		if err != nil {
+			out <- &Event{
+				Data: &ErrorData{Err: errors.New("malformed log entry"), Topic: "unknown"},
+			}
+		}
+		close(out)
 	}
-
+	// we are mutating filter, so prevent some strange behaviour on client side
+	filter = deepcopy.Copy(filter).(*EventFilter)
+	query := ethereum.FilterQuery{
+		FromBlock: filter.fromBlock,
+		Addresses: filter.addresses,
+		Topics:    filter.topics,
+	}
 	go func() {
-		var (
-			blocksLeft         = int64(lastBlock) - filter.fromBlock.Int64()
-			lastLogBlockNumber = filter.fromBlock.Uint64()
-			fromBlock          = filter.fromBlock.Uint64()
-			toBlock            = big.NewInt(0)
-			tk                 = time.NewTicker(time.Second)
-		)
+		tk := util.NewImmediateTicker(blockGenPeriod)
+
 		for {
 			select {
 			case <-ctx.Done():
-				close(out)
+				writeErrAndClose(nil)
 				return
 			case <-tk.C:
-				if blocksLeft > 0 {
-					toBlock = toBlock.Add(toBlock, big.NewInt(0).SetInt64(api.blocksBatchSize))
-					blocksLeft -= api.blocksBatchSize
-				} else {
-					// Tells the client to read up to latest block.
-					toBlock = nil
-				}
-				logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
-					Topics:    filter.topics,
-					FromBlock: big.NewInt(0).SetUint64(fromBlock),
-					ToBlock:   toBlock,
-					Addresses: filter.addresses,
-				})
+				lastBlock, err := api.client.GetLastBlock(ctx)
 				if err != nil {
-					out <- &Event{
-						Data:        &ErrorData{Err: fmt.Errorf("failed to FilterLogs: %v", err)},
-						BlockNumber: fromBlock,
-					}
+					writeErrAndClose(fmt.Errorf("failed to get latest block number: %v", err))
+					return
 				}
-
-				numLogs := len(logs)
-				if numLogs < 1 {
+				if query.FromBlock.Cmp(lastBlock) > 0 {
 					continue
 				}
 
-				var eventTS uint64
-				for _, log := range logs {
-					// Skip logs from the last seen block.
-					if log.BlockNumber == fromBlock {
-						continue
-					}
-					// Update eventTS if we've got a new block.
-					if lastLogBlockNumber != log.BlockNumber {
-						lastLogBlockNumber = log.BlockNumber
-						block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(lastLogBlockNumber))
-						if err != nil {
-							api.logger.Warn("failed to get event timestamp", zap.Error(err),
-								zap.Uint64("blockNumber", lastLogBlockNumber))
-						} else {
-							eventTS = block.Time().Uint64()
-						}
-					}
-					api.processLog(log, eventTS, out)
+				err = api.getEventsTill(ctx, query, lastBlock, out)
+				if err != nil {
+					writeErrAndClose(err)
 				}
-
-				fromBlock = logs[numLogs-1].BlockNumber
+				query.FromBlock = lastBlock.Add(lastBlock, big.NewInt(1))
 			}
 		}
-	}()
 
+	}()
 	return out, nil
 }
 
-func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *Event) {
+func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan<- *Event) {
 	// This should never happen, but it's ethereum, and things might happen.
 	if len(log.Topics) < 1 {
 		out <- &Event{
