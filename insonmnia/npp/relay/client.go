@@ -197,9 +197,8 @@ func (m *client) Close() error {
 // dynamic DNS addition/removal. Thus, a single Relay endpoint as a hostname
 // should fit the best.
 type Dialer struct {
-	Addrs      []string
-	Log        *zap.Logger
-	NumRetries uint64
+	Addrs []string
+	Log   *zap.Logger
 }
 
 // Dial mimics "net.Dial" and connects to a remote endpoint using Relay server.
