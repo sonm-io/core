@@ -103,6 +103,9 @@ func getConfigPath(p ...string) (string, error) {
 		}
 	}
 
-	cfgPath = path.Join(cfgPath, configName)
-	return cfgPath, nil
+	if util.FileExists(cfgPath) == nil {
+		return cfgPath, nil
+	}
+
+	return path.Join(cfgPath, configName), nil
 }

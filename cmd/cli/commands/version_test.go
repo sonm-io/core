@@ -9,14 +9,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func initRootCmd(t *testing.T, ver, outFormat string) *bytes.Buffer {
+func initRootCmd(t *testing.T, ver string) *bytes.Buffer {
 	buf := new(bytes.Buffer)
 
-	cfg := &config.Config{
-		OutFormat: outFormat,
-	}
-
-	Root(ver, cfg)
+	Root(ver)
 
 	rootCmd.ResetCommands()
 	rootCmd.ResetFlags()
@@ -27,7 +23,8 @@ func initRootCmd(t *testing.T, ver, outFormat string) *bytes.Buffer {
 }
 
 func TestGetVersionCmdSimple(t *testing.T) {
-	buf := initRootCmd(t, "1.2.3", config.OutputModeSimple)
+	cfg = &config.Config{OutFormat: config.OutputModeSimple}
+	buf := initRootCmd(t, "1.2.3")
 
 	printVersion(rootCmd, version)
 	out := buf.String()
@@ -35,7 +32,8 @@ func TestGetVersionCmdSimple(t *testing.T) {
 }
 
 func TestGetVersionCmdJson(t *testing.T) {
-	buf := initRootCmd(t, "1.2.3", config.OutputModeJSON)
+	cfg = &config.Config{OutFormat: config.OutputModeJSON}
+	buf := initRootCmd(t, "1.2.3")
 
 	printVersion(rootCmd, version)
 
