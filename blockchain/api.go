@@ -1457,27 +1457,9 @@ func (api *BasicEventsAPI) getEventsTill(ctx context.Context, filter simpleFilte
 		if filter.ToBlock > tillBlock {
 			filter.ToBlock = tillBlock
 		}
-		logs, err := api.client.FilterLogs(ctx, filter.EthFilter())
-		ctxlog.S(ctx).Debugf("filtering logs from %d to %d", filter.FromBlock, filter.ToBlock)
-		if err != nil {
+		if err := api.fetchAndProcessLogs(ctx, filter, receiver); err != nil {
 			return err
 		}
-		var curBlock uint64
-		var curEventTS uint64
-		for _, log := range logs {
-			if log.BlockNumber != curBlock {
-				curBlock = log.BlockNumber
-				block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(curBlock))
-				if err != nil {
-					// TODO @aplodismerti: This place was changed, previously only log was written and old ts was used, is it right?
-					return fmt.Errorf("failed to get event timestamp for block %d: %s", curBlock, err)
-				}
-				curEventTS = block.Time().Uint64()
-				ctxlog.S(ctx).Debugf("switching to block %d", log.BlockNumber)
-			}
-			api.processLog(log, curEventTS, receiver)
-		}
-		ctxlog.S(ctx).Debugf("processed %d logs in blocks from %d to %d", len(logs), filter.FromBlock, filter.ToBlock)
 		if filter.ToBlock == tillBlock {
 			// we fetched all the logs
 			return nil
@@ -1486,6 +1468,31 @@ func (api *BasicEventsAPI) getEventsTill(ctx context.Context, filter simpleFilte
 			filter.FromBlock = filter.ToBlock + 1
 		}
 	}
+}
+
+func (api *BasicEventsAPI) fetchAndProcessLogs(ctx context.Context, filter simpleFilter, receiver chan<- *Event) error {
+	logs, err := api.client.FilterLogs(ctx, filter.EthFilter())
+	ctxlog.S(ctx).Debugf("filtering logs from %d to %d", filter.FromBlock, filter.ToBlock)
+	if err != nil {
+		return err
+	}
+	var curBlock uint64
+	var curEventTS uint64
+	for _, log := range logs {
+		if log.BlockNumber != curBlock {
+			curBlock = log.BlockNumber
+			block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(curBlock))
+			if err != nil {
+				// TODO @aplodismerti: This place was changed, previously only log was written and old ts was used, is it right?
+				return fmt.Errorf("failed to get event timestamp for block %d: %s", curBlock, err)
+			}
+			curEventTS = block.Time().Uint64()
+			ctxlog.S(ctx).Debugf("switching to block %d", log.BlockNumber)
+		}
+		api.processLog(log, curEventTS, receiver)
+	}
+	ctxlog.S(ctx).Debugf("processed %d logs in blocks from %d to %d", len(logs), filter.FromBlock, filter.ToBlock)
+	return nil
 }
 
 func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan<- *Event) {
