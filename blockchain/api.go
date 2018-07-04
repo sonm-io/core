@@ -17,12 +17,15 @@ import (
 	"github.com/noxiouz/zapctx/ctxlog"
 	marketAPI "github.com/sonm-io/core/blockchain/source/api"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
 
 const (
 	txRetryTimes     = 20
 	txRetryDelayTime = 100 * time.Millisecond
+	//TODO: make configurable
+	blockGenPeriod = 4 * time.Second
 )
 
 type API interface {
@@ -307,7 +310,7 @@ func (api *BasicAPI) setupProfileRegistry(ctx context.Context) error {
 }
 
 func (api *BasicAPI) setupEvents(ctx context.Context) error {
-	events, err := NewEventsAPI(api, api.options.sidechain, ctxlog.GetLogger(ctx))
+	events, err := NewEventsAPI(api, api.options.sidechain, ctxlog.GetLogger(ctx), api.options.blocksBatchSize)
 	if err != nil {
 		return fmt.Errorf("failed to setup events: %s", err)
 	}
@@ -1264,9 +1267,13 @@ func (api *TestTokenApi) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (
 }
 
 type BasicEventsAPI struct {
-	parent API
-	client CustomEthereumClient
-	logger *zap.Logger
+	parent  API
+	options *chainOpts
+	client  CustomEthereumClient
+	logger  *zap.Logger
+	// Number of blocks that will be read by FilterLogs() in one batch. This is required
+	// so that we don't run out of memory trying to load all of the logs at once.
+	blocksBatchSize uint64
 }
 
 type EventFilter struct {
@@ -1275,16 +1282,18 @@ type EventFilter struct {
 	fromBlock *big.Int
 }
 
-func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger) (EventsAPI, error) {
+func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger, blocksBatchSize uint64) (EventsAPI, error) {
 	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
 	}
 
 	return &BasicEventsAPI{
-		parent: parent,
-		client: client,
-		logger: logger,
+		parent:          parent,
+		options:         opts,
+		client:          client,
+		logger:          logger,
+		blocksBatchSize: blocksBatchSize,
 	}, nil
 }
 
@@ -1363,67 +1372,130 @@ func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
 }
 
 func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (chan *Event, error) {
-	var out = make(chan *Event, 128)
+	out := make(chan *Event, 1024)
+
+	if filter.fromBlock != nil && !filter.fromBlock.IsUint64() {
+		return nil, errors.New("filter fromBlock field is out of uint64 range")
+	}
+	// we are mutating filter, so prevent some strange behaviour on client side
+	sFilter := simpleFilter{
+		Addresses: filter.addresses,
+		Topics:    filter.topics,
+	}
+	if filter.fromBlock != nil {
+		sFilter.FromBlock = filter.fromBlock.Uint64()
+	}
+
 	go func() {
-		var (
-			lastLogBlockNumber = filter.fromBlock.Uint64()
-			fromBlock          = filter.fromBlock.Uint64()
-			tk                 = time.NewTicker(time.Second)
-		)
-		for {
-			select {
-			case <-ctx.Done():
-				close(out)
-				return
-			case <-tk.C:
-				logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
-					Topics:    filter.topics,
-					FromBlock: big.NewInt(0).SetUint64(fromBlock),
-					Addresses: filter.addresses,
-				})
-
-				if err != nil {
-					out <- &Event{
-						Data:        &ErrorData{Err: fmt.Errorf("failed to FilterLogs: %v", err)},
-						BlockNumber: fromBlock,
-					}
-				}
-
-				numLogs := len(logs)
-				if numLogs < 1 {
-					api.logger.Info("no logs, skipping")
-					continue
-				}
-
-				var eventTS uint64
-				for _, log := range logs {
-					// Skip logs from the last seen block.
-					if log.BlockNumber == fromBlock {
-						continue
-					}
-					// Update eventTS if we've got a new block.
-					if lastLogBlockNumber != log.BlockNumber {
-						lastLogBlockNumber = log.BlockNumber
-						block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(lastLogBlockNumber))
-						if err != nil {
-							api.logger.Warn("failed to get event timestamp", zap.Error(err),
-								zap.Uint64("blockNumber", lastLogBlockNumber))
-						} else {
-							eventTS = block.Time().Uint64()
-						}
-					}
-					api.processLog(log, eventTS, out)
-				}
-
-				fromBlock = logs[numLogs-1].BlockNumber
+		if err := api.getEventsRoutine(ctx, sFilter, out); err != nil {
+			out <- &Event{
+				Data: &ErrorData{Err: err, Topic: "unknown"},
 			}
 		}
+		close(out)
 	}()
-
 	return out, nil
 }
 
-func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *Event) {
+type simpleFilter struct {
+	FromBlock uint64
+	ToBlock   uint64
+	Addresses []common.Address
+	Topics    [][]common.Hash
+}
+
+func (m *simpleFilter) EthFilter() ethereum.FilterQuery {
+	return ethereum.FilterQuery{
+		FromBlock: big.NewInt(0).SetUint64(m.FromBlock),
+		ToBlock:   big.NewInt(0).SetUint64(m.ToBlock),
+		Addresses: m.Addresses,
+		Topics:    m.Topics,
+	}
+}
+
+// Return block number which is beyond blockConfirmations count from the head
+func (api *BasicEventsAPI) getLastConfirmedBlock(ctx context.Context) (uint64, error) {
+	lastBlock, err := api.GetLastBlock(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get latest block number: %v", err)
+	}
+
+	return lastBlock - uint64(api.options.blockConfirmations), nil
+
+}
+
+func (api *BasicEventsAPI) getEventsRoutine(ctx context.Context, filter simpleFilter, receiver chan<- *Event) error {
+	tk := util.NewImmediateTicker(blockGenPeriod)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-tk.C:
+			// We do not want to read logs from block beyond blockConfirmations count from the head
+			tillBlock, err := api.getLastConfirmedBlock(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to get latest block number: %v", err)
+			}
+			if filter.FromBlock > tillBlock {
+				continue
+			}
+
+			err = api.getEventsTill(ctx, filter, tillBlock, receiver)
+			if err != nil {
+				return err
+			}
+			filter.FromBlock = tillBlock + 1
+		}
+	}
+}
+
+func (api *BasicEventsAPI) getEventsTill(ctx context.Context, filter simpleFilter, tillBlock uint64, receiver chan<- *Event) error {
+	ctxlog.S(ctx).Debugf("fetching events from %d till %d", filter.FromBlock, tillBlock)
+	for {
+		// we substract one, because of range inclusivity in FilterLogs call
+		filter.ToBlock = filter.FromBlock + api.blocksBatchSize - 1
+		if filter.ToBlock > tillBlock {
+			filter.ToBlock = tillBlock
+		}
+		if err := api.fetchAndProcessLogs(ctx, filter, receiver); err != nil {
+			return err
+		}
+		if filter.ToBlock == tillBlock {
+			// we fetched all the logs
+			return nil
+		} else {
+			// Start right after the last fetched block
+			filter.FromBlock = filter.ToBlock + 1
+		}
+	}
+}
+
+func (api *BasicEventsAPI) fetchAndProcessLogs(ctx context.Context, filter simpleFilter, receiver chan<- *Event) error {
+	logs, err := api.client.FilterLogs(ctx, filter.EthFilter())
+	ctxlog.S(ctx).Debugf("filtering logs from %d to %d", filter.FromBlock, filter.ToBlock)
+	if err != nil {
+		return err
+	}
+	var curBlock uint64
+	var curEventTS uint64
+	for _, log := range logs {
+		if log.BlockNumber != curBlock {
+			curBlock = log.BlockNumber
+			block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(curBlock))
+			if err != nil {
+				// TODO @aplodismerti: This place was changed, previously only log was written and old ts was used, is it right?
+				return fmt.Errorf("failed to get event timestamp for block %d: %s", curBlock, err)
+			}
+			curEventTS = block.Time().Uint64()
+			ctxlog.S(ctx).Debugf("switching to block %d", log.BlockNumber)
+		}
+		api.processLog(log, curEventTS, receiver)
+	}
+	ctxlog.S(ctx).Debugf("processed %d logs in blocks from %d to %d", len(logs), filter.FromBlock, filter.ToBlock)
+	return nil
+}
+
+func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan<- *Event) {
 	// This should never happen, but it's ethereum, and things might happen.
 	if len(log.Topics) < 1 {
 		out <- &Event{
@@ -1433,7 +1505,7 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 		return
 	}
 
-	sendErr := func(out chan *Event, err error, topic common.Hash) {
+	sendErr := func(out chan<- *Event, err error, topic common.Hash) {
 		out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber, TS: eventTS}
 	}
 
