@@ -1371,6 +1371,32 @@ func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
 	}
 }
 
+func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (chan *Event, error) {
+	out := make(chan *Event, 1024)
+
+	if filter.fromBlock != nil && !filter.fromBlock.IsUint64() {
+		return nil, errors.New("filter fromBlock field is out of uint64 range")
+	}
+	// we are mutating filter, so prevent some strange behaviour on client side
+	sFilter := simpleFilter{
+		Addresses: filter.addresses,
+		Topics:    filter.topics,
+	}
+	if filter.fromBlock != nil {
+		sFilter.FromBlock = filter.fromBlock.Uint64()
+	}
+
+	go func() {
+		if err := api.getEventsRoutine(ctx, sFilter, out); err != nil {
+			out <- &Event{
+				Data: &ErrorData{Err: err, Topic: "unknown"},
+			}
+		}
+		close(out)
+	}()
+	return out, nil
+}
+
 type simpleFilter struct {
 	FromBlock uint64
 	ToBlock   uint64
@@ -1384,6 +1410,32 @@ func (m *simpleFilter) EthFilter() ethereum.FilterQuery {
 		ToBlock:   big.NewInt(0).SetUint64(m.ToBlock),
 		Addresses: m.Addresses,
 		Topics:    m.Topics,
+	}
+}
+
+func (api *BasicEventsAPI) getEventsRoutine(ctx context.Context, filter simpleFilter, receiver chan<- *Event) error {
+	tk := util.NewImmediateTicker(blockGenPeriod)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-tk.C:
+			tillBlock, err := api.GetLastBlock(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to get latest block number: %v", err)
+			}
+			// We do not want to read logs from block beyond blockConfirmations count from the head
+			tillBlock = tillBlock - uint64(api.options.blockConfirmations)
+			if filter.FromBlock > tillBlock {
+				continue
+			}
+
+			err = api.getEventsTill(ctx, filter, tillBlock, receiver)
+			if err != nil {
+				return err
+			}
+			filter.FromBlock = tillBlock + 1
+		}
 	}
 }
 
@@ -1422,58 +1474,6 @@ func (api *BasicEventsAPI) getEventsTill(ctx context.Context, filter simpleFilte
 			filter.FromBlock = filter.ToBlock + 1
 		}
 	}
-}
-
-func (api *BasicEventsAPI) getEventsRoutine(ctx context.Context, filter simpleFilter, receiver chan<- *Event) error {
-	tk := util.NewImmediateTicker(blockGenPeriod)
-	for {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-tk.C:
-			tillBlock, err := api.GetLastBlock(ctx)
-			if err != nil {
-				return fmt.Errorf("failed to get latest block number: %v", err)
-			}
-			// We do not want to read logs from block beyond blockConfirmations count from the head
-			tillBlock = tillBlock - uint64(api.options.blockConfirmations)
-			if filter.FromBlock > tillBlock {
-				continue
-			}
-
-			err = api.getEventsTill(ctx, filter, tillBlock, receiver)
-			if err != nil {
-				return err
-			}
-			filter.FromBlock = tillBlock + 1
-		}
-	}
-}
-
-func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (chan *Event, error) {
-	out := make(chan *Event, 1024)
-
-	if filter.fromBlock != nil && !filter.fromBlock.IsUint64() {
-		return nil, errors.New("filter fromBlock field is out of uint64 range")
-	}
-	// we are mutating filter, so prevent some strange behaviour on client side
-	sFilter := simpleFilter{
-		Addresses: filter.addresses,
-		Topics:    filter.topics,
-	}
-	if filter.fromBlock != nil {
-		sFilter.FromBlock = filter.fromBlock.Uint64()
-	}
-
-	go func() {
-		if err := api.getEventsRoutine(ctx, sFilter, out); err != nil {
-			out <- &Event{
-				Data: &ErrorData{Err: err, Topic: "unknown"},
-			}
-		}
-		close(out)
-	}()
-	return out, nil
 }
 
 func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan<- *Event) {
