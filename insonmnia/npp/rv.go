@@ -40,7 +40,7 @@ func newRendezvousClient(ctx context.Context, addr auth.Addr, creds credentials.
 		return nil, err
 	}
 
-	resp, err := client.Discover(ctx, &sonm.HandshakeRequest{PeerType: sonm.PeerType_CLIENT, Addr: targetAddr.Bytes()})
+	resp, err := client.Discover(ctx, &sonm.HandshakeRequest{PeerType: sonm.PeerType_DISCOVER, Addr: targetAddr.Bytes()})
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("failed to discover rendezvous node: %s", err)
