@@ -1413,6 +1413,17 @@ func (m *simpleFilter) EthFilter() ethereum.FilterQuery {
 	}
 }
 
+// Return block number which is beyond blockConfirmations count from the head
+func (api *BasicEventsAPI) getLastConfirmedBlock(ctx context.Context) (uint64, error) {
+	lastBlock, err := api.GetLastBlock(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get latest block number: %v", err)
+	}
+
+	return lastBlock - uint64(api.options.blockConfirmations), nil
+
+}
+
 func (api *BasicEventsAPI) getEventsRoutine(ctx context.Context, filter simpleFilter, receiver chan<- *Event) error {
 	tk := util.NewImmediateTicker(blockGenPeriod)
 	for {
@@ -1420,12 +1431,11 @@ func (api *BasicEventsAPI) getEventsRoutine(ctx context.Context, filter simpleFi
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-tk.C:
-			tillBlock, err := api.GetLastBlock(ctx)
+			// We do not want to read logs from block beyond blockConfirmations count from the head
+			tillBlock, err := api.getLastConfirmedBlock(ctx)
 			if err != nil {
 				return fmt.Errorf("failed to get latest block number: %v", err)
 			}
-			// We do not want to read logs from block beyond blockConfirmations count from the head
-			tillBlock = tillBlock - uint64(api.options.blockConfirmations)
 			if filter.FromBlock > tillBlock {
 				continue
 			}
@@ -1440,10 +1450,10 @@ func (api *BasicEventsAPI) getEventsRoutine(ctx context.Context, filter simpleFi
 }
 
 func (api *BasicEventsAPI) getEventsTill(ctx context.Context, filter simpleFilter, tillBlock uint64, receiver chan<- *Event) error {
-	filter.ToBlock = filter.FromBlock
 	ctxlog.S(ctx).Debugf("fetching events from %d till %d", filter.FromBlock, tillBlock)
 	for {
-		filter.ToBlock += uint64(api.blocksBatchSize)
+		// we substract one, because of range inclusivity in FilterLogs call
+		filter.ToBlock = filter.FromBlock + api.blocksBatchSize - 1
 		if filter.ToBlock > tillBlock {
 			filter.ToBlock = tillBlock
 		}
@@ -1469,8 +1479,10 @@ func (api *BasicEventsAPI) getEventsTill(ctx context.Context, filter simpleFilte
 		}
 		ctxlog.S(ctx).Debugf("processed %d logs in blocks from %d to %d", len(logs), filter.FromBlock, filter.ToBlock)
 		if filter.ToBlock == tillBlock {
+			// we fetched all the logs
 			return nil
 		} else {
+			// Start right after the last fetched block
 			filter.FromBlock = filter.ToBlock + 1
 		}
 	}
