@@ -27,6 +27,7 @@ const (
 	tailFlag          = "tail"
 	detailsFlag       = "detailed"
 	prependStreamFlag = "source"
+	defaultNodeAddr   = "localhost:15030"
 )
 
 var (
@@ -93,7 +94,7 @@ func init() {
 		}
 	})
 
-	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "localhost:15030", "node endpoint")
+	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "", "node endpoint")
 	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
 	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "Disable TLS for connection")
@@ -163,6 +164,20 @@ func isSimpleFormat() bool {
 	}
 
 	return true
+}
+
+func nodeAddress() string {
+	p := rootCmd.Flag("node").Value.String()
+	// flag overrides config
+	if p == "" {
+		p = cfg.NodeAddr
+		// config overrides defaults
+		if p == "" {
+			p = defaultNodeAddr
+		}
+	}
+
+	return p
 }
 
 func keystorePath() (string, error) {

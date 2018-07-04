@@ -24,6 +24,7 @@ type Config struct {
 	Eth        accounts.EthConfig `yaml:"ethereum"`
 	OutFormat  string             `required:"false" default:"" yaml:"output_format"`
 	WorkerAddr string             `yaml:"worker_eth_addr"`
+	NodeAddr   string             `yaml:"node_addr"`
 	path       string
 }
 
