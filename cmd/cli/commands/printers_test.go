@@ -14,7 +14,8 @@ import (
 )
 
 func TestJsonOutputForOrder(t *testing.T) {
-	buf := initRootCmd(t, "", config.OutputModeJSON)
+	cfg = &config.Config{OutFormat: config.OutputModeJSON}
+	buf := initRootCmd(t, "")
 
 	bigVal, _ := pb.NewBigIntFromString("1000000000000000000000000000")
 	printOrdersList(rootCmd, []*pb.Order{{
@@ -58,8 +59,8 @@ func TestDealInfoWithZeroDuration(t *testing.T) {
 		TotalPayout: pb.NewBigIntFromInt(5),
 	}
 
-	buf := initRootCmd(t, "", config.OutputModeSimple)
-	cfg = &config.Config{Eth: accounts.EthConfig{Passphrase: "test"}}
+	cfg = &config.Config{OutFormat: config.OutputModeSimple, Eth: accounts.EthConfig{Passphrase: "test"}}
+	buf := initRootCmd(t, "")
 
 	printDealInfo(rootCmd, &pb.DealInfoReply{Deal: deal}, nil, suppressWarnings)
 

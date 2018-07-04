@@ -20,9 +20,9 @@ func init() {
 }
 
 var tokenRootCmd = &cobra.Command{
-	Use:     "token",
-	Short:   "Manage tokens",
-	PreRunE: loadKeyStoreIfRequired,
+	Use:               "token",
+	Short:             "Manage tokens",
+	PersistentPreRunE: loadKeyStoreIfRequired,
 }
 
 var tokenGetCmd = &cobra.Command{

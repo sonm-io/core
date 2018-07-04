@@ -24,6 +24,7 @@ type Config struct {
 	Eth        accounts.EthConfig `yaml:"ethereum"`
 	OutFormat  string             `required:"false" default:"" yaml:"output_format"`
 	WorkerAddr string             `yaml:"worker_eth_addr"`
+	NodeAddr   string             `yaml:"node_addr"`
 	path       string
 }
 
@@ -103,6 +104,9 @@ func getConfigPath(p ...string) (string, error) {
 		}
 	}
 
-	cfgPath = path.Join(cfgPath, configName)
-	return cfgPath, nil
+	if util.FileExists(cfgPath) == nil {
+		return cfgPath, nil
+	}
+
+	return path.Join(cfgPath, configName), nil
 }
