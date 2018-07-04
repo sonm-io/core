@@ -15,16 +15,16 @@ type Event struct {
 }
 
 func (m *Event) PrecedesOrEquals(other *Event) bool {
-	var (
-		byBlockNumber = func(x, y *Event) bool { return x.BlockNumber < y.BlockNumber }
-		byTxIndex     = func(x, y *Event) bool { return x.TxIndex < y.TxIndex }
-		byIndex       = func(x, y *Event) bool { return x.ReceiptIndex <= y.ReceiptIndex }
-	)
-	for _, precedes := range []func(x, y *Event) bool{byBlockNumber, byTxIndex, byIndex} {
+	var comparators = []func(x, y *Event) bool{
+		func(x, y *Event) bool { return x.BlockNumber < y.BlockNumber },
+		func(x, y *Event) bool { return x.TxIndex < y.TxIndex },
+		func(x, y *Event) bool { return x.ReceiptIndex <= y.ReceiptIndex },
+	}
+	for _, comparator := range comparators {
 		switch {
-		case precedes(m, other):
+		case comparator(m, other):
 			return true
-		case precedes(other, m):
+		case comparator(other, m):
 			return false
 		}
 	}
