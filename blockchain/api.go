@@ -1510,7 +1510,12 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan<- 
 	}
 
 	sendData := func(data interface{}) {
-		out <- &Event{Data: data, BlockNumber: log.BlockNumber, TS: eventTS}
+		out <- &Event{Data: data,
+			BlockNumber:  log.BlockNumber,
+			TxIndex:      uint64(log.TxIndex),
+			ReceiptIndex: uint64(log.Index),
+			TS:           eventTS,
+		}
 	}
 
 	var topic = log.Topics[0]

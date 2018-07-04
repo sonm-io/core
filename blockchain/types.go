@@ -7,9 +7,29 @@ import (
 )
 
 type Event struct {
-	Data        interface{}
-	BlockNumber uint64
-	TS          uint64
+	Data         interface{}
+	BlockNumber  uint64
+	TxIndex      uint64
+	ReceiptIndex uint64
+	TS           uint64
+}
+
+func (m *Event) PrecedesOrEquals(other *Event) bool {
+	var (
+		byBlockNumber = func(x, y *Event) bool { return x.BlockNumber < y.BlockNumber }
+		byTxIndex     = func(x, y *Event) bool { return x.TxIndex < y.TxIndex }
+		byIndex       = func(x, y *Event) bool { return x.ReceiptIndex <= y.ReceiptIndex }
+	)
+	for _, precedes := range []func(x, y *Event) bool{byBlockNumber, byTxIndex, byIndex} {
+		switch {
+		case precedes(m, other):
+			return true
+		case precedes(other, m):
+			return false
+		}
+	}
+
+	return false
 }
 
 type DealOpenedData struct {

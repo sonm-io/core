@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 )
@@ -58,9 +59,9 @@ type storage interface {
 	GetWorkers(conn queryConn, request *pb.WorkersRequest) ([]*pb.DWHWorker, uint64, error)
 	UpdateProfile(conn queryConn, userID common.Address, field string, value interface{}) error
 	UpdateProfileStats(conn queryConn, userID common.Address, field string, value int) error
-	GetLastKnownBlock(conn queryConn) (uint64, error)
-	InsertLastKnownBlock(conn queryConn, blockNumber int64) error
-	UpdateLastKnownBlock(conn queryConn, blockNumber int64) error
+	InsertLastEvent(conn queryConn, event *blockchain.Event) error
+	UpdateLastEvent(conn queryConn, event *blockchain.Event) error
+	GetLastEvent(conn queryConn) (*blockchain.Event, error)
 	StoreStaleID(conn queryConn, id *big.Int, entity string) error
 	RemoveStaleID(conn queryConn, id *big.Int, entity string) error
 	CheckStaleID(conn queryConn, id *big.Int, entity string) (bool, error)
