@@ -13,8 +13,8 @@ worker v0.4.2-365a8fe6 (linux/amd64/go1.10.2)
 **Describe the bug**
 A clear and concise description of what the bug is.
 
-**To Reproduce**
-Steps to reproduce the behavior,
+**Step to reproduce**
+Steps to reproduce the bug.
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.
