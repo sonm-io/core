@@ -61,7 +61,7 @@ type options struct {
 	masterchain      *chainOpts
 	sidechain        *chainOpts
 	contractRegistry common.Address
-	blocksBatchSize  int64
+	blocksBatchSize  uint64
 }
 
 func defaultOptions() *options {
@@ -110,7 +110,7 @@ func WithSidechainEndpoint(s string) Option {
 	}
 }
 
-func WithBlocksBatchSize(batchSize int64) Option {
+func WithBlocksBatchSize(batchSize uint64) Option {
 	return func(o *options) {
 		o.blocksBatchSize = batchSize
 	}

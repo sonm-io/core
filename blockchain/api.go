@@ -14,7 +14,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/mohae/deepcopy"
 	"github.com/noxiouz/zapctx/ctxlog"
 	marketAPI "github.com/sonm-io/core/blockchain/source/api"
 	pb "github.com/sonm-io/core/proto"
@@ -1268,12 +1267,13 @@ func (api *TestTokenApi) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (
 }
 
 type BasicEventsAPI struct {
-	parent API
-	client CustomEthereumClient
-	logger *zap.Logger
+	parent  API
+	options *chainOpts
+	client  CustomEthereumClient
+	logger  *zap.Logger
 	// Number of blocks that will be read by FilterLogs() in one batch. This is required
 	// so that we don't run out of memory trying to load all of the logs at once.
-	blocksBatchSize int64
+	blocksBatchSize uint64
 }
 
 type EventFilter struct {
@@ -1282,7 +1282,7 @@ type EventFilter struct {
 	fromBlock *big.Int
 }
 
-func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger, blocksBatchSize int64) (EventsAPI, error) {
+func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger, blocksBatchSize uint64) (EventsAPI, error) {
 	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
@@ -1290,6 +1290,7 @@ func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger, blocksBatchSi
 
 	return &BasicEventsAPI{
 		parent:          parent,
+		options:         opts,
 		client:          client,
 		logger:          logger,
 		blocksBatchSize: blocksBatchSize,
@@ -1370,21 +1371,39 @@ func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
 	}
 }
 
-func (api *BasicEventsAPI) getEventsTill(ctx context.Context, filter ethereum.FilterQuery, tillBlock *big.Int, receiver chan<- *Event) error {
-	curFilter := deepcopy.Copy(filter).(ethereum.FilterQuery)
+type simpleFilter struct {
+	FromBlock uint64
+	ToBlock   uint64
+	Addresses []common.Address
+	Topics    [][]common.Hash
+}
+
+func (m *simpleFilter) EthFilter() ethereum.FilterQuery {
+	return ethereum.FilterQuery{
+		FromBlock: big.NewInt(0).SetUint64(m.FromBlock),
+		ToBlock:   big.NewInt(0).SetUint64(m.ToBlock),
+		Addresses: m.Addresses,
+		Topics:    m.Topics,
+	}
+}
+
+func (api *BasicEventsAPI) getEventsTill(ctx context.Context, filter simpleFilter, tillBlock uint64, receiver chan<- *Event) error {
+	filter.ToBlock = filter.FromBlock
+	ctxlog.S(ctx).Debugf("fetching events from %d till %d", filter.FromBlock, tillBlock)
 	for {
-		filter.ToBlock.Add(filter.ToBlock, big.NewInt(api.blocksBatchSize))
-		if filter.ToBlock.Cmp(tillBlock) > 0 {
+		filter.ToBlock += uint64(api.blocksBatchSize)
+		if filter.ToBlock > tillBlock {
 			filter.ToBlock = tillBlock
 		}
-		logs, err := api.client.FilterLogs(ctx, curFilter)
+		logs, err := api.client.FilterLogs(ctx, filter.EthFilter())
+		ctxlog.S(ctx).Debugf("filtering logs from %d to %d", filter.FromBlock, filter.ToBlock)
 		if err != nil {
 			return err
 		}
 		var curBlock uint64
 		var curEventTS uint64
 		for _, log := range logs {
-			if log.BlockNumber > curBlock {
+			if log.BlockNumber != curBlock {
 				curBlock = log.BlockNumber
 				block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(curBlock))
 				if err != nil {
@@ -1392,60 +1411,67 @@ func (api *BasicEventsAPI) getEventsTill(ctx context.Context, filter ethereum.Fi
 					return fmt.Errorf("failed to get event timestamp for block %d: %s", curBlock, err)
 				}
 				curEventTS = block.Time().Uint64()
+				ctxlog.S(ctx).Debugf("switching to block %d", log.BlockNumber)
 			}
 			api.processLog(log, curEventTS, receiver)
 		}
-		if filter.ToBlock.Cmp(tillBlock) == 0 {
+		ctxlog.S(ctx).Debugf("processed %d logs in blocks from %d to %d", len(logs), filter.FromBlock, filter.ToBlock)
+		if filter.ToBlock == tillBlock {
 			return nil
 		} else {
-			filter.FromBlock.Add(filter.ToBlock, big.NewInt(1))
+			filter.FromBlock = filter.ToBlock + 1
+		}
+	}
+}
+
+func (api *BasicEventsAPI) getEventsRoutine(ctx context.Context, filter simpleFilter, receiver chan<- *Event) error {
+	tk := util.NewImmediateTicker(blockGenPeriod)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-tk.C:
+			tillBlock, err := api.GetLastBlock(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to get latest block number: %v", err)
+			}
+			// We do not want to read logs from block beyond blockConfirmations count from the head
+			tillBlock = tillBlock - uint64(api.options.blockConfirmations)
+			if filter.FromBlock > tillBlock {
+				continue
+			}
+
+			err = api.getEventsTill(ctx, filter, tillBlock, receiver)
+			if err != nil {
+				return err
+			}
+			filter.FromBlock = tillBlock + 1
 		}
 	}
 }
 
 func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (chan *Event, error) {
-	var out = make(chan *Event, 128)
-	writeErrAndClose := func(err error) {
-		if err != nil {
-			out <- &Event{
-				Data: &ErrorData{Err: errors.New("malformed log entry"), Topic: "unknown"},
-			}
-		}
-		close(out)
+	out := make(chan *Event, 1024)
+
+	if filter.fromBlock != nil && !filter.fromBlock.IsUint64() {
+		return nil, errors.New("filter fromBlock field is out of uint64 range")
 	}
 	// we are mutating filter, so prevent some strange behaviour on client side
-	filter = deepcopy.Copy(filter).(*EventFilter)
-	query := ethereum.FilterQuery{
-		FromBlock: filter.fromBlock,
+	sFilter := simpleFilter{
 		Addresses: filter.addresses,
 		Topics:    filter.topics,
 	}
+	if filter.fromBlock != nil {
+		sFilter.FromBlock = filter.fromBlock.Uint64()
+	}
+
 	go func() {
-		tk := util.NewImmediateTicker(blockGenPeriod)
-
-		for {
-			select {
-			case <-ctx.Done():
-				writeErrAndClose(nil)
-				return
-			case <-tk.C:
-				lastBlock, err := api.client.GetLastBlock(ctx)
-				if err != nil {
-					writeErrAndClose(fmt.Errorf("failed to get latest block number: %v", err))
-					return
-				}
-				if query.FromBlock.Cmp(lastBlock) > 0 {
-					continue
-				}
-
-				err = api.getEventsTill(ctx, query, lastBlock, out)
-				if err != nil {
-					writeErrAndClose(err)
-				}
-				query.FromBlock = lastBlock.Add(lastBlock, big.NewInt(1))
+		if err := api.getEventsRoutine(ctx, sFilter, out); err != nil {
+			out <- &Event{
+				Data: &ErrorData{Err: err, Topic: "unknown"},
 			}
 		}
-
+		close(out)
 	}()
 	return out, nil
 }
