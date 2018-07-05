@@ -142,10 +142,8 @@ func (m *DWH) setupDB() error {
 }
 
 func (m *DWH) serveGRPC() error {
-	m.mu.Lock()
 	certRotator, TLSConfig, err := util.NewHitlessCertRotator(m.ctx, m.key)
 	if err != nil {
-		m.mu.Unlock()
 		return err
 	}
 
@@ -162,12 +160,28 @@ func (m *DWH) serveGRPC() error {
 
 	lis, err := net.Listen("tcp", m.cfg.GRPCListenAddr)
 	if err != nil {
-		m.mu.Unlock()
 		return fmt.Errorf("failed to listen on %s: %v", m.cfg.GRPCListenAddr, err)
 	}
 
-	m.mu.Unlock()
 	return m.grpc.Serve(lis)
+}
+
+func (m *DWH) serveHTTP() error {
+	options := []rest.Option{rest.WithContext(m.ctx)}
+	lis, err := net.Listen("tcp", m.cfg.HTTPListenAddr)
+	if err != nil {
+		return fmt.Errorf("failed to create http listener: %v", err)
+	}
+
+	srv := rest.NewServer(options...)
+
+	err = srv.RegisterService((*pb.DWHServer)(nil), m)
+	if err != nil {
+		return fmt.Errorf("failed to RegisterService: %v", err)
+	}
+
+	m.http = srv
+	return srv.Serve(lis)
 }
 
 // unaryInterceptor RLocks DWH for all incoming requests. This is needed because some events (e.g.,
@@ -177,28 +191,6 @@ func (m *DWH) unaryInterceptor(ctx context.Context, req interface{}, info *grpc.
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return handler(ctx, req)
-}
-
-func (m *DWH) serveHTTP() error {
-	m.mu.Lock()
-	options := []rest.Option{rest.WithLog(m.logger)}
-	lis, err := net.Listen("tcp", m.cfg.HTTPListenAddr)
-	if err != nil {
-		m.mu.Unlock()
-		return fmt.Errorf("failed to create http listener: %v", err)
-	}
-
-	srv := rest.NewServer(options...)
-
-	err = srv.RegisterService((*pb.DWHServer)(nil), m)
-	if err != nil {
-		m.mu.Unlock()
-		return fmt.Errorf("failed to RegisterService: %v", err)
-	}
-
-	m.http = srv
-	m.mu.Unlock()
-	return srv.Serve(lis)
 }
 
 func (m *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDealsReply, error) {
