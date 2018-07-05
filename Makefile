@@ -72,45 +72,45 @@ build/worker:
 
 build/dwh:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${DWH} ${GOCMD}/dwh
+	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${DWH} ${GOCMD}/dwh
 
 build/rv:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${RENDEZVOUS} ${GOCMD}/rv
+	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${RENDEZVOUS} ${GOCMD}/rv
 
 build/rendezvous: build/rv
 
 build/relay:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${RELAY} ${GOCMD}/relay
+	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${RELAY} ${GOCMD}/relay
 
 build/cli:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${CLI} ${GOCMD}/cli
+	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${CLI} ${GOCMD}/cli
 
 build/node:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${NODE} ${GOCMD}/node
+	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${NODE} ${GOCMD}/node
 
 build/lsgpu:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${LSGPU} ${GOCMD}/lsgpu
+	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${LSGPU} ${GOCMD}/lsgpu
 
 build/autocli:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${AUTOCLI} ${GOCMD}/autocli
+	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${AUTOCLI} ${GOCMD}/autocli
 
 build/pandora:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${PANDORA} ${GOCMD}/pandora
+	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${PANDORA} ${GOCMD}/pandora
 
 build/optimus:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${OPTIMUS} ${GOCMD}/optimus
+	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${OPTIMUS} ${GOCMD}/optimus
 
 build/oracle:
 	@echo "+ $@"
-	${GO} build -tags "$(TAGS)" -ldflags "-s $(LDFLAGS)" -o ${ORACLE} ${GOCMD}/oracle
+	${GO} build -tags "$(TAGS)" -ldflags "$(LDFLAGS)" -o ${ORACLE} ${GOCMD}/oracle
 
 build/insomnia: build/worker build/cli build/node
 
