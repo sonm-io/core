@@ -129,7 +129,7 @@ func LookupTCPHostPort(hostport string) ([]net.Addr, error) {
 
 	netAddrs := make([]net.Addr, len(addrs))
 	for id, addr := range addrs {
-		tcpAddr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%s", addr, port))
+		tcpAddr, err := net.ResolveTCPAddr("tcp", net.JoinHostPort(addr, port))
 		if err != nil {
 			return nil, err
 		}
