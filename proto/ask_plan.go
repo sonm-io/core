@@ -3,6 +3,7 @@ package sonm
 import (
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -343,4 +344,13 @@ func (m *AskPlanNetwork) UnmarshalYAML(unmarshal func(interface{}) error) error 
 	m.NetFlags.SetIncoming(impl.Incoming)
 
 	return nil
+}
+
+func SumPrice(plans []*AskPlan) *Price {
+	sum := big.NewInt(0)
+	for _, plan := range plans {
+		sum.Add(sum, plan.GetPrice().GetPerSecond().Unwrap())
+	}
+
+	return &Price{PerSecond: NewBigInt(sum)}
 }

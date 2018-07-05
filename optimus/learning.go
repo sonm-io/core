@@ -27,7 +27,6 @@ type WeightedOrder struct {
 	// It fits in [0; +Inf] range and is used to reduce an order attractiveness
 	// if it has been laying on the market for a long time without being sold.
 	Weight float64
-	ID     string
 }
 
 type OrderPredictor struct {
@@ -93,7 +92,6 @@ func (m *OrderClassification) RecalculateWeightsAndSort(orders []WeightedOrder) 
 // TODO: Docs.
 type OrderClassifier interface {
 	Classify(orders []*MarketOrder) ([]WeightedOrder, error)
-	ClassifyExt(orders []*MarketOrder) (*OrderClassification, error)
 }
 
 type regressionClassifier struct {

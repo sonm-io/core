@@ -6,8 +6,9 @@ import (
 
 	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
-	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/optimus"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 var (
@@ -26,7 +27,20 @@ func run() error {
 		return fmt.Errorf("failed to parse config: %v", err)
 	}
 
-	log := logging.BuildLogger(*cfg.Logging.Level)
+	zapConfig := zap.Config{
+		Level:            zap.NewAtomicLevelAt(cfg.Logging.LogLevel().Zap()),
+		Development:      false,
+		Encoding:         "console",
+		EncoderConfig:    zap.NewDevelopmentEncoderConfig(),
+		OutputPaths:      []string{"stdout"},
+		ErrorOutputPaths: []string{"stderr"},
+	}
+	zapConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+
+	log, err := zapConfig.Build()
+	if err != nil {
+		return err
+	}
 
 	ctx := ctxlog.WithLogger(context.Background(), log)
 	bot, err := optimus.NewOptimus(*cfg, log)
