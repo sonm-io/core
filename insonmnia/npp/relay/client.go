@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gogo/protobuf/proto"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/netutil"
@@ -40,20 +41,28 @@ func DialWithLog(addr net.Addr, targetAddr common.Address, uuid string, log *zap
 	log = log.With(zap.Stringer("addr", targetAddr))
 	log.Debug("discovering meeting point on the Continuum")
 
-	member, err := client.discover(targetAddr)
-	if err != nil {
-		log.Warn("failed to discover meeting point on the Continuum", zap.Error(err))
-		return nil, err
+	for numAttempts := 0; numAttempts < 2; numAttempts++ {
+		member, err := client.discover(targetAddr)
+		if err != nil {
+			log.Warn("failed to discover meeting point on the Continuum", zap.Error(err))
+			return nil, err
+		}
+
+		log.Debug("connecting to remote meeting point on the Continuum", zap.Stringer("remote_addr", member.conn.RemoteAddr()))
+		conn, err := member.dial(targetAddr, uuid)
+		if err == nil {
+			return conn, nil
+		}
+
+		if verboseErr, ok := err.(*protocolError); ok && verboseErr.code == ErrWrongNode {
+			continue
+		} else {
+			log.Warn("failed to connect to remote meeting point on the Continuum", zap.Error(err))
+			return nil, err
+		}
 	}
 
-	log.Debug("connecting to remote meeting point on the Continuum", zap.Stringer("remote_addr", member.conn.RemoteAddr()))
-	conn, err := member.dial(targetAddr, uuid)
-	if err != nil {
-		log.Warn("failed to connect to remote meeting point on the Continuum", zap.Error(err))
-		return nil, err
-	}
-
-	return conn, err
+	return nil, errors.New("failed to dial remote")
 }
 
 // Listen publishes itself to the relay server waiting for other client peer
