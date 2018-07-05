@@ -137,6 +137,14 @@ func (m *workerEngine) Execute(ctx context.Context) {
 }
 
 func (m *workerEngine) execute(ctx context.Context) error {
+	maintenance, err := m.worker.NextMaintenance(ctx, &sonm.Empty{})
+	if err != nil {
+		return fmt.Errorf("failed to get maintenance: %v", err)
+	}
+	if time.Since(maintenance.Unix()) >= 0 {
+		return fmt.Errorf("worker is on the maintenance")
+	}
+
 	input, err := m.optimizationInput(ctx)
 	if err != nil {
 		return err
@@ -173,6 +181,11 @@ func (m *workerEngine) execute(ctx context.Context) error {
 
 	// Here we append removal candidate's orders to "orders" from the
 	// marketplace to be able to track their profitability.
+	// Note, that this can return error when some victim plans did not place
+	// their orders on the marketplace.
+	// Either this can be temporary or worker's critical failure, network for
+	// example.
+	// The best we can do here is to return and try again in the next epoch.
 	virtualFreeOrders, err := m.ordersForPlans(ctx, victimPlans)
 	if err != nil {
 		return fmt.Errorf("failed to collect orders for victim plans: %v", err)
@@ -372,7 +385,7 @@ func (m *workerEngine) ordersForPlans(ctx context.Context, plans map[string]*son
 		wg.Go(func() error {
 			order, err := m.market.GetOrderInfo(ctx, plan.OrderID.Unwrap())
 			if err != nil {
-				return fmt.Errorf("failed to get order for `%s`: %v", id, err)
+				return fmt.Errorf("failed to get order `%s` for `%s`: %v", plan.OrderID.Unwrap().String(), id, err)
 			}
 
 			mu.Lock()
