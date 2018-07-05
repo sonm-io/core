@@ -88,6 +88,7 @@ func newEmptyDevicesReply() *sonm.DevicesReply {
 			Benchmarks: map[uint64]*sonm.Benchmark{},
 		},
 		Network: &sonm.Network{
+			NetFlags:      &sonm.NetFlags{},
 			BenchmarksIn:  map[uint64]*sonm.Benchmark{},
 			BenchmarksOut: map[uint64]*sonm.Benchmark{},
 		},
@@ -219,7 +220,7 @@ func TestConsumeCPUAndRAMDoNotStealResourcesWhenRAMFailed(t *testing.T) {
 	benchmark := sonm.Benchmarks{
 		Values: []uint64{5000, 0, 0, 1e10},
 	}
-	cpuPlan, err := manager.Consume(benchmark)
+	cpuPlan, err := manager.Consume(benchmark, sonm.NetFlags{})
 	require.Error(t, err)
 	require.Nil(t, cpuPlan)
 
@@ -475,7 +476,7 @@ func TestConsumeNetwork(t *testing.T) {
 	require.NotNil(t, manager)
 
 	benchmark := [12]uint64{0, 0, 0, 0, 0, 5e6, 90e6}
-	plan, err := manager.consumeNetwork(benchmark[:])
+	plan, err := manager.consumeNetwork(benchmark[:], sonm.NetFlags{})
 	require.NoError(t, err)
 	require.NotNil(t, plan)
 
@@ -484,6 +485,41 @@ func TestConsumeNetwork(t *testing.T) {
 
 	assert.Equal(t, uint64(95e6), manager.freeBenchmarks[5])
 	assert.Equal(t, uint64(10e6), manager.freeBenchmarks[6])
+}
+
+func TestConsumeNetworkWithMultipleIncomingNetFlags(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.Network.NetFlags.SetIncoming(true)
+	devices.Network.In = 100e6
+	devices.Network.Out = 100e6
+	devices.Network.BenchmarksIn = map[uint64]*sonm.Benchmark{
+		5: {ID: 5, Result: 100e6},
+	}
+	devices.Network.BenchmarksOut = map[uint64]*sonm.Benchmark{
+		6: {ID: 6, Result: 100e6},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := [12]uint64{0, 0, 0, 0, 0, 5e6, 5e6}
+	plan, err := manager.consumeNetwork(benchmark[:], sonm.NetFlags{Flags: sonm.NetworkIncoming})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+
+	assert.Equal(t, uint64(5e6), plan.ThroughputIn.BitsPerSecond)
+	assert.Equal(t, uint64(5e6), plan.ThroughputOut.BitsPerSecond)
+
+	assert.Equal(t, uint64(95e6), manager.freeBenchmarks[5])
+	assert.Equal(t, uint64(95e6), manager.freeBenchmarks[6])
+
+	plan, err = manager.consumeNetwork(benchmark[:], sonm.NetFlags{Flags: sonm.NetworkIncoming})
+	require.Error(t, err)
+	require.Nil(t, plan)
 }
 
 func TestConsumeRAMMin(t *testing.T) {
@@ -578,7 +614,7 @@ func TestConsumeOrder(t *testing.T) {
 		assert.Equal(t, uint64(5680), devices.CPU.Benchmarks[0].Result)
 	}
 	{
-		plan, err := manager.consumeNetwork(benchmark[:])
+		plan, err := manager.consumeNetwork(benchmark[:], sonm.NetFlags{})
 		require.NoError(t, err)
 		require.NotNil(t, plan)
 
@@ -605,7 +641,7 @@ func TestGPUStrange(t *testing.T) {
 			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 409600000, 84936696, 0, 0},
 		}
 
-		plans, err := manager.Consume(benchmark)
+		plans, err := manager.Consume(benchmark, sonm.NetFlags{})
 		require.NoError(t, err)
 		require.NotNil(t, plans)
 
@@ -622,7 +658,7 @@ func TestGPUStrange(t *testing.T) {
 			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 409600000, 218587776, 0, 0},
 		}
 
-		plans, err := manager.Consume(benchmark)
+		plans, err := manager.Consume(benchmark, sonm.NetFlags{})
 		require.NoError(t, err)
 		require.NotNil(t, plans)
 
