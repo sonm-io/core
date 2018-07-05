@@ -27,6 +27,7 @@ const (
 	tailFlag          = "tail"
 	detailsFlag       = "detailed"
 	prependStreamFlag = "source"
+	defaultNodeAddr   = "localhost:15030"
 )
 
 var (
@@ -44,6 +45,7 @@ var (
 	timeoutFlag     = 60 * time.Second
 	insecureFlag    bool
 	keystoreFlag    string
+	configFlag      string
 
 	// logging flag vars
 	logType       string
@@ -55,7 +57,7 @@ var (
 	prependStream bool
 
 	// session-related vars
-	cfg      *config.Config
+	cfg      = &config.Config{}
 	creds    credentials.TransportCredentials
 	keystore *accounts.MultiKeystore
 )
@@ -83,20 +85,29 @@ func getDefaultKey() (*ecdsa.PrivateKey, error) {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "localhost:15030", "node endpoint")
+	cobra.OnInitialize(func() {
+		var err error
+		cfg, err = config.NewConfig(configFlag)
+		if err != nil {
+			fmt.Printf("Cannot load config: %s\r\n", err)
+			os.Exit(1)
+		}
+	})
+
+	rootCmd.PersistentFlags().StringVar(&nodeAddressFlag, "node", "", "node endpoint")
 	rootCmd.PersistentFlags().DurationVar(&timeoutFlag, "timeout", 60*time.Second, "Connection timeout")
 	rootCmd.PersistentFlags().StringVar(&outputModeFlag, "out", "", "Output mode: simple or json")
 	rootCmd.PersistentFlags().BoolVar(&insecureFlag, "insecure", false, "Disable TLS for connection")
 	rootCmd.PersistentFlags().StringVar(&keystoreFlag, "keystore", "", "Keystore dir")
+	rootCmd.PersistentFlags().StringVar(&configFlag, "config", "", "Configuration file")
 
 	rootCmd.AddCommand(workerMgmtCmd, orderRootCmd, dealRootCmd, taskRootCmd, blacklistRootCmd)
 	rootCmd.AddCommand(loginCmd, tokenRootCmd, versionCmd, autoCompleteCmd, masterRootCmd, profileRootCmd)
 }
 
 // Root configure and return root command
-func Root(appVersion string, c *config.Config) *cobra.Command {
+func Root(appVersion string) *cobra.Command {
 	version = appVersion
-	cfg = c
 
 	rootCmd.SetOutput(os.Stdout)
 	return rootCmd
@@ -153,6 +164,20 @@ func isSimpleFormat() bool {
 	}
 
 	return true
+}
+
+func nodeAddress() string {
+	p := rootCmd.Flag("node").Value.String()
+	// flag overrides config
+	if p == "" {
+		p = cfg.NodeAddr
+		// config overrides defaults
+		if p == "" {
+			p = defaultNodeAddr
+		}
+	}
+
+	return p
 }
 
 func keystorePath() (string, error) {
