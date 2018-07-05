@@ -60,6 +60,7 @@ package relay
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -499,6 +500,16 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 	addr := nppc.ResourceID{
 		Protocol: handshake.Protocol,
 		Addr:     common.BytesToAddress(handshake.Addr),
+	}
+
+	targetAddr, ok := m.continuum.Get(addr)
+	if !ok {
+		return errInvalidHandshake(errors.New("failed to get node by address"))
+	}
+
+	// Peer might have got a no longer valid node address while discovery.
+	if targetAddr != m.cfg.Addr.String() {
+		return errWrongNode()
 	}
 
 	// We support both multiple servers and clients.
