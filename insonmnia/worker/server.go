@@ -14,6 +14,7 @@ import (
 	"github.com/cnf/structhash"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/common"
@@ -146,6 +147,10 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 		return nil, err
 	}
 
+	if err := m.setupRunningContainers(); err != nil {
+		m.Close()
+		return nil, err
+	}
 	if err := m.setupServer(); err != nil {
 		m.Close()
 		return nil, err
@@ -365,9 +370,21 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 	return result.ErrorOrNil()
 }
 
-func (m *Worker) saveContainerInfo(id string, info ContainerInfo) {
+type runningContainerInfo struct {
+	Description Description         `json:"description,omitempty"`
+	Cinfo       ContainerInfo       `json:"cinfo,omitempty"`
+	Resources   pb.AskPlanResources `json:"resources,omitempty"`
+}
+
+func (m *Worker) saveContainerInfo(id string, info ContainerInfo, d Description, spec pb.AskPlanResources) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	m.storage.Save(info.ID, runningContainerInfo{
+		Description: d,
+		Cinfo:       info,
+		Resources:   spec,
+	})
 
 	m.containers[id] = &info
 }
@@ -640,7 +657,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 
 	var d = Description{
 		Container:    *request.Spec.Container,
-		Reference:    reference,
+		Reference:    reference.String(),
 		Auth:         spec.Registry.Auth(),
 		CGroupParent: cgroup.Suffix(),
 		Resources:    spec.Resources,
@@ -674,6 +691,8 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	containerInfo.ImageName = reference.String()
 	containerInfo.DealID = dealID.Unwrap().String()
 	containerInfo.Tag = request.GetSpec().GetTag()
+	containerInfo.TaskID = taskID
+	containerInfo.AskID = ask.ID
 
 	var reply = pb.StartTaskReply{
 		Id:         taskID,
@@ -712,7 +731,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		reply.PortMap[string(internalPort)] = &pb.Endpoints{Endpoints: socketAddrs}
 	}
 
-	m.saveContainerInfo(taskID, containerInfo)
+	m.saveContainerInfo(taskID, containerInfo, d, *spec.Resources)
 
 	go m.listenForStatus(statusListener, taskID)
 
@@ -890,6 +909,60 @@ func (m *Worker) setupSalesman() error {
 
 	ch := m.salesman.Run(m.ctx)
 	go m.listenDeals(ch)
+	return nil
+}
+
+func (m *Worker) setupRunningContainers() error {
+	dockerClient, err := client.NewEnvClient()
+	if err != nil {
+		return err
+	}
+	// Overseer mantains it's own instance of docker.Client
+	defer dockerClient.Close()
+
+	containers, err := dockerClient.ContainerList(m.ctx, types.ContainerListOptions{})
+
+	for _, container := range containers {
+		var info runningContainerInfo
+
+		if _, ok := container.Labels[overseerTag]; ok {
+			loaded, err := m.storage.Load(container.ID, &info)
+
+			if err != nil {
+				log.S(m.ctx).Warnf("failed to load running container info %s", err)
+				continue
+			}
+			if !loaded {
+				log.S(m.ctx).Warnf("loaded an empty container info")
+				continue
+			}
+
+			contJson, err := dockerClient.ContainerInspect(m.ctx, container.ID)
+
+			if err != nil {
+				log.S(m.ctx).Error("failed to inspect container", zap.String("id", container.ID), zap.Error(err))
+				return err
+			}
+
+			// TODO: Match our proto status constants with docker's statuses
+			switch contJson.State.Status {
+			case "created", "paused", "restarting", "removing":
+				info.Cinfo.status = pb.TaskStatusReply_UNKNOWN
+			case "running":
+				info.Cinfo.status = pb.TaskStatusReply_RUNNING
+			case "exited":
+				info.Cinfo.status = pb.TaskStatusReply_FINISHED
+			case "dead":
+				info.Cinfo.status = pb.TaskStatusReply_BROKEN
+			}
+
+			m.containers[info.Cinfo.TaskID] = &info.Cinfo
+
+			m.ovs.Attach(m.ctx, container.ID, dockerClient, info.Description)
+			m.resources.ConsumeTask(info.Cinfo.AskID, info.Cinfo.TaskID, &info.Resources)
+		}
+	}
+
 	return nil
 }
 
@@ -1194,7 +1267,7 @@ func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
 		return Description{}, err
 	}
 	return Description{
-		Reference: reference,
+		Reference: reference.String(),
 		Container: pb.Container{Env: map[string]string{
 			bm.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
 		}},

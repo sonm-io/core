@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
@@ -33,7 +32,7 @@ const dieEvent = "die"
 // Description for a target application.
 type Description struct {
 	pb.Container
-	Reference    reference.Reference
+	Reference    string
 	Auth         string
 	Resources    *pb.AskPlanResources
 	CGroupParent string
@@ -98,8 +97,9 @@ type ContainerInfo struct {
 	CgroupParent string
 	NetworkIDs   []string
 	DealID       string
-	TaskId       string
 	Tag          string
+	TaskID       string
+	AskID        string
 }
 
 func (c *ContainerInfo) IntoProto(ctx context.Context) *pb.TaskStatusReply {
@@ -181,6 +181,9 @@ type Overseer interface {
 	// After successful starting an application becomes a target for accepting request, but not guarantees
 	// to complete them.
 	Start(ctx context.Context, description Description) (chan pb.TaskStatusReply_Status, ContainerInfo, error)
+
+	// Attach attemps to attach to a running application with a specified description
+	Attach(ctx context.Context, ID string, client *client.Client, description Description) (chan pb.TaskStatusReply_Status, error)
 
 	// Exec a given command in running container
 	Exec(ctx context.Context, Id string, cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (types.HijackedResponse, error)
@@ -445,10 +448,10 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	if err != nil {
 		return err
 	}
-	refStr := d.Reference.String()
+	refStr := d.Reference
 	for _, summary := range summaries {
 		if summary.ID == refStr {
-			log.S(ctx).Infof("application image %s is already present", d.Reference.String())
+			log.S(ctx).Infof("application image %s is already present", d.Reference)
 			return nil
 		}
 	}
@@ -471,6 +474,23 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	return nil
 }
 
+func (o *overseer) Attach(ctx context.Context, ID string, dockerClient *client.Client, d Description) (chan pb.TaskStatusReply_Status, error) {
+	cont, err := attContainer(ctx, o.client, d, o.plugins)
+	if err != nil {
+		log.S(ctx).Debugf("failed to attach to container")
+		return nil, err
+	}
+	cont.ID = ID
+	log.S(ctx).Debugf("Attaching to running container %s", ID)
+
+	o.mu.Lock()
+	o.containers[ID] = cont
+	status := make(chan pb.TaskStatusReply_Status, 1)
+	o.statuses[ID] = status
+	o.mu.Unlock()
+
+	return status, nil
+}
 func (o *overseer) Start(ctx context.Context, description Description) (status chan pb.TaskStatusReply_Status, cinfo ContainerInfo, err error) {
 	if description.IsGPURequired() && !o.supportGPU() {
 		err = fmt.Errorf("GPU required but not supported or disabled")

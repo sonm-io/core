@@ -27,11 +27,11 @@ func TestOvsSpool(t *testing.T) {
 
 	ref, err := reference.ParseNormalizedNamed("docker.io/alpine")
 	require.NoError(t, err, "failed to create Overseer")
-	err = ovs.Spool(ctx, Description{Reference: ref})
+	err = ovs.Spool(ctx, Description{Reference: ref.String()})
 	require.NoError(t, err, "failed to pull an image")
 
 	ref, err = reference.ParseNormalizedNamed("docker2.io/alpine")
-	err = ovs.Spool(ctx, Description{Reference: ref})
+	err = ovs.Spool(ctx, Description{Reference: ref.String()})
 	require.NotNil(t, err)
 }
 
@@ -112,7 +112,7 @@ func TestOvsSpawn(t *testing.T) {
 	require.NoError(t, err)
 	ref, err := reference.ParseNormalizedNamed("worker")
 	require.NoError(t, err)
-	ch, info, err := ovs.Start(ctx, Description{Reference: ref})
+	ch, info, err := ovs.Start(ctx, Description{Reference: ref.String()})
 	require.NoError(t, err)
 	cjson, err := cl.ContainerInspect(ctx, info.ID)
 	require.NoError(t, err)
