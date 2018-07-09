@@ -12,6 +12,7 @@ const (
 	ErrTimeout
 	ErrNoPeer
 	ErrWrongNode
+	ErrEmptyContinuum
 )
 
 type protocolError struct {
@@ -48,4 +49,8 @@ func errNoPeer() error {
 
 func errWrongNode() error {
 	return newProtocolError(ErrWrongNode, fmt.Errorf("peer connected to wrong node"))
+}
+
+func errEmptyContinuum() error {
+	return newProtocolError(ErrEmptyContinuum, fmt.Errorf("no nodes in the continuum"))
 }
