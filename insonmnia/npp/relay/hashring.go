@@ -133,14 +133,22 @@ func newNode(name, addr string) *Node {
 }
 
 func ParseNode(node string) (*Node, error) {
-	parts := strings.SplitN(node, "@", 2)
-	if len(parts) != 2 {
+	idx := strings.LastIndex(node, "@")
+	if idx < 0 {
 		return nil, fmt.Errorf("continuum node must be in `<name>@<addr>` format")
 	}
 
+	name, addr := node[:idx], node[idx+1:]
+	if len(name) == 0 {
+		return nil, fmt.Errorf("node name is empty")
+	}
+	if len(addr) == 0 {
+		return nil, fmt.Errorf("node address is empty")
+	}
+
 	m := &Node{
-		Name: parts[0],
-		Addr: parts[1],
+		Name: name,
+		Addr: addr,
 	}
 
 	return m, nil
