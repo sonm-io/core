@@ -641,20 +641,16 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 
 	var d = Description{
-		Reference:     reference,
-		Auth:          spec.Registry.Auth(),
-		RestartPolicy: spec.Container.RestartPolicy.Unwrap(),
-		CGroupParent:  cgroup.Suffix(),
-		Resources:     spec.Resources,
-		DealId:        request.GetDealID().Unwrap().String(),
-		TaskId:        taskID,
-		CommitOnStop:  spec.Container.CommitOnStop,
-		GPUDevices:    gpuids,
-		Env:           spec.Container.Env,
-		volumes:       spec.Container.Volumes,
-		mounts:        mounts,
-		networks:      networks,
-		expose:        spec.Container.GetExpose(),
+		Container:    *request.Spec.Container,
+		Reference:    reference,
+		Auth:         spec.Registry.Auth(),
+		CGroupParent: cgroup.Suffix(),
+		Resources:    spec.Resources,
+		DealId:       request.GetDealID().Unwrap().String(),
+		TaskId:       taskID,
+		GPUDevices:   gpuids,
+		mounts:       mounts,
+		networks:     networks,
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
@@ -1204,9 +1200,9 @@ func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
 	}
 	return Description{
 		Reference: reference,
-		Env: map[string]string{
+		Container: pb.Container{Env: map[string]string{
 			bm.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
-		},
+		}},
 	}, nil
 }
 
