@@ -603,23 +603,29 @@ func (m *server) Close() error {
 func (m *server) NotifyJoin(node *memberlist.Node) {
 	m.log.Infof("node `%s` has joined to the cluster from %s", node.Name, node.Address())
 
-	discarded := m.continuum.Add(m.formatNode(node), 1)
+	continuumNode, err := newNode(node.Name, m.formatEndpoint(node.Addr))
+	if err != nil {
+		m.log.Warnf("received malformed node join notification: %v", err)
+	}
+
+	discarded := m.continuum.Add(continuumNode.String(), 1)
 	m.meetingRoom.DiscardConnections(discarded)
 }
 
 func (m *server) NotifyLeave(node *memberlist.Node) {
 	m.log.Infof("node `%s` has left from the cluster from %s", node.Name, node.Address())
 
-	discarded := m.continuum.Remove(m.formatNode(node))
+	continuumNode, err := newNode(node.Name, m.formatEndpoint(node.Addr))
+	if err != nil {
+		m.log.Warnf("received malformed node leave notification: %v", err)
+	}
+
+	discarded := m.continuum.Remove(continuumNode.String())
 	m.meetingRoom.DiscardConnections(discarded)
 }
 
 func (m *server) NotifyUpdate(node *memberlist.Node) {
 	m.log.Infof("node `%s` has been updated", node.Name)
-}
-
-func (m *server) formatNode(node *memberlist.Node) string {
-	return newNode(node.Name, m.formatEndpoint(node.Addr)).String()
 }
 
 func (m *server) formatEndpoint(ip net.IP) string {

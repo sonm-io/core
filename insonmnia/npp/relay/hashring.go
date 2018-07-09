@@ -125,20 +125,7 @@ type Node struct {
 	Addr string
 }
 
-func newNode(name, addr string) *Node {
-	return &Node{
-		Name: name,
-		Addr: addr,
-	}
-}
-
-func ParseNode(node string) (*Node, error) {
-	idx := strings.LastIndex(node, "@")
-	if idx < 0 {
-		return nil, fmt.Errorf("continuum node must be in `<name>@<addr>` format")
-	}
-
-	name, addr := node[:idx], node[idx+1:]
+func newNode(name, addr string) (*Node, error) {
 	if len(name) == 0 {
 		return nil, fmt.Errorf("node name is empty")
 	}
@@ -152,6 +139,17 @@ func ParseNode(node string) (*Node, error) {
 	}
 
 	return m, nil
+}
+
+func ParseNode(node string) (*Node, error) {
+	idx := strings.LastIndex(node, "@")
+	if idx < 0 {
+		return nil, fmt.Errorf("continuum node must be in `<name>@<addr>` format")
+	}
+
+	name, addr := node[:idx], node[idx+1:]
+
+	return newNode(name, addr)
 }
 
 func (m *Node) String() string {
