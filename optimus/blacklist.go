@@ -24,7 +24,7 @@ func newBlacklist(owner common.Address, dwh sonm.DWHClient, log *zap.SugaredLogg
 		owner:     owner,
 		blacklist: map[common.Address]struct{}{},
 		dwh:       dwh,
-		log:       log,
+		log:       log.With(zap.String("addr", owner.Hex())),
 	}
 }
 
@@ -51,6 +51,36 @@ func (m *blacklist) Update(ctx context.Context) error {
 	m.blacklist = map[common.Address]struct{}{}
 	for _, addr := range blacklist.Blacklists {
 		m.blacklist[addr.Unwrap()] = struct{}{}
+	}
+
+	return nil
+}
+
+type multiBlacklist struct {
+	blacklists []*blacklist
+}
+
+func newMultiBlacklist(blacklists ...*blacklist) *multiBlacklist {
+	return &multiBlacklist{
+		blacklists: blacklists,
+	}
+}
+
+func (m *multiBlacklist) IsAllowed(addr common.Address) bool {
+	for _, blacklist := range m.blacklists {
+		if !blacklist.IsAllowed(addr) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (m *multiBlacklist) Update(ctx context.Context) error {
+	for _, blacklist := range m.blacklists {
+		if err := blacklist.Update(ctx); err != nil {
+			return err
+		}
 	}
 
 	return nil
