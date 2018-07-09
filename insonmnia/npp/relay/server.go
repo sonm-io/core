@@ -60,7 +60,6 @@ package relay
 import (
 	"context"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -480,13 +479,13 @@ func (m *server) processConnectionBlocking(ctx context.Context, conn net.Conn) e
 func (m *server) processDiscover(ctx context.Context, conn net.Conn, addr nppc.ResourceID) error {
 	m.log.Debugf("processing discover request %s", conn.RemoteAddr())
 
-	targetAddr, ok := m.continuum.Get(addr)
-	if !ok {
-		targetAddr = m.cfg.Addr.String()
+	targetNode, err := m.continuum.GetNode(addr)
+	if err != nil {
+		return err
 	}
 
-	m.log.Debugf("redirecting handshake for %s to %s", conn.RemoteAddr(), targetAddr)
-	return sendFrame(conn, newDiscoverResponse(targetAddr))
+	m.log.Debugf("redirecting handshake for %s to %s", conn.RemoteAddr(), targetNode.String())
+	return sendFrame(conn, newDiscoverResponse(targetNode.Addr))
 }
 
 func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake *sonm.HandshakeRequest) error {
@@ -502,13 +501,13 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		Addr:     common.BytesToAddress(handshake.Addr),
 	}
 
-	targetAddr, ok := m.continuum.Get(addr)
-	if !ok {
-		return errInvalidHandshake(errors.New("failed to get node by address"))
+	targetNode, err := m.continuum.GetNode(addr)
+	if err != nil {
+		return err
 	}
 
 	// Peer might have got a no longer valid node address while discovery.
-	if targetAddr != m.cfg.Addr.String() {
+	if targetNode.Name != m.cfg.Cluster.Name {
 		return errWrongNode()
 	}
 
@@ -604,19 +603,23 @@ func (m *server) Close() error {
 func (m *server) NotifyJoin(node *memberlist.Node) {
 	m.log.Infof("node `%s` has joined to the cluster from %s", node.Name, node.Address())
 
-	discarded := m.continuum.Add(m.formatEndpoint(node.Addr), 1)
+	discarded := m.continuum.Add(m.formatNode(node), 1)
 	m.meetingRoom.DiscardConnections(discarded)
 }
 
 func (m *server) NotifyLeave(node *memberlist.Node) {
 	m.log.Infof("node `%s` has left from the cluster from %s", node.Name, node.Address())
 
-	discarded := m.continuum.Remove(m.formatEndpoint(node.Addr))
+	discarded := m.continuum.Remove(m.formatNode(node))
 	m.meetingRoom.DiscardConnections(discarded)
 }
 
 func (m *server) NotifyUpdate(node *memberlist.Node) {
 	m.log.Infof("node `%s` has been updated", node.Name)
+}
+
+func (m *server) formatNode(node *memberlist.Node) string {
+	return newNode(node.Name, m.formatEndpoint(node.Addr)).String()
 }
 
 func (m *server) formatEndpoint(ip net.IP) string {

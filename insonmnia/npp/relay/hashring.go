@@ -21,6 +21,8 @@
 package relay
 
 import (
+	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/serialx/hashring"
@@ -101,9 +103,49 @@ func (m *continuum) scanTrackingChanges() []nppc.ResourceID {
 	return addrs
 }
 
-// Get returns a node that will serve the specified ETH address.
-func (m *continuum) Get(addr nppc.ResourceID) (string, bool) {
+func (m *continuum) get(addr nppc.ResourceID) (string, bool) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.continuum.GetNode(addr.String())
+}
+
+// GetNode returns a node that will serve the specified ETH address.
+func (m *continuum) GetNode(addr nppc.ResourceID) (*Node, error) {
+	node, ok := m.get(addr)
+	if !ok {
+		return nil, errEmptyContinuum()
+	}
+
+	return ParseNode(node)
+}
+
+// Node represents a node point on the Continuum.
+type Node struct {
+	Name string
+	Addr string
+}
+
+func newNode(name, addr string) *Node {
+	return &Node{
+		Name: name,
+		Addr: addr,
+	}
+}
+
+func ParseNode(node string) (*Node, error) {
+	parts := strings.SplitN(node, "@", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("continuum node must be in `<name>@<addr>` format")
+	}
+
+	m := &Node{
+		Name: parts[0],
+		Addr: parts[1],
+	}
+
+	return m, nil
+}
+
+func (m *Node) String() string {
+	return fmt.Sprintf("%s@%s", m.Name, m.Addr)
 }
