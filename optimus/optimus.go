@@ -64,12 +64,17 @@ func (m *Optimus) Run(ctx context.Context) error {
 			return err
 		}
 
+		blacklist := newMultiBlacklist(
+			newBlacklist(ethAddr, dwh, m.log),
+			newBlacklist(masterAddr, dwh, m.log),
+		)
+
 		worker, err := registry.NewWorkerManagement(ctx, m.cfg.Node.Endpoint, m.cfg.Node.PrivateKey.Unwrap())
 		if err != nil {
 			return err
 		}
 
-		control, err := newWorkerEngine(cfg, ethAddr, masterAddr, worker, market.Market(), marketCache, benchmarkMapping, m.cfg.Optimization, m.log)
+		control, err := newWorkerEngine(cfg, ethAddr, masterAddr, blacklist, worker, market.Market(), marketCache, benchmarkMapping, m.cfg.Optimization, m.log)
 		if err != nil {
 			return err
 		}
