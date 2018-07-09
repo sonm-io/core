@@ -88,12 +88,18 @@ func (m *optimizationInput) freeDevices(removalVictims map[string]*sonm.AskPlan)
 	return freeWorkerHardware.IntoProto(), nil
 }
 
+type Blacklist interface {
+	Update(ctx context.Context) error
+	IsAllowed(addr common.Address) bool
+}
+
 type workerEngine struct {
 	cfg workerConfig
 	log *zap.SugaredLogger
 
 	addr             common.Address
 	masterAddr       common.Address
+	blacklist        Blacklist
 	market           blockchain.MarketAPI
 	marketCache      *MarketCache
 	worker           WorkerManagementClientExt
@@ -102,13 +108,14 @@ type workerEngine struct {
 	optimizationConfig optimizationConfig
 }
 
-func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, optimizationConfig optimizationConfig, log *zap.SugaredLogger) (*workerEngine, error) {
+func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, optimizationConfig optimizationConfig, log *zap.SugaredLogger) (*workerEngine, error) {
 	m := &workerEngine{
 		cfg: cfg,
 		log: log.With(zap.Stringer("addr", addr)),
 
 		addr:             addr,
 		masterAddr:       masterAddr,
+		blacklist:        blacklist,
 		market:           market,
 		marketCache:      marketCache,
 		worker:           &workerManagementClientExt{worker},
@@ -143,6 +150,10 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	}
 	if time.Since(maintenance.Unix()) >= 0 {
 		return fmt.Errorf("worker is on the maintenance")
+	}
+
+	if err := m.blacklist.Update(ctx); err != nil {
+		return fmt.Errorf("failed to update blacklist: %v", err)
 	}
 
 	input, err := m.optimizationInput(ctx)
@@ -459,6 +470,9 @@ func (m *workerEngine) filters(deviceManager *DeviceManager, devices *sonm.Devic
 				return order.GetDuration() == 0
 			}
 			return false
+		},
+		func(order *sonm.Order) bool {
+			return m.blacklist.IsAllowed(order.GetAuthorID().Unwrap())
 		},
 		func(order *sonm.Order) bool {
 			return devices.GetNetwork().GetNetFlags().ConverseImplication(order.GetNetflags())
