@@ -69,7 +69,9 @@ func (m *Optimus) Run(ctx context.Context) error {
 			return err
 		}
 
-		control, err := newWorkerEngine(cfg, ethAddr, masterAddr, worker, market.Market(), marketCache, benchmarkMapping, m.cfg.Optimization, m.log)
+		blacklist := newBlacklist(ethAddr, dwh, m.log)
+
+		control, err := newWorkerEngine(cfg, ethAddr, masterAddr, blacklist, worker, market.Market(), marketCache, benchmarkMapping, m.cfg.Optimization, m.log)
 		if err != nil {
 			return err
 		}

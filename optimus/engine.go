@@ -94,6 +94,7 @@ type workerEngine struct {
 
 	addr             common.Address
 	masterAddr       common.Address
+	blacklist        *blacklist
 	market           blockchain.MarketAPI
 	marketCache      *MarketCache
 	worker           WorkerManagementClientExt
@@ -102,13 +103,14 @@ type workerEngine struct {
 	optimizationConfig optimizationConfig
 }
 
-func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, optimizationConfig optimizationConfig, log *zap.SugaredLogger) (*workerEngine, error) {
+func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, blacklist *blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, optimizationConfig optimizationConfig, log *zap.SugaredLogger) (*workerEngine, error) {
 	m := &workerEngine{
 		cfg: cfg,
 		log: log.With(zap.Stringer("addr", addr)),
 
 		addr:             addr,
 		masterAddr:       masterAddr,
+		blacklist:        blacklist,
 		market:           market,
 		marketCache:      marketCache,
 		worker:           &workerManagementClientExt{worker},
@@ -459,6 +461,9 @@ func (m *workerEngine) filters(deviceManager *DeviceManager, devices *sonm.Devic
 				return order.GetDuration() == 0
 			}
 			return false
+		},
+		func(order *sonm.Order) bool {
+			return m.blacklist.IsAllowed(order.GetAuthorID().Unwrap())
 		},
 		func(order *sonm.Order) bool {
 			return devices.GetNetwork().GetNetFlags().ConverseImplication(order.GetNetflags())
