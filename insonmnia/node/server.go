@@ -342,7 +342,12 @@ func (n *Node) serveHttp() error {
 		return err
 	}
 
-	options := []rest.Option{rest.WithContext(n.ctx), rest.WithDecoder(decenc), rest.WithEncoder(decenc), rest.WithInterceptor(n.worker.(*workerAPI).intercept)}
+	options := []rest.Option{rest.WithContext(n.ctx), rest.WithInterceptor(n.worker.(*workerAPI).intercept)}
+	if !n.cfg.Node.AllowInsecureConnection {
+		options = append(options, rest.WithDecoder(decenc), rest.WithEncoder(decenc))
+	} else {
+		log.G(n.ctx).Warn("using insecure REST connection")
+	}
 
 	lis6, err := net.Listen("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.Node.HttpBindPort))
 	if err == nil {
