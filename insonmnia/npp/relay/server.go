@@ -606,6 +606,7 @@ func (m *server) NotifyJoin(node *memberlist.Node) {
 	continuumNode, err := newNode(node.Name, m.formatEndpoint(node.Addr))
 	if err != nil {
 		m.log.Warnf("received malformed node join notification: %v", err)
+		return
 	}
 
 	discarded := m.continuum.Add(continuumNode.String(), 1)
@@ -618,6 +619,7 @@ func (m *server) NotifyLeave(node *memberlist.Node) {
 	continuumNode, err := newNode(node.Name, m.formatEndpoint(node.Addr))
 	if err != nil {
 		m.log.Warnf("received malformed node leave notification: %v", err)
+		return
 	}
 
 	discarded := m.continuum.Remove(continuumNode.String())
