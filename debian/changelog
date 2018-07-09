@@ -1,3 +1,44 @@
+sonm-core (0.4.4) unstable; urgency=low
+
+  * Added: blacklist support in Optimus (#1175).
+    This change activates blacklists support in Optimus.
+    Now orders whose author is in worker's blacklist are now filtered out.
+    The same thing happens at the opposite: when the worker's address is in
+    the order's blacklist.
+  * Changed: better error handling for the cli (#1152).
+  * Changed: cli can now read it's config from --config flag (#1162).
+  * Changed: adds node_addr config variable to cli (#1163).
+  * Changed: no longer strip binaries (#1170).
+    This allows to debug binaries via debuggers like delve.
+  * Changed: Optimus decomposition (#1165).
+    Two-way optimization algorithms introduced here. Its main aim is to
+    reduce false-positive ask-plan creation. One way to achieve this is to
+    do optimization for both virtual devices and for natural ones.
+    Preparing worker input such as fetching its devices and ask-plans are now
+    performed concurrently to save some time. Its duration is limited using
+    new option: "prelude_timeout".
+    Fetching orders from the DWH is now performed on-demand, however caching
+    still exists.
+  * Changed: disable Node's REST encryption (#1173).
+  * Fixed: relay check matching node (#1046).
+    It might be the case that cluster reconfigures between Discover and
+    Handshake; this PR checks that we only work with appropriate peers.
+    It also adds dial retries for clients that experienced Discover/Handshake
+    inconsistency.
+  * Fixed: properly join host with port everywhere (#1168).
+    In case of IPv6 addresses it properly wraps the given address with [] braces.
+  * Fixed: avoid extra request for worker if user is not consumer (#1172).
+    This commit adds checking that current user's key is a consumer key,
+    if so - the node will try to connect to the related worker using NPP,
+    otherwise - skip connection.
+  * Fixed: spurious continuum devastation (#1177)
+    This fixes a bug in the Relay server, when it suddenly devastates the
+    continuum, returning 0.0.0.0 on any discovery request.
+    Also it fixes a bug introduced in #1046, when an improperly configured node
+    stopped to work.
+
+ -- Evgeny Safronov <division494@gmail.com>  Mon, 09 Jul 2018 17:00:57 +0300
+
 sonm-core (0.4.3) unstable; urgency=low
 
   * Changed: increase ulimit for relay, rv and dwh (#1155).
