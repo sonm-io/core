@@ -39,7 +39,6 @@ func (m *blacklist) IsAllowed(addr common.Address) bool {
 
 func (m *blacklist) Update(ctx context.Context) error {
 	m.log.Debug("updating blacklist")
-	defer m.log.Infow("blacklist has been updated", zap.Any("blacklist", m.blacklist))
 
 	blacklist, err := m.dwh.GetBlacklistsContainingUser(ctx, &sonm.BlacklistRequest{
 		UserID: sonm.NewEthAddress(m.owner),
@@ -52,6 +51,8 @@ func (m *blacklist) Update(ctx context.Context) error {
 	for _, addr := range blacklist.Blacklists {
 		m.blacklist[addr.Unwrap()] = struct{}{}
 	}
+
+	m.log.Infow("blacklist has been updated", zap.Any("blacklist", m.blacklist))
 
 	return nil
 }
