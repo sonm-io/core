@@ -333,10 +333,9 @@ func (n *Node) ServeHttp() error {
 }
 
 func (n *Node) serveHttp() error {
-	aesKey := []byte{}
 	h := sha256.New()
 	h.Write(n.privKey.D.Bytes())
-	aesKey = h.Sum(aesKey)
+	aesKey := h.Sum([]byte{})
 	decenc, err := rest.NewAESDecoderEncoder(aesKey)
 	if err != nil {
 		return err
