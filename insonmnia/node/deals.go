@@ -206,9 +206,9 @@ func invertOrderType(s pb.OrderType) pb.OrderType {
 	}
 }
 
-func newDealsAPI(opts *remoteOptions) (pb.DealManagementServer, error) {
+func newDealsAPI(opts *remoteOptions) pb.DealManagementServer {
 	return &dealsAPI{
 		remotes: opts,
 		ctx:     opts.ctx,
-	}, nil
+	}
 }

@@ -161,10 +161,10 @@ func (m *marketAPI) Purge(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 	return &pb.Empty{}, nil
 }
 
-func newMarketAPI(opts *remoteOptions) (pb.MarketServer, error) {
+func newMarketAPI(opts *remoteOptions) pb.MarketServer {
 	return &marketAPI{
 		remotes:       opts,
 		ctx:           opts.ctx,
 		workerCreator: opts.workerCreator,
-	}, nil
+	}
 }
