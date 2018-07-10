@@ -207,7 +207,7 @@ var dealCloseCmd = &cobra.Command{
 			Id:            pb.NewBigInt(id),
 			BlacklistType: blacklistType,
 		}); err != nil {
-			return fmt.Errorf("cannot finosh deal: %v", err)
+			return fmt.Errorf("cannot finish deal: %v", err)
 		}
 
 		showOk(cmd)
