@@ -273,6 +273,11 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	}
 
 	for _, plan := range winners {
+		// Extract the order ID for whose the selling plan is created.
+		orderID := plan.GetOrderID()
+
+		// Then we need to clean this, because otherwise worker rejects such request.
+		plan.OrderID = nil
 		plan.Identity = m.cfg.Identity
 
 		id, err := m.worker.CreateAskPlan(ctx, plan)
@@ -281,7 +286,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 			continue
 		}
 
-		m.log.Infof("created sell plan %s", id.Id)
+		m.log.Infof("created sell plan %s for %s order", id.Id, orderID.String())
 	}
 
 	return nil
@@ -402,7 +407,8 @@ func (m *workerEngine) ordersForPlans(ctx context.Context, plans map[string]*son
 			mu.Lock()
 			defer mu.Unlock()
 			orders = append(orders, &MarketOrder{
-				Order: order,
+				Order:     order,
+				CreatedTS: sonm.CurrentTimestamp(),
 			})
 
 			return nil
@@ -601,6 +607,7 @@ func (m *Knapsack) Put(order *sonm.Order) error {
 	resources.Network.NetFlags = order.GetNetflags()
 
 	m.plans = append(m.plans, &sonm.AskPlan{
+		OrderID:   order.GetId(),
 		Price:     &sonm.Price{PerSecond: order.Price},
 		Duration:  &sonm.Duration{Nanoseconds: 1e9 * int64(order.Duration)},
 		Resources: resources,
