@@ -195,22 +195,9 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 	}
 
 	worker := newWorkerAPI(opts)
-
-	market, err := newMarketAPI(opts)
-	if err != nil {
-		return nil, err
-	}
-
-	deals, err := newDealsAPI(opts)
-	if err != nil {
-		return nil, err
-	}
-
-	tasks, err := newTasksAPI(opts)
-	if err != nil {
-		return nil, err
-	}
-
+	market := newMarketAPI(opts)
+	deals := newDealsAPI(opts)
+	tasks := newTasksAPI(opts)
 	masterMgmt := newMasterManagementAPI(opts)
 	tokenMgmt := newTokenManagementAPI(opts)
 	blacklist := newBlacklistAPI(opts)
