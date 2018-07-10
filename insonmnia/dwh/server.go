@@ -93,8 +93,10 @@ func (m *DWH) Serve() error {
 	}
 
 	wg := errgroup.Group{}
+	m.mu.Lock()
 	wg.Go(m.serveGRPC)
 	wg.Go(m.serveHTTP)
+	m.mu.Unlock()
 
 	return wg.Wait()
 }
@@ -142,46 +144,66 @@ func (m *DWH) setupDB() error {
 }
 
 func (m *DWH) serveGRPC() error {
-	certRotator, TLSConfig, err := util.NewHitlessCertRotator(m.ctx, m.key)
+	lis, err := func() (net.Listener, error) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		certRotator, TLSConfig, err := util.NewHitlessCertRotator(m.ctx, m.key)
+		if err != nil {
+			return nil, err
+		}
+
+		m.certRotator = certRotator
+		m.creds = util.NewTLS(TLSConfig)
+		m.grpc = xgrpc.NewServer(
+			m.logger,
+			xgrpc.Credentials(m.creds),
+			xgrpc.DefaultTraceInterceptor(),
+			xgrpc.UnaryServerInterceptor(m.unaryInterceptor),
+		)
+		pb.RegisterDWHServer(m.grpc, m)
+		grpc_prometheus.Register(m.grpc)
+
+		lis, err := net.Listen("tcp", m.cfg.GRPCListenAddr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to listen on %s: %v", m.cfg.GRPCListenAddr, err)
+		}
+
+		return lis, nil
+	}()
 	if err != nil {
 		return err
-	}
-
-	m.certRotator = certRotator
-	m.creds = util.NewTLS(TLSConfig)
-	m.grpc = xgrpc.NewServer(
-		m.logger,
-		xgrpc.Credentials(m.creds),
-		xgrpc.DefaultTraceInterceptor(),
-		xgrpc.UnaryServerInterceptor(m.unaryInterceptor),
-	)
-	pb.RegisterDWHServer(m.grpc, m)
-	grpc_prometheus.Register(m.grpc)
-
-	lis, err := net.Listen("tcp", m.cfg.GRPCListenAddr)
-	if err != nil {
-		return fmt.Errorf("failed to listen on %s: %v", m.cfg.GRPCListenAddr, err)
 	}
 
 	return m.grpc.Serve(lis)
 }
 
 func (m *DWH) serveHTTP() error {
-	options := []rest.Option{rest.WithContext(m.ctx)}
-	lis, err := net.Listen("tcp", m.cfg.HTTPListenAddr)
+	lis, err := func() (net.Listener, error) {
+		m.mu.Lock()
+		defer m.mu.Unlock()
+
+		options := []rest.Option{rest.WithContext(m.ctx)}
+		lis, err := net.Listen("tcp", m.cfg.HTTPListenAddr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create http listener: %v", err)
+		}
+
+		srv := rest.NewServer(options...)
+
+		err = srv.RegisterService((*pb.DWHServer)(nil), m)
+		if err != nil {
+			return nil, fmt.Errorf("failed to RegisterService: %v", err)
+		}
+		m.http = srv
+
+		return lis, err
+	}()
 	if err != nil {
-		return fmt.Errorf("failed to create http listener: %v", err)
+		return err
 	}
 
-	srv := rest.NewServer(options...)
-
-	err = srv.RegisterService((*pb.DWHServer)(nil), m)
-	if err != nil {
-		return fmt.Errorf("failed to RegisterService: %v", err)
-	}
-
-	m.http = srv
-	return srv.Serve(lis)
+	return m.http.Serve(lis)
 }
 
 // unaryInterceptor RLocks DWH for all incoming requests. This is needed because some events (e.g.,
