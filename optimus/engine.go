@@ -432,7 +432,7 @@ func (m *workerEngine) optimize(devices, freeDevices *sonm.DevicesReply, orders 
 
 	now := time.Now()
 	knapsack := NewKnapsack(deviceManager)
-	if err := m.optimizationMethod(len(matchedOrders), log).Optimize(knapsack, matchedOrders); err != nil {
+	if err := m.optimizationMethod(orders, log).Optimize(knapsack, matchedOrders); err != nil {
 		return nil, err
 	}
 
@@ -487,12 +487,15 @@ func (m *workerEngine) filters(deviceManager *DeviceManager, devices *sonm.Devic
 	}
 }
 
-func (m *workerEngine) optimizationMethod(size int, log *zap.SugaredLogger) OptimizationMethod {
-	return &GreedyLinearRegressionModel{
+func (m *workerEngine) optimizationMethod(orders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
+	method := &GreedyLinearRegressionModel{
+		orders:          orders,
 		classifier:      m.optimizationConfig.ClassifierFactory(m.log.Desugar()),
 		exhaustionLimit: 128,
 		log:             log,
 	}
+
+	return method
 }
 
 type OptimizationMethod interface {
@@ -503,24 +506,41 @@ type BruteForceModel struct{}
 
 // GreedyLinearRegressionModel implements greedy knapsack optimization
 // algorithm.
+// The basic idea is to train the model using BID orders from the marketplace
+// by optimizing multidimensional linear regression over order benchmarks to
+// reduce the number of parameters to a single one - predicted price. This
+// price can be used to assign weights to orders to be able to determine which
+// orders are better to buy than others.
 type GreedyLinearRegressionModel struct {
+	orders          []*MarketOrder
 	classifier      OrderClassifier
 	exhaustionLimit int
 	log             *zap.SugaredLogger
 }
 
 func (m *GreedyLinearRegressionModel) Optimize(knapsack *Knapsack, orders []*MarketOrder) error {
-	if len(orders) <= minNumOrders {
+	if len(m.orders) <= minNumOrders {
 		return fmt.Errorf("not enough orders to perform optimization")
 	}
 
-	weightedOrders, err := m.classifier.Classify(orders)
+	weightedOrders, err := m.classifier.Classify(m.orders)
 	if err != nil {
 		return fmt.Errorf("failed to classify orders: %v", err)
 	}
 
+	// Here we create an index of matching orders to be able to filter
+	// the entire training set for only interesting features.
+	filter := map[string]struct{}{}
+	for _, order := range orders {
+		filter[order.GetOrder().GetId().Unwrap().String()] = struct{}{}
+	}
+
 	exhaustedCounter := 0
 	for _, weightedOrder := range weightedOrders {
+		if _, ok := filter[weightedOrder.ID().String()]; !ok {
+			continue
+		}
+
 		if exhaustedCounter >= m.exhaustionLimit {
 			break
 		}
