@@ -706,3 +706,45 @@ func TestConsumeGPUWithMoreMemoryFails(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, plan)
 }
+
+func TestConsumeGPUWithZeroCountRequiredStillConsumes(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.GPUs = []*sonm.GPU{
+		{
+			&sonm.GPUDevice{
+				Hash: "0",
+			},
+			map[uint64]*sonm.Benchmark{
+				8:  {ID: 8, Result: 2.5e9, SplittingAlgorithm: sonm.SplittingAlgorithm_MIN},
+				9:  {ID: 9, Result: 1000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+			},
+		},
+		{
+			&sonm.GPUDevice{
+				Hash: "1",
+			},
+			map[uint64]*sonm.Benchmark{
+				8:  {ID: 8, Result: 3e9, SplittingAlgorithm: sonm.SplittingAlgorithm_MIN},
+				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+			},
+		},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := [12]uint64{0, 0, 0, 0, 0, 0, 0, 0, 2.5e9, 2000, 0, 0}
+	plan, err := manager.consumeGPU(0, benchmark[:])
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+
+	assert.Equal(t, 2, len(plan.Hashes))
+}
