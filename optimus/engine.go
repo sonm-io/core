@@ -402,7 +402,8 @@ func (m *workerEngine) ordersForPlans(ctx context.Context, plans map[string]*son
 			mu.Lock()
 			defer mu.Unlock()
 			orders = append(orders, &MarketOrder{
-				Order: order,
+				Order:     order,
+				CreatedTS: sonm.CurrentTimestamp(),
 			})
 
 			return nil
