@@ -358,6 +358,9 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 		if err := m.ovs.OnDealFinish(m.ctx, container.ID); err != nil {
 			result = multierror.Append(result, err)
 		}
+		if err := m.resources.OnDealFinish(container.TaskId); err != nil {
+			result = multierror.Append(result, err)
+		}
 	}
 	return result.ErrorOrNil()
 }

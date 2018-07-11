@@ -159,8 +159,19 @@ func (m *Scheduler) ReleaseTask(taskID string) error {
 	if err != nil {
 		return err
 	}
-	delete(m.taskToAskPlan, taskID)
 	m.log.Debugf("released task %s", taskID)
+	return nil
+}
+
+func (m *Scheduler) OnDealFinish(taskID string) error {
+	_, ok := m.taskToAskPlan[taskID]
+
+	if !ok {
+		return fmt.Errorf("failed finish deal for task %s from scheduler: could not find corresponding ask plan", taskID)
+	}
+
+	delete(m.taskToAskPlan, taskID)
+
 	return nil
 }
 
