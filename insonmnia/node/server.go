@@ -79,7 +79,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		npp.WithRelayDialer(&relay.Dialer{Addrs: cfg.NPP.Relay.Endpoints, Log: log.G(ctx)}),
 		npp.WithLogger(log.G(ctx)),
 	}
-	nppDialer, err := npp.NewDialer(ctx, nppDialerOptions...)
+	nppDialer, err := npp.NewDialer(nppDialerOptions...)
 	if err != nil {
 		return nil, err
 	}
