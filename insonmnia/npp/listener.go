@@ -92,7 +92,7 @@ type Listener struct {
 	listenerChannel chan connTuple
 
 	puncher    NATPuncher
-	puncherNew func() (NATPuncher, error)
+	puncherNew func(ctx context.Context) (NATPuncher, error)
 	nppChannel chan connTuple
 
 	relayListener *relay.Listener
@@ -106,7 +106,7 @@ type Listener struct {
 // network address with TCP protocol, switching to the NPP when there is no
 // pending connections available.
 func NewListener(ctx context.Context, addr string, options ...Option) (*Listener, error) {
-	opts := newOptions(ctx)
+	opts := newOptions()
 
 	for _, o := range options {
 		if err := o(opts); err != nil {
@@ -122,7 +122,6 @@ func NewListener(ctx context.Context, addr string, options ...Option) (*Listener
 	}
 
 	m := &Listener{
-		ctx:             ctx,
 		metrics:         newMetrics(),
 		log:             opts.log,
 		listenerChannel: channel,
@@ -182,7 +181,7 @@ func (m *Listener) listenPuncher(ctx context.Context) error {
 
 		if m.puncher == nil {
 			m.log.Debug("constructing new puncher")
-			puncher, err := m.puncherNew()
+			puncher, err := m.puncherNew(ctx)
 			if err != nil {
 				m.log.Warn("failed to construct a puncher", zap.Error(err))
 				if timeout < m.maxBackoffInterval {
