@@ -19,3 +19,12 @@ func NewServer(logger *zap.Logger, extraOpts ...ServerOption) *grpc.Server {
 
 	return srv
 }
+
+func Services(server *grpc.Server) []string {
+	var names []string
+	for name := range server.GetServiceInfo() {
+		names = append(names, name)
+	}
+
+	return names
+}

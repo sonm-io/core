@@ -1,390 +1,244 @@
 package node
 
 import (
-	"crypto/ecdsa"
-	"crypto/sha256"
-	"errors"
 	"fmt"
-	"io"
 	"net"
+	"strings"
+	"sync"
 
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
-	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/sonm-io/core/blockchain"
-	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/insonmnia/benchmarks"
-	"github.com/sonm-io/core/insonmnia/matcher"
-	"github.com/sonm-io/core/insonmnia/npp"
-	"github.com/sonm-io/core/insonmnia/npp/relay"
-	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/defergroup"
 	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"
+	"github.com/sonm-io/core/util/xnet"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials"
 )
 
-type workerClientCreator func(ctx context.Context, addr *auth.Addr) (*workerClient, io.Closer, error)
-
-type workerClient struct {
-	pb.WorkerClient
-	pb.WorkerManagementClient
+type LocalEndpoints struct {
+	GRPC []net.Addr
+	REST []net.Addr
 }
 
-// remoteOptions describe options related to remove gRPC services
-type remoteOptions struct {
-	ctx           context.Context
-	key           *ecdsa.PrivateKey
-	eth           blockchain.API
-	dwh           pb.DWHClient
-	workerCreator workerClientCreator
-	benchList     benchmarks.BenchList
-	orderMatcher  matcher.Matcher
+type serverNetwork struct {
+	mu            sync.Mutex
+	ListenersGRPC []net.Listener
+	ListenersREST []net.Listener
 }
 
-func (re *remoteOptions) getWorkerClientForDeal(ctx context.Context, id string) (*workerClient, io.Closer, error) {
-	bigID, err := util.ParseBigInt(id)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not parse deal id %s to BigInt: %s", id, err)
+func (m *serverNetwork) Pop() *serverNetwork {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.ListenersGRPC == nil && m.ListenersREST == nil {
+		return nil
 	}
 
-	dealInfo, err := re.eth.Market().GetDealInfo(ctx, bigID)
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not get deal info for deal %s from blockchain: %s", id, err)
-	}
-	if dealInfo.Status == pb.DealStatus_DEAL_CLOSED {
-		return nil, nil, fmt.Errorf("deal %s is closed", id)
+	network := &serverNetwork{
+		ListenersGRPC: m.ListenersGRPC,
+		ListenersREST: m.ListenersREST,
 	}
 
-	client, closer, err := re.getWorkerClientByEthAddr(ctx, dealInfo.GetSupplierID().Unwrap().Hex())
-	if err != nil {
-		return nil, nil, fmt.Errorf("could not get worker client for deal %s by eth address %s: %s",
-			id, dealInfo.GetSupplierID().Unwrap().Hex(), err)
-	}
-	return client, closer, nil
+	m.ListenersGRPC = nil
+	m.ListenersREST = nil
+
+	return network
 }
 
-func (re *remoteOptions) getWorkerClientByEthAddr(ctx context.Context, eth string) (*workerClient, io.Closer, error) {
-	addr := auth.NewAddrRaw(common.HexToAddress(eth), "")
-	return re.workerCreator(ctx, &addr)
+type Services interface {
+	RegisterGRPC(server *grpc.Server) error
+	RegisterREST(server *rest.Server) error
+	Interceptor() grpc.UnaryServerInterceptor
 }
 
-func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, credentials credentials.TransportCredentials) (*remoteOptions, error) {
-	nppDialerOptions := []npp.Option{
-		npp.WithRendezvous(cfg.NPP.Rendezvous, credentials),
-		npp.WithRelayDialer(&relay.Dialer{Addrs: cfg.NPP.Relay.Endpoints, Log: log.G(ctx)}),
-		npp.WithLogger(log.G(ctx)),
-	}
-	nppDialer, err := npp.NewDialer(nppDialerOptions...)
-	if err != nil {
-		return nil, err
-	}
+// Server is a server for LocalNode instance.
+//
+// Its responsibility is to manage network part, i.e. creating TCP servers and
+// exposing API provided outside.
+type Server struct {
+	network   serverNetwork
+	endpoints LocalEndpoints
 
-	workerFactory := func(ctx context.Context, addr *auth.Addr) (*workerClient, io.Closer, error) {
-		if addr == nil {
-			return nil, nil, fmt.Errorf("no address specified to dial worker")
-		}
-		conn, err := nppDialer.DialContext(ctx, *addr)
-		if err != nil {
-			return nil, nil, err
-		}
-		ethAddr, err := addr.ETH()
-		if err != nil {
-			return nil, nil, err
-		}
+	// Servers for processing requests.
+	serverGRPC *grpc.Server
+	serverREST *rest.Server
 
-		cc, err := xgrpc.NewClient(ctx, "-", auth.NewWalletAuthenticator(credentials, ethAddr), xgrpc.WithConn(conn))
-		if err != nil {
-			return nil, nil, err
-		}
+	log *zap.SugaredLogger
+}
 
-		m := &workerClient{
-			pb.NewWorkerClient(cc),
-			pb.NewWorkerManagementClient(cc),
-		}
-
-		return m, cc, nil
-	}
-
-	dwhCC, err := xgrpc.NewClient(ctx, cfg.DWH.Endpoint, credentials)
-	if err != nil {
-		return nil, err
-	}
-
-	dwh := pb.NewDWHClient(dwhCC)
-
-	eth, err := blockchain.NewAPI(ctx, blockchain.WithConfig(cfg.Blockchain))
-	if err != nil {
-		return nil, err
-	}
-
-	benchList, err := benchmarks.NewBenchmarksList(ctx, cfg.Benchmarks)
-	if err != nil {
-		return nil, err
-	}
-
-	var orderMatcher matcher.Matcher
-	if cfg.Matcher != nil {
-		orderMatcher, err = matcher.NewMatcher(&matcher.Config{
-			Key:        key,
-			DWH:        dwh,
-			Eth:        eth,
-			PollDelay:  cfg.Matcher.PollDelay,
-			QueryLimit: cfg.Matcher.QueryLimit,
-		})
-
-		if err != nil {
+// NewServer creates new Local Node server instance.
+//
+// The provided "services" describes Node API, while "options" specifies how
+// those API should be exposed.
+//
+// Note, that you MUST call "Serve", otherwise allocated resources will leak.
+func newServer(cfg nodeConfig, services Services, options ...ServerOption) (*Server, error) {
+	opts := newServerOptions()
+	for _, o := range options {
+		if err := o(opts); err != nil {
 			return nil, err
 		}
-	} else {
-		orderMatcher = matcher.NewDisabledMatcher()
 	}
 
-	return &remoteOptions{
-		ctx:           ctx,
-		key:           key,
-		eth:           eth,
-		dwh:           dwh,
-		workerCreator: workerFactory,
-		benchList:     benchList,
-		orderMatcher:  orderMatcher,
-	}, nil
-}
+	dg := defergroup.DeferGroup{}
+	defer dg.Exec()
 
-// Node is LocalNode instance
-type Node struct {
-	cfg     *Config
-	ctx     context.Context
-	cancel  context.CancelFunc
-	privKey *ecdsa.PrivateKey
-
-	// servers for processing requests
-	httpSrv   *rest.Server
-	srv       *grpc.Server
-	listeners []net.Listener
-
-	// services, responsible for request handling
-	worker    pb.WorkerManagementServer
-	market    pb.MarketServer
-	deals     pb.DealManagementServer
-	tasks     pb.TaskManagementServer
-	master    pb.MasterManagementServer
-	token     pb.TokenManagementServer
-	blacklist pb.BlacklistServer
-	profile   pb.ProfilesServer
-}
-
-// New creates new Local Node instance
-// also method starts internal gRPC client connections
-// to the external services like Market and Worker
-func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	_, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
+	listenersGRPC, err := xnet.ListenLoopback("tcp", cfg.BindPort)
 	if err != nil {
 		return nil, err
 	}
+	dg.Defer(func() { closeListeners(listenersGRPC) })
 
-	remoteCreds := util.NewTLS(TLSConfig)
-	opts, err := newRemoteOptions(ctx, key, config, remoteCreds)
+	listenersREST, err := xnet.ListenLoopback("tcp", cfg.HttpBindPort)
 	if err != nil {
 		return nil, err
 	}
+	dg.Defer(func() { closeListeners(listenersREST) })
 
-	worker := newWorkerAPI(opts)
-	market := newMarketAPI(opts)
-	deals := newDealsAPI(opts)
-	tasks := newTasksAPI(opts)
-	masterMgmt := newMasterManagementAPI(opts)
-	tokenMgmt := newTokenManagementAPI(opts)
-	blacklist := newBlacklistAPI(opts)
-	profile := newProfileAPI(opts)
-
-	grpcServerOpts := []xgrpc.ServerOption{
-		xgrpc.DefaultTraceInterceptor(),
-		xgrpc.UnaryServerInterceptor(worker.(*workerAPI).intercept),
-		xgrpc.VerifyInterceptor(),
+	m := &Server{
+		log: opts.log.Sugar(),
+		network: serverNetwork{
+			ListenersGRPC: listenersGRPC,
+			ListenersREST: listenersREST,
+		},
+		endpoints: LocalEndpoints{
+			GRPC: toLocalAddrs(listenersGRPC),
+			REST: toLocalAddrs(listenersREST),
+		},
 	}
 
-	if !config.Node.AllowInsecureConnection {
-		grpcServerOpts = append(
-			grpcServerOpts,
-			xgrpc.Credentials(auth.NewWalletAuthenticator(remoteCreds, crypto.PubkeyToAddress(key.PublicKey))),
-		)
-	} else {
-		log.G(ctx).Warn("using insecure grpc connection")
-	}
+	if opts.allowGRPC {
+		options := append([]xgrpc.ServerOption{
+			xgrpc.DefaultTraceInterceptor(),
+			xgrpc.VerifyInterceptor(),
+			xgrpc.UnaryServerInterceptor(services.Interceptor()),
+		}, opts.optionsGRPC...)
 
-	srv := xgrpc.NewServer(log.GetLogger(ctx), grpcServerOpts...)
-
-	pb.RegisterWorkerManagementServer(srv, worker)
-	log.G(ctx).Info("worker service registered")
-
-	pb.RegisterMarketServer(srv, market)
-	log.G(ctx).Info("market service registered")
-
-	pb.RegisterDealManagementServer(srv, deals)
-	log.G(ctx).Info("deals service registered")
-
-	pb.RegisterTaskManagementServer(srv, tasks)
-	log.G(ctx).Info("tasks service registered")
-
-	pb.RegisterMasterManagementServer(srv, masterMgmt)
-	log.G(ctx).Info("master keys service registered")
-
-	pb.RegisterTokenManagementServer(srv, tokenMgmt)
-	log.G(ctx).Info("token management service registered")
-
-	pb.RegisterBlacklistServer(srv, blacklist)
-	log.G(ctx).Info("blacklist management service registered")
-
-	pb.RegisterProfilesServer(srv, profile)
-	log.G(ctx).Info("profile management service registered")
-
-	grpc_prometheus.Register(srv)
-
-	return &Node{
-		privKey:   key,
-		cfg:       config,
-		ctx:       ctx,
-		cancel:    cancel,
-		srv:       srv,
-		worker:    worker,
-		market:    market,
-		deals:     deals,
-		tasks:     tasks,
-		master:    masterMgmt,
-		token:     tokenMgmt,
-		blacklist: blacklist,
-		profile:   profile,
-	}, nil
-}
-
-// Serve binds gRPC services and start it
-func (n *Node) Serve() error {
-	wg := errgroup.Group{}
-	wg.Go(n.ServeHttp)
-	wg.Go(n.ServeGRPC)
-
-	return wg.Wait()
-}
-
-func (n *Node) ServeGRPC() error {
-	wg := errgroup.Group{}
-
-	serve := func(netFam, laddr string) error {
-		lis, err := net.Listen(netFam, laddr)
-		if err == nil {
-			n.listeners = append(n.listeners, lis)
-			log.S(n.ctx).Infof("starting node %s listener on %s", netFam, lis.Addr().String())
-			wg.Go(func() error {
-				err := n.srv.Serve(lis)
-				n.Close()
-				return err
-			})
-		} else {
-			log.S(n.ctx).Warnf("cannot create %s listener: %s", netFam, err)
+		m.serverGRPC = xgrpc.NewServer(m.log.Desugar(), options...)
+		if err := services.RegisterGRPC(m.serverGRPC); err != nil {
+			return nil, err
 		}
-		return err
+
+		m.log.Infow("registered gRPC services", zap.Any("services", xgrpc.Services(m.serverGRPC)))
 	}
 
-	v4err := serve("tcp4", fmt.Sprintf("127.0.0.1:%d", n.cfg.Node.BindPort))
-	v6err := serve("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.Node.BindPort))
+	if opts.allowREST {
+		options := append([]rest.Option{
+			rest.WithLog(opts.log),
+			rest.WithInterceptor(services.Interceptor()),
+		}, opts.optionsREST...)
 
-	if v4err != nil && v6err != nil {
-		n.Close()
-		return errors.New("neither ipv4 nor ipv6 localhost is available to bind")
+		m.serverREST = rest.NewServer(options...)
+		if err := services.RegisterREST(m.serverREST); err != nil {
+			return nil, err
+		}
+
+		m.log.Infow("registered REST services", zap.Any("services", m.serverREST.Services()))
 	}
+
+	if opts.exposeGRPCMetrics {
+		grpc_prometheus.Register(m.serverGRPC)
+		m.log.Info("registered gRPC metrics collector")
+	}
+
+	dg.CancelExec()
+
+	return m, nil
+}
+
+func (m *Server) LocalEndpoints() LocalEndpoints {
+	return m.endpoints
+}
+
+// Serve starts serving current Node instance until either critical error
+// occurs or the given context is canceled.
+//
+// Warning: after this call the next callings of "Serve" will have no effect.
+func (m *Server) Serve(ctx context.Context) error {
+	network := m.network.Pop()
+	if network == nil {
+		return nil
+	}
+
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		return m.serveGRPC(ctx, network.ListenersGRPC...)
+	})
+	wg.Go(func() error {
+		return m.serveHTTP(ctx, network.ListenersREST...)
+	})
+	// TODO: Also add debug server and ssh.
+
+	<-ctx.Done()
+
+	m.close()
+
 	return wg.Wait()
 }
 
-func (n *Node) ServeHttp() error {
-	err := n.serveHttp()
-	n.Close()
-	return err
+func (m *Server) serveGRPC(ctx context.Context, listeners ...net.Listener) error {
+	if m.serverGRPC == nil {
+		return nil
+	}
+
+	wg := errgroup.Group{}
+
+	for id := range listeners {
+		listener := listeners[id]
+
+		wg.Go(func() error {
+			m.log.Infof("exposing gRPC server on %s", listener.Addr().String())
+			return m.serverGRPC.Serve(listener)
+		})
+	}
+
+	defer m.log.Infof("stopped gRPC server on %s", formatListeners(listeners))
+
+	return wg.Wait()
 }
 
-func (n *Node) serveHttp() error {
-	h := sha256.New()
-	h.Write(n.privKey.D.Bytes())
-	aesKey := h.Sum([]byte{})
-	decenc, err := rest.NewAESDecoderEncoder(aesKey)
-	if err != nil {
-		return err
+func (m *Server) serveHTTP(ctx context.Context, listeners ...net.Listener) error {
+	if m.serverREST == nil {
+		return nil
 	}
 
-	options := []rest.Option{rest.WithContext(n.ctx), rest.WithInterceptor(n.worker.(*workerAPI).intercept)}
-	if !n.cfg.Node.AllowInsecureConnection {
-		options = append(options, rest.WithDecoder(decenc), rest.WithEncoder(decenc))
-	} else {
-		log.G(n.ctx).Warn("using insecure REST connection")
-	}
+	defer m.log.Infof("stopped REST server on %s", formatListeners(listeners))
 
-	lis6, err := net.Listen("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.Node.HttpBindPort))
-	if err == nil {
-		log.S(n.ctx).Info("created ipv6 listener for http")
-		options = append(options, rest.WithListener(lis6))
-	}
-
-	lis4, err := net.Listen("tcp4", fmt.Sprintf("127.0.0.1:%d", n.cfg.Node.HttpBindPort))
-	if err == nil {
-		log.S(n.ctx).Info("created ipv4 listener for http")
-		options = append(options, rest.WithListener(lis4))
-	}
-
-	if lis4 == nil && lis6 == nil {
-		return errors.New("could not listen http")
-	}
-	srv, err := rest.NewServer(options...)
-	if err != nil {
-		return err
-	}
-	err = srv.RegisterService((*pb.WorkerManagementServer)(nil), n.worker)
-	if err != nil {
-		return err
-	}
-	err = srv.RegisterService((*pb.MarketServer)(nil), n.market)
-	if err != nil {
-		return err
-	}
-	err = srv.RegisterService((*pb.DealManagementServer)(nil), n.deals)
-	if err != nil {
-		return err
-	}
-	err = srv.RegisterService((*pb.TaskManagementServer)(nil), n.tasks)
-	if err != nil {
-		return err
-	}
-	err = srv.RegisterService((*pb.MasterManagementServer)(nil), n.master)
-	if err != nil {
-		return err
-	}
-	err = srv.RegisterService((*pb.TokenManagementServer)(nil), n.token)
-	if err != nil {
-		return err
-	}
-	err = srv.RegisterService((*pb.BlacklistServer)(nil), n.blacklist)
-	if err != nil {
-		return err
-	}
-	err = srv.RegisterService((*pb.ProfilesServer)(nil), n.profile)
-	if err != nil {
-		return err
-	}
-
-	n.httpSrv = srv
-	return srv.Serve()
+	return m.serverREST.Serve(listeners...)
 }
 
-func (n *Node) Close() {
-	n.cancel()
-	if n.httpSrv != nil {
-		n.httpSrv.Close()
+func (m *Server) close() {
+	if m.serverGRPC != nil {
+		m.serverGRPC.Stop()
 	}
-	if n.srv != nil {
-		n.srv.Stop()
+	if m.serverREST != nil {
+		m.serverREST.Close()
+	}
+}
+
+// TODO: Compose those three functions into a separate struct.
+func toLocalAddrs(listeners []net.Listener) []net.Addr {
+	var addrs []net.Addr
+	for id := range listeners {
+		addrs = append(addrs, listeners[id].Addr())
+	}
+
+	return addrs
+}
+
+func formatListeners(listeners []net.Listener) string {
+	var addrs []string
+	for _, addr := range toLocalAddrs(listeners) {
+		addrs = append(addrs, addr.String())
+	}
+
+	return fmt.Sprintf("[%s]", strings.Join(addrs, ", "))
+}
+
+func closeListeners(listeners []net.Listener) {
+	for id := range listeners {
+		listeners[id].Close()
 	}
 }

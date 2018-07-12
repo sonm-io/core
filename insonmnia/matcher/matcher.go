@@ -8,7 +8,6 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/proto"
@@ -35,6 +34,7 @@ type Config struct {
 	DWH        sonm.DWHClient
 	Eth        blockchain.API
 	QueryLimit uint64
+	Log        *zap.SugaredLogger
 }
 
 func (c *Config) validate() error {
@@ -74,7 +74,7 @@ func NewMatcher(cfg *Config) (Matcher, error) {
 
 func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*sonm.Deal, error) {
 	id := order.GetId().Unwrap()
-	ctxlog.G(ctx).Debug("starting matcher", zap.String("orderID", id.String()))
+	m.cfg.Log.Debug("starting matcher", zap.String("orderID", id.String()))
 
 	tk := util.NewImmediateTicker(m.cfg.PollDelay)
 	defer tk.Stop()
@@ -91,7 +91,7 @@ func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*so
 			matchingOrders, err := m.getMatchingOrders(ctx, id)
 			if err != nil {
 				// dwh failure is not critical, we must survive it
-				ctxlog.S(ctx).Debugf("failed to get matching orders from DWH: %s", err)
+				m.cfg.Log.Debugf("failed to get matching orders from DWH: %s", err)
 				continue
 
 			}
@@ -110,7 +110,7 @@ func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*so
 				// 4. try to open deal
 				deal, err := m.openDeal(ctx, bid, ask)
 				if err == nil {
-					ctxlog.G(ctx).Debug("deal is opened",
+					m.cfg.Log.Debugw("deal is opened",
 						zap.String("bid", bid.GetId().Unwrap().String()),
 						zap.String("ask", ask.GetId().Unwrap().String()),
 						zap.String("deal", deal.GetId().Unwrap().String()))
@@ -118,7 +118,7 @@ func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*so
 				}
 
 				// 5. if deal is not created - wait for timeout and goto 1
-				ctxlog.G(ctx).Warn("cannot open deal",
+				m.cfg.Log.Warnw("cannot open deal",
 					zap.Error(err),
 					zap.String("bid", bid.GetId().Unwrap().String()),
 					zap.String("ask", ask.GetId().Unwrap().String()))

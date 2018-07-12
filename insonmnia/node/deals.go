@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
@@ -14,8 +13,8 @@ import (
 )
 
 type dealsAPI struct {
-	ctx     context.Context
 	remotes *remoteOptions
+	log     *zap.SugaredLogger
 }
 
 func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, error) {
@@ -66,7 +65,7 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.BigInt) (*pb.DealInfoReply
 
 		worker, closer, err := d.remotes.getWorkerClientByEthAddr(workerCtx, deal.GetSupplierID().Unwrap().Hex())
 		if err == nil {
-			ctxlog.G(d.remotes.ctx).Debug("try to obtain deal info from the worker")
+			d.log.Debug("try to obtain deal info from the worker")
 			defer closer.Close()
 
 			info, err := worker.GetDealInfo(workerCtx, &pb.ID{Id: dealID})
@@ -115,20 +114,20 @@ func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.D
 
 	supplierAddr, err := auth.NewAddr(deal.GetSupplierID().Unwrap().Hex())
 	if err != nil {
-		ctxlog.G(d.remotes.ctx).Debug("cannot create auth.Addr from supplier addr", zap.Error(err))
+		d.log.Debugw("cannot create auth.Addr from supplier addr", zap.Error(err))
 		return &pb.DealInfoReply{Deal: deal}, nil
 	}
 
 	cli, closer, err := d.remotes.workerCreator(ctx, supplierAddr)
 	if err != nil {
-		ctxlog.G(d.remotes.ctx).Debug("cannot create worker client", zap.Error(err))
+		d.log.Debugw("cannot create worker client", zap.Error(err))
 		return &pb.DealInfoReply{Deal: deal}, nil
 	}
 	defer closer.Close()
 
 	workerDeal, err := cli.GetDealInfo(ctx, &pb.ID{Id: deal.GetId().Unwrap().String()})
 	if err != nil {
-		ctxlog.G(d.remotes.ctx).Debug("cannot get deal from worker", zap.Error(err))
+		d.log.Debugw("cannot get deal from worker", zap.Error(err))
 		return &pb.DealInfoReply{Deal: deal}, nil
 	}
 
@@ -209,6 +208,6 @@ func invertOrderType(s pb.OrderType) pb.OrderType {
 func newDealsAPI(opts *remoteOptions) pb.DealManagementServer {
 	return &dealsAPI{
 		remotes: opts,
-		ctx:     opts.ctx,
+		log:     opts.log,
 	}
 }
