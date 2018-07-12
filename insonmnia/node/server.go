@@ -263,18 +263,6 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 	}, nil
 }
 
-type serverStreamMDForwarder struct {
-	grpc.ServerStream
-}
-
-func (s *serverStreamMDForwarder) Context() context.Context {
-	return util.ForwardMetadata(s.ServerStream.Context())
-}
-
-func (n *Node) InterceptStreamRequest(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	return handler(srv, &serverStreamMDForwarder{ss})
-}
-
 // Serve binds gRPC services and start it
 func (n *Node) Serve() error {
 	wg := errgroup.Group{}
