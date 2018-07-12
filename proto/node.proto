@@ -70,6 +70,7 @@ service DealManagement {
 message QuickBuyRequest {
     BigInt askID = 1;
     Duration duration = 2;
+    bool force = 3;
 }
 
 message DealFinishRequest {
@@ -84,6 +85,7 @@ message DealsReply {
 message OpenDealRequest {
     BigInt bidID = 1;
     BigInt askID = 2;
+    bool force = 3;
 }
 
 // todo: implement this as part of Node API
