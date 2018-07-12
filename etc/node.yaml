@@ -51,3 +51,9 @@ ethereum:
   pass_phrase: "any"
 
 metrics_listen_addr: "127.0.0.1:14003"
+
+
+blockchain:
+  # gas price for masterchain transactions, in wei
+  # default is 20 Gwei
+  masterchain_gas_price: 20000000000

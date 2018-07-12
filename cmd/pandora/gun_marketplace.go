@@ -23,8 +23,7 @@ func NewMarketplaceGun(cfg MarketplaceExtConfig) (Gun, error) {
 	privateKey := PrivateKey(cfg.Ethereum)
 
 	market, err := blockchain.NewAPI(context.Background(),
-		blockchain.WithSidechainEndpoint(cfg.Ethereum.Endpoint),
-		blockchain.WithSidechainGasPrice(0))
+		blockchain.WithSidechainEndpoint(cfg.Ethereum.Endpoint))
 	if err != nil {
 		return nil, err
 	}
