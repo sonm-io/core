@@ -85,17 +85,16 @@ func getTestDWH(dbPath string) (*DWH, error) {
 }
 
 func TestDWH_GetDeals(t *testing.T) {
-	globalDWH.mu.Lock()
-	defer globalDWH.mu.Unlock()
+	var (
+		byAddress            = common.HexToAddress("0x11")
+		byMinDuration uint64 = 10011
+		byMinPrice           = big.NewInt(20011)
+	)
 
 	// Test TEXT columns.
 	{
-		request := &pb.DealsRequest{
-			Status:     pb.DealStatus_DEAL_UNKNOWN,
-			SupplierID: pb.NewEthAddress(common.HexToAddress("0x15")),
-		}
+		request := &pb.DealsRequest{SupplierID: pb.NewEthAddress(byAddress)}
 		reply, err := globalDWH.GetDeals(globalDWH.ctx, request)
-
 		if err != nil {
 			t.Errorf("Request `%+v` failed: %s", request, err)
 			return
@@ -106,276 +105,179 @@ func TestDWH_GetDeals(t *testing.T) {
 			return
 		}
 
-		if reply.Deals[0].GetDeal().SupplierID.Unwrap().Hex() != common.HexToAddress("0x15").Hex() {
+		var deal = reply.Deals[0].Deal
+		if deal.SupplierID.Unwrap() != byAddress {
 			t.Errorf("Request `%+v` failed, expected %s, got %s (SupplierID)",
-				request, common.HexToAddress("0x15").Hex(), reply.Deals[0].GetDeal().SupplierID)
+				request, byAddress.Hex(), deal.SupplierID.Unwrap().Hex())
 			return
 		}
 	}
 	// Test INTEGER columns.
 	{
 		request := &pb.DealsRequest{
-			Status: pb.DealStatus_DEAL_UNKNOWN,
-			Duration: &pb.MaxMinUint64{
-				Min: 10015,
-			},
+			Duration: &pb.MaxMinUint64{Min: byMinDuration},
 		}
 		reply, err := globalDWH.GetDeals(globalDWH.ctx, request)
-
 		if err != nil {
 			t.Errorf("Request `%+v` failed: %s", request, err)
 			return
 		}
-
-		if len(reply.Deals) < 5 {
-			t.Errorf("Expected 5 deals in reply, got %d", len(reply.Deals))
+		if len(reply.Deals) != 1 {
+			t.Errorf("Request `%+v` failed: Expected 1 deal in reply, got %d", request, len(reply.Deals))
 			return
 		}
 	}
 	// Test TEXT columns which should be treated as INTEGERS.
 	{
 		request := &pb.DealsRequest{
-			Status: pb.DealStatus_DEAL_UNKNOWN,
-			Price: &pb.MaxMinBig{
-				Min: pb.NewBigIntFromInt(20015),
-			},
+			Price: &pb.MaxMinBig{Min: pb.NewBigInt(byMinPrice)},
 		}
 		reply, err := globalDWH.GetDeals(globalDWH.ctx, request)
-
 		if err != nil {
 			t.Errorf("Request `%+v` failed: %s", request, err)
 			return
 		}
-
-		if len(reply.Deals) != 5 {
-			t.Errorf("Expected 5 deals in reply, got %d", len(reply.Deals))
+		if len(reply.Deals) != 1 {
+			t.Errorf("Request `%+v` failed: Expected 1 deal in reply, got %d", request, len(reply.Deals))
 			return
 		}
-
-		if reply.Deals[0].GetDeal().Price.Unwrap().String() != "20015" {
+		var deal = reply.Deals[0].Deal
+		if deal.Price.Unwrap().String() != byMinPrice.String() {
 			t.Errorf("Request `%+v` failed, expected %d, got %d (Price)",
-				request, 10015, reply.Deals[0].GetDeal().Duration)
+				request, byMinPrice.Int64(), deal.Price.Unwrap().Int64())
 			return
 		}
 	}
 }
 
 func TestDWH_GetDealDetails(t *testing.T) {
-	globalDWH.mu.Lock()
-	defer globalDWH.mu.Unlock()
-
-	deal, err := globalDWH.storage.GetDealByID(newSimpleConn(globalDWH.db), big.NewInt(40405))
+	var (
+		byDealID = big.NewInt(40400)
+	)
+	reply, err := globalDWH.storage.GetDealByID(newSimpleConn(globalDWH.db), byDealID)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-
-	reply := deal.GetDeal()
-	if reply.Id.Unwrap().String() != "40405" {
-		t.Errorf("Expected %s, got %s (Id)", "40405", reply.Id.Unwrap().String())
-	}
-	if reply.SupplierID.Unwrap().Hex() != common.HexToAddress("0x15").Hex() {
-		t.Errorf("Expected %s, got %s (SupplierID)", common.HexToAddress("0x15").Hex(), reply.SupplierID)
-	}
-	if reply.ConsumerID.Unwrap().Hex() != common.HexToAddress("0x25").Hex() {
-		t.Errorf("Expected %s, got %s (ConsumerID)", common.HexToAddress("0x25").Hex(), reply.ConsumerID)
-	}
-	if reply.MasterID.Unwrap().Hex() != common.HexToAddress("0x35").Hex() {
-		t.Errorf("Expected %s, got %s (MasterID)", common.HexToAddress("0x35").Hex(), reply.MasterID)
-	}
-	if reply.AskID.Unwrap().String() != "20205" {
-		t.Errorf("Expected %s, got %s (AskID)", "20205", reply.AskID.Unwrap().String())
-	}
-	if reply.BidID.Unwrap().String() != "30305" {
-		t.Errorf("Expected %s, got %s (BidID)", "30305", reply.AskID.Unwrap().String())
-	}
-	if reply.Duration != uint64(10015) {
-		t.Errorf("Expected %d, got %d (Duration)", 10015, reply.Duration)
-	}
-	if reply.Price.Unwrap().String() != "20015" {
-		t.Errorf("Expected %s, got %s (Price)", "20015", reply.Price.Unwrap().String())
-	}
-	if reply.StartTime.Seconds != 30015 {
-		t.Errorf("Expected %d, got %d (SatrtTime)", 30015, reply.StartTime.Seconds)
-	}
-	if reply.EndTime.Seconds != 40015 {
-		t.Errorf("Expected %d, got %d (EndTime)", 40015, reply.EndTime.Seconds)
-	}
-	if reply.BlockedBalance.Unwrap().String() != "50015" {
-		t.Errorf("Expected %s, got %s (BlockedBalance)", "50015", reply.BlockedBalance.Unwrap().String())
-	}
-	if reply.TotalPayout.Unwrap().String() != "60015" {
-		t.Errorf("Expected %s, got %s (TotalPayout)", "60015", reply.TotalPayout.Unwrap().String())
-	}
-	if reply.LastBillTS.Seconds != 70015 {
-		t.Errorf("Expected %d, got %d (LastBillTS)", 70015, reply.LastBillTS.Seconds)
-	}
-	if !deal.ActiveChangeRequest {
-		t.Errorf("Expected %t, got %t (ActiveChangeRequest)", true, deal.ActiveChangeRequest)
+	deal := reply.GetDeal()
+	if deal.Id.Unwrap().Cmp(byDealID) != 0 {
+		t.Errorf("Expected %d, got %d (Id)", byDealID.Int64(), deal.Id.Unwrap().Int64())
 	}
 }
 
 func TestDWH_GetOrders(t *testing.T) {
-	globalDWH.mu.Lock()
-	defer globalDWH.mu.Unlock()
+	var (
+		byDealID              = big.NewInt(10101)
+		byMinDuration  uint64 = 10011
+		byMinBenchmark uint64 = 11
+		byMinPrice            = big.NewInt(20011)
+	)
 
 	// Test TEXT columns.
 	{
-		request := &pb.OrdersRequest{
-			Type:   pb.OrderType_ANY,
-			DealID: pb.NewBigIntFromInt(10105),
-		}
+		request := &pb.OrdersRequest{DealID: pb.NewBigInt(byDealID)}
 		orders, _, err := globalDWH.storage.GetOrders(newSimpleConn(globalDWH.db), request)
 		if err != nil {
 			t.Errorf("Request `%+v` failed: %s", request, err)
 			return
 		}
-
 		if len(orders) != 2 {
-			t.Errorf("Expected 2 orders in reply, got %d", len(orders))
+			t.Errorf("Request `%+v` failed: Expected 2 orders in reply (ASK and BID), got %d", request, len(orders))
 			return
 		}
-
-		if orders[0].GetOrder().AuthorID.Unwrap().Hex() != common.HexToAddress("0xA").Hex() {
+		var order = orders[0].Order
+		if order.AuthorID.Unwrap() != common.HexToAddress("0xA") {
 			t.Errorf("Request `%+v` failed, expected %s, got %s (AuthorID)",
-				request, common.HexToAddress("0xA").Hex(), orders[0].GetOrder().AuthorID)
+				request, common.HexToAddress("0xA").Hex(), order.AuthorID.Unwrap().Hex())
 			return
 		}
 	}
 	// Test INTEGER columns.
 	{
 		request := &pb.OrdersRequest{
-			Type: pb.OrderType_ASK,
-			Duration: &pb.MaxMinUint64{
-				Min: 10015,
-			},
-			Benchmarks: map[uint64]*pb.MaxMinUint64{0: {Min: 15}},
+			Duration:   &pb.MaxMinUint64{Min: byMinDuration},
+			Benchmarks: map[uint64]*pb.MaxMinUint64{0: {Min: byMinBenchmark}},
 		}
 		orders, _, err := globalDWH.storage.GetOrders(newSimpleConn(globalDWH.db), request)
 		if err != nil {
 			t.Errorf("Request `%+v` failed: %s", request, err)
 			return
 		}
-
-		if len(orders) != 5 {
-			t.Errorf("Expected 5 orders in reply, got %d", len(orders))
+		if len(orders) != 1 {
+			t.Errorf("Request `%+v` failed: Expected 1 order in reply, got %d", request, len(orders))
 			return
 		}
-
-		if orders[0].GetOrder().Duration != uint64(10015) {
-			t.Errorf("Request `%+v` failed, expected %d, got %d (Duration)",
-				request, 10015, orders[0].GetOrder().Duration)
+		var order = orders[0].Order
+		if order.Duration != byMinDuration {
+			t.Errorf("Request `%+v` failed, expected %d, got %d (Duration)", request, byMinDuration, order.Duration)
 			return
 		}
 	}
 	// Test TEXT columns which should be treated as INTEGERS.
 	{
 		request := &pb.OrdersRequest{
-			Type: pb.OrderType_ASK,
-			Price: &pb.MaxMinBig{
-				Min: pb.NewBigIntFromInt(int64(20015)),
-			},
+			Type:  pb.OrderType_ASK,
+			Price: &pb.MaxMinBig{Min: pb.NewBigInt(byMinPrice)},
 		}
 		orders, _, err := globalDWH.storage.GetOrders(newSimpleConn(globalDWH.db), request)
-
 		if err != nil {
 			t.Errorf("Request `%+v` failed: %s", request, err)
 			return
 		}
-
-		if len(orders) != 5 {
-			t.Errorf("Expected 5 orders in reply, got %d", len(orders))
+		if len(orders) != 1 {
+			t.Errorf("Request `%+v` failed: Expected 1 order in reply, got %d", request, len(orders))
 			return
 		}
-
-		if orders[0].GetOrder().Price.Unwrap().String() != "20015" {
-			t.Errorf("Request `%+v` failed, expected %d, got %d (Price)",
-				request, 10015, orders[0].GetOrder().Duration)
+		var order = orders[0].Order
+		if order.Price.Unwrap().Cmp(byMinPrice) != 0 {
+			t.Errorf("Request `%+v` failed: expected %d, got %d (Price)",
+				request, byMinPrice.Int64(), order.Price.Unwrap().Int64())
 			return
 		}
 	}
 }
 
 func TestDWH_GetMatchingOrders(t *testing.T) {
-	globalDWH.mu.Lock()
-	defer globalDWH.mu.Unlock()
-
-	request := &pb.MatchingOrdersRequest{
-		Id: pb.NewBigIntFromInt(20205),
-	}
+	var byID = big.NewInt(20201)
+	request := &pb.MatchingOrdersRequest{Id: pb.NewBigInt(byID)}
 	orders, _, err := globalDWH.storage.GetMatchingOrders(newSimpleConn(globalDWH.db), request)
 	if err != nil {
-		t.Errorf("GetMatchingOrders failed: %s", err)
+		t.Errorf("Request `%+v` failed: GetMatchingOrders failed: %s", request, err)
 		return
 	}
-
-	if len(orders) != 5 {
-		t.Errorf("Expected 5 orders in reply, got %d", len(orders))
+	if len(orders) != 1 {
+		t.Errorf("Request `%+v` failed: Expected 5 orders in reply, got %d", request, len(orders))
 		return
 	}
 }
 
 func TestDWH_GetOrderDetails(t *testing.T) {
-	globalDWH.mu.Lock()
-	defer globalDWH.mu.Unlock()
-
-	order, err := globalDWH.storage.GetOrderByID(newSimpleConn(globalDWH.db), big.NewInt(20205))
+	var byID = big.NewInt(20201)
+	order, err := globalDWH.storage.GetOrderByID(newSimpleConn(globalDWH.db), byID)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-
 	reply := order.GetOrder()
-	if reply.Id.Unwrap().String() != "20205" {
-		t.Errorf("Expected %s, got %s (Id)", "20205", reply.Id.Unwrap().String())
-	}
-	if reply.DealID.Unwrap().String() != "10105" {
-		t.Errorf("Expected %s, got %s (DealID)", "10105", reply.DealID)
-	}
-	if reply.OrderType != 2 {
-		t.Errorf("Expected %d, got %d (Type)", 2, reply.OrderType)
-	}
-	if reply.AuthorID.Unwrap().Hex() != common.HexToAddress("0xA").Hex() {
-		t.Errorf("Expected %s, got %s (AuthorID)", common.HexToAddress("0xA").Hex(), reply.AuthorID)
-	}
-	if reply.Duration != uint64(10015) {
-		t.Errorf("Expected %d, got %d (Duration)", 10015, reply.Duration)
-	}
-	if reply.Price.Unwrap().String() != "20015" {
-		t.Errorf("Expected %s, got %s (Price)", "20015", reply.Price.Unwrap().String())
-	}
-	if reply.GetNetflags().GetFlags() != 7 {
-		t.Errorf("Expected %d, got %d (Netflags)", 7, reply.GetNetflags().GetFlags())
-	}
-	if reply.Blacklist != "blacklist_5" {
-		t.Errorf("Expected %s, got %s (Blacklist)", "blacklist_5", reply.Blacklist)
-	}
-	if reply.FrozenSum.Unwrap().String() != "30015" {
-		t.Errorf("Expected %s, got %s (FrozenSum)", "30015", reply.FrozenSum.Unwrap().String())
+	if reply.Id.Unwrap().Cmp(byID) != 0 {
+		t.Errorf("Request `%d` failed: Expected %d, got %d (Id)", byID.Int64(), byID.Int64(), reply.Id.Unwrap().Int64())
 	}
 }
 
 func TestDWH_GetDealChangeRequests(t *testing.T) {
-	globalDWH.mu.Lock()
-	defer globalDWH.mu.Unlock()
-
 	changeRequests, err := globalDWH.getDealChangeRequests(newSimpleConn(globalDWH.db), pb.NewBigIntFromInt(40400))
 	if err != nil {
 		t.Error(err)
 		return
 	}
-
-	if len(changeRequests) != 10 {
-		t.Errorf("Expected %d DealChangeRequests, got %d", 10, len(changeRequests))
+	if len(changeRequests) != 2 {
+		t.Errorf("Request `%d` failed: Expected %d DealChangeRequests, got %d", 404000, 2, len(changeRequests))
 		return
 	}
 }
 
 func TestDWH_GetProfiles(t *testing.T) {
-	globalDWH.mu.Lock()
-	defer globalDWH.mu.Unlock()
-
-	profiles, _, err := globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), &pb.ProfilesRequest{
+	var request = &pb.ProfilesRequest{
 		Identifier: "sortedProfile",
 		Sortings: []*pb.SortingOption{
 			{
@@ -383,23 +285,22 @@ func TestDWH_GetProfiles(t *testing.T) {
 				Order: pb.SortingOrder_Asc,
 			},
 		},
-	})
+	}
+	profiles, _, err := globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), request)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Request `%+v` failed: %s", request, err)
 		return
 	}
-
-	if len(profiles) != 10 {
-		t.Errorf("Expected %d Profiles, got %d", 10, len(profiles))
+	if len(profiles) != 2 {
+		t.Errorf("Request `%+v` failed: Expected %d Profiles, got %d", request, 10, len(profiles))
 		return
 	}
-
-	if profiles[0].UserID.Unwrap().Hex() != common.HexToAddress("0x20").Hex() {
-		t.Errorf("Expected %s, got %s (Profile.UserID)", common.HexToAddress("0x20").Hex(), profiles[0].UserID.Unwrap().Hex())
+	if profiles[0].UserID.Unwrap() != common.HexToAddress("0x20") {
+		t.Errorf("Request `%+v` failed: Expected %s, got %s (Profile.UserID)",
+			request, common.HexToAddress("0x20").Hex(), profiles[0].UserID.Unwrap().Hex())
 		return
 	}
-
-	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), &pb.ProfilesRequest{
+	request = &pb.ProfilesRequest{
 		Identifier: "sortedProfile",
 		Sortings: []*pb.SortingOption{
 			{
@@ -407,23 +308,22 @@ func TestDWH_GetProfiles(t *testing.T) {
 				Order: pb.SortingOrder_Desc,
 			},
 		},
-	})
+	}
+	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), request)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Request `%+v` failed: %s", request, err)
 		return
 	}
-
-	if len(profiles) != 10 {
-		t.Errorf("Expected %d Profiles, got %d", 10, len(profiles))
+	if len(profiles) != 2 {
+		t.Errorf("Request `%+v` failed: Expected %d Profiles, got %d", request, 2, len(profiles))
 		return
 	}
-
-	if profiles[0].UserID.Unwrap().Hex() != common.HexToAddress("0x29").Hex() {
-		t.Errorf("Expected %s, got %s (Profile.UserID)", common.HexToAddress("0x29").Hex(), profiles[0].UserID.Unwrap().Hex())
+	if profiles[0].UserID.Unwrap() != common.HexToAddress("0x21") {
+		t.Errorf("Request `%+v` failed: Expected %s, got %s (Profile.UserID)",
+			request, common.HexToAddress("0x21").Hex(), profiles[0].UserID.Unwrap().Hex())
 		return
 	}
-
-	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), &pb.ProfilesRequest{
+	request = &pb.ProfilesRequest{
 		Identifier: "sortedProfile",
 		Sortings: []*pb.SortingOption{
 			{
@@ -435,58 +335,56 @@ func TestDWH_GetProfiles(t *testing.T) {
 				Order: pb.SortingOrder_Asc,
 			},
 		},
-	})
+	}
+	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), request)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Request `%+v` failed: %s", request, err)
 		return
 	}
-
-	if len(profiles) != 10 {
-		t.Errorf("Expected %d Profiles, got %d", 10, len(profiles))
+	if len(profiles) != 2 {
+		t.Errorf("Request `%+v` failed: Expected %d Profiles, got %d", request, 2, len(profiles))
 		return
 	}
-
 	if profiles[0].UserID.Unwrap().Hex() != common.HexToAddress("0x20").Hex() {
-		t.Errorf("Expected %s, got %s (Profile.UserID)", common.HexToAddress("0x20").Hex(), profiles[0].UserID.Unwrap().Hex())
+		t.Errorf("Request `%+v` failed: Expected %s, got %s (Profile.UserID)",
+			request, common.HexToAddress("0x20").Hex(), profiles[0].UserID.Unwrap().Hex())
 		return
 	}
-	if profiles[4].UserID.Unwrap().Hex() != common.HexToAddress("0x28").Hex() {
-		t.Errorf("Expected %s, got %s (Profile.UserID)", common.HexToAddress("0x28").Hex(), profiles[4].UserID.Unwrap().Hex())
+	if profiles[1].UserID.Unwrap().Hex() != common.HexToAddress("0x21").Hex() {
+		t.Errorf("Request `%+v` failed: Expected %s, got %s (Profile.UserID)",
+			request, common.HexToAddress("0x28").Hex(), profiles[1].UserID.Unwrap().Hex())
 		return
 	}
-
-	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), &pb.ProfilesRequest{
+	request = &pb.ProfilesRequest{
 		BlacklistQuery: &pb.BlacklistQuery{
 			OwnerID: pb.NewEthAddress(common.HexToAddress("0xE")),
 			Option:  pb.BlacklistOption_OnlyMatching,
 		},
-	})
+	}
+	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), request)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-
 	if len(profiles) != 1 {
-		t.Errorf("Expected %d Profiles, got %d", 1, len(profiles))
+		t.Errorf("Request `%+v` failed: Expected %d Profiles, got %d", request, 1, len(profiles))
 		return
 	}
-
-	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), &pb.ProfilesRequest{
+	request = &pb.ProfilesRequest{
 		BlacklistQuery: &pb.BlacklistQuery{
 			OwnerID: pb.NewEthAddress(common.HexToAddress("0xE")),
 			Option:  pb.BlacklistOption_WithoutMatching,
 		},
-	})
+	}
+	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), request)
 	if err != nil {
 		t.Error(err)
 		return
 	}
-
-	if len(profiles) != 11 {
-		t.Errorf("Expected %d Profiles, got %d", 11, len(profiles))
+	if len(profiles) != 3 {
+		t.Errorf("Request `%+v` failed: Expected %d Profiles, got %d", request, 3, len(profiles))
 		return
 	}
-
 	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), &pb.ProfilesRequest{
 		BlacklistQuery: &pb.BlacklistQuery{
 			OwnerID: pb.NewEthAddress(common.HexToAddress("0xE")),
@@ -494,24 +392,21 @@ func TestDWH_GetProfiles(t *testing.T) {
 		},
 	})
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Request `%+v` failed: %s", request, err)
 		return
 	}
-
-	if len(profiles) != 12 {
-		t.Errorf("Expected %d Profiles, got %d", 12, len(profiles))
+	if len(profiles) != 4 {
+		t.Errorf("Request `%+v` failed: Expected %d Profiles, got %d", request, 4, len(profiles))
 		return
 	}
-
 	var foundMarkedProfile bool
 	for _, profile := range profiles {
 		if profile.IsBlacklisted {
 			foundMarkedProfile = true
 		}
 	}
-
 	if !foundMarkedProfile {
-		t.Error("failed to find profile marked as blacklisted")
+		t.Errorf("Request `%+v` failed: Failed to find profile marked as blacklisted", request)
 	}
 }
 
@@ -532,8 +427,8 @@ func TestDWH_monitor(t *testing.T) {
 		SupplierID:     pb.NewEthAddress(common.HexToAddress("0xAA")),
 		ConsumerID:     pb.NewEthAddress(common.HexToAddress("0xBB")),
 		MasterID:       pb.NewEthAddress(common.HexToAddress("0xCC")),
-		AskID:          pb.NewBigIntFromInt(20205),
-		BidID:          pb.NewBigIntFromInt(30305),
+		AskID:          pb.NewBigIntFromInt(20200),
+		BidID:          pb.NewBigIntFromInt(30300),
 		Duration:       10020,
 		Price:          pb.NewBigInt(big.NewInt(20010)),
 		StartTime:      &pb.Timestamp{Seconds: 30010},
@@ -747,13 +642,13 @@ func testCertificateUpdated(certificate *pb.Certificate, commonID *big.Int) erro
 	}); err != nil {
 		return fmt.Errorf("failed to getProfiles: %s", err)
 	} else {
-		if len(profiles) != 13 {
-			return fmt.Errorf("(CertificateCreated) Expected 13 Profiles, got %d",
+		if len(profiles) != 5 {
+			return fmt.Errorf("(CertificateCreated) Expected 5 Profiles, got %d",
 				len(profiles))
 		}
-		if profiles[12].Name != "User Name" {
+		if profiles[4].Name != "User Name" {
 			return fmt.Errorf("(CertificateCreated) Expected %s, got %s (Profile.Name)",
-				"User Name", profiles[12].Name)
+				"User Name", profiles[4].Name)
 		}
 	}
 	// Now create a country certificate.
@@ -766,22 +661,22 @@ func testCertificateUpdated(certificate *pb.Certificate, commonID *big.Int) erro
 	if profiles, _, err := monitorDWH.storage.GetProfiles(newSimpleConn(monitorDWH.db), &pb.ProfilesRequest{}); err != nil {
 		return fmt.Errorf("getProfiles failed: %v", err)
 	} else {
-		if len(profiles) != 13 {
-			return fmt.Errorf("(CertificateCreated) Expected 1 Profile, got %d", len(profiles))
+		if len(profiles) != 5 {
+			return fmt.Errorf("(CertificateCreated) Expected 5 Profiles, got %d", len(profiles))
 		}
 		profiles := profiles
-		if profiles[12].Country != "Country" {
+		if profiles[4].Country != "Country" {
 			return fmt.Errorf("(CertificateCreated) Expected %s, got %s (Profile.Country)",
-				"Country", profiles[12].Name)
+				"Country", profiles[4].Name)
 		}
-		if profiles[12].Name != "User Name" {
+		if profiles[4].Name != "User Name" {
 			return fmt.Errorf("(CertificateCreated) Expected %s, got %s (Profile.Name)",
-				"Name", profiles[12].Name)
+				"Name", profiles[4].Name)
 		}
 
 		// All certificates (not only `Name` and `Country`) must be stored as JSON inside a profile entry.
 		var certificates []*pb.Certificate
-		if err := json.Unmarshal([]byte(profiles[12].Certificates), &certificates); err != nil {
+		if err := json.Unmarshal([]byte(profiles[4].Certificates), &certificates); err != nil {
 			return fmt.Errorf("(CertificateCreated) Failed to unmarshal Profile.Certificates: %s", err)
 		} else {
 			if len(certificates) != 2 {
@@ -1103,7 +998,7 @@ func setupTestDB(w *DWH) error {
 	}
 	byteCerts, _ := json.Marshal(certs)
 	storage := w.storage.(*sqlStorage)
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 2; i++ {
 		insertDeal, args, _ := storage.builder().Insert("Deals").
 			Columns(storage.tablesInfo.DealColumns...).
 			Values(
