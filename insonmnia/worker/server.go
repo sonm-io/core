@@ -58,7 +58,6 @@ const (
 
 var (
 	workerManagementMethods = []string{
-		workerAPIPrefix + "Status",
 		workerAPIPrefix + "Tasks",
 		workerAPIPrefix + "Devices",
 		workerAPIPrefix + "FreeDevices",
@@ -260,7 +259,8 @@ func (m *Worker) setupAuthorization() error {
 		// Note: need to refactor auth router to support multiple prefixes for methods.
 		// auth.WithEventPrefix(hubAPIPrefix),
 		auth.Allow(workerManagementMethods...).With(managementAuth),
-
+		// everyone can get worker's status
+		auth.Allow(workerAPIPrefix+"Status").With(auth.NewNilAuthorization()),
 		auth.Allow(taskAPIPrefix+"TaskStatus").With(newAnyOfAuth(
 			managementAuth,
 			newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m)),
