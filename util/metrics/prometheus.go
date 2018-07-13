@@ -34,10 +34,6 @@ type PrometheusExporter struct {
 }
 
 func NewPrometheusExporter(addr string, options ...Option) *PrometheusExporter {
-	return newPrometheusExporter(addr, options...)
-}
-
-func newPrometheusExporter(addr string, options ...Option) *PrometheusExporter {
 	opts := newOptions()
 	for _, o := range options {
 		o(opts)
