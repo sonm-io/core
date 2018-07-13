@@ -2,10 +2,6 @@ grpc_address: ":15021"
 
 http_address: ":15022"
 
-#storage:
-#  driver: "sqlite3"
-#  endpoint: "/var/lib/sonm/dwh.db"
-
 storage:
   driver: "postgres"
   endpoint: "postgresql://localhost:5432/dwh?user=dwh&password=dwh&sslmode=disable"
