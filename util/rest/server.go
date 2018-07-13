@@ -83,13 +83,13 @@ func (s *Server) RegisterService(interfacePtr, concretePtr interface{}) error {
 
 		//TODO: handle streaming
 		if method.Type.NumIn() != 2 {
-			s.log.Infof("skipping streaming %s", method)
+			s.log.Debugf("skipping streaming for method %s.%s", serviceName, method.Name)
 			continue
 		}
 		messageType := method.Type.In(1)
 		sstreamType := reflect.TypeOf((*grpc.ServerStream)(nil)).Elem()
 		if messageType.Implements(sstreamType) {
-			s.log.Infof("skipping streaming %s", method)
+			s.log.Debugf("skipping streaming for method %s.%s", serviceName, method.Name)
 			continue
 		}
 		if method.Type.NumOut() != 2 {
