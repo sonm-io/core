@@ -1229,7 +1229,7 @@ func (api *StandardTokenApi) Transfer(ctx context.Context, key *ecdsa.PrivateKey
 }
 
 func (api *StandardTokenApi) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from common.Address, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	opts := api.opts.getTxOpts(ctx, key, tranferFromGasLimit)
+	opts := api.opts.getTxOpts(ctx, key, transferFromGasLimit)
 	return api.tokenContract.TransferFrom(opts, from, to, amount)
 }
 

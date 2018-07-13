@@ -3,7 +3,7 @@ package blockchain
 const (
 	getTokensGasLimit           = 70000
 	transferGasLimit            = 70000
-	tranferFromGasLimit         = 80000
+	transferFromGasLimit        = 80000
 	increaseApprovalGasLimit    = 70000
 	decreaseApprovalGasLimit    = 70000
 	approveGasLimit             = 70000
