@@ -58,7 +58,6 @@ const (
 
 var (
 	workerManagementMethods = []string{
-		workerAPIPrefix + "Status",
 		workerAPIPrefix + "Tasks",
 		workerAPIPrefix + "Devices",
 		workerAPIPrefix + "FreeDevices",
@@ -260,7 +259,8 @@ func (m *Worker) setupAuthorization() error {
 		// Note: need to refactor auth router to support multiple prefixes for methods.
 		// auth.WithEventPrefix(hubAPIPrefix),
 		auth.Allow(workerManagementMethods...).With(managementAuth),
-
+		// everyone can get worker's status
+		auth.Allow(workerAPIPrefix+"Status").With(auth.NewNilAuthorization()),
 		auth.Allow(taskAPIPrefix+"TaskStatus").With(newAnyOfAuth(
 			managementAuth,
 			newDealAuthorization(m.ctx, m, newFromTaskDealExtractor(m)),
@@ -641,20 +641,16 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 
 	var d = Description{
-		Reference:     reference,
-		Auth:          spec.Registry.Auth(),
-		RestartPolicy: spec.Container.RestartPolicy.Unwrap(),
-		CGroupParent:  cgroup.Suffix(),
-		Resources:     spec.Resources,
-		DealId:        request.GetDealID().Unwrap().String(),
-		TaskId:        taskID,
-		CommitOnStop:  spec.Container.CommitOnStop,
-		GPUDevices:    gpuids,
-		Env:           spec.Container.Env,
-		volumes:       spec.Container.Volumes,
-		mounts:        mounts,
-		networks:      networks,
-		expose:        spec.Container.GetExpose(),
+		Container:    *request.Spec.Container,
+		Reference:    reference,
+		Auth:         spec.Registry.Auth(),
+		CGroupParent: cgroup.Suffix(),
+		Resources:    spec.Resources,
+		DealId:       request.GetDealID().Unwrap().String(),
+		TaskId:       taskID,
+		GPUDevices:   gpuids,
+		mounts:       mounts,
+		networks:     networks,
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
@@ -1204,9 +1200,9 @@ func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
 	}
 	return Description{
 		Reference: reference,
-		Env: map[string]string{
+		Container: pb.Container{Env: map[string]string{
 			bm.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
-		},
+		}},
 	}, nil
 }
 
@@ -1218,7 +1214,10 @@ func (m *Worker) AskPlans(ctx context.Context, _ *pb.Empty) (*pb.AskPlansReply, 
 func (m *Worker) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (*pb.ID, error) {
 	log.G(m.ctx).Info("handling CreateAskPlan request", zap.Any("request", request))
 	if len(request.GetID()) != 0 || !request.GetOrderID().IsZero() || !request.GetDealID().IsZero() {
-		return nil, errors.New("creating ask plans with predefined id, order_id or deal_id are not supported")
+		return nil, errors.New("creating ask plans with predefined id, order_id or deal_id is not supported")
+	}
+	if request.GetCreateTime().Unix().UnixNano() != 0 || request.GetLastOrderPlacedTime().Unix().UnixNano() != 0 {
+		return nil, errors.New("creating ask plans with predefined timestamps is not supported")
 	}
 	id, err := m.salesman.CreateAskPlan(request)
 	if err != nil {

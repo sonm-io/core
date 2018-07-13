@@ -11,7 +11,7 @@ import (
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	"github.com/sonm-io/core/insonmnia/logging"
-	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/metrics"
 	"go.uber.org/zap"
 )
 
@@ -44,7 +44,7 @@ func run() error {
 		return fmt.Errorf("failed to create new DWH service: %s", err)
 	}
 
-	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
+	go metrics.NewPrometheusExporter(cfg.MetricsListenAddr, metrics.WithLogging(logger.Sugar())).Serve(ctx)
 	go func() {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)

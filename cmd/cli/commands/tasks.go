@@ -49,21 +49,28 @@ func init() {
 var taskPullOutput string
 
 var taskRootCmd = &cobra.Command{
-	Use:   "task",
-	Short: "Tasks management",
+	Use:               "task",
+	Short:             "Tasks management",
+	PersistentPreRunE: loadKeyStoreIfRequired,
 }
 
 func getActiveDealIDs(ctx context.Context) ([]*big.Int, error) {
 	dealCli, err := newDealsClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("cannot connect to Node: %s", err)
+		return nil, fmt.Errorf("cannot create client connection: %v", err)
 	}
+
 	deals, err := dealCli.List(ctx, &pb.Count{Count: 0})
 	if err != nil {
 		return nil, fmt.Errorf("cannot fetch deals list: %s", err)
 	}
+
 	dealIDs := make([]*big.Int, 0, len(deals.Deal))
-	myAddr := crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Big()
+	key, err := getDefaultKey()
+	if err != nil {
+		return nil, err
+	}
+	myAddr := crypto.PubkeyToAddress(key.PublicKey).Big()
 
 	for _, deal := range deals.Deal {
 		// append active deal id only if current user is supplier
@@ -76,87 +83,81 @@ func getActiveDealIDs(ctx context.Context) ([]*big.Int, error) {
 }
 
 var taskListCmd = &cobra.Command{
-	Use:    "list [deal_id]",
-	Short:  "Show active tasks",
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "list [deal_id]",
+	Short: "Show active tasks",
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		node, err := newTaskClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		var dealIDs []*big.Int
 		if len(args) > 0 {
 			dealID, err := util.ParseBigInt(args[0])
 			if err != nil {
-				showError(cmd, err.Error(), nil)
-				os.Exit(1)
+				return nil
 			}
 			dealIDs = append(dealIDs, dealID)
 		} else {
 			if !isSimpleFormat() {
-				showError(cmd, "listing task for all deals is prohibited in JSON mode", nil)
-				os.Exit(1)
+				return fmt.Errorf("listing task for all deals is prohibited in JSON mode")
 			}
+
 			cmd.Printf("fetching deals ...\n")
 			dealIDs, err = getActiveDealIDs(ctx)
 			if err != nil {
-				showError(cmd, err.Error(), nil)
-				os.Exit(1)
+				return err
 			}
 		}
 
 		if len(dealIDs) == 0 {
 			cmd.Println("No active deals found.")
-			return
+			return nil
 		}
 
 		for k, dealID := range dealIDs {
 			timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*10)
 			cmd.Printf("Deal %s (%d/%d):\n", dealID.String(), k+1, len(dealIDs))
+
 			list, err := node.List(timeoutCtx, &pb.TaskListRequest{DealID: pb.NewBigInt(dealID)})
 			if err != nil {
-				showError(cmd, "Cannot get task list for deal", err)
+				cmd.Printf("cannot get task list for deal: %v", err)
 			} else {
 				printNodeTaskStatus(cmd, list.GetInfo())
 			}
 			cancel()
 		}
+
+		return nil
 	},
 }
 
 var taskStartCmd = &cobra.Command{
-	Use:    "start <deal_id> <task.yaml>",
-	Short:  "Start task",
-	PreRun: loadKeyStoreWrapper,
-	Args:   cobra.MinimumNArgs(2),
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "start <deal_id> <task.yaml>",
+	Short: "Start task",
+	Args:  cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
 		node, err := newTaskClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		dealID := args[0]
 		taskFile := args[1]
-
 		spec, err := task_config.LoadConfig(taskFile)
 		if err != nil {
-			showError(cmd, "Cannot load task definition", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot load task definition: %v", err)
 		}
 
 		bigDealID, err := pb.NewBigIntFromString(dealID)
 		if err != nil {
-			showError(cmd, "Cannot parse deal ID", err)
-			os.Exit(1)
+			return err
 		}
 
 		request := &pb.StartTaskRequest{
@@ -166,70 +167,64 @@ var taskStartCmd = &cobra.Command{
 
 		reply, err := node.Start(ctx, request)
 		if err != nil {
-			showError(cmd, "Cannot start task", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot start task: %v", err)
 		}
 
 		printTaskStart(cmd, reply)
+		return nil
 	},
 }
 
 var taskStatusCmd = &cobra.Command{
-	Use:    "status <deal_id> <task_id>",
-	Short:  "Show task status",
-	Args:   cobra.MinimumNArgs(2),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "status <deal_id> <task_id>",
+	Short: "Show task status",
+	Args:  cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		node, err := newTaskClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		dealID, err := util.ParseBigInt(args[0])
+		dealID, err := pb.NewBigIntFromString(args[0])
 		if err != nil {
-			showError(cmd, err.Error(), nil)
-			os.Exit(1)
+			return err
 		}
 
 		taskID := args[1]
 		req := &pb.TaskID{
 			Id:     taskID,
-			DealID: pb.NewBigInt(dealID),
+			DealID: dealID,
 		}
 
 		status, err := node.Status(ctx, req)
 		if err != nil {
-			showError(cmd, "Cannot get task status", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot get task status: %v", err)
 		}
 
 		printTaskStatus(cmd, taskID, status)
+		return nil
 	},
 }
 
 var taskJoinNetworkCmd = &cobra.Command{
-	Use:    "join <deal_id> <task_id> <network_id>",
-	Short:  "Provide network specs for joining to specified task's specific network",
-	Args:   cobra.MinimumNArgs(3),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "join <deal_id> <task_id> <network_id>",
+	Short: "Provide network specs for joining to specified task's specific network",
+	Args:  cobra.MinimumNArgs(3),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		node, err := newTaskClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		dealID, err := util.ParseBigInt(args[0])
+		dealID, err := pb.NewBigIntFromString(args[0])
 		if err != nil {
-			showError(cmd, err.Error(), nil)
-			os.Exit(1)
+			return err
 		}
 
 		taskID := args[1]
@@ -237,16 +232,16 @@ var taskJoinNetworkCmd = &cobra.Command{
 		spec, err := node.JoinNetwork(ctx, &pb.JoinNetworkRequest{
 			TaskID: &pb.TaskID{
 				Id:     taskID,
-				DealID: pb.NewBigInt(dealID),
+				DealID: dealID,
 			},
 			NetworkID: netID,
 		})
 		if err != nil {
-			showError(cmd, "Cannot get task status", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot get task status: %v", err)
 		}
 
 		printNetworkSpec(cmd, spec)
+		return nil
 	},
 }
 
@@ -298,29 +293,26 @@ func parseType(logType string) (pb.TaskLogsRequest_Type, error) {
 }
 
 var taskLogsCmd = &cobra.Command{
-	Use:    "logs <deal_id> <task_id>",
-	Short:  "Retrieve task logs",
-	Args:   cobra.MinimumNArgs(2),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "logs <deal_id> <task_id>",
+	Short: "Retrieve task logs",
+	Args:  cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		node, err := newTaskClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		dealID, err := util.ParseBigInt(args[0])
 		if err != nil {
-			showError(cmd, err.Error(), nil)
-			os.Exit(1)
+			return err
 		}
+
 		logType, err := parseType(logType)
 		if err != nil {
-			showError(cmd, "failed to parse log type", err)
-			os.Exit(1)
+			return fmt.Errorf("failed to parse log type: %v", err)
 		}
 
 		req := &pb.TaskLogsRequest{
@@ -336,8 +328,7 @@ var taskLogsCmd = &cobra.Command{
 
 		logClient, err := node.Logs(ctx, req)
 		if err != nil {
-			showError(cmd, "Cannot get task logs", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot get task logs: %v", err)
 		}
 
 		reader := logReader{cli: logClient}
@@ -347,55 +338,52 @@ var taskLogsCmd = &cobra.Command{
 			stdout = &logWriter{stdout, "[STDOUT] "}
 			stderr = &logWriter{stderr, "[STDERR] "}
 		}
-		_, err = stdcopy.StdCopy(stdout, stderr, &reader)
-		if err != nil {
-			showError(cmd, "failed to read logs", err)
-			os.Exit(1)
+
+		if _, err := stdcopy.StdCopy(stdout, stderr, &reader); err != nil {
+			return fmt.Errorf("failed to read logs: %v", err)
 		}
+
+		return nil
 	},
 }
 
 var taskStopCmd = &cobra.Command{
-	Use:    "stop <deal_id> <task_id>",
-	Short:  "Stop task",
-	Args:   cobra.MinimumNArgs(2),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "stop <deal_id> <task_id>",
+	Short: "Stop task",
+	Args:  cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
 		node, err := newTaskClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		dealID, err := util.ParseBigInt(args[0])
+		dealID, err := pb.NewBigIntFromString(args[0])
 		if err != nil {
-			showError(cmd, err.Error(), nil)
-			os.Exit(1)
+			return nil
 		}
 
 		req := &pb.TaskID{
 			Id:     args[1],
-			DealID: pb.NewBigInt(dealID),
+			DealID: dealID,
 		}
 
 		if _, err := node.Stop(ctx, req); err != nil {
-			showError(cmd, "Cannot stop status", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot stop status: %v", err)
 		}
 
 		showOk(cmd)
+		return nil
 	},
 }
 
 var taskPullCmd = &cobra.Command{
-	Use:    "pull <deal_id> <task_id>",
-	Short:  "Pull committed image from the completed task.",
-	Args:   cobra.MinimumNArgs(2),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "pull <deal_id> <task_id>",
+	Short: "Pull committed image from the completed task.",
+	Args:  cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		dealID := args[0]
 		taskID := args[1]
 
@@ -406,8 +394,7 @@ var taskPullCmd = &cobra.Command{
 		} else {
 			file, err := os.Create(taskPullOutput)
 			if err != nil {
-				showError(cmd, "Cannot create file", err)
-				os.Exit(1)
+				return fmt.Errorf("cannot create file: %v", err)
 			}
 
 			defer file.Close()
@@ -421,8 +408,7 @@ var taskPullCmd = &cobra.Command{
 
 		node, err := newTaskClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		req := &pb.PullTaskRequest{
@@ -432,8 +418,7 @@ var taskPullCmd = &cobra.Command{
 
 		client, err := node.PullTask(ctx, req)
 		if err != nil {
-			showError(cmd, "Cannot create image pull client", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create image pull client: %v", err)
 		}
 
 		var bar *uiprogress.Bar
@@ -448,14 +433,12 @@ var taskPullCmd = &cobra.Command{
 
 					header, err := client.Header()
 					if err != nil {
-						showError(cmd, "Cannot get client header", err)
-						os.Exit(1)
+						return fmt.Errorf("cannot get client header: %v", err)
 					}
 
 					size, err := structs.RequireHeaderInt64(header, "size")
 					if err != nil {
-						showError(cmd, "Cannot convert header value to int64", err)
-						os.Exit(1)
+						return fmt.Errorf("cannot convert header value to int64: %v", err)
 					}
 
 					if taskPullOutput != "" {
@@ -471,8 +454,7 @@ var taskPullCmd = &cobra.Command{
 
 				n, err := io.Copy(wr, bytes.NewReader(chunk.Chunk))
 				if err != nil {
-					showError(cmd, "Cannot write to file", err)
-					os.Exit(1)
+					return fmt.Errorf("cannot write to file: %v", err)
 				}
 
 				bytesRecv += n
@@ -485,40 +467,37 @@ var taskPullCmd = &cobra.Command{
 				if err == io.EOF {
 					streaming = false
 				} else {
-					showError(cmd, "Streaming error", err)
-					os.Exit(1)
+					return fmt.Errorf("streaming error: %v", err)
 				}
 			}
 		}
 
 		if err := w.Flush(); err != nil {
-			showError(cmd, "Cannot flush writer", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot flush writer: %v", err)
 		}
+
+		return nil
 	},
 }
 
 var taskPushCmd = &cobra.Command{
-	Use:    "push <deal_id> <archive_path>",
-	Short:  "Push an image from the filesystem",
-	Args:   cobra.MinimumNArgs(2),
-	PreRun: loadKeyStoreIfRequired,
-	Run: func(cmd *cobra.Command, args []string) {
+	Use:   "push <deal_id> <archive_path>",
+	Short: "Push an image from the filesystem",
+	Args:  cobra.MinimumNArgs(2),
+	RunE: func(cmd *cobra.Command, args []string) error {
 		dealID := args[0]
 		path := args[1]
 
 		file, err := os.Open(path)
 		if err != nil {
-			showError(cmd, "Cannot open archive path", err)
-			os.Exit(1)
+			return fmt.Errorf("сannot open archive path: %v", err)
 		}
 
 		defer file.Close()
 
 		fileInfo, err := file.Stat()
 		if err != nil {
-			showError(cmd, "Cannot stat file", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot stat file: %v", err)
 		}
 
 		ctx, cancel := newTimeoutContext()
@@ -526,8 +505,7 @@ var taskPushCmd = &cobra.Command{
 
 		node, err := newTaskClient(ctx)
 		if err != nil {
-			showError(cmd, "Cannot connect to Node", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
 		ctx = metadata.NewOutgoingContext(ctx, metadata.New(map[string]string{
@@ -537,8 +515,7 @@ var taskPushCmd = &cobra.Command{
 
 		client, err := node.PushTask(ctx)
 		if err != nil {
-			showError(cmd, "Cannot create push task client", err)
-			os.Exit(1)
+			return fmt.Errorf("cannot create push task client: %v", err)
 		}
 
 		readCompleted := false
@@ -561,12 +538,10 @@ var taskPushCmd = &cobra.Command{
 						readCompleted = true
 
 						if err := client.CloseSend(); err != nil {
-							showError(cmd, "Cannot close client stream", err)
-							os.Exit(1)
+							return fmt.Errorf("cannot close client stream: %v", err)
 						}
 					} else {
-						showError(cmd, "Cannot read file", err)
-						os.Exit(1)
+						return fmt.Errorf("cannot read file: %v", err)
 					}
 				}
 
@@ -582,18 +557,16 @@ var taskPushCmd = &cobra.Command{
 					if bytesCommitted == fileInfo.Size() {
 						id, ok := client.Trailer()["id"]
 						if !ok || len(id) == 0 {
-							showError(cmd, "No status returned", nil)
-							os.Exit(1)
+							return fmt.Errorf("mo status returned: %v", nil)
 						}
 
-						showJSON(cmd, map[string]interface{}{"id": id[0]})
-						return
+						printID(cmd, id[0])
+						return nil
 					}
 				}
 
 				if err != nil {
-					showError(cmd, "Cannot read from stream", err)
-					os.Exit(1)
+					return fmt.Errorf("cannot read from stream: %v", err)
 				}
 
 				bytesCommitted += progress.Size

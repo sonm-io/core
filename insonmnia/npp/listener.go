@@ -84,7 +84,6 @@ func (m *connTuple) unwrapWithSource(source connSource) (net.Conn, connSource, e
 //
 // Options are: rendezvous server, private IPs usage, relay server(s) if any.
 type Listener struct {
-	ctx     context.Context
 	metrics *metrics
 	log     *zap.Logger
 
@@ -92,7 +91,7 @@ type Listener struct {
 	listenerChannel chan connTuple
 
 	puncher    NATPuncher
-	puncherNew func() (NATPuncher, error)
+	puncherNew func(ctx context.Context) (NATPuncher, error)
 	nppChannel chan connTuple
 
 	relayListener *relay.Listener
@@ -106,7 +105,7 @@ type Listener struct {
 // network address with TCP protocol, switching to the NPP when there is no
 // pending connections available.
 func NewListener(ctx context.Context, addr string, options ...Option) (*Listener, error) {
-	opts := newOptions(ctx)
+	opts := newOptions()
 
 	for _, o := range options {
 		if err := o(opts); err != nil {
@@ -122,7 +121,6 @@ func NewListener(ctx context.Context, addr string, options ...Option) (*Listener
 	}
 
 	m := &Listener{
-		ctx:             ctx,
 		metrics:         newMetrics(),
 		log:             opts.log,
 		listenerChannel: channel,
@@ -182,7 +180,7 @@ func (m *Listener) listenPuncher(ctx context.Context) error {
 
 		if m.puncher == nil {
 			m.log.Debug("constructing new puncher")
-			puncher, err := m.puncherNew()
+			puncher, err := m.puncherNew(ctx)
 			if err != nil {
 				m.log.Warn("failed to construct a puncher", zap.Error(err))
 				if timeout < m.maxBackoffInterval {
@@ -247,7 +245,11 @@ func (m *Listener) listenRelay(ctx context.Context) error {
 // punching mechanism work. This can consume a meaningful amount of file
 // descriptors, so be prepared to enlarge your limits.
 func (m *Listener) Accept() (net.Conn, error) {
-	conn, source, err := m.accept()
+	return m.AcceptContext(context.Background())
+}
+
+func (m *Listener) AcceptContext(ctx context.Context) (net.Conn, error) {
+	conn, source, err := m.accept(ctx)
 	if err != nil {
 		m.log.Warn("failed to accept peer", zap.Error(err))
 		return nil, err
@@ -271,7 +273,7 @@ func (m *Listener) Accept() (net.Conn, error) {
 
 // Note: this function only listens for multiple channels and transforms the
 // result from a single-value to multiple values, due to weird Go type system.
-func (m *Listener) accept() (net.Conn, connSource, error) {
+func (m *Listener) accept(ctx context.Context) (net.Conn, connSource, error) {
 	// Act as a listener if there is no puncher specified.
 	// Check for acceptor listenerChannel, if there is a connection - return immediately.
 	select {
@@ -283,8 +285,8 @@ func (m *Listener) accept() (net.Conn, connSource, error) {
 	// Otherwise block when either a new connection arrives or NPP does its job.
 	for {
 		select {
-		case <-m.ctx.Done():
-			return nil, sourceError, m.ctx.Err()
+		case <-ctx.Done():
+			return nil, sourceError, ctx.Err()
 		case conn := <-m.listenerChannel:
 			return conn.unwrapWithSource(sourceDirectConnection)
 		case conn := <-m.nppChannel:

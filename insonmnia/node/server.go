@@ -79,7 +79,7 @@ func newRemoteOptions(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config, c
 		npp.WithRelayDialer(&relay.Dialer{Addrs: cfg.NPP.Relay.Endpoints, Log: log.G(ctx)}),
 		npp.WithLogger(log.G(ctx)),
 	}
-	nppDialer, err := npp.NewDialer(ctx, nppDialerOptions...)
+	nppDialer, err := npp.NewDialer(nppDialerOptions...)
 	if err != nil {
 		return nil, err
 	}
@@ -195,22 +195,9 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 	}
 
 	worker := newWorkerAPI(opts)
-
-	market, err := newMarketAPI(opts)
-	if err != nil {
-		return nil, err
-	}
-
-	deals, err := newDealsAPI(opts)
-	if err != nil {
-		return nil, err
-	}
-
-	tasks, err := newTasksAPI(opts)
-	if err != nil {
-		return nil, err
-	}
-
+	market := newMarketAPI(opts)
+	deals := newDealsAPI(opts)
+	tasks := newTasksAPI(opts)
 	masterMgmt := newMasterManagementAPI(opts)
 	tokenMgmt := newTokenManagementAPI(opts)
 	blacklist := newBlacklistAPI(opts)
@@ -276,18 +263,6 @@ func New(ctx context.Context, config *Config, key *ecdsa.PrivateKey) (*Node, err
 	}, nil
 }
 
-type serverStreamMDForwarder struct {
-	grpc.ServerStream
-}
-
-func (s *serverStreamMDForwarder) Context() context.Context {
-	return util.ForwardMetadata(s.ServerStream.Context())
-}
-
-func (n *Node) InterceptStreamRequest(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
-	return handler(srv, &serverStreamMDForwarder{ss})
-}
-
 // Serve binds gRPC services and start it
 func (n *Node) Serve() error {
 	wg := errgroup.Group{}
@@ -333,16 +308,20 @@ func (n *Node) ServeHttp() error {
 }
 
 func (n *Node) serveHttp() error {
-	aesKey := []byte{}
 	h := sha256.New()
 	h.Write(n.privKey.D.Bytes())
-	aesKey = h.Sum(aesKey)
+	aesKey := h.Sum([]byte{})
 	decenc, err := rest.NewAESDecoderEncoder(aesKey)
 	if err != nil {
 		return err
 	}
 
-	options := []rest.Option{rest.WithContext(n.ctx), rest.WithDecoder(decenc), rest.WithEncoder(decenc), rest.WithInterceptor(n.worker.(*workerAPI).intercept)}
+	options := []rest.Option{rest.WithContext(n.ctx), rest.WithInterceptor(n.worker.(*workerAPI).intercept)}
+	if !n.cfg.Node.AllowInsecureConnection {
+		options = append(options, rest.WithDecoder(decenc), rest.WithEncoder(decenc))
+	} else {
+		log.G(n.ctx).Warn("using insecure REST connection")
+	}
 
 	lis6, err := net.Listen("tcp6", fmt.Sprintf("[::1]:%d", n.cfg.Node.HttpBindPort))
 	if err == nil {

@@ -133,7 +133,7 @@ func printDeviceList(cmd *cobra.Command, dev *pb.DevicesReply) {
 		if len(GPUs) > 0 {
 			cmd.Printf("GPUs:\r\n")
 			for i, gpu := range GPUs {
-				cmd.Printf("  index=%d: %s\r\n", i, gpu.Device.GetDeviceName())
+				cmd.Printf("  %s (index=%d: hash=%s)\r\n", gpu.Device.GetDeviceName(), i, gpu.GetDevice().GetHash())
 				printBenchmarkGroup(cmd, gpu.Benchmarks)
 			}
 		}
@@ -218,8 +218,8 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 		cmd.Printf("  Net Upload           %d\r\n", b.NetTrafficOut())
 		cmd.Printf("  GPU Count            %d\r\n", b.GPUCount())
 		cmd.Printf("  GPU Mem              %d\r\n", b.GPUMem())
-		cmd.Printf("  GPU Eth hashrate     %d\r\n", b.GPUEthHashrate())
-		cmd.Printf("  GPU Cash hashrate    %d\r\n", b.GPUCashHashrate())
+		cmd.Printf("  GPU Ethash           %d\r\n", b.GPUEthHashrate())
+		cmd.Printf("  GPU Equihash         %d\r\n", b.GPUCashHashrate())
 		cmd.Printf("  GPU Redshift         %d\r\n", b.GPURedshift())
 	} else {
 		showJSON(cmd, order)
@@ -235,7 +235,7 @@ func printAskList(cmd *cobra.Command, slots *pb.AskPlansReply) {
 		}
 		out, err := yaml.Marshal(plans)
 		if err != nil {
-			showError(cmd, "could not marshall ask plans", err)
+			ShowError(cmd, "could not marshall ask plans", err)
 		} else {
 			cmd.Println(string(out))
 		}
@@ -322,8 +322,14 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealC
 			}
 		}
 
+		key, err := getDefaultKey()
+		if err != nil {
+			cmd.Printf("cannot get default key: %v\r\n", err)
+			return
+		}
+
 		noWorkerRespond := info.GetResources() == nil && info.GetRunning() == nil && info.GetCompleted() == nil
-		iamConsumer := crypto.PubkeyToAddress(getDefaultKeyOrDie().PublicKey).Big().Cmp(deal.GetConsumerID().Unwrap().Big()) == 0
+		iamConsumer := crypto.PubkeyToAddress(key.PublicKey).Big().Cmp(deal.GetConsumerID().Unwrap().Big()) == 0
 
 		if noWorkerRespond && iamConsumer && !flags.WarningSuppressed() {
 			// seems like worker is offline, notify user about it

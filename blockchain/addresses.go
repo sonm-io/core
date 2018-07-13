@@ -1,7 +1,7 @@
 package blockchain
 
 const (
-	defaultContractRegistryAddr = "0x7c343c9fb764f5a2fd09958ba8d86ccc843258b4"
+	defaultContractRegistryAddr = "0xd1a6f3d1ae33b4b19565a6b283d7a05c5a0decb0"
 
 	sidechainSNMAddressKey          = "sidechainSNMAddress"
 	masterchainSNMAddressKey        = "masterchainSNMAddress"
@@ -12,4 +12,5 @@ const (
 	gatekeeperMasterchainAddressKey = "gatekeeperMasterchainAddress"
 	gatekeeperSidechainAddressKey   = "gatekeeperSidechainAddress"
 	testnetFaucetAddressKey         = "testnetFaucetAddress"
+	oracleMultiSigAddressKey        = "oracleMultiSigAddress"
 )

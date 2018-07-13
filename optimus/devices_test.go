@@ -64,7 +64,7 @@ func newMappingMock(controller *gomock.Controller) *benchmarks.MockMapping {
 	m.EXPECT().SplittingAlgorithm(5).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(6).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(7).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
-	m.EXPECT().SplittingAlgorithm(8).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
+	m.EXPECT().SplittingAlgorithm(8).AnyTimes().Return(sonm.SplittingAlgorithm_MIN)
 	m.EXPECT().SplittingAlgorithm(9).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(10).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
 	m.EXPECT().SplittingAlgorithm(11).AnyTimes().Return(sonm.SplittingAlgorithm_PROPORTIONAL)
@@ -88,6 +88,7 @@ func newEmptyDevicesReply() *sonm.DevicesReply {
 			Benchmarks: map[uint64]*sonm.Benchmark{},
 		},
 		Network: &sonm.Network{
+			NetFlags:      &sonm.NetFlags{},
 			BenchmarksIn:  map[uint64]*sonm.Benchmark{},
 			BenchmarksOut: map[uint64]*sonm.Benchmark{},
 		},
@@ -103,9 +104,7 @@ func newEmptyDevicesReply() *sonm.DevicesReply {
 func TestConsumeCPU(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
-		0: {
-			Result: 10000,
-		},
+		0: {ID: 0, Result: 10000},
 	}
 
 	controller := gomock.NewController(t)
@@ -130,9 +129,7 @@ func TestConsumeCPUTwoCores(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.CPU.Device.Cores = 2
 	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
-		0: {
-			Result: 10000,
-		},
+		0: {ID: 0, Result: 10000},
 	}
 
 	controller := gomock.NewController(t)
@@ -157,9 +154,7 @@ func TestConsumeCPULowerBound(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.CPU.Device.Cores = 2
 	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
-		0: {
-			Result: 10000,
-		},
+		0: {ID: 0, Result: 10000},
 	}
 
 	controller := gomock.NewController(t)
@@ -184,9 +179,7 @@ func TestConsumeRAM(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.RAM.Device.Total = 1e9
 	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
-		3: {
-			Result: 1e9,
-		},
+		3: {ID: 3, Result: 1e9},
 	}
 
 	controller := gomock.NewController(t)
@@ -207,6 +200,35 @@ func TestConsumeRAM(t *testing.T) {
 	assert.Equal(t, uint64(1000e6), devices.RAM.Benchmarks[3].Result)
 }
 
+func TestConsumeCPUAndRAMDoNotStealResourcesWhenRAMFailed(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
+		0: {ID: 0, Result: 10000},
+	}
+	devices.RAM.Device.Total = 1e9
+	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
+		3: {ID: 3, Result: 1e9},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := sonm.Benchmarks{
+		Values: []uint64{5000, 0, 0, 1e10},
+	}
+	cpuPlan, err := manager.Consume(benchmark, sonm.NetFlags{})
+	require.Error(t, err)
+	require.Nil(t, cpuPlan)
+
+	// Note that free benchmarks still have to be full, in case of RAM did not fit.
+	assert.Equal(t, uint64(10000), manager.freeBenchmarks[0])
+	assert.Equal(t, uint64(10000), devices.CPU.Benchmarks[0].Result)
+}
+
 func TestConsumeGPU(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.GPUs = []*sonm.GPU{
@@ -215,9 +237,9 @@ func TestConsumeGPU(t *testing.T) {
 				Hash: "0",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1200},
-				10: {Result: 1860000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1200},
+				10: {ID: 10, Result: 1860000},
+				11: {ID: 11, Result: 3000},
 			},
 		},
 	}
@@ -247,9 +269,9 @@ func TestConsumeOneOfTwoGPU(t *testing.T) {
 				Hash: "0",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1200},
-				10: {Result: 1860000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 1860000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
@@ -257,9 +279,9 @@ func TestConsumeOneOfTwoGPU(t *testing.T) {
 				Hash: "1",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1100},
-				10: {Result: 110000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1100, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 110000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 	}
@@ -289,9 +311,9 @@ func TestConsumeTwoOfTwoGPU(t *testing.T) {
 				Hash: "0",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1200},
-				10: {Result: 1860000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 1860000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
@@ -299,9 +321,9 @@ func TestConsumeTwoOfTwoGPU(t *testing.T) {
 				Hash: "1",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1100},
-				10: {Result: 110000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1100, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 110000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 	}
@@ -331,9 +353,9 @@ func TestConsumeTwoOfFourGPU(t *testing.T) {
 				Hash: "0",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1000},
-				10: {Result: 100000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 100000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
@@ -341,9 +363,9 @@ func TestConsumeTwoOfFourGPU(t *testing.T) {
 				Hash: "1",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1200},
-				10: {Result: 120000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 120000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
@@ -351,9 +373,9 @@ func TestConsumeTwoOfFourGPU(t *testing.T) {
 				Hash: "2",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1400},
-				10: {Result: 140000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1400, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 140000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
@@ -361,9 +383,9 @@ func TestConsumeTwoOfFourGPU(t *testing.T) {
 				Hash: "3",
 			},
 			map[uint64]*sonm.Benchmark{
-				9:  {Result: 1600},
-				10: {Result: 160000},
-				11: {Result: 3000},
+				9:  {ID: 9, Result: 1600, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 160000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 	}
@@ -389,9 +411,7 @@ func TestConsumeStorage(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.Storage.Device.BytesAvailable = 1e9
 	devices.Storage.Benchmarks = map[uint64]*sonm.Benchmark{
-		4: {
-			Result: 1e9,
-		},
+		4: {ID: 4, Result: 1e9},
 	}
 
 	controller := gomock.NewController(t)
@@ -416,9 +436,7 @@ func TestConsumeStorageLowerBound(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.Storage.Device.BytesAvailable = 1e9
 	devices.Storage.Benchmarks = map[uint64]*sonm.Benchmark{
-		4: {
-			Result: 1e9,
-		},
+		4: {ID: 4, Result: 1e9},
 	}
 
 	controller := gomock.NewController(t)
@@ -444,10 +462,10 @@ func TestConsumeNetwork(t *testing.T) {
 	devices.Network.In = 100e6
 	devices.Network.Out = 100e6
 	devices.Network.BenchmarksIn = map[uint64]*sonm.Benchmark{
-		5: {Result: 100e6},
+		5: {ID: 5, Result: 100e6},
 	}
 	devices.Network.BenchmarksOut = map[uint64]*sonm.Benchmark{
-		6: {Result: 100e6},
+		6: {ID: 6, Result: 100e6},
 	}
 
 	controller := gomock.NewController(t)
@@ -458,7 +476,7 @@ func TestConsumeNetwork(t *testing.T) {
 	require.NotNil(t, manager)
 
 	benchmark := [12]uint64{0, 0, 0, 0, 0, 5e6, 90e6}
-	plan, err := manager.consumeNetwork(benchmark[:])
+	plan, err := manager.consumeNetwork(benchmark[:], sonm.NetFlags{})
 	require.NoError(t, err)
 	require.NotNil(t, plan)
 
@@ -469,22 +487,53 @@ func TestConsumeNetwork(t *testing.T) {
 	assert.Equal(t, uint64(10e6), manager.freeBenchmarks[6])
 }
 
+func TestConsumeNetworkWithMultipleIncomingNetFlags(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.Network.NetFlags.SetIncoming(true)
+	devices.Network.In = 100e6
+	devices.Network.Out = 100e6
+	devices.Network.BenchmarksIn = map[uint64]*sonm.Benchmark{
+		5: {ID: 5, Result: 100e6},
+	}
+	devices.Network.BenchmarksOut = map[uint64]*sonm.Benchmark{
+		6: {ID: 6, Result: 100e6},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := [12]uint64{0, 0, 0, 0, 0, 5e6, 5e6}
+	plan, err := manager.consumeNetwork(benchmark[:], sonm.NetFlags{Flags: sonm.NetworkIncoming})
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+
+	assert.Equal(t, uint64(5e6), plan.ThroughputIn.BitsPerSecond)
+	assert.Equal(t, uint64(5e6), plan.ThroughputOut.BitsPerSecond)
+
+	assert.Equal(t, uint64(95e6), manager.freeBenchmarks[5])
+	assert.Equal(t, uint64(95e6), manager.freeBenchmarks[6])
+
+	plan, err = manager.consumeNetwork(benchmark[:], sonm.NetFlags{Flags: sonm.NetworkIncoming})
+	require.Error(t, err)
+	require.Nil(t, plan)
+}
+
 func TestConsumeRAMMin(t *testing.T) {
 	// DEV-718
 	devices := newEmptyDevicesReply()
 	devices.RAM.Device.Total = 16754622464
 	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
-		3: {
-			Result: 16754622464,
-		},
+		3: {ID: 3, Result: 16754622464},
 	}
 
 	freeDevices := newEmptyDevicesReply()
 	freeDevices.RAM.Device.Total = 16754622464
 	freeDevices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
-		3: {
-			Result: 16349238095,
-		},
+		3: {ID: 3, Result: 16349238095},
 	}
 
 	controller := gomock.NewController(t)
@@ -509,45 +558,41 @@ func TestConsumeOrder(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.CPU.Device.Cores = 4
 	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
-		0: {Result: 5680},
-		1: {Result: 1526},
-		2: {Result: 4},
+		0: {ID: 0, Result: 5680},
+		1: {ID: 1, Result: 1526},
+		2: {ID: 2, Result: 4},
 	}
 	devices.RAM.Device.Total = 16754622464
 	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
-		3: {
-			Result: 16754622464,
-		},
+		3: {ID: 3, Result: 16754622464},
 	}
 	devices.Network.In = 7143572
 	devices.Network.Out = 59053206
 	devices.Network.BenchmarksIn = map[uint64]*sonm.Benchmark{
-		5: {Result: 7143572},
+		5: {ID: 5, Result: 7143572},
 	}
 	devices.Network.BenchmarksOut = map[uint64]*sonm.Benchmark{
-		6: {Result: 59053206},
+		6: {ID: 6, Result: 59053206},
 	}
 
 	freeDevices := newEmptyDevicesReply()
 	freeDevices.CPU.Device.Cores = 4
 	freeDevices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
-		0: {Result: 5183},
-		1: {Result: 1526},
-		2: {Result: 4},
+		0: {ID: 0, Result: 5183},
+		1: {ID: 1, Result: 1526},
+		2: {ID: 2, Result: 4},
 	}
 	freeDevices.RAM.Device.Total = 16754622464
 	freeDevices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
-		3: {
-			Result: 16333650944,
-		},
+		3: {ID: 3, Result: 16333650944},
 	}
 	freeDevices.Network.In = 7143572
 	freeDevices.Network.Out = 59053206
 	freeDevices.Network.BenchmarksIn = map[uint64]*sonm.Benchmark{
-		5: {Result: 6143573},
+		5: {ID: 5, Result: 6143573},
 	}
 	freeDevices.Network.BenchmarksOut = map[uint64]*sonm.Benchmark{
-		6: {Result: 58053206},
+		6: {ID: 6, Result: 58053206},
 	}
 
 	controller := gomock.NewController(t)
@@ -569,7 +614,7 @@ func TestConsumeOrder(t *testing.T) {
 		assert.Equal(t, uint64(5680), devices.CPU.Benchmarks[0].Result)
 	}
 	{
-		plan, err := manager.consumeNetwork(benchmark[:])
+		plan, err := manager.consumeNetwork(benchmark[:], sonm.NetFlags{})
 		require.NoError(t, err)
 		require.NotNil(t, plan)
 
@@ -593,10 +638,10 @@ func TestGPUStrange(t *testing.T) {
 		require.NotNil(t, manager)
 
 		benchmark := sonm.Benchmarks{
-			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 4096000000, 84936696, 0, 0},
+			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 409600000, 84936696, 0, 0},
 		}
 
-		plans, err := manager.Consume(benchmark)
+		plans, err := manager.Consume(benchmark, sonm.NetFlags{})
 		require.NoError(t, err)
 		require.NotNil(t, plans)
 
@@ -610,14 +655,96 @@ func TestGPUStrange(t *testing.T) {
 		require.NotNil(t, manager)
 
 		benchmark := sonm.Benchmarks{
-			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 4096000000, 218587776, 0, 0},
+			Values: []uint64{1000, 800, 1, 1000000, 0, 1000, 1000, 1, 409600000, 218587776, 0, 0},
 		}
 
-		plans, err := manager.Consume(benchmark)
+		plans, err := manager.Consume(benchmark, sonm.NetFlags{})
 		require.NoError(t, err)
 		require.NotNil(t, plans)
 
 		assert.True(t, len(plans.GPU.Hashes) > 0)
 		assert.Equal(t, 10, len(plans.GPU.Hashes))
 	}
+}
+
+func TestConsumeGPUWithMoreMemoryFails(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.GPUs = []*sonm.GPU{
+		{
+			&sonm.GPUDevice{
+				Hash: "0",
+			},
+			map[uint64]*sonm.Benchmark{
+				8:  {ID: 8, Result: 2.5e9, SplittingAlgorithm: sonm.SplittingAlgorithm_MIN},
+				9:  {ID: 9, Result: 1000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+			},
+		},
+		{
+			&sonm.GPUDevice{
+				Hash: "1",
+			},
+			map[uint64]*sonm.Benchmark{
+				8:  {ID: 8, Result: 3e9, SplittingAlgorithm: sonm.SplittingAlgorithm_MIN},
+				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+			},
+		},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := [12]uint64{0, 0, 0, 0, 0, 0, 0, 0, 3.1e9, 2000, 0, 0}
+	plan, err := manager.consumeGPU(2, benchmark[:])
+	require.Error(t, err)
+	require.Nil(t, plan)
+}
+
+func TestConsumeGPUWithZeroCountRequiredStillConsumes(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.GPUs = []*sonm.GPU{
+		{
+			&sonm.GPUDevice{
+				Hash: "0",
+			},
+			map[uint64]*sonm.Benchmark{
+				8:  {ID: 8, Result: 2.5e9, SplittingAlgorithm: sonm.SplittingAlgorithm_MIN},
+				9:  {ID: 9, Result: 1000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+			},
+		},
+		{
+			&sonm.GPUDevice{
+				Hash: "1",
+			},
+			map[uint64]*sonm.Benchmark{
+				8:  {ID: 8, Result: 3e9, SplittingAlgorithm: sonm.SplittingAlgorithm_MIN},
+				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				10: {ID: 10, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+				11: {ID: 11, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
+			},
+		},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := [12]uint64{0, 0, 0, 0, 0, 0, 0, 0, 2.5e9, 2000, 0, 0}
+	plan, err := manager.consumeGPU(0, benchmark[:])
+	require.NoError(t, err)
+	require.NotNil(t, plan)
+
+	assert.Equal(t, 2, len(plan.Hashes))
 }

@@ -64,6 +64,8 @@ type workerConfig struct {
 	DryRun         bool               `yaml:"dry_run" default:"false"`
 	Identity       sonm.IdentityLevel `yaml:"identity" required:"true"`
 	PriceThreshold sonm.Price         `yaml:"price_threshold" required:"true"`
+	StaleThreshold time.Duration      `yaml:"stale_threshold" default:"5m"`
+	PreludeTimeout time.Duration      `yaml:"prelude_timeout" default:"30s"`
 }
 
 func (m *workerConfig) Validate() error {

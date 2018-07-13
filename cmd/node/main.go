@@ -10,7 +10,7 @@ import (
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/node"
-	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/metrics"
 	"golang.org/x/net/context"
 )
 
@@ -50,7 +50,7 @@ func run() error {
 		n.Close()
 	}()
 
-	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
+	go metrics.NewPrometheusExporter(cfg.MetricsListenAddr, metrics.WithLogging(logger.Sugar())).Serve(ctx)
 
 	if err := n.Serve(); err != nil {
 		return fmt.Errorf("node termination: %s", err)

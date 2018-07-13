@@ -3,6 +3,8 @@ package sonm
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"time"
 
 	"github.com/docker/docker/api/types/container"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -58,6 +60,16 @@ func (m *AskPlan) Validate() error {
 	}
 
 	return m.GetResources().GetGPU().Validate()
+}
+
+func (m *AskPlan) UnsoldDuration() time.Duration {
+	if !m.GetDealID().IsZero() {
+		return time.Duration(0)
+	}
+	if m.GetOrderID().IsZero() {
+		return time.Duration(0)
+	}
+	return time.Now().Sub(m.GetLastOrderPlacedTime().Unix())
 }
 
 func NewEmptyAskPlanResources() *AskPlanResources {
@@ -332,4 +344,13 @@ func (m *AskPlanNetwork) UnmarshalYAML(unmarshal func(interface{}) error) error 
 	m.NetFlags.SetIncoming(impl.Incoming)
 
 	return nil
+}
+
+func SumPrice(plans []*AskPlan) *Price {
+	sum := big.NewInt(0)
+	for _, plan := range plans {
+		sum.Add(sum, plan.GetPrice().GetPerSecond().Unwrap())
+	}
+
+	return &Price{PerSecond: NewBigInt(sum)}
 }

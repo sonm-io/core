@@ -70,7 +70,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		LogConfig:       container.LogConfig{Type: "json-file", Config: logOpts},
 		PublishAllPorts: true,
 		PortBindings:    portBindings,
-		RestartPolicy:   d.RestartPolicy,
+		RestartPolicy:   d.RestartPolicy.Unwrap(),
 		AutoRemove:      d.autoremove,
 		Resources:       d.Resources.ToHostConfigResources(d.CGroupParent),
 	}

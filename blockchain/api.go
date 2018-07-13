@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"errors"
@@ -9,18 +10,22 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/noxiouz/zapctx/ctxlog"
 	marketAPI "github.com/sonm-io/core/blockchain/source/api"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
 
 const (
 	txRetryTimes     = 20
 	txRetryDelayTime = 100 * time.Millisecond
+	//TODO: make configurable
+	blockGenPeriod = 4 * time.Second
 )
 
 type API interface {
@@ -34,6 +39,7 @@ type API interface {
 	OracleUSD() OracleAPI
 	MasterchainGate() SimpleGatekeeperAPI
 	SidechainGate() SimpleGatekeeperAPI
+	OracleMultiSig() MultiSigAPI
 	ContractRegistry() ContractRegistry
 }
 
@@ -47,6 +53,7 @@ type ContractRegistry interface {
 	GatekeeperMasterchainAddress() common.Address
 	GatekeeperSidechainAddress() common.Address
 	TestnetFaucetAddress() common.Address
+	OracleMultiSig() common.Address
 }
 
 type ProfileRegistryAPI interface {
@@ -63,8 +70,10 @@ type ProfileRegistryAPI interface {
 }
 
 type EventsAPI interface {
-	GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error)
+	GetEvents(ctx context.Context, filter *EventFilter) (chan *Event, error)
 	GetLastBlock(ctx context.Context) (uint64, error)
+	GetMarketFilter(fromBlock *big.Int) *EventFilter
+	GetMultiSigFilter(addresses []common.Address, fromBlock *big.Int) *EventFilter
 }
 
 type MarketAPI interface {
@@ -140,6 +149,14 @@ type OracleAPI interface {
 	SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error)
 	// GetCurrentPrice returns current price relation between some currency and SONM token
 	GetCurrentPrice(ctx context.Context) (*big.Int, error)
+	// PackSetCurrentPriceTransactionData pack `SetCurrentPrice` method call
+	PackSetCurrentPriceTransactionData(price *big.Int) ([]byte, error)
+	// UnpackSetCurrentPriceTransactionData unpack `SetCurrentPrice` method call
+	UnpackSetCurrentPriceTransactionData(data []byte) (*big.Int, error)
+	// GetOwner get owner address
+	GetOwner(ctx context.Context) (common.Address, error)
+	// SetOwner set owner address, owner can change oracle price
+	SetOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address) error
 }
 
 // SimpleGatekeeperAPI facade to interact with deposit/withdraw functions through gates
@@ -156,6 +173,24 @@ type SimpleGatekeeperAPI interface {
 	Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error)
 }
 
+type MultiSigAPI interface {
+	AddOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address) error
+	RemoveOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address) error
+	ReplaceOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address, newOwner common.Address) error
+	ChangeRequirement(ctx context.Context, key *ecdsa.PrivateKey, required *big.Int) error
+	SubmitTransaction(ctx context.Context, key *ecdsa.PrivateKey, destination common.Address, value *big.Int, data []byte) error
+	ConfirmTransaction(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error
+	RevokeConfirmation(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error
+	ExecuteTransaction(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error
+	IsConfirmed(ctx context.Context, transactionID *big.Int) (bool, error)
+	GetConfirmationCount(ctx context.Context, transactionID *big.Int) (*big.Int, error)
+	GetTransactionCount(ctx context.Context, penging bool, executed bool) (*big.Int, error)
+	GetOwners(ctx context.Context) ([]common.Address, error)
+	GetConfirmations(ctx context.Context, transactionID *big.Int) ([]common.Address, error)
+	GetTransactionIDs(ctx context.Context, from *big.Int, to *big.Int, pending bool, executed bool) ([]*big.Int, error)
+	GetTransaction(ctx context.Context, transactionID *big.Int) (*MultiSigTransactionData, error)
+}
+
 type BasicAPI struct {
 	options          *options
 	contractRegistry ContractRegistry
@@ -169,6 +204,7 @@ type BasicAPI struct {
 	oracle           OracleAPI
 	masterchainGate  SimpleGatekeeperAPI
 	sidechainGate    SimpleGatekeeperAPI
+	oracleMultiSig   MultiSigAPI
 }
 
 func NewAPI(ctx context.Context, opts ...Option) (API, error) {
@@ -191,6 +227,7 @@ func NewAPI(ctx context.Context, opts ...Option) (API, error) {
 		api.setupOracle,
 		api.setupMasterchainGate,
 		api.setupSidechainGate,
+		api.setupOracleMultiSig,
 	}
 
 	for _, setupFunc := range setup {
@@ -273,7 +310,7 @@ func (api *BasicAPI) setupProfileRegistry(ctx context.Context) error {
 }
 
 func (api *BasicAPI) setupEvents(ctx context.Context) error {
-	events, err := NewEventsAPI(api, api.options.sidechain, ctxlog.GetLogger(ctx))
+	events, err := NewEventsAPI(api, api.options.sidechain, ctxlog.GetLogger(ctx), api.options.blocksBatchSize)
 	if err != nil {
 		return fmt.Errorf("failed to setup events: %s", err)
 	}
@@ -288,6 +325,16 @@ func (api *BasicAPI) setupOracle(ctx context.Context) error {
 		return fmt.Errorf("failed to setup oracle: %s", err)
 	}
 	api.oracle = oracle
+	return nil
+}
+
+func (api *BasicAPI) setupOracleMultiSig(ctx context.Context) error {
+	multiSigAddr := api.contractRegistry.OracleMultiSig()
+	oracleMultiSig, err := NewMultiSigAPI(multiSigAddr, api.options.sidechain)
+	if err != nil {
+		return fmt.Errorf("failed to setup oracle: %s", err)
+	}
+	api.oracleMultiSig = oracleMultiSig
 	return nil
 }
 
@@ -343,6 +390,10 @@ func (api *BasicAPI) OracleUSD() OracleAPI {
 	return api.oracle
 }
 
+func (api *BasicAPI) OracleMultiSig() MultiSigAPI {
+	return api.oracleMultiSig
+}
+
 func (api *BasicAPI) MasterchainGate() SimpleGatekeeperAPI {
 	return api.masterchainGate
 }
@@ -385,6 +436,7 @@ type BasicContractRegistry struct {
 	gatekeeperMasterchainAddress common.Address
 	gatekeeperSidechainAddress   common.Address
 	testnetFaucetAddress         common.Address
+	oracleMultiSigAddress        common.Address
 
 	registryContract *marketAPI.AddressHashMap
 }
@@ -421,6 +473,7 @@ func (m *BasicContractRegistry) setup(ctx context.Context) error {
 		{gatekeeperMasterchainAddressKey, &m.gatekeeperMasterchainAddress},
 		{gatekeeperSidechainAddressKey, &m.gatekeeperSidechainAddress},
 		{testnetFaucetAddressKey, &m.testnetFaucetAddress},
+		{oracleMultiSigAddressKey, &m.oracleMultiSigAddress},
 	}
 
 	for _, param := range addresses {
@@ -466,6 +519,10 @@ func (m *BasicContractRegistry) GatekeeperSidechainAddress() common.Address {
 
 func (m *BasicContractRegistry) TestnetFaucetAddress() common.Address {
 	return m.testnetFaucetAddress
+}
+
+func (m *BasicContractRegistry) OracleMultiSig() common.Address {
+	return m.oracleMultiSigAddress
 }
 
 type BasicMarketAPI struct {
@@ -1136,7 +1193,7 @@ func (api *StandardTokenApi) Approve(ctx context.Context, key *ecdsa.PrivateKey,
 }
 
 func (api *StandardTokenApi) approve(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int, curAmount *big.Int) error {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, approveGasLimit)
 	if curAmount.Cmp(big.NewInt(0)) != 0 {
 		tx, err := api.tokenContract.Approve(opts, to, big.NewInt(0))
 		if err != nil {
@@ -1210,37 +1267,37 @@ func (api *TestTokenApi) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (
 }
 
 type BasicEventsAPI struct {
-	parent API
-	client CustomEthereumClient
-	logger *zap.Logger
+	parent  API
+	options *chainOpts
+	client  CustomEthereumClient
+	logger  *zap.Logger
+	// Number of blocks that will be read by FilterLogs() in one batch. This is required
+	// so that we don't run out of memory trying to load all of the logs at once.
+	blocksBatchSize uint64
 }
 
-func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger) (EventsAPI, error) {
+type EventFilter struct {
+	topics    [][]common.Hash
+	addresses []common.Address
+	fromBlock *big.Int
+}
+
+func NewEventsAPI(parent API, opts *chainOpts, logger *zap.Logger, blocksBatchSize uint64) (EventsAPI, error) {
 	client, err := opts.getClient()
 	if err != nil {
 		return nil, err
 	}
 
 	return &BasicEventsAPI{
-		parent: parent,
-		client: client,
-		logger: logger,
+		parent:          parent,
+		options:         opts,
+		client:          client,
+		logger:          logger,
+		blocksBatchSize: blocksBatchSize,
 	}, nil
 }
 
-func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
-	block, err := api.client.GetLastBlock(ctx)
-	if err != nil {
-		return 0, err
-	}
-	if block.IsUint64() {
-		return block.Uint64(), nil
-	} else {
-		return 0, errors.New("block number overflows uint64")
-	}
-}
-
-func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.Int) (chan *Event, error) {
+func (api *BasicEventsAPI) GetMarketFilter(fromBlock *big.Int) *EventFilter {
 	var (
 		topics     [][]common.Hash
 		eventTopic = []common.Hash{
@@ -1262,74 +1319,183 @@ func (api *BasicEventsAPI) GetEvents(ctx context.Context, fromBlockInitial *big.
 			CertificateCreatedTopic,
 			NumBenchmarksUpdatedTopic,
 		}
-		out = make(chan *Event, 128)
 	)
 	topics = append(topics, eventTopic)
 
+	addresses := []common.Address{
+		api.parent.ContractRegistry().MarketAddress(),
+		api.parent.ContractRegistry().BlacklistAddress(),
+		api.parent.ContractRegistry().ProfileRegistryAddress(),
+	}
+
+	return &EventFilter{
+		fromBlock: fromBlock,
+		topics:    topics,
+		addresses: addresses,
+	}
+}
+
+func (api *BasicEventsAPI) GetMultiSigFilter(addresses []common.Address, fromBlock *big.Int) *EventFilter {
+	var (
+		topics     [][]common.Hash
+		eventTopic = []common.Hash{
+			ConfirmationTopic,
+			RevocationTopic,
+			SubmissionTopic,
+			ExecutionTopic,
+			ExecutionFailureTopic,
+			DepositTopic,
+			OwnerAdditionTopic,
+			OwnerRemovalTopic,
+			RequirementChangeTopic,
+		}
+	)
+	topics = append(topics, eventTopic)
+
+	return &EventFilter{
+		fromBlock: fromBlock,
+		topics:    topics,
+		addresses: addresses,
+	}
+}
+
+func (api *BasicEventsAPI) GetLastBlock(ctx context.Context) (uint64, error) {
+	block, err := api.client.GetLastBlock(ctx)
+	if err != nil {
+		return 0, err
+	}
+	if block.IsUint64() {
+		return block.Uint64(), nil
+	} else {
+		return 0, errors.New("block number overflows uint64")
+	}
+}
+
+func (api *BasicEventsAPI) GetEvents(ctx context.Context, filter *EventFilter) (chan *Event, error) {
+	out := make(chan *Event, 1024)
+
+	if filter.fromBlock != nil && !filter.fromBlock.IsUint64() {
+		return nil, errors.New("filter fromBlock field is out of uint64 range")
+	}
+	// we are mutating filter, so prevent some strange behaviour on client side
+	sFilter := simpleFilter{
+		Addresses: filter.addresses,
+		Topics:    filter.topics,
+	}
+	if filter.fromBlock != nil {
+		sFilter.FromBlock = filter.fromBlock.Uint64()
+	}
+
 	go func() {
-		var (
-			lastLogBlockNumber = fromBlockInitial.Uint64()
-			fromBlock          = fromBlockInitial.Uint64()
-			tk                 = time.NewTicker(time.Second)
-		)
-		for {
-			select {
-			case <-ctx.Done():
-				close(out)
-				return
-			case <-tk.C:
-				logs, err := api.client.FilterLogs(ctx, ethereum.FilterQuery{
-					Topics:    topics,
-					FromBlock: big.NewInt(0).SetUint64(fromBlock),
-					Addresses: []common.Address{
-						api.parent.ContractRegistry().MarketAddress(),
-						api.parent.ContractRegistry().BlacklistAddress(),
-						api.parent.ContractRegistry().ProfileRegistryAddress(),
-					},
-				})
-
-				if err != nil {
-					out <- &Event{
-						Data:        &ErrorData{Err: fmt.Errorf("failed to FilterLogs: %v", err)},
-						BlockNumber: fromBlock,
-					}
-				}
-
-				numLogs := len(logs)
-				if numLogs < 1 {
-					api.logger.Info("no logs, skipping")
-					continue
-				}
-
-				var eventTS uint64
-				for _, log := range logs {
-					// Skip logs from the last seen block.
-					if log.BlockNumber == fromBlock {
-						continue
-					}
-					// Update eventTS if we've got a new block.
-					if lastLogBlockNumber != log.BlockNumber {
-						lastLogBlockNumber = log.BlockNumber
-						block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(lastLogBlockNumber))
-						if err != nil {
-							api.logger.Warn("failed to get event timestamp", zap.Error(err),
-								zap.Uint64("blockNumber", lastLogBlockNumber))
-						} else {
-							eventTS = block.Time().Uint64()
-						}
-					}
-					api.processLog(log, eventTS, out)
-				}
-
-				fromBlock = logs[numLogs-1].BlockNumber
+		if err := api.getEventsRoutine(ctx, sFilter, out); err != nil {
+			out <- &Event{
+				Data: &ErrorData{Err: err, Topic: "unknown"},
 			}
 		}
+		close(out)
 	}()
-
 	return out, nil
 }
 
-func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *Event) {
+type simpleFilter struct {
+	FromBlock uint64
+	ToBlock   uint64
+	Addresses []common.Address
+	Topics    [][]common.Hash
+}
+
+func (m *simpleFilter) EthFilter() ethereum.FilterQuery {
+	return ethereum.FilterQuery{
+		FromBlock: big.NewInt(0).SetUint64(m.FromBlock),
+		ToBlock:   big.NewInt(0).SetUint64(m.ToBlock),
+		Addresses: m.Addresses,
+		Topics:    m.Topics,
+	}
+}
+
+// Return block number which is beyond blockConfirmations count from the head
+func (api *BasicEventsAPI) getLastConfirmedBlock(ctx context.Context) (uint64, error) {
+	lastBlock, err := api.GetLastBlock(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get latest block number: %v", err)
+	}
+
+	return lastBlock - uint64(api.options.blockConfirmations), nil
+
+}
+
+func (api *BasicEventsAPI) getEventsRoutine(ctx context.Context, filter simpleFilter, receiver chan<- *Event) error {
+	tk := util.NewImmediateTicker(blockGenPeriod)
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-tk.C:
+			// We do not want to read logs from block beyond blockConfirmations count from the head
+			tillBlock, err := api.getLastConfirmedBlock(ctx)
+			if err != nil {
+				return fmt.Errorf("failed to get latest block number: %v", err)
+			}
+			if filter.FromBlock > tillBlock {
+				continue
+			}
+
+			err = api.getEventsTill(ctx, filter, tillBlock, receiver)
+			if err != nil {
+				return err
+			}
+			filter.FromBlock = tillBlock + 1
+		}
+	}
+}
+
+func (api *BasicEventsAPI) getEventsTill(ctx context.Context, filter simpleFilter, tillBlock uint64, receiver chan<- *Event) error {
+	ctxlog.S(ctx).Debugf("fetching events from %d till %d", filter.FromBlock, tillBlock)
+	for {
+		// we substract one, because of range inclusivity in FilterLogs call
+		filter.ToBlock = filter.FromBlock + api.blocksBatchSize - 1
+		if filter.ToBlock > tillBlock {
+			filter.ToBlock = tillBlock
+		}
+		if err := api.fetchAndProcessLogs(ctx, filter, receiver); err != nil {
+			return err
+		}
+		if filter.ToBlock == tillBlock {
+			// we fetched all the logs
+			return nil
+		} else {
+			// Start right after the last fetched block
+			filter.FromBlock = filter.ToBlock + 1
+		}
+	}
+}
+
+func (api *BasicEventsAPI) fetchAndProcessLogs(ctx context.Context, filter simpleFilter, receiver chan<- *Event) error {
+	logs, err := api.client.FilterLogs(ctx, filter.EthFilter())
+	ctxlog.S(ctx).Debugf("filtering logs from %d to %d", filter.FromBlock, filter.ToBlock)
+	if err != nil {
+		return err
+	}
+	var curBlock uint64
+	var curEventTS uint64
+	for _, log := range logs {
+		if log.BlockNumber != curBlock {
+			curBlock = log.BlockNumber
+			block, err := api.client.BlockByNumber(ctx, big.NewInt(0).SetUint64(curBlock))
+			if err != nil {
+				// TODO @aplodismerti: This place was changed, previously only log was written and old ts was used, is it right?
+				return fmt.Errorf("failed to get event timestamp for block %d: %s", curBlock, err)
+			}
+			curEventTS = block.Time().Uint64()
+			ctxlog.S(ctx).Debugf("switching to block %d", log.BlockNumber)
+		}
+		api.processLog(log, curEventTS, receiver)
+	}
+	ctxlog.S(ctx).Debugf("processed %d logs in blocks from %d to %d", len(logs), filter.FromBlock, filter.ToBlock)
+	return nil
+}
+
+func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan<- *Event) {
 	// This should never happen, but it's ethereum, and things might happen.
 	if len(log.Topics) < 1 {
 		out <- &Event{
@@ -1339,12 +1505,17 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 		return
 	}
 
-	sendErr := func(out chan *Event, err error, topic common.Hash) {
+	sendErr := func(out chan<- *Event, err error, topic common.Hash) {
 		out <- &Event{Data: &ErrorData{Err: err, Topic: topic.String()}, BlockNumber: log.BlockNumber, TS: eventTS}
 	}
 
 	sendData := func(data interface{}) {
-		out <- &Event{Data: data, BlockNumber: log.BlockNumber, TS: eventTS}
+		out <- &Event{Data: data,
+			BlockNumber:  log.BlockNumber,
+			TxIndex:      uint64(log.TxIndex),
+			ReceiptIndex: uint64(log.Index),
+			TS:           eventTS,
+		}
 	}
 
 	var topic = log.Topics[0]
@@ -1495,6 +1666,65 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan *E
 			return
 		}
 		sendData(&NumBenchmarksUpdatedData{NumBenchmarks: numBenchmarksBig.Uint64()})
+	case ConfirmationTopic:
+		sender, err := extractAddress(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		transactionID, err := extractBig(log.Topics, 2)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&ConfirmationData{Sender: sender, TransactionId: transactionID})
+	case RevocationTopic:
+		sender, err := extractAddress(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		transactionID, err := extractBig(log.Topics, 2)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&RevocationData{Sender: sender, TransactionId: transactionID})
+	case SubmissionTopic:
+		transactionID, err := extractBig(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&SubmissionData{TransactionId: transactionID})
+	case ExecutionTopic:
+		transactionID, err := extractBig(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&ExecutionData{TransactionId: transactionID})
+	case ExecutionFailureTopic:
+		transactionID, err := extractBig(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&ExecutionFailureData{TransactionId: transactionID})
+	case OwnerAdditionTopic:
+		sender, err := extractAddress(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&OwnerAdditionData{Owner: sender})
+	case OwnerRemovalTopic:
+		sender, err := extractAddress(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&OwnerAdditionData{Owner: sender})
 	default:
 		out <- &Event{
 			Data:        &ErrorData{Err: errors.New("unknown topic"), Topic: topic.String()},
@@ -1528,9 +1758,52 @@ func NewOracleUSDAPI(address common.Address, opts *chainOpts) (OracleAPI, error)
 
 }
 
+func (api *OracleUSDAPI) GetOwner(ctx context.Context) (common.Address, error) {
+	return api.oracleContract.Owner(getCallOptions(ctx))
+}
+
+func (api *OracleUSDAPI) SetOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.oracleContract.TransferOwnership(opts, owner)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, OwnershipTransferredTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (api *OracleUSDAPI) SetCurrentPrice(ctx context.Context, key *ecdsa.PrivateKey, price *big.Int) (*types.Transaction, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 	return api.oracleContract.SetCurrentPrice(opts, price)
+}
+
+func (api *OracleUSDAPI) PackSetCurrentPriceTransactionData(price *big.Int) ([]byte, error) {
+	oracleABI, err := abi.JSON(bytes.NewBufferString(marketAPI.OracleUSDABI))
+	if err != nil {
+		return nil, err
+	}
+	return oracleABI.Pack("setCurrentPrice", price)
+}
+
+func (api *OracleUSDAPI) UnpackSetCurrentPriceTransactionData(data []byte) (*big.Int, error) {
+	if len(data) == 0 {
+		return nil, fmt.Errorf("data is empty")
+	}
+
+	if len(data) < 36 {
+		return nil, fmt.Errorf("data is malformed")
+	}
+	// Cut method specify byte, keep only parameters data
+	// Method ids are saves at the first 4 bytes of the hash of the
+	// methods string signature. (signature = baz(uint32,string32))
+	params := data[4:]
+
+	price := common.HexToAddress(common.Bytes2Hex(params[:32])).Big()
+	return price, nil
 }
 
 func (api *OracleUSDAPI) GetCurrentPrice(ctx context.Context) (*big.Int, error) {
@@ -1539,7 +1812,7 @@ func (api *OracleUSDAPI) GetCurrentPrice(ctx context.Context) (*big.Int, error) 
 
 type BasicSimpleGatekeeper struct {
 	client   CustomEthereumClient
-	contract *marketAPI.SimpleGatekeeper
+	contract *marketAPI.SimpleGatekeeperWithLimit
 	opts     *chainOpts
 }
 
@@ -1549,7 +1822,7 @@ func NewSimpleGatekeeper(address common.Address, opts *chainOpts) (SimpleGatekee
 		return nil, err
 	}
 
-	contract, err := marketAPI.NewSimpleGatekeeper(address, client)
+	contract, err := marketAPI.NewSimpleGatekeeperWithLimit(address, client)
 	if err != nil {
 		return nil, err
 	}
@@ -1562,13 +1835,13 @@ func NewSimpleGatekeeper(address common.Address, opts *chainOpts) (SimpleGatekee
 }
 
 func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateKey, value *big.Int) error {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
-	tx, err := api.contract.PayIn(opts, value)
+	opts := api.opts.getTxOpts(ctx, key, payinGasLimit)
+	tx, err := api.contract.Payin(opts, value)
 	if err != nil {
 		return err
 	}
 
-	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayInTopic); err != nil {
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayinTopic); err != nil {
 		return err
 	}
 
@@ -1576,11 +1849,170 @@ func (api *BasicSimpleGatekeeper) PayIn(ctx context.Context, key *ecdsa.PrivateK
 }
 
 func (api *BasicSimpleGatekeeper) Payout(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, value *big.Int, txNumber *big.Int) (*types.Transaction, error) {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, payoutGasLimit)
 	return api.contract.Payout(opts, to, value, txNumber)
 }
 
 func (api *BasicSimpleGatekeeper) Kill(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
 	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
 	return api.contract.Kill(opts)
+}
+
+type BasicMultiSigAPI struct {
+	client   CustomEthereumClient
+	contract *marketAPI.MultiSigWallet
+	opts     *chainOpts
+	address  common.Address
+}
+
+func NewMultiSigAPI(address common.Address, opts *chainOpts) (MultiSigAPI, error) {
+	client, err := opts.getClient()
+	if err != nil {
+		return nil, err
+	}
+
+	contract, err := marketAPI.NewMultiSigWallet(address, client)
+	if err != nil {
+		return nil, err
+	}
+
+	return &BasicMultiSigAPI{
+		address:  address,
+		client:   client,
+		contract: contract,
+		opts:     opts,
+	}, nil
+}
+
+func (api *BasicMultiSigAPI) AddOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address) error {
+	oracleABI, err := abi.JSON(bytes.NewBufferString(marketAPI.MultiSigWalletABI))
+	if err != nil {
+		return err
+	}
+	data, err := oracleABI.Pack("AddOwner", owner)
+
+	return api.SubmitTransaction(ctx, key, api.address, big.NewInt(0), data)
+}
+
+func (api *BasicMultiSigAPI) RemoveOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address) error {
+	oracleABI, err := abi.JSON(bytes.NewBufferString(marketAPI.MultiSigWalletABI))
+	if err != nil {
+		return err
+	}
+	data, err := oracleABI.Pack("RemoveOwner", owner)
+
+	return api.SubmitTransaction(ctx, key, api.address, big.NewInt(0), data)
+}
+
+func (api *BasicMultiSigAPI) ReplaceOwner(ctx context.Context, key *ecdsa.PrivateKey, owner common.Address, newOwner common.Address) error {
+	oracleABI, err := abi.JSON(bytes.NewBufferString(marketAPI.MultiSigWalletABI))
+	if err != nil {
+		return err
+	}
+	data, err := oracleABI.Pack("ReplaceOwner", owner, newOwner)
+
+	return api.SubmitTransaction(ctx, key, api.address, big.NewInt(0), data)
+}
+
+func (api *BasicMultiSigAPI) ChangeRequirement(ctx context.Context, key *ecdsa.PrivateKey, required *big.Int) error {
+	oracleABI, err := abi.JSON(bytes.NewBufferString(marketAPI.MultiSigWalletABI))
+	if err != nil {
+		return err
+	}
+	data, err := oracleABI.Pack("ChangeRequirement", required)
+
+	return api.SubmitTransaction(ctx, key, api.address, big.NewInt(0), data)
+}
+
+func (api *BasicMultiSigAPI) SubmitTransaction(ctx context.Context, key *ecdsa.PrivateKey, destination common.Address, value *big.Int, data []byte) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.contract.SubmitTransaction(opts, destination, value, data)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, ConfirmationTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *BasicMultiSigAPI) ConfirmTransaction(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.contract.ConfirmTransaction(opts, transactionID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, ConfirmationTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *BasicMultiSigAPI) RevokeConfirmation(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.contract.RevokeConfirmation(opts, transactionID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, RevocationTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *BasicMultiSigAPI) ExecuteTransaction(ctx context.Context, key *ecdsa.PrivateKey, transactionID *big.Int) error {
+	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	tx, err := api.contract.ExecuteTransaction(opts, transactionID)
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, PayinTopic); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (api *BasicMultiSigAPI) IsConfirmed(ctx context.Context, transactionID *big.Int) (bool, error) {
+	return api.contract.IsConfirmed(getCallOptions(ctx), transactionID)
+}
+
+func (api *BasicMultiSigAPI) GetConfirmationCount(ctx context.Context, transactionID *big.Int) (*big.Int, error) {
+	return api.contract.GetConfirmationCount(getCallOptions(ctx), transactionID)
+}
+
+func (api *BasicMultiSigAPI) GetTransactionCount(ctx context.Context, penging bool, executed bool) (*big.Int, error) {
+	return api.contract.GetTransactionCount(getCallOptions(ctx), penging, executed)
+}
+
+func (api *BasicMultiSigAPI) GetOwners(ctx context.Context) ([]common.Address, error) {
+	return api.contract.GetOwners(getCallOptions(ctx))
+}
+
+func (api *BasicMultiSigAPI) GetConfirmations(ctx context.Context, transactionID *big.Int) ([]common.Address, error) {
+	return api.contract.GetConfirmations(getCallOptions(ctx), transactionID)
+}
+
+func (api *BasicMultiSigAPI) GetTransactionIDs(ctx context.Context, from *big.Int, to *big.Int, pending bool, executed bool) ([]*big.Int, error) {
+	return api.contract.GetTransactionIds(getCallOptions(ctx), from, to, pending, executed)
+}
+
+func (api *BasicMultiSigAPI) GetTransaction(ctx context.Context, transactionID *big.Int) (*MultiSigTransactionData, error) {
+	tx, err := api.contract.Transactions(getCallOptions(ctx), transactionID)
+	if err != nil {
+		return nil, err
+	}
+	return &MultiSigTransactionData{
+		To:       tx.Destination,
+		Value:    tx.Value,
+		Data:     tx.Data,
+		Executed: tx.Executed,
+	}, nil
 }

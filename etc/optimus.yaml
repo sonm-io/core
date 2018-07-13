@@ -58,6 +58,11 @@ workers:
     # Required.
     # Possible values are: anonymous, registered, identified and professional.
     identity: anonymous
+    # Prelude timeout for fetching input properties for the optimization step.
+    # Used to detect hanging workers and/or DWH.
+    # Optional.
+    # Default value is 30s.
+    prelude_timeout: 30s
 
 benchmarks:
   # URL to download benchmark list, use `file://` schema to load file from a filesystem.
@@ -68,8 +73,8 @@ marketplace:
   # Account settings.
   ethereum: *ethereum
   # DWH endpoint.
-  endpoint: 0x3f46ed4f779fd378f630d8cd996796c69a7738d2@dwh-testnet.sonm.com:15021
-  # Interval of periodic current orders fetching from the marketplace.
+  endpoint: "0xadffcac607a0a1b583c489977eae413a62d4bc73@dwh.livenet.sonm.com:15021"
+  # Interval of current orders caching, that are fetched from the marketplace.
   interval: 30s
 
 # Optimization engine settings.

@@ -1,7 +1,7 @@
 # docker image settings, required section
 container:
   # Image name to start on worker, required param.
-  image: httpd:latest
+  image: httpd@sha256:b5f21641a9d7bbb59dc94fb6a663c43fbf3f56270ce7c7d51801ac74d2e70046
   # Env variables that will be passed to container on start.
   env:
     param1: value1

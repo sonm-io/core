@@ -9,6 +9,7 @@ import (
 
 	"github.com/montanaflynn/stats"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
+	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/proto"
 )
 
@@ -152,24 +153,75 @@ func (m *networkOutConsumer) Result(criteria float64) interface{} {
 }
 
 type DeviceManager struct {
-	devices        *sonm.DevicesReply
-	mapping        benchmarks.Mapping
-	freeGPUs       []*sonm.GPU
-	freeBenchmarks [sonm.MinNumBenchmarks]uint64
+	devices             *sonm.DevicesReply
+	mapping             benchmarks.Mapping
+	freeGPUs            []*sonm.GPU
+	freeBenchmarks      []uint64
+	freeIncomingNetwork bool
 }
 
 func newDeviceManager(devices *sonm.DevicesReply, freeDevices *sonm.DevicesReply, mapping benchmarks.Mapping) (*DeviceManager, error) {
+	freeHardware := hardware.Hardware{
+		CPU:     freeDevices.CPU,
+		GPU:     freeDevices.GPUs,
+		RAM:     freeDevices.RAM,
+		Network: freeDevices.Network,
+		Storage: freeDevices.Storage,
+	}
+
+	freeBenchmarks, err := freeHardware.FullBenchmarks()
+	if err != nil {
+		return nil, err
+	}
+
 	m := &DeviceManager{
-		devices:        devices,
-		mapping:        mapping,
-		freeGPUs:       append([]*sonm.GPU{}, freeDevices.GPUs...),
-		freeBenchmarks: newBenchmarksFromDevices(freeDevices),
+		devices:             devices,
+		mapping:             mapping,
+		freeGPUs:            append([]*sonm.GPU{}, freeDevices.GPUs...),
+		freeBenchmarks:      freeBenchmarks.ToArray(), // TODO: <
+		freeIncomingNetwork: freeDevices.GetNetwork().GetNetFlags().GetIncoming(),
 	}
 
 	return m, nil
 }
 
-func (m *DeviceManager) Consume(benchmarks sonm.Benchmarks) (*sonm.AskPlanResources, error) {
+func (m *DeviceManager) Contains(benchmarks sonm.Benchmarks, netflags sonm.NetFlags) bool {
+	copyFreeBenchmarks := append([]uint64{}, m.freeBenchmarks...)
+	copyFreeGPUs := append([]*sonm.GPU{}, m.freeGPUs...)
+	copyFreeIncomingNetwork := m.freeIncomingNetwork
+
+	defer func() {
+		m.freeBenchmarks = append([]uint64{}, copyFreeBenchmarks...)
+	}()
+	defer func() {
+		m.freeGPUs = append([]*sonm.GPU{}, copyFreeGPUs...)
+	}()
+	defer func() {
+		m.freeIncomingNetwork = copyFreeIncomingNetwork
+	}()
+
+	_, err := m.consumeBenchmarks(benchmarks, netflags)
+	return err == nil
+}
+
+func (m *DeviceManager) Consume(benchmarks sonm.Benchmarks, netflags sonm.NetFlags) (*sonm.AskPlanResources, error) {
+	// Transaction-like resource restoring while consuming in case of errors.
+	copyFreeBenchmarks := append([]uint64{}, m.freeBenchmarks...)
+	copyFreeGPUs := append([]*sonm.GPU{}, m.freeGPUs...)
+	copyFreeIncomingNetwork := m.freeIncomingNetwork
+
+	plan, err := m.consumeBenchmarks(benchmarks, netflags)
+	if err != nil {
+		m.freeIncomingNetwork = copyFreeIncomingNetwork
+		m.freeGPUs = append([]*sonm.GPU{}, copyFreeGPUs...)
+		m.freeBenchmarks = append([]uint64{}, copyFreeBenchmarks...)
+		return nil, err
+	}
+
+	return plan, nil
+}
+
+func (m *DeviceManager) consumeBenchmarks(benchmarks sonm.Benchmarks, netflags sonm.NetFlags) (*sonm.AskPlanResources, error) {
 	cpu, err := m.consumeCPU(benchmarks.ToArray())
 	if err != nil {
 		return nil, err
@@ -190,7 +242,7 @@ func (m *DeviceManager) Consume(benchmarks sonm.Benchmarks) (*sonm.AskPlanResour
 		return nil, err
 	}
 
-	network, err := m.consumeNetwork(benchmarks.ToArray())
+	network, err := m.consumeNetwork(benchmarks.ToArray(), netflags)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +288,7 @@ func (m *DeviceManager) consumeStorage(benchmarks []uint64) (*sonm.AskPlanStorag
 	return value.(*sonm.AskPlanStorage), nil
 }
 
-func (m *DeviceManager) consumeNetwork(benchmarks []uint64) (*sonm.AskPlanNetwork, error) {
+func (m *DeviceManager) consumeNetwork(benchmarks []uint64, netflags sonm.NetFlags) (*sonm.AskPlanNetwork, error) {
 	throughputIn, err := m.consumeNetworkIn(benchmarks)
 	if err != nil {
 		return nil, err
@@ -245,6 +297,14 @@ func (m *DeviceManager) consumeNetwork(benchmarks []uint64) (*sonm.AskPlanNetwor
 	throughputOut, err := m.consumeNetworkOut(benchmarks)
 	if err != nil {
 		return nil, err
+	}
+
+	if netflags.GetIncoming() {
+		if m.freeIncomingNetwork {
+			m.freeIncomingNetwork = false
+		} else {
+			return nil, errExhausted
+		}
 	}
 
 	return &sonm.AskPlanNetwork{
@@ -317,16 +377,47 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 }
 
 func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.AskPlanGPU, error) {
+	GPURequired := false
+	for id, value := range benchmarks {
+		if m.mapping.DeviceType(id) == sonm.DeviceType_DEV_GPU {
+			if value != 0 {
+				GPURequired = true
+				break
+			}
+		}
+	}
+
 	if minCount == 0 {
-		return &sonm.AskPlanGPU{}, nil
+		if GPURequired {
+			minCount = 1
+		} else {
+			return &sonm.AskPlanGPU{}, nil
+		}
 	}
 
 	score := float64(math.MaxFloat64)
 	var candidates []*sonm.GPU
+
 	for k := int(minCount); k <= len(m.devices.GPUs); k++ {
+	subsetLoop:
 		for _, subset := range m.combinationsGPU(k) {
 			currentScore := 0.0
 			currentBenchmarks := append([]uint64{}, benchmarks...)
+
+			// Fast filter by GPU memory benchmark.
+			// All GPUs in the subset must have at least(!) the required memory
+			// number.
+			for _, gpu := range subset {
+				for id := range currentBenchmarks {
+					if m.mapping.SplittingAlgorithm(id) == sonm.SplittingAlgorithm_MIN {
+						if benchmark, ok := gpu.Benchmarks[uint64(id)]; ok {
+							if currentBenchmarks[id] > benchmark.Result {
+								continue subsetLoop
+							}
+						}
+					}
+				}
+			}
 
 			for _, gpu := range subset {
 				for id := range currentBenchmarks {

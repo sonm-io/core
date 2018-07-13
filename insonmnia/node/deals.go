@@ -58,19 +58,21 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.BigInt) (*pb.DealInfoReply
 
 	reply := &pb.DealInfoReply{Deal: deal}
 
-	// try to extract extra info for deal
-	dealID := deal.GetId().Unwrap().String()
-	workerCtx, workerCtxCancel := context.WithTimeout(ctx, 10*time.Second)
-	defer workerCtxCancel()
+	// try to extract extra info for deal if current user is consumer
+	if deal.GetConsumerID().Unwrap().Big().Cmp(crypto.PubkeyToAddress(d.remotes.key.PublicKey).Big()) == 0 {
+		dealID := deal.GetId().Unwrap().String()
+		workerCtx, workerCtxCancel := context.WithTimeout(ctx, 10*time.Second)
+		defer workerCtxCancel()
 
-	worker, closer, err := d.remotes.getWorkerClientByEthAddr(workerCtx, deal.GetSupplierID().Unwrap().Hex())
-	if err == nil {
-		ctxlog.G(d.remotes.ctx).Debug("try to obtain deal info from the worker")
-		defer closer.Close()
-
-		info, err := worker.GetDealInfo(workerCtx, &pb.ID{Id: dealID})
+		worker, closer, err := d.remotes.getWorkerClientByEthAddr(workerCtx, deal.GetSupplierID().Unwrap().Hex())
 		if err == nil {
-			return info, nil
+			ctxlog.G(d.remotes.ctx).Debug("try to obtain deal info from the worker")
+			defer closer.Close()
+
+			info, err := worker.GetDealInfo(workerCtx, &pb.ID{Id: dealID})
+			if err == nil {
+				return info, nil
+			}
 		}
 	}
 
@@ -204,9 +206,9 @@ func invertOrderType(s pb.OrderType) pb.OrderType {
 	}
 }
 
-func newDealsAPI(opts *remoteOptions) (pb.DealManagementServer, error) {
+func newDealsAPI(opts *remoteOptions) pb.DealManagementServer {
 	return &dealsAPI{
 		remotes: opts,
 		ctx:     opts.ctx,
-	}, nil
+	}
 }

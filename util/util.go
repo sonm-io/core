@@ -1,11 +1,9 @@
 package util
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"math/big"
-	"net/http"
 	"os"
 	"os/user"
 	"path"
@@ -13,9 +11,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
-	log "github.com/noxiouz/zapctx/ctxlog"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.uber.org/zap"
 )
 
 const (
@@ -122,13 +117,6 @@ func StringToEtherPrice(s string) (*big.Int, error) {
 	}
 
 	return v, nil
-}
-
-func StartPrometheus(ctx context.Context, listenAddr string) {
-	log.GetLogger(ctx).Info(
-		"starting metrics server", zap.String("metrics_addr", listenAddr))
-	http.Handle("/metrics", promhttp.Handler())
-	http.ListenAndServe(listenAddr, nil)
 }
 
 func BigIntToPaddedString(x *big.Int) string {

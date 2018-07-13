@@ -73,6 +73,7 @@ import (
 	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/insonmnia/npp/nppc"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -303,7 +304,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		cfg: cfg,
 
 		port:     port,
-		listener: listener,
+		listener: &BackPressureListener{listener, opts.log},
 		cluster:  nil,
 		members:  cfg.Cluster.Members,
 
@@ -376,17 +377,31 @@ func (m *server) initCluster(cfg ClusterConfig) error {
 }
 
 // Serve starts the relay TCP server.
-func (m *server) Serve() error {
-	wg := errgroup.Group{}
-	wg.Go(m.serveTCP)
-	wg.Go(m.serveGRPC)
+func (m *server) Serve(ctx context.Context) error {
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		return m.serveTCP(ctx)
+	})
+	wg.Go(func() error {
+		// GRPC API doesn't allow to forward the context. Hence the server
+		// must be stopped explicitly.
+		return m.serveGRPC()
+	})
+	if m.cfg.Debug != nil {
+		wg.Go(func() error {
+			return debug.ServePProf(ctx, *m.cfg.Debug, m.log.Desugar())
+		})
+	}
+
+	<-ctx.Done()
+	m.Close()
 
 	return wg.Wait()
 }
 
-func (m *server) serveTCP() error {
-	m.log.Infof("running Relay server on %s", m.listener.Addr())
-	defer m.log.Info("Relay server has been stopped")
+func (m *server) serveTCP(ctx context.Context) error {
+	m.log.Infof("running TCP Relay server on %s", m.listener.Addr())
+	defer m.log.Info("TCP Relay server has been stopped")
 
 	nodes, err := m.cluster.Join(m.members)
 	if err != nil {
@@ -395,12 +410,13 @@ func (m *server) serveTCP() error {
 
 	m.log.Infof("joined the cluster of %d nodes", nodes)
 
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	for {
 		conn, err := m.listener.Accept()
 		if err != nil {
+			m.log.Warnf("failed to accept connection: %v", err)
 			return err
 		}
 
@@ -463,13 +479,13 @@ func (m *server) processConnectionBlocking(ctx context.Context, conn net.Conn) e
 func (m *server) processDiscover(ctx context.Context, conn net.Conn, addr nppc.ResourceID) error {
 	m.log.Debugf("processing discover request %s", conn.RemoteAddr())
 
-	targetAddr, ok := m.continuum.Get(addr)
-	if !ok {
-		targetAddr = m.cfg.Addr.String()
+	targetNode, err := m.continuum.GetNode(addr)
+	if err != nil {
+		return err
 	}
 
-	m.log.Debugf("redirecting handshake for %s to %s", conn.RemoteAddr(), targetAddr)
-	return sendFrame(conn, newDiscoverResponse(targetAddr))
+	m.log.Debugf("redirecting handshake for %s to %s", conn.RemoteAddr(), targetNode.String())
+	return sendFrame(conn, newDiscoverResponse(targetNode.Addr))
 }
 
 func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake *sonm.HandshakeRequest) error {
@@ -483,6 +499,16 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 	addr := nppc.ResourceID{
 		Protocol: handshake.Protocol,
 		Addr:     common.BytesToAddress(handshake.Addr),
+	}
+
+	targetNode, err := m.continuum.GetNode(addr)
+	if err != nil {
+		return err
+	}
+
+	// Peer might have got a no longer valid node address while discovery.
+	if targetNode.Name != m.cfg.Cluster.Name {
+		return errWrongNode()
 	}
 
 	// We support both multiple servers and clients.
@@ -577,14 +603,26 @@ func (m *server) Close() error {
 func (m *server) NotifyJoin(node *memberlist.Node) {
 	m.log.Infof("node `%s` has joined to the cluster from %s", node.Name, node.Address())
 
-	discarded := m.continuum.Add(m.formatEndpoint(node.Addr), 1)
+	continuumNode, err := newNode(node.Name, m.formatEndpoint(node.Addr))
+	if err != nil {
+		m.log.Warnf("received malformed node join notification: %v", err)
+		return
+	}
+
+	discarded := m.continuum.Add(continuumNode.String(), 1)
 	m.meetingRoom.DiscardConnections(discarded)
 }
 
 func (m *server) NotifyLeave(node *memberlist.Node) {
 	m.log.Infof("node `%s` has left from the cluster from %s", node.Name, node.Address())
 
-	discarded := m.continuum.Remove(m.formatEndpoint(node.Addr))
+	continuumNode, err := newNode(node.Name, m.formatEndpoint(node.Addr))
+	if err != nil {
+		m.log.Warnf("received malformed node leave notification: %v", err)
+		return
+	}
+
+	discarded := m.continuum.Remove(continuumNode.String())
 	m.meetingRoom.DiscardConnections(discarded)
 }
 

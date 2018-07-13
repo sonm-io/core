@@ -13,23 +13,17 @@ const (
 
 type MarketOrder = sonm.DWHOrder
 
-type OrderScanner interface {
-	All(ctx context.Context) ([]*MarketOrder, error)
-}
-
-type orderScanner struct {
+type marketScanner struct {
 	dwh sonm.DWHClient
 }
 
-func newOrderScanner(dwh sonm.DWHClient) (OrderScanner, error) {
-	m := &orderScanner{
+func newMarketScanner(dwh sonm.DWHClient) *marketScanner {
+	return &marketScanner{
 		dwh: dwh,
 	}
-
-	return m, nil
 }
 
-func (m *orderScanner) All(ctx context.Context) ([]*MarketOrder, error) {
+func (m *marketScanner) ActiveOrders(ctx context.Context) ([]*MarketOrder, error) {
 	cursor := newCursor(m.dwh)
 
 	orders := make([]*MarketOrder, 0, ordersPreallocateSize)
@@ -71,7 +65,6 @@ func (m *cursor) Next(ctx context.Context) ([]*MarketOrder, error) {
 		Limit:  m.limit,
 	}
 
-	// TODO: Ignore orders that are laying more than N time.
 	response, err := m.dwh.GetOrders(ctx, request)
 	if err != nil {
 		return nil, err

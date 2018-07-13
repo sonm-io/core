@@ -17,7 +17,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
@@ -32,27 +31,22 @@ const dealIDTag = "sonm.dealid"
 const dieEvent = "die"
 
 // Description for a target application.
-// TODO: Drop duplication (sonm.Container)
 type Description struct {
-	Reference     reference.Reference
-	Auth          string
-	RestartPolicy container.RestartPolicy
-	Resources     *pb.AskPlanResources
-	CGroupParent  string
-	Cmd           []string
-	Env           map[string]string
-	TaskId        string
-	DealId        string
-	CommitOnStop  bool
-	autoremove    bool
+	pb.Container
+	Reference    reference.Reference
+	Auth         string
+	Resources    *pb.AskPlanResources
+	CGroupParent string
+	Cmd          []string
+	TaskId       string
+	DealId       string
+	autoremove   bool
 
 	GPUDevices []gpu.GPUID
 
-	volumes map[string]*pb.Volume
-	mounts  []volume.Mount
+	mounts []volume.Mount
 
 	networks []structs.Network
-	expose   []string
 }
 
 func (d *Description) ID() string {
@@ -60,7 +54,7 @@ func (d *Description) ID() string {
 }
 
 func (d *Description) Volumes() map[string]*pb.Volume {
-	return d.volumes
+	return d.Container.Volumes
 }
 
 func (d *Description) Mounts(source string) []volume.Mount {
@@ -89,7 +83,7 @@ func (d *Description) FormatEnv() []string {
 }
 
 func (d *Description) Expose() (nat.PortSet, nat.PortMap, error) {
-	return nat.ParsePortSpecs(d.expose)
+	return nat.ParsePortSpecs(d.Container.Expose)
 }
 
 // ContainerInfo is a brief information about containers
@@ -566,6 +560,7 @@ func (o *overseer) OnDealFinish(ctx context.Context, containerID string) error {
 	status, sok := o.statuses[containerID]
 	delete(o.statuses, containerID)
 	if sok {
+		status <- pb.TaskStatusReply_FINISHED
 		close(status)
 	}
 	if !ok {
