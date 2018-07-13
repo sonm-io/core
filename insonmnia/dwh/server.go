@@ -31,20 +31,20 @@ import (
 )
 
 type DWH struct {
-	mu             sync.RWMutex
-	ctx            context.Context
-	cfg            *Config
-	key            *ecdsa.PrivateKey
-	cancel         context.CancelFunc
-	grpc           *grpc.Server
-	http           *rest.Server
-	logger         *zap.Logger
-	db             *sql.DB
-	creds          credentials.TransportCredentials
-	certRotator    util.HitlessCertRotator
-	blockchain     blockchain.API
-	storage        storage
-	lastKnownBlock uint64
+	mu          sync.RWMutex
+	ctx         context.Context
+	cfg         *Config
+	key         *ecdsa.PrivateKey
+	cancel      context.CancelFunc
+	grpc        *grpc.Server
+	http        *rest.Server
+	logger      *zap.Logger
+	db          *sql.DB
+	creds       credentials.TransportCredentials
+	certRotator util.HitlessCertRotator
+	blockchain  blockchain.API
+	storage     storage
+	lastEvent   *blockchain.Event
 }
 
 func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, error) {
@@ -411,16 +411,16 @@ func (m *DWH) monitorBlockchain() error {
 
 func (m *DWH) watchMarketEvents() error {
 	var err error
-	m.lastKnownBlock, err = m.getLastKnownBlock()
+	m.lastEvent, err = m.getLastEvent()
 	if err != nil {
-		if err := m.insertLastKnownBlock(0); err != nil {
+		m.lastEvent = &blockchain.Event{}
+		if err := m.insertLastEvent(m.lastEvent); err != nil {
 			return err
 		}
-		m.lastKnownBlock = 0
 	}
 
-	m.logger.Info("starting from block", zap.Uint64("block_number", m.lastKnownBlock))
-	filter := m.blockchain.Events().GetMarketFilter(big.NewInt(0).SetUint64(m.lastKnownBlock))
+	m.logger.Info("starting from block", zap.Uint64("block_number", m.lastEvent.BlockNumber))
+	filter := m.blockchain.Events().GetMarketFilter(big.NewInt(0).SetUint64(m.lastEvent.BlockNumber))
 	events, err := m.blockchain.Events().GetEvents(m.ctx, filter)
 	if err != nil {
 		return err
@@ -447,9 +447,13 @@ func (m *DWH) watchMarketEvents() error {
 			if !ok {
 				return errors.New("events channel closed")
 			}
-			m.processBlockBoundary(event)
+
+			if event.PrecedesOrEquals(m.lastEvent) {
+				continue
+			}
+
 			dispatcher.Add(event)
-			eventsCount++
+			m.lastEvent, eventsCount = event, eventsCount+1
 			if eventsCount >= m.cfg.NumWorkers {
 				m.processEvents(dispatcher)
 				eventsCount, dispatcher = 0, newEventDispatcher(m.logger)
@@ -459,11 +463,13 @@ func (m *DWH) watchMarketEvents() error {
 }
 
 func (m *DWH) processEvents(dispatcher *eventsDispatcher) {
-	m.processEventsAsync(dispatcher.NumBenchmarksUpdated)
-	m.processEventsAsync(dispatcher.WorkersAnnounced)
-	m.processEventsAsync(dispatcher.WorkersConfirmed)
-	m.processEventsAsync(dispatcher.ValidatorsCreated)
-	// Certificates must be processed in order because they can override each other.
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	m.processEventsSynchronous(dispatcher.NumBenchmarksUpdated)
+	m.processEventsSynchronous(dispatcher.WorkersAnnounced)
+	m.processEventsSynchronous(dispatcher.WorkersConfirmed)
+	m.processEventsSynchronous(dispatcher.ValidatorsCreated)
 	m.processEventsSynchronous(dispatcher.CertificatesCreated)
 	m.processEventsAsync(dispatcher.OrdersOpened)
 	m.processEventsAsync(dispatcher.DealsOpened)
@@ -477,6 +483,8 @@ func (m *DWH) processEvents(dispatcher *eventsDispatcher) {
 	m.processEventsAsync(dispatcher.RemovedFromBlacklist)
 	m.processEventsAsync(dispatcher.WorkersRemoved)
 	m.processEventsAsync(dispatcher.Other)
+
+	m.saveLastEvent()
 }
 
 func (m *DWH) processEventsSynchronous(events []*blockchain.Event) {
@@ -565,9 +573,6 @@ func (m *DWH) processEvent(event *blockchain.Event) error {
 }
 
 func (m *DWH) onNumBenchmarksUpdated(newNumBenchmarks uint64) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	if err := m.setupDB(); err != nil {
 		return fmt.Errorf("failed to setupDB after NumBenchmarksUpdated event: %v", err)
 	}
@@ -996,9 +1001,6 @@ func (m *DWH) onOrderUpdated(orderID *big.Int) error {
 }
 
 func (m *DWH) onWorkerAnnounced(masterID, slaveID common.Address) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -1090,9 +1092,6 @@ func (m *DWH) onValidatorDeleted(validatorID common.Address) error {
 }
 
 func (m *DWH) onCertificateCreated(certificateID *big.Int) error {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	certificate, err := m.blockchain.ProfileRegistry().GetCertificate(m.ctx, certificateID)
 	if err != nil {
 		return fmt.Errorf("failed to GetCertificate: %v", err)
@@ -1270,13 +1269,13 @@ func (m *DWH) coldStart() error {
 }
 
 func (m *DWH) maybeCreateIndices(targetBlock uint64) (targetBlockReached bool, err error) {
-	lastBlock, err := m.getLastKnownBlock()
+	lastEvent, err := m.getLastEvent()
 	if err != nil {
 		return false, err
 	}
 
-	m.logger.Info("current block (waiting to CreateIndices)", zap.Uint64("block_number", lastBlock))
-	if lastBlock >= targetBlock {
+	m.logger.Info("current block (waiting to CreateIndices)", zap.Uint64("block_number", lastEvent.BlockNumber))
+	if lastEvent.BlockNumber >= targetBlock {
 		if err := m.storage.CreateIndices(m.db); err != nil {
 			return false, err
 		}
@@ -1286,30 +1285,30 @@ func (m *DWH) maybeCreateIndices(targetBlock uint64) (targetBlockReached bool, e
 	return false, nil
 }
 
-func (m *DWH) getLastKnownBlock() (uint64, error) {
+func (m *DWH) getLastEvent() (*blockchain.Event, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
-	return m.storage.GetLastKnownBlock(conn)
+	return m.storage.GetLastEvent(conn)
 }
 
-func (m *DWH) updateLastKnownBlock(blockNumber int64) error {
+func (m *DWH) updateLastEvent(event *blockchain.Event) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
-	if err := m.storage.UpdateLastKnownBlock(conn, blockNumber); err != nil {
-		return fmt.Errorf("failed to updateLastKnownBlock: %v", err)
+	if err := m.storage.UpdateLastEvent(conn, event); err != nil {
+		return fmt.Errorf("failed to updateLastEvent: %v", err)
 	}
 
 	return nil
 }
 
-func (m *DWH) insertLastKnownBlock(blockNumber int64) error {
+func (m *DWH) insertLastEvent(event *blockchain.Event) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
-	if err := m.storage.InsertLastKnownBlock(conn, blockNumber); err != nil {
-		return fmt.Errorf("failed to updateLastKnownBlock: %v", err)
+	if err := m.storage.InsertLastEvent(conn, event); err != nil {
+		return fmt.Errorf("failed to updateLastEvent: %v", err)
 	}
 
 	return nil
@@ -1338,16 +1337,9 @@ func (m *DWH) removeStaleEntityID(id *big.Int, entity string) error {
 	return nil
 }
 
-func (m *DWH) processBlockBoundary(event *blockchain.Event) {
-	if m.lastKnownBlock != event.BlockNumber {
-		m.lastKnownBlock = event.BlockNumber
-		for {
-			if err := m.updateLastKnownBlock(int64(event.BlockNumber)); err != nil {
-				m.logger.Warn("failed to updateLastKnownBlock", zap.Error(err))
-			} else {
-				return
-			}
-		}
+func (m *DWH) saveLastEvent() {
+	if err := m.updateLastEvent(m.lastEvent); err != nil {
+		m.logger.Warn("failed to updateLastEvent", zap.Error(err))
 	}
 }
 
