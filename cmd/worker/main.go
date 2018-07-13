@@ -11,7 +11,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/insonmnia/worker"
-	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/metrics"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
@@ -64,8 +64,7 @@ func run() error {
 		return fmt.Errorf("failed to create Worker instance: %s", err)
 	}
 
-	//TODO: fixme dangling goroutine
-	go util.StartPrometheus(ctx, cfg.MetricsListenAddr)
+	go metrics.NewPrometheusExporter(cfg.MetricsListenAddr, metrics.WithLogging(logger.Sugar())).Serve(ctx)
 
 	if err = w.Serve(); err != nil {
 		cancel()
