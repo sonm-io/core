@@ -377,8 +377,22 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 }
 
 func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.AskPlanGPU, error) {
+	GPURequired := false
+	for id, value := range benchmarks {
+		if m.mapping.DeviceType(id) == sonm.DeviceType_DEV_GPU {
+			if value != 0 {
+				GPURequired = true
+				break
+			}
+		}
+	}
+
 	if minCount == 0 {
-		return &sonm.AskPlanGPU{}, nil
+		if GPURequired {
+			minCount = 1
+		} else {
+			return &sonm.AskPlanGPU{}, nil
+		}
 	}
 
 	score := float64(math.MaxFloat64)

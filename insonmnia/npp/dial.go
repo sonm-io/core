@@ -18,16 +18,15 @@ import (
 // must be an authenticated endpoint and the connection establishment process
 // is done via NAT Punching Protocol.
 type Dialer struct {
-	ctx context.Context
 	log *zap.Logger
 
-	puncherNew  func() (NATPuncher, error)
+	puncherNew  func(ctx context.Context) (NATPuncher, error)
 	relayDialer *relay.Dialer
 }
 
 // NewDialer constructs a new dialer that is aware of NAT Punching Protocol.
-func NewDialer(ctx context.Context, options ...Option) (*Dialer, error) {
-	opts := newOptions(ctx)
+func NewDialer(options ...Option) (*Dialer, error) {
+	opts := newOptions()
 
 	for _, o := range options {
 		if err := o(opts); err != nil {
@@ -36,7 +35,6 @@ func NewDialer(ctx context.Context, options ...Option) (*Dialer, error) {
 	}
 
 	return &Dialer{
-		ctx:         ctx,
 		log:         opts.log,
 		puncherNew:  opts.puncherNew,
 		relayDialer: opts.relayDialer,
@@ -78,7 +76,7 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 		nppChannel := make(chan connTuple)
 
 		go func() {
-			puncher, err := m.puncherNew()
+			puncher, err := m.puncherNew(nppCtx)
 			if err != nil {
 				nppChannel <- newConnTuple(nil, err)
 				return

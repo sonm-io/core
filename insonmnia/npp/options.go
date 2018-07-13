@@ -15,10 +15,9 @@ import (
 type Option func(o *options) error
 
 type options struct {
-	ctx                   context.Context
 	log                   *zap.Logger
 	puncher               NATPuncher
-	puncherNew            func() (NATPuncher, error)
+	puncherNew            func(ctx context.Context) (NATPuncher, error)
 	nppBacklog            int
 	nppMinBackoffInterval time.Duration
 	nppMaxBackoffInterval time.Duration
@@ -26,9 +25,8 @@ type options struct {
 	relayDialer           *relay.Dialer
 }
 
-func newOptions(ctx context.Context) *options {
+func newOptions() *options {
 	return &options{
-		ctx:                   ctx,
 		log:                   zap.NewNop(),
 		nppBacklog:            128,
 		nppMinBackoffInterval: 500 * time.Millisecond,
@@ -47,11 +45,11 @@ func WithRendezvous(cfg rendezvous.Config, credentials credentials.TransportCred
 			return nil
 		}
 
-		o.puncherNew = func() (NATPuncher, error) {
+		o.puncherNew = func(ctx context.Context) (NATPuncher, error) {
 			for _, addr := range cfg.Endpoints {
-				client, err := newRendezvousClient(o.ctx, addr, credentials)
+				client, err := newRendezvousClient(ctx, addr, credentials)
 				if err == nil {
-					return newNATPuncher(o.ctx, cfg, client)
+					return newNATPuncher(ctx, cfg, client)
 				}
 			}
 

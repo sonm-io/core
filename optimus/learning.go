@@ -29,6 +29,10 @@ type WeightedOrder struct {
 	Weight float64
 }
 
+func (m *WeightedOrder) ID() *big.Int {
+	return m.Order.GetOrder().GetId().Unwrap()
+}
+
 type OrderPredictor struct {
 	predictor   TrainedModel
 	normalizer  Normalizer

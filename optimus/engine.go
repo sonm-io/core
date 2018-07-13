@@ -88,12 +88,18 @@ func (m *optimizationInput) freeDevices(removalVictims map[string]*sonm.AskPlan)
 	return freeWorkerHardware.IntoProto(), nil
 }
 
+type Blacklist interface {
+	Update(ctx context.Context) error
+	IsAllowed(addr common.Address) bool
+}
+
 type workerEngine struct {
 	cfg workerConfig
 	log *zap.SugaredLogger
 
 	addr             common.Address
 	masterAddr       common.Address
+	blacklist        Blacklist
 	market           blockchain.MarketAPI
 	marketCache      *MarketCache
 	worker           WorkerManagementClientExt
@@ -102,13 +108,14 @@ type workerEngine struct {
 	optimizationConfig optimizationConfig
 }
 
-func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, optimizationConfig optimizationConfig, log *zap.SugaredLogger) (*workerEngine, error) {
+func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, optimizationConfig optimizationConfig, log *zap.SugaredLogger) (*workerEngine, error) {
 	m := &workerEngine{
 		cfg: cfg,
 		log: log.With(zap.Stringer("addr", addr)),
 
 		addr:             addr,
 		masterAddr:       masterAddr,
+		blacklist:        blacklist,
 		market:           market,
 		marketCache:      marketCache,
 		worker:           &workerManagementClientExt{worker},
@@ -143,6 +150,10 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	}
 	if time.Since(maintenance.Unix()) >= 0 {
 		return fmt.Errorf("worker is on the maintenance")
+	}
+
+	if err := m.blacklist.Update(ctx); err != nil {
+		return fmt.Errorf("failed to update blacklist: %v", err)
 	}
 
 	input, err := m.optimizationInput(ctx)
@@ -262,6 +273,11 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	}
 
 	for _, plan := range winners {
+		// Extract the order ID for whose the selling plan is created.
+		orderID := plan.GetOrderID()
+
+		// Then we need to clean this, because otherwise worker rejects such request.
+		plan.OrderID = nil
 		plan.Identity = m.cfg.Identity
 
 		id, err := m.worker.CreateAskPlan(ctx, plan)
@@ -270,7 +286,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 			continue
 		}
 
-		m.log.Infof("created sell plan %s", id.Id)
+		m.log.Infof("created sell plan %s for %s order", id.Id, orderID.String())
 	}
 
 	return nil
@@ -391,7 +407,8 @@ func (m *workerEngine) ordersForPlans(ctx context.Context, plans map[string]*son
 			mu.Lock()
 			defer mu.Unlock()
 			orders = append(orders, &MarketOrder{
-				Order: order,
+				Order:     order,
+				CreatedTS: sonm.CurrentTimestamp(),
 			})
 
 			return nil
@@ -421,7 +438,7 @@ func (m *workerEngine) optimize(devices, freeDevices *sonm.DevicesReply, orders 
 
 	now := time.Now()
 	knapsack := NewKnapsack(deviceManager)
-	if err := m.optimizationMethod(len(matchedOrders), log).Optimize(knapsack, matchedOrders); err != nil {
+	if err := m.optimizationMethod(orders, log).Optimize(knapsack, matchedOrders); err != nil {
 		return nil, err
 	}
 
@@ -461,6 +478,9 @@ func (m *workerEngine) filters(deviceManager *DeviceManager, devices *sonm.Devic
 			return false
 		},
 		func(order *sonm.Order) bool {
+			return m.blacklist.IsAllowed(order.GetAuthorID().Unwrap())
+		},
+		func(order *sonm.Order) bool {
 			return devices.GetNetwork().GetNetFlags().ConverseImplication(order.GetNetflags())
 		},
 		func(order *sonm.Order) bool {
@@ -473,12 +493,15 @@ func (m *workerEngine) filters(deviceManager *DeviceManager, devices *sonm.Devic
 	}
 }
 
-func (m *workerEngine) optimizationMethod(size int, log *zap.SugaredLogger) OptimizationMethod {
-	return &GreedyLinearRegressionModel{
+func (m *workerEngine) optimizationMethod(orders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
+	method := &GreedyLinearRegressionModel{
+		orders:          orders,
 		classifier:      m.optimizationConfig.ClassifierFactory(m.log.Desugar()),
 		exhaustionLimit: 128,
 		log:             log,
 	}
+
+	return method
 }
 
 type OptimizationMethod interface {
@@ -489,24 +512,41 @@ type BruteForceModel struct{}
 
 // GreedyLinearRegressionModel implements greedy knapsack optimization
 // algorithm.
+// The basic idea is to train the model using BID orders from the marketplace
+// by optimizing multidimensional linear regression over order benchmarks to
+// reduce the number of parameters to a single one - predicted price. This
+// price can be used to assign weights to orders to be able to determine which
+// orders are better to buy than others.
 type GreedyLinearRegressionModel struct {
+	orders          []*MarketOrder
 	classifier      OrderClassifier
 	exhaustionLimit int
 	log             *zap.SugaredLogger
 }
 
 func (m *GreedyLinearRegressionModel) Optimize(knapsack *Knapsack, orders []*MarketOrder) error {
-	if len(orders) <= minNumOrders {
+	if len(m.orders) <= minNumOrders {
 		return fmt.Errorf("not enough orders to perform optimization")
 	}
 
-	weightedOrders, err := m.classifier.Classify(orders)
+	weightedOrders, err := m.classifier.Classify(m.orders)
 	if err != nil {
 		return fmt.Errorf("failed to classify orders: %v", err)
 	}
 
+	// Here we create an index of matching orders to be able to filter
+	// the entire training set for only interesting features.
+	filter := map[string]struct{}{}
+	for _, order := range orders {
+		filter[order.GetOrder().GetId().Unwrap().String()] = struct{}{}
+	}
+
 	exhaustedCounter := 0
 	for _, weightedOrder := range weightedOrders {
+		if _, ok := filter[weightedOrder.ID().String()]; !ok {
+			continue
+		}
+
 		if exhaustedCounter >= m.exhaustionLimit {
 			break
 		}
@@ -567,6 +607,7 @@ func (m *Knapsack) Put(order *sonm.Order) error {
 	resources.Network.NetFlags = order.GetNetflags()
 
 	m.plans = append(m.plans, &sonm.AskPlan{
+		OrderID:   order.GetId(),
 		Price:     &sonm.Price{PerSecond: order.Price},
 		Duration:  &sonm.Duration{Nanoseconds: 1e9 * int64(order.Duration)},
 		Resources: resources,

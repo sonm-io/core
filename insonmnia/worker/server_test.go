@@ -44,7 +44,7 @@ func TestTransformEnvVars(t *testing.T) {
 		"key4": "",
 	}
 
-	description := Description{Env: vars}
+	description := Description{Container: pb.Container{Env: vars}}
 
 	assert.Contains(t, description.FormatEnv(), "key1=value1")
 	assert.Contains(t, description.FormatEnv(), "KEY2=VALUE2")

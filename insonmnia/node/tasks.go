@@ -300,9 +300,9 @@ func (t *tasksAPI) extractStreamMeta(clientStream pb.TaskManagement_PushTaskServ
 	}, nil
 }
 
-func newTasksAPI(opts *remoteOptions) (pb.TaskManagementServer, error) {
+func newTasksAPI(opts *remoteOptions) pb.TaskManagementServer {
 	return &tasksAPI{
 		ctx:     opts.ctx,
 		remotes: opts,
-	}, nil
+	}
 }
