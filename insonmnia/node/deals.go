@@ -95,14 +95,13 @@ func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal,
 	}
 
 	if !req.Force {
-		ctxlog.G(d.remotes.ctx).Debug("checking worker availability")
-		// check that worker is available
+		d.remotes.log.Debug("checking worker availability")
 		if available := d.remotes.isWorkerAvailable(ctx, ask.GetAuthorID().Unwrap()); !available {
 			return nil, status.Errorf(codes.Unavailable,
 				"failed to fetch status from %s, seems like worker is offline", ask.GetAuthorID().Unwrap().Hex())
 		}
 	} else {
-		ctxlog.G(d.remotes.ctx).Info("forcing deal opening, worker availability checking skipped")
+		d.remotes.log.Info("forcing deal opening, worker availability checking skipped")
 	}
 
 	deal, err := d.remotes.eth.Market().OpenDeal(ctx, d.remotes.key, req.GetAskID().Unwrap(), req.GetBidID().Unwrap())
@@ -127,14 +126,13 @@ func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.D
 	}
 
 	if !req.Force {
-		// check that worker is available
-		ctxlog.G(d.remotes.ctx).Debug("checking worker availability")
+		d.remotes.log.Debug("checking worker availability")
 		if available := d.remotes.isWorkerAvailable(ctx, ask.GetAuthorID().Unwrap()); !available {
 			return nil, status.Errorf(codes.Unavailable,
 				"failed to fetch status from %s, seems like worker is offline", ask.GetAuthorID().Unwrap().Hex())
 		}
 	} else {
-		ctxlog.G(d.remotes.ctx).Info("forcing deal opening, worker availability checking skipped",
+		d.remotes.log.Info("forcing deal opening, worker availability checking skipped",
 			zap.String("ask_id", req.AskID.Unwrap().String()))
 	}
 
