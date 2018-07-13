@@ -11,6 +11,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	_ "github.com/lib/pq"
 	_ "github.com/mattn/go-sqlite3"
+	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"google.golang.org/grpc/codes"
@@ -1056,38 +1057,6 @@ func (m *sqlStorage) UpdateProfileStats(conn queryConn, userID common.Address, f
 	return err
 }
 
-func (m *sqlStorage) GetLastKnownBlock(conn queryConn) (uint64, error) {
-	query, _, _ := m.builder().Select("LastKnownBlock").From("Misc").Where("Id = 1").ToSql()
-	rows, err := conn.Query(query)
-	if err != nil {
-		return 0, fmt.Errorf("failed to GetLastKnownBlock: %v", err)
-	}
-	defer rows.Close()
-
-	if ok := rows.Next(); !ok {
-		return 0, errors.New("getLastKnownBlock: no entries")
-	}
-
-	var lastKnownBlock uint64
-	if err := rows.Scan(&lastKnownBlock); err != nil {
-		return 0, fmt.Errorf("failed to parse last known block number: %v", err)
-	}
-
-	return lastKnownBlock, nil
-}
-
-func (m *sqlStorage) InsertLastKnownBlock(conn queryConn, blockNumber int64) error {
-	query, args, _ := m.builder().Insert("Misc").Columns("LastKnownBlock").Values(blockNumber).ToSql()
-	_, err := conn.Exec(query, args...)
-	return err
-}
-
-func (m *sqlStorage) UpdateLastKnownBlock(conn queryConn, blockNumber int64) error {
-	query, args, _ := m.builder().Update("Misc").Set("LastKnownBlock", blockNumber).Where("Id = 1").ToSql()
-	_, err := conn.Exec(query, args...)
-	return err
-}
-
 func (m *sqlStorage) StoreStaleID(conn queryConn, id *big.Int, entity string) error {
 	query, args, _ := m.builder().Insert("StaleIDs").Values(fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
 	_, err := conn.Exec(query, args...)
@@ -1114,6 +1083,51 @@ func (m *sqlStorage) CheckStaleID(conn queryConn, id *big.Int, entity string) (b
 	}
 
 	return true, nil
+}
+
+func (m *sqlStorage) InsertLastEvent(conn queryConn, event *blockchain.Event) error {
+	query, args, _ := m.builder().Insert("Misc").Columns("BlockNumber", "TxIndex", "ReceiptIndex").
+		Values(event.BlockNumber, event.TxIndex, event.ReceiptIndex).ToSql()
+	_, err := conn.Exec(query, args...)
+	return err
+}
+
+func (m *sqlStorage) UpdateLastEvent(conn queryConn, event *blockchain.Event) error {
+	query, args, _ := m.builder().Update("Misc").SetMap(map[string]interface{}{
+		"BlockNumber":  event.BlockNumber,
+		"TxIndex":      event.TxIndex,
+		"ReceiptIndex": event.ReceiptIndex,
+	}).ToSql()
+	_, err := conn.Exec(query, args...)
+	return err
+}
+
+func (m *sqlStorage) GetLastEvent(conn queryConn) (*blockchain.Event, error) {
+	query, _, _ := m.builder().Select("*").From("Misc").Limit(1).ToSql()
+	rows, err := conn.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to GetLastEvent: %v", err)
+	}
+	defer rows.Close()
+
+	if ok := rows.Next(); !ok {
+		return nil, errors.New("GetLastEvent: no entries")
+	}
+
+	var (
+		blockNumber  uint64
+		txIndex      uint64
+		receiptIndex uint64
+	)
+	if err := rows.Scan(&blockNumber, &txIndex, &receiptIndex); err != nil {
+		return nil, fmt.Errorf("failed to parse last event: %v", err)
+	}
+
+	return &blockchain.Event{
+		BlockNumber:  blockNumber,
+		TxIndex:      txIndex,
+		ReceiptIndex: receiptIndex,
+	}, nil
 }
 
 func (m *sqlStorage) builderWithBenchmarkFilters(builder sq.SelectBuilder, benches map[uint64]*pb.MaxMinUint64) sq.SelectBuilder {
@@ -2043,8 +2057,9 @@ func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
 	)`,
 			createTableMisc: `
 	CREATE TABLE IF NOT EXISTS Misc (
-		Id							BIGSERIAL PRIMARY KEY,
-		LastKnownBlock				INTEGER NOT NULL
+		BlockNumber 				INTEGER NOT NULL,
+		TxIndex						INTEGER NOT NULL,
+		ReceiptIndex				INTEGER NOT NULL
 	)`,
 			createTableStaleIDs: `
 	CREATE TABLE IF NOT EXISTS StaleIDs (
@@ -2197,8 +2212,9 @@ func newSQLiteStorage(numBenchmarks uint64) *sqlStorage {
 	)`,
 			createTableMisc: `
 	CREATE TABLE IF NOT EXISTS Misc (
-		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
-		LastKnownBlock				INTEGER NOT NULL
+		BlockNumber 				INTEGER NOT NULL,
+		TxIndex						INTEGER NOT NULL,
+		ReceiptIndex				INTEGER NOT NULL
 	)`,
 			createIndexCmd: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
 			tablesInfo:     tInfo,

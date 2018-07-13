@@ -7,9 +7,29 @@ import (
 )
 
 type Event struct {
-	Data        interface{}
-	BlockNumber uint64
-	TS          uint64
+	Data         interface{}
+	BlockNumber  uint64
+	TxIndex      uint64
+	ReceiptIndex uint64
+	TS           uint64
+}
+
+func (m *Event) PrecedesOrEquals(other *Event) bool {
+	var comparators = []func(x, y *Event) bool{
+		func(x, y *Event) bool { return x.BlockNumber < y.BlockNumber },
+		func(x, y *Event) bool { return x.TxIndex < y.TxIndex },
+		func(x, y *Event) bool { return x.ReceiptIndex <= y.ReceiptIndex },
+	}
+	for _, comparator := range comparators {
+		switch {
+		case comparator(m, other):
+			return true
+		case comparator(other, m):
+			return false
+		}
+	}
+
+	return false
 }
 
 type DealOpenedData struct {
