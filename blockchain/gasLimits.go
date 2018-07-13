@@ -20,4 +20,6 @@ const (
 	removeWorkerGasLimit        = 100000
 	addMasterGasLimit           = 100000
 	removeMasterGasLimit        = 100000
+	payinGasLimit               = 100000
+	payoutGasLimit              = 100000
 )
