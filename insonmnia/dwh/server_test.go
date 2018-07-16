@@ -6,10 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -18,47 +26,193 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testDBPath        = "test_dwh.db"
-	testMonitorDBPath = "test_monitor_dwh.db"
-)
-
 var (
-	globalDWH  *DWH
-	monitorDWH *DWH
+	globalDWH         *DWH
+	monitorDWH        *DWH
+	dbUser            = "dwh_tester"
+	dbUserPassword    = "dwh_tester"
+	globalDBName      = "dwh_test_global"
+	monitorDBName     = "dwh_test_monitor"
+	postgresPort      = "15432"
+	serviceConnString = fmt.Sprintf("postgresql://localhost:%s/template1?user=postgres&sslmode=disable", postgresPort)
 )
 
 func TestMain(m *testing.M) {
-	var err error
-	globalDWH, err = getTestDWH(testDBPath)
+	var (
+		err             error
+		testsReturnCode = 1
+		ctx             = context.Background()
+	)
+
+	cli, containerID, err := startPostgresContainer(ctx)
 	if err != nil {
 		fmt.Println(err)
-		os.Remove(testDBPath)
-		os.Remove(testMonitorDBPath)
-		os.Exit(1)
+		os.Exit(testsReturnCode)
 	}
 
-	monitorDWH, err = getTestDWH(testMonitorDBPath)
+	if err := checkPostgresReadiness(containerID); err != nil {
+		fmt.Println(err)
+		os.Exit(testsReturnCode)
+	}
+
+	defer func() {
+		if globalDWH != nil && globalDWH.db != nil {
+			if err := globalDWH.db.Close(); err != nil {
+				fmt.Println(err)
+			}
+		}
+		if monitorDWH != nil && monitorDWH.db != nil {
+			if err := monitorDWH.db.Close(); err != nil {
+				fmt.Println(err)
+			}
+		}
+		if err := tearDownDB(); err != nil {
+			fmt.Println(err)
+		}
+		if err := cli.ContainerStop(ctx, containerID, nil); err != nil {
+			fmt.Println(err)
+		}
+		if err := cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{}); err != nil {
+			fmt.Println(err)
+		}
+		if err := cli.Close(); err != nil {
+			fmt.Println(err)
+		}
+		os.Exit(testsReturnCode)
+	}()
+
+	if err := setupDB(); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	globalDWH, err = getTestDWH(getConnString(globalDBName, dbUser, dbUserPassword))
 	if err != nil {
 		fmt.Println(err)
-		os.Remove(testMonitorDBPath)
-		os.Exit(1)
+		return
 	}
 
-	retCode := m.Run()
-	globalDWH.db.Close()
-	os.Remove(testDBPath)
-	os.Remove(testMonitorDBPath)
-	os.Exit(retCode)
+	monitorDWH, err = getTestDWH(getConnString(monitorDBName, dbUser, dbUserPassword))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	testsReturnCode = m.Run()
 }
 
-func getTestDWH(dbPath string) (*DWH, error) {
+func startPostgresContainer(ctx context.Context) (cli *client.Client, containerID string, err error) {
+	cli, err = client.NewEnvClient()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to setup Docker client: %s", err)
+	}
+
+	reader, err := cli.ImagePull(ctx, "docker.io/library/postgres", types.ImagePullOptions{})
+	if err != nil {
+		cli.Close()
+		return nil, "", fmt.Errorf("failed to pull postgres image: %s", err)
+	}
+	io.Copy(os.Stdout, reader)
+
+	containerCfg := &container.Config{
+		Image:        "postgres",
+		ExposedPorts: nat.PortSet{"5432": struct{}{}},
+	}
+	hostCfg := &container.HostConfig{
+		PortBindings: map[nat.Port][]nat.PortBinding{
+			nat.Port("5432"): {{HostIP: "localhost", HostPort: postgresPort}},
+		},
+	}
+	resp, err := cli.ContainerCreate(ctx, containerCfg, hostCfg, nil, "dwh-postgres-test")
+	if err != nil {
+		cli.Close()
+		return nil, "", fmt.Errorf("failed to create container: %s", err)
+	}
+
+	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+		cli.Close()
+		return nil, "", fmt.Errorf("failed to start container: %s", err)
+	}
+
+	return cli, resp.ID, nil
+}
+
+func checkPostgresReadiness(containerID string) error {
+	var (
+		err        error
+		numRetries = 10
+	)
+	for ; numRetries > 0; numRetries-- {
+		cmd := exec.Command("docker", "exec", containerID, "pg_isready")
+		out, err := cmd.CombinedOutput()
+		if err == nil {
+			if strings.Contains(string(out), "accepting connections") {
+				return nil
+			}
+		}
+		fmt.Printf("postgres container not ready, %d retries left\n", numRetries)
+		time.Sleep(time.Second)
+	}
+
+	return fmt.Errorf("failed to connect to postgres container: %v", err)
+}
+
+func setupDB() error {
+	db, err := sql.Open("postgres", serviceConnString)
+	if err != nil {
+		return fmt.Errorf("failed to connect to template1: %s", err)
+	}
+	defer db.Close()
+
+	for _, dbName := range []string{globalDBName, monitorDBName} {
+		if _, err := db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName)); err != nil {
+			return fmt.Errorf("failed to preliminarily drop database: %s", err)
+		}
+	}
+
+	if _, err := db.Exec(fmt.Sprintf("DROP USER IF EXISTS %s", dbUser)); err != nil {
+		return fmt.Errorf("failed to preliminarily drop user: %s", err)
+	}
+
+	if _, err = db.Exec(fmt.Sprintf("CREATE USER %s WITH PASSWORD '%s'", dbUser, dbUserPassword)); err != nil {
+		return fmt.Errorf("failed to create user: %v", err)
+	}
+
+	for _, dbName := range []string{globalDBName, monitorDBName} {
+		if _, err := db.Exec(fmt.Sprintf("CREATE DATABASE %s OWNER dwh_tester", dbName)); err != nil {
+			return fmt.Errorf("failed to create database: %s", err)
+		}
+	}
+
+	return nil
+}
+
+func tearDownDB() error {
+	db, err := sql.Open("postgres", serviceConnString)
+	if err != nil {
+		return fmt.Errorf("failed to connect to template1: %s", err)
+	}
+	defer db.Close()
+
+	for _, dbName := range []string{globalDBName, monitorDBName} {
+		if _, err := db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName)); err != nil {
+			return fmt.Errorf("failed to drop database: %s", err)
+		}
+	}
+
+	return nil
+}
+
+func getConnString(database, user, password string) string {
+	return fmt.Sprintf("postgresql://localhost:15432/%s?user=%s&password=%s&sslmode=disable", database, user, password)
+}
+
+func getTestDWH(dbEndpoint string) (*DWH, error) {
 	var (
 		ctx = context.Background()
 		cfg = &Config{
 			Storage: &storageConfig{
-				Backend:  "sqlite3",
-				Endpoint: dbPath,
+				Endpoint: dbEndpoint,
 			},
 		}
 		controller     = gomock.NewController(&testing.T{})
@@ -68,7 +222,7 @@ func getTestDWH(dbPath string) (*DWH, error) {
 	mockMarket.EXPECT().GetNumBenchmarks(gomock.Any()).AnyTimes().Return(uint64(12), nil)
 	mockBlockchain.EXPECT().Market().AnyTimes().Return(mockMarket)
 
-	db, err := sql.Open(cfg.Storage.Backend, cfg.Storage.Endpoint)
+	db, err := sql.Open("postgres", cfg.Storage.Endpoint)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +326,6 @@ func TestDWH_GetOrders(t *testing.T) {
 		byMinBenchmark uint64 = 11
 		byMinPrice            = big.NewInt(20011)
 	)
-
 	// Test TEXT columns.
 	{
 		request := &pb.OrdersRequest{DealID: pb.NewBigInt(byDealID)}
@@ -363,7 +516,7 @@ func TestDWH_GetProfiles(t *testing.T) {
 	}
 	profiles, _, err = globalDWH.storage.GetProfiles(newSimpleConn(globalDWH.db), request)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("Request `%+v` failed: %s", request, err)
 		return
 	}
 	if len(profiles) != 1 {
@@ -953,8 +1106,7 @@ func testBlacklistAddedRemoved() error {
 }
 
 func getDealChangeRequest(w *DWH, changeRequestID *pb.BigInt) (*pb.DealChangeRequest, error) {
-	storage := w.storage.(*sqlStorage)
-	rows, err := storage.builder().Select("*").From("DealChangeRequests").
+	rows, err := w.storage.builder().Select("*").From("DealChangeRequests").
 		Where("Id = ?", changeRequestID.Unwrap().String()).RunWith(w.db).Query()
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %s", err)
@@ -965,12 +1117,11 @@ func getDealChangeRequest(w *DWH, changeRequestID *pb.BigInt) (*pb.DealChangeReq
 		return nil, errors.New("no rows returned")
 	}
 
-	return globalDWH.storage.(*sqlStorage).decodeDealChangeRequest(rows)
+	return w.storage.decodeDealChangeRequest(rows)
 }
 
 func getCertificates(w *DWH) ([]*pb.Certificate, error) {
-	storage := w.storage.(*sqlStorage)
-	rows, err := storage.builder().Select("*").From("Certificates").RunWith(w.db).Query()
+	rows, err := w.storage.builder().Select("*").From("Certificates").RunWith(w.db).Query()
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %s", err)
 	}
@@ -978,7 +1129,7 @@ func getCertificates(w *DWH) ([]*pb.Certificate, error) {
 
 	var out []*pb.Certificate
 	for rows.Next() {
-		if certificate, err := w.storage.(*sqlStorage).decodeCertificate(rows); err != nil {
+		if certificate, err := w.storage.decodeCertificate(rows); err != nil {
 			return nil, fmt.Errorf("failed to decodeCertificate: %v", err)
 		} else {
 			out = append(out, certificate)
@@ -997,10 +1148,9 @@ func setupTestDB(w *DWH) error {
 		{OwnerID: pb.NewEthAddress(common.HexToAddress("0xBB")), Value: []byte("Consumer"), Attribute: CertificateName},
 	}
 	byteCerts, _ := json.Marshal(certs)
-	storage := w.storage.(*sqlStorage)
 	for i := 0; i < 2; i++ {
-		insertDeal, args, _ := storage.builder().Insert("Deals").
-			Columns(storage.tablesInfo.DealColumns...).
+		insertDeal, args, _ := w.storage.builder().Insert("Deals").
+			Columns(w.storage.tablesInfo.DealColumns...).
 			Values(
 				fmt.Sprintf("4040%d", i),
 				common.HexToAddress(fmt.Sprintf("0x1%d", i)).Hex(), // Supplier
@@ -1042,8 +1192,8 @@ func setupTestDB(w *DWH) error {
 		}
 
 		// Create 10 ASK orders.
-		_, err = storage.builder().Insert("Orders").
-			Columns(storage.tablesInfo.OrderColumns...).Values(
+		_, err = w.storage.builder().Insert("Orders").
+			Columns(w.storage.tablesInfo.OrderColumns...).Values(
 			fmt.Sprintf("2020%d", i),
 			common.HexToAddress(fmt.Sprintf("0x9%d", i)).Hex(), // Master
 			12345, // CreatedTS
@@ -1081,8 +1231,8 @@ func setupTestDB(w *DWH) error {
 		}
 
 		// Create 10 BID orders.
-		_, err = storage.builder().Insert("Orders").
-			Columns(storage.tablesInfo.OrderColumns...).Values(
+		_, err = w.storage.builder().Insert("Orders").
+			Columns(w.storage.tablesInfo.OrderColumns...).Values(
 			fmt.Sprintf("3030%d", i),
 			common.HexToAddress(fmt.Sprintf("0x9%d", i)).Hex(), // Master
 			12345, // CreatedTS
@@ -1119,7 +1269,7 @@ func setupTestDB(w *DWH) error {
 			return err
 		}
 
-		_, err = storage.builder().Insert("DealChangeRequests").
+		_, err = w.storage.builder().Insert("DealChangeRequests").
 			Values(fmt.Sprintf("5050%d", i), 0, 0, 0, 0, 0, "40400").RunWith(w.db).Exec()
 		if err != nil {
 			return err
@@ -1131,7 +1281,7 @@ func setupTestDB(w *DWH) error {
 		} else {
 			identityLevel = 1
 		}
-		_, err = storage.builder().Insert("Profiles").Columns(storage.tablesInfo.ProfileColumns[1:]...).Values(
+		_, err = w.storage.builder().Insert("Profiles").Columns(w.storage.tablesInfo.ProfileColumns[1:]...).Values(
 			common.HexToAddress(fmt.Sprintf("0x2%d", i)).Hex(),
 			identityLevel,
 			"sortedProfile",
@@ -1148,7 +1298,7 @@ func setupTestDB(w *DWH) error {
 	}
 
 	// Create a couple of profiles for TestDWH_monitor entities.
-	_, err := storage.builder().Insert("Profiles").Columns(storage.tablesInfo.ProfileColumns[1:]...).Values(
+	_, err := w.storage.builder().Insert("Profiles").Columns(w.storage.tablesInfo.ProfileColumns[1:]...).Values(
 		fmt.Sprintf(common.HexToAddress("0xBB").Hex()),
 		3,
 		"Consumer",
@@ -1162,7 +1312,7 @@ func setupTestDB(w *DWH) error {
 	if err != nil {
 		return err
 	}
-	_, err = storage.builder().Insert("Profiles").Columns(storage.tablesInfo.ProfileColumns[1:]...).Values(
+	_, err = w.storage.builder().Insert("Profiles").Columns(w.storage.tablesInfo.ProfileColumns[1:]...).Values(
 		fmt.Sprintf(common.HexToAddress("0xAA").Hex()),
 		3,
 		"Supplier",
@@ -1177,7 +1327,7 @@ func setupTestDB(w *DWH) error {
 		return err
 	}
 	// Blacklist 0xBB for 0xE for TestDWH_GetProfiles.
-	_, err = storage.builder().Insert("Blacklists").Values(
+	_, err = w.storage.builder().Insert("Blacklists").Values(
 		common.HexToAddress("0xE").Hex(),
 		common.HexToAddress("0xBB").Hex(),
 	).RunWith(w.db).Exec()
@@ -1188,15 +1338,15 @@ func setupTestDB(w *DWH) error {
 	// Add a BID order that will be matched by any of the ASK orders added above and
 	// blacklist this BID order's Author for the author of all ASK orders. Then in
 	// TestDWH_GetMatchingOrders we shouldn't get this order.
-	_, err = storage.builder().Insert("Blacklists").Values(
+	_, err = w.storage.builder().Insert("Blacklists").Values(
 		common.HexToAddress("0xA").Hex(),
 		common.HexToAddress("0xCC").Hex(),
 	).RunWith(w.db).Exec()
 	if err != nil {
 		return err
 	}
-	_, err = storage.builder().Insert("Orders").
-		Columns(storage.tablesInfo.OrderColumns...).Values(
+	_, err = w.storage.builder().Insert("Orders").
+		Columns(w.storage.tablesInfo.OrderColumns...).Values(
 		fmt.Sprintf("3050%d", 0),
 		common.HexToAddress(fmt.Sprintf("0x9%d", 0)).Hex(), // Master
 		12345, // CreatedTS

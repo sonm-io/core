@@ -136,6 +136,11 @@ test: mock
 	@echo "+ $@"
 	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor|blockchain')
 
+# Everything except DWH tests.
+test/lite: mock
+	@echo "+ $@"
+	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor|blockchain|dwh')
+
 contracts:
 	@$(MAKE) -C blockchain/source all
 
