@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 		ctx             = context.Background()
 	)
 
-	cli, containerID, err := runPostgresContainer(ctx)
+	cli, containerID, err := startPostgresContainer(ctx)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -99,7 +99,7 @@ func TestMain(m *testing.M) {
 	testsReturnCode = m.Run()
 }
 
-func runPostgresContainer(ctx context.Context) (cli *client.Client, containerID string, err error) {
+func startPostgresContainer(ctx context.Context) (cli *client.Client, containerID string, err error) {
 	cli, err = client.NewEnvClient()
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to setup Docker client: %s", err)
