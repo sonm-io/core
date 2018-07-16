@@ -27,12 +27,14 @@ import (
 )
 
 var (
-	globalDWH      *DWH
-	monitorDWH     *DWH
-	dbUser         = "dwh_tester"
-	dbUserPassword = "dwh_tester"
-	globalDBName   = "dwh_test_global"
-	monitorDBName  = "dwh_test_monitor"
+	globalDWH         *DWH
+	monitorDWH        *DWH
+	dbUser            = "dwh_tester"
+	dbUserPassword    = "dwh_tester"
+	globalDBName      = "dwh_test_global"
+	monitorDBName     = "dwh_test_monitor"
+	postgresPort      = "15432"
+	serviceConnString = fmt.Sprintf("postgresql://localhost:%s/template1?user=postgres&sslmode=disable", postgresPort)
 )
 
 func TestMain(m *testing.M) {
@@ -118,7 +120,7 @@ func startPostgresContainer(ctx context.Context) (cli *client.Client, containerI
 	}
 	hostCfg := &container.HostConfig{
 		PortBindings: map[nat.Port][]nat.PortBinding{
-			nat.Port("5432"): {{HostIP: "localhost", HostPort: "5432"}},
+			nat.Port("5432"): {{HostIP: "localhost", HostPort: postgresPort}},
 		},
 	}
 	resp, err := cli.ContainerCreate(ctx, containerCfg, hostCfg, nil, "dwh-postgres-test")
@@ -156,7 +158,7 @@ func checkPostgresReadiness(containerID string) error {
 }
 
 func setupDB() error {
-	db, err := sql.Open("postgres", "postgresql://localhost:5432/template1?user=postgres&sslmode=disable")
+	db, err := sql.Open("postgres", serviceConnString)
 	if err != nil {
 		return fmt.Errorf("failed to connect to template1: %s", err)
 	}
@@ -186,7 +188,7 @@ func setupDB() error {
 }
 
 func tearDownDB() error {
-	db, err := sql.Open("postgres", "postgresql://localhost:5432/template1?user=postgres&sslmode=disable")
+	db, err := sql.Open("postgres", serviceConnString)
 	if err != nil {
 		return fmt.Errorf("failed to connect to template1: %s", err)
 	}
@@ -202,7 +204,7 @@ func tearDownDB() error {
 }
 
 func getConnString(database, user, password string) string {
-	return fmt.Sprintf("postgresql://localhost:5432/%s?user=%s&password=%s&sslmode=disable", database, user, password)
+	return fmt.Sprintf("postgresql://localhost:15432/%s?user=%s&password=%s&sslmode=disable", database, user, password)
 }
 
 func getTestDWH(dbEndpoint string) (*DWH, error) {
