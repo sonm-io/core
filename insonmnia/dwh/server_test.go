@@ -6,10 +6,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
+	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/golang/mock/gomock"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -29,47 +37,126 @@ var (
 
 func TestMain(m *testing.M) {
 	var (
-		testsReturnCode int
 		err             error
+		testsReturnCode = 1
+		ctx             = context.Background()
 	)
-	if err := setupDB(); err != nil {
+
+	cli, containerID, err := runPostgresContainer(ctx)
+	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	defer func() {
-		if err := globalDWH.db.Close(); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		if err := monitorDWH.db.Close(); err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
 
+	if err := checkPostgresReadiness(containerID); err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	defer func() {
+		if globalDWH != nil && globalDWH.db != nil {
+			if err := globalDWH.db.Close(); err != nil {
+				fmt.Println(err)
+			}
+		}
+		if monitorDWH != nil && monitorDWH.db != nil {
+			if err := monitorDWH.db.Close(); err != nil {
+				fmt.Println(err)
+			}
+		}
 		if err := tearDownDB(); err != nil {
 			fmt.Println(err)
-			os.Exit(1)
+		}
+		if err := cli.ContainerStop(ctx, containerID, nil); err != nil {
+			fmt.Println(err)
+		}
+		if err := cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{}); err != nil {
+			fmt.Println(err)
+		}
+		if err := cli.Close(); err != nil {
+			fmt.Println(err)
 		}
 		os.Exit(testsReturnCode)
 	}()
 
+	if err := setupDB(); err != nil {
+		fmt.Println(err)
+		return
+	}
+
 	globalDWH, err = getTestDWH(getConnString(globalDBName, dbUser, dbUserPassword))
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		return
 	}
 
 	monitorDWH, err = getTestDWH(getConnString(monitorDBName, dbUser, dbUserPassword))
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		return
 	}
 
 	testsReturnCode = m.Run()
 }
 
+func runPostgresContainer(ctx context.Context) (cli *client.Client, containerID string, err error) {
+	cli, err = client.NewEnvClient()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to setup Docker client: %s", err)
+	}
+
+	reader, err := cli.ImagePull(ctx, "docker.io/library/postgres", types.ImagePullOptions{})
+	if err != nil {
+		cli.Close()
+		return nil, "", fmt.Errorf("failed to pull postgres image: %s", err)
+	}
+	io.Copy(os.Stdout, reader)
+
+	containerCfg := &container.Config{
+		Image:        "postgres",
+		ExposedPorts: nat.PortSet{"5432": struct{}{}},
+	}
+	hostCfg := &container.HostConfig{
+		PortBindings: map[nat.Port][]nat.PortBinding{
+			nat.Port("5432"): {{HostIP: "localhost", HostPort: "5432"}},
+		},
+	}
+	resp, err := cli.ContainerCreate(ctx, containerCfg, hostCfg, nil, "dwh-postgres-test")
+	if err != nil {
+		cli.Close()
+		return nil, "", fmt.Errorf("failed to create container: %s", err)
+	}
+
+	if err := cli.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
+		cli.Close()
+		return nil, "", fmt.Errorf("failed to start container: %s", err)
+	}
+
+	return cli, resp.ID, nil
+}
+
+func checkPostgresReadiness(containerID string) error {
+	var (
+		err        error
+		numRetries = 10
+	)
+	for ; numRetries > 0; numRetries-- {
+		cmd := exec.Command("docker", "exec", containerID, "pg_isready")
+		out, err := cmd.CombinedOutput()
+		if err == nil {
+			if strings.Contains(string(out), "accepting connections") {
+				return nil
+			}
+		}
+		fmt.Printf("postgres container not ready, %d retries left\n", numRetries)
+		time.Sleep(time.Second)
+	}
+
+	return fmt.Errorf("failed to connect to postgres container: %v", err)
+}
+
 func setupDB() error {
-	db, err := sql.Open("postgres", "postgresql://localhost:5432/template1?sslmode=disable")
+	db, err := sql.Open("postgres", "postgresql://localhost:5432/template1?user=postgres&sslmode=disable")
 	if err != nil {
 		return fmt.Errorf("failed to connect to template1: %s", err)
 	}
@@ -84,6 +171,7 @@ func setupDB() error {
 	if _, err := db.Exec(fmt.Sprintf("DROP USER IF EXISTS %s", dbUser)); err != nil {
 		return fmt.Errorf("failed to preliminarily drop user: %s", err)
 	}
+
 	if _, err = db.Exec(fmt.Sprintf("CREATE USER %s WITH PASSWORD '%s'", dbUser, dbUserPassword)); err != nil {
 		return fmt.Errorf("failed to create user: %v", err)
 	}
@@ -98,7 +186,7 @@ func setupDB() error {
 }
 
 func tearDownDB() error {
-	db, err := sql.Open("postgres", "postgresql://localhost:5432/template1?sslmode=disable")
+	db, err := sql.Open("postgres", "postgresql://localhost:5432/template1?user=postgres&sslmode=disable")
 	if err != nil {
 		return fmt.Errorf("failed to connect to template1: %s", err)
 	}
