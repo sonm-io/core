@@ -47,12 +47,12 @@ func TestMain(m *testing.M) {
 	cli, containerID, err := startPostgresContainer(ctx)
 	if err != nil {
 		fmt.Println(err)
-		os.Exit(1)
+		os.Exit(testsReturnCode)
 	}
 
 	if err := checkPostgresReadiness(containerID); err != nil {
 		fmt.Println(err)
-		return
+		os.Exit(testsReturnCode)
 	}
 
 	defer func() {
