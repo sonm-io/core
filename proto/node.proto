@@ -123,6 +123,7 @@ service TokenManagement {
 message BalanceReply {
     BigInt liveBalance = 1;
     BigInt sideBalance = 2;
+    BigInt liveEthBalance = 3;
 }
 
 service Blacklist {

@@ -122,7 +122,7 @@ type TokenAPI interface {
 	// TransferFrom fallback function for contracts to transfer you allowance
 	TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from common.Address, to common.Address, amount *big.Int) (*types.Transaction, error)
 	// BalanceOf returns balance of given address
-	BalanceOf(ctx context.Context, address common.Address) (*big.Int, error)
+	BalanceOf(ctx context.Context, address common.Address) (*Balance, error)
 	// AllowanceOf returns allowance of given address to spender account
 	AllowanceOf(ctx context.Context, from, to common.Address) (*big.Int, error)
 	// TotalSupply - all amount of emitted token
@@ -1165,8 +1165,26 @@ func (api *StandardTokenApi) DecreaseApproval(ctx context.Context, key *ecdsa.Pr
 	return nil
 }
 
-func (api *StandardTokenApi) BalanceOf(ctx context.Context, address common.Address) (*big.Int, error) {
-	return api.tokenContract.BalanceOf(getCallOptions(ctx), address)
+func (api *StandardTokenApi) BalanceOf(ctx context.Context, address common.Address) (*Balance, error) {
+	block, err := api.client.GetLastBlock(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	ethBalance, err := api.client.GetEthereumBalanceAt(ctx, address, block)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Ethereum balance: %v", err)
+	}
+
+	snmBalance, err := api.tokenContract.BalanceOf(getCallOptions(ctx), address)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get SNM balance: %v", err)
+	}
+
+	return &Balance{
+		Eth: ethBalance,
+		SNM: snmBalance,
+	}, nil
 }
 
 func (api *StandardTokenApi) AllowanceOf(ctx context.Context, from, to common.Address) (*big.Int, error) {
