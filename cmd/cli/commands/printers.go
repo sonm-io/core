@@ -400,17 +400,17 @@ func printTaskStart(cmd *cobra.Command, start *pb.StartTaskReply) {
 }
 
 func printBalanceInfo(cmd *cobra.Command, reply *pb.BalanceReply) {
-	side := reply.GetSideBalance().ToPriceString()
-	live := reply.GetLiveBalance().ToPriceString()
-	eth := reply.GetLiveEthBalance().ToPriceString()
+	sideSNM := reply.GetSideBalance().ToPriceString()
+	liveSNM := reply.GetLiveBalance().ToPriceString()
+	liveEth := reply.GetLiveEthBalance().ToPriceString()
 
 	if isSimpleFormat() {
-		cmd.Printf("On Ethereum: %s SNM | %s Eth\n", live, eth)
-		cmd.Printf("On SONM:     %s SNM\n", side)
+		cmd.Printf("On Ethereum: %s SNM | %s Eth\n", liveSNM, liveEth)
+		cmd.Printf("On SONM:     %s SNM\n", sideSNM)
 	} else {
 		showJSON(cmd, map[string]map[string]string{"balance": {
-			"ethereum": live,
-			"sonm":     side,
+			"ethereum": liveSNM,
+			"sonm":     sideSNM,
 		}})
 	}
 }
