@@ -181,19 +181,14 @@ func (m *DWH) unaryInterceptor(ctx context.Context, req interface{}, info *grpc.
 
 func (m *DWH) serveHTTP() error {
 	m.mu.Lock()
-	options := []rest.Option{rest.WithContext(m.ctx)}
+	options := []rest.Option{rest.WithLog(m.logger)}
 	lis, err := net.Listen("tcp", m.cfg.HTTPListenAddr)
 	if err != nil {
 		m.mu.Unlock()
 		return fmt.Errorf("failed to create http listener: %v", err)
 	}
 
-	options = append(options, rest.WithListener(lis))
-	srv, err := rest.NewServer(options...)
-	if err != nil {
-		m.mu.Unlock()
-		return fmt.Errorf("failed to create rest server: %v", err)
-	}
+	srv := rest.NewServer(options...)
 
 	err = srv.RegisterService((*pb.DWHServer)(nil), m)
 	if err != nil {
@@ -203,7 +198,7 @@ func (m *DWH) serveHTTP() error {
 
 	m.http = srv
 	m.mu.Unlock()
-	return srv.Serve()
+	return srv.Serve(lis)
 }
 
 func (m *DWH) GetDeals(ctx context.Context, request *pb.DealsRequest) (*pb.DWHDealsReply, error) {

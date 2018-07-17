@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -16,8 +15,8 @@ import (
 
 type marketAPI struct {
 	remotes       *remoteOptions
-	ctx           context.Context
 	workerCreator workerClientCreator
+	log           *zap.SugaredLogger
 }
 
 func (m *marketAPI) GetOrders(ctx context.Context, req *pb.Count) (*pb.GetOrdersReply, error) {
@@ -106,13 +105,13 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.BidOrder) (*pb.Orde
 	}
 
 	go func() {
-		deal, err := m.remotes.orderMatcher.CreateDealByOrder(m.remotes.ctx, order)
+		deal, err := m.remotes.orderMatcher.CreateDealByOrder(context.Background(), order)
 		if err != nil {
-			ctxlog.G(m.remotes.ctx).Warn("cannot open deal", zap.Error(err))
+			m.log.Warnw("cannot open deal", zap.Error(err))
 			return
 		}
 
-		ctxlog.G(m.remotes.ctx).Info("opened deal for order",
+		m.log.Infow("opened deal for order",
 			zap.String("orderID", order.Id.Unwrap().String()),
 			zap.String("dealID", deal.Id.Unwrap().String()))
 	}()
@@ -148,7 +147,7 @@ func (m *marketAPI) Purge(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 	merr := multierror.NewMultiError()
 	for _, order := range orders.Orders {
 		id := order.GetOrder().GetId().Unwrap()
-		ctxlog.G(m.remotes.ctx).Debug("cancelling order", zap.String("id", id.String()))
+		m.log.Debugw("cancelling order", zap.String("id", id.String()))
 		if err := m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id); err != nil {
 			multierror.Append(merr, fmt.Errorf("cannot cancel order with id %s: %v", id.String(), err))
 		}
@@ -164,7 +163,7 @@ func (m *marketAPI) Purge(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 func newMarketAPI(opts *remoteOptions) pb.MarketServer {
 	return &marketAPI{
 		remotes:       opts,
-		ctx:           opts.ctx,
 		workerCreator: opts.workerCreator,
+		log:           opts.log,
 	}
 }

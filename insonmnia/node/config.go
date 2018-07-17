@@ -32,9 +32,7 @@ type Config struct {
 // NewConfig loads localNode config from given .yaml file
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
-
-	err := configor.Load(cfg, path)
-	if err != nil {
+	if err := configor.Load(cfg, path); err != nil {
 		return nil, err
 	}
 
