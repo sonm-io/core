@@ -149,3 +149,8 @@ type SimpleGateTransaction struct {
 	Value    *big.Int
 	TxNumber *big.Int
 }
+
+type Balance struct {
+	Eth *big.Int
+	SNM *big.Int
+}
