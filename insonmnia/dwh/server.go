@@ -43,7 +43,7 @@ type DWH struct {
 	creds       credentials.TransportCredentials
 	certRotator util.HitlessCertRotator
 	blockchain  blockchain.API
-	storage     storage
+	storage     *sqlStorage
 	lastEvent   *blockchain.Event
 }
 
@@ -60,10 +60,9 @@ func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, erro
 }
 
 func (m *DWH) Serve() error {
-	m.logger.Info("starting with backend", zap.String("backend", m.cfg.Storage.Backend),
-		zap.String("endpoint", m.cfg.Storage.Endpoint))
+	m.logger.Info("starting with backend", zap.String("endpoint", m.cfg.Storage.Endpoint))
 	var err error
-	m.db, err = sql.Open(m.cfg.Storage.Backend, m.cfg.Storage.Endpoint)
+	m.db, err = sql.Open("postgres", m.cfg.Storage.Endpoint)
 	if err != nil {
 		m.Stop()
 		return err
@@ -133,20 +132,7 @@ func (m *DWH) setupDB() error {
 		return errors.New("market number of benchmarks is greater than NumMaxBenchmarks")
 	}
 
-	var storage *sqlStorage
-	switch m.cfg.Storage.Backend {
-	case "sqlite3":
-		_, err := m.db.Exec(`PRAGMA foreign_keys=ON`)
-		if err != nil {
-			return fmt.Errorf("failed to enable foreign key support (%s): %v", m.cfg.Storage.Backend, err)
-		}
-		storage = newSQLiteStorage(numBenchmarks)
-	case "postgres":
-		storage = newPostgresStorage(numBenchmarks)
-	default:
-		return fmt.Errorf("unsupported backend: %s", m.cfg.Storage.Backend)
-	}
-
+	var storage = newPostgresStorage(numBenchmarks)
 	if err := storage.Setup(m.db); err != nil {
 		return fmt.Errorf("failed to setup storage: %v", err)
 	}
