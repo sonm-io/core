@@ -46,10 +46,6 @@ func loadSNMPriceUSD(url string) (float64, error) {
 	return strconv.ParseFloat(tickerSnm[0].PriceUsd, 64)
 }
 
-func NewSNMPriceWatcher(url string) PriceWatcher {
-	return &snmPriceWatcher{
-		mu:   sync.Mutex{},
-		url:  url,
-		data: 0,
-	}
+func NewSNMPriceWatcher() PriceWatcher {
+	return &snmPriceWatcher{url: coinMarketCapSonmTicker}
 }

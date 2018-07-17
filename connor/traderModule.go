@@ -39,11 +39,9 @@ const (
 	DeployStatusDestroyed   DeployStatus = 2
 )
 
-type OrderStatus int32
-
 const (
-	OrderStatusCancelled OrderStatus = 3
-	OrderStatusReinvoice OrderStatus = 4
+	OrderStatusCancelled int64 = 3
+	OrderStatusReinvoice int64 = 4
 )
 
 func (t *TraderModule) SaveNewActiveDealsIntoDB(ctx context.Context) error {
@@ -238,7 +236,7 @@ func (t *TraderModule) OrderTrading(ctx context.Context, actualPrice *big.Int) e
 	}
 
 	for _, order := range orders {
-		if order.Status != int64(OrderStatusCancelled) {
+		if order.Status != OrderStatusCancelled {
 			if err := t.OrdersProfitTracking(ctx, actualPrice, order); err != nil {
 				return fmt.Errorf("cannot start orders profit tracking: %v", err)
 			}
@@ -294,7 +292,7 @@ func (t *TraderModule) OrdersProfitTracking(ctx context.Context, actualPrice *bi
 		}
 	case sonm.OrderStatus_ORDER_INACTIVE:
 		t.c.logger.Info("order is not active", zap.String("ID", order.Id.Unwrap().String()))
-		t.c.db.UpdateOrderInDB(orderDB.OrderID, int64(OrderStatusCancelled))
+		t.c.db.UpdateOrderInDB(orderDB.OrderID, OrderStatusCancelled)
 	}
 	return nil
 }
@@ -324,7 +322,7 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, price *sonm.Price, be
 		Price:      order.Price.Unwrap().Int64(),
 		Hashrate:   order.Benchmarks.GPUEthHashrate(),
 		StartTime:  time.Now(),
-		Status:     int64(OrderStatusReinvoice),
+		Status:     OrderStatusReinvoice,
 		ActualStep: 0,
 	}); err != nil {
 		return fmt.Errorf("cannot save reinvoice order %s to DB: %v", order.GetId().Unwrap().String(), err)
@@ -393,7 +391,7 @@ func (t *TraderModule) CancelAllOrders(ctx context.Context) error {
 	}
 
 	for _, o := range orders {
-		if o.Status == int64(OrderStatusReinvoice) || o.Status == int64(sonm.OrderStatus_ORDER_ACTIVE) {
+		if o.Status == OrderStatusReinvoice || o.Status == int64(sonm.OrderStatus_ORDER_ACTIVE) {
 			_, err := t.c.Market.CancelOrder(ctx, &sonm.ID{
 				Id: strconv.Itoa(int(o.OrderID)),
 			})
@@ -401,7 +399,7 @@ func (t *TraderModule) CancelAllOrders(ctx context.Context) error {
 				return err
 			}
 			t.c.logger.Info("order id cancelled", zap.Int64("order", o.OrderID))
-			t.c.db.UpdateOrderInDB(o.OrderID, int64(OrderStatusCancelled))
+			t.c.db.UpdateOrderInDB(o.OrderID, OrderStatusCancelled)
 		}
 	}
 	return nil

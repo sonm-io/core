@@ -20,11 +20,8 @@ import (
 )
 
 const (
-	coinMarketCapTicker     = "https://api.coinmarketcap.com/v1/ticker/"
-	coinMarketCapSonmTicker = coinMarketCapTicker + "sonm/"
-	cryptoCompareCoinData   = "https://www.cryptocompare.com/api/data/coinsnapshotfullbyid/?id="
-	poolReportedHashRate    = "https://api.nanopool.org/v1/eth/reportedhashrates/"
-	poolAverageHashRate     = "https://api.nanopool.org/v1/eth/avghashrateworkers/"
+	poolReportedHashRateURL = "https://api.nanopool.org/v1/eth/reportedhashrates/"
+	poolAverageHashRateURL  = "https://api.nanopool.org/v1/eth/avghashrateworkers/"
 )
 
 type Connor struct {
@@ -74,7 +71,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 	c.logger.Info("сonnor started work ...")
 	defer c.logger.Info("сonnor has been stopped")
 
-	c.ClearStart()
+	c.clearStart()
 
 	balanceReply, err := c.TokenClient.Balance(ctx, &sonm.Empty{})
 	if err != nil {
@@ -82,7 +79,8 @@ func (c *Connor) Serve(ctx context.Context) error {
 		return err
 	}
 
-	c.logger.Info("balance", zap.String("live", balanceReply.GetLiveBalance().Unwrap().String()),
+	c.logger.Info("balance",
+		zap.String("live", balanceReply.GetLiveBalance().Unwrap().String()),
 		zap.String("side", balanceReply.GetSideBalance().ToPriceString()))
 	c.logger.Info("configuring connor", zap.Any("config", c.cfg))
 
@@ -95,11 +93,11 @@ func (c *Connor) Serve(ctx context.Context) error {
 	task := time.NewTicker(c.cfg.Tickers.TaskCheck)
 	defer task.Stop()
 
-	snm := watchers.NewSNMPriceWatcher(coinMarketCapSonmTicker)
-	token := watchers.NewTokenPriceWatcher(coinMarketCapTicker, cryptoCompareCoinData)
+	snm := watchers.NewSNMPriceWatcher()
+	token := watchers.NewTokenPriceWatcher()
 
-	reportedPool := watchers.NewPoolWatcher(poolReportedHashRate, []string{c.cfg.Pool.PoolAccount})
-	avgPool := watchers.NewPoolWatcher(poolAverageHashRate, []string{c.cfg.Pool.PoolAccount + "/1"})
+	reportedPool := watchers.NewPoolWatcher(poolReportedHashRateURL, []string{c.cfg.Pool.PoolAccount})
+	avgPool := watchers.NewPoolWatcher(poolAverageHashRateURL, []string{c.cfg.Pool.PoolAccount + "/1"})
 
 	if err := snm.Update(ctx); err != nil {
 		return fmt.Errorf("cannot update snm data: %v", err)
@@ -114,6 +112,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 
 	md := errgroup.Group{}
 	md.Go(func() error {
+		// TODO(sshaman1101): this goroutine looks weird.
 		return traderModule.ChargeOrdersOnce(ctx, token, snm, balanceReply)
 	})
 	for {
@@ -195,7 +194,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 	}
 }
 
-func (c *Connor) ClearStart() error {
+func (c *Connor) clearStart() error {
 	if err := c.db.CreateAllTables(); err != nil {
 		return err
 	}

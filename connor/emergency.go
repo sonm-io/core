@@ -26,7 +26,7 @@ func (t *EmergencyModule) CancelAllActiveOrders(ctx context.Context) error {
 	}
 
 	for _, o := range orders {
-		if o.Status == int64(OrderStatusReinvoice) || o.Status == int64(sonm.OrderStatus_ORDER_ACTIVE) {
+		if o.Status == OrderStatusReinvoice || o.Status == int64(sonm.OrderStatus_ORDER_ACTIVE) {
 			_, err := t.c.Market.CancelOrder(ctx, &sonm.ID{
 				Id: strconv.Itoa(int(o.OrderID)),
 			})
@@ -34,7 +34,7 @@ func (t *EmergencyModule) CancelAllActiveOrders(ctx context.Context) error {
 				return err
 			}
 			t.c.logger.Info("order id cancelled", zap.Int64("order", o.OrderID))
-			t.c.db.UpdateOrderInDB(o.OrderID, int64(OrderStatusCancelled))
+			t.c.db.UpdateOrderInDB(o.OrderID, OrderStatusCancelled)
 		}
 	}
 	return nil

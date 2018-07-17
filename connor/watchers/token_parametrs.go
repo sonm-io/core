@@ -16,10 +16,10 @@ import (
 )
 
 type tokenPriceWatcher struct {
-	mu     sync.Mutex
-	urlCMC string
-	urlCRC string
-	data   map[string]*TokenParameters
+	mu               sync.Mutex
+	coinMarketCapURL string
+	cryptoCompareURL string
+	data             map[string]*TokenParameters
 }
 
 // tokenSnapshot represents several coin parameters related to mining
@@ -52,11 +52,11 @@ func getTokensForUpdate() []*tokenData {
 	}
 }
 
-func NewTokenPriceWatcher(urlCmc, urlCrypto string) TokenWatcher {
+func NewTokenPriceWatcher() TokenWatcher {
 	return &tokenPriceWatcher{
-		urlCMC: urlCmc,
-		urlCRC: urlCrypto,
-		data:   make(map[string]*TokenParameters),
+		coinMarketCapURL: coinMarketCapTicker,
+		cryptoCompareURL: cryptoCompareCoinData,
+		data:             make(map[string]*TokenParameters),
 	}
 }
 
@@ -78,7 +78,7 @@ func (p *tokenPriceWatcher) Update(ctx context.Context) error {
 		tokensSnapshot *tokenSnapshot //ID, blockTime, blockReward, hashesPerSec
 	)
 
-	body, err := fetchBody(p.urlCMC)
+	body, err := fetchBody(p.coinMarketCapURL)
 	if err != nil {
 		return err
 	}
@@ -116,7 +116,7 @@ func (p *tokenPriceWatcher) Update(ctx context.Context) error {
 
 	/* SNAPSHOT */
 	for _, token := range tokensToWorkWith {
-		body, err := fetchBody(p.urlCRC + token.ID)
+		body, err := fetchBody(p.cryptoCompareURL + token.ID)
 		if err != nil {
 			return nil
 		}
