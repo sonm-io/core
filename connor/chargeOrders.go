@@ -49,7 +49,8 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, token watchers.Toke
 
 	limitChargeInSNM := t.profit.LimitChargeSNM(balanceReply.GetSideBalance().Unwrap(), t.c.cfg.Trade.PartCharge)
 	limitChargeInSNMClone := big.NewInt(0).Set(limitChargeInSNM)
-	limitChargeInUSD := t.profit.ConvertingToUSDBalance(limitChargeInSNMClone, snm.GetPrice())
+	// snm price in USD per Ether, like 0.12
+	limitChargeInUSD := t.profit.ConvertSNMBalanceToUSD(limitChargeInSNMClone, snm.GetPrice())
 
 	pricePackMhInUSDPerMonth := mhashForToken * (pricePerMonthUSD * t.c.cfg.Trade.MarginAccounting)
 	if pricePackMhInUSDPerMonth == 0 {

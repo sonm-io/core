@@ -98,11 +98,14 @@ func (p *ProfitableModule) CollectTokensMiningProfit(t watchers.TokenWatcher) ([
 	}
 	return tokensForCalc, nil
 }
+
+// TODO(sshaman1101): tests
 func (p *ProfitableModule) CalculateMiningProfit(usd, hashesPerSecond, netHashesPerSecond, blockReward, div float64, blockTime int64) (float64, error) {
-	currentHashingPower := hashesPerSecond / div
 	if div == 0 {
 		return 0, fmt.Errorf("the current div is 0")
 	}
+	currentHashingPower := hashesPerSecond / div
+
 	miningShare := currentHashingPower / (netHashesPerSecond + currentHashingPower)
 	minedPerDay := miningShare * 86400 / float64(blockTime) * blockReward / div
 	powerCostPerDayUSD := (powerConsumption * 24) / 1000 * costPerkWh
@@ -111,19 +114,31 @@ func (p *ProfitableModule) CalculateMiningProfit(usd, hashesPerSecond, netHashes
 	return perMonthUSD, nil
 }
 
-//Limit balance for Charge orders. Default value = 0.5
+// LimitChargeSNM balance for charge orders. Default value = 0.5
+// TODO(sshaman1101): tests
 func (p *ProfitableModule) LimitChargeSNM(balance *big.Int, partCharge float64) *big.Int {
 	limitChargeSNM := balance.Div(balance, big.NewInt(100))
 	limitChargeSNM = limitChargeSNM.Mul(balance, big.NewInt(int64(partCharge*100)))
 	return limitChargeSNM
 }
 
-//converting snmBalance = > USD Balance
-func (p *ProfitableModule) ConvertingToUSDBalance(balanceSide *big.Int, snmPrice float64) float64 {
-	bal := balanceSide.Mul(balanceSide, big.NewInt(int64(snmPrice*params.Ether)))
-	bal = bal.Div(bal, big.NewInt(params.Ether))
-	d, e := bal.DivMod(bal, big.NewInt(params.Ether), big.NewInt(0))
-	f, _ := big.NewFloat(0).SetInt(e).Float64()
-	res := float64(d.Int64()) + (f / params.Ether)
-	return res
+// ConvertSNMBalanceToUSD converts amount of tokens (Ether-graded value)
+// to human-friendly price in USD.
+//
+// balance * price / ether = balance in USD, e.g:
+// balance = 40e18 SNM
+// price = 0.22 $/SNM
+// balance in USD = 8.8$
+func (p *ProfitableModule) ConvertSNMBalanceToUSD(balance *big.Int, usdForOneSNM float64) float64 {
+	bal := big.NewFloat(0).SetInt(balance)
+	price := big.NewFloat(usdForOneSNM)
+
+	ether := big.NewFloat(params.Ether)
+	priceInUSDInPowOfEther := big.NewFloat(0).Mul(bal, price)
+
+	// divide result by ether to get total amount of funds in "normal",
+	// not the 1e18-graded power.
+	result, _ := big.NewFloat(0).Quo(priceInUSDInPowOfEther, ether).Float64()
+
+	return result
 }

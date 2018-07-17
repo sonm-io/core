@@ -5,6 +5,12 @@ import (
 	"math/big"
 )
 
+const (
+	coinMarketCapTicker     = "https://api.coinmarketcap.com/v1/ticker/"
+	coinMarketCapSonmTicker = coinMarketCapTicker + "sonm/"
+	cryptoCompareCoinData   = "https://www.cryptocompare.com/api/data/coinsnapshotfullbyid/?id="
+)
+
 // Watcher is watching for external resources updates
 type Watcher interface {
 	Update(ctx context.Context) error
