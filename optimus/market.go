@@ -14,17 +14,19 @@ const (
 type MarketOrder = sonm.DWHOrder
 
 type marketScanner struct {
+	cfg marketplaceConfig
 	dwh sonm.DWHClient
 }
 
-func newMarketScanner(dwh sonm.DWHClient) *marketScanner {
+func newMarketScanner(cfg marketplaceConfig, dwh sonm.DWHClient) *marketScanner {
 	return &marketScanner{
+		cfg: cfg,
 		dwh: dwh,
 	}
 }
 
 func (m *marketScanner) ActiveOrders(ctx context.Context) ([]*MarketOrder, error) {
-	cursor := newCursor(m.dwh)
+	cursor := newCursor(m.cfg, m.dwh)
 
 	orders := make([]*MarketOrder, 0, ordersPreallocateSize)
 	for {
@@ -44,13 +46,15 @@ func (m *marketScanner) ActiveOrders(ctx context.Context) ([]*MarketOrder, error
 }
 
 type cursor struct {
+	cfg    marketplaceConfig
 	dwh    sonm.DWHClient
 	offset uint64
 	limit  uint64
 }
 
-func newCursor(dwh sonm.DWHClient) *cursor {
+func newCursor(cfg marketplaceConfig, dwh sonm.DWHClient) *cursor {
 	return &cursor{
+		cfg:    cfg,
 		dwh:    dwh,
 		offset: 0,
 		limit:  ordersPullLimit,
@@ -61,6 +65,9 @@ func (m *cursor) Next(ctx context.Context) ([]*MarketOrder, error) {
 	request := &sonm.OrdersRequest{
 		Type:   sonm.OrderType_ANY,
 		Status: sonm.OrderStatus_ORDER_ACTIVE,
+		Price: &sonm.MaxMinBig{
+			Min: m.cfg.MinPrice.GetPerSecond(),
+		},
 		Offset: m.offset,
 		Limit:  m.limit,
 	}
