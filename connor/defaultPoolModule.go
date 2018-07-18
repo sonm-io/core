@@ -187,7 +187,6 @@ func (p *PoolModule) DestroyDeal(ctx context.Context, dealInfo *sonm.DealInfoRep
 }
 
 func (p *PoolModule) UpdateDestroyedDealDB(ctx context.Context, deal *database.DealDB) error {
-
 	if err := p.c.db.UpdateDeployAndDealStatusDB(deal.DealID, DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
 		return err
 	}

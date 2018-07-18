@@ -18,7 +18,6 @@ const (
 	powerConsumption = 0.0
 )
 
-// CALCULATE TOKENS
 type ProfitableModule struct {
 	c *Connor
 }
@@ -61,6 +60,7 @@ func (p *ProfitableModule) getTokensForProfitCalculation() []*TokenMainData {
 		{Symbol: "ZEC"},
 	}
 }
+
 func (p *ProfitableModule) CollectTokensMiningProfit(t watchers.TokenWatcher) ([]*TokenMainData, error) {
 	var tokensForCalc = p.getTokensForProfitCalculation()
 	for _, token := range tokensForCalc {
@@ -114,7 +114,7 @@ func (p *ProfitableModule) CalculateMiningProfit(usd, hashesPerSecond, netHashes
 	return perMonthUSD, nil
 }
 
-// LimitChargeSNM balance for charge orders. Default value = 0.5
+// Limit balance for Charge orders. Default value = 0.5
 // TODO(sshaman1101): tests
 func (p *ProfitableModule) LimitChargeSNM(balance *big.Int, partCharge float64) *big.Int {
 	limitChargeSNM := balance.Div(balance, big.NewInt(100))
