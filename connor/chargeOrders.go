@@ -99,8 +99,7 @@ func (t *TraderModule) ChargeOrders(ctx context.Context, priceForHashPerSec *big
 		requiredHashRate = uint64(buyMghash)
 	}
 
-	t.c.logger.Sugar().Infof("ZEC required hashrate %v H/s", requiredHashRate)
-
+	t.c.logger.Sugar().Infof("required hashrate %v H/s", requiredHashRate)
 	benchmarks, err := t.getBenchmarksForSymbol(uint64(requiredHashRate))
 	if err != nil {
 		return 0, err
