@@ -183,7 +183,7 @@ func (m *DWH) serveHTTP() error {
 		m.mu.Lock()
 		defer m.mu.Unlock()
 
-		options := []rest.Option{rest.WithContext(m.ctx)}
+		options := []rest.Option{rest.WithLog(m.logger)}
 		lis, err := net.Listen("tcp", m.cfg.HTTPListenAddr)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create http listener: %v", err)
