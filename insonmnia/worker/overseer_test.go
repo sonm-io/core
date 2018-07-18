@@ -142,6 +142,59 @@ func TestOvsSpawn(t *testing.T) {
 	wg.Wait()
 }
 
+func TestOvsAttach(t *testing.T) {
+	assrt := assert.New(t)
+	buildTestImage(t)
+	cl, err := client.NewEnvClient()
+	assrt.NoError(err)
+	defer cl.Close()
+	ctx := context.Background()
+	ovs, err := NewOverseer(ctx, plugin.EmptyRepository())
+	require.NoError(t, err)
+	ref, err := reference.ParseNormalizedNamed("worker")
+	require.NoError(t, err)
+	_, info, err := ovs.Start(ctx, Description{Reference: ref.String()})
+	require.NoError(t, err)
+	cjson, err := cl.ContainerInspect(ctx, info.ID)
+	require.NoError(t, err)
+	t.Logf("spawned %s %v", info.ID, info.Ports)
+	_, ok := cjson.NetworkSettings.Ports["20000/tcp"]
+	assrt.True(ok)
+	_, ok = cjson.NetworkSettings.Ports["20001/udp"]
+	assrt.True(ok)
+	ovs.Close()
+
+	ovs2, err := NewOverseer(ctx, plugin.EmptyRepository())
+	require.NoError(t, err)
+	descr := Description{Reference: ref.String()}
+	ch, err := ovs2.Attach(ctx, info.ID, descr)
+	t.Logf("attached to container %s", info.ID)
+	require.NoError(t, err)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		tk := time.NewTicker(time.Second * 10)
+		defer tk.Stop()
+		defer wg.Done()
+		select {
+		case <-ch:
+		case <-tk.C:
+			t.Error("waiting for stop status timed out")
+		}
+	}()
+	metrics, err := ovs.Info(ctx)
+	require.NoError(t, err)
+	_, ok = metrics[info.ID]
+	if !ok {
+		t.Error("failed to find container with id ", info.ID)
+	}
+	err = ovs2.Stop(ctx, info.ID)
+	require.NoError(t, err)
+	t.Logf("successfully stopped container %s", info.ID)
+	ovs2.Close()
+	wg.Wait()
+}
+
 func TestExpose(t *testing.T) {
 	portMap, portBinding, err := nat.ParsePortSpecs([]string{"81:80", "443:443", "8.8.8.8:53:10053", "22"})
 
