@@ -67,7 +67,7 @@ func (p *PoolModule) DeployNewContainer(ctx context.Context, cfg *Config, deal *
 	reply, err := p.c.TaskClient.Start(ctx, startTaskRequest)
 	if err != nil {
 		p.c.logger.Info("cannot create start task with given container - deal closed", zap.Any("deal", deal))
-		if err = p.c.db.UpdateDeployAndDealStatusDB(deal.Id.Unwrap().Int64(), int64(DeployStatusDestroyed), sonm.DealStatus_DEAL_CLOSED); err != nil {
+		if err = p.c.db.UpdateDeployAndDealStatusDB(deal.Id.Unwrap().Int64(), DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
 			return nil, err
 		}
 
@@ -173,7 +173,7 @@ func (p *PoolModule) DestroyDeal(ctx context.Context, dealInfo *sonm.DealInfoRep
 		p.c.logger.Info("couldn't finish deal", zap.Any("deal", dealInfo),
 			zap.Error(err))
 	}
-	if err := p.c.db.UpdateDeployAndDealStatusDB(dealInfo.Deal.Id.Unwrap().Int64(), int64(DeployStatusDestroyed), sonm.DealStatus_DEAL_CLOSED); err != nil {
+	if err := p.c.db.UpdateDeployAndDealStatusDB(dealInfo.Deal.Id.Unwrap().Int64(), DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
 		return err
 	}
 
@@ -188,7 +188,7 @@ func (p *PoolModule) DestroyDeal(ctx context.Context, dealInfo *sonm.DealInfoRep
 
 func (p *PoolModule) UpdateDestroyedDealDB(ctx context.Context, deal *database.DealDB) error {
 
-	if err := p.c.db.UpdateDeployAndDealStatusDB(deal.DealID, int64(DeployStatusDestroyed), sonm.DealStatus_DEAL_CLOSED); err != nil {
+	if err := p.c.db.UpdateDeployAndDealStatusDB(deal.DealID, DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
 		return err
 	}
 
