@@ -23,7 +23,6 @@ func (p *PoolModule) CheckTaskStatus(ctx context.Context) error {
 	}
 	group := errgroup.Group{}
 	for _, d := range dealsDb {
-
 		if d.DeployStatus == DeployStatusDeployed && d.Status == int64(sonm.DealStatus_DEAL_ACCEPTED) {
 			checkDealStatus, err := p.c.DealClient.Status(ctx, sonm.NewBigIntFromInt(d.DealID))
 			if err != nil {

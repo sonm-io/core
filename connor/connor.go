@@ -133,7 +133,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 				return fmt.Errorf("cannot save active deals: %v", err)
 			}
 
-			_, pricePerSec, err := traderModule.GetPriceForTokenPerSec(token, c.cfg.UsingToken)
+			_, pricePerSec, err := traderModule.GetPriceForTokenPerSec(token)
 			if err != nil {
 				return fmt.Errorf("cannot get pricePerSec for token per sec: %v", err)
 			}

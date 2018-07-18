@@ -117,7 +117,6 @@ func (t *TraderModule) ResponseToActiveDeal(ctx context.Context, dealDB *databas
 	}
 
 	t.c.logger.Info("processing of deploying new container", zap.Any("deal_ID", dealOnMarket.Deal))
-
 	newContainer, err := t.pool.DeployNewContainer(ctx, t.c.cfg, dealOnMarket.Deal, t.c.cfg.Pool.Image)
 	if err != nil {
 		t.c.logger.Warn("cannot start task", zap.Error(err))

@@ -34,14 +34,14 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, token watchers.Toke
 		mhashForToken = t.c.cfg.ChargeOrders.Start
 	} else {
 		mhashForToken, err = t.c.db.GetLastActualStepFromDb()
-		mhashForToken = mhashForToken + t.c.cfg.ChargeOrders.Step
 		if err != nil {
 			t.c.logger.Error("cannot get last actual step from DB", zap.Error(err))
 			return err
 		}
+		mhashForToken = mhashForToken + t.c.cfg.ChargeOrders.Step
 	}
 
-	pricePerMonthUSD, pricePerSecMh, err := t.GetPriceForTokenPerSec(token, t.c.cfg.UsingToken)
+	pricePerMonthUSD, pricePerSecMh, err := t.GetPriceForTokenPerSec(token)
 	if err != nil {
 		t.c.logger.Error("cannot get profit for tokens", zap.Error(err))
 		return err
@@ -78,9 +78,9 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, token watchers.Toke
 		pricePerSecPack := t.FloatToBigInt(mhashForToken * (pricePerSecMh * t.c.cfg.Trade.MarginAccounting))
 		pricePerSecPackWithoutMargin := t.FloatToBigInt(mhashForToken * (pricePerSecMh))
 
-		t.c.logger.Info("price", zap.Float64("m-hashes", mhashForToken), zap.Float64("price_per_sec_for_Mh", pricePerSecMh),
-			zap.String("ending price with margin for pack", sonm.NewBigInt(pricePerSecPack).ToPriceString()),
-			zap.String("price without margin for pack", sonm.NewBigInt(pricePerSecPackWithoutMargin).ToPriceString()),
+		t.c.logger.Info("price", zap.Float64("hashes", mhashForToken), zap.Float64("price_per_sec_for_Mh", pricePerSecMh),
+			zap.String("ending_price_with_margin_for_pack", sonm.NewBigInt(pricePerSecPack).ToPriceString()),
+			zap.String("price_without_margin_for_pack", sonm.NewBigInt(pricePerSecPackWithoutMargin).ToPriceString()),
 		)
 
 		mhashForToken, err = t.ChargeOrders(ctx, pricePerSecPack, t.c.cfg.ChargeOrders.Step, mhashForToken)
@@ -94,6 +94,12 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, token watchers.Toke
 // Prepare price and Map depends on token symbol. Create orders to the market, until the budget is over.
 func (t *TraderModule) ChargeOrders(ctx context.Context, priceForHashPerSec *big.Int, step float64, buyMghash float64) (float64, error) {
 	requiredHashRate := uint64(buyMghash * hashes)
+
+	if t.c.cfg.UsingToken != "ETH" {
+		requiredHashRate = uint64(buyMghash)
+	}
+
+	t.c.logger.Sugar().Infof("ZEC required hashrate %v H/s", requiredHashRate)
 
 	benchmarks, err := t.getBenchmarksForSymbol(uint64(requiredHashRate))
 	if err != nil {
@@ -111,7 +117,7 @@ func (t *TraderModule) ChargeOrders(ctx context.Context, priceForHashPerSec *big
 // Create order on market depends on token.
 func (t *TraderModule) CreateOrderOnMarketStep(ctx context.Context, step float64, benchmarks map[string]uint64, buyMgHash float64, price *big.Int) (float64, error) {
 	actOrder, err := t.c.Market.CreateOrder(ctx, &sonm.BidOrder{
-		Tag:      "Connor SONM bot",
+		Tag:      "ETH SONM bot",
 		Duration: &sonm.Duration{},
 		Price: &sonm.Price{
 			PerSecond: sonm.NewBigInt(price),
@@ -158,13 +164,14 @@ func (t *TraderModule) GetProfitForTokenBySymbol(tokens []*TokenMainData, symbol
 }
 
 //this function determines price for 1 Mhash per second
-func (t *TraderModule) GetPriceForTokenPerSec(token watchers.TokenWatcher, symbol string) (float64, float64, error) {
+
+func (t *TraderModule) GetPriceForTokenPerSec(token watchers.TokenWatcher) (float64, float64, error) {
 	tokens, err := t.profit.CollectTokensMiningProfit(token)
 	if err != nil {
 		return 0, 0, fmt.Errorf("cannot calculate token prices %v", err)
 	}
 
-	pricePerMonthUSD, err := t.GetProfitForTokenBySymbol(tokens, symbol)
+	pricePerMonthUSD, err := t.GetProfitForTokenBySymbol(tokens, t.c.cfg.UsingToken)
 	if err != nil {
 		return 0, 0, fmt.Errorf("cannot get profit for tokens: %v", err)
 	}
@@ -197,8 +204,10 @@ func (t *TraderModule) newBenchmarksWithGPU(ethHashRate uint64) map[string]uint6
 	return b
 }
 
-func (t *TraderModule) newBenchmarksWithoutGPU() map[string]uint64 {
-	return t.newBaseBenchmarks()
+func (t *TraderModule) newBenchmarksWithoutGPU(zecHashrate uint64) map[string]uint64 {
+	b := t.newBaseBenchmarks()
+	b["gpu-cash-hashrate"] = zecHashrate
+	return b
 }
 
 func (t *TraderModule) getBenchmarksForSymbol(ethHashRate uint64) (map[string]uint64, error) {
@@ -206,7 +215,7 @@ func (t *TraderModule) getBenchmarksForSymbol(ethHashRate uint64) (map[string]ui
 	case "ETH":
 		return t.newBenchmarksWithGPU(ethHashRate), nil
 	case "ZEC":
-		return t.newBenchmarksWithoutGPU(), nil
+		return t.newBenchmarksWithoutGPU(ethHashRate), nil
 	case "XMR":
 		return t.newBenchmarksWithGPU(ethHashRate), nil
 	default:
