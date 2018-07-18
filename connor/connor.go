@@ -110,7 +110,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 	poolModule := NewPoolModules(c)
 	traderModule := NewTraderModules(c, poolModule, profitModule)
 
-	md := errgroup.Group{}
+	md, ctx := errgroup.WithContext(ctx)
 	md.Go(func() error {
 		// TODO(sshaman1101): this goroutine looks weird.
 		return traderModule.ChargeOrdersOnce(ctx, token, snm, balanceReply)
@@ -121,35 +121,37 @@ func (c *Connor) Serve(ctx context.Context) error {
 		case <-ctx.Done():
 			return fmt.Errorf("context done %v", ctx.Err())
 		case <-dataUpdate.C:
-			md.Go(func() error {
-				return snm.Update(ctx)
-			})
-			md.Go(func() error {
-				return token.Update(ctx)
-			})
+			go snm.Update(ctx)
+			go token.Update(ctx)
 		case <-tradeUpdate.C:
+			tradeLog := c.logger.With(zap.String("subsystem", "trade"))
 			if err := traderModule.SaveNewActiveDealsIntoDB(ctx); err != nil {
-				return fmt.Errorf("cannot save active deals: %v", err)
+				tradeLog.Warn("cannot save active deals", zap.Error(err))
+				continue
 			}
 
 			_, pricePerSec, err := traderModule.GetPriceForTokenPerSec(token)
 			if err != nil {
-				return fmt.Errorf("cannot get pricePerSec for token per sec: %v", err)
+				tradeLog.Warn("cannot get pricePerSec for token", zap.Error(err))
+				continue
 			}
 
 			actualPrice := traderModule.FloatToBigInt(pricePerSec * c.cfg.Trade.MarginAccounting)
-			if actualPrice == big.NewInt(0) {
+			if actualPrice.Cmp(big.NewInt(0)) == 0 {
 				return fmt.Errorf("actual price is 0")
 			}
 
 			c.logger.Info("actual price", zap.String("price", actualPrice.String()))
-
 			if err := traderModule.DealsTrading(ctx, actualPrice); err != nil {
-				return err
+				tradeLog.Warn("DealsTrading failed", zap.Error(err))
+				continue
 			}
 
 			md.Go(func() error {
-				return traderModule.OrderTrading(ctx, actualPrice)
+				if err := traderModule.OrderTrading(ctx, actualPrice); err != nil {
+					tradeLog.Warn("OrderTrading failed", zap.Error(err))
+				}
+				return nil
 			})
 
 		case <-task.C:
@@ -187,8 +189,10 @@ func (c *Connor) Serve(ctx context.Context) error {
 					}
 				}
 			}
+
 			if err := poolModule.AdvancedPoolHashrateTracking(ctx, reportedPool, avgPool); err != nil {
-				return err
+				c.logger.Warn("AdvancedPoolHashrateTracking failed", zap.Error(err))
+				continue
 			}
 		}
 	}
