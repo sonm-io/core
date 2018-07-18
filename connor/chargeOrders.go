@@ -118,7 +118,7 @@ func (t *TraderModule) CreateOrderOnMarketStep(ctx context.Context, step float64
 	actOrder, err := t.c.Market.CreateOrder(ctx, &sonm.BidOrder{
 		Tag:      t.c.cfg.Trade.Tag,
 		Duration: &sonm.Duration{},
-		Price: &sonm.Price{PerSecond: sonm.NewBigInt(price)},
+		Price:    &sonm.Price{PerSecond: sonm.NewBigInt(price)},
 		Identity: t.c.cfg.Trade.IdentityForBid,
 		Resources: &sonm.BidResources{
 			Benchmarks: benchmarks,
