@@ -31,17 +31,15 @@ func NewTraderModules(c *Connor, pool *PoolModule, profit *ProfitableModule) *Tr
 	}
 }
 
-type DeployStatus int32
-
 const (
-	DeployStatusNotDeployed DeployStatus = 0
-	DeployStatusDeployed    DeployStatus = 1
-	DeployStatusDestroyed   DeployStatus = 2
+	DeployStatusNotDeployed = 0
+	DeployStatusDeployed    = 1
+	DeployStatusDestroyed   = 2
 )
 
 const (
-	OrderStatusCancelled int64 = 3
-	OrderStatusReinvoice int64 = 4
+	OrderStatusCancelled = 3
+	OrderStatusReinvoice = 4
 )
 
 func (t *TraderModule) SaveNewActiveDealsIntoDB(ctx context.Context) error {
@@ -58,7 +56,7 @@ func (t *TraderModule) SaveNewActiveDealsIntoDB(ctx context.Context) error {
 				Price:        deal.Price.Unwrap().Int64(),
 				AskID:        deal.AskID.Unwrap().Int64(),
 				BidID:        deal.BidID.Unwrap().Int64(),
-				DeployStatus: int64(DeployStatusNotDeployed),
+				DeployStatus: DeployStatusNotDeployed,
 			})
 		}
 	}
@@ -85,7 +83,7 @@ func (t *TraderModule) DealsTrading(ctx context.Context, actualPrice *big.Int) e
 			}
 
 			if checkDealStatus.Deal.Status == sonm.DealStatus_DEAL_CLOSED {
-				if err = t.c.db.UpdateDeployAndDealStatusDB(dealDB.DealID, int64(DeployStatusDestroyed), sonm.DealStatus_DEAL_CLOSED); err != nil {
+				if err = t.c.db.UpdateDeployAndDealStatusDB(dealDB.DealID, DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
 					return fmt.Errorf("cannot update deploy ans deal status %v", err)
 				}
 				t.c.logger.Info("deal closed on market, task tracking stop")
@@ -93,17 +91,17 @@ func (t *TraderModule) DealsTrading(ctx context.Context, actualPrice *big.Int) e
 			}
 
 			switch dealDeployStatus {
-			case int64(DeployStatusNotDeployed):
+			case DeployStatusNotDeployed:
 				if err := t.ResponseToActiveDeal(ctx, dealDB); err != nil {
 					return err
 				}
-			case int64(DeployStatusDeployed):
+			case DeployStatusDeployed:
 				if dealDB.ChangeRequestStatus != int64(sonm.ChangeRequestStatus_REQUEST_CREATED) {
 					if err := t.deployedDealProfitTracking(ctx, actualPrice, dealDB); err != nil {
 						return err
 					}
 				}
-			case int64(DeployStatusDestroyed):
+			case DeployStatusDestroyed:
 				continue
 			}
 		}
@@ -130,7 +128,7 @@ func (t *TraderModule) ResponseToActiveDeal(ctx context.Context, dealDB *databas
 		return nil
 	}
 
-	if err := t.c.db.UpdateDeployStatusDealInDB(dealOnMarket.Deal.Id.Unwrap().Int64(), int64(DeployStatusDeployed)); err != nil {
+	if err := t.c.db.UpdateDeployStatusDealInDB(dealOnMarket.Deal.Id.Unwrap().Int64(), DeployStatusDeployed); err != nil {
 		return err
 	}
 

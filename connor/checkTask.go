@@ -24,7 +24,7 @@ func (p *PoolModule) CheckTaskStatus(ctx context.Context) error {
 	group := errgroup.Group{}
 	for _, d := range dealsDb {
 
-		if d.DeployStatus == int64(DeployStatusDeployed) && d.Status == int64(sonm.DealStatus_DEAL_ACCEPTED) {
+		if d.DeployStatus == DeployStatusDeployed && d.Status == int64(sonm.DealStatus_DEAL_ACCEPTED) {
 			checkDealStatus, err := p.c.DealClient.Status(ctx, sonm.NewBigIntFromInt(d.DealID))
 			if err != nil {
 				return nil
@@ -69,7 +69,7 @@ func (p *PoolModule) CheckTaskStatus(ctx context.Context) error {
 				}
 
 			case sonm.DealStatus_DEAL_CLOSED:
-				if err = p.c.db.UpdateDeployAndDealStatusDB(d.DealID, int64(DeployStatusDestroyed), sonm.DealStatus_DEAL_CLOSED); err != nil {
+				if err = p.c.db.UpdateDeployAndDealStatusDB(d.DealID, DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
 					return err
 				}
 				p.c.logger.Info("deal closed on market, task tracking stop")

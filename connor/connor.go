@@ -166,7 +166,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 			}
 
 			for _, dealDb := range dealsDb {
-				if dealDb.DeployStatus == int64(DeployStatusDeployed) {
+				if dealDb.DeployStatus == DeployStatusDeployed {
 
 					dealOnMarket, err := c.DealClient.Status(ctx, sonm.NewBigIntFromInt(dealDb.DealID))
 					if err != nil {
