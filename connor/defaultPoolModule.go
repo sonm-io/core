@@ -29,14 +29,14 @@ func NewPoolModules(c *Connor) *PoolModule {
 }
 
 const (
-	PoolTypeReportedHashrate  = 0
-	PoolTypeAvgHashrate       = 1
+	PoolTypeReportedHashrate = 0
+	PoolTypeAvgHashrate      = 1
 )
 
 const (
-	BanStatusBanned        = 1
-	BanStatusMasterBan     = 2
-	BanStatusWorkerInPool  = 6
+	BanStatusBanned       = 1
+	BanStatusMasterBan    = 2
+	BanStatusWorkerInPool = 6
 )
 
 func (p *PoolModule) DeployNewContainer(ctx context.Context, deal *sonm.Deal, image string) (*sonm.StartTaskReply, error) {
