@@ -128,8 +128,6 @@ func (c *Connor) Serve(ctx context.Context) error {
 				return token.Update(ctx)
 			})
 		case <-tradeUpdate.C:
-			c.logger.Info("update new deals")
-
 			if err := traderModule.SaveNewActiveDealsIntoDB(ctx); err != nil {
 				return fmt.Errorf("cannot save active deals: %v", err)
 			}
