@@ -229,6 +229,7 @@ func (m *options) setupMatcher() error {
 				Eth:        m.eth,
 				PollDelay:  m.cfg.Matcher.PollDelay,
 				QueryLimit: m.cfg.Matcher.QueryLimit,
+				Log:        ctxlog.S(m.ctx),
 			})
 			if err != nil {
 				return fmt.Errorf("cannot create matcher: %v", err)
