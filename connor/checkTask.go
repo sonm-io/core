@@ -28,7 +28,6 @@ func (p *PoolModule) CheckTaskStatus(ctx context.Context) error {
 			if err != nil {
 				return nil
 			}
-			p.c.logger.Info("deployed and accepted in DB!")
 
 			switch checkDealStatus.Deal.Status {
 			case sonm.DealStatus_DEAL_ACCEPTED:

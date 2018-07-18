@@ -116,11 +116,9 @@ func (t *TraderModule) ChargeOrders(ctx context.Context, priceForHashPerSec *big
 // Create order on market depends on token.
 func (t *TraderModule) CreateOrderOnMarketStep(ctx context.Context, step float64, benchmarks map[string]uint64, buyMgHash float64, price *big.Int) (float64, error) {
 	actOrder, err := t.c.Market.CreateOrder(ctx, &sonm.BidOrder{
-		Tag:      "ETH SONM bot",
+		Tag:      t.c.cfg.Trade.Tag,
 		Duration: &sonm.Duration{},
-		Price: &sonm.Price{
-			PerSecond: sonm.NewBigInt(price),
-		},
+		Price: &sonm.Price{PerSecond: sonm.NewBigInt(price)},
 		Identity: t.c.cfg.Trade.IdentityForBid,
 		Resources: &sonm.BidResources{
 			Benchmarks: benchmarks,

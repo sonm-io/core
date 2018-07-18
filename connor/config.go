@@ -26,6 +26,7 @@ type chargeOrdersConfig struct {
 
 type tradeParamConfig struct {
 	IdentityForBid      sonm.IdentityLevel `yaml:"identity_for_bid"`
+	Tag                 string             `yaml:"tag"`
 	MarginAccounting    float64            `yaml:"margin_accounting"`
 	PartCharge          float64            `yaml:"part_charge"`
 	OrdersChangePercent float64            `yaml:"orders_change_percent"`
