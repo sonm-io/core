@@ -17,64 +17,66 @@ const (
 
 // CheckTaskStatus check the status of the task to get rid of the loss of money (pool check).
 func (p *PoolModule) CheckTaskStatus(ctx context.Context) error {
-	dealsDb, err := p.c.db.GetDealsFromDB()
+	deals, err := p.c.db.GetDealsFromDB()
 	if err != nil {
+		p.c.logger.Debug("cannot get deals from db", zap.Error(err))
 		return err
 	}
+
 	group := errgroup.Group{}
-	for _, d := range dealsDb {
+	for _, d := range deals {
 		if d.DeployStatus == DeployStatusDeployed && d.Status == int64(sonm.DealStatus_DEAL_ACCEPTED) {
-			checkDealStatus, err := p.c.DealClient.Status(ctx, sonm.NewBigIntFromInt(d.DealID))
+			dealID := sonm.NewBigIntFromInt(d.DealID)
+			checkDealStatus, err := p.c.DealClient.Status(ctx, dealID)
 			if err != nil {
-				return nil
+				p.c.logger.Debug("cannot get deal status", zap.Error(err), zap.Int64("deal_id", d.DealID))
+				continue
 			}
 
 			switch checkDealStatus.Deal.Status {
 			case sonm.DealStatus_DEAL_ACCEPTED:
+				p.c.logger.Info("deal accepted, loading tasks list from a worker", zap.Int64("deal", d.DealID))
 
-				p.c.logger.Info("check task status ", zap.Int64("deal", d.DealID))
-
-				tasksList, err := p.c.TaskClient.List(ctx, &sonm.TaskListRequest{
-					DealID: sonm.NewBigIntFromInt(d.DealID),
-				})
+				tasksList, err := p.c.TaskClient.List(ctx, &sonm.TaskListRequest{DealID: dealID})
 				if err != nil {
-					return err
-				}
-
-				dealOnMarket, err := p.c.DealClient.Status(ctx, sonm.NewBigIntFromInt(d.DealID))
-				if err != nil {
-					return err
+					p.c.logger.Warn("cannot get tasks from worker", zap.Error(err))
+					continue
 				}
 
 				for taskID := range tasksList.GetInfo() {
-
 					taskStatus, err := p.c.TaskClient.Status(ctx, &sonm.TaskID{
 						Id:     taskID,
-						DealID: dealOnMarket.Deal.Id,
+						DealID: dealID,
 					})
 
 					if err != nil {
-						p.c.logger.Info("cannot get tasksList status from worker ==> retry")
+						p.c.logger.Debug("cannot get task status from worker, retrying")
 						group.Go(func() error {
-							return p.RetryCheckTaskStatus(ctx, *d, taskID)
+							if err := p.RetryCheckTaskStatus(ctx, *d, taskID); err != nil {
+								p.c.logger.Debug("cannot get task status after retrying")
+							}
+							return nil
 						})
+
 						continue
 					}
-					err = p.CheckFatalTaskStatus(ctx, d, taskStatus)
-					if err != nil {
-						return err
+					if err = p.CheckFatalTaskStatus(ctx, d, taskStatus); err != nil {
+						p.c.logger.Debug("cannot close deal (via CheckFatalTaskStatus)", zap.Error(err))
+						continue
 					}
 				}
 
 			case sonm.DealStatus_DEAL_CLOSED:
 				if err = p.c.db.UpdateDeployAndDealStatusDB(d.DealID, DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
-					return err
+					p.c.logger.Info("cannot save deal status into db", zap.Error(err))
+					continue
 				}
+
 				p.c.logger.Info("deal closed on market, task tracking stop")
-				continue
 			}
 		}
 	}
+
 	return group.Wait()
 }
 

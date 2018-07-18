@@ -178,7 +178,6 @@ func (t *TraderModule) GetPriceForTokenPerSec(token watchers.TokenWatcher) (floa
 	}
 
 	pricePerSec := pricePerMonthUSD / (secsPerDay * daysPerMonth)
-
 	return pricePerMonthUSD, pricePerSec, nil
 }
 
