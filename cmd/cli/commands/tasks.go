@@ -266,7 +266,7 @@ type logReader struct {
 }
 
 func (m *logReader) Read(p []byte) (n int, err error) {
-	for len(p) > m.buf.Len() && !m.finished {
+	if len(p) > m.buf.Len() && !m.finished {
 		chunk, err := m.cli.Recv()
 		if err == io.EOF {
 			m.finished = true
