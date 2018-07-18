@@ -18,7 +18,6 @@ const iterationForAccessAvg = 4
 
 //Tracking hashrate with using Connor's blacklist. Get data for 1 hour and another time => Detecting deviation.
 func (p *PoolModule) AdvancedPoolHashrateTracking(ctx context.Context, reportedPool watchers.PoolWatcher, avgPool watchers.PoolWatcher) error {
-
 	if err := p.UpdatePoolData(ctx, reportedPool, p.c.cfg.Pool.PoolAccount, int64(PoolTypeReportedHashrate)); err != nil {
 		return err
 	}

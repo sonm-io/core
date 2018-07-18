@@ -38,6 +38,7 @@ func loadSNMPriceUSD(url string) (float64, error) {
 	if err != nil {
 		return 0, err
 	}
+
 	var tickerSnm []*tokenData
 	if err := json.Unmarshal(body, &tickerSnm); err != nil {
 		return 0, err
