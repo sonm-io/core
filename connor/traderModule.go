@@ -63,7 +63,8 @@ func (t *TraderModule) SaveNewActiveDealsIntoDB(ctx context.Context) error {
 	return nil
 }
 
-// Takes a decision depending on the status of the deal. Not deployed : deploy new container, deployed : create change request if necessary.
+// DealsTrading makes a decision depending on the status of the deal.
+// Not deployed: deploy new container, deployed: create change request if necessary.
 func (t *TraderModule) DealsTrading(ctx context.Context, actualPrice *big.Int) error {
 	dealsDb, err := t.c.db.GetDealsFromDB()
 	if err != nil {
@@ -102,6 +103,7 @@ func (t *TraderModule) DealsTrading(ctx context.Context, actualPrice *big.Int) e
 					}
 				}
 			case DeployStatusDestroyed:
+				// todo: drop inactive items from db?
 				continue
 			}
 		}
@@ -117,13 +119,10 @@ func (t *TraderModule) ResponseToActiveDeal(ctx context.Context, dealDB *databas
 	}
 
 	t.c.logger.Info("processing of deploying new container", zap.Any("deal_ID", dealOnMarket.Deal))
-	newContainer, err := t.pool.DeployNewContainer(ctx, t.c.cfg, dealOnMarket.Deal, t.c.cfg.Pool.Image)
+	newContainer, err := t.pool.DeployNewContainer(ctx, dealOnMarket.Deal, t.c.cfg.Pool.Image)
 	if err != nil {
 		t.c.logger.Warn("cannot start task", zap.Error(err))
-
-		if err := t.ReinvoiceOrderFromDeal(ctx, dealOnMarket.Deal); err != nil {
-			return err
-		}
+		// WARN: do not return an error because it will ruin everything.
 		return nil
 	}
 
@@ -136,6 +135,7 @@ func (t *TraderModule) ResponseToActiveDeal(ctx context.Context, dealDB *databas
 	if err := t.ReinvoiceOrderFromDeal(ctx, dealOnMarket.Deal); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -310,7 +310,8 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, price *sonm.Price, be
 		},
 	})
 	if err != nil {
-		t.c.logger.Error("cannot create lucky order", zap.Error(err))
+		// todo: why lucky?
+		t.c.logger.Warn("cannot create lucky order", zap.Error(err))
 		return err
 	}
 
@@ -325,7 +326,7 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, price *sonm.Price, be
 		return fmt.Errorf("cannot save reinvoice order %s to DB: %v", order.GetId().Unwrap().String(), err)
 	}
 
-	t.c.logger.Info("reinvoice order", zap.Any("order", order), zap.String("tag", tag))
+	t.c.logger.Info("order has been reinvoiced", zap.Any("order", order), zap.String("tag", tag))
 	return nil
 }
 

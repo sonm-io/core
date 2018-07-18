@@ -15,7 +15,7 @@ const (
 	taskStatusRetryDelay = 60 * time.Second
 )
 
-// check the status of the task to get rid of the loss of money (pool check).
+// CheckTaskStatus check the status of the task to get rid of the loss of money (pool check).
 func (p *PoolModule) CheckTaskStatus(ctx context.Context) error {
 	dealsDb, err := p.c.db.GetDealsFromDB()
 	if err != nil {
@@ -78,18 +78,20 @@ func (p *PoolModule) CheckTaskStatus(ctx context.Context) error {
 	}
 	return group.Wait()
 }
+
 func (p *PoolModule) RetryCheckTaskStatus(ctx context.Context, deal database.DealDB, taskID string) error {
 	p.c.logger.Debug("retrying check status", zap.Any("deal", deal))
-
 	for i := 0; i < retryStatusChecks; i++ {
 		time.Sleep(taskStatusRetryDelay)
-		p.c.logger.Info("try to check deal status", zap.Int("try", i))
+		p.c.logger.Debug("try to check deal status", zap.Int("try", i))
 
 		taskStatus, err := p.c.TaskClient.Status(ctx, &sonm.TaskID{
 			Id:     taskID,
 			DealID: sonm.NewBigIntFromInt(deal.DealID),
 		})
+
 		if err != nil {
+			p.c.logger.Debug("failed to check task status", zap.Error(err))
 			continue
 		}
 		return p.CheckFatalTaskStatus(ctx, &deal, taskStatus)
