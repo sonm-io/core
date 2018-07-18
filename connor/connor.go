@@ -142,6 +142,8 @@ func (c *Connor) Serve(ctx context.Context) error {
 				return fmt.Errorf("actual price is 0")
 			}
 
+			c.logger.Info("actual price", zap.String("price", actualPrice.String()))
+
 			if err := traderModule.DealsTrading(ctx, actualPrice); err != nil {
 				return err
 			}
@@ -151,9 +153,8 @@ func (c *Connor) Serve(ctx context.Context) error {
 			})
 
 		case <-task.C:
-			err := poolModule.CheckTaskStatus(ctx)
-			if err != nil {
-				return err
+			if err := poolModule.CheckTaskStatus(ctx); err != nil {
+				c.logger.Warn("poolModule.CheckTaskStatus failed", zap.Error(err))
 			}
 
 		case <-poolUpdate.C:

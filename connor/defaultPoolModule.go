@@ -148,8 +148,13 @@ func (p *PoolModule) ReturnBidHashrateForDeal(ctx context.Context, dealInfo *son
 // Check task status and make decision
 func (p *PoolModule) CheckFatalTaskStatus(ctx context.Context, d *database.DealDB, taskStatus *sonm.TaskStatusReply) error {
 	if taskStatus.Status == sonm.TaskStatusReply_BROKEN || taskStatus.Status == sonm.TaskStatusReply_FINISHED {
+		p.c.logger.Info("task status is broken or finished, closing deal",
+			zap.Int64("deal_id", d.DealID),
+			zap.String("task_status", taskStatus.Status.String()))
+
 		return p.finishDeal(ctx, d, taskStatus.GetStatus())
 	}
+
 	return nil
 }
 
@@ -157,8 +162,6 @@ func (p *PoolModule) finishDeal(ctx context.Context, deal *database.DealDB, stat
 	if _, err := p.c.DealClient.Finish(ctx, &sonm.DealFinishRequest{Id: sonm.NewBigIntFromInt(deal.DealID)}); err != nil {
 		return err
 	}
-
-	p.c.logger.Info("task status reply broken or finished => deal destroy", zap.Int64("deal", deal.DealID), zap.String("task", status.String()))
 
 	return p.UpdateDestroyedDealDB(ctx, deal)
 }

@@ -54,6 +54,7 @@ type TokenMainData struct {
 }
 
 func (p *ProfitableModule) getTokensForProfitCalculation() []*TokenMainData {
+	// todo: make configurable
 	return []*TokenMainData{
 		{Symbol: "ETH"},
 		{Symbol: "XMR"},
@@ -62,9 +63,10 @@ func (p *ProfitableModule) getTokensForProfitCalculation() []*TokenMainData {
 }
 
 func (p *ProfitableModule) CollectTokensMiningProfit(t watchers.TokenWatcher) ([]*TokenMainData, error) {
+	p.c.logger.Debug("CollectTokensMiningProfit")
+
 	var tokensForCalc = p.getTokensForProfitCalculation()
 	for _, token := range tokensForCalc {
-
 		tokenData, err := t.GetTokenData(token.Symbol)
 		if err != nil {
 			return nil, fmt.Errorf("cannot get token data: %v", err)
@@ -77,7 +79,6 @@ func (p *ProfitableModule) CollectTokensMiningProfit(t watchers.TokenWatcher) ([
 		}
 
 		netHashesPerSec := int64(tokenData.NetHashPerSec)
-
 		token.ProfitPerMonthUsd, err = p.CalculateMiningProfit(tokenData.PriceUSD, hashesPerSecond, float64(netHashesPerSec), tokenData.BlockReward, divider, tokenData.BlockTime)
 		id, err := strconv.Atoi(tokenData.CmcID)
 		if err != nil {
