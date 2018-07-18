@@ -183,7 +183,7 @@ type Overseer interface {
 	Start(ctx context.Context, description Description) (chan pb.TaskStatusReply_Status, ContainerInfo, error)
 
 	// Attach attemps to attach to a running application with a specified description
-	Attach(ctx context.Context, ID string, client *client.Client, description Description) (chan pb.TaskStatusReply_Status, error)
+	Attach(ctx context.Context, ID string, description Description) (chan pb.TaskStatusReply_Status, error)
 
 	// Exec a given command in running container
 	Exec(ctx context.Context, Id string, cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (types.HijackedResponse, error)
@@ -474,7 +474,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	return nil
 }
 
-func (o *overseer) Attach(ctx context.Context, ID string, dockerClient *client.Client, d Description) (chan pb.TaskStatusReply_Status, error) {
+func (o *overseer) Attach(ctx context.Context, ID string, d Description) (chan pb.TaskStatusReply_Status, error) {
 	cont, err := attContainer(ctx, o.client, d, o.plugins)
 	if err != nil {
 		log.S(ctx).Debugf("failed to attach to container")

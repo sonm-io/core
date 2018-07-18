@@ -963,7 +963,7 @@ func (m *Worker) setupRunningContainers() error {
 
 			m.containers[info.Cinfo.TaskID] = &info.Cinfo
 
-			m.ovs.Attach(m.ctx, container.ID, dockerClient, info.Description)
+			m.ovs.Attach(m.ctx, container.ID, info.Description)
 			m.resources.ConsumeTask(info.Cinfo.AskID, info.Cinfo.TaskID, &info.Resources)
 		}
 	}
