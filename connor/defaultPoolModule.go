@@ -28,19 +28,15 @@ func NewPoolModules(c *Connor) *PoolModule {
 	}
 }
 
-type PoolType int32
-
 const (
-	PoolTypeReportedHashrate PoolType = 0
-	PoolTypeAvgHashrate      PoolType = 1
+	PoolTypeReportedHashrate  = 0
+	PoolTypeAvgHashrate       = 1
 )
 
-type BanStatus int32
-
 const (
-	BanStatusBanned       BanStatus = 1
-	BanStatusMasterBan    BanStatus = 2
-	BanStatusWorkerInPool BanStatus = 6
+	BanStatusBanned        = 1
+	BanStatusMasterBan     = 2
+	BanStatusWorkerInPool  = 6
 )
 
 func (p *PoolModule) DeployNewContainer(ctx context.Context, deal *sonm.Deal, image string) (*sonm.StartTaskReply, error) {

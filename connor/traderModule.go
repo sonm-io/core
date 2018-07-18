@@ -64,7 +64,7 @@ func (t *TraderModule) SaveNewActiveDealsIntoDB(ctx context.Context) error {
 }
 
 // DealsTrading makes a decision depending on the status of the deal.
-// Not deployed: deploy new container, deployed: create change request if necessary.
+// Not deployed: deploy new container || deployed: create change request if necessary.
 func (t *TraderModule) DealsTrading(ctx context.Context, actualPrice *big.Int) error {
 	dealsDb, err := t.c.db.GetDealsFromDB()
 	if err != nil {
