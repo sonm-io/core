@@ -93,10 +93,8 @@ func (m *DWH) Serve() error {
 	}
 
 	wg := errgroup.Group{}
-	m.mu.Lock()
 	wg.Go(m.serveGRPC)
 	wg.Go(m.serveHTTP)
-	m.mu.Unlock()
 
 	return wg.Wait()
 }
