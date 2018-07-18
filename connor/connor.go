@@ -115,6 +115,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 		// TODO(sshaman1101): this goroutine looks weird.
 		return traderModule.ChargeOrdersOnce(ctx, token, snm, balanceReply)
 	})
+
 	for {
 		select {
 		case <-ctx.Done():

@@ -43,7 +43,7 @@ const (
 	BanStatusWorkerInPool BanStatus = 6
 )
 
-func (p *PoolModule) DeployNewContainer(ctx context.Context, cfg *Config, deal *sonm.Deal, image string) (*sonm.StartTaskReply, error) {
+func (p *PoolModule) DeployNewContainer(ctx context.Context, deal *sonm.Deal, image string) (*sonm.StartTaskReply, error) {
 	env := map[string]string{
 		"ETH_POOL": EthPool,
 		"WORKER":   deal.Id.String(),
@@ -65,18 +65,22 @@ func (p *PoolModule) DeployNewContainer(ctx context.Context, cfg *Config, deal *
 	}
 
 	reply, err := p.c.TaskClient.Start(ctx, startTaskRequest)
+	// TODO(sshaman1101): retry on errors
 	if err != nil {
-		p.c.logger.Info("cannot create start task with given container - deal closed", zap.Any("deal", deal))
+		p.c.logger.Info("cannot start task on worker",
+			zap.String("deal_id", deal.GetID().Unwrap().String()),
+			zap.String("worker_eth", deal.GetSupplierID().Unwrap().Hex()))
+
 		if err = p.c.db.UpdateDeployAndDealStatusDB(deal.Id.Unwrap().Int64(), DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
 			return nil, err
 		}
 
-		checkDeal, err := p.c.DealClient.Status(ctx, deal.Id)
+		dealStatus, err := p.c.DealClient.Status(ctx, deal.Id)
 		if err != nil {
 			return nil, err
 		}
 
-		switch checkDeal.Deal.Status {
+		switch dealStatus.Deal.Status {
 		case sonm.DealStatus_DEAL_ACCEPTED:
 			_, err := p.c.DealClient.Finish(ctx, &sonm.DealFinishRequest{Id: deal.Id})
 			if err != nil {
