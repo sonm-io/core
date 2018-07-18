@@ -18,11 +18,6 @@ blockchain:
   contract_registry: "0xaf1ffd7f652be7e9a0854a42b2d3046f853f80f1"
   blocks_batch_size: 500000
 
-#blockchain:
-#  sidechain_endpoint: https://sidechain.livenet.sonm.com/
-#  contract_registry: 0xd1a6f3d1ae33b4b19565a6b283d7a05c5a0decb0
-#  blocks_batch_size: 500000
-
 logging:
   # The desired logging level.
   # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
