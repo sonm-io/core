@@ -24,42 +24,42 @@ func NewDatabaseConnect(driver, dataSource string) (*Database, error) {
 }
 
 func (d *Database) CreateOrdersTable() error {
-	_, err := d.connect.Exec(orders)
+	_, err := d.connect.Exec(createOrdersTableSQL)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 func (d *Database) CreatePoolTable() error {
-	_, err := d.connect.Exec(pools)
+	_, err := d.connect.Exec(createPoolsTableSQL)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 func (d *Database) CreateDealsTable() error {
-	_, err := d.connect.Exec(deals)
+	_, err := d.connect.Exec(createDealsTableSQL)
 	if err != nil {
 		return err
 	}
 	return nil
 }
-func (d *Database) CreateBlacklistDB() error {
-	_, err := d.connect.Exec(blacklist)
+func (d *Database) CreateBlacklistTable() error {
+	_, err := d.connect.Exec(createBlacklistTableSQL)
 	if err != nil {
 		return err
 	}
 	return nil
 }
-func (d *Database) CreateTokenDb() error {
-	_, err := d.connect.Exec(tokens)
+func (d *Database) CreateTokensTable() error {
+	_, err := d.connect.Exec(createTokensTableSQL)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 func (d *Database) CreateAllTables() error {
-	if err := d.CreateTokenDb(); err != nil {
+	if err := d.CreateTokensTable(); err != nil {
 		return fmt.Errorf("cannot create token DB: %v", err)
 	}
 	if err := d.CreateDealsTable(); err != nil {
@@ -71,82 +71,82 @@ func (d *Database) CreateAllTables() error {
 	if err := d.CreatePoolTable(); err != nil {
 		return fmt.Errorf("cannot create pool DB: %v", err)
 	}
-	if err := d.CreateBlacklistDB(); err != nil {
+	if err := d.CreateBlacklistTable(); err != nil {
 		return fmt.Errorf("cannot create blacklist DB: %v", err)
 	}
 	return nil
 }
 
 func (d *Database) SaveProfitToken(token *TokenDb) error {
-	_, err := d.connect.Exec(tokens)
+	_, err := d.connect.Exec(createTokensTableSQL)
 	if err != nil {
 		return err
 	}
 	tx := d.connect.MustBegin()
-	tx.NamedExec(insertToken, token)
+	tx.NamedExec(insertTokenQuery, token)
 	tx.Commit()
 	return nil
 }
 func (d *Database) SaveTestOrderIntoDB(order *OrderDb) error {
-	_, err := d.connect.Exec(orders)
+	_, err := d.connect.Exec(createOrdersTableSQL)
 	if err != nil {
 		return err
 	}
 	tx := d.connect.MustBegin()
-	tx.NamedExec(insertTestOrder, order)
+	tx.NamedExec(insertTestOrderQuery, order)
 	tx.Commit()
 	return nil
 }
 func (d *Database) SaveOrderIntoDB(order *OrderDb) error {
-	_, err := d.connect.Exec(orders)
+	_, err := d.connect.Exec(createOrdersTableSQL)
 	if err != nil {
 		return err
 	}
 	tx := d.connect.MustBegin()
-	tx.NamedExec(insertOrder, order)
+	tx.NamedExec(insertOrderQuery, order)
 	tx.Commit()
 	return nil
 }
 func (d *Database) SaveDealIntoDB(deal *DealDB) error {
-	_, err := d.connect.Exec(deals)
+	_, err := d.connect.Exec(createDealsTableSQL)
 	if err != nil {
 		return err
 	}
 	tx := d.connect.MustBegin()
-	tx.NamedExec(insertDeals, deal)
+	tx.NamedExec(insertDealsQuery, deal)
 	tx.Commit()
 	return nil
 }
 func (d *Database) SavePoolIntoDB(pool *PoolDB) error {
-	_, err := d.connect.Exec(pools)
+	_, err := d.connect.Exec(createPoolsTableSQL)
 	if err != nil {
 		return err
 	}
 	tx := d.connect.MustBegin()
-	tx.NamedExec(insertPools, pool)
+	tx.NamedExec(insertPoolsQuery, pool)
 	tx.Commit()
 	return nil
 }
 func (d *Database) SaveBlacklistIntoDB(blacklistData *BlackListDb) error {
-	_, err := d.connect.Exec(blacklist)
+	_, err := d.connect.Exec(createBlacklistTableSQL)
 	if err != nil {
 		return err
 	}
 	tx := d.connect.MustBegin()
-	tx.NamedExec(insertBlackList, blacklistData)
+	tx.NamedExec(insertBlackListQuery, blacklistData)
 	tx.Commit()
 	return nil
 }
 
 func (d *Database) UpdateOrderInDB(id int64, bfly int64) error {
-	_, err := d.connect.Exec(updateOrders, bfly, id)
+	_, err := d.connect.Exec(updateOrdersQuery, bfly, id)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 func (d *Database) UpdateDeployAndDealStatusDB(id int64, deployStatus int64, status sonm.DealStatus) error {
-	_, err := d.connect.Exec(updateDeployAndDealStatus, deployStatus, status, id)
+	_, err := d.connect.Exec(updateDeployAndDealStatusQuery, deployStatus, status, id)
 	if err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func (d *Database) UpdateDeployAndDealStatusDB(id int64, deployStatus int64, sta
 }
 
 func (d *Database) UpdateDeployStatusDealInDB(id int64, deployStatus int64) error {
-	_, err := d.connect.Exec(updateDeployStatusDeal, deployStatus, id)
+	_, err := d.connect.Exec(updateDeployStatusDealQuery, deployStatus, id)
 	if err != nil {
 		return err
 	}
@@ -162,14 +162,14 @@ func (d *Database) UpdateDeployStatusDealInDB(id int64, deployStatus int64) erro
 }
 
 func (d *Database) UpdateBadGayStatusInPoolDB(id int64, badGuy int64, timeUpdate time.Time) error {
-	_, err := d.connect.Exec(updateStatusPoolDB, badGuy, timeUpdate, id)
+	_, err := d.connect.Exec(updateStatusInPoolQuery, badGuy, timeUpdate, id)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 func (d *Database) UpdateChangeRequestStatusDealDB(id int64, status sonm.ChangeRequestStatus, price int64) error {
-	_, err := d.connect.Exec(updateCRStatusDeal, status, price, id)
+	_, err := d.connect.Exec(updateDealCRPriceQuery, status, price, id)
 	if err != nil {
 		return err
 	}
@@ -177,35 +177,35 @@ func (d *Database) UpdateChangeRequestStatusDealDB(id int64, status sonm.ChangeR
 }
 
 func (d *Database) UpdateReportedHashratePoolDB(id string, reportedHashrate float64, timeUpdate time.Time) error {
-	_, err := d.connect.Exec(updateReportedHashrate, reportedHashrate, timeUpdate, id)
+	_, err := d.connect.Exec(updateReportedHashrateQuery, reportedHashrate, timeUpdate, id)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 func (d *Database) UpdateAvgPoolDB(id string, avgHashrate float64, timeUpdate time.Time) error {
-	_, err := d.connect.Exec(updateAvgPool, avgHashrate, timeUpdate, id)
+	_, err := d.connect.Exec(updateAvgPoolQuery, avgHashrate, timeUpdate, id)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 func (d *Database) UpdateBanStatusBlackListDB(masterID string, banStatus int64) error {
-	_, err := d.connect.Exec(updateBlackList, banStatus, masterID)
+	_, err := d.connect.Exec(updateBlacklistQuery, banStatus, masterID)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 func (d *Database) UpdateIterationPoolDB(iteration int64, id int64) error {
-	_, err := d.connect.Exec(updateIterationPool, iteration, id)
+	_, err := d.connect.Exec(updateIterationPoolQuery, iteration, id)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 func (d *Database) UpdateDestroyDealPoolDB(status int64, id int64) error {
-	_, err := d.connect.Exec(setDestroyStatusDeal, status, id)
+	_, err := d.connect.Exec(updateDealDeployStatusQuery, status, id)
 	if err != nil {
 		return err
 	}
@@ -213,7 +213,7 @@ func (d *Database) UpdateDestroyDealPoolDB(status int64, id int64) error {
 }
 
 func (d *Database) GetCountFromDB() (counts int64, err error) {
-	rows, err := d.connect.Query(getCountFromDb)
+	rows, err := d.connect.Query(selectCountFromQuery)
 	if err != nil {
 		return 0, err
 	}
@@ -229,7 +229,7 @@ func (d *Database) GetCountFromDB() (counts int64, err error) {
 	return 0, fmt.Errorf("")
 }
 func (d *Database) GetLastActualStepFromDb() (float64, error) {
-	rows, err := d.connect.Query(getLastActualStep)
+	rows, err := d.connect.Query(selectLastActualStepQuery)
 	if err != nil {
 		return 0, err
 	}
@@ -245,7 +245,7 @@ func (d *Database) GetLastActualStepFromDb() (float64, error) {
 	return 0, nil
 }
 func (d *Database) GetOrdersFromDB() ([]*OrderDb, error) {
-	rows, err := d.connect.Query(getOrders)
+	rows, err := d.connect.Query(selectAllOrdersQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +265,7 @@ func (d *Database) GetOrdersFromDB() ([]*OrderDb, error) {
 	return orders, err
 }
 func (d *Database) GetDealsFromDB() ([]*DealDB, error) {
-	rows, err := d.connect.Query(getDeals)
+	rows, err := d.connect.Query(selectAllDealsQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +285,7 @@ func (d *Database) GetDealsFromDB() ([]*DealDB, error) {
 	return deals, err
 }
 func (d *Database) GetWorkersFromDB() ([]*PoolDB, error) {
-	rows, err := d.connect.Query(getWorkersFromPool)
+	rows, err := d.connect.Query(selectAllWorkersQuery)
 	if err != nil {
 		return nil, err
 	}
@@ -306,14 +306,14 @@ func (d *Database) GetWorkersFromDB() ([]*PoolDB, error) {
 	return workers, err
 }
 func (d *Database) GetChangeRequestStatusDealDB(id int64, status sonm.ChangeRequestStatus) error {
-	_, err := d.connect.Exec(returnCRStatusDeal, status, id)
+	_, err := d.connect.Exec(updateDealCRQuery, status, id)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 func (d *Database) GetFailSupplierFromBlacklistDb(failSupplierID string) (string, error) {
-	rows, err := d.connect.Query(getSupplierIDFromBlackList, failSupplierID)
+	rows, err := d.connect.Query(selectSupplierIDFromBlackListQuery, failSupplierID)
 	if err != nil {
 		return "", err
 	}
@@ -329,7 +329,7 @@ func (d *Database) GetFailSupplierFromBlacklistDb(failSupplierID string) (string
 	return "", nil
 }
 func (d *Database) GetMasterBlacklist(masterId string) (string, error) {
-	rows, err := d.connect.Query(getMasterIDFromBlackList, masterId)
+	rows, err := d.connect.Query(selectMasterIDFromBlackListQuery, masterId)
 	if err != nil {
 		return "", err
 	}
@@ -345,7 +345,7 @@ func (d *Database) GetMasterBlacklist(masterId string) (string, error) {
 	return "", nil
 }
 func (d *Database) GetWorkerFromPoolDB(dealID string) (string, error) {
-	rows, err := d.connect.Query(getWorkerIDFromPool, dealID)
+	rows, err := d.connect.Query(selectWorkerIDFromPoolQuery, dealID)
 	if err != nil {
 		return "", err
 	}
@@ -361,7 +361,7 @@ func (d *Database) GetWorkerFromPoolDB(dealID string) (string, error) {
 	return "already in Pool!", nil
 }
 func (d *Database) GetChangeRequestStatus(dealId int64) (int64, error) {
-	rows, err := d.connect.Query(getChangeRequestStatus, dealId)
+	rows, err := d.connect.Query(selectChangeRequestStatusQuery, dealId)
 	if err != nil {
 		return 0, err
 	}
@@ -377,7 +377,7 @@ func (d *Database) GetChangeRequestStatus(dealId int64) (int64, error) {
 	return 0, nil
 }
 func (d *Database) GetDeployStatus(dealId int64) (int64, error) {
-	rows, err := d.connect.Query(getDeployStatusStatus, dealId)
+	rows, err := d.connect.Query(selectDeployStatusQuery, dealId)
 	if err != nil {
 		return 0, err
 	}
@@ -393,7 +393,7 @@ func (d *Database) GetDeployStatus(dealId int64) (int64, error) {
 	return 0, nil
 }
 func (d *Database) GetCountFailSupplierFromDb(masterID string) (int64, error) {
-	rows, err := d.connect.Query(getCountSupplierIDFromBlackList, masterID)
+	rows, err := d.connect.Query(selectSupplierCountFromBlackListQuery, masterID)
 	if err != nil {
 		return 0, err
 	}

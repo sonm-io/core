@@ -19,10 +19,6 @@ const (
 )
 
 func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, token watchers.TokenWatcher, snm watchers.PriceWatcher, balanceReply *sonm.BalanceReply) error {
-	if err := t.c.db.CreateOrdersTable(); err != nil {
-		return err
-	}
-
 	count, err := t.c.db.GetCountFromDB()
 	if err != nil {
 		return fmt.Errorf("cannot get count from database: %v", err)
