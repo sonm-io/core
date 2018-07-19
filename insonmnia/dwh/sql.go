@@ -993,7 +993,10 @@ func (m *sqlStorage) GetWorkers(conn queryConn, r *pb.WorkersRequest) ([]*pb.DWH
 	if !r.MasterID.IsZero() {
 		builder = builder.Where("MasterID = ?", r.MasterID.Unwrap().String())
 	}
-	builder = m.builderWithSortings(builder, []*pb.SortingOption{})
+	builder = m.builderWithSortings(builder, []*pb.SortingOption{
+		{Field: "Confirmed", Order: pb.SortingOrder_Desc},
+		{Field: "WorkerID", Order: pb.SortingOrder_Asc},
+	})
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
