@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -445,6 +446,20 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	}
 	refStr := d.Reference.String()
 	for _, summary := range summaries {
+		for _, digest := range summary.RepoDigests {
+			if strings.HasSuffix(d.Reference.String(), digest) {
+				log.S(ctx).Infof("application image %s is already present in %s", d.Reference.String(), digest)
+				return nil
+			}
+		}
+
+		for _, tag := range summary.RepoTags {
+			if strings.HasSuffix(d.Reference.String(), tag) {
+				log.S(ctx).Infof("application image %s is already present with tag %s", d.Reference.String(), tag)
+				return nil
+			}
+		}
+
 		if summary.ID == refStr {
 			log.S(ctx).Infof("application image %s is already present", d.Reference.String())
 			return nil
