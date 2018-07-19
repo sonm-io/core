@@ -26,7 +26,9 @@ func (p *PoolModule) CheckTaskStatus(ctx context.Context) error {
 	group := errgroup.Group{}
 	for _, d := range deals {
 		if d.DeployStatus == DeployStatusDeployed && d.Status == int64(sonm.DealStatus_DEAL_ACCEPTED) {
+
 			dealID := sonm.NewBigIntFromInt(d.DealID)
+
 			checkDealStatus, err := p.c.DealClient.Status(ctx, dealID)
 			if err != nil {
 				p.c.logger.Debug("cannot get deal status", zap.Error(err), zap.Int64("deal_id", d.DealID))
@@ -60,14 +62,14 @@ func (p *PoolModule) CheckTaskStatus(ctx context.Context) error {
 
 						continue
 					}
-					if err = p.CheckFatalTaskStatus(ctx, d, taskStatus); err != nil {
+					if err := p.CheckFatalTaskStatus(ctx, d, taskStatus); err != nil {
 						p.c.logger.Debug("cannot close deal (via CheckFatalTaskStatus)", zap.Error(err))
 						continue
 					}
 				}
 
 			case sonm.DealStatus_DEAL_CLOSED:
-				if err = p.c.db.UpdateDeployAndDealStatusDB(d.DealID, DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
+				if err := p.c.db.UpdateDeployAndDealStatusDB(d.DealID, DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
 					p.c.logger.Info("cannot save deal status into db", zap.Error(err))
 					continue
 				}
@@ -105,7 +107,7 @@ func (p *PoolModule) RetryCheckTaskStatus(ctx context.Context, deal database.Dea
 
 	// this condition is necessary if the worker prematurely completes the transaction
 	if dealOnMarket.Deal.Status != sonm.DealStatus_DEAL_CLOSED {
-		if err := p.finishDeal(ctx, &deal, sonm.TaskStatusReply_BROKEN); err != nil {
+		if err := p.FinishDeal(ctx, &deal); err != nil {
 			p.c.logger.Warn("cannot finish deal", zap.Error(err))
 		}
 	} else {

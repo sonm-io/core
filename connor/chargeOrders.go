@@ -129,17 +129,31 @@ func (t *TraderModule) CreateOrderOnMarketStep(ctx context.Context, step float64
 		return 0, fmt.Errorf("cannot create bid order: %v", err)
 	}
 
-	if actOrder.GetId() != nil && actOrder.GetPrice() != nil {
+	if t.c.cfg.UsingToken == "ZEC" {
 		if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
 			OrderID:    actOrder.GetId().Unwrap().Int64(),
 			Price:      actOrder.GetPrice().Unwrap().Int64(),
-			Hashrate:   actOrder.GetBenchmarks().GPUEthHashrate(),
+			Hashrate:   actOrder.GetBenchmarks().GPUCashHashrate(),
 			StartTime:  time.Now(),
 			Status:     int64(actOrder.GetOrderStatus()),
 			ActualStep: buyMgHash,
 		}); err != nil {
 			return 0, fmt.Errorf("cannot save order to database: %v", err)
 		}
+
+	}
+
+	if actOrder.GetId() != nil && actOrder.GetPrice() != nil {
+		//if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
+		//	OrderID:    actOrder.GetId().Unwrap().Int64(),
+		//	Price:      actOrder.GetPrice().Unwrap().Int64(),
+		//	Hashrate:   actOrder.GetBenchmarks().GPUEthHashrate(),
+		//	StartTime:  time.Now(),
+		//	Status:     int64(actOrder.GetOrderStatus()),
+		//	ActualStep: buyMgHash,
+		//}); err != nil {
+		//	return 0, fmt.Errorf("cannot save order to database: %v", err)
+		//}
 
 		t.c.logger.Info("order created", zap.Any("order", actOrder))
 		reBuyHash := buyMgHash + step

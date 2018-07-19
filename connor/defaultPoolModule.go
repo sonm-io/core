@@ -3,6 +3,7 @@ package connor
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/sonm-io/core/connor/database"
@@ -63,33 +64,69 @@ func (p *PoolModule) DeployNewContainer(ctx context.Context, deal *sonm.Deal, im
 	reply, err := p.c.TaskClient.Start(ctx, startTaskRequest)
 	// TODO(sshaman1101): retry on errors
 	if err != nil {
-		p.c.logger.Info("cannot start task on worker",
-			zap.String("deal_id", deal.GetID().Unwrap().String()),
-			zap.String("worker_eth", deal.GetSupplierID().Unwrap().Hex()))
 
-		if err = p.c.db.UpdateDeployAndDealStatusDB(deal.Id.Unwrap().Int64(), DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
-			return nil, err
-		}
-
-		dealStatus, err := p.c.DealClient.Status(ctx, deal.Id)
+		reply, err := p.TryCreateAMDContainer(ctx, deal)
 		if err != nil {
+			p.c.logger.Info("cannot start task on worker", zap.String("deal_id", deal.GetID().Unwrap().String()),
+				zap.String("worker_eth", deal.GetSupplierID().Unwrap().Hex()))
+			if err = p.c.db.UpdateDeployAndDealStatusDB(deal.Id.Unwrap().Int64(), DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
+				return nil, err
+			}
+
+			dealStatus, err := p.c.DealClient.Status(ctx, deal.Id)
+			if err != nil {
+				return nil, err
+			}
+
+			switch dealStatus.Deal.Status {
+			case sonm.DealStatus_DEAL_ACCEPTED:
+				_, err := p.c.DealClient.Finish(ctx, &sonm.DealFinishRequest{Id: deal.Id})
+				if err != nil {
+					return nil, fmt.Errorf("fail finished deal: %v", err)
+				}
+
+				p.c.logger.Info("fail started task deal finished", zap.Int64("deal", deal.Id.Unwrap().Int64()))
+
+			case sonm.DealStatus_DEAL_CLOSED:
+				p.c.logger.Info("deal already finished from worker", zap.Any("deal", deal))
+			}
 			return nil, err
 		}
-
-		switch dealStatus.Deal.Status {
-		case sonm.DealStatus_DEAL_ACCEPTED:
-			_, err := p.c.DealClient.Finish(ctx, &sonm.DealFinishRequest{Id: deal.Id})
-			if err != nil {
-				return nil, fmt.Errorf("fail finish deal: %v", err)
-			}
-			p.c.logger.Info("fail start task deal finished", zap.Int64("deal", deal.Id.Unwrap().Int64()))
-
-		case sonm.DealStatus_DEAL_CLOSED:
-			p.c.logger.Info("deal already finished from worker", zap.Any("deal", deal))
-		}
-		return nil, err
+		return reply, nil
 	}
 	return reply, nil
+}
+
+func (p *PoolModule) TryCreateAMDContainer(ctx context.Context, deal *sonm.Deal) (*sonm.StartTaskReply, error) {
+	image := "sonm/zcash-amd:latest" // на amd
+
+	p.c.logger.Info("processing of deploying new container AMD", zap.Any("deal_ID", deal), zap.String("image", image))
+	env := map[string]string{
+		"ETH_POOL": EthPool,
+		"WORKER":   deal.Id.String(),
+		"WALLET":   p.c.cfg.Pool.PoolAccount,
+		"EMAIL":    p.c.cfg.Pool.EmailForPool,
+	}
+	container := &sonm.Container{
+		Image: image,
+		Env:   env,
+	}
+	spec := &sonm.TaskSpec{
+		Container: container,
+		Registry:  &sonm.Registry{},
+		Resources: &sonm.AskPlanResources{},
+	}
+	startTaskRequest := &sonm.StartTaskRequest{
+		DealID: deal.GetID(),
+		Spec:   spec,
+	}
+
+	reply, err := p.c.TaskClient.Start(ctx, startTaskRequest)
+	if err != nil {
+		log.Printf("cannot start task for AMD and NVIDIA")
+		return nil, err
+	}
+	return reply, err
 }
 
 // Checks for a deal in the worker list. If it is not there, adds.
@@ -149,17 +186,26 @@ func (p *PoolModule) ReturnBidHashrateForDeal(ctx context.Context, dealInfo *son
 // Check task status and make decision
 func (p *PoolModule) CheckFatalTaskStatus(ctx context.Context, d *database.DealDB, taskStatus *sonm.TaskStatusReply) error {
 	if taskStatus.Status == sonm.TaskStatusReply_BROKEN || taskStatus.Status == sonm.TaskStatusReply_FINISHED {
-		p.c.logger.Info("task status is broken or finished, closing deal",
-			zap.Int64("deal_id", d.DealID),
-			zap.String("task_status", taskStatus.Status.String()))
+		//пытаюсь сделать на AMD
+		deal, err := p.c.DealClient.Status(ctx, sonm.NewBigIntFromInt(d.DealID))
+		if err != nil {
+			p.c.logger.Error("cannot get deal from market %v")
+			return err
+		}
 
-		return p.finishDeal(ctx, d, taskStatus.GetStatus())
+		reply, err := p.TryCreateAMDContainer(ctx, deal.Deal)
+		if err != nil {
+			p.c.logger.Warn("cannot create AMD Container. Deal finished", zap.Error(err))
+			p.c.logger.Info("task status is broken or finished, closing deal", zap.Int64("deal_id", d.DealID),
+				zap.String("task_status", taskStatus.Status.String()))
+			return p.FinishDeal(ctx, d)
+		}
+		p.c.logger.Info("Replying AMD container successful", zap.String("start_task_reply", reply.Id))
 	}
-
 	return nil
 }
 
-func (p *PoolModule) finishDeal(ctx context.Context, deal *database.DealDB, status sonm.TaskStatusReply_Status) error {
+func (p *PoolModule) FinishDeal(ctx context.Context, deal *database.DealDB) error {
 	if _, err := p.c.DealClient.Finish(ctx, &sonm.DealFinishRequest{Id: sonm.NewBigIntFromInt(deal.DealID)}); err != nil {
 		return err
 	}
