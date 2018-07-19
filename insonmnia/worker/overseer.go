@@ -475,7 +475,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 }
 
 func (o *overseer) Attach(ctx context.Context, ID string, d Description) (chan pb.TaskStatusReply_Status, error) {
-	cont, err := attContainer(ctx, o.client, d, o.plugins)
+	cont, err := attachContainer(ctx, o.client, d, o.plugins)
 	if err != nil {
 		log.S(ctx).Debugf("failed to attach to container")
 		return nil, err

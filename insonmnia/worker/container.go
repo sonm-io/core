@@ -30,7 +30,7 @@ type containerDescriptor struct {
 	cleanup plugin.Cleanup
 }
 
-func attContainer(ctx context.Context, dockerClient *client.Client, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
+func attachContainer(ctx context.Context, dockerClient *client.Client, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
 	log.S(ctx).Infof("start container with application, reference %s", d.Reference)
 
 	cont := containerDescriptor{
