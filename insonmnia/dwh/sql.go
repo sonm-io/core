@@ -779,7 +779,6 @@ func (m *sqlStorage) DeleteBlacklistEntry(conn queryConn, removerID, removeeID c
 
 func (m *sqlStorage) GetBlacklist(conn queryConn, r *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
 	builder := m.builder().Select("*").From("Blacklists")
-
 	if !r.UserID.IsZero() {
 		builder = builder.Where("AdderID = ?", r.UserID.Unwrap().Hex())
 	}
@@ -852,24 +851,9 @@ func (m *sqlStorage) GetBlacklistsContainingUser(conn queryConn, r *pb.Blacklist
 }
 
 func (m *sqlStorage) InsertOrUpdateValidator(conn queryConn, validator *pb.Validator) error {
-	// Validators are never deleted, so it's O.K. to check in a non-atomic way.
-	query, args, _ := m.builder().Select("Id").From("Validators").Where("Id = ?", validator.GetId().Unwrap().Hex()).
-		ToSql()
-	rows, err := conn.Query(query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to check if Validator exists: %v", err)
-	}
-	alreadyExists := rows.Next()
-	rows.Close()
-	if alreadyExists {
-		// If this validator exists, it means that it was deactivated; we re-activate it by setting the current
-		// identity level.
-		return m.UpdateValidator(conn, validator.GetId().Unwrap(), "Level", validator.GetLevel())
-	}
-
-	query, args, _ = m.builder().Insert("Validators").Columns("Id", "Level").
-		Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
-	_, err = conn.Exec(query, args...)
+	query, args, _ := m.builder().Insert("Validators").Columns("Id", "Level").Values(validator.Id.Unwrap().Hex(), validator.Level).
+		Suffix("ON CONFLICT (Id) DO UPDATE SET Level = ?", validator.Level).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
@@ -948,25 +932,14 @@ func (m *sqlStorage) GetCertificates(conn queryConn, ownerID common.Address) ([]
 }
 
 func (m *sqlStorage) InsertProfileUserID(conn queryConn, profile *pb.Profile) error {
-	query, args, _ := m.builder().Select("Id").From("Profiles").Where("UserID = ?", profile.UserID.Unwrap().Hex()).ToSql()
-	rows, err := conn.Query(query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to check if profile exists: %v", err)
-	}
-	defer rows.Close()
-	if rows.Next() {
-		// Profile already exists.
-		return nil
-	}
-
-	query, args, _ = m.builder().Insert("Profiles").Columns(m.tablesInfo.ProfileColumns[1:]...).Values(
+	query, args, _ := m.builder().Insert("Profiles").Columns(m.tablesInfo.ProfileColumns[1:]...).Values(
 		profile.UserID.Unwrap().Hex(),
 		0, "", "", false, false,
 		profile.Certificates,
 		profile.ActiveAsks,
 		profile.ActiveBids,
-	).ToSql()
-	_, err = conn.Exec(query, args...)
+	).Suffix("ON CONFLICT (UserID) DO NOTHING").ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
