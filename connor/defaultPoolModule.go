@@ -101,6 +101,7 @@ func (p *PoolModule) AddWorkerToPoolDB(ctx context.Context, deal *sonm.DealInfoR
 	if val == deal.Deal.Id.String() {
 		return nil
 	}
+
 	if err := p.c.db.SavePoolIntoDB(&database.PoolDB{
 		DealID:    deal.Deal.Id.Unwrap().Int64(),
 		PoolID:    addr,
