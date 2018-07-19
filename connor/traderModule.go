@@ -184,7 +184,7 @@ func (t *TraderModule) deployedDealProfitTracking(ctx context.Context, actualPri
 
 	megahashes := bidOrder.Benchmarks.GPUEthHashrate() / hashes
 
-	if t.c.cfg.UsingToken != "ETH" {
+	if t.c.cfg.Mining.Token != "ETH" {
 		megahashes = bidOrder.Benchmarks.GPUCashHashrate() / hashes
 	}
 
@@ -378,7 +378,7 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, price *sonm.Price, be
 
 	var benchmarkValue uint64
 	// todo: switch-case?
-	switch t.c.cfg.UsingToken {
+	switch t.c.cfg.Mining.Token {
 	case "ETH":
 		benchmarkValue = order.Benchmarks.GPUCashHashrate()
 	case "ZEC":
@@ -386,7 +386,7 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, price *sonm.Price, be
 	default:
 		// note: it's really weird to perform this check here.
 		// Later I'll add this to pre-flight check.
-		t.c.logger.Warn("unknown token name", zap.String("name", t.c.cfg.UsingToken))
+		t.c.logger.Warn("unknown token name", zap.String("name", t.c.cfg.Mining.Token))
 		return fmt.Errorf("unknown token name")
 	}
 

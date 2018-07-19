@@ -34,11 +34,12 @@ type tradeParamConfig struct {
 	WaitingTimeCRSec    int64              `yaml:"waiting_time_change_request"`
 }
 
-type poolParamConfig struct {
-	PoolAccount              string  `yaml:"pool_account"`
+type miningConfig struct {
+	Token                    string  `yaml:"token"`
+	Wallet                   string  `yaml:"wallet"`
+	Image                    string  `yaml:"image"`
 	WorkerLimitChangePercent float64 `yaml:"worker_limit_change_percent"`
 	BadWorkersPercent        float64 `yaml:"bad_workers_percent"`
-	Image                    string  `yaml:"image"`
 	EmailForPool             string  `yaml:"email_for_pool"`
 }
 
@@ -63,10 +64,9 @@ type tickerConfig struct {
 type Config struct {
 	Market       marketConfig       `yaml:"market" required:"true"`
 	Database     databaseConfig     `yaml:"database"`
-	UsingToken   string             `yaml:"using_token"`
 	ChargeOrders chargeOrdersConfig `yaml:"charge_orders_parameters"`
 	Trade        tradeParamConfig   `yaml:"trading_parameters"`
-	Pool         poolParamConfig    `yaml:"pool_parameters"`
+	Mining       miningConfig       `yaml:"mining"`
 	Tickers      tickerConfig       `yaml:"tickers"`
 	Benchmark    typicalBenchmark   `yaml:"benchmark"`
 	Eth          accounts.EthConfig `yaml:"ethereum" required:"true"`

@@ -19,10 +19,6 @@ database:
   driver: "sqlite3"
   data_source: "./test.sq3"
 
-# Token that will be used. You can choose from:
-# ETH - Ethereum, ZEC - Zcash, XMR - Monero.
-using_token: "ETH"
-
 # Ordering area.
 # Orders will be created in this area, reinvoices will be focused in the same area.
 # The value is expressed in mhash.
@@ -58,11 +54,19 @@ trading_parameters:
   waiting_time_change_request: 900
 
 # Parameters that determine the sensitivity to data work from nanopool.org.
-pool_parameters:
+mining:
+  # Token that will be used. You can choose from:
+  # ETH - Ethereum,
+  # ZEC - Zcash,
+  ## XMR - Monero.
+  token: "ETH"
+  # Docker container.
+  # Required.
+  image: "sonm/eth-claymore:latest"
   # The address to which the payment is transferred from the pool.
   # Your account in the pool.
   # This setting is mandatory.
-  pool_account: "any"
+  wallet: "any"
   # Deviation percentage of the worker in the pool.
   # If the deviation percentage is less than worker_limit_change_percent set by the supplier
   # (one of the master's list) the worker is written into the blacklist.
@@ -78,9 +82,6 @@ pool_parameters:
   # Default value is 60%.
   # This setting is mandatory.
   bad_workers_percent: 60
-  # Docker container.
-  # Required.
-  image: "sonm/eth-claymore:latest"
   # Email where the answers from the nanopool will come.
   # Required for task assignment.
   # This setting is mandatory.

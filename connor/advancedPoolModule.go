@@ -18,10 +18,10 @@ const iterationForAccessAvg = 4
 
 //Tracking hashrate with using Connor's blacklist. Get data for 1 hour and another time => Detecting deviation.
 func (p *PoolModule) AdvancedPoolHashrateTracking(ctx context.Context, reportedPool watchers.PoolWatcher, avgPool watchers.PoolWatcher) error {
-	if err := p.UpdatePoolData(ctx, reportedPool, p.c.cfg.Pool.PoolAccount, int64(PoolTypeReportedHashrate)); err != nil {
+	if err := p.UpdatePoolData(ctx, reportedPool, p.c.cfg.Mining.Wallet, int64(PoolTypeReportedHashrate)); err != nil {
 		return err
 	}
-	if err := p.UpdatePoolData(ctx, avgPool, p.c.cfg.Pool.PoolAccount+"/1", int64(PoolTypeAvgHashrate)); err != nil {
+	if err := p.UpdatePoolData(ctx, avgPool, p.c.cfg.Mining.Wallet+"/1", int64(PoolTypeAvgHashrate)); err != nil {
 		return err
 	}
 
@@ -136,7 +136,7 @@ func (p *PoolModule) AdvancedDetectingDeviation(ctx context.Context, changePerce
 			return err
 		}
 
-	} else if changePercentDeviationWorker < p.c.cfg.Pool.WorkerLimitChangePercent {
+	} else if changePercentDeviationWorker < p.c.cfg.Mining.WorkerLimitChangePercent {
 		p.c.logger.Info("send SupplierID to Connor's blacklist", zap.Int64("worker", worker.DealID))
 
 		if err := p.SendToConnorBlackList(ctx, dealInfo); err != nil {
@@ -191,7 +191,7 @@ func (p *PoolModule) SendToConnorBlackList(ctx context.Context, failedDeal *sonm
 		zap.Int64("amount_failed", amountFailWorkers), zap.Int64("clear_workers", clearWorkers),
 	)
 
-	if percentFailWorkers > p.c.cfg.Pool.BadWorkersPercent {
+	if percentFailWorkers > p.c.cfg.Mining.BadWorkersPercent {
 		p.c.logger.Info("the deal destroyed due to the excessive number of banned workers in master", zap.String("deal", failedDeal.Deal.Id.Unwrap().String()),
 			zap.Float64("percent_failed_workers", percentFailWorkers), zap.String("Master_ID", failedDeal.Deal.MasterID.String()),
 		)

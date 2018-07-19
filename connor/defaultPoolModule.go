@@ -44,8 +44,8 @@ func (p *PoolModule) DeployNewContainer(ctx context.Context, deal *sonm.Deal, im
 	env := map[string]string{
 		"ETH_POOL": EthPool,
 		"WORKER":   deal.Id.String(),
-		"WALLET":   p.c.cfg.Pool.PoolAccount,
-		"EMAIL":    p.c.cfg.Pool.EmailForPool,
+		"WALLET":   p.c.cfg.Mining.Wallet,
+		"EMAIL":    p.c.cfg.Mining.EmailForPool,
 	}
 	container := &sonm.Container{
 		Image: image,
@@ -104,8 +104,8 @@ func (p *PoolModule) TryCreateAMDContainer(ctx context.Context, deal *sonm.Deal)
 	env := map[string]string{
 		"ETH_POOL": EthPool,
 		"WORKER":   deal.Id.String(),
-		"WALLET":   p.c.cfg.Pool.PoolAccount,
-		"EMAIL":    p.c.cfg.Pool.EmailForPool,
+		"WALLET":   p.c.cfg.Mining.Wallet,
+		"EMAIL":    p.c.cfg.Mining.EmailForPool,
 	}
 	container := &sonm.Container{
 		Image: image,
@@ -271,7 +271,7 @@ func (p *PoolModule) DefaultPoolHashrateTracking(ctx context.Context, reportedPo
 		}
 
 		if iteration < numberOfIterationForRH {
-			if err = p.UpdatePoolData(ctx, reportedPool, p.c.cfg.Pool.PoolAccount, int64(PoolTypeReportedHashrate)); err != nil {
+			if err = p.UpdatePoolData(ctx, reportedPool, p.c.cfg.Mining.Wallet, int64(PoolTypeReportedHashrate)); err != nil {
 				return err
 			}
 			changePercentRHWorker := w.WorkerReportedHashrate * float64(hashes) / float64(bidHashrate)
@@ -279,7 +279,7 @@ func (p *PoolModule) DefaultPoolHashrateTracking(ctx context.Context, reportedPo
 				return err
 			}
 		} else {
-			err := p.UpdatePoolData(ctx, avgPool, p.c.cfg.Pool.PoolAccount+"/1", int64(PoolTypeAvgHashrate))
+			err := p.UpdatePoolData(ctx, avgPool, p.c.cfg.Mining.Wallet+"/1", int64(PoolTypeAvgHashrate))
 			if err != nil {
 				return err
 			}
@@ -300,7 +300,7 @@ func (p *PoolModule) DefaultPoolHashrateTracking(ctx context.Context, reportedPo
 //Detection of getting a lowered hashrate and sending to a blacklist (create deal finish request).
 func (p *PoolModule) DetectingDeviation(ctx context.Context, changePercentDeviationWorker float64, worker *database.PoolDB, dealInfo *sonm.DealInfoReply) error {
 
-	if changePercentDeviationWorker < p.c.cfg.Pool.WorkerLimitChangePercent {
+	if changePercentDeviationWorker < p.c.cfg.Mining.WorkerLimitChangePercent {
 		if worker.BadGuy < numberOfLives {
 			newStatus := worker.BadGuy + 1
 			err := p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, newStatus, time.Now())

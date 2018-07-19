@@ -96,8 +96,8 @@ func (c *Connor) Serve(ctx context.Context) error {
 	snm := watchers.NewSNMPriceWatcher()
 	token := watchers.NewTokenPriceWatcher()
 
-	reportedPool := watchers.NewPoolWatcher(poolReportedHashRateURL, []string{c.cfg.Pool.PoolAccount})
-	avgPool := watchers.NewPoolWatcher(poolAverageHashRateURL, []string{c.cfg.Pool.PoolAccount + "/1"})
+	reportedPool := watchers.NewPoolWatcher(poolReportedHashRateURL, []string{c.cfg.Mining.Wallet})
+	avgPool := watchers.NewPoolWatcher(poolAverageHashRateURL, []string{c.cfg.Mining.Wallet + "/1"})
 
 	if err := snm.Update(ctx); err != nil {
 		return fmt.Errorf("cannot update snm data: %v", err)
@@ -184,7 +184,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 						}
 						continue
 					}
-					if err := poolModule.AddWorkerToPoolDB(ctx, dealOnMarket, c.cfg.Pool.PoolAccount); nil != err {
+					if err := poolModule.AddWorkerToPoolDB(ctx, dealOnMarket, c.cfg.Mining.Wallet); nil != err {
 						return fmt.Errorf("cannot add worker to Db: %v", err)
 					}
 				}
