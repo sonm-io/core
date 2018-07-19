@@ -7,17 +7,21 @@ import (
 )
 
 type Tagger struct {
-	version string
+	value []byte
 }
 
 func newTagger(version string) *Tagger {
 	return &Tagger{
-		version: version,
+		value: makeTag(version),
 	}
 }
 
 func (m *Tagger) Tag() []byte {
-	value := fmt.Sprintf("optimus/%s", m.version)
+	return m.value
+}
+
+func makeTag(version string) []byte {
+	value := fmt.Sprintf("optimus/%s", version)
 
 	if len(value) < sonm.MaxTagLength {
 		return []byte(value)
