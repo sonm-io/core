@@ -3,6 +3,7 @@ package connor
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
 	"strconv"
 	"time"
@@ -129,9 +130,10 @@ func (t *TraderModule) ResponseToActiveDeal(ctx context.Context, dealDB *databas
 	if err != nil {
 		return fmt.Errorf("cannot get deal info: %v", err)
 	}
+	image := "sonm/zcash-cuda-ewfb:latest" //на nvidia
+	t.c.logger.Info("processing of deploying new container NVIDIA", zap.Any("deal_ID", dealOnMarket.Deal), zap.String("image", image))
 
-	t.c.logger.Info("processing of deploying new container", zap.Any("deal_ID", dealOnMarket.Deal))
-	newContainer, err := t.pool.DeployNewContainer(ctx, dealOnMarket.Deal, t.c.cfg.Pool.Image)
+	newContainer, err := t.pool.DeployNewContainer(ctx, dealOnMarket.Deal, image)
 	if err != nil {
 		t.c.logger.Warn("cannot start task", zap.Error(err))
 		return err
@@ -167,15 +169,25 @@ func (t *TraderModule) deployedDealProfitTracking(ctx context.Context, actualPri
 	if err != nil {
 		return fmt.Errorf("cannot get deal info: %v", err)
 	}
+	log.Printf("deployed deals profit tracking deal %v", dealOnMarket.Deal.Id.String())
 
 	bidOrder, err := t.c.Market.GetOrderByID(ctx, &sonm.ID{Id: dealOnMarket.Deal.BidID.Unwrap().String()})
 	if err != nil {
 		return err
 	}
-
 	pack := float64(bidOrder.Benchmarks.GPUEthHashrate()) / float64(hashes)
-	actualPriceForPack := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(pack)))
 
+	if t.c.cfg.UsingToken != "ETH" {
+		pack = float64(bidOrder.Benchmarks.GPUCashHashrate()) / float64(hashes)
+	}
+
+	log.Printf("pack %v", pack)
+	actualPriceForPack := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(pack)))
+	if actualPriceForPack == big.NewInt(0) {
+		return fmt.Errorf("actual price for pack = 0")
+	}
+
+	log.Printf("actual price for pack %v", actualPriceForPack)
 	div := big.NewInt(0).Div(big.NewInt(0).Mul(actualPriceForPack, big.NewInt(100)), dealOnMarket.Deal.Price.Unwrap())
 
 	if actualPriceForPack.IsInt64() == false {
@@ -183,6 +195,10 @@ func (t *TraderModule) deployedDealProfitTracking(ctx context.Context, actualPri
 	}
 
 	changePricePercent, _ := big.NewFloat(0).SetInt64(div.Int64()).Float64()
+	if changePricePercent == 0 {
+		return fmt.Errorf("change price percent = 0")
+	}
+	log.Printf("change price percent %v", changePricePercent)
 
 	if changePricePercent > fullPath+t.c.cfg.Trade.DealsChangePercent || changePricePercent < fullPath-t.c.cfg.Trade.DealsChangePercent {
 		dealChangeRequest, err := t.CreateChangeRequest(ctx, dealOnMarket, actualPriceForPack)
@@ -338,7 +354,18 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, price *sonm.Price, be
 		t.c.logger.Warn("cannot create lucky order", zap.Error(err))
 		return err
 	}
-
+	if t.c.cfg.UsingToken != "ETH" {
+		if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
+			OrderID:    order.Id.Unwrap().Int64(),
+			Price:      order.Price.Unwrap().Int64(),
+			Hashrate:   order.Benchmarks.GPUCashHashrate(),
+			StartTime:  time.Now(),
+			Status:     OrderStatusReinvoice,
+			ActualStep: 0,
+		}); err != nil {
+			return fmt.Errorf("cannot save reinvoice order %s to DB: %v", order.GetId().Unwrap().String(), err)
+		}
+	}
 	if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
 		OrderID:    order.Id.Unwrap().Int64(),
 		Price:      order.Price.Unwrap().Int64(),
