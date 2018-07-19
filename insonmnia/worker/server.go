@@ -363,7 +363,7 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 		if err := m.ovs.OnDealFinish(m.ctx, container.ID); err != nil {
 			result = multierror.Append(result, err)
 		}
-		if err := m.resources.OnDealFinish(container.TaskID); err != nil {
+		if err := m.resources.OnDealFinish(container.TaskId); err != nil {
 			result = multierror.Append(result, err)
 		}
 	}
@@ -756,7 +756,7 @@ func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error
 	}
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
-	_, err := m.storage.Remove(containerInfo.TaskID)
+	_, err := m.storage.Remove(containerInfo.TaskId)
 
 	if err != nil {
 		log.G(ctx).Warn("failed to delete cached container info", zap.Error(err))
@@ -961,10 +961,10 @@ func (m *Worker) setupRunningContainers() error {
 				info.Cinfo.status = pb.TaskStatusReply_BROKEN
 			}
 
-			m.containers[info.Cinfo.TaskID] = &info.Cinfo
+			m.containers[info.Cinfo.TaskId] = &info.Cinfo
 
 			m.ovs.Attach(m.ctx, container.ID, info.Description)
-			m.resources.ConsumeTask(info.Cinfo.AskID, info.Cinfo.TaskID, &info.Resources)
+			m.resources.ConsumeTask(info.Cinfo.AskID, info.Cinfo.TaskId, &info.Resources)
 		}
 	}
 
