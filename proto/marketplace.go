@@ -11,6 +11,7 @@ import (
 const (
 	MinNumBenchmarks = 12
 	MinDealDuration  = time.Minute * 10
+	MaxTagLength     = 32
 )
 
 func (m *IdentityLevel) UnmarshalYAML(unmarshal func(interface{}) error) error {
@@ -29,7 +30,7 @@ func (m *IdentityLevel) UnmarshalYAML(unmarshal func(interface{}) error) error {
 }
 
 func (m *BidOrder) Validate() error {
-	if len(m.GetTag()) > 32 {
+	if len(m.GetTag()) > MaxTagLength {
 		return errors.New("tag value is too long")
 	}
 
