@@ -107,9 +107,10 @@ type workerEngine struct {
 	benchmarkMapping benchmarks.Mapping
 
 	optimizationConfig optimizationConfig
+	tagger             *Tagger
 }
 
-func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, optimizationConfig optimizationConfig, log *zap.SugaredLogger) (*workerEngine, error) {
+func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, optimizationConfig optimizationConfig, tagger *Tagger, log *zap.SugaredLogger) (*workerEngine, error) {
 	m := &workerEngine{
 		cfg: cfg,
 		log: log.With(zap.Stringer("addr", addr)),
@@ -123,6 +124,7 @@ func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, blacklis
 		benchmarkMapping: benchmarkMapping,
 
 		optimizationConfig: optimizationConfig,
+		tagger:             tagger,
 	}
 
 	return m, nil
@@ -280,6 +282,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 		// Then we need to clean this, because otherwise worker rejects such request.
 		plan.OrderID = nil
 		plan.Identity = m.cfg.Identity
+		plan.Tag = m.tagger.Tag()
 
 		id, err := m.worker.CreateAskPlan(ctx, plan)
 		if err != nil {
