@@ -60,7 +60,7 @@ func (m *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 	}
 
 	var hasActiveChangeRequests bool
-	if _, err := m.GetDealChangeRequestsByDealID(conn, deal.Id.Unwrap()); err == nil {
+	if changeRequests, _ := m.GetDealChangeRequestsByDealID(conn, deal.Id.Unwrap()); len(changeRequests) > 0 {
 		hasActiveChangeRequests = true
 	}
 	values := []interface{}{
