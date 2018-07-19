@@ -112,3 +112,5 @@ tickers:
   # The time interval for checking task status.
   # Default value is 60 s.
   task_check: 60s
+  # change requests tracking interval
+  change_requests: 600s

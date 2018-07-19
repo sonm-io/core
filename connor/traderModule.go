@@ -129,10 +129,8 @@ func (t *TraderModule) ResponseToActiveDeal(ctx context.Context, dealDB *databas
 	if err != nil {
 		return fmt.Errorf("cannot get deal info: %v", err)
 	}
-	image := "sonm/zcash-cuda-ewfb:latest" //на nvidia
-	t.c.logger.Info("processing of deploying new container NVIDIA", zap.Any("deal_ID", dealOnMarket.Deal), zap.String("image", image))
 
-	newContainer, err := t.pool.DeployNewContainer(ctx, dealOnMarket.Deal, image)
+	newContainer, err := t.pool.DeployNewContainer(ctx, dealOnMarket.Deal)
 	if err != nil {
 		t.c.logger.Warn("cannot start task", zap.Error(err))
 		return err
@@ -142,8 +140,8 @@ func (t *TraderModule) ResponseToActiveDeal(ctx context.Context, dealDB *databas
 		return err
 	}
 
-	t.c.logger.Info("new container deployed successfully", zap.Int64("deal", dealDB.DealID), zap.Any("container", newContainer))
-
+	t.c.logger.Info("new container deployed successfully",
+		zap.Int64("deal", dealDB.DealID), zap.Any("container", *newContainer))
 	if err := t.ReinvoiceOrderFromDeal(ctx, dealOnMarket.Deal); err != nil {
 		return err
 	}
@@ -182,9 +180,12 @@ func (t *TraderModule) deployedDealProfitTracking(ctx context.Context, actualPri
 		return err
 	}
 
-	megahashes := bidOrder.Benchmarks.GPUEthHashrate() / hashes
-
-	if t.c.cfg.Mining.Token != "ETH" {
+	var megahashes uint64
+	switch t.c.cfg.Mining.Token {
+	case "ETH":
+		// todo: possible precision lost
+		megahashes = bidOrder.Benchmarks.GPUEthHashrate() / hashes
+	case "ZEC":
 		megahashes = bidOrder.Benchmarks.GPUCashHashrate() / hashes
 	}
 
@@ -298,6 +299,7 @@ func (t *TraderModule) ordersProfitTracking(ctx context.Context, actualPrice *bi
 
 	switch order.GetOrderStatus() {
 	case sonm.OrderStatus_ORDER_ACTIVE:
+		// TODO(sshaman1101): possible precision lost
 		megaHashes := order.GetBenchmarks().GPUEthHashrate() / hashes
 		log.Debug("megaHashes", zap.Uint64("value", megaHashes))
 
@@ -371,23 +373,16 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, price *sonm.Price, be
 		},
 	})
 	if err != nil {
-		// todo: why lucky?
-		t.c.logger.Warn("cannot create lucky order", zap.Error(err))
+		t.c.logger.Warn("cannot re-create order", zap.Error(err))
 		return err
 	}
 
 	var benchmarkValue uint64
-	// todo: switch-case?
 	switch t.c.cfg.Mining.Token {
 	case "ETH":
 		benchmarkValue = order.Benchmarks.GPUCashHashrate()
 	case "ZEC":
 		benchmarkValue = order.Benchmarks.GPUEthHashrate()
-	default:
-		// note: it's really weird to perform this check here.
-		// Later I'll add this to pre-flight check.
-		t.c.logger.Warn("unknown token name", zap.String("name", t.c.cfg.Mining.Token))
-		return fmt.Errorf("unknown token name")
 	}
 
 	err = t.c.db.SaveOrderIntoDB(&database.OrderDb{
@@ -409,7 +404,7 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, price *sonm.Price, be
 }
 
 func (t *TraderModule) GetChangeRequest(ctx context.Context, dealChangeRequest *sonm.DealInfoReply) error {
-	time.Sleep(time.Duration(900 * time.Second))
+	time.Sleep(t.c.cfg.Tickers.ChangeRequests)
 
 	requestsList, err := t.c.DealClient.ChangeRequestsList(ctx, dealChangeRequest.Deal.Id)
 	if err != nil {
@@ -445,17 +440,17 @@ func (t *TraderModule) GetChangeRequest(ctx context.Context, dealChangeRequest *
 }
 
 func (t *TraderModule) GetBidBenchmarks(bidOrder *sonm.Order) map[string]uint64 {
-	getBench := bidOrder.GetBenchmarks()
+	b := bidOrder.GetBenchmarks()
 	return map[string]uint64{
-		"ram-size":            getBench.RAMSize(),
-		"cpu-cores":           getBench.CPUCores(),
-		"cpu-sysbench-single": getBench.CPUSysbenchOne(),
-		"cpu-sysbench-multi":  getBench.CPUSysbenchMulti(),
-		"net-download":        getBench.NetTrafficIn(),
-		"net-upload":          getBench.NetTrafficOut(),
-		"gpu-count":           getBench.GPUCount(),
-		"gpu-mem":             getBench.GPUMem(),
-		"gpu-eth-hashrate":    getBench.GPUEthHashrate(),
+		"ram-size":            b.RAMSize(),
+		"cpu-cores":           b.CPUCores(),
+		"cpu-sysbench-single": b.CPUSysbenchOne(),
+		"cpu-sysbench-multi":  b.CPUSysbenchMulti(),
+		"net-download":        b.NetTrafficIn(),
+		"net-upload":          b.NetTrafficOut(),
+		"gpu-count":           b.GPUCount(),
+		"gpu-mem":             b.GPUMem(),
+		"gpu-eth-hashrate":    b.GPUEthHashrate(),
 	}
 }
 

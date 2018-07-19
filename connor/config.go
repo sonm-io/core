@@ -1,6 +1,7 @@
 package connor
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/jinzhu/configor"
@@ -35,9 +36,9 @@ type tradeParamConfig struct {
 }
 
 type miningConfig struct {
-	Token                    string  `yaml:"token"`
-	Wallet                   string  `yaml:"wallet"`
-	Image                    string  `yaml:"image"`
+	Token                    string  `yaml:"token" required:"true"`
+	Wallet                   string  `yaml:"wallet" required:"true"`
+	Image                    string  `yaml:"image" required:"true"`
 	WorkerLimitChangePercent float64 `yaml:"worker_limit_change_percent"`
 	BadWorkersPercent        float64 `yaml:"bad_workers_percent"`
 	EmailForPool             string  `yaml:"email_for_pool"`
@@ -55,10 +56,11 @@ type typicalBenchmark struct {
 }
 
 type tickerConfig struct {
-	TradeTicker time.Duration `yaml:"trade_ticker"`
-	DataUpdate  time.Duration `yaml:"data_update"`
-	PoolInit    time.Duration `yaml:"pool_init"`
-	TaskCheck   time.Duration `yaml:"task_check"`
+	TradeTicker    time.Duration `yaml:"trade_ticker"`
+	DataUpdate     time.Duration `yaml:"data_update"`
+	PoolInit       time.Duration `yaml:"pool_init"`
+	TaskCheck      time.Duration `yaml:"task_check"`
+	ChangeRequests time.Duration `yaml:"change_requests"`
 }
 
 type Config struct {
@@ -73,11 +75,28 @@ type Config struct {
 	Log          logging.Config     `yaml:"log"`
 }
 
+func (c *Config) validate() error {
+	supportedTokens := map[string]bool{
+		"ETH": true,
+		"ZEC": true,
+	}
+
+	if _, ok := supportedTokens[c.Mining.Token]; !ok {
+		return fmt.Errorf("token \"%s\" is not supported", c.Mining.Token)
+	}
+
+	return nil
+}
+
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
-	err := configor.Load(cfg, path)
-	if err != nil {
+	if err := configor.Load(cfg, path); err != nil {
 		return nil, err
 	}
+
+	if err := cfg.validate(); err != nil {
+		return nil, fmt.Errorf("config validation failed: %v", err)
+	}
+
 	return cfg, nil
 }

@@ -35,8 +35,8 @@ type powerAndDivider struct {
 
 func (p *ProfitableModule) getHashPowerAndDividerForToken(s string, hp float64) (float64, float64, bool) {
 	var tokenHashPower = map[string]powerAndDivider{
+		// todo: make configurable
 		"ETH": {div: 1, power: hashingPower * 1000000.0},
-		"XMR": {div: 1, power: 1},
 		"ZEC": {div: 1, power: 1},
 	}
 	k, ok := tokenHashPower[s]
@@ -54,10 +54,8 @@ type TokenMainData struct {
 }
 
 func (p *ProfitableModule) getTokensForProfitCalculation() []*TokenMainData {
-	// todo: make configurable
 	return []*TokenMainData{
 		{Symbol: "ETH"},
-		{Symbol: "XMR"},
 		{Symbol: "ZEC"},
 	}
 }

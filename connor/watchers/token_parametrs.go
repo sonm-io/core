@@ -47,7 +47,6 @@ func getTokensForUpdate() []*tokenData {
 	return []*tokenData{
 		//Symbol FROM coinmarketcup.com. ID FROM cryptocompare.com
 		{Name: "Ethereum", Symbol: "ETH", ID: "7605"},
-		{Name: "Monero", Symbol: "XMR", ID: "5038"},
 		{Name: "ZCash", Symbol: "ZEC", ID: "24854"},
 	}
 }
