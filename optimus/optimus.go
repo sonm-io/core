@@ -40,7 +40,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 		return err
 	}
 
-	marketCache := newMarketCache(newMarketScanner(dwh), m.cfg.Marketplace.Interval)
+	marketCache := newMarketCache(newMarketScanner(m.cfg.Marketplace, dwh), m.cfg.Marketplace.Interval)
 
 	wg := errgroup.Group{}
 	benchmarkMapping, err := benchmarks.NewLoader(m.cfg.Benchmarks.URL).Load(context.Background())

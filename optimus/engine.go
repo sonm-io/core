@@ -3,6 +3,7 @@ package optimus
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/big"
 	"sync"
 	"time"
@@ -543,6 +544,15 @@ func (m *GreedyLinearRegressionModel) Optimize(knapsack *Knapsack, orders []*Mar
 
 	exhaustedCounter := 0
 	for _, weightedOrder := range weightedOrders {
+		// Ignore orders with too low relative weight, i.e. orders that have
+		// quotient of its price to predicted price less than 1%.
+		// It may be, for example, when an order has 0 price.
+		// TODO: For now not sure where to perform this filtering. Let it be here.
+		if math.Abs(weightedOrder.Weight) < 0.01 {
+			m.log.Debugf("ignore `%s` order - weight too low: %.6f", weightedOrder.ID().String(), weightedOrder.Weight)
+			continue
+		}
+
 		if _, ok := filter[weightedOrder.ID().String()]; !ok {
 			continue
 		}
