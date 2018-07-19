@@ -74,7 +74,7 @@ func NewMatcher(cfg *Config) (Matcher, error) {
 
 func (m *matcher) CreateDealByOrder(ctx context.Context, order *sonm.Order) (*sonm.Deal, error) {
 	id := order.GetId().Unwrap()
-	m.cfg.Log.Debug("starting matcher", zap.String("orderID", id.String()))
+	m.cfg.Log.Debugw("starting matcher", zap.String("orderID", id.String()))
 
 	tk := util.NewImmediateTicker(m.cfg.PollDelay)
 	defer tk.Stop()
