@@ -14,13 +14,18 @@ var (
 	blacklistTypeStr  string
 	crNewDurationFlag string
 	crNewPriceFlag    string
+	forceDealFlag     bool
 )
 
 func init() {
 	dealListCmd.PersistentFlags().Uint64Var(&dealsSearchCount, "limit", 10, "Deals count to show")
 	dealCloseCmd.PersistentFlags().StringVar(&blacklistTypeStr, "blacklist", "none", "Whom to add to blacklist: `worker`, `master` or `none`")
+
 	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewDurationFlag, "new-duration", "", "Propose new duration for a deal")
 	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewPriceFlag, "new-price", "", "Propose new price for a deal")
+
+	dealOpenCmd.PersistentFlags().BoolVar(&forceDealFlag, "force", false, "Force deal opening without checking worker availability")
+	dealQuickBuyCmd.PersistentFlags().BoolVar(&forceDealFlag, "force", false, "Force deal opening without checking worker availability")
 
 	changeRequestsRoot.AddCommand(
 		changeRequestCreateCmd,
@@ -122,6 +127,7 @@ var dealOpenCmd = &cobra.Command{
 		deal, err := deals.Open(ctx, &pb.OpenDealRequest{
 			BidID: pb.NewBigInt(bidID),
 			AskID: pb.NewBigInt(askID),
+			Force: forceDealFlag,
 		})
 
 		if err != nil {
@@ -151,7 +157,10 @@ var dealQuickBuyCmd = &cobra.Command{
 			return fmt.Errorf("cannot convert arg to number: %v", err)
 		}
 
-		req := &pb.QuickBuyRequest{AskID: id}
+		req := &pb.QuickBuyRequest{
+			AskID: id,
+			Force: forceDealFlag,
+		}
 
 		if len(args) >= 2 {
 			duration, err := time.ParseDuration(args[1])

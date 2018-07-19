@@ -68,6 +68,19 @@ func (re *remoteOptions) getWorkerClientByEthAddr(ctx context.Context, eth strin
 	return re.workerCreator(ctx, &addr)
 }
 
+// isWorkerAvailable building worker client by eth address, then call .Status method
+func (re *remoteOptions) isWorkerAvailable(ctx context.Context, addr common.Address) bool {
+	worker, closer, err := re.getWorkerClientByEthAddr(ctx, addr.Hex())
+	if err != nil {
+		return false
+	}
+
+	defer closer.Close()
+
+	_, err = worker.Status(ctx, &sonm.Empty{})
+	return err == nil
+}
+
 func newRemoteOptions(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, credentials credentials.TransportCredentials, log *zap.SugaredLogger) (*remoteOptions, error) {
 	nppDialerOptions := []npp.Option{
 		npp.WithRendezvous(cfg.NPP.Rendezvous, credentials),

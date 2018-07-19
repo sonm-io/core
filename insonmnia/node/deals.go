@@ -10,6 +10,8 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type dealsAPI struct {
@@ -87,6 +89,21 @@ func (d *dealsAPI) Finish(ctx context.Context, req *pb.DealFinishRequest) (*pb.E
 }
 
 func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal, error) {
+	ask, err := d.remotes.eth.Market().GetOrderInfo(ctx, req.GetAskID().Unwrap())
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ask order: %s", err)
+	}
+
+	if !req.Force {
+		d.remotes.log.Debug("checking worker availability")
+		if available := d.remotes.isWorkerAvailable(ctx, ask.GetAuthorID().Unwrap()); !available {
+			return nil, status.Errorf(codes.Unavailable,
+				"failed to fetch status from %s, seems like worker is offline", ask.GetAuthorID().Unwrap().Hex())
+		}
+	} else {
+		d.remotes.log.Info("forcing deal opening, worker availability checking skipped")
+	}
+
 	deal, err := d.remotes.eth.Market().OpenDeal(ctx, d.remotes.key, req.GetAskID().Unwrap(), req.GetBidID().Unwrap())
 	if err != nil {
 		return nil, fmt.Errorf("could not open deal in blockchain: %s", err)
@@ -96,15 +113,27 @@ func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal,
 }
 
 func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.DealInfoReply, error) {
+	ask, err := d.remotes.eth.Market().GetOrderInfo(ctx, req.GetAskID().Unwrap())
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ask order for duration lookup: %s", err)
+	}
+
 	var duration uint64
 	if req.Duration == nil {
-		ask, err := d.remotes.eth.Market().GetOrderInfo(ctx, req.GetAskID().Unwrap())
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch ask order for duration lookup: %s", err)
-		}
 		duration = ask.Duration
 	} else {
 		duration = uint64(req.GetDuration().Unwrap().Seconds())
+	}
+
+	if !req.Force {
+		d.remotes.log.Debug("checking worker availability")
+		if available := d.remotes.isWorkerAvailable(ctx, ask.GetAuthorID().Unwrap()); !available {
+			return nil, status.Errorf(codes.Unavailable,
+				"failed to fetch status from %s, seems like worker is offline", ask.GetAuthorID().Unwrap().Hex())
+		}
+	} else {
+		d.remotes.log.Info("forcing deal opening, worker availability checking skipped",
+			zap.String("ask_id", req.AskID.Unwrap().String()))
 	}
 
 	deal, err := d.remotes.eth.Market().QuickBuy(ctx, d.remotes.key, req.GetAskID().Unwrap(), duration)
