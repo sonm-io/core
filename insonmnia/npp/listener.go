@@ -85,6 +85,8 @@ func (m *connTuple) unwrapWithSource(source connSource) (net.Conn, connSource, e
 // Options are: rendezvous server, private IPs usage, relay server(s) if any.
 type Listener struct {
 	metrics *metrics
+	ctx     context.Context // Required here, because of gRPC server, which can't stop properly even if "Stop" called.
+	cancel  context.CancelFunc
 	log     *zap.Logger
 
 	listener        net.Listener
@@ -120,8 +122,11 @@ func NewListener(ctx context.Context, addr string, options ...Option) (*Listener
 		return nil, err
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
 	m := &Listener{
 		metrics:         newMetrics(),
+		ctx:             ctx,
+		cancel:          cancel,
 		log:             opts.log,
 		listenerChannel: channel,
 		listener:        listener,
@@ -245,7 +250,7 @@ func (m *Listener) listenRelay(ctx context.Context) error {
 // punching mechanism work. This can consume a meaningful amount of file
 // descriptors, so be prepared to enlarge your limits.
 func (m *Listener) Accept() (net.Conn, error) {
-	return m.AcceptContext(context.Background())
+	return m.AcceptContext(m.ctx)
 }
 
 func (m *Listener) AcceptContext(ctx context.Context) (net.Conn, error) {
@@ -305,6 +310,8 @@ func (m *Listener) accept(ctx context.Context) (net.Conn, connSource, error) {
 }
 
 func (m *Listener) Close() error {
+	m.cancel()
+
 	var errs []error
 
 	if err := m.listener.Close(); err != nil {
