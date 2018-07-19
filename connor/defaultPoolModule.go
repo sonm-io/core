@@ -64,7 +64,7 @@ func (p *PoolModule) DeployNewContainer(ctx context.Context, deal *sonm.Deal, im
 	reply, err := p.c.TaskClient.Start(ctx, startTaskRequest)
 	// TODO(sshaman1101): retry on errors
 	if err != nil {
-
+		// WARN: it's a really wrong way to perform retrying when task starting is failed.
 		reply, err := p.TryCreateAMDContainer(ctx, deal)
 		if err != nil {
 			p.c.logger.Info("cannot start task on worker", zap.String("deal_id", deal.GetID().Unwrap().String()),

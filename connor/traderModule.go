@@ -3,7 +3,6 @@ package connor
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/big"
 	"strconv"
 	"time"
@@ -154,64 +153,85 @@ func (t *TraderModule) ResponseToActiveDeal(ctx context.Context, dealDB *databas
 
 // Compare deal price and new price. If the price went down/up create change request and get response.
 func (t *TraderModule) deployedDealProfitTracking(ctx context.Context, actualPrice *big.Int, dealDB *database.DealDB) error {
+	log := t.c.logger.With(zap.String("module", "deployed-deal-tracking"))
+
+	log.Debug("started", zap.Int64("deal_id", dealDB.DealID))
+	defer log.Debug("finished")
 
 	changeRequestStatus, err := t.c.db.GetChangeRequestStatus(dealDB.DealID)
 	if err != nil {
+		log.Warn("cannot get change request status", zap.Error(err))
 		return err
 	}
 
 	// TODO(sshaman1101): WAT?
 	if changeRequestStatus == 1 {
+		log.Warn(`magic condition fired ¯\(ツ)/¯`)
 		return nil
 	}
 
 	dealOnMarket, err := t.c.DealClient.Status(ctx, sonm.NewBigIntFromInt(dealDB.DealID))
 	if err != nil {
+		log.Warn("cannot get deal info", zap.Error(err))
 		return fmt.Errorf("cannot get deal info: %v", err)
 	}
-	log.Printf("deployed deals profit tracking deal %v", dealOnMarket.Deal.Id.String())
 
 	bidOrder, err := t.c.Market.GetOrderByID(ctx, &sonm.ID{Id: dealOnMarket.Deal.BidID.Unwrap().String()})
 	if err != nil {
+		log.Warn("cannot get order from market", zap.Error(err))
 		return err
 	}
-	pack := float64(bidOrder.Benchmarks.GPUEthHashrate()) / float64(hashes)
+
+	megahashes := bidOrder.Benchmarks.GPUEthHashrate() / hashes
 
 	if t.c.cfg.UsingToken != "ETH" {
-		pack = float64(bidOrder.Benchmarks.GPUCashHashrate()) / float64(hashes)
+		megahashes = bidOrder.Benchmarks.GPUCashHashrate() / hashes
 	}
 
-	log.Printf("pack %v", pack)
-	actualPriceForPack := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(pack)))
-	if actualPriceForPack == big.NewInt(0) {
-		return fmt.Errorf("actual price for pack = 0")
+	actualPriceForPack := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(megahashes)))
+	if actualPriceForPack.Cmp(big.NewInt(0)) == 0 {
+		return fmt.Errorf("actual price for pack is zero")
 	}
-
-	log.Printf("actual price for pack %v", actualPriceForPack)
-	div := big.NewInt(0).Div(big.NewInt(0).Mul(actualPriceForPack, big.NewInt(100)), dealOnMarket.Deal.Price.Unwrap())
 
 	if actualPriceForPack.IsInt64() == false {
 		return fmt.Errorf("actual price overflows int64")
 	}
 
-	changePricePercent, _ := big.NewFloat(0).SetInt64(div.Int64()).Float64()
+	log.Debug("calculated megahashes and price", zap.Uint64("megahashes", megahashes),
+		zap.String("price_for_mh", actualPriceForPack.String()))
+
+	divider := big.NewInt(0).Mul(actualPriceForPack, big.NewInt(100))
+	div := big.NewInt(0).Div(divider, dealOnMarket.Deal.Price.Unwrap())
+	log.Debug("div", zap.String("divider", divider.String()), zap.String("result", div.String()))
+
+	changePricePercent, _ := big.NewFloat(0).SetInt(div).Float64()
 	if changePricePercent == 0 {
 		return fmt.Errorf("change price percent = 0")
 	}
-	log.Printf("change price percent %v", changePricePercent)
 
-	if changePricePercent > fullPath+t.c.cfg.Trade.DealsChangePercent || changePricePercent < fullPath-t.c.cfg.Trade.DealsChangePercent {
+	mnogo := changePricePercent > fullPath+t.c.cfg.Trade.DealsChangePercent
+	malo := changePricePercent < fullPath-t.c.cfg.Trade.DealsChangePercent
+
+	log.Debug("magic comparison", zap.Bool("mnogo", mnogo), zap.Bool("malo", malo),
+		zap.Any("deals_change_percent", t.c.cfg.Trade.DealsChangePercent))
+
+	if mnogo || malo {
 		dealChangeRequest, err := t.CreateChangeRequest(ctx, dealOnMarket, actualPriceForPack)
 		if err != nil {
 			return fmt.Errorf("cannot create change request: %v", err)
 		}
-		t.c.logger.Info("change percent for deal ==> create deal change request ", zap.String("high_CR", dealChangeRequest.Unwrap().String()),
-			zap.String("deal_ID", dealOnMarket.Deal.Id.Unwrap().String()), zap.String("deal_price", sonm.NewBigInt(dealOnMarket.Deal.Price.Unwrap()).ToPriceString()),
-			zap.String("actual_price_for_pack", sonm.NewBigInt(actualPriceForPack).ToPriceString()), zap.Float64("change_percent", changePricePercent))
+		t.c.logger.Info("change percent for deal ==> create deal change request ",
+			zap.String("high_CR", dealChangeRequest.Unwrap().String()),
+			zap.String("deal_ID", dealOnMarket.Deal.Id.Unwrap().String()),
+			zap.String("deal_price", dealOnMarket.Deal.Price.ToPriceString()),
+			zap.String("actual_price_for_pack", sonm.NewBigInt(actualPriceForPack).ToPriceString()),
+			zap.Float64("change_percent", changePricePercent))
 
 		if err := t.c.db.UpdateChangeRequestStatusDealDB(dealDB.DealID, sonm.ChangeRequestStatus_REQUEST_CREATED, actualPriceForPack.Int64()); err != nil {
+			log.Warn("cannot create change request data", zap.Error(err))
 			return err
 		}
+
 		go t.GetChangeRequest(ctx, dealOnMarket) // TODO: wait for the go-routine to finish.
 	}
 	return nil
@@ -306,7 +326,8 @@ func (t *TraderModule) ordersProfitTracking(ctx context.Context, actualPrice *bi
 			zap.Any("order_change_percent", t.c.cfg.Trade.OrdersChangePercent))
 
 		if mnogo || malo {
-			t.c.logger.Info("change price ==>  create reinvoice order", zap.String("active_orderID", order.Id.Unwrap().String()),
+			t.c.logger.Info("change price ==>  create reinvoice order",
+				zap.String("active_orderID", order.Id.Unwrap().String()),
 				zap.String("order_price", sonm.NewBigInt(order.Price.Unwrap()).ToPriceString()),
 				zap.String("actual_price_for_pack", sonm.NewBigInt(pricePerSecForPack).ToPriceString()),
 				zap.Float64("change_percent", changePricePercent))
@@ -354,26 +375,32 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, price *sonm.Price, be
 		t.c.logger.Warn("cannot create lucky order", zap.Error(err))
 		return err
 	}
-	if t.c.cfg.UsingToken != "ETH" {
-		if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
-			OrderID:    order.Id.Unwrap().Int64(),
-			Price:      order.Price.Unwrap().Int64(),
-			Hashrate:   order.Benchmarks.GPUCashHashrate(),
-			StartTime:  time.Now(),
-			Status:     OrderStatusReinvoice,
-			ActualStep: 0,
-		}); err != nil {
-			return fmt.Errorf("cannot save reinvoice order %s to DB: %v", order.GetId().Unwrap().String(), err)
-		}
+
+	var benchmarkValue uint64
+	// todo: switch-case?
+	switch t.c.cfg.UsingToken {
+	case "ETH":
+		benchmarkValue = order.Benchmarks.GPUCashHashrate()
+	case "ZEC":
+		benchmarkValue = order.Benchmarks.GPUEthHashrate()
+	default:
+		// note: it's really weird to perform this check here.
+		// Later I'll add this to pre-flight check.
+		t.c.logger.Warn("unknown token name", zap.String("name", t.c.cfg.UsingToken))
+		return fmt.Errorf("unknown token name")
 	}
-	if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
+
+	err = t.c.db.SaveOrderIntoDB(&database.OrderDb{
 		OrderID:    order.Id.Unwrap().Int64(),
 		Price:      order.Price.Unwrap().Int64(),
-		Hashrate:   order.Benchmarks.GPUEthHashrate(),
+		Hashrate:   benchmarkValue,
 		StartTime:  time.Now(),
 		Status:     OrderStatusReinvoice,
 		ActualStep: 0,
-	}); err != nil {
+	})
+
+	if err != nil {
+		t.c.logger.Warn("cannot save reinvoice order", zap.Error(err))
 		return fmt.Errorf("cannot save reinvoice order %s to DB: %v", order.GetId().Unwrap().String(), err)
 	}
 
