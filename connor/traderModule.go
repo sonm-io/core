@@ -185,14 +185,13 @@ func (t *TraderModule) deployedDealProfitTracking(ctx context.Context, actualPri
 	if err != nil {
 		return err
 	}
-	var pack float64
+	var pack uint64
 	switch t.c.cfg.MiningToken {
 	case "ETH":
-		pack = float64(bidOrder.Benchmarks.GPUEthHashrate()) / float64(hashes)
+		pack = bidOrder.Benchmarks.GPUEthHashrate() / hashes
 	case "ZEC":
-		pack = float64(bidOrder.Benchmarks.GPUCashHashrate()) / float64(hashes)
+		pack = bidOrder.Benchmarks.GPUCashHashrate()
 	}
-
 
 	actualPriceForPack := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(pack)))
 	if actualPriceForPack == big.NewInt(0) {
@@ -290,15 +289,21 @@ func (t *TraderModule) ordersProfitTracking(ctx context.Context, actualPrice *bi
 
 	switch order.GetOrderStatus() {
 	case sonm.OrderStatus_ORDER_ACTIVE:
-		megaHashes := order.GetBenchmarks().GPUEthHashrate() / hashes
-		log.Debug("megaHashes", zap.Uint64("value", megaHashes))
+		var hashrate uint64
+		switch t.c.cfg.MiningToken {
+		case "ETH":
+			hashrate = order.GetBenchmarks().GPUEthHashrate() / hashes
+		case "ZEC":
+			hashrate = order.GetBenchmarks().GPUCashHashrate()
+		}
 
-		pricePerSecForPack := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(megaHashes)))
-		log.Debug("pricePerSecForPack", zap.String("value", pricePerSecForPack.String()))
-
+		pricePerSecForPack := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(hashrate)))
 		if pricePerSecForPack.Cmp(big.NewInt(0)) == 0 {
 			return fmt.Errorf("actual price is zero")
 		}
+
+		log.Debug("active order information", zap.String("order_ID", order.Id.String()), zap.Uint64("hashrate", hashrate),
+			zap.String("value", pricePerSecForPack.String()))
 
 		//TODO: remake this part
 		divider := big.NewInt(0).Mul(pricePerSecForPack, big.NewInt(100))
@@ -442,11 +447,11 @@ func (t *TraderModule) GetBidBenchmarks(bidOrder *sonm.Order) map[string]uint64 
 		"gpu-mem":             b.GPUMem(),
 	}
 
-	switch  t.c.cfg.MiningToken {
+	switch t.c.cfg.MiningToken {
 	case "ETH":
 		env["gpu-eth-hashrate"] = b.GPUEthHashrate()
 	case "ZEC":
-		env["gpu-zec-hashrate"] = b.GPUCashHashrate()
+		env["gpu-cash-hashrate"] = b.GPUCashHashrate()
 	}
 	return env
 }

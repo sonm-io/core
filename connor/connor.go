@@ -128,10 +128,10 @@ func (c *Connor) Serve(ctx context.Context) error {
 	traderModule := NewTraderModules(c, poolModule, profitModule)
 
 	md, ctx := errgroup.WithContext(ctx)
-	md.Go(func() error {
-		// TODO(sshaman1101): this goroutine looks weird.
-		return traderModule.ChargeOrdersOnce(ctx, token, snm, balanceReply)
-	})
+	//md.Go(func() error {
+	//	// TODO(sshaman1101): this goroutine looks weird.
+	//	return traderModule.ChargeOrdersOnce(ctx, token, snm, balanceReply)
+	//})
 
 	for {
 		select {

@@ -3,6 +3,7 @@ package connor
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/big"
 	"time"
 
@@ -152,7 +153,7 @@ func (t *TraderModule) CreateOrderOnMarketStep(ctx context.Context, step float64
 			return 0, fmt.Errorf("cannot save order to database: %v", err)
 		}
 	}
-	t.c.logger.Info("order created", zap.Any("order", actOrder))
+	t.c.logger.Info("ChargeOrders : order created", zap.Any("order", actOrder))
 
 	return buyMgHash + step, nil
 }
@@ -179,10 +180,11 @@ func (t *TraderModule) GetPriceForTokenPerSec(token watchers.TokenWatcher) (floa
 	}
 
 	if pricePerMonthUSD == 0 {
-		return 0, 0, fmt.Errorf("price per month in USD = 0")
+		return 0, 0, fmt.Errorf("price per month in USD is zero")
 	}
 
 	pricePerSec := pricePerMonthUSD / (secsPerDay * daysPerMonth)
+	log.Printf("PIDOR PRICE Token: %v, price per sec: %v, per month : %v", t.c.cfg.MiningToken, pricePerSec, pricePerMonthUSD)
 	return pricePerMonthUSD, pricePerSec, nil
 }
 
