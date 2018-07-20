@@ -172,7 +172,7 @@ func (c *containerDescriptor) execCommand(ctx context.Context, cmd []string, env
 				if !ok {
 					return
 				}
-				c.log.Info("resizing tty to %dx%d", w.Height, w.Width)
+				c.log.Infof("resizing tty to %dx%d", w.Height, w.Width)
 				err = c.client.ContainerExecResize(ctx, execId.ID, types.ResizeOptions{Height: uint(w.Height), Width: uint(w.Width)})
 				if err != nil {
 					log.G(ctx).Warn("ContainerExecResize finished with error", zap.Error(err))

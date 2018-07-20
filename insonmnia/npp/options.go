@@ -7,6 +7,7 @@ import (
 
 	"github.com/sonm-io/core/insonmnia/npp/relay"
 	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
+	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials"
 )
@@ -23,6 +24,7 @@ type options struct {
 	nppMaxBackoffInterval time.Duration
 	relayListener         *relay.Listener
 	relayDialer           *relay.Dialer
+	protocol              string
 }
 
 func newOptions() *options {
@@ -31,6 +33,7 @@ func newOptions() *options {
 		nppBacklog:            128,
 		nppMinBackoffInterval: 500 * time.Millisecond,
 		nppMaxBackoffInterval: 8000 * time.Millisecond,
+		protocol:              sonm.DefaultNPPProtocol,
 	}
 }
 
@@ -49,7 +52,7 @@ func WithRendezvous(cfg rendezvous.Config, credentials credentials.TransportCred
 			for _, addr := range cfg.Endpoints {
 				client, err := newRendezvousClient(ctx, addr, credentials)
 				if err == nil {
-					return newNATPuncher(ctx, cfg, client, o.log)
+					return newNATPuncher(ctx, cfg, client, o.protocol, o.log)
 				}
 			}
 
@@ -109,6 +112,13 @@ func WithRelayListener(listener *relay.Listener) Option {
 func WithRelayDialer(dialer *relay.Dialer) Option {
 	return func(o *options) error {
 		o.relayDialer = dialer
+		return nil
+	}
+}
+
+func WithProtocol(protocol string) Option {
+	return func(o *options) error {
+		o.protocol = protocol
 		return nil
 	}
 }
