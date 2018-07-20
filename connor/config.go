@@ -1,6 +1,7 @@
 package connor
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/jinzhu/configor"
@@ -35,10 +36,10 @@ type tradeParamConfig struct {
 }
 
 type poolParamConfig struct {
-	PoolAccount              string  `yaml:"pool_account"`
+	PoolAccount              string  `yaml:"pool_account" required:"true"`
 	WorkerLimitChangePercent float64 `yaml:"worker_limit_change_percent"`
 	BadWorkersPercent        float64 `yaml:"bad_workers_percent"`
-	Image                    string  `yaml:"image"`
+	Image                    string  `yaml:"image" required:"true"`
 	EmailForPool             string  `yaml:"email_for_pool"`
 }
 
@@ -63,7 +64,7 @@ type tickerConfig struct {
 type Config struct {
 	Market       marketConfig       `yaml:"market" required:"true"`
 	Database     databaseConfig     `yaml:"database"`
-	UsingToken   string             `yaml:"using_token"`
+	MiningToken  string             `yaml:"using_token" required:"true"`
 	ChargeOrders chargeOrdersConfig `yaml:"charge_orders_parameters"`
 	Trade        tradeParamConfig   `yaml:"trading_parameters"`
 	Pool         poolParamConfig    `yaml:"pool_parameters"`
@@ -75,9 +76,25 @@ type Config struct {
 
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
-	err := configor.Load(cfg, path)
-	if err != nil {
+	if err := configor.Load(cfg, path); err != nil {
 		return nil, err
 	}
+
+	if err := cfg.validate(); err != nil {
+		return nil, fmt.Errorf("config validation failed: %v", err)
+	}
+
 	return cfg, nil
+}
+func (c *Config) validate() error {
+	supportedTokens := map[string]bool{
+		"ETH": true,
+		"ZEC": true,
+	}
+
+	if _, ok := supportedTokens[c.MiningToken]; !ok {
+		return fmt.Errorf("token \"%s\" is not supported", c.MiningToken)
+	}
+
+	return nil
 }

@@ -84,7 +84,7 @@ func (p *ProfitableModule) CollectTokensMiningProfit(t watchers.TokenWatcher) ([
 		if err != nil {
 			return nil, err
 		}
-		if token.Symbol == p.c.cfg.UsingToken {
+		if token.Symbol == p.c.cfg.MiningToken {
 			p.c.db.SaveProfitToken(&database.TokenDb{
 				ID:              int64(id),
 				Name:            token.Symbol,

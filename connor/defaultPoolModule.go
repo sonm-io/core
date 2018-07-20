@@ -47,7 +47,7 @@ func (p *PoolModule) DeployNewContainer(ctx context.Context, deal *sonm.Deal, im
 		"EMAIL":  p.c.cfg.Pool.EmailForPool,
 	}
 
-	switch p.c.cfg.UsingToken {
+	switch p.c.cfg.MiningToken {
 	case "ETH":
 		env["ETH_POOL"] = EthPool
 	case "ZEC":
@@ -71,7 +71,7 @@ func (p *PoolModule) DeployNewContainer(ctx context.Context, deal *sonm.Deal, im
 	reply, err := p.c.TaskClient.Start(ctx, startTaskRequest)
 	// TODO(sshaman1101): retry on errors
 	if err != nil {
-		switch p.c.cfg.UsingToken {
+		switch p.c.cfg.MiningToken {
 		case "ETH":
 			p.c.logger.Info("ETH container wasn't deployed", zap.String("deal_ID", deal.GetID().Unwrap().String()))
 			if err := p.FinishDealAfterFailedStartTask(ctx, deal); err != nil {

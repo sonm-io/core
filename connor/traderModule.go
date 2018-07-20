@@ -110,10 +110,7 @@ func (t *TraderModule) DealsTrading(ctx context.Context, actualPrice *big.Int) e
 							continue
 						}
 					}
-				case DeployStatusDestroyed:
-					log.Debug("deal is destroyed, nothing to do", zap.Any("deal_id", deal.DealID))
 				}
-
 				// This check is necessary if it turns out that the deal was closed by the worker.
 			case sonm.DealStatus_DEAL_CLOSED:
 				log.Info("deal closed on market by worker", zap.Int64("deal_ID", deal.DealID))
@@ -138,7 +135,7 @@ func (t *TraderModule) ResponseToActiveDeal(ctx context.Context, dealDB *databas
 	}
 
 	var image string
-	switch t.c.cfg.UsingToken {
+	switch t.c.cfg.MiningToken {
 	case "ETH":
 		image = t.c.cfg.Pool.Image
 		t.c.logger.Info("processing of deploying new container eth-claymore",
@@ -153,11 +150,12 @@ func (t *TraderModule) ResponseToActiveDeal(ctx context.Context, dealDB *databas
 	if err != nil {
 		return err
 	}
+	t.c.logger.Info("new container deployed successfully",
+		zap.Int64("deal", dealDB.DealID), zap.Any("container", *newContainer))
+
 	if err := t.c.db.UpdateDeployStatusDealInDB(dealOnMarket.Deal.Id.Unwrap().Int64(), DeployStatusDeployed); err != nil {
 		return err
 	}
-
-	t.c.logger.Info("new container deployed successfully", zap.Int64("deal", dealDB.DealID), zap.Any("container", newContainer))
 
 	if err := t.ReinvoiceOrderFromDeal(ctx, dealOnMarket.Deal); err != nil {
 		return err
@@ -173,9 +171,7 @@ func (t *TraderModule) deployedDealProfitTracking(ctx context.Context, actualPri
 	if err != nil {
 		return err
 	}
-
-	// TODO(sshaman1101): WAT?
-	if changeRequestStatus == 1 {
+	if changeRequestStatus == int64(sonm.ChangeRequestStatus_REQUEST_CREATED) {
 		return nil
 	}
 
@@ -189,16 +185,18 @@ func (t *TraderModule) deployedDealProfitTracking(ctx context.Context, actualPri
 	if err != nil {
 		return err
 	}
-	pack := float64(bidOrder.Benchmarks.GPUEthHashrate()) / float64(hashes)
-
-	if t.c.cfg.UsingToken != "ETH" {
+	var pack float64
+	switch t.c.cfg.MiningToken {
+	case "ETH":
+		pack = float64(bidOrder.Benchmarks.GPUEthHashrate()) / float64(hashes)
+	case "ZEC":
 		pack = float64(bidOrder.Benchmarks.GPUCashHashrate()) / float64(hashes)
 	}
 
-	log.Printf("pack %v", pack)
+
 	actualPriceForPack := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(pack)))
 	if actualPriceForPack == big.NewInt(0) {
-		return fmt.Errorf("actual price for pack = 0")
+		return fmt.Errorf("actual price for pack is zero")
 	}
 
 	log.Printf("actual price for pack %v", actualPriceForPack)
@@ -313,14 +311,15 @@ func (t *TraderModule) ordersProfitTracking(ctx context.Context, actualPrice *bi
 			return fmt.Errorf("calculated price delta is zero")
 		}
 
-		mnogo := changePricePercent > fullPath+t.c.cfg.Trade.OrdersChangePercent
-		malo := changePricePercent < fullPath-t.c.cfg.Trade.OrdersChangePercent
+		highChangePercent := changePricePercent > fullPath+t.c.cfg.Trade.OrdersChangePercent
+		lowChangePercent := changePricePercent < fullPath-t.c.cfg.Trade.OrdersChangePercent
 
-		log.Debug("magic comparison", zap.Bool("mnogo", mnogo), zap.Bool("malo", malo),
+		log.Debug("comparison of change percent",
+			zap.Bool("high_change_percent", highChangePercent), zap.Bool("low_change_percent", lowChangePercent),
 			zap.Any("order_change_percent", t.c.cfg.Trade.OrdersChangePercent))
 
-		if mnogo || malo {
-			t.c.logger.Info("change price ==>  create reinvoice order", zap.String("active_orderID", order.Id.Unwrap().String()),
+		if highChangePercent || lowChangePercent {
+			t.c.logger.Info("the order price has changed. Create reinvoice order", zap.String("active_orderID", order.Id.Unwrap().String()),
 				zap.String("order_price", sonm.NewBigInt(order.Price.Unwrap()).ToPriceString()),
 				zap.String("actual_price_for_pack", sonm.NewBigInt(pricePerSecForPack).ToPriceString()),
 				zap.Float64("change_percent", changePricePercent))
@@ -366,23 +365,23 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, price *sonm.Price, be
 	if err != nil {
 		t.c.logger.Warn("cannot create lucky order", zap.Error(err))
 	}
-	switch t.c.cfg.UsingToken {
-	case "ZEC":
+	switch t.c.cfg.MiningToken {
+	case "ETH":
 		if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
 			OrderID:    order.Id.Unwrap().Int64(),
 			Price:      order.Price.Unwrap().Int64(),
-			Hashrate:   order.Benchmarks.GPUCashHashrate(),
+			Hashrate:   order.Benchmarks.GPUEthHashrate(),
 			StartTime:  time.Now(),
 			Status:     OrderStatusReinvoice,
 			ActualStep: 0,
 		}); err != nil {
 			t.c.logger.Warn("cannot save reinvoice order to database", zap.Int64("order_ID", order.Id.Unwrap().Int64()), zap.Error(err))
 		}
-	case "ETH":
+	case "ZEC":
 		if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
 			OrderID:    order.Id.Unwrap().Int64(),
 			Price:      order.Price.Unwrap().Int64(),
-			Hashrate:   order.Benchmarks.GPUEthHashrate(),
+			Hashrate:   order.Benchmarks.GPUCashHashrate(),
 			StartTime:  time.Now(),
 			Status:     OrderStatusReinvoice,
 			ActualStep: 0,
@@ -431,37 +430,23 @@ func (t *TraderModule) GetChangeRequest(ctx context.Context, dealChangeRequest *
 }
 
 func (t *TraderModule) GetBidBenchmarks(bidOrder *sonm.Order) map[string]uint64 {
-	getBench := bidOrder.GetBenchmarks()
-	return map[string]uint64{
-		"ram-size":            getBench.RAMSize(),
-		"cpu-cores":           getBench.CPUCores(),
-		"cpu-sysbench-single": getBench.CPUSysbenchOne(),
-		"cpu-sysbench-multi":  getBench.CPUSysbenchMulti(),
-		"net-download":        getBench.NetTrafficIn(),
-		"net-upload":          getBench.NetTrafficOut(),
-		"gpu-count":           getBench.GPUCount(),
-		"gpu-mem":             getBench.GPUMem(),
-		"gpu-eth-hashrate":    getBench.GPUEthHashrate(),
-	}
-}
-
-func (t *TraderModule) CancelAllOrders(ctx context.Context) error {
-	orders, err := t.c.db.GetOrdersFromDB()
-	if err != nil {
-		return fmt.Errorf("cannot get orders from DB: %v", err)
+	b := bidOrder.GetBenchmarks()
+	env := map[string]uint64{
+		"ram-size":            b.RAMSize(),
+		"cpu-cores":           b.CPUCores(),
+		"cpu-sysbench-single": b.CPUSysbenchOne(),
+		"cpu-sysbench-multi":  b.CPUSysbenchMulti(),
+		"net-download":        b.NetTrafficIn(),
+		"net-upload":          b.NetTrafficOut(),
+		"gpu-count":           b.GPUCount(),
+		"gpu-mem":             b.GPUMem(),
 	}
 
-	for _, o := range orders {
-		if o.Status == OrderStatusReinvoice || o.Status == int64(sonm.OrderStatus_ORDER_ACTIVE) {
-			_, err := t.c.Market.CancelOrder(ctx, &sonm.ID{
-				Id: strconv.Itoa(int(o.OrderID)),
-			})
-			if err != nil {
-				return err
-			}
-			t.c.logger.Info("order id cancelled", zap.Int64("order", o.OrderID))
-			t.c.db.UpdateOrderInDB(o.OrderID, OrderStatusCancelled)
-		}
+	switch  t.c.cfg.MiningToken {
+	case "ETH":
+		env["gpu-eth-hashrate"] = b.GPUEthHashrate()
+	case "ZEC":
+		env["gpu-zec-hashrate"] = b.GPUCashHashrate()
 	}
-	return nil
+	return env
 }

@@ -40,11 +40,6 @@ type Connor struct {
 }
 
 func NewConnor(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Connor, error) {
-	connor := &Connor{
-		key: key,
-		cfg: cfg,
-	}
-
 	creds, err := newCredentials(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("can't create TLS credentials: %v", err)
@@ -55,11 +50,22 @@ func NewConnor(ctx context.Context, key *ecdsa.PrivateKey, cfg *Config) (*Connor
 		return nil, fmt.Errorf("can't create node connection: %v", err)
 	}
 
-	connor.Market = sonm.NewMarketClient(nodeCC)
-	connor.TaskClient = sonm.NewTaskManagementClient(nodeCC)
-	connor.DealClient = sonm.NewDealManagementClient(nodeCC)
-	connor.TokenClient = sonm.NewTokenManagementClient(nodeCC)
-	connor.MasterClient = sonm.NewMasterManagementClient(nodeCC)
+	db, err := database.NewDatabaseConnect(cfg.Database.Driver, cfg.Database.DataSource)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create database connection: %v", err)
+	}
+
+	connor := &Connor{
+		key:          key,
+		cfg:          cfg,
+		Market:       sonm.NewMarketClient(nodeCC),
+		TaskClient:   sonm.NewTaskManagementClient(nodeCC),
+		DealClient:   sonm.NewDealManagementClient(nodeCC),
+		TokenClient:  sonm.NewTokenManagementClient(nodeCC),
+		MasterClient: sonm.NewMasterManagementClient(nodeCC),
+		logger:       ctxlog.GetLogger(ctx),
+		db:           db,
+	}
 
 	connor.logger = ctxlog.GetLogger(ctx)
 	connor.db, err = database.NewDatabaseConnect(connor.cfg.Database.Driver, connor.cfg.Database.DataSource)
@@ -81,8 +87,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 		return err
 	}
 
-	c.logger.Info("balance",
-		zap.String("live", balanceReply.GetLiveBalance().Unwrap().String()),
+	c.logger.Info("balance", zap.String("live", balanceReply.GetLiveBalance().ToPriceString()),
 		zap.String("side", balanceReply.GetSideBalance().ToPriceString()))
 	c.logger.Info("configuring connor", zap.Any("config", c.cfg))
 
@@ -102,7 +107,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 	var reportedPool watchers.PoolWatcher
 	var avgPool watchers.PoolWatcher
 
-	switch c.cfg.UsingToken {
+	switch c.cfg.MiningToken {
 	case "ETH":
 		reportedPool = watchers.NewPoolWatcher(poolReportedHashrateURL, []string{c.cfg.Pool.PoolAccount})
 		avgPool = watchers.NewPoolWatcher(poolAverageHashrateURL, []string{c.cfg.Pool.PoolAccount + "/1"})
@@ -150,7 +155,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 
 			actualPrice := traderModule.FloatToBigInt(pricePerSec * c.cfg.Trade.MarginAccounting)
 			if actualPrice.Cmp(big.NewInt(0)) == 0 {
-				return fmt.Errorf("actual price is 0")
+				return fmt.Errorf("actual price is zero")
 			}
 			c.logger.Info("actual price", zap.String("price", actualPrice.String()))
 

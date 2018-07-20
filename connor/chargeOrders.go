@@ -58,7 +58,7 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, token watchers.Toke
 		return fmt.Errorf("balance SNM is not enough for create orders")
 	}
 
-	t.c.logger.Info("start charging orders", zap.String("symbol ", t.c.cfg.UsingToken),
+	t.c.logger.Info("start charging orders", zap.String("symbol", t.c.cfg.MiningToken),
 		zap.Float64("limit balance for charge USD", limitChargeInUSD),
 		zap.Int64("sum orders per month", int64(sumOrdersPerMonth)),
 		zap.Float64("step", t.c.cfg.ChargeOrders.Step),
@@ -89,14 +89,17 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, token watchers.Toke
 
 // Prepare price and Map depends on token symbol. Create orders to the market, until the budget is over.
 func (t *TraderModule) ChargeOrders(ctx context.Context, priceForHashPerSec *big.Int, step float64, buyMghash float64) (float64, error) {
-	requiredHashRate := uint64(buyMghash * hashes)
 
-	if t.c.cfg.UsingToken != "ETH" {
-		requiredHashRate = uint64(buyMghash)
+	var requiredHashrate uint64
+	switch t.c.cfg.MiningToken {
+	case "ETH":
+		requiredHashrate = uint64(buyMghash * hashes)
+	case "ZEC":
+		requiredHashrate = uint64(buyMghash)
 	}
+	t.c.logger.Sugar().Infof("required hashrate %v H/s", requiredHashrate)
 
-	t.c.logger.Sugar().Infof("required hashrate %v H/s", requiredHashRate)
-	benchmarks, err := t.getBenchmarksForSymbol(uint64(requiredHashRate))
+	benchmarks, err := t.getBenchmarksForSymbol(uint64(requiredHashrate))
 	if err != nil {
 		return 0, err
 	}
@@ -129,38 +132,31 @@ func (t *TraderModule) CreateOrderOnMarketStep(ctx context.Context, step float64
 		return 0, fmt.Errorf("cannot create bid order: %v", err)
 	}
 
-	if t.c.cfg.UsingToken == "ZEC" {
+	var hashrate uint64
+	switch t.c.cfg.MiningToken {
+	case "ZEC":
+		hashrate = actOrder.GetBenchmarks().GPUCashHashrate()
+	case "ETH":
+		hashrate = actOrder.GetBenchmarks().GPUEthHashrate()
+	}
+
+	if t.c.cfg.MiningToken == "ZEC" {
 		if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
 			OrderID:    actOrder.GetId().Unwrap().Int64(),
 			Price:      actOrder.GetPrice().Unwrap().Int64(),
-			Hashrate:   actOrder.GetBenchmarks().GPUCashHashrate(),
+			Hashrate:   hashrate,
 			StartTime:  time.Now(),
 			Status:     int64(actOrder.GetOrderStatus()),
 			ActualStep: buyMgHash,
 		}); err != nil {
 			return 0, fmt.Errorf("cannot save order to database: %v", err)
 		}
-
 	}
+	t.c.logger.Info("order created", zap.Any("order", actOrder))
 
-	if actOrder.GetId() != nil && actOrder.GetPrice() != nil {
-		//if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
-		//	OrderID:    actOrder.GetId().Unwrap().Int64(),
-		//	Price:      actOrder.GetPrice().Unwrap().Int64(),
-		//	Hashrate:   actOrder.GetBenchmarks().GPUEthHashrate(),
-		//	StartTime:  time.Now(),
-		//	Status:     int64(actOrder.GetOrderStatus()),
-		//	ActualStep: buyMgHash,
-		//}); err != nil {
-		//	return 0, fmt.Errorf("cannot save order to database: %v", err)
-		//}
-
-		t.c.logger.Info("order created", zap.Any("order", actOrder))
-		reBuyHash := buyMgHash + step
-		return reBuyHash, nil
-	}
-	return buyMgHash, nil
+	return buyMgHash + step, nil
 }
+
 func (t *TraderModule) GetProfitForTokenBySymbol(tokens []*TokenMainData, symbol string) (float64, error) {
 	for _, t := range tokens {
 		if t.Symbol == symbol {
@@ -171,14 +167,13 @@ func (t *TraderModule) GetProfitForTokenBySymbol(tokens []*TokenMainData, symbol
 }
 
 //this function determines price for 1 Mhash per second
-
 func (t *TraderModule) GetPriceForTokenPerSec(token watchers.TokenWatcher) (float64, float64, error) {
 	tokens, err := t.profit.CollectTokensMiningProfit(token)
 	if err != nil {
 		return 0, 0, fmt.Errorf("cannot calculate token prices %v", err)
 	}
 
-	pricePerMonthUSD, err := t.GetProfitForTokenBySymbol(tokens, t.c.cfg.UsingToken)
+	pricePerMonthUSD, err := t.GetProfitForTokenBySymbol(tokens, t.c.cfg.MiningToken)
 	if err != nil {
 		return 0, 0, fmt.Errorf("cannot get profit for tokens: %v", err)
 	}
@@ -204,28 +199,28 @@ func (t *TraderModule) newBaseBenchmarks() map[string]uint64 {
 	}
 }
 
-func (t *TraderModule) newBenchmarksWithGPU(ethHashRate uint64) map[string]uint64 {
+func (t *TraderModule) newEthBenchmark(ethHashRate uint64) map[string]uint64 {
 	b := t.newBaseBenchmarks()
 	b["gpu-eth-hashrate"] = ethHashRate
 	return b
 }
 
-func (t *TraderModule) newBenchmarksWithoutGPU(zecHashrate uint64) map[string]uint64 {
+func (t *TraderModule) newZCashBenchmark(zecHashrate uint64) map[string]uint64 {
 	b := t.newBaseBenchmarks()
 	b["gpu-cash-hashrate"] = zecHashrate
 	return b
 }
 
 func (t *TraderModule) getBenchmarksForSymbol(ethHashRate uint64) (map[string]uint64, error) {
-	switch t.c.cfg.UsingToken {
+	switch t.c.cfg.MiningToken {
 	case "ETH":
-		return t.newBenchmarksWithGPU(ethHashRate), nil
+		return t.newEthBenchmark(ethHashRate), nil
 	case "ZEC":
-		return t.newBenchmarksWithoutGPU(ethHashRate), nil
+		return t.newZCashBenchmark(ethHashRate), nil
 	case "XMR":
-		return t.newBenchmarksWithGPU(ethHashRate), nil
+		return t.newEthBenchmark(ethHashRate), nil
 	default:
-		return nil, fmt.Errorf("cannot create benchmakes for symbol \"%s\"", t.c.cfg.UsingToken)
+		return nil, fmt.Errorf("cannot create benchmakes for symbol \"%s\"", t.c.cfg.MiningToken)
 	}
 }
 
