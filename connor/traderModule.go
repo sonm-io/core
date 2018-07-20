@@ -74,50 +74,56 @@ func (t *TraderModule) DealsTrading(ctx context.Context, actualPrice *big.Int) e
 	log.Debug("started")
 	defer log.Debug("finished")
 
-	dealsDb, err := t.c.db.GetDealsFromDB()
+	deals, err := t.c.db.GetDealsFromDB()
 	if err != nil {
 		return fmt.Errorf("cannot get deals from database: %v", err)
 	}
 
-	for _, dealDB := range dealsDb {
-		dealDeployStatus, err := t.c.db.GetDeployStatus(dealDB.DealID)
+	for _, deal := range deals {
+		dealDeployStatus, err := t.c.db.GetDeployStatus(deal.DealID)
 		if err != nil {
 			log.Warn("cannot get deploy status of deal", zap.Error(err))
 			continue
 		}
 
-		if dealDB.Status == int64(sonm.DealStatus_DEAL_ACCEPTED) {
-			checkDealStatus, err := t.c.DealClient.Status(ctx, sonm.NewBigIntFromInt(dealDB.DealID))
+		if deal.Status == int64(sonm.DealStatus_DEAL_ACCEPTED) {
+			dealMarketStatus, err := t.c.DealClient.Status(ctx, sonm.NewBigIntFromInt(deal.DealID))
 			if err != nil {
-				log.Warn("cannot get deal status", zap.Error(err))
+				log.Warn("cannot get deal status", zap.Int64("deal_ID", deal.DealID), zap.Error(err))
 				continue
 			}
 
-			if checkDealStatus.Deal.Status == sonm.DealStatus_DEAL_CLOSED {
-				log.Info("deal closed on market, task tracking stop")
+			switch dealMarketStatus.Deal.Status {
+			case sonm.DealStatus_DEAL_ACCEPTED:
 
-				if err = t.c.db.UpdateDeployAndDealStatusDB(dealDB.DealID, DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
+				switch dealDeployStatus {
+				case DeployStatusNotDeployed:
+					if err := t.ResponseToActiveDeal(ctx, deal); err != nil {
+						log.Warn("response to active deal failed", zap.Int64("deal_ID", deal.DealID), zap.Error(err))
+						continue
+					}
+				case DeployStatusDeployed:
+					// For deals for which change request is not created. Multiply change requests protection.
+					if deal.ChangeRequestStatus != int64(sonm.ChangeRequestStatus_REQUEST_CREATED) {
+						if err := t.deployedDealProfitTracking(ctx, actualPrice, deal); err != nil {
+							log.Warn("deployed deal profit tracking failed", zap.Error(err))
+							continue
+						}
+					}
+				case DeployStatusDestroyed:
+					log.Debug("deal is destroyed, nothing to do", zap.Any("deal_id", deal.DealID))
+				}
+
+				// This check is necessary if it turns out that the deal was closed by the worker.
+			case sonm.DealStatus_DEAL_CLOSED:
+				log.Info("deal closed on market by worker", zap.Int64("deal_ID", deal.DealID))
+
+				if err = t.c.db.UpdateDeployAndDealStatusDB(deal.DealID, DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
 					log.Warn("cannot update deploy ans deal status", zap.Error(err))
 				}
 
 				continue
-			}
 
-			switch dealDeployStatus {
-			case DeployStatusNotDeployed:
-				if err := t.ResponseToActiveDeal(ctx, dealDB); err != nil {
-					log.Warn("response to active deal failed", zap.Error(err))
-					continue
-				}
-			case DeployStatusDeployed:
-				if dealDB.ChangeRequestStatus != int64(sonm.ChangeRequestStatus_REQUEST_CREATED) {
-					if err := t.deployedDealProfitTracking(ctx, actualPrice, dealDB); err != nil {
-						log.Warn("deployed deal profit tracking failed", zap.Error(err))
-						continue
-					}
-				}
-			case DeployStatusDestroyed:
-				log.Debug("deal is destroyed, nothing to do", zap.Any("deal_id", dealDB.DealID))
 			}
 		}
 	}
@@ -130,15 +136,23 @@ func (t *TraderModule) ResponseToActiveDeal(ctx context.Context, dealDB *databas
 	if err != nil {
 		return fmt.Errorf("cannot get deal info: %v", err)
 	}
-	image := "sonm/zcash-cuda-ewfb:latest" //на nvidia
-	t.c.logger.Info("processing of deploying new container NVIDIA", zap.Any("deal_ID", dealOnMarket.Deal), zap.String("image", image))
+
+	var image string
+	switch t.c.cfg.UsingToken {
+	case "ETH":
+		image = t.c.cfg.Pool.Image
+		t.c.logger.Info("processing of deploying new container eth-claymore",
+			zap.Any("deal_ID", dealOnMarket.Deal.Id.String()), zap.String("image", image))
+	case "ZEC":
+		image = "sonm/zcash-cuda-ewfb:latest" //на nvidia
+		t.c.logger.Info("processing of deploying new container NVIDIA",
+			zap.Any("deal_ID", dealOnMarket.Deal.Id.String()), zap.String("image", image))
+	}
 
 	newContainer, err := t.pool.DeployNewContainer(ctx, dealOnMarket.Deal, image)
 	if err != nil {
-		t.c.logger.Warn("cannot start task", zap.Error(err))
 		return err
 	}
-
 	if err := t.c.db.UpdateDeployStatusDealInDB(dealOnMarket.Deal.Id.Unwrap().Int64(), DeployStatusDeployed); err != nil {
 		return err
 	}
@@ -326,7 +340,7 @@ func (t *TraderModule) ordersProfitTracking(ctx context.Context, actualPrice *bi
 			}
 		}
 	case sonm.OrderStatus_ORDER_INACTIVE:
-		log.Debug("order is not active", zap.String("ID", order.Id.Unwrap().String()))
+		log.Debug("order is not active", zap.String("order_ID", order.Id.Unwrap().String()))
 		if err := t.c.db.UpdateOrderInDB(orderDB.OrderID, OrderStatusCancelled); err != nil {
 			log.Warn("cannot update order status", zap.Error(err))
 		}
@@ -350,11 +364,10 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, price *sonm.Price, be
 		},
 	})
 	if err != nil {
-		// todo: why lucky?
 		t.c.logger.Warn("cannot create lucky order", zap.Error(err))
-		return err
 	}
-	if t.c.cfg.UsingToken != "ETH" {
+	switch t.c.cfg.UsingToken {
+	case "ZEC":
 		if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
 			OrderID:    order.Id.Unwrap().Int64(),
 			Price:      order.Price.Unwrap().Int64(),
@@ -363,20 +376,20 @@ func (t *TraderModule) ReinvoiceOrder(ctx context.Context, price *sonm.Price, be
 			Status:     OrderStatusReinvoice,
 			ActualStep: 0,
 		}); err != nil {
-			return fmt.Errorf("cannot save reinvoice order %s to DB: %v", order.GetId().Unwrap().String(), err)
+			t.c.logger.Warn("cannot save reinvoice order to database", zap.Int64("order_ID", order.Id.Unwrap().Int64()), zap.Error(err))
+		}
+	case "ETH":
+		if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
+			OrderID:    order.Id.Unwrap().Int64(),
+			Price:      order.Price.Unwrap().Int64(),
+			Hashrate:   order.Benchmarks.GPUEthHashrate(),
+			StartTime:  time.Now(),
+			Status:     OrderStatusReinvoice,
+			ActualStep: 0,
+		}); err != nil {
+			t.c.logger.Warn("cannot save reinvoice order to database", zap.Int64("order_ID", order.Id.Unwrap().Int64()), zap.Error(err))
 		}
 	}
-	if err := t.c.db.SaveOrderIntoDB(&database.OrderDb{
-		OrderID:    order.Id.Unwrap().Int64(),
-		Price:      order.Price.Unwrap().Int64(),
-		Hashrate:   order.Benchmarks.GPUEthHashrate(),
-		StartTime:  time.Now(),
-		Status:     OrderStatusReinvoice,
-		ActualStep: 0,
-	}); err != nil {
-		return fmt.Errorf("cannot save reinvoice order %s to DB: %v", order.GetId().Unwrap().String(), err)
-	}
-
 	t.c.logger.Info("order has been reinvoiced", zap.Any("order", order), zap.String("tag", tag))
 	return nil
 }

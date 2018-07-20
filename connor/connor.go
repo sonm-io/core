@@ -20,8 +20,10 @@ import (
 )
 
 const (
-	poolReportedHashRateURL = "https://api.nanopool.org/v1/eth/reportedhashrates/"
-	poolAverageHashRateURL  = "https://api.nanopool.org/v1/eth/avghashrateworkers/"
+	poolReportedHashrateURL    = "https://api.nanopool.org/v1/eth/reportedhashrates/"
+	poolAverageHashrateURL     = "https://api.nanopool.org/v1/eth/avghashrateworkers/"
+	poolZECAverageHashrateURL  = "https://api.nanopool.org/v1/zec/avghashrateworkers/"
+	poolZECReportedHashrateURL = "https://api.nanopool.org/v1/zec/reportedhashrate/"
 )
 
 type Connor struct {
@@ -96,8 +98,18 @@ func (c *Connor) Serve(ctx context.Context) error {
 	snm := watchers.NewSNMPriceWatcher()
 	token := watchers.NewTokenPriceWatcher()
 
-	reportedPool := watchers.NewPoolWatcher(poolReportedHashRateURL, []string{c.cfg.Pool.PoolAccount})
-	avgPool := watchers.NewPoolWatcher(poolAverageHashRateURL, []string{c.cfg.Pool.PoolAccount + "/1"})
+	// add optional configure for each token (soon XMR)
+	var reportedPool watchers.PoolWatcher
+	var avgPool watchers.PoolWatcher
+
+	switch c.cfg.UsingToken {
+	case "ETH":
+		reportedPool = watchers.NewPoolWatcher(poolReportedHashrateURL, []string{c.cfg.Pool.PoolAccount})
+		avgPool = watchers.NewPoolWatcher(poolAverageHashrateURL, []string{c.cfg.Pool.PoolAccount + "/1"})
+	case "ZEC":
+		reportedPool = watchers.NewPoolWatcher(poolZECReportedHashrateURL, []string{c.cfg.Pool.PoolAccount})
+		avgPool = watchers.NewPoolWatcher(poolZECAverageHashrateURL, []string{c.cfg.Pool.PoolAccount + "/1"})
+	}
 
 	if err := snm.Update(ctx); err != nil {
 		return fmt.Errorf("cannot update snm data: %v", err)
@@ -140,8 +152,8 @@ func (c *Connor) Serve(ctx context.Context) error {
 			if actualPrice.Cmp(big.NewInt(0)) == 0 {
 				return fmt.Errorf("actual price is 0")
 			}
-
 			c.logger.Info("actual price", zap.String("price", actualPrice.String()))
+
 			if err := traderModule.DealsTrading(ctx, actualPrice); err != nil {
 				tradeLog.Warn("DealsTrading failed", zap.Error(err))
 				continue
@@ -160,22 +172,25 @@ func (c *Connor) Serve(ctx context.Context) error {
 			}
 
 		case <-poolUpdate.C:
-			c.logger.Info("start poolUpdate module hashrate tracking")
+			poolLog := c.logger.With(zap.String("subsystem", "pool"))
 
-			dealsDb, err := traderModule.c.db.GetDealsFromDB()
+			deals, err := traderModule.c.db.GetDealsFromDB()
 			if err != nil {
-				return fmt.Errorf("cannot get deals from DB: %v", err)
+				poolLog.Warn("cannot get deals from DB", zap.Error(err))
+				continue
 			}
 
-			for _, dealDb := range dealsDb {
-				if dealDb.DeployStatus == DeployStatusDeployed {
+			for _, deal := range deals {
+				if deal.DeployStatus == DeployStatusDeployed {
 
-					dealOnMarket, err := c.DealClient.Status(ctx, sonm.NewBigIntFromInt(dealDb.DealID))
+					marketDeal, err := c.DealClient.Status(ctx, sonm.NewBigIntFromInt(deal.DealID))
 					if err != nil {
-						return fmt.Errorf("cannot get deal from market %v, %v", dealDb.DealID, err)
+						poolLog.Warn("cannot get deal from market", zap.Int64("deal_ID", deal.DealID), zap.Error(err))
+						continue
 					}
-					if dealOnMarket.Deal.Status == sonm.DealStatus_DEAL_CLOSED {
-						id, err := strconv.Atoi(dealOnMarket.Deal.Id.String())
+
+					if marketDeal.Deal.Status == sonm.DealStatus_DEAL_CLOSED {
+						id, err := strconv.Atoi(marketDeal.Deal.Id.String())
 						if err != nil {
 							return err
 						}
@@ -184,7 +199,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 						}
 						continue
 					}
-					if err := poolModule.AddWorkerToPoolDB(ctx, dealOnMarket, c.cfg.Pool.PoolAccount); nil != err {
+					if err := poolModule.AddWorkerToPoolDB(ctx, marketDeal, c.cfg.Pool.PoolAccount); nil != err {
 						return fmt.Errorf("cannot add worker to Db: %v", err)
 					}
 				}

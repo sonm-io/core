@@ -128,7 +128,7 @@ func (p *PoolModule) AdvancedDetectingDeviation(ctx context.Context, changePerce
 		p.c.logger.Info("worker gives too low hashrate. Send worker (supplier ID) to Connor's blacklist", zap.Int64("worker", worker.DealID),
 			zap.Float64("deviation_percent", changePercentDeviationWorker))
 
-		if err := p.DestroyDeal(ctx, dealInfo); err != nil {
+		if err := p.FinishDealWithBlacklist(ctx, dealInfo); err != nil {
 			return err
 		}
 
@@ -195,7 +195,7 @@ func (p *PoolModule) SendToConnorBlackList(ctx context.Context, failedDeal *sonm
 		p.c.logger.Info("the deal destroyed due to the excessive number of banned workers in master", zap.String("deal", failedDeal.Deal.Id.Unwrap().String()),
 			zap.Float64("percent_failed_workers", percentFailWorkers), zap.String("Master_ID", failedDeal.Deal.MasterID.String()),
 		)
-		if err := p.DestroyDeal(ctx, failedDeal); err != nil {
+		if err := p.FinishDealWithBlacklist(ctx, failedDeal); err != nil {
 			return err
 		}
 		if err := p.c.db.UpdateBanStatusBlackListDB(failedDeal.Deal.MasterID.Unwrap().Hex(), int64(BanStatusMasterBan)); err != nil {

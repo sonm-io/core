@@ -3,7 +3,6 @@ package connor
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/sonm-io/core/connor/database"
@@ -14,6 +13,7 @@ import (
 
 const (
 	EthPool                  = "stratum+tcp://eth-eu1.nanopool.org:9999"
+	ZecPool                  = "stratum+tcp://zec-eu1.nanopool.org:6666"
 	numberOfIterationForRH   = 5
 	numberOfLives            = 5
 	maximumDeviationOfWorker = 0.80
@@ -42,11 +42,18 @@ const (
 
 func (p *PoolModule) DeployNewContainer(ctx context.Context, deal *sonm.Deal, image string) (*sonm.StartTaskReply, error) {
 	env := map[string]string{
-		"ETH_POOL": EthPool,
-		"WORKER":   deal.Id.String(),
-		"WALLET":   p.c.cfg.Pool.PoolAccount,
-		"EMAIL":    p.c.cfg.Pool.EmailForPool,
+		"WORKER": deal.Id.String(),
+		"WALLET": p.c.cfg.Pool.PoolAccount,
+		"EMAIL":  p.c.cfg.Pool.EmailForPool,
 	}
+
+	switch p.c.cfg.UsingToken {
+	case "ETH":
+		env["ETH_POOL"] = EthPool
+	case "ZEC":
+		env["ZEC_POOL"] = ZecPool
+	}
+
 	container := &sonm.Container{
 		Image: image,
 		Env:   env,
@@ -64,51 +71,66 @@ func (p *PoolModule) DeployNewContainer(ctx context.Context, deal *sonm.Deal, im
 	reply, err := p.c.TaskClient.Start(ctx, startTaskRequest)
 	// TODO(sshaman1101): retry on errors
 	if err != nil {
-
-		reply, err := p.TryCreateAMDContainer(ctx, deal)
-		if err != nil {
-			p.c.logger.Info("cannot start task on worker", zap.String("deal_id", deal.GetID().Unwrap().String()),
-				zap.String("worker_eth", deal.GetSupplierID().Unwrap().Hex()))
-			if err = p.c.db.UpdateDeployAndDealStatusDB(deal.Id.Unwrap().Int64(), DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
+		switch p.c.cfg.UsingToken {
+		case "ETH":
+			p.c.logger.Info("ETH container wasn't deployed", zap.String("deal_ID", deal.GetID().Unwrap().String()))
+			if err := p.FinishDealAfterFailedStartTask(ctx, deal); err != nil {
 				return nil, err
 			}
-
-			dealStatus, err := p.c.DealClient.Status(ctx, deal.Id)
+		case "ZEC":
+			reply, err := p.TryCreateAMDContainer(ctx, deal)
 			if err != nil {
-				return nil, err
-			}
-
-			switch dealStatus.Deal.Status {
-			case sonm.DealStatus_DEAL_ACCEPTED:
-				_, err := p.c.DealClient.Finish(ctx, &sonm.DealFinishRequest{Id: deal.Id})
-				if err != nil {
-					return nil, fmt.Errorf("fail finished deal: %v", err)
+				p.c.logger.Info("AMD container for ZEC wasn't deployed", zap.String("deal_ID", deal.GetID().Unwrap().String()))
+				if err := p.FinishDealAfterFailedStartTask(ctx, deal); err != nil {
+					return nil, err
 				}
-
-				p.c.logger.Info("fail started task deal finished", zap.Int64("deal", deal.Id.Unwrap().Int64()))
-
-			case sonm.DealStatus_DEAL_CLOSED:
-				p.c.logger.Info("deal already finished from worker", zap.Any("deal", deal))
 			}
-			return nil, err
+
+			p.c.logger.Info("AMD container was deployed successfully", zap.String("deal_id", deal.GetID().Unwrap().String()),
+				zap.String("worker_zec", deal.GetSupplierID().Unwrap().Hex()))
+
+			return reply, nil
 		}
-		return reply, nil
 	}
 	return reply, nil
 }
 
-func (p *PoolModule) TryCreateAMDContainer(ctx context.Context, deal *sonm.Deal) (*sonm.StartTaskReply, error) {
-	image := "sonm/zcash-amd:latest" // на amd
+// FinishDealAfterFailedStartTask using for both tasks
+func (p *PoolModule) FinishDealAfterFailedStartTask(ctx context.Context, deal *sonm.Deal) error {
+	if err := p.c.db.UpdateDeployAndDealStatusDB(deal.Id.Unwrap().Int64(), DeployStatusDestroyed, sonm.DealStatus_DEAL_CLOSED); err != nil {
+		return err
+	}
 
-	p.c.logger.Info("processing of deploying new container AMD", zap.Any("deal_ID", deal), zap.String("image", image))
+	dealStatus, err := p.c.DealClient.Status(ctx, deal.Id)
+	if err != nil {
+		return fmt.Errorf("cannot get deal status %v", err)
+	}
+
+	switch dealStatus.Deal.Status {
+	case sonm.DealStatus_DEAL_ACCEPTED:
+		p.c.logger.Info("failed start task. Deal finished", zap.Int64("deal_ID", deal.Id.Unwrap().Int64()))
+		_, err := p.c.DealClient.Finish(ctx, &sonm.DealFinishRequest{Id: deal.Id})
+		if err != nil {
+			p.c.logger.Warn("failed finish deal", zap.Error(err))
+		}
+	case sonm.DealStatus_DEAL_CLOSED:
+		p.c.logger.Info("deal already finished from worker", zap.Int64("deal_ID", deal.Id.Unwrap().Int64()))
+	}
+	return nil
+}
+
+func (p *PoolModule) TryCreateAMDContainer(ctx context.Context, deal *sonm.Deal) (*sonm.StartTaskReply, error) {
+	imageAMD := "sonm/zcash-amd:latest" // for AMD
+
+	p.c.logger.Info("processing of deploy new AMD container", zap.Any("deal_ID", deal), zap.String("image_AMD", imageAMD))
 	env := map[string]string{
-		"ETH_POOL": EthPool,
+		"ZEC_POOL": ZecPool,
 		"WORKER":   deal.Id.String(),
 		"WALLET":   p.c.cfg.Pool.PoolAccount,
 		"EMAIL":    p.c.cfg.Pool.EmailForPool,
 	}
 	container := &sonm.Container{
-		Image: image,
+		Image: imageAMD,
 		Env:   env,
 	}
 	spec := &sonm.TaskSpec{
@@ -123,10 +145,10 @@ func (p *PoolModule) TryCreateAMDContainer(ctx context.Context, deal *sonm.Deal)
 
 	reply, err := p.c.TaskClient.Start(ctx, startTaskRequest)
 	if err != nil {
-		log.Printf("cannot start task for AMD and NVIDIA")
+		p.c.logger.Warn("cannot start task for AMD and NVIDIA containers", zap.Error(err))
 		return nil, err
 	}
-	return reply, err
+	return reply, nil
 }
 
 // Checks for a deal in the worker list. If it is not there, adds.
@@ -214,7 +236,7 @@ func (p *PoolModule) FinishDeal(ctx context.Context, deal *database.DealDB) erro
 }
 
 // Create deal finish request
-func (p *PoolModule) DestroyDeal(ctx context.Context, dealInfo *sonm.DealInfoReply) error {
+func (p *PoolModule) FinishDealWithBlacklist(ctx context.Context, dealInfo *sonm.DealInfoReply) error {
 
 	if _, err := p.c.DealClient.Finish(ctx, &sonm.DealFinishRequest{
 		Id:            dealInfo.Deal.Id,
@@ -308,7 +330,7 @@ func (p *PoolModule) DetectingDeviation(ctx context.Context, changePercentDeviat
 				return err
 			}
 		} else {
-			if err := p.DestroyDeal(ctx, dealInfo); err != nil {
+			if err := p.FinishDealWithBlacklist(ctx, dealInfo); err != nil {
 				return err
 			}
 			err := p.c.db.UpdateBadGayStatusInPoolDB(worker.DealID, int64(BanStatusWorkerInPool), time.Now())
@@ -318,7 +340,7 @@ func (p *PoolModule) DetectingDeviation(ctx context.Context, changePercentDeviat
 			p.c.logger.Info("destroy deal", zap.String("bad_status_in_pool", dealInfo.Deal.Id.String()))
 		}
 	} else if changePercentDeviationWorker < maximumDeviationOfWorker {
-		err := p.DestroyDeal(ctx, dealInfo)
+		err := p.FinishDealWithBlacklist(ctx, dealInfo)
 		if err != nil {
 			return err
 		}
