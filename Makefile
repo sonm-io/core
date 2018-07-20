@@ -136,6 +136,11 @@ test: mock
 	@echo "+ $@"
 	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor|blockchain')
 
+# Everything except DWH tests.
+test/lite: mock
+	@echo "+ $@"
+	${GO} test -tags nocgo $(shell go list ./... | grep -vE 'vendor|blockchain|dwh')
+
 contracts:
 	@$(MAKE) -C blockchain/source all
 
@@ -155,6 +160,7 @@ mock: build_mockgen
 	mockgen -package blockchain -destination blockchain/api_mock.go  -source blockchain/api.go
 	mockgen -package sonm -destination proto/marketplace_mock.go  -source proto/marketplace.pb.go
 	mockgen -package sonm -destination proto/dwh_mock.go  -source proto/dwh.pb.go
+	mockgen -package node -destination insonmnia/node/server_mock.go -source insonmnia/node/server.go
 
 clean:
 	rm -f ${WORKER} ${CLI} ${NODE} ${AUTOCLI} ${RENDEZVOUS}

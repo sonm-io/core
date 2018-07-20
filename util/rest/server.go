@@ -10,7 +10,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/noxiouz/zapctx/ctxlog"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
@@ -31,28 +30,35 @@ type Service struct {
 }
 
 type Server struct {
-	log         *zap.SugaredLogger
-	listeners   []net.Listener
 	servers     []*http.Server
 	services    map[string]*Service
 	decoder     Decoder
 	encoder     Encoder
 	interceptor grpc.UnaryServerInterceptor
+	log         *zap.SugaredLogger
 }
 
-func NewServer(opts ...Option) (*Server, error) {
+func NewServer(opts ...Option) *Server {
 	o := defaultOptions()
 	for _, opt := range opts {
 		opt(o)
 	}
 	return &Server{
-		log:         ctxlog.S(o.ctx),
-		listeners:   o.listeners,
+		log:         o.log.Sugar(),
 		services:    map[string]*Service{},
 		decoder:     o.decoder,
 		encoder:     o.encoder,
 		interceptor: o.interceptor,
-	}, nil
+	}
+}
+
+func (s *Server) Services() []string {
+	var names []string
+	for _, service := range s.services {
+		names = append(names, service.fullName[1:])
+	}
+
+	return names
 }
 
 func (s *Server) RegisterService(interfacePtr, concretePtr interface{}) error {
@@ -213,14 +219,14 @@ func (s *Server) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *Server) Serve() error {
+func (s *Server) Serve(listeners ...net.Listener) error {
 	group := errgroup.Group{}
-	for _, lis := range s.listeners {
+	for _, lis := range listeners {
 		l := lis
 		srv := http.Server{}
 		srv.Handler = s
 		group.Go(func() error {
-			s.log.Infof("going to listen on %s", l.Addr())
+			s.log.Infof("exposing REST server on %s", l.Addr())
 			err := srv.Serve(l)
 			s.Close()
 			return err

@@ -35,8 +35,9 @@ func (t *tokenAPI) Balance(ctx context.Context, _ *sonm.Empty) (*sonm.BalanceRep
 	}
 
 	return &sonm.BalanceReply{
-		LiveBalance: sonm.NewBigInt(live),
-		SideBalance: sonm.NewBigInt(side),
+		LiveBalance:    sonm.NewBigInt(live.SNM),
+		LiveEthBalance: sonm.NewBigInt(live.Eth),
+		SideBalance:    sonm.NewBigInt(side.SNM),
 	}, nil
 }
 

@@ -64,6 +64,8 @@ type CustomEthereumClient interface {
 	GetLastBlock(ctx context.Context) (*big.Int, error)
 	// GetTransactionReceipt returns receipt of mined transaction or notFound if tx not mined
 	GetTransactionReceipt(ctx context.Context, txHash common.Hash) (*Receipt, error)
+	// GetEthereumBalanceAt returns amount of ethereum on account at given block
+	GetEthereumBalanceAt(ctx context.Context, address common.Address, block *big.Int) (*big.Int, error)
 }
 
 type CustomClient struct {
@@ -108,4 +110,8 @@ func (cc *CustomClient) GetTransactionReceipt(ctx context.Context, txHash common
 		return nil, ethereum.NotFound
 	}
 	return result, nil
+}
+
+func (cc *CustomClient) GetEthereumBalanceAt(ctx context.Context, address common.Address, block *big.Int) (*big.Int, error) {
+	return cc.Client.BalanceAt(ctx, address, block)
 }

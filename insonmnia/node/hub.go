@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
@@ -19,7 +19,7 @@ import (
 type workerAPI struct {
 	pb.WorkerManagementServer
 	remotes *remoteOptions
-	ctx     context.Context
+	log     *zap.SugaredLogger
 }
 
 func (h *workerAPI) getWorkerAddr(ctx context.Context) (*auth.Addr, error) {
@@ -45,14 +45,14 @@ func (h *workerAPI) getClient(ctx context.Context) (pb.WorkerManagementClient, i
 		return nil, nil, err
 	}
 
-	log.S(h.ctx).Debugf("connecting to worker on %s", addr.String())
+	h.log.Debugf("connecting to worker on %s", addr.String())
 	return h.remotes.workerCreator(ctx, addr)
 }
 
 func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	methodName := util.ExtractMethod(info.FullMethod)
 
-	log.S(h.ctx).Infof("handling %s request", methodName)
+	h.log.Infof("handling %s request", methodName)
 
 	ctx = util.ForwardMetadata(ctx)
 	if !strings.HasPrefix(info.FullMethod, "/sonm.WorkerManagement") {
@@ -81,6 +81,6 @@ func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.U
 func newWorkerAPI(opts *remoteOptions) pb.WorkerManagementServer {
 	return &workerAPI{
 		remotes: opts,
-		ctx:     opts.ctx,
+		log:     opts.log,
 	}
 }

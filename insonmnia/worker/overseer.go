@@ -98,6 +98,7 @@ type ContainerInfo struct {
 	CgroupParent string
 	NetworkIDs   []string
 	DealID       string
+	TaskId       string
 }
 
 func (c *ContainerInfo) IntoProto(ctx context.Context) *pb.TaskStatusReply {
@@ -515,6 +516,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		Cgroup:       string(cjson.HostConfig.Cgroup),
 		CgroupParent: string(cjson.HostConfig.CgroupParent),
 		NetworkIDs:   networkIDs,
+		TaskId:       description.TaskId,
 	}
 
 	return status, cinfo, nil

@@ -6,7 +6,6 @@ import (
 	"io"
 	"strconv"
 
-	log "github.com/noxiouz/zapctx/ctxlog"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
@@ -16,15 +15,15 @@ import (
 )
 
 type tasksAPI struct {
-	ctx     context.Context
 	remotes *remoteOptions
+	log     *zap.SugaredLogger
 }
 
 func (t *tasksAPI) List(ctx context.Context, req *pb.TaskListRequest) (*pb.TaskListReply, error) {
 	if req.GetDealID() == nil || req.GetDealID().IsZero() {
 		return nil, errors.New("deal ID is required for listing tasks")
 	}
-	log.G(t.ctx).Info("dealID is provided in request, performing direct request",
+	t.log.Infow("dealID is provided in request, performing direct request",
 		zap.String("dealID", req.GetDealID().Unwrap().String()))
 
 	dealID := req.GetDealID().Unwrap().String()
@@ -144,7 +143,7 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 		return err
 	}
 
-	log.G(t.ctx).Info("handling PushTask request", zap.String("deal_id", meta.dealID))
+	t.log.Infow("handling PushTask request", zap.String("deal_id", meta.dealID))
 
 	workerClient, cc, err := t.remotes.getWorkerClientForDeal(meta.ctx, meta.dealID)
 	if err != nil {
@@ -166,26 +165,26 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 			chunk, err := clientStream.Recv()
 			if err != nil {
 				if err == io.EOF {
-					log.G(t.ctx).Debug("received last push chunk")
+					t.log.Debug("received last push chunk")
 					clientCompleted = true
 				} else {
-					log.G(t.ctx).Debug("received push error", zap.Error(err))
+					t.log.Debugw("received push error", zap.Error(err))
 					return fmt.Errorf("failed to receive image chunk from client: %s", err)
 				}
 			}
 
 			if chunk == nil {
-				log.G(t.ctx).Debug("closing worker stream")
+				t.log.Debug("closing worker stream")
 				if err := workerStream.CloseSend(); err != nil {
 					return fmt.Errorf("failed to send closing frame to worker: %s", err)
 				}
 			} else {
 				bytesRemaining = len(chunk.Chunk)
 				if err := workerStream.Send(chunk); err != nil {
-					log.G(t.ctx).Debug("failed to send chunk to worker", zap.Error(err))
+					t.log.Debugw("failed to send chunk to worker", zap.Error(err))
 					return fmt.Errorf("failed to send chunk to worker: %s", err)
 				}
-				log.G(t.ctx).Debug("sent chunk to worker")
+				t.log.Debug("sent chunk to worker")
 			}
 		}
 
@@ -193,16 +192,16 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 			progress, err := workerStream.Recv()
 			if err != nil {
 				if err == io.EOF {
-					log.G(t.ctx).Debug("received last chunk from worker")
+					t.log.Debug("received last chunk from worker")
 					if bytesCommitted == meta.fileSize {
 						clientStream.SetTrailer(workerStream.Trailer())
 						return nil
 					} else {
-						log.G(t.ctx).Debug("worker closed its stream without committing all bytes")
+						t.log.Debug("worker closed its stream without committing all bytes")
 						return status.Errorf(codes.Aborted, "worker closed its stream without committing all bytes")
 					}
 				} else {
-					log.G(t.ctx).Debug("received error from worker", zap.Error(err))
+					t.log.Debugw("received error from worker", zap.Error(err))
 					return fmt.Errorf("failed to receive meta info from worker: %s", err)
 				}
 			}
@@ -211,7 +210,7 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 			bytesRemaining -= int(progress.Size)
 
 			if err := clientStream.Send(progress); err != nil {
-				log.G(t.ctx).Debug("failed to send meta to client", zap.Error(err))
+				t.log.Debugw("failed to send meta to client", zap.Error(err))
 				return fmt.Errorf("failed to send meta to client: %s", err)
 			}
 
@@ -302,7 +301,7 @@ func (t *tasksAPI) extractStreamMeta(clientStream pb.TaskManagement_PushTaskServ
 
 func newTasksAPI(opts *remoteOptions) pb.TaskManagementServer {
 	return &tasksAPI{
-		ctx:     opts.ctx,
 		remotes: opts,
+		log:     opts.log,
 	}
 }

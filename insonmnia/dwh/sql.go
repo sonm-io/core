@@ -10,7 +10,6 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/ethereum/go-ethereum/common"
 	_ "github.com/lib/pq"
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -61,7 +60,7 @@ func (m *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 	}
 
 	var hasActiveChangeRequests bool
-	if _, err := m.GetDealChangeRequestsByDealID(conn, deal.Id.Unwrap()); err == nil {
+	if changeRequests, _ := m.GetDealChangeRequestsByDealID(conn, deal.Id.Unwrap()); len(changeRequests) > 0 {
 		hasActiveChangeRequests = true
 	}
 	values := []interface{}{
@@ -531,7 +530,7 @@ func (m *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 	case pb.ProfileRole_Consumer:
 		builder = builder.Where("ActiveBids >= 1")
 	}
-	builder = builder.Where("IdentityLevel >= ?", r.IdentityLevel)
+	builder = builder.Where("p.IdentityLevel >= ?", r.IdentityLevel)
 	if len(r.Country) > 0 {
 		builder = builder.Where(sq.Eq{"Country": r.Country})
 	}
@@ -541,23 +540,25 @@ func (m *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 			sq.Expr("lower(UserID) LIKE lower(?)", r.Identifier),
 		})
 	}
-	if r.BlacklistQuery != nil && !r.BlacklistQuery.OwnerID.IsZero() {
-		ownerBuilder := m.builder().Select("AddeeID").From("Blacklists").
-			Where("AdderID = ?", r.BlacklistQuery.OwnerID.Unwrap().Hex()).Where("AddeeID = p.UserID")
+
+	bQuery := r.BlacklistQuery
+	if bQuery != nil && !bQuery.OwnerID.IsZero() {
+		ownerBuilder := sq.Select("AddeeID").From("Blacklists").Where("AdderID = ?", bQuery.OwnerID.Unwrap().Hex()).
+			Where("AddeeID = p.UserID")
 		ownerQuery, _, _ := ownerBuilder.ToSql()
-		if r.BlacklistQuery != nil && r.BlacklistQuery.OwnerID != nil {
+		if bQuery.OwnerID != nil {
 			switch r.BlacklistQuery.Option {
 			case pb.BlacklistOption_WithoutMatching:
-				builder = builder.Where(fmt.Sprintf("UserID NOT IN (%s)", ownerQuery))
+				builder = builder.Where(fmt.Sprintf("p.UserID NOT IN (%s)", ownerQuery))
 			case pb.BlacklistOption_OnlyMatching:
-				builder = builder.Where(fmt.Sprintf("UserID IN (%s)", ownerQuery))
+				builder = builder.Where(fmt.Sprintf("p.UserID IN (%s)", ownerQuery))
 			}
 		}
 	}
 	builder = m.builderWithSortings(builder, r.Sortings)
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 
-	if r.BlacklistQuery != nil && !r.BlacklistQuery.OwnerID.IsZero() {
+	if bQuery != nil && bQuery.Option != pb.BlacklistOption_IncludeAndMark && !bQuery.OwnerID.IsZero() {
 		args = append(args, r.BlacklistQuery.OwnerID.Unwrap().Hex())
 	}
 
@@ -778,7 +779,6 @@ func (m *sqlStorage) DeleteBlacklistEntry(conn queryConn, removerID, removeeID c
 
 func (m *sqlStorage) GetBlacklist(conn queryConn, r *pb.BlacklistRequest) (*pb.BlacklistReply, error) {
 	builder := m.builder().Select("*").From("Blacklists")
-
 	if !r.UserID.IsZero() {
 		builder = builder.Where("AdderID = ?", r.UserID.Unwrap().Hex())
 	}
@@ -851,24 +851,9 @@ func (m *sqlStorage) GetBlacklistsContainingUser(conn queryConn, r *pb.Blacklist
 }
 
 func (m *sqlStorage) InsertOrUpdateValidator(conn queryConn, validator *pb.Validator) error {
-	// Validators are never deleted, so it's O.K. to check in a non-atomic way.
-	query, args, _ := m.builder().Select("Id").From("Validators").Where("Id = ?", validator.GetId().Unwrap().Hex()).
-		ToSql()
-	rows, err := conn.Query(query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to check if Validator exists: %v", err)
-	}
-	alreadyExists := rows.Next()
-	rows.Close()
-	if alreadyExists {
-		// If this validator exists, it means that it was deactivated; we re-activate it by setting the current
-		// identity level.
-		return m.UpdateValidator(conn, validator.GetId().Unwrap(), "Level", validator.GetLevel())
-	}
-
-	query, args, _ = m.builder().Insert("Validators").Columns("Id", "Level").
-		Values(validator.Id.Unwrap().Hex(), validator.Level).ToSql()
-	_, err = conn.Exec(query, args...)
+	query, args, _ := m.builder().Insert("Validators").Columns("Id", "Level").Values(validator.Id.Unwrap().Hex(), validator.Level).
+		Suffix("ON CONFLICT (Id) DO UPDATE SET Level = ?", validator.Level).ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
@@ -947,25 +932,14 @@ func (m *sqlStorage) GetCertificates(conn queryConn, ownerID common.Address) ([]
 }
 
 func (m *sqlStorage) InsertProfileUserID(conn queryConn, profile *pb.Profile) error {
-	query, args, _ := m.builder().Select("Id").From("Profiles").Where("UserID = ?", profile.UserID.Unwrap().Hex()).ToSql()
-	rows, err := conn.Query(query, args...)
-	if err != nil {
-		return fmt.Errorf("failed to check if profile exists: %v", err)
-	}
-	defer rows.Close()
-	if rows.Next() {
-		// Profile already exists.
-		return nil
-	}
-
-	query, args, _ = m.builder().Insert("Profiles").Columns(m.tablesInfo.ProfileColumns[1:]...).Values(
+	query, args, _ := m.builder().Insert("Profiles").Columns(m.tablesInfo.ProfileColumns[1:]...).Values(
 		profile.UserID.Unwrap().Hex(),
 		0, "", "", false, false,
 		profile.Certificates,
 		profile.ActiveAsks,
 		profile.ActiveBids,
-	).ToSql()
-	_, err = conn.Exec(query, args...)
+	).Suffix("ON CONFLICT (UserID) DO NOTHING").ToSql()
+	_, err := conn.Exec(query, args...)
 	return err
 }
 
@@ -1019,7 +993,10 @@ func (m *sqlStorage) GetWorkers(conn queryConn, r *pb.WorkersRequest) ([]*pb.DWH
 	if !r.MasterID.IsZero() {
 		builder = builder.Where("MasterID = ?", r.MasterID.Unwrap().String())
 	}
-	builder = m.builderWithSortings(builder, []*pb.SortingOption{})
+	builder = m.builderWithSortings(builder, []*pb.SortingOption{
+		{Field: "Confirmed", Order: pb.SortingOrder_Desc},
+		{Field: "WorkerID", Order: pb.SortingOrder_Asc},
+	})
 	query, args, _ := m.builderWithOffsetLimit(builder, r.Limit, r.Offset).ToSql()
 	rows, count, err := m.runQuery(conn, "*", r.WithCount, query, args...)
 	if err != nil {
@@ -2072,157 +2049,6 @@ func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
 		tablesInfo:    tInfo,
 		builder: func() sq.StatementBuilderType {
 			return sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
-		},
-	}
-
-	return storage
-}
-
-func newSQLiteStorage(numBenchmarks uint64) *sqlStorage {
-	tInfo := newTablesInfo(numBenchmarks)
-	storage := &sqlStorage{
-		setupCommands: &sqlSetupCommands{
-			// Incomplete, modified during setup.
-			createTableDeals: makeTableWithBenchmarks(`
-	CREATE TABLE IF NOT EXISTS Deals (
-		Id						TEXT UNIQUE NOT NULL,
-		SupplierID				TEXT NOT NULL,
-		ConsumerID				TEXT NOT NULL,
-		MasterID				TEXT NOT NULL,
-		AskID					TEXT NOT NULL,
-		BidID					TEXT NOT NULL,
-		Duration 				INTEGER NOT NULL,
-		Price					TEXT NOT NULL,
-		StartTime				INTEGER NOT NULL,
-		EndTime					INTEGER NOT NULL,
-		Status					INTEGER NOT NULL,
-		BlockedBalance			TEXT NOT NULL,
-		TotalPayout				TEXT NOT NULL,
-		LastBillTS				INTEGER NOT NULL,
-		Netflags				INTEGER NOT NULL,
-		AskIdentityLevel		INTEGER NOT NULL,
-		BidIdentityLevel		INTEGER NOT NULL,
-		SupplierCertificates    BLOB NOT NULL,
-		ConsumerCertificates    BLOB NOT NULL,
-		ActiveChangeRequest     INTEGER NOT NULL`, `INTEGER DEFAULT 0`),
-			createTableDealConditions: `
-	CREATE TABLE IF NOT EXISTS DealConditions (
-		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
-		SupplierID					TEXT NOT NULL,
-		ConsumerID					TEXT NOT NULL,
-		MasterID					TEXT NOT NULL,
-		Duration 					INTEGER NOT NULL,
-		Price						TEXT NOT NULL,
-		StartTime					INTEGER NOT NULL,
-		EndTime						INTEGER NOT NULL,
-		TotalPayout					TEXT NOT NULL,
-		DealID						TEXT NOT NULL,
-		FOREIGN KEY (DealID)		REFERENCES Deals(Id) ON DELETE CASCADE
-	)`,
-			createTableDealPayments: `
-	CREATE TABLE IF NOT EXISTS DealPayments (
-		BillTS						INTEGER NOT NULL,
-		PaidAmount					TEXT NOT NULL,
-		DealID						TEXT NOT NULL,
-		UNIQUE						(BillTS, PaidAmount, DealID),
-		FOREIGN KEY (DealID) 		REFERENCES Deals(Id) ON DELETE CASCADE
-	)`,
-			createTableChangeRequests: `
-	CREATE TABLE IF NOT EXISTS DealChangeRequests (
-		Id 							TEXT UNIQUE NOT NULL,
-		CreatedTS					INTEGER NOT NULL,
-		RequestType					TEXT NOT NULL,
-		Duration 					INTEGER NOT NULL,
-		Price						TEXT NOT NULL,
-		Status						INTEGER NOT NULL,
-		DealID						TEXT NOT NULL,
-		FOREIGN KEY (DealID)		REFERENCES Deals(Id) ON DELETE CASCADE
-	)`,
-			// Incomplete, modified during setup.
-			createTableOrders: makeTableWithBenchmarks(`
-	CREATE TABLE IF NOT EXISTS Orders (
-		Id						TEXT UNIQUE NOT NULL,
-		MasterID				TEXT NOT NULL,
-		CreatedTS				INTEGER NOT NULL,
-		DealID					TEXT NOT NULL,
-		Type					INTEGER NOT NULL,
-		Status					INTEGER NOT NULL,
-		AuthorID				TEXT NOT NULL,
-		CounterpartyID			TEXT NOT NULL,
-		Duration 				INTEGER NOT NULL,
-		Price					TEXT NOT NULL,
-		Netflags				INTEGER NOT NULL,
-		IdentityLevel			INTEGER NOT NULL,
-		Blacklist				TEXT NOT NULL,
-		Tag						BLOB NOT NULL,
-		FrozenSum				TEXT NOT NULL,
-		CreatorIdentityLevel	INTEGER NOT NULL,
-		CreatorName				TEXT NOT NULL,
-		CreatorCountry			TEXT NOT NULL,
-		CreatorCertificates		BLOB NOT NULL`, `INTEGER DEFAULT 0`),
-			createTableWorkers: `
-	CREATE TABLE IF NOT EXISTS Workers (
-		MasterID					TEXT NOT NULL,
-		WorkerID					TEXT NOT NULL,
-		Confirmed					INTEGER NOT NULL,
-		UNIQUE						(MasterID, WorkerID)
-	)`,
-			createTableBlacklists: `
-	CREATE TABLE IF NOT EXISTS Blacklists (
-		AdderID						TEXT NOT NULL,
-		AddeeID						TEXT NOT NULL,
-		UNIQUE						(AdderID, AddeeID)
-	)`,
-			createTableValidators: `
-	CREATE TABLE IF NOT EXISTS Validators (
-		Id							TEXT UNIQUE NOT NULL,
-		Level						INTEGER NOT NULL,
-		Name						TEXT NOT NULL DEFAULT '',
-		KYC_icon					TEXT NOT NULL DEFAULT '',
-		KYC_URL						TEXT NOT NULL DEFAULT '',
-		Description					TEXT NOT NULL DEFAULT '',
-		KYC_Price					TEXT NOT NULL DEFAULT '0'
-	)`,
-			createTableCertificates: `
-	CREATE TABLE IF NOT EXISTS Certificates (
-	    Id						    TEXT NOT NULL, 
-		OwnerID						TEXT NOT NULL,
-		Attribute					INTEGER NOT NULL,
-		AttributeLevel				INTEGER NOT NULL,
-		Value						BLOB NOT NULL,
-		ValidatorID					TEXT NOT NULL,
-		FOREIGN KEY (ValidatorID)	REFERENCES Validators(Id) ON DELETE CASCADE
-	)`,
-			createTableProfiles: `
-	CREATE TABLE IF NOT EXISTS Profiles (
-		Id							INTEGER PRIMARY KEY AUTOINCREMENT,
-		UserID						TEXT UNIQUE NOT NULL,
-		IdentityLevel				INTEGER NOT NULL,
-		Name						TEXT NOT NULL,
-		Country						TEXT NOT NULL,
-		IsCorporation				INTEGER NOT NULL,
-		IsProfessional				INTEGER NOT NULL,
-		Certificates				BLOB NOT NULL,
-		ActiveAsks					INTEGER NOT NULL,
-		ActiveBids					INTEGER NOT NULL
-	)`,
-			createTableStaleIDs: `
-	CREATE TABLE IF NOT EXISTS StaleIDs (
-		Id 							TEXT NOT NULL
-	)`,
-			createTableMisc: `
-	CREATE TABLE IF NOT EXISTS Misc (
-		BlockNumber 				INTEGER NOT NULL,
-		TxIndex						INTEGER NOT NULL,
-		ReceiptIndex				INTEGER NOT NULL
-	)`,
-			createIndexCmd: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
-			tablesInfo:     tInfo,
-		},
-		numBenchmarks: numBenchmarks,
-		tablesInfo:    tInfo,
-		builder: func() sq.StatementBuilderType {
-			return sq.StatementBuilder.PlaceholderFormat(sq.Question)
 		},
 	}
 

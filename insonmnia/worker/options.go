@@ -8,6 +8,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/matcher"
@@ -229,6 +230,7 @@ func (m *options) setupMatcher() error {
 				Eth:        m.eth,
 				PollDelay:  m.cfg.Matcher.PollDelay,
 				QueryLimit: m.cfg.Matcher.QueryLimit,
+				Log:        ctxlog.S(m.ctx),
 			})
 			if err != nil {
 				return fmt.Errorf("cannot create matcher: %v", err)

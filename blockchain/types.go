@@ -1,7 +1,10 @@
 package blockchain
 
 import (
+	"fmt"
 	"math/big"
+	"strings"
+	"unicode"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -148,4 +151,44 @@ type SimpleGateTransaction struct {
 	To       common.Address
 	Value    *big.Int
 	TxNumber *big.Int
+}
+
+type Balance struct {
+	Eth *big.Int
+	SNM *big.Int
+}
+
+type GasPrice struct {
+	*big.Int
+}
+
+func (m *GasPrice) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		return fmt.Errorf("empty input")
+	}
+
+	// Remove all whitespace characters.
+	normalized := strings.Replace(string(text), " ", "", -1)
+
+	var number, unit string
+	id := strings.IndexFunc(normalized, unicode.IsLetter)
+	if id == -1 {
+		number, unit = normalized, "wei"
+	} else {
+		number, unit = normalized[:id], normalized[id:]
+	}
+
+	value, ok := big.NewInt(0).SetString(number, 10)
+	if !ok {
+		return fmt.Errorf("failed to parse numeric value")
+	}
+
+	unitETH, err := UnitFromString(unit)
+	if err != nil {
+		return err
+	}
+
+	m.Int = big.NewInt(0).Mul(value, unitETH.Int)
+
+	return nil
 }

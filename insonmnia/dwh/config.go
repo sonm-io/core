@@ -22,7 +22,6 @@ type Config struct {
 }
 
 type storageConfig struct {
-	Backend  string `required:"true" yaml:"driver"`
 	Endpoint string `required:"true" yaml:"endpoint"`
 }
 

@@ -13,6 +13,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func mockDWH(ctrl *gomock.Controller, t sonm.OrderType) sonm.DWHClient {
@@ -48,6 +49,7 @@ func TestMatcher(t *testing.T) {
 		QueryLimit: 10,
 		DWH:        mockDWH(ctrl, sonm.OrderType_ASK),
 		Eth:        eth,
+		Log:        zap.NewNop().Sugar(),
 	})
 
 	require.NoError(t, err)
@@ -85,6 +87,7 @@ func TestMatcherFailedByTimeout(t *testing.T) {
 		QueryLimit: 10,
 		DWH:        mockDWH(ctrl, sonm.OrderType_BID),
 		Eth:        eth,
+		Log:        zap.NewNop().Sugar(),
 	})
 
 	require.NoError(t, err)

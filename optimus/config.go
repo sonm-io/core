@@ -120,6 +120,7 @@ type marketplaceConfig struct {
 	PrivateKey privateKey    `yaml:"ethereum" json:"-"`
 	Endpoint   auth.Addr     `yaml:"endpoint"`
 	Interval   time.Duration `yaml:"interval"`
+	MinPrice   *sonm.Price   `yaml:"min_price" default:"0.0001 USD/h"`
 }
 
 type optimizationConfig struct {

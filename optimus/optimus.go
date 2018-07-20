@@ -13,14 +13,21 @@ import (
 )
 
 type Optimus struct {
-	cfg Config
-	log *zap.SugaredLogger
+	cfg     Config
+	version string
+	log     *zap.SugaredLogger
 }
 
-func NewOptimus(cfg Config, log *zap.Logger) (*Optimus, error) {
+func NewOptimus(cfg Config, options ...Option) (*Optimus, error) {
+	opts := newOptions()
+	for _, o := range options {
+		o(opts)
+	}
+
 	m := &Optimus{
-		cfg: cfg,
-		log: log.With(zap.String("source", "optimus")).Sugar(),
+		cfg:     cfg,
+		version: opts.Version,
+		log:     opts.Log.With(zap.String("source", "optimus")),
 	}
 
 	m.log.Debugw("configuring Optimus", zap.Any("config", cfg))
@@ -29,7 +36,7 @@ func NewOptimus(cfg Config, log *zap.Logger) (*Optimus, error) {
 }
 
 func (m *Optimus) Run(ctx context.Context) error {
-	m.log.Info("starting Optimus")
+	m.log.Infow("starting Optimus", zap.String("version", m.version))
 	defer m.log.Info("Optimus has been stopped")
 
 	registry := newRegistry()
@@ -40,7 +47,7 @@ func (m *Optimus) Run(ctx context.Context) error {
 		return err
 	}
 
-	marketCache := newMarketCache(newMarketScanner(dwh), m.cfg.Marketplace.Interval)
+	marketCache := newMarketCache(newMarketScanner(m.cfg.Marketplace, dwh), m.cfg.Marketplace.Interval)
 
 	wg := errgroup.Group{}
 	benchmarkMapping, err := benchmarks.NewLoader(m.cfg.Benchmarks.URL).Load(context.Background())
@@ -74,7 +81,8 @@ func (m *Optimus) Run(ctx context.Context) error {
 			return err
 		}
 
-		control, err := newWorkerEngine(cfg, ethAddr, masterAddr, blacklist, worker, market.Market(), marketCache, benchmarkMapping, m.cfg.Optimization, m.log)
+		// TODO: Well, 11 parameters seems to be WAT.
+		control, err := newWorkerEngine(cfg, ethAddr, masterAddr, blacklist, worker, market.Market(), marketCache, benchmarkMapping, m.cfg.Optimization, newTagger(m.version), m.log)
 		if err != nil {
 			return err
 		}

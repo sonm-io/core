@@ -1,29 +1,26 @@
 package rest
 
 import (
-	"context"
 	"io"
-	"net"
 	"net/http"
 
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
 // options for building rest-server instance
 type options struct {
-	ctx         context.Context
-	listeners   []net.Listener
 	decoder     Decoder
 	encoder     Encoder
 	interceptor grpc.UnaryServerInterceptor
+	log         *zap.Logger
 }
 
 func defaultOptions() *options {
 	return &options{
-		ctx:       context.Background(),
-		listeners: []net.Listener{},
-		decoder:   &nilDecoder{},
-		encoder:   &nilEncoder{},
+		decoder: &nilDecoder{},
+		encoder: &nilEncoder{},
+		log:     zap.NewNop(),
 	}
 }
 
@@ -50,15 +47,9 @@ type Encoder interface {
 	Encode(rw http.ResponseWriter) (http.ResponseWriter, error)
 }
 
-func WithContext(ctx context.Context) Option {
+func WithLog(log *zap.Logger) Option {
 	return func(o *options) {
-		o.ctx = ctx
-	}
-}
-
-func WithListener(l net.Listener) Option {
-	return func(o *options) {
-		o.listeners = append(o.listeners, l)
+		o.log = log
 	}
 }
 

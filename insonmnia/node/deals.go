@@ -6,16 +6,17 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type dealsAPI struct {
-	ctx     context.Context
 	remotes *remoteOptions
+	log     *zap.SugaredLogger
 }
 
 func (d *dealsAPI) List(ctx context.Context, req *pb.Count) (*pb.DealsReply, error) {
@@ -66,7 +67,7 @@ func (d *dealsAPI) Status(ctx context.Context, id *pb.BigInt) (*pb.DealInfoReply
 
 		worker, closer, err := d.remotes.getWorkerClientByEthAddr(workerCtx, deal.GetSupplierID().Unwrap().Hex())
 		if err == nil {
-			ctxlog.G(d.remotes.ctx).Debug("try to obtain deal info from the worker")
+			d.log.Debug("try to obtain deal info from the worker")
 			defer closer.Close()
 
 			info, err := worker.GetDealInfo(workerCtx, &pb.ID{Id: dealID})
@@ -88,6 +89,21 @@ func (d *dealsAPI) Finish(ctx context.Context, req *pb.DealFinishRequest) (*pb.E
 }
 
 func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal, error) {
+	ask, err := d.remotes.eth.Market().GetOrderInfo(ctx, req.GetAskID().Unwrap())
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ask order: %s", err)
+	}
+
+	if !req.Force {
+		d.remotes.log.Debug("checking worker availability")
+		if available := d.remotes.isWorkerAvailable(ctx, ask.GetAuthorID().Unwrap()); !available {
+			return nil, status.Errorf(codes.Unavailable,
+				"failed to fetch status from %s, seems like worker is offline", ask.GetAuthorID().Unwrap().Hex())
+		}
+	} else {
+		d.remotes.log.Info("forcing deal opening, worker availability checking skipped")
+	}
+
 	deal, err := d.remotes.eth.Market().OpenDeal(ctx, d.remotes.key, req.GetAskID().Unwrap(), req.GetBidID().Unwrap())
 	if err != nil {
 		return nil, fmt.Errorf("could not open deal in blockchain: %s", err)
@@ -97,15 +113,27 @@ func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal,
 }
 
 func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.DealInfoReply, error) {
+	ask, err := d.remotes.eth.Market().GetOrderInfo(ctx, req.GetAskID().Unwrap())
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch ask order for duration lookup: %s", err)
+	}
+
 	var duration uint64
 	if req.Duration == nil {
-		ask, err := d.remotes.eth.Market().GetOrderInfo(ctx, req.GetAskID().Unwrap())
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch ask order for duration lookup: %s", err)
-		}
 		duration = ask.Duration
 	} else {
 		duration = uint64(req.GetDuration().Unwrap().Seconds())
+	}
+
+	if !req.Force {
+		d.remotes.log.Debug("checking worker availability")
+		if available := d.remotes.isWorkerAvailable(ctx, ask.GetAuthorID().Unwrap()); !available {
+			return nil, status.Errorf(codes.Unavailable,
+				"failed to fetch status from %s, seems like worker is offline", ask.GetAuthorID().Unwrap().Hex())
+		}
+	} else {
+		d.remotes.log.Info("forcing deal opening, worker availability checking skipped",
+			zap.String("ask_id", req.AskID.Unwrap().String()))
 	}
 
 	deal, err := d.remotes.eth.Market().QuickBuy(ctx, d.remotes.key, req.GetAskID().Unwrap(), duration)
@@ -115,20 +143,20 @@ func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.D
 
 	supplierAddr, err := auth.NewAddr(deal.GetSupplierID().Unwrap().Hex())
 	if err != nil {
-		ctxlog.G(d.remotes.ctx).Debug("cannot create auth.Addr from supplier addr", zap.Error(err))
+		d.log.Debugw("cannot create auth.Addr from supplier addr", zap.Error(err))
 		return &pb.DealInfoReply{Deal: deal}, nil
 	}
 
 	cli, closer, err := d.remotes.workerCreator(ctx, supplierAddr)
 	if err != nil {
-		ctxlog.G(d.remotes.ctx).Debug("cannot create worker client", zap.Error(err))
+		d.log.Debugw("cannot create worker client", zap.Error(err))
 		return &pb.DealInfoReply{Deal: deal}, nil
 	}
 	defer closer.Close()
 
 	workerDeal, err := cli.GetDealInfo(ctx, &pb.ID{Id: deal.GetId().Unwrap().String()})
 	if err != nil {
-		ctxlog.G(d.remotes.ctx).Debug("cannot get deal from worker", zap.Error(err))
+		d.log.Debugw("cannot get deal from worker", zap.Error(err))
 		return &pb.DealInfoReply{Deal: deal}, nil
 	}
 
@@ -209,6 +237,6 @@ func invertOrderType(s pb.OrderType) pb.OrderType {
 func newDealsAPI(opts *remoteOptions) pb.DealManagementServer {
 	return &dealsAPI{
 		remotes: opts,
-		ctx:     opts.ctx,
+		log:     opts.log,
 	}
 }

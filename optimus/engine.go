@@ -3,6 +3,7 @@ package optimus
 import (
 	"context"
 	"fmt"
+	"math"
 	"math/big"
 	"sync"
 	"time"
@@ -106,9 +107,10 @@ type workerEngine struct {
 	benchmarkMapping benchmarks.Mapping
 
 	optimizationConfig optimizationConfig
+	tagger             *Tagger
 }
 
-func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, optimizationConfig optimizationConfig, log *zap.SugaredLogger) (*workerEngine, error) {
+func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, optimizationConfig optimizationConfig, tagger *Tagger, log *zap.SugaredLogger) (*workerEngine, error) {
 	m := &workerEngine{
 		cfg: cfg,
 		log: log.With(zap.Stringer("addr", addr)),
@@ -122,6 +124,7 @@ func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, blacklis
 		benchmarkMapping: benchmarkMapping,
 
 		optimizationConfig: optimizationConfig,
+		tagger:             tagger,
 	}
 
 	return m, nil
@@ -279,6 +282,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 		// Then we need to clean this, because otherwise worker rejects such request.
 		plan.OrderID = nil
 		plan.Identity = m.cfg.Identity
+		plan.Tag = m.tagger.Tag()
 
 		id, err := m.worker.CreateAskPlan(ctx, plan)
 		if err != nil {
@@ -543,6 +547,15 @@ func (m *GreedyLinearRegressionModel) Optimize(knapsack *Knapsack, orders []*Mar
 
 	exhaustedCounter := 0
 	for _, weightedOrder := range weightedOrders {
+		// Ignore orders with too low relative weight, i.e. orders that have
+		// quotient of its price to predicted price less than 1%.
+		// It may be, for example, when an order has 0 price.
+		// TODO: For now not sure where to perform this filtering. Let it be here.
+		if math.Abs(weightedOrder.Weight) < 0.01 {
+			m.log.Debugf("ignore `%s` order - weight too low: %.6f", weightedOrder.ID().String(), weightedOrder.Weight)
+			continue
+		}
+
 		if _, ok := filter[weightedOrder.ID().String()]; !ok {
 			continue
 		}
