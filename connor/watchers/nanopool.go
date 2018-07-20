@@ -18,17 +18,19 @@ type RHData struct {
 }
 
 type nanopoolWatcher struct {
-	mu   sync.Mutex
-	url  string
-	addr []string
-	data map[string]*ReportedHashrate
+	mu                 sync.Mutex
+	url                string
+	addr               []string
+	data               map[string]*ReportedHashrate
+	hashrateMultiplier float64
 }
 
-func NewPoolWatcher(url string, addr []string) PoolWatcher {
+func NewPoolWatcher(url string, addr []string, hashrateMultiplier float64) PoolWatcher {
 	return &nanopoolWatcher{
-		url:  url,
-		addr: addr,
-		data: make(map[string]*ReportedHashrate),
+		url:                url,
+		addr:               addr,
+		data:               make(map[string]*ReportedHashrate),
+		hashrateMultiplier: hashrateMultiplier,
 	}
 }
 
@@ -68,6 +70,9 @@ func (p *nanopoolWatcher) getPoolData(addr string, url string) (*ReportedHashrat
 	err = json.Unmarshal(body, forPool)
 	if err != nil {
 		return nil, err
+	}
+	for idx := range forPool.Data {
+		forPool.Data[idx].Hashrate *= p.hashrateMultiplier
 	}
 	return forPool, nil
 }

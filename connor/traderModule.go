@@ -13,7 +13,6 @@ import (
 )
 
 const (
-	hashes   = 1000000
 	fullPath = 100
 )
 
@@ -180,16 +179,16 @@ func (t *TraderModule) deployedDealProfitTracking(ctx context.Context, actualPri
 		return err
 	}
 
-	var megahashes uint64
+	var hashes uint64
 	switch t.c.cfg.Mining.Token {
 	case "ETH":
 		// todo: possible precision lost
-		megahashes = bidOrder.Benchmarks.GPUEthHashrate() / hashes
+		hashes = bidOrder.Benchmarks.GPUEthHashrate()
 	case "ZEC":
-		megahashes = bidOrder.Benchmarks.GPUCashHashrate() / hashes
+		hashes = bidOrder.Benchmarks.GPUCashHashrate()
 	}
 
-	actualPriceForPack := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(megahashes)))
+	actualPriceForPack := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(hashes)))
 	if actualPriceForPack.Cmp(big.NewInt(0)) == 0 {
 		return fmt.Errorf("actual price for pack is zero")
 	}
@@ -198,7 +197,7 @@ func (t *TraderModule) deployedDealProfitTracking(ctx context.Context, actualPri
 		return fmt.Errorf("actual price overflows int64")
 	}
 
-	log.Debug("calculated megahashes and price", zap.Uint64("megahashes", megahashes),
+	log.Debug("calculated hashrate and price", zap.Uint64("hashrate", hashes),
 		zap.String("price_for_mh", actualPriceForPack.String()))
 
 	divider := big.NewInt(0).Mul(actualPriceForPack, big.NewInt(100))
@@ -299,11 +298,19 @@ func (t *TraderModule) ordersProfitTracking(ctx context.Context, actualPrice *bi
 
 	switch order.GetOrderStatus() {
 	case sonm.OrderStatus_ORDER_ACTIVE:
-		// TODO(sshaman1101): possible precision lost
-		megaHashes := order.GetBenchmarks().GPUEthHashrate() / hashes
-		log.Debug("megaHashes", zap.Uint64("value", megaHashes))
 
-		pricePerSecForPack := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(megaHashes)))
+		var hashes uint64
+		switch t.c.cfg.Mining.Token {
+		case "ETH":
+			// todo: possible precision lost
+			hashes = order.GetBenchmarks().GPUEthHashrate()
+		case "ZEC":
+			hashes = order.GetBenchmarks().GPUCashHashrate()
+		}
+
+		log.Debug("hashrate", zap.Uint64("value", hashes))
+
+		pricePerSecForPack := big.NewInt(0).Mul(actualPrice, big.NewInt(int64(hashes)))
 		log.Debug("pricePerSecForPack", zap.String("value", pricePerSecForPack.String()))
 
 		if pricePerSecForPack.Cmp(big.NewInt(0)) == 0 {

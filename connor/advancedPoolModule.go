@@ -79,7 +79,7 @@ func (p *PoolModule) AdvancedPoolHashrateTracking(ctx context.Context, reportedP
 				}
 			}
 
-			workerReportedHashrate := uint64(w.WorkerReportedHashrate * hashes)
+			workerReportedHashrate := uint64(w.WorkerReportedHashrate)
 			p.c.logger.Info("update reported hashrate", zap.Uint64("reported_hashrate", workerReportedHashrate), zap.Int64("worker", w.DealID))
 
 			if err := p.ComparisonWithDealHashrate(ctx, workerReportedHashrate, dealHashrate, w, dealInfo); err != nil {
@@ -94,7 +94,7 @@ func (p *PoolModule) AdvancedPoolHashrateTracking(ctx context.Context, reportedP
 				continue
 			}
 
-			workerAvgHashrate := uint64(w.WorkerAvgHashrate * hashes)
+			workerAvgHashrate := uint64(w.WorkerAvgHashrate)
 			p.c.logger.Info("update average hashrate", zap.Uint64("average_hashrate", workerAvgHashrate), zap.Int64("worker", w.DealID))
 
 			if err := p.ComparisonWithDealHashrate(ctx, workerAvgHashrate, dealHashrate, w, dealInfo); err != nil {

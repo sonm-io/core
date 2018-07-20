@@ -227,7 +227,7 @@ func (p *PoolModule) DefaultPoolHashrateTracking(ctx context.Context, reportedPo
 			if err = p.UpdatePoolData(ctx, reportedPool, p.c.cfg.Mining.Wallet, int64(PoolTypeReportedHashrate)); err != nil {
 				return err
 			}
-			changePercentRHWorker := w.WorkerReportedHashrate * float64(hashes) / float64(bidHashrate)
+			changePercentRHWorker := w.WorkerReportedHashrate / float64(bidHashrate)
 			if err = p.DetectingDeviation(ctx, changePercentRHWorker, w, dealInfo); err != nil {
 				return err
 			}
@@ -237,7 +237,7 @@ func (p *PoolModule) DefaultPoolHashrateTracking(ctx context.Context, reportedPo
 				return err
 			}
 			p.c.logger.Info("getting avg pool data for worker", zap.Int64("deal", w.DealID))
-			changePercentAvgWorker := w.WorkerAvgHashrate * float64(hashes) / float64(bidHashrate)
+			changePercentAvgWorker := w.WorkerAvgHashrate / float64(bidHashrate)
 			if err = p.DetectingDeviation(ctx, changePercentAvgWorker, w, dealInfo); err != nil {
 				return err
 			}

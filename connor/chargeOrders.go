@@ -89,14 +89,7 @@ func (t *TraderModule) ChargeOrdersOnce(ctx context.Context, token watchers.Toke
 
 // Prepare price and Map depends on token symbol. Create orders to the market, until the budget is over.
 func (t *TraderModule) ChargeOrders(ctx context.Context, priceForHashPerSec *big.Int, step float64, buyMghash float64) (float64, error) {
-	var requiredHashRate uint64
-
-	switch t.c.cfg.Mining.Token {
-	case "ETH":
-		requiredHashRate = uint64(buyMghash * hashes)
-	case "ZEC":
-		requiredHashRate = uint64(buyMghash)
-	}
+	requiredHashRate := uint64(buyMghash)
 
 	t.c.logger.Sugar().Infof("required hashrate %v H/s", requiredHashRate)
 	benchmarks, err := t.getBenchmarksForSymbol(uint64(requiredHashRate))
