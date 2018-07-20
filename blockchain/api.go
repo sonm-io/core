@@ -596,7 +596,7 @@ func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, 
 	if err := api.checkAllowance(ctx, key); err != nil {
 		return nil, err
 	}
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, quickBuyGasLimit)
 	tx, err := api.marketContract.QuickBuy(opts, askId, big.NewInt(0).SetUint64(duration))
 	if err != nil {
 		return nil, err
@@ -606,7 +606,7 @@ func (api *BasicMarketAPI) QuickBuy(ctx context.Context, key *ecdsa.PrivateKey, 
 }
 
 func (api *BasicMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, askID, bidID *big.Int) (*pb.Deal, error) {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, openDealGasLimit)
 	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
 		return api.marketContract.OpenDeal(opts, askID, bidID)
 	})
@@ -635,7 +635,7 @@ func (api *BasicMarketAPI) CloseDeal(ctx context.Context, key *ecdsa.PrivateKey,
 	if err := api.checkAllowance(ctx, key); err != nil {
 		return err
 	}
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, closeDealGasLimit)
 	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
 		return api.marketContract.CloseDeal(opts, dealID, uint8(blacklistType))
 	})
@@ -702,7 +702,7 @@ func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey
 	if err := api.checkAllowance(ctx, key); err != nil {
 		return nil, err
 	}
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, placeOrderGasLimit)
 
 	var fixedTag [32]byte
 	copy(fixedTag[:], order.Tag[:])
@@ -737,7 +737,7 @@ func (api *BasicMarketAPI) PlaceOrder(ctx context.Context, key *ecdsa.PrivateKey
 }
 
 func (api *BasicMarketAPI) CancelOrder(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, cancelOrderGasLimit)
 	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
 		return api.marketContract.CancelOrder(opts, id)
 	})
@@ -806,7 +806,7 @@ func (api *BasicMarketAPI) Bill(ctx context.Context, key *ecdsa.PrivateKey, deal
 	if err := api.checkAllowance(ctx, key); err != nil {
 		return err
 	}
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, billGasLimit)
 	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
 		return api.marketContract.Bill(opts, dealID)
 	})
@@ -822,7 +822,7 @@ func (api *BasicMarketAPI) Bill(ctx context.Context, key *ecdsa.PrivateKey, deal
 }
 
 func (api *BasicMarketAPI) RegisterWorker(ctx context.Context, key *ecdsa.PrivateKey, master common.Address) error {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, registerWorkerGasLimit)
 	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
 		return api.marketContract.RegisterWorker(opts, master)
 	})
@@ -838,7 +838,7 @@ func (api *BasicMarketAPI) RegisterWorker(ctx context.Context, key *ecdsa.Privat
 }
 
 func (api *BasicMarketAPI) ConfirmWorker(ctx context.Context, key *ecdsa.PrivateKey, slave common.Address) error {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, confirmWorkerGasLimit)
 	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
 		return api.marketContract.ConfirmWorker(opts, slave)
 	})
@@ -854,7 +854,7 @@ func (api *BasicMarketAPI) ConfirmWorker(ctx context.Context, key *ecdsa.Private
 }
 
 func (api *BasicMarketAPI) RemoveWorker(ctx context.Context, key *ecdsa.PrivateKey, master, slave common.Address) error {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, removeWorkerGasLimit)
 	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
 		return api.marketContract.RemoveWorker(opts, master, slave)
 	})
@@ -894,7 +894,7 @@ func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.P
 		return nil, err
 	}
 	duration := big.NewInt(int64(req.GetDuration()))
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, createChangeRequestGasLimit)
 	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
 		return api.marketContract.CreateChangeRequest(opts, req.GetDealID().Unwrap(), req.GetPrice().Unwrap(), duration)
 	})
@@ -916,7 +916,7 @@ func (api *BasicMarketAPI) CreateChangeRequest(ctx context.Context, key *ecdsa.P
 }
 
 func (api *BasicMarketAPI) CancelChangeRequest(ctx context.Context, key *ecdsa.PrivateKey, id *big.Int) error {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, cancelChangeRequestGasLimit)
 	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
 		return api.marketContract.CancelChangeRequest(opts, id)
 	})
@@ -1091,12 +1091,12 @@ func (api *BasicBlacklistAPI) Remove(ctx context.Context, key *ecdsa.PrivateKey,
 }
 
 func (api *BasicBlacklistAPI) AddMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error) {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, addMasterGasLimit)
 	return api.blacklistContract.AddMaster(opts, root)
 }
 
 func (api *BasicBlacklistAPI) RemoveMaster(ctx context.Context, key *ecdsa.PrivateKey, root common.Address) (*types.Transaction, error) {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, removeMasterGasLimit)
 	return api.blacklistContract.RemoveMaster(opts, root)
 }
 
@@ -1130,7 +1130,7 @@ func NewStandardToken(address common.Address, opts *chainOpts) (TokenAPI, error)
 }
 
 func (api *StandardTokenApi) IncreaseApproval(ctx context.Context, key *ecdsa.PrivateKey, spender common.Address, value *big.Int) error {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, increaseApprovalGasLimit)
 	tx, err := api.tokenContract.IncreaseApproval(opts, spender, value)
 	if err != nil {
 		return err
@@ -1148,7 +1148,7 @@ func (api *StandardTokenApi) IncreaseApproval(ctx context.Context, key *ecdsa.Pr
 }
 
 func (api *StandardTokenApi) DecreaseApproval(ctx context.Context, key *ecdsa.PrivateKey, spender common.Address, value *big.Int) error {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, decreaseApprovalGasLimit)
 	tx, err := api.tokenContract.DecreaseApproval(opts, spender, value)
 	if err != nil {
 		return err
@@ -1242,12 +1242,12 @@ func (api *StandardTokenApi) approve(ctx context.Context, key *ecdsa.PrivateKey,
 }
 
 func (api *StandardTokenApi) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, transferGasLimit)
 	return api.tokenContract.Transfer(opts, to, amount)
 }
 
 func (api *StandardTokenApi) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from common.Address, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, transferFromGasLimit)
 	return api.tokenContract.TransferFrom(opts, from, to, amount)
 }
 
@@ -1280,7 +1280,7 @@ func NewTestToken(address common.Address, opts *chainOpts) (TestTokenAPI, error)
 }
 
 func (api *TestTokenApi) GetTokens(ctx context.Context, key *ecdsa.PrivateKey) (*types.Transaction, error) {
-	opts := api.opts.getTxOpts(ctx, key, api.opts.gasLimit)
+	opts := api.opts.getTxOpts(ctx, key, getTokensGasLimit)
 	return api.tokenContract.GetTokens(opts)
 }
 
