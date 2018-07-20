@@ -20,8 +20,11 @@ import (
 )
 
 const (
-	poolReportedHashRateURL = "https://api.nanopool.org/v1/eth/reportedhashrates/"
-	poolAverageHashRateURL  = "https://api.nanopool.org/v1/eth/avghashrateworkers/"
+	ethPoolReportedHashRateURL = "https://api.nanopool.org/v1/eth/reportedhashrates/"
+	ethPoolAverageHashRateURL  = "https://api.nanopool.org/v1/eth/avghashrateworkers/"
+
+	zecPoolReportedHashRateURL = "https://api.nanopool.org/v1/zec/reportedhashrates/"
+	zecPoolAverageHashRateURL  = "https://api.nanopool.org/v1/zec/avghashrateworkers/"
 )
 
 type Connor struct {
@@ -100,8 +103,18 @@ func (c *Connor) Serve(ctx context.Context) error {
 	snm := watchers.NewSNMPriceWatcher()
 	token := watchers.NewTokenPriceWatcher()
 
-	reportedPool := watchers.NewPoolWatcher(poolReportedHashRateURL, []string{c.cfg.Mining.Wallet}, 1e6)
-	avgPool := watchers.NewPoolWatcher(poolAverageHashRateURL, []string{c.cfg.Mining.Wallet + "/1"}, 1e6)
+	var reportedUrl, avgUrl string
+	switch c.cfg.Mining.Token {
+	case "ETH":
+		reportedUrl = ethPoolReportedHashRateURL
+		avgUrl = ethPoolAverageHashRateURL
+	case "ZEC":
+		reportedUrl = zecPoolReportedHashRateURL
+		avgUrl = zecPoolAverageHashRateURL
+	}
+
+	reportedPool := watchers.NewPoolWatcher(reportedUrl, []string{c.cfg.Mining.Wallet}, 1e6)
+	avgPool := watchers.NewPoolWatcher(avgUrl, []string{c.cfg.Mining.Wallet + "/1"}, 1e6)
 
 	if err := snm.Update(ctx); err != nil {
 		return fmt.Errorf("cannot update snm data: %v", err)
