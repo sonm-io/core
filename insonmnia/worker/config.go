@@ -16,11 +16,6 @@ import (
 	"github.com/sonm-io/core/util/debug"
 )
 
-type SSHConfig struct {
-	BindEndpoint   string `required:"true" yaml:"bind"`
-	PrivateKeyPath string `required:"true" yaml:"private_key_path"`
-}
-
 type ResourcesConfig struct {
 	Cgroup    string                `required:"true" yaml:"cgroup"`
 	Resources *specs.LinuxResources `required:"false" yaml:"resources"`

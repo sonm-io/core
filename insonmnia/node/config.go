@@ -9,6 +9,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/npp"
+	"github.com/sonm-io/core/insonmnia/ssh"
 	"github.com/sonm-io/core/optimus"
 	"github.com/sonm-io/core/util/debug"
 )
@@ -31,6 +32,7 @@ type Config struct {
 	Matcher           *matcher.YAMLConfig      `yaml:"matcher"`
 	Predictor         *optimus.PredictorConfig `yaml:"predictor"`
 	Debug             *debug.Config            `yaml:"debug"`
+	SSH               *ssh.ProxyServerConfig   `yaml:"ssh"`
 }
 
 // NewConfig loads localNode config from given .yaml file

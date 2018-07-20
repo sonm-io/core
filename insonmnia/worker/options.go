@@ -106,10 +106,6 @@ func (m *options) SetupDefaults() error {
 		return err
 	}
 
-	if err := m.setupSSH(); err != nil {
-		return err
-	}
-
 	if err := m.setupOverseer(); err != nil {
 		return err
 	}
@@ -276,7 +272,16 @@ func (m *options) setupNetworkOptions() error {
 	return nil
 }
 
-func (m *options) setupSSH() error {
+func (m *options) setupSSH(view OverseerView) error {
+	if m.cfg.SSH != nil {
+		ssh, err := NewSSHServer(*m.cfg.SSH, m.creds, view, ctxlog.S(m.ctx))
+		if err != nil {
+			return err
+		}
+		m.ssh = ssh
+		return nil
+	}
+
 	if m.ssh == nil {
 		m.ssh = nilSSH{}
 	}
