@@ -104,17 +104,20 @@ func (c *Connor) Serve(ctx context.Context) error {
 	token := watchers.NewTokenPriceWatcher()
 
 	var reportedUrl, avgUrl string
+	var hashrateMultiplier float64
 	switch c.cfg.Mining.Token {
 	case "ETH":
 		reportedUrl = ethPoolReportedHashRateURL
 		avgUrl = ethPoolAverageHashRateURL
+		hashrateMultiplier = 1e6
 	case "ZEC":
 		reportedUrl = zecPoolReportedHashRateURL
 		avgUrl = zecPoolAverageHashRateURL
+		hashrateMultiplier = 1.
 	}
 
-	reportedPool := watchers.NewPoolWatcher(reportedUrl, []string{c.cfg.Mining.Wallet}, 1e6)
-	avgPool := watchers.NewPoolWatcher(avgUrl, []string{c.cfg.Mining.Wallet + "/1"}, 1e6)
+	reportedPool := watchers.NewPoolWatcher(reportedUrl, []string{c.cfg.Mining.Wallet}, hashrateMultiplier)
+	avgPool := watchers.NewPoolWatcher(avgUrl, []string{c.cfg.Mining.Wallet + "/1"}, hashrateMultiplier)
 
 	if err := snm.Update(ctx); err != nil {
 		return fmt.Errorf("cannot update snm data: %v", err)
