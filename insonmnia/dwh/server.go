@@ -645,11 +645,12 @@ func (m *DWH) onDealUpdated(dealID *big.Int) error {
 	}
 
 	if deal.Status == pb.DealStatus_DEAL_CLOSED {
-		err = m.storage.DeleteDeal(conn, deal.Id.Unwrap())
-		if err != nil {
+		if err = m.storage.UpdateDeal(conn, deal); err != nil {
+			return fmt.Errorf("failed to update deal before removal: %v", err)
+		}
+		if err = m.storage.DeleteDeal(conn, deal.Id.Unwrap()); err != nil {
 			return fmt.Errorf("failed to delete deal (possibly old log entry): %v", err)
 		}
-
 		if err := m.storage.DeleteOrder(conn, deal.AskID.Unwrap()); err != nil {
 			return fmt.Errorf("failed to deleteOrder: %v", err)
 		}
