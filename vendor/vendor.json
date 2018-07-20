@@ -2008,6 +2008,12 @@
 			"revisionTime": "2018-04-10T17:26:10Z"
 		},
 		{
+			"checksumSHA1": "NMRX0onGReaL9IfLr0XQ3kl5Id0=",
+			"path": "golang.org/x/crypto/ssh/agent",
+			"revision": "f70185d77e8278766928032ee1355e3da47e7181",
+			"revisionTime": "2018-04-10T17:26:10Z"
+		},
+		{
 			"checksumSHA1": "BGm8lKZmvJbf/YOJLeL1rw2WVjA=",
 			"path": "golang.org/x/crypto/ssh/terminal",
 			"revision": "f70185d77e8278766928032ee1355e3da47e7181",
