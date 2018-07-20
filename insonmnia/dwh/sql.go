@@ -765,7 +765,8 @@ func (m *sqlStorage) GetMasterByWorker(conn queryConn, slaveID common.Address) (
 }
 
 func (m *sqlStorage) InsertBlacklistEntry(conn queryConn, adderID, addeeID common.Address) error {
-	query, args, err := m.builder().Insert("Blacklists").Values(adderID.Hex(), addeeID.Hex()).ToSql()
+	query, args, err := m.builder().Insert("Blacklists").Values(adderID.Hex(), addeeID.Hex()).
+		Suffix("ON CONFLICT (AdderID, AddeeID) DO NOTHING").ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
