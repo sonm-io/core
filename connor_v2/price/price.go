@@ -112,36 +112,15 @@ type zecPriceProvider struct {
 	price *big.Int
 }
 
-func newZecPriceProvider() Provider { return &zecPriceProvider{} }
+func newZecPriceProvider() Provider { return &zecPriceProvider{price: big.NewInt(1)} }
 
 func (p *zecPriceProvider) Update(ctx context.Context) error {
-	// 1. load price for 1 token in USD
-	url := fmt.Sprintf("%s/%s", priceBaseURL, zcashURLPart)
-	price, err := getPriceFromCMC(url)
-	if err != nil {
-		return err
-	}
-
-	// 2. load network parameters
-	coinParams, err := getTokenParamsFromWTM(zcashWtmID)
-	if err != nil {
-		return err
-	}
-
-	v := p.calculate(
-		big.NewFloat(0).SetInt(price),
-		big.NewFloat(coinParams.BlockReward),
-		big.NewFloat(coinParams.Difficulty),
-	)
-
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	p.price = v
 	return nil
 }
 
 func (p *zecPriceProvider) calculate(price, reward, difficulty *big.Float) *big.Int {
-	// todo: formula
+	// YourHashrate / NetHashRate / BlockTime * 86400 * BlockReward
+	// todo: check formula, calculated results is different than whatTiMine's one
 	return nil
 }
 
