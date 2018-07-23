@@ -118,7 +118,7 @@ type TokenAPI interface {
 	// ApproveAtLeast acts as Approve, but change allowance only if it less than required.
 	ApproveAtLeast(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) error
 	// Transfer token from caller
-	Transfer(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error)
+	Transfer(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) error
 	// TransferFrom fallback function for contracts to transfer you allowance
 	TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from common.Address, to common.Address, amount *big.Int) (*types.Transaction, error)
 	// BalanceOf returns balance of given address
@@ -1241,9 +1241,20 @@ func (api *StandardTokenApi) approve(ctx context.Context, key *ecdsa.PrivateKey,
 	return nil
 }
 
-func (api *StandardTokenApi) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) (*types.Transaction, error) {
+func (api *StandardTokenApi) Transfer(ctx context.Context, key *ecdsa.PrivateKey, to common.Address, amount *big.Int) error {
 	opts := api.opts.getTxOpts(ctx, key, transferGasLimit)
-	return api.tokenContract.Transfer(opts, to, amount)
+	tx, err := txRetryWrapper(func() (*types.Transaction, error) {
+		return api.tokenContract.Transfer(opts, to, amount)
+	})
+	if err != nil {
+		return err
+	}
+
+	if _, err := WaitTxAndExtractLog(ctx, api.client, api.opts.blockConfirmations, api.opts.logParsePeriod, tx, TransferTopic); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (api *StandardTokenApi) TransferFrom(ctx context.Context, key *ecdsa.PrivateKey, from common.Address, to common.Address, amount *big.Int) (*types.Transaction, error) {

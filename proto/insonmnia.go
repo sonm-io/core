@@ -10,6 +10,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/datasize"
 )
 
@@ -82,6 +83,15 @@ func (m *EthAddress) IsZero() bool {
 
 func NewEthAddress(addr common.Address) *EthAddress {
 	return &EthAddress{Address: addr.Bytes()}
+}
+
+func NewEthAddressFromHex(hexAddr string) (*EthAddress, error) {
+	addr, err := util.HexToAddress(hexAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	return &EthAddress{Address: addr.Bytes()}, nil
 }
 
 func (m *DataSize) Unwrap() datasize.ByteSize {

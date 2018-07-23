@@ -120,6 +120,8 @@ service TokenManagement {
     rpc Withdraw(BigInt) returns (Empty) {}
     // MarketAllowance returns current allowance for BC market
     rpc MarketAllowance(Empty) returns (BigInt) {}
+    // Transfer transfers funds from one sidechain account to another.
+    rpc Transfer(TokenTransferRequest) returns (Empty) {}
 }
 
 message BalanceReply {
@@ -143,4 +145,9 @@ service Profiles {
     // RemoveAttribute allows to remove profile attributes
     // for the user's own profile
     rpc RemoveAttribute(BigInt) returns (Empty) {}
+}
+
+message TokenTransferRequest {
+    EthAddress to = 1;
+    BigInt amount = 2;
 }
