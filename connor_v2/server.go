@@ -20,9 +20,9 @@ type Connor struct {
 	log *zap.Logger
 	key *ecdsa.PrivateKey
 
+	engine             *engine
 	snmPriceProvider   price.Provider
 	tokenPriceProvider price.Provider
-	orderManager       *engine
 	marketClient       sonm.MarketClient
 	dealsClient        sonm.DealManagementClient
 }
@@ -46,18 +46,15 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*Connor, error) {
 		return nil, fmt.Errorf("cannot create connection to node: %v", err)
 	}
 
-	marketClient := sonm.NewMarketClient(cc)
-	dealsClient := sonm.NewDealManagementClient(cc)
-
 	return &Connor{
 		key:                key,
 		cfg:                cfg,
 		log:                log,
-		marketClient:       marketClient,
-		dealsClient:        dealsClient,
+		marketClient:       sonm.NewMarketClient(cc),
+		dealsClient:        sonm.NewDealManagementClient(cc),
 		snmPriceProvider:   price.NewSonmPriceProvider(),
 		tokenPriceProvider: price.NewProvider(cfg.Mining.Token),
-		orderManager:       NewEngine(ctx, cfg.Engine, log, marketClient, dealsClient),
+		engine:             NewEngine(ctx, cfg.Engine, cfg.Mining, log, cc),
 	}, nil
 }
 
@@ -71,7 +68,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 	c.log.Debug("price", zap.String("SNM", c.snmPriceProvider.GetPrice().String()),
 		zap.String(c.cfg.Mining.Token, c.tokenPriceProvider.GetPrice().String()))
 
-	c.orderManager.start(ctx)
+	c.engine.start(ctx)
 
 	// restore two subsets of orders, then separate on non-exiting orders that
 	// should be placed on market and active orders that should be watched
@@ -96,15 +93,15 @@ func (c *Connor) Serve(ctx context.Context) error {
 		zap.Int("deals_restore", len(exitingDeals.GetDeal())))
 
 	for _, ord := range set.toCreate {
-		c.orderManager.CreateOrder(ord)
+		c.engine.CreateOrder(ord)
 	}
 
 	for _, ord := range set.toRestore {
-		c.orderManager.RestoreOrder(ord)
+		c.engine.RestoreOrder(ord)
 	}
 
 	for _, deal := range exitingDeals.GetDeal() {
-		c.orderManager.RestoreDeal(deal)
+		c.engine.RestoreDeal(deal)
 	}
 
 	<-ctx.Done()
