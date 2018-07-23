@@ -77,6 +77,14 @@ func (t *tokenAPI) MarketAllowance(ctx context.Context, _ *sonm.Empty) (*sonm.Bi
 	return sonm.NewBigInt(allowance), nil
 }
 
+func (t *tokenAPI) Transfer(ctx context.Context, request *sonm.TokenTransferRequest) (*sonm.Empty, error) {
+	if err := t.remotes.eth.SidechainToken().Transfer(ctx, t.remotes.key, request.To.Unwrap(), request.Amount.Unwrap()); err != nil {
+		return nil, err
+	}
+
+	return &sonm.Empty{}, nil
+}
+
 func newTokenManagementAPI(opts *remoteOptions) sonm.TokenManagementServer {
 	return &tokenAPI{remotes: opts}
 }

@@ -116,6 +116,7 @@ It has these top-level messages:
 	WorkerRemoveRequest
 	WorkerListReply
 	BalanceReply
+	TokenTransferRequest
 	HandshakeRequest
 	DiscoverResponse
 	HandshakeResponse
