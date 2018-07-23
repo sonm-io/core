@@ -12,34 +12,37 @@ import (
 
 const concurrency = 10
 
-type orderManager struct {
-	ordersChan  chan *Corder
-	resultsChan chan *sonm.Order
-	market      sonm.MarketClient
-	log         *zap.Logger
-	ctx         context.Context
+type engine struct {
+	ordersCreateChan  chan *Corder
+	ordersResultsChan chan *sonm.Order
+
+	market sonm.MarketClient
+	deals  sonm.DealManagementClient
+	log    *zap.Logger
+	ctx    context.Context
 }
 
-func NewOrderManager(ctx context.Context, log *zap.Logger, market sonm.MarketClient) *orderManager {
-	return &orderManager{
-		ctx:         ctx,
-		market:      market,
-		log:         log.Named("order-manager"),
-		ordersChan:  make(chan *Corder, concurrency),
-		resultsChan: make(chan *sonm.Order, concurrency),
+func NewEngine(ctx context.Context, log *zap.Logger, market sonm.MarketClient, deals sonm.DealManagementClient) *engine {
+	return &engine{
+		ctx:               ctx,
+		market:            market,
+		deals:             deals,
+		log:               log.Named("engine"),
+		ordersCreateChan:  make(chan *Corder, concurrency),
+		ordersResultsChan: make(chan *sonm.Order, concurrency),
 	}
 }
 
-func (w *orderManager) Create(bid *Corder) {
-	w.ordersChan <- bid
+func (w *engine) CreateOrder(bid *Corder) {
+	w.ordersCreateChan <- bid
 }
 
-func (w *orderManager) Restore(order *Corder) {
+func (w *engine) RestoreOrder(order *Corder) {
 	w.log.Debug("restoring order", zap.String("id", order.Order.GetId().Unwrap().String()))
-	w.resultsChan <- order.Order
+	w.ordersResultsChan <- order.Order
 }
 
-func (w *orderManager) sendOrderToMarket(bid *sonm.BidOrder) (*sonm.Order, error) {
+func (w *engine) sendOrderToMarket(bid *sonm.BidOrder) (*sonm.Order, error) {
 	w.log.Debug("creating order on market",
 		zap.String("price", bid.GetPrice().GetPerSecond().Unwrap().String()),
 		zap.Any("benchmarks", bid.Resources.GetBenchmarks()))
@@ -47,21 +50,21 @@ func (w *orderManager) sendOrderToMarket(bid *sonm.BidOrder) (*sonm.Order, error
 	return w.market.CreateOrder(w.ctx, bid)
 }
 
-func (w *orderManager) processCreate() {
-	for bid := range w.ordersChan {
+func (w *engine) processOrderCreate() {
+	for bid := range w.ordersCreateChan {
 		ord, err := w.sendOrderToMarket(bid.AsBID())
 		if err != nil {
 			w.log.Warn("cannot place order, retrying", zap.Error(err))
-			w.Create(bid)
+			w.CreateOrder(bid)
 			continue
 		}
 
-		w.resultsChan <- ord
+		w.ordersResultsChan <- ord
 	}
 }
 
-func (w *orderManager) processResult() {
-	for order := range w.resultsChan {
+func (w *engine) processOrderResult() {
+	for order := range w.ordersResultsChan {
 		w.log.Info("watching for deal with order",
 			zap.String("id", order.GetId().Unwrap().String()),
 			zap.String("price", order.GetPrice().ToPriceString()))
@@ -70,22 +73,24 @@ func (w *orderManager) processResult() {
 	}
 }
 
-func (w *orderManager) start(ctx context.Context) {
-	defer close(w.ordersChan)
-	defer close(w.resultsChan)
+func (w *engine) start(ctx context.Context) {
+	go func() {
+		defer close(w.ordersCreateChan)
+		defer close(w.ordersResultsChan)
 
-	w.log.Info("starting order manager", zap.Int("concurrency", concurrency))
-	defer w.log.Info("stopping order manager")
+		w.log.Info("starting engine", zap.Int("concurrency", concurrency))
+		defer w.log.Info("stopping engine")
 
-	for i := 0; i < concurrency; i++ {
-		go w.processCreate()
-	}
+		for i := 0; i < concurrency; i++ {
+			go w.processOrderCreate()
+		}
 
-	for i := 0; i < concurrency; i++ {
-		go w.processResult()
-	}
+		for i := 0; i < concurrency; i++ {
+			go w.processOrderResult()
+		}
 
-	<-ctx.Done()
+		<-ctx.Done()
+	}()
 }
 
 type FakeMarketClient struct {
