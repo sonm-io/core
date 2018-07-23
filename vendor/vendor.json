@@ -1631,6 +1631,12 @@
 			"revisionTime": "2017-07-26T07:40:41Z"
 		},
 		{
+			"checksumSHA1": "Wh5UWcoVIDuFB9QXX/6gSQtdMW8=",
+			"path": "github.com/tcnksm/go-input",
+			"revision": "548a7d7a8ee8fcb3d013fae6acf857da56165975",
+			"revisionTime": "2018-04-04T06:18:46Z"
+		},
+		{
 			"checksumSHA1": "m5CTPOjbcBz/xOSyUSa1HCa6idc=",
 			"path": "github.com/tehnerd/gnl2go",
 			"revision": "101b5c6e2d44eb00fbfe85917ffc0bf95249977b",
