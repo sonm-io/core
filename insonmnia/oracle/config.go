@@ -13,7 +13,7 @@ type oracleConfig struct {
 	IsMaster             bool          `yaml:"is_master" default:"false"`
 	PriceUpdatePeriod    time.Duration `yaml:"price_update_period" default:"15s"`
 	ContractUpdatePeriod time.Duration `yaml:"contract_update_period" default:"15m"`
-	Percent              float64       `yaml:"deviation_percent" required:"1.0"`
+	Percent              float64       `yaml:"deviation_percent" default:"1.0"`
 }
 
 type Config struct {
