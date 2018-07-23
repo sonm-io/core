@@ -46,15 +46,17 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*Connor, error) {
 		return nil, fmt.Errorf("cannot create connection to node: %v", err)
 	}
 
+	marketClient := sonm.NewMarketClient(cc)
+
 	return &Connor{
 		key:                key,
 		cfg:                cfg,
 		log:                log,
-		marketClient:       sonm.NewMarketClient(cc),
+		marketClient:       marketClient,
 		dealsClient:        sonm.NewDealManagementClient(cc),
 		snmPriceProvider:   price.NewSonmPriceProvider(),
 		tokenPriceProvider: price.NewProvider(cfg.Mining.Token),
-		orderManager:       NewOrderManager(ctx, log, nil),
+		orderManager:       NewOrderManager(ctx, log, marketClient),
 	}, nil
 }
 
@@ -71,16 +73,28 @@ func (c *Connor) Serve(ctx context.Context) error {
 	// todo: detach in background
 	go c.orderManager.start(ctx)
 
-	//newOrder := newBidTemplate(c.cfg.Mining.Token)
-	//c.log.Debug("steps", zap.Uint64("from", c.cfg.Market.FromHashRate),
-	//	zap.Uint64("to", c.cfg.Market.ToHashRate),
-	//	zap.Uint64("step", c.cfg.Market.Step))
+	// restore two subsets of orders, then separate on non-exiting orders that
+	// should be placed on market and active orders that should be watched
+	// for deal opening.
+	exitingOrders, err := c.marketClient.GetOrders(ctx, &sonm.Count{Count: 1000})
+	if err != nil {
+		return fmt.Errorf("cannot load orders from market: %v", err)
+	}
 
-	for hr := c.cfg.Market.FromHashRate; hr <= c.cfg.Market.ToHashRate; hr += c.cfg.Market.Step {
-		p := big.NewInt(0).Mul(c.tokenPriceProvider.GetPrice(), big.NewInt(int64(hr)))
-		c.log.Debug("requesting initial order placement", zap.String("price", p.String()), zap.Uint64("hashrate", hr))
-		NewCorderFromParams(c.cfg.Mining.Token, p, hr)
-		// c.orderManager.Create(newOrder(p, hr))
+	exitingCorders := NewCordersSlice(exitingOrders.GetOrders(), c.cfg.Mining.Token)
+	targetCorders := c.getTargetCorders()
+
+	set := c.divideOrdersSets(exitingCorders, targetCorders)
+	c.log.Debug("orders set calculated",
+		zap.Int("to_restore", len(set.toRestore)),
+		zap.Int("to_create", len(set.toCreate)))
+
+	for _, ord := range set.toCreate {
+		c.orderManager.Create(ord)
+	}
+
+	for _, ord := range set.toRestore {
+		c.orderManager.Restore(ord)
 	}
 
 	<-ctx.Done()
@@ -101,29 +115,39 @@ func (c *Connor) loadInitialData(ctx context.Context) error {
 }
 
 type ordersSets struct {
-	orderToCreate   []*Corder
-	ordersToRestore []*Corder
+	toCreate  []*Corder
+	toRestore []*Corder
 }
 
-func (c *Connor) divideOrdersSets(ctx context.Context) (*ordersSets, error) {
-	exitingOrders, err := c.marketClient.GetOrders(ctx, &sonm.Count{Count: 1000})
-	if err != nil {
-		return nil, fmt.Errorf("cannot load orders from market: %v", err)
+func (c *Connor) divideOrdersSets(exitingCorders, targetCorders []*Corder) *ordersSets {
+	byHashrate := map[uint64]*Corder{}
+	for _, ord := range exitingCorders {
+		byHashrate[ord.GetHashrate()] = ord
 	}
 
-	exitingCorders := NewCordersSlice(exitingOrders.GetOrders(), c.cfg.Mining.Token)
-	// todo: sdghdjfghdjkfg
-	_ = exitingCorders
-	return nil, nil
+	set := &ordersSets{
+		toCreate:  make([]*Corder, 0),
+		toRestore: make([]*Corder, 0),
+	}
+
+	for _, ord := range targetCorders {
+		if ex, ok := byHashrate[ord.GetHashrate()]; ok {
+			set.toRestore = append(set.toRestore, ex)
+		} else {
+			set.toCreate = append(set.toCreate, ord)
+		}
+	}
+
+	return set
 }
 
 func (c *Connor) getTargetCorders() []*Corder {
 	v := make([]*Corder, 0)
 
-	for hr := c.cfg.Market.FromHashRate; hr <= c.cfg.Market.ToHashRate; hr += c.cfg.Market.Step {
-		bigHashrate := big.NewInt(int64(hr))
+	for hashrate := c.cfg.Market.FromHashRate; hashrate <= c.cfg.Market.ToHashRate; hashrate += c.cfg.Market.Step {
+		bigHashrate := big.NewInt(int64(hashrate))
 		p := big.NewInt(0).Mul(bigHashrate, c.tokenPriceProvider.GetPrice())
-		order, _ := NewCorderFromParams(c.cfg.Mining.Token, p, hr)
+		order, _ := NewCorderFromParams(c.cfg.Mining.Token, p, hashrate)
 		v = append(v, order)
 	}
 

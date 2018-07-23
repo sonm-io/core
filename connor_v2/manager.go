@@ -20,12 +20,10 @@ type orderManager struct {
 	ctx         context.Context
 }
 
-func NewOrderManager(ctx context.Context, log *zap.Logger, market *sonm.MarketClient) *orderManager {
+func NewOrderManager(ctx context.Context, log *zap.Logger, market sonm.MarketClient) *orderManager {
 	return &orderManager{
-		ctx: ctx,
-		// todo: use real marketClient
-		// marketClient:      marketClient,
-		market:      &FakeMarketClient{},
+		ctx:         ctx,
+		market:      market,
 		log:         log.Named("order-manager"),
 		ordersChan:  make(chan *Corder, concurrency),
 		resultsChan: make(chan *sonm.Order, concurrency),
@@ -37,18 +35,19 @@ func (w *orderManager) Create(bid *Corder) {
 }
 
 func (w *orderManager) Restore(order *Corder) {
+	w.log.Debug("restoring order", zap.String("id", order.Order.GetId().Unwrap().String()))
 	w.resultsChan <- order.Order
 }
 
 func (w *orderManager) sendOrderToMarket(bid *sonm.BidOrder) (*sonm.Order, error) {
-	// todo: warp with required parameters
-	w.log.Debug("sending order to marketClient")
+	w.log.Debug("creating order on market",
+		zap.String("price", bid.GetPrice().GetPerSecond().Unwrap().String()),
+		zap.Any("benchmarks", bid.Resources.GetBenchmarks()))
+
 	return w.market.CreateOrder(w.ctx, bid)
 }
 
 func (w *orderManager) processCreate() {
-	w.log.Debug("processCreate started")
-
 	for bid := range w.ordersChan {
 		ord, err := w.sendOrderToMarket(bid.AsBID())
 		if err != nil {
@@ -62,10 +61,8 @@ func (w *orderManager) processCreate() {
 }
 
 func (w *orderManager) processResult() {
-	w.log.Debug("processResult started")
-
 	for order := range w.resultsChan {
-		w.log.Info("order created",
+		w.log.Info("watching for deal with order",
 			zap.String("id", order.GetId().Unwrap().String()),
 			zap.String("price", order.GetPrice().ToPriceString()))
 

@@ -33,11 +33,10 @@ func NewCorderFromParams(token string, price *big.Int, hashrate uint64) (*Corder
 	}
 
 	ord := &sonm.Order{
-		OrderType: sonm.OrderType_BID,
-		Price:     sonm.NewBigInt(price),
-		Netflags:  &sonm.NetFlags{Flags: sonm.NetworkOutbound},
-		// todo: get from config
-		// IdentityLevel: 0,
+		OrderType:     sonm.OrderType_BID,
+		Price:         sonm.NewBigInt(price),
+		Netflags:      &sonm.NetFlags{Flags: sonm.NetworkOutbound},
+		IdentityLevel: sonm.IdentityLevel_ANONYMOUS,
 		// Blacklist:     "",
 		Tag:        []byte(fmt.Sprintf("connor_v2_%s", strings.ToLower(token))),
 		Benchmarks: bench,
