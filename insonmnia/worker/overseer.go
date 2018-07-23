@@ -15,6 +15,7 @@ import (
 	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -32,7 +33,7 @@ const dieEvent = "die"
 // Description for a target application.
 type Description struct {
 	pb.Container
-	Reference    string
+	Reference    reference.Reference
 	Auth         string
 	Resources    *pb.AskPlanResources
 	CGroupParent string
@@ -50,6 +51,39 @@ type Description struct {
 
 func (d *Description) ID() string {
 	return d.TaskId
+}
+
+func (d Description) MarshalJSON() ([]byte, error) {
+	type Alias Description
+	b, err := json.Marshal(&struct {
+		Reference string `json:"Reference"`
+		Alias
+	}{
+		Reference: d.Reference.String(),
+		Alias:     (Alias)(d),
+	})
+
+	return b, err
+}
+
+func (d *Description) UnmarshalJSON(data []byte) error {
+	type Alias Description
+	aux := &struct {
+		Reference string `json:"Reference"`
+		*Alias
+	}{
+		Alias: (*Alias)(d),
+	}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+	ref, err := reference.ParseAnyReference(aux.Reference)
+
+	if err != nil {
+		return err
+	}
+	d.Reference = ref
+	return nil
 }
 
 func (d *Description) Volumes() map[string]*pb.Volume {
@@ -448,10 +482,10 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	if err != nil {
 		return err
 	}
-	refStr := d.Reference
+	refStr := d.Reference.String()
 	for _, summary := range summaries {
 		if summary.ID == refStr {
-			log.S(ctx).Infof("application image %s is already present", d.Reference)
+			log.S(ctx).Infof("application image %s is already present", d.Reference.String())
 			return nil
 		}
 	}

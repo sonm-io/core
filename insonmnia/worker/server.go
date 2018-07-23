@@ -657,7 +657,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 
 	var d = Description{
 		Container:    *request.Spec.Container,
-		Reference:    reference.String(),
+		Reference:    reference,
 		Auth:         spec.Registry.Auth(),
 		CGroupParent: cgroup.Suffix(),
 		Resources:    spec.Resources,
@@ -1272,7 +1272,7 @@ func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
 		return Description{}, err
 	}
 	return Description{
-		Reference: reference.String(),
+		Reference: reference,
 		Container: pb.Container{Env: map[string]string{
 			bm.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
 		}},
