@@ -111,6 +111,8 @@ func (w *engine) waitForDeal(order *Corder) {
 }
 
 func (w *engine) processDeal(deal *sonm.Deal) {
+	w.log.Debug("start deal processing", zap.String("id", deal.GetId().Unwrap().String()))
+
 	// ping worker
 	// start task
 	// move task traction to another coroutine
