@@ -12,9 +12,11 @@ import (
 )
 
 type miningConfig struct {
-	Token  string         `yaml:"token" required:"true"`
-	Image  string         `yaml:"image" required:"true"`
-	Wallet common.Address `yaml:"wallet" required:"true"`
+	Token           string         `yaml:"token" required:"true"`
+	Image           string         `yaml:"image" required:"true"`
+	Wallet          common.Address `yaml:"wallet" required:"true"`
+	PoolReportURL   string         `yaml:"pool_report" required:"false"`
+	PoolTrackingURL string         `yaml:"pool_tracking" required:"false"`
 }
 
 type marketConfig struct {
