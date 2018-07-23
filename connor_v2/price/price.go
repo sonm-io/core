@@ -51,7 +51,7 @@ func (p *nullPriceProvider) Update(ctx context.Context) error {
 }
 
 func (p *nullPriceProvider) GetPrice() *big.Int {
-	return big.NewInt(5e10)
+	return big.NewInt(5e5)
 }
 
 func newNullPriceProvider() Provider { return &nullPriceProvider{} }

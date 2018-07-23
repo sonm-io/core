@@ -57,7 +57,7 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*Connor, error) {
 		dealsClient:        dealsClient,
 		snmPriceProvider:   price.NewSonmPriceProvider(),
 		tokenPriceProvider: price.NewProvider(cfg.Mining.Token),
-		orderManager:       NewEngine(ctx, log, marketClient, dealsClient),
+		orderManager:       NewEngine(ctx, cfg.Engine, log, marketClient, dealsClient),
 	}, nil
 }
 
