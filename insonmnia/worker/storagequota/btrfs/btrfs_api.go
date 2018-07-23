@@ -53,10 +53,10 @@ func (btrfsCLI) QuotaExists(ctx context.Context, qgroupID string, path string) (
 		log.G(ctx).Error("failet to lookup quota", zap.String("path", path), zap.String("quota", qgroupID), zap.Error(err))
 	}
 
-	return lookupQuotaInShowOutpout(output, qgroupID)
+	return lookupQuotaInShowOutput(output, qgroupID)
 }
 
-func lookupQuotaInShowOutpout(output []byte, qgroupID string) (bool, error) {
+func lookupQuotaInShowOutput(output []byte, qgroupID string) (bool, error) {
 	qgroupIDBytes := []byte(qgroupID)
 	r := bytes.NewReader(output)
 	scanner := bufio.NewScanner(r)
@@ -134,7 +134,7 @@ func (btrfsCLI) QuotaLimit(ctx context.Context, sizeInBytes uint64, qgroupID str
 }
 
 func (btrfsCLI) QuotaAssign(ctx context.Context, src string, dst string, path string) error {
-	output, err := exec.CommandContext(ctx, "btrfs", "qgroup", "assign", src, dst, path).CombinedOutput()
+	output, err := exec.CommandContext(ctx, "btrfs", "qgroup", "assign", "--rescan", src, dst, path).CombinedOutput()
 	if err != nil {
 		if bytes.HasPrefix(output, []byte("WARNING: quotas may be inconsistent, rescan needed")) {
 			_, err = exec.CommandContext(ctx, "btrfs", "quota", "rescan", "-w", path).Output()
