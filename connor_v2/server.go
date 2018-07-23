@@ -22,7 +22,7 @@ type Connor struct {
 
 	snmPriceProvider   price.Provider
 	tokenPriceProvider price.Provider
-	orderManager       *orderManager
+	orderManager       *engine
 	marketClient       sonm.MarketClient
 	dealsClient        sonm.DealManagementClient
 }
@@ -47,16 +47,17 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*Connor, error) {
 	}
 
 	marketClient := sonm.NewMarketClient(cc)
+	dealsClient := sonm.NewDealManagementClient(cc)
 
 	return &Connor{
 		key:                key,
 		cfg:                cfg,
 		log:                log,
 		marketClient:       marketClient,
-		dealsClient:        sonm.NewDealManagementClient(cc),
+		dealsClient:        dealsClient,
 		snmPriceProvider:   price.NewSonmPriceProvider(),
 		tokenPriceProvider: price.NewProvider(cfg.Mining.Token),
-		orderManager:       NewOrderManager(ctx, log, marketClient),
+		orderManager:       NewEngine(ctx, log, marketClient, dealsClient),
 	}, nil
 }
 
@@ -70,8 +71,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 	c.log.Debug("price", zap.String("SNM", c.snmPriceProvider.GetPrice().String()),
 		zap.String(c.cfg.Mining.Token, c.tokenPriceProvider.GetPrice().String()))
 
-	// todo: detach in background
-	go c.orderManager.start(ctx)
+	c.orderManager.start(ctx)
 
 	// restore two subsets of orders, then separate on non-exiting orders that
 	// should be placed on market and active orders that should be watched
@@ -90,11 +90,11 @@ func (c *Connor) Serve(ctx context.Context) error {
 		zap.Int("to_create", len(set.toCreate)))
 
 	for _, ord := range set.toCreate {
-		c.orderManager.Create(ord)
+		c.orderManager.CreateOrder(ord)
 	}
 
 	for _, ord := range set.toRestore {
-		c.orderManager.Restore(ord)
+		c.orderManager.RestoreOrder(ord)
 	}
 
 	<-ctx.Done()
