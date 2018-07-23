@@ -53,6 +53,39 @@ func (m *Benchmarks) Validate() error {
 	return nil
 }
 
+func NewBenchmarksFromMap(m map[string]uint64) (*Benchmarks, error) {
+	if len(m) < MinNumBenchmarks {
+		return nil, fmt.Errorf("expected at least %d benchmarks, got %d", MinNumBenchmarks, len(m))
+	}
+
+	b := &Benchmarks{Values: make([]uint64, len(m))}
+	keys := []string{
+		"cpu-sysbench-multi",
+		"cpu-sysbench-single",
+		"cpu-cores",
+		"ram-size",
+		"storage-size",
+		"net-download",
+		"net-upload",
+		"gpu-count",
+		"gpu-mem",
+		"gpu-eth-hashrate",
+		"gpu-cash-hashrate",
+		"gpu-redshift",
+	}
+
+	for i, key := range keys {
+		v, ok := m[key]
+		if !ok {
+			return nil, fmt.Errorf("key `%s` is missing", key)
+		}
+
+		b.Values[i] = v
+	}
+
+	return b, nil
+}
+
 func (m *Benchmarks) Get(idx int) uint64 {
 	if len(m.Values) <= idx {
 		return 0
