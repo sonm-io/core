@@ -29,7 +29,7 @@ type nodeConfig struct {
 type Config struct {
 	Node   nodeConfig         `yaml:"node"`
 	Eth    accounts.EthConfig `yaml:"ethereum"`
-	Market marketConfig       `yaml:"marketClient"`
+	Market marketConfig       `yaml:"market"`
 	Mining miningConfig       `yaml:"mining"`
 	Log    logging.Config     `yaml:"log"`
 
