@@ -29,7 +29,7 @@ type nodeConfig struct {
 type Config struct {
 	Node   nodeConfig         `yaml:"node"`
 	Eth    accounts.EthConfig `yaml:"ethereum"`
-	Market marketConfig       `yaml:"market"`
+	Market marketConfig       `yaml:"marketClient"`
 	Mining miningConfig       `yaml:"mining"`
 	Log    logging.Config     `yaml:"log"`
 
@@ -38,10 +38,9 @@ type Config struct {
 
 func (c *Config) validate() error {
 	availableTokens := map[string]bool{
-		"ETH": true,
-		"ZEC": true,
-		// null token is for testing purposes
-		"NULL": true,
+		"ETH":  true,
+		"ZEC":  true,
+		"NULL": true, // null token is for testing purposes
 	}
 
 	if _, ok := availableTokens[c.Mining.Token]; !ok {

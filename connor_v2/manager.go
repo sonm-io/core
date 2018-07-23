@@ -13,7 +13,7 @@ import (
 const concurrency = 10
 
 type orderManager struct {
-	ordersChan  chan *sonm.BidOrder
+	ordersChan  chan *Corder
 	resultsChan chan *sonm.Order
 	market      sonm.MarketClient
 	log         *zap.Logger
@@ -23,22 +23,26 @@ type orderManager struct {
 func NewOrderManager(ctx context.Context, log *zap.Logger, market *sonm.MarketClient) *orderManager {
 	return &orderManager{
 		ctx: ctx,
-		// todo: use real market
-		// market:      market,
+		// todo: use real marketClient
+		// marketClient:      marketClient,
 		market:      &FakeMarketClient{},
 		log:         log.Named("order-manager"),
-		ordersChan:  make(chan *sonm.BidOrder, concurrency),
+		ordersChan:  make(chan *Corder, concurrency),
 		resultsChan: make(chan *sonm.Order, concurrency),
 	}
 }
 
-func (w *orderManager) Create(bid *sonm.BidOrder) {
+func (w *orderManager) Create(bid *Corder) {
 	w.ordersChan <- bid
+}
+
+func (w *orderManager) Restore(order *Corder) {
+	w.resultsChan <- order.Order
 }
 
 func (w *orderManager) sendOrderToMarket(bid *sonm.BidOrder) (*sonm.Order, error) {
 	// todo: warp with required parameters
-	w.log.Debug("sending order to market")
+	w.log.Debug("sending order to marketClient")
 	return w.market.CreateOrder(w.ctx, bid)
 }
 
@@ -46,7 +50,7 @@ func (w *orderManager) processCreate() {
 	w.log.Debug("processCreate started")
 
 	for bid := range w.ordersChan {
-		ord, err := w.sendOrderToMarket(bid)
+		ord, err := w.sendOrderToMarket(bid.AsBID())
 		if err != nil {
 			w.log.Warn("cannot place order, retrying", zap.Error(err))
 			w.Create(bid)

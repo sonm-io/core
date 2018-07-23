@@ -23,9 +23,9 @@ type wtmCoin struct {
 	ID          int     `json:"id"`
 	Difficulty  float64 `json:"difficulty"`
 	BlockReward float64 `json:"block_reward"`
+	Nethash     int     `json:"nethash"`
 	// warn: somewhere it is string, somewhere int
 	// BlockTime   string  `json:"block_time"`
-	Nethash     int     `json:"nethash"`
 }
 
 type wtmResponse struct {
