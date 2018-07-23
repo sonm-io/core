@@ -81,13 +81,19 @@ func (c *Connor) Serve(ctx context.Context) error {
 		return fmt.Errorf("cannot load orders from market: %v", err)
 	}
 
+	exitingDeals, err := c.dealsClient.List(ctx, &sonm.Count{Count: 1000})
+	if err != nil {
+		return fmt.Errorf("cannot load deals from market: %v", err)
+	}
+
 	exitingCorders := NewCordersSlice(exitingOrders.GetOrders(), c.cfg.Mining.Token)
 	targetCorders := c.getTargetCorders()
 
 	set := c.divideOrdersSets(exitingCorders, targetCorders)
-	c.log.Debug("orders set calculated",
-		zap.Int("to_restore", len(set.toRestore)),
-		zap.Int("to_create", len(set.toCreate)))
+	c.log.Debug("restoring exiting entities",
+		zap.Int("orders_restore", len(set.toRestore)),
+		zap.Int("orders_create", len(set.toCreate)),
+		zap.Int("deals_restore", len(exitingDeals.GetDeal())))
 
 	for _, ord := range set.toCreate {
 		c.orderManager.CreateOrder(ord)
@@ -95,6 +101,10 @@ func (c *Connor) Serve(ctx context.Context) error {
 
 	for _, ord := range set.toRestore {
 		c.orderManager.RestoreOrder(ord)
+	}
+
+	for _, deal := range exitingDeals.GetDeal() {
+		c.orderManager.RestoreDeal(deal)
 	}
 
 	<-ctx.Done()
