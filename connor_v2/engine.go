@@ -2,34 +2,34 @@ package connor
 
 import (
 	"context"
-	"fmt"
-	"sync"
 
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
 )
 
 const concurrency = 10
 
 type engine struct {
 	ordersCreateChan  chan *Corder
-	ordersResultsChan chan *sonm.Order
+	ordersResultsChan chan *Corder
 
 	market sonm.MarketClient
 	deals  sonm.DealManagementClient
 	log    *zap.Logger
 	ctx    context.Context
+	cfg    engineConfig
 }
 
-func NewEngine(ctx context.Context, log *zap.Logger, market sonm.MarketClient, deals sonm.DealManagementClient) *engine {
+func NewEngine(ctx context.Context, cfg engineConfig, log *zap.Logger, market sonm.MarketClient, deals sonm.DealManagementClient) *engine {
 	return &engine{
 		ctx:               ctx,
 		market:            market,
 		deals:             deals,
+		cfg:               cfg,
 		log:               log.Named("engine"),
 		ordersCreateChan:  make(chan *Corder, concurrency),
-		ordersResultsChan: make(chan *sonm.Order, concurrency),
+		ordersResultsChan: make(chan *Corder, concurrency),
 	}
 }
 
@@ -39,7 +39,12 @@ func (w *engine) CreateOrder(bid *Corder) {
 
 func (w *engine) RestoreOrder(order *Corder) {
 	w.log.Debug("restoring order", zap.String("id", order.Order.GetId().Unwrap().String()))
-	w.ordersResultsChan <- order.Order
+	w.ordersResultsChan <- order
+}
+
+func (w *engine) RestoreDeal(deal *sonm.Deal) {
+	w.log.Debug("restoring deal", zap.String("id", deal.GetId().Unwrap().String()))
+	go w.processDeal(deal)
 }
 
 func (w *engine) sendOrderToMarket(bid *sonm.BidOrder) (*sonm.Order, error) {
@@ -52,25 +57,63 @@ func (w *engine) sendOrderToMarket(bid *sonm.BidOrder) (*sonm.Order, error) {
 
 func (w *engine) processOrderCreate() {
 	for bid := range w.ordersCreateChan {
-		ord, err := w.sendOrderToMarket(bid.AsBID())
+		created, err := w.sendOrderToMarket(bid.AsBID())
 		if err != nil {
 			w.log.Warn("cannot place order, retrying", zap.Error(err))
 			w.CreateOrder(bid)
 			continue
 		}
 
-		w.ordersResultsChan <- ord
+		w.ordersResultsChan <- NewCorderFromOrder(created, bid.token)
 	}
 }
 
 func (w *engine) processOrderResult() {
 	for order := range w.ordersResultsChan {
-		w.log.Info("watching for deal with order",
-			zap.String("id", order.GetId().Unwrap().String()),
-			zap.String("price", order.GetPrice().ToPriceString()))
-
-		// todo: spawn watching goroutine right here.
+		go w.waitForDeal(order)
 	}
+}
+
+func (w *engine) waitForDeal(order *Corder) {
+	id := order.GetId().Unwrap().String()
+
+	t := util.NewImmediateTicker(w.cfg.OrderWatchInterval)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-t.C:
+			w.log.Info("checking for deal with order", zap.String("id", id))
+
+			ord, err := w.market.GetOrderByID(w.ctx, &sonm.ID{Id: id})
+			if err != nil {
+				w.log.Warn("cannot get order info from market", zap.Error(err), zap.String("id", id))
+				continue
+			}
+
+			if ord.GetOrderStatus() == sonm.OrderStatus_ORDER_INACTIVE {
+				w.log.Info("order becomes inactive, looking for related deal", zap.String("id", id))
+
+				deal, err := w.deals.Status(w.ctx, ord.GetDealID())
+				if err != nil {
+					w.log.Warn("cannot get deal info from market", zap.Error(err), zap.String("deal_id", ord.GetDealID().Unwrap().String()))
+					continue
+				}
+
+				w.CreateOrder(order)
+				go w.processDeal(deal.GetDeal())
+				return
+			}
+
+			w.log.Debug("order still have no deal", zap.String("id", id))
+		}
+	}
+}
+
+func (w *engine) processDeal(deal *sonm.Deal) {
+	// ping worker
+	// start task
+	// move task traction to another coroutine
 }
 
 func (w *engine) start(ctx context.Context) {
@@ -91,35 +134,4 @@ func (w *engine) start(ctx context.Context) {
 
 		<-ctx.Done()
 	}()
-}
-
-type FakeMarketClient struct {
-	mu sync.Mutex
-	i  int64
-}
-
-func (f *FakeMarketClient) CreateOrder(ctx context.Context, in *sonm.BidOrder, opts ...grpc.CallOption) (*sonm.Order, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-
-	f.i++
-	return &sonm.Order{Id: sonm.NewBigIntFromInt(f.i)}, nil
-
-}
-
-func (f *FakeMarketClient) GetOrders(ctx context.Context, in *sonm.Count, opts ...grpc.CallOption) (*sonm.GetOrdersReply, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (f *FakeMarketClient) GetOrderByID(ctx context.Context, in *sonm.ID, opts ...grpc.CallOption) (*sonm.Order, error) {
-	return nil, fmt.Errorf("not implemented")
-
-}
-
-func (f *FakeMarketClient) CancelOrder(ctx context.Context, in *sonm.ID, opts ...grpc.CallOption) (*sonm.Empty, error) {
-	return nil, fmt.Errorf("not implemented")
-}
-
-func (f *FakeMarketClient) Purge(ctx context.Context, in *sonm.Empty, opts ...grpc.CallOption) (*sonm.Empty, error) {
-	return nil, fmt.Errorf("not implemented")
 }

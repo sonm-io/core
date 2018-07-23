@@ -2,6 +2,7 @@ package connor
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jinzhu/configor"
@@ -26,12 +27,17 @@ type nodeConfig struct {
 	Endpoint auth.Addr `json:"endpoint"`
 }
 
+type engineConfig struct {
+	OrderWatchInterval time.Duration `json:"order_watch_interval" default:"10s"`
+}
+
 type Config struct {
 	Node   nodeConfig         `yaml:"node"`
 	Eth    accounts.EthConfig `yaml:"ethereum"`
 	Market marketConfig       `yaml:"market"`
 	Mining miningConfig       `yaml:"mining"`
 	Log    logging.Config     `yaml:"log"`
+	Engine engineConfig       `yaml:"engine"`
 
 	Metrics string `yaml:"metrics" default:"127.0.0.1:14005"`
 }
