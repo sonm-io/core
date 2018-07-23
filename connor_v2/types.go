@@ -25,6 +25,8 @@ func NewCorderFromParams(token string, price *big.Int, hashrate uint64) (*Corder
 		m["gpu-eth-hashrate"] = hashrate
 	case "ZEC":
 		m["gpu-cash-hashrate"] = hashrate
+	case "NULL":
+		m["gpu-redshift"] = hashrate
 	}
 
 	bench, err := sonm.NewBenchmarksFromMap(m)
@@ -51,6 +53,8 @@ func (co *Corder) GetHashrate() uint64 {
 		return co.GetBenchmarks().GPUEthHashrate()
 	case "ZEC":
 		return co.GetBenchmarks().GPUCashHashrate()
+	case "NULL":
+		return co.GetBenchmarks().GPURedshift()
 	default:
 		return 0
 	}
@@ -66,6 +70,9 @@ func (co *Corder) getBenchmarkMap() map[string]uint64 {
 	case "ZEC":
 		m["gpu-cash-hashrate"] = co.GetHashrate()
 		m["gpu-mem"] = 900e6 // todo: I should find the right value for this
+	case "NULL":
+		m["gpu-redshift"] = co.GetHashrate()
+		m["gpu-mem"] = 9e6
 	}
 	return m
 }
@@ -102,10 +109,10 @@ func baseBenchmark() map[string]uint64 {
 		"cpu-sysbench-multi":  100,
 		"cpu-sysbench-single": 100,
 		"cpu-cores":           1,
-		"ram-size":            268435456, // 256Mb
+		"ram-size":            256000000,
 		"storage-size":        0,
-		"net-download":        1048576,
-		"net-upload":          1048576,
+		"net-download":        1000000,
+		"net-upload":          1000000,
 		"gpu-count":           0,
 		"gpu-mem":             0,
 		"gpu-eth-hashrate":    0,
