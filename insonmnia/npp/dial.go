@@ -81,6 +81,7 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 				nppChannel <- newConnTuple(nil, err)
 				return
 			}
+			defer puncher.Close()
 
 			nppChannel <- newConnTuple(puncher.Dial(ethAddr))
 		}()
