@@ -70,27 +70,27 @@ func (c *Connor) Serve(ctx context.Context) error {
 
 	c.engine.start(ctx)
 
-	// restore two subsets of orders, then separate on non-exiting orders that
+	// restore two subsets of orders, then separate on non-existing orders that
 	// should be placed on market and active orders that should be watched
 	// for deal opening.
-	exitingOrders, err := c.marketClient.GetOrders(ctx, &sonm.Count{Count: 1000})
+	existingOrders, err := c.marketClient.GetOrders(ctx, &sonm.Count{Count: 1000})
 	if err != nil {
 		return fmt.Errorf("cannot load orders from market: %v", err)
 	}
 
-	exitingDeals, err := c.dealsClient.List(ctx, &sonm.Count{Count: 1000})
+	existingDeals, err := c.dealsClient.List(ctx, &sonm.Count{Count: 1000})
 	if err != nil {
 		return fmt.Errorf("cannot load deals from market: %v", err)
 	}
 
-	exitingCorders := NewCordersSlice(exitingOrders.GetOrders(), c.cfg.Mining.Token)
+	existingCorders := NewCordersSlice(existingOrders.GetOrders(), c.cfg.Mining.Token)
 	targetCorders := c.getTargetCorders()
 
-	set := c.divideOrdersSets(exitingCorders, targetCorders)
-	c.log.Debug("restoring exiting entities",
+	set := c.divideOrdersSets(existingCorders, targetCorders)
+	c.log.Debug("restoring existing entities",
 		zap.Int("orders_restore", len(set.toRestore)),
 		zap.Int("orders_create", len(set.toCreate)),
-		zap.Int("deals_restore", len(exitingDeals.GetDeal())))
+		zap.Int("deals_restore", len(existingDeals.GetDeal())))
 
 	for _, ord := range set.toCreate {
 		c.engine.CreateOrder(ord)
@@ -100,7 +100,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 		c.engine.RestoreOrder(ord)
 	}
 
-	for _, deal := range exitingDeals.GetDeal() {
+	for _, deal := range existingDeals.GetDeal() {
 		c.engine.RestoreDeal(deal)
 	}
 
@@ -126,9 +126,9 @@ type ordersSets struct {
 	toRestore []*Corder
 }
 
-func (c *Connor) divideOrdersSets(exitingCorders, targetCorders []*Corder) *ordersSets {
+func (c *Connor) divideOrdersSets(existingCorders, targetCorders []*Corder) *ordersSets {
 	byHashrate := map[uint64]*Corder{}
-	for _, ord := range exitingCorders {
+	for _, ord := range existingCorders {
 		byHashrate[ord.GetHashrate()] = ord
 	}
 
