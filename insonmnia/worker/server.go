@@ -371,19 +371,19 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 }
 
 type runningContainerInfo struct {
-	Description Description         `json:"description,omitempty"`
-	Cinfo       ContainerInfo       `json:"cinfo,omitempty"`
-	Resources   pb.AskPlanResources `json:"resources,omitempty"`
+	Description Description   `json:"description,omitempty"`
+	Cinfo       ContainerInfo `json:"cinfo,omitempty"`
+	Spec        pb.TaskSpec   `json:"spec,omitempty"`
 }
 
-func (m *Worker) saveContainerInfo(id string, info ContainerInfo, d Description, spec pb.AskPlanResources) {
+func (m *Worker) saveContainerInfo(id string, info ContainerInfo, d Description, spec pb.TaskSpec) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.storage.Save(info.ID, runningContainerInfo{
 		Description: d,
 		Cinfo:       info,
-		Resources:   spec,
+		Spec:        spec,
 	})
 
 	m.containers[id] = &info
@@ -731,7 +731,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		reply.PortMap[string(internalPort)] = &pb.Endpoints{Endpoints: socketAddrs}
 	}
 
-	m.saveContainerInfo(taskID, containerInfo, d, *spec.Resources)
+	m.saveContainerInfo(taskID, containerInfo, d, *spec)
 
 	go m.listenForStatus(statusListener, taskID)
 
@@ -963,8 +963,28 @@ func (m *Worker) setupRunningContainers() error {
 
 			m.containers[info.Cinfo.TaskId] = &info.Cinfo
 
+			networks, err := structs.NewNetworkSpecs(info.Spec.Container.Networks)
+
+			if err != nil {
+				return err
+			}
+
+			info.Description.networks = networks
+
+			mounts := make([]volume.Mount, 0)
+
+			for _, spec := range info.Spec.Container.Mounts {
+				mount, err := volume.NewMount(spec)
+				if err != nil {
+					return err
+				}
+				mounts = append(mounts, mount)
+			}
+
+			info.Description.mounts = mounts
+
 			m.ovs.Attach(m.ctx, container.ID, info.Description)
-			m.resources.ConsumeTask(info.Cinfo.AskID, info.Cinfo.TaskId, &info.Resources)
+			m.resources.ConsumeTask(info.Cinfo.AskID, info.Cinfo.TaskId, info.Spec.Resources)
 		}
 	}
 

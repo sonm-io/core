@@ -56,11 +56,13 @@ func (d *Description) ID() string {
 func (d Description) MarshalJSON() ([]byte, error) {
 	type Alias Description
 	b, err := json.Marshal(&struct {
-		Reference string `json:"Reference"`
+		Reference  string `json:"Reference"`
+		Autoremove bool
 		Alias
 	}{
-		Reference: d.Reference.String(),
-		Alias:     (Alias)(d),
+		Reference:  d.Reference.String(),
+		Autoremove: d.autoremove,
+		Alias:      (Alias)(d),
 	})
 
 	return b, err
@@ -69,7 +71,8 @@ func (d Description) MarshalJSON() ([]byte, error) {
 func (d *Description) UnmarshalJSON(data []byte) error {
 	type Alias Description
 	aux := &struct {
-		Reference string `json:"Reference"`
+		Reference  string `json:"Reference"`
+		Autoremove bool
 		*Alias
 	}{
 		Alias: (*Alias)(d),
@@ -79,9 +82,12 @@ func (d *Description) UnmarshalJSON(data []byte) error {
 	}
 	ref, err := reference.ParseAnyReference(aux.Reference)
 
+	d.autoremove = aux.Autoremove
+
 	if err != nil {
 		return err
 	}
+
 	d.Reference = ref
 	return nil
 }
