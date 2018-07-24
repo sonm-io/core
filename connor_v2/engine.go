@@ -95,7 +95,7 @@ func (e *engine) waitForDeal(order *Corder) {
 	for {
 		select {
 		case <-t.C:
-			log.Info("checking for deal with order")
+			log.Debug("checking for deal for order")
 
 			ord, err := e.market.GetOrderByID(e.ctx, &sonm.ID{Id: id})
 			if err != nil {
@@ -121,6 +121,7 @@ func (e *engine) waitForDeal(order *Corder) {
 
 				e.CreateOrder(order, "order is turned into deal")
 				e.processDeal(deal.GetDeal())
+				return
 			}
 
 			log.Debug("order still have no deal")
@@ -238,6 +239,8 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 					return err
 				}
 			}
+			log.Debug("task tracking OK, resetting failure counter")
+			try = 0
 		}
 	}
 }
