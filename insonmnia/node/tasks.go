@@ -143,8 +143,6 @@ func (t *tasksAPI) PushTask(clientStream pb.TaskManagement_PushTaskServer) error
 		return err
 	}
 
-	t.log.Infow("handling PushTask request", zap.String("deal_id", meta.dealID))
-
 	workerClient, cc, err := t.remotes.getWorkerClientForDeal(meta.ctx, meta.dealID)
 	if err != nil {
 		return err

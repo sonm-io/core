@@ -6,6 +6,7 @@ package xgrpc
 import (
 	"fmt"
 	"net"
+	"reflect"
 	"time"
 
 	"github.com/grpc-ecosystem/go-grpc-middleware"
@@ -22,6 +23,11 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
+)
+
+const (
+	traceIdFieldKey = "span.trace_id"
+	spanIdFieldKey  = "span.span_id"
 )
 
 type ServerOption func(options *options)
@@ -152,8 +158,8 @@ func wrapZapContextWithTracing(ctx context.Context) context.Context {
 
 	spanContext, ok := span.Context().(basictracer.SpanContext)
 	if ok && spanContext.Sampled {
-		ctx_zap.AddFields(ctx, zap.String("span.trace_id", hex(spanContext.TraceID)))
-		ctx_zap.AddFields(ctx, zap.String("span.span_id", hex(spanContext.SpanID)))
+		ctx_zap.AddFields(ctx, zap.String(traceIdFieldKey, hex(spanContext.TraceID)))
+		ctx_zap.AddFields(ctx, zap.String(spanIdFieldKey, hex(spanContext.SpanID)))
 	}
 	return ctx
 }
@@ -227,4 +233,73 @@ func verifyUnaryInterceptor() grpc.UnaryServerInterceptor {
 
 		return resp, nil
 	}
+}
+
+// RequestLogInterceptor is an options that activates gRPC service call logging before
+// the real execution begins.
+//
+// Note, that to enable tracing logging you should specify this option AFTER
+// trace interceptors.
+func RequestLogInterceptor(log *zap.Logger) ServerOption {
+	return func(o *options) {
+		o.interceptors.u = append(o.interceptors.u, requestLogUnaryInterceptor(log.Sugar()))
+		o.interceptors.s = append(o.interceptors.s, requestLogStreamInterceptor(log.Sugar()))
+	}
+}
+
+func requestLogUnaryInterceptor(log *zap.SugaredLogger) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		executeRequestLogging(ctx, req, info.FullMethod, log)
+		return handler(ctx, req)
+	}
+}
+
+func requestLogStreamInterceptor(log *zap.SugaredLogger) grpc.StreamServerInterceptor {
+	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		ss = &requestLoggingWrappedStream{
+			ServerStream: ss,
+			ctx:          ss.Context(),
+			fullMethod:   info.FullMethod,
+			log:          log,
+		}
+
+		return handler(srv, ss)
+	}
+}
+
+func executeRequestLogging(ctx context.Context, req interface{}, method string, log *zap.SugaredLogger) {
+	service, method := MethodInfo(method).IntoTuple()
+	attributes := []interface{}{
+		zap.Any("request", reflect.Indirect(reflect.ValueOf(req)).Interface()),
+		zap.String("grpc.service", service),
+		zap.String("grpc.method", method),
+	}
+
+	span := opentracing.SpanFromContext(ctx)
+	if span != nil {
+		spanContext, ok := span.Context().(basictracer.SpanContext)
+		if ok && spanContext.Sampled {
+			attributes = append(attributes,
+				zap.String(traceIdFieldKey, hex(spanContext.TraceID)),
+				zap.String(spanIdFieldKey, hex(spanContext.SpanID)),
+			)
+		}
+	}
+
+	log.With(attributes...).Infof("handling %s request", method)
+}
+
+type requestLoggingWrappedStream struct {
+	grpc.ServerStream
+	ctx        context.Context
+	fullMethod string
+	log        *zap.SugaredLogger
+}
+
+func (m *requestLoggingWrappedStream) RecvMsg(msg interface{}) error {
+	err := m.ServerStream.RecvMsg(msg)
+
+	executeRequestLogging(m.ctx, msg, m.fullMethod, m.log)
+
+	return err
 }
