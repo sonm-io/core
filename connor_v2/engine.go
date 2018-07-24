@@ -2,6 +2,7 @@ package connor
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/sonm-io/core/proto"
@@ -40,106 +41,122 @@ func NewEngine(ctx context.Context, cfg engineConfig, miningCfg miningConfig, lo
 	}
 }
 
-func (w *engine) CreateOrder(bid *Corder) {
-	w.ordersCreateChan <- bid
+func (e *engine) CreateOrder(bid *Corder) {
+	e.ordersCreateChan <- bid
 }
 
-func (w *engine) RestoreOrder(order *Corder) {
-	w.log.Debug("restoring order", zap.String("id", order.Order.GetId().Unwrap().String()))
-	w.ordersResultsChan <- order
+func (e *engine) RestoreOrder(order *Corder) {
+	e.log.Debug("restoring order", zap.String("id", order.Order.GetId().Unwrap().String()))
+	e.ordersResultsChan <- order
 }
 
-func (w *engine) RestoreDeal(deal *sonm.Deal) {
-	w.log.Debug("restoring deal", zap.String("id", deal.GetId().Unwrap().String()))
-	go w.processDeal(deal)
+func (e *engine) RestoreDeal(deal *sonm.Deal) {
+	e.log.Debug("restoring deal", zap.String("id", deal.GetId().Unwrap().String()))
+	go e.processDeal(deal)
 }
 
-func (w *engine) sendOrderToMarket(bid *sonm.BidOrder) (*sonm.Order, error) {
-	w.log.Debug("creating order on market",
+// todo: restore tasks
+
+func (e *engine) sendOrderToMarket(bid *sonm.BidOrder) (*sonm.Order, error) {
+	e.log.Debug("creating order on market",
 		zap.String("price", bid.GetPrice().GetPerSecond().Unwrap().String()),
 		zap.Any("benchmarks", bid.Resources.GetBenchmarks()))
 
-	return w.market.CreateOrder(w.ctx, bid)
+	return e.market.CreateOrder(e.ctx, bid)
 }
 
-func (w *engine) processOrderCreate() {
-	for bid := range w.ordersCreateChan {
-		created, err := w.sendOrderToMarket(bid.AsBID())
+func (e *engine) processOrderCreate() {
+	for bid := range e.ordersCreateChan {
+		created, err := e.sendOrderToMarket(bid.AsBID())
 		if err != nil {
-			w.log.Warn("cannot place order, retrying", zap.Error(err))
-			w.CreateOrder(bid)
+			e.log.Warn("cannot place order, retrying", zap.Error(err))
+			e.CreateOrder(bid)
 			continue
 		}
 
-		w.ordersResultsChan <- NewCorderFromOrder(created, bid.token)
+		e.ordersResultsChan <- NewCorderFromOrder(created, bid.token)
 	}
 }
 
-func (w *engine) processOrderResult() {
-	for order := range w.ordersResultsChan {
-		go w.waitForDeal(order)
+func (e *engine) processOrderResult() {
+	for order := range e.ordersResultsChan {
+		go e.waitForDeal(order)
 	}
 }
 
-func (w *engine) waitForDeal(order *Corder) {
+func (e *engine) waitForDeal(order *Corder) {
 	id := order.GetId().Unwrap().String()
+	log := e.log.With(zap.String("order_id", id))
 
-	// todo: use named logger with parameter (look at `processDeal`).
-
-	t := util.NewImmediateTicker(w.cfg.OrderWatchInterval)
+	t := util.NewImmediateTicker(e.cfg.OrderWatchInterval)
 	defer t.Stop()
 
 	for {
 		select {
 		case <-t.C:
-			w.log.Info("checking for deal with order", zap.String("id", id))
+			log.Info("checking for deal with order")
 
-			ord, err := w.market.GetOrderByID(w.ctx, &sonm.ID{Id: id})
+			ord, err := e.market.GetOrderByID(e.ctx, &sonm.ID{Id: id})
 			if err != nil {
-				w.log.Warn("cannot get order info from market", zap.Error(err), zap.String("id", id))
+				log.Warn("cannot get order info from market", zap.Error(err))
 				continue
 			}
 
 			if ord.GetOrderStatus() == sonm.OrderStatus_ORDER_INACTIVE {
-				w.log.Info("order becomes inactive, looking for related deal", zap.String("id", id))
+				log.Info("order becomes inactive, looking for related deal")
 
-				deal, err := w.deals.Status(w.ctx, ord.GetDealID())
+				// todo: check that order have a deal
+				deal, err := e.deals.Status(e.ctx, ord.GetDealID())
 				if err != nil {
-					w.log.Warn("cannot get deal info from market", zap.Error(err), zap.String("deal_id", ord.GetDealID().Unwrap().String()))
+					log.Warn("cannot get deal info from market", zap.Error(err),
+						zap.String("deal_id", ord.GetDealID().Unwrap().String()))
 					continue
 				}
 
-				w.CreateOrder(order)
-				go w.processDeal(deal.GetDeal())
-				return
+				e.CreateOrder(order)
+				e.processDeal(deal.GetDeal())
 			}
 
-			w.log.Debug("order still have no deal", zap.String("id", id))
+			log.Debug("order still have no deal")
 		}
 	}
 }
 
-func (w *engine) processDeal(deal *sonm.Deal) {
+func (e *engine) processDeal(deal *sonm.Deal) {
 	dealID := deal.GetId().Unwrap().String()
-	log := w.log.Named("dealer").With(zap.String("deal_id", dealID),
-		zap.String("supplier", deal.GetSupplierID().Unwrap().Hex()))
+	log := e.log.Named("process-deal").With(zap.String("deal_id", dealID))
 
 	log.Debug("start deal processing")
 	defer log.Debug("stop deal processing")
+	defer e.finishDeal(deal.GetId())
 
+	// TODO(sshaman1101): check for deal status
+	taskReply, err := e.startTask(log, deal)
+	if err != nil {
+		// log
+		return
+	}
+
+	log.Info("task started")
+	err = e.trackTask(log, deal.GetId(), taskReply.GetId())
+	if err != nil {
+		log.Warn("task tracking failed", zap.Error(err))
+	}
+}
+
+func (e *engine) startTask(log *zap.Logger, deal *sonm.Deal) (*sonm.StartTaskReply, error) {
 	var taskReply *sonm.StartTaskReply
 
 	// todo: move retry settings to cfg
 	for try := 0; try < 5; try++ {
-		// todo: ctx with timeout?
-		// 1. ping worker
-
 		if try > 0 {
 			time.Sleep(10 * time.Second)
 		}
 
-		dealReply, err := w.deals.Status(w.ctx, deal.GetId())
+		// todo: ctx with timeout?
+		dealReply, err := e.deals.Status(e.ctx, deal.GetId())
 		if err != nil || dealReply.GetResources() == nil {
+			// todo: separate into two checks with different error messages
 			log.Warn("cannot connect to worker", zap.Error(err), zap.Int("try", try))
 			continue
 		}
@@ -147,14 +164,14 @@ func (w *engine) processDeal(deal *sonm.Deal) {
 		log.Debug("successfully obtained resources from worker", zap.Any("res", *dealReply.GetResources()))
 
 		// 2. start task
-		taskReply, err = w.tasks.Start(w.ctx, &sonm.StartTaskRequest{
+		taskReply, err = e.tasks.Start(e.ctx, &sonm.StartTaskRequest{
 			DealID: deal.GetId(),
 			Spec: &sonm.TaskSpec{
 				Container: &sonm.Container{
-					Image: w.miningCfg.Image,
+					Image: e.miningCfg.Image,
 					Env: map[string]string{
-						"WALLET":    w.miningCfg.Wallet.Hex(),
-						"POOL_ADDR": w.miningCfg.PoolReportURL,
+						"WALLET":    e.miningCfg.Wallet.Hex(),
+						"POOL_ADDR": e.miningCfg.PoolReportURL,
 					},
 				},
 				Resources: &sonm.AskPlanResources{},
@@ -168,26 +185,28 @@ func (w *engine) processDeal(deal *sonm.Deal) {
 		break
 	}
 
-	// task still not started after all retries
 	if taskReply == nil {
-		w.finishDeal(deal.GetId())
-		return
+		return nil, fmt.Errorf("cannot start task: retry count exceeded")
 	}
 
-	taskID := taskReply.GetId()
+	return taskReply, nil
+}
+
+func (e *engine) trackTask(log *zap.Logger, dealID *sonm.BigInt, taskID string) error {
 	log = log.Named("task").With(zap.String("task_id", taskID))
-	log.Info("task started")
+	log.Info("start task status tracking")
 
 	// todo: move to config
+	// todo: ticker with retry counter
 	for try := 0; try < 5; try++ {
-		log.Debug("checking task status")
-
 		if try > 0 {
 			time.Sleep(10 * time.Second)
 		}
 
+		log.Debug("checking task status", zap.Int("try", try))
+
 		// 3. ping task
-		status, err := w.tasks.Status(w.ctx, &sonm.TaskID{Id: taskID, DealID: deal.GetId()})
+		status, err := e.tasks.Status(e.ctx, &sonm.TaskID{Id: taskID, DealID: dealID})
 		if err != nil {
 			log.Warn("cannot get task status, increasing retry counter", zap.Error(err))
 			continue
@@ -196,42 +215,38 @@ func (w *engine) processDeal(deal *sonm.Deal) {
 		if status.GetStatus() == sonm.TaskStatusReply_FINISHED || status.GetStatus() == sonm.TaskStatusReply_BROKEN {
 			log.Warn("task is failed by unknown reasons, finishing deal",
 				zap.String("status", status.GetStatus().String()))
-			w.finishDeal(deal.GetId())
-			return
+			return fmt.Errorf("task is finished by unknown reasons")
 		}
 
 		try = 0
 		log.Debug("task status OK, resetting retry counter")
 	}
 
-	log.Debug("task status retries exceeded, finishing deal")
-	w.finishDeal(deal.GetId())
+	return fmt.Errorf("task tracking failed: retry count exceeded")
 }
 
-func (w *engine) finishDeal(id *sonm.BigInt) {
+func (e *engine) finishDeal(id *sonm.BigInt) {
 	// todo: how to decide that we should add worker to blacklist?
-	if _, err := w.deals.Finish(w.ctx, &sonm.DealFinishRequest{Id: id}); err != nil {
-		w.log.Warn("cannot finish deal", zap.Error(err), zap.String("id", id.Unwrap().String()))
+	if _, err := e.deals.Finish(e.ctx, &sonm.DealFinishRequest{Id: id}); err != nil {
+		e.log.Warn("cannot finish deal", zap.Error(err), zap.String("id", id.Unwrap().String()))
 	}
 
-	w.log.Info("deal finished", zap.String("id", id.Unwrap().String()))
+	e.log.Info("deal finished", zap.String("id", id.Unwrap().String()))
 }
 
-func (w *engine) start(ctx context.Context) {
+func (e *engine) start(ctx context.Context) {
 	go func() {
-		defer close(w.ordersCreateChan)
-		defer close(w.ordersResultsChan)
+		defer close(e.ordersCreateChan)
+		defer close(e.ordersResultsChan)
 
-		w.log.Info("starting engine", zap.Int("concurrency", concurrency))
-		defer w.log.Info("stopping engine")
-
-		for i := 0; i < concurrency; i++ {
-			go w.processOrderCreate()
-		}
+		e.log.Info("starting engine", zap.Int("concurrency", concurrency))
+		defer e.log.Info("stopping engine")
 
 		for i := 0; i < concurrency; i++ {
-			go w.processOrderResult()
+			go e.processOrderCreate()
 		}
+
+		go e.processOrderResult()
 
 		<-ctx.Done()
 	}()

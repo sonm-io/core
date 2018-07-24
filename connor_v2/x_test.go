@@ -20,10 +20,10 @@ func TestDivideOrders(t *testing.T) {
 	req3, _ := NewCorderFromParams("ETH", big.NewInt(3), 300)
 	req4, _ := NewCorderFromParams("ETH", big.NewInt(4), 400)
 
-	exiting := []*Corder{ex1, ex2, ex3}
+	existing := []*Corder{ex1, ex2, ex3}
 	required := []*Corder{req0, req1, req2, req3, req4}
 
-	set := c.divideOrdersSets(exiting, required)
+	set := c.divideOrdersSets(existing, required)
 	assert.Len(t, set.toRestore, 3)
 	assert.Len(t, set.toCreate, 2)
 }
