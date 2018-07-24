@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"reflect"
 	"strings"
 	"time"
 
@@ -226,9 +227,44 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 	}
 }
 
+// TODO: Breaking issue #1225.
+func typeEraseWithFieldMap(plan *pb.AskPlan, mapping map[string]func(v interface{}) interface{}) yaml.MapSlice {
+	v := reflect.Indirect(reflect.ValueOf(plan))
+	ty := v.Type()
+
+	values := yaml.MapSlice{}
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		// Mimic previous behaviour.
+		fieldName := strings.ToLower(ty.Field(i).Name)
+		fieldValue := field.Interface()
+
+		if fn, ok := mapping[fieldName]; ok {
+			fieldValue = reflect.ValueOf(fn(fieldValue)).Interface()
+		}
+
+		if !(field.Kind() == reflect.Ptr && field.IsNil()) {
+			values = append(values, yaml.MapItem{
+				Key:   fieldName,
+				Value: fieldValue,
+			})
+		}
+	}
+
+	return values
+}
+
 func printAskList(cmd *cobra.Command, slots *pb.AskPlansReply) {
 	if isSimpleFormat() {
-		plans := slots.GetAskPlans()
+		plans := map[string]yaml.MapSlice{}
+		for k, v := range slots.GetAskPlans() {
+			plans[k] = typeEraseWithFieldMap(v, map[string]func(v interface{}) interface{}{
+				"tag": func(v interface{}) interface{} {
+					return string(v.([]byte))
+				},
+			})
+		}
+
 		if len(plans) == 0 {
 			cmd.Printf("No Ask Order configured\r\n")
 			return
