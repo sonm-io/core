@@ -41,7 +41,8 @@ func NewEngine(ctx context.Context, cfg engineConfig, miningCfg miningConfig, lo
 	}
 }
 
-func (e *engine) CreateOrder(bid *Corder) {
+func (e *engine) CreateOrder(bid *Corder, reason string) {
+	e.log.Debug("creating order", zap.String("reason", reason))
 	e.ordersCreateChan <- bid
 }
 
@@ -70,7 +71,7 @@ func (e *engine) processOrderCreate() {
 		created, err := e.sendOrderToMarket(bid.AsBID())
 		if err != nil {
 			e.log.Warn("cannot place order, retrying", zap.Error(err))
-			e.CreateOrder(bid)
+			e.CreateOrder(bid, "cannot place initial order")
 			continue
 		}
 
@@ -105,7 +106,12 @@ func (e *engine) waitForDeal(order *Corder) {
 			if ord.GetOrderStatus() == sonm.OrderStatus_ORDER_INACTIVE {
 				log.Info("order becomes inactive, looking for related deal")
 
-				// todo: check that order have a deal
+				if ord.GetDealID() == nil {
+					log.Debug("order have no deal, probably order is cancelled by hand")
+					e.CreateOrder(order, "order have no deal, probably closed by hand")
+					return
+				}
+
 				deal, err := e.deals.Status(e.ctx, ord.GetDealID())
 				if err != nil {
 					log.Warn("cannot get deal info from market", zap.Error(err),
@@ -113,7 +119,7 @@ func (e *engine) waitForDeal(order *Corder) {
 					continue
 				}
 
-				e.CreateOrder(order)
+				e.CreateOrder(order, "order is turned into deal")
 				e.processDeal(deal.GetDeal())
 			}
 
@@ -131,104 +137,142 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 	defer e.finishDeal(deal.GetId())
 
 	// TODO(sshaman1101): check for deal status
-	taskReply, err := e.startTask(log, deal)
+	taskReply, err := e.startTaskWithRetry(log, deal)
 	if err != nil {
-		// log
+		log.Warn("cannot start task", zap.Error(err))
 		return
 	}
 
 	log.Info("task started")
-	err = e.trackTask(log, deal.GetId(), taskReply.GetId())
+	err = e.trackTaskWithRetry(log, deal.GetId(), taskReply.GetId())
 	if err != nil {
 		log.Warn("task tracking failed", zap.Error(err))
 	}
 }
 
-func (e *engine) startTask(log *zap.Logger, deal *sonm.Deal) (*sonm.StartTaskReply, error) {
-	var taskReply *sonm.StartTaskReply
-
+func (e *engine) startTaskWithRetry(log *zap.Logger, deal *sonm.Deal) (*sonm.StartTaskReply, error) {
 	// todo: move retry settings to cfg
-	for try := 0; try < 5; try++ {
-		if try > 0 {
-			time.Sleep(10 * time.Second)
+	try := 0
+	deadline := 5
+	t := util.NewImmediateTicker(10 * time.Second)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-t.C:
+			if try > deadline {
+				return nil, fmt.Errorf("cannot start task: retry count exceeded")
+			}
+			try++
+
+			taskReply, err := e.startTaskOnce(log, deal.GetId())
+			if err != nil {
+				log.Warn("task start failed", zap.Error(err), zap.Int("try", try))
+				continue
+			}
+
+			return taskReply, nil
 		}
+	}
+}
 
-		// todo: ctx with timeout?
-		dealReply, err := e.deals.Status(e.ctx, deal.GetId())
-		if err != nil || dealReply.GetResources() == nil {
-			// todo: separate into two checks with different error messages
-			log.Warn("cannot connect to worker", zap.Error(err), zap.Int("try", try))
-			continue
-		}
+func (e *engine) startTaskOnce(log *zap.Logger, dealID *sonm.BigInt) (*sonm.StartTaskReply, error) {
+	// todo: configure timeout
+	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
+	defer cancel()
 
-		log.Debug("successfully obtained resources from worker", zap.Any("res", *dealReply.GetResources()))
-
-		// 2. start task
-		taskReply, err = e.tasks.Start(e.ctx, &sonm.StartTaskRequest{
-			DealID: deal.GetId(),
-			Spec: &sonm.TaskSpec{
-				Container: &sonm.Container{
-					Image: e.miningCfg.Image,
-					Env: map[string]string{
-						"WALLET":    e.miningCfg.Wallet.Hex(),
-						"POOL_ADDR": e.miningCfg.PoolReportURL,
-					},
-				},
-				Resources: &sonm.AskPlanResources{},
-			},
-		})
-		if err != nil {
-			log.Warn("cannot start task", zap.Error(err), zap.Int("try", try))
-			continue
-		}
-
-		break
+	dealReply, err := e.deals.Status(ctx, dealID)
+	if err != nil {
+		return nil, fmt.Errorf("cannot get deal status: %v", err)
 	}
 
-	if taskReply == nil {
-		return nil, fmt.Errorf("cannot start task: retry count exceeded")
+	if dealReply.GetResources() == nil {
+		return nil, fmt.Errorf("cannot connect to worker: no resources info into deal status reply")
+	}
+
+	log.Debug("successfully obtained resources from worker")
+	taskReply, err := e.tasks.Start(ctx, &sonm.StartTaskRequest{
+		DealID: dealID,
+		Spec: &sonm.TaskSpec{
+			Container: &sonm.Container{
+				Image: e.miningCfg.Image,
+				Env: map[string]string{
+					"WALLET":    e.miningCfg.Wallet.Hex(),
+					"POOL_ADDR": e.miningCfg.PoolReportURL,
+				},
+			},
+			Resources: &sonm.AskPlanResources{},
+		},
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to start task on worker: %v", err)
 	}
 
 	return taskReply, nil
 }
 
-func (e *engine) trackTask(log *zap.Logger, dealID *sonm.BigInt, taskID string) error {
+func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID string) error {
 	log = log.Named("task").With(zap.String("task_id", taskID))
 	log.Info("start task status tracking")
 
+	try := 0
+	deadline := 5
 	// todo: move to config
-	// todo: ticker with retry counter
-	for try := 0; try < 5; try++ {
-		if try > 0 {
-			time.Sleep(10 * time.Second)
+	t := time.NewTicker(10 * time.Second)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-t.C:
+			if try > deadline {
+				return fmt.Errorf("task tracking failed: retry count exceeded")
+			}
+
+			shouldRetry, err := e.trackTaskOnce(log, dealID, taskID)
+			if err != nil {
+				if shouldRetry {
+					log.Warn("cannot get task status, increasing retry counter", zap.Error(err), zap.Int("try", try))
+					try++
+				} else {
+					return err
+				}
+			}
 		}
+	}
+}
 
-		log.Debug("checking task status", zap.Int("try", try))
+func (e *engine) trackTaskOnce(log *zap.Logger, dealID *sonm.BigInt, taskID string) (bool, error) {
+	log.Debug("checking task status")
 
-		// 3. ping task
-		status, err := e.tasks.Status(e.ctx, &sonm.TaskID{Id: taskID, DealID: dealID})
-		if err != nil {
-			log.Warn("cannot get task status, increasing retry counter", zap.Error(err))
-			continue
-		}
+	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
+	defer cancel()
 
-		if status.GetStatus() == sonm.TaskStatusReply_FINISHED || status.GetStatus() == sonm.TaskStatusReply_BROKEN {
-			log.Warn("task is failed by unknown reasons, finishing deal",
-				zap.String("status", status.GetStatus().String()))
-			return fmt.Errorf("task is finished by unknown reasons")
-		}
-
-		try = 0
-		log.Debug("task status OK, resetting retry counter")
+	// 3. ping task
+	status, err := e.tasks.Status(ctx, &sonm.TaskID{Id: taskID, DealID: dealID})
+	if err != nil {
+		return true, err
 	}
 
-	return fmt.Errorf("task tracking failed: retry count exceeded")
+	if status.GetStatus() == sonm.TaskStatusReply_FINISHED || status.GetStatus() == sonm.TaskStatusReply_BROKEN {
+		log.Warn("task is failed by unknown reasons, finishing deal",
+			zap.String("status", status.GetStatus().String()))
+		return false, fmt.Errorf("task is finished by unknown reasons")
+	}
+
+	log.Debug("task status is OK")
+	return true, nil
 }
 
 func (e *engine) finishDeal(id *sonm.BigInt) {
 	// todo: how to decide that we should add worker to blacklist?
-	if _, err := e.deals.Finish(e.ctx, &sonm.DealFinishRequest{Id: id}); err != nil {
+
+	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
+	defer cancel()
+
+	if _, err := e.deals.Finish(ctx, &sonm.DealFinishRequest{Id: id}); err != nil {
 		e.log.Warn("cannot finish deal", zap.Error(err), zap.String("id", id.Unwrap().String()))
+		return
 	}
 
 	e.log.Info("deal finished", zap.String("id", id.Unwrap().String()))
