@@ -41,7 +41,7 @@ func (m *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		SidechainEndpoint    string         `yaml:"sidechain_endpoint"`
 		ContractRegistryAddr common.Address `yaml:"contract_registry"`
 		BlocksBatchSize      uint64         `yaml:"blocks_batch_size" default:"500"`
-		MasterchainGasPrice  string         `yaml:"masterchain_gas_price"`
+		MasterchainGasPrice  GasPrice       `yaml:"masterchain_gas_price"`
 	}
 
 	if err := unmarshal(&cfg); err != nil {
@@ -70,13 +70,7 @@ func (m *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	m.SidechainEndpoint = *sidechainEndpoint
 	m.ContractRegistryAddr = cfg.ContractRegistryAddr
 	m.BlocksBatchSize = cfg.BlocksBatchSize
-
-	price := GasPrice{}
-	err = price.UnmarshalText([]byte(cfg.MasterchainGasPrice))
-	if err != nil {
-		return err
-	}
-	m.MasterchainGasPrice = price.Int
+	m.MasterchainGasPrice = cfg.MasterchainGasPrice.Int
 
 	return nil
 }
