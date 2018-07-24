@@ -2,7 +2,7 @@
 
 # Version of the entire package. Do not forget to update this when it's time
 # to bump the version.
-VERSION = v0.4.4
+VERSION = v0.4.5
 
 # Build tag. Useful to distinguish between same-version builds, but from
 # different commits.
