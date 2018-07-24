@@ -1,3 +1,54 @@
+sonm-core (0.4.5) unstable; urgency=low
+
+  * Added: deployment scripts for livenet (#1087).
+  * Added: show Ethereum balance on live network (#1203).
+    CLI is able to print balance also in Ethereum (for Masterchain).
+  * Added: assign tags in Optimus orders (#1209).
+  * Added: gas limits in blockchain API (#1200).
+  * Added: SNM token transfer for sidechain.
+    This commit allows to transfer tokens from the logged in account to another
+    address in the Sidechain.
+  * Removed: drop sqlite3 support in DWH (#1201).
+  * Changed: log order id when creating ask plans in Optimus (#1183).
+  * Changed: worker's status handle available for anyone (#1193).
+  * Changed: licence changed to GPLv3.
+  * Changed: complete Node refactoring (#1202).
+    Fixed race conditions while failed to start some parts of the Node
+    servers. For example when REST server failed to start there was resource
+    leakage.
+  * Changed: added default sort to GetWorkers DWH (#1214).
+  * Changed: ping worker before deal (#1196).
+    Now node will try to connect to the worker before opening deal (both
+    OpenDeal and QuickBuy). If a worker is not responding to the status
+    request - deal will not be opened and user will be noticed about worker
+    unavailability. User can force deal opening with the `--force` flag passed
+    to related CLI's sub-commands.
+  * Fixed: classify for all orders, not only matching in Optimus (#1180).
+  * Fixed: assign created timestamp for worker's own orders in Optimus (#1184).
+  * Fixed: properly cut orders with 0 GPU count in Optimus (#1185).
+  * Fixed: DWH proper exit (#1167).
+  * Fixed: keep task-to-ask-plan data till the deal is finished (#1190).
+    When the container dies, or the task is stopped we keep all the task's data
+    until the deal is finished, but we don't keep the task-to-ask-plan data
+    deleting  in ReleaseTask method. So when we ask for logs or any  other data
+    on an already stopped container.
+    This patch proposes keeping this info until the deal is closed, so we can,
+    for instance, still ask for logs on a stopped container.
+  * Fixed: proper logs following (#1206).
+  * Fixed: ignore orders with zero price in Optimus (#1204).
+  * Fixed: hasActiveCR status for deals in DWH (#1215).
+  * Fixed: ignore conflicts on AddedToBlacklist events (DWH).
+  * Fixed: oracle config (#1222).
+  * Fixed: close puncher after dialing (#1224).
+    This should prevent fd leak in Node.
+  * Fixed: print ask plan tags as strings (#1226).
+    This fixes the previous ask-plan printing behaviour where the "tag" field
+    was printed as a byte array, which is not human-readable.
+    This is done via type erasure hack with reflection. The only reason this
+    is done this way is not to break the backward compatibility.
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 24 Jul 2018 13:11:23 +0300
+
 sonm-core (0.4.4) unstable; urgency=low
 
   * Added: blacklist support in Optimus (#1175).
