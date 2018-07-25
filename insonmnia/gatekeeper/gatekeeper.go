@@ -400,7 +400,8 @@ func (g *Gatekeeper) processScummyTx(ctx context.Context, tx *blockchain.GateTx)
 		return fmt.Errorf("keeper already frozen")
 	}
 
-	return g.out.FreezeKeeper(ctx, g.key, txState.Keeper)
+	// return g.out.FreezeKeeper(ctx, g.key, txState.Keeper)
+	return nil
 }
 
 // loadFreezeTime watch current freezing time in contract
