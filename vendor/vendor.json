@@ -1140,6 +1140,18 @@
 			"revisionTime": "2017-10-24T08:10:03Z"
 		},
 		{
+			"checksumSHA1": "F45m6rdNc9pgzu5vWN1n1Rwbk4A=",
+			"path": "github.com/jmoiron/sqlx",
+			"revision": "0dae4fefe7c0e190f7b5a78dac28a1c82cc8d849",
+			"revisionTime": "2018-06-14T18:06:43Z"
+		},
+		{
+			"checksumSHA1": "bXFrevmVL5Q2EwYlRHlPihxvAJA=",
+			"path": "github.com/jmoiron/sqlx/reflectx",
+			"revision": "0dae4fefe7c0e190f7b5a78dac28a1c82cc8d849",
+			"revisionTime": "2018-06-14T18:06:43Z"
+		},
+		{
 			"checksumSHA1": "wGqcDfEuwxbZney6VYWbpE7uNaE=",
 			"path": "github.com/json-iterator/go",
 			"revision": "2ddf6d758266fcb080a4f9e054b9f292c85e6798",

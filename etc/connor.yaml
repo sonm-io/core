@@ -1,0 +1,116 @@
+log:
+  # The desired logging level.
+  # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
+  level: debug
+
+# Node address.
+market:
+   endpoint: "any@127.0.0.1:15030"
+
+ethereum:
+  key_store: "./keys"
+  pass_phrase: "any"
+
+# Database settings.
+# Path import the database.
+# Missing tables will be created.
+# This setting is mandatory.
+database:
+  driver: "sqlite3"
+  data_source: "./test.sq3"
+
+# Ordering area.
+# Orders will be created in this area, reinvoices will be focused in the same area.
+# The value is expressed in mhash.
+# Start - first order, destination - last order in the order's chain.
+# Distance between orders determines the step_for_token.
+# Used for the selected token in the using token section.
+# This setting is optional.
+charge_orders_parameters:
+  # The interval between placing orders (step for orders).
+  # The number of mhash is used.
+  step: 0.5
+  start: 10
+  destination: 50
+
+# Trading parameters: parameters for orders and deals.
+trading_parameters:
+  identity_for_bid: "ANONYMOUS"
+  # The share of the actual price in the market, which is put in the order.
+  margin_accounting: 0.9
+  # Part of the budget, distributed only for the issuance of orders.
+  part_charge: 0.5
+  # The percentage change in the value of the order.
+  # If the current price per pack increases / decreases for n %, then the order will
+  # be reinvoiced.
+  orders_change_percent: 10
+  # The percentage change in the value of the deal.
+  # If the current price per pack increases / decreases for n %, then a change request
+  # is created.
+  deals_change_percent: 10
+  # Waiting time for the change request.
+  # If the time has expired and the answer is not received the deal will be closed.
+  # This setting is optional.
+  waiting_time_change_request: 900
+
+# Parameters that determine the sensitivity to data work from nanopool.org.
+mining:
+  # Token that will be used. You can choose from:
+  # ETH - Ethereum,
+  # ZEC - Zcash,
+  ## XMR - Monero.
+  token: "ETH"
+  # Docker container.
+  # Required.
+  image: "sonm/eth-claymore:latest"
+  # The address to which the payment is transferred from the pool.
+  # Your account in the pool.
+  # This setting is mandatory.
+  wallet: "any"
+  # Deviation percentage of the worker in the pool.
+  # If the deviation percentage is less than worker_limit_change_percent set by the supplier
+  # (one of the master's list) the worker is written into the blacklist.
+  # These workers will no longer be serviced.
+  # They will no longer be able to respond to your orders.
+  # Default value is 5%.
+  # This setting is mandatory.
+  worker_limit_change_percent: 5
+  # The percentage of the number of workers who gave a bad reported or average
+  # hashrate on the nanopool and are now banned.
+  # If the number of banned workers oversteps this percentage,
+  # then the master is written into the blacklist.
+  # Default value is 60%.
+  # This setting is mandatory.
+  bad_workers_percent: 60
+  # Email where the answers from the nanopool will come.
+  # Required for task assignment.
+  # This setting is mandatory.
+  email_for_pool: "any@gmail.com"
+
+# Typical benchmark for used token.
+# Used for all orders placed.
+benchmark:
+    ram_size:            256000000
+    cpu_cores:           1
+    cpu_sysbench_single: 500
+    cpu_sysbench_multi:  200
+    net_download:        1000000
+    net_upload:          1000000
+    gpu_count:           1
+    gpu_mem:             3000000000
+
+tickers:
+  # The time interval for checking out the orders and deals.
+  # Default value is 60 s.
+  trade_ticker: 60s
+  # The time interval for checking data (updating the profit margin).
+  # Default value is 10 s.
+  data_update: 10s
+  # The time interval for checking pool data.
+  # Default value is 900 s (15 min).
+  pool_init: 900s
+  # The time interval for checking task status.
+  # Default value is 60 s.
+  task_check: 60s
+  # change requests tracking interval
+  change_requests: 600s
