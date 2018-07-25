@@ -98,11 +98,3 @@ optimization:
       alpha: 1e-6
       regularization: 6.0
       max_iterations: 1000
-    # Logistic function parameters.
-    #
-    # The function has the following definition: 1 - (1 / (1 + exp(-α * (x - ∂) / ∂))).
-    # Used to calculate relative order weight, depending on its birth time.
-    logistic:
-      alpha: 10.0
-      delta: 43200.0
-

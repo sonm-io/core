@@ -139,8 +139,7 @@ func newClassifierFactory(cfgUnmarshal func(interface{}) error) (classifierFacto
 	switch ty {
 	case "regression":
 		cfg := struct {
-			ModelFactory modelFactory  `yaml:"model"`
-			Sigmoid      sigmoidConfig `yaml:"logistic"`
+			ModelFactory modelFactory `yaml:"model"`
 		}{}
 
 		if err := cfgUnmarshal(&cfg); err != nil {
@@ -150,10 +149,8 @@ func newClassifierFactory(cfgUnmarshal func(interface{}) error) (classifierFacto
 			return nil, fmt.Errorf("missing required field: `optimization/classifier/model`")
 		}
 
-		sigmoid := newSigmoid(cfg.Sigmoid)
-
 		return func(log *zap.Logger) OrderClassifier {
-			return newRegressionClassifier(cfg.ModelFactory, sigmoid, time.Now, log)
+			return newRegressionClassifier(cfg.ModelFactory, log)
 		}, nil
 	default:
 		return nil, fmt.Errorf("unknown classifier: %s", ty)
