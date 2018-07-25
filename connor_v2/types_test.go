@@ -13,7 +13,7 @@ func TestNewCorderFromParams(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, c1.GetHashrate(), uint64(1000))
-	assert.Equal(t, c1.Order.Benchmarks.GPUMem(), uint64(3900e6))
+	assert.Equal(t, c1.Order.Benchmarks.GPUMem(), uint64(3000e6))
 	assert.Equal(t, c1.Order.GetBenchmarks().GPUEthHashrate(), uint64(1000))
 
 	c2, err := NewCorderFromParams("ZEC", big.NewInt(100), 500)
@@ -45,7 +45,7 @@ func TestCorder_AsBID(t *testing.T) {
 	gpuMem, ok := eth.AsBID().GetResources().GetBenchmarks()["gpu-mem"]
 	require.True(t, ok)
 	assert.Equal(t, hashrate, uint64(1000))
-	assert.Equal(t, gpuMem, uint64(3900e6))
+	assert.Equal(t, gpuMem, uint64(3000e6))
 
 	hashrate, ok = zec.AsBID().GetResources().GetBenchmarks()["gpu-cash-hashrate"]
 	gpuMem, ok = zec.AsBID().GetResources().GetBenchmarks()["gpu-mem"]

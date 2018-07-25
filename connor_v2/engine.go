@@ -200,6 +200,7 @@ func (e *engine) startTaskOnce(log *zap.Logger, dealID *sonm.BigInt) (*sonm.Star
 				Env: map[string]string{
 					"WALLET":    e.miningCfg.Wallet.Hex(),
 					"POOL_ADDR": e.miningCfg.PoolReportURL,
+					"WORKER":    "CONNOR_" + dealID.String(),
 				},
 			},
 			Resources: &sonm.AskPlanResources{},
