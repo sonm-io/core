@@ -42,8 +42,7 @@ func NewEngine(ctx context.Context, cfg engineConfig, miningCfg miningConfig, lo
 	}
 }
 
-func (e *engine) CreateOrder(bid *Corder, reason string) {
-	e.log.Debug("creating order", zap.String("reason", reason))
+func (e *engine) CreateOrder(bid *Corder) {
 	e.ordersCreateChan <- bid
 }
 
@@ -70,7 +69,7 @@ func (e *engine) processOrderCreate() {
 		created, err := e.sendOrderToMarket(bid.AsBID())
 		if err != nil {
 			e.log.Warn("cannot place order, retrying", zap.Error(err))
-			e.CreateOrder(bid, "cannot place initial order")
+			e.CreateOrder(bid)
 			continue
 		}
 
@@ -101,7 +100,7 @@ func (e *engine) waitForDeal(order *Corder) {
 				continue
 			}
 
-			e.CreateOrder(order, "order is turned into deal")
+			e.CreateOrder(order)
 			if deal != nil {
 				e.processDeal(deal)
 			}

@@ -93,7 +93,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 		zap.Int("deals_restore", len(existingDeals.GetDeal())))
 
 	for _, ord := range set.toCreate {
-		c.engine.CreateOrder(ord, "initial creation")
+		c.engine.CreateOrder(ord)
 	}
 
 	for _, ord := range set.toRestore {
