@@ -22,7 +22,7 @@ func NewCorderFromParams(token string, price *big.Int, hashrate uint64) (*Corder
 	bench := newBenchmark()
 	switch token {
 	case "ETH":
-		bench.setGPUMemory(2900e6)
+		bench.setGPUMemory(3000e6)
 		bench.setGPUEth(hashrate)
 	case "ZEC":
 		// todo: I should find the right value for this
