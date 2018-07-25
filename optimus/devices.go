@@ -185,6 +185,22 @@ func newDeviceManager(devices *sonm.DevicesReply, freeDevices *sonm.DevicesReply
 	return m, nil
 }
 
+func (m *DeviceManager) Clone() *DeviceManager {
+	freeGPUs := make([]*sonm.GPU, len(m.freeGPUs))
+	freeBenchmarks := make([]uint64, len(m.freeBenchmarks))
+
+	copy(freeGPUs, m.freeGPUs)
+	copy(freeBenchmarks, m.freeBenchmarks)
+
+	return &DeviceManager{
+		devices:             m.devices,
+		mapping:             m.mapping,
+		freeGPUs:            freeGPUs,
+		freeBenchmarks:      freeBenchmarks,
+		freeIncomingNetwork: m.freeIncomingNetwork,
+	}
+}
+
 func (m *DeviceManager) Contains(benchmarks sonm.Benchmarks, netflags sonm.NetFlags) bool {
 	copyFreeBenchmarks := append([]uint64{}, m.freeBenchmarks...)
 	copyFreeGPUs := append([]*sonm.GPU{}, m.freeGPUs...)
