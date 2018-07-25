@@ -364,7 +364,9 @@ func (e *engine) loadTasksOnce(log *zap.Logger, dealID *sonm.BigInt) ([]*taskSta
 
 	list := make([]*taskStatus, 0)
 	for id, task := range taskList.GetInfo() {
-		list = append(list, &taskStatus{task, id})
+		if task.GetStatus() == sonm.TaskStatusReply_RUNNING {
+			list = append(list, &taskStatus{task, id})
+		}
 	}
 
 	return list, nil
