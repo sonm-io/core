@@ -258,7 +258,6 @@ func requestLogStreamInterceptor(log *zap.SugaredLogger) grpc.StreamServerInterc
 	return func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		ss = &requestLoggingWrappedStream{
 			ServerStream: ss,
-			ctx:          ss.Context(),
 			fullMethod:   info.FullMethod,
 			log:          log,
 		}
@@ -291,7 +290,6 @@ func executeRequestLogging(ctx context.Context, req interface{}, method string, 
 
 type requestLoggingWrappedStream struct {
 	grpc.ServerStream
-	ctx        context.Context
 	fullMethod string
 	log        *zap.SugaredLogger
 }
@@ -299,7 +297,7 @@ type requestLoggingWrappedStream struct {
 func (m *requestLoggingWrappedStream) RecvMsg(msg interface{}) error {
 	err := m.ServerStream.RecvMsg(msg)
 
-	executeRequestLogging(m.ctx, msg, m.fullMethod, m.log)
+	executeRequestLogging(m.Context(), msg, m.fullMethod, m.log)
 
 	return err
 }
