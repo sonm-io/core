@@ -11,14 +11,14 @@ import (
 )
 
 const (
-	defaultMasterchainEndpoint = "https://mainnet.infura.io/00iTrs5PIy0uGODwcsrb"
-	defaultSidechainEndpoint   = "https://sidechain.livenet.sonm.com/"
-	defaultMasterchainGasPrice = 20000000000 // 20 Gwei
-	defaultSidechainGasPrice   = 0
-	defaultBlockConfirmations  = 5
-	defaultLogParsePeriod      = time.Second
-	defaultMasterchainGasLimit = 500000
-	defaultSidechainGasLimit   = 2000000
+	defaultMasterchainEndpoint        = "https://mainnet.infura.io/00iTrs5PIy0uGODwcsrb"
+	defaultSidechainEndpoint          = "https://sidechain.livenet.sonm.com/"
+	defaultMasterchainGasPrice uint64 = 20000000000 // 20 Gwei
+	defaultSidechainGasPrice   uint64 = 0
+	defaultBlockConfirmations         = 5
+	defaultLogParsePeriod             = time.Second
+	defaultMasterchainGasLimit        = 500000
+	defaultSidechainGasLimit          = 2000000
 )
 
 // chainOpts describes common options
