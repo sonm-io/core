@@ -249,6 +249,50 @@ func (r *Repository) TuneVolumes(ctx context.Context, provider VolumeProvider, c
 	return &cleanup, nil
 }
 
+func (r *Repository) GetCleanup(ctx context.Context, provider Provider) (Cleanup, error) {
+	cleanup := newNestedCleanup()
+
+	c, err := r.GetNetworkCleaner(ctx, provider)
+	if err != nil {
+		return nil, err
+	}
+	cleanup.Add(c)
+
+	c, err = r.GetVolumeCleaner(ctx, provider)
+	if err != nil {
+		cleanup.Close()
+		return nil, err
+	}
+
+	cleanup.Add(c)
+
+	return &cleanup, nil
+}
+
+func (r *Repository) GetVolumeCleaner(ctx context.Context, provider VolumeProvider) (Cleanup, error) {
+	cleanup := newNestedCleanup()
+
+	for volumeName, options := range provider.Volumes() {
+		mounts := provider.Mounts(volumeName)
+
+		if len(mounts) == 0 {
+			continue
+		}
+
+		driver, ok := r.volumes[options.Type]
+		if !ok {
+			cleanup.Close()
+			return nil, fmt.Errorf("volume driver not supported: %s", options.Type)
+		}
+
+		id := fmt.Sprintf("%s/%s", provider.ID(), volumeName)
+
+		cleanup.Add(&volumeCleanup{driver: driver, id: id})
+	}
+
+	return &cleanup, nil
+}
+
 func (r *Repository) TuneNetworks(ctx context.Context, provider NetworkProvider, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
 	log.G(ctx).Info("tuning networks")
 	cleanup := newNestedCleanup()
@@ -266,6 +310,27 @@ func (r *Repository) TuneNetworks(ctx context.Context, provider NetworkProvider,
 		}
 		cleanup.Add(c)
 	}
+	return &cleanup, nil
+}
+
+func (r *Repository) GetNetworkCleaner(ctx context.Context, provider NetworkProvider) (Cleanup, error) {
+	log.G(ctx).Info("attaching to networks")
+	cleanup := newNestedCleanup()
+
+	for _, net := range provider.Networks() {
+		tuner, ok := r.networkTuners[net.NetworkType()]
+		if !ok {
+			cleanup.Close()
+			return nil, fmt.Errorf("network driver not supported: %s", net.NetworkType())
+		}
+		c, err := tuner.GetCleaner(ctx, net.ID())
+		if err != nil {
+			cleanup.Close()
+			return nil, err
+		}
+		cleanup.Add(c)
+	}
+
 	return &cleanup, nil
 }
 

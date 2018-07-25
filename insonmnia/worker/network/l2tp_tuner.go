@@ -145,6 +145,19 @@ func (t *L2TPTuner) Tune(ctx context.Context, net *structs.NetworkSpec, hostCfg 
 	}, nil
 }
 
+func (t *L2TPTuner) GetCleaner(ctx context.Context, ID string) (Cleanup, error) {
+	if _, ok := t.netDriver.Networks[ID]; !ok {
+		return nil, errors.New("failed to find network with id " + ID)
+	}
+	configPath := t.cfg.ConfigDir + "/" + ID
+	return &L2TPCleaner{
+		ctx:        ctx,
+		cli:        t.cli,
+		networkID:  ID,
+		configPath: configPath,
+	}, nil
+}
+
 func (t *L2TPTuner) writeConfig(netID string, opts map[string]string) (string, error) {
 	var data string
 	for k, v := range opts {

@@ -58,10 +58,12 @@ func (d Description) MarshalJSON() ([]byte, error) {
 	b, err := json.Marshal(&struct {
 		Reference  string `json:"Reference"`
 		Autoremove bool
+		Networks   []structs.Network
 		Alias
 	}{
 		Reference:  d.Reference.String(),
 		Autoremove: d.autoremove,
+		Networks:   d.networks,
 		Alias:      (Alias)(d),
 	})
 
@@ -73,6 +75,7 @@ func (d *Description) UnmarshalJSON(data []byte) error {
 	aux := &struct {
 		Reference  string `json:"Reference"`
 		Autoremove bool
+		Networks   []structs.NetworkSpec
 		*Alias
 	}{
 		Alias: (*Alias)(d),
@@ -82,10 +85,15 @@ func (d *Description) UnmarshalJSON(data []byte) error {
 	}
 	ref, err := reference.ParseAnyReference(aux.Reference)
 
-	d.autoremove = aux.Autoremove
-
 	if err != nil {
 		return err
+	}
+
+	d.autoremove = aux.Autoremove
+
+	d.networks = make([]structs.Network, 0, len(aux.Networks))
+	for _, n := range aux.Networks {
+		d.networks = append(d.networks, &n)
 	}
 
 	d.Reference = ref
@@ -515,13 +523,13 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 }
 
 func (o *overseer) Attach(ctx context.Context, ID string, d Description) (chan pb.TaskStatusReply_Status, error) {
-	cont, err := attachContainer(ctx, o.client, d, o.plugins)
+	cont, err := attachContainer(ctx, o.client, ID, d, o.plugins)
 	if err != nil {
-		log.S(ctx).Debugf("failed to attach to container")
+		log.S(ctx).Debugf("failed to attach to container %s", err)
 		return nil, err
 	}
 	cont.ID = ID
-	log.S(ctx).Debugf("Attaching to running container %s", ID)
+	log.S(ctx).Debugf("attached to running container %s", ID)
 
 	o.mu.Lock()
 	o.containers[ID] = cont

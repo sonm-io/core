@@ -962,15 +962,6 @@ func (m *Worker) setupRunningContainers() error {
 			}
 
 			m.containers[info.Cinfo.TaskId] = &info.Cinfo
-
-			networks, err := structs.NewNetworkSpecs(info.Spec.Container.Networks)
-
-			if err != nil {
-				return err
-			}
-
-			info.Description.networks = networks
-
 			mounts := make([]volume.Mount, 0)
 
 			for _, spec := range info.Spec.Container.Mounts {

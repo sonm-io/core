@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -141,6 +142,17 @@ func (t *TincTuner) Tune(ctx context.Context, net *structs.NetworkSpec, hostConf
 		ctx:       ctx,
 		client:    t.client,
 		networkID: response.ID,
+	}, nil
+}
+
+func (t *TincTuner) GetCleaner(ctx context.Context, netID string) (Cleanup, error) {
+	if _, ok := t.netDriver.Networks[netID]; !ok {
+		return nil, errors.New("network with id %s not found " + netID)
+	}
+	return &TincCleaner{
+		ctx:       ctx,
+		client:    t.client,
+		networkID: netID,
 	}, nil
 }
 

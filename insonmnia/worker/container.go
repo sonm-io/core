@@ -30,46 +30,21 @@ type containerDescriptor struct {
 	cleanup plugin.Cleanup
 }
 
-func attachContainer(ctx context.Context, dockerClient *client.Client, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
-	log.S(ctx).Infof("start container with application, reference %s", d.Reference.String())
+func attachContainer(ctx context.Context, dockerClient *client.Client, ID string, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
+	log.S(ctx).Infof("attaching to container with ID: %s reference: %s", ID, d.Reference.String())
 
 	cont := containerDescriptor{
 		client:      dockerClient,
 		description: d,
 	}
 
-	_, portBindings, err := d.Expose()
+	cleanup, err := tuners.GetCleanup(ctx, &d)
 	if err != nil {
-		log.G(ctx).Error("failed to parse `expose` section", zap.Error(err))
 		return nil, err
 	}
 
-	log.G(ctx).Debug("exposing ports", zap.Any("portBindings", portBindings))
-
-	// NOTE: all ports are EXPOSE as PublishAll
-	// TODO: detect network network mode and interface
-	logOpts := make(map[string]string)
-	// TODO: Move to StartTask?
-	logOpts["max-size"] = "100m"
-	var hostConfig = container.HostConfig{
-		LogConfig:       container.LogConfig{Type: "json-file", Config: logOpts},
-		PublishAllPorts: true,
-		PortBindings:    portBindings,
-		RestartPolicy:   d.RestartPolicy.Unwrap(),
-		AutoRemove:      d.autoremove,
-		Resources:       d.Resources.ToHostConfigResources(d.CGroupParent),
-	}
-
-	networkingConfig := network.NetworkingConfig{}
-
-	cleanup, err := tuners.Tune(ctx, &d, &hostConfig, &networkingConfig)
-	if err != nil {
-		log.G(ctx).Error("failed to tune container", zap.Error(err))
-		return nil, err
-	}
-
-	cont.log = log.S(ctx).With(zap.String("container_id", cont.ID))
 	cont.cleanup = cleanup
+	cont.log = log.S(ctx).With(zap.String("container_id", cont.ID))
 
 	return &cont, nil
 }
