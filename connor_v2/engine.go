@@ -92,6 +92,8 @@ func (e *engine) waitForDeal(order *Corder) {
 
 	for {
 		select {
+		case <-e.ctx.Done():
+			return
 		case <-t.C:
 			log.Debug("checking for deal for order")
 
@@ -172,14 +174,16 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 }
 
 func (e *engine) startTaskWithRetry(log *zap.Logger, deal *sonm.Deal) (*sonm.StartTaskReply, error) {
-	// todo: move retry settings to cfg
 	try := 0
 	deadline := 5
+
 	t := util.NewImmediateTicker(10 * time.Second)
 	defer t.Stop()
 
 	for {
 		select {
+		case <-e.ctx.Done():
+			return nil, e.ctx.Err()
 		case <-t.C:
 			if try > deadline {
 				return nil, fmt.Errorf("cannot start task: retry count exceeded")
@@ -198,7 +202,6 @@ func (e *engine) startTaskWithRetry(log *zap.Logger, deal *sonm.Deal) (*sonm.Sta
 }
 
 func (e *engine) startTaskOnce(log *zap.Logger, dealID *sonm.BigInt) (*sonm.StartTaskReply, error) {
-	// todo: configure timeout
 	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
 	defer cancel()
 
@@ -230,31 +233,27 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 
 	try := 0
 	deadline := 5
-	// todo: move to config
+
 	t := time.NewTicker(15 * time.Second)
 	defer t.Stop()
 
 	for {
 		select {
+		case <-e.ctx.Done():
+			return e.ctx.Err()
 		case <-t.C:
 			if try > deadline {
 				return fmt.Errorf("task tracking failed: retry count exceeded")
 			}
 
-			// todo: move this into separated func
-			ctx, cancel := context.WithTimeout(e.ctx, 15*time.Second)
-			dealStatus, err := e.deals.Status(ctx, dealID)
+			ok, err := e.checkDealStatus(log, dealID)
 			if err != nil {
 				try++
-				log.Warn("cannot check deal status, increasing retry counter",
-					zap.Error(err), zap.Int("try", try))
-				cancel()
+				log.Warn("cannot check deal status, increasing retry counter", zap.Error(err), zap.Int("try", try))
 				continue
-
 			}
-			cancel()
 
-			if dealStatus.GetDeal().GetStatus() != sonm.DealStatus_DEAL_ACCEPTED {
+			if !ok {
 				log.Warn("deal is closed, finishing tracking")
 				return fmt.Errorf("deal is closed")
 			}
@@ -275,6 +274,18 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 			try = 0
 		}
 	}
+}
+
+func (e *engine) checkDealStatus(log *zap.Logger, dealID *sonm.BigInt) (bool, error) {
+	ctx, cancel := context.WithTimeout(e.ctx, 15*time.Second)
+	defer cancel()
+
+	dealStatus, err := e.deals.Status(ctx, dealID)
+	if err != nil {
+		return false, err
+	}
+
+	return dealStatus.GetDeal().GetStatus() == sonm.DealStatus_DEAL_ACCEPTED, nil
 }
 
 func (e *engine) trackTaskOnce(log *zap.Logger, dealID *sonm.BigInt, taskID string) (bool, error) {
@@ -298,14 +309,6 @@ func (e *engine) trackTaskOnce(log *zap.Logger, dealID *sonm.BigInt, taskID stri
 	log.Debug("task status is OK")
 	return true, nil
 }
-
-/*
-	TODO: select also context
-	TODO: select also context
-	TODO: select also context
-	TODO: select also context
-	TODO: select also context
-*/
 
 func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, error) {
 	log = log.Named("restore-tasks")
