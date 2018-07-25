@@ -57,8 +57,6 @@ func (e *engine) RestoreDeal(deal *sonm.Deal) {
 	go e.processDeal(deal)
 }
 
-// todo: restore tasks
-
 func (e *engine) sendOrderToMarket(bid *sonm.BidOrder) (*sonm.Order, error) {
 	e.log.Debug("creating order on market",
 		zap.String("price", bid.GetPrice().GetPerSecond().Unwrap().String()),
@@ -96,39 +94,49 @@ func (e *engine) waitForDeal(order *Corder) {
 	for {
 		select {
 		case <-t.C:
-			// todo: refactor is required
 			log.Debug("checking for deal for order")
 
-			ord, err := e.market.GetOrderByID(e.ctx, &sonm.ID{Id: id})
+			deal, err := e.checkOrderForDealOnce(log, id)
 			if err != nil {
-				log.Warn("cannot get order info from market", zap.Error(err))
 				continue
 			}
 
-			if ord.GetOrderStatus() == sonm.OrderStatus_ORDER_INACTIVE {
-				log.Info("order becomes inactive, looking for related deal")
-
-				if ord.GetDealID() == nil || ord.GetDealID().IsZero() {
-					log.Debug("order have no deal, probably order is cancelled by hand")
-					e.CreateOrder(order, "order have no deal, probably closed by hand")
-					return
-				}
-
-				deal, err := e.deals.Status(e.ctx, ord.GetDealID())
-				if err != nil {
-					log.Warn("cannot get deal info from market", zap.Error(err),
-						zap.String("deal_id", ord.GetDealID().Unwrap().String()))
-					continue
-				}
-
-				e.CreateOrder(order, "order is turned into deal")
-				e.processDeal(deal.GetDeal())
-				return
+			e.CreateOrder(order, "order is turned into deal")
+			if deal != nil {
+				e.processDeal(deal)
 			}
 
-			log.Debug("order still have no deal")
+			return
 		}
 	}
+}
+
+func (e *engine) checkOrderForDealOnce(log *zap.Logger, orderID string) (*sonm.Deal, error) {
+	ord, err := e.market.GetOrderByID(e.ctx, &sonm.ID{Id: orderID})
+	if err != nil {
+		log.Warn("cannot get order info from market", zap.Error(err))
+		return nil, err
+	}
+
+	if ord.GetOrderStatus() == sonm.OrderStatus_ORDER_INACTIVE {
+		log.Info("order becomes inactive, looking for related deal")
+
+		if ord.GetDealID() == nil || ord.GetDealID().IsZero() {
+			log.Debug("order have no deal, probably order is cancelled by hand")
+			return nil, nil
+		}
+
+		deal, err := e.deals.Status(e.ctx, ord.GetDealID())
+		if err != nil {
+			log.Warn("cannot get deal info from market", zap.Error(err),
+				zap.String("deal_id", ord.GetDealID().Unwrap().String()))
+			return nil, err
+		}
+
+		return deal.GetDeal(), nil
+	}
+
+	return nil, fmt.Errorf("order have no deal")
 }
 
 func (e *engine) processDeal(deal *sonm.Deal) {
