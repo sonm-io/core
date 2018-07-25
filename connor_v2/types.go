@@ -152,3 +152,8 @@ func benchmarkMap(b *sonm.Benchmarks) map[string]uint64 {
 	v := Benchmarks(*b)
 	return v.toMap()
 }
+
+type taskStatus struct {
+	*sonm.TaskStatusReply
+	id string
+}

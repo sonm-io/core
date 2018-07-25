@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/distribution/reference"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
@@ -55,6 +56,12 @@ func (c *Config) validate() error {
 		return fmt.Errorf("unsupported token \"%s\"", c.Mining.Token)
 	}
 
+	named, err := reference.ParseNormalizedNamed(c.Mining.Image)
+	if err != nil {
+		return fmt.Errorf("cannot parse image name: %v", err)
+	}
+
+	c.Mining.Image = named.String()
 	return nil
 }
 

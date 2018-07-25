@@ -3,6 +3,7 @@ package connor
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/sonm-io/core/proto"
@@ -138,15 +139,26 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 	defer log.Debug("stop deal processing")
 	defer e.finishDeal(deal.GetId())
 
-	// TODO(sshaman1101): check for deal status
-	taskReply, err := e.startTaskWithRetry(log, deal)
+	taskID, err := e.restoreTasks(log, deal.GetId())
 	if err != nil {
-		log.Warn("cannot start task", zap.Error(err))
+		log.Warn("cannot restore tasks", zap.Error(err))
 		return
 	}
 
-	log.Info("task started")
-	err = e.trackTaskWithRetry(log, deal.GetId(), taskReply.GetId())
+	if len(taskID) == 0 {
+		log.Debug("no tasks restored, starting new one")
+
+		taskReply, err := e.startTaskWithRetry(log, deal)
+		if err != nil {
+			log.Warn("cannot start task", zap.Error(err))
+			return
+		}
+
+		taskID = taskReply.GetId()
+		log.Info("task started", zap.String("task_id", taskID))
+	}
+
+	err = e.trackTaskWithRetry(log, deal.GetId(), taskID)
 	if err != nil {
 		log.Warn("task tracking failed", zap.Error(err))
 	}
@@ -183,16 +195,6 @@ func (e *engine) startTaskOnce(log *zap.Logger, dealID *sonm.BigInt) (*sonm.Star
 	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
 	defer cancel()
 
-	dealReply, err := e.deals.Status(ctx, dealID)
-	if err != nil {
-		return nil, fmt.Errorf("cannot get deal status: %v", err)
-	}
-
-	if dealReply.GetResources() == nil {
-		return nil, fmt.Errorf("cannot connect to worker: no resources info into deal status reply")
-	}
-
-	log.Debug("successfully obtained resources from worker")
 	taskReply, err := e.tasks.Start(ctx, &sonm.StartTaskRequest{
 		DealID: dealID,
 		Spec: &sonm.TaskSpec{
@@ -290,8 +292,123 @@ func (e *engine) trackTaskOnce(log *zap.Logger, dealID *sonm.BigInt, taskID stri
 	return true, nil
 }
 
+/*
+	TODO: select also context
+	TODO: select also context
+	TODO: select also context
+	TODO: select also context
+	TODO: select also context
+*/
+
+func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, error) {
+	log = log.Named("restore-tasks")
+	log.Debug("restoring tasks")
+
+	t := util.NewImmediateTicker(10 * time.Second)
+	defer t.Stop()
+
+	try := 0
+	deadline := 5
+
+	for {
+		select {
+		case <-e.ctx.Done():
+			return "", e.ctx.Err()
+		case <-t.C:
+			if try > deadline {
+				return "", fmt.Errorf("restore tasks failed: retry count exceeded")
+			}
+
+			list, err := e.loadTasksOnce(log, dealID)
+			if err != nil {
+				try++
+				log.Warn("cannot obtain task list from worker", zap.Error(err))
+				continue
+			}
+
+			switch len(list) {
+			case 0:
+				return "", nil
+			case 1:
+				// todo: find proper way to mark tasks
+				if list[0].ImageName != e.miningCfg.Image {
+					log.Warn("unexpected docker image is running on task", zap.String("running", list[0].ImageName), zap.String("expected", e.miningCfg.Image))
+					e.stopOneTask(log, dealID, list[0].id)
+					return "", nil
+				}
+
+				return list[0].id, nil
+			default:
+				// weird case, we always starting only one task per deal
+				log.Info("worker have more than one task running", zap.Int("count", len(list)))
+				if err := e.stopAllTasks(log, list, dealID); err != nil {
+					return "", err
+				}
+
+				return "", nil
+			}
+		}
+	}
+}
+
+func (e *engine) loadTasksOnce(log *zap.Logger, dealID *sonm.BigInt) ([]*taskStatus, error) {
+	log.Debug("loading tasks from worker")
+
+	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
+	defer cancel()
+
+	taskList, err := e.tasks.List(ctx, &sonm.TaskListRequest{DealID: dealID})
+	if err != nil {
+		return nil, err
+	}
+
+	list := make([]*taskStatus, 0)
+	for id, task := range taskList.GetInfo() {
+		list = append(list, &taskStatus{task, id})
+	}
+
+	return list, nil
+}
+
+func (e *engine) stopAllTasks(log *zap.Logger, list []*taskStatus, dealID *sonm.BigInt) error {
+	log.Debug("stopping all tasks on worker")
+
+	var failedIDs []string
+	for _, task := range list {
+		if err := e.stopOneTask(log, dealID, task.id); err != nil {
+			log.Warn("cannot stop task", zap.Error(err), zap.String("task_id", task.id))
+			failedIDs = append(failedIDs, task.id)
+		}
+	}
+
+	if len(failedIDs) > 0 {
+		return fmt.Errorf("cannot stop tasks ids = %s", strings.Join(failedIDs, ","))
+	}
+
+	return nil
+}
+
+func (e *engine) stopOneTask(log *zap.Logger, dealID *sonm.BigInt, taskID string) error {
+	log.Debug("stopping task", zap.String("task_id", taskID))
+
+	for try := 0; try < 5; try++ {
+		ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
+		if _, err := e.tasks.Stop(ctx, &sonm.TaskID{Id: taskID, DealID: dealID}); err != nil {
+			log.Warn("cannot stop task", zap.Error(err), zap.Int("try", try))
+			cancel()
+			continue
+		}
+
+		cancel()
+		return nil
+	}
+
+	return fmt.Errorf("cannot stop task: retry count exceeded")
+}
+
 func (e *engine) finishDeal(id *sonm.BigInt) {
 	// todo: how to decide that we should add worker to blacklist?
+	// todo: move this to the anti-fraud module
 
 	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
 	defer cancel()
