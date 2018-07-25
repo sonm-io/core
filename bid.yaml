@@ -13,16 +13,30 @@ tag: my-app
 
 resources:
   network:
+    # indicates whether overlay networking is required
     overlay: true
+    # indicates whether outbound connections are required (internet access)
     outbound: true
+    # indicates whether inbound connections are required and public IP should be present on worker
     incoming: true
   benchmarks:
+    # required RAM size in bytes
     ram-size: 1000000
+    # required CPU cores. This only specifies mininum number of CPU threads, not their scheduling.
+    # to specify amount of computing power use cpu-sysbench-* parameters
     cpu-cores: 1
+    # minimum computing power of single CPU thread, calculated via sysbench
+    # (some abstract value, currently  it is how many times CPU can calculate first 50000 prime numbers in 10 seconds)
     cpu-sysbench-single: 800
+    # the same as above, but for all threads, can be less than cpu-sysbench-single when you need less than 1 core
     cpu-sysbench-multi: 1000
+    # download throughput in bits/s
     net-download: 12000
+    # upload throughput in bits/s
     net-upload: 5000
+    # minimum number of GPU
     gpu-count: 1
+    # minimum memory of single GPU
     gpu-mem: 4096000000
-    gpu-eth-hashrate: 25
+    # GPU performance - ETH hashrate (hashes/s)
+    gpu-eth-hashrate: 15000000
