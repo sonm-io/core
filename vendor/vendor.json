@@ -51,6 +51,12 @@
 			"versionExact": "v1"
 		},
 		{
+			"checksumSHA1": "Xoh/dJSyNRBePhijcpjJj2BGbIc=",
+			"path": "github.com/MaxHalford/gago",
+			"revision": "7902f72b0745baae9ff2bf25fb612da76a5c9007",
+			"revisionTime": "2018-06-05T20:09:28Z"
+		},
+		{
 			"checksumSHA1": "AzjRkOQtVBTwIw4RJLTygFhJs3s=",
 			"origin": "github.com/docker/docker/vendor/github.com/Microsoft/go-winio",
 			"path": "github.com/Microsoft/go-winio",
