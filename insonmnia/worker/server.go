@@ -460,7 +460,6 @@ func (m *Worker) listenForStatus(statusListener chan pb.TaskStatusReply_Status, 
 }
 
 func (m *Worker) PushTask(stream pb.Worker_PushTaskServer) error {
-	log.G(m.ctx).Info("handling PushTask request")
 	if err := m.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PushTask"), nil); err != nil {
 		return err
 	}
@@ -482,8 +481,6 @@ func (m *Worker) PushTask(stream pb.Worker_PushTaskServer) error {
 }
 
 func (m *Worker) PullTask(request *pb.PullTaskRequest, stream pb.Worker_PullTaskServer) error {
-	log.G(m.ctx).Info("handling PullTask request", zap.Any("request", request))
-
 	if err := m.eventAuthorization.Authorize(stream.Context(), auth.Event(taskAPIPrefix+"PullTask"), request); err != nil {
 		return err
 	}
@@ -561,8 +558,6 @@ func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) 
 }
 
 func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
-	log.G(m.ctx).Info("handling StartTask request", zap.Any("request", request))
-
 	allowed, reference, err := m.taskAllowed(ctx, request)
 	if err != nil {
 		return nil, err
@@ -725,8 +720,6 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 
 // Stop request forces to kill container
 func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
-	log.G(ctx).Info("handling Stop request", zap.Any("req", request))
-
 	m.mu.Lock()
 	containerInfo, ok := m.containers[request.Id]
 	m.mu.Unlock()
@@ -748,7 +741,6 @@ func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error
 }
 
 func (m *Worker) Tasks(ctx context.Context, request *pb.Empty) (*pb.TaskListReply, error) {
-	log.G(m.ctx).Info("handling Tasks request")
 	return &pb.TaskListReply{Info: m.CollectTasksStatuses()}, nil
 }
 
@@ -774,11 +766,9 @@ func (m *Worker) CollectTasksStatuses(statuses ...pb.TaskStatusReply_Status) map
 
 // TaskLogs returns logs from container
 func (m *Worker) TaskLogs(request *pb.TaskLogsRequest, server pb.Worker_TaskLogsServer) error {
-	log.G(m.ctx).Info("handling TaskLogs request", zap.Any("request", request))
 	if err := m.eventAuthorization.Authorize(server.Context(), auth.Event(taskAPIPrefix+"TaskLogs"), request); err != nil {
 		return err
 	}
-	log.G(m.ctx).Info("handling TaskLogs request", zap.Any("request", request))
 	cid, ok := m.getContainerIdByTaskId(request.Id)
 	if !ok {
 		return status.Errorf(codes.NotFound, "no job with id %s", request.Id)
@@ -905,8 +895,9 @@ func (m *Worker) setupSalesman() error {
 func (m *Worker) setupServer() error {
 	logger := log.GetLogger(m.ctx)
 	grpcServer := xgrpc.NewServer(logger,
-		xgrpc.Credentials(m.creds),
 		xgrpc.DefaultTraceInterceptor(),
+		xgrpc.RequestLogInterceptor(logger),
+		xgrpc.Credentials(m.creds),
 		xgrpc.AuthorizationInterceptor(m.eventAuthorization),
 		xgrpc.VerifyInterceptor(),
 	)
@@ -1210,12 +1201,10 @@ func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
 }
 
 func (m *Worker) AskPlans(ctx context.Context, _ *pb.Empty) (*pb.AskPlansReply, error) {
-	log.G(m.ctx).Info("handling AskPlans request")
 	return &pb.AskPlansReply{AskPlans: m.salesman.AskPlans()}, nil
 }
 
 func (m *Worker) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (*pb.ID, error) {
-	log.G(m.ctx).Info("handling CreateAskPlan request", zap.Any("request", request))
 	if len(request.GetID()) != 0 || !request.GetOrderID().IsZero() || !request.GetDealID().IsZero() {
 		return nil, errors.New("creating ask plans with predefined id, order_id or deal_id is not supported")
 	}
@@ -1231,8 +1220,6 @@ func (m *Worker) CreateAskPlan(ctx context.Context, request *pb.AskPlan) (*pb.ID
 }
 
 func (m *Worker) RemoveAskPlan(ctx context.Context, request *pb.ID) (*pb.Empty, error) {
-	log.G(m.ctx).Info("handling RemoveAskPlan request", zap.String("id", request.GetId()))
-
 	if err := m.salesman.RemoveAskPlan(request.GetId()); err != nil {
 		return nil, err
 	}
@@ -1277,8 +1264,6 @@ func (m *Worker) DebugState(ctx context.Context, _ *pb.Empty) (*pb.DebugStateRep
 }
 
 func (m *Worker) GetDealInfo(ctx context.Context, id *pb.ID) (*pb.DealInfoReply, error) {
-	log.G(m.ctx).Info("handling GetDealInfo request")
-
 	dealID, err := pb.NewBigIntFromString(id.Id)
 	if err != nil {
 		return nil, err

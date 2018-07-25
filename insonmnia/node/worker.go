@@ -10,6 +10,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/auth"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -50,10 +51,6 @@ func (h *workerAPI) getClient(ctx context.Context) (pb.WorkerManagementClient, i
 }
 
 func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
-	methodName := util.ExtractMethod(info.FullMethod)
-
-	h.log.Infof("handling %s request", methodName)
-
 	ctx = util.ForwardMetadata(ctx)
 	if !strings.HasPrefix(info.FullMethod, "/sonm.WorkerManagement") {
 		return handler(ctx, req)
@@ -67,7 +64,7 @@ func (h *workerAPI) intercept(ctx context.Context, req interface{}, info *grpc.U
 
 	var (
 		t        = reflect.ValueOf(cli)
-		method   = t.MethodByName(methodName)
+		method   = t.MethodByName(xgrpc.MethodInfo(info.FullMethod).Method)
 		inValues = []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(req)}
 		values   = method.Call(inValues)
 	)
