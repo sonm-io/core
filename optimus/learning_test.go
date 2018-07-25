@@ -4,7 +4,6 @@ import (
 	"math"
 	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
@@ -37,11 +36,6 @@ func TestLearning(t *testing.T) {
 		Alpha:          1e-6,
 		Regularization: 6.0,
 		MaxIterations:  1000,
-	})
-
-	sigmoid := newSigmoid(sigmoidConfig{
-		Alpha: 10.0,
-		Delta: 43200.0,
 	})
 
 	n := 1000
@@ -119,29 +113,9 @@ func TestLearning(t *testing.T) {
 		})
 	}
 
-	classifier := newRegressionClassifier(model, sigmoid, time.Now, zap.NewNop())
+	classifier := newRegressionClassifier(model, zap.NewNop())
 	weightedOrders, err := classifier.Classify(orders)
 
 	require.NoError(t, err)
 	assert.Equal(t, n, len(weightedOrders))
-}
-
-func TestSigmoid(t *testing.T) {
-	tests := []struct {
-		name string
-		x    float64
-		y    float64
-	}{
-		{"0.0", 0.0, 0.9999546021312976},
-		{"43200.0", 43200.0, 0.5},
-		{"86400.0", 86400.0, 4.5397868702390376e-05},
-	}
-
-	sigmoid := newSigmoid(sigmoidConfig{Alpha: 10.0, Delta: 43200.0})
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			assert.InEpsilon(t, test.y, sigmoid(test.x), 1e-6)
-		})
-	}
 }

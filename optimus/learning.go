@@ -68,23 +68,11 @@ func (m *OrderPredictor) PredictPrice(order *MarketOrder) (float64, error) {
 type OrderClassification struct {
 	WeightedOrders []WeightedOrder
 	Predictor      *OrderPredictor
-	Sigmoid        sigmoid
-	Clock          Clock
 }
 
 func (m *OrderClassification) recalculateWeights(orders []WeightedOrder) {
 	for id, order := range orders {
 		orders[id].Weight = order.Price / order.PredictedPrice
-	}
-
-	now := m.Clock()
-	for id, order := range orders {
-		scale := m.Sigmoid(float64(now.Unix() - order.Order.GetCreatedTS().GetSeconds()))
-		if math.IsNaN(scale) {
-			orders[id].Weight = 0.0
-		} else {
-			orders[id].Weight = order.Weight * scale
-		}
 	}
 }
 
@@ -100,16 +88,12 @@ type OrderClassifier interface {
 
 type regressionClassifier struct {
 	modelFactory modelFactory
-	sigmoid      sigmoid
-	clock        Clock
 	log          *zap.Logger
 }
 
-func newRegressionClassifier(modelFactory modelFactory, sigmoid sigmoid, clock Clock, log *zap.Logger) OrderClassifier {
+func newRegressionClassifier(modelFactory modelFactory, log *zap.Logger) OrderClassifier {
 	return &regressionClassifier{
 		modelFactory: modelFactory,
-		sigmoid:      sigmoid,
-		clock:        clock,
 		log:          log,
 	}
 }
@@ -161,8 +145,6 @@ func (m *regressionClassifier) ClassifyExt(orders []*MarketOrder) (*OrderClassif
 			normalizer:  expectationNormalizer,
 			normalizers: trainingSetNormalizers,
 		},
-		Sigmoid: m.sigmoid,
-		Clock:   m.clock,
 	}
 
 	orderClassification.RecalculateWeightsAndSort(weightedOrders)
