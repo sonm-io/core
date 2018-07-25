@@ -1,6 +1,7 @@
 package blockchain
 
 import (
+	"math/big"
 	"net/url"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -13,6 +14,7 @@ type Config struct {
 	SidechainEndpoint    url.URL
 	ContractRegistryAddr common.Address
 	BlocksBatchSize      uint64
+	MasterchainGasPrice  *big.Int
 }
 
 func NewDefaultConfig() (*Config, error) {
@@ -39,6 +41,7 @@ func (m *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 		SidechainEndpoint    string         `yaml:"sidechain_endpoint"`
 		ContractRegistryAddr common.Address `yaml:"contract_registry"`
 		BlocksBatchSize      uint64         `yaml:"blocks_batch_size" default:"500"`
+		MasterchainGasPrice  GasPrice       `yaml:"masterchain_gas_price"`
 	}
 
 	if err := unmarshal(&cfg); err != nil {
@@ -67,6 +70,7 @@ func (m *Config) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	m.SidechainEndpoint = *sidechainEndpoint
 	m.ContractRegistryAddr = cfg.ContractRegistryAddr
 	m.BlocksBatchSize = cfg.BlocksBatchSize
+	m.MasterchainGasPrice = cfg.MasterchainGasPrice.Int
 
 	return nil
 }

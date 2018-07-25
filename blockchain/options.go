@@ -11,14 +11,14 @@ import (
 )
 
 const (
-	defaultMasterchainEndpoint = "https://mainnet.infura.io/00iTrs5PIy0uGODwcsrb"
-	defaultSidechainEndpoint   = "https://sidechain.livenet.sonm.com/"
-	defaultMasterchainGasPrice = 20000000000 // 20 Gwei
-	defaultSidechainGasPrice   = 0
-	defaultBlockConfirmations  = 5
-	defaultLogParsePeriod      = time.Second
-	defaultMasterchainGasLimit = 500000
-	defaultSidechainGasLimit   = 2000000
+	defaultMasterchainEndpoint        = "https://mainnet.infura.io/00iTrs5PIy0uGODwcsrb"
+	defaultSidechainEndpoint          = "https://sidechain.livenet.sonm.com/"
+	defaultMasterchainGasPrice uint64 = 20000000000 // 20 Gwei
+	defaultSidechainGasPrice   uint64 = 0
+	defaultBlockConfirmations         = 5
+	defaultLogParsePeriod             = time.Second
+	defaultMasterchainGasLimit        = 500000
+	defaultSidechainGasLimit          = 2000000
 )
 
 // chainOpts describes common options
@@ -26,7 +26,7 @@ const (
 // (live Eth network, rinkeby, SONM sidechain
 // or local geth-node for testing).
 type chainOpts struct {
-	gasPrice           int64
+	gasPrice           *big.Int
 	gasLimit           uint64
 	endpoint           string
 	logParsePeriod     time.Duration
@@ -48,7 +48,7 @@ func (c *chainOpts) getTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLim
 	opts := bind.NewKeyedTransactor(key)
 	opts.Context = ctx
 	opts.GasLimit = gasLimit
-	opts.GasPrice = big.NewInt(c.gasPrice)
+	opts.GasPrice = c.gasPrice
 
 	return opts
 }
@@ -63,14 +63,14 @@ type options struct {
 func defaultOptions() *options {
 	return &options{
 		masterchain: &chainOpts{
-			gasPrice:           defaultMasterchainGasPrice,
+			gasPrice:           big.NewInt(0).SetUint64(defaultMasterchainGasPrice),
 			gasLimit:           defaultMasterchainGasLimit,
 			endpoint:           defaultMasterchainEndpoint,
 			logParsePeriod:     defaultLogParsePeriod,
 			blockConfirmations: defaultBlockConfirmations,
 		},
 		sidechain: &chainOpts{
-			gasPrice:           defaultSidechainGasPrice,
+			gasPrice:           big.NewInt(0).SetUint64(defaultSidechainGasPrice),
 			gasLimit:           defaultSidechainGasLimit,
 			endpoint:           defaultSidechainEndpoint,
 			logParsePeriod:     defaultLogParsePeriod,
@@ -82,13 +82,13 @@ func defaultOptions() *options {
 
 type Option func(options *options)
 
-func WithMasterchainGasPrice(p int64) Option {
+func WithMasterchainGasPrice(p *big.Int) Option {
 	return func(o *options) {
 		o.masterchain.gasPrice = p
 	}
 }
 
-func WithSidechainGasPrice(p int64) Option {
+func WithSidechainGasPrice(p *big.Int) Option {
 	return func(o *options) {
 		o.sidechain.gasPrice = p
 	}
@@ -121,6 +121,7 @@ func WithConfig(cfg *Config) Option {
 				o.contractRegistry = cfg.ContractRegistryAddr
 			}
 			o.blocksBatchSize = cfg.BlocksBatchSize
+			o.masterchain.gasPrice = cfg.MasterchainGasPrice
 		}
 	}
 }
