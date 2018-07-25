@@ -145,14 +145,14 @@ func (t *TincTuner) Tune(ctx context.Context, net *structs.NetworkSpec, hostConf
 	}, nil
 }
 
-func (t *TincTuner) GetCleaner(ctx context.Context, netID string) (Cleanup, error) {
-	if _, ok := t.netDriver.Networks[netID]; !ok {
-		return nil, errors.New("network with id %s not found " + netID)
+func (t *TincTuner) GetCleaner(ctx context.Context, ID string) (Cleanup, error) {
+	if _, ok := t.netDriver.Networks[ID]; !ok {
+		return nil, errors.New("failed to find network with id " + ID)
 	}
 	return &TincCleaner{
 		ctx:       ctx,
 		client:    t.client,
-		networkID: netID,
+		networkID: ID,
 	}, nil
 }
 
