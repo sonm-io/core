@@ -95,6 +95,7 @@ func (e *engine) waitForDeal(order *Corder) {
 	for {
 		select {
 		case <-t.C:
+			// todo: refactor is required
 			log.Debug("checking for deal for order")
 
 			ord, err := e.market.GetOrderByID(e.ctx, &sonm.ID{Id: id})
@@ -106,7 +107,7 @@ func (e *engine) waitForDeal(order *Corder) {
 			if ord.GetOrderStatus() == sonm.OrderStatus_ORDER_INACTIVE {
 				log.Info("order becomes inactive, looking for related deal")
 
-				if ord.GetDealID() == nil {
+				if ord.GetDealID() == nil || ord.GetDealID().IsZero() {
 					log.Debug("order have no deal, probably order is cancelled by hand")
 					e.CreateOrder(order, "order have no deal, probably closed by hand")
 					return
@@ -221,7 +222,7 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 	try := 0
 	deadline := 5
 	// todo: move to config
-	t := time.NewTicker(10 * time.Second)
+	t := time.NewTicker(15 * time.Second)
 	defer t.Stop()
 
 	for {
@@ -231,15 +232,36 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 				return fmt.Errorf("task tracking failed: retry count exceeded")
 			}
 
+			// todo: move this into separated func
+			ctx, cancel := context.WithTimeout(e.ctx, 15*time.Second)
+			dealStatus, err := e.deals.Status(ctx, dealID)
+			if err != nil {
+				try++
+				log.Warn("cannot check deal status, increasing retry counter",
+					zap.Error(err), zap.Int("try", try))
+				cancel()
+				continue
+
+			}
+			cancel()
+
+			if dealStatus.GetDeal().GetStatus() != sonm.DealStatus_DEAL_ACCEPTED {
+				log.Warn("deal is closed, finishing tracking")
+				return fmt.Errorf("deal is closed")
+			}
+
+			log.Debug("deal status OK, checking tasks")
 			shouldRetry, err := e.trackTaskOnce(log, dealID, taskID)
 			if err != nil {
-				if shouldRetry {
-					log.Warn("cannot get task status, increasing retry counter", zap.Error(err), zap.Int("try", try))
-					try++
-				} else {
+				if !shouldRetry {
 					return err
 				}
+
+				try++
+				log.Warn("cannot get task status, increasing retry counter", zap.Error(err), zap.Int("try", try))
+				continue
 			}
+
 			log.Debug("task tracking OK, resetting failure counter")
 			try = 0
 		}
