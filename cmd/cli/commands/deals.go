@@ -8,6 +8,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -30,6 +31,7 @@ func init() {
 	dealQuickBuyCmd.PersistentFlags().BoolVar(&forceDealFlag, "force", false, "Force deal opening without checking worker availability")
 
 	dealStatusCmd.PersistentFlags().BoolVar(&expandDealFlag, "expand", false, "Print extended orders' info bound to deal")
+	dealQuickBuyCmd.PersistentFlags().BoolVar(&expandDealFlag, "expand", false, "Print extended orders' info bound to deal")
 
 	changeRequestsRoot.AddCommand(
 		changeRequestCreateCmd,
@@ -81,17 +83,25 @@ func appendExtendedInfo(ctx context.Context, dealInfo *ExtendedDealInfo) error {
 	if err != nil {
 		return fmt.Errorf("cannot create client connection: %v", err)
 	}
-	ask, err := market.GetOrderByID(ctx, &pb.ID{dealInfo.GetDeal().GetAskID().Unwrap().String()})
-	if err != nil {
-		return fmt.Errorf("failed to fetch ask order: %v", err)
-	}
-	dealInfo.Ask = ask
-	bid, err := market.GetOrderByID(ctx, &pb.ID{dealInfo.GetDeal().GetBidID().Unwrap().String()})
-	if err != nil {
-		return fmt.Errorf("failed to fetch bid order: %v", err)
-	}
-	dealInfo.Bid = bid
-	return nil
+	wg, ctx := errgroup.WithContext(ctx)
+
+	wg.Go(func() error {
+		ask, err := market.GetOrderByID(ctx, &pb.ID{dealInfo.GetDeal().GetAskID().Unwrap().String()})
+		if err != nil {
+			return fmt.Errorf("failed to fetch ask order: %v", err)
+		}
+		dealInfo.Ask = ask
+		return nil
+	})
+	wg.Go(func() error {
+		bid, err := market.GetOrderByID(ctx, &pb.ID{dealInfo.GetDeal().GetBidID().Unwrap().String()})
+		if err != nil {
+			return fmt.Errorf("failed to fetch bid order: %v", err)
+		}
+		dealInfo.Bid = bid
+		return nil
+	})
+	return wg.Wait()
 }
 
 var dealStatusCmd = &cobra.Command{
