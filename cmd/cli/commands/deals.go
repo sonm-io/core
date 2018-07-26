@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -15,6 +16,7 @@ var (
 	crNewDurationFlag string
 	crNewPriceFlag    string
 	forceDealFlag     bool
+	expandDealFlag    bool
 )
 
 func init() {
@@ -26,6 +28,8 @@ func init() {
 
 	dealOpenCmd.PersistentFlags().BoolVar(&forceDealFlag, "force", false, "Force deal opening without checking worker availability")
 	dealQuickBuyCmd.PersistentFlags().BoolVar(&forceDealFlag, "force", false, "Force deal opening without checking worker availability")
+
+	dealStatusCmd.PersistentFlags().BoolVar(&expandDealFlag, "expand", false, "Print extended orders' info bound to deal")
 
 	changeRequestsRoot.AddCommand(
 		changeRequestCreateCmd,
@@ -72,6 +76,24 @@ var dealListCmd = &cobra.Command{
 	},
 }
 
+func appendExtendedInfo(ctx context.Context, dealInfo *ExtendedDealInfo) error {
+	market, err := newMarketClient(ctx)
+	if err != nil {
+		return fmt.Errorf("cannot create client connection: %v", err)
+	}
+	ask, err := market.GetOrderByID(ctx, &pb.ID{dealInfo.GetDeal().GetAskID().Unwrap().String()})
+	if err != nil {
+		return fmt.Errorf("failed to fetch ask order: %v", err)
+	}
+	dealInfo.Ask = ask
+	bid, err := market.GetOrderByID(ctx, &pb.ID{dealInfo.GetDeal().GetBidID().Unwrap().String()})
+	if err != nil {
+		return fmt.Errorf("failed to fetch ask order: %v", err)
+	}
+	dealInfo.Bid = bid
+	return nil
+}
+
 var dealStatusCmd = &cobra.Command{
 	Use:   "status <deal_id>",
 	Short: "Show deal status",
@@ -94,9 +116,21 @@ var dealStatusCmd = &cobra.Command{
 		if err != nil {
 			return fmt.Errorf("cannot get deal info: %v", err)
 		}
+		dealInfo := &ExtendedDealInfo{
+			DealInfoReply: reply,
+		}
+		if expandDealFlag {
+			if err := appendExtendedInfo(ctx, dealInfo); err != nil {
+				return err
+			}
+		}
 
-		changeRequests, _ := dealer.ChangeRequestsList(ctx, id)
-		printDealInfo(cmd, reply, changeRequests, printEverything)
+		changeRequests, err := dealer.ChangeRequestsList(ctx, id)
+		if err != nil {
+			return fmt.Errorf("failed to fetch change request list: %v", err)
+		}
+		dealInfo.ChangeRequests = changeRequests
+		printDealInfo(cmd, dealInfo, printEverything)
 		return nil
 	},
 }
@@ -177,7 +211,15 @@ var dealQuickBuyCmd = &cobra.Command{
 			return fmt.Errorf("cannot perform quick buy on given order: %v", err)
 		}
 
-		printDealInfo(cmd, deal, nil, printEverything)
+		info := &ExtendedDealInfo{
+			DealInfoReply: deal,
+		}
+		if expandDealFlag {
+			if err := appendExtendedInfo(ctx, info); err != nil {
+				return err
+			}
+		}
+		printDealInfo(cmd, info, printEverything)
 		return nil
 	},
 }

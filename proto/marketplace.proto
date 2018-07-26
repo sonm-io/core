@@ -17,8 +17,10 @@ service Market {
     rpc CreateOrder(BidOrder) returns (Order) {}
     // GetOrderByID returns order by given ID.
     // If order save an `inactive` status returns error instead.
+    // TODO: get rid of string ID #1237
     rpc GetOrderByID(ID) returns (Order) {}
     // CancelOrder removes active order from the Marketplace.
+    // TODO: get rid of string ID #1237
     rpc CancelOrder(ID) returns (Empty) {}
     // Purge remove all active orders from marketplace
     rpc Purge(Empty) returns (Empty) {}
