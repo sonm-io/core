@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sonm-io/core/connor_v2/antifraud"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -19,6 +20,7 @@ type engine struct {
 	ctx       context.Context
 	cfg       engineConfig
 	miningCfg miningConfig
+	antiFraud antifraud.AntiFraud
 
 	market sonm.MarketClient
 	deals  sonm.DealManagementClient
@@ -39,6 +41,7 @@ func NewEngine(ctx context.Context, cfg engineConfig, miningCfg miningConfig, lo
 		tasks:             sonm.NewTaskManagementClient(cc),
 		ordersCreateChan:  make(chan *Corder, concurrency),
 		ordersResultsChan: make(chan *Corder, concurrency),
+		antiFraud:         antifraud.NewAntiFraud(log.Named("anti-fraud"), cc),
 	}
 }
 
@@ -144,9 +147,11 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 	dealID := deal.GetId().Unwrap().String()
 	log := e.log.Named("process-deal").With(zap.String("deal_id", dealID))
 
+	e.antiFraud.RegisterDeal(deal)
+
 	log.Debug("start deal processing")
 	defer log.Debug("stop deal processing")
-	defer e.finishDeal(deal.GetId())
+	defer e.antiFraud.FinishDeal(deal.GetId())
 
 	taskID, err := e.restoreTasks(log, deal.GetId())
 	if err != nil {
