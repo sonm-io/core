@@ -88,7 +88,7 @@ func appendExtendedInfo(ctx context.Context, dealInfo *ExtendedDealInfo) error {
 	dealInfo.Ask = ask
 	bid, err := market.GetOrderByID(ctx, &pb.ID{dealInfo.GetDeal().GetBidID().Unwrap().String()})
 	if err != nil {
-		return fmt.Errorf("failed to fetch ask order: %v", err)
+		return fmt.Errorf("failed to fetch bid order: %v", err)
 	}
 	dealInfo.Bid = bid
 	return nil
