@@ -210,7 +210,7 @@ func getConnString(database, user, password string) string {
 func getTestDWH(dbEndpoint string) (*DWH, error) {
 	var (
 		ctx = context.Background()
-		cfg = &Config{
+		cfg = &DWHConfig{
 			Storage: &storageConfig{
 				Endpoint: dbEndpoint,
 			},

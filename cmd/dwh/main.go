@@ -26,7 +26,7 @@ func main() {
 }
 
 func run() error {
-	cfg, err := dwh.NewConfig(configFlag)
+	cfg, err := dwh.NewDWHConfig(configFlag)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %s", err)
 	}

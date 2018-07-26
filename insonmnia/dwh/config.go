@@ -9,7 +9,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 )
 
-type Config struct {
+type DWHConfig struct {
 	Logging           LoggingConfig      `yaml:"logging"`
 	GRPCListenAddr    string             `yaml:"grpc_address" default:"127.0.0.1:15021"`
 	HTTPListenAddr    string             `yaml:"http_address" default:"127.0.0.1:15022"`
@@ -33,8 +33,8 @@ type YAMLConfig struct {
 	Endpoint string `yaml:"endpoint" required:"false"`
 }
 
-func NewConfig(path string) (*Config, error) {
-	cfg := &Config{}
+func NewDWHConfig(path string) (*DWHConfig, error) {
+	cfg := &DWHConfig{}
 	err := configor.Load(cfg, path)
 	if err != nil {
 		return nil, err
@@ -45,4 +45,11 @@ func NewConfig(path string) (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+type L1ProcessorConfig struct {
+	Storage    *storageConfig
+	Blockchain *blockchain.Config
+	NumWorkers int
+	ColdStart  bool
 }
