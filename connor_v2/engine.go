@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/sonm-io/core/connor_v2/antifraud"
 	"github.com/sonm-io/core/proto"
@@ -13,7 +12,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-const concurrency = 10
+const (
+	concurrency   = 10
+	maxRetryCount = 5
+)
 
 type engine struct {
 	log       *zap.Logger
@@ -179,24 +181,22 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 }
 
 func (e *engine) startTaskWithRetry(log *zap.Logger, deal *sonm.Deal) (*sonm.StartTaskReply, error) {
-	try := 0
-	deadline := 5
-
-	t := util.NewImmediateTicker(10 * time.Second)
+	t := util.NewImmediateTicker(e.cfg.TaskStartInterval)
 	defer t.Stop()
 
+	try := 0
 	for {
 		select {
 		case <-e.ctx.Done():
 			return nil, e.ctx.Err()
 		case <-t.C:
-			if try > deadline {
+			if try > maxRetryCount {
 				return nil, fmt.Errorf("cannot start task: retry count exceeded")
 			}
-			try++
 
 			taskReply, err := e.startTaskOnce(log, deal.GetId())
 			if err != nil {
+				try++
 				log.Warn("task start failed", zap.Error(err), zap.Int("try", try))
 				continue
 			}
@@ -207,7 +207,7 @@ func (e *engine) startTaskWithRetry(log *zap.Logger, deal *sonm.Deal) (*sonm.Sta
 }
 
 func (e *engine) startTaskOnce(log *zap.Logger, dealID *sonm.BigInt) (*sonm.StartTaskReply, error) {
-	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.ConnectionTimeout)
 	defer cancel()
 
 	taskReply, err := e.tasks.Start(ctx, &sonm.StartTaskRequest{
@@ -236,18 +236,16 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 	log = log.Named("task").With(zap.String("task_id", taskID))
 	log.Info("start task status tracking")
 
-	try := 0
-	deadline := 5
-
-	t := time.NewTicker(15 * time.Second)
+	t := util.NewImmediateTicker(e.cfg.TaskTrackInterval)
 	defer t.Stop()
 
+	try := 0
 	for {
 		select {
 		case <-e.ctx.Done():
 			return e.ctx.Err()
 		case <-t.C:
-			if try > deadline {
+			if try > maxRetryCount {
 				return fmt.Errorf("task tracking failed: retry count exceeded")
 			}
 
@@ -282,7 +280,7 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 }
 
 func (e *engine) checkDealStatus(log *zap.Logger, dealID *sonm.BigInt) (bool, error) {
-	ctx, cancel := context.WithTimeout(e.ctx, 15*time.Second)
+	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.ConnectionTimeout)
 	defer cancel()
 
 	dealStatus, err := e.deals.Status(ctx, dealID)
@@ -296,7 +294,7 @@ func (e *engine) checkDealStatus(log *zap.Logger, dealID *sonm.BigInt) (bool, er
 func (e *engine) trackTaskOnce(log *zap.Logger, dealID *sonm.BigInt, taskID string) (bool, error) {
 	log.Debug("checking task status")
 
-	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.ConnectionTimeout)
 	defer cancel()
 
 	// 3. ping task
@@ -319,18 +317,16 @@ func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, err
 	log = log.Named("restore-tasks")
 	log.Debug("restoring tasks")
 
-	t := util.NewImmediateTicker(10 * time.Second)
+	t := util.NewImmediateTicker(e.cfg.TaskRestoreInterval)
 	defer t.Stop()
 
 	try := 0
-	deadline := 5
-
 	for {
 		select {
 		case <-e.ctx.Done():
 			return "", e.ctx.Err()
 		case <-t.C:
-			if try > deadline {
+			if try > maxRetryCount {
 				return "", fmt.Errorf("restore tasks failed: retry count exceeded")
 			}
 
@@ -369,7 +365,7 @@ func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, err
 func (e *engine) loadTasksOnce(log *zap.Logger, dealID *sonm.BigInt) ([]*taskStatus, error) {
 	log.Debug("loading tasks from worker")
 
-	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
+	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.ConnectionTimeout)
 	defer cancel()
 
 	taskList, err := e.tasks.List(ctx, &sonm.TaskListRequest{DealID: dealID})
@@ -408,8 +404,8 @@ func (e *engine) stopAllTasks(log *zap.Logger, list []*taskStatus, dealID *sonm.
 func (e *engine) stopOneTask(log *zap.Logger, dealID *sonm.BigInt, taskID string) error {
 	log.Debug("stopping task", zap.String("task_id", taskID))
 
-	for try := 0; try < 5; try++ {
-		ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
+	for try := 0; try < maxRetryCount; try++ {
+		ctx, cancel := context.WithTimeout(e.ctx, e.cfg.ConnectionTimeout)
 		if _, err := e.tasks.Stop(ctx, &sonm.TaskID{Id: taskID, DealID: dealID}); err != nil {
 			log.Warn("cannot stop task", zap.Error(err), zap.Int("try", try))
 			cancel()
@@ -421,21 +417,6 @@ func (e *engine) stopOneTask(log *zap.Logger, dealID *sonm.BigInt, taskID string
 	}
 
 	return fmt.Errorf("cannot stop task: retry count exceeded")
-}
-
-func (e *engine) finishDeal(id *sonm.BigInt) {
-	// todo: how to decide that we should add worker to blacklist?
-	// todo: move this to the anti-fraud module
-
-	ctx, cancel := context.WithTimeout(e.ctx, 30*time.Second)
-	defer cancel()
-
-	if _, err := e.deals.Finish(ctx, &sonm.DealFinishRequest{Id: id}); err != nil {
-		e.log.Warn("cannot finish deal", zap.Error(err), zap.String("id", id.Unwrap().String()))
-		return
-	}
-
-	e.log.Info("deal finished", zap.String("id", id.Unwrap().String()))
 }
 
 func (e *engine) start(ctx context.Context) {
