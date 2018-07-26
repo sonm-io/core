@@ -32,6 +32,9 @@ func printTaskStatus(cmd *cobra.Command, id string, taskStatus *pb.TaskStatusRep
 		cmd.Printf("ID: %s\r\n", id)
 		cmd.Printf("  Image:  %s\r\n", taskStatus.GetImageName())
 		cmd.Printf("  Status: %s\r\n", taskStatus.GetStatus().String())
+		if tag := taskStatus.GetTag(); len(tag) != 0 {
+			cmd.Printf("  Tag: %s\r\n", tag)
+		}
 		cmd.Printf("  Uptime: %s\r\n", time.Duration(taskStatus.GetUptime()).String())
 
 		if taskStatus.GetUsage() != nil {

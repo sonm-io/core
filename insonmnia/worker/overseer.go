@@ -99,6 +99,7 @@ type ContainerInfo struct {
 	NetworkIDs   []string
 	DealID       string
 	TaskId       string
+	Tag          string
 }
 
 func (c *ContainerInfo) IntoProto(ctx context.Context) *pb.TaskStatusReply {
@@ -125,6 +126,7 @@ func (c *ContainerInfo) IntoProto(ctx context.Context) *pb.TaskStatusReply {
 		Uptime:             uint64(time.Now().Sub(c.StartAt).Nanoseconds()),
 		Usage:              nil,
 		AllocatedResources: nil,
+		Tag:                c.Tag,
 	}
 }
 
