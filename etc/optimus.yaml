@@ -18,6 +18,122 @@ node:
   # Node trusted endpoint.
   endpoint: 0x83A68C0AEaCA382fC42122f125cbDC64d4b43FdD@[::1]:15030
 
+benchmarks:
+  # URL to download benchmark list, use "file://" schema to load file from a filesystem.
+  url: "https://raw.githubusercontent.com/sonm-io/benchmarks-list/master/list.json"
+
+# Marketplace polling settings.
+marketplace:
+  # Account settings.
+  ethereum: *ethereum
+  # DWH endpoint.
+  endpoint: "0xadffcac607a0a1b583c489977eae413a62d4bc73@dwh.livenet.sonm.com:15021"
+  # Interval of current orders caching, that are fetched from the marketplace.
+  interval: 30s
+  # Minimum price threshold for fetching orders from the marketplace.
+  # Used to prevent regression poisoning.
+  # Optional.
+  # Default value is 0.0001 USD/h, which is nearly about 1 USD per year.
+  min_price: 0.0001 USD/h
+
+# Optimization engine settings.
+optimization: &optimization
+  # Since v0.4.6 Optimus contains all models with predefined well-tuned
+  # settings.
+  # However it is possible to override them. All of them have default
+  # values specified in this config example.
+  # The main thing here is the "model". It must have "type" field and
+  # model-specific settings.
+  # Currently we support the following models: batch, greedy, genetic
+  # and branch_bound.
+  model:
+    # Batch model combines several other models to be able to run them
+    # simultaneously and select the most profitable optimization result.
+    # By default the following logic happens: if the matched orders count
+    # is small enough the branch_bound algorithm is activated, which gives
+    # the optimal solution.
+    type: batch
+    # Brute force model activation settings.
+    brute:
+      # Number of matched orders to activate the following model.
+      # Must be small enough, because brute force models may consume all CPUs
+      # on the machine.
+      match: 128
+      # Model settings.
+      model:
+        # Branch and bound model.
+        type: branch_bound
+        # Maximum tree height. After reaching the specified value the model
+        # returns the best it found.
+        height_limit: 6
+    models:
+        # Greedy algorithm is a fast and simple optimization heuristic, that
+        # can find solution, but possibly not the optimum.
+        # We use linear regression to reduce the number of dimensions, which is
+        # the number of benchmarks, to a single one to be able to apply greedy
+        # technique.
+      - type: greedy
+        # Orders with weight lesser than the specified will be ignored.
+        weight_limit: 1e-3
+        # Stop trying to pack sorted-by-weight orders after reaching the
+        # specified value.
+        exhaustion_limit: 128
+        # Regression type.
+        # Currently supported regressions: linear least squares (lls) and
+        # non-negative least squares (nnls).
+        regression:
+          # Linear least squares regression.
+          type: lls
+          # Specific gradient descent options.
+          # Alpha is the learning rate.
+          # If the learning rate alpha is too small we will have slow
+          # convergence.
+          # If alpha is too large J of theta may not decrease on every
+          # iteration and may not converge.
+          alpha: 1e-6
+          # Regularization term.
+          regularization: 6.0
+          # Maximum number of iterations.
+          max_iterations: 1000
+      - type: greedy
+        # Orders with weight lesser than the specified will be ignored.
+        weight_limit: 1e-3
+        # Stop trying to pack sorted-by-weight orders after reaching the
+        # specified value.
+        exhaustion_limit: 128
+        # Regression type.
+        # Currently supported regressions: linear least squares (lls) and
+        # non-negative least squares (nnls).
+        regression:
+          # Linear non-negative least squares regression.
+          type: nnls
+        # Genetic algorithm is a meta-heuristic that tries to optimize the
+        # worker's knapsack using analogy with biological processes.
+      - type: genetic
+        # Packed genome starts with populations with randomly picked orders.
+        genome: packed
+        # Size of the population. Large populations increases the probability
+        # of more optimized solution, but consumes more CPU.
+        population_size: 256
+        # Maximum number of population generations, after reaching those
+        # evolution process is stopped.
+        max_generations: 128
+        # Maximum algorithm work time.
+        # If reached, the best attempt is selected.
+        max_age: 5m
+      - type: genetic
+        # Decision genome starts with populations with no orders selected.
+        genome: decision
+        # Size of the population. Large populations increases the probability
+        # of more optimized solution, but consumes more CPU.
+        population_size: 512
+        # Maximum number of population generations, after reaching those
+        # evolution process is stopped.
+        max_generations: 64
+        # Maximum algorithm work time.
+        # If reached, the best attempt is selected.
+        max_age: 5m
+
 # Map of workers this bot manages defined by its trusted endpoints with their
 # settings.
 workers:
@@ -63,38 +179,5 @@ workers:
     # Optional.
     # Default value is 30s.
     prelude_timeout: 30s
-
-benchmarks:
-  # URL to download benchmark list, use `file://` schema to load file from a filesystem.
-  url: "https://raw.githubusercontent.com/sonm-io/benchmarks-list/master/list.json"
-
-# Marketplace polling settings.
-marketplace:
-  # Account settings.
-  ethereum: *ethereum
-  # DWH endpoint.
-  endpoint: "0xadffcac607a0a1b583c489977eae413a62d4bc73@dwh.livenet.sonm.com:15021"
-  # Interval of current orders caching, that are fetched from the marketplace.
-  interval: 30s
-  # Minimum price threshold for fetching orders from the marketplace.
-  # Used to prevent regression poisoning.
-  # Optional.
-  # Default value is 0.0001 USD/h, which is nearly about 1 USD per year.
-  min_price: 0.0001 USD/h
-
-# Optimization engine settings.
-optimization:
-  # Interval of time for optimization.
-  # Note that the optimization process may be triggered by other external
-  # conditions.
-  interval: 30s
-  # Orders classification settings.
-  # Optional. By default multidimensional linear regression with non-negative
-  # coefficients model is used.
-  classifier:
-    type: regression
-    model:
-      type: lls
-      alpha: 1e-6
-      regularization: 6.0
-      max_iterations: 1000
+    # Optimization engine settings.
+    optimization: *optimization

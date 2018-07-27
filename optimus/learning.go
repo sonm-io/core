@@ -6,8 +6,6 @@ import (
 	"math"
 	"math/big"
 	"sort"
-
-	"go.uber.org/zap"
 )
 
 const (
@@ -87,15 +85,7 @@ type OrderClassifier interface {
 }
 
 type regressionClassifier struct {
-	modelFactory modelFactory
-	log          *zap.Logger
-}
-
-func newRegressionClassifier(modelFactory modelFactory, log *zap.Logger) OrderClassifier {
-	return &regressionClassifier{
-		modelFactory: modelFactory,
-		log:          log,
-	}
+	model Model
 }
 
 func (m *regressionClassifier) Classify(orders []*MarketOrder) ([]WeightedOrder, error) {
@@ -116,7 +106,7 @@ func (m *regressionClassifier) ClassifyExt(orders []*MarketOrder) (*OrderClassif
 		return nil, err
 	}
 
-	predictor, err := m.modelFactory(m.log).Train(trainingSet, expectationN)
+	predictor, err := m.model.Train(trainingSet, expectationN)
 	if err != nil {
 		return nil, err
 	}

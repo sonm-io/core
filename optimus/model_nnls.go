@@ -21,12 +21,14 @@ type SCAKKTModel struct {
 	Log           *zap.SugaredLogger
 }
 
-func newSCAKKTModel() modelFactory {
-	return func(log *zap.Logger) Model {
-		return &SCAKKTModel{
-			Log:           log.Sugar(),
-			MaxIterations: 1e7,
-		}
+func (m *SCAKKTModel) Config() interface{} {
+	return m
+}
+
+func (m *SCAKKTModel) Create(log *zap.SugaredLogger) Model {
+	return &SCAKKTModel{
+		MaxIterations: 1e7,
+		Log:           log,
 	}
 }
 

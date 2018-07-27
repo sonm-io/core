@@ -2,13 +2,14 @@ package optimus
 
 import (
 	"fmt"
-	"io"
-	"io/ioutil"
 
-	"github.com/cdipaolo/goml/base"
-	"github.com/cdipaolo/goml/linear"
 	"go.uber.org/zap"
 )
+
+type RegressionModelFactory interface {
+	Config() interface{}
+	Create(log *zap.SugaredLogger) Model
+}
 
 // Model represents a ML model that can be trained using provided training set
 // with some expectation.
@@ -23,86 +24,41 @@ type TrainedModel interface {
 	Predict(vec []float64) (float64, error)
 }
 
-type llsModelConfig struct {
-	Alpha          float64 `yaml:"alpha" default:"1e-3"`
-	Regularization float64 `yaml:"regularization" default:"6.0"`
-	MaxIterations  int     `yaml:"max_iterations" default:"1000"`
+type regressionModelFactory struct {
+	RegressionModelFactory
 }
 
-type modelFactory func(log *zap.Logger) Model
-
-// NewModelFactory constructs a new model factory using provided unmarshaller.
-func newModelFactory(cfgUnmarshal func(interface{}) error) (modelFactory, error) {
-	ty, err := typeofInterface(cfgUnmarshal)
-	if err != nil {
-		return nil, err
-	}
-
-	switch ty {
-	case "lls":
-		cfg := llsModelConfig{}
-		if err := cfgUnmarshal(&cfg); err != nil {
-			return nil, err
-		}
-
-		return newLLSModelFactory(cfg), nil
-	case "nnls":
-		return newSCAKKTModel(), nil
-	default:
-		return nil, fmt.Errorf("unknown model: %s", ty)
-	}
+func (m *regressionModelFactory) MarshalYAML() (interface{}, error) {
+	return m.Config(), nil
 }
 
-func (m *modelFactory) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	factory, err := newModelFactory(unmarshal)
+func (m *regressionModelFactory) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	ty, err := typeofInterface(unmarshal)
 	if err != nil {
 		return err
 	}
 
-	*m = factory
+	factory := regressionFactory(ty)
+	if factory == nil {
+		return fmt.Errorf("unknown regression model: %s", ty)
+	}
+
+	if err := unmarshal(factory.Config()); err != nil {
+		return err
+	}
+
+	m.RegressionModelFactory = factory
 
 	return nil
 }
 
-func newLLSModelFactory(cfg llsModelConfig) modelFactory {
-	return func(log *zap.Logger) Model {
-		return &llsModel{
-			cfg:    cfg,
-			output: ioutil.Discard,
-		}
+func regressionFactory(ty string) RegressionModelFactory {
+	switch ty {
+	case "lls":
+		return &llsModelConfig{}
+	case "nnls":
+		return &SCAKKTModel{}
+	default:
+		return nil
 	}
-}
-
-type llsModel struct {
-	cfg    llsModelConfig
-	output io.Writer
-}
-
-func (m *llsModel) Train(trainingSet [][]float64, expectation []float64) (TrainedModel, error) {
-	model := linear.NewLeastSquares(base.BatchGA, m.cfg.Alpha, m.cfg.Regularization, m.cfg.MaxIterations, trainingSet, expectation)
-	//model.Output = m.output
-	if err := model.Learn(); err != nil {
-		return nil, err
-	}
-
-	return &trainedLLSModel{
-		model: model,
-	}, nil
-}
-
-type trainedLLSModel struct {
-	model *linear.LeastSquares
-}
-
-func (m *trainedLLSModel) Predict(vec []float64) (float64, error) {
-	prediction, err := m.model.Predict(vec)
-	if err != nil {
-		return 0.0, err
-	}
-
-	if len(prediction) == 0 {
-		return 0.0, fmt.Errorf("no prediction made")
-	}
-
-	return prediction[0], nil
 }
