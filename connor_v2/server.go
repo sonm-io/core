@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/connor_v2/price"
@@ -47,13 +48,19 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*Connor, error) {
 		return nil, fmt.Errorf("cannot create connection to node: %v", err)
 	}
 
+	tokenPrice := price.NewProvider(&price.ProviderConfig{
+		Token:  cfg.Mining.Token,
+		Margin: cfg.Market.PriceMarginality,
+		URL:    cfg.Mining.TokenPrice.PriceURL,
+	})
+
 	return &Connor{
 		key:                key,
 		cfg:                cfg,
 		log:                log,
+		tokenPriceProvider: tokenPrice,
 		marketClient:       sonm.NewMarketClient(cc),
 		dealsClient:        sonm.NewDealManagementClient(cc),
-		tokenPriceProvider: price.NewProvider(cfg.Mining.Token, cfg.Market.PriceMarginality),
 		engine:             NewEngine(ctx, cfg.Engine, cfg.Mining, log, cc),
 	}, nil
 }
@@ -75,6 +82,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 		zap.Float64("margin", c.cfg.Market.PriceMarginality))
 
 	c.engine.start(ctx)
+	c.startPriceTracking(ctx)
 
 	// restore two subsets of orders, then separate on non-existing orders that
 	// should be placed on market and active orders that should be watched
@@ -128,6 +136,30 @@ func (c *Connor) loadInitialData(ctx context.Context) error {
 	c.benchmarkList = benchList
 
 	return nil
+}
+
+func (c *Connor) startPriceTracking(ctx context.Context) {
+	go func() {
+		log := c.log.Named("token-price")
+		t := time.NewTicker(c.cfg.Mining.TokenPrice.UpdateInterval)
+		defer t.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				log.Debug("stop price tracking")
+				return
+
+			case <-t.C:
+				if err := c.tokenPriceProvider.Update(ctx); err != nil {
+					log.Warn("cannot update token price", zap.Error(err))
+				} else {
+					log.Debug("received new token price",
+						zap.String("new_price", c.tokenPriceProvider.GetPrice().String()))
+				}
+			}
+		}
+	}()
 }
 
 type ordersSets struct {

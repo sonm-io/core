@@ -21,6 +21,8 @@ type miningConfig struct {
 	PoolReportURL string         `yaml:"pool_report" required:"false"`
 	// todo(sshaman1101): parse PoolTrackingURL and replace URL part with wallet address.
 	PoolTrackingURL string `yaml:"pool_tracking" required:"false"`
+
+	TokenPrice tokenPriceConfig `yaml:"token_price"`
 }
 
 func (m *miningConfig) getTag() string {
@@ -46,6 +48,11 @@ type engineConfig struct {
 	TaskStartInterval   time.Duration `yaml:"task_start_interval" default:"15s"`
 	TaskTrackInterval   time.Duration `yaml:"task_track_interval" default:"15s"`
 	TaskRestoreInterval time.Duration `yaml:"task_restore_interval" default:"10s"`
+}
+
+type tokenPriceConfig struct {
+	PriceURL       string        `yaml:"price_url"`
+	UpdateInterval time.Duration `yaml:"update_interval" default:"60s"`
 }
 
 type Config struct {

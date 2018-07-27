@@ -2,7 +2,6 @@ package price
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"sync"
 	"time"
@@ -13,11 +12,6 @@ import (
 const (
 	retryCount   = 3
 	retryTimeout = 1 * time.Second
-	// append ticker name and also *trailing slash*
-	priceBaseURL = "https://api.coinmarketcap.com/v1/ticker"
-	sonmURLPart  = "sonm/"
-	zcashURLPart = "zcash/"
-	ethURLPart   = "ethereum/"
 )
 
 // Provider loads and calculates mining profit for specified token.
@@ -30,26 +24,32 @@ type Provider interface {
 	GetPrice() *big.Int
 }
 
-func NewProvider(token string, priceMargin float64) Provider {
-	switch token {
+type ProviderConfig struct {
+	Token  string
+	Margin float64
+	URL    string
+}
+
+func NewProvider(cfg *ProviderConfig) Provider {
+	switch cfg.Token {
 	case "NULL":
-		return newNullPriceProvider(priceMargin)
+		return newNullPriceProvider(cfg)
 	case "ETH":
-		return newEthPriceProvider(priceMargin)
+		return newEthPriceProvider(cfg)
 	case "ZEC":
-		return newZecPriceProvider(priceMargin)
+		return newZecPriceProvider(cfg)
 	default:
 		// should never happens
-		panic("cannot get price updater for token " + token)
+		panic("cannot get price updater for token " + cfg.Token)
 	}
 }
 
 type nullPriceProvider struct {
-	priceMargin *big.Float
+	cfg *ProviderConfig
 }
 
-func newNullPriceProvider(p float64) Provider {
-	return &nullPriceProvider{priceMargin: big.NewFloat(p)}
+func newNullPriceProvider(cfg *ProviderConfig) Provider {
+	return &nullPriceProvider{cfg: cfg}
 }
 
 func (p *nullPriceProvider) Update(ctx context.Context) error {
@@ -57,24 +57,23 @@ func (p *nullPriceProvider) Update(ctx context.Context) error {
 }
 
 func (p *nullPriceProvider) GetPrice() *big.Int {
-	v, _ := big.NewFloat(0).Mul(big.NewFloat(5e5), p.priceMargin).Int(nil)
+	v, _ := big.NewFloat(0).Mul(big.NewFloat(5e5), big.NewFloat(p.cfg.Margin)).Int(nil)
 	return v
 }
 
 type ethPriceProvider struct {
-	mu          sync.Mutex
-	price       *big.Int
-	priceMargin *big.Float
+	mu    sync.Mutex
+	price *big.Int
+	cfg   *ProviderConfig
 }
 
-func newEthPriceProvider(p float64) Provider {
-	return &ethPriceProvider{priceMargin: big.NewFloat(p)}
+func newEthPriceProvider(cfg *ProviderConfig) Provider {
+	return &ethPriceProvider{cfg: cfg}
 }
 
 func (p *ethPriceProvider) Update(ctx context.Context) error {
 	// 1. load price for 1 token in USD
-	url := fmt.Sprintf("%s/%s", priceBaseURL, ethURLPart)
-	price, err := getPriceFromCMC(url)
+	price, err := getPriceFromCMC(p.cfg.URL)
 	if err != nil {
 		return err
 	}
@@ -106,7 +105,7 @@ func (p *ethPriceProvider) calculate(price, reward, difficulty *big.Float) *big.
 	perSecPerHashUSD := big.NewFloat(0).Mul(price, ethPerSecPerHash)
 	etherGradedPricePerSecPerHashUSD := big.NewFloat(0).Mul(perSecPerHashUSD, big.NewFloat(params.Ether))
 
-	priceWithMargin := big.NewFloat(0).Mul(etherGradedPricePerSecPerHashUSD, p.priceMargin)
+	priceWithMargin := big.NewFloat(0).Mul(etherGradedPricePerSecPerHashUSD, big.NewFloat(p.cfg.Margin))
 	result, _ := priceWithMargin.Int(nil)
 	return result
 }
@@ -122,7 +121,7 @@ type zecPriceProvider struct {
 	price *big.Int
 }
 
-func newZecPriceProvider(_ float64) Provider { return &zecPriceProvider{price: big.NewInt(1)} }
+func newZecPriceProvider(_ *ProviderConfig) Provider { return &zecPriceProvider{price: big.NewInt(1)} }
 
 func (p *zecPriceProvider) Update(ctx context.Context) error {
 	return nil

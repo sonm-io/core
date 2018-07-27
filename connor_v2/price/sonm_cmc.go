@@ -2,9 +2,12 @@ package price
 
 import (
 	"context"
-	"fmt"
 	"math/big"
 	"sync"
+)
+
+const (
+	sonmPriceURL = "https://api.coinmarketcap.com/v1/ticker/sonm/"
 )
 
 type sonmPriceProvider struct {
@@ -17,8 +20,7 @@ type sonmPriceProvider struct {
 func NewSonmPriceProvider() Provider { return &sonmPriceProvider{} }
 
 func (p *sonmPriceProvider) Update(ctx context.Context) error {
-	url := fmt.Sprintf("%s/%s", priceBaseURL, sonmURLPart)
-	price, err := getPriceFromCMC(url)
+	price, err := getPriceFromCMC(sonmPriceURL)
 	if err != nil {
 		return err
 	}

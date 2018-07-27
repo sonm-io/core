@@ -10,7 +10,7 @@ import (
 )
 
 func TestCalculateEthPrice(t *testing.T) {
-	prov := &ethPriceProvider{priceMargin: big.NewFloat(1)}
+	prov := &ethPriceProvider{cfg: &ProviderConfig{Margin: 1}}
 
 	tests := []struct {
 		price      *big.Float
@@ -60,37 +60,37 @@ func TestPriceCalculationWithMargin(t *testing.T) {
 	difficulty := big.NewFloat(3e15)
 
 	tests := []struct {
-		margin   *big.Float
+		margin   float64
 		expected *big.Int
 	}{
 		{
-			margin:   big.NewFloat(0.9),
+			margin:   0.9,
 			expected: big.NewInt(450000),
 		},
 		{
-			margin:   big.NewFloat(1),
+			margin:   1,
 			expected: big.NewInt(500000),
 		},
 		{
-			margin:   big.NewFloat(1.1),
+			margin:   1.1,
 			expected: big.NewInt(550000),
 		},
 		{
-			margin:   big.NewFloat(10),
+			margin:   10,
 			expected: big.NewInt(5000000),
 		},
 		{
-			margin:   big.NewFloat(0.1),
+			margin:   0.1,
 			expected: big.NewInt(50000),
 		},
 		{
-			margin:   big.NewFloat(1.123),
+			margin:   1.123,
 			expected: big.NewInt(561500),
 		},
 	}
 
 	for _, tt := range tests {
-		prov := &ethPriceProvider{priceMargin: tt.margin}
+		prov := &ethPriceProvider{cfg: &ProviderConfig{Margin: tt.margin}}
 		res := prov.calculate(price, reward, difficulty)
 		assert.True(t, tt.expected.Cmp(res) == 0, fmt.Sprintf("%v == %v", tt.expected.String(), res.String()))
 	}
