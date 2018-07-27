@@ -257,7 +257,7 @@ func loadKeyStoreIfRequired(cmd *cobra.Command, _ []string) error {
 	return nil
 }
 
-func showJSON(cmd *cobra.Command, s interface{}) {
+func showJSON(cmd Printer, s interface{}) {
 	b, _ := json.Marshal(s)
 	cmd.Printf("%s\r\n", b)
 }

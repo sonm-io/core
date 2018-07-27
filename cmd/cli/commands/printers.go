@@ -23,6 +23,29 @@ const (
 
 type printerFlags int
 
+type Printer interface {
+	Printf(string, ...interface{})
+	Println(i ...interface{})
+}
+
+type IndentPrinter struct {
+	Subprinter Printer
+	IdentCount uint64
+	Ident      rune
+}
+
+func (m *IndentPrinter) Printf(format string, args ...interface{}) {
+	ident := strings.Repeat(string(m.Ident), int(m.IdentCount))
+	args = append([]interface{}{ident}, args...)
+	m.Subprinter.Printf("%s"+format, args...)
+}
+
+func (m *IndentPrinter) Println(args ...interface{}) {
+	ident := strings.Repeat(string(m.Ident), int(m.IdentCount))
+	m.Subprinter.Printf("%s", ident)
+	m.Subprinter.Println(args...)
+}
+
 func (p printerFlags) WarningSuppressed() bool {
 	return int(p)&suppressWarnings == 1
 }
@@ -186,7 +209,7 @@ func printOrdersList(cmd *cobra.Command, orders []*pb.Order) {
 	}
 }
 
-func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
+func printOrderDetails(cmd Printer, order *pb.Order) {
 	if isSimpleFormat() {
 		cmd.Printf("ID:              %s\r\n", order.Id)
 		if !order.GetDealID().IsZero() {
@@ -302,7 +325,7 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 		}
 
 		for _, deal := range deals {
-			printDealInfo(cmd, &pb.DealInfoReply{Deal: deal}, nil, suppressWarnings)
+			printDealInfo(cmd, &ExtendedDealInfo{DealInfoReply: &pb.DealInfoReply{Deal: deal}}, suppressWarnings)
 			cmd.Println()
 		}
 	} else {
@@ -311,7 +334,14 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 
 }
 
-func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealChangeRequestsReply, flags printerFlags) {
+type ExtendedDealInfo struct {
+	*pb.DealInfoReply
+	ChangeRequests *pb.DealChangeRequestsReply `json:"changeRequests"`
+	Ask            *pb.Order                   `json:"ask"`
+	Bid            *pb.Order                   `json:"bid"`
+}
+
+func printDealInfo(cmd *cobra.Command, info *ExtendedDealInfo, flags printerFlags) {
 	if isSimpleFormat() {
 		deal := info.GetDeal()
 		isClosed := deal.GetStatus() == pb.DealStatus_DEAL_CLOSED
@@ -321,8 +351,21 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealC
 		lastBill := deal.GetLastBillTS().Unix()
 
 		cmd.Printf("ID:           %s (%s deal)\r\n", deal.GetId(), deal.GetTypeName())
-		cmd.Printf("ASK ID:       %s\r\n", deal.GetAskID().Unwrap().String())
-		cmd.Printf("BID ID:       %s\r\n", deal.GetBidID().Unwrap().String())
+
+		if info.Ask != nil {
+			cmd.Printf("ASK:\r\n")
+			printer := &IndentPrinter{cmd, 4, ' '}
+			printOrderDetails(printer, info.Ask)
+		} else {
+			cmd.Printf("ASK ID:       %s\r\n", deal.GetAskID().Unwrap().String())
+		}
+		if info.Bid != nil {
+			cmd.Printf("BID:\r\n")
+			printer := &IndentPrinter{cmd, 4, ' '}
+			printOrderDetails(printer, info.Bid)
+		} else {
+			cmd.Printf("BID ID:       %s\r\n", deal.GetBidID().Unwrap().String())
+		}
 		cmd.Printf("Status:       %s\r\n", deal.GetStatus())
 		if deal.IsSpot() {
 			// for active spot deal we can show only pricePerSecond
@@ -351,9 +394,9 @@ func printDealInfo(cmd *cobra.Command, info *pb.DealInfoReply, changes *pb.DealC
 			cmd.Printf("Last bill:    %s\r\n", lastBill.Format(time.RFC3339))
 		}
 
-		if changes != nil && len(changes.GetRequests()) > 0 {
+		if info.ChangeRequests != nil && len(info.ChangeRequests.GetRequests()) > 0 {
 			cmd.Println("Change requests:")
-			for _, req := range changes.GetRequests() {
+			for _, req := range info.ChangeRequests.GetRequests() {
 				cmd.Printf("  id: %s,  new duration: %s, new price: %s USD/s\n",
 					req.GetId().Unwrap().String(),
 					time.Second*time.Duration(req.GetDuration()),
