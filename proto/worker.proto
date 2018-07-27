@@ -63,12 +63,16 @@ service Worker {
     rpc GetDealInfo(ID) returns (DealInfoReply) {}
 }
 
+message TaskTag {
+    bytes data = 1;
+}
+
 message TaskSpec {
     // Container describes container settings.
     Container container = 1;
     Registry registry = 2;
     AskPlanResources resources = 3;
-    string tag = 4;
+    TaskTag tag = 4;
 }
 
 message StartTaskRequest {
@@ -147,7 +151,7 @@ message TaskStatusReply {
     ResourceUsage usage = 5;
     //TODO: looks like we need to use TaskSpec here
     AskPlanResources allocatedResources = 6;
-    string tag = 7;
+    TaskTag tag = 7;
 }
 
 message ResourcePool {

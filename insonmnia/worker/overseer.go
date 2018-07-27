@@ -99,7 +99,7 @@ type ContainerInfo struct {
 	NetworkIDs   []string
 	DealID       string
 	TaskId       string
-	Tag          string
+	Tag          *pb.TaskTag
 }
 
 func (c *ContainerInfo) IntoProto(ctx context.Context) *pb.TaskStatusReply {
