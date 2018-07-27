@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	concurrency   = 10
-	maxRetryCount = 5
+	concurrency      = 10
+	maxRetryCount    = 5
+	taskRestartCount = 3
 )
 
 type engine struct {
@@ -174,9 +175,33 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 		log.Info("task started", zap.String("task_id", taskID))
 	}
 
-	err = e.trackTaskWithRetry(log, deal.GetId(), taskID)
-	if err != nil {
-		log.Warn("task tracking failed", zap.Error(err))
+	try := 0
+	for {
+		shouldRestartTask, err := e.trackTaskWithRetry(log, deal.GetId(), taskID)
+		if err != nil {
+			log.Warn("task tracking failed", zap.Error(err))
+		}
+
+		if !shouldRestartTask {
+			log.Warn("should not restarting the task", zap.Error(err), zap.Int("try", try))
+			return
+		}
+
+		if try >= taskRestartCount {
+			log.Debug("stop task restarting: retry count exceeded")
+			return
+		}
+
+		log.Debug("going to restart a broken task")
+		nextTask, err := e.startTaskWithRetry(log, deal)
+		if err != nil {
+			log.Warn("cannot start task", zap.Error(err), zap.Int("try", try))
+			return
+		}
+
+		taskID = nextTask.GetId()
+		log.Debug("task restarted", zap.String("task_id", taskID), zap.Int("try", try))
+		try++
 	}
 }
 
@@ -232,7 +257,7 @@ func (e *engine) startTaskOnce(log *zap.Logger, dealID *sonm.BigInt) (*sonm.Star
 	return taskReply, nil
 }
 
-func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID string) error {
+func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID string) (bool, error) {
 	log = log.Named("task").With(zap.String("task_id", taskID))
 	log.Info("start task status tracking")
 
@@ -243,10 +268,10 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 	for {
 		select {
 		case <-e.ctx.Done():
-			return e.ctx.Err()
+			return false, e.ctx.Err()
 		case <-t.C:
 			if try > maxRetryCount {
-				return fmt.Errorf("task tracking failed: retry count exceeded")
+				return false, fmt.Errorf("task tracking failed: retry count exceeded")
 			}
 
 			ok, err := e.checkDealStatus(log, dealID)
@@ -258,14 +283,14 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 
 			if !ok {
 				log.Warn("deal is closed, finishing tracking")
-				return fmt.Errorf("deal is closed")
+				return false, fmt.Errorf("deal is closed")
 			}
 
 			log.Debug("deal status OK, checking tasks")
 			shouldRetry, err := e.trackTaskOnce(log, dealID, taskID)
 			if err != nil {
 				if !shouldRetry {
-					return err
+					return true, err
 				}
 
 				try++
@@ -304,8 +329,7 @@ func (e *engine) trackTaskOnce(log *zap.Logger, dealID *sonm.BigInt, taskID stri
 	}
 
 	if status.GetStatus() == sonm.TaskStatusReply_FINISHED || status.GetStatus() == sonm.TaskStatusReply_BROKEN {
-		log.Warn("task is failed by unknown reasons, finishing deal",
-			zap.String("status", status.GetStatus().String()))
+		log.Warn("task is failed by unknown reasons", zap.String("status", status.GetStatus().String()))
 		return false, fmt.Errorf("task is finished by unknown reasons")
 	}
 
