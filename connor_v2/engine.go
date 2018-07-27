@@ -238,6 +238,7 @@ func (e *engine) startTaskOnce(log *zap.Logger, dealID *sonm.BigInt) (*sonm.Star
 	taskReply, err := e.tasks.Start(ctx, &sonm.StartTaskRequest{
 		DealID: dealID,
 		Spec: &sonm.TaskSpec{
+			Tag: e.miningCfg.getTag(),
 			Container: &sonm.Container{
 				Image: e.miningCfg.Image,
 				Env: map[string]string{
@@ -365,9 +366,9 @@ func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, err
 			case 0:
 				return "", nil
 			case 1:
-				// todo: find proper way to mark tasks
-				if list[0].ImageName != e.miningCfg.Image {
-					log.Warn("unexpected docker image is running on task", zap.String("running", list[0].ImageName), zap.String("expected", e.miningCfg.Image))
+				if list[0].GetTag() != e.miningCfg.getTag() {
+					log.Warn("unexpected tag assigned to the running on task",
+						zap.String("running", list[0].GetTag()), zap.String("expected", e.miningCfg.getTag()))
 					e.stopOneTask(log, dealID, list[0].id)
 					return "", nil
 				}

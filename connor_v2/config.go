@@ -2,6 +2,7 @@ package connor
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/docker/distribution/reference"
@@ -20,6 +21,10 @@ type miningConfig struct {
 	PoolReportURL string         `yaml:"pool_report" required:"false"`
 	// todo(sshaman1101): parse PoolTrackingURL and replace URL part with wallet address.
 	PoolTrackingURL string `yaml:"pool_tracking" required:"false"`
+}
+
+func (m *miningConfig) getTag() string {
+	return fmt.Sprintf("connor_%s", strings.ToLower(m.Token))
 }
 
 type marketConfig struct {
