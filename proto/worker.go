@@ -15,9 +15,7 @@ func (m *TaskTag) MarshalYAML() (interface{}, error) {
 }
 
 func (m *TaskTag) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	var data []byte
-	if err := unmarshal(&data); err == nil {
-		m.Data = data
+	if err := unmarshal(&m.Data); err == nil {
 		return nil
 	}
 	var str string
