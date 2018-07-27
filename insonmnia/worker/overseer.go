@@ -586,7 +586,7 @@ func (o *overseer) Start(ctx context.Context, description Description) (status c
 		Cgroup:       string(cjson.HostConfig.Cgroup),
 		CgroupParent: string(cjson.HostConfig.CgroupParent),
 		NetworkIDs:   networkIDs,
-		TaskId:       description.TaskId,
+		TaskID:       description.TaskId,
 	}
 
 	return status, cinfo, nil
