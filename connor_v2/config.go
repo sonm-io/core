@@ -29,10 +29,11 @@ func (m *miningConfig) getTag() string {
 
 type marketConfig struct {
 	// todo: (sshaman1101): allow to set multiple subsets for order placing
-	FromHashRate uint64            `yaml:"from_hashrate" required:"true"`
-	ToHashRate   uint64            `yaml:"to_hashrate" required:"true"`
-	Step         uint64            `yaml:"step" required:"true"`
-	Benchmarks   map[string]uint64 `yaml:"benchmarks" required:"true"`
+	FromHashRate     uint64            `yaml:"from_hashrate" required:"true"`
+	ToHashRate       uint64            `yaml:"to_hashrate" required:"true"`
+	Step             uint64            `yaml:"step" required:"true"`
+	PriceMarginality float64           `yaml:"price_marginality" required:"true"`
+	Benchmarks       map[string]uint64 `yaml:"benchmarks" required:"true"`
 }
 
 type nodeConfig struct {
@@ -68,6 +69,10 @@ func (c *Config) validate() error {
 
 	if _, ok := availableTokens[c.Mining.Token]; !ok {
 		return fmt.Errorf("unsupported token \"%s\"", c.Mining.Token)
+	}
+
+	if c.Market.PriceMarginality == 0 {
+		return fmt.Errorf("market.price_marginality cannot be zero")
 	}
 
 	named, err := reference.ParseNormalizedNamed(c.Mining.Image)

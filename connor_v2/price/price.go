@@ -30,38 +30,46 @@ type Provider interface {
 	GetPrice() *big.Int
 }
 
-func NewProvider(token string) Provider {
+func NewProvider(token string, priceMargin float64) Provider {
 	switch token {
 	case "NULL":
-		return newNullPriceProvider()
+		return newNullPriceProvider(priceMargin)
 	case "ETH":
-		return newEthPriceProvider()
+		return newEthPriceProvider(priceMargin)
 	case "ZEC":
-		return newZecPriceProvider()
+		return newZecPriceProvider(priceMargin)
 	default:
 		// should never happens
 		panic("cannot get price updater for token " + token)
 	}
 }
 
-type nullPriceProvider struct{}
+type nullPriceProvider struct {
+	priceMargin *big.Float
+}
+
+func newNullPriceProvider(p float64) Provider {
+	return &nullPriceProvider{priceMargin: big.NewFloat(p)}
+}
 
 func (p *nullPriceProvider) Update(ctx context.Context) error {
 	return nil
 }
 
 func (p *nullPriceProvider) GetPrice() *big.Int {
-	return big.NewInt(5e5)
+	v, _ := big.NewFloat(0).Mul(big.NewFloat(5e5), p.priceMargin).Int(nil)
+	return v
 }
-
-func newNullPriceProvider() Provider { return &nullPriceProvider{} }
 
 type ethPriceProvider struct {
-	mu    sync.Mutex
-	price *big.Int
+	mu          sync.Mutex
+	price       *big.Int
+	priceMargin *big.Float
 }
 
-func newEthPriceProvider() Provider { return &ethPriceProvider{} }
+func newEthPriceProvider(p float64) Provider {
+	return &ethPriceProvider{priceMargin: big.NewFloat(p)}
+}
 
 func (p *ethPriceProvider) Update(ctx context.Context) error {
 	// 1. load price for 1 token in USD
@@ -97,7 +105,9 @@ func (p *ethPriceProvider) calculate(price, reward, difficulty *big.Float) *big.
 
 	perSecPerHashUSD := big.NewFloat(0).Mul(price, ethPerSecPerHash)
 	etherGradedPricePerSecPerHashUSD := big.NewFloat(0).Mul(perSecPerHashUSD, big.NewFloat(params.Ether))
-	result, _ := etherGradedPricePerSecPerHashUSD.Int(nil)
+
+	priceWithMargin := big.NewFloat(0).Mul(etherGradedPricePerSecPerHashUSD, p.priceMargin)
+	result, _ := priceWithMargin.Int(nil)
 	return result
 }
 
@@ -112,7 +122,7 @@ type zecPriceProvider struct {
 	price *big.Int
 }
 
-func newZecPriceProvider() Provider { return &zecPriceProvider{price: big.NewInt(1)} }
+func newZecPriceProvider(_ float64) Provider { return &zecPriceProvider{price: big.NewInt(1)} }
 
 func (p *zecPriceProvider) Update(ctx context.Context) error {
 	return nil

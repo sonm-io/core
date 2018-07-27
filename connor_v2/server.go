@@ -22,7 +22,6 @@ type Connor struct {
 	key *ecdsa.PrivateKey
 
 	engine             *engine
-	snmPriceProvider   price.Provider
 	tokenPriceProvider price.Provider
 	benchmarkList      benchmarks.BenchList
 	marketClient       sonm.MarketClient
@@ -54,8 +53,7 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*Connor, error) {
 		log:                log,
 		marketClient:       sonm.NewMarketClient(cc),
 		dealsClient:        sonm.NewDealManagementClient(cc),
-		snmPriceProvider:   price.NewSonmPriceProvider(),
-		tokenPriceProvider: price.NewProvider(cfg.Mining.Token),
+		tokenPriceProvider: price.NewProvider(cfg.Mining.Token, cfg.Market.PriceMarginality),
 		engine:             NewEngine(ctx, cfg.Engine, cfg.Mining, log, cc),
 	}, nil
 }
@@ -72,8 +70,9 @@ func (c *Connor) Serve(ctx context.Context) error {
 		return fmt.Errorf("benchmarks validation failed: %v", err)
 	}
 
-	c.log.Debug("price", zap.String("SNM", c.snmPriceProvider.GetPrice().String()),
-		zap.String(c.cfg.Mining.Token, c.tokenPriceProvider.GetPrice().String()))
+	c.log.Debug("price",
+		zap.String(c.cfg.Mining.Token, c.tokenPriceProvider.GetPrice().String()),
+		zap.Float64("margin", c.cfg.Market.PriceMarginality))
 
 	c.engine.start(ctx)
 
@@ -117,10 +116,6 @@ func (c *Connor) Serve(ctx context.Context) error {
 }
 
 func (c *Connor) loadInitialData(ctx context.Context) error {
-	if err := c.snmPriceProvider.Update(ctx); err != nil {
-		return fmt.Errorf("cannot update SNM price: %v", err)
-	}
-
 	if err := c.tokenPriceProvider.Update(ctx); err != nil {
 		return fmt.Errorf("cannot update %s price: %v", c.cfg.Mining.Token, err)
 	}

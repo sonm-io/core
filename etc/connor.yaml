@@ -5,6 +5,7 @@ market:
   from_hashrate: 30000000
   to_hashrate: 50000000
   step: 500000
+  price_marginality: 0.95
   benchmarks:
     cpu-sysbench-multi: 100
     cpu-sysbench-single: 100
