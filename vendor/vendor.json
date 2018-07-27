@@ -101,6 +101,12 @@
 			"revisionTime": "2017-04-10T19:29:09Z"
 		},
 		{
+			"checksumSHA1": "TQNFu79azIL7hxwj6BCncvYq9Hg=",
+			"path": "github.com/VividCortex/ewma",
+			"revision": "43880d236f695d39c62cf7aa4ebd4508c258e6c0",
+			"revisionTime": "2017-08-04T03:51:56Z"
+		},
+		{
 			"checksumSHA1": "HuynI+iQ+RiV7jgtPXA2gTVLcQw=",
 			"path": "github.com/anmitsu/go-shlex",
 			"revision": "648efa622239a2f6ff949fed78ee37b48d499ba4",

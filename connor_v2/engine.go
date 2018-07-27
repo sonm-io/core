@@ -187,11 +187,11 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 	dealID := deal.GetId().Unwrap().String()
 	log := e.log.Named("process-deal").With(zap.String("deal_id", dealID))
 
-	e.antiFraud.RegisterDeal(deal)
+	e.antiFraud.DealOpened(deal)
 
 	log.Debug("start deal processing")
 	defer log.Debug("stop deal processing")
-	defer e.antiFraud.FinishDeal(deal.GetId())
+	defer e.antiFraud.FinishDeal(deal)
 
 	taskID, err := e.restoreTasks(log, deal.GetId())
 	if err != nil {
@@ -211,6 +211,9 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 		taskID = taskReply.GetId()
 		log.Info("task started", zap.String("task_id", taskID))
 	}
+	ctx, cancel := context.WithCancel(e.ctx)
+	defer cancel()
+	go e.antiFraud.TrackTask(ctx, deal, taskID)
 
 	try := 0
 	for {
@@ -494,7 +497,8 @@ func (e *engine) start(ctx context.Context) {
 		}
 
 		go e.processOrderResult()
-
+		//TODO: process error
+		go e.antiFraud.Run(ctx)
 		<-ctx.Done()
 	}()
 }
