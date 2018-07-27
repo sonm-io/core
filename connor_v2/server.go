@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/connor_v2/price"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -23,6 +24,7 @@ type Connor struct {
 	engine             *engine
 	snmPriceProvider   price.Provider
 	tokenPriceProvider price.Provider
+	benchmarkList      benchmarks.BenchList
 	marketClient       sonm.MarketClient
 	dealsClient        sonm.DealManagementClient
 }
@@ -63,6 +65,11 @@ func (c *Connor) Serve(ctx context.Context) error {
 
 	if err := c.loadInitialData(ctx); err != nil {
 		return fmt.Errorf("initializind failed: %v", err)
+	}
+
+	// perform extra config validation using external list of required benchmarks
+	if err := c.cfg.validateBenchmarks(c.benchmarkList); err != nil {
+		return fmt.Errorf("benchmarks validation failed: %v", err)
 	}
 
 	c.log.Debug("price", zap.String("SNM", c.snmPriceProvider.GetPrice().String()),
@@ -118,6 +125,13 @@ func (c *Connor) loadInitialData(ctx context.Context) error {
 		return fmt.Errorf("cannot update %s price: %v", c.cfg.Mining.Token, err)
 	}
 
+	benchList, err := benchmarks.NewBenchmarksList(ctx, c.cfg.BenchmarkList)
+	if err != nil {
+		return fmt.Errorf("cannot load benchmark list: %v", err)
+	}
+
+	c.benchmarkList = benchList
+
 	return nil
 }
 
@@ -154,7 +168,9 @@ func (c *Connor) getTargetCorders() []*Corder {
 	for hashrate := c.cfg.Market.FromHashRate; hashrate <= c.cfg.Market.ToHashRate; hashrate += c.cfg.Market.Step {
 		bigHashrate := big.NewInt(int64(hashrate))
 		p := big.NewInt(0).Mul(bigHashrate, c.tokenPriceProvider.GetPrice())
-		order, _ := NewCorderFromParams(c.cfg.Mining.Token, p, hashrate)
+
+		bench := newBenchmarkFromMap(c.cfg.Market.Benchmarks)
+		order, _ := NewCorderFromParams(c.cfg.Mining.Token, p, hashrate, bench)
 		v = append(v, order)
 	}
 

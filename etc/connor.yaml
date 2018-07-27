@@ -5,6 +5,19 @@ market:
   from_hashrate: 30000000
   to_hashrate: 50000000
   step: 500000
+  benchmarks:
+    cpu-sysbench-multi: 100
+    cpu-sysbench-single: 100
+    cpu-cores: 1
+    ram-size: 256000000
+    storage-size: 0
+    net-download: 1000000
+    net-upload: 1000000
+    gpu-count: 1
+    gpu-mem: 2900000000
+    gpu-eth-hashrate: 0
+    gpu-cash-hashrate: 0
+    gpu-redshift: 0
 
 mining:
   token: "NULL"

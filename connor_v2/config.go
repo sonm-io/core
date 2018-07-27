@@ -9,6 +9,7 @@ import (
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
 )
 
@@ -23,9 +24,10 @@ type miningConfig struct {
 
 type marketConfig struct {
 	// todo: (sshaman1101): allow to set multiple subsets for order placing
-	FromHashRate uint64 `yaml:"from_hashrate" required:"true"`
-	ToHashRate   uint64 `yaml:"to_hashrate" required:"true"`
-	Step         uint64 `yaml:"step" required:"true"`
+	FromHashRate uint64            `yaml:"from_hashrate" required:"true"`
+	ToHashRate   uint64            `yaml:"to_hashrate" required:"true"`
+	Step         uint64            `yaml:"step" required:"true"`
+	Benchmarks   map[string]uint64 `yaml:"benchmarks" required:"true"`
 }
 
 type nodeConfig struct {
@@ -41,12 +43,13 @@ type engineConfig struct {
 }
 
 type Config struct {
-	Node   nodeConfig         `yaml:"node"`
-	Eth    accounts.EthConfig `yaml:"ethereum"`
-	Market marketConfig       `yaml:"market"`
-	Mining miningConfig       `yaml:"mining"`
-	Log    logging.Config     `yaml:"log"`
-	Engine engineConfig       `yaml:"engine"`
+	Node          nodeConfig         `yaml:"node"`
+	Eth           accounts.EthConfig `yaml:"ethereum"`
+	Market        marketConfig       `yaml:"market"`
+	Mining        miningConfig       `yaml:"mining"`
+	Log           logging.Config     `yaml:"log"`
+	Engine        engineConfig       `yaml:"engine"`
+	BenchmarkList benchmarks.Config  `yaml:"benchmarks"`
 
 	Metrics string `yaml:"metrics" default:"127.0.0.1:14005"`
 }
@@ -68,6 +71,21 @@ func (c *Config) validate() error {
 	}
 
 	c.Mining.Image = named.String()
+	return nil
+}
+
+func (c *Config) validateBenchmarks(list benchmarks.BenchList) error {
+	required := list.MapByCode()
+	if len(required) != len(c.Market.Benchmarks) {
+		return fmt.Errorf("unexpected count, have %d, want %d", len(c.Market.Benchmarks), len(required))
+	}
+
+	for key := range required {
+		if _, ok := c.Market.Benchmarks[key]; !ok {
+			return fmt.Errorf("missing key %s", key)
+		}
+	}
+
 	return nil
 }
 

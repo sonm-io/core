@@ -18,18 +18,13 @@ func NewCorderFromOrder(order *sonm.Order, token string) *Corder {
 	return &Corder{Order: order, token: token}
 }
 
-func NewCorderFromParams(token string, price *big.Int, hashrate uint64) (*Corder, error) {
-	bench := newBenchmark()
+func NewCorderFromParams(token string, price *big.Int, hashrate uint64, bench *Benchmarks) (*Corder, error) {
 	switch token {
 	case "ETH":
-		bench.setGPUMemory(3000e6)
 		bench.setGPUEth(hashrate)
 	case "ZEC":
-		// todo: I should find the right value for this
-		bench.setGPUMemory(900e6)
 		bench.setGPUZcash(hashrate)
 	case "NULL":
-		bench.setGPUMemory(1e6)
 		bench.setGPURedshift(hashrate)
 	}
 
@@ -59,7 +54,7 @@ func (co *Corder) GetHashrate() uint64 {
 	}
 }
 
-func (co *Corder) AsBID() *sonm.BidOrder { // todo: tests
+func (co *Corder) AsBID() *sonm.BidOrder {
 	return &sonm.BidOrder{
 		Price:     &sonm.Price{PerSecond: co.Order.GetPrice()},
 		Blacklist: sonm.NewEthAddress(common.StringToAddress(co.Order.GetBlacklist())),
@@ -71,7 +66,7 @@ func (co *Corder) AsBID() *sonm.BidOrder { // todo: tests
 				Outbound: co.Order.GetNetflags().GetOutbound(),
 				Incoming: co.Order.GetNetflags().GetIncoming(),
 			},
-			Benchmarks: benchmarkMap(co.Order.Benchmarks),
+			Benchmarks: newBenchmarks(co.Order.Benchmarks),
 		},
 	}
 }
@@ -129,26 +124,26 @@ func (b *Benchmarks) toMap() map[string]uint64 {
 	}
 }
 
-func newBenchmark() *Benchmarks {
+func newBenchmarkFromMap(m map[string]uint64) *Benchmarks {
 	return &Benchmarks{
 		Values: []uint64{
-			100,       // "cpu-sysbench-multi"
-			100,       // "cpu-sysbench-single"
-			1,         // "cpu-cores"
-			256000000, // "ram-size"
-			0,         // "storage-size"
-			1000000,   // "net-download"
-			1000000,   // "net-upload"
-			0,         // "gpu-count"
-			0,         // "gpu-mem"
-			0,         // "gpu-eth-hashrate"
-			0,         // "gpu-cash-hashrate"
-			0,         // "gpu-redshift"
+			m["cpu-sysbench-multi"],
+			m["cpu-sysbench-single"],
+			m["cpu-cores"],
+			m["ram-size"],
+			m["storage-size"],
+			m["net-download"],
+			m["net-upload"],
+			m["gpu-count"],
+			m["gpu-mem"],
+			m["gpu-eth-hashrate"],
+			m["gpu-cash-hashrate"],
+			m["gpu-redshift"],
 		},
 	}
 }
 
-func benchmarkMap(b *sonm.Benchmarks) map[string]uint64 {
+func newBenchmarks(b *sonm.Benchmarks) map[string]uint64 {
 	v := Benchmarks(*b)
 	return v.toMap()
 }
