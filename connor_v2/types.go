@@ -71,6 +71,30 @@ func (co *Corder) AsBID() *sonm.BidOrder {
 	}
 }
 
+func (co *Corder) restorePrice() *big.Int {
+	hashrate := big.NewInt(0).SetUint64(co.GetHashrate())
+	return big.NewInt(0).Div(co.GetPrice().Unwrap(), hashrate)
+}
+
+func isOrderReplaceable(currentPrice, newPrice *big.Float, delta float64) bool {
+	diff := big.NewFloat(0).Mul(currentPrice, big.NewFloat(delta))
+
+	upperBound := big.NewFloat(0).Add(currentPrice, diff)
+	lowerBound := big.NewFloat(0).Sub(currentPrice, diff)
+
+	upperHit := newPrice.Cmp(upperBound) >= 0
+	lowerHit := newPrice.Cmp(lowerBound) <= 0
+
+	return upperHit || lowerHit
+}
+
+func (co *Corder) isReplaceable(newPrice *big.Int, delta float64) bool {
+	currentPrice := big.NewFloat(0).SetInt(co.restorePrice())
+	newFloatPrice := big.NewFloat(0).SetInt(newPrice)
+
+	return isOrderReplaceable(currentPrice, newFloatPrice, delta)
+}
+
 func NewCordersSlice(orders []*sonm.Order, token string) []*Corder {
 	v := make([]*Corder, len(orders))
 	for i, ord := range orders {

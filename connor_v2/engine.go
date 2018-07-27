@@ -3,9 +3,11 @@ package connor
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/sonm-io/core/connor_v2/antifraud"
+	"github.com/sonm-io/core/connor_v2/price"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
@@ -25,19 +27,21 @@ type engine struct {
 	miningCfg miningConfig
 	antiFraud antifraud.AntiFraud
 
-	market sonm.MarketClient
-	deals  sonm.DealManagementClient
-	tasks  sonm.TaskManagementClient
+	market        sonm.MarketClient
+	deals         sonm.DealManagementClient
+	tasks         sonm.TaskManagementClient
+	priceProvider price.Provider
 
 	ordersCreateChan  chan *Corder
 	ordersResultsChan chan *Corder
 }
 
-func NewEngine(ctx context.Context, cfg engineConfig, miningCfg miningConfig, log *zap.Logger, cc *grpc.ClientConn) *engine {
+func NewEngine(ctx context.Context, cfg engineConfig, miningCfg miningConfig, price price.Provider, log *zap.Logger, cc *grpc.ClientConn) *engine {
 	return &engine{
 		ctx:               ctx,
 		cfg:               cfg,
 		miningCfg:         miningCfg,
+		priceProvider:     price,
 		log:               log.Named("engine"),
 		market:            sonm.NewMarketClient(cc),
 		deals:             sonm.NewDealManagementClient(cc),
@@ -103,6 +107,20 @@ func (e *engine) waitForDeal(order *Corder) {
 		case <-t.C:
 			log.Debug("checking for deal for order")
 
+			actualPrice := e.priceProvider.GetPrice()
+			if order.isReplaceable(actualPrice, e.miningCfg.TokenPrice.Threshold) {
+				log.Info("we can replace order with more profitable one",
+					zap.String("actual_price", actualPrice.String()),
+					zap.String("current_price", order.restorePrice().String()))
+
+				e.cancelOrder(log, order.GetId())
+
+				hashRate := big.NewInt(0).SetUint64(order.GetHashrate())
+				order.Price = sonm.NewBigInt(big.NewInt(0).Mul(actualPrice, hashRate))
+				e.CreateOrder(order)
+				return
+			}
+
 			deal, err := e.checkOrderForDealOnce(log, id)
 			if err != nil {
 				continue
@@ -116,6 +134,25 @@ func (e *engine) waitForDeal(order *Corder) {
 			return
 		}
 	}
+}
+
+func (e *engine) cancelOrder(log *zap.Logger, id *sonm.BigInt) {
+	log.Info("cancelling order")
+
+	for try := 0; try < maxRetryCount; try++ {
+		ctx, cancel := context.WithTimeout(e.ctx, e.cfg.ConnectionTimeout)
+		if _, err := e.market.CancelOrder(ctx, &sonm.ID{Id: id.Unwrap().String()}); err != nil {
+			cancel()
+			log.Warn("cannot cancel order", zap.Error(err), zap.Int("try", try))
+			continue
+		}
+
+		cancel()
+		log.Info("order cancelled")
+		return
+	}
+
+	log.Warn("order cancellation failed: retry count exceeded")
 }
 
 func (e *engine) checkOrderForDealOnce(log *zap.Logger, orderID string) (*sonm.Deal, error) {

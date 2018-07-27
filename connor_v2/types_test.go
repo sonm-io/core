@@ -1,6 +1,7 @@
 package connor
 
 import (
+	"fmt"
 	"math/big"
 	"testing"
 
@@ -64,5 +65,55 @@ func TestCorder_AsBID(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, hashrate, uint64(550))
 	assert.Equal(t, gpuMem, uint64(1e6))
+}
 
+func TestCorder_isReplaceable(t *testing.T) {
+	tests := []struct {
+		currentPrice  *big.Float
+		newPrice      *big.Float
+		delta         float64
+		shouldReplace bool
+	}{
+		{
+			currentPrice:  big.NewFloat(100),
+			newPrice:      big.NewFloat(110),
+			delta:         0.10,
+			shouldReplace: true,
+		},
+		{
+			currentPrice:  big.NewFloat(100),
+			newPrice:      big.NewFloat(90),
+			delta:         0.10,
+			shouldReplace: true,
+		},
+		{
+			currentPrice:  big.NewFloat(100),
+			newPrice:      big.NewFloat(109),
+			delta:         0.10,
+			shouldReplace: false,
+		},
+		{
+			currentPrice:  big.NewFloat(100),
+			newPrice:      big.NewFloat(91),
+			delta:         0.10,
+			shouldReplace: false,
+		},
+		{
+			currentPrice:  big.NewFloat(100),
+			newPrice:      big.NewFloat(101),
+			delta:         0.01,
+			shouldReplace: true,
+		},
+		{
+			currentPrice:  big.NewFloat(100),
+			newPrice:      big.NewFloat(99),
+			delta:         0.01,
+			shouldReplace: true,
+		},
+	}
+
+	for _, tt := range tests {
+		result := isOrderReplaceable(tt.currentPrice, tt.newPrice, tt.delta)
+		assert.Equal(t, tt.shouldReplace, result, fmt.Sprintf("%v | %v | %v", tt.currentPrice, tt.newPrice, tt.delta))
+	}
 }

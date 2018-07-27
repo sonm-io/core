@@ -15,12 +15,11 @@ import (
 )
 
 type miningConfig struct {
-	Token         string         `yaml:"token" required:"true"`
-	Image         string         `yaml:"image" required:"true"`
-	Wallet        common.Address `yaml:"wallet" required:"true"`
-	PoolReportURL string         `yaml:"pool_report" required:"false"`
-	// todo(sshaman1101): parse PoolTrackingURL and replace URL part with wallet address.
-	PoolTrackingURL string `yaml:"pool_tracking" required:"false"`
+	Token           string         `yaml:"token" required:"true"`
+	Image           string         `yaml:"image" required:"true"`
+	Wallet          common.Address `yaml:"wallet" required:"true"`
+	PoolReportURL   string         `yaml:"pool_report" required:"false"`
+	PoolTrackingURL string         `yaml:"pool_tracking" required:"false"`
 
 	TokenPrice tokenPriceConfig `yaml:"token_price"`
 }
@@ -53,6 +52,7 @@ type engineConfig struct {
 type tokenPriceConfig struct {
 	PriceURL       string        `yaml:"price_url"`
 	UpdateInterval time.Duration `yaml:"update_interval" default:"60s"`
+	Threshold      float64       `yaml:"threshold" required:"true"`
 }
 
 type Config struct {

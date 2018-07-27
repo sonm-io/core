@@ -30,6 +30,7 @@ mining:
   token_price:
     price_url: "https://api.coinmarketcap.com/v1/ticker/ethereum/"
     update_interval: 15s
+    threshold: 0.1
 
 engine:
   # timeout for connections to external services
