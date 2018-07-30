@@ -57,15 +57,15 @@ type descriptionAlias Description
 
 type descriptionMarshaller struct {
 	*descriptionAlias
-	Reference string `json:"Reference"`
-	Networks  []*structs.NetworkSpec
+	Networks []*structs.NetworkSpec
+	RefField reference.Field `json:"Reference"`
 }
 
 func (d Description) MarshalJSON() ([]byte, error) {
 	b, err := json.Marshal(&descriptionMarshaller{
 		descriptionAlias: (*descriptionAlias)(&d),
-		Reference:        d.Reference.String(),
 		Networks:         d.networks,
+		RefField:         reference.AsField(d.Reference),
 	})
 
 	return b, err
@@ -77,12 +77,7 @@ func (d *Description) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	ref, err := reference.ParseAnyReference(aux.Reference)
-	if err != nil {
-		return err
-	}
-
-	d.Reference = ref
+	d.Reference = aux.RefField.Reference()
 	d.networks = aux.Networks
 	return nil
 }
