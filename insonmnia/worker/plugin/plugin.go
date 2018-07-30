@@ -49,7 +49,7 @@ type VolumeProvider interface {
 }
 
 type NetworkProvider interface {
-	Networks() []structs.Network
+	Networks() []*structs.NetworkSpec
 }
 
 // Repository describes a place where all SONM plugins for Docker live.
@@ -254,10 +254,10 @@ func (r *Repository) TuneNetworks(ctx context.Context, provider NetworkProvider,
 	cleanup := newNestedCleanup()
 	networks := provider.Networks()
 	for _, net := range networks {
-		tuner, ok := r.networkTuners[net.NetworkType()]
+		tuner, ok := r.networkTuners[net.Type]
 		if !ok {
 			cleanup.Close()
-			return nil, fmt.Errorf("network driver not supported: %s", net.NetworkType())
+			return nil, fmt.Errorf("network driver not supported: %s", net.Type)
 		}
 		c, err := tuner.Tune(ctx, net, hostCfg, netCfg)
 		if err != nil {
@@ -269,7 +269,7 @@ func (r *Repository) TuneNetworks(ctx context.Context, provider NetworkProvider,
 	return &cleanup, nil
 }
 
-func (r *Repository) JoinNetwork(ID string) (structs.Network, error) {
+func (r *Repository) JoinNetwork(ID string) (*structs.NetworkSpec, error) {
 	for _, net := range r.networkTuners {
 		if net.Tuned(ID) {
 			return net.GenerateInvitation(ID)

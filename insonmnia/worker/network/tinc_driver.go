@@ -197,7 +197,7 @@ func (t *TincNetworkDriver) HasNetwork(NodeID string) bool {
 	return ok
 }
 
-func (t *TincNetworkDriver) GenerateInvitation(NodeID string) (structs.Network, error) {
+func (t *TincNetworkDriver) GenerateInvitation(NodeID string) (*structs.NetworkSpec, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	n, ok := t.Networks[NodeID]

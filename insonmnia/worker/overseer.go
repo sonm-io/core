@@ -46,7 +46,7 @@ type Description struct {
 
 	mounts []volume.Mount
 
-	networks []structs.Network
+	networks []*structs.NetworkSpec
 }
 
 func (d *Description) ID() string {
@@ -69,7 +69,7 @@ func (d *Description) GpuDeviceIDs() []gpu.GPUID {
 	return d.GPUDevices
 }
 
-func (d *Description) Networks() []structs.Network {
+func (d *Description) Networks() []*structs.NetworkSpec {
 	return d.networks
 }
 

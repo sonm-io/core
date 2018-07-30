@@ -98,7 +98,7 @@ func (t *TincTuner) runDriver(ctx context.Context) error {
 	return nil
 }
 
-func (t *TincTuner) Tune(ctx context.Context, net structs.Network, hostConfig *container.HostConfig, config *network.NetworkingConfig) (Cleanup, error) {
+func (t *TincTuner) Tune(ctx context.Context, net *structs.NetworkSpec, hostConfig *container.HostConfig, config *network.NetworkingConfig) (Cleanup, error) {
 	tincNet, err := t.netDriver.InsertTincNetwork(net, hostConfig.Resources.CgroupParent)
 	if err != nil {
 		return nil, err
@@ -119,7 +119,7 @@ func (t *TincTuner) Tune(ctx context.Context, net structs.Network, hostConfig *c
 		Options: opts,
 	}
 
-	response, err := t.client.NetworkCreate(ctx, net.ID(), createOpts)
+	response, err := t.client.NetworkCreate(ctx, net.NetID, createOpts)
 	if err != nil {
 		log.G(ctx).Warn("failed to create tinc network", zap.Error(err))
 		return nil, err
@@ -148,7 +148,7 @@ func (t *TincTuner) Tuned(ID string) bool {
 	return t.netDriver.HasNetwork(ID)
 }
 
-func (t *TincTuner) GenerateInvitation(ID string) (structs.Network, error) {
+func (t *TincTuner) GenerateInvitation(ID string) (*structs.NetworkSpec, error) {
 	return t.netDriver.GenerateInvitation(ID)
 }
 
