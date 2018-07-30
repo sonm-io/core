@@ -58,7 +58,7 @@ func NewL2TPTuner(ctx context.Context, cfg *L2TPConfig) (*L2TPTuner, error) {
 	return tuner, nil
 }
 
-func (t *L2TPTuner) GenerateInvitation(ID string) (structs.Network, error) {
+func (t *L2TPTuner) GenerateInvitation(ID string) (*structs.NetworkSpec, error) {
 	return nil, errors.New("not supported")
 }
 
@@ -109,9 +109,9 @@ func (t *L2TPTuner) Run(ctx context.Context) error {
 	return nil
 }
 
-func (t *L2TPTuner) Tune(ctx context.Context, net structs.Network, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
+func (t *L2TPTuner) Tune(ctx context.Context, net structs.NetworkSpec, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
 	log.G(ctx).Info("tuning l2tp")
-	configPath, err := t.writeConfig(net.ID(), net.NetworkOptions())
+	configPath, err := t.writeConfig(net.NetID, net.Options)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (t *L2TPTuner) Tune(ctx context.Context, net structs.Network, hostCfg *cont
 		IPAM:    &network.IPAM{Driver: "l2tp_ipam", Options: driverOpts},
 	}
 
-	response, err := t.cli.NetworkCreate(ctx, net.ID(), createOpts)
+	response, err := t.cli.NetworkCreate(ctx, net.NetID, createOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -131,8 +131,8 @@ func (t *L2TPTuner) Tune(ctx context.Context, net structs.Network, hostCfg *cont
 	if netCfg.EndpointsConfig == nil {
 		netCfg.EndpointsConfig = make(map[string]*network.EndpointSettings)
 		netCfg.EndpointsConfig[response.ID] = &network.EndpointSettings{
-			IPAMConfig: &network.EndpointIPAMConfig{IPv4Address: net.NetworkAddr()},
-			IPAddress:  net.NetworkAddr(),
+			IPAMConfig: &network.EndpointIPAMConfig{IPv4Address: net.Addr},
+			IPAddress:  net.Addr,
 			NetworkID:  response.ID,
 		}
 	}

@@ -810,10 +810,10 @@ func (m *Worker) JoinNetwork(ctx context.Context, request *pb.WorkerJoinNetworkR
 		return nil, err
 	}
 	return &pb.NetworkSpec{
-		Type:    spec.NetworkType(),
-		Options: spec.NetworkOptions(),
-		Subnet:  spec.NetworkCIDR(),
-		Addr:    spec.NetworkAddr(),
+		Type:    spec.Type,
+		Options: spec.Options,
+		Subnet:  spec.Subnet,
+		Addr:    spec.Addr,
 	}, nil
 }
 

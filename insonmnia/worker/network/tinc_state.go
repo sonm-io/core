@@ -70,13 +70,13 @@ func getNetByCIDR(cidr string) (*net.IPNet, error) {
 	}
 }
 
-func (t *TincNetworkState) InsertTincNetwork(n structs.Network, cgroupParent string) (*TincNetwork, error) {
-	pool, err := getNetByCIDR(n.NetworkCIDR())
+func (t *TincNetworkState) InsertTincNetwork(n structs.NetworkSpec, cgroupParent string) (*TincNetwork, error) {
+	pool, err := getNetByCIDR(n.Subnet)
 	if err != nil {
 		return nil, err
 	}
 
-	ip := net.ParseIP(n.NetworkAddr())
+	ip := net.ParseIP(n.Addr)
 	if ip.Mask(pool.Mask).Equal(pool.IP) {
 		return nil, errors.New("ip does not match network pool")
 	}
@@ -106,20 +106,20 @@ func (t *TincNetworkState) InsertTincNetwork(n structs.Network, cgroupParent str
 	}
 	log.S(t.ctx).Infof("started container %s", resp.ID)
 
-	_, enableBridge := n.NetworkOptions()["enable_bridge"]
-	invitation, _ := n.NetworkOptions()["invitation"]
+	_, enableBridge := n.Options["enable_bridge"]
+	invitation, _ := n.Options["invitation"]
 
 	result := &TincNetwork{
-		NodeID:          n.ID(),
+		NodeID:          n.NetID,
 		DockerID:        "",
 		Pool:            pool,
 		Invitation:      invitation,
 		EnableBridge:    enableBridge,
 		CgroupParent:    cgroupParent,
-		ConfigPath:      t.config.ConfigDir + "/" + n.ID(),
+		ConfigPath:      t.config.ConfigDir + "/" + n.NetID,
 		TincContainerID: resp.ID,
 		cli:             t.cli,
-		logger:          t.logger.With("source", "tinc/network/"+n.ID(), "container", resp.ID),
+		logger:          t.logger.With("source", "tinc/network/"+n.NetID, "container", resp.ID),
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()

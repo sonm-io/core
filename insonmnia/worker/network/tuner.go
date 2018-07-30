@@ -15,7 +15,7 @@ type Cleanup interface {
 // Tuner is responsible for preparing networking and baking proper options in container.HostConfig and
 // network.NetworkingConfig.
 type Tuner interface {
-	Tune(ctx context.Context, net structs.Network, hostConfig *container.HostConfig, netConfig *network.NetworkingConfig) (Cleanup, error)
-	GenerateInvitation(ID string) (structs.Network, error)
+	Tune(ctx context.Context, net structs.NetworkSpec, hostConfig *container.HostConfig, netConfig *network.NetworkingConfig) (Cleanup, error)
+	GenerateInvitation(ID string) (*structs.NetworkSpec, error)
 	Tuned(ID string) bool
 }
