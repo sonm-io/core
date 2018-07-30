@@ -98,7 +98,7 @@ func (t *TincTuner) runDriver(ctx context.Context) error {
 	return nil
 }
 
-func (t *TincTuner) Tune(ctx context.Context, net structs.NetworkSpec, hostConfig *container.HostConfig, config *network.NetworkingConfig) (Cleanup, error) {
+func (t *TincTuner) Tune(ctx context.Context, net *structs.NetworkSpec, hostConfig *container.HostConfig, config *network.NetworkingConfig) (Cleanup, error) {
 	tincNet, err := t.netDriver.InsertTincNetwork(net, hostConfig.Resources.CgroupParent)
 	if err != nil {
 		return nil, err

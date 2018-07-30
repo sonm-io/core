@@ -259,7 +259,7 @@ func (r *Repository) TuneNetworks(ctx context.Context, provider NetworkProvider,
 			cleanup.Close()
 			return nil, fmt.Errorf("network driver not supported: %s", net.Type)
 		}
-		c, err := tuner.Tune(ctx, *net, hostCfg, netCfg)
+		c, err := tuner.Tune(ctx, net, hostCfg, netCfg)
 		if err != nil {
 			cleanup.Close()
 			return nil, err

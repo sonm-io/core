@@ -70,7 +70,7 @@ func getNetByCIDR(cidr string) (*net.IPNet, error) {
 	}
 }
 
-func (t *TincNetworkState) InsertTincNetwork(n structs.NetworkSpec, cgroupParent string) (*TincNetwork, error) {
+func (t *TincNetworkState) InsertTincNetwork(n *structs.NetworkSpec, cgroupParent string) (*TincNetwork, error) {
 	pool, err := getNetByCIDR(n.Subnet)
 	if err != nil {
 		return nil, err

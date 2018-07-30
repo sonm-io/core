@@ -109,7 +109,7 @@ func (t *L2TPTuner) Run(ctx context.Context) error {
 	return nil
 }
 
-func (t *L2TPTuner) Tune(ctx context.Context, net structs.NetworkSpec, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
+func (t *L2TPTuner) Tune(ctx context.Context, net *structs.NetworkSpec, hostCfg *container.HostConfig, netCfg *network.NetworkingConfig) (Cleanup, error) {
 	log.G(ctx).Info("tuning l2tp")
 	configPath, err := t.writeConfig(net.NetID, net.Options)
 	if err != nil {
