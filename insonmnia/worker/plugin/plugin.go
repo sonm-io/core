@@ -318,12 +318,12 @@ func (r *Repository) GetNetworkCleaner(ctx context.Context, provider NetworkProv
 	cleanup := newNestedCleanup()
 
 	for _, net := range provider.Networks() {
-		tuner, ok := r.networkTuners[net.NetworkType()]
+		tuner, ok := r.networkTuners[net.Type]
 		if !ok {
 			cleanup.Close()
-			return nil, fmt.Errorf("network driver not supported: %s", net.NetworkType())
+			return nil, fmt.Errorf("network driver not supported: %s", net.Type)
 		}
-		c, err := tuner.GetCleaner(ctx, net.ID())
+		c, err := tuner.GetCleaner(ctx, net.NetID)
 		if err != nil {
 			cleanup.Close()
 			return nil, err
