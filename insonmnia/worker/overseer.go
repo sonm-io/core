@@ -128,7 +128,7 @@ type ContainerInfo struct {
 	NetworkIDs   []string
 	DealID       string
 	Tag          string
-	TaskID       string
+	TaskId       string
 	AskID        string
 }
 

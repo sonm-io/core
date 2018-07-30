@@ -691,7 +691,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	containerInfo.ImageName = reference.String()
 	containerInfo.DealID = dealID.Unwrap().String()
 	containerInfo.Tag = request.GetSpec().GetTag()
-	containerInfo.TaskID = taskID
+	containerInfo.TaskId = taskID
 	containerInfo.AskID = ask.ID
 
 	var reply = pb.StartTaskReply{
