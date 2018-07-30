@@ -43,7 +43,7 @@ func run() error {
 	}
 
 	ctx := ctxlog.WithLogger(context.Background(), log)
-	bot, err := optimus.NewOptimus(*cfg, optimus.WithVersion(appVersion), optimus.WithLog(log.Sugar()))
+	bot, err := optimus.NewOptimus(cfg, optimus.WithVersion(appVersion), optimus.WithLog(log.Sugar()))
 	if err != nil {
 		return fmt.Errorf("failed to create Optimus: %v", err)
 	}

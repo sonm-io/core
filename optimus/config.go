@@ -12,7 +12,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/proto"
-	"go.uber.org/zap"
 )
 
 const (
@@ -24,15 +23,18 @@ type nodeConfig struct {
 	Endpoint   auth.Addr  `yaml:"endpoint"`
 }
 
+type OptimizationConfig struct {
+	Model optimizationMethodFactory `yaml:"model"`
+}
+
 type Config struct {
-	Blockchain   *blockchain.Config         `yaml:"blockchain"`
-	PrivateKey   privateKey                 `yaml:"ethereum" json:"-"`
-	Logging      logging.Config             `yaml:"logging"`
-	Node         nodeConfig                 `yaml:"node"`
-	Workers      map[auth.Addr]workerConfig `yaml:"workers"`
-	Benchmarks   benchmarks.Config          `yaml:"benchmarks"`
-	Marketplace  marketplaceConfig          `yaml:"marketplace"`
-	Optimization optimizationConfig
+	Blockchain  *blockchain.Config          `yaml:"blockchain"`
+	PrivateKey  privateKey                  `yaml:"ethereum" json:"-"`
+	Logging     logging.Config              `yaml:"logging"`
+	Node        nodeConfig                  `yaml:"node"`
+	Workers     map[auth.Addr]*workerConfig `yaml:"workers"`
+	Benchmarks  benchmarks.Config           `yaml:"benchmarks"`
+	Marketplace marketplaceConfig           `yaml:"marketplace"`
 }
 
 func (m *Config) Validate() error {
@@ -66,11 +68,16 @@ type workerConfig struct {
 	PriceThreshold sonm.Price         `yaml:"price_threshold" required:"true"`
 	StaleThreshold time.Duration      `yaml:"stale_threshold" default:"5m"`
 	PreludeTimeout time.Duration      `yaml:"prelude_timeout" default:"30s"`
+	Optimization   OptimizationConfig `yaml:"optimization"`
 }
 
 func (m *workerConfig) Validate() error {
 	if m.PriceThreshold.GetPerSecond().Unwrap().Sign() <= 0 {
 		return fmt.Errorf("price threshold must be a positive number")
+	}
+
+	if m.Optimization.Model.OptimizationMethodFactory == nil {
+		m.Optimization.Model = optimizationMethodFactory{OptimizationMethodFactory: &defaultOptimizationMethodFactory{}}
 	}
 
 	return nil
@@ -123,54 +130,9 @@ type marketplaceConfig struct {
 	MinPrice   *sonm.Price   `yaml:"min_price" default:"0.0001 USD/h"`
 }
 
-type optimizationConfig struct {
-	Interval          time.Duration
-	ClassifierFactory classifierFactory `yaml:"classifier" required:"true" json:"-"`
-}
-
-type classifierFactory func(log *zap.Logger) OrderClassifier
-
-func newClassifierFactory(cfgUnmarshal func(interface{}) error) (classifierFactory, error) {
-	ty, err := typeofInterface(cfgUnmarshal)
-	if err != nil {
-		return nil, err
-	}
-
-	switch ty {
-	case "regression":
-		cfg := struct {
-			ModelFactory modelFactory `yaml:"model"`
-		}{}
-
-		if err := cfgUnmarshal(&cfg); err != nil {
-			return nil, err
-		}
-		if cfg.ModelFactory == nil {
-			return nil, fmt.Errorf("missing required field: `optimization/classifier/model`")
-		}
-
-		return func(log *zap.Logger) OrderClassifier {
-			return newRegressionClassifier(cfg.ModelFactory, log)
-		}, nil
-	default:
-		return nil, fmt.Errorf("unknown classifier: %s", ty)
-	}
-}
-
-func (m *classifierFactory) UnmarshalYAML(unmarshal func(interface{}) error) error {
-	factory, err := newClassifierFactory(unmarshal)
-	if err != nil {
-		return err
-	}
-
-	*m = factory
-
-	return nil
-}
-
 func typeofInterface(unmarshal func(interface{}) error) (string, error) {
 	raw := struct {
-		Type string
+		Type string `yaml:"type"`
 	}{}
 
 	if err := unmarshal(&raw); err != nil {

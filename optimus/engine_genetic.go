@@ -256,6 +256,60 @@ func (m *decisionOrdersGenome) Clone() gago.Genome {
 	}
 }
 
+type GenomeConfig struct {
+	NewGenomeLab `json:"-"`
+	Type         string
+}
+
+func (m *GenomeConfig) MarshalText() (text []byte, err error) {
+	return []byte(m.Type), nil
+}
+
+func (m *GenomeConfig) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var ty string
+	if err := unmarshal(&ty); err != nil {
+		return err
+	}
+
+	switch ty {
+	case "packed":
+		m.NewGenomeLab = NewPackedOrdersNewGenome
+	case "decision":
+		m.NewGenomeLab = NewDecisionOrdersNewGenome
+	default:
+		return fmt.Errorf("unknown genome: %s", m.Type)
+	}
+
+	m.Type = ty
+
+	return nil
+}
+
+type GeneticModelConfig struct {
+	Genome         GenomeConfig  `yaml:"genome"`
+	PopulationSize int           `yaml:"population_size" default:"256"`
+	MaxGenerations int           `yaml:"max_generations" default:"128"`
+	MaxAge         time.Duration `yaml:"max_age" default:"5m"`
+}
+
+type GeneticModelFactory struct {
+	GeneticModelConfig
+}
+
+func (m *GeneticModelFactory) Config() interface{} {
+	return &m.GeneticModelConfig
+}
+
+func (m *GeneticModelFactory) Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
+	return &GeneticModel{
+		NewGenomeLab:   m.Genome.NewGenomeLab,
+		PopulationSize: m.PopulationSize,
+		MaxGenerations: m.MaxGenerations,
+		MaxAge:         m.MaxAge,
+		Log:            log.With(zap.String("model", "gmp")),
+	}
+}
+
 type GeneticModel struct {
 	NewGenomeLab NewGenomeLab
 	// PopulationSize specifies the number of individuals per Population.

@@ -89,6 +89,24 @@ func (m *node) appendLeaf(nodes []*node) []*node {
 	return nodes
 }
 
+type BranchBoundModelConfig struct {
+	HeightLimit int `yaml:"height_limit" default:"6"`
+}
+
+type BranchBoundModelFactory struct {
+	BranchBoundModelConfig
+}
+
+func (m *BranchBoundModelFactory) Config() interface{} {
+	return &m.BranchBoundModelConfig
+}
+
+func (*BranchBoundModelFactory) Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
+	return &BranchBoundModel{
+		Log: log.With("model", "BBM"),
+	}
+}
+
 type BranchBoundModel struct {
 	Log *zap.SugaredLogger
 }

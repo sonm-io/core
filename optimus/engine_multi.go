@@ -7,6 +7,40 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type bruteConfig struct {
+	Match int                       `yaml:"match" default:"128"`
+	Model optimizationMethodFactory `yaml:"model"`
+}
+
+type BatchModelConfig struct {
+	Brute   bruteConfig                 `yaml:"brute"`
+	Methods []optimizationMethodFactory `yaml:"models"`
+}
+
+type BatchModelFactory struct {
+	BatchModelConfig
+}
+
+func (m *BatchModelFactory) Config() interface{} {
+	return &m.BatchModelConfig
+}
+
+func (m *BatchModelFactory) Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
+	if len(matchedOrders) <= m.Brute.Match {
+		return m.Brute.Model.Create(orders, matchedOrders, log)
+	}
+
+	methods := make([]OptimizationMethod, len(m.Methods))
+	for id := range m.Methods {
+		methods[id] = m.Methods[id].Create(orders, matchedOrders, log)
+	}
+
+	return &BatchModel{
+		Methods: methods,
+		Log:     log,
+	}
+}
+
 type BatchModel struct {
 	Methods []OptimizationMethod
 	Log     *zap.SugaredLogger

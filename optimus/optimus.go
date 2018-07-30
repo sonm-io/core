@@ -13,12 +13,12 @@ import (
 )
 
 type Optimus struct {
-	cfg     Config
+	cfg     *Config
 	version string
 	log     *zap.SugaredLogger
 }
 
-func NewOptimus(cfg Config, options ...Option) (*Optimus, error) {
+func NewOptimus(cfg *Config, options ...Option) (*Optimus, error) {
 	opts := newOptions()
 	for _, o := range options {
 		o(opts)
@@ -81,8 +81,8 @@ func (m *Optimus) Run(ctx context.Context) error {
 			return err
 		}
 
-		// TODO: Well, 11 parameters seems to be WAT.
-		control, err := newWorkerEngine(cfg, ethAddr, masterAddr, blacklist, worker, market.Market(), marketCache, benchmarkMapping, m.cfg.Optimization, newTagger(m.version), m.log)
+		// TODO: Well, 10 parameters seems to be WAT.
+		control, err := newWorkerEngine(cfg, ethAddr, masterAddr, blacklist, worker, market.Market(), marketCache, benchmarkMapping, newTagger(m.version), m.log)
 		if err != nil {
 			return err
 		}
