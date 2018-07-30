@@ -12,6 +12,12 @@ var (
 	ErrCgroupNotExists     = errors.New("nested cgroup does not exist")
 )
 
+type Process struct {
+	Subsystem string
+	Pid       int
+	Path      string
+}
+
 type Stats struct {
 	MemoryLimit uint64
 }
@@ -19,6 +25,8 @@ type Stats struct {
 type CGroup interface {
 	// New creates a new cgroup under the calling cgroup.
 	New(name string, resources *specs.LinuxResources) (CGroup, error)
+	// Add adds a process to the cgroup
+	Add(Process) error
 	// Delete removes the cgroup as a whole.
 	Delete() error
 	// Stats returns resource description
@@ -42,6 +50,10 @@ type nilCgroup struct{}
 
 func (c *nilCgroup) New(name string, resources *specs.LinuxResources) (CGroup, error) {
 	return c, nil
+}
+
+func (*nilCgroup) Add(process Process) error {
+	return nil
 }
 
 func (*nilCgroup) Delete() error {
