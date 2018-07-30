@@ -90,7 +90,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		PublishAllPorts: true,
 		PortBindings:    portBindings,
 		RestartPolicy:   d.RestartPolicy.Unwrap(),
-		AutoRemove:      d.autoremove,
+		AutoRemove:      d.Autoremove,
 		Resources:       d.Resources.ToHostConfigResources(d.CGroupParent),
 	}
 

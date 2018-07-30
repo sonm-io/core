@@ -40,7 +40,7 @@ type Description struct {
 	Cmd          []string
 	TaskId       string
 	DealId       string
-	autoremove   bool
+	Autoremove   bool
 
 	GPUDevices []gpu.GPUID
 
@@ -53,50 +53,37 @@ func (d *Description) ID() string {
 	return d.TaskId
 }
 
+type descriptionAlias Description
+
+type descriptionMarshaller struct {
+	*descriptionAlias
+	Reference string `json:"Reference"`
+	Networks  []*structs.NetworkSpec
+}
+
 func (d Description) MarshalJSON() ([]byte, error) {
-	type Alias Description
-	b, err := json.Marshal(&struct {
-		Reference  string `json:"Reference"`
-		Autoremove bool
-		Networks   []structs.Network
-		Alias
-	}{
-		Reference:  d.Reference.String(),
-		Autoremove: d.autoremove,
-		Networks:   d.networks,
-		Alias:      (Alias)(d),
+	b, err := json.Marshal(&descriptionMarshaller{
+		descriptionAlias: (*descriptionAlias)(&d),
+		Reference:        d.Reference.String(),
+		Networks:         d.networks,
 	})
 
 	return b, err
 }
 
 func (d *Description) UnmarshalJSON(data []byte) error {
-	type Alias Description
-	aux := &struct {
-		Reference  string `json:"Reference"`
-		Autoremove bool
-		Networks   []structs.NetworkSpec
-		*Alias
-	}{
-		Alias: (*Alias)(d),
-	}
+	aux := &descriptionMarshaller{descriptionAlias: (*descriptionAlias)(d)}
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
-	ref, err := reference.ParseAnyReference(aux.Reference)
 
+	ref, err := reference.ParseAnyReference(aux.Reference)
 	if err != nil {
 		return err
 	}
 
-	d.autoremove = aux.Autoremove
-
-	d.networks = make([]structs.Network, 0, len(aux.Networks))
-	for _, n := range aux.Networks {
-		d.networks = append(d.networks, &n)
-	}
-
 	d.Reference = ref
+	d.networks = aux.Networks
 	return nil
 }
 
