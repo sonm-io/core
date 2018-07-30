@@ -1140,12 +1140,6 @@
 			"revisionTime": "2018-01-31T20:29:11Z"
 		},
 		{
-			"checksumSHA1": "OLqprTiaOxrn4X2yJ9LV+WbFJ14=",
-			"path": "github.com/jinzhu/configor",
-			"revision": "6ecfe629230f24c2e92c7894c6ab21b83b757a39",
-			"revisionTime": "2017-10-24T08:10:03Z"
-		},
-		{
 			"checksumSHA1": "wGqcDfEuwxbZney6VYWbpE7uNaE=",
 			"path": "github.com/json-iterator/go",
 			"revision": "2ddf6d758266fcb080a4f9e054b9f292c85e6798",

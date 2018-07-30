@@ -5,10 +5,10 @@ import (
 	"net"
 	"time"
 
-	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/util/config"
 	"github.com/sonm-io/core/util/debug"
 	"github.com/sonm-io/core/util/netutil"
 )
@@ -32,8 +32,7 @@ type serverConfig struct {
 // NewServerConfig loads a new Rendezvous server config from a file.
 func NewServerConfig(path string) (*ServerConfig, error) {
 	cfg := &serverConfig{}
-	err := configor.Load(cfg, path)
-	if err != nil {
+	if err := config.FromFile(path, cfg); err != nil {
 		return nil, err
 	}
 

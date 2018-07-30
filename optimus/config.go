@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/config"
 )
 
 const (
@@ -48,7 +48,7 @@ func (m *Config) Validate() error {
 
 func LoadConfig(path string) (*Config, error) {
 	cfg := &Config{}
-	if err := configor.Load(cfg, path); err != nil {
+	if err := config.FromFile(path, cfg); err != nil {
 		return nil, err
 	}
 

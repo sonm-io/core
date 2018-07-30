@@ -2,7 +2,6 @@ package worker
 
 import (
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/jinzhu/configor"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
@@ -13,6 +12,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/state"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/salesman"
+	"github.com/sonm-io/core/util/config"
 	"github.com/sonm-io/core/util/debug"
 )
 
@@ -62,10 +62,7 @@ type Config struct {
 // NewConfig creates a new Worker config from the specified YAML file.
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
-
-	err := configor.Load(cfg, path)
-
-	if err != nil {
+	if err := config.FromFile(path, cfg); err != nil {
 		return nil, err
 	}
 

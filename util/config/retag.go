@@ -1,8 +1,6 @@
 package config
 
 import (
-	"fmt"
-	"reflect"
 	"strings"
 	"unicode"
 )
@@ -10,19 +8,6 @@ import (
 const (
 	delimiter = '_'
 )
-
-type SnakeCaseTagger string
-
-func (m SnakeCaseTagger) MakeTag(t reflect.Type, fieldIndex int) reflect.StructTag {
-	key := string(m)
-	field := t.Field(fieldIndex)
-	value := field.Tag.Get(key)
-	if value == "" {
-		value = toSnakeCase(field.Name)
-	}
-	tag := fmt.Sprintf(`%s:"%s"`, key, value)
-	return reflect.StructTag(tag)
-}
 
 func toSnakeCase(src string) string {
 	src = strings.TrimSpace(src)
@@ -59,17 +44,4 @@ func toSnakeCase(src string) string {
 
 func isDelimiter(ch rune) bool {
 	return ch == '-' || ch == '_' || unicode.IsSpace(ch)
-}
-
-func SnakeToLower(m map[interface{}]interface{}) {
-	for k, v := range m {
-		if k, ok := k.(string); ok {
-			k = strings.ToLower(k)
-			k = strings.Replace(k, "_", "", -1)
-			m[k] = v
-		}
-		if v, ok := v.(map[interface{}]interface{}); ok {
-			SnakeToLower(v)
-		}
-	}
 }

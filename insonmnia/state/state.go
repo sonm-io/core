@@ -33,8 +33,8 @@ type KeyedStorage struct {
 }
 
 type StorageConfig struct {
-	Endpoint string `yaml:"endpoint" required:"true" default:"/var/lib/sonm/worker.boltdb"`
-	Bucket   string `yaml:"bucket" required:"true" default:"sonm"`
+	Endpoint string `yaml:"endpoint" default:"/var/lib/sonm/worker.boltdb"`
+	Bucket   string `yaml:"bucket" default:"sonm"`
 }
 
 func makeStore(ctx context.Context, cfg *StorageConfig) (store.Store, error) {

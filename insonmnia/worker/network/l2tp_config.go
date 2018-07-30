@@ -1,16 +1,15 @@
 package network
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
 
-	"crypto/md5"
-	"encoding/hex"
-
 	"github.com/docker/go-plugins-helpers/ipam"
 	"github.com/docker/go-plugins-helpers/network"
-	"github.com/jinzhu/configor"
+	"github.com/sonm-io/core/util/config"
 )
 
 type L2TPConfig struct {
@@ -68,7 +67,7 @@ func parseOptsIPAM(request *ipam.RequestPoolRequest) (*l2tpNetworkConfig, error)
 	}
 
 	cfg := &l2tpNetworkConfig{}
-	if err := configor.Load(cfg, path); err != nil {
+	if err := config.FromFile(path, cfg); err != nil {
 		return nil, err
 	}
 
@@ -96,7 +95,7 @@ func parseOptsNetwork(request *network.CreateNetworkRequest) (*l2tpNetworkConfig
 	}
 
 	cfg := &l2tpNetworkConfig{}
-	if err := configor.Load(cfg, path.(string)); err != nil {
+	if err := config.FromFile(path.(string), cfg); err != nil {
 		return nil, err
 	}
 
