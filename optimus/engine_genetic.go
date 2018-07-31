@@ -306,7 +306,7 @@ func (m *GeneticModelFactory) Create(orders, matchedOrders []*MarketOrder, log *
 		PopulationSize: m.PopulationSize,
 		MaxGenerations: m.MaxGenerations,
 		MaxAge:         m.MaxAge,
-		Log:            log.With(zap.String("model", "gmp")),
+		Log:            log.With(zap.String("model", "GMP")),
 	}
 }
 
