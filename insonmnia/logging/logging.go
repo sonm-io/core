@@ -57,6 +57,10 @@ func (m Level) Zap() zapcore.Level {
 	return m.level
 }
 
+func (m Level) MarshalText() (text []byte, err error) {
+	return []byte(m.level.String()), nil
+}
+
 func (m *Level) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var level string
 	if err := unmarshal(&level); err != nil {
