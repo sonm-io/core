@@ -28,7 +28,7 @@ func (m *GreedyLinearRegressionModelFactory) Create(orders, matchedOrders []*Mar
 			model: m.Model.Create(log),
 		},
 		exhaustionLimit: m.ExhaustionLimit,
-		log:             log.With(zap.String("model", "lls")),
+		log:             log.With(zap.String("model", "LLS")),
 	}
 }
 
