@@ -83,7 +83,7 @@ func parseLogLevel(s string) (zapcore.Level, error) {
 
 	lvl := zapcore.DebugLevel
 	if err := lvl.Set(s); err != nil {
-		return zapcore.DebugLevel, fmt.Errorf("cannot parse config file: \"%s\" is invalid log level", s)
+		return zapcore.DebugLevel, fmt.Errorf("\"%s\" is invalid log level", s)
 	}
 
 	return lvl, nil
