@@ -202,6 +202,8 @@ func (m *workerEngine) execute(ctx context.Context) error {
 		return fmt.Errorf("failed to collect orders for victim plans: %v", err)
 	}
 
+	m.log.Debugw("pulled victim orders", zap.Any("orders", virtualFreeOrders))
+
 	// Extended orders set, with added currently executed orders.
 	extOrders := append(append([]*MarketOrder{}, input.Orders...), virtualFreeOrders...)
 
@@ -458,6 +460,11 @@ func (m *workerEngine) matchingOrders(deviceManager *DeviceManager, devices *son
 	}
 
 	for _, order := range orders {
+		if order.GetOrder().OrderType == sonm.OrderType_ASK && order.GetOrder().AuthorID.Unwrap() == m.addr {
+			matchedOrders = append(matchedOrders, order)
+			continue
+		}
+
 		if filter.Filter(order.GetOrder()) {
 			matchedOrders = append(matchedOrders, order)
 		}
