@@ -4,12 +4,14 @@ import (
 	"crypto/ecdsa"
 	"database/sql"
 	"fmt"
+	"math/big"
 	"net"
 	"sync"
 
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/pkg/errors"
 	"github.com/sonm-io/core/blockchain"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
@@ -164,6 +166,35 @@ func (m *DWH) serveHTTP() error {
 	}
 
 	return m.http.Serve(lis)
+}
+
+func (m *DWH) monitorNumBenchmarks() error {
+	lastBlock, err := m.blockchain.Events().GetLastBlock(m.ctx)
+	if err != nil {
+		return err
+	}
+
+	filter := m.blockchain.Events().GetMarketFilter(big.NewInt(0).SetUint64(lastBlock))
+	events, err := m.blockchain.Events().GetEvents(m.ctx, filter)
+	if err != nil {
+		return err
+	}
+
+	for {
+		event, ok := <-events
+		if !ok {
+			return errors.New("events channel closed")
+		}
+		if _, ok := event.Data.(*blockchain.NumBenchmarksUpdatedData); ok {
+			if m.storage, err = setupDB(m.ctx, m.db, m.blockchain); err != nil {
+				return fmt.Errorf("failed to setupDB after NumBenchmarksUpdated event: %v", err)
+			}
+
+			if err := m.storage.CreateIndices(m.db); err != nil {
+				return fmt.Errorf("failed to CreateIndices (onNumBenchmarksUpdated): %v", err)
+			}
+		}
+	}
 }
 
 // unaryInterceptor RLocks DWH for all incoming requests. This is needed because some events (e.g.,
