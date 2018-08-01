@@ -71,10 +71,12 @@ func (m *DWH) Serve() error {
 	}
 	m.blockchain = bch
 
-	if m.storage, err = setupDB(m.ctx, m.db, m.blockchain); err != nil {
-		m.Stop()
-		return fmt.Errorf("failed to setupDB: %v", err)
+	numBenchmarks, err := m.blockchain.Market().GetNumBenchmarks(m.ctx)
+	if err != nil {
+		return fmt.Errorf("failed to GetNumBenchmarks: %v", err)
 	}
+
+	m.storage = newPostgresStorage(numBenchmarks)
 
 	wg := errgroup.Group{}
 	wg.Go(m.serveGRPC)

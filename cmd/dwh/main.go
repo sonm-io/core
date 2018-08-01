@@ -62,16 +62,16 @@ func run() error {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
 		<-c
-		w.Stop()
 		p.Stop()
+		w.Stop()
 	}()
 
 	log.G(ctx).Info("starting DWH service")
 	log.G(ctx).Info("starting L1 events processor")
 
 	wg := errgroup.Group{}
-	wg.Go(w.Serve)
 	wg.Go(p.Start)
+	wg.Go(w.Serve)
 
 	return wg.Wait()
 }

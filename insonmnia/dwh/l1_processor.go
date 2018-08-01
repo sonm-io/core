@@ -20,7 +20,7 @@ import (
 
 type L1Processor struct {
 	cfg        *L1ProcessorConfig
-	mu         sync.RWMutex
+	mu         sync.Mutex
 	ctx        context.Context
 	cancel     context.CancelFunc
 	logger     *zap.Logger
@@ -162,8 +162,8 @@ func (m *L1Processor) watchMarketEvents() error {
 }
 
 func (m *L1Processor) processEvents(dispatcher *eventsDispatcher) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
 	m.processEventsSynchronous(dispatcher.NumBenchmarksUpdated)
 	m.processEventsSynchronous(dispatcher.WorkersAnnounced)
