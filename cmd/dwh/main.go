@@ -67,7 +67,7 @@ func run() error {
 	}()
 
 	log.G(ctx).Info("starting DWH service")
-	log.G(ctx).Info("starting events processor")
+	log.G(ctx).Info("starting L1 events processor")
 
 	wg := errgroup.Group{}
 	wg.Go(w.Serve)
