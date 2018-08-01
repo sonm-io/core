@@ -14,6 +14,7 @@ import (
 	"github.com/cnf/structhash"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	"github.com/ethereum/go-ethereum/common"
@@ -146,6 +147,10 @@ func NewWorker(opts ...Option) (m *Worker, err error) {
 		return nil, err
 	}
 
+	if err := m.setupRunningContainers(); err != nil {
+		m.Close()
+		return nil, err
+	}
 	if err := m.setupServer(); err != nil {
 		m.Close()
 		return nil, err
@@ -365,9 +370,21 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 	return result.ErrorOrNil()
 }
 
-func (m *Worker) saveContainerInfo(id string, info ContainerInfo) {
+type runningContainerInfo struct {
+	Description Description   `json:"description,omitempty"`
+	Cinfo       ContainerInfo `json:"cinfo,omitempty"`
+	Spec        pb.TaskSpec   `json:"spec,omitempty"`
+}
+
+func (m *Worker) saveContainerInfo(id string, info ContainerInfo, d Description, spec pb.TaskSpec) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
+	m.storage.Save(info.ID, runningContainerInfo{
+		Description: d,
+		Cinfo:       info,
+		Spec:        spec,
+	})
 
 	m.containers[id] = &info
 }
@@ -674,6 +691,8 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	containerInfo.ImageName = reference.String()
 	containerInfo.DealID = dealID.Unwrap().String()
 	containerInfo.Tag = request.GetSpec().GetTag()
+	containerInfo.TaskId = taskID
+	containerInfo.AskID = ask.ID
 
 	var reply = pb.StartTaskReply{
 		Id:         taskID,
@@ -712,7 +731,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		reply.PortMap[string(internalPort)] = &pb.Endpoints{Endpoints: socketAddrs}
 	}
 
-	m.saveContainerInfo(taskID, containerInfo)
+	m.saveContainerInfo(taskID, containerInfo, d, *spec)
 
 	go m.listenForStatus(statusListener, taskID)
 
@@ -737,6 +756,11 @@ func (m *Worker) StopTask(ctx context.Context, request *pb.ID) (*pb.Empty, error
 	}
 
 	m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_FINISHED}, request.Id)
+	_, err := m.storage.Remove(containerInfo.TaskId)
+
+	if err != nil {
+		log.G(ctx).Warn("failed to delete cached container info", zap.Error(err))
+	}
 
 	return &pb.Empty{}, nil
 }
@@ -810,10 +834,10 @@ func (m *Worker) JoinNetwork(ctx context.Context, request *pb.WorkerJoinNetworkR
 		return nil, err
 	}
 	return &pb.NetworkSpec{
-		Type:    spec.NetworkType(),
-		Options: spec.NetworkOptions(),
-		Subnet:  spec.NetworkCIDR(),
-		Addr:    spec.NetworkAddr(),
+		Type:    spec.Type,
+		Options: spec.Options,
+		Subnet:  spec.Subnet,
+		Addr:    spec.Addr,
 	}, nil
 }
 
@@ -890,6 +914,71 @@ func (m *Worker) setupSalesman() error {
 
 	ch := m.salesman.Run(m.ctx)
 	go m.listenDeals(ch)
+	return nil
+}
+
+func (m *Worker) setupRunningContainers() error {
+	dockerClient, err := client.NewEnvClient()
+	if err != nil {
+		return err
+	}
+	// Overseer mantains it's own instance of docker.Client
+	defer dockerClient.Close()
+
+	containers, err := dockerClient.ContainerList(m.ctx, types.ContainerListOptions{})
+
+	for _, container := range containers {
+		var info runningContainerInfo
+
+		if _, ok := container.Labels[overseerTag]; ok {
+			loaded, err := m.storage.Load(container.ID, &info)
+
+			if err != nil {
+				log.S(m.ctx).Warnf("failed to load running container info %s", err)
+				continue
+			}
+			if !loaded {
+				log.S(m.ctx).Warnf("loaded an empty container info")
+				continue
+			}
+
+			contJson, err := dockerClient.ContainerInspect(m.ctx, container.ID)
+
+			if err != nil {
+				log.S(m.ctx).Error("failed to inspect container", zap.String("id", container.ID), zap.Error(err))
+				return err
+			}
+
+			// TODO: Match our proto status constants with docker's statuses
+			switch contJson.State.Status {
+			case "created", "paused", "restarting", "removing":
+				info.Cinfo.status = pb.TaskStatusReply_UNKNOWN
+			case "running":
+				info.Cinfo.status = pb.TaskStatusReply_RUNNING
+			case "exited":
+				info.Cinfo.status = pb.TaskStatusReply_FINISHED
+			case "dead":
+				info.Cinfo.status = pb.TaskStatusReply_BROKEN
+			}
+
+			m.containers[info.Cinfo.TaskId] = &info.Cinfo
+			mounts := make([]volume.Mount, 0)
+
+			for _, spec := range info.Spec.Container.Mounts {
+				mount, err := volume.NewMount(spec)
+				if err != nil {
+					return err
+				}
+				mounts = append(mounts, mount)
+			}
+
+			info.Description.mounts = mounts
+
+			m.ovs.Attach(m.ctx, container.ID, info.Description)
+			m.resources.ConsumeTask(info.Cinfo.AskID, info.Cinfo.TaskId, info.Spec.Resources)
+		}
+	}
+
 	return nil
 }
 

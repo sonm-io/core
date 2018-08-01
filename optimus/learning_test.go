@@ -1,6 +1,7 @@
 package optimus
 
 import (
+	"io/ioutil"
 	"math"
 	"math/rand"
 	"testing"
@@ -8,7 +9,6 @@ import (
 	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 func TestSortDescending(t *testing.T) {
@@ -32,11 +32,14 @@ func TestSortDescending(t *testing.T) {
 }
 
 func TestLearning(t *testing.T) {
-	model := newLLSModelFactory(llsModelConfig{
-		Alpha:          1e-6,
-		Regularization: 6.0,
-		MaxIterations:  1000,
-	})
+	model := &llsModel{
+		cfg: llsModelConfig{
+			Alpha:          1e-6,
+			Regularization: 6.0,
+			MaxIterations:  1000,
+		},
+		output: ioutil.Discard,
+	}
 
 	n := 1000
 
@@ -113,8 +116,8 @@ func TestLearning(t *testing.T) {
 		})
 	}
 
-	classifier := newRegressionClassifier(model, zap.NewNop())
-	weightedOrders, err := classifier.Classify(orders)
+	regression := regressionClassifier{model: model}
+	weightedOrders, err := regression.Classify(orders)
 
 	require.NoError(t, err)
 	assert.Equal(t, n, len(weightedOrders))

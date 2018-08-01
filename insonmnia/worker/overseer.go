@@ -9,13 +9,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
 	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -40,17 +40,46 @@ type Description struct {
 	Cmd          []string
 	TaskId       string
 	DealId       string
-	autoremove   bool
+	Autoremove   bool
 
 	GPUDevices []gpu.GPUID
 
 	mounts []volume.Mount
 
-	networks []structs.Network
+	networks []*structs.NetworkSpec
 }
 
 func (d *Description) ID() string {
 	return d.TaskId
+}
+
+type descriptionAlias Description
+
+type descriptionMarshaller struct {
+	*descriptionAlias
+	Networks []*structs.NetworkSpec
+	RefField reference.Field `json:"Reference"`
+}
+
+func (d Description) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(&descriptionMarshaller{
+		descriptionAlias: (*descriptionAlias)(&d),
+		Networks:         d.networks,
+		RefField:         reference.AsField(d.Reference),
+	})
+
+	return b, err
+}
+
+func (d *Description) UnmarshalJSON(data []byte) error {
+	aux := &descriptionMarshaller{descriptionAlias: (*descriptionAlias)(d)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	d.Reference = aux.RefField.Reference()
+	d.networks = aux.Networks
+	return nil
 }
 
 func (d *Description) Volumes() map[string]*pb.Volume {
@@ -69,7 +98,7 @@ func (d *Description) GpuDeviceIDs() []gpu.GPUID {
 	return d.GPUDevices
 }
 
-func (d *Description) Networks() []structs.Network {
+func (d *Description) Networks() []*structs.NetworkSpec {
 	return d.networks
 }
 
@@ -100,6 +129,7 @@ type ContainerInfo struct {
 	DealID       string
 	TaskId       string
 	Tag          *pb.TaskTag
+	AskID        string
 }
 
 func (c *ContainerInfo) IntoProto(ctx context.Context) *pb.TaskStatusReply {
@@ -181,6 +211,9 @@ type Overseer interface {
 	// After successful starting an application becomes a target for accepting request, but not guarantees
 	// to complete them.
 	Start(ctx context.Context, description Description) (chan pb.TaskStatusReply_Status, ContainerInfo, error)
+
+	// Attach attemps to attach to a running application with a specified description
+	Attach(ctx context.Context, ID string, description Description) (chan pb.TaskStatusReply_Status, error)
 
 	// Exec a given command in running container
 	Exec(ctx context.Context, Id string, cmd []string, env []string, isTty bool, wCh <-chan ssh.Window) (types.HijackedResponse, error)
@@ -471,6 +504,23 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	return nil
 }
 
+func (o *overseer) Attach(ctx context.Context, ID string, d Description) (chan pb.TaskStatusReply_Status, error) {
+	cont, err := attachContainer(ctx, o.client, ID, d, o.plugins)
+	if err != nil {
+		log.S(ctx).Debugf("failed to attach to container %s", err)
+		return nil, err
+	}
+	cont.ID = ID
+	log.S(ctx).Debugf("attached to running container %s", ID)
+
+	o.mu.Lock()
+	o.containers[ID] = cont
+	status := make(chan pb.TaskStatusReply_Status, 1)
+	o.statuses[ID] = status
+	o.mu.Unlock()
+
+	return status, nil
+}
 func (o *overseer) Start(ctx context.Context, description Description) (status chan pb.TaskStatusReply_Status, cinfo ContainerInfo, err error) {
 	if description.IsGPURequired() && !o.supportGPU() {
 		err = fmt.Errorf("GPU required but not supported or disabled")

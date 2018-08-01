@@ -30,6 +30,25 @@ type containerDescriptor struct {
 	cleanup plugin.Cleanup
 }
 
+func attachContainer(ctx context.Context, dockerClient *client.Client, ID string, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
+	log.S(ctx).Infof("attaching to container with ID: %s reference: %s", ID, d.Reference.String())
+
+	cont := containerDescriptor{
+		client:      dockerClient,
+		description: d,
+	}
+
+	cleanup, err := tuners.GetCleanup(ctx, &d)
+	if err != nil {
+		return nil, err
+	}
+
+	cont.cleanup = cleanup
+	cont.log = log.S(ctx).With(zap.String("container_id", cont.ID))
+
+	return &cont, nil
+}
+
 func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
 	log.S(ctx).Infof("start container with application, reference %s", d.Reference.String())
 
@@ -71,7 +90,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 		PublishAllPorts: true,
 		PortBindings:    portBindings,
 		RestartPolicy:   d.RestartPolicy.Unwrap(),
-		AutoRemove:      d.autoremove,
+		AutoRemove:      d.Autoremove,
 		Resources:       d.Resources.ToHostConfigResources(d.CGroupParent),
 	}
 

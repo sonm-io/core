@@ -94,7 +94,7 @@ type Blacklist interface {
 }
 
 type workerEngine struct {
-	cfg workerConfig
+	cfg *workerConfig
 	log *zap.SugaredLogger
 
 	addr             common.Address
@@ -105,11 +105,10 @@ type workerEngine struct {
 	worker           WorkerManagementClientExt
 	benchmarkMapping benchmarks.Mapping
 
-	optimizationConfig optimizationConfig
-	tagger             *Tagger
+	tagger *Tagger
 }
 
-func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, optimizationConfig optimizationConfig, tagger *Tagger, log *zap.SugaredLogger) (*workerEngine, error) {
+func newWorkerEngine(cfg *workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, tagger *Tagger, log *zap.SugaredLogger) (*workerEngine, error) {
 	m := &workerEngine{
 		cfg: cfg,
 		log: log.With(zap.Stringer("addr", addr)),
@@ -122,8 +121,7 @@ func newWorkerEngine(cfg workerConfig, addr, masterAddr common.Address, blacklis
 		worker:           &workerManagementClientExt{worker},
 		benchmarkMapping: benchmarkMapping,
 
-		optimizationConfig: optimizationConfig,
-		tagger:             tagger,
+		tagger: tagger,
 	}
 
 	return m, nil
@@ -203,6 +201,8 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to collect orders for victim plans: %v", err)
 	}
+
+	m.log.Debugw("pulled victim orders", zap.Any("orders", virtualFreeOrders))
 
 	// Extended orders set, with added currently executed orders.
 	extOrders := append(append([]*MarketOrder{}, input.Orders...), virtualFreeOrders...)
@@ -441,7 +441,7 @@ func (m *workerEngine) optimize(devices, freeDevices *sonm.DevicesReply, orders 
 
 	now := time.Now()
 	knapsack := NewKnapsack(deviceManager)
-	if err := m.optimizationMethod(orders, log).Optimize(knapsack, matchedOrders); err != nil {
+	if err := m.optimizationMethod(orders, matchedOrders, log).Optimize(knapsack, matchedOrders); err != nil {
 		return nil, err
 	}
 
@@ -460,6 +460,11 @@ func (m *workerEngine) matchingOrders(deviceManager *DeviceManager, devices *son
 	}
 
 	for _, order := range orders {
+		if order.GetOrder().OrderType == sonm.OrderType_ASK && order.GetOrder().AuthorID.Unwrap() == m.addr {
+			matchedOrders = append(matchedOrders, order)
+			continue
+		}
+
 		if filter.Filter(order.GetOrder()) {
 			matchedOrders = append(matchedOrders, order)
 		}
@@ -496,32 +501,102 @@ func (m *workerEngine) filters(deviceManager *DeviceManager, devices *sonm.Devic
 	}
 }
 
-func (m *workerEngine) optimizationMethod(orders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
+func (m *workerEngine) optimizationMethod(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
+	return m.cfg.Optimization.Model.Create(orders, matchedOrders, log)
+}
+
+type OptimizationMethodFactory interface {
+	Config() interface{}
+	Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod
+}
+
+type defaultOptimizationMethodFactory struct{}
+
+func (m *defaultOptimizationMethodFactory) Config() interface{} {
+	return m
+}
+
+func (m *defaultOptimizationMethodFactory) Create(orders, matchedOrders []*MarketOrder, log *zap.SugaredLogger) OptimizationMethod {
+	if len(matchedOrders) < 128 {
+		return &BranchBoundModel{
+			Log: log.With(zap.String("model", "BBM")),
+		}
+	}
+
 	return &BatchModel{
 		Methods: []OptimizationMethod{
 			&GreedyLinearRegressionModel{
-				orders:          orders,
-				classifier:      m.optimizationConfig.ClassifierFactory(m.log.Desugar()),
+				orders: orders,
+				regression: &regressionClassifier{
+					model: &SCAKKTModel{
+						MaxIterations: 1e7,
+						Log:           log,
+					},
+				},
 				exhaustionLimit: 128,
-				log:             log.With(zap.String("model", "lls")),
+				log:             log.With(zap.String("model", "LLS")),
 			},
 			&GeneticModel{
 				NewGenomeLab:   NewPackedOrdersNewGenome,
 				PopulationSize: 256,
 				MaxGenerations: 128,
 				MaxAge:         5 * time.Minute,
-				Log:            log.With(zap.String("model", "gmp")),
+				Log:            log.With(zap.String("model", "GMP")),
 			},
 			&GeneticModel{
 				NewGenomeLab:   NewDecisionOrdersNewGenome,
 				PopulationSize: 512,
 				MaxGenerations: 64,
 				MaxAge:         5 * time.Minute,
-				Log:            log.With(zap.String("model", "gmd")),
+				Log:            log.With(zap.String("model", "GMD")),
 			},
 		},
 		Log: log,
 	}
+}
+
+func optimizationFactory(ty string) OptimizationMethodFactory {
+	switch ty {
+	case "batch":
+		return &BatchModelFactory{}
+	case "greedy":
+		return &GreedyLinearRegressionModelFactory{}
+	case "genetic":
+		return &GeneticModelFactory{}
+	case "branch_bound":
+		return &BranchBoundModelFactory{}
+	default:
+		return nil
+	}
+}
+
+type optimizationMethodFactory struct {
+	OptimizationMethodFactory
+}
+
+func (m *optimizationMethodFactory) MarshalYAML() (interface{}, error) {
+	return m.Config(), nil
+}
+
+func (m *optimizationMethodFactory) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	ty, err := typeofInterface(unmarshal)
+	if err != nil {
+		return err
+	}
+
+	factory := optimizationFactory(ty)
+	if factory == nil {
+		return fmt.Errorf("unknown optimization model: %s", ty)
+	}
+
+	cfg := factory.Config()
+	if err := unmarshal(cfg); err != nil {
+		return err
+	}
+
+	m.OptimizationMethodFactory = factory
+
+	return nil
 }
 
 type OptimizationMethod interface {

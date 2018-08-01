@@ -57,6 +57,10 @@ func (m Level) Zap() zapcore.Level {
 	return m.level
 }
 
+func (m Level) MarshalText() (text []byte, err error) {
+	return []byte(m.level.String()), nil
+}
+
 func (m *Level) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	var level string
 	if err := unmarshal(&level); err != nil {
@@ -79,7 +83,7 @@ func parseLogLevel(s string) (zapcore.Level, error) {
 
 	lvl := zapcore.DebugLevel
 	if err := lvl.Set(s); err != nil {
-		return zapcore.DebugLevel, fmt.Errorf("cannot parse config file: \"%s\" is invalid log level", s)
+		return zapcore.DebugLevel, fmt.Errorf("\"%s\" is invalid log level", s)
 	}
 
 	return lvl, nil
