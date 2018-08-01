@@ -46,6 +46,7 @@ func TestConnectWithoutTLS(t *testing.T) {
 	marketServer.EXPECT().GetOrderByID(gomock.Any(), gomock.Any()).Times(0)
 
 	services := NewMockServices(c)
+	services.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
 	services.EXPECT().Interceptor().Times(1).Return(nopInterceptor)
 	services.EXPECT().RegisterGRPC(gomock.Any()).Times(1).Return(nil).Do(func(server *grpc.Server) error {
 		sonm.RegisterMarketServer(server, marketServer)
@@ -86,6 +87,7 @@ func TestConnectWithValidKeyWithoutWallet(t *testing.T) {
 
 	services := NewMockServices(c)
 	services.EXPECT().Interceptor().Times(1).Return(nopInterceptor)
+	services.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
 	services.EXPECT().RegisterGRPC(gomock.Any()).Times(1).Return(nil).Do(func(server *grpc.Server) error {
 		sonm.RegisterMarketServer(server, marketServer)
 		return nil
@@ -123,6 +125,7 @@ func TestConnectWithInvalidKeyWithoutWallet(t *testing.T) {
 
 	services := NewMockServices(c)
 	services.EXPECT().Interceptor().Times(1).Return(nopInterceptor)
+	services.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
 	services.EXPECT().RegisterGRPC(gomock.Any()).Times(1).Return(nil).Do(func(server *grpc.Server) error {
 		sonm.RegisterMarketServer(server, marketServer)
 		return nil
@@ -166,6 +169,7 @@ func TestConnectWithInvalidKeyWithWallet(t *testing.T) {
 
 	services := NewMockServices(c)
 	services.EXPECT().Interceptor().Times(1).Return(nopInterceptor)
+	services.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
 	services.EXPECT().RegisterGRPC(gomock.Any()).Times(1).Return(nil).Do(func(server *grpc.Server) error {
 		sonm.RegisterMarketServer(server, marketServer)
 		return nil
@@ -210,6 +214,7 @@ func TestConnectWithValidKeyWithWallet(t *testing.T) {
 
 	services := NewMockServices(c)
 	services.EXPECT().Interceptor().Times(1).Return(nopInterceptor)
+	services.EXPECT().Run(gomock.Any()).AnyTimes().Return(nil)
 	services.EXPECT().RegisterGRPC(gomock.Any()).Times(1).Return(nil).Do(func(server *grpc.Server) error {
 		sonm.RegisterMarketServer(server, marketServer)
 		return nil
