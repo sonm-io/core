@@ -625,8 +625,10 @@ type MarketClient interface {
 	CreateOrder(ctx context.Context, in *BidOrder, opts ...grpc.CallOption) (*Order, error)
 	// GetOrderByID returns order by given ID.
 	// If order save an `inactive` status returns error instead.
+	// TODO: get rid of string ID #1237
 	GetOrderByID(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Order, error)
 	// CancelOrder removes active order from the Marketplace.
+	// TODO: get rid of string ID #1237
 	CancelOrder(ctx context.Context, in *ID, opts ...grpc.CallOption) (*Empty, error)
 	// Purge remove all active orders from marketplace
 	Purge(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
@@ -697,8 +699,10 @@ type MarketServer interface {
 	CreateOrder(context.Context, *BidOrder) (*Order, error)
 	// GetOrderByID returns order by given ID.
 	// If order save an `inactive` status returns error instead.
+	// TODO: get rid of string ID #1237
 	GetOrderByID(context.Context, *ID) (*Order, error)
 	// CancelOrder removes active order from the Marketplace.
+	// TODO: get rid of string ID #1237
 	CancelOrder(context.Context, *ID) (*Empty, error)
 	// Purge remove all active orders from marketplace
 	Purge(context.Context, *Empty) (*Empty, error)

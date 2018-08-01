@@ -9,6 +9,10 @@ container:
     param3: value3
   # Add ability to pull container back.
   commit_on_stop: true
+resources:
+  gpu:
+    hashes: []
+    indexes: []
 #  networks:
 #    - type: tinc
 #      subnet: "10.20.30.0/24"
@@ -32,3 +36,4 @@ container:
 #   username: name
 #   # registry password, optional param
 #   password: secret
+tag: "some"

@@ -131,6 +131,7 @@ It has these top-level messages:
 	ResolveMetaReply
 	Timestamp
 	Volume
+	TaskTag
 	TaskSpec
 	StartTaskRequest
 	WorkerJoinNetworkRequest
