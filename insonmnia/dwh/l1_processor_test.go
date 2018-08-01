@@ -1,7 +1,6 @@
 package dwh
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,19 +15,6 @@ import (
 )
 
 func TestDWH_L1Processor(t *testing.T) {
-	p, err := NewL1Processor(context.Background(), &L1ProcessorConfig{
-		Storage: &storageConfig{
-			Endpoint: getConnString(globalDBName, dbUser, dbUserPassword),
-		},
-	})
-	if err != nil {
-		t.Errorf("failed to create L1 processor: %v", err)
-		return
-	}
-
-	p.storage = monitorDWH.storage
-	p.db = monitorDWH.db
-
 	var (
 		controller           = gomock.NewController(t)
 		mockBlock            = bch.NewMockAPI(controller)
@@ -102,60 +88,60 @@ func TestDWH_L1Processor(t *testing.T) {
 	mockBlock.EXPECT().Market().AnyTimes().Return(mockMarket)
 	mockBlock.EXPECT().ProfileRegistry().AnyTimes().Return(mockProfiles)
 
-	p.blockchain = mockBlock
+	testL1Processor.blockchain = mockBlock
 
-	err = p.storage.InsertWorker(newSimpleConn(p.db), common.Address{},
+	err = testL1Processor.storage.InsertWorker(newSimpleConn(testL1Processor.db), common.Address{},
 		common.HexToAddress("0x000000000000000000000000000000000000000d"))
 	if err != nil {
 		t.Error("failed to insert worker (additional)")
 	}
 
-	if err := testOrderPlaced(p, commonEventTS, commonID); err != nil {
+	if err := testOrderPlaced(testL1Processor, commonEventTS, commonID); err != nil {
 		t.Errorf("testOrderPlaced: %s", err)
 		return
 	}
-	if err := testDealOpened(p, deal, commonID); err != nil {
+	if err := testDealOpened(testL1Processor, deal, commonID); err != nil {
 		t.Errorf("testDealOpened: %s", err)
 		return
 	}
-	if err := testValidatorCreatedUpdated(p, validator); err != nil {
+	if err := testValidatorCreatedUpdated(testL1Processor, validator); err != nil {
 		t.Errorf("testValidatorCreatedUpdated: %s", err)
 		return
 	}
-	if err := testCertificateUpdated(p, certificate, commonID); err != nil {
+	if err := testCertificateUpdated(testL1Processor, certificate, commonID); err != nil {
 		t.Errorf("testCertificateUpdated: %s", err)
 		return
 	}
-	if err := testOrderUpdated(p, order, commonID); err != nil {
+	if err := testOrderUpdated(testL1Processor, order, commonID); err != nil {
 		t.Errorf("testOrderUpdated: %s", err)
 		return
 	}
-	err = p.storage.DeleteWorker(newSimpleConn(p.db), common.Address{},
+	err = testL1Processor.storage.DeleteWorker(newSimpleConn(testL1Processor.db), common.Address{},
 		common.HexToAddress("0x000000000000000000000000000000000000000d"))
 	if err != nil {
 		t.Error("failed to delete worker (additional)")
 	}
-	if err := testDealUpdated(p, deal, commonID); err != nil {
+	if err := testDealUpdated(testL1Processor, deal, commonID); err != nil {
 		t.Errorf("testDealUpdated: %s", err)
 		return
 	}
-	if err := testDealChangeRequestSentAccepted(p, changeRequest, commonEventTS, commonID); err != nil {
+	if err := testDealChangeRequestSentAccepted(testL1Processor, changeRequest, commonEventTS, commonID); err != nil {
 		t.Errorf("testDealChangeRequestSentAccepted: %s", err)
 		return
 	}
-	if err := testBilled(p, commonEventTS, commonID); err != nil {
+	if err := testBilled(testL1Processor, commonEventTS, commonID); err != nil {
 		t.Errorf("testBilled: %s", err)
 		return
 	}
-	if err := testDealClosed(p, deal, commonID); err != nil {
+	if err := testDealClosed(testL1Processor, deal, commonID); err != nil {
 		t.Errorf("testDealClosed: %s", err)
 		return
 	}
-	if err := testWorkerAnnouncedConfirmedRemoved(p); err != nil {
+	if err := testWorkerAnnouncedConfirmedRemoved(testL1Processor); err != nil {
 		t.Errorf("testWorkerAnnouncedConfirmedRemoved: %s", err)
 		return
 	}
-	if err := testBlacklistAddedRemoved(p); err != nil {
+	if err := testBlacklistAddedRemoved(testL1Processor); err != nil {
 		t.Errorf("testBlacklistAddedRemoved: %s", err)
 		return
 	}
@@ -240,7 +226,7 @@ func testCertificateUpdated(p *L1Processor, certificate *pb.Certificate, commonI
 	if err := p.onCertificateCreated(commonID); err != nil {
 		return fmt.Errorf("onCertificateCreated failed: %v", err)
 	}
-	if certificateAttrs, err := getCertificates(monitorDWH); err != nil {
+	if certificateAttrs, err := getCertificates(testL1Processor); err != nil {
 		return fmt.Errorf("getCertificates failed: %v", err)
 	} else {
 		// Exactly one certificate should be created.
@@ -357,7 +343,7 @@ func testDealChangeRequestSentAccepted(p *L1Processor, changeRequest *pb.DealCha
 	if err := p.onDealChangeRequestSent(commonEventTS, big.NewInt(0)); err != nil {
 		return fmt.Errorf("onDealChangeRequestSent failed: %v", err)
 	}
-	if changeRequest, err := getDealChangeRequest(monitorDWH, changeRequest.Id); err != nil {
+	if changeRequest, err := getDealChangeRequest(testL1Processor, changeRequest.Id); err != nil {
 		return fmt.Errorf("getDealChangeRequest failed: %v", err)
 	} else {
 		if changeRequest.Duration != 10020 {
@@ -370,14 +356,14 @@ func testDealChangeRequestSentAccepted(p *L1Processor, changeRequest *pb.DealCha
 	if err := p.onDealChangeRequestSent(commonEventTS, big.NewInt(1)); err != nil {
 		return fmt.Errorf("onDealChangeRequestSent (2) failed: %v", err)
 	}
-	if changeRequest, err := getDealChangeRequest(monitorDWH, changeRequest.Id); err != nil {
+	if changeRequest, err := getDealChangeRequest(testL1Processor, changeRequest.Id); err != nil {
 		return fmt.Errorf("getDealChangeRequest (2) failed: %v", err)
 	} else {
 		if changeRequest.Duration != 10021 {
 			return fmt.Errorf("expected %d, got %d (DealChangeRequest.Duration)", 10021, changeRequest.Duration)
 		}
 	}
-	if _, err := getDealChangeRequest(monitorDWH, pb.NewBigIntFromInt(0)); err == nil {
+	if _, err := getDealChangeRequest(testL1Processor, pb.NewBigIntFromInt(0)); err == nil {
 		return errors.New("getDealChangeRequest returned a DealChangeRequest that should have been deleted")
 	}
 	// Check that when a BID DealChangeRequest was created, it was kept (and nothing was deleted).
@@ -387,14 +373,14 @@ func testDealChangeRequestSentAccepted(p *L1Processor, changeRequest *pb.DealCha
 	if err := p.onDealChangeRequestSent(commonEventTS, big.NewInt(2)); err != nil {
 		return fmt.Errorf("onDealChangeRequestSent (3) failed: %v", err)
 	}
-	if changeRequest, err := getDealChangeRequest(monitorDWH, changeRequest.Id); err != nil {
+	if changeRequest, err := getDealChangeRequest(testL1Processor, changeRequest.Id); err != nil {
 		return fmt.Errorf("getDealChangeRequest (3) failed: %v", err)
 	} else {
 		if changeRequest.Duration != 10022 {
 			return fmt.Errorf("expected %d, got %d (DealChangeRequest.Duration)", 10022, changeRequest.Duration)
 		}
 	}
-	if _, err := getDealChangeRequest(monitorDWH, pb.NewBigIntFromInt(1)); err != nil {
+	if _, err := getDealChangeRequest(testL1Processor, pb.NewBigIntFromInt(1)); err != nil {
 		return fmt.Errorf("dealChangeRequest of type ASK was deleted after a BID DealChangeRequest creation: %s", err)
 	}
 	// Check that when a DealChangeRequest is updated to any status but REJECTED, it is deleted.
@@ -403,7 +389,7 @@ func testDealChangeRequestSentAccepted(p *L1Processor, changeRequest *pb.DealCha
 	if err := p.onDealChangeRequestUpdated(commonEventTS, big.NewInt(1)); err != nil {
 		return fmt.Errorf("onDealChangeRequestUpdated failed: %v", err)
 	}
-	if _, err := getDealChangeRequest(monitorDWH, pb.NewBigIntFromInt(1)); err == nil {
+	if _, err := getDealChangeRequest(testL1Processor, pb.NewBigIntFromInt(1)); err == nil {
 		return errors.New("dealChangeRequest which status was changed to ACCEPTED was not deleted")
 	}
 	// Check that when a DealChangeRequest is updated to REJECTED, it is kept.
@@ -412,7 +398,7 @@ func testDealChangeRequestSentAccepted(p *L1Processor, changeRequest *pb.DealCha
 	if err := p.onDealChangeRequestUpdated(commonEventTS, big.NewInt(2)); err != nil {
 		return fmt.Errorf("onDealChangeRequestUpdated (4) failed: %v", err)
 	}
-	if _, err := getDealChangeRequest(monitorDWH, pb.NewBigIntFromInt(2)); err != nil {
+	if _, err := getDealChangeRequest(testL1Processor, pb.NewBigIntFromInt(2)); err != nil {
 		return errors.New("dealChangeRequest which status was changed to REJECTED was deleted")
 	}
 	// Also test that a new DealCondition was created, and the old one was updated.
@@ -568,4 +554,38 @@ func testBlacklistAddedRemoved(p *L1Processor) error {
 		}
 	}
 	return nil
+}
+
+func getDealChangeRequest(p *L1Processor, changeRequestID *pb.BigInt) (*pb.DealChangeRequest, error) {
+	rows, err := p.storage.builder().Select("*").From("DealChangeRequests").
+		Where("Id = ?", changeRequestID.Unwrap().String()).RunWith(p.db).Query()
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %s", err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return nil, errors.New("no rows returned")
+	}
+
+	return p.storage.decodeDealChangeRequest(rows)
+}
+
+func getCertificates(p *L1Processor) ([]*pb.Certificate, error) {
+	rows, err := p.storage.builder().Select("*").From("Certificates").RunWith(p.db).Query()
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %s", err)
+	}
+	defer rows.Close()
+
+	var out []*pb.Certificate
+	for rows.Next() {
+		if certificate, err := p.storage.decodeCertificate(rows); err != nil {
+			return nil, fmt.Errorf("failed to decodeCertificate: %v", err)
+		} else {
+			out = append(out, certificate)
+		}
+	}
+
+	return out, nil
 }
