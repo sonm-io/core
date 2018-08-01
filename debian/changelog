@@ -1,3 +1,70 @@
+sonm-core (0.4.6) unstable; urgency=low
+
+  * Added: non-negative LLS solver for Optimus (#1090).
+    This adds a new more-physically-correct optimization method - the non-negative
+    multidimensional linear least squares (NNLS).
+    It constraints the result vector values to be a non-negative, which in its
+    turn means that each of them will show to the real benchmark price per
+    basis.
+    Also this shows an extremely performance boost - million of orders are
+    optimized in less than for a second.
+  * Added: pre-request logging interceptor (#1229).
+    This commit activates automatic request logging for gRPC services. This
+    includes logging service and request names with tracing attributes if
+    activated. Both unary and streaming API are supported.
+    Internally this is done by using gRPC request interceptors, that are
+    invoked before the actual method called.
+  * Added: optionally expand deal's orders in CLI (#1238).
+    The new flag "--expand" works as follows: if specified it also fetches
+    information about both BID and ASK orders in a deal and prints it.
+  * Added: genetic optimization in Optimus (#1234).
+    This commit introduces a new genetic optimization algorithm helping
+    Optimus to find the best orders set.
+    The core idea is to create multiple knapsack populations with random
+    orders inside and try to pack them. Failed populations should die, while
+    successful ones will live. Sometimes random mutation occurs, which
+    results in random order addition or removal from the set. The best
+    individuals will cross each other attempting to produce more adapted
+    children.
+    BEWARE OF DRAGONS: this is quite CPU intensive algorithm, so there are
+    predefined generation and age limits. However even with them it may eat
+    all your CPU.
+    Additionally now it is possible to combine several models to run them
+    parallel and to select the best one.
+  * Added: branch bound model in Optimus (#1239).
+    This adds a new model - Branch Bound Tree, which finds a global optimum
+    solution for knapsack problem.
+    However, its complexity is still exponential, so it must be activated only
+    when the number of matching orders is relatively low.
+  * Added: optional tag for task (#1236).
+    This allows to specify used-defined tag when starting a task. This tag can
+    be fetched back later when monitoring running tasks.
+  * Changed: make masterchain gas price configurable (#1195).
+    This option now useful for deposit and gatekeeper withdraw;
+    If option not defined gas price is determined by the latest blocks median
+    gas price.
+  * Changed: add comments in default bid config (#1233).
+  * Changed: reduce default price threshold in Optimus (#1235).
+    The new value is equivalent of ~0.48$ per day or 175.2$ per year.
+  * Changed: Optimus config description - init everything from config (#1240).
+    Now the "optimization" settings can be specified to each worker Optimus
+    monitor independently.
+    The config itself now allows to specify much more things.
+    Changed regression settings (previous "classifier"), it was slightly
+    flattened.
+    Also dropped "optimization.interval" option.
+    It is highly recommended to switch to the new config instead of using old
+    ones because otherwise some settings will fall back to defaults.
+  * Changed: drop order fusion from time in Optimus (#1232).
+    The removed field from the config was named as "logistic" function.
+    This weighted function no longer needed and even considered harmful.
+  * Fixed: handle tasks correctly in case of worker reload (#1188).
+  * Fixed: add to matching orders existing ones in Optimus (#1248).
+    Previously they were added but then immediately filtered out, because those
+    orders are ASKs, not BIDs.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 01 Aug 2018 11:05:01 +0300
+
 sonm-core (0.4.5) unstable; urgency=low
 
   * Added: deployment scripts for livenet (#1087).
