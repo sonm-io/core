@@ -54,7 +54,7 @@ func run() error {
 		ColdStart:  cfg.ColdStart,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create events processor instance: %v", err)
+		return fmt.Errorf("failed to create L1 events processor instance: %v", err)
 	}
 
 	go metrics.NewPrometheusExporter(cfg.MetricsListenAddr, metrics.WithLogging(logger.Sugar())).Serve(ctx)

@@ -1,13 +1,12 @@
 package dwh
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"math/big"
 	"strings"
-
-	"context"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/ethereum/go-ethereum/common"
