@@ -49,7 +49,7 @@ func WithRendezvous(cfg rendezvous.Config, credentials credentials.TransportCred
 			for _, addr := range cfg.Endpoints {
 				client, err := newRendezvousClient(ctx, addr, credentials)
 				if err == nil {
-					return newNATPuncher(ctx, cfg, client)
+					return newNATPuncher(ctx, cfg, client, o.log)
 				}
 			}
 
