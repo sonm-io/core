@@ -6,10 +6,10 @@ import (
 	"os"
 	"path"
 
-	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/config"
 	"gopkg.in/yaml.v2"
 )
 
@@ -45,8 +45,7 @@ func NewConfig(p ...string) (*Config, error) {
 		return cfg, nil
 	}
 
-	err = configor.Load(cfg, cfgPath)
-	if err != nil {
+	if err = config.FromFile(cfgPath, cfg); err != nil {
 		return nil, err
 	}
 

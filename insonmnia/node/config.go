@@ -1,7 +1,6 @@
 package node
 
 import (
-	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
@@ -9,6 +8,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/npp"
+	"github.com/sonm-io/core/util/config"
 )
 
 type nodeConfig struct {
@@ -32,7 +32,7 @@ type Config struct {
 // NewConfig loads localNode config from given .yaml file
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
-	if err := configor.Load(cfg, path); err != nil {
+	if err := config.FromFile(path, cfg); err != nil {
 		return nil, err
 	}
 

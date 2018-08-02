@@ -3,8 +3,8 @@ package commands
 import (
 	"fmt"
 
-	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/config"
 	"github.com/spf13/cobra"
 )
 
@@ -44,7 +44,7 @@ var askPlanCreateCmd = &cobra.Command{
 		planPath := args[0]
 		plan := &pb.AskPlan{}
 
-		if err := task_config.LoadFromFile(planPath, plan); err != nil {
+		if err := config.FromFile(planPath, plan); err != nil {
 			return fmt.Errorf("cannot load AskPlan definition: %v", err)
 		}
 

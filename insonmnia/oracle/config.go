@@ -3,10 +3,10 @@ package oracle
 import (
 	"time"
 
-	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/logging"
+	"github.com/sonm-io/core/util/config"
 )
 
 type oracleConfig struct {
@@ -25,10 +25,9 @@ type Config struct {
 
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
-
-	err := configor.Load(cfg, path)
-	if err != nil {
+	if err := config.FromFile(path, cfg); err != nil {
 		return nil, err
 	}
+
 	return cfg, nil
 }

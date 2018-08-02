@@ -6,14 +6,8 @@ import (
 )
 
 func LoadConfig(path string) (*sonm.TaskSpec, error) {
-	// Manual renaming from snake_case to lowercase fields here to be able to
-	// load them directly in the protobuf.
 	cfg := &sonm.TaskSpec{}
-	if err := config.LoadWith(cfg, path, config.SnakeToLower); err != nil {
-		return nil, err
-	}
-
-	if err := cfg.Validate(); err != nil {
+	if err := config.FromFile(path, cfg); err != nil {
 		return nil, err
 	}
 

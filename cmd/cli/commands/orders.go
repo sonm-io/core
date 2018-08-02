@@ -3,8 +3,8 @@ package commands
 import (
 	"fmt"
 
-	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/config"
 	"github.com/spf13/cobra"
 )
 
@@ -92,7 +92,7 @@ var orderCreateCmd = &cobra.Command{
 
 		path := args[0]
 		bid := &pb.BidOrder{}
-		if err := task_config.LoadFromFile(path, bid); err != nil {
+		if err := config.FromFile(path, bid); err != nil {
 			return fmt.Errorf("cannot load order definition: %v", err)
 		}
 
