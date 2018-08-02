@@ -6,6 +6,10 @@ import (
 	sonm "github.com/sonm-io/core/proto"
 )
 
+const (
+	arrayMappingThreshold = 1024
+)
+
 type Loader interface {
 	Load(ctx context.Context) (Mapping, error)
 }
@@ -26,9 +30,32 @@ func (m *loader) Load(ctx context.Context) (Mapping, error) {
 		return nil, err
 	}
 
+	maxID := benchmarkList.Max()
+	if maxID <= arrayMappingThreshold {
+		return newArrayMapping(benchmarkList, maxID), nil
+	}
+
+	return newMapMapping(benchmarkList), nil
+}
+
+func newArrayMapping(benchmarks BenchList, maxID uint64) Mapping {
+	deviceTypes := make([]sonm.DeviceType, maxID+1)
+	splittingAlgorithms := make([]sonm.SplittingAlgorithm, maxID+1)
+
+	for _, benchmark := range benchmarks.ByID() {
+		deviceTypes[benchmark.ID] = benchmark.Type
+		splittingAlgorithms[benchmark.ID] = benchmark.SplittingAlgorithm
+	}
+	return &arrayMapping{
+		deviceTypes:         deviceTypes,
+		splittingAlgorithms: splittingAlgorithms,
+	}
+}
+
+func newMapMapping(benchmarks BenchList) Mapping {
 	deviceTypes := map[uint64]sonm.DeviceType{}
 	splittingAlgorithms := map[uint64]sonm.SplittingAlgorithm{}
-	for _, benchmarks := range benchmarkList.MapByDeviceType() {
+	for _, benchmarks := range benchmarks.MapByDeviceType() {
 		for _, benchmark := range benchmarks {
 			deviceTypes[benchmark.ID] = benchmark.Type
 			splittingAlgorithms[benchmark.ID] = benchmark.SplittingAlgorithm
@@ -38,7 +65,7 @@ func (m *loader) Load(ctx context.Context) (Mapping, error) {
 	return &mapping{
 		deviceTypes:         deviceTypes,
 		splittingAlgorithms: splittingAlgorithms,
-	}, nil
+	}
 }
 
 type Mapping interface {
@@ -65,4 +92,25 @@ func (m *mapping) SplittingAlgorithm(id int) sonm.SplittingAlgorithm {
 		return sonm.SplittingAlgorithm_NONE
 	}
 	return ty
+}
+
+type arrayMapping struct {
+	deviceTypes         []sonm.DeviceType
+	splittingAlgorithms []sonm.SplittingAlgorithm
+}
+
+func (m *arrayMapping) DeviceType(id int) sonm.DeviceType {
+	if id < 0 || id >= len(m.deviceTypes) {
+		return sonm.DeviceType_DEV_UNKNOWN
+	}
+
+	return m.deviceTypes[id]
+}
+
+func (m *arrayMapping) SplittingAlgorithm(id int) sonm.SplittingAlgorithm {
+	if id < 0 || id >= len(m.splittingAlgorithms) {
+		return sonm.SplittingAlgorithm_NONE
+	}
+
+	return m.splittingAlgorithms[id]
 }
