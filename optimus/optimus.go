@@ -7,6 +7,7 @@ import (
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/debug"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/metadata"
@@ -49,7 +50,6 @@ func (m *Optimus) Run(ctx context.Context) error {
 
 	marketCache := newMarketCache(newMarketScanner(m.cfg.Marketplace, dwh), m.cfg.Marketplace.Interval)
 
-	wg := errgroup.Group{}
 	benchmarkMapping, err := benchmarks.NewLoader(m.cfg.Benchmarks.URL).Load(context.Background())
 	if err != nil {
 		return fmt.Errorf("failed to load benchmarks: %v", err)
@@ -59,6 +59,15 @@ func (m *Optimus) Run(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		if m.cfg.Debug == nil {
+			return nil
+		}
+
+		return debug.ServePProf(ctx, *m.cfg.Debug, m.log.Desugar())
+	})
 
 	for addr, cfg := range m.cfg.Workers {
 		ethAddr, err := addr.ETH()

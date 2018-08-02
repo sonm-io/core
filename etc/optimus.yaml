@@ -181,3 +181,6 @@ workers:
     prelude_timeout: 30s
     # Optimization engine settings.
     optimization: *optimization
+
+debug:
+  port: 6060
