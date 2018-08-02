@@ -74,6 +74,10 @@ func (m *node) FindOptimum() *Knapsack {
 		}
 	}
 
+	if winnerNode == nil {
+		return nil
+	}
+
 	return winnerNode.Knapsack
 }
 
