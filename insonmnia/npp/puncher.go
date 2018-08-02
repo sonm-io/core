@@ -6,12 +6,12 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/libp2p/go-reuseport"
-	"github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/npp/rendezvous"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/multierror"
@@ -57,7 +57,7 @@ type natPuncher struct {
 	timeout     time.Duration
 }
 
-func newNATPuncher(ctx context.Context, cfg rendezvous.Config, client *rendezvousClient) (NATPuncher, error) {
+func newNATPuncher(ctx context.Context, cfg rendezvous.Config, client *rendezvousClient, log *zap.Logger) (NATPuncher, error) {
 	// It's important here to reuse the Rendezvous client local address for
 	// successful NAT penetration in the case of cone NAT.
 	listener, err := reuseport.Listen(protocol, client.LocalAddr().String())
@@ -69,7 +69,7 @@ func newNATPuncher(ctx context.Context, cfg rendezvous.Config, client *rendezvou
 
 	m := &natPuncher{
 		ctx:             ctx,
-		log:             ctxlog.G(ctx),
+		log:             log,
 		client:          client,
 		listenerChannel: channel,
 		listener:        listener,
@@ -87,7 +87,11 @@ func (m *natPuncher) listen() error {
 	for {
 		conn, err := m.listener.Accept()
 		m.listenerChannel <- newConnTuple(conn, err)
-		if err != nil {
+		switch {
+		case err == nil:
+		case strings.Contains(err.Error(), "use of closed network connection"):
+			return err
+		default:
 			m.log.Error("failed to listen NPP", zap.Error(err))
 			return err
 		}
