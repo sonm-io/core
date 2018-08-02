@@ -30,6 +30,8 @@ const (
 )
 
 type BenchList interface {
+	// Max returns the maximum benchmark ID in the list.
+	Max() uint64
 	ByID() []*pb.Benchmark
 	MapByDeviceType() map[pb.DeviceType][]*pb.Benchmark
 	MapByCode() map[string]*pb.Benchmark
@@ -143,6 +145,17 @@ func NewBenchmarksList(ctx context.Context, cfg Config) (BenchList, error) {
 	}
 
 	return ls, nil
+}
+
+func (bl *benchmarkList) Max() uint64 {
+	max := uint64(0)
+	for _, benchmark := range bl.byID {
+		if benchmark.ID > max {
+			max = benchmark.ID
+		}
+	}
+
+	return max
 }
 
 func (bl *benchmarkList) ByID() []*pb.Benchmark {
