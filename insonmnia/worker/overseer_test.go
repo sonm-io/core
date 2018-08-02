@@ -3,6 +3,7 @@ package worker
 import (
 	"archive/tar"
 	"bytes"
+	"context"
 	"io"
 	"sync"
 	"testing"
@@ -15,8 +16,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"golang.org/x/net/context"
 )
 
 func TestOvsSpool(t *testing.T) {
