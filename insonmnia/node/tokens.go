@@ -1,12 +1,12 @@
 package node
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/proto"
-	"golang.org/x/net/context"
 )
 
 type tokenAPI struct {

@@ -86,7 +86,7 @@ func appendExtendedInfo(ctx context.Context, dealInfo *ExtendedDealInfo) error {
 	wg, ctx := errgroup.WithContext(ctx)
 
 	wg.Go(func() error {
-		ask, err := market.GetOrderByID(ctx, &pb.ID{dealInfo.GetDeal().GetAskID().Unwrap().String()})
+		ask, err := market.GetOrderByID(ctx, &pb.ID{Id: dealInfo.GetDeal().GetAskID().Unwrap().String()})
 		if err != nil {
 			return fmt.Errorf("failed to fetch ask order: %v", err)
 		}
@@ -94,7 +94,7 @@ func appendExtendedInfo(ctx context.Context, dealInfo *ExtendedDealInfo) error {
 		return nil
 	})
 	wg.Go(func() error {
-		bid, err := market.GetOrderByID(ctx, &pb.ID{dealInfo.GetDeal().GetBidID().Unwrap().String()})
+		bid, err := market.GetOrderByID(ctx, &pb.ID{Id: dealInfo.GetDeal().GetBidID().Unwrap().String()})
 		if err != nil {
 			return fmt.Errorf("failed to fetch bid order: %v", err)
 		}

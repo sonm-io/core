@@ -1,11 +1,11 @@
 package node
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
-	"golang.org/x/net/context"
 )
 
 type masterMgmtAPI struct {

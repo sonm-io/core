@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
-	"golang.org/x/net/context"
 )
 
 type marketAPI struct {

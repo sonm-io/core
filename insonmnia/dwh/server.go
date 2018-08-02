@@ -1,6 +1,7 @@
 package dwh
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"database/sql"
 	"encoding/json"
@@ -22,7 +23,6 @@ import (
 	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

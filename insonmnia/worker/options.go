@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
@@ -19,7 +20,6 @@ import (
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/netutil"
 	"github.com/sonm-io/core/util/xgrpc"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/credentials"
 )
 

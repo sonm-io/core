@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -12,7 +13,6 @@ import (
 	"github.com/sonm-io/core/util/xgrpc"
 	"github.com/sonm-io/core/util/xnet"
 	"go.uber.org/zap"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )

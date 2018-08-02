@@ -1,6 +1,7 @@
 package relay
 
 import (
+	"context"
 	"net"
 
 	"github.com/hashicorp/memberlist"
@@ -8,7 +9,6 @@ import (
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
