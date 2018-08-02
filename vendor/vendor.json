@@ -2089,11 +2089,11 @@
 			"revisionTime": "2018-03-14T17:21:19Z"
 		},
 		{
-			"checksumSHA1": "ObD8yKmD0mwcN3RRrpFiwK8lh4U=",
+			"checksumSHA1": "veD0dgtAEXKSqV4v2nlqurfGfwc=",
 			"origin": "github.com/docker/docker/vendor/golang.org/x/sys/unix",
 			"path": "golang.org/x/sys/unix",
-			"revision": "59d56084347bae27c72752e31f910a266638fe23",
-			"revisionTime": "2018-04-11T07:54:44Z"
+			"revision": "75fe41444009947d319f76e68b5e1f2124c79b4d",
+			"revisionTime": "2018-08-02T13:51:25Z"
 		},
 		{
 			"checksumSHA1": "Dfz4tGItokMvHZENCsBmPPB8FGQ=",
