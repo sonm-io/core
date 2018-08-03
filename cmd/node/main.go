@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/noxiouz/zapctx/ctxlog"
@@ -8,7 +9,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/node"
 	"github.com/sonm-io/core/util/metrics"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 

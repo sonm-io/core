@@ -4,6 +4,7 @@
 package xgrpc
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"reflect"
@@ -18,7 +19,6 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"go.uber.org/zap"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"

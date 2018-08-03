@@ -1,9 +1,10 @@
 package commands
 
 import (
+	"context"
+
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/xgrpc"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 

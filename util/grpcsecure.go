@@ -1,13 +1,13 @@
 package util
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
 
 	ethcommon "github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/credentials"
 )
 

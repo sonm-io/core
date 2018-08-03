@@ -1,13 +1,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/cmd"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/oracle"
-	"golang.org/x/net/context"
 )
 
 var (

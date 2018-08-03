@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/signal"
@@ -13,7 +14,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker"
 	"github.com/sonm-io/core/util/metrics"
 	"go.uber.org/zap"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -30,7 +30,6 @@ func main() {
 func run() error {
 	ctx := context.Background()
 	waiter, ctx := errgroup.WithContext(ctx)
-	ctx, cancel := context.WithCancel(ctx)
 	cfg, err := worker.NewConfig(configFlag)
 	if err != nil {
 		return fmt.Errorf("failed to load config file: %s", err)
@@ -44,6 +43,7 @@ func run() error {
 		return fmt.Errorf("failed to create state storage: %s", err)
 	}
 
+	ctx, cancel := context.WithCancel(ctx)
 	waiter.Go(func() error {
 		c := make(chan os.Signal, 1)
 		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
