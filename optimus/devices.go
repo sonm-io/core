@@ -414,7 +414,7 @@ func (m *DeviceManager) consumeGPU(minCount uint64, benchmarks []uint64) (*sonm.
 	score := float64(math.MaxFloat64)
 	var candidates []*sonm.GPU
 
-	for k := int(minCount); k <= len(m.devices.GPUs); k++ {
+	for k := int(minCount); k <= len(m.freeGPUs); k++ {
 	subsetLoop:
 		for _, subset := range m.combinationsGPU(k) {
 			currentScore := 0.0
