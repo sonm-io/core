@@ -207,10 +207,10 @@ func (m *DeviceManager) Contains(benchmarks sonm.Benchmarks, netflags sonm.NetFl
 	copyFreeIncomingNetwork := m.freeIncomingNetwork
 
 	defer func() {
-		m.freeBenchmarks = append([]uint64{}, copyFreeBenchmarks...)
+		m.freeBenchmarks = copyFreeBenchmarks
 	}()
 	defer func() {
-		m.freeGPUs = append([]*sonm.GPU{}, copyFreeGPUs...)
+		m.freeGPUs = copyFreeGPUs
 	}()
 	defer func() {
 		m.freeIncomingNetwork = copyFreeIncomingNetwork
@@ -229,8 +229,8 @@ func (m *DeviceManager) Consume(benchmarks sonm.Benchmarks, netflags sonm.NetFla
 	plan, err := m.consumeBenchmarks(benchmarks, netflags)
 	if err != nil {
 		m.freeIncomingNetwork = copyFreeIncomingNetwork
-		m.freeGPUs = append([]*sonm.GPU{}, copyFreeGPUs...)
-		m.freeBenchmarks = append([]uint64{}, copyFreeBenchmarks...)
+		m.freeGPUs = copyFreeGPUs
+		m.freeBenchmarks = copyFreeBenchmarks
 		return nil, err
 	}
 
