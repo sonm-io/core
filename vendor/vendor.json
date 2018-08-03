@@ -13,6 +13,18 @@
 			"revisionTime": "2016-08-11T21:22:31Z"
 		},
 		{
+			"checksumSHA1": "389JFJTJADMtZkTIfdSnsmHVOUs=",
+			"path": "bazil.org/fuse/fs",
+			"revision": "65cc252bf6691cb3c7014bcb2c8dc29de91e3a7e",
+			"revisionTime": "2018-04-21T15:31:58Z"
+		},
+		{
+			"checksumSHA1": "NPgkh9UWMsaTtsAAs3kPrclHT9Y=",
+			"path": "bazil.org/fuse/fuseutil",
+			"revision": "65cc252bf6691cb3c7014bcb2c8dc29de91e3a7e",
+			"revisionTime": "2018-04-21T15:31:58Z"
+		},
+		{
 			"checksumSHA1": "KOETWLsF6QW+lrPVPsMNHDZP+xA=",
 			"path": "github.com/Azure/go-autorest/autorest/adal",
 			"revision": "f6e08fe5e4d45c9a66e40196d3fed5f37331d224",
@@ -656,6 +668,12 @@
 			"revisionTime": "2018-06-22T23:30:57Z"
 		},
 		{
+			"checksumSHA1": "48MqEzgdGgs5+XZbNpCnXMOMlDM=",
+			"path": "github.com/edsrzf/mmap-go",
+			"revision": "0bce6a6887123b67a60366d2c9fe2dfb74289d2e",
+			"revisionTime": "2017-03-18T15:58:57Z"
+		},
+		{
 			"checksumSHA1": "jElNoLEe7m/iaoF1vYIHyNaS2SE=",
 			"path": "github.com/elastic/gosigar",
 			"revision": "37f05ff46ffa7a825d1b24cf2b62d4a4c1a9d2e8",
@@ -1148,6 +1166,12 @@
 			"path": "github.com/golang/protobuf/ptypes/timestamp",
 			"revision": "e09c5db296004fbe3f74490e84dcd62c3c5ddb1b",
 			"revisionTime": "2018-03-28T16:31:53Z"
+		},
+		{
+			"checksumSHA1": "h1d2lPZf6j2dW/mIqVnd1RdykDo=",
+			"path": "github.com/golang/snappy",
+			"revision": "2e65f85255dbc3072edf28d6b5b8efc472979f5a",
+			"revisionTime": "2018-05-18T05:39:59Z"
 		},
 		{
 			"checksumSHA1": "PKVjAJ/e0p/jWtGpZycgoZBLdb4=",
