@@ -59,6 +59,13 @@ Description: Optimus an the auto-sell bot
  The Optimus able to analyze market and
  create Ask-orders in a most profitable way.
 
+Package: sonm-connor
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Connor is the auto-buy bot
+ The Connor buys all available GPU resources
+ on market.
+
 Package: sonm-oracle
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}

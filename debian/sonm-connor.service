@@ -1,0 +1,13 @@
+[Unit]
+Description=SONM Connor
+
+
+[Service]
+EnvironmentFile=/etc/default/sonm-connor
+Type=simple
+ExecStart=/usr/bin/sonmoptimus --config=${CONFIG_PATH}
+Restart=on-failure
+
+
+[Install]
+WantedBy=multi-user.target
