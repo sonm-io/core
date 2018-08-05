@@ -28,6 +28,15 @@ func (nilVolume) Configure(mount Mount, cfg *container.HostConfig) error {
 // create new volumes for containers.
 type VolumeDriver interface {
 	// CreateVolume creates a new volume using specified name and Option.
+	//
+	// This method is called before tuning a new container, so it should
+	// prepare all required stuff such as mounting filesystems, create
+	// subdirectories, etc.
+	// For example for BTFS driver it creates torrent client, mounts FUSE
+	// filesystem and tries to fetch the provided magnet URL.
+	//
+	// Both "name" and "options" parameters are passed directly from the
+	// task specification.
 	CreateVolume(name string, options map[string]string) (Volume, error)
 	// RemoveVolume removes an existing volume.
 	RemoveVolume(name string) error
@@ -64,6 +73,8 @@ func NewVolumeDriver(ctx context.Context, ty string, options ...Option) (VolumeD
 	switch ty {
 	case drivers.CIFS.String():
 		return NewCIFSVolumeDriver(ctx, options...)
+	case BTFSDriverName:
+		return NewBTFSDriver(options...)
 	default:
 		return nil, fmt.Errorf("unknown volume driver: %s", ty)
 	}
