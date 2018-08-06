@@ -23,8 +23,7 @@ const (
 type engine struct {
 	log       *zap.Logger
 	ctx       context.Context
-	cfg       engineConfig
-	miningCfg miningConfig
+	cfg       *Config
 	antiFraud antifraud.AntiFraud
 
 	market        sonm.MarketClient
@@ -38,10 +37,8 @@ type engine struct {
 
 func NewEngine(ctx context.Context, cfg *Config, price price.Provider, log *zap.Logger, cc *grpc.ClientConn) *engine {
 	return &engine{
-		ctx: ctx,
-		// todo: use single config
-		cfg:               cfg.Engine,
-		miningCfg:         cfg.Mining,
+		ctx:               ctx,
+		cfg:               cfg,
 		priceProvider:     price,
 		log:               log.Named("engine"),
 		market:            sonm.NewMarketClient(cc),
@@ -98,7 +95,7 @@ func (e *engine) waitForDeal(order *Corder) {
 	id := order.GetId().Unwrap().String()
 	log := e.log.With(zap.String("order_id", id))
 
-	t := util.NewImmediateTicker(e.cfg.OrderWatchInterval)
+	t := util.NewImmediateTicker(e.cfg.Engine.OrderWatchInterval)
 	defer t.Stop()
 
 	for {
@@ -107,7 +104,7 @@ func (e *engine) waitForDeal(order *Corder) {
 			return
 		case <-t.C:
 			actualPrice := e.priceProvider.GetPrice()
-			if order.isReplaceable(actualPrice, e.miningCfg.TokenPrice.Threshold) {
+			if order.isReplaceable(actualPrice, e.cfg.Mining.TokenPrice.Threshold) {
 				log.Info("we can replace order with more profitable one",
 					zap.String("actual_price", actualPrice.String()),
 					zap.String("current_price", order.restorePrice().String()))
@@ -139,7 +136,7 @@ func (e *engine) cancelOrder(log *zap.Logger, id *sonm.BigInt) {
 	log.Info("cancelling order")
 
 	for try := 0; try < maxRetryCount; try++ {
-		ctx, cancel := context.WithTimeout(e.ctx, e.cfg.ConnectionTimeout)
+		ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
 		if _, err := e.market.CancelOrder(ctx, &sonm.ID{Id: id.Unwrap().String()}); err != nil {
 			cancel()
 			log.Warn("cannot cancel order", zap.Error(err), zap.Int("try", try))
@@ -246,7 +243,7 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 }
 
 func (e *engine) startTaskWithRetry(log *zap.Logger, deal *sonm.Deal) (*sonm.StartTaskReply, error) {
-	t := util.NewImmediateTicker(e.cfg.TaskStartInterval)
+	t := util.NewImmediateTicker(e.cfg.Engine.TaskStartInterval)
 	defer t.Stop()
 
 	try := 0
@@ -272,12 +269,12 @@ func (e *engine) startTaskWithRetry(log *zap.Logger, deal *sonm.Deal) (*sonm.Sta
 }
 
 func (e *engine) startTaskOnce(log *zap.Logger, dealID *sonm.BigInt) (*sonm.StartTaskReply, error) {
-	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.ConnectionTimeout)
+	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
 	workerID := "c" + dealID.Unwrap().String()
-	ethID := strings.ToLower(e.miningCfg.Wallet.Hex())
-	poolAddr := fmt.Sprintf("%s/%s/%s", e.miningCfg.PoolReportURL, ethID, workerID)
+	ethID := strings.ToLower(e.cfg.Mining.Wallet.Hex())
+	poolAddr := fmt.Sprintf("%s/%s/%s", e.cfg.Mining.PoolReportURL, ethID, workerID)
 	wallet := fmt.Sprintf("%s/%s", ethID, workerID)
 
 	env := map[string]string{
@@ -290,9 +287,9 @@ func (e *engine) startTaskOnce(log *zap.Logger, dealID *sonm.BigInt) (*sonm.Star
 	taskReply, err := e.tasks.Start(ctx, &sonm.StartTaskRequest{
 		DealID: dealID,
 		Spec: &sonm.TaskSpec{
-			Tag: e.miningCfg.getTag(),
+			Tag: e.cfg.Mining.getTag(),
 			Container: &sonm.Container{
-				Image: e.miningCfg.Image,
+				Image: e.cfg.Mining.Image,
 				Env:   env,
 			},
 			Resources: &sonm.AskPlanResources{},
@@ -310,7 +307,7 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 	log = log.Named("task").With(zap.String("task_id", taskID))
 	log.Info("start task status tracking")
 
-	t := util.NewImmediateTicker(e.cfg.TaskTrackInterval)
+	t := util.NewImmediateTicker(e.cfg.Engine.TaskTrackInterval)
 	defer t.Stop()
 
 	try := 0
@@ -354,7 +351,7 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 }
 
 func (e *engine) checkDealStatus(log *zap.Logger, dealID *sonm.BigInt) (bool, error) {
-	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.ConnectionTimeout)
+	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
 	dealStatus, err := e.deals.Status(ctx, dealID)
@@ -368,7 +365,7 @@ func (e *engine) checkDealStatus(log *zap.Logger, dealID *sonm.BigInt) (bool, er
 func (e *engine) trackTaskOnce(log *zap.Logger, dealID *sonm.BigInt, taskID string) (bool, error) {
 	log.Debug("checking task status")
 
-	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.ConnectionTimeout)
+	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
 	// 3. ping task
@@ -390,7 +387,7 @@ func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, err
 	log = log.Named("restore-tasks")
 	log.Debug("restoring tasks")
 
-	t := util.NewImmediateTicker(e.cfg.TaskRestoreInterval)
+	t := util.NewImmediateTicker(e.cfg.Engine.TaskRestoreInterval)
 	defer t.Stop()
 
 	try := 0
@@ -414,7 +411,7 @@ func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, err
 			case 0:
 				return "", nil
 			case 1:
-				requiredTag := string(e.miningCfg.getTag().GetData())
+				requiredTag := string(e.cfg.Mining.getTag().GetData())
 				givenTag := string(list[0].GetTag().GetData())
 				if givenTag != requiredTag {
 					log.Warn("unexpected tag assigned to the running on task",
@@ -440,7 +437,7 @@ func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, err
 func (e *engine) loadTasksOnce(log *zap.Logger, dealID *sonm.BigInt) ([]*taskStatus, error) {
 	log.Debug("loading tasks from worker")
 
-	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.ConnectionTimeout)
+	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
 	taskList, err := e.tasks.List(ctx, &sonm.TaskListRequest{DealID: dealID})
@@ -480,7 +477,7 @@ func (e *engine) stopOneTask(log *zap.Logger, dealID *sonm.BigInt, taskID string
 	log.Debug("stopping task", zap.String("task_id", taskID))
 
 	for try := 0; try < maxRetryCount; try++ {
-		ctx, cancel := context.WithTimeout(e.ctx, e.cfg.ConnectionTimeout)
+		ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
 		if _, err := e.tasks.Stop(ctx, &sonm.TaskID{Id: taskID, DealID: dealID}); err != nil {
 			log.Warn("cannot stop task", zap.Error(err), zap.Int("try", try))
 			cancel()
