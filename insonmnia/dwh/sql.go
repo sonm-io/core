@@ -1,6 +1,7 @@
 package dwh
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -2054,4 +2055,21 @@ func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
 	}
 
 	return storage
+}
+
+func setupDB(ctx context.Context, db *sql.DB, blockchain blockchain.API) (*sqlStorage, error) {
+	numBenchmarks, err := blockchain.Market().GetNumBenchmarks(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to GetNumBenchmarks: %v", err)
+	}
+	if numBenchmarks >= NumMaxBenchmarks {
+		return nil, errors.New("market number of benchmarks is greater than NumMaxBenchmarks")
+	}
+
+	var storage = newPostgresStorage(numBenchmarks)
+	if err := storage.Setup(db); err != nil {
+		return nil, fmt.Errorf("failed to setup storage: %v", err)
+	}
+
+	return storage, nil
 }

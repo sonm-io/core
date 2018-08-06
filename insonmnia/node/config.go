@@ -29,7 +29,7 @@ type Config struct {
 	Matcher           *matcher.YAMLConfig `yaml:"matcher"`
 }
 
-// NewConfig loads localNode config from given .yaml file
+// NewDWHConfig loads localNode config from given .yaml file
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
 	if err := configor.Load(cfg, path); err != nil {
