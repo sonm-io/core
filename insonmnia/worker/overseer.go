@@ -132,6 +132,37 @@ type ContainerInfo struct {
 	AskID        string
 }
 
+type containerInfoAlias ContainerInfo
+
+type containerInfoMarshaller struct {
+	*containerInfoAlias
+	PublicKey []byte `json:"PublicKey"`
+}
+
+func (c *ContainerInfo) UnmarshalJSON(b []byte) error {
+	aux := containerInfoMarshaller{containerInfoAlias: (*containerInfoAlias)(c)}
+	if err := json.Unmarshal(b, &aux); err != nil {
+		return err
+	}
+
+	k, err := ssh.ParsePublicKey(aux.PublicKey)
+	if err != nil {
+		return err
+	}
+
+	c.PublicKey = k
+	return nil
+}
+
+func (c ContainerInfo) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(&containerInfoMarshaller{
+		containerInfoAlias: (*containerInfoAlias)(&c),
+		PublicKey:          c.PublicKey.Marshal(),
+	})
+
+	return b, err
+}
+
 func (c *ContainerInfo) IntoProto(ctx context.Context) *pb.TaskStatusReply {
 	ports := make(map[string]*pb.Endpoints)
 	for hostPort, binding := range c.Ports {
