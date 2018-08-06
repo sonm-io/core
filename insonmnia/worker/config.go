@@ -59,7 +59,7 @@ type Config struct {
 	Debug             *debug.Config       `yaml:"debug"`
 }
 
-// NewDWHConfig creates a new Worker config from the specified YAML file.
+// NewConfig creates a new Worker config from the specified YAML file.
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
 
