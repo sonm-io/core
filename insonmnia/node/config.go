@@ -9,6 +9,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/matcher"
 	"github.com/sonm-io/core/insonmnia/npp"
+	"github.com/sonm-io/core/util/debug"
 )
 
 type nodeConfig struct {
@@ -27,6 +28,7 @@ type Config struct {
 	MetricsListenAddr string              `yaml:"metrics_listen_addr" default:"127.0.0.1:14003"`
 	Benchmarks        benchmarks.Config   `yaml:"benchmarks"`
 	Matcher           *matcher.YAMLConfig `yaml:"matcher"`
+	Debug             *debug.Config       `yaml:"debug"`
 }
 
 // NewConfig loads localNode config from given .yaml file
