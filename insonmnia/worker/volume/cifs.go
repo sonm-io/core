@@ -29,9 +29,7 @@ type cifsVolumeDriver struct {
 // NewCIFSVolumeDriver constructs and runs a new CIFS volume driver within the
 // provided error group.
 func NewCIFSVolumeDriver(ctx context.Context, options ...Option) (VolumeDriver, error) {
-	opts := &Options{
-		SocketDir: pluginSockDir,
-	}
+	opts := newOptions()
 
 	for _, option := range options {
 		if err := option(opts); err != nil {
@@ -43,7 +41,7 @@ func NewCIFSVolumeDriver(ctx context.Context, options ...Option) (VolumeDriver, 
 	driverName := drivers.CIFS.String()
 
 	rootDir := filepath.Join(baseDir, driverName)
-	socketPath, err := fullSocketPath(opts.SocketDir, driverName)
+	socketPath, err := fullSocketPath(opts.socketDir, driverName)
 	if err != nil {
 		return nil, err
 	}
