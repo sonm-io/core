@@ -6,10 +6,13 @@ import (
 	"fmt"
 
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/debug"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc/credentials"
 )
 
 type Node struct {
+	cfg    *Config
 	server *Server
 }
 
@@ -65,6 +68,7 @@ func New(ctx context.Context, cfg *Config, options ...Option) (*Node, error) {
 	}
 
 	m := &Node{
+		cfg:    cfg,
 		server: server,
 	}
 
@@ -72,7 +76,19 @@ func New(ctx context.Context, cfg *Config, options ...Option) (*Node, error) {
 }
 
 func (m *Node) Serve(ctx context.Context) error {
-	return m.server.Serve(ctx)
+	w, ctx := errgroup.WithContext(ctx)
+
+	w.Go(func() error {
+		if m.cfg.Debug == nil {
+			return nil
+		}
+
+		return debug.ServePProf(ctx, *m.cfg.Debug, m.server.log.Desugar())
+	})
+
+	w.Go(func() error { return m.server.Serve(ctx) })
+
+	return w.Wait()
 }
 
 // NewTLS constructs new transport credentials using specified private key.

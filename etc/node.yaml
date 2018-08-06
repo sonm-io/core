@@ -52,6 +52,8 @@ ethereum:
 
 metrics_listen_addr: "127.0.0.1:14003"
 
+debug:
+  port: 6060
 
 blockchain:
   # gas price for masterchain transactions, in wei
