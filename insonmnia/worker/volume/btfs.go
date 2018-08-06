@@ -3,10 +3,13 @@ package volume
 import (
 	"fmt"
 	"net"
-	"path"
+	"os"
+	"path/filepath"
 	"sync"
 	"syscall"
 
+	"bazil.org/fuse"
+	"bazil.org/fuse/fs"
 	"github.com/anacrolix/torrent"
 	"github.com/anacrolix/torrent/fs"
 	"github.com/docker/docker/api/types/container"
@@ -36,11 +39,7 @@ func NewBTFSDriver(options ...Option) (*BTFSDriver, error) {
 	}
 
 	// TODO: Seems like these lines are duplicated...
-	baseDir := path.Join(volume.DefaultDockerRootDirectory, BTFSDriverName)
-	driverName := BTFSDriverName
-
-	//rootDir := filepath.Join(baseDir, driverName)
-	socketPath, err := fullSocketPath(opts.socketDir, driverName)
+	socketPath, err := fullSocketPath(opts.socketDir, BTFSDriverName)
 	if err != nil {
 		return nil, err
 	}
@@ -49,15 +48,15 @@ func NewBTFSDriver(options ...Option) (*BTFSDriver, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	// TODO: ... till now.
 
 	m := &BTFSDriver{
 		listener: listener,
 		driver: &BTFSDockerDriver{
-			baseDir: baseDir,
-			volumes: map[string]*BTFSDockerVolume{},
-			log:     opts.log.With("driver", BTFSDriverName),
+			downloadRootDir: filepath.Join(volume.DefaultDockerRootDirectory, BTFSDriverName, "download"),
+			mountRootDir:    filepath.Join(volume.DefaultDockerRootDirectory, BTFSDriverName, "mnt"),
+			volumes:         map[string]*BTFSDockerVolume{},
+			log:             opts.log.With("driver", BTFSDriverName),
 		},
 		log: opts.log.With("driver", BTFSDriverName),
 	}
@@ -76,7 +75,8 @@ func (m *BTFSDriver) serve() error {
 
 func (m *BTFSDriver) CreateVolume(name string, options map[string]string) (Volume, error) {
 	m.log.Debugw("handling Worker.CreateVolume request", zap.String("name", name), zap.Any("options", options))
-	return &BTFSVolume{}, nil
+
+	return &BTFSVolume{Options: options}, nil
 }
 
 func (m *BTFSDriver) RemoveVolume(name string) error {
@@ -90,7 +90,9 @@ func (m *BTFSDriver) Close() error {
 	return m.listener.Close()
 }
 
-type BTFSVolume struct{}
+type BTFSVolume struct {
+	Options map[string]string
+}
 
 func (m *BTFSVolume) Configure(mnt Mount, cfg *container.HostConfig) error {
 	cfg.Mounts = append(cfg.Mounts, mount.Mount{
@@ -107,7 +109,7 @@ func (m *BTFSVolume) Configure(mnt Mount, cfg *container.HostConfig) error {
 			Labels: map[string]string{}, // TODO: < DealID?
 			DriverConfig: &mount.Driver{
 				Name:    BTFSDriverName,
-				Options: map[string]string{},
+				Options: m.Options,
 			},
 		},
 		TmpfsOptions: nil,
@@ -116,8 +118,16 @@ func (m *BTFSVolume) Configure(mnt Mount, cfg *container.HostConfig) error {
 	return nil
 }
 
+type BTFSDockerVolume struct {
+	Client      *torrent.Client
+	MountPoint  string
+	FuseConn    *fuse.Conn
+	Connections int
+}
+
 type BTFSDockerDriver struct {
-	baseDir string
+	mountRootDir    string
+	downloadRootDir string
 
 	mu      sync.Mutex
 	volumes map[string]*BTFSDockerVolume
@@ -130,31 +140,32 @@ func (m *BTFSDockerDriver) Create(request *volume.CreateRequest) error {
 	// Seems like we have to create torrent client per task... such a waste of
 	// resources.
 	cfg := torrent.NewDefaultClientConfig()
-	// TODO: Fill these.
-	cfg.DataDir = m.baseDir // TODO: Really?
-	//cfg.UploadRateLimiter = nil
-	//cfg.DownloadRateLimiter = nil
-	// TODO: Assign to bridge to enable shaping.
+	cfg.DataDir = filepath.Join(m.downloadRootDir, request.Name)
+	cfg.NoUpload = true
+	cfg.Debug = true
+	// TODO: Assign to bridge to enable shaping - cfg.SetListenAddr(?).
+	uri, ok := request.Options["magnet"]
+	if !ok {
+		return fmt.Errorf("`magnet` link is required")
+	}
 
 	client, err := torrent.NewClient(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to create torrent client: %v", err)
 	}
 
-	fs := torrentfs.New(client)
-	node, err := fs.Root()
-	if err != nil {
-		return err
+	if _, err := client.AddMagnet(uri); err != nil {
+		return fmt.Errorf("failed to add magnet URI: %v", err)
 	}
-
-	m.log.Debugw("NODE", zap.Any("node", node))
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
+
 	m.volumes[request.Name] = &BTFSDockerVolume{
-		Client:     client,
-		FS:         fs,
-		MountPoint: "TODO",
+		Client:      client,
+		MountPoint:  filepath.Join(m.mountRootDir, request.Name),
+		FuseConn:    nil,
+		Connections: 0,
 	}
 
 	return nil
@@ -163,7 +174,23 @@ func (m *BTFSDockerDriver) Create(request *volume.CreateRequest) error {
 func (m *BTFSDockerDriver) List() (*volume.ListResponse, error) {
 	m.log.Debug("handling Volume.List request")
 
-	panic("implement me")
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	volumes := make([]*volume.Volume, 0, len(m.volumes))
+
+	for id, v := range m.volumes {
+		volumes = append(volumes, &volume.Volume{
+			Name:       id,
+			Mountpoint: v.MountPoint,
+		})
+	}
+
+	response := &volume.ListResponse{
+		Volumes: volumes,
+	}
+
+	return response, nil
 }
 
 func (m *BTFSDockerDriver) Get(request *volume.GetRequest) (*volume.GetResponse, error) {
@@ -183,25 +210,93 @@ func (m *BTFSDockerDriver) Get(request *volume.GetRequest) (*volume.GetResponse,
 func (m *BTFSDockerDriver) Remove(request *volume.RemoveRequest) error {
 	m.log.Debugw("handling Volume.Remove request", zap.Any("request", request))
 
-	panic("implement me")
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if v, ok := m.volumes[request.Name]; ok {
+		m.log.Infof("removing `%s` volume on `%s`", request.Name, v.MountPoint)
+		delete(m.volumes, request.Name)
+		return nil
+	}
+
+	return fmt.Errorf("volume `%s` not found", request.Name)
 }
 
 func (m *BTFSDockerDriver) Path(request *volume.PathRequest) (*volume.PathResponse, error) {
 	m.log.Debugw("handling Volume.Path request", zap.Any("request", request))
 
-	panic("implement me")
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if v, ok := m.volumes[request.Name]; ok {
+		return &volume.PathResponse{Mountpoint: v.MountPoint}, nil
+	}
+
+	return nil, fmt.Errorf("volume `%s` not found", request.Name)
 }
 
 func (m *BTFSDockerDriver) Mount(request *volume.MountRequest) (*volume.MountResponse, error) {
 	m.log.Debugw("handling Volume.Mount request", zap.Any("request", request))
 
-	panic("implement me")
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	v, ok := m.volumes[request.Name]
+	if !ok {
+		return nil, fmt.Errorf("volume `%s` not found", request.Name)
+	}
+
+	if v.Connections == 0 {
+		stat, err := os.Lstat(v.MountPoint)
+
+		switch {
+		case os.IsNotExist(err):
+			if err := os.MkdirAll(v.MountPoint, 0755); err != nil {
+				return nil, fmt.Errorf("failed to create %s directories for %s volume: %v", v.MountPoint, request.Name, err)
+			}
+		case err != nil:
+			return nil, fmt.Errorf("failed to perform lstat %s volume: %v", request.Name, err)
+		case stat != nil && !stat.IsDir():
+			return nil, fmt.Errorf("failed to create %s directiries for %s volume: already exist and it's not a directory", v.MountPoint, request.Name)
+		}
+
+		conn, err := fuse.Mount(v.MountPoint)
+		if err != nil {
+			return nil, fmt.Errorf("failed to mount fuse for %s volume: %v", request.Name, err)
+		}
+
+		v.FuseConn = conn
+		go fs.Serve(conn, torrentfs.New(v.Client))
+	}
+
+	v.Connections++
+
+	return &volume.MountResponse{Mountpoint: v.MountPoint}, nil
 }
 
 func (m *BTFSDockerDriver) Unmount(request *volume.UnmountRequest) error {
 	m.log.Debugw("handling Volume.Unmount request", zap.Any("request", request))
 
-	panic("implement me")
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	v, ok := m.volumes[request.Name]
+	if !ok {
+		return fmt.Errorf("volume `%s` not found", request.Name)
+	}
+
+	v.Connections--
+
+	if v.Connections <= 0 {
+		// Weird case when Docker calls "Unmount" before "Mount".
+		v.Connections = 0
+
+		if err := fuse.Unmount(v.MountPoint); err != nil {
+			return fmt.Errorf("failed to unmount fuse for %s volume: %v", request.Name, err)
+		}
+	}
+
+	return nil
 }
 
 func (m *BTFSDockerDriver) Capabilities() *volume.CapabilitiesResponse {
@@ -210,10 +305,4 @@ func (m *BTFSDockerDriver) Capabilities() *volume.CapabilitiesResponse {
 			Scope: "local",
 		},
 	}
-}
-
-type BTFSDockerVolume struct {
-	Client     *torrent.Client
-	FS         *torrentfs.TorrentFS
-	MountPoint string
 }
