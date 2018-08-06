@@ -25,9 +25,14 @@ resources:
 #        password: password
 #        security: ntlm
 #        vers: 3.0
+#    btfs:
+#      type: btfs
+#        options:
+#          magnet: "magnet:?xt=urn:xxxxxxxxxx"
 #  mounts:
 #    - cifs:/mnt:rw
 #    - cifs:/opt:rw
+#    - btfs:/mnt:ro
 # # custom registry settings, optional section
 # registry:
 #   # if not empty, Worker will use given registry to pull an image from, optional param

@@ -77,6 +77,7 @@ func NewRepository(ctx context.Context, cfg Config) (*Repository, error) {
 		driver, err := volume.NewVolumeDriver(ctx, ty,
 			volume.WithPluginSocketDir(cfg.SocketDir),
 			volume.WithOptions(options),
+			volume.WithLogger(log.S(ctx)),
 		)
 
 		if err != nil {

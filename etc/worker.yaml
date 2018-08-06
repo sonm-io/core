@@ -84,6 +84,7 @@ plugins:
     root: /var/lib/docker-volumes
     drivers:
 #      cifs: {}
+#      btfs: {}
 
   overlay:
     drivers:
