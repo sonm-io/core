@@ -76,9 +76,9 @@ func New(ctx context.Context, cfg *Config, options ...Option) (*Node, error) {
 }
 
 func (m *Node) Serve(ctx context.Context) error {
-	w, ctx := errgroup.WithContext(ctx)
+	wg, ctx := errgroup.WithContext(ctx)
 
-	w.Go(func() error {
+	wg.Go(func() error {
 		if m.cfg.Debug == nil {
 			return nil
 		}
@@ -86,9 +86,9 @@ func (m *Node) Serve(ctx context.Context) error {
 		return debug.ServePProf(ctx, *m.cfg.Debug, m.server.log.Desugar())
 	})
 
-	w.Go(func() error { return m.server.Serve(ctx) })
+	wg.Go(func() error { return m.server.Serve(ctx) })
 
-	return w.Wait()
+	return wg.Wait()
 }
 
 // NewTLS constructs new transport credentials using specified private key.
