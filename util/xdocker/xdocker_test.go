@@ -1,4 +1,4 @@
-package worker
+package xdocker
 
 import (
 	"bytes"
@@ -13,8 +13,6 @@ import (
 )
 
 func TestImagePullFromMock(t *testing.T) {
-	assert := assert.New(t)
-
 	fixtures := []struct {
 		name string
 		body []byte
@@ -31,12 +29,12 @@ func TestImagePullFromMock(t *testing.T) {
 	}
 
 	for _, fixt := range fixtures {
-		err := decodeImagePull(bytes.NewReader(fixt.body))
-		assert.Equal(fixt.err, err, "invalid error for %v", fixt.name)
+		err := DecodeImagePull(bytes.NewReader(fixt.body))
+		assert.Equal(t, fixt.err, err, "invalid error for %v", fixt.name)
 	}
 }
 
-func TestImagePll(t *testing.T) {
+func TestImagePull(t *testing.T) {
 	dockclient, err := client.NewEnvClient()
 	if err != nil {
 		log.Fatal(err)
@@ -49,7 +47,7 @@ func TestImagePll(t *testing.T) {
 	}
 	defer rd.Close()
 
-	err = decodeImagePull(rd)
+	err = DecodeImagePull(rd)
 	if err != nil {
 		t.Fatal(err)
 	}
