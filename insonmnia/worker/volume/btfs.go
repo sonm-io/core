@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	docker "github.com/docker/docker/client"
 	"github.com/docker/go-plugins-helpers/volume"
+	"github.com/sonm-io/core/util/xdocker"
 	"go.uber.org/zap"
 )
 
@@ -39,11 +40,9 @@ func NewBTFSDriver(options ...Option) (*BTFSDriver, error) {
 		return nil, fmt.Errorf("failed to create Docker client for BTFS volume driver: %v", err)
 	}
 
-	driver := &BTFSDockerDriver{
-		client:       client,
-		mountRootDir: filepath.Join(DefaultDockerRootDirectory, BTFSDriverName, "mnt"),
-		volumes:      map[string]*BTFSDockerVolume{},
-		log:          server.log.With("driver", BTFSDriverName),
+	driver, err := NewBTFSDockerDriver(client, server.log)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create BTFS Docker driver: %v", err)
 	}
 
 	go server.Serve(driver)
@@ -98,6 +97,30 @@ func (m *BTFSVolume) Configure(mnt Mount, cfg *container.HostConfig) error {
 	return nil
 }
 
+func pullImage(ctx context.Context, client *docker.Client, ref string) error {
+	images, err := client.ImageList(ctx, types.ImageListOptions{All: true})
+	if err != nil {
+		return err
+	}
+
+	for _, summary := range images {
+		if summary.ID == BTFSImage {
+			return nil
+		}
+	}
+
+	body, err := client.ImagePull(ctx, BTFSImage, types.ImagePullOptions{All: false})
+	if err != nil {
+		return fmt.Errorf("failed to pull %s image: %v", ref, err)
+	}
+
+	if err = xdocker.DecodeImagePull(body); err != nil {
+		return fmt.Errorf("failed to pull %s image: %v", ref, err)
+	}
+
+	return nil
+}
+
 type BTFSDockerVolume struct {
 	Client      *docker.Client
 	MagnetURI   string
@@ -113,6 +136,23 @@ type BTFSDockerDriver struct {
 	mu      sync.Mutex
 	volumes map[string]*BTFSDockerVolume
 	log     *zap.SugaredLogger
+}
+
+func NewBTFSDockerDriver(client *docker.Client, log *zap.SugaredLogger) (*BTFSDockerDriver, error) {
+	ctx := context.Background()
+
+	if err := pullImage(ctx, client, BTFSImage); err != nil {
+
+	}
+
+	m := &BTFSDockerDriver{
+		client:       client,
+		mountRootDir: filepath.Join(DefaultDockerRootDirectory, BTFSDriverName, "mnt"),
+		volumes:      map[string]*BTFSDockerVolume{},
+		log:          log.With("driver", BTFSDriverName),
+	}
+
+	return m, nil
 }
 
 func (m *BTFSDockerDriver) Create(request *volume.CreateRequest) error {

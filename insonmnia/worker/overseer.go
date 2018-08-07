@@ -13,6 +13,7 @@ import (
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
 	"github.com/sonm-io/core/insonmnia/worker/volume"
 	"github.com/sonm-io/core/util/multierror"
+	"github.com/sonm-io/core/util/xdocker"
 	"go.uber.org/zap"
 
 	"github.com/docker/distribution/reference"
@@ -496,7 +497,7 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 		return err
 	}
 
-	if err = decodeImagePull(body); err != nil {
+	if err = xdocker.DecodeImagePull(body); err != nil {
 		log.G(ctx).Error("failed to pull an image", zap.Error(err))
 		return err
 	}

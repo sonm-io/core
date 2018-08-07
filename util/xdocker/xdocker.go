@@ -1,4 +1,4 @@
-package worker
+package xdocker
 
 import (
 	"bufio"
@@ -13,14 +13,14 @@ type spoolResponseProtocol struct {
 	Status string `json:"status"`
 }
 
-// decodeImagePull detects Error of an image pulling process
+// DecodeImagePull detects Error of an image pulling process
 // by decoding reply from Docker
 // Although Docker should reply with JSON Encoded items
 // one per line, in different versions it could vary.
 // This decoders can detect error even in mixed replies:
 // {"Status": "OK"}\n{"Status": "OK"}
 // {"Status": "OK"}{"Error": "error"}
-func decodeImagePull(r io.Reader) error {
+func DecodeImagePull(r io.Reader) error {
 	more := true
 
 	rd := bufio.NewReader(r)
