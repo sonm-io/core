@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
-	"strings"
 	"testing"
 	"time"
 
@@ -47,35 +45,8 @@ func TestMain(m *testing.M) {
 		os.Exit(testsReturnCode)
 	}
 
-	if err := checkPostgresReadiness(containerID); err != nil {
-		fmt.Println(err)
-		os.Exit(testsReturnCode)
-	}
-
 	defer func() {
-		if testDWH != nil && testDWH.db != nil {
-			if err := testDWH.db.Close(); err != nil {
-				fmt.Println(err)
-			}
-		}
-		if testL1Processor != nil && testL1Processor.db != nil {
-			if err := testL1Processor.db.Close(); err != nil {
-				fmt.Println(err)
-			}
-		}
-		if err := tearDownDB(); err != nil {
-			fmt.Println(err)
-		}
-		if err := cli.ContainerStop(ctx, containerID, nil); err != nil {
-			fmt.Println(err)
-		}
-		if err := cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{}); err != nil {
-			fmt.Println(err)
-		}
-		if err := cli.Close(); err != nil {
-			fmt.Println(err)
-		}
-		os.Exit(testsReturnCode)
+		tearDownTests(ctx, containerID, cli, testsReturnCode)
 	}()
 
 	if err := setupTestDB(); err != nil {
@@ -96,6 +67,29 @@ func TestMain(m *testing.M) {
 	}
 
 	testsReturnCode = m.Run()
+}
+
+func tearDownTests(ctx context.Context, containerID string, cli *client.Client, testsReturnCode int) {
+	if testDWH != nil && testDWH.db != nil {
+		if err := testDWH.db.Close(); err != nil {
+			fmt.Println(err)
+		}
+	}
+	if testL1Processor != nil && testL1Processor.db != nil {
+		if err := testL1Processor.db.Close(); err != nil {
+			fmt.Println(err)
+		}
+	}
+	if err := cli.ContainerStop(ctx, containerID, nil); err != nil {
+		fmt.Println(err)
+	}
+	if err := cli.ContainerRemove(ctx, containerID, types.ContainerRemoveOptions{}); err != nil {
+		fmt.Println(err)
+	}
+	if err := cli.Close(); err != nil {
+		fmt.Println(err)
+	}
+	os.Exit(testsReturnCode)
 }
 
 func startPostgresContainer(ctx context.Context) (cli *client.Client, containerID string, err error) {
@@ -134,32 +128,16 @@ func startPostgresContainer(ctx context.Context) (cli *client.Client, containerI
 	return cli, resp.ID, nil
 }
 
-func checkPostgresReadiness(containerID string) error {
-	var (
-		err        error
-		numRetries = 10
-	)
-	for ; numRetries > 0; numRetries-- {
-		cmd := exec.Command("docker", "exec", containerID, "pg_isready")
-		out, err := cmd.CombinedOutput()
-		if err == nil {
-			if strings.Contains(string(out), "accepting connections") {
-				return nil
-			}
-		}
-		fmt.Printf("postgres container not ready, %d retries left\n", numRetries)
-		time.Sleep(time.Second)
-	}
-
-	return fmt.Errorf("failed to connect to postgres container: %v", err)
-}
-
 func setupTestDB() error {
 	db, err := sql.Open("postgres", serviceConnString)
 	if err != nil {
 		return fmt.Errorf("failed to connect to template1: %s", err)
 	}
 	defer db.Close()
+
+	if err := checkPostgresReadiness(db); err != nil {
+		return fmt.Errorf("postgres not ready: %v", err)
+	}
 
 	for _, dbName := range []string{globalDBName, monitorDBName} {
 		if _, err := db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName)); err != nil {
@@ -184,20 +162,17 @@ func setupTestDB() error {
 	return nil
 }
 
-func tearDownDB() error {
-	db, err := sql.Open("postgres", serviceConnString)
-	if err != nil {
-		return fmt.Errorf("failed to connect to template1: %s", err)
-	}
-	defer db.Close()
-
-	for _, dbName := range []string{globalDBName, monitorDBName} {
-		if _, err := db.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", dbName)); err != nil {
-			return fmt.Errorf("failed to drop database: %s", err)
+func checkPostgresReadiness(db *sql.DB) error {
+	var err error
+	for numRetries := 10; numRetries > 0; numRetries-- {
+		if _, err := db.Exec("CREATE DATABASE is_ready"); err == nil {
+			return nil
 		}
+		fmt.Printf("postgres container not ready, %d retries left\n", numRetries)
+		time.Sleep(time.Second)
 	}
 
-	return nil
+	return fmt.Errorf("failed to connect to postgres container: %v", err)
 }
 
 func getConnString(database, user, password string) string {
