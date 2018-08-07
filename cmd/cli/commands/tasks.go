@@ -51,7 +51,7 @@ var taskPullOutput string
 var taskRootCmd = &cobra.Command{
 	Use:               "task",
 	Short:             "Tasks management",
-	PersistentPreRunE: loadKeyStoreIfRequired,
+	PersistentPreRunE: loadKeyStoreWrapper,
 }
 
 func getActiveDealIDs(ctx context.Context) ([]*big.Int, error) {

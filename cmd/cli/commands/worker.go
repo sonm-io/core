@@ -22,7 +22,7 @@ var (
 )
 
 func workerPreRunE(cmd *cobra.Command, args []string) error {
-	if err := loadKeyStoreIfRequired(cmd, args); err != nil {
+	if err := loadKeyStoreWrapper(cmd, args); err != nil {
 		return err
 	}
 
