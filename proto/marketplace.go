@@ -124,6 +124,11 @@ func (m *Order) TotalPrice() string {
 	return formatPriceString(m.GetPrice(), m.GetDuration())
 }
 
+func (m *Order) PricePerHour() string {
+	secondsInHour := uint64(3600)
+	return formatPriceString(m.GetPrice(), secondsInHour)
+}
+
 func (m *Deal) TotalPrice() string {
 	return formatPriceString(m.GetPrice(), m.GetDuration())
 }
