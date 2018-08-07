@@ -8,7 +8,7 @@ import (
 	pb "github.com/sonm-io/core/proto"
 )
 
-func TestDWH_GetDeals(t *testing.T) {
+func testGetDeals(t *testing.T) {
 	var (
 		byAddress            = common.HexToAddress("0x11")
 		byMinDuration uint64 = 10011
@@ -74,7 +74,7 @@ func TestDWH_GetDeals(t *testing.T) {
 	}
 }
 
-func TestDWH_GetDealDetails(t *testing.T) {
+func testGetDealDetails(t *testing.T) {
 	var (
 		byDealID = big.NewInt(40400)
 	)
@@ -89,7 +89,7 @@ func TestDWH_GetDealDetails(t *testing.T) {
 	}
 }
 
-func TestDWH_GetOrders(t *testing.T) {
+func testGetOrders(t *testing.T) {
 	var (
 		byDealID              = big.NewInt(10101)
 		byMinDuration  uint64 = 10011
@@ -160,7 +160,7 @@ func TestDWH_GetOrders(t *testing.T) {
 	}
 }
 
-func TestDWH_GetMatchingOrders(t *testing.T) {
+func testGetMatchingOrders(t *testing.T) {
 	var byID = big.NewInt(20201)
 	request := &pb.MatchingOrdersRequest{Id: pb.NewBigInt(byID)}
 	orders, _, err := testDWH.storage.GetMatchingOrders(newSimpleConn(testDWH.db), request)
@@ -174,7 +174,7 @@ func TestDWH_GetMatchingOrders(t *testing.T) {
 	}
 }
 
-func TestDWH_GetOrderDetails(t *testing.T) {
+func testGetOrderDetails(t *testing.T) {
 	var byID = big.NewInt(20201)
 	order, err := testDWH.storage.GetOrderByID(newSimpleConn(testDWH.db), byID)
 	if err != nil {
@@ -187,7 +187,7 @@ func TestDWH_GetOrderDetails(t *testing.T) {
 	}
 }
 
-func TestDWH_GetDealChangeRequests(t *testing.T) {
+func testGetDealChangeRequests(t *testing.T) {
 	changeRequests, err := testDWH.getDealChangeRequests(newSimpleConn(testDWH.db), pb.NewBigIntFromInt(40400))
 	if err != nil {
 		t.Error(err)
@@ -199,7 +199,7 @@ func TestDWH_GetDealChangeRequests(t *testing.T) {
 	}
 }
 
-func TestDWH_GetProfiles(t *testing.T) {
+func testGetProfiles(t *testing.T) {
 	var request = &pb.ProfilesRequest{
 		Identifier: "sortedProfile",
 		Sortings: []*pb.SortingOption{

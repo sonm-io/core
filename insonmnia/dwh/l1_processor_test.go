@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestDWH_L1Processor(t *testing.T) {
+func testDWH_L1Processor(t *testing.T) {
 	var (
 		controller           = gomock.NewController(t)
 		mockBlock            = bch.NewMockAPI(controller)
