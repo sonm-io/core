@@ -30,6 +30,7 @@ type engine struct {
 	deals         sonm.DealManagementClient
 	tasks         sonm.TaskManagementClient
 	priceProvider price.Provider
+	corderFactory CorderFactoriy
 
 	ordersCreateChan  chan *Corder
 	ordersResultsChan chan *Corder
@@ -46,6 +47,7 @@ func NewEngine(ctx context.Context, cfg *Config, price price.Provider, log *zap.
 		tasks:             sonm.NewTaskManagementClient(cc),
 		ordersCreateChan:  make(chan *Corder, concurrency),
 		ordersResultsChan: make(chan *Corder, concurrency),
+		corderFactory:     NewCorderFactory(cfg.Mining.Token),
 		antiFraud:         antifraud.NewAntiFraud(cfg.AntiFraud, log.Named("anti-fraud"), cc),
 	}
 }
@@ -81,7 +83,7 @@ func (e *engine) processOrderCreate() {
 			continue
 		}
 
-		e.ordersResultsChan <- NewCorderFromOrder(created, bid.token)
+		e.ordersResultsChan <- e.corderFactory.FromOrder(created)
 	}
 }
 

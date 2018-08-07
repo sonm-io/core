@@ -27,6 +27,8 @@ type Connor struct {
 	benchmarkList      benchmarks.BenchList
 	marketClient       sonm.MarketClient
 	dealsClient        sonm.DealManagementClient
+
+	corderFactory CorderFactoriy
 }
 
 func New(ctx context.Context, cfg *Config, log *zap.Logger) (*Connor, error) {
@@ -62,6 +64,7 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*Connor, error) {
 		marketClient:       sonm.NewMarketClient(cc),
 		dealsClient:        sonm.NewDealManagementClient(cc),
 		engine:             NewEngine(ctx, cfg, tokenPrice, log, cc),
+		corderFactory:      NewCorderFactory(cfg.Mining.Token),
 	}, nil
 }
 
@@ -97,7 +100,7 @@ func (c *Connor) Serve(ctx context.Context) error {
 		return fmt.Errorf("cannot load deals from market: %v", err)
 	}
 
-	existingCorders := NewCordersSlice(existingOrders.GetOrders(), c.cfg.Mining.Token)
+	existingCorders := c.corderFactory.FromSlice(existingOrders.GetOrders())
 	targetCorders := c.getTargetCorders()
 
 	set := c.divideOrdersSets(existingCorders, targetCorders)
@@ -197,8 +200,7 @@ func (c *Connor) getTargetCorders() []*Corder {
 		p := big.NewInt(0).Mul(bigHashrate, c.tokenPriceProvider.GetPrice())
 
 		bench := newBenchmarkFromMap(c.cfg.Market.Benchmarks)
-		order, _ := NewCorderFromParams(c.cfg.Mining.Token, p, hashrate, bench)
-		v = append(v, order)
+		v = append(v, c.corderFactory.FromParams(p, hashrate, *bench))
 	}
 
 	return v
