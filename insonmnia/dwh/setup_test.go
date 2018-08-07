@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -32,44 +35,70 @@ var (
 	serviceConnString = fmt.Sprintf("postgresql://localhost:%s/template1?user=postgres&sslmode=disable", postgresPort)
 )
 
-func TestMain(m *testing.M) {
-	var (
-		err             error
-		testsReturnCode = 1
-		ctx             = context.Background()
-	)
-
+func TestAll(t *testing.T) {
+	var ctx = context.Background()
 	cli, containerID, err := startPostgresContainer(ctx)
 	if err != nil {
-		fmt.Println(err)
-		os.Exit(testsReturnCode)
+		t.Error(err)
+		return
 	}
 
 	defer func() {
-		tearDownTests(ctx, containerID, cli, testsReturnCode)
+		tearDownTests(ctx, containerID, cli)
 	}()
 
 	if err := setupTestDB(); err != nil {
-		fmt.Println(err)
+		t.Error(err)
 		return
 	}
 
 	testDWH, err = newTestDWH(getConnString(globalDBName, dbUser, dbUserPassword))
 	if err != nil {
-		fmt.Println(err)
+		t.Error(err)
 		return
 	}
 
 	testL1Processor, err = newTestL1Processor(getConnString(monitorDBName, dbUser, dbUserPassword))
 	if err != nil {
-		fmt.Println(err)
+		t.Error(err)
 		return
 	}
 
-	testsReturnCode = m.Run()
+	// This wrapper enables us to insert our own recovery logic _before_ Go's
+	// testing module recovery (and execute teardown logic).
+	wrapper := func(cb func(*testing.T)) func(*testing.T) {
+		return func(t *testing.T) {
+			defer func() {
+				if err := recover(); err != nil {
+					tearDownTests(ctx, containerID, cli)
+					panic(err)
+				}
+			}()
+			cb(t)
+		}
+	}
+
+	tests := []func(*testing.T){
+		testDWH_L1Processor,
+		testGetDeals,
+		testGetDealDetails,
+		testGetOrders,
+		testGetMatchingOrders,
+		testGetOrderDetails,
+		testGetDealChangeRequests,
+		testGetProfiles,
+	}
+	for _, test := range tests {
+		t.Run(GetFunctionName(test), wrapper(test))
+	}
 }
 
-func tearDownTests(ctx context.Context, containerID string, cli *client.Client, testsReturnCode int) {
+func GetFunctionName(i interface{}) string {
+	split := strings.Split(runtime.FuncForPC(reflect.ValueOf(i).Pointer()).Name(), ".")
+	return split[len(split)-1]
+}
+
+func tearDownTests(ctx context.Context, containerID string, cli *client.Client) {
 	if testDWH != nil && testDWH.db != nil {
 		if err := testDWH.db.Close(); err != nil {
 			fmt.Println(err)
@@ -89,7 +118,6 @@ func tearDownTests(ctx context.Context, containerID string, cli *client.Client, 
 	if err := cli.Close(); err != nil {
 		fmt.Println(err)
 	}
-	os.Exit(testsReturnCode)
 }
 
 func startPostgresContainer(ctx context.Context) (cli *client.Client, containerID string, err error) {
@@ -439,7 +467,7 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 	if err != nil {
 		return nil, err
 	}
-	// Blacklist 0xBB for 0xE for TestDWH_GetProfiles.
+	// Blacklist 0xBB for 0xE for testGetProfiles.
 	_, err = storage.builder().Insert("Blacklists").Values(
 		common.HexToAddress("0xE").Hex(),
 		common.HexToAddress("0xBB").Hex(),
@@ -450,7 +478,7 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 
 	// Add a BID order that will be matched by any of the ASK orders added above and
 	// blacklist this BID order's Author for the author of all ASK orders. Then in
-	// TestDWH_GetMatchingOrders we shouldn't get this order.
+	// testGetMatchingOrders we shouldn't get this order.
 	_, err = storage.builder().Insert("Blacklists").Values(
 		common.HexToAddress("0xA").Hex(),
 		common.HexToAddress("0xCC").Hex(),
