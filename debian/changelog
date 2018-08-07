@@ -1,3 +1,29 @@
+sonm-core (0.4.8) unstable; urgency=low
+
+  * Added: feat: BTFS volume plugin for Worker (#1274).
+    This commit activates an ability to spawn SONM tasks with torrent
+    filesystem attached as a volume.
+    Internally this is achieved by using BTFS application that constructs a
+    torrent client and mounts itself on a filesystem via fuse. It's the
+    read-only solution designed to distribute large amount of data across
+    multiple task without single point of failure - all tasks help each
+    other to share the data, which reduces network pressure and improves
+    application scalability.
+  * Added: enable pprof for Node (#1272).
+  * Changed: update gRPC library (#1258).
+  * Fixed: proper config for Connor (#1265).
+  * Fixed: proper Connor's binary path in systemd-unit (#1271).
+  * Fixed: load keystore even if "--insecure" flag is set (#1276).
+    This commit fixes a problem when "--insecure" flag is used
+    with the CLI and some sub-command wants to load a key or
+    obtain a default eth address from the key store.
+    Therefore, now we'll load keystore prematurely for any command.
+    Now if insecure mode is activated, only TLS credentials creation
+    will be skipped for gRPC's client connection.
+  * Fixed: show Order's price per hour (#1277).
+
+ -- Evgeny Safronov <division494@gmail.com>  Tue, 07 Aug 2018 14:05:43 +0300
+
 sonm-core (0.4.7) unstable; urgency=low
 
   * Added: Connor, the auto-buy mining bot (#1227).
