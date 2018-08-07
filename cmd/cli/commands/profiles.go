@@ -19,7 +19,7 @@ func init() {
 var profileRootCmd = &cobra.Command{
 	Use:               "profile",
 	Short:             "Manage profiles",
-	PersistentPreRunE: loadKeyStoreIfRequired,
+	PersistentPreRunE: loadKeyStoreWrapper,
 }
 
 var profileStatusCmd = &cobra.Command{

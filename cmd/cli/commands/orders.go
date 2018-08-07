@@ -27,7 +27,7 @@ func init() {
 var orderRootCmd = &cobra.Command{
 	Use:               "order",
 	Short:             "Manage orders",
-	PersistentPreRunE: loadKeyStoreIfRequired,
+	PersistentPreRunE: loadKeyStoreWrapper,
 }
 
 var orderListCmd = &cobra.Command{

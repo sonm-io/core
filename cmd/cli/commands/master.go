@@ -22,7 +22,7 @@ func init() {
 var masterRootCmd = &cobra.Command{
 	Use:               "master",
 	Short:             "Manage master and workers addresses",
-	PersistentPreRunE: loadKeyStoreIfRequired,
+	PersistentPreRunE: loadKeyStoreWrapper,
 }
 
 var masterListCmd = &cobra.Command{

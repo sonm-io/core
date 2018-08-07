@@ -215,10 +215,10 @@ func initKeystore() (*accounts.MultiKeystore, error) {
 	}, accounts.NewInteractivePassPhraser())
 }
 
-// loadKeyStoreWrapper implemented to match cobra.Command.PreRun signature.
-//
-// Function loads and opens keystore. Also, storing opened key in "sessionKey" var
-// to be able to reuse it into cli during one session.
+// loadKeyStoreWrapper is matching cobra.Command.PreRunE signature.
+// It loads default key from the given keystore and keeps the keystore instance
+// in the global variable `keystore` that available for any CLI's sub-commands.
+// Note that the keystore must be loaded before any command's logic it started to execute.
 func loadKeyStoreWrapper(_ *cobra.Command, _ []string) error {
 	var err error
 	keystore, err = initKeystore()
@@ -241,17 +241,6 @@ func loadKeyStoreWrapper(_ *cobra.Command, _ []string) error {
 		}
 
 		creds = auth.NewWalletAuthenticator(util.NewTLS(TLSConfig), crypto.PubkeyToAddress(sessionKey.PublicKey))
-	}
-
-	return nil
-}
-
-// loadKeyStoreIfRequired loads eth keystore if `insecure` flag is not set.
-// this wrapper is required for any command that not require eth keys implicitly
-// but may use TLS to connect to the Node.
-func loadKeyStoreIfRequired(cmd *cobra.Command, _ []string) error {
-	if !insecureFlag {
-		return loadKeyStoreWrapper(cmd, nil)
 	}
 
 	return nil

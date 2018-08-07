@@ -19,7 +19,7 @@ func init() {
 var blacklistRootCmd = &cobra.Command{
 	Use:               "blacklist",
 	Short:             "Manage blacklisted addresses",
-	PersistentPreRunE: loadKeyStoreIfRequired,
+	PersistentPreRunE: loadKeyStoreWrapper,
 }
 
 var blacklistListCmd = &cobra.Command{

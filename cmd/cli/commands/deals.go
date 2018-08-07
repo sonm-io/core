@@ -52,7 +52,7 @@ func init() {
 var dealRootCmd = &cobra.Command{
 	Use:               "deal",
 	Short:             "Manage deals",
-	PersistentPreRunE: loadKeyStoreIfRequired,
+	PersistentPreRunE: loadKeyStoreWrapper,
 }
 
 var dealListCmd = &cobra.Command{
