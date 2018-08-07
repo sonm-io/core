@@ -33,6 +33,23 @@ type SSHConfig struct {
 	Identity       sonm.IdentityLevel `yaml:"identity" default:"identified"`
 }
 
+type PublicKey struct {
+	ssh.PublicKey
+}
+
+func (m *PublicKey) UnmarshalText(data []byte) error {
+	pkey, _, _, _, err := ssh.ParseAuthorizedKey(data)
+	if err != nil {
+		return err
+	}
+	m.PublicKey = pkey
+	return nil
+}
+
+func (m PublicKey) MarshalText() ([]byte, error) {
+	return ssh.MarshalAuthorizedKey(m), nil
+}
+
 type SSH interface {
 	Run(ctx context.Context) error
 	Close() error
