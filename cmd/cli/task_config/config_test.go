@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -198,4 +199,39 @@ container:
 	require.NotNil(t, cfg)
 
 	assert.Equal(t, []string{"80:80"}, cfg.GetContainer().GetExpose())
+}
+
+func TestLoadConfigFailsOnUnknownKeys(t *testing.T) {
+	createTestConfigFile(`
+duration: 240h
+price: 0 USD/h
+
+counterparty: 0x6f74d76f4c4b80a61598bded7fca2f660ca742ce
+identity: anonymous
+
+resources:
+  cpu:
+    cores: 0.5
+  ram:
+    size: 128MB
+  storage:
+    size: 100MB
+  gpu:
+    indexes: []
+  network:
+    throughput_in: 1 Mbit/s  # <- Here bad things
+    throughput_out: 1 Mbit/s
+    overlay: true
+    outbound: true
+    incoming: false
+`)
+
+	defer deleteTestConfigFile()
+
+	plan := &sonm.AskPlan{}
+	err := LoadFromFile(testCfgPath, plan)
+	require.Error(t, err)
+
+	assert.Contains(t, err.Error(), "field throughput_in not found")
+	assert.Contains(t, err.Error(), "field throughput_out not found")
 }
