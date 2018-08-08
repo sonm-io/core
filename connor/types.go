@@ -9,48 +9,66 @@ import (
 	"github.com/sonm-io/core/proto"
 )
 
-type Corder struct {
-	*sonm.Order
-	token string
+type CorderFactoriy interface {
+	FromOrder(order *sonm.Order) *Corder
+	FromParams(price *big.Int, hashrate uint64, bench Benchmarks) *Corder
+	FromSlice(orders []*sonm.Order) []*Corder
 }
 
-func NewCorderFromOrder(order *sonm.Order, token string) *Corder {
-	return &Corder{Order: order, token: token}
-}
-
-func NewCorderFromParams(token string, price *big.Int, hashrate uint64, bench *Benchmarks) (*Corder, error) {
-	switch token {
-	case "ETH":
-		bench.setGPUEth(hashrate)
-	case "ZEC":
-		bench.setGPUZcash(hashrate)
-	case "NULL":
-		bench.setGPURedshift(hashrate)
+func NewCorderFactory(token string) CorderFactoriy {
+	// todo: keep known tokens map into a single place ( closer to config? )
+	m := map[string]int{
+		"ETH":  9,
+		"ZEC":  10,
+		"NULL": 11,
 	}
+
+	return &anyCorderFactory{
+		tokenName:      token,
+		benchmarkIndex: m[token],
+	}
+}
+
+type anyCorderFactory struct {
+	benchmarkIndex int
+	tokenName      string
+}
+
+func (a *anyCorderFactory) FromOrder(order *sonm.Order) *Corder {
+	return &Corder{Order: order, benchmarkIndex: a.benchmarkIndex}
+}
+
+func (a *anyCorderFactory) FromParams(price *big.Int, hashrate uint64, bench Benchmarks) *Corder {
+	bench.Values[a.benchmarkIndex] = hashrate
 
 	ord := &sonm.Order{
 		OrderType:     sonm.OrderType_BID,
 		Price:         sonm.NewBigInt(price),
 		Netflags:      &sonm.NetFlags{Flags: sonm.NetworkOutbound},
 		IdentityLevel: sonm.IdentityLevel_ANONYMOUS,
-		Tag:           []byte(fmt.Sprintf("connor_%s", strings.ToLower(token))),
+		Tag:           []byte(fmt.Sprintf("connor_%s", strings.ToLower(a.tokenName))),
 		Benchmarks:    bench.unwrap(),
 	}
 
-	return &Corder{Order: ord, token: token}, nil
+	return &Corder{Order: ord, benchmarkIndex: a.benchmarkIndex}
+}
+
+func (a *anyCorderFactory) FromSlice(orders []*sonm.Order) []*Corder {
+	v := make([]*Corder, len(orders))
+	for i, ord := range orders {
+		v[i] = a.FromOrder(ord)
+	}
+
+	return v
+}
+
+type Corder struct {
+	*sonm.Order
+	benchmarkIndex int
 }
 
 func (co *Corder) GetHashrate() uint64 {
-	switch co.token {
-	case "ETH":
-		return co.GetBenchmarks().GPUEthHashrate()
-	case "ZEC":
-		return co.GetBenchmarks().GPUCashHashrate()
-	case "NULL":
-		return co.GetBenchmarks().GPURedshift()
-	default:
-		return 0
-	}
+	return co.GetBenchmarks().Get(co.benchmarkIndex)
 }
 
 func (co *Corder) AsBID() *sonm.BidOrder {
@@ -94,20 +112,7 @@ func (co *Corder) isReplaceable(newPrice *big.Int, delta float64) bool {
 	return isOrderReplaceable(currentPrice, newFloatPrice, delta)
 }
 
-func NewCordersSlice(orders []*sonm.Order, token string) []*Corder {
-	v := make([]*Corder, len(orders))
-	for i, ord := range orders {
-		v[i] = NewCorderFromOrder(ord, token)
-	}
-
-	return v
-}
-
 type Benchmarks sonm.Benchmarks
-
-func (b *Benchmarks) setGPUMemory(v uint64) {
-	b.Values[8] = v
-}
 
 func (b *Benchmarks) setGPUEth(v uint64) {
 	b.Values[9] = v
@@ -147,6 +152,7 @@ func (b *Benchmarks) toMap() map[string]uint64 {
 	}
 }
 
+// todo: no reason to keep it here - move closer to config
 func newBenchmarkFromMap(m map[string]uint64) *Benchmarks {
 	return &Benchmarks{
 		Values: []uint64{

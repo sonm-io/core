@@ -1,11 +1,22 @@
 package task_config
 
 import (
-	"github.com/jinzhu/configor"
+	"bytes"
+	"io/ioutil"
+
+	"gopkg.in/yaml.v2"
 )
 
 func LoadFromFile(path string, into interface{}) error {
-	if err := configor.Load(into, path); err != nil {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		return err
+	}
+
+	decoder := yaml.NewDecoder(bytes.NewBuffer(data))
+	decoder.SetStrict(true)
+
+	if err := decoder.Decode(into); err != nil {
 		return err
 	}
 

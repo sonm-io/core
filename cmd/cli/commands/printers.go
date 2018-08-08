@@ -226,6 +226,7 @@ func printOrderDetails(cmd Printer, order *pb.Order) {
 		if len(order.GetTag()) > 0 {
 			cmd.Printf("Tag:             %s\r\n", string(order.GetTag()))
 		}
+		cmd.Printf("Identity:        %s\r\n", order.GetIdentityLevel().String())
 
 		cmd.Printf("Duration:        %s\r\n", (time.Duration(order.GetDuration()) * time.Second).String())
 		cmd.Printf("Total price:     %s USD (%s USD/hour)\r\n", order.TotalPrice(), order.PricePerHour())
