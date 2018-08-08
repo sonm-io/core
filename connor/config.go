@@ -10,10 +10,17 @@ import (
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/connor/antifraud"
+	"github.com/sonm-io/core/connor/price"
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/proto"
+)
+
+const (
+	ethBenchmarkIndex  = 9
+	zecBenchmarkIndex  = 10
+	nullBenchmarkIndex = 11
 )
 
 type miningConfig struct {
@@ -109,6 +116,51 @@ func (c *Config) validateBenchmarks(list benchmarks.BenchList) error {
 	return nil
 }
 
+func (c *Config) getBaseBenchmarks() Benchmarks {
+	return Benchmarks{
+		Values: []uint64{
+			c.Market.Benchmarks["cpu-sysbench-multi"],
+			c.Market.Benchmarks["cpu-sysbench-single"],
+			c.Market.Benchmarks["cpu-cores"],
+			c.Market.Benchmarks["ram-size"],
+			c.Market.Benchmarks["storage-size"],
+			c.Market.Benchmarks["net-download"],
+			c.Market.Benchmarks["net-upload"],
+			c.Market.Benchmarks["gpu-count"],
+			c.Market.Benchmarks["gpu-mem"],
+			c.Market.Benchmarks["gpu-eth-hashrate"],
+			c.Market.Benchmarks["gpu-cash-hashrate"],
+			c.Market.Benchmarks["gpu-redshift"],
+		},
+	}
+}
+
+func (c *Config) getTokenParams() *tokenParameters {
+	priceProviderConfig := &price.ProviderConfig{
+		Margin: c.Market.PriceMarginality,
+		URL:    c.Mining.TokenPrice.PriceURL,
+	}
+
+	available := map[string]*tokenParameters{
+		"ETH": {
+			corderFactory: NewCorderFactory(c.Mining.Token, ethBenchmarkIndex),
+			priceProvider: price.NewEthPriceProvider(priceProviderConfig),
+		},
+
+		"ZEC": {
+			corderFactory: NewCorderFactory(c.Mining.Token, zecBenchmarkIndex),
+			priceProvider: price.NewZecPriceProvider(priceProviderConfig),
+		},
+
+		"NULL": {
+			corderFactory: NewCorderFactory(c.Mining.Token, nullBenchmarkIndex),
+			priceProvider: price.NewNullPriceProvider(priceProviderConfig),
+		},
+	}
+
+	return available[c.Mining.Token]
+}
+
 func NewConfig(path string) (*Config, error) {
 	cfg := &Config{}
 	if err := configor.Load(cfg, path); err != nil {
@@ -120,5 +172,4 @@ func NewConfig(path string) (*Config, error) {
 	}
 
 	return cfg, nil
-
 }

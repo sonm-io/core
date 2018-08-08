@@ -50,21 +50,15 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*Connor, error) {
 		return nil, fmt.Errorf("cannot create connection to node: %v", err)
 	}
 
-	tokenPrice := price.NewProvider(&price.ProviderConfig{
-		Token:  cfg.Mining.Token,
-		Margin: cfg.Market.PriceMarginality,
-		URL:    cfg.Mining.TokenPrice.PriceURL,
-	})
-
 	return &Connor{
 		key:                key,
 		cfg:                cfg,
 		log:                log,
-		tokenPriceProvider: tokenPrice,
+		tokenPriceProvider: cfg.getTokenParams().priceProvider,
 		marketClient:       sonm.NewMarketClient(cc),
 		dealsClient:        sonm.NewDealManagementClient(cc),
-		engine:             NewEngine(ctx, cfg, tokenPrice, log, cc),
-		corderFactory:      NewCorderFactory(cfg.Mining.Token),
+		engine:             NewEngine(ctx, cfg, log, cc),
+		corderFactory:      cfg.getTokenParams().corderFactory,
 	}, nil
 }
 
@@ -198,9 +192,7 @@ func (c *Connor) getTargetCorders() []*Corder {
 	for hashrate := c.cfg.Market.FromHashRate; hashrate <= c.cfg.Market.ToHashRate; hashrate += c.cfg.Market.Step {
 		bigHashrate := big.NewInt(int64(hashrate))
 		p := big.NewInt(0).Mul(bigHashrate, c.tokenPriceProvider.GetPrice())
-
-		bench := newBenchmarkFromMap(c.cfg.Market.Benchmarks)
-		v = append(v, c.corderFactory.FromParams(p, hashrate, *bench))
+		v = append(v, c.corderFactory.FromParams(p, hashrate, c.cfg.getBaseBenchmarks()))
 	}
 
 	return v
