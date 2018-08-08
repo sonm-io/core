@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/golang/protobuf/proto"
 	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/hardware"
@@ -60,12 +61,13 @@ func (m *optimizationInput) Price() *sonm.Price {
 }
 
 func (m *optimizationInput) freeDevices(removalVictims map[string]*sonm.AskPlan) (*sonm.DevicesReply, error) {
+	devices := proto.Clone(m.Devices).(*sonm.DevicesReply)
 	workerHardware := hardware.Hardware{
-		CPU:     m.Devices.CPU,
-		GPU:     m.Devices.GPUs,
-		RAM:     m.Devices.RAM,
-		Network: m.Devices.Network,
-		Storage: m.Devices.Storage,
+		CPU:     devices.CPU,
+		GPU:     devices.GPUs,
+		RAM:     devices.RAM,
+		Network: devices.Network,
+		Storage: devices.Storage,
 	}
 	// All resources are free by default.
 	freeResources := workerHardware.AskPlanResources()
