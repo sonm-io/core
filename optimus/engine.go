@@ -498,6 +498,9 @@ func (m *workerEngine) filters(deviceManager *DeviceManager, devices *sonm.Devic
 			return counterpartyID == common.Address{} || counterpartyID == m.addr || counterpartyID == m.masterAddr
 		},
 		func(order *sonm.Order) bool {
+			return order.IdentityLevel <= m.cfg.Identity
+		},
+		func(order *sonm.Order) bool {
 			return deviceManager.Contains(*order.Benchmarks, *order.Netflags)
 		},
 	}
