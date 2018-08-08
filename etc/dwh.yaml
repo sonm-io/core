@@ -15,8 +15,12 @@ ethereum:
 blockchain:
   endpoint: "https://rinkeby.infura.io/00iTrs5PIy0uGODwcsrb"
   sidechain_endpoint: "http://localhost:8545"
-  contract_registry: "0xaf1ffd7f652be7e9a0854a42b2d3046f853f80f1"
+  contract_registry: "0x79b084653ca2588ed3915159e368db58aef165ee"
   blocks_batch_size: 500000
+
+#blockchain:
+#  sidechain_endpoint: "http://localhost:8545"
+#  blocks_batch_size: 500000
 
 logging:
   # The desired logging level.
