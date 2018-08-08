@@ -17,6 +17,7 @@ import (
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/netutil"
 	"go.uber.org/zap"
+	"gopkg.in/oleiade/lane.v1"
 )
 
 // NATPuncher describes an interface of NAT Punching Protocol.
@@ -50,6 +51,7 @@ type natPuncher struct {
 	log *zap.Logger
 
 	client          *rendezvousClient
+	pending         *lane.Queue
 	listener        net.Listener
 	listenerChannel chan connTuple
 
@@ -71,6 +73,7 @@ func newNATPuncher(ctx context.Context, cfg rendezvous.Config, client *rendezvou
 		ctx:             ctx,
 		log:             log,
 		client:          client,
+		pending:         lane.NewQueue(),
 		listenerChannel: channel,
 		listener:        listener,
 
@@ -112,7 +115,7 @@ func (m *natPuncher) DialContext(ctx context.Context, addr common.Address) (net.
 		return nil, err
 	}
 
-	return m.punch(ctx, addrs)
+	return m.punch(ctx, addrs, clientConnectionWatcher{})
 }
 
 func (m *natPuncher) Accept() (net.Conn, error) {
@@ -126,6 +129,11 @@ func (m *natPuncher) AcceptContext(ctx context.Context) (net.Conn, error) {
 		m.log.Info("received acceptor peer", zap.Any("conn", conn))
 		return conn.unwrap()
 	default:
+	}
+
+	if conn := m.pending.Dequeue(); conn != nil {
+		m.log.Debug("dequeueing pending connection")
+		return conn.(net.Conn), nil
 	}
 
 	addrs, err := m.publish(ctx)
@@ -142,7 +150,7 @@ func (m *natPuncher) AcceptContext(ctx context.Context) (net.Conn, error) {
 	// Here the race begins! We're simultaneously trying to connect to ALL
 	// provided endpoints with a reasonable timeout. The first winner will
 	// be the champion, while others die in agony. Life is cruel.
-	conn, err := m.punch(ctx, addrs)
+	conn, err := m.punch(ctx, addrs, &serverConnectionWatcher{Queue: m.pending, Log: m.log})
 	if err != nil {
 		return nil, newRendezvousError(err)
 	}
@@ -208,13 +216,13 @@ func convertAddrs(addrs []net.Addr) ([]*sonm.Addr, error) {
 	return result, nil
 }
 
-func (m *natPuncher) punch(ctx context.Context, addrs *sonm.RendezvousReply) (net.Conn, error) {
+func (m *natPuncher) punch(ctx context.Context, addrs *sonm.RendezvousReply, watcher connectionWatcher) (net.Conn, error) {
 	if addrs.Empty() {
 		return nil, fmt.Errorf("no addresses resolved")
 	}
 
 	channel := make(chan connTuple, 1)
-	go m.doPunch(ctx, addrs, channel)
+	go m.doPunch(ctx, addrs, channel, watcher)
 
 	select {
 	case conn := <-channel:
@@ -224,7 +232,8 @@ func (m *natPuncher) punch(ctx context.Context, addrs *sonm.RendezvousReply) (ne
 	}
 }
 
-func (m *natPuncher) doPunch(ctx context.Context, addrs *sonm.RendezvousReply, channel chan<- connTuple) {
+func (m *natPuncher) doPunch(ctx context.Context, addrs *sonm.RendezvousReply, channel chan<- connTuple, watcher connectionWatcher) {
+
 	m.log.Debug("punching", zap.Any("addrs", *addrs))
 
 	pending := make(chan connTuple, 1+len(addrs.PrivateAddrs))
@@ -269,7 +278,7 @@ func (m *natPuncher) doPunch(ctx context.Context, addrs *sonm.RendezvousReply, c
 		}
 
 		if peer != nil {
-			conn.Close()
+			watcher.OnMoreConnections(conn.conn)
 		} else {
 			peer = conn.conn
 			// Do not return here - still need to close possibly successful connections.
@@ -327,4 +336,24 @@ func (m *natPuncher) Close() error {
 // the listening socket bind on.
 func (m *natPuncher) privateAddrs() ([]net.Addr, error) {
 	return privateAddrs(m.listener.Addr())
+}
+
+type connectionWatcher interface {
+	OnMoreConnections(conn net.Conn)
+}
+
+type serverConnectionWatcher struct {
+	Queue *lane.Queue
+	Log   *zap.Logger
+}
+
+func (m *serverConnectionWatcher) OnMoreConnections(conn net.Conn) {
+	m.Log.Debug("enqueueing pending connection")
+	m.Queue.Enqueue(conn)
+}
+
+type clientConnectionWatcher struct{}
+
+func (clientConnectionWatcher) OnMoreConnections(conn net.Conn) {
+	conn.Close()
 }
