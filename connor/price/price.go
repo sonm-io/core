@@ -25,30 +25,15 @@ type Provider interface {
 }
 
 type ProviderConfig struct {
-	Token  string
 	Margin float64
 	URL    string
-}
-
-func NewProvider(cfg *ProviderConfig) Provider {
-	switch cfg.Token {
-	case "NULL":
-		return newNullPriceProvider(cfg)
-	case "ETH":
-		return newEthPriceProvider(cfg)
-	case "ZEC":
-		return newZecPriceProvider(cfg)
-	default:
-		// should never happens
-		panic("cannot get price updater for token " + cfg.Token)
-	}
 }
 
 type nullPriceProvider struct {
 	cfg *ProviderConfig
 }
 
-func newNullPriceProvider(cfg *ProviderConfig) Provider {
+func NewNullPriceProvider(cfg *ProviderConfig) Provider {
 	return &nullPriceProvider{cfg: cfg}
 }
 
@@ -67,7 +52,7 @@ type ethPriceProvider struct {
 	cfg   *ProviderConfig
 }
 
-func newEthPriceProvider(cfg *ProviderConfig) Provider {
+func NewEthPriceProvider(cfg *ProviderConfig) Provider {
 	return &ethPriceProvider{cfg: cfg}
 }
 
@@ -121,7 +106,7 @@ type zecPriceProvider struct {
 	price *big.Int
 }
 
-func newZecPriceProvider(_ *ProviderConfig) Provider { return &zecPriceProvider{price: big.NewInt(1)} }
+func NewZecPriceProvider(_ *ProviderConfig) Provider { return &zecPriceProvider{price: big.NewInt(1)} }
 
 func (p *zecPriceProvider) Update(ctx context.Context) error {
 	return nil

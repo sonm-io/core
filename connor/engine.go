@@ -36,18 +36,18 @@ type engine struct {
 	ordersResultsChan chan *Corder
 }
 
-func NewEngine(ctx context.Context, cfg *Config, price price.Provider, log *zap.Logger, cc *grpc.ClientConn) *engine {
+func NewEngine(ctx context.Context, cfg *Config, log *zap.Logger, cc *grpc.ClientConn) *engine {
 	return &engine{
 		ctx:               ctx,
 		cfg:               cfg,
-		priceProvider:     price,
+		priceProvider:     cfg.getTokenParams().priceProvider,
 		log:               log.Named("engine"),
 		market:            sonm.NewMarketClient(cc),
 		deals:             sonm.NewDealManagementClient(cc),
 		tasks:             sonm.NewTaskManagementClient(cc),
 		ordersCreateChan:  make(chan *Corder, concurrency),
 		ordersResultsChan: make(chan *Corder, concurrency),
-		corderFactory:     NewCorderFactory(cfg.Mining.Token),
+		corderFactory:     cfg.getTokenParams().corderFactory,
 		antiFraud:         antifraud.NewAntiFraud(cfg.AntiFraud, log.Named("anti-fraud"), cc),
 	}
 }

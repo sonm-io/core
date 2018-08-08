@@ -5,30 +5,33 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func newBenchmarksWithGPUMem(mem uint64) Benchmarks {
+	b := Benchmarks{Values: make([]uint64, sonm.MinNumBenchmarks)}
+	b.Values[8] = mem
+	return b
+}
+
 func TestNewCorderFactory(t *testing.T) {
-	c1 := NewCorderFactory("ETH").
-		FromParams(big.NewInt(100), 1000, *newBenchmarkFromMap(map[string]uint64{}))
+
+	c1 := NewCorderFactory("ETH", ethBenchmarkIndex).FromParams(big.NewInt(100), 1000, newZeroBenchmarks())
 
 	assert.Equal(t, c1.GetHashrate(), uint64(1000))
 	assert.Equal(t, c1.Order.GetBenchmarks().GPUEthHashrate(), uint64(1000))
 
-	c2 := NewCorderFactory("NULL").
-		FromParams(big.NewInt(200), 2000, *newBenchmarkFromMap(map[string]uint64{}))
+	c2 := NewCorderFactory("NULL", nullBenchmarkIndex).FromParams(big.NewInt(200), 2000, newZeroBenchmarks())
 	assert.Equal(t, c2.GetHashrate(), uint64(2000))
 	assert.Equal(t, c2.Order.GetBenchmarks().GPURedshift(), uint64(2000))
 }
 
 func TestCorder_AsBID(t *testing.T) {
-	eth := NewCorderFactory("ETH").FromParams(big.NewInt(100), 1000,
-		*newBenchmarkFromMap(map[string]uint64{"gpu-mem": 3000e6}))
-	zec := NewCorderFactory("ZEC").FromParams(big.NewInt(100), 130,
-		*newBenchmarkFromMap(map[string]uint64{"gpu-mem": 900e6}))
-	null := NewCorderFactory("NULL").FromParams(big.NewInt(100), 550,
-		*newBenchmarkFromMap(map[string]uint64{"gpu-mem": 1e6}))
+	eth := NewCorderFactory("ETH", ethBenchmarkIndex).FromParams(big.NewInt(100), 1000, newBenchmarksWithGPUMem(3000e6))
+	zec := NewCorderFactory("ZEC", zecBenchmarkIndex).FromParams(big.NewInt(100), 130, newBenchmarksWithGPUMem(900e6))
+	null := NewCorderFactory("NULL", nullBenchmarkIndex).FromParams(big.NewInt(100), 550, newBenchmarksWithGPUMem(1e6))
 
 	hashrate, ok := eth.AsBID().GetResources().GetBenchmarks()["gpu-eth-hashrate"]
 	gpuMem, ok := eth.AsBID().GetResources().GetBenchmarks()["gpu-mem"]

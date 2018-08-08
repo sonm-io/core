@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/connor/price"
 	"github.com/sonm-io/core/proto"
 )
 
@@ -15,17 +16,10 @@ type CorderFactoriy interface {
 	FromSlice(orders []*sonm.Order) []*Corder
 }
 
-func NewCorderFactory(token string) CorderFactoriy {
-	// todo: keep known tokens map into a single place ( closer to config? )
-	m := map[string]int{
-		"ETH":  9,
-		"ZEC":  10,
-		"NULL": 11,
-	}
-
+func NewCorderFactory(token string, benchmarkIndex int) CorderFactoriy {
 	return &anyCorderFactory{
 		tokenName:      token,
-		benchmarkIndex: m[token],
+		benchmarkIndex: benchmarkIndex,
 	}
 }
 
@@ -83,7 +77,7 @@ func (co *Corder) AsBID() *sonm.BidOrder {
 				Outbound: co.Order.GetNetflags().GetOutbound(),
 				Incoming: co.Order.GetNetflags().GetIncoming(),
 			},
-			Benchmarks: newBenchmarks(co.Order.Benchmarks),
+			Benchmarks: benchmarksToMap(co.Order.Benchmarks),
 		},
 	}
 }
@@ -113,6 +107,10 @@ func (co *Corder) isReplaceable(newPrice *big.Int, delta float64) bool {
 }
 
 type Benchmarks sonm.Benchmarks
+
+func newZeroBenchmarks() Benchmarks {
+	return Benchmarks{Values: make([]uint64, sonm.MinNumBenchmarks)}
+}
 
 func (b *Benchmarks) setGPUEth(v uint64) {
 	b.Values[9] = v
@@ -152,27 +150,7 @@ func (b *Benchmarks) toMap() map[string]uint64 {
 	}
 }
 
-// todo: no reason to keep it here - move closer to config
-func newBenchmarkFromMap(m map[string]uint64) *Benchmarks {
-	return &Benchmarks{
-		Values: []uint64{
-			m["cpu-sysbench-multi"],
-			m["cpu-sysbench-single"],
-			m["cpu-cores"],
-			m["ram-size"],
-			m["storage-size"],
-			m["net-download"],
-			m["net-upload"],
-			m["gpu-count"],
-			m["gpu-mem"],
-			m["gpu-eth-hashrate"],
-			m["gpu-cash-hashrate"],
-			m["gpu-redshift"],
-		},
-	}
-}
-
-func newBenchmarks(b *sonm.Benchmarks) map[string]uint64 {
+func benchmarksToMap(b *sonm.Benchmarks) map[string]uint64 {
 	v := Benchmarks(*b)
 	return v.toMap()
 }
@@ -180,4 +158,12 @@ func newBenchmarks(b *sonm.Benchmarks) map[string]uint64 {
 type taskStatus struct {
 	*sonm.TaskStatusReply
 	id string
+}
+
+type tokenParameters struct {
+	corderFactory CorderFactoriy
+	priceProvider price.Provider
+	poolWatcher   interface{}
+	// todo: how to deal with log parser?
+	// the log parser is bound to container?
 }
