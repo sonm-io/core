@@ -8,8 +8,6 @@ import (
 )
 
 func TestDivideOrders(t *testing.T) {
-	c := &Connor{}
-
 	f := NewCorderFactory("ETH", 0)
 
 	ex1 := f.FromParams(big.NewInt(1), 100, newBenchmarksWithGPUMem(0))
@@ -25,7 +23,7 @@ func TestDivideOrders(t *testing.T) {
 	existing := []*Corder{ex1, ex2, ex3}
 	required := []*Corder{req0, req1, req2, req3, req4}
 
-	set := c.divideOrdersSets(existing, required)
+	set := divideOrdersSets(existing, required)
 	assert.Len(t, set.toRestore, 3)
 	assert.Len(t, set.toCreate, 2)
 }

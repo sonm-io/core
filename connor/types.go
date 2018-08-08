@@ -167,3 +167,30 @@ type tokenParameters struct {
 	// todo: how to deal with log parser?
 	// the log parser is bound to container?
 }
+
+type ordersSets struct {
+	toCreate  []*Corder
+	toRestore []*Corder
+}
+
+func divideOrdersSets(existingCorders, targetCorders []*Corder) *ordersSets {
+	byHashrate := map[uint64]*Corder{}
+	for _, ord := range existingCorders {
+		byHashrate[ord.GetHashrate()] = ord
+	}
+
+	set := &ordersSets{
+		toCreate:  make([]*Corder, 0),
+		toRestore: make([]*Corder, 0),
+	}
+
+	for _, ord := range targetCorders {
+		if ex, ok := byHashrate[ord.GetHashrate()]; ok {
+			set.toRestore = append(set.toRestore, ex)
+		} else {
+			set.toCreate = append(set.toCreate, ord)
+		}
+	}
+
+	return set
+}
