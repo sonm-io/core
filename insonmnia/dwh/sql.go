@@ -1709,9 +1709,6 @@ func (c *sqlSetupCommands) createIndices(db *sql.DB) error {
 			return err
 		}
 	}
-	if err = c.createIndex(db, c.createIndexCmd, "StaleIDs", "Id"); err != nil {
-		return err
-	}
 
 	return nil
 }
