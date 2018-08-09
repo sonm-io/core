@@ -5,13 +5,18 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/connor/antifraud"
 	"github.com/sonm-io/core/connor/price"
+	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
+	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
+	"golang.org/x/sync/errgroup"
 )
 
 const (
@@ -36,20 +41,77 @@ type engine struct {
 	ordersResultsChan chan *Corder
 }
 
-func NewEngine(ctx context.Context, cfg *Config, log *zap.Logger, cc *grpc.ClientConn) *engine {
+func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
+	key, err := cfg.Eth.LoadKey()
+	if err != nil {
+		return nil, fmt.Errorf("cannot load eth keys: %v", err)
+	}
+
+	_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), key)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create cert TLS config: %v", err)
+	}
+
+	creds := auth.NewWalletAuthenticator(util.NewTLS(TLSConfig), crypto.PubkeyToAddress(key.PublicKey))
+	cc, err := xgrpc.NewClient(ctx, cfg.Node.Endpoint.String(), creds)
+	if err != nil {
+		return nil, fmt.Errorf("cannot create connection to node: %v", err)
+	}
+
 	return &engine{
-		ctx:               ctx,
-		cfg:               cfg,
-		priceProvider:     cfg.getTokenParams().priceProvider,
-		log:               log.Named("engine"),
-		market:            sonm.NewMarketClient(cc),
-		deals:             sonm.NewDealManagementClient(cc),
-		tasks:             sonm.NewTaskManagementClient(cc),
+		// todo: remove context from struct
+		ctx: ctx,
+		cfg: cfg,
+		log: log,
+
+		priceProvider: cfg.getTokenParams().priceProvider,
+		corderFactory: cfg.getTokenParams().corderFactory,
+
+		market:    sonm.NewMarketClient(cc),
+		deals:     sonm.NewDealManagementClient(cc),
+		tasks:     sonm.NewTaskManagementClient(cc),
+		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log.Named("anti-fraud"), cc),
+
 		ordersCreateChan:  make(chan *Corder, concurrency),
 		ordersResultsChan: make(chan *Corder, concurrency),
-		corderFactory:     cfg.getTokenParams().corderFactory,
-		antiFraud:         antifraud.NewAntiFraud(cfg.AntiFraud, log.Named("anti-fraud"), cc),
+	}, nil
+}
+
+func (e *engine) Serve(ctx context.Context) error {
+	defer e.close()
+
+	e.log.Info("starting engine", zap.Int("concurrency", concurrency))
+
+	// perform extra config validation using external list of required benchmarks
+	if err := e.validateBenchmarks(ctx); err != nil {
+		return fmt.Errorf("benchmarks validation failed: %v", err)
 	}
+
+	// load initial state from external sources
+	if err := e.loadInitialData(ctx); err != nil {
+		return fmt.Errorf("failed to load initial data: %v", err)
+	}
+
+	e.log.Debug("price",
+		zap.String(e.cfg.Mining.Token, e.priceProvider.GetPrice().String()),
+		zap.Float64("margin", e.cfg.Market.PriceMarginality))
+
+	wg, ctx := errgroup.WithContext(ctx)
+	wg.Go(func() error {
+		return e.startPriceTracking(ctx)
+	})
+	wg.Go(func() error {
+		return e.start(ctx)
+	})
+	wg.Go(func() error {
+		return e.antiFraud.Run(ctx)
+	})
+
+	if err := e.restoreMarketState(ctx); err != nil {
+		return fmt.Errorf("failed to restore market state: %v", err)
+	}
+
+	return wg.Wait()
 }
 
 func (e *engine) CreateOrder(bid *Corder) {
@@ -493,21 +555,106 @@ func (e *engine) stopOneTask(log *zap.Logger, dealID *sonm.BigInt, taskID string
 	return fmt.Errorf("cannot stop task: retry count exceeded")
 }
 
-func (e *engine) start(ctx context.Context) {
-	go func() {
-		defer close(e.ordersCreateChan)
-		defer close(e.ordersResultsChan)
+func (e *engine) start(ctx context.Context) error {
+	for i := 0; i < concurrency; i++ {
+		go e.processOrderCreate()
+	}
 
-		e.log.Info("starting engine", zap.Int("concurrency", concurrency))
-		defer e.log.Info("stopping engine")
+	go e.processOrderResult()
 
-		for i := 0; i < concurrency; i++ {
-			go e.processOrderCreate()
+	<-ctx.Done()
+	return ctx.Err()
+}
+
+func (e *engine) loadInitialData(ctx context.Context) error {
+	if err := e.priceProvider.Update(ctx); err != nil {
+		return fmt.Errorf("cannot update %s price: %v", e.cfg.Mining.Token, err)
+	}
+
+	return nil
+}
+
+func (e *engine) validateBenchmarks(ctx context.Context) error {
+	benchList, err := benchmarks.NewBenchmarksList(ctx, e.cfg.BenchmarkList)
+	if err != nil {
+		return fmt.Errorf("cannot load benchmark list: %v", err)
+	}
+
+	return e.cfg.validateBenchmarks(benchList)
+}
+
+func (e *engine) startPriceTracking(ctx context.Context) error {
+	log := e.log.Named("token-price")
+	t := time.NewTicker(e.cfg.Mining.TokenPrice.UpdateInterval)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Debug("stop price tracking")
+			return ctx.Err()
+
+		case <-t.C:
+			if err := e.priceProvider.Update(ctx); err != nil {
+				log.Warn("cannot update token price", zap.Error(err))
+			} else {
+				log.Debug("received new token price",
+					zap.String("new_price", e.priceProvider.GetPrice().String()))
+			}
 		}
+	}
+}
 
-		go e.processOrderResult()
-		//TODO: process error
-		go e.antiFraud.Run(ctx)
-		<-ctx.Done()
-	}()
+func (e *engine) restoreMarketState(ctx context.Context) error {
+	existingOrders, err := e.market.GetOrders(ctx, &sonm.Count{Count: 1000})
+	if err != nil {
+		return fmt.Errorf("cannot load orders from market: %v", err)
+	}
+
+	existingDeals, err := e.deals.List(ctx, &sonm.Count{Count: 1000})
+	if err != nil {
+		return fmt.Errorf("cannot load deals from market: %v", err)
+	}
+
+	existingCorders := e.corderFactory.FromSlice(existingOrders.GetOrders())
+	targetCorders := e.getTargetCorders()
+
+	set := divideOrdersSets(existingCorders, targetCorders)
+	e.log.Debug("restoring existing entities",
+		zap.Int("orders_restore", len(set.toRestore)),
+		zap.Int("orders_create", len(set.toCreate)),
+		zap.Int("deals_restore", len(existingDeals.GetDeal())))
+
+	for _, deal := range existingDeals.GetDeal() {
+		e.RestoreDeal(deal)
+	}
+
+	for _, ord := range set.toCreate {
+		e.CreateOrder(ord)
+	}
+
+	for _, ord := range set.toRestore {
+		e.RestoreOrder(ord)
+	}
+
+	return nil
+}
+
+func (e *engine) getTargetCorders() []*Corder {
+	v := make([]*Corder, 0)
+
+	for hashrate := e.cfg.Market.FromHashRate; hashrate <= e.cfg.Market.ToHashRate; hashrate += e.cfg.Market.Step {
+		bigHashrate := big.NewInt(int64(hashrate))
+		p := big.NewInt(0).Mul(bigHashrate, e.priceProvider.GetPrice())
+		v = append(v, e.corderFactory.FromParams(p, hashrate, e.cfg.getBaseBenchmarks()))
+	}
+
+	return v
+}
+
+func (e *engine) close() {
+	e.log.Info("closing engine")
+
+	close(e.ordersCreateChan)
+	close(e.ordersResultsChan)
 }
