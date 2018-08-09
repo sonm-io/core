@@ -135,36 +135,42 @@ func (m *L1Processor) watchMarketEvents() error {
 	// Store events by their type, run events of each type in parallel after a timeout
 	// or after a certain number of events is accumulated.
 	for {
-		select {
-		case <-m.ctx.Done():
-			m.logger.Info("context cancelled (watchMarketEvents)")
-			return nil
-		case <-tk.C:
-			m.processEvents(dispatcher)
-			eventsCount, dispatcher = 0, newEventDispatcher(m.logger)
-		case event, ok := <-events:
-			if !ok {
-				return errors.New("events channel closed")
-			}
+		err := func() error {
+			m.mu.Lock()
+			defer m.mu.Unlock()
 
-			if event.PrecedesOrEquals(m.lastEvent) {
-				continue
-			}
-
-			dispatcher.Add(event)
-			m.lastEvent, eventsCount = event, eventsCount+1
-			if eventsCount >= m.cfg.NumWorkers {
+			select {
+			case <-m.ctx.Done():
+				return errors.New("watchMarketEvents: context cancelled)")
+			case <-tk.C:
 				m.processEvents(dispatcher)
 				eventsCount, dispatcher = 0, newEventDispatcher(m.logger)
+			case event, ok := <-events:
+				if !ok {
+					return errors.New("events channel closed")
+				}
+
+				if event.PrecedesOrEquals(m.lastEvent) {
+					return nil
+				}
+
+				dispatcher.Add(event)
+				m.lastEvent, eventsCount = event, eventsCount+1
+				if eventsCount >= m.cfg.NumWorkers {
+					m.processEvents(dispatcher)
+					eventsCount, dispatcher = 0, newEventDispatcher(m.logger)
+				}
 			}
+
+			return nil
+		}()
+		if err != nil {
+			return err
 		}
 	}
 }
 
 func (m *L1Processor) processEvents(dispatcher *eventsDispatcher) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	m.processEventsSynchronous(dispatcher.NumBenchmarksUpdated)
 	m.processEventsSynchronous(dispatcher.WorkersAnnounced)
 	m.processEventsSynchronous(dispatcher.WorkersConfirmed)
