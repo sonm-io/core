@@ -6,6 +6,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/proto"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -20,6 +21,14 @@ type blacklistWatcher struct {
 	client      sonm.BlacklistClient
 }
 
+func NewBlacklistWatcher(addr common.Address, cc *grpc.ClientConn) *blacklistWatcher {
+	return &blacklistWatcher{
+		address:     addr,
+		currentStep: minStep,
+		client:      sonm.NewBlacklistClient(cc),
+	}
+}
+
 func (m *blacklistWatcher) Failure() {
 	m.till = time.Now().Add(m.currentStep)
 	m.currentStep *= 2
@@ -29,7 +38,7 @@ func (m *blacklistWatcher) Failure() {
 }
 
 func (m *blacklistWatcher) Success() {
-	m.currentStep /= minStep
+	m.currentStep /= 2
 	if m.currentStep < minStep {
 		m.currentStep = minStep
 	}
@@ -43,6 +52,8 @@ func (m *blacklistWatcher) TryUnblacklist(ctx context.Context) error {
 	if m.Blacklisted() {
 		return nil
 	}
+
+	m.till = time.Time{}
 	_, err := m.client.Remove(ctx, sonm.NewEthAddress(m.address))
 	return err
 
