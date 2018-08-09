@@ -223,7 +223,6 @@ func (e *engine) waitForDeal(order *Corder) {
 
 			e.CreateOrder(order)
 			if deal != nil {
-				activeOrdersGauge.Dec()
 				e.processDeal(deal)
 			}
 
@@ -259,6 +258,7 @@ func (e *engine) checkOrderForDealOnce(log *zap.Logger, orderID string) (*sonm.D
 	}
 
 	if ord.GetOrderStatus() == sonm.OrderStatus_ORDER_INACTIVE {
+		activeOrdersGauge.Dec()
 		log.Info("order becomes inactive, looking for related deal")
 
 		if ord.GetDealID().IsZero() {
