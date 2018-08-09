@@ -302,14 +302,6 @@ func (m *L1Processor) onDealOpened(dealID *big.Int) error {
 	}
 	defer conn.Finish()
 
-	if deal.Status == pb.DealStatus_DEAL_CLOSED {
-		if err := m.storage.StoreStaleID(newSimpleConn(m.db), dealID, "Deal"); err != nil {
-			return fmt.Errorf("failed to StoreStaleID: %v", err)
-		}
-		m.logger.Debug("skipping inactive deal", zap.String("deal_id", dealID.String()))
-		return nil
-	}
-
 	err = m.storage.InsertDeal(conn, deal)
 	if err != nil {
 		return fmt.Errorf("failed to insertDeal: %v", err)
@@ -347,32 +339,6 @@ func (m *L1Processor) onDealUpdated(dealID *big.Int) error {
 	}
 	defer conn.Finish()
 
-	// If deal is known to be stale:
-	if ok, err := m.storage.CheckStaleID(conn, dealID, "Deal"); err != nil {
-		return fmt.Errorf("failed to CheckStaleID: %v", err)
-	} else {
-		if ok {
-			m.removeStaleEntityID(dealID, "Deal")
-			return nil
-		}
-	}
-
-	if deal.Status == pb.DealStatus_DEAL_CLOSED {
-		err = m.storage.DeleteDeal(conn, deal.Id.Unwrap())
-		if err != nil {
-			return fmt.Errorf("failed to delete deal (possibly old log entry): %v", err)
-		}
-
-		if err := m.storage.DeleteOrder(conn, deal.AskID.Unwrap()); err != nil {
-			return fmt.Errorf("failed to deleteOrder: %v", err)
-		}
-		if err := m.storage.DeleteOrder(conn, deal.BidID.Unwrap()); err != nil {
-			return fmt.Errorf("failed to deleteOrder: %v", err)
-		}
-
-		return nil
-	}
-
 	if err := m.storage.UpdateDeal(conn, deal); err != nil {
 		return fmt.Errorf("failed to UpdateDeal: %v", err)
 	}
@@ -391,16 +357,6 @@ func (m *L1Processor) onDealChangeRequestSent(eventTS uint64, changeRequestID *b
 		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer conn.Finish()
-
-	// If deal is known to be stale, skip.
-	if ok, err := m.storage.CheckStaleID(conn, changeRequest.DealID.Unwrap(), "Deal"); err != nil {
-		return fmt.Errorf("failed to CheckStaleID: %v", err)
-	} else {
-		if ok {
-			m.logger.Debug("skipping DealChangeRequestSent event for inactive deal")
-			return nil
-		}
-	}
 
 	if changeRequest.Status != pb.ChangeRequestStatus_REQUEST_CREATED {
 		m.logger.Info("onDealChangeRequest event points to DealChangeRequest with .Status != Created",
@@ -443,16 +399,6 @@ func (m *L1Processor) onDealChangeRequestUpdated(eventTS uint64, changeRequestID
 		return fmt.Errorf("failed to begin transaction: %v", err)
 	}
 	defer conn.Finish()
-
-	// If deal is known to be stale, skip.
-	if ok, err := m.storage.CheckStaleID(conn, changeRequest.DealID.Unwrap(), "Deal"); err != nil {
-		return fmt.Errorf("failed to CheckStaleID: %v", err)
-	} else {
-		if ok {
-			m.logger.Debug("skipping DealChangeRequestUpdated event for inactive deal")
-			return nil
-		}
-	}
 
 	switch changeRequest.Status {
 	case pb.ChangeRequestStatus_REQUEST_REJECTED:
@@ -514,16 +460,6 @@ func (m *L1Processor) onBilled(eventTS uint64, dealID, payedAmount *big.Int) err
 	}
 	defer conn.Finish()
 
-	// If deal is known to be stale, skip.
-	if ok, err := m.storage.CheckStaleID(conn, dealID, "Deal"); err != nil {
-		return fmt.Errorf("failed to CheckStaleID: %v", err)
-	} else {
-		if ok {
-			m.logger.Debug("skipping Billed event for inactive deal")
-			return nil
-		}
-	}
-
 	if err := m.updateDealPayout(conn, dealID, payedAmount, eventTS); err != nil {
 		return fmt.Errorf("failed to updateDealPayout: %v", err)
 	}
@@ -577,14 +513,6 @@ func (m *L1Processor) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 	}
 	defer conn.Finish()
 
-	if order.OrderStatus == pb.OrderStatus_ORDER_INACTIVE && order.DealID.IsZero() {
-		if err := m.storage.StoreStaleID(conn, orderID, "Order"); err != nil {
-			return fmt.Errorf("failed to StoreStaleID: %v", err)
-		}
-		m.logger.Debug("skipping inactive order", zap.String("order_id", orderID.String()))
-		return nil
-	}
-
 	var userID common.Address
 	if order.OrderType == pb.OrderType_ASK {
 		// For Ask orders, try to get this Author's masterID, use AuthorID if not found.
@@ -603,10 +531,8 @@ func (m *L1Processor) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 		certificates, _ := json.Marshal([]*pb.Certificate{})
 		profile = &pb.Profile{UserID: order.AuthorID, Certificates: string(certificates)}
 	} else {
-		if order.OrderStatus == pb.OrderStatus_ORDER_ACTIVE {
-			if err := m.updateProfileStats(conn, order.OrderType, userID, 1); err != nil {
-				return fmt.Errorf("failed to updateProfileStats: %v", err)
-			}
+		if err := m.updateProfileStats(conn, order.OrderType, userID, 1); err != nil {
+			return fmt.Errorf("failed to updateProfileStats: %v", err)
 		}
 	}
 
@@ -657,17 +583,6 @@ func (m *L1Processor) onOrderUpdated(orderID *big.Int) error {
 	}
 	defer conn.Finish()
 
-	// If the order was known to be inactive, delete it from the list of inactive entities
-	// and skip.
-	if ok, err := m.storage.CheckStaleID(conn, orderID, "Order"); err != nil {
-		return fmt.Errorf("failed to CheckStaleID: %v", err)
-	} else {
-		if ok {
-			m.removeStaleEntityID(orderID, "Order")
-			return nil
-		}
-	}
-
 	// A situation is possible when user places an Ask order without specifying her `MasterID` (and we take
 	// `AuthorID` for `MasterID`), and afterwards the user *does* specify her master. To avoid inconsistency,
 	// we always use the user ID that was chosen in `onOrderPlaced` (i.e., the one that is already stored in DB).
@@ -683,24 +598,13 @@ func (m *L1Processor) onOrderUpdated(orderID *big.Int) error {
 		userID = marketOrder.GetAuthorID().Unwrap()
 	}
 
-	// If order was updated, but no deal is associated with it, delete the order.
-	if marketOrder.DealID.IsZero() {
-		if err := m.storage.DeleteOrder(conn, orderID); err != nil {
-			m.logger.Info("failed to delete Order (possibly old log entry)", zap.Error(err),
-				zap.String("order_id", orderID.String()))
-		}
-	} else {
-		// Otherwise update order status.
-		err := m.storage.UpdateOrderStatus(conn, marketOrder.Id.Unwrap(), marketOrder.OrderStatus)
-		if err != nil {
-			return fmt.Errorf("failed to updateOrderStatus (possibly old log entry): %v", err)
-		}
+	// Otherwise update order status.
+	if err := m.storage.UpdateOrder(conn, marketOrder); err != nil {
+		return fmt.Errorf("failed to updateOrderStatus (possibly old log entry): %v", err)
 	}
 
-	if dwhOrder.GetOrder().OrderStatus == pb.OrderStatus_ORDER_ACTIVE {
-		if err := m.updateProfileStats(conn, marketOrder.OrderType, userID, -1); err != nil {
-			return fmt.Errorf("failed to updateProfileStats (AuthorID: `%s`): %v", marketOrder.AuthorID.Unwrap().String(), err)
-		}
+	if err := m.updateProfileStats(conn, marketOrder.OrderType, userID, -1); err != nil {
+		return fmt.Errorf("failed to updateProfileStats (AuthorID: `%s`): %v", marketOrder.AuthorID.Unwrap().String(), err)
 	}
 
 	return nil
@@ -1020,15 +924,6 @@ func (m *L1Processor) updateDealConditionEndTime(conn queryConn, dealID *pb.BigI
 	dealCondition := dealConditions[0]
 	if err := m.storage.UpdateDealConditionEndTime(conn, dealCondition.Id, eventTS); err != nil {
 		return fmt.Errorf("failed to update DealCondition: %v", err)
-	}
-
-	return nil
-}
-
-func (m *L1Processor) removeStaleEntityID(id *big.Int, entity string) error {
-	m.logger.Debug("removing stale entity from cache", zap.String("entity", entity), zap.String("id", id.String()))
-	if err := m.storage.RemoveStaleID(newSimpleConn(m.db), id, entity); err != nil {
-		return fmt.Errorf("failed to RemoveStaleID (%s %s): %v", entity, id.String(), err)
 	}
 
 	return nil

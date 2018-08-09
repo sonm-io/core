@@ -143,12 +143,6 @@ func (m *sqlStorage) UpdateDealPayout(conn queryConn, dealID, payout *big.Int, b
 	return err
 }
 
-func (m *sqlStorage) DeleteDeal(conn queryConn, dealID *big.Int) error {
-	query, args, _ := m.builder().Delete("Deals").Where("Id = ?", dealID.String()).ToSql()
-	_, err := conn.Exec(query, args...)
-	return err
-}
-
 func (m *sqlStorage) GetDealByID(conn queryConn, dealID *big.Int) (*pb.DWHDeal, error) {
 	query, args, _ := m.builder().Select(m.tablesInfo.DealColumns...).
 		From("Deals").
@@ -310,8 +304,11 @@ func (m *sqlStorage) InsertOrder(conn queryConn, order *pb.DWHOrder) error {
 	return err
 }
 
-func (m *sqlStorage) UpdateOrderStatus(conn queryConn, orderID *big.Int, status pb.OrderStatus) error {
-	query, args, _ := m.builder().Update("Orders").Set("Status", status).Where("Id = ?", orderID.String()).ToSql()
+func (m *sqlStorage) UpdateOrder(conn queryConn, order *pb.Order) error {
+	query, args, _ := m.builder().Update("Orders").SetMap(map[string]interface{}{
+		"Status": order.OrderStatus,
+		"DealID": order.DealID.String(),
+	}).Where("Id = ?", order.Id.String()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
@@ -323,12 +320,6 @@ func (m *sqlStorage) UpdateOrders(conn queryConn, profile *pb.Profile) error {
 		"CreatorCountry":       profile.Country,
 		"CreatorCertificates":  profile.Certificates,
 	}).Where("AuthorId = ?", profile.UserID.Unwrap().Hex()).ToSql()
-	_, err := conn.Exec(query, args...)
-	return err
-}
-
-func (m *sqlStorage) DeleteOrder(conn queryConn, orderID *big.Int) error {
-	query, args, _ := m.builder().Delete("Orders").Where("Id = ?", orderID.String()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
@@ -1026,34 +1017,6 @@ func (m *sqlStorage) UpdateProfileStats(conn queryConn, userID common.Address, f
 	return err
 }
 
-func (m *sqlStorage) StoreStaleID(conn queryConn, id *big.Int, entity string) error {
-	query, args, _ := m.builder().Insert("StaleIDs").Values(fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
-	_, err := conn.Exec(query, args...)
-	return err
-}
-
-func (m *sqlStorage) RemoveStaleID(conn queryConn, id *big.Int, entity string) error {
-	query, args, _ := m.builder().Delete("StaleIDs").Where("Id = ?", fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
-	_, err := conn.Exec(query, args...)
-	return err
-}
-
-func (m *sqlStorage) CheckStaleID(conn queryConn, id *big.Int, entity string) (bool, error) {
-	query, args, _ := m.builder().Select("*").From("StaleIDs").
-		Where("Id = ?", fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
-	rows, err := conn.Query(query, args...)
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		return false, nil
-	}
-
-	return true, nil
-}
-
 func (m *sqlStorage) InsertLastEvent(conn queryConn, event *blockchain.Event) error {
 	query, args, _ := m.builder().Insert("Misc").Columns("BlockNumber", "TxIndex", "ReceiptIndex").
 		Values(event.BlockNumber, event.TxIndex, event.ReceiptIndex).ToSql()
@@ -1640,7 +1603,6 @@ type sqlSetupCommands struct {
 	createTableCertificates   string
 	createTableProfiles       string
 	createTableMisc           string
-	createTableStaleIDs       string
 	createIndexCmd            string
 	tablesInfo                *tablesInfo
 }
@@ -1694,11 +1656,6 @@ func (c *sqlSetupCommands) setupTables(db *sql.DB) error {
 	_, err = db.Exec(c.createTableProfiles)
 	if err != nil {
 		return fmt.Errorf("failed to %s: %v", c.createTableProfiles, err)
-	}
-
-	_, err = db.Exec(c.createTableStaleIDs)
-	if err != nil {
-		return fmt.Errorf("failed to %s: %v", c.createTableStaleIDs, err)
 	}
 
 	_, err = db.Exec(c.createTableMisc)
@@ -2029,10 +1986,6 @@ func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
 		BlockNumber 				INTEGER NOT NULL,
 		TxIndex						INTEGER NOT NULL,
 		ReceiptIndex				INTEGER NOT NULL
-	)`,
-			createTableStaleIDs: `
-	CREATE TABLE IF NOT EXISTS StaleIDs (
-		Id 							TEXT NOT NULL
 	)`,
 			createIndexCmd: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
 			tablesInfo:     tInfo,

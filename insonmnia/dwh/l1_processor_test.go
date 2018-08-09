@@ -316,9 +316,15 @@ func testOrderUpdated(p *L1Processor, order *pb.Order, commonID *big.Int) error 
 	if err := p.onOrderUpdated(commonID); err != nil {
 		return fmt.Errorf("onOrderUpdated failed: %v", err)
 	}
-	if _, err := p.storage.GetOrderByID(newSimpleConn(p.db), commonID); err == nil {
-		return errors.New("GetOrderDetails returned an order that should have been deleted")
+	dwhOrder, err := p.storage.GetOrderByID(newSimpleConn(p.db), commonID)
+	if err != nil {
+		return fmt.Errorf("GetOrderByID failed: %v", err)
 	}
+
+	if dwhOrder.Order.OrderStatus != pb.OrderStatus_ORDER_INACTIVE {
+		return errors.New("order was not deactivated")
+	}
+
 	return nil
 }
 
@@ -468,17 +474,15 @@ func testDealClosed(p *L1Processor, deal *pb.Deal, commonID *big.Int) error {
 	if err := p.onDealUpdated(commonID); err != nil {
 		return fmt.Errorf("onDealUpdated failed: %v", err)
 	}
-	if _, err := p.storage.GetDealByID(newSimpleConn(p.db), commonID); err == nil {
-		return fmt.Errorf("deal was not deleted after status changing to CLOSED")
+	dwhDeal, err := p.storage.GetDealByID(newSimpleConn(p.db), commonID)
+	if err != nil {
+		return fmt.Errorf("GetDealByID failed: %v", err)
 	}
-	if dealConditions, _, err := p.storage.GetDealConditions(
-		newSimpleConn(p.db), &pb.DealConditionsRequest{DealID: pb.NewBigInt(commonID)}); err != nil {
-		return fmt.Errorf("failed to GetDealConditions: %s", err)
-	} else {
-		if len(dealConditions) != 0 {
-			return fmt.Errorf("(DealUpdated) Expected 0 DealConditions, got %d", len(dealConditions))
-		}
+
+	if dwhDeal.Deal.Status != pb.DealStatus_DEAL_CLOSED {
+		return errors.New("failed to deactivate closed deal")
 	}
+
 	return nil
 }
 
