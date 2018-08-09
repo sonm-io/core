@@ -30,7 +30,7 @@ type DWH struct {
 	logger      *zap.Logger
 	mu          sync.RWMutex
 	ctx         context.Context
-	cfg         *DWHConfig
+	cfg         *Config
 	key         *ecdsa.PrivateKey
 	cancel      context.CancelFunc
 	grpc        *grpc.Server
@@ -43,7 +43,7 @@ type DWH struct {
 	lastEvent   *blockchain.Event
 }
 
-func NewDWH(ctx context.Context, cfg *DWHConfig, key *ecdsa.PrivateKey) (*DWH, error) {
+func NewDWH(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey) (*DWH, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	w := &DWH{
 		ctx:    ctx,

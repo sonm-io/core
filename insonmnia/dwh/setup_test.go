@@ -26,7 +26,7 @@ import (
 
 var (
 	testDWH           *DWH
-	testL1Processor   *L1Processor
+	testL1Processor   *EventProcessor
 	dbUser            = "dwh_tester"
 	dbUserPassword    = "dwh_tester"
 	globalDBName      = "dwh_test_db"
@@ -210,7 +210,7 @@ func getConnString(database, user, password string) string {
 func newTestDWH(dbEndpoint string) (*DWH, error) {
 	var (
 		ctx = context.Background()
-		cfg = &DWHConfig{
+		cfg = &Config{
 			Storage: &storageConfig{
 				Endpoint: dbEndpoint,
 			},
@@ -243,10 +243,10 @@ func newTestDWH(dbEndpoint string) (*DWH, error) {
 	return w, nil
 }
 
-func newTestL1Processor(dbEndpoint string) (*L1Processor, error) {
+func newTestL1Processor(dbEndpoint string) (*EventProcessor, error) {
 	var (
 		ctx = context.Background()
-		cfg = &L1ProcessorConfig{
+		cfg = &ProcessorConfig{
 			Storage: &storageConfig{
 				Endpoint: dbEndpoint,
 			},
@@ -263,7 +263,7 @@ func newTestL1Processor(dbEndpoint string) (*L1Processor, error) {
 		return nil, err
 	}
 
-	p := &L1Processor{
+	p := &EventProcessor{
 		ctx:        ctx,
 		cfg:        cfg,
 		blockchain: mockBlockchain,
