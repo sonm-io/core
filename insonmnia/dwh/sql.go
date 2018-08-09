@@ -715,19 +715,9 @@ func (m *sqlStorage) UpdateDealConditionEndTime(conn queryConn, dealConditionID,
 	return err
 }
 
-func (m *sqlStorage) CheckWorkerExists(conn queryConn, masterID, workerID common.Address) (bool, error) {
-	query, args, _ := m.builder().Select("MasterID").From("Workers").
-		Where("MasterID = ?", masterID.Hex()).Where("WorkerID = ?", workerID.Hex()).ToSql()
-	rows, err := conn.Query(query, args...)
-	if err != nil {
-		return false, fmt.Errorf("failed to run CheckWorker query: %v", err)
-	}
-	defer rows.Close()
-	return rows.Next(), nil
-}
-
 func (m *sqlStorage) InsertWorker(conn queryConn, masterID, workerID common.Address) error {
-	query, args, err := m.builder().Insert("Workers").Values(masterID.Hex(), workerID.Hex(), false).ToSql()
+	query, args, err := m.builder().Insert("Workers").Values(masterID.Hex(), workerID.Hex(), false).
+		Suffix("ON CONFLICT (MasterID, WorkerID) DO NOTHING").ToSql()
 	_, err = conn.Exec(query, args...)
 	return err
 }
