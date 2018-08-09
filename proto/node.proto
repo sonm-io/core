@@ -114,6 +114,8 @@ service TokenManagement {
     rpc TestTokens(Empty) returns (Empty) {}
     // Balance provide account balance for live- and side- chains.
     rpc Balance(Empty) returns (BalanceReply) {}
+    // BalanceOf provide account balance of specified address.
+    rpc BalanceOf(EthAddress) returns (BalanceReply) {}
     // Deposit transfers funds from masterchain to sidechain
     rpc Deposit(BigInt) returns (Empty) {}
     // Withdraw transfers funds from sidechain to masterchain
