@@ -6,6 +6,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/proto"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
 )
 
 const (
@@ -18,6 +20,16 @@ type blacklistWatcher struct {
 	till        time.Time
 	currentStep time.Duration
 	client      sonm.BlacklistClient
+	log         *zap.Logger
+}
+
+func NewBlacklistWatcher(addr common.Address, cc *grpc.ClientConn, log *zap.Logger) *blacklistWatcher {
+	return &blacklistWatcher{
+		log:         log.Named("blacklist").With(zap.String("wallet", addr.Hex())),
+		address:     addr,
+		currentStep: minStep,
+		client:      sonm.NewBlacklistClient(cc),
+	}
 }
 
 func (m *blacklistWatcher) Failure() {
@@ -26,13 +38,15 @@ func (m *blacklistWatcher) Failure() {
 	if m.currentStep > maxStep {
 		m.currentStep = maxStep
 	}
+	m.log.Debug("failure", zap.Duration("step", m.currentStep))
 }
 
 func (m *blacklistWatcher) Success() {
-	m.currentStep /= minStep
+	m.currentStep /= 2
 	if m.currentStep < minStep {
 		m.currentStep = minStep
 	}
+	m.log.Debug("success", zap.Duration("step", m.currentStep))
 }
 
 func (m *blacklistWatcher) Blacklisted() bool {
@@ -43,6 +57,10 @@ func (m *blacklistWatcher) TryUnblacklist(ctx context.Context) error {
 	if m.Blacklisted() {
 		return nil
 	}
+
+	m.till = time.Time{}
+
+	m.log.Info("removing from blacklist on market")
 	_, err := m.client.Remove(ctx, sonm.NewEthAddress(m.address))
 	return err
 
