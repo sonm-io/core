@@ -9,6 +9,7 @@ import (
 	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 )
 
@@ -29,6 +30,7 @@ func TestBlackListWatcher(t *testing.T) {
 		address:     common.HexToAddress("0x950B346f1028cbf76a6ed721786eBcfb13DAc4Ec"),
 		currentStep: minStep,
 		client:      blacklistClientMock{},
+		log:         zap.NewNop(),
 	}
 
 	assert.False(t, w.Blacklisted(), "should not be blacklisted by default")

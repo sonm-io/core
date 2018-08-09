@@ -177,7 +177,7 @@ func (m *antiFraud) DealOpened(deal *sonm.Deal) error {
 	defer m.mu.Unlock()
 	m.meta[deal.GetId().Unwrap().String()] = meta
 	if _, ok := m.blacklistWatchers[deal.GetSupplierID().Unwrap()]; !ok {
-		w := NewBlacklistWatcher(deal.GetSupplierID().Unwrap(), m.nodeConnection)
+		w := NewBlacklistWatcher(deal.GetSupplierID().Unwrap(), m.nodeConnection, m.log)
 		m.blacklistWatchers[deal.GetSupplierID().Unwrap()] = w
 	}
 
