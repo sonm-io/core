@@ -710,15 +710,6 @@ func (m *L1Processor) onWorkerAnnounced(masterID, slaveID common.Address) error 
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
-	if ok, err := m.storage.CheckWorkerExists(conn, masterID, slaveID); err != nil {
-		return fmt.Errorf("failed to CheckWorker: %v", err)
-	} else {
-		if ok {
-			// Worker already exists, skipping.
-			return nil
-		}
-	}
-
 	if err := m.storage.InsertWorker(conn, masterID, slaveID); err != nil {
 		return fmt.Errorf("onWorkerAnnounced failed: %v", err)
 	}
