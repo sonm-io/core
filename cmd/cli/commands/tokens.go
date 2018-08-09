@@ -56,7 +56,7 @@ var tokenGetCmd = &cobra.Command{
 }
 
 var tokenBalanceCmd = &cobra.Command{
-	Use:   "balance",
+	Use:   "balance [addr]",
 	Short: "Show SONM token balance (ERC20)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
@@ -67,7 +67,18 @@ var tokenBalanceCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		balance, err := token.Balance(ctx, &sonm.Empty{})
+		var balance *sonm.BalanceReply
+		if len(args) > 0 {
+			to, err := sonm.NewEthAddressFromHex(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to parse address: %v", err)
+			}
+
+			balance, err = token.BalanceOf(ctx, to)
+		} else {
+			balance, err = token.Balance(ctx, &sonm.Empty{})
+		}
+
 		if err != nil {
 			return fmt.Errorf("cannot load balance: %v", err)
 		}
