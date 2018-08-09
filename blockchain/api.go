@@ -359,6 +359,13 @@ func (api *BasicAPI) setupSidechainGate(ctx context.Context) error {
 }
 
 func (api *BasicAPI) Market() MarketAPI {
+	if api.options.niceMarket {
+		return &niceMarketAPI{
+			MarketAPI: api.market,
+			profiles:  api.profileRegistry,
+			blacklist: api.blacklist,
+		}
+	}
 	return api.market
 }
 
