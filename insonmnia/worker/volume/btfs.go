@@ -142,7 +142,7 @@ func NewBTFSDockerDriver(client *docker.Client, log *zap.SugaredLogger) (*BTFSDo
 	ctx := context.Background()
 
 	if err := pullImage(ctx, client, BTFSImage); err != nil {
-
+		return nil, err
 	}
 
 	m := &BTFSDockerDriver{
