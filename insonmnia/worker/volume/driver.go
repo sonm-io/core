@@ -10,6 +10,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	OptionNetworkName = "NetworkName"
+	OptionNetworkID   = "NetworkID"
+)
+
 // Volume specifies volume interface, that is mounted within Docker
 // containers.
 type Volume interface {
