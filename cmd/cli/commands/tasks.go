@@ -114,17 +114,21 @@ var taskListCmd = &cobra.Command{
 		}
 
 		if len(dealIDs) == 0 {
-			cmd.Println("No active deals found.")
+			if isSimpleFormat() {
+				cmd.Println("No active deals found.")
+			}
 			return nil
 		}
 
 		for k, dealID := range dealIDs {
 			timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*10)
-			cmd.Printf("Deal %s (%d/%d):\n", dealID.String(), k+1, len(dealIDs))
+			if isSimpleFormat() {
+				cmd.Printf("Deal %s (%d/%d):\n", dealID.String(), k+1, len(dealIDs))
+			}
 
 			list, err := node.List(timeoutCtx, &pb.TaskListRequest{DealID: pb.NewBigInt(dealID)})
 			if err != nil {
-				cmd.Printf("cannot get task list for deal: %v", err)
+				ShowError(cmd, "cannot get task list for deal", err)
 			} else {
 				printNodeTaskStatus(cmd, list.GetInfo())
 			}
