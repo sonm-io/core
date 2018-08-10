@@ -85,7 +85,7 @@ func (m *BTFSVolume) Configure(mnt Mount, cfg *container.HostConfig) error {
 		BindOptions: nil,
 		VolumeOptions: &mount.VolumeOptions{
 			NoCopy: false,
-			Labels: map[string]string{}, // TODO: < DealID?
+			Labels: map[string]string{},
 			DriverConfig: &mount.Driver{
 				Name:    BTFSDriverName,
 				Options: m.Options,
@@ -127,8 +127,11 @@ type BTFSDockerVolume struct {
 	MountPoint  string
 	ID          string
 	Connections int
+	NetworkName string
+	NetworkID   string
 }
 
+// BTFSDockerDriver is a Docker driver implementation for BTFS volume plugin.
 type BTFSDockerDriver struct {
 	client       *docker.Client
 	mountRootDir string
@@ -171,6 +174,8 @@ func (m *BTFSDockerDriver) Create(request *volume.CreateRequest) error {
 		MagnetURI:   uri,
 		MountPoint:  filepath.Join(m.mountRootDir, request.Name),
 		Connections: 0,
+		NetworkName: request.Options[OptionNetworkName],
+		NetworkID:   request.Options[OptionNetworkID],
 	}
 
 	return nil
@@ -288,7 +293,18 @@ func (m *BTFSDockerDriver) Mount(request *volume.MountRequest) (*volume.MountRes
 				},
 			},
 		}
-		networkConfig := &network.NetworkingConfig{} // TODO: Assign to deal bridge to enable shaping.
+
+		networkConfig := &network.NetworkingConfig{}
+
+		if len(v.NetworkName) > 0 && len(v.NetworkID) > 0 {
+			m.log.Debugf("configuring %s volume with %s network", request.Name, v.NetworkName)
+
+			networkConfig.EndpointsConfig = map[string]*network.EndpointSettings{
+				v.NetworkName: {
+					NetworkID: v.NetworkID,
+				},
+			}
+		}
 
 		ctx := context.Background()
 

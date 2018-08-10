@@ -46,6 +46,11 @@ type VolumeProvider interface {
 	// Mounts returns all mounts whose source equals to the volume name
 	// provided.
 	Mounts(source string) []volume.Mount
+	// DealID provides the deal ID for the volume is planned to be executed.
+	DealID() string
+	// Network provides an optional network name and ID indicating under which
+	// network the volume plugin should be executed.
+	Network() (string, string)
 }
 
 type NetworkProvider interface {
@@ -206,6 +211,10 @@ func (r *Repository) TuneVolumes(ctx context.Context, provider VolumeProvider, c
 	cleanup := newNestedCleanup()
 
 	for volumeName, options := range provider.Volumes() {
+		networkName, networkID := provider.Network()
+		options.Options[volume.OptionNetworkName] = networkName
+		options.Options[volume.OptionNetworkID] = networkID
+
 		mounts := provider.Mounts(volumeName)
 		// No mounts - no volumes.
 		if len(mounts) == 0 {
@@ -245,6 +254,10 @@ func (r *Repository) TuneVolumes(ctx context.Context, provider VolumeProvider, c
 		}
 
 		cleanup.Add(&volumeCleanup{driver: driver, id: id})
+	}
+
+	for _, mount := range cfg.Mounts {
+		mount.VolumeOptions.Labels["DealID"] = provider.DealID()
 	}
 
 	return &cleanup, nil

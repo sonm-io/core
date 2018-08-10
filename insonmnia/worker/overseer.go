@@ -93,6 +93,18 @@ func (d *Description) Mounts(source string) []volume.Mount {
 	return d.mounts
 }
 
+func (d *Description) Network() (string, string) {
+	if d.network == nil {
+		return "", ""
+	}
+
+	return d.network.Name, d.network.ID
+}
+
+func (d *Description) DealID() string {
+	return d.DealId
+}
+
 func (d *Description) IsGPURequired() bool {
 	return len(d.GPUDevices) > 0
 }
