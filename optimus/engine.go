@@ -240,10 +240,6 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	m.log.Infow("optimizing using natural free devices done", zap.String("Σ USD/s", naturalKnapsack.Price().GetPerSecond().ToPriceString()), zap.Any("plans", naturalKnapsack.Plans()))
 	m.log.Infow("optimizing using virtual free devices done", zap.String("Σ USD/s", virtualKnapsack.Price().GetPerSecond().ToPriceString()), zap.Any("plans", virtualKnapsack.Plans()))
 
-	if m.cfg.DryRun {
-		return fmt.Errorf("further worker management has been interrupted: dry-run mode is active")
-	}
-
 	// Compare total USD/s before and after. Remove some plans if the diff is
 	// more than the threshold.
 	priceThreshold := m.cfg.PriceThreshold.GetPerSecond()
@@ -251,22 +247,17 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	swingTime := new(big.Int).Sub(priceDiff, priceThreshold.Unwrap()).Sign() >= 0
 
 	var winners []*sonm.AskPlan
+	var victims []*sonm.AskPlan
 	if swingTime {
 		m.log.Info("using replacement strategy")
 
 		create, remove, ignore := m.splitPlans(input.Plans, virtualKnapsack.Plans())
 		m.log.Infow("ignoring already existing plans", zap.Any("plans", ignore))
 		m.log.Infow("removing plans", zap.Any("plans", remove))
-
-		victims := make([]string, 0, len(remove))
-		for _, plan := range remove {
-			victims = append(victims, plan.ID)
-		}
-		if err := m.worker.RemoveAskPlans(ctx, victims); err != nil {
-			return err
-		}
+		m.log.Infow("creating plans", zap.Any("plans", create))
 
 		winners = create
+		victims = remove
 	} else {
 		m.log.Info("using appending strategy")
 		winners = naturalKnapsack.Plans()
@@ -274,6 +265,18 @@ func (m *workerEngine) execute(ctx context.Context) error {
 
 	if len(winners) == 0 {
 		return fmt.Errorf("no plans found")
+	}
+
+	if m.cfg.DryRun {
+		return fmt.Errorf("further worker management has been interrupted: dry-run mode is active")
+	}
+
+	victimIDs := make([]string, 0, len(victims))
+	for _, plan := range victims {
+		victimIDs = append(victimIDs, plan.ID)
+	}
+	if err := m.worker.RemoveAskPlans(ctx, victimIDs); err != nil {
+		return err
 	}
 
 	for _, plan := range winners {
