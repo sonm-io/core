@@ -358,28 +358,6 @@ func (m *EventProcessor) onDealChangeRequestSent(eventTS uint64, changeRequestID
 	}
 	defer conn.Finish()
 
-	if changeRequest.Status != pb.ChangeRequestStatus_REQUEST_CREATED {
-		m.logger.Info("onDealChangeRequest event points to DealChangeRequest with .Status != Created",
-			zap.String("actual_status", pb.ChangeRequestStatus_name[int32(changeRequest.Status)]))
-		return nil
-	}
-
-	// Sanity check: if more than 1 CR of one type is created for a Deal, we delete old CRs.
-	expiredChangeRequests, err := m.storage.GetDealChangeRequests(conn, changeRequest)
-	if err != nil {
-		return errors.New("failed to get (possibly) expired DealChangeRequests")
-	}
-
-	for _, expiredChangeRequest := range expiredChangeRequests {
-		err := m.storage.DeleteDealChangeRequest(conn, expiredChangeRequest.Id.Unwrap())
-		if err != nil {
-			return fmt.Errorf("failed to deleteDealChangeRequest: %v", err)
-		} else {
-			m.logger.Warn("deleted expired DealChangeRequest",
-				zap.String("id", expiredChangeRequest.Id.Unwrap().String()))
-		}
-	}
-
 	changeRequest.CreatedTS = &pb.Timestamp{Seconds: int64(eventTS)}
 	if err := m.storage.InsertDealChangeRequest(conn, changeRequest); err != nil {
 		return fmt.Errorf("failed to InsertDealChangeRequest (%s): %v", changeRequest.Id.Unwrap().String(), err)
@@ -400,13 +378,7 @@ func (m *EventProcessor) onDealChangeRequestUpdated(eventTS uint64, changeReques
 	}
 	defer conn.Finish()
 
-	switch changeRequest.Status {
-	case pb.ChangeRequestStatus_REQUEST_REJECTED:
-		err := m.storage.UpdateDealChangeRequest(conn, changeRequest)
-		if err != nil {
-			return fmt.Errorf("failed to update DealChangeRequest %s: %v", changeRequest.Id.Unwrap().String(), err)
-		}
-	case pb.ChangeRequestStatus_REQUEST_ACCEPTED:
+	if changeRequest.Status == pb.ChangeRequestStatus_REQUEST_ACCEPTED {
 		deal, err := m.storage.GetDealByID(conn, changeRequest.DealID.Unwrap())
 		if err != nil {
 			return fmt.Errorf("failed to storage.GetDealByID: %v", err)
@@ -438,16 +410,10 @@ func (m *EventProcessor) onDealChangeRequestUpdated(eventTS uint64, changeReques
 		if err != nil {
 			return fmt.Errorf("failed to insertDealCondition: %v", err)
 		}
+	}
 
-		err = m.storage.DeleteDealChangeRequest(conn, changeRequest.Id.Unwrap())
-		if err != nil {
-			return fmt.Errorf("failed to delete DealChangeRequest %s: %v", changeRequest.Id.Unwrap().String(), err)
-		}
-	default:
-		err := m.storage.DeleteDealChangeRequest(conn, changeRequest.Id.Unwrap())
-		if err != nil {
-			return fmt.Errorf("failed to delete DealChangeRequest %s: %v", changeRequest.Id.Unwrap().String(), err)
-		}
+	if err := m.storage.UpdateDealChangeRequest(conn, changeRequest); err != nil {
+		return fmt.Errorf("failed to update DealChangeRequest %s: %v", changeRequest.Id.Unwrap().String(), err)
 	}
 
 	return nil

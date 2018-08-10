@@ -35,7 +35,7 @@ service DWH {
     rpc GetBlacklist(BlacklistRequest) returns (BlacklistReply) {}
     rpc GetBlacklistsContainingUser(BlacklistRequest) returns (BlacklistsContainingUserReply) {}
     rpc GetValidators(ValidatorsRequest) returns (ValidatorsReply) {}
-    rpc GetDealChangeRequests(BigInt) returns (DealChangeRequestsReply) {}
+    rpc GetDealChangeRequests(DealChangeRequestsRequest) returns (DealChangeRequestsReply) {}
     rpc GetWorkers(WorkersRequest) returns (WorkersReply) {}
 }
 
@@ -262,6 +262,11 @@ message DealPayment {
     BigInt dealID = 1;
     BigInt payedAmount = 2;
     Timestamp paymentTS = 3;
+}
+
+message DealChangeRequestsRequest {
+    BigInt dealID = 1;
+    bool onlyActive = 2;
 }
 
 message WorkersRequest {

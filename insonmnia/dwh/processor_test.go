@@ -346,17 +346,6 @@ func testDealUpdated(p *EventProcessor, deal *pb.Deal, commonID *big.Int) error 
 
 func testDealChangeRequestSentAccepted(p *EventProcessor, changeRequest *pb.DealChangeRequest, commonEventTS uint64, commonID *big.Int) error {
 	// Test creating an ASK DealChangeRequest.
-	if err := p.onDealChangeRequestSent(commonEventTS, big.NewInt(0)); err != nil {
-		return fmt.Errorf("onDealChangeRequestSent failed: %v", err)
-	}
-	if changeRequest, err := getDealChangeRequest(testL1Processor, changeRequest.Id); err != nil {
-		return fmt.Errorf("getDealChangeRequest failed: %v", err)
-	} else {
-		if changeRequest.Duration != 10020 {
-			return fmt.Errorf("expected %d, got %d (DealChangeRequest.Duration)", 10020, changeRequest.Duration)
-		}
-	}
-	// Check that after a second ASK DealChangeRequest was created, the new one was kept and the old one was deleted.
 	changeRequest.Id = pb.NewBigIntFromInt(1)
 	changeRequest.Duration = 10021
 	if err := p.onDealChangeRequestSent(commonEventTS, big.NewInt(1)); err != nil {
@@ -372,40 +361,11 @@ func testDealChangeRequestSentAccepted(p *EventProcessor, changeRequest *pb.Deal
 	if _, err := getDealChangeRequest(testL1Processor, pb.NewBigIntFromInt(0)); err == nil {
 		return errors.New("getDealChangeRequest returned a DealChangeRequest that should have been deleted")
 	}
-	// Check that when a BID DealChangeRequest was created, it was kept (and nothing was deleted).
-	changeRequest.Id = pb.NewBigIntFromInt(2)
-	changeRequest.Duration = 10022
-	changeRequest.RequestType = pb.OrderType_BID
-	if err := p.onDealChangeRequestSent(commonEventTS, big.NewInt(2)); err != nil {
-		return fmt.Errorf("onDealChangeRequestSent (3) failed: %v", err)
-	}
-	if changeRequest, err := getDealChangeRequest(testL1Processor, changeRequest.Id); err != nil {
-		return fmt.Errorf("getDealChangeRequest (3) failed: %v", err)
-	} else {
-		if changeRequest.Duration != 10022 {
-			return fmt.Errorf("expected %d, got %d (DealChangeRequest.Duration)", 10022, changeRequest.Duration)
-		}
-	}
-	if _, err := getDealChangeRequest(testL1Processor, pb.NewBigIntFromInt(1)); err != nil {
-		return fmt.Errorf("dealChangeRequest of type ASK was deleted after a BID DealChangeRequest creation: %s", err)
-	}
 	// Check that when a DealChangeRequest is updated to any status but REJECTED, it is deleted.
 	changeRequest.Id = pb.NewBigIntFromInt(1)
 	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_ACCEPTED
 	if err := p.onDealChangeRequestUpdated(commonEventTS, big.NewInt(1)); err != nil {
 		return fmt.Errorf("onDealChangeRequestUpdated failed: %v", err)
-	}
-	if _, err := getDealChangeRequest(testL1Processor, pb.NewBigIntFromInt(1)); err == nil {
-		return errors.New("dealChangeRequest which status was changed to ACCEPTED was not deleted")
-	}
-	// Check that when a DealChangeRequest is updated to REJECTED, it is kept.
-	changeRequest.Id = pb.NewBigIntFromInt(2)
-	changeRequest.Status = pb.ChangeRequestStatus_REQUEST_REJECTED
-	if err := p.onDealChangeRequestUpdated(commonEventTS, big.NewInt(2)); err != nil {
-		return fmt.Errorf("onDealChangeRequestUpdated (4) failed: %v", err)
-	}
-	if _, err := getDealChangeRequest(testL1Processor, pb.NewBigIntFromInt(2)); err != nil {
-		return errors.New("dealChangeRequest which status was changed to REJECTED was deleted")
 	}
 	// Also test that a new DealCondition was created, and the old one was updated.
 	if dealConditions, _, err := p.storage.GetDealConditions(

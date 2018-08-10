@@ -61,7 +61,7 @@ func (m *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 	}
 
 	var hasActiveChangeRequests bool
-	if changeRequests, _ := m.GetDealChangeRequestsByDealID(conn, deal.Id.Unwrap()); len(changeRequests) > 0 {
+	if changeRequests, _ := m.GetDealChangeRequestsByDealID(conn, deal.Id.Unwrap(), true); len(changeRequests) > 0 {
 		hasActiveChangeRequests = true
 	}
 	values := []interface{}{
@@ -648,11 +648,14 @@ func (m *sqlStorage) GetDealChangeRequests(conn queryConn, changeRequest *pb.Dea
 	return out, nil
 }
 
-func (m *sqlStorage) GetDealChangeRequestsByDealID(conn queryConn, changeRequestID *big.Int) ([]*pb.DealChangeRequest, error) {
-	query, args, _ := m.builder().Select(m.tablesInfo.DealChangeRequestColumns...).
+func (m *sqlStorage) GetDealChangeRequestsByDealID(conn queryConn, dealID *big.Int, onlyActive bool) ([]*pb.DealChangeRequest, error) {
+	builder := m.builder().Select(m.tablesInfo.DealChangeRequestColumns...).
 		From("DealChangeRequests").
-		Where("DealID = ?", changeRequestID.String()).
-		ToSql()
+		Where("DealID = ?", dealID.String())
+	if onlyActive {
+		builder = builder.Where("Status = ?", pb.ChangeRequestStatus_REQUEST_CREATED)
+	}
+	query, args, _ := builder.OrderBy("CreatedTS").ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select DealChangeRequestsByID: %v", err)

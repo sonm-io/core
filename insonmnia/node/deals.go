@@ -164,7 +164,10 @@ func (d *dealsAPI) QuickBuy(ctx context.Context, req *pb.QuickBuyRequest) (*pb.D
 }
 
 func (d *dealsAPI) ChangeRequestsList(ctx context.Context, id *pb.BigInt) (*pb.DealChangeRequestsReply, error) {
-	return d.remotes.dwh.GetDealChangeRequests(ctx, id)
+	return d.remotes.dwh.GetDealChangeRequests(ctx, &pb.DealChangeRequestsRequest{
+		DealID:     id,
+		OnlyActive: true,
+	})
 }
 
 func (d *dealsAPI) CreateChangeRequest(ctx context.Context, req *pb.DealChangeRequest) (*pb.BigInt, error) {
