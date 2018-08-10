@@ -147,7 +147,7 @@ func testDWH_L1Processor(t *testing.T) {
 	}
 }
 
-func testOrderPlaced(p *EventProcessor, commonEventTS uint64, commonID *big.Int) error {
+func testOrderPlaced(p *L1Processor, commonEventTS uint64, commonID *big.Int) error {
 	if err := p.onOrderPlaced(commonEventTS, commonID); err != nil {
 		return fmt.Errorf("onOrderPlaced failed: %v", err)
 	}
@@ -161,7 +161,7 @@ func testOrderPlaced(p *EventProcessor, commonEventTS uint64, commonID *big.Int)
 	return nil
 }
 
-func testDealOpened(p *EventProcessor, deal *pb.Deal, commonID *big.Int) error {
+func testDealOpened(p *L1Processor, deal *pb.Deal, commonID *big.Int) error {
 	if err := p.onDealOpened(commonID); err != nil {
 		return fmt.Errorf("onDealOpened failed: %v", err)
 	}
@@ -185,7 +185,7 @@ func testDealOpened(p *EventProcessor, deal *pb.Deal, commonID *big.Int) error {
 	return nil
 }
 
-func testValidatorCreatedUpdated(p *EventProcessor, validator *pb.Validator) error {
+func testValidatorCreatedUpdated(p *L1Processor, validator *pb.Validator) error {
 	// Check that a Validator entry is added after ValidatorCreated event.
 	if err := p.onValidatorCreated(common.HexToAddress(common.HexToAddress("0xC").Hex())); err != nil {
 		return fmt.Errorf("onValidatorCreated failed: %v", err)
@@ -220,7 +220,7 @@ func testValidatorCreatedUpdated(p *EventProcessor, validator *pb.Validator) err
 	return nil
 }
 
-func testCertificateUpdated(p *EventProcessor, certificate *pb.Certificate, commonID *big.Int) error {
+func testCertificateUpdated(p *L1Processor, certificate *pb.Certificate, commonID *big.Int) error {
 	// Check that a Certificate entry is created after CertificateCreated event. We create a special certificate,
 	// `Name`, that will be recorded directly into profile. There's two such certificate types: `Name` and `Country`.
 	if err := p.onCertificateCreated(commonID); err != nil {
@@ -309,7 +309,7 @@ func testCertificateUpdated(p *EventProcessor, certificate *pb.Certificate, comm
 	return nil
 }
 
-func testOrderUpdated(p *EventProcessor, order *pb.Order, commonID *big.Int) error {
+func testOrderUpdated(p *L1Processor, order *pb.Order, commonID *big.Int) error {
 	// Check that if order is updated, it is deleted. Order should be deleted because its DealID is not set
 	// (this means that is has become inactive due to a cancellation and not a match).
 	order.OrderStatus = pb.OrderStatus_ORDER_INACTIVE
@@ -328,7 +328,7 @@ func testOrderUpdated(p *EventProcessor, order *pb.Order, commonID *big.Int) err
 	return nil
 }
 
-func testDealUpdated(p *EventProcessor, deal *pb.Deal, commonID *big.Int) error {
+func testDealUpdated(p *L1Processor, deal *pb.Deal, commonID *big.Int) error {
 	deal.Duration += 1
 	// Test onDealUpdated event handling.
 	if err := p.onDealUpdated(commonID); err != nil {
@@ -344,7 +344,7 @@ func testDealUpdated(p *EventProcessor, deal *pb.Deal, commonID *big.Int) error 
 	return nil
 }
 
-func testDealChangeRequestSentAccepted(p *EventProcessor, changeRequest *pb.DealChangeRequest, commonEventTS uint64, commonID *big.Int) error {
+func testDealChangeRequestSentAccepted(p *L1Processor, changeRequest *pb.DealChangeRequest, commonEventTS uint64, commonID *big.Int) error {
 	// Test creating an ASK DealChangeRequest.
 	changeRequest.Id = pb.NewBigIntFromInt(1)
 	changeRequest.Duration = 10021
@@ -386,7 +386,7 @@ func testDealChangeRequestSentAccepted(p *EventProcessor, changeRequest *pb.Deal
 	return nil
 }
 
-func testBilled(p *EventProcessor, commonEventTS uint64, commonID *big.Int) error {
+func testBilled(p *L1Processor, commonEventTS uint64, commonID *big.Int) error {
 	deal, err := p.storage.GetDealByID(newSimpleConn(p.db), commonID)
 	if err != nil {
 		return fmt.Errorf("GetDealByID failed: %v", err)
@@ -427,7 +427,7 @@ func testBilled(p *EventProcessor, commonEventTS uint64, commonID *big.Int) erro
 	return nil
 }
 
-func testDealClosed(p *EventProcessor, deal *pb.Deal, commonID *big.Int) error {
+func testDealClosed(p *L1Processor, deal *pb.Deal, commonID *big.Int) error {
 	// Check that when a Deal's status is updated to CLOSED, Deal and its DealConditions are deleted.
 	deal.Status = pb.DealStatus_DEAL_CLOSED
 	// Test onDealUpdated event handling.
@@ -446,7 +446,7 @@ func testDealClosed(p *EventProcessor, deal *pb.Deal, commonID *big.Int) error {
 	return nil
 }
 
-func testWorkerAnnouncedConfirmedRemoved(p *EventProcessor) error {
+func testWorkerAnnouncedConfirmedRemoved(p *L1Processor) error {
 	// Check that a worker is added after a WorkerAnnounced event.
 	if err := p.onWorkerAnnounced(common.HexToAddress("0xC"), common.HexToAddress("0xD")); err != nil {
 		return fmt.Errorf("onWorkerAnnounced failed: %v", err)
@@ -491,7 +491,7 @@ func testWorkerAnnouncedConfirmedRemoved(p *EventProcessor) error {
 	return nil
 }
 
-func testBlacklistAddedRemoved(p *EventProcessor) error {
+func testBlacklistAddedRemoved(p *L1Processor) error {
 	// Check that a Blacklist entry is added after AddedToBlacklist event.
 	if err := p.onAddedToBlacklist(common.HexToAddress("0xC"), common.HexToAddress("0xD")); err != nil {
 		return fmt.Errorf("onAddedToBlacklist failed: %v", err)
@@ -520,7 +520,7 @@ func testBlacklistAddedRemoved(p *EventProcessor) error {
 	return nil
 }
 
-func getDealChangeRequest(p *EventProcessor, changeRequestID *pb.BigInt) (*pb.DealChangeRequest, error) {
+func getDealChangeRequest(p *L1Processor, changeRequestID *pb.BigInt) (*pb.DealChangeRequest, error) {
 	rows, err := p.storage.builder().Select("*").From("DealChangeRequests").
 		Where("Id = ?", changeRequestID.Unwrap().String()).RunWith(p.db).Query()
 	if err != nil {
@@ -535,7 +535,7 @@ func getDealChangeRequest(p *EventProcessor, changeRequestID *pb.BigInt) (*pb.De
 	return p.storage.decodeDealChangeRequest(rows)
 }
 
-func getCertificates(p *EventProcessor) ([]*pb.Certificate, error) {
+func getCertificates(p *L1Processor) ([]*pb.Certificate, error) {
 	rows, err := p.storage.builder().Select("*").From("Certificates").RunWith(p.db).Query()
 	if err != nil {
 		return nil, fmt.Errorf("query failed: %s", err)

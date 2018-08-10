@@ -18,7 +18,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-type EventProcessor struct {
+type L1Processor struct {
 	cfg        *ProcessorConfig
 	mu         sync.Mutex
 	ctx        context.Context
@@ -30,9 +30,9 @@ type EventProcessor struct {
 	lastEvent  *blockchain.Event
 }
 
-func NewL1Processor(ctx context.Context, cfg *ProcessorConfig) (*EventProcessor, error) {
+func NewL1Processor(ctx context.Context, cfg *ProcessorConfig) (*L1Processor, error) {
 	ctx, cancel := context.WithCancel(ctx)
-	return &EventProcessor{
+	return &L1Processor{
 		cfg:    cfg,
 		ctx:    ctx,
 		cancel: cancel,
@@ -40,7 +40,7 @@ func NewL1Processor(ctx context.Context, cfg *ProcessorConfig) (*EventProcessor,
 	}, nil
 }
 
-func (m *EventProcessor) Start() error {
+func (m *L1Processor) Start() error {
 	var err error
 	m.db, err = sql.Open("postgres", m.cfg.Storage.Endpoint)
 	if err != nil {
@@ -77,14 +77,14 @@ func (m *EventProcessor) Start() error {
 	return m.monitorBlockchain()
 }
 
-func (m *EventProcessor) Stop() {
+func (m *L1Processor) Stop() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	m.stop()
 }
 
-func (m *EventProcessor) stop() {
+func (m *L1Processor) stop() {
 	if m.cancel != nil {
 		m.cancel()
 	}
@@ -93,7 +93,7 @@ func (m *EventProcessor) stop() {
 	}
 }
 
-func (m *EventProcessor) monitorBlockchain() error {
+func (m *L1Processor) monitorBlockchain() error {
 	m.logger.Info("starting monitoring")
 	for {
 		select {
@@ -108,7 +108,7 @@ func (m *EventProcessor) monitorBlockchain() error {
 	}
 }
 
-func (m *EventProcessor) watchMarketEvents() error {
+func (m *L1Processor) watchMarketEvents() error {
 	var err error
 	m.lastEvent, err = m.getLastEvent()
 	if err != nil {
@@ -170,7 +170,7 @@ func (m *EventProcessor) watchMarketEvents() error {
 	}
 }
 
-func (m *EventProcessor) processEvents(dispatcher *eventsDispatcher) {
+func (m *L1Processor) processEvents(dispatcher *eventsDispatcher) {
 	m.processEventsSynchronous(dispatcher.NumBenchmarksUpdated)
 	m.processEventsSynchronous(dispatcher.WorkersAnnounced)
 	m.processEventsSynchronous(dispatcher.WorkersConfirmed)
@@ -192,13 +192,13 @@ func (m *EventProcessor) processEvents(dispatcher *eventsDispatcher) {
 	m.saveLastEvent()
 }
 
-func (m *EventProcessor) processEventsSynchronous(events []*blockchain.Event) {
+func (m *L1Processor) processEventsSynchronous(events []*blockchain.Event) {
 	for _, event := range events {
 		m.processEventWithRetries(event)
 	}
 }
 
-func (m *EventProcessor) processEventsAsync(events []*blockchain.Event) {
+func (m *L1Processor) processEventsAsync(events []*blockchain.Event) {
 	wg := &sync.WaitGroup{}
 	for _, event := range events {
 		wg.Add(1)
@@ -215,7 +215,7 @@ func (m *EventProcessor) processEventsAsync(events []*blockchain.Event) {
 	wg.Wait()
 }
 
-func (m *EventProcessor) processEventWithRetries(event *blockchain.Event) error {
+func (m *L1Processor) processEventWithRetries(event *blockchain.Event) error {
 	var (
 		err        error
 		numRetries = 60
@@ -238,7 +238,7 @@ func (m *EventProcessor) processEventWithRetries(event *blockchain.Event) error 
 	return err
 }
 
-func (m *EventProcessor) processEvent(event *blockchain.Event) error {
+func (m *L1Processor) processEvent(event *blockchain.Event) error {
 	switch value := event.Data.(type) {
 	case *blockchain.NumBenchmarksUpdatedData:
 		return m.onNumBenchmarksUpdated(value.NumBenchmarks)
@@ -277,7 +277,7 @@ func (m *EventProcessor) processEvent(event *blockchain.Event) error {
 	return nil
 }
 
-func (m *EventProcessor) onNumBenchmarksUpdated(newNumBenchmarks uint64) error {
+func (m *L1Processor) onNumBenchmarksUpdated(newNumBenchmarks uint64) error {
 	var err error
 	if m.storage, err = setupDB(m.ctx, m.db, m.blockchain); err != nil {
 		return fmt.Errorf("failed to setupDB after NumBenchmarksUpdated event: %v", err)
@@ -290,7 +290,7 @@ func (m *EventProcessor) onNumBenchmarksUpdated(newNumBenchmarks uint64) error {
 	return nil
 }
 
-func (m *EventProcessor) onDealOpened(dealID *big.Int) error {
+func (m *L1Processor) onDealOpened(dealID *big.Int) error {
 	deal, err := m.blockchain.Market().GetDealInfo(m.ctx, dealID)
 	if err != nil {
 		return fmt.Errorf("failed to GetDealInfo: %v", err)
@@ -327,7 +327,7 @@ func (m *EventProcessor) onDealOpened(dealID *big.Int) error {
 	return nil
 }
 
-func (m *EventProcessor) onDealUpdated(dealID *big.Int) error {
+func (m *L1Processor) onDealUpdated(dealID *big.Int) error {
 	deal, err := m.blockchain.Market().GetDealInfo(m.ctx, dealID)
 	if err != nil {
 		return fmt.Errorf("failed to GetDealInfo: %v", err)
@@ -346,7 +346,7 @@ func (m *EventProcessor) onDealUpdated(dealID *big.Int) error {
 	return nil
 }
 
-func (m *EventProcessor) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) error {
+func (m *L1Processor) onDealChangeRequestSent(eventTS uint64, changeRequestID *big.Int) error {
 	changeRequest, err := m.blockchain.Market().GetDealChangeRequestInfo(m.ctx, changeRequestID)
 	if err != nil {
 		return err
@@ -366,7 +366,7 @@ func (m *EventProcessor) onDealChangeRequestSent(eventTS uint64, changeRequestID
 	return err
 }
 
-func (m *EventProcessor) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.Int) error {
+func (m *L1Processor) onDealChangeRequestUpdated(eventTS uint64, changeRequestID *big.Int) error {
 	changeRequest, err := m.blockchain.Market().GetDealChangeRequestInfo(m.ctx, changeRequestID)
 	if err != nil {
 		return err
@@ -419,7 +419,7 @@ func (m *EventProcessor) onDealChangeRequestUpdated(eventTS uint64, changeReques
 	return nil
 }
 
-func (m *EventProcessor) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
+func (m *L1Processor) onBilled(eventTS uint64, dealID, payedAmount *big.Int) error {
 	conn, err := newTxConn(m.db, m.logger)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %v", err)
@@ -452,7 +452,7 @@ func (m *EventProcessor) onBilled(eventTS uint64, dealID, payedAmount *big.Int) 
 	return nil
 }
 
-func (m *EventProcessor) updateDealPayout(conn queryConn, dealID, payedAmount *big.Int, billTS uint64) error {
+func (m *L1Processor) updateDealPayout(conn queryConn, dealID, payedAmount *big.Int, billTS uint64) error {
 	deal, err := m.storage.GetDealByID(conn, dealID)
 	if err != nil {
 		return fmt.Errorf("failed to GetDealByID: %v", err)
@@ -467,7 +467,7 @@ func (m *EventProcessor) updateDealPayout(conn queryConn, dealID, payedAmount *b
 	return nil
 }
 
-func (m *EventProcessor) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
+func (m *L1Processor) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 	order, err := m.blockchain.Market().GetOrderInfo(m.ctx, orderID)
 	if err != nil {
 		return fmt.Errorf("failed to GetOrderInfo: %v", err)
@@ -537,7 +537,7 @@ func (m *EventProcessor) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 	return nil
 }
 
-func (m *EventProcessor) onOrderUpdated(orderID *big.Int) error {
+func (m *L1Processor) onOrderUpdated(orderID *big.Int) error {
 	marketOrder, err := m.blockchain.Market().GetOrderInfo(m.ctx, orderID)
 	if err != nil {
 		return fmt.Errorf("failed to GetOrderInfo: %v", err)
@@ -576,7 +576,7 @@ func (m *EventProcessor) onOrderUpdated(orderID *big.Int) error {
 	return nil
 }
 
-func (m *EventProcessor) onWorkerAnnounced(masterID, slaveID common.Address) error {
+func (m *L1Processor) onWorkerAnnounced(masterID, slaveID common.Address) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -587,7 +587,7 @@ func (m *EventProcessor) onWorkerAnnounced(masterID, slaveID common.Address) err
 	return nil
 }
 
-func (m *EventProcessor) onWorkerConfirmed(masterID, slaveID common.Address) error {
+func (m *L1Processor) onWorkerConfirmed(masterID, slaveID common.Address) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -598,7 +598,7 @@ func (m *EventProcessor) onWorkerConfirmed(masterID, slaveID common.Address) err
 	return nil
 }
 
-func (m *EventProcessor) onWorkerRemoved(masterID, slaveID common.Address) error {
+func (m *L1Processor) onWorkerRemoved(masterID, slaveID common.Address) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -609,7 +609,7 @@ func (m *EventProcessor) onWorkerRemoved(masterID, slaveID common.Address) error
 	return nil
 }
 
-func (m *EventProcessor) onAddedToBlacklist(adderID, addeeID common.Address) error {
+func (m *L1Processor) onAddedToBlacklist(adderID, addeeID common.Address) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -620,7 +620,7 @@ func (m *EventProcessor) onAddedToBlacklist(adderID, addeeID common.Address) err
 	return nil
 }
 
-func (m *EventProcessor) onRemovedFromBlacklist(removerID, removeeID common.Address) error {
+func (m *L1Processor) onRemovedFromBlacklist(removerID, removeeID common.Address) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -631,7 +631,7 @@ func (m *EventProcessor) onRemovedFromBlacklist(removerID, removeeID common.Addr
 	return nil
 }
 
-func (m *EventProcessor) onValidatorCreated(validatorID common.Address) error {
+func (m *L1Processor) onValidatorCreated(validatorID common.Address) error {
 	validator, err := m.blockchain.ProfileRegistry().GetValidator(m.ctx, validatorID)
 	if err != nil {
 		return fmt.Errorf("failed to get validator `%s`: %v", validatorID.String(), err)
@@ -647,7 +647,7 @@ func (m *EventProcessor) onValidatorCreated(validatorID common.Address) error {
 	return nil
 }
 
-func (m *EventProcessor) onValidatorDeleted(validatorID common.Address) error {
+func (m *L1Processor) onValidatorDeleted(validatorID common.Address) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -658,7 +658,7 @@ func (m *EventProcessor) onValidatorDeleted(validatorID common.Address) error {
 	return nil
 }
 
-func (m *EventProcessor) onCertificateCreated(certificateID *big.Int) error {
+func (m *L1Processor) onCertificateCreated(certificateID *big.Int) error {
 	certificate, err := m.blockchain.ProfileRegistry().GetCertificate(m.ctx, certificateID)
 	if err != nil {
 		return fmt.Errorf("failed to GetCertificate: %v", err)
@@ -696,7 +696,7 @@ func (m *EventProcessor) onCertificateCreated(certificateID *big.Int) error {
 	return nil
 }
 
-func (m *EventProcessor) updateProfile(conn queryConn, certificate *pb.Certificate) error {
+func (m *L1Processor) updateProfile(conn queryConn, certificate *pb.Certificate) error {
 	_, activeAsks, err := m.storage.GetOrders(conn, &pb.OrdersRequest{
 		Type:      pb.OrderType_ASK,
 		MasterID:  certificate.OwnerID,
@@ -765,7 +765,7 @@ func (m *EventProcessor) updateProfile(conn queryConn, certificate *pb.Certifica
 	return nil
 }
 
-func (m *EventProcessor) updateEntitiesByProfile(conn queryConn, certificate *pb.Certificate) error {
+func (m *L1Processor) updateEntitiesByProfile(conn queryConn, certificate *pb.Certificate) error {
 	profile, err := m.storage.GetProfileByID(conn, certificate.OwnerID.Unwrap())
 	if err != nil {
 		return fmt.Errorf("failed to getProfileInfo: %v", err)
@@ -787,7 +787,7 @@ func (m *EventProcessor) updateEntitiesByProfile(conn queryConn, certificate *pb
 	return nil
 }
 
-func (m *EventProcessor) updateProfileStats(conn queryConn, orderType pb.OrderType, userID common.Address, update int) error {
+func (m *L1Processor) updateProfileStats(conn queryConn, orderType pb.OrderType, userID common.Address, update int) error {
 	var field string
 	if orderType == pb.OrderType_ASK {
 		field = "ActiveAsks"
@@ -803,7 +803,7 @@ func (m *EventProcessor) updateProfileStats(conn queryConn, orderType pb.OrderTy
 }
 
 // coldStart waits till last seen block number gets to `w.cfg.ColdStart.UpToBlock` and then tries to create indices.
-func (m *EventProcessor) coldStart() error {
+func (m *L1Processor) coldStart() error {
 	ticker := time.NewTicker(time.Second * 5)
 	defer ticker.Stop()
 
@@ -835,7 +835,7 @@ func (m *EventProcessor) coldStart() error {
 	}
 }
 
-func (m *EventProcessor) maybeCreateIndices(targetBlock uint64) (targetBlockReached bool, err error) {
+func (m *L1Processor) maybeCreateIndices(targetBlock uint64) (targetBlockReached bool, err error) {
 	lastEvent, err := m.getLastEvent()
 	if err != nil {
 		return false, err
@@ -852,14 +852,14 @@ func (m *EventProcessor) maybeCreateIndices(targetBlock uint64) (targetBlockReac
 	return false, nil
 }
 
-func (m *EventProcessor) getLastEvent() (*blockchain.Event, error) {
+func (m *L1Processor) getLastEvent() (*blockchain.Event, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
 	return m.storage.GetLastEvent(conn)
 }
 
-func (m *EventProcessor) updateLastEvent(event *blockchain.Event) error {
+func (m *L1Processor) updateLastEvent(event *blockchain.Event) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -870,7 +870,7 @@ func (m *EventProcessor) updateLastEvent(event *blockchain.Event) error {
 	return nil
 }
 
-func (m *EventProcessor) insertLastEvent(event *blockchain.Event) error {
+func (m *L1Processor) insertLastEvent(event *blockchain.Event) error {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
@@ -881,7 +881,7 @@ func (m *EventProcessor) insertLastEvent(event *blockchain.Event) error {
 	return nil
 }
 
-func (m *EventProcessor) updateDealConditionEndTime(conn queryConn, dealID *pb.BigInt, eventTS uint64) error {
+func (m *L1Processor) updateDealConditionEndTime(conn queryConn, dealID *pb.BigInt, eventTS uint64) error {
 	dealConditions, _, err := m.storage.GetDealConditions(conn, &pb.DealConditionsRequest{DealID: dealID})
 	if err != nil {
 		return fmt.Errorf("failed to getDealConditions: %v", err)
@@ -895,7 +895,7 @@ func (m *EventProcessor) updateDealConditionEndTime(conn queryConn, dealID *pb.B
 	return nil
 }
 
-func (m *EventProcessor) saveLastEvent() {
+func (m *L1Processor) saveLastEvent() {
 	if err := m.updateLastEvent(m.lastEvent); err != nil {
 		m.logger.Warn("failed to updateLastEvent", zap.Error(err))
 	}
