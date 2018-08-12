@@ -47,7 +47,7 @@ func run() error {
 		return fmt.Errorf("failed to create new DWH service: %s", err)
 	}
 
-	p, err := dwh.NewL1Processor(ctx, &dwh.ProcessorConfig{
+	p, err := dwh.NewL1Processor(ctx, &dwh.L1ProcessorConfig{
 		Storage:    cfg.Storage,
 		Blockchain: cfg.Blockchain,
 		NumWorkers: cfg.NumWorkers,

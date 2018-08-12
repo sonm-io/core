@@ -47,7 +47,7 @@ func NewDWHConfig(path string) (*Config, error) {
 	return cfg, nil
 }
 
-type ProcessorConfig struct {
+type L1ProcessorConfig struct {
 	Storage    *storageConfig
 	Blockchain *blockchain.Config
 	NumWorkers int

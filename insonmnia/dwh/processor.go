@@ -19,7 +19,7 @@ import (
 )
 
 type L1Processor struct {
-	cfg        *ProcessorConfig
+	cfg        *L1ProcessorConfig
 	mu         sync.Mutex
 	ctx        context.Context
 	cancel     context.CancelFunc
@@ -30,7 +30,7 @@ type L1Processor struct {
 	lastEvent  *blockchain.Event
 }
 
-func NewL1Processor(ctx context.Context, cfg *ProcessorConfig) (*L1Processor, error) {
+func NewL1Processor(ctx context.Context, cfg *L1ProcessorConfig) (*L1Processor, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	return &L1Processor{
 		cfg:    cfg,

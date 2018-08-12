@@ -246,7 +246,7 @@ func newTestDWH(dbEndpoint string) (*DWH, error) {
 func newTestL1Processor(dbEndpoint string) (*L1Processor, error) {
 	var (
 		ctx = context.Background()
-		cfg = &ProcessorConfig{
+		cfg = &L1ProcessorConfig{
 			Storage: &storageConfig{
 				Endpoint: dbEndpoint,
 			},
