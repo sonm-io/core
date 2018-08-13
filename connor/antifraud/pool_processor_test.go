@@ -8,7 +8,7 @@ import (
 )
 
 func TestPoolProcessorQueue_Decide(t *testing.T) {
-	w := &dwarfPoolWatcher{
+	w := &dwarfPoolProcessor{
 		hashrateQueue: &lane.Queue{Deque: lane.NewCappedDeque(60)},
 	}
 

@@ -17,8 +17,8 @@ import (
 	"gopkg.in/oleiade/lane.v1"
 )
 
-type dwarfPoolWatcher struct {
-	cfg      *LogProcessorConfig
+type dwarfPoolProcessor struct {
+	cfg      *ProcessorConfig
 	log      *zap.Logger
 	wallet   common.Address
 	taskID   string
@@ -31,14 +31,14 @@ type dwarfPoolWatcher struct {
 	hashrateQueue   *lane.Queue
 }
 
-func NewDwarfPoolWatcher(cfg *LogProcessorConfig, log *zap.Logger, deal *sonm.Deal, taskID string) *dwarfPoolWatcher {
+func newDwarfPoolProcessor(cfg *ProcessorConfig, log *zap.Logger, deal *sonm.Deal, taskID string) *dwarfPoolProcessor {
 	workerID := fmt.Sprintf("c%s", deal.GetId().Unwrap().String())
 	l := log.Named("dwarfpool").With(
 		zap.String("deal_id", deal.GetId().Unwrap().String()),
 		zap.String("task_id", taskID),
 		zap.String("worker_id", workerID))
 
-	return &dwarfPoolWatcher{
+	return &dwarfPoolProcessor{
 		log:             l,
 		cfg:             cfg,
 		taskID:          taskID,
@@ -52,7 +52,7 @@ func NewDwarfPoolWatcher(cfg *LogProcessorConfig, log *zap.Logger, deal *sonm.De
 	}
 }
 
-func (w *dwarfPoolWatcher) Run(ctx context.Context) error {
+func (w *dwarfPoolProcessor) Run(ctx context.Context) error {
 	timer := time.NewTimer(w.cfg.TaskWarmupDelay)
 	w.log.Info("starting task's warm-up")
 	select {
@@ -94,11 +94,11 @@ func (w *dwarfPoolWatcher) Run(ctx context.Context) error {
 	}
 }
 
-func (w *dwarfPoolWatcher) TaskID() string {
+func (w *dwarfPoolProcessor) TaskID() string {
 	return w.taskID
 }
 
-func (w *dwarfPoolWatcher) TaskQuality() (bool, float64) {
+func (w *dwarfPoolProcessor) TaskQuality() (bool, float64) {
 	// should not be configured - ewma is bound to 1 hour rate
 	accurate := w.startTime.Add(time.Hour).Before(time.Now())
 	desired := float64(w.deal.Benchmarks.GPUEthHashrate())
@@ -112,7 +112,7 @@ func (w *dwarfPoolWatcher) TaskQuality() (bool, float64) {
 	return accurate, rate
 }
 
-func (w *dwarfPoolWatcher) watch() error {
+func (w *dwarfPoolProcessor) watch() error {
 	url := fmt.Sprintf("http://dwarfpool.com/eth/api?wallet=%s", strings.ToLower(w.wallet.Hex()))
 	data, err := price.FetchURLWithRetry(url)
 	if err != nil {
@@ -145,7 +145,7 @@ func (w *dwarfPoolWatcher) watch() error {
 	return nil
 }
 
-func (w *dwarfPoolWatcher) updateHashRateQueue(v float64) {
+func (w *dwarfPoolProcessor) updateHashRateQueue(v float64) {
 	if !w.hashrateQueue.Full() {
 		w.hashrateQueue.Append(v)
 	} else {
@@ -154,7 +154,7 @@ func (w *dwarfPoolWatcher) updateHashRateQueue(v float64) {
 	}
 }
 
-func (w *dwarfPoolWatcher) nonZeroHashrate() bool {
+func (w *dwarfPoolProcessor) nonZeroHashrate() bool {
 	if w.hashrateQueue.Size() < 5 {
 		return true
 	}

@@ -83,9 +83,23 @@ func (c *Config) validate() error {
 		"ZEC":  true,
 		"NULL": true, // null token is for testing purposes
 	}
+	availablePools := map[string]bool{
+		antifraud.PoolFormatDwarf: true,
+	}
+	availableLogs := map[string]bool{
+		antifraud.LogFormatClaymore: true,
+	}
 
 	if _, ok := availableTokens[c.Mining.Token]; !ok {
 		return fmt.Errorf("unsupported token \"%s\"", c.Mining.Token)
+	}
+
+	if _, ok := availableLogs[c.AntiFraud.LogProcessorConfig.Format]; !ok {
+		return fmt.Errorf("unsupported log processor \"%s\"", c.AntiFraud.LogProcessorConfig.Format)
+	}
+
+	if _, ok := availablePools[c.AntiFraud.PoolProcessorConfig.Format]; !ok {
+		return fmt.Errorf("unsupported pool processor \"%s\"", c.AntiFraud.PoolProcessorConfig.Format)
 	}
 
 	if c.Market.PriceMarginality == 0 {
@@ -141,20 +155,26 @@ func (c *Config) getTokenParams() *tokenParameters {
 		URL:    c.Mining.TokenPrice.PriceURL,
 	}
 
+	processorFactory := antifraud.NewProcessorFactory(&c.AntiFraud)
+
 	available := map[string]*tokenParameters{
 		"ETH": {
-			corderFactory: NewCorderFactory(c.Mining.Token, ethBenchmarkIndex),
-			priceProvider: price.NewEthPriceProvider(priceProviderConfig),
+			corderFactory:    NewCorderFactory(c.Mining.Token, ethBenchmarkIndex),
+			priceProvider:    price.NewEthPriceProvider(priceProviderConfig),
+			processorFactory: processorFactory,
 		},
 
 		"ZEC": {
-			corderFactory: NewCorderFactory(c.Mining.Token, zecBenchmarkIndex),
-			priceProvider: price.NewZecPriceProvider(priceProviderConfig),
+			corderFactory:    NewCorderFactory(c.Mining.Token, zecBenchmarkIndex),
+			priceProvider:    price.NewZecPriceProvider(priceProviderConfig),
+			processorFactory: processorFactory,
 		},
 
 		"NULL": {
 			corderFactory: NewCorderFactory(c.Mining.Token, nullBenchmarkIndex),
 			priceProvider: price.NewNullPriceProvider(priceProviderConfig),
+			// todo: use stub factory, then replace with fake mining pool tracker
+			// processorFactory: nil,
 		},
 	}
 

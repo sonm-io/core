@@ -33,16 +33,10 @@ type AntiFraud interface {
 	FinishDeal(deal *sonm.Deal) error
 }
 
-type LogProcessor interface {
-	Run(ctx context.Context) error
-	TaskID() string
-	TaskQuality() (accurate bool, quality float64)
-}
-
 type dealMeta struct {
 	deal          *sonm.Deal
-	logProcessor  LogProcessor
-	poolProcessor LogProcessor
+	logProcessor  Processor
+	poolProcessor Processor
 }
 
 func lifeTime(deal *sonm.Deal) time.Duration {
@@ -53,6 +47,7 @@ type antiFraud struct {
 	mu                sync.RWMutex
 	meta              map[string]*dealMeta
 	blacklistWatchers map[common.Address]*blacklistWatcher
+	processorFactory  ProcessorFactory
 
 	cfg            Config
 	nodeConnection *grpc.ClientConn
@@ -60,8 +55,9 @@ type antiFraud struct {
 	log            *zap.Logger
 }
 
-func NewAntiFraud(cfg Config, log *zap.Logger, nodeConnection *grpc.ClientConn) AntiFraud {
+func NewAntiFraud(cfg Config, log *zap.Logger, processors ProcessorFactory, nodeConnection *grpc.ClientConn) AntiFraud {
 	return &antiFraud{
+		processorFactory:  processors,
 		meta:              make(map[string]*dealMeta),
 		blacklistWatchers: map[common.Address]*blacklistWatcher{},
 		nodeConnection:    nodeConnection,
@@ -164,8 +160,8 @@ func (m *antiFraud) TrackTask(ctx context.Context, deal *sonm.Deal, taskID strin
 		return fmt.Errorf("could not register spawned task %s, no deal with id %s", taskID, deal.Id.Unwrap().String())
 	}
 
-	meta.logProcessor = NewLogProcessor(&m.cfg.LogProcessorConfig, m.log, m.nodeConnection, deal, taskID)
-	meta.poolProcessor = NewDwarfPoolWatcher(&m.cfg.PoolProcessorConfig, m.log, deal, taskID)
+	meta.poolProcessor = m.processorFactory.PoolProcessor(deal, taskID, WithLogger(m.log))
+	meta.logProcessor = m.processorFactory.LogProcessor(deal, taskID, WithLogger(m.log), WithClientConn(m.nodeConnection))
 	m.mu.Unlock()
 
 	g, ctx := errgroup.WithContext(ctx)

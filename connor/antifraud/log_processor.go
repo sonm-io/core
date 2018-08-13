@@ -17,7 +17,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-func NewLogProcessor(cfg *LogProcessorConfig, log *zap.Logger, nodeConnection *grpc.ClientConn, deal *sonm.Deal, taskID string) LogProcessor {
+func newClaymoreLogProcessor(cfg *ProcessorConfig, log *zap.Logger, nodeConnection *grpc.ClientConn, deal *sonm.Deal, taskID string) Processor {
 	taskLogger := log.Named("task-logs").With(zap.String("task_id", taskID), zap.String("deal_id", deal.GetId().Unwrap().String()))
 	return &EthClaymoreLogProcessor{
 		cfg:              cfg,
@@ -32,22 +32,9 @@ func NewLogProcessor(cfg *LogProcessorConfig, log *zap.Logger, nodeConnection *g
 	}
 }
 
-type NilLogProcessor struct{}
-
-func (m *NilLogProcessor) TaskQuality() float64 {
-	return 1.
-}
-
-func (m *NilLogProcessor) Run(ctx context.Context) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
 type EthClaymoreLogProcessor struct {
 	log          *zap.Logger
-	cfg          *LogProcessorConfig
+	cfg          *ProcessorConfig
 	deal         *sonm.Deal
 	taskID       string
 	taskClient   sonm.TaskManagementClient
