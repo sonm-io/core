@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sonm-io/core/connor/antifraud"
 	"github.com/sonm-io/core/connor/price"
 	"github.com/sonm-io/core/insonmnia/auth"
@@ -39,6 +40,35 @@ type engine struct {
 
 	ordersCreateChan  chan *Corder
 	ordersResultsChan chan *Corder
+}
+
+var (
+	activeDealsGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "sonm_deals_active",
+		Help: "Number of currently processing deals",
+	})
+
+	activeOrdersGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "sonm_orders_active",
+		Help: "Number of currently processing orders",
+	})
+
+	createdOrdersCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "sonm_orders_created",
+		Help: "Number of orders that were sent to marker",
+	})
+
+	replacedOrdersCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "sonm_orders_replaced",
+		Help: "Number of orders that were re-created on marker because of price deviation",
+	})
+)
+
+func init() {
+	prometheus.MustRegister(activeDealsGauge)
+	prometheus.MustRegister(activeOrdersGauge)
+	prometheus.MustRegister(createdOrdersCounter)
+	prometheus.MustRegister(replacedOrdersCounter)
 }
 
 func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
@@ -145,6 +175,7 @@ func (e *engine) processOrderCreate() {
 			continue
 		}
 
+		createdOrdersCounter.Inc()
 		e.ordersResultsChan <- e.corderFactory.FromOrder(created)
 	}
 }
@@ -156,6 +187,8 @@ func (e *engine) processOrderResult() {
 }
 
 func (e *engine) waitForDeal(order *Corder) {
+	activeOrdersGauge.Inc()
+
 	id := order.GetId().Unwrap().String()
 	log := e.log.With(zap.String("order_id", id))
 
@@ -177,6 +210,8 @@ func (e *engine) waitForDeal(order *Corder) {
 
 				hashRate := big.NewInt(0).SetUint64(order.GetHashrate())
 				order.Price = sonm.NewBigInt(big.NewInt(0).Mul(actualPrice, hashRate))
+
+				replacedOrdersCounter.Inc()
 				e.CreateOrder(order)
 				return
 			}
@@ -223,6 +258,7 @@ func (e *engine) checkOrderForDealOnce(log *zap.Logger, orderID string) (*sonm.D
 	}
 
 	if ord.GetOrderStatus() == sonm.OrderStatus_ORDER_INACTIVE {
+		activeOrdersGauge.Dec()
 		log.Info("order becomes inactive, looking for related deal")
 
 		if ord.GetDealID().IsZero() {
@@ -244,6 +280,9 @@ func (e *engine) checkOrderForDealOnce(log *zap.Logger, orderID string) (*sonm.D
 }
 
 func (e *engine) processDeal(deal *sonm.Deal) {
+	activeDealsGauge.Inc()
+	defer activeDealsGauge.Dec()
+
 	dealID := deal.GetId().Unwrap().String()
 	log := e.log.Named("process-deal").With(zap.String("deal_id", dealID))
 

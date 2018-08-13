@@ -7,12 +7,24 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )
+
+var (
+	blacklistedDealCounter = prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "sonm_deals_blacklisted",
+		Help: "Number of deals that were closed with blacklisting",
+	})
+)
+
+func init() {
+	prometheus.MustRegister(blacklistedDealCounter)
+}
 
 type AntiFraud interface {
 	Run(ctx context.Context) error
@@ -126,6 +138,7 @@ func (m *antiFraud) checkDeals(ctx context.Context) error {
 		if shouldClose {
 			log.Warn("task quality is less that required, closing deal", logQualityMetrics...)
 
+			blacklistedDealCounter.Inc()
 			if err := m.finishDeal(dealMeta.deal, sonm.BlacklistType_BLACKLIST_WORKER); err != nil {
 				log.Warn("cannot finish deal", zap.Error(err))
 			}
