@@ -62,6 +62,10 @@ engine:
   # default: 10s
   task_restore_interval: 10s
 
+  # extra parameters for container with miner
+  #container_env:
+  #  my_parameter: "some_string_value"
+
 benchmarks:
   url: "https://raw.githubusercontent.com/sonm-io/benchmarks-list/master/list.json"
 

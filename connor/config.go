@@ -51,11 +51,12 @@ type nodeConfig struct {
 }
 
 type engineConfig struct {
-	ConnectionTimeout   time.Duration `yaml:"connection_timeout" default:"30s"`
-	OrderWatchInterval  time.Duration `yaml:"order_watch_interval" default:"10s"`
-	TaskStartInterval   time.Duration `yaml:"task_start_interval" default:"15s"`
-	TaskTrackInterval   time.Duration `yaml:"task_track_interval" default:"15s"`
-	TaskRestoreInterval time.Duration `yaml:"task_restore_interval" default:"10s"`
+	ConnectionTimeout   time.Duration     `yaml:"connection_timeout" default:"30s"`
+	OrderWatchInterval  time.Duration     `yaml:"order_watch_interval" default:"10s"`
+	TaskStartInterval   time.Duration     `yaml:"task_start_interval" default:"15s"`
+	TaskTrackInterval   time.Duration     `yaml:"task_track_interval" default:"15s"`
+	TaskRestoreInterval time.Duration     `yaml:"task_restore_interval" default:"10s"`
+	ContainerEnv        map[string]string `yaml:"container_env"`
 }
 
 type tokenPriceConfig struct {
@@ -179,6 +180,31 @@ func (c *Config) getTokenParams() *tokenParameters {
 	}
 
 	return available[c.Mining.Token]
+}
+
+// containerEnv returns container's params according
+// to required mining pool and mining image
+func (c *Config) containerEnv(dealID *sonm.BigInt) map[string]string {
+	workerID := "c" + dealID.Unwrap().String()
+	ethAddr := strings.ToLower(c.Mining.Wallet.Hex())
+
+	m := make(map[string]string)
+	if c.Mining.Token == "ETH" && c.AntiFraud.PoolProcessorConfig.Format == antifraud.PoolFormatDwarf {
+		poolAddr := fmt.Sprintf("%s/%s/%s", c.Mining.PoolReportURL, ethAddr, workerID)
+		wallet := fmt.Sprintf("%s/%s", ethAddr, workerID)
+
+		m = map[string]string{
+			"WALLET": wallet,
+			"POOL":   poolAddr,
+		}
+	}
+
+	// apply extra env params from config
+	for k, v := range c.Engine.ContainerEnv {
+		m[k] = v
+	}
+
+	return m
 }
 
 func NewConfig(path string) (*Config, error) {
