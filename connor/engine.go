@@ -97,10 +97,11 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 		priceProvider: cfg.getTokenParams().priceProvider,
 		corderFactory: cfg.getTokenParams().corderFactory,
 
-		market:    sonm.NewMarketClient(cc),
-		deals:     sonm.NewDealManagementClient(cc),
-		tasks:     sonm.NewTaskManagementClient(cc),
-		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log.Named("anti-fraud"), cc),
+		market: sonm.NewMarketClient(cc),
+		deals:  sonm.NewDealManagementClient(cc),
+		tasks:  sonm.NewTaskManagementClient(cc),
+		// todo: name logger inside AntiFraud's constructor
+		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log.Named("anti-fraud"), cfg.getTokenParams().processorFactory, cc),
 
 		ordersCreateChan:  make(chan *Corder, concurrency),
 		ordersResultsChan: make(chan *Corder, concurrency),

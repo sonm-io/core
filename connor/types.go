@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/sonm-io/core/connor/antifraud"
 	"github.com/sonm-io/core/connor/price"
 	"github.com/sonm-io/core/proto"
 )
@@ -161,11 +162,9 @@ type taskStatus struct {
 }
 
 type tokenParameters struct {
-	corderFactory CorderFactoriy
-	priceProvider price.Provider
-	poolWatcher   interface{}
-	// todo: how to deal with log parser?
-	// the log parser is bound to container?
+	corderFactory    CorderFactoriy
+	priceProvider    price.Provider
+	processorFactory antifraud.ProcessorFactory
 }
 
 type ordersSets struct {
