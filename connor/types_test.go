@@ -102,3 +102,54 @@ func TestCorder_isReplaceable(t *testing.T) {
 		assert.Equal(t, tt.shouldReplace, result, fmt.Sprintf("%v | %v | %v", tt.currentPrice, tt.newPrice, tt.delta))
 	}
 }
+
+func TestDeal_isReplaceable(t *testing.T) {
+	tests := []struct {
+		currentPrice  *big.Float
+		newPrice      *big.Float
+		delta         float64
+		shouldReplace bool
+	}{
+		{
+			currentPrice:  big.NewFloat(100),
+			newPrice:      big.NewFloat(91),
+			delta:         0.1,
+			shouldReplace: false,
+		},
+		{
+			currentPrice:  big.NewFloat(100),
+			newPrice:      big.NewFloat(90),
+			delta:         0.1,
+			shouldReplace: true,
+		},
+		{
+			currentPrice:  big.NewFloat(100),
+			newPrice:      big.NewFloat(105),
+			delta:         0.1,
+			shouldReplace: false,
+		},
+		{
+			currentPrice:  big.NewFloat(100),
+			newPrice:      big.NewFloat(110),
+			delta:         0.1,
+			shouldReplace: false,
+		},
+		{
+			currentPrice:  big.NewFloat(100),
+			newPrice:      big.NewFloat(111),
+			delta:         0.1,
+			shouldReplace: false,
+		},
+		{
+			currentPrice:  big.NewFloat(100),
+			newPrice:      big.NewFloat(99),
+			delta:         0.01,
+			shouldReplace: true,
+		},
+	}
+
+	for _, tt := range tests {
+		result := isDealReplaceable(tt.currentPrice, tt.newPrice, tt.delta)
+		assert.Equal(t, tt.shouldReplace, result, fmt.Sprintf("%v | %v | %v", tt.currentPrice, tt.newPrice, tt.delta))
+	}
+}

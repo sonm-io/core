@@ -167,17 +167,20 @@ func (c *Config) getTokenParams() *tokenParameters {
 	available := map[string]*tokenParameters{
 		"ETH": {
 			corderFactory:    NewCorderFactory(c.Mining.Token, ethBenchmarkIndex),
+			dealFactory:      NewDealFactory(ethBenchmarkIndex),
 			priceProvider:    price.NewEthPriceProvider(priceProviderConfig),
 			processorFactory: processorFactory,
 		},
 
 		"ZEC": {
+			dealFactory:      NewDealFactory(zecBenchmarkIndex),
 			corderFactory:    NewCorderFactory(c.Mining.Token, zecBenchmarkIndex),
 			priceProvider:    price.NewZecPriceProvider(priceProviderConfig),
 			processorFactory: processorFactory,
 		},
 
 		"NULL": {
+			dealFactory:   NewDealFactory(nullBenchmarkIndex),
 			corderFactory: NewCorderFactory(c.Mining.Token, nullBenchmarkIndex),
 			priceProvider: price.NewNullPriceProvider(priceProviderConfig),
 			// todo: use stub factory, then replace with fake mining pool tracker

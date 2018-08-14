@@ -36,6 +36,7 @@ type engine struct {
 	tasks         sonm.TaskManagementClient
 	priceProvider price.Provider
 	corderFactory CorderFactoriy
+	dealFactory   DealFactory
 
 	ordersCreateChan  chan *Corder
 	ordersResultsChan chan *Corder
@@ -94,6 +95,7 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 
 		priceProvider: cfg.getTokenParams().priceProvider,
 		corderFactory: cfg.getTokenParams().corderFactory,
+		dealFactory:   cfg.getTokenParams().dealFactory,
 
 		market:    sonm.NewMarketClient(cc),
 		deals:     sonm.NewDealManagementClient(cc),
@@ -255,7 +257,7 @@ func (e *engine) waitForDeal(ctx context.Context, order *Corder) {
 		case <-t.C:
 			actualPrice := e.priceProvider.GetPrice()
 			if order.isReplaceable(actualPrice, e.cfg.Market.PriceControl.OrderReplaceThreshold) {
-				log.Info("we can replace order with more profitable one",
+				log.Named("price-deviation").Info("we can replace order with more profitable one",
 					zap.String("actual_price", actualPrice.String()),
 					zap.String("current_price", order.restorePrice().String()))
 
@@ -487,7 +489,25 @@ func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *s
 		return false, err
 	}
 
-	return dealStatus.GetDeal().GetStatus() == sonm.DealStatus_DEAL_ACCEPTED, nil
+	if dealStatus.GetDeal().GetStatus() == sonm.DealStatus_DEAL_ACCEPTED {
+		deal := e.dealFactory.FromDeal(dealStatus.GetDeal())
+		if deal.isReplaceable(e.priceProvider.GetPrice(), e.cfg.Market.PriceControl.DealCancelThreshold) {
+			log := log.Named("price-deviation")
+			log.Info("too much price deviation detected: closing deal",
+				zap.String("actual_price", e.priceProvider.GetPrice().String()),
+				zap.String("current_price", deal.restorePrice().String()))
+
+			if err := e.antiFraud.FinishDeal(deal.Unwrap()); err != nil {
+				log.Warn("failed to finish deal", zap.Error(err))
+			}
+
+			return false, nil
+		}
+
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (e *engine) trackTaskOnce(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt, taskID string) (bool, error) {
