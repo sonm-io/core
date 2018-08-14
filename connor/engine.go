@@ -376,18 +376,8 @@ func (e *engine) startTaskOnce(log *zap.Logger, dealID *sonm.BigInt) (*sonm.Star
 	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
-	workerID := "c" + dealID.Unwrap().String()
-	ethID := strings.ToLower(e.cfg.Mining.Wallet.Hex())
-	poolAddr := fmt.Sprintf("%s/%s/%s", e.cfg.Mining.PoolReportURL, ethID, workerID)
-	wallet := fmt.Sprintf("%s/%s", ethID, workerID)
-
-	env := map[string]string{
-		"WALLET": wallet,
-		"POOL":   poolAddr,
-	}
-
+	env := e.cfg.containerEnv(dealID)
 	e.log.Debug("starting task", zap.Any("environment", env))
-
 	taskReply, err := e.tasks.Start(ctx, &sonm.StartTaskRequest{
 		DealID: dealID,
 		Spec: &sonm.TaskSpec{
