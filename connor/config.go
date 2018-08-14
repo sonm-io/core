@@ -37,13 +37,20 @@ func (m *miningConfig) getTag() *sonm.TaskTag {
 	return &sonm.TaskTag{Data: []byte(fmt.Sprintf("connor_%s", strings.ToLower(m.Token)))}
 }
 
+type priceControlConfig struct {
+	Marginality           float64 `yaml:"marginality" required:"true"`
+	OrderReplaceThreshold float64 `yaml:"order_replace_threshold" required:"true"`
+	DealChangeRequest     float64 `yaml:"deal_change_request" required:"true"`
+	DealCancelThreshold   float64 `yaml:"deal_cancel_threshold" required:"true"`
+}
+
 type marketConfig struct {
 	// todo: (sshaman1101): allow to set multiple subsets for order placing
-	FromHashRate     uint64            `yaml:"from_hashrate" required:"true"`
-	ToHashRate       uint64            `yaml:"to_hashrate" required:"true"`
-	Step             uint64            `yaml:"step" required:"true"`
-	PriceMarginality float64           `yaml:"price_marginality" required:"true"`
-	Benchmarks       map[string]uint64 `yaml:"benchmarks" required:"true"`
+	FromHashRate uint64             `yaml:"from_hashrate" required:"true"`
+	ToHashRate   uint64             `yaml:"to_hashrate" required:"true"`
+	Step         uint64             `yaml:"step" required:"true"`
+	PriceControl priceControlConfig `yaml:"price_control"`
+	Benchmarks   map[string]uint64  `yaml:"benchmarks" required:"true"`
 }
 
 type nodeConfig struct {
@@ -62,7 +69,6 @@ type engineConfig struct {
 type tokenPriceConfig struct {
 	PriceURL       string        `yaml:"price_url"`
 	UpdateInterval time.Duration `yaml:"update_interval" default:"60s"`
-	Threshold      float64       `yaml:"threshold" required:"true"`
 }
 
 type Config struct {
@@ -103,7 +109,7 @@ func (c *Config) validate() error {
 		return fmt.Errorf("unsupported pool processor \"%s\"", c.AntiFraud.PoolProcessorConfig.Format)
 	}
 
-	if c.Market.PriceMarginality == 0 {
+	if c.Market.PriceControl.Marginality == 0 {
 		return fmt.Errorf("market.price_marginality cannot be zero")
 	}
 
@@ -152,7 +158,7 @@ func (c *Config) getBaseBenchmarks() Benchmarks {
 
 func (c *Config) getTokenParams() *tokenParameters {
 	priceProviderConfig := &price.ProviderConfig{
-		Margin: c.Market.PriceMarginality,
+		Margin: c.Market.PriceControl.Marginality,
 		URL:    c.Mining.TokenPrice.PriceURL,
 	}
 
