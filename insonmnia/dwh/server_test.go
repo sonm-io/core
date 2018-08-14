@@ -190,7 +190,7 @@ func testGetOrderDetails(t *testing.T) {
 }
 
 func testGetDealChangeRequests(t *testing.T) {
-	changeRequests, err := testDWH.GetDealChangeRequests(context.Background(), &pb.DealChangeRequestsRequest{
+	changeRequests, err := testDWH.GetChangeRequests(context.Background(), &pb.ChangeRequestsRequest{
 		DealID: pb.NewBigIntFromInt(40400),
 	})
 	if err != nil {

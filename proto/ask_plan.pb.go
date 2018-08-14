@@ -70,7 +70,7 @@ It has these top-level messages:
 	DealChangeRequestsReply
 	DealChangeRequest
 	DealPayment
-	DealChangeRequestsRequest
+	ChangeRequestsRequest
 	WorkersRequest
 	WorkersReply
 	Certificate

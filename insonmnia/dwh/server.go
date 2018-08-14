@@ -351,7 +351,14 @@ func (m *DWH) GetValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 	return &pb.ValidatorsReply{Validators: validators, Count: count}, nil
 }
 
-func (m *DWH) GetDealChangeRequests(ctx context.Context, request *pb.DealChangeRequestsRequest) (*pb.DealChangeRequestsReply, error) {
+func (m *DWH) GetDealChangeRequests(ctx context.Context, dealID *pb.BigInt) (*pb.DealChangeRequestsReply, error) {
+	return m.GetChangeRequests(ctx, &pb.ChangeRequestsRequest{
+		DealID:     dealID,
+		OnlyActive: true,
+	})
+}
+
+func (m *DWH) GetChangeRequests(ctx context.Context, request *pb.ChangeRequestsRequest) (*pb.DealChangeRequestsReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
