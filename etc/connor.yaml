@@ -5,7 +5,21 @@ market:
   from_hashrate: 15000000
   to_hashrate: 300000000
   step: 500000
-  price_marginality: 0.95
+
+  price_control:
+    # what part of the real market price will be used to
+    # create orders on the market
+    marginality: 0.95
+    # price deviation on which order will be replaced
+    # with more profitable one
+    order_replace_threshold: 0.05
+    # price deviation on which price change request will
+    # be sent to the Worker
+    deal_change_request: 0.01
+    # price deviation on which deal will be cancelled
+    # if no change requests was accepted.
+    deal_cancel_threshold: 0.05
+
   benchmarks:
     cpu-sysbench-multi: 100
     cpu-sysbench-single: 100
@@ -28,7 +42,6 @@ mining:
   token_price:
     price_url: "https://api.coinmarketcap.com/v1/ticker/ethereum/"
     update_interval: 10m
-    threshold: 0.1
 
 antifraud:
   task_quality: 0.75

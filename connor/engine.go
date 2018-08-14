@@ -122,7 +122,7 @@ func (e *engine) Serve(ctx context.Context) error {
 
 	e.log.Debug("price",
 		zap.String(e.cfg.Mining.Token, e.priceProvider.GetPrice().String()),
-		zap.Float64("margin", e.cfg.Market.PriceMarginality))
+		zap.Float64("margin", e.cfg.Market.PriceControl.Marginality))
 
 	wg, ctx := errgroup.WithContext(ctx)
 	wg.Go(func() error {
@@ -202,7 +202,7 @@ func (e *engine) waitForDeal(ctx context.Context, order *Corder) {
 			return
 		case <-t.C:
 			actualPrice := e.priceProvider.GetPrice()
-			if order.isReplaceable(actualPrice, e.cfg.Mining.TokenPrice.Threshold) {
+			if order.isReplaceable(actualPrice, e.cfg.Market.PriceControl.OrderReplaceThreshold) {
 				log.Info("we can replace order with more profitable one",
 					zap.String("actual_price", actualPrice.String()),
 					zap.String("current_price", order.restorePrice().String()))
