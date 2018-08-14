@@ -61,6 +61,10 @@ func LoadConfig(path string) (*Config, error) {
 	return cfg, nil
 }
 
+type simulationConfig struct {
+	Orders []*sonm.BigInt `yaml:"orders"`
+}
+
 type workerConfig struct {
 	PrivateKey     privateKey         `yaml:"ethereum" json:"-"`
 	Epoch          time.Duration      `yaml:"epoch"`
@@ -71,6 +75,7 @@ type workerConfig struct {
 	StaleThreshold time.Duration      `yaml:"stale_threshold" default:"5m"`
 	PreludeTimeout time.Duration      `yaml:"prelude_timeout" default:"30s"`
 	Optimization   OptimizationConfig `yaml:"optimization"`
+	Simulation     *simulationConfig  `yaml:"simulation"`
 }
 
 func (m *workerConfig) Validate() error {

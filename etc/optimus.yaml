@@ -181,6 +181,12 @@ workers:
     prelude_timeout: 30s
     # Optimization engine settings.
     optimization: *optimization
+    # Simulation settings.
+    # When specified Optimus is switched into simulation mode for this worker.
+    # No orders from the marketplace except specified will be fetched.
+    # This mode is required mostly for debugging.
+    #simulation:
+    #  orders: [42, 43]
 
 debug:
   port: 6060
