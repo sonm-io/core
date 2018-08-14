@@ -39,7 +39,7 @@ type engine struct {
 
 	ordersCreateChan  chan *Corder
 	ordersResultsChan chan *Corder
-	orderCancelChan   chan *Corder
+	orderCancelChan   chan *CorderCancelTuple
 }
 
 var (
@@ -102,7 +102,7 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 
 		ordersCreateChan:  make(chan *Corder, concurrency),
 		ordersResultsChan: make(chan *Corder, concurrency),
-		orderCancelChan:   make(chan *Corder, concurrency),
+		orderCancelChan:   make(chan *CorderCancelTuple, concurrency),
 	}, nil
 }
 
@@ -148,7 +148,7 @@ func (e *engine) CreateOrder(bid *Corder) {
 }
 
 func (e *engine) CancelOrder(order *Corder) {
-	e.orderCancelChan <- order
+	e.orderCancelChan <- newCorderCancelTuple(order)
 }
 
 func (e *engine) RestoreOrder(order *Corder) {
@@ -187,17 +187,25 @@ func (e *engine) processOrderCreate(ctx context.Context) {
 }
 
 func (e *engine) processOrderCancel(ctx context.Context) {
-	for order := range e.orderCancelChan {
+	for tuple := range e.orderCancelChan {
 		// prometheus counter?
 		e.log.Debug("cancelling order",
-			zap.String("order_id", order.GetId().Unwrap().String()))
+			zap.String("order_id", tuple.corder.GetId().Unwrap().String()))
 
-		if err := e.cancelOrder(ctx, order.GetId()); err != nil {
-			e.orderCancelChan <- order
+		if err := e.cancelOrder(ctx, tuple.corder.GetId()); err != nil {
+			e.log.Warn("cannot cancel order", zap.Error(err),
+				zap.Duration("retry_after", tuple.delay),
+				zap.String("order_id", tuple.corder.GetId().Unwrap().String()))
+
+			go func(tup *CorderCancelTuple) {
+				time.Sleep(tup.delay)
+				e.orderCancelChan <- tup.withIncreasedDelay()
+			}(tuple)
+
 			continue
 		}
 
-		e.log.Debug("order cancelled", zap.String("order_id", order.GetId().Unwrap().String()))
+		e.log.Debug("order cancelled", zap.String("order_id", tuple.corder.GetId().Unwrap().String()))
 	}
 }
 
