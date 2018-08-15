@@ -182,7 +182,7 @@ func (e *engine) processOrderCreate(ctx context.Context) {
 			e.CreateOrder(bid)
 			continue
 		}
-
+		e.log.Debug("order successfully created", zap.String("order_id", created.GetId().Unwrap().String()))
 		createdOrdersCounter.Inc()
 		e.ordersResultsChan <- e.corderFactory.FromOrder(created)
 	}
@@ -329,7 +329,7 @@ func (e *engine) processDeal(ctx context.Context, deal *sonm.Deal) {
 	defer log.Debug("stop deal processing")
 
 	e.antiFraud.DealOpened(deal)
-	defer e.antiFraud.FinishDeal(deal)
+	defer e.antiFraud.FinishDeal(ctx, deal)
 
 	taskID, err := e.restoreTasks(ctx, log, deal.GetId())
 	if err != nil {
@@ -497,7 +497,7 @@ func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *s
 				zap.String("actual_price", e.priceProvider.GetPrice().String()),
 				zap.String("current_price", deal.restorePrice().String()))
 
-			if err := e.antiFraud.FinishDeal(deal.Unwrap()); err != nil {
+			if err := e.antiFraud.FinishDeal(ctx, deal.Unwrap()); err != nil {
 				log.Warn("failed to finish deal", zap.Error(err))
 			}
 

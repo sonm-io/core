@@ -9,6 +9,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
@@ -30,7 +31,7 @@ type AntiFraud interface {
 	Run(ctx context.Context) error
 	DealOpened(deal *sonm.Deal) error
 	TrackTask(ctx context.Context, deal *sonm.Deal, taskID string) error
-	FinishDeal(deal *sonm.Deal) error
+	FinishDeal(ctx context.Context, deal *sonm.Deal) error
 }
 
 type dealMeta struct {
@@ -135,7 +136,7 @@ func (m *antiFraud) checkDeals(ctx context.Context) error {
 			log.Warn("task quality is less that required, closing deal", logQualityMetrics...)
 
 			blacklistedDealCounter.Inc()
-			if err := m.finishDeal(dealMeta.deal, sonm.BlacklistType_BLACKLIST_WORKER); err != nil {
+			if err := m.finishDealWithRetry(ctx, dealMeta.deal, sonm.BlacklistType_BLACKLIST_WORKER); err != nil {
 				log.Warn("cannot finish deal", zap.Error(err))
 			}
 
@@ -193,24 +194,59 @@ func (m *antiFraud) DealOpened(deal *sonm.Deal) error {
 	return nil
 }
 
-func (m *antiFraud) FinishDeal(deal *sonm.Deal) error {
-	return m.finishDeal(deal, sonm.BlacklistType_BLACKLIST_NOBODY)
+func (m *antiFraud) FinishDeal(ctx context.Context, deal *sonm.Deal) error {
+	return m.finishDealWithRetry(ctx, deal, sonm.BlacklistType_BLACKLIST_NOBODY)
 }
 
-func (m *antiFraud) finishDeal(deal *sonm.Deal, blacklistType sonm.BlacklistType) error {
-	m.log.Info("finishing deal", zap.String("deal_id", deal.GetId().Unwrap().String()),
+func (m *antiFraud) finishDealWithRetry(ctx context.Context, deal *sonm.Deal, blacklistType sonm.BlacklistType) error {
+	dealID := deal.GetId().Unwrap().String()
+
+	m.mu.Lock()
+	_, shouldFinish := m.meta[dealID]
+	delete(m.meta, dealID)
+	m.mu.Unlock()
+
+	if !shouldFinish {
+		return nil
+	}
+
+	t := util.NewImmediateTicker(10 * time.Second)
+	defer t.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-t.C:
+			if err := m.finishDeal(ctx, deal, blacklistType); err != nil {
+				m.log.Warn("cannot finish deal", zap.Error(err),
+					zap.String("deal_id", deal.GetId().Unwrap().String()))
+				continue
+			}
+
+			return nil
+		}
+	}
+}
+
+func (m *antiFraud) finishDeal(ctx context.Context, deal *sonm.Deal, blacklistType sonm.BlacklistType) error {
+	m.log.Info("finishing deal",
+		zap.String("deal_id", deal.GetId().Unwrap().String()),
 		zap.Duration("lifetime", lifeTime(deal)))
 
 	ctx, cancel := context.WithTimeout(context.Background(), m.cfg.ConnectionTimeout)
 	defer cancel()
 
-	m.mu.Lock()
-	delete(m.meta, deal.GetId().Unwrap().String())
-	m.mu.Unlock()
-	_, err := m.deals.Finish(ctx, &sonm.DealFinishRequest{
-		Id:            deal.GetId(),
-		BlacklistType: blacklistType,
-	})
+	// check that deal is not finished yet
+	info, err := m.deals.Status(ctx, deal.GetId())
+	if err != nil {
+		return err
+	}
 
+	if info.GetDeal().GetStatus() == sonm.DealStatus_DEAL_CLOSED {
+		return nil
+	}
+
+	_, err = m.deals.Finish(ctx, &sonm.DealFinishRequest{Id: deal.GetId(), BlacklistType: blacklistType})
 	return err
 }
