@@ -1,3 +1,109 @@
+sonm-core (0.4.9) unstable; urgency=low
+
+  * Added: network shaping (#1280).
+    This enables network traffic shaping on a worker, making it possible to limit
+    network bandwidth for each deal separately.
+    Internally this is achieved using linux kernel traffic control mechanism and
+    making friendship with Docker.
+    At the first attempt, we achieved this by using policing, which drops excess
+    packets, throttling TCP window sizes and reducing the overall output rate of
+    affected traffic streams. Overly aggressive burst sizes (which is tricky to set
+    properly) led to excess packet drops and throttle the overall output rate,
+    particularly with TCP-based flows.
+    All the above is relevant to the TBF (token bucket filtering) classless discipline,
+    which is the easiest way to shape network traffic.
+    An alternative approach is using the HTB (hierarchical token bucket) queueing
+    discipline, which is classful and allows to build hierarchical rules for traffic
+    shaping and policing. For egress traffic, intermediate functional block (IFB)
+    devices are used which has separate packet queueing.
+    All this allows both to build hierarchical rules for each packet type, network
+    device, etc; and moreover to restrict traffic for each container and/or for the
+    entire worker.
+    It is clear for now that both direction shaping works without packed dropping
+    spikes. Epic win.
+    After an ask plan is created the following actions are performed:
+    - Create bridge device with its own iptables rules, where all containers for
+      a specific deal will live. This bridge allows tasks to communicate with
+      each other, but not with tasks spawned within another deal. For that purposes,
+      you have to use overlay network drivers.
+    - Apply TC rules to that bridge, that will limit ingress traffic. Yep, ingress,
+      because container's egress traffic seems as an ingress traffic for the Docker
+      device.
+    - Create IFB virtual device.
+    - Mirror egress traffic to that IFB by applying TC filters and create another
+      rule for that traffic.
+  * Added: print order identity in CLI (#1286).
+  * Added: allow obtaining balance by specified wallet (#1294).
+    This commit extends Node API to be able to call blockchain's "balanceOf"
+    with given eth address as a parameter. On the CLI-side there is still a
+    single method but with an optional extra parameter.
+  * Added: network shaping for BTFS (#1299).
+    This commit activates network shaping for BTFS volume plugin.
+    Previously BTFS was run under a separate bridge network, which was not
+    connected with the network under which the deal tasks are being executed.
+    However, now we are capable of performing task's network shaping under the
+    constraints specified in a supplier's order.
+    This commit changes the previous behavior with starting BTFS container
+    under the same network with the task it manages, so network limitations
+    should properly work.
+  * Added: prometheus metrics for Connor (#1296).
+    This adds Prometheus metrics which gives us some info about orders and
+    deals lifespans.
+  * Added: simulation mode in Optimus (#1308).
+    This commit allows Optimus to be executed in simulation mode, fetching
+    only specified orders from the marketplace.
+    Also fixed a bug when Optimus removed ask-plans in dry-run mode.
+  * Added: update price changes in Optimus (#1307).
+    This teaches Optimus to update auto-accepted price changes for deals.
+    Previously it only considers a price specified in ask-plan, not the real
+    one, which may change during deal's lifetime.
+  * Changed: default DWH config update (#1288).
+  * Changed: tune dry-run in Optimus (#1301).
+    Now Optimus while being run under dry-run option will show removing
+    candidates ask-plans.
+  * Fixed: parse BID and ASK strictly (#1282).
+    This fixes a bug when a user can accidentally create BID or ASK with
+    fields that are unknown to the Node/Worker. Such behavior is a source of
+    confusion and frustration, so we just forbid unknown fields when
+    doing "sonmcli order create" and "sonmcli worker ask-plan create".
+  * Fixed: properly calculate free devices in Optimus (#1285).
+    This fixes a bug where during the calculation of free devices a mutation
+    of meant-to-be-immutable field occurs, which lead to improper free devices
+    state.
+    As a side effect, one could see that Optimus performed invalid optimization
+    in the case where the most optimal ask-plans already exist.
+  * Fixed: sudden EOF while connecting through NPP (#1253).
+    The problem is - both client and server successfully connect to each other,
+    so there are at least 2 different connections.
+    The server must serve both of them with further dropping the hanging one.
+    The client must return the first one and close another.
+    If we are a server - we just put the successful connection in a queue and
+    return on next "Accept" called.
+    If we are a client - do as we did before.
+  * Fixed: processor shutdown in DWH (#1270).
+    Hitting Ctrl-C could lead to a long and painful shutdown if DB and other
+    resources were closed before the last iteration of the processor loop. This
+    problem is fixed by making sure that the processing loop is fully locked,
+    not just its parts.
+  * Fixed: proper blacklisting in Connor (#1292).
+    This fixes the blacklist timer behavior on failures and successes.
+    Also, resetting the timer if a user was un-blacklisted on the market.
+  * Fixed: properly discover loopback links (#1297).
+    This fixes a bug where our components, like Node and Worker resolved
+    loopback devices using self-localhost-resolution.
+    This sometimes led to a problem on systems with disabled IPv6 but
+    misconfigured /etc/hosts.
+  * Fixed: proper BTFS initialization (#1298).
+    This fixes error ignoring while initializing BTFS volume plugin.
+  * Fixed: proper JSON errors for task list cmd (#1300).
+  * Fixed: check BID identity level in Optimus (#1287).
+    This is required due to #1293.
+  * Fixed: proper order cancel in Connor (#1306).
+  * Fixed: proper own ask filtering in Optimus (#1312).
+    Optimus should no longer create plans for its own asks.
+
+ -- Evgeny Safronov <division494@gmail.com>  Wed, 15 Aug 2018 14:12:09 +0300
+
 sonm-core (0.4.8) unstable; urgency=low
 
   * Added: feat: BTFS volume plugin for Worker (#1274).
