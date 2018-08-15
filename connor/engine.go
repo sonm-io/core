@@ -258,6 +258,7 @@ func (e *engine) waitForDeal(ctx context.Context, order *Corder) {
 			actualPrice := e.priceProvider.GetPrice()
 			if order.isReplaceable(actualPrice, e.cfg.Market.PriceControl.OrderReplaceThreshold) {
 				log.Named("price-deviation").Info("we can replace order with more profitable one",
+					zap.Uint64("benchmark", order.GetHashrate()),
 					zap.String("actual_price", actualPrice.String()),
 					zap.String("current_price", order.restorePrice().String()))
 
@@ -494,6 +495,7 @@ func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *s
 		if deal.isReplaceable(e.priceProvider.GetPrice(), e.cfg.Market.PriceControl.DealCancelThreshold) {
 			log := log.Named("price-deviation")
 			log.Info("too much price deviation detected: closing deal",
+				zap.Uint64("benchmark", deal.getBenchmarkValue()),
 				zap.String("actual_price", e.priceProvider.GetPrice().String()),
 				zap.String("current_price", deal.restorePrice().String()))
 
