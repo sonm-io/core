@@ -39,6 +39,7 @@ type engine struct {
 
 	ordersCreateChan  chan *Corder
 	ordersResultsChan chan *Corder
+	orderCancelChan   chan *CorderCancelTuple
 }
 
 var (
@@ -101,6 +102,7 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 
 		ordersCreateChan:  make(chan *Corder, concurrency),
 		ordersResultsChan: make(chan *Corder, concurrency),
+		orderCancelChan:   make(chan *CorderCancelTuple, concurrency),
 	}, nil
 }
 
@@ -145,6 +147,10 @@ func (e *engine) CreateOrder(bid *Corder) {
 	e.ordersCreateChan <- bid
 }
 
+func (e *engine) CancelOrder(order *Corder) {
+	e.orderCancelChan <- newCorderCancelTuple(order)
+}
+
 func (e *engine) RestoreOrder(order *Corder) {
 	e.log.Debug("restoring order", zap.String("id", order.Order.GetId().Unwrap().String()))
 	e.ordersResultsChan <- order
@@ -180,6 +186,53 @@ func (e *engine) processOrderCreate(ctx context.Context) {
 	}
 }
 
+func (e *engine) processOrderCancel(ctx context.Context) {
+	for tuple := range e.orderCancelChan {
+		// prometheus counter?
+		e.log.Debug("cancelling order",
+			zap.String("order_id", tuple.corder.GetId().Unwrap().String()))
+
+		if err := e.cancelOrder(ctx, tuple.corder.GetId()); err != nil {
+			e.log.Warn("cannot cancel order", zap.Error(err),
+				zap.Duration("retry_after", tuple.delay),
+				zap.String("order_id", tuple.corder.GetId().Unwrap().String()))
+
+			go func(tup *CorderCancelTuple) {
+				time.Sleep(tup.delay)
+				e.orderCancelChan <- tup.withIncreasedDelay()
+			}(tuple)
+
+			continue
+		}
+
+		e.log.Debug("order cancelled", zap.String("order_id", tuple.corder.GetId().Unwrap().String()))
+	}
+}
+
+func (e *engine) cancelOrder(ctx context.Context, id *sonm.BigInt) error {
+	order, err := e.getOrderByID(ctx, id.Unwrap().String())
+	if err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
+	defer cancel()
+
+	if order.GetOrderStatus() == sonm.OrderStatus_ORDER_ACTIVE {
+		_, err := e.market.CancelOrder(ctx, &sonm.ID{Id: id.Unwrap().String()})
+		return err
+	}
+
+	return nil
+}
+
+func (e *engine) getOrderByID(ctx context.Context, id string) (*sonm.Order, error) {
+	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
+	defer cancel()
+
+	return e.market.GetOrderByID(ctx, &sonm.ID{Id: id})
+}
+
 func (e *engine) processOrderResult(ctx context.Context) {
 	for order := range e.ordersResultsChan {
 		go e.waitForDeal(ctx, order)
@@ -206,7 +259,7 @@ func (e *engine) waitForDeal(ctx context.Context, order *Corder) {
 					zap.String("actual_price", actualPrice.String()),
 					zap.String("current_price", order.restorePrice().String()))
 
-				e.cancelOrder(ctx, log, order.GetId())
+				e.CancelOrder(order)
 
 				hashRate := big.NewInt(0).SetUint64(order.GetHashrate())
 				order.Price = sonm.NewBigInt(big.NewInt(0).Mul(actualPrice, hashRate))
@@ -231,34 +284,8 @@ func (e *engine) waitForDeal(ctx context.Context, order *Corder) {
 	}
 }
 
-func (e *engine) cancelOrder(ctx context.Context, log *zap.Logger, id *sonm.BigInt) {
-	log.Info("cancelling order")
-
-	for try := 0; try < maxRetryCount; try++ {
-		err := func() error {
-			ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
-			defer cancel()
-
-			if _, err := e.market.CancelOrder(ctx, &sonm.ID{Id: id.Unwrap().String()}); err != nil {
-				return err
-			}
-
-			return nil
-		}()
-
-		if err != nil {
-			continue
-		}
-
-		log.Info("order cancelled")
-		return
-	}
-
-	log.Warn("order cancellation failed: retry count exceeded")
-}
-
 func (e *engine) checkOrderForDealOnce(ctx context.Context, log *zap.Logger, orderID string) (*sonm.Deal, error) {
-	ord, err := e.market.GetOrderByID(ctx, &sonm.ID{Id: orderID})
+	ord, err := e.getOrderByID(ctx, orderID)
 	if err != nil {
 		log.Warn("cannot get order info from market", zap.Error(err))
 		return nil, err
@@ -609,6 +636,13 @@ func (e *engine) start(ctx context.Context) error {
 		})
 	}
 
+	for i := 0; i < concurrency; i++ {
+		wg.Go(func() error {
+			e.processOrderCancel(ctx)
+			return nil
+		})
+	}
+
 	wg.Go(func() error {
 		e.processOrderResult(ctx)
 		return nil
@@ -709,4 +743,5 @@ func (e *engine) close() {
 
 	close(e.ordersCreateChan)
 	close(e.ordersResultsChan)
+	close(e.orderCancelChan)
 }
