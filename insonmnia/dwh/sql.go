@@ -61,7 +61,7 @@ func (m *sqlStorage) InsertDeal(conn queryConn, deal *pb.Deal) error {
 	}
 
 	var hasActiveChangeRequests bool
-	if changeRequests, _ := m.GetDealChangeRequestsByDealID(conn, deal.Id.Unwrap()); len(changeRequests) > 0 {
+	if changeRequests, _ := m.GetDealChangeRequestsByDealID(conn, deal.Id.Unwrap(), true); len(changeRequests) > 0 {
 		hasActiveChangeRequests = true
 	}
 	values := []interface{}{
@@ -139,12 +139,6 @@ func (m *sqlStorage) UpdateDealPayout(conn queryConn, dealID, payout *big.Int, b
 		"TotalPayout": util.BigIntToPaddedString(payout),
 		"LastBillTS":  billTS,
 	}).Where("Id = ?", dealID.String()).ToSql()
-	_, err := conn.Exec(query, args...)
-	return err
-}
-
-func (m *sqlStorage) DeleteDeal(conn queryConn, dealID *big.Int) error {
-	query, args, _ := m.builder().Delete("Deals").Where("Id = ?", dealID.String()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
@@ -310,8 +304,11 @@ func (m *sqlStorage) InsertOrder(conn queryConn, order *pb.DWHOrder) error {
 	return err
 }
 
-func (m *sqlStorage) UpdateOrderStatus(conn queryConn, orderID *big.Int, status pb.OrderStatus) error {
-	query, args, _ := m.builder().Update("Orders").Set("Status", status).Where("Id = ?", orderID.String()).ToSql()
+func (m *sqlStorage) UpdateOrder(conn queryConn, order *pb.Order) error {
+	query, args, _ := m.builder().Update("Orders").SetMap(map[string]interface{}{
+		"Status": order.OrderStatus,
+		"DealID": order.DealID.String(),
+	}).Where("Id = ?", order.Id.String()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
@@ -323,12 +320,6 @@ func (m *sqlStorage) UpdateOrders(conn queryConn, profile *pb.Profile) error {
 		"CreatorCountry":       profile.Country,
 		"CreatorCertificates":  profile.Certificates,
 	}).Where("AuthorId = ?", profile.UserID.Unwrap().Hex()).ToSql()
-	_, err := conn.Exec(query, args...)
-	return err
-}
-
-func (m *sqlStorage) DeleteOrder(conn queryConn, orderID *big.Int) error {
-	query, args, _ := m.builder().Delete("Orders").Where("Id = ?", orderID.String()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
 }
@@ -352,8 +343,10 @@ func (m *sqlStorage) GetOrderByID(conn queryConn, orderID *big.Int) (*pb.DWHOrde
 }
 
 func (m *sqlStorage) GetOrders(conn queryConn, r *pb.OrdersRequest) ([]*pb.DWHOrder, uint64, error) {
-	builder := m.builder().Select("*").From("Orders AS o").
-		Where("Status = ?", pb.OrderStatus_ORDER_ACTIVE)
+	builder := m.builder().Select("*").From("Orders AS o")
+	if r.Status > 0 {
+		builder = builder.Where("Status = ?", r.Status)
+	}
 	if !r.DealID.IsZero() {
 		builder = builder.Where("DealID = ?", r.DealID.Unwrap().String())
 	}
@@ -657,11 +650,14 @@ func (m *sqlStorage) GetDealChangeRequests(conn queryConn, changeRequest *pb.Dea
 	return out, nil
 }
 
-func (m *sqlStorage) GetDealChangeRequestsByDealID(conn queryConn, changeRequestID *big.Int) ([]*pb.DealChangeRequest, error) {
-	query, args, _ := m.builder().Select(m.tablesInfo.DealChangeRequestColumns...).
+func (m *sqlStorage) GetDealChangeRequestsByDealID(conn queryConn, dealID *big.Int, onlyActive bool) ([]*pb.DealChangeRequest, error) {
+	builder := m.builder().Select(m.tablesInfo.DealChangeRequestColumns...).
 		From("DealChangeRequests").
-		Where("DealID = ?", changeRequestID.String()).
-		ToSql()
+		Where("DealID = ?", dealID.String())
+	if onlyActive {
+		builder = builder.Where("Status = ?", pb.ChangeRequestStatus_REQUEST_CREATED)
+	}
+	query, args, _ := builder.OrderBy("CreatedTS").ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to select DealChangeRequestsByID: %v", err)
@@ -1024,34 +1020,6 @@ func (m *sqlStorage) UpdateProfileStats(conn queryConn, userID common.Address, f
 		Where("UserID = ?", userID.Hex()).ToSql()
 	_, err := conn.Exec(query, args...)
 	return err
-}
-
-func (m *sqlStorage) StoreStaleID(conn queryConn, id *big.Int, entity string) error {
-	query, args, _ := m.builder().Insert("StaleIDs").Values(fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
-	_, err := conn.Exec(query, args...)
-	return err
-}
-
-func (m *sqlStorage) RemoveStaleID(conn queryConn, id *big.Int, entity string) error {
-	query, args, _ := m.builder().Delete("StaleIDs").Where("Id = ?", fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
-	_, err := conn.Exec(query, args...)
-	return err
-}
-
-func (m *sqlStorage) CheckStaleID(conn queryConn, id *big.Int, entity string) (bool, error) {
-	query, args, _ := m.builder().Select("*").From("StaleIDs").
-		Where("Id = ?", fmt.Sprintf("%s_%s", entity, id.String())).ToSql()
-	rows, err := conn.Query(query, args...)
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-
-	if !rows.Next() {
-		return false, nil
-	}
-
-	return true, nil
 }
 
 func (m *sqlStorage) InsertLastEvent(conn queryConn, event *blockchain.Event) error {
@@ -1640,7 +1608,6 @@ type sqlSetupCommands struct {
 	createTableCertificates   string
 	createTableProfiles       string
 	createTableMisc           string
-	createTableStaleIDs       string
 	createIndexCmd            string
 	tablesInfo                *tablesInfo
 }
@@ -1696,11 +1663,6 @@ func (c *sqlSetupCommands) setupTables(db *sql.DB) error {
 		return fmt.Errorf("failed to %s: %v", c.createTableProfiles, err)
 	}
 
-	_, err = db.Exec(c.createTableStaleIDs)
-	if err != nil {
-		return fmt.Errorf("failed to %s: %v", c.createTableStaleIDs, err)
-	}
-
 	_, err = db.Exec(c.createTableMisc)
 	if err != nil {
 		return fmt.Errorf("failed to %s: %v", c.createTableMisc, err)
@@ -1751,9 +1713,6 @@ func (c *sqlSetupCommands) createIndices(db *sql.DB) error {
 		if err = c.createIndex(db, c.createIndexCmd, "Profiles", column); err != nil {
 			return err
 		}
-	}
-	if err = c.createIndex(db, c.createIndexCmd, "StaleIDs", "Id"); err != nil {
-		return err
 	}
 
 	return nil
@@ -2029,10 +1988,6 @@ func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
 		BlockNumber 				INTEGER NOT NULL,
 		TxIndex						INTEGER NOT NULL,
 		ReceiptIndex				INTEGER NOT NULL
-	)`,
-			createTableStaleIDs: `
-	CREATE TABLE IF NOT EXISTS StaleIDs (
-		Id 							TEXT NOT NULL
 	)`,
 			createIndexCmd: `CREATE INDEX IF NOT EXISTS %s_%s ON %s (%s)`,
 			tablesInfo:     tInfo,

@@ -4,6 +4,8 @@ import (
 	"math/big"
 	"testing"
 
+	"context"
+
 	"github.com/ethereum/go-ethereum/common"
 	pb "github.com/sonm-io/core/proto"
 )
@@ -188,13 +190,15 @@ func testGetOrderDetails(t *testing.T) {
 }
 
 func testGetDealChangeRequests(t *testing.T) {
-	changeRequests, err := testDWH.getDealChangeRequests(newSimpleConn(testDWH.db), pb.NewBigIntFromInt(40400))
+	changeRequests, err := testDWH.GetChangeRequests(context.Background(), &pb.ChangeRequestsRequest{
+		DealID: pb.NewBigIntFromInt(40400),
+	})
 	if err != nil {
 		t.Error(err)
 		return
 	}
-	if len(changeRequests) != 2 {
-		t.Errorf("Request `%d` failed: Expected %d DealChangeRequests, got %d", 404000, 2, len(changeRequests))
+	if len(changeRequests.Requests) != 2 {
+		t.Errorf("Request `%d` failed: Expected %d DealChangeRequests, got %d", 404000, 2, len(changeRequests.Requests))
 		return
 	}
 }

@@ -351,21 +351,26 @@ func (m *DWH) GetValidators(ctx context.Context, request *pb.ValidatorsRequest) 
 	return &pb.ValidatorsReply{Validators: validators, Count: count}, nil
 }
 
-func (m *DWH) GetDealChangeRequests(ctx context.Context, request *pb.BigInt) (*pb.DealChangeRequestsReply, error) {
+func (m *DWH) GetDealChangeRequests(ctx context.Context, dealID *pb.BigInt) (*pb.DealChangeRequestsReply, error) {
+	return m.GetChangeRequests(ctx, &pb.ChangeRequestsRequest{
+		DealID:     dealID,
+		OnlyActive: true,
+	})
+}
+
+func (m *DWH) GetChangeRequests(ctx context.Context, request *pb.ChangeRequestsRequest) (*pb.DealChangeRequestsReply, error) {
 	conn := newSimpleConn(m.db)
 	defer conn.Finish()
 
-	out, err := m.getDealChangeRequests(conn, request)
+	out, err := m.storage.GetDealChangeRequestsByDealID(conn, request.DealID.Unwrap(), request.OnlyActive)
 	if err != nil {
 		m.logger.Error("failed to GetDealChangeRequests", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetDealChangeRequests")
 	}
 
-	return &pb.DealChangeRequestsReply{Requests: out}, nil
-}
-
-func (m *DWH) getDealChangeRequests(conn queryConn, request *pb.BigInt) ([]*pb.DealChangeRequest, error) {
-	return m.storage.GetDealChangeRequestsByDealID(conn, request.Unwrap())
+	return &pb.DealChangeRequestsReply{
+		Requests: out,
+	}, nil
 }
 
 func (m *DWH) GetWorkers(ctx context.Context, request *pb.WorkersRequest) (*pb.WorkersReply, error) {
