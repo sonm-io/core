@@ -4,11 +4,17 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/sonm-io/core/connor/antifraud"
 	"github.com/sonm-io/core/connor/price"
 	"github.com/sonm-io/core/proto"
+)
+
+const (
+	orderCancelDelayStep = 5 * time.Second
+	orderCancelMaxDelay  = 5 * time.Minute
 )
 
 type CorderFactoriy interface {
@@ -192,4 +198,21 @@ func divideOrdersSets(existingCorders, targetCorders []*Corder) *ordersSets {
 	}
 
 	return set
+}
+
+type CorderCancelTuple struct {
+	corder *Corder
+	delay  time.Duration
+}
+
+func (c *CorderCancelTuple) withIncreasedDelay() *CorderCancelTuple {
+	c.delay *= 2
+	if c.delay > orderCancelMaxDelay {
+		c.delay = orderCancelMaxDelay
+	}
+	return c
+}
+
+func newCorderCancelTuple(c *Corder) *CorderCancelTuple {
+	return &CorderCancelTuple{corder: c, delay: orderCancelDelayStep}
 }
