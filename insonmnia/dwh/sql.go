@@ -486,8 +486,8 @@ func (m *sqlStorage) GetMatchingOrders(conn queryConn, r *pb.MatchingOrdersReque
 	} else {
 		builder = m.builderWithNetflagsFilter(builder, pb.CmpOp_LTE, order.Order.GetNetflags().GetFlags())
 	}
-	builder = builder.Where("IdentityLevel >= ?", order.Order.IdentityLevel).
-		Where("CreatorIdentityLevel <= ?", order.CreatorIdentityLevel)
+	builder = builder.Where("CreatorIdentityLevel >= ?", order.Order.IdentityLevel).
+		Where("IdentityLevel <= ?", order.CreatorIdentityLevel)
 	for benchID, benchValue := range order.Order.Benchmarks.Values {
 		builder = builder.Where(fmt.Sprintf("%s %s ?", getBenchmarkColumn(uint64(benchID)), benchOp), benchValue)
 	}
