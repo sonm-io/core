@@ -133,6 +133,11 @@ func (m *Deal) TotalPrice() string {
 	return formatPriceString(m.GetPrice(), m.GetDuration())
 }
 
+func (m *Deal) PricePerHour() string {
+	secondsInHour := uint64(3600)
+	return formatPriceString(m.GetPrice(), secondsInHour)
+}
+
 func formatPriceString(price *BigInt, duration uint64) string {
 	d := big.NewInt(int64(duration))
 	p := big.NewInt(0).Mul(price.Unwrap(), d)

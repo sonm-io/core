@@ -375,15 +375,15 @@ func printDealInfo(cmd *cobra.Command, info *ExtendedDealInfo, flags printerFlag
 		}
 		cmd.Printf("Status:       %s\r\n", deal.GetStatus())
 		if deal.IsSpot() {
-			// for active spot deal we can show only pricePerSecond
-			cmd.Printf("Price:        %s USD/sec\r\n", deal.GetPrice().ToPriceString())
+			// for active spot deal we can show only pricePerHour
+			cmd.Printf("Price:        %s USD/hour\r\n", deal.PricePerHour())
 			if isClosed {
 				// for closed deal we also can *calculate* total duration
 				cmd.Printf("Duration:     %s\r\n", dealDuration.String())
 			}
 		} else {
 			// for non-spot deal we can show duration, total price and pricePerSecond
-			cmd.Printf("Price:        %s USD (%s USD/sec)\r\n", deal.TotalPrice(), deal.GetPrice().ToPriceString())
+			cmd.Printf("Price:        %s USD (%s USD/hour)\r\n", deal.TotalPrice(), deal.PricePerHour())
 			cmd.Printf("Duration:     %s\r\n", dealDuration.String())
 		}
 
