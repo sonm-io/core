@@ -51,6 +51,56 @@ func (m *optimizationInput) VirtualFreeDevices() (*sonm.DevicesReply, error) {
 	return m.freeDevices(m.VictimPlans())
 }
 
+type priceChange struct {
+	InitialPrice *sonm.Price
+	ChangedPrice *sonm.Price
+}
+
+func (m *optimizationInput) UpdateDealPrices(ctx context.Context, market blockchain.MarketAPI) (map[string]*priceChange, error) {
+	changes := map[string]*priceChange{}
+
+	mu := sync.Mutex{}
+
+	wg, ctx := errgroup.WithContext(ctx)
+	for id, plan := range m.Plans {
+		dealID := plan.GetDealID()
+		if dealID.IsZero() {
+			continue
+		}
+
+		id := id
+		plan := plan
+		wg.Go(func() error {
+			deal, err := market.GetDealInfo(ctx, dealID.Unwrap())
+			if err != nil {
+				return fmt.Errorf("failed to get deal `%s` for `%s`: %v", dealID.Unwrap().String(), id, err)
+			}
+
+			if plan.Price.GetPerSecond().Cmp(deal.GetPrice()) == 0 {
+				return nil
+			}
+
+			mu.Lock()
+			defer mu.Unlock()
+
+			changes[id] = &priceChange{
+				InitialPrice: plan.Price,
+				ChangedPrice: &sonm.Price{PerSecond: deal.GetPrice()},
+			}
+
+			plan.Price = &sonm.Price{PerSecond: deal.GetPrice()}
+
+			return nil
+		})
+	}
+
+	if err := wg.Wait(); err != nil {
+		return nil, err
+	}
+
+	return changes, nil
+}
+
 func (m *optimizationInput) Price() *sonm.Price {
 	var plans []*sonm.AskPlan
 	for _, plan := range m.Plans {
@@ -194,6 +244,13 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	if len(removedPlans) != 0 {
 		return m.execute(ctx)
 	}
+
+	priceChanges, err := input.UpdateDealPrices(ctx, m.market)
+	if err != nil {
+		return fmt.Errorf("failed to update deal prices: %v", err)
+	}
+
+	m.log.Infow("synchronized actual prices with the marketplace", zap.Any("changes", priceChanges))
 
 	victimPlans := input.VictimPlans()
 	m.log.Debugw("victim plans", zap.Any("plans", victimPlans))
