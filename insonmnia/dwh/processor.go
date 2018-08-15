@@ -495,7 +495,11 @@ func (m *L1Processor) onOrderPlaced(eventTS uint64, orderID *big.Int) error {
 	profile, err := m.storage.GetProfileByID(conn, userID)
 	if err != nil {
 		certificates, _ := json.Marshal([]*pb.Certificate{})
-		profile = &pb.Profile{UserID: order.AuthorID, Certificates: string(certificates)}
+		profile = &pb.Profile{
+			UserID:        order.AuthorID,
+			Certificates:  string(certificates),
+			IdentityLevel: uint64(pb.IdentityLevel_ANONYMOUS),
+		}
 	} else {
 		if err := m.updateProfileStats(conn, order.OrderType, userID, 1); err != nil {
 			return fmt.Errorf("failed to updateProfileStats: %v", err)
