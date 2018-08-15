@@ -233,7 +233,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	wg := errgroup.Group{}
 	wg.Go(func() error {
 		m.log.Info("optimizing using natural free devices")
-		knapsack, err := m.optimize(input.Devices, naturalFreeDevices, input.Orders, m.log.With(zap.String("optimization", "natural")))
+		knapsack, err := m.optimize(input.Devices, naturalFreeDevices, input.Orders, nil, m.log.With(zap.String("optimization", "natural")))
 		if err != nil {
 			return err
 		}
@@ -243,7 +243,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	})
 	wg.Go(func() error {
 		m.log.Info("optimizing using virtual free devices")
-		knapsack, err := m.optimize(input.Devices, virtualFreeDevices, extOrders, m.log.With(zap.String("optimization", "virtual")))
+		knapsack, err := m.optimize(input.Devices, virtualFreeDevices, extOrders, virtualFreeOrders, m.log.With(zap.String("optimization", "virtual")))
 		if err != nil {
 			return err
 		}
@@ -445,13 +445,13 @@ func (m *workerEngine) ordersForPlans(ctx context.Context, plans map[string]*son
 	return orders, nil
 }
 
-func (m *workerEngine) optimize(devices, freeDevices *sonm.DevicesReply, orders []*MarketOrder, log *zap.SugaredLogger) (*Knapsack, error) {
+func (m *workerEngine) optimize(devices, freeDevices *sonm.DevicesReply, orders, extra []*MarketOrder, log *zap.SugaredLogger) (*Knapsack, error) {
 	deviceManager, err := newDeviceManager(devices, freeDevices, m.benchmarkMapping)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct device manager: %v", err)
 	}
 
-	matchedOrders := m.matchingOrders(deviceManager, devices, orders)
+	matchedOrders := m.matchingOrders(deviceManager, devices, orders, extra)
 	log.Infof("found %d/%d matching orders", len(matchedOrders), len(orders))
 
 	if len(matchedOrders) == 0 {
@@ -472,19 +472,18 @@ func (m *workerEngine) optimize(devices, freeDevices *sonm.DevicesReply, orders 
 
 // MatchingOrders filters the given orders to have only orders that are subset
 // of ours.
-func (m *workerEngine) matchingOrders(deviceManager *DeviceManager, devices *sonm.DevicesReply, orders []*MarketOrder) []*MarketOrder {
+func (m *workerEngine) matchingOrders(deviceManager *DeviceManager, devices *sonm.DevicesReply, orders, extra []*MarketOrder) []*MarketOrder {
 	matchedOrders := make([]*MarketOrder, 0, len(orders))
 
 	filter := FittingFunc{
 		Filters: m.filters(deviceManager, devices),
 	}
 
-	for _, order := range orders {
-		if order.GetOrder().OrderType == sonm.OrderType_ASK && order.GetOrder().AuthorID.Unwrap() == m.addr {
-			matchedOrders = append(matchedOrders, order)
-			continue
-		}
+	for _, order := range extra {
+		matchedOrders = append(matchedOrders, order)
+	}
 
+	for _, order := range orders {
 		if filter.Filter(order.GetOrder()) {
 			matchedOrders = append(matchedOrders, order)
 		}
