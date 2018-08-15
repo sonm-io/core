@@ -62,7 +62,7 @@ func NewAntiFraud(cfg Config, log *zap.Logger, processors ProcessorFactory, node
 		blacklistWatchers: map[common.Address]*blacklistWatcher{},
 		nodeConnection:    nodeConnection,
 		deals:             sonm.NewDealManagementClient(nodeConnection),
-		log:               log,
+		log:               log.Named("anti-fraud"),
 		cfg:               cfg,
 	}
 }

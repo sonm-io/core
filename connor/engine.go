@@ -28,7 +28,6 @@ const (
 
 type engine struct {
 	log       *zap.Logger
-	ctx       context.Context
 	cfg       *Config
 	antiFraud antifraud.AntiFraud
 
@@ -77,7 +76,7 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 		return nil, fmt.Errorf("cannot load eth keys: %v", err)
 	}
 
-	_, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), key)
+	_, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create cert TLS config: %v", err)
 	}
@@ -89,19 +88,16 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 	}
 
 	return &engine{
-		// todo: remove context from struct
-		ctx: ctx,
 		cfg: cfg,
 		log: log,
 
 		priceProvider: cfg.getTokenParams().priceProvider,
 		corderFactory: cfg.getTokenParams().corderFactory,
 
-		market: sonm.NewMarketClient(cc),
-		deals:  sonm.NewDealManagementClient(cc),
-		tasks:  sonm.NewTaskManagementClient(cc),
-		// todo: name logger inside AntiFraud's constructor
-		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log.Named("anti-fraud"), cfg.getTokenParams().processorFactory, cc),
+		market:    sonm.NewMarketClient(cc),
+		deals:     sonm.NewDealManagementClient(cc),
+		tasks:     sonm.NewTaskManagementClient(cc),
+		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log, cfg.getTokenParams().processorFactory, cc),
 
 		ordersCreateChan:  make(chan *Corder, concurrency),
 		ordersResultsChan: make(chan *Corder, concurrency),
@@ -125,7 +121,7 @@ func (e *engine) Serve(ctx context.Context) error {
 
 	e.log.Debug("price",
 		zap.String(e.cfg.Mining.Token, e.priceProvider.GetPrice().String()),
-		zap.Float64("margin", e.cfg.Market.PriceMarginality))
+		zap.Float64("margin", e.cfg.Market.PriceControl.Marginality))
 
 	wg, ctx := errgroup.WithContext(ctx)
 	wg.Go(func() error {
@@ -154,22 +150,25 @@ func (e *engine) RestoreOrder(order *Corder) {
 	e.ordersResultsChan <- order
 }
 
-func (e *engine) RestoreDeal(deal *sonm.Deal) {
+func (e *engine) RestoreDeal(ctx context.Context, deal *sonm.Deal) {
 	e.log.Debug("restoring deal", zap.String("id", deal.GetId().Unwrap().String()))
-	go e.processDeal(deal)
+	go e.processDeal(ctx, deal)
 }
 
-func (e *engine) sendOrderToMarket(bid *sonm.BidOrder) (*sonm.Order, error) {
+func (e *engine) sendOrderToMarket(ctx context.Context, bid *sonm.BidOrder) (*sonm.Order, error) {
 	e.log.Debug("creating order on market",
 		zap.String("price", bid.GetPrice().GetPerSecond().Unwrap().String()),
 		zap.Any("benchmarks", bid.Resources.GetBenchmarks()))
 
-	return e.market.CreateOrder(e.ctx, bid)
+	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
+	defer cancel()
+
+	return e.market.CreateOrder(ctx, bid)
 }
 
-func (e *engine) processOrderCreate() {
+func (e *engine) processOrderCreate(ctx context.Context) {
 	for bid := range e.ordersCreateChan {
-		created, err := e.sendOrderToMarket(bid.AsBID())
+		created, err := e.sendOrderToMarket(ctx, bid.AsBID())
 		if err != nil {
 			e.log.Warn("cannot place order, retrying", zap.Error(err))
 			e.CreateOrder(bid)
@@ -181,13 +180,13 @@ func (e *engine) processOrderCreate() {
 	}
 }
 
-func (e *engine) processOrderResult() {
+func (e *engine) processOrderResult(ctx context.Context) {
 	for order := range e.ordersResultsChan {
-		go e.waitForDeal(order)
+		go e.waitForDeal(ctx, order)
 	}
 }
 
-func (e *engine) waitForDeal(order *Corder) {
+func (e *engine) waitForDeal(ctx context.Context, order *Corder) {
 	activeOrdersGauge.Inc()
 
 	id := order.GetId().Unwrap().String()
@@ -198,16 +197,16 @@ func (e *engine) waitForDeal(order *Corder) {
 
 	for {
 		select {
-		case <-e.ctx.Done():
+		case <-ctx.Done():
 			return
 		case <-t.C:
 			actualPrice := e.priceProvider.GetPrice()
-			if order.isReplaceable(actualPrice, e.cfg.Mining.TokenPrice.Threshold) {
+			if order.isReplaceable(actualPrice, e.cfg.Market.PriceControl.OrderReplaceThreshold) {
 				log.Info("we can replace order with more profitable one",
 					zap.String("actual_price", actualPrice.String()),
 					zap.String("current_price", order.restorePrice().String()))
 
-				e.cancelOrder(log, order.GetId())
+				e.cancelOrder(ctx, log, order.GetId())
 
 				hashRate := big.NewInt(0).SetUint64(order.GetHashrate())
 				order.Price = sonm.NewBigInt(big.NewInt(0).Mul(actualPrice, hashRate))
@@ -217,14 +216,14 @@ func (e *engine) waitForDeal(order *Corder) {
 				return
 			}
 
-			deal, err := e.checkOrderForDealOnce(log, id)
+			deal, err := e.checkOrderForDealOnce(ctx, log, id)
 			if err != nil {
 				continue
 			}
 
 			e.CreateOrder(order)
 			if deal != nil {
-				e.processDeal(deal)
+				e.processDeal(ctx, deal)
 			}
 
 			return
@@ -232,18 +231,25 @@ func (e *engine) waitForDeal(order *Corder) {
 	}
 }
 
-func (e *engine) cancelOrder(log *zap.Logger, id *sonm.BigInt) {
+func (e *engine) cancelOrder(ctx context.Context, log *zap.Logger, id *sonm.BigInt) {
 	log.Info("cancelling order")
 
 	for try := 0; try < maxRetryCount; try++ {
-		ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
-		if _, err := e.market.CancelOrder(ctx, &sonm.ID{Id: id.Unwrap().String()}); err != nil {
-			cancel()
-			log.Warn("cannot cancel order", zap.Error(err), zap.Int("try", try))
+		err := func() error {
+			ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
+			defer cancel()
+
+			if _, err := e.market.CancelOrder(ctx, &sonm.ID{Id: id.Unwrap().String()}); err != nil {
+				return err
+			}
+
+			return nil
+		}()
+
+		if err != nil {
 			continue
 		}
 
-		cancel()
 		log.Info("order cancelled")
 		return
 	}
@@ -251,8 +257,8 @@ func (e *engine) cancelOrder(log *zap.Logger, id *sonm.BigInt) {
 	log.Warn("order cancellation failed: retry count exceeded")
 }
 
-func (e *engine) checkOrderForDealOnce(log *zap.Logger, orderID string) (*sonm.Deal, error) {
-	ord, err := e.market.GetOrderByID(e.ctx, &sonm.ID{Id: orderID})
+func (e *engine) checkOrderForDealOnce(ctx context.Context, log *zap.Logger, orderID string) (*sonm.Deal, error) {
+	ord, err := e.market.GetOrderByID(ctx, &sonm.ID{Id: orderID})
 	if err != nil {
 		log.Warn("cannot get order info from market", zap.Error(err))
 		return nil, err
@@ -267,7 +273,7 @@ func (e *engine) checkOrderForDealOnce(log *zap.Logger, orderID string) (*sonm.D
 			return nil, nil
 		}
 
-		deal, err := e.deals.Status(e.ctx, ord.GetDealID())
+		deal, err := e.deals.Status(ctx, ord.GetDealID())
 		if err != nil {
 			log.Warn("cannot get deal info from market", zap.Error(err),
 				zap.String("deal_id", ord.GetDealID().Unwrap().String()))
@@ -280,20 +286,23 @@ func (e *engine) checkOrderForDealOnce(log *zap.Logger, orderID string) (*sonm.D
 	return nil, fmt.Errorf("order have no deal")
 }
 
-func (e *engine) processDeal(deal *sonm.Deal) {
+func (e *engine) processDeal(ctx context.Context, deal *sonm.Deal) {
 	activeDealsGauge.Inc()
 	defer activeDealsGauge.Dec()
 
 	dealID := deal.GetId().Unwrap().String()
 	log := e.log.Named("process-deal").With(zap.String("deal_id", dealID))
 
-	e.antiFraud.DealOpened(deal)
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
 
 	log.Debug("start deal processing")
 	defer log.Debug("stop deal processing")
+
+	e.antiFraud.DealOpened(deal)
 	defer e.antiFraud.FinishDeal(deal)
 
-	taskID, err := e.restoreTasks(log, deal.GetId())
+	taskID, err := e.restoreTasks(ctx, log, deal.GetId())
 	if err != nil {
 		log.Warn("cannot restore tasks", zap.Error(err))
 		return
@@ -302,7 +311,7 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 	if len(taskID) == 0 {
 		log.Debug("no tasks restored, starting new one")
 
-		taskReply, err := e.startTaskWithRetry(log, deal)
+		taskReply, err := e.startTaskWithRetry(ctx, log, deal)
 		if err != nil {
 			log.Warn("cannot start task", zap.Error(err))
 			return
@@ -312,13 +321,11 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 		log.Info("task started", zap.String("task_id", taskID))
 	}
 
-	ctx, cancel := context.WithCancel(e.ctx)
-	defer cancel()
 	go e.antiFraud.TrackTask(ctx, deal, taskID)
 
 	try := 0
 	for {
-		shouldRestartTask, err := e.trackTaskWithRetry(log, deal.GetId(), taskID)
+		shouldRestartTask, err := e.trackTaskWithRetry(ctx, log, deal.GetId(), taskID)
 		if err != nil {
 			log.Warn("task tracking failed", zap.Error(err))
 		}
@@ -334,7 +341,7 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 		}
 
 		log.Debug("going to restart a broken task")
-		nextTask, err := e.startTaskWithRetry(log, deal)
+		nextTask, err := e.startTaskWithRetry(ctx, log, deal)
 		if err != nil {
 			log.Warn("cannot start task", zap.Error(err), zap.Int("try", try))
 			return
@@ -346,21 +353,21 @@ func (e *engine) processDeal(deal *sonm.Deal) {
 	}
 }
 
-func (e *engine) startTaskWithRetry(log *zap.Logger, deal *sonm.Deal) (*sonm.StartTaskReply, error) {
+func (e *engine) startTaskWithRetry(ctx context.Context, log *zap.Logger, deal *sonm.Deal) (*sonm.StartTaskReply, error) {
 	t := util.NewImmediateTicker(e.cfg.Engine.TaskStartInterval)
 	defer t.Stop()
 
 	try := 0
 	for {
 		select {
-		case <-e.ctx.Done():
-			return nil, e.ctx.Err()
+		case <-ctx.Done():
+			return nil, ctx.Err()
 		case <-t.C:
 			if try > maxRetryCount {
 				return nil, fmt.Errorf("cannot start task: retry count exceeded")
 			}
 
-			taskReply, err := e.startTaskOnce(log, deal.GetId())
+			taskReply, err := e.startTaskOnce(ctx, log, deal.GetId())
 			if err != nil {
 				try++
 				log.Warn("task start failed", zap.Error(err), zap.Int("try", try))
@@ -372,22 +379,12 @@ func (e *engine) startTaskWithRetry(log *zap.Logger, deal *sonm.Deal) (*sonm.Sta
 	}
 }
 
-func (e *engine) startTaskOnce(log *zap.Logger, dealID *sonm.BigInt) (*sonm.StartTaskReply, error) {
-	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
+func (e *engine) startTaskOnce(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt) (*sonm.StartTaskReply, error) {
+	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
-	workerID := "c" + dealID.Unwrap().String()
-	ethID := strings.ToLower(e.cfg.Mining.Wallet.Hex())
-	poolAddr := fmt.Sprintf("%s/%s/%s", e.cfg.Mining.PoolReportURL, ethID, workerID)
-	wallet := fmt.Sprintf("%s/%s", ethID, workerID)
-
-	env := map[string]string{
-		"WALLET": wallet,
-		"POOL":   poolAddr,
-	}
-
+	env := e.cfg.containerEnv(dealID)
 	e.log.Debug("starting task", zap.Any("environment", env))
-
 	taskReply, err := e.tasks.Start(ctx, &sonm.StartTaskRequest{
 		DealID: dealID,
 		Spec: &sonm.TaskSpec{
@@ -407,7 +404,7 @@ func (e *engine) startTaskOnce(log *zap.Logger, dealID *sonm.BigInt) (*sonm.Star
 	return taskReply, nil
 }
 
-func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID string) (bool, error) {
+func (e *engine) trackTaskWithRetry(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt, taskID string) (bool, error) {
 	log = log.Named("task").With(zap.String("task_id", taskID))
 	log.Info("start task status tracking")
 
@@ -417,14 +414,14 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 	try := 0
 	for {
 		select {
-		case <-e.ctx.Done():
-			return false, e.ctx.Err()
+		case <-ctx.Done():
+			return false, ctx.Err()
 		case <-t.C:
 			if try > maxRetryCount {
 				return false, fmt.Errorf("task tracking failed: retry count exceeded")
 			}
 
-			ok, err := e.checkDealStatus(log, dealID)
+			ok, err := e.checkDealStatus(ctx, log, dealID)
 			if err != nil {
 				try++
 				log.Warn("cannot check deal status, increasing retry counter", zap.Error(err), zap.Int("try", try))
@@ -437,7 +434,7 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 			}
 
 			log.Debug("deal status OK, checking tasks")
-			shouldRetry, err := e.trackTaskOnce(log, dealID, taskID)
+			shouldRetry, err := e.trackTaskOnce(ctx, log, dealID, taskID)
 			if err != nil {
 				if !shouldRetry {
 					return true, err
@@ -454,8 +451,8 @@ func (e *engine) trackTaskWithRetry(log *zap.Logger, dealID *sonm.BigInt, taskID
 	}
 }
 
-func (e *engine) checkDealStatus(log *zap.Logger, dealID *sonm.BigInt) (bool, error) {
-	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
+func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt) (bool, error) {
+	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
 	dealStatus, err := e.deals.Status(ctx, dealID)
@@ -466,10 +463,10 @@ func (e *engine) checkDealStatus(log *zap.Logger, dealID *sonm.BigInt) (bool, er
 	return dealStatus.GetDeal().GetStatus() == sonm.DealStatus_DEAL_ACCEPTED, nil
 }
 
-func (e *engine) trackTaskOnce(log *zap.Logger, dealID *sonm.BigInt, taskID string) (bool, error) {
+func (e *engine) trackTaskOnce(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt, taskID string) (bool, error) {
 	log.Debug("checking task status")
 
-	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
+	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
 	// 3. ping task
@@ -487,7 +484,7 @@ func (e *engine) trackTaskOnce(log *zap.Logger, dealID *sonm.BigInt, taskID stri
 	return true, nil
 }
 
-func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, error) {
+func (e *engine) restoreTasks(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt) (string, error) {
 	log = log.Named("restore-tasks")
 	log.Debug("restoring tasks")
 
@@ -497,14 +494,14 @@ func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, err
 	try := 0
 	for {
 		select {
-		case <-e.ctx.Done():
-			return "", e.ctx.Err()
+		case <-ctx.Done():
+			return "", ctx.Err()
 		case <-t.C:
 			if try > maxRetryCount {
 				return "", fmt.Errorf("restore tasks failed: retry count exceeded")
 			}
 
-			list, err := e.loadTasksOnce(log, dealID)
+			list, err := e.loadTasksOnce(ctx, log, dealID)
 			if err != nil {
 				try++
 				log.Warn("cannot obtain task list from worker", zap.Error(err))
@@ -520,7 +517,7 @@ func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, err
 				if givenTag != requiredTag {
 					log.Warn("unexpected tag assigned to the running on task",
 						zap.String("running", givenTag), zap.String("expected", requiredTag))
-					e.stopOneTask(log, dealID, list[0].id)
+					e.stopOneTask(ctx, log, dealID, list[0].id)
 					return "", nil
 				}
 
@@ -528,7 +525,7 @@ func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, err
 			default:
 				// weird case, we always starting only one task per deal
 				log.Info("worker have more than one task running", zap.Int("count", len(list)))
-				if err := e.stopAllTasks(log, list, dealID); err != nil {
+				if err := e.stopAllTasks(ctx, log, list, dealID); err != nil {
 					return "", err
 				}
 
@@ -538,10 +535,10 @@ func (e *engine) restoreTasks(log *zap.Logger, dealID *sonm.BigInt) (string, err
 	}
 }
 
-func (e *engine) loadTasksOnce(log *zap.Logger, dealID *sonm.BigInt) ([]*taskStatus, error) {
+func (e *engine) loadTasksOnce(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt) ([]*taskStatus, error) {
 	log.Debug("loading tasks from worker")
 
-	ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
+	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
 	defer cancel()
 
 	taskList, err := e.tasks.List(ctx, &sonm.TaskListRequest{DealID: dealID})
@@ -559,12 +556,12 @@ func (e *engine) loadTasksOnce(log *zap.Logger, dealID *sonm.BigInt) ([]*taskSta
 	return list, nil
 }
 
-func (e *engine) stopAllTasks(log *zap.Logger, list []*taskStatus, dealID *sonm.BigInt) error {
+func (e *engine) stopAllTasks(ctx context.Context, log *zap.Logger, list []*taskStatus, dealID *sonm.BigInt) error {
 	log.Debug("stopping all tasks on worker")
 
 	var failedIDs []string
 	for _, task := range list {
-		if err := e.stopOneTask(log, dealID, task.id); err != nil {
+		if err := e.stopOneTask(ctx, log, dealID, task.id); err != nil {
 			log.Warn("cannot stop task", zap.Error(err), zap.String("task_id", task.id))
 			failedIDs = append(failedIDs, task.id)
 		}
@@ -577,18 +574,25 @@ func (e *engine) stopAllTasks(log *zap.Logger, list []*taskStatus, dealID *sonm.
 	return nil
 }
 
-func (e *engine) stopOneTask(log *zap.Logger, dealID *sonm.BigInt, taskID string) error {
+func (e *engine) stopOneTask(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt, taskID string) error {
 	log.Debug("stopping task", zap.String("task_id", taskID))
 
 	for try := 0; try < maxRetryCount; try++ {
-		ctx, cancel := context.WithTimeout(e.ctx, e.cfg.Engine.ConnectionTimeout)
-		if _, err := e.tasks.Stop(ctx, &sonm.TaskID{Id: taskID, DealID: dealID}); err != nil {
-			log.Warn("cannot stop task", zap.Error(err), zap.Int("try", try))
-			cancel()
+		err := func() error {
+			ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
+			defer cancel()
+
+			if _, err := e.tasks.Stop(ctx, &sonm.TaskID{Id: taskID, DealID: dealID}); err != nil {
+				log.Warn("cannot stop task", zap.Error(err), zap.Int("try", try))
+				return err
+			}
+
+			return nil
+		}()
+
+		if err != nil {
 			continue
 		}
-
-		cancel()
 		return nil
 	}
 
@@ -596,11 +600,19 @@ func (e *engine) stopOneTask(log *zap.Logger, dealID *sonm.BigInt, taskID string
 }
 
 func (e *engine) start(ctx context.Context) error {
+	wg, ctx := errgroup.WithContext(ctx)
+
 	for i := 0; i < concurrency; i++ {
-		go e.processOrderCreate()
+		wg.Go(func() error {
+			e.processOrderCreate(ctx)
+			return nil
+		})
 	}
 
-	go e.processOrderResult()
+	wg.Go(func() error {
+		e.processOrderResult(ctx)
+		return nil
+	})
 
 	<-ctx.Done()
 	return ctx.Err()
@@ -666,7 +678,7 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 		zap.Int("deals_restore", len(existingDeals.GetDeal())))
 
 	for _, deal := range existingDeals.GetDeal() {
-		e.RestoreDeal(deal)
+		e.RestoreDeal(ctx, deal)
 	}
 
 	for _, ord := range set.toCreate {

@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/sonm-io/core/proto"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
 )
 
 type namedErrorGroup struct {
@@ -120,4 +122,73 @@ func (m *workerManagementClientExt) RemoveAskPlans(ctx context.Context, ids []st
 			}
 		}
 	}
+}
+
+// ReadOnlyWorker is a worker management client wrapper that allows only
+// immutable operations. It returns some default response for operations that
+// mutates something.
+type ReadOnlyWorker struct {
+	sonm.WorkerManagementClient
+
+	mu           sync.Mutex
+	removedPlans map[string]struct{}
+}
+
+func NewReadOnlyWorker(worker sonm.WorkerManagementClient) *ReadOnlyWorker {
+	return &ReadOnlyWorker{
+		WorkerManagementClient: worker,
+
+		removedPlans: map[string]struct{}{},
+	}
+}
+
+func (m *ReadOnlyWorker) CreateAskPlan(ctx context.Context, in *sonm.AskPlan, opts ...grpc.CallOption) (*sonm.ID, error) {
+	return &sonm.ID{Id: "00000000-0000-0000-0000-000000000000"}, nil
+}
+
+func (m *ReadOnlyWorker) AskPlans(ctx context.Context, in *sonm.Empty, opts ...grpc.CallOption) (*sonm.AskPlansReply, error) {
+	plans, err := m.WorkerManagementClient.AskPlans(ctx, in, opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	response := &sonm.AskPlansReply{
+		AskPlans: map[string]*sonm.AskPlan{},
+	}
+
+	for k, v := range plans.AskPlans {
+		if _, ok := m.removedPlans[k]; !ok {
+			response.AskPlans[k] = v
+		}
+	}
+
+	return response, nil
+}
+
+func (m *ReadOnlyWorker) RemoveAskPlan(ctx context.Context, in *sonm.ID, opts ...grpc.CallOption) (*sonm.Empty, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.removedPlans[in.Id] = struct{}{}
+
+	return &sonm.Empty{}, nil
+}
+
+func (m *ReadOnlyWorker) PurgeAskPlans(ctx context.Context, in *sonm.Empty, opts ...grpc.CallOption) (*sonm.Empty, error) {
+	return &sonm.Empty{}, nil
+}
+
+func (m *ReadOnlyWorker) ScheduleMaintenance(ctx context.Context, in *sonm.Timestamp, opts ...grpc.CallOption) (*sonm.Empty, error) {
+	return &sonm.Empty{}, nil
+}
+
+func (m *ReadOnlyWorker) RemoveBenchmark(ctx context.Context, in *sonm.NumericID, opts ...grpc.CallOption) (*sonm.Empty, error) {
+	return &sonm.Empty{}, nil
+}
+
+func (m *ReadOnlyWorker) PurgeBenchmarks(ctx context.Context, in *sonm.Empty, opts ...grpc.CallOption) (*sonm.Empty, error) {
+	return &sonm.Empty{}, nil
 }

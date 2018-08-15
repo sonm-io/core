@@ -153,14 +153,33 @@ type workerEngine struct {
 	masterAddr       common.Address
 	blacklist        Blacklist
 	market           blockchain.MarketAPI
-	marketCache      *MarketCache
+	marketCache      MarketScanner
 	worker           WorkerManagementClientExt
 	benchmarkMapping benchmarks.Mapping
 
 	tagger *Tagger
 }
 
-func newWorkerEngine(cfg *workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache *MarketCache, benchmarkMapping benchmarks.Mapping, tagger *Tagger, log *zap.SugaredLogger) (*workerEngine, error) {
+func newWorkerEngine(cfg *workerConfig, addr, masterAddr common.Address, blacklist Blacklist, worker sonm.WorkerManagementClient, market blockchain.MarketAPI, marketCache MarketScanner, benchmarkMapping benchmarks.Mapping, tagger *Tagger, log *zap.SugaredLogger) (*workerEngine, error) {
+	if cfg.DryRun {
+		log.Infof("activated dry-run mode for this worker")
+		worker = NewReadOnlyWorker(worker)
+		log = log.With(zap.String("mode", "dry-run"))
+	}
+
+	if cfg.Simulation != nil {
+		log.Infof("activated simulation mode for this worker")
+
+		var err error
+		marketCache, err = NewPredefinedMarketCache(cfg.Simulation.Orders, market)
+		if err != nil {
+			return nil, err
+		}
+
+		worker = NewReadOnlyWorker(worker)
+		log = log.With(zap.String("mode", "simulation"))
+	}
+
 	m := &workerEngine{
 		cfg: cfg,
 		log: log.With(zap.Stringer("addr", addr)),
@@ -322,10 +341,6 @@ func (m *workerEngine) execute(ctx context.Context) error {
 
 	if len(winners) == 0 {
 		return fmt.Errorf("no plans found")
-	}
-
-	if m.cfg.DryRun {
-		return fmt.Errorf("further worker management has been interrupted: dry-run mode is active")
 	}
 
 	victimIDs := make([]string, 0, len(victims))
