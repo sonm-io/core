@@ -9,4 +9,5 @@ type EthereumConfig struct {
 	AccountType string `config:"account_type"`
 	AccountPath string `config:"account_path"`
 	AccountPass string `config:"account_pass"`
+	Registry    string `config:"registry"`
 }

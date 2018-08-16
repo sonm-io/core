@@ -21,6 +21,7 @@ pools:
       ethereum:
         endpoint: http://92.53.70.228:8545
         account_type: random
+        registry: "0x79b084653ca2588ed3915159e368db58aef165ee"
     ammo:
       type: sonm
       limit: 100000
