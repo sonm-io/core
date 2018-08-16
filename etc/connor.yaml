@@ -46,6 +46,7 @@ mining:
 antifraud:
   task_quality: 0.75
   quality_check_interval: 30s
+  blacklist_check_interval: 5m
   connection_timeout: 30s
 
   log_processor:
