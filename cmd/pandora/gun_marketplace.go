@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
 
@@ -22,8 +23,14 @@ type marketplaceExt struct {
 func NewMarketplaceGun(cfg MarketplaceExtConfig) (Gun, error) {
 	privateKey := PrivateKey(cfg.Ethereum)
 
+	registryAddr, err := util.HexToAddress(cfg.Ethereum.Registry)
+	if err != nil {
+		return nil, err
+	}
+
 	market, err := blockchain.NewAPI(context.Background(),
-		blockchain.WithSidechainEndpoint(cfg.Ethereum.Endpoint))
+		blockchain.WithSidechainEndpoint(cfg.Ethereum.Endpoint),
+		blockchain.WithContractRegistry(registryAddr))
 	if err != nil {
 		return nil, err
 	}
