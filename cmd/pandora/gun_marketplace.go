@@ -4,8 +4,8 @@ import (
 	"context"
 	"crypto/ecdsa"
 
-	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/blockchain"
+	"github.com/sonm-io/core/util"
 	"go.uber.org/zap"
 )
 
