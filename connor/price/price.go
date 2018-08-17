@@ -101,24 +101,55 @@ func (p *ethPriceProvider) GetPrice() *big.Int {
 	return p.price
 }
 
-type zecPriceProvider struct {
+type xmrPriceProvider struct {
 	mu    sync.Mutex
 	price *big.Int
+	cfg   *ProviderConfig
 }
 
-func NewZecPriceProvider(_ *ProviderConfig) Provider { return &zecPriceProvider{price: big.NewInt(1)} }
+func NewXmrPriceProvider(cfg *ProviderConfig) Provider {
+	return &xmrPriceProvider{cfg: cfg}
+}
 
-func (p *zecPriceProvider) Update(ctx context.Context) error {
+func (p *xmrPriceProvider) Update(ctx context.Context) error {
+	// 1. load price for 1 token in USD
+	price, err := getPriceFromCMC(p.cfg.URL)
+	if err != nil {
+		return err
+	}
+
+	// 2. load network parameters
+	coinParams, err := getTokenParamsFromWTM(moneroEtmID)
+	if err != nil {
+		return err
+	}
+
+	// 3. calculate token price per hash per second
+	v := p.calculate(
+		big.NewFloat(0).SetInt(price),
+		big.NewFloat(coinParams.BlockReward),
+		big.NewFloat(coinParams.Difficulty),
+	)
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.price = v
 	return nil
 }
 
-func (p *zecPriceProvider) calculate(price, reward, difficulty *big.Float) *big.Int {
-	// YourHashrate / NetHashRate / BlockTime * 86400 * BlockReward
-	// todo: check formula, calculated results is different than whatTiMine's one
-	return nil
+func (p *xmrPriceProvider) calculate(price, reward, difficulty *big.Float) *big.Int {
+	hashrate := big.NewFloat(0).Quo(big.NewFloat(1), difficulty)
+
+	xmrPerHashPerSec := big.NewFloat(0).Mul(hashrate, reward)
+	usdPerHashPerSec := big.NewFloat(0).Mul(xmrPerHashPerSec, price)
+
+	priceWithMargin := big.NewFloat(0).Mul(usdPerHashPerSec, big.NewFloat(p.cfg.Margin))
+	result, _ := priceWithMargin.Int(nil)
+	return result
 }
 
-func (p *zecPriceProvider) GetPrice() *big.Int {
+func (p *xmrPriceProvider) GetPrice() *big.Int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	return p.price
