@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/olekukonko/tablewriter"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/datasize"
@@ -333,12 +334,6 @@ func getDealCounterpartyString(d *pb.Deal) string {
 	}
 }
 
-func drawLine(cmd *cobra.Command, n int) {
-	for i := 0; i < n; i++ {
-		cmd.Print("-")
-	}
-}
-
 func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 	if isSimpleFormat() {
 		if len(deals) == 0 {
@@ -346,20 +341,21 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 			return
 		}
 
-		cmd.Println("      ID |   type   |        price       |       started at     |  duration  | counterparty    ")
+		w := tablewriter.NewWriter(cmd.OutOrStdout())
+		w.SetHeader([]string{"ID", "type", "price", "started at", "duration", "counterparty"})
+		w.SetBorder(false)
 		for _, deal := range deals {
-			cmd.Printf("%8s | %8s | %12s USD/h | %20s | %10s | %20s \r\n",
+			w.Append([]string{
 				deal.GetId().Unwrap().String(),
 				deal.GetTypeName(),
 				deal.PricePerHour(),
 				deal.StartTime.Unix().Format(time.RFC3339),
-				time.Second*time.Duration(deal.GetDuration()),
+				(time.Second * time.Duration(deal.GetDuration())).String(),
 				getDealCounterpartyString(deal),
-			)
+			})
 		}
-
-		drawLine(cmd, 121)
-		cmd.Printf("\r\n count: %d\n", len(deals))
+		w.Append([]string{"total", fmt.Sprintf("%d", len(deals))})
+		w.Render()
 	} else {
 		showJSON(cmd, map[string]interface{}{"deals": deals})
 	}
