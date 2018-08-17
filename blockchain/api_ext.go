@@ -118,6 +118,9 @@ func (m *niceMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, ask
 	if err := wg.Wait(); err != nil {
 		return nil, fmt.Errorf("blacklist check failed: %v", err)
 	}
+	if err := blacklist.Verify(bid, ask, bidMaster, askMaster); err != nil {
+		return nil, fmt.Errorf("blacklist check failed: %v", err)
+	}
 
 	return m.MarketAPI.OpenDeal(ctx, key, askID, bidID)
 }
