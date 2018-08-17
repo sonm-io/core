@@ -203,14 +203,28 @@ func printOrdersList(cmd *cobra.Command, orders []*pb.Order) {
 			return
 		}
 
-		cmd.Println("        ID | type |          price           |   duration ")
+		w := tablewriter.NewWriter(cmd.OutOrStdout())
+		w.SetHeader([]string{"ID", "type", "price", "duration"})
+		w.SetBorder(false)
+
 		for _, order := range orders {
-			cmd.Printf("%10s | %4s | %18s USD/h | %10s\r\n",
+			var duration string
+			if order.GetDuration() == 0 {
+				duration = "spot"
+			} else {
+				duration = (time.Second * time.Duration(order.Duration)).String()
+			}
+
+			w.Append([]string{
 				order.GetId().Unwrap().String(),
 				order.OrderType.String(),
 				order.PricePerHour(),
-				(time.Second * time.Duration(order.Duration)).String())
+				duration,
+			})
 		}
+
+		w.SetCaption(true, fmt.Sprintf("count: %d	", len(orders)))
+		w.Render()
 	} else {
 		showJSON(cmd, map[string]interface{}{"orders": orders})
 	}
@@ -342,19 +356,28 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 		}
 
 		w := tablewriter.NewWriter(cmd.OutOrStdout())
-		w.SetHeader([]string{"ID", "type", "price", "started at", "duration", "counterparty"})
+		w.SetHeader([]string{"ID", "price", "started at", "duration", "counterparty"})
+		w.SetCaption(true, fmt.Sprintf("count: %d", len(deals)))
 		w.SetBorder(false)
 		for _, deal := range deals {
+			var duration string
+			if deal.GetDuration() == 0 {
+				// deal have no duration, show as "spot"
+				duration = "spot"
+			} else {
+				// otherwise, print duration of forward deal
+				duration = (time.Second * time.Duration(deal.GetDuration())).String()
+			}
+
 			w.Append([]string{
 				deal.GetId().Unwrap().String(),
-				deal.GetTypeName(),
 				deal.PricePerHour(),
 				deal.StartTime.Unix().Format(time.RFC3339),
-				(time.Second * time.Duration(deal.GetDuration())).String(),
+				duration,
 				getDealCounterpartyString(deal),
 			})
 		}
-		w.Append([]string{"total", fmt.Sprintf("%d", len(deals))})
+
 		w.Render()
 	} else {
 		showJSON(cmd, map[string]interface{}{"deals": deals})
