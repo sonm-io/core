@@ -354,7 +354,14 @@ func (m *DeviceManager) consume(benchmarks []uint64, consumer Consumer) (interfa
 
 	filter := func(id int) (uint64, bool) {
 		if m.mapping.DeviceType(id) == consumer.DeviceType() {
-			if m.mapping.SplittingAlgorithm(id) == consumer.SplittingAlgorithm() {
+			switch m.mapping.SplittingAlgorithm(id) {
+			case sonm.SplittingAlgorithm_NONE, sonm.SplittingAlgorithm_MIN:
+				if deviceBenchmark, ok := consumer.DeviceBenchmark(id); ok {
+					if deviceBenchmark.Result < benchmarks[id] {
+						return deviceBenchmark.Result, true
+					}
+				}
+			case consumer.SplittingAlgorithm():
 				if deviceBenchmark, ok := consumer.DeviceBenchmark(id); ok {
 					return deviceBenchmark.Result, true
 				}
