@@ -95,3 +95,32 @@ func TestPriceCalculationWithMargin(t *testing.T) {
 		assert.True(t, tt.expected.Cmp(res) == 0, fmt.Sprintf("%v == %v", tt.expected.String(), res.String()))
 	}
 }
+
+func TestCalculateXmrPrice(t *testing.T) {
+	prov := &xmrPriceProvider{cfg: &ProviderConfig{Margin: 1}}
+
+	tests := []struct {
+		price      *big.Float
+		reward     *big.Float
+		difficulty *big.Float
+		expected   *big.Int
+	}{
+		{
+			price:      big.NewFloat(0).Mul(big.NewFloat(params.Ether), big.NewFloat(100)),
+			reward:     big.NewFloat(3),
+			difficulty: big.NewFloat(5e+10),
+			expected:   big.NewInt(6000000000),
+		},
+		{
+			price:      big.NewFloat(0).Mul(big.NewFloat(params.Ether), big.NewFloat(0.001)),
+			reward:     big.NewFloat(50),
+			difficulty: big.NewFloat(5e+15),
+			expected:   big.NewInt(10),
+		},
+	}
+
+	for _, tt := range tests {
+		res := prov.calculate(tt.price, tt.reward, tt.difficulty)
+		assert.True(t, tt.expected.Cmp(res) == 0, fmt.Sprintf("%v == %v", tt.expected.String(), res.String()))
+	}
+}

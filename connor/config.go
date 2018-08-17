@@ -21,6 +21,9 @@ const (
 	ethBenchmarkIndex  = 9
 	zecBenchmarkIndex  = 10
 	nullBenchmarkIndex = 11
+	// XMR mining on CPU now uses
+	// cpu-sysbench values
+	xmrCpuBenchmarkIndex = 0
 )
 
 type miningConfig struct {
@@ -86,9 +89,9 @@ type Config struct {
 
 func (c *Config) validate() error {
 	availableTokens := map[string]bool{
-		"ETH":  true,
-		"ZEC":  true,
-		"NULL": true, // null token is for testing purposes
+		"ETH":     true,
+		"XMR_CPU": true,
+		"NULL":    true, // null token is for testing purposes
 	}
 	availablePools := map[string]bool{
 		antifraud.PoolFormatDwarf: true,
@@ -172,10 +175,10 @@ func (c *Config) getTokenParams() *tokenParameters {
 			processorFactory: processorFactory,
 		},
 
-		"ZEC": {
-			dealFactory:      NewDealFactory(zecBenchmarkIndex),
-			corderFactory:    NewCorderFactory(c.Mining.Token, zecBenchmarkIndex),
-			priceProvider:    price.NewZecPriceProvider(priceProviderConfig),
+		"XMR_CPU": {
+			dealFactory:      NewDealFactory(xmrCpuBenchmarkIndex),
+			corderFactory:    NewCorderFactory(c.Mining.Token, xmrCpuBenchmarkIndex),
+			priceProvider:    price.NewXmrPriceProvider(priceProviderConfig),
 			processorFactory: processorFactory,
 		},
 
