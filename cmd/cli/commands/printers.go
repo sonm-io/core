@@ -324,6 +324,21 @@ func printVersion(cmd *cobra.Command, v string) {
 	}
 }
 
+func getDealCounterpartyString(d *pb.Deal) string {
+	addr, _ := keystore.GetDefaultAddress()
+	if d.GetConsumerID().Unwrap() == addr {
+		return d.GetSupplierID().Unwrap().Hex()
+	} else {
+		return d.GetConsumerID().Unwrap().Hex()
+	}
+}
+
+func drawLine(cmd *cobra.Command, n int) {
+	for i := 0; i < n; i++ {
+		cmd.Print("-")
+	}
+}
+
 func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 	if isSimpleFormat() {
 		if len(deals) == 0 {
@@ -331,10 +346,20 @@ func printDealsList(cmd *cobra.Command, deals []*pb.Deal) {
 			return
 		}
 
+		cmd.Println("      ID |   type   |        price       |       started at     |  duration  | counterparty    ")
 		for _, deal := range deals {
-			printDealInfo(cmd, &ExtendedDealInfo{DealInfoReply: &pb.DealInfoReply{Deal: deal}}, suppressWarnings)
-			cmd.Println()
+			cmd.Printf("%8s | %8s | %12s USD/h | %20s | %10s | %20s \r\n",
+				deal.GetId().Unwrap().String(),
+				deal.GetTypeName(),
+				deal.PricePerHour(),
+				deal.StartTime.Unix().Format(time.RFC3339),
+				time.Second*time.Duration(deal.GetDuration()),
+				getDealCounterpartyString(deal),
+			)
 		}
+
+		drawLine(cmd, 121)
+		cmd.Printf("\r\n count: %d\n", len(deals))
 	} else {
 		showJSON(cmd, map[string]interface{}{"deals": deals})
 	}
