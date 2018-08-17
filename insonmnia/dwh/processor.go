@@ -667,6 +667,7 @@ func (m *L1Processor) onCertificateCreated(certificateID *big.Int) error {
 	if err != nil {
 		return fmt.Errorf("failed to GetCertificate: %v", err)
 	}
+	certificate.IdentityLevel = (certificate.Attribute / uint64(100)) % 10
 
 	conn, err := newTxConn(m.db, m.logger)
 	if err != nil {
@@ -700,10 +701,10 @@ func (m *L1Processor) onCertificateCreated(certificateID *big.Int) error {
 	return nil
 }
 
-func (m *L1Processor) updateProfile(conn queryConn, certificate *pb.Certificate) error {
+func (m *L1Processor) updateProfile(conn queryConn, cert *pb.Certificate) error {
 	_, activeAsks, err := m.storage.GetOrders(conn, &pb.OrdersRequest{
 		Type:      pb.OrderType_ASK,
-		MasterID:  certificate.OwnerID,
+		MasterID:  cert.OwnerID,
 		WithCount: true})
 	if err != nil {
 		return fmt.Errorf("failed to get active ASKs count: %v", err)
@@ -711,57 +712,41 @@ func (m *L1Processor) updateProfile(conn queryConn, certificate *pb.Certificate)
 
 	_, activeBids, err := m.storage.GetOrders(conn, &pb.OrdersRequest{
 		Type:      pb.OrderType_BID,
-		MasterID:  certificate.OwnerID,
+		MasterID:  cert.OwnerID,
 		WithCount: true})
 	if err != nil {
 		return fmt.Errorf("failed to get active BIDs count: %v", err)
 	}
 
-	certBytes, _ := json.Marshal([]*pb.Certificate{})
-	err = m.storage.InsertProfileUserID(conn, &pb.Profile{
-		UserID:       certificate.OwnerID,
-		Certificates: string(certBytes),
-		ActiveAsks:   activeAsks,
-		ActiveBids:   activeBids,
-	})
+	profile, err := m.storage.GetProfileByID(conn, cert.OwnerID.Unwrap())
 	if err != nil {
-		return fmt.Errorf("failed to insertProfileUserID: %v", err)
+		certBytes, _ := json.Marshal([]*pb.Certificate{cert})
+		profile = &pb.Profile{
+			UserID:        cert.OwnerID,
+			Certificates:  string(certBytes),
+			ActiveAsks:    activeAsks,
+			ActiveBids:    activeBids,
+			IdentityLevel: cert.IdentityLevel,
+		}
+		if err = m.storage.InsertProfileUserID(conn, profile); err != nil {
+			return fmt.Errorf("failed to insertProfileUserID: %v", err)
+		}
 	}
 
 	// Update distinct Profile columns.
-	switch certificate.Attribute {
+	switch cert.Attribute {
 	case CertificateName, CertificateCountry:
-		err := m.storage.UpdateProfile(conn, certificate.OwnerID.Unwrap(), attributeToString[certificate.Attribute],
-			string(certificate.Value))
+		err := m.storage.UpdateProfile(conn, cert.OwnerID.Unwrap(), attributeToString[cert.Attribute],
+			string(cert.Value))
 		if err != nil {
-			return fmt.Errorf("failed to UpdateProfile (%s): %v err", attributeToString[certificate.Attribute], err)
+			return fmt.Errorf("failed to UpdateProfile (%s): %v err", attributeToString[cert.Attribute], err)
 		}
 	}
 
-	// Update certificates blob.
-	certificates, err := m.storage.GetCertificates(conn, certificate.OwnerID.Unwrap())
-	if err != nil {
-		return fmt.Errorf("failed to GetCertificates: %v", err)
+	if cert.IdentityLevel > profile.IdentityLevel {
+		profile.IdentityLevel = cert.IdentityLevel
 	}
-
-	certificateAttrsBytes, err := json.Marshal(certificates)
-	if err != nil {
-		return fmt.Errorf("failed to marshal certificates: %v", err)
-	}
-
-	var maxIdentityLevel uint64
-	for _, certificate := range certificates {
-		if certificate.IdentityLevel > maxIdentityLevel {
-			maxIdentityLevel = certificate.IdentityLevel
-		}
-	}
-
-	err = m.storage.UpdateProfile(conn, certificate.OwnerID.Unwrap(), "Certificates", certificateAttrsBytes)
-	if err != nil {
-		return fmt.Errorf("failed to updateProfileCertificates (Certificates): %v", err)
-	}
-
-	err = m.storage.UpdateProfile(conn, certificate.OwnerID.Unwrap(), "IdentityLevel", maxIdentityLevel)
+	err = m.storage.UpdateProfile(conn, cert.OwnerID.Unwrap(), "IdentityLevel", profile.IdentityLevel)
 	if err != nil {
 		return fmt.Errorf("failed to updateProfileCertificates (Level): %v", err)
 	}

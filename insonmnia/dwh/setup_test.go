@@ -429,7 +429,6 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 			"",
 			0,
 			0,
-			[]byte{},
 			0,
 			0,
 		).RunWith(db).Exec()
@@ -446,7 +445,6 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 		"",
 		0,
 		0,
-		byteCerts,
 		10,
 		10,
 	).RunWith(db).Exec()
@@ -460,7 +458,6 @@ func setupTestData(ctx context.Context, db *sql.DB, blockchain bch.API) (*sqlSto
 		"",
 		0,
 		0,
-		byteCerts,
 		10,
 		10,
 	).RunWith(db).Exec()

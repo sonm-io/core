@@ -8,6 +8,8 @@ import (
 	"math/big"
 	"strings"
 
+	"encoding/json"
+
 	sq "github.com/Masterminds/squirrel"
 	"github.com/ethereum/go-ethereum/common"
 	_ "github.com/lib/pq"
@@ -562,12 +564,12 @@ func (m *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 	}
 	defer rows.Close()
 
-	var out []*pb.Profile
+	var profiles []*pb.Profile
 	for rows.Next() {
 		if profile, err := m.decodeProfile(rows); err != nil {
 			return nil, 0, fmt.Errorf("failed to decodeProfile: %v", err)
 		} else {
-			out = append(out, profile)
+			profiles = append(profiles, profile)
 		}
 	}
 	if err := rows.Err(); err != nil {
@@ -584,14 +586,46 @@ func (m *sqlStorage) GetProfiles(conn queryConn, r *pb.ProfilesRequest) ([]*pb.P
 		for _, blacklistedAddr := range blacklistReply.Addresses {
 			blacklistedAddrs[blacklistedAddr] = true
 		}
-		for _, profile := range out {
+		for _, profile := range profiles {
 			if blacklistedAddrs[profile.UserID.Unwrap().Hex()] {
 				profile.IsBlacklisted = true
 			}
 		}
 	}
 
-	return out, count, nil
+	if err := m.addCertificatesToProfiles(conn, profiles); err != nil {
+		return nil, 0, fmt.Errorf("failed to addCertificatesToProfiles: %v", err)
+	}
+
+	return profiles, count, nil
+}
+
+func (m *sqlStorage) addCertificatesToProfiles(conn queryConn, profiles []*pb.Profile) error {
+	var (
+		userIDs          []common.Address
+		userCertificates = map[common.Address][]*pb.Certificate{}
+	)
+	for _, profile := range profiles {
+		userIDs = append(userIDs, profile.UserID.Unwrap())
+	}
+	certs, err := m.GetCertificates(conn, userIDs...)
+	if err != nil {
+		return fmt.Errorf("failed to GetCertificates: %v", err)
+	}
+
+	for _, cert := range certs {
+		userCertificates[cert.OwnerID.Unwrap()] = append(userCertificates[cert.OwnerID.Unwrap()], cert)
+	}
+	for _, profile := range profiles {
+		certsEncoded, err := json.Marshal(userCertificates[profile.UserID.Unwrap()])
+		if err != nil {
+			return fmt.Errorf("failed to marshal %s certificates: %v", profile.UserID.Unwrap().Hex(), err)
+		}
+
+		profile.Certificates = string(certsEncoded)
+	}
+
+	return nil
 }
 
 func (m *sqlStorage) InsertDealChangeRequest(conn queryConn, changeRequest *pb.DealChangeRequest) error {
@@ -885,7 +919,7 @@ func (m *sqlStorage) InsertCertificate(conn queryConn, certificate *pb.Certifica
 		certificate.GetId().Unwrap().String(),
 		certificate.OwnerID.Unwrap().Hex(),
 		certificate.Attribute,
-		(certificate.Attribute/uint64(100))%10,
+		certificate.IdentityLevel,
 		certificate.Value,
 		certificate.ValidatorID.Unwrap().Hex(),
 	).ToSql()
@@ -893,11 +927,15 @@ func (m *sqlStorage) InsertCertificate(conn queryConn, certificate *pb.Certifica
 	return err
 }
 
-func (m *sqlStorage) GetCertificates(conn queryConn, ownerID common.Address) ([]*pb.Certificate, error) {
-	query, args, _ := m.builder().Select("*").From("Certificates").Where("OwnerID = ?", ownerID.Hex()).ToSql()
+func (m *sqlStorage) GetCertificates(conn queryConn, ownerIDs ...common.Address) ([]*pb.Certificate, error) {
+	var ids []string
+	for _, id := range ownerIDs {
+		ids = append(ids, id.Hex())
+	}
+	query, args, _ := m.builder().Select("*").From("Certificates").Where(sq.Eq{"OwnerID": ids}).ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to getCertificatesByUseID: %v", err)
+		return nil, fmt.Errorf("failed to getCertificatesByUserID: %v", err)
 	}
 	defer rows.Close()
 
@@ -923,7 +961,6 @@ func (m *sqlStorage) InsertProfileUserID(conn queryConn, profile *pb.Profile) er
 	query, args, _ := m.builder().Insert("Profiles").Columns(m.tablesInfo.ProfileColumns[1:]...).Values(
 		profile.UserID.Unwrap().Hex(),
 		0, "", "", false, false,
-		profile.Certificates,
 		profile.ActiveAsks,
 		profile.ActiveBids,
 	).Suffix("ON CONFLICT (UserID) DO NOTHING").ToSql()
@@ -1506,7 +1543,6 @@ func (m *sqlStorage) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 		country        string
 		isCorporation  bool
 		isProfessional bool
-		certificates   []byte
 		activeAsks     uint64
 		activeBids     uint64
 	)
@@ -1518,7 +1554,6 @@ func (m *sqlStorage) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 		&country,
 		&isCorporation,
 		&isProfessional,
-		&certificates,
 		&activeAsks,
 		&activeBids,
 	); err != nil {
@@ -1532,7 +1567,6 @@ func (m *sqlStorage) decodeProfile(rows *sql.Rows) (*pb.Profile, error) {
 		Country:        country,
 		IsCorporation:  isCorporation,
 		IsProfessional: isProfessional,
-		Certificates:   string(certificates),
 		ActiveAsks:     activeAsks,
 		ActiveBids:     activeBids,
 	}, nil
@@ -1813,7 +1847,6 @@ func newTablesInfo(numBenchmarks uint64) *tablesInfo {
 		"Country",
 		"IsCorporation",
 		"IsProfessional",
-		"Certificates",
 		"ActiveAsks",
 		"ActiveBids",
 	}
@@ -1979,7 +2012,6 @@ func newPostgresStorage(numBenchmarks uint64) *sqlStorage {
 		Country						TEXT NOT NULL,
 		IsCorporation				BOOLEAN NOT NULL,
 		IsProfessional				BOOLEAN NOT NULL,
-		Certificates				BYTEA NOT NULL,
 		ActiveAsks					INTEGER NOT NULL,
 		ActiveBids					INTEGER NOT NULL
 	)`,
