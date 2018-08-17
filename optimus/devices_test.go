@@ -748,3 +748,29 @@ func TestConsumeGPUWithZeroCountRequiredStillConsumes(t *testing.T) {
 
 	assert.Equal(t, 2, len(plan.Hashes))
 }
+
+func TestConsumeWithCPUCores(t *testing.T) {
+	devices := newEmptyDevicesReply()
+	devices.CPU.Device.Cores = 2
+	devices.CPU.Benchmarks = map[uint64]*sonm.Benchmark{
+		0: {ID: 0, Result: 1000},
+		1: {ID: 1, Result: 1526},
+		2: {ID: 2, Result: 2},
+	}
+	devices.RAM.Device.Total = 1000000000
+	devices.RAM.Benchmarks = map[uint64]*sonm.Benchmark{
+		3: {ID: 3, Result: 1000000000},
+	}
+
+	controller := gomock.NewController(t)
+	defer controller.Finish()
+
+	manager, err := newDeviceManager(devices, devices, newMappingMock(controller))
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+
+	benchmark := [12]uint64{0, 0, 4}
+	cpuPlan, err := manager.consumeCPU(benchmark[:])
+	require.Error(t, err)
+	require.Nil(t, cpuPlan)
+}
