@@ -258,7 +258,7 @@ func testCertificateUpdated(p *L1Processor, certificate *pb.Certificate, commonI
 	// Now create a country certificate.
 	certificate.Attribute = CertificateCountry
 	certificate.Value = []byte("Country")
-	// Check that a  Profile entry is updated after CertificateCreated event.
+	// Check that a Profile entry is updated after CertificateCreated event.
 	if err := p.onCertificateCreated(commonID); err != nil {
 		return fmt.Errorf("onCertificateCreated failed: %v", err)
 	}
@@ -296,7 +296,7 @@ func testCertificateUpdated(p *L1Processor, certificate *pb.Certificate, commonI
 	}
 	if dwhOrder.CreatorIdentityLevel != 3 {
 		return fmt.Errorf("(CertificateCreated) Expected %d, got %d (Order.CreatorIdentityLevel)",
-			2, dwhOrder.CreatorIdentityLevel)
+			3, dwhOrder.CreatorIdentityLevel)
 	}
 	// Check that profile updates resulted in deals updates.
 	if deal, err := p.storage.GetDealByID(newSimpleConn(p.db), commonID); err != nil {

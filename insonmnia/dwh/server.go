@@ -9,6 +9,8 @@ import (
 	"net"
 	"sync"
 
+	"encoding/json"
+
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -308,6 +310,18 @@ func (m *DWH) GetProfileInfo(ctx context.Context, request *pb.EthID) (*pb.Profil
 		m.logger.Warn("failed to GetProfileInfo", zap.Error(err), zap.Any("request", *request))
 		return nil, status.Error(codes.NotFound, "failed to GetProfileInfo")
 	}
+
+	certs, err := m.storage.GetCertificates(conn, request.GetId().Unwrap())
+	if err != nil {
+		return nil, fmt.Errorf("failed to GetCertificates: %v", err)
+	}
+
+	certsEncoded, err := json.Marshal(certs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal %s certificates: %v", request.GetId().Unwrap(), err)
+	}
+
+	out.Certificates = string(certsEncoded)
 
 	return out, nil
 }
