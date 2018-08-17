@@ -24,28 +24,32 @@ func (blacklistClientMock) Remove(ctx context.Context, in *sonm.EthAddress, opts
 	return &sonm.Empty{}, nil
 }
 
-func TestBlackListWatcher(t *testing.T) {
-
-	w := blacklistWatcher{
+func newTestBlacklistWatcher() blacklistWatcher {
+	return blacklistWatcher{
 		address:     common.HexToAddress("0x950B346f1028cbf76a6ed721786eBcfb13DAc4Ec"),
-		currentStep: minStep,
+		nextPeriod:  minStep,
+		lastSuccess: time.Now(),
 		client:      blacklistClientMock{},
 		log:         zap.NewNop(),
 	}
+}
 
-	assert.False(t, w.Blacklisted(), "should not be blacklisted by default")
+func TestBlackListWatcher(t *testing.T) {
+	w := newTestBlacklistWatcher()
+
+	assert.False(t, w.isBlacklisted(), "should not be blacklisted by default")
 	w.Success()
-	assert.False(t, w.Blacklisted(), "should not be blacklisted after success")
+	assert.False(t, w.isBlacklisted(), "should not be blacklisted after success")
 
 	w.Failure()
-	assert.True(t, w.Blacklisted(), "should be blacklisted when first failure detected")
+	assert.True(t, w.isBlacklisted(), "should be blacklisted when first failure detected")
 
 	w.Success()
-	assert.True(t, w.Blacklisted(), "should still be blacklisted after failure")
+	assert.True(t, w.isBlacklisted(), "should still be blacklisted after failure")
 
 	// assume that un-blacklisting time is come
-	w.till = time.Now().Add(-1 * time.Second)
+	w.unBlacklistAt = time.Now().Add(-1 * time.Second)
 	err := w.TryUnblacklist(context.Background())
 	require.NoError(t, err)
-	assert.False(t, w.Blacklisted(), "should not be blacklisted after removal")
+	assert.False(t, w.isBlacklisted(), "should not be blacklisted after removal")
 }

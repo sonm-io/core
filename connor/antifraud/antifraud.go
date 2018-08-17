@@ -72,14 +72,19 @@ func NewAntiFraud(cfg Config, log *zap.Logger, processors ProcessorFactory, node
 func (m *antiFraud) Run(ctx context.Context) error {
 	m.log.Info("starting antifraud")
 
-	ticker := time.NewTicker(m.cfg.QualityCheckInterval)
-	defer ticker.Stop()
+	dealsTicker := time.NewTicker(m.cfg.QualityCheckInterval)
+	blacklistTicker := time.NewTicker(m.cfg.BlacklistCheckInterval)
+	defer dealsTicker.Stop()
+	defer blacklistTicker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-ticker.C:
+		case <-dealsTicker.C:
 			m.checkDeals(ctx)
+		case <-blacklistTicker.C:
+			m.checkBlacklist(ctx)
 		}
 	}
 }
@@ -146,12 +151,14 @@ func (m *antiFraud) checkDeals(ctx context.Context) error {
 			watcher.Success()
 		}
 	}
+	return nil
+}
 
+func (m *antiFraud) checkBlacklist(ctx context.Context) {
 	//TODO: save this in DB, load on start
 	for _, watcher := range m.blacklistWatchers {
 		watcher.TryUnblacklist(ctx)
 	}
-	return nil
 }
 
 func (m *antiFraud) TrackTask(ctx context.Context, deal *sonm.Deal, taskID string) error {
