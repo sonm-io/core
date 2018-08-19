@@ -240,7 +240,8 @@ func (m *antiFraud) finishDealWithRetry(ctx context.Context, deal *sonm.Deal, bl
 func (m *antiFraud) finishDeal(ctx context.Context, deal *sonm.Deal, blacklistType sonm.BlacklistType) error {
 	m.log.Info("finishing deal",
 		zap.String("deal_id", deal.GetId().Unwrap().String()),
-		zap.Duration("lifetime", lifeTime(deal)))
+		zap.Duration("lifetime", lifeTime(deal)),
+		zap.String("blacklist", blacklistType.String()))
 
 	ctx, cancel := context.WithTimeout(context.Background(), m.cfg.ConnectionTimeout)
 	defer cancel()
@@ -269,7 +270,15 @@ func (m *antiFraud) whoToBlacklist(deal *sonm.Deal) sonm.BlacklistType {
 	}
 
 	if meta.poolProcessor == nil || meta.logProcessor == nil {
-		m.log.Debug("decide to blacklist worker")
+		m.log.Debug("decide to blacklist worker - no task")
+		m.blacklistWatchers[deal.GetSupplierID().Unwrap()].Failure()
+		return sonm.BlacklistType_BLACKLIST_WORKER
+	}
+
+	// this can happen if task failed too quickly
+	// (due to hardware errors, not enough VRAM to start miner, eth)
+	if _, q := meta.logProcessor.TaskQuality(); q == 0 {
+		m.log.Debug("decide to blacklist worker - no statistic")
 		m.blacklistWatchers[deal.GetSupplierID().Unwrap()].Failure()
 		return sonm.BlacklistType_BLACKLIST_WORKER
 	}
