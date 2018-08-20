@@ -553,7 +553,7 @@ func (e *engine) restoreTasks(ctx context.Context, log *zap.Logger, dealID *sonm
 			list, err := e.loadTasksOnce(ctx, log, dealID)
 			if err != nil {
 				try++
-				log.Warn("cannot obtain task list from worker", zap.Error(err))
+				log.Warn("cannot obtain task list from worker", zap.Error(err), zap.Int("try", try))
 				continue
 			}
 

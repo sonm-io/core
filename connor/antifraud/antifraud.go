@@ -202,7 +202,8 @@ func (m *antiFraud) DealOpened(deal *sonm.Deal) error {
 }
 
 func (m *antiFraud) FinishDeal(ctx context.Context, deal *sonm.Deal) error {
-	return m.finishDealWithRetry(ctx, deal, sonm.BlacklistType_BLACKLIST_NOBODY)
+	whoToBlacklist := m.whoToBlacklist(deal)
+	return m.finishDealWithRetry(ctx, deal, whoToBlacklist)
 }
 
 func (m *antiFraud) finishDealWithRetry(ctx context.Context, deal *sonm.Deal, blacklistType sonm.BlacklistType) error {
@@ -239,7 +240,8 @@ func (m *antiFraud) finishDealWithRetry(ctx context.Context, deal *sonm.Deal, bl
 func (m *antiFraud) finishDeal(ctx context.Context, deal *sonm.Deal, blacklistType sonm.BlacklistType) error {
 	m.log.Info("finishing deal",
 		zap.String("deal_id", deal.GetId().Unwrap().String()),
-		zap.Duration("lifetime", lifeTime(deal)))
+		zap.Duration("lifetime", lifeTime(deal)),
+		zap.String("blacklist", blacklistType.String()))
 
 	ctx, cancel := context.WithTimeout(context.Background(), m.cfg.ConnectionTimeout)
 	defer cancel()
@@ -256,4 +258,30 @@ func (m *antiFraud) finishDeal(ctx context.Context, deal *sonm.Deal, blacklistTy
 
 	_, err = m.deals.Finish(ctx, &sonm.DealFinishRequest{Id: deal.GetId(), BlacklistType: blacklistType})
 	return err
+}
+
+func (m *antiFraud) whoToBlacklist(deal *sonm.Deal) sonm.BlacklistType {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	meta, ok := m.meta[deal.GetId().Unwrap().String()]
+	if !ok {
+		return sonm.BlacklistType_BLACKLIST_NOBODY
+	}
+
+	if meta.poolProcessor == nil || meta.logProcessor == nil {
+		m.log.Debug("decide to blacklist worker - no task")
+		m.blacklistWatchers[deal.GetSupplierID().Unwrap()].Failure()
+		return sonm.BlacklistType_BLACKLIST_WORKER
+	}
+
+	// this can happen if task failed too quickly
+	// (due to hardware errors, not enough VRAM to start miner, eth)
+	if _, q := meta.logProcessor.TaskQuality(); q == 0 {
+		m.log.Debug("decide to blacklist worker - no statistic")
+		m.blacklistWatchers[deal.GetSupplierID().Unwrap()].Failure()
+		return sonm.BlacklistType_BLACKLIST_WORKER
+	}
+
+	return sonm.BlacklistType_BLACKLIST_NOBODY
 }
