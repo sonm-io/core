@@ -36,6 +36,7 @@ func newMonitor(cfg MonitorConfig, cluster *memberlist.Memberlist, metrics *metr
 	server := xgrpc.NewServer(log,
 		xgrpc.Credentials(credentials),
 		xgrpc.DefaultTraceInterceptor(),
+		xgrpc.RequestLogInterceptor(log),
 		xgrpc.VerifyInterceptor(),
 	)
 
