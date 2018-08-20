@@ -147,6 +147,29 @@ func (m *meetingRoom) DiscardConnections(addrs []nppc.ResourceID) {
 	}
 }
 
+func (m *meetingRoom) Info() (map[string]*sonm.RelayMeeting, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	response := map[string]*sonm.RelayMeeting{}
+	for id, meeting := range m.servers {
+		servers := map[string]*sonm.Addr{}
+
+		for serverID, candidate := range meeting.candidates {
+			addr, err := sonm.NewAddr(candidate.conn.RemoteAddr())
+			if err != nil {
+				return nil, err
+			}
+
+			servers[serverID.String()] = addr
+		}
+
+		response[id.String()] = &sonm.RelayMeeting{Servers: servers}
+	}
+
+	return response, nil
+}
+
 type ConnID string
 
 func (m ConnID) String() string {
@@ -325,7 +348,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		return nil, err
 	}
 
-	m.monitoring, err = newMonitor(cfg.Monitor, m.cluster, metrics, opts.log)
+	m.monitoring, err = newMonitor(cfg.Monitor, m.cluster, m.meetingRoom, metrics, opts.log)
 	if err != nil {
 		return nil, err
 	}
