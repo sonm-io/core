@@ -65,7 +65,9 @@ func NewCIFSVolumeDriver(ctx context.Context, options ...Option) (VolumeDriver, 
 func (d *cifsVolumeDriver) CreateVolume(name string, options map[string]string) (Volume, error) {
 	d.logger.Info("creating volume", zap.String("name", name))
 
-	options[drivers.CifsOpts] = fmt.Sprintf("vers=\"%s\"", options["vers"])
+	if version, ok := options["vers"]; ok {
+		options[drivers.CifsOpts] = fmt.Sprintf("vers=\"%s\"", version)
+	}
 
 	request := &volume.CreateRequest{
 		Name:    name,
