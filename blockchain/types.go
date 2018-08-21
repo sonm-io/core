@@ -106,6 +106,10 @@ type CertificateCreatedData struct {
 	ID *big.Int
 }
 
+type CertificateUpdatedData struct {
+	ID *big.Int
+}
+
 type NumBenchmarksUpdatedData struct {
 	NumBenchmarks uint64
 }
