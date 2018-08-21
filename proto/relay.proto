@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 import "insonmnia.proto";
+import "net.proto";
 
 package sonm;
 
@@ -52,6 +53,7 @@ message HandshakeResponse {
 service Relay {
     rpc Cluster(Empty) returns (RelayClusterReply) {}
     rpc Metrics(Empty) returns (RelayMetrics) {}
+    rpc Info(Empty) returns (RelayInfo) {}
 }
 
 message RelayClusterReply {
@@ -67,4 +69,14 @@ message RelayMetrics {
 message NetMetrics {
     uint64 txBytes = 1;
     uint64 rxBytes = 2;
+}
+
+// RelayInfo is a response returned from Info handle.
+message RelayInfo {
+    map<string, RelayMeeting> state = 1;
+}
+
+// RelayMeeting represents relay point.
+message RelayMeeting {
+    map<string, Addr> servers = 2;
 }
