@@ -330,7 +330,7 @@ func (e *engine) processDeal(ctx context.Context, deal *sonm.Deal) {
 	defer log.Debug("stop deal processing")
 
 	e.antiFraud.DealOpened(deal)
-	defer e.antiFraud.FinishDeal(ctx, deal)
+	defer e.antiFraud.FinishDeal(ctx, deal, antifraud.AllChecks)
 
 	taskID, err := e.restoreTasks(ctx, log, deal.GetId())
 	if err != nil {
@@ -509,7 +509,7 @@ func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *s
 				zap.String("actual_price", e.priceProvider.GetPrice().String()),
 				zap.String("current_price", deal.restorePrice().String()))
 
-			if err := e.antiFraud.FinishDeal(ctx, deal.Unwrap()); err != nil {
+			if err := e.antiFraud.FinishDeal(ctx, deal.Unwrap(), antifraud.SkipBlacklisting); err != nil {
 				log.Warn("failed to finish deal", zap.Error(err))
 			}
 
