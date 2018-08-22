@@ -932,7 +932,8 @@ func (m *sqlStorage) GetCertificates(conn queryConn, ownerIDs ...common.Address)
 	for _, id := range ownerIDs {
 		ids = append(ids, id.Hex())
 	}
-	query, args, _ := m.builder().Select("*").From("Certificates").Where(sq.Eq{"OwnerID": ids}).ToSql()
+	query, args, _ := m.builder().Select("*").From("Certificates").Where(sq.Eq{"OwnerID": ids}).
+		OrderBy("AttributeLevel DESC").ToSql()
 	rows, err := conn.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to getCertificatesByUserID: %v", err)
@@ -955,6 +956,35 @@ func (m *sqlStorage) GetCertificates(conn queryConn, ownerIDs ...common.Address)
 	}
 
 	return certificates, nil
+}
+
+func (m *sqlStorage) GetCertificate(conn queryConn, id *big.Int) (*pb.Certificate, error) {
+	query, args, _ := m.builder().Select("*").From("Certificates").Where("Id = ?", id.String()).ToSql()
+	rows, err := conn.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run query: %v", err)
+	}
+	defer rows.Close()
+
+	if !rows.Next() {
+		return nil, errors.New("no rows returned")
+	}
+
+	if cert, err := m.decodeCertificate(rows); err != nil {
+		return nil, fmt.Errorf("failed to decodeCertificate: %v", err)
+	} else {
+		return cert, nil
+	}
+}
+
+func (m *sqlStorage) DeleteCertificate(conn queryConn, id *big.Int) error {
+	query, args, _ := m.builder().Delete("Certificates").Where("Id = ?", id.String()).ToSql()
+	_, err := conn.Exec(query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to run query: %v", err)
+	}
+
+	return nil
 }
 
 func (m *sqlStorage) InsertProfileUserID(conn queryConn, profile *pb.Profile) error {

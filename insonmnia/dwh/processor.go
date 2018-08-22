@@ -184,6 +184,7 @@ func (m *L1Processor) processEvents(dispatcher *eventsDispatcher) {
 	m.processEventsAsync(dispatcher.OrdersClosed)
 	m.processEventsAsync(dispatcher.DealsClosed)
 	m.processEventsAsync(dispatcher.ValidatorsDeleted)
+	m.processEventsSynchronous(dispatcher.CertificatesUpdated)
 	m.processEventsAsync(dispatcher.AddedToBlacklist)
 	m.processEventsAsync(dispatcher.RemovedFromBlacklist)
 	m.processEventsAsync(dispatcher.WorkersRemoved)
@@ -694,7 +695,7 @@ func (m *L1Processor) onCertificateCreated(certificateID *big.Int) error {
 		return fmt.Errorf("failed to updateProfile: %v", err)
 	}
 
-	if err := m.updateEntitiesByProfile(conn, certificate); err != nil {
+	if err := m.updateEntitiesByProfile(conn, certificate.OwnerID.Unwrap()); err != nil {
 		return fmt.Errorf("failed to updateEntitiesByProfile: %v", err)
 	}
 
@@ -754,8 +755,8 @@ func (m *L1Processor) updateProfile(conn queryConn, cert *pb.Certificate) error 
 	return nil
 }
 
-func (m *L1Processor) updateEntitiesByProfile(conn queryConn, certificate *pb.Certificate) error {
-	profile, err := m.storage.GetProfileByID(conn, certificate.OwnerID.Unwrap())
+func (m *L1Processor) updateEntitiesByProfile(conn queryConn, userID common.Address) error {
+	profile, err := m.storage.GetProfileByID(conn, userID)
 	if err != nil {
 		return fmt.Errorf("failed to getProfileInfo: %v", err)
 	}
@@ -786,6 +787,33 @@ func (m *L1Processor) updateProfileStats(conn queryConn, orderType pb.OrderType,
 
 	if err := m.storage.UpdateProfileStats(conn, userID, field, update); err != nil {
 		return fmt.Errorf("failed to UpdateProfileStats: %v", err)
+	}
+
+	return nil
+}
+
+func (m *L1Processor) onCertificateUpdated(conn queryConn, certID *big.Int) error {
+	cert, err := m.storage.GetCertificate(conn, certID)
+	if err != nil {
+		return fmt.Errorf("failed to GetCertificate: %v", err)
+	}
+
+	profileLevel, err := m.blockchain.ProfileRegistry().GetProfileLevel(m.ctx, cert.OwnerID.Unwrap())
+	if err != nil {
+		return fmt.Errorf("failed to GetProfileLevel: %v", err)
+	}
+
+	if err := m.storage.DeleteCertificate(conn, certID); err != nil {
+		return fmt.Errorf("failed to DeleteCertificate: %v", err)
+	}
+
+	err = m.storage.UpdateProfile(conn, cert.OwnerID.Unwrap(), "IdentityLevel", profileLevel)
+	if err != nil {
+		return fmt.Errorf("failed to updateProfileCertificates (Level): %v", err)
+	}
+
+	if err := m.updateEntitiesByProfile(conn, cert.OwnerID.Unwrap()); err != nil {
+		return fmt.Errorf("failed to updateEntitiesByProfile: %v", err)
 	}
 
 	return nil
@@ -903,6 +931,7 @@ type eventsDispatcher struct {
 	OrdersClosed              []*blockchain.Event
 	DealsClosed               []*blockchain.Event
 	ValidatorsDeleted         []*blockchain.Event
+	CertificatesUpdated       []*blockchain.Event
 	AddedToBlacklist          []*blockchain.Event
 	RemovedFromBlacklist      []*blockchain.Event
 	WorkersAnnounced          []*blockchain.Event
@@ -925,6 +954,8 @@ func (m *eventsDispatcher) Add(event *blockchain.Event) {
 		m.ValidatorsDeleted = append(m.ValidatorsDeleted, event)
 	case *blockchain.CertificateCreatedData:
 		m.CertificatesCreated = append(m.CertificatesCreated, event)
+	case *blockchain.CertificateUpdatedData:
+		m.CertificatesUpdated = append(m.CertificatesUpdated, event)
 	case *blockchain.DealOpenedData:
 		m.DealsOpened = append(m.DealsOpened, event)
 	case *blockchain.DealUpdatedData:

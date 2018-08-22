@@ -54,6 +54,9 @@ func (m *Benchmarks) Validate() error {
 }
 
 func (m *Benchmarks) Get(idx int) uint64 {
+	if m == nil {
+		return 0
+	}
 	if len(m.Values) <= idx {
 		return 0
 	}

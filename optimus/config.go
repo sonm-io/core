@@ -71,7 +71,7 @@ type workerConfig struct {
 	OrderPolicy    OrderPolicy        `yaml:"order_policy"`
 	DryRun         bool               `yaml:"dry_run" default:"false"`
 	Identity       sonm.IdentityLevel `yaml:"identity" required:"true"`
-	PriceThreshold sonm.Price         `yaml:"price_threshold" required:"true"`
+	PriceThreshold priceThreshold     `yaml:"price_threshold" required:"true"`
 	StaleThreshold time.Duration      `yaml:"stale_threshold" default:"5m"`
 	PreludeTimeout time.Duration      `yaml:"prelude_timeout" default:"30s"`
 	Optimization   OptimizationConfig `yaml:"optimization"`
@@ -79,10 +79,6 @@ type workerConfig struct {
 }
 
 func (m *workerConfig) Validate() error {
-	if m.PriceThreshold.GetPerSecond().Unwrap().Sign() <= 0 {
-		return fmt.Errorf("price threshold must be a positive number")
-	}
-
 	if m.Optimization.Model.OptimizationMethodFactory == nil {
 		m.Optimization.Model = optimizationMethodFactory{OptimizationMethodFactory: &defaultOptimizationMethodFactory{}}
 	}
