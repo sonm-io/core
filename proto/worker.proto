@@ -133,6 +133,7 @@ message DealInfoReply {
     // Resources is a real resources (cores, ram bytes, GPU devices, etc)
     // allocated on a worker for this deal.
     AskPlanResources resources =  4;
+    repeated string publicIPs = 5;
 }
 
 message TaskStatusReply {
