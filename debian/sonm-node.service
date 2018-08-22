@@ -11,4 +11,5 @@ Restart=on-failure
 
 
 [Install]
-WantedBy=multi-user.target
+Wants=network-online.target
+After=network.target network-online.target
