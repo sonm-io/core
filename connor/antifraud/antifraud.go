@@ -162,6 +162,12 @@ func (m *antiFraud) checkBlacklist(ctx context.Context) {
 }
 
 func (m *antiFraud) TrackTask(ctx context.Context, deal *sonm.Deal, taskID string) error {
+	log := m.log.With(zap.String("deal_id", deal.GetId().Unwrap().String()),
+		zap.String("task_id", taskID))
+
+	log.Debug("start task tracking")
+	defer log.Debug("stop task tracking")
+
 	m.mu.Lock()
 	meta, ok := m.meta[deal.Id.Unwrap().String()]
 	if !ok {
