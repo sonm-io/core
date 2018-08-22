@@ -75,3 +75,48 @@ func TestAbsolutePriceThresholdExceeds(t *testing.T) {
 	assert.True(t, v.Exceeds(big.NewInt(105555555555556), big.NewInt(100000000000000)))
 	assert.False(t, v.Exceeds(big.NewInt(105555555555554), big.NewInt(100000000000000)))
 }
+
+func TestParseAbsolutePriceThreshold(t *testing.T) {
+	v, err := ParseAbsolutePriceThreshold("0.02 USD/h")
+	require.NoError(t, err)
+	require.NotNil(t, v)
+
+	assert.True(t, v.Exceeds(big.NewInt(105555555555556), big.NewInt(100000000000000)))
+	assert.False(t, v.Exceeds(big.NewInt(105555555555554), big.NewInt(100000000000000)))
+}
+
+func TestErrParseAbsolutePriceThreshold(t *testing.T) {
+	tests := []struct {
+		name      string
+		threshold string
+	}{
+		{
+			name:      "missing dimension",
+			threshold: "1.5",
+		},
+		{
+			name:      "invalid dimension",
+			threshold: "1.5 USD/day",
+		},
+		{
+			name:      "not number",
+			threshold: "1.5c USD/h",
+		},
+		{
+			name:      "zero number",
+			threshold: "0.0 USD/h",
+		},
+		{
+			name:      "negative number",
+			threshold: "-1.5 USD/h",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			v, err := ParseAbsolutePriceThreshold(test.threshold)
+
+			require.Error(t, err)
+			require.Nil(t, v)
+		})
+	}
+}

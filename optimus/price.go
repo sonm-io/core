@@ -101,5 +101,5 @@ func (m *priceThreshold) UnmarshalText(text []byte) error {
 		m.PriceThreshold = threshold
 	}
 
-	return errors.New("invalid price threshold format: must be either `N`, `N USD/s`, `N USD/h` or `N%`, where N - number")
+	return errors.New("invalid price threshold format: must be either `N USD/s`, `N USD/h` or `N%`, where N - number")
 }
