@@ -80,12 +80,6 @@ func (w *dwarfPoolProcessor) Run(ctx context.Context) error {
 			w.hashrateEWMA.Update(int64(w.currentHashrate))
 		case <-ewmaTick.C:
 			w.hashrateEWMA.Tick()
-			// todo: remove after debug
-			_, q := w.TaskQuality()
-			w.log.Debug("values obtained from pool",
-				zap.Float64("EWMA", w.hashrateEWMA.Rate()),
-				zap.Float64("hashrate", w.currentHashrate),
-				zap.Float64("quality", q))
 		case <-track.C:
 			if err := w.watch(); err != nil {
 				w.log.Warn("failed to load dwarfPool's data", zap.Error(err))
