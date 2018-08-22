@@ -176,6 +176,10 @@ func (e *engine) sendOrderToMarket(ctx context.Context, bid *sonm.BidOrder) (*so
 
 func (e *engine) processOrderCreate(ctx context.Context) {
 	for bid := range e.ordersCreateChan {
+		// set actual order price just before sending it to the Market
+		hashRate := big.NewInt(0).SetUint64(bid.GetHashrate())
+		bid.Price = sonm.NewBigInt(big.NewInt(0).Mul(e.priceProvider.GetPrice(), hashRate))
+
 		created, err := e.sendOrderToMarket(ctx, bid.AsBID())
 		if err != nil {
 			e.log.Warn("cannot place order, retrying", zap.Error(err))
@@ -263,10 +267,6 @@ func (e *engine) waitForDeal(ctx context.Context, order *Corder) {
 					zap.String("current_price", order.restorePrice().String()))
 
 				e.CancelOrder(order)
-
-				hashRate := big.NewInt(0).SetUint64(order.GetHashrate())
-				order.Price = sonm.NewBigInt(big.NewInt(0).Mul(actualPrice, hashRate))
-
 				replacedOrdersCounter.Inc()
 				e.CreateOrder(order)
 				return
@@ -762,9 +762,8 @@ func (e *engine) getTargetCorders() []*Corder {
 	v := make([]*Corder, 0)
 
 	for hashrate := e.cfg.Market.FromHashRate; hashrate <= e.cfg.Market.ToHashRate; hashrate += e.cfg.Market.Step {
-		bigHashrate := big.NewInt(int64(hashrate))
-		p := big.NewInt(0).Mul(bigHashrate, e.priceProvider.GetPrice())
-		v = append(v, e.corderFactory.FromParams(p, hashrate, e.cfg.getBaseBenchmarks()))
+		// settings zero price is OK for now, we'll update it just before sending to the Marketplace.
+		v = append(v, e.corderFactory.FromParams(big.NewInt(0), hashrate, e.cfg.getBaseBenchmarks()))
 	}
 
 	return v
