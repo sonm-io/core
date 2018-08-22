@@ -124,6 +124,8 @@ It has these top-level messages:
 	RelayClusterReply
 	RelayMetrics
 	NetMetrics
+	RelayInfo
+	RelayMeeting
 	ConnectRequest
 	PublishRequest
 	RendezvousReply

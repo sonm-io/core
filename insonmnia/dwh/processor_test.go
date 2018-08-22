@@ -76,7 +76,8 @@ func testDWH_L1Processor(t *testing.T) {
 	}
 	mockProfiles.EXPECT().GetValidator(gomock.Any(), gomock.Any()).AnyTimes().Return(validator, nil)
 	mockProfiles.EXPECT().GetValidatorLevel(gomock.Any(), gomock.Any()).AnyTimes().Return(int8(0), nil)
-	certificate := &pb.Certificate{
+	mockProfiles.EXPECT().GetProfileLevel(gomock.Any(), gomock.Any()).AnyTimes().Return(pb.IdentityLevel_ANONYMOUS, nil)
+	cert := &pb.Certificate{
 		ValidatorID:   pb.NewEthAddress(common.HexToAddress("0xC")),
 		OwnerID:       pb.NewEthAddress(common.HexToAddress("0xD")),
 		Attribute:     CertificateName,
@@ -84,7 +85,7 @@ func testDWH_L1Processor(t *testing.T) {
 		Value:         []byte("User Name"),
 	}
 	mockProfiles.EXPECT().GetCertificate(gomock.Any(), gomock.Any()).AnyTimes().Return(
-		certificate, nil)
+		cert, nil)
 	mockBlock.EXPECT().Market().AnyTimes().Return(mockMarket)
 	mockBlock.EXPECT().ProfileRegistry().AnyTimes().Return(mockProfiles)
 
@@ -108,7 +109,11 @@ func testDWH_L1Processor(t *testing.T) {
 		t.Errorf("testValidatorCreatedUpdated: %s", err)
 		return
 	}
-	if err := testCertificateUpdated(testL1Processor, certificate, commonID); err != nil {
+	if err := testCertificateCreated(testL1Processor, cert, commonID); err != nil {
+		t.Errorf("testCertificateCreated: %s", err)
+		return
+	}
+	if err := testCertificateUpdated(testL1Processor, cert); err != nil {
 		t.Errorf("testCertificateUpdated: %s", err)
 		return
 	}
@@ -220,7 +225,7 @@ func testValidatorCreatedUpdated(p *L1Processor, validator *pb.Validator) error 
 	return nil
 }
 
-func testCertificateUpdated(p *L1Processor, certificate *pb.Certificate, commonID *big.Int) error {
+func testCertificateCreated(p *L1Processor, certificate *pb.Certificate, commonID *big.Int) error {
 	// Check that a Certificate entry is created after CertificateCreated event. We create a special certificate,
 	// `Name`, that will be recorded directly into profile. There's two such certificate types: `Name` and `Country`.
 	if err := p.onCertificateCreated(commonID); err != nil {
@@ -306,6 +311,24 @@ func testCertificateUpdated(p *L1Processor, certificate *pb.Certificate, commonI
 			return fmt.Errorf("expected some SupplierCertificates, got nothing")
 		}
 	}
+	return nil
+}
+
+func testCertificateUpdated(p *L1Processor, cert *pb.Certificate) error {
+	if err := p.onCertificateUpdated(newSimpleConn(p.db), cert.Id.Unwrap()); err != nil {
+		return fmt.Errorf("(CertificateUpdated) %v", err)
+	}
+
+	profile, err := p.storage.GetProfileByID(newSimpleConn(p.db), cert.OwnerID.Unwrap())
+	if err != nil {
+		return err
+	}
+
+	if profile.IdentityLevel != uint64(pb.IdentityLevel_ANONYMOUS) {
+		return fmt.Errorf("(CertificateUpdated) Expected %d, got %d (Profile.IdentityLevel)",
+			pb.IdentityLevel_ANONYMOUS, profile.IdentityLevel)
+	}
+
 	return nil
 }
 
