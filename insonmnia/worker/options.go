@@ -256,27 +256,24 @@ func (m *options) setupBenchmarks() error {
 
 func (m *options) setupNetworkOptions() error {
 	// Use public IPs from config (if provided).
-	pubIPs := m.cfg.PublicIPs
-	if len(pubIPs) > 0 {
-		m.publicIPs = SortedIPs(pubIPs)
+	publicIPs := m.cfg.PublicIPs
+	if len(publicIPs) > 0 {
+		m.publicIPs = SortedIPs(publicIPs)
 		return nil
 	}
 
 	// Scan interfaces if there's no config and no NAT.
-	systemIPs, err := netutil.GetAvailableIPs()
+	rawPublicIPs, err := netutil.GetPublicIPs()
 	if err != nil {
 		return err
 	}
 
-	for _, ip := range systemIPs {
-		pubIPs = append(pubIPs, ip.String())
+	for _, ip := range rawPublicIPs {
+		publicIPs = append(publicIPs, ip.String())
 	}
-	if len(pubIPs) > 0 {
-		m.publicIPs = SortedIPs(pubIPs)
-		return nil
-	}
+	m.publicIPs = SortedIPs(publicIPs)
 
-	return errors.New("failed to get public IPs")
+	return nil
 }
 
 func (m *options) setupSSH() error {
