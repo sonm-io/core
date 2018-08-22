@@ -359,6 +359,13 @@ func (api *BasicAPI) setupSidechainGate(ctx context.Context) error {
 }
 
 func (api *BasicAPI) Market() MarketAPI {
+	if api.options.niceMarket {
+		return &niceMarketAPI{
+			MarketAPI: api.market,
+			profiles:  api.profileRegistry,
+			blacklist: api.blacklist,
+		}
+	}
 	return api.market
 }
 
@@ -1684,6 +1691,13 @@ func (api *BasicEventsAPI) processLog(log types.Log, eventTS uint64, out chan<- 
 			return
 		}
 		sendData(&CertificateCreatedData{ID: id})
+	case CertificateUpdatedTopic:
+		id, err := extractBig(log.Topics, 1)
+		if err != nil {
+			sendErr(out, err, topic)
+			return
+		}
+		sendData(&CertificateUpdatedData{ID: id})
 	case NumBenchmarksUpdatedTopic:
 		numBenchmarksBig, err := extractBig(log.Topics, 1)
 		if err != nil {

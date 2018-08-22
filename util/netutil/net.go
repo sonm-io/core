@@ -63,6 +63,22 @@ func (m *TCPAddr) UnmarshalYAML(unmarshal func(interface{}) error) error {
 	return nil
 }
 
+func GetPublicIPs() ([]net.IP, error) {
+	available, err := GetAvailableIPs()
+	if err != nil {
+		return nil, err
+	}
+
+	var out []net.IP
+	for _, ip := range available {
+		if !IsPrivateIP(ip) {
+			out = append(out, ip)
+		}
+	}
+
+	return out, nil
+}
+
 func GetAvailableIPs() (availableIPs []net.IP, err error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {

@@ -58,6 +58,7 @@ type options struct {
 	sidechain        *chainOpts
 	contractRegistry common.Address
 	blocksBatchSize  uint64
+	niceMarket       bool
 }
 
 func defaultOptions() *options {
@@ -154,5 +155,11 @@ func WithMasterchainClient(c CustomEthereumClient) Option {
 func WithContractRegistry(address common.Address) Option {
 	return func(o *options) {
 		o.contractRegistry = address
+	}
+}
+
+func WithNiceMarket() Option {
+	return func(o *options) {
+		o.niceMarket = true
 	}
 }

@@ -37,7 +37,6 @@ import (
 	"github.com/sonm-io/core/util/multierror"
 	"github.com/sonm-io/core/util/xgrpc"
 	"golang.org/x/sync/errgroup"
-
 	// todo: drop alias
 	bm "github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/hardware"
@@ -1421,12 +1420,17 @@ func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 		}
 	}
 
-	return &pb.DealInfoReply{
+	reply := &pb.DealInfoReply{
 		Deal:      deal,
 		Running:   running,
 		Completed: completed,
 		Resources: resources,
-	}, nil
+	}
+	if resources.GetNetwork().GetNetFlags().GetIncoming() {
+		reply.PublicIPs = m.publicIPs
+	}
+
+	return reply, nil
 }
 
 func (m *Worker) AskPlanByTaskID(taskID string) (*pb.AskPlan, error) {

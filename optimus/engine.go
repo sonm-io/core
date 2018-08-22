@@ -3,7 +3,6 @@ package optimus
 import (
 	"context"
 	"fmt"
-	"math/big"
 	"sync"
 	"time"
 
@@ -318,9 +317,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 
 	// Compare total USD/s before and after. Remove some plans if the diff is
 	// more than the threshold.
-	priceThreshold := m.cfg.PriceThreshold.GetPerSecond()
-	priceDiff := new(big.Int).Sub(virtualKnapsack.Price().GetPerSecond().Unwrap(), input.Price().GetPerSecond().Unwrap())
-	swingTime := new(big.Int).Sub(priceDiff, priceThreshold.Unwrap()).Sign() >= 0
+	swingTime := m.cfg.PriceThreshold.Exceeds(virtualKnapsack.Price().GetPerSecond().Unwrap(), input.Price().GetPerSecond().Unwrap())
 
 	var winners []*sonm.AskPlan
 	var victims []*sonm.AskPlan
