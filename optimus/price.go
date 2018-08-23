@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sonm-io/core/proto"
+	"gopkg.in/yaml.v2"
 )
 
 type PriceThreshold interface {
@@ -73,7 +74,7 @@ func NewAbsolutePriceThreshold(threshold *sonm.Price) (*AbsolutePriceThreshold, 
 
 func ParseAbsolutePriceThreshold(threshold string) (*AbsolutePriceThreshold, error) {
 	v := &sonm.Price{}
-	if err := v.UnmarshalText([]byte(threshold)); err != nil {
+	if err := yaml.Unmarshal([]byte(threshold), v); err != nil {
 		return nil, fmt.Errorf("failed to parse absolute price threshold: %v", err)
 	}
 
