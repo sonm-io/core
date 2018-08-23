@@ -263,27 +263,6 @@ func (m *logWriter) Write(p []byte) (n int, err error) {
 	return m.writer.Write(p)
 }
 
-type logReader struct {
-	cli      pb.TaskManagement_LogsClient
-	buf      bytes.Buffer
-	finished bool
-}
-
-func (m *logReader) Read(p []byte) (n int, err error) {
-	if len(p) > m.buf.Len() && !m.finished {
-		chunk, err := m.cli.Recv()
-		if err == io.EOF {
-			m.finished = true
-		} else if err != nil {
-			return 0, err
-		}
-		if chunk != nil && chunk.Data != nil {
-			m.buf.Write(chunk.Data)
-		}
-	}
-	return m.buf.Read(p)
-}
-
 func parseType(logType string) (pb.TaskLogsRequest_Type, error) {
 	if len(logType) == 0 {
 		return pb.TaskLogsRequest_BOTH, nil
@@ -341,7 +320,7 @@ var taskLogsCmd = &cobra.Command{
 			return fmt.Errorf("cannot get task logs: %v", err)
 		}
 
-		reader := logReader{cli: logClient}
+		reader := pb.NewLogReader(logClient)
 		stdout := cmd.OutOrStdout()
 		stderr := cmd.OutOrStderr()
 		if prependStream {
@@ -349,7 +328,7 @@ var taskLogsCmd = &cobra.Command{
 			stderr = &logWriter{stderr, "[STDERR] "}
 		}
 
-		if _, err := stdcopy.StdCopy(stdout, stderr, &reader); err != nil {
+		if _, err := stdcopy.StdCopy(stdout, stderr, reader); err != nil {
 			return fmt.Errorf("failed to read logs: %v", err)
 		}
 

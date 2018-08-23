@@ -2,7 +2,6 @@ package antifraud
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"io"
 	"strconv"
@@ -17,46 +16,50 @@ import (
 	"google.golang.org/grpc"
 )
 
-func newClaymoreLogProcessor(cfg *ProcessorConfig, log *zap.Logger, nodeConnection *grpc.ClientConn, deal *sonm.Deal, taskID string) Processor {
-	taskLogger := log.Named("task-logs").With(zap.String("task_id", taskID), zap.String("deal_id", deal.GetId().Unwrap().String()))
-	return &EthClaymoreLogProcessor{
-		cfg:              cfg,
-		log:              taskLogger,
-		deal:             deal,
-		taskID:           taskID,
-		taskClient:       sonm.NewTaskManagementClient(nodeConnection),
-		hashrateEWMA:     metrics.NewEWMA1(),
-		lastHashrateTime: time.Now(),
-		startTime:        time.Now(),
-		currentHashrate:  float64(deal.Benchmarks.GPUEthHashrate()),
-	}
-}
+type logParseFunc func(context.Context, *commonLogProcessor, io.Reader)
 
-type EthClaymoreLogProcessor struct {
+type commonLogProcessor struct {
 	log          *zap.Logger
 	cfg          *ProcessorConfig
 	deal         *sonm.Deal
 	taskID       string
 	taskClient   sonm.TaskManagementClient
 	hashrateEWMA metrics.EWMA
+	startTime    time.Time
 
-	startTime        time.Time
-	lastHashrateTime time.Time
-	currentHashrate  float64
+	hashrate  float64
+	logParser logParseFunc
 }
 
-func (m *EthClaymoreLogProcessor) TaskQuality() (bool, float64) {
+func newLogProcessor(cfg *ProcessorConfig, log *zap.Logger, conn *grpc.ClientConn, deal *sonm.Deal, taskID string, lp logParseFunc) Processor {
+	log = log.Named("task-logs").With(zap.String("task_id", taskID),
+		zap.String("deal_id", deal.GetId().Unwrap().String()))
+
+	return &commonLogProcessor{
+		log:          log,
+		cfg:          cfg,
+		deal:         deal,
+		taskID:       taskID,
+		logParser:    lp,
+		taskClient:   sonm.NewTaskManagementClient(conn),
+		hashrateEWMA: metrics.NewEWMA1(),
+		startTime:    time.Now(),
+		hashrate:     float64(deal.Benchmarks.GPUEthHashrate()),
+	}
+}
+
+func (m *commonLogProcessor) TaskQuality() (bool, float64) {
 	accurate := m.startTime.Add(m.cfg.TaskWarmupDelay).Before(time.Now())
 	desired := float64(m.deal.Benchmarks.GPUEthHashrate())
 	actual := m.hashrateEWMA.Rate()
 	return accurate, actual / desired
 }
 
-func (m *EthClaymoreLogProcessor) TaskID() string {
+func (m *commonLogProcessor) TaskID() string {
 	return m.taskID
 }
 
-func (m *EthClaymoreLogProcessor) Run(ctx context.Context) error {
+func (m *commonLogProcessor) Run(ctx context.Context) error {
 	go m.fetchLogs(ctx)
 	m.log.Info("starting task's warm-up")
 	timer := time.NewTimer(m.cfg.TaskWarmupDelay)
@@ -81,36 +84,14 @@ func (m *EthClaymoreLogProcessor) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-ewmaUpdate.C:
-			m.hashrateEWMA.Update(int64(m.currentHashrate))
+			m.hashrateEWMA.Update(int64(m.hashrate))
 		case <-ewmaTick.C:
 			m.hashrateEWMA.Tick()
 		}
 	}
 }
 
-//TODO: get rid of the copy paste!!!!! see cmd/cli/commands/tasks.go
-type logReader struct {
-	cli      sonm.TaskManagement_LogsClient
-	buf      bytes.Buffer
-	finished bool
-}
-
-func (m *logReader) Read(p []byte) (n int, err error) {
-	if len(p) > m.buf.Len() && !m.finished {
-		chunk, err := m.cli.Recv()
-		if err == io.EOF {
-			m.finished = true
-		} else if err != nil {
-			return 0, err
-		}
-		if chunk != nil && chunk.Data != nil {
-			m.buf.Write(chunk.Data)
-		}
-	}
-	return m.buf.Read(p)
-}
-
-func (m *EthClaymoreLogProcessor) fetchLogs(ctx context.Context) error {
+func (m *commonLogProcessor) fetchLogs(ctx context.Context) error {
 	request := &sonm.TaskLogsRequest{
 		Type:   sonm.TaskLogsRequest_STDOUT,
 		Id:     m.taskID,
@@ -131,15 +112,15 @@ func (m *EthClaymoreLogProcessor) fetchLogs(ctx context.Context) error {
 		m.log.Debug("requesting logs")
 		cli, err := m.taskClient.Logs(ctx, request)
 		if err != nil {
-			m.currentHashrate = 0.
+			m.hashrate = 0.
 			m.log.Warn("failed to fetch logs from the task")
 			continue
 		}
 
-		logReader := &logReader{cli: cli}
+		logReader := sonm.NewLogReader(cli)
 		reader, writer := io.Pipe()
 
-		go m.parseLogs(ctx, reader)
+		go m.logParser(ctx, m, reader)
 
 		_, err = stdcopy.StdCopy(writer, writer, logReader)
 		m.log.Warn("stop reading logs for task", zap.Error(err))
@@ -147,9 +128,18 @@ func (m *EthClaymoreLogProcessor) fetchLogs(ctx context.Context) error {
 	}
 }
 
-func (m *EthClaymoreLogProcessor) parseLogs(ctx context.Context, reader io.Reader) {
+func newClaymoreLogProcessor(cfg *ProcessorConfig, log *zap.Logger, nodeConnection *grpc.ClientConn, deal *sonm.Deal, taskID string) Processor {
+	return newLogProcessor(cfg, log, nodeConnection, deal, taskID, claymoreLogParser)
+}
+
+func claymoreLogParser(ctx context.Context, m *commonLogProcessor, reader io.Reader) {
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
+		if ctx.Err() != nil {
+			m.log.Debug("stop reading logs: context cancelled")
+			return
+		}
+
 		line := scanner.Text()
 		if strings.Contains(line, "Total Speed: ") {
 			fields := strings.Fields(line)
@@ -168,10 +158,9 @@ func (m *EthClaymoreLogProcessor) parseLogs(ctx context.Context, reader io.Reade
 				return
 			}
 
-			m.currentHashrate = hashrate * 1e6
-			m.lastHashrateTime = time.Now()
+			m.hashrate = hashrate * 1e6
 		}
 	}
 
-	m.log.Warn("finished reading logs", zap.Error(scanner.Err()))
+	m.log.Debug("finished reading logs", zap.Error(scanner.Err()))
 }
