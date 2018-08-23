@@ -89,15 +89,35 @@ type meetingRoom struct {
 	mu sync.Mutex
 	// Multiple servers can be registered for fault tolerance.
 	servers map[nppc.ResourceID]*connPool
+	// Tracks the time where servers were active.
+	// This is a historical data and is automatically collected when some
+	// duration threshold exceeds.
+	serverMonitoring map[nppc.ResourceID]time.Time
 
 	log *zap.SugaredLogger
 }
 
 func newMeetingRoom(log *zap.Logger) *meetingRoom {
 	return &meetingRoom{
-		servers: map[nppc.ResourceID]*connPool{},
-		log:     log.Sugar(),
+		servers:          map[nppc.ResourceID]*connPool{},
+		serverMonitoring: map[nppc.ResourceID]time.Time{},
+		log:              log.Sugar(),
 	}
+}
+
+func (m *meetingRoom) ServerActiveTime(addr nppc.ResourceID) (time.Time, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if _, ok := m.servers[addr]; ok {
+		return time.Now(), nil
+	}
+
+	if timestamp, ok := m.serverMonitoring[addr]; ok {
+		return timestamp, nil
+	}
+
+	return time.Unix(0, 0), fmt.Errorf("server `%s` is neither active nor ever was seen", addr.String())
 }
 
 func (m *meetingRoom) PopRandomServer(addr nppc.ResourceID) *meeting {
@@ -105,8 +125,14 @@ func (m *meetingRoom) PopRandomServer(addr nppc.ResourceID) *meeting {
 	defer m.mu.Unlock()
 
 	if servers, ok := m.servers[addr]; ok {
-		return servers.popRandom()
+		meeting := servers.popRandom()
+		if servers.Empty() {
+			delete(m.servers, addr)
+			m.serverMonitoring[addr] = time.Now()
+		}
+		return meeting
 	}
+
 	return nil
 }
 
@@ -115,7 +141,12 @@ func (m *meetingRoom) PopServer(addr nppc.ResourceID, id ConnID) *meeting {
 	defer m.mu.Unlock()
 
 	if servers, ok := m.servers[addr]; ok {
-		return servers.pop(id)
+		meeting := servers.pop(id)
+		if servers.Empty() {
+			delete(m.servers, addr)
+			m.serverMonitoring[addr] = time.Now()
+		}
+		return meeting
 	}
 	return nil
 }
@@ -130,6 +161,7 @@ func (m *meetingRoom) PutServer(addr nppc.ResourceID, id ConnID, conn net.Conn, 
 	if !ok {
 		servers = newConnPool()
 		m.servers[addr] = servers
+		delete(m.serverMonitoring, addr)
 	}
 	servers.put(id, conn, tx)
 }
@@ -144,6 +176,7 @@ func (m *meetingRoom) DiscardConnections(addrs []nppc.ResourceID) {
 				server.conn.Close()
 			}
 		}
+		// TODO: We should also properly clean the map after discarding. But check first.
 	}
 }
 
@@ -201,6 +234,10 @@ func (m *connPool) pop(id ConnID) *meeting {
 	}
 
 	return nil
+}
+
+func (m *connPool) Empty() bool {
+	return len(m.candidates) == 0
 }
 
 func (m *connPool) popRandom() *meeting {
@@ -312,7 +349,8 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		return nil, err
 	}
 
-	metrics := newMetrics()
+	meetingRoom := newMeetingRoom(opts.log)
+	metrics := newMetrics(meetingRoom)
 
 	newMeetingHandler := func(addr nppc.ResourceID) *meetingHandler {
 		return &meetingHandler{
@@ -331,7 +369,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		cluster:  nil,
 		members:  cfg.Cluster.Members,
 
-		meetingRoom: newMeetingRoom(opts.log),
+		meetingRoom: meetingRoom,
 
 		continuum: newContinuum(),
 
@@ -539,14 +577,19 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 	case sonm.PeerType_SERVER:
 		tx, rx := mpsc()
 
+		pollCtx, pollCancel := context.WithCancel(ctx)
+		defer pollCancel()
+
 		timer := time.NewTimer(m.waitTimeout)
 		defer timer.Stop()
 
-		m.continuum.Track(addr)
+		m.continuum.Track(addr) // TODO: We need to stop tracking also.
 		m.meetingRoom.PutServer(addr, id, conn, tx)
+		defer m.meetingRoom.PopServer(addr, id)
 
 		select {
 		case clientConn, ok := <-rx:
+			pollCancel()
 			if ok {
 				if err := sendOk(conn); err != nil {
 					return err
@@ -556,8 +599,9 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 				}
 				return m.newMeetingHandler(addr).Relay(ctx, conn, clientConn)
 			}
+		case err := <-m.pollConnectionAsync(pollCtx, conn):
+			return err
 		case <-timer.C:
-			m.meetingRoom.PopServer(addr, id)
 			return errTimeout()
 		}
 	case sonm.PeerType_CLIENT:
@@ -615,6 +659,31 @@ func (m *server) readHandshake(ctx context.Context, conn net.Conn) (*sonm.Handsh
 		}
 	case <-ctx.Done():
 		return nil, ctx.Err()
+	}
+}
+
+func (m *server) pollConnectionAsync(ctx context.Context, conn net.Conn) <-chan error {
+	ch := make(chan error, 1)
+	go func() {
+		ch <- m.pollConnection(ctx, conn)
+	}()
+	return ch
+}
+
+func (m *server) pollConnection(ctx context.Context, conn net.Conn) error {
+	timer := time.NewTicker(1 * time.Second)
+	defer timer.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case <-timer.C:
+			m.log.Debugf("poll connection from %s", conn.RemoteAddr())
+			_, err := conn.Read([]byte{})
+			if err != nil {
+				return err
+			}
+		}
 	}
 }
 
