@@ -31,7 +31,7 @@ type AntiFraud interface {
 	Run(ctx context.Context) error
 	DealOpened(deal *sonm.Deal) error
 	TrackTask(ctx context.Context, deal *sonm.Deal, taskID string) error
-	FinishDeal(ctx context.Context, deal *sonm.Deal) error
+	FinishDeal(ctx context.Context, deal *sonm.Deal, optsFlags flags) error
 }
 
 type dealMeta struct {
@@ -162,6 +162,12 @@ func (m *antiFraud) checkBlacklist(ctx context.Context) {
 }
 
 func (m *antiFraud) TrackTask(ctx context.Context, deal *sonm.Deal, taskID string) error {
+	log := m.log.With(zap.String("deal_id", deal.GetId().Unwrap().String()),
+		zap.String("task_id", taskID))
+
+	log.Debug("start task tracking")
+	defer log.Debug("stop task tracking")
+
 	m.mu.Lock()
 	meta, ok := m.meta[deal.Id.Unwrap().String()]
 	if !ok {
@@ -201,9 +207,12 @@ func (m *antiFraud) DealOpened(deal *sonm.Deal) error {
 	return nil
 }
 
-func (m *antiFraud) FinishDeal(ctx context.Context, deal *sonm.Deal) error {
-	whoToBlacklist := m.whoToBlacklist(deal)
-	return m.finishDealWithRetry(ctx, deal, whoToBlacklist)
+func (m *antiFraud) FinishDeal(ctx context.Context, deal *sonm.Deal, optsFlags flags) error {
+	who := sonm.BlacklistType_BLACKLIST_NOBODY
+	if !optsFlags.SkipBlacklist() {
+		who = m.whoToBlacklist(deal)
+	}
+	return m.finishDealWithRetry(ctx, deal, who)
 }
 
 func (m *antiFraud) finishDealWithRetry(ctx context.Context, deal *sonm.Deal, blacklistType sonm.BlacklistType) error {

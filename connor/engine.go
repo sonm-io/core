@@ -176,6 +176,10 @@ func (e *engine) sendOrderToMarket(ctx context.Context, bid *sonm.BidOrder) (*so
 
 func (e *engine) processOrderCreate(ctx context.Context) {
 	for bid := range e.ordersCreateChan {
+		// set actual order price just before sending it to the Market
+		hashRate := big.NewInt(0).SetUint64(bid.GetHashrate())
+		bid.Price = sonm.NewBigInt(big.NewInt(0).Mul(e.priceProvider.GetPrice(), hashRate))
+
 		created, err := e.sendOrderToMarket(ctx, bid.AsBID())
 		if err != nil {
 			e.log.Warn("cannot place order, retrying", zap.Error(err))
@@ -263,10 +267,6 @@ func (e *engine) waitForDeal(ctx context.Context, order *Corder) {
 					zap.String("current_price", order.restorePrice().String()))
 
 				e.CancelOrder(order)
-
-				hashRate := big.NewInt(0).SetUint64(order.GetHashrate())
-				order.Price = sonm.NewBigInt(big.NewInt(0).Mul(actualPrice, hashRate))
-
 				replacedOrdersCounter.Inc()
 				e.CreateOrder(order)
 				return
@@ -330,7 +330,7 @@ func (e *engine) processDeal(ctx context.Context, deal *sonm.Deal) {
 	defer log.Debug("stop deal processing")
 
 	e.antiFraud.DealOpened(deal)
-	defer e.antiFraud.FinishDeal(ctx, deal)
+	defer e.antiFraud.FinishDeal(ctx, deal, antifraud.AllChecks)
 
 	taskID, err := e.restoreTasks(ctx, log, deal.GetId())
 	if err != nil {
@@ -351,35 +351,45 @@ func (e *engine) processDeal(ctx context.Context, deal *sonm.Deal) {
 		log.Info("task started", zap.String("task_id", taskID))
 	}
 
-	go e.antiFraud.TrackTask(ctx, deal, taskID)
-
 	try := 0
 	for {
-		shouldRestartTask, err := e.trackTaskWithRetry(ctx, log, deal.GetId(), taskID)
-		if err != nil {
-			log.Warn("task tracking failed", zap.Error(err))
-		}
+		ok := func() bool {
+			taskCtx, cancel := context.WithCancel(ctx)
+			defer cancel()
+			go e.antiFraud.TrackTask(taskCtx, deal, taskID)
 
-		if !shouldRestartTask {
-			log.Warn("should not restarting the task", zap.Error(err), zap.Int("try", try))
+			shouldRestartTask, err := e.trackTaskWithRetry(taskCtx, log, deal.GetId(), taskID)
+			if err != nil {
+				log.Warn("task tracking failed", zap.Error(err), zap.String("task_id", taskID))
+			}
+
+			if !shouldRestartTask {
+				log.Warn("should not restarting the task", zap.Error(err), zap.Int("try", try))
+				return false
+			}
+
+			if try >= taskRestartCount {
+				log.Debug("stop task restarting: retry count exceeded")
+				return false
+			}
+
+			log.Debug("going to restart a broken task")
+			nextTask, err := e.startTaskWithRetry(taskCtx, log, deal)
+			if err != nil {
+				log.Warn("cannot start task", zap.Error(err), zap.Int("try", try))
+				return false
+			}
+
+			taskID = nextTask.GetId()
+			log.Debug("task restarted", zap.String("task_id", taskID), zap.Int("try", try))
+			try++
+
+			return true
+		}()
+
+		if !ok {
 			return
 		}
-
-		if try >= taskRestartCount {
-			log.Debug("stop task restarting: retry count exceeded")
-			return
-		}
-
-		log.Debug("going to restart a broken task")
-		nextTask, err := e.startTaskWithRetry(ctx, log, deal)
-		if err != nil {
-			log.Warn("cannot start task", zap.Error(err), zap.Int("try", try))
-			return
-		}
-
-		taskID = nextTask.GetId()
-		log.Debug("task restarted", zap.String("task_id", taskID), zap.Int("try", try))
-		try++
 	}
 }
 
@@ -499,7 +509,7 @@ func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *s
 				zap.String("actual_price", e.priceProvider.GetPrice().String()),
 				zap.String("current_price", deal.restorePrice().String()))
 
-			if err := e.antiFraud.FinishDeal(ctx, deal.Unwrap()); err != nil {
+			if err := e.antiFraud.FinishDeal(ctx, deal.Unwrap(), antifraud.SkipBlacklisting); err != nil {
 				log.Warn("failed to finish deal", zap.Error(err))
 			}
 
@@ -752,9 +762,8 @@ func (e *engine) getTargetCorders() []*Corder {
 	v := make([]*Corder, 0)
 
 	for hashrate := e.cfg.Market.FromHashRate; hashrate <= e.cfg.Market.ToHashRate; hashrate += e.cfg.Market.Step {
-		bigHashrate := big.NewInt(int64(hashrate))
-		p := big.NewInt(0).Mul(bigHashrate, e.priceProvider.GetPrice())
-		v = append(v, e.corderFactory.FromParams(p, hashrate, e.cfg.getBaseBenchmarks()))
+		// settings zero price is OK for now, we'll update it just before sending to the Marketplace.
+		v = append(v, e.corderFactory.FromParams(big.NewInt(0), hashrate, e.cfg.getBaseBenchmarks()))
 	}
 
 	return v

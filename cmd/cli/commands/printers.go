@@ -431,6 +431,10 @@ func printDealInfo(cmd *cobra.Command, info *ExtendedDealInfo, flags printerFlag
 			cmd.Printf("Duration:     %s\r\n", dealDuration.String())
 		}
 
+		if info.GetResources().GetNetwork().GetNetFlags().GetIncoming() {
+			cmd.Printf("Public IPs:   %s\r\n", strings.Join(info.PublicIPs, ", "))
+		}
+
 		cmd.Printf("Total payout: %s SNM\r\n", deal.GetTotalPayout().ToPriceString())
 		cmd.Printf("Consumer ID:  %s\r\n", deal.GetConsumerID().Unwrap().Hex())
 		cmd.Printf("Supplier ID:  %s\r\n", deal.GetSupplierID().Unwrap().Hex())
