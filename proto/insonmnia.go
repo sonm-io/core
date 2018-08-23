@@ -165,6 +165,18 @@ func (m *Price) UnmarshalText(text []byte) error {
 	return nil
 }
 
+func (m *Price) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var text string
+	if err := unmarshal(&text); err != nil {
+		return err
+	}
+	if err := m.LoadFromString(text); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (m *Price) LoadFromString(v string) error {
 	delimAt := strings.IndexFunc(v, func(c rune) bool {
 		return unicode.IsLetter(c)
