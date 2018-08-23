@@ -427,6 +427,7 @@ func (m *Worker) Status(ctx context.Context, _ *pb.Empty) (*pb.StatusReply, erro
 		EthAddr:          m.ethAddr().Hex(),
 		TaskCount:        uint32(len(m.CollectTasksStatuses(pb.TaskStatusReply_RUNNING))),
 		RendezvousStatus: rendezvousStatus,
+		DWHStatus:        m.cfg.Endpoint,
 	}
 
 	return reply, nil
