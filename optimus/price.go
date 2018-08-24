@@ -52,6 +52,10 @@ func ParseRelativePriceThreshold(threshold string) (*RelativePriceThreshold, err
 }
 
 func (m *RelativePriceThreshold) Exceeds(price, otherPrice *big.Int) bool {
+	if otherPrice.Sign() == 0 {
+		return price.Sign() > 0
+	}
+
 	v := new(big.Int).Sub(new(big.Int).Div(new(big.Int).Mul(price, big.NewInt(100000)), otherPrice), big.NewInt(100000))
 	return v.Cmp(m.Int) >= 0
 }
