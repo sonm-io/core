@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+import "insonmnia.proto";
+import "marketplace.proto";
+
+package sonm;
+
+service OrderPredictor {
+    rpc Predict(BidResources) returns (Price) {}
+}
