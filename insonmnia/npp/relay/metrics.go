@@ -12,16 +12,18 @@ import (
 type metrics struct {
 	ConnCurrent *atomic.Uint64
 
-	mu  sync.Mutex
-	net map[nppc.ResourceID]*netMetrics
+	mu          sync.Mutex
+	net         map[nppc.ResourceID]*netMetrics
+	meetingRoom *meetingRoom
 
 	birthTime time.Time
 }
 
-func newMetrics() *metrics {
+func newMetrics(meetingRoom *meetingRoom) *metrics {
 	return &metrics{
 		ConnCurrent: atomic.NewUint64(0),
 		net:         map[nppc.ResourceID]*netMetrics{},
+		meetingRoom: meetingRoom,
 		birthTime:   time.Now(),
 	}
 }
@@ -46,9 +48,14 @@ func (m *metrics) Dump() *sonm.RelayMetrics {
 	netMetrics := map[string]*sonm.NetMetrics{}
 
 	for addr, metrics := range m.net {
+		timestamp := &sonm.Timestamp{}
+		if ts, err := m.meetingRoom.ServerActiveTime(addr); err == nil {
+			timestamp.Seconds = ts.Unix()
+		}
 		netMetrics[addr.String()] = &sonm.NetMetrics{
-			TxBytes: metrics.TxBytes.Load(),
-			RxBytes: metrics.RxBytes.Load(),
+			TxBytes:    metrics.TxBytes.Load(),
+			RxBytes:    metrics.RxBytes.Load(),
+			TimeActive: timestamp,
 		}
 	}
 

@@ -2,6 +2,7 @@ syntax = "proto3";
 
 import "insonmnia.proto";
 import "net.proto";
+import "timestamp.proto";
 
 package sonm;
 
@@ -69,6 +70,7 @@ message RelayMetrics {
 message NetMetrics {
     uint64 txBytes = 1;
     uint64 rxBytes = 2;
+    Timestamp timeActive = 3;
 }
 
 // RelayInfo is a response returned from Info handle.
