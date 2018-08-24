@@ -97,9 +97,11 @@ func (m *priceThreshold) Exceeds(price, otherPrice *big.Int) bool {
 func (m *priceThreshold) UnmarshalText(text []byte) error {
 	if threshold, err := ParseAbsolutePriceThreshold(string(text)); err == nil {
 		m.PriceThreshold = threshold
+		return nil
 	}
 	if threshold, err := ParseRelativePriceThreshold(string(text)); err == nil {
 		m.PriceThreshold = threshold
+		return nil
 	}
 
 	return errors.New("invalid price threshold format: must be either `N USD/s`, `N USD/h` or `N%`, where N - number")
