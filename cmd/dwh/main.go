@@ -32,7 +32,11 @@ func run() error {
 		return fmt.Errorf("failed to load config file: %s", err)
 	}
 
-	logger := logging.BuildLogger(*cfg.Logging.Level)
+	logger, err := logging.BuildLogger(cfg.Logging)
+	if err != nil {
+		return fmt.Errorf("failed to build logger instance: %s", err)
+	}
+
 	ctx := log.WithLogger(context.Background(), logger)
 
 	log.G(ctx).Info("starting with config", zap.Any("config", cfg))

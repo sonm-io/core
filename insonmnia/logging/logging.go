@@ -4,28 +4,28 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mattn/go-isatty"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
-var (
-	atom = zap.NewAtomicLevel()
-)
-
 // BuildLogger return new zap.Logger instance with given severity and debug settings
-func BuildLogger(level Level) *zap.Logger {
-	atom.SetLevel(level.Zap())
-	loggerConfig := zap.Config{
-		Development:      false,
-		Level:            atom,
-		OutputPaths:      []string{"stdout"},
-		ErrorOutputPaths: []string{"stderr"},
-		Encoding:         "console",
-		EncoderConfig:    zap.NewDevelopmentEncoderConfig(),
+func BuildLogger(cfg Config) (*zap.Logger, error) {
+	encoder := zap.NewDevelopmentEncoderConfig()
+	if isatty.IsTerminal(fdFromString(cfg.Output).Fd()) {
+		encoder.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	}
 
-	log, _ := loggerConfig.Build()
-	return log
+	loggerConfig := zap.Config{
+		Development:      false,
+		Level:            zap.NewAtomicLevelAt(cfg.LogLevel().Zap()),
+		OutputPaths:      []string{cfg.Output},
+		ErrorOutputPaths: []string{"stderr"},
+		Encoding:         "console",
+		EncoderConfig:    encoder,
+	}
+
+	return loggerConfig.Build()
 }
 
 type Leveler interface {
