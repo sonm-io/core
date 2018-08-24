@@ -182,12 +182,7 @@ func (m *HTBShapingAction) Execute(ctx context.Context) error {
 	}
 
 	// Configure traffic mirroring to apply egress shaping.
-	ifbLink := &netlink.Ifb{
-		LinkAttrs: netlink.LinkAttrs{
-			Name:   fmt.Sprintf("%s%s", networkIfbPrefix, m.Network.Name[len(networkPrefix):]),
-			TxQLen: 32,
-		},
-	}
+	ifbLink := m.newIFBLink()
 	// NOTE: This won't be recreated after worker restart. No harm, I think, but who knows...
 	if err := netlink.LinkAdd(ifbLink); err != nil && err != syscall.EEXIST {
 		return fmt.Errorf("failed to add ifb device: %s", err)
@@ -280,10 +275,12 @@ func (m *HTBShapingAction) Execute(ctx context.Context) error {
 func (m *HTBShapingAction) Rollback() error {
 	errs := multierror.NewMultiError()
 
-	if m.ifbLink != nil {
-		if err := netlink.LinkDel(m.ifbLink); err != nil {
-			errs = multierror.Append(errs, err)
-		}
+	if m.ifbLink == nil {
+		m.ifbLink = m.newIFBLink()
+	}
+
+	if err := netlink.LinkDel(m.ifbLink); err != nil {
+		errs = multierror.Append(errs, err)
 	}
 	if m.rootQDiscHandle != nil {
 		if err := m.tc.QDiscDel(m.rootQDiscHandle); err != nil {
@@ -292,6 +289,15 @@ func (m *HTBShapingAction) Rollback() error {
 	}
 
 	return errs.ErrorOrNil()
+}
+
+func (m *HTBShapingAction) newIFBLink() *netlink.Ifb {
+	return &netlink.Ifb{
+		LinkAttrs: netlink.LinkAttrs{
+			Name:   fmt.Sprintf("%s%s", networkIfbPrefix, m.Network.Name[len(networkPrefix):]),
+			TxQLen: 32,
+		},
+	}
 }
 
 func (m *NetworkManager) init() error {
