@@ -519,6 +519,13 @@ func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *s
 		deal := e.dealFactory.FromDeal(dealStatus.GetDeal())
 		if deal.isReplaceable(e.priceProvider.GetPrice(), e.cfg.Market.PriceControl.DealCancelThreshold) {
 			log := log.Named("price-deviation")
+			if len(e.orderCancelChan) > 0 {
+				log.Warn("shouldn't finish deal, orders replacing in progress",
+					zap.Int("cancel", len(e.orderCancelChan)),
+					zap.Int("create", len(e.ordersCreateChan)))
+				return true, nil
+			}
+
 			log.Info("too much price deviation detected: closing deal",
 				zap.Uint64("benchmark", deal.getBenchmarkValue()),
 				zap.String("actual_price", e.priceProvider.GetPrice().String()),
