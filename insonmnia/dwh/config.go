@@ -10,7 +10,7 @@ import (
 )
 
 type DWHConfig struct {
-	Logging           LoggingConfig      `yaml:"logging"`
+	Logging           logging.Config     `yaml:"logging"`
 	GRPCListenAddr    string             `yaml:"grpc_address" default:"127.0.0.1:15021"`
 	HTTPListenAddr    string             `yaml:"http_address" default:"127.0.0.1:15022"`
 	Eth               accounts.EthConfig `yaml:"ethereum" required:"true"`
@@ -23,10 +23,6 @@ type DWHConfig struct {
 
 type storageConfig struct {
 	Endpoint string `required:"true" yaml:"endpoint"`
-}
-
-type LoggingConfig struct {
-	Level *logging.Level `required:"true" default:"warn"`
 }
 
 type YAMLConfig struct {
