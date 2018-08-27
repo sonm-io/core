@@ -80,82 +80,233 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type meeting struct {
+type deleter func()
+
+type peerCandidate struct {
 	conn net.Conn
-	tx   chan<- net.Conn
+	C    chan<- net.Conn
 }
 
-type meetingRoom struct {
+type meeting struct {
 	mu sync.Mutex
-	// Multiple servers can be registered for fault tolerance.
-	servers map[nppc.ResourceID]*connPool
+	// We allow multiple clients to be waited for servers.
+	clients map[ConnID]*peerCandidate
+	// Also we allow the opposite: multiple servers can be registered for
+	// fault tolerance.
+	servers map[ConnID]*peerCandidate
+}
+
+func newMeeting() *meeting {
+	return &meeting{
+		clients: map[ConnID]*peerCandidate{},
+		servers: map[ConnID]*peerCandidate{},
+	}
+}
+
+func (m *meeting) putServer(id ConnID, conn net.Conn, tx chan<- net.Conn) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.servers[id] = &peerCandidate{
+		conn: conn,
+		C:    tx,
+	}
+}
+
+func (m *meeting) putClient(id ConnID, conn net.Conn, tx chan<- net.Conn) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.clients[id] = &peerCandidate{
+		conn: conn,
+		C:    tx,
+	}
+}
+
+func (m *meeting) popServer(id ConnID) *peerCandidate {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	v, ok := m.servers[id]
+	if ok {
+		delete(m.servers, id)
+		return v
+	}
+
+	return nil
+}
+
+func (m *meeting) popClient(id ConnID) *peerCandidate {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	v, ok := m.clients[id]
+	if ok {
+		delete(m.clients, id)
+		return v
+	}
+
+	return nil
+}
+
+func (m *meeting) popRandomServer() *peerCandidate {
+	return m.randomPeerCandidate(m.servers)
+}
+
+func (m *meeting) popRandomClient() *peerCandidate {
+	return m.randomPeerCandidate(m.clients)
+}
+
+func (m *meeting) randomPeerCandidate(candidates map[ConnID]*peerCandidate) *peerCandidate {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(candidates) == 0 {
+		return nil
+	}
+	var keys []ConnID
+	for key := range candidates {
+		keys = append(keys, key)
+	}
+
+	k := keys[rand.Intn(len(keys))]
+	v := candidates[k]
+	delete(candidates, k)
+	return v
+}
+
+type meetingHall struct {
+	mu sync.Mutex
+	// Meeting room for each common address.
+	meetingRoom map[nppc.ResourceID]*meeting
+	// Map of server connections being active last time. The time is updated
+	// each time either a connection arrives or being taken for serving.
+	backlog map[nppc.ResourceID]time.Time
 
 	log *zap.SugaredLogger
 }
 
-func newMeetingRoom(log *zap.Logger) *meetingRoom {
-	return &meetingRoom{
-		servers: map[nppc.ResourceID]*connPool{},
-		log:     log.Sugar(),
+func newMeetingHall(log *zap.Logger) *meetingHall {
+	return &meetingHall{
+		meetingRoom: map[nppc.ResourceID]*meeting{},
+		backlog:     map[nppc.ResourceID]time.Time{},
+		log:         log.Sugar(),
 	}
 }
 
-func (m *meetingRoom) PopRandomServer(addr nppc.ResourceID) *meeting {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if servers, ok := m.servers[addr]; ok {
-		return servers.popRandom()
-	}
-	return nil
-}
-
-func (m *meetingRoom) PopServer(addr nppc.ResourceID, id ConnID) *meeting {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	if servers, ok := m.servers[addr]; ok {
-		return servers.pop(id)
-	}
-	return nil
-}
-
-func (m *meetingRoom) PutServer(addr nppc.ResourceID, id ConnID, conn net.Conn, tx chan<- net.Conn) {
-	m.log.Debugf("putting %s server into the meeting map with %s id", addr.String(), id)
+func (m *meetingHall) addServerWatch(id nppc.ResourceID, connID ConnID, conn net.Conn) (<-chan net.Conn, deleter) {
+	c := make(chan net.Conn, 1)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	servers, ok := m.servers[addr]
-	if !ok {
-		servers = newConnPool()
-		m.servers[addr] = servers
+	meeting, ok := m.meetingRoom[id]
+	if ok {
+		// Notify both sides immediately if there is match between candidates.
+		if server := meeting.popRandomServer(); server != nil {
+			c <- server.conn
+		} else {
+			meeting.putClient(connID, conn, c)
+		}
+	} else {
+		meeting := newMeeting()
+		meeting.putClient(connID, conn, c)
+		m.meetingRoom[id] = meeting
 	}
-	servers.put(id, conn, tx)
+
+	return c, func() {
+		m.removeServerWatch(id, connID)
+		close(c)
+	}
 }
 
-func (m *meetingRoom) DiscardConnections(addrs []nppc.ResourceID) {
+func (m *meetingHall) addClientWatch(id nppc.ResourceID, connID ConnID, conn net.Conn) (<-chan net.Conn, deleter) {
+	c := make(chan net.Conn, 1)
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	meeting, ok := m.meetingRoom[id]
+	if ok {
+		if client := meeting.popRandomClient(); client != nil {
+			c <- client.conn
+		} else {
+			meeting.putServer(connID, conn, c)
+		}
+	} else {
+		meeting := newMeeting()
+		meeting.putServer(connID, conn, c)
+		m.meetingRoom[id] = meeting
+	}
+
+	return c, func() {
+		m.removeClientWatch(id, connID)
+		close(c)
+	}
+}
+
+func (m *meetingHall) removeClientWatch(id nppc.ResourceID, connID ConnID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	candidates, ok := m.meetingRoom[id]
+	if ok {
+		delete(candidates.servers, connID)
+	}
+
+	m.maybeCleanMeeting(id, candidates)
+}
+
+func (m *meetingHall) removeServerWatch(id nppc.ResourceID, connID ConnID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	candidates, ok := m.meetingRoom[id]
+	if ok {
+		delete(candidates.clients, connID)
+	}
+
+	m.maybeCleanMeeting(id, candidates)
+}
+
+func (m *meetingHall) maybeCleanMeeting(id nppc.ResourceID, candidates *meeting) {
+	if candidates == nil {
+		return
+	}
+
+	if len(candidates.clients) == 0 && len(candidates.servers) == 0 {
+		delete(m.meetingRoom, id)
+	}
+}
+
+func (m *meetingHall) DiscardConnections(addrs []nppc.ResourceID) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
 	for _, addr := range addrs {
 		m.log.Infof("closing connections associated with %s address", addr.String())
 
-		servers, ok := m.servers[addr]
+		meetingRoom, ok := m.meetingRoom[addr]
 		if ok {
-			for _, server := range servers.candidates {
+			for _, server := range meetingRoom.servers {
 				server.conn.Close()
+			}
+			for _, client := range meetingRoom.clients {
+				client.conn.Close()
 			}
 		}
 	}
 }
 
-func (m *meetingRoom) Info() (map[string]*sonm.RelayMeeting, error) {
+func (m *meetingHall) Info() (map[string]*sonm.RelayMeeting, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	response := map[string]*sonm.RelayMeeting{}
-	for id, meeting := range m.servers {
+	for id, meeting := range m.meetingRoom {
 		servers := map[string]*sonm.Addr{}
 
-		for serverID, candidate := range meeting.candidates {
+		for serverID, candidate := range meeting.servers {
 			addr, err := sonm.NewAddr(candidate.conn.RemoteAddr())
 			if err != nil {
 				return nil, err
@@ -174,48 +325,6 @@ type ConnID string
 
 func (m ConnID) String() string {
 	return string(m)
-}
-
-type connPool struct {
-	candidates map[ConnID]*meeting
-}
-
-func newConnPool() *connPool {
-	return &connPool{
-		candidates: map[ConnID]*meeting{},
-	}
-}
-
-func (m *connPool) put(id ConnID, conn net.Conn, tx chan<- net.Conn) {
-	m.candidates[id] = &meeting{
-		conn: conn,
-		tx:   tx,
-	}
-}
-
-func (m *connPool) pop(id ConnID) *meeting {
-	v, ok := m.candidates[id]
-	if ok {
-		delete(m.candidates, id)
-		return v
-	}
-
-	return nil
-}
-
-func (m *connPool) popRandom() *meeting {
-	if len(m.candidates) == 0 {
-		return nil
-	}
-	var keys []ConnID
-	for key := range m.candidates {
-		keys = append(keys, key)
-	}
-
-	k := keys[rand.Intn(len(keys))]
-	v := m.candidates[k]
-	delete(m.candidates, k)
-	return v
 }
 
 type meetingHandler struct {
@@ -274,7 +383,8 @@ type server struct {
 	cluster  *memberlist.Memberlist
 	members  []string
 
-	meetingRoom *meetingRoom
+	mu          sync.Mutex
+	meetingRoom *meetingHall
 
 	continuum *continuum
 
@@ -331,7 +441,7 @@ func NewServer(cfg ServerConfig, options ...Option) (*server, error) {
 		cluster:  nil,
 		members:  cfg.Cluster.Members,
 
-		meetingRoom: newMeetingRoom(opts.log),
+		meetingRoom: newMeetingHall(opts.log),
 
 		continuum: newContinuum(),
 
@@ -534,50 +644,57 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		return errWrongNode()
 	}
 
+	m.log.Infow("publishing remote peer", zap.String("id", id.String()))
+
 	// We support both multiple servers and clients.
 	switch handshake.PeerType {
 	case sonm.PeerType_SERVER:
-		tx, rx := mpsc()
-
 		timer := time.NewTimer(m.waitTimeout)
 		defer timer.Stop()
 
-		m.continuum.Track(addr)
-		m.meetingRoom.PutServer(addr, id, conn, tx)
+		m.continuum.Track(addr) // TODO: Also undo tracking.
+
+		rx, deleter := m.meetingRoom.addClientWatch(addr, id, conn)
+		defer deleter()
 
 		select {
-		case clientConn, ok := <-rx:
+		case <-timer.C:
+			return errTimeout()
+		case targetConn, ok := <-rx:
 			if ok {
+				m.log.Infow("providing remote client", zap.Stringer("remoteAddr", targetConn.RemoteAddr()))
+
 				if err := sendOk(conn); err != nil {
 					return err
 				}
-				if err := sendOk(clientConn); err != nil {
+				if err := sendOk(targetConn); err != nil {
 					return err
 				}
-				return m.newMeetingHandler(addr).Relay(ctx, conn, clientConn)
+				return m.newMeetingHandler(addr).Relay(ctx, conn, targetConn)
 			}
-		case <-timer.C:
-			m.meetingRoom.PopServer(addr, id)
-			return errTimeout()
 		}
 	case sonm.PeerType_CLIENT:
-		var targetPeer *meeting
-		if handshake.HasUUID() {
-			targetPeer = m.meetingRoom.PopServer(addr, ConnID(handshake.UUID))
-		} else {
-			targetPeer = m.meetingRoom.PopRandomServer(addr)
-		}
+		timer := time.NewTimer(30 * time.Second)
+		defer timer.Stop()
 
-		if targetPeer != nil {
-			if err := sendOk(conn); err != nil {
-				return err
+		rx, deleter := m.meetingRoom.addServerWatch(addr, id, conn)
+		defer deleter()
+
+		select {
+		case <-timer.C:
+			return errTimeout()
+		case targetConn, ok := <-rx:
+			if ok {
+				m.log.Infow("providing remote server", zap.Stringer("remoteAddr", targetConn.RemoteAddr()))
+
+				if err := sendOk(conn); err != nil {
+					return err
+				}
+				if err := sendOk(targetConn); err != nil {
+					return err
+				}
+				return m.newMeetingHandler(addr).Relay(ctx, conn, targetConn)
 			}
-			if err := sendOk(targetPeer.conn); err != nil {
-				return err
-			}
-			return m.newMeetingHandler(addr).Relay(ctx, targetPeer.conn, conn)
-		} else {
-			return errNoPeer()
 		}
 	default:
 		return errUnknownType(handshake.PeerType)
