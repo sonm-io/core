@@ -13,7 +13,6 @@ import (
 	"github.com/sonm-io/core/util"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
-	"gopkg.in/oleiade/lane.v1"
 )
 
 type updateFunc func(ctx context.Context, url string, workerID string) (float64, error)

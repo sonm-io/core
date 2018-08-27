@@ -12,7 +12,6 @@ import (
 	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc/metadata"
-	"gopkg.in/yaml.v2"
 )
 
 var (

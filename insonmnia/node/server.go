@@ -7,7 +7,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/sonm-io/core/util/defergroup"
 	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"

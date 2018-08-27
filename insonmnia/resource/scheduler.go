@@ -10,7 +10,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
-	"gopkg.in/yaml.v2"
 )
 
 type Scheduler struct {
