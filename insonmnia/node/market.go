@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/dwh"
@@ -12,6 +14,8 @@ import (
 	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 )
+
+const purgeConcurrency = 32
 
 type marketAPI struct {
 	remotes       *remoteOptions
@@ -144,14 +148,46 @@ func (m *marketAPI) Purge(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 		return nil, fmt.Errorf("cannot get orders from dwh: %v", err)
 	}
 
-	merr := multierror.NewMultiError()
-	for _, order := range orders.Orders {
-		id := order.GetOrder().GetId().Unwrap()
-		m.log.Debugw("cancelling order", zap.String("id", id.String()))
-		if err := m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id); err != nil {
-			multierror.Append(merr, fmt.Errorf("cannot cancel order with id %s: %v", id.String(), err))
+	ids := make([]*pb.BigInt, 0, len(orders.GetOrders()))
+	for _, order := range orders.GetOrders() {
+		ids = append(ids, order.GetOrder().GetId())
+	}
+	return m.cancelOrders(ctx, ids)
+}
+
+func (m *marketAPI) CancelOrders(ctx context.Context, req *pb.OrderIDs) (*pb.Empty, error) {
+	return m.cancelOrders(ctx, req.GetIds())
+}
+
+func (m *marketAPI) cancelOrders(ctx context.Context, ids []*pb.BigInt) (*pb.Empty, error) {
+	concurrency := purgeConcurrency
+	if len(ids) < concurrency {
+		concurrency = len(ids)
+	}
+	merr := multierror.NewTSMultiError()
+	ch := make(chan *big.Int)
+	wg := sync.WaitGroup{}
+	wg.Add(concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			for id := range ch {
+				m.log.Debugw("cancelling order", zap.String("id", id.String()))
+				if err := m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id); err != nil {
+					merr.Append(fmt.Errorf("cannot cancel order with id %s: %v", id.String(), err))
+				}
+			}
+			wg.Done()
+		}()
+	}
+	for _, id := range ids {
+		if id.IsZero() {
+			merr.Append(errors.New("nil order id specified"))
+		} else {
+			ch <- id.Unwrap()
 		}
 	}
+	close(ch)
+	wg.Wait()
 
 	if len(merr.WrappedErrors()) > 0 {
 		return nil, merr.ErrorOrNil()

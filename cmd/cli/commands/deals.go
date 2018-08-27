@@ -45,6 +45,7 @@ func init() {
 		dealOpenCmd,
 		dealQuickBuyCmd,
 		dealCloseCmd,
+		dealPurgeCmd,
 		changeRequestsRoot,
 	)
 }
@@ -234,24 +235,30 @@ var dealQuickBuyCmd = &cobra.Command{
 	},
 }
 
+func getBlacklistType() (pb.BlacklistType, error) {
+	switch blacklistTypeStr {
+	case "none":
+		return pb.BlacklistType_BLACKLIST_NOBODY, nil
+	case "worker":
+		return pb.BlacklistType_BLACKLIST_WORKER, nil
+	case "master":
+		return pb.BlacklistType_BLACKLIST_MASTER, nil
+	default:
+		return pb.BlacklistType_BLACKLIST_NOBODY, fmt.Errorf("cannot parse `blacklist` argumet, allowed values are `none`, `worker` and `master`")
+	}
+}
+
 var dealCloseCmd = &cobra.Command{
-	Use:   "close <deal_id>",
-	Short: "Close given deal",
+	Use:   "close <deal_id>...",
+	Short: "Close given deals",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		var blacklistType pb.BlacklistType
-		switch blacklistTypeStr {
-		case "none":
-			blacklistType = pb.BlacklistType_BLACKLIST_NOBODY
-		case "worker":
-			blacklistType = pb.BlacklistType_BLACKLIST_WORKER
-		case "master":
-			blacklistType = pb.BlacklistType_BLACKLIST_MASTER
-		default:
-			return fmt.Errorf("cannot parse `blacklist` argumet, allowed values are `none`, `worker` and `master`")
+		blacklistType, err := getBlacklistType()
+		if err != nil {
+			return err
 		}
 
 		dealer, err := newDealsClient(ctx)
@@ -259,15 +266,47 @@ var dealCloseCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		id, err := util.ParseBigInt(args[0])
+		request := &pb.DealsFinishRequest{
+			DealInfo: make([]*pb.DealFinishRequest, 0, len(args)),
+		}
+		for _, idStr := range args {
+			id, err := util.ParseBigInt(idStr)
+			if err != nil {
+				return err
+			}
+			request.DealInfo = append(request.DealInfo, &pb.DealFinishRequest{
+				Id:            pb.NewBigInt(id),
+				BlacklistType: blacklistType,
+			})
+		}
+
+		if _, err = dealer.FinishDeals(ctx, request); err != nil {
+			return fmt.Errorf("cannot finish deal: %v", err)
+		}
+
+		showOk(cmd)
+		return nil
+	},
+}
+
+var dealPurgeCmd = &cobra.Command{
+	Use:   "purge",
+	Short: "Purge all active consumer's deals",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		blacklistType, err := getBlacklistType()
 		if err != nil {
 			return err
 		}
 
-		if _, err = dealer.Finish(ctx, &pb.DealFinishRequest{
-			Id:            pb.NewBigInt(id),
-			BlacklistType: blacklistType,
-		}); err != nil {
+		dealer, err := newDealsClient(ctx)
+		if err != nil {
+			return fmt.Errorf("cannot create client connection: %v", err)
+		}
+
+		if _, err = dealer.PurgeDeals(ctx, &pb.DealsPurgeRequest{BlacklistType: blacklistType}); err != nil {
 			return fmt.Errorf("cannot finish deal: %v", err)
 		}
 

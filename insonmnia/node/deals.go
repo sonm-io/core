@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/dwh"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -86,6 +89,66 @@ func (d *dealsAPI) Finish(ctx context.Context, req *pb.DealFinishRequest) (*pb.E
 	}
 
 	return &pb.Empty{}, nil
+}
+
+func (d *dealsAPI) FinishDeals(ctx context.Context, req *pb.DealsFinishRequest) (*pb.Empty, error) {
+	return d.finishDeals(ctx, req.GetDealInfo())
+}
+
+func (d *dealsAPI) finishDeals(ctx context.Context, deals []*pb.DealFinishRequest) (*pb.Empty, error) {
+	d.log.Debugf("finishing %d deals", len(deals))
+	concurrency := purgeConcurrency
+	if len(deals) < concurrency {
+		concurrency = len(deals)
+	}
+
+	merr := multierror.NewTSMultiError()
+	ch := make(chan *pb.DealFinishRequest)
+	wg := sync.WaitGroup{}
+	wg.Add(concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			for info := range ch {
+				if info.GetId().IsZero() {
+					merr.Append(errors.New("zero or nil deal id specified"))
+					continue
+				}
+				idStr := info.Id.Unwrap().String()
+				d.log.Debugw("finishing deal", zap.String("id", idStr))
+				if err := d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, info.GetId().Unwrap(), info.GetBlacklistType()); err != nil {
+					merr.Append(fmt.Errorf("cannot cancel order with id %s: %v", idStr, err))
+				}
+			}
+			wg.Done()
+		}()
+	}
+	for _, info := range deals {
+		ch <- info
+	}
+	close(ch)
+	wg.Wait()
+	if len(merr.WrappedErrors()) > 0 {
+		return nil, merr.ErrorOrNil()
+	}
+
+	return &pb.Empty{}, nil
+}
+
+func (d *dealsAPI) PurgeDeals(ctx context.Context, req *pb.DealsPurgeRequest) (*pb.Empty, error) {
+	deals, err := d.remotes.dwh.GetDeals(ctx, &pb.DealsRequest{
+		Status:     pb.DealStatus_DEAL_ACCEPTED,
+		ConsumerID: pb.NewEthAddress(crypto.PubkeyToAddress(d.remotes.key.PublicKey)),
+		Limit:      dwh.MaxLimit,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch deals from DWH: %s", err)
+	}
+
+	dealInfo := make([]*pb.DealFinishRequest, 0, len(deals.GetDeals()))
+	for _, deal := range deals.GetDeals() {
+		dealInfo = append(dealInfo, &pb.DealFinishRequest{Id: deal.GetDeal().GetId(), BlacklistType: req.GetBlacklistType()})
+	}
+	return d.finishDeals(ctx, dealInfo)
 }
 
 func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal, error) {

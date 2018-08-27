@@ -5,6 +5,7 @@ import (
 
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
+	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -107,8 +108,8 @@ var orderCreateCmd = &cobra.Command{
 }
 
 var orderCancelCmd = &cobra.Command{
-	Use:   "cancel <order_id>",
-	Short: "Cancel order on Marketplace",
+	Use:   "cancel <order_id>...",
+	Short: "Cancel given orders on Marketplace",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
@@ -119,10 +120,19 @@ var orderCancelCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		orderID := args[0]
-		_, err = market.CancelOrder(ctx, &pb.ID{Id: orderID})
-		if err != nil {
-			return fmt.Errorf("cannot cancel order on Marketplace: %v", err)
+		request := &pb.OrderIDs{
+			Ids: make([]*pb.BigInt, 0, len(args)),
+		}
+		for _, idStr := range args {
+			id, err := util.ParseBigInt(idStr)
+			if err != nil {
+				return err
+			}
+			request.Ids = append(request.Ids, pb.NewBigInt(id))
+		}
+
+		if _, err = market.CancelOrders(ctx, request); err != nil {
+			return fmt.Errorf("cannot cancel orders on Marketplace: %v", err)
 		}
 
 		showOk(cmd)

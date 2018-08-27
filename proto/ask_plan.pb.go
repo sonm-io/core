@@ -99,6 +99,7 @@ It has these top-level messages:
 	DataSize
 	DataSizeRate
 	Price
+	OrderIDs
 	GetOrdersReply
 	Benchmarks
 	Deal
@@ -113,6 +114,8 @@ It has these top-level messages:
 	TaskListRequest
 	QuickBuyRequest
 	DealFinishRequest
+	DealsFinishRequest
+	DealsPurgeRequest
 	DealsReply
 	OpenDealRequest
 	WorkerRemoveRequest

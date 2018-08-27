@@ -51,7 +51,12 @@ service DealManagement {
     // Status produces a detailed info about deal with given ID.
     rpc Status(BigInt) returns (DealInfoReply) {}
     // Finish finishes a deal with given ID
+    // Deprecated: use FinishDeals instead
     rpc Finish(DealFinishRequest) returns (Empty) {}
+    // FinishDeals finishes deals with given IDs
+    rpc FinishDeals(DealsFinishRequest) returns (Empty) {}
+    // PurgeDeals finishes all deals where client acts as a consumer
+    rpc PurgeDeals(DealsPurgeRequest) returns (Empty) {}
     // Open tries to open deal between two orders
     rpc Open(OpenDealRequest) returns (Deal) {}
     // ChangeRequestsList return change requests for given deal
@@ -78,6 +83,13 @@ message DealFinishRequest {
     BlacklistType blacklistType = 2;
 }
 
+message DealsFinishRequest {
+    repeated DealFinishRequest dealInfo = 1;
+}
+
+message DealsPurgeRequest {
+    BlacklistType blacklistType = 1;
+}
 message DealsReply {
     repeated Deal deal = 1;
 }

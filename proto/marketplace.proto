@@ -21,9 +21,16 @@ service Market {
     rpc GetOrderByID(ID) returns (Order) {}
     // CancelOrder removes active order from the Marketplace.
     // TODO: get rid of string ID #1237
+    // Deprecated: use CancelOrders instead
     rpc CancelOrder(ID) returns (Empty) {}
+    // CancelOrders removes specified orders from the Marketplace.
+    rpc CancelOrders(OrderIDs) returns (Empty) {}
     // Purge remove all active orders from marketplace
     rpc Purge(Empty) returns (Empty) {}
+}
+
+message OrderIDs {
+    repeated BigInt ids = 1;
 }
 
 message GetOrdersReply {
