@@ -20,13 +20,13 @@ type monitor struct {
 	listener    net.Listener
 
 	cluster     *memberlist.Memberlist
-	meetingRoom *meetingRoom
+	meetingRoom *meetingHall
 
 	metrics *metrics
 	log     *zap.Logger
 }
 
-func newMonitor(cfg MonitorConfig, cluster *memberlist.Memberlist, meetingRoom *meetingRoom, metrics *metrics, log *zap.Logger) (*monitor, error) {
+func newMonitor(cfg MonitorConfig, cluster *memberlist.Memberlist, meetingRoom *meetingHall, metrics *metrics, log *zap.Logger) (*monitor, error) {
 	certificate, TLSConfig, err := util.NewHitlessCertRotator(context.Background(), cfg.PrivateKey)
 	if err != nil {
 		return nil, err

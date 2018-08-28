@@ -51,6 +51,7 @@ type Services interface {
 	RegisterGRPC(server *grpc.Server) error
 	RegisterREST(server *rest.Server) error
 	Interceptor() grpc.UnaryServerInterceptor
+	Run(ctx context.Context) error
 }
 
 // Server is a server for LocalNode instance.
@@ -60,6 +61,9 @@ type Services interface {
 type Server struct {
 	network   serverNetwork
 	endpoints LocalEndpoints
+
+	// Node API.
+	services Services
 
 	// Servers for processing requests.
 	serverGRPC *grpc.Server
@@ -107,6 +111,7 @@ func newServer(cfg nodeConfig, services Services, options ...ServerOption) (*Ser
 			GRPC: toLocalAddrs(listenersGRPC),
 			REST: toLocalAddrs(listenersREST),
 		},
+		services: services,
 	}
 
 	if opts.allowGRPC {
@@ -169,6 +174,9 @@ func (m *Server) Serve(ctx context.Context) error {
 	})
 	wg.Go(func() error {
 		return m.serveHTTP(ctx, network.ListenersREST...)
+	})
+	wg.Go(func() error {
+		return m.services.Run(ctx)
 	})
 	// TODO: Also add debug server and ssh.
 

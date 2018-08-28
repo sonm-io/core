@@ -157,8 +157,12 @@ func (m *Price) MarshalYAML() (interface{}, error) {
 	return r.Text('g', 10) + " USD/h", nil
 }
 
-func (m *Price) UnmarshalText(text []byte) error {
-	if err := m.LoadFromString(string(text)); err != nil {
+func (m *Price) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var text string
+	if err := unmarshal(&text); err != nil {
+		return err
+	}
+	if err := m.LoadFromString(text); err != nil {
 		return err
 	}
 

@@ -86,33 +86,33 @@ func (m *niceMarketAPI) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, ask
 
 	blacklist := blacklistVerify{}
 
-	wg, ctx := errgroup.WithContext(ctx)
+	wg, blacklistCtx := errgroup.WithContext(ctx)
 	wg.Go(func() (err error) {
-		blacklist.AskMasterInBidBlacklist, err = m.blacklist.Check(ctx, common.HexToAddress(bid.GetBlacklist()), askMaster)
+		blacklist.AskMasterInBidBlacklist, err = m.blacklist.Check(blacklistCtx, common.HexToAddress(bid.GetBlacklist()), askMaster)
 		return err
 	})
 	wg.Go(func() (err error) {
-		blacklist.AskAuthorInBidBlacklist, err = m.blacklist.Check(ctx, common.HexToAddress(bid.GetBlacklist()), ask.GetAuthorID().Unwrap())
+		blacklist.AskAuthorInBidBlacklist, err = m.blacklist.Check(blacklistCtx, common.HexToAddress(bid.GetBlacklist()), ask.GetAuthorID().Unwrap())
 		return err
 	})
 	wg.Go(func() (err error) {
-		blacklist.AskMasterInBidAuthorBlacklist, err = m.blacklist.Check(ctx, bid.GetAuthorID().Unwrap(), askMaster)
+		blacklist.AskMasterInBidAuthorBlacklist, err = m.blacklist.Check(blacklistCtx, bid.GetAuthorID().Unwrap(), askMaster)
 		return err
 	})
 	wg.Go(func() (err error) {
-		blacklist.AskAuthorInBidAuthorBlacklist, err = m.blacklist.Check(ctx, bid.GetAuthorID().Unwrap(), ask.GetAuthorID().Unwrap())
+		blacklist.AskAuthorInBidAuthorBlacklist, err = m.blacklist.Check(blacklistCtx, bid.GetAuthorID().Unwrap(), ask.GetAuthorID().Unwrap())
 		return err
 	})
 	wg.Go(func() (err error) {
-		blacklist.BidAuthorInAskBlacklist, err = m.blacklist.Check(ctx, common.HexToAddress(ask.GetBlacklist()), bid.GetAuthorID().Unwrap())
+		blacklist.BidAuthorInAskBlacklist, err = m.blacklist.Check(blacklistCtx, common.HexToAddress(ask.GetBlacklist()), bid.GetAuthorID().Unwrap())
 		return err
 	})
 	wg.Go(func() (err error) {
-		blacklist.BidAuthorInAskMasterBlacklist, err = m.blacklist.Check(ctx, askMaster, bid.GetAuthorID().Unwrap())
+		blacklist.BidAuthorInAskMasterBlacklist, err = m.blacklist.Check(blacklistCtx, askMaster, bid.GetAuthorID().Unwrap())
 		return err
 	})
 	wg.Go(func() (err error) {
-		blacklist.BidAuthorInAskAuthorBlacklist, err = m.blacklist.Check(ctx, ask.GetAuthorID().Unwrap(), bid.GetAuthorID().Unwrap())
+		blacklist.BidAuthorInAskAuthorBlacklist, err = m.blacklist.Check(blacklistCtx, ask.GetAuthorID().Unwrap(), bid.GetAuthorID().Unwrap())
 		return err
 	})
 	if err := wg.Wait(); err != nil {

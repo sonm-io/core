@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sonm-io/core/proto"
+	"gopkg.in/yaml.v2"
 )
 
 type PriceThreshold interface {
@@ -51,6 +52,10 @@ func ParseRelativePriceThreshold(threshold string) (*RelativePriceThreshold, err
 }
 
 func (m *RelativePriceThreshold) Exceeds(price, otherPrice *big.Int) bool {
+	if otherPrice.Sign() == 0 {
+		return price.Sign() > 0
+	}
+
 	v := new(big.Int).Sub(new(big.Int).Div(new(big.Int).Mul(price, big.NewInt(100000)), otherPrice), big.NewInt(100000))
 	return v.Cmp(m.Int) >= 0
 }
@@ -73,7 +78,7 @@ func NewAbsolutePriceThreshold(threshold *sonm.Price) (*AbsolutePriceThreshold, 
 
 func ParseAbsolutePriceThreshold(threshold string) (*AbsolutePriceThreshold, error) {
 	v := &sonm.Price{}
-	if err := v.UnmarshalText([]byte(threshold)); err != nil {
+	if err := yaml.Unmarshal([]byte(threshold), v); err != nil {
 		return nil, fmt.Errorf("failed to parse absolute price threshold: %v", err)
 	}
 
@@ -96,9 +101,11 @@ func (m *priceThreshold) Exceeds(price, otherPrice *big.Int) bool {
 func (m *priceThreshold) UnmarshalText(text []byte) error {
 	if threshold, err := ParseAbsolutePriceThreshold(string(text)); err == nil {
 		m.PriceThreshold = threshold
+		return nil
 	}
 	if threshold, err := ParseRelativePriceThreshold(string(text)); err == nil {
 		m.PriceThreshold = threshold
+		return nil
 	}
 
 	return errors.New("invalid price threshold format: must be either `N USD/s`, `N USD/h` or `N%`, where N - number")

@@ -29,6 +29,7 @@ type workerClient struct {
 
 // remoteOptions describe options related to remove gRPC services
 type remoteOptions struct {
+	cfg *Config
 	key *ecdsa.PrivateKey
 
 	eth           blockchain.API
@@ -154,6 +155,7 @@ func newRemoteOptions(ctx context.Context, cfg *Config, key *ecdsa.PrivateKey, c
 	}
 
 	return &remoteOptions{
+		cfg:           cfg,
 		key:           key,
 		eth:           eth,
 		dwh:           dwh,

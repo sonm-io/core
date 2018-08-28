@@ -1,32 +1,38 @@
 package node
 
 import (
+	"context"
+
+	"github.com/sonm-io/core/optimus"
 	"github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util/rest"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 )
 
 type services struct {
-	worker    sonm.WorkerManagementServer
-	market    sonm.MarketServer
-	deals     sonm.DealManagementServer
-	tasks     sonm.TaskManagementServer
-	master    sonm.MasterManagementServer
-	token     sonm.TokenManagementServer
-	blacklist sonm.BlacklistServer
-	profile   sonm.ProfilesServer
+	worker         sonm.WorkerManagementServer
+	market         sonm.MarketServer
+	deals          sonm.DealManagementServer
+	tasks          sonm.TaskManagementServer
+	master         sonm.MasterManagementServer
+	token          sonm.TokenManagementServer
+	blacklist      sonm.BlacklistServer
+	profile        sonm.ProfilesServer
+	orderPredictor *optimus.PredictorService
 }
 
 func newServices(options *remoteOptions) *services {
 	return &services{
-		worker:    newWorkerAPI(options),
-		market:    newMarketAPI(options),
-		deals:     newDealsAPI(options),
-		tasks:     newTasksAPI(options),
-		master:    newMasterManagementAPI(options),
-		token:     newTokenManagementAPI(options),
-		blacklist: newBlacklistAPI(options),
-		profile:   newProfileAPI(options),
+		worker:         newWorkerAPI(options),
+		market:         newMarketAPI(options),
+		deals:          newDealsAPI(options),
+		tasks:          newTasksAPI(options),
+		master:         newMasterManagementAPI(options),
+		token:          newTokenManagementAPI(options),
+		blacklist:      newBlacklistAPI(options),
+		profile:        newProfileAPI(options),
+		orderPredictor: optimus.NewPredictorService(options.cfg.Predictor, options.benchList, options.log),
 	}
 }
 
@@ -43,6 +49,9 @@ func (m *services) RegisterGRPC(server *grpc.Server) error {
 	sonm.RegisterTokenManagementServer(server, m.token)
 	sonm.RegisterBlacklistServer(server, m.blacklist)
 	sonm.RegisterProfilesServer(server, m.profile)
+	if m.orderPredictor != nil {
+		sonm.RegisterOrderPredictorServer(server, m.orderPredictor)
+	}
 
 	return nil
 }
@@ -76,10 +85,30 @@ func (m *services) RegisterREST(server *rest.Server) error {
 	if err := server.RegisterService((*sonm.ProfilesServer)(nil), m.profile); err != nil {
 		return err
 	}
+	if m.orderPredictor != nil {
+		if err := server.RegisterService((*sonm.OrderPredictorServer)(nil), m.orderPredictor); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
 func (m *services) Interceptor() grpc.UnaryServerInterceptor {
 	return m.worker.(*workerAPI).intercept
+}
+
+func (m *services) Run(ctx context.Context) error {
+	wg, ctx := errgroup.WithContext(ctx)
+
+	wg.Go(func() error {
+		if m.orderPredictor == nil {
+			return nil
+		}
+
+		return m.orderPredictor.Serve(ctx)
+	})
+
+	<-ctx.Done()
+	return wg.Wait()
 }

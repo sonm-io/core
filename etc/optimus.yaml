@@ -168,7 +168,7 @@ workers:
     # profit that the existing one.
     # If you want to activate relative threshold in percents, specify "%" after
     # the value, for example "2.5%".
-    price_threshold: 0.02 USD/h
+    price_threshold: 5%
     # When activated Optimus will not create ask plans, but continues doing
     # the rest calculations instead. Useful for debugging.
     # Optional.

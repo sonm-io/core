@@ -65,5 +65,8 @@ func NewLogger(cfg LoggingConfig) (*zap.Logger, error) {
 		return nil, err
 	}
 
-	return logging.BuildLogger(*level), nil
+	return logging.BuildLogger(logging.Config{
+		Level:  level,
+		Output: logging.StdoutLogOutput,
+	})
 }

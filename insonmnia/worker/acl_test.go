@@ -8,21 +8,19 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/sonm-io/core/insonmnia/auth"
-	"github.com/sonm-io/core/insonmnia/logging"
 	"github.com/sonm-io/core/insonmnia/structs"
 	"github.com/sonm-io/core/proto"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
 
 func testCtx() context.Context {
-	logger := logging.BuildLogger(*logging.NewLevel(zapcore.DebugLevel))
-	return log.WithLogger(context.Background(), logger)
+	return log.WithLogger(context.Background(), zap.NewNop())
 }
 
 type testDealInfoSupplier struct {

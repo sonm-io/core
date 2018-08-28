@@ -23,7 +23,12 @@ func start() error {
 		return fmt.Errorf("failed to load config file: %s", err)
 	}
 
-	ctx := log.WithLogger(context.Background(), logging.BuildLogger(cfg.Logging.LogLevel()))
+	logger, err := logging.BuildLogger(cfg.Logging)
+	if err != nil {
+		return fmt.Errorf("failed to build logger instance: %s", err)
+
+	}
+	ctx := log.WithLogger(context.Background(), logger)
 
 	options := []relay.Option{
 		relay.WithLogger(log.G(ctx)),

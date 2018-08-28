@@ -15,6 +15,7 @@ It is generated from these files:
 	marketplace.proto
 	net.proto
 	node.proto
+	optimus.proto
 	relay.proto
 	rendezvous.proto
 	timestamp.proto
