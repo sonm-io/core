@@ -12,7 +12,7 @@ func NewMultiError() *multierror.Error {
 }
 
 func NewTSMultiError() *TSMultiError {
-	return &TSMultiError{Error: &multierror.Error{ErrorFormat: errorFormat}}
+	return &TSMultiError{inner: &multierror.Error{ErrorFormat: errorFormat}}
 }
 
 func Append(err error, errs ...error) *multierror.Error {
@@ -39,12 +39,19 @@ func errorFormat(errs []error) string {
 }
 
 type TSMultiError struct {
-	mu sync.Mutex
-	*multierror.Error
+	mu    sync.Mutex
+	inner *multierror.Error
 }
 
 func (m *TSMultiError) Append(errs ...error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.Error = multierror.Append(m.Error, errs...)
+	m.inner = multierror.Append(m.inner, errs...)
+}
+
+func (m *TSMultiError) ErrorOrNil() *multierror.Error {
+	if err := m.inner.ErrorOrNil(); err == nil {
+		return nil
+	}
+	return m.inner
 }

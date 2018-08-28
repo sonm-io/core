@@ -189,8 +189,8 @@ func (m *marketAPI) cancelOrders(ctx context.Context, ids []*pb.BigInt) (*pb.Emp
 	close(ch)
 	wg.Wait()
 
-	if len(merr.WrappedErrors()) > 0 {
-		return nil, merr.ErrorOrNil()
+	if err := merr.ErrorOrNil(); err != nil {
+		return nil, err
 	}
 
 	return &pb.Empty{}, nil
