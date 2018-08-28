@@ -407,6 +407,21 @@ func (e *engine) startTaskWithRetry(ctx context.Context, log *zap.Logger, deal *
 				return nil, fmt.Errorf("cannot start task: retry count exceeded")
 			}
 
+			list, err := e.loadTasksOnce(ctx, log, deal.GetId())
+			if err != nil {
+				try++
+				log.Warn("cannot obtain task list from worker", zap.Error(err), zap.Int("try", try))
+				continue
+			}
+
+			// check for single task
+			// because worker's task list sanitizing
+			// already performed in `restoreTasks` method.
+			if len(list) == 1 {
+				log.Info("found already started task, continue tracking", zap.String("task_id", list[0].id))
+				return &sonm.StartTaskReply{Id: list[0].id}, nil
+			}
+
 			taskReply, err := e.startTaskOnce(ctx, log, deal.GetId())
 			if err != nil {
 				try++
@@ -420,7 +435,7 @@ func (e *engine) startTaskWithRetry(ctx context.Context, log *zap.Logger, deal *
 }
 
 func (e *engine) startTaskOnce(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt) (*sonm.StartTaskReply, error) {
-	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
+	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.TaskStartTimeout)
 	defer cancel()
 
 	env := e.cfg.containerEnv(dealID)
