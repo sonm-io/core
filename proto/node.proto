@@ -125,6 +125,7 @@ service TokenManagement {
     // into live-chian ethereum network.
     rpc TestTokens(Empty) returns (Empty) {}
     // Balance provide account balance for live- and side- chains.
+    // Deprecated: use BalanceOf method instead.
     rpc Balance(Empty) returns (BalanceReply) {}
     // BalanceOf provide account balance of specified address.
     rpc BalanceOf(EthAddress) returns (BalanceReply) {}

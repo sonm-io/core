@@ -67,18 +67,22 @@ var tokenBalanceCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		var balance *sonm.BalanceReply
+		var whom *sonm.EthAddress
 		if len(args) > 0 {
-			to, err := sonm.NewEthAddressFromHex(args[0])
+			var err error
+			whom, err = sonm.NewEthAddressFromHex(args[0])
 			if err != nil {
 				return fmt.Errorf("failed to parse address: %v", err)
 			}
-
-			balance, err = token.BalanceOf(ctx, to)
 		} else {
-			balance, err = token.Balance(ctx, &sonm.Empty{})
+			my, err := keystore.GetDefaultAddress()
+			if err != nil {
+				return fmt.Errorf("cannot load default key: %v", err)
+			}
+			whom = sonm.NewEthAddress(my)
 		}
 
+		balance, err := token.BalanceOf(ctx, whom)
 		if err != nil {
 			return fmt.Errorf("cannot load balance: %v", err)
 		}
