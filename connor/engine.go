@@ -756,6 +756,7 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 	e.log.Debug("restoring existing entities",
 		zap.Int("orders_restore", len(set.toRestore)),
 		zap.Int("orders_create", len(set.toCreate)),
+		zap.Int("orders_cancel", len(set.toCancel)),
 		zap.Int("deals_restore", len(existingDeals.GetDeal())))
 
 	for _, deal := range existingDeals.GetDeal() {
@@ -768,6 +769,10 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 
 	for _, ord := range set.toRestore {
 		e.RestoreOrder(ord)
+	}
+
+	for _, ord := range set.toCancel {
+		e.CancelOrder(ord)
 	}
 
 	return nil

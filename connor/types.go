@@ -177,24 +177,39 @@ type tokenParameters struct {
 type ordersSets struct {
 	toCreate  []*Corder
 	toRestore []*Corder
+	toCancel  []*Corder
 }
 
 func divideOrdersSets(existingCorders, targetCorders []*Corder) *ordersSets {
-	byHashrate := map[uint64]*Corder{}
+	existingByBenchmark := map[uint64]*Corder{}
 	for _, ord := range existingCorders {
-		byHashrate[ord.GetHashrate()] = ord
+		existingByBenchmark[ord.GetHashrate()] = ord
+	}
+
+	targetByBenchmark := map[uint64]*Corder{}
+	for _, ord := range targetCorders {
+		targetByBenchmark[ord.GetHashrate()] = ord
 	}
 
 	set := &ordersSets{
 		toCreate:  make([]*Corder, 0),
 		toRestore: make([]*Corder, 0),
+		toCancel:  make([]*Corder, 0),
 	}
 
 	for _, ord := range targetCorders {
-		if ex, ok := byHashrate[ord.GetHashrate()]; ok {
+		if ex, ok := existingByBenchmark[ord.GetHashrate()]; ok {
 			set.toRestore = append(set.toRestore, ex)
 		} else {
 			set.toCreate = append(set.toCreate, ord)
+		}
+	}
+
+	for _, ord := range existingCorders {
+		// order is exists on market but shouldn't be presented
+		// in the target orders set.
+		if _, ok := targetByBenchmark[ord.GetHashrate()]; !ok {
+			set.toCancel = append(set.toCancel, ord)
 		}
 	}
 
