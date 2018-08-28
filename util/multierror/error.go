@@ -39,8 +39,8 @@ func errorFormat(errs []error) string {
 }
 
 type TSMultiError struct {
-	*multierror.Error
 	mu sync.Mutex
+	*multierror.Error
 }
 
 func (m *TSMultiError) Append(errs ...error) {

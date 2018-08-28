@@ -5,7 +5,6 @@ import (
 
 	"github.com/sonm-io/core/cmd/cli/task_config"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util"
 	"github.com/spf13/cobra"
 )
 
@@ -123,11 +122,11 @@ var orderCancelCmd = &cobra.Command{
 		request := &pb.OrderIDs{
 			Ids: make([]*pb.BigInt, 0, len(args)),
 		}
-		for _, idStr := range args {
-			id, err := util.ParseBigInt(idStr)
-			if err != nil {
-				return err
-			}
+		ids, err := argsToBigInts(args)
+		if err != nil {
+			return fmt.Errorf("failed to parse parameters to order ids: %v", err)
+		}
+		for _, id := range ids {
 			request.Ids = append(request.Ids, pb.NewBigInt(id))
 		}
 

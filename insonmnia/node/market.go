@@ -170,13 +170,13 @@ func (m *marketAPI) cancelOrders(ctx context.Context, ids []*pb.BigInt) (*pb.Emp
 	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
 		go func() {
+			defer wg.Done()
 			for id := range ch {
 				m.log.Debugw("cancelling order", zap.String("id", id.String()))
 				if err := m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id); err != nil {
 					merr.Append(fmt.Errorf("cannot cancel order with id %s: %v", id.String(), err))
 				}
 			}
-			wg.Done()
 		}()
 	}
 	for _, id := range ids {

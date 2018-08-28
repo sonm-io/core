@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	pb "github.com/sonm-io/core/proto"
@@ -22,7 +23,7 @@ var (
 
 func init() {
 	dealListCmd.PersistentFlags().Uint64Var(&dealsSearchCount, "limit", 10, "Deals count to show")
-	dealCloseCmd.PersistentFlags().StringVar(&blacklistTypeStr, "blacklist", "none", "Whom to add to blacklist: `worker`, `master` or `none`")
+	dealCloseCmd.PersistentFlags().StringVar(&blacklistTypeStr, "blacklist", "nobody", "Whom to add to blacklist: `worker`, `master` or `nobody`")
 
 	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewDurationFlag, "new-duration", "", "Propose new duration for a deal")
 	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewPriceFlag, "new-price", "", "Propose new price for a deal")
@@ -236,16 +237,12 @@ var dealQuickBuyCmd = &cobra.Command{
 }
 
 func getBlacklistType() (pb.BlacklistType, error) {
-	switch blacklistTypeStr {
-	case "none":
-		return pb.BlacklistType_BLACKLIST_NOBODY, nil
-	case "worker":
-		return pb.BlacklistType_BLACKLIST_WORKER, nil
-	case "master":
-		return pb.BlacklistType_BLACKLIST_MASTER, nil
-	default:
+	blacklistTypeStr = "BLACKLIST_" + strings.ToUpper(blacklistTypeStr)
+	blacklistType, ok := pb.BlacklistType_value[blacklistTypeStr]
+	if !ok {
 		return pb.BlacklistType_BLACKLIST_NOBODY, fmt.Errorf("cannot parse `blacklist` argumet, allowed values are `none`, `worker` and `master`")
 	}
+	return pb.BlacklistType(blacklistType), nil
 }
 
 var dealCloseCmd = &cobra.Command{
@@ -269,11 +266,11 @@ var dealCloseCmd = &cobra.Command{
 		request := &pb.DealsFinishRequest{
 			DealInfo: make([]*pb.DealFinishRequest, 0, len(args)),
 		}
-		for _, idStr := range args {
-			id, err := util.ParseBigInt(idStr)
-			if err != nil {
-				return err
-			}
+		ids, err := argsToBigInts(args)
+		if err != nil {
+			return fmt.Errorf("failed to parse parameters to deal ids: %v", err)
+		}
+		for _, id := range ids {
 			request.DealInfo = append(request.DealInfo, &pb.DealFinishRequest{
 				Id:            pb.NewBigInt(id),
 				BlacklistType: blacklistType,

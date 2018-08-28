@@ -96,7 +96,6 @@ func (d *dealsAPI) FinishDeals(ctx context.Context, req *pb.DealsFinishRequest) 
 }
 
 func (d *dealsAPI) finishDeals(ctx context.Context, deals []*pb.DealFinishRequest) (*pb.Empty, error) {
-	d.log.Debugf("finishing %d deals", len(deals))
 	concurrency := purgeConcurrency
 	if len(deals) < concurrency {
 		concurrency = len(deals)
@@ -108,6 +107,7 @@ func (d *dealsAPI) finishDeals(ctx context.Context, deals []*pb.DealFinishReques
 	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
 		go func() {
+			defer wg.Done()
 			for info := range ch {
 				if info.GetId().IsZero() {
 					merr.Append(errors.New("zero or nil deal id specified"))
@@ -119,7 +119,7 @@ func (d *dealsAPI) finishDeals(ctx context.Context, deals []*pb.DealFinishReques
 					merr.Append(fmt.Errorf("cannot cancel order with id %s: %v", idStr, err))
 				}
 			}
-			wg.Done()
+
 		}()
 	}
 	for _, info := range deals {
