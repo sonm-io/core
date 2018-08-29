@@ -993,7 +993,7 @@ func (m *Worker) setupServer() error {
 	logger := log.GetLogger(m.ctx)
 	grpcServer := xgrpc.NewServer(logger,
 		xgrpc.DefaultTraceInterceptor(),
-		xgrpc.RequestLogInterceptor(logger),
+		xgrpc.RequestLogInterceptor(logger, []string{"PushTask", "PullTask"}),
 		xgrpc.Credentials(m.creds),
 		xgrpc.AuthorizationInterceptor(m.eventAuthorization),
 		xgrpc.VerifyInterceptor(),
