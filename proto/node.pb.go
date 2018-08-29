@@ -1283,6 +1283,7 @@ type TokenManagementClient interface {
 	// into live-chian ethereum network.
 	TestTokens(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 	// Balance provide account balance for live- and side- chains.
+	// Deprecated: use BalanceOf method instead.
 	Balance(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*BalanceReply, error)
 	// BalanceOf provide account balance of specified address.
 	BalanceOf(ctx context.Context, in *EthAddress, opts ...grpc.CallOption) (*BalanceReply, error)
@@ -1374,6 +1375,7 @@ type TokenManagementServer interface {
 	// into live-chian ethereum network.
 	TestTokens(context.Context, *Empty) (*Empty, error)
 	// Balance provide account balance for live- and side- chains.
+	// Deprecated: use BalanceOf method instead.
 	Balance(context.Context, *Empty) (*BalanceReply, error)
 	// BalanceOf provide account balance of specified address.
 	BalanceOf(context.Context, *EthAddress) (*BalanceReply, error)
