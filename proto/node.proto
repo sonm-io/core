@@ -54,9 +54,9 @@ service DealManagement {
     // Deprecated: use FinishDeals instead
     rpc Finish(DealFinishRequest) returns (Empty) {}
     // FinishDeals finishes deals with given IDs
-    rpc FinishDeals(DealsFinishRequest) returns (Empty) {}
+    rpc FinishDeals(DealsFinishRequest) returns (ErrorByID) {}
     // PurgeDeals finishes all deals where client acts as a consumer
-    rpc PurgeDeals(DealsPurgeRequest) returns (Empty) {}
+    rpc PurgeDeals(DealsPurgeRequest) returns (ErrorByID) {}
     // Open tries to open deal between two orders
     rpc Open(OpenDealRequest) returns (Deal) {}
     // ChangeRequestsList return change requests for given deal

@@ -11,7 +11,6 @@ import (
 	"github.com/sonm-io/core/insonmnia/auth"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	pb "github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -91,17 +90,17 @@ func (d *dealsAPI) Finish(ctx context.Context, req *pb.DealFinishRequest) (*pb.E
 	return &pb.Empty{}, nil
 }
 
-func (d *dealsAPI) FinishDeals(ctx context.Context, req *pb.DealsFinishRequest) (*pb.Empty, error) {
+func (d *dealsAPI) FinishDeals(ctx context.Context, req *pb.DealsFinishRequest) (*pb.ErrorByID, error) {
 	return d.finishDeals(ctx, req.GetDealInfo())
 }
 
-func (d *dealsAPI) finishDeals(ctx context.Context, deals []*pb.DealFinishRequest) (*pb.Empty, error) {
+func (d *dealsAPI) finishDeals(ctx context.Context, deals []*pb.DealFinishRequest) (*pb.ErrorByID, error) {
 	concurrency := purgeConcurrency
 	if len(deals) < concurrency {
 		concurrency = len(deals)
 	}
 
-	merr := multierror.NewTSMultiError()
+	status := pb.NewTSErrorByID()
 	ch := make(chan *pb.DealFinishRequest)
 	wg := sync.WaitGroup{}
 	wg.Add(concurrency)
@@ -110,13 +109,11 @@ func (d *dealsAPI) finishDeals(ctx context.Context, deals []*pb.DealFinishReques
 			defer wg.Done()
 			for info := range ch {
 				if info.GetId().IsZero() {
-					merr.Append(errors.New("zero or nil deal id specified"))
-					continue
-				}
-				idStr := info.Id.Unwrap().String()
-				d.log.Debugw("finishing deal", zap.String("id", idStr))
-				if err := d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, info.GetId().Unwrap(), info.GetBlacklistType()); err != nil {
-					merr.Append(fmt.Errorf("cannot cancel order with id %s: %v", idStr, err))
+					status.Append(info.GetId(), errors.New("zero deal id specified"))
+				} else {
+					d.log.Debugw("closing deal", zap.String("id", info.GetId().Unwrap().String()))
+					err := d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, info.GetId().Unwrap(), info.GetBlacklistType())
+					status.Append(info.GetId(), err)
 				}
 			}
 
@@ -127,14 +124,10 @@ func (d *dealsAPI) finishDeals(ctx context.Context, deals []*pb.DealFinishReques
 	}
 	close(ch)
 	wg.Wait()
-	if err := merr.ErrorOrNil(); err != nil {
-		return nil, err
-	}
-
-	return &pb.Empty{}, nil
+	return status.Unwrap(), nil
 }
 
-func (d *dealsAPI) PurgeDeals(ctx context.Context, req *pb.DealsPurgeRequest) (*pb.Empty, error) {
+func (d *dealsAPI) PurgeDeals(ctx context.Context, req *pb.DealsPurgeRequest) (*pb.ErrorByID, error) {
 	deals, err := d.remotes.dwh.GetDeals(ctx, &pb.DealsRequest{
 		Status:     pb.DealStatus_DEAL_ACCEPTED,
 		ConsumerID: pb.NewEthAddress(crypto.PubkeyToAddress(d.remotes.key.PublicKey)),

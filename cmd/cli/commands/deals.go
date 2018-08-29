@@ -240,7 +240,7 @@ func getBlacklistType() (pb.BlacklistType, error) {
 	blacklistTypeStr = "BLACKLIST_" + strings.ToUpper(blacklistTypeStr)
 	blacklistType, ok := pb.BlacklistType_value[blacklistTypeStr]
 	if !ok {
-		return pb.BlacklistType_BLACKLIST_NOBODY, fmt.Errorf("cannot parse `blacklist` argumet, allowed values are `none`, `worker` and `master`")
+		return pb.BlacklistType_BLACKLIST_NOBODY, fmt.Errorf("cannot parse `blacklist` argumet, allowed values are `nobody`, `worker` and `master`")
 	}
 	return pb.BlacklistType(blacklistType), nil
 }
@@ -277,11 +277,11 @@ var dealCloseCmd = &cobra.Command{
 			})
 		}
 
-		if _, err = dealer.FinishDeals(ctx, request); err != nil {
+		status, err := dealer.FinishDeals(ctx, request)
+		if err != nil {
 			return fmt.Errorf("cannot finish deal: %v", err)
 		}
-
-		showOk(cmd)
+		printErrorById(cmd, status)
 		return nil
 	},
 }
@@ -303,11 +303,12 @@ var dealPurgeCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		if _, err = dealer.PurgeDeals(ctx, &pb.DealsPurgeRequest{BlacklistType: blacklistType}); err != nil {
-			return fmt.Errorf("cannot finish deal: %v", err)
+		status, err := dealer.PurgeDeals(ctx, &pb.DealsPurgeRequest{BlacklistType: blacklistType})
+		if err != nil {
+			return fmt.Errorf("cannot purge deals: %v", err)
 		}
 
-		showOk(cmd)
+		printErrorById(cmd, status)
 		return nil
 	},
 }

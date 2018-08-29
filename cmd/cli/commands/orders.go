@@ -130,11 +130,12 @@ var orderCancelCmd = &cobra.Command{
 			request.Ids = append(request.Ids, pb.NewBigInt(id))
 		}
 
-		if _, err = market.CancelOrders(ctx, request); err != nil {
+		status, err := market.CancelOrders(ctx, request)
+		if err != nil {
 			return fmt.Errorf("cannot cancel orders on Marketplace: %v", err)
 		}
+		printErrorById(cmd, status)
 
-		showOk(cmd)
 		return nil
 	},
 }
@@ -151,11 +152,12 @@ var orderPurgeCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		if _, err := market.Purge(ctx, &pb.Empty{}); err != nil {
+		status, err := market.PurgeVerbose(ctx, &pb.Empty{})
+		if err != nil {
 			return fmt.Errorf("cannot purge orders: %v", err)
 		}
+		printErrorById(cmd, status)
 
-		showOk(cmd)
 		return nil
 	},
 }

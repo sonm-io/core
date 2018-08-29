@@ -99,6 +99,7 @@ It has these top-level messages:
 	DataSize
 	DataSizeRate
 	Price
+	ErrorByID
 	OrderIDs
 	GetOrdersReply
 	Benchmarks

@@ -24,9 +24,20 @@ service Market {
     // Deprecated: use CancelOrders instead
     rpc CancelOrder(ID) returns (Empty) {}
     // CancelOrders removes specified orders from the Marketplace.
-    rpc CancelOrders(OrderIDs) returns (Empty) {}
+    rpc CancelOrders(OrderIDs) returns (ErrorByID) {}
     // Purge remove all active orders from marketplace
+    // Deprecated: use PurgeVerbose
     rpc Purge(Empty) returns (Empty) {}
+    // PurgeVerbose remove all active orders from marketplace and return detailed status on each order
+    rpc PurgeVerbose(Empty) returns (ErrorByID) {}
+}
+
+message ErrorByID {
+    message Item {
+        BigInt id = 1;
+        string error = 3;
+    }
+    repeated Item response = 1;
 }
 
 message OrderIDs {
