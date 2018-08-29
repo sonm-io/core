@@ -12,7 +12,7 @@ type Config struct {
 	TaskQuality            float64         `yaml:"task_quality" required:"true"`
 	QualityCheckInterval   time.Duration   `yaml:"quality_check_interval" default:"15s"`
 	BlacklistCheckInterval time.Duration   `yaml:"blacklist_check_interval" default:"5m"`
-	ConnectionTimeout      time.Duration   `yaml:"connection_timeout" default:"30s"`
+	ConnectionTimeout      time.Duration   `yaml:"connection_timeout" default:"60s"`
 	LogProcessorConfig     ProcessorConfig `yaml:"log_processor"`
 	PoolProcessorConfig    ProcessorConfig `yaml:"pool_processor"`
 }
