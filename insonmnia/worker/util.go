@@ -2,13 +2,10 @@ package worker
 
 import (
 	"io"
-	"net"
-	"sort"
 	"sync"
 	"time"
 
 	"github.com/sonm-io/core/proto"
-	"github.com/sonm-io/core/util/netutil"
 )
 
 // BackoffTimer implementation
@@ -51,52 +48,6 @@ var stringArrayPool = sync.Pool{
 	New: func() interface{} {
 		return make([]string, 10)
 	},
-}
-
-func SortedIPs(ips []string) []string {
-	var sorted sortableIPs
-	for _, strIP := range ips {
-		if ip := net.ParseIP(strIP); ip != nil {
-			sorted = append(sorted, ip)
-		}
-	}
-	sort.Sort(sorted)
-
-	out := make([]string, len(sorted))
-	for idx, ip := range sorted {
-		out[idx] = ip.String()
-	}
-
-	return out
-}
-
-// Sorting is implemented as follows: first come all public IPs (IPv6 before IPv4), then
-// all private IPs (IPv6 before IPv4).
-type sortableIPs []net.IP
-
-func (s sortableIPs) Len() int      { return len(s) }
-func (s sortableIPs) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s sortableIPs) Less(i, j int) bool {
-	iIsPrivate, jIsPrivate := netutil.IsPrivateIP(s[i]), netutil.IsPrivateIP(s[j])
-	if iIsPrivate && !jIsPrivate {
-		return false
-	}
-
-	if jIsPrivate && !iIsPrivate {
-		return true
-	}
-
-	// Both are private, check for family.
-	iIsIPv4, jIsIPv4 := isIPv4(s[i]), isIPv4(s[j])
-	if iIsIPv4 && !jIsIPv4 {
-		return false
-	}
-
-	return true
-}
-
-func isIPv4(ip net.IP) bool {
-	return ip.To4() != nil
 }
 
 type chunkReader struct {

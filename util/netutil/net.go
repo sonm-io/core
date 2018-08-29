@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"sort"
 	"strconv"
 )
 
@@ -154,4 +155,50 @@ func LookupTCPHostPort(hostport string) ([]net.Addr, error) {
 	}
 
 	return netAddrs, nil
+}
+
+func SortedIPs(ips []string) []string {
+	var sorted sortableIPs
+	for _, strIP := range ips {
+		if ip := net.ParseIP(strIP); ip != nil {
+			sorted = append(sorted, ip)
+		}
+	}
+	sort.Sort(sorted)
+
+	out := make([]string, len(sorted))
+	for idx, ip := range sorted {
+		out[idx] = ip.String()
+	}
+
+	return out
+}
+
+// Sorting is implemented as follows: first come all public IPs (IPv6 before IPv4), then
+// all private IPs (IPv6 before IPv4).
+type sortableIPs []net.IP
+
+func (s sortableIPs) Len() int      { return len(s) }
+func (s sortableIPs) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+func (s sortableIPs) Less(i, j int) bool {
+	iIsPrivate, jIsPrivate := IsPrivateIP(s[i]), IsPrivateIP(s[j])
+	if iIsPrivate && !jIsPrivate {
+		return false
+	}
+
+	if jIsPrivate && !iIsPrivate {
+		return true
+	}
+
+	// Both are private, check for family.
+	iIsIPv4, jIsIPv4 := IsIPv4(s[i]), IsIPv4(s[j])
+	if iIsIPv4 && !jIsIPv4 {
+		return false
+	}
+
+	return true
+}
+
+func IsIPv4(ip net.IP) bool {
+	return len(ip) == net.IPv4len
 }

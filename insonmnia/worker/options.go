@@ -258,7 +258,7 @@ func (m *options) setupNetworkOptions() error {
 	// Use public IPs from config (if provided).
 	publicIPs := m.cfg.PublicIPs
 	if len(publicIPs) > 0 {
-		m.publicIPs = SortedIPs(publicIPs)
+		m.publicIPs = netutil.SortedIPs(publicIPs)
 		return nil
 	}
 
@@ -271,7 +271,7 @@ func (m *options) setupNetworkOptions() error {
 	for _, ip := range rawPublicIPs {
 		publicIPs = append(publicIPs, ip.String())
 	}
-	m.publicIPs = SortedIPs(publicIPs)
+	m.publicIPs = netutil.SortedIPs(publicIPs)
 
 	return nil
 }
