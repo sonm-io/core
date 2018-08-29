@@ -239,6 +239,6 @@ func BenchmarkRemoveDuplicatesKurilshchika(b *testing.B) {
 	create, remove := genBench()
 
 	for i := 0; i < b.N; i++ {
-		removeDuplicates2(create, remove)
+		removeDuplicatesLinear(create, remove)
 	}
 }
