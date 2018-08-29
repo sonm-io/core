@@ -47,7 +47,7 @@ antifraud:
   task_quality: 0.75
   quality_check_interval: 30s
   blacklist_check_interval: 5m
-  connection_timeout: 30s
+  connection_timeout: 60s
 
   log_processor:
     format: claymore
@@ -62,7 +62,7 @@ antifraud:
 engine:
   # timeout for connections to external services
   # default: 30s
-  connection_timeout: 30s
+  connection_timeout: 60s
   # interval between order status updates
   # default: 10s
   order_watch_interval: 10s

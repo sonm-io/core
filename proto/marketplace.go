@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/sonm-io/core/util/multierror"
 )
 
 const (
@@ -145,4 +148,44 @@ func formatPriceString(price *BigInt, duration uint64) string {
 	d := big.NewInt(int64(duration))
 	p := big.NewInt(0).Mul(price.Unwrap(), d)
 	return NewBigInt(p).ToPriceString()
+}
+
+func CombinedError(status *ErrorByID) error {
+	merr := multierror.NewMultiError()
+	for _, err := range status.GetResponse() {
+		if len(err.Error) != 0 {
+			merr = multierror.Append(merr, fmt.Errorf("failed to process id %s: %v", err.GetId().Unwrap().String(), err.GetError()))
+		}
+	}
+	return merr.ErrorOrNil()
+}
+
+func NewTSErrorByID() *TSErrorByID {
+	return &TSErrorByID{
+		inner: &ErrorByID{
+			Response: []*ErrorByID_Item{},
+		},
+	}
+}
+
+type TSErrorByID struct {
+	mu    sync.Mutex
+	inner *ErrorByID
+}
+
+func (m *TSErrorByID) Append(id *BigInt, err error) {
+	strErr := ""
+	if err != nil {
+		strErr = err.Error()
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.inner.Response = append(m.inner.Response, &ErrorByID_Item{
+		Id:    id,
+		Error: strErr,
+	})
+}
+
+func (m *TSErrorByID) Unwrap() *ErrorByID {
+	return m.inner
 }
