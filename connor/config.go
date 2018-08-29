@@ -61,7 +61,7 @@ type nodeConfig struct {
 }
 
 type engineConfig struct {
-	ConnectionTimeout   time.Duration     `yaml:"connection_timeout" default:"30s"`
+	ConnectionTimeout   time.Duration     `yaml:"connection_timeout" default:"60s"`
 	OrderWatchInterval  time.Duration     `yaml:"order_watch_interval" default:"10s"`
 	TaskStartInterval   time.Duration     `yaml:"task_start_interval" default:"15s"`
 	TaskStartTimeout    time.Duration     `yaml:"task_start_timeout" default:"3m"`
