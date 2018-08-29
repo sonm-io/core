@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	pb "github.com/sonm-io/core/proto"
@@ -22,7 +23,7 @@ var (
 
 func init() {
 	dealListCmd.PersistentFlags().Uint64Var(&dealsSearchCount, "limit", 10, "Deals count to show")
-	dealCloseCmd.PersistentFlags().StringVar(&blacklistTypeStr, "blacklist", "none", "Whom to add to blacklist: `worker`, `master` or `none`")
+	dealCloseCmd.PersistentFlags().StringVar(&blacklistTypeStr, "blacklist", "nobody", "Whom to add to blacklist: `worker`, `master` or `nobody`")
 
 	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewDurationFlag, "new-duration", "", "Propose new duration for a deal")
 	changeRequestCreateCmd.PersistentFlags().StringVar(&crNewPriceFlag, "new-price", "", "Propose new price for a deal")
@@ -45,6 +46,7 @@ func init() {
 		dealOpenCmd,
 		dealQuickBuyCmd,
 		dealCloseCmd,
+		dealPurgeCmd,
 		changeRequestsRoot,
 	)
 }
@@ -234,24 +236,26 @@ var dealQuickBuyCmd = &cobra.Command{
 	},
 }
 
+func getBlacklistType() (pb.BlacklistType, error) {
+	blacklistTypeStr = "BLACKLIST_" + strings.ToUpper(blacklistTypeStr)
+	blacklistType, ok := pb.BlacklistType_value[blacklistTypeStr]
+	if !ok {
+		return pb.BlacklistType_BLACKLIST_NOBODY, fmt.Errorf("cannot parse `blacklist` argumet, allowed values are `nobody`, `worker` and `master`")
+	}
+	return pb.BlacklistType(blacklistType), nil
+}
+
 var dealCloseCmd = &cobra.Command{
-	Use:   "close <deal_id>",
-	Short: "Close given deal",
+	Use:   "close <deal_id>...",
+	Short: "Close given deals",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
 		defer cancel()
 
-		var blacklistType pb.BlacklistType
-		switch blacklistTypeStr {
-		case "none":
-			blacklistType = pb.BlacklistType_BLACKLIST_NOBODY
-		case "worker":
-			blacklistType = pb.BlacklistType_BLACKLIST_WORKER
-		case "master":
-			blacklistType = pb.BlacklistType_BLACKLIST_MASTER
-		default:
-			return fmt.Errorf("cannot parse `blacklist` argumet, allowed values are `none`, `worker` and `master`")
+		blacklistType, err := getBlacklistType()
+		if err != nil {
+			return err
 		}
 
 		dealer, err := newDealsClient(ctx)
@@ -259,19 +263,52 @@ var dealCloseCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		id, err := util.ParseBigInt(args[0])
+		request := &pb.DealsFinishRequest{
+			DealInfo: make([]*pb.DealFinishRequest, 0, len(args)),
+		}
+		ids, err := argsToBigInts(args)
+		if err != nil {
+			return fmt.Errorf("failed to parse parameters to deal ids: %v", err)
+		}
+		for _, id := range ids {
+			request.DealInfo = append(request.DealInfo, &pb.DealFinishRequest{
+				Id:            pb.NewBigInt(id),
+				BlacklistType: blacklistType,
+			})
+		}
+
+		status, err := dealer.FinishDeals(ctx, request)
+		if err != nil {
+			return fmt.Errorf("cannot finish deal: %v", err)
+		}
+		printErrorById(cmd, status)
+		return nil
+	},
+}
+
+var dealPurgeCmd = &cobra.Command{
+	Use:   "purge",
+	Short: "Purge all active consumer's deals",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx, cancel := newTimeoutContext()
+		defer cancel()
+
+		blacklistType, err := getBlacklistType()
 		if err != nil {
 			return err
 		}
 
-		if _, err = dealer.Finish(ctx, &pb.DealFinishRequest{
-			Id:            pb.NewBigInt(id),
-			BlacklistType: blacklistType,
-		}); err != nil {
-			return fmt.Errorf("cannot finish deal: %v", err)
+		dealer, err := newDealsClient(ctx)
+		if err != nil {
+			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		showOk(cmd)
+		status, err := dealer.PurgeDeals(ctx, &pb.DealsPurgeRequest{BlacklistType: blacklistType})
+		if err != nil {
+			return fmt.Errorf("cannot purge deals: %v", err)
+		}
+
+		printErrorById(cmd, status)
 		return nil
 	},
 }

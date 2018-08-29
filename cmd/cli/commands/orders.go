@@ -107,8 +107,8 @@ var orderCreateCmd = &cobra.Command{
 }
 
 var orderCancelCmd = &cobra.Command{
-	Use:   "cancel <order_id>",
-	Short: "Cancel order on Marketplace",
+	Use:   "cancel <order_id>...",
+	Short: "Cancel given orders on Marketplace",
 	Args:  cobra.MinimumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx, cancel := newTimeoutContext()
@@ -119,13 +119,23 @@ var orderCancelCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		orderID := args[0]
-		_, err = market.CancelOrder(ctx, &pb.ID{Id: orderID})
+		request := &pb.OrderIDs{
+			Ids: make([]*pb.BigInt, 0, len(args)),
+		}
+		ids, err := argsToBigInts(args)
 		if err != nil {
-			return fmt.Errorf("cannot cancel order on Marketplace: %v", err)
+			return fmt.Errorf("failed to parse parameters to order ids: %v", err)
+		}
+		for _, id := range ids {
+			request.Ids = append(request.Ids, pb.NewBigInt(id))
 		}
 
-		showOk(cmd)
+		status, err := market.CancelOrders(ctx, request)
+		if err != nil {
+			return fmt.Errorf("cannot cancel orders on Marketplace: %v", err)
+		}
+		printErrorById(cmd, status)
+
 		return nil
 	},
 }
@@ -142,11 +152,12 @@ var orderPurgeCmd = &cobra.Command{
 			return fmt.Errorf("cannot create client connection: %v", err)
 		}
 
-		if _, err := market.Purge(ctx, &pb.Empty{}); err != nil {
+		status, err := market.PurgeVerbose(ctx, &pb.Empty{})
+		if err != nil {
 			return fmt.Errorf("cannot purge orders: %v", err)
 		}
+		printErrorById(cmd, status)
 
-		showOk(cmd)
 		return nil
 	},
 }

@@ -2,12 +2,17 @@ package multierror
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/hashicorp/go-multierror"
 )
 
 func NewMultiError() *multierror.Error {
 	return &multierror.Error{ErrorFormat: errorFormat}
+}
+
+func NewTSMultiError() *TSMultiError {
+	return &TSMultiError{inner: &multierror.Error{ErrorFormat: errorFormat}}
 }
 
 func Append(err error, errs ...error) *multierror.Error {
@@ -31,4 +36,22 @@ func errorFormat(errs []error) string {
 
 	return strings.Join(s, ", ")
 
+}
+
+type TSMultiError struct {
+	mu    sync.Mutex
+	inner *multierror.Error
+}
+
+func (m *TSMultiError) Append(errs ...error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.inner = multierror.Append(m.inner, errs...)
+}
+
+func (m *TSMultiError) ErrorOrNil() *multierror.Error {
+	if err := m.inner.ErrorOrNil(); err == nil {
+		return nil
+	}
+	return m.inner
 }

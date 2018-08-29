@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"os"
 	"time"
 
@@ -253,4 +254,16 @@ func showJSON(cmd Printer, s interface{}) {
 
 func newTimeoutContext() (context.Context, context.CancelFunc) {
 	return context.WithTimeout(context.Background(), timeoutFlag)
+}
+
+func argsToBigInts(args []string) ([]*big.Int, error) {
+	ints := make([]*big.Int, 0, len(args))
+	for _, idStr := range args {
+		id, err := util.ParseBigInt(idStr)
+		if err != nil {
+			return nil, err
+		}
+		ints = append(ints, id)
+	}
+	return ints, nil
 }
