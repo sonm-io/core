@@ -154,9 +154,9 @@ type ContainerMetrics struct {
 }
 
 func (m *ContainerMetrics) Marshal() *pb.ResourceUsage {
-	network := make(map[string]*pb.NetworkUsage)
+	networkUsage := make(map[string]*pb.NetworkUsage)
 	for i, n := range m.net {
-		network[i] = &pb.NetworkUsage{
+		networkUsage[i] = &pb.NetworkUsage{
 			TxBytes:   n.TxBytes,
 			RxBytes:   n.RxBytes,
 			TxPackets: n.TxPackets,
@@ -173,7 +173,7 @@ func (m *ContainerMetrics) Marshal() *pb.ResourceUsage {
 		Memory: &pb.MemoryUsage{
 			MaxUsage: m.mem.MaxUsage,
 		},
-		Network: network,
+		Network: networkUsage,
 	}
 }
 
@@ -207,7 +207,7 @@ type Overseer interface {
 	// Stop terminates the container.
 	Stop(ctx context.Context, containerID string) error
 
-	// Makes all cleanup related to closed deal
+	// OnDealFinish makes all cleanup related to closed deal
 	OnDealFinish(ctx context.Context, containerID string) error
 
 	// Info returns runtime statistics collected from all running containers.
@@ -215,7 +215,7 @@ type Overseer interface {
 	// Depending on the implementation this can be cached.
 	Info(ctx context.Context) (map[string]ContainerMetrics, error)
 
-	// Fetch logs of the container
+	// Logs fetch logs of the container
 	Logs(ctx context.Context, id string, opts types.ContainerLogsOptions) (io.ReadCloser, error)
 
 	// Close terminates all associated asynchronous operations and prepares the Overseer for shutting down.

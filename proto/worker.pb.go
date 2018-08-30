@@ -632,6 +632,7 @@ type WorkerManagementClient interface {
 	Devices(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*DevicesReply, error)
 	// FreeDevices provides information about unallocated resources
 	// that can be turned into ask-plans.
+	// Deprecated: no longer usable.
 	FreeDevices(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*DevicesReply, error)
 	// Tasks produces a list of all running tasks on the worker
 	Tasks(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*TaskListReply, error)
@@ -792,6 +793,7 @@ type WorkerManagementServer interface {
 	Devices(context.Context, *Empty) (*DevicesReply, error)
 	// FreeDevices provides information about unallocated resources
 	// that can be turned into ask-plans.
+	// Deprecated: no longer usable.
 	FreeDevices(context.Context, *Empty) (*DevicesReply, error)
 	// Tasks produces a list of all running tasks on the worker
 	Tasks(context.Context, *Empty) (*TaskListReply, error)
