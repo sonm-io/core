@@ -17,13 +17,13 @@ const (
 	orderCancelMaxDelay  = 5 * time.Minute
 )
 
-type CorderFactoriy interface {
+type CorderFactory interface {
 	FromOrder(order *sonm.Order) *Corder
 	FromParams(price *big.Int, hashrate uint64, bench Benchmarks) *Corder
 	FromSlice(orders []*sonm.Order) []*Corder
 }
 
-func NewCorderFactory(token string, benchmarkIndex int) CorderFactoriy {
+func NewCorderFactory(token string, benchmarkIndex int) CorderFactory {
 	return &anyCorderFactory{
 		tokenName:      token,
 		benchmarkIndex: benchmarkIndex,
@@ -168,7 +168,7 @@ type taskStatus struct {
 }
 
 type tokenParameters struct {
-	corderFactory    CorderFactoriy
+	corderFactory    CorderFactory
 	dealFactory      DealFactory
 	priceProvider    price.Provider
 	processorFactory antifraud.ProcessorFactory

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func makeTestCordersSet(f CorderFactoriy, from, to uint64) []*Corder {
+func makeTestCordersSet(f CorderFactory, from, to uint64) []*Corder {
 	set := make([]*Corder, 0)
 	for i := from; i <= to; i += 100 {
 		set = append(set, f.FromParams(big.NewInt(1), i, newBenchmarksWithGPUMem(0)))
