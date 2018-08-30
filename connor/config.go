@@ -95,10 +95,12 @@ func (c *Config) validate() error {
 		"NULL":    true, // null token is for testing purposes
 	}
 	availablePools := map[string]bool{
-		antifraud.PoolFormatDwarf: true,
+		antifraud.PoolFormatDwarf:         true,
+		antifraud.ProcessorFormatDisabled: true,
 	}
 	availableLogs := map[string]bool{
-		antifraud.LogFormatClaymore: true,
+		antifraud.LogFormatClaymore:       true,
+		antifraud.ProcessorFormatDisabled: true,
 	}
 
 	if _, ok := availableTokens[c.Mining.Token]; !ok {
