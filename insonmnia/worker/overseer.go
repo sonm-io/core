@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/go-units"
 	"github.com/gliderlabs/ssh"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
@@ -661,7 +662,7 @@ func (m *prunedImage) Read(p []byte) (n int, err error) {
 
 func (m *prunedImage) load() (err error) {
 	if m.readingFile {
-		var in = make([]byte, 1<<15)
+		var in = make([]byte, units.KB*32)
 		n, err := m.image.Read(in)
 		if err == io.EOF {
 			// End of current file, switch to next header.
@@ -689,8 +690,8 @@ func (m *prunedImage) load() (err error) {
 	if err = m.writer.WriteHeader(hdr); err != nil {
 		return fmt.Errorf("failed to write header: %v", err)
 	}
-	// Other header types are not followed by data body.
-	if hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA {
+	// Avoid reading zero length files.
+	if hdr.Size > 0 && (hdr.Typeflag == tar.TypeReg || hdr.Typeflag == tar.TypeRegA) {
 		m.readingFile = true
 	}
 
@@ -700,6 +701,9 @@ func (m *prunedImage) load() (err error) {
 // pruneManifest removes repository and tag data from image manifest.json to prevent
 // image overwriting.
 func (m *prunedImage) pruneManifest(hdr *tar.Header) error {
+	if hdr.Size > units.MB*100 {
+		return errors.New("manifest.json larger than 100MB, aborting")
+	}
 	var manifest = bytes.NewBuffer(nil)
 	if _, err := io.Copy(manifest, m.image); err != nil {
 		return err
