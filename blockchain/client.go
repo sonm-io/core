@@ -19,7 +19,11 @@ import (
 // was mined.
 type Receipt struct {
 	*types.Receipt
-	BlockNumber int64
+	BlockNumber      int64
+	BlockHash        common.Hash
+	From             common.Address
+	To               common.Address
+	TransactionIndex uint64
 }
 
 // UnmarshalJSON calls parent unmarshaller for Receipt and
@@ -32,11 +36,15 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 	}
 
 	// define temporary struct to unmarshall block number
-	type blockNumber struct {
-		BlockNumber string `json:"BlockNumber"`
+	type extendedReceipt struct {
+		BlockNumber      string `json:"blockNumber"`
+		BlockHash        string `json:"blockHash"`
+		From             string `json:"from"`
+		To               string `json:"to"`
+		TransactionIndex string `json:"transactionIndex"`
 	}
 
-	var dec blockNumber
+	var dec extendedReceipt
 	if err := json.Unmarshal(input, &dec); err != nil {
 		return err
 	}
@@ -44,9 +52,32 @@ func (r *Receipt) UnmarshalJSON(input []byte) error {
 	if dec.BlockNumber == "" {
 		return fmt.Errorf("unmarshaled block number is empty")
 	}
-
 	v := big.NewInt(0).SetBytes(common.FromHex(dec.BlockNumber))
 	r.BlockNumber = v.Int64()
+
+	if dec.BlockHash == "" {
+		return fmt.Errorf("unmarshaled block number is empty")
+	}
+	r.BlockHash = common.HexToHash(dec.BlockHash)
+
+	if dec.From == "" {
+		return fmt.Errorf("unmarshaled from field is empty")
+	}
+	r.From = common.HexToAddress(dec.From)
+
+	if dec.To == "" {
+		return fmt.Errorf("unmarshaled to field is empty")
+	}
+	r.To = common.HexToAddress(dec.To)
+
+	txIndexInt := big.NewInt(0).SetBytes(common.Hex2Bytes(dec.TransactionIndex))
+	if err != nil {
+		return err
+	}
+	if !txIndexInt.IsUint64() {
+		return fmt.Errorf("transaction index overflows uint64")
+	}
+	r.TransactionIndex = txIndexInt.Uint64()
 	return nil
 }
 
