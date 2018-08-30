@@ -8,7 +8,7 @@ import (
 
 	"github.com/containerd/cgroups"
 	"github.com/mitchellh/mapstructure"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 const (
@@ -18,6 +18,14 @@ const (
 type cgroup struct {
 	cgroups.Cgroup
 	suffix string
+}
+
+func (c *cgroup) Add(process Process) error {
+	return c.Cgroup.Add(cgroups.Process{
+		Subsystem: cgroups.Name(process.Subsystem),
+		Pid:       process.Pid,
+		Path:      process.Path,
+	})
 }
 
 func (c *cgroup) Stats() (*Stats, error) {

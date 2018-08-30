@@ -27,6 +27,14 @@ func run() error {
 		return fmt.Errorf("failed to parse config: %v", err)
 	}
 
+	if cfg.Restrictions != nil {
+		control, err := optimus.RestrictUsage(cfg.Restrictions)
+		if err != nil {
+			return err
+		}
+		defer control.Delete()
+	}
+
 	zapConfig := zap.Config{
 		Level:            zap.NewAtomicLevelAt(cfg.Logging.LogLevel().Zap()),
 		Development:      false,
