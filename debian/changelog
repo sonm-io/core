@@ -61,7 +61,7 @@ sonm-core (0.4.10) unstable; urgency=low
     using NPP with further traffic forwarding directly into it. The Worker may
     not be having a public IP address.
     This is an experimental feature and should be optionally activated both on
-    Worker and on None. Note, that on Node you should also configure an SSH
+    Worker and on Node. Note, that on Node you should also configure an SSH
     agent to be able to obtain credentials with which an access into a
     container will be performed.
   * Changed: show only public IPs in deal status (#1335).
