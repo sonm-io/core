@@ -163,6 +163,17 @@ func (m *Scheduler) ReleaseTask(taskID string) error {
 	return nil
 }
 
+func (m *Scheduler) ResourceByTask(id string) (*sonm.AskPlanResources, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	res, ok := m.pool.used[id]
+	if !ok {
+		return nil, fmt.Errorf("failed to get resources")
+	}
+
+	return res, nil
+}
+
 func (m *Scheduler) OnDealFinish(taskID string) error {
 	_, ok := m.taskToAskPlan[taskID]
 
