@@ -102,7 +102,9 @@ func (m *Hardware) GPUIDs(gpuResources *sonm.AskPlanGPU) ([]gpu.GPUID, error) {
 
 func (h *Hardware) SetNetworkIncoming(IPs []string) {
 	for _, ip := range IPs {
-		if !netutil.IsPrivateIP(net.ParseIP(ip)) {
+		rawIP := net.ParseIP(ip)
+		// TODO: split NetworkIn into IPv4In and IPv6In.
+		if !netutil.IsPrivateIP(rawIP) && netutil.IsIPv4(rawIP) {
 			h.Network.NetFlags.SetIncoming(true)
 			break
 		}

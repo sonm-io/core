@@ -4,6 +4,7 @@ package npp
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"time"
 
@@ -103,6 +104,11 @@ func (m *Dialer) DialContext(ctx context.Context, addr auth.Addr) (net.Conn, err
 		case <-nppCtx.Done():
 			log.Warn("failed to connect using NPP", zap.Error(nppCtx.Err()))
 		}
+	}
+
+	if m.relayDialer == nil {
+		log.Warn("failed to connect using NPP - all methods failed")
+		return nil, fmt.Errorf("failed to connect using NPP - all methods failed")
 	}
 
 	log.Debug("connecting using Relay")

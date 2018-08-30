@@ -510,6 +510,20 @@ func printDealInfo(cmd *cobra.Command, info *ExtendedDealInfo, flags printerFlag
 	}
 }
 
+func printErrorById(cmd *cobra.Command, errors *pb.ErrorByID) {
+	if isSimpleFormat() {
+		for _, err := range errors.GetResponse() {
+			status := "OK"
+			if len(err.Error) != 0 {
+				status = "FAIL: " + err.Error
+			}
+			cmd.Printf("ID %s: %s\n", err.Id.Unwrap().String(), status)
+		}
+	} else {
+		showJSON(cmd, errors.GetResponse())
+	}
+}
+
 func printID(cmd *cobra.Command, id string) {
 	if isSimpleFormat() {
 		cmd.Printf("ID = %s\r\n", id)

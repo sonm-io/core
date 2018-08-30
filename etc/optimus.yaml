@@ -3,6 +3,13 @@ logging:
   # Allowed values are "debug", "info", "warn", "error", "panic" and "fatal"
   level: debug
 
+# Resource restrictions settings.
+restrictions:
+  # CGroup name for Optimus.
+  cgroup_name: /optimus
+  # Maximum CPU cores allowed for consumption.
+  cpu_count: 0.5
+
 # Global account settings.
 # Used by all components unless overridden.
 ethereum: &ethereum

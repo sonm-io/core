@@ -52,6 +52,7 @@ type natPuncher struct {
 
 	client          *rendezvousClient
 	pending         *lane.Queue
+	protocol        string
 	listener        net.Listener
 	listenerChannel chan connTuple
 
@@ -59,7 +60,7 @@ type natPuncher struct {
 	timeout     time.Duration
 }
 
-func newNATPuncher(ctx context.Context, cfg rendezvous.Config, client *rendezvousClient, log *zap.Logger) (NATPuncher, error) {
+func newNATPuncher(ctx context.Context, cfg rendezvous.Config, client *rendezvousClient, proto string, log *zap.Logger) (NATPuncher, error) {
 	// It's important here to reuse the Rendezvous client local address for
 	// successful NAT penetration in the case of cone NAT.
 	listener, err := reuseport.Listen(protocol, client.LocalAddr().String())
@@ -74,6 +75,7 @@ func newNATPuncher(ctx context.Context, cfg rendezvous.Config, client *rendezvou
 		log:             log,
 		client:          client,
 		pending:         lane.NewQueue(),
+		protocol:        proto,
 		listenerChannel: channel,
 		listener:        listener,
 
@@ -165,7 +167,7 @@ func (m *natPuncher) resolve(ctx context.Context, addr common.Address) (*sonm.Re
 	}
 
 	request := &sonm.ConnectRequest{
-		Protocol:     protocol,
+		Protocol:     m.protocol,
 		PrivateAddrs: []*sonm.Addr{},
 		ID:           addr.Bytes(),
 	}
@@ -185,6 +187,7 @@ func (m *natPuncher) publish(ctx context.Context) (*sonm.RendezvousReply, error)
 	}
 
 	request := &sonm.PublishRequest{
+		Protocol:     m.protocol,
 		PrivateAddrs: []*sonm.Addr{},
 	}
 

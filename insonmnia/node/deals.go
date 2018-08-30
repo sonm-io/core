@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/dwh"
 	pb "github.com/sonm-io/core/proto"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
@@ -86,6 +88,60 @@ func (d *dealsAPI) Finish(ctx context.Context, req *pb.DealFinishRequest) (*pb.E
 	}
 
 	return &pb.Empty{}, nil
+}
+
+func (d *dealsAPI) FinishDeals(ctx context.Context, req *pb.DealsFinishRequest) (*pb.ErrorByID, error) {
+	return d.finishDeals(ctx, req.GetDealInfo())
+}
+
+func (d *dealsAPI) finishDeals(ctx context.Context, deals []*pb.DealFinishRequest) (*pb.ErrorByID, error) {
+	concurrency := purgeConcurrency
+	if len(deals) < concurrency {
+		concurrency = len(deals)
+	}
+
+	status := pb.NewTSErrorByID()
+	ch := make(chan *pb.DealFinishRequest)
+	wg := sync.WaitGroup{}
+	wg.Add(concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			defer wg.Done()
+			for info := range ch {
+				if info.GetId().IsZero() {
+					status.Append(info.GetId(), errors.New("zero deal id specified"))
+				} else {
+					d.log.Debugw("closing deal", zap.String("id", info.GetId().Unwrap().String()))
+					err := d.remotes.eth.Market().CloseDeal(ctx, d.remotes.key, info.GetId().Unwrap(), info.GetBlacklistType())
+					status.Append(info.GetId(), err)
+				}
+			}
+
+		}()
+	}
+	for _, info := range deals {
+		ch <- info
+	}
+	close(ch)
+	wg.Wait()
+	return status.Unwrap(), nil
+}
+
+func (d *dealsAPI) PurgeDeals(ctx context.Context, req *pb.DealsPurgeRequest) (*pb.ErrorByID, error) {
+	deals, err := d.remotes.dwh.GetDeals(ctx, &pb.DealsRequest{
+		Status:     pb.DealStatus_DEAL_ACCEPTED,
+		ConsumerID: pb.NewEthAddress(crypto.PubkeyToAddress(d.remotes.key.PublicKey)),
+		Limit:      dwh.MaxLimit,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch deals from DWH: %s", err)
+	}
+
+	dealInfo := make([]*pb.DealFinishRequest, 0, len(deals.GetDeals()))
+	for _, deal := range deals.GetDeals() {
+		dealInfo = append(dealInfo, &pb.DealFinishRequest{Id: deal.GetDeal().GetId(), BlacklistType: req.GetBlacklistType()})
+	}
+	return d.finishDeals(ctx, dealInfo)
 }
 
 func (d *dealsAPI) Open(ctx context.Context, req *pb.OpenDealRequest) (*pb.Deal, error) {

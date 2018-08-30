@@ -5,7 +5,9 @@ import (
 	"crypto/sha256"
 
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/sonm-io/core/blockchain"
 	"github.com/sonm-io/core/insonmnia/auth"
+	"github.com/sonm-io/core/insonmnia/ssh"
 	"github.com/sonm-io/core/util/rest"
 	"github.com/sonm-io/core/util/xgrpc"
 	"go.uber.org/zap"
@@ -37,12 +39,14 @@ type serverOptions struct {
 	allowREST         bool
 	optionsREST       []rest.Option
 	exposeGRPCMetrics bool
+	sshProxy          SSHServer
 	log               *zap.Logger
 }
 
 func newServerOptions() *serverOptions {
 	return &serverOptions{
-		log: zap.NewNop(),
+		sshProxy: &ssh.NilSSHProxyServer{},
+		log:      zap.NewNop(),
 	}
 }
 
@@ -85,6 +89,19 @@ func WithRESTSecure(key *ecdsa.PrivateKey) ServerOption {
 func WithGRPCServerMetrics() ServerOption {
 	return func(o *serverOptions) error {
 		o.exposeGRPCMetrics = true
+		return nil
+	}
+}
+
+func WithSSH(cfg ssh.ProxyServerConfig, credentials credentials.TransportCredentials, market blockchain.MarketAPI, log *zap.SugaredLogger) ServerOption {
+	return func(o *serverOptions) error {
+		server, err := ssh.NewSSHProxyServer(cfg, credentials, market, log)
+		if err != nil {
+			return err
+		}
+
+		o.sshProxy = server
+
 		return nil
 	}
 }

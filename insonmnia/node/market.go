@@ -4,14 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/sonm-io/core/insonmnia/dwh"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
-	"github.com/sonm-io/core/util/multierror"
 	"go.uber.org/zap"
 )
+
+const purgeConcurrency = 32
 
 type marketAPI struct {
 	remotes       *remoteOptions
@@ -132,7 +134,18 @@ func (m *marketAPI) CancelOrder(ctx context.Context, req *pb.ID) (*pb.Empty, err
 	return &pb.Empty{}, nil
 }
 
-func (m *marketAPI) Purge(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
+func (m *marketAPI) Purge(ctx context.Context, req *pb.Empty) (*pb.Empty, error) {
+	status, err := m.PurgeVerbose(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if err = pb.CombinedError(status); err != nil {
+		return nil, err
+	}
+	return &pb.Empty{}, nil
+}
+
+func (m *marketAPI) PurgeVerbose(ctx context.Context, _ *pb.Empty) (*pb.ErrorByID, error) {
 	orders, err := m.remotes.dwh.GetOrders(ctx, &pb.OrdersRequest{
 		Type:     pb.OrderType_BID,
 		Status:   pb.OrderStatus_ORDER_ACTIVE,
@@ -144,20 +157,47 @@ func (m *marketAPI) Purge(ctx context.Context, _ *pb.Empty) (*pb.Empty, error) {
 		return nil, fmt.Errorf("cannot get orders from dwh: %v", err)
 	}
 
-	merr := multierror.NewMultiError()
-	for _, order := range orders.Orders {
-		id := order.GetOrder().GetId().Unwrap()
-		m.log.Debugw("cancelling order", zap.String("id", id.String()))
-		if err := m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id); err != nil {
-			multierror.Append(merr, fmt.Errorf("cannot cancel order with id %s: %v", id.String(), err))
-		}
+	ids := make([]*pb.BigInt, 0, len(orders.GetOrders()))
+	for _, order := range orders.GetOrders() {
+		ids = append(ids, order.GetOrder().GetId())
 	}
+	return m.cancelOrders(ctx, ids)
+}
 
-	if len(merr.WrappedErrors()) > 0 {
-		return nil, merr.ErrorOrNil()
+func (m *marketAPI) CancelOrders(ctx context.Context, req *pb.OrderIDs) (*pb.ErrorByID, error) {
+	return m.cancelOrders(ctx, req.GetIds())
+}
+
+func (m *marketAPI) cancelOrders(ctx context.Context, ids []*pb.BigInt) (*pb.ErrorByID, error) {
+	concurrency := purgeConcurrency
+	if len(ids) < concurrency {
+		concurrency = len(ids)
 	}
+	status := pb.NewTSErrorByID()
+	ch := make(chan *pb.BigInt)
+	wg := sync.WaitGroup{}
+	wg.Add(concurrency)
+	for i := 0; i < concurrency; i++ {
+		go func() {
+			defer wg.Done()
+			for id := range ch {
+				if id.IsZero() {
+					status.Append(id, errors.New("nil order id specified"))
+				} else {
+					m.log.Debugw("cancelling order", zap.String("id", id.Unwrap().String()))
+					err := m.remotes.eth.Market().CancelOrder(ctx, m.remotes.key, id.Unwrap())
+					status.Append(id, err)
+				}
+			}
+		}()
+	}
+	for _, id := range ids {
+		ch <- id
+	}
+	close(ch)
+	wg.Wait()
 
-	return &pb.Empty{}, nil
+	return status.Unwrap(), nil
 }
 
 func newMarketAPI(opts *remoteOptions) pb.MarketServer {

@@ -1,3 +1,142 @@
+sonm-core (0.4.10) unstable; urgency=low
+
+  * Added: DWH L2 (#1295).
+    DWH now stores events history, allowing to perform data analysis over the
+    entire history of our sidechain.
+  * Added: close unprofitable deals in Connor (#1310).
+    This activates price checking for Connor's deals.
+    If mining profit becomes less that we paying for a deal - Connor will close
+    it without adding the supplier to the blacklist.
+  * Added: XMR price provider for Connor (#1321).
+    This commit replaces incompleted ZEC's price provider with the XMR one.
+    Also, this commit replaces ZEC token with XMR_CPU in the config.
+  * Added: activate request logging in Relay (#1329).
+    Now all gRPC requests will be logged as they come.
+  * Added: info handle in Relay (#1328).
+    This addition activates info handle in Relay server, allowing to view
+    current server's state, similar how we do in Rendezvous.
+  * Added: blockchain errors for humans while opening a deal (#1291).
+    This commit activates special interceptor on Node that performs userland
+    verification before opening a deal. This allows returning human-readable
+    errors instead of just "Transaction failed" in case of where it is
+    impossible for some reasons to open a deal, which helps to figure out
+    what's exactly wrong in two orders and why they cannot match.
+  * Added: relative price threshold in Optimus (#1334).
+    This commit allows specifying either absolute or relative price threshold
+    in Optimus.
+    It works the following way: if Optimus finds a new more profitable orders
+    set it looks at the relative price difference in percents between the new orders set and the existing one.
+  * Added: price predictor service (#1254).
+    This commit allows to optionally activate order price predictor service
+    on Node.
+    This service is capable of continuous training on current marketplace's
+    state to be able to predict an order price from its benchmarks and
+    netflags.
+    A simple multidimensional regression model with non-negative coefficients
+    is used.
+    It is exposed as a separate gRPC/REST service and can be accessed the same
+    way others methods are.
+  * Added: allow passing output to the logger (#1348).
+    This commit extends logger config with the desired output.
+    Can be "stdout" as it previously works, or it can be a path to log file.
+    Logs are written to the stdout will be colorized. However, redirected
+    descriptors are automatically detected, switching off colorizing if a new
+    descriptor is not a TTY.
+  * Added: remove extra orders in Connor (#1355).
+    This commit brings code that looks at the desired and existing order sets
+    which present on the Market and decide what orders should be removed.
+    Extra orders can appear when the configured hash rate range was changed,
+    for example by decreasing.
+  * Added: parallel order and deal purging (#1354).
+    This PR extends order and deal API, providing an ability to remove several
+    orders and deals at a time (including full purge). This is done on Node in
+    a parallel manner reducing the time needed for operation.
+  * Added: SSH into containers through Node (#1216).
+    This allows performing SSH'ing into containers by specifying only deal
+    and task identifiers independent of wherever those containers are being
+    run.
+    This is done by proxying the traffic through local Node.
+    The idea is to hijack to incoming TCP connection with further resolving the
+    real endpoint of a Worker where a container is being run by deal ID
+    using NPP with further traffic forwarding directly into it. The Worker may
+    not be having a public IP address.
+    This is an experimental feature and should be optionally activated both on
+    Worker and on Node. Note, that on Node you should also configure an SSH
+    agent to be able to obtain credentials with which an access into a
+    container will be performed.
+  * Changed: show only public IPs in deal status (#1335).
+    Previously all networks including private were shown, but such information
+    is completely unusable.
+  * Changed: drop excessive logging in Connor (#1333).
+  * Changed: start services when the network becomes online (#1336).
+    This change touches the default systemd configuration, forcing our services
+    to start strictly after the network is fully configured and upon a system.
+  * Changed: mark node's Balance method as deprecated (#1357).
+    Use BalanceOf instead, which is more flexible and allows to specify the
+    target address.
+  * Fixed: counterparty matching in DWH (#1315).
+    After this fix, DWH should properly match orders, doing the proper identity
+    level check.
+  * Fixed: zero creator identity level in DWH (#1317).
+    Now a meaningful value is used instead of just zero.
+  * Fixed: gradually decrease blacklisting in Connor (#1318).
+    This commit fixes worker unblacklisting in the following way:
+    each tracked success decreasing the next possible blacklist step by the
+    value of time in which task was correctly worked.
+    Each failure doubles a period of time in which a worker will be placed on
+    the blacklist.
+    So if a worker is unblacklisted after the previous failure (1hr) and
+    correctly work for 30 minutes, then, next blacklist time is 2hr minus
+    30 minutes.
+  * Fixed: treat none benchmarks as min in Optimus (#1322).
+    This fixes a bug when Optimus created ask-plan for orders that specified
+    CPU cores benchmark with the value greater than on the system. That results
+    in order that can't be matched with the target one.
+  * Fixed: support old samba servers (#1327).
+    This fixes a bug when specifying "vers" option for CIFS plugin resulted in
+    an error (seen in dmesg) that CIFS doesn't support "vers" option.
+    This means that either too old CIFS compatibility layer is installed or
+    there is an old smb server.
+    Now we just ignore unspecified "vers" option.
+  * Fixed: Connor should ban worker if cannot start a task (#1326).
+  * Fixed: proper CertificateUpdated event processing (DWH) (#1331).
+  * Fixed: attach antifraud to restarted task (#1330).
+    Previously, if the task was restarted antifraud module does not restart log
+    processing for the new task instance. This commit fixes that behavior.
+  * Fixed: use flags to control blacklisting in Connor (#1332).
+    This commit adds extendable flags to control the antifraud behavior in
+    different cases. Also, it fixes a problem when we blacklisting a worker
+    which picks-up a deal which we decide to re-create due to price changes.
+  * Fixed: proper order price setting in Connor (#1337).
+    This commit moves a price calculation code into a "sendOrderToMarker" method,
+    it allows us to calculate the actual price on each order re-creation.
+    Also, it fixes a bug when Connor replaces order on price deviation by an
+    order with absolute same parameters.
+  * Fixed: show DWH endpoint in worker status (#1343).
+    Now we show actual DWH endpoint instead of a blank line.
+  * Fixed: remove IFB dev on ask-plan remove (#1347).
+    We use IFB (intermediate functional block) devices for more smooth traffic
+    shaping. However, they were not properly collected after the associated
+    ask-plan is removed, which led to garbaging on a system with dead link
+    devices.
+    Now everything should be properly cleared.
+  * Fixed: no peer found error in Relay (#1350).
+    Such error appeared when a server was under pressure. It worked the
+    following way: a server announced itself and waited for a connection.
+    When a client came it consumes that connection, causing "noPeerFound"
+    errors for other clients that tried to resolve a server at the same time.
+    This commit fixes that behavior by putting clients into a short-waiting
+    queue. In the future, we can improve this by checking whether a server was
+    ever seen by Relay.
+  * Fixed: proper task start in Connor (#1349).
+    This commit increases task starting timeout and makes it configurable.
+    Also, on "StartTask" retrying we'll check that previous attempt doesn't
+    really start a task.
+  * Fixed: increase connection timeout in Connor (#1358).
+  * Fixed: allow NetworkIn only with public IPv4 addresses (#1342).
+
+ -- Evgeny Safronov <division494@gmail.com>  Thu, 30 Aug 2018 10:54:19 +0300
+
 sonm-core (0.4.9) unstable; urgency=low
 
   * Added: network shaping (#1280).

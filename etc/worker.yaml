@@ -16,7 +16,7 @@ endpoint: ":15010"
 # master: 0x0000000000000000000000000000000000000001
 
 # NAT punching settings.
-npp:
+npp: &npp
   rendezvous:
     endpoints:
       - 0x5b7d6516fad04e10db726933bcd75447fd7b4b17@rendezvous.livenet.sonm.com:14099
@@ -96,3 +96,22 @@ plugins:
 # metrics_listen_addr is addr to bind prometheus
 # metrics exporter endpoint.
 metrics_listen_addr: "127.0.0.1:14001"
+
+# Optional SSH server, that allows users to login into their containers.
+# It works through NPP, i.e. can be used even if a worker is located behind NAT.
+ssh:
+  # Endpoint where SSH server will be exposed.
+  endpoint: localhost:2222
+  # Private key path, that is used only for SSH DH.
+  private_key_path: /root/.ssh/id_rsa
+  # NPP settings.
+  # It is extremely likely that it should be borrowed from the global NPP
+  # settings.
+  npp: *npp
+  # Minimum user identity allowed to login into containers.
+  # By security reasons only identified users are allowed to login in their
+  # containers.
+  # This can be changed for testing purposes, but it is unsafe.
+  # Optional.
+  # Default value is "identified".
+  identity: identified

@@ -31,7 +31,7 @@ type containerDescriptor struct {
 }
 
 func attachContainer(ctx context.Context, dockerClient *client.Client, ID string, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
-	log.S(ctx).Infof("attaching to container with ID: %s reference: %s", ID, d.Reference.String())
+	log.S(ctx).Infof("attaching to container with ID: %s reference: %s", ID, d.Reference.Reference().String())
 
 	cont := containerDescriptor{
 		client:      dockerClient,
@@ -50,7 +50,7 @@ func attachContainer(ctx context.Context, dockerClient *client.Client, ID string
 }
 
 func newContainer(ctx context.Context, dockerClient *client.Client, d Description, tuners *plugin.Repository) (*containerDescriptor, error) {
-	log.S(ctx).Infof("start container with application, reference %s", d.Reference.String())
+	log.S(ctx).Infof("start container with application, reference %s", d.Reference.Reference().String())
 
 	cont := containerDescriptor{
 		client:      dockerClient,
@@ -73,7 +73,7 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 
 		ExposedPorts: exposedPorts,
 
-		Image: d.Reference.String(),
+		Image: d.Reference.Reference().String(),
 		// TODO: set actual name
 		Labels:  map[string]string{overseerTag: "", dealIDTag: d.DealId},
 		Env:     d.FormatEnv(),
@@ -97,9 +97,9 @@ func newContainer(ctx context.Context, dockerClient *client.Client, d Descriptio
 	networkingConfig := network.NetworkingConfig{
 		EndpointsConfig: map[string]*network.EndpointSettings{},
 	}
-	if d.network != nil {
-		networkingConfig.EndpointsConfig[d.network.Name] = &network.EndpointSettings{
-			NetworkID: d.network.ID,
+	if d.NetworkOptions != nil {
+		networkingConfig.EndpointsConfig[d.NetworkOptions.Name] = &network.EndpointSettings{
+			NetworkID: d.NetworkOptions.ID,
 		}
 	}
 
@@ -172,7 +172,7 @@ func (c *containerDescriptor) execCommand(ctx context.Context, cmd []string, env
 				if !ok {
 					return
 				}
-				c.log.Info("resizing tty to %dx%d", w.Height, w.Width)
+				c.log.Infof("resizing tty to %dx%d", w.Height, w.Width)
 				err = c.client.ContainerExecResize(ctx, execId.ID, types.ResizeOptions{Height: uint(w.Height), Width: uint(w.Width)})
 				if err != nil {
 					log.G(ctx).Warn("ContainerExecResize finished with error", zap.Error(err))
@@ -245,11 +245,12 @@ func (c *containerDescriptor) upload(ctx context.Context) error {
 	}
 	tag := fmt.Sprintf("%s_%s", c.description.DealId, c.description.TaskId)
 
-	ref := c.description.Reference
+	ref := c.description.Reference.Reference()
 	if _, ok := ref.(reference.Named); !ok {
 		return errors.New("can not upload image without name")
 	}
-	newImg, err := reference.WithTag(reference.TrimNamed(c.description.Reference.(reference.Named)), tag)
+
+	newImg, err := reference.WithTag(reference.TrimNamed(c.description.Reference.Reference().(reference.Named)), tag)
 	if err != nil {
 		c.log.Errorf("failed to add tag: %s", err)
 		return err

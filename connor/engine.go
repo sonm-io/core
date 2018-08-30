@@ -407,6 +407,21 @@ func (e *engine) startTaskWithRetry(ctx context.Context, log *zap.Logger, deal *
 				return nil, fmt.Errorf("cannot start task: retry count exceeded")
 			}
 
+			list, err := e.loadTasksOnce(ctx, log, deal.GetId())
+			if err != nil {
+				try++
+				log.Warn("cannot obtain task list from worker", zap.Error(err), zap.Int("try", try))
+				continue
+			}
+
+			// check for single task
+			// because worker's task list sanitizing
+			// already performed in `restoreTasks` method.
+			if len(list) == 1 {
+				log.Info("found already started task, continue tracking", zap.String("task_id", list[0].id))
+				return &sonm.StartTaskReply{Id: list[0].id}, nil
+			}
+
 			taskReply, err := e.startTaskOnce(ctx, log, deal.GetId())
 			if err != nil {
 				try++
@@ -420,7 +435,7 @@ func (e *engine) startTaskWithRetry(ctx context.Context, log *zap.Logger, deal *
 }
 
 func (e *engine) startTaskOnce(ctx context.Context, log *zap.Logger, dealID *sonm.BigInt) (*sonm.StartTaskReply, error) {
-	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.ConnectionTimeout)
+	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.TaskStartTimeout)
 	defer cancel()
 
 	env := e.cfg.containerEnv(dealID)
@@ -504,6 +519,13 @@ func (e *engine) checkDealStatus(ctx context.Context, log *zap.Logger, dealID *s
 		deal := e.dealFactory.FromDeal(dealStatus.GetDeal())
 		if deal.isReplaceable(e.priceProvider.GetPrice(), e.cfg.Market.PriceControl.DealCancelThreshold) {
 			log := log.Named("price-deviation")
+			if len(e.orderCancelChan) > 0 {
+				log.Warn("shouldn't finish deal, orders replacing in progress",
+					zap.Int("cancel", len(e.orderCancelChan)),
+					zap.Int("create", len(e.ordersCreateChan)))
+				return true, nil
+			}
+
 			log.Info("too much price deviation detected: closing deal",
 				zap.Uint64("benchmark", deal.getBenchmarkValue()),
 				zap.String("actual_price", e.priceProvider.GetPrice().String()),
@@ -741,6 +763,7 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 	e.log.Debug("restoring existing entities",
 		zap.Int("orders_restore", len(set.toRestore)),
 		zap.Int("orders_create", len(set.toCreate)),
+		zap.Int("orders_cancel", len(set.toCancel)),
 		zap.Int("deals_restore", len(existingDeals.GetDeal())))
 
 	for _, deal := range existingDeals.GetDeal() {
@@ -753,6 +776,10 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 
 	for _, ord := range set.toRestore {
 		e.RestoreOrder(ord)
+	}
+
+	for _, ord := range set.toCancel {
+		e.CancelOrder(ord)
 	}
 
 	return nil

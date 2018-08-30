@@ -62,6 +62,10 @@ func New(ctx context.Context, cfg *Config, options ...Option) (*Node, error) {
 		)
 	}
 
+	if cfg.SSH != nil {
+		serverOptions = append(serverOptions, WithSSH(*cfg.SSH, transportCredentials, remoteOptions.eth.Market(), log.Sugar()))
+	}
+
 	server, err := newServer(cfg.Node, services, serverOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build Node instance: %s", err)

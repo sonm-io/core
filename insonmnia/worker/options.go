@@ -106,10 +106,6 @@ func (m *options) SetupDefaults() error {
 		return err
 	}
 
-	if err := m.setupSSH(); err != nil {
-		return err
-	}
-
 	if err := m.setupOverseer(); err != nil {
 		return err
 	}
@@ -258,7 +254,7 @@ func (m *options) setupNetworkOptions() error {
 	// Use public IPs from config (if provided).
 	publicIPs := m.cfg.PublicIPs
 	if len(publicIPs) > 0 {
-		m.publicIPs = SortedIPs(publicIPs)
+		m.publicIPs = netutil.SortedIPs(publicIPs)
 		return nil
 	}
 
@@ -271,12 +267,21 @@ func (m *options) setupNetworkOptions() error {
 	for _, ip := range rawPublicIPs {
 		publicIPs = append(publicIPs, ip.String())
 	}
-	m.publicIPs = SortedIPs(publicIPs)
+	m.publicIPs = netutil.SortedIPs(publicIPs)
 
 	return nil
 }
 
-func (m *options) setupSSH() error {
+func (m *options) setupSSH(view OverseerView) error {
+	if m.cfg.SSH != nil {
+		ssh, err := NewSSHServer(*m.cfg.SSH, m.creds, view, ctxlog.S(m.ctx))
+		if err != nil {
+			return err
+		}
+		m.ssh = ssh
+		return nil
+	}
+
 	if m.ssh == nil {
 		m.ssh = nilSSH{}
 	}
