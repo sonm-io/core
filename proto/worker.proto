@@ -21,6 +21,7 @@ service WorkerManagement {
     rpc Devices (Empty) returns (DevicesReply) {}
     // FreeDevices provides information about unallocated resources
     // that can be turned into ask-plans.
+    // Deprecated: no longer usable.
     rpc FreeDevices (Empty) returns (DevicesReply) {}
     // Tasks produces a list of all running tasks on the worker
     rpc Tasks (Empty) returns (TaskListReply) {}
