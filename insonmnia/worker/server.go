@@ -524,8 +524,8 @@ func (m *Worker) PushTask(stream pb.Worker_PushTaskServer) error {
 		return err
 	}
 
-	log.G(m.ctx).Info("image loaded, set trailer", zap.String("trailer", result.Id))
-	stream.SetTrailer(metadata.Pairs("id", result.Id))
+	log.G(m.ctx).Info("image loaded, set trailer", zap.String("trailer", result.String()))
+	stream.SetTrailer(metadata.Pairs("id", result.String()))
 	return nil
 }
 
