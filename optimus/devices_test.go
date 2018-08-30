@@ -17,24 +17,24 @@ func TestGPUCombinationsEmpty(t *testing.T) {
 
 func TestGPUCombinations(t *testing.T) {
 	devices := []*sonm.GPU{
-		{&sonm.GPUDevice{ID: "0"}, map[uint64]*sonm.Benchmark{}},
-		{&sonm.GPUDevice{ID: "1"}, map[uint64]*sonm.Benchmark{}},
-		{&sonm.GPUDevice{ID: "2"}, map[uint64]*sonm.Benchmark{}},
+		{Device: &sonm.GPUDevice{ID: "0"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
+		{Device: &sonm.GPUDevice{ID: "1"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
+		{Device: &sonm.GPUDevice{ID: "2"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
 	}
 	actual := combinationsGPU(devices, 2)
 
 	expected := [][]*sonm.GPU{
 		{
-			{&sonm.GPUDevice{ID: "0"}, map[uint64]*sonm.Benchmark{}},
-			{&sonm.GPUDevice{ID: "1"}, map[uint64]*sonm.Benchmark{}},
+			{Device: &sonm.GPUDevice{ID: "0"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
+			{Device: &sonm.GPUDevice{ID: "1"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
 		},
 		{
-			{&sonm.GPUDevice{ID: "0"}, map[uint64]*sonm.Benchmark{}},
-			{&sonm.GPUDevice{ID: "2"}, map[uint64]*sonm.Benchmark{}},
+			{Device: &sonm.GPUDevice{ID: "0"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
+			{Device: &sonm.GPUDevice{ID: "2"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
 		},
 		{
-			{&sonm.GPUDevice{ID: "1"}, map[uint64]*sonm.Benchmark{}},
-			{&sonm.GPUDevice{ID: "2"}, map[uint64]*sonm.Benchmark{}},
+			{Device: &sonm.GPUDevice{ID: "1"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
+			{Device: &sonm.GPUDevice{ID: "2"}, Benchmarks: map[uint64]*sonm.Benchmark{}},
 		},
 	}
 	assert.Equal(t, 3, len(actual))
@@ -233,10 +233,10 @@ func TestConsumeGPU(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.GPUs = []*sonm.GPU{
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "0",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				9:  {ID: 9, Result: 1200},
 				10: {ID: 10, Result: 1860000},
 				11: {ID: 11, Result: 3000},
@@ -265,20 +265,20 @@ func TestConsumeOneOfTwoGPU(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.GPUs = []*sonm.GPU{
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "0",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				10: {ID: 10, Result: 1860000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "1",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				9:  {ID: 9, Result: 1100, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				10: {ID: 10, Result: 110000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
@@ -307,20 +307,20 @@ func TestConsumeTwoOfTwoGPU(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.GPUs = []*sonm.GPU{
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "0",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				10: {ID: 10, Result: 1860000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "1",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				9:  {ID: 9, Result: 1100, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				10: {ID: 10, Result: 110000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
@@ -349,40 +349,40 @@ func TestConsumeTwoOfFourGPU(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.GPUs = []*sonm.GPU{
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "0",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				9:  {ID: 9, Result: 1000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				10: {ID: 10, Result: 100000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "1",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				10: {ID: 10, Result: 120000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "2",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				9:  {ID: 9, Result: 1400, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				10: {ID: 10, Result: 140000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 			},
 		},
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "3",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				9:  {ID: 9, Result: 1600, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				10: {ID: 10, Result: 160000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				11: {ID: 11, Result: 3000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
@@ -671,10 +671,10 @@ func TestConsumeGPUWithMoreMemoryFails(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.GPUs = []*sonm.GPU{
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "0",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				8:  {ID: 8, Result: 2.5e9, SplittingAlgorithm: sonm.SplittingAlgorithm_MIN},
 				9:  {ID: 9, Result: 1000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				10: {ID: 10, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
@@ -682,10 +682,10 @@ func TestConsumeGPUWithMoreMemoryFails(t *testing.T) {
 			},
 		},
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "1",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				8:  {ID: 8, Result: 3e9, SplittingAlgorithm: sonm.SplittingAlgorithm_MIN},
 				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				10: {ID: 10, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
@@ -711,10 +711,10 @@ func TestConsumeGPUWithZeroCountRequiredStillConsumes(t *testing.T) {
 	devices := newEmptyDevicesReply()
 	devices.GPUs = []*sonm.GPU{
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "0",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				8:  {ID: 8, Result: 2.5e9, SplittingAlgorithm: sonm.SplittingAlgorithm_MIN},
 				9:  {ID: 9, Result: 1000, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				10: {ID: 10, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
@@ -722,10 +722,10 @@ func TestConsumeGPUWithZeroCountRequiredStillConsumes(t *testing.T) {
 			},
 		},
 		{
-			&sonm.GPUDevice{
+			Device: &sonm.GPUDevice{
 				Hash: "1",
 			},
-			map[uint64]*sonm.Benchmark{
+			Benchmarks: map[uint64]*sonm.Benchmark{
 				8:  {ID: 8, Result: 3e9, SplittingAlgorithm: sonm.SplittingAlgorithm_MIN},
 				9:  {ID: 9, Result: 1200, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
 				10: {ID: 10, Result: 0, SplittingAlgorithm: sonm.SplittingAlgorithm_PROPORTIONAL},
