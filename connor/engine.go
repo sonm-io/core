@@ -35,7 +35,7 @@ type engine struct {
 	deals         sonm.DealManagementClient
 	tasks         sonm.TaskManagementClient
 	priceProvider price.Provider
-	corderFactory CorderFactoriy
+	corderFactory CorderFactory
 	dealFactory   DealFactory
 
 	ordersCreateChan  chan *Corder
