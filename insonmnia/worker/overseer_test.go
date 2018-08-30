@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"sync"
 	"testing"
@@ -13,7 +14,11 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/nat"
+	"github.com/gliderlabs/ssh"
+	"github.com/sonm-io/core/insonmnia/structs"
+	"github.com/sonm-io/core/insonmnia/worker/network"
 	"github.com/sonm-io/core/insonmnia/worker/plugin"
+	"github.com/sonm-io/core/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -26,11 +31,11 @@ func TestOvsSpool(t *testing.T) {
 
 	ref, err := reference.ParseNormalizedNamed("docker.io/alpine")
 	require.NoError(t, err, "failed to create Overseer")
-	err = ovs.Spool(ctx, Description{Reference: ref})
+	err = ovs.Spool(ctx, Description{Reference: reference.AsField(ref)})
 	require.NoError(t, err, "failed to pull an image")
 
 	ref, err = reference.ParseNormalizedNamed("docker2.io/alpine")
-	err = ovs.Spool(ctx, Description{Reference: ref})
+	err = ovs.Spool(ctx, Description{Reference: reference.AsField(ref)})
 	require.NotNil(t, err)
 }
 
@@ -111,7 +116,7 @@ func TestOvsSpawn(t *testing.T) {
 	require.NoError(t, err)
 	ref, err := reference.ParseNormalizedNamed("worker")
 	require.NoError(t, err)
-	ch, info, err := ovs.Start(ctx, Description{Reference: ref})
+	ch, info, err := ovs.Start(ctx, Description{Reference: reference.AsField(ref)})
 	require.NoError(t, err)
 	cjson, err := cl.ContainerInspect(ctx, info.ID)
 	require.NoError(t, err)
@@ -152,7 +157,7 @@ func TestOvsAttach(t *testing.T) {
 	require.NoError(t, err)
 	ref, err := reference.ParseNormalizedNamed("worker")
 	require.NoError(t, err)
-	_, info, err := ovs.Start(ctx, Description{Reference: ref})
+	_, info, err := ovs.Start(ctx, Description{Reference: reference.AsField(ref)})
 	require.NoError(t, err)
 	cjson, err := cl.ContainerInspect(ctx, info.ID)
 	require.NoError(t, err)
@@ -165,7 +170,7 @@ func TestOvsAttach(t *testing.T) {
 
 	ovs2, err := NewOverseer(ctx, plugin.EmptyRepository())
 	require.NoError(t, err)
-	descr := Description{Reference: ref}
+	descr := Description{Reference: reference.AsField(ref)}
 	ch, err := ovs2.Attach(ctx, info.ID, descr)
 	t.Logf("attached to container %s", info.ID)
 	require.NoError(t, err)
@@ -206,4 +211,83 @@ func TestExpose(t *testing.T) {
 		"10053/tcp": {{HostIP: "8.8.8.8", HostPort: "53"}},
 		"22/tcp":    {{HostIP: "", HostPort: ""}},
 	}, portBinding)
+}
+
+func TestMarshalDescription(t *testing.T) {
+	ref, err := reference.ParseNamed("docker.io/sonm-io/tests:latest")
+	require.NoError(t, err)
+
+	d := Description{
+		Reference: reference.AsField(ref),
+		NetworkOptions: &network.Network{
+			ID:               "1234",
+			Name:             "net_name",
+			Alias:            "net_alias",
+			RateLimitEgress:  100,
+			RateLimitIngress: 200,
+		},
+		NetworkSpecs: []*structs.NetworkSpec{
+			{
+				NetworkSpec: &sonm.NetworkSpec{
+					Type:    "type1",
+					Options: map[string]string{"opt1": "val1"},
+					Subnet:  "/12",
+					Addr:    "1.1.1.1",
+				},
+				NetID: "1111",
+			},
+			{
+				NetworkSpec: &sonm.NetworkSpec{
+					Type:    "type2",
+					Options: map[string]string{"opt2": "val2"},
+					Subnet:  "/28",
+					Addr:    "2.2.2.2",
+				},
+				NetID: "2222",
+			},
+		},
+	}
+
+	data, err := json.Marshal(&d)
+	require.NoError(t, err)
+
+	n := Description{}
+	err = json.Unmarshal(data, &n)
+	require.NoError(t, err)
+
+	assert.NotEmpty(t, n.Reference.Reference().String())
+	assert.Equal(t, d.Reference.Reference().String(), n.Reference.Reference().String())
+	assert.Equal(t, ref.String(), n.Reference.Reference().String())
+	assert.Equal(t, len(d.NetworkSpecs), len(n.NetworkSpecs))
+
+	assert.Equal(t, d.NetworkSpecs[0].Type, n.NetworkSpecs[0].Type)
+	assert.Equal(t, d.NetworkSpecs[0].Options, n.NetworkSpecs[0].Options)
+	assert.Equal(t, d.NetworkSpecs[0].Subnet, n.NetworkSpecs[0].Subnet)
+	assert.Equal(t, d.NetworkSpecs[0].Addr, n.NetworkSpecs[0].Addr)
+
+	assert.Equal(t, d.NetworkOptions.ID, n.NetworkOptions.ID)
+	assert.Equal(t, d.NetworkOptions.Name, n.NetworkOptions.Name)
+	assert.Equal(t, d.NetworkOptions.Alias, n.NetworkOptions.Alias)
+	assert.Equal(t, d.NetworkOptions.RateLimitEgress, n.NetworkOptions.RateLimitEgress)
+	assert.Equal(t, d.NetworkOptions.RateLimitIngress, n.NetworkOptions.RateLimitIngress)
+}
+
+func TestMarshalContainerInfo(t *testing.T) {
+	keyRaw := []byte("ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCh+u6UN26+nIc42aRhnuDeralPivXZDi3ETSugsNlOfMww5YdqSJc9otSGooPRbXhOVguoEZfBvLNNd4xTkYtaCsWmFGbq3JXCjtH22V3VeqDc1zd3iJGtQU2BInC0HHvR4M5U4ayN4Ur3bEwgBViv7J+2lABmOArVwOlxacI/m2FtmUPrXKLh98eZgvAxd7DLwTjL8DKLJVqk2hqPRbqvX+CVHVZ4EeS63k0ji2mHDDlZrCsm2n6CnOau4sIND4Xiibdtt6dHnXKXxyC1SLQlH1W+6fxdiQSWXK4/Q4ryA0L/t89CoSp+/uRy4xnP3z5ntI7vE+I3Y1kFeTpOy1v9 alex@Dikobrazzers.local")
+	pkey := PublicKey{}
+	err := pkey.UnmarshalText(keyRaw)
+	require.NoError(t, err)
+
+	c := ContainerInfo{
+		PublicKey: pkey,
+	}
+
+	data, err := json.Marshal(c)
+	require.NoError(t, err)
+
+	n := ContainerInfo{}
+	err = json.Unmarshal(data, &n)
+	require.NoError(t, err)
+
+	assert.True(t, ssh.KeysEqual(c.PublicKey, n.PublicKey))
 }

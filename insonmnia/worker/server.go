@@ -607,7 +607,7 @@ func (m *Worker) taskAllowed(ctx context.Context, request *pb.StartTaskRequest) 
 }
 
 func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*pb.StartTaskReply, error) {
-	allowed, reference, err := m.taskAllowed(ctx, request)
+	allowed, ref, err := m.taskAllowed(ctx, request)
 	if err != nil {
 		return nil, err
 	}
@@ -630,7 +630,12 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 
 	spec := request.GetSpec()
-	publicKey, err := parsePublicKey(spec.GetContainer().GetSshKey())
+
+	publicKey := PublicKey{}
+	err = publicKey.UnmarshalText([]byte(spec.GetContainer().GetSshKey()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse SSH public key: %v", err)
+	}
 
 	network, err := m.salesman.Network(ask.ID)
 	if err != nil {
@@ -694,17 +699,17 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	}
 
 	var d = Description{
-		Container:    *request.Spec.Container,
-		Reference:    reference,
-		Auth:         spec.Registry.Auth(),
-		CGroupParent: cgroup.Suffix(),
-		Resources:    spec.Resources,
-		DealId:       request.GetDealID().Unwrap().String(),
-		TaskId:       taskID,
-		GPUDevices:   gpuids,
-		mounts:       mounts,
-		network:      network,
-		networks:     networks,
+		Container:      *request.Spec.Container,
+		Reference:      reference.AsField(ref),
+		Auth:           spec.Registry.Auth(),
+		CGroupParent:   cgroup.Suffix(),
+		Resources:      spec.Resources,
+		DealId:         request.GetDealID().Unwrap().String(),
+		TaskId:         taskID,
+		GPUDevices:     gpuids,
+		mounts:         mounts,
+		NetworkOptions: network,
+		NetworkSpecs:   networks,
 	}
 
 	// TODO: Detect whether it's the first time allocation. If so - release resources on error.
@@ -725,9 +730,10 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 		m.setStatus(&pb.TaskStatusReply{Status: pb.TaskStatusReply_BROKEN}, taskID)
 		return nil, status.Errorf(codes.Internal, "failed to Spawn %v", err)
 	}
+
 	containerInfo.PublicKey = publicKey
 	containerInfo.StartAt = time.Now()
-	containerInfo.ImageName = reference.String()
+	containerInfo.ImageName = ref.String()
 	containerInfo.DealID = dealID.Unwrap().String()
 	containerInfo.Tag = request.GetSpec().GetTag()
 	containerInfo.TaskId = taskID
@@ -983,7 +989,6 @@ func (m *Worker) setupRunningContainers() error {
 			}
 
 			contJson, err := dockerClient.ContainerInspect(m.ctx, container.ID)
-
 			if err != nil {
 				log.S(m.ctx).Error("failed to inspect container", zap.String("id", container.ID), zap.Error(err))
 				return err
@@ -1318,12 +1323,12 @@ func parseBenchmarkResult(data []byte) (map[string]*bm.ResultJSON, error) {
 }
 
 func getDescriptionForBenchmark(b *pb.Benchmark) (Description, error) {
-	reference, err := reference.ParseNormalizedNamed(b.GetImage())
+	ref, err := reference.ParseNormalizedNamed(b.GetImage())
 	if err != nil {
 		return Description{}, err
 	}
 	return Description{
-		Reference: reference,
+		Reference: reference.AsField(ref),
 		Container: pb.Container{Env: map[string]string{
 			bm.BenchIDEnvParamName: fmt.Sprintf("%d", b.GetID()),
 		}},

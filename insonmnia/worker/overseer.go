@@ -35,7 +35,7 @@ const dieEvent = "die"
 // Description for a target application.
 type Description struct {
 	pb.Container
-	Reference    reference.Reference
+	Reference    reference.Field
 	Auth         string
 	Resources    *pb.AskPlanResources
 	CGroupParent string
@@ -48,41 +48,12 @@ type Description struct {
 
 	mounts []volume.Mount
 
-	network  *network.Network
-	networks []*structs.NetworkSpec
+	NetworkOptions *network.Network
+	NetworkSpecs   []*structs.NetworkSpec
 }
 
 func (d *Description) ID() string {
 	return d.TaskId
-}
-
-type descriptionAlias Description
-
-type descriptionMarshaller struct {
-	*descriptionAlias
-	Networks []*structs.NetworkSpec
-	RefField reference.Field `json:"Reference"`
-}
-
-func (d Description) MarshalJSON() ([]byte, error) {
-	b, err := json.Marshal(&descriptionMarshaller{
-		descriptionAlias: (*descriptionAlias)(&d),
-		Networks:         d.networks,
-		RefField:         reference.AsField(d.Reference),
-	})
-
-	return b, err
-}
-
-func (d *Description) UnmarshalJSON(data []byte) error {
-	aux := &descriptionMarshaller{descriptionAlias: (*descriptionAlias)(d)}
-	if err := json.Unmarshal(data, &aux); err != nil {
-		return err
-	}
-
-	d.Reference = aux.RefField.Reference()
-	d.networks = aux.Networks
-	return nil
 }
 
 func (d *Description) Volumes() map[string]*pb.Volume {
@@ -94,11 +65,11 @@ func (d *Description) Mounts(source string) []volume.Mount {
 }
 
 func (d *Description) Network() (string, string) {
-	if d.network == nil {
+	if d.NetworkOptions == nil {
 		return "", ""
 	}
 
-	return d.network.Name, d.network.ID
+	return d.NetworkOptions.Name, d.NetworkOptions.ID
 }
 
 func (d *Description) DealID() string {
@@ -114,7 +85,7 @@ func (d *Description) GpuDeviceIDs() []gpu.GPUID {
 }
 
 func (d *Description) Networks() []*structs.NetworkSpec {
-	return d.networks
+	return d.NetworkSpecs
 }
 
 func (d *Description) FormatEnv() []string {
@@ -137,7 +108,7 @@ type ContainerInfo struct {
 	ImageName    string
 	StartAt      time.Time
 	Ports        nat.PortMap
-	PublicKey    ssh.PublicKey
+	PublicKey    PublicKey
 	Cgroup       string
 	CgroupParent string
 	NetworkIDs   []string
@@ -493,10 +464,10 @@ func (o *overseer) Spool(ctx context.Context, d Description) error {
 	if err != nil {
 		return err
 	}
-	refStr := d.Reference.String()
+	refStr := d.Reference.Reference().String()
 	for _, summary := range summaries {
 		if summary.ID == refStr {
-			log.S(ctx).Infof("application image %s is already present", d.Reference.String())
+			log.S(ctx).Infof("application image %s is already present", d.Reference.Reference().String())
 			return nil
 		}
 	}
