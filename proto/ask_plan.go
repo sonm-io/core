@@ -354,3 +354,9 @@ func SumPrice(plans []*AskPlan) *Price {
 
 	return &Price{PerSecond: NewBigInt(sum)}
 }
+
+func (m *AskPlanResources) Eq(resources *AskPlanResources) bool {
+	errF := m.CheckContains(resources)
+	errR := resources.CheckContains(m)
+	return errF == nil && errR == nil
+}

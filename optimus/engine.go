@@ -3,6 +3,7 @@ package optimus
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -394,7 +395,106 @@ func (m *workerEngine) splitPlans(plans map[string]*sonm.AskPlan, candidates []*
 		}
 	}
 
+	create, remove = removeDuplicates(create, remove)
 	return create, remove, ignore
+}
+
+func planEq(a, b *sonm.AskPlan) bool {
+	return a.GetResources().Eq(b.GetResources()) &&
+		a.GetPrice().GetPerSecond().Cmp(b.GetPrice().GetPerSecond()) == 0 &&
+		a.GetDuration().Unwrap() == b.GetDuration().Unwrap()
+}
+
+func removeDuplicates(create, remove []*sonm.AskPlan) ([]*sonm.AskPlan, []*sonm.AskPlan) {
+	filteredCreate := make([]*sonm.AskPlan, 0, len(create))
+	for _, planCreate := range create {
+		foundDup := false
+		filteredRemove := make([]*sonm.AskPlan, 0, len(remove))
+		for _, planRemove := range remove {
+			if planEq(planCreate, planRemove) {
+				// Pop only the first equal ask plan from the removal list.
+				if !foundDup {
+					foundDup = true
+					continue
+				}
+			}
+			filteredRemove = append(filteredRemove, planRemove)
+		}
+		if !foundDup {
+			filteredCreate = append(filteredCreate, planCreate)
+		}
+		// Reassign the removal list with the filtered except the equal one if found.
+		remove = filteredRemove
+	}
+	create = filteredCreate
+	return create, remove
+}
+
+func removeDuplicates2(create, remove []*sonm.AskPlan) ([]*sonm.AskPlan, []*sonm.AskPlan) {
+	sort.Slice(create, func(i, j int) bool {
+		return create[i].Price.PerSecond.Cmp(create[j].Price.PerSecond) < 0
+	})
+	sort.Slice(remove, func(i, j int) bool {
+		return remove[i].Price.PerSecond.Cmp(remove[j].Price.PerSecond) < 0
+	})
+
+	i := 0
+	j := 0
+
+	type Eq struct {
+		i, j int
+	}
+
+	eq := []Eq{}
+
+	for {
+		if i >= len(create) {
+			break
+		}
+		if j >= len(remove) {
+			break
+		}
+		if planEq(create[i], remove[j]) {
+			eq = append(eq, Eq{i, j})
+			i++
+			j++
+			continue
+		}
+		if create[i].Price.PerSecond.Cmp(remove[j].Price.PerSecond) < 0 {
+			i++
+		} else {
+			j++
+		}
+	}
+	if len(eq) == 0 {
+		return create, remove
+	}
+
+	eqIdx := 0
+	newCreate := make([]*sonm.AskPlan, 0, len(create))
+	for idx, plan := range create {
+		if eqIdx < len(eq) {
+			if idx == eq[eqIdx].i {
+				eqIdx++
+				continue
+			}
+		}
+		newCreate = append(newCreate, plan)
+	}
+
+	eqIdx = 0
+	newRemove := make([]*sonm.AskPlan, 0, len(remove))
+	for idx, plan := range remove {
+		if eqIdx < len(eq) {
+			if idx == eq[eqIdx].j {
+				eqIdx++
+				continue
+			}
+		}
+		newRemove = append(newRemove, plan)
+	}
+
+	return newCreate, newRemove
 }
 
 func (m *workerEngine) optimizationInput(ctx context.Context) (*optimizationInput, error) {
