@@ -123,7 +123,7 @@ func newServer(cfg nodeConfig, services Services, options ...ServerOption) (*Ser
 	if opts.allowGRPC {
 		options := append([]xgrpc.ServerOption{
 			xgrpc.DefaultTraceInterceptor(),
-			xgrpc.RequestLogInterceptor(m.log.Desugar()),
+			xgrpc.RequestLogInterceptor(m.log.Desugar(), []string{"PushTask", "PullTask"}),
 			xgrpc.VerifyInterceptor(),
 			xgrpc.UnaryServerInterceptor(services.Interceptor()),
 		}, opts.optionsGRPC...)

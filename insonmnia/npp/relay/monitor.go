@@ -37,7 +37,7 @@ func newMonitor(cfg MonitorConfig, cluster *memberlist.Memberlist, meetingRoom *
 	server := xgrpc.NewServer(log,
 		xgrpc.Credentials(credentials),
 		xgrpc.DefaultTraceInterceptor(),
-		xgrpc.RequestLogInterceptor(log),
+		xgrpc.RequestLogInterceptor(log, nil),
 		xgrpc.VerifyInterceptor(),
 	)
 
