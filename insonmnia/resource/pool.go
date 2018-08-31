@@ -14,12 +14,14 @@ import (
 )
 
 type Scheduler struct {
-	OS            *hardware.Hardware
-	mu            sync.Mutex
-	pool          *pool
+	OS   *hardware.Hardware
+	mu   sync.Mutex
+	pool *pool
+	// taskToAskPlan maps task ID to ask plan ID
 	taskToAskPlan map[string]string
-	askPlanPools  map[string]*pool
-	log           *zap.SugaredLogger
+	// askPlanPools maps ask plan' ID to allocated resource pool
+	askPlanPools map[string]*pool
+	log          *zap.SugaredLogger
 }
 
 func NewScheduler(ctx context.Context, hardware *hardware.Hardware) *Scheduler {
@@ -163,12 +165,23 @@ func (m *Scheduler) ReleaseTask(taskID string) error {
 	return nil
 }
 
-func (m *Scheduler) ResourceByTask(id string) (*sonm.AskPlanResources, error) {
+func (m *Scheduler) ResourceByTask(taskID string) (*sonm.AskPlanResources, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	res, ok := m.pool.used[id]
+
+	askID, ok := m.taskToAskPlan[taskID]
 	if !ok {
-		return nil, fmt.Errorf("failed to get resources")
+		return nil, fmt.Errorf("failed to get ask plan id for task %s: no such ask plan", taskID)
+	}
+
+	pool, ok := m.askPlanPools[askID]
+	if !ok {
+		return nil, fmt.Errorf("failed to get ask plan pool by id %s: no such pool", askID)
+	}
+
+	res, ok := pool.used[taskID]
+	if !ok {
+		return nil, fmt.Errorf("failed to get resources for task %s: no such task", taskID)
 	}
 
 	return res, nil
@@ -187,7 +200,8 @@ func (m *Scheduler) OnDealFinish(taskID string) error {
 }
 
 type pool struct {
-	all  *sonm.AskPlanResources
+	all *sonm.AskPlanResources
+	// used maps resource ID (usually task id) to allocated resources
 	used map[string]*sonm.AskPlanResources
 }
 
