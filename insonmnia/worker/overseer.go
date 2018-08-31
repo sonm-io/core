@@ -115,7 +115,7 @@ type ContainerInfo struct {
 	Cgroup       string
 	CgroupParent string
 	NetworkIDs   []string
-	DealID       string
+	DealID       *pb.BigInt
 	TaskId       string
 	Tag          *pb.TaskTag
 	AskID        string

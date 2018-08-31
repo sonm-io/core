@@ -387,12 +387,11 @@ func (m *Worker) listenDeals(dealsCh <-chan *pb.Deal) {
 }
 
 func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
-	dealID := deal.GetId().Unwrap().String()
 	var toDelete []*ContainerInfo
 
 	m.mu.Lock()
 	for key, container := range m.containers {
-		if container.DealID == dealID {
+		if container.DealID == deal.GetId() {
 			toDelete = append(toDelete, container)
 			delete(m.containers, key)
 		}
@@ -731,7 +730,7 @@ func (m *Worker) StartTask(ctx context.Context, request *pb.StartTaskRequest) (*
 	containerInfo.PublicKey = publicKey
 	containerInfo.StartAt = time.Now()
 	containerInfo.ImageName = ref.String()
-	containerInfo.DealID = dealID.Unwrap().String()
+	containerInfo.DealID = dealID
 	containerInfo.Tag = request.GetSpec().GetTag()
 	containerInfo.TaskId = taskID
 	containerInfo.AskID = ask.ID
@@ -893,6 +892,7 @@ func (m *Worker) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 	}
 
 	var metric ContainerMetrics
+	var resources *pb.AskPlanResources
 	// If a container has been stoped, ovs.Info has no metrics for such container
 	if info.status == pb.TaskStatusReply_RUNNING {
 		metrics, err := m.ovs.Info(ctx)
@@ -902,13 +902,18 @@ func (m *Worker) TaskStatus(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 
 		metric, ok = metrics[info.ID]
 		if !ok {
-			return nil, status.Errorf(codes.NotFound, "Cannot get metrics for container %s", req.GetId())
+			return nil, status.Errorf(codes.NotFound, "cannot get metrics for container %s", req.GetId())
+		}
+
+		resources, err = m.resources.ResourceByTask(req.GetId())
+		if err != nil {
+			return nil, status.Errorf(codes.NotFound, "cannot get resources for container %s", req.GetId())
 		}
 	}
 
 	reply := info.IntoProto(m.ctx)
 	reply.Usage = metric.Marshal()
-	// todo: fill `reply.AllocatedResources` field.
+	reply.AllocatedResources = resources
 
 	return reply, nil
 }
@@ -1446,7 +1451,7 @@ func (m *Worker) getDealInfo(dealID *pb.BigInt) (*pb.DealInfoReply, error) {
 
 	for id, c := range m.containers {
 		// task is ours
-		if c.DealID == dealID.Unwrap().String() {
+		if c.DealID == dealID {
 			task := c.IntoProto(m.ctx)
 
 			// task is running or preparing to start
