@@ -1,6 +1,7 @@
 package worker
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/gliderlabs/ssh"
@@ -21,4 +22,15 @@ func TestSSHKeyParse(t *testing.T) {
 	parsed, _, _, _, err := ssh.ParseAuthorizedKey(b)
 	require.NoError(t, err)
 	assert.True(t, ssh.KeysEqual(pkey, parsed))
+}
+
+func TestMarshalEmpty(t *testing.T) {
+
+	var one PublicKey
+	data, err := json.Marshal(one)
+	require.NoError(t, err)
+
+	two := PublicKey{}
+	err = json.Unmarshal(data, &two)
+	require.NoError(t, err)
 }
