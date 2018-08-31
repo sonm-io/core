@@ -3,6 +3,7 @@ package optimus
 import (
 	"context"
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -324,7 +325,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	if swingTime {
 		m.log.Info("using replacement strategy")
 
-		create, remove, ignore := m.splitPlans(input.Plans, virtualKnapsack.Plans())
+		create, remove, ignore := splitPlans(input.Plans, virtualKnapsack.Plans())
 		m.log.Infow("ignoring already existing plans", zap.Any("plans", ignore))
 		m.log.Infow("removing plans", zap.Any("plans", remove))
 		m.log.Infow("creating plans", zap.Any("plans", create))
@@ -369,7 +370,7 @@ func (m *workerEngine) execute(ctx context.Context) error {
 	return nil
 }
 
-func (m *workerEngine) splitPlans(plans map[string]*sonm.AskPlan, candidates []*sonm.AskPlan) (create, remove, ignore []*sonm.AskPlan) {
+func splitPlans(plans map[string]*sonm.AskPlan, candidates []*sonm.AskPlan) (create, remove, ignore []*sonm.AskPlan) {
 	orders := map[string]struct{}{}
 	for _, plan := range plans {
 		orders[plan.GetOrderID().Unwrap().String()] = struct{}{}
@@ -394,7 +395,91 @@ func (m *workerEngine) splitPlans(plans map[string]*sonm.AskPlan, candidates []*
 		}
 	}
 
+	create, remove = removeDuplicates(create, remove)
+
 	return create, remove, ignore
+}
+
+func removeDuplicates(create, remove []*sonm.AskPlan) ([]*sonm.AskPlan, []*sonm.AskPlan) {
+	return removeDuplicatesL(create, remove)
+}
+
+// Here we find orders in the creation list that are equal with orders in
+// the removal list. This is required to not to replace existing orders
+// with the same ones somehow appeared in the marketplace.
+//
+// The algorithm works as the follows:
+// Given: [c0, c1, c2, c3, c4] [r0, r1, r2, r3]
+// Where: c1==r3, c3==r2, c4==r2.
+// Then:
+//	                                     [c0, c1, c2, c3, c4] [r0, r1, r2, r3]
+//	c0!=r0, c0!=r1, c0!=r2, c0!=r3 ->    [c0, c1, c2, c3, c4] [r0, r1, r2, r3]
+//	c1!=r0, c1!=r1, c1!=r2, c1==r3(!) -> [c0, c2, c3, c4]     [r0, r1, r2]
+//	c2!=r0, c2!=r1, c2!=r2 ->            [c0, c2, c3, c4]     [r0, r1, r2]
+//	c3!=r0, c3!=r1, c3==r2(!) ->         [c0, c2, c4]         [r0, r1]
+//	c4!=r0, c4!=r1 ->                    [c0, c2, c4]         [r0, r1]
+func removeDuplicatesL(create, remove []*sonm.AskPlan) ([]*sonm.AskPlan, []*sonm.AskPlan) {
+	sort.Slice(create, func(i, j int) bool {
+		return create[i].Price.PerSecond.Cmp(create[j].Price.PerSecond) < 0
+	})
+	sort.Slice(remove, func(i, j int) bool {
+		return remove[i].Price.PerSecond.Cmp(remove[j].Price.PerSecond) < 0
+	})
+
+	type Eq struct {
+		i, j int
+	}
+
+	i, j := 0, 0
+	var eq []Eq
+	for {
+		if i >= len(create) {
+			break
+		}
+		if j >= len(remove) {
+			break
+		}
+		if planEq(create[i], remove[j]) {
+			eq = append(eq, Eq{i: i, j: j})
+			i++
+			j++
+			continue
+		}
+		if create[i].Price.PerSecond.Cmp(remove[j].Price.PerSecond) < 0 {
+			i++
+		} else {
+			j++
+		}
+	}
+	if len(eq) == 0 {
+		return create, remove
+	}
+
+	eqIdx := 0
+	newCreate := make([]*sonm.AskPlan, 0, len(create))
+	for idx, plan := range create {
+		if eqIdx < len(eq) {
+			if idx == eq[eqIdx].i {
+				eqIdx++
+				continue
+			}
+		}
+		newCreate = append(newCreate, plan)
+	}
+
+	eqIdx = 0
+	newRemove := make([]*sonm.AskPlan, 0, len(remove))
+	for idx, plan := range remove {
+		if eqIdx < len(eq) {
+			if idx == eq[eqIdx].j {
+				eqIdx++
+				continue
+			}
+		}
+		newRemove = append(newRemove, plan)
+	}
+
+	return newCreate, newRemove
 }
 
 func (m *workerEngine) optimizationInput(ctx context.Context) (*optimizationInput, error) {
@@ -742,4 +827,10 @@ func (m *Knapsack) PPSf64() float64 {
 
 func (m *Knapsack) Plans() []*sonm.AskPlan {
 	return m.plans
+}
+
+func planEq(a, b *sonm.AskPlan) bool {
+	return a.GetResources().Eq(b.GetResources()) &&
+		a.GetPrice().GetPerSecond().Cmp(b.GetPrice().GetPerSecond()) == 0 &&
+		a.GetDuration().Unwrap() == b.GetDuration().Unwrap()
 }

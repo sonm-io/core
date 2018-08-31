@@ -180,6 +180,13 @@ func (m *AskPlanResources) CPUQuota() int64 {
 	return int64(defaultCPUPeriod) * int64(m.GetCPU().GetCorePercents()) / 100
 }
 
+func (m *AskPlanResources) Eq(resources *AskPlanResources) bool {
+	errF := m.CheckContains(resources)
+	errR := resources.CheckContains(m)
+
+	return errF == nil && errR == nil
+}
+
 func (m *AskPlanResources) CheckContains(resources *AskPlanResources) error {
 	if m.GetCPU().GetCorePercents() < resources.GetCPU().GetCorePercents() {
 		return fmt.Errorf("not enough CPU, required %d core percents, available %d core percents",
