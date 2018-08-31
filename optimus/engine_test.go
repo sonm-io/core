@@ -1,244 +1,192 @@
 package optimus
 
 import (
+	"sort"
 	"testing"
 
 	"github.com/sonm-io/core/proto"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
 )
 
-func genPrice(price int64) *sonm.Price {
-	return &sonm.Price{
-		PerSecond: sonm.NewBigIntFromInt(price),
-	}
-}
-
-func genAsk(price int64) *sonm.AskPlan {
+func newTestPlan(price int64) *sonm.AskPlan {
 	return &sonm.AskPlan{
-		Price: genPrice(price),
+		Price: &sonm.Price{
+			PerSecond: sonm.NewBigIntFromInt(price),
+		},
 	}
 }
 
 func TestRemoveDuplicates(t *testing.T) {
-	// simple case
-	create := []*sonm.AskPlan{
-		genAsk(1),
-		genAsk(2),
-		genAsk(3),
+	tests := map[string]struct {
+		create []*sonm.AskPlan
+		remove []*sonm.AskPlan
+
+		expectedCreate []*sonm.AskPlan
+		expectedRemove []*sonm.AskPlan
+	}{
+		"OneEqRemoveEmpty": {
+			create: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(2),
+				newTestPlan(3),
+			},
+			remove: []*sonm.AskPlan{
+				newTestPlan(2),
+			},
+			expectedCreate: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(3),
+			},
+			expectedRemove: []*sonm.AskPlan{},
+		},
+		"OneEqRemoveNotEmpty": {
+			create: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(2),
+				newTestPlan(3),
+			},
+			remove: []*sonm.AskPlan{
+				newTestPlan(3),
+				newTestPlan(4),
+			},
+			expectedCreate: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(2),
+			},
+			expectedRemove: []*sonm.AskPlan{
+				newTestPlan(4),
+			},
+		},
+		"TwoEq": {
+			create: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(1),
+				newTestPlan(2),
+			},
+			remove: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(4),
+				newTestPlan(4),
+			},
+			expectedCreate: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(2),
+			},
+			expectedRemove: []*sonm.AskPlan{
+				newTestPlan(4),
+				newTestPlan(4),
+			},
+		},
+		"ThreeCompletelyEq": {
+			create: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(1),
+				newTestPlan(1),
+			},
+			remove: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(1),
+				newTestPlan(1),
+			},
+			expectedCreate: []*sonm.AskPlan{},
+			expectedRemove: []*sonm.AskPlan{},
+		},
+		"ThreeEqExtraRemove": {
+			create: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(1),
+				newTestPlan(1),
+			},
+			remove: []*sonm.AskPlan{
+				newTestPlan(4),
+				newTestPlan(1),
+				newTestPlan(1),
+				newTestPlan(1),
+			},
+			expectedCreate: []*sonm.AskPlan{},
+			expectedRemove: []*sonm.AskPlan{
+				newTestPlan(4),
+			},
+		},
+		"TwoEqExtraCreate": {
+			create: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(1),
+				newTestPlan(1),
+			},
+			remove: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(1),
+			},
+			expectedCreate: []*sonm.AskPlan{
+				newTestPlan(1),
+			},
+			expectedRemove: []*sonm.AskPlan{},
+		},
+		"CombinedNoRemoveLeft": {
+			create: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(1),
+				newTestPlan(1),
+				newTestPlan(2),
+				newTestPlan(2),
+			},
+			remove: []*sonm.AskPlan{
+				newTestPlan(2),
+				newTestPlan(1),
+				newTestPlan(1),
+			},
+			expectedCreate: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(2),
+			},
+			expectedRemove: []*sonm.AskPlan{},
+		},
+		"Combined": {
+			create: []*sonm.AskPlan{
+				newTestPlan(2),
+				newTestPlan(3),
+				newTestPlan(5),
+				newTestPlan(4),
+				newTestPlan(1),
+				newTestPlan(4),
+			},
+			remove: []*sonm.AskPlan{
+				newTestPlan(4),
+				newTestPlan(2),
+				newTestPlan(2),
+				newTestPlan(3),
+				newTestPlan(3),
+			},
+			expectedCreate: []*sonm.AskPlan{
+				newTestPlan(1),
+				newTestPlan(4),
+				newTestPlan(5),
+			},
+			expectedRemove: []*sonm.AskPlan{
+				newTestPlan(2),
+				newTestPlan(3),
+			},
+		},
 	}
-	remove := []*sonm.AskPlan{
-		genAsk(2),
+
+	sortPlans := func(plans []*sonm.AskPlan) {
+		sort.Slice(plans, func(i, j int) bool {
+			return plans[i].Price.PerSecond.Cmp(plans[j].Price.PerSecond) < 0
+		})
 	}
 
-	create, remove = removeDuplicates(create, remove)
-	require.Equal(t, 2, len(create))
-	require.Equal(t, 0, len(remove))
-	require.Equal(t, int64(1), create[0].Price.PerSecond.Unwrap().Int64())
-	require.Equal(t, int64(3), create[1].Price.PerSecond.Unwrap().Int64())
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			create, remove := removeDuplicates(test.create, test.remove)
 
-	// 2
-	create = []*sonm.AskPlan{
-		genAsk(1),
-		genAsk(2),
-		genAsk(3),
-	}
-	remove = []*sonm.AskPlan{
-		genAsk(3),
-		genAsk(4),
-	}
+			sortPlans(create)
+			sortPlans(remove)
+			sortPlans(test.expectedCreate)
+			sortPlans(test.expectedRemove)
 
-	create, remove = removeDuplicates(create, remove)
-	require.Equal(t, 2, len(create))
-	require.Equal(t, 1, len(remove))
-	require.Equal(t, int64(1), create[0].Price.PerSecond.Unwrap().Int64())
-	require.Equal(t, int64(2), create[1].Price.PerSecond.Unwrap().Int64())
-	require.Equal(t, int64(4), remove[0].Price.PerSecond.Unwrap().Int64())
-
-	// 3
-	create = []*sonm.AskPlan{
-		genAsk(1),
-		genAsk(1),
-		genAsk(2),
-	}
-	remove = []*sonm.AskPlan{
-		genAsk(1),
-		genAsk(4),
-		genAsk(4),
-	}
-
-	create, remove = removeDuplicates(create, remove)
-	require.Equal(t, 2, len(create))
-	require.Equal(t, 2, len(remove))
-	require.Equal(t, int64(1), create[0].Price.PerSecond.Unwrap().Int64())
-	require.Equal(t, int64(2), create[1].Price.PerSecond.Unwrap().Int64())
-	require.Equal(t, int64(4), remove[0].Price.PerSecond.Unwrap().Int64())
-	require.Equal(t, int64(4), remove[1].Price.PerSecond.Unwrap().Int64())
-
-	//4
-	create = []*sonm.AskPlan{
-		genAsk(1),
-		genAsk(1),
-		genAsk(1),
-	}
-	remove = []*sonm.AskPlan{
-		genAsk(1),
-		genAsk(1),
-		genAsk(1),
-	}
-
-	create, remove = removeDuplicates(create, remove)
-	require.Equal(t, 0, len(create))
-	require.Equal(t, 0, len(remove))
-
-	// 5
-
-	create = []*sonm.AskPlan{
-		genAsk(1),
-		genAsk(1),
-		genAsk(1),
-	}
-	remove = []*sonm.AskPlan{
-		genAsk(4),
-		genAsk(1),
-		genAsk(1),
-		genAsk(1),
-	}
-
-	create, remove = removeDuplicates(create, remove)
-	require.Equal(t, 0, len(create))
-	require.Equal(t, 1, len(remove))
-	require.Equal(t, int64(4), remove[0].Price.PerSecond.Unwrap().Int64())
-
-	//6
-
-	create = []*sonm.AskPlan{
-		genAsk(1),
-		genAsk(1),
-		genAsk(1),
-	}
-	remove = []*sonm.AskPlan{
-		genAsk(1),
-		genAsk(1),
-	}
-
-	create, remove = removeDuplicates(create, remove)
-	require.Equal(t, 1, len(create))
-	require.Equal(t, 0, len(remove))
-	require.Equal(t, int64(1), create[0].Price.PerSecond.Unwrap().Int64())
-
-	//7
-
-	create = []*sonm.AskPlan{
-		genAsk(1),
-		genAsk(1),
-		genAsk(1),
-		genAsk(2),
-		genAsk(2),
-	}
-	remove = []*sonm.AskPlan{
-		genAsk(2),
-		genAsk(1),
-		genAsk(1),
-	}
-
-	create, remove = removeDuplicates(create, remove)
-	require.Equal(t, 2, len(create))
-	require.Equal(t, 0, len(remove))
-	require.Equal(t, int64(1), create[0].Price.PerSecond.Unwrap().Int64())
-	require.Equal(t, int64(2), create[1].Price.PerSecond.Unwrap().Int64())
-
-	//8
-
-	create = []*sonm.AskPlan{
-		genAsk(2),
-		genAsk(3),
-		genAsk(5),
-		genAsk(4),
-		genAsk(1),
-		genAsk(4),
-	}
-	remove = []*sonm.AskPlan{
-		genAsk(4),
-		genAsk(2),
-		genAsk(2),
-		genAsk(3),
-		genAsk(3),
-	}
-
-	create, remove = removeDuplicates(create, remove)
-	require.Equal(t, 3, len(create))
-	require.Equal(t, 2, len(remove))
-	require.Equal(t, int64(1), create[0].Price.PerSecond.Unwrap().Int64())
-	require.Equal(t, int64(4), create[1].Price.PerSecond.Unwrap().Int64())
-	require.Equal(t, int64(5), create[2].Price.PerSecond.Unwrap().Int64())
-	require.Equal(t, int64(2), remove[0].Price.PerSecond.Unwrap().Int64())
-	require.Equal(t, int64(3), remove[1].Price.PerSecond.Unwrap().Int64())
-}
-
-func genBench() ([]*sonm.AskPlan, []*sonm.AskPlan) {
-	create := []*sonm.AskPlan{
-		genAsk(2),
-		genAsk(3),
-		genAsk(5),
-		genAsk(4),
-		genAsk(1),
-		genAsk(4),
-		genAsk(2),
-		genAsk(3),
-		genAsk(5),
-		genAsk(4),
-		genAsk(1),
-		genAsk(4),
-		genAsk(2),
-		genAsk(3),
-		genAsk(5),
-		genAsk(4),
-		genAsk(1),
-		genAsk(4),
-		genAsk(2),
-		genAsk(3),
-		genAsk(5),
-		genAsk(4),
-		genAsk(1),
-		genAsk(4),
-	}
-	remove := []*sonm.AskPlan{
-		genAsk(4),
-		genAsk(2),
-		genAsk(2),
-		genAsk(3),
-		genAsk(3),
-		genAsk(4),
-		genAsk(2),
-		genAsk(2),
-		genAsk(3),
-		genAsk(3),
-		genAsk(4),
-		genAsk(2),
-		genAsk(2),
-		genAsk(3),
-		genAsk(3),
-		genAsk(4),
-		genAsk(2),
-		genAsk(2),
-		genAsk(3),
-		genAsk(3),
-	}
-	return create, remove
-}
-
-func BenchmarkRemoveDuplicatesVeipera(b *testing.B) {
-	create, remove := genBench()
-
-	for i := 0; i < b.N; i++ {
-		removeDuplicates(create, remove)
-	}
-}
-
-func BenchmarkRemoveDuplicatesKurilshchika(b *testing.B) {
-	create, remove := genBench()
-
-	for i := 0; i < b.N; i++ {
-		removeDuplicatesLinear(create, remove)
+			assert.Equal(t, test.expectedCreate, create)
+			assert.Equal(t, test.expectedCreate, create)
+		})
 	}
 }

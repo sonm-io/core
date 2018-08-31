@@ -400,6 +400,10 @@ func splitPlans(plans map[string]*sonm.AskPlan, candidates []*sonm.AskPlan) (cre
 	return create, remove, ignore
 }
 
+func removeDuplicates(create, remove []*sonm.AskPlan) ([]*sonm.AskPlan, []*sonm.AskPlan) {
+	return removeDuplicatesL(create, remove)
+}
+
 // Here we find orders in the creation list that are equal with orders in
 // the removal list. This is required to not to replace existing orders
 // with the same ones somehow appeared in the marketplace.
@@ -408,38 +412,13 @@ func splitPlans(plans map[string]*sonm.AskPlan, candidates []*sonm.AskPlan) (cre
 // Given: [c0, c1, c2, c3, c4] [r0, r1, r2, r3]
 // Where: c1==r3, c3==r2, c4==r2.
 // Then:
-//													[c0, c1, c2, c3, c4] [r0, r1, r2, r3]
-//			c0!=r0, c0!=r1, c0!=r2, c0!=r3 ->		[c0, c1, c2, c3, c4] [r0, r1, r2, r3]
-//		  	c1!=r0, c1!=r1, c1!=r2, c1==r3(!) ->	[c0, c2, c3, c4]     [r0, r1, r2]
-//			c2!=r0, c2!=r1, c2!=r2 ->				[c0, c2, c3, c4]     [r0, r1, r2]
-//			c3!=r0, c3!=r1, c3==r2(!) ->			[c0, c2, c4]         [r0, r1]
-//			c4!=r0, c4!=r1 ->						[c0, c2, c4]         [r0, r1]
-func removeDuplicates(create, remove []*sonm.AskPlan) ([]*sonm.AskPlan, []*sonm.AskPlan) {
-	filteredCreate := make([]*sonm.AskPlan, 0, len(create))
-	for _, planCreate := range create {
-		foundDup := false
-		filteredRemove := make([]*sonm.AskPlan, 0, len(remove))
-		for _, planRemove := range remove {
-			if planEq(planCreate, planRemove) {
-				// Pop only the first equal ask plan from the removal list.
-				if !foundDup {
-					foundDup = true
-					continue
-				}
-			}
-			filteredRemove = append(filteredRemove, planRemove)
-		}
-		if !foundDup {
-			filteredCreate = append(filteredCreate, planCreate)
-		}
-		// Reassign the removal list with the filtered except the equal one if found.
-		remove = filteredRemove
-	}
-	create = filteredCreate
-	return create, remove
-}
-
-func removeDuplicatesLinear(create, remove []*sonm.AskPlan) ([]*sonm.AskPlan, []*sonm.AskPlan) {
+//	                                     [c0, c1, c2, c3, c4] [r0, r1, r2, r3]
+//	c0!=r0, c0!=r1, c0!=r2, c0!=r3 ->    [c0, c1, c2, c3, c4] [r0, r1, r2, r3]
+//	c1!=r0, c1!=r1, c1!=r2, c1==r3(!) -> [c0, c2, c3, c4]     [r0, r1, r2]
+//	c2!=r0, c2!=r1, c2!=r2 ->            [c0, c2, c3, c4]     [r0, r1, r2]
+//	c3!=r0, c3!=r1, c3==r2(!) ->         [c0, c2, c4]         [r0, r1]
+//	c4!=r0, c4!=r1 ->                    [c0, c2, c4]         [r0, r1]
+func removeDuplicatesL(create, remove []*sonm.AskPlan) ([]*sonm.AskPlan, []*sonm.AskPlan) {
 	sort.Slice(create, func(i, j int) bool {
 		return create[i].Price.PerSecond.Cmp(create[j].Price.PerSecond) < 0
 	})
@@ -447,15 +426,12 @@ func removeDuplicatesLinear(create, remove []*sonm.AskPlan) ([]*sonm.AskPlan, []
 		return remove[i].Price.PerSecond.Cmp(remove[j].Price.PerSecond) < 0
 	})
 
-	i := 0
-	j := 0
-
 	type Eq struct {
 		i, j int
 	}
 
+	i, j := 0, 0
 	var eq []Eq
-
 	for {
 		if i >= len(create) {
 			break
@@ -464,7 +440,7 @@ func removeDuplicatesLinear(create, remove []*sonm.AskPlan) ([]*sonm.AskPlan, []
 			break
 		}
 		if planEq(create[i], remove[j]) {
-			eq = append(eq, Eq{i, j})
+			eq = append(eq, Eq{i: i, j: j})
 			i++
 			j++
 			continue
