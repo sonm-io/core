@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/jinzhu/configor"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/connor/antifraud"
@@ -17,29 +16,6 @@ import (
 	"github.com/sonm-io/core/proto"
 )
 
-const (
-	ethBenchmarkIndex  = 9
-	zecBenchmarkIndex  = 10
-	nullBenchmarkIndex = 11
-	// XMR mining on CPU now uses
-	// cpu-sysbench values
-	xmrCpuBenchmarkIndex = 0
-)
-
-type miningConfig struct {
-	Token           string         `yaml:"token" required:"true"`
-	Image           string         `yaml:"image" required:"true"`
-	Wallet          common.Address `yaml:"wallet" required:"true"`
-	PoolReportURL   string         `yaml:"pool_report" required:"false"`
-	PoolTrackingURL string         `yaml:"pool_tracking" required:"false"`
-
-	TokenPrice tokenPriceConfig `yaml:"token_price"`
-}
-
-func (m *miningConfig) getTag() *sonm.TaskTag {
-	return &sonm.TaskTag{Data: []byte(fmt.Sprintf("connor_%s", strings.ToLower(m.Token)))}
-}
-
 type priceControlConfig struct {
 	Marginality           float64 `yaml:"marginality" required:"true"`
 	OrderReplaceThreshold float64 `yaml:"order_replace_threshold" required:"true"`
@@ -49,11 +25,14 @@ type priceControlConfig struct {
 
 type marketConfig struct {
 	// todo: (sshaman1101): allow to set multiple subsets for order placing
-	FromHashRate uint64             `yaml:"from_hashrate" required:"true"`
-	ToHashRate   uint64             `yaml:"to_hashrate" required:"true"`
+	Benchmark    string             `yaml:"benchmark" required:"true"`
+	From         uint64             `yaml:"from" required:"true"`
+	To           uint64             `yaml:"to" required:"true"`
 	Step         uint64             `yaml:"step" required:"true"`
 	PriceControl priceControlConfig `yaml:"price_control"`
 	Benchmarks   map[string]uint64  `yaml:"benchmarks" required:"true"`
+
+	benchmarkID int
 }
 
 type nodeConfig struct {
@@ -70,30 +49,32 @@ type engineConfig struct {
 	ContainerEnv        map[string]string `yaml:"container_env"`
 }
 
-type tokenPriceConfig struct {
-	PriceURL       string        `yaml:"price_url"`
-	UpdateInterval time.Duration `yaml:"update_interval" default:"60s"`
+type containerConfig struct {
+	Image  string            `yaml:"image" required:"true"`
+	Tag    string            `yaml:"tag" required:"true"`
+	SSHKey string            `yaml:"ssh_key"`
+	Env    map[string]string `yaml:"env"`
+}
+
+func (m *containerConfig) getTag() *sonm.TaskTag {
+	return &sonm.TaskTag{Data: []byte(m.Tag)}
 }
 
 type Config struct {
 	Node          nodeConfig         `yaml:"node"`
 	Eth           accounts.EthConfig `yaml:"ethereum"`
 	Market        marketConfig       `yaml:"market"`
-	Mining        miningConfig       `yaml:"mining"`
+	Container     containerConfig    `yaml:"container"`
 	Log           logging.Config     `yaml:"log"`
 	Engine        engineConfig       `yaml:"engine"`
 	BenchmarkList benchmarks.Config  `yaml:"benchmarks"`
 	AntiFraud     antifraud.Config   `yaml:"antifraud"`
+	PriceSource   price.SourceConfig `yaml:"price_source"`
 
 	Metrics string `yaml:"metrics" default:"127.0.0.1:14005"`
 }
 
 func (c *Config) validate() error {
-	availableTokens := map[string]bool{
-		"ETH":     true,
-		"XMR_CPU": true,
-		"NULL":    true, // null token is for testing purposes
-	}
 	availablePools := map[string]bool{
 		antifraud.PoolFormatDwarf:         true,
 		antifraud.ProcessorFormatDisabled: true,
@@ -101,10 +82,6 @@ func (c *Config) validate() error {
 	availableLogs := map[string]bool{
 		antifraud.LogFormatClaymore:       true,
 		antifraud.ProcessorFormatDisabled: true,
-	}
-
-	if _, ok := availableTokens[c.Mining.Token]; !ok {
-		return fmt.Errorf("unsupported token \"%s\"", c.Mining.Token)
 	}
 
 	if _, ok := availableLogs[c.AntiFraud.LogProcessorConfig.Format]; !ok {
@@ -119,12 +96,12 @@ func (c *Config) validate() error {
 		return fmt.Errorf("market.price_marginality cannot be zero")
 	}
 
-	named, err := reference.ParseNormalizedNamed(c.Mining.Image)
+	named, err := reference.ParseNormalizedNamed(c.Container.Image)
 	if err != nil {
 		return fmt.Errorf("cannot parse image name: %v", err)
 	}
 
-	c.Mining.Image = named.String()
+	c.Container.Image = named.String()
 	return nil
 }
 
@@ -132,6 +109,12 @@ func (c *Config) validateBenchmarks(list benchmarks.BenchList) error {
 	required := list.MapByCode()
 	if len(required) != len(c.Market.Benchmarks) {
 		return fmt.Errorf("unexpected count, have %d, want %d", len(c.Market.Benchmarks), len(required))
+	}
+
+	if b, ok := required[c.Market.Benchmark]; !ok {
+		return fmt.Errorf("unexpected value `%s` for market.benchmark option", c.Market.Benchmark)
+	} else {
+		c.Market.benchmarkID = int(b.ID)
 	}
 
 	for key := range required {
@@ -162,64 +145,23 @@ func (c *Config) getBaseBenchmarks() Benchmarks {
 	}
 }
 
-func (c *Config) getTokenParams() *tokenParameters {
-	priceProviderConfig := &price.ProviderConfig{
-		Margin: c.Market.PriceControl.Marginality,
-		URL:    c.Mining.TokenPrice.PriceURL,
+func (c *Config) backends() *backends {
+	return &backends{
+		processorFactory: antifraud.NewProcessorFactory(&c.AntiFraud),
+		corderFactory:    NewCorderFactory(c.Container.Tag, c.Market.benchmarkID),
+		dealFactory:      NewDealFactory(c.Market.benchmarkID),
+		priceProvider:    c.PriceSource.Init(c.Market.PriceControl.Marginality),
 	}
-
-	processorFactory := antifraud.NewProcessorFactory(&c.AntiFraud)
-
-	available := map[string]*tokenParameters{
-		"ETH": {
-			corderFactory:    NewCorderFactory(c.Mining.Token, ethBenchmarkIndex),
-			dealFactory:      NewDealFactory(ethBenchmarkIndex),
-			priceProvider:    price.NewEthPriceProvider(priceProviderConfig),
-			processorFactory: processorFactory,
-		},
-
-		"XMR_CPU": {
-			dealFactory:      NewDealFactory(xmrCpuBenchmarkIndex),
-			corderFactory:    NewCorderFactory(c.Mining.Token, xmrCpuBenchmarkIndex),
-			priceProvider:    price.NewXmrPriceProvider(priceProviderConfig),
-			processorFactory: processorFactory,
-		},
-
-		"NULL": {
-			dealFactory:   NewDealFactory(nullBenchmarkIndex),
-			corderFactory: NewCorderFactory(c.Mining.Token, nullBenchmarkIndex),
-			priceProvider: price.NewNullPriceProvider(priceProviderConfig),
-			// todo: use stub factory, then replace with fake mining pool tracker
-			// processorFactory: nil,
-		},
-	}
-
-	return available[c.Mining.Token]
 }
 
-// containerEnv returns container's params according
-// to required mining pool and mining image
-func (c *Config) containerEnv(dealID *sonm.BigInt) map[string]string {
-	workerID := "c" + dealID.Unwrap().String()
-	ethAddr := strings.ToLower(c.Mining.Wallet.Hex())
+func applyEnvTemplate(env map[string]string, dealID *sonm.BigInt) map[string]string {
+	dealTag := "{DEAL_ID}"
 
-	m := make(map[string]string)
-	if c.Mining.Token == "ETH" && c.AntiFraud.PoolProcessorConfig.Format == antifraud.PoolFormatDwarf {
-		poolAddr := fmt.Sprintf("%s/%s/%s", c.Mining.PoolReportURL, ethAddr, workerID)
-		wallet := fmt.Sprintf("%s/%s", ethAddr, workerID)
-
-		m = map[string]string{
-			"WALLET": wallet,
-			"POOL":   poolAddr,
-		}
+	for key, value := range env {
+		env[key] = strings.Replace(value, dealTag, dealID.Unwrap().String(), -1)
 	}
 
-	// apply extra env params from config
-	for k, v := range c.Engine.ContainerEnv {
-		m[k] = v
-	}
-
-	return m
+	return env
 }
 
 func NewConfig(path string) (*Config, error) {

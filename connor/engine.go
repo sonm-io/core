@@ -78,6 +78,16 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 		return nil, fmt.Errorf("cannot load eth keys: %v", err)
 	}
 
+	benchList, err := benchmarks.NewBenchmarksList(ctx, cfg.BenchmarkList)
+	if err != nil {
+		return nil, fmt.Errorf("cannot load benchmark list: %v", err)
+	}
+
+	// perform extra config validation using external list of required benchmarks
+	if err := cfg.validateBenchmarks(benchList); err != nil {
+		return nil, fmt.Errorf("benchmarks validation failed: %v", err)
+	}
+
 	_, TLSConfig, err := util.NewHitlessCertRotator(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create cert TLS config: %v", err)
@@ -93,14 +103,14 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 		cfg: cfg,
 		log: log,
 
-		priceProvider: cfg.getTokenParams().priceProvider,
-		corderFactory: cfg.getTokenParams().corderFactory,
-		dealFactory:   cfg.getTokenParams().dealFactory,
+		priceProvider: cfg.backends().priceProvider,
+		corderFactory: cfg.backends().corderFactory,
+		dealFactory:   cfg.backends().dealFactory,
 
 		market:    sonm.NewMarketClient(cc),
 		deals:     sonm.NewDealManagementClient(cc),
 		tasks:     sonm.NewTaskManagementClient(cc),
-		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log, cfg.getTokenParams().processorFactory, cc),
+		antiFraud: antifraud.NewAntiFraud(cfg.AntiFraud, log, cfg.backends().processorFactory, cc),
 
 		ordersCreateChan:  make(chan *Corder, concurrency),
 		ordersResultsChan: make(chan *Corder, concurrency),
@@ -111,13 +121,9 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 func (e *engine) Serve(ctx context.Context) error {
 	defer e.close()
 
-	e.log.Info("starting engine", zap.Int("concurrency", concurrency),
+	e.log.Info("starting engine",
+		zap.Int("concurrency", concurrency),
 		zap.Any("config", *e.cfg))
-
-	// perform extra config validation using external list of required benchmarks
-	if err := e.validateBenchmarks(ctx); err != nil {
-		return fmt.Errorf("benchmarks validation failed: %v", err)
-	}
 
 	// load initial state from external sources
 	if err := e.loadInitialData(ctx); err != nil {
@@ -125,7 +131,7 @@ func (e *engine) Serve(ctx context.Context) error {
 	}
 
 	e.log.Debug("price",
-		zap.String(e.cfg.Mining.Token, e.priceProvider.GetPrice().String()),
+		zap.String("value", e.priceProvider.GetPrice().String()),
 		zap.Float64("margin", e.cfg.Market.PriceControl.Marginality))
 
 	wg, ctx := errgroup.WithContext(ctx)
@@ -439,15 +445,19 @@ func (e *engine) startTaskOnce(ctx context.Context, log *zap.Logger, dealID *son
 	ctx, cancel := context.WithTimeout(ctx, e.cfg.Engine.TaskStartTimeout)
 	defer cancel()
 
-	env := e.cfg.containerEnv(dealID)
-	e.log.Debug("starting task", zap.Any("environment", env))
+	env := applyEnvTemplate(e.cfg.Container.Env, dealID)
+	e.log.Info("starting task",
+		zap.String("deal_id", dealID.Unwrap().String()),
+		zap.Any("environment", env))
+
 	taskReply, err := e.tasks.Start(ctx, &sonm.StartTaskRequest{
 		DealID: dealID,
 		Spec: &sonm.TaskSpec{
-			Tag: e.cfg.Mining.getTag(),
+			Tag: e.cfg.Container.getTag(),
 			Container: &sonm.Container{
-				Image: e.cfg.Mining.Image,
-				Env:   env,
+				Image:  e.cfg.Container.Image,
+				SshKey: e.cfg.Container.SSHKey,
+				Env:    env,
 			},
 			Resources: &sonm.AskPlanResources{},
 		},
@@ -594,7 +604,7 @@ func (e *engine) restoreTasks(ctx context.Context, log *zap.Logger, dealID *sonm
 			case 0:
 				return "", nil
 			case 1:
-				requiredTag := string(e.cfg.Mining.getTag().GetData())
+				requiredTag := string(e.cfg.Container.getTag().GetData())
 				givenTag := string(list[0].GetTag().GetData())
 				if givenTag != requiredTag {
 					log.Warn("unexpected tag assigned to the running on task",
@@ -709,24 +719,22 @@ func (e *engine) start(ctx context.Context) error {
 
 func (e *engine) loadInitialData(ctx context.Context) error {
 	if err := e.priceProvider.Update(ctx); err != nil {
-		return fmt.Errorf("cannot update %s price: %v", e.cfg.Mining.Token, err)
+		return fmt.Errorf("cannot update price: %v", err)
 	}
 
 	return nil
 }
 
-func (e *engine) validateBenchmarks(ctx context.Context) error {
-	benchList, err := benchmarks.NewBenchmarksList(ctx, e.cfg.BenchmarkList)
-	if err != nil {
-		return fmt.Errorf("cannot load benchmark list: %v", err)
-	}
-
-	return e.cfg.validateBenchmarks(benchList)
-}
-
 func (e *engine) startPriceTracking(ctx context.Context) error {
 	log := e.log.Named("token-price")
-	t := time.NewTicker(e.cfg.Mining.TokenPrice.UpdateInterval)
+
+	cfg, ok := e.cfg.PriceSource.Config().(price.Updateable)
+	if !ok {
+		log.Info("price source shouldn't be updated")
+		return nil
+	}
+
+	t := time.NewTicker(cfg.UpdateInterval())
 	defer t.Stop()
 
 	for {
@@ -789,7 +797,7 @@ func (e *engine) restoreMarketState(ctx context.Context) error {
 func (e *engine) getTargetCorders() []*Corder {
 	v := make([]*Corder, 0)
 
-	for hashrate := e.cfg.Market.FromHashRate; hashrate <= e.cfg.Market.ToHashRate; hashrate += e.cfg.Market.Step {
+	for hashrate := e.cfg.Market.From; hashrate <= e.cfg.Market.To; hashrate += e.cfg.Market.Step {
 		// settings zero price is OK for now, we'll update it just before sending to the Marketplace.
 		v = append(v, e.corderFactory.FromParams(big.NewInt(0), hashrate, e.cfg.getBaseBenchmarks()))
 	}
