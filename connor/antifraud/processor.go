@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	LogFormatClaymore = "claymore"
-	PoolFormatDwarf   = "dwarf"
+	LogFormatClaymore       = "claymore"
+	PoolFormatDwarf         = "dwarf"
+	ProcessorFormatDisabled = "disabled"
 )
 
 // Processor is part of AntiFraud module that continuously
@@ -20,6 +21,15 @@ type Processor interface {
 	Run(ctx context.Context) error
 	TaskID() string
 	TaskQuality() (accurate bool, quality float64)
+}
+
+type disabledProcessor struct{}
+
+func (disabledProcessor) TaskID() string                                { return "" }
+func (disabledProcessor) TaskQuality() (accurate bool, quality float64) { return true, 1.0 }
+func (disabledProcessor) Run(ctx context.Context) error {
+	<-ctx.Done()
+	return ctx.Err()
 }
 
 // ProcessorFactory builds particular processors for the anti-fraud
@@ -40,6 +50,10 @@ func NewProcessorFactory(cfg *Config) ProcessorFactory {
 			}
 			return newDwarfPoolProcessor(&cfg.PoolProcessorConfig, o.logger, deal, taskID)
 		}
+	case ProcessorFormatDisabled:
+		pool = func(deal *sonm.Deal, taskID string, opts ...Option) Processor {
+			return disabledProcessor{}
+		}
 	}
 
 	switch cfg.LogProcessorConfig.Format {
@@ -50,6 +64,10 @@ func NewProcessorFactory(cfg *Config) ProcessorFactory {
 				opt(o)
 			}
 			return newClaymoreLogProcessor(&cfg.LogProcessorConfig, o.logger, o.cc, deal, taskID)
+		}
+	case ProcessorFormatDisabled:
+		pool = func(deal *sonm.Deal, taskID string, opts ...Option) Processor {
+			return disabledProcessor{}
 		}
 	}
 
