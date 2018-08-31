@@ -1,44 +1,76 @@
-# docker image settings, required section
+# Docker image settings.
+# Required.
 container:
-  # Image name to start on worker, required param.
+  # Image name to start on worker.
+  # Required.
   image: httpd@sha256:b5f21641a9d7bbb59dc94fb6a663c43fbf3f56270ce7c7d51801ac74d2e70046
+  # Public SSH key providing which opens a capability to login into the
+  # container using SSH.
+  # Optional.
+  ssh_key: "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDE8axoFpym0R6A6BdgnpKhHB//h0iCiNUuFqwk0jSONvvLseoVpVE5l45tehlxSbaJrTQkgNoGGpEljJXxLQFkyQMZMga+x8uzCxrG39DkPz6sCjefix3x23IlPsU6/LDs/9g6XTLHLhTnmbU4F8qZ7cxa1ikB0IQ+tifUrhvrmXW2QICA0VmUu1Skhxf0BBKPdM0ksFkRaKGa0PmZHlS6h/8MLwI7NLWC/vp+yj7LAbNcOfaDTJGoDUIPHmGyOEA8fTqTrgZqFtLUT2jgYyDH0lL5H4z1Nd5Zy5Ste0pcqXUoomo2fxD4Utz64wtDCYOueTUMeIVmDS441s5dGTQ9"
   # Env variables that will be passed to container on start.
+  # Optional.
   env:
     param1: value1
     param2: value2
-    param3: value3
-  # Add ability to pull container back.
-  commit_on_stop: true
+  # Adds an ability to pull container back.
+  # Optional.
+  commit_on_stop: false
+  # Volumes settings.
+  # Optional.
+  volumes:
+    # Volume name. It is used as a host entry point when describing mounts in
+    # the section below.
+    cifs:
+      # Volume driver type.
+      type: cifs
+      # Volume driver specific options.
+      options:
+        share: samba-host.ru/share
+        username: username
+        password: password
+        security: ntlm
+        vers: 3.0
+    btfs:
+      type: btfs
+        options:
+          magnet: "magnet:?xt=urn:xxxxxxxxxx"
+  # Mount settings describes how to mount volumes specified above in the
+  # container.
+  # Format is "VOLUME_NAME:PATH:PERM".
+  # Optional.
+  mounts:
+  - cifs:/mnt:rw
+  - cifs:/opt:rw
+  - btfs:/mnt-btfs:ro
+  # Overlay network settings.
+  # Optional.
+  networks:
+  - type: tinc
+    subnet: "10.20.30.0/24"
+
+# Custom registry settings.
+# Optional.
+registry:
+  # If not empty, Worker will use given registry to pull an image from.
+  # Optional.
+  server_address: registry.user.io
+  # Registry username.
+  # Optional.
+  username: name
+  # Registry password.
+  # Optional.
+  password: secret
+
+# Resource limitations and restrictions.
 resources:
+  # Required GPUs for a task.
+  # GPUs are provided exclusively for each task - sharing is forbidden.
+  # If a task requires no GPU, specify an empty list.
   gpu:
     hashes: []
     indexes: []
-#  networks:
-#    - type: tinc
-#      subnet: "10.20.30.0/24"
-#  volumes:
-#    cifs:
-#      type: cifs
-#      options:
-#        share: samba-host.ru/share
-#        username: username
-#        password: password
-#        security: ntlm
-#        vers: 3.0
-#    btfs:
-#      type: btfs
-#        options:
-#          magnet: "magnet:?xt=urn:xxxxxxxxxx"
-#  mounts:
-#    - cifs:/mnt:rw
-#    - cifs:/opt:rw
-#    - btfs:/mnt:ro
-# # custom registry settings, optional section
-# registry:
-#   # if not empty, Worker will use given registry to pull an image from, optional param
-#   server_address: registry.user.io
-#   # registry username, optional param
-#   username: name
-#   # registry password, optional param
-#   password: secret
+
+# Additional user-specific information attached to a task.
+# Optional.
 tag: "some"
