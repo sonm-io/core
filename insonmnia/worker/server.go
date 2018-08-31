@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"reflect"
 	"strconv"
 	"sync"
@@ -391,7 +392,7 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 
 	m.mu.Lock()
 	for key, container := range m.containers {
-		if container.DealID == deal.GetId() {
+		if container.DealID.Cmp(deal.GetId()) == 0 {
 			toDelete = append(toDelete, container)
 			delete(m.containers, key)
 		}
@@ -404,6 +405,9 @@ func (m *Worker) cancelDealTasks(deal *pb.Deal) error {
 			result = multierror.Append(result, err)
 		}
 		if err := m.resources.OnDealFinish(container.TaskId); err != nil {
+			result = multierror.Append(result, err)
+		}
+		if _, err := m.storage.Remove(container.ID); err != nil {
 			result = multierror.Append(result, err)
 		}
 	}
@@ -978,6 +982,7 @@ func (m *Worker) setupRunningContainers() error {
 		return err
 	}
 
+	var closedDeals = map[string]*pb.Deal{}
 	for _, container := range containers {
 		var info runningContainerInfo
 
@@ -997,6 +1002,22 @@ func (m *Worker) setupRunningContainers() error {
 			if err != nil {
 				log.S(m.ctx).Error("failed to inspect container", zap.String("id", container.ID), zap.Error(err))
 				return err
+			}
+
+			bigDealID, ok := big.NewInt(0).SetString(info.Description.DealId, 10)
+			if !ok {
+				return fmt.Errorf("failed to parse container's DealID (%s)", info.Description.DealId)
+			}
+
+			deal, err := m.eth.Market().GetDealInfo(m.ctx, bigDealID)
+			if err != nil {
+				return fmt.Errorf("failed to get deal %v status: %v", info.Description.DealId, err)
+			}
+
+			if deal.Status == pb.DealStatus_DEAL_CLOSED {
+				log.G(m.ctx).Info("found task assigned to closed deal, going to cancel it",
+					zap.String("deal_id", info.Description.DealId), zap.String("task_id", info.Cinfo.TaskId))
+				closedDeals[deal.Id.Unwrap().String()] = deal
 			}
 
 			// TODO: Match our proto status constants with docker's statuses
@@ -1026,6 +1047,12 @@ func (m *Worker) setupRunningContainers() error {
 
 			m.ovs.Attach(m.ctx, container.ID, info.Description)
 			m.resources.ConsumeTask(info.Cinfo.AskID, info.Cinfo.TaskId, info.Spec.Resources)
+		}
+	}
+
+	for _, deal := range closedDeals {
+		if err := m.cancelDealTasks(deal); err != nil {
+			return fmt.Errorf("failed to cancel tasks for deal %s: %v", deal.Id.Unwrap().String(), err)
 		}
 	}
 
