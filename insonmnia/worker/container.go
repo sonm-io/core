@@ -270,7 +270,7 @@ func (c *containerDescriptor) upload(ctx context.Context) error {
 	c.log.Infof("pushing image %s", newImg)
 	reader, err := c.client.ImagePush(ctx, newImg.String(), options)
 	if err != nil {
-		c.log.Error("failed to push image: %s", err)
+		c.log.Errorf("failed to push image: %s", err)
 		return err
 	}
 	defer reader.Close()
