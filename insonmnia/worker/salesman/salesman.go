@@ -326,6 +326,7 @@ func (m *Salesman) syncPlanWithBlockchain(ctx context.Context, plan *sonm.AskPla
 	orderId := plan.GetOrderID()
 	dealId := plan.GetDealID()
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, m.config.SyncStepTimeout)
+	defer cancel()
 	if !dealId.IsZero() {
 		if err := m.loadCheckDeal(ctxWithTimeout, plan); err != nil {
 			m.log.Warnf("could not check deal %s for plan %s: %s", dealId.Unwrap().String(), plan.ID, err)
@@ -345,7 +346,6 @@ func (m *Salesman) syncPlanWithBlockchain(ctx context.Context, plan *sonm.AskPla
 	if err := m.maybeShutdownAskPlan(ctxWithTimeout, plan); err != nil {
 		m.log.Warnf("could not shutdown ask plan %s: %s", plan.ID, err)
 	}
-	cancel()
 }
 
 func (m *Salesman) syncWithBlockchain(ctx context.Context) {
