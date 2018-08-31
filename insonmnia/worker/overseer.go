@@ -185,7 +185,7 @@ type ExecConnection types.HijackedResponse
 // Overseer watches all worker's applications.
 type Overseer interface {
 	// Load loads an image from the specified reader to the Docker.
-	Load(ctx context.Context, rd io.Reader) (imageLoadStatus, error)
+	Load(ctx context.Context, rd io.Reader) (imageID, error)
 
 	// Save saves an image from the Docker into the returned reader.
 	Save(ctx context.Context, imageID string) (types.ImageInspect, io.ReadCloser, error)
@@ -433,16 +433,16 @@ func (o *overseer) collectStats() {
 	}
 }
 
-func (o *overseer) Load(ctx context.Context, rd io.Reader) (imageLoadStatus, error) {
+func (o *overseer) Load(ctx context.Context, rd io.Reader) (imageID, error) {
 	response, err := o.client.ImageLoad(ctx, newPrunedImage(rd), true)
 	if err != nil {
-		log.G(o.ctx).Error("failed to load an image", zap.Error(err))
-		return imageLoadStatus{}, err
+		log.G(o.ctx).Error("failed to load image", zap.Error(err))
+		return "", err
 	}
 
 	defer response.Body.Close()
 
-	return decodeImageLoad(response.Body)
+	return getImageID(response.Body)
 }
 
 func (o *overseer) Save(ctx context.Context, imageID string) (types.ImageInspect, io.ReadCloser, error) {
