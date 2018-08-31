@@ -23,11 +23,13 @@ type Processor interface {
 	TaskQuality() (accurate bool, quality float64)
 }
 
-type disabledProcessor struct{}
+type disabledProcessor struct {
+	taskID string
+}
 
-func (disabledProcessor) TaskID() string                                { return "" }
-func (disabledProcessor) TaskQuality() (accurate bool, quality float64) { return true, 1.0 }
-func (disabledProcessor) Run(ctx context.Context) error {
+func (p *disabledProcessor) TaskID() string                                { return p.taskID }
+func (p *disabledProcessor) TaskQuality() (accurate bool, quality float64) { return true, 1.0 }
+func (p *disabledProcessor) Run(ctx context.Context) error {
 	<-ctx.Done()
 	return ctx.Err()
 }
@@ -52,7 +54,7 @@ func NewProcessorFactory(cfg *Config) ProcessorFactory {
 		}
 	case ProcessorFormatDisabled:
 		pool = func(deal *sonm.Deal, taskID string, opts ...Option) Processor {
-			return disabledProcessor{}
+			return &disabledProcessor{}
 		}
 	}
 
@@ -66,8 +68,8 @@ func NewProcessorFactory(cfg *Config) ProcessorFactory {
 			return newClaymoreLogProcessor(&cfg.LogProcessorConfig, o.logger, o.cc, deal, taskID)
 		}
 	case ProcessorFormatDisabled:
-		pool = func(deal *sonm.Deal, taskID string, opts ...Option) Processor {
-			return disabledProcessor{}
+		log = func(deal *sonm.Deal, taskID string, opts ...Option) Processor {
+			return &disabledProcessor{taskID: taskID}
 		}
 	}
 
