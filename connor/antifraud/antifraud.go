@@ -131,10 +131,17 @@ func (m *antiFraud) checkDeals(ctx context.Context) error {
 			log.Debug("task quality is less that required: detected by pool reports")
 		}
 
+		supplier := dealMeta.deal.GetSupplierID().Unwrap()
 		logQualityMetrics := []zapcore.Field{
+			zap.String("supplier_id", supplier.Hex()),
 			zap.Float64("by_logs", qualityByLogs),
 			zap.Float64("by_pool", qualityByPool),
 			zap.Float64("required", m.cfg.TaskQuality),
+		}
+
+		if m.isAddressWhitelisted(supplier) {
+			log.Warn("supplier is whitelisted, do not track failure", logQualityMetrics...)
+			shouldClose = false
 		}
 
 		if shouldClose {
@@ -278,6 +285,11 @@ func (m *antiFraud) whoToBlacklist(deal *sonm.Deal) sonm.BlacklistType {
 		return sonm.BlacklistType_BLACKLIST_NOBODY
 	}
 
+	if m.isAddressWhitelisted(meta.deal.GetSupplierID().Unwrap()) {
+		m.log.Debug("decide to NOT blacklist - supplier is in whitelist")
+		return sonm.BlacklistType_BLACKLIST_NOBODY
+	}
+
 	if meta.poolProcessor == nil || meta.logProcessor == nil {
 		m.log.Debug("decide to blacklist worker - no task")
 		m.blacklistWatchers[deal.GetSupplierID().Unwrap()].Failure()
@@ -293,4 +305,13 @@ func (m *antiFraud) whoToBlacklist(deal *sonm.Deal) sonm.BlacklistType {
 	}
 
 	return sonm.BlacklistType_BLACKLIST_NOBODY
+}
+
+func (m *antiFraud) isAddressWhitelisted(addr common.Address) bool {
+	for _, addr := range m.cfg.Whitelist {
+		if addr == addr {
+			return true
+		}
+	}
+	return false
 }
