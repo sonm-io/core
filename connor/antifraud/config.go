@@ -1,6 +1,10 @@
 package antifraud
 
-import "time"
+import (
+	"time"
+
+	"github.com/ethereum/go-ethereum/common"
+)
 
 type ProcessorConfig struct {
 	Format          string        `yaml:"format" required:""`
@@ -9,10 +13,11 @@ type ProcessorConfig struct {
 }
 
 type Config struct {
-	TaskQuality            float64         `yaml:"task_quality" required:"true"`
-	QualityCheckInterval   time.Duration   `yaml:"quality_check_interval" default:"15s"`
-	BlacklistCheckInterval time.Duration   `yaml:"blacklist_check_interval" default:"5m"`
-	ConnectionTimeout      time.Duration   `yaml:"connection_timeout" default:"60s"`
-	LogProcessorConfig     ProcessorConfig `yaml:"log_processor"`
-	PoolProcessorConfig    ProcessorConfig `yaml:"pool_processor"`
+	TaskQuality            float64          `yaml:"task_quality" required:"true"`
+	QualityCheckInterval   time.Duration    `yaml:"quality_check_interval" default:"15s"`
+	BlacklistCheckInterval time.Duration    `yaml:"blacklist_check_interval" default:"5m"`
+	ConnectionTimeout      time.Duration    `yaml:"connection_timeout" default:"60s"`
+	LogProcessorConfig     ProcessorConfig  `yaml:"log_processor"`
+	PoolProcessorConfig    ProcessorConfig  `yaml:"pool_processor"`
+	Whitelist              []common.Address `yaml:"whitelist"`
 }
