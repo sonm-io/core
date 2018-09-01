@@ -10,6 +10,7 @@ type ProcessorConfig struct {
 	Format          string        `yaml:"format" required:""`
 	TrackInterval   time.Duration `yaml:"track_interval" default:"10s"`
 	TaskWarmupDelay time.Duration `yaml:"warmup_delay" required:"true"`
+	LogDir          string        `yaml:"log_dir"`
 }
 
 type Config struct {
