@@ -3,7 +3,10 @@ package antifraud
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
+	"os"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -27,8 +30,9 @@ type commonLogProcessor struct {
 	hashrateEWMA metrics.EWMA
 	startTime    time.Time
 
-	hashrate  float64
-	logParser logParseFunc
+	hashrate    float64
+	logParser   logParseFunc
+	historyFile *os.File
 }
 
 func newLogProcessor(cfg *ProcessorConfig, log *zap.Logger, conn *grpc.ClientConn, deal *sonm.Deal, taskID string, lp logParseFunc) Processor {
@@ -91,12 +95,43 @@ func (m *commonLogProcessor) Run(ctx context.Context) error {
 	}
 }
 
+func (m *commonLogProcessor) maybeOpenHistoryFile() error {
+	if len(m.cfg.LogDir) == 0 {
+		return fmt.Errorf("task logs saving is not configured")
+	}
+
+	fileName := fmt.Sprintf("%s_%s.log", m.deal.GetId().Unwrap().String(), m.taskID)
+	fullPath := path.Join(m.cfg.LogDir, fileName)
+
+	file, err := os.OpenFile(fullPath, os.O_RDWR|os.O_CREATE, 0666)
+	if err != nil {
+		return fmt.Errorf("failed to open log file: %v", err)
+	}
+
+	m.historyFile = file
+	return nil
+}
+
+func (m *commonLogProcessor) maybeSaveLogLine(line string) {
+	if m.historyFile != nil {
+		if _, err := m.historyFile.WriteString(line + "\n"); err != nil {
+			m.log.Warn("cannot write task log", zap.String("file", m.historyFile.Name()), zap.Error(err))
+		}
+	}
+}
+
 func (m *commonLogProcessor) fetchLogs(ctx context.Context) error {
 	request := &sonm.TaskLogsRequest{
 		Type:   sonm.TaskLogsRequest_STDOUT,
 		Id:     m.taskID,
 		Follow: true,
 		DealID: m.deal.Id,
+	}
+
+	if err := m.maybeOpenHistoryFile(); err != nil {
+		m.log.Warn("failed to open log file, task logs wouldn't be saved", zap.Error(err))
+	} else {
+		defer m.historyFile.Close()
 	}
 
 	retryTicker := util.NewImmediateTicker(m.cfg.TrackInterval)
@@ -141,6 +176,8 @@ func claymoreLogParser(ctx context.Context, m *commonLogProcessor, reader io.Rea
 		}
 
 		line := scanner.Text()
+		m.maybeSaveLogLine(line)
+
 		if strings.Contains(line, "Total Speed: ") {
 			fields := strings.Fields(line)
 			if len(fields) != 13 {
