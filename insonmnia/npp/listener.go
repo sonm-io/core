@@ -13,28 +13,6 @@ import (
 	"go.uber.org/zap"
 )
 
-type connSource int
-
-func (m connSource) String() string {
-	switch m {
-	case sourceDirectConnection:
-		return "direct"
-	case sourceNPPConnection:
-		return "NPP"
-	case sourceRelayedConnection:
-		return "relay"
-	default:
-		return "unknown source"
-	}
-}
-
-const (
-	sourceError connSource = iota
-	sourceDirectConnection
-	sourceNPPConnection
-	sourceRelayedConnection
-)
-
 type connTuple struct {
 	conn net.Conn
 	err  error
