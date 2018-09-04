@@ -64,7 +64,6 @@ func (m *blacklistWatcher) Success() {
 		m.nextPeriod = minStep
 	}
 	m.lastSuccess = time.Now()
-	m.log.Debug("success", zap.Duration("step", m.nextPeriod))
 }
 
 func (m *blacklistWatcher) isBlacklisted() bool {
