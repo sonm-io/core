@@ -111,7 +111,8 @@ func New(ctx context.Context, cfg *Config, log *zap.Logger) (*engine, error) {
 func (e *engine) Serve(ctx context.Context) error {
 	defer e.close()
 
-	e.log.Info("starting engine", zap.Int("concurrency", concurrency))
+	e.log.Info("starting engine", zap.Int("concurrency", concurrency),
+		zap.Any("config", *e.cfg))
 
 	// perform extra config validation using external list of required benchmarks
 	if err := e.validateBenchmarks(ctx); err != nil {
