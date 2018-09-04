@@ -11,6 +11,9 @@ import (
 	"sync"
 	"time"
 
+	"io/ioutil"
+
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -751,5 +754,135 @@ func (m *prunedImage) pruneManifest(hdr *tar.Header) error {
 		return fmt.Errorf("failed to write manifest: %v", err)
 	}
 
+	return nil
+}
+
+type metaExtractor struct {
+	image *tar.Reader
+	meta  *outerLayerMeta
+}
+
+func newMetaExtractor(image io.Reader) *metaExtractor {
+	return &metaExtractor{
+		image: tar.NewReader(image),
+	}
+}
+
+func (m *metaExtractor) Process() (err error) {
+	for {
+		hdr, err := m.image.Next()
+		if err != nil {
+			return err
+		}
+		if hdr.Name != "manifest.json" {
+			if _, err := io.Copy(ioutil.Discard, m.image); err != nil {
+				return err
+			}
+
+			continue
+		}
+		if hdr.Size > units.MB*100 {
+			return errors.New("manifest.json larger than 100MB, aborting")
+		}
+		var manifest = bytes.NewBuffer(nil)
+		if _, err := io.Copy(manifest, m.image); err != nil {
+			return err
+		}
+		var layerMeta outerLayerMeta
+		if err := json.Unmarshal(manifest.Bytes(), &layerMeta); err != nil {
+			return fmt.Errorf("failed to unmarshal manifest.json: %v", err)
+		}
+		if len(layerMeta.Config) == 0 || len(layerMeta.Layers) == 0 {
+			return errors.New("manifest.json is malformed")
+		}
+		m.meta = &layerMeta
+
+		return nil
+	}
+
+	return errors.New("failed to find manifest.json")
+}
+
+type outerLayerMeta struct {
+	Config string   `json:"Config"`
+	Layers []string `json:"Layers"`
+}
+
+func (m *outerLayerMeta) IsOuterLayer(layerID string) bool {
+	return m.Layers[len(m.Layers)-1] == layerID
+}
+
+func (m *outerLayerMeta) IsLayer(layerID string) bool {
+	for _, ownLayer := range m.Layers[:len(m.Layers)-1] {
+		if layerID == ownLayer {
+			return true
+		}
+	}
+
+	return false
+}
+
+type outerLayerExtractor struct {
+	meta           *outerLayerMeta
+	image          *tar.Reader
+	writer         *tar.Writer
+	insideLayerDir bool
+	finished       bool
+}
+
+func newOuterLayerExtractor(image io.Reader, meta *outerLayerMeta) *outerLayerExtractor {
+	return &outerLayerExtractor{
+		image: tar.NewReader(image),
+		meta:  meta,
+	}
+}
+
+func (m *outerLayerExtractor) Extract(writer io.Writer) error {
+	m.writer = tar.NewWriter(writer)
+	for {
+		hdr, err := m.image.Next()
+		if err != nil {
+			return err
+		}
+
+		switch hdr.Name {
+		case "manifest.json":
+			if err := m.writeHeaderAndFile(hdr, m.image); err != nil {
+				return err
+			}
+		case m.meta.Config:
+			if err := m.writeHeaderAndFile(hdr, m.image); err != nil {
+				return err
+			}
+		}
+		if m.meta.IsOuterLayer(hdr.Name) {
+			m.insideLayerDir = true
+		}
+		if m.meta.IsOuterLayer(hdr.Name) {
+			if m.insideLayerDir {
+				m.finished = true
+			}
+			m.insideLayerDir = false
+		}
+
+		if m.finished {
+			return nil
+		}
+
+		if m.insideLayerDir {
+			if err := m.writeHeaderAndFile(hdr, m.image); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (m *outerLayerExtractor) writeHeaderAndFile(hdr *tar.Header, image *tar.Reader) error {
+	if err := m.writer.WriteHeader(hdr); err != nil {
+		return fmt.Errorf("failed to write %s header: %v", hdr.Name, err)
+	}
+	if _, err := io.Copy(m.writer, image); err != nil {
+		return fmt.Errorf("failed to write %s contents: %v", hdr.Name, err)
+	}
 	return nil
 }
