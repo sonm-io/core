@@ -113,14 +113,23 @@ func (m *SSHProxyServer) Serve(ctx context.Context) error {
 		Handler:     connHandler.onHandle,
 		HostSigners: convertHostSigners(hostSigners),
 	}
+	defer server.Close()
+
+	listener, err := net.Listen("tcp", m.cfg.Addr)
+	if err != nil {
+		return err
+	}
 
 	wg, ctx := errgroup.WithContext(ctx)
 	wg.Go(func() error {
-		return server.ListenAndServe()
+		return server.Serve(listener)
 	})
 
 	<-ctx.Done()
-	server.Close()
+
+	// Close this listener explicitly, otherwise race is possible, when the
+	// context is cancelled before SSH server started.
+	listener.Close()
 
 	return wg.Wait()
 }
