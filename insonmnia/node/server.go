@@ -223,6 +223,13 @@ func (m *Server) serveHTTP(ctx context.Context, listeners ...net.Listener) error
 
 	defer m.log.Infof("stopped REST server on %s", formatListeners(listeners))
 
+	go func() {
+		<-ctx.Done()
+		for _, listener := range listeners {
+			listener.Close()
+		}
+	}()
+
 	return m.serverREST.Serve(listeners...)
 }
 
