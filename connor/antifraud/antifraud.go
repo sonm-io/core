@@ -139,7 +139,7 @@ func (m *antiFraud) checkDeals(ctx context.Context) error {
 			zap.Float64("required", m.cfg.TaskQuality),
 		}
 
-		if m.isAddressWhitelisted(supplier) {
+		if shouldClose && m.isAddressWhitelisted(supplier) {
 			log.Warn("supplier is whitelisted, do not track failure", logQualityMetrics...)
 			shouldClose = false
 		}
@@ -307,9 +307,9 @@ func (m *antiFraud) whoToBlacklist(deal *sonm.Deal) sonm.BlacklistType {
 	return sonm.BlacklistType_BLACKLIST_NOBODY
 }
 
-func (m *antiFraud) isAddressWhitelisted(addr common.Address) bool {
+func (m *antiFraud) isAddressWhitelisted(supplier common.Address) bool {
 	for _, addr := range m.cfg.Whitelist {
-		if addr == addr {
+		if supplier == addr {
 			return true
 		}
 	}
